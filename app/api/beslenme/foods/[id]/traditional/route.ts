@@ -9,7 +9,8 @@ import {
   MOISTURE_QUALITIES,
   FOOD_TRADITIONAL_COLUMNS,
 } from "@/lib/beslenme/contracts";
-import { resolveFoodForRead, resolveFoodForWrite } from "@/lib/beslenme/foodEngine";
+import { resolveFoodForRead, resolveFoodForWrite, mapFoodRpcError } from "@/lib/beslenme/foodEngine";
+import { SYSTEM_NUTRITION_TENANT_ID } from "@/lib/beslenme/systemTenant";
 
 export const runtime = "nodejs";
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -30,15 +31,16 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
     .from("nutrition_food_traditional")
     .select(FOOD_TRADITIONAL_COLUMNS)
     .eq("tenant_id", food.tenant_id as string)
-    .eq("food_id", id)
+    .eq("food_id", food.id as string)
     .maybeSingle();
   if (error) return beslenmeJson({ ok: false, code: "READ_FAILED" }, 500);
   return NextResponse.json({ ok: true, traditional: data ?? null }, { headers: { "Cache-Control": "no-store" } });
 }
 
 /**
- * PUT: geleneksel niteliği upsert et (yalnız CUSTOM food). Tüm alanlar boşsa kaydı SİLER.
+ * PUT: geleneksel niteliği upsert et (ATOMİK RPC). Tüm alanlar boşsa kaydı SİLER.
  * body: { framework_id?, thermal_quality?, moisture_quality?, notes?, source_id? }
+ * source_id anahtarı GÖNDERİLMEZSE mevcut kaynak bağı KORUNUR (null → açıkça temizler).
  * NOT: profil↔food ilişkisi ("Safra: uygun") BURADA DUPLICATE EDİLMEZ — o topic_foods'ta.
  */
 export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
@@ -49,9 +51,6 @@ export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
   const { db, tenantId } = guard;
   const { id } = await ctx.params;
   if (!isUuid(id)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
-
-  const write = await resolveFoodForWrite(db, tenantId, id);
-  if (!write.ok) return beslenmeJson({ ok: false, code: write.code }, write.status);
 
   let body: Record<string, unknown>;
   try {
@@ -70,23 +69,26 @@ export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
   const moisture = body.moisture_quality == null ? null : inEnum(body.moisture_quality, MOISTURE_QUALITIES) ? body.moisture_quality : undefined;
   if (moisture === undefined) return beslenmeJson({ ok: false, code: "BAD_MOISTURE" }, 400);
   const notes = cleanStr(body.notes, 4000);
-  const source_id = isUuid(body.source_id) ? (body.source_id as string) : null;
+  if (body.source_id != null && !isUuid(body.source_id)) return beslenmeJson({ ok: false, code: "BAD_SOURCE" }, 400);
 
-  const empty = !framework_id && !thermal && !moisture && !notes && !source_id;
+  const row: Record<string, unknown> = { framework_id, thermal_quality: thermal, moisture_quality: moisture, notes };
+  if ("source_id" in body) row.source_id = isUuid(body.source_id) ? body.source_id : null;
 
-  // tek-kayıt: mevcut sil, boş değilse ekle (idempotent upsert).
-  const del = await db.from("nutrition_food_traditional").delete().eq("tenant_id", tenantId).eq("food_id", id);
-  if (del.error) return beslenmeJson({ ok: false, code: "WRITE_FAILED" }, 500);
-  if (empty) return NextResponse.json({ ok: true, traditional: null });
+  // Sahiplik + (gerekirse) kişisel kopya — gövde doğrulandıktan SONRA.
+  const write = await resolveFoodForWrite(db, tenantId, id);
+  if (!write.ok) return beslenmeJson({ ok: false, code: write.code }, write.status);
 
-  const { data, error } = await db
-    .from("nutrition_food_traditional")
-    .insert({ tenant_id: tenantId, food_id: id, framework_id, thermal_quality: thermal, moisture_quality: moisture, notes, source_id })
-    .select(FOOD_TRADITIONAL_COLUMNS)
-    .single();
+  // ATOMİK upsert (hata → eski kayıt korunur).
+  const { data, error } = await db.rpc("nutrition_food_traditional_replace", {
+    p_tenant_id: tenantId,
+    p_system_tenant_id: SYSTEM_NUTRITION_TENANT_ID,
+    p_food_id: write.food.id,
+    p_row: row,
+  });
   if (error) {
     if (error.code === "23503") return beslenmeJson({ ok: false, code: "REF_NOT_FOUND" }, 400);
-    return beslenmeJson({ ok: false, code: "WRITE_FAILED" }, 500);
+    const m = mapFoodRpcError(error.code);
+    return beslenmeJson({ ok: false, code: m.code }, m.status);
   }
-  return NextResponse.json({ ok: true, traditional: data });
+  return NextResponse.json({ ok: true, traditional: data ?? null, food_id: write.food.id, personalized: write.forked });
 }

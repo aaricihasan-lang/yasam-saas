@@ -173,12 +173,13 @@ check("counts topics/dietary_pattern is_active filtreli",
 check("counts profile (mizac/blood) is_active filtreli",
   /"traditional_profile"\)[\s\S]*?\.eq\("framework_id", frameworkId\)[\s\S]*?\.eq\("is_active",\s*true\)/.test(countsSrc));
 
-console.log("\n[archive] SourcesPanel kaynak arşivleme (is_active=false, hard-delete DEĞİL)");
+// 2026-09-27 owner kararı: Beslenme'de kullanıcıya yönelik ARŞİV YOK; kaldırma = onaylı "Sil".
+console.log("\n[delete] SourcesPanel kaynak SİLME (arşiv yok; onaylı; bağlıysa 409)");
 const sourcesPanel = read(resolve(ROOT, "app/beslenme/_components/SourcesPanel.tsx"));
-check("SourcesPanel updateSource ile is_active:false çağırır",
-  /updateSource\([^)]*\{\s*is_active:\s*false\s*\}\)/.test(sourcesPanel));
-check("SourcesPanel arşiv onayı (iki adımlı, confirmArchiveId)", /confirmArchiveId/.test(sourcesPanel));
-check("SourcesPanel arşivde hard-delete (deleteSource) KULLANMAZ", !/deleteSource/.test(sourcesPanel));
+check("SourcesPanel arşiv (is_active:false) YAZMAZ", !/is_active:\s*false/.test(sourcesPanel));
+check("SourcesPanel kaynak silme deleteSource + onay (useDeleteConfirm)",
+  /deleteSource\(/.test(sourcesPanel) && /useDeleteConfirm/.test(sourcesPanel));
+check("SourcesPanel IN_USE → kullanıcıya nerede kullanıldığı söylenir", /IN_USE/.test(sourcesPanel));
 
 console.log("\n[U/V] mizaç + kan grubu canonical");
 const contracts = read(resolve(ROOT, "lib/beslenme/contracts.ts"));

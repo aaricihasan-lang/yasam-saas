@@ -95,8 +95,12 @@ check("SYSTEM UUID route dosyalarında hardcode EDİLMEZ (tek kaynak)", hardcode
 
 console.log("\n[G] foodEngine erişim kapısı: read={SYSTEM,caller}, write=SYSTEM_READONLY");
 check("foodEngine read scope SYSTEM + caller (.in ile)", /readableScope|\.in\("tenant_id"/.test(foodEngine) || /SYSTEM_NUTRITION_TENANT_ID/.test(foodEngine));
-check("foodEngine resolveFoodForWrite SYSTEM → SYSTEM_READONLY 403",
-  /isSystemNutritionTenant\(food\.tenant_id\)[\s\S]*?SYSTEM_READONLY[\s\S]*?403/.test(foodEngine));
+// 2026-09-27 owner kararı: SYSTEM besini uzmanın KİŞİSEL KOPYASINA yönlenir (global satır YAZILMAZ);
+// SYSTEM tenant bağlamı (sentinel) sistem satırını değiştiremez → 403. (Eski: her SYSTEM yazma 403.)
+check("foodEngine resolveFoodForWrite SYSTEM → kişisel kopya (fork RPC), global satır yazılmaz",
+  /isSystemNutritionTenant\(eff\.tenant_id\)[\s\S]*?nutrition_food_fork_system/.test(foodEngine));
+check("foodEngine SYSTEM tenant bağlamı → SYSTEM_READONLY 403",
+  /isSystemNutritionTenant\(callerTenantId\)\)[\s\S]*?SYSTEM_READONLY[\s\S]*?403/.test(foodEngine));
 check("foodEngine caller-owned değilse yazma yok", /resolveFoodForWrite/.test(foodEngine));
 
 console.log("\n[H] route güvenlik sözleşmesi (yetkili-gate+demo+system-guard+mass-assign)");

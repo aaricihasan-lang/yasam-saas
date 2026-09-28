@@ -52,7 +52,7 @@ export type PlanStatusLike = "draft" | "active" | "archived" | string;
 const STATUS_LABELS: Record<string, string> = {
   draft: "Taslak",
   active: "Aktif",
-  archived: "Arşiv",
+  archived: "Kilitli",
 };
 export function statusLabel(status: PlanStatusLike): string {
   return STATUS_LABELS[status] ?? "Taslak";
@@ -79,7 +79,13 @@ export function revisionLabel(n: number | null | undefined): string {
 export function friendlyPlanError(code?: string, status?: number): string {
   switch (code) {
     case "PLAN_ARCHIVED":
-      return "Arşivlenmiş plan düzenlenemez.";
+      return "Bu plan düzenlemeye kapalı. Düzenlemek için planı kopyalayın.";
+    case "PLAN_NOT_DRAFT":
+      return "Besin değerleri yalnızca taslak planlarda güncellenebilir.";
+    case "REFRESH_STALE":
+      return "Plan bu arada değişti. Güncel farkları görmek için önizlemeyi yenileyin.";
+    case "NOTHING_TO_CLEAR":
+      return "Bu günde silinecek öğün yok.";
     case "RANGE_HAS_CONTENT":
       return "Yeni tarih aralığının dışında öğün bulunan günler var. Önce bu günleri temizleyin veya planı kopyalayın.";
     case "TARGET_NOT_EMPTY":

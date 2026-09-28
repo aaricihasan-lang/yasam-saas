@@ -86,7 +86,7 @@ export function TopicDetailEditor({
   onChanged,
 }: {
   topicId: string;
-  /** Konu arşivlendiğinde parent listeyi tazeler + seçimi temizler. */
+  /** Konu silindiğinde parent listeyi tazeler + seçimi temizler. */
   onDeleted: () => void;
   /** Başlık vb. değiştiğinde parent liste etiketini tazelemek için. */
   onChanged?: (topic: Topic) => void;
@@ -142,7 +142,12 @@ export function TopicDetailEditor({
 
   return (
     <div className="flex flex-col gap-4">
-      <TopicHeader topic={data.topic} onSaved={(t) => { setData({ ...data, topic: t }); onChanged?.(t); }} onDeleted={onDeleted} />
+      <TopicHeader
+        topic={data.topic}
+        related={{ sections: data.sections.length, foods: data.foods.length, sources: data.sources.length }}
+        onSaved={(t) => { setData({ ...data, topic: t }); onChanged?.(t); }}
+        onDeleted={onDeleted}
+      />
 
       {/* Sekme çubuğu */}
       <div className="inline-flex w-fit gap-1 rounded-xl bg-white/70 p-1 ring-1 ring-emerald-100">
@@ -168,8 +173,8 @@ export function TopicDetailEditor({
         <Card className="p-4">
           <SourcesPanel
             links={data.sources}
-            onLink={async (sourceId, locator) => {
-              const r = await linkTopicSource(topicId, { source_id: sourceId, locator });
+            onLink={async (body) => {
+              const r = await linkTopicSource(topicId, body);
               if (r.ok) await load();
               return r.ok;
             }}
@@ -213,10 +218,12 @@ function TabButton({
 /* ── Başlık + özet ── */
 function TopicHeader({
   topic,
+  related,
   onSaved,
   onDeleted,
 }: {
   topic: Topic;
+  related: { sections: number; foods: number; sources: number };
   onSaved: (t: Topic) => void;
   onDeleted: () => void;
 }) {
@@ -225,14 +232,13 @@ function TopicHeader({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [msg, setMsg] = useState<{ type: "error" | "success"; text: string } | null>(null);
-  const [confirmDel, setConfirmDel] = useState(false);
+  const deleteConfirm = useDeleteConfirm();
 
   useEffect(() => {
     runInEffect(() => {
       setTitle(topic.title);
       setSummary(topic.summary ?? "");
       setMsg(null);
-      setConfirmDel(false);
     });
   }, [topic.id, topic.title, topic.summary]);
 
@@ -255,7 +261,22 @@ function TopicHeader({
     }
   }
 
+  /** "Sil": kalıcı silme (arşiv YOK). İlişkili kayıtlar kullanıcıya açıkça söylenir. */
   async function doDelete() {
+    if (deleting) return;
+    const parts: string[] = [];
+    if (related.sections) parts.push(`${related.sections} bölüm`);
+    if (related.foods) parts.push(`${related.foods} besin ilişkisi`);
+    if (related.sources) parts.push(`${related.sources} kaynak bağlantısı`);
+    const ok = await deleteConfirm({
+      title: "Kaydı sil",
+      message:
+        `Bu kayıt kalıcı olarak silinecek${parts.length ? ` (${parts.join(", ")} dahil)` : ""}. ` +
+        "Besinlerin ve kaynak kataloğunuzun kendisi silinmez.",
+      names: [topic.title],
+      confirmText: "Sil",
+    });
+    if (!ok) return;
     setDeleting(true);
     const r = await deleteTopic(topic.id);
     setDeleting(false);
@@ -286,19 +307,9 @@ function TopicHeader({
           <PrimaryButton icon={<Save className="h-4 w-4" />} loading={saving} disabled={!dirty} onClick={() => void save()}>
             Kaydet
           </PrimaryButton>
-          {confirmDel ? (
-            <div className="flex items-center gap-2">
-              <span className="text-[12px] font-bold text-rose-600">Arşivlensin mi?</span>
-              <DangerButton loading={deleting} onClick={() => void doDelete()}>
-                Evet, Arşivle
-              </DangerButton>
-              <GhostButton onClick={() => setConfirmDel(false)}>Vazgeç</GhostButton>
-            </div>
-          ) : (
-            <DangerButton icon={<Trash2 className="h-4 w-4" />} onClick={() => setConfirmDel(true)}>
-              Arşivle
-            </DangerButton>
-          )}
+          <DangerButton icon={<Trash2 className="h-4 w-4" />} loading={deleting} onClick={() => void doDelete()}>
+            Sil
+          </DangerButton>
         </div>
       </div>
     </Card>

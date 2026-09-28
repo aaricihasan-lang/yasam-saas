@@ -82,7 +82,12 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
     }
   }
   if ("status" in body) {
-    if (typeof body.status !== "string" || !(PLAN_STATUSES as readonly string[]).includes(body.status)) {
+    // Beslenme'de kullanıcıya yönelik arşiv kaldırıldı: 'archived' durumu artık ÜRETİLMEZ.
+    if (
+      typeof body.status !== "string" ||
+      !(PLAN_STATUSES as readonly string[]).includes(body.status) ||
+      body.status === "archived"
+    ) {
       return beslenmeJson({ ok: false, code: "BAD_STATUS" }, 400);
     }
     patch.status = body.status;

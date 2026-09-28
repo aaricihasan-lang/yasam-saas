@@ -5,6 +5,7 @@
  * ("bilinmiyor"); açıkça 0 girilen alan kaydedilir. Kaynak: Manuel (sahte FDC/USDA üretilmez).
  */
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Plus, X } from "lucide-react";
 import { quickCreateFood, type FoodGroupRef, type Food, type QuickAddPayload } from "@/lib/beslenme/beslenmeClient";
 import { kcalMacroConsistency } from "@/lib/beslenme/quickAddFood";
@@ -116,8 +117,11 @@ export function QuickAddFoodDialog({
     else setMsg({ type: "error", text: friendlyError(r.code, r.status) });
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+  // Portal: plan besin seçici (Modal) içinden açıldığında da viewport'u kaplar; üst kapsayıcının
+  // backdrop-filter/overflow kutusuna sıkışmaz. z-[70] > ortak Modal z-[60].
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto overscroll-contain bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
       <div className="mt-6 w-full max-w-xl rounded-2xl bg-white p-5 shadow-xl ring-1 ring-slate-200">
         <div className="mb-1 flex items-center justify-between gap-2">
           <h2 className="text-lg font-black text-slate-900">{title}</h2>
@@ -203,6 +207,7 @@ export function QuickAddFoodDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

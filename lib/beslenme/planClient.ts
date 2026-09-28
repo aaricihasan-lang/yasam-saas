@@ -94,8 +94,38 @@ export function getDay(planId: string, dayId: string) {
 export function patchDay(planId: string, dayId: string, body: { energy_target_override?: number | null; note?: string | null }) {
   return req<{ day: PlanDayDetail }>(`/api/beslenme/plans/${planId}/days/${dayId}`, { method: "PATCH", headers: authHeaders(true), body: JSON.stringify(body) });
 }
-export function clearDay(planId: string, dayId: string) {
-  return req<Record<string, unknown>>(`/api/beslenme/plans/${planId}/days/${dayId}/clear`, { method: "POST", headers: authHeaders(true), body: "{}" });
+/** "Günü Temizle" (toplu silme) AŞAMA 3 kodu — kapsam (öğün/kalem sayısı) sunucuda hesaplanır. */
+export function requestClearDayChallenge(planId: string, dayId: string) {
+  return req<{ challenge_id: string; code: string; expires_at: string; count: number; meals: number; items: number }>(
+    `/api/beslenme/plans/${planId}/days/${dayId}/clear/challenge`,
+    { method: "POST", headers: authHeaders(true), body: "{}" },
+  );
+}
+/** Günü temizle — geçerli challenge + 4 haneli kod ZORUNLU (sunucu doğrular). */
+export function clearDay(planId: string, dayId: string, challengeId: string, code: string) {
+  return req<{ cleared: number }>(`/api/beslenme/plans/${planId}/days/${dayId}/clear`, {
+    method: "POST", headers: authHeaders(true), body: JSON.stringify({ challenge_id: challengeId, code }),
+  });
+}
+
+// ── Taslak plan: manuel "Besin değerlerini güncelle" ──
+export type SnapshotRefreshPreview = {
+  eligible: boolean;
+  status: string;
+  totalItems: number;
+  changes: Array<{
+    item_id: string; plan_date: string | null; meal_label: string | null; food_name_before: string;
+    food_name_after: string; grams: number; energy_per100_before: number | null; energy_per100_after: number | null;
+  }>;
+  unavailable: Array<{ item_id: string; food_name: string }>;
+};
+export function previewSnapshotRefresh(planId: string) {
+  return req<SnapshotRefreshPreview>(`/api/beslenme/plans/${planId}/refresh-snapshots`, { headers: authHeaders() });
+}
+export function applySnapshotRefresh(planId: string, expectedCount: number) {
+  return req<{ updated: number }>(`/api/beslenme/plans/${planId}/refresh-snapshots`, {
+    method: "POST", headers: authHeaders(true), body: JSON.stringify({ expected_count: expectedCount }),
+  });
 }
 export function copyDay(planId: string, dayId: string, targetDayId: string) {
   return req<Record<string, unknown>>(`/api/beslenme/plans/${planId}/days/${dayId}/copy`, { method: "POST", headers: authHeaders(true), body: JSON.stringify({ targetDayId }) });

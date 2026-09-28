@@ -307,7 +307,8 @@ function simulatePruneEffect(initial: Set<string>, visibleIds: string[], maxLoop
     assert.match(tab, /banner\.measurementDeleteFailed/);
     assert.match(tab, /banner\.prefDeleteFailed/);
     const tde = read("app/beslenme/_components/TopicDetailEditor.tsx");
-    assert.equal((tde.match(/await deleteConfirm\(/g) ?? []).length, 2, "bölüm + konu-besin");
+    // Beslenme arşiv kaldırıldı (2026-09-27): rehber "Arşivle" → onaylı "Sil" → 3 onaylı silme yolu.
+    assert.equal((tde.match(/await deleteConfirm\(/g) ?? []).length, 3, "bölüm + konu-besin + rehber Sil");
     assert.match(read("app/beslenme/_components/SourcesPanel.tsx"), /await deleteConfirm\(/);
     assert.match(read("app/beslenme/planlar/_components/MealCard.tsx"), /await deleteConfirm\(/);
     const sab = read("app/beslenme/sablonlar/page.tsx");

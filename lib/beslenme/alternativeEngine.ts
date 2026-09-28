@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SYSTEM_NUTRITION_TENANT_ID, foodOwnershipClass } from "./systemTenant";
 import { fetchAllPaged, chunkIds } from "./pagedFetch";
+import { loadShadowedSystemIds } from "./effectiveBatch";
 
 /**
  * Beslenme FAZ 6 / Yaklaşık Besin Alternatifleri — DETERMİNİSTİK, SERVER-SIDE, AI YOK.
@@ -194,7 +195,9 @@ const readableScope = (tenantId: string): string[] =>
  *   - Item yoksa → NOT_FOUND/404.
  *   - Hedef enerji/makro item snapshot rows'undan (frozen /100 g). targetTotalEnergy = e/100 × grams.
  *   - targetGroupId: item.food_id varsa nutrition_foods.food_group_id (silinmiş/null olabilir).
- *   - Aday havuzu: nutrition_foods (SYSTEM ∪ caller, is_active) − item'ın kendi food_id'si.
+ *   - Aday havuzu: EFFECTIVE besinler (SYSTEM ∪ caller, is_active) − item'ın kendi besini.
+ *     Uzmanın kişisel kopyası olan / çalışma alanından kaldırdığı SYSTEM satırı aday OLMAZ
+ *     (kopya kendi satırıyla aday olur; değerleri uzmanın değerleridir).
  *   - amount match: grams = round(targetTotalEnergy / cand.energyPer100 × 100) (yalnız display).
  */
 export async function resolveAlternativesForItem(
@@ -253,16 +256,23 @@ export async function resolveAlternativesForItem(
   //   PostgREST yanıt sınırını aşabilir; range() olmadan çekilirse son adaylar SESSİZCE düşer
   //   → alternatif önerileri eksik. `id` PK deterministik + benzersiz sıra (sayfa sınırında
   //   satır atlanmaz/yinelenmez). Snapshot-only: yalnız verilen sorgu; canlı yeniden hesap YOK.
-  const foods = await fetchAllPaged<{ id: string; tenant_id: string; name_tr: string; food_group_id: string | null }>(
+  const pool = await fetchAllPaged<{ id: string; tenant_id: string; name_tr: string; food_group_id: string | null; origin_food_id: string | null }>(
     (from, to) => {
       let q = db
         .from("nutrition_foods")
-        .select("id, tenant_id, name_tr, food_group_id")
+        .select("id, tenant_id, name_tr, food_group_id, origin_food_id")
         .in("tenant_id", scope)
         .eq("is_active", true);
       if (item.food_id) q = q.neq("id", item.food_id);
       return q.order("id", { ascending: true }).range(from, to);
     },
+  );
+  const shadowed = await loadShadowedSystemIds(db, tenantId);
+  const foods = pool.filter(
+    (f) =>
+      !(f.tenant_id === SYSTEM_NUTRITION_TENANT_ID && shadowed.has(f.id)) &&
+      // item'ın besininin kişisel kopyası / kopyanın sistem aslı → aynı besin, aday değil.
+      !(item.food_id && f.origin_food_id === item.food_id),
   );
   if (foods.length === 0) {
     return {

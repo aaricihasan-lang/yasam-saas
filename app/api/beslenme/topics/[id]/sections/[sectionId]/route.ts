@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { isActiveTopicInTenant } from "@/lib/beslenme/topicGuard";
 import { SECTION_COLUMNS, SECTION_KEYS, cleanStr, inEnum, isUuid, hasOnlyKeys } from "@/lib/beslenme/contracts";
 
 export const runtime = "nodejs";
@@ -14,6 +15,8 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
   const { db, tenantId } = guard;
   const { id: topicId, sectionId } = await ctx.params;
   if (!isUuid(topicId) || !isUuid(sectionId)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
+  // Rehber bu tenant'a ait + aktif olmalı (legacy pasif rehberin alt kayıtları API'den de değişmez).
+  if (!(await isActiveTopicInTenant(db, tenantId, topicId))) return beslenmeJson({ ok: false, code: "TOPIC_NOT_FOUND" }, 404);
 
   let body: Record<string, unknown>;
   try {
@@ -56,6 +59,8 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
   const { db, tenantId } = guard;
   const { id: topicId, sectionId } = await ctx.params;
   if (!isUuid(topicId) || !isUuid(sectionId)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
+  // Rehber bu tenant'a ait + aktif olmalı (legacy pasif rehberin alt kayıtları API'den de değişmez).
+  if (!(await isActiveTopicInTenant(db, tenantId, topicId))) return beslenmeJson({ ok: false, code: "TOPIC_NOT_FOUND" }, 404);
 
   const { error, count } = await db
     .from("nutrition_topic_sections")

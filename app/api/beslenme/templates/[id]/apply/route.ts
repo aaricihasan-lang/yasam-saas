@@ -47,7 +47,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   const { db, tenantId } = access;
 
   // Ownership pre-checks (server-side; RPC de doğrular, ama net 404 için).
-  const template = await getTemplate(db, tenantId, id);
+  const template = await getTemplate(db, tenantId, id, { activeOnly: true });
   if (!template) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
   const dayScope = await getDayScope(db, tenantId, body.target_day_id as string);
   if (!dayScope || dayScope.plan_id !== body.target_plan_id) {

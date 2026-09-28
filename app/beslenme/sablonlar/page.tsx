@@ -1,7 +1,7 @@
 "use client";
 /**
  * Beslenme Şablon Kütüphanesi (FAZ 6). Öğün/Gün şablonlarını listeler; yeniden adlandır,
- * çoğalt, arşivle/sil, içerik incele. Şablonu plana UYGULAMA plan editöründen yapılır
+ * çoğalt, sil (onaylı; arşiv yok). Şablonu plana UYGULAMA plan editöründen yapılır
  * (hedef gün gerektiği için). Owner-only.
  */
 import { useCallback, useEffect, useState } from "react";

@@ -36,6 +36,12 @@ export type FkParent = {
   parentColumn?: string;
   /** ON DELETE SET NULL ilişkisi: ebeveyn yoksa satır ATLANMAZ, bu kolon null yazılır (raporlanır). */
   optional?: boolean;
+  /**
+   * Ebeveyn restore eden tenant'ta DEĞİL, SABİT bir tenant'ta aranır (ör. Beslenme global SİSTEM
+   * besin kataloğu: uzmanın kişisel kopyası `origin_food_id` ve çalışma alanından kaldırdığı sistem
+   * besini `food_id`). Verilmezse ebeveyn restore eden tenant'ta aranır (varsayılan).
+   */
+  parentTenantId?: string;
 };
 
 /** Storage yolu öneki şeması (tenant id ile somutlaşır). */

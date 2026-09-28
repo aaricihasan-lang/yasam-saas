@@ -1,28 +1,27 @@
 "use client";
 /**
- * Beslenme FAZ 4 — Besin detayında BESİN DEĞERLERİ / PORSİYONLAR / GELENEKSEL panelleri.
- * SYSTEM food → salt-okunur; CUSTOM food → düzenlenebilir. Nutrient facts ile geleneksel
- * nitelik GÖRSEL OLARAK AYRIDIR. Eksik değer "—" gösterilir (0 DEĞİL).
+ * Beslenme — Besin detayında BESİN DEĞERLERİ / PORSİYONLAR / GELENEKSEL panelleri.
+ *
+ * Tüm besinler (sistem kataloğundan gelenler dahil) düzenlenebilir: sistem besininde ilk kayıt
+ * sunucuda uzmanın KİŞİSEL KOPYASINI oluşturur (global kayıt değişmez) ve sunucu effective
+ * besin kimliğini döndürür → `onChanged(foodId)` ile ekran kopyaya geçer. Kullanıcıya teknik
+ * kavram gösterilmez. Nutrient facts ile geleneksel nitelik GÖRSEL OLARAK AYRIDIR. Eksik değer
+ * "—" gösterilir (0 DEĞİL).
+ *
+ * VERİ KORUMA: porsiyon kaydında id + quantity gönderilir (miktar 1'e sıfırlanmaz); besin değeri
+ * ve geleneksel kayıtlarda kaynak bağı (source_id) gönderilmez → sunucu mevcut bağı KORUR.
  */
 import { useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import type { FoodNutrientView, FoodPortionView, FoodTraditional, FrameworkRef } from "@/lib/beslenme/beslenmeClient";
 import { putFoodNutrients, putFoodPortions, putFoodTraditional } from "@/lib/beslenme/beslenmeClient";
 import { calculateFoodForPortion, formatAmount, type Per100g } from "@/lib/beslenme/calc/nutrients";
+import { NUTRIENT_FIELDS, NUTRIENT_FIELD_CODES, NUTRIENT_GROUPS } from "@/lib/beslenme/nutrientFields";
 import { friendlyError } from "./constants";
-import { Card, EmptyState, Field, GhostButton, PrimaryButton, SelectInput, StatusMessage, TextInput } from "./primitives";
+import { Card, Field, GhostButton, PrimaryButton, SelectInput, StatusMessage, TextInput } from "./primitives";
 
-/** Düzenleme için MVP nutrient sırası + kanonik birim (Class A seed ile uyumlu). */
-const MVP_NUTRIENTS: Array<{ code: string; label: string; unit: string }> = [
-  { code: "energy", label: "Enerji", unit: "kcal" },
-  { code: "protein", label: "Protein", unit: "g" },
-  { code: "carbohydrate", label: "Karbonhidrat", unit: "g" },
-  { code: "total_fat", label: "Toplam Yağ", unit: "g" },
-  { code: "fiber", label: "Lif", unit: "g" },
-  { code: "sugar", label: "Şeker", unit: "g" },
-  { code: "sodium", label: "Sodyum", unit: "mg" },
-  { code: "potassium", label: "Potasyum", unit: "mg" },
-];
+/** Kayıt sonrası: effective besin id (sistem besininde ilk kayıt → kişisel kopya id). */
+export type FoodChanged = (effectiveFoodId?: string) => void;
 
 function per100gFrom(nutrients: FoodNutrientView[]): Per100g[] {
   return nutrients
@@ -33,14 +32,12 @@ function per100gFrom(nutrients: FoodNutrientView[]): Per100g[] {
 // ── BESİN DEĞERLERİ ─────────────────────────────────────────────────────────
 export function NutrientsPanel({
   foodId,
-  isSystem,
   nutrients,
   onChanged,
 }: {
   foodId: string;
-  isSystem: boolean;
   nutrients: FoodNutrientView[];
-  onChanged: () => void;
+  onChanged: FoodChanged;
 }) {
   const initial = useMemo(() => {
     const m: Record<string, string> = {};
@@ -49,6 +46,7 @@ export function NutrientsPanel({
   }, [nutrients]);
   const [vals, setVals] = useState<Record<string, string>>(initial);
   const [editing, setEditing] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
@@ -62,23 +60,21 @@ export function NutrientsPanel({
     setBusy(true);
     setMsg(null);
     const items: Array<{ nutrient_code: string; amount: number; unit_code: string }> = [];
-    for (const row of MVP_NUTRIENTS) {
-      const raw = (vals[row.code] ?? "").trim().replace(",", ".");
-      if (raw === "") continue; // boş = satır yok (0 yazma yok)
+    for (const f of NUTRIENT_FIELDS) {
+      const raw = (vals[f.code] ?? "").trim().replace(",", ".");
+      if (raw === "") continue; // boş = bilinmiyor (satır yok; 0 yazılmaz)
       const amount = Number(raw);
       if (!Number.isFinite(amount) || amount < 0) {
         setBusy(false);
-        setMsg({ type: "error", text: `${row.label}: geçerli bir sayı girin (negatif olamaz).` });
+        setMsg({ type: "error", text: `${f.label}: geçerli bir sayı girin (negatif olamaz).` });
         return;
       }
-      items.push({ nutrient_code: row.code, amount, unit_code: row.unit });
+      // Mevcut kayıt farklı (izinli) bir birimdeyse o birim korunur; yoksa kanonik birim.
+      items.push({ nutrient_code: f.code, amount, unit_code: byCode[f.code]?.unit?.code ?? f.unit });
     }
-    // MVP DIŞI mevcut nutrient'ları KORU: bu panel yalnız MVP alanları düzenler ama PUT
-    // set-replace'tir → korunmazsa QuickAdd ile eklenen vitamin/mineral vb. (kalsiyum, demir,
-    // A/C/D/B12, folat…) kaydederken SESSİZCE SİLİNİRDİ. Bilinen 0 dahil aynen taşınır.
-    const mvpCodes = new Set(MVP_NUTRIENTS.map((r) => r.code));
+    // Bu ekranda alanı olmayan (sözlüğe sonradan eklenmiş) mevcut değerleri KORU.
     for (const n of nutrients) {
-      if (n.nutrient?.code && n.unit?.code && !mvpCodes.has(n.nutrient.code)) {
+      if (n.nutrient?.code && n.unit?.code && !NUTRIENT_FIELD_CODES.has(n.nutrient.code)) {
         items.push({ nutrient_code: n.nutrient.code, amount: n.amount, unit_code: n.unit.code });
       }
     }
@@ -87,61 +83,82 @@ export function NutrientsPanel({
     if (r.ok) {
       setEditing(false);
       setMsg({ type: "success", text: "Besin değerleri kaydedildi." });
-      onChanged();
+      onChanged(r.data?.food_id);
     } else setMsg({ type: "error", text: friendlyError(r.code, r.status) });
   }
+
+  const hasAnyValue = (codes: string[]) => codes.some((c) => byCode[c]);
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="text-[13px] font-black text-slate-700">100 g için</p>
-        {!isSystem && !editing ? (
-          <GhostButton onClick={() => setEditing(true)}>Düzenle</GhostButton>
-        ) : null}
+        {!editing ? <GhostButton onClick={() => { setVals(initial); setEditing(true); }}>Düzenle</GhostButton> : null}
       </div>
       {msg ? <StatusMessage type={msg.type}>{msg.text}</StatusMessage> : null}
 
-      {isSystem && nutrients.length === 0 ? (
-        <EmptyState title="Bu besin için değer girilmemiş." description="Sistem besni; değerler USDA kaynağından gelir." />
-      ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-100">
-          <table className="w-full text-[13px]">
-            <tbody>
-              {MVP_NUTRIENTS.map((row) => {
-                const existing = byCode[row.code];
-                return (
-                  <tr key={row.code} className="border-b border-slate-50 last:border-0">
-                    <td className="px-3 py-2 font-medium text-slate-600">{row.label}</td>
-                    <td className="px-3 py-2 text-right">
-                      {editing ? (
-                        <input
-                          inputMode="decimal"
-                          value={vals[row.code] ?? ""}
-                          onChange={(e) => setVals((p) => ({ ...p, [row.code]: e.target.value }))}
-                          placeholder="—"
-                          className="w-24 rounded-lg border border-slate-200 px-2 py-1 text-right text-[13px] focus:border-emerald-400 focus:outline-none"
-                        />
-                      ) : existing ? (
-                        <span className="font-black text-slate-800">
-                          {formatAmount(existing.amount, existing.unit?.code ?? row.unit)}
-                        </span>
-                      ) : (
-                        <span className="text-slate-300">—</span>
-                      )}
-                    </td>
-                    <td className="w-10 px-2 py-2 text-left text-[11px] text-slate-400">{existing?.unit?.symbol ?? row.unit}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {NUTRIENT_GROUPS.map((g) => {
+        const codes = g.fields.map((f) => f.code);
+        const visible = editing || g.key === "main" || showAll || hasAnyValue(codes);
+        if (!visible) return null;
+        const rows = editing || g.key === "main" || showAll ? g.fields : g.fields.filter((f) => byCode[f.code]);
+        return (
+          <div key={g.key} className="overflow-hidden rounded-xl border border-slate-100">
+            <p className="bg-slate-50/80 px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-slate-500">{g.label}</p>
+            <table className="w-full text-[13px]">
+              <tbody>
+                {rows.map((f) => {
+                  const existing = byCode[f.code];
+                  const unitCode = existing?.unit?.code ?? f.unit;
+                  return (
+                    <tr key={f.code} className="border-b border-slate-50 last:border-0">
+                      <td className="px-3 py-2 font-medium text-slate-600">{f.label}</td>
+                      <td className="px-3 py-2 text-right">
+                        {editing ? (
+                          <input
+                            inputMode="decimal"
+                            value={vals[f.code] ?? ""}
+                            onChange={(e) => setVals((p) => ({ ...p, [f.code]: e.target.value }))}
+                            placeholder="—"
+                            aria-label={`${f.label} (${unitCode})`}
+                            className="w-24 rounded-lg border border-slate-200 px-2 py-1 text-right text-[13px] focus:border-emerald-400 focus:outline-none"
+                          />
+                        ) : existing ? (
+                          <span className="font-black text-slate-800">{formatAmount(existing.amount, unitCode)}</span>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                      </td>
+                      <td className="w-12 px-2 py-2 text-left text-[11px] text-slate-400">{existing?.unit?.symbol ?? f.unit}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+      })}
+
+      {!editing ? (
+        <div>
+          <GhostButton
+            icon={showAll ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            onClick={() => setShowAll((v) => !v)}
+          >
+            {showAll ? "Yalnız girilen değerleri göster" : "Tüm besin öğelerini göster"}
+          </GhostButton>
         </div>
-      )}
+      ) : null}
 
       {editing ? (
-        <div className="flex gap-2">
-          <PrimaryButton loading={busy} onClick={() => void save()}>Kaydet</PrimaryButton>
-          <GhostButton onClick={() => { setEditing(false); setVals(initial); setMsg(null); }}>Vazgeç</GhostButton>
+        <div className="flex flex-col gap-2">
+          <p className="text-[11px] font-medium text-slate-400">
+            Boş bıraktığınız alan &quot;bilinmiyor&quot; olarak kalır; 0 yazarsanız gerçek sıfır kaydedilir.
+          </p>
+          <div className="flex gap-2">
+            <PrimaryButton loading={busy} onClick={() => void save()}>Kaydet</PrimaryButton>
+            <GhostButton onClick={() => { setEditing(false); setVals(initial); setMsg(null); }}>Vazgeç</GhostButton>
+          </div>
         </div>
       ) : null}
     </div>
@@ -149,20 +166,25 @@ export function NutrientsPanel({
 }
 
 // ── PORSİYONLAR ─────────────────────────────────────────────────────────────
-type PortionDraft = { label_tr: string; measure_unit_code: string; gram_weight: string; is_default: boolean };
+type PortionDraft = {
+  id?: string;
+  label_tr: string;
+  measure_unit_code: string;
+  gram_weight: string;
+  is_default: boolean;
+  quantity?: number;
+};
 
 export function PortionsPanel({
   foodId,
-  isSystem,
   portions,
   nutrients,
   onChanged,
 }: {
   foodId: string;
-  isSystem: boolean;
   portions: FoodPortionView[];
   nutrients: FoodNutrientView[];
-  onChanged: () => void;
+  onChanged: FoodChanged;
 }) {
   const per100 = useMemo(() => per100gFrom(nutrients), [nutrients]);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -174,10 +196,12 @@ export function PortionsPanel({
   function startEdit() {
     setDrafts(
       portions.map((p) => ({
+        id: p.id,
         label_tr: p.label_tr,
         measure_unit_code: p.unit?.code ?? "piece",
         gram_weight: String(p.gram_weight),
         is_default: p.is_default,
+        quantity: p.quantity,
       })),
     );
     setEditing(true);
@@ -187,22 +211,34 @@ export function PortionsPanel({
     setBusy(true);
     setMsg(null);
     const items = [];
-    for (const d of drafts) {
+    for (const [i, d] of drafts.entries()) {
       const g = Number((d.gram_weight ?? "").trim().replace(",", "."));
       if (!d.label_tr.trim() || !Number.isFinite(g) || g <= 0) {
         setBusy(false);
         setMsg({ type: "error", text: "Her porsiyon için ad ve 0'dan büyük gram değeri girin." });
         return;
       }
-      items.push({ label_tr: d.label_tr.trim(), measure_unit_code: d.measure_unit_code, gram_weight: g, is_default: d.is_default });
+      items.push({
+        ...(d.id ? { id: d.id } : {}),
+        ...(d.quantity != null ? { quantity: d.quantity } : {}),
+        label_tr: d.label_tr.trim(),
+        measure_unit_code: d.measure_unit_code,
+        gram_weight: g,
+        is_default: d.is_default,
+        sort_order: i,
+      });
     }
     const r = await putFoodPortions(foodId, items);
     setBusy(false);
     if (r.ok) {
       setEditing(false);
       setMsg({ type: "success", text: "Porsiyonlar kaydedildi." });
-      onChanged();
+      onChanged(r.data?.food_id);
     } else setMsg({ type: "error", text: friendlyError(r.code, r.status) });
+  }
+
+  async function removeDraft(i: number) {
+    setDrafts((p) => p.filter((_, j) => j !== i));
   }
 
   if (editing) {
@@ -210,7 +246,7 @@ export function PortionsPanel({
       <div className="flex flex-col gap-3">
         {msg ? <StatusMessage type={msg.type}>{msg.text}</StatusMessage> : null}
         {drafts.map((d, i) => (
-          <div key={i} className="grid grid-cols-1 gap-2 rounded-xl border border-slate-100 p-3 sm:grid-cols-[1fr_auto_auto_auto]">
+          <div key={d.id ?? `new-${i}`} className="grid grid-cols-1 gap-2 rounded-xl border border-slate-100 p-3 sm:grid-cols-[1fr_auto_auto_auto]">
             <TextInput value={d.label_tr} placeholder="1 orta elma" onChange={(e) => setDrafts((p) => p.map((x, j) => (j === i ? { ...x, label_tr: e.target.value } : x)))} />
             <SelectInput value={d.measure_unit_code} onChange={(e) => setDrafts((p) => p.map((x, j) => (j === i ? { ...x, measure_unit_code: e.target.value } : x)))}>
               <option value="piece">adet</option>
@@ -219,8 +255,8 @@ export function PortionsPanel({
               <option value="tbsp">yemek kaşığı</option>
               <option value="tsp">tatlı kaşığı</option>
             </SelectInput>
-            <input inputMode="decimal" value={d.gram_weight} placeholder="g" onChange={(e) => setDrafts((p) => p.map((x, j) => (j === i ? { ...x, gram_weight: e.target.value } : x)))} className="w-20 rounded-lg border border-slate-200 px-2 py-1.5 text-right text-[13px]" />
-            <button type="button" aria-label="Sil" onClick={() => setDrafts((p) => p.filter((_, j) => j !== i))} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600">
+            <input inputMode="decimal" value={d.gram_weight} placeholder="g" aria-label="Gram" onChange={(e) => setDrafts((p) => p.map((x, j) => (j === i ? { ...x, gram_weight: e.target.value } : x)))} className="w-20 rounded-lg border border-slate-200 px-2 py-1.5 text-right text-[13px]" />
+            <button type="button" aria-label="Porsiyonu kaldır" title="Porsiyonu kaldır (Kaydet ile kalıcı olur)" onClick={() => void removeDraft(i)} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600">
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
@@ -230,6 +266,9 @@ export function PortionsPanel({
             Porsiyon Ekle
           </GhostButton>
         </div>
+        <p className="text-[11px] font-medium text-slate-400">
+          Kaldırdığınız porsiyonlar &quot;Kaydet&quot;e basana kadar silinmez; vazgeçerseniz değişmez.
+        </p>
         <div className="flex gap-2">
           <PrimaryButton loading={busy} onClick={() => void save()}>Kaydet</PrimaryButton>
           <GhostButton onClick={() => { setEditing(false); setMsg(null); }}>Vazgeç</GhostButton>
@@ -242,11 +281,13 @@ export function PortionsPanel({
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="text-[13px] font-black text-slate-700">Porsiyonlar</p>
-        {!isSystem ? <GhostButton onClick={startEdit}>Düzenle</GhostButton> : null}
+        <GhostButton onClick={startEdit}>Düzenle</GhostButton>
       </div>
       {msg ? <StatusMessage type={msg.type}>{msg.text}</StatusMessage> : null}
       {portions.length === 0 ? (
-        <EmptyState title="Porsiyon eklenmemiş." description="Ev ölçüsü → gram karşılığı (ör. 1 orta = 182 g)." />
+        <p className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-center text-[13px] text-slate-400">
+          Porsiyon eklenmemiş. Ev ölçüsü → gram karşılığı ekleyebilirsiniz (ör. 1 orta = 182 g).
+        </p>
       ) : (
         <ul className="flex flex-col gap-1.5">
           {portions.map((p) => {
@@ -268,7 +309,8 @@ export function PortionsPanel({
                       .filter((v) => ["energy", "protein", "carbohydrate", "total_fat", "fiber"].includes(v.nutrient_code))
                       .map((v) => {
                         const nv = nutrients.find((n) => n.nutrient?.code === v.nutrient_code);
-                        return `${nv?.nutrient?.name_tr ?? v.nutrient_code} ${formatAmount(v.amount, v.unit_code)} ${nv?.unit?.symbol ?? ""}`;
+                        const label = NUTRIENT_FIELDS.find((f) => f.code === v.nutrient_code)?.label ?? nv?.nutrient?.name_tr ?? v.nutrient_code;
+                        return `${label} ${formatAmount(v.amount, v.unit_code)} ${nv?.unit?.symbol ?? ""}`;
                       })
                       .join(" · ")}
                   </div>
@@ -290,16 +332,14 @@ const MOISTURE_L: Record<string, string> = { wet: "Yaş", dry: "Kuru", neutral: 
 
 export function TraditionalPanel({
   foodId,
-  isSystem,
   traditional,
   frameworks,
   onChanged,
 }: {
   foodId: string;
-  isSystem: boolean;
   traditional: FoodTraditional | null;
   frameworks: FrameworkRef[];
-  onChanged: () => void;
+  onChanged: FoodChanged;
 }) {
   const [editing, setEditing] = useState(false);
   const [thermal, setThermal] = useState(traditional?.thermal_quality ?? "");
@@ -312,6 +352,7 @@ export function TraditionalPanel({
   async function save() {
     setBusy(true);
     setMsg(null);
+    // source_id GÖNDERİLMEZ → mevcut kaynak bağı sunucuda korunur.
     const r = await putFoodTraditional(foodId, {
       framework_id: frameworkId || null,
       thermal_quality: thermal || null,
@@ -322,7 +363,7 @@ export function TraditionalPanel({
     if (r.ok) {
       setEditing(false);
       setMsg({ type: "success", text: "Geleneksel nitelik kaydedildi." });
-      onChanged();
+      onChanged(r.data?.food_id);
     } else setMsg({ type: "error", text: friendlyError(r.code, r.status) });
   }
 
@@ -382,7 +423,7 @@ export function TraditionalPanel({
             ) : null}
           </div>
           {traditional?.notes ? <p className="text-[13px] text-slate-600">{traditional.notes}</p> : null}
-          {!isSystem ? <div><GhostButton onClick={() => setEditing(true)}>Düzenle</GhostButton></div> : null}
+          <div><GhostButton onClick={() => setEditing(true)}>Düzenle</GhostButton></div>
         </div>
       )}
     </div>

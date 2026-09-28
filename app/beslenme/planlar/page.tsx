@@ -1,8 +1,8 @@
 "use client";
 /**
- * Beslenme Planları listesi. Plan kartları + durum filtresi + yeni plan. Kart
- * aksiyonları: Aç / Kopyala / Yeni Revizyon / Arşivle (2 adımlı onay). Arşiv
- * planlarda yalnız Kopyala.
+ * Beslenme Planları listesi. Plan kartları + yeni plan. Kart aksiyonları:
+ * Aç / Kopyala / Yeni Revizyon / Sil (açık onay; arşiv YOK). Geçmişten kalan
+ * kilitli (legacy archived) planlarda yalnız Kopyala + Sil.
  */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -11,11 +11,13 @@ import { useRouter } from "next/navigation";
 import { CalendarDays, Copy, GitBranch, Plus } from "lucide-react";
 import {
   copyPlan,
+  deletePlan,
   listPlans,
-  patchPlan,
   revisePlan,
   type Plan,
 } from "@/lib/beslenme/planClient";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { Trash2 } from "lucide-react";
 import {
   BeslenmeGate,
   BeslenmeShell,
@@ -38,13 +40,6 @@ import {
   statusLabel,
 } from "./_components/planFormat";
 
-const FILTERS: Array<{ value: string; label: string }> = [
-  { value: "", label: "Tümü" },
-  { value: "draft", label: "Taslak" },
-  { value: "active", label: "Aktif" },
-  { value: "archived", label: "Arşiv" },
-];
-
 export default function PlanlarPage() {
   const guard = useBeslenmeModuleGuard();
   const router = useRouter();
@@ -52,11 +47,11 @@ export default function PlanlarPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [filter, setFilter] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [confirmArchiveId, setConfirmArchiveId] = useState<string | null>(null);
   const [actionErr, setActionErr] = useState("");
+  const [actionOk, setActionOk] = useState("");
+  const deleteConfirm = useDeleteConfirm();
   // FAZ 7: danışan detayından "Yeni Beslenme Planı" → ?newForClient=&clientName= ile ön-seçili danışan.
   // useSearchParams yerine window.location (Suspense sınırı gerektirmez).
   const [presetClient, setPresetClient] = useState<{ id: string; name: string } | null>(null);
@@ -74,11 +69,11 @@ export default function PlanlarPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setErr("");
-    const r = await listPlans({ status: filter || undefined });
+    const r = await listPlans();
     setLoading(false);
     if (r.ok && r.data) setPlans(r.data.plans ?? []);
     else setErr(friendlyPlanError(r.code, r.status));
-  }, [filter]);
+  }, []);
 
   useEffect(() => {
     if (guard !== "ok") return;
@@ -106,14 +101,27 @@ export default function PlanlarPage() {
     else setActionErr(friendlyPlanError(r.code, r.status));
   }
 
-  async function doArchive(plan: Plan) {
+  /** "Sil": bu plan revizyonu kalıcı silinir (onaylı; ilişkili gün/öğün/kalemler açıkça söylenir). */
+  async function doDelete(plan: Plan) {
+    if (busyId) return;
+    const ok = await deleteConfirm({
+      title: "Planı sil",
+      message:
+        "Bu plan kalıcı olarak silinecek. Plana ait tüm günler, öğünler ve besin kalemleri de silinir. " +
+        "Varsa diğer revizyonlar etkilenmez.",
+      names: [`${plan.title}${plan.revision_number > 1 ? ` (${revisionLabel(plan.revision_number)})` : ""}`],
+      confirmText: "Sil",
+    });
+    if (!ok) return;
     setBusyId(plan.id);
     setActionErr("");
-    const r = await patchPlan(plan.id, { status: "archived", expectedUpdatedAt: plan.updated_at });
+    setActionOk("");
+    const r = await deletePlan(plan.id);
     setBusyId(null);
-    setConfirmArchiveId(null);
-    if (r.ok) await load();
-    else setActionErr(friendlyPlanError(r.code, r.status));
+    if (r.ok) {
+      setActionOk(`"${plan.title}" silindi.`);
+      await load();
+    } else setActionErr(friendlyPlanError(r.code, r.status));
   }
 
   return (
@@ -128,24 +136,11 @@ export default function PlanlarPage() {
         </PrimaryButton>
       }
     >
-      {/* Durum filtresi */}
-      <div className="mb-4 flex flex-wrap gap-1.5">
-        {FILTERS.map((f) => (
-          <button
-            key={f.value || "all"}
-            type="button"
-            onClick={() => setFilter(f.value)}
-            className={`rounded-xl border px-3.5 py-1.5 text-[12px] font-black shadow-sm transition ${
-              filter === f.value
-                ? "border-emerald-300 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
+      {actionOk ? (
+        <div className="mb-4">
+          <StatusMessage type="success">{actionOk}</StatusMessage>
+        </div>
+      ) : null}
       {actionErr ? (
         <div className="mb-4">
           <StatusMessage type="error">{actionErr}</StatusMessage>
@@ -165,7 +160,7 @@ export default function PlanlarPage() {
         <EmptyState
           icon={<CalendarDays className="h-8 w-8" />}
           title="Henüz plan yok."
-          description={filter ? "Bu duruma uygun plan bulunamadı." : "İlk beslenme planınızı oluşturarak başlayın."}
+          description="İlk beslenme planınızı oluşturarak başlayın."
           action={
             <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => setDialogOpen(true)}>
               Yeni Plan
@@ -175,7 +170,8 @@ export default function PlanlarPage() {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {plans.map((p) => {
-            const archived = p.status === "archived";
+            // Geçmişten kalan kilitli kayıt (legacy archived): düzenlenemez; kopyalanabilir / silinebilir.
+            const locked = p.status === "archived";
             return (
               <div
                 key={p.id}
@@ -207,8 +203,8 @@ export default function PlanlarPage() {
                   Son güncelleme: {formatDateTr(p.updated_at)}
                 </p>
 
-                {archived ? (
-                  <p className="mt-1 text-[11px] font-bold text-amber-600">Arşiv — yalnız kopyalanabilir</p>
+                {locked ? (
+                  <p className="mt-1 text-[11px] font-bold text-amber-600">Düzenlemeye kapalı — düzenlemek için kopyalayın</p>
                 ) : null}
 
                 {/* Aksiyonlar */}
@@ -226,28 +222,22 @@ export default function PlanlarPage() {
                   >
                     Planı Kopyala
                   </GhostButton>
-                  {!archived ? (
-                    <>
-                      <GhostButton
-                        icon={<GitBranch className="h-4 w-4" />}
-                        loading={busyId === p.id}
-                        onClick={() => void doRevise(p)}
-                      >
-                        Yeni Revizyon
-                      </GhostButton>
-                      {confirmArchiveId === p.id ? (
-                        <span className="inline-flex items-center gap-2">
-                          <span className="text-[12px] font-bold text-rose-600">Emin misiniz?</span>
-                          <DangerButton loading={busyId === p.id} onClick={() => void doArchive(p)}>
-                            Evet
-                          </DangerButton>
-                          <GhostButton onClick={() => setConfirmArchiveId(null)}>Vazgeç</GhostButton>
-                        </span>
-                      ) : (
-                        <DangerButton onClick={() => setConfirmArchiveId(p.id)}>Arşivle</DangerButton>
-                      )}
-                    </>
+                  {!locked ? (
+                    <GhostButton
+                      icon={<GitBranch className="h-4 w-4" />}
+                      loading={busyId === p.id}
+                      onClick={() => void doRevise(p)}
+                    >
+                      Yeni Revizyon
+                    </GhostButton>
                   ) : null}
+                  <DangerButton
+                    icon={<Trash2 className="h-4 w-4" />}
+                    loading={busyId === p.id}
+                    onClick={() => void doDelete(p)}
+                  >
+                    Sil
+                  </DangerButton>
                 </div>
               </div>
             );

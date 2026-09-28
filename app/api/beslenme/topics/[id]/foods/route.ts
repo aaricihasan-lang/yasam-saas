@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { isActiveTopicInTenant } from "@/lib/beslenme/topicGuard";
 import { TOPIC_FOOD_COLUMNS, RELATION_TYPES, cleanStr, inEnum, isUuid, hasOnlyKeys } from "@/lib/beslenme/contracts";
+import { resolveFoodForWrite } from "@/lib/beslenme/foodEngine";
 
 export const runtime = "nodejs";
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -15,6 +17,8 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   const { db, tenantId } = guard;
   const { id: topicId } = await ctx.params;
   if (!isUuid(topicId)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
+  // Rehber bu tenant'a ait + aktif olmalı (legacy pasif rehberin alt kayıtları API'den de değişmez).
+  if (!(await isActiveTopicInTenant(db, tenantId, topicId))) return beslenmeJson({ ok: false, code: "TOPIC_NOT_FOUND" }, 404);
 
   let body: Record<string, unknown>;
   try {
@@ -28,10 +32,16 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   if (!isUuid(body.food_id)) return beslenmeJson({ ok: false, code: "BAD_FOOD" }, 400);
   if (!inEnum(body.relation_type, RELATION_TYPES)) return beslenmeJson({ ok: false, code: "BAD_RELATION" }, 400);
 
+  // Rehber bağı tenant-güvenli kompozit FK ile YALNIZ bu tenant'ın besinine kurulabilir. Seçilen
+  // besin sistem besiniyse (listede görünen effective kayıt) uzmanın kişisel kopyası kullanılır;
+  // global sistem satırı değişmez. Başka tenant'ın besini → 404.
+  const food = await resolveFoodForWrite(db, tenantId, body.food_id);
+  if (!food.ok) return beslenmeJson({ ok: false, code: food.code === "NOT_FOUND" ? "TOPIC_OR_FOOD_NOT_FOUND" : food.code }, food.status);
+
   const insert = {
     tenant_id: tenantId,
     topic_id: topicId,
-    food_id: body.food_id,
+    food_id: food.food.id,
     relation_type: body.relation_type,
     rationale: cleanStr(body.rationale, 2000),
     sort_order: Number.isInteger(body.sort_order) ? (body.sort_order as number) : 0,

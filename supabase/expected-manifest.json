@@ -91,14 +91,36 @@
       "yebs_update_school_with_audit",
       "yebs_update_source_with_audit",
       "yebs_update_tradition_with_audit",
-      "yh_grade_expert_premium"
+      "yh_grade_expert_premium",
+      "nutrition_challenge_consume",
+      "nutrition_food_assert_writable",
+      "nutrition_food_fork_system",
+      "nutrition_food_nutrients_replace",
+      "nutrition_food_portions_replace",
+      "nutrition_food_remove",
+      "nutrition_food_reset_personalized",
+      "nutrition_food_resolve_effective",
+      "nutrition_food_traditional_replace",
+      "nutrition_foods_origin_guard",
+      "nutrition_plan_refresh_item_snapshots"
     ],
     "optional": [
       "aromatherapy_delete_source_with_audit",
       "auth_login_guarded",
       "auth_login_throttle_bump",
       "nutrition_replace_client_allergens",
-      "touch_active_session"
+      "touch_active_session",
+      "nutrition_challenge_consume",
+      "nutrition_food_assert_writable",
+      "nutrition_food_fork_system",
+      "nutrition_food_nutrients_replace",
+      "nutrition_food_portions_replace",
+      "nutrition_food_remove",
+      "nutrition_food_reset_personalized",
+      "nutrition_food_resolve_effective",
+      "nutrition_food_traditional_replace",
+      "nutrition_foods_origin_guard",
+      "nutrition_plan_refresh_item_snapshots"
     ],
     "note": "Kodda .rpc() ile çağrılan tüm RPC'ler + FAZ1 yeni RPC'ler: anon/authenticated EXECUTE=false (service_role-only). optional: prod'da henüz yoksa UYARI (FAIL değil)."
   },
@@ -131,7 +153,9 @@
       "numerology_records",
       "expert_usage_events",
       "admin_audit_log",
-      "yasam_hafizasi_report_snapshots"
+      "yasam_hafizasi_report_snapshots",
+      "nutrition_destructive_challenges",
+      "nutrition_food_tenant_hidden"
     ],
     "optional": [
       "_bak_hacamat_rules_20260926",
@@ -141,7 +165,9 @@
       "auth_login_throttle",
       "client_consent_current",
       "client_consents",
-      "user_payment_history"
+      "user_payment_history",
+      "nutrition_destructive_challenges",
+      "nutrition_food_tenant_hidden"
     ],
     "note": "anon/authenticated SELECT/INSERT/UPDATE/DELETE=false. optional: prod'da yoksa UYARI."
   },
@@ -173,7 +199,9 @@
       "numerology_records",
       "expert_usage_events",
       "admin_audit_log",
-      "yasam_hafizasi_report_snapshots"
+      "yasam_hafizasi_report_snapshots",
+      "nutrition_destructive_challenges",
+      "nutrition_food_tenant_hidden"
     ],
     "optional": [
       "_bak_hacamat_rules_20260926",
@@ -182,7 +210,9 @@
       "admin_audit_log",
       "auth_login_throttle",
       "client_consents",
-      "user_payment_history"
+      "user_payment_history",
+      "nutrition_destructive_challenges",
+      "nutrition_food_tenant_hidden"
     ],
     "note": "relrowsecurity=true (view hariç)."
   },

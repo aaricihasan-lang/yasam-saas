@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireBeslenmeModule } from "@/lib/beslenme/ownerGuard";
 import { isSystemNutritionTenant } from "@/lib/beslenme/systemTenant";
+import { resolveEffectiveFoodsBatch } from "@/lib/beslenme/effectiveBatch";
 
 export const runtime = "nodejs";
 
@@ -8,6 +9,8 @@ export const runtime = "nodejs";
  * GET: "Son Kullanılanlar" — tenant plan item'larından türetilir (YENİ TABLO YOK; §11, §49).
  *   food_id bazında en son kullanım; silinmiş custom food → snapshot adı güvenli fallback.
  *   SYSTEM + current tenant accessible union korunur (foreign tenant leak YOK — tenant-scoped).
+ *   EFFECTIVE: sistem besininin kişisel kopyası varsa KOPYA döner (food_id = kopya); çalışma
+ *   alanından kaldırılan besin "kullanılamaz" işaretlenir. Besin okuma yalnız tenant ∪ SYSTEM.
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const guard = await requireBeslenmeModule(req);
@@ -37,28 +40,23 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const foodIds = [...seen.keys()];
-  const freshById = new Map<string, { name_tr: string; is_active: boolean; tenant_id: string }>();
-  if (foodIds.length > 0) {
-    const { data: foods } = await db
-      .from("nutrition_foods")
-      .select("id, name_tr, is_active, tenant_id")
-      .in("id", foodIds);
-    for (const f of foods ?? []) {
-      const row = f as { id: string; name_tr: string; is_active: boolean; tenant_id: string };
-      freshById.set(row.id, { name_tr: row.name_tr, is_active: row.is_active, tenant_id: row.tenant_id });
-    }
-  }
+  // Effective eşleme (tenant ∪ SYSTEM; başka tenant satırı ASLA okunmaz).
+  const effective = await resolveEffectiveFoodsBatch(db, tenantId, foodIds);
 
-  const recent = [...seen.values()].map((r) => {
-    const fresh = freshById.get(r.food_id);
-    return {
-      food_id: r.food_id,
-      // Silinmiş custom food → snapshot adı fallback; canlı food → güncel ad.
+  const byEffective = new Map<string, { food_id: string; name: string; ownership: string; available: boolean }>();
+  for (const r of seen.values()) {
+    const fresh = effective.get(r.food_id) ?? null;
+    const key = fresh?.id ?? r.food_id;
+    if (byEffective.has(key)) continue; // aynı effective besin (sistem id + kopya id) tek satır
+    byEffective.set(key, {
+      food_id: key,
+      // Silinmiş/kaldırılmış besin → snapshot adı fallback; canlı besin → güncel ad.
       name: fresh?.name_tr ?? r.snapshotName,
       ownership: fresh ? (isSystemNutritionTenant(fresh.tenant_id) ? "system" : "custom") : r.ownership,
-      available: !!fresh && fresh.is_active,
-    };
-  });
+      available: !!fresh,
+    });
+  }
+  const recent = [...byEffective.values()];
 
   return NextResponse.json({ ok: true, recent }, { headers: { "Cache-Control": "no-store" } });
 }

@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
-import { TOPIC_SOURCE_COLUMNS, cleanStr, isUuid, hasOnlyKeys } from "@/lib/beslenme/contracts";
+import { isActiveTopicInTenant } from "@/lib/beslenme/topicGuard";
+import { TOPIC_SOURCE_COLUMNS, isUuid, hasOnlyKeys } from "@/lib/beslenme/contracts";
+import { linkSourceWithOptionalCreate } from "@/lib/beslenme/sourceLink";
 
 export const runtime = "nodejs";
 type RouteCtx = { params: Promise<{ id: string }> };
-const CREATE_KEYS = ["source_id", "locator", "note", "sort_order"] as const;
+const CREATE_KEYS = ["source_id", "new_source", "locator", "note", "sort_order"] as const;
 
-/** POST /topics/[id]/sources — mevcut kaynağı topic'e bağla (gerçek FK). */
+/**
+ * POST /topics/[id]/sources — mevcut kaynağı ({ source_id }) VEYA yeni kaynağı ({ new_source })
+ * rehbere bağla. Oluştur+bağla tek istekte; bağ başarısızsa yeni kaynak geri silinir (orphan yok).
+ */
 export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
   const guard = await requireBeslenmeModule(req);
   if (!guard.ok) return guard.response;
@@ -15,6 +20,8 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   const { db, tenantId } = guard;
   const { id: topicId } = await ctx.params;
   if (!isUuid(topicId)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
+  // Rehber bu tenant'a ait + aktif olmalı (legacy pasif rehberin alt kayıtları API'den de değişmez).
+  if (!(await isActiveTopicInTenant(db, tenantId, topicId))) return beslenmeJson({ ok: false, code: "TOPIC_NOT_FOUND" }, 404);
 
   let body: Record<string, unknown>;
   try {
@@ -25,21 +32,12 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   if (!body || typeof body !== "object" || !hasOnlyKeys(body, CREATE_KEYS)) {
     return beslenmeJson({ ok: false, code: "UNKNOWN_FIELD" }, 400);
   }
-  if (!isUuid(body.source_id)) return beslenmeJson({ ok: false, code: "BAD_SOURCE" }, 400);
-
-  const insert = {
-    tenant_id: tenantId,
-    topic_id: topicId,
-    source_id: body.source_id,
-    locator: cleanStr(body.locator, 200),
-    note: cleanStr(body.note, 2000),
-    sort_order: Number.isInteger(body.sort_order) ? (body.sort_order as number) : 0,
-  };
-  const { data, error } = await db.from("nutrition_topic_sources").insert(insert).select(TOPIC_SOURCE_COLUMNS).single();
-  if (error) {
-    if (error.code === "23505") return beslenmeJson({ ok: false, code: "DUPLICATE_LINK" }, 409);
-    if (error.code === "23503") return beslenmeJson({ ok: false, code: "TOPIC_OR_SOURCE_NOT_FOUND" }, 404);
-    return beslenmeJson({ ok: false, code: "LINK_FAILED" }, 500);
-  }
-  return NextResponse.json({ ok: true, link: data }, { status: 201 });
+  const r = await linkSourceWithOptionalCreate(
+    db,
+    tenantId,
+    { table: "nutrition_topic_sources", parentColumn: "topic_id", parentId: topicId, columns: TOPIC_SOURCE_COLUMNS },
+    body,
+  );
+  if (!r.ok) return beslenmeJson({ ok: false, code: r.code === "NOT_FOUND" ? "TOPIC_OR_SOURCE_NOT_FOUND" : r.code }, r.status);
+  return NextResponse.json({ ok: true, link: r.link, source: r.source }, { status: 201 });
 }

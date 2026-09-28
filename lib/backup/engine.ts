@@ -588,7 +588,9 @@ export async function restoreChunk(
     if (vals.length === 0) continue;
     const parentEntry = getRegistryEntry(parent.table);
     const parentTenantScoped = !parentEntry || parentEntry.tenantScope === "direct";
-    const found = await existingKeys(db, parent.table, parentCol, vals, parentTenantScoped ? ctx.tenantId : null);
+    // Sabit ebeveyn tenant'ı (ör. global SİSTEM katalog) — yoksa restore eden tenant.
+    const parentTenant = parent.parentTenantId ?? (parentTenantScoped ? ctx.tenantId : null);
+    const found = await existingKeys(db, parent.table, parentCol, vals, parentTenant);
     if (found.error) {
       for (const r of rows) addFailure(report, "fk_violation", [idOf(r)]);
       rows = [];

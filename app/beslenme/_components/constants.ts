@@ -80,6 +80,30 @@ export const SOURCE_TYPE_OPTIONS = SOURCE_TYPES.map((v) => ({
  * Ham kod ASLA kullanıcıya gösterilmez.
  */
 export function friendlyError(code?: string, status?: number): string {
+  // Beslenme'ye özgü anlamlı kodlar (genel HTTP eşlemesinden ÖNCE).
+  switch (code) {
+    case "FORK_NAME_CONFLICT":
+      return "Çalışma alanınızda aynı adlı başka bir besin var. Önce o besini yeniden adlandırın veya silin.";
+    case "DUPLICATE_NAME":
+      return "Bu adla bir besin zaten var. Farklı bir ad deneyin.";
+    case "DUPLICATE_LABEL":
+      return "Aynı adlı iki porsiyon olamaz.";
+    case "DUPLICATE_LINK":
+      return "Bu kaynak zaten bağlı.";
+    case "SOURCE_NOT_FOUND":
+    case "REF_NOT_FOUND":
+      return "Seçilen kaynak/çerçeve bulunamadı. Sayfayı yenileyip tekrar deneyin.";
+    case "IN_USE":
+      return "Bu kayıt başka kayıtlarda kullanıldığı için silinemedi.";
+    case "NOT_PERSONALIZED":
+      return "Bu besinde sistem değerlerinden farklı kişisel değer bulunmuyor.";
+    case "NOTHING_TO_RESET":
+      return "Sistem değerine döndürülecek kişisel değişiklik bulunmuyor.";
+    case "DEMO_READONLY":
+      return "Demo hesabında değişiklik yapılamaz.";
+    default:
+      break;
+  }
   if (code === "NETWORK" || status === 0) {
     return "Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.";
   }

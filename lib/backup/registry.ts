@@ -13,6 +13,7 @@
  */
 import type { ModuleGateKey } from "@/lib/auth/moduleAccessCore";
 import type { BackupClass, FkParent, RegistryEntry, StorageRef, TenantScope } from "./types";
+import { SYSTEM_NUTRITION_TENANT_ID } from "@/lib/beslenme/systemTenant";
 
 type Opts = Partial<Omit<RegistryEntry, "table" | "module" | "class" | "label">> & { label?: string };
 
@@ -320,7 +321,17 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
 
   // ── Beslenme ──────────────────────────────────────────────────────────────
   entry("nutrition_sources", "beslenme", "backup", "Kaynaklar", { generatedColumns: ["search_tsv"] }),
-  entry("nutrition_foods", "beslenme", "backup", "Besinler (uzmana ait)", { generatedColumns: ["search_tsv"] }),
+  // origin_food_id: uzmanın KİŞİSEL KOPYASI → global SİSTEM besini (yedeğe girmeyen, sabit tenant).
+  // Restore'da SİSTEM tenant'ında aranır; sistem besini artık yoksa bağ NULL (DB: ON DELETE SET NULL).
+  entry("nutrition_foods", "beslenme", "backup", "Besinler (uzmana ait)", {
+    generatedColumns: ["search_tsv"],
+    fkParents: [{ column: "origin_food_id", table: "nutrition_foods", optional: true, parentTenantId: SYSTEM_NUTRITION_TENANT_ID }],
+  }),
+  // Uzmanın çalışma alanından kaldırdığı SİSTEM besinleri (tenant bazlı gizleme; global satır korunur).
+  entry("nutrition_food_tenant_hidden", "beslenme", "backup", "Kaldırılan Sistem Besinleri", {
+    pk: ["tenant_id", "food_id"],
+    fkParents: [{ column: "food_id", table: "nutrition_foods", parentTenantId: SYSTEM_NUTRITION_TENANT_ID }],
+  }),
   entry("nutrition_food_sources", "beslenme", "backup", "Besin Kaynakları", {
     fkParents: [fk("food_id", "nutrition_foods"), fk("source_id", "nutrition_sources")],
   }),
@@ -422,6 +433,7 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
 
   // ── Yedek DIŞI: geçici ────────────────────────────────────────────────────
   off("belge_ceviri_jobs", "transient", "Belge çeviri iş kayıtları (geçici)."),
+  off("nutrition_destructive_challenges", "transient", "Beslenme geri alınamaz işlem doğrulama kodu (5 dk, tek kullanımlık güvenlik kaydı)."),
   off("video_transcription_jobs", "transient", "Video çeviri iş kayıtları (geçici)."),
   off("healing_guide_create_idempotency", "transient", "Şifa Rehberi oluşturma idempotency anahtarları."),
   off("demo_numerology_ip_usage", "transient", "Demo kullanım sayacı.", "none"),

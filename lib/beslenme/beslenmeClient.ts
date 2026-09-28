@@ -22,6 +22,9 @@ export type Food = {
   food_group_id: string | null; prep_state: string | null; description: string | null;
   notes: string | null; is_active: boolean; sort_order: number; created_at: string; updated_at: string;
   is_system?: boolean;
+  /** Sistem besininden türemiş kişisel kopya (yalnız "Sistem değerine dön" için; UI'da teknik etiket YOK). */
+  origin_food_id?: string | null;
+  is_personalized?: boolean;
 };
 export type Topic = {
   id: string; tenant_id: string; topic_type: TopicType; framework_id: string | null; title: string;
@@ -123,11 +126,37 @@ export function quickCreateFood(body: QuickAddPayload) {
     { method: "POST", headers: authHeaders(true), body: JSON.stringify(body) },
   );
 }
+/** Kaydet: sistem besininde ilk kayıt uzmanın kişisel kopyasını oluşturur → food_id (effective) döner. */
 export function updateFood(id: string, body: Partial<Food>) {
-  return req<{ food: Food }>(`/api/beslenme/foods/${id}`, { method: "PATCH", headers: authHeaders(true), body: JSON.stringify(body) });
+  return req<{ food: Food; food_id: string; personalized: boolean }>(`/api/beslenme/foods/${id}`, { method: "PATCH", headers: authHeaders(true), body: JSON.stringify(body) });
 }
-export function deleteFood(id: string, hard = false) {
-  return req<Record<string, unknown>>(`/api/beslenme/foods/${id}${hard ? "?hard=1" : ""}`, { method: "DELETE", headers: authHeaders() });
+/**
+ * "Sil" — çalışma alanından kaldır: uzmanın kendi besini kalıcı silinir; sistem besini yalnız bu
+ * uzmanda görünmez olur. Rehberde kullanılıyorsa 409 IN_USE + topics (rehber başlıkları).
+ */
+export function deleteFood(id: string) {
+  return req<{ action?: string; topics?: string[] }>(`/api/beslenme/foods/${id}`, { method: "DELETE", headers: authHeaders() });
+}
+
+// ── "Sistem değerine dön" (3 aşama + sunucu doğrulamalı 4 haneli kod) ──
+export type FoodResetScope = "one" | "all";
+export function getPersonalizedFoodCount() {
+  return req<{ count: number }>("/api/beslenme/foods/reset", { headers: authHeaders() });
+}
+export function requestFoodResetChallenge(scope: FoodResetScope, foodId?: string) {
+  return req<{
+    challenge_id: string; code: string; expires_at: string; count: number; names: string[]; more: number;
+    blocked: Array<{ name: string; topics: string[] }>;
+  }>("/api/beslenme/foods/reset/challenge", {
+    method: "POST", headers: authHeaders(true), body: JSON.stringify(scope === "one" ? { scope, food_id: foodId } : { scope }),
+  });
+}
+export function confirmFoodReset(scope: FoodResetScope, foodId: string | undefined, challengeId: string, code: string) {
+  return req<{ reset: number }>("/api/beslenme/foods/reset", {
+    method: "POST",
+    headers: authHeaders(true),
+    body: JSON.stringify(scope === "one" ? { scope, food_id: foodId, challenge_id: challengeId, code } : { scope, challenge_id: challengeId, code }),
+  });
 }
 
 // ── Topics ──
@@ -149,11 +178,12 @@ export function getTopic(id: string) {
 export function createTopic(body: { topic_type: TopicType; framework_id?: string | null; title: string; summary?: string | null; sort_order?: number }) {
   return req<{ topic: Topic }>("/api/beslenme/topics", { method: "POST", headers: authHeaders(true), body: JSON.stringify(body) });
 }
-export function updateTopic(id: string, body: Partial<Pick<Topic, "title" | "summary" | "sort_order" | "is_active">>) {
+export function updateTopic(id: string, body: Partial<Pick<Topic, "title" | "summary" | "sort_order">>) {
   return req<{ topic: Topic }>(`/api/beslenme/topics/${id}`, { method: "PATCH", headers: authHeaders(true), body: JSON.stringify(body) });
 }
-export function deleteTopic(id: string, hard = false) {
-  return req<Record<string, unknown>>(`/api/beslenme/topics/${id}${hard ? "?hard=1" : ""}`, { method: "DELETE", headers: authHeaders() });
+/** "Sil": rehber + bölümleri + besin/kaynak bağları kalıcı silinir (besinler ve kaynak kataloğu kalır). */
+export function deleteTopic(id: string) {
+  return req<Record<string, unknown>>(`/api/beslenme/topics/${id}`, { method: "DELETE", headers: authHeaders() });
 }
 
 // ── Sections ──
@@ -187,20 +217,26 @@ export function listSources(q?: string) {
 export function createSource(body: Partial<Source>) {
   return req<{ source: Source }>("/api/beslenme/sources", { method: "POST", headers: authHeaders(true), body: JSON.stringify(body) });
 }
-export function updateSource(id: string, body: Partial<Source>) {
+export function updateSource(id: string, body: Partial<Omit<Source, "is_active">>) {
   return req<{ source: Source }>(`/api/beslenme/sources/${id}`, { method: "PATCH", headers: authHeaders(true), body: JSON.stringify(body) });
 }
+/** "Sil": kaynak kalıcı silinir; bir kayda bağlıysa 409 IN_USE + usage sayıları. */
 export function deleteSource(id: string) {
-  return req<Record<string, unknown>>(`/api/beslenme/sources/${id}`, { method: "DELETE", headers: authHeaders() });
+  return req<{ usage?: { topics: number; foods: number; foodValues: number } }>(`/api/beslenme/sources/${id}`, { method: "DELETE", headers: authHeaders() });
 }
-export function linkTopicSource(topicId: string, body: { source_id: string; locator?: string | null; note?: string | null }) {
+/** Yeni kaynak + bağ TEK istekte (bağ başarısızsa kaynak sunucuda geri silinir → orphan yok). */
+export type NewSourceInput = Partial<Omit<Source, "id" | "tenant_id" | "is_active" | "created_at" | "updated_at">> & { title: string };
+export type SourceLinkBody =
+  | { source_id: string; locator?: string | null; note?: string | null }
+  | { new_source: NewSourceInput; locator?: string | null; note?: string | null };
+export function linkTopicSource(topicId: string, body: SourceLinkBody) {
   return req<Record<string, unknown>>(`/api/beslenme/topics/${topicId}/sources`, { method: "POST", headers: authHeaders(true), body: JSON.stringify(body) });
 }
 export function unlinkTopicSource(topicId: string, linkId: string) {
   return req<Record<string, unknown>>(`/api/beslenme/topics/${topicId}/sources/${linkId}`, { method: "DELETE", headers: authHeaders() });
 }
-export function linkFoodSource(foodId: string, body: { source_id: string; locator?: string | null; note?: string | null }) {
-  return req<Record<string, unknown>>(`/api/beslenme/foods/${foodId}/sources`, { method: "POST", headers: authHeaders(true), body: JSON.stringify(body) });
+export function linkFoodSource(foodId: string, body: SourceLinkBody) {
+  return req<{ food_id?: string; personalized?: boolean }>(`/api/beslenme/foods/${foodId}/sources`, { method: "POST", headers: authHeaders(true), body: JSON.stringify(body) });
 }
 export function unlinkFoodSource(foodId: string, linkId: string) {
   return req<Record<string, unknown>>(`/api/beslenme/foods/${foodId}/sources/${linkId}`, { method: "DELETE", headers: authHeaders() });
@@ -227,30 +263,30 @@ export type FoodExternalRef = {
   external_version: string | null; source_url: string | null; retrieved_at: string | null;
 };
 
-/** /100 g nutrient setini tümüyle değiştir (yalnız custom food). */
+/** /100 g nutrient setini tümüyle değiştir (atomik; sistem besininde kişisel kopya → food_id döner). */
 export function putFoodNutrients(
   foodId: string,
   items: Array<{ nutrient_code: string; amount: number; unit_code: string; source_id?: string | null }>,
 ) {
-  return req<{ count: number }>(`/api/beslenme/foods/${foodId}/nutrients`, {
+  return req<{ count: number; food_id: string; personalized: boolean }>(`/api/beslenme/foods/${foodId}/nutrients`, {
     method: "PUT", headers: authHeaders(true), body: JSON.stringify({ items }),
   });
 }
-/** Porsiyon setini tümüyle değiştir (yalnız custom food). */
+/** Porsiyon setini tümüyle değiştir (atomik; id → mevcut porsiyon korunur, quantity korunur). */
 export function putFoodPortions(
   foodId: string,
-  items: Array<{ label_tr: string; label_en?: string | null; quantity?: number; measure_unit_code: string; gram_weight: number; is_default?: boolean; sort_order?: number }>,
+  items: Array<{ id?: string; label_tr: string; label_en?: string | null; quantity?: number; measure_unit_code: string; gram_weight: number; is_default?: boolean; sort_order?: number }>,
 ) {
-  return req<{ count: number }>(`/api/beslenme/foods/${foodId}/portions`, {
+  return req<{ count: number; food_id: string; personalized: boolean }>(`/api/beslenme/foods/${foodId}/portions`, {
     method: "PUT", headers: authHeaders(true), body: JSON.stringify({ items }),
   });
 }
-/** Geleneksel niteliği upsert et (yalnız custom food). Boş gövde = sil. */
+/** Geleneksel niteliği upsert et (atomik; source_id gönderilmezse korunur). Boş gövde = sil. */
 export function putFoodTraditional(
   foodId: string,
   body: { framework_id?: string | null; thermal_quality?: string | null; moisture_quality?: string | null; notes?: string | null; source_id?: string | null },
 ) {
-  return req<{ traditional: FoodTraditional | null }>(`/api/beslenme/foods/${foodId}/traditional`, {
+  return req<{ traditional: FoodTraditional | null; food_id: string; personalized: boolean }>(`/api/beslenme/foods/${foodId}/traditional`, {
     method: "PUT", headers: authHeaders(true), body: JSON.stringify(body),
   });
 }
