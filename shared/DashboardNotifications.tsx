@@ -30,8 +30,13 @@ export default function DashboardNotifications() {
   // fetch'i ve polling interval'ları hiç oluşturulmaz (cross-modül kuplajı kaldırılır).
   // Boolean bağımlılık → effect yalnız /dogaltas sınırı geçilince yeniden kurulur;
   // diğer sayfalar arası gezinmede tek-fetch davranışı korunur.
+  // ÜYE YÖNETİMİ FAZ 2 (MEM-020): admin yönetim ekranları (/admin/**) randevu bildirimi
+  // kullanmaz → her admin sayfasında gereksiz /api/appointments çağrısı yapılmaz.
   const skipAppointments =
-    pathname === "/dogaltas" || (pathname ?? "").startsWith("/dogaltas/");
+    pathname === "/dogaltas" ||
+    (pathname ?? "").startsWith("/dogaltas/") ||
+    pathname === "/admin" ||
+    (pathname ?? "").startsWith("/admin/");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [open, setOpen] = useState(false);
   const warnedIdsRef = useRef<Set<string>>(new Set());

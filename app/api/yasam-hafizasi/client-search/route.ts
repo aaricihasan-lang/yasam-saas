@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
+import { filterByYhScope, resolveYhModuleScope } from "@/lib/yasam-hafizasi/moduleScope";
 import { getTenantFlags } from "@/lib/yasam-hafizasi/flags";
 import {
   parseClientSearchRequest,
@@ -111,7 +112,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   const all: TenantClientSearchResult[] = outcome.rows
     .map((r) => toTenantClientSearchResult(r, nameById))
     .filter((r): r is TenantClientSearchResult => r !== null);
-  const dated = all.filter((r) => withinDateWindow(r.occurredAt, dateFrom, dateTo));
+  // ÜYE YÖNETİMİ FAZ 2: aktif kapsam = GÜNCEL module_permissions (kayıt silinmez).
+  const scope = resolveYhModuleScope(profile?.role, profile?.module_permissions);
+  const dated = filterByYhScope(scope, all).filter((r) => withinDateWindow(r.occurredAt, dateFrom, dateTo));
   const facets = computeTenantFacets(dated);
   const displayed = filterTenantByModules(dated, modules).slice(0, limit);
   const emptyReason =

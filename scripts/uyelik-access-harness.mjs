@@ -48,10 +48,12 @@ check("2) premium+approved+active=false -> kapali",
 check("3) premium+pending+active -> kapali",
   hasExpertMembershipAccess({ ...base, approval_status: "pending" }), false);
 
-check("4) pro+approved+active -> kapali",
+// Tek üyelik modeli (Premium-only): onay RPC'leri premium yazar; sunucu kapısı (FAZ1 FINAL HARDENING,
+// membershipAccessCore) active + approved + premium ister → legacy Deneme/Pro satırı modül AÇAMAZ.
+check("4) legacy pro+approved+active -> kapali (premium şartı; server ile aynı)",
   hasExpertMembershipAccess({ ...base, package_type: "pro" }), false);
 
-check("5) trial+approved+active -> kapali",
+check("5) legacy trial+approved+active -> kapali (premium şartı; server ile aynı)",
   hasExpertMembershipAccess({ ...base, package_type: "trial" }), false);
 
 check("6) premium + gecmis trial_ends_at -> acik",
@@ -81,7 +83,7 @@ check("9) null kullanici -> kapali",
 check("9b) approval bos (approved degil) -> kapali",
   hasExpertMembershipAccess({ ...base, approval_status: "" }), false);
 
-check("9c) package_type bos (premium degil) -> kapali",
+check("9c) package_type bos + approved+active -> kapali (paket tanımsız; premium şartı)",
   hasExpertMembershipAccess({ ...base, package_type: "" }), false);
 
 // ── 10) routeModuleAccess üyelik gate'iyle uyumlu mu ──

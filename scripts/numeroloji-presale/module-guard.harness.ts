@@ -52,7 +52,11 @@ check("/numeroloji/analiz", expert({ stones: true }), "deny", "numeroloji izinsi
 check("/dogaltas", expert({ stones: true }), "allow", "stones izinli uzman /dogaltas → allow (shared regresyon)");
 check("/dogaltas", expert({ numerology: true }), "deny", "stones izinsiz uzman /dogaltas → deny (shared regresyon)");
 check("/numeroloji/analiz", admin, "allow", "admin → allow");
-check("/numeroloji/analiz", nonPremium, "deny_membership", "premium olmayan → deny_membership");
+// ÜYE YÖNETİMİ FAZ 1: legacy trial kolonu erişimi belirlemez (onaylı+aktif = Premium); üyelik
+// kapısı onay/aktiflik ile kapanır.
+check("/numeroloji/analiz", nonPremium, "allow", "legacy trial kolonlu onaylı uzman → allow (FAZ 1)");
+check("/numeroloji/analiz", { ...nonPremium, approval_status: "pending" } as unknown as YasamUser, "deny_membership", "onay bekleyen → deny_membership");
+check("/numeroloji/analiz", { ...nonPremium, active: false } as unknown as YasamUser, "deny_membership", "pasif → deny_membership");
 check("/", expert({ numerology: true }), "skip", "public path giriş yapmış → skip");
 
 console.log(`\nMODULE-GUARD HARNESS — ${pass} geçti, ${fail} başarısız`);

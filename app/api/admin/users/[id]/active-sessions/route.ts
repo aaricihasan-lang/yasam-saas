@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
+import { limitFromDb } from "@/lib/admin/licenseLimits";
+import { isUuid } from "@/lib/admin/memberRequestValidation";
 
 export const runtime = "nodejs";
 
@@ -22,7 +24,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
   const { db } = guard;
 
   const { id } = await ctx.params;
-  if (!id) return NextResponse.json({ error: "Kullanıcı ID gerekli." }, { status: 400 });
+  if (!isUuid(id)) return NextResponse.json({ error: "Geçersiz kullanıcı ID." }, { status: 400 });
 
   const sp     = req.nextUrl.searchParams;
   const limit  = Math.min(100, Math.max(0, Number(sp.get("limit")  ?? 5)));
@@ -70,13 +72,15 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     totalFresh:        freshSessions.length,
     distinctLocations: locKeys.size,
     byPlatform:        platformCounts,
+    // MEM-001: limitler KAYIPSIZ (-1 sınırsız · 0 kapalı · N); null → -1 (DB default + server
+    // enforcement ile aynı). Eski 2/1/1/0/0 varsayılanları sınırsız hesapta sahte alarm üretiyordu.
     limits: {
-      allowedActiveSessions:  license?.allowed_active_sessions  ?? 2,
+      allowedActiveSessions:  limitFromDb(license?.allowed_active_sessions),
       allowedLocations:       license?.allowed_locations        ?? 1,
-      allowedDesktopSessions: license?.allowed_desktop_sessions ?? 1,
-      allowedMobileSessions:  license?.allowed_mobile_sessions  ?? 1,
-      allowedTabletSessions:  license?.allowed_tablet_sessions  ?? 0,
-      allowedUnknownSessions: license?.allowed_unknown_sessions ?? 0,
+      allowedDesktopSessions: limitFromDb(license?.allowed_desktop_sessions),
+      allowedMobileSessions:  limitFromDb(license?.allowed_mobile_sessions),
+      allowedTabletSessions:  limitFromDb(license?.allowed_tablet_sessions),
+      allowedUnknownSessions: limitFromDb(license?.allowed_unknown_sessions),
     },
     licenseType:    license?.license_type    ?? "single",
     securityMode:   license?.security_mode   ?? "normal",
@@ -110,5 +114,5 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     sessionsTotal = countRes.count ?? 0;
   }
 
-  return NextResponse.json({ sessions: displaySessions, sessionsTotal, summary });
+  return NextResponse.json({ sessions: displaySessions, sessionsTotal, summary }, { headers: { "Cache-Control": "private, no-store" } });
 }

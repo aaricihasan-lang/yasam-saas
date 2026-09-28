@@ -82,21 +82,17 @@ export function isArchivedExpert(u: {
 
 /**
  * Gerçek TEMEL erişim (uzman modüllerine erişebilir mi?) — hasExpertMembershipAccess ile
- * TUTARLI: admin her zaman; uzman ancak active && approved && package_type=premium ise.
- * Sadece active=true olması erişim anlamına GELMEZ (yöneticiye doğru durum gösterilir).
+ * TUTARLI: admin her zaman; uzman ancak active && approved ise (FAZ 1: her onaylı uzman
+ * Premium; legacy package_type erişim kararına GİRMEZ). Temel erişim tek başına modül
+ * erişimi DEĞİLDİR — gösterimde açık modül sayısı ayrıca verilir.
  */
 export function deriveBaseExpertAccess(input: {
   role: string;
   active: boolean;
   approvalStatus: string;
-  packageType?: string | null;
 }): boolean {
   if (normalizeRole(input.role) === "admin") return true;
-  return (
-    input.active === true &&
-    input.approvalStatus === "approved" &&
-    String(input.packageType ?? "").toLowerCase() === "premium"
-  );
+  return input.active === true && input.approvalStatus === "approved";
 }
 
 /** Verilen audit satırları içinden istenen türlerin EN SON olanını (created_at) seçer. */

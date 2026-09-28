@@ -187,6 +187,8 @@
       "cardSinglePanelSub": "Her yerden erişim",
       "cardSecure": "Güvenli Kayıt",
       "cardSecureSub": "Verileriniz korumalı",
+      "cardMobile": "Mobil Uygulama",
+      "cardMobileSub": "Mobil erişim",
       "titlePart1": "Danışan, analiz ve seans süreçlerinizi",
       "titleHighlight": "tek merkezden",
       "titlePart2": "yönetin",
@@ -471,6 +473,7 @@
       "emailPlaceholder": "uzman@ornek.com",
       "passwordLabel": "Şifre",
       "passwordRepeatLabel": "Şifre Tekrar",
+      "passwordHint": "En az 10 karakter; en az bir harf ve bir rakam.",
       "submit": "Kayıt Ol",
       "submitting": "Kaydediliyor…",
       "haveAccount": "Zaten hesabınız var mı?",
@@ -485,7 +488,11 @@
         "alreadyExists": "Bu e-posta adresi zaten kayıtlı.",
         "idempotency": "İşlem kimliği çakışması. Lütfen tekrar deneyin.",
         "config": "Sunucu yapılandırma hatası.",
-        "hash": "Şifre işlenemedi."
+        "hash": "Şifre işlenemedi.",
+        "invalidName": "Ad soyad 2–120 karakter olmalıdır.",
+        "invalidEmail": "Geçerli bir e-posta adresi girin.",
+        "weakPassword": "Şifre en az 10 karakter olmalı; en az bir harf ve bir rakam içermelidir.",
+        "rateLimited": "Çok fazla deneme yapıldı. Lütfen biraz sonra tekrar deneyin."
       }
     }
   }

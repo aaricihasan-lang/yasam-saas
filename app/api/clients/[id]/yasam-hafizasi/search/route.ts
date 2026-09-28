@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
+import { filterByYhScope, resolveYhModuleScope } from "@/lib/yasam-hafizasi/moduleScope";
 import { getTenantFlags } from "@/lib/yasam-hafizasi/flags";
 import {
   parseClientSearchRequest,
@@ -106,7 +107,9 @@ export async function POST(
   const all: ClientSearchResult[] = outcome.rows
     .map(toClientSearchResult)
     .filter((r): r is ClientSearchResult => r !== null);
-  const dated = all.filter((r) => withinDateWindow(r.occurredAt, dateFrom, dateTo));
+  // ÜYE YÖNETİMİ FAZ 2: aktif kapsam = GÜNCEL module_permissions (kayıt silinmez).
+  const scope = resolveYhModuleScope(profile?.role, profile?.module_permissions);
+  const dated = filterByYhScope(scope, all).filter((r) => withinDateWindow(r.occurredAt, dateFrom, dateTo));
   const facets = computeClientFacets(dated);
   const displayed = filterClientByModules(dated, modules).slice(0, limit);
   const emptyReason =

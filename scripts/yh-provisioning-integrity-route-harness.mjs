@@ -89,27 +89,30 @@ ck("R", "register: direct tenants/users INSERT YOK", !/\.from\("tenants"\)\.inse
 ck("R", "register: deleteTenantById/createTenantForNewUser YOK", !/deleteTenantById|createTenantForNewUser/.test(reg));
 ck("R", "register: DEFAULT_MODULE_PERMISSIONS geçer", /DEFAULT_MODULE_PERMISSIONS/.test(reg));
 ck("R", "register: already_exists → 409", /already_exists[\s\S]*?409/.test(reg));
-ck("R", "admin: verifyAdminRequest + provisionExpert(admin)", /verifyAdminRequest/.test(adm) && /mode: "admin"/.test(adm));
-ck("R", "admin: actorAdminId guard'dan (body'den DEĞİL)", /actorAdminId: guard\.adminId/.test(adm) && !/actorAdminId: body\./.test(adm));
+// ÜYE YÖNETİMİ FAZ 2: admin create → admin_create_user_with_modules (içeride provision_expert mode=admin).
+const faz2Sql = read("supabase/migrations/20270130000000_admin_member_phase2.sql");
+ck("R", "admin: verifyAdminRequest + provisionExpert(admin)", /verifyAdminRequest/.test(adm) && /rpc\("admin_create_user_with_modules"/.test(adm) && /provision_expert\([\s\S]{0,300}'mode', 'admin'/.test(faz2Sql));
+ck("R", "admin: actorAdminId guard'dan (body'den DEĞİL)", /const \{ db, adminId \} = guard/.test(adm) && /actor_admin_id: adminId/.test(adm) && !/actor_admin_id: body/.test(adm));
 ck("R", "admin: direct tenants/users INSERT + rollback YOK", !/\.from\("tenants"\)\.insert|\.from\("users"\)\.insert|deleteTenantById/.test(adm));
-ck("R", "admin: module_permissions yalnız expert", /role === "expert" \? \{ modulePermissions/.test(adm));
+ck("R", "admin: module_permissions yalnız expert", /if \(role === "expert"\) \{[\s\S]{0,200}validateApprovalModules/.test(adm) && /- 'module_permissions'\)/.test(faz2Sql));
 ck("R", "admin: tenant_id client body'den okunmuyor", !/body\.tenant_id|body\.tenantId/.test(adm));
 ck("R", "createExpertTenant: DB-dokunan fonksiyonlar kaldırıldı", !/\.from\("tenants"\)|getServerDb|createTenantForNewUser|deleteTenantById/.test(cet));
 ck("R", "createExpertTenant: pure helper'lar export", /export function slugifyTenantBase/.test(cet) && /export function buildTenantSlugBase/.test(cet));
-ck("R", "register: legacy password kolonuna yazım YOK", !/password:/.test(reg.replace(/password\?:|password ?=|password\)/g, "")));
+ck("R", "register: legacy password kolonuna yazım YOK", !/(^|[^_a-z])password:/m.test(reg.replace(/password\?:|password ?=|password\)/g, "")));
 ck("R", "register: idempotency_key_conflict → 409", /idempotency_key_conflict[\s\S]*?409/.test(reg));
 ck("R", "admin create: idempotency_key_conflict → 409", /idempotency_key_conflict[\s\S]*?409/.test(adm));
 
 // ── EMAIL WRITE PATH ENVANTERİ (Fix-4): provisioning-dışı users.email UPDATE yolu ──
 const edit = read("app/api/admin/users/[id]/route.ts");
-ck("E", "edit route: email server-side normalize lower(btrim eşdeğeri)", /String\(body\.email \?\? ""\)\.trim\(\)\.toLowerCase\(\)/.test(edit));
-ck("E", "edit route: blank email reddi (400)", /!fullName \|\| !email[\s\S]*?400/.test(edit));
+const profileVal = read("lib/admin/memberRequestValidation.ts");
+ck("E", "edit route: email server-side normalize lower(btrim eşdeğeri)", /validateProfileEdit/.test(edit) && /body\.email\.trim\(\)\.toLowerCase\(\)/.test(profileVal));
+ck("E", "edit route: blank email reddi (400)", /if \(!fullName \|\| !email\) return \{ ok: false/.test(profileVal) && /if \(!v\.ok\) return bad\(v\.error\)/.test(edit));
 // Fix-4 kapsamı: YALNIZ email-write dalı (updatePayload). license/modules dalları email
 // yazmaz → kapsam-dışı (scope disiplini; pre-existing, dokunulmadı).
-const emailBlock = (edit.match(/const updatePayload[\s\S]*?return NextResponse\.json\(\{ ok: true \}\);/) || [""])[0];
+const emailBlock = (edit.match(/const updatePayload[\s\S]*?return NextResponse\.json\(\{ ok: true, changed: true \}/) || [""])[0];
 ck("E", "edit route (email dalı): ham DB hatası SIZDIRILMAZ (error.message yok)", !/\{ error: error\.message \}/.test(emailBlock));
 ck("E", "edit route (email dalı): normalized-unique çakışması → 409 (code 23505)", /error\.code === "23505"[\s\S]*?409/.test(emailBlock));
-ck("E", "edit route (email dalı): diğer DB hatası generic 500", /"Kullanıcı güncellenemedi\."[\s\S]*?500/.test(emailBlock));
+ck("E", "edit route (email dalı): diğer DB hatası generic 500", /"Kullanıcı güncellenemedi\.", 500/.test(emailBlock));
 // login normalize aynı kanonik sözleşme (create/edit ile uyumlu) → provisioning-dışı okuma tutarlılığı
 const login = read("lib/auth/loginUser.ts");
 ck("E", "login normalize lower+trim (index sözleşmesiyle uyumlu)", /email\.trim\(\)\.toLowerCase\(\)/.test(login));
