@@ -29,6 +29,7 @@ import {
   type ModuleLockReason,
   type ModulePermissionKey,
 } from "@/lib/auth/modulePermissions";
+import { DIGITAL_CONTENT_HUB_KEYS, ENERGY_BODY_HUB_KEYS } from "@/lib/auth/hubVisibility";
 import { supabase } from "@/lib/supabase";
 import { fetchYhHealth } from "@/lib/yasam-hafizasi/ui/searchApiClient";
 import { deriveYhCardStatus, type YhHealthPayload } from "@/lib/yasam-hafizasi/ui/healthStatus";
@@ -390,7 +391,9 @@ const dashboardModules: ModuleCard[] = [
   },
   {
     href: "/enerji-beden",
+    // Hub: Biyoenerji / Refleksoloji / Kupa'dan herhangi biri (lib/auth/hubVisibility) → görünür + açık.
     permissionKey: "energy_body",
+    anyPermissionKeys: [...ENERGY_BODY_HUB_KEYS],
     emoji: "✨",
     Icon: Sparkles,
     theme: {
@@ -417,7 +420,9 @@ const dashboardModules: ModuleCard[] = [
   },
   {
     href: "/digital-content",
+    // Hub: yalnız uzmana AÇIK alt modüllerden biri (lib/auth/hubVisibility) varsa görünür.
     permissionKey: "digital_content",
+    anyPermissionKeys: [...DIGITAL_CONTENT_HUB_KEYS],
     emoji: "📚",
     hasStat: true,
     Icon: Layers,
@@ -472,7 +477,8 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   belge_ceviri: [],
   ders_notu: [],
   human_design: [],
-  digital_content: ["personal_archive", "video_ceviri", "belge_ceviri", "ders_notu", "kisisel_arsiv"],
+  // Admin-only AI alt modülleri (video_ceviri/ders_notu) hub'ı uzmana AÇMAZ → alias DEĞİL.
+  digital_content: ["personal_archive", "belge_ceviri", "kisisel_arsiv"],
   cosmic_calendar: [],
   cupping: ["kupa", "hacamat_terapi"],
   beslenme: [],
