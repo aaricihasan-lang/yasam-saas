@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { isUuid } from "@/lib/dogaltas/validation";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -79,8 +80,13 @@ export async function POST(req: NextRequest): Promise<Response> {
       action: "DELETE",
       tenantId,
       cause: error,
+      usage: { guard, req, module: "stones", failedAction: "record_deleted", subEntity: "combination" },
     });
   }
 
+  if ((count ?? 0) > 0) {
+    // Usage360: silme (tekli/toplu) → TEK olay + itemCount (hiçbiri silinmediyse olay yok).
+    await trackUsage(guard, req, { module: "stones", action: "record_deleted", subEntity: "combination", resourceId: [...rawIds].sort().join(","), itemCount: count ?? 0 });
+  }
   return NextResponse.json({ ok: true, deleted: count ?? 0 });
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { cleanStr, hasOnlyKeys, isUuid } from "@/lib/beslenme/contracts";
 import { TEMPLATE_COLUMNS, TEMPLATE_PATCH_KEYS } from "@/lib/beslenme/templateContracts";
@@ -59,7 +60,11 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
     .eq("id", id)
     .select(TEMPLATE_COLUMNS)
     .maybeSingle();
-  if (error || !data) return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
+  if (error || !data) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "template", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
+  }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "template", resourceId: id });
   return NextResponse.json({ ok: true, template: data });
 }
 
@@ -77,6 +82,10 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
   if (!existing) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
 
   const { error } = await db.from("nutrition_templates").delete().eq("tenant_id", tenantId).eq("id", id);
-  if (error) return beslenmeJson({ ok: false, code: "DELETE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_deleted", subEntity: "template", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "DELETE_FAILED" }, 500);
+  }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_deleted", subEntity: "template", resourceId: id });
   return NextResponse.json({ ok: true });
 }

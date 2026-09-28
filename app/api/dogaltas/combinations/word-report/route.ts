@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
 import { hydrateCombinationStoneNames } from "@/lib/dogaltas/combinationStonesRead";
@@ -62,6 +63,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   const auth = await requireDogaltasReportAccess(req);
   if (!auth.ok) return auth.response;
   const { db, tenantId } = auth;
+  // Usage360 kimliği yalnız doğrulanmış rapor kapısından; demo orada zaten 403.
+  const usageGuard = { ...auth, is_demo_account: false };
 
   let body: unknown;
   try { body = await req.json(); }
@@ -85,7 +88,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const { data, error } = await query.order("issue").order("variant_index");
   if (error)
-    return serverErrorResponse({ route: "dogaltas/combinations/word-report", action: "POST", tenantId, cause: error });
+    return serverErrorResponse({ route: "dogaltas/combinations/word-report", action: "POST", tenantId, cause: error, usage: { guard: usageGuard, req, module: "stones", failedAction: "report_generated", subEntity: "combination" } });
 
   // F-02 READ: yapısal kayıtlar junction'dan resolve (güncel ad; silinende snapshot);
   // legacy stones_text fallback. SALT-OKUMA + batch. Sonra XML sanitize.
@@ -197,6 +200,14 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
 
   const buffer = await Packer.toBuffer(doc);
+  // Usage360: Word dosyası BAŞARIYLA üretildi → tek rapor olayı (konu: kombinasyon; çoklu → itemCount).
+  await trackUsage(usageGuard, req, {
+    module: "stones",
+    action: "report_generated",
+    subEntity: "combination",
+    resourceId: rows.map((r) => r.id).sort().join(","),
+    itemCount: rows.length,
+  });
   const modeSlug =
     exportMode === "single" && combinationTitle ? slugify(combinationTitle) :
     exportMode === "selected" ? "secili" :

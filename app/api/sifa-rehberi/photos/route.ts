@@ -7,6 +7,8 @@ import {
 } from "@/lib/sifa-rehberi/stonePhotoStorage";
 import { loadGuideImageMembership } from "@/lib/sifa-rehberi/guideImageMembership";
 import { isSifaUuid } from "@/lib/sifa-rehberi/ids";
+import { createHash } from "node:crypto";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -73,6 +75,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
       return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
     }
     console.error("[sifa-rehberi/photos DELETE] membership load failed");
+    await trackUsage(guard, req, { module: "sifa_rehberi", action: "action_failed", failedAction: "record_deleted", subEntity: "photo", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Kayıt doğrulanamadı." }, { status: 500 });
   }
 
@@ -84,8 +87,17 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   const { error: rmError } = await db.storage.from(STONE_PHOTOS_BUCKET).remove([filePath]);
   if (rmError) {
     console.error("[sifa-rehberi/photos DELETE] storage remove", rmError);
+    await trackUsage(guard, req, { module: "sifa_rehberi", action: "action_failed", failedAction: "record_deleted", subEntity: "photo", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Görsel silinemedi." }, { status: 500 });
   }
+
+  // USAGE360: resourceId = storage yolunun sha256 özeti (ham yol / dosya adı GİRMEZ).
+  await trackUsage(guard, req, {
+    module: "sifa_rehberi",
+    action: "record_deleted",
+    subEntity: "photo",
+    resourceId: createHash("sha256").update(filePath).digest("hex"),
+  });
 
   return NextResponse.json({ ok: true });
 }

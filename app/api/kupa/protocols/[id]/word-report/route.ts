@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { CUPPING_TABLES } from "@/lib/cupping/fields";
 import { cuppingError, getEntity, listEntity } from "@/lib/cupping/api";
@@ -102,7 +103,10 @@ export async function GET(
     joinMasters(db, tenantId, CUPPING_TABLES.protocolSafety, "safety_id", CUPPING_TABLES.safety, "id, title, severity", id),
     joinMasters(db, tenantId, CUPPING_TABLES.protocolSources, "source_id", CUPPING_TABLES.sources, "id, source_name, source_type", id),
   ]);
-  if (!pj || !tj || !sj || !srcj) return cuppingError(500, "Protokol verileri alınamadı. Lütfen tekrar deneyin.");
+  if (!pj || !tj || !sj || !srcj) {
+    await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "report_generated", subEntity: "protocol", errorClass: "server" });
+    return cuppingError(500, "Protokol verileri alınamadı. Lütfen tekrar deneyin.");
+  }
 
   // 3) Adımlar + Bilgiler (protocol-owned; join YOK).
   const stepsRes = await listEntity(db, CUPPING_TABLES.protocolSteps, tenantId, {
@@ -172,8 +176,11 @@ export async function GET(
   try {
     buffer = await buildProtocolWordBuffer({ protocol, points, techniques, steps, safety, entries, sources });
   } catch {
+    await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "report_generated", subEntity: "protocol", errorClass: "server" });
     return cuppingError(500, "Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
   }
+  // .docx BAŞARIYLA üretildi → tek report_generated (DB yazımı yok; yalnız telemetri).
+  await trackUsage(guard, req, { module: "cupping", action: "report_generated", subEntity: "protocol", resourceId: id });
 
   const filename = protocolWordFilename(protocol);
   const asciiName = filename.replace(/[^\x20-\x7E]/g, "_");

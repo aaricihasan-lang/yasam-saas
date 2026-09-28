@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -44,6 +45,15 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   const { error } = await db.rpc("nutrition_plan_week_copy", {
     p_tenant_id: tenantId, p_plan_id: id, p_source_start: src, p_target_start: tgt, p_span_days: span,
   });
-  if (error) { const m = mapRpcError(error.code); return beslenmeJson({ ok: false, code: m.code }, m.status); }
+  if (error) {
+    const m = mapRpcError(error.code);
+    const errorClass = usageErrorClassForStatus(m.status);
+    if (errorClass) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "plan", errorClass });
+    }
+    return beslenmeJson({ ok: false, code: m.code }, m.status);
+  }
+  // Usage360: çok-günlü kopya planın hedef günlerini doldurur → tek record_updated(plan) + gün sayısı.
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "plan", resourceId: id, itemCount: span as number });
   return NextResponse.json({ ok: true });
 }

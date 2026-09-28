@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { validateChakraBlockInput } from "@/lib/bioenergy/chakraBlockCrud";
 
 export const runtime = "nodejs";
@@ -52,11 +53,13 @@ export async function PATCH(
 
   if (error) {
     console.error("[chakra-blocks/:id] update:", error.message);
+    await trackUsage(guard, req, { module: "energy_body", action: "action_failed", failedAction: "record_updated", subEntity: "chakra_block", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Blok güncellenemedi." }, { status: 500 });
   }
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya yetki yok." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "energy_body", action: "record_updated", subEntity: "chakra_block", resourceId: id });
   return NextResponse.json({ ok: true });
 }
 
@@ -81,10 +84,12 @@ export async function DELETE(
 
   if (error) {
     console.error("[chakra-blocks/:id] delete:", error.message);
+    await trackUsage(guard, req, { module: "energy_body", action: "action_failed", failedAction: "record_deleted", subEntity: "chakra_block", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Blok silinemedi." }, { status: 500 });
   }
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya yetki yok." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "energy_body", action: "record_deleted", subEntity: "chakra_block", resourceId: id });
   return NextResponse.json({ ok: true });
 }

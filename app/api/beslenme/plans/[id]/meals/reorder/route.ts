@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -49,7 +50,18 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
     const { error } = await db
       .from("nutrition_plan_meals").update({ sort_order: i })
       .eq("tenant_id", tenantId).eq("id", ids[i]).eq("plan_day_id", body.dayId as string);
-    if (error) return beslenmeJson({ ok: false, code: "REORDER_FAILED" }, 500);
+    if (error) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "meal", errorClass: "server" });
+      return beslenmeJson({ ok: false, code: "REORDER_FAILED" }, 500);
+    }
   }
+  // Usage360: sıralama = tek record_updated(meal) + öğün sayısı (N olay değil).
+  await trackUsage(guard, req, {
+    module: "beslenme",
+    action: "record_updated",
+    subEntity: "meal",
+    resourceId: body.dayId as string,
+    itemCount: ids.length,
+  });
   return NextResponse.json({ ok: true });
 }

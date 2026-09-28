@@ -24,6 +24,12 @@ export type ModuleRecordSource = {
   tenantColumn: string;
   /** oluşturulma zaman kolonu (lastRecordAt türetimi; yoksa omit). */
   createdColumn?: string;
+  /**
+   * Tabloda admin kütüphane aktarım göstergesi var (origin_transfer_batch_id / eski
+   * origin_type='admin_transfer'). true → aktarılmış satırlar "uzmanın mevcut kaydı"
+   * sayımından ÇIKARILIR (içerik okunmadan, yalnız gösterge kolonlarıyla).
+   */
+  excludeTransferred?: boolean;
 };
 
 export type ModuleUsageDescriptor = {
@@ -66,7 +72,7 @@ export const MODULE_USAGE_REGISTRY: Record<ModuleGateKey, ModuleUsageDescriptor>
     key: "stones",
     label: "Doğaltaş",
     hasDurableTrace: true,
-    recordSources: [{ table: "stones", tenantColumn: "tenant_id", createdColumn: "created_at" }],
+    recordSources: [{ table: "stones", tenantColumn: "tenant_id", createdColumn: "created_at", excludeTransferred: true }],
   },
   stok: {
     key: "stok",
@@ -83,25 +89,25 @@ export const MODULE_USAGE_REGISTRY: Record<ModuleGateKey, ModuleUsageDescriptor>
     key: "sifa_rehberi",
     label: "Şifa Rehberi",
     hasDurableTrace: true,
-    recordSources: [{ table: "healing_guides", tenantColumn: "tenant_id", createdColumn: "created_at" }],
+    recordSources: [{ table: "healing_guides", tenantColumn: "tenant_id", createdColumn: "created_at", excludeTransferred: true }],
   },
   energy_body: {
     key: "energy_body",
     label: "Enerji & Beden (Biyoenerji)",
     hasDurableTrace: true,
-    recordSources: [{ table: "bioenergy_sessions", tenantColumn: "tenant_id", createdColumn: "created_at" }],
+    recordSources: [{ table: "bioenergy_sessions", tenantColumn: "tenant_id", createdColumn: "created_at", excludeTransferred: true }],
   },
   reflexology: {
     key: "reflexology",
     label: "Refleksoloji",
     hasDurableTrace: true,
-    recordSources: [{ table: "reflexology_protocols", tenantColumn: "tenant_id", createdColumn: "created_at" }],
+    recordSources: [{ table: "reflexology_protocols", tenantColumn: "tenant_id", createdColumn: "created_at", excludeTransferred: true }],
   },
   aromatherapy: {
     key: "aromatherapy",
     label: "Aromaterapi",
     hasDurableTrace: true,
-    recordSources: [{ table: "aromatherapy_blends", tenantColumn: "tenant_id", createdColumn: "created_at" }],
+    recordSources: [{ table: "aromatherapy_blends", tenantColumn: "tenant_id", createdColumn: "created_at", excludeTransferred: true }],
   },
   personal_archive: {
     key: "personal_archive",

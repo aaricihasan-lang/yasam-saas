@@ -14,6 +14,7 @@
  */
 
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { NextRequest, NextResponse } from "next/server";
 import { Document, Packer } from "docx";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
@@ -135,6 +136,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const firstErr = dg.error || oil.error || soap.error || acc.error || other.error;
   if (firstErr) {
     console.error("[stock-report] okuma hata", { code: (firstErr as { code?: string }).code });
+    await trackUsage(guard, request, { module: "stok", action: "action_failed", failedAction: "report_generated", subEntity: "inventory", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Stok verisi okunamadı." }, { status: 500 });
   }
 
@@ -315,6 +317,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const buffer = await Packer.toBuffer(doc);
   const modeSlug = exportMode === "critical" ? "kritik" : "tumu";
   const filename = `urun-stok-${modeSlug}-${dateSlug}.docx`;
+  await trackUsage(guard, request, { module: "stok", action: "report_generated", subEntity: "inventory", itemCount: reportRows.length });
 
   return new Response(new Uint8Array(buffer), {
     headers: {

@@ -1,0 +1,53 @@
+{
+  "module": "appointments",
+  "handlers": [
+    {
+      "route": "appointments",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "appointment"
+        }
+      ],
+      "failure": "server",
+      "note": "409 APPOINTMENT_IN_FUTURE dalında ayrıca action_failed(conflict)"
+    },
+    {
+      "route": "appointments/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "appointment"
+        }
+      ],
+      "failure": "server",
+      "note": "409 APPOINTMENT_IN_FUTURE dalında ayrıca action_failed(conflict)"
+    },
+    {
+      "route": "appointments/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "appointment"
+        }
+      ],
+      "failure": "server",
+      "note": "0 satır silindiyse olay yok"
+    },
+    {
+      "route": "ajanda/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "appointment"
+        }
+      ],
+      "failure": "server",
+      "note": "sunucu DOCX; tek olay + itemCount (randevu sayısı). Route requireModuleAccess('appointments') ile kullanıcı kimlikli (moduleRouteRegistry'deki tenant-only gerekçesi eski)"
+    }
+  ]
+}

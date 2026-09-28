@@ -3,6 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { parseOrganList } from "@/lib/refleksoloji/organs";
 import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -100,7 +101,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId);
 
   if (error) {
-    return jsonServerError("protocols.organ.POST.read", error);
+    return jsonServerError("protocols.organ.POST.read", error, { usage: { guard, req, failedAction: "record_updated", subEntity: "organ" } });
   }
 
   const rows = ((data ?? []) as ProtocolRow[]).filter((r) => usesOrgan(r.organs, oldName));
@@ -133,10 +134,15 @@ export async function POST(req: NextRequest): Promise<Response> {
       .eq("tenant_id", tenantId)
       .eq("id", row.id);
     if (updErr) {
-      return jsonServerError("protocols.organ.POST.update", updErr);
+      return jsonServerError("protocols.organ.POST.update", updErr, { usage: { guard, req, failedAction: "record_updated", subEntity: "organ" } });
     }
     updated += 1;
   }
 
+  // USAGE360: organ yeniden adlandırma = tek kullanıcı eylemi → TEK olay (+etkilenen protokol
+  // sayısı). Hiç protokol etkilenmediyse (tekrar/no-op) olay yok. Organ adı telemetriye GİRMEZ.
+  if (updated > 0) {
+    await trackUsage(guard, req, { module: "reflexology", action: "record_updated", subEntity: "organ", itemCount: updated });
+  }
   return NextResponse.json({ ok: true, updated });
 }

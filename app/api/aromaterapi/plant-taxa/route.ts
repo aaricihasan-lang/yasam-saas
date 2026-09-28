@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { parseListParams } from "@/lib/aromaterapi/service/readValidation";
 import { readFail, readListOk, readServerError } from "@/lib/aromaterapi/service/readErrors";
 import { listPlantTaxa, PLANT_TAXA_STATUS } from "@/lib/aromaterapi/service/catalogReads";
 import { readJsonBounded } from "@/lib/aromaterapi/service/requestBody";
 import { validateCreateReason, resolveActorLabel } from "@/lib/aromaterapi/service/writeValidation";
-import { createPlantTaxon } from "@/lib/aromaterapi/service/catalogMethodMutations";
+import { createPlantTaxon, CATALOG_METHOD_ERROR_HTTP } from "@/lib/aromaterapi/service/catalogMethodMutations";
 import {
   CATALOG_BODY_LIMITS,
   catalogBad,
@@ -121,5 +122,13 @@ export async function POST(req: NextRequest): Promise<Response> {
       reason: reason.value,
     },
   );
+  if (!result.ok) {
+    const failStatus = CATALOG_METHOD_ERROR_HTTP[result.code];
+    if (failStatus >= 500 || failStatus === 409) {
+      await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_created", subEntity: "plant_taxon", errorClass: failStatus === 409 ? "conflict" : "server" });
+    }
+  } else if (!result.noop) {
+    await trackUsage(guard, req, { module: "aromatherapy", action: "record_created", subEntity: "plant_taxon", resourceId: result.entityId });
+  }
   return emitCatalogWrite(result, 201);
 }

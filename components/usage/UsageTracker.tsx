@@ -15,38 +15,24 @@
  */
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import { shouldSendPing, VISIT_GAP_SECONDS } from "@/lib/usage/activeTime";
 import { resolveUsageModuleFromPath } from "@/lib/usage/usageRouteModules";
+import { sendUsageBeacon as sendBeacon, setUsageBeaconEnabled } from "@/lib/usage/usageBeaconClient";
 import type { ModuleGateKey } from "@/lib/auth/moduleAccess";
 
-const BEACON_URL = "/api/usage/beacon";
 const TICK_MS = 15_000;
 const INTERACTION_EVENTS = ["pointerdown", "keydown", "touchstart", "wheel", "scroll"] as const;
-
-type BeaconBody = { kind: "ping"; module?: ModuleGateKey } | { kind: "module_opened"; module: ModuleGateKey };
-
-function sendBeacon(body: BeaconBody): void {
-  const user = readYasamUser();
-  const token = readSessionToken();
-  // Uzman değilse / demo / oturumsuz → gönderme (sunucu da ayrıca no-op yapar).
-  if (!user || !token || user.role !== "expert" || user.is_demo_account === true) return;
-  void fetch(BEACON_URL, {
-    method: "POST",
-    keepalive: true,
-    cache: "no-store",
-    headers: { "content-type": "application/json", "x-user-id": user.id, "x-session-token": token },
-    body: JSON.stringify(body),
-  }).catch(() => {
-    /* telemetri hatası kullanıcıyı etkilemez */
-  });
-}
 
 export default function UsageTracker({ enabled }: { enabled: boolean }) {
   const pathname = usePathname();
   const moduleRef = useRef<ModuleGateKey | null>(null);
   const lastInteractionRef = useRef<number | null>(null);
   const lastPingRef = useRef<number | null>(null);
+
+  // Tarayıcı-içi export/hata beacon'ları (usageBeaconClient) aynı sunucu bayrağına bağlanır.
+  useEffect(() => {
+    setUsageBeaconEnabled(enabled);
+  }, [enabled]);
 
   // Aktif modül + modül açılışı sinyali (yalnız anahtar; ham yol gönderilmez).
   useEffect(() => {

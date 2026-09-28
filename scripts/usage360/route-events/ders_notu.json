@@ -1,0 +1,7 @@
+{
+  "module": "ders_notu",
+  "handlers": [
+    { "route": "ders-notu/temizle", "method": "POST", "exempt": "admin-only modül (uzman telemetrisi üretmez)" },
+    { "route": "ders-notu/to-word", "method": "POST", "exempt": "admin-only modül (uzman telemetrisi üretmez)" }
+  ]
+}

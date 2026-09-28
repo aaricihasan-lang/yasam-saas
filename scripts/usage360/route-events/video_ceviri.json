@@ -1,0 +1,13 @@
+{
+  "module": "video_ceviri",
+  "handlers": [
+    { "route": "video-ceviri/export-word", "method": "GET", "exempt": "admin-only modül (uzman telemetrisi üretmez)" },
+    { "route": "video-ceviri/get-upload-url", "method": "POST", "exempt": "admin-only modül (uzman telemetrisi üretmez)" },
+    { "route": "video-ceviri/headings", "method": "POST", "exempt": "admin-only modül (uzman telemetrisi üretmez)" },
+    { "route": "video-ceviri/job", "method": "POST", "exempt": "admin-only modül (uzman telemetrisi üretmez)" },
+    { "route": "video-ceviri/job", "method": "PATCH", "exempt": "admin-only modül (uzman telemetrisi üretmez)" },
+    { "route": "video-ceviri/summarize", "method": "POST", "exempt": "admin-only modül (uzman telemetrisi üretmez)" },
+    { "route": "video-ceviri/transcribe", "method": "POST", "exempt": "admin-only modül (uzman telemetrisi üretmez)" },
+    { "route": "video-ceviri/translate", "method": "POST", "exempt": "admin-only modül (uzman telemetrisi üretmez)" }
+  ]
+}

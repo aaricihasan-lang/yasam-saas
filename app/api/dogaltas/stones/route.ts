@@ -225,7 +225,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!("images" in payload)) payload.images = [];
 
   const { data, error } = await db.from("stones").insert(payload).select("id").single();
-  if (error) return serverErrorResponse({ route: "dogaltas/stones", action: "POST", tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "dogaltas/stones", action: "POST", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_created", subEntity: "stone" } });
   const newId = (data as { id: string }).id;
   // İP-2C: başarılı taş kaydı oluşturma → usage event (server-resolved tenant/user; idempotent; throw etmez).
   await trackUsage(guard, req, {

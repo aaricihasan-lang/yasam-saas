@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { isUuid, cleanNumber, isUnitAllowedForCategory, hasOnlyKeys } from "@/lib/beslenme/contracts";
 import {
@@ -104,7 +105,12 @@ export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
   if (error) {
     if (error.code === "23503") return beslenmeJson({ ok: false, code: "SOURCE_NOT_FOUND" }, 400);
     const m = mapFoodRpcError(error.code);
+    const errorClass = usageErrorClassForStatus(m.status);
+    if (errorClass) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "food", errorClass });
+    }
     return beslenmeJson({ ok: false, code: m.code }, m.status);
   }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "food", resourceId: write.food.id });
   return NextResponse.json({ ok: true, count: Number(data ?? rows.length), food_id: write.food.id, personalized: write.forked });
 }

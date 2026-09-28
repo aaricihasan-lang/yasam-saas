@@ -2,8 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { getBioResource, validateBioFields } from "@/lib/biyoenerji/resourceConfig";
 import { bioDbError } from "@/lib/biyoenerji/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
+
+/** USAGE360: [resource] (resourceConfig anahtarı) → sabit alt-varlık eşlemesi. */
+const BIO_USAGE_SUB_ENTITY: Record<string, string> = {
+  sessions: "session",
+  "energy-bodies": "energy_body",
+  "subconscious-causes": "subconscious",
+  imaginations: "imagination",
+  symbols: "symbol",
+  chakras: "chakra",
+};
 
 /**
  * /api/biyoenerji/[resource]/[id] — tek kayıt oku/güncelle/sil.
@@ -76,10 +87,15 @@ export async function PATCH(
     .eq("tenant_id", tenantId)
     .select("id");
 
-  if (error) return bioDbError(`${resource}.update`, error, "Kayıt güncellenemedi.");
+  const usageSubEntity = BIO_USAGE_SUB_ENTITY[resource] ?? null;
+  if (error) {
+    await trackUsage(guard, req, { module: "energy_body", action: "action_failed", failedAction: "record_updated", subEntity: usageSubEntity, errorClass: "server" });
+    return bioDbError(`${resource}.update`, error, "Kayıt güncellenemedi.");
+  }
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya yetki yok." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "energy_body", action: "record_updated", subEntity: usageSubEntity, resourceId: id });
   return NextResponse.json({ ok: true });
 }
 
@@ -98,7 +114,15 @@ export async function DELETE(
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
-  const { error } = await db.from(cfg.table).delete().eq("id", id).eq("tenant_id", tenantId);
-  if (error) return bioDbError(`${resource}.deleteOne`, error, "Kayıt silinemedi.");
+  // USAGE360: select("id") yalnız gerçekten silinen satırı saymak için (yanıt değişmez).
+  const { data, error } = await db.from(cfg.table).delete().eq("id", id).eq("tenant_id", tenantId).select("id");
+  const usageSubEntity = BIO_USAGE_SUB_ENTITY[resource] ?? null;
+  if (error) {
+    await trackUsage(guard, req, { module: "energy_body", action: "action_failed", failedAction: "record_deleted", subEntity: usageSubEntity, errorClass: "server" });
+    return bioDbError(`${resource}.deleteOne`, error, "Kayıt silinemedi.");
+  }
+  if (data && data.length > 0) {
+    await trackUsage(guard, req, { module: "energy_body", action: "record_deleted", subEntity: usageSubEntity, resourceId: id });
+  }
   return NextResponse.json({ ok: true });
 }

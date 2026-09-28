@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { isActiveTopicInTenant } from "@/lib/beslenme/topicGuard";
 import { TOPIC_FOOD_COLUMNS, RELATION_TYPES, cleanStr, inEnum, isUuid, hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -44,8 +45,12 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
     .eq("id", relId)
     .select(TOPIC_FOOD_COLUMNS)
     .maybeSingle();
-  if (error) return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "topic", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
+  }
   if (!data) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "topic", resourceId: topicId });
   return NextResponse.json({ ok: true, relation: data });
 }
 
@@ -66,7 +71,12 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
     .eq("tenant_id", tenantId)
     .eq("topic_id", topicId)
     .eq("id", relId);
-  if (error) return beslenmeJson({ ok: false, code: "DELETE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "topic", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "DELETE_FAILED" }, 500);
+  }
   if (!count) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
+  // Usage360: besin bağını kaldırmak rehberi değiştirir (besin silinmez) → record_updated(topic).
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "topic", resourceId: topicId });
   return NextResponse.json({ ok: true, deleted: true });
 }

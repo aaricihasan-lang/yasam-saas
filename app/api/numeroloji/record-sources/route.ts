@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import {
   validateRecordSourceInput,
   isUuid,
@@ -140,8 +141,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     // Duplicate bağ (unique) → 409; diğerleri güvenli map.
     const e = safeDbError(error);
     const message = e.status === 409 ? "Bu kaynak bu kayda (aynı bölüm) zaten bağlı." : e.message;
+    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_created", subEntity: "source_link", errorClass: usageErrorClassForStatus(e.status) ?? "server" });
     return NextResponse.json({ ok: false, error: message }, { status: e.status });
   }
+  await trackUsage(guard, req, { module: "numerology", action: "record_created", subEntity: "source_link", resourceId: (data as { id: string }).id });
   return NextResponse.json({ ok: true, id: (data as { id: string }).id });
 }
 
@@ -199,11 +202,13 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   if (error) {
     const e = safeDbError(error);
     const message = e.status === 409 ? "Bu kaynak bu kayda (aynı bölüm) zaten bağlı." : e.message;
+    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_updated", subEntity: "source_link", errorClass: usageErrorClassForStatus(e.status) ?? "server" });
     return NextResponse.json({ ok: false, error: message }, { status: e.status });
   }
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Bağlantı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "numerology", action: "record_updated", subEntity: "source_link", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }
 
@@ -229,7 +234,13 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .select("id");
   if (error) {
     const e = safeDbError(error);
+    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_deleted", subEntity: "source_link", errorClass: usageErrorClassForStatus(e.status) ?? "server" });
     return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
+  }
+  const deletedIds = (data ?? []).map((r) => (r as { id: string }).id);
+  if (deletedIds.length > 0) {
+    // Toplu silme → TEK olay + itemCount (hiçbiri silinmediyse olay yok).
+    await trackUsage(guard, req, { module: "numerology", action: "record_deleted", subEntity: "source_link", resourceId: [...deletedIds].sort().join(","), itemCount: deletedIds.length });
   }
   return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
 }

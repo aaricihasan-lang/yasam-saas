@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { Packer } from "docx";
 import type { ReportChild } from "@/lib/docx/reportHelpers";
@@ -190,7 +191,10 @@ export async function POST(
       rows: extraRows,
       analysisImages,
     }, ctx);
-    return docxResponse(await Packer.toBuffer(doc), filename);
+    const tabBuffer = await Packer.toBuffer(doc);
+    // resourceId yalnız dedup içindir (HMAC'lanır): rapor türü başına ayrı kova.
+    await trackUsage(guard, req, { module: "clients", action: "report_generated", subEntity: "client", resourceId: `${clientId}:tab:${tab}` });
+    return docxResponse(tabBuffer, filename);
   }
 
   // ─── Single-analysis mode ────────────────────────────────────────────────────
@@ -220,7 +224,10 @@ export async function POST(
       analysis: an,
       imageBuf,
     }, ctx);
-    return docxResponse(await Packer.toBuffer(doc), filename);
+    const saBuffer = await Packer.toBuffer(doc);
+    // Rapor konusu tek analiz → subEntity "analysis".
+    await trackUsage(guard, req, { module: "clients", action: "report_generated", subEntity: "analysis", resourceId: an.id });
+    return docxResponse(saBuffer, filename);
   }
 
   // ─── Tüm danışan verisi (date-range + full ortak okuma) ─────────────────────
@@ -269,7 +276,9 @@ export async function POST(
     const analysisImages = await fetchAnalysisImages(db, tenantId, clientId, data.analyses);
 
     const { doc, filename } = buildClientDateRangeReport({ data, drStart, drEnd, profileImg, analysisImages }, ctx);
-    return docxResponse(await Packer.toBuffer(doc), filename);
+    const drBuffer = await Packer.toBuffer(doc);
+    await trackUsage(guard, req, { module: "clients", action: "report_generated", subEntity: "client", resourceId: `${clientId}:range` });
+    return docxResponse(drBuffer, filename);
   }
 
   // ─── Full mode ────────────────────────────────────────────────────────────────
@@ -317,5 +326,7 @@ export async function POST(
   }
 
   const { doc, filename } = buildClientFullReport({ data, profileImg, analysisImages, snapshotChildren }, ctx);
-  return docxResponse(await Packer.toBuffer(doc), filename);
+  const fullBuffer = await Packer.toBuffer(doc);
+  await trackUsage(guard, req, { module: "clients", action: "report_generated", subEntity: "client", resourceId: `${clientId}:full` });
+  return docxResponse(fullBuffer, filename);
 }

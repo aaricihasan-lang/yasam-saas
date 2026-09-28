@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -60,8 +61,13 @@ export async function POST(req: NextRequest): Promise<Response> {
     updated_at: now,
   };
   const { data, error } = await db.from("oil_inventory").insert(payload).select("id").single();
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, id: (data as { id: string }).id });
+  if (error) {
+    await trackUsage(guard, req, { module: "stok", action: "action_failed", failedAction: "record_created", subEntity: "oil", errorClass: "server" });
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+  const newId = (data as { id: string }).id;
+  await trackUsage(guard, req, { module: "stok", action: "record_created", subEntity: "oil", resourceId: newId });
+  return NextResponse.json({ ok: true, id: newId });
 }
 
 export async function PATCH(req: NextRequest): Promise<Response> {
@@ -84,10 +90,14 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     .eq("id", id).eq("tenant_id", tenantId)
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    await trackUsage(guard, req, { module: "stok", action: "action_failed", failedAction: "record_updated", subEntity: "oil", errorClass: "server" });
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Stok kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "stok", action: "record_updated", subEntity: "oil", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }
 
@@ -111,9 +121,13 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("id", id).eq("tenant_id", tenantId)
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    await trackUsage(guard, req, { module: "stok", action: "action_failed", failedAction: "record_deleted", subEntity: "oil", errorClass: "server" });
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Stok kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "stok", action: "record_deleted", subEntity: "oil", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }

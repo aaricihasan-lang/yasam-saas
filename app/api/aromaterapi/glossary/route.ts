@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { parseListParams } from "@/lib/aromaterapi/service/readValidation";
 import { readFail, readListOk, readServerError } from "@/lib/aromaterapi/service/readErrors";
 import { listGlossaryTerms, GLOSSARY_STATUS } from "@/lib/aromaterapi/service/glossaryReads";
@@ -80,10 +81,13 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (error) {
     if ((error as { code?: string }).code === "23505") {
+      await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_created", subEntity: "glossary_term", errorClass: "conflict" });
       return writeFail("AROMA_UNIQUE_VIOLATION", 409);
     }
     console.error("[aromaterapi:glossary:create]", (error as { message?: unknown })?.message);
+    await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_created", subEntity: "glossary_term", errorClass: "server" });
     return writeFail("AROMA_WRITE_FAILED", 500);
   }
+  await trackUsage(guard, req, { module: "aromatherapy", action: "record_created", subEntity: "glossary_term", resourceId: String(data.id) });
   return NextResponse.json({ ok: true, id: data.id }, { status: 201 });
 }

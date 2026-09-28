@@ -24,6 +24,7 @@ import {
   type CalendarDay,
 } from "@/lib/cosmic/hacamat";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { validateHacamatReportPayload } from "@/lib/cosmic/hacamatReport";
 import { checkRateLimit } from "@/lib/security/rateLimit";
 import { todayInZone } from "@/lib/time/reportTime";
@@ -466,6 +467,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const buffer   = await buildWordBuffer({ year, month });
   const filename = `hacamat-takvimi-${year}-${String(month + 1).padStart(2, "0")}.docx`;
+  await trackUsage(guard, request, { module: "cosmic_calendar", action: "report_generated", subEntity: "hacamat_calendar", resourceId: `word:${year}-${month}` });
 
   return new Response(new Uint8Array(buffer), {
     headers: {
@@ -508,9 +510,11 @@ export async function POST(request: Request): Promise<Response> {
   try {
     buffer = await buildWordBuffer({ year, month, rules, expertNotes, title, expertName, includeSections });
   } catch {
+    await trackUsage(guard, request, { module: "cosmic_calendar", action: "action_failed", failedAction: "report_generated", subEntity: "hacamat_calendar", errorClass: "server" });
     return Response.json({ ok: false, error: "Rapor oluşturulamadı." }, { status: 500 });
   }
   const filename = `hacamat-takvimi-${year}-${String(month + 1).padStart(2, "0")}.docx`;
+  await trackUsage(guard, request, { module: "cosmic_calendar", action: "report_generated", subEntity: "hacamat_calendar", resourceId: `word:${year}-${month}` });
 
   return new Response(new Uint8Array(buffer), {
     headers: {

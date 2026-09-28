@@ -7,6 +7,7 @@ import {
   buildStonePhotoPath,
   isOwnedStonePhotoPath,
 } from "@/lib/dogaltas/stonePhoto";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -55,6 +56,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
   // Server boyut doğrulaması.
   if (file.size <= 0 || file.size > STONE_PHOTO_MAX_BYTES) {
+    if (file.size > STONE_PHOTO_MAX_BYTES) {
+      await trackUsage(guard, req, { module: "stones", action: "action_failed", failedAction: "file_uploaded", subEntity: "photo", errorClass: "too_large" });
+    }
     return NextResponse.json(
       { ok: false, error: "Görsel boyutu 10 MB sınırını aşıyor." },
       { status: 413 },
@@ -70,8 +74,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     .upload(filePath, bytes, { cacheControl: "3600", upsert: false, contentType: file.type });
 
   if (uploadError) {
+    await trackUsage(guard, req, { module: "stones", action: "action_failed", failedAction: "file_uploaded", subEntity: "photo", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Görsel yüklenemedi." }, { status: 500 });
   }
+  // Usage360: sunucu multipart yükleme BAŞARILI (dosya adı/boyutu telemetriye GİRMEZ).
+  await trackUsage(guard, req, { module: "stones", action: "file_uploaded", subEntity: "photo", resourceId: uuid });
 
   // Kalıcı public URL YOK. DB'ye yalnız file_path yazılır. Önizleme için kısa ömürlü signed
   // URL döner (DB'ye kaydedilmez). Upload başarılı ama signed üretilemese bile file_path döner.
@@ -110,7 +117,9 @@ export async function DELETE(req: NextRequest): Promise<Response> {
 
   const { error } = await db.storage.from(STONE_PHOTO_BUCKET).remove([filePath]);
   if (error) {
+    await trackUsage(guard, req, { module: "stones", action: "action_failed", failedAction: "record_deleted", subEntity: "photo", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Görsel kaldırılamadı." }, { status: 500 });
   }
+  await trackUsage(guard, req, { module: "stones", action: "record_deleted", subEntity: "photo", resourceId: filePath });
   return NextResponse.json({ ok: true });
 }

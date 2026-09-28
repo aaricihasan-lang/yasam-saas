@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { isUuid } from "@/lib/aromaterapi/service/readValidation";
 import { readFail, readNotFound, readServerError } from "@/lib/aromaterapi/service/readErrors";
 import { getSource, SOURCE_STATUS, SOURCE_TYPES } from "@/lib/aromaterapi/service/sourceReads";
@@ -14,6 +15,7 @@ import {
   emitSourceWrite,
   deleteSource,
   emitSourceDelete,
+  SOURCE_ERROR_HTTP,
 } from "@/lib/aromaterapi/service/sourceMutations";
 import {
   catalogBad,
@@ -149,6 +151,14 @@ export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Respon
       reason: reason.value as string,
     },
   );
+  if (!result.ok) {
+    const failStatus = SOURCE_ERROR_HTTP[result.code];
+    if (failStatus >= 500 || failStatus === 409) {
+      await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_updated", subEntity: "source", errorClass: failStatus === 409 ? "conflict" : "server" });
+    }
+  } else if (!result.noop) {
+    await trackUsage(guard, req, { module: "aromatherapy", action: "record_updated", subEntity: "source", resourceId: id });
+  }
   return emitSourceWrite(result, 200);
 }
 
@@ -195,5 +205,13 @@ export async function DELETE(req: NextRequest, ctx: RouteContext): Promise<Respo
     id,
     { expectedUpdatedAt: expectedRaw, reason: (reason.value as string).trim() },
   );
+  if (!result.ok) {
+    const failStatus = SOURCE_ERROR_HTTP[result.code];
+    if (failStatus >= 500 || failStatus === 409) {
+      await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_deleted", subEntity: "source", errorClass: failStatus === 409 ? "conflict" : "server" });
+    }
+  } else {
+    await trackUsage(guard, req, { module: "aromatherapy", action: "record_deleted", subEntity: "source", resourceId: id });
+  }
   return emitSourceDelete(result);
 }

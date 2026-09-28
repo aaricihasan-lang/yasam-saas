@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { Document, Packer } from "docx";
 import {
   arraySection,
@@ -140,10 +141,14 @@ export async function POST(req: NextRequest): Promise<Response> {
     stoneQ.order("analysis_type").order("value"),
   ]);
 
-  if (kRes.error)
+  if (kRes.error) {
+    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "report_generated", subEntity: "knowledge", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Açıklama kayıtları okunamadı." }, { status: 500 });
-  if (sRes.error)
+  }
+  if (sRes.error) {
+    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "report_generated", subEntity: "knowledge", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Taş atamaları okunamadı." }, { status: 500 });
+  }
 
   const knowledgeRows = (kRes.data || []) as KnowledgeRow[];
   const stoneRows = (sRes.data || []) as StoneRow[];
@@ -400,6 +405,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   const buffer = await Packer.toBuffer(doc);
   const modeSlug = exportMode === "filtered" ? "filtreli" : "tumu";
   const filename = `numeroloji-bilgi-bankasi-${modeSlug}-${dateSlug}.docx`;
+
+  // Usage360: Word dosyası BAŞARIYLA üretildi → tek rapor olayı (konu: bilgi bankası).
+  await trackUsage(guard, req, {
+    module: "numerology",
+    action: "report_generated",
+    subEntity: "knowledge",
+    resourceId: [...knowledgeRows.map((r) => r.id), ...stoneRows.map((r) => r.id)].sort().join(","),
+    itemCount: knowledgeRows.length + stoneRows.length,
+  });
 
   return new Response(new Uint8Array(buffer), {
     headers: {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { isActiveTopicInTenant } from "@/lib/beslenme/topicGuard";
 import { SECTION_COLUMNS, SECTION_KEYS, cleanStr, inEnum, isUuid, hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -43,7 +44,9 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   const { data, error } = await db.from("nutrition_topic_sections").insert(insert).select(SECTION_COLUMNS).single();
   if (error) {
     if (error.code === "23503") return beslenmeJson({ ok: false, code: "TOPIC_NOT_FOUND" }, 404);
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "section", errorClass: "server" });
     return beslenmeJson({ ok: false, code: "CREATE_FAILED" }, 500);
   }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_created", subEntity: "section", resourceId: (data as { id?: string } | null)?.id ?? null });
   return NextResponse.json({ ok: true, section: data }, { status: 201 });
 }

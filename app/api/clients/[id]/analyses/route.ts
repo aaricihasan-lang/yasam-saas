@@ -119,7 +119,13 @@ export async function POST(
     .single();
 
   if (error) {
-    return serverErrorResponse({ route: "clients/[id]/analyses", action: "POST", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]/analyses",
+      action: "POST",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "analysis_run", subEntity: "analysis" },
+    });
   }
 
   const newId = (data as { id: string } | null)?.id ?? null;
@@ -193,13 +199,22 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
-    return serverErrorResponse({ route: "clients/[id]/analyses", action: "PATCH", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]/analyses",
+      action: "PATCH",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "record_updated", subEntity: "analysis" },
+    });
   }
   if (!data) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
   }
 
-  return NextResponse.json({ ok: true, id: (data as { id: string }).id });
+  const updatedId = (data as { id: string }).id;
+  await trackUsage(guard, req, { module: "clients", action: "record_updated", subEntity: "analysis", resourceId: updatedId });
+
+  return NextResponse.json({ ok: true, id: updatedId });
 }
 
 // ─── DELETE /api/clients/[id]/analyses  (body: { analysisId }) ──────────────────
@@ -245,8 +260,16 @@ export async function DELETE(
     .eq("client_id", clientId);
 
   if (error) {
-    return serverErrorResponse({ route: "clients/[id]/analyses", action: "DELETE", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]/analyses",
+      action: "DELETE",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "record_deleted", subEntity: "analysis" },
+    });
   }
+
+  await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "analysis", resourceId: analysisId });
 
   return NextResponse.json({ ok: true });
 }

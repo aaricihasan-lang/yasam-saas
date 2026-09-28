@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { isActiveTopicInTenant } from "@/lib/beslenme/topicGuard";
 import { TOPIC_FOOD_COLUMNS, RELATION_TYPES, cleanStr, inEnum, isUuid, hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -48,9 +49,15 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   };
   const { data, error } = await db.from("nutrition_topic_foods").insert(insert).select(TOPIC_FOOD_COLUMNS).single();
   if (error) {
-    if (error.code === "23505") return beslenmeJson({ ok: false, code: "DUPLICATE_RELATION" }, 409);
+    if (error.code === "23505") {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "topic", errorClass: "conflict" });
+      return beslenmeJson({ ok: false, code: "DUPLICATE_RELATION" }, 409);
+    }
     if (error.code === "23503") return beslenmeJson({ ok: false, code: "TOPIC_OR_FOOD_NOT_FOUND" }, 404);
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "topic", errorClass: "server" });
     return beslenmeJson({ ok: false, code: "CREATE_FAILED" }, 500);
   }
+  // Usage360: rehbere besin bağlamak rehberi değiştirir (kaynak bağı DEĞİL) → record_updated(topic).
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "topic", resourceId: topicId });
   return NextResponse.json({ ok: true, relation: data }, { status: 201 });
 }

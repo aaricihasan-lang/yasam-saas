@@ -97,11 +97,14 @@ export function normalizeCity(raw: string | null | undefined): string | null {
   } catch {
     return null;
   }
-  // Yalnız harf (her alfabe) / birleşik işaret / boşluk / . ' ’ - kalır: şehir adı dışında
-  // serbest metin (rakam, _, @, / …) taşınamaz. 64 karakter sınırı (DB CHECK ile aynı).
-  v = v.replace(/[^\p{L}\p{M} .'’-]/gu, "").replace(/\s+/g, " ").trim();
-  if (!v) return null;
-  return v.slice(0, 64);
+  // NFC: "İ", "ş" gibi harfler birleşik/ayrışık gelse de tek biçime indirgenir.
+  v = v.normalize("NFC").replace(/[ \t]+/g, " ").trim();
+  // Şehir adı yalnız harf (her alfabe; Türkçe Ç Ğ İ I ı Ö Ş Ü dahil) / birleşik işaret /
+  // boşluk / . ' ’ - içerir. Başka karakter (rakam, <, >, _, @, /, satır sonu, kontrol
+  // karakteri …) veya 64'ten uzun değer → değer REDDEDİLİR (kırpılıp "temizlenmiş" bir
+  // serbest metin saklanmaz). DB CHECK ile aynı 64 sınırı.
+  if (!v || v.length > 64 || !/^[\p{L}\p{M} .'’-]+$/u.test(v)) return null;
+  return v;
 }
 
 /** İstek başlıklarından Usage360 bağlamı. IP başlıkları OKUNMAZ. */

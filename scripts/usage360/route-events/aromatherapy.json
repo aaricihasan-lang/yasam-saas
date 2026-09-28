@@ -1,0 +1,498 @@
+{
+  "module": "aromatherapy",
+  "handlers": [
+    {
+      "route": "aromaterapi/articles",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "article"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "aromaterapi/articles/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "article"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "aromaterapi/articles/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "article"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "aromaterapi/blends",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "blend"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "aromaterapi/blends/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "blend"
+        }
+      ],
+      "failure": "server",
+      "note": "iyimser kilit 409 AROMA_STALE_BLEND → conflict; DB hatası → server"
+    },
+    {
+      "route": "aromaterapi/blends/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "blend"
+        }
+      ],
+      "failure": "server",
+      "note": "soft delete (is_active=false) = kullanıcı silme eylemi"
+    },
+    {
+      "route": "aromaterapi/claims",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "claim"
+        }
+      ],
+      "failure": "server",
+      "note": "409 çakışma dalında action_failed errorClass=conflict; ≥500 → server (CLAIM_ERROR_HTTP)"
+    },
+    {
+      "route": "aromaterapi/claims/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "claim"
+        }
+      ],
+      "failure": "server",
+      "note": "409 çakışma dalında action_failed errorClass=conflict; ≥500 → server (CLAIM_ERROR_HTTP)"
+    },
+    {
+      "route": "aromaterapi/glossary",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "glossary_term"
+        }
+      ],
+      "failure": "server",
+      "note": "23505 → 409 conflict; diğer DB hatası → server"
+    },
+    {
+      "route": "aromaterapi/glossary/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "glossary_term"
+        }
+      ],
+      "failure": "server",
+      "note": "23505 → 409 conflict; diğer DB hatası → server"
+    },
+    {
+      "route": "aromaterapi/glossary/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "glossary_term"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "aromaterapi/methods/[seriesId]/revisions",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "method"
+        }
+      ],
+      "failure": "server",
+      "note": "yeni yöntem revizyonu; noop → olay yok; 409 çakışma dalında action_failed errorClass=conflict; ≥500 → server"
+    },
+    {
+      "route": "aromaterapi/methods/[seriesId]/revisions/[revisionId]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "method"
+        }
+      ],
+      "failure": "server",
+      "note": "revizyon durum geçişi; noop → olay yok; 409 çakışma dalında action_failed errorClass=conflict; ≥500 → server"
+    },
+    {
+      "route": "aromaterapi/oils",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "oil"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "aromaterapi/oils",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "oil"
+        }
+      ],
+      "failure": "server",
+      "note": "toplu silme (id'siz) → TEK olay + itemCount; 0 satır → olay yok"
+    },
+    {
+      "route": "aromaterapi/oils/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "oil"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "aromaterapi/oils/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "oil"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "aromaterapi/plant-taxa",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "plant_taxon"
+        }
+      ],
+      "failure": "server",
+      "note": "noop → olay yok; 409 çakışma dalında action_failed errorClass=conflict; ≥500 → server"
+    },
+    {
+      "route": "aromaterapi/plant-taxa/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "plant_taxon"
+        }
+      ],
+      "failure": "server",
+      "note": "noop → olay yok; 409 çakışma dalında action_failed errorClass=conflict; ≥500 → server"
+    },
+    {
+      "route": "aromaterapi/preparations",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "preparation"
+        }
+      ],
+      "failure": "server",
+      "note": "noop → olay yok; 409 çakışma dalında action_failed errorClass=conflict; ≥500 → server"
+    },
+    {
+      "route": "aromaterapi/preparations/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "preparation"
+        }
+      ],
+      "failure": "server",
+      "note": "noop → olay yok; 409 çakışma dalında action_failed errorClass=conflict; ≥500 → server"
+    },
+    {
+      "route": "aromaterapi/preparations/[id]/methods",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "method"
+        }
+      ],
+      "failure": "server",
+      "note": "yöntem serisi + ilk revizyon = tek olay; noop → olay yok; 409 çakışma dalında action_failed errorClass=conflict; ≥500 → server"
+    },
+    {
+      "route": "aromaterapi/sources",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "source"
+        }
+      ],
+      "failure": "server",
+      "note": "noop → olay yok; 409 çakışma dalında action_failed errorClass=conflict; ≥500 → server (SOURCE_ERROR_HTTP)"
+    },
+    {
+      "route": "aromaterapi/sources/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "source"
+        }
+      ],
+      "failure": "server",
+      "note": "noop → olay yok; 409 çakışma dalında action_failed errorClass=conflict; ≥500 → server (SOURCE_ERROR_HTTP)"
+    },
+    {
+      "route": "aromaterapi/sources/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "source"
+        }
+      ],
+      "failure": "server",
+      "note": "kullanılan kaynak / eski sürüm 409 → conflict; ≥500 → server"
+    },
+    {
+      "route": "aromaterapi/blends/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "blend"
+        }
+      ],
+      "failure": "server",
+      "note": "liste/seçili rapor (+itemCount); DOCX tamponu üretildikten sonra; builder ≥500 veya catch → server"
+    },
+    {
+      "route": "aromaterapi/claims/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "claim"
+        }
+      ],
+      "failure": "server",
+      "note": "liste/seçili rapor (+itemCount); DOCX tamponu üretildikten sonra; builder ≥500 veya catch → server"
+    },
+    {
+      "route": "aromaterapi/glossary/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "glossary_term"
+        }
+      ],
+      "failure": "server",
+      "note": "liste/seçili rapor (+itemCount); DOCX tamponu üretildikten sonra; builder ≥500 veya catch → server"
+    },
+    {
+      "route": "aromaterapi/methods/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "method"
+        }
+      ],
+      "failure": "server",
+      "note": "liste/seçili rapor (+itemCount); DOCX tamponu üretildikten sonra; builder ≥500 veya catch → server"
+    },
+    {
+      "route": "aromaterapi/oils/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "oil"
+        }
+      ],
+      "failure": "server",
+      "note": "liste/seçili rapor (+itemCount); DOCX tamponu üretildikten sonra; builder ≥500 veya catch → server"
+    },
+    {
+      "route": "aromaterapi/plant-taxa/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "plant_taxon"
+        }
+      ],
+      "failure": "server",
+      "note": "liste/seçili rapor (+itemCount); DOCX tamponu üretildikten sonra; builder ≥500 veya catch → server"
+    },
+    {
+      "route": "aromaterapi/preparations/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "preparation"
+        }
+      ],
+      "failure": "server",
+      "note": "liste/seçili rapor (+itemCount); DOCX tamponu üretildikten sonra; builder ≥500 veya catch → server"
+    },
+    {
+      "route": "aromaterapi/sources/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "source"
+        }
+      ],
+      "failure": "server",
+      "note": "liste/seçili rapor (+itemCount); DOCX tamponu üretildikten sonra; builder ≥500 veya catch → server"
+    },
+    {
+      "route": "aromaterapi/blends/[id]/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "blend"
+        }
+      ],
+      "failure": "server",
+      "note": "tekil rapor (resourceId=id); DOCX tamponu üretildikten sonra; builder ≥500 veya catch → server"
+    },
+    {
+      "route": "aromaterapi/claims/[id]/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "claim"
+        }
+      ],
+      "failure": "server",
+      "note": "tekil rapor (resourceId=id); DOCX tamponu üretildikten sonra; builder ≥500 veya catch → server"
+    },
+    {
+      "route": "aromaterapi/methods/[seriesId]/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "method"
+        }
+      ],
+      "failure": "server",
+      "note": "tekil rapor (resourceId=id); DOCX tamponu üretildikten sonra; builder ≥500 veya catch → server"
+    },
+    {
+      "route": "aromaterapi/oils/[id]/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "oil"
+        }
+      ],
+      "failure": "server",
+      "note": "tekil rapor (resourceId=id); DOCX tamponu üretildikten sonra; builder ≥500 veya catch → server"
+    },
+    {
+      "route": "aromaterapi/plant-taxa/[id]/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "plant_taxon"
+        }
+      ],
+      "failure": "server",
+      "note": "tekil rapor (resourceId=id); DOCX tamponu üretildikten sonra; builder ≥500 veya catch → server"
+    },
+    {
+      "route": "aromaterapi/preparations/[id]/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "preparation"
+        }
+      ],
+      "failure": "server",
+      "note": "tekil rapor (resourceId=id); DOCX tamponu üretildikten sonra; builder ≥500 veya catch → server"
+    },
+    {
+      "route": "aromaterapi/sources/[id]/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "source"
+        }
+      ],
+      "failure": "server",
+      "note": "tekil rapor (resourceId=id); DOCX tamponu üretildikten sonra; builder ≥500 veya catch → server"
+    },
+    {
+      "route": "aromaterapi/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntities": [
+            "oil",
+            "plant_taxon",
+            "preparation",
+            "blend",
+            "method",
+            "claim",
+            "source",
+            "glossary_term"
+          ]
+        }
+      ],
+      "failure": "server",
+      "note": "genel katalog: tek bölüm seçildiyse o bölümün alt-varlığı (sabit eşleme GENERAL_SECTION_SUB), çok bölüm/tam katalog → oil (katalogun çekirdek/ilk bölümü); DOCX tamponu üretildikten sonra; builder ≥500 veya catch → server"
+    }
+  ]
+}

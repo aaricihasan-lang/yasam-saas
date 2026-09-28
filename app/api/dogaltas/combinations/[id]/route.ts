@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { isUuid } from "@/lib/dogaltas/validation";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -102,14 +103,16 @@ export async function PATCH(
     if (error) {
       const msg = String((error as { message?: unknown }).message ?? "");
       if (msg.includes("combination_conflict")) {
+        await trackUsage(guard, req, { module: "stones", action: "action_failed", failedAction: "record_updated", subEntity: "combination", errorClass: "conflict" });
         return NextResponse.json({ ok: false, error: CONFLICT_MSG, code: "conflict" }, { status: 409 });
       }
       if (msg.includes("combination_not_found_for_tenant")) {
         return NextResponse.json({ ok: false, error: "Kombinasyon bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
       }
-      return serverErrorResponse({ route: "dogaltas/combinations/[id]", action: "PATCH:rpc", tenantId, cause: error });
+      return serverErrorResponse({ route: "dogaltas/combinations/[id]", action: "PATCH:rpc", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_updated", subEntity: "combination" } });
     }
     const r = (data ?? {}) as { updated_at?: string };
+    await trackUsage(guard, req, { module: "stones", action: "record_updated", subEntity: "combination", resourceId: id });
     return NextResponse.json({ ok: true, id, updated_at: r.updated_at });
   }
 
@@ -142,13 +145,16 @@ export async function PATCH(
   if (expectedUpdatedAt) query = query.eq("updated_at", expectedUpdatedAt);
   const { data, error } = await query.select("id,issue,updated_at");
 
-  if (error) return serverErrorResponse({ route: "dogaltas/combinations/[id]", action: "PATCH", tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "dogaltas/combinations/[id]", action: "PATCH", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_updated", subEntity: "combination" } });
   if (!data || data.length === 0) {
     // 0 satır: concurrency guard verildiyse conflict mi yoksa yok mu ayır.
     if (expectedUpdatedAt) {
       const { data: exists } = await db
         .from("combinations").select("id").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
-      if (exists) return NextResponse.json({ ok: false, error: CONFLICT_MSG, code: "conflict" }, { status: 409 });
+      if (exists) {
+        await trackUsage(guard, req, { module: "stones", action: "action_failed", failedAction: "record_updated", subEntity: "combination", errorClass: "conflict" });
+        return NextResponse.json({ ok: false, error: CONFLICT_MSG, code: "conflict" }, { status: 409 });
+      }
     }
     return NextResponse.json(
       { ok: false, error: "Kombinasyon bulunamadı veya bu tenant'a ait değil." },
@@ -156,5 +162,6 @@ export async function PATCH(
     );
   }
   const row = data[0] as { issue: string; updated_at?: string };
+  await trackUsage(guard, req, { module: "stones", action: "record_updated", subEntity: "combination", resourceId: id });
   return NextResponse.json({ ok: true, id, issue: row.issue, updated_at: row.updated_at });
 }

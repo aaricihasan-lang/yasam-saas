@@ -96,20 +96,46 @@ export function toItemCountBucket(n: number): ItemCountBucket | null {
 }
 
 /**
- * Alt-varlık türü (ör. clients altında "session" / "analysis"). DB yalnız biçimi zorlar
- * (^[a-z][a-z0-9_]{0,31}$); modül başına izinli değerler BURADA tutulur (AŞAMA 2B genişletir).
+ * ALT-VARLIK (sub_entity) KANONİK SÖZLÜĞÜ — modül başına KAPALI allowlist (AŞAMA 2B).
+ *
+ * Aynı kavram her modülde AYNI adla yazılır (kaynak bağlantısı daima `source_link`;
+ * fotoğraf `photo`, dosya `file`, görsel `image`). Rapor olaylarında sub_entity raporun
+ * KONUSUdur (ör. biyoenerji seans raporu → `session`). DB yalnız biçimi zorlar
+ * (^[a-z][a-z0-9_]{0,31}$); modül eşleşmesini trackUsage + kapsam harness'i doğrular.
+ * Admin-only modüller (video_ceviri, ders_notu, belge_ceviri_ai) ve hub (digital_content)
+ * uzman işlem olayı üretmez → listeleri boştur.
  */
-export const USAGE_SUB_ENTITIES: Partial<Record<ModuleGateKey, readonly string[]>> = {
-  clients: ["analysis"],
-  numerology: ["analysis"],
-  stones: ["stone"],
-  reflexology: ["protocol"],
+export const USAGE_SUB_ENTITIES: Record<ModuleGateKey, readonly string[]> = {
+  clients: ["client", "analysis", "session", "homework", "stone", "charge", "combination", "consent", "appointment", "note", "photo"],
+  appointments: ["appointment"],
+  numerology: ["analysis", "knowledge", "source", "source_entry", "source_link", "stone"],
+  stones: ["stone", "mineral", "combination", "knowledge", "category", "inventory", "exclusion", "photo"],
+  stok: ["oil", "soap_cream", "accessory", "other_item", "sale", "inventory"],
+  sifa_rehberi: ["guide", "section", "photo"],
+  energy_body: ["session", "energy_body", "subconscious", "imagination", "symbol", "chakra", "chakra_block"],
+  reflexology: ["protocol", "organ", "atlas", "note"],
+  aromatherapy: ["oil", "blend", "article", "claim", "glossary_term", "plant_taxon", "preparation", "method", "source"],
+  personal_archive: ["archive", "file"],
+  video_ceviri: [],
+  belge_ceviri: ["document"],
+  belge_ceviri_ai: [],
+  ders_notu: [],
+  human_design: ["chart", "client", "report", "knowledge", "source", "image"],
+  digital_content: [],
+  cosmic_calendar: ["hacamat_rule", "hacamat_calendar"],
+  cupping: [
+    "protocol", "point", "technique", "topic", "topic_note", "safety", "source", "source_link", "knowledge",
+    "placement", "point_topic", "advice_template", "client_advice", "calendar_plan", "calendar_day",
+  ],
+  beslenme: [
+    "plan", "day", "meal", "item", "food", "source", "source_link", "topic", "section", "template",
+    "assignment", "measurement", "preference", "allergen", "profile",
+  ],
 };
 
 export function isAllowedSubEntity(module: ModuleGateKey, sub: string): boolean {
-  return (USAGE_SUB_ENTITIES[module] ?? []).includes(sub);
+  return USAGE_SUB_ENTITIES[module].includes(sub);
 }
-
 /**
  * AŞAMA 1 öncesi olay türleri (expert_usage_events.event_type) → Usage360 eylemi.
  * Eski satırlar action=NULL kalır; okumada bu eşleme kullanılır.

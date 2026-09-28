@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { isActiveTopicInTenant } from "@/lib/beslenme/topicGuard";
 import { SECTION_COLUMNS, SECTION_KEYS, cleanStr, inEnum, isUuid, hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -46,8 +47,12 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
     .eq("id", sectionId)
     .select(SECTION_COLUMNS)
     .maybeSingle();
-  if (error) return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "section", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
+  }
   if (!data) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "section", resourceId: sectionId });
   return NextResponse.json({ ok: true, section: data });
 }
 
@@ -68,7 +73,11 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
     .eq("tenant_id", tenantId)
     .eq("topic_id", topicId)
     .eq("id", sectionId);
-  if (error) return beslenmeJson({ ok: false, code: "DELETE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_deleted", subEntity: "section", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "DELETE_FAILED" }, 500);
+  }
   if (!count) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
+  await trackUsage(guard, req, { module: "beslenme", action: "record_deleted", subEntity: "section", resourceId: sectionId });
   return NextResponse.json({ ok: true, deleted: true });
 }

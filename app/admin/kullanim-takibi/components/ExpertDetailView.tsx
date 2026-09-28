@@ -87,7 +87,7 @@ export function ExpertDetailView({ userId, period, refreshKey }: { userId: strin
         </div>
       </SectionCard>
 
-      <SectionCard title="B · Modül izinleri ve ölçülen işlemler (çalışma alanı)" subtitle="Mevcut kayıt = işlem sayısı DEĞİL. Yalnız 4 modülde belirli create'ler ölçülür; hiçbiri tam kapsamlı değildir.">
+      <SectionCard title="B · Modül izinleri ve ölçülen işlemler (çalışma alanı)" subtitle="Mevcut kayıt = anlık envanter, işlem sayısı DEĞİL (admin kütüphane aktarımı hariç). Bu tabloda ölçülen işlem yalnız 4 modülün eski oluşturma olaylarıdır; tam modül telemetrisi Usage360 ekranında gösterilecek.">
         {!mods ? <EmptyBlock title="Modül verisi alınamadı" /> : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] border-collapse text-left text-sm">

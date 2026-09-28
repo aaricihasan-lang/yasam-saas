@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -50,7 +51,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   const now = new Date().toISOString();
   const payload = { ...sanitize(body), name, tenant_id: tenantId, created_at: now, updated_at: now };
   const { data, error } = await db.from("dogaltas_inventory").insert(payload).select("id").single();
-  if (error) return serverErrorResponse({ route: "dogaltas/inventory", action: "POST", tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "dogaltas/inventory", action: "POST", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_created", subEntity: "inventory" } });
+  await trackUsage(guard, req, { module: "stones", action: "record_created", subEntity: "inventory", resourceId: (data as { id: string }).id });
   return NextResponse.json({ ok: true, id: (data as { id: string }).id });
 }
 
@@ -74,10 +76,11 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     .eq("id", id).eq("tenant_id", tenantId)
     .select("id");
 
-  if (error) return serverErrorResponse({ route: "dogaltas/inventory", action: "PATCH", tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "dogaltas/inventory", action: "PATCH", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_updated", subEntity: "inventory" } });
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Stok kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "stones", action: "record_updated", subEntity: "inventory", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }
 
@@ -101,9 +104,10 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("id", id).eq("tenant_id", tenantId)
     .select("id");
 
-  if (error) return serverErrorResponse({ route: "dogaltas/inventory", action: "DELETE", tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "dogaltas/inventory", action: "DELETE", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_deleted", subEntity: "inventory" } });
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Stok kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "stones", action: "record_deleted", subEntity: "inventory", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }

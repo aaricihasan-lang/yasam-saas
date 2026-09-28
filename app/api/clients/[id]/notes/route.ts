@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   applyNotesPatch,
@@ -135,9 +136,22 @@ export async function PATCH(
   const result = await applyNotesPatch(db, tenantId, clientId, built.fields, built.baseVersion);
 
   if (result.kind === "error") {
-    return serverErrorResponse({ route: "clients/[id]/notes", action: "PATCH", tenantId, cause: result.cause });
+    return serverErrorResponse({
+      route: "clients/[id]/notes",
+      action: "PATCH",
+      tenantId,
+      cause: result.cause,
+      usage: { guard, req, module: "clients", failedAction: "record_updated", subEntity: "note" },
+    });
   }
   if (result.kind === "conflict") {
+    await trackUsage(guard, req, {
+      module: "clients",
+      action: "action_failed",
+      failedAction: "record_updated",
+      subEntity: "note",
+      errorClass: "conflict",
+    });
     // İstemci bu yanıttaki güncel satırla ekranını yeniler (ayrı GET gerekmez).
     return NextResponse.json(
       {
@@ -150,6 +164,9 @@ export async function PATCH(
       { status: 409 },
     );
   }
+
+  // Upsert (tek satır/danışan): gerçek yol sonuçta ayrışmadığından record_updated.
+  await trackUsage(guard, req, { module: "clients", action: "record_updated", subEntity: "note", resourceId: clientId });
 
   return NextResponse.json({
     ok: true,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmeClient } from "@/lib/beslenme/clientRouteGuard";
 import { cleanStr, hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -91,7 +92,10 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     const ids = [...seenStd];
     const { data: vocab, error: vErr } = await g.guard.db
       .from("nutrition_allergens").select("id").in("id", ids);
-    if (vErr) return beslenmeJson({ ok: false, code: "VOCAB_READ_FAILED" }, 500);
+    if (vErr) {
+      await trackUsage(g.guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "allergen", errorClass: "server" });
+      return beslenmeJson({ ok: false, code: "VOCAB_READ_FAILED" }, 500);
+    }
     if ((vocab?.length ?? 0) !== ids.length) return beslenmeJson({ ok: false, code: "UNKNOWN_ALLERGEN" }, 400);
   }
 
@@ -104,8 +108,15 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   });
   if (rpcErr) {
     const mapped = mapReplaceAllergensError(rpcErr);
+    const errorClass = usageErrorClassForStatus(mapped.status);
+    if (errorClass) {
+      await trackUsage(g.guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "allergen", errorClass });
+    }
     return beslenmeJson({ ok: false, code: mapped.code }, mapped.status);
   }
+  // Usage360: tam-set değişimi = tek record_updated(allergen); kaynak = danışan.
+  await trackUsage(g.guard, req, { module: "beslenme", action: "record_updated", subEntity: "allergen", resourceId: clientId });
+
   const inserted = typeof (rpcData as { inserted?: unknown } | null)?.inserted === "number"
     ? (rpcData as { inserted: number }).inserted
     : parsed.length;

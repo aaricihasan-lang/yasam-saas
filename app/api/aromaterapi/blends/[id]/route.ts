@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -120,7 +121,10 @@ export async function PATCH(
     .eq("updated_at", expectedUpdatedAt) // iyimser kilit — yalnız beklenen sürüm
     .select("*");
 
-  if (error) return legacyDbErrorResponse("blends.update", error, "Karışım güncellenemedi.");
+  if (error) {
+    await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_updated", subEntity: "blend", errorClass: "server" });
+    return legacyDbErrorResponse("blends.update", error, "Karışım güncellenemedi.");
+  }
   if (!data || data.length === 0) {
     // Satır güncellenmedi: kayıt varsa sürüm çakışması (409), yoksa 404.
     const { data: existing } = await db
@@ -130,6 +134,7 @@ export async function PATCH(
       .eq("tenant_id", tenantId)
       .maybeSingle();
     if (existing) {
+      await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_updated", subEntity: "blend", errorClass: "conflict" });
       return NextResponse.json(
         { ok: false, error: "AROMA_STALE_BLEND", stale: true },
         { status: 409, headers: { "Cache-Control": "no-store" } },
@@ -140,6 +145,7 @@ export async function PATCH(
       { status: 404 },
     );
   }
+  await trackUsage(guard, req, { module: "aromatherapy", action: "record_updated", subEntity: "blend", resourceId: id });
   return NextResponse.json({ ok: true, blend: data[0] });
 }
 
@@ -169,12 +175,16 @@ export async function DELETE(
     .eq("is_active", true) // yalnız aktif kaydı pasifleştir (idempotent)
     .select("id");
 
-  if (error) return legacyDbErrorResponse("blends.delete", error, "Karışım silinemedi.");
+  if (error) {
+    await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_deleted", subEntity: "blend", errorClass: "server" });
+    return legacyDbErrorResponse("blends.delete", error, "Karışım silinemedi.");
+  }
   if (!data || data.length === 0) {
     return NextResponse.json(
       { ok: false, error: "Karışım bulunamadı veya bu hesaba ait değil." },
       { status: 404 },
     );
   }
+  await trackUsage(guard, req, { module: "aromatherapy", action: "record_deleted", subEntity: "blend", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }

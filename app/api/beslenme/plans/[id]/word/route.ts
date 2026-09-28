@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { isUuid } from "@/lib/beslenme/planContracts";
@@ -54,12 +55,20 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   try {
     result = await buildPlanDocxBuffer(db, tenantId, id, { expertName: expertDisplayName(guard.profile) });
   } catch {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "report_generated", subEntity: "plan", errorClass: "server" });
     return beslenmeJson({ ok: false, code: "WORD_FAILED" }, 500);
   }
 
   if (!result.ok) {
+    const errorClass = usageErrorClassForStatus(result.error.status);
+    if (errorClass) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "report_generated", subEntity: "plan", errorClass });
+    }
     return beslenmeJson({ ok: false, code: result.error.code }, result.error.status);
   }
+
+  // Usage360: DOCX tampon BAŞARIYLA üretildi → report_generated(plan) (60 sn kova dedup).
+  await trackUsage(guard, req, { module: "beslenme", action: "report_generated", subEntity: "plan", resourceId: id });
 
   return new Response(new Uint8Array(result.buffer), {
     headers: {

@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -69,8 +70,12 @@ export async function PUT(
     .select("id, category, rule_text, sort_order")
     .maybeSingle();
 
-  if (error) return json({ ok: false, code: "UPDATE_FAILED", error: "Güncellenemedi." }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "cosmic_calendar", action: "action_failed", failedAction: "record_updated", subEntity: "hacamat_rule", errorClass: "server" });
+    return json({ ok: false, code: "UPDATE_FAILED", error: "Güncellenemedi." }, 500);
+  }
   if (!data) return json({ ok: false, code: "NOT_FOUND", error: "Kural bulunamadı." }, 404);
+  await trackUsage(guard, req, { module: "cosmic_calendar", action: "record_updated", subEntity: "hacamat_rule", resourceId: id });
   return json({ ok: true, data });
 }
 
@@ -95,7 +100,11 @@ export async function DELETE(
     .select("id")
     .maybeSingle();
 
-  if (error) return json({ ok: false, code: "DELETE_FAILED", error: "Silinemedi." }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "cosmic_calendar", action: "action_failed", failedAction: "record_deleted", subEntity: "hacamat_rule", errorClass: "server" });
+    return json({ ok: false, code: "DELETE_FAILED", error: "Silinemedi." }, 500);
+  }
   if (!data) return json({ ok: false, code: "NOT_FOUND", error: "Kural bulunamadı." }, 404);
+  await trackUsage(guard, req, { module: "cosmic_calendar", action: "record_deleted", subEntity: "hacamat_rule", resourceId: id });
   return json({ ok: true });
 }

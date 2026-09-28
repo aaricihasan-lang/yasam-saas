@@ -4,6 +4,7 @@ import { validateSectionsBody } from "@/lib/sifa-rehberi/limits";
 import { isSifaUuid } from "@/lib/sifa-rehberi/ids";
 import { normalizeReplaceSections } from "@/lib/sifa-rehberi/sectionModel";
 import { serverErrorResponse } from "@/lib/sifa-rehberi/publicApiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -70,6 +71,7 @@ export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     .maybeSingle();
 
   if (guideErr) {
+    await trackUsage(guard, req, { module: "sifa_rehberi", action: "action_failed", failedAction: "record_updated", subEntity: "guide", errorClass: "server" });
     return serverErrorResponse({ route: "sifa/guides/[id]/sections", action: "PUT.ownerCheck", tenantId, cause: guideErr });
   }
   if (!guideRow) {
@@ -95,6 +97,7 @@ export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<Response> {
       return NextResponse.json({ ok: false, error: "Bölüm verisi geçersiz." }, { status: 400 });
     }
     // Beklenmeyen iç hata → sanitize 500 (+ sunucu diagnostiği).
+    await trackUsage(guard, req, { module: "sifa_rehberi", action: "action_failed", failedAction: "record_updated", subEntity: "guide", errorClass: "server" });
     return serverErrorResponse({ route: "sifa/guides/[id]/sections", action: "PUT.replace", tenantId, cause: rpcErr });
   }
 
@@ -106,6 +109,11 @@ export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     .update({ updated_at: new Date().toISOString() })
     .eq("tenant_id", tenantId)
     .eq("id", id);
+
+  // USAGE360: bölüm değişimi REHBER düzenlemesidir → record_updated:guide (resourceId = rehber
+  // id). Düzenleme ekranı Kaydet'te PATCH guides/[id] + bu PUT'u ardışık çağırır; aynı
+  // (eylem, rehber id) 60 sn kovasında idempotency ile TEK olay sayılır.
+  await trackUsage(guard, req, { module: "sifa_rehberi", action: "record_updated", subEntity: "guide", resourceId: id });
 
   return NextResponse.json({
     ok: true,

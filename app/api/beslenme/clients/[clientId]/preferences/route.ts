@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmeClient } from "@/lib/beslenme/clientRouteGuard";
 import { cleanStr, hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -66,6 +67,10 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     .insert({ tenant_id: g.guard.tenantId, client_id: clientId, stance, food_id: foodId, food_label: label, note: cleanStr(body.note, 500) })
     .select(PREFERENCE_COLUMNS)
     .single();
-  if (error) return beslenmeJson({ ok: false, code: "PREFERENCE_SAVE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(g.guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "preference", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "PREFERENCE_SAVE_FAILED" }, 500);
+  }
+  await trackUsage(g.guard, req, { module: "beslenme", action: "record_created", subEntity: "preference", resourceId: (data as { id?: string } | null)?.id ?? null });
   return NextResponse.json({ ok: true, preference: data }, { status: 201 });
 }

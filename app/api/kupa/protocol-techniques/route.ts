@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES, PROTOCOL_TECHNIQUE_WRITABLE } from "@/lib/cupping/fields";
 import {
   assertCompositeRef,
@@ -9,6 +10,7 @@ import {
   listEntity,
   parseJsonBody,
   pickWritable,
+  usageRowId,
 } from "@/lib/cupping/api";
 
 export const runtime = "nodejs";
@@ -49,10 +51,16 @@ export async function POST(req: NextRequest): Promise<Response> {
     return cuppingError(400, "Seçilen teknik bu hesaba ait değil.");
   }
   if (await assertCompositeRef(db, CUPPING_TABLES.protocolTechniques, { tenant_id: tenantId, protocol_id: protocolId, technique_id: techniqueId })) {
+    await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass: "conflict" });
     return cuppingError(409, "Bu teknik protokole zaten eklenmiş.");
   }
 
   const ins = await insertEntity(db, CUPPING_TABLES.protocolTechniques, tenantId, fields);
-  if (!ins.ok) return ins.response;
+  if (!ins.ok) {
+    const errorClass = usageErrorClassForStatus(ins.response.status);
+    if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass });
+    return ins.response;
+  }
+  await trackUsage(guard, req, { module: "cupping", action: "record_updated", subEntity: "protocol", resourceId: usageRowId(ins.data) });
   return NextResponse.json({ ok: true, relation: ins.data });
 }

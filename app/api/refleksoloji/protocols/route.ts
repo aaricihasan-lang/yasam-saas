@@ -108,12 +108,13 @@ export async function POST(req: NextRequest): Promise<Response> {
     .maybeSingle();
 
   if (existErr) {
-    return jsonServerError("protocols.POST.exist", existErr);
+    return jsonServerError("protocols.POST.exist", existErr, { usage: { guard, req, failedAction: "record_created", subEntity: "protocol" } });
   }
   if (existing) {
     // Aynı mantıksal protokol → mevcut satırı içerikle güncelle (idempotent), yeni açma.
+    // USAGE360: bu dedup yolu (yeniden deneme / senkron tekrarı) OLAY ÜRETMEZ.
     const r = await existingUpdate();
-    if (r.error) return jsonServerError("protocols.POST.update", r.error);
+    if (r.error) return jsonServerError("protocols.POST.update", r.error, { usage: { guard, req, failedAction: "record_created", subEntity: "protocol" } });
     return NextResponse.json({ ok: true, protocol: r.protocol, deduped: true });
   }
 
@@ -129,10 +130,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     // tetiklenmez (constraint yok) → mevcut best-effort davranış korunur.
     if ((error as { code?: string }).code === "23505") {
       const r = await existingUpdate();
-      if (r.error) return jsonServerError("protocols.POST.update.race", r.error);
+      if (r.error) return jsonServerError("protocols.POST.update.race", r.error, { usage: { guard, req, failedAction: "record_created", subEntity: "protocol" } });
       return NextResponse.json({ ok: true, protocol: r.protocol, deduped: true });
     }
-    return jsonServerError("protocols.POST.insert", error);
+    return jsonServerError("protocols.POST.insert", error, { usage: { guard, req, failedAction: "record_created", subEntity: "protocol" } });
   }
 
   // İP-2C: YENİ protokol oluşturma → usage event (dedup/update yolu olay üretmez; server-resolved; throw etmez).

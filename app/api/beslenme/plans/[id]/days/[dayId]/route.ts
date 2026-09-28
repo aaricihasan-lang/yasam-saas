@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { cleanStr, cleanNumber, hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -57,7 +58,11 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
 
   const { error } = await db
     .from("nutrition_plan_days").update(patch).eq("tenant_id", tenantId).eq("id", dayId).eq("plan_id", id);
-  if (error) return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "day", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
+  }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "day", resourceId: dayId });
 
   const day = await loadDayDetail(db, tenantId, id, dayId);
   return NextResponse.json({ ok: true, day });

@@ -98,7 +98,7 @@ export async function handleUsageBeacon<R extends BeaconRequest>(
       p_session_token: token,
       p_module_key: payload.module,
       p_action: payload.kind,
-      p_sub_entity: null,
+      p_sub_entity: payload.kind === "module_opened" ? null : payload.subEntity,
       p_failed_action: payload.kind === "action_failed" ? payload.failedAction : null,
       p_error_class: payload.kind === "action_failed" ? payload.errorClass : null,
       p_item_count_bucket: null,

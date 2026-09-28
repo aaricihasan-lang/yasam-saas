@@ -135,9 +135,9 @@ console.log("\n[12'] konum normalizasyonu");
 ok(normalizeCountry("tr") === "TR" && normalizeCountry("TUR") === null && normalizeCountry("XX") === null && normalizeCountry(null) === null, "ülke: ISO-2 büyük harf; geçersiz/XX/boş → null");
 ok(normalizeCity("Istanbul") === "Istanbul" && normalizeCity("S%C3%A3o%20Paulo") === "São Paulo", "şehir: URL-decode");
 ok(normalizeCity("%E0%A4%A") === null && normalizeCity("") === null, "bozuk kodlama / boş → null");
-ok((normalizeCity("a".repeat(200)) ?? "").length === 64 && normalizeCity("x\u0000y") === "xy", "şehir: 64 sınır + kontrol karakteri atılır");
+ok(normalizeCity("a".repeat(65)) === null && normalizeCity("a".repeat(64)) === "a".repeat(64) && normalizeCity("x y") === null, "şehir: 64 üstü / kontrol karakteri → REDDEDİLİR (kırpılmaz)");
 ok(normalizeCity("İstanbul") === "İstanbul" && normalizeCity("K%C3%BCtahya") === "Kütahya" && normalizeCity("Saint-Étienne") === "Saint-Étienne", "şehir: Türkçe/aksanlı harf ve tire korunur");
-ok(normalizeCity(SENTINEL) !== SENTINEL && normalizeCity("12345") === null && normalizeCity("a@b/c_1") === "abc", "şehir: rakam / _ / @ / / atılır (serbest metin taşınamaz)");
+ok(normalizeCity(SENTINEL) === null && normalizeCity("12345") === null && normalizeCity("a@b/c_1") === null, "şehir: rakam / _ / @ / / içeren değer → REDDEDİLİR (serbest metin taşınamaz)");
 {
   const h = new Headers({ "user-agent": UA_DESKTOP, "x-forwarded-for": "203.0.113.9", "x-real-ip": "203.0.113.9", "x-vercel-ip-country": "TR", "x-vercel-ip-city": "Izmir" });
   const ctx = resolveUsageClientContext(h);

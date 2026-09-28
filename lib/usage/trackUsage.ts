@@ -15,6 +15,7 @@
  */
 import { createHash, createHmac } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { after } from "next/server";
 import type { ModuleGateKey } from "@/lib/auth/moduleAccess";
 import { isUsage360Enabled } from "@/lib/usage/usageFlag";
 import { resolveUsageClientContext, type UsageClientContext } from "@/lib/usage/clientContext";
@@ -147,8 +148,19 @@ export async function trackUsage(
       return { status: "invalid" };
     }
 
-    const idem = spec.resourceId
-      ? buildUsageIdemHash({ userId: guard.userId, module: spec.module, action: spec.action, resourceId: spec.resourceId }, resolveUsageHashSecret(env))
+    // Hata olayları kaynak id'si taşımaz: aynı (başarısız eylem, alt-varlık, sınıf) 60 sn
+    // kovasında TEK sayılır → aynı hata saniyede yüzlerce kez yazılmaz.
+    // Kaynak id'si olmayan (toplu/katalog) rapor üretimi: aynı konu + öğe kovası 60 sn
+    // içinde tek sayılır → çift tık / tekrar denemesi iki rapor olayı üretmez.
+    const dedupSource =
+      spec.resourceId ??
+      (spec.action === "action_failed"
+        ? `failed:${spec.failedAction ?? "-"}:${spec.subEntity ?? "-"}:${spec.errorClass ?? "-"}`
+        : spec.action === "report_generated"
+          ? `report:${spec.subEntity ?? "-"}:${spec.itemCount != null ? toItemCountBucket(spec.itemCount) ?? "-" : "-"}`
+          : null);
+    const idem = dedupSource
+      ? buildUsageIdemHash({ userId: guard.userId, module: spec.module, action: spec.action, resourceId: dedupSource }, resolveUsageHashSecret(env))
       : null;
 
     if (!isUsage360Enabled(env)) {
@@ -200,5 +212,40 @@ export async function trackUsage(
   } catch (e) {
     logSafe("error", "track unexpected error", spec, e instanceof Error ? e.name : "unknown");
     return { status: "error" };
+  }
+}
+
+/**
+ * HTTP durumu → Usage360 hata sınıfı. YALNIZ ürün açısından anlamlı başarısızlıklar:
+ * 409 çakışma · 413 çok büyük · 422 doğrulama · 408/504 zaman aşımı · diğer 5xx sunucu.
+ * 400/401/403/404/429 → null (istemci girdisi / kimlik / yetki / hız sınırı: kullanım
+ * telemetrisine taşınmaz; auth olayları kendi güvenlik sisteminde kalır).
+ */
+export function usageErrorClassForStatus(status: number): UsageErrorClass | null {
+  if (status === 409) return "conflict";
+  if (status === 413) return "too_large";
+  if (status === 422) return "validation";
+  if (status === 408 || status === 504) return "timeout";
+  if (status >= 500 && status <= 599) return "server";
+  return null;
+}
+
+/**
+ * trackUsage'ın YANITTAN SONRA çalışan hali (aynı yol, aynı sözleşme). Senkron dönüş
+ * noktalarından (ör. serverErrorResponse) çağrılır: Next `after()` ile iş yanıtını
+ * geciktirmeden zamanlanır; istek bağlamı dışında (test/betik) doğrudan başlatılır.
+ * Asla throw etmez.
+ */
+export function trackUsageLater(
+  guard: UsageGuardContext,
+  req: { headers: Headers } | null,
+  spec: TrackUsageSpec,
+  env: Record<string, string | undefined> = process.env,
+): void {
+  const run = () => trackUsage(guard, req, spec, env).then(() => undefined);
+  try {
+    after(run);
+  } catch {
+    void run();
   }
 }

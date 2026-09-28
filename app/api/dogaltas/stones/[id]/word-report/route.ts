@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { isUuid } from "@/lib/dogaltas/validation";
 import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
@@ -33,6 +34,8 @@ export async function POST(
   const auth = await requireDogaltasReportAccess(req);
   if (!auth.ok) return auth.response;
   const { db, tenantId } = auth;
+  // Usage360 kimliği yalnız doğrulanmış rapor kapısından; demo orada zaten 403.
+  const usageGuard = { ...auth, is_demo_account: false };
 
   // Detay GET ile AYNI okuma görünürlüğü (tek kaynak). Rapor kapısı demo'yu zaten
   // 403'ler → burada isDemo=false: normal uzman yalnız kendi tenant'ının taşını raporlar;
@@ -47,7 +50,7 @@ export async function POST(
     .maybeSingle();
 
   if (error)
-    return serverErrorResponse({ route: "dogaltas/stones/[id]/word-report", action: "POST", tenantId, cause: error });
+    return serverErrorResponse({ route: "dogaltas/stones/[id]/word-report", action: "POST", tenantId, cause: error, usage: { guard: usageGuard, req, module: "stones", failedAction: "report_generated", subEntity: "stone" } });
 
   if (!data)
     return Response.json({ ok: false, error: "Taş kaydı bulunamadı." }, { status: 404 });
@@ -76,6 +79,8 @@ export async function POST(
   });
 
   const buffer = await Packer.toBuffer(doc);
+  // Usage360: Word dosyası BAŞARIYLA üretildi → tek rapor olayı (konu: taş).
+  await trackUsage(usageGuard, req, { module: "stones", action: "report_generated", subEntity: "stone", resourceId: stoneId });
 
   return new Response(new Uint8Array(buffer), {
     headers: {

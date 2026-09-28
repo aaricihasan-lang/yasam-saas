@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -166,6 +167,13 @@ export async function POST(
     (r) => normComboName(String((r as { name?: unknown }).name ?? "")) === targetNorm,
   );
   if (isDuplicate) {
+    await trackUsage(guard, req, {
+      module: "clients",
+      action: "action_failed",
+      failedAction: "record_created",
+      subEntity: "combination",
+      errorClass: "conflict",
+    });
     return NextResponse.json(
       {
         ok: false,
@@ -194,8 +202,21 @@ export async function POST(
     .single();
 
   if (error) {
-    return serverErrorResponse({ route: "clients/[id]/combinations", action: "POST", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]/combinations",
+      action: "POST",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "record_created", subEntity: "combination" },
+    });
   }
+
+  await trackUsage(guard, req, {
+    module: "clients",
+    action: "record_created",
+    subEntity: "combination",
+    resourceId: data?.id != null ? String(data.id) : null,
+  });
 
   return NextResponse.json({ ok: true, id: data?.id ?? null });
 }

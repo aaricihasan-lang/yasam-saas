@@ -8,6 +8,7 @@ import {
   type HacamatStatus,
 } from "@/lib/cosmic/hacamat";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { validateHacamatReportPayload } from "@/lib/cosmic/hacamatReport";
 import { checkRateLimit } from "@/lib/security/rateLimit";
 import { todayInZone } from "@/lib/time/reportTime";
@@ -459,6 +460,11 @@ export async function GET(request: Request): Promise<Response> {
 
   const buffer   = await buildPdfBuffer({ year, month });
   const filename = `hacamat-takvimi-${year}-${String(month + 1).padStart(2, "0")}.pdf`;
+  // Satır-içi önizleme (disposition=inline) rapor sayfası açılışında otomatik yüklenir →
+  // kullanıcı üretimi değil, olay YOK. Yalnız indirme (attachment) sayılır.
+  if (disposition === "attachment") {
+    await trackUsage(guard, request, { module: "cosmic_calendar", action: "report_generated", subEntity: "hacamat_calendar", resourceId: `pdf:${year}-${month}` });
+  }
 
   return new Response(new Uint8Array(buffer), {
     headers: {
@@ -496,9 +502,11 @@ export async function POST(request: Request): Promise<Response> {
   try {
     buffer = await buildPdfBuffer({ year, month, rules, expertNotes, title, expertName, includeSections });
   } catch {
+    await trackUsage(guard, request, { module: "cosmic_calendar", action: "action_failed", failedAction: "report_generated", subEntity: "hacamat_calendar", errorClass: "server" });
     return Response.json({ ok: false, error: "Rapor oluşturulamadı." }, { status: 500 });
   }
   const filename = `hacamat-takvimi-${year}-${String(month + 1).padStart(2, "0")}.pdf`;
+  await trackUsage(guard, request, { module: "cosmic_calendar", action: "report_generated", subEntity: "hacamat_calendar", resourceId: `pdf:${year}-${month}` });
 
   return new Response(new Uint8Array(buffer), {
     headers: {

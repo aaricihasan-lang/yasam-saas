@@ -1,0 +1,12 @@
+{
+  "module": "cosmic_calendar",
+  "handlers": [
+    { "route": "hacamat/rules", "method": "POST", "events": [{ "action": "record_created", "subEntity": "hacamat_rule" }], "failure": "server", "note": "tenant kural tavanı 409 → errorClass conflict; GET'teki ensure_hacamat_rules_seeded (seed) olay üretmez" },
+    { "route": "hacamat/rules/[id]", "method": "PUT", "events": [{ "action": "record_updated", "subEntity": "hacamat_rule" }], "failure": "server" },
+    { "route": "hacamat/rules/[id]", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "hacamat_rule" }], "failure": "server" },
+    { "route": "hacamat/word-report", "method": "GET", "events": [{ "action": "report_generated", "subEntity": "hacamat_calendar" }], "note": "docx buffer üretildikten sonra (GET'te yakalanan 500 dalı yok)" },
+    { "route": "hacamat/word-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "hacamat_calendar" }], "failure": "server", "note": "docx buffer üretildikten sonra" },
+    { "route": "hacamat/pdf-report", "method": "GET", "events": [{ "action": "report_generated", "subEntity": "hacamat_calendar" }], "note": "yalnız attachment indirme; disposition=inline önizleme (sayfa açılışında otomatik) olay üretmez" },
+    { "route": "hacamat/pdf-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "hacamat_calendar" }], "failure": "server", "note": "pdf buffer üretildikten sonra" }
+  ]
+}

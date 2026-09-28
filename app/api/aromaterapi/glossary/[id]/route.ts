@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { isUuid } from "@/lib/aromaterapi/service/readValidation";
 import { readFail } from "@/lib/aromaterapi/service/readErrors";
 import { readJsonBounded } from "@/lib/aromaterapi/service/requestBody";
@@ -51,12 +52,15 @@ export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Respon
 
   if (error) {
     if ((error as { code?: string }).code === "23505") {
+      await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_updated", subEntity: "glossary_term", errorClass: "conflict" });
       return writeFail("AROMA_UNIQUE_VIOLATION", 409);
     }
     console.error("[aromaterapi:glossary:update]", (error as { message?: unknown })?.message);
+    await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_updated", subEntity: "glossary_term", errorClass: "server" });
     return writeFail("AROMA_WRITE_FAILED", 500);
   }
   if (!data || data.length === 0) return writeFail("AROMA_NOT_FOUND", 404);
+  await trackUsage(guard, req, { module: "aromatherapy", action: "record_updated", subEntity: "glossary_term", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }
 
@@ -83,8 +87,10 @@ export async function DELETE(req: NextRequest, ctx: RouteContext): Promise<Respo
 
   if (error) {
     console.error("[aromaterapi:glossary:delete]", (error as { message?: unknown })?.message);
+    await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_deleted", subEntity: "glossary_term", errorClass: "server" });
     return writeFail("AROMA_WRITE_FAILED", 500);
   }
   if (!data || data.length === 0) return writeFail("AROMA_NOT_FOUND", 404);
+  await trackUsage(guard, req, { module: "aromatherapy", action: "record_deleted", subEntity: "glossary_term", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }

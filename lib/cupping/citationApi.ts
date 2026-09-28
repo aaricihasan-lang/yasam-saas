@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import {
   CITATION_SPECS,
   CITATION_META_WRITABLE,
@@ -15,6 +16,7 @@ import {
   parseJsonBody,
   pickWritable,
   updateEntity,
+  usageRowId,
 } from "@/lib/cupping/api";
 
 /**
@@ -31,6 +33,12 @@ import {
  *   - CREATE: hem source_id hem entity_id AYNI tenant'ta GERÇEK kayıt olmalı (assertOwnedRef);
  *     yalnız FK error'una güvenilmez → varlık doğrulaması server-side.
  *   - evidence_class kontrollü sözlükte olmalı (yoksa 400).
+ *
+ * USAGE360: 6 citation tablosunun hepsi kullanıcı açısından "kaynak bağlantısı"dır →
+ *   alt-varlık SABİT 'source_link' (entity anahtarından türetilmez). Olaylar fabrikada, işlem
+ *   başına AÇIKÇA kodlanır: POST → record_created · PATCH → record_updated · DELETE →
+ *   record_deleted (HTTP metodundan eşleyen genel bir mapper YOK). DB hatası (500) ve
+ *   çakışma (409) → action_failed. Manifest: scripts/usage360/route-events/cupping.json (implFile).
  */
 
 const CITATION_POST_ERR = "Kaynak veya hedef kayıt bu hesaba ait değil.";
@@ -94,7 +102,12 @@ export function makeCitationCollection(entity: CitationEntity) {
     }
 
     const res = await insertEntity(db, spec.table, tenantId, fields);
-    if (!res.ok) return res.response;
+    if (!res.ok) {
+      const errorClass = usageErrorClassForStatus(res.response.status);
+      if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_created", subEntity: "source_link", errorClass });
+      return res.response;
+    }
+    await trackUsage(guard, req, { module: "cupping", action: "record_created", subEntity: "source_link", resourceId: usageRowId(res.data) });
     return NextResponse.json({ ok: true, citation: res.data });
   }
 
@@ -127,7 +140,12 @@ export function makeCitationItem(entity: CitationEntity) {
       return NextResponse.json({ ok: false, error: EVIDENCE_ERR }, { status: 400 });
     }
     const res = await updateEntity(db, spec.table, tenantId, id, fields);
-    if (!res.ok) return res.response;
+    if (!res.ok) {
+      const errorClass = usageErrorClassForStatus(res.response.status);
+      if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "source_link", errorClass });
+      return res.response;
+    }
+    await trackUsage(guard, req, { module: "cupping", action: "record_updated", subEntity: "source_link", resourceId: id });
     return NextResponse.json({ ok: true, citation: res.data });
   }
 
@@ -142,7 +160,12 @@ export function makeCitationItem(entity: CitationEntity) {
     const { db, tenantId, is_demo_account } = guard;
     if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deleted: 0 });
     const res = await deleteEntity(db, spec.table, tenantId, id);
-    if (!res.ok) return res.response;
+    if (!res.ok) {
+      const errorClass = usageErrorClassForStatus(res.response.status);
+      if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_deleted", subEntity: "source_link", errorClass });
+      return res.response;
+    }
+    if (res.data > 0) await trackUsage(guard, req, { module: "cupping", action: "record_deleted", subEntity: "source_link", resourceId: id });
     return NextResponse.json({ ok: true, deleted: res.data });
   }
 

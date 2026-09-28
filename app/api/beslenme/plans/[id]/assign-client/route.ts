@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
@@ -143,9 +144,20 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   });
   if (error) {
     const m = mapAssignError(error.code);
+    const errorClass = usageErrorClassForStatus(m.status);
+    if (errorClass) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "assignment", errorClass });
+    }
     return beslenmeJson({ ok: false, code: m.code }, m.status);
   }
 
+  // Usage360: aynı danışana tekrar bağlama RPC'de idempotent → binding id ile kalıcı dedup (tek sayım).
+  await trackUsage(guard, req, {
+    module: "beslenme",
+    action: "record_created",
+    subEntity: "assignment",
+    resourceId: (data as { id?: string } | null)?.id ?? id,
+  });
   return NextResponse.json(
     { ok: true, binding: data, client: { id: client.id, display_name: clientDisplayName(client) } },
     { status: 200 },

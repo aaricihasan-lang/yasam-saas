@@ -4,6 +4,7 @@ import { isUuid } from "@/lib/aromaterapi/service/readValidation";
 import { readFail } from "@/lib/aromaterapi/service/readErrors";
 import { readJsonBounded } from "@/lib/aromaterapi/service/requestBody";
 import { pickWritableArticleFields, articleRequiredOk } from "@/lib/aromaterapi/articleFields";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -46,9 +47,11 @@ export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Respon
 
   if (error) {
     console.error("[aromaterapi:articles:update]", (error as { message?: unknown })?.message);
+    await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_updated", subEntity: "article", errorClass: "server" });
     return writeFail("AROMA_WRITE_FAILED", 500);
   }
   if (!data || data.length === 0) return writeFail("AROMA_NOT_FOUND", 404);
+  await trackUsage(guard, req, { module: "aromatherapy", action: "record_updated", subEntity: "article", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }
 
@@ -71,8 +74,10 @@ export async function DELETE(req: NextRequest, ctx: RouteContext): Promise<Respo
 
   if (error) {
     console.error("[aromaterapi:articles:delete]", (error as { message?: unknown })?.message);
+    await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_deleted", subEntity: "article", errorClass: "server" });
     return writeFail("AROMA_WRITE_FAILED", 500);
   }
   if (!data || data.length === 0) return writeFail("AROMA_NOT_FOUND", 404);
+  await trackUsage(guard, req, { module: "aromatherapy", action: "record_deleted", subEntity: "article", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }

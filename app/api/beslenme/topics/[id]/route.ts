@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import {
   TOPIC_COLUMNS,
@@ -85,10 +86,15 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
     .select(TOPIC_COLUMNS)
     .maybeSingle();
   if (error) {
-    if (error.code === "23505") return beslenmeJson({ ok: false, code: "DUPLICATE_PROFILE" }, 409);
+    if (error.code === "23505") {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "topic", errorClass: "conflict" });
+      return beslenmeJson({ ok: false, code: "DUPLICATE_PROFILE" }, 409);
+    }
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "topic", errorClass: "server" });
     return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
   }
   if (!data) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "topic", resourceId: id });
   return NextResponse.json({ ok: true, topic: data });
 }
 
@@ -111,7 +117,11 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
     .delete({ count: "exact" })
     .eq("tenant_id", tenantId)
     .eq("id", id);
-  if (error) return beslenmeJson({ ok: false, code: "DELETE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_deleted", subEntity: "topic", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "DELETE_FAILED" }, 500);
+  }
   if (!count) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
+  await trackUsage(guard, req, { module: "beslenme", action: "record_deleted", subEntity: "topic", resourceId: id });
   return NextResponse.json({ ok: true, deleted: true });
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -11,6 +12,22 @@ import { buildGeneralDoc, GENERAL_SECTIONS } from "@/lib/aromaterapi/report/buil
 export const runtime = "nodejs";
 // GÜVENLİK BANDI (ARO-010): kesin platform süre tavanı ÖLÇÜLMEDİ; konservatif üst sınır.
 export const maxDuration = 60;
+
+/**
+ * Usage360 rapor konusu: genel katalog bölüm anahtarı → alt-varlık (sabit eşleme).
+ * Tek bölüm seçildiyse o bölümün alt-varlığı; çok bölümlü / tam katalogda yağ kataloğu
+ * (genel raporun ilk ve çekirdek bölümü) → "oil".
+ */
+const GENERAL_SECTION_SUB: Record<string, "oil" | "plant_taxon" | "preparation" | "blend" | "method" | "claim" | "source" | "glossary_term"> = {
+  oils: "oil",
+  taxa: "plant_taxon",
+  preparations: "preparation",
+  blends: "blend",
+  methods: "method",
+  knowledge: "claim",
+  sources: "source",
+  glossary: "glossary_term",
+};
 
 /**
  * POST /api/aromaterapi/word-report — GENEL Aromaterapi raporu (.docx).
@@ -48,11 +65,19 @@ export async function POST(req: NextRequest): Promise<Response> {
   const parsed = parseExportBody({ ...(body as object), mode: "all" }, { sectionAllow: GENERAL_SECTIONS });
   if (!parsed.ok) return NextResponse.json({ ok: false, error: parsed.error }, { status: parsed.status });
 
+  const subEntity =
+    parsed.sections && parsed.sections.length === 1 ? (GENERAL_SECTION_SUB[parsed.sections[0]] ?? "oil") : "oil";
   try {
     const res = await buildGeneralDoc(db, tenantId, parsed.sections, { expertName: expertDisplayName(guard.profile), date: new Date() });
-    if (!res.ok) return NextResponse.json({ ok: false, error: res.error }, { status: res.status });
+    if (!res.ok) {
+      if (res.status >= 500) await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "report_generated", subEntity, errorClass: "server" });
+      return NextResponse.json({ ok: false, error: res.error }, { status: res.status });
+    }
+    // Usage360: DOCX tamponu BAŞARIYLA üretildikten sonra (rapor konusu alt-varlık).
+    await trackUsage(guard, req, { module: "aromatherapy", action: "report_generated", subEntity, itemCount: res.count });
     return docxResponse(res.buffer, res.filename);
   } catch {
+    await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "report_generated", subEntity, errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Rapor oluşturulamadı." }, { status: 500 });
   }
 }

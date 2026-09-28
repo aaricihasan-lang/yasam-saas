@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES, PROTOCOL_WRITABLE } from "@/lib/cupping/fields";
 import {
   cuppingError,
@@ -48,7 +49,12 @@ export async function PATCH(
   }
 
   const res = await updateEntity(db, CUPPING_TABLES.protocols, tenantId, id, fields);
-  if (!res.ok) return res.response;
+  if (!res.ok) {
+    const errorClass = usageErrorClassForStatus(res.response.status);
+    if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass });
+    return res.response;
+  }
+  await trackUsage(guard, req, { module: "cupping", action: "record_updated", subEntity: "protocol", resourceId: id });
   return NextResponse.json({ ok: true, protocol: res.data });
 }
 
@@ -65,6 +71,11 @@ export async function DELETE(
   // Protokole-sahipli çocuklar (points/techniques/safety/steps/entries/entry_points/sources)
   // DB ON DELETE CASCADE ile birlikte silinir. Master kayıtlar (points/techniques/…) ETKİLENMEZ.
   const res = await deleteEntity(db, CUPPING_TABLES.protocols, tenantId, id);
-  if (!res.ok) return res.response;
+  if (!res.ok) {
+    const errorClass = usageErrorClassForStatus(res.response.status);
+    if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_deleted", subEntity: "protocol", errorClass });
+    return res.response;
+  }
+  if (res.data > 0) await trackUsage(guard, req, { module: "cupping", action: "record_deleted", subEntity: "protocol", resourceId: id });
   return NextResponse.json({ ok: true, deleted: res.data });
 }

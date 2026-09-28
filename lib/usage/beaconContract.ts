@@ -7,14 +7,16 @@
  *
  *   { "kind": "ping", "module"?: ModuleGateKey }
  *   { "kind": "module_opened", "module": ModuleGateKey }
- *   { "kind": "report_exported", "module": ModuleGateKey, "nonce"?: string }
+ *   { "kind": "report_exported", "module": ModuleGateKey, "subEntity"?: string, "nonce"?: string }
  *   { "kind": "action_failed", "module": ModuleGateKey, "errorClass": ClientErrorClass,
- *     "failedAction"?: "report_exported" | "file_uploaded", "nonce"?: string }
+ *     "failedAction"?: "report_exported" | "file_uploaded", "subEntity"?: string, "nonce"?: string }
+ * subEntity yalnız o modülün kanonik allowlist'inden (USAGE_SUB_ENTITIES).
  */
 import type { ModuleGateKey } from "@/lib/auth/moduleAccess";
 import {
   CLIENT_BEACON_KINDS,
   CLIENT_ERROR_CLASSES,
+  isAllowedSubEntity,
   isUsageModuleKey,
   type ClientBeaconKind,
   type ClientErrorClass,
@@ -30,8 +32,8 @@ type ClientFailedAction = (typeof CLIENT_FAILED_ACTIONS)[number];
 const ALLOWED_KEYS: Record<ClientBeaconKind, readonly string[]> = {
   ping: ["kind", "module"],
   module_opened: ["kind", "module"],
-  report_exported: ["kind", "module", "nonce"],
-  action_failed: ["kind", "module", "errorClass", "failedAction", "nonce"],
+  report_exported: ["kind", "module", "subEntity", "nonce"],
+  action_failed: ["kind", "module", "errorClass", "failedAction", "subEntity", "nonce"],
 };
 
 const NONCE_RE = /^[a-z0-9]{8,32}$/;
@@ -39,12 +41,13 @@ const NONCE_RE = /^[a-z0-9]{8,32}$/;
 export type BeaconPayload =
   | { kind: "ping"; module: ModuleGateKey | null }
   | { kind: "module_opened"; module: ModuleGateKey }
-  | { kind: "report_exported"; module: ModuleGateKey; nonce: string | null }
+  | { kind: "report_exported"; module: ModuleGateKey; subEntity: string | null; nonce: string | null }
   | {
       kind: "action_failed";
       module: ModuleGateKey;
       errorClass: ClientErrorClass;
       failedAction: ClientFailedAction | null;
+      subEntity: string | null;
       nonce: string | null;
     };
 
@@ -93,8 +96,14 @@ export function parseBeaconBody(raw: string): BeaconParseResult {
   if (!isUsageModuleKey(mod)) return { ok: false, status: 400, code: "module_required" };
 
   if (k === "module_opened") return { ok: true, value: { kind: "module_opened", module: mod } };
+
+  const sub = body.subEntity;
+  if (sub !== undefined && (typeof sub !== "string" || !isAllowedSubEntity(mod, sub))) {
+    return { ok: false, status: 400, code: "invalid_sub_entity" };
+  }
+  const subEntity = (sub as string | undefined) ?? null;
   if (k === "report_exported") {
-    return { ok: true, value: { kind: "report_exported", module: mod, nonce: (nonce as string | undefined) ?? null } };
+    return { ok: true, value: { kind: "report_exported", module: mod, subEntity, nonce: (nonce as string | undefined) ?? null } };
   }
 
   const errorClass = body.errorClass;
@@ -115,6 +124,7 @@ export function parseBeaconBody(raw: string): BeaconParseResult {
       module: mod,
       errorClass: errorClass as ClientErrorClass,
       failedAction: (failedAction as ClientFailedAction | undefined) ?? null,
+      subEntity,
       nonce: (nonce as string | undefined) ?? null,
     },
   };

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { isDemoTenantId } from "@/lib/auth/demoServerGuard";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
@@ -65,8 +66,16 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const { data, error } = await query.order("appointment_date", { ascending: true });
-  if (error)
+  if (error) {
+    await trackUsage(guard, req, {
+      module: "appointments",
+      action: "action_failed",
+      failedAction: "report_generated",
+      subEntity: "appointment",
+      errorClass: "server",
+    });
     return Response.json({ ok: false, error: "Randevular okunamadı." }, { status: 500 });
+  }
 
   const appointments = (data || []) as AppointmentRow[];
   if (!appointments.length)
@@ -92,6 +101,13 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
 
   const buffer = await Packer.toBuffer(doc);
+  // Rapor = tek kullanıcı eylemi → tek olay + itemCount (randevu sayısı).
+  await trackUsage(guard, req, {
+    module: "appointments",
+    action: "report_generated",
+    subEntity: "appointment",
+    itemCount: appointments.length,
+  });
 
   return new Response(new Uint8Array(buffer), {
     headers: {
