@@ -120,6 +120,23 @@ ok(ebIds(expert({ energy_body: true })) === "energy_body", "REF-020: energy_body
 ok(evaluateRouteModuleGuard("/enerji-beden", expert({ numerology: true })) === "deny", "hiç alt modül yok → /enerji-beden deny");
 ok(ebIds(ADMIN) === "energy_body,reflexology,cupping", "admin üç kartı görür");
 
+// ─── Admin-only route'lar (kuralsız path'ler dahil) ────────────────────────────
+console.log("\n[AO] admin-only direct URL (/ders-notu kuralsız path — canlı bulgu)");
+ok(evaluateRouteModuleGuard("/ders-notu", esraLike) === "deny" && evaluateRouteModuleGuard("/ders-notu/x", legacyAi) === "deny", "uzman /ders-notu → deny");
+ok(evaluateRouteModuleGuard("/ders-notu", null) === "deny" && evaluateRouteModuleGuard("/video-ceviri", null) === "deny", "oturumsuz admin-only path → deny");
+ok(evaluateRouteModuleGuard("/ders-notu", ADMIN) === "allow" && evaluateRouteModuleGuard("/yebs", ADMIN) === "allow", "admin admin-only path → allow");
+const guardSrc = read("components/auth/ModuleRouteGuard.tsx");
+ok(/function isGuardedPath\(path: string\): boolean \{\s*return findRouteModuleRule\(path\) !== null \|\| isAdminOnlyRoutePath\(path\);/.test(guardSrc)
+  && /if \(!isGuardedPath\(path\)\)/.test(guardSrc) && /const hasRule = isGuardedPath\(path\)/.test(guardSrc),
+  "ModuleRouteGuard kuralsız admin-only path'i SKIP etmez (render kapısı + effect)");
+ok(!/videolar|ders notları/i.test(read("messages/tr/home.json").match(/"digital_content": \{[^}]*\}/)?.[0] ?? "x videolar"),
+  "dashboard Dijital İçerik kartı admin-only alt modülleri (video/ders notu) anmaz");
+
+// ─── Üye listesi aralık dışı sayfa (canlı bulgu: "9 sonuçtan 61–9") ───────────────
+console.log("\n[LIST] aralık dışı sayfa → son geçerli sayfaya replace");
+const listSrc = read("app/admin/users/page.tsx");
+ok(/if \(query\.page > lastPage\) setQuery\(\{ page: lastPage \}, "replace"\)/.test(listSrc), "üye listesi: page > son sayfa → son sayfaya replace (pager'sız boş liste yok)");
+
 // ─── Kaynak sözleşmesi ────────────────────────────────────────────────────────
 console.log("\n[SRC] tek kaynak / hard-code yok");
 const grid = read("app/digital-content/DigitalContentModuleGrid.tsx");

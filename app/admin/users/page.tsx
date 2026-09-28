@@ -523,6 +523,16 @@ function AdminUsersContent() {
   }, [sessionChecked, allowed, currentUserId, query.view, requestKey]);
 
   const totalPages = list.kind === "ready" ? Math.max(1, Math.ceil(list.total / query.pageSize)) : 1;
+
+  // Aralık dışı sayfa (bayat URL / son sayfadaki son üye arşivlendi) → son geçerli sayfa (replace;
+  // geçmişe yeni kayıt eklenmez). Önceden "9 sonuçtan 61–9 · Henüz üye yok." gösterip pager'sız kalıyordu.
+  const listTotal = list.kind === "ready" ? list.total : 0;
+  useEffect(() => {
+    if (listTotal === 0) return;
+    const lastPage = Math.max(1, Math.ceil(listTotal / query.pageSize));
+    if (query.page > lastPage) setQuery({ page: lastPage }, "replace");
+  }, [listTotal, query.page, query.pageSize, setQuery]);
+
   const activeFilterCount = [query.approval, query.active, query.role, query.payment].filter((v) => v !== "all").length;
   const formHasModule = useMemo(() => [...formModules].some((k) => ADMIN_MODULE_KIND[k] === "module"), [formModules]);
 

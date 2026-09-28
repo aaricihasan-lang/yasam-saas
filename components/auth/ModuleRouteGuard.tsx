@@ -7,8 +7,18 @@ import ModuleAccessPending from "@/components/auth/ModuleAccessPending";
 import {
   evaluateRouteModuleGuard,
   findRouteModuleRule,
+  isAdminOnlyRoutePath,
   type RouteModuleGuardDecision,
 } from "@/lib/auth/routeModuleAccess";
+
+/**
+ * Guard kapsamındaki path: modül kuralı olan VEYA admin-only (ör. /ders-notu, /video-ceviri,
+ * /yebs) path. Admin-only path'in modül kuralı olmasa da uzmana "Yetkiniz Bulunmuyor" gösterilir
+ * (önceden kuralsız admin-only path "skip" ediliyor → /ders-notu kabuğu uzmanda açılıyordu).
+ */
+function isGuardedPath(path: string): boolean {
+  return findRouteModuleRule(path) !== null || isAdminOnlyRoutePath(path);
+}
 import {
   backgroundSyncYasamUserFromDb,
   readYasamUser,
@@ -39,9 +49,8 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
     let cancelled = false;
 
     const path = pathname ?? "/";
-    const rule = findRouteModuleRule(path);
 
-    if (!rule) {
+    if (!isGuardedPath(path)) {
       setDecision("skip");
       setResolved(true);
       setDecidedPath(path);
@@ -86,7 +95,7 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
   }, [pathname]);
 
   const path = pathname ?? "/";
-  const hasRule = findRouteModuleRule(path) !== null;
+  const hasRule = isGuardedPath(path);
   const isDeny = decision === "deny" || decision === "deny_membership";
 
   // FLASH-GUARD (KAJ-P1-04): Modül-gate'li route'ta karar BU path için kesinleşene kadar
