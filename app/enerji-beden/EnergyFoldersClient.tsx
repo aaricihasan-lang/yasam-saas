@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { readYasamUser } from "@/lib/auth/yasamUser";
-import { resolveModuleAccess } from "@/lib/auth/moduleAccessCore";
+import { readYasamUser, syncYasamUserFromDb, type YasamUser } from "@/lib/auth/yasamUser";
+import { ENERGY_BODY_HUB_CHILDREN, canSeeHubChild } from "@/lib/auth/hubVisibility";
 
 export type EnergyFolder = {
   title: string;
@@ -17,35 +17,43 @@ export type EnergyFolder = {
   button: string;
 };
 
+const CHILD_BY_HREF = new Map(ENERGY_BODY_HUB_CHILDREN.map((child) => [child.href, child]));
+
 /**
- * REF-020 (UI-only): Refleksoloji kartı YALNIZ granular `reflexology`/`refleksoloji`
- * izniyle görünür. Backend izin semantiği DEĞİŞMEZ (energy_body → reflexology fallback
- * EKLENMEZ); yalnız home görünürlüğü API kapısıyla hizalanır. Biyoenerji/Kupa kartları
- * mevcut davranışını korur (bu değişiklik onların görünürlüğünü DEĞİŞTİRMEZ).
+ * Enerji & Beden alt kartları — owner kararı: uzman KENDİSİNE AÇILMAMIŞ alt modülü GÖRMEZ.
+ * Biyoenerji / Refleksoloji / Kupa kartlarının her biri yalnız ilgili gerçek izinle görünür
+ * (lib/auth/hubVisibility tek kaynak; REF-020: Refleksoloji yalnız granular reflexology/
+ * refleksoloji izniyle — energy_body fallback YOK). Sunucu yetkisi ayrıca zorlanır.
+ * İzinler canlı DB'den kesinleşmeden kart render EDİLMEZ (yetkisiz kart flash etmez).
  */
 export function EnergyFoldersClient({ folders }: { folders: readonly EnergyFolder[] }) {
-  const [reflexAllowed, setReflexAllowed] = useState<boolean | null>(null);
+  const [user, setUser] = useState<YasamUser | null>(null);
+  const [resolved, setResolved] = useState(false);
 
   useEffect(() => {
-    const u = readYasamUser();
-    if (!u) {
-      setReflexAllowed(false);
-      return;
-    }
-    if (u.is_demo_account === true) {
-      setReflexAllowed(true);
-      return;
-    }
-    setReflexAllowed(
-      resolveModuleAccess(u.role, u.module_permissions ?? null, "reflexology"),
-    );
+    let cancelled = false;
+    const cached = readYasamUser();
+    void syncYasamUserFromDb(cached)
+      .then((fresh) => {
+        if (!cancelled) setUser(fresh ?? cached ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setUser(cached ?? null);
+      })
+      .finally(() => {
+        if (!cancelled) setResolved(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const visible = folders.filter((f) => {
-    if (f.href !== "/refleksoloji") return true;
-    // Kontrol tamamlanana kadar (null) gizli tut → yetkisiz karta tıklama/flash olmaz.
-    return reflexAllowed === true;
-  });
+  const visible = resolved
+    ? folders.filter((f) => {
+        const child = CHILD_BY_HREF.get(f.href);
+        return child ? canSeeHubChild(user, child) : false;
+      })
+    : [];
 
   return (
     <div className="mx-auto grid min-h-0 w-full max-w-5xl flex-1 grid-cols-1 items-stretch gap-5 pb-2 sm:grid-cols-2 lg:grid-cols-3">
