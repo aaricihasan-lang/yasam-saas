@@ -1,6 +1,10 @@
 {
-  "_note": "§19 IMMUTABLE GOLDEN DATASET. Değerler BAĞIMSIZ Swiss Ephemeris (scripts/cosmic-presale/swe_golden.py) ile üretildi — üretim motorundan (astronomy-engine) türetilmedi. CI'da bu değerler değişirse test FAIL eder. Üretim AE ↔ SWE burç/retro uyumu ayrıca §21/§22'de doğrulandı. Elle güncellemeyin; yalnız kasıtlı motor değişiminde swe_golden.py ile yeniden üretin.",
-  "location": { "name": "İstanbul", "lat": 41.0082, "lon": 28.9784 },
+  "_note": "§19 IMMUTABLE GOLDEN DATASET. Değerler BAĞIMSIZ Swiss Ephemeris (scripts/cosmic-presale/swe_golden.py) ile üretildi — üretim motorundan (astronomy-engine) türetilmedi. CI'da bu değerler değişirse test FAIL eder. Üretim AE ↔ SWE burç/retro uyumu ayrıca §21/§22'de doğrulandı. Elle güncellemeyin; yalnız kasıtlı motor değişiminde swe_golden.py ile yeniden üretin. (2026–2100 turu: swe_golden.py ile 8 gezegen retro + 2085/2100 anları eklenerek kasıtlı olarak yeniden üretildi — G3.)",
+  "location": {
+    "name": "İstanbul",
+    "lat": 41.0082,
+    "lon": 28.9784
+  },
   "instants": [
     {
       "label": "2026-07-15 12:00 TR",
@@ -8,7 +12,11 @@
       "sunSign": "Yengeç",
       "moonSign": "Aslan",
       "sunMoonElongationDeg": 13.52,
-      "retroActive": ["Merkür"]
+      "retroActive": [
+        "Merkür",
+        "Neptün",
+        "Plüton"
+      ]
     },
     {
       "label": "2030-11-10 09:00 TR",
@@ -16,7 +24,11 @@
       "sunSign": "Akrep",
       "moonSign": "Boğa",
       "sunMoonElongationDeg": 181.14,
-      "retroActive": ["Satürn"]
+      "retroActive": [
+        "Neptün",
+        "Satürn",
+        "Uranüs"
+      ]
     },
     {
       "label": "2045-03-05 20:00 TR",
@@ -24,7 +36,31 @@
       "sunSign": "Balık",
       "moonSign": "Terazi",
       "sunMoonElongationDeg": 211.97,
-      "retroActive": []
+      "retroActive": [
+        "Uranüs"
+      ]
+    },
+    {
+      "label": "2085-06-15 12:00 TR",
+      "utc": "2085-06-15T09:00:00Z",
+      "sunSign": "İkizler",
+      "moonSign": "Koç",
+      "sunMoonElongationDeg": 277.96,
+      "retroActive": [
+        "Uranüs"
+      ]
+    },
+    {
+      "label": "2100-12-30 12:00 TR",
+      "utc": "2100-12-30T09:00:00Z",
+      "sunSign": "Oğlak",
+      "moonSign": "Oğlak",
+      "sunMoonElongationDeg": 351.4,
+      "retroActive": [
+        "Neptün",
+        "Plüton",
+        "Uranüs"
+      ]
     }
   ]
 }

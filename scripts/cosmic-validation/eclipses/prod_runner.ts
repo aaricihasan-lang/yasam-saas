@@ -17,19 +17,24 @@ import {
 const HERE = dirname(fileURLToPath(import.meta.url));
 const toUTC = (isoTR: string): string => new Date(Date.parse(isoTR)).toISOString().replace(/\.\d{3}Z$/, "Z");
 
+// FAZ 3A testset'i 2026–2050 penceresidir (sabit SWE referansı). Motor artık 2026–2100 üretir;
+// 2051–2100 tutulmaları scripts/cosmic-longrange (Swiss Ephemeris, tip+peak) ile doğrulanır.
+const TESTSET_END_UTC = "2051-01-01";
+const inTestset = (e: { peakUTC: string }) => e.peakUTC < TESTSET_END_UTC;
+
 function main(): void {
-  const solar = getSolarEclipses().map(e => ({
+  const solar = getSolarEclipses().filter(inTestset).map(e => ({
     kind: e.eclipseType, peakUTC: e.peakUTC,
     centerLat: e.centerLat, centerLon: e.centerLon, obscuration: e.obscuration,
   }));
-  const lunar = getLunarEclipses().map(e => ({
+  const lunar = getLunarEclipses().filter(inTestset).map(e => ({
     kind: e.eclipseType, peakUTC: e.peakUTC, obscuration: e.obscuration,
     durPenumMin: e.durPenumMin, durPartialMin: e.durPartialMin, durTotalMin: e.durTotalMin,
   }));
 
   const localSolar: Record<string, unknown[]> = {};
   for (const c of TR_CITIES) localSolar[c.name] = [];
-  for (const e of getSolarEclipses()) {
+  for (const e of getSolarEclipses().filter(inTestset)) {
     for (const v of getSolarCityVisibility(e.id)) {
       if (v.localType == null || v.peakTR == null) continue;   // şehir penumbrada değil
       localSolar[v.city].push({

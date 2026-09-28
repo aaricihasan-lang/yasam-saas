@@ -3,10 +3,10 @@
  *
  * §22 TAM TARİH SWEEP + §18B sunrise/sunset bağımsız oracle.
  *
- * Desteklenen aralığın (2026-06-20 → 2050-12-31) TAMAMINI gün-gün tarar ve her üretim
+ * Desteklenen aralığın (dateRange: 01.01.2026 → 31.12.2100) TAMAMINI gün-gün tarar ve her üretim
  * motorunda crash / NaN / undefined / invalid Date / imkânsız dizi / invariant ihlali arar.
  *
- * NE TAM TARANIR (her gün, ~8960 gün):
+ * NE TAM TARANIR (her gün, ~27.393 gün):
  *   • getMoonPhase, getMoonSign, getSunSignInfo, getPlanetSigns (9 cisim), getHijriDate
  *   • getPlanetaryHoursForDate: 24 slot + süreklilik + Chaldean +1 + sunrise<sunset<nextSunrise
  * NE ÖRNEKLENİR (her 15 günde bir — ağır AE enumerasyonu, runtime için):
