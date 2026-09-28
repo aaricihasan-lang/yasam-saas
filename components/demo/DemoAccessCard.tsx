@@ -210,6 +210,7 @@ export function DemoAccessRail({ onTryDemo }: { onTryDemo: () => void }) {
           </span>
           {t("badge")}
         </span>
+        <p className="mb-2 text-[11px] font-medium leading-[1.45] text-slate-600">{t("railIntro")}</p>
         <RailCredential
           icon={Mail}
           label={t("emailLabel")}

@@ -172,6 +172,7 @@
     },
     "demoAccess": {
       "badge": "Test hesabı açık",
+      "railIntro": "Yaşam Sistemi’nin modüllerini ve çalışma akışını test hesabıyla inceleyebilirsiniz.",
       "title": "Yaşam Sistemi’ni Test Hesabıyla İnceleyin",
       "description": "Test ortamına giriş yaparak modüllerin genel yapısını, çalışma akışını ve kullanım deneyimini doğrudan görebilirsiniz. Deneme hesabı, sistemi tanımanız ve keşfetmeniz için sunulmuştur.",
       "emailLabel": "Test Sayfası",
@@ -183,6 +184,7 @@
     },
     "hero": {
       "cardModules": "10+ Modül",
+      "cardModulesSub": "Uzmanlık araçları",
       "cardSinglePanel": "Tek Panel",
       "cardSinglePanelSub": "Her yerden erişim",
       "cardSecure": "Güvenli Kayıt",

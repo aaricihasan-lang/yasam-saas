@@ -172,6 +172,7 @@
     },
     "demoAccess": {
       "badge": "Test account open",
+      "railIntro": "Explore Yaşam Sistemi’s modules and workflow with the test account.",
       "title": "Explore Yaşam Sistemi with a Test Account",
       "description": "Sign in to the test environment to see the overall structure of the modules, the workflow and the user experience first-hand. The trial account is provided so you can get to know the system and explore how it works.",
       "emailLabel": "Test Account",
@@ -183,6 +184,7 @@
     },
     "hero": {
       "cardModules": "10+ Modules",
+      "cardModulesSub": "Professional tools",
       "cardSinglePanel": "One Panel",
       "cardSinglePanelSub": "Access from anywhere",
       "cardSecure": "Secure Records",
