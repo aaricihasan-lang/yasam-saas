@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { statsApi } from "@/lib/admin/stats/statsClient";
 import type { ActivityData, ModulesData, StorageData } from "@/lib/admin/stats/apiTypes";
-import { formatBytes } from "@/lib/admin/stats/uiFormat";
+import { formatBytes, isLastSeenBackfillArtifact } from "@/lib/admin/stats/uiFormat";
 import type { Period } from "./ui";
 import { SectionCard, StatTile, LoadingBlock, ErrorBlock, EmptyBlock } from "./ui";
 import { MetricValueView } from "./MetricValueView";
@@ -65,14 +65,21 @@ export function ExpertDetailView({ userId, period, refreshKey }: { userId: strin
 
   return (
     <div className="space-y-5">
-      <SectionCard title="A · Kişisel giriş ve etkinlik (kullanıcı hesabı)" subtitle="Son görülme ve aktif gün heartbeat tabanlı (~yaklaşık); son giriş ile karıştırılmaz.">
+      <SectionCard title="A · Kişisel giriş ve etkinlik (kullanıcı hesabı)" subtitle="Giriş = başarılı kimlik doğrulama. Son teknik temas ~ korumalı sunucu isteğidir; gerçek kullanıcı etkileşimi veya kullanım ziyareti DEĞİLDİR.">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           <StatTile label="Kayıt tarihi" value={<MetricValueView metric={act.accountCreatedAt} />} />
           <StatTile label="Son giriş" value={<MetricValueView metric={act.lastLoginAt} />} />
-          <StatTile label="Son görülme ~" value={<MetricValueView metric={act.lastSeenAt} />} />
+          <StatTile
+            label="Son teknik temas ~"
+            value={<MetricValueView metric={act.lastSeenAt} />}
+            tone={isLastSeenBackfillArtifact(act.lastSeenAt.value) ? "amber" : undefined}
+            hint={isLastSeenBackfillArtifact(act.lastSeenAt.value)
+              ? "27.09.2026 22:13 (TR) migration değeri — gerçek kullanım değil"
+              : "korumalı sunucu isteği; etkileşim değil"}
+          />
           <StatTile label="Dönemde giriş" tone="emerald" value={<MetricValueView metric={act.loginCount} />} />
-          <StatTile label="Oturum (toplam)" value={<MetricValueView metric={act.sessionCount} />} hint="genel toplam" />
-          <StatTile label="Aktif gün ~" tone="amber" value={<MetricValueView metric={act.activeDays} />} hint="heartbeat, TR günü" />
+          <StatTile label="Tüm zamanlar giriş" value={<MetricValueView metric={act.sessionCount} />} hint="Başarılı kimlik doğrulama sayısıdır; kullanım ziyareti değildir." />
+          <StatTile label="Giriş yapılan gün" tone="amber" value={<MetricValueView metric={act.activeDays} />} hint="dönemde login olunan farklı TR günü; aktif kullanım günü değildir" />
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div><p className="mb-1 text-xs font-semibold uppercase text-slate-500">Kanal dağılımı</p><Breakdown map={act.channelBreakdown.value} /></div>

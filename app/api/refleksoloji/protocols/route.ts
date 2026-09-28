@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
-import { recordUsageEvent, buildUsageIdempotencyKey } from "@/lib/usage/usageEvents";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { pickProtocolContentFields } from "@/lib/refleksoloji/protocolDto";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
 
@@ -138,12 +138,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   // İP-2C: YENİ protokol oluşturma → usage event (dedup/update yolu olay üretmez; server-resolved; throw etmez).
   const newId = (data as { id?: string } | null)?.id ?? null;
   if (newId) {
-    await recordUsageEvent(db, {
-      tenantId,
-      userId: guard.userId,
-      moduleKey: "reflexology",
-      eventType: "protocol_created",
-      idempotencyKey: buildUsageIdempotencyKey("reflexology", "protocol_created", newId),
+    await trackUsage(guard, req, {
+      module: "reflexology",
+      action: "record_created",
+      subEntity: "protocol",
+      resourceId: newId,
+      legacyEventType: "protocol_created",
     });
   }
   return NextResponse.json({ ok: true, protocol: data });

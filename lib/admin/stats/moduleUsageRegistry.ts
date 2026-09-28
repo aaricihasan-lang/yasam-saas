@@ -140,7 +140,6 @@ export const MODULE_USAGE_REGISTRY: Record<ModuleGateKey, ModuleUsageDescriptor>
     label: "Human Design",
     hasDurableTrace: true,
     recordSources: [{ table: "human_design_charts", tenantColumn: "tenant_id", createdColumn: "created_at" }],
-    note: "Coming-soon; kayıt tablosu mevcut.",
   },
   digital_content: {
     key: "digital_content",
@@ -154,7 +153,7 @@ export const MODULE_USAGE_REGISTRY: Record<ModuleGateKey, ModuleUsageDescriptor>
     label: "Yaşam Takvimi / Kozmik Ajanda",
     hasDurableTrace: false,
     recordSources: [],
-    note: "Always-on; per-tenant kalıcı kayıt yok → kayıt sayısı ile ölçülemez.",
+    note: "Hesaplamalar tarayıcıda; per-tenant kalıcı kullanım kaydı yok (hacamat_rules seed'lidir, kullanım sinyali değil) → kayıt sayısı ile ölçülemez.",
   },
   cupping: {
     key: "cupping",
@@ -167,7 +166,6 @@ export const MODULE_USAGE_REGISTRY: Record<ModuleGateKey, ModuleUsageDescriptor>
     label: "Beslenme",
     hasDurableTrace: true,
     recordSources: [{ table: "nutrition_plans", tenantColumn: "tenant_id", createdColumn: "created_at" }],
-    note: "Owner-only faz; kayıt tablosu mevcut.",
   },
 };
 

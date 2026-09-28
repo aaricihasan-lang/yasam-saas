@@ -89,7 +89,7 @@ export async function GET(req: NextRequest): Promise<Response> {
           ? unavailableMetric<number>("system", "user", "distinct kullanım sinyali okunamadı")
           : makeMetric<number>(activeUsed, "system", "measured", "user", {
               measuredAt,
-              note: `son ${sinceDays} günde last_seen sinyali olan DISTINCT expert (aktif-hesaptan AYRI)`,
+              note: `son ${sinceDays} günde teknik temas (last_seen) sinyali olan DISTINCT expert — kullanım kanıtı DEĞİL; 27.09.2026 backfill artefaktı aktif oturumu olan herkesi içerir`,
             }),
     },
   };

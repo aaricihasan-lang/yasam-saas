@@ -102,7 +102,15 @@
       "nutrition_food_resolve_effective",
       "nutrition_food_traditional_replace",
       "nutrition_foods_origin_guard",
-      "nutrition_plan_refresh_item_snapshots"
+      "nutrition_plan_refresh_item_snapshots",
+      "usage360_ping",
+      "usage360_track",
+      "usage360_retention_purge",
+      "usage360__bump",
+      "usage360__bump_module",
+      "usage360__gate",
+      "usage360__open_visit",
+      "usage360__ctx_ok"
     ],
     "optional": [
       "aromatherapy_delete_source_with_audit",
@@ -120,7 +128,15 @@
       "nutrition_food_resolve_effective",
       "nutrition_food_traditional_replace",
       "nutrition_foods_origin_guard",
-      "nutrition_plan_refresh_item_snapshots"
+      "nutrition_plan_refresh_item_snapshots",
+      "usage360_ping",
+      "usage360_track",
+      "usage360_retention_purge",
+      "usage360__bump",
+      "usage360__bump_module",
+      "usage360__gate",
+      "usage360__open_visit",
+      "usage360__ctx_ok"
     ],
     "note": "Kodda .rpc() ile çağrılan tüm RPC'ler + FAZ1 yeni RPC'ler: anon/authenticated EXECUTE=false (service_role-only). optional: prod'da henüz yoksa UYARI (FAIL değil)."
   },
@@ -155,7 +171,10 @@
       "admin_audit_log",
       "yasam_hafizasi_report_snapshots",
       "nutrition_destructive_challenges",
-      "nutrition_food_tenant_hidden"
+      "nutrition_food_tenant_hidden",
+      "usage_visits",
+      "usage_daily",
+      "usage_daily_modules"
     ],
     "optional": [
       "_bak_hacamat_rules_20260926",
@@ -167,7 +186,10 @@
       "client_consents",
       "user_payment_history",
       "nutrition_destructive_challenges",
-      "nutrition_food_tenant_hidden"
+      "nutrition_food_tenant_hidden",
+      "usage_visits",
+      "usage_daily",
+      "usage_daily_modules"
     ],
     "note": "anon/authenticated SELECT/INSERT/UPDATE/DELETE=false. optional: prod'da yoksa UYARI."
   },
@@ -201,7 +223,10 @@
       "admin_audit_log",
       "yasam_hafizasi_report_snapshots",
       "nutrition_destructive_challenges",
-      "nutrition_food_tenant_hidden"
+      "nutrition_food_tenant_hidden",
+      "usage_visits",
+      "usage_daily",
+      "usage_daily_modules"
     ],
     "optional": [
       "_bak_hacamat_rules_20260926",
@@ -212,7 +237,10 @@
       "client_consents",
       "user_payment_history",
       "nutrition_destructive_challenges",
-      "nutrition_food_tenant_hidden"
+      "nutrition_food_tenant_hidden",
+      "usage_visits",
+      "usage_daily",
+      "usage_daily_modules"
     ],
     "note": "relrowsecurity=true (view hariç)."
   },

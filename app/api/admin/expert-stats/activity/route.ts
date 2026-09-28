@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { isUuid, parseRange, resolveTargetExpert } from "@/lib/admin/stats/statsRequest";
-import { makeMetric, unavailableMetric, type MetricValue, type StatsEnvelope } from "@/lib/admin/stats/contract";
+import {
+  LAST_SEEN_BACKFILL_ARTIFACT_TR,
+  makeMetric,
+  unavailableMetric,
+  type MetricValue,
+  type StatsEnvelope,
+} from "@/lib/admin/stats/contract";
 
 export const runtime = "nodejs";
 
@@ -14,8 +20,8 @@ export const runtime = "nodejs";
  *   - loginCount        : başarılı giriş sayısı (her giriş = 1 session satırı) — measured
  *   - sessionCount      : toplam oturum satırı — measured
  *   - lastLoginAt       : son giriş (max created_at) — measured
- *   - lastSeenAt        : son görülme (heartbeat; son anlamlı işlem DEĞİL) — approximate
- *   - activeDays        : aktif gün (last_seen DISTINCT, TR günü; heartbeat) — approximate
+ *   - lastSeenAt        : son TEKNİK TEMAS (korumalı API / arka plan isteği; insan etkileşimi DEĞİL) — approximate
+ *   - activeDays        : GİRİŞ YAPILAN GÜN (başarılı login'lerin farklı TR günleri; aktif kullanım günü DEĞİL)
  *   - channelBreakdown  : kanal dağılımı (NULL = kaydı-öncesi/unrecorded) — measured (ileriye dönük)
  *   - platformBreakdown : UA-parse platform dağılımı — derived
  *   - accountCreatedAt  : users.created_at — measured
@@ -98,16 +104,22 @@ export async function GET(req: NextRequest): Promise<Response> {
         "user",
         row?.last_seen != null ? "approximate" : "unavailable",
         "timestamp",
-        { measuredAt, note: "MAX(last_seen_at) — heartbeat (90sn throttle); son anlamlı işlem değil" },
+        {
+          measuredAt,
+          note: `MAX(last_seen_at) — son teknik temas (korumalı sunucu isteği, 90 sn throttle; açık sekmedeki arka plan istekleri dahil). Gerçek kullanıcı etkileşimi anlamına gelmez. ${LAST_SEEN_BACKFILL_ARTIFACT_TR} değeri migration artefaktıdır.`,
+        },
       ),
       loginCount: makeMetric(num(row?.login_count), "user", "measured", "session", {
         measuredAt,
         note: "COUNT(session created_at ∈ aralık) — başarılı giriş; heartbeat sayılmaz",
       }),
-      sessionCount: makeMetric(num(row?.session_count), "user", "measured", "session", { measuredAt, note: "toplam oturum satırı" }),
-      activeDays: makeMetric(num(row?.active_days), "user", "approximate", "day", {
+      sessionCount: makeMetric(num(row?.session_count), "user", "measured", "session", {
         measuredAt,
-        note: "DISTINCT(last_seen günü, Europe/Istanbul) — heartbeat tabanlı yaklaşık",
+        note: "tüm zamanlar başarılı kimlik doğrulama (login) sayısı — dönemden bağımsız; kullanım ziyareti DEĞİL",
+      }),
+      activeDays: makeMetric(num(row?.active_days), "user", "measured", "day", {
+        measuredAt,
+        note: "giriş yapılan gün: aralıktaki başarılı login'lerin DISTINCT TR günü (created_at, Europe/Istanbul) — aktif kullanım günü DEĞİL (kalıcı oturumla login'siz kullanım sayılmaz)",
       }),
       channelBreakdown: makeMetric(asMap(row?.channel_breakdown), "user", "measured", "session", {
         measuredAt,

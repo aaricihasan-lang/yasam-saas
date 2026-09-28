@@ -63,6 +63,7 @@ export const EXCLUDED_API_PREFIXES: { prefix: string; reason: string }[] = [
   { prefix: "app/api/settings", reason: "kullanıcının KENDİ ayarları (verifyUserRequest; modül değil)" },
   { prefix: "app/api/register", reason: "public kayıt ucu" },
   { prefix: "app/api/location", reason: "paylaşımlı coğrafi yardımcı (geo)" },
+  { prefix: "app/api/usage", reason: "Usage360 kullanım telemetrisi beacon (verifyUserRequest binding; modül değil; izinsiz modül sinyali no-op; USAGE360_ENABLED kapalıyken 204 no-op)" },
   { prefix: "app/api/inngest", reason: "sistem webhook (kuyruk)" },
   { prefix: "app/api/yasam-hafizasi", reason: "merkezî Yaşam Hafızası motoru (BF-11 CDC; kendi auth'u)" },
   { prefix: "app/api/cosmic", reason: "yalnız cosmic/audit dev-diagnostic (prod'da 404, kimliksiz, hesaplama-yoğun); kullanıcı verisi yok — modül-gate dışı" },
