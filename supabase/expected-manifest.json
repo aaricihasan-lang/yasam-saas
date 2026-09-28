@@ -155,7 +155,9 @@
       "admin_audit_log",
       "yasam_hafizasi_report_snapshots",
       "nutrition_destructive_challenges",
-      "nutrition_food_tenant_hidden"
+      "nutrition_food_tenant_hidden",
+      "client_anamneses",
+      "client_anamnesis_attachments"
     ],
     "optional": [
       "_bak_hacamat_rules_20260926",
@@ -167,7 +169,9 @@
       "client_consents",
       "user_payment_history",
       "nutrition_destructive_challenges",
-      "nutrition_food_tenant_hidden"
+      "nutrition_food_tenant_hidden",
+      "client_anamneses",
+      "client_anamnesis_attachments"
     ],
     "note": "anon/authenticated SELECT/INSERT/UPDATE/DELETE=false. optional: prod'da yoksa UYARI."
   },
@@ -201,7 +205,9 @@
       "admin_audit_log",
       "yasam_hafizasi_report_snapshots",
       "nutrition_destructive_challenges",
-      "nutrition_food_tenant_hidden"
+      "nutrition_food_tenant_hidden",
+      "client_anamneses",
+      "client_anamnesis_attachments"
     ],
     "optional": [
       "_bak_hacamat_rules_20260926",
@@ -212,7 +218,9 @@
       "client_consents",
       "user_payment_history",
       "nutrition_destructive_challenges",
-      "nutrition_food_tenant_hidden"
+      "nutrition_food_tenant_hidden",
+      "client_anamneses",
+      "client_anamnesis_attachments"
     ],
     "note": "relrowsecurity=true (view hariç)."
   },
@@ -222,6 +230,12 @@
       "table": "objects",
       "policy_name_pattern": "^video_temp_",
       "reason": "video-temp anon INSERT/SELECT policy'leri kaldırılır (migration 20270129001000, AUTH)."
+    },
+    {
+      "schema": "storage",
+      "table": "objects",
+      "policy_name_pattern": "[Aa]namne",
+      "reason": "client-anamnesis-files private; storage.objects üzerinde policy olmamalı (migration 20270202000100)."
     }
   ],
   "buckets": {
@@ -237,6 +251,13 @@
     "video-temp": {
       "public": false,
       "file_size_limit": 26214400
+    },
+    "client-anamnesis-files": {
+      "public": false,
+      "file_size_limit": 10485760,
+      "allowed_mime_types": [
+        "application/pdf"
+      ]
     }
   },
   "anon_table_grant_allowlist": [],

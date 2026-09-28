@@ -50,6 +50,8 @@ const nextConfig: NextConfig = {
   // Vercel output tracing bunları route bundle'ına dahil etsin (ağ fetch YOK).
   outputFileTracingIncludes: {
     "/api/refleksoloji/protocol-report": ["./public/refleksoloji/klinik_*.png"],
+    // Anamnez boş form PDF'i Türkçe karakter için Geist TTF'yi fs ile okur.
+    "/api/clients/[id]/anamnez/blank-form": ["./public/fonts/Geist-Regular.ttf"],
   },
 
   experimental: {

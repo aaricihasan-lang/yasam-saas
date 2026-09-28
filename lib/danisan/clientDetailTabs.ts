@@ -10,6 +10,7 @@
  */
 export const CLIENT_DETAIL_TABS = [
   "genel",
+  "anamnez",
   "notlar",
   "randevular",
   "taslar",

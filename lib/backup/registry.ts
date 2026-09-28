@@ -76,6 +76,20 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
     fkParents: [clientFk],
     userColumns: ["recorded_by_user_id"],
   }),
+  // Anamnez V1 (migration 20270202000000). Tamamlanmış satırlar DB'de kilitli; restore
+  // ON CONFLICT DO NOTHING ile yalnız INSERT eder (kilit tetiklenmez). PDF dosyaları yedeğe
+  // girmez (files_included:false) — yalnız metadata; yol tenant önekiyle doğrulanır.
+  entry("client_anamneses", "clients", "backup", "Anamnez Kayıtları", {
+    fkParents: [clientFk],
+    selfRef: "based_on_anamnesis_id",
+    userColumns: ["created_by_user_id", "updated_by_user_id", "completed_by_user_id"],
+    generatedColumns: ["create_request_id"],
+  }),
+  entry("client_anamnesis_attachments", "clients", "backup", "Anamnez Belgeleri (kayıt)", {
+    fkParents: [clientFk, fk("anamnesis_id", "client_anamneses")],
+    storageRefs: [st("storage_path", "tenant")],
+    userColumns: ["uploaded_by_user_id"],
+  }),
 
   // ── Numeroloji ────────────────────────────────────────────────────────────
   entry("numerology_records", "numerology", "backup", "Analiz Kayıtları"),

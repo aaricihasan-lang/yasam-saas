@@ -3,6 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { logServerError, serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { filterOwnedStonePhotoPaths } from "@/lib/clients/stonePhotoStorage";
+import { collectAnamnesisObjectPaths, removeObjects } from "@/lib/danisan/anamnez/server";
 
 export const runtime = "nodejs";
 
@@ -36,6 +37,14 @@ export const runtime = "nodejs";
  *   danışanın dosyası kaybolurdu. DB-first'te en kötü ihtimal yalnız yetim blob'tur
  *   (tekrar temizlenebilir; kullanıcı veri kaybı değildir).
  *   İki bucket: taş fotoğrafları + analiz görselleri.
+ *
+ * ANAMNEZ PDF'LERİ (client-anamnesis-files — sağlık verisi) İSTİSNADIR → STORAGE-FIRST, fail-closed:
+ *   Sağlık belgesinin sahipsiz kalması, silinmek istenen danışanın belge kaybından daha ağır bir
+ *   risktir. Bu yüzden anamnez nesneleri (DB satırları + önek listelemesi; finalize edilmemiş
+ *   yüklemeler dahil) DB silmesinden ÖNCE silinir. Silme başarısızsa danışan SİLİNMEZ ve hata
+ *   döner (sessiz yetim PDF yok). Nesneler silinip DB silmesi başarısız olursa danışan yerinde
+ *   kalır; eksik belge metadata'sı kullanıcıya görünür ve silme tekrarlanabilir (idempotent).
+ *   Yollar yalnız sunucu `${tenantId}/${clientId}/` önekinden türetilir → yabancı tenant'a dokunulmaz.
  */
 
 const STONE_PHOTO_BUCKET = "stone-photos";
@@ -132,6 +141,16 @@ export async function DELETE(
     collectStonePhotoPaths(db, tenantId, clientId),
     collectAnalysisImagePaths(db, tenantId, clientId),
   ]);
+
+  // 1b) Anamnez PDF'leri: STORAGE-FIRST + fail-closed (bkz. dosya başı).
+  const anamnesisObjects = await collectAnamnesisObjectPaths(db, tenantId, clientId);
+  if (!anamnesisObjects.ok || !(await removeObjects(db, anamnesisObjects.paths))) {
+    logServerError({ route: "clients/[id]/cascade-delete", action: "anamnesis-storage", tenantId, cause: "anamnesis storage cleanup failed" });
+    return NextResponse.json(
+      { ok: false, code: "ANAMNESIS_STORAGE_FAILED", error: "Anamnez belgeleri silinemediği için danışan silinmedi. Lütfen tekrar deneyin." },
+      { status: 502 },
+    );
+  }
 
   // 2) Ana danışan kaydını sil — TEK ifade; tüm child'lar DB içinde ATOMİK cascade edilir.
   const { error: clientDelErr } = await db

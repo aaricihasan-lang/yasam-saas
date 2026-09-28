@@ -26,6 +26,7 @@
       },
       "tab": {
         "genel": "General Info",
+        "anamnez": "Intake",
         "notlar": "Notes",
         "randevular": "Appointments",
         "taslar": "Stones",
@@ -285,7 +286,9 @@
           "memoryIndex": "Life Memory index entries",
           "legacyGifts": "Legacy gift records",
           "legacyPhotos": "Legacy photo records",
-          "legacyTasks": "Legacy task records"
+          "legacyTasks": "Legacy task records",
+          "anamneses": "Intake records",
+          "anamnesisFiles": "Intake documents (PDF)"
         }
       },
       "notesState": {

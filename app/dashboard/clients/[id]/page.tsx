@@ -54,6 +54,7 @@ const AnalizlerTab = dynamic(() => import("./components/AnalizlerTab"), { loadin
 const YolculukTab = dynamic(() => import("./components/YolculukTab"), { loading: TabSkeleton, ssr: false });
 const ClientMemoryTab = dynamic(() => import("./components/ClientMemoryTab"), { loading: TabSkeleton, ssr: false });
 const BeslenmeTab = dynamic(() => import("./components/BeslenmeTab"), { loading: TabSkeleton, ssr: false });
+const AnamnezTab = dynamic(() => import("./components/AnamnezTab"), { loading: TabSkeleton, ssr: false });
 const MemoryPicker = dynamic(() => import("@/components/yasam-hafizasi/MemoryPicker"), { ssr: false });
 // KVKK onam (INFRA bileşeni): başlıkta rozet + Genel sekmesinde kayıt paneli.
 const ClientConsentPanel = dynamic(() => import("@/components/kvkk/ClientConsentPanel"), { ssr: false });
@@ -780,6 +781,7 @@ function ClientDetailPageInner() {
             className="flex flex-wrap items-center gap-1.5 py-1 pb-1.5 sm:pb-1"
           >
             <Tab label={t("tab.genel")}      id="genel"      activeTab={activeTab} setActiveTab={setActiveTab} color="#2563eb" />
+            <Tab label={t("tab.anamnez")}    id="anamnez"    activeTab={activeTab} setActiveTab={setActiveTab} color="#0f766e" />
             <Tab label={t("tab.notlar")}     id="notlar"     activeTab={activeTab} setActiveTab={setActiveTab} color="#7c3aed" />
             <Tab label={t("tab.randevular")} id="randevular" activeTab={activeTab} setActiveTab={setActiveTab} color="#db2777" />
             <Tab label={t("tab.taslar")}     id="taslar"     activeTab={activeTab} setActiveTab={setActiveTab} color="#0891b2" />
@@ -1096,6 +1098,12 @@ function ClientDetailPageInner() {
                 )}
               </div>
               <AnalizlerTab clientId={client.id} clientName={fullName || t("clientFallback")} />
+          </div>
+          )}
+
+          {openedTabs.has("anamnez") && (
+          <div role="tabpanel" id="tabpanel-anamnez" aria-labelledby="tab-anamnez" hidden={activeTab !== "anamnez"}>
+            <AnamnezTab clientId={client.id} onOpenConsent={() => setActiveTab("genel")} />
           </div>
           )}
 

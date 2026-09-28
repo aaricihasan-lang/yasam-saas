@@ -64,6 +64,11 @@ const STEPS = [
     ["20270129000800_aromatherapy_delete_source.sql"], ["hday-aroma-0800-assert.sql"])],
   ["pg:consents", ...pg([F("infra-consents-fixture.sql")], ["20270129000900_client_consents.sql"], ["infra-consents-assert.sql"])],
   ["pg:grants", ...pg([F("infra-grants-fixture.sql")], ["20270129001100_legacy_grants_lockdown.sql"], ["infra-grants-assert.sql"])],
+  // Anamnez V1 (Danışan Yolculuğu): saf sözleşmeler + gerçek route/IDOR + migration doğrulaması.
+  ["anamnez-pure", "npx", ["tsx", "scripts/anamnez/pure.harness.ts"]],
+  ["anamnez-routes", "npx", ["tsx", "scripts/anamnez/routes.harness.ts"]],
+  ["pg:anamnesis", ...pg([F("anamnesis-fixture.sql")],
+    ["20270202000000_client_anamnesis.sql", "20270202000100_client_anamnesis_storage.sql"], ["anamnesis-assert.sql"])],
 ];
 
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : null;

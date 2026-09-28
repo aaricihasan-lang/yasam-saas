@@ -58,6 +58,7 @@
     "test:ajanda:p0": "tsx scripts/ajanda-word-report-p0-harness.ts",
     "test:final": "node scripts/final-hardening/run-all.mjs",
     "test:final:tz": "node scripts/final-hardening/run-all.mjs --tz-matrix",
+    "test:anamnez": "tsx scripts/anamnez/pure.harness.ts && tsx scripts/anamnez/routes.harness.ts && node scripts/final-hardening/run-all.mjs --only pg:anamnesis",
     "backup:schema:gen": "tsx scripts/final-hardening/backup-schema-gen.ts",
     "yh:coverage-backfill": "tsx scripts/final-hardening/yh-coverage-backfill.ts",
     "drift:compare": "node scripts/final-hardening/drift/compare.mjs",
