@@ -132,6 +132,11 @@ ok(/function isGuardedPath\(path: string\): boolean \{\s*return findRouteModuleR
 ok(!/videolar|ders notları/i.test(read("messages/tr/home.json").match(/"digital_content": \{[^}]*\}/)?.[0] ?? "x videolar"),
   "dashboard Dijital İçerik kartı admin-only alt modülleri (video/ders notu) anmaz");
 
+// ─── Üye listesi aralık dışı sayfa (canlı bulgu: "9 sonuçtan 61–9") ───────────────
+console.log("\n[LIST] aralık dışı sayfa → son geçerli sayfaya replace");
+const listSrc = read("app/admin/users/page.tsx");
+ok(/if \(query\.page > lastPage\) setQuery\(\{ page: lastPage \}, "replace"\)/.test(listSrc), "üye listesi: page > son sayfa → son sayfaya replace (pager'sız boş liste yok)");
+
 // ─── Kaynak sözleşmesi ────────────────────────────────────────────────────────
 console.log("\n[SRC] tek kaynak / hard-code yok");
 const grid = read("app/digital-content/DigitalContentModuleGrid.tsx");
