@@ -19,6 +19,7 @@
 import EmbeddedPostgres from "embedded-postgres";
 import pg from "pg";
 import { readFileSync, readdirSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
@@ -33,7 +34,23 @@ const NEW = [
   "20270201000100_nutrition_food_personalization.sql",
   "20270201000200_nutrition_destructive_challenges.sql",
   "20270201000300_nutrition_plan_refresh_snapshots.sql",
+  "20270201000400_nutrition_foods_origin_guard_search_path.sql",
 ];
+// Production'a UYGULANMIŞ (2026-09-28) dosyalar: içerik ASLA değişmez → sha256 kilidi.
+const PROD_APPLIED_SHA256 = {
+  "20270201000000_nutrition_food_atomic_replace.sql": "95075c9a02420b57767d41b10aaa52d553c4ea8017c05a84d3c1e87e6e5371c9",
+  "20270201000100_nutrition_food_personalization.sql": "da16559e2e6b49d45d0e65dfa249f569294387d63d0e14a670d193352aa42ec9",
+  "20270201000200_nutrition_destructive_challenges.sql": "98e1afb53e1244d2749317fcde39e9fb80da7f701d768728717539d568a6f1ec",
+  "20270201000300_nutrition_plan_refresh_snapshots.sql": "e09989df1727b7ed712ca21f3f5c08b5a179fa53bbe33d24d39ca2f336aee617",
+};
+const PROD_APPLIED = Object.keys(PROD_APPLIED_SHA256);
+const HARDENING = "20270201000400_nutrition_foods_origin_guard_search_path.sql";
+// Supabase Security Advisor lint 0011 (function_search_path_mutable) eşdeğeri: proconfig'te search_path yok.
+const ADVISOR_MUTABLE_SQL = `
+  SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+  WHERE n.nspname='public' AND p.proname = ANY($1)
+    AND NOT EXISTS (SELECT 1 FROM unnest(coalesce(p.proconfig, '{}'::text[])) cfg WHERE cfg LIKE 'search_path=%')
+  ORDER BY 1`;
 const OLD = readdirSync(MIG).filter((f) => /_nutrition_.*\.sql$/.test(f) && !NEW.includes(f)).sort();
 const read = (f) => readFileSync(path.join(MIG, f), "utf8");
 
@@ -147,17 +164,17 @@ async function main() {
   await admin.query("CREATE DATABASE upgrade");
   await admin.end();
 
-  // ═════ Q. FRESH DB: tüm nutrition zinciri + 4 yeni ═════
-  console.log("\n[Q] fresh DB: mevcut nutrition zinciri + 4 yeni migration");
+  // ═════ Q. FRESH DB: tüm nutrition zinciri + yeni migration'lar ═════
+  console.log("\n[Q] fresh DB: mevcut nutrition zinciri + yeni migration'lar (4 prod + 000400 hardening)");
   const fresh = client("fresh");
   await fresh.connect();
   await fresh.query(SUPABASE_BASE);
   let freshErr = null;
   try { await applyFiles(fresh, [...OLD, ...NEW]); } catch (e) { freshErr = e.message; }
-  ok(`${OLD.length} mevcut + 4 yeni migration sıfırdan hatasız`, freshErr === null, freshErr ?? "");
+  ok(`${OLD.length} mevcut + ${NEW.length} yeni migration sıfırdan hatasız`, freshErr === null, freshErr ?? "");
   await fresh.end();
 
-  // ═════ R. UPGRADE: önce eski zincir + veri, sonra 4 yeni ═════
+  // ═════ R. UPGRADE: önce eski zincir + veri, sonra yeni migration'lar ═════
   console.log("\n[R] mevcut şema + veri üzerine upgrade");
   const c = client("upgrade");
   await c.connect();
@@ -178,7 +195,7 @@ async function main() {
   let upErr = null;
   let timings = {};
   try { timings = await applyFiles(c, NEW); } catch (e) { upErr = e.message; }
-  ok("4 migration mevcut şema + veri üzerine hatasız uygulandı", upErr === null, upErr ?? "");
+  ok(`${NEW.length} migration mevcut şema + veri üzerine hatasız uygulandı`, upErr === null, upErr ?? "");
   const afterDigestDiff = [];
   for (const t of beforeTables) {
     const d = await tableDigest(c, t, beforeCols[t]);
@@ -227,9 +244,14 @@ async function main() {
   }
   console.log("\n[F/G] SECURITY DEFINER + search_path");
   ok("yeni fonksiyonların HİÇBİRİ SECURITY DEFINER değil (hepsi INVOKER)", fns.every((f) => !f.prosecdef), fns.filter((f) => f.prosecdef).map((f) => f.proname).join(","));
-  ok("trigger dışı tüm yeni fonksiyonlarda sabit search_path (pg_catalog, public)",
-    fns.filter((f) => f.proname !== "nutrition_foods_origin_guard").every((f) => (f.proconfig ?? []).some((x) => x === "search_path=pg_catalog, public")),
+  ok("trigger DAHİL tüm yeni fonksiyonlarda sabit search_path (pg_catalog, public)",
+    fns.every((f) => (f.proconfig ?? []).some((x) => x === "search_path=pg_catalog, public")),
     fns.map((f) => `${f.proname}=${f.proconfig}`).join(" | "));
+  const guard = fns.find((f) => f.proname === "nutrition_foods_origin_guard");
+  ok("nutrition_foods_origin_guard: proconfig tam olarak [search_path=pg_catalog, public], SECURITY INVOKER",
+    !!guard && !guard.prosecdef && JSON.stringify(guard.proconfig) === JSON.stringify(["search_path=pg_catalog, public"]), JSON.stringify(guard?.proconfig));
+  const mutable = (await c.query(ADVISOR_MUTABLE_SQL, [NEW_FUNCS])).rows.map((r) => r.proname);
+  ok("Security Advisor eşdeğeri: yeni fonksiyonlarda 'Function Search Path Mutable' YOK", mutable.length === 0, mutable.join(","));
   const dyn = NEW.map(read).join("\n");
   ok("yeni migration'larda dinamik SQL (EXECUTE format/string) YOK", !/\bEXECUTE\s+(format|'|\$|[a-z_]+\s*\|\|)/i.test(dyn.replace(/GRANT EXECUTE|REVOKE ALL ON FUNCTION|EXECUTE FUNCTION/g, "")));
 
@@ -420,6 +442,49 @@ async function main() {
     ok(`status='${st}' plan yenilenemez (45010)`, (await errOf(c.query(`SELECT nutrition_plan_refresh_item_snapshots($1,$2,$3::jsonb)`, [A, aPlan, payload(aItem)]))) === "45010");
   }
   ok("reddedilen yenilemelerde snapshot değişmedi (41)", Number((await q1(`SELECT amount FROM nutrition_plan_item_nutrients WHERE item_id=$1 AND nutrient_code='energy'`, [aItem])).amount) === 41);
+
+  console.log("\n[V] search_path hardening (20270201000400) — production durumundan");
+  for (const f of PROD_APPLIED) {
+    const h = createHash("sha256").update(readFileSync(path.join(MIG, f))).digest("hex");
+    ok(`${f.slice(0, 14)} production'daki dosyayla BİREBİR (sha256)`, h === PROD_APPLIED_SHA256[f], h);
+  }
+  const hsql = read(HARDENING);
+  ok("000400 yalnız ALTER FUNCTION + REVOKE (gövde yeniden tanımlanmaz; tablo DDL/DML yok)",
+    /ALTER FUNCTION public\.nutrition_foods_origin_guard\(\)/.test(hsql)
+    && !/\b(CREATE|DROP|INSERT|UPDATE|DELETE|GRANT|ALTER TABLE)\b/i.test(hsql.replace(/--.*$/gm, "")));
+  const admV = client("postgres"); await admV.connect(); await admV.query("CREATE DATABASE prodstate"); await admV.end();
+  const v = client("prodstate"); await v.connect(); await v.query(SUPABASE_BASE);
+  await applyFiles(v, [...OLD, ...PROD_APPLIED]);
+  const guardCfg = async () => (await v.query(`SELECT p.prosecdef, p.proconfig,
+      has_function_privilege('anon', p.oid, 'EXECUTE') anon_x, has_function_privilege('authenticated', p.oid, 'EXECUTE') auth_x,
+      EXISTS (SELECT 1 FROM aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a WHERE a.grantee = 0 AND a.privilege_type='EXECUTE') public_x
+    FROM pg_proc p WHERE p.oid = 'public.nutrition_foods_origin_guard()'::regprocedure`)).rows[0];
+  const beforeV = await guardCfg();
+  const advBefore = (await v.query(ADVISOR_MUTABLE_SQL, [NEW_FUNCS])).rows.map((r) => r.proname);
+  ok("production durumu (4 migration) bulguyu üretir: yalnız origin_guard mutable",
+    beforeV.proconfig === null && JSON.stringify(advBefore) === '["nutrition_foods_origin_guard"]', JSON.stringify(advBefore));
+  const vSys = (await v.query(`INSERT INTO nutrition_foods (tenant_id, name_tr) VALUES ($1,'Sistem V1'),($1,'Sistem V2') RETURNING id`, [SYS])).rows.map((r) => r.id);
+  const vCopy = (await v.query(`INSERT INTO nutrition_foods (tenant_id, name_tr, origin_food_id) VALUES ($1,'Kopya V',$2) RETURNING id`, [A, vSys[0]])).rows[0].id;
+  const hErr = await errOf(v.query(hsql));
+  ok("000400 production durumuna hatasız uygulanır", hErr === null, hErr ?? "");
+  const afterV = await guardCfg();
+  ok("origin_guard: search_path = pg_catalog, public", JSON.stringify(afterV.proconfig) === JSON.stringify(["search_path=pg_catalog, public"]), JSON.stringify(afterV.proconfig));
+  ok("origin_guard: SECURITY DEFINER = false", afterV.prosecdef === false);
+  ok("origin_guard: PUBLIC ✗ anon ✗ authenticated ✗ EXECUTE (Supabase varsayılan yetkileri açıkken)",
+    !afterV.public_x && !afterV.anon_x && !afterV.auth_x, `public=${afterV.public_x} anon=${afterV.anon_x} auth=${afterV.auth_x}`);
+  ok("Security Advisor eşdeğeri: hardening sonrası mutable fonksiyon kalmadı", (await v.query(ADVISOR_MUTABLE_SQL, [NEW_FUNCS])).rows.length === 0);
+  ok("000400 tekrar çalıştırılırsa zararsız (idempotent)",
+    (await errOf(v.query(hsql))) === null && JSON.stringify((await guardCfg()).proconfig) === JSON.stringify(["search_path=pg_catalog, public"]));
+  ok("trigger hâlâ bağlı ve etkin", Number((await v.query(`SELECT count(*) n FROM pg_trigger WHERE tgname='trg_nutrition_foods_origin_guard' AND tgenabled='O' AND tgrelid='public.nutrition_foods'::regclass`)).rows[0].n) === 1);
+  ok("immutable guard: origin başka besine çevrilemez (23514)", (await errOf(v.query(`UPDATE nutrition_foods SET origin_food_id=$2 WHERE id=$1`, [vCopy, vSys[1]]))) === "23514");
+  ok("immutable guard: origin'i olmayan satıra sonradan origin eklenemez (23514)", (await errOf(v.query(`UPDATE nutrition_foods SET origin_food_id=$2 WHERE id=$1`, [vSys[1], vSys[0]]))) === "23514");
+  ok("guard origin dışı alan güncellemesini engellemez", (await errOf(v.query(`UPDATE nutrition_foods SET name_tr='Kopya V2' WHERE id=$1`, [vCopy]))) === null);
+  ok("aynı tenant+origin ikinci kopya → 23505 (unique korunur)", (await errOf(v.query(`INSERT INTO nutrition_foods (tenant_id, name_tr, origin_food_id) VALUES ($1,'dup',$2)`, [A, vSys[0]]))) === "23505");
+  ok("başka tenant aynı origin'den kopya alabilir", (await errOf(v.query(`INSERT INTO nutrition_foods (tenant_id, name_tr, origin_food_id) VALUES ($1,'Kopya B',$2)`, [B, vSys[0]]))) === null);
+  await v.query(`DELETE FROM nutrition_foods WHERE id=$1`, [vSys[0]]);
+  ok("FK ON DELETE SET NULL: sistem satırı silinince kopyalar kalır, origin NULL (guard engellemez)",
+    Number((await v.query(`SELECT count(*) n FROM nutrition_foods WHERE name_tr IN ('Kopya V2','Kopya B') AND origin_food_id IS NULL`)).rows[0].n) === 2);
+  await v.end();
 
   console.log("\n[T] kilit davranışı");
   const m1 = read(NEW[1]);
