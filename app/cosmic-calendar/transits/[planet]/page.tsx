@@ -6,6 +6,7 @@ import Link            from "next/link";
 import { getMoonSign, getMoonSignPeriod } from "@/lib/cosmic/moon";
 import { getPlanetSigns, getPlanetSignPeriod, type PlanetKey } from "@/lib/cosmic/planets";
 import { getPlanetBySlug, getPlanetSlug } from "@/lib/cosmic/planet-meta";
+import { SUPPORT_END_LABEL } from "@/lib/cosmic/dateRange";
 
 // ─── Tarih formatlama ─────────────────────────────────────────────────────────
 
@@ -127,11 +128,11 @@ export default function TransitDetailPage() {
                 </div>
                 <p className="mb-2 text-sm leading-relaxed text-amber-900">
                   <span className="font-semibold">{meta.key}</span> için gezegen konumu verisi{" "}
-                  <span className="font-semibold">31.12.2050</span> tarihine kadar doğrulanmıştır.
+                  <span className="font-semibold">{SUPPORT_END_LABEL}</span> tarihine kadar doğrulanmıştır.
                   Bu tarih için güvenilir burç konumu bilgisi sistemde bulunmamaktadır.
                 </p>
                 <p className="text-sm leading-relaxed text-amber-800">
-                  31.12.2050 sonrası için profesyonel bir efemeris kaynağı (Swiss Ephemeris, Astro.com,
+                  {SUPPORT_END_LABEL} sonrası için profesyonel bir efemeris kaynağı (Swiss Ephemeris, Astro.com,
                   NASA JPL Horizons) kullanmanız önerilir.
                 </p>
                 <div className="mt-4 rounded-xl border border-amber-200 bg-white/60 px-3 py-2">
@@ -178,7 +179,7 @@ export default function TransitDetailPage() {
                   <p className="mb-1 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600">📐 Veri &amp; Doğrulama</p>
                   <p className="text-xs leading-relaxed text-slate-600">
                     Burç konumu, o tarihteki (of-date) ekliptik boylamdan astronomy-engine ile hesaplanır.
-                    Gezegen konum verisi <span className="font-semibold text-slate-700">31.12.2050</span> tarihine kadar doğrulanmıştır.
+                    Gezegen konum verisi <span className="font-semibold text-slate-700">{SUPPORT_END_LABEL}</span> tarihine kadar doğrulanmıştır.
                     Bu sayfa yalnız doğrulanmış astronomik konumu gösterir; yorum, öneri veya kişisel tavsiye içermez.
                   </p>
                 </div>

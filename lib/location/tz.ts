@@ -30,15 +30,27 @@ function safeZone(timeZone: string): string {
 }
 
 /** Bir tarihin verilen saat diliminde takvim parçaları (locale-bağımsız, h23). */
+// PERFORMANS (sonucu DEĞİŞTİRMEZ): Intl.DateTimeFormat kurulumu pahalıdır; saat dilimi başına bir kez
+// oluşturulup yeniden kullanılır (planlayıcı ve uzun dönem doğrulama binlerce gün × çağrı yapar).
+const PARTS_FMT_CACHE = new Map<string, Intl.DateTimeFormat>();
+function partsFormatter(tz: string): Intl.DateTimeFormat {
+  let f = PARTS_FMT_CACHE.get(tz);
+  if (!f) {
+    f = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      hourCycle: "h23",
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+    });
+    PARTS_FMT_CACHE.set(tz, f);
+  }
+  return f;
+}
+
 function zonedParts(date: Date, timeZone: string): {
   year: string; month: string; day: string; hour: string; minute: string; second: string;
 } {
-  const dtf = new Intl.DateTimeFormat("en-CA", {
-    timeZone: safeZone(timeZone),
-    hourCycle: "h23",
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit",
-  });
+  const dtf = partsFormatter(safeZone(timeZone));
   const m: Record<string, string> = {};
   for (const p of dtf.formatToParts(date)) {
     if (p.type !== "literal") m[p.type] = p.value;
@@ -95,6 +107,16 @@ function zonedWallToUtcMs(
   const off2 = getTimeZoneOffsetMinutes(new Date(utc), timeZone);
   if (off2 !== off1) utc = wallAsUtc - off2 * 60000;
   return utc;
+}
+
+/**
+ * Bir IANA saat dilimindeki DUVAR SAATİNİ (y, m0 0-11, d, hh, mm) mutlak ana (Date, UTC) çevirir.
+ * DST-doğru (iki geçişli offset çözümü). Tarayıcı saat dilimi hesaba GİRMEZ (Kozmik G2).
+ */
+export function zonedWallTimeToUtc(
+  year: number, month0: number, day: number, hour: number, minute: number, timeZone: string,
+): Date {
+  return new Date(zonedWallToUtcMs(year, month0, day, hour, minute, 0, safeZone(timeZone)));
 }
 
 /**

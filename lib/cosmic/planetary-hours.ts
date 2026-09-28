@@ -39,15 +39,18 @@ const DAY_START_IDX: ReadonlyArray<number> = [3, 6, 2, 5, 1, 4, 0];
 
 // ─── Gün doğumu / batımı hesaplama (NOAA algoritması) ────────────────────────
 
+/**
+ * Gregoryen takvim günü (y, m 1-12, d) → o günün 12:00 UT anının Julian Day'i.
+ *
+ * Eski formül (367y − ⌊7(y+⌊(m+9)/12⌋)/4⌋ + ⌊275m/9⌋ + d + 1721013.5) Gregoryen YÜZYIL kuralını
+ * içermiyordu; yalnız 01.03.1901–28.02.2100 arasında doğruydu. 2100 artık yıl DEĞİLDİR → formül
+ * 01.03.2100'den itibaren JD'yi +1 gün kaydırıyor, Güneş konumu 1 gün yanlış hesaplanıyor ve gün
+ * doğumu/batımı ~2 dk sapıyordu (USNO + Swiss Ephemeris ile kanıtlandı). Date.UTC tam proleptik
+ * Gregoryen takvimi uygular (400/100/4 kuralı) → her yıl için doğru; ≤2099'da eski formülle
+ * BİREBİR aynı değeri verir (tam sayı + 0.0).
+ */
 function toJulianDay(y: number, m: number, d: number): number {
-  return (
-    367 * y
-    - Math.floor((7 * (y + Math.floor((m + 9) / 12))) / 4)
-    + Math.floor((275 * m) / 9)
-    + d
-    + 1721013.5
-    + 0.5
-  );
+  return Date.UTC(y, m - 1, d, 12, 0, 0) / 86_400_000 + 2_440_587.5;
 }
 
 type SunTimes = { sunrise: Date; sunset: Date };
@@ -174,7 +177,7 @@ export function getPlanetaryHour(
   // 00:00 bir sınır DEĞİLDİR. Şafak öncesi (now < bugünkü gün doğumu) instant, DÜN'ün gün
   // doğumunda başlayan gezegen gününe aittir → gün yöneticisi dünden gelir (erken reset YOK).
   const todaySun = calcSunTimes(date, lat, lon, tzOffsetMinutes);
-  if (!todaySun) return fallbackPlanetaryHour(date);
+  if (!todaySun) return fallbackPlanetaryHour(date, tzOffsetMinutes);
 
   const now     = date.getTime();
   const dayDate = now >= todaySun.sunrise.getTime()
@@ -184,7 +187,7 @@ export function getPlanetaryHour(
   // Tek canonical matematik: 24 dilim üretici (getPlanetaryHoursForDate). Aynı offset her iki
   // güne verilir (getPlanetaryHour imzası tek offset alır — TUR2 sözleşmesi korunur).
   const slots = getPlanetaryHoursForDate(dayDate, lat, lon, tzOffsetMinutes, tzOffsetMinutes);
-  if (slots.length === 0) return fallbackPlanetaryHour(date);
+  if (slots.length === 0) return fallbackPlanetaryHour(date, tzOffsetMinutes);
 
   // Target'ı içeren dilim (sınır float'ları için kelepçele).
   let slot = slots.find(s => now >= s.start.getTime() && now < s.end.getTime());
@@ -214,23 +217,24 @@ export function getPlanetaryHour(
 
 // ─── Yedek hesaplama (kutup bölgeleri için) ───────────────────────────────────
 
-function fallbackPlanetaryHour(date: Date): PlanetaryHourResult {
-  const h       = date.getHours();
-  const weekday = date.getDay();
+function fallbackPlanetaryHour(date: Date, tzOffsetMinutes: number = TZ_OFFSET_MIN): PlanetaryHourResult {
+  // Kutup gün/gecesi yaklaşık görünümü — yerel saat SEÇİLİ KONUMUN offset'i ile (tarayıcı saati DEĞİL).
+  const local   = new Date(date.getTime() + tzOffsetMinutes * 60_000);
+  const h       = local.getUTCHours();
+  const weekday = local.getUTCDay();
   const startChaldeanIdx   = DAY_START_IDX[weekday] ?? 3;
   const aktifChaldeanIdx   = (startChaldeanIdx + h) % 7;
   const sonrakiChaldeanIdx = (aktifChaldeanIdx + 1) % 7;
-  const hourStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, 0, 0);
-  const hourEnd   = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h + 1, 0, 0);
+  const hourStartMs = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate(), h) - tzOffsetMinutes * 60_000;
   return {
     aktifGezegen:     CHALDEAN_PLANETS[aktifChaldeanIdx]!,
     sonrakiGezegen:   CHALDEAN_PLANETS[sonrakiChaldeanIdx]!,
     aktifChaldeanIdx,
-    kalanDakika:      60 - date.getMinutes(),
+    kalanDakika:      60 - local.getUTCMinutes(),
     saatIndex:        h,
     isDayHour:        h >= 6 && h < 20,
-    hourStart,
-    hourEnd,
+    hourStart:        new Date(hourStartMs),
+    hourEnd:          new Date(hourStartMs + 3_600_000),
     gunDogumuStr: "06:00",
     gunBatimiStr: "20:00",
     isFallback: true,
@@ -317,10 +321,26 @@ export type PlanetaryDaySlots = {
   slots:   PlanetaryHourSlot[];
 };
 
-/** startDate..endDate (dahil, yerel takvim günü) her gün için 24 dilim üretir.
- *  resolveTzOffset: hedef TARİHE göre DST-doğru offset döndüren callback
- *  (ör. (d) => getTimeZoneOffsetMinutes(d, "Europe/Istanbul")). Böylece bu modül
- *  konum/tz altyapısına bağımlı kalmaz ve testlerde deterministik beslenebilir. */
+/**
+ * Konumun IANA gününe (y, m0 0-11, d) ait referans anı: o günün YEREL 12:00'si (UTC ms).
+ * resolveTzOffset hedef ana göre DST-doğru offset döndürür. Gün yöneticisi, gün doğumu/batımı
+ * ve 24 dilim bu anla çağrılırsa TARAYICI saat dilimi hesaba hiç girmez (denetim G2).
+ */
+export function locationDayAnchor(y: number, m0: number, d: number, resolveTzOffset: (d: Date) => number): Date {
+  const wallNoonAsUtc = Date.UTC(y, m0, d, 12, 0, 0);
+  let off = resolveTzOffset(new Date(wallNoonAsUtc));
+  let ms = wallNoonAsUtc - off * 60_000;
+  const off2 = resolveTzOffset(new Date(ms));
+  if (off2 !== off) { off = off2; ms = wallNoonAsUtc - off * 60_000; }
+  return new Date(ms);
+}
+
+/** startDate..endDate (dahil) arasındaki TAKVİM günleri için 24 dilim üretir.
+ *  Takvim günleri startDate/endDate'in Y/M/D bileşenlerinden alınır ve KONUMUN günü olarak
+ *  yorumlanır (tarayıcı gece yarısı DEĞİL): her gün locationDayAnchor (konum yerel 12:00) ile
+ *  hesaplanır → "1 Temmuz" satırı daima konumdaki 1 Temmuz'un gün doğumunu/yöneticisini gösterir.
+ *  resolveTzOffset: hedef ANA göre DST-doğru offset döndüren callback
+ *  (ör. (d) => getTimeZoneOffsetMinutes(d, "Europe/Istanbul")). */
 export function getPlanetaryHoursForRange(
   startDate: Date,
   endDate: Date,
@@ -329,20 +349,18 @@ export function getPlanetaryHoursForRange(
   resolveTzOffset: (d: Date) => number,
 ): PlanetaryDaySlots[] {
   const out: PlanetaryDaySlots[] = [];
-  // Yerel takvim günü tabanında yürü (00:00). Gün sayısını normalize et.
-  const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-  const endDay   = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-  for (
-    let cur = startDay;
-    cur.getTime() <= endDay.getTime();
-    cur = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 1)
-  ) {
-    const next        = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 1);
-    const tzOffset    = resolveTzOffset(cur);
-    const nextOffset  = resolveTzOffset(next);
-    const slots       = getPlanetaryHoursForDate(cur, lat, lon, tzOffset, nextOffset);
-    const dayKey      = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-${String(cur.getDate()).padStart(2, "0")}`;
-    out.push({ dayKey, dayStart: slots[0]?.start ?? cur, slots });
+  const startKey = Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+  const endKey   = Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+  for (let k = startKey; k <= endKey; k += 86_400_000) {
+    const cal        = new Date(k);
+    const y = cal.getUTCFullYear(), m0 = cal.getUTCMonth(), d = cal.getUTCDate();
+    const anchor     = locationDayAnchor(y, m0, d, resolveTzOffset);
+    const tzOffset   = resolveTzOffset(anchor);
+    const nextAnchor = locationDayAnchor(new Date(k + 86_400_000).getUTCFullYear(), new Date(k + 86_400_000).getUTCMonth(), new Date(k + 86_400_000).getUTCDate(), resolveTzOffset);
+    const nextOffset = resolveTzOffset(nextAnchor);
+    const slots      = getPlanetaryHoursForDate(anchor, lat, lon, tzOffset, nextOffset);
+    const dayKey     = `${y}-${String(m0 + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    out.push({ dayKey, dayStart: slots[0]?.start ?? anchor, slots });
   }
   return out;
 }

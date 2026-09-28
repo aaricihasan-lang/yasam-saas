@@ -4,15 +4,16 @@
  *
  * Veri kaynakları:
  *   - Yeni Ay / Dolunay → astronomy-engine SearchMoonPhase (kesin saat, UTC+3), fallback: getMoonPhase taraması
- *   - Retrogradlar      → retro.ts RETRO_PERIODS (start/end string tarihler)
- *   - Burç değişimi     → astronomy-engine ingress taraması (SC_FROM_YEAR..SC_TO_YEAR = 2024–2050);
+ *   - Retrogradlar      → retro.ts getRetroPeriodsBetween (8 gezegen; start/end string tarihler)
+ *   - Burç değişimi     → astronomy-engine ingress taraması (dateRange INTERNAL penceresi 2024…2101);
  *                          eski hardcoded 2025-2030 listesi kaldırıldı (AE-hesaplı, deterministik)
  */
 
 import * as AE from "astronomy-engine";
 import { getMoonPhase } from "./moon";
-import { RETRO_PERIODS } from "./retro";
-import { SUPPORT_END_YEAR } from "./dateRange";
+import { getRetroPeriodsBetween } from "./retro";
+import { refineIngressMs } from "./ingressCatalog";
+import { INTERNAL_START_YEAR, INTERNAL_END_YEAR_EXCLUSIVE, SUPPORT_END_KEY, isValidDate } from "./dateRange";
 
 // Türkiye UTC+3 sabit offset (yaz saati 2016'dan beri yok)
 const TR_OFFSET_MS = 3 * 3_600_000;
@@ -140,9 +141,9 @@ function _getMoonEventsLegacy(from: Date, daysAhead: number): CosmicEvent[] {
 
 // ─── 2. Retro Başlangıç / Bitiş Olayları ──────────────────────────────────────
 
-function getRetroEvents(): CosmicEvent[] {
+function getRetroEvents(fromKey: string, toKey: string): CosmicEvent[] {
   const events: CosmicEvent[] = [];
-  for (const r of RETRO_PERIODS) {
+  for (const r of getRetroPeriodsBetween(fromKey, toKey)) {
     events.push({
       date:        r.start,
       title:       `${r.planet} Retrosu Başlıyor`,
@@ -215,11 +216,18 @@ const SC_OVERRIDE: Record<string, { title: string; description: string }> = {
   "Plüton:10:settle": { title: "Plüton Kova'da Kalıcılaştı", description: "Plüton Kova burcuna kalıcı olarak yerleşti; teknoloji ve insanlığın kolektif dönüşümü başladı." },
 };
 
-// Sabit, deterministik pencere (SSR↔client). Üst sınır TEK KAYNAK'tan (dateRange):
-// toMs EXCLUSIVE olduğundan +1 ile 2050-12-31 tam kapsanır (ilan edilen aralıkla parite).
-const SC_FROM_YEAR = 2024;
-const SC_TO_YEAR   = SUPPORT_END_YEAR + 1;
+// Sabit, deterministik INTERNAL pencere (SSR↔client) — TEK KAYNAK dateRange (public aralık +
+// tampon). Public filtre getUpcomingCosmicEvents'te uygulanır (31.12.2100 sonrası gösterilmez).
 const SC_STEP_MS   = 2 * 86_400_000;
+// PERFORMANS (doğruluğu DEĞİŞTİRMEZ): ingress taraması 2 yıllık BLOKLAR hâlinde, yalnız istenen
+// tarih çevresinde ve bir kez (memo) yapılır. Izgara INTERNAL başlangıca GLOBAL hizalıdır → sonuç
+// hangi bloğun önce istendiğinden bağımsızdır (SSR↔client deterministik).
+const SC_EPOCH_MS  = Date.UTC(INTERNAL_START_YEAR, 0, 1);
+const SC_END_MS    = Date.UTC(INTERNAL_END_YEAR_EXCLUSIVE, 0, 1);
+const SC_BLOCK_STEPS = 365;                       // 365 × 2 gün = 730 gün
+const SC_BLOCK_MS  = SC_BLOCK_STEPS * SC_STEP_MS;
+const SC_BLOCK_COUNT = Math.ceil((SC_END_MS - SC_EPOCH_MS) / SC_BLOCK_MS);
+const scBlockOf = (ms: number) => Math.max(0, Math.min(SC_BLOCK_COUNT - 1, Math.floor((ms - SC_EPOCH_MS) / SC_BLOCK_MS)));
 
 function scLon(body: AE.Body, ms: number): number {
   return AE.Ecliptic(AE.GeoVector(body, new Date(ms), true)).elon;
@@ -229,13 +237,17 @@ function scSign(lon: number): number {
 }
 type SCIngress = { ms: number; toSign: number; dir: 1 | -1; kind: SCKind };
 
-/** Bir gezegenin tüm 30° burç sınırı geçişlerini bulur (retro dönüşleri dahil). */
-function scDetectIngresses(body: AE.Body): SCIngress[] {
-  const fromMs = Date.UTC(SC_FROM_YEAR, 0, 1), toMs = Date.UTC(SC_TO_YEAR, 0, 1);
+const scRawCache = new Map<string, SCIngress[]>();
+/** b. bloktaki ham 30° burç sınırı geçişleri (retro dönüşleri dahil; kind henüz atanmamış). */
+function scRawBlock(planet: SCPlanet, b: number): SCIngress[] {
+  const key = `${planet}|${b}`;
+  const hit = scRawCache.get(key);
+  if (hit) return hit;
+  const body = SC_BODY[planet].body;
   const out: SCIngress[] = [];
-  let prevS = scSign(scLon(body, fromMs));
-  for (let t = fromMs; t < toMs; t += SC_STEP_MS) {
-    const nt = Math.min(t + SC_STEP_MS, toMs);
+  let prevS = scSign(scLon(body, SC_EPOCH_MS + b * SC_BLOCK_MS));
+  for (let k = b * SC_BLOCK_STEPS; k < (b + 1) * SC_BLOCK_STEPS; k++) {
+    const t = SC_EPOCH_MS + k * SC_STEP_MS, nt = t + SC_STEP_MS;
     const s = scSign(scLon(body, nt));
     if (s !== prevS) {
       let lo = t, hi = nt;
@@ -245,18 +257,29 @@ function scDetectIngresses(body: AE.Body): SCIngress[] {
       }
       const toSign = scSign(scLon(body, hi));
       const dir: 1 | -1 = ((toSign - prevS + 12) % 12 === 1) ? 1 : -1;
-      out.push({ ms: hi, toSign, dir, kind: "enter" });
+      // G5: gece yarısı sınırındaki yavaş-gezegen geçişleri doğrulanmış katalogla düzeltilir.
+      out.push({ ms: refineIngressMs(planet, toSign, hi), toSign, dir, kind: "enter" });
       prevS = toSign;
     }
   }
-  // kind: retro=dönüş; prograd ve önceki adım bu burçtan retro çıkışsa=kalıcılaşma; aksi=giriş
-  for (let i = 0; i < out.length; i++) {
-    const e = out[i]!;
+  scRawCache.set(key, out);
+  return out;
+}
+
+/** b. bloktaki geçişler, kind atanmış (önceki geçiş gerekirse önceki bloklardan alınır). */
+function scBlock(planet: SCPlanet, b: number): SCIngress[] {
+  const raw = scRawBlock(planet, b).map(e => ({ ...e }));
+  // Önceki geçiş: aynı blokta yoksa geriye doğru ilk dolu blok (retro dönüş→kalıcılaşma ≤ ~1 yıl).
+  let prevEv: SCIngress | undefined;
+  for (let pb = b - 1; pb >= 0 && !prevEv; pb--) { const r = scRawBlock(planet, pb); prevEv = r[r.length - 1]; }
+  for (let i = 0; i < raw.length; i++) {
+    const e = raw[i]!;
+    const prev = i > 0 ? raw[i - 1] : prevEv;
     if (e.dir === -1) { e.kind = "return"; continue; }
-    const prev = out[i - 1];
+    // kind: retro=dönüş; prograd ve önceki geçiş bu burçtan retro çıkışsa=kalıcılaşma; aksi=giriş
     e.kind = (prev && prev.dir === -1 && prev.toSign === (e.toSign + 11) % 12) ? "settle" : "enter";
   }
-  return out;
+  return raw;
 }
 function scTitle(planet: SCPlanet, sign: number, kind: SCKind): string {
   if (kind === "return") return `${planet} ${SC_DATIVE[sign]} Dönüyor`;
@@ -268,15 +291,15 @@ function scTrDate(ms: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
-let _signChangeCache: CosmicEvent[] | null = null;
-/** Dış gezegen burç geçişleri — AE ingress (lazy memoized; süreç/oturum başına 1). */
-function getSignChangeEvents(): CosmicEvent[] {
-  if (_signChangeCache) return _signChangeCache;
+/** [fromMs, toMs] aralığındaki dış gezegen burç geçişleri — AE ingress (blok memo). */
+export function getSignChangeEventsBetween(fromMs: number, toMs: number): CosmicEvent[] {
   const events: CosmicEvent[] = [];
-  try {
-    for (const planet of Object.keys(SC_BODY) as SCPlanet[]) {
-      const { body, symbol } = SC_BODY[planet];
-      for (const ing of scDetectIngresses(body)) {
+  const b0 = scBlockOf(fromMs), b1 = scBlockOf(toMs);
+  for (const planet of Object.keys(SC_BODY) as SCPlanet[]) {
+    const { symbol } = SC_BODY[planet];
+    for (let b = b0; b <= b1; b++) {
+      for (const ing of scBlock(planet, b)) {
+        if (ing.ms < fromMs || ing.ms > toMs) continue;
         const ov = SC_OVERRIDE[`${planet}:${ing.toSign}:${ing.kind}`];
         events.push({
           date:        scTrDate(ing.ms),
@@ -288,29 +311,37 @@ function getSignChangeEvents(): CosmicEvent[] {
         });
       }
     }
-  } catch {
-    return [];
   }
-  _signChangeCache = events;
   return events;
 }
 
 // ─── Ana Fonksiyon ─────────────────────────────────────────────────────────────
 
+/** Yaklaşan olay ufku (gün) — Yeni Ay/Dolunay, retro ve burç geçişleri AYNI ufukla toplanır. */
+export const UPCOMING_EVENTS_HORIZON_DAYS = 180;
+
 /**
- * Bugünden itibaren yaklaşan kozmik olayları döner.
+ * Bugünden itibaren yaklaşan kozmik olayları döner (ufuk: 180 gün; public aralıkla sınırlı).
  * @param from   Başlangıç tarihi (dahil)
  * @param count  Maksimum olay sayısı (varsayılan 10)
  */
 export function getUpcomingCosmicEvents(from: Date, count = 10): CosmicEvent[] {
+  if (!isValidDate(from)) return [];
   const fromIso = localIso(from);
+  const horizonEnd = new Date(from.getFullYear(), from.getMonth(), from.getDate() + UPCOMING_EVENTS_HORIZON_DAYS);
+  const toIso = localIso(horizonEnd);
 
-  const moonEvts  = getMoonEvents(from, 180);
-  const retroEvts = getRetroEvents();
-  const signEvts  = getSignChangeEvents();
+  const moonEvts  = getMoonEvents(from, UPCOMING_EVENTS_HORIZON_DAYS);
+  const retroEvts = getRetroEvents(fromIso, toIso);
+  let signEvts: CosmicEvent[] = [];
+  try {
+    signEvts = getSignChangeEventsBetween(from.getTime() - 86_400_000, horizonEnd.getTime() + 86_400_000);
+  } catch {
+    signEvts = [];
+  }
 
   return [...moonEvts, ...retroEvts, ...signEvts]
-    .filter(e => e.date >= fromIso)
+    .filter(e => e.date >= fromIso && e.date <= toIso && e.date <= SUPPORT_END_KEY)
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, count);
 }

@@ -3,7 +3,7 @@
 """
 §21 — RETRO STATION BAGIMSIZ REFERANS (Swiss Ephemeris / pyswisseph)
 
-Merkur/Venus/Mars/Jupiter/Saturn icin 2024-2050 arasindaki TUM retrograde/direct
+Merkur…Pluton (8 gezegen) icin 2024-2101 arasindaki TUM retrograde/direct
 station (donus) anlarini Swiss Ephemeris ile EXACT bulur. Station = ekliptik boylam
 HIZININ (lon_speed) isaret degistirdigi an. Cikti: swe-retro-stations.json
 
@@ -21,12 +21,13 @@ FLAG = swe.FLG_MOSEPH | swe.FLG_SPEED
 BODIES = {
     "Merkür": swe.MERCURY, "Venüs": swe.VENUS, "Mars": swe.MARS,
     "Jüpiter": swe.JUPITER, "Satürn": swe.SATURN,
+    "Uranüs": swe.URANUS, "Neptün": swe.NEPTUNE, "Plüton": swe.PLUTO,
 }
 # Tarama adimi (gun) — en kisa retro suresinden kucuk olmali.
-STEP_DAYS = {"Merkür": 2, "Venüs": 3, "Mars": 3, "Jüpiter": 5, "Satürn": 5}
+STEP_DAYS = {"Merkür": 2, "Venüs": 3, "Mars": 3, "Jüpiter": 5, "Satürn": 5, "Uranüs": 5, "Neptün": 5, "Plüton": 5}
 
 FROM_JD = swe.julday(2024, 1, 1, 0.0)
-TO_JD   = swe.julday(2051, 1, 1, 0.0)  # 2050 dahil (exclusive ust sinir)
+TO_JD   = swe.julday(2102, 1, 1, 0.0)  # internal tampon (public 2026-2100 + 2101)
 
 def speed(jd, body):
     xx, _ = swe.calc_ut(jd, body, FLAG)

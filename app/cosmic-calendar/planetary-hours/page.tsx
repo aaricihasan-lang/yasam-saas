@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CHALDEAN_PLANETS } from "@/lib/cosmic/planetary-hours";
 import { getUserLocationPref } from "@/lib/location/userLocationPref";
+import { clampDayToSupported, SUPPORT_START_KEY, SUPPORT_END_KEY, OUT_OF_RANGE_MESSAGE } from "@/lib/cosmic/dateRange";
 import {
   buildPlannerData, parseDateParam, toDateParam, PLANNER_PRESETS,
   type PlannerResult,
@@ -30,7 +31,9 @@ function PlannerScreen() {
   // Başlangıç: geçerli ?date varsa ondan (SSR↔CSR aynı); yoksa bugün. Bu bileşen Suspense +
   // useSearchParams sınırı altında CLIENT tarafında render edilir (sunucu fallback gösterir) →
   // new Date() yalnız client'ta çalışır, hydration uyuşmazlığı OLUŞMAZ.
-  const [start, setStart] = useState<Date>(() => parseDateParam(dateParam) ?? new Date());
+  // Geçersiz/aralık dışı ?date → bugün (public aralıkla kelepçeli); kullanıcıya not gösterilir.
+  const [start, setStart] = useState<Date>(() => parseDateParam(dateParam) ?? clampDayToSupported(new Date()));
+  const [dateError, setDateError] = useState<string | null>(dateParam && !parseDateParam(dateParam) ? OUT_OF_RANGE_MESSAGE : null);
 
   const [days, setDays] = useState<number>(30);
   const [planets, setPlanets] = useState<ReadonlySet<string>>(() => new Set(["Merkür", "Venüs"]));
@@ -89,10 +92,13 @@ function PlannerScreen() {
             id="planner-start"
             type="date"
             value={toDateParam(start)}
-            onChange={e => { const d = parseDateParam(e.target.value); if (d) setStart(d); }}
+            min={SUPPORT_START_KEY}
+            max={SUPPORT_END_KEY}
+            onChange={e => { const d = parseDateParam(e.target.value); if (d) { setStart(d); setDateError(null); } else setDateError(OUT_OF_RANGE_MESSAGE); }}
             className="rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-xs font-bold tabular-nums text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
           />
           {data && <span className="text-[11px] font-bold text-indigo-600 tabular-nums">{data.startLabel}</span>}
+          {dateError && <span className="w-full text-[10px] font-semibold text-amber-700" role="alert">⚠ {dateError}</span>}
         </div>
 
         {/* Aralık */}

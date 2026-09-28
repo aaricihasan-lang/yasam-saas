@@ -10,7 +10,7 @@
  *   4) Üretim (retro.ts RETRO_PERIODS) tarih tutarlılığı: her AE station'ın TR-tarihi
  *      RETRO_PERIODS start(R)/end(D) kümesinde var mı
  *
- * Merkür/Venüs/Mars/Jüpiter/Satürn · 2024-2050.
+ * 8 gezegen (Merkür…Plüton) · internal 2024-2101 · üretim karşılaştırması public 2026-2100.
  * Çalıştırma: npx tsx scripts/cosmic-presale/retro-station-verify.ts
  */
 import * as AE from "astronomy-engine";
@@ -18,7 +18,8 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { RETRO_PERIODS } from "../../lib/cosmic/retro";
+import { getAllRetroPeriods } from "../../lib/cosmic/retro";
+import { SUPPORT_START_KEY, SUPPORT_END_KEY } from "../../lib/cosmic/dateRange";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PY = process.env.COSMIC_PY || "python";
@@ -38,9 +39,10 @@ const sweStations: Station[] = JSON.parse(readFileSync(SWE_JSON, "utf-8")).map((
 const AE_BODY: Record<string, AE.Body> = {
   "Merkür": AE.Body.Mercury, "Venüs": AE.Body.Venus, "Mars": AE.Body.Mars,
   "Jüpiter": AE.Body.Jupiter, "Satürn": AE.Body.Saturn,
+  "Uranüs": AE.Body.Uranus, "Neptün": AE.Body.Neptune, "Plüton": AE.Body.Pluto,
 };
-const STEP_DAYS: Record<string, number> = { "Merkür": 2, "Venüs": 3, "Mars": 3, "Jüpiter": 5, "Satürn": 5 };
-const FROM = Date.UTC(2024, 0, 1), TO = Date.UTC(2051, 0, 1);
+const STEP_DAYS: Record<string, number> = { "Merkür": 2, "Venüs": 3, "Mars": 3, "Jüpiter": 5, "Satürn": 5, "Uranüs": 5, "Neptün": 5, "Plüton": 5 };
+const FROM = Date.UTC(2024, 0, 1), TO = Date.UTC(2102, 0, 1);   // internal tampon (dateRange)
 const TR = 3 * 3_600_000;
 
 function vel(body: AE.Body, ms: number): number {
@@ -67,6 +69,7 @@ for (const [planet, body] of Object.entries(AE_BODY)) {
 
 // ── 3) SWE ↔ AE exact-time karşılaştırma ─────────────────────────────────────
 let matched = 0, sweOnly = 0; let maxDeltaMin = 0, sumDeltaMin = 0;
+const maxByPlanet: Record<string, number> = {};
 const WINDOW = 2 * 86_400_000; // eşleştirme penceresi
 const aeUsed = new Set<number>();
 for (const s of sweStations) {
@@ -81,6 +84,7 @@ for (const s of sweStations) {
   if (best >= 0 && bestD <= WINDOW) {
     matched++; aeUsed.add(best);
     const dm = bestD / 60000; maxDeltaMin = Math.max(maxDeltaMin, dm); sumDeltaMin += dm;
+    maxByPlanet[s.planet] = Math.max(maxByPlanet[s.planet] ?? 0, dm);
   } else sweOnly++;
 }
 const aeOnly = aeStations.length - aeUsed.size;
@@ -98,10 +102,12 @@ for (const planet of Object.keys(AE_BODY)) {
     if (st[i]!.kind !== "R") continue;
     const dir = st.slice(i + 1).find(s => s.kind === "D");
     if (!dir) continue; // pencere sonunda yarım kalan R → periyot yok (retro.ts ile aynı)
-    aePeriods.add(`${planet}|${trDate(st[i]!.ms!)}|${trDate(dir.ms!)}`);
+    const s0 = trDate(st[i]!.ms!), e0 = trDate(dir.ms!);
+    if (e0 < SUPPORT_START_KEY || s0 > SUPPORT_END_KEY) continue;   // yalnız public aralıkla kesişenler (retro.ts ile aynı)
+    aePeriods.add(`${planet}|${s0}|${e0}`);
   }
 }
-const prodPeriods = new Set(RETRO_PERIODS.map(p => `${p.planet}|${p.start}|${p.end}`));
+const prodPeriods = new Set(getAllRetroPeriods().map(p => `${p.planet}|${p.start}|${p.end}`));
 let prodMatch = 0, prodMiss = 0; const missSamples: string[] = [];
 for (const k of aePeriods) { if (prodPeriods.has(k)) prodMatch++; else { prodMiss++; if (missSamples.length < 8) missSamples.push("AE-only " + k); } }
 for (const k of prodPeriods) if (!aePeriods.has(k)) { prodMiss++; if (missSamples.length < 8) missSamples.push("PROD-only " + k); }
@@ -110,13 +116,20 @@ console.log("\n=== §21 Retro Station SWE ↔ AE Exact-Time ===");
 console.log(`SWE station: ${sweStations.length} · AE station: ${aeStations.length}`);
 console.log(`Eşleşen: ${matched} · SWE-only: ${sweOnly} · AE-only: ${aeOnly}`);
 console.log(`Zaman farkı: max ${maxDeltaMin.toFixed(2)} dk · ort ${matched ? (sumDeltaMin/matched).toFixed(2) : "—"} dk`);
+console.log("Gezegen bazında max Δ (dk): " + Object.entries(maxByPlanet).map(([p, v]) => `${p} ${v.toFixed(1)}`).join(" · "));
 console.log("\n=== Üretim retro.ts tarih tutarlılığı (AE station → RETRO_PERIODS) ===");
 console.log(`Eşleşen tarih: ${prodMatch} · Eşleşmeyen: ${prodMiss}`);
 for (const m of missSamples) console.log("   miss: " + m);
 
-// GEÇME ölçütü: küme tamlığı (SWE-only=0, AE-only=0), exact-time maxΔ ≤ 60 dk (station civarı
-// yavaş hareket → dakika farkı ephemeris farkını büyütür; konum bazında ≪1° kalır), üretim
-// tarih uyumu tam (prodMiss=0).
-const pass = sweOnly === 0 && aeOnly === 0 && maxDeltaMin <= 60 && prodMiss === 0;
+// GEÇME ölçütü: küme tamlığı (SWE-only=0, AE-only=0), üretim tarih uyumu TAM (prodMiss=0) ve
+// exact-time toleransı gezegen grubuna göre:
+//   • Merkür…Satürn ≤ 60 dk (önceki süitle aynı).
+//   • Uranüs/Neptün/Plüton ≤ 120 dk — istasyon anı, boylam hatasının boylam İVMESİNE oranıyla kayar;
+//     dış gezegenlerde istasyon civarı ivme ~10–30× küçüktür, bu yüzden ~1″ model farkı (burada referans
+//     Moshier/FLG_MOSEPH) onlarca dakikaya dönüşür. Ürün gün-bazlı gösterir; gün uyumu prodMiss=0 ve
+//     scripts/cosmic-longrange (DE431) ile ayrıca doğrulanır.
+const OUTER = new Set(["Uranüs", "Neptün", "Plüton"]);
+const tolOk = Object.entries(maxByPlanet).every(([p, v]) => v <= (OUTER.has(p) ? 120 : 60));
+const pass = sweOnly === 0 && aeOnly === 0 && tolOk && prodMiss === 0;
 console.log(`\n=== SONUÇ: ${pass ? "✅ RETRO STATION BAĞIMSIZ DOĞRULANDI" : "❌ SAPMA VAR"} ===`);
 process.exit(pass ? 0 : 1);

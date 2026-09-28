@@ -2,11 +2,15 @@
 // getMoonPhase    → astronomy-engine MoonPhase() derece → 8 faz (FAZ 3)
 // getMoonSign     → astronomy-engine EclipticGeoMoon (FAZ 2)
 // getMoonIllumination → astronomy-engine Illumination (FAZ 2)
-// getMoonAge      → sinodik referans epoch (legacy, fallback ve MOON_PHASE_BOUNDS uyumu)
+// getMoonAge      → astronomy-engine gerçek önceki Yeni Ay'dan geçen süre (kelepçe YOK)
+//
+// G7 (fail-closed): Geçersiz tarihte veya AE hatasında legacy YAKLAŞIK hesaba sessizce DÜŞÜLMEZ;
+// RangeError fırlatılır. *Legacy fonksiyonları yalnız audit/karşılaştırma içindir, fallback değildir.
 
 import * as AE from "astronomy-engine";
+import { assertValidDate } from "./dateRange";
 
-// ─── Legacy faz tablosu — day-age tabanlı, MOON_PHASE_BOUNDS ve fallback için ─
+// ─── Legacy faz tablosu — day-age tabanlı; YALNIZ audit/karşılaştırma (fallback DEĞİL) ─
 
 const MOON_PHASES: ReadonlyArray<{ name: string; emoji: string; max: number }> = [
   { name: "Yeni Ay",       emoji: "🌑", max: 1.85  },
@@ -58,16 +62,14 @@ function _legacyMoonPhase(date: Date): { name: string; emoji: string } {
  * Ayın fazı — astronomy-engine MoonPhase() derecesinden hesaplanır.
  * 0°=Yeni Ay, 90°=İlk Dördün, 180°=Dolunay, 270°=Son Dördün.
  * Geçişler JPL doğruluğuyla keskin; legacy 1 günlük gecikme ortadan kalkar.
- * Fallback: sinodik epoch tabanlı eski hesap.
+ * Geçersiz tarih → RangeError (legacy yaklaşık hesaba sessiz düşüş YOK — G7).
  */
 export function getMoonPhase(date: Date): { name: string; emoji: string } {
-  try {
-    const deg = AE.MoonPhase(date);
-    const p   = AE_MOON_PHASES.find((x) => deg >= x.min && deg < x.max);
-    return p ? { name: p.name, emoji: p.emoji } : { name: "Yeni Ay", emoji: "🌑" };
-  } catch {
-    return _legacyMoonPhase(date);
-  }
+  assertValidDate(date, "getMoonPhase");
+  const deg = AE.MoonPhase(date);
+  const p   = AE_MOON_PHASES.find((x) => deg >= x.min && deg < x.max);
+  if (!p) throw new RangeError(`getMoonPhase: faz açısı çözülemedi (${deg})`);
+  return { name: p.name, emoji: p.emoji };
 }
 
 /** Legacy faz — audit/karşılaştırma amaçlı dışa aktarım. */
@@ -92,7 +94,7 @@ const ZODIAC_SIGNS: ReadonlyArray<{ name: string; emoji: string }> = [
   { name: "Balık",   emoji: "♓" }, // 330-360°
 ];
 
-// ─── Legacy (yaklaşık) hesaplamalar — AE fallback'i için ─────────────────────
+// ─── Legacy (yaklaşık) hesaplamalar — YALNIZ audit/karşılaştırma (fallback DEĞİL) ─────
 
 /**
  * Ay burcu — sinodik epoch + sidereal periyot yaklaşımı.
@@ -120,17 +122,15 @@ function _legacyMoonIllumination(date: Date): number {
  * Ayın tropikal burcu.
  * astronomy-engine EclipticGeoMoon → ekliptik boylam → 30°'lik dilimler.
  * JPL Horizons doğruluğu; < 5 dakika hata.
- * Fallback: legacy sinodik yaklaşım.
+ * Geçersiz tarih → RangeError (legacy yaklaşık hesaba sessiz düşüş YOK — G7).
  */
 export function getMoonSign(date: Date): { name: string; emoji: string } {
-  try {
-    const ecl = AE.EclipticGeoMoon(date);
-    const idx  = Math.floor(ecl.lon / 30) % 12;
-    const sign = ZODIAC_SIGNS[idx];
-    return sign ? { name: sign.name, emoji: sign.emoji } : { name: "Koç", emoji: "♈" };
-  } catch {
-    return _legacyMoonSign(date);
-  }
+  assertValidDate(date, "getMoonSign");
+  const ecl = AE.EclipticGeoMoon(date);
+  const idx  = Math.floor((((ecl.lon % 360) + 360) % 360) / 30);
+  const sign = ZODIAC_SIGNS[idx];
+  if (!sign) throw new RangeError(`getMoonSign: boylam çözülemedi (${ecl.lon})`);
+  return { name: sign.name, emoji: sign.emoji };
 }
 
 /** Legacy Ay burcu — audit/karşılaştırma amaçlı dışa aktarım. */
@@ -163,23 +163,26 @@ export const MOON_PHASE_BOUNDS: ReadonlyArray<{
 ];
 
 /**
- * Ayın yaşı — astronomy-engine SearchMoonPhase 2-adımlı doğru hesaplama (FAZ 5A).
- * Önce sonraki yeni ay bulunur, oradan önceki dönemin başlangıç yeni ayı tespit edilir.
- * Hata: ~dakika mertebesinde (legacy: ~7 saat).
- * Fallback: sinodik epoch yaklaşımı.
+ * Ayın yaşı — GERÇEK önceki Yeni Ay anından geçen gün (astronomy-engine SearchMoonPhase).
+ * G6: Sabit sinodik üst sınıra (29.53) KELEPÇELENMEZ; uzun lunasyonlarda (≤29.84 g) yaş Yeni Ay'a
+ * kadar ilerler ve Yeni Ay anında 0'a döner. Hata: ~dakika mertebesinde.
  */
 export function getMoonAge(date: Date): number {
-  try {
-    const nextNew = AE.SearchMoonPhase(0, date, SYNODIC_MONTH + 2);
-    if (!nextNew) return moonAge(date);
-    const prevStart = new Date(nextNew.date.getTime() - (SYNODIC_MONTH + 1) * 86_400_000);
-    const prevNew   = AE.SearchMoonPhase(0, prevStart, SYNODIC_MONTH + 1);
-    if (!prevNew) return moonAge(date);
-    const age = (date.getTime() - prevNew.date.getTime()) / 86_400_000;
-    return Math.max(0, Math.min(age, SYNODIC_MONTH));
-  } catch {
-    return moonAge(date);
+  assertValidDate(date, "getMoonAge");
+  const t = date.getTime();
+  // Önceki Yeni Ay: t'den ≥1 lunasyon öncesinden ileri doğru ara; t'yi geçmeyen son Yeni Ay.
+  let cursor = new Date(t - 32 * 86_400_000);
+  let prev: number | null = null;
+  for (let i = 0; i < 4; i++) {
+    const r = AE.SearchMoonPhase(0, cursor, 40);
+    if (!r) break;
+    const ms = r.date.getTime();
+    if (ms > t) break;
+    prev = ms;
+    cursor = new Date(ms + 86_400_000);
   }
+  if (prev === null) throw new RangeError("getMoonAge: önceki Yeni Ay bulunamadı");
+  return (t - prev) / 86_400_000;
 }
 
 /** Legacy ay yaşı — sinodik epoch yaklaşımı. Audit/karşılaştırma için. */
@@ -190,10 +193,11 @@ export function getMoonAgeLegacy(date: Date): number {
 /**
  * Ayın şu an bulunduğu burçtaki gerçek AE giriş/çıkış zamanını döner.
  * EclipticGeoMoon ikili arama ile burç geçiş anlarını ~1 dakika hassasiyetinde bulur.
- * Fallback: sinodik epoch yaklaşımı (legacy).
+ * Geçersiz tarih → RangeError (legacy yaklaşık hesaba sessiz düşüş YOK — G7).
  */
 export function getMoonSignPeriod(date: Date): { from: Date; to: Date } {
-  try {
+  assertValidDate(date, "getMoonSignPeriod");
+  {
     const ecl0    = AE.EclipticGeoMoon(date);
     const signIdx = Math.floor(ecl0.lon / 30) % 12;
 
@@ -232,30 +236,18 @@ export function getMoonSignPeriod(date: Date): { from: Date; to: Date } {
     const toMs = loMs;
 
     return { from: new Date(fromMs), to: new Date(toMs) };
-  } catch {
-    // Fallback: sinodik epoch yaklaşımı
-    const daysSince  = (date.getTime() - REF_NEW_MOON_MS) / 86_400_000;
-    const degrees    = ((daysSince * (360 / 27.32)) % 360 + 360) % 360;
-    const adjusted   = (degrees + 270) % 360;
-    const fraction   = (adjusted % 30) / 30;
-    const signDurMs  = (27.32 / 12) * 86_400_000;
-    const fromMs     = date.getTime() - fraction * signDurMs;
-    return { from: new Date(fromMs), to: new Date(fromMs + signDurMs) };
   }
 }
 
 /**
  * Aydınlanma yüzdesi (0–100).
  * astronomy-engine Illumination → phase_fraction (gerçek geometrik açı).
- * Fallback: kosinüs yaklaşımı (~%7-10 hata).
+ * Geçersiz tarih → RangeError (legacy yaklaşık hesaba sessiz düşüş YOK — G7).
  */
 export function getMoonIllumination(date: Date): number {
-  try {
-    const illum = AE.Illumination(AE.Body.Moon, date);
-    return Math.round(illum.phase_fraction * 100);
-  } catch {
-    return _legacyMoonIllumination(date);
-  }
+  assertValidDate(date, "getMoonIllumination");
+  const illum = AE.Illumination(AE.Body.Moon, date);
+  return Math.round(illum.phase_fraction * 100);
 }
 
 /** Legacy aydınlanma — audit/karşılaştırma amaçlı dışa aktarım. */
