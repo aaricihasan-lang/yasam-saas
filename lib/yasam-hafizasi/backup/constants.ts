@@ -186,4 +186,6 @@ export const KNOWN_STORAGE_BUCKETS = [
   "hd-chart-images",
   "personal-archive",
   "client-analysis-images",
+  // Anamnez V1 PDF ekleri (private; migration 20270202000100).
+  "client-anamnesis-files",
 ] as const;

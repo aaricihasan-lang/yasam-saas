@@ -35,6 +35,9 @@ export const DELETE_PREVIEW_TABLES: ReadonlyArray<{ key: string; table: string }
   { key: "legacyGifts", table: "client_gifts" },
   { key: "legacyPhotos", table: "client_photos" },
   { key: "legacyTasks", table: "client_tasks" },
+  // Anamnez V1 (migration 20270202000000; composite FK CASCADE). Belgeler Storage'dan da silinir.
+  { key: "anamneses", table: "client_anamneses" },
+  { key: "anamnesisFiles", table: "client_anamnesis_attachments" },
 ];
 
 /** Danışana bağlı OLMAYAN (silinmeyen) modüller. */

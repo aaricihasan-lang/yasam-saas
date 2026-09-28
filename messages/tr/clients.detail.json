@@ -26,6 +26,7 @@
       },
       "tab": {
         "genel": "Genel Bilgiler",
+        "anamnez": "Anamnez",
         "notlar": "Notlar",
         "randevular": "Randevular",
         "taslar": "Taşlar",
@@ -285,7 +286,9 @@
           "memoryIndex": "Yaşam Hafızası dizin kayıtları",
           "legacyGifts": "Eski hediye kayıtları",
           "legacyPhotos": "Eski fotoğraf kayıtları",
-          "legacyTasks": "Eski görev kayıtları"
+          "legacyTasks": "Eski görev kayıtları",
+          "anamneses": "Anamnez kayıtları",
+          "anamnesisFiles": "Anamnez belgeleri (PDF)"
         }
       },
       "notesState": {

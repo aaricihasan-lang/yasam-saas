@@ -17,6 +17,7 @@ import trClientsStones from "@/messages/tr/clients.stones.json";
 import trClientsYolculuk from "@/messages/tr/clients.yolculuk.json";
 import trClientsDetail from "@/messages/tr/clients.detail.json";
 import trClientsAnalizler from "@/messages/tr/clients.analizler.json";
+import trClientsAnamnez from "@/messages/tr/clients.anamnez.json";
 import trMemoryPicker from "@/messages/tr/memoryPicker.json";
 import trStones from "@/messages/tr/stones.json";
 import trStonesHub from "@/messages/tr/stones.hub.json";
@@ -42,6 +43,7 @@ import enClientsStones from "@/messages/en/clients.stones.json";
 import enClientsYolculuk from "@/messages/en/clients.yolculuk.json";
 import enClientsDetail from "@/messages/en/clients.detail.json";
 import enClientsAnalizler from "@/messages/en/clients.analizler.json";
+import enClientsAnamnez from "@/messages/en/clients.anamnez.json";
 import enMemoryPicker from "@/messages/en/memoryPicker.json";
 import enStones from "@/messages/en/stones.json";
 import enStonesHub from "@/messages/en/stones.hub.json";
@@ -93,6 +95,7 @@ const MESSAGES_BY_LOCALE: Record<ActiveLocale, Messages> = {
     trClientsYolculuk,
     trClientsDetail,
     trClientsAnalizler,
+    trClientsAnamnez,
     trMemoryPicker,
     trStones,
     trStonesHub,
@@ -119,6 +122,7 @@ const MESSAGES_BY_LOCALE: Record<ActiveLocale, Messages> = {
     enClientsYolculuk,
     enClientsDetail,
     enClientsAnalizler,
+    enClientsAnamnez,
     enMemoryPicker,
     enStones,
     enStonesHub,
