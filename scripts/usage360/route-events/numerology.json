@@ -1,0 +1,33 @@
+{
+  "module": "numerology",
+  "handlers": [
+    { "route": "numeroloji/analyses", "method": "POST", "events": [{ "action": "analysis_run", "subEntity": "analysis" }], "failure": "server", "note": "AŞAMA 1 öncesi çağrı korunur (legacyEventType analysis_created); tek olay" },
+    { "route": "numeroloji/analyses", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "analysis" }], "failure": "server" },
+    { "route": "numeroloji/analyses", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "analysis" }], "failure": "server", "note": "tekli/toplu silme → tek olay + itemCount" },
+
+    { "route": "numeroloji/knowledge", "method": "POST", "events": [{ "action": "record_created", "subEntity": "knowledge" }, { "action": "record_updated", "subEntity": "knowledge" }], "failure": "server", "note": "create-only; açık overwrite:true yolu mevcut kaydı günceller → record_updated; 409 çakışma → action_failed conflict" },
+    { "route": "numeroloji/knowledge", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "knowledge" }], "failure": "server" },
+    { "route": "numeroloji/knowledge", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "knowledge" }], "failure": "server", "note": "tek olay + itemCount; 0 satır → olay yok" },
+
+    { "route": "numeroloji/sources", "method": "POST", "events": [{ "action": "record_created", "subEntity": "source" }], "failure": "server" },
+    { "route": "numeroloji/sources", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "source" }], "failure": "server" },
+    { "route": "numeroloji/sources", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "source" }], "failure": "server", "note": "tek olay + itemCount; bağlı kaynak 409 → action_failed conflict" },
+
+    { "route": "numeroloji/source-entries", "method": "POST", "events": [{ "action": "record_created", "subEntity": "source_entry" }], "failure": "server" },
+    { "route": "numeroloji/source-entries", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "source_entry" }], "failure": "server" },
+    { "route": "numeroloji/source-entries", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "source_entry" }], "failure": "server", "note": "tek olay + itemCount" },
+
+    { "route": "numeroloji/record-sources", "method": "POST", "events": [{ "action": "record_created", "subEntity": "source_link" }], "failure": "server", "note": "bilgi kaydı-kaynak bağ satırı oluşturulur; duplicate bağ 409 → conflict" },
+    { "route": "numeroloji/record-sources", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "source_link" }], "failure": "server" },
+    { "route": "numeroloji/record-sources", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "source_link" }], "failure": "server", "note": "tek olay + itemCount" },
+
+    { "route": "numeroloji/stones", "method": "POST", "events": [{ "action": "record_created", "subEntity": "stone" }, { "action": "record_updated", "subEntity": "stone" }], "failure": "server", "note": "upsert (tenant+type+value): gerçek yol bilinir — mevcut → record_updated, yeni → record_created" },
+    { "route": "numeroloji/stones", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "stone" }], "failure": "server" },
+    { "route": "numeroloji/stones", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "stone" }], "failure": "server", "note": "tek olay + itemCount" },
+
+    { "route": "numeroloji/word-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "analysis" }], "failure": "server", "note": "docx buffer üretildikten sonra; çoklu kayıt → itemCount" },
+    { "route": "numeroloji/knowledge-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "knowledge" }], "failure": "server", "note": "docx buffer üretildikten sonra" },
+
+    { "route": "numeroloji/demo-analiz", "method": "POST", "exempt": "demo hesap IP-kota yardımcısı (hak kontrolü/claim); uzman iş işlemi değil, demo hesap telemetriye girmez" }
+  ]
+}

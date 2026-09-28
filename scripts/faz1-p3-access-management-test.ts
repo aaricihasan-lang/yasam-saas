@@ -271,13 +271,14 @@ function run(): void {
     }
   }
   // Görünür rapor — 3 AYRI sayı; deferred sahte-PASS değil, follow-up gereksinimi görünür.
-  console.log(`  [envanter] gated=${gatedCount} · explicit-excluded=${excludedCount} · DEFERRED=${deferred.length} (aromaterapi — server gate ERTELENDİ, ayrı follow-up PR gerekli)`);
+  console.log(`  [envanter] gated=${gatedCount} · explicit-excluded=${excludedCount} · DEFERRED=${deferred.length} (ertelenmiş modül gate'i yok; aromaterapi gate'li)`);
 
   ok(unclassified.length === 0, `envanter: sınıflandırılamayan route YOK (${unclassified.slice(0, 5).join(", ")})`);
   ok(ungated.length === 0, `envanter: gate-required ama GATE'SİZ modül route YOK (${ungated.slice(0, 8).join(", ")})`);
   ok(gatedCount >= 90, `envanter: gate'li modül route sayısı (${gatedCount})`);
   ok(excludedCount >= 70, `envanter: explicit-exclude route sayısı (${excludedCount})`);
-  ok(deferred.length === 20, `envanter: aromaterapi DEFERRED route sayısı = 20 (follow-up) (bulunan ${deferred.length})`);
+  // Aromaterapi gate follow-up'ı tamamlandı (tüm route'lar requireModuleAccess taşır) → ertelenmiş route kalmadı.
+  ok(deferred.length === 0, `envanter: DEFERRED route kalmadı (aromaterapi gate'li) (bulunan ${deferred.length})`);
 
   // ── 11) Premium bypass KALDIRMA (statik) ───────────────────────────────────
   const modPerms = readFileSync("lib/auth/modulePermissions.ts", "utf8");

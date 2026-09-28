@@ -2,7 +2,15 @@
  * FAZ 2 — SAF görüntüleme yardımcıları (yan-etkisiz; harness ile test edilir).
  * Byte/MB/GB, Türkiye saatli tarih + göreli zaman, ve MetricValue → görünüm sınıflandırması.
  */
-import type { MetricValue } from "@/lib/admin/stats/contract";
+import { LAST_SEEN_BACKFILL_ARTIFACT_AT, type MetricValue } from "@/lib/admin/stats/contract";
+
+/** last_seen değeri 27.09.2026 backfill dakikasına mı denk geliyor (gerçek kullanım değil)? */
+export function isLastSeenBackfillArtifact(iso: string | null | undefined): boolean {
+  if (!iso) return false;
+  const t = Date.parse(iso);
+  const start = Date.parse(LAST_SEEN_BACKFILL_ARTIFACT_AT);
+  return Number.isFinite(t) && t >= start && t < start + 60_000;
+}
 
 /** Byte → insanca. Negatif/geçersiz → "—". */
 export function formatBytes(n: number | null | undefined): string {

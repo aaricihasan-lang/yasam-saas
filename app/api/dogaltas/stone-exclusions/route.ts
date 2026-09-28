@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,14 @@ export const runtime = "nodejs";
  * DELETE { stoneIds }: gizlemeyi kaldır.
  * Kütüphane tenant'ı kendi kütüphanesini gizleyemez.
  */
+
+/** Usage360 idempotency anahtarı: gizleme örneği (stone_id + excluded_at) — ham saklanmaz, HMAC'lanır. */
+function exclusionResourceId(rows: unknown): string | null {
+  const keys = ((rows ?? []) as { stone_id?: unknown; excluded_at?: unknown }[])
+    .map((r) => `${String(r.stone_id)}@${String(r.excluded_at)}`)
+    .sort();
+  return keys.length > 0 ? keys.join(",") : null;
+}
 
 function readIds(body: { stoneIds?: unknown }): string[] {
   return Array.isArray(body.stoneIds)
@@ -50,11 +59,19 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
   const rows = ids.map((id) => ({ tenant_id: tenantId, stone_id: id }));
-  const { error } = await db
+  // Usage360: yalnız GERÇEKTEN eklenen satırlar geri döner (ignoreDuplicates → mevcutlar dönmez);
+  // yanıt gövdesi değişmez.
+  const { data: insertedRows, error } = await db
     .from("stone_exclusions")
-    .upsert(rows, { onConflict: "tenant_id,stone_id", ignoreDuplicates: true });
+    .upsert(rows, { onConflict: "tenant_id,stone_id", ignoreDuplicates: true })
+    .select("stone_id, excluded_at");
 
-  if (error) return serverErrorResponse({ route: "dogaltas/stone-exclusions", action: "POST", tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "dogaltas/stone-exclusions", action: "POST", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_created", subEntity: "exclusion" } });
+  const insertedCount = insertedRows?.length ?? 0;
+  if (insertedCount > 0) {
+    // Tekli/toplu gizleme → TEK olay + itemCount (hepsi zaten gizliyse no-op → olay yok).
+    await trackUsage(guard, req, { module: "stones", action: "record_created", subEntity: "exclusion", resourceId: exclusionResourceId(insertedRows), itemCount: insertedCount });
+  }
   return NextResponse.json({ ok: true, hidden: ids.length });
 }
 
@@ -75,8 +92,13 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   const { data, error } = await db
     .from("stone_exclusions").delete()
     .eq("tenant_id", tenantId).in("stone_id", ids)
-    .select("stone_id");
+    .select("stone_id, excluded_at");
 
-  if (error) return serverErrorResponse({ route: "dogaltas/stone-exclusions", action: "DELETE", tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "dogaltas/stone-exclusions", action: "DELETE", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_deleted", subEntity: "exclusion" } });
+  const removedCount = data?.length ?? 0;
+  if (removedCount > 0) {
+    // Tekli/toplu gizleme kaldırma → TEK olay + itemCount.
+    await trackUsage(guard, req, { module: "stones", action: "record_deleted", subEntity: "exclusion", resourceId: exclusionResourceId(data), itemCount: removedCount });
+  }
   return NextResponse.json({ ok: true, removed: data?.length ?? 0 });
 }

@@ -12,6 +12,7 @@ import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { downloadWord } from "@/lib/aromaterapi/wordExport";
+import { reportUsageExport } from "@/lib/usage/usageBeaconClient";
 import {
   fetchOilSearch,
   fetchOilDetail,
@@ -151,7 +152,12 @@ export default function KarisimOlusturucuPage() {
     if (!printBlend) return;
     const clear = () => setPrintBlend(null);
     window.addEventListener("afterprint", clear);
-    const t = window.setTimeout(() => window.print(), 120);
+    // printBlend YALNIZ kullanıcının "Yazdır" eylemiyle set edilir → Usage360 tarayıcı dışa
+    // aktarımı window.print() döndükten SONRA (render'da değil) tek kez bildirilir.
+    const t = window.setTimeout(() => {
+      window.print();
+      reportUsageExport("aromatherapy", "blend");
+    }, 120);
     return () => { window.removeEventListener("afterprint", clear); window.clearTimeout(t); };
   }, [printBlend]);
 

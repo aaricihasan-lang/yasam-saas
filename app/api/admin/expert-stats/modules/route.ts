@@ -104,10 +104,15 @@ export async function GET(req: NextRequest): Promise<Response> {
       let total = 0;
       let failed = false;
       for (const src of desc.recordSources) {
-        const { count, error } = await db
+        let q = db
           .from(src.table)
           .select("*", { count: "exact", head: true })
           .eq(src.tenantColumn, target.tenantId);
+        // Admin kütüphane aktarımı uzmanın kendi kaydı sayılmaz (yalnız gösterge kolonları okunur).
+        if (src.excludeTransferred) {
+          q = q.is("origin_transfer_batch_id", null).or("origin_type.is.null,origin_type.neq.admin_transfer");
+        }
+        const { count, error } = await q;
         if (error) {
           failed = true;
           break;
@@ -130,7 +135,9 @@ export async function GET(req: NextRequest): Promise<Response> {
         ? makeMetric<number>(null, "workspace", "unavailable", "record", { measuredAt, note: "kayıt tablosu okunamadı" })
         : makeMetric<number>(rc.count, "workspace", "derived", "record", {
             measuredAt,
-            note: "tenant kayıt sayısı (işlem sayısı değil)",
+            note: desc.recordSources.some((s) => s.excludeTransferred)
+              ? "anlık envanter — işlem sayısı DEĞİL; admin kütüphane aktarımı hariç"
+              : "anlık envanter — işlem sayısı DEĞİL",
           })
       : makeMetric<number>(null, "workspace", "unavailable", "record", {
           measuredAt,

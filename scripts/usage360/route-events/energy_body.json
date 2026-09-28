@@ -1,0 +1,20 @@
+{
+  "module": "energy_body",
+  "handlers": [
+    { "route": "biyoenerji/[resource]", "method": "POST", "events": [{ "action": "record_created", "subEntities": ["session", "energy_body", "subconscious", "imagination", "symbol", "chakra"] }], "failure": "server", "note": "subEntity = BIO_USAGE_SUB_ENTITY[resource] (sabit eşleme); resourceId = yeni id" },
+    { "route": "biyoenerji/[resource]", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntities": ["session", "energy_body", "subconscious", "imagination", "symbol", "chakra"] }], "failure": "server", "note": "toplu (ids / all) → tek olay + itemCount; 0 satır silindiyse olay yok" },
+    { "route": "biyoenerji/[resource]/[id]", "method": "PATCH", "events": [{ "action": "record_updated", "subEntities": ["session", "energy_body", "subconscious", "imagination", "symbol", "chakra"] }], "failure": "server", "note": "yalnız satır güncellendiyse (404 dalında olay yok)" },
+    { "route": "biyoenerji/[resource]/[id]", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntities": ["session", "energy_body", "subconscious", "imagination", "symbol", "chakra"] }], "failure": "server", "note": "yalnız gerçekten silinen satır varsa" },
+    { "route": "biyoenerji/chakra-blocks", "method": "POST", "events": [{ "action": "record_created", "subEntity": "chakra_block" }], "failure": "server" },
+    { "route": "biyoenerji/chakra-blocks/[id]", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "chakra_block" }], "failure": "server" },
+    { "route": "biyoenerji/chakra-blocks/[id]", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "chakra_block" }], "failure": "server" },
+    { "route": "biyoenerji/chakra-blocks/reorder", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "chakra_block" }], "note": "sıralama tek eylem → tek olay + itemCount; resourceId = chakra; per-row hatalar kısmi başarı olarak raporlanır (500 dalı yok)" },
+    { "route": "biyoenerji/chakra-blocks/count", "method": "POST", "exempt": "okuma: silme güvenliği için child blok sayımı" },
+    { "route": "biyoenerji/session-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "session" }], "failure": "server", "note": "docx üretildikten sonra; Android Word guard 403 olay değildir" },
+    { "route": "biyoenerji/symbol-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "symbol" }], "failure": "server" },
+    { "route": "biyoenerji/imagination-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "imagination" }], "failure": "server" },
+    { "route": "biyoenerji/chakra-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "chakra" }], "failure": "server" },
+    { "route": "biyoenerji/energy-body-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "energy_body" }], "failure": "server" },
+    { "route": "biyoenerji/subconscious-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "subconscious" }], "failure": "server" }
+  ]
+}

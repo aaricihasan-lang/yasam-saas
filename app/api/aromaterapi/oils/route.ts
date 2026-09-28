@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { OIL_LIST_SELECT, pickWritableOilFields } from "@/lib/aromaterapi/oilFields";
 import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
 import { parseListParams, buildSearchNormIlike, buildIdentityNormIlike } from "@/lib/aromaterapi/service/readValidation";
@@ -147,7 +148,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     .insert({ ...fields, tenant_id: tenantId }) // tenant_id yalnız güvenlik katmanından
     .select("id")
     .single();
-  if (error) return legacyDbErrorResponse("oils.create", error, "Yağ kaydedilemedi.");
+  if (error) {
+    await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_created", subEntity: "oil", errorClass: "server" });
+    return legacyDbErrorResponse("oils.create", error, "Yağ kaydedilemedi.");
+  }
+  await trackUsage(guard, req, { module: "aromatherapy", action: "record_created", subEntity: "oil", resourceId: String(data.id) });
   return NextResponse.json({ ok: true, id: data.id });
 }
 
@@ -175,6 +180,14 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId) // yalnız kendi tenant kayıtları; global (null) dokunulmaz
     .in("id", ids)
     .select("id");
-  if (error) return legacyDbErrorResponse("oils.delete", error, "Yağ silinemedi.");
-  return NextResponse.json({ ok: true, deletedIds: (data ?? []).map((r) => r.id as string) });
+  if (error) {
+    await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_deleted", subEntity: "oil", errorClass: "server" });
+    return legacyDbErrorResponse("oils.delete", error, "Yağ silinemedi.");
+  }
+  const deletedIds = (data ?? []).map((r) => r.id as string);
+  // Usage360: toplu silme = TEK olay + itemCount; hiçbir satır silinmediyse olay yok.
+  if (deletedIds.length > 0) {
+    await trackUsage(guard, req, { module: "aromatherapy", action: "record_deleted", subEntity: "oil", resourceId: [...deletedIds].sort().join(","), itemCount: deletedIds.length });
+  }
+  return NextResponse.json({ ok: true, deletedIds });
 }

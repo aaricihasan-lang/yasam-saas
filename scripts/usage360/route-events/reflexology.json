@@ -1,0 +1,13 @@
+{
+  "module": "reflexology",
+  "handlers": [
+    { "route": "refleksoloji/protocols", "method": "POST", "events": [{ "action": "record_created", "subEntity": "protocol" }], "failure": "server", "note": "mevcut İP-2C çağrısı korundu (legacyEventType protocol_created); yalnız YENİ insert; source_uid dedup/update ve 23505 yarış yolu olay üretmez" },
+    { "route": "refleksoloji/protocols/by-uid/[uid]", "method": "PUT", "events": [{ "action": "record_updated", "subEntity": "protocol" }, { "action": "record_created", "subEntity": "protocol" }], "failure": "conflict", "note": "update yalnız içerik gerçekten değiştiyse (CAS okumasındaki satırla karşılaştırma, raw_json.updatedAt hariç); expected'sız istemcide resourceId=sunucu id → 60 sn kova; satır yoksa insert yolu → record_created; 409 → conflict, 500 → server" },
+    { "route": "refleksoloji/protocols/by-uid/[uid]", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "protocol" }], "failure": "server", "note": "yalnız gerçekten silinen satır varsa" },
+    { "route": "refleksoloji/protocols/[id]", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "protocol" }], "failure": "server", "note": "yalnız gerçekten silinen satır varsa" },
+    { "route": "refleksoloji/protocols/organ", "method": "POST", "events": [{ "action": "record_updated", "subEntity": "organ" }], "failure": "server", "note": "organ adı değişikliği (tüm protokollerde cascade) → tek olay + itemCount; etkilenen yoksa olay yok" },
+    { "route": "refleksoloji/atlas", "method": "PUT", "events": [{ "action": "record_updated", "subEntity": "atlas" }], "failure": "conflict", "note": "CAS tekil belge; yalnız başarılı yazma VE içerik değiştiyse; resourceId sabit 'atlas' → 60 sn kova; 409 → conflict, 500 → server" },
+    { "route": "refleksoloji/notes", "method": "PUT", "events": [{ "action": "record_updated", "subEntity": "note" }], "failure": "conflict", "note": "per-not CAS senkronu; created/updated/deleted sayısı > 0 ise TEK olay + itemCount (deleted_uids dahil); unchanged/delete-noop olay yok; conflicts > 0 → conflict; reconcile throw → server" },
+    { "route": "refleksoloji/protocol-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "protocol" }], "failure": "server", "note": "docx üretildikten sonra; Android Word guard 403 olay değildir" }
+  ]
+}

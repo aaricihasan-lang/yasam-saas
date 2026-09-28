@@ -1,0 +1,360 @@
+{
+  "module": "clients",
+  "handlers": [
+    {
+      "route": "clients",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "client"
+        }
+      ],
+      "failure": "server",
+      "note": "idempotent replay (request_id tekrarı) olay yazmaz"
+    },
+    {
+      "route": "clients/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "client"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "clients/[id]/analyses",
+      "method": "POST",
+      "events": [
+        {
+          "action": "analysis_run",
+          "subEntity": "analysis"
+        }
+      ],
+      "failure": "server",
+      "note": "mevcut AŞAMA-1 çağrısı korunur (legacyEventType analysis_created); tek olay"
+    },
+    {
+      "route": "clients/[id]/analyses",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "analysis"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "clients/[id]/analyses",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "analysis"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "clients/[id]/analyses/upload-image",
+      "method": "POST",
+      "exempt": "analiz kaydetme sonrası otomatik (fire-and-forget) çakra görsel snapshot'ı; ayrı kullanıcı eylemi değil — analiz kaydı olayı (analysis_run/record_updated) zaten sayılır, tek eylem = tek olay"
+    },
+    {
+      "route": "clients/[id]/appointments",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "appointment"
+        }
+      ],
+      "failure": "server",
+      "note": "409 APPOINTMENT_IN_FUTURE dalında ayrıca action_failed(conflict)"
+    },
+    {
+      "route": "clients/[id]/cascade-delete",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "client"
+        }
+      ],
+      "failure": "server",
+      "note": "tek olay; cascade edilen alt kayıtlar ayrıca sayılmaz"
+    },
+    {
+      "route": "clients/[id]/charges",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "charge"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "clients/[id]/charges",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "charge"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "clients/[id]/charges",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "charge"
+        }
+      ],
+      "failure": "server",
+      "note": "0 satır silindiyse olay yok"
+    },
+    {
+      "route": "clients/[id]/combinations",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "combination"
+        }
+      ],
+      "failure": "server",
+      "note": "DUPLICATE_NAME 409 dalında ayrıca action_failed(conflict)"
+    },
+    {
+      "route": "clients/[id]/combinations/[combinationId]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "combination"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "clients/[id]/combinations/[combinationId]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "combination"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "clients/[id]/consents",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "consent"
+        }
+      ],
+      "failure": "server",
+      "note": "append-only onam kaydı"
+    },
+    {
+      "route": "clients/[id]/homeworks",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "homework"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "clients/[id]/homeworks",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "homework"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "clients/[id]/homeworks",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "homework"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "clients/[id]/notes",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "note"
+        }
+      ],
+      "failure": "server",
+      "note": "upsert (danışan başına tek satır) → record_updated; NOTES_CONFLICT 409 dalında ayrıca action_failed(conflict)"
+    },
+    {
+      "route": "clients/[id]/sessions",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "session"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "clients/[id]/sessions",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "session"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "clients/[id]/sessions",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "session"
+        }
+      ],
+      "failure": "server",
+      "note": "0 satır silindiyse olay yok"
+    },
+    {
+      "route": "clients/[id]/stone-photos",
+      "method": "POST",
+      "events": [
+        {
+          "action": "file_uploaded",
+          "subEntity": "photo"
+        }
+      ],
+      "failure": "server",
+      "note": "tarayıcı signed-upload sonrası metadata bağlama = yükleme tamamlandı; dedup dalı olay yazmaz; obje yok 409 dalında action_failed(conflict)"
+    },
+    {
+      "route": "clients/[id]/stone-photos",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "photo"
+        }
+      ],
+      "failure": "server",
+      "note": "tek foto veya all=true → tek olay + itemCount; 0 silindiyse olay yok"
+    },
+    {
+      "route": "clients/[id]/stone-photos/prepare",
+      "method": "POST",
+      "exempt": "upload prepare: yalnız kısa ömürlü signed upload URL üretir; yükleme olayı metadata POST'unda (file_uploaded) sayılır"
+    },
+    {
+      "route": "clients/[id]/stone-photos/signed-urls",
+      "method": "POST",
+      "exempt": "okuma: imzalı görüntüleme URL'i üretir"
+    },
+    {
+      "route": "clients/[id]/stones",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "stone"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "clients/[id]/stones",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "stone"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "clients/[id]/stones",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "stone"
+        }
+      ],
+      "failure": "server",
+      "note": "taş + fotoğrafları tek olay; 0 satır silindiyse olay yok"
+    },
+    {
+      "route": "clients/[id]/word-report",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "client",
+          "subEntities": [
+            "client",
+            "analysis"
+          ]
+        }
+      ],
+      "note": "sunucu DOCX; tab/date-range/full → subEntity client, single-analysis → subEntity analysis; ana DB-hata 500 dalı yok (okuma hataları 404)"
+    },
+    {
+      "route": "clients/[id]/yasam-hafizasi/search",
+      "method": "POST",
+      "exempt": "Yaşam Hafızası ayrı sistem; Usage360 modül kapsamı dışında"
+    },
+    {
+      "route": "clients/[id]/yasam-hafizasi/snapshots",
+      "method": "POST",
+      "exempt": "Yaşam Hafızası ayrı sistem; Usage360 modül kapsamı dışında"
+    },
+    {
+      "route": "clients/[id]/yasam-hafizasi/snapshots",
+      "method": "DELETE",
+      "exempt": "Yaşam Hafızası ayrı sistem; Usage360 modül kapsamı dışında"
+    },
+    {
+      "route": "clients/word-report-bulk",
+      "method": "POST",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "client"
+        }
+      ],
+      "failure": "server",
+      "note": "toplu rapor tek olay + itemCount (danışan sayısı)"
+    }
+  ]
+}

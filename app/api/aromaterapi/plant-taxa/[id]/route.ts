@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   isUuid,
   isValidExpectedUpdatedAt,
@@ -9,7 +10,7 @@ import {
 import { readFail, readNotFound, readServerError } from "@/lib/aromaterapi/service/readErrors";
 import { getPlantTaxon } from "@/lib/aromaterapi/service/catalogReads";
 import { readJsonBounded } from "@/lib/aromaterapi/service/requestBody";
-import { updatePlantTaxon } from "@/lib/aromaterapi/service/catalogMethodMutations";
+import { updatePlantTaxon, CATALOG_METHOD_ERROR_HTTP } from "@/lib/aromaterapi/service/catalogMethodMutations";
 import {
   CATALOG_BODY_LIMITS,
   catalogBad,
@@ -126,5 +127,13 @@ export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Respon
       reason: reason.value as string,
     },
   );
+  if (!result.ok) {
+    const failStatus = CATALOG_METHOD_ERROR_HTTP[result.code];
+    if (failStatus >= 500 || failStatus === 409) {
+      await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_updated", subEntity: "plant_taxon", errorClass: failStatus === 409 ? "conflict" : "server" });
+    }
+  } else if (!result.noop) {
+    await trackUsage(guard, req, { module: "aromatherapy", action: "record_updated", subEntity: "plant_taxon", resourceId: id });
+  }
   return emitCatalogWrite(result, 200);
 }

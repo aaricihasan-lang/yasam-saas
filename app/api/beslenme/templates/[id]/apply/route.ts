@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson, resolveBeslenmeCapabilities } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { hasOnlyKeys, isUuid, inEnum } from "@/lib/beslenme/contracts";
@@ -63,7 +64,13 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   });
   if (error) {
     const m = mapRpcError(error.code);
+    const errorClass = usageErrorClassForStatus(m.status);
+    if (errorClass) {
+      await trackUsage(access, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "plan", errorClass });
+    }
     return beslenmeJson({ ok: false, code: m.code }, m.status);
   }
+  // Usage360: şablon hedef plana öğün/gün içeriği yazar → record_updated(plan).
+  await trackUsage(access, req, { module: "beslenme", action: "record_updated", subEntity: "plan", resourceId: body.target_plan_id as string });
   return NextResponse.json({ ok: true, result: data }, { status: 201 });
 }

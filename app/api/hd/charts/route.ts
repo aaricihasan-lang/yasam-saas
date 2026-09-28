@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   saveComputedChart,
   listComputedCharts,
@@ -98,6 +99,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (!ok) {
       return NextResponse.json({ ok: false, error: error ?? "Kaydedilemedi." }, { status: 400, headers: NO_STORE });
     }
+    // USAGE360: manuel harita upsert (danışan başına tek satır) — insert/update yolu route'ta
+    // bilinmiyor → record_updated (sözleşme §2).
+    await trackUsage(guard, req, { module: "human_design", action: "record_updated", subEntity: "chart", resourceId: id ?? `client:${clientId}` });
     return NextResponse.json({ ok: true, id: id ?? null }, { status: 200, headers: NO_STORE });
   }
 
@@ -132,11 +136,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
 
   if (!res.ok) {
+    if (res.status >= 500) {
+      await trackUsage(guard, req, { module: "human_design", action: "action_failed", failedAction: "record_created", subEntity: "chart", errorClass: "server" });
+    }
     return NextResponse.json(
       { ok: false, code: res.code, error: res.error },
       { status: res.status, headers: NO_STORE },
     );
   }
+  await trackUsage(guard, req, { module: "human_design", action: "record_created", subEntity: "chart", resourceId: res.id });
   return NextResponse.json({ ok: true, id: res.id }, { status: 200, headers: NO_STORE });
 }
 
@@ -216,6 +224,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   if (!ok) {
     return NextResponse.json({ ok: false, error: error ?? "Güncellenemedi." }, { status: 400, headers: NO_STORE });
   }
+  await trackUsage(guard, req, { module: "human_design", action: "record_updated", subEntity: "chart", resourceId: id });
   return NextResponse.json({ ok: true, id }, { status: 200, headers: NO_STORE });
 }
 
@@ -238,11 +247,13 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     if (mid) {
       const { ok, error } = await deleteManualChart(guard.db, guard.tenantId, mid);
       if (!ok) return NextResponse.json({ ok: false, error: error ?? "Silinemedi." }, { status: 400, headers: NO_STORE });
+      await trackUsage(guard, req, { module: "human_design", action: "record_deleted", subEntity: "chart", resourceId: mid });
       return NextResponse.json({ ok: true, deletedId: mid }, { status: 200, headers: NO_STORE });
     }
     if (clientId) {
       const { ok, error } = await deleteManualChartsByClient(guard.db, guard.tenantId, clientId);
       if (!ok) return NextResponse.json({ ok: false, error: error ?? "Silinemedi." }, { status: 400, headers: NO_STORE });
+      await trackUsage(guard, req, { module: "human_design", action: "record_deleted", subEntity: "chart", resourceId: `client:${clientId}` });
       return NextResponse.json({ ok: true, deletedClientId: clientId }, { status: 200, headers: NO_STORE });
     }
     return NextResponse.json(
@@ -266,5 +277,6 @@ export async function DELETE(req: NextRequest): Promise<Response> {
       { status: 400, headers: NO_STORE },
     );
   }
+  await trackUsage(guard, req, { module: "human_design", action: "record_deleted", subEntity: "chart", resourceId: id });
   return NextResponse.json({ ok: true, deletedId: id }, { status: 200, headers: NO_STORE });
 }

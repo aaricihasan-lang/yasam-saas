@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { isActiveTopicInTenant } from "@/lib/beslenme/topicGuard";
 import { TOPIC_SOURCE_COLUMNS, isUuid, hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -38,6 +39,14 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
     { table: "nutrition_topic_sources", parentColumn: "topic_id", parentId: topicId, columns: TOPIC_SOURCE_COLUMNS },
     body,
   );
-  if (!r.ok) return beslenmeJson({ ok: false, code: r.code === "NOT_FOUND" ? "TOPIC_OR_SOURCE_NOT_FOUND" : r.code }, r.status);
+  if (!r.ok) {
+    const errorClass = usageErrorClassForStatus(r.status);
+    if (errorClass) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "source_link", errorClass });
+    }
+    return beslenmeJson({ ok: false, code: r.code === "NOT_FOUND" ? "TOPIC_OR_SOURCE_NOT_FOUND" : r.code }, r.status);
+  }
+  // Usage360: bağ (+ opsiyonel yeni kaynak) = TEK eylem → record_created(source_link).
+  await trackUsage(guard, req, { module: "beslenme", action: "record_created", subEntity: "source_link", resourceId: typeof r.link.id === "string" ? r.link.id : null });
   return NextResponse.json({ ok: true, link: r.link, source: r.source }, { status: 201 });
 }

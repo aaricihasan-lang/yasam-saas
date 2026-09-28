@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createHash } from "node:crypto";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   STONE_PHOTOS_BUCKET,
   SIGNED_URL_TTL_SECONDS,
@@ -92,9 +94,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     .exists(path);
   if (existsError) {
     console.error("[sifa-rehberi/photos/finalize] exists check", existsError);
+    await trackUsage(guard, req, { module: "sifa_rehberi", action: "action_failed", failedAction: "file_uploaded", subEntity: "photo", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Dosya doğrulanamadı." }, { status: 500 });
   }
   if (!objectExists) {
+    await trackUsage(guard, req, { module: "sifa_rehberi", action: "action_failed", failedAction: "file_uploaded", subEntity: "photo", errorClass: "conflict" });
     return NextResponse.json({ ok: false, error: "Yüklenen dosya bulunamadı." }, { status: 409 });
   }
 
@@ -104,8 +108,18 @@ export async function POST(req: NextRequest): Promise<Response> {
     .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
   if (signErr || !signed?.signedUrl) {
     console.error("[sifa-rehberi/photos/finalize] createSignedUrl", signErr);
+    await trackUsage(guard, req, { module: "sifa_rehberi", action: "action_failed", failedAction: "file_uploaded", subEntity: "photo", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Önizleme üretilemedi." }, { status: 500 });
   }
+
+  // USAGE360: resourceId = storage yolunun sha256 özeti (ham yol / dosya adı telemetriye
+  // GİRMEZ; aynı objenin finalize retry'ı tek sayılır).
+  await trackUsage(guard, req, {
+    module: "sifa_rehberi",
+    action: "file_uploaded",
+    subEntity: "photo",
+    resourceId: createHash("sha256").update(path).digest("hex"),
+  });
 
   const name = typeof body.name === "string" && body.name.trim() ? body.name.trim() : "gorsel";
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { logServerError, serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { filterOwnedStonePhotoPaths } from "@/lib/clients/stonePhotoStorage";
 import { collectAnamnesisObjectPaths, removeObjects } from "@/lib/danisan/anamnez/server";
@@ -161,7 +162,13 @@ export async function DELETE(
 
   // DB delete başarısızsa ASLA ok:true dönme (storage'a da dokunulmadı).
   if (clientDelErr) {
-    return serverErrorResponse({ route: "clients/[id]/cascade-delete", action: "DELETE", tenantId, cause: clientDelErr });
+    return serverErrorResponse({
+      route: "clients/[id]/cascade-delete",
+      action: "DELETE",
+      tenantId,
+      cause: clientDelErr,
+      usage: { guard, req, module: "clients", failedAction: "record_deleted", subEntity: "client" },
+    });
   }
 
   // 3) DB COMMIT sonrası storage temizliği (best-effort, idempotent). Hata → sunucu
@@ -179,6 +186,9 @@ export async function DELETE(
       warnings.push("Danışan silindi ancak bazı ek dosyaların temizliği tamamlanamadı.");
     }
   }
+
+  // Tek kullanıcı eylemi = tek olay (cascade edilen alt kayıtlar ayrıca sayılmaz).
+  await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "client", resourceId: clientId });
 
   return NextResponse.json({ ok: true, warnings });
 }

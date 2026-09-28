@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { handleCompute } from "@/lib/human-design/api/handleCompute";
 
 export const runtime = "nodejs";
@@ -16,6 +17,11 @@ export const runtime = "nodejs";
  */
 
 const NO_STORE = { "Cache-Control": "no-store" } as const;
+
+/** Saf hesap (handleCompute) için ince async sınır — motor/doğrulama DEĞİŞMEZ. */
+async function runCompute(raw: unknown): Promise<ReturnType<typeof handleCompute>> {
+  return handleCompute(raw);
+}
 
 export async function POST(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "human_design");
@@ -34,7 +40,14 @@ export async function POST(req: NextRequest): Promise<Response> {
     );
   }
 
-  const result = handleCompute(raw);
+  const result = await runCompute(raw);
+  // USAGE360: yalnız BAŞARILI hesap analysis_run sayılır (stateless: kaynak id yok; doğum
+  // verisi telemetriye GİRMEZ). Motor hatası (500) → action_failed(server); 400 → olay yok.
+  if (result.status === 200) {
+    await trackUsage(guard, req, { module: "human_design", action: "analysis_run", subEntity: "chart" });
+  } else if (result.status >= 500) {
+    await trackUsage(guard, req, { module: "human_design", action: "action_failed", failedAction: "analysis_run", subEntity: "chart", errorClass: "server" });
+  }
   return NextResponse.json(result.body, { status: result.status, headers: NO_STORE });
 }
 

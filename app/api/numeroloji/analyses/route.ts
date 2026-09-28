@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
-import { recordUsageEvent, buildUsageIdempotencyKey } from "@/lib/usage/usageEvents";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -116,7 +116,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 export async function POST(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
-  const { db, tenantId, userId, is_demo_account } = guard;
+  const { db, tenantId, is_demo_account } = guard;
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
@@ -135,15 +135,18 @@ export async function POST(req: NextRequest): Promise<Response> {
     .select("id")
     .single();
 
-  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  if (error) {
+    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "analysis_run", subEntity: "analysis", errorClass: "server" });
+    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  }
   const newId = (data as { id: string }).id;
   // İP-2C: başarılı analiz oluşturma → usage event (server-resolved tenant/user; idempotent; throw etmez).
-  await recordUsageEvent(db, {
-    tenantId,
-    userId,
-    moduleKey: "numerology",
-    eventType: "analysis_created",
-    idempotencyKey: buildUsageIdempotencyKey("numerology", "analysis_created", newId),
+  await trackUsage(guard, req, {
+    module: "numerology",
+    action: "analysis_run",
+    subEntity: "analysis",
+    resourceId: newId,
+    legacyEventType: "analysis_created",
   });
   return NextResponse.json({ ok: true, id: newId });
 }
@@ -174,10 +177,14 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  if (error) {
+    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_updated", subEntity: "analysis", errorClass: "server" });
+    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  }
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Analiz kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "numerology", action: "record_updated", subEntity: "analysis", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }
 
@@ -211,10 +218,22 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .in("id", ids)
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  if (error) {
+    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_deleted", subEntity: "analysis", errorClass: "server" });
+    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  }
   const deleted = data?.length ?? 0;
   if (deleted === 0) {
     return NextResponse.json({ ok: false, error: "Analiz kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
-  return NextResponse.json({ ok: true, deleted, ids: (data ?? []).map((r) => (r as { id: string }).id) });
+  const deletedIds = (data ?? []).map((r) => (r as { id: string }).id);
+  // Toplu silme → TEK olay + itemCount.
+  await trackUsage(guard, req, {
+    module: "numerology",
+    action: "record_deleted",
+    subEntity: "analysis",
+    resourceId: [...deletedIds].sort().join(","),
+    itemCount: deleted,
+  });
+  return NextResponse.json({ ok: true, deleted, ids: deletedIds });
 }

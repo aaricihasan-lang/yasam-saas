@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { normalizeSearchText } from "@/lib/yasam-hafizasi/search/normalize";
 import {
@@ -79,10 +80,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const { data, error } = await db.from("nutrition_topics").insert(insert).select(TOPIC_COLUMNS).single();
   if (error) {
-    if (error.code === "23505") return beslenmeJson({ ok: false, code: "DUPLICATE_PROFILE" }, 409);
+    if (error.code === "23505") {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "topic", errorClass: "conflict" });
+      return beslenmeJson({ ok: false, code: "DUPLICATE_PROFILE" }, 409);
+    }
     if (error.code === "23503") return beslenmeJson({ ok: false, code: "FRAMEWORK_NOT_FOUND" }, 400);
     if (error.code === "23514") return beslenmeJson({ ok: false, code: "FRAMEWORK_INVARIANT" }, 400);
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "topic", errorClass: "server" });
     return beslenmeJson({ ok: false, code: "CREATE_FAILED" }, 500);
   }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_created", subEntity: "topic", resourceId: (data as { id?: string } | null)?.id ?? null });
   return NextResponse.json({ ok: true, topic: data }, { status: 201 });
 }

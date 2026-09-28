@@ -2,6 +2,7 @@
  * Numeroloji Görsel Rapor PNG export yardımcısı.
  * PDF export bilinçli olarak kaldırıldı; ana çıktı yalnızca PNG.
  */
+import { reportUsageClientFailure, reportUsageExport } from "@/lib/usage/usageBeaconClient";
 
 const PNG_EXPORT_STYLE_ID = "numeroloji-png-export-styles";
 
@@ -163,12 +164,20 @@ export async function gorselRaporuPngYakala(hedef: HTMLElement | null): Promise<
 /** Yüksek çözünürlüklü tam rapor PNG'si — dosyaya indirir. Başarısızlıkta Error fırlatır. */
 export async function gorselRaporuPngYakalaVeIndir(hedef: HTMLElement | null): Promise<void> {
   if (!hedef || typeof window === "undefined") return;
-  const dataUrl = await gorselRaporuPngYakala(hedef);
-  const a = document.createElement("a");
-  a.href = dataUrl;
-  a.download = "numeroloji-raporu.png";
-  a.rel = "noopener";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  try {
+    const dataUrl = await gorselRaporuPngYakala(hedef);
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = "numeroloji-raporu.png";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch (err) {
+    // Usage360: yalnız hata sınıfı (mesaj/stack YOK); davranış değişmez → yeniden fırlatılır.
+    reportUsageClientFailure("numerology", "client_export", "report_exported", "analysis");
+    throw err;
+  }
+  // Usage360: kullanıcı PNG'yi BAŞARIYLA indirdi (tarayıcıda üretilen dışa aktarım).
+  reportUsageExport("numerology", "analysis");
 }

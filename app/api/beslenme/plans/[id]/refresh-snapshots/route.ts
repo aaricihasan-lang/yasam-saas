@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { isUuid } from "@/lib/beslenme/planContracts";
@@ -54,7 +55,10 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   const r = await computeSnapshotRefresh(db, tenantId, id);
   if (!r.ok) return beslenmeJson({ ok: false, code: r.code }, r.status);
   if (!r.value.eligible) return beslenmeJson({ ok: false, code: "PLAN_NOT_DRAFT" }, 409);
-  if (r.value.changes.length !== body.expected_count) return beslenmeJson({ ok: false, code: "REFRESH_STALE" }, 409);
+  if (r.value.changes.length !== body.expected_count) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "plan", errorClass: "conflict" });
+    return beslenmeJson({ ok: false, code: "REFRESH_STALE" }, 409);
+  }
   if (r.value.payload.length === 0) return NextResponse.json({ ok: true, updated: 0 });
 
   const { data, error } = await db.rpc("nutrition_plan_refresh_item_snapshots", {
@@ -65,7 +69,15 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   if (error) {
     if (error.code === "45010") return beslenmeJson({ ok: false, code: "PLAN_NOT_DRAFT" }, 409);
     const m = mapRpcError(error.code);
+    const errorClass = usageErrorClassForStatus(m.status);
+    if (errorClass) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "plan", errorClass });
+    }
     return beslenmeJson({ ok: false, code: m.code }, m.status);
   }
-  return NextResponse.json({ ok: true, updated: Number(data ?? 0) });
+  const updated = Number(data ?? 0);
+  if (updated > 0) {
+    await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "plan", resourceId: id, itemCount: updated });
+  }
+  return NextResponse.json({ ok: true, updated });
 }

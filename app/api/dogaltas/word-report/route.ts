@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { safeJoin, safeLen } from "@/lib/dogaltas/reportSafe";
 import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
 import { hydrateCombinationStoneNames } from "@/lib/dogaltas/combinationStonesRead";
@@ -507,6 +508,16 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const buffer = await Packer.toBuffer(doc);
   const dateSlug = reportFileDate();
+
+  // Usage360: Word dosyası BAŞARIYLA üretildi → tek rapor olayı. Çok-bölümlü modül
+  // ansiklopedisi (taş/mineral/kombinasyon/bilgi) → tek bir konu alt-varlığı yok (null).
+  // Demo hesap requireDogaltasReportAccess'te zaten engellenir.
+  await trackUsage({ ...auth, is_demo_account: false }, req, {
+    module: "stones",
+    action: "report_generated",
+    subEntity: null,
+    resourceId: `encyclopedia:${Object.keys(sections).filter((k) => sections[k as keyof Sections]).sort().join("|")}:${Array.isArray(selectedStoneIds) ? [...selectedStoneIds].map(String).sort().join(",") : "all"}`,
+  });
 
   return new Response(new Uint8Array(buffer), {
     headers: {

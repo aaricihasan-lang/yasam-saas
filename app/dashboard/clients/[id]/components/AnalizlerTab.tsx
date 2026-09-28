@@ -12,6 +12,7 @@ import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { reportUsageExport, reportUsageClientFailure } from "@/lib/usage/usageBeaconClient";
 import { analysisTypeLabel } from "@/lib/clients/analysisLabels";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -347,8 +348,10 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
       pdf.save(`${safeFileName(clientName || "danisan")}-${safeFileName(activeTitleDisplay)}.pdf`);
       showToast({ title: t("toast.successTitle"), message: t("toast.pdfDownloaded"), type: "success" });
+      reportUsageExport("clients", "analysis");
     } catch (error) {
       console.error("PDF oluşturma hatası:", error);
+      reportUsageClientFailure("clients", "client_export", "report_exported", "analysis");
       showToast({ title: t("toast.failTitle"), message: t("toast.pdfFailed"), type: "error" });
     } finally { setCreatingPdf(false); }
   }

@@ -9,6 +9,8 @@ import { ToastProvider } from "@/components/ui/ToastProvider";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import PrivacyAnalytics from "@/components/analytics/PrivacyAnalytics";
 import AppLogoLink from "@/components/layout/AppLogoLink";
+import UsageTracker from "@/components/usage/UsageTracker";
+import { isUsage360Enabled } from "@/lib/usage/usageFlag";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -52,6 +54,8 @@ export default async function RootLayout({
               Vercel Analytics/Speed Insights URL'leri maskelenir (UUID/query yok). */}
           <GoogleAnalytics />
           <PrivacyAnalytics />
+          {/* Usage360: USAGE360_ENABLED (sunucu env, varsayılan KAPALI) false iken ağ isteği YOK. */}
+          <UsageTracker enabled={isUsage360Enabled()} />
           <ToastProvider>
             <ConfirmProvider>
               <DashboardNotifications />

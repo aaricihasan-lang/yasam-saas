@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronRight, Search } from "lucide-react";
 import { statsApi } from "@/lib/admin/stats/statsClient";
 import type { ExpertsData } from "@/lib/admin/stats/apiTypes";
-import { formatRelativeTr } from "@/lib/admin/stats/uiFormat";
+import { formatRelativeTr, isLastSeenBackfillArtifact } from "@/lib/admin/stats/uiFormat";
 import { SectionCard, LoadingBlock, ErrorBlock, EmptyBlock, Pagination, StatusPill } from "./ui";
 
 const STATUS_OPTS = [
@@ -84,7 +84,7 @@ export function ExpertsTab({ refreshKey, nowMs, onOpenExpert }: {
                   <th scope="col" className="py-2 pr-3 font-semibold">Ad Soyad</th>
                   <th scope="col" className="py-2 pr-3 font-semibold">Durum</th>
                   <th scope="col" className="py-2 pr-3 font-semibold">Son giriş</th>
-                  <th scope="col" className="py-2 pr-3 font-semibold">Son görülme ~</th>
+                  <th scope="col" className="py-2 pr-3 font-semibold">Son teknik temas ~</th>
                   <th scope="col" className="py-2 pr-3 font-semibold">Erişilebilir modül</th>
                   <th scope="col" className="py-2 font-semibold"><span className="sr-only">Detay</span></th>
                 </tr>
@@ -101,7 +101,12 @@ export function ExpertsTab({ refreshKey, nowMs, onOpenExpert }: {
                     </td>
                     <td className="py-2 pr-3"><StatusPill active={r.active} approvalStatus={r.approvalStatus} isArchived={r.isArchived} /></td>
                     <td className="py-2 pr-3 text-slate-700">{r.lastLoginAt ? formatRelativeTr(r.lastLoginAt, nowMs) : <span className="text-slate-400">—</span>}</td>
-                    <td className="py-2 pr-3 text-slate-500">{r.lastSeenAt ? formatRelativeTr(r.lastSeenAt, nowMs) : <span className="text-slate-400">—</span>}</td>
+                    <td className="py-2 pr-3 text-slate-500">
+                      {r.lastSeenAt ? formatRelativeTr(r.lastSeenAt, nowMs) : <span className="text-slate-400">—</span>}
+                      {isLastSeenBackfillArtifact(r.lastSeenAt) ? (
+                        <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800" title="27.09.2026 22:13 (TR) migration değeri — gerçek kullanım değil">artefakt</span>
+                      ) : null}
+                    </td>
                     <td className="py-2 pr-3 tabular-nums text-slate-700">{r.accessibleModuleCount}</td>
                     <td className="py-2 text-right">
                       <button type="button" onClick={() => onOpenExpert(r.userId)} aria-label={`${r.fullName || "uzman"} detayı`} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50">
@@ -113,7 +118,7 @@ export function ExpertsTab({ refreshKey, nowMs, onOpenExpert }: {
               </tbody>
             </table>
           </div>
-          <p className="mt-2 text-xs text-slate-400">Toplam {data.total} uzman · Son görülme ~ heartbeat (son giriş ile karıştırmayın).</p>
+          <p className="mt-2 text-xs text-slate-400">Toplam {data.total} uzman · Son teknik temas ~ korumalı sunucu isteğidir; gerçek kullanıcı etkileşimi anlamına gelmez (son giriş ile de karıştırmayın).</p>
           <Pagination page={data.page} totalPages={data.totalPages} onPage={setPage} />
         </>
       )}

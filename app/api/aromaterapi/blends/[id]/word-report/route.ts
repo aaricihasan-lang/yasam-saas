@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -37,9 +38,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   try {
     const res = await buildSingleBlendDoc(db, tenantId, id, { expertName: expertDisplayName(guard.profile), date: new Date() });
-    if (!res.ok) return NextResponse.json({ ok: false, error: res.error }, { status: res.status });
+    if (!res.ok) {
+      if (res.status >= 500) await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "report_generated", subEntity: "blend", errorClass: "server" });
+      return NextResponse.json({ ok: false, error: res.error }, { status: res.status });
+    }
+    // Usage360: DOCX tamponu BAŞARIYLA üretildikten sonra (rapor konusu alt-varlık).
+    await trackUsage(guard, req, { module: "aromatherapy", action: "report_generated", subEntity: "blend", resourceId: id });
     return docxResponse(res.buffer, res.filename);
   } catch {
+    await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "report_generated", subEntity: "blend", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Rapor oluşturulamadı." }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { createReportSnapshotFromChart } from "@/lib/human-design/reporting/reportSnapshotService";
 import { HD_REPORT_UNPUBLISHED_MESSAGE } from "@/lib/human-design/reporting/reportSnapshot";
@@ -66,6 +67,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!built.ok) {
     // Uzman yanıtında canonical anahtar ASLA yer almaz (admin fail-loud detayı korunur).
     const error = !isAdmin && built.code === "CANONICAL_MISSING" ? HD_REPORT_UNPUBLISHED_MESSAGE : built.error;
+    if (built.status >= 500) {
+      await trackUsage(guard, req, { module: "human_design", action: "action_failed", failedAction: "record_created", subEntity: "report", errorClass: "server" });
+    }
     return NextResponse.json({ ok: false, code: built.code, error }, { status: built.status, headers: NO_STORE });
   }
 
@@ -80,6 +84,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: saved.error ?? "Rapor kaydedilemedi." }, { status: 400, headers: NO_STORE });
   }
 
+  // USAGE360: donmuş snapshot KAYDI oluşturuldu → record_created (Word indirme ayrı eylem:
+  // /download → report_generated; burada rapor üretimi sayılmaz → çift sayım yok).
+  await trackUsage(guard, req, { module: "human_design", action: "record_created", subEntity: "report", resourceId: saved.id });
   return NextResponse.json(
     { ok: true, id: saved.id, omittedCount: built.snapshot.provenance.omitted?.length ?? 0 },
     { status: 200, headers: NO_STORE },

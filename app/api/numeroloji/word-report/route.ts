@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import {
   WORD_TAB_LABELS,
@@ -72,7 +73,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   else if (exportMode === "selected" && Array.isArray(ids) && ids.length > 0) query = query.in("id", ids);
 
   const { data, error } = await query.order("name");
-  if (error) return NextResponse.json({ ok: false, error: "Kayıtlar okunamadı." }, { status: 500 });
+  if (error) {
+    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "report_generated", subEntity: "analysis", errorClass: "server" });
+    return NextResponse.json({ ok: false, error: "Kayıtlar okunamadı." }, { status: 500 });
+  }
 
   const rows = (data || []) as WordRecordRow[];
   if (!rows.length) return Response.json({ ok: false, error: "Bu seçim için kayıt bulunamadı." }, { status: 404 });
@@ -131,6 +135,15 @@ export async function POST(req: NextRequest): Promise<Response> {
     : `Numeroloji_${rows.length}_Kayit_${selectedTabs.length === 1 ? WORD_TAB_LABELS[selectedTabs[0]!].replace(/[^A-Za-z0-9]+/g, "_") : "Secili_Bolumler"}.docx`;
 
   const emptyHeader = emptyTabs.map((t) => WORD_TAB_LABELS[t]).join("|");
+
+  // Usage360: Word dosyası BAŞARIYLA üretildi → tek rapor olayı (konu: analiz; çoklu → itemCount).
+  await trackUsage(guard, req, {
+    module: "numerology",
+    action: "report_generated",
+    subEntity: "analysis",
+    resourceId: rows.map((r) => r.id).sort().join(","),
+    itemCount: rows.length,
+  });
 
   return new Response(new Uint8Array(buffer), {
     headers: {

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { isUuid, validateMandatoryReason, resolveActorLabel } from "@/lib/aromaterapi/service/writeValidation";
 import { readJsonBounded } from "@/lib/aromaterapi/service/requestBody";
-import { appendMethodRevision } from "@/lib/aromaterapi/service/catalogMethodMutations";
+import { appendMethodRevision, CATALOG_METHOD_ERROR_HTTP } from "@/lib/aromaterapi/service/catalogMethodMutations";
 import { readFail, readNotFound, readServerError } from "@/lib/aromaterapi/service/readErrors";
 import { listMethodRevisions } from "@/lib/aromaterapi/service/methodReads";
 import {
@@ -100,5 +101,13 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<Respons
     { ...content.value, reason: reason.value as string },
     expected,
   );
+  if (!result.ok) {
+    const failStatus = CATALOG_METHOD_ERROR_HTTP[result.code];
+    if (failStatus >= 500 || failStatus === 409) {
+      await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_created", subEntity: "method", errorClass: failStatus === 409 ? "conflict" : "server" });
+    }
+  } else if (!result.noop) {
+    await trackUsage(guard, req, { module: "aromatherapy", action: "record_created", subEntity: "method", resourceId: result.revisionId ?? result.entityId });
+  }
   return emitCatalogWrite(result, 201);
 }

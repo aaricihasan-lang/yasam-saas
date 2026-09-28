@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES, ADVICE_TEMPLATE_WRITABLE } from "@/lib/cupping/fields";
 import {
   cuppingError,
@@ -59,7 +60,11 @@ export async function PATCH(
   let template: Record<string, unknown>;
   if (Object.keys(fields).length > 0) {
     const res = await updateEntity(db, CUPPING_TABLES.adviceTemplates, tenantId, id, fields);
-    if (!res.ok) return res.response;
+    if (!res.ok) {
+      const errorClass = usageErrorClassForStatus(res.response.status);
+      if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "advice_template", errorClass });
+      return res.response;
+    }
     template = res.data;
   } else if (wantsDefaultTrue && !archiving) {
     const own = await getEntity(db, CUPPING_TABLES.adviceTemplates, tenantId, id);
@@ -78,11 +83,14 @@ export async function PATCH(
     if (error) {
       const code = (error as { code?: string }).code ?? "";
       if (code === "45001") return cuppingError(404, "Kayıt bu hesaba ait değil veya bulunamadı.");
+      await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "advice_template", errorClass: "server" });
       return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
     }
     template = data as Record<string, unknown>;
   }
 
+  // Alan güncellemesi ve/veya varsayılan-yapma (set-default) → tek record_updated.
+  await trackUsage(guard, req, { module: "cupping", action: "record_updated", subEntity: "advice_template", resourceId: id });
   return NextResponse.json({ ok: true, template });
 }
 
@@ -99,6 +107,11 @@ export async function DELETE(
   // Şablon silinince: bağlı planlar advice_template_id=NULL; danışan snapshot'ları
   // source_template_id=NULL (metin KORUNUR) — DB SET NULL FK'leri ile.
   const res = await deleteEntity(db, CUPPING_TABLES.adviceTemplates, tenantId, id);
-  if (!res.ok) return res.response;
+  if (!res.ok) {
+    const errorClass = usageErrorClassForStatus(res.response.status);
+    if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_deleted", subEntity: "advice_template", errorClass });
+    return res.response;
+  }
+  if (res.data > 0) await trackUsage(guard, req, { module: "cupping", action: "record_deleted", subEntity: "advice_template", resourceId: id });
   return NextResponse.json({ ok: true, deleted: res.data });
 }

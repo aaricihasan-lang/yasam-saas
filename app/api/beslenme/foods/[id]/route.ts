@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, requireBeslenmeFoodRead, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import {
   FOOD_COLUMNS,
@@ -165,11 +166,16 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
     .select(FOOD_COLUMNS)
     .maybeSingle();
   if (error) {
-    if (error.code === "23505") return beslenmeJson({ ok: false, code: "DUPLICATE_NAME" }, 409);
+    if (error.code === "23505") {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "food", errorClass: "conflict" });
+      return beslenmeJson({ ok: false, code: "DUPLICATE_NAME" }, 409);
+    }
     if (error.code === "23503") return beslenmeJson({ ok: false, code: "FOOD_GROUP_NOT_FOUND" }, 400);
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "food", errorClass: "server" });
     return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
   }
   if (!data) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "food", resourceId: targetId });
   return NextResponse.json({ ok: true, food: data, food_id: targetId, personalized: wguard.forked });
 }
 
@@ -201,7 +207,10 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
   // Rehber kullanımı (kopya/özgün satır için) — kullanıcıya NEREDE kullanıldığını söyle.
   if (!isSystemNutritionTenant(eff.tenant_id)) {
     const topics = await inUse();
-    if (topics.length > 0) return beslenmeJson({ ok: false, code: "IN_USE", topics }, 409);
+    if (topics.length > 0) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_deleted", subEntity: "food", errorClass: "conflict" });
+      return beslenmeJson({ ok: false, code: "IN_USE", topics }, 409);
+    }
   }
 
   const { data, error } = await db.rpc("nutrition_food_remove", {
@@ -211,9 +220,15 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
   });
   if (error) {
     const m = mapFoodRpcError(error.code);
+    const errorClass = usageErrorClassForStatus(m.status);
+    if (errorClass) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_deleted", subEntity: "food", errorClass });
+    }
     if (m.code === "IN_USE") return beslenmeJson({ ok: false, code: "IN_USE", topics: await inUse() }, 409);
     return beslenmeJson({ ok: false, code: m.code === "WRITE_FAILED" ? "DELETE_FAILED" : m.code }, m.status);
   }
+  // Usage360: "Sil" (özgün → gerçek silme; sistem/kopya → çalışma alanından kaldırma) = record_deleted.
+  await trackUsage(guard, req, { module: "beslenme", action: "record_deleted", subEntity: "food", resourceId: eff.id });
   const action = (data as { action?: string } | null)?.action ?? "deleted";
   return NextResponse.json({ ok: true, deleted: true, action });
 }

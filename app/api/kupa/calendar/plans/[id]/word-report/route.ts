@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { CUPPING_TABLES } from "@/lib/cupping/fields";
 import {
@@ -92,12 +93,14 @@ export async function GET(
       template = tRes.data as unknown as CuppingAdviceTemplate; // Durum B
     } else if (tRes.response.status === 404) {
       // Durum C-1: bağlı şablon bulunamadı (silinmiş veya bu tenant'a ait değil). Ham tenant/id sızmaz.
+      await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "report_generated", subEntity: "calendar_plan", errorClass: "conflict" });
       return cuppingError(
         409,
         "Takvime bağlı bilgilendirme şablonu bulunamadı. Şablonu yeniden bağlayın veya bağlantısını kaldırın.",
       );
     } else {
       // Durum C-2: gerçek DB/erişim hatası. Ham Supabase mesajı gösterilmez.
+      await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "report_generated", subEntity: "calendar_plan", errorClass: "server" });
       return cuppingError(502, "Takvime bağlı bilgilendirme notları alınamadı. Lütfen tekrar deneyin.");
     }
   }
@@ -107,8 +110,11 @@ export async function GET(
   try {
     buffer = await buildCalendarPlanWordBuffer({ plan, days, template, month });
   } catch {
+    await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "report_generated", subEntity: "calendar_plan", errorClass: "server" });
     return cuppingError(500, "Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
   }
+  // .docx BAŞARIYLA üretildi → tek report_generated (DB yazımı yok; yalnız telemetri).
+  await trackUsage(guard, req, { module: "cupping", action: "report_generated", subEntity: "calendar_plan", resourceId: id });
 
   const filename = calendarWordFilename(plan, month);
   // ASCII fallback + RFC 5987 UTF-8 (Türkçe karakter güvenli).

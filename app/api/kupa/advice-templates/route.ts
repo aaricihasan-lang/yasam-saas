@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES, ADVICE_TEMPLATE_WRITABLE } from "@/lib/cupping/fields";
-import { cuppingError, insertEntity, listEntity, parseJsonBody, pickWritable } from "@/lib/cupping/api";
+import { cuppingError, insertEntity, listEntity, parseJsonBody, pickWritable, usageRowId } from "@/lib/cupping/api";
 
 export const runtime = "nodejs";
 
@@ -37,7 +38,13 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!String(fields.title ?? "").trim()) return cuppingError(400, "Şablon başlığı gerekli.");
 
   const ins = await insertEntity(db, CUPPING_TABLES.adviceTemplates, tenantId, fields);
-  if (!ins.ok) return ins.response;
+  if (!ins.ok) {
+    const errorClass = usageErrorClassForStatus(ins.response.status);
+    if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_created", subEntity: "advice_template", errorClass });
+    return ins.response;
+  }
+  // Şablon bu noktada KALICI (varsayılan-yapma adımı ayrı; başarısızlığı record_updated hatası).
+  await trackUsage(guard, req, { module: "cupping", action: "record_created", subEntity: "advice_template", resourceId: usageRowId(ins.data) });
 
   // is_default yalnız atomik RPC ile (partial-unique invariant; transient çift-varsayılan YOK).
   if (parsed.data.is_default === true) {
@@ -45,7 +52,10 @@ export async function POST(req: NextRequest): Promise<Response> {
       p_tenant_id: tenantId,
       p_template_id: (ins.data as { id: string }).id,
     });
-    if (error) return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
+    if (error) {
+      await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "advice_template", errorClass: "server" });
+      return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
+    }
     return NextResponse.json({ ok: true, template: data });
   }
 

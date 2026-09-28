@@ -3,6 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { buildOrIlike } from "@/lib/aromaterapi/service/readValidation";
 import { readJsonBounded } from "@/lib/aromaterapi/service/requestBody";
 import { pickWritableArticleFields, articleRequiredOk } from "@/lib/aromaterapi/articleFields";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -80,7 +81,9 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (error) {
     console.error("[aromaterapi:articles:create]", (error as { message?: unknown })?.message);
+    await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_created", subEntity: "article", errorClass: "server" });
     return writeFail("AROMA_WRITE_FAILED", 500);
   }
+  await trackUsage(guard, req, { module: "aromatherapy", action: "record_created", subEntity: "article", resourceId: String(data.id) });
   return NextResponse.json({ ok: true, id: data.id }, { status: 201 });
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES } from "@/lib/cupping/fields";
 import { normalizeCuppingDayStyle } from "@/lib/cupping/calendarTypes";
 import { cuppingError, deleteEntity, parseJsonBody, updateEntity } from "@/lib/cupping/api";
@@ -39,7 +40,12 @@ export async function PATCH(
 
   // Tenant-safe UPDATE (updateEntity id + tenant_id ile bağlar → cross-tenant IDOR engeli).
   const res = await updateEntity(db, CUPPING_TABLES.calendarPlanDays, tenantId, id, norm.fields);
-  if (!res.ok) return res.response;
+  if (!res.ok) {
+    const errorClass = usageErrorClassForStatus(res.response.status);
+    if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "calendar_day", errorClass });
+    return res.response;
+  }
+  await trackUsage(guard, req, { module: "cupping", action: "record_updated", subEntity: "calendar_day", resourceId: id });
   return NextResponse.json({ ok: true, day: res.data });
 }
 
@@ -54,6 +60,11 @@ export async function DELETE(
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deleted: 0 });
   const res = await deleteEntity(db, CUPPING_TABLES.calendarPlanDays, tenantId, id);
-  if (!res.ok) return res.response;
+  if (!res.ok) {
+    const errorClass = usageErrorClassForStatus(res.response.status);
+    if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_deleted", subEntity: "calendar_day", errorClass });
+    return res.response;
+  }
+  if (res.data > 0) await trackUsage(guard, req, { module: "cupping", action: "record_deleted", subEntity: "calendar_day", resourceId: id });
   return NextResponse.json({ ok: true, deleted: res.data });
 }

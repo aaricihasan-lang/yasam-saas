@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { isUnitAllowedForCategory, hasOnlyKeys, FOOD_COLUMNS } from "@/lib/beslenme/contracts";
 import { loadNutrientDict, loadUnitDict } from "@/lib/beslenme/foodEngine";
@@ -38,8 +39,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // 1) food
   const foodRes = await db.from("nutrition_foods").insert(built.foodInsert).select(FOOD_COLUMNS).single();
   if (foodRes.error) {
-    if (foodRes.error.code === "23505") return beslenmeJson({ ok: false, code: "DUPLICATE_NAME" }, 409);
+    if (foodRes.error.code === "23505") {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "food", errorClass: "conflict" });
+      return beslenmeJson({ ok: false, code: "DUPLICATE_NAME" }, 409);
+    }
     if (foodRes.error.code === "23503") return beslenmeJson({ ok: false, code: "FOOD_GROUP_NOT_FOUND" }, 400);
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "food", errorClass: "server" });
     return beslenmeJson({ ok: false, code: "CREATE_FAILED" }, 500);
   }
   const food = foodRes.data as { id: string };
@@ -56,6 +61,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const nutRes = await db.from("nutrition_food_nutrients").insert(rows);
     if (nutRes.error) {
       await rollback();
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "food", errorClass: "server" });
       return beslenmeJson({ ok: false, code: "NUTRIENT_WRITE_FAILED" }, 500);
     }
   }
@@ -65,9 +71,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const pRes = await db.from("nutrition_food_portions").insert({ ...built.portionRow, food_id: foodId });
     if (pRes.error) {
       await rollback();
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "food", errorClass: "server" });
       return beslenmeJson({ ok: false, code: "PORTION_WRITE_FAILED" }, 500);
     }
   }
+
+  // Usage360: besin + değerler + porsiyon = TEK kullanıcı eylemi → tek record_created(food).
+  await trackUsage(guard, req, { module: "beslenme", action: "record_created", subEntity: "food", resourceId: foodId });
 
   return NextResponse.json(
     { ok: true, food, nutrientCount: built.nutrientRows.length, portionCreated: built.portionRow != null },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   STONE_PHOTO_BUCKET,
@@ -164,6 +165,13 @@ export async function POST(
     return serverErrorResponse({ route: "clients/[id]/stone-photos", action: "POST-exists", tenantId, cause: existsError });
   }
   if (!objectExists) {
+    await trackUsage(guard, req, {
+      module: "clients",
+      action: "action_failed",
+      failedAction: "file_uploaded",
+      subEntity: "photo",
+      errorClass: "conflict",
+    });
     return NextResponse.json({ ok: false, error: "Yüklenen dosya bulunamadı." }, { status: 409 });
   }
 
@@ -199,8 +207,23 @@ export async function POST(
     .single();
 
   if (error) {
-    return serverErrorResponse({ route: "clients/[id]/stone-photos", action: "POST", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]/stone-photos",
+      action: "POST",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "file_uploaded", subEntity: "photo" },
+    });
   }
+
+  // Tarayıcı signed-upload'ı SONRASI metadata bağlama = yükleme tamamlandı (dedup dalı olay yazmaz).
+  const newPhotoId = (data as { id?: unknown } | null)?.id;
+  await trackUsage(guard, req, {
+    module: "clients",
+    action: "file_uploaded",
+    subEntity: "photo",
+    resourceId: newPhotoId != null ? String(newPhotoId) : null,
+  });
 
   return NextResponse.json({ ok: true, photo: data });
 }
@@ -252,10 +275,27 @@ export async function DELETE(
     all,
   });
   if (result.error) {
-    return serverErrorResponse({ route: "clients/[id]/stone-photos", action: "DELETE", tenantId, cause: result.error });
+    return serverErrorResponse({
+      route: "clients/[id]/stone-photos",
+      action: "DELETE",
+      tenantId,
+      cause: result.error,
+      usage: { guard, req, module: "clients", failedAction: "record_deleted", subEntity: "photo" },
+    });
   }
   if (!all && result.deleted === 0) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
+  }
+
+  // Tek foto veya "tümü" = tek kullanıcı eylemi → tek olay (+ itemCount); 0 silindi → olay yok.
+  if (result.deleted > 0) {
+    await trackUsage(guard, req, {
+      module: "clients",
+      action: "record_deleted",
+      subEntity: "photo",
+      resourceId: all ? null : photoId,
+      itemCount: result.deleted,
+    });
   }
 
   return NextResponse.json({ ok: true, deleted: result.deleted });

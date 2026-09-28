@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   updateClaim,
   resolveActorLabel,
@@ -207,8 +208,13 @@ export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Respon
   );
 
   if (!result.ok) {
-    return NextResponse.json({ ok: false, code: result.code }, { status: CLAIM_ERROR_HTTP[result.code] });
+    const failStatus = CLAIM_ERROR_HTTP[result.code];
+    if (failStatus >= 500 || failStatus === 409) {
+      await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_updated", subEntity: "claim", errorClass: failStatus === 409 ? "conflict" : "server" });
+    }
+    return NextResponse.json({ ok: false, code: result.code }, { status: failStatus });
   }
+  await trackUsage(guard, req, { module: "aromatherapy", action: "record_updated", subEntity: "claim", resourceId: result.claimId });
   return NextResponse.json(
     { ok: true, claim_id: result.claimId, warnings: result.warnings },
     { status: 200 },

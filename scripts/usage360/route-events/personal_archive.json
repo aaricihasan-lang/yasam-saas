@@ -1,0 +1,77 @@
+{
+  "module": "personal_archive",
+  "handlers": [
+    {
+      "route": "kisisel-arsiv",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "archive"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kisisel-arsiv",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "archive"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kisisel-arsiv",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "archive"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kisisel-arsiv/files",
+      "method": "POST",
+      "events": [
+        {
+          "action": "file_uploaded",
+          "subEntity": "file"
+        }
+      ],
+      "failure": "server",
+      "note": "geriye dönük JSON metadata hattı (aktif UI kullanmaz); tek olay + itemCount; ad/boyut/tür/yol GİRMEZ"
+    },
+    {
+      "route": "kisisel-arsiv/files",
+      "method": "DELETE",
+      "exempt": "arşiv silme akışının alt adımı (UI yalnız arşiv DELETE öncesi çağırır; tek kullanıcı eylemi = tek olay, olay kisisel-arsiv DELETE'te)"
+    },
+    {
+      "route": "kisisel-arsiv/files/upload",
+      "method": "POST",
+      "exempt": "upload prepare: imzalı yükleme yolu/token üretir (tamamlanma finalize'da sayılır)"
+    },
+    {
+      "route": "kisisel-arsiv/files/finalize",
+      "method": "POST",
+      "events": [
+        {
+          "action": "file_uploaded",
+          "subEntity": "file"
+        }
+      ],
+      "failure": "server",
+      "note": "resourceId = dosya satırı id; obje yok 409 → errorClass conflict"
+    },
+    {
+      "route": "kisisel-arsiv/files/cleanup",
+      "method": "POST",
+      "exempt": "bakım: finalize başarısız olan ORPHAN storage objesini temizler (metadata kaydı yok; kayıtlıysa 409)"
+    }
+  ]
+}

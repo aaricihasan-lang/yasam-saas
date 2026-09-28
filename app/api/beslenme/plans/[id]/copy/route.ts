@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { cleanStr, hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -42,7 +43,14 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   const { data, error } = await db.rpc("nutrition_plan_copy", {
     p_tenant_id: tenantId, p_source_plan_id: id, p_new_title: title, p_new_start_date: start,
   });
-  if (error) { const m = mapRpcError(error.code); return beslenmeJson({ ok: false, code: m.code }, m.status); }
+  if (error) {
+    const m = mapRpcError(error.code);
+    const errorClass = usageErrorClassForStatus(m.status);
+    if (errorClass) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "plan", errorClass });
+    }
+    return beslenmeJson({ ok: false, code: m.code }, m.status);
+  }
 
   const copied = data as { id?: string; plan_family_id?: string } | null;
   // CLIENT-ONLY + bağlı kaynak → kopyayı AYNI danışana bağla (erişim dead-end'i önle).
@@ -54,8 +62,11 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
     if (aErr) {
       // compensating delete: yeni family'nin tüm plan satırları (binding oluşmadı → cascade yok).
       await db.from("nutrition_plans").delete().eq("tenant_id", tenantId).eq("plan_family_id", copied.plan_family_id);
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "plan", errorClass: "server" });
       return beslenmeJson({ ok: false, code: "PLAN_BIND_FAILED" }, 500);
     }
   }
+  // Usage360: kopya YENİ plan ailesi üretir → record_created (tek olay; client-bind dahil).
+  await trackUsage(guard, req, { module: "beslenme", action: "record_created", subEntity: "plan", resourceId: copied?.id ?? null });
   return NextResponse.json({ ok: true, plan: data }, { status: 201 });
 }

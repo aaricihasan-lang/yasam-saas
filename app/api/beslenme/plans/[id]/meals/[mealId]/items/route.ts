@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { cleanStr, hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -51,6 +52,19 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
     p_snapshot: { ...snap.value.snapshot, note },
     p_nutrients: snap.value.nutrients,
   });
-  if (error) { const m = mapRpcError(error.code); return beslenmeJson({ ok: false, code: m.code }, m.status); }
+  if (error) {
+    const m = mapRpcError(error.code);
+    const errorClass = usageErrorClassForStatus(m.status);
+    if (errorClass) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "item", errorClass });
+    }
+    return beslenmeJson({ ok: false, code: m.code }, m.status);
+  }
+  await trackUsage(guard, req, {
+    module: "beslenme",
+    action: "record_created",
+    subEntity: "item",
+    resourceId: (data as { id?: string } | null)?.id ?? null,
+  });
   return NextResponse.json({ ok: true, item: { ...data, nutrients: snap.value.nutrients } }, { status: 201 });
 }

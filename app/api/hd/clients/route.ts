@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   listHdClients,
   getHdClient,
@@ -86,6 +87,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       { status: 400, headers: NO_STORE },
     );
   }
+  await trackUsage(guard, req, { module: "human_design", action: "record_created", subEntity: "client", resourceId: id });
   return NextResponse.json({ ok: true, id }, { status: 200, headers: NO_STORE });
 }
 
@@ -130,6 +132,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
       { status: 400, headers: NO_STORE },
     );
   }
+  await trackUsage(guard, req, { module: "human_design", action: "record_updated", subEntity: "client", resourceId: id });
   return NextResponse.json({ ok: true, id }, { status: 200, headers: NO_STORE });
 }
 
@@ -159,5 +162,6 @@ export async function DELETE(req: NextRequest): Promise<Response> {
       { status: 400, headers: NO_STORE },
     );
   }
+  await trackUsage(guard, req, { module: "human_design", action: "record_deleted", subEntity: "client", resourceId: id });
   return NextResponse.json({ ok: true, deletedId: id }, { status: 200, headers: NO_STORE });
 }

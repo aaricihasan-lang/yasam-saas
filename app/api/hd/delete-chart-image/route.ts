@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { isOwnedChartImagePath } from "@/lib/human-design/api/chartImagePath";
 
 export const runtime = "nodejs";
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (clientErr) {
     console.error("[hd/delete-chart-image] client lookup:", clientErr.message);
+    await trackUsage(guard, req, { module: "human_design", action: "action_failed", failedAction: "record_deleted", subEntity: "image", errorClass: "server" });
     return fail(500, "Danışan doğrulanamadı.");
   }
   if (!client) {
@@ -73,6 +75,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (updateError) {
     console.error("[hd/delete-chart-image] db update:", updateError.message);
+    await trackUsage(guard, req, { module: "human_design", action: "action_failed", failedAction: "record_deleted", subEntity: "image", errorClass: "server" });
     return fail(500, "Görsel kaydı temizlenemedi.");
   }
 
@@ -86,5 +89,14 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
   }
 
+  // USAGE360: yalnız gerçekten bir görsel kaydı vardıysa (boş alanı temizleme = no-op → olay yok).
+  // resourceId = path'in son segmentindeki sunucu üretimli nesne kimliği (yalnız HMAC; path saklanmaz).
+  if (currentPath) {
+    // Legacy public URL (sahip-path değil) → danışan tabanlı anahtar (URL segmenti kullanılmaz).
+    const objectId = isOwnedChartImagePath(currentPath, guard.tenantId, clientId)
+      ? (currentPath.split("/").pop() ?? "").replace(/\.[a-z0-9]+$/i, "") || `client:${clientId}`
+      : `client:${clientId}`;
+    await trackUsage(guard, req, { module: "human_design", action: "record_deleted", subEntity: "image", resourceId: objectId });
+  }
   return NextResponse.json({ ok: true }, { status: 200, headers: NO_STORE });
 }

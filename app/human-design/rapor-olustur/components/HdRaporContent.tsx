@@ -26,6 +26,7 @@ import { getReportById } from "../../kayitli-raporlar/helpers/hdKayitliRaporlar"
 import type { HumanDesignChart } from "@/lib/human-design/types";
 import { GateTechnicalInfo } from "../../components/GateTechnicalInfo";
 import { exportHdReportDocx } from "../helpers/exportHdReportDocx";
+import { reportUsageExport, reportUsageClientFailure } from "@/lib/usage/usageBeaconClient";
 import { HdUnsavedChangesDialog, type UnsavedAction } from "./HdUnsavedChangesDialog";
 import { HdMissingChartInfoBanner, detectMissingChartInfo } from "./HdMissingChartInfoBanner";
 import { useUnsavedGuard } from "../hooks/useUnsavedGuard";
@@ -440,9 +441,12 @@ export function HdRaporContent() {
         clientName,
         reportText: editedText,
       });
+      // USAGE360: tarayıcıda üretilen Word başarıyla indirildi (yalnız enum; içerik/ad YOK).
+      reportUsageExport("human_design", "report");
       showToast({ message: "Word raporu indirildi.", type: "success" });
     } catch (err) {
       console.error("[WordExport]", err);
+      reportUsageClientFailure("human_design", "client_export", "report_exported", "report");
       showToast({ message: "Word dosyası oluşturulamadı.", type: "error" });
     } finally {
       setExporting(false);

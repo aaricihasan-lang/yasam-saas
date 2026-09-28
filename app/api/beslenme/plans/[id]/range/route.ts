@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -35,6 +36,14 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   const { data, error } = await db.rpc("nutrition_plan_sync_range", {
     p_tenant_id: tenantId, p_plan_id: id, p_start_date: start, p_end_date: end,
   });
-  if (error) { const m = mapRpcError(error.code); return beslenmeJson({ ok: false, code: m.code }, m.status); }
+  if (error) {
+    const m = mapRpcError(error.code);
+    const errorClass = usageErrorClassForStatus(m.status);
+    if (errorClass) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "plan", errorClass });
+    }
+    return beslenmeJson({ ok: false, code: m.code }, m.status);
+  }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "plan", resourceId: id });
   return NextResponse.json({ ok: true, plan: data });
 }

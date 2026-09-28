@@ -10,6 +10,14 @@
  */
 
 /** Metrik kapsamı — KARAR 1: giriş/etkinlik user; kayıt/depolama workspace. */
+/**
+ * 27.09.2026 19:13 UTC (22:13 TR): migration 20270129000200 backfill'i o an AKTİF olan tüm
+ * oturumların last_seen_at değerini "şimdi" yaptı (prod: 258 aktif oturumun 252'si). Bu andaki
+ * değerler gerçek kullanım DEĞİLDİR; daha öncesinde last_seen_at = giriş anıydı (touch çalışmıyordu).
+ */
+export const LAST_SEEN_BACKFILL_ARTIFACT_AT = "2026-09-27T19:13:00Z";
+export const LAST_SEEN_BACKFILL_ARTIFACT_TR = "27.09.2026 22:13 (TR)";
+
 export type MetricScope = "user" | "workspace" | "system";
 
 /** Güvenilirlik durumu. */

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { validateAppointmentCreate } from "@/lib/danisan/appointmentRules";
 import { advanceClientGorusme } from "@/lib/danisan/appointmentGorusme";
@@ -114,6 +115,15 @@ export async function POST(
   const now = new Date();
   const verdict = validateAppointmentCreate(sanitizePayload(body), now);
   if (!verdict.ok) {
+    if (verdict.status === 409) {
+      await trackUsage(guard, req, {
+        module: "clients",
+        action: "action_failed",
+        failedAction: "record_created",
+        subEntity: "appointment",
+        errorClass: "conflict",
+      });
+    }
     return NextResponse.json(
       { ok: false, code: verdict.code, error: verdict.error },
       { status: verdict.status },
@@ -128,13 +138,27 @@ export async function POST(
     .single();
 
   if (error) {
-    return serverErrorResponse({ route: "clients/[id]/appointments", action: "POST", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]/appointments",
+      action: "POST",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "record_created", subEntity: "appointment" },
+    });
   }
 
   let gorusme: string | null = null;
   if (fields.status === "tamamlandi") {
     gorusme = await advanceClientGorusme(db, tenantId, clientId, fields.appointment_date, now);
   }
+
+  const newAppointmentId = (data as { id?: unknown } | null)?.id;
+  await trackUsage(guard, req, {
+    module: "clients",
+    action: "record_created",
+    subEntity: "appointment",
+    resourceId: newAppointmentId != null ? String(newAppointmentId) : null,
+  });
 
   return NextResponse.json({ ok: true, appointment: data, ...(gorusme ? { gorusme } : {}) });
 }

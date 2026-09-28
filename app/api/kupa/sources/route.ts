@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES, SOURCE_WRITABLE } from "@/lib/cupping/fields";
-import { insertEntity, listEntity, parseJsonBody, pickWritable } from "@/lib/cupping/api";
+import { insertEntity, listEntity, parseJsonBody, pickWritable, usageRowId } from "@/lib/cupping/api";
 
 export const runtime = "nodejs";
 
@@ -31,6 +32,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Kaynak adı gerekli." }, { status: 400 });
   }
   const res = await insertEntity(db, CUPPING_TABLES.sources, tenantId, fields);
-  if (!res.ok) return res.response;
+  if (!res.ok) {
+    const errorClass = usageErrorClassForStatus(res.response.status);
+    if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_created", subEntity: "source", errorClass });
+    return res.response;
+  }
+  await trackUsage(guard, req, { module: "cupping", action: "record_created", subEntity: "source", resourceId: usageRowId(res.data) });
   return NextResponse.json({ ok: true, source: res.data });
 }

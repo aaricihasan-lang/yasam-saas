@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { parseListParams } from "@/lib/aromaterapi/service/readValidation";
 import { readFail, readListOk, readServerError } from "@/lib/aromaterapi/service/readErrors";
 import { listSources, SOURCE_STATUS, SOURCE_TYPES } from "@/lib/aromaterapi/service/sourceReads";
 import { readJsonBounded } from "@/lib/aromaterapi/service/requestBody";
 import { validateCreateReason, resolveActorLabel } from "@/lib/aromaterapi/service/writeValidation";
-import { createSource, emitSourceWrite } from "@/lib/aromaterapi/service/sourceMutations";
+import { createSource, emitSourceWrite, SOURCE_ERROR_HTTP } from "@/lib/aromaterapi/service/sourceMutations";
 import {
   catalogBad,
   catalogDemoForbidden,
@@ -131,5 +132,13 @@ export async function POST(req: NextRequest): Promise<Response> {
       reason: reason.value,
     },
   );
+  if (!result.ok) {
+    const failStatus = SOURCE_ERROR_HTTP[result.code];
+    if (failStatus >= 500 || failStatus === 409) {
+      await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_created", subEntity: "source", errorClass: failStatus === 409 ? "conflict" : "server" });
+    }
+  } else if (!result.noop) {
+    await trackUsage(guard, req, { module: "aromatherapy", action: "record_created", subEntity: "source", resourceId: result.entityId });
+  }
   return emitSourceWrite(result, 201);
 }

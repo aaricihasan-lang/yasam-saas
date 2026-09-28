@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES, CALENDAR_PLAN_WRITABLE } from "@/lib/cupping/fields";
 import { CUPPING_PLAN_YEAR_MIN, CUPPING_PLAN_YEAR_MAX } from "@/lib/cupping/calendarTypes";
 import {
@@ -80,6 +81,7 @@ export async function PATCH(
       });
       if (!existing.ok) return existing.response;
       if (existing.data.length > 0) {
+        await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "calendar_plan", errorClass: "conflict" });
         return cuppingError(
           409,
           "Bu planda seçili günler var; yıl değiştirilemez. Önce günleri kaldırın.",
@@ -98,7 +100,12 @@ export async function PATCH(
   }
 
   const res = await updateEntity(db, CUPPING_TABLES.calendarPlans, tenantId, id, fields);
-  if (!res.ok) return res.response;
+  if (!res.ok) {
+    const errorClass = usageErrorClassForStatus(res.response.status);
+    if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "calendar_plan", errorClass });
+    return res.response;
+  }
+  await trackUsage(guard, req, { module: "cupping", action: "record_updated", subEntity: "calendar_plan", resourceId: id });
   return NextResponse.json({ ok: true, plan: res.data });
 }
 
@@ -114,6 +121,11 @@ export async function DELETE(
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deleted: 0 });
   // Plan silinince seçili günler DB ON DELETE CASCADE ile birlikte silinir.
   const res = await deleteEntity(db, CUPPING_TABLES.calendarPlans, tenantId, id);
-  if (!res.ok) return res.response;
+  if (!res.ok) {
+    const errorClass = usageErrorClassForStatus(res.response.status);
+    if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_deleted", subEntity: "calendar_plan", errorClass });
+    return res.response;
+  }
+  if (res.data > 0) await trackUsage(guard, req, { module: "cupping", action: "record_deleted", subEntity: "calendar_plan", resourceId: id });
   return NextResponse.json({ ok: true, deleted: res.data });
 }

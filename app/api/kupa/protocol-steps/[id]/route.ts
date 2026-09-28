@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES, PROTOCOL_STEP_META_WRITABLE } from "@/lib/cupping/fields";
 import {
   assertCompositeRef,
@@ -66,7 +67,12 @@ export async function PATCH(
   }
 
   const res = await updateEntity(db, CUPPING_TABLES.protocolSteps, tenantId, id, fields);
-  if (!res.ok) return res.response;
+  if (!res.ok) {
+    const errorClass = usageErrorClassForStatus(res.response.status);
+    if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass });
+    return res.response;
+  }
+  await trackUsage(guard, req, { module: "cupping", action: "record_updated", subEntity: "protocol", resourceId: id });
   return NextResponse.json({ ok: true, step: res.data });
 }
 
@@ -81,6 +87,11 @@ export async function DELETE(
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deleted: 0 });
   const res = await deleteEntity(db, CUPPING_TABLES.protocolSteps, tenantId, id);
-  if (!res.ok) return res.response;
+  if (!res.ok) {
+    const errorClass = usageErrorClassForStatus(res.response.status);
+    if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass });
+    return res.response;
+  }
+  if (res.data > 0) await trackUsage(guard, req, { module: "cupping", action: "record_updated", subEntity: "protocol", resourceId: id });
   return NextResponse.json({ ok: true, deleted: res.data });
 }

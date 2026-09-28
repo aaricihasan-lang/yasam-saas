@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES, PROTOCOL_ENTRY_WRITABLE } from "@/lib/cupping/fields";
 import { cuppingError, deleteEntity, parseJsonBody, pickWritable, validateWritable } from "@/lib/cupping/api";
 
@@ -63,9 +64,11 @@ export async function PATCH(
     if (code === "45003") return cuppingError(400, "Seçilen bölge bu hesaba ait değil.");
     if (code === "45004") return cuppingError(400, "Çok fazla bölge seçildi.");
     if (code === "45005") return cuppingError(400, "Seçilen kaynak bu hesaba ait değil.");
+    await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass: "server" });
     return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
   }
 
+  await trackUsage(guard, req, { module: "cupping", action: "record_updated", subEntity: "protocol", resourceId: id });
   return NextResponse.json({ ok: true, entry: data });
 }
 
@@ -81,6 +84,11 @@ export async function DELETE(
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deleted: 0 });
   // entry_points FK ON DELETE CASCADE ile birlikte silinir.
   const res = await deleteEntity(db, CUPPING_TABLES.protocolEntries, tenantId, id);
-  if (!res.ok) return res.response;
+  if (!res.ok) {
+    const errorClass = usageErrorClassForStatus(res.response.status);
+    if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass });
+    return res.response;
+  }
+  if (res.data > 0) await trackUsage(guard, req, { module: "cupping", action: "record_updated", subEntity: "protocol", resourceId: id });
   return NextResponse.json({ ok: true, deleted: res.data });
 }

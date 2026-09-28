@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   deriveCurrentConsents,
   summarizeConsents,
@@ -160,8 +161,22 @@ export async function POST(
     if (isMissingTable(error)) return notReady();
     // Danışan tam bu arada silindiyse composite FK ihlali → 404.
     if (error.code === "23503") return notFound();
-    return serverErrorResponse({ route: "clients/[id]/consents", action: "POST", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]/consents",
+      action: "POST",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "record_created", subEntity: "consent" },
+    });
   }
+
+  const newConsentId = (data as { id?: unknown } | null)?.id;
+  await trackUsage(guard, req, {
+    module: "clients",
+    action: "record_created",
+    subEntity: "consent",
+    resourceId: newConsentId != null ? String(newConsentId) : null,
+  });
 
   return NextResponse.json({ ok: true, consent: data }, { status: 201, headers: NO_STORE });
 }

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import {
   reportRateLimit,
@@ -108,6 +109,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const { data, error } = await query.order("created_at", { ascending: false }).limit(MAX_EXPORT_RECORDS);
   if (error) {
     console.error("[subconscious-report] read failed:", error);
+    await trackUsage(guard, request, { module: "energy_body", action: "action_failed", failedAction: "report_generated", subEntity: "subconscious", errorClass: "server" });
     return Response.json({ ok: false, error: "Bilinçaltı sebepleri okunamadı." }, { status: 500 });
   }
 
@@ -188,6 +190,14 @@ export async function POST(request: NextRequest): Promise<Response> {
   });
 
   const buffer = await Packer.toBuffer(doc);
+  // USAGE360: rapor YALNIZ docx başarıyla üretildikten sonra sayılır (Android guard 403'ü olay değildir).
+  await trackUsage(guard, request, {
+    module: "energy_body",
+    action: "report_generated",
+    subEntity: "subconscious",
+    resourceId: exportMode === "single" && typeof id === "string" ? id : null,
+    itemCount: rows.length,
+  });
   const modeSlug =
     isSingle && rows[0]?.title ? slugify(rows[0].title) :
     exportMode === "selected" ? "secili" : "tumu";

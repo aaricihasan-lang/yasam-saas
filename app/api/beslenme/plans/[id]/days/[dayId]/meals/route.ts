@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { cleanStr, cleanNumber, hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -63,6 +64,15 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
       note: cleanStr(body.note, 4000),
     })
     .select(PLAN_MEAL_COLUMNS).single();
-  if (error) return beslenmeJson({ ok: false, code: "CREATE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "meal", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "CREATE_FAILED" }, 500);
+  }
+  await trackUsage(guard, req, {
+    module: "beslenme",
+    action: "record_created",
+    subEntity: "meal",
+    resourceId: (data as { id?: string } | null)?.id ?? null,
+  });
   return NextResponse.json({ ok: true, meal: { ...data, items: [] } }, { status: 201 });
 }

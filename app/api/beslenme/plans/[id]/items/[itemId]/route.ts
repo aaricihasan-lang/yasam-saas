@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { cleanStr, hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -55,7 +56,11 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
     const { data, error } = await db
       .from("nutrition_plan_items").update({ meal_id: target.id, sort_order: nextSort })
       .eq("tenant_id", tenantId).eq("id", itemId).select(PLAN_ITEM_COLUMNS).single();
-    if (error) return beslenmeJson({ ok: false, code: "MOVE_FAILED" }, 500);
+    if (error) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "item", errorClass: "server" });
+      return beslenmeJson({ ok: false, code: "MOVE_FAILED" }, 500);
+    }
+    await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "item", resourceId: itemId });
     const nutrients = await loadItemNutrients(db, tenantId, itemId);
     return NextResponse.json({ ok: true, item: { ...(data as unknown as Record<string, unknown>), nutrients } });
   }
@@ -90,7 +95,11 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
 
   const { data, error } = await db
     .from("nutrition_plan_items").update(patch).eq("tenant_id", tenantId).eq("id", itemId).select(PLAN_ITEM_COLUMNS).single();
-  if (error) return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "item", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
+  }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "item", resourceId: itemId });
   const nutrients = await loadItemNutrients(db, tenantId, itemId);
   return NextResponse.json({ ok: true, item: { ...(data as unknown as Record<string, unknown>), nutrients } });
 }
@@ -134,7 +143,15 @@ export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
     p_snapshot: { ...snap.value.snapshot, note },
     p_nutrients: snap.value.nutrients,
   });
-  if (error) { const m = mapRpcError(error.code); return beslenmeJson({ ok: false, code: m.code }, m.status); }
+  if (error) {
+    const m = mapRpcError(error.code);
+    const errorClass = usageErrorClassForStatus(m.status);
+    if (errorClass) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "item", errorClass });
+    }
+    return beslenmeJson({ ok: false, code: m.code }, m.status);
+  }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "item", resourceId: itemId });
   return NextResponse.json({ ok: true, item: { ...data, nutrients: snap.value.nutrients } });
 }
 
@@ -155,6 +172,10 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
   if (!scope || scope.plan_id !== id) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
 
   const { error } = await db.from("nutrition_plan_items").delete().eq("tenant_id", tenantId).eq("id", itemId);
-  if (error) return beslenmeJson({ ok: false, code: "DELETE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_deleted", subEntity: "item", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "DELETE_FAILED" }, 500);
+  }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_deleted", subEntity: "item", resourceId: itemId });
   return NextResponse.json({ ok: true });
 }

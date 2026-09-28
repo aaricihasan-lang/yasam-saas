@@ -3,6 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { validateGuideBody } from "@/lib/sifa-rehberi/limits";
 import { isSifaUuid } from "@/lib/sifa-rehberi/ids";
 import { serverErrorResponse } from "@/lib/sifa-rehberi/publicApiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -199,6 +200,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
     .select("id");
 
   if (error) {
+    await trackUsage(guard, req, { module: "sifa_rehberi", action: "action_failed", failedAction: "record_updated", subEntity: "guide", errorClass: "server" });
     return serverErrorResponse({ route: "sifa/guides/[id]", action: "PATCH", tenantId, cause: error });
   }
 
@@ -206,6 +208,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
     return NextResponse.json({ ok: false, notFound: true }, { status: 404 });
   }
 
+  await trackUsage(guard, req, { module: "sifa_rehberi", action: "record_updated", subEntity: "guide", resourceId: id });
   return NextResponse.json({ ok: true });
 }
 
@@ -239,6 +242,7 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<Response>
     .select("id");
 
   if (error) {
+    await trackUsage(guard, req, { module: "sifa_rehberi", action: "action_failed", failedAction: "record_deleted", subEntity: "guide", errorClass: "server" });
     return serverErrorResponse({ route: "sifa/guides/[id]", action: "DELETE", tenantId, cause: error });
   }
 
@@ -246,5 +250,6 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<Response>
     return NextResponse.json({ ok: false, notFound: true }, { status: 404 });
   }
 
+  await trackUsage(guard, req, { module: "sifa_rehberi", action: "record_deleted", subEntity: "guide", resourceId: id });
   return NextResponse.json({ ok: true });
 }

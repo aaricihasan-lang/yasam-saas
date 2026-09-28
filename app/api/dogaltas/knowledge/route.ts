@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -83,8 +84,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     is_active: true,
   };
 
-  const { error } = await db.from("stone_knowledge_articles").insert(payload);
-  if (error) return serverErrorResponse({ route: "dogaltas/knowledge", action: "POST", tenantId, cause: error });
+  // Usage360: yalnız yeni satır id'si geri okunur (idempotency); yanıt gövdesi değişmez.
+  const { data: inserted, error } = await db.from("stone_knowledge_articles").insert(payload).select("id");
+  if (error) return serverErrorResponse({ route: "dogaltas/knowledge", action: "POST", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_created", subEntity: "knowledge" } });
+  const newId = (inserted as { id: string }[] | null)?.[0]?.id ?? null;
+  await trackUsage(guard, req, { module: "stones", action: "record_created", subEntity: "knowledge", resourceId: newId });
   return NextResponse.json({ ok: true });
 }
 
@@ -121,10 +125,15 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   q = singleId ? q.eq("id", singleId) : q.in("id", bulkIds);
 
   const { data, error } = await q.select("id, title, content, category, sub_category");
-  if (error) return serverErrorResponse({ route: "dogaltas/knowledge", action: "PATCH", tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "dogaltas/knowledge", action: "PATCH", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_updated", subEntity: "knowledge" } });
 
   if (singleId && (!data || data.length === 0)) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+  }
+  const updatedIds = (data ?? []).map((r) => (r as { id: string }).id);
+  if (updatedIds.length > 0) {
+    // Usage360: tekli/toplu güncelleme → TEK olay (+ itemCount).
+    await trackUsage(guard, req, { module: "stones", action: "record_updated", subEntity: "knowledge", resourceId: [...updatedIds].sort().join(","), itemCount: updatedIds.length });
   }
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
@@ -155,6 +164,11 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .in("id", ids)
     .select("id");
 
-  if (error) return serverErrorResponse({ route: "dogaltas/knowledge", action: "DELETE", tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "dogaltas/knowledge", action: "DELETE", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_deleted", subEntity: "knowledge" } });
+  const deletedIds = (data ?? []).map((r) => (r as { id: string }).id);
+  if (deletedIds.length > 0) {
+    // Usage360: tekli/toplu silme → TEK olay + itemCount (hiçbiri silinmediyse olay yok).
+    await trackUsage(guard, req, { module: "stones", action: "record_deleted", subEntity: "knowledge", resourceId: [...deletedIds].sort().join(","), itemCount: deletedIds.length });
+  }
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }

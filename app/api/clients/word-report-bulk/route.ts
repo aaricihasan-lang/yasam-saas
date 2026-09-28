@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { Document, Packer } from "docx";
 import {
   bodyText,
@@ -133,7 +134,13 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const { data: clientData, error: clientError } = await clientQuery;
   if (clientError)
-    return serverErrorResponse({ route: "clients/word-report-bulk", action: "POST", tenantId, cause: clientError });
+    return serverErrorResponse({
+      route: "clients/word-report-bulk",
+      action: "POST",
+      tenantId,
+      cause: clientError,
+      usage: { guard, req, module: "clients", failedAction: "report_generated", subEntity: "client" },
+    });
 
   const clients = (clientData || []) as ClientRow[];
   if (!clients.length)
@@ -223,6 +230,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
 
   const buffer = await Packer.toBuffer(doc);
+  // Toplu rapor = tek kullanıcı eylemi → tek olay + itemCount (danışan sayısı).
+  await trackUsage(guard, req, { module: "clients", action: "report_generated", subEntity: "client", itemCount: clients.length });
   const modeSlug = exportMode === "selected" ? "secili" : exportMode === "filtered" ? "filtreli" : "tumu";
   const filename = `danisan-listesi-${modeSlug}-${dateSlug}.docx`;
 

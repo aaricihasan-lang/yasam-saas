@@ -69,6 +69,16 @@ function dbErrorResponse(error: unknown, ctx: "insert" | "update" | "delete"): N
   return cuppingError(500, DB_FAIL);
 }
 
+/**
+ * USAGE360 — yazılan satırın id'si (yalnız trackUsage idempotency'si için; HMAC'lanır,
+ * saklanmaz). Satır/RPC dönüşünde string/number id yoksa null.
+ */
+export function usageRowId(row: unknown): string | null {
+  if (!row || typeof row !== "object") return null;
+  const id = (row as { id?: unknown }).id;
+  return typeof id === "string" || typeof id === "number" ? String(id) : null;
+}
+
 /** Yalnız allowlist alanlarını al (tenant_id/id/provenance vb. ASLA). */
 export function pickWritable(
   body: Record<string, unknown>,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { isUuid } from "@/lib/dogaltas/validation";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -81,12 +82,13 @@ export async function PATCH(
   if (expectedUpdatedAt) query = query.eq("updated_at", expectedUpdatedAt);
   const { data, error } = await query.select("id, updated_at");
 
-  if (error) return serverErrorResponse({ route: "dogaltas/minerals/[id]", action: "PATCH", tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "dogaltas/minerals/[id]", action: "PATCH", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_updated", subEntity: "mineral" } });
   if (!data || data.length === 0) {
     if (expectedUpdatedAt) {
       const { data: exists } = await db
         .from("minerals").select("id").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
       if (exists) {
+        await trackUsage(guard, req, { module: "stones", action: "action_failed", failedAction: "record_updated", subEntity: "mineral", errorClass: "conflict" });
         return NextResponse.json(
           { ok: false, code: "conflict",
             error: "Bu kayıt başka bir oturumda güncellendi. Son verileri yenileyip değişikliklerinizi kontrol edin." },
@@ -96,6 +98,7 @@ export async function PATCH(
     }
     return NextResponse.json({ ok: false, error: "Mineral bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "stones", action: "record_updated", subEntity: "mineral", resourceId: id });
   return NextResponse.json({ ok: true, id, updated_at: (data[0] as { updated_at?: string }).updated_at });
 }
 
@@ -116,9 +119,10 @@ export async function DELETE(
     .eq("id", id).eq("tenant_id", tenantId)
     .select("id");
 
-  if (error) return serverErrorResponse({ route: "dogaltas/minerals/[id]", action: "DELETE", tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "dogaltas/minerals/[id]", action: "DELETE", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_deleted", subEntity: "mineral" } });
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Mineral bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "stones", action: "record_deleted", subEntity: "mineral", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }

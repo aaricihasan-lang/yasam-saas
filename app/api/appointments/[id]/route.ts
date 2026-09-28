@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { validateAppointmentPatch } from "@/lib/danisan/appointmentRules";
 import { advanceClientGorusme } from "@/lib/danisan/appointmentGorusme";
 
@@ -71,6 +72,15 @@ export async function PATCH(
     now,
   );
   if (!verdict.ok) {
+    if (verdict.status === 409) {
+      await trackUsage(guard, req, {
+        module: "appointments",
+        action: "action_failed",
+        failedAction: "record_updated",
+        subEntity: "appointment",
+        errorClass: "conflict",
+      });
+    }
     return NextResponse.json(
       { ok: false, code: verdict.code, error: verdict.error },
       { status: verdict.status },
@@ -86,7 +96,13 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
-    return serverErrorResponse({ route: "appointments/[id]", action: "PATCH", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "appointments/[id]",
+      action: "PATCH",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "appointments", failedAction: "record_updated", subEntity: "appointment" },
+    });
   }
   if (!data) {
     return NextResponse.json(
@@ -100,6 +116,8 @@ export async function PATCH(
   if (verdict.fields.status === "tamamlandi" && row.client_id) {
     gorusme = await advanceClientGorusme(db, tenantId, row.client_id, row.appointment_date, now);
   }
+
+  await trackUsage(guard, req, { module: "appointments", action: "record_updated", subEntity: "appointment", resourceId: appointmentId });
 
   return NextResponse.json({ ok: true, appointment: data, ...(gorusme ? { gorusme } : {}) });
 }
@@ -131,7 +149,18 @@ export async function DELETE(
     .select("id");
 
   if (error) {
-    return serverErrorResponse({ route: "appointments/[id]", action: "DELETE", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "appointments/[id]",
+      action: "DELETE",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "appointments", failedAction: "record_deleted", subEntity: "appointment" },
+    });
+  }
+
+  // Satır bulunmadıysa (0 silindi) değişiklik yok → olay yok.
+  if ((data?.length ?? 0) > 0) {
+    await trackUsage(guard, req, { module: "appointments", action: "record_deleted", subEntity: "appointment", resourceId: appointmentId });
   }
 
   return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });

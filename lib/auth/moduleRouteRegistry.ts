@@ -31,6 +31,10 @@ export const MODULE_ROUTE_PREFIXES: { prefix: string; key: ModuleGateKey }[] = [
   // Hacamat kuralları CRUD + PDF/Word rapor uçlarının tümü requireModuleAccess("cosmic_calendar")
   // taşır → gate kapsamına dahil (önceki "always-on bitişik" EXCLUDE'dan çıkarıldı).
   { prefix: "app/api/hacamat", key: "cosmic_calendar" },
+  // Aromaterapi: tüm route'lar requireModuleAccess(req, "aromatherapy") taşır (follow-up
+  // tamamlandı) → ertelenmiş sınıftan kapılı modül sınıfına taşındı. Yalnız envanter
+  // metadatası; çalışma zamanı yetki davranışı DEĞİŞMEZ.
+  { prefix: "app/api/aromaterapi", key: "aromatherapy" },
 ];
 
 /**
@@ -43,15 +47,13 @@ export const MODULE_ROUTE_PREFIXES: { prefix: string; key: ModuleGateKey }[] = [
  * verifyUserRequest ile korunuyor (kimlik/tenant) ama kişiye-özel modül izni ZORLANMIYOR.
  *
  * Envanter harness bunu AYRI bir sınıf olarak sayar ve görünür raporlar — gate varmış gibi
- * SAHTE PASS üretmez. Follow-up: güncel aromaterapi route'larına gate + bu kaydın kaldırılması.
+ * SAHTE PASS üretmez.
+ *
+ * GÜNCEL DURUM (Usage360 2B doğrulaması): aromaterapi route'larının TAMAMI
+ * requireModuleAccess(req, "aromatherapy") taşıdığından follow-up tamamlanmış sayılır ve
+ * MODULE_ROUTE_PREFIXES'e taşındı. Ertelenmiş modül kalmadı.
  */
-export const DEFERRED_MODULE_PREFIXES: { prefix: string; key: ModuleGateKey; reason: string }[] = [
-  {
-    prefix: "app/api/aromaterapi",
-    key: "aromatherapy",
-    reason: "parallel Aromatherapy workstream; server module gate intentionally deferred to isolated follow-up PR",
-  },
-];
+export const DEFERRED_MODULE_PREFIXES: { prefix: string; key: ModuleGateKey; reason: string }[] = [];
 
 /**
  * Modül-gate DIŞI prefix'ler (gerekçeli). Bunlar kişiye-özel modül verisi değildir;
@@ -63,6 +65,7 @@ export const EXCLUDED_API_PREFIXES: { prefix: string; reason: string }[] = [
   { prefix: "app/api/settings", reason: "kullanıcının KENDİ ayarları (verifyUserRequest; modül değil)" },
   { prefix: "app/api/register", reason: "public kayıt ucu" },
   { prefix: "app/api/location", reason: "paylaşımlı coğrafi yardımcı (geo)" },
+  { prefix: "app/api/usage", reason: "Usage360 kullanım telemetrisi beacon (verifyUserRequest binding; modül değil; izinsiz modül sinyali no-op; USAGE360_ENABLED kapalıyken 204 no-op)" },
   { prefix: "app/api/inngest", reason: "sistem webhook (kuyruk)" },
   { prefix: "app/api/yasam-hafizasi", reason: "merkezî Yaşam Hafızası motoru (BF-11 CDC; kendi auth'u)" },
   { prefix: "app/api/cosmic", reason: "yalnız cosmic/audit dev-diagnostic (prod'da 404, kimliksiz, hesaplama-yoğun); kullanıcı verisi yok — modül-gate dışı" },

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { computeBurc } from "@/lib/danisan/burc";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   createClientIdempotent,
   resolveCreateRequestId,
@@ -102,7 +103,23 @@ export async function POST(req: NextRequest): Promise<Response> {
   const result = await createClientIdempotent(db, tenantId, fields, requestId);
 
   if (result.kind === "error") {
-    return serverErrorResponse({ route: "clients", action: "POST", tenantId, cause: result.cause });
+    return serverErrorResponse({
+      route: "clients",
+      action: "POST",
+      tenantId,
+      cause: result.cause,
+      usage: { guard, req, module: "clients", failedAction: "record_created", subEntity: "client" },
+    });
+  }
+
+  // Usage360: yalnız gerçek oluşturma sayılır (idempotent replay = no-op, olay yok).
+  if (result.kind === "created") {
+    await trackUsage(guard, req, {
+      module: "clients",
+      action: "record_created",
+      subEntity: "client",
+      resourceId: result.client.id != null ? String(result.client.id) : null,
+    });
   }
 
   return NextResponse.json({

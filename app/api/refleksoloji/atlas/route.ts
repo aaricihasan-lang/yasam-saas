@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
 import { decideAtlasPut } from "@/lib/refleksoloji/atlasSyncCore";
+import { sameJsonContent } from "@/lib/refleksoloji/usageChange";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -100,7 +102,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .maybeSingle();
   if (curErr) {
-    return jsonServerError("atlas.PUT.read", curErr);
+    return jsonServerError("atlas.PUT.read", curErr, { usage: { guard, req, failedAction: "record_updated", subEntity: "atlas" } });
   }
 
   const decision = decideAtlasPut({
@@ -117,7 +119,16 @@ export async function PUT(req: NextRequest): Promise<Response> {
     allowEmpty,
   });
 
+  // USAGE360: aynı belge/organ listesi yeniden gönderildiyse (senkron tekrarı) yazma sürer
+  // ama kullanım olayı SAYILMAZ. Atlas tekil (tenant başına bir satır) → resourceId sabit
+  // "atlas" → debounce'lu ardışık kayıtlar 60 sn kovasında tek sayılır.
+  const usageAtlasChanged =
+    !cur ||
+    !sameJsonContent((cur as { document: unknown }).document, document) ||
+    !sameJsonContent((cur as { organ_list: unknown }).organ_list, organList);
+
   if (decision.kind === "conflict") {
+    await trackUsage(guard, req, { module: "reflexology", action: "action_failed", failedAction: "record_updated", subEntity: "atlas", errorClass: "conflict" });
     return NextResponse.json(
       {
         ok: false,
@@ -139,10 +150,14 @@ export async function PUT(req: NextRequest): Promise<Response> {
       .single();
     if (insErr) {
       // PK çakışması: başka istek araya insert etmiş → conflict (overwrite yok).
+      await trackUsage(guard, req, { module: "reflexology", action: "action_failed", failedAction: "record_updated", subEntity: "atlas", errorClass: "conflict" });
       return NextResponse.json(
         { ok: false, conflict: true, code: "ATLAS_STALE", error: "Atlas başka bir yerde oluşturuldu." },
         { status: 409 },
       );
+    }
+    if (usageAtlasChanged) {
+      await trackUsage(guard, req, { module: "reflexology", action: "record_updated", subEntity: "atlas", resourceId: "atlas" });
     }
     return NextResponse.json({ ok: true, updated_at: ins.updated_at });
   }
@@ -155,14 +170,18 @@ export async function PUT(req: NextRequest): Promise<Response> {
     .eq("updated_at", decision.expected)
     .select("updated_at");
   if (updErr) {
-    return jsonServerError("atlas.PUT.update", updErr);
+    return jsonServerError("atlas.PUT.update", updErr, { usage: { guard, req, failedAction: "record_updated", subEntity: "atlas" } });
   }
   if (!upd || upd.length === 0) {
+    await trackUsage(guard, req, { module: "reflexology", action: "action_failed", failedAction: "record_updated", subEntity: "atlas", errorClass: "conflict" });
     return NextResponse.json(
       { ok: false, conflict: true, code: "ATLAS_STALE", error: "Atlas eşzamanlı güncellendi." },
       { status: 409 },
     );
   }
 
+  if (usageAtlasChanged) {
+    await trackUsage(guard, req, { module: "reflexology", action: "record_updated", subEntity: "atlas", resourceId: "atlas" });
+  }
   return NextResponse.json({ ok: true, updated_at: upd[0].updated_at });
 }

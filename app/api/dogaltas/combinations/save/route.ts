@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { extractCombinationId, mapCombinationSaveRpcError } from "./errorMapping";
 
 export const runtime = "nodejs";
@@ -109,9 +110,12 @@ export async function POST(req: NextRequest): Promise<Response> {
     // Bilinen RPC iş kuralı ihlalleri → 4xx + sade mesaj (ham DB metni sızmaz).
     const known = mapCombinationSaveRpcError(error);
     if (known) {
+      if (known.status === 409) {
+        await trackUsage(guard, req, { module: "stones", action: "action_failed", failedAction: "record_created", subEntity: "combination", errorClass: "conflict" });
+      }
       return NextResponse.json({ ok: false, code: known.code, error: known.error }, { status: known.status });
     }
-    return serverErrorResponse({ route: "dogaltas/combinations/save", action: "POST", tenantId, cause: error });
+    return serverErrorResponse({ route: "dogaltas/combinations/save", action: "POST", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_created", subEntity: "combination" } });
   }
 
   // Sahte başarı yok: RPC geçerli bir combination id döndürmediyse 500.
@@ -124,5 +128,6 @@ export async function POST(req: NextRequest): Promise<Response> {
       cause: new Error("create_combination_with_stones: id yok"),
     });
   }
+  await trackUsage(guard, req, { module: "stones", action: "record_created", subEntity: "combination", resourceId: combinationId });
   return NextResponse.json({ ok: true, issue: name, id: combinationId });
 }

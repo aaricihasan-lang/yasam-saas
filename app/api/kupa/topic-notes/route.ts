@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES, TOPIC_NOTE_WRITABLE } from "@/lib/cupping/fields";
 import {
   assertOwnedRef,
@@ -103,7 +104,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     ...fields,
     topic_id: topicId,
   });
-  if (!ins.ok) return ins.response;
+  if (!ins.ok) {
+    const errorClass = usageErrorClassForStatus(ins.response.status);
+    if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_created", subEntity: "topic_note", errorClass });
+    return ins.response;
+  }
   const noteId = String((ins.data as Record<string, unknown>).id);
 
   if (pointIds.length > 0) {
@@ -117,9 +122,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (error) {
       // partial state bırakma: notu geri al (compensating delete).
       await db.from(CUPPING_TABLES.topicNotes).delete().eq("tenant_id", tenantId).eq("id", noteId);
+      await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_created", subEntity: "topic_note", errorClass: "server" });
       return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
     }
   }
 
+  await trackUsage(guard, req, { module: "cupping", action: "record_created", subEntity: "topic_note", resourceId: noteId });
   return NextResponse.json({ ok: true, note: { ...ins.data, point_ids: pointIds } });
 }

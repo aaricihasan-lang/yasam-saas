@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { validateAppointmentCreate } from "@/lib/danisan/appointmentRules";
 import { advanceClientGorusme } from "@/lib/danisan/appointmentGorusme";
 
@@ -85,6 +86,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   const now = new Date();
   const verdict = validateAppointmentCreate(body, now);
   if (!verdict.ok) {
+    if (verdict.status === 409) {
+      await trackUsage(guard, req, {
+        module: "appointments",
+        action: "action_failed",
+        failedAction: "record_created",
+        subEntity: "appointment",
+        errorClass: "conflict",
+      });
+    }
     return NextResponse.json(
       { ok: false, code: verdict.code, error: verdict.error },
       { status: verdict.status },
@@ -109,13 +119,27 @@ export async function POST(req: NextRequest): Promise<Response> {
     .single();
 
   if (error) {
-    return serverErrorResponse({ route: "appointments", action: "POST", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "appointments",
+      action: "POST",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "appointments", failedAction: "record_created", subEntity: "appointment" },
+    });
   }
 
   let gorusme: string | null = null;
   if (fields.status === "tamamlandi" && clientId) {
     gorusme = await advanceClientGorusme(db, tenantId, clientId, fields.appointment_date, now);
   }
+
+  const newAppointmentId = (data as { id?: unknown } | null)?.id;
+  await trackUsage(guard, req, {
+    module: "appointments",
+    action: "record_created",
+    subEntity: "appointment",
+    resourceId: newAppointmentId != null ? String(newAppointmentId) : null,
+  });
 
   return NextResponse.json({ ok: true, appointment: data, ...(gorusme ? { gorusme } : {}) });
 }
