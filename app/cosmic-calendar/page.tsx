@@ -5,21 +5,21 @@ import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
-import { getHijriDate, getHijriMonthYear } from "@/lib/cosmic/hijri";
+import { getHijriDate, getHijriMonthYear, hijriFromGregorian, HIJRI_METHOD_NOTE } from "@/lib/cosmic/hijri";
 import {
-  SUPPORT_START, SUPPORT_END_YEAR, SUPPORT_RANGE_LABEL,
-  clampToSupported, canNavigateMonth,
+  SUPPORT_START_KEY, SUPPORT_END_KEY, SUPPORT_RANGE_LABEL, OUT_OF_RANGE_MESSAGE, INVALID_DATE_MESSAGE,
+  clampDayToSupported, canNavigateMonth, isCalendarDaySupported, isRealCalendarDay, dayKey, localDayKey,
 } from "@/lib/cosmic/dateRange";
 import {
   getMoonPhase, getMoonSign,
   getMonthPhaseEvents, getUpcomingPhaseEvents,
   type UpcomingPhaseEvent,
 } from "@/lib/cosmic/moon";
-import { getPlanetaryHour, getDayRuler } from "@/lib/cosmic/planetary-hours";
+import { getPlanetaryHour, getDayRuler, locationDayAnchor } from "@/lib/cosmic/planetary-hours";
 import { toDateParam } from "./planetary-hours/plannerData";
 import {
-  getActiveRetros, getUpcomingRetros, getNextRetro, parseRetroDate,
-  RETRO_PERIODS,
+  getActiveRetros, getRetroStatus, getUpcomingRetros, getNextRetro, parseRetroDate,
+  getRetroPeriodsBetween, RETRO_PLANETS,
   type RetroPeriod, type PlanetName,
 } from "@/lib/cosmic/retro";
 import { getPlanetSigns } from "@/lib/cosmic/planets";
@@ -28,14 +28,14 @@ import { getDailyAspects, getPlanetLongitude, type AspectEvent, type AspectBody,
 import { getAspectMotion, getNearestPass, type AspectPass, type AspectMotionState } from "@/lib/cosmic/aspectMotion";
 import { getExactAspectsInRange, type ExactAspectHit } from "@/lib/cosmic/exactAspects";
 import {
-  getAllEclipses, getSolarCityVisibility, getLunarCityVisibility,
+  getUpcomingEclipses, getPastEclipses, getEclipsesBetween, getSolarCityVisibility, getLunarCityVisibility,
   type AnyEclipse, type LunarEclipse, type SolarCityVisibility, type LunarCityVisibility, type EclipseType, type EclipseObserver,
 } from "@/lib/cosmic/eclipses";
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { WORLD_LOCATIONS } from "@/lib/location/world";
 import { searchLocations, normalizeLocationQuery, type Location } from "@/lib/location";
 import { getUserLocationPref, saveUserLocationPref } from "@/lib/location/userLocationPref";
-import { formatInTimeZone, formatDateTimeInTimeZone, getTimeZoneOffsetMinutes, getZonedDayRange } from "@/lib/location/tz";
+import { formatInTimeZone, formatDateTimeInTimeZone, getTimeZoneOffsetMinutes, getZonedDayRange, zonedWallTimeToUtc } from "@/lib/location/tz";
 import { getCurrentVoidMoon, getUpcomingVoidMoonPeriods, getVoidMoonPeriods, type VoidMoonPeriod } from "@/lib/cosmic/voidMoon";
 import {
   getLunarDistanceSnapshot, getUpcomingLunarApsisEvents, getSupermoonEvents, getMicromoonEvents,
@@ -56,17 +56,30 @@ const DEFAULT_ECLIPSE_LOC_ID =
   ECLIPSE_LOCATIONS.find(l => l.name === "Ankara" && l.countryCode === "TR")?.id
   ?? ECLIPSE_LOCATIONS[0]?.id ?? "";
 
-const fmtAspectTime    = new Intl.DateTimeFormat("tr-TR", { timeZone: TR_TZ, hour: "2-digit", minute: "2-digit" });
-const fmtAspectDay     = new Intl.DateTimeFormat("tr-TR", { timeZone: TR_TZ, day: "numeric", month: "short" });
-const fmtAspectDayYear = new Intl.DateTimeFormat("tr-TR", { timeZone: TR_TZ, day: "numeric", month: "long", year: "numeric" });
+// G8-E: exact saat/gün etiketleri SEÇİLİ KONUMUN saat diliminde (zaman çizelgesiyle AYNI tz).
+const aspectFmtCache = new Map<string, { time: Intl.DateTimeFormat; day: Intl.DateTimeFormat; dayYear: Intl.DateTimeFormat }>();
+function aspectFormatters(tz: string) {
+  let f = aspectFmtCache.get(tz);
+  if (!f) {
+    f = {
+      time:    new Intl.DateTimeFormat("tr-TR", { timeZone: tz, hour: "2-digit", minute: "2-digit" }),
+      day:     new Intl.DateTimeFormat("tr-TR", { timeZone: tz, day: "numeric", month: "short" }),
+      dayYear: new Intl.DateTimeFormat("tr-TR", { timeZone: tz, day: "numeric", month: "long", year: "numeric" }),
+    };
+    aspectFmtCache.set(tz, f);
+  }
+  return f;
+}
 
-/** Exact saat etiketi — hassasiyet politikasına göre. Yavaş çiftlerde ASLA saat göstermez. */
-function exactAspectLabel(pass: AspectPass | null, selected: Date): { text: string; precision: string } {
+/** Exact saat etiketi — hassasiyet politikasına göre. Yavaş çiftlerde ASLA saat göstermez.
+ *  selectedDayLabel: seçili günün konum-tz'deki "gün ay yıl" etiketi (aynı gün kontrolü için). */
+function exactAspectLabel(pass: AspectPass | null, selectedDayLabel: string, tz: string): { text: string; precision: string } {
+  const { time: fmtAspectTime, day: fmtAspectDay, dayYear: fmtAspectDayYear } = aspectFormatters(tz);
   if (!pass) return { text: "Exact doğrulanamadı", precision: "" };
   if (pass.displayPrecision === "date") {
     return { text: `Tam tarih: ${fmtAspectDayYear.format(pass.exactAt)}`, precision: "Tarih hassasiyetinde" };
   }
-  const sameDay = fmtAspectDayYear.format(pass.exactAt) === fmtAspectDayYear.format(selected);
+  const sameDay = fmtAspectDayYear.format(pass.exactAt) === selectedDayLabel;
   const t = fmtAspectTime.format(pass.exactAt);
   return {
     text: sameDay ? `Tam: ${t}` : `Tam: ${fmtAspectDay.format(pass.exactAt)} ${t}`,
@@ -708,7 +721,8 @@ function getMonthMoonMarkers(year: number, month: number): Map<number, string> {
 /** Görüntülenen ay içindeki retro başlangıç günleri */
 function getMonthRetroMarkers(year: number, month: number): Map<number, RetroPeriod[]> {
   const map = new Map<number, RetroPeriod[]>();
-  for (const r of RETRO_PERIODS) {
+  const last = new Date(year, month + 1, 0).getDate();
+  for (const r of getRetroPeriodsBetween(dayKey(year, month + 1, 1), dayKey(year, month + 1, last))) {
     const s = parseRetroDate(r.start);
     if (s.getFullYear() === year && s.getMonth() === month) {
       const d = s.getDate();
@@ -718,17 +732,14 @@ function getMonthRetroMarkers(year: number, month: number): Map<number, RetroPer
   return map;
 }
 
+// G1: Hicri gün numaraları KANONİK Umm al-Qura kaynağından (tarayıcı Intl takvimi DEĞİL).
 function getMonthHijriDays(year: number, month: number): Map<number, number> {
   const map = new Map<number, number>();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  try {
-    const fmt = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura", { day: "numeric" });
-    for (let d = 1; d <= daysInMonth; d++) {
-      const parts = fmt.formatToParts(new Date(year, month, d));
-      const day   = parseInt(parts.find(p => p.type === "day")?.value ?? "0");
-      if (!isNaN(day)) map.set(d, day);
-    }
-  } catch {}
+  for (let d = 1; d <= daysInMonth; d++) {
+    const h = hijriFromGregorian(year, month + 1, d);
+    if (h) map.set(d, h.day);
+  }
   return map;
 }
 
@@ -771,6 +782,13 @@ function findPhaseInMonth(year: number, month: number, phaseName: string, from: 
   return { kind: "phase", name: found.name, emoji: found.emoji, date, daysFromNow };
 }
 
+/** G8-A/G7: arama sonucu gün → gerçek takvim günü + public aralık zorunlu (sessiz kaydırma/kelepçe YOK). */
+function daySearchResult(y: number, m0: number, d: number): SearchResult {
+  if (!isRealCalendarDay(y, m0 + 1, d)) return { kind: "error", message: INVALID_DATE_MESSAGE };
+  if (!isCalendarDaySupported(y, m0 + 1, d)) return { kind: "error", message: OUT_OF_RANGE_MESSAGE };
+  return { kind: "day", date: new Date(y, m0, d) };
+}
+
 function parseSearchQuery(query: string, from: Date): SearchResult {
   // Türkçe-güvenli normalize: büyük/küçük + diakritik bağımsız eşleşme (bkz. foldTR)
   const q = foldTR(query);
@@ -811,8 +829,8 @@ function parseSearchQuery(query: string, from: Date): SearchResult {
   const daysMatch = q.match(/^(\d+)\s*gun\s*sonra$/);
   if (daysMatch) {
     const n    = parseInt(daysMatch[1]!);
-    const base = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-    return { kind: "day", date: new Date(base.getFullYear(), base.getMonth(), base.getDate() + n) };
+    const t    = new Date(from.getFullYear(), from.getMonth(), from.getDate() + n);
+    return daySearchResult(t.getFullYear(), t.getMonth(), t.getDate());
   }
 
   // "15 Ağustos 2026"
@@ -820,16 +838,14 @@ function parseSearchQuery(query: string, from: Date): SearchResult {
   if (trDate) {
     const d = parseInt(trDate[1]!), mName = trDate[2]!, y = parseInt(trDate[3]!);
     const mIdx = MONTH_NAME_FOLDED[mName];
-    if (mIdx !== undefined && d >= 1 && d <= 31)
-      return { kind: "day", date: new Date(y, mIdx, Math.min(d, new Date(y, mIdx + 1, 0).getDate())) };
+    if (mIdx !== undefined) return daySearchResult(y, mIdx, d);
   }
 
   // "15.08.2026"
   const numDate = q.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
   if (numDate) {
     const d = parseInt(numDate[1]!), mo = parseInt(numDate[2]!) - 1, y = parseInt(numDate[3]!);
-    if (mo >= 0 && mo <= 11 && d >= 1 && d <= 31)
-      return { kind: "day", date: new Date(y, mo, Math.min(d, new Date(y, mo + 1, 0).getDate())) };
+    return daySearchResult(y, mo, d);
   }
 
   // Faz + ay kombinasyonu
@@ -839,16 +855,18 @@ function parseSearchQuery(query: string, from: Date): SearchResult {
 
   for (const key of Object.keys(PHASE_KEYWORDS))    { if (q.includes(foldTR(key))) { phaseKey  = key; break; } }
   for (const [name, idx] of Object.entries(MONTH_NAME_FOLDED)) { if (q.includes(name)) { monthIdx = idx; break; } }
-  const yearMatch = q.match(/\b(20\d\d)\b/);
+  const yearMatch = q.match(/\b(\d{4})\b/);
   if (yearMatch) yearVal = parseInt(yearMatch[1]!);
 
   if (phaseKey && monthIdx !== null) {
     const pd = PHASE_KEYWORDS[phaseKey]!;
     let yr = yearVal ?? from.getFullYear();
     if (!yearVal && monthIdx < from.getMonth()) yr++;
+    const inRange = (y: number) => isCalendarDaySupported(y, monthIdx + 1, 1);
+    if (!inRange(yr)) return { kind: "error", message: OUT_OF_RANGE_MESSAGE };
     const r = findPhaseInMonth(yr, monthIdx, pd.name, from);
     if (r) return r;
-    const r2 = findPhaseInMonth(yr + 1, monthIdx, pd.name, from);
+    const r2 = inRange(yr + 1) ? findPhaseInMonth(yr + 1, monthIdx, pd.name, from) : null;
     return r2 ?? { kind: "error", message: `${pd.name} ${MONTH_NAMES_TR[monthIdx]}'da bulunamadı.` };
   }
 
@@ -860,7 +878,7 @@ function parseSearchQuery(query: string, from: Date): SearchResult {
   if (monthIdx !== null) {
     let yr = yearVal ?? from.getFullYear();
     if (!yearVal && monthIdx < from.getMonth()) yr++;
-    return { kind: "day", date: new Date(yr, monthIdx, 1) };
+    return daySearchResult(yr, monthIdx, 1);
   }
 
   return {
@@ -871,7 +889,7 @@ function parseSearchQuery(query: string, from: Date): SearchResult {
 
 // Doğrulanmış veri destek aralığı: TEK KAYNAK → lib/cosmic/dateRange.ts (SUPPORT_START /
 // SUPPORT_END_YEAR / SUPPORT_RANGE_LABEL). UI, motor pencereleri (retro/sign-change/eclipse),
-// API ve testler AYNI sınırı kullanır. Navigasyon bu sınırı sert olarak aşamaz (clampToSupported).
+// API ve testler AYNI sınırı kullanır. Navigasyon bu sınırı sert olarak aşamaz (clampDayToSupported; tarih girişi kesin doğrulanır).
 
 // #418 hydration fix: statik prerender build-zamanını, client hydrate runtime saatini kullandığından
 // "şu an" metinleri (gezegen saati, geri sayımlar, güncel burç) sunucu↔client farklı olup React #418
@@ -896,6 +914,7 @@ export default function CosmicCalendarPage() {
   const [showHicriDays,    setShowHicriDays]    = useState(false);
   const [showOnemliGunler, setShowOnemliGunler] = useState(true);
   const [dateInput,        setDateInput]        = useState("");
+  const [dateJumpError,    setDateJumpError]    = useState<string | null>(null);
   const [searchQuery,      setSearchQuery]      = useState("");
   const [searchResult,     setSearchResult]     = useState<SearchResult>(null);
   const [showAllEvents,    setShowAllEvents]    = useState(false);
@@ -940,9 +959,10 @@ export default function CosmicCalendarPage() {
   useIsomorphicLayoutEffect(() => {
     const n = new Date();
     setRealNow(n);
-    setSelectedDate(new Date(n.getFullYear(), n.getMonth(), n.getDate()));
-    setViewYear(n.getFullYear());
-    setViewMonth(n.getMonth());
+    const sel = clampDayToSupported(n);
+    setSelectedDate(sel);
+    setViewYear(sel.getFullYear());
+    setViewMonth(sel.getMonth());
   }, []);
 
   // Gece yarısı güncellemesi — realNow yerel gece yarısında tazelenir; böylece üstteki
@@ -962,7 +982,7 @@ export default function CosmicCalendarPage() {
         // tarih seçtiyse (isSameDay false) dokunma. realNow'a bağımlı değil → ref gerekmez.
         const endedDay = new Date(n.getFullYear(), n.getMonth(), n.getDate() - 1);
         setSelectedDate(prev => isSameDay(prev, endedDay)
-          ? new Date(n.getFullYear(), n.getMonth(), n.getDate())
+          ? clampDayToSupported(n)
           : prev);
         schedule();
       }, Math.max(1000, nextMidnight.getTime() - now.getTime()));
@@ -1011,13 +1031,15 @@ export default function CosmicCalendarPage() {
   // Kapsam kontrolü TEK KAYNAK'tan (dateRange). Navigasyon kelepçesi sayesinde normal UI ile
   // aralık dışına çıkılamaz; bu bayraklar yine de savunma amaçlı gösterge/gate olarak kalır.
   const isAfterSupportEnd = useMemo(
-    () => selectedDate.getFullYear() > SUPPORT_END_YEAR,
+    () => localDayKey(selectedDate) > SUPPORT_END_KEY,
     [selectedDate],
   );
   const isBeforeSupportStart = useMemo(
-    () => selectedDate < SUPPORT_START,
+    () => localDayKey(selectedDate) < SUPPORT_START_KEY,
     [selectedDate],
   );
+  // G3: retro durumu (8 gezegen; kapsam dışı → "bilinmiyor", ASLA "direkt" değil).
+  const selectedRetroStatus = useMemo(() => getRetroStatus(selectedDate), [selectedDate]);
 
   // ── Güncel Gökyüzü — bugünkü (realNow) gezegen konumları ─────────────────
   const todayMoonSign  = useMemo(() => getMoonSign(realNow),        [realNow]);
@@ -1110,12 +1132,11 @@ export default function CosmicCalendarPage() {
   // ── Tutulmalar (FAZ 3A) — yalnız production engine; şehir bağımsız zenginleştirme ──
   // Feature D: referans tarih = SEÇİLİ GÜN (realNow değil). Bugün seçiliyse davranış eşdeğer;
   // ileri tarih (ör. 2028) seçilince liste 2026'dan değil seçili günden başlar. 10-limit ve
-  // 2050 hard cap korunur; astronomik motor (getAllEclipses, 2026–2050) DEĞİŞMEZ.
+  // Public aralık (2026–2100) motor tarafında uygulanır; liste lazy bloklardan (getUpcomingEclipses/getPastEclipses) gelir.
   const eclipseData = useMemo<EclipseRow[]>(() => {
-    const ref = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()).getTime();
-    const all = getAllEclipses();
-    const upcoming = all.filter(e => Date.parse(e.peakUTC) >= ref).slice(0, 10);
-    const past = all.filter(e => Date.parse(e.peakUTC) < ref).slice(-6).reverse();
+    const ref = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+    const upcoming = getUpcomingEclipses(ref, 10);
+    const past = getPastEclipses(ref, 6);
     const enrich = (e: AnyEclipse, period: EclipsePeriod): EclipseRow => {
       const vis = e.kind === "solar" ? getSolarCityVisibility(e.id) : getLunarCityVisibility(e.id);
       return { e, period, vis, visibleCount: vis.filter(v => v.visible).length, totalCities: vis.length };
@@ -1126,11 +1147,10 @@ export default function CosmicCalendarPage() {
   // criticalNow (realNow kritik olay şeridi) tutulma kontrolü — DISPLAY referansından (selectedDate)
   // BAĞIMSIZ olmalı. Bu yüzden şeridin bugünkü/yaklaşan tutulmasını doğrudan realNow'a göre türet.
   const realNowEclipses = useMemo(() => {
-    const all = getAllEclipses();
-    const nowMs = realNow.getTime();
+    const dayStart = new Date(realNow.getFullYear(), realNow.getMonth(), realNow.getDate()).getTime();
     return {
-      today:        all.find(e => isSameDay(new Date(Date.parse(e.peakUTC)), realNow)) ?? null,
-      nextUpcoming: all.find(e => Date.parse(e.peakUTC) >= nowMs) ?? null,
+      today:        getEclipsesBetween(dayStart, dayStart + 86_400_000)[0] ?? null,
+      nextUpcoming: getUpcomingEclipses(realNow, 1)[0] ?? null,
     };
   }, [realNow]);
 
@@ -1174,8 +1194,16 @@ export default function CosmicCalendarPage() {
   // offset'i (getTimeZoneOffsetMinutes, lib/location/tz.ts salt kullanım). Motor default UTC+3 →
   // İstanbul/TR birebir korunur; global şehirde yerel gün doğumu/batımı + haftanın günü doğru olur.
   const eclipseOffsetNow = useMemo(() => getTimeZoneOffsetMinutes(realNow, eclipseTz), [realNow, eclipseTz]);
-  const eclipseOffsetSel = useMemo(() => getTimeZoneOffsetMinutes(selectedDate, eclipseTz), [selectedDate, eclipseTz]);
-  const dayRuler = useMemo(() => getDayRuler(selectedDate, eclipseOffsetSel), [selectedDate, eclipseOffsetSel]);
+  // G2: seçili TAKVİM günü (Y/M/D) konumun IANA gününde yorumlanır → referans an = konumda o günün 12:00'si.
+  // Tarayıcı gece yarısı (selectedDate) konum offset'iyle KARIŞTIRILMAZ (Berlin/Londra/NY'de 1 gün kayma).
+  const selDayAnchor = useMemo(
+    () => locationDayAnchor(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), d => getTimeZoneOffsetMinutes(d, eclipseTz)),
+    [selectedDate, eclipseTz],
+  );
+  const eclipseOffsetSel = useMemo(() => getTimeZoneOffsetMinutes(selDayAnchor, eclipseTz), [selDayAnchor, eclipseTz]);
+  const dayRuler = useMemo(() => getDayRuler(selDayAnchor, eclipseOffsetSel), [selDayAnchor, eclipseOffsetSel]);
+  // Seçili günün konum-tz'deki uzun etiketi (exact açı "aynı gün" karşılaştırması — G8-E).
+  const selectedDayLabelTz = useMemo(() => aspectFormatters(eclipseTz).dayYear.format(selDayAnchor), [selDayAnchor, eclipseTz]);
   const ph = useMemo(
     () => getPlanetaryHour(realNow, selEclipseLoc?.lat, selEclipseLoc?.lon, eclipseOffsetNow),
     [realNow, selEclipseLoc, eclipseOffsetNow],
@@ -1191,9 +1219,10 @@ export default function CosmicCalendarPage() {
     const [hhRaw, mmRaw] = phTime.split(":");
     const hh = Number.parseInt(hhRaw ?? "12", 10);
     const mm = Number.parseInt(mmRaw ?? "0", 10);
-    const target = new Date(
+    // G2: seçilen HH:MM KONUMUN duvar saatidir (tarayıcı saati DEĞİL) → konum tz'sinde UTC ana çevrilir.
+    const target = zonedWallTimeToUtc(
       selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(),
-      Number.isFinite(hh) ? hh : 12, Number.isFinite(mm) ? mm : 0, 0, 0,
+      Number.isFinite(hh) ? hh : 12, Number.isFinite(mm) ? mm : 0, eclipseTz,
     );
     const offset = getTimeZoneOffsetMinutes(target, eclipseTz);
     const result = getPlanetaryHour(target, selEclipseLoc?.lat, selEclipseLoc?.lon, offset);
@@ -1599,41 +1628,35 @@ export default function CosmicCalendarPage() {
     if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0); }
     else setViewMonth(m => m + 1);
   }
-  function selectDay(day: number) { setSelectedDate(clampToSupported(new Date(viewYear, viewMonth, day))); }
+  function selectDay(day: number) { setSelectedDate(clampDayToSupported(new Date(viewYear, viewMonth, day))); }
   function navigateToDate(date: Date) {
-    const c = clampToSupported(new Date(date.getFullYear(), date.getMonth(), date.getDate()));
+    const c = clampDayToSupported(date);
     setViewYear(c.getFullYear()); setViewMonth(c.getMonth());
     setSelectedDate(c);
     setSearchQuery(""); setSearchResult(null);
   }
 
   // ── Tarih atlama ──────────────────────────────────────────────────────────
-  // Girilen tarih desteklenen aralığa kelepçelenir → 4 haneli herhangi bir yıl (1600/9999)
-  // artık sessiz yanlış veri üretemez; en yakın geçerli güne çekilir.
+  // G7/G8-A: Girilen tarih KESİN doğrulanır. Gerçek olmayan gün (31.02) veya public aralık dışı
+  // (ör. 01.01.2101) SESSİZCE kaydırılmaz/kelepçelenmez — açık doğrulama mesajı gösterilir.
+  function jumpTo(y: number, m0: number, d: number) {
+    if (!isRealCalendarDay(y, m0 + 1, d)) { setDateJumpError(INVALID_DATE_MESSAGE); return; }
+    if (!isCalendarDaySupported(y, m0 + 1, d)) { setDateJumpError(OUT_OF_RANGE_MESSAGE); return; }
+    setDateJumpError(null);
+    setViewYear(y); setViewMonth(m0);
+    setSelectedDate(new Date(y, m0, d));
+    setDateInput("");
+  }
   function handleDateJump() {
     const t = dateInput.trim();
     const m1 = t.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-    if (m1) {
-      const d = parseInt(m1[1]!), mo = parseInt(m1[2]!) - 1, y = parseInt(m1[3]!);
-      if (mo >= 0 && mo <= 11 && d >= 1 && d <= 31) {
-        const c = clampToSupported(new Date(y, mo, Math.min(d, new Date(y, mo + 1, 0).getDate())));
-        setViewYear(c.getFullYear()); setViewMonth(c.getMonth());
-        setSelectedDate(c);
-        setDateInput("");
-      }
-      return;
-    }
+    if (m1) { jumpTo(parseInt(m1[3]!), parseInt(m1[2]!) - 1, parseInt(m1[1]!)); return; }
     const m2 = t.match(/^(\d{1,2})\s+(\S+)\s+(\d{4})$/);
     if (m2) {
-      const d = parseInt(m2[1]!), y = parseInt(m2[3]!);
       const mIdx = MONTH_NAME_MAP[m2[2]!.toLowerCase() ?? ""];
-      if (mIdx !== undefined && d >= 1 && d <= 31) {
-        const c = clampToSupported(new Date(y, mIdx, Math.min(d, new Date(y, mIdx + 1, 0).getDate())));
-        setViewYear(c.getFullYear()); setViewMonth(c.getMonth());
-        setSelectedDate(c);
-        setDateInput("");
-      }
+      if (mIdx !== undefined) { jumpTo(parseInt(m2[3]!), mIdx, parseInt(m2[1]!)); return; }
     }
+    setDateJumpError(INVALID_DATE_MESSAGE);
   }
 
   // ── Arama ─────────────────────────────────────────────────────────────────
@@ -1822,10 +1845,13 @@ export default function CosmicCalendarPage() {
               <div className="mb-1.5 flex items-center gap-1.5">
                 <div className="relative flex-1">
                   <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-300" />
-                  <input ref={dateInputRef} type="text" placeholder="GG.AA.YYYY veya 15 Ağustos 2026" value={dateInput} onChange={e => setDateInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleDateJump()} className="w-full rounded-lg border border-slate-200 bg-white/80 py-0.5 pl-6 pr-2 text-[10px] text-slate-700 placeholder:text-slate-300 focus:border-indigo-300 focus:outline-none" />
+                  <input ref={dateInputRef} type="text" placeholder="GG.AA.YYYY veya 15 Ağustos 2026" value={dateInput} onChange={e => { setDateInput(e.target.value); setDateJumpError(null); }} onKeyDown={e => e.key === "Enter" && handleDateJump()} className="w-full rounded-lg border border-slate-200 bg-white/80 py-0.5 pl-6 pr-2 text-[10px] text-slate-700 placeholder:text-slate-300 focus:border-indigo-300 focus:outline-none" />
                 </div>
                 <button onClick={handleDateJump} disabled={!dateInput.trim()} className="rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-40">Git</button>
               </div>
+              {dateJumpError && (
+                <p className="mb-1.5 rounded-lg border border-rose-100 bg-rose-50/70 px-2 py-1 text-[10px] text-rose-600" role="alert">⚠ {dateJumpError}</p>
+              )}
               <div className="mb-1.5 flex flex-wrap gap-1">
                 {([
                   { label: "Ay Fazları", emoji: "🌕", active: showMoonPhases,   toggle: () => setShowMoonPhases(v => !v) },
@@ -2029,12 +2055,15 @@ export default function CosmicCalendarPage() {
                   </div>
                 ))}
               </div>
-              <p className="mt-1 text-[10px] text-slate-400">{"🕋 Hicri tarihler Ümmü'l-Kurâ takvim sistemine göredir · Türkiye'de kullanılan resmî (hilal gözlemi esaslı) takvimlerle bazı tarihlerde bir günlük fark olabilir"}</p>
+              <p className="mt-1 text-[10px] text-slate-400">🕋 {HIJRI_METHOD_NOTE}</p>
+              <p className="mt-0.5 text-[10px] text-slate-400">🕛 Seçili gün kartları (Ay fazı, konumlar, açılar, mesafe) seçili günün 00:00 (yerel) anına göre hesaplanır; gezegen saati/gün yöneticisi seçili konumun gününe göredir.</p>
 
               <div className={`mt-1.5 rounded-xl px-2.5 py-1.5 ${activeRetros.length > 0 ? "border border-rose-100 bg-rose-50/60" : "bg-slate-50/70"}`}>
                 <p className="text-[10px] text-slate-400">🪐 Retro Durumu</p>
-                {activeRetros.length === 0 ? (
-                  <p className="text-xs font-black text-emerald-600">Aktif Retro Yok</p>
+                {!selectedRetroStatus.supported ? (
+                  <p className="text-xs font-black text-amber-600">Bilinmiyor — {OUT_OF_RANGE_MESSAGE}</p>
+                ) : activeRetros.length === 0 ? (
+                  <p className="text-xs font-black text-emerald-600">Aktif Retro Yok <span className="text-[10px] font-semibold text-slate-400">({RETRO_PLANETS.length} gezegen kontrol edildi)</span></p>
                 ) : (
                   <div className="mt-0.5 space-y-0.5">
                     {activeRetros.map(r => {
@@ -2058,9 +2087,7 @@ export default function CosmicCalendarPage() {
                 <p className="text-[10px] font-black text-amber-800">⚠ Doğrulanmış Veri Aralığı Dışında</p>
                 <p className="mt-0.5 text-[10px] leading-snug text-amber-700">
                   Bu tarih doğrulanmış veri aralığında değildir (destek: {SUPPORT_RANGE_LABEL}).{" "}
-                  {isBeforeSupportStart
-                    ? "Bu tarihten önceki retro, tutulma ve burç geçişi verileri eksik veya hesaplanamaz olabilir."
-                    : "Gezegen konumları ve diğer veriler yaklaşık olabilir."}
+                  Cihaz saati desteklenen aralığın dışında; seçili gün aralığın {isBeforeSupportStart ? "ilk" : "son"} gününe getirildi.
                 </p>
               </div>
             )}
@@ -2097,7 +2124,7 @@ export default function CosmicCalendarPage() {
                 {/* Seçili saat modunda saat girişi (tek kaynak: ana takvim tarihi + bu saat) */}
                 {phEffectiveMode === "custom" && (
                   <div className="mb-2 flex items-center gap-2">
-                    <label htmlFor="ph-time" className="text-[11px] font-semibold text-slate-500">Saat</label>
+                    <label htmlFor="ph-time" className="text-[11px] font-semibold text-slate-500">Saat ({eclipseCity} yerel)</label>
                     <input id="ph-time" type="time" value={phTime}
                       onChange={(e) => setPhTime(e.target.value || "12:00")}
                       className="rounded-lg border border-indigo-200 bg-white px-2 py-1 text-xs font-bold tabular-nums text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
@@ -2140,7 +2167,7 @@ export default function CosmicCalendarPage() {
                         <p className="text-xs font-black text-slate-700">{phTarget.result.sonrakiGezegen.symbol} {phTarget.result.sonrakiGezegen.name}</p>
                       </div>
                     </div>
-                    <p className="mt-1 text-[10px] font-semibold text-slate-400 tabular-nums">Seçili an: {miladiDate} · {phTime}</p>
+                    <p className="mt-1 text-[10px] font-semibold text-slate-400 tabular-nums">Seçili an: {miladiDate} · {phTime} ({eclipseTz})</p>
                     {phTarget.result.isFallback && (
                       <p className="mt-1 text-[10px] leading-relaxed text-amber-600">
                         Bu enlemde bu tarihte gün doğumu/batımı oluşmadığı için gezegen saati yaklaşık gösterilir.
@@ -2192,7 +2219,7 @@ export default function CosmicCalendarPage() {
             {/* Yaklaşan Olaylar — kompakt (ilk 3-4; "Tümü" ile genişler) */}
             <div className="rounded-2xl border border-white/80 bg-white/70 px-3 pt-2.5 pb-2 shadow-sm backdrop-blur-md">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-600">📆 Yaklaşan Olaylar</p>
+                <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-600">📆 Yaklaşan Olaylar <span className="normal-case tracking-normal text-[10px] font-semibold text-slate-400">· bugünden itibaren</span></p>
                 {mergedUpcomingEvents.length > 4 && (
                   <button type="button" onClick={() => setShowAllEvents(v => !v)} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700">
                     {showAllEvents ? "Daha Az" : `Tümü (${mergedUpcomingEvents.length})`}
@@ -2416,7 +2443,7 @@ export default function CosmicCalendarPage() {
                   const { a, motion, pass } = row;
                   const dirTR = motionDirTR(motion?.direction ?? a.direction);
                   const strongest = a.strength === "very-strong";
-                  const exact = exactAspectLabel(pass, selectedDate);
+                  const exact = exactAspectLabel(pass, selectedDayLabelTz, eclipseTz);
                   const rel = motion ? `${motion.relativeAngularSpeed.toFixed(2)}°/gün` : null;
                   const station = Boolean(motion?.isStationNearby || pass?.isStationNearby);
                   const triple = pass != null && pass.totalPassCount > 1;
@@ -2547,7 +2574,7 @@ export default function CosmicCalendarPage() {
               >
                 {(() => {
                   const { a, motion, pass } = detailRow;
-                  const exact = exactAspectLabel(pass, selectedDate);
+                  const exact = exactAspectLabel(pass, selectedDayLabelTz, eclipseTz);
                   const confTR = pass ? (pass.confidence === "high" ? "Yüksek" : pass.confidence === "medium" ? "Orta" : "Yalnız konum") : "—";
                   const stationOn = Boolean(motion?.isStationNearby || pass?.isStationNearby);
                   const stationBody = pass?.stationBody ?? motion?.stationBody ?? null;
@@ -2978,7 +3005,7 @@ export default function CosmicCalendarPage() {
 
           {/* 1. Şu anki mesafe */}
           <div className="mb-3 rounded-xl border border-indigo-200/70 bg-white/70 px-3 py-2.5">
-            <p className="text-[12px] font-semibold text-slate-600">Ay-Dünya mesafesi: <span className="text-base font-black text-indigo-700 tabular-nums">{fmtKm(lunarData.snap.distanceKm)}</span></p>
+            <p className="text-[12px] font-semibold text-slate-600">Şu An · Ay-Dünya mesafesi: <span className="text-base font-black text-indigo-700 tabular-nums">{fmtKm(lunarData.snap.distanceKm)}</span></p>
             <p className="mt-0.5 text-[11px] font-semibold text-slate-500">Görünen çap: {lunarData.snap.apparentDiameterDeg}° · Mesafe tipi: Dünya merkezi ↔ Ay merkezi (geocentric)</p>
           </div>
 

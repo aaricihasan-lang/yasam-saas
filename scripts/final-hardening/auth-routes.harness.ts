@@ -83,8 +83,11 @@ ok(/fetch\(`\/api\/belge-ceviri\/history`, \{\s*headers: authHeaders\(\)/.test(b
 ok(/job-status\/\$\{encodeURIComponent\(activeJob\.jobId\)\}`, \{\s*headers: authHeaders\(\)/.test(bc), "belge-ceviri: job-status auth header ile");
 const hubPath = "app/digital-content/DigitalContentModuleGrid.tsx";
 const hub = existsSync(join(ROOT, hubPath)) ? code(hubPath) : "";
-ok(/href: "\/video-ceviri"[\s\S]*?adminOnly: true/.test(hub) && /href: "\/ders-notu"[\s\S]*?adminOnly: true/.test(hub), "hub: video + ders notu adminOnly");
-ok(/isAdmin \|\| !mod\.adminOnly/.test(hub) && /isAdminUser\(readYasamUser\(\)\)/.test(hub), "hub: admin olmayana AI kartları gösterilmez");
+// Owner kararı (üye yönetimi final): kartlar gerçek izinden türetilir (lib/auth/hubVisibility);
+// video_ceviri/ders_notu admin-only anahtar → uzmanda bayraktan bağımsız görünmez.
+const hubVis = code("lib/auth/hubVisibility.ts");
+ok(/id: "video_ceviri", href: "\/video-ceviri"/.test(hubVis) && /id: "ders_notu", href: "\/ders-notu"/.test(hubVis) && /isAdminOnlyModuleKey/.test(hubVis), "hub: video + ders notu admin-only anahtarlarla (hubVisibility)");
+ok(/canSeeHubChild\(user, child\)/.test(hub) && /syncYasamUserFromDb/.test(hub) && !/adminOnly/.test(hub), "hub: kartlar izinden türetilir, admin olmayana AI kartları gösterilmez");
 ok(/<DigitalContentModuleGrid \/>/.test(code("app/digital-content/page.tsx")), "hub sayfası grid bileşenini kullanır");
 
 console.log("\n── Hacamat rapor GET guard + rate limit ──");

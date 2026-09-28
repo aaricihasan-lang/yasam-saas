@@ -39,6 +39,8 @@
     "validate:cosmic": "node scripts/cosmic-validation/run-all.mjs",
     "validate:cosmic:fast": "node scripts/cosmic-validation/run-all.mjs --engine-only",
     "test:cosmic:presale": "node scripts/cosmic-presale/run-all.mjs",
+    "test:cosmic:2100": "tsx scripts/cosmic-2100/regression.ts",
+    "validate:cosmic:longrange": "node scripts/cosmic-longrange/run-all.mjs",
     "yh:bf12b:fixture": "tsx scripts/yh-bf12b/cli.ts fixture",
     "yh:bf12b:validate": "tsx scripts/yh-bf12b/cli.ts validate",
     "yh:bf12b:backup": "tsx scripts/yh-bf12b/cli.ts backup",
@@ -119,7 +121,8 @@
     "uye-yonetimi:faz1:check": "tsx scripts/uye-yonetimi-faz1/unit.harness.ts && tsx scripts/uye-yonetimi-faz1/db-contract.harness.ts && tsx scripts/uye-yonetimi-faz1/route-integration.harness.ts",
     "uye-yonetimi:faz2:unit": "tsx scripts/uye-yonetimi-faz2/unit.harness.ts",
     "uye-yonetimi:faz2:integration": "tsx scripts/uye-yonetimi-faz2/phase2-integration.harness.ts",
-    "uye-yonetimi:faz2:check": "tsx scripts/uye-yonetimi-faz2/unit.harness.ts && tsx scripts/uye-yonetimi-faz2/phase2-integration.harness.ts"
+    "uye-yonetimi:faz2:hub": "tsx scripts/uye-yonetimi-faz2/hub-visibility.harness.ts",
+    "uye-yonetimi:faz2:check": "tsx scripts/uye-yonetimi-faz2/unit.harness.ts && tsx scripts/uye-yonetimi-faz2/hub-visibility.harness.ts && tsx scripts/uye-yonetimi-faz2/phase2-integration.harness.ts"
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",

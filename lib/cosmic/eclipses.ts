@@ -2,7 +2,7 @@
  * lib/cosmic/eclipses.ts
  * FAZ 3A — Production TUTULMA (Eclipse) motoru.
  *
- * Güneş (global + Türkiye şehir-yerel) ve Ay tutulmaları, 2026–2050.
+ * Güneş (global + Türkiye şehir-yerel) ve Ay tutulmaları, 2026–2100 (dateRange public aralığı).
  * UI'da HENÜZ KULLANILMAZ (FAZ 3A Adım 3'te bağlanacak). FAZ 2C aspect motorlarına
  * (aspects.ts / exactAspects.ts / aspectMotion.ts) DOKUNMAZ.
  *
@@ -18,7 +18,7 @@
  *   • Görünürlük: peak anında ufuk yüksekliği (altitude) > 0 ise görünür. Her ŞEHİR ayrı;
  *     "Türkiye genelinde görülür" gibi GENELLEME YAPILMAZ.
  *
- * Deterministik: sabit pencere (2026–2050), çekirdek listeler new Date() KULLANMAZ → SSR↔client tutarlı.
+ * Deterministik: sabit pencere (dateRange: 2026–2100), çekirdek listeler new Date() KULLANMAZ → SSR↔client tutarlı.
  */
 
 import * as AE from "astronomy-engine";
@@ -151,6 +151,7 @@ const ECLIPSE_CATALOG: ReadonlyArray<EclipseCatalogEntry> = [
   { date: "2031-11-14", kind: "solar", typeOverride: "hybrid", source: CATALOG_SOURCE, note: "Hibrit (halkalı-tam); harness ECL_ANNULAR_TOTAL ile doğrulandı." },
   { date: "2049-11-25", kind: "solar", typeOverride: "hybrid", source: CATALOG_SOURCE, note: "Hibrit (halkalı-tam); harness ile doğrulandı." },
   { date: "2050-05-20", kind: "solar", typeOverride: "hybrid", source: CATALOG_SOURCE, note: "Hibrit (halkalı-tam); harness ile doğrulandı." },
+  { date: "2067-12-06", kind: "solar", typeOverride: "hybrid", source: CATALOG_SOURCE, note: "Hibrit (halkalı-tam); AE \"total\" sınıflar, Swiss Ephemeris ECL_ANNULAR_TOTAL (scripts/cosmic-longrange) ile doğrulandı." },
   // Uç-enlem sınır olayları — AE "partial" sınıflar; harness merkezi tür verir. Türkiye'yi ETKİLEMEZ.
   { date: "2043-04-09", kind: "solar", typeOverride: "total",   source: CATALOG_SOURCE, note: "Uç enlem (~61°N) merkezi tutulma; Türkiye merkezi görünürlüğünü etkilemez." },
   { date: "2043-10-03", kind: "solar", typeOverride: "annular", source: CATALOG_SOURCE, note: "Uç enlem (~61°S) halkalı; Türkiye'yi etkilemez." },
@@ -183,10 +184,9 @@ const round = (x: number, n = 4): number => Math.round(x * 10 ** n) / 10 ** n;
 
 // ─── Çekirdek üretim (singleton) ────────────────────────────────────────────────
 
-function buildSolarEclipses(): SolarEclipse[] {
+function buildSolarEclipses(fromMs: number, endMs: number): SolarEclipse[] {
   const out: SolarEclipse[] = [];
-  const endMs = Date.UTC(TO_YEAR + 1, 0, 1);
-  let e = AE.SearchGlobalSolarEclipse(new Date(Date.UTC(FROM_YEAR, 0, 1)));
+  let e = AE.SearchGlobalSolarEclipse(new Date(fromMs));
   while (e.peak.date.getTime() < endMs && out.length < 400) {
     const peak = e.peak.date;
     const ds = utcDateStr(peak);
@@ -221,10 +221,9 @@ function buildSolarEclipses(): SolarEclipse[] {
   return out;
 }
 
-function buildLunarEclipses(): LunarEclipse[] {
+function buildLunarEclipses(fromMs: number, endMs: number): LunarEclipse[] {
   const out: LunarEclipse[] = [];
-  const endMs = Date.UTC(TO_YEAR + 1, 0, 1);
-  let e = AE.SearchLunarEclipse(new Date(Date.UTC(FROM_YEAR, 0, 1)));
+  let e = AE.SearchLunarEclipse(new Date(fromMs));
   while (e.peak.date.getTime() < endMs && out.length < 400) {
     const peak = e.peak.date;
     const ds = utcDateStr(peak);
@@ -270,11 +269,49 @@ function buildLunarEclipses(): LunarEclipse[] {
   return out;
 }
 
-// Modül yüklemesinde bir kez (ES modülü singleton). Şehir görünürlüğü AYRI/lazy (aşağıda).
-const SOLAR_ECLIPSES: SolarEclipse[] = buildSolarEclipses();
-const LUNAR_ECLIPSES: LunarEclipse[] = buildLunarEclipses();
-const SOLAR_BY_ID = new Map(SOLAR_ECLIPSES.map(e => [e.id, e]));
-const LUNAR_BY_ID = new Map(LUNAR_ECLIPSES.map(e => [e.id, e]));
+// PERFORMANS (doğruluğu DEĞİŞTİRMEZ): 2026–2100 listesi modül yüklemesinde değil, 5 yıllık SABİT
+// bloklar hâlinde yalnız istendiğinde (memo) üretilir. Her blok AE aramasına SABİT blok başlangıcından
+// başlar → sonuç istek sırasından bağımsızdır (SSR↔client deterministik). Şehir görünürlüğü AYRI/lazy.
+const RANGE_START_MS = Date.UTC(FROM_YEAR, 0, 1);
+const RANGE_END_MS = Date.UTC(TO_YEAR + 1, 0, 1);
+const ECL_BLOCK_YEARS = 5;
+const ECL_BLOCK_COUNT = Math.ceil((TO_YEAR + 1 - FROM_YEAR) / ECL_BLOCK_YEARS);
+const eclBlockStart = (b: number) => Date.UTC(FROM_YEAR + b * ECL_BLOCK_YEARS, 0, 1);
+const eclBlockEnd = (b: number) => Math.min(RANGE_END_MS, Date.UTC(FROM_YEAR + (b + 1) * ECL_BLOCK_YEARS, 0, 1));
+const eclBlockOf = (ms: number) =>
+  Math.max(0, Math.min(ECL_BLOCK_COUNT - 1, new Date(ms).getUTCFullYear() - FROM_YEAR < 0 ? 0 : Math.floor((new Date(ms).getUTCFullYear() - FROM_YEAR) / ECL_BLOCK_YEARS)));
+
+const solarBlocks = new Map<number, SolarEclipse[]>();
+const lunarBlocks = new Map<number, LunarEclipse[]>();
+const SOLAR_BY_ID = new Map<string, SolarEclipse>();
+const LUNAR_BY_ID = new Map<string, LunarEclipse>();
+
+function solarBlock(b: number): SolarEclipse[] {
+  let hit = solarBlocks.get(b);
+  if (!hit) {
+    hit = buildSolarEclipses(eclBlockStart(b), eclBlockEnd(b));
+    solarBlocks.set(b, hit);
+    for (const e of hit) SOLAR_BY_ID.set(e.id, e);
+  }
+  return hit;
+}
+function lunarBlock(b: number): LunarEclipse[] {
+  let hit = lunarBlocks.get(b);
+  if (!hit) {
+    hit = buildLunarEclipses(eclBlockStart(b), eclBlockEnd(b));
+    lunarBlocks.set(b, hit);
+    for (const e of hit) LUNAR_BY_ID.set(e.id, e);
+  }
+  return hit;
+}
+/** id "solar-YYYY-MM-DD" / "lunar-YYYY-MM-DD" → ilgili bloğu hazırla. */
+function ensureBlockForId(id: string): void {
+  const m = /^(solar|lunar)-(\d{4})-(\d{2})-(\d{2})$/.exec(id);
+  if (!m) return;
+  const ms = Date.UTC(Number(m[2]), Number(m[3]) - 1, Number(m[4]));
+  if (ms < RANGE_START_MS || ms >= RANGE_END_MS) return;
+  if (m[1] === "solar") solarBlock(eclBlockOf(ms)); else lunarBlock(eclBlockOf(ms));
+}
 
 // ─── Şehir görünürlüğü (lazy + memoize — pahalı yerel arama yalnız istenince) ────
 
@@ -303,6 +340,7 @@ export function getSolarCityVisibility(
   const cacheKey = `${id}|${observerSignature(observers)}`;
   const cached = solarCityCache.get(cacheKey);
   if (cached) return cached;
+  ensureBlockForId(id);
   const ecl = SOLAR_BY_ID.get(id);
   if (!ecl) return [];
   const peakMs = Date.parse(ecl.peakUTC);
@@ -358,6 +396,7 @@ export function getLunarCityVisibility(
   const cacheKey = `${id}|${observerSignature(observers)}`;
   const cached = lunarCityCache.get(cacheKey);
   if (cached) return cached;
+  ensureBlockForId(id);
   const ecl = LUNAR_BY_ID.get(id);
   if (!ecl) return [];
   const peak = new Date(Date.parse(ecl.peakUTC));
@@ -384,16 +423,60 @@ export function getLunarCityVisibility(
 
 // ─── Public API ─────────────────────────────────────────────────────────────────
 
-export function getSolarEclipses(): SolarEclipse[] { return SOLAR_ECLIPSES; }
-export function getLunarEclipses(): LunarEclipse[] { return LUNAR_ECLIPSES; }
+const byPeak = (a: AnyEclipse, b: AnyEclipse) => Date.parse(a.peakUTC) - Date.parse(b.peakUTC);
 
-/** Tüm tutulmalar, peak'e göre kronolojik. */
-export function getAllEclipses(): AnyEclipse[] {
-  return [...SOLAR_ECLIPSES, ...LUNAR_ECLIPSES].sort((a, b) => Date.parse(a.peakUTC) - Date.parse(b.peakUTC));
+/** Tüm güneş tutulmaları (2026–2100) — TÜM blokları üretir (ağır; test/rapor için). */
+export function getSolarEclipses(): SolarEclipse[] {
+  const out: SolarEclipse[] = [];
+  for (let b = 0; b < ECL_BLOCK_COUNT; b++) out.push(...solarBlock(b));
+  return out;
+}
+/** Tüm ay tutulmaları (2026–2100) — TÜM blokları üretir (ağır; test/rapor için). */
+export function getLunarEclipses(): LunarEclipse[] {
+  const out: LunarEclipse[] = [];
+  for (let b = 0; b < ECL_BLOCK_COUNT; b++) out.push(...lunarBlock(b));
+  return out;
 }
 
-/** Verilen tarihten sonraki ilk `count` tutulma. */
+/** Tüm tutulmalar, peak'e göre kronolojik (ağır; UI'da getEclipsesBetween tercih edin). */
+export function getAllEclipses(): AnyEclipse[] {
+  return [...getSolarEclipses(), ...getLunarEclipses()].sort(byPeak);
+}
+
+/** [fromMs, toMs) aralığındaki tutulmalar, kronolojik — yalnız ilgili bloklar üretilir. */
+export function getEclipsesBetween(fromMs: number, toMs: number): AnyEclipse[] {
+  const f = Math.max(fromMs, RANGE_START_MS), t = Math.min(toMs, RANGE_END_MS);
+  if (!(t > f)) return [];
+  const out: AnyEclipse[] = [];
+  for (let b = eclBlockOf(f); b <= eclBlockOf(t - 1); b++) {
+    for (const e of [...solarBlock(b), ...lunarBlock(b)]) {
+      const p = Date.parse(e.peakUTC);
+      if (p >= f && p < t) out.push(e);
+    }
+  }
+  return out.sort(byPeak);
+}
+
+/** Verilen tarihten sonraki ilk `count` tutulma (public aralık içinde). */
 export function getUpcomingEclipses(from: Date, count = 6): AnyEclipse[] {
   const t = from.getTime();
-  return getAllEclipses().filter(e => Date.parse(e.peakUTC) >= t).slice(0, count);
+  if (!Number.isFinite(t)) return [];
+  const out: AnyEclipse[] = [];
+  for (let b = eclBlockOf(Math.max(t, RANGE_START_MS)); b < ECL_BLOCK_COUNT && out.length < count; b++) {
+    const blk = [...solarBlock(b), ...lunarBlock(b)].sort(byPeak).filter(e => Date.parse(e.peakUTC) >= t);
+    out.push(...blk);
+  }
+  return out.slice(0, count);
+}
+
+/** Verilen tarihten önceki son `count` tutulma (yeniden eskiye; public aralık içinde). */
+export function getPastEclipses(before: Date, count = 6): AnyEclipse[] {
+  const t = before.getTime();
+  if (!Number.isFinite(t)) return [];
+  const out: AnyEclipse[] = [];
+  for (let b = eclBlockOf(Math.min(t, RANGE_END_MS - 1)); b >= 0 && out.length < count; b--) {
+    const blk = [...solarBlock(b), ...lunarBlock(b)].sort(byPeak).filter(e => Date.parse(e.peakUTC) < t).reverse();
+    out.push(...blk);
+  }
+  return out.slice(0, count);
 }

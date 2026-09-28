@@ -22,6 +22,7 @@ const STEPS = [
   ["tsx",  "hacamat-tenant-init.ts",        "§KAJ-P1-04/B Hacamat B-modeli + cosmic gerçek kapı"],
   ["tsx",  "full-sweep.ts",                 "§22/§18B Tam sweep + sunrise oracle"],
   ["tsx",  "retro-station-verify.ts",       "§21 Retro station SWE↔AE"],
+  ["tsx",  "../cosmic-2100/regression.ts",  "§2100 G1–G8 + 2026–2100 regresyon"],
 ];
 
 const results = [];

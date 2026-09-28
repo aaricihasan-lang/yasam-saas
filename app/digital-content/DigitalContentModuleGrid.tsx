@@ -9,18 +9,37 @@ import {
   FolderArchive,
   Video,
 } from "lucide-react";
-import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
-import { runInEffect } from "@/lib/runInEffect";
+import { readYasamUser, syncYasamUserFromDb, type YasamUser } from "@/lib/auth/yasamUser";
+import {
+  DIGITAL_CONTENT_HUB_CHILDREN,
+  canSeeHubChild,
+  type HubChildId,
+} from "@/lib/auth/hubVisibility";
 
 /**
- * FAZ1 FINAL HARDENING (AUTH — AI admin-only): OpenAI maliyeti doğuran alt modüller
- * (Video → Türkçe, Ders Notu) YALNIZ yöneticiye gösterilir. Sunucu da aynı kuralı zorlar
- * (video_ceviri / ders_notu → admin-only; lib/auth/moduleAccessCore ADMIN_ONLY_MODULE_KEYS).
- * Rol localStorage'dan mount SONRASI okunur (SSR/hydration farkı olmasın); ilk render'da
- * AI kartları gizlidir → uzman ölü/yetkisiz kart görmez.
+ * Dijital İçerik Merkezi alt kartları — owner kararı: uzman KENDİSİNE AÇILMAMIŞ alt modülü
+ * GÖRMEZ. Her kart yalnız kullanıcının o alt modüle gerçek izni varsa render edilir
+ * (lib/auth/hubVisibility tek kaynak; admin tümünü görür). Video → Türkçe ve Ders Notu
+ * admin-only AI yüzeyleridir (moduleAccessCore.ADMIN_ONLY_MODULE_KEYS) → uzmanda bayraktan
+ * bağımsız görünmez. Sunucu yetkisi AYRICA zorlanır (ModuleRouteGuard + requireModuleAccess);
+ * bu bileşen yalnız görünürlüktür.
+ *
+ * İzinler canlı DB'den kesinleşmeden (syncYasamUserFromDb) kart render EDİLMEZ → sonradan
+ * açılan izin kartı gösterir, kapatılan izin kartı gizler; yetkisiz kart hiç flash etmez.
  */
-const subModules = [
+const subModules: {
+  id: HubChildId;
+  title: string;
+  desc: string;
+  href: string;
+  Icon: typeof FolderArchive;
+  badge: string;
+  iconGradient: string;
+  cardGradient: string;
+  border: string;
+}[] = [
   {
+    id: "personal_archive",
     title: "Kişisel Arşiv",
     desc: "Ses, video, belge ve kişisel kayıt sistemi. Tüm dosyalarınızı tek merkezde saklayın.",
     href: "/dashboard/kisisel-arsiv",
@@ -29,9 +48,9 @@ const subModules = [
     iconGradient: "from-orange-500 to-amber-500",
     cardGradient: "from-orange-100/90 via-amber-50/95 to-white",
     border: "border-orange-200/70",
-    adminOnly: false,
   },
   {
+    id: "belge_ceviri",
     title: "Belge Çeviri Merkezi",
     desc: "PDF belgelerini düzenlenebilir Word dosyasına dönüştür ve yönet.",
     href: "/belge-ceviri",
@@ -40,9 +59,9 @@ const subModules = [
     iconGradient: "from-sky-500 to-cyan-600",
     cardGradient: "from-sky-100/90 via-cyan-50/95 to-white",
     border: "border-sky-200/70",
-    adminOnly: false,
   },
   {
+    id: "video_ceviri",
     title: "Video → Türkçe Word/PDF",
     desc: "Videolardan Türkçe transkript, çeviri ve eğitim dokümanı üretme merkezi.",
     href: "/video-ceviri",
@@ -51,9 +70,9 @@ const subModules = [
     iconGradient: "from-rose-500 to-pink-600",
     cardGradient: "from-rose-100/90 via-pink-50/95 to-white",
     border: "border-rose-200/70",
-    adminOnly: true,
   },
   {
+    id: "ders_notu",
     title: "Ders Notu Merkezi",
     desc: "Ham transkripti temizle, ders notuna dönüştür. Human Design uyumlu AI çıktısı.",
     href: "/ders-notu",
@@ -62,18 +81,54 @@ const subModules = [
     iconGradient: "from-teal-600 to-emerald-700",
     cardGradient: "from-teal-50/90 via-emerald-50/95 to-white",
     border: "border-teal-200/70",
-    adminOnly: true,
   },
-] as const;
+];
+
+const CHILD_BY_ID = new Map(DIGITAL_CONTENT_HUB_CHILDREN.map((child) => [child.id, child]));
 
 export default function DigitalContentModuleGrid() {
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [user, setUser] = useState<YasamUser | null>(null);
+  const [resolved, setResolved] = useState(false);
 
   useEffect(() => {
-    runInEffect(() => setIsAdmin(isAdminUser(readYasamUser())));
+    let cancelled = false;
+    const cached = readYasamUser();
+    // Canlı module_permissions ile kesinleştir; hata olsa da resolve → yetki fail-closed kalır.
+    void syncYasamUserFromDb(cached)
+      .then((fresh) => {
+        if (!cancelled) setUser(fresh ?? cached ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setUser(cached ?? null);
+      })
+      .finally(() => {
+        if (!cancelled) setResolved(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const visible = subModules.filter((mod) => isAdmin || !mod.adminOnly);
+  // Çözülene kadar sessiz boşluk (iskelet/yetkisiz kart yok); min-height dikey sıçramayı önler.
+  if (!resolved) {
+    return <div className="min-h-[10rem] w-full" aria-busy="true" aria-hidden />;
+  }
+
+  const visible = subModules.filter((mod) => {
+    const child = CHILD_BY_ID.get(mod.id);
+    return child ? canSeeHubChild(user, child) : false;
+  });
+
+  if (visible.length === 0) {
+    return (
+      <div
+        data-digital-content-empty
+        className="rounded-[18px] border border-slate-200 bg-white/70 px-5 py-8 text-center text-sm font-medium text-slate-600"
+      >
+        Bu merkezde hesabınız için açık bir modül bulunmuyor.
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:gap-4">
@@ -83,6 +138,7 @@ export default function DigitalContentModuleGrid() {
           <Link
             key={mod.href}
             href={mod.href}
+            data-digital-content-card={mod.id}
             className={`group flex flex-col rounded-[18px] border bg-gradient-to-br p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${mod.cardGradient} ${mod.border}`}
           >
             <div className="flex items-start justify-between gap-2">

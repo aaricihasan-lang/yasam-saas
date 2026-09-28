@@ -21,6 +21,8 @@
  *   MODELLENMEZ."
  */
 
+import { hijriFromGregorian } from "@/lib/calendar/hijriUmmAlQura";
+
 export type HijriDate = {
   /** Hicrî ay-günü (1–30). */
   day: number;
@@ -92,6 +94,12 @@ export function toYmd(parts: GregorianParts): string {
   return `${y}-${mo}-${d}`;
 }
 
+/**
+ * KANONİK kapsam dışı (1924-08-01 öncesi / 2101-02-28 sonrası) Kupa plan yılları için KORUNAN eski
+ * ICU yolu. Kapsam İÇİNDEKİ tüm tarihler nötr kanonik çekirdekten (lib/calendar/hijriUmmAlQura.ts —
+ * resmî Umm al-Qura tablosu + Umm al-Qura kuralı) gelir; böylece Kupa takvimi, Kozmik Hacamat ve
+ * raporlar aynı gün için aynı Hicri günü gösterir (ICU 1450 AH sonrası kuraldan sapıyordu).
+ */
 const HIJRI_NUM_FMT = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura", {
   timeZone: "UTC",
   day: "numeric",
@@ -106,6 +114,18 @@ const HIJRI_NUM_FMT = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura", {
 export function gregorianToHijri(input: string | GregorianParts): HijriDate | null {
   const parts = typeof input === "string" ? parseYmd(input) : normalizeParts(input);
   if (!parts) return null;
+
+  // Kanonik tablo kapsamı → tek kaynak (saat dilimi bağımsız, JDN tabanlı).
+  const canonical = hijriFromGregorian(parts.year, parts.month, parts.day);
+  if (canonical) {
+    return {
+      day: canonical.day,
+      month: canonical.month,
+      monthName: HIJRI_MONTHS_TR[canonical.month - 1] ?? "",
+      year: canonical.year,
+      formatted: `${canonical.day} ${HIJRI_MONTHS_TR[canonical.month - 1] ?? ""} ${canonical.year}`,
+    };
+  }
 
   // Gün ortası + UTC → saat dilimi kayması imkânsız.
   const dt = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 12, 0, 0));

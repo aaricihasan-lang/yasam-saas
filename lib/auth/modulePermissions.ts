@@ -251,8 +251,10 @@ export function hasModulePermission(
   if (isAdminOnlyModuleKey(key)) return false;
   const perms = user.module_permissions ?? DEFAULT_MODULE_PERMISSIONS;
   // Hub kartı: uzmana AÇIK alt modüllerden (kişisel arşiv / belge çeviri) biri varsa erişilebilir
+  // (sunucu resolveModuleAccess + lib/auth/hubVisibility ile aynı anahtarlar; TR alias dahil).
   if (key === "digital_content") {
-    return Boolean(perms.personal_archive || perms.belge_ceviri);
+    const raw = perms as Partial<Record<string, boolean>>;
+    return Boolean(perms.personal_archive || raw.kisisel_arsiv === true || perms.belge_ceviri);
   }
   return Boolean(perms[key]);
 }

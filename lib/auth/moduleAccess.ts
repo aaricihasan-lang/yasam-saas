@@ -9,8 +9,8 @@
  *     ise geçer (önceki "always-on" kısayolu owner "Gerçek kapı" kararıyla kaldırıldı)
  *   - human_design → normal modül: module_permissions.human_design === true ise geçer
  *     (Premium payload'ına dahil + mevcut Premium'lar migration ile backfill)
- *   - digital_content → hub: alt modüllerden (personal_archive/video_ceviri/
- *     belge_ceviri/ders_notu) herhangi biri açıksa erişilebilir
+ *   - digital_content → hub: uzmana AÇIK alt modüllerden (personal_archive/belge_ceviri)
+ *     biri açıksa erişilebilir (video_ceviri/ders_notu admin-only; UI: lib/auth/hubVisibility)
  *
  * Bu dosya SAF resolver + userId-bazlı DB kapısı içerir. Header-token route'ları
  * `requireModuleAccess` (lib/auth/userGuard) kullanır; body/query-userId veya

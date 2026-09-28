@@ -177,7 +177,8 @@ export default function MoonPhasesPage() {
   const todayIllumination = useMemo(() => getMoonIllumination(today), [today]);
 
   // Döngü ilerleme yüzdesi
-  const cycleProgress = useMemo(() => (todayAge / SYNODIC_MONTH_DAYS) * 100, [todayAge]);
+  // G6: gerçek yaş uzun lunasyonlarda ortalama sinodik ayı (29.53 g) aşabilir → yalnız işaretçi konumu çubukta tutulur (değer kelepçelenmez).
+  const cycleProgress = useMemo(() => Math.min(100, (todayAge / SYNODIC_MONTH_DAYS) * 100), [todayAge]);
 
   // Sonraki faz geçişi
   const nextTransition = useMemo(() => getUpcomingTransitions(today, 30)[0] ?? null, [today]);
