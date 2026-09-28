@@ -13,6 +13,8 @@ export const metadata: Metadata = {
  * Metin, uygulamanın GERÇEK davranışına göre yazılmıştır (GA yalnız herkese açık
  * sayfalar; yapay zekâ yalnız yönetici hesabı; yönetici paneli uzman özel içeriğini
  * görüntüleme özelliği sunmaz). Hukuki inceleme gerekir.
+ * "Teknik Kullanım İstatistikleri" bölümü: owner onaylı nihai metin (Usage360 kapanışı);
+ * anlamı genişletilmez, kodun sağlamadığı mutlak garanti eklenmez.
  */
 export default function GizlilikPolitikasiPage() {
   const residency = getDataResidency();
@@ -55,12 +57,47 @@ export default function GizlilikPolitikasiPage() {
         sınırlandırılır.
       </p>
       <p>
-        Yönetici paneli; hesap, üyelik, ödeme durumu, kullanım istatistikleri (kayıt sayıları gibi
-        özet bilgiler), güvenlik olayları ve destek mesajları gibi platform yönetimi bilgilerini
+        Yönetici paneli; hesap, üyelik, ödeme durumu, teknik kullanım istatistikleri (aşağıda
+        açıklanan sınırlı teknik bilgiler), güvenlik olayları ve destek mesajları gibi platform yönetimi bilgilerini
         gösterir. Yönetici panelinde uzmanların danışan kayıtlarını veya özel çalışma içeriğini
         görüntüleme özelliği <strong>bulunmaz</strong>. Altyapı düzeyindeki teknik erişim (veritabanı
         bakımı, güvenlik olaylarının incelenmesi, yedekten geri yükleme, yasal yükümlülükler) yalnızca
         bu amaçlarla sınırlı tutulur.
+      </p>
+
+      <LegalH2>Teknik Kullanım İstatistikleri</LegalH2>
+      <p>
+        Hizmetin güvenliğinin sağlanması, performansının değerlendirilmesi ve hizmetlerin
+        geliştirilmesi amacıyla; son oturum zamanı, cihaz/platform türü ve depolama miktarı gibi
+        sınırlı teknik kullanım ve sistem istatistikleri işlenebilir.
+      </p>
+      <p>
+        Bu istatistikler yalnızca sistemin kullanımına ilişkin teknik bilgilerden oluşur. Kullanıcı
+        tarafından sisteme girilen danışan içerikleri, danışan bilgileri, anamnez kayıtları, notlar,
+        rapor metinleri, form yanıtları, analiz içerikleri, protokoller, yüklenen belgeler ve uzman
+        tarafından oluşturulan diğer mesleki veya kişisel içerikler kullanım istatistiği amacıyla
+        görüntülenmez, analiz edilmez veya istatistik kayıtlarına aktarılmaz.
+      </p>
+      <p>
+        Uzmanların sisteme girdikleri mesleki veriler ve danışan içerikleri diğer uzmanlar tarafından
+        görüntülenemez. Yönetim panelinde uzmanların içerikleri görüntülenmez; yönetim tarafında
+        yalnız hesap yönetimi, teknik sistem işlemleri ve kullanım istatistikleriyle sınırlı bilgiler
+        bulunur.
+      </p>
+      <p>
+        Yönetim tarafında görülebilen bilgiler; hesabın durumu, son oturum zamanı, işlem türlerinin
+        sayıları, yaklaşık aktif kullanım süresi, cihaz/platform bilgileri, depolama miktarı ve benzeri
+        teknik sistem istatistikleriyle sınırlıdır.
+      </p>
+      <p>
+        Bu bilgiler, yapılan işlemin içeriğini değil, yalnızca sistem üzerinde bir işlem
+        gerçekleştiğini gösterir.
+      </p>
+      <p>
+        Yaşam Sistemi’nin temel veri gizliliği yaklaşımı; her uzmanın kendi çalışma alanındaki
+        mesleki ve danışan verilerinin diğer uzmanlardan izole tutulması, kullanıcı içeriklerinin
+        yönetimsel kullanım istatistiklerinden kesin olarak ayrılması ve sistem yönetiminin kullanıcı
+        içeriklerinin rutin olarak görüntülenmesine dayanmamasıdır.
       </p>
 
       <LegalH2>Hizmet Sağlayıcılar (Alt İşleyiciler)</LegalH2>

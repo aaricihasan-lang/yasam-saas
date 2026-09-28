@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
+import { maskIpRows } from "@/lib/security/maskIp";
 
 export const runtime = "nodejs";
 
@@ -97,10 +98,11 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       .eq("user_id", id).eq("severity", "medium").gte("created_at", cutoff30d),
   ]);
 
+  // Ham IP yönetici arayüzüne gönderilmez (maskeli; ör. 185.12.xxx.xxx).
   return NextResponse.json({
-    events:       eventsData,
+    events:       maskIpRows(eventsData),
     eventsTotal,
-    sessions:     sessionsData,
+    sessions:     maskIpRows(sessionsData),
     sessionsTotal,
     summary: {
       high30d:       highRes.count ?? 0,

@@ -110,7 +110,12 @@
       "usage360__bump_module",
       "usage360__gate",
       "usage360__open_visit",
-      "usage360__ctx_ok"
+      "usage360__ctx_ok",
+      "usage360_measurement_start",
+      "usage360_expert_list",
+      "usage360_expert_detail",
+      "usage360_expert_timeline",
+      "security_ip_retention_purge"
     ],
     "optional": [
       "aromatherapy_delete_source_with_audit",
@@ -136,7 +141,12 @@
       "usage360__bump_module",
       "usage360__gate",
       "usage360__open_visit",
-      "usage360__ctx_ok"
+      "usage360__ctx_ok",
+      "usage360_measurement_start",
+      "usage360_expert_list",
+      "usage360_expert_detail",
+      "usage360_expert_timeline",
+      "security_ip_retention_purge"
     ],
     "note": "Kodda .rpc() ile çağrılan tüm RPC'ler + FAZ1 yeni RPC'ler: anon/authenticated EXECUTE=false (service_role-only). optional: prod'da henüz yoksa UYARI (FAIL değil)."
   },
