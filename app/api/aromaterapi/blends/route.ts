@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -113,6 +114,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     .select("*")
     .single();
 
-  if (error) return legacyDbErrorResponse("blends.create", error, "Karışım kaydedilemedi.");
+  if (error) {
+    await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_created", subEntity: "blend", errorClass: "server" });
+    return legacyDbErrorResponse("blends.create", error, "Karışım kaydedilemedi.");
+  }
+  await trackUsage(guard, req, { module: "aromatherapy", action: "record_created", subEntity: "blend", resourceId: String((data as { id: unknown }).id) });
   return NextResponse.json({ ok: true, blend: data });
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { SOURCE_COLUMNS, SOURCE_TYPES, cleanStr, cleanUrl, inEnum, isUuid, hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -62,8 +63,12 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
     .eq("id", id)
     .select(SOURCE_COLUMNS)
     .maybeSingle();
-  if (error) return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "source", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
+  }
   if (!data) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "source", resourceId: id });
   return NextResponse.json({ ok: true, source: data });
 }
 
@@ -88,11 +93,14 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
   if (error) {
     if (error.code === "23503") {
       const usage = await sourceUsage(db, tenantId, id);
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_deleted", subEntity: "source", errorClass: "conflict" });
       return beslenmeJson({ ok: false, code: "IN_USE", usage }, 409);
     }
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_deleted", subEntity: "source", errorClass: "server" });
     return beslenmeJson({ ok: false, code: "DELETE_FAILED" }, 500);
   }
   if (!count) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
+  await trackUsage(guard, req, { module: "beslenme", action: "record_deleted", subEntity: "source", resourceId: id });
   return NextResponse.json({ ok: true, deleted: true });
 }
 

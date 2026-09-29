@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { mapSaleRpcError } from "@/lib/urun-stok/salesErrors";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -38,10 +39,24 @@ export async function POST(
     if (mapped.status === 500) {
       console.error("[urun-stok/sales/cancel] RPC hata", { code: (error as { code?: string }).code });
     }
+    if (mapped.status === 500 || mapped.status === 409) {
+      await trackUsage(guard, req, {
+        module: "stok",
+        action: "action_failed",
+        failedAction: "record_updated",
+        subEntity: "sale",
+        errorClass: mapped.status === 409 ? "conflict" : "server",
+      });
+    }
     return NextResponse.json({ ok: false, error: mapped.error }, { status: mapped.status });
   }
 
   const result = data as { already_cancelled?: boolean; restored?: number };
+  // İptal = satış kaydı "cancelled" durumuna geçer + stok iade edilir (kayıt SİLİNMEZ,
+  // geçmişte kalır) → record_updated. Zaten iptal edilmişse (no-op) olay yok.
+  if (!result?.already_cancelled) {
+    await trackUsage(guard, req, { module: "stok", action: "record_updated", subEntity: "sale", resourceId: saleId });
+  }
   return NextResponse.json({
     ok: true,
     already_cancelled: Boolean(result?.already_cancelled),

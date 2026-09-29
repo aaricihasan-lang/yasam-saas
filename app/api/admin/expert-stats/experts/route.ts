@@ -16,7 +16,7 @@ const SORT_ALLOW = new Set(["last_login", "created_at", "name"]);
  *
  * FAZ 2 — SAYFALI uzman listesi + TOPLU oturum özeti. `expert_list` RPC ile tek DB
  * round-trip (uzman başına AYRI activity çağrısı YOK). Demo default HARİÇ. lastSeenAt
- * heartbeat tabanlı (~yaklaşık — UI'da belirtilir).
+ * son TEKNİK TEMAS (~yaklaşık; insan etkileşimi değil — UI'da belirtilir).
  *
  * GİZLİLİK: ad/e-posta yönetici ekranı için GEREKLİ kişisel alanlardır (admin bunları
  * zaten görür) → "yanıtta hiç kişisel veri yok" DENMEZ. Ancak token/oturum sırrı/analiz
@@ -99,8 +99,8 @@ export async function GET(req: NextRequest): Promise<Response> {
       sort,
       includeDemo,
       note: includeDemo
-        ? "Demo hesaplar DAHİL. lastSeenAt heartbeat tabanlı (~yaklaşık). last_login = son başarılı giriş."
-        : "Demo hesaplar HARİÇ. lastSeenAt heartbeat tabanlı (~yaklaşık). last_login = son başarılı giriş.",
+        ? "Demo hesaplar DAHİL. lastSeenAt = son teknik temas (~yaklaşık; kullanıcı etkileşimi değil). last_login = son başarılı giriş."
+        : "Demo hesaplar HARİÇ. lastSeenAt = son teknik temas (~yaklaşık; kullanıcı etkileşimi değil). last_login = son başarılı giriş.",
     },
   };
   return NextResponse.json(payload, { headers: { "Cache-Control": "no-store" } });

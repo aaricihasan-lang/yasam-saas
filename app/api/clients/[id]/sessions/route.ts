@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -108,8 +109,21 @@ export async function POST(
     .single();
 
   if (error) {
-    return serverErrorResponse({ route: "clients/[id]/sessions", action: "POST", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]/sessions",
+      action: "POST",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "record_created", subEntity: "session" },
+    });
   }
+  const newSessionId = (data as { id?: unknown } | null)?.id;
+  await trackUsage(guard, req, {
+    module: "clients",
+    action: "record_created",
+    subEntity: "session",
+    resourceId: newSessionId != null ? String(newSessionId) : null,
+  });
   return NextResponse.json({ ok: true, session: data });
 }
 
@@ -161,11 +175,18 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
-    return serverErrorResponse({ route: "clients/[id]/sessions", action: "PATCH", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]/sessions",
+      action: "PATCH",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "record_updated", subEntity: "session" },
+    });
   }
   if (!data) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "clients", action: "record_updated", subEntity: "session", resourceId: rowId });
   return NextResponse.json({ ok: true, session: data });
 }
 
@@ -219,7 +240,17 @@ export async function DELETE(
     .eq("id", rowId)
     .select("id");
   if (error) {
-    return serverErrorResponse({ route: "clients/[id]/sessions", action: "DELETE", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]/sessions",
+      action: "DELETE",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "record_deleted", subEntity: "session" },
+    });
+  }
+  // Satır bulunmadıysa (0 silindi) değişiklik yok → olay yok.
+  if ((data?.length ?? 0) > 0) {
+    await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "session", resourceId: rowId });
   }
   return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
 }

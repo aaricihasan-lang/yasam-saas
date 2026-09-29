@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES, PROTOCOL_ENTRY_WRITABLE } from "@/lib/cupping/fields";
-import { cuppingError, listEntity, parseJsonBody, pickWritable, validateWritable } from "@/lib/cupping/api";
+import { cuppingError, listEntity, parseJsonBody, pickWritable, usageRowId, validateWritable } from "@/lib/cupping/api";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -105,8 +106,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (code === "45003") return cuppingError(400, "Seçilen bölge bu hesaba ait değil.");
     if (code === "45004") return cuppingError(400, "Çok fazla bölge seçildi.");
     if (code === "45005") return cuppingError(400, "Seçilen kaynak bu hesaba ait değil.");
+    await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass: "server" });
     return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
   }
 
+  // Protokol alt-kaydı (bilgi girdisi) = kullanıcı açısından protokol düzenlemesi → tek record_updated.
+  await trackUsage(guard, req, { module: "cupping", action: "record_updated", subEntity: "protocol", resourceId: usageRowId(data) ?? protocolId });
   return NextResponse.json({ ok: true, entry: data });
 }

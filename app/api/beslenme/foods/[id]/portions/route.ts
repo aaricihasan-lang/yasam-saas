@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { isUuid, cleanStr, cleanNumber, isValidPortionMeasureUnitType, hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { resolveFoodForRead, resolveFoodForWrite, loadUnitDict, mapFoodRpcError } from "@/lib/beslenme/foodEngine";
@@ -133,9 +134,17 @@ export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
     p_rows: rows,
   });
   if (error) {
-    if (error.code === "23505") return beslenmeJson({ ok: false, code: "DUPLICATE_LABEL" }, 409);
+    if (error.code === "23505") {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "food", errorClass: "conflict" });
+      return beslenmeJson({ ok: false, code: "DUPLICATE_LABEL" }, 409);
+    }
     const m = mapFoodRpcError(error.code);
+    const errorClass = usageErrorClassForStatus(m.status);
+    if (errorClass) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "food", errorClass });
+    }
     return beslenmeJson({ ok: false, code: m.code }, m.status);
   }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "food", resourceId: write.food.id });
   return NextResponse.json({ ok: true, count: Number(data ?? rows.length), food_id: write.food.id, personalized: write.forked });
 }

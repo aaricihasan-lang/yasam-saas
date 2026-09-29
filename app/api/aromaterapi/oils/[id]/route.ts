@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { pickWritableOilFields } from "@/lib/aromaterapi/oilFields";
 import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
 
@@ -68,12 +69,16 @@ export async function PATCH(
     .eq("tenant_id", tenantId) // oturumdan; başka tenant / global kayıt güncellenemez
     .eq("id", id)
     .select("id");
-  if (error) return legacyDbErrorResponse("oils.update", error, "Yağ güncellenemedi.");
+  if (error) {
+    await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_updated", subEntity: "oil", errorClass: "server" });
+    return legacyDbErrorResponse("oils.update", error, "Yağ güncellenemedi.");
+  }
   if (!data || data.length === 0)
     return NextResponse.json(
       { ok: false, error: "Güncelleme başarısız — kayıt bulunamadı veya erişim izniniz yok." },
       { status: 403 },
     );
+  await trackUsage(guard, req, { module: "aromatherapy", action: "record_updated", subEntity: "oil", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }
 
@@ -97,11 +102,15 @@ export async function DELETE(
     .eq("tenant_id", tenantId) // oturumdan; başka tenant / global kayıt silinemez
     .eq("id", id)
     .select("id");
-  if (error) return legacyDbErrorResponse("oils.delete", error, "Yağ silinemedi.");
+  if (error) {
+    await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_deleted", subEntity: "oil", errorClass: "server" });
+    return legacyDbErrorResponse("oils.delete", error, "Yağ silinemedi.");
+  }
   if (!data || data.length === 0)
     return NextResponse.json(
       { ok: false, error: "Kayıt bulunamadı veya bu hesaba ait değil." },
       { status: 404 },
     );
+  await trackUsage(guard, req, { module: "aromatherapy", action: "record_deleted", subEntity: "oil", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }

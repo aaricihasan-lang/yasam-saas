@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -77,12 +78,21 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (existing?.id) {
     const { error } = await db.from(TABLE).update(payload).eq("id", existing.id).eq("tenant_id", tenantId);
-    if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+    if (error) {
+      await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_updated", subEntity: "stone", errorClass: "server" });
+      return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+    }
+    // Upsert: mevcut (type, value) ataması güncellendi.
+    await trackUsage(guard, req, { module: "numerology", action: "record_updated", subEntity: "stone", resourceId: String(existing.id) });
     return NextResponse.json({ ok: true, id: existing.id });
   }
 
   const { data, error } = await db.from(TABLE).insert(payload).select("id").single();
-  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  if (error) {
+    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_created", subEntity: "stone", errorClass: "server" });
+    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  }
+  await trackUsage(guard, req, { module: "numerology", action: "record_created", subEntity: "stone", resourceId: (data as { id: string }).id });
   return NextResponse.json({ ok: true, id: (data as { id: string }).id });
 }
 
@@ -111,10 +121,14 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     .eq("id", id)
     .eq("tenant_id", tenantId)
     .select("id");
-  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  if (error) {
+    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_updated", subEntity: "stone", errorClass: "server" });
+    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  }
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "numerology", action: "record_updated", subEntity: "stone", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }
 
@@ -138,6 +152,14 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .in("id", ids)
     .select("id");
-  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  if (error) {
+    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_deleted", subEntity: "stone", errorClass: "server" });
+    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  }
+  const deletedIds = (data ?? []).map((r) => (r as { id: string }).id);
+  if (deletedIds.length > 0) {
+    // Toplu silme → TEK olay + itemCount (hiçbiri silinmediyse olay yok).
+    await trackUsage(guard, req, { module: "numerology", action: "record_deleted", subEntity: "stone", resourceId: [...deletedIds].sort().join(","), itemCount: deletedIds.length });
+  }
   return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
 }

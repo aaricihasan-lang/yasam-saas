@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   PERSONAL_ARCHIVE_BUCKET,
   isOwnedPersonalArchivePath,
@@ -103,7 +104,23 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const { data, error } = await db.from(TABLE).insert(rows).select("*");
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "server" });
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+  // USAGE360 (geriye dönük JSON hattı): önceden yüklenmiş dosyaların metadata kaydı =
+  // yükleme tamamlanması → tek olay + itemCount. resourceId = eklenen satır id'leri
+  // (sıralı); ad/boyut/tür/yol telemetriye GİRMEZ.
+  const insertedIds = ((data ?? []) as { id?: unknown }[]).map((r) => String(r.id ?? "")).filter(Boolean).sort();
+  if (insertedIds.length > 0) {
+    await trackUsage(guard, req, {
+      module: "personal_archive",
+      action: "file_uploaded",
+      subEntity: "file",
+      resourceId: insertedIds.join(","),
+      itemCount: insertedIds.length,
+    });
+  }
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
 
@@ -130,7 +147,9 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .eq("archive_id", archiveId);
 
-  if (selError) return NextResponse.json({ ok: false, error: selError.message }, { status: 500 });
+  if (selError) {
+    return NextResponse.json({ ok: false, error: selError.message }, { status: 500 });
+  }
 
   const ownedPaths = (fileRows ?? [])
     .map((r) => (r as { file_path?: unknown }).file_path)
@@ -161,6 +180,13 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .eq("archive_id", archiveId);
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+  // USAGE360: arşivin tüm dosyaları tek istekte silinir → TEK olay + itemCount.
+  // Dosyasız arşivde (0 satır) değişiklik yok → olay yok.
+  const deletedCount = (fileRows ?? []).length;
+  if (deletedCount > 0) {
+  }
   return NextResponse.json({ ok: true });
 }

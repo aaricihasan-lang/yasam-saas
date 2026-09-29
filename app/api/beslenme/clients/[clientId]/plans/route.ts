@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { beslenmeJson, denyDemoMutation } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmeClient } from "@/lib/beslenme/clientRouteGuard";
 import { createPlanForTenant } from "@/lib/beslenme/planEngine";
@@ -84,7 +85,13 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   catch { return beslenmeJson({ ok: false, code: "BAD_JSON" }, 400); }
 
   const created = await createPlanForTenant(db, tenantId, body);
-  if (!created.ok) return beslenmeJson({ ok: false, code: created.code }, created.status);
+  if (!created.ok) {
+    const errorClass = usageErrorClassForStatus(created.status);
+    if (errorClass) {
+      await trackUsage(g.guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "plan", errorClass });
+    }
+    return beslenmeJson({ ok: false, code: created.code }, created.status);
+  }
 
   const { error: assignErr } = await db.rpc("nutrition_plan_assign_client", {
     p_tenant_id: tenantId,
@@ -105,11 +112,18 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         tenantId, clientId, planId: created.plan.id, planFamilyId: created.plan.plan_family_id,
         assignCode: assignErr.code, cleanupCode: cleanupErr.code,
       });
+      await trackUsage(g.guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "plan", errorClass: "server" });
       return beslenmeJson({ ok: false, code: "PLAN_BIND_FAILED" }, 500);
     }
     const m = mapAssignError(assignErr.code);
+    const errorClass = usageErrorClassForStatus(m.status);
+    if (errorClass) {
+      await trackUsage(g.guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "plan", errorClass });
+    }
     return beslenmeJson({ ok: false, code: m.code }, m.status);
   }
 
+  // Usage360: danışana bağlı plan oluşturma (create + bind) = TEK record_created(plan).
+  await trackUsage(g.guard, req, { module: "beslenme", action: "record_created", subEntity: "plan", resourceId: created.plan.id });
   return NextResponse.json({ ok: true, plan: created.plan }, { status: 201 });
 }

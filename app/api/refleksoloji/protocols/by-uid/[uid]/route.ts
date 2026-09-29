@@ -3,6 +3,8 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { pickProtocolContentFields } from "@/lib/refleksoloji/protocolDto";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
 import { decideProtocolCas, protocolRowVersion } from "@/lib/refleksoloji/protocolSyncCore";
+import { protocolContentUnchanged } from "@/lib/refleksoloji/usageChange";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -66,21 +68,27 @@ export async function PUT(
 
   // FA-42: iyimser eşzamanlılık — mevcut satırın sürüm belirteci.
   let currentVersion: string | null = null;
+  // USAGE360: CAS okumasındaki mevcut içerik → yalnız GERÇEK değişiklik sayılır (senkron
+  // tekrarı / aynı içeriği yeniden kaydetme olay üretmez). İçerik kolonları yalnız bu
+  // karşılaştırma için okunur; yazma yolu değişmez.
+  let usageCurrentRow: Record<string, unknown> | null = null;
   if (expected) {
     const { data: curRows, error: curErr } = await db
       .from("reflexology_protocols")
-      .select("id, raw_json")
+      .select("id, title, target_problem, organs, application_notes, raw_json")
       .eq("tenant_id", tenantId)
       .eq("source_uid", uid)
       .limit(2);
     if (curErr) {
-      return jsonServerError("protocols.by-uid.PUT.read", curErr);
+      return jsonServerError("protocols.by-uid.PUT.read", curErr, { usage: { guard, req, failedAction: "record_updated", subEntity: "protocol" } });
     }
-    const cur = (curRows ?? [])[0] as { id: string; raw_json: unknown } | undefined;
+    const cur = (curRows ?? [])[0] as ({ id: string; raw_json: unknown } & Record<string, unknown>) | undefined;
     if (cur) {
+      usageCurrentRow = cur;
       currentVersion = protocolRowVersion(cur.raw_json);
       const decision = decideProtocolCas(expected, currentVersion);
       if (!decision.ok) {
+        await trackUsage(guard, req, { module: "reflexology", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass: "conflict" });
         return NextResponse.json(
           {
             ok: false,
@@ -107,9 +115,10 @@ export async function PUT(
   const { data: updated, error: updErr } = await updQuery.select();
 
   if (updErr) {
-    return jsonServerError("protocols.by-uid.PUT.update", updErr);
+    return jsonServerError("protocols.by-uid.PUT.update", updErr, { usage: { guard, req, failedAction: "record_updated", subEntity: "protocol" } });
   }
   if (expected && currentVersion && (!updated || updated.length === 0)) {
+    await trackUsage(guard, req, { module: "reflexology", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass: "conflict" });
     return NextResponse.json(
       {
         ok: false,
@@ -131,11 +140,30 @@ export async function PUT(
       .single();
 
     if (insErr) {
-      return jsonServerError("protocols.by-uid.PUT.insert", insErr);
+      return jsonServerError("protocols.by-uid.PUT.insert", insErr, { usage: { guard, req, failedAction: "record_updated", subEntity: "protocol" } });
     }
+    // USAGE360: sunucuda satır yoktu → gerçek yol YENİ kayıt (kaynak başına tek sayılır).
+    const insertedId = (inserted as { id?: unknown } | null)?.id;
+    await trackUsage(guard, req, {
+      module: "reflexology",
+      action: "record_created",
+      subEntity: "protocol",
+      resourceId: insertedId != null ? String(insertedId) : `uid:${uid}`,
+    });
     return NextResponse.json({ ok: true, protocol: inserted, created: true });
   }
 
+  // USAGE360: yalnız içerik GERÇEKTEN değiştiyse. CAS okuması yoksa (expected'sız eski
+  // istemci) karşılaştırma yapılamaz → resourceId = sunucu id → 60 sn kova dedup.
+  if (!(usageCurrentRow && protocolContentUnchanged(usageCurrentRow, fields as Record<string, unknown>))) {
+    const updatedId = (updated[0] as { id?: unknown }).id;
+    await trackUsage(guard, req, {
+      module: "reflexology",
+      action: "record_updated",
+      subEntity: "protocol",
+      resourceId: updatedId != null ? String(updatedId) : `uid:${uid}`,
+    });
+  }
   return NextResponse.json({ ok: true, protocol: updated[0], updated: updated.length });
 }
 
@@ -166,8 +194,20 @@ export async function DELETE(
     .select("id");
 
   if (error) {
-    return jsonServerError("protocols.by-uid.DELETE", error);
+    return jsonServerError("protocols.by-uid.DELETE", error, { usage: { guard, req, failedAction: "record_deleted", subEntity: "protocol" } });
   }
 
-  return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
+  const deleted = data?.length ?? 0;
+  // USAGE360: yalnız gerçekten silinen satır varsa (tekrarlanan silme senkronu 0 → olay yok).
+  if (deleted > 0) {
+    const deletedId = (data?.[0] as { id?: unknown } | undefined)?.id;
+    await trackUsage(guard, req, {
+      module: "reflexology",
+      action: "record_deleted",
+      subEntity: "protocol",
+      resourceId: deletedId != null ? String(deletedId) : `uid:${uid}`,
+      ...(deleted > 1 ? { itemCount: deleted } : {}),
+    });
+  }
+  return NextResponse.json({ ok: true, deleted });
 }

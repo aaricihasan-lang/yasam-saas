@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { extractText } from "unpdf";
 import { Document, Packer, Paragraph, TextRun } from "docx";
 import { requireDigitalContentUser } from "@/lib/auth/requireUser";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 
 export const runtime = "nodejs";
@@ -139,6 +140,8 @@ export async function POST(request: NextRequest) {
     });
 
     const docxBuffer = await Packer.toBuffer(doc);
+    // USAGE360: Word BAŞARIYLA üretildi (durumsuz dönüşüm; dosya adı/boyutu GİRMEZ).
+    await trackUsage(auth.user, request, { module: "belge_ceviri", action: "report_generated", subEntity: "document" });
     const baseName = file.name.replace(/\.pdf$/i, "");
 
     return new Response(new Uint8Array(docxBuffer), {
@@ -153,6 +156,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     console.error("[pdf-to-word]", err);
+    await trackUsage(auth.user, request, { module: "belge_ceviri", action: "action_failed", failedAction: "report_generated", subEntity: "document", errorClass: "server" });
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
       { success: false, message: `İşlem hatası: ${message}` },

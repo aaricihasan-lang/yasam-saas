@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { cleanStr, hasOnlyKeys, isUuid } from "@/lib/beslenme/contracts";
 import { mapRpcError } from "@/lib/beslenme/planEngine";
@@ -38,7 +39,12 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   });
   if (error) {
     const m = mapRpcError(error.code);
+    const errorClass = usageErrorClassForStatus(m.status);
+    if (errorClass) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "template", errorClass });
+    }
     return beslenmeJson({ ok: false, code: m.code }, m.status);
   }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_created", subEntity: "template", resourceId: (data as { id?: string } | null)?.id ?? null });
   return NextResponse.json({ ok: true, template: data }, { status: 201 });
 }

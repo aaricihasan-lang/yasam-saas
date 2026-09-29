@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -63,8 +64,13 @@ export async function POST(req: NextRequest): Promise<Response> {
     .select("id")
     .single();
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, id: (data as { id: string }).id });
+  if (error) {
+    await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "record_created", subEntity: "archive", errorClass: "server" });
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+  const newId = (data as { id: string }).id;
+  await trackUsage(guard, req, { module: "personal_archive", action: "record_created", subEntity: "archive", resourceId: newId });
+  return NextResponse.json({ ok: true, id: newId });
 }
 
 // ─── PATCH /api/kisisel-arsiv — güncelle (body.id) ─────────────────────────────
@@ -93,10 +99,14 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "record_updated", subEntity: "archive", errorClass: "server" });
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "personal_archive", action: "record_updated", subEntity: "archive", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }
 
@@ -123,9 +133,13 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .select("id");
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "record_deleted", subEntity: "archive", errorClass: "server" });
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "personal_archive", action: "record_deleted", subEntity: "archive", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }

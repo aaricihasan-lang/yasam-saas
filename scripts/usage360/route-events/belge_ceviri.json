@@ -1,0 +1,9 @@
+{
+  "module": "belge_ceviri",
+  "handlers": [
+    { "route": "belge-ceviri/pdf-to-word", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "document" }], "failure": "server", "note": "uzmana açık durumsuz PDF→Word; docx üretildikten sonra; dosya adı/boyutu GİRMEZ" },
+    { "route": "belge-ceviri/ocr", "method": "POST", "exempt": "admin-only (belge_ceviri_ai)" },
+    { "route": "belge-ceviri/ocr-to-word", "method": "POST", "exempt": "admin-only (belge_ceviri_ai)" },
+    { "route": "belge-ceviri/pdf-to-turkce-word", "method": "POST", "exempt": "admin-only (belge_ceviri_ai)" }
+  ]
+}

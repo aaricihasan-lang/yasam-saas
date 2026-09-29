@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getCanonicalReportForDownload } from "@/lib/human-design/api/reportPersistence";
 import { hdReportFilename, renderHdReportBuffer } from "@/lib/human-design/reporting/wordReport";
@@ -58,6 +59,9 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const read = await getCanonicalReportForDownload(guard.db, guard.tenantId, reportId);
   if (!read.data) {
+    if (read.status >= 500) {
+      await trackUsage(guard, req, { module: "human_design", action: "action_failed", failedAction: "report_generated", subEntity: "report", errorClass: "server" });
+    }
     return NextResponse.json({ ok: false, error: read.error }, { status: read.status, headers: { "Cache-Control": "no-store" } });
   }
   const { snapshot, clientId } = read.data;
@@ -74,10 +78,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     buffer = await renderHdReportBuffer(snapshot, { chartImage, expertName: expertDisplayName(guard.profile) });
   } catch {
+    await trackUsage(guard, req, { module: "human_design", action: "action_failed", failedAction: "report_generated", subEntity: "report", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Rapor belgesi oluşturulamadı." }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 
   // Dosya adı: raporun oluşturulduğu YEREL gün (Europe/Istanbul); yoksa bugünün yerel günü.
+  // USAGE360: docx BAŞARIYLA üretildi → report_generated (resourceId = rapor id; 60 sn kova).
+  // Android Word guard 403'ü olay değildir.
+  await trackUsage(guard, req, { module: "human_design", action: "report_generated", subEntity: "report", resourceId: reportId });
+
   const dateSlug = zonedDayKey(snapshot.generatedAt) || reportFileDate();
   const filename = hdReportFilename(snapshot.client.name, dateSlug);
 

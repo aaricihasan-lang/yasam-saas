@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -32,6 +33,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     .in("id", ids).eq("tenant_id", tenantId) // tenant guard
     .select("id");
 
-  if (error) return serverErrorResponse({ route: "dogaltas/minerals/bulk-delete", action: "POST", tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "dogaltas/minerals/bulk-delete", action: "POST", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_deleted", subEntity: "mineral" } });
+  const deletedIds = (data ?? []).map((r: { id: string }) => r.id);
+  if (deletedIds.length > 0) {
+    // Usage360: toplu silme → TEK olay + itemCount (hiçbiri silinmediyse olay yok).
+    await trackUsage(guard, req, { module: "stones", action: "record_deleted", subEntity: "mineral", resourceId: [...deletedIds].sort().join(","), itemCount: deletedIds.length });
+  }
   return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
 }

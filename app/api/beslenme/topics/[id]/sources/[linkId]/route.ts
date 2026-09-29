@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { isActiveTopicInTenant } from "@/lib/beslenme/topicGuard";
 import { isUuid } from "@/lib/beslenme/contracts";
@@ -24,7 +25,11 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
     .eq("tenant_id", tenantId)
     .eq("topic_id", topicId)
     .eq("id", linkId);
-  if (error) return beslenmeJson({ ok: false, code: "UNLINK_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_deleted", subEntity: "source_link", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "UNLINK_FAILED" }, 500);
+  }
   if (!count) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
+  await trackUsage(guard, req, { module: "beslenme", action: "record_deleted", subEntity: "source_link", resourceId: linkId });
   return NextResponse.json({ ok: true, deleted: true });
 }

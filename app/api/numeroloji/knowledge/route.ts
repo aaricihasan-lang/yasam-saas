@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import {
   validateContentSectionsForType,
   decideCreateConflict,
@@ -91,6 +92,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const decision = decideCreateConflict(Boolean(existing?.id), overwrite);
   if (decision === "conflict") {
     // Sessiz ezme YOK: açık 409. Güncelleme için PATCH veya açık overwrite:true.
+    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_created", subEntity: "knowledge", errorClass: "conflict" });
     return NextResponse.json(
       {
         ok: false,
@@ -118,16 +120,20 @@ export async function POST(req: NextRequest): Promise<Response> {
     const { error } = await db.from(TABLE).update(payload).eq("id", (existing as { id: string }).id).eq("tenant_id", tenantId);
     if (error) {
       const e = safeDbError(error);
+      await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_updated", subEntity: "knowledge", errorClass: usageErrorClassForStatus(e.status) ?? "server" });
       return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
     }
+    await trackUsage(guard, req, { module: "numerology", action: "record_updated", subEntity: "knowledge", resourceId: (existing as { id: string }).id });
     return NextResponse.json({ ok: true, id: (existing as { id: string }).id, overwritten: true });
   }
 
   const { data, error } = await db.from(TABLE).insert(payload).select("id").single();
   if (error) {
     const e = safeDbError(error);
+    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_created", subEntity: "knowledge", errorClass: usageErrorClassForStatus(e.status) ?? "server" });
     return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
   }
+  await trackUsage(guard, req, { module: "numerology", action: "record_created", subEntity: "knowledge", resourceId: (data as { id: string }).id });
   return NextResponse.json({ ok: true, id: (data as { id: string }).id });
 }
 
@@ -183,11 +189,13 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     .select("id");
   if (error) {
     const e = safeDbError(error);
+    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_updated", subEntity: "knowledge", errorClass: usageErrorClassForStatus(e.status) ?? "server" });
     return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
   }
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "numerology", action: "record_updated", subEntity: "knowledge", resourceId: id });
   return NextResponse.json({ ok: true, id });
 }
 
@@ -211,6 +219,14 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .in("id", ids)
     .select("id");
-  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  if (error) {
+    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_deleted", subEntity: "knowledge", errorClass: "server" });
+    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  }
+  const deletedIds = (data ?? []).map((r) => (r as { id: string }).id);
+  if (deletedIds.length > 0) {
+    // Toplu silme → TEK olay + itemCount (hiçbiri silinmediyse olay yok).
+    await trackUsage(guard, req, { module: "numerology", action: "record_deleted", subEntity: "knowledge", resourceId: [...deletedIds].sort().join(","), itemCount: deletedIds.length });
+  }
   return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
 }

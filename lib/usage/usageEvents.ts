@@ -15,6 +15,10 @@
  * PII/SECRET YASAK: Bu fonksiyon yalnız {tenant_id, user_id, module_key, event_type,
  * idempotency_key} yazar. Danışan/analiz/dosya/serbest-metin/token/IP ASLA geçmez
  * (imza da buna izin vermez — yapısal engel).
+ *
+ * USAGE360 (AŞAMA 2A): Route'lar artık doğrudan bunu değil `trackUsage`'ı
+ * (lib/usage/trackUsage.ts) çağırır. Bu fonksiyon, USAGE360_ENABLED kapalıyken eski 4
+ * olayın AYNI satır biçimiyle yazılması için uyumluluk adaptörü olarak kalır.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ModuleGateKey } from "@/lib/auth/moduleAccess";

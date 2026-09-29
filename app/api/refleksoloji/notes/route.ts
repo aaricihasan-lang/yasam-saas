@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { NOTE_LIMITS } from "@/lib/refleksoloji/notesValidation";
 import { prepareNoteSyncBatch } from "@/lib/refleksoloji/notesSyncBatch";
 import {
@@ -200,11 +201,31 @@ export async function PUT(req: NextRequest): Promise<Response> {
       nowIso,
       rejected,
     );
+    // USAGE360: yalnız GERÇEK değişiklik (created/updated/deleted) sayılır; "unchanged",
+    // "delete-noop", "rejected" senkron tekrarları olay ÜRETMEZ. Toplu senkron = TEK olay
+    // (+itemCount). resourceId = değişen not uid'lerinin sıralı birleşimi (yalnız HMAC'lanır)
+    // → aynı değişiklik kümesinin yeniden gönderimi 60 sn kovasında tek sayılır.
+    const changedUids = results
+      .filter((r) => r.outcome === "created" || r.outcome === "updated" || r.outcome === "deleted")
+      .map((r) => r.uid)
+      .sort();
+    if (changedUids.length > 0) {
+      await trackUsage(guard, req, {
+        module: "reflexology",
+        action: "record_updated",
+        subEntity: "note",
+        resourceId: `notes:${changedUids.join(",")}`,
+        itemCount: changedUids.length,
+      });
+    }
+    if (conflicts > 0) {
+      await trackUsage(guard, req, { module: "reflexology", action: "action_failed", failedAction: "record_updated", subEntity: "note", errorClass: "conflict" });
+    }
     return NextResponse.json(
       { ok: conflicts === 0 && rejectedCount === 0, results, conflicts, rejected: rejectedCount },
       { status: conflicts > 0 ? 409 : 200 },
     );
   } catch (err) {
-    return jsonServerError("notes.PUT.reconcile", err);
+    return jsonServerError("notes.PUT.reconcile", err, { usage: { guard, req, failedAction: "record_updated", subEntity: "note" } });
   }
 }

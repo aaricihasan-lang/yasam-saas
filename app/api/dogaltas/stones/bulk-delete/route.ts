@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { STONE_PHOTO_BUCKET, collectStonePhotoPaths } from "@/lib/dogaltas/stonePhoto";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .in("id", ids).eq("tenant_id", tenantId) // tenant guard — cross-tenant delete engellenir
     .select("id");
 
-  if (error) return serverErrorResponse({ route: "dogaltas/stones/bulk-delete", action: "POST", tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "dogaltas/stones/bulk-delete", action: "POST", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_deleted", subEntity: "stone" } });
   const deletedIds = (data ?? []).map((r: { id: string }) => r.id);
 
   // Orphan storage temizliği (best-effort; başarısızlık DB delete'i geri almaz, dürüst raporlanır).
@@ -50,6 +51,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (paths.length > 0) {
     const { error: rmErr } = await db.storage.from(STONE_PHOTO_BUCKET).remove(paths);
     if (rmErr) { storageCleaned = false; console.error("[stones/bulk-delete] orphan temizliği hatası:", rmErr.message); }
+  }
+  if (deletedIds.length > 0) {
+    // Usage360: toplu silme → TEK olay + itemCount (hiçbiri silinmediyse olay yok).
+    await trackUsage(guard, req, { module: "stones", action: "record_deleted", subEntity: "stone", resourceId: [...deletedIds].sort().join(","), itemCount: deletedIds.length });
   }
   return NextResponse.json({ ok: true, deletedIds, deleted: deletedIds.length, storageCleaned });
 }

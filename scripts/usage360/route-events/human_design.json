@@ -1,0 +1,26 @@
+{
+  "module": "human_design",
+  "handlers": [
+    { "route": "hd/charts", "method": "POST", "events": [{ "action": "record_created", "subEntity": "chart" }, { "action": "record_updated", "subEntity": "chart" }], "failure": "server", "note": "computed: recompute-on-save insert → record_created (res.status>=500 → server); ?scope=manual: danışan başına upsert, yol route'ta bilinmiyor → record_updated (hatalar 400 → olay yok)" },
+    { "route": "hd/charts", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "chart" }], "note": "manuel harita; persistence hataları 400 döner (500 dalı yok)" },
+    { "route": "hd/charts", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "chart" }], "note": "manuel id / manuel clientId / computed id — her yol tek olay; hatalar 400" },
+    { "route": "hd/clients", "method": "POST", "events": [{ "action": "record_created", "subEntity": "client" }], "note": "hatalar 400 (500 dalı yok)" },
+    { "route": "hd/clients", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "client" }] },
+    { "route": "hd/clients", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "client" }], "note": "tenant-scoped cascade (raporlar → haritalar → danışan) tek kullanıcı eylemi → tek olay" },
+    { "route": "hd/compute", "method": "POST", "events": [{ "action": "analysis_run", "subEntity": "chart" }], "failure": "server", "note": "yalnız status 200; motor 500 → server; stateless (resourceId yok, doğum verisi telemetriye girmez); motor değişmedi" },
+    { "route": "hd/knowledge", "method": "POST", "events": [{ "action": "record_created", "subEntity": "knowledge" }] },
+    { "route": "hd/knowledge", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "knowledge" }] },
+    { "route": "hd/knowledge", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "knowledge" }], "note": "?ids= toplu → tek olay + itemCount; ?id= tekil" },
+    { "route": "hd/knowledge-sources", "method": "POST", "events": [{ "action": "record_created", "subEntity": "source" }] },
+    { "route": "hd/knowledge-sources", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "source" }] },
+    { "route": "hd/knowledge-sources", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "source" }] },
+    { "route": "hd/reports", "method": "GET", "exempt": "okuma: kayıtlı rapor listesi (dosya üretimi yok)" },
+    { "route": "hd/reports", "method": "POST", "events": [{ "action": "record_created", "subEntity": "report" }] },
+    { "route": "hd/reports", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "report" }] },
+    { "route": "hd/reports", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "report" }] },
+    { "route": "hd/reports/professional", "method": "POST", "events": [{ "action": "record_created", "subEntity": "report" }], "failure": "server", "note": "donmuş snapshot kaydı oluşturma (Word üretimi DEĞİL); snapshot 500 → server" },
+    { "route": "hd/reports/professional/download", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "report" }], "failure": "server", "note": "sunucu docx üretildikten sonra; Android Word guard 403 olay değildir; professional POST'tan ayrı kullanıcı eylemi" },
+    { "route": "hd/upload-chart-image", "method": "POST", "events": [{ "action": "file_uploaded", "subEntity": "image" }], "failure": "server", "note": "storage upload + DB kaydı sonrası; resourceId = sunucu üretimli nesne uuid" },
+    { "route": "hd/delete-chart-image", "method": "POST", "events": [{ "action": "record_deleted", "subEntity": "image" }], "failure": "server", "note": "yalnız mevcut görsel varsa" }
+  ]
+}

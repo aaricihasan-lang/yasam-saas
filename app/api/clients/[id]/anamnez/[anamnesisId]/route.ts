@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { isKnownTemplateVersion } from "@/lib/danisan/anamnez/schema";
 import {
   isValidDeleteConfirm,
@@ -150,10 +151,12 @@ export async function PATCH(req: NextRequest, { params }: RouteCtx): Promise<Res
     .select("id, revision, updated_at");
   if (upErr) {
     if (upErr.code === "23514") return anamnezError("LOCKED", 409);
-    return serverErrorResponse({ route: "clients/[id]/anamnez/[anamnesisId]", action: "PATCH", tenantId, cause: upErr });
+    return serverErrorResponse({ route: "clients/[id]/anamnez/[anamnesisId]", action: "PATCH", tenantId, cause: upErr, usage: { guard, req, module: "clients", failedAction: "record_updated", subEntity: "anamnesis" } });
   }
   const saved = ((data ?? []) as Array<{ id: string; revision: number; updated_at: string }>)[0];
   if (!saved) return anamnezError("CONFLICT", 409);
+  // USAGE360: taslak otomatik kaydı 60 sn kovasında tek sayılır (resourceId = anamnez id; HMAC).
+  await trackUsage(guard, req, { module: "clients", action: "record_updated", subEntity: "anamnesis", resourceId: saved.id });
   return anamnezJson({ ok: true, revision: saved.revision, updated_at: saved.updated_at, answers: update.answers, formCustom, sourceLinks: update.source_links });
 }
 
@@ -196,7 +199,7 @@ export async function DELETE(req: NextRequest, { params }: RouteCtx): Promise<Re
     .eq("tenant_id", tenantId)
     .eq("client_id", clientId)
     .eq("id", row.id);
-  if (delErr) return serverErrorResponse({ route: "clients/[id]/anamnez/[anamnesisId]", action: "DELETE", tenantId, cause: delErr });
+  if (delErr) return serverErrorResponse({ route: "clients/[id]/anamnez/[anamnesisId]", action: "DELETE", tenantId, cause: delErr, usage: { guard, req, module: "clients", failedAction: "record_deleted", subEntity: "anamnesis" } });
 
   logAnamnezEvent("deleted", {
     tenant: tenantId,
@@ -206,5 +209,6 @@ export async function DELETE(req: NextRequest, { params }: RouteCtx): Promise<Re
     status: row.status,
     files: collected.paths.length,
   });
+  await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "anamnesis", resourceId: row.id });
   return anamnezJson({ ok: true, deleted: row.id, filesRemoved: collected.paths.length });
 }

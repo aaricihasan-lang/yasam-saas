@@ -18,6 +18,9 @@
  */
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
+import type { ModuleGateKey } from "@/lib/auth/moduleAccess";
+import { trackUsageLater, type UsageGuardContext } from "@/lib/usage/trackUsage";
+import type { FailableUsageAction } from "@/lib/usage/usageTaxonomy";
 
 /** Kullanıcıya gösterilecek sabit, güvenli TR mesajları (statüye göre). */
 export const PUBLIC_ERROR_MESSAGE: Record<number, string> = {
@@ -39,7 +42,25 @@ export type ServerErrorContext = {
   tenantId?: string;
   /** Ham hata (Supabase/Postgres/Error) — YALNIZ sunucu logunda. */
   cause: unknown;
+  /**
+   * USAGE360 (opsiyonel): verilirse başarısız iş işlemi yanıttan SONRA tek bir
+   * action_failed (error_class=server) olayı olarak kaydedilir. Olaya hata mesajı / cause /
+   * route / ref YAZILMAZ — yalnız modül + başarısız eylem + alt-varlık enum'ları.
+   */
+  usage?: {
+    guard: UsageGuardContext;
+    req: { headers: Headers } | null;
+    module: ModuleGateKey;
+    failedAction: FailableUsageAction;
+    subEntity?: string | null;
+  };
 };
+
+function recordUsageFailure(ctx: ServerErrorContext): void {
+  if (!ctx.usage) return;
+  const { guard, req, module, failedAction, subEntity } = ctx.usage;
+  trackUsageLater(guard, req, { module, action: "action_failed", failedAction, subEntity: subEntity ?? null, errorClass: "server" });
+}
 
 function extractDiagnostic(cause: unknown): { message: string; code?: string } {
   if (cause && typeof cause === "object") {
@@ -58,6 +79,7 @@ function extractDiagnostic(cause: unknown): { message: string; code?: string } {
  * Ham `cause` (Supabase/Postgres message) YANITTA yer almaz.
  */
 export function serverErrorResponse(ctx: ServerErrorContext): NextResponse {
+  recordUsageFailure(ctx);
   const ref = randomUUID();
   const { message, code } = extractDiagnostic(ctx.cause);
   // Sunucu diagnostiği — İÇERİK/PII YOK. (Vercel Functions logs.)
@@ -79,6 +101,7 @@ export function serverErrorResponse(ctx: ServerErrorContext): NextResponse {
  * içinde raw mesaj yerine bu ref'i kullanmak için).
  */
 export function logServerError(ctx: ServerErrorContext): string {
+  recordUsageFailure(ctx);
   const ref = randomUUID();
   const { message, code } = extractDiagnostic(ctx.cause);
   console.error(

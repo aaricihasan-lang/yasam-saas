@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse, logServerError } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { deleteStoneAndPhotos, STONE_PHOTO_BUCKET } from "@/lib/clients/stonePhotoStorage";
 
@@ -110,8 +111,21 @@ export async function POST(
     .single();
 
   if (error) {
-    return serverErrorResponse({ route: "clients/[id]/stones", action: "POST", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]/stones",
+      action: "POST",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "record_created", subEntity: "stone" },
+    });
   }
+  const newStoneId = (data as { id?: unknown } | null)?.id;
+  await trackUsage(guard, req, {
+    module: "clients",
+    action: "record_created",
+    subEntity: "stone",
+    resourceId: newStoneId != null ? String(newStoneId) : null,
+  });
   return NextResponse.json({ ok: true, stone: data });
 }
 
@@ -163,11 +177,18 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
-    return serverErrorResponse({ route: "clients/[id]/stones", action: "PATCH", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]/stones",
+      action: "PATCH",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "record_updated", subEntity: "stone" },
+    });
   }
   if (!data) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "clients", action: "record_updated", subEntity: "stone", resourceId: rowId });
   return NextResponse.json({ ok: true, stone: data });
 }
 
@@ -225,12 +246,22 @@ export async function DELETE(
     stoneId: rowId,
   });
   if (result.error) {
-    return serverErrorResponse({ route: "clients/[id]/stones", action: "DELETE", tenantId, cause: result.error });
+    return serverErrorResponse({
+      route: "clients/[id]/stones",
+      action: "DELETE",
+      tenantId,
+      cause: result.error,
+      usage: { guard, req, module: "clients", failedAction: "record_deleted", subEntity: "stone" },
+    });
   }
   // Taş silindi; foto DB satırı temizliği best-effort'tur (yalnız yetim satır/blob riski,
   // yaşayan taş etkilenmez) — hata sunucu logunda kalır, işlem ok döner.
   if (result.photoCleanupError) {
     logServerError({ route: "clients/[id]/stones", action: "DELETE-photo-cleanup", tenantId, cause: result.photoCleanupError });
+  }
+  // Tek kullanıcı eylemi (taş + fotoğrafları) = tek olay; 0 satır → değişiklik yok, olay yok.
+  if (result.stoneDeleted > 0) {
+    await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "stone", resourceId: rowId });
   }
   return NextResponse.json({ ok: true, deleted: result.stoneDeleted });
 }

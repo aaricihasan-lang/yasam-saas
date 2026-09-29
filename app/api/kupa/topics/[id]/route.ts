@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES, TOPIC_WRITABLE } from "@/lib/cupping/fields";
 import { deleteEntity, getEntity, parseJsonBody, pickWritable, updateEntity } from "@/lib/cupping/api";
 
@@ -38,7 +39,12 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
   }
   const res = await updateEntity(db, CUPPING_TABLES.topics, tenantId, id, fields);
-  if (!res.ok) return res.response;
+  if (!res.ok) {
+    const errorClass = usageErrorClassForStatus(res.response.status);
+    if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "topic", errorClass });
+    return res.response;
+  }
+  await trackUsage(guard, req, { module: "cupping", action: "record_updated", subEntity: "topic", resourceId: id });
   return NextResponse.json({ ok: true, topic: res.data });
 }
 
@@ -53,6 +59,11 @@ export async function DELETE(
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deleted: 0 });
   const res = await deleteEntity(db, CUPPING_TABLES.topics, tenantId, id);
-  if (!res.ok) return res.response;
+  if (!res.ok) {
+    const errorClass = usageErrorClassForStatus(res.response.status);
+    if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_deleted", subEntity: "topic", errorClass });
+    return res.response;
+  }
+  if (res.data > 0) await trackUsage(guard, req, { module: "cupping", action: "record_deleted", subEntity: "topic", resourceId: id });
   return NextResponse.json({ ok: true, deleted: res.data });
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { SYSTEM_NUTRITION_TENANT_ID, isSystemNutritionTenant } from "@/lib/beslenme/systemTenant";
@@ -70,7 +71,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   });
   if (error) {
     const m = mapFoodRpcError(error.code);
+    const errorClass = usageErrorClassForStatus(m.status);
+    if (errorClass) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "food", errorClass });
+    }
     return beslenmeJson({ ok: false, code: m.code === "WRITE_FAILED" ? "RESET_FAILED" : m.code }, m.status);
   }
-  return NextResponse.json({ ok: true, reset: Number(data ?? 0) });
+  const resetCount = Number(data ?? 0);
+  // Usage360: kişiselleştirmeyi sistem değerine döndürme = tek record_updated(food) + kayıt sayısı.
+  if (resetCount > 0) {
+    await trackUsage(guard, req, {
+      module: "beslenme",
+      action: "record_updated",
+      subEntity: "food",
+      resourceId: scope.ids.length === 1 ? scope.ids[0] : null,
+      itemCount: resetCount,
+    });
+  }
+  return NextResponse.json({ ok: true, reset: resetCount });
 }

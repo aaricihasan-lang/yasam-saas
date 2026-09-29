@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { normalizeSearchText } from "@/lib/yasam-hafizasi/search/normalize";
 import { SOURCE_COLUMNS, cleanStr, hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -48,6 +49,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     .insert({ tenant_id: tenantId, ...payload })
     .select(SOURCE_COLUMNS)
     .single();
-  if (error) return beslenmeJson({ ok: false, code: "CREATE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "source", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "CREATE_FAILED" }, 500);
+  }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_created", subEntity: "source", resourceId: (data as { id?: string } | null)?.id ?? null });
   return NextResponse.json({ ok: true, source: data }, { status: 201 });
 }

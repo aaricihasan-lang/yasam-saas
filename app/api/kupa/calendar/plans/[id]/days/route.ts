@@ -7,7 +7,8 @@ import {
   pickCuppingDayStyleInput,
   type CuppingDayStyleInput,
 } from "@/lib/cupping/calendarTypes";
-import { cuppingError, getEntity, parseJsonBody } from "@/lib/cupping/api";
+import { cuppingError, getEntity, parseJsonBody, usageRowId } from "@/lib/cupping/api";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { parseYmd } from "@/lib/cupping/hijri";
 
 export const runtime = "nodejs";
@@ -116,8 +117,15 @@ export async function POST(
     .from(CUPPING_TABLES.calendarPlanDays)
     .upsert(rows, { onConflict: "tenant_id,plan_id,gregorian_date", ignoreDuplicates: true })
     .select("id");
-  if (error) return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
+  if (error) {
+    await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_created", subEntity: "calendar_day", errorClass: "server" });
+    return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
+  }
 
   const inserted = data?.length ?? 0;
+  // Toplu ekleme = TEK olay + itemCount; yalnız mevcut tarihler (idempotent no-op) → olay YOK.
+  if (inserted > 0) {
+    await trackUsage(guard, req, { module: "cupping", action: "record_created", subEntity: "calendar_day", resourceId: usageRowId(data?.[0]), itemCount: inserted });
+  }
   return NextResponse.json({ ok: true, inserted, skippedExisting: rows.length - inserted });
 }

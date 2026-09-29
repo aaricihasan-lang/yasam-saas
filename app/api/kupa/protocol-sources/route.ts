@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES, PROTOCOL_SOURCE_WRITABLE } from "@/lib/cupping/fields";
 import {
   assertOwnedRef,
@@ -8,6 +9,7 @@ import {
   listEntity,
   parseJsonBody,
   pickWritable,
+  usageRowId,
 } from "@/lib/cupping/api";
 
 export const runtime = "nodejs";
@@ -52,6 +54,11 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const ins = await insertEntity(db, CUPPING_TABLES.protocolSources, tenantId, fields);
-  if (!ins.ok) return ins.response;
+  if (!ins.ok) {
+    const errorClass = usageErrorClassForStatus(ins.response.status);
+    if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass });
+    return ins.response;
+  }
+  await trackUsage(guard, req, { module: "cupping", action: "record_updated", subEntity: "protocol", resourceId: usageRowId(ins.data) });
   return NextResponse.json({ ok: true, source: ins.data });
 }

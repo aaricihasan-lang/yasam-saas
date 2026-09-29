@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { validateChakraBlockInput, chakraChildBreakdown } from "@/lib/bioenergy/chakraBlockCrud";
 
 export const runtime = "nodejs";
@@ -185,7 +186,10 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (error) {
     console.error("[chakra-blocks] create:", error.message);
+    await trackUsage(guard, req, { module: "energy_body", action: "action_failed", failedAction: "record_created", subEntity: "chakra_block", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Blok oluşturulamadı." }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, id: (data as { id: string }).id });
+  const newBlockId = (data as { id: string }).id;
+  await trackUsage(guard, req, { module: "energy_body", action: "record_created", subEntity: "chakra_block", resourceId: newBlockId });
+  return NextResponse.json({ ok: true, id: newBlockId });
 }

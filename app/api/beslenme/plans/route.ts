@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { PLAN_COLUMNS, PLAN_STATUSES } from "@/lib/beslenme/planContracts";
 import { createPlanForTenant } from "@/lib/beslenme/planEngine";
@@ -39,6 +40,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const created = await createPlanForTenant(db, tenantId, body);
-  if (!created.ok) return beslenmeJson({ ok: false, code: created.code }, created.status);
+  if (!created.ok) {
+    const errorClass = usageErrorClassForStatus(created.status);
+    if (errorClass) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "plan", errorClass });
+    }
+    return beslenmeJson({ ok: false, code: created.code }, created.status);
+  }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_created", subEntity: "plan", resourceId: created.plan.id });
   return NextResponse.json({ ok: true, plan: created.plan }, { status: 201 });
 }

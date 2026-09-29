@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmeClient } from "@/lib/beslenme/clientRouteGuard";
 import { cleanStr, cleanNumber, hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -88,7 +89,11 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     .upsert(row, { onConflict: "tenant_id,client_id" })
     .select(PROFILE_COLUMNS)
     .single();
-  if (error) return beslenmeJson({ ok: false, code: "PROFILE_SAVE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "profile", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "PROFILE_SAVE_FAILED" }, 500);
+  }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "profile", resourceId: clientId });
 
   return NextResponse.json({ ok: true, profile: data }, { status: 200 });
 }

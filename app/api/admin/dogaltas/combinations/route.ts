@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
+import { adminTenantMissingResponse, foreignTenantResponse, resolveAdminOwnTenant } from "@/lib/admin/adminOwnTenant";
 
 export const runtime = "nodejs";
 
@@ -25,13 +26,12 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const { db } = guard;
 
-  const tenantId = req.nextUrl.searchParams.get("tenantId")?.trim() ?? "";
-  if (!tenantId || !UUID_RE.test(tenantId)) {
-    return NextResponse.json(
-      { ok: false, error: "Geçerli tenantId (uuid) zorunludur." },
-      { status: 400 },
-    );
-  }
+  // GİZLİLİK: okuma tenant'ı SUNUCUDA çözülür (adminin kendi kütüphanesi). İstemcinin
+  // gönderdiği tenantId yalnız eşleşme kontrolü içindir; başka tenant → 403.
+  const tenantId = await resolveAdminOwnTenant(db, guard.adminId);
+  if (!tenantId) return adminTenantMissingResponse();
+  const requested = req.nextUrl.searchParams.get("tenantId")?.trim() ?? "";
+  if (requested && (!UUID_RE.test(requested) || requested !== tenantId)) return foreignTenantResponse();
 
   const { data, error } = await db
     .from("combinations")

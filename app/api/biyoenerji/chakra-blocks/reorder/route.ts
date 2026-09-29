@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { validateReorderInput } from "@/lib/bioenergy/chakraBlockCrud";
 
 export const runtime = "nodejs";
@@ -74,5 +75,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     }
   }
 
+  // USAGE360: sıralama = tek kullanıcı eylemi → TEK record_updated (+itemCount); hiçbir satır
+  // taşınmadıysa olay yok. resourceId = chakra (60 sn kovası: tekrar sürükleme tek sayılır).
+  if (updated > 0) {
+    await trackUsage(guard, req, { module: "energy_body", action: "record_updated", subEntity: "chakra_block", resourceId: chakraId, itemCount: updated });
+  }
   return NextResponse.json({ ok: failed.length === 0, updated, failed });
 }

@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { DEFAULT_HACAMAT_RULES } from "@/lib/cosmic/hacamatDefaultRules";
 
 export const runtime = "nodejs";
@@ -84,9 +85,14 @@ export async function POST(req: NextRequest) {
     .from("hacamat_rules")
     .select("id", { count: "exact", head: true })
     .eq("tenant_id", tenantId);
-  if (countErr) return json({ ok: false, code: "CREATE_FAILED", error: "Eklenemedi." }, 500);
-  if ((count ?? 0) >= MAX_RULES_PER_TENANT)
+  if (countErr) {
+    await trackUsage(guard, req, { module: "cosmic_calendar", action: "action_failed", failedAction: "record_created", subEntity: "hacamat_rule", errorClass: "server" });
+    return json({ ok: false, code: "CREATE_FAILED", error: "Eklenemedi." }, 500);
+  }
+  if ((count ?? 0) >= MAX_RULES_PER_TENANT) {
+    await trackUsage(guard, req, { module: "cosmic_calendar", action: "action_failed", failedAction: "record_created", subEntity: "hacamat_rule", errorClass: "conflict" });
     return json({ ok: false, error: `En fazla ${MAX_RULES_PER_TENANT} kural eklenebilir.` }, 409);
+  }
 
   const { data, error } = await db
     .from("hacamat_rules")
@@ -94,6 +100,10 @@ export async function POST(req: NextRequest) {
     .select("id, category, rule_text, sort_order")
     .single();
 
-  if (error) return json({ ok: false, code: "CREATE_FAILED", error: "Eklenemedi." }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "cosmic_calendar", action: "action_failed", failedAction: "record_created", subEntity: "hacamat_rule", errorClass: "server" });
+    return json({ ok: false, code: "CREATE_FAILED", error: "Eklenemedi." }, 500);
+  }
+  await trackUsage(guard, req, { module: "cosmic_calendar", action: "record_created", subEntity: "hacamat_rule", resourceId: String((data as { id?: unknown } | null)?.id ?? "") || null });
   return json({ ok: true, data }, 201);
 }

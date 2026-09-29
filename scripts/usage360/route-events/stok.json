@@ -1,0 +1,20 @@
+{
+  "module": "stok",
+  "handlers": [
+    { "route": "urun-stok/yag", "method": "POST", "events": [{ "action": "record_created", "subEntity": "oil" }], "failure": "server" },
+    { "route": "urun-stok/yag", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "oil" }], "failure": "server" },
+    { "route": "urun-stok/yag", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "oil" }], "failure": "server" },
+    { "route": "urun-stok/sabun-krem", "method": "POST", "events": [{ "action": "record_created", "subEntity": "soap_cream" }], "failure": "server" },
+    { "route": "urun-stok/sabun-krem", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "soap_cream" }], "failure": "server" },
+    { "route": "urun-stok/sabun-krem", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "soap_cream" }], "failure": "server" },
+    { "route": "urun-stok/aksesuar", "method": "POST", "events": [{ "action": "record_created", "subEntity": "accessory" }], "failure": "server" },
+    { "route": "urun-stok/aksesuar", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "accessory" }], "failure": "server" },
+    { "route": "urun-stok/aksesuar", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "accessory" }], "failure": "server" },
+    { "route": "urun-stok/diger", "method": "POST", "events": [{ "action": "record_created", "subEntity": "other_item" }], "failure": "server" },
+    { "route": "urun-stok/diger", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "other_item" }], "failure": "server" },
+    { "route": "urun-stok/diger", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "other_item" }], "failure": "server" },
+    { "route": "urun-stok/sales", "method": "POST", "events": [{ "action": "record_created", "subEntity": "sale" }], "failure": "server", "note": "atomik satış RPC; itemCount = satır sayısı; idempotent duplicate → olay yok; 409 yetersiz stok → errorClass conflict" },
+    { "route": "urun-stok/sales/[id]/cancel", "method": "POST", "events": [{ "action": "record_updated", "subEntity": "sale" }], "failure": "server", "note": "iptal satışı SİLMEZ: status=cancelled + stok iadesi → record_updated; already_cancelled no-op → olay yok" },
+    { "route": "urun-stok/stock-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "inventory" }], "failure": "server", "note": "Word buffer üretildikten sonra" }
+  ]
+}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { cleanStr, cleanNumber, hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -63,6 +64,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
 
   // Optimistic concurrency (§25): expectedUpdatedAt eşleşmezse stale.
   if (typeof body.expectedUpdatedAt === "string" && body.expectedUpdatedAt !== plan.updated_at) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "plan", errorClass: "conflict" });
     return beslenmeJson({ ok: false, code: "PLAN_STALE" }, 409);
   }
 
@@ -96,7 +98,11 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
 
   const { data, error } = await db
     .from("nutrition_plans").update(patch).eq("tenant_id", tenantId).eq("id", id).select(PLAN_COLUMNS).single();
-  if (error) return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "plan", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
+  }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "plan", resourceId: id });
   return NextResponse.json({ ok: true, plan: data });
 }
 
@@ -122,7 +128,12 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
   });
   if (error) {
     const m = mapRpcError(error.code);
+    const errorClass = usageErrorClassForStatus(m.status);
+    if (errorClass) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_deleted", subEntity: "plan", errorClass });
+    }
     return beslenmeJson({ ok: false, code: m.code }, m.status);
   }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_deleted", subEntity: "plan", resourceId: id });
   return NextResponse.json({ ok: true, result: data });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { computeBurc } from "@/lib/danisan/burc";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -111,7 +112,13 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
-    return serverErrorResponse({ route: "clients/[id]", action: "PATCH", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]",
+      action: "PATCH",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "record_updated", subEntity: "client" },
+    });
   }
   if (!data) {
     return NextResponse.json(
@@ -119,6 +126,8 @@ export async function PATCH(
       { status: 404 },
     );
   }
+
+  await trackUsage(guard, req, { module: "clients", action: "record_updated", subEntity: "client", resourceId: clientId });
 
   return NextResponse.json({ ok: true, client: data });
 }

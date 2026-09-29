@@ -47,7 +47,8 @@ ok(buildUsageIdempotencyKey("stones", "record_created", "id1") !== buildUsageIde
 
 // ── (3) Modül envanteri (İP-2A) ──────────────────────────────────────────────
 console.log("\n[3] modül envanteri");
-ok(MODULE_USAGE_KEYS.length === 18, `18 kanonik modül (bulundu: ${MODULE_USAGE_KEYS.length})`);
+// 19: belge_ceviri_ai sanal kapı anahtarı sonradan eklendi (ModuleGateKey ile birebir).
+ok(MODULE_USAGE_KEYS.length === 19, `19 kanonik modül (bulundu: ${MODULE_USAGE_KEYS.length})`);
 ok(MODULE_USAGE_REGISTRY.numerology.recordSources[0].table === "numerology_records", "numeroloji kanonik tablo numerology_records (analyses DEĞİL)");
 ok(MODULE_USAGE_REGISTRY.cosmic_calendar.hasDurableTrace === false && MODULE_USAGE_REGISTRY.ders_notu.hasDurableTrace === false, "kozmik + ders_notu durable-trace YOK");
 ok([...INSTRUMENTED_USAGE_MODULES].every((k) => MODULE_USAGE_KEYS.includes(k)), "enstrümante modüller envanterin alt kümesi");

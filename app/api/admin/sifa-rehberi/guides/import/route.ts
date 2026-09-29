@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
+import { adminTenantMissingResponse, foreignTenantResponse, resolveAdminOwnTenant } from "@/lib/admin/adminOwnTenant";
 
 export const runtime = "nodejs";
 
@@ -60,12 +61,15 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const action = String(body.action ?? "").trim();
 
+  // GİZLİLİK: içe aktarma yalnız adminin kendi kütüphane tenant'ında (sunucuda çözülür).
+  // Başka bir tenantId (uzman çalışma alanı) → 403: uzman içerik başlıkları okunamaz/yazılamaz.
+  const ownTenant = await resolveAdminOwnTenant(db, guard.adminId);
+  if (!ownTenant) return adminTenantMissingResponse();
+  if (body.tenantId !== undefined && normTenant(body.tenantId) !== ownTenant) return foreignTenantResponse();
+
   // ── Mevcut hastalık adı anahtarları ──────────────────────────────────────────
   if (action === "existing-keys") {
-    const tenantId = normTenant(body.tenantId);
-    if (!tenantId) {
-      return NextResponse.json({ ok: false, error: "tenantId zorunludur." }, { status: 400 });
-    }
+    const tenantId = ownTenant;
 
     const names: string[] = [];
     const pageSize = 500;
@@ -95,10 +99,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // ── Guide satırlarını ekle ────────────────────────────────────────────────────
   if (action === "insert-guides") {
-    const tenantId = normTenant(body.tenantId);
-    if (!tenantId) {
-      return NextResponse.json({ ok: false, error: "tenantId zorunludur." }, { status: 400 });
-    }
+    const tenantId = ownTenant;
 
     const rawGuides = Array.isArray(body.guides) ? body.guides : [];
     if (rawGuides.length === 0) {
@@ -152,6 +153,14 @@ export async function POST(req: NextRequest): Promise<Response> {
         { ok: false, error: `Tek istekte en fazla ${MAX_SECTIONS} alt içerik gönderin.` },
         { status: 400 },
       );
+    }
+
+    // Alt içerikler yalnız adminin kendi tenant'ındaki rehberlere eklenebilir.
+    const guideIds = [...new Set((rawSections as Record<string, unknown>[]).map((s) => String(s?.guide_id ?? "").trim()).filter(Boolean))];
+    if (guideIds.length > 0) {
+      const { data: owned, error: ownErr } = await db.from("healing_guides").select("id").eq("tenant_id", ownTenant).in("id", guideIds);
+      if (ownErr) return NextResponse.json({ ok: false, error: "Rehber doğrulaması yapılamadı." }, { status: 500 });
+      if ((owned ?? []).length !== guideIds.length) return foreignTenantResponse();
     }
 
     const rows: SectionInsertRow[] = [];

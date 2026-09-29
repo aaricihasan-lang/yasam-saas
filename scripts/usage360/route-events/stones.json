@@ -1,0 +1,42 @@
+{
+  "module": "stones",
+  "handlers": [
+    { "route": "dogaltas/stones", "method": "POST", "events": [{ "action": "record_created", "subEntity": "stone" }], "failure": "server", "note": "AŞAMA 1 öncesi çağrı korunur (legacyEventType record_created); tek olay" },
+    { "route": "dogaltas/stones/[id]", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "stone" }], "failure": "server", "note": "optimistic-concurrency 409 → action_failed conflict" },
+    { "route": "dogaltas/stones/[id]", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "stone" }], "failure": "server" },
+    { "route": "dogaltas/stones/bulk-delete", "method": "POST", "events": [{ "action": "record_deleted", "subEntity": "stone" }], "failure": "server", "note": "POST ile toplu silme → tek olay + itemCount; 0 satır → olay yok" },
+    { "route": "dogaltas/stones/condition-search", "method": "POST", "exempt": "okuma: koşullu taş arama (sunucu tarafı filtre), veri değiştirmez" },
+    { "route": "dogaltas/stones/photos", "method": "POST", "events": [{ "action": "file_uploaded", "subEntity": "photo" }], "failure": "server", "note": "sunucu multipart yükleme başarısı; 413 → too_large" },
+    { "route": "dogaltas/stones/photos", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "photo" }], "failure": "server" },
+    { "route": "dogaltas/stones/photos/signed-urls", "method": "POST", "exempt": "okuma: kısa ömürlü imzalı görüntüleme URL'leri üretir" },
+    { "route": "dogaltas/stones/[id]/word-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "stone" }], "failure": "server", "note": "docx buffer üretildikten sonra" },
+
+    { "route": "dogaltas/minerals", "method": "POST", "events": [{ "action": "record_created", "subEntity": "mineral" }], "failure": "server" },
+    { "route": "dogaltas/minerals/[id]", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "mineral" }], "failure": "server", "note": "optimistic-concurrency 409 → action_failed conflict" },
+    { "route": "dogaltas/minerals/[id]", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "mineral" }], "failure": "server" },
+    { "route": "dogaltas/minerals/bulk-delete", "method": "POST", "events": [{ "action": "record_deleted", "subEntity": "mineral" }], "failure": "server", "note": "POST ile toplu silme → tek olay + itemCount" },
+    { "route": "dogaltas/minerals/[id]/word-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "mineral" }], "failure": "server", "note": "docx buffer üretildikten sonra" },
+    { "route": "dogaltas/mineral-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "mineral" }], "failure": "server", "note": "docx buffer üretildikten sonra; itemCount" },
+
+    { "route": "dogaltas/combinations/save", "method": "POST", "events": [{ "action": "record_created", "subEntity": "combination" }], "failure": "server", "note": "atomik RPC create; bilinen 409 → conflict" },
+    { "route": "dogaltas/combinations/[id]", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "combination" }], "failure": "server", "note": "iki başarı yolu (yapısal RPC / skaler update) — her istek tek olay; 409 → conflict" },
+    { "route": "dogaltas/combinations/delete", "method": "POST", "events": [{ "action": "record_deleted", "subEntity": "combination" }], "failure": "server", "note": "POST ile silme (tekli/toplu) → tek olay + itemCount" },
+    { "route": "dogaltas/combinations/word-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "combination" }], "failure": "server", "note": "docx buffer üretildikten sonra; itemCount" },
+
+    { "route": "dogaltas/knowledge", "method": "POST", "events": [{ "action": "record_created", "subEntity": "knowledge" }], "failure": "server" },
+    { "route": "dogaltas/knowledge", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "knowledge" }], "failure": "server", "note": "tekli/toplu güncelleme → tek olay + itemCount" },
+    { "route": "dogaltas/knowledge", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "knowledge" }], "failure": "server", "note": "tekli/toplu silme → tek olay + itemCount" },
+    { "route": "dogaltas/knowledge/categories", "method": "POST", "exempt": "yönetici-özel uç: global kategori oluşturma yalnız verifyAdminRequest (uzman kullanımı değil)" },
+    { "route": "dogaltas/knowledge-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "knowledge" }], "failure": "server", "note": "docx buffer üretildikten sonra; itemCount" },
+
+    { "route": "dogaltas/inventory", "method": "POST", "events": [{ "action": "record_created", "subEntity": "inventory" }], "failure": "server" },
+    { "route": "dogaltas/inventory", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "inventory" }], "failure": "server" },
+    { "route": "dogaltas/inventory", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "inventory" }], "failure": "server" },
+
+    { "route": "dogaltas/stone-exclusions", "method": "POST", "events": [{ "action": "record_created", "subEntity": "exclusion" }], "failure": "server", "note": "gizleme satırı oluşturur; yalnız gerçekten eklenen satırlar (ignoreDuplicates) → tek olay + itemCount" },
+    { "route": "dogaltas/stone-exclusions", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "exclusion" }], "failure": "server", "note": "tek olay + itemCount; 0 satır → olay yok" },
+    { "route": "dogaltas/stone-warnings", "method": "POST", "exempt": "okuma: danışana taş atanırken uyarı metinlerini döndürür, veri değiştirmez" },
+
+    { "route": "dogaltas/word-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": null }], "note": "çok-bölümlü Doğaltaş ansiklopedisi (taş/mineral/kombinasyon/bilgi) → tek konu alt-varlığı yok; docx buffer üretildikten sonra; route'ta DB-hata dalı yok" }
+  ]
+}

@@ -6,8 +6,22 @@ import {
   validateBioFields,
 } from "@/lib/biyoenerji/resourceConfig";
 import { bioDbError } from "@/lib/biyoenerji/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
+
+/**
+ * USAGE360: [resource] (resourceConfig anahtarı) → sabit alt-varlık eşlemesi.
+ * Yalnız whitelist'teki kaynaklar (getBioResource) buraya ulaşır.
+ */
+const BIO_USAGE_SUB_ENTITY: Record<string, string> = {
+  sessions: "session",
+  "energy-bodies": "energy_body",
+  "subconscious-causes": "subconscious",
+  imaginations: "imagination",
+  symbols: "symbol",
+  chakras: "chakra",
+};
 
 /**
  * /api/biyoenerji/[resource] — biyoenerji kayıtları liste/oluştur.
@@ -143,7 +157,18 @@ export async function POST(
     .select()
     .single();
 
-  if (error) return bioDbError(`${resource}.create`, error, "Kayıt eklenemedi.");
+  const usageSubEntity = BIO_USAGE_SUB_ENTITY[resource] ?? null;
+  if (error) {
+    await trackUsage(guard, req, { module: "energy_body", action: "action_failed", failedAction: "record_created", subEntity: usageSubEntity, errorClass: "server" });
+    return bioDbError(`${resource}.create`, error, "Kayıt eklenemedi.");
+  }
+  const newId = (data as { id?: unknown } | null)?.id;
+  await trackUsage(guard, req, {
+    module: "energy_body",
+    action: "record_created",
+    subEntity: usageSubEntity,
+    resourceId: newId != null ? String(newId) : null,
+  });
   return NextResponse.json({ ok: true, row: data });
 }
 
@@ -174,6 +199,7 @@ export async function DELETE(
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deleted: 0 });
+  const usageSubEntity = BIO_USAGE_SUB_ENTITY[resource] ?? null;
 
   let body: { ids?: unknown; all?: unknown };
   try {
@@ -189,8 +215,16 @@ export async function DELETE(
       .delete()
       .eq("tenant_id", tenantId)
       .select("id");
-    if (error) return bioDbError(`${resource}.deleteAll`, error, "Kayıtlar silinemedi.");
-    return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
+    if (error) {
+      await trackUsage(guard, req, { module: "energy_body", action: "action_failed", failedAction: "record_deleted", subEntity: usageSubEntity, errorClass: "server" });
+      return bioDbError(`${resource}.deleteAll`, error, "Kayıtlar silinemedi.");
+    }
+    const deleted = data?.length ?? 0;
+    // Toplu silme → TEK olay + itemCount (0 satır silindiyse olay yok).
+    if (deleted > 0) {
+      await trackUsage(guard, req, { module: "energy_body", action: "record_deleted", subEntity: usageSubEntity, itemCount: deleted });
+    }
+    return NextResponse.json({ ok: true, deleted });
   }
 
   // Seçilenleri sil
@@ -205,8 +239,15 @@ export async function DELETE(
       .eq("tenant_id", tenantId)
       .in("id", ids)
       .select("id");
-    if (error) return bioDbError(`${resource}.deleteMany`, error, "Kayıtlar silinemedi.");
-    return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
+    if (error) {
+      await trackUsage(guard, req, { module: "energy_body", action: "action_failed", failedAction: "record_deleted", subEntity: usageSubEntity, errorClass: "server" });
+      return bioDbError(`${resource}.deleteMany`, error, "Kayıtlar silinemedi.");
+    }
+    const deleted = data?.length ?? 0;
+    if (deleted > 0) {
+      await trackUsage(guard, req, { module: "energy_body", action: "record_deleted", subEntity: usageSubEntity, itemCount: deleted });
+    }
+    return NextResponse.json({ ok: true, deleted });
   }
 
   return NextResponse.json({ ok: false, error: "ids veya all gerekli." }, { status: 400 });

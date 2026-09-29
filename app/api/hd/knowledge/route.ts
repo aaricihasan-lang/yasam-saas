@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   listKnowledge,
   listKnowledgeByCodes,
@@ -97,6 +98,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       { status: 400, headers: NO_STORE },
     );
   }
+  await trackUsage(guard, req, { module: "human_design", action: "record_created", subEntity: "knowledge", resourceId: id });
   return NextResponse.json({ ok: true, id }, { status: 200, headers: NO_STORE });
 }
 
@@ -141,6 +143,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
       { status: 400, headers: NO_STORE },
     );
   }
+  await trackUsage(guard, req, { module: "human_design", action: "record_updated", subEntity: "knowledge", resourceId: id });
   return NextResponse.json({ ok: true, id }, { status: 200, headers: NO_STORE });
 }
 
@@ -160,6 +163,10 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     const ids = idsRaw.split(",").map((s) => s.trim()).filter(Boolean);
     const { ok, error } = await deleteKnowledgeBulk(guard.db, guard.tenantId, ids);
     if (!ok) return NextResponse.json({ ok: false, error: error ?? "Silinemedi." }, { status: 400, headers: NO_STORE });
+    // USAGE360: toplu silme → TEK olay + itemCount.
+    if (ids.length > 0) {
+      await trackUsage(guard, req, { module: "human_design", action: "record_deleted", subEntity: "knowledge", itemCount: ids.length });
+    }
     return NextResponse.json({ ok: true, deletedCount: ids.length }, { status: 200, headers: NO_STORE });
   }
 
@@ -172,5 +179,6 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   }
   const { ok, error } = await deleteKnowledge(guard.db, guard.tenantId, id);
   if (!ok) return NextResponse.json({ ok: false, error: error ?? "Silinemedi." }, { status: 400, headers: NO_STORE });
+  await trackUsage(guard, req, { module: "human_design", action: "record_deleted", subEntity: "knowledge", resourceId: id });
   return NextResponse.json({ ok: true, deletedId: id }, { status: 200, headers: NO_STORE });
 }

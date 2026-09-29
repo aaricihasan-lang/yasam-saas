@@ -1,0 +1,16 @@
+{
+  "module": "sifa_rehberi",
+  "handlers": [
+    { "route": "sifa-rehberi/guides", "method": "POST", "events": [{ "action": "record_created", "subEntity": "guide" }], "failure": "server", "note": "atomik create RPC; idempotent_replay → olay yok; idempotency_key_conflict 409 → errorClass conflict" },
+    { "route": "sifa-rehberi/guides", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "guide" }], "failure": "server", "note": "toplu silme → tek olay + itemCount (gerçekten silinen satır sayısı); 0 satır → olay yok" },
+    { "route": "sifa-rehberi/guides/[id]", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "guide" }], "failure": "server" },
+    { "route": "sifa-rehberi/guides/[id]", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "guide" }], "failure": "server" },
+    { "route": "sifa-rehberi/guides/[id]/sections", "method": "PUT", "events": [{ "action": "record_updated", "subEntity": "guide" }], "failure": "server", "note": "bölüm değişimi rehber düzenlemesidir; Kaydet = PATCH guides/[id] + bu PUT → aynı (record_updated, rehber id) 60 sn kovasında tek olay" },
+    { "route": "sifa-rehberi/photos/prepare", "method": "POST", "exempt": "upload prepare: imzalı yükleme URL'i üretir (tamamlanma finalize'da sayılır)" },
+    { "route": "sifa-rehberi/photos/signed-urls", "method": "POST", "exempt": "okuma: imzalı görüntüleme URL'leri üretir" },
+    { "route": "sifa-rehberi/photos/finalize", "method": "POST", "events": [{ "action": "file_uploaded", "subEntity": "photo" }], "failure": "server", "note": "resourceId = storage yolu sha256; obje yok 409 → errorClass conflict" },
+    { "route": "sifa-rehberi/photos", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "photo" }], "failure": "server", "note": "resourceId = storage yolu sha256" },
+    { "route": "sifa-rehberi/photos/cleanup", "method": "POST", "exempt": "bakım: yalnız hiçbir kayda bağlı OLMAYAN orphan storage objesini temizler (kalıcı kayıt silinmez; referanslıysa 409)" },
+    { "route": "sifa-rehberi/word-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "guide" }], "failure": "server", "note": "Word buffer üretildikten sonra; itemCount = rehber sayısı" }
+  ]
+}

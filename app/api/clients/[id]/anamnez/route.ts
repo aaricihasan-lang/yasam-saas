@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { CURRENT_TEMPLATE_VERSION, normalizeLocale } from "@/lib/danisan/anamnez/schema";
 import { applyChangedSources, linksChanged } from "@/lib/danisan/anamnez/sources";
 import { validateCreateInput } from "@/lib/danisan/anamnez/validate";
@@ -212,10 +213,12 @@ export async function POST(req: NextRequest, { params }: RouteCtx): Promise<Resp
       // Yarış: aynı anda açılan ikinci taslak veya aynı requestId.
       return anamnezError("DRAFT_EXISTS", 409);
     }
-    return serverErrorResponse({ route: "clients/[id]/anamnez", action: "POST:insert", tenantId, cause: insErr });
+    return serverErrorResponse({ route: "clients/[id]/anamnez", action: "POST:insert", tenantId, cause: insErr, usage: { guard, req, module: "clients", failedAction: "record_created", subEntity: "anamnesis" } });
   }
 
   const id = (inserted as { id: string }).id;
   logAnamnezEvent("created", { tenant: tenantId, user: userId, client: clientId, anamnesis: id, mode: input.mode, kind });
+  // USAGE360: yalnız işlem türü + alt-varlık; anamnez içeriği/danışan bilgisi GİRMEZ.
+  await trackUsage(guard, req, { module: "clients", action: "record_created", subEntity: "anamnesis", resourceId: id });
   return anamnezJson({ ok: true, anamnesis: { id } }, 201);
 }

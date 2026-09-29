@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { cleanStr, cleanNumber, hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -65,7 +66,11 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
   const { data, error } = await db
     .from("nutrition_plan_meals").update(patch).eq("tenant_id", tenantId).eq("id", mealId).eq("plan_id", id)
     .select(PLAN_MEAL_COLUMNS).single();
-  if (error) return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "meal", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
+  }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "meal", resourceId: mealId });
   return NextResponse.json({ ok: true, meal: data });
 }
 
@@ -83,6 +88,10 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextRespo
   if (!g.ok) return beslenmeJson({ ok: false, code: g.code }, g.status);
 
   const { error } = await db.from("nutrition_plan_meals").delete().eq("tenant_id", tenantId).eq("id", mealId).eq("plan_id", id);
-  if (error) return beslenmeJson({ ok: false, code: "DELETE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_deleted", subEntity: "meal", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "DELETE_FAILED" }, 500);
+  }
+  await trackUsage(guard, req, { module: "beslenme", action: "record_deleted", subEntity: "meal", resourceId: mealId });
   return NextResponse.json({ ok: true });
 }

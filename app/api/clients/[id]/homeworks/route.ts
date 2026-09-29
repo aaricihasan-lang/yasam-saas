@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mergeHomeworkDates, validateHomeworkDates } from "@/lib/danisan/homeworkDates";
 
@@ -134,10 +135,19 @@ export async function POST(
     .single();
 
   if (error) {
-    return serverErrorResponse({ route: "clients/[id]/homeworks", action: "POST", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]/homeworks",
+      action: "POST",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "record_created", subEntity: "homework" },
+    });
   }
 
-  return NextResponse.json({ ok: true, id: (data as { id: string } | null)?.id ?? null });
+  const newHomeworkId = (data as { id: string } | null)?.id ?? null;
+  await trackUsage(guard, req, { module: "clients", action: "record_created", subEntity: "homework", resourceId: newHomeworkId });
+
+  return NextResponse.json({ ok: true, id: newHomeworkId });
 }
 
 // ─── PATCH — güncelle (tam form / status / alert_dismissed_at) ────────────────────
@@ -212,8 +222,16 @@ export async function PATCH(
     .eq("client_id", clientId);
 
   if (error) {
-    return serverErrorResponse({ route: "clients/[id]/homeworks", action: "PATCH", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]/homeworks",
+      action: "PATCH",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "record_updated", subEntity: "homework" },
+    });
   }
+
+  await trackUsage(guard, req, { module: "clients", action: "record_updated", subEntity: "homework", resourceId: homeworkId });
 
   return NextResponse.json({ ok: true });
 }
@@ -260,8 +278,16 @@ export async function DELETE(
     .eq("client_id", clientId);
 
   if (error) {
-    return serverErrorResponse({ route: "clients/[id]/homeworks", action: "DELETE", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]/homeworks",
+      action: "DELETE",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "record_deleted", subEntity: "homework" },
+    });
   }
+
+  await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "homework", resourceId: homeworkId });
 
   return NextResponse.json({ ok: true });
 }

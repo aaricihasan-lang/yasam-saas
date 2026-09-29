@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { mapSaleRpcError } from "@/lib/urun-stok/salesErrors";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -117,10 +118,24 @@ export async function POST(req: NextRequest): Promise<Response> {
         code: (error as { code?: string }).code, source, lines: cleanLines.length,
       });
     }
+    // USAGE360: yalnız 500 (sunucu) ve 409 (yetersiz stok çakışması); 400/404 olay değil.
+    if (mapped.status === 500 || mapped.status === 409) {
+      await trackUsage(guard, req, {
+        module: "stok",
+        action: "action_failed",
+        failedAction: "record_created",
+        subEntity: "sale",
+        errorClass: mapped.status === 409 ? "conflict" : "server",
+      });
+    }
     return NextResponse.json({ ok: false, error: mapped.error }, { status: mapped.status });
   }
 
   const result = data as { sale_id?: string; duplicate?: boolean; sale?: unknown; items?: unknown };
+  // İdempotent tekrar (duplicate) yeni satış değildir → olay yok.
+  if (result?.sale_id && !result.duplicate) {
+    await trackUsage(guard, req, { module: "stok", action: "record_created", subEntity: "sale", resourceId: result.sale_id, itemCount: cleanLines.length });
+  }
   return NextResponse.json({
     ok: true,
     sale_id: result?.sale_id,

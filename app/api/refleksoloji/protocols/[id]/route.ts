@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { isUuid } from "@/lib/refleksoloji/uuid";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -85,8 +86,13 @@ export async function DELETE(
     .select("id");
 
   if (error) {
-    return jsonServerError("protocols.[id].DELETE", error);
+    return jsonServerError("protocols.[id].DELETE", error, { usage: { guard, req, failedAction: "record_deleted", subEntity: "protocol" } });
   }
 
-  return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
+  const deleted = data?.length ?? 0;
+  // USAGE360: yalnız gerçekten silinen satır varsa.
+  if (deleted > 0) {
+    await trackUsage(guard, req, { module: "reflexology", action: "record_deleted", subEntity: "protocol", resourceId: id });
+  }
+  return NextResponse.json({ ok: true, deleted });
 }

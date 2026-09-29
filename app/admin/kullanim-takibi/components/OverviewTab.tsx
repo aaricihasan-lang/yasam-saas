@@ -68,10 +68,10 @@ export function OverviewTab({ period, refreshKey, nowMs, onOpenExpert, onSeeAll 
         </div>
         <div className="mt-3">
           <StatTile
-            label={`Son ${days} günde görülme sinyali alınan uzman`}
+            label={`Son ${days} günde teknik temas sinyali olan uzman ~`}
             tone="cyan"
             value={<MetricValueView metric={ov.activeUsedExperts} />}
-            hint="~ yaklaşık: heartbeat (son görülme) tabanlı. 'Modül kullanan / işlem yapan' DEĞİL; 'aktif hesap' statüsünden AYRI."
+            hint="~ yaklaşık: son teknik temas (korumalı sunucu isteği) tabanlı; gerçek kullanım DEĞİL. 27.09.2026 backfill artefaktı o gün aktif oturumu olan herkesi içerir. 'aktif hesap' statüsünden AYRI."
           />
         </div>
       </SectionCard>

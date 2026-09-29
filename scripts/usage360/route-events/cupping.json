@@ -1,0 +1,961 @@
+{
+  "module": "cupping",
+  "handlers": [
+    {
+      "route": "kupa/protocols",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/protocols/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/protocols/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "server",
+      "note": "yalnız gerçekten silinen satır (deleted>0) sayılır; 409 kullanımda → conflict"
+    },
+    {
+      "route": "kupa/protocols/[id]/word-report",
+      "method": "GET",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "server",
+      "note": "yalnız .docx başarıyla üretildikten sonra"
+    },
+    {
+      "route": "kupa/points",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "point"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/points/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "point"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/points/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "point"
+        }
+      ],
+      "failure": "server",
+      "note": "yalnız gerçekten silinen satır (deleted>0) sayılır; 409 kullanımda → conflict"
+    },
+    {
+      "route": "kupa/techniques",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "technique"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/techniques/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "technique"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/techniques/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "technique"
+        }
+      ],
+      "failure": "server",
+      "note": "yalnız gerçekten silinen satır (deleted>0) sayılır; 409 kullanımda → conflict"
+    },
+    {
+      "route": "kupa/topics",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "topic"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/topics/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "topic"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/topics/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "topic"
+        }
+      ],
+      "failure": "server",
+      "note": "yalnız gerçekten silinen satır (deleted>0) sayılır; 409 kullanımda → conflict"
+    },
+    {
+      "route": "kupa/safety",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "safety"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/safety/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "safety"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/safety/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "safety"
+        }
+      ],
+      "failure": "server",
+      "note": "yalnız gerçekten silinen satır (deleted>0) sayılır; 409 kullanımda → conflict"
+    },
+    {
+      "route": "kupa/sources",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "source"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/sources/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "source"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/sources/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "source"
+        }
+      ],
+      "failure": "server",
+      "note": "yalnız gerçekten silinen satır (deleted>0) sayılır; 409 kullanımda → conflict"
+    },
+    {
+      "route": "kupa/knowledge",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "knowledge"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/knowledge/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "knowledge"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/knowledge/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "knowledge"
+        }
+      ],
+      "failure": "server",
+      "note": "yalnız gerçekten silinen satır (deleted>0) sayılır; 409 kullanımda → conflict"
+    },
+    {
+      "route": "kupa/placements",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "placement"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/placements/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "placement"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/placements/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "placement"
+        }
+      ],
+      "failure": "server",
+      "note": "yalnız gerçekten silinen satır (deleted>0) sayılır; 409 kullanımda → conflict"
+    },
+    {
+      "route": "kupa/point-topics",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "point_topic"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/point-topics/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "point_topic"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/point-topics/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "point_topic"
+        }
+      ],
+      "failure": "server",
+      "note": "yalnız gerçekten silinen satır (deleted>0) sayılır; 409 kullanımda → conflict"
+    },
+    {
+      "route": "kupa/advice-templates",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "advice_template"
+        }
+      ],
+      "failure": "server",
+      "note": "insert sonrası record_created; is_default RPC hatası → action_failed(record_updated)"
+    },
+    {
+      "route": "kupa/advice-templates/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "advice_template"
+        }
+      ],
+      "failure": "server",
+      "note": "alan güncelleme ve/veya set-default (atomik RPC) → tek record_updated"
+    },
+    {
+      "route": "kupa/advice-templates/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "advice_template"
+        }
+      ],
+      "failure": "server",
+      "note": "yalnız gerçekten silinen satır (deleted>0) sayılır; 409 kullanımda → conflict"
+    },
+    {
+      "route": "kupa/client-advice",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "client_advice"
+        }
+      ],
+      "failure": "server",
+      "note": "şablondan kopya (snapshot) da YENİ kayıt → record_created"
+    },
+    {
+      "route": "kupa/client-advice/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "client_advice"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/client-advice/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "client_advice"
+        }
+      ],
+      "failure": "server",
+      "note": "yalnız gerçekten silinen satır (deleted>0) sayılır; 409 kullanımda → conflict"
+    },
+    {
+      "route": "kupa/topic-notes",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "topic_note"
+        }
+      ],
+      "failure": "server",
+      "note": "not + note-point junction tek kullanıcı eylemi → tek olay"
+    },
+    {
+      "route": "kupa/topic-notes/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "topic_note"
+        }
+      ],
+      "failure": "server",
+      "note": "atomik RPC (alan + bölgeler) → tek olay"
+    },
+    {
+      "route": "kupa/topic-notes/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "topic_note"
+        }
+      ],
+      "failure": "server",
+      "note": "yalnız gerçekten silinen satır (deleted>0) sayılır; 409 kullanımda → conflict"
+    },
+    {
+      "route": "kupa/calendar/plans",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "calendar_plan"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/calendar/plans/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "calendar_plan"
+        }
+      ],
+      "failure": "conflict",
+      "note": "409 yıl-değişimi reddi → conflict; DB 500 → server"
+    },
+    {
+      "route": "kupa/calendar/plans/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "calendar_plan"
+        }
+      ],
+      "failure": "server",
+      "note": "günler CASCADE; tek olay"
+    },
+    {
+      "route": "kupa/calendar/plans/[id]/days",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "calendar_day"
+        }
+      ],
+      "failure": "server",
+      "note": "toplu ekleme → tek olay + itemCount=inserted; yalnız mevcut tarihler (inserted=0) → olay yok"
+    },
+    {
+      "route": "kupa/calendar/plans/[id]/word-report",
+      "method": "GET",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "calendar_plan"
+        }
+      ],
+      "failure": "server",
+      "note": "yalnız .docx başarıyla üretildikten sonra; bağlı şablon yok 409 → conflict"
+    },
+    {
+      "route": "kupa/calendar/days/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "calendar_day"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/calendar/days/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "calendar_day"
+        }
+      ],
+      "failure": "server"
+    },
+    {
+      "route": "kupa/protocol-entries",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "server",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol)"
+    },
+    {
+      "route": "kupa/protocol-entries/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "server",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol)"
+    },
+    {
+      "route": "kupa/protocol-entries/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "server",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol); yalnız deleted>0"
+    },
+    {
+      "route": "kupa/protocol-points",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "conflict",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol); zaten-ekli 409 → conflict, DB 500 → server"
+    },
+    {
+      "route": "kupa/protocol-points/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "server",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol)"
+    },
+    {
+      "route": "kupa/protocol-points/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "conflict",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol); yalnız deleted>0; adımda kullanımda 409 → conflict"
+    },
+    {
+      "route": "kupa/protocol-safety",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "conflict",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol); zaten-ekli 409 → conflict, DB 500 → server"
+    },
+    {
+      "route": "kupa/protocol-safety/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "server",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol)"
+    },
+    {
+      "route": "kupa/protocol-safety/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "server",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol); yalnız deleted>0"
+    },
+    {
+      "route": "kupa/protocol-sources",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "server",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol)"
+    },
+    {
+      "route": "kupa/protocol-sources/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "server",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol)"
+    },
+    {
+      "route": "kupa/protocol-sources/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "server",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol); yalnız deleted>0"
+    },
+    {
+      "route": "kupa/protocol-steps",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "server",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol)"
+    },
+    {
+      "route": "kupa/protocol-steps/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "server",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol)"
+    },
+    {
+      "route": "kupa/protocol-steps/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "server",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol); yalnız deleted>0"
+    },
+    {
+      "route": "kupa/protocol-techniques",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "conflict",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol); zaten-ekli 409 → conflict, DB 500 → server"
+    },
+    {
+      "route": "kupa/protocol-techniques/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "server",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol)"
+    },
+    {
+      "route": "kupa/protocol-techniques/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "protocol"
+        }
+      ],
+      "failure": "conflict",
+      "note": "protokol alt-tablosu: kullanıcı açısından protokol düzenlemesi → tek record_updated (protocol); yalnız deleted>0; adımda kullanımda 409 → conflict"
+    },
+    {
+      "route": "kupa/citations/knowledge",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationCollection (create yolu)"
+    },
+    {
+      "route": "kupa/citations/knowledge/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationItem (update yolu)"
+    },
+    {
+      "route": "kupa/citations/knowledge/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationItem (delete yolu); yalnız deleted>0"
+    },
+    {
+      "route": "kupa/citations/point",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationCollection (create yolu)"
+    },
+    {
+      "route": "kupa/citations/point/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationItem (update yolu)"
+    },
+    {
+      "route": "kupa/citations/point/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationItem (delete yolu); yalnız deleted>0"
+    },
+    {
+      "route": "kupa/citations/point-topic",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationCollection (create yolu)"
+    },
+    {
+      "route": "kupa/citations/point-topic/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationItem (update yolu)"
+    },
+    {
+      "route": "kupa/citations/point-topic/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationItem (delete yolu); yalnız deleted>0"
+    },
+    {
+      "route": "kupa/citations/safety",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationCollection (create yolu)"
+    },
+    {
+      "route": "kupa/citations/safety/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationItem (update yolu)"
+    },
+    {
+      "route": "kupa/citations/safety/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationItem (delete yolu); yalnız deleted>0"
+    },
+    {
+      "route": "kupa/citations/technique",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationCollection (create yolu)"
+    },
+    {
+      "route": "kupa/citations/technique/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationItem (update yolu)"
+    },
+    {
+      "route": "kupa/citations/technique/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationItem (delete yolu); yalnız deleted>0"
+    },
+    {
+      "route": "kupa/citations/topic",
+      "method": "POST",
+      "events": [
+        {
+          "action": "record_created",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationCollection (create yolu)"
+    },
+    {
+      "route": "kupa/citations/topic/[id]",
+      "method": "PATCH",
+      "events": [
+        {
+          "action": "record_updated",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationItem (update yolu)"
+    },
+    {
+      "route": "kupa/citations/topic/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntity": "source_link"
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/cupping/citationApi.ts",
+      "note": "paylaşılan fabrika makeCitationItem (delete yolu); yalnız deleted>0"
+    }
+  ]
+}

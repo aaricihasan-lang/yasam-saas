@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { isUuid } from "@/lib/beslenme/planContracts";
@@ -62,6 +63,17 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
     .eq("tenant_id", tenantId)
     .eq("plan_day_id", dayId)
     .in("id", clear.mealIds);
-  if (error) return beslenmeJson({ ok: false, code: "CLEAR_FAILED" }, 500);
+  if (error) {
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "day", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "CLEAR_FAILED" }, 500);
+  }
+  // Usage360: "Günü temizle" = günün içeriğini değiştiren TEK kullanıcı eylemi (gün satırı kalır).
+  await trackUsage(guard, req, {
+    module: "beslenme",
+    action: "record_updated",
+    subEntity: "day",
+    resourceId: dayId,
+    itemCount: clear.mealIds.length,
+  });
   return NextResponse.json({ ok: true, cleared: clear.mealIds.length });
 }

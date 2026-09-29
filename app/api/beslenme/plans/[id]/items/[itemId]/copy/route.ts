@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { hasOnlyKeys } from "@/lib/beslenme/contracts";
@@ -32,6 +33,20 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   const { data, error } = await db.rpc("nutrition_plan_item_copy", {
     p_tenant_id: tenantId, p_item_id: itemId, p_target_meal_id: body.targetMealId,
   });
-  if (error) { const m = mapRpcError(error.code); return beslenmeJson({ ok: false, code: m.code }, m.status); }
+  if (error) {
+    const m = mapRpcError(error.code);
+    const errorClass = usageErrorClassForStatus(m.status);
+    if (errorClass) {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "item", errorClass });
+    }
+    return beslenmeJson({ ok: false, code: m.code }, m.status);
+  }
+  // Usage360: VERBATIM kopya hedef öğünde YENİ kalem üretir → record_created(item).
+  await trackUsage(guard, req, {
+    module: "beslenme",
+    action: "record_created",
+    subEntity: "item",
+    resourceId: (data as { id?: string } | null)?.id ?? null,
+  });
   return NextResponse.json({ ok: true, item: data }, { status: 201 });
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, requireBeslenmeFoodRead, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { normalizeSearchText } from "@/lib/yasam-hafizasi/search/normalize";
 import {
@@ -115,9 +116,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const { data, error } = await db.from("nutrition_foods").insert(insert).select(FOOD_COLUMNS).single();
   if (error) {
-    if (error.code === "23505") return beslenmeJson({ ok: false, code: "DUPLICATE_NAME" }, 409);
+    if (error.code === "23505") {
+      await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "food", errorClass: "conflict" });
+      return beslenmeJson({ ok: false, code: "DUPLICATE_NAME" }, 409);
+    }
     if (error.code === "23503") return beslenmeJson({ ok: false, code: "FOOD_GROUP_NOT_FOUND" }, 400);
+    await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_created", subEntity: "food", errorClass: "server" });
     return beslenmeJson({ ok: false, code: "CREATE_FAILED" }, 500);
   }
+  await trackUsage(guard, req, {
+    module: "beslenme",
+    action: "record_created",
+    subEntity: "food",
+    resourceId: (data as { id?: string } | null)?.id ?? null,
+  });
   return NextResponse.json({ ok: true, food: data }, { status: 201 });
 }

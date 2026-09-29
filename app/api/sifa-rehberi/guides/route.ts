@@ -10,6 +10,7 @@ import {
 import { foldTr } from "@/lib/sifa-rehberi/normalizeTr";
 import { UUID_RE, isSifaUuid } from "@/lib/sifa-rehberi/ids";
 import { serverErrorResponse, publicErrorResponse } from "@/lib/sifa-rehberi/publicApiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -220,6 +221,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (/invalid_section_type|sections_must_be_array|invalid_arguments|name_required/.test(msg)) {
       return NextResponse.json({ ok: false, error: "Kayıt verisi geçersiz." }, { status: 400 });
     }
+    await trackUsage(guard, req, { module: "sifa_rehberi", action: "action_failed", failedAction: "record_created", subEntity: "guide", errorClass: "server" });
     return serverErrorResponse({ route: "sifa/guides", action: "POST.rpc", tenantId, cause: error });
   }
 
@@ -231,6 +233,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // Aynı anahtar FARKLI içerikle → güvenli çakışma (mutasyon YOK, sessizce eski kayıt DÖNMEZ).
   if (result.outcome === "idempotency_key_conflict") {
+    await trackUsage(guard, req, { module: "sifa_rehberi", action: "action_failed", failedAction: "record_created", subEntity: "guide", errorClass: "conflict" });
     return NextResponse.json(
       { ok: false, conflict: true, error: "Bu istek farklı içerikle daha önce işlendi." },
       { status: 409 },
@@ -244,6 +247,11 @@ export async function POST(req: NextRequest): Promise<Response> {
       tenantId,
       cause: new Error("create_healing_guide_with_sections returned no guide_id"),
     });
+  }
+
+  // İdempotent tekrar (aynı request_id) yeni kayıt değildir → olay yok.
+  if (result.idempotent_replay !== true) {
+    await trackUsage(guard, req, { module: "sifa_rehberi", action: "record_created", subEntity: "guide", resourceId: result.guide_id });
   }
 
   return NextResponse.json({
@@ -298,11 +306,24 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .select("id");
 
   if (error) {
+    await trackUsage(guard, req, { module: "sifa_rehberi", action: "action_failed", failedAction: "record_deleted", subEntity: "guide", errorClass: "server" });
     return serverErrorResponse({ route: "sifa/guides", action: "DELETE.bulk", tenantId, cause: error });
+  }
+
+  const deletedIds = (data ?? []).map((r) => (r as { id: string }).id);
+  // Toplu silme → TEK olay + itemCount. Hiçbir satır silinmediyse (no-op) olay yok.
+  if (deletedIds.length > 0) {
+    await trackUsage(guard, req, {
+      module: "sifa_rehberi",
+      action: "record_deleted",
+      subEntity: "guide",
+      resourceId: deletedIds.length === 1 ? deletedIds[0] : [...deletedIds].sort().join(","),
+      itemCount: deletedIds.length,
+    });
   }
 
   return NextResponse.json({
     ok: true,
-    deletedIds: (data ?? []).map((r) => (r as { id: string }).id),
+    deletedIds,
   });
 }

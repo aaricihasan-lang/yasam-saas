@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
+import { adminTenantMissingResponse, foreignTenantResponse, resolveAdminOwnTenant } from "@/lib/admin/adminOwnTenant";
 
 export const runtime = "nodejs";
 
@@ -45,6 +46,11 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const { db } = guard;
 
+  // GİZLİLİK: içe aktarma hedefi yalnız adminin kendi kütüphane tenant'ı (sunucuda çözülür);
+  // satırdaki başka tenant_id (uzman çalışma alanı) → 403.
+  const ownTenant = await resolveAdminOwnTenant(db, guard.adminId);
+  if (!ownTenant) return adminTenantMissingResponse();
+
   let body: { rows?: unknown };
   try {
     body = (await req.json()) as { rows?: unknown };
@@ -66,6 +72,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const clean: Record<string, unknown>[] = [];
   for (const r of rows) {
     const tenant_id = String(r?.tenant_id ?? "").trim();
+    if (tenant_id && tenant_id !== ownTenant) return foreignTenantResponse();
     const issue = String(r?.issue ?? "").trim();
     const source_id = String(r?.source_id ?? "").trim();
     if (!tenant_id || !issue || !source_id) {

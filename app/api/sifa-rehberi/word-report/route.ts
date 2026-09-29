@@ -5,6 +5,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { serverErrorResponse } from "@/lib/sifa-rehberi/publicApiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { chunkIds, orderRowsByIds } from "@/lib/sifa-rehberi/idBatch";
 import { buildFooter, buildWellnessNoteSection, getImgDimensions, type ReportChild } from "@/lib/docx/reportHelpers";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
@@ -126,6 +127,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       p_category: typeof category === "string" ? category : null,
     });
     if (idErr) {
+      await trackUsage(guard, request, { module: "sifa_rehberi", action: "action_failed", failedAction: "report_generated", subEntity: "guide", errorClass: "server" });
       return serverErrorResponse({ route: "sifa/word-report", action: "POST.resolve", tenantId: verifiedTenantId, cause: idErr });
     }
     filteredIds = ((idRows ?? []) as { id: string }[]).map((r) => r.id);
@@ -177,6 +179,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       guides = (data ?? []) as unknown as GuideRaw[];
     }
   } catch (e) {
+    await trackUsage(guard, request, { module: "sifa_rehberi", action: "action_failed", failedAction: "report_generated", subEntity: "guide", errorClass: "server" });
     return serverErrorResponse({ route: "sifa/word-report", action: "POST.read", tenantId: verifiedTenantId, cause: e });
   }
 
@@ -282,6 +285,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const buffer = await Packer.toBuffer(doc);
   const filename = sifaWordFilename(exportMode, guides, dateSlug);
+  await trackUsage(guard, request, { module: "sifa_rehberi", action: "report_generated", subEntity: "guide", itemCount: guides.length });
 
   return new Response(new Uint8Array(buffer), {
     headers: {

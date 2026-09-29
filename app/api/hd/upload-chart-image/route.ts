@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { isOwnedChartImagePath } from "@/lib/human-design/api/chartImagePath";
 
 export const runtime = "nodejs";
@@ -76,6 +77,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (clientErr) {
     console.error("[hd/upload-chart-image] client lookup:", clientErr.message);
+    await trackUsage(guard, req, { module: "human_design", action: "action_failed", failedAction: "file_uploaded", subEntity: "image", errorClass: "server" });
     return fail(500, "Danışan doğrulanamadı.");
   }
   if (!client) {
@@ -86,7 +88,8 @@ export async function POST(req: NextRequest): Promise<Response> {
     typeof client.chart_image_url === "string" ? client.chart_image_url.trim() : "";
 
   // Server-side üretilen kalıcı path — kullanıcı girdisinden bağımsız.
-  const storagePath = `${guard.tenantId}/${clientId}/${crypto.randomUUID()}.${ext}`;
+  const imageObjectId = crypto.randomUUID();
+  const storagePath = `${guard.tenantId}/${clientId}/${imageObjectId}.${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
 
   const { error: uploadError } = await guard.db.storage
@@ -100,6 +103,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (uploadError) {
     // Bucket eksikliği dahil tüm storage hataları maskeli loglanır; kullanıcıya genel mesaj.
     console.error("[hd/upload-chart-image] upload:", uploadError.message);
+    await trackUsage(guard, req, { module: "human_design", action: "action_failed", failedAction: "file_uploaded", subEntity: "image", errorClass: "server" });
     return fail(500, "Görsel yüklenemedi. Lütfen daha sonra tekrar deneyin.");
   }
 
@@ -114,6 +118,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     // DB güncellemesi başarısız → yeni yüklenen dosyayı geri al (yetim bırakma).
     await guard.db.storage.from(BUCKET).remove([storagePath]).catch(() => {});
     console.error("[hd/upload-chart-image] db update:", updateError.message);
+    await trackUsage(guard, req, { module: "human_design", action: "action_failed", failedAction: "file_uploaded", subEntity: "image", errorClass: "server" });
     return fail(500, "Görsel kaydedilemedi.");
   }
 
@@ -129,6 +134,10 @@ export async function POST(req: NextRequest): Promise<Response> {
       console.error("[hd/upload-chart-image] eski dosya temizlenemedi:", removeErr.message);
     }
   }
+
+  // USAGE360: yükleme + DB kaydı tamamlandı → file_uploaded (resourceId = sunucu üretimli
+  // nesne uuid'i; dosya adı/boyutu/path telemetriye GİRMEZ).
+  await trackUsage(guard, req, { module: "human_design", action: "file_uploaded", subEntity: "image", resourceId: imageObjectId });
 
   // Kısa ömürlü signed URL (yalnız önizleme için) — DB'ye YAZILMAZ.
   // storagePath yanıta KOYULMAZ: istemci path değerine ihtiyaç duymaz (görsel yalnız

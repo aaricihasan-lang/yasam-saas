@@ -8,6 +8,7 @@ import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import type {
   ActivityData, ModulesData, StorageData, OverviewData,
   ExpertsData, StorageOverviewData, StorageGrowthData,
+  Usage360ExpertsData, Usage360DetailData, Usage360TimelineData,
 } from "@/lib/admin/stats/apiTypes";
 
 export type StatsFetchResult<T> =
@@ -63,4 +64,10 @@ export const statsApi = {
     getStats<StorageOverviewData>(`${BASE}/storage-overview`, signal),
   storageGrowth: (p: { from?: string | null; to?: string | null }, signal?: AbortSignal) =>
     getStats<StorageGrowthData>(`${BASE}/storage-growth${qs(p)}`, signal),
+  usage360Experts: (p: { search?: string | null; status?: string; sort?: string; page?: number; pageSize?: number; includeDemo?: boolean }, signal?: AbortSignal) =>
+    getStats<Usage360ExpertsData>(`${BASE}/usage360/experts${qs(p)}`, signal),
+  usage360Detail: (p: { userId: string; from: string; to: string }, signal?: AbortSignal) =>
+    getStats<Usage360DetailData>(`${BASE}/usage360/detail${qs(p)}`, signal),
+  usage360Timeline: (p: { userId: string; from: string; to: string; cursor?: string | null; limit?: number }, signal?: AbortSignal) =>
+    getStats<Usage360TimelineData>(`${BASE}/usage360/timeline${qs(p)}`, signal),
 };

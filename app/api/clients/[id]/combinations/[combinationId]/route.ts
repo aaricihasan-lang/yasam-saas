@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -100,7 +101,13 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
-    return serverErrorResponse({ route: "clients/[id]/combinations/[combinationId]", action: "PATCH", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]/combinations/[combinationId]",
+      action: "PATCH",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "record_updated", subEntity: "combination" },
+    });
   }
   if (!data) {
     return NextResponse.json(
@@ -108,6 +115,8 @@ export async function PATCH(
       { status: 404 },
     );
   }
+
+  await trackUsage(guard, req, { module: "clients", action: "record_updated", subEntity: "combination", resourceId: combinationId });
 
   return NextResponse.json({ ok: true });
 }
@@ -146,8 +155,16 @@ export async function DELETE(
     .eq("client_id", clientId);
 
   if (error) {
-    return serverErrorResponse({ route: "clients/[id]/combinations/[combinationId]", action: "DELETE", tenantId, cause: error });
+    return serverErrorResponse({
+      route: "clients/[id]/combinations/[combinationId]",
+      action: "DELETE",
+      tenantId,
+      cause: error,
+      usage: { guard, req, module: "clients", failedAction: "record_deleted", subEntity: "combination" },
+    });
   }
+
+  await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "combination", resourceId: combinationId });
 
   return NextResponse.json({ ok: true });
 }

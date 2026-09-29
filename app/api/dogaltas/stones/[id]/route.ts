@@ -5,6 +5,7 @@ import { validateMineralAssignments } from "@/lib/dogaltas/mineralPercent";
 import { validateStoneStructuredFields, validateStoneImagesField, isUuid } from "@/lib/dogaltas/validation";
 import { STONE_PHOTO_BUCKET, collectStonePhotoPaths } from "@/lib/dogaltas/stonePhoto";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -106,12 +107,13 @@ export async function PATCH(
   if (expectedUpdatedAt) query = query.eq("updated_at", expectedUpdatedAt);
   const { data, error } = await query.select("*");
 
-  if (error) return serverErrorResponse({ route: "dogaltas/stones/[id]", action: "PATCH", tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "dogaltas/stones/[id]", action: "PATCH", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_updated", subEntity: "stone" } });
   if (!data || data.length === 0) {
     if (expectedUpdatedAt) {
       const { data: exists } = await db
         .from("stones").select("id").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
       if (exists) {
+        await trackUsage(guard, req, { module: "stones", action: "action_failed", failedAction: "record_updated", subEntity: "stone", errorClass: "conflict" });
         return NextResponse.json(
           { ok: false, code: "conflict",
             error: "Bu kayıt başka bir oturumda güncellendi. Son verileri yenileyip değişikliklerinizi kontrol edin." },
@@ -121,6 +123,7 @@ export async function PATCH(
     }
     return NextResponse.json({ ok: false, error: "Taş bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "stones", action: "record_updated", subEntity: "stone", resourceId: id });
   return NextResponse.json({ ok: true, id, row: data[0] });
 }
 
@@ -147,7 +150,7 @@ export async function DELETE(
     .eq("id", id).eq("tenant_id", tenantId) // tenant guard — cross-tenant delete engellenir
     .select("id");
 
-  if (error) return serverErrorResponse({ route: "dogaltas/stones/[id]", action: "DELETE", tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "dogaltas/stones/[id]", action: "DELETE", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_deleted", subEntity: "stone" } });
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Taş bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
@@ -160,5 +163,7 @@ export async function DELETE(
     const { error: rmErr } = await db.storage.from(STONE_PHOTO_BUCKET).remove(paths);
     if (rmErr) { storageCleaned = false; console.error("[stones/[id]] orphan temizliği hatası:", rmErr.message); }
   }
+  // Usage360: DB silme başarılı (storage temizliği best-effort; olayı etkilemez).
+  await trackUsage(guard, req, { module: "stones", action: "record_deleted", subEntity: "stone", resourceId: id });
   return NextResponse.json({ ok: true, id, storageCleaned });
 }

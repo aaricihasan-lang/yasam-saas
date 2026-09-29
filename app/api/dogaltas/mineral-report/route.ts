@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { safeLen } from "@/lib/dogaltas/reportSafe";
 import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
@@ -142,6 +143,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   const auth = await requireDogaltasReportAccess(req);
   if (!auth.ok) return auth.response;
   const { db, tenantId } = auth;
+  // Usage360 kimliği yalnız doğrulanmış rapor kapısından; demo orada zaten 403.
+  const usageGuard = { ...auth, is_demo_account: false };
 
   let body: unknown;
   try { body = await req.json(); }
@@ -168,7 +171,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const { data, error } = await q.order("name");
-  if (error) return serverErrorResponse({ route: "dogaltas/mineral-report", action: "POST", tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "dogaltas/mineral-report", action: "POST", tenantId, cause: error, usage: { guard: usageGuard, req, module: "stones", failedAction: "report_generated", subEntity: "mineral" } });
 
   const minerals = sanitizeXmlDeep((data ?? []) as MineralRow[]); // RPT-XML
   if (!minerals.length) return Response.json({ ok: false, error: "Bu seçim için mineral bulunamadı." }, { status: 404 });
@@ -182,6 +185,14 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
 
   const buffer = await Packer.toBuffer(doc);
+  // Usage360: Word dosyası BAŞARIYLA üretildi → tek rapor olayı (konu: mineral; çoklu → itemCount).
+  await trackUsage(usageGuard, req, {
+    module: "stones",
+    action: "report_generated",
+    subEntity: "mineral",
+    resourceId: minerals.map((r) => r.id).sort().join(","),
+    itemCount: minerals.length,
+  });
   const dateSlug = reportFileDate();
 
   return new Response(new Uint8Array(buffer), {

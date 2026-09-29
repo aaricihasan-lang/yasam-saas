@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import type { ReportChild } from "@/lib/docx/reportHelpers";
 import { readSnapshotsForDelivery } from "@/lib/yasam-hafizasi/client/snapshotStore";
@@ -146,6 +147,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (error) {
     // REF-016: ham DB mesajı istemciye sızmaz; teknik ayrıntı yalnız server logunda.
     console.error(`[refleksoloji] protocol-report.protocols: ${error.code ?? ""} ${error.message}`);
+    await trackUsage(guard, request, { module: "reflexology", action: "action_failed", failedAction: "report_generated", subEntity: "protocol", errorClass: "server" });
     return Response.json({ ok: false, error: "Protokoller okunamadı." }, { status: 500 });
   }
 
@@ -161,6 +163,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     .maybeSingle();
   if (atlasErr) {
     console.error(`[refleksoloji] protocol-report.atlas: ${atlasErr.code ?? ""} ${atlasErr.message}`);
+    await trackUsage(guard, request, { module: "reflexology", action: "action_failed", failedAction: "report_generated", subEntity: "protocol", errorClass: "server" });
     return Response.json({ ok: false, error: "Atlas okunamadı." }, { status: 500 });
   }
   // CANONICAL SINIR (server read): DB belgesi legacy `{taban,yan}` olabilir →
@@ -237,6 +240,14 @@ export async function POST(request: NextRequest): Promise<Response> {
   });
 
   const buffer = await Packer.toBuffer(doc);
+  // USAGE360: rapor YALNIZ docx başarıyla üretildikten sonra (Android Word guard 403'ü olay değildir).
+  await trackUsage(guard, request, {
+    module: "reflexology",
+    action: "report_generated",
+    subEntity: "protocol",
+    resourceId: exportMode === "single" && typeof protocolId === "string" ? protocolId : null,
+    itemCount: protocols.length,
+  });
   const modeSlug = isSingle
     ? slugify(protocols[0]!.title || "protokol")
     : exportMode === "selected" ? "secili" : "tumu";

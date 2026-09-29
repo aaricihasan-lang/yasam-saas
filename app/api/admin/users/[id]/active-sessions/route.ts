@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { limitFromDb } from "@/lib/admin/licenseLimits";
 import { isUuid } from "@/lib/admin/memberRequestValidation";
+import { maskIpRows } from "@/lib/security/maskIp";
 
 export const runtime = "nodejs";
 
@@ -114,5 +115,6 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     sessionsTotal = countRes.count ?? 0;
   }
 
-  return NextResponse.json({ sessions: displaySessions, sessionsTotal, summary }, { headers: { "Cache-Control": "private, no-store" } });
+  // Ham IP yönetici arayüzüne gönderilmez (maskeli; ör. 185.12.xxx.xxx).
+  return NextResponse.json({ sessions: maskIpRows(displaySessions), sessionsTotal, summary }, { headers: { "Cache-Control": "private, no-store" } });
 }

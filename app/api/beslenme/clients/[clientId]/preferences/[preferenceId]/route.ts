@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmeClient } from "@/lib/beslenme/clientRouteGuard";
 import { isUuid } from "@/lib/beslenme/planContracts";
@@ -21,6 +22,10 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
     .eq("tenant_id", g.guard.tenantId)
     .eq("client_id", clientId)
     .eq("id", preferenceId);
-  if (error) return beslenmeJson({ ok: false, code: "PREFERENCE_DELETE_FAILED" }, 500);
+  if (error) {
+    await trackUsage(g.guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_deleted", subEntity: "preference", errorClass: "server" });
+    return beslenmeJson({ ok: false, code: "PREFERENCE_DELETE_FAILED" }, 500);
+  }
+  await trackUsage(g.guard, req, { module: "beslenme", action: "record_deleted", subEntity: "preference", resourceId: preferenceId });
   return NextResponse.json({ ok: true });
 }

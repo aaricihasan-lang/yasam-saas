@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   PERSONAL_ARCHIVE_BUCKET,
   isOwnedPersonalArchivePath,
@@ -77,9 +78,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     .exists(path);
   if (existsError) {
     console.error("[kisisel-arsiv/files/finalize] exists check", existsError);
+    await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Dosya doğrulanamadı." }, { status: 500 });
   }
   if (!objectExists) {
+    await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "conflict" });
     return NextResponse.json({ ok: false, error: "Yüklenen dosya bulunamadı." }, { status: 409 });
   }
 
@@ -103,8 +106,12 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (metaError || !row) {
     console.error("[kisisel-arsiv/files/finalize] metadata insert", metaError);
+    await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Dosya kaydedilemedi." }, { status: 500 });
   }
+
+  // USAGE360: yalnız dosya satırının id'si (idempotency); ad/boyut/tür telemetriye GİRMEZ.
+  await trackUsage(guard, req, { module: "personal_archive", action: "file_uploaded", subEntity: "file", resourceId: String((row as { id?: unknown }).id ?? "") || null });
 
   return NextResponse.json({ ok: true, row });
 }

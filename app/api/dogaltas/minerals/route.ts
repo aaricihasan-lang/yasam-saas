@@ -10,6 +10,7 @@ import {
   mapMineralListRow,
 } from "@/lib/dogaltas/mineralsListFetch";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
 
@@ -139,6 +140,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   payload.tenant_id = tenantId; // SUNUCUDAN
 
   const { data, error } = await db.from("minerals").insert(payload).select("id").single();
-  if (error) return serverErrorResponse({ route: "dogaltas/minerals", action: "POST", tenantId, cause: error });
+  if (error) return serverErrorResponse({ route: "dogaltas/minerals", action: "POST", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_created", subEntity: "mineral" } });
+  await trackUsage(guard, req, { module: "stones", action: "record_created", subEntity: "mineral", resourceId: (data as { id: string }).id });
   return NextResponse.json({ ok: true, id: (data as { id: string }).id });
 }
