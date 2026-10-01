@@ -368,3 +368,9 @@ html[data-android-app] .no-android-app {
     animation: none;
   }
 }
+
+/* Parola alanı: kendi göz düğmemiz var → Edge/IE yerleşik göster/temizle düğmeleri çift görünmesin. */
+.yasam-password-input::-ms-reveal,
+.yasam-password-input::-ms-clear {
+  display: none;
+}

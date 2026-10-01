@@ -8,7 +8,6 @@ import {
   Banknote,
   ChevronDown,
   Eye,
-  EyeOff,
   Filter,
   HelpCircle,
   Home,
@@ -26,6 +25,8 @@ import {
   UserX,
   X,
 } from "lucide-react";
+import PasswordInput from "@/components/ui/PasswordInput";
+import { PASSWORD_HINT, PASSWORD_MIN_LENGTH, newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   ADMIN_MODULE_KIND,
@@ -547,7 +548,6 @@ export default function AdminUserDetailPage() {
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordRepeat, setNewPasswordRepeat] = useState("");
-  const [showNewPassword, setShowNewPassword] = useState(false);
   // P2 — hesap müdahaleleri: pasife alma onayı + tüm cihazlardan çıkış (iki adım).
   const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [logoutAllStep, setLogoutAllStep] = useState<null | "confirm" | "verify">(null);
@@ -833,7 +833,7 @@ export default function AdminUserDetailPage() {
     if (!user || isSelf() || !canDeleteAsOwner) return;
 
     if (!deleteAdminPassword.trim()) {
-      showToast({ title: "İşlem başarısız", message: "Admin şifresi giriniz.", type: "error" });
+      showToast({ title: "İşlem başarısız", message: "Yönetici parolasını giriniz.", type: "error" });
       return;
     }
     if (deleteConfirmPhrase.trim() !== DELETE_CONFIRM_PHRASE) {
@@ -925,7 +925,6 @@ export default function AdminUserDetailPage() {
     setPasswordOpen(false);
     setNewPassword("");
     setNewPasswordRepeat("");
-    setShowNewPassword(false);
   }
 
   /**
@@ -952,15 +951,16 @@ export default function AdminUserDetailPage() {
     const pw = newPassword.trim();
     const pw2 = newPasswordRepeat.trim();
     if (!pw) {
-      showToast({ title: "İşlem başarısız", message: "Yeni şifre giriniz.", type: "error" });
+      showToast({ title: "İşlem başarısız", message: "Yeni parola giriniz.", type: "error" });
       return;
     }
-    if (pw.length < 10) {
-      showToast({ title: "İşlem başarısız", message: "Yeni şifre en az 10 karakter olmalı.", type: "error" });
+    const policyError = newPasswordPolicyMessage(pw);
+    if (policyError) {
+      showToast({ title: "İşlem başarısız", message: policyError, type: "error" });
       return;
     }
     if (pw !== pw2) {
-      showToast({ title: "İşlem başarısız", message: "Şifreler eşleşmiyor.", type: "error" });
+      showToast({ title: "İşlem başarısız", message: "Parolalar eşleşmiyor.", type: "error" });
       return;
     }
 
@@ -978,14 +978,14 @@ export default function AdminUserDetailPage() {
     setSavingPassword(false);
 
     if (!res.ok || !json.ok) {
-      showToast({ title: "İşlem başarısız", message: json.error ?? "Şifre güncellenemedi.", type: "error" });
+      showToast({ title: "İşlem başarısız", message: json.error ?? "Parola güncellenemedi.", type: "error" });
       return;
     }
 
     closePasswordPanel();
     showToast({
       title: "Başarılı",
-      message: "Şifre değiştirildi ve kullanıcı tüm cihazlardan çıkarıldı.",
+      message: "Parola değiştirildi ve kullanıcı tüm cihazlardan çıkarıldı.",
       type: "success",
     });
   }
@@ -2033,7 +2033,7 @@ export default function AdminUserDetailPage() {
                       isManagedOwnerAdmin(user)
                         ? "Ana yönetici hesabına bu işlem uygulanamaz."
                         : !viewerIsMainAdmin
-                          ? "Şifre sıfırlama yalnızca ana yöneticiye açıktır."
+                          ? "Parola sıfırlama yalnızca ana yöneticiye açıktır."
                           : undefined
                     }
                     onClick={() => {
@@ -2048,7 +2048,7 @@ export default function AdminUserDetailPage() {
                     className={`${actionBtn} border-amber-200 bg-amber-50 text-amber-950`}
                   >
                     <KeyRound className="h-4 w-4" aria-hidden />
-                    Şifreyi Sıfırla
+                    Parolayı Sıfırla
                   </button>
                   {!user.active && (user.role === "admin" || user.approvalStatus === "approved") ? (
                     <button
@@ -2064,8 +2064,8 @@ export default function AdminUserDetailPage() {
                 </div>
                 <p className="mt-2 text-[11px] font-medium text-slate-500">
                   {viewerIsMainAdmin
-                    ? "Şifre sıfırlandığında kullanıcı tüm cihazlardan çıkarılır."
-                    : "Şifre sıfırlama ve e-posta değişikliği yalnızca ana yöneticiye açıktır (hesap güvenliği)."}
+                    ? "Parola sıfırlandığında kullanıcı tüm cihazlardan çıkarılır."
+                    : "Parola sıfırlama ve e-posta değişikliği yalnızca ana yöneticiye açıktır (hesap güvenliği)."}
                 </p>
               </div>
 
@@ -2142,39 +2142,32 @@ export default function AdminUserDetailPage() {
 
               {passwordOpen && canResetPassword() ? (
                 <div className="mt-4 rounded-2xl border-2 border-amber-200 bg-amber-50/80 p-4">
-                  <p className="text-sm font-black text-amber-950">Yeni şifre belirle</p>
+                  <p className="text-sm font-black text-amber-950">Yeni parola belirle</p>
                   <p className="mt-1 text-xs font-bold text-amber-900/85">
-                    Şifre değiştirildiğinde kullanıcı tüm cihazlardan çıkarılır ve tekrar giriş yapması gerekir.
+                    Parola değiştirildiğinde kullanıcı tüm cihazlardan çıkarılır ve tekrar giriş yapması gerekir.
                   </p>
                   <div className="mt-3 space-y-2">
-                    <div className="relative">
-                      <input
-                        type={showNewPassword ? "text" : "password"}
-                        autoComplete="new-password"
-                        className={`${inputClass} mt-0 w-full pr-11`}
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Yeni şifre (en az 10 karakter)"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowNewPassword((s) => !s)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-amber-700 transition hover:bg-amber-100"
-                        aria-label={showNewPassword ? "Şifreyi gizle" : "Şifreyi göster"}
-                      >
-                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    <input
-                      type={showNewPassword ? "text" : "password"}
+                    <PasswordInput
+                      id="admin-reset-password"
                       autoComplete="new-password"
+                      aria-label="Yeni parola"
+                      className={`${inputClass} mt-0 w-full`}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Yeni parola (en az 6 karakter)"
+                    />
+                    <PasswordInput
+                      id="admin-reset-password-repeat"
+                      autoComplete="new-password"
+                      aria-label="Yeni parola (tekrar)"
                       className={`${inputClass} mt-0 w-full`}
                       value={newPasswordRepeat}
                       onChange={(e) => setNewPasswordRepeat(e.target.value)}
-                      placeholder="Yeni şifre (tekrar)"
+                      placeholder="Yeni parola (tekrar)"
                     />
+                    <p className="text-xs font-medium text-amber-900/80">{PASSWORD_HINT}</p>
                     {newPasswordRepeat.length > 0 && newPassword.trim() !== newPasswordRepeat.trim() ? (
-                      <p className="text-xs font-bold text-rose-700">Şifreler eşleşmiyor.</p>
+                      <p className="text-xs font-bold text-rose-700">Parolalar eşleşmiyor.</p>
                     ) : null}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -2183,12 +2176,12 @@ export default function AdminUserDetailPage() {
                       onClick={savePassword}
                       disabled={
                         savingPassword ||
-                        newPassword.trim().length < 10 ||
+                        newPassword.trim().length < PASSWORD_MIN_LENGTH ||
                         newPassword.trim() !== newPasswordRepeat.trim()
                       }
                       className={`${saveBtnClass} disabled:cursor-not-allowed disabled:opacity-50`}
                     >
-                      {savingPassword ? "Kaydediliyor…" : "Şifreyi Sıfırla"}
+                      {savingPassword ? "Kaydediliyor…" : "Parolayı Sıfırla"}
                     </button>
                     <button
                       type="button"
@@ -3211,21 +3204,21 @@ export default function AdminUserDetailPage() {
               Admin doğrulaması gerekli
             </h2>
             <p className="mt-3 text-sm font-medium text-slate-700">
-              Pasife alma ve arşivleme işlemini tamamlamak için ana admin şifresini girin.
+              Pasife alma ve arşivleme işlemini tamamlamak için ana yönetici parolanızı girin.
             </p>
             <div className="mt-6 space-y-4">
               <label className="block">
                 <span className="text-xs font-black uppercase tracking-wide text-slate-600">
-                  Admin şifresi
+                  Yönetici parolası
                 </span>
-                <input
-                  type="password"
+                <PasswordInput
                   autoComplete="current-password"
+                  wrapperClassName="mt-1.5"
                   value={deleteAdminPassword}
                   onChange={(e) => setDeleteAdminPassword(e.target.value)}
                   disabled={deleteSubmitting}
-                  className="mt-1.5 w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none ring-violet-300 focus:border-violet-400 focus:ring-2 disabled:opacity-60"
-                  placeholder="Şifrenizi girin"
+                  className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none ring-violet-300 focus:border-violet-400 focus:ring-2 disabled:opacity-60"
+                  placeholder="Parolanızı girin"
                 />
               </label>
               <label className="block">
@@ -3520,7 +3513,7 @@ export default function AdminUserDetailPage() {
             </h2>
             <p className="mt-4 text-sm font-medium leading-relaxed text-slate-700">
               Kullanıcının <span className="font-black">masaüstü, mobil ve tablet dahil tüm aktif oturumları</span>{" "}
-              sonlandırılır. Hesap durumu, şifre ve modül izinleri değişmez. Kullanıcı isterse tekrar giriş
+              sonlandırılır. Hesap durumu, parola ve modül izinleri değişmez. Kullanıcı isterse tekrar giriş
               yapabilir (pasifse giriş yapamaz).
             </p>
             <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

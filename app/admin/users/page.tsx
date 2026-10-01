@@ -42,7 +42,8 @@ import {
 } from "@/lib/admin/memberListQuery";
 import { classifyFetchFailure, FETCH_FAILURE_COPY, type FetchFailureKind } from "@/lib/admin/fetchState";
 import { istanbulTodayIso, renewalBadgeLabel, renewalState } from "@/lib/admin/memberCommercial";
-import { passwordPolicyError } from "@/lib/auth/registerValidation";
+import { PASSWORD_HINT, newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
+import PasswordInput from "@/components/ui/PasswordInput";
 import {
   AccountBadge,
   ApprovalBadge,
@@ -617,11 +618,12 @@ function AdminUsersContent() {
     const email = form.email.trim().toLowerCase();
     const password = form.password.trim();
     if (!fullName || !email || !password) {
-      showToast({ title: "Eksik bilgi", message: "Ad soyad, e-posta ve şifre zorunludur.", type: "error" });
+      showToast({ title: "Eksik bilgi", message: "Ad soyad, e-posta ve parola zorunludur.", type: "error" });
       return;
     }
-    if (passwordPolicyError(password, email)) {
-      showToast({ title: "Zayıf şifre", message: "Şifre en az 10 karakter olmalı; en az bir harf ve bir rakam içermelidir.", type: "error" });
+    const policyError = newPasswordPolicyMessage(password, email);
+    if (policyError) {
+      showToast({ title: "Parola uygun değil", message: policyError, type: "error" });
       return;
     }
     if (form.role === "expert" && !formHasModule) {
@@ -787,12 +789,12 @@ function AdminUsersContent() {
                       onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
                   </label>
                   <label className="block" htmlFor="create-password">
-                    <span className={labelClass}>Geçici Şifre</span>
-                    <input id="create-password" type="password" className={inputClass} autoComplete="new-password" value={form.password}
-                      placeholder="En az 10 karakter" aria-describedby="create-password-hint"
+                    <span className={labelClass}>Geçici Parola</span>
+                    <PasswordInput id="create-password" className={inputClass} autoComplete="new-password" value={form.password}
+                      placeholder="En az 6 karakter" aria-describedby="create-password-hint"
                       onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
                     <span id="create-password-hint" className="mt-1 block text-xs font-medium text-slate-500">
-                      En az 10 karakter; en az bir harf ve bir rakam.
+                      {PASSWORD_HINT}
                     </span>
                   </label>
                   <label className="block" htmlFor="create-role">

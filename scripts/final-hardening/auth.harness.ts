@@ -342,7 +342,8 @@ async function run() {
   ok(extractClientIp(new Headers({ "x-vercel-forwarded-for": "4.4.4.4, 5.5.5.5", "x-forwarded-for": "2.2.2.2" })) === "4.4.4.4", "IP: x-vercel-forwarded-for ilk değer");
   ok(extractClientIp(new Headers({ "x-forwarded-for": " 2.2.2.2 , 3.3.3.3" })) === "2.2.2.2", "IP: x-forwarded-for ilk değer");
   ok(hashLoginIp("1.1.1.1", "p") !== "1.1.1.1" && hashLoginIp("1.1.1.1", "p") !== hashLoginIp("1.1.1.1", "q"), "IP pepper'lı SHA-256 (ham IP gitmez)");
-  ok(validateNewPassword("123456789").ok === false && validateNewPassword("1234567890").ok === true, "yeni parola min 10 (admin sıfırlama)");
+  // Owner kararı (2026-10): min 6, karmaşıklık zorunluluğu yok, bariz parola reddi (passwordPolicy tek kaynak).
+  ok(validateNewPassword("48273").ok === false && validateNewPassword("482731").ok === true && validateNewPassword("123456").ok === false, "yeni parola min 6 + bariz parola reddi (admin sıfırlama)");
 
   console.log("\n── B) Touch await + enforce kapısı ──");
   {
@@ -510,7 +511,7 @@ async function run() {
     ok(!/btrim\(u\.password\)/.test(mig1Code), "0100: login_user düz metin dalı YOK");
     const reg = read("app/api/register/route.ts");
     const cp = read("app/api/settings/change-password/route.ts");
-    ok(/NEW_PASSWORD_MIN_LENGTH/.test(reg) && /NEW_PASSWORD_MIN_LENGTH/.test(cp), "register + change-password: min 10");
+    ok(/newPasswordPolicyMessage/.test(reg) && /newPasswordPolicyMessage/.test(cp), "register + change-password: ortak parola politikası (min 6, sunucuda zorlanır)");
     ok(/verifyLoginCredentialsGuarded/.test(cp) && !/rpc\("login_user"/.test(cp), "change-password: mevcut parola doğrulaması throttle'dan geçer");
   }
 

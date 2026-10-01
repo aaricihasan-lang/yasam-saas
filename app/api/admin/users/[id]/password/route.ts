@@ -65,7 +65,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   });
   if (hashError || !hashResult) {
     // hashError.message parola DEĞERİ taşımaz.
-    return jsonNoStore({ ok: false, error: "Şifre hashlenemedi." }, 500);
+    return jsonNoStore({ ok: false, error: "Parola işlenemedi." }, 500);
   }
 
   // Parolayı güncelle.
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     .update({ password_hash: hashResult as string })
     .eq("id", id);
   if (updateError) {
-    return jsonNoStore({ ok: false, error: "Şifre güncellenemedi." }, 500);
+    return jsonNoStore({ ok: false, error: "Parola güncellenemedi." }, 500);
   }
 
   // Parola değişti → hedefin TÜM oturumlarını geçersizleştir (eski token çalışamaz).
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   } catch (e) {
     if (e instanceof SessionRevokeError) {
       return jsonNoStore(
-        { ok: false, error: "Şifre güncellendi ancak oturumlar kapatılamadı. Lütfen tekrar deneyin." },
+        { ok: false, error: "Parola güncellendi ancak oturumlar kapatılamadı. Lütfen tekrar deneyin." },
         500,
       );
     }

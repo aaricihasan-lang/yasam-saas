@@ -58,6 +58,7 @@ const STEPS = [
   ["anamnez-filled-pdf", "npx", ["tsx", "scripts/anamnez/filled-pdf.harness.ts"]],
   ["urun-stok-diger", "npx", ["tsx", "scripts/urun-stok/select-other.harness.ts"]],
   ["clients-list-filter", "npx", ["tsx", "scripts/clients-list-filter.harness.ts"]],
+  ["password-policy", "npx", ["tsx", "scripts/final-hardening/password-policy.harness.ts"]],
   ["pg:auth-m1", ...pg([F("auth-fixture.sql")],
     ["20270129000000_auth_login_throttle.sql", "20270129000100_auth_grants_password_hash_only.sql", "20270129000200_user_sessions_expiry_touch.sql",
      "20271001000000_auth_password_session_hardening.sql"],

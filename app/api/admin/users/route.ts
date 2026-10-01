@@ -6,7 +6,7 @@ import { readLimitedJsonBody } from "@/lib/admin/accountSessionControls";
 import { buildPremiumMembershipPayload } from "@/lib/auth/membership";
 import { ADMIN_MODULE_ALIAS_KEYS, validateApprovalModules } from "@/lib/admin/userManagement";
 import { parseMemberCounts, parseMemberListQuery, roleMatchFromQuery } from "@/lib/admin/memberListQuery";
-import { passwordPolicyError } from "@/lib/auth/registerValidation";
+import { newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
 import { rpcErrorStatus } from "@/lib/admin/memberRequestValidation";
 
 export const runtime = "nodejs";
@@ -106,15 +106,14 @@ export async function POST(req: NextRequest) {
   const fullName = typeof body.fullName === "string" ? body.fullName.trim().replace(/\s+/g, " ") : "";
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body.password === "string" ? body.password.trim() : "";
-  if (!fullName || !email || !password) return bad("Ad soyad, e-posta ve şifre zorunludur.");
+  if (!fullName || !email || !password) return bad("Ad soyad, e-posta ve parola zorunludur.");
   if (fullName.length < 2 || fullName.length > 120 || /[\u0000-\u001f\u007f]/.test(fullName)) {
     return bad("Ad soyad 2–120 karakter olmalıdır.");
   }
   if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return bad("Geçerli bir e-posta adresi girin.");
-  // Ortak minimum (FAZ1 FINAL HARDENING MIN_PASSWORD_LENGTH = 10) + harf/rakam — passwordPolicyError.
-  if (passwordPolicyError(password, email)) {
-    return bad("Şifre en az 10 karakter olmalı; en az bir harf ve bir rakam içermelidir.");
-  }
+  // Ortak parola politikası (lib/auth/passwordPolicy — tek kaynak: min 6, bariz parola reddi).
+  const pwPolicy = newPasswordPolicyMessage(password, email);
+  if (pwPolicy) return bad(pwPolicy);
   if (body.role !== "admin" && body.role !== "expert") return bad("Geçersiz rol. Kabul edilenler: admin, expert");
   const role = body.role;
 
@@ -136,7 +135,7 @@ export async function POST(req: NextRequest) {
 
   // Şifreyi server-side bcrypt ile hashle (pgcrypto RPC; DB mutasyonu değil).
   const { data: hashResult, error: hashError } = await db.rpc("hash_password", { p_plain: password });
-  if (hashError || !hashResult) return bad("Şifre işlenemedi.", 500);
+  if (hashError || !hashResult) return bad("Parola işlenemedi.", 500);
 
   const { data, error } = await db.rpc("admin_create_user_with_modules", {
     p_payload: {

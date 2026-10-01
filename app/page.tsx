@@ -1,6 +1,7 @@
 "use client";
 
 import { loginWithCredentials } from "@/lib/auth/loginUser";
+import PasswordInput from "@/components/ui/PasswordInput";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import {
   canLoginYasamUser,
@@ -3736,12 +3737,14 @@ export default function Home() {
               <>
             <div className="relative z-10 mt-5 space-y-3.5">
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                <label htmlFor="login-email" className="mb-1.5 block text-sm font-semibold text-slate-700">
                   {t("login.emailLabel")}
                 </label>
 
                 <input
+                  id="login-email"
                   type="email"
+                  autoComplete="username"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder={t("login.emailPlaceholder")}
@@ -3751,12 +3754,13 @@ export default function Home() {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                <label htmlFor="login-password" className="mb-1.5 block text-sm font-semibold text-slate-700">
                   {t("login.passwordLabel")}
                 </label>
 
-                <input
-                  type="password"
+                <PasswordInput
+                  id="login-password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="••••••••"

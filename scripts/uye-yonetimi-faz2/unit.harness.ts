@@ -95,7 +95,8 @@ ok(!/Yaşam Hafızası için/.test(approveModal), "onay modalında ayrı 'Yaşam
 console.log("\n[MEM-012] Kayıt doğrulama");
 const base = { fullName: "Ad Soyad", email: "a@b.co", password: "abcd123456" };
 ok(validateRegisterBody(base).ok, "geçerli kayıt");
-ok(passwordPolicyError("abcdefghij") === "weak_password" && passwordPolicyError("1234567890") === "weak_password" && passwordPolicyError("abcd1234") === "weak_password", "parola: harf+rakam+10 (8 karakter artık yetmez)");
+// Owner kararı (2026-10): min 6; karmaşıklık ZORUNLU DEĞİL; bariz parolalar reddedilir.
+ok(passwordPolicyError("abcde") === "weak_password" && passwordPolicyError("482731") === null && passwordPolicyError("abcdgh") === null && passwordPolicyError("123456") === "weak_password", "parola: min 6, yalnız rakam geçerli, bariz parola reddi");
 ok(passwordPolicyError("şifrem12345") === null, "Türkçe harf + rakam kabul");
 ok(REGISTER_PASSWORD_MIN === NEW_PASSWORD_MIN_LENGTH && REGISTER_PASSWORD_MIN === MIN_PASSWORD_LENGTH, "parola minimumu main (NEW_PASSWORD_MIN_LENGTH / MIN_PASSWORD_LENGTH) ile birebir");
 ok(passwordPolicyError("a".repeat(125) + "1234") === "weak_password", "129 karakter parola reddedilir");
