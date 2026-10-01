@@ -95,8 +95,10 @@ export const yhClientOutboxWorkerFunction = inngest.createFunction(
     // TYPE-SAFE FACADE'lar (UNSAFE CAST'siz; yalnız metot delegasyonu).
     const rpcDb: OutboxRpcDb = {
       async rpc(name, params) {
-        const { data, error } = await serverDb.rpc(name, params);
-        return { data, error: error === null ? null : { message: error.message } };
+        const { data, error, status } = await serverDb.rpc(name, params);
+        // F-1: güvenli sınıflandırma için yalnız `code` + HTTP `status` taşınır (message
+        // yalnız mevcut sözleşme gereği; sınıflandırıcı/loglar ham mesajı OKUMAZ).
+        return { data, error: error === null ? null : { message: error.message, code: error.code }, status };
       },
     };
     const indexDb: ClientIndexDbClient = {
