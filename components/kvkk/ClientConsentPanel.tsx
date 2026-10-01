@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { formatInstantDateTime } from "@/lib/time/reportTime";
-import { LEGAL_DRAFT_MARK } from "@/lib/legal/legalDraft";
 import {
   CONSENT_METHODS,
   CONSENT_METHOD_LABELS,
@@ -30,7 +29,7 @@ import {
  *   <ClientConsentPanel clientId={id} onDefer={() => …} />     → "Sonra tamamla" düğmesi görünür
  *
  * Veri: GET/POST /api/clients/[id]/consents (append-only; geri çekme = yeni kayıt).
- * Metinler TASLAKTIR (LEGAL_DRAFT_MARK) — hukuki inceleme gerekir.
+ * Örnek aydınlatma metni: /kvkk-aydinlatma (uzman kendi bilgileriyle uyarlar).
  */
 
 type Props = {
@@ -216,9 +215,6 @@ export default function ClientConsentPanel({
             değiştirilemez; geri çekme yeni bir kayıt olarak eklenir.
           </p>
         </div>
-        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">
-          {LEGAL_DRAFT_MARK}
-        </span>
       </header>
 
       {state.kind === "loading" && <p className="mt-4 text-xs text-slate-500">Yükleniyor…</p>}
@@ -345,7 +341,7 @@ export default function ClientConsentPanel({
                   target="_blank"
                   className="text-[11px] font-semibold text-violet-700 underline"
                 >
-                  Aydınlatma metni şablonu
+                  Örnek aydınlatma metni
                 </Link>
                 {saved && !formError && <span className="text-[11px] font-semibold text-emerald-700">Kaydedildi.</span>}
                 {formError && (

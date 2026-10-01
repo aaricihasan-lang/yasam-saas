@@ -8,7 +8,8 @@
  *   - next.config.ts headers() bağlantısı + poweredByHeader:false
  *   - GA rota izin listesi (public-only, oturumda kapalı) + URL maskeleme
  *   - dataResidency (env yoksa placeholder; Tokyo/Frankfurt hardcode YOK)
- *   - Hukuki sayfalar TASLAK işaretli; gizlilik metninde eski yanlış iddialar YOK
+ *   - Hukuki sayfalar nihai metin (taslak/şablon/hukukçu ifadesi YOK; "Son güncelleme" VAR);
+ *     gizlilik metninde eski yanlış iddialar YOK; kimlik bloğunda yer tutucu YOK
  *   - KVKK onam sözleşmesi (doğrulama, güncel durum türetme, özet) + route statik güvenliği
  *   - server-only: "use client" dosyalarından service-role/secret modüllerine import yolu 0
  *   - legacy grants (migration 1100): anon istemci kullanan dosyalarda kilitlenen tablolara erişim 0
@@ -33,7 +34,8 @@ import {
   shouldEnableAnalytics,
 } from "../../lib/legal/analyticsPolicy";
 import { DATA_REGION_PLACEHOLDER, getDataResidency } from "../../lib/legal/dataResidency";
-import { LEGAL_DRAFT_MARK } from "../../lib/legal/legalDraft";
+import { LEGAL_LAST_UPDATED_ISO, LEGAL_LAST_UPDATED_LABEL } from "../../lib/legal/legalMeta";
+import { LEGAL_IDENTITY, legalIdentityLines } from "../../lib/legal/legalIdentity";
 import {
   CONSENT_METHODS,
   CONSENT_STATUSES,
@@ -285,26 +287,130 @@ const isUseClient = (rel: string) => /^\s*(?:\/\/[^\n]*\n|\/\*[\s\S]*?\*\/\s*)*\
     for (const f of files) assert.ok(!/tokyo|frankfurt|ap-northeast|eu-central/i.test(read(f)), f);
   });
 
-  // ── 4) Hukuki sayfalar TASLAK + dürüst iddialar ───────────────────────────
-  await t("tüm hukuki sayfalar TASLAK kabuğunu kullanır", () => {
-    for (const f of LEGAL_FILES) assert.ok(read(f).includes("LegalPageShell"), f);
+  // ── 4) Hukuki sayfalar: nihai metin + dürüst iddialar (P1-6) ──────────────
+  const LEGAL_COPY_FILES = [...LEGAL_FILES, "app/iletisim/page.tsx", ...walk("lib/legal"), ...walk("components/kvkk")];
+  await t("taslak mimarisi kaldırıldı (TASLAK/Şablon/hukukçu ifadesi YOK)", () => {
+    assert.ok(!exists("lib/legal/legalDraft.ts"), "lib/legal/legalDraft.ts kaldırılmalı");
+    const banned = /TASLAK|Taslak|taslak|ŞABLON|Şablon|şablon|hukukçu|hukuki inceleme|Taslak sürüm|LEGAL_DRAFT/;
+    for (const f of LEGAL_COPY_FILES) {
+      const m = read(f).match(banned);
+      assert.ok(!m, `${f}: yasaklı ifade "${m?.[0]}"`);
+    }
+  });
+  await t("tüm hukuki sayfalar kabuğu kullanır + \"Son güncelleme\" görünür", () => {
+    for (const f of LEGAL_FILES) assert.ok(read(f).includes("<LegalPageShell"), f);
     const shell = read("components/kvkk/LegalPageShell.tsx");
-    assert.ok(shell.includes("LEGAL_DRAFT_MARK"));
-    assert.equal(LEGAL_DRAFT_MARK, "TASLAK — hukuki inceleme gerekir");
+    assert.ok(shell.includes("LEGAL_LAST_UPDATED_LABEL") && shell.includes("LEGAL_LAST_UPDATED_ISO"));
+    assert.equal(LEGAL_LAST_UPDATED_ISO, "2026-10-01");
+    assert.equal(LEGAL_LAST_UPDATED_LABEL, "Son güncelleme: 1 Ekim 2026");
+    assert.match(shell, /<main className="[^"]*\bw-full\b/, "main w-full (390px taşma)");
+    assert.ok(!/amber-50|amber-300/.test(shell), "sarı taslak kutusu kalmamalı");
+  });
+  await t("metadata title/description: Taslak/Şablon yok", () => {
+    for (const f of [...LEGAL_FILES, "app/iletisim/page.tsx"]) {
+      const meta = read(f).match(/export const metadata[\s\S]*?\n\};/)?.[0] ?? "";
+      assert.ok(meta.length > 0, `${f}: metadata yok`);
+      assert.ok(!/Taslak|taslak|Şablon|şablon/.test(meta), f);
+    }
+  });
+  await t("kimlik: uydurma yok, null alanlar yer tutucu üretmez", () => {
+    assert.equal(LEGAL_IDENTITY.brandName, "Yaşam Sistemi");
+    assert.equal(LEGAL_IDENTITY.email, "yasamsistemi@gmail.com");
+    assert.equal(LEGAL_IDENTITY.phone, "0850 307 20 93");
+    const lines = legalIdentityLines();
+    const filled = [LEGAL_IDENTITY.legalName, LEGAL_IDENTITY.address, LEGAL_IDENTITY.taxOrMersis, LEGAL_IDENTITY.kep].filter(
+      (v) => typeof v === "string" && v.trim().length > 0,
+    ).length;
+    assert.equal(lines.length, 3 + filled, "yalnız dolu alanlar listelenir");
+    for (const l of lines) assert.ok(!/[[\]‹›]|doldur|TODO|xxx/i.test(`${l.label} ${l.value}`), `${l.label}: yer tutucu`);
+    const full = legalIdentityLines({ ...LEGAL_IDENTITY, legalName: "A Ltd.", address: "B", taxOrMersis: "1", kep: "c@kep" });
+    assert.equal(full.length, 7);
+    const blank = legalIdentityLines({ ...LEGAL_IDENTITY, legalName: "  ", address: null });
+    assert.ok(!blank.some((l) => l.label === "Unvan" || l.label === "Adres"), "boş/whitespace alan gösterilmez");
+    // Sayfa metinlerinde (JSX metin düğümleri) köşeli parantez / yer tutucu yok
+    for (const f of [...LEGAL_FILES, "app/iletisim/page.tsx", "components/kvkk/LegalIdentityBlock.tsx"]) {
+      const src = read(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+      assert.ok(!/‹|›|doldur|TODO/i.test(src), `${f}: yer tutucu ifadesi`);
+      assert.ok(!/>[^<{]*\[[^<{]*</.test(src), `${f}: metinde köşeli parantez`);
+    }
+    assert.ok(read("components/kvkk/LegalIdentityBlock.tsx").includes("legalIdentityLines"));
+  });
+  await t("veri bölgesi: env yoksa sayfalarda yer tutucu gösterilmez", () => {
+    for (const f of ["app/gizlilik-politikasi/page.tsx", "app/kvkk-aydinlatma/page.tsx", "app/veri-isleme-sozlesmesi/page.tsx", "app/alt-isleyiciler/page.tsx"]) {
+      const c = read(f);
+      assert.ok(c.includes("residency.configured ?"), `${f}: bölge yalnız yapılandırıldığında`);
+    }
   });
   await t("gizlilik: eski yanlış iddialar yok, gerçek davranış var", () => {
     const g = read("app/gizlilik-politikasi/page.tsx");
+    const flat = g.replace(/\s+/g, " ");
     assert.ok(!/üçüncü taraflarla paylaşmıyor/.test(g));
     assert.ok(!/görüntüleyemez, inceleyemez/.test(g));
-    assert.match(g, /Google Analytics<\/strong> yalnızca oturum açılmamış/);
-    assert.match(g, /yalnızca yönetici hesabında açıktır/);
-    assert.match(g, /görüntüleme özelliği <strong>bulunmaz<\/strong>/);
+    assert.match(flat, /Google Analytics \(<code>_ga<\/code>,(\{" "\})? <code>_ga_\*<\/code>\) yalnızca onay verdiğinizde/);
+    assert.match(flat, /Onay vermezseniz Google Analytics yüklenmez/);
+    assert.match(flat, /yalnızca yönetici modüllerinde açıktır/);
+    assert.match(flat, /görüntüleme özelliği <strong>bulunmaz<\/strong>/);
+    assert.match(flat, /Rutin platform yönetiminde danışan içeriğine erişim verilmez/);
+    assert.match(flat, /en az yetki ilkesiyle sınırlandırılır/);
+    assert.match(flat, /hukuka aykırı üçüncü taraf paylaşımı yapılmaz/);
+    // doğrulanmış saklama süreleri
+    assert.match(flat, /90 gün sonra silinir/);
+    assert.match(flat, /180 gün saklanır/);
+    assert.match(flat, /25 ay saklanır/);
+    assert.match(flat, /Arşivlenen bir hesapta veriler silinmez, korunur/);
+    assert.match(flat, /destek kanalı üzerinden talep/);
+    // zorunlu vs isteğe bağlı çerezler + tercih düğmesi
+    for (const k of ["yasam_admin_session", "NEXT_LOCALE", "yasam_user", "yasam_session_token", "yasam_analytics_consent_v1"]) assert.ok(g.includes(k), k);
+    assert.ok(g.includes("<CookiePreferencesButton"), "Çerez tercihleri düğmesi");
+    assert.ok(g.includes('id="cerezler"'), "çerez bölümü bağlantı hedefi");
+    // haklar → gerçek kanal
+    assert.match(flat, /Ayarlar → Admin ile İrtibat/);
+    assert.ok(g.includes("<LegalIdentityBlock"));
+  });
+  await t("rol ayrımı + sorumluluklar (KŞ + VİS)", () => {
+    for (const f of ["app/kullanim-sartlari/page.tsx", "app/veri-isleme-sozlesmesi/page.tsx", "app/gizlilik-politikasi/page.tsx"]) {
+      const flat = read(f).replace(/\s+/g, " ");
+      assert.match(flat, /veri sorumlusu/i, f);
+      assert.match(flat, /veri işleyen/i, f);
+    }
+    for (const f of ["app/kullanim-sartlari/page.tsx", "app/veri-isleme-sozlesmesi/page.tsx"]) {
+      const flat = read(f).replace(/\s+/g, " ");
+      for (const k of ["hukuka uygun", "veri minimizasyonu", "yetkisiz", "parola", "Word/PDF", "personel", "amaç dışı", "kiracı izolasyonu", "Alt İşleyiciler"]) {
+        assert.ok(flat.includes(k), `${f}: ${k}`);
+      }
+      assert.ok(!/sorumlu değildir/.test(flat), `${f}: sorumluluk reddi kalıbı`);
+    }
+  });
+  await t("doğrulanamayan taahhüt yok", () => {
+    for (const f of LEGAL_FILES) {
+      const flat = read(f).replace(/\s+/g, " ");
+      const m = flat.match(/\b\d+\s*saat içinde|72 saat|gecikmeksizin|\b\d+\s*gün içinde silinir|şifrelenir|AES-?\d|TLS/i);
+      assert.ok(!m, `${f}: "${m?.[0]}"`);
+    }
   });
   await t("alt işleyiciler: 5 sağlayıcı + kapsamlar", () => {
     const s = read("lib/legal/subprocessors.ts");
     for (const n of ["Supabase", "Vercel", "OpenAI", "Inngest", "Google Analytics"]) assert.ok(s.includes(`name: "${n}"`), n);
-    assert.match(s, /Yalnız yönetici hesabının/);
-    assert.match(s, /Yalnız oturum açılmamış ziyaretçilerin herkese açık/);
+    assert.match(s, /Yalnız yönetici modüllerinde/);
+    assert.match(s, /Yönetici belge çevirisi işlerinde/);
+    assert.match(s, /Yalnız onay veren ve oturum açmamış ziyaretçilerin herkese açık/);
+  });
+  await t("KVKK sayfası: örnek metin + ürün içi örnek alanlar + sürüm", () => {
+    const k = read("app/kvkk-aydinlatma/page.tsx");
+    assert.match(k, /title="Danışan Aydınlatma ve Açık Rıza Metni — Örnek Metin"/);
+    assert.ok(k.includes("<ExampleField>Uzmanın adı / işletme adı</ExampleField>"));
+    assert.ok(k.includes("{CONSENT_TEXT_VERSION}"));
+    assert.equal(CONSENT_TEXT_VERSION, "kvkk-2026-10");
+    const v = validateConsentInput({ consent_type: "iletisim_izni", status: "granted", method: "diger", text_version: CONSENT_TEXT_VERSION });
+    assert.ok(v.ok, "yeni sürüm doğrulama regex'inden geçer");
+    const legacy = validateConsentInput({ consent_type: "iletisim_izni", status: "granted", method: "diger", text_version: "kvkk-taslak-2026-09" });
+    assert.ok(legacy.ok, "eski sürüm değerleri de geçerli kalır");
+  });
+  await t("iletişim: gerçek kanallar tek kaynaktan", () => {
+    const c = read("app/iletisim/page.tsx");
+    for (const k of ["CONTACT_EMAIL", "CUSTOMER_SERVICE_DISPLAY", "buildMailtoHref()", "buildTelHref()", "Admin ile İrtibat"]) assert.ok(c.includes(k), k);
+    assert.ok(!c.includes("yasamsistemi@gmail.com") && !c.includes("0850"), "sabit tekrar yazılmamalı");
+    assert.match(c, /<main className="[^"]*\bw-full\b/);
   });
   await t("ana sayfa footer yeni hukuki bağlantılar + i18n anahtarları", () => {
     const p = read("app/page.tsx");
@@ -376,11 +482,12 @@ const isUseClient = (rel: string) => /^\s*(?:\/\/[^\n]*\n|\/\*[\s\S]*?\*\/\s*)*\
     assert.match(r, /CONSENTS_NOT_READY/);
     assert.match(r, /is_demo_account/);
   });
-  await t("ClientConsentPanel mevcut + submit kilidi + taslak işareti", () => {
+  await t("ClientConsentPanel mevcut + submit kilidi + taslak rozeti YOK", () => {
     const c = read("components/kvkk/ClientConsentPanel.tsx");
     assert.ok(isUseClient("components/kvkk/ClientConsentPanel.tsx"));
     assert.ok(c.includes("useSubmitLock"));
-    assert.ok(c.includes("LEGAL_DRAFT_MARK"));
+    assert.ok(!c.includes("LEGAL_DRAFT_MARK"));
+    assert.ok(c.includes("Örnek aydınlatma metni"));
     assert.ok(c.includes("Sonra tamamla"));
     assert.ok(c.includes('variant === "badge"'));
   });
