@@ -96,8 +96,9 @@ export default function GizlilikPolitikasiPage() {
       </p>
       <p>
         Yönetim paneli; hesap, üyelik, ödeme durumu, teknik kullanım istatistikleri, güvenlik olayları
-        ve destek mesajları gibi platform yönetimi bilgilerini gösterir. Rutin platform yönetiminde
-        danışan içeriğine erişim verilmez; yönetim panelinde uzmanların danışan kayıtlarını veya özel
+        ve destek mesajları gibi platform yönetimi bilgilerini gösterir. Platform yöneticilerine rutin
+        danışan içeriği erişimi verilmez; yetkisiz erişim engellenir ve erişimler görev ve yetki
+        prensibiyle sınırlandırılır. Yönetim panelinde uzmanların danışan kayıtlarını veya özel
         çalışma içeriğini görüntüleme özelliği <strong>bulunmaz</strong>. Altyapı düzeyindeki teknik
         erişim (bakım, güvenlik olaylarının incelenmesi, yedekten geri yükleme, yasal yükümlülükler)
         yalnızca bu amaçlarla ve en az yetki ilkesiyle sınırlandırılır. Hesap ve güvenlik işlemleri

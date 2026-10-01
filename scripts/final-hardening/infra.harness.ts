@@ -350,7 +350,7 @@ const isUseClient = (rel: string) => /^\s*(?:\/\/[^\n]*\n|\/\*[\s\S]*?\*\/\s*)*\
     assert.match(flat, /Onay vermezseniz Google Analytics yüklenmez/);
     assert.match(flat, /yalnızca yönetici modüllerinde açıktır/);
     assert.match(flat, /görüntüleme özelliği <strong>bulunmaz<\/strong>/);
-    assert.match(flat, /Rutin platform yönetiminde danışan içeriğine erişim verilmez/);
+    assert.match(flat, /Platform yöneticilerine rutin\s+danışan içeriği erişimi verilmez; yetkisiz erişim engellenir ve erişimler görev ve yetki\s+prensibiyle sınırlandırılır/);
     assert.match(flat, /en az yetki ilkesiyle sınırlandırılır/);
     assert.match(flat, /hukuka aykırı üçüncü taraf paylaşımı yapılmaz/);
     // doğrulanmış saklama süreleri
