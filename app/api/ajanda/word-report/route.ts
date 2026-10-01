@@ -85,7 +85,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   const clientIds = [...new Set(appointments.map((a) => a.client_id).filter(Boolean))] as string[];
   const clientMap = new Map<string, string>();
   if (clientIds.length > 0) {
-    const { data: cData } = await db.from("clients").select("id, ad, soyad").in("id", clientIds);
+    // AA-3: defense-in-depth — randevular zaten tenant-scoped; ad çözümü de tenant'a sabitlenir.
+    const { data: cData } = await db.from("clients").select("id, ad, soyad").eq("tenant_id", tenantId).in("id", clientIds);
     for (const c of (cData || []) as ClientRow[]) {
       clientMap.set(c.id, `${c.ad ?? ""} ${c.soyad ?? ""}`.trim());
     }

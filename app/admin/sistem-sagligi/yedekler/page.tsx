@@ -6,17 +6,10 @@ import {
   AccessDeniedScreen,
   LoadingScreen,
   PremiumPlaceholderPanel,
-  probeSupabaseTable,
+  probeSistemSagligiTables,
   SistemSagligiDetailShell,
   useSistemSagligiAdminGate,
 } from "../detail-shared";
-
-const BACKUP_TABLE_CANDIDATES = [
-  "backups",
-  "system_backups",
-  "yedeklemeler",
-  "backup_runs",
-] as const;
 
 export default function SistemSagligiYedeklerPage() {
   useBfcacheRefresh();
@@ -26,13 +19,8 @@ export default function SistemSagligiYedeklerPage() {
 
   const probeTables = useCallback(async () => {
     setLoading(true);
-    let found = false;
-    for (const table of BACKUP_TABLE_CANDIDATES) {
-      if (await probeSupabaseTable(table)) {
-        found = true;
-        break;
-      }
-    }
+    // AA-2: aday tablolar sunucuda (admin route) yoklanır; tarayıcıdan tablo erişimi YOK.
+    const found = await probeSistemSagligiTables("backups");
     setTableAvailable(found);
     setLoading(false);
   }, []);

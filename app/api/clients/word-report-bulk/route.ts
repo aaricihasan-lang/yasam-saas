@@ -150,6 +150,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { data: noteData } = await db
     .from("client_notes")
     .select("client_id, saglik_notu")
+    .eq("tenant_id", tenantId)
     .in("client_id", clients.map((c) => c.id));
 
   const notesMap = new Map<string, string | null>();
