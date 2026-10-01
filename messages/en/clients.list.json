@@ -25,6 +25,11 @@
         "kanLabel": "Blood Type",
         "mizacLabel": "Temperament",
         "all": "All",
+        "toggle": "Filter",
+        "activeCount": "{count, plural, one {# active filter} other {# active filters}}",
+        "clear": "Clear filters",
+        "initial": "First letter",
+        "initialAll": "All",
         "burcOptions": {
           "Koç": "Aries",
           "Boğa": "Taurus",

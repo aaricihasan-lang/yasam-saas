@@ -411,7 +411,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
                 Sil
               </button>
               {!isAndroid && (
-                <button type="button" disabled={wordBusy} onClick={() => void downloadWord()} className={tbBtn}>
+                <button type="button" disabled={wordBusy} onClick={() => void downloadWord()} className={`no-android ${tbBtn}`}>
                   <FileText className="h-4 w-4" strokeWidth={2} aria-hidden />
                   {wordBusy ? "Hazırlanıyor…" : "Word"}
                 </button>

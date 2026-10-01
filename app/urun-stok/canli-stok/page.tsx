@@ -542,7 +542,7 @@ export default function CanliStokMerkeziPage() {
           </p>
           {/* Word export butonları */}
           {!isAndroid && (
-          <div className="flex flex-wrap items-center gap-2 border-t border-violet-100 pt-3">
+          <div className="no-android flex flex-wrap items-center gap-2 border-t border-violet-100 pt-3">
             <span className="text-xs font-black uppercase tracking-wide text-slate-500">Word Raporu:</span>
             <button
               type="button"

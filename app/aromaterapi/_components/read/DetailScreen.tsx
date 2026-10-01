@@ -25,7 +25,7 @@ export function DetailWordButton({ url }: { url: string }) {
   }
   return (
     <button type="button" onClick={() => void run()} disabled={exporting}
-      className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-[13px] font-black text-blue-700 shadow-sm transition hover:bg-blue-100 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60"
+      className="no-android inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 text-[13px] font-black text-blue-700 shadow-sm transition hover:bg-blue-100 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60"
       title="Bu kaydı Word'e aktar">
       📄 {exporting ? "Hazırlanıyor…" : "Word'e Aktar"}
     </button>

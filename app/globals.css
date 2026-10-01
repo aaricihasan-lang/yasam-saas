@@ -305,6 +305,20 @@ button,
   }
 }
 
+/*
+  Çıktı CTA'ları — YETENEK BAZLI görünürlük (plan §4.6, owner kararı 10; dokunmatik = gizle YOK).
+  <html data-android> / <html data-android-app> sunucuda UA'dan basılır (app/layout.tsx) →
+  hydration öncesi flash olmaz. Sınıflar lib/platform/outputSupport.ts sabitleriyle aynıdır:
+    .no-android     → tüm Android'de gizli (Word .docx; sunucu da 403 döner)
+    .no-android-app → yalnız Android uygulama WebView'inde gizli (blob/data: indirme, print)
+  @layer DIŞI + !important → Tailwind display utility'lerini (hidden md:inline-flex vb.) geçer.
+  Görünür durumda display değeri SET EDİLMEZ (öğenin kendi display'i korunur).
+*/
+html[data-android] .no-android,
+html[data-android-app] .no-android-app {
+  display: none !important;
+}
+
 /* ── Scrollbar stilleri — Doğaltaş okuyucu + paylaşılan ReaderModal (aynı görünüm) ── */
 .stone-reader-scroll,
 .reader-modal-scroll {

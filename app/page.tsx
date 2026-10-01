@@ -58,6 +58,9 @@ import { useTranslations, useLocale, useMessages } from "next-intl";
 import { localeTag } from "@/lib/i18n/format";
 import type { ActiveLocale } from "@/lib/i18n/locales";
 import LanguageSelector from "@/components/i18n/LanguageSelector";
+import NotificationBell from "@/components/notifications/NotificationBell";
+import CookiePreferencesButton from "@/components/analytics/CookiePreferencesButton";
+import { GOOGLE_PLAY_APP_URL } from "@/lib/platform/stores";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -73,6 +76,7 @@ import {
   Leaf,
   Loader2,
   Lock,
+  LogOut,
   Mail,
   MessageCircle,
   Package,
@@ -1447,14 +1451,14 @@ export default function Home() {
                 {/* İçerik */}
                 <div className="relative">
 
-                  {/* Üst satır: selamlama + çıkış */}
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
+                  {/* Üst satır: selamlama + [dil · zil · çıkış] (header akışında; fixed bindirme YOK) */}
+                  <div className="flex items-start justify-between gap-2 sm:gap-4">
+                    <div className="min-w-0 flex-1">
                       <h1 className="leading-tight tracking-tight">
                         {firstName ? (
                           <>
                             <span className="block text-2xl font-black text-slate-900 sm:text-3xl">{t("dashboard.welcomePrefix")}</span>
-                            <span className="block bg-gradient-to-r from-violet-700 via-fuchsia-600 to-pink-500 bg-clip-text text-4xl font-black text-transparent sm:text-5xl">
+                            <span className="block break-words bg-gradient-to-r from-violet-700 via-fuchsia-600 to-pink-500 bg-clip-text text-3xl font-black text-transparent sm:text-5xl">
                               {firstName} ✨
                             </span>
                           </>
@@ -1464,14 +1468,17 @@ export default function Home() {
                       </h1>
                       <p className="mt-2 text-sm font-medium text-slate-600">{heroDate}</p>
                     </div>
-                    <div className="mt-1 flex shrink-0 items-center gap-1.5">
-                      <LanguageSelector className="!min-h-0 !px-2 !py-1 text-[11px]" />
+                    <div className="mt-1 flex shrink-0 items-center gap-1.5 sm:gap-2">
+                      <LanguageSelector compact />
+                      <NotificationBell compact />
                       <button
                         type="button"
                         onClick={logout}
-                        className="rounded-xl border border-white/80 bg-white/80 px-3.5 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm backdrop-blur-sm transition hover:bg-white hover:text-violet-700"
+                        aria-label={t("dashboard.logout")}
+                        className="inline-flex min-h-[36px] min-w-[36px] items-center justify-center gap-1.5 rounded-xl border border-white/80 bg-white/80 px-2 text-[11px] font-semibold text-slate-600 shadow-sm backdrop-blur-sm transition hover:bg-white hover:text-violet-700 sm:px-3.5"
                       >
-                        {t("dashboard.logout")}
+                        <LogOut className="h-4 w-4 shrink-0" aria-hidden />
+                        <span className="hidden sm:inline">{t("dashboard.logout")}</span>
                       </button>
                     </div>
                   </div>
@@ -1815,18 +1822,19 @@ export default function Home() {
 
       <div className="relative z-10 w-full max-w-none px-4 py-4 md:px-8 xl:px-14 2xl:px-18">
         {/* — Nav — */}
-        <header className={`sticky top-3 z-50 flex flex-wrap items-center justify-between gap-3 rounded-[20px] border px-4 py-2.5 sm:px-6 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 ${scrolled ? "border-slate-200/50 bg-white/80 shadow-[0_4px_20px_rgba(15,23,42,0.08)] backdrop-blur-xl" : "border-white/70 bg-white/85 shadow-sm backdrop-blur-md"}`}>
-          <div className="flex min-w-0 shrink-0 items-center gap-2.5">
+        <header className={`sticky top-3 z-50 flex flex-wrap items-center justify-between gap-2 rounded-[20px] border px-3 py-2.5 sm:gap-3 sm:px-6 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 ${scrolled ? "border-slate-200/50 bg-white/80 shadow-[0_4px_20px_rgba(15,23,42,0.08)] backdrop-blur-xl" : "border-white/70 bg-white/85 shadow-sm backdrop-blur-md"}`}>
+          <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-base text-white shadow-sm shadow-violet-300/30">
               ✨
             </div>
-            <p className="text-sm font-black tracking-wide text-slate-950">
+            {/* Çok dar ekranda (<380px) marka metni yalnız ekran okuyucuya — tek satır kalsın, taşma olmasın. */}
+            <p className="text-sm font-black tracking-wide text-slate-950 max-[379px]:sr-only">
               {t("brand")}
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <LanguageSelector />
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <LanguageSelector compact />
             <button
               type="button"
               onClick={() => {
@@ -1834,7 +1842,7 @@ export default function Home() {
                 setAuthModalView("login");
                 setLoginModalOpen(true);
               }}
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-5 text-[13px] font-bold text-white no-underline shadow-[0_4px_14px_rgba(109,40,217,0.28)] transition hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(109,40,217,0.36)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+              className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-lg bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-3.5 text-[13px] font-bold text-white no-underline shadow-[0_4px_14px_rgba(109,40,217,0.28)] sm:px-5 transition hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(109,40,217,0.36)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
             >
               {t("nav.login")}
             </button>
@@ -1892,6 +1900,15 @@ export default function Home() {
                   {t("hero.discoverModules")}
                 </button>
               </div>
+
+              {/* <lg: platform durumu çip satırı → #mobil bölümüne iner (≥lg sol kartta "Mobil erişim" var). */}
+              <a
+                href="#mobil"
+                className="mt-3 inline-flex min-h-[32px] items-center gap-1.5 rounded-full border border-emerald-200/80 bg-white/80 px-3 py-1 text-[11px] font-semibold text-slate-600 no-underline shadow-sm transition hover:bg-white hover:text-emerald-800 max-sm:order-5 lg:hidden"
+              >
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
+                {t("mobile.platformsShort")}
+              </a>
             </div>
 
             {/* Sağ sütun: yalnız test hesabı erişimi */}
@@ -2581,7 +2598,7 @@ export default function Home() {
         </section>
 
         {/* — Mobile App Section — */}
-        <section data-fade className="mt-8 w-full max-w-none">
+        <section id="mobil" data-fade className="mt-8 w-full max-w-none scroll-mt-24">
           <div className="overflow-hidden rounded-[28px] border border-emerald-200/60 bg-gradient-to-br from-emerald-50/90 via-teal-50/80 to-cyan-50/70 shadow-md ring-1 ring-emerald-100/50">
             <div className="grid grid-cols-1 items-center lg:grid-cols-[1fr_auto]">
 
@@ -2617,7 +2634,7 @@ export default function Home() {
 
                 <div className="mt-6 flex flex-wrap items-center gap-3">
                   <a
-                    href="https://play.google.com/store/apps/details?id=com.yasamsistemi.app"
+                    href={GOOGLE_PLAY_APP_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 text-sm font-bold text-white no-underline shadow-[0_4px_14px_rgba(5,150,105,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_6px_18px_rgba(5,150,105,0.45)]"
@@ -2625,8 +2642,26 @@ export default function Home() {
                     {t("mobile.openApp")}
                     <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
                   </a>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-500 shadow-sm">
-                    {t("mobile.googlePlay")}
+                </div>
+
+                {/* Platform çipleri: Android mevcut (Play linki) · iOS yakında (tıklanamaz). */}
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <a
+                    href={GOOGLE_PLAY_APP_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-emerald-300/80 bg-emerald-100/80 px-3 py-1.5 text-[11px] font-bold text-emerald-800 no-underline shadow-sm transition hover:bg-emerald-100"
+                  >
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
+                    {t("mobile.androidLabel")} — {t("mobile.statusAvailable")}
+                  </a>
+                  <span
+                    role="link"
+                    aria-disabled="true"
+                    className="inline-flex min-h-[36px] cursor-default select-none items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/70 px-3 py-1.5 text-[11px] font-semibold text-slate-500 shadow-sm"
+                  >
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300" aria-hidden />
+                    {t("mobile.iosLabel")} — {t("mobile.statusSoon")}
                   </span>
                 </div>
               </div>
@@ -2846,6 +2881,8 @@ export default function Home() {
               >
                 {t("footer.contact")}
               </Link>
+              {/* Çerez tercihleri: onay bandını yeniden açar (GA yalnız onayla yüklenir). */}
+              <CookiePreferencesButton />
             </nav>
           </div>
         </footer>

@@ -577,9 +577,10 @@ export function HdHaritaKaydiContent() {
             </section>
           )}
 
-          {/* Kayıt sonrası: profesyonel Word CTA'sı (Android'de buton render edilmez) */}
+          {/* Kayıt sonrası: profesyonel Word CTA'sı (Android'de buton render edilmez; .no-android
+              ile metin dahil tüm bölüm SSR'da gizlenir → yanıltıcı "Word oluşturabilirsiniz" kalmaz) */}
           {savedChartId && !dirty && (
-            <section className="flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 ring-1 ring-emerald-100 sm:flex-row sm:items-center sm:justify-between">
+            <section className="no-android flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 ring-1 ring-emerald-100 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs font-semibold text-emerald-800">
                 Harita kaydedildi. Bu haritadan profesyonel Word raporu oluşturabilirsiniz.
               </p>

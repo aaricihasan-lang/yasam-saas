@@ -7,6 +7,8 @@ import {
 } from "../lib/attachmentKind";
 import { formatFileSize } from "../lib/readAttachmentFile";
 import type { NoteAttachment } from "../types";
+import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
+import { openDataUrlInNewTab } from "../lib/openDataUrl";
 
 type NoteDetayAttachmentCardProps = {
   file: NoteAttachment;
@@ -31,6 +33,9 @@ export function NoteDetayAttachmentCard({
   const kind = getAttachmentKind(file);
   const hasData = attachmentHasData(file);
   const typeLabel = attachmentTypeLabel(kind);
+  // "Yeni Sekme" = window.open(blob) → Android uygulama WebView'inde çalışmaz; orada
+  // "Aç / Önizle" + "İndir" yeterli (plan §4.6).
+  const isAndroidApp = useIsAndroidApp();
 
   return (
     <article className="flex flex-col rounded-[24px] border border-purple-100 bg-white/90 p-5 shadow-sm ring-1 ring-violet-100/50">
@@ -92,14 +97,17 @@ export function NoteDetayAttachmentCard({
             >
               Aç / Önizle
             </button>
-            <a
-              href={file.dataUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`${actionBtn} border-sky-300/80 bg-sky-50 text-sky-950 hover:bg-sky-100`}
-            >
-              Yeni Sekme
-            </a>
+            {/* data: URL'e üst-çerçeve navigasyonu tarayıcılarca engellenir (masaüstü dahil)
+                → blob: URL ile yeni sekme. */}
+            {!isAndroidApp && (
+              <button
+                type="button"
+                onClick={() => void openDataUrlInNewTab(file.dataUrl, "application/pdf")}
+                className={`no-android-app ${actionBtn} border-sky-300/80 bg-sky-50 text-sky-950 hover:bg-sky-100`}
+              >
+                Yeni Sekme
+              </button>
+            )}
           </>
         ) : null}
 

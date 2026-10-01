@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -32,6 +33,10 @@ export const runtime = "nodejs";
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 
 export async function POST(req: NextRequest): Promise<Response> {
+  // Android'de Word (.docx) kapalı: snapshot yalnız Word indirmesi için üretilir → boşuna
+  // üretim/rate-limit tüketimi olmasın (download ucu ile aynı guard).
+  const androidBlocked = androidWordGuard(req);
+  if (androidBlocked) return androidBlocked;
   const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
