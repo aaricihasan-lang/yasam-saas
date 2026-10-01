@@ -3,6 +3,8 @@
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
+import { composeOtherValue, splitOtherValue } from "@/lib/urun-stok/selectOther";
+import { SelectWithOther } from "../SelectWithOther";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MEASURE_TYPES,
@@ -263,6 +265,7 @@ export default function SabunKremUrunStokPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [productGroup, setProductGroup] = useState<string>(PRODUCT_GROUPS[0]);
+  const [productGroupCustom, setProductGroupCustom] = useState("");
   const [measureType, setMeasureType] = useState<ScMeasureType>("Gram / KG");
   const [stockQty, setStockQty] = useState("");
   const [inputUnit, setInputUnit] = useState<ScInputUnit>("gram");
@@ -270,6 +273,7 @@ export default function SabunKremUrunStokPage() {
   const [salePriceTotal, setSalePriceTotal] = useState("");
   const [profitPct, setProfitPct] = useState("100");
   const [packagingType, setPackagingType] = useState<string>(PACKAGING_TYPES[0]);
+  const [packagingTypeCustom, setPackagingTypeCustom] = useState("");
   const [netAmount, setNetAmount] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [lotNo, setLotNo] = useState("");
@@ -325,6 +329,8 @@ export default function SabunKremUrunStokPage() {
     setExpiryDate("");
     setLotNo("");
     setNote("");
+    setProductGroupCustom("");
+    setPackagingTypeCustom("");
     setPhotos([]);
     setAddDelta(true);
   }
@@ -333,14 +339,19 @@ export default function SabunKremUrunStokPage() {
     retryRef.current = null;
     setEditId(it.id);
     setName(it.name);
-    setProductGroup(it.productGroup);
+    // Liste dışı (serbest metin) değer → "Diğer" + metin (düzenlemede kaybolmaz).
+    const pg = splitOtherValue(it.productGroup, PRODUCT_GROUPS);
+    setProductGroup(pg.select);
+    setProductGroupCustom(pg.custom);
     setMeasureType(it.measureType);
     setStockQty(String(fromCanonical(it.stockBase, it.baseUnit === "ml" ? "ml" : it.baseUnit === "gram" ? "gram" : "adet", it.baseUnit)));
     setInputUnit(it.baseUnit === "ml" ? "ml" : it.baseUnit === "gram" ? "gram" : "adet");
     setCostTotal(String(it.costPerBase * it.stockBase));
     setSalePriceTotal(String(it.salePerBase * it.stockBase));
     setProfitPct(String(it.profitPct));
-    setPackagingType(it.packagingType);
+    const pk = splitOtherValue(it.packagingType, PACKAGING_TYPES);
+    setPackagingType(pk.select);
+    setPackagingTypeCustom(pk.custom);
     setNetAmount(it.netAmount);
     setExpiryDate(it.expiryDate);
     setLotNo(it.lotNo);
@@ -360,8 +371,11 @@ export default function SabunKremUrunStokPage() {
     setMsg(null);
     const beforeIds = new Set(inventory.map((i) => i.id));
     const editingId = editId;
+    // "Diğer" + serbest metin → saklanacak etiket (birim/ölçü alanlarına dokunulmaz).
+    const productGroupValue = composeOtherValue(productGroup, productGroupCustom, PRODUCT_GROUPS);
+    const packagingTypeValue = composeOtherValue(packagingType, packagingTypeCustom, PACKAGING_TYPES);
     const signature = stockFormSignature([
-      editingId, turkishUpper(name), productGroup, measureType, toFloat(stockQty, 0), inputUnit, toFloat(costTotal, 0), toFloat(salePriceTotal, 0), toFloat(profitPct, 0), packagingType, netAmount, expiryDate, lotNo, note,
+      editingId, turkishUpper(name), productGroupValue, measureType, toFloat(stockQty, 0), inputUnit, toFloat(costTotal, 0), toFloat(salePriceTotal, 0), toFloat(profitPct, 0), packagingTypeValue, netAmount, expiryDate, lotNo, note,
       photos.length, addDelta,
     ]);
     // Aynı form tekrar gönderildiyse (önceki bulut yazımı başarısız) yerel birleştirme
@@ -376,14 +390,14 @@ export default function SabunKremUrunStokPage() {
       const result = addOrUpdateSoapCreamItem(inventory, {
         id: plan.id,
         name: turkishUpper(name),
-        productGroup,
+        productGroup: productGroupValue,
         measureType,
         stockQty: toFloat(stockQty, 0),
         inputUnit,
         costTotal: toFloat(costTotal, 0),
         salePriceTotal: toFloat(salePriceTotal, 0),
         profitPct: toFloat(profitPct, 0),
-        packagingType,
+        packagingType: packagingTypeValue,
         netAmount,
         expiryDate,
         lotNo,
@@ -699,14 +713,17 @@ export default function SabunKremUrunStokPage() {
                   <span className="mb-1 block text-xs font-black">Ürün adı</span>
                   <input className={inputClass} value={name} onChange={(e) => setName(turkishUpper(e.target.value))} />
                 </label>
-                <label className="block">
-                  <span className="mb-1 block text-xs font-black">Ürün grubu</span>
-                  <select className={inputClass} value={productGroup} onChange={(e) => setProductGroup(e.target.value)}>
-                    {PRODUCT_GROUPS.map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </select>
-                </label>
+                <SelectWithOther
+                  label="Ürün grubu"
+                  options={PRODUCT_GROUPS}
+                  value={productGroup}
+                  custom={productGroupCustom}
+                  onSelect={setProductGroup}
+                  onCustom={setProductGroupCustom}
+                  selectClassName={inputClass}
+                  labelClassName="mb-1 block text-xs font-black"
+                  placeholder="Örn. Dudak balmı"
+                />
                 <label className="block">
                   <span className="mb-1 block text-xs font-black">Ölçü tipi</span>
                   <select
@@ -748,14 +765,18 @@ export default function SabunKremUrunStokPage() {
                   <span className="mb-1 block text-xs font-black">Kar oranı %</span>
                   <input className={inputClass} type="number" value={profitPct} onChange={(e) => setProfitPct(e.target.value)} />
                 </label>
-                <label className="block">
-                  <span className="mb-1 block text-xs font-black">Ambalaj tipi</span>
-                  <select className={inputClass} value={packagingType} onChange={(e) => setPackagingType(e.target.value)}>
-                    {PACKAGING_TYPES.map((p) => (
-                      <option key={p}>{p}</option>
-                    ))}
-                  </select>
-                </label>
+                <SelectWithOther
+                  label="Ambalaj tipi"
+                  options={PACKAGING_TYPES}
+                  value={packagingType}
+                  custom={packagingTypeCustom}
+                  onSelect={setPackagingType}
+                  onCustom={setPackagingTypeCustom}
+                  otherLabel="diğer"
+                  selectClassName={inputClass}
+                  labelClassName="mb-1 block text-xs font-black"
+                  placeholder="Örn. teneke kutu"
+                />
                 <label className="block">
                   <span className="mb-1 block text-xs font-black">Net miktar</span>
                   <input

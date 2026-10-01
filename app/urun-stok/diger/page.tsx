@@ -4,6 +4,8 @@ import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { composeOtherValue, splitOtherValue } from "@/lib/urun-stok/selectOther";
+import { SelectWithOther } from "../SelectWithOther";
 import {
   findSaveTarget,
   newPhotosOnly,
@@ -312,6 +314,7 @@ export default function DigerUrunStokPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [productGroup, setProductGroup] = useState<string>(PRODUCT_GROUPS[0]);
+  const [productGroupCustom, setProductGroupCustom] = useState("");
   const [measureType, setMeasureType] = useState<OtMeasureType>("Adet");
   const measureTypeManualRef = useRef(false);
   const [stockQty, setStockQty] = useState("");
@@ -365,8 +368,9 @@ export default function DigerUrunStokPage() {
 
   useEffect(() => {
     if (editId !== null || measureTypeManualRef.current) return;
-    setMeasureType(inferMeasureType(productGroup, name, subCategory));
-  }, [editId, productGroup, name, subCategory]);
+    // "Diğer" + serbest grup metni de ölçü tipi ÖNERİSİNE katılır (ölçü tipi yine listeden seçilir).
+    setMeasureType(inferMeasureType(composeOtherValue(productGroup, productGroupCustom, PRODUCT_GROUPS), name, subCategory));
+  }, [editId, productGroup, productGroupCustom, name, subCategory]);
 
   function resetForm() {
     retryRef.current = null;
@@ -374,6 +378,7 @@ export default function DigerUrunStokPage() {
     measureTypeManualRef.current = false;
     setName("");
     setProductGroup(PRODUCT_GROUPS[0]);
+    setProductGroupCustom("");
     setMeasureType(inferMeasureType(PRODUCT_GROUPS[0], "", ""));
     setStockQty("");
     setCostTotal("");
@@ -392,7 +397,10 @@ export default function DigerUrunStokPage() {
     measureTypeManualRef.current = true;
     setEditId(it.id);
     setName(it.name);
-    setProductGroup(it.productGroup);
+    // Liste dışı (serbest metin) değer → "Diğer" + metin (düzenlemede kaybolmaz).
+    const pg = splitOtherValue(it.productGroup, PRODUCT_GROUPS);
+    setProductGroup(pg.select);
+    setProductGroupCustom(pg.custom);
     setSubCategory(it.subCategory);
     setVariationKind(it.variationKind || VARIATION_KINDS[0]);
     setVariationDetail(it.variationDetail);
@@ -419,8 +427,10 @@ export default function DigerUrunStokPage() {
     setMsg(null);
     const beforeIds = new Set(inventory.map((i) => i.id));
     const editingId = editId;
+    // "Diğer" + serbest metin → saklanacak etiket (birim/ölçü alanlarına dokunulmaz).
+    const productGroupValue = composeOtherValue(productGroup, productGroupCustom, PRODUCT_GROUPS);
     const signature = stockFormSignature([
-      editingId, turkishUpper(name), productGroup, subCategory, measureType, toFloat(stockQty, 0), inputUnit, toFloat(costTotal, 0), toFloat(salePriceTotal, 0), toFloat(profitPct, 0), variationKind, variationDetail, barcode, note,
+      editingId, turkishUpper(name), productGroupValue, subCategory, measureType, toFloat(stockQty, 0), inputUnit, toFloat(costTotal, 0), toFloat(salePriceTotal, 0), toFloat(profitPct, 0), variationKind, variationDetail, barcode, note,
       photos.length, addDelta,
     ]);
     // Aynı form tekrar gönderildiyse (önceki bulut yazımı başarısız) yerel birleştirme
@@ -435,7 +445,7 @@ export default function DigerUrunStokPage() {
       const result = addOrUpdateOtherItem(inventory, {
         id: plan.id,
         name: turkishUpper(name),
-        productGroup,
+        productGroup: productGroupValue,
         subCategory,
         measureType,
         stockQty: toFloat(stockQty, 0),
@@ -761,14 +771,17 @@ export default function DigerUrunStokPage() {
                   <span className="mb-1 block text-xs font-black">Ürün adı</span>
                   <input className={inputClass} value={name} onChange={(e) => setName(turkishUpper(e.target.value))} />
                 </label>
-                <label className="block">
-                  <span className="mb-1 block text-xs font-black">Ürün grubu</span>
-                  <select className={inputClass} value={productGroup} onChange={(e) => setProductGroup(e.target.value)}>
-                    {PRODUCT_GROUPS.map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </select>
-                </label>
+                <SelectWithOther
+                  label="Ürün grubu"
+                  options={PRODUCT_GROUPS}
+                  value={productGroup}
+                  custom={productGroupCustom}
+                  onSelect={setProductGroup}
+                  onCustom={setProductGroupCustom}
+                  selectClassName={inputClass}
+                  labelClassName="mb-1 block text-xs font-black"
+                  placeholder="Örn. Kırtasiye"
+                />
                 <label className="block">
                   <span className="mb-1 block text-xs font-black">Alt kategori / ürün tipi</span>
                   <input className={inputClass} value={subCategory} onChange={(e) => setSubCategory(e.target.value)} placeholder="Örn. Tişört, Mum, Workshop" />
