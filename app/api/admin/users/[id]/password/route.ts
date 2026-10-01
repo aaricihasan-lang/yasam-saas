@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { writeAdminAudit, AdminAuditError } from "@/lib/admin/adminAudit";
+import { requireMainAdmin } from "@/lib/admin/adminGuards";
+import { isUuid } from "@/lib/admin/memberRequestValidation";
 import {
   requireP2AccountActionTarget,
   ensureTargetExists,
@@ -24,8 +26,11 @@ type RouteContext = { params: Promise<{ id: string }> };
  * audit (password_changed_by_admin) yazılır. Yeni parola hiçbir zaman loglanmaz,
  * audit'e/yanıta/hataya yazılmaz.
  *
- * Yetki: self-block (kendi şifreni buradan değiştirme → Ayarlar), admin-hedef yalnız
- * ana yönetici, ana yönetici hedef mutlak korumalı (bkz. requireP2AccountActionTarget).
+ * Yetki (AŞAMA 2 · P1-7 hesap devralma kapanışı): YALNIZ ANA YÖNETİCİ (requireMainAdmin).
+ * Normal admin hiçbir hesabın (uzman dahil) şifresini sıfırlayamaz → 403 — şifre sıfırlayıp
+ * uzman olarak giriş yapmak, uzman içeriğine erişimin tek yoluydu. Ek olarak: self-block
+ * (kendi şifreni buradan değiştirme → Ayarlar), ana yönetici hedef mutlak korumalı
+ * (bkz. requireP2AccountActionTarget).
  */
 export async function POST(req: NextRequest, ctx: RouteContext) {
   const guard = await verifyAdminRequest(req);
@@ -33,7 +38,11 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   const { adminId, db } = guard;
 
   const { id } = await ctx.params;
-  if (!id) return jsonNoStore({ ok: false, error: "Kullanıcı ID gerekli." }, 400);
+  if (!isUuid(id)) return jsonNoStore({ ok: false, error: "Geçersiz kullanıcı ID." }, 400);
+
+  // P1-7: şifre sıfırlama yalnız ana yöneticiye açık (hedef türünden bağımsız).
+  const main = await requireMainAdmin(db, adminId);
+  if (!main.ok) return jsonNoStore({ ok: false, error: main.error }, main.status);
 
   const body = await readLimitedJsonBody(req);
   if (!body.ok) return jsonNoStore({ ok: false, error: body.error }, body.status);

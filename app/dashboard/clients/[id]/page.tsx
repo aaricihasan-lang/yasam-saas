@@ -29,6 +29,7 @@ import { calcElementleri, ELEMENT_ORDER } from "@/lib/numeroloji/elementler";
 import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
+import { runInEffect } from "@/lib/runInEffect";
 import {
   countAppointments,
   deriveAppointmentStatus,
@@ -318,6 +319,23 @@ function ClientDetailPageInner() {
   useEffect(() => {
     setOpenedTabs((prev) => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)));
   }, [activeTab]);
+
+  // §4.2 Bildirim derin bağlantısı: sayfa zaten açıkken ?tab= değişirse (ör. zil →
+  // "Danışan kartı") aktif sekme URL ile senkronlanır. Yalnız parametre DEĞİŞİMİNDE
+  // (render sırasında önceki değerle karşılaştırma — React "prop değişiminde state ayarla"
+  // deseni) → kullanıcının sekme tıklamaları ezilmez.
+  const tabParam = searchParams.get("tab");
+  const [prevTabParam, setPrevTabParam] = useState<string | null>(tabParam);
+  if (tabParam !== prevTabParam) {
+    setPrevTabParam(tabParam);
+    if (tabParam) setActiveTab(resolveClientDetailTab(tabParam));
+  }
+
+  // ?randevu=<id> → Randevular sekmesinde ilgili randevu detayı açılır (AppointmentsTab).
+  const deepLinkAppointmentId = searchParams.get("randevu");
+  const clearAppointmentDeepLink = useCallback(() => {
+    router.replace(`/dashboard/clients/${encodeURIComponent(clientId)}?tab=randevular`, { scroll: false });
+  }, [router, clientId]);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -1023,6 +1041,8 @@ function ClientDetailPageInner() {
                 confirm={confirm}
                 showToast={showToast}
                 onGorusmeChange={(date) => setClient((prev) => (prev ? { ...prev, gorusme: date } : prev))}
+                initialAppointmentId={deepLinkAppointmentId}
+                onInitialAppointmentHandled={clearAppointmentDeepLink}
               />
           </div>
           )}
@@ -1173,6 +1193,7 @@ export default function ClientDetailPage() {
 // ─── AppointmentsTab ──────────────────────────────────────────────────────────
 function AppointmentsTab({
   clientId, clientName, tenantId, confirm, showToast, onGorusmeChange,
+  initialAppointmentId, onInitialAppointmentHandled,
 }: {
   clientId: string;
   clientName: string;
@@ -1181,6 +1202,10 @@ function AppointmentsTab({
   showToast: ReturnType<typeof useToast>["showToast"];
   /** Sunucu son görüşme tarihini ilerlettiyse hero özetini tazeler. */
   onGorusmeChange?: (date: string) => void;
+  /** §4.2 Bildirim derin bağlantısı (?randevu=<id>): yüklenince bu randevu seçilir. */
+  initialAppointmentId?: string | null;
+  /** Derin bağlantı işlendi (bulundu/bulunamadı) → üst bileşen URL parametresini temizler. */
+  onInitialAppointmentHandled?: () => void;
 }) {
   const t = useTranslations("clients.detail");
   const deleteConfirm = useDeleteConfirm();
@@ -1189,6 +1214,8 @@ function AppointmentsTab({
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [apptLoaded, setApptLoaded] = useState(false);
+  const handledInitialRef = useRef<string | null>(null);
 
   const [title, setTitle] = useState(() => t("appt.defaultTitle"));
   const [notes, setNotes] = useState("");
@@ -1220,8 +1247,32 @@ function AppointmentsTab({
     if (!apptRes.ok) { showToast({ title: t("toast.failTitle"), message: t("appt.loadFailed"), type: "error" }); setLoading(false); return; }
     const apptJson = (await apptRes.json()) as { appointments?: Appointment[] };
     setAppointments(apptJson.appointments ?? []);
+    setApptLoaded(true);
     setLoading(false);
   }
+
+  // §4.2 Derin bağlantı: liste yüklenince ?randevu=<id> eşleşirse detay modalı açılır; yoksa uyarı.
+  useEffect(() => {
+    if (!initialAppointmentId) {
+      handledInitialRef.current = null;
+      return;
+    }
+    if (!apptLoaded || handledInitialRef.current === initialAppointmentId) return;
+    handledInitialRef.current = initialAppointmentId;
+    const target = appointments.find((a) => a.id === initialAppointmentId) ?? null;
+    runInEffect(() => {
+      if (target) {
+        setSelectedAppointment(target);
+      } else {
+        showToast({
+          title: t("toast.warningTitle"),
+          message: t.has("appt.notFound") ? t("appt.notFound") : "Randevu bulunamadı.",
+          type: "warning",
+        });
+      }
+      onInitialAppointmentHandled?.();
+    });
+  }, [initialAppointmentId, apptLoaded, appointments, showToast, t, onInitialAppointmentHandled]);
 
   // Ham string saklanır (boş/ara değerlere izin verilir). manualDates yalnız değer
   // geçerli pozitif tam sayıya çözüldüğünde yeniden boyutlanır → boşaltınca veri kaybı olmaz.
@@ -1610,7 +1661,7 @@ function AppointmentsTab({
           onClick={() => setSelectedAppointment(null)}
         >
           <div
-            className="w-[min(560px,100%)] overflow-hidden rounded-[22px] border border-white/85 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.28)]"
+            className="max-h-[calc(100dvh-2rem)] w-[min(560px,100%)] overflow-y-auto overflow-x-hidden overscroll-contain rounded-[22px] border border-white/85 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.28)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3 bg-gradient-to-r from-slate-950 via-violet-950 to-pink-700 p-[18px] text-white">

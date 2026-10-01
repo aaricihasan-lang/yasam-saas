@@ -41,6 +41,7 @@ import {
   type MemberListQuery,
 } from "@/lib/admin/memberListQuery";
 import { classifyFetchFailure, FETCH_FAILURE_COPY, type FetchFailureKind } from "@/lib/admin/fetchState";
+import { istanbulTodayIso, renewalBadgeLabel, renewalState } from "@/lib/admin/memberCommercial";
 import { passwordPolicyError } from "@/lib/auth/registerValidation";
 import {
   AccountBadge,
@@ -69,6 +70,18 @@ const ROLE_OPTIONS: { key: MemberListQuery["role"]; label: string }[] = [
   { key: "all", label: "Tümü" },
   { key: "expert", label: "Uzman" },
   { key: "admin", label: "Yönetici" },
+];
+// M4 — yenileme (sonraki ödeme) filtresi: yalnız onaylı + aktif + ödemeden muaf olmayan uzmanlar.
+const DUE_OPTIONS: { key: MemberListQuery["due"]; label: string }[] = [
+  { key: "all", label: "Tümü" },
+  { key: "overdue", label: "Gecikmiş" },
+  { key: "due30", label: "30 gün içinde" },
+  { key: "no_date", label: "Tarih yok" },
+];
+const SORT_OPTIONS: { key: MemberListQuery["sort"]; label: string }[] = [
+  { key: "default", label: "Varsayılan" },
+  { key: "next_payment_asc", label: "Sonraki ödeme ↑" },
+  { key: "next_payment_desc", label: "Sonraki ödeme ↓" },
 ];
 const PAYMENT_OPTIONS: { key: MemberListQuery["payment"]; label: string }[] = [
   { key: "all", label: "Tümü" },
@@ -227,7 +240,42 @@ function CountCard({
   );
 }
 
-function CompactUserRow({ user, suspiciousCount }: { user: ManagedUser; suspiciousCount: number }) {
+/**
+ * M4 — satırda yenileme tarihi + "Yenileme geçti" / "X gün kaldı" rozeti (yalnız bilgilendirme).
+ * Yalnız onaylı + aktif + ödemeden muaf olmayan uzmanlarda gösterilir (liste filtresiyle aynı küme).
+ */
+function RenewalInfo({ user, todayIso }: { user: ManagedUser; todayIso: string }) {
+  if (user.role !== "expert" || user.approvalStatus !== "approved" || !user.active) return null;
+  if (user.payment.status === "exempt") return null;
+  const st = renewalState(user.payment.nextPaymentAt, todayIso);
+  const label = renewalBadgeLabel(st);
+  return (
+    <p className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5 text-xs font-semibold text-slate-600">
+      <span className="min-w-0">
+        Yenileme: <span className="font-black text-slate-800">{st.kind === "none" ? "Tarih yok" : user.payment.nextPaymentLabel}</span>
+      </span>
+      {label ? (
+        <span
+          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${
+            st.kind === "overdue" ? "bg-rose-100 text-rose-900 ring-rose-300" : "bg-amber-100 text-amber-900 ring-amber-300"
+          }`}
+        >
+          {label}
+        </span>
+      ) : null}
+    </p>
+  );
+}
+
+function CompactUserRow({
+  user,
+  suspiciousCount,
+  todayIso,
+}: {
+  user: ManagedUser;
+  suspiciousCount: number;
+  todayIso: string;
+}) {
   return (
     <article
       className={`flex min-w-0 flex-col gap-3 rounded-2xl border-2 border-slate-200/80 bg-white/95 px-4 py-4 shadow-sm transition hover:border-violet-200/80 hover:shadow-md sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-5 ${
@@ -261,6 +309,7 @@ function CompactUserRow({ user, suspiciousCount }: { user: ManagedUser; suspicio
           {user.role === "expert" ? <PaymentBadge status={user.payment.status} /> : null}
           {user.licenseSettings.securityExempt ? <SecurityExemptBadge /> : null}
         </div>
+        <RenewalInfo user={user} todayIso={todayIso} />
         <p className="mt-2 text-xs font-semibold text-slate-500">Kayıt: {formatCreatedAt(user.createdAt)}</p>
       </div>
       <Link
@@ -533,7 +582,7 @@ function AdminUsersContent() {
     if (query.page > lastPage) setQuery({ page: lastPage }, "replace");
   }, [listTotal, query.page, query.pageSize, setQuery]);
 
-  const activeFilterCount = [query.approval, query.active, query.role, query.payment].filter((v) => v !== "all").length;
+  const activeFilterCount = [query.approval, query.active, query.role, query.payment, query.due].filter((v) => v !== "all").length;
   const formHasModule = useMemo(() => [...formModules].some((k) => ADMIN_MODULE_KIND[k] === "module"), [formModules]);
 
   async function reactivateUser(target: ManagedUser) {
@@ -641,6 +690,8 @@ function AdminUsersContent() {
   const isArchive = query.view === "archive";
   const from = list.kind === "ready" && list.total > 0 ? (query.page - 1) * query.pageSize + 1 : 0;
   const to = list.kind === "ready" ? Math.min(list.total, query.page * query.pageSize) : 0;
+  // M4 — yenileme rozetleri İstanbul gününe göre (sunucu filtresiyle aynı gün tanımı).
+  const todayIso = istanbulTodayIso();
 
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
@@ -666,22 +717,22 @@ function AdminUsersContent() {
         <section aria-label="Üye sayıları" className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6 sm:gap-3">
           <CountCard label="Toplam Uzman" value={counts?.experts_total ?? null} tone="violet"
             active={!isArchive && query.role === "expert" && query.approval === "all" && query.active === "all"}
-            onClick={() => navigate({ view: "members", role: "expert", approval: "all", active: "all", payment: "all", page: 1 })} />
+            onClick={() => navigate({ view: "members", role: "expert", approval: "all", active: "all", payment: "all", due: "all", page: 1 })} />
           <CountCard label="Onay Bekleyen" value={counts?.pending ?? null} tone="amber"
             active={!isArchive && query.approval === "pending"}
-            onClick={() => navigate({ view: "members", role: "expert", approval: "pending", active: "all", payment: "all", page: 1 })} />
+            onClick={() => navigate({ view: "members", role: "expert", approval: "pending", active: "all", payment: "all", due: "all", page: 1 })} />
           <CountCard label="Onaylı · Aktif" value={counts?.approved_active ?? null} tone="emerald"
             active={!isArchive && query.approval === "approved" && query.active === "active"}
-            onClick={() => navigate({ view: "members", role: "expert", approval: "approved", active: "active", payment: "all", page: 1 })} />
+            onClick={() => navigate({ view: "members", role: "expert", approval: "approved", active: "active", payment: "all", due: "all", page: 1 })} />
           <CountCard label="Arşiv" hint="Onaylı · Pasif" value={counts?.archived ?? null} tone="slate"
             active={isArchive}
             onClick={() => navigate({ ...DEFAULT_MEMBER_LIST_QUERY, view: "archive" })} />
           <CountCard label="Reddedilen" value={counts?.rejected ?? null} tone="rose"
             active={!isArchive && query.approval === "rejected"}
-            onClick={() => navigate({ view: "members", role: "expert", approval: "rejected", active: "all", payment: "all", page: 1 })} />
+            onClick={() => navigate({ view: "members", role: "expert", approval: "rejected", active: "all", payment: "all", due: "all", page: 1 })} />
           <CountCard label="Yönetici" value={counts?.admins ?? null} tone="sky"
             active={!isArchive && query.role === "admin"}
-            onClick={() => navigate({ view: "members", role: "admin", approval: "all", active: "all", payment: "all", page: 1 })} />
+            onClick={() => navigate({ view: "members", role: "admin", approval: "all", active: "all", payment: "all", due: "all", page: 1 })} />
         </section>
         <p className="mb-5 text-[11px] font-semibold text-slate-500">
           Her uzman yalnızca bir gruptadır: Onay Bekleyen + Onaylı · Aktif + Arşiv + Reddedilen = Toplam Uzman.
@@ -814,6 +865,16 @@ function AdminUsersContent() {
                   onSelect={(role) => navigate({ role, page: 1 })} />
                 <FilterPillRow label="Ödeme" options={PAYMENT_OPTIONS} value={query.payment}
                   onSelect={(payment) => navigate({ payment, page: 1 })} />
+                <FilterPillRow label="Yenileme"
+                  options={DUE_OPTIONS.map((o) =>
+                    o.key === "overdue" && counts
+                      ? { ...o, label: `${o.label} (${counts.renewal_overdue})` }
+                      : o.key === "due30" && counts
+                        ? { ...o, label: `${o.label} (${counts.renewal_due30})` }
+                        : o,
+                  )}
+                  value={query.due}
+                  onSelect={(due) => navigate({ due, page: 1 })} />
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                   <span className="text-xs font-bold text-slate-500">
                     {activeFilterCount > 0 ? `${activeFilterCount} filtre aktif` : "Filtre yok"} · Arşivdeki uzmanlar “Arşiv” sekmesindedir.
@@ -838,6 +899,17 @@ function AdminUsersContent() {
                   </span>
                 ) : null}
               </h2>
+              <div className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-2 text-xs font-bold text-slate-600" htmlFor="member-sort">
+                Sıralama
+                <select id="member-sort" value={query.sort}
+                  onChange={(e) => navigate({ sort: e.target.value as MemberListQuery["sort"], page: 1 })}
+                  className="h-9 max-w-[11rem] rounded-xl border-2 border-slate-200 bg-white px-2 text-sm font-bold">
+                  {SORT_OPTIONS.map((o) => (
+                    <option key={o.key} value={o.key}>{o.label}</option>
+                  ))}
+                </select>
+              </label>
               <label className="flex items-center gap-2 text-xs font-bold text-slate-600" htmlFor="page-size">
                 Sayfa başına
                 <select id="page-size" value={query.pageSize}
@@ -848,6 +920,7 @@ function AdminUsersContent() {
                   ))}
                 </select>
               </label>
+              </div>
             </div>
 
             {list.kind === "loading" ? (
@@ -866,7 +939,7 @@ function AdminUsersContent() {
             ) : (
               <div className="grid gap-3">
                 {list.users.map((user) => (
-                  <CompactUserRow key={user.id} user={user} suspiciousCount={list.suspicious[user.id] ?? 0} />
+                  <CompactUserRow key={user.id} user={user} suspiciousCount={list.suspicious[user.id] ?? 0} todayIso={todayIso} />
                 ))}
               </div>
             )}

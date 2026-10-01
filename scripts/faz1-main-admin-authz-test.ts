@@ -213,6 +213,34 @@ const noDb = mockDb(() => ({ data: null }));
 // ALLOW_SUPER_ADMIN_WORKSPACE_VIEW flag'i silindi. Bu bölümlerin test edeceği
 // yüzey artık mevcut değil. (Sections 1–5 aynen korunur.)
 
+// ── 8) AŞAMA 2 · P1-7 — hesap devralma kapanışı (statik route wiring) ────────
+{
+  const strip = (src: string) => src.split(/\r?\n/).filter((l) => !/^\s*(\/\/|\*)/.test(l)).join("\n");
+  const pwRoute = strip(readFileSync("app/api/admin/users/[id]/password/route.ts", "utf8"));
+  ok(/import \{ requireMainAdmin \} from "@\/lib\/admin\/adminGuards"/.test(pwRoute), "P1-7 pw-route: requireMainAdmin import");
+  ok(/const main = await requireMainAdmin\(db, adminId\);\s*if \(!main\.ok\) return jsonNoStore\(\{ ok: false, error: main\.error \}, main\.status\);/.test(pwRoute),
+    "P1-7 pw-route: requireMainAdmin → değilse 403 (generic)");
+  ok(pwRoute.indexOf("requireMainAdmin(db, adminId)") < pwRoute.indexOf("hash_password"), "P1-7 pw-route: ana-yönetici kapısı hash/yazımdan ÖNCE");
+  ok(/isUuid\(id\)/.test(pwRoute), "P1-7 pw-route: UUID doğrulama");
+
+  const userRoute = strip(readFileSync("app/api/admin/users/[id]/route.ts", "utf8"));
+  const licBlock = userRoute.slice(userRoute.indexOf("async function patchLicense"), userRoute.indexOf("validateLicensePayload(body)"));
+  ok(/requireMainAdmin\(db, adminId\)/.test(licBlock), "P1-7 license: tüm lisans/güvenlik alanları yalnız ana yönetici (doğrulamadan önce)");
+  const profBlock = userRoute.slice(userRoute.indexOf("async function patchProfile"), userRoute.indexOf("const updatePayload"));
+  ok(/if \(emailChanged\) \{\s*const main = await requireMainAdmin\(db, adminId\);/.test(profBlock), "P1-7 edit: e-posta değişimi yalnız ana yönetici");
+  ok(/viewer: \{ isMainAdmin \}/.test(userRoute) && /resolveIsSuperAdmin\(db, adminId\)/.test(userRoute), "P1-7 GET: viewer.isMainAdmin sunucu kararı");
+
+  const sessRoute = strip(readFileSync("app/api/admin/users/[id]/sessions/[sessionId]/route.ts", "utf8"));
+  ok(/isUuid\(id\) \|\| !isUuid\(sessionId\)/.test(sessRoute), "P1-7 tekil oturum: iki UUID doğrulama");
+  ok(/requireP2AccountActionTarget\(db, adminId, id\)/.test(sessRoute), "P1-7 tekil oturum: requireP2AccountActionTarget");
+  ok(/"single_session_terminated"/.test(sessRoute), "P1-7 tekil oturum: audit single_session_terminated");
+  ok(!/error\.message/.test(sessRoute), "P1-7 tekil oturum: ham DB hatası dönmez");
+
+  const detail = strip(readFileSync("app/admin/users/[id]/page.tsx", "utf8"));
+  ok(!/isOwnerAdmin\(currentAdminUser\)/.test(detail) && /viewer\?\.isMainAdmin === true/.test(detail),
+    "P1-7 UI: istemci admin_level kararı yok; viewer.isMainAdmin kullanılır");
+}
+
 // ── SONUÇ ───────────────────────────────────────────────────────────────────
 console.log("");
 console.log(`faz1-main-admin-authz harness: ${passed} PASS, ${failed} FAIL`);

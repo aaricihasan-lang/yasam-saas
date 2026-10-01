@@ -4,7 +4,8 @@
  *
  * Şema: sentetik users/tenants/user_sessions/... + GERÇEK repo migration zinciri:
  *   20260903 admin_audit_log → 20260910 provisioning (provision_expert) → 20261221 yh_grade →
- *   20270107 Aşama 1 RPC'leri → 20270129 FAZ 1 → 20270130 FAZ 2.
+ *   20270107 Aşama 1 RPC'leri → 20270129 FAZ 1 → 20270130 FAZ 2 → 20270129000200 oturum touch RPC →
+ *   20271001000300 M4 (üye ticari takip).
  * Yaşam Hafızası için yalnız test-stub: yasam_hafizasi_index (minimal) + yh_search_candidates
  * (tsquery'yi yok sayar; tenant satırlarını döner) — gerçek route kapsam mantığını sınamak için.
  */
@@ -158,6 +159,10 @@ export async function startTestDb(port: number, dirName: string): Promise<TestDb
     "20270107000000_admin_membership_atomic_rpcs.sql",
     "20270129235900_admin_member_phase1_hardening.sql",
     "20270130000000_admin_member_phase2.sql",
+    // Oturum süresi RPC'si — süre zorlaması varsayılan AÇIK (P1-3); guard'lar touch_active_session kullanır.
+    "20270129000200_user_sessions_expiry_touch.sql",
+    // AŞAMA 2 · M4 — agreed_fee/billing_period + admin_list_users(p_due, p_sort).
+    "20271001000300_admin_member_commercial.sql",
   ]) {
     await su.query(readMig(f));
   }

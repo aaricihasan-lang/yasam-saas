@@ -19,7 +19,8 @@ function bad(error: string, status = 400) {
 
 /**
  * GET /api/admin/users — SUNUCU TARAFI liste (MEM-016).
- * Query: view(members|archive) · q · approval · active · role · payment · page · pageSize(10|20|50)
+ * Query: view(members|archive) · q · approval · active · role · payment · due(all|overdue|due30|no_date)
+ *        · sort(default|next_payment_asc|next_payment_desc) · page · pageSize(10|20|50)
  * - Arama: ad + e-posta (Türkçe katlamalı, DB public.admin_search_fold) + rol kelimesi ("uzman",
  *   "yönetici"/"admin"). Filtreler + sayfalama + toplam aynı sorguda; sayaçlar GLOBAL.
  * - "members" görünümü arşivi (onaylı + pasif uzman) HARİÇ tutar; "archive" yalnız onları döner.
@@ -44,6 +45,9 @@ export async function GET(req: NextRequest) {
     p_payment: q.payment,
     p_limit: q.pageSize,
     p_offset: (q.page - 1) * q.pageSize,
+    // M4 (20271001000300): yenileme filtresi + sıralama — değerler parseMemberListQuery allowlist'inden.
+    p_due: q.due,
+    p_sort: q.sort,
   });
   if (error) {
     return bad(rpcErrorStatus(error) === 400 ? "Geçersiz filtre." : "Üye listesi okunamadı.", rpcErrorStatus(error) === 400 ? 400 : 500);

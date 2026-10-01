@@ -325,7 +325,7 @@ async function main(): Promise<void> {
     await su.query(`insert into public.security_events(user_id, event_type, severity) values ($1,'login','high')`, [E0]);
     const lsus = await list("q=ZZ_MEMBER_PHASE2_AUTH");
     ok((lsus.json.suspiciousCounts as Record<string, number>)[E0] === 1, "service_role ile güvenlik olayı okunuyor (liste şüpheli sayacı)");
-    const fn = (await su.query(`select has_function_privilege('anon','public.admin_list_users(text,text,text,text,text,text,text,integer,integer)','EXECUTE') a,
+    const fn = (await su.query(`select has_function_privilege('anon','public.admin_list_users(text,text,text,text,text,text,text,integer,integer,text,text)','EXECUTE') a,
         has_function_privilege('anon','public.admin_create_user_with_modules(jsonb,jsonb,jsonb,text[])','EXECUTE') b,
         has_function_privilege('authenticated','public.auth_rate_limit_hit(text,integer,integer)','EXECUTE') c`)).rows[0];
     ok(!fn.a && !fn.b && !fn.c, "yeni RPC'ler anon/authenticated'a KAPALI");

@@ -181,7 +181,7 @@ for (const f of ["app/api/admin/users/route.ts", "app/api/admin/users/archive/ro
 // ─── Aksiyon hiyerarşisi / erişilebilirlik ───────────────────────────────────
 console.log("\n[UX] Aksiyon hiyerarşisi + erişilebilirlik");
 ok(/Tehlikeli İşlemler/.test(detailPage) && /Hesap Yönetimi/.test(detailPage), "aksiyonlar gruplu (Onay / Hesap Yönetimi / Tehlikeli İşlemler)");
-const danger = detailPage.slice(detailPage.indexOf("Tehlikeli İşlemler"), detailPage.indexOf("{passwordOpen ? ("));
+const danger = detailPage.slice(detailPage.indexOf("Tehlikeli İşlemler"), detailPage.indexOf("{passwordOpen"));
 ok(!/emerald/.test(danger), "tehlikeli işlemlerde yeşil stil YOK");
 ok((detailPage.match(/ref=\{dialogRefs\["/g) ?? []).length === 7 && /useDialogA11y/.test(detailPage), "7 modal: odak + Escape (useDialogA11y)");
 ok(/aria-describedby=\{descId\}/.test(read("components/admin/members/ModuleCheckboxGrid.tsx")), "modül onay kutuları açıklamaya bağlı (aria-describedby)");

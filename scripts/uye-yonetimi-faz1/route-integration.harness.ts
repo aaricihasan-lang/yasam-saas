@@ -3,7 +3,11 @@
  *
  * - Ephemeral yerel PostgreSQL (embedded-postgres, 127.0.0.1) — production'a SIFIR temas.
  * - Şema: sentetik users/user_sessions/user_payment_history/yasam_hafizasi_flags + repo
- *   migration'ları (admin_audit_log, yh_grade, Aşama 1 RPC'leri, FAZ 1 20270128).
+ *   migration'ları (admin_audit_log, yh_grade, Aşama 1 RPC'leri, FAZ 1 20270128, FAZ 2
+ *   20270130 admin_list_users, AŞAMA 2 M4 20271001000300 — M4 iki kez: idempotent).
+ * - AŞAMA 2 kapsamı: [K] P1-7 hesap devralma kapanışı (şifre / e-posta / lisans-güvenlik /
+ *   tekil oturum / viewer.isMainAdmin) · [L] M4 ödeme route sertleştirme · [M] yenileme
+ *   filtresi + sıralama + sayaçlar (admin_list_users p_due/p_sort, /api/admin/metrics).
  * - Gerçek Next route handler'ları (app/api/admin/users/…) supabase-js service-role client ile,
  *   test-only PostgREST shim üzerinden (scripts/uye-yonetimi-faz1/pgrestShim.ts) çalışır.
  * - Tüm kullanıcılar sentetik: ZZ_MEMBER_PHASE1_* (gerçek üye verisi YOK).
@@ -21,6 +25,8 @@ import { startPgrestShim } from "./pgrestShim";
 
 process.env.LC_ALL = "C";
 process.env.LANG = "C";
+// PostgREST `date` kolonlarını "YYYY-MM-DD" metni olarak döner; shim (node-pg) da aynısını yapsın.
+pg.types.setTypeParser(1082, (v: string) => v);
 
 const DATA_DIR = path.join(os.tmpdir(), "uye-yonetimi-faz1-pgdata");
 try { rmSync(DATA_DIR, { recursive: true, force: true }); } catch { /* temiz başlangıç */ }
@@ -40,7 +46,7 @@ function ok(cond: boolean, label: string): void {
 const USERS_DDL = `
 create table public.users (
   id uuid primary key,
-  full_name text, name text, email text, role text,
+  full_name text, name text, email text, password_hash text, role text,
   active boolean default false,
   approval_status text default 'pending',
   approved_at timestamptz,
@@ -81,6 +87,12 @@ create table public.user_payment_history (
 create table public.yasam_hafizasi_flags (
   tenant_id uuid primary key, yh_enabled boolean default false, yh_hizli boolean default false, yh_shared boolean default false
 );
+create table public.security_events (
+  id uuid primary key default gen_random_uuid(), user_id uuid not null references public.users(id),
+  event_type text not null, severity text not null, created_at timestamptz not null default now()
+);
+-- Test-stub: bcrypt yerine deterministik (yalnız test).
+create function public.hash_password(p_plain text) returns text language sql immutable as $$ select 'zz-test-hash:' || md5(p_plain) $$;
 create function public.verify_admin_login(p_email text, p_password text) returns boolean
   language sql security definer set search_path = public as
   $$ select p_password = 'zz-owner-pass' and exists (select 1 from public.users where lower(email) = lower(p_email) and role = 'admin') $$;
@@ -110,11 +122,19 @@ async function main(): Promise<void> {
                     grant usage on schema public to anon, authenticated, service_role;`);
     await su.query(USERS_DDL);
     await su.query(readMig("20260903000000_admin_audit_log.sql"));
+    // Oturum süresi RPC'si (touch_active_session) — süre zorlaması varsayılan AÇIK (P1-3) olduğundan
+    // admin/uzman guard'ları bu RPC'yi kullanır (fail-closed).
+    await su.query(readMig("20270129000200_user_sessions_expiry_touch.sql"));
     await su.query(readMig("20261221000000_yh_grade_expert_premium_rpc.sql"));
     await su.query(readMig("20270107000000_admin_membership_atomic_rpcs.sql"));
     await su.query(readMig("20270129235900_admin_member_phase1_hardening.sql"));
+    await su.query(readMig("20270130000000_admin_member_phase2.sql"));
+    // AŞAMA 2 · M4 — iki kez uygulanır (idempotent olmalı).
+    await su.query(readMig("20271001000300_admin_member_commercial.sql"));
+    await su.query(readMig("20271001000300_admin_member_commercial.sql"));
     await su.query(`grant select, insert, update on public.users, public.user_sessions, public.user_payment_history, public.yasam_hafizasi_flags to service_role;
-                    grant execute on function public.verify_admin_login(text, text) to service_role;`);
+                    grant select on public.security_events to service_role;
+                    grant execute on function public.verify_admin_login(text, text), public.hash_password(text) to service_role;`);
 
     const T_OWNER = randomUUID();
     await su.query(
@@ -135,8 +155,15 @@ async function main(): Promise<void> {
     const packageRoute = await import("../../app/api/admin/users/[id]/package/route");
     const deleteRoute = await import("../../app/api/admin/users/[id]/delete/route");
     const sessionsRoute = await import("../../app/api/admin/users/[id]/active-sessions/route");
+    const passwordRoute = await import("../../app/api/admin/users/[id]/password/route");
+    const singleSessionRoute = await import("../../app/api/admin/users/[id]/sessions/[sessionId]/route");
+    const paymentRoute = await import("../../app/api/admin/users/[id]/payment/route");
+    const paymentHistoryRoute = await import("../../app/api/admin/users/[id]/payment-history/route");
+    const listRoute = await import("../../app/api/admin/users/route");
+    const metricsRoute = await import("../../app/api/admin/metrics/route");
     const { verifyUserRequest } = await import("../../lib/auth/userGuard");
-    const { mapDbUser } = await import("../../lib/admin/userManagement");
+    const { mapDbUser, paymentSnapshotToEditDraft } = await import("../../lib/admin/userManagement");
+    const { istanbulTodayIso, addBillingPeriod, renewalState } = await import("../../lib/admin/memberCommercial");
     const { resolveModuleAccess } = await import("../../lib/auth/moduleAccessCore");
     const { hasExpertMembershipAccess } = await import("../../lib/auth/membership");
     const { parseLoginUserRecord } = await import("../../lib/auth/yasamUser");
@@ -392,7 +419,7 @@ async function main(): Promise<void> {
     ok(exempt.status === 200, "güvenlik istisnası açıkken 0 limitler kilitlemez (onay gerekmez)");
     ok((await audits(L1)).some((a) => a.action === "security_exempt_changed" && a.old_value.security_exempt === false && a.new_value.security_exempt === true), "security_exempt_changed audit (önce/sonra)");
     const meta = await call(userRoute.PATCH as Handler, "PATCH", L1, asOwner, { ...allZero, securityExempt: true, licenseType: "family", licenseNote: "gizli not içeriği" });
-    const metaAudit = (await audits(L1)).find((a) => a.action === "license_settings_changed");
+    const metaAudit = (await audits(L1)).find((a) => a.action === "license_settings_changed" && a.new_value.license_type === "family");
     ok(meta.status === 200 && !!metaAudit && metaAudit.new_value.license_type === "family" && metaAudit.context.note_changed === true, "license_settings_changed audit");
     ok(!JSON.stringify(await audits(L1)).includes("gizli not içeriği"), "audit'e not İÇERİĞİ yazılmadı");
     ok((await call(userRoute.PATCH as Handler, "PATCH", OWNER, asOwner, lic(OWNER))).status === 403, "admin kendi limitlerini değiştiremez → 403");
@@ -528,12 +555,266 @@ async function main(): Promise<void> {
     ok(await modStatus(JA, jaTok, "video_ceviri") === 200 && await modStatus(JA, jaTok, "ders_notu") === 200,
       "admin: video_ceviri + ders_notu erişimi korunur");
 
+    // ── K. AŞAMA 2 · P1-7 — HESAP DEVRALMA KAPANIŞI ───────────────────────────
+    console.log("\n[K] P1-7 — şifre / e-posta / lisans-güvenlik / tekil oturum yalnız ana yönetici");
+    type SessHandler = (req: NextRequest, ctx: { params: Promise<{ id: string; sessionId: string }> }) => Promise<Response>;
+    async function callSession(id: string, sessionId: string, auth: Auth): Promise<{ status: number; json: Record<string, unknown> }> {
+      const headers: Record<string, string> = {};
+      if (auth.adminId) headers["x-admin-id"] = auth.adminId;
+      if (auth.token) headers["x-session-token"] = auth.token;
+      const req = new NextRequest(`http://localhost/api/admin/users/${id}/sessions/${sessionId}`, { method: "PATCH", headers });
+      const res = await (singleSessionRoute.PATCH as SessHandler)(req, { params: Promise.resolve({ id, sessionId }) });
+      const text = await res.text();
+      return { status: res.status, json: text ? JSON.parse(text) : {} };
+    }
+    const sessionActive = async (sid: string) =>
+      (await su.query(`select is_active from public.user_sessions where id=$1`, [sid])).rows[0]?.is_active === true;
+    const sessionIdFor = async (token: string) =>
+      String((await su.query(`select id from public.user_sessions where session_token=$1`, [token])).rows[0].id);
+
+    // viewer.isMainAdmin — sunucu kararı (istemci admin_level'ına güvenilmez).
+    const K1 = await makeUser({ label: "P17_TARGET", approval: "approved", active: true, pkg: "premium", plan: "premium" });
+    await su.query(`update public.users set password_hash='zz-orig-hash', admin_level='owner' where id=$1`, [K1]);
+    await su.query(`update public.users set admin_level='owner' where id=$1`, [ADMIN2]); // canlı varsayılanı simüle
+    const gOwner = await call(userRoute.GET as Handler, "GET", K1, asOwner);
+    const gAdmin2 = await call(userRoute.GET as Handler, "GET", K1, asAdmin2);
+    ok((gOwner.json.viewer as { isMainAdmin?: boolean })?.isMainAdmin === true, "GET viewer.isMainAdmin: ana yönetici → true");
+    ok((gAdmin2.json.viewer as { isMainAdmin?: boolean })?.isMainAdmin === false, "GET viewer.isMainAdmin: normal admin (admin_level='owner' olsa da) → false");
+    ok("agreed_fee" in (gOwner.json.user as Record<string, unknown>) && "billing_period" in (gOwner.json.user as Record<string, unknown>), "GET user: agreed_fee + billing_period alanları döner (USERS_SAFE_SELECT)");
+
+    // Şifre sıfırlama
+    const kTok = await newSession(K1);
+    const pw = { newPassword: "YeniSifre12345" };
+    const pwA2 = await call(passwordRoute.POST as Handler, "POST", K1, asAdmin2, pw);
+    ok(pwA2.status === 403 && (await row(K1)).password_hash === "zz-orig-hash", "normal admin → uzman şifre sıfırlama 403, hash DEĞİŞMEDİ");
+    ok((await userGuardStatus(K1, kTok)) === 200, "reddedilen sıfırlama oturumu kapatmadı");
+    ok((await audits(K1)).every((a) => a.action !== "password_changed_by_admin"), "reddedilen sıfırlama audit yazmadı");
+    ok((await call(passwordRoute.POST as Handler, "POST", "not-a-uuid", asOwner, pw)).status === 400, "şifre route: bozuk UUID → 400");
+    const pwOwner = await call(passwordRoute.POST as Handler, "POST", K1, asOwner, pw);
+    const k1AfterPw = await row(K1);
+    ok(pwOwner.status === 200 && k1AfterPw.password_hash !== "zz-orig-hash" && String(k1AfterPw.password_hash).startsWith("zz-test-hash:"), "ana yönetici → şifre sıfırlama 200, hash değişti");
+    ok((await userGuardStatus(K1, kTok)) === 401, "şifre sıfırlama sonrası eski oturum GEÇERSİZ");
+    const pwAudit = (await audits(K1)).find((a) => a.action === "password_changed_by_admin");
+    ok(!!pwAudit && pwAudit.context.revoked_session_count === 1, "password_changed_by_admin audit (1 oturum kapandı)");
+    ok(!JSON.stringify(pwAudit).includes("YeniSifre12345"), "audit'e parola yazılmadı");
+    ok((await call(passwordRoute.POST as Handler, "POST", OWNER, asAdmin2, pw)).status === 403, "normal admin → ana yönetici şifresi 403");
+
+    // E-posta / isim
+    const k1Email = String((await row(K1)).email);
+    const editBase = { action: "edit", fullName: "ZZ_MEMBER_PHASE1_P17_TARGET", email: k1Email, role: "expert" };
+    const emA2 = await call(userRoute.PATCH as Handler, "PATCH", K1, asAdmin2, { ...editBase, email: "zz.p17.hijack@example.test" });
+    ok(emA2.status === 403 && (await row(K1)).email === k1Email, "normal admin → e-posta değişimi 403, e-posta DEĞİŞMEDİ");
+    const emMix = await call(userRoute.PATCH as Handler, "PATCH", K1, asAdmin2, { ...editBase, fullName: "ZZ_MEMBER_PHASE1_P17_MIX", email: "zz.p17.mix@example.test" });
+    ok(emMix.status === 403 && (await row(K1)).full_name === "ZZ_MEMBER_PHASE1_P17_TARGET", "normal admin → isim+e-posta birlikte 403, isim de YAZILMADI");
+    const nameA2 = await call(userRoute.PATCH as Handler, "PATCH", K1, asAdmin2, { ...editBase, fullName: "ZZ_MEMBER_PHASE1_P17_RENAMED" });
+    ok(nameA2.status === 200 && (await row(K1)).full_name === "ZZ_MEMBER_PHASE1_P17_RENAMED", "normal admin → yalnız isim değişimi 200");
+    ok((await audits(K1)).some((a) => a.action === "user_profile_updated" && JSON.stringify(a.context.fields) === JSON.stringify(["name"])), "isim değişimi audit (fields=[name])");
+    const emOwner = await call(userRoute.PATCH as Handler, "PATCH", K1, asOwner, { ...editBase, fullName: "ZZ_MEMBER_PHASE1_P17_RENAMED", email: "zz.p17.newmail@example.test" });
+    ok(emOwner.status === 200 && (await row(K1)).email === "zz.p17.newmail@example.test", "ana yönetici → e-posta değişimi 200");
+    ok((await audits(K1)).some((a) => a.action === "user_profile_updated" && JSON.stringify(a.context.fields) === JSON.stringify(["email"])), "e-posta değişimi audit (fields=[email], değer yok)");
+    ok(!JSON.stringify(await audits(K1)).includes("zz.p17.newmail"), "audit'e e-posta DEĞERİ yazılmadı");
+
+    // Lisans / güvenlik politikası
+    const licBase = { action: "license", licenseType: "single", securityMode: "normal", allowedLocations: 1,
+      allowedActiveSessions: -1, allowedDesktopSessions: -1, allowedMobileSessions: -1,
+      allowedTabletSessions: -1, allowedUnknownSessions: -1, securityExempt: false, licenseNote: "" };
+    const k1Before = JSON.stringify(await row(K1));
+    for (const [label, extra] of [
+      ["güvenlik istisnası", { securityExempt: true }],
+      ["güvenlik modu", { securityMode: "strict" }],
+      ["izinli lokasyon", { allowedLocations: 3 }],
+      ["toplam oturum", { allowedActiveSessions: 2 }],
+      ["mobil limit", { allowedMobileSessions: 1 }],
+      ["lisans türü", { licenseType: "family" }],
+      ["lisans notu", { licenseNote: "not" }],
+      ["no-op (değişiklik yok)", {}],
+    ] as [string, Record<string, unknown>][]) {
+      ok((await call(userRoute.PATCH as Handler, "PATCH", K1, asAdmin2, { ...licBase, ...extra })).status === 403, `normal admin → lisans/güvenlik (${label}) 403`);
+    }
+    ok(JSON.stringify(await row(K1)) === k1Before, "403'ler sonrası hedef satır DEĞİŞMEDİ");
+    const licOwner = await call(userRoute.PATCH as Handler, "PATCH", K1, asOwner, { ...licBase, securityExempt: true, securityMode: "strict" });
+    ok(licOwner.status === 200 && (await row(K1)).security_exempt === true && (await row(K1)).security_mode === "strict", "ana yönetici → lisans/güvenlik 200");
+    ok((await audits(K1)).some((a) => a.action === "security_exempt_changed"), "ana yönetici lisans değişimi audit'lendi");
+    ok((await call(userRoute.GET as Handler, "GET", K1, asAdmin2)).status === 200, "normal admin lisans değerlerini GET ile görür (200)");
+
+    // Tekil oturum sonlandırma
+    const kTok2 = await newSession(K1);
+    const kSid = await sessionIdFor(kTok2);
+    const ownerSid = await sessionIdFor(TOK.owner);
+    const sOwnerByA2 = await callSession(OWNER, ownerSid, asAdmin2);
+    ok(sOwnerByA2.status === 403 && await sessionActive(ownerSid), "normal admin → ana yönetici oturumu sonlandırma 403 (oturum açık)");
+    const KA = await makeUser({ label: "P17_ADMIN3", role: "admin", approval: "approved", active: true });
+    const kaTok = await newSession(KA);
+    const kaSid = await sessionIdFor(kaTok);
+    ok((await callSession(KA, kaSid, asAdmin2)).status === 403 && await sessionActive(kaSid), "normal admin → başka admin oturumu 403");
+    ok((await callSession(ADMIN2, await sessionIdFor(TOK.admin2), asAdmin2)).status === 403, "kendi oturumunu bu ekrandan kapatma 403");
+    ok((await callSession(K1, "not-a-uuid", asAdmin2)).status === 400, "bozuk oturum UUID → 400");
+    ok((await callSession("123", kSid, asAdmin2)).status === 400, "bozuk kullanıcı UUID → 400");
+    ok((await callSession(E_AUTH, kSid, asAdmin2)).status === 404 && await sessionActive(kSid), "başka kullanıcının oturumu → 404 (kapanmadı)");
+    const sExpert = await callSession(K1, kSid, asAdmin2);
+    ok(sExpert.status === 200 && sExpert.json.ok === true && !(await sessionActive(kSid)), "normal admin → uzman oturumu sonlandırma 200");
+    ok((await userGuardStatus(K1, kTok2)) === 401, "sonlandırılan oturum token'ı GEÇERSİZ");
+    const ssAudit = (await audits(K1)).filter((a) => a.action === "single_session_terminated");
+    ok(ssAudit.length === 1 && ssAudit[0].context.revoked_session_count === 1, "single_session_terminated audit (1 kayıt)");
+    ok(!JSON.stringify(ssAudit).includes(kTok2), "audit'e token yazılmadı");
+    const sAgain = await callSession(K1, kSid, asAdmin2);
+    ok(sAgain.status === 409 && (await audits(K1)).filter((a) => a.action === "single_session_terminated").length === 1, "zaten kapalı oturum → 409, ek audit yok");
+    ok(!/error\.message|duplicate|violates|relation/i.test(JSON.stringify(sAgain.json)), "oturum route: ham DB hatası sızmaz");
+    ok((await callSession(KA, kaSid, asOwner)).status === 200, "ana yönetici → normal admin oturumu 200");
+
+    // ── L. AŞAMA 2 · M4 — ÖDEME ROUTE SERTLEŞTİRME ───────────────────────────
+    console.log("\n[L] Ödeme kaydı — doğrulama + geçmiş + audit");
+    async function pay(id: string, auth: Auth, draft: unknown, extra?: Record<string, unknown>) {
+      return call(paymentRoute.POST as Handler, "POST", id, auth, { draft, ...(extra ?? {}) });
+    }
+    const today = istanbulTodayIso();
+    const L1p = await makeUser({ label: "PAY", approval: "approved", active: true, pkg: "premium", plan: "premium" });
+    const okDraft = { status: "paid", lastPaymentDate: today, nextPaymentDate: addBillingPeriod(today, "monthly"),
+      paidAmount: "1500", note: "Havale ref 42", agreedFee: "1500", billingPeriod: "monthly" };
+    const histCount = async (id: string) => (await su.query(`select count(*)::int n from public.user_payment_history where user_id=$1`, [id])).rows[0].n as number;
+    for (const [label, d, code] of [
+      ["geçersiz durum", { ...okDraft, status: "hacked" }, 400],
+      ["negatif tutar", { ...okDraft, paidAmount: "-1" }, 400],
+      ["negatif ücret", { ...okDraft, agreedFee: -5 }, 400],
+      ["3 ondalık", { ...okDraft, agreedFee: "10.555" }, 400],
+      ["aşırı büyük tutar", { ...okDraft, paidAmount: "1000000000" }, 400],
+      ["geçersiz tarih (30 Şubat)", { ...okDraft, lastPaymentDate: "2026-02-30" }, 400],
+      ["tarih biçimi", { ...okDraft, nextPaymentDate: "01.10.2026" }, 400],
+      ["geçersiz dönem", { ...okDraft, billingPeriod: "weekly" }, 400],
+      ["not > 1000", { ...okDraft, note: "n".repeat(1001) }, 400],
+      ["bilinmeyen alan", { ...okDraft, is_admin: true }, 400],
+      ["draft yok", undefined, 400],
+    ] as [string, unknown, number][]) {
+      ok((await pay(L1p, asAdmin2, d)).status === code, `ödeme doğrulama: ${label} → ${code}`);
+    }
+    ok((await call(paymentRoute.POST as Handler, "POST", L1p, asAdmin2, { draft: okDraft, extra: 1 })).status === 400, "ödeme: gövdede beklenmeyen üst alan → 400");
+    ok((await call(paymentRoute.POST as Handler, "POST", "abc", asAdmin2, { draft: okDraft })).status === 400, "ödeme: bozuk UUID → 400");
+    ok((await call(paymentRoute.POST as Handler, "POST", L1p, asAdmin2, undefined, { rawBody: JSON.stringify({ draft: { ...okDraft, note: "x".repeat(9000) } }) })).status === 413, "ödeme: aşırı büyük gövde → 413");
+    ok((await pay(OWNER, asAdmin2, okDraft)).status === 403, "normal admin → admin hedef ödeme 403");
+    ok((await histCount(L1p)) === 0 && (await row(L1p)).payment_status === null, "reddedilen istekler hiçbir şey yazmadı");
+    const pay1 = await pay(L1p, asAdmin2, okDraft);
+    const l1row = await row(L1p);
+    ok(pay1.status === 200 && pay1.json.changed === true, "geçerli ödeme kaydı (normal admin, uzman hedef) → 200");
+    ok(l1row.payment_status === "paid" && Number(l1row.agreed_fee) === 1500 && l1row.billing_period === "monthly" && l1row.last_payment_date === today, "users: durum + ücret + dönem + tarih yazıldı");
+    const h1 = (await su.query(`select * from public.user_payment_history where user_id=$1 order by created_at desc`, [L1p])).rows;
+    ok(h1.length === 1 && Number(h1[0].agreed_fee) === 1500 && h1[0].billing_period === "monthly" && h1[0].actor_admin_id === ADMIN2, "geçmiş: agreed_fee + billing_period + actor_admin_id");
+    const payAudit = (await audits(L1p)).filter((a) => a.action === "payment_status_changed");
+    ok(payAudit.length === 1 && Array.isArray(payAudit[0].context.fields) && payAudit[0].context.fields.includes("agreed_fee") && payAudit[0].context.fields.includes("payment_status"), "payment_status_changed audit (değişen alan adları)");
+    ok(!/1500|Havale|monthly/.test(JSON.stringify(payAudit)), "audit'e tutar/not/dönem DEĞERİ yazılmadı");
+    const payNoop = await pay(L1p, asAdmin2, okDraft);
+    ok(payNoop.status === 200 && payNoop.json.changed === false && (await histCount(L1p)) === 1 && (await audits(L1p)).filter((a) => a.action === "payment_status_changed").length === 1, "değişiklik yok → changed:false, geçmiş/audit YOK");
+    const hGet = await call(paymentHistoryRoute.GET as Handler, "GET", L1p, asAdmin2);
+    ok(hGet.status === 200 && Array.isArray(hGet.json.history) && (hGet.json.history as unknown[]).length === 1, "payment-history GET 200");
+    ok((await call(paymentHistoryRoute.GET as Handler, "GET", "zz", asAdmin2)).status === 400, "payment-history: bozuk UUID → 400");
+    // Belirtilmemiş: literal 'undefined' (canlıda 7 kayıt) → "Belirtilmemiş" gösterilir, yeniden YAZILMAZ.
+    const U1 = await makeUser({ label: "PAY_UNDEF", approval: "approved", active: true });
+    await su.query(`update public.users set payment_status='undefined' where id=$1`, [U1]);
+    const uMapped = mapDbUser((await call(userRoute.GET as Handler, "GET", U1, asOwner)).json.user as Record<string, unknown>);
+    ok(uMapped.payment.status === "unknown" && uMapped.payment.statusLabel === "Belirtilmemiş", "literal 'undefined' → 'Belirtilmemiş'");
+    const uDraft = paymentSnapshotToEditDraft(uMapped.payment);
+    ok(uDraft.status === "unknown", "düzenleme taslağı 'unknown'ı KORUR (sessizce 'pending' olmaz)");
+    const uSave = await pay(U1, asOwner, { ...uDraft, note: "yalnız not" });
+    ok(uSave.status === 200 && (await row(U1)).payment_status === "undefined" && (await row(U1)).payment_note === "yalnız not", "yalnız not değişti → legacy durum değeri yeniden YAZILMADI");
+    const uUnknown = await pay(L1p, asOwner, { ...okDraft, status: "unknown" });
+    ok(uUnknown.status === 200 && (await row(L1p)).payment_status === null, "'Belirtilmemiş' bilinçli seçilirse NULL yazılır");
+    // Geçmiş yazılamazsa: kullanıcı satırı geri alınır + HATA (ok+warning DEĞİL).
+    const beforeFail = await row(L1p);
+    await su.query(`revoke insert on public.user_payment_history from service_role`);
+    const failSave = await pay(L1p, asOwner, { ...okDraft, agreedFee: "2500" });
+    await su.query(`grant insert on public.user_payment_history to service_role`);
+    const afterFail = await row(L1p);
+    ok(failSave.status === 500 && failSave.json.ok === false && !("warning" in failSave.json), "geçmiş insert hatası → 500 (ok+warning değil)");
+    ok(Number(afterFail.agreed_fee) === Number(beforeFail.agreed_fee) && afterFail.payment_status === beforeFail.payment_status, "geçmiş hatası → kullanıcı satırı ESKİ değerlerine geri alındı");
+    ok(!/permission|denied|relation|42501/i.test(JSON.stringify(failSave.json)), "ödeme route: ham DB hatası sızmaz");
+
+    // ── M. AŞAMA 2 · M4 — YENİLEME FİLTRESİ / SIRALAMA / SAYAÇLAR ────────────
+    console.log("\n[M] admin_list_users p_due / p_sort + metrics");
+    const plusDays = (n: number) => {
+      const [y, m, d] = today.split("-").map(Number);
+      const dt = new Date(Date.UTC(y, m - 1, d + n));
+      return dt.toISOString().slice(0, 10);
+    };
+    const dueUser = async (label: string, next: string | null, o: { approval?: string; active?: boolean; status?: string } = {}) => {
+      const id = await makeUser({ label: `DUE_${label}`, approval: o.approval ?? "approved", active: o.active ?? true, pkg: "premium", plan: "premium" });
+      await su.query(`update public.users set next_payment_date=$2, payment_status=$3 where id=$1`, [id, next, o.status ?? "pending"]);
+      return id;
+    };
+    const D_OVER = await dueUser("OVERDUE", plusDays(-5));
+    const D_TODAY = await dueUser("TODAY", today);
+    const D_10 = await dueUser("IN10", plusDays(10));
+    const D_30 = await dueUser("IN30", plusDays(30));
+    const D_60 = await dueUser("IN60", plusDays(60));
+    const D_NONE = await dueUser("NODATE", null);
+    const D_EXEMPT = await dueUser("EXEMPT", plusDays(-3), { status: "exempt" });
+    const D_PASSIVE = await dueUser("PASSIVE", plusDays(-3), { active: false });
+    const D_PENDING = await dueUser("PENDING", plusDays(-3), { approval: "pending" });
+    async function list(qs: string, auth: Auth = asAdmin2) {
+      const headers: Record<string, string> = {};
+      if (auth.adminId) headers["x-admin-id"] = auth.adminId;
+      if (auth.token) headers["x-session-token"] = auth.token;
+      const res = await (listRoute.GET as (r: NextRequest) => Promise<Response>)(new NextRequest(`http://localhost/api/admin/users?${qs}`, { headers }));
+      const text = await res.text();
+      return { status: res.status, json: (text ? JSON.parse(text) : {}) as Record<string, unknown> };
+    }
+    const ids = (r: { json: Record<string, unknown> }) => ((r.json.users ?? []) as { id: string }[]).map((u) => u.id);
+    const Q = "q=ZZ_MEMBER_PHASE1_DUE&pageSize=50";
+    const lOver = await list(`${Q}&due=overdue`);
+    ok(lOver.status === 200 && JSON.stringify(ids(lOver)) === JSON.stringify([D_OVER]), "due=overdue → yalnız onaylı+aktif+muaf olmayan gecikmiş (muaf/pasif/bekleyen HARİÇ)");
+    const l30 = await list(`${Q}&due=due30&sort=next_payment_asc`);
+    ok(JSON.stringify(ids(l30)) === JSON.stringify([D_TODAY, D_10, D_30]), "due=due30 → bugün..+30 (sınırlar dahil), +60 HARİÇ, tarihe göre artan");
+    const lNone = await list(`${Q}&due=no_date`);
+    ok(JSON.stringify(ids(lNone)) === JSON.stringify([D_NONE]), "due=no_date → yalnız tarihsiz onaylı+aktif uzman");
+    const lAsc = await list(`${Q}&sort=next_payment_asc`);
+    const ascDates = ((lAsc.json.users ?? []) as { next_payment_date: string | null }[]).map((u) => u.next_payment_date);
+    const nonNullAsc = ascDates.filter((d): d is string => d !== null);
+    // 8 = 9 fixture − onaylı+pasif (Arşiv görünümünde; "members" görünümü hariç tutar).
+    ok(ascDates.length === 8 && ascDates[ascDates.length - 1] === null && nonNullAsc.every((d, i) => i === 0 || nonNullAsc[i - 1] <= d), "sort=next_payment_asc → artan, NULLS LAST");
+    const lDesc = await list(`${Q}&sort=next_payment_desc`);
+    const descDates = ((lDesc.json.users ?? []) as { next_payment_date: string | null }[]).map((u) => u.next_payment_date);
+    const nonNullDesc = descDates.filter((d): d is string => d !== null);
+    ok(descDates[descDates.length - 1] === null && nonNullDesc.every((d, i) => i === 0 || nonNullDesc[i - 1] >= d) && ids(lDesc)[0] === D_60, "sort=next_payment_desc → azalan, NULLS LAST");
+    const lAsc2 = await list(`${Q}&sort=next_payment_asc`);
+    ok(JSON.stringify(ids(lAsc2)) === JSON.stringify(ids(lAsc)), "eşit tarihlerde sıra deterministik (id tiebreaker)");
+    const lPage1 = await list(`q=ZZ_MEMBER_PHASE1_DUE&pageSize=10&sort=next_payment_asc`);
+    ok(JSON.stringify(ids(lPage1)) === JSON.stringify(ids(lAsc)), "sayfalama aynı sıralamayı kullanır");
+    ok((await list(`${Q}&due=bogus`)).status === 400 && (await list(`${Q}&sort=random`)).status === 400, "bilinmeyen due/sort → 400");
+    const counts = lOver.json.counts as Record<string, number>;
+    const sqlOver = (await su.query(`select count(*)::int n from public.users where role='expert' and approval_status='approved' and active
+        and coalesce(lower(payment_status),'') <> 'exempt' and next_payment_date < (now() at time zone 'Europe/Istanbul')::date`)).rows[0].n;
+    const sqlDue30 = (await su.query(`select count(*)::int n from public.users where role='expert' and approval_status='approved' and active
+        and coalesce(lower(payment_status),'') <> 'exempt' and next_payment_date between (now() at time zone 'Europe/Istanbul')::date and (now() at time zone 'Europe/Istanbul')::date + 30`)).rows[0].n;
+    ok(counts.renewal_overdue === sqlOver && sqlOver >= 1, `sayaç renewal_overdue = ${counts.renewal_overdue} (bağımsız SQL ile aynı)`);
+    ok(counts.renewal_due30 === sqlDue30 && sqlDue30 >= 3, `sayaç renewal_due30 = ${counts.renewal_due30} (bağımsız SQL ile aynı)`);
+    ok(renewalState(plusDays(-5), today).kind === "overdue" && renewalState(plusDays(30), today).kind === "due" && renewalState(plusDays(31), today).kind === "later", "UI rozet sınırları SQL filtresiyle aynı (30 gün dahil)");
+    const mRes = await (metricsRoute.GET as (r: NextRequest) => Promise<Response>)(new NextRequest("http://localhost/api/admin/metrics", { headers: { "x-admin-id": ADMIN2, "x-session-token": TOK.admin2 } }));
+    const mJson = await mRes.json() as Record<string, unknown>;
+    ok(mRes.status === 200 && mJson.renewalOverdue === sqlOver && mJson.renewalDue30 === sqlDue30, "metrics: renewalOverdue / renewalDue30 sayaçları");
+    ok(!/email|full_name|ZZ_MEMBER/.test(JSON.stringify(mJson)), "metrics: yalnız agrega sayı (PII yok)");
+    const legacyCall = (await su.query(`select public.admin_list_users(p_q => '', p_role_match => null, p_view => 'members', p_approval => 'all',
+        p_active => 'all', p_role => 'all', p_payment => 'all', p_limit => 5, p_offset => 0) r`)).rows[0].r;
+    ok(typeof legacyCall.total === "number", "eski 9 adlı argümanla çağrı (geriye uyumlu varsayılanlar) çalışır");
+    const fnAcl = (await su.query(`select
+        has_function_privilege('anon','public.admin_list_users(text,text,text,text,text,text,text,integer,integer,text,text)','EXECUTE') a,
+        has_function_privilege('authenticated','public.admin_list_users(text,text,text,text,text,text,text,integer,integer,text,text)','EXECUTE') b,
+        has_function_privilege('service_role','public.admin_list_users(text,text,text,text,text,text,text,integer,integer,text,text)','EXECUTE') c,
+        (select count(*)::int from pg_proc where proname='admin_list_users') n,
+        has_column_privilege('anon','public.users','agreed_fee','SELECT') ca`)).rows[0];
+    ok(!fnAcl.a && !fnAcl.b && fnAcl.c && fnAcl.n === 1 && !fnAcl.ca, "ACL: yalnız service_role EXECUTE, tek imza, anon kolon erişimi yok");
+    let chkOk = false;
+    try { await su.query(`update public.users set agreed_fee=-1 where id=$1`, [D_OVER]); } catch { chkOk = true; }
+    let chkPeriod = false;
+    try { await su.query(`update public.users set billing_period='weekly' where id=$1`, [D_OVER]); } catch { chkPeriod = true; }
+    ok(chkOk && chkPeriod, "DB CHECK: negatif ücret ve bilinmeyen dönem reddedilir");
+    void D_EXEMPT; void D_PASSIVE; void D_PENDING;
+
+
     // ── I. AUDIT GÜVENLİĞİ ────────────────────────────────────────────────────
     console.log("\n[I] Audit");
-    const allAudit = JSON.stringify((await su.query(`select * from public.admin_audit_log`)).rows);
+    // Yalnız payload kolonları (action adı "password_changed_by_admin" meşru olarak "password" içerir).
+    const allAudit = JSON.stringify((await su.query(`select old_value, new_value, result, context, reason from public.admin_audit_log`)).rows);
     ok(!/zz-tok-|zz-owner-pass|session_token|password/i.test(allAudit), "hiçbir audit satırında token/parola yok");
     const actions = new Set((await su.query(`select distinct action from public.admin_audit_log`)).rows.map((r) => r.action));
-    for (const a of ["user_approved", "user_rejected", "user_archived", "user_activated", "user_deactivated", "module_enabled", "module_disabled", "total_session_limit_changed", "license_settings_changed", "security_exempt_changed", "user_profile_updated", "role_changed"]) {
+    for (const a of ["user_approved", "user_rejected", "user_archived", "user_activated", "user_deactivated", "module_enabled", "module_disabled", "total_session_limit_changed", "license_settings_changed", "security_exempt_changed", "user_profile_updated", "role_changed", "password_changed_by_admin", "single_session_terminated", "payment_status_changed"]) {
       ok(actions.has(a), `audit action üretildi: ${a}`);
     }
     ok(shim.stats.errors >= 0, `shim istek sayısı: ${shim.stats.requests}`);
