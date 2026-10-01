@@ -47,6 +47,21 @@ const STEPS = [
   ["lists", "npx", ["tsx", "scripts/final-hardening/lists.harness.ts"]],
   ["hday", "npx", ["tsx", "scripts/final-hardening/hday.harness.ts"]],
   ["infra", "npx", ["tsx", "scripts/final-hardening/infra.harness.ts"]],
+  // F-1: outbox RPC güvenli hata kategorisi + yalnız sweep için tek jitter retry.
+  ["outbox-sweep-retry", "npx", ["tsx", "scripts/final-hardening/outbox-sweep-retry.harness.ts"]],
+  // Satış öncesi kapanış (2026-10): yeni kapsam harness'ları.
+  ["beslenme-membership", "npx", ["tsx", "scripts/final-hardening/beslenme-membership.harness.ts"]],
+  ["admin-hygiene", "npx", ["tsx", "scripts/final-hardening/admin-hygiene.harness.ts"]],
+  ["analytics-consent", "npx", ["tsx", "scripts/final-hardening/analytics-consent.harness.ts"]],
+  ["output-visibility", "npx", ["tsx", "scripts/final-hardening/output-visibility.harness.ts"]],
+  ["notifications", "npx", ["tsx", "scripts/notifications/unit.harness.ts"]],
+  ["anamnez-filled-pdf", "npx", ["tsx", "scripts/anamnez/filled-pdf.harness.ts"]],
+  ["urun-stok-diger", "npx", ["tsx", "scripts/urun-stok/select-other.harness.ts"]],
+  ["clients-list-filter", "npx", ["tsx", "scripts/clients-list-filter.harness.ts"]],
+  ["pg:auth-m1", ...pg([F("auth-fixture.sql")],
+    ["20270129000000_auth_login_throttle.sql", "20270129000100_auth_grants_password_hash_only.sql", "20270129000200_user_sessions_expiry_touch.sql",
+     "20271001000000_auth_password_session_hardening.sql"],
+    ["auth-m1-assert.sql"])],
   ["pg:auth", ...pg([F("auth-fixture.sql")],
     ["20270129000000_auth_login_throttle.sql", "20270129000100_auth_grants_password_hash_only.sql", "20270129000200_user_sessions_expiry_touch.sql"],
     ["auth-assert.sql"])],
@@ -69,6 +84,10 @@ const STEPS = [
   ["anamnez-routes", "npx", ["tsx", "scripts/anamnez/routes.harness.ts"]],
   ["pg:anamnesis", ...pg([F("anamnesis-fixture.sql")],
     ["20270202000000_client_anamnesis.sql", "20270202000100_client_anamnesis_storage.sql"], ["anamnesis-assert.sql"])],
+  // P1-1 / M2: Ajanda "Genel" (danışansız) randevu → client outbox no-op; diğer 5 tablo fail-closed.
+  ["pg:yh-null-client", ...pg([F("yh-null-client-fixture.sql"), M("20261218000200_yh_client_cdc_outbox.sql"),
+    M("20261220000000_yh_client_outbox_activation_boundary.sql"), F("yh-null-client-acl-snapshot.sql")],
+    ["20271001000100_yh_client_outbox_appointments_null_client.sql"], ["yh-null-client-assert.sql"])],
 ];
 
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : null;
