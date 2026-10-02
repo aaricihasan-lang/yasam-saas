@@ -156,6 +156,12 @@
     "auth": {
       "sessionInvalid": "Your account was opened from another device or location, so for your security you need to sign in again.",
       "sessionExpired": "Your session has expired. Please sign in again.",
+      "adminMobileActive": "This administrator account is active on another mobile device. Sign out of that mobile session to sign in from a new device.",
+      "adminWebLimit": "The maximum number of simultaneous web sessions for your administrator account has been reached. Close an open web session to sign in from a new device.",
+      "pendingApproval": "Your administrator account is open on another device. This sign-in is waiting for approval from your existing session (up to 10 minutes).",
+      "pendingDenied": "This sign-in was rejected from your existing administrator session.",
+      "pendingExpired": "The approval time has expired. Please sign in again.",
+      "pendingCancel": "Cancel waiting",
       "emailPasswordRequired": "Enter your email and password.",
       "loggingIn": "Signing in...",
       "systemError": "A system error occurred.",

@@ -16,6 +16,9 @@ import {
   loginLockedMessage,
 } from "@/lib/auth/loginThrottle";
 import { isExpertReady, normalizeRole, resolveApprovalStatus } from "@/lib/auth/approvalGate";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { writeAdminAudit } from "@/lib/admin/adminAudit";
+import { resolveActorIsMainAdmin } from "@/lib/admin/accountSessionControls";
 
 export const runtime = "nodejs";
 
@@ -23,6 +26,22 @@ const NO_STORE = { "Cache-Control": "no-store" } as const;
 
 function json(body: Record<string, unknown>, status: number, extra?: Record<string, string>) {
   return NextResponse.json(body, { status, headers: { ...NO_STORE, ...(extra ?? {}) } });
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const ADMIN_PENDING_MESSAGE =
+  "Yönetici hesabınız başka bir cihazda açık. Bu giriş, mevcut oturumunuzdan onaylanana kadar bekliyor.";
+
+/** Admin oturum olayı audit'i (aktör = hesabın kendisi; token/IP/parola YOK). Fail-closed. */
+async function auditAdminSessionEvent(
+  db: SupabaseClient,
+  adminId: string,
+  action: "admin_web_login_pending" | "admin_mobile_login_rejected",
+  context: Record<string, unknown>,
+): Promise<void> {
+  const actorIsMainAdmin = await resolveActorIsMainAdmin(db, adminId);
+  await writeAdminAudit(db, { actorAdminId: adminId, action, targetUserId: adminId, actorIsMainAdmin, context });
 }
 
 /**
@@ -44,10 +63,15 @@ function json(body: Record<string, unknown>, status: number, extra?: Record<stri
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json().catch(() => null)) as
-      | { email?: unknown; password?: unknown }
+      | { email?: unknown; password?: unknown; replaceSessionToken?: unknown }
       | null;
     const email = typeof body?.email === "string" ? body.email : "";
     const password = typeof body?.password === "string" ? body.password : "";
+    // Aynı cihazdaki önceki token (yalnız aynı kullanıcıya aitse kapatılır; aksi halde etkisiz).
+    const replaceSessionToken =
+      typeof body?.replaceSessionToken === "string" && UUID_RE.test(body.replaceSessionToken.trim())
+        ? body.replaceSessionToken.trim()
+        : null;
 
     if (!email.trim() || !password.trim()) {
       // Credential yok → kimlik kanıtı yok. Token ÜRETİLMEZ.
@@ -103,10 +127,30 @@ export async function POST(req: NextRequest) {
     const location     = extractLocationFromHeaders(req.headers);
     const sessionToken = randomUUID();
 
-    const result = await createUserSession(db, row.id, location, sessionToken);
+    const result = await createUserSession(db, row.id, location, sessionToken, {
+      replaceToken: replaceSessionToken,
+    });
 
     // P3 reject-new: limit aşımında yeni oturum OLUŞTURULMAZ (mevcut oturumlar korunur).
     if (!result.ok) {
+      if (result.reason === "admin_mobile_active" || result.reason === "admin_web_limit") {
+        // Ret güvenli yönde; audit hatası yanıtı değiştirmez (iz security_events'te de var).
+        await auditAdminSessionEvent(db, String(row.id), result.reason === "admin_mobile_active"
+          ? "admin_mobile_login_rejected"
+          : "admin_web_login_pending", {
+          outcome: "rejected",
+          reason: result.reason,
+          platform: result.deviceType,
+        }).catch(() => {});
+        return json(
+          {
+            code: result.reason === "admin_mobile_active" ? "ADMIN_MOBILE_ACTIVE" : "ADMIN_WEB_LIMIT",
+            error: limitReasonMessage(result.reason, result.deviceType),
+            reason: result.reason,
+          },
+          409,
+        );
+      }
       return NextResponse.json(
         {
           code: "SESSION_LIMIT",
@@ -114,6 +158,35 @@ export async function POST(req: NextRequest) {
           reason: result.reason,
         },
         { status: 403, headers: NO_STORE },
+      );
+    }
+
+    if (result.state === "pending_approval") {
+      // Admin ikinci/riskli web girişi: token YALNIZ kendi durumunu sorgulayabilir; kullanıcı
+      // satırı/profil DÖNDÜRÜLMEZ. Audit fail-closed: yazılamazsa pending kapatılır → 500.
+      try {
+        await auditAdminSessionEvent(db, String(row.id), "admin_web_login_pending", {
+          outcome: "pending",
+          channel: result.channel,
+          high_risk: result.highRisk,
+          pending_ttl_minutes: 10,
+        });
+      } catch {
+        await db
+          .from("user_sessions")
+          .update({ ended_at: new Date().toISOString(), end_reason: "audit_failed" })
+          .eq("session_token", sessionToken)
+          .eq("session_state", "pending_approval");
+        return json({ code: "ERROR", error: "Oturum oluşturulamadı." }, 500);
+      }
+      return json(
+        {
+          code: "PENDING_APPROVAL",
+          pendingToken: sessionToken,
+          pendingExpiresAt: result.pendingExpiresAt,
+          error: ADMIN_PENDING_MESSAGE,
+        },
+        202,
       );
     }
 

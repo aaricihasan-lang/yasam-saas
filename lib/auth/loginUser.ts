@@ -1,4 +1,68 @@
-import { clearYasamUser } from "@/lib/auth/yasamUser";
+import { clearYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { ANDROID_APP_UA_SUFFIX, CLIENT_CHANNEL_HEADER } from "@/lib/auth/clientChannel";
+
+/** Onay bekleyen admin web girişinin token'ı (yalnız durum sorgusu; normal oturum anahtarına YAZILMAZ). */
+const PENDING_TOKEN_KEY = "yasam_pending_session_v1";
+
+export function readPendingLoginToken(): string | null {
+  try {
+    return sessionStorage.getItem(PENDING_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function savePendingLoginToken(token: string): void {
+  try {
+    sessionStorage.setItem(PENDING_TOKEN_KEY, token);
+  } catch {
+    /* depolama yoksa bekleme yalnız bu sayfa ömrü boyunca sürer */
+  }
+}
+
+export function clearPendingLoginToken(): void {
+  try {
+    sessionStorage.removeItem(PENDING_TOKEN_KEY);
+  } catch {
+    /* sessiz */
+  }
+}
+
+/** Resmi Android uygulaması (UA soneki) içindeysek giriş isteğine kanal ipucu eklenir. */
+function officialAppHeaders(): Record<string, string> {
+  if (typeof navigator === "undefined") return {};
+  return ANDROID_APP_UA_SUFFIX.test(navigator.userAgent) ? { [CLIENT_CHANNEL_HEADER]: "android" } : {};
+}
+
+export type PendingLoginStatus =
+  | { state: "pending"; pendingExpiresAt: string | null }
+  | { state: "approved"; row: Record<string, unknown> }
+  | { state: "denied" | "expired" | "invalid" }
+  | null;
+
+/** Bekleyen girişin durumu (ağ hatası → null; karar verilmez). */
+export async function checkPendingLogin(token: string, fetchImpl: typeof fetch = fetch): Promise<PendingLoginStatus> {
+  try {
+    const res = await fetchImpl("/api/auth/session/pending", {
+      method: "GET",
+      cache: "no-store",
+      headers: { "x-session-token": token },
+    });
+    if (!res.ok && res.status !== 400) return null;
+    const j = (await res.json().catch(() => ({}))) as { state?: string; user?: unknown; pendingExpiresAt?: unknown };
+    if (j.state === "pending") {
+      return { state: "pending", pendingExpiresAt: typeof j.pendingExpiresAt === "string" ? j.pendingExpiresAt : null };
+    }
+    if (j.state === "approved") {
+      const row = rpcLoginRowsToArray(j.user)[0];
+      return row ? { state: "approved", row } : { state: "invalid" };
+    }
+    if (j.state === "denied" || j.state === "expired") return { state: j.state };
+    return { state: "invalid" };
+  } catch {
+    return null;
+  }
+}
 
 /**
  * FAZ1 FINAL HARDENING — TEK LOGIN YOLU (istemci).
@@ -20,8 +84,12 @@ export type LoginAttemptResult =
       ok: false;
       /** HTTP durum kodu; ağ hatasında 0. */
       status: number;
-      /** Sunucu kodu: INVALID_CREDENTIALS | LOCKED | INACTIVE | PENDING | NO_ROLE | SESSION_LIMIT | ERROR | NETWORK */
+      /** Sunucu kodu: INVALID_CREDENTIALS | LOCKED | INACTIVE | PENDING | NO_ROLE | SESSION_LIMIT |
+       *  ADMIN_MOBILE_ACTIVE | ADMIN_WEB_LIMIT | PENDING_APPROVAL | ERROR | NETWORK */
       code: string;
+      /** PENDING_APPROVAL: yalnız durum sorgusu için token (normal oturum DEĞİL). */
+      pendingToken?: string | null;
+      pendingExpiresAt?: string | null;
       /** Sunucunun kullanıcıya gösterilebilir (genel) mesajı; yoksa null. */
       message: string | null;
       retryAfterSeconds: number | null;
@@ -56,7 +124,11 @@ export async function loginWithCredentials(
   password: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<LoginAttemptResult> {
+  // Aynı cihazdaki önceki token (aktif oturum veya bekleyen onay) — sunucu yalnız AYNI kullanıcıya
+  // aitse kapatır; böylece aynı tarayıcıdan yeniden giriş kendi kendine onay istemez.
+  const replaceSessionToken = readSessionToken() ?? readPendingLoginToken();
   clearYasamUser();
+  clearPendingLoginToken();
 
   const normalizedEmail = normalizeLoginEmail(email);
   const trimmedPassword = password.trim();
@@ -76,9 +148,13 @@ export async function loginWithCredentials(
   try {
     res = await fetchImpl("/api/auth/session", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...officialAppHeaders() },
       cache: "no-store",
-      body: JSON.stringify({ email: normalizedEmail, password: trimmedPassword }),
+      body: JSON.stringify({
+        email: normalizedEmail,
+        password: trimmedPassword,
+        ...(replaceSessionToken ? { replaceSessionToken } : {}),
+      }),
     });
   } catch {
     return {
@@ -99,7 +175,23 @@ export async function loginWithCredentials(
     code?: unknown;
     error?: unknown;
     retryAfter?: unknown;
+    pendingToken?: unknown;
+    pendingExpiresAt?: unknown;
   };
+
+  if (res.status === 202 && json.code === "PENDING_APPROVAL" && typeof json.pendingToken === "string") {
+    savePendingLoginToken(json.pendingToken);
+    return {
+      ok: false,
+      status: 202,
+      code: "PENDING_APPROVAL",
+      message: typeof json.error === "string" ? json.error : null,
+      retryAfterSeconds: null,
+      normalizedEmail,
+      pendingToken: json.pendingToken,
+      pendingExpiresAt: typeof json.pendingExpiresAt === "string" ? json.pendingExpiresAt : null,
+    };
+  }
 
   const row = rpcLoginRowsToArray(json.user)[0];
   if (res.ok && typeof json.sessionToken === "string" && json.sessionToken && row) {
