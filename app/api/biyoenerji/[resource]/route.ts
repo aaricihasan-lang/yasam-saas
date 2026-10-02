@@ -7,6 +7,8 @@ import {
 } from "@/lib/biyoenerji/resourceConfig";
 import { bioDbError } from "@/lib/biyoenerji/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
+import { readAllPaged } from "@/lib/db/readAllPaged";
+import { isUuid } from "@/lib/biyoenerji/uuid";
 
 export const runtime = "nodejs";
 
@@ -67,15 +69,22 @@ export async function GET(
   // Benzersiz kategori listesi (kategori filtresi açılır menüsü)
   if (url.searchParams.get("distinct") === "category") {
     if (!hasCategoryCol) return NextResponse.json({ ok: true, categories: [] });
-    const { data, error } = await db
-      .from(cfg.table)
-      .select("category")
-      .eq("tenant_id", tenantId)
-      .not("category", "is", null)
-      .limit(5000);
+    // BIO-19 — sayfalı okuma: önceki `.limit(5000)` PostgREST max-rows (1000) ile
+    // sessizce kesiliyor, 1000. satırdan sonraki kategoriler açılır listede görünmüyordu.
+    const { rows, error } = await readAllPaged<{ category?: string | null }>(
+      (from, to) =>
+        db
+          .from(cfg.table)
+          .select("category", { count: "exact" })
+          .eq("tenant_id", tenantId)
+          .not("category", "is", null)
+          .order("id", { ascending: true })
+          .range(from, to),
+      { pageSize: 1000, maxRows: 50_000 },
+    );
     if (error) return bioDbError(`${resource}.categories`, error, "Kategoriler getirilemedi.");
     const set = new Set<string>();
-    for (const r of (data ?? []) as { category?: string | null }[]) {
+    for (const r of rows) {
       const c = (r.category ?? "").trim();
       if (c) set.add(c);
     }
@@ -201,15 +210,39 @@ export async function DELETE(
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deleted: 0 });
   const usageSubEntity = BIO_USAGE_SUB_ENTITY[resource] ?? null;
 
-  let body: { ids?: unknown; all?: unknown };
+  let body: { ids?: unknown; all?: unknown; expectedCount?: unknown };
   try {
-    body = (await req.json()) as { ids?: unknown; all?: unknown };
+    body = (await req.json()) as { ids?: unknown; all?: unknown; expectedCount?: unknown };
   } catch {
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   // "Tümünü Sil" — bu tenant'ın tüm kayıtları
   if (body.all === true) {
+    // BIO-13 — yıkıcı kapsam doğrulaması: istemci, kullanıcının 3 aşamalı onayda gördüğü
+    // TOPLAM kayıt sayısını (expectedCount) göndermek ZORUNDA. Sunucudaki gerçek toplam
+    // farklıysa (ör. başka sekmede kayıt eklendi) hiçbir şey silinmez → 409.
+    const expected = body.expectedCount;
+    if (typeof expected !== "number" || !Number.isInteger(expected) || expected < 0) {
+      return NextResponse.json(
+        { ok: false, error: "Silme onayı doğrulanamadı. Lütfen sayfayı yenileyip tekrar deneyin." },
+        { status: 400 },
+      );
+    }
+    const { count: actual, error: countErr } = await db
+      .from(cfg.table)
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId);
+    if (countErr) return bioDbError(`${resource}.deleteAll.count`, countErr, "Kayıtlar silinemedi.");
+    if ((actual ?? 0) !== expected) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `Onaylanan kayıt sayısı (${expected}) güncel toplamla (${actual ?? 0}) uyuşmuyor; hiçbir kayıt silinmedi. Lütfen listeyi yenileyip tekrar deneyin.`,
+        },
+        { status: 409 },
+      );
+    }
     const { data, error } = await db
       .from(cfg.table)
       .delete()
@@ -230,7 +263,7 @@ export async function DELETE(
   // Seçilenleri sil
   if (Array.isArray(body.ids)) {
     const ids = body.ids
-      .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+      .filter((x): x is string => isUuid(x))
       .slice(0, 1000);
     if (ids.length === 0) return NextResponse.json({ ok: true, deleted: 0 });
     const { data, error } = await db

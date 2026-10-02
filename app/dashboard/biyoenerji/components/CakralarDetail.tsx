@@ -43,7 +43,14 @@ import ChakraBibliography from "./ChakraBibliography";
 import { BIOENERJI_FOLDER_BASE, findBiyoenerjiSection } from "../biyoenerjiFolderConfig";
 import BiyoenerjiBreadcrumb, { type BiyoenerjiCrumb } from "./BiyoenerjiBreadcrumb";
 import ChakraSectionNav from "./ChakraSectionNav";
-import { authHeaders, bioApiDelete, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
+import {
+  authHeaders,
+  bioApiDelete,
+  bioApiUpdate,
+  BIO_NETWORK_ERROR,
+  BIO_TIMEOUT_ERROR,
+} from "@/lib/biyoenerji/secureApi";
+import { BIO_REPORT_NETWORK_ERROR, bioReportErrorMessage } from "@/lib/biyoenerji/reportDownloadError";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
@@ -81,11 +88,11 @@ type ChakraForm = {
 // çıkar (bağırmadan); Sil destructive kimliğini korur ama baskın değildir; Word
 // sade. Mobilde 44px dokunma hedefi, masaüstünde kompakt.
 const tbBtn =
-  "inline-flex min-h-[44px] sm:min-h-[38px] items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 text-[13px] font-semibold text-slate-600 shadow-sm transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40";
+  "inline-flex min-h-[44px] sm:min-h-[44px] sm:min-h-[px] items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 text-[13px] font-semibold text-slate-600 shadow-sm transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40";
 const tbBtnPrimary =
-  "inline-flex min-h-[44px] sm:min-h-[38px] items-center justify-center gap-1.5 rounded-lg border border-violet-200/80 bg-violet-50 px-3 py-2 text-[13px] font-bold text-violet-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-100 disabled:opacity-40";
+  "inline-flex min-h-[44px] sm:min-h-[44px] sm:min-h-[px] items-center justify-center gap-1.5 rounded-lg border border-violet-200/80 bg-violet-50 px-3 py-2 text-[13px] font-bold text-violet-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-100 disabled:opacity-40";
 const tbBtnDanger =
-  "inline-flex min-h-[44px] sm:min-h-[38px] items-center justify-center gap-1.5 rounded-lg border border-rose-200/70 bg-white/90 px-3 py-2 text-[13px] font-semibold text-rose-600 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 disabled:opacity-40";
+  "inline-flex min-h-[44px] sm:min-h-[44px] sm:min-h-[px] items-center justify-center gap-1.5 rounded-lg border border-rose-200/70 bg-white/90 px-3 py-2 text-[13px] font-semibold text-rose-600 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 disabled:opacity-40";
 
 function trimOrEmpty(v: string) {
   return v.trim();
@@ -273,27 +280,6 @@ export default function CakralarDetail({ id }: { id: string }) {
   // Kayıtta blok yoksa boş → tüm mevcut kayıtlarda FAZ 3.1 davranışı DEĞİŞMEZ.
   const [blocks, setBlocks] = useState<ChakraContentBlock[]>([]);
 
-  const downloadWord = useCallback(async () => {
-    if (!record) return;
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId) return;
-    setWordBusy(true);
-    try {
-      const res = await fetch("/api/biyoenerji/chakra-report", {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ tenantId, userId: readYasamUser()?.id ?? "", exportMode: "single", chakraId: record.id }),
-      });
-      if (!res.ok) return;
-      const safe = (record.name || "cakra").toLowerCase()
-        .replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u")
-        .replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c")
-        .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-      await downloadFileResponse(res, `biyoenerji-cakra-${safe}-${reportFileDate()}.docx`);
-    } catch { /* sessiz */ } finally {
-      setWordBusy(false);
-    }
-  }, [record]);
   const [saving, setSaving] = useState(false);
   const saveLock = useSubmitLock();
   const [form, setForm] = useState<ChakraForm>({
@@ -326,6 +312,34 @@ export default function CakralarDetail({ id }: { id: string }) {
       setInfoError(text);
     }
   }, []);
+
+  const downloadWord = useCallback(async () => {
+    if (!record || wordBusy) return;
+    // Çift tık: busy, ilk await'ten ÖNCE kurulur.
+    setWordBusy(true);
+    try {
+      const tenantId = await getSyncedTenantId();
+      if (!tenantId) return;
+      const res = await fetch("/api/biyoenerji/chakra-report", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ tenantId, userId: readYasamUser()?.id ?? "", exportMode: "single", chakraId: record.id }),
+      });
+      if (!res.ok) {
+        setInfoError(await bioReportErrorMessage(res));
+        return;
+      }
+      const safe = (record.name || "cakra").toLowerCase()
+        .replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u")
+        .replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c")
+        .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+      await downloadFileResponse(res, `biyoenerji-cakra-${safe}-${reportFileDate()}.docx`);
+    } catch {
+      setInfoError(BIO_REPORT_NETWORK_ERROR);
+    } finally {
+      setWordBusy(false);
+    }
+  }, [record, wordBusy]);
 
   useEffect(() => {
     if (!infoSuccess && !infoError) return;
@@ -373,15 +387,18 @@ export default function CakralarDetail({ id }: { id: string }) {
 
       if (result.error) {
         setErrorMessage(`Kayıt okunamadı: ${result.error}`);
-        if (lastGoodRecordRef.current) setRecord(lastGoodRecordRef.current);
-        else setRecord(null);
+        // BIO-02 — yalnız geçici ağ hatasında son iyi kayıt korunur; erişim hatasında bayat kayıt gösterilmez.
+        const transient = result.error === BIO_NETWORK_ERROR || result.error === BIO_TIMEOUT_ERROR;
+        if (transient && lastGoodRecordRef.current) setRecord(lastGoodRecordRef.current);
+        else { lastGoodRecordRef.current = null; setRecord(null); }
         return;
       }
 
       if (!result.data) {
-        setErrorMessage("Kayıt bulunamadı.");
-        if (lastGoodRecordRef.current) setRecord(lastGoodRecordRef.current);
-        else setRecord(null);
+        // BIO-02 — 404: silinmiş / bu hesaba ait değil → bayat kayıt ekranda tutulmaz.
+        setErrorMessage("Kayıt bulunamadı veya bu hesaba ait değil.");
+        lastGoodRecordRef.current = null;
+        setRecord(null);
         return;
       }
 
@@ -552,10 +569,14 @@ export default function CakralarDetail({ id }: { id: string }) {
   }
 
   async function executeDelete() {
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId || !record) return;
-
+    if (!record || saving) return;
+    // Çift tık: busy, ilk await'ten ÖNCE kurulur (ikinci DELETE gitmez).
     setSaving(true);
+    const tenantId = await getSyncedTenantId();
+    if (!tenantId) {
+      setSaving(false);
+      return;
+    }
     const { error } = await bioApiDelete("chakras", record.id);
 
     setSaving(false);
@@ -826,6 +847,7 @@ export default function CakralarDetail({ id }: { id: string }) {
         </div>
 
         <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:shrink-0 sm:justify-end">
+          <div className="max-sm:[&_button]:min-h-[44px] max-sm:[&_button]:min-w-[44px]">
           <DogaltasFontSizeControl
             fontSizePx={fontSizePx}
             onDecrease={decreaseFontSize}
@@ -837,6 +859,7 @@ export default function CakralarDetail({ id }: { id: string }) {
             defaultFontSizePx={CHAKRAS_FONT_DEFAULT}
             compact
           />
+          </div>
           {!isDemo && (
             <>
               <div className="hidden h-6 w-px bg-slate-200 sm:block" aria-hidden />
@@ -1029,7 +1052,7 @@ export default function CakralarDetail({ id }: { id: string }) {
           deleteCounts === null
             ? "İçerik sayısı hesaplanıyor… Bu işlem geri alınamaz."
             : deleteCounts.total > 0
-              ? `Bu çakra ve ona bağlı ${deleteCounts.total} içerik/kaynak bloğu (${deleteCounts.visible} görünür + ${deleteCounts.evidence} kaynak-kanıt) KALICI olarak silinecek. Bu işlem geri alınamaz.`
+              ? `Bu çakra ve ona bağlı ${deleteCounts.total} içerik/kaynak bloğu (${deleteCounts.visible} görünür + ${deleteCounts.evidence} kaynak bilgisi) KALICI olarak silinecek. Bu işlem geri alınamaz.`
               : "Bu çakra kalıcı olarak silinecek. Bu işlem geri alınamaz."
         }
         busy={saving}

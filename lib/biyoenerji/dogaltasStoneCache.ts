@@ -12,6 +12,7 @@
  * (modül cache'i sıfırlanır) veya TTL dolunca güncellenir.
  */
 import type { ChakraMatchStone } from "@/lib/bioenergy/chakraStoneMatch";
+import { registerLogoutCleanup } from "@/lib/auth/logoutCleanup";
 
 const TTL_MS = 5 * 60 * 1000; // 5 dakika
 
@@ -39,3 +40,6 @@ export function setCachedDogaltasStones(
 export function clearDogaltasStoneCache(): void {
   entry = null;
 }
+
+// BIO-02 — çıkışta temizle (tenant anahtarına ek savunma katmanı).
+registerLogoutCleanup(clearDogaltasStoneCache);

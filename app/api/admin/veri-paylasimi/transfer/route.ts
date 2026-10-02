@@ -5,6 +5,8 @@ import { writeAdminAudit, AdminAuditError } from "@/lib/admin/adminAudit";
 import { OIL_COPY_FIELDS } from "@/lib/aromaterapi/oilFields";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/tenancy/syntheticTenants";
 import { remapJunctionRows } from "@/lib/admin/transferJunction";
+import { readAllPaged, chunkIds } from "@/lib/db/readAllPaged";
+import { readChildrenGrouped } from "@/lib/admin/transferPagedRead";
 import {
   CUPPING_POINT_COPY_FIELDS,
   CUPPING_PLACEMENT_COPY_FIELDS,
@@ -489,16 +491,41 @@ function buildReadQuery(
 ) {
   let q;
   if (cfg.sourceMode === "canonical_null") {
-    q = db.from(cfg.table).select("*").is("tenant_id", null);
+    q = db.from(cfg.table).select("*", { count: "exact" }).is("tenant_id", null);
   } else if (cfg.sourceMode === "admin_library") {
-    q = db.from(cfg.table).select("*").eq("tenant_id", ADMIN_LIBRARY_TENANT_ID);
+    q = db.from(cfg.table).select("*", { count: "exact" }).eq("tenant_id", ADMIN_LIBRARY_TENANT_ID);
   } else {
-    q = db.from(cfg.table).select("*").eq("tenant_id", sourceTenantId);
+    q = db.from(cfg.table).select("*", { count: "exact" }).eq("tenant_id", sourceTenantId);
   }
   if (cfg.matchColumn && cfg.matchValue != null) q = q.eq(cfg.matchColumn, cfg.matchValue);
   if (cfg.activeOnly) q = q.eq("is_active", true);
   if (filterIds && filterIds.length > 0) q = q.in("id", filterIds);
   return q;
+}
+
+/**
+ * BIO-01 — kaynak satırları EKSİKSİZ okur: deterministik `id` sıralı + sayfalı
+ * (readAllPaged) ve seçili id listesi URL-güvenli parçalara bölünür. PostgREST max-rows
+ * (1000) aşımında SESSİZ kesilme yoktur; okunan ≠ toplam → hata (grup "failed").
+ * (Tüm transfer tablolarının PK'si `id` — lib/backup/schema.generated.ts + migration'lar.)
+ */
+async function readSourceRows(
+  db: SupabaseClient,
+  cfg: GroupConfig,
+  sourceTenantId: string,
+  filterIds: string[] | undefined,
+): Promise<{ rows: Record<string, unknown>[]; error: unknown | null }> {
+  const parts: (string[] | undefined)[] =
+    filterIds && filterIds.length > 0 ? chunkIds(filterIds, 100) : [undefined];
+  const rows: Record<string, unknown>[] = [];
+  for (const part of parts) {
+    const r = await readAllPaged<Record<string, unknown>>((from, to) =>
+      buildReadQuery(db, cfg, sourceTenantId, part).order("id", { ascending: true }).range(from, to),
+    );
+    if (r.error) return { rows: [], error: r.error };
+    rows.push(...r.rows);
+  }
+  return { rows, error: null };
 }
 
 /** Kaynak satırdan hedef kopya payload'u üretir (strip/copyFields + provenance). */
@@ -564,10 +591,8 @@ async function cloneFlatGroup(
   nowIso: string,
   filterIds: string[] | undefined,
 ): Promise<{ requested: number; inserted: number }> {
-  const { data, error } = await buildReadQuery(db, cfg, sourceTenantId, filterIds);
+  const { rows, error } = await readSourceRows(db, cfg, sourceTenantId, filterIds);
   if (error) throw new TransferError("read", group);
-
-  const rows = (data ?? []) as Record<string, unknown>[];
   if (rows.length === 0) return { requested: 0, inserted: 0 };
 
   const payloads: Record<string, unknown>[] = [];
@@ -649,9 +674,8 @@ async function cloneRelationalGroup(
   const childFk = cfg.childParentFk!;
 
   // 1) Kaynak parent'ları oku.
-  const { data: pData, error: pErr } = await buildReadQuery(db, cfg, sourceTenantId, filterIds);
+  const { rows: parents, error: pErr } = await readSourceRows(db, cfg, sourceTenantId, filterIds);
   if (pErr) throw new TransferError("read", group);
-  const parents = (pData ?? []) as Record<string, unknown>[];
   if (parents.length === 0) return { requested: 0, inserted: 0 };
 
   const sourceParentIds = parents
@@ -664,24 +688,12 @@ async function cloneRelationalGroup(
   //    child YOK kabul edilir → parent-only kopya TAM ve doğrudur (taşınacak rich veri
   //    zaten mevcut değildir). Yalnız GERÇEK okuma hatası (tablo var ama patladı) unit'i
   //    düşürür. Böylece "child var ama fail" ≠ "child tablosu yok".
-  const childrenByParent = new Map<string, Record<string, unknown>[]>();
-  if (sourceParentIds.length > 0) {
-    const { data: cData, error: cErr } = await db
-      .from(childTable)
-      .select("*")
-      .in(childFk, sourceParentIds);
-    if (cErr) {
-      if (!isMissingTableError(cErr)) throw new TransferError("read", group);
-      // tablo dormant → child'sız devam (parent-only tam sonuç)
-    } else {
-      for (const c of (cData ?? []) as Record<string, unknown>[]) {
-        const pid = String(c[childFk] ?? "");
-        const arr = childrenByParent.get(pid) ?? [];
-        arr.push(c);
-        childrenByParent.set(pid, arr);
-      }
-    }
-  }
+  // BIO-01 — child'lar parçalı + deterministik sıralı + sayfalı + sayım-doğrulamalı okunur
+  // (lib/admin/transferPagedRead). Önceden tek limitsiz sorgu PostgREST max-rows'ta (1000)
+  // child'ları SESSİZCE kesiyordu. Tablo dormant ise child'sız tam parent kopyası (mevcut kural).
+  const childRead = await readChildrenGrouped(db, childTable, childFk, sourceParentIds, isMissingTableError);
+  if (!childRead.ok) throw new TransferError("read", group);
+  const childrenByParent = childRead.childrenByParent;
 
   let requested = 0;
   let inserted = 0;
@@ -749,13 +761,18 @@ async function buildBatchIdMap(
   batchId: string,
 ): Promise<Map<string, string>> {
   const map = new Map<string, string>();
-  const { data, error } = await db
-    .from(viaTable)
-    .select("id, origin_source_id")
-    .eq("tenant_id", targetTenantId)
-    .eq("origin_transfer_batch_id", batchId);
+  // BIO-01 — sayfalı okuma (1000+ parent'ta harita sessizce eksik kalmasın).
+  const { rows, error } = await readAllPaged<{ id: unknown; origin_source_id: unknown }>((from, to) =>
+    db
+      .from(viaTable)
+      .select("id, origin_source_id", { count: "exact" })
+      .eq("tenant_id", targetTenantId)
+      .eq("origin_transfer_batch_id", batchId)
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
   if (error) return map; // harita boş → ilişkiler güvenle atlanır (dangling üretilmez)
-  for (const row of (data ?? []) as { id: unknown; origin_source_id: unknown }[]) {
+  for (const row of rows) {
     if (typeof row.id === "string" && typeof row.origin_source_id === "string") {
       map.set(row.origin_source_id, row.id);
     }
@@ -782,9 +799,8 @@ async function cloneJunctionGroup(
   nowIso: string,
   filterIds: string[] | undefined,
 ): Promise<{ requested: number; inserted: number }> {
-  const { data, error } = await buildReadQuery(db, cfg, sourceTenantId, filterIds);
+  const { rows, error } = await readSourceRows(db, cfg, sourceTenantId, filterIds);
   if (error) throw new TransferError("read", group);
-  const rows = (data ?? []) as Record<string, unknown>[];
   if (rows.length === 0) return { requested: 0, inserted: 0 };
 
   // İki parent grubun bu batch'teki kaynak→hedef id haritaları (provenance readback).

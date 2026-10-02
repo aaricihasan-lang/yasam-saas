@@ -167,7 +167,7 @@ export const sectionShellClass =
   "rounded-2xl border border-cyan-200/40 bg-white/78 p-4 shadow-[0_0_30px_rgba(34,211,238,0.09)] backdrop-blur-xl sm:p-5";
 
 export const newRecordBtnClass =
-  "inline-flex min-h-[40px] shrink-0 items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-violet-500 to-cyan-500 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md lg:min-h-0";
+  "inline-flex min-h-[44px] shrink-0 items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-violet-500 to-cyan-500 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md lg:min-h-0";
 
 /** Tek kaynaklı arama input'u — mor odak, modül geneli (referans tasarım diliyle hizalı) */
 export const bioSearchInputClass =

@@ -59,7 +59,7 @@ export default function ChakraV4Content({ block }: { block: ChakraContentBlock }
     if (heading) {
       flushBullets();
       nodes.push(
-        <p key={`h-${key++}`} className="mt-1 text-[13.5px] font-bold text-slate-800">
+        <p key={`h-${key++}`} className="mt-1 break-words text-[13.5px] font-bold text-slate-800 [overflow-wrap:anywhere]">
           {renderInline(heading[1] ?? "")}
         </p>,
       );
@@ -68,7 +68,7 @@ export default function ChakraV4Content({ block }: { block: ChakraContentBlock }
     if (line.startsWith("- ")) { bullets.push(line.slice(2).trim()); continue; }
     flushBullets();
     nodes.push(
-      <p key={`p-${key++}`} className="max-w-4xl text-[13.5px] leading-relaxed text-slate-700">
+      <p key={`p-${key++}`} className="max-w-4xl break-words text-[13.5px] leading-relaxed text-slate-700 [overflow-wrap:anywhere]">
         {renderInline(line)}
       </p>,
     );

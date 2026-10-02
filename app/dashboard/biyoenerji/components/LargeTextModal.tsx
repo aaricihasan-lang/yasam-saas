@@ -11,6 +11,8 @@ import {
 import { createPortal } from "react-dom";
 import { useModalFocusTrap } from "@/lib/biyoenerji/useModalFocusTrap";
 import { useUnsavedChangesWarning } from "@/lib/biyoenerji/useDirtyGuard";
+import { useModalLayer } from "@/lib/biyoenerji/modalLayer";
+import { useHistoryBackGuard } from "@/lib/biyoenerji/historyBackGuard";
 
 /** Sayfa içi sabit küçük textarea; tıklanınca ortada LargeTextModal açılır */
 export function LongTextareaField({
@@ -130,9 +132,33 @@ export function LargeTextModal({
     }
   }, [isDirty, onDismiss]);
 
+  // BIO-03 — Escape yalnız en üstteki katmana ait: bu editör açıkken alttaki form
+  // modalı Esc'i işlemez (tek Esc iki modalı birden kapatıp metni kaybettirmez).
+  const isTopLayer = useModalLayer(open);
+
+  // BIO-07 — geri tuşu: kirli metinde onay; temizse yalnız bu editörü kapat.
+  const { release: releaseBackGuard } = useHistoryBackGuard(
+    open,
+    ({ stay }) => {
+      if (isDirty) {
+        stay();
+        setAskDiscard(true);
+      } else {
+        onDismiss();
+      }
+    },
+    { autoContinueWhenDisarmed: true },
+  );
+  const wasOpenRef = useRef(open);
+  useEffect(() => {
+    if (wasOpenRef.current && !open) releaseBackGuard();
+    wasOpenRef.current = open;
+  }, [open, releaseBackGuard]);
+
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      if (!isTopLayer()) return;
       // Onay katmanı açıksa Escape onu kapatır (düzenlemeye geri dön).
       if (askDiscard) {
         setAskDiscard(false);
@@ -140,7 +166,7 @@ export function LargeTextModal({
       }
       requestDismiss();
     },
-    [askDiscard, requestDismiss],
+    [askDiscard, requestDismiss, isTopLayer],
   );
 
   useEffect(() => {

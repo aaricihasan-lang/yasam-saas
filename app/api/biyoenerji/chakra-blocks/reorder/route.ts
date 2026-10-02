@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { validateReorderInput } from "@/lib/bioenergy/chakraBlockCrud";
+import { isUuid } from "@/lib/biyoenerji/uuid";
 
 export const runtime = "nodejs";
 
@@ -35,6 +36,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
   const chakraId = typeof body["chakraId"] === "string" ? (body["chakraId"] as string).trim() : "";
   if (!chakraId) return NextResponse.json({ ok: false, error: "chakraId gerekli." }, { status: 400 });
+  if (!isUuid(chakraId)) return NextResponse.json({ ok: false, error: "Kayıt bu hesaba ait değil." }, { status: 404 });
 
   const v = validateReorderInput(body);
   if (!v.ok) return NextResponse.json({ ok: false, error: v.error }, { status: v.status });
@@ -59,11 +61,11 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   for (const it of v.items) {
     const { data, error } = await db
       .from("bioenergy_chakra_blocks")
-      .update({ sort_order: it.sort_order })
+      .update({ sort_order: it.sort_order, updated_at: new Date().toISOString() })
       .eq("id", it.id)
       .eq("tenant_id", tenantId)
       .eq("chakra_id", chakraId)
-      .neq("block_type", SOURCE_EVIDENCE)
+      .or(`block_type.is.null,block_type.neq.${SOURCE_EVIDENCE}`) // BIO-18: NULL tip (legacy) de sıralanabilir
       .select("id");
     if (error) {
       console.error("[chakra-blocks/reorder] update:", error.message);

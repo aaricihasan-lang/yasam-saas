@@ -230,6 +230,7 @@ export default function EnerjiBedenleri() {
   const [lastCreatedAt, setLastCreatedAt] = useState<string | null>(null);
   const lastCreatedAtRef = useRef<string | null>(null);
   useEffect(() => { lastCreatedAtRef.current = lastCreatedAt; }, [lastCreatedAt]);
+  const detailPanelRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<EnergyBodyForm>({ ...emptyForm });
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -406,6 +407,11 @@ export default function EnerjiBedenleri() {
     setFormModalOpen(false);
     setInfoError("");
     setInfoSuccess("");
+    // BIO-14 — detay paneli listenin altına yığıldığında (< lg) görünür alana getir.
+    const el = detailPanelRef.current;
+    if (el && typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
+      window.requestAnimationFrame(() => el.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
   }
 
   function resetFormSelection() {
@@ -593,7 +599,7 @@ export default function EnerjiBedenleri() {
 
   async function handleDeleteAll() {
     setIsBulkDeleting(true);
-    const { error } = await bioApiDeleteAll("energy-bodies");
+    const { error } = await bioApiDeleteAll("energy-bodies", totalInDb);
     setIsBulkDeleting(false);
     setDanger((d) => ({ ...d, open: false }));
     if (error) {
@@ -753,6 +759,7 @@ export default function EnerjiBedenleri() {
                       >
                         <input
                           type="checkbox"
+                          aria-label="Bu kaydı seç"
                           checked={isExportSelected}
                           onChange={() => setSelectedForExport((prev) => {
                             const next = new Set(prev);
@@ -798,7 +805,7 @@ export default function EnerjiBedenleri() {
           ) : null}
         </div>
 
-        <div className={detailPanelClass}>
+        <div ref={detailPanelRef} className={`${detailPanelClass} scroll-mt-20`} aria-live="polite">
           {selectedRow ? (
             <>
               <div className="flex flex-col gap-3 border-b border-cyan-100/60 pb-3 sm:flex-row sm:items-start sm:justify-between">
@@ -900,12 +907,12 @@ export default function EnerjiBedenleri() {
         subtitle="Kaydettikten sonra panel kapanır ve liste yenilenir."
         titleId="energy-body-form-modal-title"
         accentRingClass="ring-cyan-100/50"
-        footer={
+        footer={({ requestClose }) => (
           <>
             <button
               type="button"
               disabled={saving}
-              onClick={closeFormModal}
+              onClick={requestClose}
               className="rounded-xl border border-slate-200/85 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
               Vazgeç
@@ -938,7 +945,7 @@ export default function EnerjiBedenleri() {
               </button>
             )}
           </>
-        }
+        )}
       >
         <div className="space-y-5">
           <label className="block">
@@ -1036,6 +1043,7 @@ export default function EnerjiBedenleri() {
 
       <BiyoenerjiDangerDeleteModal
         open={danger.open}
+        scope={{ filterActive: Boolean(debouncedSearch.trim()), visibleCount: searchResultCount }}
         mode={danger.mode}
         count={danger.mode === "all" ? totalInDb : selectedVisibleRows.length}
         names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => (r.source_uid?.trim() || "İsimsiz kayıt"))}

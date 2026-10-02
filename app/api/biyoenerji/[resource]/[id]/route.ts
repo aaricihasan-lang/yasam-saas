@@ -3,6 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { getBioResource, validateBioFields } from "@/lib/biyoenerji/resourceConfig";
 import { bioDbError } from "@/lib/biyoenerji/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
+import { isUuid } from "@/lib/biyoenerji/uuid";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,7 @@ export async function GET(
   const cfg = getBioResource(resource);
   if (!cfg) return NextResponse.json({ ok: false, error: "Geçersiz kaynak." }, { status: 404 });
   if (!id) return NextResponse.json({ ok: false, error: "id gerekli." }, { status: 400 });
+  if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
 
   const { db, tenantId } = guard;
   const { data, error } = await db
@@ -64,6 +66,7 @@ export async function PATCH(
   const cfg = getBioResource(resource);
   if (!cfg) return NextResponse.json({ ok: false, error: "Geçersiz kaynak." }, { status: 404 });
   if (!id) return NextResponse.json({ ok: false, error: "id gerekli." }, { status: 400 });
+  if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true, row: null });
@@ -110,6 +113,7 @@ export async function DELETE(
   const cfg = getBioResource(resource);
   if (!cfg) return NextResponse.json({ ok: false, error: "Geçersiz kaynak." }, { status: 404 });
   if (!id) return NextResponse.json({ ok: false, error: "id gerekli." }, { status: 400 });
+  if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });

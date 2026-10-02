@@ -5,6 +5,11 @@ import { createPortal } from "react-dom";
 import { runInEffect } from "@/lib/runInEffect";
 import { useModalFocusTrap } from "@/lib/biyoenerji/useModalFocusTrap";
 import { useUnsavedChangesWarning } from "@/lib/biyoenerji/useDirtyGuard";
+import { useModalLayer } from "@/lib/biyoenerji/modalLayer";
+import { useHistoryBackGuard } from "@/lib/biyoenerji/historyBackGuard";
+
+/** BIO-07 — footer'daki "Vazgeç" gibi butonlar bu API ile korumalı kapanışı kullanır. */
+export type BiyoenerjiCrudFormModalApi = { requestClose: () => void };
 
 type BiyoenerjiCrudFormModalProps = {
   open: boolean;
@@ -20,7 +25,11 @@ type BiyoenerjiCrudFormModalProps = {
    */
   isDirty?: boolean;
   children: ReactNode;
-  footer: ReactNode;
+  /**
+   * Footer içeriği. Fonksiyon verilirse `requestClose` alır: footer "Vazgeç" bununla
+   * kapatırsa dirty-guard (×/Esc/backdrop ile aynı) devreye girer (BIO-07).
+   */
+  footer: ReactNode | ((api: BiyoenerjiCrudFormModalApi) => ReactNode);
 };
 
 /**
@@ -62,6 +71,9 @@ export function BiyoenerjiCrudFormModal({
   // BIO-015 — yalnız kaydedilmemiş değişiklik varken sayfa kapatma/refresh uyarısı.
   useUnsavedChangesWarning(open && isDirty);
 
+  // BIO-03 — iç içe modallarda Escape yalnız EN ÜSTTEKİ katmana ait.
+  const isTopLayer = useModalLayer(open);
+
   // Çıkış talebi: dirty ise önce onay, temizse doğrudan kapan.
   const requestClose = useCallback(() => {
     if (isDirty) {
@@ -71,16 +83,38 @@ export function BiyoenerjiCrudFormModal({
     }
   }, [isDirty, onClose]);
 
+  // BIO-07 — tarayıcı/Android geri tuşu: modal açıkken geri = modalı kapatma isteği.
+  // Kirli formda kapanmaz; onay gösterilir ve koruma yeniden kurulur.
+  const { release: releaseBackGuard } = useHistoryBackGuard(
+    open,
+    ({ stay }) => {
+      if (isDirty) {
+        stay();
+        setAskDiscard(true);
+      } else {
+        onClose();
+      }
+    },
+    { autoContinueWhenDisarmed: true },
+  );
+  // Modal başka yoldan (Kaydet/×/Vazgeç) kapanınca koruma girdisini geri al.
+  const wasOpenRef = useRef(open);
+  useEffect(() => {
+    if (wasOpenRef.current && !open) releaseBackGuard();
+    wasOpenRef.current = open;
+  }, [open, releaseBackGuard]);
+
   const onEscape = useCallback(
     (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      if (!isTopLayer()) return;
       if (askDiscard) {
         setAskDiscard(false);
         return;
       }
       requestClose();
     },
-    [askDiscard, requestClose],
+    [askDiscard, requestClose, isTopLayer],
   );
 
   useEffect(() => {
@@ -137,7 +171,9 @@ export function BiyoenerjiCrudFormModal({
         </div>
 
         <div className="shrink-0 border-t border-slate-200/70 bg-white/45 px-4 py-3.5 backdrop-blur-sm sm:px-6 sm:py-4">
-          <div className="flex flex-wrap items-center justify-end gap-2">{footer}</div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {typeof footer === "function" ? footer({ requestClose }) : footer}
+          </div>
         </div>
 
         {/* BIO-004 — kaydedilmemiş değişiklik çıkış onayı */}

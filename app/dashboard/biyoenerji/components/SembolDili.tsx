@@ -422,7 +422,7 @@ export default function SembolDili() {
 
   async function handleDeleteAll() {
     setIsBulkDeleting(true);
-    const { error } = await bioApiDeleteAll("symbols");
+    const { error } = await bioApiDeleteAll("symbols", totalInDb);
     setIsBulkDeleting(false);
     setDanger((d) => ({ ...d, open: false }));
     if (error) {
@@ -454,7 +454,7 @@ export default function SembolDili() {
       )}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         {!isDemo && (
-          <button type="button" onClick={() => setFormModalOpen(true)} className={newRecordBtnClass}>
+          <button type="button" onClick={() => { setForm({ ...emptyForm }); setFormModalOpen(true); }} className={newRecordBtnClass}>
             + Yeni Kayıt
           </button>
         )}
@@ -490,7 +490,7 @@ export default function SembolDili() {
             type="search"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Sembol adı, kategori, anlam ve bilinçaltı mesajı içinde ara..."
+            placeholder="Sembol adı, kategori, anlam ve kaynak içinde ara..."
             className={bioSearchInputClass}
           />
           {listBusy ? (
@@ -593,10 +593,11 @@ export default function SembolDili() {
                   {!isDemo && (
                     <label
                       className="absolute right-1 top-1 z-20 flex h-11 w-11 cursor-pointer items-center justify-center lg:right-3 lg:top-3 lg:h-5 lg:w-5"
-                      onClick={(e) => e.preventDefault()}
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <input
                         type="checkbox"
+                        aria-label="Bu kaydı seç"
                         checked={isExportSelected}
                         onChange={() => setSelectedForExport((prev) => {
                           const next = new Set(prev);
@@ -671,12 +672,12 @@ export default function SembolDili() {
         subtitle="Kaydettikten sonra kütüphanede görünür."
         titleId="symbol-form-modal-title"
         accentRingClass="ring-emerald-100/50"
-        footer={
+        footer={({ requestClose }) => (
           <>
             <button
               type="button"
               disabled={saving}
-              onClick={() => setFormModalOpen(false)}
+              onClick={requestClose}
               className="rounded-xl border border-slate-200/85 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
               Vazgeç
@@ -698,7 +699,7 @@ export default function SembolDili() {
               {saving ? "Kaydediliyor…" : "Kaydet"}
             </button>
           </>
-        }
+        )}
       >
         <div className="space-y-5">
           <label className="block">
@@ -729,12 +730,6 @@ export default function SembolDili() {
             className="w-full resize-none rounded-xl border border-cyan-100/80 bg-white/90 p-3.5 text-[13px] leading-relaxed ring-1 ring-cyan-100/50"
             disabled={saving}
           />
-          <div className="rounded-xl border border-dashed border-violet-200/90 bg-violet-50/50 px-3.5 py-3">
-            <p className="text-[12px] font-black text-violet-900">Bilinçaltı mesajı</p>
-            <p className="mt-1 text-[11px] font-semibold leading-relaxed text-violet-800/90">
-              Bu alan veritabanında saklanmıyor. Detay için &quot;Anlam&quot; alanını kullanın.
-            </p>
-          </div>
           <label className="block">
             <span className="mb-2 block text-[12px] font-black text-slate-800">Kaynak</span>
             <input
@@ -748,6 +743,7 @@ export default function SembolDili() {
 
       <BiyoenerjiDangerDeleteModal
         open={danger.open}
+        scope={{ filterActive: Boolean(debouncedSearch.trim() || categoryFilter), visibleCount: searchResultCount }}
         mode={danger.mode}
         count={danger.mode === "all" ? totalInDb : selectedVisibleRows.length}
         names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => symbolDisplayName(r))}

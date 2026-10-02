@@ -3,6 +3,24 @@ import { Fragment, type ReactNode } from "react";
 
 /** "Mineral sınıfı:" gibi etiket satırları */
 const LABEL_LINE_RE = /^([^:\n]{2,72}):\s*(.*)$/u;
+
+/**
+ * BIO-15 — etiket satırı tespiti; iki YANLIŞ-POZİTİF dışlanır (Doğaltaş dahil tüm
+ * çağıranlar için düzeltme, başka davranış değişmez):
+ *   1) URL şeması: "https://…" → "https" etiket DEĞİL (önceden "**https:** //…" basılıyordu)
+ *   2) Saat / oran: "Saat 10:30", "1:2" → rakamla biten etiket + rakamla başlayan değer
+ *      ayrılmaz (önceden "**Saat 10:** 30" basılıyordu)
+ * "Mineral sınıfı: Silikat", "Renk:Mor", "Sertlik (Mohs): 7" gibi satırlar AYNEN etikettir.
+ */
+export function matchLabelLine(line: string): { label: string; rest: string } | null {
+  const m = line.match(LABEL_LINE_RE);
+  if (!m) return null;
+  const label = m[1];
+  const afterColon = line.slice(label.length + 1);
+  if (afterColon.startsWith("//")) return null;
+  if (/\d$/.test(label) && /^\d/.test(afterColon)) return null;
+  return { label, rest: m[2] };
+}
 const LIST_ITEM_RE = /^\s*(?:[-•·–—]|\d+[.)])\s+(.+)$/;
 const SECTION_HEADER_RE =
   /^(?:[A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜ0-9\s/&().,'-]{2,58}|[A-ZÇĞİÖŞÜ]{4,})$/u;
@@ -69,11 +87,11 @@ function renderInlineSegment(
   const trimmed = text.trim();
   if (!trimmed) return null;
 
-  const labelMatch = trimmed.match(LABEL_LINE_RE);
+  const labelMatch = matchLabelLine(trimmed);
   if (labelMatch) {
-    const [, label, rest] = labelMatch;
+    const { label, rest } = labelMatch;
     return (
-      <p key={key} className="text-slate-700">
+      <p key={key} className="break-words text-slate-700 [overflow-wrap:anywhere]">
         <span className="font-bold text-slate-900">{label}:</span>
         {rest ? (
           <>
@@ -86,7 +104,7 @@ function renderInlineSegment(
   }
 
   return (
-    <p key={key} className="text-slate-700">
+    <p key={key} className="break-words text-slate-700 [overflow-wrap:anywhere]">
       {renderSegment(trimmed, key)}
     </p>
   );
@@ -112,7 +130,7 @@ function renderListItems(
             style={{ marginTop: bulletTop }}
             aria-hidden
           />
-          <span className="min-w-0 flex-1">{renderSegment(item, `${keyPrefix}-li-${index}`)}</span>
+          <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">{renderSegment(item, `${keyPrefix}-li-${index}`)}</span>
         </li>
       ))}
     </ul>
@@ -157,7 +175,7 @@ function renderBlock(
       return (
         <h3
           key={key}
-          className="border-l-4 border-violet-500 bg-violet-50/60 py-1.5 pl-4 text-xl font-semibold tracking-tight text-violet-950"
+          className="break-words border-l-4 border-violet-500 bg-violet-50/60 py-1.5 pl-4 text-xl font-semibold tracking-tight text-violet-950 [overflow-wrap:anywhere]"
         >
           {renderSegment(line, `${key}-h`)}
         </h3>
@@ -199,7 +217,7 @@ function renderBlock(
       nodes.push(
         <h3
           key={lineKey}
-          className="border-l-4 border-violet-500 bg-violet-50/60 py-1.5 pl-4 text-xl font-semibold tracking-tight text-violet-950"
+          className="break-words border-l-4 border-violet-500 bg-violet-50/60 py-1.5 pl-4 text-xl font-semibold tracking-tight text-violet-950 [overflow-wrap:anywhere]"
         >
           {renderSegment(line, lineKey)}
         </h3>,
@@ -216,7 +234,7 @@ function renderBlock(
             style={{ marginTop: bulletTop }}
             aria-hidden
           />
-          <span className="min-w-0 flex-1">{renderSegment(listMatch[1], `${lineKey}-t`)}</span>
+          <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">{renderSegment(listMatch[1], `${lineKey}-t`)}</span>
         </div>,
       );
       return;
