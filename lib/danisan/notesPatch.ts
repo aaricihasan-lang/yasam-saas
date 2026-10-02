@@ -7,7 +7,9 @@
  *  - Sunucu yalnız gövdede GERÇEKTEN bulunan alanları yazar (`k in body`).
  *  - `notlar_version = sha256(notlar ?? "")` GET/PATCH yanıtlarında döner.
  *  - İstemci `notlar` yazarken `base_version` gönderir; uyuşmazsa 409.
- *  - Yazım atomik koşulludur (`notlar` hâlâ okunan değerse) — arada değişim → 409.
+ *  - Yazım atomik koşulludur (`sha256(notlar)` hâlâ base_version ise) — arada değişim → 409.
+ *    DY-01: koşul SQL'de (RPC) değerlendirilir; not METNİ hiçbir zaman URL'e konmaz
+ *    (eski `.eq("notlar", tamMetin)` ~8.5K karakterde ağ geçidine takılıyordu).
  *  - `base_version` GÖNDERMEYEN eski istemci geçiş süresince kabul edilir (CAS'sız).
  *
  * Saf modül (node:crypto dışında bağımlılık yok) → route ve harness ortak kullanır.
@@ -82,6 +84,56 @@ export type ApplyNotesResult =
 
 const UNIQUE_VIOLATION = "23505";
 
+/** Atomik CAS'ı SQL'de yapan RPC (migration 20271002000000). */
+export const NOTES_CAS_RPC = "client_notes_cas_update";
+
+function isMissingRpc(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | null;
+  if (!e) return false;
+  if (e.code === "PGRST202" || e.code === "42883") return true;
+  return typeof e.message === "string" && e.message.includes(NOTES_CAS_RPC) && /could not find|does not exist/i.test(e.message);
+}
+
+/**
+ * Var olan client_notes satırını alan-bazlı günceller.
+ *
+ * DY-01: `notlar` CAS koşulu artık not METNİNİ URL'e koymaz. Birincil yol, karşılaştırmayı
+ * `sha256(notlar)` ile SQL'de yapan tek-ifadelik RPC'dir (atomik; içerik JSON gövdede).
+ * RPC yoksa (migration henüz uygulanmamış) geri düşüş: id/tenant/client filtresiyle
+ * güncelleme — sürüm az önce okunan satırla sunucuda doğrulandı (decideNotesWrite), iki
+ * sekme çakışması yine 409 olur; yalnız milisaniyelik okuma→yazma penceresi atomik değildir.
+ */
+async function updateNotesRow(
+  db: SupabaseClient,
+  tenantId: string,
+  clientId: string,
+  noteId: string,
+  fields: NoteFields,
+  expectedVersion: string | null,
+  currentRaw: string | null,
+): Promise<{ rows: NoteRow[]; error: unknown }> {
+  const rpc = await db.rpc(NOTES_CAS_RPC, {
+    p_tenant_id: tenantId,
+    p_client_id: clientId,
+    p_note_id: noteId,
+    p_expected_sha256: expectedVersion,
+    p_fields: fields,
+  });
+  if (!rpc.error) return { rows: ((rpc.data ?? []) as NoteRow[]), error: null };
+  if (!isMissingRpc(rpc.error)) return { rows: [], error: rpc.error };
+
+  let q = db
+    .from("client_notes")
+    .update(fields)
+    .eq("id", noteId)
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId);
+  // İçerik taşımayan tek koşul: okunan değer boşsa hâlâ boş olmalı. Dolu metin URL'e KONMAZ.
+  if (expectedVersion !== null && currentRaw === null) q = q.is("notlar", null);
+  const { data, error } = await q.select();
+  return { rows: ((data ?? []) as NoteRow[]), error };
+}
+
 /**
  * Alan-bazlı, CAS korumalı yazım (en çok 2 deneme: ekleme yarışında 23505 →
  * mevcut satır üzerinden güncelleme). tenant_id + client_id her sorguda zorunlu.
@@ -112,19 +164,10 @@ export async function applyNotesPatch(
     }
 
     if (row?.id) {
-      let q = db
-        .from("client_notes")
-        .update(fields)
-        .eq("id", row.id)
-        .eq("tenant_id", tenantId)
-        .eq("client_id", clientId);
-      // Atomik koşul: yalnız CAS'lı notlar yazımında okunan değer hâlâ geçerliyse yaz.
-      if (writesNotlar && baseVersion !== null) {
-        q = currentRaw === null ? q.is("notlar", null) : q.eq("notlar", currentRaw);
-      }
-      const { data: updated, error: updErr } = await q.select();
-      if (updErr) return { kind: "error", cause: updErr };
-      const list = (updated ?? []) as NoteRow[];
+      const expected = writesNotlar && baseVersion !== null ? baseVersion : null;
+      const upd = await updateNotesRow(db, tenantId, clientId, row.id, fields, expected, currentRaw);
+      if (upd.error) return { kind: "error", cause: upd.error };
+      const list = upd.rows;
       if (list.length === 0) {
         // Okuma ile yazma arasında notlar değişti → çakışma; güncel satırı döndür.
         const { data: fresh } = await db
