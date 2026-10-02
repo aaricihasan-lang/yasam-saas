@@ -297,12 +297,19 @@ async function sendNoteChunk(
   return { kind: ok ? "ok" : "http-error", results, conflicts, rejected };
 }
 
-const NOTES_REQUEST_TIMEOUT_MS = 30_000;
+/**
+ * Askıda kalan istek senkron zincirini kilitlemesin (zaman aşımı → ağ hatası) AMA yavaş
+ * bağlantıdaki meşru büyük yüklemeyi de kesmesin: taban 30 sn + gövdenin her 32 KB'ı için
+ * 1 sn (≈4 MB ek → ~155 sn ≈ 26 KB/s'ye kadar yavaş bağlantı tolere edilir).
+ */
+function notesRequestTimeoutMs(body: BodyInit | null | undefined): number {
+  const bytes = typeof body === "string" ? body.length : 0;
+  return 30_000 + Math.ceil(bytes / 32_768) * 1_000;
+}
 
-/** Askıda kalan istek senkron zincirini kilitlemesin (zaman aşımı → ağ hatası). */
 async function fetchNotesWithTimeout(url: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), NOTES_REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), notesRequestTimeoutMs(init.body));
   try {
     return await fetch(url, { ...init, signal: controller.signal });
   } finally {

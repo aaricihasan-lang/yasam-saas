@@ -424,11 +424,13 @@ function isTimeoutError(err: unknown): boolean {
 /** RF-08: askıda kalan istek zinciri kilitlemesin — zaman aşımında TimeoutError. */
 async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController();
+  // Büyük atlas gövdesi yavaş bağlantıda meşru olarak uzun sürebilir: her 32 KB için +1 sn.
+  const bodyBytes = typeof init.body === "string" ? init.body.length : 0;
   const timer = setTimeout(() => {
     const e = new Error("timeout");
     e.name = "TimeoutError";
     controller.abort(e);
-  }, REQUEST_TIMEOUT_MS);
+  }, REQUEST_TIMEOUT_MS + Math.ceil(bodyBytes / 32_768) * 1_000);
   try {
     return await fetch(url, { ...init, signal: controller.signal });
   } catch (err) {
