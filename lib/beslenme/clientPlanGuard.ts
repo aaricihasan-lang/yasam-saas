@@ -1,7 +1,8 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { membershipInactiveResponse, verifyUserRequest } from "@/lib/auth/userGuard";
+import { hasMembershipAccessForRow } from "@/lib/auth/membershipAccessCore";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
 import { beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireClientInTenant } from "@/lib/danisan/clientGuard";
@@ -20,7 +21,8 @@ import { isUuid } from "@/lib/beslenme/planContracts";
  *                binding) bağlı olmalı; UNBOUND plan → fail-closed (404).
  *
  * Erişim zinciri (hepsi server-authoritative):
- *   verifyUserRequest(includeProfile) → tenant plan (.eq tenant_id .eq id) → plan_family_id
+ *   verifyUserRequest(includeProfile) → üyelik (hasMembershipAccessForRow; değilse 403
+ *   MEMBERSHIP_INACTIVE) → tenant plan (.eq tenant_id .eq id) → plan_family_id
  *   → nutrition_plan_clients binding → (client authority'de) requireClientInTenant.
  * Beslenme+clients izni olmayan → 403. Başka tenant planı → 404 (plan tenant-scoped çözülür).
  *
@@ -54,6 +56,13 @@ export async function requireBeslenmePlanAccess(
   const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return { ok: false, response: guard.response };
   const { db, tenantId } = guard;
+
+  // P1-4 ÜYELİK kapısı (requireModuleAccess ile AYNI kural; membershipAccessCore tek kaynak).
+  // Plan lookup'tan ÖNCE → üyeliği aktif olmayan (trial/pro/pasif/onaysız) uzman plan
+  // varlığı sinyali bile alamaz. admin muaf (hasMembershipAccessForRow role short-circuit).
+  if (!hasMembershipAccessForRow(guard.profile ?? {})) {
+    return { ok: false, response: membershipInactiveResponse() };
+  }
 
   // Yetenekler SAF resolveModuleAccess ile (admin role short-circuit → hasBeslenme=true).
   const role = guard.profile?.role;

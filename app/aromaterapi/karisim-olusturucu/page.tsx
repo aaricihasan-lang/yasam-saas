@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
+import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
 import { downloadWord } from "@/lib/aromaterapi/wordExport";
 import { reportUsageExport } from "@/lib/usage/usageBeaconClient";
 import {
@@ -137,6 +138,8 @@ export default function KarisimOlusturucuPage() {
 
   // FAZ Word — karışım export (tek / tümü). Çift-tık kilidi.
   const isAndroid = useIsAndroid();
+  // Android uygulama WebView'inde window.print çalışmaz → Yazdır CTA'ları gizli (plan §4.6).
+  const isAndroidApp = useIsAndroidApp();
   const [blendExporting, setBlendExporting] = useState(false);
   async function exportBlendWord(url: string, body?: unknown) {
     if (blendExporting) return;
@@ -651,13 +654,15 @@ export default function KarisimOlusturucuPage() {
             >
               {saving ? "Kaydediliyor…" : editingId ? "Değişiklikleri Kaydet" : "Karışımı Kaydet"}
             </button>
+            {!isAndroidApp && (
             <button
               type="button"
               onClick={printActiveBlend}
-              className="mt-2 w-full rounded-xl border border-amber-300 bg-white py-2 text-[12px] font-black text-amber-700 transition hover:bg-amber-50"
+              className="no-android-app mt-2 w-full rounded-xl border border-amber-300 bg-white py-2 text-[12px] font-black text-amber-700 transition hover:bg-amber-50"
             >
               🖨 Reçete / Yazdır
             </button>
+            )}
           </section>
         </div>
 
@@ -667,7 +672,7 @@ export default function KarisimOlusturucuPage() {
             <h2 className="text-[13px] font-black text-slate-900">Kaydedilen Karışımlar ({saved.length})</h2>
             {saved.length > 0 && !isAndroid ? (
               <button type="button" onClick={() => void exportBlendWord("/api/aromaterapi/blends/word-report", { mode: "all" })} disabled={blendExporting}
-                className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-700 transition hover:bg-blue-100 disabled:opacity-60"
+                className="no-android inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-700 transition hover:bg-blue-100 disabled:opacity-60"
                 title="Tüm karışımları Word'e aktar">
                 📄 {blendExporting ? "…" : "Tümünü Word'e Aktar"}
               </button>
@@ -705,9 +710,11 @@ export default function KarisimOlusturucuPage() {
                     <button type="button" onClick={() => void copyBlend(b)} disabled={copyingId === b.id} className="flex-1 rounded-lg border border-sky-200 bg-white px-2 py-1 text-[11px] font-black text-sky-700 transition hover:bg-sky-50 disabled:opacity-60">{copyingId === b.id ? "…" : "Kopyala"}</button>
                   </div>
                   <div className="mt-1.5 flex gap-1.5">
-                    <button type="button" onClick={() => printSavedBlend(b)} className="flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-600 transition hover:bg-slate-50">🖨 Yazdır</button>
+                    {!isAndroidApp && (
+                    <button type="button" onClick={() => printSavedBlend(b)} className="no-android-app flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-600 transition hover:bg-slate-50">🖨 Yazdır</button>
+                    )}
                     {!isAndroid && (
-                    <button type="button" onClick={() => void exportBlendWord(`/api/aromaterapi/blends/${b.id}/word-report`)} disabled={blendExporting} className="flex-1 rounded-lg border border-blue-200 bg-white px-2 py-1 text-[11px] font-black text-blue-700 transition hover:bg-blue-50 disabled:opacity-60" title="Bu karışımı Word'e aktar">📄 Word</button>
+                    <button type="button" onClick={() => void exportBlendWord(`/api/aromaterapi/blends/${b.id}/word-report`)} disabled={blendExporting} className="no-android flex-1 rounded-lg border border-blue-200 bg-white px-2 py-1 text-[11px] font-black text-blue-700 transition hover:bg-blue-50 disabled:opacity-60" title="Bu karışımı Word'e aktar">📄 Word</button>
                     )}
                   </div>
                 </div>

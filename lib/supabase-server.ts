@@ -35,6 +35,7 @@ export function getServerDb() {
 /**
  * Admin API route'larının kullanıcı sorgularında seçeceği güvenli kolon listesi.
  * password ve password_hash hiçbir zaman client'a dönmez.
+ * ⚠️ agreed_fee / billing_period: migration 20271001000300 (M4) kod deploy'undan ÖNCE uygulanmalı.
  */
 export const USERS_SAFE_SELECT =
   "id, full_name, email, role, active, approval_status, approved_at, module_permissions, " +
@@ -42,5 +43,6 @@ export const USERS_SAFE_SELECT =
   "trial_ends_at, membership_started_at, membership_ends_at, plan, " +
   "admin_level, tenant_id, created_at, " +
   "payment_status, last_payment_date, next_payment_date, paid_amount, payment_note, " +
+  "agreed_fee, billing_period, " +
   "license_type, allowed_active_sessions, allowed_locations, security_mode, security_exempt, license_note, " +
   "allowed_desktop_sessions, allowed_mobile_sessions, allowed_tablet_sessions, allowed_unknown_sessions";

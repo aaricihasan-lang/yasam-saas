@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { verifyLoginCredentialsGuarded } from "@/lib/auth/credentialLogin";
 import { extractClientIp } from "@/lib/auth/sessionSecurity";
+import { newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
 import {
   hashLoginIp,
   loginLockedMessage,
-  NEW_PASSWORD_MIN_LENGTH,
 } from "@/lib/auth/loginThrottle";
 
 export const runtime = "nodejs";
@@ -32,17 +32,16 @@ export async function POST(req: NextRequest) {
   const newPassword = String(body.newPassword ?? "").trim();
 
   if (!oldPassword || !newPassword) {
-    return NextResponse.json({ error: "Eski ve yeni şifre gerekli." }, { status: 400 });
+    return NextResponse.json({ error: "Mevcut ve yeni parola gerekli." }, { status: 400 });
   }
-  // FAZ1 FINAL HARDENING: yeni parolalar en az 10 karakter (mevcut parolalar etkilenmez).
-  if (newPassword.length < NEW_PASSWORD_MIN_LENGTH) {
-    return NextResponse.json(
-      { error: `Yeni şifre en az ${NEW_PASSWORD_MIN_LENGTH} karakter olmalı.` },
-      { status: 400 },
-    );
+  // Parola politikası (tek kaynak lib/auth/passwordPolicy; min 6 = NEW_PASSWORD_MIN_LENGTH,
+  // karmaşıklık zorunluluğu yok, bariz parola reddi). Mevcut parolalar etkilenmez.
+  const pwPolicy = newPasswordPolicyMessage(newPassword, email ?? "");
+  if (pwPolicy) {
+    return NextResponse.json({ error: pwPolicy }, { status: 400 });
   }
   if (oldPassword === newPassword) {
-    return NextResponse.json({ error: "Yeni şifre eski şifreyle aynı olamaz." }, { status: 400 });
+    return NextResponse.json({ error: "Yeni parola mevcut parolayla aynı olamaz." }, { status: 400 });
   }
 
   // Eski şifreyi doğrula — login ile AYNI kısıtlamalı yol (auth_login_guarded: throttle +
@@ -61,11 +60,11 @@ export async function POST(req: NextRequest) {
     );
   }
   if (verified.status === "error") {
-    return NextResponse.json({ error: "Şifre doğrulanamadı." }, { status: 500 });
+    return NextResponse.json({ error: "Parola doğrulanamadı." }, { status: 500 });
   }
   // Doğrulanan satır bu oturumun kullanıcısı olmalı (e-posta çakışmasına karşı bağlama).
   if (verified.status !== "ok" || verified.row.id !== userId) {
-    return NextResponse.json({ error: "Mevcut şifre hatalı." }, { status: 400 });
+    return NextResponse.json({ error: "Mevcut parola hatalı." }, { status: 400 });
   }
 
   // Yeni şifreyi hashle
@@ -74,7 +73,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (hashError || !newHash) {
-    return NextResponse.json({ error: "Şifre hashlenemedi." }, { status: 500 });
+    return NextResponse.json({ error: "Parola işlenemedi." }, { status: 500 });
   }
 
   // Şifreyi güncelle
@@ -84,7 +83,7 @@ export async function POST(req: NextRequest) {
     .eq("id", userId);
 
   if (updateError) {
-    return NextResponse.json({ error: "Şifre güncellenemedi." }, { status: 500 });
+    return NextResponse.json({ error: "Parola güncellenemedi." }, { status: 500 });
   }
 
   // Diğer oturumları kapat (mevcut hariç)

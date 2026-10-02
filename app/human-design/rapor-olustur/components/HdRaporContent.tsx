@@ -674,7 +674,7 @@ export function HdRaporContent() {
                   type="button"
                   onClick={handleWordExport}
                   disabled={exporting || !editedText.trim()}
-                  className="h-9 rounded-xl border border-emerald-300/80 bg-white px-5 text-sm font-black uppercase tracking-wide text-emerald-700 shadow-sm transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="no-android h-9 rounded-xl border border-emerald-300/80 bg-white px-5 text-sm font-black uppercase tracking-wide text-emerald-700 shadow-sm transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {exporting ? "İndiriliyor..." : "Word İndir"}
                 </button>

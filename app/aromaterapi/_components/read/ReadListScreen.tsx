@@ -118,7 +118,7 @@ export function ReadListScreen<T extends { id: string }>({
                     checked={selection.selectedIds.has(row.id)}
                     onChange={() => selection.toggle(row.id)}
                     aria-label="Kaydı Word export için seç"
-                    className="absolute right-2.5 top-2.5 z-10 h-4 w-4 rounded accent-amber-600"
+                    className="no-android absolute right-2.5 top-2.5 z-10 h-4 w-4 rounded accent-amber-600"
                   />
                   {renderItem(row)}
                 </div>

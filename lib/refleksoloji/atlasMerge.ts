@@ -99,43 +99,174 @@ function organKeys(doc: AtlasDocLike): string[] {
   return Object.keys(doc).filter((k) => k !== "_meta" && isOrganEntryLike(doc[k]));
 }
 
+// ─── P1-5: base-snapshot'lı 3-yollu birleştirme (lost update kapanışı) ─────────
+
+/** Kararlı içerik özeti (anahtar sırası/undefined alanlar önemsiz) — organ girdisi karşılaştırması. */
+function stableEntry(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
+  if (Array.isArray(value)) return `[${value.map(stableEntry).join(",")}]`;
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj)
+    .filter((k) => obj[k] !== undefined)
+    .sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableEntry(obj[k])}`).join(",")}}`;
+}
+
+/** İki organ girdisi içerik olarak aynı mı. */
+export function organEntriesEqual(a: unknown, b: unknown): boolean {
+  return stableEntry(a) === stableEntry(b);
+}
+
+type OrganSlot = { key: string; entry: unknown };
+
+/** Kanonik organ kimliği → belgedeki (ilk) anahtar + girdi. */
+function organIndex(doc: AtlasDocLike | null | undefined): Map<string, OrganSlot> {
+  const m = new Map<string, OrganSlot>();
+  if (!doc || typeof doc !== "object") return m;
+  for (const key of organKeys(doc)) {
+    const norm = normOrgan(key);
+    if (!norm || m.has(norm)) continue;
+    m.set(norm, { key, entry: doc[key] });
+  }
+  return m;
+}
+
+function cloneEntry<T>(v: T): T {
+  return JSON.parse(JSON.stringify(v)) as T;
+}
+
+function laterOf(a?: string, b?: string): string | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  return a >= b ? a : b;
+}
+
+export type AtlasThreeWayResult = {
+  /** Birleşik belge (`_meta.tombstones` + `_meta.organUpdatedAt` seçilen taraftan). */
+  document: AtlasDocLike;
+  /**
+   * Base'e göre HEM yerelde HEM sunucuda FARKLI biçimde değişen organlar (görünen ad).
+   * Varsayılan politika ("local"): yerel sürüm KORUNUR; kullanıcı kararı beklenir.
+   */
+  conflicts: string[];
+  /**
+   * Base YOKKEN (LWW modu) sunucunun daha yeni sürümüne kaybeden YEREL organ girdileri
+   * (görünen ad → girdi). Çağıran `atlas-conflict-backup` anahtarına yedekler.
+   */
+  lostLocal: Record<string, unknown>;
+  mode: "three-way" | "lww";
+};
+
 /**
- * Tombstone-farkında birleştirme.
- *   - Ortak organda sunucu kazanır; yalnız yerelde olan organ KORUNUR — ancak
- *     mezar taşı organın son güncellemesinden yeniyse organ DİRİLMEZ.
- *   - Hayatta kalan organların mezar taşları düşer; kalan mezar taşları (başka
- *     cihazlardaki bayat kopyaları bastırmak için) korunur.
+ * Organ bazında birleştirme.
+ *
+ * BASE VAR (3-yollu; base = istemcinin son bildiği sunucu belgesi):
+ *   - yalnız yerel değişti          → yerel
+ *   - yalnız sunucu değişti         → sunucu
+ *   - ikisi de aynı biçimde değişti → sunucu (= yerel)
+ *   - ikisi de FARKLI değişti       → ÇAKIŞMA: `onConflict` ("local" varsayılan) + conflicts[]
+ *   "Değişim" organın varlığını da kapsar (silme = değişim). Mezar taşları seçilen taraftan.
+ *
+ * BASE YOK (eski istemci / ilk geçiş): organUpdatedAt LWW — ortak organda damgası daha
+ *   YENİ olan kazanır (eşitlik → sunucu); sunucuya kaybeden farklı yerel girdi `lostLocal`
+ *   ile yedeklenir. Tek tarafta olan organ korunur, ancak mezar taşı organın son
+ *   güncellemesinden yeniyse DİRİLMEZ (zombie koruması — önceki davranış).
+ *
+ * Hayatta kalan organın `organUpdatedAt` damgası SEÇİLEN taraftan alınır (max DEĞİL —
+ * kaybeden tarafın damgası kazanan içeriğe yapışıp sonraki LWW'yi yanıltmasın).
  */
-export function mergeAtlasWithTombstones(
+export function mergeAtlasThreeWay(
   server: AtlasDocLike,
   local: AtlasDocLike,
+  base: AtlasDocLike | null,
   now: string = new Date().toISOString(),
-): AtlasDocLike {
+  onConflict: "local" | "server" = "local",
+): AtlasThreeWayResult {
   const sMeta = server._meta ?? {};
   const lMeta = local._meta ?? {};
-  const tombstones = maxDateMap(sMeta.tombstones, lMeta.tombstones);
-  const organUpdatedAt = maxDateMap(sMeta.organUpdatedAt, lMeta.organUpdatedAt);
+  const sUpd = sMeta.organUpdatedAt ?? {};
+  const lUpd = lMeta.organUpdatedAt ?? {};
+  const sTomb = sMeta.tombstones ?? {};
+  const lTomb = lMeta.tombstones ?? {};
+  const allTombstones = maxDateMap(sTomb, lTomb);
+
+  const sIdx = organIndex(server);
+  const lIdx = organIndex(local);
+  const bIdx = base ? organIndex(base) : null;
 
   const out: AtlasDocLike = { _meta: {} };
   const survivorUpdatedAt: OrganTimeMap = {};
+  const deletedTombstones: OrganTimeMap = {};
+  const conflicts: string[] = [];
+  const lostLocal: Record<string, unknown> = {};
 
-  const keys = new Set<string>([...organKeys(server), ...organKeys(local)]);
-  for (const key of keys) {
-    const norm = normOrgan(key);
-    const upd = organUpdatedAt[norm] ?? EPOCH;
-    const tomb = tombstones[norm];
-    // Organ hayatta kalır: mezar taşı yoksa VEYA son güncelleme mezardan yeniyse.
-    if (tomb && !(upd > tomb)) continue; // silinmiş → atla
-    // Ortak organda sunucu kazanır (yalnız yereldeyse yerel korunur).
-    const entry = isOrganEntryLike(server[key]) ? server[key] : local[key];
-    out[key] = entry;
-    if (organUpdatedAt[norm]) survivorUpdatedAt[norm] = organUpdatedAt[norm];
+  const keep = (slot: OrganSlot, norm: string, chosenUpd?: string, otherUpd?: string) => {
+    out[slot.key] = cloneEntry(slot.entry);
+    const at = chosenUpd ?? otherUpd;
+    if (at) survivorUpdatedAt[norm] = at;
+  };
+
+  const norms = new Set<string>([...sIdx.keys(), ...lIdx.keys(), ...(bIdx ? bIdx.keys() : [])]);
+  for (const norm of norms) {
+    const s = sIdx.get(norm);
+    const l = lIdx.get(norm);
+
+    if (bIdx) {
+      const b = bIdx.get(norm);
+      const sv = s ? stableEntry(s.entry) : null;
+      const lv = l ? stableEntry(l.entry) : null;
+      const bv = b ? stableEntry(b.entry) : null;
+      const localChanged = lv !== bv;
+      const serverChanged = sv !== bv;
+      let pick: "server" | "local";
+      if (!localChanged) pick = "server";
+      else if (!serverChanged) pick = "local";
+      else if (lv === sv) pick = "server";
+      else {
+        const label = l?.key ?? s?.key ?? b?.key ?? norm;
+        conflicts.push(label);
+        pick = onConflict;
+      }
+      const chosen = pick === "server" ? s : l;
+      if (chosen) {
+        keep(
+          chosen,
+          norm,
+          pick === "server" ? sUpd[norm] : lUpd[norm],
+          pick === "server" ? lUpd[norm] : sUpd[norm],
+        );
+      } else {
+        // Seçilen tarafta organ YOK (silinmiş) → mezar taşı (yoksa şimdi) bırak.
+        deletedTombstones[norm] =
+          (pick === "server" ? sTomb[norm] : lTomb[norm]) ?? allTombstones[norm] ?? now;
+      }
+      continue;
+    }
+
+    // ── LWW (base yok) ──
+    const upd = laterOf(sUpd[norm], lUpd[norm]) ?? EPOCH;
+    const tomb = allTombstones[norm];
+    if (tomb && !(upd > tomb)) continue; // silinmiş → atla (zombie koruması)
+    if (s && l) {
+      if (organEntriesEqual(s.entry, l.entry)) {
+        keep(s, norm, sUpd[norm], lUpd[norm]);
+      } else if ((lUpd[norm] ?? EPOCH) > (sUpd[norm] ?? EPOCH)) {
+        keep(l, norm, lUpd[norm], sUpd[norm]);
+      } else {
+        keep(s, norm, sUpd[norm], lUpd[norm]);
+        lostLocal[l.key] = cloneEntry(l.entry);
+      }
+    } else if (s) {
+      keep(s, norm, sUpd[norm], lUpd[norm]);
+    } else if (l) {
+      keep(l, norm, lUpd[norm], sUpd[norm]);
+    }
   }
 
   const survivingNorms = new Set(organKeys(out).map(normOrgan));
   const keptTombstones: OrganTimeMap = {};
-  for (const [k, v] of Object.entries(tombstones)) {
-    if (survivingNorms.has(k)) continue; // dirilmiş organın mezar taşını düş
+  for (const [k, v] of Object.entries({ ...allTombstones, ...deletedTombstones })) {
+    if (survivingNorms.has(k)) continue; // hayatta kalan / dirilmiş organın mezar taşını düş
     keptTombstones[k] = v;
   }
 
@@ -145,7 +276,23 @@ export function mergeAtlasWithTombstones(
     tombstones: keptTombstones,
     organUpdatedAt: survivorUpdatedAt,
   };
-  return out;
+  return { document: out, conflicts, lostLocal, mode: bIdx ? "three-way" : "lww" };
+}
+
+/**
+ * Tombstone-farkında birleştirme (base'siz yol — geriye dönük API).
+ *   - Ortak organda organUpdatedAt LWW (eşitlik → sunucu); yalnız yerelde olan organ
+ *     KORUNUR — ancak mezar taşı organın son güncellemesinden yeniyse organ DİRİLMEZ.
+ *   - Hayatta kalan organların mezar taşları düşer; kalan mezar taşları (başka
+ *     cihazlardaki bayat kopyaları bastırmak için) korunur.
+ * Base snapshot'ı olan çağıranlar `mergeAtlasThreeWay` kullanır (P1-5).
+ */
+export function mergeAtlasWithTombstones(
+  server: AtlasDocLike,
+  local: AtlasDocLike,
+  now: string = new Date().toISOString(),
+): AtlasDocLike {
+  return mergeAtlasThreeWay(server, local, null, now).document;
 }
 
 /**

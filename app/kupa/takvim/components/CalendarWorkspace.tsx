@@ -679,7 +679,7 @@ export function CalendarWorkspace() {
               {/* Word İndir — kapsam AÇIK: Yıllık (12 ay) veya yalnız SEÇİLİ AY. Yalnız aktif plan;
                   kaydedilmemiş taslakta uyarır (üretmez). Yıllık indirme istemeden aylığa dönüşmez. */}
               {!isAndroid && (
-                <div className="flex flex-col items-stretch gap-1.5 sm:flex-row sm:items-center">
+                <div className="no-android flex flex-col items-stretch gap-1.5 sm:flex-row sm:items-center">
                   <span className="text-xs font-medium text-slate-400 sm:mr-1">Word indir:</span>
                   <button
                     type="button"

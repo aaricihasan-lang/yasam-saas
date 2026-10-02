@@ -29,6 +29,9 @@ ok("READ requireBeslenmeFoodRead mevcut", /export async function requireBeslenme
 ok("READ clients erişimi", /resolveModuleAccess\([^)]*["']clients["']\)/.test(readBlock));
 ok("READ beslenme erişimi", /resolveModuleAccess\([^)]*["']beslenme["']\)/.test(readBlock));
 ok("READ manual bayrak (hasManualFoodFlag) KALDIRILDI", !/hasManualFoodFlag/.test(readBlock));
+// P1-4: READ kapısı da üyelik kapısından geçer (premium/aktif/onaylı; admin muaf).
+ok("READ üyelik kapısı (hasMembershipAccessForRow → 403 MEMBERSHIP_INACTIVE)",
+   /hasMembershipAccessForRow\(guard\.profile \?\? \{\}\)/.test(readBlock) && /membershipInactiveResponse\(\)/.test(readBlock));
 
 // WRITE: ayrı contributor kapısı + policy KALDIRILDI.
 ok("WRITE requireBeslenmeFoodContributor KALDIRILDI", !/requireBeslenmeFoodContributor/.test(og));

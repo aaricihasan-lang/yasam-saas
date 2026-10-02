@@ -12,6 +12,7 @@
  *
  * KANONİK KURALLAR:
  *   - Retry/backoff/attempts/dead kararı BF-11A RPC'lerinindir; bu client HESAPLAMAZ.
+ *     (İSTİSNA F-1: yalnız *_sweep_expired RPC çağrısının kendisi için TEK jitter retry.)
  *   - Claim satırları + complete/fail dönüş kodları RUNTIME fail-closed doğrulanır;
  *     beklenmeyen biçim açık invariant hatası üretir (sessiz kabul YOK).
  *   - Ham Supabase/DB hata mesajı DIŞARI TAŞINMAZ; yalnız güvenli sabit kod.
@@ -44,7 +45,10 @@ function isOperation(v: unknown): v is OutboxOperation {
 // ─── Dar DB istemcisi (yalnız rpc; test için taklit edilebilir) ──────────────
 export interface OutboxRpcResult {
   readonly data: unknown;
-  readonly error: { readonly message: string } | null;
+  /** PostgREST hata nesnesi; YALNIZ `code` sınıflandırmada okunur (message/details/hint ASLA). */
+  readonly error: { readonly message: string; readonly code?: string } | null;
+  /** HTTP durum kodu (supabase-js döndürür; transport hatasında 0). */
+  readonly status?: number;
 }
 export interface OutboxRpcDb {
   rpc(fn: string, args: Record<string, unknown>): PromiseLike<OutboxRpcResult>;
@@ -96,22 +100,97 @@ export interface SweptOutboxRow {
   readonly eventVersion: number;
 }
 
+// ─── Güvenli hata sınıflandırması (F-1; ham message/details/hint/payload YOK) ──
+/** Güvenli kategori: `transport` | `pg:<SQLSTATE/PGRST kodu>` | `http:<status>` | `unknown`. */
+export type OutboxRpcFailureCategory = string;
+
+const SAFE_CODE_RE = /^[A-Z0-9]{1,12}$/;
+
+/**
+ * RPC hata sonucunu GÜVENLİ kategoriye indirger. Yalnız `error.code` (sabit SQLSTATE /
+ * PostgREST kodu; regex ile sınırlı) ve sayısal HTTP status okunur — ham metin ASLA.
+ */
+export function classifyOutboxRpcFailure(res: OutboxRpcResult | null): OutboxRpcFailureCategory {
+  if (res === null) return "transport"; // db.rpc throw etti (ağ/istemci)
+  const status = typeof res.status === "number" && Number.isInteger(res.status) ? res.status : null;
+  if (status === 0) return "transport"; // supabase-js: fetch başarısız → status 0
+  const code = res.error?.code;
+  if (typeof code === "string" && SAFE_CODE_RE.test(code)) return `pg:${code}`;
+  if (status !== null && status >= 100 && status <= 599) return `http:${status}`;
+  return "unknown";
+}
+
+/**
+ * F-1: YALNIZ süresi dolmuş lease süpürme RPC'leri için TEK yeniden deneme.
+ * Sweep idempotenttir (süresi dolmuş processing → pending); claim/complete/fail tekrar
+ * DENENMEZ (çift claim / çift sonuç riski). Sonsuz döngü YOK: en fazla 2 deneme.
+ */
+export const OUTBOX_SWEEP_RETRY_FNS: readonly string[] = [
+  "yh_outbox_sweep_expired",
+  "yh_client_outbox_sweep_expired",
+];
+export const OUTBOX_SWEEP_RETRY_MIN_MS = 250;
+export const OUTBOX_SWEEP_RETRY_MAX_MS = 750;
+
+/** 250–750 ms rastgele jitter (uçlar dahil; random() ∈ [0,1)). */
+export function outboxSweepRetryDelayMs(random: () => number = Math.random): number {
+  const r = random();
+  const unit = typeof r === "number" && r >= 0 && r < 1 ? r : 0.5;
+  return Math.round(OUTBOX_SWEEP_RETRY_MIN_MS + unit * (OUTBOX_SWEEP_RETRY_MAX_MS - OUTBOX_SWEEP_RETRY_MIN_MS));
+}
+
+/** Test enjeksiyonu için (varsayılan: gerçek bekleme + console.warn + Math.random). */
+export interface OutboxRpcCallOptions {
+  readonly sleep?: (ms: number) => Promise<void>;
+  readonly warn?: (entry: { fn: string; category: OutboxRpcFailureCategory; attempt: number }) => void;
+  readonly random?: () => number;
+}
+
+const defaultSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+const defaultWarn = (entry: { fn: string; category: OutboxRpcFailureCategory; attempt: number }): void => {
+  // Yalnız güvenli meta: fn adı + kategori + deneme sırası (message/payload/secret YOK).
+  console.warn("[yh-outbox] rpc-failed", entry);
+};
+
 // ─── Ortak RPC çağrısı (ham mesaj gizlenir) ──────────────────────────────────
+/**
+ * Professional + client outbox RPC client'larının ORTAK çağrı yolu.
+ * Hata → güvenli kategori log'u + OutboxRpcError(`rpc-transport-failed:<fn>` |
+ * `rpc-failed:<fn>:<kategori>`). Sweep RPC'leri için tek jitter'lı retry.
+ */
+export async function callOutboxRpc(
+  db: OutboxRpcDb,
+  fn: string,
+  args: Record<string, unknown>,
+  opts: OutboxRpcCallOptions = {},
+): Promise<unknown> {
+  const maxAttempts = OUTBOX_SWEEP_RETRY_FNS.includes(fn) ? 2 : 1;
+  const warn = opts.warn ?? defaultWarn;
+  let lastCategory: OutboxRpcFailureCategory = "unknown";
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    let res: OutboxRpcResult | null;
+    try {
+      res = await db.rpc(fn, args);
+    } catch {
+      res = null;
+    }
+    if (res !== null && res.error === null) return res.data;
+    lastCategory = classifyOutboxRpcFailure(res);
+    warn({ fn, category: lastCategory, attempt });
+    if (attempt < maxAttempts) {
+      await (opts.sleep ?? defaultSleep)(outboxSweepRetryDelayMs(opts.random));
+    }
+  }
+  if (lastCategory === "transport") throw new OutboxRpcError(`rpc-transport-failed:${fn}`);
+  throw new OutboxRpcError(`rpc-failed:${fn}:${lastCategory}`); // ham message taşınmaz
+}
+
 async function callRpc(
   db: OutboxRpcDb,
   fn: string,
   args: Record<string, unknown>,
 ): Promise<unknown> {
-  let res: OutboxRpcResult;
-  try {
-    res = await db.rpc(fn, args);
-  } catch {
-    throw new OutboxRpcError(`rpc-transport-failed:${fn}`);
-  }
-  if (res.error !== null) {
-    throw new OutboxRpcError(`rpc-failed:${fn}`); // ham message taşınmaz
-  }
-  return res.data;
+  return callOutboxRpc(db, fn, args);
 }
 
 // ─── 1) claim ────────────────────────────────────────────────────────────────

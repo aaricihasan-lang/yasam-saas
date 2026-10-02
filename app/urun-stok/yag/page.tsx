@@ -3,6 +3,8 @@
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
+import { composeOtherValue, splitOtherValue } from "@/lib/urun-stok/selectOther";
+import { SelectWithOther } from "../SelectWithOther";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BOTTLE_VOLUMES,
@@ -267,6 +269,7 @@ export default function YagUrunStokPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [oilType, setOilType] = useState<string>(OIL_TYPES[0]);
+  const [oilTypeCustom, setOilTypeCustom] = useState("");
   const [measureType, setMeasureType] = useState<OilMeasureType>("ML / Litre");
   const [stockQty, setStockQty] = useState("");
   const [inputUnit, setInputUnit] = useState<OilInputUnit>("ml");
@@ -276,6 +279,7 @@ export default function YagUrunStokPage() {
   const [bottleVolume, setBottleVolume] = useState<string>(BOTTLE_VOLUMES[2]);
   const [bottleCustom, setBottleCustom] = useState("");
   const [packageType, setPackageType] = useState<string>(PACKAGE_TYPES[0]);
+  const [packageTypeCustom, setPackageTypeCustom] = useState("");
   const [note, setNote] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [addDelta, setAddDelta] = useState(true);
@@ -325,6 +329,8 @@ export default function YagUrunStokPage() {
     setSalePriceTotal("");
     setProfitPct("100");
     setNote("");
+    setOilTypeCustom("");
+    setPackageTypeCustom("");
     setPhotos([]);
     setAddDelta(true);
   }
@@ -333,7 +339,10 @@ export default function YagUrunStokPage() {
     retryRef.current = null;
     setEditId(it.id);
     setName(it.name);
-    setOilType(it.oilType);
+    // Liste dışı (serbest metin) değer → "Diğer" + metin (düzenlemede kaybolmaz).
+    const ot = splitOtherValue(it.oilType, OIL_TYPES);
+    setOilType(ot.select);
+    setOilTypeCustom(ot.custom);
     setMeasureType(it.measureType);
     setStockQty(String(fromCanonical(it.stockBase, it.baseUnit === "ml" ? "ml" : it.baseUnit === "gram" ? "gram" : "adet", it.baseUnit)));
     setInputUnit(it.baseUnit === "ml" ? "ml" : it.baseUnit === "gram" ? "gram" : "adet");
@@ -342,7 +351,9 @@ export default function YagUrunStokPage() {
     setProfitPct(String(it.profitPct));
     setBottleVolume(it.bottleVolume);
     setBottleCustom(it.bottleVolumeCustom);
-    setPackageType(it.packageType);
+    const pt = splitOtherValue(it.packageType, PACKAGE_TYPES);
+    setPackageType(pt.select);
+    setPackageTypeCustom(pt.custom);
     setNote(it.note);
     setPhotos([]);
     setAddDelta(false);
@@ -359,8 +370,11 @@ export default function YagUrunStokPage() {
     setMsg(null);
     const beforeIds = new Set(inventory.map((i) => i.id));
     const editingId = editId;
+    // "Diğer" + serbest metin → saklanacak etiket (birim/ölçü alanlarına dokunulmaz).
+    const oilTypeValue = composeOtherValue(oilType, oilTypeCustom, OIL_TYPES);
+    const packageTypeValue = composeOtherValue(packageType, packageTypeCustom, PACKAGE_TYPES);
     const signature = stockFormSignature([
-      editingId, turkishUpper(name), oilType, measureType, toFloat(stockQty, 0), inputUnit, toFloat(costTotal, 0), toFloat(salePriceTotal, 0), toFloat(profitPct, 0), bottleVolume, bottleCustom, packageType, note,
+      editingId, turkishUpper(name), oilTypeValue, measureType, toFloat(stockQty, 0), inputUnit, toFloat(costTotal, 0), toFloat(salePriceTotal, 0), toFloat(profitPct, 0), bottleVolume, bottleCustom, packageTypeValue, note,
       photos.length, addDelta,
     ]);
     // Aynı form tekrar gönderildiyse (önceki bulut yazımı başarısız) yerel birleştirme
@@ -375,7 +389,7 @@ export default function YagUrunStokPage() {
       const result = addOrUpdateOilItem(inventory, {
         id: plan.id,
         name: turkishUpper(name),
-        oilType,
+        oilType: oilTypeValue,
         measureType,
         stockQty: toFloat(stockQty, 0),
         inputUnit,
@@ -384,7 +398,7 @@ export default function YagUrunStokPage() {
         profitPct: toFloat(profitPct, 0),
         bottleVolume,
         bottleVolumeCustom: bottleCustom,
-        packageType,
+        packageType: packageTypeValue,
         photos: plan.forceAbsolute ? newPhotosOnly(photos, existing?.photos) : photos,
         note,
         deltaMode: plan.forceAbsolute ? false : addDelta,
@@ -700,14 +714,16 @@ export default function YagUrunStokPage() {
                   <span className="mb-1 block text-sm font-black">Ürün adı</span>
                   <input className={inputClass} value={name} onChange={(e) => setName(turkishUpper(e.target.value))} />
                 </label>
-                <label className="block">
-                  <span className="mb-1 block text-sm font-black">Yağ türü</span>
-                  <select className={inputClass} value={oilType} onChange={(e) => setOilType(e.target.value)}>
-                    {OIL_TYPES.map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </select>
-                </label>
+                <SelectWithOther
+                  label="Yağ türü"
+                  options={OIL_TYPES}
+                  value={oilType}
+                  custom={oilTypeCustom}
+                  onSelect={setOilType}
+                  onCustom={setOilTypeCustom}
+                  selectClassName={inputClass}
+                  placeholder="Örn. Hidrosol"
+                />
                 <label className="block">
                   <span className="mb-1 block text-sm font-black">Ölçü tipi</span>
                   <select
@@ -763,14 +779,17 @@ export default function YagUrunStokPage() {
                     <input className={inputClass} value={bottleCustom} onChange={(e) => setBottleCustom(e.target.value)} />
                   </label>
                 ) : null}
-                <label className="block">
-                  <span className="mb-1 block text-sm font-black">Paket tipi</span>
-                  <select className={inputClass} value={packageType} onChange={(e) => setPackageType(e.target.value)}>
-                    {PACKAGE_TYPES.map((p) => (
-                      <option key={p}>{p}</option>
-                    ))}
-                  </select>
-                </label>
+                <SelectWithOther
+                  label="Paket tipi"
+                  options={PACKAGE_TYPES}
+                  value={packageType}
+                  custom={packageTypeCustom}
+                  onSelect={setPackageType}
+                  onCustom={setPackageTypeCustom}
+                  otherLabel="diğer"
+                  selectClassName={inputClass}
+                  placeholder="Örn. amber cam şişe"
+                />
                 <label className="block sm:col-span-2">
                   <span className="mb-1 block text-sm font-black">Not</span>
                   <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} />

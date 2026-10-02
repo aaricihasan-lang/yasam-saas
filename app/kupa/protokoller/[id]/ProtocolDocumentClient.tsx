@@ -112,7 +112,7 @@ export function ProtocolDocumentClient({ id }: { id: string }) {
       actions={
         <>
           {!isAndroid ? (
-            <button type="button" className={kupaBtnPrimary} onClick={handleWordDownload} disabled={wordBusy}>
+            <button type="button" className={`no-android ${kupaBtnPrimary}`} onClick={handleWordDownload} disabled={wordBusy}>
               {wordBusy ? "Hazırlanıyor…" : "Word İndir"}
             </button>
           ) : null}

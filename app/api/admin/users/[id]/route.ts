@@ -42,7 +42,7 @@ function bad(error: string, status = 400, extra?: Record<string, unknown>) {
 export async function GET(req: NextRequest, ctx: RouteContext) {
   const guard = await verifyAdminRequest(req);
   if (!guard.ok) return guard.response;
-  const { db } = guard;
+  const { adminId, db } = guard;
 
   const { id } = await ctx.params;
   if (!isUuid(id)) {
@@ -66,9 +66,16 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     .order("created_at", { ascending: false });
 
   // GİZLİLİK KARARI (2026-08-24): Admin/owner uzman private-content görüntüleme
-  // özelliği kaldırıldı → `viewerIsSuperAdmin` capability alanı artık DÖNMEZ
-  // (UI'da workspace kartı da kaldırıldı). Yalnız hesap yönetimi metadata'sı döner.
-  return NextResponse.json({ user: data, paymentHistory: history ?? [] }, { headers: { "Cache-Control": "private, no-store" } });
+  // özelliği kaldırıldı (UI'da workspace kartı da kaldırıldı). Yalnız hesap yönetimi
+  // metadata'sı döner.
+  // AŞAMA 2 · P1-7: `viewer.isMainAdmin` — UI'nın ana-yöneticiye özel kontrolleri (şifre
+  // sıfırlama, e-posta, lisans/güvenlik politikası) göstermesi için SUNUCU kararı. İstemcideki
+  // admin_level (canlıda varsayılan 'owner') güvenilmez. Yetki her işlemde ayrıca sunucuda doğrulanır.
+  const isMainAdmin = await resolveIsSuperAdmin(db, adminId);
+  return NextResponse.json(
+    { user: data, paymentHistory: history ?? [], viewer: { isMainAdmin } },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }
 
 async function audit(
@@ -90,6 +97,8 @@ async function audit(
  *    duruma göre audit yazar. Tam izin haritası (`modulePermissions`) KABUL EDİLMEZ.
  *  - edit (MEM-002): yalnız ad/e-posta/rol; `active` → 400 (aktiflik yalnız durum
  *    işlemiyle). Değişen alanlar audit'lenir (değer/PII yazılmaz).
+ *
+ * AŞAMA 2 · P1-7: license (tamamı) ve edit'te e-posta değişimi YALNIZ ana yönetici (403).
  */
 export async function PATCH(req: NextRequest, ctx: RouteContext) {
   const guard = await verifyAdminRequest(req);
@@ -119,6 +128,12 @@ type Db = Parameters<typeof writeAdminAudit>[0];
 async function patchLicense(db: Db, adminId: string, id: string, body: Record<string, unknown>) {
   // Self-target koruması: admin kendi oturum limitlerini bu ekrandan değiştiremez.
   if (id === adminId) return bad("Kendi oturum limitlerinizi bu ekrandan değiştiremezsiniz.", 403);
+
+  // AŞAMA 2 · P1-7 (owner kararı 14): bu action'ın yazdığı TÜM alanlar (lisans türü, oturum /
+  // cihaz limitleri, lokasyon, güvenlik modu, güvenlik istisnası, lisans notu) güvenlik
+  // politikasıdır → YALNIZ ana yönetici. Normal admin değerleri GET ile görür, değiştiremez.
+  const main = await requireMainAdmin(db, adminId);
+  if (!main.ok) return bad("Lisans ve güvenlik politikasını yalnızca ana yönetici değiştirebilir.", 403);
 
   const v = validateLicensePayload(body);
   if (!v.ok) return bad(v.error);
@@ -349,6 +364,13 @@ async function patchProfile(db: Db, adminId: string, id: string, body: Record<st
 
   if (!nameChanged && !emailChanged && !roleChanged) {
     return NextResponse.json({ ok: true, changed: false }, { headers: NO_STORE });
+  }
+
+  // AŞAMA 2 · P1-7: e-posta = giriş kimliği. Değiştirilmesi hesap devralmaya kapı açar →
+  // YALNIZ ana yönetici. Yalnız isim değişikliği normal admin'e açık kalır.
+  if (emailChanged) {
+    const main = await requireMainAdmin(db, adminId);
+    if (!main.ok) return bad("E-posta adresini yalnızca ana yönetici değiştirebilir.", 403);
   }
 
   if (roleChanged) {

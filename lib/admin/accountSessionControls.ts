@@ -19,6 +19,7 @@
  * Yalnız server-side (service_role db) kullanılır.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { PASSWORD_MIN_LENGTH, newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
 import {
   requireMainAdminForAdminTarget,
   resolveIsSuperAdmin,
@@ -41,10 +42,9 @@ export function isLogoutAllConfirmValid(value: unknown): boolean {
   return typeof value === "string" && value.trim() === LOGOUT_ALL_CONFIRM_PHRASE;
 }
 
-/** Şifre politikası — repo standardıyla (settings/change-password) uyumlu: min 6. */
-// FAZ1 FINAL HARDENING: YENİ parolalar için minimum 10 (register, şifre değiştirme, admin
-// sıfırlama). Mevcut parolalar ETKİLENMEZ (login uzunluk kontrolü yapmaz).
-export const MIN_PASSWORD_LENGTH = 10;
+/** Parola politikası — tek kaynak lib/auth/passwordPolicy.ts (min 6, karmaşıklık zorunluluğu yok,
+ * bariz/yaygın parola reddi). YALNIZ yeni parola belirlemede; mevcut parolalar ETKİLENMEZ. */
+export const MIN_PASSWORD_LENGTH = PASSWORD_MIN_LENGTH;
 
 export type PasswordValidation =
   | { ok: true; value: string }
@@ -53,14 +53,11 @@ export type PasswordValidation =
 export function validateNewPassword(raw: unknown): PasswordValidation {
   const value = String(raw ?? "").trim();
   if (!value) {
-    return { ok: false, status: 400, error: "Yeni şifre giriniz." };
+    return { ok: false, status: 400, error: "Yeni parola giriniz." };
   }
-  if (value.length < MIN_PASSWORD_LENGTH) {
-    return {
-      ok: false,
-      status: 422,
-      error: `Yeni şifre en az ${MIN_PASSWORD_LENGTH} karakter olmalı.`,
-    };
+  const policyError = newPasswordPolicyMessage(value);
+  if (policyError) {
+    return { ok: false, status: 422, error: policyError };
   }
   return { ok: true, value };
 }

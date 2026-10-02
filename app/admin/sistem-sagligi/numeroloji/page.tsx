@@ -4,10 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import {
   AccessDeniedScreen,
-  buildTenantCounts,
   LoadingScreen,
   SistemSagligiDetailShell,
   SummaryStatCard,
+  tenantCountsFromMap,
   TenantBreakdownSection,
   useSistemSagligiAdminGate,
   type TenantIdCount,
@@ -29,26 +29,26 @@ async function loadNumerolojiTenantMetricSummary(): Promise<{
 
     const res = await fetch("/api/admin/numeroloji/tenant-metrics", { headers });
     if (!res.ok) {
-      const j = (await res.json().catch(() => ({}))) as { error?: string };
-      return { total: 0, tenantRows: [], distinctTenants: 0, error: j.error ?? `HTTP ${res.status}` };
+      return { total: 0, tenantRows: [], distinctTenants: 0, error: "Numeroloji metrikleri alınamadı." };
     }
+    // AA-4: sunucu yalnız agrege {tenant_id: count} döner (satır başına id listesi YOK).
     const json = (await res.json().catch(() => ({}))) as {
       total?: number;
-      ids?: (string | null)[];
+      tenants?: Record<string, number>;
     };
-    const tenantRows = buildTenantCounts(json.ids ?? []);
+    const tenantRows = tenantCountsFromMap(json.tenants);
     return {
       total: json.total ?? 0,
       tenantRows,
       distinctTenants: tenantRows.length,
       error: null,
     };
-  } catch (err) {
+  } catch {
     return {
       total: 0,
       tenantRows: [],
       distinctTenants: 0,
-      error: err instanceof Error ? err.message : "Numeroloji metrikleri alınamadı.",
+      error: "Numeroloji metrikleri alınamadı.",
     };
   }
 }

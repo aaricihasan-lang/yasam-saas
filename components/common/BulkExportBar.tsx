@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
+import { NO_ANDROID_CLASS } from "@/lib/platform/outputSupport";
 
 export type BulkExportBarProps = {
   selectedCount: number;
@@ -62,8 +63,10 @@ export function BulkExportBar({
   const hasExport = !isAndroid && Boolean(onExportSelected || onExportAll);
   const selectCountDisplay = selectAllCount ?? totalCount;
   // Word export butonlarını mobilde gizle (opt-in). Boşsa mevcut davranış korunur.
-  const wordHideCls = hideWordOnMobile ? " hidden md:inline-block" : "";
-  const wordDividerCls = hideWordOnMobile ? "hidden md:block" : "hidden sm:block";
+  // NO_ANDROID_CLASS: SSR'da (hook henüz false iken) Android'de Word butonu flash olmasın
+  // diye html[data-android] CSS kuralıyla gizlenir (plan §4.6; hook guard'ı korunur).
+  const wordHideCls = ` ${NO_ANDROID_CLASS}${hideWordOnMobile ? " hidden md:inline-block" : ""}`;
+  const wordDividerCls = `${NO_ANDROID_CLASS} ${hideWordOnMobile ? "hidden md:block" : "hidden sm:block"}`;
 
   if (compact) {
     return (

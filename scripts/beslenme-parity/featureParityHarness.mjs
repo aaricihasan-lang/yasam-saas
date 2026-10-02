@@ -240,6 +240,19 @@ ok("plan-guard clients-only unbound plan → fail-closed (bound zorunlu)",
    /if \(!boundClientId\)[\s\S]{0,120}PLAN_NOT_FOUND/.test(planGuard));
 ok("plan-guard beslenme+clients ikisi de yoksa → 403 FORBIDDEN",
    /if \(!hasBeslenme && !hasClients\)[\s\S]{0,120}FORBIDDEN/.test(planGuard));
+// P1-4: üyelik kapısı (premium/aktif/onaylı; admin muaf) — 3 capability kapısı.
+ok("plan-guard üyelik kapısı hasMembershipAccessForRow (plan lookup'tan önce)",
+   planGuard.indexOf("hasMembershipAccessForRow(") > -1 &&
+   planGuard.indexOf("hasMembershipAccessForRow(") < planGuard.indexOf('from("nutrition_plans")'));
+{
+  const og = read("lib/beslenme/ownerGuard.ts");
+  const capBlock = (og.match(/export async function resolveBeslenmeCapabilities[\s\S]*?^}/m) || [""])[0];
+  const foodBlock = (og.match(/export async function requireBeslenmeFoodRead[\s\S]*?^}/m) || [""])[0];
+  ok("capabilities kapısı üyelik (hasMembershipAccessForRow + membershipInactiveResponse)",
+     /hasMembershipAccessForRow\(/.test(capBlock) && /membershipInactiveResponse\(\)/.test(capBlock));
+  ok("food-read kapısı üyelik (hasMembershipAccessForRow + membershipInactiveResponse)",
+     /hasMembershipAccessForRow\(/.test(foodBlock) && /membershipInactiveResponse\(\)/.test(foodBlock));
+}
 const clientGuard = read("lib/beslenme/clientRouteGuard.ts");
 ok("client route tenant-scope korunuyor (requireClientInTenant)", /requireClientInTenant\(/.test(clientGuard));
 

@@ -8,16 +8,22 @@ import Link from "next/link";
 import {
   ArrowUpDown,
   CalendarCheck,
+  ChevronDown,
   ListFilter,
   Phone,
   UserPlus,
   UsersRound,
+  X,
 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { readYasamUser, readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
-import { containsTr } from "@/lib/text/turkishSearch";
+import {
+  TR_ALPHABET,
+  countActiveClientFilters,
+  matchesClientFilters,
+} from "@/lib/danisan/clientListFilter";
 import {
   getDanisanListCache,
   setDanisanListCache,
@@ -333,6 +339,10 @@ export default function DanisanListePage() {
   const [filterBurc, setFilterBurc] = useState("");
   const [filterKan, setFilterKan] = useState("");
   const [filterMizac, setFilterMizac] = useState("");
+  // İlk Harf (Türkçe alfabe; "" = Tümü).
+  const [filterInitial, setFilterInitial] = useState("");
+  // Mobil (<sm) filtre paneli varsayılan kapalı; sm+ her zaman açık (CSS).
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortKey>("newest");
   const [page, setPage] = useState(1);
 
@@ -351,16 +361,14 @@ export default function DanisanListePage() {
   );
 
   const filteredClients = useMemo(() => {
-    const q = search.trim();
-    const filtered = clients.filter((c) => {
-      const fullName = `${c.ad || ""} ${c.soyad || ""}`;
-      const searchOk =
-        !q || containsTr(fullName, q) || containsTr(c.telefon, q);
-      const burcOk = !filterBurc || c.burc === filterBurc;
-      const kanOk = !filterKan || c.kan === filterKan;
-      const mizacOk = !filterMizac || c.mizac === filterMizac;
-      return searchOk && burcOk && kanOk && mizacOk;
-    });
+    const filters = {
+      search,
+      burc: filterBurc,
+      kan: filterKan,
+      mizac: filterMizac,
+      initial: filterInitial,
+    };
+    const filtered = clients.filter((c) => matchesClientFilters(c, filters));
 
     return [...filtered].sort((a, b) => {
       switch (sortBy) {
@@ -378,9 +386,23 @@ export default function DanisanListePage() {
           return b.created_at.localeCompare(a.created_at);
       }
     });
-  }, [clients, search, filterBurc, filterKan, filterMizac, sortBy]);
+  }, [clients, search, filterBurc, filterKan, filterMizac, filterInitial, sortBy]);
 
-  const hasActiveFilter = Boolean(search.trim() || filterBurc || filterKan || filterMizac);
+  const activeFilterCount = countActiveClientFilters({
+    search,
+    burc: filterBurc,
+    kan: filterKan,
+    mizac: filterMizac,
+    initial: filterInitial,
+  });
+  const hasActiveFilter = activeFilterCount > 0;
+  const clearFilters = useCallback(() => {
+    setSearch("");
+    setFilterBurc("");
+    setFilterKan("");
+    setFilterMizac("");
+    setFilterInitial("");
+  }, []);
   // Arama/filtre veya varsayılan-dışı sıralama → doğru sonuç için tüm veri gerekir.
   const needsFullData = hasActiveFilter || sortBy !== "newest";
   // Gözat modu: filtre yok + varsayılan sıralama + tüm veri henüz çekilmedi →
@@ -404,7 +426,7 @@ export default function DanisanListePage() {
   // Filtre / arama / sıralama değişince sayfayı başa sar.
   useEffect(() => {
     setPage(1);
-  }, [search, filterBurc, filterKan, filterMizac, sortBy]);
+  }, [search, filterBurc, filterKan, filterMizac, filterInitial, sortBy]);
 
   // DY-A: seçim her zaman GÖRÜNÜR (filtrelenmiş) kümeyle budanır → aramayla gizlenen
   // seçili danışan habersizce silinemez/Word'e girmez. Değişiklik yoksa aynı Set (döngü yok).
@@ -842,7 +864,38 @@ export default function DanisanListePage() {
           className="mb-5"
           desktopClassName="sm:rounded-2xl sm:border sm:border-white/80 sm:bg-white/80 sm:p-8 sm:shadow-lg sm:backdrop-blur-sm"
         >
-          <div className="mb-5 flex items-center gap-3">
+          {/* Mobil (<sm): tek satır "Filtrele" açma/kapama butonu. sm+ gizli. */}
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((v) => !v)}
+            aria-expanded={filtersOpen}
+            aria-controls="dy-liste-filtre-panel"
+            className="flex h-11 w-full items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 text-left text-[15px] font-black text-slate-900 shadow-sm transition-colors hover:bg-slate-50 sm:hidden"
+          >
+            <ListFilter className="h-4 w-4 shrink-0 text-blue-700" aria-hidden />
+            <span className="min-w-0 flex-1 truncate">{t("filter.toggle")}</span>
+            {activeFilterCount > 0 && (
+              <>
+                <span
+                  className="inline-flex h-6 min-w-[24px] shrink-0 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[12px] font-black text-white"
+                  aria-hidden
+                >
+                  {activeFilterCount}
+                </span>
+                <span className="sr-only">{t("filter.activeCount", { count: activeFilterCount })}</span>
+              </>
+            )}
+            <ChevronDown
+              className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${filtersOpen ? "rotate-180" : ""}`}
+              aria-hidden
+            />
+          </button>
+
+          <div
+            id="dy-liste-filtre-panel"
+            className={filtersOpen ? "mt-4 sm:mt-0" : "hidden sm:block"}
+          >
+          <div className="mb-5 hidden items-center gap-3 sm:flex">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 shadow-sm">
               <ListFilter className="h-4 w-4 text-blue-700" />
             </div>
@@ -852,7 +905,7 @@ export default function DanisanListePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <Field label={t("filter.searchLabel")}>
               <input
                 value={search}
@@ -860,6 +913,15 @@ export default function DanisanListePage() {
                 placeholder={t("filter.searchPlaceholder")}
                 className={inputCls}
               />
+            </Field>
+            <Field label={t("filter.initial")}>
+              {/* İlk Harf: Türkçe alfabe (I ≠ İ, C ≠ Ç); eşleşme tr-TR büyük harf. */}
+              <select value={filterInitial} onChange={(e) => setFilterInitial(e.target.value)} className={inputCls}>
+                <option value="">{t("filter.initialAll")}</option>
+                {TR_ALPHABET.map((letter) => (
+                  <option key={letter} value={letter}>{letter}</option>
+                ))}
+              </select>
             </Field>
             <Field label={t("filter.burcLabel")}>
               {/* Burç option VALUE'su KANONİK Türkçe kalır (filtre: c.burc === filterBurc);
@@ -892,6 +954,19 @@ export default function DanisanListePage() {
                 <option value="balgam">{t("filter.mizacOptions.balgam")}</option>
               </select>
             </Field>
+          </div>
+
+          {/* Mobil: aktif filtre varken "Temizle" (desktop düzeni değişmez). */}
+          {hasActiveFilter && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-[14px] font-black text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:hidden"
+            >
+              <X className="h-4 w-4" aria-hidden />
+              {t("filter.clear")}
+            </button>
+          )}
           </div>
         </DanisanSectionShell>
 

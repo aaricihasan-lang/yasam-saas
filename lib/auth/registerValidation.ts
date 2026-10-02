@@ -2,17 +2,19 @@
  * MEM-012 — Public kayıt (/api/register) SAF doğrulama. Client + server + harness paylaşır.
  *
  * Politika (makul, satış öncesi): ad 2–120 karakter (kontrol karakteri yok); e-posta trim+lower,
- * ≤254, basit biçim; parola 10–128 karakter (FAZ1 FINAL HARDENING NEW_PASSWORD_MIN_LENGTH = 10 ile
- * birebir), en az bir harf + bir rakam, e-posta ile aynı değil.
+ * ≤254, basit biçim; parola lib/auth/passwordPolicy.ts (tek kaynak): 6–128 karakter, karmaşıklık
+ * zorunluluğu YOK (yalnız rakam geçerli), bariz/yaygın parola reddi, e-posta ile aynı değil.
  * Honeypot alanı (`website`) dolu gelirse bot kabul edilir (route sessizce kayıt oluşturmaz).
  */
+
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, newPasswordPolicyCode } from "@/lib/auth/passwordPolicy";
 
 export const REGISTER_NAME_MIN = 2;
 export const REGISTER_NAME_MAX = 120;
 export const REGISTER_EMAIL_MAX = 254;
-/** lib/auth/loginThrottle NEW_PASSWORD_MIN_LENGTH ile AYNI (o modül server-only crypto import eder; harness eşitliği doğrular). */
-export const REGISTER_PASSWORD_MIN = 10;
-export const REGISTER_PASSWORD_MAX = 128;
+/** passwordPolicy tek kaynağı (loginThrottle NEW_PASSWORD_MIN_LENGTH ile AYNI; harness eşitliği doğrular). */
+export const REGISTER_PASSWORD_MIN = PASSWORD_MIN_LENGTH;
+export const REGISTER_PASSWORD_MAX = PASSWORD_MAX_LENGTH;
 export const REGISTER_HONEYPOT_FIELD = "website";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -33,12 +35,9 @@ export function normalizeRegisterEmail(raw: unknown): string {
   return typeof raw === "string" ? raw.trim().toLowerCase() : "";
 }
 
-/** Parola politikası (UI anlık geri bildirim + server). */
+/** Parola politikası (UI anlık geri bildirim + server) — ayrıntılı mesaj: newPasswordPolicyMessage. */
 export function passwordPolicyError(password: string, email = ""): RegisterErrorCode | null {
-  if (password.length < REGISTER_PASSWORD_MIN || password.length > REGISTER_PASSWORD_MAX) return "weak_password";
-  if (!/[A-Za-zÇĞİÖŞÜçğıöşü]/.test(password) || !/[0-9]/.test(password)) return "weak_password";
-  if (email && password.toLowerCase() === email.toLowerCase()) return "weak_password";
-  return null;
+  return newPasswordPolicyCode(password, email) ? "weak_password" : null;
 }
 
 export function validateRegisterBody(body: Record<string, unknown>): RegisterValidation {

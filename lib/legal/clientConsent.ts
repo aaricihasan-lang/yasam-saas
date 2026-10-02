@@ -6,8 +6,6 @@
  *     migration'daki CHECK kısıtlarıyla BİREBİR aynıdır.
  * API: app/api/clients/[id]/consents (GET/POST). UI: components/kvkk/ClientConsentPanel.tsx.
  * Client + server import edilebilir (DOM/Node API'si YOK).
- *
- * Metinler TASLAKTIR (lib/legal/legalDraft.ts LEGAL_DRAFT_MARK).
  */
 
 export const CONSENT_TYPES = [
@@ -24,8 +22,11 @@ export type ConsentStatus = (typeof CONSENT_STATUSES)[number];
 export const CONSENT_METHODS = ["islak_imza", "uygulama_onay", "sozlu_kayit", "diger"] as const;
 export type ConsentMethod = (typeof CONSENT_METHODS)[number];
 
-/** Uzmanın kullandığı aydınlatma/onam metni şablonunun sürümü (/kvkk-aydinlatma). */
-export const CONSENT_TEXT_VERSION = "kvkk-taslak-2026-09";
+/**
+ * Uzmanın kullandığı örnek aydınlatma/onam metninin sürümü (/kvkk-aydinlatma).
+ * Yalnız yeni kayıtlara yazılır; önceki kayıtlar kendi text_version değerini korur.
+ */
+export const CONSENT_TEXT_VERSION = "kvkk-2026-10";
 
 export const CONSENT_NOTE_MAX = 1000;
 export const CONSENT_SOURCE_MAX = 64;

@@ -42,12 +42,12 @@ const COPY: Record<
   password_support: {
     messageLabel: "Mesaj",
     messagePlaceholder:
-      "Giriş / şifre ile ilgili yaşadığınız durumu kısaca yazın.",
+      "Giriş / parola ile ilgili yaşadığınız durumu kısaca yazın.",
     submitLabel: "Talebi Gönder",
     backLabel: "Giriş ekranına dön",
     successTitle: "Talebiniz alındı",
     successBody:
-      "Giriş/şifre desteği talebiniz yöneticimize iletildi. En kısa sürede sizinle iletişime geçilecektir.",
+      "Giriş/parola desteği talebiniz yöneticimize iletildi. En kısa sürede sizinle iletişime geçilecektir.",
     requireEmail: true,
   },
   membership_contact: {

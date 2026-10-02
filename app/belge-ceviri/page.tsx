@@ -7,6 +7,7 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken, isAdminUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
+import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import {
   DIGITAL_CONTENT_DEMO_BANNER,
@@ -152,6 +153,8 @@ export default function BelgeCeviriPage() {
   const { showToast } = useToast();
   const isDemo = readYasamUser()?.is_demo_account === true;
   const isAndroid = useIsAndroid();
+  // Android uygulama WebView'inde blob: indirme çalışmaz → TXT İndir gizli (plan §4.6).
+  const isAndroidApp = useIsAndroidApp();
 
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -509,7 +512,7 @@ export default function BelgeCeviriPage() {
             return (
               <div
                 key={card.id}
-                className={`flex flex-col rounded-xl border bg-gradient-to-br p-2.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.gradient} ${card.border}`}
+                className={`${card.id === "pdf-to-word" || card.id === "pdf-to-turkce-word" ? "no-android " : ""}flex flex-col rounded-xl border bg-gradient-to-br p-2.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.gradient} ${card.border}`}
               >
                 {/* ikon + badge */}
                 <div className="flex items-start justify-between gap-2">
@@ -690,20 +693,22 @@ export default function BelgeCeviriPage() {
                         <Copy className="h-3.5 w-3.5" strokeWidth={2.25} />
                         Kopyala
                       </button>
+                      {!isAndroidApp && (
                       <button
                         type="button"
                         onClick={() => downloadTxt(ocrResult.text)}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
+                        className="no-android-app flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
                       >
                         <FileDown className="h-3.5 w-3.5" strokeWidth={2.25} />
                         TXT İndir
                       </button>
+                      )}
                       {!isAndroid && (
                       <button
                         type="button"
                         onClick={() => void handleOcrWordDownload(ocrResult.text, "original")}
                         disabled={downloadingWord === "original"}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2 text-xs font-bold text-white transition hover:bg-amber-600 disabled:opacity-50"
+                        className="no-android flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2 text-xs font-bold text-white transition hover:bg-amber-600 disabled:opacity-50"
                       >
                         {downloadingWord === "original" ? (
                           <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
@@ -743,20 +748,22 @@ export default function BelgeCeviriPage() {
                             <Copy className="h-3.5 w-3.5" strokeWidth={2.25} />
                             Çeviriyi Kopyala
                           </button>
+                          {!isAndroidApp && (
                           <button
                             type="button"
                             onClick={() => downloadTxt(ocrResult.translation ?? "", "ocr-ceviri.txt")}
-                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
+                            className="no-android-app flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
                           >
                             <FileDown className="h-3.5 w-3.5" strokeWidth={2.25} />
                             TXT İndir
                           </button>
+                          )}
                           {!isAndroid && (
                           <button
                             type="button"
                             onClick={() => void handleOcrWordDownload(ocrResult.translation ?? "", "translation", "ocr-ceviri.docx")}
                             disabled={downloadingWord === "translation"}
-                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2 text-xs font-bold text-white transition hover:bg-amber-600 disabled:opacity-50"
+                            className="no-android flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2 text-xs font-bold text-white transition hover:bg-amber-600 disabled:opacity-50"
                           >
                             {downloadingWord === "translation" ? (
                               <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
@@ -832,7 +839,7 @@ export default function BelgeCeviriPage() {
                       <a
                         href={activeJob.downloadUrl}
                         download
-                        className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-bold text-white transition hover:bg-emerald-700"
+                        className="no-android mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-bold text-white transition hover:bg-emerald-700"
                       >
                         <Download className="h-4 w-4" strokeWidth={2.25} />
                         DOCX İndir
@@ -1099,7 +1106,7 @@ export default function BelgeCeviriPage() {
                           <a
                             href={job.downloadUrl}
                             download
-                            className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 text-xs font-bold text-white transition hover:bg-emerald-700 sm:w-auto sm:px-5"
+                            className="no-android inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 text-xs font-bold text-white transition hover:bg-emerald-700 sm:w-auto sm:px-5"
                           >
                             <Download className="h-3.5 w-3.5" strokeWidth={2.25} />
                             DOCX İndir

@@ -767,7 +767,7 @@ export default function BiyoenerjiSeanslari() {
                       type="button"
                       disabled={wordBusy}
                       onClick={() => void exportSessionsWord("single", selectedRow.id)}
-                      className="rounded-xl border border-blue-200/70 bg-blue-50/90 px-4 py-2.5 text-[12px] font-black text-blue-800 transition hover:bg-blue-100/90 disabled:opacity-50"
+                      className="no-android rounded-xl border border-blue-200/70 bg-blue-50/90 px-4 py-2.5 text-[12px] font-black text-blue-800 transition hover:bg-blue-100/90 disabled:opacity-50"
                     >
                       {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
                     </button>

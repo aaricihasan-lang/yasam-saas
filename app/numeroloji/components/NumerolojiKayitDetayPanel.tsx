@@ -18,6 +18,7 @@ import {
   type ContentFontSize,
 } from "./numerolojiContentTypography";
 import { gorselRaporuPngYakalaVeIndir } from "../gorselRaporExport";
+import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
 import {
   resolveNumerolojiTenantId,
   updateNumerologyAnalysisGorsel,
@@ -234,6 +235,8 @@ function KayitGorselKontrolPanel({
   gorselPngHazirlaniyor: boolean;
   onPngIndir: () => void;
 }) {
+  // Android uygulama WebView'inde data: PNG indirme çalışmaz → PNG İndir gizli (plan §4.6).
+  const isAndroidApp = useIsAndroidApp();
   return (
     <aside className="w-full space-y-2.5 py-1 md:rounded-[14px] md:border md:border-violet-200/70 md:bg-gradient-to-br md:from-white/95 md:via-violet-50/30 md:to-white/90 md:p-3 md:shadow-[0_8px_24px_-10px_rgba(91,33,182,0.18)] md:ring-1 md:ring-violet-100/55 lg:sticky lg:top-3">
       <p className="text-sm font-black tracking-wide text-violet-800">Görsel rapor ayarları</p>
@@ -328,14 +331,16 @@ function KayitGorselKontrolPanel({
           {kayitGorselKaydediliyor ? "Kaydediliyor…" : "Ayarları Kaydet"}
         </button>
         {/* NUM-MOB-1: PNG İndir mobilde gizli (yer kaplamaz); md+ değişmez. */}
+        {!isAndroidApp && (
         <button
           type="button"
           disabled={gorselPngHazirlaniyor || kayitGorselKaydediliyor}
           onClick={onPngIndir}
-          className="hidden h-9 w-full rounded-xl border border-emerald-400/70 bg-gradient-to-r from-emerald-600 to-teal-600 px-3 text-sm font-black text-white shadow-[0_4px_14px_-4px_rgba(16,185,129,0.40)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 md:block"
+          className="no-android-app hidden h-9 w-full rounded-xl border border-emerald-400/70 bg-gradient-to-r from-emerald-600 to-teal-600 px-3 text-sm font-black text-white shadow-[0_4px_14px_-4px_rgba(16,185,129,0.40)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 md:block"
         >
           {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "PNG İndir"}
         </button>
+        )}
       </div>
     </aside>
   );

@@ -357,6 +357,9 @@ export async function startAnamnezTestEnv(opts: { port: number; dirName: string;
   await su.query(`create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
                   grant usage on schema public to anon, authenticated, service_role;`);
   await su.query(BASE_DDL);
+  // P1-3 (satış öncesi kapanış): oturum süre zorlaması varsayılan AÇIK → guard touch_active_session
+  // RPC'sini kullanır (fail-closed). Prod ile aynı RPC test şemasına uygulanır.
+  await su.query(readMig("20270129000200_user_sessions_expiry_touch.sql"));
   await su.query(readMig("20270129000900_client_consents.sql"));
   await su.query(readMig("20270202000000_client_anamnesis.sql"));
   await su.query(readMig("20270202000100_client_anamnesis_storage.sql"));
@@ -401,6 +404,17 @@ export async function startAnamnezTestEnv(opts: { port: number; dirName: string;
       const accept = String(req.headers["accept"] ?? "");
       const method = req.method ?? "GET";
       const single = accept.includes("vnd.pgrst.object+json");
+      // Yalnız allowlist'teki RPC'ler gerçek fonksiyona yönlenir (P1-3: oturum doğrulaması
+      // touch_active_session ile, varsayılan enforce AÇIK). Diğerleri bilinçli olarak 404 (PGRST202).
+      if (p === "rpc/touch_active_session" && req.method === "POST") {
+        const raw = (await readRaw(req)).toString("utf8");
+        const a = (raw ? JSON.parse(raw) : {}) as Record<string, unknown>;
+        const r = await client.query(
+          "select public.touch_active_session(p_token => $1, p_touch_after_seconds => $2, p_idle_seconds => $3, p_enforce => $4, p_admin_idle_seconds => $5, p_admin_absolute_seconds => $6) as v",
+          [a.p_token ?? null, a.p_touch_after_seconds ?? null, a.p_idle_seconds ?? null, a.p_enforce ?? null, a.p_admin_idle_seconds ?? null, a.p_admin_absolute_seconds ?? null],
+        );
+        return send(200, r.rows[0]?.v ?? null);
+      }
       if (p.startsWith("rpc/")) return send(404, { code: "PGRST202", message: "rpc yok (test)", details: null, hint: null });
       const table = qi(p);
       const values: unknown[] = [];
