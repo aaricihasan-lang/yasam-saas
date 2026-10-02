@@ -146,7 +146,9 @@ function readF(rel: string): string {
 // F1: Bu Ay Randevu artık iptal hariç (status filtresi var)
 {
   const s = readF("app/api/clients/stats/route.ts");
-  check("F1: 'Bu ay randevu' iptal hariç filtresi (or status.neq.iptal)", /Bu ay randevu[\s\S]{0,220}status\.neq\.iptal/.test(s));
+  check("F1: 'Bu ay randevu' iptal hariç filtresi (or status.neq.iptal)", /Bu ay randevu[\s\S]{0,400}status\.neq\.iptal/.test(s));
+  // Satış öncesi kapanış: hub randevu sayaçları yalnız DANIŞAN randevuları (Genel/danışansız hariç).
+  check("F1b: hub randevu sayaçları client_id IS NOT NULL", (s.match(/\.not\("client_id", "is", null\)/g) ?? []).length === 3);
   check("F2: 'En yakın' tamamlandi de hariç", /status\.neq\.iptal,status\.neq\.tamamlandi|and\(status\.neq\.iptal,status\.neq\.tamamlandi\)/.test(s));
   check("F6: stats server-side Istanbul (istanbulMonthRange)", s.includes("istanbulMonthRange"));
   check("F6: stats artık client monthStart param'ı OKUMUYOR", !s.includes('searchParams.get("monthStart")'));
@@ -194,7 +196,10 @@ function readF(rel: string): string {
   check("F7: POST burç server-side computeBurc", post.includes("computeBurc(fields.dogum"));
   const patch = readF("app/api/clients/[id]/route.ts");
   check("F7: PATCH dogum varsa burç recompute", patch.includes('hasOwnProperty.call(fields, "dogum")') && patch.includes("computeBurc"));
-  check("F7: PATCH dogum yoksa client burç strip (delete fields.burc)", patch.includes("delete fields.burc"));
+  // Satış öncesi kapanış: deny-list + `delete fields.burc` yerine İZİN LİSTESİ — burç hiçbir
+  // koşulda istemciden yazılamaz (CLIENT_WRITABLE_FIELDS'te yok), yalnız doğumdan türetilir.
+  const val = readF("lib/danisan/clientValidation.ts");
+  check("F7: PATCH dogum yoksa client burç yazılamaz (izin listesi)", patch.includes("validateClientWrite(body, \"patch\"") && !/CLIENT_WRITABLE_FIELDS = \[[^\]]*"burc"/.test(val));
 }
 // FAZ 1 güvenlik invariant: guard'lar korunuyor
 {

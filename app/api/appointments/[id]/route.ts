@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
-import { validateAppointmentPatch } from "@/lib/danisan/appointmentRules";
+import {
+  COMPLETED_MOVE_TO_FUTURE_ERROR,
+  needsNotCompletedGuard,
+  validateAppointmentPatch,
+} from "@/lib/danisan/appointmentRules";
 import { advanceClientGorusme } from "@/lib/danisan/appointmentGorusme";
 
 export const runtime = "nodejs";
@@ -68,7 +72,7 @@ export async function PATCH(
   const now = new Date();
   const verdict = validateAppointmentPatch(
     body,
-    existing as { appointment_date?: unknown },
+    existing as { appointment_date?: unknown; status?: unknown },
     now,
   );
   if (!verdict.ok) {
@@ -87,13 +91,16 @@ export async function PATCH(
     );
   }
 
-  const { data, error } = await db
+  // Tarih geleceğe taşınıyor ve durum gövdede yoksa: okuma→yazma arasında başka sekme
+  // randevuyu tamamlamış olabilir → UPDATE "hâlâ tamamlanmamış" koşuluyla atomik yapılır.
+  const guardNotCompleted = needsNotCompletedGuard(verdict.fields, existing as { appointment_date?: unknown }, now);
+  let upd = db
     .from("appointments")
     .update(verdict.fields)
     .eq("id", appointmentId)
-    .eq("tenant_id", tenantId)
-    .select()
-    .maybeSingle();
+    .eq("tenant_id", tenantId);
+  if (guardNotCompleted) upd = upd.or("status.is.null,status.neq.tamamlandi");
+  const { data, error } = await upd.select().maybeSingle();
 
   if (error) {
     return serverErrorResponse({
@@ -105,6 +112,12 @@ export async function PATCH(
     });
   }
   if (!data) {
+    if (guardNotCompleted) {
+      return NextResponse.json(
+        { ok: false, code: "COMPLETED_IN_FUTURE", error: COMPLETED_MOVE_TO_FUTURE_ERROR },
+        { status: 409 },
+      );
+    }
     return NextResponse.json(
       { ok: false, error: "Randevu bu hesaba ait değil." },
       { status: 404 },

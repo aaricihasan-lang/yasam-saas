@@ -55,7 +55,7 @@ export async function POST(req: NextRequest, { params }: RouteCtx): Promise<Resp
 
   const client = await loadClientInTenant(db, tenantId, clientId);
   if (!client) return notFound();
-  const { row, error } = await loadAnamnesis<{ id: string }>(db, tenantId, clientId, anamnesisId, "id");
+  const { row, error } = await loadAnamnesis<{ id: string; status: string }>(db, tenantId, clientId, anamnesisId, "id, status");
   if (error) {
     if (isMissingRelation(error)) return notReady();
     return serverErrorResponse({ route: "anamnez/attachments/finalize", action: "load", tenantId, cause: error });
@@ -66,6 +66,13 @@ export async function POST(req: NextRequest, { params }: RouteCtx): Promise<Resp
   if (!isOwnedAttachmentPath(path, tenantId, clientId, row.id)) return anamnezError("INVALID", 400);
 
   const bucket = db.storage.from(ANAMNEZ_BUCKET);
+  // Satış öncesi kapanış: tamamlanmış (kilitli) anamneze belge kaydedilemez. Hazırlık
+  // tamamlanmadan önce alındıysa yüklenen nesne de kaldırılır (yetim kalmaz).
+  if (row.status !== "draft") {
+    const { error: rmErr } = await bucket.remove([path]);
+    if (rmErr) logServerError({ route: "anamnez/attachments/finalize", action: "locked-remove", tenantId, cause: rmErr });
+    return anamnezError("LOCKED", 409);
+  }
   const reject = async (code: "INVALID_TYPE" | "TOO_LARGE" | "EMPTY" | "LIMIT_REACHED", status: number) => {
     const { error: rmErr } = await bucket.remove([path]);
     if (rmErr) logServerError({ route: "anamnez/attachments/finalize", action: "reject-remove", tenantId, cause: rmErr });

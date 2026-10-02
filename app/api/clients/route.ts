@@ -6,8 +6,9 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   createClientIdempotent,
   resolveCreateRequestId,
-  sanitizeClientPayload,
 } from "@/lib/danisan/clientCreate";
+import { validateClientWrite } from "@/lib/danisan/clientValidation";
+import { istanbulToday } from "@/lib/danisan/istanbulTime";
 
 export const runtime = "nodejs";
 
@@ -21,7 +22,9 @@ export const runtime = "nodejs";
  *   - Demo hesap: Supabase'e yazma yapılmaz.
  *   - Çift kayıt (DY-A): body.request_id (uuid) → clients.create_request_id; aynı
  *     istek tekrarında (23505) mevcut kayıt `idempotent_replay: true` ile döner.
- *     create_request_id istemci tarafından doğrudan yazılamaz (sanitizeClientPayload).
+ *     create_request_id istemci tarafından doğrudan yazılamaz.
+ *   - Satış öncesi kapanış: gövde İZİN LİSTESİ + doğrulamadan geçer
+ *     (lib/danisan/clientValidation) → bozuk tarih/boş ad/bilinmeyen kolon yazılamaz (400).
  */
 
 // ─── GET /api/clients ──────────────────────────────────────────────────────────
@@ -93,7 +96,16 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
-  const fields = sanitizeClientPayload(body);
+  // İzin listesi + doğrulama (ad/soyad zorunlu, gerçek takvim tarihi, kanonik kan/mizaç).
+  // tenant_id/id/user_id/create_request_id/bilinmeyen kolonlar zaten süzülür.
+  const verdict = validateClientWrite(body, "create", istanbulToday());
+  if (!verdict.ok) {
+    return NextResponse.json(
+      { ok: false, code: verdict.code, field: verdict.field, error: verdict.error },
+      { status: 400 },
+    );
+  }
+  const fields: Record<string, unknown> = { ...verdict.fields };
   const requestId = resolveCreateRequestId(body);
 
   // F7: Burç SUNUCUDA doğum tarihinden türetilir (canonical, giriş yolundan bağımsız).

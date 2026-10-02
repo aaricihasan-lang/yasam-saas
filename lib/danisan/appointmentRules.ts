@@ -137,9 +137,30 @@ export const FUTURE_COMPLETION_ERROR =
  * PATCH gövdesini izin listesine göre süzer ve doğrular.
  * @param existing  Kayıtlı randevu (tarih; gelecekte-tamamlama kontrolü için).
  */
+export const COMPLETED_MOVE_TO_FUTURE_ERROR =
+  "Tamamlanmış bir randevu gelecekteki bir tarihe taşınamaz.";
+
+/** İki tarih değeri aynı ana mı işaret ediyor? (ISO metin biçimi farkı tolere edilir.) */
+function sameInstant(a: unknown, b: unknown): boolean {
+  const asInput = (v: unknown) => (typeof v === "string" || typeof v === "number" || v instanceof Date ? v : null);
+  const ia = toInstant(asInput(a));
+  const ib = toInstant(asInput(b));
+  return !!ia && !!ib && ia.getTime() === ib.getTime();
+}
+
+/**
+ * PATCH gövdesini izin listesine göre süzer ve doğrular.
+ * @param existing  Kayıtlı randevu (tarih + durum; gelecekte-tamamlama kontrolü için).
+ *
+ * Kural: ETKİN durum (gövdedeki `status`, yoksa kayıtlı durum) "tamamlandi" iken ETKİN tarih
+ * gelecekte olamaz. Satış öncesi kapanış: eskiden yalnız gövdede `status` varsa kontrol
+ * ediliyordu → tamamlanmış randevu tarih düzenlemesiyle geleceğe taşınabiliyordu.
+ * Geriye uyum: tarih DEĞİŞMİYORSA (UI düzenleme formu tarihi hep gönderir) kontrol yapılmaz
+ * → eskiden oluşmuş satırların başlık/not düzenlemesi engellenmez.
+ */
 export function validateAppointmentPatch(
   body: Record<string, unknown> | null | undefined,
-  existing: { appointment_date?: unknown } | null,
+  existing: { appointment_date?: unknown; status?: unknown } | null,
   now: Date = new Date(),
 ): AppointmentValidation {
   const fields = pick(body, APPOINTMENT_PATCH_FIELDS);
@@ -148,13 +169,39 @@ export function validateAppointmentPatch(
   }
   const bad = validateFieldTypes(fields);
   if (bad) return bad;
+  const effectiveDate = "appointment_date" in fields ? fields.appointment_date : existing?.appointment_date;
   if (fields.status === "tamamlandi") {
-    const effectiveDate = "appointment_date" in fields ? fields.appointment_date : existing?.appointment_date;
     if (isAppointmentInFuture(effectiveDate, now)) {
       return { ok: false, status: 409, code: "APPOINTMENT_IN_FUTURE", error: FUTURE_COMPLETION_ERROR };
     }
+  } else if (
+    !("status" in fields) &&
+    existing?.status === "tamamlandi" &&
+    "appointment_date" in fields &&
+    !sameInstant(fields.appointment_date, existing?.appointment_date) &&
+    isAppointmentInFuture(fields.appointment_date, now)
+  ) {
+    return { ok: false, status: 409, code: "COMPLETED_IN_FUTURE", error: COMPLETED_MOVE_TO_FUTURE_ERROR };
   }
   return { ok: true, fields };
+}
+
+/**
+ * Atomik koruma gerekiyor mu? Durum gövdede yokken tarih geleceğe taşınıyorsa UPDATE,
+ * "kayıtlı durum hâlâ tamamlandi değil" koşuluyla yapılmalı (okuma→yazma arasında başka
+ * sekme tamamlamış olabilir).
+ */
+export function needsNotCompletedGuard(
+  fields: Record<string, unknown>,
+  existing: { appointment_date?: unknown } | null,
+  now: Date = new Date(),
+): boolean {
+  return (
+    !("status" in fields) &&
+    "appointment_date" in fields &&
+    !sameInstant(fields.appointment_date, existing?.appointment_date) &&
+    isAppointmentInFuture(fields.appointment_date, now)
+  );
 }
 
 /** POST gövdesini süzer + doğrular (statü yoksa "bekliyor"). */

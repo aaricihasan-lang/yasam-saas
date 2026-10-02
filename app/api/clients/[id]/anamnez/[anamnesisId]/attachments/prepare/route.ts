@@ -50,12 +50,14 @@ export async function POST(req: NextRequest, { params }: RouteCtx): Promise<Resp
 
   const client = await loadClientInTenant(db, tenantId, clientId);
   if (!client) return notFound();
-  const { row, error } = await loadAnamnesis<{ id: string }>(db, tenantId, clientId, anamnesisId, "id");
+  const { row, error } = await loadAnamnesis<{ id: string; status: string }>(db, tenantId, clientId, anamnesisId, "id, status");
   if (error) {
     if (isMissingRelation(error)) return notReady();
     return serverErrorResponse({ route: "anamnez/attachments/prepare", action: "load", tenantId, cause: error });
   }
   if (!row) return notFound();
+  // Satış öncesi kapanış: tamamlanmış (kilitli) anamneze belge EKLENEMEZ.
+  if (row.status !== "draft") return anamnezError("LOCKED", 409);
 
   const { count, error: cntErr } = await db
     .from("client_anamnesis_attachments")

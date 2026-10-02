@@ -113,6 +113,7 @@
         "nameRequired": "First and last name are required",
         "invalidDateTitle": "Invalid date",
         "invalidDateMsg": "Enter the meeting date as a valid date in DD.MM.YYYY format, or leave it empty.",
+        "invalidBirthMsg": "Enter the birth date as a real calendar date in DD.MM.YYYY format (not in the future), or leave it empty.",
         "successTitle": "Success",
         "demoCreated": "Demo client created.",
         "saved": "Client saved.",

@@ -75,6 +75,28 @@ class FakeDb {
   from(table: string) {
     return new Query(this, table);
   }
+  /** Sorgu filtrelerinde (URL'e giden) kullanılan kolon/değer uzunlukları — DY-01 kanıtı. */
+  urlCols: Array<{ col: string; len: number }> = [];
+  /** true → RPC migration'ı henüz uygulanmamış prod gibi davran (PGRST202). */
+  rpcMissing = false;
+  /** client_notes_cas_update RPC emülasyonu: tek ifade (hook → özet kontrolü → yazım) = atomik. */
+  async rpc(name: string, args: Record<string, unknown>) {
+    if (this.rpcMissing || name !== "client_notes_cas_update") {
+      return { data: null, error: { code: "PGRST202", message: `Could not find the function public.${name}` } };
+    }
+    this.hooks.beforeUpdate?.("client_notes");
+    const fields = args.p_fields as Row;
+    const hit = this.rows("client_notes").filter(
+      (r) =>
+        r.id === args.p_note_id &&
+        r.tenant_id === args.p_tenant_id &&
+        r.client_id === args.p_client_id &&
+        (args.p_expected_sha256 == null || notesVersion((r.notlar as string | null) ?? null) === args.p_expected_sha256),
+    );
+    for (const r of hit) Object.assign(r, fields);
+    this.log.push({ op: "update", table: "client_notes", payload: fields });
+    return { data: hit.map((r) => ({ ...r })), error: null };
+  }
   asClient(): SupabaseClient {
     return this as unknown as SupabaseClient;
   }
@@ -93,6 +115,7 @@ class Query {
     return this;
   }
   eq(col: string, v: unknown) {
+    this.db.urlCols.push({ col, len: String(v).length });
     this.filters.push((r) => r[col] === v);
     return this;
   }
@@ -262,6 +285,48 @@ const CLI = "11111111-1111-4111-8111-111111111111";
     assert.equal(r.kind, "ok");
     assert.equal(db.rows("client_notes").length, 2);
     assert.equal(db.rows("client_notes")[0].notlar, baseNote.notlar);
+  });
+
+  // ── 3b) DY-01: uzun notlar URL'e girmez, kilitlenmez; CAS korunur ─────────
+  const longText = (n: number) => JSON.stringify([{ id: "L", content: "Şğüıöç 🌿 notu ".repeat(Math.ceil(n / 14)).slice(0, n), createdAt: "2026-10-02T09:00:00.000Z" }]);
+  for (const size of [100, 8500, 20000, 200000]) {
+    await t(`DY-01: ${size} karakter not → yaz/düzenle/sil/temizle, URL'de not metni yok`, async () => {
+      const db = new FakeDb({ client_notes: [{ ...baseNote, notlar: longText(size) }] });
+      let cur = db.rows("client_notes")[0].notlar as string;
+      for (const next of [longText(size + 50), longText(size), "[]", ""]) {
+        const r = await applyNotesPatch(db.asClient(), TEN, CLI, { notlar: next }, notesVersion(cur));
+        assert.equal(r.kind, "ok");
+        cur = db.rows("client_notes")[0].notlar as string;
+        assert.equal(cur, next);
+      }
+      assert.ok(db.urlCols.every((u) => u.col !== "notlar"), "notlar URL filtresinde kullanılmamalı");
+      assert.ok(db.urlCols.every((u) => u.len < 100), "URL filtre değerleri kısa olmalı");
+    });
+  }
+  await t("DY-01: uzun notta iki sekme çakışması → conflict (409), yazım yok", async () => {
+    const db = new FakeDb({ client_notes: [{ ...baseNote, notlar: longText(20000) }] });
+    const stale = notesVersion(longText(20000));
+    db.rows("client_notes")[0].notlar = longText(20001); // diğer sekme kaydetti
+    const r = await applyNotesPatch(db.asClient(), TEN, CLI, { notlar: "[]" }, stale);
+    assert.equal(r.kind, "conflict");
+    assert.equal(db.rows("client_notes")[0].notlar, longText(20001));
+  });
+  await t("DY-01: uzun notta okuma→yazma arası değişim → conflict (RPC atomik)", async () => {
+    const db = new FakeDb({ client_notes: [{ ...baseNote, notlar: longText(20000) }] });
+    db.hooks.beforeUpdate = () => { db.rows("client_notes")[0].notlar = "başka cihaz"; };
+    const r = await applyNotesPatch(db.asClient(), TEN, CLI, { notlar: "[]" }, notesVersion(longText(20000)));
+    assert.equal(r.kind, "conflict");
+    assert.equal(db.rows("client_notes")[0].notlar, "başka cihaz");
+  });
+  await t("DY-01: RPC yok (migration öncesi) → uzun not yine yazılır, URL'de metin yok, sürüm çakışması 409", async () => {
+    const db = new FakeDb({ client_notes: [{ ...baseNote, notlar: longText(20000) }] });
+    db.rpcMissing = true;
+    const ok1 = await applyNotesPatch(db.asClient(), TEN, CLI, { notlar: longText(9000) }, notesVersion(longText(20000)));
+    assert.equal(ok1.kind, "ok");
+    assert.equal(db.rows("client_notes")[0].notlar, longText(9000));
+    const bad = await applyNotesPatch(db.asClient(), TEN, CLI, { notlar: "[]" }, notesVersion(longText(20000)));
+    assert.equal(bad.kind, "conflict");
+    assert.ok(db.urlCols.every((u) => u.col !== "notlar"));
   });
 
   // ── 4) Danışan oluşturma idempotency ──────────────────────────────────────

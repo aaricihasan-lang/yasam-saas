@@ -45,7 +45,7 @@ async function resolveAttachment(req: NextRequest, ctx: RouteCtx) {
   if (!isUuid(attachmentId)) return { response: notFound() } as const;
   const client = await loadClientInTenant(db, tenantId, clientId);
   if (!client) return { response: notFound() } as const;
-  const { row, error } = await loadAnamnesis<{ id: string }>(db, tenantId, clientId, anamnesisId, "id");
+  const { row, error } = await loadAnamnesis<{ id: string; status: string }>(db, tenantId, clientId, anamnesisId, "id, status");
   if (error) {
     if (isMissingRelation(error)) return { response: notReady() } as const;
     return { response: serverErrorResponse({ route: "anamnez/attachments/[id]", action: "load", tenantId, cause: error }) } as const;
@@ -63,7 +63,7 @@ async function resolveAttachment(req: NextRequest, ctx: RouteCtx) {
   const att = data as AttachmentRow | null;
   // İkinci savunma: DB'deki yol da bu önekte olmalı (DB CHECK ile zaten zorunlu).
   if (!att || !isOwnedAttachmentPath(att.storage_path, tenantId, clientId, row.id)) return { response: notFound() } as const;
-  return { guard, clientId, anamnesisId: row.id, att } as const;
+  return { guard, clientId, anamnesisId: row.id, anamnesisStatus: row.status, att } as const;
 }
 
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<Response> {
@@ -84,8 +84,10 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<Response> {
 export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   const r = await resolveAttachment(req, ctx);
   if ("response" in r) return r.response!;
-  const { guard, att, clientId, anamnesisId } = r;
+  const { guard, att, clientId, anamnesisId, anamnesisStatus } = r;
   if (guard.is_demo_account) return demoReadOnly();
+  // Satış öncesi kapanış: tamamlanmış (kilitli) anamnezin belgesi SİLİNEMEZ (görüntüleme serbest).
+  if (anamnesisStatus !== "draft") return anamnezError("LOCKED", 409);
 
   const { error: rmErr } = await guard.db.storage.from(ANAMNEZ_BUCKET).remove([att.storage_path]);
   if (rmErr) return anamnezError("STORAGE_FAILED", 502);
