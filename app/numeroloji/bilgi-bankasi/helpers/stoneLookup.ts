@@ -2,7 +2,7 @@ import { ELEMENT_ORDER, type ElementName } from "@/lib/numeroloji";
 import { numApi, numApiError } from "../../helpers/numApiClient";
 import type { NumerolojiMotorOut } from "../../utils/numerolojiPlainMetin";
 import { analizTuruLabel } from "./bilgiBankaLabels";
-import { buildChakraLookupValues, exactValueFromResult, valueCandidatesFromResult } from "./knowledgeLookup";
+import { buildChakraLookupValues, hayatYoluLookupCandidates, valueCandidatesFromResult } from "./knowledgeLookup";
 import type { StoneAssignmentRow } from "./bilgiBankaKayit";
 
 const STONE_API = "/api/numeroloji/stones";
@@ -54,13 +54,13 @@ export function buildElementStoneLookupValues(out: NumerolojiMotorOut): string[]
   return values;
 }
 
-export function buildStoneLookupPlan(out: NumerolojiMotorOut): { analysisType: string; values: string[] }[] {
+export function buildStoneLookupPlan(out: NumerolojiMotorOut): { analysisType: string; values: string[]; firstMatchOnly?: boolean }[] {
   return [
     { analysisType: STONE_ANALYSIS_TYPES.anaKulvar, values: valueCandidatesFromResult(out.anaKulvar) },
     { analysisType: STONE_ANALYSIS_TYPES.yanKulvar, values: valueCandidatesFromResult(out.yanKulvar) },
     { analysisType: STONE_ANALYSIS_TYPES.ifadeSayisi, values: valueCandidatesFromResult(out.ifadeSayisi) },
-    // NKB-V2-K1: Hayat Yolu EXACT-only — bileşik taş eşleşmesi parçalanmaz, indirgenmiş sayı fallback'i yok.
-    { analysisType: STONE_ANALYSIS_TYPES.hayatYolu, values: exactValueFromResult(out.hayatYolu) },
+    // NUM-F10: Hayat Yolu — birebir kod → eski gösterim → son sayı; İLK eşleşen (bilgi notuyla aynı zincir).
+    { analysisType: STONE_ANALYSIS_TYPES.hayatYolu, values: hayatYoluLookupCandidates(out.hayatYolu).values, firstMatchOnly: true },
     { analysisType: STONE_ANALYSIS_TYPES.cakraOmurga, values: buildChakraLookupValues(out) },
     { analysisType: STONE_ANALYSIS_TYPES.element, values: buildElementStoneLookupValues(out) },
   ];
@@ -93,6 +93,7 @@ function pickStoneAssignments(
   analysisType: string,
   valuesInOrder: string[],
   globalSeenIds: Set<string>,
+  firstMatchOnly = false,
 ): StoneAssignmentForAnalysis[] {
   const items: StoneAssignmentForAnalysis[] = [];
 
@@ -111,6 +112,7 @@ function pickStoneAssignments(
       reason: row.reason?.trim() ? row.reason.trim() : null,
       stones,
     });
+    if (firstMatchOnly) break;
   }
 
   return items;
@@ -138,7 +140,7 @@ export async function getStoneAssignmentsForAnalysis(
 
     const result: StoneAssignmentForAnalysis[] = [];
     for (const p of plan) {
-      result.push(...pickStoneAssignments(rows, p.analysisType, p.values, seenIds));
+      result.push(...pickStoneAssignments(rows, p.analysisType, p.values, seenIds, p.firstMatchOnly === true));
     }
     return result;
   } catch (err) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { readAllPaged } from "@/lib/db/readAllPaged";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import {
@@ -76,17 +77,16 @@ export async function GET(req: NextRequest): Promise<Response> {
   const knowledgeRecordId = str(url.searchParams.get("knowledge_record_id"));
   const sourceId = str(url.searchParams.get("source_id"));
 
-  let query = db.from(TABLE).select("*").eq("tenant_id", tenantId);
-  if (knowledgeRecordId) {
-    if (!isUuid(knowledgeRecordId)) return NextResponse.json({ ok: false, error: "Geçersiz knowledge_record_id." }, { status: 400 });
-    query = query.eq("knowledge_record_id", knowledgeRecordId);
-  }
-  if (sourceId) {
-    if (!isUuid(sourceId)) return NextResponse.json({ ok: false, error: "Geçersiz source_id." }, { status: 400 });
-    query = query.eq("source_id", sourceId);
-  }
+  if (knowledgeRecordId && !isUuid(knowledgeRecordId)) return NextResponse.json({ ok: false, error: "Geçersiz knowledge_record_id." }, { status: 400 });
+  if (sourceId && !isUuid(sourceId)) return NextResponse.json({ ok: false, error: "Geçersiz source_id." }, { status: 400 });
 
-  const { data, error } = await query.order("display_order", { ascending: true });
+  // NUM-F09: sayfalı tam okuma (sessiz 1000 kesmesi yok).
+  const { rows: data, error } = await readAllPaged((from, to) => {
+    let query = db.from(TABLE).select("*", { count: "exact" }).eq("tenant_id", tenantId);
+    if (knowledgeRecordId) query = query.eq("knowledge_record_id", knowledgeRecordId);
+    if (sourceId) query = query.eq("source_id", sourceId);
+    return query.order("display_order", { ascending: true }).order("id", { ascending: true }).range(from, to);
+  });
   if (error) {
     const e = safeDbError(error);
     return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
@@ -242,5 +242,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     // Toplu silme → TEK olay + itemCount (hiçbiri silinmediyse olay yok).
     await trackUsage(guard, req, { module: "numerology", action: "record_deleted", subEntity: "source_link", resourceId: [...deletedIds].sort().join(","), itemCount: deletedIds.length });
   }
-  return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
+  // AŞAMA 1 P3: hiçbir satır silinmediyse (yok/başka tenant/zaten silinmiş) sahte başarı DÖNMEZ.
+  if (deletedIds.length === 0) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya zaten silinmiş.", deleted: 0 }, { status: 404 });
+  return NextResponse.json({ ok: true, deleted: deletedIds.length });
 }

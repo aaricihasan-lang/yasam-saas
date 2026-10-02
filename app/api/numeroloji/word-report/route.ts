@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { readAllPaged } from "@/lib/db/readAllPaged";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import {
@@ -68,11 +69,30 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (is_demo_account)
     return NextResponse.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
-  let query = db.from("numerology_records").select("*").eq("tenant_id", tenantId);
-  if (exportMode === "single" && recordId) query = query.eq("id", recordId);
-  else if (exportMode === "selected" && Array.isArray(ids) && ids.length > 0) query = query.in("id", ids);
+  // P3 (AŞAMA 1): "single" recordId'siz veya "selected" boş/geçersiz id listesiyle TÜM tenant
+  // dışa aktarılıyordu; artık açık hata döner. Geçersiz UUID → 400 (eskiden 500).
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  let idFilter: string[] | null = null;
+  if (exportMode === "single") {
+    if (typeof recordId !== "string" || !UUID_RE.test(recordId))
+      return NextResponse.json({ ok: false, error: "Geçerli bir kayıt seçilmedi." }, { status: 400 });
+    idFilter = [recordId];
+  } else if (exportMode === "selected") {
+    const clean = Array.isArray(ids) ? ids.filter((x): x is string => typeof x === "string" && UUID_RE.test(x)) : [];
+    if (clean.length === 0 || clean.length !== (Array.isArray(ids) ? ids.length : 0))
+      return NextResponse.json({ ok: false, error: "Geçerli kayıt seçilmedi." }, { status: 400 });
+    if (clean.length > 1000)
+      return NextResponse.json({ ok: false, error: "Tek seferde en fazla 1000 kayıt dışa aktarılabilir." }, { status: 400 });
+    idFilter = clean;
+  }
 
-  const { data, error } = await query.order("name");
+  // NUM-F09: PostgREST max-rows (1000) sınırında sessiz kesilme yok — sayfalı tam okuma.
+  const { rows: pagedRows, error } = await readAllPaged((from, to) => {
+    let q = db.from("numerology_records").select("*", { count: "exact" }).eq("tenant_id", tenantId);
+    if (idFilter) q = q.in("id", idFilter);
+    return q.order("name").order("id").range(from, to);
+  });
+  const data = pagedRows;
   if (error) {
     await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "report_generated", subEntity: "analysis", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Kayıtlar okunamadı." }, { status: 500 });
@@ -87,27 +107,31 @@ export async function POST(req: NextRequest): Promise<Response> {
   const shared: WordSharedData = { knowledgeRows: [], entries: [], sourceLabelById: new Map(), stoneRows: [] };
   if (sections.detailed || sections.summary) {
     const [kRes, seRes, srcRes] = await Promise.all([
-      db.from("numerology_knowledge_records").select("*").eq("tenant_id", tenantId),
-      db.from("numerology_knowledge_source_entries").select("*").eq("tenant_id", tenantId).eq("include_in_analysis", true),
-      db.from("numerology_sources").select("id, display_label").eq("tenant_id", tenantId),
+      readAllPaged((f, t) => db.from("numerology_knowledge_records").select("*", { count: "exact" }).eq("tenant_id", tenantId).order("id").range(f, t)),
+      readAllPaged((f, t) => db.from("numerology_knowledge_source_entries").select("*", { count: "exact" }).eq("tenant_id", tenantId).eq("include_in_analysis", true).order("id").range(f, t)),
+      readAllPaged((f, t) => db.from("numerology_sources").select("id, display_label", { count: "exact" }).eq("tenant_id", tenantId).order("id").range(f, t)),
     ]);
-    shared.knowledgeRows = (kRes.data || []) as KnowledgeRecordRow[];
-    shared.entries = (seRes.data || []) as SourceEntryRow[];
-    for (const s of (srcRes.data || []) as { id: string; display_label: string }[]) shared.sourceLabelById.set(s.id, s.display_label);
+    if (kRes.error || seRes.error || srcRes.error)
+      return NextResponse.json({ ok: false, error: "Bilgi bankası verileri okunamadı." }, { status: 500 });
+    shared.knowledgeRows = kRes.rows as KnowledgeRecordRow[];
+    shared.entries = seRes.rows as SourceEntryRow[];
+    for (const s of srcRes.rows as { id: string; display_label: string }[]) shared.sourceLabelById.set(s.id, s.display_label);
   }
   // Uzmanın kendi Doğaltaş stoku (yalnız Taş bölümü seçiliyse; tek toplu tenant-scoped sorgu — N+1 yok).
   let stockIndex: StockIndex = new Map();
   if (sections.tas) {
     if (shared.knowledgeRows.length === 0) {
-      const kRes = await db.from("numerology_knowledge_records").select("id, analysis_type, value").eq("tenant_id", tenantId);
-      shared.knowledgeRows = (kRes.data || []) as KnowledgeRecordRow[];
+      const kRes = await readAllPaged((f, t) => db.from("numerology_knowledge_records").select("id, analysis_type, value", { count: "exact" }).eq("tenant_id", tenantId).order("id").range(f, t));
+      if (kRes.error) return NextResponse.json({ ok: false, error: "Bilgi bankası verileri okunamadı." }, { status: 500 });
+      shared.knowledgeRows = kRes.rows as KnowledgeRecordRow[];
     }
     const [stRes, invRes] = await Promise.all([
-      db.from("numerology_stone_assignments").select("id, analysis_type, value, reason, stones").eq("tenant_id", tenantId),
-      db.from("dogaltas_inventory").select("name, adet").eq("tenant_id", tenantId),
+      readAllPaged((f, t) => db.from("numerology_stone_assignments").select("id, analysis_type, value, reason, stones", { count: "exact" }).eq("tenant_id", tenantId).order("id").range(f, t)),
+      readAllPaged((f, t) => db.from("dogaltas_inventory").select("name, adet", { count: "exact" }).eq("tenant_id", tenantId).order("name").range(f, t)),
     ]);
-    shared.stoneRows = (stRes.data || []) as WordStoneRow[];
-    stockIndex = buildStockIndex((invRes.data || []) as { name?: unknown; adet?: unknown }[]);
+    if (stRes.error) return NextResponse.json({ ok: false, error: "Taş atamaları okunamadı." }, { status: 500 });
+    shared.stoneRows = stRes.rows as WordStoneRow[];
+    stockIndex = buildStockIndex((invRes.error ? [] : invRes.rows) as { name?: unknown; adet?: unknown }[]);
   }
 
   const { children, emptyTabs, anyContent } = buildNumerolojiWordChildren(rows, sections, shared, stockIndex, refCalendar);

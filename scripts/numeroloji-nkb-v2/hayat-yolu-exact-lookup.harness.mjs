@@ -78,30 +78,32 @@ check("5c key boş, display=29/11 → [29/11]", eqArr(exactValueFromResult({ dis
 // buildKnowledgeLookupPlan: Hayat Yolu tek aday
 const kplan = buildKnowledgeLookupPlan(makeOut("32/5"));
 const kHayat = kplan.find((p) => p.analysisType === "hayat-yolu");
-check("5d buildKnowledgeLookupPlan hayat-yolu tek exact aday [32/5]", eqArr(kHayat.values, ["32/5"]), JSON.stringify(kHayat.values));
+// NUM-F10 (2026-10, PDF): kitap 1 PDF s.58 — DM kodunun SON sayısı "nihai hedef çakrası"dır.
+// Sözleşme: birebir kod ÖNCE; yoksa kodun son sayısı (genel not, açıkça etiketli); İLK eşleşen.
+check("5d buildKnowledgeLookupPlan hayat-yolu adaylar [32/5, 5(genel)] + firstMatchOnly", eqArr(kHayat.values, ["32/5", "5"]) && kHayat.firstMatchOnly === true && kHayat.generalValues.has("5") && !kHayat.values.includes("32"), JSON.stringify(kHayat.values));
 
 // 6) AÇIKLAMA EXACT EŞLEŞME (32/5 ve 5 varsa yalnız 32/5)
 {
   const rows = [kRow("hayat-yolu", "32/5"), kRow("hayat-yolu", "5")];
-  const notes = pickNotesForType(rows, "hayat-yolu", kHayat.values, new Set());
+  const notes = pickNotesForType(rows, "hayat-yolu", kHayat.values, new Set(), kHayat);
   check("6 fixture'da 32/5+5 → yalnız 32/5 notu", notes.length === 1 && notes[0].value === "32/5", notes.map((n) => n.value).join(","));
 }
 // 7) AÇIKLAMA FALLBACK YOK (yalnız 5 var, sonuç 32/5 → 0 kayıt)
 {
   const rows = [kRow("hayat-yolu", "5")];
-  const notes = pickNotesForType(rows, "hayat-yolu", kHayat.values, new Set());
-  check("7 yalnız 5 kaydı var, sonuç 32/5 → 0 not (fallback yok)", notes.length === 0, notes.map((n) => n.value).join(","));
+  const notes = pickNotesForType(rows, "hayat-yolu", kHayat.values, new Set(), kHayat);
+  check("7 yalnız 5 kaydı var, sonuç 32/5 → 1 GENEL not (kitap 1 s.58 son sayı), etiketli", notes.length === 1 && notes[0].value === "5" && typeof notes[0].headingSuffix === "string" && notes[0].headingSuffix.includes("genel"), notes.map((n) => n.value).join(","));
 }
 // 8) AÇIKLAMA EXACT VAR (yalnız 32/5 → 1 kayıt)
 {
   const rows = [kRow("hayat-yolu", "32/5")];
-  const notes = pickNotesForType(rows, "hayat-yolu", kHayat.values, new Set());
+  const notes = pickNotesForType(rows, "hayat-yolu", kHayat.values, new Set(), kHayat);
   check("8 yalnız 32/5 kaydı var → 1 not", notes.length === 1 && notes[0].value === "32/5");
 }
 // 9) İKİ YORUM KARTI OLUŞMAZ
 {
   const rows = [kRow("hayat-yolu", "32/5"), kRow("hayat-yolu", "5"), kRow("hayat-yolu", "32")];
-  const notes = pickNotesForType(rows, "hayat-yolu", kHayat.values, new Set());
+  const notes = pickNotesForType(rows, "hayat-yolu", kHayat.values, new Set(), kHayat);
   check("9 aynı Hayat Yolu için ≤1 yorum kartı", notes.length <= 1 && notes[0]?.value === "32/5", notes.map((n) => n.value).join(","));
 }
 
@@ -135,9 +137,9 @@ check("14a buildElementLookupValues (knowledge) hâlâ [] döner", eqArr(buildEl
 {
   const splan = buildStoneLookupPlan(makeOut("32/5"));
   const sHayat = splan.find((p) => p.analysisType === "hayat-yolu");
-  check("15 stone plan hayat-yolu tek exact aday [32/5]", eqArr(sHayat.values, ["32/5"]), JSON.stringify(sHayat.values));
+  check("15 stone plan hayat-yolu [32/5, 5] + firstMatchOnly (bilgi notuyla aynı zincir)", eqArr(sHayat.values, ["32/5", "5"]) && sHayat.firstMatchOnly === true, JSON.stringify(sHayat.values));
   // 16) DOĞALTAŞ FALLBACK YOK: aday listesinde '5' yok → 5 taşı asla aranmaz
-  check("16 stone hayat-yolu adaylarında '5' YOK (fallback yok)", !sHayat.values.includes("5") && !sHayat.values.includes("32"));
+  check("16 stone hayat-yolu adaylarında toplam (32) ASLA yok; 5 yalnız son-sayı geri düşüşü", !sHayat.values.includes("32") && sHayat.values[0] === "32/5");
   // stone ana-kulvar çoklu-aday korunur (regresyon)
   check("15b stone ana-kulvar çoklu-aday korunur", eqArr(splan.find((p) => p.analysisType === "ana-kulvar").values, valueCandidatesFromResult(res("1"))));
 }

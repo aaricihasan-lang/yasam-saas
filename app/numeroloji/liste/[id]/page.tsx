@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
-import { extractMotorFromAnalysisJson } from "../../utils/analysisJson";
+import { RECOMPUTED_NOTE, resolveRecordMotor } from "../../utils/analysisJson";
 import {
   getNumerologyAnalysisById,
   resolveNumerolojiTenantId,
@@ -116,7 +116,9 @@ export default function NumerolojiKayitDetayPage() {
     };
   }, [id]);
 
-  const motor = row ? extractMotorFromAnalysisJson(row.analysis_data, row.name, row.surname) : null;
+  // NUM-F02: eski yöntemle kaydedilmiş kayıtlar güncel yöntemle (açıkça belirtilerek) gösterilir.
+  const resolved = row ? resolveRecordMotor(row) : null;
+  const motor = resolved?.motor ?? null;
   const adSoyad = row ? `${row.name} ${row.surname}`.replace(/\s+/g, " ").trim() : "";
 
   return (
@@ -205,6 +207,11 @@ export default function NumerolojiKayitDetayPage() {
               </div>
             </header>
 
+            {resolved?.recomputed ? (
+              <p role="note" className="mb-2 rounded-xl border border-sky-200 bg-sky-50/90 px-3 py-2 text-xs font-semibold leading-relaxed text-sky-900">
+                {RECOMPUTED_NOTE}
+              </p>
+            ) : null}
             {motor ? (
               <DemoGate
                 isProtected={gateActive}

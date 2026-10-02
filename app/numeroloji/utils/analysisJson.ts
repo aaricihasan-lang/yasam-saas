@@ -1,4 +1,6 @@
 import { turkishUpperDisplay, type HarfYankilanisiSegment } from "@/lib/numeroloji";
+import { hesaplaNumeroloji } from "@/lib/numeroloji/numerolojiMotor";
+import { NUMEROLOJI_METHODOLOGY_VERSION, birthDateForEngine, coreSignature } from "@/lib/numeroloji/methodology";
 import type { NumerolojiMotorOut } from "./numerolojiPlainMetin";
 
 export type GorselTemaIdKayit = "kozmikMor" | "altinMist" | "kuzeyIsiklari" | "okyanusDerinligi";
@@ -92,6 +94,63 @@ export function extractMotorFromAnalysisJson(raw: unknown, firstName?: string, l
   if (!isValidMotorShape(motor)) return null;
   return remapHarfDisplayLetters(motor as NumerolojiMotorOut, firstName, lastName);
 }
+
+/** Kaydın metodoloji damgası (yoksa null → eski kayıt). */
+export function recordMethodologyStamp(raw: unknown): string | null {
+  const calc = asRecord(asRecord(raw)?.calc);
+  return typeof calc?.methodology === "string" ? calc.methodology : null;
+}
+
+export type ResolvedRecordMotor = {
+  motor: NumerolojiMotorOut | null;
+  /** true → kayıt eski yöntemle kaydedilmiş; değerler güncel yöntemle yeniden hesaplandı (DB DEĞİŞMEDİ). */
+  recomputed: boolean;
+  /** recomputed iken, kayıtlı ilk sonucun çekirdek değerleri güncel sonuçtan farklı mı? */
+  differsFromSnapshot: boolean;
+};
+
+/**
+ * NUM-F02 — kayıtlı analizin GÖSTERİLECEK motor çıktısı (UI + Word tek kaynak).
+ *
+ * - Damga güncel metodolojiye eşitse: kayıtlı snapshot aynen kullanılır.
+ * - Damga yok/eskiyse (2026-10 öncesi kayıtlar): ad/soyad/doğum tarihinden GÜNCEL motorla
+ *   yeniden hesaplanır; çağıran bunu kullanıcıya açıkça bildirir. Kayıtlı ilk sonuç
+ *   veritabanında DEĞİŞTİRİLMEZ (geri dönülebilir, denetlenebilir).
+ * - Yeniden hesap mümkün değilse (geçersiz girdi) snapshot'a düşülür.
+ */
+export function resolveRecordMotor(row: {
+  name?: string | null;
+  surname?: string | null;
+  birth_date?: string | null;
+  analysis_data?: unknown;
+}): ResolvedRecordMotor {
+  const snapshot = extractMotorFromAnalysisJson(row.analysis_data, row.name ?? undefined, row.surname ?? undefined);
+  if (recordMethodologyStamp(row.analysis_data) === NUMEROLOJI_METHODOLOGY_VERSION && snapshot) {
+    return { motor: snapshot, recomputed: false, differsFromSnapshot: false };
+  }
+  const fn = String(row.name ?? "").trim();
+  const ln = String(row.surname ?? "").trim();
+  const bd = String(row.birth_date ?? "").trim();
+  if (fn && ln && bd) {
+    try {
+      const fresh = hesaplaNumeroloji({ firstName: fn, lastName: ln, birthDate: birthDateForEngine(bd) }) as unknown as NumerolojiMotorOut;
+      if (isValidMotorShape(fresh) && (fresh.hayatYolu as { display?: string }).display !== "-") {
+        return {
+          motor: fresh,
+          recomputed: true,
+          differsFromSnapshot: snapshot ? coreSignature(snapshot) !== coreSignature(fresh) : true,
+        };
+      }
+    } catch {
+      /* geçersiz girdi → snapshot'a düş */
+    }
+  }
+  return { motor: snapshot, recomputed: false, differsFromSnapshot: false };
+}
+
+/** Eski kayıt bilgilendirme metni (UI + Word aynı cümle). */
+export const RECOMPUTED_NOTE =
+  "Bu kayıt, hesaplama yönteminin kitap metodolojisine göre güncellenmesinden önce kaydedildi. Değerler kayıtlı ad, soyad ve doğum tarihinden güncel yöntemle yeniden hesaplanarak gösterilmektedir; kayıtlı ilk sonuç silinmedi.";
 
 export function extractSummaryFromAnalysisData(raw: unknown): string | null {
   const o = asRecord(raw);

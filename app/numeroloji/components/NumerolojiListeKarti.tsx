@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { extractMotorFromAnalysisJson } from "../utils/analysisJson";
+import { useMemo } from "react";
+import { resolveRecordMotor } from "../utils/analysisJson";
 import { nrDisplay } from "../utils/numerolojiPlainMetin";
 
 export type NumerolojiListeSatir = {
@@ -32,7 +33,9 @@ export function NumerolojiListeKarti({
   onToggleSelect?: () => void;
 }) {
   const adSoyad = `${row.name} ${row.surname}`.replace(/\s+/g, " ").trim();
-  const motor = extractMotorFromAnalysisJson(row.analysis_data, row.name, row.surname);
+  // NUM-F02/F09: kart değerleri kaydın ad/soyad/doğum tarihinden güncel yöntemle üretilir
+  // (liste özeti analysis_data taşımaz; güncel damgalı kayıtta snapshot ile birebir aynıdır).
+  const motor = useMemo(() => resolveRecordMotor(row).motor, [row]);
 
   const pin = motor?.pinKodu;
   const pinStr = pin

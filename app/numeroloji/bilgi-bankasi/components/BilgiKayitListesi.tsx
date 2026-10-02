@@ -15,6 +15,9 @@ import {
 } from "../helpers/bilgiBankaKayit";
 import { KayitDetayModal } from "./KayitDetayModal";
 import { MobileSilmeDialog } from "./MobileSilmeDialog";
+import { gorunenSeciliSatirlar, hesaplaKbSilmeEtkisi, kbSilmeEtkisiMetni, kbSilmeOnayMetni, type KbSilmeEtkisi } from "../helpers/kbDeleteImpact";
+import { listAllSourceEntries } from "../helpers/sourceEntriesApi";
+import { listAllRecordSources } from "../helpers/sourcesApi";
 import { WordSectionPicker } from "./WordSectionPicker";
 import type { WordSections } from "../helpers/wordSectionLogic";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
@@ -93,13 +96,15 @@ export function BilgiKayitListesi() {
   const [mobilSilHedef, setMobilSilHedef] = useState<
     { mode: "tek"; row: BilgiBankaListeSatir } | { mode: "toplu" } | null
   >(null);
+  const [mobilSilEk, setMobilSilEk] = useState("");
 
   const yukleListe = useCallback(async () => {
     setYukleniyor(true);
     const { rows, error } = await listBilgiBankaKayitlari();
     setYukleniyor(false);
     if (error) {
-      showToast({ message: "Kayıt sırasında hata oluştu", type: "error" });
+      // AŞAMA 1 P3: okuma hatası "boş bilgi bankası" gibi görünmesin; doğru mesaj.
+      showToast({ message: "Bilgi bankası kayıtları yüklenemedi. Lütfen “Listeyi yenile” ile tekrar deneyin.", type: "error" });
       setTumSatirlar([]);
       return;
     }
@@ -134,9 +139,11 @@ export function BilgiKayitListesi() {
   const hicKayitYok = !yukleniyor && tumSatirlar.length === 0;
   const filtreBos = !yukleniyor && !hicKayitYok && filtrelenmis.length === 0;
 
+  // NUM-F07: silme/sayım YALNIZ görünen (filtreden geçen) ∩ seçili satırlar üzerinden yapılır;
+  // filtre yüzünden ekranda olmayan seçili kayıt ASLA silinmez.
   const seciliSatirlar = useMemo(
-    () => tumSatirlar.filter((r) => seciliIds.has(r.id)),
-    [tumSatirlar, seciliIds],
+    () => gorunenSeciliSatirlar(filtrelenmis, seciliIds),
+    [filtrelenmis, seciliIds],
   );
   const seciliSayisi = seciliSatirlar.length;
 
@@ -186,6 +193,8 @@ export function BilgiKayitListesi() {
 
     if (error) {
       showToast({ message: `Seçili kayıtlar silinemedi: ${error}`, type: "error" });
+      // İki aşamalı silmede bir kısmı silinmiş olabilir → liste sunucudan tazelenir (bayat satır kalmaz).
+      void yukleListe();
       return;
     }
 
@@ -195,12 +204,33 @@ export function BilgiKayitListesi() {
     void yukleListe();
   }
 
+  // NUM-F08: açıklama kaydı silinince bağlı kaynak notları + bağlantılar DB cascade ile silinir;
+  // onaydan ÖNCE etkisi sayılır ve kullanıcıya açıkça gösterilir.
+  async function silmeEtkisiGetir(satirlar: BilgiBankaListeSatir[]): Promise<KbSilmeEtkisi> {
+    if (!satirlar.some((r) => r.kayitTuru === "aciklama")) return { notSayisi: 0, baglantiSayisi: 0 };
+    const [notlar, baglantilar] = await Promise.all([listAllSourceEntries(), listAllRecordSources()]);
+    return hesaplaKbSilmeEtkisi(
+      satirlar,
+      notlar.error ? null : notlar.rows,
+      baglantilar.error ? null : baglantilar.rows,
+    );
+  }
+
+  async function mobilSilAc(hedef: { mode: "tek"; row: BilgiBankaListeSatir } | { mode: "toplu" }) {
+    const satirlar = hedef.mode === "tek" ? [hedef.row] : seciliSatirlar;
+    const etki = await silmeEtkisiGetir(satirlar);
+    setMobilSilEk(kbSilmeEtkisiMetni(satirlar, etki));
+    setMobilSilHedef(hedef);
+  }
+
   async function handleSecilileriSil() {
     if (seciliSayisi === 0) return;
+    const hedef = seciliSatirlar;
+    const etki = await silmeEtkisiGetir(hedef);
 
     const ok = await confirm({
       title: "Seçili kayıtları sil",
-      message: "Seçili kayıtları silmek istediğinize emin misiniz?",
+      message: kbSilmeOnayMetni(hedef, etki),
       tone: "danger",
       confirmText: "Sil",
       cancelText: "Vazgeç",
@@ -216,7 +246,7 @@ export function BilgiKayitListesi() {
   function topluSilTetikle() {
     if (seciliSayisi === 0) return;
     const mobil = typeof window !== "undefined" && isMobileViewport(window.innerWidth);
-    if (mobil) setMobilSilHedef({ mode: "toplu" });
+    if (mobil) void mobilSilAc({ mode: "toplu" });
     else void handleSecilileriSil();
   }
 
@@ -265,6 +295,7 @@ export function BilgiKayitListesi() {
 
     if (error) {
       showToast({ message: `Kayıt silinemedi: ${error}`, type: "error" });
+      void yukleListe();
       return;
     }
 
@@ -274,9 +305,10 @@ export function BilgiKayitListesi() {
   }
 
   async function handleSil(row: BilgiBankaListeSatir) {
+    const etki = await silmeEtkisiGetir([row]);
     const ok = await confirm({
       title: "Kaydı sil",
-      message: "Bu bilgi bankası kaydını silmek istediğinize emin misiniz?",
+      message: kbSilmeOnayMetni([row], etki),
       tone: "danger",
       confirmText: "Sil",
       cancelText: "Vazgeç",
@@ -458,7 +490,7 @@ export function BilgiKayitListesi() {
                     type="button"
                     className={`${silBtnClass} flex-1`}
                     disabled={siliniyorId === row.id || topluSiliniyor}
-                    onClick={() => setMobilSilHedef({ mode: "tek", row })}
+                    onClick={() => void mobilSilAc({ mode: "tek", row })}
                   >
                     {siliniyorId === row.id ? "Siliniyor…" : "Sil"}
                   </button>
@@ -611,6 +643,7 @@ export function BilgiKayitListesi() {
               ? `${seciliSayisi} kayıt`
               : mobileKayitKimligi({ analizTuru: mobilSilHedef.row.analizTuru, deger: mobilSilHedef.row.deger })
           }
+          ek={mobilSilEk}
           onClose={() => setMobilSilHedef(null)}
           onConfirm={async () => {
             if (mobilSilHedef.mode === "toplu") await silTopluUygula();

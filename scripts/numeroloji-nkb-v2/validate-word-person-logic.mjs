@@ -24,7 +24,9 @@ function check(name, cond) {
 }
 
 console.log("── NKB-V4 — 4 gerçek sekme (Görsel Rapor + İlişki/Ev-İş kaldırıldı) ──");
-check("sekme sırası: summary,plain,detailed,tas", WORD_TAB_ORDER.join(",") === "summary,plain,detailed,tas");
+// GÜNCELLEME (2026-10, NUM-PDF): FAZ 6 (2026-09-04) "Zamanlama & Gelişim" Word sekmesini ekledi
+// (wordPersonSections.ts); bu harness o tarihten beri eski 4-sekme beklentisiyle kırmızıydı.
+check("sekme sırası: summary,plain,detailed,zamanlama,tas", WORD_TAB_ORDER.join(",") === "summary,plain,detailed,zamanlama,tas");
 check("Görsel Rapor TAMAMEN kaldırıldı", !("gorsel" in WORD_TAB_LABELS) && !WORD_TAB_ORDER.includes("gorsel"));
 check("İlişki/Ev-İş yok", !("iliski" in WORD_TAB_LABELS) && !("evis" in WORD_TAB_LABELS));
 check("etiketler ekranla birebir",
@@ -33,11 +35,11 @@ check("etiketler ekranla birebir",
 check("teknik/DB seçenekleri YOK", !("identity" in WORD_TAB_LABELS) && !("sourceNotes" in WORD_TAB_LABELS) && !("pin" in WORD_TAB_LABELS));
 
 console.log("\n── seçim/normalize ──");
-check("varsayılan tümü açık (4)", (() => { const d = defaultWordPersonSections(); return WORD_TAB_ORDER.every((k) => d[k]) && Object.keys(d).length === 4; })());
+check("varsayılan: zamanlama KAPALI (referans tarih ister), diğer 4 açık", (() => { const d = defaultWordPersonSections(); return WORD_TAB_ORDER.every((k) => (k === "zamanlama" ? d[k] === false : d[k] === true)) && Object.keys(d).length === 5; })());
 check("atLeastOne hiçbiri false", atLeastOneWordPersonSection({ summary: false, plain: false, detailed: false, tas: false }) === false);
 check("atLeastOne yalnız tas true", atLeastOneWordPersonSection({ summary: false, plain: false, detailed: false, tas: true }) === true);
-check("normalize undefined → tümü açık", (() => { const n = normalizeWordPersonSections(undefined); return WORD_TAB_ORDER.every((k) => n[k]); })());
-check("normalize eski gorsel/iliski anahtarları yok sayılır", (() => { const n = normalizeWordPersonSections({ gorsel: true, iliski: true }); return WORD_TAB_ORDER.every((k) => n[k]) && !("gorsel" in n); })()); // hepsi false → fail-safe tümü açık
+check("normalize undefined → varsayılan (zamanlama kapalı)", (() => { const n = normalizeWordPersonSections(undefined); return WORD_TAB_ORDER.every((k) => (k === "zamanlama" ? !n[k] : n[k])); })());
+check("normalize eski gorsel/iliski anahtarları yok sayılır", (() => { const n = normalizeWordPersonSections({ gorsel: true, iliski: true }); return WORD_TAB_ORDER.every((k) => (k === "zamanlama" ? !n[k] : n[k])) && !("gorsel" in n); })()); // hepsi false → fail-safe varsayılan
 check("normalize {detailed:true} → yalnız detailed", (() => { const n = normalizeWordPersonSections({ detailed: true }); return n.detailed && !n.summary && !n.plain && !n.tas; })());
 
 console.log("\n── dosya adı ──");

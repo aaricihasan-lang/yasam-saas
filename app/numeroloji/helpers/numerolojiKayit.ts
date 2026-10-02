@@ -94,7 +94,8 @@ export async function listNumerologyAnalyses(_tenantId?: string): Promise<{
   error: string | null;
 }> {
   void _tenantId;
-  const res = await numApi("/api/numeroloji/analyses");
+  // NUM-F09: hafif liste (analysis_data taşınmaz) + sunucuda sayfalı TAM okuma (1000 kesmesi yok).
+  const res = await numApi("/api/numeroloji/analyses?fields=summary");
   const err = numApiError(res);
   if (err) return { data: null, error: err };
   const rows = (Array.isArray(res.json.rows) ? res.json.rows : []) as NumerologyRecordListItem[];

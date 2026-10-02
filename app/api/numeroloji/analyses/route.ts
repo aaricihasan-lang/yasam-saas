@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
+import { readAllPaged } from "@/lib/db/readAllPaged";
+import { NUMEROLOJI_METHODOLOGY_VERSION, verifyMotorMatchesInputs } from "@/lib/numeroloji/methodology";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** NUM-F09: liste özeti — kartlar çekirdek değerleri ad/soyad/doğum tarihinden üretir. */
+const SUMMARY_COLUMNS = "id, name, surname, birth_date, created_at";
 
 export const runtime = "nodejs";
 
@@ -68,6 +74,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   // Tekil kayıt (detay sayfası)
   const idParam = req.nextUrl.searchParams.get("id")?.trim();
   if (idParam) {
+    if (!UUID_RE.test(idParam)) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
     const { data, error } = await db
       .from("numerology_records")
       .select("*")
@@ -102,14 +109,21 @@ export async function GET(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: true, rows: data ?? [] });
   }
 
-  const { data, error } = await db
-    .from("numerology_records")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false, nullsFirst: false });
+  // NUM-F09: PostgREST max-rows (1000) sınırında SESSİZ KESİLME yok — sayfalı tam okuma;
+  // eksik okuma hata olarak döner. ?fields=summary → analysis_data taşınmaz (hafif liste).
+  const summaryOnly = req.nextUrl.searchParams.get("fields") === "summary";
+  const { rows, error } = await readAllPaged((from, to) =>
+    db
+      .from("numerology_records")
+      .select(summaryOnly ? SUMMARY_COLUMNS : "*", { count: "exact" })
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
 
-  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
-  return NextResponse.json({ ok: true, rows: data ?? [] });
+  if (error) return NextResponse.json({ ok: false, error: "Kayıtlar eksiksiz okunamadı. Lütfen tekrar deneyin." }, { status: 500 });
+  return NextResponse.json({ ok: true, rows });
 }
 
 // ─── POST /api/numeroloji/analyses — yeni analiz kaydı ──────────────────────────
@@ -128,7 +142,28 @@ export async function POST(req: NextRequest): Promise<Response> {
   const shape = validateAnalysisData(body.analysis_data, true);
   if (!shape.ok) return NextResponse.json({ ok: false, error: shape.error }, { status: 400 });
 
-  const payload = { ...pickAllowed(body), tenant_id: tenantId };
+  // NUM-F01 (sunucu): motor sonucu, gönderilen ad/soyad/doğum tarihinden GÜNCEL motorla
+  // üretilenle birebir olmalı. Aksi halde (bilgiler değişmiş ama yeniden hesaplanmamış ya da
+  // tarayıcıda eski motor sürümü) kayıt REDDEDİLİR — yanlış kişiye ait sayılar kaydedilemez.
+  const ad = body.analysis_data as Record<string, unknown>;
+  const check = verifyMotorMatchesInputs(String(body.name ?? ""), String(body.surname ?? ""), String(body.birth_date ?? ""), ad.motor);
+  if (!check.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        code: check.reason === "mismatch" ? "STALE_CALCULATION" : "INVALID_INPUT",
+        error:
+          check.reason === "mismatch"
+            ? "Kaydedilen sonuç girilen ad, soyad ve doğum tarihiyle uyuşmuyor. Sayfayı yenileyip yeniden HESAPLA'ya basın."
+            : "Ad, soyad ve doğum tarihi zorunludur.",
+      },
+      { status: check.reason === "mismatch" ? 409 : 400 },
+    );
+  }
+  // NUM-F02: metodoloji sürümü SUNUCUDA damgalanır (istemci değeri yok sayılır).
+  const stamped = { ...ad, calc: { methodology: NUMEROLOJI_METHODOLOGY_VERSION, stampedAt: new Date().toISOString() } };
+
+  const payload = { ...pickAllowed(body), analysis_data: stamped, tenant_id: tenantId };
   const { data, error } = await db
     .from("numerology_records")
     .insert(payload)
@@ -166,13 +201,42 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
-  // NUM-009: güncellemede analysis_data verildiyse şekil doğrulanır (yoksa serbest).
-  const shape = validateAnalysisData(body.analysis_data, false);
+  // NUM-F01/F02: kayıt sonrası ad/soyad/doğum tarihi ve hesap sonucu (motor) DEĞİŞTİRİLEMEZ —
+  // aksi halde kayıt başka kişinin sayılarını taşıyabilir. Güncellenebilen tek alan görsel
+  // rapor ayarlarıdır (analysis_data.gorsel); sunucu kayıtlı analysis_data'ya YALNIZ onu birleştirir.
+  if ("name" in body || "surname" in body || "birth_date" in body) {
+    return NextResponse.json(
+      { ok: false, error: "Ad, soyad ve doğum tarihi kayıttan sonra değiştirilemez; yeni analiz oluşturun." },
+      { status: 400 },
+    );
+  }
+  const shape = validateAnalysisData(body.analysis_data, true);
   if (!shape.ok) return NextResponse.json({ ok: false, error: shape.error }, { status: 400 });
+  if (!UUID_RE.test(id)) {
+    return NextResponse.json({ ok: false, error: "Analiz kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+  }
+  const gorselIn = (body.analysis_data as Record<string, unknown>).gorsel;
+  if (gorselIn !== undefined && (gorselIn === null || typeof gorselIn !== "object" || Array.isArray(gorselIn))) {
+    return NextResponse.json({ ok: false, error: "Görsel ayarları geçersiz." }, { status: 400 });
+  }
+
+  const { data: existing, error: readErr } = await db
+    .from("numerology_records")
+    .select("analysis_data")
+    .eq("id", id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (readErr) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  if (!existing) {
+    return NextResponse.json({ ok: false, error: "Analiz kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+  }
+  const current = (existing as { analysis_data: unknown }).analysis_data;
+  const base = current && typeof current === "object" && !Array.isArray(current) ? (current as Record<string, unknown>) : {};
+  const merged = gorselIn === undefined ? base : { ...base, gorsel: gorselIn };
 
   const { data, error } = await db
     .from("numerology_records")
-    .update(pickAllowed(body))
+    .update({ analysis_data: merged })
     .eq("id", id)
     .eq("tenant_id", tenantId)
     .select("id");
