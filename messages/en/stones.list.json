@@ -53,7 +53,10 @@
         "clearSearch": "Clear Search",
         "noRecordTitle": "No records yet",
         "noRecordDesc": "Your stone library doesn't have any records yet. Use the button below to add your first record.",
-        "newRecordAdd": "+ Add New Record"
+        "newRecordAdd": "+ Add New Record",
+        "filterErrorTitle": "Filter results couldn't be loaded",
+        "filterErrorDesc": "This is not a \"no results\" state — the server couldn't be reached. Check your connection and try the filter again.",
+        "filterCappedNote": "There are too many matches; only the first 500 results are shown. Narrow the filter to see fewer results."
       },
       "panel": {
         "eyebrow": "Advanced Filters",
@@ -207,7 +210,9 @@
         "updateFailed": "Couldn't update the record: {error}",
         "updateFailedFallback": "record not found.",
         "assignmentPlaceholder": "Write one record per line. E.g. Iron / 20",
-        "textPlaceholder": "Enter {title}…"
+        "textPlaceholder": "Enter {title}…",
+        "legacyTitle": "Saved legacy values",
+        "legacyHint": "These values are not in the current list but are saved on the record. Untick to remove them when you save."
       },
       "error": {
         "deleteFailed": "Couldn't delete the record: {error}",

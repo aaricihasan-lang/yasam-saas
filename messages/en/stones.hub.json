@@ -29,7 +29,8 @@
         "noDescription": "No short description added.",
         "viewed": "Viewed",
         "matched": "Match: {field}",
-        "detail": "View Details"
+        "detail": "View Details",
+        "cappedNote": "There are too many matches; only the first 500 results are shown. Narrow your search."
       },
       "field": {
         "stoneName": "Stone name",
@@ -50,7 +51,8 @@
         "failedLabel": {
           "stones": "stone records",
           "combinations": "combinations",
-          "minerals": "minerals"
+          "minerals": "minerals",
+          "trend": "monthly trend"
         },
         "trendTitle": "Monthly Record Trend",
         "trendSubtitle": "Last 6 months",
@@ -58,7 +60,8 @@
         "barTitle": "{label}: {count, plural, one {# record} other {# records}}",
         "totalStones": "Total Stone Records",
         "mineralBank": "Mineral Library",
-        "activeCombinations": "Total Combinations"
+        "activeCombinations": "Total Combinations",
+        "trendError": "Monthly trend data couldn't be loaded. This doesn't mean there are no records — refresh the page."
       },
       "report": {
         "title": "Create Professional Word Report",

@@ -122,7 +122,8 @@ function read(rel: string): string {
   ok("stone list: needsFullLoad artık debouncedSearch içermez (metin araması server)",
     /const needsFullLoad = isDetailFilterActive;/.test(list));
   ok("stone list: export-filtered server-side eşleşen küme çeker (yalnız yüklü sayfa değil)",
-    list.includes("fetchStonesListPage(tenantId, {") && list.includes("limit: 500"));
+    // AŞAMA 2 / P2-07: 500'lük tek istek yerine 500'lük SAYFALARLA tüm eşleşen küme (amaç aynı, kesilme yok).
+    list.includes("fetchStonesListPage(tenantId, {") && (list.includes("limit: 500") || list.includes("limit: PAGE")));
   const stonesRoute = read("app/api/dogaltas/stones/route.ts");
   ok("stones route: list limit clamp (max 500)", stonesRoute.includes("Math.min(Math.max(1, rawLimit), 500)"));
   const minRoute = read("app/api/dogaltas/minerals/route.ts");
@@ -387,7 +388,8 @@ function read(rel: string): string {
   ok("READ helper: mutation YOK (insert/update/delete)", !/\.(insert|update|delete)\(/.test(helper));
   ok("READ helper: BATCH tek sorgu (.in combination_id)", helper.includes('.in("combination_id"'));
   ok("READ helper: tenant-scoped", helper.includes('.eq("tenant_id", tenantId)'));
-  ok("READ helper: tablo yok/hata → legacy fallback (rows döner)", /if \(error\) return rows/.test(helper));
+  // AŞAMA 2 / P2-07: sorgu artık parçalı+sayfalı (fetchAllRowsByIds); hata → legacy fallback korunur.
+  ok("READ helper: tablo yok/hata → legacy fallback (rows döner)", /if \(error\) return rows|if \(!res\.ok\) return rows/.test(helper));
   ok("READ helper: junction yok → legacy (stones_text değişmez)", /if \(!resolved \|\| resolved\.length === 0\) return row/.test(helper));
   // (DB stones_text UPDATE etmez → yukarıdaki "mutation YOK" gate'i zaten kapsar.)
 }

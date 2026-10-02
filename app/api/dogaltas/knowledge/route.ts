@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
+import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
+import { validateStringArrayField } from "@/lib/dogaltas/validation";
 
 export const runtime = "nodejs";
 
@@ -28,6 +30,18 @@ const SELECT =
 // Client'tan kabul EDİLMEYECEK alanlar (tenant override + id güvenliği).
 const PROTECTED = new Set(["tenant_id", "id", "created_at", "updated_at"]);
 
+// P2-04: Yeni makalede istemciden kabul edilen alanlar (ALLOWLIST). Provenance /
+// sistem alanları (origin_type, origin_label, origin_source_id, origin_transfer_batch_id,
+// transferred_at, is_active …) istemciden ASLA alınmaz → uzman kendi içeriğini
+// "Admin Kütüphanesi" aktarımı gibi işaretleyemez; admin istatistikleri ve aktarım
+// geri-alma anahtarları kirletilemez. Provenance yalnız admin aktarım route'unda yazılır.
+const POST_TEXT_FIELDS = ["sub_category", "source", "source_section", "keyword", "notes"] as const;
+const POST_ARRAY_FIELDS: ReadonlyArray<[string, string]> = [
+  ["tags", "Etiketler"],
+  ["related_stones", "İlgili taşlar"],
+  ["related_minerals", "İlgili mineraller"],
+];
+
 function sanitize(body: Record<string, unknown>, allowed?: Set<string>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(body)) {
@@ -45,15 +59,20 @@ export async function GET(req: NextRequest): Promise<Response> {
   const { db, tenantId } = guard;
 
   // YALNIZ bu tenant'ın kendi kayıtları — paylaşımlı admin kütüphanesi UNION edilmez.
-  const { data, error } = await db
-    .from("stone_knowledge_articles")
-    .select(SELECT)
-    .eq("tenant_id", tenantId)
-    .eq("is_active", true)
-    .order("title", { ascending: true });
+  // P2-07: kütüphane "tümü" listesi 1000-satır tavanına takılmadan sayfalı okunur.
+  const res = await fetchAllRows<Record<string, unknown>>((from, to) =>
+    db
+      .from("stone_knowledge_articles")
+      .select(SELECT)
+      .eq("tenant_id", tenantId)
+      .eq("is_active", true)
+      .order("title", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
 
-  if (error) return serverErrorResponse({ route: "dogaltas/knowledge", action: "GET", tenantId, cause: error });
-  return NextResponse.json({ ok: true, articles: data ?? [] });
+  if (!res.ok) return serverErrorResponse({ route: "dogaltas/knowledge", action: "GET", tenantId, cause: res.error });
+  return NextResponse.json({ ok: true, articles: res.rows });
 }
 
 // ─── POST /api/dogaltas/knowledge (yeni makale) ────────────────────────────────
@@ -75,14 +94,26 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
-  const payload = {
-    ...sanitize(body),
+  const payload: Record<string, unknown> = {
     tenant_id: tenantId,
     title,
     category,
     content,
     is_active: true,
   };
+  for (const key of POST_TEXT_FIELDS) {
+    if (!(key in body) || body[key] == null) continue;
+    if (typeof body[key] !== "string") {
+      return NextResponse.json({ ok: false, error: "Geçersiz alan değeri." }, { status: 422 });
+    }
+    payload[key] = String(body[key]).trim();
+  }
+  for (const [key, label] of POST_ARRAY_FIELDS) {
+    if (!(key in body) || body[key] == null) continue;
+    const check = validateStringArrayField(label, body[key]);
+    if (!check.ok) return NextResponse.json({ ok: false, error: check.error }, { status: 422 });
+    payload[key] = body[key];
+  }
 
   // Usage360: yalnız yeni satır id'si geri okunur (idempotency); yanıt gövdesi değişmez.
   const { data: inserted, error } = await db.from("stone_knowledge_articles").insert(payload).select("id");
@@ -117,6 +148,18 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   const fields = sanitize(body, ALLOWED);
   if (Object.keys(fields).length === 0) {
     return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
+  }
+  // P2-06 (aynı sınıf): zorunlu alanlar güncellemede boş/yalnız-boşluk olamaz (POST ile aynı kural).
+  const REQUIRED: Record<string, string> = { title: "Başlık zorunludur.", category: "Kategori seçimi zorunludur.", content: "İçerik zorunludur." };
+  for (const [key, msg] of Object.entries(REQUIRED)) {
+    if (!(key in fields)) continue;
+    if (typeof fields[key] !== "string" || !String(fields[key]).trim()) {
+      return NextResponse.json({ ok: false, error: msg }, { status: 400 });
+    }
+    fields[key] = String(fields[key]).trim();
+  }
+  if ("sub_category" in fields && fields.sub_category != null && typeof fields.sub_category !== "string") {
+    return NextResponse.json({ ok: false, error: "Geçersiz alan değeri." }, { status: 422 });
   }
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true, rows: [] });

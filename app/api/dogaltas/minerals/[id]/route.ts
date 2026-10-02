@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
-import { isUuid } from "@/lib/dogaltas/validation";
+import { isUuid, validateMineralStructuredFields } from "@/lib/dogaltas/validation";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
@@ -62,6 +62,10 @@ export async function PATCH(
   if (Object.keys(fields).length === 0) {
     return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
   }
+  // P2-01: dizi/metin alan tipleri DB'ye yazılmadan doğrulanır (POST ile aynı kapı).
+  const structured = validateMineralStructuredFields(fields);
+  if (!structured.ok) return NextResponse.json({ ok: false, error: structured.error }, { status: 422 });
+
   // Ad gönderildiyse boş/yalnız-boşluk olamaz (POST ile aynı kural).
   if ("name" in fields) {
     const nm = String(fields.name ?? "").trim();

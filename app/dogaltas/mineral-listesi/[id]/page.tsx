@@ -32,6 +32,8 @@ import {
 import { LongTextField } from "@/app/dogaltas/components/LongTextField";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
+import { reportErrorKind } from "@/lib/dogaltas/reportErrorKind";
+import { useToast } from "@/components/ui/ToastProvider";
 
 const MINERAL_EDIT_TEXTAREA_CLASS =
   "w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-relaxed text-slate-800 outline-none focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100";
@@ -371,6 +373,8 @@ function MineralDetailPageContent() {
   const tEdit = useTranslations("stones.minerals.edit");
   const tRoot = useTranslations("stones.minerals");
   const tc = useTranslations("stones.common");
+  const tre = useTranslations("stones.reportErrors");
+  const { showToast } = useToast();
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const id = params?.id;
@@ -573,13 +577,20 @@ function MineralDetailPageContent() {
         },
         body: JSON.stringify({}),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        // P2-09A: hata artık sessiz değil — durum koduna göre anlaşılır mesaj (ham metin yok).
+        showToast({ type: "error", message: tre(await reportErrorKind(res)) });
+        return;
+      }
       const safeN = mineral.name.toLowerCase()
         .replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u")
         .replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c")
         .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
       await downloadFileResponse(res, `mineral-${safeN}-${reportFileDate()}.docx`);
-    } catch { /* sessiz hata */ } finally {
+    } catch (err) {
+      console.error("[mineral-detay] Word raporu hatası:", err);
+      showToast({ type: "error", message: tre("generic") });
+    } finally {
       setWordBusy(false);
     }
   }

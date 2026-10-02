@@ -8,6 +8,7 @@ import {
   isOwnedStonePhotoPath,
 } from "@/lib/dogaltas/stonePhoto";
 import { trackUsage } from "@/lib/usage/trackUsage";
+import { isStonePhotoReferenced } from "@/lib/dogaltas/stonePhotoRefs";
 
 export const runtime = "nodejs";
 
@@ -113,6 +114,14 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   // Ownership: yalnız kendi tenant öneki altındaki path silinebilir (cross-tenant remove engeli).
   if (!isOwnedStonePhotoPath(filePath, tenantId)) {
     return NextResponse.json({ ok: false, error: "Geçersiz dosya yolu." }, { status: 400 });
+  }
+
+  // P2-05: dosya yalnız HİÇBİR taş kaydı referans etmiyorsa silinir (istemci önce DB'yi
+  // günceller, sonra bu temizliği çağırır). Başka sekme/taş hâlâ bu yolu kullanıyorsa
+  // dosyaya dokunulmaz → kayıt silinmiş dosyaya bakamaz. Referans sorgusu hata verirse
+  // fail-safe: silinmez (en kötü durum orphan dosya, veri kaybı değil).
+  if (await isStonePhotoReferenced(db, tenantId, filePath)) {
+    return NextResponse.json({ ok: true, skipped: "referenced" });
   }
 
   const { error } = await db.storage.from(STONE_PHOTO_BUCKET).remove([filePath]);

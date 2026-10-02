@@ -2,7 +2,10 @@ import type { NextRequest } from "next/server";
 import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
-import { safeJoin, safeLen } from "@/lib/dogaltas/reportSafe";
+import { safeJoin, safeLen, sanitizeMineralRowsForReport } from "@/lib/dogaltas/reportSafe";
+import { fetchAllRows, fetchAllRowsByIds } from "@/lib/dogaltas/fetchAllRows";
+import { badSelectionResponse, missingSelectionResponse, parseReportIds, sortByTrField } from "@/lib/dogaltas/reportIds";
+import { serverErrorResponse } from "@/lib/http/apiError";
 import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
 import { hydrateCombinationStoneNames } from "@/lib/dogaltas/combinationStonesRead";
 import { STONE_PHOTO_BUCKET, isOwnedStonePhotoPath } from "@/lib/dogaltas/stonePhoto";
@@ -393,48 +396,80 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!sections || !Object.values(sections).some(Boolean))
     return Response.json({ ok: false, error: "En az bir bölüm seçilmeli." }, { status: 400 });
 
+  // P2-02: seçili taş id'leri DB'ye gitmeden doğrulanır (UUID + üst sınır + tekrar ayıklama).
+  const parsedIds = parseReportIds(selectedStoneIds);
+  if (!parsedIds.ok) return badSelectionResponse(parsedIds.error);
+  const stoneIds = parsedIds.ids;
+
   // Shared-library kaldırma: bilgi bölümü YALNIZ uzmanın kendi tenant kayıtları
   // (admin kütüphanesi UNION edilmez — stones/minerals/combinations ile tutarlı).
-
-  // Parallel DB fetches
+  // P2-07: her bölüm sayfalı okunur (1000-satır tavanı yok; tenant filtresi her sayfada).
+  const STONE_SELECT = "id, stone_name, short_description, general_info, source_note, physical_effects, spiritual_effects, other_effects, feng_shui, meditation, care, application, chakras, assignments, warning_text, warning_tags, images";
   const [stonesRes, mineralsRes, combinationsRes, knowledgeRes] = await Promise.all([
     sections.stones
-      ? (() => {
-          let q = db.from("stones")
-            .select("stone_name, short_description, general_info, source_note, physical_effects, spiritual_effects, other_effects, feng_shui, meditation, care, application, chakras, assignments, warning_text, warning_tags, images")
-            .eq("tenant_id", tenantId);
-          if (Array.isArray(selectedStoneIds) && selectedStoneIds.length > 0)
-            q = q.in("id", selectedStoneIds);
-          return q.order("stone_name");
-        })()
+      ? stoneIds
+        ? fetchAllRowsByIds<StoneRow>(stoneIds, (chunk, from, to) =>
+            db.from("stones").select(STONE_SELECT).eq("tenant_id", tenantId).in("id", chunk)
+              .order("stone_name").order("id").range(from, to))
+        : fetchAllRows<StoneRow>((from, to) =>
+            db.from("stones").select(STONE_SELECT).eq("tenant_id", tenantId)
+              .order("stone_name").order("id").range(from, to))
       : null,
     sections.minerals
-      ? db.from("minerals")
-          .select("name, aciklama, kategori, fiziksel, zihinsel, fizyoloji, eksiklik_belirtileri, fazlalik_belirtileri, doz_asimi, iceren_taslar, organ_etkileri, cakralar")
-          .eq("tenant_id", tenantId).order("name")
+      ? fetchAllRows<MineralRow>((from, to) =>
+          db.from("minerals")
+            .select("id, name, aciklama, kategori, fiziksel, zihinsel, fizyoloji, eksiklik_belirtileri, fazlalik_belirtileri, doz_asimi, iceren_taslar, organ_etkileri, cakralar")
+            .eq("tenant_id", tenantId).order("name").order("id").range(from, to))
       : null,
     sections.combinations
-      ? db.from("combinations")
-          .select("id, issue, description, source, stones_text, notes_text, notes_text_2, notes_text_3")
-          .eq("tenant_id", tenantId).order("issue")
+      ? fetchAllRows<CombinationRow>((from, to) =>
+          db.from("combinations")
+            .select("id, issue, description, source, stones_text, notes_text, notes_text_2, notes_text_3")
+            .eq("tenant_id", tenantId).order("issue").order("id").range(from, to))
       : null,
     sections.knowledge
-      ? db.from("stone_knowledge_articles")
-          .select("title, content, category, sub_category, source, tags, related_stones, related_minerals, notes")
-          .eq("tenant_id", tenantId).eq("is_active", true)
-          .order("category").order("title")
+      ? fetchAllRows<KnowledgeRow>((from, to) =>
+          db.from("stone_knowledge_articles")
+            .select("id, title, content, category, sub_category, source, tags, related_stones, related_minerals, notes")
+            .eq("tenant_id", tenantId).eq("is_active", true)
+            .order("category").order("title").order("id").range(from, to))
       : null,
   ]);
 
+  // P2-02: herhangi bir bölüm okunamadıysa Word ÜRETİLMEZ (eskiden hata yutulup boş/eksik
+  // rapor 200 ile iniyordu). Ham DB hatası istemciye dönmez; sunucu loguna ref ile yazılır.
+  for (const [label, r] of [["stones", stonesRes], ["minerals", mineralsRes], ["combinations", combinationsRes], ["knowledge", knowledgeRes]] as const) {
+    if (r && !r.ok) {
+      return serverErrorResponse({ route: "dogaltas/word-report", action: `POST:${label}`, tenantId, cause: r.error, usage: { guard: { ...auth, is_demo_account: false }, req, module: "stones", failedAction: "report_generated", subEntity: null } });
+    }
+  }
+  // P2-02: seçilen taşlardan biri bile bu tenant'ta yoksa (silinmiş / başka tenant / kütüphane)
+  // rapor ÜRETİLMEZ — hangi id'nin eksik olduğu söylenmez (IDOR'da var/yok sızmaz).
+  if (sections.stones && stoneIds && (stonesRes?.rows.length ?? 0) !== stoneIds.length) {
+    return missingSelectionResponse();
+  }
+
   // RPT-XML: rapor motoruna girmeden önce tüm DB string'leri XML 1.0 güvenli
   // hale getirilir (illegal kontrol karakteri temizliği; TR/Unicode/emoji korunur).
-  const stonesRows    = sanitizeXmlDeep((stonesRes?.data       ?? []) as StoneRow[]);
-  const mineralRows   = sanitizeXmlDeep((mineralsRes?.data     ?? []) as MineralRow[]);
+  const stoneRowsRaw  = stonesRes?.rows ?? [];
+  const stonesRows    = sanitizeXmlDeep(stoneIds && stoneIds.length > 150 ? sortByTrField(stoneRowsRaw, "stone_name") : stoneRowsRaw);
+  // P2-01: bozuk/legacy mineral dizi alanı tüm raporu çökertmez (normalize + teknik log).
+  const mineralRows   = sanitizeMineralRowsForReport(sanitizeXmlDeep(mineralsRes?.rows ?? []), { route: "dogaltas/word-report", tenantId }).rows;
   // F-02 READ: yapısal kombinasyonlar junction'dan resolve (güncel ad; silinende
   // snapshot); legacy stones_text fallback. Salt-okuma + batch. Sonra XML sanitize.
-  const comboHydrated = await hydrateCombinationStoneNames(db, tenantId, (combinationsRes?.data ?? []) as CombinationRow[]);
+  const comboHydrated = await hydrateCombinationStoneNames(db, tenantId, combinationsRes?.rows ?? []);
   const comboRows     = sanitizeXmlDeep(comboHydrated as CombinationRow[]);
-  const knowledgeRows = sanitizeXmlDeep((knowledgeRes?.data    ?? []) as KnowledgeRow[]);
+  const knowledgeRows = sanitizeXmlDeep(knowledgeRes?.rows ?? []);
+
+  // P2-02: seçili VERİ bölümlerinin hepsi boşsa "boş" Word indirtilmez → anlaşılır 404.
+  const dataSections = (["stones", "minerals", "combinations", "knowledge"] as const).filter((k) => sections[k]);
+  const dataTotal = stonesRows.length + mineralRows.length + comboRows.length + knowledgeRows.length;
+  if (dataSections.length > 0 && dataTotal === 0) {
+    return Response.json(
+      { ok: false, code: "empty_report", error: "Seçilen bölümlerde rapora eklenecek kayıt bulunamadı." },
+      { status: 404, headers: { "Cache-Control": "no-store" } },
+    );
+  }
 
   const counts: Record<string, number> = {};
   if (sections.stones)       counts.stones       = stonesRows.length;

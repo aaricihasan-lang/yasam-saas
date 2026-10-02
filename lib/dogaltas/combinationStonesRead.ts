@@ -18,6 +18,7 @@
  *     yutulur, legacy stones_text fallback döner (merge-safe; mutation yok).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fetchAllRowsByIds } from "@/lib/dogaltas/fetchAllRows";
 
 export type ResolvedStone = {
   stone_id: string | null;
@@ -71,20 +72,26 @@ export async function hydrateCombinationStoneNames<T extends CombinationLike>(
   const ids = Array.from(new Set(rows.map((r) => r.id).filter(Boolean)));
   if (ids.length === 0) return rows;
 
-  // BATCH tek sorgu + FK embed (stones.stone_name). Tenant-scoped.
-  const { data, error } = await db
-    .from("combination_stones")
-    .select("combination_id, stone_id, snapshot_name, sort_order, stones(stone_name)")
-    .eq("tenant_id", tenantId)
-    .in("combination_id", ids)
-    .order("combination_id", { ascending: true })
-    .order("sort_order", { ascending: true });
+  // BATCH + FK embed (stones.stone_name). Tenant-scoped. P2-07: id listesi parçalanır
+  // (URL uzunluğu) ve her parça sayfalı okunur (1000-satır tavanı) → sessiz eksik yok.
+  const res = await fetchAllRowsByIds<unknown>(ids, (chunk, from, to) =>
+    db
+      .from("combination_stones")
+      .select("id, combination_id, stone_id, snapshot_name, sort_order, stones(stone_name)")
+      .eq("tenant_id", tenantId)
+      .in("combination_id", chunk)
+      .order("combination_id", { ascending: true })
+      .order("sort_order", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
 
   // Tablo yok / sorgu hatası → legacy fallback (mutation yok, kırılmaz).
-  if (error) return rows;
+  if (!res.ok) return rows;
+  const data = res.rows;
 
   const byComb = new Map<string, ResolvedStone[]>();
-  for (const jr of data ?? []) {
+  for (const jr of data) {
     const r = jr as {
       combination_id: string; stone_id: string | null; snapshot_name: string;
       stones?: { stone_name?: string | null } | { stone_name?: string | null }[] | null;

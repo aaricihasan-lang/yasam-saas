@@ -210,6 +210,14 @@
     },
     "validation": {
       "mineralPercentInvalid": "Enter a mineral percentage between 0 and 100."
+    },
+    "reportErrors": {
+      "session": "Your session may have expired. Please sign in again and retry.",
+      "forbidden": "This report can't be created on this account or device.",
+      "notFound": "The records selected for the report were not found or no longer exist. Refresh the list and try again.",
+      "empty": "There are no records to include in the selected sections.",
+      "invalid": "The report selection is invalid. Refresh the list and try again.",
+      "generic": "The Word report couldn't be created. Please try again."
     }
   }
 }

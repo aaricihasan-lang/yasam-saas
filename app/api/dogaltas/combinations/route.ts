@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { hydrateCombinationStoneNames } from "@/lib/dogaltas/combinationStonesRead";
+import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
 
 export const runtime = "nodejs";
 
@@ -60,27 +61,30 @@ export async function GET(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: true, count: count ?? 0 });
   }
 
-  let query = db
-    .from("combinations")
-    .select(COMBINATION_COLUMNS)
-    .eq("tenant_id", tenantId); // SUNUCUDAN — tenant dışı okuma engellenir
+  // P2-07: liste "tümü" anlamı taşır → 1000-satır tavanına takılmadan sayfalı okunur
+  // (tenant filtresi her sayfada; id ile kararlı sıra → sayfa atlama/çift yok).
+  const res = await fetchAllRows<{ id: string; stones_text?: string | null }>((from, to) => {
+    let query = db
+      .from("combinations")
+      .select(COMBINATION_COLUMNS)
+      .eq("tenant_id", tenantId); // SUNUCUDAN — tenant dışı okuma engellenir
+    if (issue) query = query.eq("issue", issue);
+    return query
+      .order("issue", { ascending: true })
+      .order("variant_index", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to);
+  });
 
-  if (issue) {
-    query = query.eq("issue", issue);
-  }
-
-  const { data, error } = await query
-    .order("issue", { ascending: true })
-    .order("variant_index", { ascending: true });
-
-  if (error) {
+  if (!res.ok) {
     return serverErrorResponse({
       route: "dogaltas/combinations",
       action: "GET",
       tenantId,
-      cause: error,
+      cause: res.error,
     });
   }
+  const data = res.rows;
 
   // F-02 READ: yapısal kayıtlar (junction'ı olan) için stones_text canonical junction'dan
   // resolve edilir (güncel taş adı; silinen için snapshot_name). Legacy kayıtlar

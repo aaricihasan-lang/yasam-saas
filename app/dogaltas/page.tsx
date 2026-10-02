@@ -29,6 +29,7 @@ import { DOGALTAS_PRIMARY_MODULES } from "@/lib/dogaltas/dogaltasModules";
 import { DOGALTAS_ACCENT } from "@/lib/dogaltas/dogaltasAccent";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
+import { reportErrorKind } from "@/lib/dogaltas/reportErrorKind";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-viewed-search-results";
 
@@ -280,6 +281,7 @@ async function fetchStonesRaw(): Promise<{ data: Record<string, unknown>[]; erro
 
 function DogaltasPageContent() {
   const t = useTranslations("stones.hub");
+  const tre = useTranslations("stones.reportErrors");
   const locale = useLocale() as ActiveLocale;
   // Modül kartı etiketleri: DOGALTAS_MODULES registry KANONİK Türkçe kalır (slug/href/canonical);
   // görünen title/subtitle slug ile localize edilir.
@@ -303,6 +305,8 @@ function DogaltasPageContent() {
   // TARAYICIYA inmez; yalnız eşleşen alt küme (extended) döner ve alan-eşleşmesi
   // (matchedField) client'ta bu bounded küme üzerinde hesaplanır.
   const [searchResults, setSearchResults] = useState<StoneSearchResult[]>([]);
+  // P2-07: sunucu sonuç üst sınırına ulaşıldıysa (500) kullanıcıya dürüstçe söylenir.
+  const [searchCapped, setSearchCapped] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const searchSeq = useRef(0);
   const [viewedStoneIds, setViewedStoneIds] = useState<Set<string>>(() => new Set());
@@ -310,6 +314,8 @@ function DogaltasPageContent() {
   const [mineralsCount, setMineralsCount] = useState<number | null>(null);
   const [combinationsCount, setCombinationsCount] = useState<number | null>(null);
   const [monthlyTrend, setMonthlyTrend] = useState<MonthTrendBucket[]>([]);
+  // P2-09B: trend verisi alınamazsa 6 sıfır çubuk (sahte "kayıt yok") gösterilmez.
+  const [trendError, setTrendError] = useState(false);
   // Word raporu modal
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportSections, setReportSections] = useState({
@@ -380,7 +386,9 @@ function DogaltasPageContent() {
     const rows = (stonesRowsRes.data ?? []) as Record<string, unknown>[];
     if (stonesRowsRes.error) {
       console.error("[dogaltas/dashboard] Taş satırları (trend) hatası:", stonesRowsRes.error);
+      failed.push(t("analytics.failedLabel.trend"));
     }
+    setTrendError(Boolean(stonesRowsRes.error));
 
     const createdAts = rows
       .map((row) => (row.created_at != null ? String(row.created_at) : ""))
@@ -438,14 +446,18 @@ function DogaltasPageContent() {
       setSearchLoading(false);
       if (!res.ok) {
         setSearchResults([]);
+        setSearchCapped(false);
         setHasSearched(true);
+        // P2-09B: ham teknik metin (HTTP 5xx, İngilizce ağ hatası) gösterilmez; log'a yazılır.
+        if (res.error !== STONES_WORKSPACE_UNAVAILABLE) console.error("[dogaltas-pano] arama hatası:", res.error);
         setSearchError(
           res.error === STONES_WORKSPACE_UNAVAILABLE
             ? tc("workspaceUnavailable")
-            : t("search.recordsError", { message: res.error ?? t("search.dataError") }),
+            : t("search.dataError"),
         );
         return;
       }
+      setSearchCapped(res.capped);
       const records = res.rows.map((row) =>
         mapStoneSearchRecord(row as unknown as Record<string, unknown>),
       );
@@ -533,13 +545,16 @@ function DogaltasPageContent() {
         body: JSON.stringify({ sections: reportSections }),
       });
       if (!res.ok) {
-        const data = await res.json() as { error?: string };
-        throw new Error(data.error ?? t("report.errorGeneric"));
+        // P2-02/P2-09A: sunucu boş/eksik rapor üretmez; hata türüne göre anlaşılır mesaj.
+        // (Eskiden JSON olmayan yanıtta ham SyntaxError metni gösterilebiliyordu.)
+        setReportError(tre(await reportErrorKind(res)));
+        return;
       }
       await downloadFileResponse(res, `yasam-sistemi-dogaltas-raporu-${reportFileDate()}.docx`);
       setReportSuccess(t("report.success"));
     } catch (err) {
-      setReportError(err instanceof Error ? err.message : t("report.errorGeneric"));
+      console.error("[dogaltas-pano] Profesyonel Rapor hatası:", err);
+      setReportError(t("report.errorGeneric"));
     } finally {
       setReportLoading(false);
     }
@@ -688,6 +703,11 @@ function DogaltasPageContent() {
                   ) : null}
                 </div>
 
+                {searchCapped && !searchError && !searchLoading ? (
+                  <p role="status" data-testid="dash-search-capped" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+                    {t("results.cappedNote")}
+                  </p>
+                ) : null}
                 {searchError ? (
                   <p
                     className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900"
@@ -794,6 +814,8 @@ function DogaltasPageContent() {
                   <p className="text-[11px] text-slate-500">{t("analytics.trendSubtitle")}</p>
                   {loading ? (
                     <p className="mt-auto text-sm font-semibold text-slate-600">{t("analytics.loading")}</p>
+                  ) : trendError ? (
+                    <p role="alert" data-testid="dash-trend-error" className="mt-auto text-sm font-semibold text-rose-700">{t("analytics.trendError")}</p>
                   ) : (
                     <>
                       <div className="mt-1.5 flex h-[62px] items-end gap-1">
@@ -850,8 +872,8 @@ function DogaltasPageContent() {
 
       {/* Word raporu modal */}
       {showReportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-3 backdrop-blur-sm sm:p-4">
+          <div role="dialog" aria-modal="true" data-testid="word-modal" className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-3xl bg-white p-5 shadow-2xl ring-1 ring-slate-200/50 sm:p-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-black text-slate-950">{t("report.title")}</h2>
               <button

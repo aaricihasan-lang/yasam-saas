@@ -210,6 +210,14 @@
     },
     "validation": {
       "mineralPercentInvalid": "Mineral yüzdesi 0 ile 100 arasında olmalıdır."
+    },
+    "reportErrors": {
+      "session": "Oturumunuz sona ermiş olabilir. Lütfen yeniden giriş yapıp tekrar deneyin.",
+      "forbidden": "Bu rapor bu hesapta veya bu cihazda oluşturulamıyor.",
+      "notFound": "Rapor için seçilen kayıtlar bulunamadı veya artık mevcut değil. Listeyi yenileyip tekrar deneyin.",
+      "empty": "Seçilen bölümlerde rapora eklenecek kayıt bulunamadı.",
+      "invalid": "Rapor seçimi geçersiz. Listeyi yenileyip tekrar deneyin.",
+      "generic": "Word raporu oluşturulamadı. Lütfen tekrar deneyin."
     }
   }
 }

@@ -144,7 +144,27 @@ export default function MineralBankasiPage() {
     setErrorMessage("");
   }
 
+  // P2-03: SENKRON çift-gönderim kilidi. React state (saving/dupChecking) aynı render içinde
+  // gelen ikinci tıklamayı durduramıyor ve kopya-kontrolü ile kaydetme arasındaki await
+  // penceresinde buton yeniden etkin oluyordu → yavaş ağda iki kayıt. Kilit her çıkışta
+  // (başarı / hata / istisna) bırakılır → başarısız istekten sonra tekrar denenebilir.
+  const saveLockRef = useRef(false);
   async function saveMineral(forceCreate = false) {
+    if (saveLockRef.current) return;
+    saveLockRef.current = true;
+    try {
+      await saveMineralInner(forceCreate);
+    } catch (err) {
+      console.error("[dogaltas] kaydetme hatası:", err);
+      setDupChecking(false);
+      setSaving(false);
+      setErrorMessage(t("saveFailedPrefix", { error: tRoot("unknownError") }));
+    } finally {
+      saveLockRef.current = false;
+    }
+  }
+
+  async function saveMineralInner(forceCreate = false) {
     setMessage("");
     setErrorMessage("");
 
@@ -166,13 +186,14 @@ export default function MineralBankasiPage() {
       }
     }
 
+    // P2-03: buton tenant senkronu sırasında da kilitli/yükleniyor görünür.
+    setSaving(true);
     const tenantId = await getSyncedTenantId();
     if (!tenantId) {
+      setSaving(false);
       setErrorMessage(tc("workspaceUnavailable"));
       return;
     }
-
-    setSaving(true);
 
     const payload = {
       tenant_id: tenantId,
@@ -391,7 +412,7 @@ export default function MineralBankasiPage() {
             aria-modal="true"
             aria-label={sectionLabel(activeSection)}
             tabIndex={-1}
-            className={`${uiCard} w-full max-w-[980px] bg-gradient-to-br from-white/80 to-emerald-50/90 p-5`}
+            className={`${uiCard} max-h-[calc(100dvh-2.5rem)] w-full max-w-[980px] overflow-y-auto overscroll-contain bg-gradient-to-br from-white/80 to-emerald-50/90 p-5`}
           >
             <header className="mb-4 flex flex-col gap-3 border-b border-emerald-200/60 pb-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
