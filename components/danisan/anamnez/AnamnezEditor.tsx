@@ -577,7 +577,8 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
         </div>
       ) : null}
 
-      <AnamnezAttachments base={base} attachments={attachments} locale={locale} canUpload onChange={setAttachments} />
+      {/* Satış öncesi kapanış: tamamlanmış anamnez gerçekten kilitli — belge ekleme/kaldırma yok (API de 409 LOCKED). */}
+      <AnamnezAttachments base={base} attachments={attachments} locale={locale} canUpload={!locked} onChange={setAttachments} />
 
       <div className="flex flex-wrap justify-end gap-2">
         <button type="button" onClick={() => setExpanded(new Set(sections.map((s) => s.key)))} className="text-[12px] font-extrabold text-slate-600 hover:underline">{t("editor.expandAll")}</button>

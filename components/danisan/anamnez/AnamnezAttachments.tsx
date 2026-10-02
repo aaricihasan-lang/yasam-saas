@@ -117,7 +117,7 @@ export function AnamnezAttachments({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-[15px] font-extrabold text-slate-800">📎 {t("attachments.title")}</h3>
-          <p className={`${aHint} mt-0.5`}>{t("attachments.hint")}</p>
+          <p className={`${aHint} mt-0.5`}>{canUpload ? t("attachments.hint") : t("attachments.lockedHint")}</p>
         </div>
         {canUpload ? (
           <>

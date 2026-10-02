@@ -204,6 +204,7 @@
       "attachments": {
         "title": "Belgeler (PDF)",
         "hint": "Danışanın kâğıt üzerinde doldurduğu formun taranmış hali gibi belgeleri ekleyebilirsiniz. Yalnız PDF, en fazla 10 MB, en fazla 5 dosya.",
+        "lockedHint": "Bu anamnez tamamlandığı için belgeler yalnız görüntülenebilir veya indirilebilir; ekleme ve kaldırma kapalıdır.",
         "upload": "PDF Ekle",
         "uploading": "Yükleniyor…",
         "view": "Görüntüle",

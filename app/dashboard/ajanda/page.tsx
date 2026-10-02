@@ -10,6 +10,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
@@ -144,6 +145,8 @@ export default function AjandaPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedAppointment, setSelectedAppointment] =
     useState<Appointment | null>(null);
+  const closeAppointmentModal = useCallback(() => setSelectedAppointment(null), []);
+  useModalBehavior(selectedAppointment !== null, closeAppointmentModal);
   const [filter, setFilter] = useState<AppointmentFilter>("all");
   const [tenantId, setTenantId] = useState<string | null>(null);
 
@@ -588,6 +591,14 @@ export default function AjandaPage() {
 
     // EDIT modu: yalnız title/notes/appointment_date PATCH (status/client_id/tenant_id gönderilmez).
     if (editingId) {
+      // Satış öncesi kapanış: tamamlanmış randevu geleceğe taşınamaz (sunucu da 409 ile korur).
+      const editing = appointments.find((a) => a.id === editingId);
+      const dateChanged = !!editing && new Date(appointmentDate).getTime() !== new Date(editing.appointment_date).getTime();
+      if (editing?.status === "tamamlandi" && dateChanged && isAppointmentInFuture(appointmentDate)) {
+        showToast({ title: "Güncelleme hatası", message: "Tamamlanmış bir randevu gelecekteki bir tarihe taşınamaz.", type: "error" });
+        setSaving(false);
+        return;
+      }
       const res = await fetch(`/api/appointments/${editingId}`, {
         method: "PATCH",
         headers: userHeaders(true),
@@ -599,7 +610,11 @@ export default function AjandaPage() {
       });
 
       if (!res.ok) {
-        showToast({ title: "Güncelleme hatası", message: "Randevu güncellenemedi.", type: "error" });
+        let serverMsg: string | null = null;
+        if (res.status === 409 || res.status === 400) {
+          try { serverMsg = ((await res.json()) as { error?: string }).error ?? null; } catch { serverMsg = null; }
+        }
+        showToast({ title: "Güncelleme hatası", message: serverMsg ?? "Randevu güncellenemedi.", type: "error" });
         setSaving(false);
         return; // form ve edit bilgileri korunur
       }
@@ -1126,16 +1141,27 @@ export default function AjandaPage() {
         </div>
 
         {selectedAppointment && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-md overflow-hidden rounded-[20px] bg-white shadow-2xl">
-              <div className="bg-gradient-to-br from-slate-950 via-violet-950 to-fuchsia-900 p-4 text-white">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-slate-950/50 p-3 backdrop-blur-sm sm:p-4"
+            onClick={() => setSelectedAppointment(null)}
+          >
+            {/* Mobil: kart viewport'a sığar; başlık ve aksiyon çubuğu sabit, yalnız içerik kayar
+                → Tamamlandı / İptal / Sil her ekran boyunda erişilebilir (satış öncesi kapanış). */}
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="ajanda-appt-modal-title"
+              className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-hidden rounded-[20px] bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="shrink-0 bg-gradient-to-br from-slate-950 via-violet-950 to-fuchsia-900 p-4 text-white">
                 <div className="flex justify-between gap-4">
                   <div>
                     <div className="text-xs font-bold text-violet-200">
                       Randevu Detayı
                     </div>
 
-                    <h3 className="mt-1 text-xl font-black">
+                    <h3 id="ajanda-appt-modal-title" className="mt-1 break-words text-xl font-black">
                       {selectedAppointment.title || "Görüşme"}
                     </h3>
                   </div>
@@ -1143,14 +1169,15 @@ export default function AjandaPage() {
                   <button
                     type="button"
                     onClick={() => setSelectedAppointment(null)}
-                    className="h-8 w-8 rounded-full bg-white/15 text-lg font-bold hover:bg-white/25"
+                    aria-label="Kapat"
+                    className="h-10 w-10 shrink-0 rounded-full bg-white/15 text-lg font-bold hover:bg-white/25"
                   >
                     ×
                   </button>
                 </div>
               </div>
 
-              <div className="space-y-2.5 p-4">
+              <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain p-4">
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
                   <div className="text-xs font-bold text-emerald-600">
                     {selectedAppointment.client_id ? "Danışan" : "Randevu Tipi"}
@@ -1211,21 +1238,23 @@ export default function AjandaPage() {
                     {singleWordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
                   </button>
                 )}
+              </div>
 
+              <div className="shrink-0 space-y-2 border-t border-slate-100 bg-white p-3 sm:p-4">
                 {/* WEB-07: Düzenle tüm statülerde açık (statü değişmeden title/notes/tarih güncellenir). */}
                 <button
                   type="button"
                   onClick={() => openEditAppointment(selectedAppointment)}
-                  className="w-full rounded-xl border border-indigo-200 bg-indigo-50 p-2.5 text-xs font-black text-indigo-800 transition hover:bg-indigo-100"
+                  className="min-h-[44px] w-full rounded-xl border border-indigo-200 bg-indigo-50 p-2.5 text-xs font-black text-indigo-800 transition hover:bg-indigo-100"
                 >
                   Düzenle
                 </button>
 
-                <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => void requestCompleteAppointment(selectedAppointment.id)}
-                    className="rounded-xl bg-emerald-600 p-2.5 text-xs font-black text-white shadow-md shadow-emerald-100 transition hover:bg-emerald-700"
+                    className="min-h-[44px] rounded-xl bg-emerald-600 p-2.5 text-xs font-black text-white shadow-md shadow-emerald-100 transition hover:bg-emerald-700"
                   >
                     Tamamlandı
                   </button>
@@ -1233,7 +1262,7 @@ export default function AjandaPage() {
                   <button
                     type="button"
                     onClick={() => void requestCancelAppointment(selectedAppointment.id)}
-                    className="rounded-xl bg-rose-600 p-2.5 text-xs font-black text-white shadow-md shadow-rose-100 transition hover:bg-rose-700"
+                    className="min-h-[44px] rounded-xl bg-rose-600 p-2.5 text-xs font-black text-white shadow-md shadow-rose-100 transition hover:bg-rose-700"
                   >
                     İptal Et
                   </button>
@@ -1241,7 +1270,7 @@ export default function AjandaPage() {
                   <button
                     type="button"
                     onClick={() => deleteAppointment(selectedAppointment.id)}
-                    className="rounded-xl bg-slate-950 p-2.5 text-xs font-black text-white shadow-md shadow-slate-200 transition hover:bg-black"
+                    className="min-h-[44px] rounded-xl bg-slate-950 p-2.5 text-xs font-black text-white shadow-md shadow-slate-200 transition hover:bg-black"
                   >
                     Sil
                   </button>

@@ -120,6 +120,17 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [options]);
 
+  // Onay açıkken arka sayfa kaymaz (mobilde dokunmatik kaydırma modalın arkasına geçmesin).
+  const dialogOpen = options !== null;
+  useEffect(() => {
+    if (!dialogOpen || typeof document === "undefined") return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [dialogOpen]);
+
   const tone = options?.tone || "info";
 
   const toneClasses: Record<ConfirmTone, string> = {
@@ -135,7 +146,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 
       {options && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45 px-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[9999] flex items-center justify-center overscroll-contain bg-black/45 p-3 backdrop-blur-sm sm:p-4"
           aria-hidden={false}
           onClick={(e) => {
             // Dışarı tıklama → iptal et (silmeyi tetikleme)
@@ -148,11 +159,13 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             aria-modal="true"
             aria-labelledby="confirm-title"
             aria-describedby="confirm-message"
-            className="w-full max-w-md overflow-hidden rounded-[28px] border border-white/40 bg-white shadow-2xl"
+            // Mobil: kart viewport'a sığar (dvh), başlık + aksiyon çubuğu sabit, yalnız gövde kayar
+            // → uzun silme önizlemesinde de "Vazgeç" / onay butonu her zaman erişilebilir.
+            className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-hidden rounded-[28px] border border-white/40 bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div
-              className={`bg-gradient-to-r ${toneClasses[tone]} px-6 py-5 text-white`}
+              className={`shrink-0 bg-gradient-to-r ${toneClasses[tone]} px-6 py-5 text-white`}
             >
               <div id="confirm-title" className="text-lg font-black">
                 {options.title || "Onay gerekiyor"}
@@ -162,7 +175,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               </div>
             </div>
 
-            <div className="px-6 py-6">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-2 pt-6">
               <p id="confirm-message" className="whitespace-pre-line text-[15px] font-semibold leading-relaxed text-slate-700">
                 {options.message}
               </p>
@@ -180,12 +193,14 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                     autoComplete="off"
                     spellCheck={false}
                     aria-label={options.requireTextLabel ?? "Onay metni"}
-                    className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-2.5 text-[15px] font-semibold text-slate-800 outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
+                    className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-2.5 text-[16px] font-semibold text-slate-800 outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 sm:text-[15px]"
                   />
                 </label>
               ) : null}
+            </div>
 
-              <div className="mt-7 flex justify-end gap-3">
+            <div className="shrink-0 px-6 pb-6 pt-5">
+              <div className="flex flex-wrap justify-end gap-3">
                 <button
                   ref={cancelBtnRef}
                   type="button"
