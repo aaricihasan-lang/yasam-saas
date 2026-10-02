@@ -132,10 +132,21 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/** Oturum sonlanma nedenleri → istemci mesajı sınıfı (süre dolumu vs. güvenlik/başka cihaz). */
+const EXPIRED_END_REASONS: ReadonlySet<string> = new Set([
+  "expired_idle",
+  "expired_absolute",
+  "expired_policy_cleanup",
+]);
+
 /**
  * GET /api/auth/session — oturum geçerliliği (+ throttled touch).
  * Token tercihen `x-session-token` başlığıyla; geriye uyumluluk için `?token=` de kabul edilir.
- * Returns: { valid: boolean }
+ * Returns: { valid: true } | { valid: false, reason: "expired" | "revoked" }
+ *
+ * `reason` yalnız token'ı ELİNDE TUTAN istemciye, KENDİ oturumunun neden geçersiz olduğunu
+ * söyler (doğru mesaj: "Oturum süreniz doldu" vs. güvenlik/başka cihaz). Tam token eşleşmesiyle
+ * okunur; başka kullanıcı/oturum hakkında bilgi vermez. Yetki kararı DEĞİLDİR.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -149,7 +160,21 @@ export async function GET(req: NextRequest) {
 
     const db    = getServerDb();
     const valid = await validateSessionToken(db, token);
-    return json({ valid }, 200);
+    if (valid) return json({ valid: true }, 200);
+
+    let reason: "expired" | "revoked" = "revoked";
+    try {
+      const { data } = await db
+        .from("user_sessions")
+        .select("end_reason")
+        .eq("session_token", token)
+        .maybeSingle();
+      const endReason = typeof data?.end_reason === "string" ? data.end_reason : "";
+      if (EXPIRED_END_REASONS.has(endReason)) reason = "expired";
+    } catch {
+      /* neden okunamazsa güvenli varsayılan: revoked */
+    }
+    return json({ valid: false, reason }, 200);
   } catch {
     return json({ valid: false }, 500);
   }

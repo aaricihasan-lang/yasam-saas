@@ -499,7 +499,7 @@ async function run() {
     const iTok = clr.indexOf("readSessionToken()");
     const iClear = clr.indexOf("clearSessionToken();");
     ok(iTok > 0 && iDel > iTok && iClear > iDel && /keepalive:\s*true/.test(clr), "clearYasamUser: token SİLİNMEDEN önce okunur + DELETE keepalive");
-    const guard = read("hooks/useSessionGuard.ts");
+    const guard = read("hooks/useSessionGuard.ts") + read("lib/auth/sessionExpiry.ts");
     ok(!/\?token=/.test(guard) && /x-session-token/.test(guard), "session guard token'ı URL'de değil başlıkta gönderir");
     const sec = read("lib/auth/sessionSecurity.ts");
     ok(!/void db\s*\n?\s*\.from\("user_sessions"\)/.test(sec) && !/void db\.from/.test(sec), "sessionSecurity: `void db...` tembel update KALMADI");

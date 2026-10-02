@@ -20,6 +20,7 @@ import {
   type YasamUser,
 } from "@/lib/auth/yasamUser";
 import { useSessionGuard } from "@/hooks/useSessionGuard";
+import { checkSessionStatus, consumeSessionEnded, type SessionEndReason } from "@/lib/auth/sessionExpiry";
 import { hasExpertMembershipAccess } from "@/lib/auth/membership";
 import {
   getModuleLockReason,
@@ -748,17 +749,41 @@ export default function Home() {
   // ana dashboard'da beslenme/food probe state'i tutulmaz.
   const loginBackdropPressed = useRef(false);
   const loginModalRef = useRef<HTMLDivElement>(null);
-  const adminCookiePromiseRef = useRef<Promise<void> | null>(null);
+  // Admin cookie tazeleme sonucu: HTTP status (ağ hatası → null). Başarısızsa /admin'e körlemesine gidilmez.
+  const adminCookiePromiseRef = useRef<Promise<number | null> | null>(null);
+
+  // WEB P1: oturum sunucuda sona erdiyse (süre dolumu / iptal) bayat durumda takılma — temizle,
+  // giriş modalını aç, nedene göre doğru mesajı göster. Sunucu süreleri DEĞİŞMEZ.
+  const endSessionForReason = (reason: SessionEndReason) => {
+    clearYasamUser();
+    setUser(null);
+    setAuthModalView("login");
+    setLoginModalOpen(true);
+    setMessage(reason === "expired" ? t("auth.sessionExpired") : t("auth.sessionInvalid"));
+  };
 
   useSessionGuard({
     user,
-    onSessionInvalid: () => {
-      clearYasamUser();
-      setUser(null);
-      setLoginModalOpen(true);
-      setMessage(t("auth.sessionInvalid"));
-    },
+    onSessionInvalid: endSessionForReason,
   });
+  // Mount effect'lerinden güncel kapanış fonksiyonuna erişim (deps zincirine girmeden).
+  const endSessionRef = useRef(endSessionForReason);
+  useEffect(() => {
+    endSessionRef.current = endSessionForReason;
+  });
+
+  // Modül/admin sayfasında oturum sona erip ana sayfaya yönlendirildiyse nedeni göster.
+  useEffect(() => {
+    const ended = consumeSessionEnded();
+    if (!ended) return;
+    // Mount sonrası (senkron setState zinciri yok) giriş modalını nedenle aç.
+    const id = window.setTimeout(() => {
+      setAuthModalView("login");
+      setLoginModalOpen(true);
+      setMessage(ended === "expired" ? t("auth.sessionExpired") : t("auth.sessionInvalid"));
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const closeLoginModal = () => {
     setLoginModalOpen(false);
@@ -831,8 +856,15 @@ export default function Home() {
               "Content-Type": "application/json",
               "x-session-token": adminRefreshToken,
             },
-          }).then(() => {}).catch(() => {})
-        : Promise.resolve();
+          }).then((r) => r.status).catch(() => null)
+        : Promise.resolve(null);
+      // WEB P1: admin oturumu sunucuda sona ermişse (401) bayat "Admin Paneli" kartında
+      // bekletme — oturumu sunucudan doğrula; geçersizse giriş akışına dön.
+      void adminCookiePromiseRef.current.then(async (status) => {
+        if (status !== 401) return;
+        const s = await checkSessionStatus(adminRefreshToken);
+        if (s && !s.valid) endSessionRef.current(s.reason);
+      });
       void syncYasamUserFromDb(stored).then((fresh) => {
         if (fresh) setUser(fresh);
       });
@@ -1322,24 +1354,39 @@ export default function Home() {
     async function handleAdminNav() {
       if (adminNavLoading) return;
       setAdminNavLoading(true);
+      let status: number | null = null;
       if (adminCookiePromiseRef.current) {
-        // Sayfa yüklenirken başlatılan refresh'i bekle.
-        // Promise zaten resolved ise await = bir microtask tick (~0 ms).
+        // Sayfa yüklenirken başlatılan refresh'in bitmesini bekle (yarış yok).
         await adminCookiePromiseRef.current;
-      } else {
-        // Nadir fallback: sayfa yüklenirken başlatılmamışsa şimdi yap.
-        try {
-          await fetch("/api/auth/admin-session", {
-            method: "POST",
-            // P0-1: admin cookie yalnız geçerli (credential-gated) oturum token'ıyla verilir.
-            headers: {
-              "Content-Type": "application/json",
-              "x-session-token": readSessionToken() ?? "",
-            },
-          });
-        } catch {}
       }
-      router.push("/admin");
+      // WEB P1: tıklama ANINDAKİ oturum durumu esas alınır (sayfa açıkken süre dolmuş olabilir) →
+      // geçersiz oturumla /admin'e gidip sunucudan sessizce "/"e geri düşme olmaz.
+      try {
+        const r = await fetch("/api/auth/admin-session", {
+          method: "POST",
+          // P0-1: admin cookie yalnız geçerli (credential-gated) oturum token'ıyla verilir.
+          headers: {
+            "Content-Type": "application/json",
+            "x-session-token": readSessionToken() ?? "",
+          },
+        });
+        status = r.status;
+      } catch {
+        status = null;
+      }
+      adminCookiePromiseRef.current = Promise.resolve(status);
+      if (status === 200) {
+        router.push("/admin");
+        return;
+      }
+      setAdminNavLoading(false);
+      if (status === 401) {
+        // WEB P1: geçersiz/süresi dolmuş oturumla /admin'e körlemesine gidilmez (sessiz "/" dönüşü yok).
+        const s = await checkSessionStatus();
+        endSessionForReason(s && !s.valid ? s.reason : "revoked");
+        return;
+      }
+      showToast({ message: t("auth.adminSessionFailed"), type: "error" });
     }
 
     async function retryProfileSync() {

@@ -1,51 +1,44 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { readSessionToken } from "@/lib/auth/yasamUser";
-import type { YasamUser } from "@/lib/auth/yasamUser";
+import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
+import { checkSessionStatus, type SessionEndReason } from "@/lib/auth/sessionExpiry";
 
-const VALIDATE_INTERVAL_MS = 60 * 1000; // 60 saniye — admin terminate sonrası max 60s içinde kick
+const VALIDATE_INTERVAL_MS = 60 * 1000; // 60 saniye — admin terminate / süre dolumu sonrası max 60s içinde
 
 type UseSessionGuardOptions = {
   user: YasamUser | null;
-  onSessionInvalid: () => void;
+  onSessionInvalid: (reason: SessionEndReason) => void;
 };
 
 /**
  * Kullanıcının oturum token'ını periyodik olarak ve sayfa odaklandığında
- * doğrular. Oturum geçersizse onSessionInvalid çağrılır.
+ * doğrular. Oturum geçersizse onSessionInvalid(reason) çağrılır
+ * (reason: "expired" → süre dolumu; "revoked" → iptal/başka cihaz/güvenlik).
  *
- * Yalnızca uzman kullanıcılar için aktif (admin httpOnly cookie korumasına sahip).
+ * WEB P1 (2026-10): ADMIN DE kapsamda. Önceden admin "httpOnly cookie korumasına sahip"
+ * gerekçesiyle muaftı; sunucu tarafı süre zorlaması (P1-3) açıldıktan sonra süresi dolan admin,
+ * localStorage'daki bayat durumla ana sayfada takılı kalıyordu. Sunucu kuralları değişmez;
+ * yalnız istemci geçersiz oturumu fark eder. Yük: mevcut 60 sn + görünürlük dönüşü (yeni polling yok).
  */
 export function useSessionGuard({ user, onSessionInvalid }: UseSessionGuardOptions): void {
   const onInvalidRef = useRef(onSessionInvalid);
-  onInvalidRef.current = onSessionInvalid;
+  useEffect(() => {
+    onInvalidRef.current = onSessionInvalid;
+  });
 
   useEffect(() => {
-    // Admin ya da giriş yapılmamış → kontrol gerekmez
-    if (!user || user.role === "admin") return;
+    // Giriş yapılmamış → kontrol gerekmez
+    if (!user) return;
 
     let cancelled = false;
 
     async function validate() {
-      const token = readSessionToken();
-      if (!token) return; // Token yoksa eski oturum — geçmişe dönük zorlama yapma
-
-      try {
-        // FAZ1 FINAL HARDENING: token URL'de değil başlıkta (log/geçmiş sızıntısı yok).
-        const res = await fetch("/api/auth/session", {
-          method: "GET",
-          cache: "no-store",
-          headers: { "x-session-token": token },
-        });
-        if (!res.ok || cancelled) return;
-        const json = (await res.json()) as { valid?: boolean };
-        if (!json.valid && !cancelled) {
-          onInvalidRef.current();
-        }
-      } catch {
-        // Ağ hatası → geçersiz saymıyoruz
-      }
+      // Token yoksa eski oturum — geçmişe dönük zorlama yapma (checkSessionStatus → null)
+      const status = await checkSessionStatus();
+      // Ağ hatası / belirsiz yanıt → geçersiz SAYILMAZ
+      if (!status || cancelled) return;
+      if (!status.valid) onInvalidRef.current(status.reason);
     }
 
     // İlk kontrol: sayfa yüklenince 5 saniye bekle
@@ -67,4 +60,44 @@ export function useSessionGuard({ user, onSessionInvalid }: UseSessionGuardOptio
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [user?.id, user?.role]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+/**
+ * Ana sayfa DIŞI sayfalar (modül + /admin) için aynı kontrol — kullanıcıyı render durumuna
+ * almadan, effect içinde localStorage'dan okur (oturumsuz ziyaretçide hiçbir istek yapılmaz).
+ * `active` false iken (ör. ana sayfa — kendi useSessionGuard'ı var) çalışmaz.
+ */
+export function useStoredSessionGuard(
+  active: boolean,
+  onSessionInvalid: (reason: SessionEndReason) => void,
+): void {
+  const onInvalidRef = useRef(onSessionInvalid);
+  useEffect(() => {
+    onInvalidRef.current = onSessionInvalid;
+  });
+
+  useEffect(() => {
+    if (!active || !readYasamUser()) return;
+
+    let cancelled = false;
+    async function validate() {
+      const status = await checkSessionStatus();
+      if (!status || cancelled) return;
+      if (!status.valid) onInvalidRef.current(status.reason);
+    }
+
+    const initialTimer = setTimeout(() => void validate(), 5_000);
+    const interval = setInterval(() => void validate(), VALIDATE_INTERVAL_MS);
+    function handleVisibility() {
+      if (document.visibilityState === "visible") void validate();
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [active]);
 }

@@ -21,9 +21,12 @@ function isGuardedPath(path: string): boolean {
 }
 import {
   backgroundSyncYasamUserFromDb,
+  clearYasamUser,
   readYasamUser,
   syncYasamUserFromDb,
 } from "@/lib/auth/yasamUser";
+import { useStoredSessionGuard } from "@/hooks/useSessionGuard";
+import { markSessionEnded } from "@/lib/auth/sessionExpiry";
 
 type ModuleRouteGuardProps = {
   children: ReactNode;
@@ -44,6 +47,15 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
   // kapısı). Böylece hem soğuk açılış/direct-URL hem SPA navigasyonunda ilk paint'te
   // korumalı içerik "flash" edip sonra deny'a dönmez (izinsiz uzmana içerik sızıntısı yok).
   const [decidedPath, setDecidedPath] = useState<string | null>(null);
+
+  // WEB P1: modül ve /admin sayfalarında oturum sunucuda sona erdiyse (süre dolumu / iptal)
+  // kullanıcı 401'lerle sayfada takılmaz — durum temizlenir, neden taşınır ve ana sayfadaki
+  // giriş akışına dönülür. Ana sayfa ("/") kendi useSessionGuard'ını kullanır.
+  useStoredSessionGuard((pathname ?? "/") !== "/", (reason) => {
+    markSessionEnded(reason);
+    clearYasamUser();
+    window.location.replace("/");
+  });
 
   useEffect(() => {
     let cancelled = false;

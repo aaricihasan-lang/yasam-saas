@@ -155,6 +155,7 @@
     },
     "auth": {
       "sessionInvalid": "Hesabınız başka bir cihaz veya konumdan açıldığı için güvenliğiniz amacıyla tekrar giriş yapmanız gerekiyor.",
+      "sessionExpired": "Oturum süreniz doldu. Lütfen tekrar giriş yapın.",
       "emailPasswordRequired": "E-posta ve parola giriniz.",
       "loggingIn": "Giriş yapılıyor...",
       "systemError": "Sistem hatası oluştu.",
