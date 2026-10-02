@@ -5,6 +5,7 @@ import {
   ATLAS_CHANGED_EVENT,
   atlasHasRegionId,
   buildDisplayRegions,
+  isAtlasStorageKey,
   hydrateAndMergeAtlas,
   listOrganNamesFromAtlas,
   loadAtlas,
@@ -73,9 +74,10 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     };
   }, [initialOrgan]);
 
-  // P1-5: atlas yerelde senkron tarafından değiştirildi (sunucu-only organlar eklendi,
-  // çakışma çözüldü) → state'i depodan yeniden yükle. Bayat state ile kaydetme
-  // sunucu-only organları DÜŞÜRMESİN (handleSave ayrıca depodan okur).
+  // P1-5 + RF-02: atlas yerelde senkron tarafından (sunucu-only organlar, çakışma çözümü,
+  // 3-yollu birleştirme) VEYA başka sekmede (storage olayı) değiştirildi → state'i depodan
+  // yeniden yükle. Bayat state ile kaydetme diğer değişiklikleri DÜŞÜRMESİN (handleSave
+  // ayrıca depodan okur). Kaydedilmemiş taslak bölgeler (draftRegions) korunur.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onChanged = () => {
@@ -89,8 +91,15 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
       );
       setAtlasRevision((v) => v + 1);
     };
+    const onStorage = (e: StorageEvent) => {
+      if (isAtlasStorageKey(e.key)) onChanged();
+    };
     window.addEventListener(ATLAS_CHANGED_EVENT, onChanged);
-    return () => window.removeEventListener(ATLAS_CHANGED_EVENT, onChanged);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(ATLAS_CHANGED_EVENT, onChanged);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   const displayRegions = useMemo(
@@ -165,8 +174,8 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
   );
 
   const handleSave = useCallback((): boolean => {
-    // P1-5: taslak, hook state'ine DEĞİL depodaki GÜNCEL atlasa uygulanır — arka planda
-    // senkronla gelen (sunucu-only) organlar bayat state yüzünden silinmez.
+    // P1-5 / RF-02: taslak, hook state'ine DEĞİL depodaki GÜNCEL atlasa uygulanır — arka
+    // planda senkronla gelen veya başka sekmede kaydedilen değişiklikler ezilmez.
     const next = mergeDraftIntoAtlas(loadAtlas(), draftRegions, deletedRegionIds);
     const ok = saveAtlas(next);
     if (!ok) return false;

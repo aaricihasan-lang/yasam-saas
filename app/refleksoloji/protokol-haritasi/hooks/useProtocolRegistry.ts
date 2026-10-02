@@ -8,6 +8,7 @@ import {
   loadProtocolsFromStorage,
   saveProtocolsToStorage,
 } from "../lib/protocolStorage";
+import { PROTOCOL_DELETED_ERROR } from "@/lib/refleksoloji/protocolSyncCore";
 
 /**
  * FA-42: kayıt artık gerçek `{ok, error}` sonucu döndürür ve sunucu yanıtını
@@ -22,6 +23,8 @@ export type SaveProtocolResult =
       saved: SavedProtocol | null;
       kind: "validation" | "storage" | "conflict" | "network";
       error: string;
+      /** RF-09: protokol başka cihazda silinmiş (409 PROTOCOL_DELETED). */
+      deleted?: boolean;
     };
 
 function userHeaders(): Record<string, string> {
@@ -54,10 +57,14 @@ function protocolFields(saved: SavedProtocol): Record<string, unknown> {
   };
 }
 
-type SyncResult = { ok: true } | { ok: false; conflict: boolean };
+type SyncResult = { ok: true } | { ok: false; conflict: boolean; deleted?: boolean };
 
 async function readOk(res: Response): Promise<SyncResult> {
-  if (res.status === 409) return { ok: false, conflict: true };
+  if (res.status === 409) {
+    const json = (await res.json().catch(() => null)) as { code?: unknown } | null;
+    // RF-09: protokol başka cihazda SİLİNMİŞ → diriltme yok, kullanıcı açıkça bilgilendirilir.
+    return { ok: false, conflict: true, deleted: json?.code === "PROTOCOL_DELETED" };
+  }
   if (!res.ok) return { ok: false, conflict: false };
   const json = (await res.json().catch(() => null)) as { ok?: boolean } | null;
   return json?.ok ? { ok: true } : { ok: false, conflict: false };
@@ -186,6 +193,12 @@ export function useProtocolRegistry() {
 
       const result = editId ? await syncProtocolUpdate(saved, expected) : await syncProtocolCreate(saved);
       if (!result.ok) {
+        if (result.deleted) {
+          // RF-09: sunucuda silinmiş kaydın yerel kopyası da kaldırılır (bu cihazdan da
+          // diriltilmesin); form içeriği ekranda kalır, kullanıcı isterse yeni oluşturur.
+          persist(loadProtocolsFromStorage().filter((p) => p.id !== saved.id));
+          return { ok: false, saved: null, kind: "conflict", deleted: true, error: PROTOCOL_DELETED_ERROR };
+        }
         return {
           ok: false,
           saved,

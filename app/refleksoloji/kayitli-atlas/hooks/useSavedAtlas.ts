@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  ATLAS_CHANGED_EVENT,
+  isAtlasStorageKey,
   discardQuarantinedAtlas,
   hydrateAndMergeAtlas,
   importQuarantinedAtlasToAccount,
@@ -68,6 +70,20 @@ export function useSavedAtlas() {
     });
     return () => {
       cancelled = true;
+    };
+  }, [refresh]);
+
+  // RF-02: başka sekme / arka plan birleştirmesi atlası değiştirince listeyi tazele.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onStorage = (e: StorageEvent) => {
+      if (isAtlasStorageKey(e.key)) refresh();
+    };
+    window.addEventListener(ATLAS_CHANGED_EVENT, refresh);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(ATLAS_CHANGED_EVENT, refresh);
+      window.removeEventListener("storage", onStorage);
     };
   }, [refresh]);
 

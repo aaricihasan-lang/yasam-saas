@@ -17,10 +17,20 @@ import {
   type DeleteNoteOutcome,
 } from "../lib/notesSync";
 import { isReflexSyncEligible } from "@/lib/refleksoloji/reflexStore";
+import { hasLocalEditConflict } from "@/lib/refleksoloji/notesClientCore";
 
 export type SaveNoteResult =
-  | { saved: SavedClinicalNote; storageOk: boolean }
-  | { saved: null; storageOk: true };
+  | { saved: SavedClinicalNote; storageOk: boolean; conflict?: false }
+  | { saved: null; storageOk: true; conflict?: false }
+  /** RF-10: not, düzenleme başladıktan SONRA başka sekme/cihazda değişti → kaydedilmedi. */
+  | { saved: null; storageOk: true; conflict: true; current: SavedClinicalNote };
+
+export type SaveNoteOptions = {
+  /** Düzenleme BAŞLARKEN görülen `updatedAt` (bayat sekme koruması). */
+  expectedUpdatedAt?: string | null;
+  /** Kullanıcı çakışmayı gördü ve bilinçli olarak üzerine yazmayı seçti. */
+  force?: boolean;
+};
 
 /** Sunucu hidrasyon durumu: bekliyor | tamam | erişilemez (demo/çevrimdışı → yalnız yerel). */
 export type NotesServerState = "pending" | "done" | "unavailable";
@@ -74,10 +84,17 @@ export function useClinicalNotes() {
   }, [refresh]);
 
   const saveNote = useCallback(
-    (draft: ClinicalNoteFormDraft, editingId: string | null): SaveNoteResult => {
+    (draft: ClinicalNoteFormDraft, editingId: string | null, opts: SaveNoteOptions = {}): SaveNoteResult => {
       const list = loadNotesFromStorage();
       const existingIds = new Set(list.map((n) => n.id));
       const previous = editingId ? list.find((n) => n.id === editingId) : undefined;
+
+      // RF-10: aynı tarayıcıdaki başka sekme (veya hydrate ile gelen başka cihaz sürümü)
+      // notu bu düzenleme başladıktan sonra değiştirdiyse SESSİZCE EZME — çağıran
+      // kullanıcıya sorar. (Cihazlar arası durum ayrıca sunucu CAS'ıyla 409 alır.)
+      if (previous && hasLocalEditConflict(previous, opts.expectedUpdatedAt, opts.force)) {
+        return { saved: null, storageOk: true, conflict: true, current: previous };
+      }
 
       const saved = draftToSavedNote(draft, {
         id: editingId ?? undefined,

@@ -105,6 +105,80 @@ export function toWireNote(n: SavedClinicalNote): Record<string, unknown> {
   };
 }
 
+/**
+ * RF-10: yerel düzenleme çakışması — not, düzenleme BAŞLADIKTAN sonra (aynı tarayıcıdaki
+ * başka sekme veya hydrate ile gelen başka cihaz sürümü) değişti mi. Değiştiyse kayıt
+ * sessizce EZMEZ; çağıran kullanıcıya sorar (force ile bilinçli üzerine yazma).
+ */
+export function hasLocalEditConflict(
+  previous: Pick<SavedClinicalNote, "updatedAt"> | undefined,
+  expectedUpdatedAt: string | null | undefined,
+  force = false,
+): boolean {
+  if (!previous || force) return false;
+  if (typeof expectedUpdatedAt !== "string") return false;
+  return previous.updatedAt !== expectedUpdatedAt;
+}
+
+// ─── RF-04: bütçeli parça planı (tek büyük not diğerlerini kilitlemez) ────────
+
+export type NoteSyncChunk = {
+  notes: SavedClinicalNote[];
+  deleted: NoteOutboxEntry[];
+};
+
+export type NoteSyncPlan = {
+  chunks: NoteSyncChunk[];
+  /** Tek başına bile güvenli istek sınırını aşan notlar — GÖNDERİLMEZ, yerelde işaretlenir. */
+  oversize: SavedClinicalNote[];
+};
+
+function utf8Bytes(s: string): number {
+  if (typeof TextEncoder !== "undefined") return new TextEncoder().encode(s).length;
+  return s.length * 2;
+}
+
+/**
+ * Kirli notları + silme outbox'ını, her biri `safeBytes` (JSON gövdesi) ve `maxNotes`
+ * sınırının altında kalan istek parçalarına böler. Silmeler küçük olduğundan ilk
+ * parçaya gider. Bir not tek başına sınırı aşıyorsa `oversize` listesine alınır →
+ * istek gönderilmeden kullanıcıya bildirilir; diğer notlar normal senkron olur.
+ * Idempotent: aynı not aynı `id` + `baseUpdatedAt` ile gönderilir (retry duplicate üretmez).
+ */
+export function planNoteSyncChunks(
+  notes: SavedClinicalNote[],
+  outbox: NoteOutboxEntry[],
+  opts: { safeBytes: number; maxNotes?: number; measure?: (s: string) => number },
+): NoteSyncPlan {
+  const measure = opts.measure ?? utf8Bytes;
+  const maxNotes = opts.maxNotes ?? 25;
+  const envelope = measure(JSON.stringify({ notes: [], deleted_uids: [] }));
+  const deletedPayload = outbox.map((d) => ({ uid: d.uid, expected_updated_at: d.expected_updated_at }));
+  const deletedBytes = measure(JSON.stringify(deletedPayload));
+
+  const chunks: NoteSyncChunk[] = [];
+  const oversize: SavedClinicalNote[] = [];
+  let cur: NoteSyncChunk = { notes: [], deleted: outbox.length > 0 ? [...outbox] : [] };
+  let curBytes = envelope + (outbox.length > 0 ? deletedBytes : 0);
+
+  for (const n of notes) {
+    const size = measure(JSON.stringify(toWireNote(n))) + 1;
+    if (envelope + size > opts.safeBytes) {
+      oversize.push(n);
+      continue;
+    }
+    if (cur.notes.length >= maxNotes || curBytes + size > opts.safeBytes) {
+      if (cur.notes.length > 0 || cur.deleted.length > 0) chunks.push(cur);
+      cur = { notes: [], deleted: [] };
+      curBytes = envelope;
+    }
+    cur.notes.push(n);
+    curBytes += size;
+  }
+  if (cur.notes.length > 0 || cur.deleted.length > 0) chunks.push(cur);
+  return { chunks, oversize };
+}
+
 export type AppliedSync = {
   notes: SavedClinicalNote[];
   outbox: NoteOutboxEntry[];
