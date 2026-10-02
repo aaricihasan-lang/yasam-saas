@@ -910,7 +910,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
   );
   const zirveGoster: string[] = peaks
     .slice(0, Y)
-    .map((p) => `${p.index}. zirve · ${p.age} yaş · ${p.topic}. çakra`);
+    .map((p) => `${p.index}. zirve · ${p.age} yaş · ${p.display && p.display.includes("/") ? `${p.display} · ` : ""}${p.topic}. çakra`);
 
   const mucObj = out.mucadeleYillari;
   const mucGoster: string[] = (mucObj?.method1 ?? [])

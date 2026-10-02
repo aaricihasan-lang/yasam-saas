@@ -204,11 +204,16 @@ export function degisimBoundedText(out: NumerolojiMotorOut, currentYear: number)
   return lines.join("\n");
 }
 
+/** Kitap 1 PDF s.216: 11/2 ve 22/4 zirve sayısı gösterimi + konu çakrası. */
+function zirveKonuText(p: { topic: number | string; display?: string }): string {
+  return p.display && p.display.includes("/") ? `${p.display} (${p.topic}. çakra)` : String(p.topic);
+}
+
 export function zirveBoundedText(out: NumerolojiMotorOut, currentYear: number): string {
   const birthYear = dogumYilindanOut(out);
   const peaks = cutoffZirvePeaks(out.zirveYillari?.peaks, birthYear, currentYear);
   if (!peaks.length) return "—";
-  return peaks.map((p) => `${p.index}. zirve — yaş ${p.age}, konu ${p.topic}`).join("\n");
+  return peaks.map((p) => `${p.index}. zirve — yaş ${p.age}, konu ${zirveKonuText(p)}`).join("\n");
 }
 
 export function mucadeleBoundedText(out: NumerolojiMotorOut, currentYear: number): string {
