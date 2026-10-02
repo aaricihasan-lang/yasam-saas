@@ -124,6 +124,7 @@
     "dogaltas:presale-f2:harness": "tsx scripts/dogaltas-presale-f2/harness.ts",
     "dogaltas:presale-stage2:harness": "tsx scripts/dogaltas-presale-stage2/harness.ts",
     "dogaltas:turkish-search:harness": "tsx scripts/dogaltas-turkish-search/harness.ts",
+    "dogaltas:mineral-turkish-search:harness": "tsx scripts/dogaltas-mineral-turkish-search/harness.ts",
     "refleksoloji:harness": "tsx scripts/refleksoloji-sales-closure/harness.ts",
     "store:whatsapp:harness": "tsx scripts/store-whatsapp-harness.ts",
     "store:category-media:harness": "tsx scripts/store-category-media-harness.ts",

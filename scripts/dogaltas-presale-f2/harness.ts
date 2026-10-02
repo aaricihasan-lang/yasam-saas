@@ -103,15 +103,17 @@ function read(rel: string): string {
 {
   const f = buildMineralsListSearchOrFilter("güç");
   ok("minerals or-filter var", Boolean(f));
-  ok("minerals or-filter name/aciklama/kategori/source_id ilike içerir",
-    !!f && f.includes("name.ilike.") && f.includes("aciklama.ilike.") &&
-    f.includes("kategori.ilike.") && f.includes("source_id.ilike."));
+  // Mineral Türkçe İ düzeltmesi: filtre ILIKE yerine Türkçe duyarsız literal `imatch` (amaç aynı:
+  // dört çekirdek kolon dahil, dizi kolonları hariç).
+  ok("minerals or-filter name/aciklama/kategori/source_id içerir",
+    !!f && f.includes("name.imatch.") && f.includes("aciklama.imatch.") &&
+    f.includes("kategori.imatch.") && f.includes("source_id.imatch."));
   ok("minerals or-filter dizi alanı içermez (yapısal, hızlı-yol dışı)",
-    !!f && !f.includes("fiziksel.ilike.") && !f.includes("cakralar.ilike."));
+    !!f && !f.includes("fiziksel.") && !f.includes("cakralar."));
   // İ/ı varyant genişletme
   const fi = buildMineralsListSearchOrFilter("iyot");
   ok("minerals or-filter İ/ı varyantı üretir",
-    !!fi && (fi.includes("%İyot%") || fi.includes("%ıyot%") || fi.includes("%iyot%")));
+    !!fi && fi.includes("[iİıI]yot"));
   // sanitize: ,()%' temizlenir
   ok("minerals or-filter sadece boşluk/özel karakterse null", buildMineralsListSearchOrFilter("  ,() ") === null);
 }
