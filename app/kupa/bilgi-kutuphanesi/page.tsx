@@ -35,7 +35,7 @@ export default function BilgiKutuphanesiPage() {
         remove={deleteKnowledge}
         emptyLabel="Henüz bilgi kaydı yok. Yeni ekleyin."
         addLabel="Kayıt"
-        renderExtra={(rec) => <CuppingCitationManager entity="knowledge" entityId={rec.id} />}
+        renderExtra={(rec) => <CuppingCitationManager key={rec.id} entity="knowledge" entityId={rec.id} />}
       />
     </KupaShell>
   );

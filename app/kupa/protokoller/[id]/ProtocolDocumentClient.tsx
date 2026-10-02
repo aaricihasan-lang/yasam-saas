@@ -129,8 +129,22 @@ export function ProtocolDocumentClient({ id }: { id: string }) {
         <p className="mb-2 inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">Pasif</p>
       ) : null}
 
-      {doc.error ? <p className="mb-2 text-xs text-rose-600">{doc.error}</p> : null}
+      {doc.error ? (
+        // Bölümlerden biri yüklenemedi: bölümleri BOŞ gibi gösterme (uzman verisi silindi sanıp
+        //   yeniden ekleyerek mükerrer kayıt üretmesin). Açık uyarı + tekrar dene.
+        <div role="alert" className="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+          <p className="font-semibold">Protokolün bazı bölümleri yüklenemedi.</p>
+          <p className="mt-1 text-rose-700">
+            Kayıtlarınız silinmedi; yalnızca şu an gösterilemiyor. Bağlantınızı kontrol edip tekrar deneyin. ({doc.error})
+          </p>
+          <button type="button" className={`mt-3 ${kupaBtnGhost} min-h-[44px]`} onClick={() => void doc.reload.all()}>
+            Tekrar dene
+          </button>
+        </div>
+      ) : null}
 
+      {doc.error ? null : (
+      <>
       <RelationSection kind="point" protocolId={id} doc={doc} />
       <RelationSection kind="technique" protocolId={id} doc={doc} />
       <StepsSection protocolId={id} doc={doc} />
@@ -138,6 +152,8 @@ export function ProtocolDocumentClient({ id }: { id: string }) {
       <PrepSection doc={doc} />
       <EntriesSection protocolId={id} doc={doc} />
       <SourcesSection protocolId={id} doc={doc} />
+      </>
+      )}
 
       {editingBasic ? <BasicInfoEditor doc={doc} onClose={() => setEditingBasic(false)} /> : null}
     </KupaShell>

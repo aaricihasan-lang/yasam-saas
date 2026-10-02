@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { kupaBtnPrimary, kupaBtnGhost, kupaBtnSuccess, kupaInput } from "@/app/kupa/components/KupaShell";
+import { kupaBtnPrimary, kupaBtnGhost, kupaBtnSuccess, kupaInput, kupaRowAction, kupaRowActionDanger, kupaRowActions } from "@/app/kupa/components/KupaShell";
 import { addProtocolStep, updateProtocolStep, deleteProtocolStep, type CuppingProtocolStep } from "@/app/kupa/lib/api";
 import type { ProtocolDocument } from "../hooks/useProtocolDocument";
 import { ProtocolSectionShell, ProtocolEmpty } from "./ProtocolSectionShell";
@@ -19,8 +19,11 @@ export function StepsSection({ protocolId, doc }: { protocolId: string; doc: Pro
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [busy, setBusy] = useState(false);
+  const [moving, setMoving] = useState(false);
 
-  const steps = [...doc.steps].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  // DETERMİNİSTİK sıra: sort_order, eşitlikte oluşturulma zamanı, sonra id (eski veride aynı
+  //   sort_order'lı adımlar her yüklemede aynı sırada görünür; sunucu da aynı kuralla sıralar).
+  const steps = [...doc.steps].sort(compareSteps);
   // ref dropdown seçenekleri YALNIZ bu protokole bağlı bölge/teknik (DB membership'i UI'da da korur).
   const boundPoints = doc.points.map((r) => ({ id: r.point_id, name: doc.pointName(r.point_id) }));
   const boundTechniques = doc.techniques.map((r) => ({ id: r.technique_id, name: doc.techniqueName(r.technique_id) }));
@@ -57,7 +60,11 @@ export function StepsSection({ protocolId, doc }: { protocolId: string; doc: Pro
         ref_technique_id: draft.ref_technique_id || null,
       };
       if (editingId) await updateProtocolStep(editingId, payload);
-      else await addProtocolStep({ protocol_id: protocolId, sort_order: steps.length, ...payload });
+      else {
+        // Yeni adım EN SONA: mevcut en büyük sort_order + 1 (silme sonrası `length` ÇAKIŞIRDI).
+        const nextOrder = steps.reduce((m, x) => Math.max(m, x.sort_order ?? 0), -1) + 1;
+        await addProtocolStep({ protocol_id: protocolId, sort_order: nextOrder, ...payload });
+      }
       await doc.reload.steps();
       setFormOpen(false);
       showToast({ message: editingId ? "Adım güncellendi." : "Adım eklendi.", type: "success" });
@@ -80,18 +87,26 @@ export function StepsSection({ protocolId, doc }: { protocolId: string; doc: Pro
     }
   }
 
-  // ↑/↓ sıralama: komşu iki adımın sort_order'ını takas et → server canonical yeniden çek.
+  // ↑/↓ sıralama: yeni sırayı hesapla ve TÜM adımları 0..n-1 olarak yeniden numaralandır
+  //   (yalnız değeri değişenler PATCH'lenir). Eski veride çakışan sort_order'lar (ör. 3,3) da
+  //   böylece kendiliğinden düzelir; iki değeri takas etmek çakışmada hiçbir şey yapmıyordu.
+  //   Sıralama sürerken yeni taşıma başlatılmaz; hata olursa sunucunun güncel sırası yüklenir.
   async function move(index: number, dir: -1 | 1) {
     const j = index + dir;
-    if (j < 0 || j >= steps.length) return;
-    const a = steps[index];
-    const b = steps[j];
+    if (moving || j < 0 || j >= steps.length) return;
+    const order = [...steps];
+    [order[index], order[j]] = [order[j], order[index]];
+    setMoving(true);
     try {
-      await updateProtocolStep(a.id, { sort_order: b.sort_order ?? j });
-      await updateProtocolStep(b.id, { sort_order: a.sort_order ?? index });
+      for (let k = 0; k < order.length; k++) {
+        if ((order[k].sort_order ?? null) !== k) await updateProtocolStep(order[k].id, { sort_order: k });
+      }
       await doc.reload.steps();
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Sıralanamadı.", type: "error" });
+      await doc.reload.steps().catch(() => {});
+      showToast({ message: e instanceof Error ? `Sıralama tamamlanamadı: ${e.message}` : "Sıralanamadı.", type: "error" });
+    } finally {
+      setMoving(false);
     }
   }
 
@@ -126,18 +141,18 @@ export function StepsSection({ protocolId, doc }: { protocolId: string; doc: Pro
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   <div className="flex items-center gap-1">
-                    <button type="button" aria-label="Yukarı taşı" disabled={i === 0} className="rounded-md border border-slate-200 px-1.5 text-slate-500 disabled:opacity-30" onClick={() => move(i, -1)}>
+                    <button type="button" aria-label="Yukarı taşı" disabled={i === 0 || moving} className={`${kupaRowAction} border border-slate-200 px-0 text-sm text-slate-600`} onClick={() => move(i, -1)}>
                       ↑
                     </button>
-                    <button type="button" aria-label="Aşağı taşı" disabled={i === steps.length - 1} className="rounded-md border border-slate-200 px-1.5 text-slate-500 disabled:opacity-30" onClick={() => move(i, 1)}>
+                    <button type="button" aria-label="Aşağı taşı" disabled={i === steps.length - 1 || moving} className={`${kupaRowAction} border border-slate-200 px-0 text-sm text-slate-600`} onClick={() => move(i, 1)}>
                       ↓
                     </button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button type="button" className="text-xs font-semibold text-amber-700 hover:underline" onClick={() => openEdit(s)}>
+                  <div className={kupaRowActions}>
+                    <button type="button" className={kupaRowAction} onClick={() => openEdit(s)}>
                       Düzenle
                     </button>
-                    <button type="button" className="text-xs font-semibold text-rose-600 hover:underline" onClick={() => remove(s)}>
+                    <button type="button" className={kupaRowActionDanger} onClick={() => remove(s)}>
                       Sil
                     </button>
                   </div>
@@ -182,4 +197,14 @@ export function StepsSection({ protocolId, doc }: { protocolId: string; doc: Pro
       ) : null}
     </ProtocolSectionShell>
   );
+}
+
+/** Adım sıralama karşılaştırıcısı: sort_order → created_at → id (eşitlikte kararlı). */
+function compareSteps(a: CuppingProtocolStep, b: CuppingProtocolStep): number {
+  const so = (a.sort_order ?? 0) - (b.sort_order ?? 0);
+  if (so !== 0) return so;
+  const ca = a.created_at ?? "";
+  const cb = b.created_at ?? "";
+  if (ca !== cb) return ca < cb ? -1 : 1;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }

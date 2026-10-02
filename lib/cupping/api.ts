@@ -57,10 +57,20 @@ export function normalizeNullableEnums(
  *                                   FK zaten assertOwnedRef ile ön-doğrulandığından generic 500.
  *   diğer                         → mevcut güvenli generic 500 (DB_FAIL).
  */
+/**
+ * P3-1 — "kullanımda olduğu için silinemiyor" FK ihlali mi? PostgreSQL 17 ve öncesi ON DELETE
+ * RESTRICT/NO ACTION ihlalinde 23503 (foreign_key_violation) döner; PostgreSQL 18 RESTRICT
+ * ihlalini 23001 (restrict_violation) ile bildirir. İkisi de AYNI anlama gelir: silme kısıtı
+ * çalıştı, hiçbir satır silinmedi. Kısıt GEVŞETİLMEZ; yalnız kullanıcıya doğru mesaj gösterilir.
+ */
+export function isFkDeleteViolation(code: string | undefined | null): boolean {
+  return code === "23503" || code === "23001";
+}
+
 function dbErrorResponse(error: unknown, ctx: "insert" | "update" | "delete"): NextResponse {
   const code = (error as { code?: string } | null)?.code;
   if (code === "23505") return cuppingError(409, "Bu kayıt zaten ekli.");
-  if (code === "23503" && ctx === "delete") {
+  if (isFkDeleteViolation(code) && ctx === "delete") {
     return cuppingError(
       409,
       "Bu kayıt kullanımda olduğu için silinemiyor. Önce bağlı kayıtlardan çıkarın.",
@@ -152,6 +162,8 @@ export async function parseJsonBody(req: Request): Promise<Ok<Record<string, unk
 export type ListOptions = {
   orderBy?: string;
   ascending?: boolean;
+  /** Eşitlikte ikincil sıralama kolonları (deterministik sıra; ör. created_at, id). */
+  thenBy?: string[];
   eqFilters?: Record<string, string>;
 };
 
@@ -166,6 +178,7 @@ export async function listEntity(
     for (const [k, v] of Object.entries(opts.eqFilters)) q = q.eq(k, v);
   }
   if (opts?.orderBy) q = q.order(opts.orderBy, { ascending: opts.ascending ?? true });
+  for (const col of opts?.thenBy ?? []) q = q.order(col, { ascending: true });
   const { data, error } = await q;
   if (error) return { ok: false, response: cuppingError(500, DB_FAIL) };
   return { ok: true, data: (data ?? []) as Record<string, unknown>[] };

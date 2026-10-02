@@ -30,11 +30,16 @@ function parsePointIds(v: unknown): string[] {
   return out;
 }
 
+/**
+ * Bilgi kayıtlarının bölge bağlarını tek sorguda okur. OKUMA HATASI = null (boş liste DEĞİL):
+ * "bağ yok" ile "bağlar okunamadı" ayrıştırılır. Aksi halde istemci boş listeyi gerçek sanıp
+ * yalnız metni düzenleyip kaydettiğinde mevcut bağlar replace ile SESSİZCE silinirdi.
+ */
 async function pointsByEntry(
   db: SupabaseClient,
   tenantId: string,
   entryIds: string[],
-): Promise<Record<string, string[]>> {
+): Promise<Record<string, string[]> | null> {
   const map: Record<string, string[]> = {};
   if (entryIds.length === 0) return map;
   const { data, error } = await db
@@ -43,7 +48,7 @@ async function pointsByEntry(
     .eq("tenant_id", tenantId)
     .in("protocol_entry_id", entryIds)
     .order("sort_order", { ascending: true });
-  if (error) return map;
+  if (error) return null;
   for (const row of data ?? []) {
     const eid = String((row as Record<string, unknown>).protocol_entry_id);
     (map[eid] ||= []).push(String((row as Record<string, unknown>).point_id));
@@ -66,6 +71,8 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const entries = res.data as Record<string, unknown>[];
   const byEntry = await pointsByEntry(db, tenantId, entries.map((e) => String(e.id)));
+  // Bağlar okunamadıysa EKSİK veri döndürme → kontrollü hata (istemci düzenlemeyi açmaz).
+  if (!byEntry) return cuppingError(500, "Bilgilerin bölge bağları okunamadı. Lütfen tekrar deneyin.");
   const withPoints = entries.map((e) => ({ ...e, point_ids: byEntry[String(e.id)] ?? [] }));
   return NextResponse.json({ ok: true, entries: withPoints });
 }

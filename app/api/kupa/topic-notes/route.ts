@@ -38,7 +38,7 @@ async function pointsByNote(
   db: SupabaseClient,
   tenantId: string,
   noteIds: string[],
-): Promise<Record<string, string[]>> {
+): Promise<Record<string, string[]> | null> {
   const map: Record<string, string[]> = {};
   if (noteIds.length === 0) return map;
   const { data, error } = await db
@@ -47,7 +47,8 @@ async function pointsByNote(
     .eq("tenant_id", tenantId)
     .in("topic_note_id", noteIds)
     .order("sort_order", { ascending: true });
-  if (error) return map; // okuma kritik değil; boş bırak
+  // OKUMA HATASI = null ("bağ yok" DEĞİL) — boş liste replace ile mevcut bağları silebilirdi.
+  if (error) return null;
   for (const row of data ?? []) {
     const nid = String((row as Record<string, unknown>).topic_note_id);
     (map[nid] ||= []).push(String((row as Record<string, unknown>).point_id));
@@ -70,6 +71,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const notes = res.data as Record<string, unknown>[];
   const byNote = await pointsByNote(db, tenantId, notes.map((n) => String(n.id)));
+  if (!byNote) return cuppingError(500, "Notların bölge bağları okunamadı. Lütfen tekrar deneyin.");
   const withPoints = notes.map((n) => ({ ...n, point_ids: byNote[String(n.id)] ?? [] }));
   return NextResponse.json({ ok: true, notes: withPoints });
 }

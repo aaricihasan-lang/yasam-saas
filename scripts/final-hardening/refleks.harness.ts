@@ -347,9 +347,10 @@ async function main(): Promise<void> {
     ok("istemci ön-kontrol: docx reddedilir", !checkNoteAttachmentFile({ name: "a.docx", type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", size: 10 }).ok);
     const heic = checkNoteAttachmentFile({ name: "foto.HEIC", type: "", size: 10 });
     ok("istemci ön-kontrol: türsüz HEIC uzantıdan çözülür", heic.ok && heic.mime === "image/heic");
-    ok("istemci ön-kontrol: 5MB → Türkçe boyut hatası", (() => {
-      const r = checkNoteAttachmentFile({ name: "b.pdf", type: "application/pdf", size: 5 * 1024 * 1024 });
-      return !r.ok && /en fazla 4 MB/.test(r.message);
+    // RF-04: platform istek sınırı (≈4.5 MB, base64 ×4/3) → istemci sınırı 3 MB.
+    ok("istemci ön-kontrol: 3.5MB → Türkçe boyut hatası (en fazla 3 MB)", (() => {
+      const r = checkNoteAttachmentFile({ name: "b.pdf", type: "application/pdf", size: 3.5 * 1024 * 1024 });
+      return !r.ok && /en fazla 3 MB/.test(r.message);
     })());
     ok("accept listesi görsel+pdf, svg yok", /\.pdf/.test(NOTE_ATTACHMENT_ACCEPT) && !/svg/.test(NOTE_ATTACHMENT_ACCEPT));
   }
@@ -662,6 +663,8 @@ async function main(): Promise<void> {
       ({ id, organ, footSide: "left", view: "taban", shape: "oval", cx, cy: 0.5, rx: 0.05, ry: 0.05 }) as never;
     const ids = (doc: unknown, organ: string) =>
       atlasStorage.getRegionsForOrgan(doc as Doc, organ).map((r) => r.id).sort().join(",");
+    const cxOf = (doc: unknown, organ: string, id: string) =>
+      atlasStorage.getRegionsForOrgan(doc as Doc, organ).find((r) => r.id === id)?.cx;
     const putCount = () => requestLog.filter((r) => r.startsWith("PUT /api/refleksoloji/atlas")).length;
     const srv = () => serverAtlas.get("tenant-c")!;
     const srvDoc = () => srv().document as Record<string, unknown>;
@@ -715,42 +718,57 @@ async function main(): Promise<void> {
     const hookSrc = fs.readFileSync(path.join(process.cwd(), "app/refleksoloji/bolge-haritasi/hooks/useAtlasWorkspace.ts"), "utf8");
     ok("(f) hook: handleSave loadAtlas() üzerinden + atlas-changed dinleyicisi", /mergeDraftIntoAtlas\(loadAtlas\(\)/.test(hookSrc) && /addEventListener\(ATLAS_CHANGED_EVENT/.test(hookSrc));
 
-    // (c) aynı organ iki cihazda farklı → çakışma; yerel bozulmaz; otomatik PUT yok
+    // (c0) RF-01: aynı organın FARKLI bölgeleri iki cihazda değişti → çakışma YOK, ikisi de korunur
     deviceB((d) => {
-      d.Mide = ent(reg("m1"), reg("mB"));
+      (d.Mide as { taban: { sol: unknown[] } }).taban.sol.push(reg("mB"));
+    });
+    requestLog.length = 0;
+    atlasStorage.saveAtlas(atlasStorage.mergeDraftIntoAtlas(atlasStorage.loadAtlas(), [draft("mA", "Mide")], []));
+    const rc0 = await atlasSync.flushAtlasNow();
+    ok("(c0) aynı organ farklı bölgeler → otomatik birleşme + tek retry, çakışma yok",
+      rc0.status === "ok" && putCount() === 2 && atlasSync.getAtlasConflict() === null);
+    ok("(c0) sunucuda iki cihazın bölgesi de var (mA + mB)", ids(srvDoc(), "Mide") === "m1,m2,m3,mA,mB");
+
+    // (c) GERÇEK çakışma: AYNI bölge (m1) iki cihazda FARKLI taşındı → çakışma; yerel bozulmaz; otomatik PUT yok
+    deviceB((d) => {
+      const sol = (d.Mide as { taban: { sol: Array<Record<string, unknown>> } }).taban.sol;
+      const m1 = sol.find((r) => r.id === "m1");
+      if (m1) m1.cx = 0.9;
     });
     const serverMideB = ids(srvDoc(), "Mide");
     requestLog.length = 0;
-    atlasStorage.saveAtlas(atlasStorage.mergeDraftIntoAtlas(atlasStorage.loadAtlas(), [draft("m4", "Mide")], []));
+    atlasStorage.saveAtlas(atlasStorage.mergeDraftIntoAtlas(atlasStorage.loadAtlas(), [draft("m1", "Mide", 0.1), draft("m4", "Mide")], []));
     const rc = await atlasSync.flushAtlasNow();
     await sleep(800);
     ok("(c) çakışma → status 'conflict', otomatik retry YOK (tek PUT)", rc.status === "conflict" && putCount() === 1);
     ok("(c) çakışma mesajı birebir", getReflexologySyncStatus().state === "conflict" && getReflexologySyncStatus().message === atlasSync.ATLAS_CONFLICT_MESSAGE);
     ok("(c) çakışan organ listesi = [Mide]", JSON.stringify(atlasSync.getAtlasConflict()?.organs) === JSON.stringify(["Mide"]));
-    ok("(c) yerel Mide BOZULMADI (A'nın sürümü)", ids(atlasStorage.loadAtlas(), "Mide") === "m1,m2,m3,m4");
-    ok("(c) sunucu Mide B'nin sürümü (ezilmedi)", ids(srvDoc(), "Mide") === serverMideB);
+    ok("(c) yerel Mide BOZULMADI (A'nın sürümü)", ids(atlasStorage.loadAtlas(), "Mide") === "m1,m2,m3,m4,mA,mB" && cxOf(atlasStorage.loadAtlas(), "Mide", "m1") === 0.1);
+    ok("(c) sunucu Mide B'nin sürümü (ezilmedi)", ids(srvDoc(), "Mide") === serverMideB && cxOf(srvDoc(), "Mide", "m1") === 0.9);
     // yeniden yükleme: çakışma kalıcı (taban ilerletilmedi) — yine otomatik PUT yok
     requestLog.length = 0;
     await atlasStorage.hydrateAndMergeAtlas();
     await sleep(800);
     ok("(c) yeniden yüklemede çakışma yeniden tespit edilir, yerel korunur, PUT yok",
-      atlasSync.getAtlasConflict()?.organs.includes("Mide") === true && ids(atlasStorage.loadAtlas(), "Mide") === "m1,m2,m3,m4" && putCount() === 0);
+      atlasSync.getAtlasConflict()?.organs.includes("Mide") === true && cxOf(atlasStorage.loadAtlas(), "Mide", "m1") === 0.1 && putCount() === 0);
     // "Benim sürümümü gönder" → taze expected ile PUT
     requestLog.length = 0;
     const pushed = await atlasStorage.pushLocalAtlasVersion();
-    ok("(c) 'Benim sürümümü gönder' → taze expected ile tek PUT başarılı", pushed === true && putCount() === 1 && ids(srvDoc(), "Mide") === "m1,m2,m3,m4");
+    ok("(c) 'Benim sürümümü gönder' → taze expected ile tek PUT başarılı", pushed === true && putCount() === 1 && ids(srvDoc(), "Mide") === "m1,m2,m3,m4,mA,mB" && cxOf(srvDoc(), "Mide", "m1") === 0.1);
     ok("(c) çözüm sonrası çakışma temiz + synced", atlasSync.getAtlasConflict() === null && getReflexologySyncStatus().state === "synced");
 
     // "Sunucu sürümünü al": Kalp'te çakışma; yerel-özel (çakışmasız) yeni organ yine gönderilir
     deviceB((d) => {
-      d.Kalp = ent(reg("kB"));
+      const sol = (d.Kalp as { taban: { sol: Array<Record<string, unknown>> } }).taban.sol;
+      const k1 = sol.find((r) => r.id === "k1");
+      if (k1) k1.cx = 0.9;
     });
-    atlasStorage.saveAtlas(atlasStorage.mergeDraftIntoAtlas(atlasStorage.loadAtlas(), [draft("kA", "Kalp"), draft("b1", "Böbrek")], []));
+    atlasStorage.saveAtlas(atlasStorage.mergeDraftIntoAtlas(atlasStorage.loadAtlas(), [draft("k1", "Kalp", 0.2), draft("b1", "Böbrek")], []));
     await atlasSync.flushAtlasNow();
     ok("(c2) Kalp çakışması tespit edildi", atlasSync.getAtlasConflict()?.organs.includes("Kalp") === true);
     const adopted = await atlasStorage.adoptServerAtlasVersion();
-    ok("(c2) 'Sunucu sürümünü al' → yerel Kalp = sunucu (B)", adopted === true && ids(atlasStorage.loadAtlas(), "Kalp") === "kB");
-    ok("(c2) çakışmasız yerel değişiklik (Böbrek) korunup sunucuya gitti", ids(srvDoc(), "Böbrek") === "b1" && ids(srvDoc(), "Kalp") === "kB");
+    ok("(c2) 'Sunucu sürümünü al' → yerel Kalp = sunucu (B)", adopted === true && cxOf(atlasStorage.loadAtlas(), "Kalp", "k1") === 0.9);
+    ok("(c2) çakışmasız yerel değişiklik (Böbrek) korunup sunucuya gitti", ids(srvDoc(), "Böbrek") === "b1" && cxOf(srvDoc(), "Kalp", "k1") === 0.9);
 
     // (d) taze (stale olmayan) PUT → doğrudan 200
     requestLog.length = 0;
@@ -773,8 +791,9 @@ async function main(): Promise<void> {
     await sleep(800);
     ok("(e) yeniden yükleme yerel çevrimdışı düzenlemeyi EZMEDİ (m9) + B'nin değişikliği alındı",
       ids(atlasStorage.loadAtlas(), "Mide").includes("m9") && ids(atlasStorage.loadAtlas(), "Dalak") === "d1,d2");
-    ok("(e) açılışta otomatik PUT yok (FA-13); eşitlenmemiş uyarısı", putCount() === 0 && getReflexologySyncStatus().state === "conflict");
-    await atlasSync.flushAtlasNow();
+    await atlasSync.flushAtlasNow(); // debounce'u beklemeden
+    ok("(e) RF-03: ata biliniyor → yerel eşitlenmemiş değişiklik açılışta OTOMATİK gönderildi",
+      putCount() >= 1 && ids(srvDoc(), "Mide").includes("m9") && getReflexologySyncStatus().state === "synced");
     ok("(e) kullanıcı 'yeniden dene' → sunucu m9 + d2'yi birlikte taşır", ids(srvDoc(), "Mide").includes("m9") && ids(srvDoc(), "Dalak") === "d1,d2");
 
     // (e2) belgesiz eski taban (önceki sürüm istemci) → LWW; kaybeden yerel yedeklenir
@@ -785,34 +804,40 @@ async function main(): Promise<void> {
     const localNow = atlasStorage.loadAtlas();
     const lMeta = localNow._meta as { organUpdatedAt?: Record<string, string> };
     lMeta.organUpdatedAt = { ...(lMeta.organUpdatedAt ?? {}), kalp: "2026-01-01T00:00:00.000Z" };
-    (localNow as Record<string, unknown>).Kalp = ent(reg("kLocalOld"));
+    (localNow as Record<string, unknown>).Kalp = ent(reg("kx", 0.1), reg("kLocalOnly"));
     scoped.writeScopedJson(scopeC, "atlas", localNow);
     deviceB((d) => {
-      d.Kalp = ent(reg("kServerNew"));
+      d.Kalp = ent(reg("kx", 0.9));
       (d._meta as { organUpdatedAt: Record<string, string> }).organUpdatedAt.kalp = "2026-09-30T00:00:00.000Z";
     });
     await atlasStorage.hydrateAndMergeAtlas();
     const backup = atlasStorage.loadAtlasConflictBackup();
-    ok("(e2) base belgesi yok → LWW: sunucunun daha yeni Kalp'i kazandı", ids(atlasStorage.loadAtlas(), "Kalp") === "kServerNew");
+    ok("(e2) base belgesi yok → LWW (aynı bölge): sunucunun daha yeni kx'i kazandı", cxOf(atlasStorage.loadAtlas(), "Kalp", "kx") === 0.9);
+    ok("(e2) birleşimde yalnız yerelde olan bölge (kLocalOnly) DÜŞMEDİ", ids(atlasStorage.loadAtlas(), "Kalp").includes("kLocalOnly"));
     ok("(e2) kaybeden yerel Kalp 'atlas-conflict-backup' anahtarına yedeklendi",
-      backup.length >= 1 && ids({ _meta: {}, ...backup[backup.length - 1].organs }, "Kalp") === "kLocalOld");
+      backup.length >= 1 && cxOf({ _meta: {}, ...backup[backup.length - 1].organs }, "Kalp", "kx") === 0.1);
 
     // (g) hayatta kalan organUpdatedAt doğru taraftan
     const S1 = "2026-09-01T00:00:00.000Z";
     const S2 = "2026-09-02T00:00:00.000Z";
     const mk = (organ: Record<string, unknown>, upd: Record<string, string>) => ({ _meta: { organUpdatedAt: upd }, ...organ });
-    const g1 = mergeLib.mergeAtlasThreeWay(mk({ Mide: ent(reg("s")) }, { mide: S2 }), mk({ Mide: ent(reg("l")) }, { mide: S1 }), null);
-    ok("(g) LWW sunucu yeni → içerik + damga sunucudan", ids(g1.document, "Mide") === "s" && g1.document._meta?.organUpdatedAt?.mide === S2);
-    const g2 = mergeLib.mergeAtlasThreeWay(mk({ Mide: ent(reg("s")) }, { mide: S1 }), mk({ Mide: ent(reg("l")) }, { mide: S2 }), null);
-    ok("(g) LWW yerel yeni → içerik + damga yerelden; kayıp yedeği yok", ids(g2.document, "Mide") === "l" && g2.document._meta?.organUpdatedAt?.mide === S2 && Object.keys(g2.lostLocal).length === 0);
-    const gBase = mk({ Mide: ent(reg("b")) }, { mide: "2026-08-01T00:00:00.000Z" });
-    const g3 = mergeLib.mergeAtlasThreeWay(mk({ Mide: ent(reg("s")) }, { mide: S2 }), mk({ Mide: ent(reg("l")) }, { mide: S1 }), gBase);
+    // Aynı bölge kimliği (x) farklı içerikle: LWW / 3-yollu kurallar; damga içerik hangi taraftansa oradan.
+    const g1 = mergeLib.mergeAtlasThreeWay(mk({ Mide: ent(reg("x", 0.9)) }, { mide: S2 }), mk({ Mide: ent(reg("x", 0.1)) }, { mide: S1 }), null);
+    ok("(g) LWW sunucu yeni → içerik + damga sunucudan", cxOf(g1.document, "Mide", "x") === 0.9 && g1.document._meta?.organUpdatedAt?.mide === S2);
+    const g2 = mergeLib.mergeAtlasThreeWay(mk({ Mide: ent(reg("x", 0.9)) }, { mide: S1 }), mk({ Mide: ent(reg("x", 0.1)) }, { mide: S2 }), null);
+    ok("(g) LWW yerel yeni → içerik + damga yerelden; kayıp yedeği yok", cxOf(g2.document, "Mide", "x") === 0.1 && g2.document._meta?.organUpdatedAt?.mide === S2 && Object.keys(g2.lostLocal).length === 0);
+    const gU = mergeLib.mergeAtlasThreeWay(mk({ Mide: ent(reg("s")) }, { mide: S2 }), mk({ Mide: ent(reg("l")) }, { mide: S1 }), null);
+    ok("(g) LWW farklı bölgeler → birleşim (hiçbiri düşmez)", ids(gU.document, "Mide") === "l,s");
+    const gBase = mk({ Mide: ent(reg("x", 0.5)) }, { mide: "2026-08-01T00:00:00.000Z" });
+    const g3 = mergeLib.mergeAtlasThreeWay(mk({ Mide: ent(reg("x", 0.9)) }, { mide: S2 }), mk({ Mide: ent(reg("x", 0.1)) }, { mide: S1 }), gBase);
     ok("(g) 3-yollu çakışma: yerel korunur + damga YEREL (sunucunun daha yeni damgası yapışmaz)",
-      g3.conflicts.join() === "Mide" && ids(g3.document, "Mide") === "l" && g3.document._meta?.organUpdatedAt?.mide === S1);
-    const g4 = mergeLib.mergeAtlasThreeWay(mk({ Mide: ent(reg("s")) }, { mide: S1 }), mk({ Mide: ent(reg("b")) }, { mide: S2 }), gBase);
-    ok("(g) 3-yollu yalnız sunucu değişti: sunucu içeriği + sunucu damgası", g4.conflicts.length === 0 && ids(g4.document, "Mide") === "s" && g4.document._meta?.organUpdatedAt?.mide === S1);
-    const g5 = mergeLib.mergeAtlasThreeWay(mk({}, {}), mk({ Mide: ent(reg("b")) }, { mide: S1 }), gBase, S2);
-    ok("(g) 3-yollu sunucu sildi + yerel değişmedi → silinir + mezar taşı", ids(g5.document, "Mide") === "" && typeof g5.document._meta?.tombstones?.mide === "string");
+      g3.conflicts.join() === "Mide" && cxOf(g3.document, "Mide", "x") === 0.1 && g3.document._meta?.organUpdatedAt?.mide === S1);
+    const g4 = mergeLib.mergeAtlasThreeWay(mk({ Mide: ent(reg("x", 0.9)) }, { mide: S1 }), mk({ Mide: ent(reg("x", 0.5)) }, { mide: S2 }), gBase);
+    ok("(g) 3-yollu yalnız sunucu değişti: sunucu içeriği + sunucu damgası", g4.conflicts.length === 0 && cxOf(g4.document, "Mide", "x") === 0.9 && g4.document._meta?.organUpdatedAt?.mide === S1);
+    const g5 = mergeLib.mergeAtlasThreeWay({ _meta: { organUpdatedAt: {}, tombstones: { mide: S2 } } }, mk({ Mide: ent(reg("x", 0.5)) }, { mide: S1 }), gBase, S2);
+    ok("(g) 3-yollu sunucu sildi (mezar taşlı) + yerel değişmedi → silinir + mezar taşı", ids(g5.document, "Mide") === "" && typeof g5.document._meta?.tombstones?.mide === "string");
+    const g6 = mergeLib.mergeAtlasThreeWay(mk({}, {}), mk({ Mide: ent(reg("x", 0.5)) }, { mide: S1 }), gBase, S2);
+    ok("(g) RF-13: sunucuda MEZAR TAŞSIZ kaybolan organ silme sayılmaz → korunur", ids(g6.document, "Mide") === "x");
 
     // Kota: birleşim yazılamazsa yerel/taban DOKUNULMAZ, otomatik PUT yok
     deviceB((d) => {

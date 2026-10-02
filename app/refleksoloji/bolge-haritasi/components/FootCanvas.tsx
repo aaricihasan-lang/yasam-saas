@@ -177,6 +177,7 @@ export function FootCanvas({
 }: FootCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
   const [imageLoadError, setImageLoadError] = useState(false);
@@ -230,10 +231,21 @@ export function FootCanvas({
     [containerSize, naturalSize],
   );
 
+  // RF-06: görünüm değişince boyut sıfırlanır; ancak görsel önbellekten ZATEN yüklendiyse
+  // (onLoad bu efektten önce tetiklenmiş olabilir) gerçek doğal boyut hemen alınır —
+  // aksi halde overlay hiç açılmaz ya da konteyner boyutuyla yanlış açılırdı.
   useEffect(() => {
     setImageLoadError(false);
-    setNaturalSize({ w: 0, h: 0 });
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+      setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+    } else {
+      setNaturalSize({ w: 0, h: 0 });
+    }
   }, [currentImageSrc]);
+
+  /** RF-06: doğal görsel boyutu bilinmeden koordinat normalize EDİLEMEZ → çizim/overlay yok. */
+  const imageReady = !imageLoadError && naturalSize.w > 0 && naturalSize.h > 0;
 
   useLayoutEffect(() => {
     const el = canvasRef.current;
@@ -440,7 +452,7 @@ export function FootCanvas({
     (e: React.PointerEvent<HTMLDivElement>) => {
       // Salt-okuma güvence (isAddMode zaten editingAllowed içerir; açık niyet).
       if (!editingAllowed) return;
-      if (e.button !== 0 || !isAddMode || !activeOrgan) return;
+      if (e.button !== 0 || !isAddMode || !activeOrgan || !imageReady) return;
 
       const point = getNormalizedPoint(e.clientX, e.clientY, true);
       if (!point) return;
@@ -474,7 +486,7 @@ export function FootCanvas({
       const shape = drawShape === "rect" ? "rect" : "oval";
       setDraft({ kind: "box", shape, start: point, current: point });
     },
-    [editingAllowed, isAddMode, activeOrgan, drawShape, getNormalizedPoint],
+    [editingAllowed, isAddMode, activeOrgan, imageReady, drawShape, getNormalizedPoint],
   );
 
   const handleOverlayPointerMove = useCallback(
@@ -815,7 +827,7 @@ export function FootCanvas({
     [imageRect],
   );
 
-  const canDraw = isAddMode && activeOrgan && imageRect.width > 0;
+  const canDraw = isAddMode && activeOrgan && imageReady && imageRect.width > 0;
   // 4.5 pinch: dokunmatik hareket YALNIZ çizim/taşıma modunda kilitlenir; aksi hâlde tarayıcı
   // pinch-zoom/kaydırma çalışır (emsal: lib/bodymap/components/BodyMapCanvas.tsx touchAction).
   const touchLockClass = canDraw || isMoveMode ? "touch-none" : "touch-manipulation";
@@ -851,6 +863,7 @@ export function FootCanvas({
         >
           {!imageLoadError ? (
             <img
+              ref={imgRef}
               key={currentImageSrc}
               src={currentImageSrc}
               alt={imageAlt}
@@ -868,7 +881,17 @@ export function FootCanvas({
             </p>
           )}
 
-          {imageRect.width > 0 ? (
+          {!imageReady && !imageLoadError ? (
+            <p
+              className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-6 text-center text-sm font-semibold text-violet-800"
+              role="status"
+              aria-live="polite"
+            >
+              Ayak görseli yükleniyor…
+            </p>
+          ) : null}
+
+          {imageReady && imageRect.width > 0 ? (
             <div
               ref={overlayRef}
               className={`absolute z-10 select-none ${touchLockClass}`}

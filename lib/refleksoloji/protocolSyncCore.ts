@@ -41,7 +41,7 @@ export function decideProtocolMissingRow(expected: string | null): ProtocolMissi
 }
 
 export const PROTOCOL_DELETED_ERROR =
-  "Protokol başka bir cihazda silinmiş. Değişiklikleriniz bu cihazda saklandı; sayfayı yenileyip kontrol edin.";
+  "Bu protokol başka bir cihazda silinmiş; değişiklik kaydedilmedi ve protokol yeniden oluşturulmadı. Gerekirse «Yeni protokol oluştur» ile yeniden kaydedin.";
 
 /** raw_json içinden istemci sürüm belirteci. */
 export function protocolRowVersion(rawJson: unknown): string | null {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { kupaBtnDanger, kupaBtnGhost, kupaBtnSuccess, kupaInput } from "@/app/kupa/components/KupaShell";
 import {
   CUPPING_DAY_LABEL_MAX,
@@ -62,15 +63,20 @@ export function DayEditPanel({
   const [error, setError] = useState<string | null>(null);
   const labelRef = useRef<HTMLInputElement>(null);
 
-  // Esc ile kapat + ilk alana odak (a11y).
+  // Esc ile kapat + ilk alana odak (a11y). onClose ref'te tutulur: ebeveyn yeniden render
+  //   olduğunda (ör. toast) efekt TEKRAR çalışıp odağı açıklama alanına sıçratmaz.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
   useEffect(() => {
     labelRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, []);
 
   const labelLen = cpLen(label.trim());
   const labelOver = labelLen > CUPPING_DAY_LABEL_MAX;
@@ -96,7 +102,11 @@ export function DayEditPanel({
     onApply({ colorKey, label: label.trim(), note: note.trim() });
   }
 
-  return (
+  // document.body'ye PORTAL: KupaShell'in `relative z-10` yığın bağlamı içinde kalırsa body'deki
+  //   mobil sabit kaydet barı (z-40) panelin "Taslağa Uygula" butonunu örter. (MasterPicker /
+  //   BigNoteEditor ile aynı desen.) Panel yalnız istemcide, kullanıcı etkileşimiyle açılır.
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
@@ -244,6 +254,7 @@ export function DayEditPanel({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

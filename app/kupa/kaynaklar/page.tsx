@@ -2,7 +2,15 @@
 
 import { KupaShell } from "../components/KupaShell";
 import { CrudManager, type FieldDef } from "../components/CrudManager";
-import { createSource, deleteSource, listSources, updateSource, type CuppingSource } from "../lib/api";
+import {
+  createSource,
+  deleteSource,
+  getSourceUsage,
+  listSources,
+  updateSource,
+  type CuppingCitationEntity,
+  type CuppingSource,
+} from "../lib/api";
 
 /**
  * Kupa & Hacamat — Kaynak Kataloğu. Citation'lar (içerik ↔ kaynak atıfları) bu
@@ -41,6 +49,45 @@ const FIELDS: FieldDef[] = [
   { key: "sort_order", label: "Sıra", type: "number" },
 ];
 
+/** Atıf türü → kullanıcı dili (silme etkisi mesajı). */
+const CITATION_LABELS: Record<CuppingCitationEntity, string> = {
+  point: "nokta",
+  topic: "amaç/rahatsızlık",
+  "point-topic": "nokta–konu ilişkisi",
+  technique: "teknik",
+  knowledge: "bilgi kaydı",
+  safety: "güvenlik maddesi",
+};
+
+/**
+ * P2-3 — Kaynak silinince bağlı atıflar (6 tablo) CASCADE ile silinir; protokol kaynakları ve
+ * protokol bilgileri ise silmeyi ENGELLER. Silme onayından ÖNCE gerçek sayılar DB'den alınır.
+ */
+async function sourceDeleteImpact(rec: CuppingSource): Promise<{ message: string; blocked?: boolean }> {
+  const u = await getSourceUsage(rec.id);
+  const protocolUse = u.protocolSources + u.protocolEntries;
+  if (protocolUse > 0) {
+    const parts = [
+      u.protocolSources > 0 ? `${u.protocolSources} protokol kaynağı` : "",
+      u.protocolEntries > 0 ? `${u.protocolEntries} protokol bilgisi` : "",
+    ].filter(Boolean);
+    return {
+      blocked: true,
+      message:
+        `“${rec.source_name}” kaynağı ${parts.join(" ve ")} tarafından kullanılıyor; bu nedenle silinemez. ` +
+        `Önce ilgili protokollerden bu kaynağı çıkarın.`,
+    };
+  }
+  if (u.citationTotal === 0) return { message: "Bu kaynağa bağlı atıf yok." };
+  const detail = (Object.keys(u.citations) as CuppingCitationEntity[])
+    .filter((k) => u.citations[k] > 0)
+    .map((k) => `${u.citations[k]} ${CITATION_LABELS[k]}`)
+    .join(", ");
+  return {
+    message: `Bu kaynak ${u.citationTotal} atıfta kullanılıyor (${detail}). Kaynak silinirse bu atıfların tamamı da kalıcı olarak kaldırılacaktır.`,
+  };
+}
+
 export default function KaynaklarPage() {
   return (
     <KupaShell
@@ -56,6 +103,7 @@ export default function KaynaklarPage() {
         create={createSource}
         update={updateSource}
         remove={deleteSource}
+        loadDeleteImpact={sourceDeleteImpact}
         emptyLabel="Henüz kaynak yok. Yeni ekleyin."
         addLabel="Kaynak"
         searchKeys={[

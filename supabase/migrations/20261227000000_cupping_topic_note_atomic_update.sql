@@ -25,8 +25,10 @@
 --   - Yalnız cupping_topic_notes + cupping_topic_note_points'a dokunur; formal
 --     source/citation, Yaşam Hafızası, Atlas tablolarına DOKUNMAZ.
 --
--- ADDITIVE + IDEMPOTENT: CREATE OR REPLACE FUNCTION; tablo/DDL değişikliği YOK.
---   Bağımlılık: 20261001000000_cupping_topic_notes.sql (tablolar) önce uygulanmalı.
+-- ADDITIVE + IDEMPOTENT: CREATE OR REPLACE FUNCTION; BÖLÜM 0 tablo DDL'i IF NOT EXISTS.
+--   Bağımlılık: 20261216000000 + 20261217000000 (cupping_topics/points + UNIQUE hedefleri).
+--   (2026-10-02 P2-9: not tabloları DDL'i eski 20261001000000'dan buraya taşındı — temiz
+--   veritabanında dosya sırasıyla kurulum artık kırılmaz; mevcut ortamlarda no-op.)
 --
 -- HATA KODLARI (SQLSTATE → API map):
 --   45001 = not bulunamadı / bu tenant'a ait değil  → 404
@@ -36,6 +38,68 @@
 -- =============================================================================
 
 BEGIN;
+
+-- ─── BÖLÜM 0 — Amaç/Rahatsızlık notları tabloları (bootstrap sıra düzeltmesi) ─────────
+-- Kaynak: eski 20261001000000_cupping_topic_notes.sql (içerik AYNEN; bkz. o dosyadaki not).
+-- Bu noktada bağımlılıklar mevcuttur: cupping_topics / cupping_points (20261216000000) +
+-- UNIQUE(tenant_id, id) (20261217000000). Tamamen idempotent: mevcut ortamlarda no-op.
+-- Tasarım: composite tenant-safe FK (tenant_id,parent)→parent(tenant_id,id) ON DELETE CASCADE;
+-- REVOKE ALL anon/authenticated; RLS ENABLE (FORCE YOK, policy YOK) → erişim yalnız
+-- service-role /api/kupa/*.
+
+-- ─── A. cupping_topic_notes ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.cupping_topic_notes (
+  id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id    uuid        NOT NULL,
+  topic_id     uuid        NOT NULL,
+  note         text        NOT NULL,
+  source_label text,
+  sort_order   integer     NOT NULL DEFAULT 0,
+  is_active    boolean     NOT NULL DEFAULT true,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT cupping_topic_notes_topic_fk
+    FOREIGN KEY (tenant_id, topic_id) REFERENCES public.cupping_topics (tenant_id, id) ON DELETE CASCADE
+);
+
+-- composite UNIQUE(tenant_id, id) — note_points composite FK hedefi
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'cupping_topic_notes_tenant_id_key') THEN
+    ALTER TABLE public.cupping_topic_notes
+      ADD CONSTRAINT cupping_topic_notes_tenant_id_key UNIQUE (tenant_id, id);
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS cupping_topic_notes_topic_idx
+  ON public.cupping_topic_notes (tenant_id, topic_id);
+
+-- ─── B. cupping_topic_note_points (M:N) ───────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.cupping_topic_note_points (
+  id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id     uuid        NOT NULL,
+  topic_note_id uuid        NOT NULL,
+  point_id      uuid        NOT NULL,
+  sort_order    integer     NOT NULL DEFAULT 0,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT cupping_topic_note_points_note_fk
+    FOREIGN KEY (tenant_id, topic_note_id) REFERENCES public.cupping_topic_notes (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT cupping_topic_note_points_point_fk
+    FOREIGN KEY (tenant_id, point_id) REFERENCES public.cupping_points (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT cupping_topic_note_points_unique UNIQUE (tenant_id, topic_note_id, point_id)
+);
+
+CREATE INDEX IF NOT EXISTS cupping_topic_note_points_note_idx
+  ON public.cupping_topic_note_points (tenant_id, topic_note_id);
+CREATE INDEX IF NOT EXISTS cupping_topic_note_points_point_idx
+  ON public.cupping_topic_note_points (tenant_id, point_id);
+
+-- ─── Kilit: cupping_schema deseni (policy YOK, FORCE YOK, anon/auth REVOKE) ─────
+REVOKE ALL PRIVILEGES ON TABLE public.cupping_topic_notes       FROM anon, authenticated;
+REVOKE ALL PRIVILEGES ON TABLE public.cupping_topic_note_points FROM anon, authenticated;
+ALTER TABLE public.cupping_topic_notes       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cupping_topic_note_points ENABLE ROW LEVEL SECURITY;
+
+-- ─── BÖLÜM 1 — Atomik not güncelleme fonksiyonu ─────────────────────────────────────
 
 CREATE OR REPLACE FUNCTION public.cupping_topic_note_update_atomic(
   p_tenant_id  uuid,

@@ -34,9 +34,16 @@ export function BigNoteEditorDialog({
   onSave: (text: string) => void;
   onCancel: () => void;
 }) {
-  // Dialog parent tarafından yalnız açıkken mount edilir; useState(value) böylece her
-  // açılışta taslağı mevcut (kaydedilmiş) metinle başlatır → "tekrar aç → metin durur".
+  // Taslak HER AÇILIŞTA güncel `value` ile yeniden başlatılır. Dialog bazı ebeveynlerde
+  //   (InlineLongText, TechniqueEditor, adım/bilgi formları) sürekli mount kalır; yalnız
+  //   useState(value) kullanılırsa önceki satırın / iptal edilmiş metnin taslağı yeni açılışta
+  //   görünür ve yanlış kayda yazılabilirdi. (React "prop değişiminde state ayarı" deseni.)
   const [draft, setDraft] = useState(value);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setDraft(value);
+  }
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   // Açılışta metin alanını odakla (setState değil — cascading-render yok).

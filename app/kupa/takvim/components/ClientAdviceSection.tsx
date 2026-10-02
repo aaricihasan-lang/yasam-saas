@@ -1,15 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import ClientPicker, { type PickerClient } from "@/components/danisan/ClientPicker";
-import {
-  kupaBtnGhost,
-  kupaBtnPrimary,
-  kupaBtnSuccess,
-  kupaInput,
-} from "@/app/kupa/components/KupaShell";
+import { kupaBtnGhost, kupaBtnPrimary, kupaBtnSuccess, kupaInput, kupaRowActionDanger, kupaRowActions } from "@/app/kupa/components/KupaShell";
 import {
   listClientAdvice,
   createClientAdvice,
@@ -45,29 +40,46 @@ export function ClientAdviceSection({ templates }: { templates: CuppingAdviceTem
   const [edit, setEdit] = useState<EditState | null>(null);
 
   const activeTemplates = templates.filter((t) => t.is_active !== false);
+  // Yarış koruması: hızlı danışan değiştirmede ESKİ danışanın yanıtı yenisinin başlığı altında
+  //   gösterilmez (yanlış kişinin kaydını düzenleme/silme riski yok). En son istek kazanır.
+  const reqSeqRef = useRef(0);
+  const clientIdRef = useRef<string | null>(null);
 
   async function selectClient(c: PickerClient) {
+    const seq = ++reqSeqRef.current;
+    clientIdRef.current = c.id;
     setClient(c);
     setEdit(null);
+    setAdvice([]);
     setLoading(true);
     setError(null);
     try {
       const rows = await listClientAdvice(c.id);
+      if (seq !== reqSeqRef.current) return;
       setAdvice(rows);
     } catch (e) {
+      if (seq !== reqSeqRef.current) return;
       setError(e instanceof Error ? e.message : "Danışan bilgileri alınamadı.");
       setAdvice([]);
     } finally {
-      setLoading(false);
+      if (seq === reqSeqRef.current) setLoading(false);
     }
   }
 
   async function refresh() {
-    if (!client) return;
+    const id = clientIdRef.current;
+    if (!id) return;
+    const seq = ++reqSeqRef.current;
     try {
-      setAdvice(await listClientAdvice(client.id));
-    } catch {
-      /* sessiz; kullanıcı tekrar seçebilir */
+      const rows = await listClientAdvice(id);
+      if (seq !== reqSeqRef.current || clientIdRef.current !== id) return;
+      setAdvice(rows);
+      setError(null);
+    } catch (e) {
+      if (seq !== reqSeqRef.current) return;
+      // Liste tazelenemedi: eski liste gösterilmeye devam eder ama kullanıcı UYARILIR (tekrar
+      //   oluşturup mükerrer kayıt üretmesin).
+      setError(e instanceof Error ? `${e.message} Liste güncel olmayabilir.` : "Liste yenilenemedi.");
     }
   }
 
@@ -205,9 +217,9 @@ export function ClientAdviceSection({ templates }: { templates: CuppingAdviceTem
                               <p className="mt-1 text-[11px] text-slate-400">Ana şablondan bağımsız kopya</p>
                             ) : null}
                           </div>
-                          <span className="flex shrink-0 gap-1.5">
-                            <button type="button" className={`${kupaBtnGhost} min-h-[32px] px-2 py-1 text-xs`} onClick={() => setEdit({ id: a.id, title: a.title, before_text: a.before_text ?? "", after_text: a.after_text ?? "", general_note: a.general_note ?? "" })}>Düzenle</button>
-                            <button type="button" className="min-h-[32px] rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-100" onClick={() => remove(a)}>Sil</button>
+                          <span className={kupaRowActions}>
+                            <button type="button" className={`${kupaBtnGhost} min-h-[40px] px-3 py-1 text-xs lg:min-h-[32px]`} onClick={() => setEdit({ id: a.id, title: a.title, before_text: a.before_text ?? "", after_text: a.after_text ?? "", general_note: a.general_note ?? "" })}>Düzenle</button>
+                            <button type="button" className={kupaRowActionDanger} onClick={() => remove(a)}>Sil</button>
                           </span>
                         </div>
                       )}

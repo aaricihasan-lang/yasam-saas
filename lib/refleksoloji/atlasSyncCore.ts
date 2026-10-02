@@ -124,7 +124,34 @@ export type AtlasCurrentRow = {
 export type AtlasPutDecision =
   | { kind: "insert" }
   | { kind: "update"; expected: string }
-  | { kind: "conflict"; code: "ATLAS_BASE_REQUIRED" | "ATLAS_STALE" | "ATLAS_EMPTY_OVERWRITE"; error: string };
+  | {
+      kind: "conflict";
+      code: "ATLAS_BASE_REQUIRED" | "ATLAS_STALE" | "ATLAS_EMPTY_OVERWRITE" | "ATLAS_SHRINK";
+      error: string;
+    };
+
+/**
+ * RF-13 / RF-02 savunma-derinliği: sunucudaki bir organ gelen belgede YOKSA ve gelen
+ * `_meta.tombstones` bu organ için mezar taşı taşımıyorsa → bu bir silme değil, bayat /
+ * eksik yerel durumdur. Tüm meşru silme yolları (organ sil, son bölgeyi sil, yeniden
+ * adlandır) mezar taşı yazar. Dönüş: mezar taşsız düşen organ anahtarları.
+ */
+export function findUntombstonedOrganDrops(current: unknown, incoming: unknown): string[] {
+  const incomingKeys = new Set(atlasOrganKeys(incoming).map(normOrgan));
+  const meta =
+    incoming && typeof incoming === "object"
+      ? ((incoming as { _meta?: { tombstones?: Record<string, unknown> } })._meta ?? {})
+      : {};
+  const tombstones = meta.tombstones && typeof meta.tombstones === "object" ? meta.tombstones : {};
+  const drops: string[] = [];
+  for (const key of atlasOrganKeys(current)) {
+    const norm = normOrgan(key);
+    if (incomingKeys.has(norm)) continue;
+    if (typeof tombstones[norm] === "string") continue;
+    drops.push(key);
+  }
+  return drops;
+}
 
 export function decideAtlasPut(input: {
   current: AtlasCurrentRow;
@@ -155,6 +182,13 @@ export function decideAtlasPut(input: {
       kind: "conflict",
       code: "ATLAS_EMPTY_OVERWRITE",
       error: "Dolu atlas boş bir belgeyle değiştirilemez.",
+    };
+  }
+  if (findUntombstonedOrganDrops(current.document, input.incomingDocument).length > 0) {
+    return {
+      kind: "conflict",
+      code: "ATLAS_SHRINK",
+      error: "Atlas eksik bir yerel kopyayla değiştirilemez; güncel atlas yükleniyor.",
     };
   }
   return { kind: "update", expected };

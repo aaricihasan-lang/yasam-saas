@@ -70,7 +70,7 @@ export default function NoktalarPage() {
         renderExtra={(rec) => (
           <>
             <CuppingProtocolUsage entity="point" entityId={rec.id} />
-            <CuppingCitationManager entity="point" entityId={rec.id} />
+            <CuppingCitationManager key={rec.id} entity="point" entityId={rec.id} />
           </>
         )}
       />

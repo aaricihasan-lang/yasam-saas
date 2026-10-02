@@ -110,7 +110,7 @@ export function KupaShell({
             ) : null}
           </div>
           {actions ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+            <div className="flex max-w-full flex-wrap items-center gap-2">{actions}</div>
           ) : null}
         </header>
 
@@ -155,6 +155,20 @@ export const kupaBtnGhost =
 /** Yıkıcı aksiyon (kontrollü kırmızı). */
 export const kupaBtnDanger =
   "inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-50";
+
+/**
+ * Satır içi ikincil aksiyon (Aç / Düzenle / + Bölge) — dokunmatikte yeterli dokunma alanı
+ * (mobil ≥40px yükseklik, masaüstünde kompakt 32px). Yalnız yazı değil, gerçek tıklanabilir alan.
+ */
+export const kupaRowAction =
+  "inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg px-3 text-xs font-semibold text-amber-700 no-underline transition hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:cursor-not-allowed disabled:opacity-40 lg:min-h-[32px]";
+
+/** Satır içi YIKICI aksiyon (Sil / Çıkar) — kenarlıklı, normal aksiyondan görsel olarak ayrık. */
+export const kupaRowActionDanger =
+  "inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg border border-rose-200 bg-rose-50/60 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-40 lg:min-h-[32px]";
+
+/** Satır aksiyon grubu — normal ve yıkıcı aksiyon arasında yanlış dokunmayı azaltan boşluk. */
+export const kupaRowActions = "flex shrink-0 flex-wrap items-center justify-end gap-2.5";
 
 /** Form girişi (açık zemin, amber focus). */
 export const kupaInput =

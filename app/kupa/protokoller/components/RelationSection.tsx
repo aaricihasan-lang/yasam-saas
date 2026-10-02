@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { kupaBtnPrimary, kupaBtnGhost, kupaBtnSuccess } from "@/app/kupa/components/KupaShell";
+import { kupaBtnPrimary, kupaBtnGhost, kupaBtnSuccess, kupaRowAction, kupaRowActionDanger, kupaRowActions } from "@/app/kupa/components/KupaShell";
 import {
   addProtocolPoint,
   addProtocolTechnique,
@@ -255,10 +255,10 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
             <li key={r.id} className="rounded-xl border border-slate-100 bg-white p-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <p className="min-w-0 text-sm font-semibold text-slate-800">{nameOf(r)}</p>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className={kupaRowActions}>
                   <button
                     type="button"
-                    className="text-xs font-semibold text-amber-700 hover:underline"
+                    className={kupaRowAction}
                     onClick={() => {
                       setEditingId(editingId === r.id ? null : r.id);
                       setNoteDraft(String(r.protocol_note ?? ""));
@@ -266,7 +266,7 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
                   >
                     Düzenle
                   </button>
-                  <button type="button" className="text-xs font-semibold text-rose-600 hover:underline" onClick={() => handleDetach(r)}>
+                  <button type="button" className={kupaRowActionDanger} onClick={() => handleDetach(r)}>
                     Çıkar
                   </button>
                 </div>

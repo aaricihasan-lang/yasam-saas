@@ -68,8 +68,8 @@ export function deleteRegionFromStorage(organ: string, regionId: string): boolea
       markOrganUpserted(next as unknown as AtlasDocLike, organ);
     }
 
-    saveAtlas(touchMeta(next));
-    return true;
+    // Depolama yazımı başarısızsa başarı BİLDİRİLMEZ.
+    return saveAtlas(touchMeta(next));
   } catch {
     return false;
   }
@@ -102,7 +102,9 @@ export function renameOrganInStorage(oldName: string, newName: string): { ok: bo
     // duplicate oluşmasın (zombie/rename fix).
     markOrganDeleted(next as unknown as AtlasDocLike, oldName);
     markOrganUpserted(next as unknown as AtlasDocLike, trimmed);
-    saveAtlas(touchMeta(next));
+    if (!saveAtlas(touchMeta(next))) {
+      return { ok: false, error: "Cihaz depolama alanı dolu; yeniden adlandırılamadı." };
+    }
 
     const list = loadOrganList();
     const seen = new Set<string>();
@@ -128,7 +130,7 @@ export function deleteOrganFromStorage(organ: string): boolean {
   try {
     const atlas = loadAtlas();
     const next = removeOrganFromAtlas(atlas, organ);
-    saveAtlas(next);
+    if (!saveAtlas(next)) return false;
 
     const list = loadOrganList().filter(
       (name) => name.localeCompare(organ, "tr", { sensitivity: "accent" }) !== 0,

@@ -62,7 +62,10 @@ export function KayitliAtlasLayout() {
       tone: "danger",
     });
     if (!ok) return;
-    deleteOrgan(organ);
+    if (!deleteOrgan(organ)) {
+      showToast({ type: "error", title: "Depolama Hatası", message: "Organ silinemedi (cihaz depolama alanı dolu)." });
+      return;
+    }
     if (editOrgan === organ) setEditOrgan(null);
     if (viewOrgan === organ) setViewOrgan(null);
   };
@@ -84,7 +87,9 @@ export function KayitliAtlasLayout() {
       tone: "danger",
     });
     if (!ok) return;
-    deleteOrphanOrgan(organ);
+    if (!deleteOrphanOrgan(organ)) {
+      showToast({ type: "error", title: "Depolama Hatası", message: "Organ silinemedi (cihaz depolama alanı dolu)." });
+    }
   };
 
   if (!hydrated) {
