@@ -146,7 +146,8 @@ function run(): void {
   ok(modKeyOk === "cupping", "moduleAccess: 'cupping' ModuleGateKey union'da");
   ok(MODULE_ROUTE_PREFIXES.some((m) => m.prefix === "app/api/kupa" && m.key === "cupping"), "registry: app/api/kupa → cupping");
   ok(!DEFERRED_MODULE_PREFIXES.some((d) => d.prefix.includes("kupa")), "registry: kupa DEFERRED DEĞİL (gate day-1)");
-  const modAccess = read("lib/auth/moduleAccess.ts");
+  // Alias tablosu moduleAccessCore.ts'e taşındı (moduleAccess.ts yalnız yeniden export eder).
+  const modAccess = read("lib/auth/moduleAccessCore.ts");
   ok(/cupping:\s*\["kupa"/.test(modAccess), "moduleAccess: cupping alias (kupa)");
 
   // ── D) ŞEMA MIGRATION — 8 tablo + RLS lock ─────────────────────────────────────
@@ -363,8 +364,16 @@ function run(): void {
     "note[api]: tenant_id SERVER-forced (insertEntity), body'den değil");
 
   // ══ O) NOT MIGRATION GÜVENLİK (additive + kilit) ════════════════════════════════
-  const noteMig = read("supabase/migrations/20261001000000_cupping_topic_notes.sql");
+  // P2-9 (2026-10-02): not tabloları DDL'i bootstrap sırası için 20261001000000'dan
+  //   20261227000000 "BÖLÜM 0"a TAŞINDI (içerik aynı, idempotent). Eski dosya bilinçli no-op.
+  const noteMig = read("supabase/migrations/20261227000000_cupping_topic_note_atomic_update.sql");
   const noteMigCode = noteMig.replace(/--[^\n]*/g, "");
+  const oldNoteMigCode = read("supabase/migrations/20261001000000_cupping_topic_notes.sql").replace(/--[^\n]*/g, "");
+  ok(!/CREATE|ALTER|REFERENCES|DROP/i.test(oldNoteMigCode),
+    "note[mig]: 20261001000000 bilinçli NO-OP (ileri bağımlılık yok → temiz kurulum kırılmaz)");
+  ok(noteMig.indexOf("CREATE TABLE IF NOT EXISTS public.cupping_topic_notes") > -1 &&
+     noteMig.indexOf("CREATE TABLE IF NOT EXISTS public.cupping_topic_notes") < noteMig.indexOf("CREATE OR REPLACE FUNCTION public.cupping_topic_note_update_atomic"),
+    "note[mig]: tablolar atomik fonksiyondan ÖNCE ve IF NOT EXISTS ile (idempotent) oluşturulur");
   ok(/cupping_topic_notes/.test(noteMig) && /cupping_topic_note_points/.test(noteMig),
     "note[mig]: iki tablo (cupping_topic_notes + cupping_topic_note_points)");
   ok(/FOREIGN KEY \(tenant_id, topic_id\) REFERENCES public\.cupping_topics \(tenant_id, id\)/.test(noteMig),
@@ -455,8 +464,11 @@ function run(): void {
   ok(!/cupping_topic_sources|cupping_point_topic_sources|cupping_sources|yh_|atlas/i.test(atomicCode),
     "note[rpc]: yalnız topic_notes + note_points'a dokunur (formal source/citation/YH/Atlas YOK)");
   // Additive: fonksiyon değişimi; destructive DDL YOK.
-  ok(!/DROP TABLE|DROP COLUMN|ALTER TABLE|TRUNCATE/i.test(atomicCode),
-    "note[rpc-mig]: destructive DDL YOK (yalnız CREATE OR REPLACE FUNCTION)");
+  // Additive: BÖLÜM 0 yalnız IF NOT EXISTS tablo + ADD CONSTRAINT (guard'lı) + ENABLE RLS içerir.
+  //   (Fonksiyon gövdesindeki note-point DELETE→INSERT replace'i tek transaction'dır; DDL değildir.)
+  ok(!/DROP TABLE|DROP COLUMN|ALTER COLUMN|DROP CONSTRAINT|TRUNCATE/i.test(atomicCode) &&
+     !/ALTER TABLE[^;]*(DROP|RENAME|ALTER COLUMN|TYPE )/i.test(atomicCode),
+    "note[rpc-mig]: destructive DDL YOK (yalnız additive tablo/kısıt + CREATE OR REPLACE FUNCTION)");
 
   // ══ Q) MOBİL/TABLET OKUMA UX — KALDIRILDI (amac-rehberi user-facing removed; bkz. üstteki AMAÇ REHBERİ bloğu) ══
 
@@ -571,9 +583,13 @@ function run(): void {
   ok(/assertOwnedRef\(db, CUPPING_TABLES\.sources/.test(rPSrc), "v2-own: protocol-sources POST source tenant doğrulaması");
 
   const rPPId = read("app/api/kupa/protocol-points/[id]/route.ts");
-  ok(/"23503"/.test(rPPId) && /409/.test(rPPId), "v2-detach: protocol-point silme step referanslıysa → 409 (kör 500 değil)");
+  // P3-1: PG17 (23503) + PG18 (23001) ortak yardımcı isFkDeleteViolation ile eşlenir.
+  const apiLib = read("lib/cupping/api.ts");
+  ok(/code === "23503" \|\| code === "23001"/.test(apiLib),
+    "P3-1: FK silme ihlali PG17 (23503) + PG18 (23001) ikisi de 'kullanımda' sayılır");
+  ok(/isFkDeleteViolation\(/.test(rPPId) && /409/.test(rPPId), "v2-detach: protocol-point silme step referanslıysa → 409 (kör 500 değil)");
   const rPTId = read("app/api/kupa/protocol-techniques/[id]/route.ts");
-  ok(/"23503"/.test(rPTId) && /409/.test(rPTId), "v2-detach: protocol-technique silme step referanslıysa → 409");
+  ok(/isFkDeleteViolation\(/.test(rPTId) && /409/.test(rPTId), "v2-detach: protocol-technique silme step referanslıysa → 409");
 
   const rStep = read("app/api/kupa/protocol-steps/route.ts");
   ok(/assertCompositeRef\(db, CUPPING_TABLES\.protocolPoints/.test(rStep) && /assertCompositeRef\(db, CUPPING_TABLES\.protocolTechniques/.test(rStep),
@@ -1501,8 +1517,19 @@ function run(): void {
       "faz5-a3: kayıt mevcut days POST + day DELETE uçlarını kullanır");
     ok(/runPool\(/.test(wsSrc), "faz5-a3: çoklu silme SINIRLI eşzamanlılık");
     ok(/CUPPING_PLAN_DAYS_MAX_BATCH/.test(wsSrc), "faz5-a3: toplu POST azami batch'e göre parçalanır");
-    ok(/loadPlanInto\(plan\.id\)/.test(wsSrc),
+    ok(/loadPlanInto\(planId, \{ silent: true, keepMonth: true, failures \}\)/.test(wsSrc),
       "faz5-a3: kayıt sonrası/kısmi hatada otoriter durum yeniden yüklenir");
+    // P1-1: kaydedilemeyen öğeler taslakta KALIR (sessiz kayıp yok) + başarı yalnız tam başarıda.
+    ok(/failures\.adds\.add/.test(wsSrc) && /failures\.styles\.add/.test(wsSrc) && /failures\.removals\.add/.test(wsSrc),
+      "P1-1: başarısız ekleme/stil/silme öğeleri ayrı ayrı izlenir");
+    ok(/for \(const d of f\.adds\)[\s\S]{0,80}nextDraft\.add\(d\)/.test(wsSrc),
+      "P1-1: yeniden yüklemede kaydedilemeyen günler taslağa geri yazılır");
+    ok(/failCount === 0 && reloaded[\s\S]{0,80}Takvim kaydedildi/.test(wsSrc),
+      "P1-1: 'Takvim kaydedildi' yalnız tüm işlemler + doğrulama başarılıysa");
+    ok(/onBeforeCreate=\{confirmDiscardIfDirty\}/.test(wsSrc) && /onPlanUpdated=\{handlePlanUpdated\}/.test(wsSrc),
+      "P1-1: yeni plan öncesi onay + plan düzenleme taslağı SIFIRLAMAZ (yerinde güncelleme)");
+    ok(/useUnsavedChangesGuard\(dirty, confirmDiscard\)/.test(wsSrc),
+      "P2-13: uygulama içi gezinme/geri tuşu kaydedilmemiş değişiklik koruması");
 
     // ── Kaydedilmemiş değişiklik onayı (native confirm/alert YOK) ─────────────────
     ok(/confirmDiscardIfDirty/.test(wsSrc) && /Kaydedilmemiş/.test(wsSrc),
@@ -1845,7 +1872,7 @@ function run(): void {
     // ── WORKSPACE: durum + kayıt akışı (renksiz de çalışır; PATCH; korunum) ───────
     ok(/styleOf/.test(wsSrc) && /styleOf=\{styleOf\}/.test(wsSrc),
       "faz5/5-ws[2]: renk/açıklama styleOf ile Aylık+Yıllık'a AYNI kaynaktan geçer (renksiz gün de çalışır)");
-    ok(/addCalendarPlanDays\(plan\.id, \{ days: chunk \}\)/.test(wsSrc),
+    ok(/addCalendarPlanDays\(planId, \{ days: chunk \}\)/.test(wsSrc),
       "faz5/5-ws[15/16]: kayıtta yeni günler PER-DAY stil ile eklenir (tek istek)");
     ok(/updateCalendarDay\(t\.id, toWritePayload\(t\.style\)\)/.test(wsSrc) && /styleChanges/.test(wsSrc),
       "faz5/5-ws[11/12]: kayıtlı günlerde renk/açıklama değişikliği PATCH ile kaydedilir");
@@ -1938,8 +1965,9 @@ function run(): void {
     ok(!/overflow-x-hidden/.test(mcSrc),
       "faz5/5-mobil: yatay taşma overflow-x-hidden ile MASKELENMEZ (gerçek okunur düzen)");
     // Mobil SABİT kaydet barı + sayfa alt boşluğu (uzun kart listesinde her zaman erişilir).
-    ok(/fixed inset-x-0 bottom-0/.test(wsSrc) && /lg:sticky/.test(wsSrc),
-      "faz5/5-mobil[KAYDET]: kaydet barı mobilde SABİT (lg'de sticky korunur) → her zaman erişilir");
+    // P1-2: bar kart içinde kalırsa kartın backdrop-filter'ı fixed'i HAPSEDER → body'ye PORTAL.
+    ok(/fixed inset-x-0 bottom-0/.test(wsSrc) && /createPortal\(/.test(wsSrc) && /document\.body/.test(wsSrc) && /hidden lg:block/.test(wsSrc),
+      "faz5/5-mobil[KAYDET]: kaydet barı mobilde body'ye PORTAL edilmiş SABİT bar (lg'de kart içinde) → her zaman erişilir");
     ok(/pb-28 lg:pb-0/.test(wsSrc) && /env\(safe-area-inset-bottom\)/.test(wsSrc),
       "faz5/5-mobil[KAYDET]: sabit bar için sayfa alt boşluğu + güvenli-alan payı");
     // Yıllık Özet mobilde tek sütun (mini-ay ezilmez); AYNI plan.

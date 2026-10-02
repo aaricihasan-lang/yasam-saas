@@ -42,6 +42,16 @@ export function MasterPickerDialog({
   const [mode, setMode] = useState<"pick" | "create">("pick");
   const searchRef = useRef<HTMLInputElement>(null);
 
+  // onClose / mode ref'te tutulur: ebeveyn yeniden render olduğunda (ör. bir toast'ın açılıp
+  //   kapanması yeni bir onClose fonksiyonu üretir) "açılış" efekti TEKRAR ÇALIŞMAZ → yazılmakta
+  //   olan hızlı-oluşturma formu / arama metni SIFIRLANMAZ. Sıfırlama YALNIZ gerçek açılışta.
+  const onCloseRef = useRef(onClose);
+  const modeRef = useRef(mode);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    modeRef.current = mode;
+  });
+
   // Açılışta daima PICK view + arama sıfır + odak (deferred → cascading-render lint yok).
   useEffect(() => {
     if (!open) return;
@@ -53,18 +63,15 @@ export function MasterPickerDialog({
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       // create view'da Escape → picker'a dön; pick view'da → tüm picker'ı kapat.
-      setMode((m) => {
-        if (m === "create") return "pick";
-        onClose();
-        return m;
-      });
+      if (modeRef.current === "create") setMode("pick");
+      else onCloseRef.current();
     };
     window.addEventListener("keydown", onKey);
     return () => {
       clearTimeout(t);
       window.removeEventListener("keydown", onKey);
     };
-  }, [open, onClose]);
+  }, [open]);
 
   // Açıkken alttaki belge scroll'unu kilitle (tam-ekran kontratı; BigNoteEditorDialog deseni).
   useEffect(() => {

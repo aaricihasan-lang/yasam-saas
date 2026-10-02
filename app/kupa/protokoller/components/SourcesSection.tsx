@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { kupaBtnPrimary, kupaBtnGhost, kupaBtnSuccess, kupaInput } from "@/app/kupa/components/KupaShell";
+import { kupaBtnPrimary, kupaBtnGhost, kupaBtnSuccess, kupaInput, kupaRowAction, kupaRowActionDanger, kupaRowActions } from "@/app/kupa/components/KupaShell";
 import { addProtocolSource, updateProtocolSource, deleteProtocolSource, createSource, type CuppingProtocolSourceLink } from "@/app/kupa/lib/api";
 import type { ProtocolDocument } from "../hooks/useProtocolDocument";
 import { ProtocolSectionShell, ProtocolEmpty } from "./ProtocolSectionShell";
@@ -133,9 +133,9 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
                     {r.locator ? <p className="text-[11px] text-slate-500">{r.locator}</p> : null}
                     {r.note ? <p className="mt-0.5 text-[13px] text-slate-600">{r.note}</p> : null}
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <button type="button" className="text-xs font-semibold text-amber-700 hover:underline" onClick={() => { setEditingId(r.id); setLocator(r.locator ?? ""); setNote(r.note ?? ""); setFormOpen(false); }}>Düzenle</button>
-                    <button type="button" className="text-xs font-semibold text-rose-600 hover:underline" onClick={() => remove(r)}>Çıkar</button>
+                  <div className={kupaRowActions}>
+                    <button type="button" className={kupaRowAction} onClick={() => { setEditingId(r.id); setLocator(r.locator ?? ""); setNote(r.note ?? ""); setFormOpen(false); }}>Düzenle</button>
+                    <button type="button" className={kupaRowActionDanger} onClick={() => remove(r)}>Çıkar</button>
                   </div>
                 </div>
               )}

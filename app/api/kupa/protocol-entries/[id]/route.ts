@@ -39,7 +39,9 @@ export async function PATCH(
   if (!parsed.ok) return parsed.response;
 
   const fields = pickWritable(parsed.data, PROTOCOL_ENTRY_WRITABLE);
-  const hasPoints = Object.prototype.hasOwnProperty.call(parsed.data, "point_ids");
+  // point_ids YALNIZ gerçek bir dizi gönderildiğinde ilişkiler replace edilir. null / eksik /
+  //   dizi-olmayan değer = "bağlara DOKUNMA" (RPC sözleşmesi: p_point_ids NULL → değişmez).
+  const hasPoints = Array.isArray(parsed.data.point_ids);
   if (Object.keys(fields).length === 0 && !hasPoints) return cuppingError(400, "Güncellenecek alan yok.");
   if (Object.prototype.hasOwnProperty.call(fields, "content") && !String(fields.content ?? "").trim()) {
     return cuppingError(400, "Bilgi içeriği boş olamaz.");

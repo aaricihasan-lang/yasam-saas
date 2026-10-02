@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { kupaCard } from "@/app/kupa/components/KupaShell";
+import { kupaCard, kupaRowAction, kupaRowActionDanger, kupaRowActions } from "@/app/kupa/components/KupaShell";
 import type { CuppingProtocol } from "@/app/kupa/lib/api";
 
 /**
@@ -33,11 +33,11 @@ export function ProtocolListCard({ protocol, onDelete }: { protocol: CuppingProt
         <span className="text-[11px] text-slate-400">
           {protocol.updated_at ? `Güncellendi: ${new Date(protocol.updated_at).toLocaleDateString("tr-TR")}` : ""}
         </span>
-        <div className="flex items-center gap-3">
-          <Link href={href} className="text-xs font-bold text-amber-700 no-underline hover:underline">
+        <div className={kupaRowActions}>
+          <Link href={href} className={`${kupaRowAction} font-bold`}>
             Aç →
           </Link>
-          <button type="button" className="text-xs font-semibold text-rose-600 hover:underline" onClick={() => onDelete(protocol)}>
+          <button type="button" className={kupaRowActionDanger} onClick={() => onDelete(protocol)}>
             Sil
           </button>
         </div>

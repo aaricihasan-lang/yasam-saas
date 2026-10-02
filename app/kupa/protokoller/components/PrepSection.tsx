@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
-import { kupaBtnGhost, kupaBtnSuccess } from "@/app/kupa/components/KupaShell";
+import { kupaBtnGhost, kupaBtnSuccess, kupaRowAction } from "@/app/kupa/components/KupaShell";
 import { updateProtocol } from "@/app/kupa/lib/api";
 import type { ProtocolDocument } from "../hooks/useProtocolDocument";
 import { ProtocolSectionShell } from "./ProtocolSectionShell";
@@ -60,7 +60,7 @@ export function PrepSection({ doc }: { doc: ProtocolDocument }) {
       title="Hazırlık / Sonrası / Takip"
       action={
         !editing ? (
-          <button type="button" onClick={open} className="text-xs font-semibold text-amber-700 hover:underline">
+          <button type="button" onClick={open} className={kupaRowAction}>
             Düzenle
           </button>
         ) : undefined

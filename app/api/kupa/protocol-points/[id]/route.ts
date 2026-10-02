@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES, PROTOCOL_POINT_META_WRITABLE } from "@/lib/cupping/fields";
-import { cuppingError, parseJsonBody, pickWritable, updateEntity } from "@/lib/cupping/api";
+import { cuppingError, parseJsonBody, pickWritable, updateEntity, isFkDeleteViolation } from "@/lib/cupping/api";
 
 export const runtime = "nodejs";
 
@@ -60,7 +60,7 @@ export async function DELETE(
     .select("id");
   if (error) {
     // 23503: step (uygulama akışı) hâlâ bu bölgeyi referanslıyor → detach engellendi.
-    if ((error as { code?: string }).code === "23503") {
+    if (isFkDeleteViolation((error as { code?: string }).code)) {
       await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass: "conflict" });
       return cuppingError(409, "Bu bölge protokolün uygulama akışında (bir adım) kullanılıyor. Önce ilgili adımı düzenleyin.");
     }

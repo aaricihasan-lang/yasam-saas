@@ -180,8 +180,24 @@ export type CuppingCitationEntity =
 
 type ApiOk = { ok: true; [k: string]: unknown };
 
+/** Ağ hatası (fetch reddi: bağlantı yok/kesildi) için kullanıcıya gösterilen Türkçe mesaj. */
+export const KUPA_NETWORK_ERROR =
+  "Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.";
+
+/**
+ * fetch sarmalayıcı — tarayıcının ham ağ hatasını ("Failed to fetch", "Load failed") kullanıcıya
+ * SIZDIRMAZ; anlaşılır Türkçe mesajla throw eder. HTTP hata durumları çağırana aynen döner.
+ */
+async function kupaFetch(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch {
+    throw new Error(KUPA_NETWORK_ERROR);
+  }
+}
+
 async function call<T>(url: string, init: RequestInit, key: string): Promise<T> {
-  const res = await fetch(url, { ...init, headers: userHeaders() });
+  const res = await kupaFetch(url, { ...init, headers: userHeaders() });
   const json = (await res.json().catch(() => ({}))) as ApiOk & { error?: string };
   if (!res.ok || !json.ok) {
     throw new Error(json.error ?? "İşlem başarısız.");
@@ -279,6 +295,15 @@ export const createSource = (body: Partial<CuppingSource>) =>
   call<CuppingSource>(`${BASE}/sources`, { method: "POST", body: JSON.stringify(body) }, "source");
 export const updateSource = (id: string, body: Partial<CuppingSource>) =>
   call<CuppingSource>(`${BASE}/sources/${id}`, { method: "PATCH", body: JSON.stringify(body) }, "source");
+/** P2-3 — kaynak silme etkisi (DB'den, tenant-bağlı sayımlar; READ-ONLY). */
+export type CuppingSourceUsage = {
+  citations: Record<CuppingCitationEntity, number>;
+  citationTotal: number;
+  protocolSources: number;
+  protocolEntries: number;
+};
+export const getSourceUsage = (id: string) =>
+  call<CuppingSourceUsage>(`${BASE}/sources/${encodeURIComponent(id)}/usage`, { method: "GET" }, "usage");
 export const deleteSource = (id: string) =>
   call<number>(`${BASE}/sources/${id}`, { method: "DELETE" }, "deleted");
 
@@ -390,6 +415,7 @@ export type CuppingProtocolStep = {
   ref_point_id?: string | null;
   ref_technique_id?: string | null;
   sort_order?: number;
+  created_at?: string;
 };
 
 /** UNIFIED "Bilgiler" — kaynaklı/kaynaksız TEK sınıf. */
@@ -433,7 +459,7 @@ export const deleteProtocol = (id: string) =>
  * Android'de sunucu 403 döndürür (mevcut politika); hata güvenli mesajla throw edilir (sahte başarı YOK).
  */
 export async function downloadProtocolWord(id: string): Promise<{ blob: Blob; filename: string }> {
-  const res = await fetch(`${BASE}/protocols/${encodeURIComponent(id)}/word-report`, {
+  const res = await kupaFetch(`${BASE}/protocols/${encodeURIComponent(id)}/word-report`, {
     method: "GET",
     headers: userHeaders(),
   });
@@ -535,7 +561,7 @@ export const deleteProtocolSource = (id: string) =>
 
 /** Çok-anahtarlı yanıt (plan+days, inserted/skippedExisting) için ham çağrı. */
 async function callRaw<T extends { ok: true }>(url: string, init: RequestInit): Promise<T> {
-  const res = await fetch(url, { ...init, headers: userHeaders() });
+  const res = await kupaFetch(url, { ...init, headers: userHeaders() });
   const json = (await res.json().catch(() => ({}))) as T & { ok?: boolean; error?: string };
   if (!res.ok || !json.ok) {
     throw new Error(json.error ?? "İşlem başarısız.");
@@ -592,7 +618,7 @@ export const deleteCalendarPlan = (id: string) =>
  */
 export async function downloadCalendarPlanWord(id: string, month?: number): Promise<{ blob: Blob; filename: string }> {
   const qs = typeof month === "number" ? `?month=${encodeURIComponent(String(month))}` : "";
-  const res = await fetch(`${BASE}/calendar/plans/${encodeURIComponent(id)}/word-report${qs}`, {
+  const res = await kupaFetch(`${BASE}/calendar/plans/${encodeURIComponent(id)}/word-report${qs}`, {
     method: "GET",
     headers: userHeaders(),
   });

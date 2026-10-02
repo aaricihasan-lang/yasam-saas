@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -19,8 +20,10 @@ import {
   listAdviceTemplates,
   type CuppingAdviceTemplate,
   type CuppingCalendarPlan,
+  type CuppingCalendarPlanDay,
   type CuppingPlanDayInput,
 } from "@/app/kupa/lib/api";
+import { useUnsavedChangesGuard } from "@/app/kupa/lib/useUnsavedChangesGuard";
 import { MonthCalendar, MONTHS_TR, type CuppingDayStyleView } from "./MonthCalendar";
 import { MonthNav } from "./MonthNav";
 import { PlanPicker } from "./PlanPicker";
@@ -30,6 +33,9 @@ import { ClientAdviceSection } from "./ClientAdviceSection";
 import { CalendarViewToggle, type CalendarView } from "./CalendarViewToggle";
 import { AnnualCalendarOverview } from "./AnnualCalendarOverview";
 import { DayEditPanel, type DayStyleDraft } from "./DayEditPanel";
+
+/** useSyncExternalStore için değişmeyen abonelik (yalnız istemci/SSR ayrımı). */
+const subscribeNoop = () => () => {};
 
 /** İstemci-yerel bugün "YYYY-MM-DD" (nötr; yalnız "bugün" halkası için). */
 function todayYmd(): string {
@@ -67,25 +73,44 @@ function styleDiffers(d: DayStyleDraft, saved: SavedDay): boolean {
   return d.colorKey !== saved.colorKey || nz(d.label) !== (saved.label ?? null) || nz(d.note) !== (saved.note ?? null);
 }
 
-/** Sınırlı eşzamanlılık havuzu (yüzlerce eşzamanlı istek atmaz). */
-async function runPool<T>(items: T[], size: number, fn: (item: T) => Promise<unknown>): Promise<{ okCount: number; failCount: number }> {
-  let okCount = 0;
-  let failCount = 0;
+/** Sınırlı eşzamanlılık havuzu (yüzlerce eşzamanlı istek atmaz). Başarısız öğeleri döndürür. */
+async function runPool<T>(items: T[], size: number, fn: (item: T) => Promise<unknown>): Promise<{ failed: T[]; lastError: unknown }> {
+  const failed: T[] = [];
+  let lastError: unknown = null;
   let idx = 0;
   async function worker() {
     while (idx < items.length) {
       const i = idx++;
       try {
         await fn(items[i]);
-        okCount++;
-      } catch {
-        failCount++;
+      } catch (e) {
+        failed.push(items[i]);
+        lastError = e;
       }
     }
   }
   await Promise.all(Array.from({ length: Math.min(size, items.length) }, worker));
-  return { okCount, failCount };
+  return { failed, lastError };
 }
+
+/** Sunucu gün satırları → kayıtlı harita + taslak stil haritası (tek dönüşüm noktası). */
+function deriveServerState(days: CuppingCalendarPlanDay[]): { saved: Map<string, SavedDay>; styles: Map<string, DayStyleDraft> } {
+  const saved = new Map<string, SavedDay>();
+  const styles = new Map<string, DayStyleDraft>();
+  for (const d of days) {
+    saved.set(d.gregorian_date, { id: d.id, colorKey: d.color_key, label: d.user_label, note: d.note });
+    styles.set(d.gregorian_date, { colorKey: d.color_key, label: d.user_label ?? "", note: d.note ?? "" });
+  }
+  return { saved, styles };
+}
+
+/** Kaydedilemeyen taslak öğeleri (kayıt sonrası sunucu durumunun ÜSTÜNE geri yazılır). */
+type PendingFailures = {
+  adds: Set<string>;
+  styles: Set<string>;
+  removals: Set<string>;
+  styleSnap: Map<string, DayStyleDraft>;
+};
 
 /**
  * KUPA & HACAMAT — FAZ 5 / AŞAMA 3 + 5 — UZMAN-SAHİPLİ takvim çalışma alanı.
@@ -120,6 +145,18 @@ export function CalendarWorkspace() {
   const [wordBusy, setWordBusy] = useState(false);
   const isAndroid = useIsAndroid();
   const today = useMemo(() => todayYmd(), []);
+  // Yarış korumaları: en son plan yüklemesi kazanır (eski yanıt yeni planın üstüne yazılmaz);
+  //   kayıt sürerken ikinci kayıt/taslak düzenlemesi başlatılmaz (çift tık + yarım durum yok).
+  const loadSeqRef = useRef(0);
+  // En son İSTENEN plan (yükleme sürerken de). Seçim kısa devresi buna göre yapılır; aksi halde
+  //   yavaş bir yükleme sürerken önceki plana geri dönmek yeni yüklemeyi atlar ve eski yanıt kazanırdı.
+  const requestedIdRef = useRef<string | null>(null);
+  const savingRef = useRef(false);
+  const activeIdRef = useRef<string | null>(null);
+  const planRef = useRef<CuppingCalendarPlan | null>(null);
+  // Mobil sabit kaydet barı document.body'ye PORTAL edilir (kart backdrop-filter'ı fixed'i hapsetmez).
+  //   SSR'da false, istemcide true (hydration-güvenli; effect içinde setState yok).
+  const portalReady = useSyncExternalStore(subscribeNoop, () => true, () => false);
 
   // Kayıtlı gün kümesi (yalnız ymd) — Aylık + Yıllık görünüme geçirilir (durum türetimi).
   const savedSet = useMemo(() => new Set(savedDays.keys()), [savedDays]);
@@ -155,58 +192,93 @@ export function CalendarWorkspace() {
     }
   }, []);
 
-  const loadPlanInto = useCallback(async (id: string) => {
-    setPlanLoading(true);
-    setError(null);
-    try {
-      const { plan: p, days } = await getCalendarPlan(id);
-      setPlan(p);
-      const map = new Map<string, SavedDay>();
-      const styles = new Map<string, DayStyleDraft>();
-      for (const d of days) {
-        map.set(d.gregorian_date, {
-          id: d.id,
-          colorKey: d.color_key,
-          label: d.user_label,
-          note: d.note,
-        });
-        styles.set(d.gregorian_date, {
-          colorKey: d.color_key,
-          label: d.user_label ?? "",
-          note: d.note ?? "",
-        });
+  /**
+   * Sunucu durumunu taslağa uygular (TEK uygulama noktası).
+   *   keepMonth: aynı planın yeniden yüklenmesinde (kayıt sonrası) kullanıcının bulunduğu ay KORUNUR.
+   *   failures: kaydedilemeyen taslak öğeleri sunucu durumunun üstüne geri yazılır (sessiz kayıp YOK).
+   */
+  const applyServerState = useCallback(
+    (p: CuppingCalendarPlan, days: CuppingCalendarPlanDay[], opts: { keepMonth: boolean; failures?: PendingFailures }) => {
+      const { saved, styles } = deriveServerState(days);
+      const nextDraft = new Set(saved.keys());
+      const f = opts.failures;
+      if (f) {
+        for (const d of f.adds) {
+          nextDraft.add(d);
+          const st = f.styleSnap.get(d);
+          if (st) styles.set(d, st);
+        }
+        for (const d of f.styles) {
+          const st = f.styleSnap.get(d);
+          if (st) styles.set(d, st);
+        }
+        for (const d of f.removals) {
+          nextDraft.delete(d);
+          styles.delete(d);
+        }
       }
-      setSavedDays(map);
-      setDraft(new Set(map.keys()));
+      setPlan(p);
+      planRef.current = p;
+      setActiveId(p.id);
+      activeIdRef.current = p.id;
+      setSavedDays(saved);
+      setDraft(nextDraft);
       setDraftStyle(styles);
       setEditYmd(null);
-      // Plan yılı bu yıla eşitse mevcut ayı aç; değilse Ocak.
-      const nowY = new Date().getFullYear();
-      setMonth(p.year === nowY ? new Date().getMonth() + 1 : 1);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Takvim yüklenemedi.");
-    } finally {
-      setPlanLoading(false);
-    }
+      if (!opts.keepMonth) {
+        // Plan yılı bu yıla eşitse mevcut ayı aç; değilse Ocak.
+        const nowY = new Date().getFullYear();
+        setMonth(p.year === nowY ? new Date().getMonth() + 1 : 1);
+      }
+    },
+    [],
+  );
+
+  /**
+   * Planı yükler. silent=true → "Takvim yükleniyor…" ile alt bölümler (şablon/danışan formları,
+   * toplu seçim) SÖKÜLMEZ (kayıt sonrası yarım form kaybı yok). Eski yanıtlar yok sayılır.
+   * Başarısızlıkta mevcut taslak/aktif plan DEĞİŞMEZ ve hata fırlatılır (çağıran bildirir).
+   */
+  const loadPlanInto = useCallback(
+    async (id: string, opts?: { silent?: boolean; keepMonth?: boolean; failures?: PendingFailures }): Promise<boolean> => {
+      const seq = ++loadSeqRef.current;
+      requestedIdRef.current = id;
+      if (!opts?.silent) setPlanLoading(true);
+      setError(null);
+      try {
+        const { plan: p, days } = await getCalendarPlan(id);
+        if (seq !== loadSeqRef.current) return false;
+        applyServerState(p, days, { keepMonth: !!opts?.keepMonth, failures: opts?.failures });
+        return true;
+      } finally {
+        if (seq === loadSeqRef.current) setPlanLoading(false);
+      }
+    },
+    [applyServerState],
+  );
+
+  /** Aktif planı ve tüm taslak durumunu boşaltır (plan kalmadığında güvenli boş durum). */
+  const clearActivePlan = useCallback(() => {
+    loadSeqRef.current++;
+    requestedIdRef.current = null;
+    setActiveId(null);
+    activeIdRef.current = null;
+    setPlan(null);
+    planRef.current = null;
+    setSavedDays(new Map());
+    setDraft(new Set());
+    setDraftStyle(new Map());
+    setEditYmd(null);
   }, []);
 
+  /** Plan listesini tazeler; selectId verilirse o plan otoriter durumuyla açılır. */
   const refreshPlansList = useCallback(
     async (selectId?: string) => {
       const list = await listCalendarPlans();
       setPlans(list);
-      const target = selectId ?? activeId ?? (list.length > 0 ? list[0].id : null);
-      if (target && (selectId || target !== activeId || !plan)) {
-        setActiveId(target);
-        await loadPlanInto(target);
-      } else if (!target) {
-        setActiveId(null);
-        setPlan(null);
-        setSavedDays(new Map());
-        setDraft(new Set());
-        setDraftStyle(new Map());
-      }
+      if (selectId) await loadPlanInto(selectId);
     },
-    [activeId, plan, loadPlanInto],
+    [loadPlanInto],
   );
 
   // İlk yükleme.
@@ -217,10 +289,7 @@ export function CalendarWorkspace() {
       try {
         const [list] = await Promise.all([listCalendarPlans(), refreshTemplates()]);
         setPlans(list);
-        if (list.length > 0) {
-          setActiveId(list[0].id);
-          await loadPlanInto(list[0].id);
-        }
+        if (list.length > 0) await loadPlanInto(list[0].id);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Takvimler yüklenemedi.");
       } finally {
@@ -230,20 +299,11 @@ export function CalendarWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Kaydedilmemiş değişiklik varken sekme kapanışı/yenileme uyarısı (tarayıcı standardı).
-  useEffect(() => {
-    if (!dirty) return;
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [dirty]);
 
   // Toplu ekleme — RENK ZORUNLU; seçilen renk YALNIZ bu işlemle YENİ eklenen günlere uygulanır.
   //   Zaten seçili/kayıtlı günlerin stili SESSİZCE EZİLMEZ (yalnız draft'ta olmayanlara atanır).
   const addBulk = useCallback((dates: string[], colorKey: CuppingDayColorKey) => {
+    if (savingRef.current) return;
     const newlyAdded = dates.filter((d) => !draft.has(d));
     if (newlyAdded.length === 0) {
       showToast({ message: "Eklenecek yeni gün yok (seçilen günler zaten takvimde).", type: "info" });
@@ -289,61 +349,130 @@ export function CalendarWorkspace() {
     setEditYmd(null);
   }, []);
 
+  const confirmDiscard = useCallback(
+    () =>
+      confirm({
+        title: "Kaydedilmemiş Değişiklikler",
+        message: "Kaydedilmemiş gün seçimleriniz var. Devam ederseniz bu değişiklikler kaybolur.",
+        confirmText: "Kaydetmeden Devam Et",
+        cancelText: "Vazgeç",
+        tone: "danger",
+      }),
+    [confirm],
+  );
+
   async function confirmDiscardIfDirty(): Promise<boolean> {
+    if (savingRef.current) return false;
     if (!dirty) return true;
-    return confirm({
-      title: "Kaydedilmemiş Değişiklikler",
-      message: "Kaydedilmemiş gün seçimleriniz var. Devam ederseniz bu değişiklikler kaybolur.",
-      confirmText: "Kaydetmeden Devam Et",
-      cancelText: "Vazgeç",
-      tone: "danger",
-    });
+    return confirmDiscard();
   }
 
+  // Uygulama içi gezinme (breadcrumb/menü linki) + geri tuşu + yenileme koruması.
+  useUnsavedChangesGuard(dirty, confirmDiscard);
+
+  // Gün düzenleme paneli kayıt sürerken açılmaz (kayıt anındaki taslak sabit kalır).
+  const openDayEditor = useCallback((ymd: string) => {
+    if (savingRef.current) return;
+    setEditYmd(ymd);
+  }, []);
+
   async function handleSelectPlan(id: string) {
-    if (id === activeId) return;
+    if (id === (requestedIdRef.current ?? activeId)) return;
     if (!(await confirmDiscardIfDirty())) return;
-    setActiveId(id);
-    await loadPlanInto(id);
+    try {
+      await loadPlanInto(id);
+    } catch (e) {
+      showToast({ message: e instanceof Error ? e.message : "Takvim yüklenemedi.", type: "error" });
+    }
+  }
+
+  /** Yeni plan oluşturuldu → (onay PlanPicker'da alındı) yeni planı otoriter durumuyla aç. */
+  async function handlePlanCreated(id: string) {
+    try {
+      await refreshPlansList(id);
+    } catch (e) {
+      showToast({ message: e instanceof Error ? e.message : "Takvim listesi yenilenemedi.", type: "error" });
+    }
+  }
+
+  /** Plan ad/açıklama/yıl güncellendi → YERİNDE güncelle; gün taslağı ASLA sıfırlanmaz. */
+  function handlePlanUpdated(updated: CuppingCalendarPlan) {
+    setPlans((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+    if (planRef.current?.id === updated.id) {
+      setPlan(updated);
+      planRef.current = updated;
+    }
   }
 
   async function handleSave() {
-    if (!plan || !dirty) return;
+    const current = planRef.current;
+    if (!current || !dirty || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
+    setEditYmd(null);
+    const planId = current.id;
+    // Kayıt anındaki taslağın anlık görüntüsü (başarısız öğeler buradan geri yazılır).
+    const styleSnap = new Map(draftStyle);
+    const failures: PendingFailures = { adds: new Set(), styles: new Set(), removals: new Set(), styleSnap };
+    let lastError: unknown = null;
     try {
-      let failCount = 0;
       // 1) Eklemeler — PER-DAY stil (renk + kısa açıklama + detay notu) TEK istekte kalıcı olur.
       //    Toplu POST max batch'e göre parçalanır; sunucu çakışmayı idempotent atlar.
       const dayInputs: CuppingPlanDayInput[] = additions.map((d) => ({
         date: d,
-        ...toWritePayload(draftStyle.get(d) ?? EMPTY_STYLE),
+        ...toWritePayload(styleSnap.get(d) ?? EMPTY_STYLE),
       }));
       for (let i = 0; i < dayInputs.length; i += CUPPING_PLAN_DAYS_MAX_BATCH) {
         const chunk = dayInputs.slice(i, i + CUPPING_PLAN_DAYS_MAX_BATCH);
-        if (chunk.length > 0) await addCalendarPlanDays(plan.id, { days: chunk });
+        if (chunk.length === 0) continue;
+        try {
+          await addCalendarPlanDays(planId, { days: chunk });
+        } catch (e) {
+          lastError = e;
+          for (const c of chunk) failures.adds.add(c.date);
+        }
       }
       // 2) Stil değişiklikleri — kayıtlı+seçili günlerde renk/açıklama PATCH (SINIRLI eşzamanlılık).
       const styleTargets = styleChanges
-        .map((d) => ({ id: savedDays.get(d)?.id, style: draftStyle.get(d) ?? EMPTY_STYLE }))
-        .filter((t): t is { id: string; style: DayStyleDraft } => !!t.id);
+        .map((d) => ({ ymd: d, id: savedDays.get(d)?.id, style: styleSnap.get(d) ?? EMPTY_STYLE }))
+        .filter((t): t is { ymd: string; id: string; style: DayStyleDraft } => !!t.id);
       const styleRes = await runPool(styleTargets, 4, (t) => updateCalendarDay(t.id, toWritePayload(t.style)));
-      failCount += styleRes.failCount;
+      for (const t of styleRes.failed) failures.styles.add(t.ymd);
+      if (styleRes.failed.length) lastError = styleRes.lastError;
       // 3) Silmeler — mevcut gün-id ile (bir günü takvimden çıkarmak o satırı siler).
-      const removeIds = removals.map((d) => savedDays.get(d)?.id).filter((v): v is string => !!v);
-      const delRes = await runPool(removeIds, 4, (id) => deleteCalendarDay(id));
-      failCount += delRes.failCount;
-      // 4) Otoriter durumu yeniden yükle (başarı da olsa kısmi de olsa TEK doğruluk kaynağı server).
-      await loadPlanInto(plan.id);
-      if (failCount > 0) {
-        showToast({ message: "Bazı değişiklikler kaydedilemedi. Güncel durum yeniden yüklendi.", type: "warning" });
-      } else {
-        showToast({ message: "Takvim kaydedildi.", type: "success" });
+      const removeTargets = removals
+        .map((d) => ({ ymd: d, id: savedDays.get(d)?.id }))
+        .filter((t): t is { ymd: string; id: string } => !!t.id);
+      const delRes = await runPool(removeTargets, 4, (t) => deleteCalendarDay(t.id));
+      for (const t of delRes.failed) failures.removals.add(t.ymd);
+      if (delRes.failed.length) lastError = delRes.lastError;
+
+      const failCount = failures.adds.size + failures.styles.size + failures.removals.size;
+      // 4) Otoriter durumu SESSİZCE yeniden yükle (ay + alt formlar korunur); kaydedilemeyen
+      //    öğeler taslakta KALIR. Yeniden yükleme başarısızsa taslağa HİÇ dokunulmaz (tekrar
+      //    kaydetmek idempotenttir: eklemeler çakışmada atlanır, silinmiş gün tekrar silinmez).
+      let reloaded = false;
+      try {
+        reloaded = await loadPlanInto(planId, { silent: true, keepMonth: true, failures });
+      } catch {
+        reloaded = false;
       }
-    } catch (e) {
-      // Kısmi hata: sahte başarı YOK → otoriter durumu yeniden yükle.
-      await loadPlanInto(plan.id).catch(() => {});
-      showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi. Güncel durum yeniden yüklendi.", type: "error" });
+      if (failCount === 0 && reloaded) {
+        showToast({ message: "Takvim kaydedildi.", type: "success" });
+      } else if (failCount === 0) {
+        showToast({
+          message: "Değişiklikler gönderildi ancak güncel durum doğrulanamadı. Tekrar kaydedebilir veya sayfayı yenileyebilirsiniz.",
+          type: "warning",
+        });
+      } else {
+        const reason = lastError instanceof Error ? lastError.message : "Kaydetme başarısız.";
+        showToast({
+          message: `${failCount} değişiklik kaydedilemedi. Seçimleriniz korunuyor; "Değişiklikleri Kaydet" ile tekrar deneyin. (${reason})`,
+          type: "error",
+        });
+      }
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -397,17 +526,31 @@ export function CalendarWorkspace() {
     if (!ok) return;
     try {
       await deleteCalendarPlan(p.id);
-      // Silinen aktifse: draft/saved temizle, listeyi tazele ve başka plan seç.
-      setActiveId(null);
-      setPlan(null);
-      setSavedDays(new Map());
-      setDraft(new Set());
-      setDraftStyle(new Map());
-      await refreshPlansList();
-      showToast({ message: "Takvim silindi.", type: "success" });
     } catch (e) {
       showToast({ message: e instanceof Error ? e.message : "Silinemedi.", type: "error" });
+      return;
     }
+    // Silme kesinleşti. Liste tazelenemezse yerelden düş (silinen plan ekranda kalmaz).
+    let list: CuppingCalendarPlan[];
+    try {
+      list = await listCalendarPlans();
+    } catch {
+      list = plans.filter((x) => x.id !== p.id);
+    }
+    setPlans(list);
+    if (activeIdRef.current === p.id || !activeIdRef.current) {
+      // Silinen aktif plandı → DETERMİNİSTİK geçiş: kalan ilk plan; plan kalmadıysa boş durum.
+      clearActivePlan();
+      const next = list[0];
+      if (next) {
+        try {
+          await loadPlanInto(next.id);
+        } catch (e) {
+          showToast({ message: e instanceof Error ? e.message : "Takvim yüklenemedi.", type: "error" });
+        }
+      }
+    }
+    showToast({ message: "Takvim silindi.", type: "success" });
   }
 
   async function handleAttachTemplate(templateId: string | null) {
@@ -430,6 +573,46 @@ export function CalendarWorkspace() {
     };
   }, [editYmd, draftStyle]);
 
+  /** Kaydet/durum barı içeriği — tek tanım; masaüstünde kart içinde, mobilde ekrana sabit. */
+  function saveBar(variant: "inline" | "fixed") {
+    const shell =
+      variant === "fixed"
+        ? "fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-3 border-t border-slate-200 bg-white/95 px-3 pt-2.5 pb-[calc(0.625rem_+_env(safe-area-inset-bottom))] shadow-[0_-2px_10px_rgba(120,80,40,0.10)] backdrop-blur"
+        : "flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm";
+    return (
+      <div className={shell} data-kupa-savebar={variant}>
+        <span className="flex min-w-0 flex-col gap-0.5 text-sm" aria-live="polite">
+          {saving ? (
+            <span className="font-medium text-slate-600">Kaydediliyor…</span>
+          ) : dirty ? (
+            <>
+              <span className="font-medium leading-tight text-amber-700">Kaydedilmemiş değişiklikler var</span>
+              <span className="text-xs text-amber-600">
+                {[
+                  additions.length > 0 ? `${additions.length} kaydedilecek` : "",
+                  styleChanges.length > 0 ? `${styleChanges.length} güncellenecek` : "",
+                  removals.length > 0 ? `${removals.length} kaldırılacak` : "",
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            </>
+          ) : (
+            <span className="font-medium text-slate-500">Tüm değişiklikler kaydedildi</span>
+          )}
+        </span>
+        <button
+          type="button"
+          className={`${kupaBtnSuccess} min-h-[44px] shrink-0`}
+          onClick={handleSave}
+          disabled={!dirty || saving}
+        >
+          {saving ? "Kaydediliyor…" : "Değişiklikleri Kaydet"}
+        </button>
+      </div>
+    );
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   if (loading) {
     return <div className={`${edgeCard}`}><p className="py-8 text-center text-sm text-slate-400">Yükleniyor…</p></div>;
@@ -449,7 +632,7 @@ export function CalendarWorkspace() {
             Yılı seçin, ardından uygulama günlerinizi takvim üzerinden kendiniz işaretleyin.
           </p>
         </div>
-        <FirstPlanButton onCreated={(id) => refreshPlansList(id)} />
+        <FirstPlanButton onCreated={(id) => handlePlanCreated(id)} />
       </div>
     );
   }
@@ -475,8 +658,12 @@ export function CalendarWorkspace() {
           plans={plans}
           activePlanId={activeId}
           currentDayCount={savedDays.size}
+          hasPendingChanges={dirty}
+          disabled={saving}
           onSelect={handleSelectPlan}
-          onPlansChanged={refreshPlansList}
+          onBeforeCreate={confirmDiscardIfDirty}
+          onPlanCreated={handlePlanCreated}
+          onPlanUpdated={handlePlanUpdated}
           onDelete={handleDeletePlan}
         />
       </div>
@@ -517,40 +704,12 @@ export function CalendarWorkspace() {
                 </div>
               )}
             </div>
-            {/* Kaydet/durum barı — MOBİL/TABLET: ekran altına SABİT (uzun kart listesinde her zaman
-                erişilir; güvenli-alan payı). MASAÜSTÜ (lg): mevcut sticky davranış korunur. */}
-            <div className="fixed inset-x-0 bottom-0 z-30 flex flex-col gap-2 border-t border-slate-200 bg-white/95 p-3 pb-[calc(0.75rem_+_env(safe-area-inset-bottom))] shadow-[0_-2px_10px_rgba(120,80,40,0.10)] backdrop-blur sm:flex-row sm:items-center sm:justify-between lg:sticky lg:inset-x-auto lg:bottom-2 lg:z-10 lg:rounded-xl lg:border lg:pb-3 lg:shadow-sm">
-              <span className="flex flex-col gap-0.5 text-sm" aria-live="polite">
-                {dirty ? (
-                  <>
-                    <span className="font-medium text-amber-700">Kaydedilmemiş değişiklikler var</span>
-                    <span className="text-xs text-amber-500">
-                      {[
-                        additions.length > 0 ? `${additions.length} kaydedilecek` : "",
-                        styleChanges.length > 0 ? `${styleChanges.length} güncellenecek` : "",
-                        removals.length > 0 ? `${removals.length} kaldırılacak` : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                  </>
-                ) : (
-                  <span className="font-medium text-slate-500">Tüm değişiklikler kaydedildi</span>
-                )}
-              </span>
-              <button
-                type="button"
-                className={`${kupaBtnSuccess} min-h-[44px]`}
-                onClick={handleSave}
-                disabled={!dirty || saving}
-              >
-                {saving ? "Kaydediliyor…" : "Değişiklikleri Kaydet"}
-              </button>
-            </div>
+            {/* Kaydet/durum barı — MASAÜSTÜ (lg): kart içinde. MOBİL/TABLET: aşağıdaki PORTAL. */}
+            <div className="hidden lg:block">{saveBar("inline")}</div>
           </div>
 
-          {view === "monthly" ? (
-            <>
+          {/* Aylık bölümler görünüm değişiminde SÖKÜLMEZ (yarım şablon/danışan formu korunur). */}
+          <div className={view === "monthly" ? "flex flex-col gap-4" : "hidden"}>
               {/* Aylık Düzenleme — TEK ay görünür (kalıcı 12-buton duvarı YOK) */}
               <div className={`${edgeCard} flex flex-col gap-4`}>
                 <MonthNav year={plan.year} month={month} onChange={setMonth} />
@@ -561,7 +720,7 @@ export function CalendarWorkspace() {
                   saved={savedSet}
                   today={today}
                   styleOf={styleOf}
-                  onEditDay={setEditYmd}
+                  onEditDay={openDayEditor}
                 />
                 {/* Sade legend — yalnız uzman-seçim durumları (pastel; çalışma alanını ezmez). */}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-slate-500">
@@ -599,8 +758,8 @@ export function CalendarWorkspace() {
 
               {/* Danışana özel (opsiyonel, katlanır, lazy) */}
               <ClientAdviceSection templates={templates} />
-            </>
-          ) : (
+          </div>
+          {view === "annual" ? (
             /* Yıllık Özet — AYNI plan/taslak; 12 minik ay; ay tıklaması Aylık'ı açar */
             <div className={`${edgeCard}`}>
               <AnnualCalendarOverview
@@ -617,7 +776,10 @@ export function CalendarWorkspace() {
                 }}
               />
             </div>
-          )}
+          ) : null}
+          {/* MOBİL/TABLET sabit kaydet barı — body'ye portal (ekrana gerçekten sabit; hiçbir
+              kontrolün üstüne binmez: sayfa altında pb boşluğu ayrılır). */}
+          {portalReady ? createPortal(<div className="lg:hidden">{saveBar("fixed")}</div>, document.body) : null}
         </>
       ) : null}
 

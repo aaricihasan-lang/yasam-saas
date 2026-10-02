@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { kupaBtnGhost, kupaBtnSuccess, kupaInput } from "@/app/kupa/components/KupaShell";
+import { kupaBtnGhost, kupaBtnSuccess, kupaInput, kupaRowActionDanger } from "@/app/kupa/components/KupaShell";
 import {
   createAdviceTemplate,
   updateAdviceTemplate,
@@ -182,11 +182,11 @@ export function OutputAdviceSection({
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-sm font-bold text-slate-900">{attached.title}</h3>
             <div className="flex gap-1.5">
-              <button type="button" className={`${kupaBtnGhost} min-h-[34px] px-2.5 py-1 text-xs`} onClick={() => startEdit(attached)}>
+              <button type="button" className={`${kupaBtnGhost} min-h-[40px] px-3 py-1 text-xs lg:min-h-[32px]`} onClick={() => startEdit(attached)}>
                 Düzenle
               </button>
               {!attached.is_default ? (
-                <button type="button" className={`${kupaBtnGhost} min-h-[34px] px-2.5 py-1 text-xs`} onClick={() => setDefault(attached)}>
+                <button type="button" className={`${kupaBtnGhost} min-h-[40px] px-3 py-1 text-xs lg:min-h-[32px]`} onClick={() => setDefault(attached)}>
                   Varsayılan yap
                 </button>
               ) : (
@@ -214,10 +214,10 @@ export function OutputAdviceSection({
                   {t.is_default ? <span className="ml-1.5 text-xs text-amber-700">• varsayılan</span> : null}
                 </span>
                 <span className="flex shrink-0 gap-1.5">
-                  <button type="button" className={`${kupaBtnGhost} min-h-[32px] px-2 py-1 text-xs`} onClick={() => startEdit(t)}>
+                  <button type="button" className={`${kupaBtnGhost} min-h-[40px] px-3 py-1 text-xs lg:min-h-[32px]`} onClick={() => startEdit(t)}>
                     Düzenle
                   </button>
-                  <button type="button" className="min-h-[32px] rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-100" onClick={() => remove(t)}>
+                  <button type="button" className={kupaRowActionDanger} onClick={() => remove(t)}>
                     Sil
                   </button>
                 </span>
