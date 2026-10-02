@@ -4,7 +4,7 @@ import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { isUuid } from "@/lib/dogaltas/validation";
-import { safeLen } from "@/lib/dogaltas/reportSafe";
+import { safeLen, sanitizeMineralRowsForReport } from "@/lib/dogaltas/reportSafe";
 import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
 import { Document, Packer } from "docx";
 import {
@@ -104,7 +104,11 @@ export async function POST(
   if (!data)
     return Response.json({ ok: false, error: "Mineral kaydı bulunamadı." }, { status: 404 });
 
-  const mineral = sanitizeXmlDeep(data as MineralRow); // RPT-XML
+  // RPT-XML + P2-01: bozuk/legacy dizi alanı raporu çökertmez (normalize + teknik log).
+  const mineral = sanitizeMineralRowsForReport(
+    [sanitizeXmlDeep(data as MineralRow)],
+    { route: "dogaltas/minerals/[id]/word-report", tenantId },
+  ).rows[0];
   const mineralName = mineral.name || "İsimsiz Mineral";
   const today = reportGeneratedLabel();
   const dateSlug = reportFileDate();

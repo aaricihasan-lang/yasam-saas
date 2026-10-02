@@ -15,6 +15,7 @@ import {
 } from "@/lib/dogaltas/stoneConditionSearch";
 import { containsTr, stoneHasWarning } from "@/lib/dogaltas/stoneSearchUtils";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
 
 export const runtime = "nodejs";
 
@@ -46,8 +47,11 @@ const tenantIdsFor = stoneReadTenantIds;
 
 async function exclusionIds(db: SupabaseClient, tenantId: string): Promise<Set<string>> {
   if (tenantId === ADMIN_LIBRARY_TENANT_ID) return new Set();
-  const { data } = await db.from("stone_exclusions").select("stone_id").eq("tenant_id", tenantId);
-  return new Set((data ?? []).map((r) => String((r as { stone_id: unknown }).stone_id)));
+  const res = await fetchAllRows<{ stone_id: unknown }>((from, to) =>
+    db.from("stone_exclusions").select("stone_id").eq("tenant_id", tenantId)
+      .order("stone_id", { ascending: true }).range(from, to),
+  );
+  return new Set(res.rows.map((r) => String(r.stone_id)));
 }
 
 type Body = {
@@ -113,16 +117,23 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     const ids = tenantIdsFor(tenantId, is_demo_account);
     // Bounded server-side fetch (CAP+1 → capped tespiti). Tarayıcıya inmez.
-    const { data, error } = await db
-      .from("stones").select(STONES_LIST_EXTENDED_SELECT)
-      .in("tenant_id", ids)
-      .order("stone_name", { ascending: true, nullsFirst: false })
-      .range(0, CORPUS_CAP);
-    if (error) return serverErrorResponse({ route: "dogaltas/stones/condition-search", action: "POST", tenantId, cause: error });
+    // P2-07: `.range(0, CORPUS_CAP)` PostgREST 1000-satır tavanında sessizce 1000'de
+    // kesiliyordu (corpusCapped hiç true olmuyordu). Artık sayfalı okunur; CAP+1'e kadar
+    // gerçek okuma → kesilme olursa `capped:true` DÜRÜSTÇE döner.
+    const corpusRes = await fetchAllRows<Record<string, unknown>>((from, to) =>
+      db
+        .from("stones").select(STONES_LIST_EXTENDED_SELECT)
+        .in("tenant_id", ids)
+        .order("stone_name", { ascending: true, nullsFirst: false })
+        .order("id", { ascending: true })
+        .range(from, to),
+      { maxRows: CORPUS_CAP + 1 },
+    );
+    if (!corpusRes.ok) return serverErrorResponse({ route: "dogaltas/stones/condition-search", action: "POST", tenantId, cause: corpusRes.error });
 
     const excluded = await exclusionIds(db, tenantId);
-    const allRows = (data ?? []).filter((r) => !excluded.has(String((r as { id: unknown }).id)));
-    const corpusCapped = allRows.length > CORPUS_CAP;
+    const allRows = corpusRes.rows.filter((r) => !excluded.has(String((r as { id: unknown }).id)));
+    const corpusCapped = corpusRes.truncated || allRows.length > CORPUS_CAP;
     const corpus = corpusCapped ? allRows.slice(0, CORPUS_CAP) : allRows;
 
     const hasCriteria = conditions.length > 0 || warningOnly || Boolean(q);

@@ -53,7 +53,10 @@
         "clearSearch": "Aramayı Temizle",
         "noRecordTitle": "Henüz kayıt bulunamadı",
         "noRecordDesc": "Doğaltaş kütüphanenizde henüz kayıt bulunmuyor. İlk kaydınızı oluşturmak için aşağıdaki butonu kullanabilirsiniz.",
-        "newRecordAdd": "+ Yeni Kayıt Ekle"
+        "newRecordAdd": "+ Yeni Kayıt Ekle",
+        "filterErrorTitle": "Filtre sonuçları alınamadı",
+        "filterErrorDesc": "Bu bir \"sonuç yok\" durumu değildir; sunucuya ulaşılamadı. Bağlantınızı kontrol edip filtreyi yeniden deneyin.",
+        "filterCappedNote": "Çok fazla eşleşme var; yalnız ilk 500 sonuç gösteriliyor. Daha az sonuç için filtreyi daraltın."
       },
       "panel": {
         "eyebrow": "Gelişmiş Filtreler",
@@ -207,7 +210,9 @@
         "updateFailed": "Kayıt güncellenemedi: {error}",
         "updateFailedFallback": "kayıt bulunamadı.",
         "assignmentPlaceholder": "Her satıra bir kayıt yazın. Örn: Demir / 20",
-        "textPlaceholder": "{title} yazın..."
+        "textPlaceholder": "{title} yazın...",
+        "legacyTitle": "Kayıtlı eski değerler",
+        "legacyHint": "Bu değerler güncel listede yok ama kayıtta duruyor. İşareti kaldırırsanız kaydettiğinizde silinir."
       },
       "error": {
         "deleteFailed": "Kayıt silinemedi: {error}",

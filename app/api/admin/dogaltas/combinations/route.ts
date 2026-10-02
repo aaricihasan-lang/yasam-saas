@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { adminTenantMissingResponse, foreignTenantResponse, resolveAdminOwnTenant } from "@/lib/admin/adminOwnTenant";
+import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -33,16 +35,22 @@ export async function GET(req: NextRequest): Promise<Response> {
   const requested = req.nextUrl.searchParams.get("tenantId")?.trim() ?? "";
   if (requested && (!UUID_RE.test(requested) || requested !== tenantId)) return foreignTenantResponse();
 
-  const { data, error } = await db
-    .from("combinations")
-    .select("id, issue, variant_index")
-    .eq("tenant_id", tenantId)
-    .order("issue", { ascending: true })
-    .order("variant_index", { ascending: true });
+  // P2-07: seçim listesi 1000-satır tavanına takılmadan sayfalı okunur.
+  const res = await fetchAllRows<Record<string, unknown>>((from, to) =>
+    db
+      .from("combinations")
+      .select("id, issue, variant_index")
+      .eq("tenant_id", tenantId)
+      .order("issue", { ascending: true })
+      .order("variant_index", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
 
-  if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (!res.ok) {
+    // Ham DB hatası istemciye dönmez (sunucu loguna ref ile yazılır).
+    return serverErrorResponse({ route: "admin/dogaltas/combinations", action: "GET", tenantId, cause: res.error });
   }
 
-  return NextResponse.json({ ok: true, rows: data ?? [] });
+  return NextResponse.json({ ok: true, rows: res.rows });
 }

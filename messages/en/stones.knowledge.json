@@ -116,7 +116,8 @@
       "empty": {
         "noArticles": "No articles yet. Use the Add Knowledge Record button to create one.",
         "noResults": "No records found",
-        "detailPrompt": "Select an article from the left panel to read it. Use the search engine to search the full text."
+        "detailPrompt": "Select an article from the left panel to read it. Use the search engine to search the full text.",
+        "loadError": "Articles couldn't be loaded right now. Your library is not empty — refresh the page and try again."
       },
       "demo": {
         "hiddenContent": "This content is hidden in the demo version. An expert account is required to access the full content."

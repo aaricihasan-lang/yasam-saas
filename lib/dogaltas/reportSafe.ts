@@ -38,3 +38,80 @@ export function safeJoin(value: unknown, sep = ", "): string {
 export function safeLen(value: unknown): number {
   return Array.isArray(value) ? value.length : 0;
 }
+
+// ─── P2-01: Mineral dizi alanları (rapor öncesi normalizasyon) ─────────────────
+
+/** minerals tablosundaki `string[]` beklenen JSONB alanları (API yazma kapısı ile aynı liste). */
+export const MINERAL_ARRAY_FIELDS = [
+  "organ_etkileri",
+  "fiziksel",
+  "zihinsel",
+  "cakralar",
+  "fizyoloji",
+  "eksiklik_belirtileri",
+  "fazlalik_belirtileri",
+  "doz_asimi",
+  "iceren_taslar",
+] as const;
+
+/**
+ * Bir mineral satırının dizi alanlarını rapor motoruna girmeden önce güvenli `string[]`'e
+ * indirger. Geçerli (zaten string[] olan) alanlar BİREBİR korunur → normal UI'ın ürettiği
+ * kayıtların rapor çıktısı değişmez. Bozuk alanlar:
+ *   - dizi değil (string/sayı/nesne) → [] (alan raporda atlanır),
+ *   - dizi içinde sayı/boolean → String() ile görünür metin,
+ *   - dizi içinde nesne/dizi/null → atlanır.
+ * Dönen `malformedFields` yalnız ALAN ADLARIDIR (içerik loglanmaz).
+ */
+export function sanitizeMineralArrays<T extends Record<string, unknown>>(
+  row: T,
+): { row: T; malformedFields: string[] } {
+  const out: Record<string, unknown> = { ...row };
+  const malformedFields: string[] = [];
+  for (const field of MINERAL_ARRAY_FIELDS) {
+    if (!(field in row)) continue;
+    const value = row[field];
+    if (value == null) continue;
+    if (!Array.isArray(value)) {
+      out[field] = [];
+      malformedFields.push(field);
+      continue;
+    }
+    let bad = false;
+    const items: string[] = [];
+    for (const item of value) {
+      if (typeof item === "string") { items.push(item); continue; }
+      bad = true;
+      if (typeof item === "number" || typeof item === "boolean") items.push(String(item));
+    }
+    if (bad) {
+      out[field] = items;
+      malformedFields.push(field);
+    }
+  }
+  return { row: out as T, malformedFields };
+}
+
+/**
+ * Rapor için mineral satırlarını toplu normalize eder; bozuk kayıt varsa sunucu loguna
+ * yalnız teknik bağlam yazar (route + kayıt id + alan adları; kayıt İÇERİĞİ yazılmaz).
+ * Dönen `skipped` = normalize edilen bozuk kayıt sayısı.
+ */
+export function sanitizeMineralRowsForReport<T extends Record<string, unknown>>(
+  rows: T[],
+  ctx: { route: string; tenantId: string },
+): { rows: T[]; malformedCount: number } {
+  let malformedCount = 0;
+  const out = rows.map((r) => {
+    const { row, malformedFields } = sanitizeMineralArrays(r);
+    if (malformedFields.length > 0) {
+      malformedCount += 1;
+      console.warn(
+        `[${ctx.route}] bozuk mineral dizi alanı normalize edildi`,
+        JSON.stringify({ tenant: ctx.tenantId, mineralId: String(r.id ?? "?"), fields: malformedFields }),
+      );
+    }
+    return row;
+  });
+  return { rows: out, malformedCount };
+}

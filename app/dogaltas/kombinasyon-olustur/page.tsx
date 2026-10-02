@@ -112,6 +112,9 @@ export default function KombinasyonOlusturPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // P2-09B: sunucu/ağ hatası "eşleşme yok" gibi GÖSTERİLMEZ; ayrı durum + anlaşılır mesaj.
+  const [searchError, setSearchError] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState(false);
   // F-01/§5: tüm korpus artık TARAYICIYA inmez. serverRows = son condition-search
   // eşleşmeleri; knownStones = tüm oturumda görülen taşlar (sepet analizi/uyarı/manuel
   // eşleştirme bunun üzerinden çözülür → korpusa bağımlılık yok).
@@ -228,7 +231,12 @@ export default function KombinasyonOlusturPage() {
       ]);
       if (cancelled) return;
 
-      if (!sugg.ok && sugg.error && sugg.error !== "aborted") setError(sugg.error);
+      // P2-09B: öneri listesi yüklenemezse arama alanı GİZLENMEZ (koşul araması yine çalışır);
+      // ham hata metni yerine anlaşılır, engellemeyen bir not gösterilir.
+      if (!sugg.ok && sugg.error && sugg.error !== "aborted") {
+        console.error("[kombinasyon-olustur] öneri yükleme hatası:", sugg.error);
+        setSuggestionsError(true);
+      }
       if (sugg.suggestions) setSuggestions(sugg.suggestions);
       if (!countRes.error) setTotalStonesCount(countRes.count);
       setInStockNames(
@@ -288,6 +296,7 @@ export default function KombinasyonOlusturPage() {
         if (seq !== searchSeq.current) return;
         setServerRows([]);
         setResultsCapped(false);
+        setSearchError(false);
         setSearched(false);
         setSearchLoading(false);
         return;
@@ -302,7 +311,14 @@ export default function KombinasyonOlusturPage() {
       if (res.error === "aborted") return;
       setSearchLoading(false);
       setSearched(true);
-      if (!res.ok) { setServerRows([]); setResultsCapped(false); return; }
+      if (!res.ok) {
+        console.error("[kombinasyon-olustur] koşul araması hatası:", res.error);
+        setServerRows([]);
+        setResultsCapped(false);
+        setSearchError(true);
+        return;
+      }
+      setSearchError(false);
       setServerRows(res.rows);
       setResultsCapped(res.capped);
       mergeKnown(res.rows);
@@ -458,7 +474,26 @@ export default function KombinasyonOlusturPage() {
     ].join("\n");
   }
 
+  // P2-03: SENKRON çift-gönderim kilidi. React state (saving/dupChecking) aynı render içinde
+  // gelen ikinci tıklamayı durduramıyor ve kopya-kontrolü ile kaydetme arasındaki await
+  // penceresinde buton yeniden etkin oluyordu → yavaş ağda iki kayıt. Kilit her çıkışta
+  // (başarı / hata / istisna) bırakılır → başarısız istekten sonra tekrar denenebilir.
+  const saveLockRef = useRef(false);
   async function saveCombination(forceCreate = false) {
+    if (saveLockRef.current) return;
+    saveLockRef.current = true;
+    try {
+      await saveCombinationInner(forceCreate);
+    } catch (err) {
+      console.error("[dogaltas] kaydetme hatası:", err);
+      setDupChecking(false);
+      setSaving(false);
+    } finally {
+      saveLockRef.current = false;
+    }
+  }
+
+  async function saveCombinationInner(forceCreate = false) {
     const name = saveName.trim();
     if (!name || cart.length === 0) return;
 
@@ -543,6 +578,19 @@ export default function KombinasyonOlusturPage() {
 
   // Danışana özel kayıt: ayrı tablo/route (genel kombinasyonlara YAZILMAZ).
   async function saveCombinationToClient(client: PickerClient) {
+    if (saveLockRef.current) return;
+    saveLockRef.current = true;
+    try {
+      await saveCombinationToClientInner(client);
+    } catch (err) {
+      console.error("[dogaltas] kaydetme hatası:", err);
+      setSavingClient(false);
+    } finally {
+      saveLockRef.current = false;
+    }
+  }
+
+  async function saveCombinationToClientInner(client: PickerClient) {
     const name = saveName.trim();
     if (!name || cart.length === 0) return;
 
@@ -762,6 +810,12 @@ export default function KombinasyonOlusturPage() {
               </div>
             )}
 
+            {suggestionsError && (
+              <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-800" data-testid="builder-suggestions-error">
+                {t("suggestionsErrorNote")}
+              </div>
+            )}
+
             {!error && (
           <section>
             {/* §4: loading / result / empty net ayrışır; stale sonuç "Eşleşme Var"
@@ -778,6 +832,11 @@ export default function KombinasyonOlusturPage() {
                 <p className="mt-1 text-sm font-medium text-slate-500">
                   {t("resultsEmptyDesc")}
                 </p>
+              </div>
+            ) : searchError ? (
+              <div role="alert" className="rounded-[18px] border-2 border-rose-200 bg-rose-50 p-6 text-center" data-testid="builder-search-error">
+                <div className="text-base font-black text-rose-800">{t("searchErrorTitle")}</div>
+                <p className="mt-1 text-sm font-medium text-rose-700">{t("searchErrorDesc")}</p>
               </div>
             ) : results.length === 0 ? (
               <div className="rounded-[18px] border-[3px] border-dashed border-slate-300 bg-white/70 p-6 text-center">

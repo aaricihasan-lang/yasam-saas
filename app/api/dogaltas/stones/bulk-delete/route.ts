@@ -3,6 +3,8 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { STONE_PHOTO_BUCKET, collectStonePhotoPaths } from "@/lib/dogaltas/stonePhoto";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
+import { fetchAllRowsByIds } from "@/lib/dogaltas/fetchAllRows";
+import { filterUnreferencedStonePhotoPaths } from "@/lib/dogaltas/stonePhotoRefs";
 
 export const runtime = "nodejs";
 
@@ -33,9 +35,11 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deletedIds: [] });
 
   // F-016 (§8D): silmeden ÖNCE görsel file_path'lerini oku (orphan temizliği için).
-  const { data: preRows } = await db
-    .from("stones").select("images")
-    .in("id", ids).eq("tenant_id", tenantId);
+  // P2-07: id listesi parçalı + sayfalı okunur (1000+ seçimde görsel yolu kaçmaz).
+  const preRes = await fetchAllRowsByIds<{ images?: unknown }>(ids, (chunk, from, to) =>
+    db.from("stones").select("id, images").in("id", chunk).eq("tenant_id", tenantId)
+      .order("id", { ascending: true }).range(from, to));
+  const preRows = preRes.rows;
 
   const { data, error } = await db
     .from("stones").delete()
@@ -47,7 +51,11 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // Orphan storage temizliği (best-effort; başarısızlık DB delete'i geri almaz, dürüst raporlanır).
   let storageCleaned = true;
-  const paths = collectStonePhotoPaths((preRows ?? []).map((r) => (r as { images?: unknown }).images), tenantId);
+  const collected = collectStonePhotoPaths(preRows.map((r) => r.images), tenantId);
+  // P2-05: silinmeyen (başka) bir taşın hâlâ referans ettiği dosya silinmez.
+  const { removable: paths } = collected.length > 0
+    ? await filterUnreferencedStonePhotoPaths(db, tenantId, collected)
+    : { removable: [] as string[] };
   if (paths.length > 0) {
     const { error: rmErr } = await db.storage.from(STONE_PHOTO_BUCKET).remove(paths);
     if (rmErr) { storageCleaned = false; console.error("[stones/bulk-delete] orphan temizliği hatası:", rmErr.message); }

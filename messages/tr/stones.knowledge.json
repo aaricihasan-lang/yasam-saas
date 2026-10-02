@@ -116,7 +116,8 @@
       "empty": {
         "noArticles": "Henüz makale yok. Yeni Kayıt butonu ile ekleyebilirsin.",
         "noResults": "Kayıt bulunamadı",
-        "detailPrompt": "Sol panelden bir makale seçerek okuyabilirsin. Arama motoruyla tam metin içinde arama yapabilirsin."
+        "detailPrompt": "Sol panelden bir makale seçerek okuyabilirsin. Arama motoruyla tam metin içinde arama yapabilirsin.",
+        "loadError": "Makaleler şu anda yüklenemedi. Bu boş bir kütüphane değildir; sayfayı yenileyip tekrar deneyin."
       },
       "demo": {
         "hiddenContent": "Bu içerik demo sürümünde gizlenmiştir. Tam içeriğe erişmek için uzman hesabı gereklidir."

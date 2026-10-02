@@ -5,6 +5,7 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 import { validateMineralAssignments } from "@/lib/dogaltas/mineralPercent";
 import { validateStoneStructuredFields, validateStoneImagesField } from "@/lib/dogaltas/validation";
+import { normalizeTaxonomyValues } from "@/lib/dogaltas/stoneTaxonomy";
 import {
   STONES_LIST_SELECT,
   STONES_LIST_EXTENDED_SELECT,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/dogaltas/stonesListFetch";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
 
 export const runtime = "nodejs";
 
@@ -45,8 +47,11 @@ const tenantIdsFor = stoneReadTenantIds;
 
 async function exclusionIds(db: SupabaseClient, tenantId: string): Promise<string[]> {
   if (tenantId === ADMIN_LIBRARY_TENANT_ID) return [];
-  const { data } = await db.from("stone_exclusions").select("stone_id").eq("tenant_id", tenantId);
-  return (data ?? []).map((r) => String((r as { stone_id: unknown }).stone_id));
+  const res = await fetchAllRows<{ stone_id: unknown }>((from, to) =>
+    db.from("stone_exclusions").select("stone_id").eq("tenant_id", tenantId)
+      .order("stone_id", { ascending: true }).range(from, to),
+  );
+  return res.rows.map((r) => String(r.stone_id));
 }
 
 /** Türkçe alfabetik sıralama (stonesListFetch ile aynı davranış). */
@@ -100,13 +105,16 @@ export async function GET(req: NextRequest): Promise<Response> {
       const sinceRaw = sp.get("since");
       const since = sinceRaw && !Number.isNaN(Date.parse(sinceRaw)) ? new Date(sinceRaw).toISOString() : null;
       const tQ = performance.now();
-      let rawQuery = db.from("stones").select("created_at").eq("tenant_id", tenantId);
-      if (since) rawQuery = rawQuery.gte("created_at", since);
-      const { data, error } = await rawQuery.order("created_at", { ascending: false });
+      // P2-07: pencere içindeki TÜM satırlar (toplu aktarımda 1000+ kayıt aynı aya düşebilir).
+      const rawRes = await fetchAllRows<{ created_at: unknown }>((from, to) => {
+        let rawQuery = db.from("stones").select("created_at").eq("tenant_id", tenantId);
+        if (since) rawQuery = rawQuery.gte("created_at", since);
+        return rawQuery.order("created_at", { ascending: false }).order("id", { ascending: true }).range(from, to);
+      });
       mark("stones", performance.now() - tQ);
-      if (error) return send(serverErrorResponse({ route: "dogaltas/stones", action: "GET:raw", tenantId, cause: error }));
+      if (!rawRes.ok) return send(serverErrorResponse({ route: "dogaltas/stones", action: "GET:raw", tenantId, cause: rawRes.error }));
       const tR = performance.now();
-      const res = NextResponse.json({ ok: true, rows: data ?? [] });
+      const res = NextResponse.json({ ok: true, rows: rawRes.rows });
       mark("response", performance.now() - tR);
       return send(res);
     }
@@ -114,14 +122,19 @@ export async function GET(req: NextRequest): Promise<Response> {
     // extended: tüm satırlar geniş select (kombinasyon havuzu + detay-filtre arama)
     if (mode === "extended") {
       const tQ = performance.now();
-      const { data, error } = await db
-        .from("stones").select(STONES_LIST_EXTENDED_SELECT)
-        .in("tenant_id", ids)
-        .order(STONES_LIST_ORDER_COLUMN, STONES_LIST_ORDER_OPTIONS);
+      // P2-07: kombinasyon havuzu "tümü" → sayfalı (1000-satır tavanı yok).
+      const extRes = await fetchAllRows<Record<string, unknown>>((from, to) =>
+        db
+          .from("stones").select(STONES_LIST_EXTENDED_SELECT)
+          .in("tenant_id", ids)
+          .order(STONES_LIST_ORDER_COLUMN, STONES_LIST_ORDER_OPTIONS)
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
       mark("stones", performance.now() - tQ);
-      if (error) return send(serverErrorResponse({ route: "dogaltas/stones", action: "GET:extended", tenantId, cause: error }));
+      if (!extRes.ok) return send(serverErrorResponse({ route: "dogaltas/stones", action: "GET:extended", tenantId, cause: extRes.error }));
       const tR = performance.now();
-      const res = NextResponse.json({ ok: true, rows: sortTr((data ?? []) as Record<string, unknown>[]) });
+      const res = NextResponse.json({ ok: true, rows: sortTr(extRes.rows) });
       mark("response", performance.now() - tR);
       return send(res);
     }
@@ -161,6 +174,8 @@ export async function GET(req: NextRequest): Promise<Response> {
       .select(STONES_LIST_SELECT, withCount ? { count: "exact" as const } : undefined)
       .in("tenant_id", ids)
       .order(STONES_LIST_ORDER_COLUMN, STONES_LIST_ORDER_OPTIONS)
+      // P2-07: eş adlı taşlarda sayfalar arası atlama/çift olmaması için kararlı ikincil sıra.
+      .order("id", { ascending: true })
       .range(offset, offset + limit - 1);
     if (excluded.length) query = query.not("id", "in", `(${excluded.join(",")})`);
     if (q) { const or = buildStonesListSearchOrFilter(q, searchMode); if (or) query = query.or(or); }
@@ -206,6 +221,11 @@ export async function POST(req: NextRequest): Promise<Response> {
   // düz nesne olmalı. Yanlış tip DB'ye YAZILMAZ (rapor 500 landmine'ını beslemez).
   const structured = validateStoneStructuredFields(payload);
   if (!structured.ok) return NextResponse.json({ ok: false, error: structured.error }, { status: 422 });
+
+  // P1-01: yeni kayıtta aynı kavram iki yazımla saklanmaz; bilinen eşdeğerler kanonik
+  // yazıma çevrilir (tek kaynak: lib/dogaltas/stoneTaxonomy). Listede olmayan değer korunur.
+  if (Array.isArray(payload.chakras)) payload.chakras = normalizeTaxonomyValues("chakra", payload.chakras as string[], { canonicalize: true });
+  if (Array.isArray(payload.warning_tags)) payload.warning_tags = normalizeTaxonomyValues("warning", payload.warning_tags as string[], { canonicalize: true });
 
   // SSRF kapanışı: images[] yalnız tenant'a ait canonical file_path; url reddedilir.
   if ("images" in payload) {
