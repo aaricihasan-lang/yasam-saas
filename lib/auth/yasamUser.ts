@@ -1,5 +1,6 @@
 /** Oturum — Supabase `login_user` RPC / users tablosundan gelen rol ile */
 
+import { runLogoutCleanups } from "@/lib/auth/logoutCleanup";
 import { hasExpertMembershipAccess } from "@/lib/auth/membership";
 import {
   isExpertReady,
@@ -249,6 +250,10 @@ export function clearSessionToken(): void {
 
 export function clearYasamUser(): void {
   if (typeof window === "undefined") return;
+
+  // BIO-02 — kayıtlı modüllerin bellek-içi hassas cache'leri (ör. Biyoenerji liste
+  // cache'i) çıkışta temizlenir; aynı sekmede giriş yapan sonraki hesap görmez.
+  runLogoutCleanups();
 
   // Demo hesap çıkışında modül verilerini temizle — gerçek kullanıcı verisi korunur
   try {

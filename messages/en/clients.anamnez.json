@@ -207,6 +207,7 @@
       "attachments": {
         "title": "Documents (PDF)",
         "hint": "You can attach documents such as a scan of the form the client filled in on paper. PDF only, max 10 MB, max 5 files.",
+        "lockedHint": "This assessment is completed, so documents can only be viewed or downloaded; adding and removing are disabled.",
         "upload": "Add PDF",
         "uploading": "Uploading…",
         "view": "View",

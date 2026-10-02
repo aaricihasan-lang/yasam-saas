@@ -1,6 +1,10 @@
 {
   "beslenme": {
     "detail": {
+      "loadError": {
+        "body": "This section could not be loaded. Existing records are kept; editing and saving are disabled until the data is shown.",
+        "retry": "Try again"
+      },
       "loading": "Loading…",
       "denied": "This section is available to the system owner only.",
       "clientFallback": "Client",

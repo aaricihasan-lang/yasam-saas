@@ -74,7 +74,9 @@ create table storage.objects (id uuid primary key default gen_random_uuid(), buc
 -- Repo dışı (legacy, dashboard-yönetimli) tablolar: yalnız route'ların kullandığı kolonlar.
 create table public.clients (
   id uuid primary key default gen_random_uuid(), tenant_id uuid not null, full_name text, phone text, email text, burc text, birth_date date,
-  notes text, create_request_id text, created_at timestamptz default now(), updated_at timestamptz default now()
+  notes text, create_request_id text, created_at timestamptz default now(), updated_at timestamptz default now(),
+  -- PROD danışan kolonları (POST /api/clients artık izin listesi + doğrulama uygular; DY satış öncesi kapanış).
+  ad text, soyad text, telefon text, dogum text, gorusme text, kan text, mizac text
 );
 create unique index clients_tenant_request_uidx on public.clients (tenant_id, create_request_id) where create_request_id is not null;
 create table public.client_sessions (
@@ -194,11 +196,11 @@ async function main(): Promise<void> {
     const sessionsRoute = await import("../../app/api/clients/[id]/sessions/route");
     const analysesRoute = await import("../../app/api/clients/[id]/analyses/route");
     const reqId = randomUUID();
-    const c1 = await call(clientsRoute.POST as unknown as Handler, "POST", "/api/clients", U1, { full_name: `${SENTINEL} Danışan`, notes: SENTINEL, request_id: reqId });
+    const c1 = await call(clientsRoute.POST as unknown as Handler, "POST", "/api/clients", U1, { ad: `${SENTINEL} Danışan`, soyad: "TEST", request_id: reqId });
     const clientId = String((c1.json?.client as { id?: string } | undefined)?.id ?? (c1.json?.data as { id?: string } | undefined)?.id ?? (c1.json?.id ?? ""));
     ok(c1.status === 200 || c1.status === 201, `danışan oluştur → ${c1.status}`);
     ok(await count("clients", "record_created", "client") === 1, "danışan create → 1 record_created:client");
-    const c1b = await call(clientsRoute.POST as unknown as Handler, "POST", "/api/clients", U1, { full_name: `${SENTINEL} Danışan`, notes: SENTINEL, request_id: reqId });
+    const c1b = await call(clientsRoute.POST as unknown as Handler, "POST", "/api/clients", U1, { ad: `${SENTINEL} Danışan`, soyad: "TEST", request_id: reqId });
     ok((c1b.status === 200 || c1b.status === 201) && await count("clients", "record_created", "client") === 1, "aynı request_id tekrarı (çift tık) → ek olay YOK");
     const s1 = await call(sessionsRoute.POST as unknown as Handler, "POST", `/api/clients/${clientId}/sessions`, U1, { notes: SENTINEL, session_date: "2026-09-28" }, { id: clientId });
     const sessId = String((s1.json?.session as { id?: string } | undefined)?.id ?? (s1.json?.data as { id?: string } | undefined)?.id ?? s1.json?.id ?? "");

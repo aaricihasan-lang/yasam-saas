@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { readAllPaged } from "@/lib/db/readAllPaged";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import {
@@ -50,15 +51,25 @@ export async function POST(request: NextRequest): Promise<Response> {
   // AA-6: route kendi service_role client'ını KURMAZ — guard'ın sunucu client'ı (guard.db).
   const { db } = guard;
 
-  let query = db.from("bioenergy_sessions").select("*").eq("tenant_id", tenantId);
+  // BIO-01 — sayfalı + sayım doğrulamalı okuma: PostgREST max-rows (1000) sınırında
+  // sessiz kesilme yok; eksik okuma → hata (eksik rapor üretilmez).
+  const buildQuery = () => {
+    let query = db.from("bioenergy_sessions").select("*", { count: "exact" }).eq("tenant_id", tenantId);
 
-  if (exportMode === "single" && sessionId) {
-    query = query.eq("id", sessionId);
-  } else if (exportMode === "selected" && Array.isArray(sessionIds) && sessionIds.length > 0) {
-    query = query.in("id", capSelectedIds(sessionIds));
-  }
-
-  const { data, error } = await query.order("created_at", { ascending: false }).limit(MAX_EXPORT_RECORDS);
+    if (exportMode === "single" && sessionId) {
+      query = query.eq("id", sessionId);
+    } else if (exportMode === "selected" && Array.isArray(sessionIds) && sessionIds.length > 0) {
+      query = query.in("id", capSelectedIds(sessionIds));
+    }
+    return query;
+  };
+  const paged = await readAllPaged(
+    (from, to) => buildQuery().order("created_at", { ascending: false }).order("id", { ascending: true }).range(from, to),
+    { maxRows: MAX_EXPORT_RECORDS },
+  );
+  const data = paged.rows;
+  const error = paged.error;
+  const truncatedRead = paged.truncated;
   if (error) {
     console.error("[session-report] read failed:", error);
     await trackUsage(guard, request, { module: "energy_body", action: "action_failed", failedAction: "report_generated", subEntity: "session", errorClass: "server" });
@@ -72,7 +83,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const { doc, filename } = buildBioSessionReportDoc({
     sessions,
     exportMode,
-    truncatedNote: sessions.length >= MAX_EXPORT_RECORDS ? EXPORT_TRUNCATED_NOTE(MAX_EXPORT_RECORDS) : null,
+    truncatedNote: truncatedRead ? EXPORT_TRUNCATED_NOTE(MAX_EXPORT_RECORDS) : null,
     expertName: expertDisplayName(guard.profile),
   });
 

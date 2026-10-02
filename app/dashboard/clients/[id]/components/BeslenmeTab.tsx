@@ -65,6 +65,14 @@ export default function BeslenmeTab({ clientId, clientName, isOwner = false }: P
   const [prefs, setPrefs] = useState<FoodPreference[]>([]);
   const [families, setFamilies] = useState<PlanFamily[]>([]);
   const [banner, setBanner] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  // DY-04 (satış öncesi kapanış): YÜKLEME HATASI ≠ BOŞ VERİ. Başarısız yüklenen bölüm
+  // düzenlenemez/kaydedilemez (alerjen + profil tam-küme yazımı eski veriyi silerdi);
+  // yerine hata kutusu + "Tekrar dene". Yeniden denemede yalnız BAŞARILI yanıtlar state'e yazılır.
+  const [loadErr, setLoadErr] = useState<Record<"profile" | "measurements" | "allergens" | "vocab" | "prefs" | "plans", boolean>>({
+    profile: false, measurements: false, allergens: false, vocab: false, prefs: false, plans: false,
+  });
+  const [reloadTick, setReloadTick] = useState(0);
+  const retryLoad = useCallback(() => setReloadTick((n) => n + 1), []);
 
   const flash = useCallback((kind: "ok" | "err", text: string) => {
     setBanner({ kind, text });
@@ -90,9 +98,17 @@ export default function BeslenmeTab({ clientId, clientName, isOwner = false }: P
       if (v.ok && v.data) setVocab(v.data.allergens);
       if (pr.ok && pr.data) setPrefs(pr.data.preferences);
       if (pl.ok && pl.data) setFamilies(pl.data.families);
+      setLoadErr({
+        profile: !(p.ok && p.data),
+        measurements: !(m.ok && m.data),
+        allergens: !(a.ok && a.data),
+        vocab: !(v.ok && v.data),
+        prefs: !(pr.ok && pr.data),
+        plans: !(pl.ok && pl.data),
+      });
     })();
     return () => { alive = false; };
-  }, [clientId]);
+  }, [clientId, reloadTick]);
 
   if (access === "loading") return <p className="p-4 text-sm text-slate-400">{t("loading")}</p>;
   if (access === "denied") return <p className="p-4 text-sm text-slate-500">{t("denied")}</p>;
@@ -122,12 +138,36 @@ export default function BeslenmeTab({ clientId, clientName, isOwner = false }: P
         <div className={`rounded-lg px-3 py-2 text-sm ${banner.kind === "ok" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"}`}>{banner.text}</div>
       )}
 
-      <ProfileSection t={t} clientId={clientId} profile={profile} onSaved={(p) => { setProfile(p); flash("ok", t("banner.profileSaved")); }} onErr={(text) => flash("err", text)} />
-      <MeasurementsSection t={t} clientId={clientId} rows={measurements} onChange={async () => { const m = await listMeasurements(clientId); if (m.ok && m.data) setMeasurements(m.data.measurements); }} onMsg={flash} />
-      <AllergensSection t={t} clientId={clientId} vocab={vocab} current={allergens} onSaved={async () => { const a = await getAllergens(clientId); if (a.ok && a.data) setAllergensState(a.data.allergens); flash("ok", t("banner.allergensUpdated")); }} onErr={(text) => flash("err", text)} />
-      <PreferencesSection t={t} clientId={clientId} rows={prefs} onChange={async () => { const pr = await listPreferences(clientId); if (pr.ok && pr.data) setPrefs(pr.data.preferences); }} onMsg={flash} />
-      <PlansSection t={t} clientId={clientId} clientName={name} families={families} isOwner={isOwner} />
+      {loadErr.profile ? <LoadFailedSection t={t} title={t("profile.title")} onRetry={retryLoad} /> : (
+        <ProfileSection t={t} clientId={clientId} profile={profile} onSaved={(p) => { setProfile(p); flash("ok", t("banner.profileSaved")); }} onErr={(text) => flash("err", text)} />
+      )}
+      {loadErr.measurements ? <LoadFailedSection t={t} title={t("measurements.title")} onRetry={retryLoad} /> : (
+        <MeasurementsSection t={t} clientId={clientId} rows={measurements} onChange={async () => { const m = await listMeasurements(clientId); if (m.ok && m.data) setMeasurements(m.data.measurements); }} onMsg={flash} />
+      )}
+      {loadErr.allergens || loadErr.vocab ? <LoadFailedSection t={t} title={t("allergens.title")} onRetry={retryLoad} /> : (
+        <AllergensSection t={t} clientId={clientId} vocab={vocab} current={allergens} onSaved={async () => { const a = await getAllergens(clientId); if (a.ok && a.data) setAllergensState(a.data.allergens); flash("ok", t("banner.allergensUpdated")); }} onErr={(text) => flash("err", text)} />
+      )}
+      {loadErr.prefs ? <LoadFailedSection t={t} title={t("preferences.title")} onRetry={retryLoad} /> : (
+        <PreferencesSection t={t} clientId={clientId} rows={prefs} onChange={async () => { const pr = await listPreferences(clientId); if (pr.ok && pr.data) setPrefs(pr.data.preferences); }} onMsg={flash} />
+      )}
+      {loadErr.plans ? <LoadFailedSection t={t} title={t("plans.title")} onRetry={retryLoad} /> : (
+        <PlansSection t={t} clientId={clientId} clientName={name} families={families} isOwner={isOwner} />
+      )}
     </div>
+  );
+}
+
+// ── Yükleme hatası (DY-04): boş veri gibi GÖSTERİLMEZ, düzenleme/kaydetme yolu yoktur ──
+function LoadFailedSection({ t, title, onRetry }: { t: Tf; title: string; onRetry: () => void }) {
+  return (
+    <Section title={title}>
+      <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5">
+        <p className="text-sm text-rose-700">{t("loadError.body")}</p>
+        <button type="button" onClick={onRetry} className="min-h-[40px] rounded-lg border border-rose-200 bg-white px-3 text-sm font-semibold text-rose-700 hover:bg-rose-100">
+          {t("loadError.retry")}
+        </button>
+      </div>
+    </Section>
   );
 }
 
@@ -289,9 +329,18 @@ function AllergensSection({ t, clientId, vocab, current, onSaved, onErr }: { t: 
   const { run: runSave, pending: saving } = useSubmitLock();
   const save = () =>
     runSave(async () => {
+      // Mevcut beyanların notları KORUNUR (UI not düzenlemez; eskiden her kayıtta null'lanıyordu).
+      const noteByStd = new Map(current.filter((a) => a.allergen_id).map((a) => [a.allergen_id as string, a.note]));
+      const noteByCustom = new Map(current.filter((a) => a.custom_label).map((a) => [(a.custom_label as string).toLowerCase(), a.note]));
       const items: AllergenSetItem[] = [
-        ...[...sel].map((id) => ({ allergen_id: id })),
-        ...customs.map((custom_label) => ({ custom_label })),
+        ...[...sel].map((id) => {
+          const note = noteByStd.get(id);
+          return note ? { allergen_id: id, note } : { allergen_id: id };
+        }),
+        ...customs.map((custom_label) => {
+          const note = noteByCustom.get(custom_label.toLowerCase());
+          return note ? { custom_label, note } : { custom_label };
+        }),
       ];
       const r = await setAllergens(clientId, items);
       if (r.ok) onSaved(); else onErr(t("banner.allergensSaveFailed") + (r.code ? ` (${r.code})` : ""));

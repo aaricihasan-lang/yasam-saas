@@ -142,6 +142,8 @@
         "errorTitle": "Hata",
         "unknownError": "Bilinmeyen hata",
         "saveClientFailed": "Danışan bilgileri kaydedilemedi",
+        "nameRequired": "Ad ve soyad gerekli.",
+        "invalidBirth": "Doğum tarihini GG.AA.YYYY biçiminde gerçek bir takvim tarihi olarak girin (bugünden sonra olamaz) ya da alanı tamamen boşaltın.",
         "notesSaveFailed": "Notlar kaydedilemedi",
         "changesSaved": "Değişiklikler kaydedildi.",
         "noteSaveError": "Not kayıt hatası",
@@ -191,6 +193,7 @@
         "startDateRequired": "Başlangıç tarihi seçmelisiniz",
         "nthDateRequired": "{n}. randevu tarihini seçmelisiniz",
         "loadFailed": "Randevular yüklenemedi",
+        "completedFutureMove": "Tamamlanmış bir randevu gelecekteki bir tarihe taşınamaz.",
         "updateFailed": "Randevu güncellenemedi",
         "updated": "Randevu güncellendi",
         "saveError": "Randevu kayıt hatası",
@@ -251,6 +254,7 @@
           "create": "Randevu Oluştur"
         },
         "modal": {
+          "close": "Kapat",
           "badge": "Randevu Detayı",
           "client": "Danışan",
           "dateTime": "Tarih / Saat",

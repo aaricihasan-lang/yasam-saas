@@ -1,6 +1,10 @@
 {
   "beslenme": {
     "detail": {
+      "loadError": {
+        "body": "Bu bölüm yüklenemedi. Mevcut kayıtlar korunuyor; veri görünmeden düzenleme ve kaydetme kapalıdır.",
+        "retry": "Tekrar dene"
+      },
       "loading": "Yükleniyor…",
       "denied": "Bu bölüm yalnız sistem sahibine açıktır.",
       "clientFallback": "Danışan",

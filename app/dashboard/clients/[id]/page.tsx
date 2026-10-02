@@ -12,6 +12,7 @@ import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
+import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
@@ -28,7 +29,7 @@ import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
 import { calcElementleri, ELEMENT_ORDER } from "@/lib/numeroloji/elementler";
 import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
-import { reportFileDate } from "@/lib/time/reportTime";
+import { reportFileDate, todayInZone } from "@/lib/time/reportTime";
 import { runInEffect } from "@/lib/runInEffect";
 import {
   countAppointments,
@@ -263,6 +264,9 @@ function ClientDetailPageInner() {
   const [drOpen, setDrOpen] = useState(false);
   const [consentRev, setConsentRev] = useState(0);
   const [editDogum, setEditDogum] = useState("");
+  // Satış öncesi kapanış: doğum alanı yarım/geçersizken kayıt YOK (eskiden "" → PATCH
+  // dogum:null ile kayıtlı doğum tarihi sessizce siliniyordu).
+  const [editDogumInvalid, setEditDogumInvalid] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [savingClientNotes, setSavingClientNotes] = useState(false);
 
@@ -397,6 +401,14 @@ function ClientDetailPageInner() {
     if (!tenantId || !client) return;
     // DY-A: notlar yüklenmeden (veya hata) genel bilgi kaydı YOK — boş alanlarla ezme riski.
     if (notesState !== "ready") return;
+    if (!editAd.trim() || !normalizeSurname(editSoyad)) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.nameRequired"), type: "error" });
+      return;
+    }
+    if (editDogumInvalid) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.invalidBirth"), type: "error" });
+      return;
+    }
     setSavingAll(true);
 
     const saveToken = readSessionToken();
@@ -411,7 +423,12 @@ function ClientDetailPageInner() {
     });
 
     if (!clientRes.ok) {
-      showToast({ title: t("toast.failTitle"), message: t("toast.saveClientFailed"), type: "error" });
+      // Sunucu doğrulaması (400) alan bazlı Türkçe mesaj döner → aynen göster.
+      let serverMsg: string | null = null;
+      if (clientRes.status === 400) {
+        try { serverMsg = ((await clientRes.json()) as { error?: string }).error ?? null; } catch { serverMsg = null; }
+      }
+      showToast({ title: t("toast.failTitle"), message: serverMsg ?? t("toast.saveClientFailed"), type: "error" });
       setSavingAll(false);
       return;
     }
@@ -934,7 +951,7 @@ function ClientDetailPageInner() {
                     </div>
                     <div>
                       <label className={labelCls}>{t("form.dogum")}</label>
-                      <BirthDateInput value={editDogum} onChange={isEditingGeneral ? setEditDogum : () => {}} className={fldCls} />
+                      <BirthDateInput value={editDogum} onChange={isEditingGeneral ? setEditDogum : () => {}} onInvalidChange={setEditDogumInvalid} maxDate={todayInZone()} className={fldCls} />
                     </div>
                     <div>
                       <label className={labelCls}>{t("form.kan")}</label>
@@ -1216,6 +1233,8 @@ function AppointmentsTab({
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [apptLoaded, setApptLoaded] = useState(false);
   const handledInitialRef = useRef<string | null>(null);
+  const closeAppointmentModal = useCallback(() => setSelectedAppointment(null), []);
+  useModalBehavior(selectedAppointment !== null, closeAppointmentModal);
 
   const [title, setTitle] = useState(() => t("appt.defaultTitle"));
   const [notes, setNotes] = useState("");
@@ -1370,6 +1389,14 @@ function AppointmentsTab({
         });
         if (!ok) return;
       }
+      // Satış öncesi kapanış: tamamlanmış randevu geleceğe taşınamaz (sunucu da 409 ile korur).
+      const editing = appointments.find((a) => a.id === editingId);
+      const newIso = new Date(date).toISOString();
+      const dateChanged = !!editing && new Date(newIso).getTime() !== new Date(editing.appointment_date).getTime();
+      if (editing?.status === "tamamlandi" && dateChanged && isAppointmentInFuture(newIso)) {
+        showToast({ title: t("toast.failTitle"), message: t("appt.completedFutureMove"), type: "error" });
+        return;
+      }
       setSaving(true);
       const editToken = readSessionToken();
       const res = await fetch(`/api/appointments/${editingId}`, {
@@ -1381,7 +1408,15 @@ function AppointmentsTab({
         },
         body: JSON.stringify({ title: title || t("appt.defaultTitle"), notes: notes || null, appointment_date: new Date(date).toISOString() }),
       });
-      if (!res.ok) { showToast({ title: t("toast.failTitle"), message: t("appt.updateFailed"), type: "error" }); setSaving(false); return; }
+      if (!res.ok) {
+        let serverMsg: string | null = null;
+        if (res.status === 409 || res.status === 400) {
+          try { serverMsg = ((await res.json()) as { error?: string }).error ?? null; } catch { serverMsg = null; }
+        }
+        showToast({ title: t("toast.failTitle"), message: serverMsg ?? t("appt.updateFailed"), type: "error" });
+        setSaving(false);
+        return;
+      }
       resetForm();
       await loadAppointments();
       setSaving(false);
@@ -1657,28 +1692,34 @@ function AppointmentsTab({
       {/* Appointment detail modal */}
       {selectedAppointment && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/46 p-4 backdrop-blur-[6px]"
+          className="fixed inset-0 z-[100] flex items-center justify-center overscroll-contain bg-slate-950/46 p-3 backdrop-blur-[6px] sm:p-4"
           onClick={() => setSelectedAppointment(null)}
         >
+          {/* Mobil: kart viewport'a sığar; başlık ve aksiyon çubuğu sabit, yalnız içerik kayar
+              → Tamamlandı / İptal / Sil her ekran boyunda erişilebilir (satış öncesi kapanış). */}
           <div
-            className="max-h-[calc(100dvh-2rem)] w-[min(560px,100%)] overflow-y-auto overflow-x-hidden overscroll-contain rounded-[22px] border border-white/85 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.28)]"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="appt-modal-title"
+            className="flex max-h-[calc(100dvh-1.5rem)] w-[min(560px,100%)] flex-col overflow-hidden rounded-[22px] border border-white/85 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.28)] sm:max-h-[calc(100dvh-2rem)]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-3 bg-gradient-to-r from-slate-950 via-violet-950 to-pink-700 p-[18px] text-white">
-              <div>
+            <div className="flex shrink-0 items-start justify-between gap-3 bg-gradient-to-r from-slate-950 via-violet-950 to-pink-700 p-[14px] text-white sm:p-[18px]">
+              <div className="min-w-0">
                 <span className="inline-flex rounded-full bg-white/14 px-2.5 py-1.5 text-[11px] font-black">{t("appt.modal.badge")}</span>
-                <h3 className="mt-2 text-[24px] font-black">{selectedAppointment.title || t("appt.titleFallback")}</h3>
+                <h3 id="appt-modal-title" className="mt-2 break-words text-[20px] font-black sm:text-[24px]">{selectedAppointment.title || t("appt.titleFallback")}</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedAppointment(null)}
-                className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full border border-white/22 bg-white/14 text-[24px] font-black leading-none text-white hover:bg-white/25"
+                aria-label={t("appt.modal.close")}
+                className="flex h-[40px] w-[40px] flex-shrink-0 items-center justify-center rounded-full border border-white/22 bg-white/14 text-[24px] font-black leading-none text-white hover:bg-white/25"
               >
                 ×
               </button>
             </div>
 
-            <div className="grid gap-3 p-[18px]">
+            <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto overscroll-contain p-[14px] sm:p-[18px]">
               <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5">
                 <div className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
                   <span className="text-[12px] font-bold text-slate-500">{t("appt.modal.client")}</span>
@@ -1699,20 +1740,22 @@ function AppointmentsTab({
 
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
                 <span className="block mb-1.5 text-[12px] font-bold text-slate-500">{t("appt.modal.note")}</span>
-                <p className="text-[13px] text-slate-700">{selectedAppointment.notes || t("appt.modal.noNote")}</p>
+                <p className="whitespace-pre-wrap break-words text-[13px] text-slate-700">{selectedAppointment.notes || t("appt.modal.noNote")}</p>
               </div>
+            </div>
 
+            <div className="grid shrink-0 gap-2.5 border-t border-slate-100 bg-white p-[14px] sm:p-[18px]">
               {/* WEB-07: Düzenle tüm statülerde açık (statü değişmeden title/notes/tarih güncellenir). */}
               <button type="button" onClick={() => openEditAppointment(selectedAppointment)}
                 className="w-full rounded-xl border border-indigo-200 bg-indigo-50 p-2.5 text-[13px] font-black text-indigo-800 transition hover:bg-indigo-100">
                 {t("appt.modal.edit")}
               </button>
 
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-                <button type="button" onClick={() => void requestCompleteAppointment(selectedAppointment.id)} className="btn-success justify-center">{t("appt.modal.complete")}</button>
-                <button type="button" onClick={() => void requestCancelAppointment(selectedAppointment.id)} className="btn-danger justify-center">{t("appt.modal.cancel")}</button>
+              <div className="grid grid-cols-3 gap-2">
+                <button type="button" onClick={() => void requestCompleteAppointment(selectedAppointment.id)} className="btn-success min-h-[44px] justify-center !px-2 sm:!px-4">{t("appt.modal.complete")}</button>
+                <button type="button" onClick={() => void requestCancelAppointment(selectedAppointment.id)} className="btn-danger min-h-[44px] justify-center !px-2 sm:!px-4">{t("appt.modal.cancel")}</button>
                 <button type="button" onClick={() => deleteAppointment(selectedAppointment.id)}
-                  className="btn-danger justify-center" style={{ background: "linear-gradient(135deg, #020617, #1e293b)" }}>
+                  className="btn-danger min-h-[44px] justify-center !px-2 sm:!px-4" style={{ background: "linear-gradient(135deg, #020617, #1e293b)" }}>
                   {t("appt.modal.delete")}
                 </button>
               </div>

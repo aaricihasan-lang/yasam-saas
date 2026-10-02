@@ -142,6 +142,8 @@
         "errorTitle": "Error",
         "unknownError": "Unknown error",
         "saveClientFailed": "Client information could not be saved",
+        "nameRequired": "First and last name are required.",
+        "invalidBirth": "Enter the birth date as a real calendar date in DD.MM.YYYY format (not in the future), or clear the field completely.",
         "notesSaveFailed": "Notes could not be saved",
         "changesSaved": "Changes saved.",
         "noteSaveError": "Note save error",
@@ -191,6 +193,7 @@
         "startDateRequired": "You must select a start date",
         "nthDateRequired": "You must select the date for appointment #{n}",
         "loadFailed": "Appointments could not be loaded",
+        "completedFutureMove": "A completed appointment cannot be moved to a future date.",
         "updateFailed": "Appointment could not be updated",
         "updated": "Appointment updated",
         "saveError": "Appointment save error",
@@ -251,6 +254,7 @@
           "create": "Create Appointment"
         },
         "modal": {
+          "close": "Close",
           "badge": "Appointment Detail",
           "client": "Client",
           "dateTime": "Date / Time",

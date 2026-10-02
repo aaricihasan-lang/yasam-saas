@@ -113,6 +113,7 @@
         "nameRequired": "Ad ve soyad gerekli",
         "invalidDateTitle": "Geçersiz tarih",
         "invalidDateMsg": "Görüşme tarihini DD.MM.YYYY biçiminde geçerli bir tarih olarak girin ya da boş bırakın.",
+        "invalidBirthMsg": "Doğum tarihini GG.AA.YYYY biçiminde gerçek bir takvim tarihi olarak girin (bugünden sonra olamaz) ya da boş bırakın.",
         "successTitle": "Başarılı",
         "demoCreated": "Demo danışan oluşturuldu.",
         "saved": "Danışan kaydedildi.",

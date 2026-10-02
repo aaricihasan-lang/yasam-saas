@@ -3,6 +3,8 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { computeBurc } from "@/lib/danisan/burc";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
+import { validateClientWrite } from "@/lib/danisan/clientValidation";
+import { istanbulToday } from "@/lib/danisan/istanbulTime";
 
 export const runtime = "nodejs";
 
@@ -16,16 +18,9 @@ export const runtime = "nodejs";
  *   - Demo hesap: Supabase'e yazma yapılmaz.
  */
 
-// create_request_id: yalnız POST /api/clients sunucusu yazar (idempotency, DY-A).
-const PROTECTED_KEYS = new Set(["tenant_id", "id", "created_at", "create_request_id"]);
-
-function sanitizePayload(body: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(body ?? {})) {
-    if (!PROTECTED_KEYS.has(k)) out[k] = v;
-  }
-  return out;
-}
+// Satış öncesi kapanış: deny-list yerine İZİN LİSTESİ + doğrulama
+// (lib/danisan/clientValidation). tenant_id/id/created_at/create_request_id/user_id,
+// legacy ve bilinmeyen kolonlar yazılamaz; bozuk tarih / boş ad → 400.
 
 // ─── GET /api/clients/[id] ───────────────────────────────────────────────────────
 export async function GET(
@@ -88,19 +83,20 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
-  const fields = sanitizePayload(body);
+  const verdict = validateClientWrite(body, "patch", istanbulToday());
+  if (!verdict.ok) {
+    return NextResponse.json(
+      { ok: false, code: verdict.code, field: verdict.field, error: verdict.error },
+      { status: 400 },
+    );
+  }
+  const fields: Record<string, unknown> = { ...verdict.fields };
 
-  // F7: burç server-authoritative. `dogum` gönderildiyse burç yeniden hesaplanır
-  // (dogum boş/null → burç null); `dogum` gönderilmediyse burç DEĞİŞMEZ ve client'ın
-  // doğrudan gönderdiği `burc` yok sayılır (strip).
+  // F7: burç server-authoritative. `dogum` gönderildiyse (doğrulanmış) burç yeniden
+  // hesaplanır (dogum boş/null → burç null); `dogum` gönderilmediyse burç DEĞİŞMEZ —
+  // client'ın doğrudan gönderdiği `burc` izin listesinde olmadığından zaten yazılmaz.
   if (Object.prototype.hasOwnProperty.call(fields, "dogum")) {
     fields.burc = computeBurc(fields.dogum == null ? null : String(fields.dogum));
-  } else {
-    delete fields.burc;
-  }
-
-  if (Object.keys(fields).length === 0) {
-    return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
   }
 
   const { data, error } = await db

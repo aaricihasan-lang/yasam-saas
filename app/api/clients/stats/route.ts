@@ -49,17 +49,18 @@ export async function GET(req: NextRequest): Promise<Response> {
     db.from("clients").select("created_at").eq("tenant_id", tenantId)
       .order("created_at", { ascending: false }).limit(1),
     // Bu ay randevu — iptal HARİÇ (bekliyor + tamamlandi + legacy null dahil). F1
+    // Satış öncesi kapanış: yalnız DANIŞAN randevuları (ajanda "Genel" danışansız kayıtları hariç).
     db.from("appointments").select("id", { count: "exact", head: true })
-      .eq("tenant_id", tenantId)
+      .eq("tenant_id", tenantId).not("client_id", "is", null)
       .or("status.is.null,status.neq.iptal")
       .gte("appointment_date", monthStart).lt("appointment_date", monthEnd),
     // En yakın AKTİF (gelecek) randevu — bekliyor + legacy null; iptal VE tamamlandi hariç. F2
-    db.from("appointments").select("appointment_date").eq("tenant_id", tenantId)
+    db.from("appointments").select("appointment_date").eq("tenant_id", tenantId).not("client_id", "is", null)
       .or("status.is.null,and(status.neq.iptal,status.neq.tamamlandi)").gt("appointment_date", now)
       .order("appointment_date", { ascending: true }).limit(1),
     // Bu ay tamamlanan randevu
     db.from("appointments").select("id", { count: "exact", head: true })
-      .eq("tenant_id", tenantId).eq("status", "tamamlandi")
+      .eq("tenant_id", tenantId).not("client_id", "is", null).eq("status", "tamamlandi")
       .gte("appointment_date", monthStart).lt("appointment_date", monthEnd),
   ]);
 

@@ -7,6 +7,9 @@
  * Kapsam: yalnızca SPA gezinmesi boyunca yaşar (sayfa tam yeniden yüklenince
  * sıfırlanır). Veri yazılmaz, kalıcı değildir; salt hız amaçlıdır.
  */
+import { readYasamUser } from "@/lib/auth/yasamUser";
+import { registerLogoutCleanup } from "@/lib/auth/logoutCleanup";
+
 export type BioListCacheEntry = {
   rows: unknown[];
   total: number;
@@ -15,7 +18,29 @@ export type BioListCacheEntry = {
   categories: string[] | null;
 };
 
-const store = new Map<string, BioListCacheEntry>();
+/**
+ * BIO-02 — cache KULLANICI + TENANT kapsamlıdır. Her girdi sahibinin kimliğiyle
+ * saklanır; okunurken o anki oturum sahibiyle eşleşmeyen girdi DÖNMEZ (aynı sekmede
+ * çıkış → başka hesapla giriş senaryosunda önceki hesabın verisi hiçbir karede
+ * görünmez). Ek olarak çıkışta tüm cache temizlenir (registerLogoutCleanup).
+ */
+type StoredEntry = BioListCacheEntry & { owner: string };
+const store = new Map<string, StoredEntry>();
+
+function currentOwner(): string | null {
+  const u = readYasamUser();
+  const id = String(u?.id ?? "").trim();
+  const tenant = String(u?.tenant_id ?? "").trim();
+  if (!id || !tenant) return null;
+  return `${id}|${tenant}`;
+}
+
+/** Tüm Biyoenerji liste cache'ini temizler (çıkış / hesap değişimi). */
+export function clearBioListCache(): void {
+  store.clear();
+}
+
+registerLogoutCleanup(clearBioListCache);
 
 /** Listeyi belirleyen parametrelerden kararlı cache anahtarı üretir. */
 export function bioListKey(
@@ -32,11 +57,16 @@ export function bioListKey(
 }
 
 export function bioListGet(key: string): BioListCacheEntry | undefined {
-  return store.get(key);
+  const owner = currentOwner();
+  const hit = store.get(key);
+  if (!hit || !owner || hit.owner !== owner) return undefined;
+  return hit;
 }
 
 export function bioListSet(key: string, entry: BioListCacheEntry): void {
-  store.set(key, entry);
+  const owner = currentOwner();
+  if (!owner) return; // oturumsuz cache yazılmaz
+  store.set(key, { ...entry, owner });
 }
 
 /**
@@ -55,9 +85,12 @@ export function bioListFindRow(
 ): Record<string, unknown> | undefined {
   const target = id.trim();
   if (!target) return undefined;
+  const owner = currentOwner();
+  if (!owner) return undefined;
   const prefix = `${resource}|`;
   for (const [key, entry] of store) {
     if (key !== resource && !key.startsWith(prefix)) continue;
+    if (entry.owner !== owner) continue;
     for (const raw of entry.rows) {
       const row = raw as { id?: unknown };
       if (String(row?.id ?? "").trim() === target) {

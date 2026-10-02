@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { buildNameListLines } from "@/lib/ui/deleteConfirmMessage";
+import { useModalFocusTrap } from "@/lib/biyoenerji/useModalFocusTrap";
+import { useModalLayer } from "@/lib/biyoenerji/modalLayer";
 
 export type DangerDeleteMode = "selected" | "all";
 
@@ -28,6 +30,12 @@ type BiyoenerjiDangerDeleteModalProps = {
    * Gizli/unutulmuş seçimin habersiz silinmesini engellemek için gösterilir.
    */
   names?: readonly string[];
+  /**
+   * BIO-13 — "all" modunda kapsam netliği: ekranda filtre/arama aktifse ve görünen
+   * kayıt sayısı toplamdan azsa, her aşamada "filtre yalnız görünümü daraltır;
+   * modüldeki TÜM kayıtlar silinir" uyarısı gösterilir. Davranış DEĞİŞMEZ.
+   */
+  scope?: { filterActive: boolean; visibleCount: number };
 };
 
 /** SIL-XXXX biçiminde, karıştırılması zor (I/O/0/1 hariç) rastgele doğrulama kodu üretir. */
@@ -59,7 +67,13 @@ export function BiyoenerjiDangerDeleteModal({
   onConfirm,
   childCounts,
   names,
+  scope,
 }: BiyoenerjiDangerDeleteModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  // P3 a11y — açılış odağı "Vazgeç" (güvenli varsayılan) + Tab modal içinde kalır.
+  useModalFocusTrap(open, dialogRef, cancelRef);
+  const isTopLayer = useModalLayer(open);
   // Aşama: 1 = ilk uyarı, 2 = geri alınamaz uyarısı, 3 = doğrulama kodu
   const [stage, setStage] = useState(1);
   const [verifyCode, setVerifyCode] = useState("");
@@ -95,9 +109,9 @@ export function BiyoenerjiDangerDeleteModal({
 
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !isDeleting) onClose();
+      if (e.key === "Escape" && !isDeleting && isTopLayer()) onClose();
     },
-    [isDeleting, onClose],
+    [isDeleting, onClose, isTopLayer],
   );
 
   useEffect(() => {
@@ -119,7 +133,7 @@ export function BiyoenerjiDangerDeleteModal({
           "İçerik blokları hesaplanıyor…"
         ) : childCounts.total > 0 ? (
           <>
-            Bu işlem ayrıca toplam <b>{childCounts.total}</b> içerik/kaynak bloğunu (<b>{childCounts.visible}</b> görünür + <b>{childCounts.evidence}</b> kaynak-kanıt) kalıcı olarak silecektir.
+            Bu işlem ayrıca toplam <b>{childCounts.total}</b> içerik/kaynak bloğunu (<b>{childCounts.visible}</b> görünür + <b>{childCounts.evidence}</b> kaynak bilgisi) kalıcı olarak silecektir.
           </>
         ) : (
           "Bu kayıt(lar)a bağlı içerik bloğu yok."
@@ -127,8 +141,28 @@ export function BiyoenerjiDangerDeleteModal({
       </div>
     );
 
+  // BIO-13 — kapsam kutusu: "Tümünü Sil" FİLTREDEN BAĞIMSIZ olarak modülün tamamını siler.
+  const filterNarrowed = !!scope && scope.filterActive && scope.visibleCount < count;
+  const scopeBox = isAll ? (
+    <div
+      className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12.5px] font-semibold leading-relaxed text-rose-800"
+      data-testid="bio-delete-all-scope"
+    >
+      Silinecek: <b>{resourceLabel}</b> modülündeki <b>TÜM {count} kayıt</b>.
+      {filterNarrowed ? (
+        <>
+          {" "}Ekranda arama/filtre nedeniyle yalnız <b>{scope!.visibleCount}</b>{" "}kayıt görünüyor; filtre
+          yalnızca görünümü daraltır, silme kapsamını DARALTMAZ. Yalnız belirli kayıtları silmek için
+          kayıtları seçip &quot;Seçilileri Sil&quot;i kullanın.
+        </>
+      ) : (
+        <> Arama veya kategori filtresi bu işlemi etkilemez.</>
+      )}
+    </div>
+  ) : null;
+
   const titleText = isAll
-    ? "Tüm Kayıtları Sil"
+    ? `${resourceLabel} — Tüm Kayıtları Sil`
     : `Seçili ${count} Kaydı Sil`;
 
   let body: React.ReactNode;
@@ -152,7 +186,7 @@ export function BiyoenerjiDangerDeleteModal({
         ) : null}
         {cascadeWarning}
         <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
-          <button type="button" disabled={isDeleting} onClick={onClose} className={cancelBtnClass}>
+          <button ref={cancelRef} type="button" disabled={isDeleting} onClick={onClose} className={cancelBtnClass}>
             Vazgeç
           </button>
           <button type="button" disabled={isDeleting || count === 0} onClick={onConfirm} className={dangerBtnClass}>
@@ -165,14 +199,12 @@ export function BiyoenerjiDangerDeleteModal({
     body = (
       <>
         <h3 className="mt-2 text-[18px] font-black leading-snug text-slate-950">
-          Bu listedeki tüm kayıtları silmek istediğinizden emin misiniz?
+          {resourceLabel} modülündeki TÜM kayıtları ({count}) silmek istediğinizden emin misiniz?
         </h3>
-        <p className="mt-2 text-[13px] font-medium leading-relaxed text-slate-500">
-          <b>{resourceLabel}</b> modülündeki <b>{count}</b> kayıt etkilenecek.
-        </p>
+        {scopeBox}
         {cascadeWarning}
         <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
-          <button type="button" disabled={isDeleting} onClick={onClose} className={cancelBtnClass}>
+          <button ref={cancelRef} type="button" disabled={isDeleting} onClick={onClose} className={cancelBtnClass}>
             Vazgeç
           </button>
           <button type="button" disabled={isDeleting} onClick={() => setStage(2)} className={continueBtnClass}>
@@ -191,9 +223,10 @@ export function BiyoenerjiDangerDeleteModal({
           Bu modüldeki <b>tüm kayıtlar ({count})</b> kalıcı olarak silinecek. Silinen veriler geri getirilemez.
           Devam etmeden önce yedek aldığınızdan emin olun.
         </p>
+        {scopeBox}
         {cascadeWarning}
         <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
-          <button type="button" disabled={isDeleting} onClick={onClose} className={cancelBtnClass}>
+          <button ref={cancelRef} type="button" disabled={isDeleting} onClick={onClose} className={cancelBtnClass}>
             Vazgeç
           </button>
           <button type="button" disabled={isDeleting} onClick={() => setStage(3)} className={continueBtnClass}>
@@ -212,6 +245,7 @@ export function BiyoenerjiDangerDeleteModal({
         <p className="mt-2 text-[13px] font-medium leading-relaxed text-slate-600">
           Aşağıdaki kodu kutuya <b>aynen</b> yazın. Bu, yanlışlıkla toplu silmeyi önler.
         </p>
+        {scopeBox}
         <div className="mt-4 flex items-center justify-center rounded-xl border-2 border-dashed border-rose-300 bg-rose-50/70 px-4 py-3">
           <span className="select-all font-mono text-2xl font-black tracking-[0.3em] text-rose-700">
             {verifyCode}
@@ -230,7 +264,7 @@ export function BiyoenerjiDangerDeleteModal({
           className="mt-3 h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-center font-mono text-lg font-black uppercase tracking-[0.2em] text-slate-900 outline-none transition focus:border-rose-400 focus:ring-2 focus:ring-rose-200/60 disabled:opacity-60"
         />
         <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
-          <button type="button" disabled={isDeleting} onClick={onClose} className={cancelBtnClass}>
+          <button ref={cancelRef} type="button" disabled={isDeleting} onClick={onClose} className={cancelBtnClass}>
             Vazgeç
           </button>
           <button
@@ -253,7 +287,8 @@ export function BiyoenerjiDangerDeleteModal({
       onClick={() => !isDeleting && onClose()}
     >
       <div
-        className="w-full max-w-[460px] rounded-[22px] border border-white/90 bg-white p-5 shadow-[0_24px_64px_-12px_rgba(15,23,42,0.22)] ring-1 ring-rose-100/60 sm:p-6"
+        ref={dialogRef}
+        className="max-h-[calc(100dvh-1.5rem)] w-full max-w-[460px] overflow-y-auto overscroll-contain rounded-[22px] border border-white/90 bg-white p-5 shadow-[0_24px_64px_-12px_rgba(15,23,42,0.22)] ring-1 ring-rose-100/60 sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby="bio-danger-delete-title"

@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useModalFocusTrap } from "@/lib/biyoenerji/useModalFocusTrap";
+import { useModalLayer } from "@/lib/biyoenerji/modalLayer";
 
 type BiyoenerjiConfirmModalProps = {
   open: boolean;
@@ -30,6 +32,12 @@ export function BiyoenerjiConfirmModal({
   onConfirm,
   titleId = "bio-confirm-modal-title",
 }: BiyoenerjiConfirmModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  // P3 a11y — açılış odağı "Vazgeç" (yıkıcı butona kazara Enter basılmaz) + Tab modal içinde.
+  useModalFocusTrap(open, dialogRef, cancelRef);
+  const isTopLayer = useModalLayer(open);
+
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -41,9 +49,9 @@ export function BiyoenerjiConfirmModal({
 
   const onEscape = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) onClose();
+      if (e.key === "Escape" && !busy && isTopLayer()) onClose();
     },
-    [busy, onClose],
+    [busy, onClose, isTopLayer],
   );
 
   useEffect(() => {
@@ -61,6 +69,7 @@ export function BiyoenerjiConfirmModal({
       onClick={() => !busy && onClose()}
     >
       <div
+        ref={dialogRef}
         className="w-full max-w-[420px] rounded-[22px] border border-white/90 bg-white/88 p-6 shadow-[0_20px_50px_-18px_rgba(15,23,42,0.12)] ring-1 ring-violet-100/50 backdrop-blur-md"
         role="dialog"
         aria-modal="true"
@@ -76,10 +85,11 @@ export function BiyoenerjiConfirmModal({
         <p className="mt-2 text-[12px] font-medium leading-relaxed text-slate-500">{message}</p>
         <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
           <button
+            ref={cancelRef}
             type="button"
             disabled={busy}
             onClick={onClose}
-            className="rounded-xl border border-slate-200/90 bg-white px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+            className="min-h-[44px] rounded-xl border border-slate-200/90 bg-white px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
           >
             Vazgeç
           </button>
@@ -87,7 +97,7 @@ export function BiyoenerjiConfirmModal({
             type="button"
             disabled={busy}
             onClick={onConfirm}
-            className="rounded-xl bg-rose-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_24px_rgba(225,29,72,0.22)] transition hover:bg-rose-700 disabled:opacity-60"
+            className="min-h-[44px] rounded-xl bg-rose-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_24px_rgba(225,29,72,0.22)] transition hover:bg-rose-700 disabled:opacity-60"
           >
             {busy ? busyLabel : confirmLabel}
           </button>

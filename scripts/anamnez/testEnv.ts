@@ -113,36 +113,62 @@ function parseInList(v: string): string[] {
 }
 const RESERVED = new Set(["select", "order", "limit", "offset", "on_conflict", "columns"]);
 
+function condExpr(col: string, raw0: string, values: unknown[]): string {
+  let raw = raw0;
+  let neg = false;
+  if (raw.startsWith("not.")) { neg = true; raw = raw.slice(4); }
+  const dot = raw.indexOf(".");
+  const op = raw.slice(0, dot);
+  const v = raw.slice(dot + 1);
+  let expr: string;
+  switch (op) {
+    case "eq": values.push(v); expr = `${col} = $${values.length}`; break;
+    case "neq": values.push(v); expr = `${col} <> $${values.length}`; break;
+    case "gt": values.push(v); expr = `${col} > $${values.length}`; break;
+    case "gte": values.push(v); expr = `${col} >= $${values.length}`; break;
+    case "lt": values.push(v); expr = `${col} < $${values.length}`; break;
+    case "lte": values.push(v); expr = `${col} <= $${values.length}`; break;
+    case "in": values.push(parseInList(v)); expr = `${col}::text = ANY($${values.length})`; break;
+    case "is":
+      if (v === "null") expr = `${col} IS NULL`;
+      else if (v === "true") expr = `${col} IS TRUE`;
+      else if (v === "false") expr = `${col} IS FALSE`;
+      else throw new Error(`desteklenmeyen is.${v}`);
+      break;
+    default:
+      throw Object.assign(new Error(`desteklenmeyen filtre: ${op}`), { code: "PGRST100" });
+  }
+  return neg ? `NOT (${expr})` : expr;
+}
+/** PostgREST mantıksal grup: "(a.eq.1,and(b.neq.2,c.is.null))" → SQL (yalnız basit değerler). */
+function logicExpr(kind: "or" | "and", inner: string, values: unknown[]): string {
+  const items: string[] = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of inner) {
+    if (ch === "(") depth++;
+    if (ch === ")") depth--;
+    if (ch === "," && depth === 0) { items.push(cur); cur = ""; continue; }
+    cur += ch;
+  }
+  if (cur) items.push(cur);
+  const parts = items.map((it) => {
+    const m = /^(or|and)\((.*)\)$/.exec(it);
+    if (m) return logicExpr(m[1] as "or" | "and", m[2], values);
+    const d = it.indexOf(".");
+    return condExpr(qi(it.slice(0, d)), it.slice(d + 1), values);
+  });
+  return `(${parts.join(kind === "or" ? " OR " : " AND ")})`;
+}
 function buildWhere(params: URLSearchParams, values: unknown[]): string {
   const parts: string[] = [];
   for (const [key, raw0] of params.entries()) {
     if (RESERVED.has(key)) continue;
-    const col = qi(key);
-    let raw = raw0;
-    let neg = false;
-    if (raw.startsWith("not.")) { neg = true; raw = raw.slice(4); }
-    const dot = raw.indexOf(".");
-    const op = raw.slice(0, dot);
-    const v = raw.slice(dot + 1);
-    let expr: string;
-    switch (op) {
-      case "eq": values.push(v); expr = `${col} = $${values.length}`; break;
-      case "neq": values.push(v); expr = `${col} <> $${values.length}`; break;
-      case "gt": values.push(v); expr = `${col} > $${values.length}`; break;
-      case "gte": values.push(v); expr = `${col} >= $${values.length}`; break;
-      case "lt": values.push(v); expr = `${col} < $${values.length}`; break;
-      case "lte": values.push(v); expr = `${col} <= $${values.length}`; break;
-      case "in": values.push(parseInList(v)); expr = `${col}::text = ANY($${values.length})`; break;
-      case "is":
-        if (v === "null") expr = `${col} IS NULL`;
-        else if (v === "true") expr = `${col} IS TRUE`;
-        else if (v === "false") expr = `${col} IS FALSE`;
-        else throw new Error(`desteklenmeyen is.${v}`);
-        break;
-      default:
-        throw Object.assign(new Error(`desteklenmeyen filtre: ${op}`), { code: "PGRST100" });
+    if (key === "or" || key === "and") {
+      parts.push(logicExpr(key, raw0.replace(/^\(/, "").replace(/\)$/, ""), values));
+      continue;
     }
-    parts.push(neg ? `NOT (${expr})` : expr);
+    parts.push(condExpr(qi(key), raw0, values));
   }
   return parts.length ? ` WHERE ${parts.join(" AND ")}` : "";
 }
@@ -343,7 +369,19 @@ export type TestEnv = {
   stop: () => Promise<void>;
 };
 
-export async function startAnamnezTestEnv(opts: { port: number; dirName: string; httpPort?: number }): Promise<TestEnv> {
+export async function startAnamnezTestEnv(opts: {
+  port: number;
+  dirName: string;
+  httpPort?: number;
+  /**
+   * PostgREST `rpc/<ad>` olarak çağrılabilecek public fonksiyonlar (varsayılan: YOK → eski
+   * davranış, tüm RPC'ler 404 PGRST202). DY satış öncesi kapanış harness'ı notlar CAS RPC'si için kullanır.
+   */
+  rpcAllow?: string[];
+  /** BASE_DDL + anamnez migration'larından SONRA çalışacak ek SQL (ör. DY tabloları/migration'ları). */
+  extraSql?: string[];
+}): Promise<TestEnv> {
+  const rpcAllow = new Set(opts.rpcAllow ?? []);
   const dataDir = path.join(os.tmpdir(), opts.dirName);
   try { rmSync(dataDir, { recursive: true, force: true }); } catch { /* temiz */ }
   const epg = new EmbeddedPostgres({
@@ -363,6 +401,7 @@ export async function startAnamnezTestEnv(opts: { port: number; dirName: string;
   await su.query(readMig("20270129000900_client_consents.sql"));
   await su.query(readMig("20270202000000_client_anamnesis.sql"));
   await su.query(readMig("20270202000100_client_anamnesis_storage.sql"));
+  for (const sql of opts.extraSql ?? []) await su.query(sql);
   await su.query(`grant select, insert, update, delete on public.tenants, public.users, public.user_sessions, public.clients,
                     public.client_notes, public.nutrition_allergens, public.nutrition_client_profiles,
                     public.nutrition_client_measurements, public.nutrition_client_allergens to service_role;`);
@@ -415,7 +454,22 @@ export async function startAnamnezTestEnv(opts: { port: number; dirName: string;
         );
         return send(200, r.rows[0]?.v ?? null);
       }
-      if (p.startsWith("rpc/")) return send(404, { code: "PGRST202", message: "rpc yok (test)", details: null, hint: null });
+      if (p.startsWith("rpc/")) {
+        const fn = p.slice("rpc/".length);
+        if (!rpcAllow.has(fn) || !/^[a-z_][a-z0-9_]*$/.test(fn)) {
+          return send(404, { code: "PGRST202", message: `Could not find the function public.${fn} (test)`, details: null, hint: null });
+        }
+        const args = JSON.parse((await readRaw(req)).toString("utf8") || "{}") as Record<string, unknown>;
+        const keys = Object.keys(args).filter((k) => /^[a-z_][a-z0-9_]*$/.test(k));
+        const vals = keys.map((k) => (args[k] !== null && typeof args[k] === "object" ? JSON.stringify(args[k]) : args[k]));
+        try {
+          const r = await client.query(`select * from public.${fn}(${keys.map((k, i) => `${k} => $${i + 1}`).join(", ")})`, vals);
+          return send(200, r.rows);
+        } catch (e) {
+          const pe = e as { code?: string; message?: string };
+          return send(400, { code: pe.code ?? "XX000", message: pe.message ?? String(e), details: null, hint: null });
+        }
+      }
       const table = qi(p);
       const values: unknown[] = [];
       const sel = parseSelect(url.searchParams.get("select"));

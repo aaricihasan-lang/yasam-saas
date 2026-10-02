@@ -15,6 +15,7 @@ import { computeBurc } from "@/lib/danisan/burc";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { SubmitTimeoutError } from "@/lib/ui/submitLock";
 import { todayInZone } from "@/lib/time/reportTime";
+import { isRealCalendarDate } from "@/lib/danisan/dateValidation";
 import ClientConsentPanel from "@/components/kvkk/ClientConsentPanel";
 
 // "Bugün": İstanbul takvim günü (UTC 00:00–03:00 "dün" hatası yok).
@@ -87,10 +88,9 @@ function mondayFirstOffset(year: number, month: number) {
 }
 
 // Gerçek takvim tarihi mi? 31.02.2026 gibi var olmayan günleri eler; makul yıl aralığı.
+// Tek kaynak: lib/danisan/dateValidation (sunucu doğrulamasıyla birebir aynı kural).
 function isRealDate(y: number, m: number, d: number) {
-  if (y < 1900 || y > 2100 || m < 1 || m > 12 || d < 1 || d > 31) return false;
-  const dt = new Date(y, m - 1, d);
-  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+  return isRealCalendarDate(y, m, d);
 }
 
 function PremiumDatePicker({
@@ -333,6 +333,9 @@ export default function DanisanKayitPage() {
   const [gorusme, setGorusme] = useState("");
   // Manuel görüşme tarihi metni geçerli tam tarihe çözülmüyorsa true → kayıt engellenir.
   const [gorusmeInvalid, setGorusmeInvalid] = useState(false);
+  // Doğum tarihi yazılmış ama gerçek takvim tarihi değilse (31.02.2000, yarım giriş,
+  // gelecek) true → kayıt engellenir (satış öncesi kapanış: VALIDATION-DATE).
+  const [dogumInvalid, setDogumInvalid] = useState(false);
   const [kan, setKan] = useState("");
   const [mizac, setMizac] = useState("");
 
@@ -377,6 +380,10 @@ export default function DanisanKayitPage() {
     // (yarım giriş veya 31.02.2026 gibi olmayan gün) kayıt kabul edilmez.
     if (gorusmeInvalid) {
       showToast({ title: t("toast.invalidDateTitle"), message: t("toast.invalidDateMsg"), type: "error" });
+      return;
+    }
+    if (dogumInvalid) {
+      showToast({ title: t("toast.invalidDateTitle"), message: t("toast.invalidBirthMsg"), type: "error" });
       return;
     }
 
@@ -467,7 +474,12 @@ export default function DanisanKayitPage() {
     });
 
     if (!insRes.ok) {
-      showToast({ title: t("toast.failTitle"), message: t("toast.saveError"), type: "error" });
+      // Sunucu doğrulaması (400) alan bazlı Türkçe mesaj döner → kullanıcıya aynen göster.
+      let serverMsg: string | null = null;
+      if (insRes.status === 400) {
+        try { serverMsg = ((await insRes.json()) as { error?: string }).error ?? null; } catch { serverMsg = null; }
+      }
+      showToast({ title: t("toast.failTitle"), message: serverMsg ?? t("toast.saveError"), type: "error" });
       setSaving(false);
       return;
     }
@@ -544,7 +556,7 @@ export default function DanisanKayitPage() {
               <input value={telefon} onChange={(e) => setTelefon(e.target.value)} className={inputClassName} placeholder={t("placeholders.telefon")} />
             </Field>
             <Field label={t("fields.dogum")}>
-              <BirthDateInput value={dogum} onChange={setDogum} className={inputClassName} />
+              <BirthDateInput value={dogum} onChange={setDogum} onInvalidChange={setDogumInvalid} maxDate={todayInZone()} className={inputClassName} />
             </Field>
             <Field label={t("fields.gorusme")}>
               <PremiumDatePicker value={gorusme} onChange={setGorusme} onInvalidChange={setGorusmeInvalid} inputClassName={inputClassName} />

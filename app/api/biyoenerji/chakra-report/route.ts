@@ -31,8 +31,12 @@ import { formatInstantDate, reportFileDate, reportGeneratedLabel } from "@/lib/t
 import {
   deriveChakraBibliography,
   SOURCE_EVIDENCE_BLOCK_TYPE,
-  type ChakraContentBlock,
 } from "@/lib/bioenergy/chakraWorkspace";
+import {
+  readChakraReportData,
+  type ChakraReportRow,
+  type ChakraReportSelection,
+} from "@/lib/bioenergy/chakraReportRead";
 
 export const runtime = "nodejs";
 
@@ -62,21 +66,7 @@ function blockBodyToPlain(text: string): string {
 
 type ExportMode = "all" | "selected" | "single";
 
-type ChakraRow = {
-  id: string;
-  tenant_id: string;
-  source_uid: string | null;
-  name: string | null;
-  organs: string | null;
-  glands: string | null;
-  color: string | null;
-  stones: string | null;
-  causes: string | null;
-  physical: string | null;
-  mental: string | null;
-  notes: string | null;
-  created_at: string;
-};
+type ChakraRow = ChakraReportRow;
 
 /** created_at (timestamptz) → Europe/Istanbul takvim günü (FA-02; sunucu UTC'de çalışır). */
 function formatDateTR(d: string): string {
@@ -123,46 +113,33 @@ export async function POST(request: NextRequest): Promise<Response> {
   // AA-6: route kendi service_role client'ını KURMAZ — guard'ın sunucu client'ı (guard.db).
   const { db } = guard;
 
-  // All bioenergy_chakras columns
-  const SELECT = "id,tenant_id,source_uid,name,organs,glands,color,stones,causes,physical,mental,notes,created_at";
-  let query = db.from("bioenergy_chakras").select(SELECT).eq("tenant_id", tenantId);
-
-  if (exportMode === "single" && chakraId) {
-    query = query.eq("id", chakraId);
-  } else if (exportMode === "selected" && Array.isArray(chakraIds) && chakraIds.length > 0) {
-    query = query.in("id", capSelectedIds(chakraIds));
-  }
-
-  const { data, error } = await query.order("created_at", { ascending: false }).limit(MAX_EXPORT_RECORDS);
-  if (error) {
-    console.error("[chakra-report] read failed:", error);
+  // BIO-01 — çakralar + bloklar sayfalı, deterministik sıralı ve sayım-doğrulamalı okunur.
+  // Okuma eksik/hatalıysa rapor ÜRETİLMEZ (sessiz kırpma / sessiz legacy fallback yok).
+  const sel: ChakraReportSelection =
+    exportMode === "single" && typeof chakraId === "string" && chakraId
+      ? { mode: "single", chakraId }
+      : exportMode === "selected" && Array.isArray(chakraIds) && chakraIds.length > 0
+        ? { mode: "selected", chakraIds: capSelectedIds(chakraIds) }
+        : { mode: "all" };
+  const read = await readChakraReportData(db, tenantId, sel, MAX_EXPORT_RECORDS);
+  if (!read.ok) {
+    console.error(`[chakra-report] ${read.stage} read failed:`, read.error);
     await trackUsage(guard, request, { module: "energy_body", action: "action_failed", failedAction: "report_generated", subEntity: "chakra", errorClass: "server" });
-    return Response.json({ ok: false, error: "Çakra kayıtları okunamadı." }, { status: 500 });
+    return Response.json(
+      {
+        ok: false,
+        error: read.stage === "blocks"
+          ? "Çakra içerik blokları eksiksiz okunamadı; eksik rapor üretilmedi. Lütfen tekrar deneyin."
+          : "Çakra kayıtları okunamadı.",
+      },
+      { status: 500 },
+    );
   }
 
-  const chakras = (data || []) as ChakraRow[];
+  const chakras = read.chakras as ChakraRow[];
   if (!chakras.length)
     return Response.json({ ok: false, error: "Bu seçim için çakra kaydı bulunamadı." }, { status: 404 });
-
-  // FAZ 2 — rich content blokları (tenant+chakra scoped, tek sorgu). Visible block'lu
-  // çakralar canonical block modelinden export edilir; yoksa legacy alanlara düşülür.
-  const blocksByChakra = new Map<string, ChakraContentBlock[]>();
-  {
-    const ids = chakras.map((c) => c.id);
-    const blkRes = await db
-      .from("bioenergy_chakra_blocks")
-      .select("id, chakra_id, section_key, block_type, block_title, sort_order, editorial_explanation, source_title, source_author, created_at")
-      .eq("tenant_id", tenantId)
-      .in("chakra_id", ids);
-    if (!blkRes.error && Array.isArray(blkRes.data)) {
-      for (const raw of blkRes.data as (ChakraContentBlock & { chakra_id: string })[]) {
-        const arr = blocksByChakra.get(raw.chakra_id) ?? [];
-        arr.push(raw);
-        blocksByChakra.set(raw.chakra_id, arr);
-      }
-    }
-    // Tablo yoksa/hata: blocksByChakra boş → tüm çakralar legacy fallback (mevcut davranış).
-  }
+  const blocksByChakra = read.blocksByChakra;
 
   const today = reportGeneratedLabel();
   const dateSlug = reportFileDate();
@@ -195,7 +172,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   all.push(...buildTOCPage());
 
-  if (chakras.length >= MAX_EXPORT_RECORDS) {
+  if (read.truncated) {
     all.push(muted(EXPORT_TRUNCATED_NOTE(MAX_EXPORT_RECORDS)));
   }
 
@@ -212,10 +189,16 @@ export async function POST(request: NextRequest): Promise<Response> {
     all.push(h2(name));
 
     // Quick-fact tablosu (canonical block modeliyle uyumlu; legacy Renk fallback korunur)
+    // Hızlı bilgiler: yalnız dolu alanlar (Sanskritçe ad / element / konum / bija mantra).
+    const quick: [string, string][] = [];
+    if (chakra.sanskrit_name?.trim()) quick.push(["Sanskritçe Ad", chakra.sanskrit_name.trim()]);
+    if (chakra.element?.trim()) quick.push(["Element", chakra.element.trim()]);
+    if (chakra.location?.trim()) quick.push(["Konum", chakra.location.trim()]);
+    if (chakra.bija_mantra?.trim()) quick.push(["Bija Mantra", chakra.bija_mantra.trim()]);
     all.push(twoColTable([
+      ...quick,
       ["Renk",         chakra.color?.trim() || "Belirtilmemiş"],
       ["Kayıt Tarihi", formatDateTR(chakra.created_at)],
-      ...(chakra.source_uid?.trim() ? [["Kaynak UID", chakra.source_uid.trim()] as [string, string]] : []),
     ]));
 
     const blocks = blocksByChakra.get(chakra.id) ?? [];
@@ -241,6 +224,17 @@ export async function POST(request: NextRequest): Promise<Response> {
       if (bib.length > 0) {
         all.push(h3("Kaynakça"));
         bib.forEach((e, idx) => all.push(bodyText(`${idx + 1}. ${e.author ? `${e.author} — ` : ""}${e.title}`)));
+      }
+      // BIO-05 — editörde düzenlenebilen "Ek Bilgiler" (doluysa) zengin içerikli çakrada da raporlanır.
+      const extra: [string, string | null][] = [
+        ["Organlar", chakra.organs], ["Bezler", chakra.glands], ["Taşlar", chakra.stones],
+        ["Nedenler", chakra.causes], ["Fiziksel", chakra.physical], ["Zihinsel", chakra.mental],
+        ["Notlar", chakra.notes],
+      ];
+      const filled = extra.filter(([, v]) => (v ?? "").trim().length > 0);
+      if (filled.length > 0) {
+        all.push(h3("Ek Bilgiler"));
+        for (const [label, v] of filled) all.push(bodyText(`${label}: ${(v ?? "").trim()}`));
       }
     } else {
       // ── Legacy fallback: rich-block'suz eski kayıtlar (mevcut davranış korunur) ──

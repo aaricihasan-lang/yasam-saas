@@ -400,7 +400,7 @@ export default function Imajinasyonlar() {
 
   async function handleDeleteAll() {
     setIsBulkDeleting(true);
-    const { error } = await bioApiDeleteAll("imaginations");
+    const { error } = await bioApiDeleteAll("imaginations", totalInDb);
     setIsBulkDeleting(false);
     setDanger((d) => ({ ...d, open: false }));
     if (error) {
@@ -432,7 +432,7 @@ export default function Imajinasyonlar() {
       )}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         {!isDemo && (
-          <button type="button" onClick={() => setFormModalOpen(true)} className={newRecordBtnClass}>
+          <button type="button" onClick={() => { setForm({ ...emptyForm }); setFormModalOpen(true); }} className={newRecordBtnClass}>
             + Yeni Kayıt
           </button>
         )}
@@ -570,10 +570,11 @@ export default function Imajinasyonlar() {
                   {!isDemo && (
                     <label
                       className="absolute right-1 top-1 z-20 flex h-11 w-11 cursor-pointer items-center justify-center lg:right-3 lg:top-3 lg:h-5 lg:w-5"
-                      onClick={(e) => e.preventDefault()}
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <input
                         type="checkbox"
+                        aria-label="Bu kaydı seç"
                         checked={isExportSelected}
                         onChange={() => setSelectedForExport((prev) => {
                           const next = new Set(prev);
@@ -648,12 +649,12 @@ export default function Imajinasyonlar() {
         subtitle="Kaydettikten sonra kütüphanede görünür."
         titleId="imagination-form-modal-title"
         accentRingClass="ring-amber-100/50"
-        footer={
+        footer={({ requestClose }) => (
           <>
             <button
               type="button"
               disabled={saving}
-              onClick={() => setFormModalOpen(false)}
+              onClick={requestClose}
               className="rounded-xl border border-slate-200/85 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
               Vazgeç
@@ -675,7 +676,7 @@ export default function Imajinasyonlar() {
               {saving ? "Kaydediliyor…" : "Kaydet"}
             </button>
           </>
-        }
+        )}
       >
         <div className="space-y-5">
           <label className="block">
@@ -728,6 +729,7 @@ export default function Imajinasyonlar() {
 
       <BiyoenerjiDangerDeleteModal
         open={danger.open}
+        scope={{ filterActive: Boolean(debouncedSearch.trim() || categoryFilter), visibleCount: searchResultCount }}
         mode={danger.mode}
         count={danger.mode === "all" ? totalInDb : selectedVisibleRows.length}
         names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => (r.title?.trim() || "İsimsiz kayıt"))}
