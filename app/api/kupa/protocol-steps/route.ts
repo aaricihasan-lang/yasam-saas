@@ -65,6 +65,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   const res = await listEntity(db, CUPPING_TABLES.protocolSteps, tenantId, {
     orderBy: "sort_order",
     ascending: true,
+    thenBy: ["created_at", "id"],
     eqFilters: protocolId ? { protocol_id: protocolId } : undefined,
   });
   if (!res.ok) return res.response;

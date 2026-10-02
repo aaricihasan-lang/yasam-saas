@@ -60,6 +60,12 @@ type CrudManagerProps<T extends Rec> = {
    * boş bırakılır (uydurma cascade uyarısı YOK).
    */
   deleteCascadeHint?: string;
+  /**
+   * Silme onayından ÖNCE gerçek etkiyi (DB'den) hesaplar. Dönen mesaj onay diyaloğunda gösterilir;
+   * blocked=true ise silme diyaloğu yalnız bilgi modunda açılır (silme butonu yok). Hesaplama
+   * başarısızsa silme AÇILMAZ (yanlış/eksik etki ile silme yapılmaz).
+   */
+  loadDeleteImpact?: (item: T) => Promise<{ message: string; blocked?: boolean }>;
 };
 
 function toFormValue(v: unknown, type: FieldType): string | boolean {
@@ -103,6 +109,7 @@ export function CrudManager<T extends Rec>({
   addLabel,
   renderExtra,
   deleteCascadeHint,
+  loadDeleteImpact,
   searchKeys,
   searchPlaceholder,
   filters,
@@ -115,6 +122,8 @@ export function CrudManager<T extends Rec>({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [impact, setImpact] = useState<{ message: string; blocked?: boolean } | null>(null);
+  const [impactLoading, setImpactLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
 
@@ -172,6 +181,9 @@ export function CrudManager<T extends Rec>({
   };
 
   const openEdit = (item: T) => {
+    // Kayıt/silme sürerken başka kayda geçilmez: yavaş bir "oluştur" yanıtı geldiğinde formdaki
+    //   BAŞKA kaydın değerleri yeni kaydın üstüne yazılamaz.
+    if (busy) return;
     setCreating(false);
     setSelectedId(item.id);
     const next: Record<string, string | boolean> = {};
@@ -230,6 +242,11 @@ export function CrudManager<T extends Rec>({
         try {
           const list = await load();
           setItems(list);
+          // Kayıt artık yoksa (ör. başka sekmede silinmiş) seçimi bırak — kayıtsız ek panel render edilmez.
+          if (!list.some((i) => i.id === id)) {
+            setSelectedId(null);
+            setForm({});
+          }
         } catch {
           /* yükleme hatası sessiz — mevcut liste korunur */
         }
@@ -239,6 +256,30 @@ export function CrudManager<T extends Rec>({
       setError(e instanceof Error ? e.message : "Silinemedi.");
     } finally {
       setBusy(false);
+    }
+  };
+
+  // Silme tıklaması: varsa önce GERÇEK etkiyi hesapla, sonra onay diyaloğunu aç.
+  const requestDelete = async () => {
+    if (!selectedId || busy || impactLoading) return;
+    setError(null);
+    setImpact(null);
+    if (!loadDeleteImpact) {
+      setConfirmOpen(true);
+      return;
+    }
+    const rec = items.find((i) => i.id === selectedId);
+    if (!rec) return;
+    setImpactLoading(true);
+    try {
+      setImpact(await loadDeleteImpact(rec));
+      setConfirmOpen(true);
+    } catch (e) {
+      setError(
+        `Silme etkisi hesaplanamadı; silme yapılmadı. Tekrar deneyin.${e instanceof Error ? ` (${e.message})` : ""}`,
+      );
+    } finally {
+      setImpactLoading(false);
     }
   };
 
@@ -425,17 +466,15 @@ export function CrudManager<T extends Rec>({
                 {!creating && selectedId ? (
                   <button
                     type="button"
-                    onClick={() => setConfirmOpen(true)}
-                    disabled={busy}
-                    className={`${kupaBtnDanger} ml-auto`}
+                    onClick={() => void requestDelete()}
+                    disabled={busy || impactLoading}
+                    className={`${kupaBtnDanger} ml-auto min-h-[40px]`}
                   >
-                    Sil
+                    {impactLoading ? "Kontrol ediliyor…" : "Sil"}
                   </button>
                 ) : null}
               </div>
-              {!creating && selectedId && renderExtra
-                ? renderExtra(items.find((i) => i.id === selectedId) as T)
-                : null}
+              {!creating && selectedRecord && renderExtra ? renderExtra(selectedRecord) : null}
             </>
           )}
         </div>
@@ -443,17 +482,22 @@ export function CrudManager<T extends Rec>({
 
       <KupaConfirmDialog
         open={confirmOpen}
-        title="Kaydı sil"
+        title={impact?.blocked ? "Kayıt silinemiyor" : "Kaydı sil"}
         description={
-          `“${selectedName || "Bu kayıt"}” kaydını silmek istediğinize emin misiniz? ` +
-          `Bu işlem geri alınamaz.` +
-          (deleteCascadeHint ? `\n\n${deleteCascadeHint}` : "")
+          impact?.blocked
+            ? impact.message
+            : `“${selectedName || "Bu kayıt"}” kaydını silmek istediğinize emin misiniz? ` +
+              `Bu işlem geri alınamaz.` +
+              (impact?.message ? `\n\n${impact.message}` : deleteCascadeHint ? `\n\n${deleteCascadeHint}` : "")
         }
-        confirmLabel="Sil"
+        confirmLabel={impact?.blocked ? undefined : "Sil"}
         busy={busy}
-        onConfirm={performDelete}
+        onConfirm={impact?.blocked ? undefined : performDelete}
         onClose={() => {
-          if (!busy) setConfirmOpen(false);
+          if (!busy) {
+            setConfirmOpen(false);
+            setImpact(null);
+          }
         }}
       />
     </>

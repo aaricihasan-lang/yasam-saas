@@ -25,15 +25,27 @@ export function PlanPicker({
   plans,
   activePlanId,
   currentDayCount,
+  hasPendingChanges = false,
+  disabled = false,
   onSelect,
-  onPlansChanged,
+  onBeforeCreate,
+  onPlanCreated,
+  onPlanUpdated,
   onDelete,
 }: {
   plans: CuppingCalendarPlan[];
   activePlanId: string | null;
   currentDayCount: number;
+  /** Takvimde kaydedilmemiş gün değişikliği var mı (yıl kilidi + yeni plan onayı için). */
+  hasPendingChanges?: boolean;
+  /** Kayıt sürerken plan kontrolleri kilitli. */
+  disabled?: boolean;
   onSelect: (planId: string) => void;
-  onPlansChanged: (selectId?: string) => Promise<void> | void;
+  /** Yeni plan oluşturup ona geçmeden ÖNCE: kaydedilmemiş taslak varsa onay (false → iptal). */
+  onBeforeCreate: () => Promise<boolean>;
+  onPlanCreated: (planId: string) => Promise<void> | void;
+  /** Ad/açıklama/yıl güncellendi → çağıran YERİNDE günceller (gün taslağı sıfırlanmaz). */
+  onPlanUpdated: (plan: CuppingCalendarPlan) => void;
   onDelete: (plan: CuppingCalendarPlan) => void;
 }) {
   const { showToast } = useToast();
@@ -44,7 +56,9 @@ export function PlanPicker({
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const yearLocked = mode === "edit" && currentDayCount > 0;
+  // Yıl invariantı: kayıtlı VEYA kaydedilmemiş günü olan planın yılı değiştirilemez (taslaktaki
+  //   günler eski yıla aittir; yıl değişirse kaydedilemez hale gelirdi).
+  const yearLocked = mode === "edit" && (currentDayCount > 0 || hasPendingChanges);
 
   function openNew() {
     const y = defaultYear();
@@ -73,6 +87,8 @@ export function PlanPicker({
     setBusy(true);
     try {
       if (mode === "new") {
+        // Yeni plana geçiş mevcut planın KAYDEDİLMEMİŞ taslağını bırakır → önce açık onay.
+        if (!(await onBeforeCreate())) return;
         const res = await createCalendarPlan({ name: name.trim(), year, description: description.trim() || null });
         // Demo hesabı: sunucu plan:null döndürür (persist=0) — sahte gün göstermeyiz.
         if (!res.plan) {
@@ -81,7 +97,7 @@ export function PlanPicker({
           return;
         }
         // OTORİTER durumu getir. Yeni plan SIFIR seçili günle açılır (hazır gün YOK).
-        await onPlansChanged(res.plan.id);
+        await onPlanCreated(res.plan.id);
         showToast({ message: "Takvim oluşturuldu.", type: "success" });
       } else if (mode === "edit" && active) {
         // Yıl yalnız gün yoksa gönderilir (invariant); ad/açıklama her zaman.
@@ -90,8 +106,8 @@ export function PlanPicker({
           description: description.trim() || null,
         };
         if (!yearLocked && year !== active.year) body.year = year;
-        await updateCalendarPlan(active.id, body);
-        await onPlansChanged(active.id);
+        const updated = await updateCalendarPlan(active.id, body);
+        onPlanUpdated(updated);
         showToast({ message: "Takvim güncellendi.", type: "success" });
       }
       setMode("none");
@@ -110,8 +126,14 @@ export function PlanPicker({
           <select
             className={kupaInput}
             value={activePlanId ?? ""}
-            onChange={(e) => onSelect(e.target.value)}
+            onChange={(e) => e.target.value && onSelect(e.target.value)}
+            disabled={disabled}
           >
+            {activePlanId ? null : (
+              <option value="" disabled>
+                Takvim seçin…
+              </option>
+            )}
             {plans.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name} ({p.year})
@@ -120,18 +142,19 @@ export function PlanPicker({
           </select>
         </label>
         <div className="flex gap-2">
-          <button type="button" className={`${kupaBtnPrimary} min-h-[40px]`} onClick={openNew}>
+          <button type="button" className={`${kupaBtnPrimary} min-h-[40px]`} onClick={openNew} disabled={disabled}>
             + Yeni Takvim
           </button>
           {active ? (
             <>
-              <button type="button" className={`${kupaBtnGhost} min-h-[40px]`} onClick={openEdit}>
+              <button type="button" className={`${kupaBtnGhost} min-h-[40px]`} onClick={openEdit} disabled={disabled}>
                 Düzenle
               </button>
               <button
                 type="button"
                 className="inline-flex min-h-[40px] items-center rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
                 onClick={() => onDelete(active)}
+                disabled={disabled}
               >
                 Sil
               </button>

@@ -11,7 +11,7 @@ import {
   type CuppingCitationEntity,
   type CuppingSource,
 } from "../lib/api";
-import { kupaBtnGhost, kupaBtnPrimary, kupaInput } from "./KupaShell";
+import { kupaBtnGhost, kupaBtnPrimary, kupaInput, kupaRowAction, kupaRowActionDanger, kupaRowActions } from "./KupaShell";
 import { KupaConfirmDialog } from "./ConfirmDialog";
 
 /**
@@ -193,11 +193,11 @@ export function CuppingCitationManager({
                   {c.note ? ` · ${String(c.note)}` : ""}
                 </p>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className={kupaRowActions}>
                 <button
                   type="button"
                   onClick={() => handleEdit(c)}
-                  className="text-[11px] font-semibold text-amber-700 hover:text-amber-800"
+                  className={kupaRowAction}
                 >
                   Düzenle
                 </button>
@@ -205,7 +205,7 @@ export function CuppingCitationManager({
                   type="button"
                   onClick={() => setRemoveTarget(c)}
                   disabled={busy}
-                  className="text-[11px] font-semibold text-rose-600 hover:text-rose-700"
+                  className={kupaRowActionDanger}
                 >
                   Kaldır
                 </button>

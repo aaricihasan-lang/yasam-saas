@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { kupaBtnPrimary, kupaBtnGhost, kupaBtnSuccess, kupaInput } from "@/app/kupa/components/KupaShell";
+import { kupaBtnPrimary, kupaBtnGhost, kupaBtnSuccess, kupaInput, kupaRowAction, kupaRowActionDanger, kupaRowActions } from "@/app/kupa/components/KupaShell";
 import { createProtocolEntry, updateProtocolEntry, deleteProtocolEntry, type CuppingProtocolEntry } from "@/app/kupa/lib/api";
 import type { ProtocolDocument } from "../hooks/useProtocolDocument";
 import { ProtocolSectionShell, ProtocolEmpty } from "./ProtocolSectionShell";
@@ -60,13 +60,25 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
         source_id: draft.source_id || null,
         source_label: draft.source_label.trim() || null,
         locator: draft.locator.trim() || null,
-        point_ids: draft.point_ids,
       };
-      if (editingId) await updateProtocolEntry(editingId, common);
-      else await createProtocolEntry({ protocol_id: protocolId, ...common });
-      await doc.reload.entries(); // server canonical (point_ids dahil)
+      if (editingId) {
+        // Bölge bağları YALNIZ kullanıcı seçimi değiştirdiyse gönderilir. Yalnız metin düzeltmesi
+        //   sunucudaki bağlara DOKUNMAZ (eksik/eski istemci durumu bağları silemez).
+        const original = doc.entries.find((x) => x.id === editingId)?.point_ids ?? [];
+        const pointsChanged =
+          original.length !== draft.point_ids.length || original.some((pid, i) => pid !== draft.point_ids[i]);
+        await updateProtocolEntry(editingId, pointsChanged ? { ...common, point_ids: draft.point_ids } : common);
+      } else {
+        await createProtocolEntry({ protocol_id: protocolId, ...common, point_ids: draft.point_ids });
+      }
       setFormOpen(false);
-      showToast({ message: editingId ? "Bilgi güncellendi." : "Bilgi eklendi.", type: "success" });
+      try {
+        await doc.reload.entries(); // server canonical (point_ids dahil)
+        showToast({ message: editingId ? "Bilgi güncellendi." : "Bilgi eklendi.", type: "success" });
+      } catch {
+        // Kayıt BAŞARILI; yalnız liste tazelenemedi → "kaydedilemedi" denmez (mükerrer kayıt riski).
+        showToast({ message: "Bilgi kaydedildi ancak liste yenilenemedi. Güncel hali görmek için sayfayı yenileyin.", type: "warning" });
+      }
     } catch (e) {
       // Atomik hata → mevcut veri DEĞİŞMEZ (server rollback). UI state'i de değiştirmedik.
       showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
@@ -108,11 +120,11 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
                   {e.title ? <p className="text-sm font-bold text-slate-800">{e.title}</p> : null}
                   <p className="mt-0.5 whitespace-pre-wrap text-[13px] leading-relaxed text-slate-700">{e.content}</p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <button type="button" className="text-xs font-semibold text-amber-700 hover:underline" onClick={() => openEdit(e)}>
+                <div className={kupaRowActions}>
+                  <button type="button" className={kupaRowAction} onClick={() => openEdit(e)}>
                     Düzenle
                   </button>
-                  <button type="button" className="text-xs font-semibold text-rose-600 hover:underline" onClick={() => remove(e)}>
+                  <button type="button" className={kupaRowActionDanger} onClick={() => remove(e)}>
                     Sil
                   </button>
                 </div>
@@ -143,16 +155,16 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
             <div className="rounded-xl border border-slate-200 bg-white p-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold text-slate-500">İlgili Bölgeler</span>
-                <button type="button" className="text-xs font-semibold text-amber-700 hover:underline" onClick={() => setPointPickerOpen(true)}>
+                <button type="button" className={kupaRowAction} onClick={() => setPointPickerOpen(true)}>
                   + Bölge
                 </button>
               </div>
               {draft.point_ids.length > 0 ? (
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {draft.point_ids.map((pid) => (
-                    <span key={pid} className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">
+                    <span key={pid} className="inline-flex items-center gap-1 rounded-md bg-amber-50 py-0.5 pl-2 text-[11px] text-amber-700">
                       {doc.pointName(pid)}
-                      <button type="button" aria-label="Kaldır" className="text-amber-500 hover:text-rose-600" onClick={() => setDraft({ ...draft, point_ids: draft.point_ids.filter((x) => x !== pid) })}>
+                      <button type="button" aria-label={`${doc.pointName(pid)} bölgesini kaldır`} className="inline-flex h-10 w-10 items-center justify-center rounded-md text-base text-amber-500 hover:bg-rose-50 hover:text-rose-600 lg:h-8 lg:w-8" onClick={() => setDraft({ ...draft, point_ids: draft.point_ids.filter((x) => x !== pid) })}>
                         ×
                       </button>
                     </span>
@@ -169,7 +181,7 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
               <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5">
                 <span className="text-[11px] font-semibold text-slate-500">Kaynak:</span>
                 <span className="text-[13px] font-medium text-slate-700">{doc.sourceName(draft.source_id)}</span>
-                <button type="button" className="text-xs font-semibold text-rose-600 hover:underline" onClick={() => setDraft({ ...draft, source_id: "" })}>
+                <button type="button" className={kupaRowActionDanger} onClick={() => setDraft({ ...draft, source_id: "" })}>
                   Kaldır
                 </button>
               </div>
