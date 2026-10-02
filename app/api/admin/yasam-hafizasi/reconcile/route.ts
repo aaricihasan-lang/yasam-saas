@@ -10,10 +10,15 @@
  *   - cache kapalı (no-store)
  *
  * İNDEKSLEME/RECONCILE MANTIĞI burada TEKRAR EDİLMEZ (reconcileEntry çekirdeği).
+ *
+ * AA-1: tüm tenant'ların kaynak/indeks satırlarını taradığından YALNIZ ANA YÖNETİCİ
+ * (requireMainAdmin) + her çağrı çalışmadan ÖNCE admin_audit_log (fail-closed).
  */
 
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
+import { requireMainAdmin } from "@/lib/admin/adminGuards";
+import { writeAdminAudit } from "@/lib/admin/adminAudit";
 import { resolveYhSourceConfig } from "@/lib/yasam-hafizasi/indexer/adminIndexRequest";
 import { YH_OUTBOX_LEASE_SECONDS } from "@/lib/inngest/functions/yhOutboxWorker";
 import {
@@ -35,6 +40,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // 1) Admin auth (fail-closed).
   const guard = await verifyAdminRequest(req);
   if (!guard.ok) return guard.response;
+
+  // 1b) AA-1: yalnız ANA YÖNETİCİ.
+  const main = await requireMainAdmin(guard.db, guard.adminId);
+  if (!main.ok) {
+    return NextResponse.json(
+      { ok: false, error: { code: "main-admin-required" } },
+      { status: 403, headers: NO_STORE },
+    );
+  }
 
   // 2) Opsiyonel body: yalnız bounded pageSize override (arbitrary source/table YOK).
   let pageSize = RECON_DEFAULT_CAPS.pageSize;
@@ -65,6 +79,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(
       { ok: false, error: { code: "config-missing" } },
       { status: 500, headers: NO_STORE },
+    );
+  }
+
+  // 3b) AA-1: çalışmadan ÖNCE audit (yalnız dry-run olsa da). Fail-closed.
+  try {
+    await writeAdminAudit(guard.db, {
+      actorAdminId: guard.adminId,
+      actorIsMainAdmin: true,
+      action: "main_admin_critical_action",
+      context: {
+        operation: "yh_reconcile_admin_run",
+        source_key: RECON_PILOT_SOURCE_KEY,
+        mode: "dry-run",
+        page_size: pageSize,
+      },
+    });
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: { code: "audit-unavailable" } },
+      { status: 503, headers: NO_STORE },
     );
   }
 

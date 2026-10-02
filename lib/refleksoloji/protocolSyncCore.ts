@@ -27,10 +27,10 @@ export function decideProtocolCas(
 }
 
 /**
- * RF-09 (protokol diriltme): by-uid PUT'ta hedef satır YOKSA ne yapılır.
- *   - expected YOK → istemci satırı hiç görmedi (yeni / sunucuya hiç gitmemiş kayıt) → insert
- *   - expected VAR → istemci satırı GÖRMÜŞTÜ; satır artık yok = başka cihazda SİLİNDİ →
- *     409 PROTOCOL_DELETED (bayat düzenleme silinen protokolü DİRİLTMEZ, yeni satır YOK)
+ * P1-5 (protokol diriltme): by-uid PUT'ta hedef satır YOKSA ne yapılır.
+ *   - expected YOK  → istemci satırı hiç görmedi (yeni / sunucuya hiç gitmemiş kayıt) → insert
+ *   - expected VAR  → istemci satırı GÖRMÜŞTÜ; satır artık yok = başka cihazda SİLİNDİ →
+ *     409 PROTOCOL_DELETED (bayat düzenleme silinen protokolü DİRİLTMEZ)
  */
 export type ProtocolMissingRowDecision =
   | { kind: "insert" }

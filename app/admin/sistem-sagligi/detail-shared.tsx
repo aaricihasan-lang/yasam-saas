@@ -7,8 +7,7 @@ import {
   mapDbUser,
   type ManagedUser,
 } from "@/lib/admin/userManagement";
-import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
+import { isAdminUser, readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 
 export { formatCreatedAt };
 
@@ -115,73 +114,71 @@ export function buildTenantCounts(ids: (string | null)[]): TenantIdCount[] {
     .sort((a, b) => b.count - a.count);
 }
 
-export async function fetchTableTotalCount(table: string): Promise<{
-  total: number;
-  error: string | null;
-}> {
-  const { count, error } = await supabase
-    .from(table)
-    .select("*", { count: "exact", head: true });
-
-  if (error) {
-    return { total: 0, error: error.message };
-  }
-  return { total: count ?? 0, error: null };
+/** {tenant_id: count} haritası → sıralı TenantIdCount listesi (yalnız sayı; satır yok). */
+export function tenantCountsFromMap(map: Record<string, number> | null | undefined): TenantIdCount[] {
+  return Object.entries(map ?? {})
+    .filter(([id, count]) => id.trim() !== "" && Number.isFinite(count) && count > 0)
+    .map(([id, count]) => ({ id, count, isLegacy: id === LEGACY_TENANT_ID }))
+    .sort((a, b) => b.count - a.count);
 }
 
-export async function fetchAllTenantIds(table: string): Promise<{
-  ids: (string | null)[];
-  error: string | null;
-}> {
-  const ids: (string | null)[] = [];
-  const pageSize = 1000;
-  let from = 0;
-
-  while (true) {
-    const { data, error } = await supabase
-      .from(table)
-      .select("tenant_id")
-      .range(from, from + pageSize - 1);
-
-    if (error) {
-      return { ids: [], error: error.message };
-    }
-    if (!data?.length) break;
-
-    ids.push(...data.map((row) => (row as { tenant_id: string | null }).tenant_id));
-
-    if (data.length < pageSize) break;
-    from += pageSize;
-  }
-
-  return { ids, error: null };
+/** Admin API header'ları (x-admin-id + x-session-token; sunucu verifyAdminRequest doğrular). */
+export function sistemSagligiAdminHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { "x-admin-id": readYasamUser()?.id ?? "" };
+  const token = readSessionToken();
+  if (token) headers["x-session-token"] = token;
+  return headers;
 }
 
-export async function loadTenantMetricSummary(table: string): Promise<{
+const METRIC_LOAD_ERROR = "Metrikler alınamadı. Lütfen tekrar deneyin.";
+
+/** AA-2: sayım yalnız sunucu admin route'undan (tarayıcıdan tablo okuması YOK). */
+export type SistemSagligiMetricKey = "clients" | "personal_archives" | "stones";
+
+export async function loadTenantMetricSummary(metric: SistemSagligiMetricKey): Promise<{
   total: number;
   tenantRows: TenantIdCount[];
   distinctTenants: number;
   error: string | null;
 }> {
-  const [{ total, error: countError }, { ids, error: idsError }] = await Promise.all([
-    fetchTableTotalCount(table),
-    fetchAllTenantIds(table),
-  ]);
-
-  const error = countError ?? idsError;
-  const tenantRows = buildTenantCounts(ids);
-
-  return {
-    total,
-    tenantRows,
-    distinctTenants: tenantRows.length,
-    error,
-  };
+  try {
+    const res = await fetch(`/api/admin/system-health/counts?metric=${encodeURIComponent(metric)}`, {
+      headers: sistemSagligiAdminHeaders(),
+      cache: "no-store",
+    });
+    const json = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      total?: number;
+      tenants?: Record<string, number>;
+    };
+    if (!res.ok || json.ok !== true) {
+      return { total: 0, tenantRows: [], distinctTenants: 0, error: METRIC_LOAD_ERROR };
+    }
+    const tenantRows = tenantCountsFromMap(json.tenants);
+    return {
+      total: json.total ?? 0,
+      tenantRows,
+      distinctTenants: tenantRows.length,
+      error: null,
+    };
+  } catch {
+    return { total: 0, tenantRows: [], distinctTenants: 0, error: METRIC_LOAD_ERROR };
+  }
 }
 
-export async function probeSupabaseTable(table: string): Promise<boolean> {
-  const { error } = await supabase.from(table).select("*", { count: "exact", head: true });
-  return !error;
+/** AA-2: altyapı tablo grubu (hata/yedek) var mı — sunucuda sabit aday listesiyle yoklanır. */
+export async function probeSistemSagligiTables(group: "errors" | "backups"): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/admin/system-health/counts?probe=${group}`, {
+      headers: sistemSagligiAdminHeaders(),
+      cache: "no-store",
+    });
+    if (!res.ok) return false;
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; available?: boolean };
+    return json.ok === true && json.available === true;
+  } catch {
+    return false;
+  }
 }
 
 export function useSistemSagligiAdminGate() {

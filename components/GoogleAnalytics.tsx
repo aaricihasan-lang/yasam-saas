@@ -1,27 +1,37 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import {
   GA_MEASUREMENT_ID,
   analyticsPagePath,
   shouldEnableAnalytics,
 } from "@/lib/legal/analyticsPolicy";
+import { CONSENT_CHANGE_EVENT } from "@/lib/legal/analyticsConsent";
+import {
+  GA_DISABLE_KEY,
+  disableAnalyticsAndPurgeCookies,
+  hasAnalyticsConsent,
+} from "@/components/analytics/analyticsConsentClient";
 
 /**
- * Google Analytics — YALNIZ herkese açık sayfalarda ve YALNIZ oturum açılmamış
- * ziyaretçide (FAZ1 FINAL HARDENING — INFRA). Kural: lib/legal/analyticsPolicy.ts.
+ * Google Analytics — YALNIZ ziyaretçinin açık onayıyla, YALNIZ herkese açık sayfalarda ve
+ * YALNIZ oturum açılmamış ziyaretçide (FAZ1 FINAL HARDENING — INFRA + P1-6 onay kapısı).
+ * Kurallar: lib/legal/analyticsPolicy.ts (rota/oturum) + lib/legal/analyticsConsent.ts (onay).
  *
- * Güvenlik:
+ * Güvenlik / gizlilik:
+ *   - Onay kararı "granted" DEĞİLSE gtag.js HİÇ yüklenmez; dataLayer/gtag kuyruğu da
+ *     kurulmaz → `_ga` çerezi oluşmaz. Önceki ziyaretlerden kalmış `_ga` / `_ga_*`
+ *     çerezleri silinir.
  *   - İzinli olmayan rotada (dashboard/danışan/modül/admin) gtag.js HİÇ yüklenmez.
- *   - GA bir kez yüklendiyse (ör. giriş sayfası) ve kullanıcı oturum açar ya da
- *     uygulama içi bir rotaya geçerse `window["ga-disable-<ID>"] = true` ile GA
- *     susturulur. Bayrak, history.pushState/replaceState ve popstate'te GA'nın kendi
- *     dinleyicilerinden ÖNCE güncellenir (enhanced measurement sayfa değişimi dahil).
+ *   - GA bir kez yüklendiyse ve kullanıcı oturum açar, uygulama içi bir rotaya geçer ya
+ *     da onayını geri çekerse `window["ga-disable-<ID>"] = true` ile GA susturulur. Bayrak,
+ *     history.pushState/replaceState ve popstate'te GA'nın kendi dinleyicilerinden ÖNCE
+ *     güncellenir (enhanced measurement sayfa değişimi dahil).
  *   - page_view elle ve yalnız normalize yol ile gönderilir (query/hash YOK).
  *   - Inline init script'i YOK: dataLayer/gtag kuyruğu burada kurulur, gtag.js yüklenince işler.
- *   - gtag.js yalnız ilk izinli sayfada, effect içinde DOM'a bir kez eklenir.
+ *   - gtag.js yalnız onaydan sonraki ilk izinli sayfada, effect içinde DOM'a bir kez eklenir.
  */
 
 type GtagFn = (...args: unknown[]) => void;
@@ -35,7 +45,6 @@ declare global {
   }
 }
 
-const DISABLE_KEY = `ga-disable-${GA_MEASUREMENT_ID}` as const;
 const SCRIPT_ID = "yasam-gtag-js";
 
 function hasBrowserSession(): boolean {
@@ -46,9 +55,11 @@ function hasBrowserSession(): boolean {
   }
 }
 
+/** GA bu yolda etkin olmalı mı? Onay + public rota + oturum yok. */
 function evaluate(pathname: string): boolean {
-  const enabled = shouldEnableAnalytics({ pathname, hasSession: hasBrowserSession() });
-  window[DISABLE_KEY] = !enabled;
+  const enabled =
+    hasAnalyticsConsent() && shouldEnableAnalytics({ pathname, hasSession: hasBrowserSession() });
+  window[GA_DISABLE_KEY] = !enabled;
   return enabled;
 }
 
@@ -73,6 +84,7 @@ function installNavigationGuard(): void {
   window.setInterval(() => evaluate(window.location.pathname), 2000);
 }
 
+/** Yalnız onay + izinli rota doğrulandıktan SONRA çağrılır (evaluate === true). */
 function ensureGtag(): GtagFn {
   window.dataLayer = window.dataLayer || [];
   if (typeof window.gtag !== "function") {
@@ -96,8 +108,25 @@ function ensureGtag(): GtagFn {
 
 export default function GoogleAnalytics() {
   const pathname = usePathname() ?? "/";
+  // Onay kararı değiştiğinde (kabul / ret / tercih sıfırlama) effect yeniden değerlendirilir.
+  const [consentRevision, setConsentRevision] = useState(0);
 
   useEffect(() => {
+    const bump = () => setConsentRevision((n) => n + 1);
+    window.addEventListener(CONSENT_CHANGE_EVENT, bump);
+    window.addEventListener("storage", bump);
+    return () => {
+      window.removeEventListener(CONSENT_CHANGE_EVENT, bump);
+      window.removeEventListener("storage", bump);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Onay yoksa: GA yüklenmez, kuyruk kurulmaz; eski `_ga*` çerezleri temizlenir.
+    if (!hasAnalyticsConsent()) {
+      disableAnalyticsAndPurgeCookies();
+      return;
+    }
     if (!evaluate(pathname)) return;
     installNavigationGuard();
     const gtag = ensureGtag();
@@ -110,7 +139,7 @@ export default function GoogleAnalytics() {
       page_location: pageLocation,
       page_title: document.title,
     });
-  }, [pathname]);
+  }, [pathname, consentRevision]);
 
   return null;
 }

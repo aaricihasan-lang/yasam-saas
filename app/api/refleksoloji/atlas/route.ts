@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
-import { decideAtlasPut } from "@/lib/refleksoloji/atlasSyncCore";
+import { ATLAS_STALE_ERROR, decideAtlasPut } from "@/lib/refleksoloji/atlasSyncCore";
 import { validateAtlasPayload } from "@/lib/refleksoloji/atlasValidate";
 import { sameJsonContent } from "@/lib/refleksoloji/usageChange";
 import { trackUsage } from "@/lib/usage/trackUsage";
@@ -172,7 +172,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
       // PK çakışması: başka istek araya insert etmiş → conflict (overwrite yok).
       await trackUsage(guard, req, { module: "reflexology", action: "action_failed", failedAction: "record_updated", subEntity: "atlas", errorClass: "conflict" });
       return NextResponse.json(
-        { ok: false, conflict: true, code: "ATLAS_STALE", error: "Atlas başka bir yerde oluşturuldu." },
+        { ok: false, conflict: true, code: "ATLAS_STALE", error: ATLAS_STALE_ERROR },
         { status: 409 },
       );
     }
@@ -195,7 +195,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
   if (!upd || upd.length === 0) {
     await trackUsage(guard, req, { module: "reflexology", action: "action_failed", failedAction: "record_updated", subEntity: "atlas", errorClass: "conflict" });
     return NextResponse.json(
-      { ok: false, conflict: true, code: "ATLAS_STALE", error: "Atlas eşzamanlı güncellendi." },
+      { ok: false, conflict: true, code: "ATLAS_STALE", error: ATLAS_STALE_ERROR },
       { status: 409 },
     );
   }

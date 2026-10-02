@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { membershipInactiveResponse, verifyUserRequest } from "@/lib/auth/userGuard";
+import { hasMembershipAccessForRow } from "@/lib/auth/membershipAccessCore";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
 import { isYhSourceModuleInScope, resolveYhModuleScope } from "@/lib/yasam-hafizasi/moduleScope";
 import { getTenantFlags } from "@/lib/yasam-hafizasi/flags";
@@ -59,6 +60,10 @@ async function gate(
 ): Promise<{ ok: true; gate: Gate } | { ok: false; response: NextResponse }> {
   const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return { ok: false, response: guard.response };
+  // P1-4 ÜYELİK kapısı (requireModuleAccess ile AYNI kural; admin muaf).
+  if (!hasMembershipAccessForRow(guard.profile ?? {})) {
+    return { ok: false, response: membershipInactiveResponse() };
+  }
   const { db, tenantId, is_demo_account, profile, userId } = guard;
 
   if (!hasModulePermissionForProfile(profile, "yasam_hafizasi")) {

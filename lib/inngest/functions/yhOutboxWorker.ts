@@ -97,8 +97,10 @@ export const yhOutboxWorkerFunction = inngest.createFunction(
     // yalnız metot delegasyonuyla dar arayüzlere uyarlar (runtime davranışı aynı).
     const rpcDb: OutboxRpcDb = {
       async rpc(name, params) {
-        const { data, error } = await serverDb.rpc(name, params);
-        return { data, error: error === null ? null : { message: error.message } };
+        const { data, error, status } = await serverDb.rpc(name, params);
+        // F-1: güvenli sınıflandırma için yalnız `code` + HTTP `status` taşınır (message
+        // yalnız mevcut sözleşme gereği; sınıflandırıcı/loglar ham mesajı OKUMAZ).
+        return { data, error: error === null ? null : { message: error.message, code: error.code }, status };
       },
     };
     const indexDeleteClient: IndexDeleteClient = {

@@ -27,6 +27,9 @@
         "new": "Create New Intake",
         "blankForm": "Download Blank Form (PDF)",
         "blankFormBusy": "Preparing…",
+        "filledForm": "Download Saved Intake Form (PDF)",
+        "filledFormBusy": "Preparing PDF…",
+        "filledFormSaveFirst": "Save first: unsaved changes are not included in the PDF.",
         "empty": "There is no intake for this client yet.",
         "emptyHint": "The first intake starts from the standard form; you can add or remove questions for this client.",
         "draftTitle": "Open draft",
@@ -243,7 +246,16 @@
         "optionalSection": "(Fill in only when applicable)",
         "page": "Page {page} / {total}",
         "rowsHint": "Add rows if needed.",
-        "fileName": "intake-form"
+        "fileName": "intake-form",
+        "statusDraft": "DRAFT",
+        "statusCompleted": "COMPLETED",
+        "signatureClient": "Client signature",
+        "signatureExpert": "Practitioner signature",
+        "signatureDate": "Date",
+        "empty": "—",
+        "generatedAt": "Generated: {date}",
+        "titleLabel": "Title",
+        "completedAtLabel": "Completed"
       },
       "errors": {
         "NOT_FOUND": "Record not found or you do not have access.",

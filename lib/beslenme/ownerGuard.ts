@@ -1,7 +1,12 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { requireModuleAccess, verifyUserRequest } from "@/lib/auth/userGuard";
+import {
+  membershipInactiveResponse,
+  requireModuleAccess,
+  verifyUserRequest,
+} from "@/lib/auth/userGuard";
+import { hasMembershipAccessForRow } from "@/lib/auth/membershipAccessCore";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
 
 /**
@@ -77,6 +82,10 @@ export async function resolveBeslenmeCapabilities(
 ): Promise<BeslenmeCapabilitiesResult> {
   const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return { ok: false, response: guard.response };
+  // P1-4 ÜYELİK kapısı (requireModuleAccess ile AYNI kural; admin muaf).
+  if (!hasMembershipAccessForRow(guard.profile ?? {})) {
+    return { ok: false, response: membershipInactiveResponse() };
+  }
   const role = guard.profile?.role;
   const perms = guard.profile?.module_permissions;
   const hasBeslenme = resolveModuleAccess(role, perms, "beslenme");
@@ -144,6 +153,10 @@ export type BeslenmeFoodReadResult = BeslenmeFoodReadOk | { ok: false; response:
 export async function requireBeslenmeFoodRead(req: NextRequest): Promise<BeslenmeFoodReadResult> {
   const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return { ok: false, response: guard.response };
+  // P1-4 ÜYELİK kapısı (requireModuleAccess ile AYNI kural; admin muaf).
+  if (!hasMembershipAccessForRow(guard.profile ?? {})) {
+    return { ok: false, response: membershipInactiveResponse() };
+  }
 
   const perms = guard.profile?.module_permissions;
   const allowed =

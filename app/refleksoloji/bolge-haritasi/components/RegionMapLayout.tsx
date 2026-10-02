@@ -9,6 +9,7 @@ import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
 import { useAtlasWorkspace } from "../hooks/useAtlasWorkspace";
 import { useRegionEditingAllowed } from "../hooks/useRegionEditingAllowed";
 import type { RegionDrawShape, RegionToolMode } from "../types";
+import { AtlasConflictBanner } from "./AtlasConflictBanner";
 import { AtlasSaveToast } from "./AtlasSaveToast";
 import { FootCanvas } from "./FootCanvas";
 import { MobileEditNoticePanel } from "./MobileEditNoticePanel";
@@ -112,6 +113,9 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
           </p>
         ) : null}
 
+        {/* P1-5: aynı organ başka cihazda farklı değiştirildi → yerel korunur, kullanıcı seçer. */}
+        {!isDemo ? <AtlasConflictBanner /> : null}
+
         <div className="flex min-h-0 flex-col gap-1.5 lg:flex-1">
           <div className="flex min-h-0 flex-col gap-2 lg:flex-1 lg:flex-row lg:gap-3">
             <OrganListPanel
@@ -140,7 +144,7 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
                 editingAllowed={editingAllowed}
               />
             </div>
-            <RegionNotesPanel selectedOrgan={workspace.activeOrgan} atlasVersion={savedTick} />
+            <RegionNotesPanel selectedOrgan={workspace.activeOrgan} atlasVersion={savedTick + workspace.atlasRevision} />
           </div>
 
           {/* Telefon/dar ekran: premium bilgi paneli (düzenleme masaüstünde). */}

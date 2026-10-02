@@ -6,6 +6,7 @@ import { FormEvent, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
+import PasswordInput from "@/components/ui/PasswordInput";
 import { passwordPolicyError, REGISTER_HONEYPOT_FIELD } from "@/lib/auth/registerValidation";
 
 const inputClass =
@@ -163,11 +164,11 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-base font-semibold text-slate-700">
+                <label htmlFor="register-password" className="mb-2 block text-base font-semibold text-slate-700">
                   {t("passwordLabel")}
                 </label>
-                <input
-                  type="password"
+                <PasswordInput
+                  id="register-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
@@ -181,11 +182,11 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-base font-semibold text-slate-700">
+                <label htmlFor="register-password-repeat" className="mb-2 block text-base font-semibold text-slate-700">
                   {t("passwordRepeatLabel")}
                 </label>
-                <input
-                  type="password"
+                <PasswordInput
+                  id="register-password-repeat"
                   value={passwordRepeat}
                   onChange={(e) => setPasswordRepeat(e.target.value)}
                   placeholder="••••••••"

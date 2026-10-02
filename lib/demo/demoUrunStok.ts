@@ -51,7 +51,7 @@ export const DEMO_DOGALTAS_INV: InvItem[] = [
   { name: "KAPLAN GÖZÜ", type: "10 MM DİZİ", adet: 6, dizi_icerik: 0, dizi_price: 660, adet_price: 110, photos: [], dizi_price_usd: 0, dizi_price_eur: 0, usd_rate: 0, eur_rate: 0, total_cost_try: 660, unit_cost_try: 110 },
 ];
 
-// ─── Yağ Envanteri (22 ürün) ──────────────────────────────────────────────────
+// ─── Yağ Envanteri (23 ürün) ──────────────────────────────────────────────────
 
 export const DEMO_OIL_INV: OilItem[] = [
   { id: "demo-oil-0",  name: "LAVANTA UÇU YAĞI",          oilType: "Uçucu Yağ",     measureType: "ML / Litre",  stockBase: 1500, baseUnit: "ml",  costPerBase: 3.5,  salePerBase: 7,    profitPct: 100, bottleVolume: "10 ml", bottleVolumeCustom: "", packageType: "damlalıklı şişe", photos: [], note: "" },
@@ -76,6 +76,8 @@ export const DEMO_OIL_INV: OilItem[] = [
   { id: "demo-oil-19", name: "SANDAL AĞACI UÇU YAĞI",        oilType: "Uçucu Yağ",     measureType: "ML / Litre",  stockBase: 150,  baseUnit: "ml",  costPerBase: 15,   salePerBase: 30,   profitPct: 100, bottleVolume: "10 ml", bottleVolumeCustom: "", packageType: "damlalıklı şişe", photos: [], note: "" },
   { id: "demo-oil-20", name: "YLANG YLANG UÇU YAĞI",         oilType: "Uçucu Yağ",     measureType: "ML / Litre",  stockBase: 250,  baseUnit: "ml",  costPerBase: 10,   salePerBase: 20,   profitPct: 100, bottleVolume: "10 ml", bottleVolumeCustom: "", packageType: "damlalıklı şişe", photos: [], note: "" },
   { id: "demo-oil-21", name: "BİTKİSEL BAZAJ YAĞI",          oilType: "Sabit Yağ",     measureType: "ML / Litre",  stockBase: 3000, baseUnit: "ml",  costPerBase: 1.5,  salePerBase: 3,    profitPct: 100, bottleVolume: "100 ml",bottleVolumeCustom: "", packageType: "dökme",           photos: [], note: "" },
+  // "Diğer" serbest metin örneği: yağ türü listede yok → düzenlemede "Diğer" + "Hidrosol" görünür.
+  { id: "demo-oil-22", name: "GÜL SUYU HİDROSOL",            oilType: "Hidrosol",      measureType: "ML / Litre",  stockBase: 1000, baseUnit: "ml",  costPerBase: 0.4,  salePerBase: 0.8,  profitPct: 100, bottleVolume: "100 ml",bottleVolumeCustom: "", packageType: "sprey şişe",      photos: [], note: "" },
 ];
 
 // ─── Sabun / Krem Envanteri (22 ürün) ────────────────────────────────────────

@@ -14,7 +14,7 @@ import { NewAnamnezDialog, errorKey } from "@/components/danisan/anamnez/Anamnez
 import { SourceBadge } from "@/components/danisan/anamnez/AnamnezSectionCard";
 
 /**
- * Danışan Detayı › Anamnez sekmesi — tarihçe + yeni anamnez + boş form PDF.
+ * Danışan Detayı › Anamnez sekmesi — tarihçe + yeni anamnez + boş form PDF + kayıtlı form PDF.
  * Liste yalnız metadata taşır (cevaplar yüklenmez). Düzenleme ayrı odaklı rotada.
  */
 
@@ -37,6 +37,7 @@ export default function AnamnezTab({
   const [state, setState] = useState<ListState>({ kind: "loading" });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [filledBusy, setFilledBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setState({ kind: "loading" });
@@ -76,6 +77,30 @@ export default function AnamnezTab({
       await downloadFileResponse(res, locale === "en" ? "intake-form.pdf" : "anamnez-formu.pdf");
     } finally {
       setPdfBusy(false);
+    }
+  }
+
+  /** Kayıtlı (dolu) form PDF'i — listelenen revizyonla istenir; arada değiştiyse 409 → liste yenilenir. */
+  async function downloadFilled(item: AnamnezSummary) {
+    if (filledBusy) return;
+    setFilledBusy(item.id);
+    try {
+      const res = await fetch(`${anamnezBase(clientId)}/${encodeURIComponent(item.id)}/pdf?rev=${item.revision}&locale=${locale}`, {
+        headers: anamnezAuthHeaders(),
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        let code = "generic";
+        try { code = ((await res.json()) as { code?: string }).code ?? "generic"; } catch { /* yok */ }
+        showToast({ type: "error", title: t("title"), message: t(`errors.${errorKey(code)}`) });
+        if (code === "CONFLICT") void load();
+        return;
+      }
+      await downloadFileResponse(res, `anamnez-${item.assessment_date}.pdf`);
+    } catch {
+      showToast({ type: "error", title: t("title"), message: t("errors.generic") });
+    } finally {
+      setFilledBusy(null);
     }
   }
 
@@ -135,7 +160,14 @@ export default function AnamnezTab({
       {draft ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3.5">
           <div className="text-[12px] font-black uppercase tracking-wide text-amber-800">{t("list.draftTitle")}</div>
-          <HistoryRow item={draft} locale={locale} onOpen={() => openEditor(draft.id)} />
+          <HistoryRow
+            item={draft}
+            locale={locale}
+            onOpen={() => openEditor(draft.id)}
+            onPdf={() => void downloadFilled(draft)}
+            pdfBusy={filledBusy === draft.id}
+            pdfDisabled={filledBusy !== null}
+          />
           <p className="mt-1 text-[12px] font-medium text-amber-800/80">{t("list.draftHint")}</p>
         </div>
       ) : null}
@@ -151,7 +183,14 @@ export default function AnamnezTab({
           <ul className="space-y-2">
             {completed.map((a) => (
               <li key={a.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                <HistoryRow item={a} locale={locale} onOpen={() => openEditor(a.id)} />
+                <HistoryRow
+                  item={a}
+                  locale={locale}
+                  onOpen={() => openEditor(a.id)}
+                  onPdf={() => void downloadFilled(a)}
+                  pdfBusy={filledBusy === a.id}
+                  pdfDisabled={filledBusy !== null}
+                />
               </li>
             ))}
           </ul>
@@ -180,7 +219,21 @@ export default function AnamnezTab({
   );
 }
 
-function HistoryRow({ item, locale, onOpen }: { item: AnamnezSummary; locale: "tr" | "en"; onOpen: () => void }) {
+function HistoryRow({
+  item,
+  locale,
+  onOpen,
+  onPdf,
+  pdfBusy,
+  pdfDisabled,
+}: {
+  item: AnamnezSummary;
+  locale: "tr" | "en";
+  onOpen: () => void;
+  onPdf: () => void;
+  pdfBusy: boolean;
+  pdfDisabled: boolean;
+}) {
   const t = useTranslations("clients.anamnez");
   const locked = item.status === "completed";
   return (
@@ -200,9 +253,19 @@ function HistoryRow({ item, locale, onOpen }: { item: AnamnezSummary; locale: "t
           {item.source_changed ? <SourceBadge state="changed" /> : null}
         </div>
       </div>
-      <button type="button" onClick={onOpen} className="inline-flex min-h-[40px] shrink-0 items-center justify-center rounded-xl border border-teal-300 bg-white px-4 text-[13px] font-extrabold text-teal-700 hover:bg-teal-50">
-        {locked ? t("list.open") : t("list.continue")}
-      </button>
+      <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+        <button
+          type="button"
+          onClick={onPdf}
+          disabled={pdfDisabled}
+          className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+        >
+          {pdfBusy ? t("list.filledFormBusy") : t("list.filledForm")}
+        </button>
+        <button type="button" onClick={onOpen} className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-teal-300 bg-white px-4 text-[13px] font-extrabold text-teal-700 hover:bg-teal-50">
+          {locked ? t("list.open") : t("list.continue")}
+        </button>
+      </div>
     </div>
   );
 }

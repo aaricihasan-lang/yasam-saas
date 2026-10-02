@@ -195,7 +195,7 @@ export function HdRaporListesi() {
                       type="button"
                       disabled={downloadingId === row.id}
                       onClick={() => handleDownload(row)}
-                      className="flex h-8 items-center rounded-lg border border-teal-300 bg-white px-3.5 text-xs font-bold text-teal-700 transition hover:border-teal-400 hover:bg-teal-50 disabled:opacity-50"
+                      className="no-android flex h-8 items-center rounded-lg border border-teal-300 bg-white px-3.5 text-xs font-bold text-teal-700 transition hover:border-teal-400 hover:bg-teal-50 disabled:opacity-50"
                     >
                       {downloadingId === row.id ? "İndiriliyor…" : "Word İndir"}
                     </button>

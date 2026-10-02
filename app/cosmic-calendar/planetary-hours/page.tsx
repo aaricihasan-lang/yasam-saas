@@ -172,7 +172,7 @@ function PlannerScreen() {
 
 export default function PlanetaryHoursPlannerPage() {
   return (
-    <Suspense fallback={<main className="mx-auto max-w-5xl px-4 py-6 text-xs text-slate-500">Yükleniyor…</main>}>
+    <Suspense fallback={<main className="mx-auto w-full max-w-5xl px-4 py-6 text-xs text-slate-500">Yükleniyor…</main>}>
       <PlannerScreen />
     </Suspense>
   );

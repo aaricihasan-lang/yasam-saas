@@ -1,6 +1,8 @@
 "use client";
 
 import type { NoteAttachment } from "../types";
+import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
+import { isSafeOpenMime, openDataUrlInNewTab } from "../lib/openDataUrl";
 
 type AttachmentsPanelProps = {
   attachments: NoteAttachment[];
@@ -23,6 +25,9 @@ export function AttachmentsPanel({
   onRemove,
   onAddClick,
 }: AttachmentsPanelProps) {
+  // Android uygulama WebView'inde window.open(blob) çalışmaz → görselde "Aç" yerine
+  // "İndir" (kullanıcı dosyası erişimi korunur; plan §4.6 kategori B).
+  const isAndroidApp = useIsAndroidApp();
   return (
     <section className="rounded-[28px] border border-purple-100 bg-white/80 p-5 shadow-sm ring-1 ring-violet-100/60">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -64,15 +69,16 @@ export function AttachmentsPanel({
                   </p>
                 </button>
                 <div className="flex flex-wrap gap-2">
-                  {file.mimeType.startsWith("image/") ? (
-                    <a
-                      href={file.dataUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-sm font-bold text-violet-900 transition hover:bg-violet-100"
+                  {/* data: URL'e üst-çerçeve navigasyonu tarayıcılarca engellenir → blob: ile
+                      yeni sekme (yalnız raster görsel; SVG vb. indirilir). */}
+                  {file.mimeType.startsWith("image/") && isSafeOpenMime(file.mimeType) && !isAndroidApp ? (
+                    <button
+                      type="button"
+                      onClick={() => void openDataUrlInNewTab(file.dataUrl, file.mimeType)}
+                      className="no-android-app rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-sm font-bold text-violet-900 transition hover:bg-violet-100"
                     >
                       Aç
-                    </a>
+                    </button>
                   ) : (
                     <a
                       href={file.dataUrl}

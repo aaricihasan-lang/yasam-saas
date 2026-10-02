@@ -10,6 +10,7 @@
  * Yalnız server-side (route handler) kullanımı içindir.
  */
 import { createHash } from "crypto";
+import { PASSWORD_MIN_LENGTH } from "@/lib/auth/passwordPolicy";
 
 /**
  * IP pepper — YALNIZ sunucu env'inden (NEXT_PUBLIC DEĞİL). Öncelik: LOGIN_IP_PEPPER →
@@ -86,7 +87,7 @@ export function loginLockedMessage(retryAfterSeconds: number): string {
   return `Çok sayıda başarısız giriş denemesi. Lütfen ${minutes} dakika sonra tekrar deneyin.`;
 }
 
-export const LOGIN_INVALID_MESSAGE = "E-posta veya şifre hatalı.";
+export const LOGIN_INVALID_MESSAGE = "E-posta veya parola hatalı.";
 
-/** Yeni parolalar için minimum uzunluk (register, şifre değiştirme, admin sıfırlama). */
-export const NEW_PASSWORD_MIN_LENGTH = 10;
+/** Yeni parolalar için minimum uzunluk (register, parola değiştirme, admin sıfırlama) — tek kaynak passwordPolicy. */
+export const NEW_PASSWORD_MIN_LENGTH = PASSWORD_MIN_LENGTH;

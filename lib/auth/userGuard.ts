@@ -174,6 +174,18 @@ export async function verifyUserRequest(
 }
 
 /**
+ * ÜYELİK reddi yanıtı — requireModuleAccess'in döndürdüğü 403 MEMBERSHIP_INACTIVE ile
+ * BİREBİR aynı gövde/başlık. verifyUserRequest + kendi capability kapısını kullanan
+ * route'lar (Beslenme plan/food/capability, Yaşam Hafızası) aynı sözleşmeyi buradan alır.
+ */
+export function membershipInactiveResponse(): NextResponse {
+  return NextResponse.json(
+    { code: MEMBERSHIP_INACTIVE_CODE, error: MEMBERSHIP_INACTIVE_MESSAGE },
+    { status: 403, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+/**
  * Faz 1/P3 — MODÜL KAPILI kullanıcı doğrulaması. `verifyUserRequest` (header-token
  * bağlama + pending/rejected gate) üzerine, kişiye özel SERVER-SIDE modül iznini
  * ekler. verifyUserRequest ile AYNI dönüş şeklini verir (drop-in): mevcut route'lar
@@ -198,13 +210,7 @@ export async function requireModuleAccess(
   // membershipAccessCore tek kaynak). admin muaf. verifyUserRequest'e EKLENMEZ →
   // profil/şifre/destek/ayarlar/yedek/export uçları üyeliği biten uzmana açık kalır.
   if (!hasMembershipAccessForRow(profile)) {
-    return {
-      ok: false,
-      response: NextResponse.json(
-        { code: MEMBERSHIP_INACTIVE_CODE, error: MEMBERSHIP_INACTIVE_MESSAGE },
-        { status: 403, headers: { "Cache-Control": "no-store" } },
-      ),
-    };
+    return { ok: false, response: membershipInactiveResponse() };
   }
 
   if (!resolveModuleAccess(profile.role, profile.module_permissions, moduleKey)) {

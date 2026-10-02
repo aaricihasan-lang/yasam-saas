@@ -828,6 +828,9 @@ export function FootCanvas({
   );
 
   const canDraw = isAddMode && activeOrgan && imageReady && imageRect.width > 0;
+  // 4.5 pinch: dokunmatik hareket YALNIZ çizim/taşıma modunda kilitlenir; aksi hâlde tarayıcı
+  // pinch-zoom/kaydırma çalışır (emsal: lib/bodymap/components/BodyMapCanvas.tsx touchAction).
+  const touchLockClass = canDraw || isMoveMode ? "touch-none" : "touch-manipulation";
   const regionInteractive = !isAddMode;
 
   return (
@@ -853,7 +856,7 @@ export function FootCanvas({
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <div
           ref={canvasRef}
-          className={`relative h-full min-h-0 w-full flex-1 select-none overflow-hidden bg-white touch-none ${
+          className={`relative h-full min-h-0 w-full flex-1 select-none overflow-hidden bg-white ${touchLockClass} ${
             canDraw ? "cursor-crosshair ring-2 ring-inset ring-violet-300/40" : isMoveMode ? "cursor-default" : ""
           }`}
           onPointerDown={handleCanvasPointerDown}
@@ -891,7 +894,7 @@ export function FootCanvas({
           {imageReady && imageRect.width > 0 ? (
             <div
               ref={overlayRef}
-              className="absolute z-10 touch-none select-none"
+              className={`absolute z-10 select-none ${touchLockClass}`}
               style={imageOverlayStyle}
               onPointerDown={(e) => {
                 if (isAddMode) {

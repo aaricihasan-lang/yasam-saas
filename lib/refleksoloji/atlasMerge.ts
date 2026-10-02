@@ -99,30 +99,36 @@ function organKeys(doc: AtlasDocLike): string[] {
   return Object.keys(doc).filter((k) => k !== "_meta" && isOrganEntryLike(doc[k]));
 }
 
-// ─── RF-01/02/03/13: BÖLGE düzeyinde 3-yollu birleştirme ──────────────────────
+// ─── P1-5 + RF-01/02/03/13: BÖLGE düzeyinde 3-yollu birleştirme ─────────────
 //
-// Eski model "ortak organda sunucu kazanır" idi: iki cihaz aynı organa (farklı
-// yüzeylere) bölge eklediğinde biri SESSİZCE kayboluyordu. Yeni model:
-//   base   = bu cihazın son birleştirdiği / gönderdiği SUNUCU belgesi
-//   local  = cihazdaki belge (eşitlenmemiş kullanıcı değişiklikleri dahil)
-//   remote = sunucunun şimdiki belgesi
-// Her BÖLGE (region.id) ayrı 3-yollu karar alır → farklı bölgeler/yüzeyler daima
-// korunur. Gerçek çakışma (aynı bölge iki tarafta FARKLI değişti) sessiz kayıp yerine
-// raporlanır (conflicts) ve yerel sürüm korunur; silme × düzenleme → düzenleme kazanır.
+// base   = istemcinin son birleştirdiği / gönderdiği SUNUCU belgesi (atlas-base.doc)
+// local  = cihazdaki belge (eşitlenmemiş kullanıcı değişiklikleri dahil)
+// server = sunucunun şimdiki belgesi
 //
-// Toplu küçülme koruması: organın tamamen kaybolması ancak silen tarafta MEZAR TAŞI
-// varsa kabul edilir (tüm meşru silme yolları mezar taşı yazar). Mezar taşsız "kayıp"
-// organ = bozuk/bayat durum → organ KORUNUR.
+// Karar ORGAN değil BÖLGE (region.id) düzeyindedir: aynı organın farklı bölgelerinde /
+// yüzeylerinde yapılan bağımsız değişiklikler HER ZAMAN birlikte korunur (organ düzeyi
+// birleştirme bunları "çakışma" sayıp kullanıcıyı birini seçmeye zorluyordu → seçilmeyen
+// bölge kaybolurdu). Gerçek çakışma = AYNI bölge iki tarafta FARKLI değişti → conflicts[]
+// (varsayılan: yerel korunur; kullanıcı kararıyla "server"). Silme × düzenleme → düzenleme.
+//
+// Toplu küçülme koruması (RF-13): bir organın TAMAMEN kaybolması ancak silen tarafta MEZAR
+// TAŞI varsa kabul edilir (tüm meşru silme yolları mezar taşı yazar). Mezar taşsız "kayıp"
+// organ bayat/bozuk yerel durumdur → "dokunulmamış" sayılır, organ KORUNUR.
 
-/** Kararlı içerik özeti (anahtar sırası / undefined alanlar önemsiz). */
-function stableValue(value: unknown): string {
+/** Kararlı içerik özeti (anahtar sırası/undefined alanlar önemsiz). */
+function stableEntry(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
-  if (Array.isArray(value)) return `[${value.map(stableValue).join(",")}]`;
+  if (Array.isArray(value)) return `[${value.map(stableEntry).join(",")}]`;
   const obj = value as Record<string, unknown>;
   const keys = Object.keys(obj)
     .filter((k) => obj[k] !== undefined)
     .sort();
-  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableValue(obj[k])}`).join(",")}}`;
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableEntry(obj[k])}`).join(",")}}`;
+}
+
+/** İki organ girdisi içerik olarak aynı mı. */
+export function organEntriesEqual(a: unknown, b: unknown): boolean {
+  return stableEntry(a) === stableEntry(b);
 }
 
 type OrganSlot = { key: string; entry: Record<string, unknown> };
@@ -130,29 +136,6 @@ type RegionSlot = { view: string; foot: string; region: Record<string, unknown>;
 
 const CANONICAL_VIEWS = ["taban", "yan_ic", "yan_dis"] as const;
 const FEET = ["sol", "sag"] as const;
-
-/** Kanonik organ kimliği → belgedeki (ilk) anahtar + girdi. */
-function organIndex(doc: AtlasDocLike | null | undefined): Map<string, OrganSlot> {
-  const m = new Map<string, OrganSlot>();
-  if (!doc || typeof doc !== "object") return m;
-  for (const key of organKeys(doc)) {
-    const norm = normOrgan(key);
-    if (!norm) continue;
-    const prev = m.get(norm);
-    if (!prev) {
-      m.set(norm, { key, entry: doc[key] as Record<string, unknown> });
-      continue;
-    }
-    // Aynı kanonik organın ikinci anahtarı (ör. NFC/NFD veya büyük/küçük harf farkı):
-    // bölgeleri İLK anahtarda birleştir — hiçbir bölge düşmez.
-    const union = new Map(regionIndex(prev.entry));
-    for (const [id, slot] of regionIndex(doc[key] as Record<string, unknown>)) {
-      if (!union.has(id)) union.set(id, slot);
-    }
-    m.set(norm, { key: prev.key, entry: buildEntry([...union.values()]) });
-  }
-  return m;
-}
 
 /** Organ girdisindeki bölgeler (id → görünüm/ayak + içerik imzası). İlk görülen id kazanır. */
 function regionIndex(entry: Record<string, unknown> | undefined): Map<string, RegionSlot> {
@@ -168,7 +151,7 @@ function regionIndex(entry: Record<string, unknown> | undefined): Map<string, Re
         const id = (region as { id?: unknown }).id;
         if (typeof id !== "string" || !id || m.has(id)) continue;
         const r = region as Record<string, unknown>;
-        m.set(id, { view, foot, region: r, sig: `${view}/${foot}|${stableValue(r)}` });
+        m.set(id, { view, foot, region: r, sig: `${view}/${foot}|${stableEntry(r)}` });
       }
     }
   }
@@ -180,9 +163,35 @@ function buildEntry(slots: RegionSlot[]): Record<string, unknown> {
   for (const v of CANONICAL_VIEWS) entry[v] = { sol: [], sag: [] };
   for (const s of slots) {
     if (!entry[s.view]) entry[s.view] = { sol: [], sag: [] };
-    entry[s.view][s.foot].push(JSON.parse(JSON.stringify(s.region)));
+    entry[s.view][s.foot].push(cloneEntry(s.region));
   }
   return entry;
+}
+
+/** Kanonik organ kimliği → belgedeki (ilk) anahtar + girdi. Aynı organın ikinci anahtarı
+ *  (NFC/NFD, büyük/küçük harf) bölgeleriyle İLK anahtarda birleşir — bölge düşmez. */
+function organIndex(doc: AtlasDocLike | null | undefined): Map<string, OrganSlot> {
+  const m = new Map<string, OrganSlot>();
+  if (!doc || typeof doc !== "object") return m;
+  for (const key of organKeys(doc)) {
+    const norm = normOrgan(key);
+    if (!norm) continue;
+    const prev = m.get(norm);
+    if (!prev) {
+      m.set(norm, { key, entry: doc[key] as Record<string, unknown> });
+      continue;
+    }
+    const union = new Map(regionIndex(prev.entry));
+    for (const [id, slot] of regionIndex(doc[key] as Record<string, unknown>)) {
+      if (!union.has(id)) union.set(id, slot);
+    }
+    m.set(norm, { key: prev.key, entry: buildEntry([...union.values()]) });
+  }
+  return m;
+}
+
+function cloneEntry<T>(v: T): T {
+  return JSON.parse(JSON.stringify(v)) as T;
 }
 
 function laterOf(a?: string, b?: string): string | undefined {
@@ -192,28 +201,38 @@ function laterOf(a?: string, b?: string): string | undefined {
 }
 
 export type AtlasThreeWayResult = {
+  /** Birleşik belge (`_meta.tombstones` + `_meta.organUpdatedAt` dahil). */
   document: AtlasDocLike;
-  /** Aynı bölge iki tarafta FARKLI değişti → yerel sürüm korundu (görünen organ adları). */
+  /**
+   * AYNI bölgesi hem yerelde hem sunucuda FARKLI biçimde değişen organlar (görünen ad).
+   * Varsayılan politika ("local"): yerel bölge sürümü KORUNUR; kullanıcı kararı beklenir.
+   */
   conflicts: string[];
-  /** "three-way": base var; "union": base yok (ilk geçiş) → hiçbir bölge düşmez. */
-  mode: "three-way" | "union";
+  /**
+   * Base YOKKEN (LWW modu) aynı bölgenin sunucudaki daha yeni sürümüne kaybeden YEREL
+   * organ girdileri (görünen ad → girdi). Çağıran `atlas-conflict-backup`'a yedekler.
+   */
+  lostLocal: Record<string, unknown>;
+  mode: "three-way" | "lww";
 };
 
 /**
- * Organ + bölge düzeyinde birleştirme. Saf; girdileri DEĞİŞTİRMEZ.
+ * Organ + BÖLGE düzeyinde birleştirme. Saf; girdileri DEĞİŞTİRMEZ.
  *
- * BASE VAR — her bölge için: yalnız yerel değişti → yerel; yalnız uzak değişti → uzak;
- *   ikisi aynı → o; ikisi farklı → çakışma (silme × düzenleme → düzenleme; düzenleme ×
- *   düzenleme → yerel + conflicts[]).
- * BASE YOK — birleşim: iki taraftaki tüm bölgeler korunur; aynı id farklıysa
- *   organUpdatedAt'i yeni olan; mezar taşı organın son güncellemesinden yeniyse organ
- *   dirilmez (zombie koruması — önceki davranış).
+ * BASE VAR (3-yollu) — her bölge için: yalnız yerel değişti → yerel; yalnız sunucu
+ *   değişti → sunucu; ikisi aynı → o; ikisi farklı → ÇAKIŞMA (`onConflict` tarafı +
+ *   conflicts[]); silme × düzenleme → düzenleme. "Değişim" bölgenin varlığını da kapsar.
+ * BASE YOK (eski istemci / ilk geçiş) — birleşim: iki taraftaki TÜM bölgeler korunur;
+ *   aynı id farklıysa organUpdatedAt'i YENİ olan (eşitlik → sunucu; kaybeden yerel
+ *   girdi `lostLocal` ile yedeklenir); mezar taşı organın son güncellemesinden yeniyse
+ *   organ DİRİLMEZ (zombie koruması — önceki davranış).
  */
 export function mergeAtlasThreeWay(
   server: AtlasDocLike,
   local: AtlasDocLike,
   base: AtlasDocLike | null,
   now: string = new Date().toISOString(),
+  onConflict: "local" | "server" = "local",
 ): AtlasThreeWayResult {
   const sMeta = server?._meta ?? {};
   const lMeta = local?._meta ?? {};
@@ -232,6 +251,7 @@ export function mergeAtlasThreeWay(
   const survivorUpd: OrganTimeMap = {};
   const deletedTomb: OrganTimeMap = {};
   const conflicts: string[] = [];
+  const lostLocal: Record<string, unknown> = {};
 
   const norms = new Set<string>([...sIdx.keys(), ...lIdx.keys(), ...(bIdx ? bIdx.keys() : [])]);
   for (const norm of norms) {
@@ -248,10 +268,9 @@ export function mergeAtlasThreeWay(
       const bR = regionIndex(b?.entry);
       const lR = regionIndex(l?.entry);
       const sR = regionIndex(s?.entry);
-      const ids = new Set<string>([...lR.keys(), ...sR.keys(), ...bR.keys()]);
       const picked: RegionSlot[] = [];
       let organConflict = false;
-      for (const id of ids) {
+      for (const id of new Set<string>([...lR.keys(), ...sR.keys(), ...bR.keys()])) {
         const bv = bR.get(id)?.sig ?? null;
         const lv = lR.get(id)?.sig ?? null;
         const sv = sR.get(id)?.sig ?? null;
@@ -259,11 +278,11 @@ export function mergeAtlasThreeWay(
         if (lv === bv) pick = sR.get(id);
         else if (sv === bv) pick = lR.get(id);
         else if (lv === sv) pick = lR.get(id);
-        else if (lv === null) pick = sR.get(id); // yerelde silindi, uzakta düzenlendi → düzenleme kazanır
-        else if (sv === null) pick = lR.get(id); // uzakta silindi, yerelde düzenlendi → düzenleme kazanır
+        else if (lv === null) pick = sR.get(id); // yerelde silindi, sunucuda düzenlendi → düzenleme
+        else if (sv === null) pick = lR.get(id); // sunucuda silindi, yerelde düzenlendi → düzenleme
         else {
-          pick = lR.get(id);
           organConflict = true;
+          pick = onConflict === "server" ? sR.get(id) : lR.get(id);
         }
         if (pick) picked.push(pick);
       }
@@ -274,8 +293,18 @@ export function mergeAtlasThreeWay(
       const eS = !!s;
       const exists = picked.length > 0 || (eL === eB ? eS : eS === eB ? eL : eL);
       if (exists) {
-        out[label] = buildEntry(picked);
-        const at = laterOf(sUpd[norm], lUpd[norm]);
+        const entry = buildEntry(picked);
+        out[label] = entry;
+        // Hayatta kalan organın damgası, içerik hangi taraftan geldiyse ORADAN (kaybeden
+        // tarafın daha yeni damgası kazanan içeriğe yapışıp sonraki LWW'yi yanıltmasın);
+        // iki tarafın bölgeleri karıştıysa en yenisi.
+        const sameAsLocal = !!l && organEntriesEqual(entry, buildEntry([...regionIndex(l.entry).values()]));
+        const sameAsServer = !!s && organEntriesEqual(entry, buildEntry([...regionIndex(s.entry).values()]));
+        const at = sameAsLocal && !sameAsServer
+          ? (lUpd[norm] ?? sUpd[norm])
+          : sameAsServer && !sameAsLocal
+            ? (sUpd[norm] ?? lUpd[norm])
+            : laterOf(sUpd[norm], lUpd[norm]);
         if (at) survivorUpd[norm] = at;
       } else {
         deletedTomb[norm] = allTomb[norm] ?? now;
@@ -283,77 +312,53 @@ export function mergeAtlasThreeWay(
       continue;
     }
 
-    // ── base YOK: birleşim ──
+    // ── LWW / birleşim (base yok) ──
     const upd = allUpd[norm] ?? EPOCH;
     const tomb = allTomb[norm];
-    if (tomb && !(upd > tomb)) continue; // silinmiş → dirilmez
+    if (tomb && !(upd > tomb)) continue; // silinmiş → dirilmez (zombie koruması)
     const lR = regionIndex(l?.entry);
     const sR = regionIndex(s?.entry);
     const localNewer = (lUpd[norm] ?? EPOCH) > (sUpd[norm] ?? EPOCH);
     const picked: RegionSlot[] = [];
+    let localLost = false;
     for (const id of new Set<string>([...lR.keys(), ...sR.keys()])) {
       const lr = lR.get(id);
       const sr = sR.get(id);
-      if (lr && sr) picked.push(lr.sig === sr.sig || !localNewer ? sr : lr);
-      else picked.push((lr ?? sr)!);
+      if (lr && sr && lr.sig !== sr.sig) {
+        if (localNewer) picked.push(lr);
+        else {
+          picked.push(sr);
+          localLost = true;
+        }
+      } else picked.push((sr ?? lr)!);
     }
+    if (localLost && l) lostLocal[l.key] = cloneEntry(l.entry);
     out[label] = buildEntry(picked);
     if (allUpd[norm]) survivorUpd[norm] = allUpd[norm];
   }
 
   const survivingNorms = new Set(organKeys(out).map(normOrgan));
-  const keptTomb: OrganTimeMap = {};
+  const keptTombstones: OrganTimeMap = {};
   for (const [k, v] of Object.entries({ ...allTomb, ...deletedTomb })) {
-    if (survivingNorms.has(k)) continue;
-    keptTomb[k] = v;
+    if (survivingNorms.has(k)) continue; // hayatta kalan / dirilmiş organın mezar taşını düş
+    keptTombstones[k] = v;
   }
-  out._meta = { version: "1", updated_at: now, tombstones: keptTomb, organUpdatedAt: survivorUpd };
-  return { document: out, conflicts, mode: bIdx ? "three-way" : "union" };
+  out._meta = { version: "1", updated_at: now, tombstones: keptTombstones, organUpdatedAt: survivorUpd };
+  return { document: out, conflicts, lostLocal, mode: bIdx ? "three-way" : "lww" };
 }
 
-/** Geriye dönük API: base'siz (birleşim) yol — hiçbir bölge düşmez, mezar taşları korunur. */
+/**
+ * Tombstone-farkında birleştirme (base'siz yol — geriye dönük API). Bölge düzeyinde
+ * birleşim: hiçbir bölge düşmez; aynı bölgede organUpdatedAt LWW (eşitlik → sunucu);
+ * mezar taşı organın son güncellemesinden yeniyse organ DİRİLMEZ. Base snapshot'ı olan
+ * çağıranlar `mergeAtlasThreeWay` kullanır.
+ */
 export function mergeAtlasWithTombstones(
   server: AtlasDocLike,
   local: AtlasDocLike,
   now: string = new Date().toISOString(),
 ): AtlasDocLike {
   return mergeAtlasThreeWay(server, local, null, now).document;
-}
-
-/**
- * Organ listesi birleştirmesi (ad kümesi). Belgedeki organlarla aynı kural: bir adın
- * listeden çıkması ancak MEZAR TAŞI ile (organ sil / yeniden adlandır — tüm meşru yollar
- * yazar) kabul edilir; mezar taşsız "eksik" ad bayat/bozuk yerel durumdur → korunur.
- * Böylece liste: (yerel ∪ uzak ∪ belgedeki organlar) − ölü (mezar taşlı) organlar.
- * `base` imzası 3-yollu çağrılarla uyum için tutulur.
- */
-export function mergeOrganListThreeWay(
-  server: string[],
-  local: string[],
-  _base: string[] | null,
-  meta: AtlasMetaLike | undefined,
-  documentOrgans: string[] = [],
-): string[] {
-  void _base;
-  const dead = deadOrganKeys(meta);
-  const index = (list: string[] | null) => {
-    const m = new Map<string, string>();
-    for (const raw of list ?? []) {
-      const t = (raw ?? "").trim();
-      const k = t ? organKey(t) : "";
-      if (k && !m.has(k)) m.set(k, t);
-    }
-    return m;
-  };
-  const L = index(local);
-  const S = index(server);
-  const D = index(documentOrgans);
-  const out: string[] = [];
-  for (const k of new Set<string>([...L.keys(), ...S.keys(), ...D.keys()])) {
-    if (dead.has(k) && !D.has(k)) continue;
-    out.push(L.get(k) ?? S.get(k) ?? D.get(k) ?? k);
-  }
-  return out.sort((a, b) => a.localeCompare(b, "tr"));
 }
 
 /**

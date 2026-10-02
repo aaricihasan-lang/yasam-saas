@@ -280,17 +280,22 @@ async function main() {
     ok("mezar taşlı organ silme uygulanır", !("Mide" in r6.document) && !!r6.document._meta?.tombstones?.mide);
     // Base yok (ilk geçiş) → birleşim, hiçbir bölge düşmez
     const r7 = merge.mergeAtlasThreeWay(server, local, null);
-    ok("base yokken birleşim: tüm bölgeler korunur", regionIdsOf(r7.document, "Mide").join() === "r0,r1,r2" && r7.mode === "union");
+    ok("base yokken birleşim: tüm bölgeler korunur", regionIdsOf(r7.document, "Mide").join() === "r0,r1,r2" && r7.mode === "lww");
     // Aynı organın iki anahtarı (NFC/NFD) → bölgeler birleşir
     const nfd = "karaciğer";
     const dup = { _meta: {}, "karaciğer": entryWith([["taban", "sol", reg("k1")]]), [nfd]: entryWith([["taban", "sag", reg("k2")]]) };
     const r8 = merge.mergeAtlasThreeWay(dup, dup, dup);
     ok("aynı kanonik organın iki anahtarı → bölgeler tek organda birleşir", regionIdsOf(r8.document, "karaciğer").join() === "k1,k2");
     // Organ listesi 3-yollu
-    const ol = merge.mergeOrganListThreeWay(["Mide", "Kalp"], ["Mide", "Böbrek"], ["Mide"], {}, []);
+    const ol = merge.mergeOrganListsWithTombstones(["Mide", "Kalp"], ["Mide", "Böbrek"], {});
     ok("organ listesi: iki taraftaki yeni ad korunur", ol.join() === "Böbrek,Kalp,Mide");
-    const ol2 = merge.mergeOrganListThreeWay(["Mide", "Kalp"], ["Mide"], ["Mide", "Kalp"], {}, []);
-    ok("organ listesi: yalnız yerelde değişmeyen ad uzaktan korunur", ol2.includes("Kalp"));
+    const ol2 = merge.mergeOrganListsWithTombstones(["Mide", "Kalp"], ["Mide"], {});
+    ok("organ listesi: mezar taşsız eksik ad silme sayılmaz", ol2.includes("Kalp"));
+    const ol3 = merge.mergeOrganListsWithTombstones(["Mide", "Kalp"], ["Mide"], { tombstones: { kalp: "2026-10-02T10:00:00.000Z" } });
+    ok("organ listesi: mezar taşlı ad dirilmez", !ol3.includes("Kalp"));
+    // Kullanıcı kararı "Sunucu sürümünü al" (onConflict=server) yalnız GERÇEK çakışan bölgede sunucuyu seçer
+    const r9 = merge.mergeAtlasThreeWay(editB, editA, base, undefined, "server");
+    ok("onConflict=server: çakışan bölgede sunucu sürümü", (r9.document.Mide as Record<string, Record<string, R[]>>).taban.sol[0].cx === 0.1 && r9.conflicts.includes("Mide"));
   }
 
   // ════════════════════════════════════════════════════════════════════════

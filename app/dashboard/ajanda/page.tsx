@@ -9,7 +9,8 @@ import {
   Users,
   XCircle,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
@@ -137,9 +138,15 @@ function isPastCalendarDay(dateStr: string): boolean {
   return Number.isFinite(t) && t < n.getTime();
 }
 
-export default function AjandaPage() {
+function AjandaPageInner() {
   const { confirm } = useConfirm();
   const { showToast } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // §4.2 Bildirim derin bağlantısı: /dashboard/ajanda?randevu=<id> → detay modalı açılır.
+  const deepLinkAppointmentId = searchParams.get("randevu");
+  const handledDeepLinkRef = useRef<string | null>(null);
+  const [appointmentsLoaded, setAppointmentsLoaded] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedAppointment, setSelectedAppointment] =
@@ -396,6 +403,7 @@ export default function AjandaPage() {
 
     const json = (await res.json()) as { appointments?: Appointment[] };
     setAppointments(json.appointments ?? []);
+    setAppointmentsLoaded(true);
   }
 
   function formatDate(value: string) {
@@ -645,6 +653,30 @@ export default function AjandaPage() {
       loadAppointments();
     });
   }, [tenantId]);
+
+  // §4.2 Derin bağlantı: randevular yüklenince ?randevu=<id> eşleşirse detay modalı açılır;
+  // yoksa uyarı. Parametre router.replace ile temizlenir (yenilemede/geri tuşunda tekrar açılmaz).
+  useEffect(() => {
+    if (!deepLinkAppointmentId) {
+      handledDeepLinkRef.current = null;
+      return;
+    }
+    if (!appointmentsLoaded || handledDeepLinkRef.current === deepLinkAppointmentId) return;
+    handledDeepLinkRef.current = deepLinkAppointmentId;
+    const target = appointments.find((a) => a.id === deepLinkAppointmentId) ?? null;
+    runInEffect(() => {
+      if (target) {
+        setSelectedAppointment(target);
+      } else {
+        showToast({
+          title: "Randevu bulunamadı",
+          message: "Bağlantıdaki randevu bulunamadı veya silinmiş olabilir.",
+          type: "warning",
+        });
+      }
+      router.replace("/dashboard/ajanda", { scroll: false });
+    });
+  }, [deepLinkAppointmentId, appointmentsLoaded, appointments, router, showToast]);
 
   return (
     <main className="relative w-full overflow-x-hidden bg-[radial-gradient(circle_at_15%_20%,rgba(99,102,241,0.14),transparent_25%),radial-gradient(circle_at_85%_10%,rgba(236,72,153,0.10),transparent_25%),radial-gradient(circle_at_50%_80%,rgba(45,212,191,0.12),transparent_35%),linear-gradient(135deg,#eef4ff_0%,#f6f2ff_45%,#fff4fa_100%)] px-5 py-5 text-slate-950 antialiased sm:px-6 lg:px-8">
@@ -1127,7 +1159,7 @@ export default function AjandaPage() {
 
         {selectedAppointment && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-md overflow-hidden rounded-[20px] bg-white shadow-2xl">
+            <div className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overflow-x-hidden overscroll-contain rounded-[20px] bg-white shadow-2xl">
               <div className="bg-gradient-to-br from-slate-950 via-violet-950 to-fuchsia-900 p-4 text-white">
                 <div className="flex justify-between gap-4">
                   <div>
@@ -1252,5 +1284,21 @@ export default function AjandaPage() {
         )}
       </div>
     </main>
+  );
+}
+
+// Suspense sarmalayıcı: useSearchParams kullanan client component'in prerender sırasında
+// build hatası vermemesi için ZORUNLU (Next 16 "Missing Suspense boundary with useSearchParams").
+function AjandaFallback() {
+  return (
+    <main className="min-h-screen bg-[linear-gradient(135deg,#eef4ff_0%,#f6f2ff_45%,#fff4fa_100%)]" aria-busy="true" />
+  );
+}
+
+export default function AjandaPage() {
+  return (
+    <Suspense fallback={<AjandaFallback />}>
+      <AjandaPageInner />
+    </Suspense>
   );
 }

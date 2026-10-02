@@ -1033,7 +1033,7 @@ export default function SifaRehberiDetailPage() {
                 type="button"
                 onClick={() => void downloadWord()}
                 disabled={wordBusy || !record}
-                className={`${detailToolbarBtn} border border-emerald-200/90 bg-emerald-50/95 text-emerald-800 shadow-sm hover:bg-emerald-100`}
+                className={`no-android ${detailToolbarBtn} border border-emerald-200/90 bg-emerald-50/95 text-emerald-800 shadow-sm hover:bg-emerald-100`}
               >
                 {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
               </button>

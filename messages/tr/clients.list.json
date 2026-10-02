@@ -25,6 +25,11 @@
         "kanLabel": "Kan Grubu",
         "mizacLabel": "Mizaç",
         "all": "Tümü",
+        "toggle": "Filtrele",
+        "activeCount": "{count} aktif filtre",
+        "clear": "Filtreleri Temizle",
+        "initial": "İlk Harf",
+        "initialAll": "Tümü",
         "burcOptions": {
           "Koç": "Koç",
           "Boğa": "Boğa",

@@ -150,11 +150,22 @@ async function fetchNumerolojiTenantMetrics(): Promise<{
       const j = (await res.json().catch(() => ({}))) as { error?: string };
       return { total: 0, ids: [], error: j.error ?? `HTTP ${res.status}` };
     }
+    // AA-4: sunucu satır başına tenant_id listesi yerine agrege {tenant_id: count} +
+    // nullTenantRows döner. Mevcut sayım/legacy/eşleştirme mantığı değişmesin diye
+    // yerelde eşdeğer id dizisine açılır (yalnız tenant id + adet; içerik yok).
     const json = (await res.json().catch(() => ({}))) as {
       total?: number;
-      ids?: (string | null)[];
+      tenants?: Record<string, number>;
+      nullTenantRows?: number;
     };
-    return { total: json.total ?? 0, ids: json.ids ?? [], error: null };
+    const ids: (string | null)[] = [];
+    for (const [id, count] of Object.entries(json.tenants ?? {})) {
+      const n = Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+      for (let i = 0; i < n; i += 1) ids.push(id);
+    }
+    const nullRows = Number.isFinite(json.nullTenantRows) ? Math.max(0, Math.floor(json.nullTenantRows ?? 0)) : 0;
+    for (let i = 0; i < nullRows; i += 1) ids.push(null);
+    return { total: json.total ?? 0, ids, error: null };
   } catch (err) {
     return {
       total: 0,

@@ -14,9 +14,18 @@
  *      açılışta PUT yok, eski atlas karantinası + açık içe aktarma
  *   F. Word: boş atlas + organlar → iki ad + eksik notu; kısmi eşleşme
  *   G. Protokol: CAS kararı, eski kopya sınıflandırma, slug, UUID kimlik
+ *   E2. P1-5 Atlas lost update: base snapshot + 3-yollu organ birleştirme, çakışmada yerel
+ *       korunur + otomatik PUT yok + kullanıcı kararı, çevrimdışı düzenleme, bayat hook state,
+ *       LWW yedeği, survivor damgası, kota
+ *   E3. P1-5 gerçek route: protokol expected+silinmiş → 409 (diriltme yok); not create
+ *       mevcut uid → kör upsert yok (conflict/unchanged)
  */
 
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import Module from "node:module";
+import path from "node:path";
+import { NextRequest } from "next/server";
 import { Document, Packer } from "docx";
 import JSZip from "jszip";
 import type { NoteAttachment, SavedClinicalNote } from "@/app/refleksoloji/notlar/types";
@@ -169,6 +178,8 @@ function makeNotesStore(rows: Map<string, Snap>) {
       return rows.get(uid) ?? null;
     },
     async createNote(uid: string, fields: Record<string, unknown>, now: string) {
+      // P1-5: ON CONFLICT DO NOTHING (route ile aynı) — mevcut satır ezilmez.
+      if (rows.has(uid)) return null;
       writes++;
       const next = { updated_at: now, raw_json: fields.raw_json };
       rows.set(uid, next);
@@ -185,6 +196,78 @@ function makeNotesStore(rows: Map<string, Snap>) {
     },
   };
   return { store, writes: () => writes };
+}
+
+// ─── P1-5 (E3): gerçek route'lar için bellek-içi sahte Supabase (yalnız bu harness) ──
+type DbRow = Record<string, unknown>;
+class RouteDb {
+  tables: Record<string, DbRow[]> = {};
+  writes: string[] = [];
+  from(table: string) {
+    return new RouteQuery(this, table);
+  }
+}
+class RouteQuery {
+  private op: "select" | "insert" | "update" | "upsert" | "delete" = "select";
+  private preds: Array<(r: DbRow) => boolean> = [];
+  private payload: DbRow | null = null;
+  private upsertOpts: { onConflict?: string; ignoreDuplicates?: boolean } = {};
+  private mode: "many" | "maybe" | "single" = "many";
+  constructor(private db: RouteDb, private table: string) {}
+  select() { return this; }
+  insert(p: DbRow) { this.op = "insert"; this.payload = p; return this; }
+  update(p: DbRow) { this.op = "update"; this.payload = p; return this; }
+  upsert(p: DbRow, o: { onConflict?: string; ignoreDuplicates?: boolean } = {}) { this.op = "upsert"; this.payload = p; this.upsertOpts = o; return this; }
+  delete() { this.op = "delete"; return this; }
+  eq(c: string, v: unknown) {
+    const [col, jsonKey] = c.split("->>");
+    this.preds.push((r) => (jsonKey ? String((r[col] as DbRow | undefined)?.[jsonKey] ?? "") : r[col]) === v);
+    return this;
+  }
+  in(c: string, vs: unknown[]) { this.preds.push((r) => vs.includes(r[c])); return this; }
+  order() { return this; }
+  limit() { return this; }
+  maybeSingle() { this.mode = "maybe"; return this; }
+  single() { this.mode = "single"; return this; }
+  private exec(): { data: unknown; error: unknown } {
+    const rows = (this.db.tables[this.table] ??= []);
+    let affected: DbRow[] = [];
+    if (this.op === "insert") {
+      const row = { id: `row-${rows.length + 1}`, ...this.payload };
+      rows.push(row);
+      affected = [row];
+      this.db.writes.push(`insert:${this.table}`);
+    } else if (this.op === "upsert") {
+      const cols = (this.upsertOpts.onConflict ?? "id").split(",").map((x) => x.trim());
+      const existing = rows.find((r) => cols.every((c) => r[c] === this.payload?.[c]));
+      if (existing) {
+        if (!this.upsertOpts.ignoreDuplicates) {
+          Object.assign(existing, this.payload);
+          affected = [existing];
+          this.db.writes.push(`upsert-update:${this.table}`);
+        }
+      } else {
+        const row = { id: `row-${rows.length + 1}`, ...this.payload };
+        rows.push(row);
+        affected = [row];
+        this.db.writes.push(`upsert-insert:${this.table}`);
+      }
+    } else {
+      affected = rows.filter((r) => this.preds.every((f) => f(r)));
+      if (this.op === "update") {
+        for (const r of affected) Object.assign(r, this.payload);
+        if (affected.length) this.db.writes.push(`update:${this.table}`);
+      }
+      if (this.op === "delete") this.db.tables[this.table] = rows.filter((r) => !affected.includes(r));
+    }
+    const data = affected.map((r) => ({ ...r }));
+    if (this.mode === "maybe") return { data: data[0] ?? null, error: null };
+    if (this.mode === "single") return data[0] ? { data: data[0], error: null } : { data: null, error: { message: "no rows" } };
+    return { data, error: null };
+  }
+  then<T>(res: (v: { data: unknown; error: unknown }) => T, rej?: (e: unknown) => T) {
+    return Promise.resolve().then(() => this.exec()).then(res, rej);
+  }
 }
 
 const PNG = "data:image/png;base64,iVBORw0KGgo=";
@@ -565,6 +648,274 @@ async function main(): Promise<void> {
     await atlasSync.flushAtlasNow();
     ok("boş yerel atlas → PUT yok (sunucu ezilmez)", !requestLog.some((r) => r.startsWith("PUT")));
     clearYasamUser();
+  }
+
+  // ── E2 ───────────────────────────────────────────────────────────────────
+  section("E2. P1-5 Atlas lost update: base snapshot + 3-yollu birleştirme + çakışma");
+  {
+    const atlasStorage = await import("@/lib/atlasStorage");
+    const atlasSync = await import("@/lib/refleksolojiAtlasSync");
+    const mergeLib = await import("@/lib/refleksoloji/atlasMerge");
+    type Doc = ReturnType<typeof atlasStorage.loadAtlas>;
+    const reg = (id: string, cx = 0.3) => ({ id, shape: "oval", cx, cy: 0.4, rx: 0.05, ry: 0.05, angle: 0 });
+    const ent = (...rs: unknown[]) => ({ taban: { sol: rs, sag: [] }, yan_ic: { sol: [], sag: [] }, yan_dis: { sol: [], sag: [] } });
+    const draft = (id: string, organ: string, cx = 0.5) =>
+      ({ id, organ, footSide: "left", view: "taban", shape: "oval", cx, cy: 0.5, rx: 0.05, ry: 0.05 }) as never;
+    const ids = (doc: unknown, organ: string) =>
+      atlasStorage.getRegionsForOrgan(doc as Doc, organ).map((r) => r.id).sort().join(",");
+    const cxOf = (doc: unknown, organ: string, id: string) =>
+      atlasStorage.getRegionsForOrgan(doc as Doc, organ).find((r) => r.id === id)?.cx;
+    const putCount = () => requestLog.filter((r) => r.startsWith("PUT /api/refleksoloji/atlas")).length;
+    const srv = () => serverAtlas.get("tenant-c")!;
+    const srvDoc = () => srv().document as Record<string, unknown>;
+    /** B cihazı: sunucu belgesini doğrudan değiştirir (sürüm ilerler). */
+    const deviceB = (mut: (doc: Record<string, unknown>) => void, organs?: string[]) => {
+      const cur = structuredClone(srv());
+      mut(cur.document as Record<string, unknown>);
+      serverAtlas.set("tenant-c", { updated_at: tick(), document: cur.document, organ_list: organs ?? cur.organ_list });
+    };
+    const T0 = "2026-09-27T09:00:00.000Z";
+    serverAtlas.set("tenant-c", {
+      updated_at: "C1",
+      document: { _meta: { version: "1", updated_at: T0, tombstones: {}, organUpdatedAt: { mide: T0, kalp: T0 } }, Mide: ent(reg("m1")), Kalp: ent(reg("k1")) },
+      organ_list: ["Kalp", "Mide"],
+    });
+    login("C");
+    const changedEvents: number[] = [];
+    win.addEventListener(atlasStorage.ATLAS_CHANGED_EVENT, () => changedEvents.push(Date.now()));
+    await atlasStorage.hydrateAndMergeAtlas();
+    ok("hidrasyon: base belgesi saklandı (3-yollu birleştirme tabanı)", ids(atlasSync.loadAtlasBase()?.doc, "Mide") === "m1");
+
+    // (a) normal kaydet → 200 + base güncel
+    requestLog.length = 0;
+    atlasStorage.saveAtlas(atlasStorage.mergeDraftIntoAtlas(atlasStorage.loadAtlas(), [draft("m2", "Mide")], []));
+    const ra = await atlasSync.flushAtlasNow();
+    const baseA = atlasSync.loadAtlasBase();
+    ok("(a) normal kaydet → PUT 200 (tek istek)", ra.status === "ok" && putCount() === 1);
+    ok("(a) base güncel: updated_at = sunucu sürümü, belge = gönderilen", baseA?.updated_at === srv().updated_at && ids(baseA?.doc, "Mide") === "m1,m2");
+
+    // (b) stale: B sunucuda Kalp'i değiştirir + Dalak ekler; A yalnız Mide'yi değiştirir
+    deviceB((d) => {
+      d.Kalp = ent(reg("k1"), reg("k2"));
+      d.Dalak = ent(reg("d1"));
+    }, ["Dalak", "Kalp", "Mide"]);
+    const staleHookState = atlasStorage.loadAtlas(); // (f) için: bayat hook state (Dalak YOK)
+    changedEvents.length = 0;
+    requestLog.length = 0;
+    atlasStorage.saveAtlas(atlasStorage.mergeDraftIntoAtlas(atlasStorage.loadAtlas(), [draft("m3", "Mide")], []));
+    const rb = await atlasSync.flushAtlasNow();
+    ok("(b) stale PUT → 409 → çakışmasız birleşme → TEK otomatik retry → ok", rb.status === "ok" && putCount() === 2);
+    ok("(b) sunucuda A+B birlikte: Mide(A) + Kalp(B) + Dalak(B)", ids(srvDoc(), "Mide") === "m1,m2,m3" && ids(srvDoc(), "Kalp") === "k1,k2" && ids(srvDoc(), "Dalak") === "d1");
+    ok("(b) yerel: A'nın organı korundu + B'nin organları alındı", ids(atlasStorage.loadAtlas(), "Mide") === "m1,m2,m3" && ids(atlasStorage.loadAtlas(), "Dalak") === "d1");
+    ok("(b) organ listesi birleşti (Dalak)", atlasStorage.loadOrganList().includes("Dalak") && srv().organ_list.includes("Dalak"));
+    ok("(b) çakışma yok + durum 'synced'", atlasSync.getAtlasConflict() === null && getReflexologySyncStatus().state === "synced");
+
+    // (f) bayat hook state sunucu-only organları düşürmez
+    ok("(f) birleştirme 'refleks:atlas-changed' yayınladı (hook state yeniden yüklenir)", changedEvents.length >= 1);
+    ok("(f) eski davranış (bayat state'e taslak) Dalak'ı DÜŞÜRÜRDÜ — kontrol", ids(atlasStorage.mergeDraftIntoAtlas(staleHookState, [draft("m5", "Mide")], []), "Dalak") === "");
+    const fresh = atlasStorage.mergeDraftIntoAtlas(atlasStorage.loadAtlas(), [draft("m5", "Mide")], []);
+    ok("(f) depodan güncel atlasa taslak → Dalak korunur", ids(fresh, "Dalak") === "d1" && ids(fresh, "Mide").includes("m5"));
+    const hookSrc = fs.readFileSync(path.join(process.cwd(), "app/refleksoloji/bolge-haritasi/hooks/useAtlasWorkspace.ts"), "utf8");
+    ok("(f) hook: handleSave loadAtlas() üzerinden + atlas-changed dinleyicisi", /mergeDraftIntoAtlas\(loadAtlas\(\)/.test(hookSrc) && /addEventListener\(ATLAS_CHANGED_EVENT/.test(hookSrc));
+
+    // (c0) RF-01: aynı organın FARKLI bölgeleri iki cihazda değişti → çakışma YOK, ikisi de korunur
+    deviceB((d) => {
+      (d.Mide as { taban: { sol: unknown[] } }).taban.sol.push(reg("mB"));
+    });
+    requestLog.length = 0;
+    atlasStorage.saveAtlas(atlasStorage.mergeDraftIntoAtlas(atlasStorage.loadAtlas(), [draft("mA", "Mide")], []));
+    const rc0 = await atlasSync.flushAtlasNow();
+    ok("(c0) aynı organ farklı bölgeler → otomatik birleşme + tek retry, çakışma yok",
+      rc0.status === "ok" && putCount() === 2 && atlasSync.getAtlasConflict() === null);
+    ok("(c0) sunucuda iki cihazın bölgesi de var (mA + mB)", ids(srvDoc(), "Mide") === "m1,m2,m3,mA,mB");
+
+    // (c) GERÇEK çakışma: AYNI bölge (m1) iki cihazda FARKLI taşındı → çakışma; yerel bozulmaz; otomatik PUT yok
+    deviceB((d) => {
+      const sol = (d.Mide as { taban: { sol: Array<Record<string, unknown>> } }).taban.sol;
+      const m1 = sol.find((r) => r.id === "m1");
+      if (m1) m1.cx = 0.9;
+    });
+    const serverMideB = ids(srvDoc(), "Mide");
+    requestLog.length = 0;
+    atlasStorage.saveAtlas(atlasStorage.mergeDraftIntoAtlas(atlasStorage.loadAtlas(), [draft("m1", "Mide", 0.1), draft("m4", "Mide")], []));
+    const rc = await atlasSync.flushAtlasNow();
+    await sleep(800);
+    ok("(c) çakışma → status 'conflict', otomatik retry YOK (tek PUT)", rc.status === "conflict" && putCount() === 1);
+    ok("(c) çakışma mesajı birebir", getReflexologySyncStatus().state === "conflict" && getReflexologySyncStatus().message === atlasSync.ATLAS_CONFLICT_MESSAGE);
+    ok("(c) çakışan organ listesi = [Mide]", JSON.stringify(atlasSync.getAtlasConflict()?.organs) === JSON.stringify(["Mide"]));
+    ok("(c) yerel Mide BOZULMADI (A'nın sürümü)", ids(atlasStorage.loadAtlas(), "Mide") === "m1,m2,m3,m4,mA,mB" && cxOf(atlasStorage.loadAtlas(), "Mide", "m1") === 0.1);
+    ok("(c) sunucu Mide B'nin sürümü (ezilmedi)", ids(srvDoc(), "Mide") === serverMideB && cxOf(srvDoc(), "Mide", "m1") === 0.9);
+    // yeniden yükleme: çakışma kalıcı (taban ilerletilmedi) — yine otomatik PUT yok
+    requestLog.length = 0;
+    await atlasStorage.hydrateAndMergeAtlas();
+    await sleep(800);
+    ok("(c) yeniden yüklemede çakışma yeniden tespit edilir, yerel korunur, PUT yok",
+      atlasSync.getAtlasConflict()?.organs.includes("Mide") === true && cxOf(atlasStorage.loadAtlas(), "Mide", "m1") === 0.1 && putCount() === 0);
+    // "Benim sürümümü gönder" → taze expected ile PUT
+    requestLog.length = 0;
+    const pushed = await atlasStorage.pushLocalAtlasVersion();
+    ok("(c) 'Benim sürümümü gönder' → taze expected ile tek PUT başarılı", pushed === true && putCount() === 1 && ids(srvDoc(), "Mide") === "m1,m2,m3,m4,mA,mB" && cxOf(srvDoc(), "Mide", "m1") === 0.1);
+    ok("(c) çözüm sonrası çakışma temiz + synced", atlasSync.getAtlasConflict() === null && getReflexologySyncStatus().state === "synced");
+
+    // "Sunucu sürümünü al": Kalp'te çakışma; yerel-özel (çakışmasız) yeni organ yine gönderilir
+    deviceB((d) => {
+      const sol = (d.Kalp as { taban: { sol: Array<Record<string, unknown>> } }).taban.sol;
+      const k1 = sol.find((r) => r.id === "k1");
+      if (k1) k1.cx = 0.9;
+    });
+    atlasStorage.saveAtlas(atlasStorage.mergeDraftIntoAtlas(atlasStorage.loadAtlas(), [draft("k1", "Kalp", 0.2), draft("b1", "Böbrek")], []));
+    await atlasSync.flushAtlasNow();
+    ok("(c2) Kalp çakışması tespit edildi", atlasSync.getAtlasConflict()?.organs.includes("Kalp") === true);
+    const adopted = await atlasStorage.adoptServerAtlasVersion();
+    ok("(c2) 'Sunucu sürümünü al' → yerel Kalp = sunucu (B)", adopted === true && cxOf(atlasStorage.loadAtlas(), "Kalp", "k1") === 0.9);
+    ok("(c2) çakışmasız yerel değişiklik (Böbrek) korunup sunucuya gitti", ids(srvDoc(), "Böbrek") === "b1" && cxOf(srvDoc(), "Kalp", "k1") === 0.9);
+
+    // (d) taze (stale olmayan) PUT → doğrudan 200
+    requestLog.length = 0;
+    atlasStorage.saveAtlas(atlasStorage.mergeDraftIntoAtlas(atlasStorage.loadAtlas(), [draft("m6", "Mide")], []));
+    const rd = await atlasSync.flushAtlasNow();
+    ok("(d) taze PUT → 200, tek istek, GET yok", rd.status === "ok" && putCount() === 1 && !requestLog.some((r) => r.startsWith("GET")));
+
+    // (e) çevrimdışı düzenleme + yeniden yükleme → kayıp yok
+    offline = true;
+    atlasStorage.saveAtlas(atlasStorage.mergeDraftIntoAtlas(atlasStorage.loadAtlas(), [draft("m9", "Mide")], []));
+    const re1 = await atlasSync.flushAtlasNow();
+    const reh = await atlasStorage.hydrateAndMergeAtlas();
+    ok("(e) çevrimdışı: PUT başarısız, hidrasyon null, yerel m9 duruyor", re1.status !== "ok" && reh === null && ids(atlasStorage.loadAtlas(), "Mide").includes("m9"));
+    offline = false;
+    deviceB((d) => {
+      d.Dalak = ent(reg("d1"), reg("d2"));
+    });
+    requestLog.length = 0;
+    await atlasStorage.hydrateAndMergeAtlas(); // "sayfa yenileme" (çevrim içi)
+    await sleep(800);
+    ok("(e) yeniden yükleme yerel çevrimdışı düzenlemeyi EZMEDİ (m9) + B'nin değişikliği alındı",
+      ids(atlasStorage.loadAtlas(), "Mide").includes("m9") && ids(atlasStorage.loadAtlas(), "Dalak") === "d1,d2");
+    await atlasSync.flushAtlasNow(); // debounce'u beklemeden
+    ok("(e) RF-03: ata biliniyor → yerel eşitlenmemiş değişiklik açılışta OTOMATİK gönderildi",
+      putCount() >= 1 && ids(srvDoc(), "Mide").includes("m9") && getReflexologySyncStatus().state === "synced");
+    ok("(e) kullanıcı 'yeniden dene' → sunucu m9 + d2'yi birlikte taşır", ids(srvDoc(), "Mide").includes("m9") && ids(srvDoc(), "Dalak") === "d1,d2");
+
+    // (e2) belgesiz eski taban (önceki sürüm istemci) → LWW; kaybeden yerel yedeklenir
+    const scopeC = { tenantId: "tenant-c", userId: "user-c" };
+    const baseKey = scoped.scopedKey(scopeC, "atlas-base");
+    const legacyBase = JSON.parse(ls.getItem(baseKey) ?? "{}") as Record<string, unknown>;
+    ls.setItem(baseKey, JSON.stringify({ updated_at: legacyBase.updated_at, hash: "eski-hash" }));
+    const localNow = atlasStorage.loadAtlas();
+    const lMeta = localNow._meta as { organUpdatedAt?: Record<string, string> };
+    lMeta.organUpdatedAt = { ...(lMeta.organUpdatedAt ?? {}), kalp: "2026-01-01T00:00:00.000Z" };
+    (localNow as Record<string, unknown>).Kalp = ent(reg("kx", 0.1), reg("kLocalOnly"));
+    scoped.writeScopedJson(scopeC, "atlas", localNow);
+    deviceB((d) => {
+      d.Kalp = ent(reg("kx", 0.9));
+      (d._meta as { organUpdatedAt: Record<string, string> }).organUpdatedAt.kalp = "2026-09-30T00:00:00.000Z";
+    });
+    await atlasStorage.hydrateAndMergeAtlas();
+    const backup = atlasStorage.loadAtlasConflictBackup();
+    ok("(e2) base belgesi yok → LWW (aynı bölge): sunucunun daha yeni kx'i kazandı", cxOf(atlasStorage.loadAtlas(), "Kalp", "kx") === 0.9);
+    ok("(e2) birleşimde yalnız yerelde olan bölge (kLocalOnly) DÜŞMEDİ", ids(atlasStorage.loadAtlas(), "Kalp").includes("kLocalOnly"));
+    ok("(e2) kaybeden yerel Kalp 'atlas-conflict-backup' anahtarına yedeklendi",
+      backup.length >= 1 && cxOf({ _meta: {}, ...backup[backup.length - 1].organs }, "Kalp", "kx") === 0.1);
+
+    // (g) hayatta kalan organUpdatedAt doğru taraftan
+    const S1 = "2026-09-01T00:00:00.000Z";
+    const S2 = "2026-09-02T00:00:00.000Z";
+    const mk = (organ: Record<string, unknown>, upd: Record<string, string>) => ({ _meta: { organUpdatedAt: upd }, ...organ });
+    // Aynı bölge kimliği (x) farklı içerikle: LWW / 3-yollu kurallar; damga içerik hangi taraftansa oradan.
+    const g1 = mergeLib.mergeAtlasThreeWay(mk({ Mide: ent(reg("x", 0.9)) }, { mide: S2 }), mk({ Mide: ent(reg("x", 0.1)) }, { mide: S1 }), null);
+    ok("(g) LWW sunucu yeni → içerik + damga sunucudan", cxOf(g1.document, "Mide", "x") === 0.9 && g1.document._meta?.organUpdatedAt?.mide === S2);
+    const g2 = mergeLib.mergeAtlasThreeWay(mk({ Mide: ent(reg("x", 0.9)) }, { mide: S1 }), mk({ Mide: ent(reg("x", 0.1)) }, { mide: S2 }), null);
+    ok("(g) LWW yerel yeni → içerik + damga yerelden; kayıp yedeği yok", cxOf(g2.document, "Mide", "x") === 0.1 && g2.document._meta?.organUpdatedAt?.mide === S2 && Object.keys(g2.lostLocal).length === 0);
+    const gU = mergeLib.mergeAtlasThreeWay(mk({ Mide: ent(reg("s")) }, { mide: S2 }), mk({ Mide: ent(reg("l")) }, { mide: S1 }), null);
+    ok("(g) LWW farklı bölgeler → birleşim (hiçbiri düşmez)", ids(gU.document, "Mide") === "l,s");
+    const gBase = mk({ Mide: ent(reg("x", 0.5)) }, { mide: "2026-08-01T00:00:00.000Z" });
+    const g3 = mergeLib.mergeAtlasThreeWay(mk({ Mide: ent(reg("x", 0.9)) }, { mide: S2 }), mk({ Mide: ent(reg("x", 0.1)) }, { mide: S1 }), gBase);
+    ok("(g) 3-yollu çakışma: yerel korunur + damga YEREL (sunucunun daha yeni damgası yapışmaz)",
+      g3.conflicts.join() === "Mide" && cxOf(g3.document, "Mide", "x") === 0.1 && g3.document._meta?.organUpdatedAt?.mide === S1);
+    const g4 = mergeLib.mergeAtlasThreeWay(mk({ Mide: ent(reg("x", 0.9)) }, { mide: S1 }), mk({ Mide: ent(reg("x", 0.5)) }, { mide: S2 }), gBase);
+    ok("(g) 3-yollu yalnız sunucu değişti: sunucu içeriği + sunucu damgası", g4.conflicts.length === 0 && cxOf(g4.document, "Mide", "x") === 0.9 && g4.document._meta?.organUpdatedAt?.mide === S1);
+    const g5 = mergeLib.mergeAtlasThreeWay({ _meta: { organUpdatedAt: {}, tombstones: { mide: S2 } } }, mk({ Mide: ent(reg("x", 0.5)) }, { mide: S1 }), gBase, S2);
+    ok("(g) 3-yollu sunucu sildi (mezar taşlı) + yerel değişmedi → silinir + mezar taşı", ids(g5.document, "Mide") === "" && typeof g5.document._meta?.tombstones?.mide === "string");
+    const g6 = mergeLib.mergeAtlasThreeWay(mk({}, {}), mk({ Mide: ent(reg("x", 0.5)) }, { mide: S1 }), gBase, S2);
+    ok("(g) RF-13: sunucuda MEZAR TAŞSIZ kaybolan organ silme sayılmaz → korunur", ids(g6.document, "Mide") === "x");
+
+    // Kota: birleşim yazılamazsa yerel/taban DOKUNULMAZ, otomatik PUT yok
+    deviceB((d) => {
+      d.Mide = ent(reg("mQuota"));
+    });
+    const localBefore = ls.getItem(scoped.scopedKey(scopeC, "atlas"));
+    const baseBefore = ls.getItem(baseKey);
+    atlasStorage.saveAtlas(atlasStorage.mergeDraftIntoAtlas(atlasStorage.loadAtlas(), [draft("q1", "Kalp")], []));
+    const localSaved = ls.getItem(scoped.scopedKey(scopeC, "atlas"));
+    const origSet = ls.setItem.bind(ls);
+    ls.setItem = (k: string, v: string) => {
+      if (k.includes(":atlas") || k.includes(":organs")) throw new Error("QuotaExceededError");
+      origSet(k, v);
+    };
+    requestLog.length = 0;
+    const rq = await atlasSync.flushAtlasNow();
+    ls.setItem = origSet;
+    ok("(kota) yazılamayan birleşim → conflict, retry yok, yerel aynen", rq.status === "conflict" && putCount() === 1 && ls.getItem(scoped.scopedKey(scopeC, "atlas")) === localSaved);
+    ok("(kota) taban ilerletilmedi", ls.getItem(baseKey) === baseBefore && localBefore !== null);
+    clearYasamUser();
+  }
+
+  // ── E3 ───────────────────────────────────────────────────────────────────
+  section("E3. P1-5 Protokol diriltme yok + not create kör ezme yok (gerçek route)");
+  {
+    const STUB = path.join(process.cwd(), "scripts", "final-hardening", "hday-stubs", "userGuard.cjs");
+    const M = Module as unknown as { _resolveFilename: (req: string, ...rest: unknown[]) => string };
+    const orig = M._resolveFilename;
+    M._resolveFilename = function (req: string, ...rest: unknown[]) {
+      if (req === "@/lib/auth/userGuard") return STUB;
+      return orig.call(this, req, ...rest);
+    };
+    const db = new RouteDb();
+    (globalThis as Record<string, unknown>).__HDAY_GUARD__ = () => ({
+      ok: true,
+      db,
+      tenantId: "tenant-r",
+      userId: "user-r",
+      is_demo_account: false,
+      profile: { role: "admin" }, // trackUsage no-op (telemetri bu testin konusu değil)
+    });
+    const protoRoute = await import("@/app/api/refleksoloji/protocols/by-uid/[uid]/route");
+    const notesRoute = await import("@/app/api/refleksoloji/notes/route");
+    const call = async (handler: (r: NextRequest, c: { params: Promise<{ uid: string }> }) => Promise<Response>, url: string, method: string, body: unknown, uid = "") => {
+      const r = new NextRequest(`http://localhost${url}`, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+      const res = await handler(r, { params: Promise.resolve({ uid }) });
+      return { status: res.status, json: (await res.json()) as Record<string, unknown> };
+    };
+
+    // (h) expected verildi + satır silinmiş → 409 PROTOCOL_DELETED, insert YOK
+    db.tables.reflexology_protocols = [];
+    const protoBody = { title: "Migren", target_problem: "baş", organs: "Beyin", application_notes: null, raw_json: { id: "p1", title: "Migren", updatedAt: "V2" } };
+    const h1 = await call(protoRoute.PUT, "/api/refleksoloji/protocols/by-uid/p1", "PUT", { ...protoBody, expected_updated_at: "V1" }, "p1");
+    ok("(h) expected + silinmiş protokol → 409 PROTOCOL_DELETED", h1.status === 409 && h1.json.code === "PROTOCOL_DELETED");
+    ok("(h) silinen protokol DİRİLMEDİ (insert yok)", db.tables.reflexology_protocols.length === 0 && !db.writes.includes("insert:reflexology_protocols"));
+    const h2 = await call(protoRoute.PUT, "/api/refleksoloji/protocols/by-uid/p2", "PUT", { ...protoBody, raw_json: { id: "p2", updatedAt: "V1" } }, "p2");
+    ok("(h) expected YOK + satır yok → insert (geriye dönük)", h2.status === 200 && h2.json.created === true && db.tables.reflexology_protocols.length === 1);
+    db.tables.reflexology_protocols.push({ id: "row-p3", tenant_id: "tenant-r", source_uid: "p3", raw_json: { id: "p3", updatedAt: "V1" } });
+    const h3 = await call(protoRoute.PUT, "/api/refleksoloji/protocols/by-uid/p3", "PUT", { ...protoBody, raw_json: { id: "p3", updatedAt: "V2" }, expected_updated_at: "V1" }, "p3");
+    ok("(h) expected eşleşen mevcut satır → 200 update", h3.status === 200 && h3.json.updated === 1);
+    ok("(h) saf karar: expected var → PROTOCOL_DELETED; yok → insert",
+      protoCore.decideProtocolMissingRow("V1").kind === "conflict" && protoCore.decideProtocolMissingRow(null).kind === "insert");
+
+    // (i) not create: mevcut uid → kör upsert YOK (farklı içerik → conflict; aynı → unchanged)
+    db.tables.reflexology_notes = [{
+      id: "row-n1", tenant_id: "tenant-r", source_uid: "n1", updated_at: "S1",
+      raw_json: { ...note("n1"), content: "sunucu metni" },
+    }];
+    const i1 = await call(notesRoute.PUT, "/api/refleksoloji/notes", "PUT", { notes: [note("n1", { content: "başka cihaz metni" })] });
+    const i1r = (i1.json.results as Array<Record<string, unknown>>)[0];
+    ok("(i) mevcut uid + farklı içerik → 409 conflict (server döner)", i1.status === 409 && i1r.outcome === "conflict" && i1r.server_updated_at === "S1");
+    ok("(i) sunucu notu EZİLMEDİ", (db.tables.reflexology_notes[0].raw_json as { content: string }).content === "sunucu metni" && db.tables.reflexology_notes[0].updated_at === "S1");
+    const i2 = await call(notesRoute.PUT, "/api/refleksoloji/notes", "PUT", { notes: [note("n1", { content: "sunucu metni" })] });
+    const i2r = (i2.json.results as Array<Record<string, unknown>>)[0];
+    ok("(i) mevcut uid + aynı içerik → unchanged (idempotent yeniden deneme)", i2.status === 200 && i2r.outcome === "unchanged" && i2r.updated_at === "S1");
+    const i3 = await call(notesRoute.PUT, "/api/refleksoloji/notes", "PUT", { notes: [note("n2")] });
+    ok("(i) yeni uid → created", i3.status === 200 && (i3.json.results as Array<Record<string, unknown>>)[0].outcome === "created" && db.tables.reflexology_notes.length === 2);
+    M._resolveFilename = orig;
   }
 
   // ── F ────────────────────────────────────────────────────────────────────

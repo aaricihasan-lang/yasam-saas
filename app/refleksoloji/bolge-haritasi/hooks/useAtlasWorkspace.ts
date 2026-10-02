@@ -14,6 +14,7 @@ import {
   saveAtlas,
   saveOrganList,
 } from "@/lib/atlasStorage";
+import { mergeOrganListsWithTombstones } from "@/lib/refleksoloji/atlasMerge";
 import type { FootSide, FootView, Region } from "../types";
 import { dedupeByOrganKey, isDuplicateOrgan } from "../utils/organUtils";
 
@@ -35,6 +36,9 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
   const [hydrated, setHydrated] = useState(false);
   // DL-007: sahibi belirsiz eski cihaz atlası (karar Kayıtlı Atlas'ta verilir).
   const [quarantineCount, setQuarantineCount] = useState(0);
+  // P1-5: senkron birleştirmesi (409 çözümü / hidrasyon / çakışma kararı) yereli
+  // değiştirdiğinde artar → bağımlı paneller (bölge sayıları) tazelenir.
+  const [atlasRevision, setAtlasRevision] = useState(0);
 
   const [selectedFoot, setSelectedFoot] = useState<FootSide>("left");
   const [selectedView, setSelectedView] = useState<FootView>("taban");
@@ -70,23 +74,30 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     };
   }, [initialOrgan]);
 
-  // RF-02: başka sekme (storage olayı) veya aynı sekmedeki birleştirme/409 çözümü
-  // (ATLAS_CHANGED_EVENT) yerel atlası değiştirdiğinde ekran state'i TAZELENİR.
-  // Kaydedilmemiş taslak bölgeler (draftRegions/deletedRegionIds) korunur.
+  // P1-5 + RF-02: atlas yerelde senkron tarafından (sunucu-only organlar, çakışma çözümü,
+  // 3-yollu birleştirme) VEYA başka sekmede (storage olayı) değiştirildi → state'i depodan
+  // yeniden yükle. Bayat state ile kaydetme diğer değişiklikleri DÜŞÜRMESİN (handleSave
+  // ayrıca depodan okur). Kaydedilmemiş taslak bölgeler (draftRegions) korunur.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const reload = () => {
+    const onChanged = () => {
       const doc = loadAtlas();
       setAtlas(doc);
-      setOrgans(mergeOrganLists(listOrganNamesFromAtlas(doc), loadOrganList()));
+      setOrgans((prev) =>
+        mergeOrganLists(
+          listOrganNamesFromAtlas(doc),
+          mergeOrganListsWithTombstones(loadOrganList(), prev, doc._meta),
+        ),
+      );
+      setAtlasRevision((v) => v + 1);
     };
     const onStorage = (e: StorageEvent) => {
-      if (isAtlasStorageKey(e.key)) reload();
+      if (isAtlasStorageKey(e.key)) onChanged();
     };
-    window.addEventListener(ATLAS_CHANGED_EVENT, reload);
+    window.addEventListener(ATLAS_CHANGED_EVENT, onChanged);
     window.addEventListener("storage", onStorage);
     return () => {
-      window.removeEventListener(ATLAS_CHANGED_EVENT, reload);
+      window.removeEventListener(ATLAS_CHANGED_EVENT, onChanged);
       window.removeEventListener("storage", onStorage);
     };
   }, []);
@@ -123,7 +134,11 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
       const trimmed = name.trim();
       if (!trimmed || isDuplicateOrgan(trimmed, organs)) return false;
 
-      const nextOrgans = [...organs, trimmed].sort((a, b) => a.localeCompare(b, "tr"));
+      // P1-5: depodaki güncel liste ∪ ekrandaki liste (senkronla gelen adlar düşmesin).
+      const nextOrgans = mergeOrganLists(
+        [trimmed],
+        mergeOrganListsWithTombstones(loadOrganList(), organs, loadAtlas()._meta),
+      );
       setOrgans(nextOrgans);
       // Kullanıcı eylemi → organ listesini kalıcılaştır (+ senkron planla).
       saveOrganList(nextOrgans);
@@ -159,8 +174,8 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
   );
 
   const handleSave = useCallback((): boolean => {
-    // RF-02: taslak, mount anındaki React state'ine DEĞİL depodaki EN GÜNCEL belgeye
-    // uygulanır → başka sekmenin (veya arka plan birleştirmesinin) değişikliği ezilmez.
+    // P1-5 / RF-02: taslak, hook state'ine DEĞİL depodaki GÜNCEL atlasa uygulanır — arka
+    // planda senkronla gelen veya başka sekmede kaydedilen değişiklikler ezilmez.
     const next = mergeDraftIntoAtlas(loadAtlas(), draftRegions, deletedRegionIds);
     const ok = saveAtlas(next);
     if (!ok) return false;
@@ -174,12 +189,15 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     setSelectedOrgans((prev) => prev.filter((o) => survivingOrgans.has(o)));
     setActiveOrgan((cur) => (cur && survivingOrgans.has(cur) ? cur : null));
     setSelectedRegionId(null);
-    // Organ listesi de depodaki güncel listeden (organ ekleme anında kalıcılaşır).
-    const nextOrgans = mergeOrganLists(listOrganNamesFromAtlas(next), loadOrganList());
+    // Organ listesi de depodaki güncel liste ∪ ekrandaki liste (silinenler hariç).
+    const nextOrgans = mergeOrganLists(
+      listOrganNamesFromAtlas(next),
+      mergeOrganListsWithTombstones(loadOrganList(), organs, next._meta),
+    );
     setOrgans(nextOrgans);
     saveOrganList(nextOrgans);
     return true;
-  }, [draftRegions, deletedRegionIds]);
+  }, [draftRegions, deletedRegionIds, organs]);
 
   const handleDeleteSelectedDrawing = useCallback(() => {
     if (!selectedRegionId) {
@@ -196,6 +214,7 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
   return {
     hydrated,
     quarantineCount,
+    atlasRevision,
     organs,
     selectedOrgans,
     activeOrgan,

@@ -109,6 +109,12 @@ export function planAtlasPush(
 
 // ─── Sunucu PUT kararı ───────────────────────────────────────────────────────
 
+/**
+ * P1-5: ATLAS_STALE (409) için TEK Türkçe mesaj — insert yarışı, CAS kaybı ve expected
+ * uyuşmazlığı aynı metni döndürür (istemci kendi çakışma mesajını gösterir).
+ */
+export const ATLAS_STALE_ERROR = "Atlas başka bir cihazda güncellendi.";
+
 export type AtlasCurrentRow = {
   updated_at: string;
   document: unknown;
@@ -167,7 +173,7 @@ export function decideAtlasPut(input: {
     };
   }
   if (current.updated_at !== expected) {
-    return { kind: "conflict", code: "ATLAS_STALE", error: "Atlas başka bir cihazda güncellendi." };
+    return { kind: "conflict", code: "ATLAS_STALE", error: ATLAS_STALE_ERROR };
   }
   const incomingEmpty = !hasAtlasContent(input.incomingDocument, input.incomingOrganList);
   const currentHasContent = hasAtlasContent(current.document, current.organ_list);

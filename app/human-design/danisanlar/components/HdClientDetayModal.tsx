@@ -99,8 +99,7 @@ export function HdClientDetayModal({ row, onClose, onSaved }: Props) {
         aria-modal="true"
         aria-labelledby="hd-client-detay-title"
         tabIndex={-1}
-        className="relative z-10 flex w-full max-w-5xl flex-col rounded-[28px] border-2 border-indigo-200/80 bg-white shadow-2xl focus:outline-none"
-        style={{ maxHeight: "90vh" }}
+        className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border-2 border-indigo-200/80 bg-white shadow-2xl focus:outline-none"
       >
         {/* Header — sabit */}
         <div className="flex-shrink-0 flex items-center justify-between rounded-t-[26px] border-b border-indigo-100/80 bg-gradient-to-r from-indigo-50 to-violet-50/60 px-6 py-4">

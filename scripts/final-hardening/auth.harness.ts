@@ -342,7 +342,8 @@ async function run() {
   ok(extractClientIp(new Headers({ "x-vercel-forwarded-for": "4.4.4.4, 5.5.5.5", "x-forwarded-for": "2.2.2.2" })) === "4.4.4.4", "IP: x-vercel-forwarded-for ilk değer");
   ok(extractClientIp(new Headers({ "x-forwarded-for": " 2.2.2.2 , 3.3.3.3" })) === "2.2.2.2", "IP: x-forwarded-for ilk değer");
   ok(hashLoginIp("1.1.1.1", "p") !== "1.1.1.1" && hashLoginIp("1.1.1.1", "p") !== hashLoginIp("1.1.1.1", "q"), "IP pepper'lı SHA-256 (ham IP gitmez)");
-  ok(validateNewPassword("123456789").ok === false && validateNewPassword("1234567890").ok === true, "yeni parola min 10 (admin sıfırlama)");
+  // Owner kararı (2026-10): min 6, karmaşıklık zorunluluğu yok, bariz parola reddi (passwordPolicy tek kaynak).
+  ok(validateNewPassword("48273").ok === false && validateNewPassword("482731").ok === true && validateNewPassword("123456").ok === false, "yeni parola min 6 + bariz parola reddi (admin sıfırlama)");
 
   console.log("\n── B) Touch await + enforce kapısı ──");
   {
@@ -365,16 +366,22 @@ async function run() {
       } as unknown as SupabaseClient;
     }
     const old = new Date(Date.now() - 10 * 60_000).toISOString();
+    // Yedek (legacy) yol YALNIZ kill-switch ile (enforce kapalı) kullanılır.
+    process.env.SESSION_EXPIRY_ENFORCE = "0";
     const uid = await getActiveSessionUserId(lazyDb(old), "tok");
-    ok(uid === "u-lazy", "yedek yol: aktif token → userId");
+    ok(uid === "u-lazy", "yedek yol (kill-switch): aktif token → userId");
     ok(executed.includes("user_sessions:update"), "yedek yol: last_seen_at UPDATE GERÇEKTEN çalıştı (await; `void` regresyonu yok)");
     executed.length = 0;
     await getActiveSessionUserId(lazyDb(new Date().toISOString()), "tok");
     ok(!executed.includes("user_sessions:update"), "throttle: taze last_seen_at → UPDATE yok");
+    delete process.env.SESSION_EXPIRY_ENFORCE;
+    executed.length = 0;
+    ok((await getActiveSessionUserId(lazyDb(old), "tok")) === null && !executed.includes("user_sessions:select"), "VARSAYILAN (enforce açık): RPC hatası → null, yedek yola DÜŞMEZ");
     // enforce açıkken RPC hatası → fail-closed (yedek yola düşmez)
-    const enforced = resolveSessionExpiryPolicy({ SESSION_EXPIRY_ENFORCE: "1" });
-    ok(enforced.enforce === true && resolveSessionExpiryPolicy({}).enforce === false, "SESSION_EXPIRY_ENFORCE varsayılan KAPALI; '1' → açık");
-    ok(isSessionExpiryEnforced({ SESSION_EXPIRY_ENFORCE: "true" }) && !isSessionExpiryEnforced({ SESSION_EXPIRY_ENFORCE: "0" }), "enforce: 'true' açık, '0' kapalı");
+    const enforced = resolveSessionExpiryPolicy({});
+    ok(enforced.enforce === true && resolveSessionExpiryPolicy({ SESSION_EXPIRY_ENFORCE: "1" }).enforce === true, "P1-3: SESSION_EXPIRY_ENFORCE varsayılan AÇIK (env yok/'1' → açık)");
+    ok(isSessionExpiryEnforced({ SESSION_EXPIRY_ENFORCE: "true" }) && isSessionExpiryEnforced({ SESSION_EXPIRY_ENFORCE: "" }) && isSessionExpiryEnforced({ SESSION_EXPIRY_ENFORCE: "yanlis-deger" }), "enforce: boş/tanımsız/geçersiz değer → AÇIK (fail-safe)");
+    ok(["0", "false", "OFF", " no "].every((v) => !isSessionExpiryEnforced({ SESSION_EXPIRY_ENFORCE: v })), "kill-switch: yalnız 0/false/off/no → kapalı");
     ok((await touchActiveSession(lazyDb(old), "tok", enforced)) === null, "enforce AÇIK + RPC hatası → null (fail-closed)");
   }
   {
@@ -384,15 +391,18 @@ async function run() {
       created_at: new Date(nowMs - 40 * 86400_000).toISOString(), last_seen_at: new Date(nowMs - 8 * 86400_000).toISOString(),
       expires_at: new Date(nowMs - 86400_000).toISOString() });
     rpcCalls.length = 0;
+    process.env.SESSION_EXPIRY_ENFORCE = "0";
     const r1 = await touchActiveSession((await import("@/lib/supabase-server")).getServerDb(), tok);
     const call = rpcCalls.find((c) => c.name === "touch_active_session");
-    ok(r1 === U.expert && call?.args.p_enforce === false && call?.args.p_touch_after_seconds === 90, "R1 (varsayılan): p_enforce=false, touch 90 sn; oturum SONLANMAZ");
+    ok(r1 === U.expert && call?.args.p_enforce === false && call?.args.p_touch_after_seconds === 90, "R1 (yalnız kill-switch=0): p_enforce=false, touch 90 sn; oturum SONLANMAZ");
     ok(Date.parse(String(tables.user_sessions.find((s) => s.session_token === tok)?.last_seen_at)) === nowMs, "R1: last_seen_at güncellendi");
-    process.env.SESSION_EXPIRY_ENFORCE = "1";
-    const r2 = await touchActiveSession((await import("@/lib/supabase-server")).getServerDb(), tok);
-    const s = tables.user_sessions.find((x) => x.session_token === tok);
-    ok(r2 === null && s?.is_active === false && s?.end_reason === "expired_absolute", "R2 (enforce=1): süresi dolmuş oturum sonlanır (expired_absolute)");
     delete process.env.SESSION_EXPIRY_ENFORCE;
+    rpcCalls.length = 0;
+    const r2 = await touchActiveSession((await import("@/lib/supabase-server")).getServerDb(), tok);
+    const call2 = rpcCalls.find((c) => c.name === "touch_active_session");
+    const s = tables.user_sessions.find((x) => x.session_token === tok);
+    ok(call2?.args.p_enforce === true, "R2 VARSAYILAN: env yokken p_enforce=true");
+    ok(r2 === null && s?.is_active === false && s?.end_reason === "expired_absolute", "R2 (varsayılan): süresi dolmuş oturum sonlanır (expired_absolute)");
   }
   ok(effectiveAllowedLocations(1) === 2 && effectiveAllowedLocations(null) === 2 && effectiveAllowedLocations(0) === 2 && effectiveAllowedLocations(3) === 3 && effectiveAllowedLocations(999) === 999, "konum limiti tabanı 2; 3/999 korunur");
   ok(Date.parse(computeSessionExpiresAt("admin", 0)) === 86400_000 && Date.parse(computeSessionExpiresAt("expert", 0)) === 30 * 86400_000, "expires_at: admin +24s, uzman +30g");
@@ -501,7 +511,7 @@ async function run() {
     ok(!/btrim\(u\.password\)/.test(mig1Code), "0100: login_user düz metin dalı YOK");
     const reg = read("app/api/register/route.ts");
     const cp = read("app/api/settings/change-password/route.ts");
-    ok(/NEW_PASSWORD_MIN_LENGTH/.test(reg) && /NEW_PASSWORD_MIN_LENGTH/.test(cp), "register + change-password: min 10");
+    ok(/newPasswordPolicyMessage/.test(reg) && /newPasswordPolicyMessage/.test(cp), "register + change-password: ortak parola politikası (min 6, sunucuda zorlanır)");
     ok(/verifyLoginCredentialsGuarded/.test(cp) && !/rpc\("login_user"/.test(cp), "change-password: mevcut parola doğrulaması throttle'dan geçer");
   }
 
