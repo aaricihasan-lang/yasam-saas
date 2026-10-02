@@ -76,7 +76,7 @@ export type StoneListItemExtended = StoneListItem & {
 
 /**
  * TAŞ İSMİ MODU — yalnızca taş adı.
- * Türkçe İ/ı varyantları OR filtresine otomatik eklenir (bkz. buildIlikePatterns).
+ * Türkçe i/İ/ı/I eşleşmesi buildTurkishInsensitiveRegex ile (bkz. aşağısı).
  */
 export const NAME_SEARCH_COLUMNS = ["stone_name"] as const;
 
@@ -113,34 +113,51 @@ export function sanitizeOrSearchTerm(raw: string): string {
     .trim();
 }
 
+/** Liste/sayaç metin araması için üst sınır (condition-search VALUE_MAX ile aynı). */
+export const STONES_LIST_SEARCH_MAX_LENGTH = 120;
+
+/** Türkçe i-ailesi: i, İ, ı, I — tek karakterlik regex sınıfı. */
+const TR_I_FAMILY = /[iİıI]/;
+const TR_I_CLASS = "[iİıI]";
+/** PostgreSQL ARE özel karakterleri → köşeli parantez içinde literal ("]" ayrıca ele alınır). */
+const REGEX_BRACKET_LITERAL = new Set([".", "$", "|", "?", "*", "+", "[", "{", "}"]);
+/** Regex kaçışı veya PostgREST tırnaklı değeri bozabilecek karakterler → boşluk. */
+const REGEX_DROP = /[\\^"]/g;
+
 /**
- * Türkçe i/İ/ı varyantlarını kapsayan ilike pattern dizisi üretir.
+ * Türkçe büyük/küçük harf duyarsız, LİTERAL eşleşen PostgreSQL regex'i üretir (`~*`).
  *
- * Sorun: PostgreSQL C/en_US locale'de `ilike '%safir%'` "SAFİR" ile eşleşmez
- * çünkü İ (U+0130) ve i (U+0069) ASCII folding kapsamı dışında kalır.
+ * Kök neden (prod, en_US.UTF-8): ILIKE iki tarafı `lower()` ile küçültür ve
+ * `lower('İ')` İKİ karakter üretir ("i" + U+0307 birleşik nokta); `lower('I')` = "i"
+ * (ı değil). Bu yüzden "İnci" ← "inci", "Işık" ← "ışık", "İzmir" ← "İZMİR" ILIKE ile
+ * hiçbir varyant kombinasyonunda güvenilir eşleşmez (eski 3-varyant yaklaşımı karışık
+ * konumları kaçırıyordu: "İnci" hem İ hem i içerir).
  *
- * Çözüm: her terim için üç varyant üretilir:
- *   - orijinal: %safir%
- *   - dotted cap-İ: %safİr%  → C locale'de "SAFİR" ile eşleşir
- *   - dotless ı:   %safır%   → "SAFIR" (dotless) ile eşleşir
+ * Çözüm: i/İ/ı/I harflerinin HER BİRİ tek karakterlik `[iİıI]` sınıfına çevrilir (konumdan
+ * bağımsız); diğer harflerin (ğ/Ğ, ş/Ş, ü/Ü, ö/Ö, ç/Ç, ASCII) büyük/küçük eşleşmesini `~*`
+ * sağlar. Regex özel karakterleri köşeli parantezle literal yapılır → kullanıcı girdisi
+ * desen/joker olarak YORUMLANMAZ (ReDoS yok; yalnız literal karakter + sabit sınıflar).
+ * Terim, `sanitizeOrSearchTerm` sonrası en çok STONES_LIST_SEARCH_MAX_LENGTH karakterdir.
  */
-function buildIlikePatterns(safeTerm: string): string[] {
-  const base = `%${safeTerm}%`;
-  const patterns = new Set<string>([base]);
-
-  if (/[iıİ]/i.test(safeTerm)) {
-    const capDotted = safeTerm.replace(/[iı]/gi, "İ");
-    const dotless   = safeTerm.replace(/[iİ]/gi, "ı");
-    patterns.add(`%${capDotted}%`);
-    patterns.add(`%${dotless}%`);
+export function buildTurkishInsensitiveRegex(safeTerm: string): string | null {
+  const cleaned = safeTerm.replace(REGEX_DROP, " ").replace(/\s+/g, " ").trim();
+  if (!cleaned) return null;
+  const chars = Array.from(cleaned).slice(0, STONES_LIST_SEARCH_MAX_LENGTH);
+  let out = "";
+  for (const ch of chars) {
+    if (TR_I_FAMILY.test(ch)) out += TR_I_CLASS;
+    else if (ch === "]") out += "[]]";
+    else if (REGEX_BRACKET_LITERAL.has(ch)) out += `[${ch}]`;
+    else out += ch;
   }
-
-  return [...patterns];
+  return out.trim() ? out : null;
 }
 
 /**
  * Seçilen moda göre PostgREST .or() filtre dizesi üretir.
- * Türkçe İ/ı varyantları her sütun için otomatik eklenir.
+ * Her sütun için Türkçe duyarsız, literal `imatch` (PostgreSQL `~*`) koşulu; değer çift
+ * tırnaklı verilir (boşluk/nokta/köşeli parantez içerebilir; `"` ve `\` üretilmez).
+ * Tenant filtresi, sayfalama ve sıralama çağıran sorguda DEĞİŞMEDEN kalır.
  */
 export function buildStonesListSearchOrFilter(
   term: string,
@@ -148,18 +165,12 @@ export function buildStonesListSearchOrFilter(
 ): string | null {
   const safeTerm = sanitizeOrSearchTerm(term);
   if (!safeTerm) return null;
+  const regex = buildTurkishInsensitiveRegex(safeTerm);
+  if (!regex) return null;
 
   const columns =
     mode === "content" ? CONTENT_SEARCH_COLUMNS : NAME_SEARCH_COLUMNS;
-  const patterns = buildIlikePatterns(safeTerm);
-
-  const parts: string[] = [];
-  for (const col of columns) {
-    for (const pattern of patterns) {
-      parts.push(`${col}.ilike.${pattern}`);
-    }
-  }
-  return parts.join(",");
+  return columns.map((col) => `${col}.imatch."${regex}"`).join(",");
 }
 
 // ─── Satır eşleyici ──────────────────────────────────────────────────────────
