@@ -303,44 +303,56 @@ async function main(): Promise<void> {
     // ── 7. PDF / PRIVATE STORAGE ────────────────────────────────────────────
     section("7. PDF ekleri (private Storage)");
     __resetRateLimitForTest();
-    const up = await uploadPdf(seed.clients.a1, A1, asA);
-    ok(up.prep.status === 200 && up.put?.status === 200 && up.fin?.status === 201, "geçerli PDF (tamamlanmış anamneze) → 201", { prep: up.prep.json, fin: up.fin?.json });
+    // Satış öncesi kapanış: TAMAMLANMIŞ anamnez gerçekten kilitli → belge eklenemez/silinemez.
+    const lockedPrep = await call(prepareRoute.POST, "POST", P(seed.clients.a1, A1), asA, { fileName: "x.pdf", size: 100, contentType: "application/pdf" });
+    ok(lockedPrep.status === 409 && lockedPrep.json.code === "LOCKED", "tamamlanmış anamneze PDF hazırlama → 409 LOCKED", lockedPrep.json);
+    // Tamamlanmadan önce alınmış imzalı yükleme (manipüle istek): nesne Storage'da → finalize LOCKED + nesne silinir.
+    const lockedObj = `${seed.TA}/${seed.clients.a1}/${A1}/0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a01.pdf`;
+    env.storage.objects.get(ANAMNEZ_BUCKET)!.set(lockedObj, { bytes: PDF_BYTES, contentType: "application/pdf", createdAt: Date.now() });
+    const lockedFin = await call(finalizeRoute.POST, "POST", P(seed.clients.a1, A1), asA, { path: lockedObj, originalName: "x.pdf" });
+    ok(lockedFin.status === 409 && lockedFin.json.code === "LOCKED", "tamamlanmış anamneze finalize → 409 LOCKED", lockedFin.json);
+    ok(!env.storage.objects.get(ANAMNEZ_BUCKET)!.has(lockedObj), "kilitli finalize nesnesi Storage'dan silindi (yetim yok)");
+    ok((await env.su.query(`select 1 from public.client_anamnesis_attachments where anamnesis_id=$1`, [A1])).rowCount === 0, "tamamlanmış anamneze ek kaydı OLUŞMADI");
+    // PDF akışının geri kalanı açık taslakta (A3) doğrulanır.
+    const DR = A3;
+    const up = await uploadPdf(seed.clients.a1, DR, asA);
+    ok(up.prep.status === 200 && up.put?.status === 200 && up.fin?.status === 201, "geçerli PDF (açık taslağa) → 201", { prep: up.prep.json, fin: up.fin?.json });
     const att = (up.fin!.json.attachment as Json);
     const path1 = up.prep.json.path as string;
-    ok(path1.startsWith(`${seed.TA}/${seed.clients.a1}/${A1}/`) && /\.pdf$/.test(path1) && !path1.includes("Doldurulmu"), "yol sunucuda üretildi ({tenant}/{client}/{anamnesis}/{uuid}.pdf)");
+    ok(path1.startsWith(`${seed.TA}/${seed.clients.a1}/${DR}/`) && /\.pdf$/.test(path1) && !path1.includes("Doldurulmu"), "yol sunucuda üretildi ({tenant}/{client}/{anamnesis}/{uuid}.pdf)");
     const attRow = (await env.su.query(`select * from public.client_anamnesis_attachments where id=$1`, [att.id])).rows[0];
     ok(attRow.original_name === "Doldurulmuş form.pdf" && /^[0-9a-f]{64}$/.test(attRow.sha256) && attRow.size_bytes === PDF_BYTES.length, "metadata: ad, sha256, gerçek boyut");
-    ok((await call(prepareRoute.POST, "POST", P(seed.clients.a1, A1), asA, { fileName: "big.pdf", size: 10 * 1024 * 1024 + 1, contentType: "application/pdf" })).json.code === "TOO_LARGE", ">10 MB beyanı → TOO_LARGE");
-    ok((await call(prepareRoute.POST, "POST", P(seed.clients.a1, A1), asA, { fileName: "x.png", size: 100, contentType: "image/png" })).json.code === "INVALID_TYPE", "yanlış MIME → INVALID_TYPE");
-    ok((await call(prepareRoute.POST, "POST", P(seed.clients.a1, A1), asA, { fileName: "x.exe", size: 100, contentType: "application/pdf" })).json.code === "INVALID_TYPE", ".pdf olmayan uzantı → INVALID_TYPE");
+    ok((await call(prepareRoute.POST, "POST", P(seed.clients.a1, DR), asA, { fileName: "big.pdf", size: 10 * 1024 * 1024 + 1, contentType: "application/pdf" })).json.code === "TOO_LARGE", ">10 MB beyanı → TOO_LARGE");
+    ok((await call(prepareRoute.POST, "POST", P(seed.clients.a1, DR), asA, { fileName: "x.png", size: 100, contentType: "image/png" })).json.code === "INVALID_TYPE", "yanlış MIME → INVALID_TYPE");
+    ok((await call(prepareRoute.POST, "POST", P(seed.clients.a1, DR), asA, { fileName: "x.exe", size: 100, contentType: "application/pdf" })).json.code === "INVALID_TYPE", ".pdf olmayan uzantı → INVALID_TYPE");
     // Sahte .pdf: MIME/uzantı PDF ama içerik değil → finalize reddeder + nesneyi siler.
-    const fake = await uploadPdf(seed.clients.a1, A1, asA, Buffer.from("MZ not a pdf at all"), "application/pdf");
+    const fake = await uploadPdf(seed.clients.a1, DR, asA, Buffer.from("MZ not a pdf at all"), "application/pdf");
     ok(fake.fin?.status === 422 && fake.fin.json.code === "INVALID_TYPE", "sahte .pdf (magic bytes yanlış) → 422");
     ok(!env.storage.objects.get(ANAMNEZ_BUCKET)!.has(fake.prep.json.path as string), "reddedilen dosya Storage'dan silindi");
     // Bucket kilidi: text/plain içerik tipiyle yükleme ve gerçek >10MB bayt.
-    const prepX = await call(prepareRoute.POST, "POST", P(seed.clients.a1, A1), asA, { fileName: "a.pdf", size: 10, contentType: "application/pdf" });
+    const prepX = await call(prepareRoute.POST, "POST", P(seed.clients.a1, DR), asA, { fileName: "a.pdf", size: 10, contentType: "application/pdf" });
     const putMime = await fetch(`${env.url}/storage/v1/object/upload/sign/${ANAMNEZ_BUCKET}/${prepX.json.path}?token=${prepX.json.token}`, { method: "PUT", headers: { "content-type": "text/plain" }, body: "x" });
     ok(putMime.status >= 400, "bucket MIME kilidi: text/plain yükleme reddedildi");
     const putBig = await fetch(`${env.url}/storage/v1/object/upload/sign/${ANAMNEZ_BUCKET}/${prepX.json.path}?token=${prepX.json.token}`, { method: "PUT", headers: { "content-type": "application/pdf" }, body: new Uint8Array(Buffer.concat([PDF_BYTES, Buffer.alloc(10 * 1024 * 1024)])) });
     ok(putBig.status >= 400, "bucket boyut kilidi: >10 MB gerçek bayt reddedildi");
     // 5 sınırı.
-    for (let i = 0; i < 4; i++) await uploadPdf(seed.clients.a1, A1, asA);
-    const cnt = Number((await env.su.query(`select count(*) from public.client_anamnesis_attachments where anamnesis_id=$1`, [A1])).rows[0].count);
+    for (let i = 0; i < 4; i++) await uploadPdf(seed.clients.a1, DR, asA);
+    const cnt = Number((await env.su.query(`select count(*) from public.client_anamnesis_attachments where anamnesis_id=$1`, [DR])).rows[0].count);
     ok(cnt === 5, "5 PDF eklendi");
-    ok((await call(prepareRoute.POST, "POST", P(seed.clients.a1, A1), asA, { fileName: "6.pdf", size: 100, contentType: "application/pdf" })).json.code === "LIMIT_REACHED", "6. PDF prepare → LIMIT_REACHED");
+    ok((await call(prepareRoute.POST, "POST", P(seed.clients.a1, DR), asA, { fileName: "6.pdf", size: 100, contentType: "application/pdf" })).json.code === "LIMIT_REACHED", "6. PDF prepare → LIMIT_REACHED");
     // prepare'i atlayıp doğrudan yüklenmiş 6. nesne finalize → DB trigger + route reddeder, nesne silinir.
-    const sixth = `${seed.TA}/${seed.clients.a1}/${A1}/0f0f0f0f-0f0f-4f0f-8f0f-0f0f0f0f0f06.pdf`;
+    const sixth = `${seed.TA}/${seed.clients.a1}/${DR}/0f0f0f0f-0f0f-4f0f-8f0f-0f0f0f0f0f06.pdf`;
     env.storage.objects.get(ANAMNEZ_BUCKET)!.set(sixth, { bytes: PDF_BYTES, contentType: "application/pdf", createdAt: Date.now() });
-    const f6 = await call(finalizeRoute.POST, "POST", P(seed.clients.a1, A1), asA, { path: sixth, originalName: "6.pdf" });
+    const f6 = await call(finalizeRoute.POST, "POST", P(seed.clients.a1, DR), asA, { path: sixth, originalName: "6.pdf" });
     ok(f6.json.code === "LIMIT_REACHED" && !env.storage.objects.get(ANAMNEZ_BUCKET)!.has(sixth), "6. PDF finalize → LIMIT_REACHED + nesne silindi");
 
     // Görüntüle / indir — 60 sn.
-    const v = await call(attRoute.GET, "GET", P(seed.clients.a1, A1, att.id as string), asA, undefined, "?mode=view");
+    const v = await call(attRoute.GET, "GET", P(seed.clients.a1, DR, att.id as string), asA, undefined, "?mode=view");
     ok(v.status === 200 && v.json.expiresIn === 60 && env.storage.signLog.at(-1)?.expiresIn === 60, "görüntüle: signed URL 60 sn");
     const vr = await fetch(String(v.json.url));
     const vb = Buffer.from(await vr.arrayBuffer());
     ok(vr.status === 200 && vb.subarray(0, 5).toString() === "%PDF-", "signed URL ile PDF okunuyor");
-    const d = await call(attRoute.GET, "GET", P(seed.clients.a1, A1, att.id as string), asA, undefined, "?mode=download");
+    const d = await call(attRoute.GET, "GET", P(seed.clients.a1, DR, att.id as string), asA, undefined, "?mode=download");
     ok(String(d.json.url).includes("download="), "indir: download (Content-Disposition) parametresi");
     const dr = await fetch(String(d.json.url));
     ok((dr.headers.get("content-disposition") ?? "").startsWith("attachment"), "indir yanıtı attachment");
@@ -348,32 +360,32 @@ async function main(): Promise<void> {
     ok((await fetch(String(v.json.url))).status >= 400, "süresi dolan signed URL reddedildi");
 
     // IDOR + tahmin edilen yol.
-    ok((await call(attRoute.GET, "GET", P(seed.clients.b1, A1, att.id as string), asB, undefined, "?mode=view")).status === 404, "B → A eki (kendi danışanıyla) → 404");
-    ok((await call(attRoute.GET, "GET", P(seed.clients.a1, A1, att.id as string), asB, undefined, "?mode=view")).status === 404, "B → A danışanı + A eki → 404");
-    ok((await call(attRoute.DELETE, "DELETE", P(seed.clients.b1, A1, att.id as string), asB)).status === 404, "B → A eki silme → 404");
-    ok((await call(attRoute.GET, "GET", P(seed.clients.a1, A3, att.id as string), asA, undefined, "?mode=view")).status === 404, "ek başka anamnez id'siyle istenemez → 404");
+    ok((await call(attRoute.GET, "GET", P(seed.clients.b1, DR, att.id as string), asB, undefined, "?mode=view")).status === 404, "B → A eki (kendi danışanıyla) → 404");
+    ok((await call(attRoute.GET, "GET", P(seed.clients.a1, DR, att.id as string), asB, undefined, "?mode=view")).status === 404, "B → A danışanı + A eki → 404");
+    ok((await call(attRoute.DELETE, "DELETE", P(seed.clients.b1, DR, att.id as string), asB)).status === 404, "B → A eki silme → 404");
+    ok((await call(attRoute.GET, "GET", P(seed.clients.a1, A1, att.id as string), asA, undefined, "?mode=view")).status === 404, "ek başka anamnez id'siyle istenemez → 404");
     const bClient = await call(listRoute.POST, "POST", P(seed.clients.b1), asB, { mode: "standard", fromId: null, assessmentDate: "2026-09-28" });
     const BA = (bClient.json.anamnesis as Json).id as string;
     ok((await call(finalizeRoute.POST, "POST", P(seed.clients.b1, BA), asB, { path: path1, originalName: "stolen.pdf" })).status === 400, "B → A'nın yolunu kendi anamnezine bağlama → 400");
     ok((await call(cleanupRoute.POST, "POST", P(seed.clients.b1, BA), asB, { path: path1 })).status === 400, "B → A'nın yolunu temizleme → 400");
-    ok((await call(finalizeRoute.POST, "POST", P(seed.clients.a1, A1), asA, { path: `${seed.TA}/${seed.clients.a1}/${A1}/../x.pdf` })).status === 400, "traversal yol → 400");
-    ok((await call(finalizeRoute.POST, "POST", P(seed.clients.a1, A1), asA, { path: `${seed.TA}/${seed.clients.a1}/${A1}/%2e%2e%2fx.pdf` })).status === 400, "encoded traversal → 400");
+    ok((await call(finalizeRoute.POST, "POST", P(seed.clients.a1, DR), asA, { path: `${seed.TA}/${seed.clients.a1}/${DR}/../x.pdf` })).status === 400, "traversal yol → 400");
+    ok((await call(finalizeRoute.POST, "POST", P(seed.clients.a1, DR), asA, { path: `${seed.TA}/${seed.clients.a1}/${DR}/%2e%2e%2fx.pdf` })).status === 400, "encoded traversal → 400");
     const anonGet = await fetch(`${env.url}/storage/v1/object/authenticated/${ANAMNEZ_BUCKET}/${path1}`, { headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` } });
     ok(anonGet.status >= 400, "anon anahtarla tahmin edilen yol okunamıyor (policy yok)");
     const pubGet = await fetch(`${env.url}/storage/v1/object/public/${ANAMNEZ_BUCKET}/${path1}`);
     ok(pubGet.status >= 400, "public URL → reddedildi (private bucket)");
     ok((await env.su.query(`select public from storage.buckets where id=$1`, [ANAMNEZ_BUCKET])).rows[0].public === false, "bucket public=false (migration)");
     // Kayıtlı eki cleanup ile silme denemesi → atlanır.
-    const cl = await call(cleanupRoute.POST, "POST", P(seed.clients.a1, A1), asA, { path: path1 });
+    const cl = await call(cleanupRoute.POST, "POST", P(seed.clients.a1, DR), asA, { path: path1 });
     ok(cl.json.skipped === "registered" && env.storage.objects.get(ANAMNEZ_BUCKET)!.has(path1), "cleanup kayıtlı eki silemez");
     // Ek silme.
-    const lastAtt = (await env.su.query(`select id, storage_path from public.client_anamnesis_attachments where anamnesis_id=$1 order by created_at desc limit 1`, [A1])).rows[0];
-    const delAtt = await call(attRoute.DELETE, "DELETE", P(seed.clients.a1, A1, lastAtt.id), asA);
+    const lastAtt = (await env.su.query(`select id, storage_path from public.client_anamnesis_attachments where anamnesis_id=$1 order by created_at desc limit 1`, [DR])).rows[0];
+    const delAtt = await call(attRoute.DELETE, "DELETE", P(seed.clients.a1, DR, lastAtt.id), asA);
     ok(delAtt.status === 200 && !env.storage.objects.get(ANAMNEZ_BUCKET)!.has(lastAtt.storage_path), "ek silme: Storage + metadata");
     // Storage hatasında metadata korunur.
     env.storage.failRemove = true;
-    const keepAtt = (await env.su.query(`select id from public.client_anamnesis_attachments where anamnesis_id=$1 limit 1`, [A1])).rows[0];
-    const failDel = await call(attRoute.DELETE, "DELETE", P(seed.clients.a1, A1, keepAtt.id), asA);
+    const keepAtt = (await env.su.query(`select id from public.client_anamnesis_attachments where anamnesis_id=$1 limit 1`, [DR])).rows[0];
+    const failDel = await call(attRoute.DELETE, "DELETE", P(seed.clients.a1, DR, keepAtt.id), asA);
     ok(failDel.status === 502 && (await env.su.query(`select 1 from public.client_anamnesis_attachments where id=$1`, [keepAtt.id])).rowCount === 1, "Storage hatası → metadata korunur (sessiz yetim yok)");
     env.storage.failRemove = false;
 
@@ -391,6 +403,23 @@ async function main(): Promise<void> {
 
     // ── 9. ANAMNEZ SİLME ────────────────────────────────────────────────────
     section("9. Tamamlanmış anamnez silme");
+    // Kilit ÖNCESİ eklenmiş (eski) PDF'ler: tamamlanmış anamnezde görüntülenir ama silinemez;
+    // anamnezin kendisi silinince (güçlü onay) Storage-first temizlenir.
+    for (let i = 1; i <= 4; i++) {
+      const lp = `${seed.TA}/${seed.clients.a1}/${A1}/0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0${i}.pdf`;
+      env.storage.objects.get(ANAMNEZ_BUCKET)!.set(lp, { bytes: PDF_BYTES, contentType: "application/pdf", createdAt: Date.now() });
+      await env.su.query(
+        `insert into public.client_anamnesis_attachments (tenant_id, client_id, anamnesis_id, storage_path, original_name, size_bytes, sha256, uploaded_by_user_id)
+         values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [seed.TA, seed.clients.a1, A1, lp, `eski-${i}.pdf`, PDF_BYTES.length, "0".repeat(64), U.A.id],
+      );
+    }
+    const legacyAtt = (await env.su.query(`select id from public.client_anamnesis_attachments where anamnesis_id=$1 limit 1`, [A1])).rows[0];
+    const lockedDel = await call(attRoute.DELETE, "DELETE", P(seed.clients.a1, A1, legacyAtt.id), asA);
+    ok(lockedDel.status === 409 && lockedDel.json.code === "LOCKED", "tamamlanmış anamnezin eki silinemez → 409 LOCKED", lockedDel.json);
+    ok((await env.su.query(`select 1 from public.client_anamnesis_attachments where id=$1`, [legacyAtt.id])).rowCount === 1, "kilitli ek metadata korundu");
+    const lockedView = await call(attRoute.GET, "GET", P(seed.clients.a1, A1, legacyAtt.id), asA, undefined, "?mode=view");
+    ok(lockedView.status === 200, "tamamlanmış anamnezin eki görüntülenebilir (salt-okunur)");
     const prefixA1 = `${seed.TA}/${seed.clients.a1}/${A1}/`;
     ok(objectsUnder(prefixA1).length >= 4, "silme öncesi A1 nesneleri mevcut");
     ok((await call(oneRoute.DELETE, "DELETE", P(seed.clients.a1, A1), asA, {})).json.code === "CONFIRM_REQUIRED", "onaysız → 400");
@@ -411,8 +440,9 @@ async function main(): Promise<void> {
 
     // ── 10. DANIŞAN SİLME TEMİZLİĞİ ─────────────────────────────────────────
     section("10. Danışan silme → anamnez + PDF temizliği");
-    await call(completeRoute.POST, "POST", P(seed.clients.a1, A3), asA, { baseRevision: (await row(A3)).revision });
+    // Kilit politikası: belge taslakken eklenir, sonra tamamlanır.
     await uploadPdf(seed.clients.a1, A3, asA);
+    await call(completeRoute.POST, "POST", P(seed.clients.a1, A3), asA, { baseRevision: (await row(A3)).revision });
     const orphan2 = `${seed.TA}/${seed.clients.a1}/${A3}/0e0e0e0e-0e0e-4e0e-8e0e-0e0e0e0e0e77.pdf`;
     env.storage.objects.get(ANAMNEZ_BUCKET)!.set(orphan2, { bytes: PDF_BYTES, contentType: "application/pdf", createdAt: Date.now() });
     await uploadPdf(seed.clients.b1, BA, asB);
@@ -420,7 +450,8 @@ async function main(): Promise<void> {
     const pv2 = await call(previewRoute.GET, "GET", P(seed.clients.a1), asA);
     const counts = (pv2.json.preview as Json | undefined)?.counts ?? (pv2.json as Json).counts;
     const cc = (counts as Array<{ key: string; count: number }> | undefined) ?? [];
-    ok(cc.find((c) => c.key === "anamneses")?.count === 1 && cc.find((c) => c.key === "anamnesisFiles")?.count === 1, "silme önizlemesi anamnez + belge sayıyor", pv2.json);
+    const filesA = Number((await env.su.query(`select count(*) from public.client_anamnesis_attachments where client_id=$1`, [seed.clients.a1])).rows[0].count);
+    ok(cc.find((c) => c.key === "anamneses")?.count === 1 && filesA >= 1 && cc.find((c) => c.key === "anamnesisFiles")?.count === filesA, "silme önizlemesi anamnez + belge sayıyor", pv2.json);
     env.storage.failList = true;
     const cdFail = await call(cascadeRoute.DELETE, "DELETE", P(seed.clients.a1), asA);
     ok(cdFail.status === 502 && (await env.su.query(`select 1 from public.clients where id=$1`, [seed.clients.a1])).rowCount === 1, "Storage listelenemezse danışan SİLİNMEZ (fail-closed)");
