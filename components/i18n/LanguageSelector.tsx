@@ -12,6 +12,10 @@
  * Bu turda hiçbir sayfaya MOUNT EDİLMEZ (Ana Sayfa ayrı batch). Kullanım:
  *   import LanguageSelector from "@/components/i18n/LanguageSelector";
  *   <LanguageSelector />
+ *
+ * `compact`: header kümeleri (hub hero, landing üst bar) için daha küçük buton
+ * (min 36px dokunma, px-2, text-xs); dar ekranda etiket kısaltma (TR/EN), sm+
+ * tam ad. aria-label her iki modda korunur.
  */
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -25,8 +29,10 @@ import { setLocale } from "@/lib/i18n/setLocale";
 
 export default function LanguageSelector({
   className = "",
+  compact = false,
 }: {
   className?: string;
+  compact?: boolean;
 }) {
   const t = useTranslations("common.language");
   const current = useLocale() as ActiveLocale;
@@ -68,16 +74,27 @@ export default function LanguageSelector({
   }
 
   const label = LOCALE_LABELS[current] ?? current;
+  // compact: dar ekranda kısaltma (TR/EN), sm+ tam ad. Ekran okuyucu aria-label'ı okur.
+  const labelNode = compact ? (
+    <>
+      <span className="sm:hidden">{current.toUpperCase()}</span>
+      <span className="hidden sm:inline">{label}</span>
+    </>
+  ) : (
+    label
+  );
 
   // Tek aktif dil: erişilebilir statik gösterge.
   if (!multi) {
     return (
       <span
-        className={`inline-flex min-h-[44px] items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-emerald-800/80 ${className}`}
+        className={`inline-flex items-center rounded-full font-medium text-emerald-800/80 ${
+          compact ? "min-h-[36px] gap-1 whitespace-nowrap px-2 py-1 text-xs" : "min-h-[44px] gap-2 px-3 py-2 text-sm"
+        } ${className}`}
         aria-label={t("current", { label })}
       >
-        <GlobeIcon />
-        {label}
+        <GlobeIcon size={compact ? 15 : 18} />
+        {labelNode}
       </span>
     );
   }
@@ -91,11 +108,20 @@ export default function LanguageSelector({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={t("select")}
-        className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-3 py-2 text-sm font-medium text-emerald-800 shadow-sm transition hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:opacity-60"
+        className={`inline-flex items-center rounded-full border border-emerald-200 bg-white/80 font-medium text-emerald-800 shadow-sm transition hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:opacity-60 ${
+          compact ? "min-h-[36px] gap-1 whitespace-nowrap px-2 py-1 text-xs" : "min-h-[44px] gap-2 px-3 py-2 text-sm"
+        }`}
       >
-        <GlobeIcon />
-        {label}
-        <ChevronIcon open={open} />
+        <GlobeIcon size={compact ? 15 : 18} />
+        {labelNode}
+        {compact ? (
+          // Dar ekranda yer kazanmak için ok gizli (buton yine açılır menü).
+          <span className="hidden sm:inline-flex" aria-hidden="true">
+            <ChevronIcon open={open} />
+          </span>
+        ) : (
+          <ChevronIcon open={open} />
+        )}
       </button>
 
       {open && (
@@ -131,11 +157,11 @@ export default function LanguageSelector({
   );
 }
 
-function GlobeIcon() {
+function GlobeIcon({ size = 18 }: { size?: number }) {
   return (
     <svg
-      width="18"
-      height="18"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

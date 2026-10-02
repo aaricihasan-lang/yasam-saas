@@ -128,6 +128,13 @@ export type ScopedTenantGateCode =
   | "tenant-synthetic"
   | "tenant-scope-validation-unavailable";
 
+/**
+ * AA-1 — exact moddaki dış (HTTP) durum: yalnız "ok" | "not-eligible". Ayrıntılı
+ * ExactWriteStatus (not-found / tenant-mismatch / excluded-demo / multiple-rows …) bir
+ * kaydın başka tenant'ta VAR/YOK olduğu sinyalini taşıdığından yanıta ÇIKMAZ.
+ */
+export type SafeExactStatus = "ok" | "not-eligible";
+
 /** Güvenli sayfa özeti (ham içerik yok). */
 export interface SafePageSummary {
   readonly fetched: number;
@@ -139,7 +146,7 @@ export interface SafePageSummary {
   readonly nextCursor: string | null;
   readonly hasMore: boolean;
   readonly exactMode: boolean; // BF-2B: exact-record write gate aktif mi
-  readonly exactStatus: ExactWriteStatus | null; // yalnız exactMode'da doldurulur
+  readonly exactStatus: SafeExactStatus | null; // yalnız exactMode'da doldurulur (AA-1 generic)
 }
 
 /** Güvenli yazma özeti (ham içerik yok; yalnız sayaç + sabit chunk kodları). */
@@ -431,7 +438,29 @@ export function validateAdminIndexRequest(raw: unknown): AdminIndexValidation {
 
 // ─── Response map (saf; yalnız güvenli sayaçlar) ─────────────────────────────
 
+/** SAF: ayrıntılı exact durumu → dış generic durum (AA-1). */
+export function toSafeExactStatus(status: ExactWriteStatus | null): SafeExactStatus | null {
+  if (status === null) return null;
+  return status === "ok" ? "ok" : "not-eligible";
+}
+
 function toSafePage(result: IndexSourcePageResult): SafePageSummary {
+  // AA-1: exact modda hedef uygun DEĞİLSE sayaçlar da sıfırlanır — fetched/excludedDemo vb.
+  // "kayıt var ama başka tenant'ta/demo" ile "kayıt yok"u ayırt ettirmemeli (tek generic sonuç).
+  if (result.exactMode && result.exactStatus !== "ok") {
+    return {
+      fetched: 0,
+      produced: 0,
+      skipped: 0,
+      eligibleUnits: 0,
+      excludedDemo: 0,
+      excludedSynthetic: 0,
+      nextCursor: null,
+      hasMore: false,
+      exactMode: true,
+      exactStatus: "not-eligible",
+    };
+  }
   return {
     fetched: result.fetched,
     produced: result.summary.units,
@@ -442,7 +471,7 @@ function toSafePage(result: IndexSourcePageResult): SafePageSummary {
     nextCursor: result.nextCursor,
     hasMore: result.hasMore,
     exactMode: result.exactMode,
-    exactStatus: result.exactStatus,
+    exactStatus: toSafeExactStatus(result.exactStatus),
   };
 }
 

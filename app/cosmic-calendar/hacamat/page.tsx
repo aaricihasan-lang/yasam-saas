@@ -15,6 +15,7 @@ import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { supportedYears, SUPPORT_START_YEAR, SUPPORT_END_YEAR } from "@/lib/cosmic/dateRange";
 import { HIJRI_METHOD_NOTE } from "@/lib/cosmic/hijri";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
+import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 
@@ -276,6 +277,9 @@ export default function HacamatPage() {
   const [isGenerating,    setIsGenerating]    = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const isAndroid = useIsAndroid();
+  // Android uygulama WebView'inde blob indirme / blob önizleme çalışmaz → "Word" (rapor)
+  // sekmesi, PDF Oluştur ve Raporu Aç gizli (plan §4.6). Android Chrome/iOS'ta görünür.
+  const isAndroidApp = useIsAndroidApp();
 
   // Word rapor ayarları
   const [wordTitle,      setWordTitle]      = useState("HACAMAT TAKVİMİ");
@@ -544,11 +548,11 @@ export default function HacamatPage() {
 
         {/* ── Sekmeler ── */}
         <div className="mb-4 flex flex-wrap gap-1.5 rounded-[18px] border border-white/80 bg-white/70 p-2 shadow-sm backdrop-blur-md">
-          {TABS.map(tab => (
+          {TABS.filter(tab => !(isAndroidApp && tab.key === "word")).map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold transition-all ${
+              className={`${tab.key === "word" ? "no-android-app " : ""}flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold transition-all ${
                 activeTab === tab.key
                   ? "bg-teal-600 text-white shadow-sm"
                   : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
@@ -824,8 +828,8 @@ export default function HacamatPage() {
         )}
 
         {/* ════════ Word Sekmesi ════════ */}
-        {activeTab === "word" && (
-          <section className="space-y-4">
+        {activeTab === "word" && !isAndroidApp && (
+          <section className="no-android-app space-y-4">
 
             {/* Rapor Ayı */}
             <div className="rounded-[18px] border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md sm:p-4">
@@ -975,7 +979,7 @@ export default function HacamatPage() {
               {/* Raporu Aç — PWA içinde kalır, rapor sayfasına gider */}
               <Link
                 href={`/cosmic-calendar/hacamat/report?month=${wordMonth}&year=${wordYear}`}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-teal-300 bg-teal-50 px-4 py-3 text-[12px] font-black text-teal-800 shadow-sm no-underline transition active:scale-[0.98]"
+                className="no-android-app flex w-full items-center justify-center gap-2 rounded-xl border border-teal-300 bg-teal-50 px-4 py-3 text-[12px] font-black text-teal-800 shadow-sm no-underline transition active:scale-[0.98]"
               >
                 <ExternalLink className="h-4 w-4" />
                 {MONTH_NAMES_TR[wordMonth]} {wordYear} — Raporu Aç
@@ -987,7 +991,7 @@ export default function HacamatPage() {
               <button
                 onClick={() => void handlePdfReport()}
                 disabled={isGeneratingPdf || isGenerating}
-                className="flex items-center gap-2 rounded-xl border border-teal-200 bg-white px-4 py-2.5 text-[12px] font-black text-teal-700 shadow-sm transition hover:bg-teal-50 disabled:opacity-50"
+                className="no-android-app flex items-center gap-2 rounded-xl border border-teal-200 bg-white px-4 py-2.5 text-[12px] font-black text-teal-700 shadow-sm transition hover:bg-teal-50 disabled:opacity-50"
               >
                 {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                 {isGeneratingPdf ? "Hazırlanıyor…" : `${MONTH_NAMES_TR[wordMonth]} ${wordYear} — PDF Oluştur`}
@@ -996,7 +1000,7 @@ export default function HacamatPage() {
                 <button
                   onClick={() => void handleWordReport()}
                   disabled={isGenerating || isGeneratingPdf}
-                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-2.5 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 disabled:opacity-50"
+                  className="no-android flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-2.5 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 disabled:opacity-50"
                 >
                   {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                   {isGenerating ? "Hazırlanıyor…" : `${MONTH_NAMES_TR[wordMonth]} ${wordYear} — Word Oluştur`}

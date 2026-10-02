@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { useTranslations } from "next-intl";
+import NotificationBell from "@/components/notifications/NotificationBell";
 
 const HIDE_ON: string[] = ["/", "/register"];
 
@@ -39,21 +40,27 @@ export default function AppLogoLink() {
 
       {/* Fixed bar — floats above content, zero document-flow cost */}
       <div className="fixed left-0 right-0 top-0 z-50 w-full border-b border-slate-100 bg-white/95 backdrop-blur-sm">
+        <div className="mx-auto flex h-[44px] max-w-screen-2xl items-center justify-between gap-2 px-4 sm:px-6">
         <Link
           href="/"
-          className="group mx-auto flex h-[44px] max-w-screen-2xl items-center gap-2.5 px-4 transition-colors hover:bg-slate-50/80 sm:px-6"
+          className="group flex h-[44px] min-w-0 items-center gap-2.5 rounded-lg transition-colors hover:bg-slate-50/80"
           aria-label={t("homeAria")}
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-sm text-white shadow-sm shadow-violet-300/30 transition-shadow group-hover:shadow-violet-300/50">
             ✨
           </div>
-          <span className="text-sm font-black tracking-wide text-slate-900 transition-colors group-hover:text-violet-900">
+          <span className="truncate text-sm font-black tracking-wide text-slate-900 transition-colors group-hover:text-violet-900">
             YAŞAM SİSTEMİ
           </span>
-          <span className="hidden text-xs font-medium text-slate-400 transition-colors group-hover:text-slate-500 sm:inline">
+          <span className="hidden truncate text-xs font-medium text-slate-400 transition-colors group-hover:text-slate-500 sm:inline">
             {t("tagline")}
           </span>
         </Link>
+        {/* Sağ küme: bildirim zili (oturumsuz / dogaltas / admin rotalarında bileşen kendini gizler). */}
+        <div className="flex shrink-0 items-center">
+          <NotificationBell compact />
+        </div>
+        </div>
       </div>
     </>
   );

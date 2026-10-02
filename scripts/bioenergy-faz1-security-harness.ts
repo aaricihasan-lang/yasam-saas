@@ -91,7 +91,7 @@ console.log("\n═══ 4. Toplu-veri: browser publishable insert KALDIRILDI �
   assert(s.includes('"/api/admin/biyoenerji/import"'), "yeni service-role import endpoint'i çağrılır");
   for (const r of IMPORT_RESOURCES) assert(s.includes(`insertBioenergyViaApi("${r}"`), `kaynak rerouted: ${r}`);
   // Regresyon: kapsam dışı minerals publishable path'i DEĞİŞMEDEN kalır.
-  assert(s.includes('.from("minerals")'), "kapsam dışı minerals publishable path korunur");
+  assert(!s.includes('.from("minerals")') && s.includes('insertTopluVeriViaApi("minerals"'), "minerals artık sunucu import route'u (AA-2)");
   // Ölü kod kaldırıldı.
   assert(!/bioenergy[A-Za-z]*InsertSucceeded/.test(s), "kullanılmayan bioenergy *InsertSucceeded helper'ları kaldırıldı");
 }

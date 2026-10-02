@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
+import { composeOtherValue } from "@/lib/urun-stok/selectOther";
+import { SelectWithOther } from "../SelectWithOther";
 import {
   type InvItem,
   type SaleLine,
@@ -98,6 +100,9 @@ const pageBg =
   "relative w-full min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_12%_8%,rgba(251,191,36,0.14),transparent_32%),radial-gradient(circle_at_88%_12%,rgba(139,92,246,0.12),transparent_30%),linear-gradient(160deg,#fffbeb_0%,#f5f3ff_42%,#f0fdfa_100%)] text-slate-950";
 
 const pageShell = "relative z-10 w-full px-5 py-4 lg:px-8 xl:px-12";
+
+/** Tür seçenekleri + serbest giriş için "DİĞER" (dogaltas_inventory.type'ta CHECK yok). */
+const STONE_TYPE_OPTIONS: readonly string[] = [...STONE_TYPES, "DİĞER"];
 
 const panelClass =
   "w-full rounded-[18px] border-2 border-sky-200/80 bg-white/85 p-4 shadow-[0_8px_28px_rgba(15,23,42,0.07)] backdrop-blur-xl";
@@ -298,6 +303,7 @@ export default function DogaltasUrunStokPage() {
   // ——— Stock tab state ———
   const [name, setName] = useState("");
   const [stoneType, setStoneType] = useState<string>(STONE_TYPES[0]);
+  const [stoneTypeCustom, setStoneTypeCustom] = useState("");
   const [stokIn, setStokIn] = useState("");
   const [diziTl, setDiziTl] = useState("");
   const [diziUsd, setDiziUsd] = useState("");
@@ -351,9 +357,11 @@ export default function DogaltasUrunStokPage() {
   async function addStockNow() {
     setStockMsg(null);
     const targetName = turkishUpper(name.trim());
-    const targetKey = `${targetName.trim().toLowerCase()}|${stoneType.trim().toLowerCase()}`;
+    // "DİĞER" + serbest tür → büyük harf tür adı ("DİZİ" geçerse dizi fiyatlandırması uygulanır).
+    const stoneTypeValue = turkishUpper(composeOtherValue(stoneType, stoneTypeCustom, STONE_TYPE_OPTIONS, "DİĞER"));
+    const targetKey = `${targetName.trim().toLowerCase()}|${stoneTypeValue.trim().toLowerCase()}`;
     const signature = stockFormSignature([
-      targetName, stoneType, stokIn, diziTl, diziUsd, diziEur, stockUsdRate, stockEurRate, adetTl,
+      targetName, stoneTypeValue, stokIn, diziTl, diziUsd, diziEur, stockUsdRate, stockEurRate, adetTl,
       pendingPhotos.length,
     ]);
     // Aynı form, önceki bulut yazımı başarısızken tekrar gönderildiyse miktar İKİNCİ kez
@@ -363,7 +371,7 @@ export default function DogaltasUrunStokPage() {
     if (plan.kind !== "retry-cloud") {
       const result = addOrUpdateInventoryItem(inventory, {
         name: targetName,
-        type: stoneType,
+        type: stoneTypeValue,
         stokIn: toFloat(stokIn, 0),
         diziTlIn: toFloat(diziTl, 0),
         diziUsdIn: toFloat(diziUsd, 0),
@@ -818,20 +826,20 @@ export default function DogaltasUrunStokPage() {
                     placeholder="Örn. SİTRİN"
                   />
                 </label>
-                <label className="block">
-                  <span className="mb-1 block text-sm font-black text-slate-700">Tür</span>
-                  <select
-                    className={inputClass}
-                    value={stoneType}
-                    onChange={(e) => setStoneType(e.target.value)}
-                  >
-                    {STONE_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <SelectWithOther
+                  label="Tür"
+                  options={STONE_TYPE_OPTIONS}
+                  value={stoneType}
+                  custom={stoneTypeCustom}
+                  onSelect={setStoneType}
+                  onCustom={setStoneTypeCustom}
+                  otherLabel="DİĞER"
+                  selectClassName={inputClass}
+                  labelClassName="mb-1 block text-sm font-black text-slate-700"
+                  placeholder="Örn. 12 MM DİZİ, BİLEKLİK"
+                  transform={turkishUpper}
+                  hint="Tür adında “DİZİ” geçerse (ör. 12 MM DİZİ) dizi olarak fiyatlandırılır; aksi hâlde adet bazında."
+                />
                 <label className="block">
                   <span className="mb-1 block text-sm font-black text-slate-700">Stok adedi (+/-)</span>
                   <input

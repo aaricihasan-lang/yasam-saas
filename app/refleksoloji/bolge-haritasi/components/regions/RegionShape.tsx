@@ -16,6 +16,14 @@ import { RegionHandles } from "./RegionHandles";
 const HANDLE_CLASS =
   "absolute z-30 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-red-600 shadow-sm touch-none";
 
+/**
+ * 4.5 pinch: bölge gövdesi dokunmatik hareketi YALNIZ etkileşimli taşıma modunda kilitler;
+ * aksi hâlde tarayıcı pinch-zoom/kaydırma serbest. Tutamaçlar (HANDLE_CLASS) her zaman touch-none.
+ */
+function regionTouchClass(interactive: boolean, moveMode: boolean): string {
+  return interactive && moveMode ? "touch-none" : "touch-manipulation";
+}
+
 type ThickLineEndpoint = "start" | "end";
 
 type RegionShapeProps = {
@@ -120,7 +128,7 @@ export function RegionShape({
 
     return (
       <div
-        className={`absolute inset-0 touch-none select-none ${interactive ? "" : "pointer-events-none"} ${isSelected ? "z-20" : "z-10"}`}
+        className={`absolute inset-0 select-none ${regionTouchClass(interactive, moveMode)} ${interactive ? "" : "pointer-events-none"} ${isSelected ? "z-20" : "z-10"}`}
       >
         <svg
           className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
@@ -243,7 +251,7 @@ export function RegionShape({
           tabIndex={interactive ? 0 : -1}
           onPointerDown={handleBodyPointerDown}
           onKeyDown={handleKeyDown}
-          className={`absolute inset-0 touch-none select-none ${focusRingClass} ${interactive ? (moveMode ? "cursor-move" : "cursor-pointer") : ""}`}
+          className={`absolute inset-0 select-none ${regionTouchClass(interactive, moveMode)} ${focusRingClass} ${interactive ? (moveMode ? "cursor-move" : "cursor-pointer") : ""}`}
           aria-label={label}
           title={label}
         >
@@ -289,7 +297,7 @@ export function RegionShape({
 
   return (
     <div
-      className={`absolute touch-none select-none ${interactive ? "" : "pointer-events-none"} ${isSelected ? "z-20" : "z-10"}`}
+      className={`absolute select-none ${regionTouchClass(interactive, moveMode)} ${interactive ? "" : "pointer-events-none"} ${isSelected ? "z-20" : "z-10"}`}
       style={{
         left: box.left,
         top: box.top,

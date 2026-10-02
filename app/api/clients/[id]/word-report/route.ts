@@ -152,7 +152,7 @@ export async function POST(
 
     const [cliRes, noteRes] = await Promise.all([
       db.from("clients").select("*").eq("id", clientId).eq("tenant_id", tenantId).single(),
-      db.from("client_notes").select("*").eq("client_id", clientId).maybeSingle(),
+      db.from("client_notes").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).maybeSingle(),
     ]);
 
     if (cliRes.error || !cliRes.data)
@@ -233,7 +233,7 @@ export async function POST(
   // ─── Tüm danışan verisi (date-range + full ortak okuma) ─────────────────────
   const readAll = () => Promise.all([
     db.from("clients").select("*").eq("id", clientId).eq("tenant_id", tenantId).single(),
-    db.from("client_notes").select("*").eq("client_id", clientId).maybeSingle(),
+    db.from("client_notes").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).maybeSingle(),
     db.from("appointments").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("appointment_date", { ascending: true }),
     db.from("client_stones").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("stone_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
     db.from("client_sessions").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).order("session_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),

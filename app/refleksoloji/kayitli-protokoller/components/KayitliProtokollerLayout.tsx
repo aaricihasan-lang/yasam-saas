@@ -233,7 +233,7 @@ export function KayitliProtokollerLayout() {
           <>
             {/* BulkExportBar sadece gerçek hesaplarda gösterilir */}
             {!isDemo && !isAndroid && (
-              <div className="mt-3 mb-3">
+              <div className="no-android mt-3 mb-3">
                 <BulkExportBar
                   selectedCount={selectedIds.size}
                   totalCount={protocols.length}

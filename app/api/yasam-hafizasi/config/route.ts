@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { membershipInactiveResponse, verifyUserRequest } from "@/lib/auth/userGuard";
+import { hasMembershipAccessForRow } from "@/lib/auth/membershipAccessCore";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
 import { getTenantFlags } from "@/lib/yasam-hafizasi/flags";
 import { YH_DEFAULT_FLAGS } from "@/lib/yasam-hafizasi/config";
@@ -22,6 +23,8 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest): Promise<Response> {
   const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return guard.response;
+  // P1-4 ÜYELİK kapısı (requireModuleAccess ile AYNI kural; admin muaf).
+  if (!hasMembershipAccessForRow(guard.profile ?? {})) return membershipInactiveResponse();
 
   const { db, tenantId, is_demo_account, profile } = guard;
 

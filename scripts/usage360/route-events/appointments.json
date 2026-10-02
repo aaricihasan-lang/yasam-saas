@@ -48,6 +48,11 @@
       ],
       "failure": "server",
       "note": "sunucu DOCX; tek olay + itemCount (randevu sayısı). Route requireModuleAccess('appointments') ile kullanıcı kimlikli (moduleRouteRegistry'deki tenant-only gerekçesi eski)"
+    },
+    {
+      "route": "appointments/notifications/state",
+      "method": "POST",
+      "exempt": "bildirim görünürlük tercihi (done/muted): randevu iş kaydı değişmez"
     }
   ]
 }

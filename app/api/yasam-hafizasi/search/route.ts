@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { membershipInactiveResponse, verifyUserRequest } from "@/lib/auth/userGuard";
+import { hasMembershipAccessForRow } from "@/lib/auth/membershipAccessCore";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
 import { getTenantFlags } from "@/lib/yasam-hafizasi/flags";
 import { filterByYhScope, resolveYhModuleScope } from "@/lib/yasam-hafizasi/moduleScope";
@@ -48,6 +49,8 @@ function empty(query: string, extra?: Partial<YhSearchResponse>): NextResponse {
 export async function POST(req: NextRequest): Promise<Response> {
   const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return guard.response;
+  // P1-4 ÜYELİK kapısı (requireModuleAccess ile AYNI kural; admin muaf).
+  if (!hasMembershipAccessForRow(guard.profile ?? {})) return membershipInactiveResponse();
   const { tenantId, is_demo_account, profile } = guard;
 
   // Modül izni (server-side; admin merkezî bypass). İzin yoksa 403.

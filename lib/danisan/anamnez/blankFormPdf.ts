@@ -13,27 +13,36 @@ import type { FormCustom, RowColumn } from "./types";
  * - Danışana özel form: taslağın form farkı uygulanır (kaldırılan sorular yok, eklenen sorular var,
  *   kapalı koşullu bölüm yok).
  * - Türkçe karakter: public/fonts/Geist-Regular.ttf gömülür (hacamat PDF kalıbı).
+ *
+ * Writer / renkler / başlık-bölüm-alt bilgi çizimi DOLU form PDF'i (filledFormPdf.ts) ile
+ * PAYLAŞILIR. Boş form çıktısı bu paylaşımdan etkilenmez (harness normalize hash kilidi).
  */
 
 type Pdf = jsPDF;
+export type Rgb = [number, number, number];
 
-const PAGE_W = 210;
-const PAGE_H = 297;
-const MX = 16;
-const TOP = 18;
-const BOTTOM = 20;
-const CONTENT_W = PAGE_W - MX * 2;
+export const PAGE_W = 210;
+export const PAGE_H = 297;
+export const MX = 16;
+export const TOP = 18;
+export const BOTTOM = 20;
+export const CONTENT_W = PAGE_W - MX * 2;
 
-const INK: [number, number, number] = [30, 41, 59];
-const MUTED: [number, number, number] = [100, 116, 139];
-const LINE: [number, number, number] = [203, 213, 225];
-const TEAL: [number, number, number] = [15, 118, 110];
-const SOFT: [number, number, number] = [240, 253, 250];
+export const INK: Rgb = [30, 41, 59];
+export const MUTED: Rgb = [100, 116, 139];
+export const LINE: Rgb = [203, 213, 225];
+export const TEAL: Rgb = [15, 118, 110];
+export const SOFT: Rgb = [240, 253, 250];
 
-type PdfText = (typeof trMessages)["clients"]["anamnez"]["pdf"];
+export type AnamnezMessages = (typeof trMessages)["clients"]["anamnez"];
+type PdfText = AnamnezMessages["pdf"];
 
-function pdfText(locale: AnamnezLocale): { pdf: PdfText; wellness: string; yes: string; no: string; detail: string } {
-  const m = (locale === "en" ? enMessages : trMessages).clients.anamnez;
+export function anamnezMessages(locale: AnamnezLocale): AnamnezMessages {
+  return (locale === "en" ? enMessages : trMessages).clients.anamnez;
+}
+
+export function pdfText(locale: AnamnezLocale): { pdf: PdfText; wellness: string; yes: string; no: string; detail: string } {
+  const m = anamnezMessages(locale);
   return { pdf: m.pdf, wellness: m.wellnessNote, yes: m.field.yes, no: m.field.no, detail: m.field.detail };
 }
 
@@ -45,7 +54,10 @@ export type BlankFormInput = {
   fontBase64: string;
 };
 
-class Writer {
+/** Sayfadaki kullanılabilir içerik yüksekliği (üst boşluk → alt bilgi). */
+const USABLE_H = PAGE_H - BOTTOM - TOP;
+
+export class Writer {
   doc: Pdf;
   y = TOP;
   constructor(fontBase64: string) {
@@ -55,22 +67,49 @@ class Writer {
     this.doc.setFont("Geist", "normal");
     this.doc.setTextColor(...INK);
   }
-  ensure(h: number) {
+  /** Gerekirse yeni sayfa; yeni sayfa açıldıysa true. */
+  ensure(h: number): boolean {
     if (this.y + h > PAGE_H - BOTTOM) {
       this.doc.addPage();
       this.doc.setFont("Geist", "normal");
       this.y = TOP;
+      return true;
     }
+    return false;
   }
-  text(str: string, size: number, color: [number, number, number] = INK, x = MX, width = CONTENT_W): number {
+  /**
+   * Sarılmış metin. Sayfaya sığan blok bölünmeden yazılır (gerekirse tamamı yeni sayfaya);
+   * TEK sayfadan uzun blok satır satır sayfalanır (alt bilgiye taşmaz).
+   */
+  text(str: string, size: number, color: Rgb = INK, x = MX, width = CONTENT_W): number {
     this.doc.setFontSize(size);
     this.doc.setTextColor(...color);
     const lines = this.doc.splitTextToSize(str, width) as string[];
     const lh = size * 0.42;
+    if (lines.length * lh + 1 > USABLE_H) return this.flowLines(lines, size, color, x);
     this.ensure(lines.length * lh + 1);
     this.doc.text(lines, x, this.y + lh * 0.8);
     this.y += lines.length * lh;
     return lines.length * lh;
+  }
+  /** Satır satır akan metin (uzun cevaplar): bulunulan konumdan başlar, sayfa sonunda devam eder. */
+  flow(str: string, size: number, color: Rgb = INK, x = MX, width = CONTENT_W): number {
+    this.doc.setFontSize(size);
+    const lines = this.doc.splitTextToSize(str, width) as string[];
+    return this.flowLines(lines, size, color, x);
+  }
+  private flowLines(lines: string[], size: number, color: Rgb, x: number): number {
+    const lh = size * 0.42;
+    let total = 0;
+    for (const line of lines) {
+      this.ensure(lh + 1);
+      this.doc.setFontSize(size);
+      this.doc.setTextColor(...color);
+      this.doc.text(line, x, this.y + lh * 0.8);
+      this.y += lh;
+      total += lh;
+    }
+    return total;
   }
   line(x1: number, x2: number, y = this.y) {
     this.doc.setDrawColor(...LINE);
@@ -82,6 +121,11 @@ class Writer {
     this.doc.setLineWidth(0.25);
     this.doc.rect(x, y, s, s);
   }
+  /** Seçili kutu işareti: kutunun içine dolu kare (glif gerektirmez). */
+  mark(x: number, y: number, s = 3.2) {
+    this.doc.setFillColor(...TEAL);
+    this.doc.rect(x + 0.7, y + 0.7, s - 1.4, s - 1.4, "F");
+  }
   writeLines(n: number, gap = 7) {
     for (let i = 0; i < n; i++) {
       this.ensure(gap);
@@ -90,14 +134,17 @@ class Writer {
     }
     this.y += 2;
   }
-  /** Seçenek kutuları; satıra sığmayan seçenek alt satıra geçer. */
-  choices(labels: string[]) {
+  /**
+   * Seçenek kutuları; satıra sığmayan seçenek alt satıra geçer.
+   * `selected` verilirse (dolu form) seçili kutular işaretlenir, seçili olmayan etiketler soluk yazılır.
+   */
+  choices(labels: string[], selected?: ReadonlySet<number>) {
     this.doc.setFontSize(9);
     this.doc.setTextColor(...INK);
     let x = MX;
     this.ensure(7);
     let rowY = this.y + 1.5;
-    for (const label of labels) {
+    labels.forEach((label, i) => {
       const w = 3.2 + 1.8 + this.doc.getTextWidth(label) + 6;
       if (x + w > MX + CONTENT_W && x > MX) {
         x = MX;
@@ -106,10 +153,57 @@ class Writer {
         rowY = this.y + 1.5;
       }
       this.box(x, rowY);
+      if (selected) {
+        const on = selected.has(i);
+        if (on) this.mark(x, rowY);
+        this.doc.setFontSize(9);
+        this.doc.setTextColor(...(on ? INK : MUTED));
+      }
       this.doc.text(label, x + 5, rowY + 2.7);
       x += w;
-    }
+    });
     this.y += 7.5;
+  }
+}
+
+/** Sayfa üstü teal şerit. */
+export function drawTopBar(doc: Pdf) {
+  doc.setFillColor(...TEAL);
+  doc.rect(0, 0, PAGE_W, 4, "F");
+}
+
+/** Bölüm başlığı bandı ("A. Başvuru …"). */
+export function drawSectionHeader(w: Writer, title: string) {
+  const doc = w.doc;
+  w.ensure(22);
+  w.y += 2;
+  doc.setFillColor(...SOFT);
+  doc.setDrawColor(...TEAL);
+  doc.rect(MX, w.y, CONTENT_W, 8, "F");
+  doc.setFontSize(11);
+  doc.setTextColor(...TEAL);
+  doc.text(title, MX + 2.5, w.y + 5.5);
+  w.y += 10;
+}
+
+/**
+ * Her sayfaya alt bilgi: solda wellness notu, sağda sayfa no + ek satırlar
+ * (boş form: şablon · sürüm; dolu form: sürüm · rev + oluşturma tarihi).
+ */
+export function drawFooters(
+  doc: Pdf,
+  opts: { note: string; pageLabel: string; right: string[]; noteWidth?: number },
+) {
+  const total = doc.getNumberOfPages();
+  for (let p = 1; p <= total; p++) {
+    doc.setPage(p);
+    doc.setFont("Geist", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...MUTED);
+    const note = doc.splitTextToSize(opts.note, opts.noteWidth ?? CONTENT_W - 30) as string[];
+    doc.text(note, MX, PAGE_H - 11);
+    doc.text(opts.pageLabel.replace("{page}", String(p)).replace("{total}", String(total)), PAGE_W - MX, PAGE_H - 11, { align: "right" });
+    opts.right.forEach((line, i) => doc.text(line, PAGE_W - MX, PAGE_H - 7.5 + i * 3.4, { align: "right" }));
   }
 }
 
@@ -144,8 +238,7 @@ export function buildBlankAnamnesisPdf(input: BlankFormInput): Uint8Array {
   const doc = w.doc;
 
   // ── Başlık ──
-  doc.setFillColor(...TEAL);
-  doc.rect(0, 0, PAGE_W, 4, "F");
+  drawTopBar(doc);
   w.y = 12;
   w.text(t.pdf.title, 18, TEAL);
   w.y += 2;
@@ -173,15 +266,7 @@ export function buildBlankAnamnesisPdf(input: BlankFormInput): Uint8Array {
     const visible = s.fields.filter((f) => !f.hidden);
     if (visible.length === 0) continue;
 
-    w.ensure(22);
-    w.y += 2;
-    doc.setFillColor(...SOFT);
-    doc.setDrawColor(...TEAL);
-    doc.rect(MX, w.y, CONTENT_W, 8, "F");
-    doc.setFontSize(11);
-    doc.setTextColor(...TEAL);
-    doc.text(`${s.key}. ${catalog.sections[s.key]?.title ?? s.key}`, MX + 2.5, w.y + 5.5);
-    w.y += 10;
+    drawSectionHeader(w, `${s.key}. ${catalog.sections[s.key]?.title ?? s.key}`);
     if (s.optional) {
       w.text(t.pdf.optionalSection, 8.5, MUTED);
       w.y += 1;
@@ -240,17 +325,7 @@ export function buildBlankAnamnesisPdf(input: BlankFormInput): Uint8Array {
   }
 
   // ── Alt bilgi (her sayfa) ──
-  const total = doc.getNumberOfPages();
-  for (let p = 1; p <= total; p++) {
-    doc.setPage(p);
-    doc.setFont("Geist", "normal");
-    doc.setFontSize(7.5);
-    doc.setTextColor(...MUTED);
-    const note = doc.splitTextToSize(t.wellness, CONTENT_W - 30) as string[];
-    doc.text(note, MX, PAGE_H - 11);
-    doc.text(t.pdf.page.replace("{page}", String(p)).replace("{total}", String(total)), PAGE_W - MX, PAGE_H - 11, { align: "right" });
-    doc.text(`${template.key} · ${version}`, PAGE_W - MX, PAGE_H - 7.5, { align: "right" });
-  }
+  drawFooters(doc, { note: t.wellness, pageLabel: t.pdf.page, right: [`${template.key} · ${version}`] });
 
   return new Uint8Array(doc.output("arraybuffer"));
 }
