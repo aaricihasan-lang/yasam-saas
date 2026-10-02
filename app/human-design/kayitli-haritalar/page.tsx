@@ -98,6 +98,45 @@ export default function HdKayitliHaritalarPage() {
     });
   }, [computedRows, computedSearch]);
 
+  // P2-4: satır aksiyonları — masaüstünde tablo hücresi, mobilde ad altında (h-9 dokunma hedefi).
+  function renderActions(row: HdChartWithClient, clientId: string, mobile: boolean) {
+    const btn = mobile ? "h-9 px-3.5" : "h-7 px-2.5";
+    return (
+      <>
+                            <Link
+                              href={`/human-design/kayitli-haritalar/${row.id}`}
+                              className={`${btn} flex items-center rounded-lg border border-indigo-200 bg-white text-xs font-bold text-indigo-700 no-underline transition hover:border-indigo-400 hover:bg-indigo-50`}
+                            >
+                              Detay
+                            </Link>
+                            {clientId && (
+                              <>
+                                <Link
+                                  href={`/human-design/harita-kaydi?clientId=${clientId}`}
+                                  className={`${btn} flex items-center rounded-lg border border-violet-200 bg-white text-xs font-bold text-violet-700 no-underline transition hover:border-violet-400 hover:bg-violet-50`}
+                                >
+                                  Düzenle
+                                </Link>
+                                <Link
+                                  href={`/human-design/rapor-olustur?clientId=${clientId}`}
+                                  className={`${btn} flex items-center rounded-lg border border-fuchsia-200 bg-white text-xs font-bold text-fuchsia-700 no-underline transition hover:border-fuchsia-400 hover:bg-fuchsia-50`}
+                                >
+                                  Rapor
+                                </Link>
+                              </>
+                            )}
+                            <button
+                              type="button"
+                              disabled={deletingId === row.id}
+                              onClick={() => handleDelete(row)}
+                              className={`${btn} rounded-lg border border-rose-200 bg-white text-xs font-bold text-rose-600 transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50`}
+                            >
+                              {deletingId === row.id ? "..." : "Sil"}
+                            </button>
+                                </>
+    );
+  }
+
   async function handleDelete(row: HdChartWithClient) {
     if (isDemo) { showToast({ message: "Demo hesabında harita silinemez.", type: "info" }); return; }
     const clientName = row.client?.name ?? row.client_name ?? "Bu danışan";
@@ -185,7 +224,7 @@ export default function HdKayitliHaritalarPage() {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="h-9 rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400"
+            className="h-9 w-full rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 sm:w-auto"
           >
             <option value="">Tüm Tipler</option>
             {HUMAN_DESIGN_TYPES.map((t) => (
@@ -195,7 +234,7 @@ export default function HdKayitliHaritalarPage() {
           <select
             value={authorityFilter}
             onChange={(e) => setAuthorityFilter(e.target.value)}
-            className="h-9 rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400"
+            className="h-9 w-full rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 sm:w-auto"
           >
             <option value="">Tüm Otoriteler</option>
             {HUMAN_DESIGN_AUTHORITIES.map((a) => (
@@ -205,7 +244,7 @@ export default function HdKayitliHaritalarPage() {
           <select
             value={profileFilter}
             onChange={(e) => setProfileFilter(e.target.value)}
-            className="h-9 rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400"
+            className="h-9 w-full rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 sm:w-auto"
           >
             <option value="">Tüm Profiller</option>
             {HUMAN_DESIGN_PROFILES.map((p) => (
@@ -242,7 +281,7 @@ export default function HdKayitliHaritalarPage() {
                     <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 lg:table-cell">Profil</th>
                     <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 xl:table-cell">Tanım</th>
                     <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 lg:table-cell">Kayıt Tarihi</th>
-                    <th className="px-4 py-3 text-right text-xs font-black uppercase tracking-wide text-slate-600">İşlem</th>
+                    <th className="hidden px-4 py-3 text-right text-xs font-black uppercase tracking-wide text-slate-600 sm:table-cell">İşlem</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-indigo-50/80">
@@ -252,7 +291,7 @@ export default function HdKayitliHaritalarPage() {
                     return (
                       <tr key={row.id} className="bg-white transition-colors hover:bg-indigo-50/40">
                         <td className="px-4 py-3">
-                          <p className="font-semibold text-slate-900">{clientName}</p>
+                          <p className="font-semibold text-slate-900 [overflow-wrap:anywhere]">{clientName}</p>
                           {row.client?.birth_place && (
                             <p className="text-xs text-slate-500">{row.client.birth_place}</p>
                           )}
@@ -262,6 +301,9 @@ export default function HdKayitliHaritalarPage() {
                               {hdTypeLabelFromCode(row.type_code)}
                             </span>
                           )}
+                          {/* P2-4: mobilde satır aksiyonları ad altında, sarmalı ve parmak dostu —
+                              tablo içinde ekran dışına itilmez (320–430 px). */}
+                          <div className="mt-2 flex flex-wrap gap-2 sm:hidden">{renderActions(row, clientId, true)}</div>
                         </td>
                         <td className="hidden px-4 py-3 sm:table-cell">
                           <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-800 ring-1 ring-indigo-200/60">
@@ -280,39 +322,8 @@ export default function HdKayitliHaritalarPage() {
                         <td className="hidden px-4 py-3 text-xs text-slate-500 lg:table-cell">
                           {formatDate(row.created_at)}
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <Link
-                              href={`/human-design/kayitli-haritalar/${row.id}`}
-                              className="flex h-7 items-center rounded-lg border border-indigo-200 bg-white px-2.5 text-xs font-bold text-indigo-700 no-underline transition hover:border-indigo-400 hover:bg-indigo-50"
-                            >
-                              Detay
-                            </Link>
-                            {clientId && (
-                              <>
-                                <Link
-                                  href={`/human-design/harita-kaydi?clientId=${clientId}`}
-                                  className="flex h-7 items-center rounded-lg border border-violet-200 bg-white px-2.5 text-xs font-bold text-violet-700 no-underline transition hover:border-violet-400 hover:bg-violet-50"
-                                >
-                                  Düzenle
-                                </Link>
-                                <Link
-                                  href={`/human-design/rapor-olustur?clientId=${clientId}`}
-                                  className="flex h-7 items-center rounded-lg border border-fuchsia-200 bg-white px-2.5 text-xs font-bold text-fuchsia-700 no-underline transition hover:border-fuchsia-400 hover:bg-fuchsia-50"
-                                >
-                                  Rapor
-                                </Link>
-                              </>
-                            )}
-                            <button
-                              type="button"
-                              disabled={deletingId === row.id}
-                              onClick={() => handleDelete(row)}
-                              className="h-7 rounded-lg border border-rose-200 bg-white px-2.5 text-xs font-bold text-rose-600 transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50"
-                            >
-                              {deletingId === row.id ? "..." : "Sil"}
-                            </button>
-                          </div>
+                        <td className="hidden px-4 py-3 sm:table-cell">
+                          <div className="flex items-center justify-end gap-1.5">{renderActions(row, clientId, false)}</div>
                         </td>
                       </tr>
                     );

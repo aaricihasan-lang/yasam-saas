@@ -372,6 +372,9 @@ function serviceFetcher(db: FakeDb, ctx: RestoreContext, log?: PageLog[]): JsonF
       const r = await handleRestoreChunk(asDb(db), ctx, body);
       status = r.status;
       json = r.body;
+    } else if (u.pathname === "/api/settings/backup/files") {
+      // P2-11 (HD): sahte DB'de depolama nesnesi yok → boş dosya listesi (dosya hattı ayrı harness'ta).
+      json = { ok: true, part_bytes: 1_048_575, files: [] };
     } else {
       status = 404;
       json = { error: "yok" };
@@ -909,7 +912,9 @@ function codeFromTables(): string[] {
     assert.equal(hits.length, 1);
     const idx = ui.search(/eksiksiz/i);
     assert.ok(ui.slice(Math.max(0, idx - 200), idx).includes("outcome.complete"), "eksiksiz yalnız complete dalında");
-    assert.ok(ui.includes("fotoğraf ve dosyalar dahil değildir"));
+    // P2-11: Human Design görselleri artık yedekte; diğer modüllerin dosyaları hâlâ dahil değil (dürüst metin).
+    assert.ok(ui.includes("Human Design harita ve rapor görselleri dahildir"));
+    assert.ok(ui.includes("fotoğraf ve dosyaları dahil değildir"));
     assert.ok(ui.includes("Yalnız eksik kayıtlar eklenir; mevcut kayıtlar değiştirilmez veya silinmez"));
   });
 

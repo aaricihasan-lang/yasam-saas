@@ -7,6 +7,7 @@
 // HD engine/compute/BodyGraph matematiğine DOKUNMAZ — yalnız knowledge_records CRUD.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { HD_CONFLICT_CODE, HD_CONFLICT_MESSAGE } from "./optimistic";
 import type {
   HumanDesignKnowledgeRecord,
   HumanDesignKnowledgeRecordInsert,
@@ -117,7 +118,8 @@ export async function updateKnowledge(
   tenantId: string,
   id: string,
   input: Record<string, unknown>,
-): Promise<{ ok: boolean; error: string | null }> {
+  opts: { expectedUpdatedAt?: string } = {},
+): Promise<{ ok: boolean; error: string | null; status?: number; code?: string; updatedAt?: string | null }> {
   const picked = pick(input);
   // Kısmi payload'da nihai durumu değerlendir: eksik alanlar mevcut kayıttan alınır.
   let activeEffective: boolean;
@@ -139,14 +141,19 @@ export async function updateKnowledge(
   }
 
   const fields = { ...picked, updated_at: new Date().toISOString() };
-  const { data, error } = await withTenant(db.from(TABLE).update(fields), tenantId, "updateKnowledge")
-    .eq("id", id)
-    .select("id");
+  // P2-9: beklenen sürüm verildiyse koşullu (atomik) güncelleme — başka oturum ezilmez.
+  let q = withTenant(db.from(TABLE).update(fields), tenantId, "updateKnowledge").eq("id", id);
+  if (opts.expectedUpdatedAt) q = q.eq("updated_at", opts.expectedUpdatedAt);
+  const { data, error } = await q.select("id, updated_at");
   if (error) return { ok: false, error: hdSafeDbError("updateKnowledge", error) };
   if (!data || data.length === 0) {
-    return { ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." };
+    if (opts.expectedUpdatedAt) {
+      const { data: still } = await withTenant(db.from(TABLE).select("id"), tenantId, "updateKnowledge.exists").eq("id", id).maybeSingle();
+      if (still) return { ok: false, error: HD_CONFLICT_MESSAGE, status: 409, code: HD_CONFLICT_CODE };
+    }
+    return { ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil.", status: 404 };
   }
-  return { ok: true, error: null };
+  return { ok: true, error: null, updatedAt: (data[0] as { updated_at?: string | null }).updated_at ?? null };
 }
 
 export async function deleteKnowledge(

@@ -102,8 +102,10 @@ ok("D2 reportSnapshotService yalnız professional create route'undan çağrılı
 // ── E. Client empty-state + buton gizleme (savunma katmanı; server yeterli) ──
 console.log("\nE. İstemci: non-admin canonical empty-state + Professional Word (uzmana açık, Android gizli)");
 const bilgiPage = strip(read("app/human-design/bilgi-bankasi/page.tsx"));
-ok("E1 Bilgi Bankası sayfası non-admin → KnowledgeEmpty (locked mesajı DEĞİL)",
-  /!isAdmin[\s\S]{0,120}KnowledgeEmpty/.test(bilgiPage));
+// P1-4 (HD satış öncesi kapanış): non-admin artık yanıltıcı boş durum yerine KENDİ Bilgi Bankası
+// çalışma alanını (human_design_knowledge_records) görür; merkezî canonical corpus yine KAPALI (E2).
+ok("E1 Bilgi Bankası sayfası non-admin → kişisel çalışma alanı (canonical DEĞİL)",
+  /!isAdmin\s*\?[\s\S]{0,120}HdKnowledgeWorkspace/.test(bilgiPage) && /if \(!admin\)[\s\S]{0,160}return;/.test(bilgiPage));
 ok("E2 non-admin canonical fetch ÇAĞIRMAZ (fetchCanonicalGroups import edilmez)",
   !/fetchCanonicalGroups/.test(bilgiPage));
 const wordBtn = strip(read("app/human-design/kayitli-haritalar/components/HdProfessionalReportButton.tsx"));
@@ -111,7 +113,7 @@ ok("E3 Professional Word butonu uzmana açık (admin gate YOK) + Android'de rend
   !/isAdminUser\(/.test(wordBtn) && /if\s*\(\s*isAndroid\s*\)\s*return null/.test(wordBtn));
 const raporList = strip(read("app/human-design/kayitli-raporlar/components/HdRaporListesi.tsx"));
 ok("E4 Kayıtlı Raporlar: canonical Word İndir uzmana açık (yalnız Android gizli)",
-  /isCanonical\s*\?[\s\S]{0,200}!isAndroid\s*\?/.test(raporList) && !/isCanonical\s*\?[\s\S]{0,200}isAdmin\s*&&/.test(raporList));
+  /isCanonical\s*\?[\s\S]{0,700}!isAndroid\s*\?/.test(raporList) && !/isCanonical\s*\?[\s\S]{0,700}isAdmin\s*&&/.test(raporList));
 const reader = strip(read("app/human-design/kayitli-haritalar/components/HdPersonalKnowledgePanel.tsx"));
 ok("E5 Chart Reader paneli: non-admin (locked) → empty-state (admin prose YOK)",
   /state\.locked/.test(reader) && /oluşturulmamış/.test(read("app/human-design/kayitli-haritalar/components/HdPersonalKnowledgePanel.tsx")));

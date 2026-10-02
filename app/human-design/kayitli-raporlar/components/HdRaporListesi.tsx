@@ -13,6 +13,7 @@ import {
 } from "../helpers/hdKayitliRaporlar";
 import { downloadProfessionalReport } from "../helpers/hdProfessionalReport";
 import { HdRaporDetayModal } from "./HdRaporDetayModal";
+import { HdProfessionalSummaryModal } from "./HdProfessionalSummaryModal";
 
 function formatDate(val: string | null | undefined): string {
   if (!val) return "—";
@@ -35,6 +36,8 @@ export function HdRaporListesi() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [detayRow, setDetayRow] = useState<HdReportWithClient | null>(null);
+  // P2-3: profesyonel rapor özeti (Android'de Word yerine okunabilir görünüm).
+  const [summaryId, setSummaryId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   // Profesyonel (canonical) Word indirme TÜM HD uzmanlarına açıktır (sunucu modül kapısı).
@@ -144,7 +147,7 @@ export function HdRaporListesi() {
               href={isAdmin ? "/human-design/rapor-olustur" : "/human-design/kayitli-haritalar"}
               className="mt-3 inline-flex h-9 items-center rounded-xl border border-fuchsia-300/80 bg-gradient-to-r from-fuchsia-600 to-violet-600 px-5 text-sm font-black text-white no-underline shadow-sm transition hover:brightness-105"
             >
-              {isAdmin ? "Rapor Oluştur" : "Kayıtlı Haritalar → Profesyonel Word"}
+              {isAdmin ? "Rapor Oluştur" : isAndroid ? "Kayıtlı Haritalar" : "Kayıtlı Haritalar → Profesyonel Word"}
             </Link>
           )}
         </div>
@@ -176,7 +179,7 @@ export function HdRaporListesi() {
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500">
                   <span className="font-semibold text-indigo-700">
-                    {row.client?.name ?? "—"}
+                    {row.client?.name ?? (row.client_id ? "—" : "Danışan kaydı silinmiş")}
                   </span>
                   <span>·</span>
                   <span>{formatDate(row.created_at)}</span>
@@ -190,7 +193,15 @@ export function HdRaporListesi() {
                   // (immutable/§40); Detay YOK (içerik snapshot'ta, editable metin yok).
                   // Tüm HD uzmanları kendi tenant'ındaki raporu indirebilir (sunucu kapısı).
                   // Android: Word (.docx) indirme butonu render edilmez (ürün kararı).
-                  !isAndroid ? (
+                  <>
+                  <button
+                    type="button"
+                    onClick={() => setSummaryId(row.id)}
+                    className="flex h-8 items-center rounded-lg border border-emerald-200 bg-white px-3.5 text-xs font-bold text-emerald-700 transition hover:border-emerald-400 hover:bg-emerald-50"
+                  >
+                    Özet
+                  </button>
+                  {!isAndroid ? (
                     <button
                       type="button"
                       disabled={downloadingId === row.id}
@@ -199,7 +210,8 @@ export function HdRaporListesi() {
                     >
                       {downloadingId === row.id ? "İndiriliyor…" : "Word İndir"}
                     </button>
-                  ) : null
+                  ) : null}
+                  </>
                 ) : (
                   <>
                     <button
@@ -234,6 +246,9 @@ export function HdRaporListesi() {
 
       {detayRow && (
         <HdRaporDetayModal row={detayRow} onClose={() => setDetayRow(null)} />
+      )}
+      {summaryId && (
+        <HdProfessionalSummaryModal reportId={summaryId} isAndroid={isAndroid} onClose={() => setSummaryId(null)} />
       )}
     </>
   );

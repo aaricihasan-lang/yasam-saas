@@ -241,6 +241,18 @@ export function BackupTab({ user }: { user: YasamUser }) {
         complete: t.complete,
         error: t.error,
       }));
+      // P2-11: gömülü Human Design dosyaları da tamlık özetinde ayrı satır olarak gösterilir.
+      const hd = result.hdFiles;
+      if (hd && ((hd.expected ?? 0) > 0 || hd.included > 0 || hd.error)) {
+        tables.push({
+          table: "hd_files",
+          label: "Human Design görselleri (dosya)",
+          rows: hd.included,
+          expected: hd.expected,
+          complete: !hd.error,
+          error: hd.error,
+        });
+      }
       const totalRows = tables.reduce((s, t) => s + t.rows, 0);
       setOutcome({ fileName: result.fileName, complete: file.complete, totalRows, tables });
       if (file.complete) {
@@ -269,7 +281,8 @@ export function BackupTab({ user }: { user: YasamUser }) {
         <FileJson className="mb-3 h-10 w-10 text-slate-400" />
         <h3 className="text-base font-bold text-slate-900">Sistem Yedeği — JSON</h3>
         <p className="mt-1.5 text-sm text-slate-600">
-          Veritabanı kayıtlarınızın JSON yedeği; <strong>fotoğraf ve dosyalar dahil değildir</strong>. Bu dosya Geri Yükleme
+          Veritabanı kayıtlarınızın JSON yedeği; <strong>Human Design harita ve rapor görselleri dahildir</strong>, diğer modüllerin
+          fotoğraf ve dosyaları dahil değildir. Bu dosya Geri Yükleme
           sekmesi ile yeniden içe aktarılabilir. İndirme sonunda her tablo sunucudaki kayıt sayısıyla karşılaştırılır ve
           sonuç aşağıda gösterilir.
         </p>
@@ -480,7 +493,8 @@ export function RestoreTab({ user }: { user: YasamUser }) {
       <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
         <p className="text-xs font-semibold text-amber-700">
           Yalnız eksik kayıtlar eklenir; mevcut kayıtlar değiştirilmez veya silinmez. İşlem tekrar çalıştırılabilir.
-          Hesabınızda aktif olmayan modüllerin kayıtları atlanır. Fotoğraf/dosyalar geri yüklenmez.
+          Hesabınızda aktif olmayan modüllerin kayıtları atlanır. Human Design görselleri dosyadan geri yüklenir (boyut ve
+          SHA-256 doğrulamalı, mevcut dosyanın üzerine yazılmaz); diğer fotoğraf/dosyalar geri yüklenmez.
           Desteklenen yedek sürümleri: 1.0, 2.0, 2.1, 3.0.
         </p>
       </div>

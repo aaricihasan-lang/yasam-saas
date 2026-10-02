@@ -7,7 +7,7 @@ import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
 import { CanonicalGroupList, type GroupListItem } from "@/components/human-design/knowledge/CanonicalGroupList";
-import { KnowledgeEmpty } from "@/components/human-design/knowledge/KnowledgeStates";
+import { HdKnowledgeWorkspace } from "./components/HdKnowledgeWorkspace";
 import { HdConfirmModal } from "@/app/admin/human-design/components/HdConfirmModal";
 import { hdGet, hdSend } from "@/app/admin/human-design/adminHdApi";
 import { sortCanonicalRows } from "@/lib/human-design/admin/hdSort";
@@ -21,7 +21,9 @@ import type { HdEntityKind } from "@/lib/human-design/knowledge/expertReadTypes"
  * veri KAYNAĞI rol-bilinçlidir:
  *   - admin → /api/admin/hd/* (adminHdApi): TÜM kimlikler (taslak dahil) → düzenlenebilir,
  *     seçim + toplu İÇERİK silme açık (kimlik silinmez).
- *   - normal uzman → /api/hd/bilgi-bankasi: yalnız YAYINLANMIŞ kimlikler (salt-okuma).
+ *   - normal uzman → (P1-4) KENDİ Bilgi Bankası çalışma alanı (human_design_knowledge_records):
+ *     liste + ekle + düzenle + sil. Merkezî canonical corpus uzmana kapalıdır (admin izolasyonu);
+ *     eskiden uzman burada her zaman yanıltıcı "henüz içerik oluşturulmamış" boş durumu görüyordu.
  * Sıralama deterministiktir (hdSort): Tip/Otorite sabit, Kapı 1→64, Kanal [A,B] tuple.
  */
 export default function HdCanonicalBilgiBankasiPage() {
@@ -102,20 +104,19 @@ export default function HdCanonicalBilgiBankasiPage() {
       <div className="mb-4 rounded-2xl border border-indigo-200/80 bg-white/90 px-5 py-4 shadow-[0_6px_24px_-8px_rgba(79,70,229,0.18)] ring-1 ring-indigo-200/60 backdrop-blur-xl">
         <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">Human Design — Bilgi Bankası</h1>
         <p className="mt-1 text-xs leading-relaxed text-slate-600 sm:text-sm">
-          Tipler, Otoriteler, Kapılar ve Kanallar için kaynaklandırılmış merkezî içerik.
-          {isAdmin && " (Admin: taslak dahil tüm kayıtları görür, düzenler ve seçili içerikleri toplu silebilir.)"}
+          {isAdmin
+            ? "Tipler, Otoriteler, Kapılar ve Kanallar için kaynaklandırılmış merkezî içerik. (Admin: taslak dahil tüm kayıtları görür, düzenler ve seçili içerikleri toplu silebilir.)"
+            : "Tip, otorite, profil, tanım, merkez, kanal, kapı ve strateji yorumlarınızı yönetin. Aktif kayıtlar Rapor Oluştur ekranında danışan haritasıyla otomatik eşleşir."}
         </p>
       </div>
 
       {msg && <p className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 ring-1 ring-slate-100">{msg}</p>}
 
+      {!isAdmin ? (
+        <HdKnowledgeWorkspace isDemo={isDemo} />
+      ) : (
       <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-4 shadow-[0_8px_28px_-10px_rgba(79,70,229,0.18)] ring-1 ring-indigo-200/60 backdrop-blur-md sm:p-5">
-        {!isAdmin ? (
-          <KnowledgeEmpty
-            title="Bu hesap için henüz Human Design bilgi içeriği oluşturulmamış."
-            hint="Kendi Human Design bilgi içeriğinizi eklediğinizde burada listelenecektir."
-          />
-        ) : (
+        {(
           <CanonicalGroupList
             activeKind={kind}
             onKind={setKind}
@@ -130,12 +131,15 @@ export default function HdCanonicalBilgiBankasiPage() {
           />
         )}
       </div>
+      )}
 
-      <div className="mt-4 text-center">
-        <Link href="/human-design/bilgi-bankasi/legacy" className="text-[11px] font-semibold text-slate-400 underline-offset-2 hover:text-slate-600 hover:underline">
-          Eski Bilgi Bankası (yedek)
-        </Link>
-      </div>
+      {isAdmin && (
+        <div className="mt-4 text-center">
+          <Link href="/human-design/bilgi-bankasi/legacy" className="text-sm font-bold text-indigo-600 underline-offset-2 hover:underline">
+            Kişisel Bilgi Kayıtlarım
+          </Link>
+        </div>
+      )}
 
       <HdConfirmModal
         open={pendingBulk !== null}

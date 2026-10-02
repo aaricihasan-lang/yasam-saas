@@ -2,12 +2,7 @@
  * lib/backup/format.ts — Yedek dosyası normalize etme, parçalama ve rapor birleştirme (SAF).
  * Hem Ayarlar sayfası (istemci orkestrasyonu) hem sunucu (eski tek-gövde restore) kullanır.
  */
-import {
-  ACCEPTED_BACKUP_VERSIONS,
-  BACKUP_FORMAT,
-  type RestoreOverallStatus,
-  type RestoreTableReport,
-} from "./types";
+import { ACCEPTED_BACKUP_VERSIONS, BACKUP_FORMAT, type RestoreOverallStatus, type RestoreTableReport, type BackupStoredFile } from "./types";
 
 export type NormalizedBackup = {
   version: string;
@@ -18,6 +13,8 @@ export type NormalizedBackup = {
   incompleteTables: { table: string; error: string | null }[];
   registryHash: string | null;
   exportedAt: string | null;
+  /** P2-11: gömülü HD dosyaları (eski yedeklerde boş). */
+  files: BackupStoredFile[];
 };
 
 export type NormalizeResult = { ok: true; backup: NormalizedBackup } | { ok: false; error: string };
@@ -61,6 +58,26 @@ export function normalizeBackupFile(parsed: unknown): NormalizeResult {
     }
     tables[name] = rows as Record<string, unknown>[];
   }
+  const files: BackupStoredFile[] = [];
+  if (Array.isArray(parsed.files)) {
+    for (const f of parsed.files as unknown[]) {
+      if (!isPlainObject(f)) continue;
+      if (
+        typeof f.bucket === "string" && typeof f.path === "string" && typeof f.content_type === "string" &&
+        typeof f.size === "number" && typeof f.sha256 === "string" && typeof f.data_base64 === "string"
+      ) {
+        files.push({
+          module: typeof f.module === "string" ? f.module : "human_design",
+          bucket: f.bucket,
+          path: f.path,
+          content_type: f.content_type,
+          size: f.size,
+          sha256: f.sha256,
+          data_base64: f.data_base64,
+        });
+      }
+    }
+  }
   return {
     ok: true,
     backup: {
@@ -70,6 +87,7 @@ export function normalizeBackupFile(parsed: unknown): NormalizeResult {
       incompleteTables,
       registryHash: typeof parsed.registry_hash === "string" ? parsed.registry_hash : null,
       exportedAt: typeof parsed.exported_at === "string" ? parsed.exported_at : null,
+      files,
     },
   };
 }

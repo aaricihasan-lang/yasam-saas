@@ -20,6 +20,7 @@ import {
   BACKUP_FORMAT,
   BACKUP_VERSION,
   type BackupFileV3,
+  type BackupStoredFile,
   type BackupPageResponse,
   type BackupPlanResponse,
   type RestoreDecision,
@@ -36,6 +37,8 @@ export type BackupRunResult = {
   file: BackupFileV3;
   fileName: string;
   incomplete: { table: string; label: string; expected: number | null; rows: number; error: string | null }[];
+  /** P2-11: gömülü Human Design dosyaları özeti. */
+  hdFiles?: { expected: number | null; included: number; error: string | null };
 };
 
 const MAX_PAGES_PER_TABLE = 100_000;
@@ -110,19 +113,96 @@ export async function runBackup(fetcher: JsonFetcher, onProgress?: (p: BackupPro
     if (!complete) incomplete.push({ table: t.table, label: t.label, expected, rows: rows.length, error: finalError });
   }
 
+  // P2-11: Human Design dosyaları (harita görseli + profesyonel rapor görsel snapshot'ı).
+  const hd = await backupHdFiles(fetcher, (rows, total) =>
+    onProgress?.({ table: HD_FILES_KEY, label: HD_FILES_LABEL, index: plan.tables.length, total: plan.tables.length, rows: Math.min(rows, total) }),
+  );
+  if (hd.error !== null) {
+    incomplete.push({ table: HD_FILES_KEY, label: HD_FILES_LABEL, expected: hd.expected, rows: hd.files.length, error: hd.error });
+  }
+
   const file: BackupFileV3 = {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     registry_hash: plan.registry_hash,
     exported_at: plan.exported_at,
     tenant_id: plan.tenant_id,
-    scope: "database_records_only",
-    files_included: false,
+    // Dosya gömüldüyse kapsam bunu dürüstçe söyler; HD dosyası yoksa eski kapsam değeri korunur.
+    scope: hd.files.length > 0 ? "database_records_and_hd_files" : "database_records_only",
+    files_included: hd.files.length > 0,
     complete: incomplete.length === 0,
     tables,
     excluded: plan.excluded,
+    files: hd.files,
   };
-  return { file, fileName: plan.file_name, incomplete };
+  return { file, fileName: plan.file_name, incomplete, hdFiles: { expected: hd.expected, included: hd.files.length, error: hd.error } };
+}
+
+export const HD_FILES_KEY = "hd_files";
+export const HD_FILES_LABEL = "Human Design görselleri";
+
+type HdFileListItem = { bucket: string; path: string; content_type: string };
+type HdFilePartBody = { ok?: boolean; parts?: number; size?: number; sha256?: string; content_type?: string; data_base64?: string; error?: string };
+
+/** HD dosyalarını parça parça okuyup gömer. Okunamayan dosya = yedek EKSİK (dürüst). */
+async function backupHdFiles(
+  fetcher: JsonFetcher,
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ files: BackupStoredFile[]; expected: number | null; error: string | null }> {
+  let listRes: JsonResponse;
+  try {
+    listRes = await fetcher("/api/settings/backup/files");
+  } catch {
+    return { files: [], expected: null, error: "Dosya listesi alınamadı (bağlantı)." };
+  }
+  const list = listRes.json as { ok?: boolean; files?: HdFileListItem[] } | null;
+  if (!listRes.ok || !list?.ok || !Array.isArray(list.files)) {
+    return { files: [], expected: null, error: errorOf(listRes.json, "Dosya listesi alınamadı.") };
+  }
+  const files: BackupStoredFile[] = [];
+  const errors: string[] = [];
+  for (const f of list.files) {
+    let data = "";
+    let meta: HdFilePartBody | null = null;
+    let failed = false;
+    for (let part = 0; part < 32; part++) {
+      let res: JsonResponse;
+      try {
+        res = await fetcher(`/api/settings/backup/files?path=${encodeURIComponent(f.path)}&part=${part}`);
+      } catch {
+        failed = true;
+        break;
+      }
+      const body = res.json as HdFilePartBody | null;
+      if (!res.ok || !body?.ok || typeof body.data_base64 !== "string") {
+        errors.push(`${f.path}: ${errorOf(res.json, `HTTP ${res.status}`)}`);
+        failed = true;
+        break;
+      }
+      meta = body;
+      data += body.data_base64;
+      if (part + 1 >= (body.parts ?? 1)) break;
+    }
+    if (failed || !meta) {
+      if (!failed) errors.push(`${f.path}: okunamadı`);
+      continue;
+    }
+    files.push({
+      module: "human_design",
+      bucket: f.bucket,
+      path: f.path,
+      content_type: meta.content_type ?? f.content_type,
+      size: meta.size ?? 0,
+      sha256: meta.sha256 ?? "",
+      data_base64: data,
+    });
+    onProgress?.(files.length, list.files.length);
+  }
+  return {
+    files,
+    expected: list.files.length,
+    error: errors.length ? `${errors.length} dosya okunamadı (${errors.slice(0, 3).join(" · ")})` : null,
+  };
 }
 
 /** Büyük JSON'u tek dev string yerine tablo tablo parçalar (Blob parçaları). */
@@ -217,5 +297,86 @@ export async function runRestore(
     if (rows.length === 0) agg.status = "COMPLETE";
     reports.push(agg);
   }
+  // P2-11: gömülü Human Design dosyaları (DB satırlarından SONRA; insert-only, doğrulamalı).
+  if (backup.files.length > 0) reports.push(await restoreHdFiles(backup.files, fetcher));
   return { status: computeOverallStatus(reports), tables: reports, skipped, notes: plan.notes ?? [] };
+}
+
+/** base64 parça boyutu (4'ün katı → her parça bağımsız çözülebilir; sunucu ≤1.398.100 kabul eder). */
+const HD_RESTORE_PART_CHARS = 1_398_100;
+
+function newUploadId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
+async function restoreHdFiles(files: BackupStoredFile[], fetcher: JsonFetcher): Promise<RestoreTableReport> {
+  const report = emptyTableReport(HD_FILES_KEY, "human_design", files.length);
+  let planRes: JsonResponse | null = null;
+  try {
+    planRes = await fetcher("/api/settings/restore/files", {
+      method: "POST",
+      body: { mode: "plan", files: files.map((f) => ({ bucket: f.bucket, path: f.path, size: f.size, sha256: f.sha256 })) },
+    });
+  } catch {
+    planRes = null;
+  }
+  const decisions = (planRes?.json as { decisions?: { path: string; action: string; reason?: string }[] } | null)?.decisions;
+  if (!planRes?.ok || !Array.isArray(decisions)) {
+    addFailure(report, "request_failed", [], files.length);
+    report.warnings.push(errorOf(planRes?.json, "Dosya geri yükleme planı alınamadı."));
+    report.status = "FAILED";
+    return report;
+  }
+  const byPath = new Map(files.map((f) => [f.path, f]));
+  for (const d of decisions) {
+    const f = byPath.get(d.path);
+    if (!f) continue;
+    if (d.action === "exists") {
+      report.already_present++;
+      continue;
+    }
+    if (d.action === "skip") {
+      if (d.reason === "unlicensed") report.skipped_unlicensed++;
+      else addFailure(report, d.reason === "foreign_tenant" ? "foreign_storage_path" : `file_${d.reason ?? "skipped"}`, [d.path]);
+      continue;
+    }
+    const uploadId = newUploadId();
+    const parts = Math.max(1, Math.ceil(f.data_base64.length / HD_RESTORE_PART_CHARS));
+    let ok = true;
+    for (let i = 0; i < parts && ok; i++) {
+      const chunk = f.data_base64.slice(i * HD_RESTORE_PART_CHARS, (i + 1) * HD_RESTORE_PART_CHARS);
+      try {
+        const r = await fetcher("/api/settings/restore/files", {
+          method: "POST",
+          body: { mode: "part", path: f.path, upload_id: uploadId, index: i, data_base64: chunk },
+        });
+        ok = r.ok;
+      } catch {
+        ok = false;
+      }
+    }
+    let result: string | undefined;
+    if (ok) {
+      try {
+        const r = await fetcher("/api/settings/restore/files", {
+          method: "POST",
+          body: { mode: "commit", path: f.path, upload_id: uploadId, parts, size: f.size, sha256: f.sha256 },
+        });
+        ok = r.ok;
+        result = (r.json as { result?: string } | null)?.result;
+        if (!r.ok) report.warnings.push(errorOf(r.json, "Dosya doğrulanamadı."));
+      } catch {
+        ok = false;
+      }
+    }
+    if (!ok) addFailure(report, "file_restore_failed", [d.path]);
+    else if (result === "exists") report.already_present++;
+    else report.inserted++;
+  }
+  report.status = report.failed.length > 0 ? (report.inserted + report.already_present > 0 ? "PARTIAL" : "FAILED") : "COMPLETE";
+  return report;
 }
