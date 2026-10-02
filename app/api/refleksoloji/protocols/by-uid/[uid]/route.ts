@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { pickProtocolContentFields } from "@/lib/refleksoloji/protocolDto";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
-import { decideProtocolCas, protocolRowVersion } from "@/lib/refleksoloji/protocolSyncCore";
+import {
+  PROTOCOL_DELETED_ERROR,
+  decideProtocolCas,
+  decideProtocolMissingRow,
+  protocolRowVersion,
+} from "@/lib/refleksoloji/protocolSyncCore";
 import { protocolContentUnchanged } from "@/lib/refleksoloji/usageChange";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
@@ -130,9 +135,20 @@ export async function PUT(
     );
   }
 
-  // Hiç satır güncellenmediyse (bu cihazda oluşturulmuş ama server'a hiç gitmemiş
-  // eski kayıt) → tenant altına ekle. Böylece düzenleme de veri kaybetmez.
+  // Hiç satır güncellenmediyse:
+  //   - istemci bir sunucu sürümüne dayanıyordu (expected VAR) → satır başka cihazda
+  //     SİLİNMİŞ → RF-09: 409 PROTOCOL_DELETED (bayat düzenleme silinen protokolü DİRİLTMEZ)
+  //   - expected YOK → bu cihazda oluşturulmuş ama sunucuya hiç gitmemiş kayıt → ekle
+  //     (düzenleme de veri kaybetmez).
   if (!updated || updated.length === 0) {
+    const missing = decideProtocolMissingRow(expected);
+    if (missing.kind === "conflict") {
+      await trackUsage(guard, req, { module: "reflexology", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass: "conflict" });
+      return NextResponse.json(
+        { ok: false, conflict: true, code: missing.code, error: PROTOCOL_DELETED_ERROR },
+        { status: 409 },
+      );
+    }
     const { data: inserted, error: insErr } = await db
       .from("reflexology_protocols")
       .insert({ ...fields, tenant_id: tenantId, source_uid: uid })

@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ATLAS_CHANGED_EVENT,
   atlasHasRegionId,
   buildDisplayRegions,
+  isAtlasStorageKey,
   hydrateAndMergeAtlas,
   listOrganNamesFromAtlas,
   loadAtlas,
@@ -67,6 +69,27 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
       cancelled = true;
     };
   }, [initialOrgan]);
+
+  // RF-02: başka sekme (storage olayı) veya aynı sekmedeki birleştirme/409 çözümü
+  // (ATLAS_CHANGED_EVENT) yerel atlası değiştirdiğinde ekran state'i TAZELENİR.
+  // Kaydedilmemiş taslak bölgeler (draftRegions/deletedRegionIds) korunur.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const reload = () => {
+      const doc = loadAtlas();
+      setAtlas(doc);
+      setOrgans(mergeOrganLists(listOrganNamesFromAtlas(doc), loadOrganList()));
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (isAtlasStorageKey(e.key)) reload();
+    };
+    window.addEventListener(ATLAS_CHANGED_EVENT, reload);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(ATLAS_CHANGED_EVENT, reload);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
 
   const displayRegions = useMemo(
     () =>
@@ -136,7 +159,9 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
   );
 
   const handleSave = useCallback((): boolean => {
-    const next = mergeDraftIntoAtlas(atlas, draftRegions, deletedRegionIds);
+    // RF-02: taslak, mount anındaki React state'ine DEĞİL depodaki EN GÜNCEL belgeye
+    // uygulanır → başka sekmenin (veya arka plan birleştirmesinin) değişikliği ezilmez.
+    const next = mergeDraftIntoAtlas(loadAtlas(), draftRegions, deletedRegionIds);
     const ok = saveAtlas(next);
     if (!ok) return false;
     setAtlas(next);
@@ -149,11 +174,12 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     setSelectedOrgans((prev) => prev.filter((o) => survivingOrgans.has(o)));
     setActiveOrgan((cur) => (cur && survivingOrgans.has(cur) ? cur : null));
     setSelectedRegionId(null);
-    const nextOrgans = mergeOrganLists(listOrganNamesFromAtlas(next), organs);
+    // Organ listesi de depodaki güncel listeden (organ ekleme anında kalıcılaşır).
+    const nextOrgans = mergeOrganLists(listOrganNamesFromAtlas(next), loadOrganList());
     setOrgans(nextOrgans);
     saveOrganList(nextOrgans);
     return true;
-  }, [atlas, draftRegions, deletedRegionIds, organs]);
+  }, [draftRegions, deletedRegionIds]);
 
   const handleDeleteSelectedDrawing = useCallback(() => {
     if (!selectedRegionId) {

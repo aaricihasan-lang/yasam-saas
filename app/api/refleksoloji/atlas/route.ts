@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
 import { decideAtlasPut } from "@/lib/refleksoloji/atlasSyncCore";
+import { validateAtlasPayload } from "@/lib/refleksoloji/atlasValidate";
 import { sameJsonContent } from "@/lib/refleksoloji/usageChange";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
@@ -60,6 +61,9 @@ export async function GET(req: NextRequest): Promise<Response> {
 //     boş/eski yerel belge sunucuyu körlemesine eziyordu).
 //   - Dolu sunucu belgesini BOŞ belgeyle değiştirme → 409 (istemci `allow_empty:true`
 //     göndermedikçe — yalnız kullanıcı son organı bilinçli sildiğinde).
+//   - RF-13: sunucudaki bir organı MEZAR TAŞI olmadan düşüren belge → 409 ATLAS_SHRINK
+//     (bayat / eksik yerel kopya sunucu atlasını topluca küçültemez).
+//   - Gövde ≤ 4 MB (platform sınırının altı) ve bölge şekli doğrulanır (400/413).
 export async function PUT(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "reflexology");
   if (!guard.ok) return guard.response;
@@ -75,16 +79,32 @@ export async function PUT(req: NextRequest): Promise<Response> {
     expected_updated_at?: unknown;
     allow_empty?: unknown;
   };
+  let rawBody: string;
   try {
-    body = (await req.json()) as typeof body;
+    rawBody = await req.text();
+    body = JSON.parse(rawBody) as typeof body;
   } catch {
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+  }
 
-  const document =
-    body.document && typeof body.document === "object" && !Array.isArray(body.document)
-      ? body.document
-      : {};
+  // Hardening: bozuk bölge (null / id'siz / sayı olmayan koordinat) renderer'ı ve Word'ü
+  // çökertir → KABUL EDİLMEZ; aşırı büyük belge reddedilir. Tenant dışı davranış yok.
+  const invalid = validateAtlasPayload({
+    document: body.document,
+    organList: body.organ_list,
+    bodyBytes: Buffer.byteLength(rawBody, "utf8"),
+  });
+  if (invalid) {
+    return NextResponse.json(
+      { ok: false, code: invalid.code, error: invalid.error },
+      { status: invalid.status },
+    );
+  }
+
+  const document = body.document as Record<string, unknown>;
   const organList = Array.isArray(body.organ_list)
     ? body.organ_list.filter((o): o is string => typeof o === "string")
     : [];

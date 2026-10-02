@@ -25,9 +25,12 @@ import {
   classifyLegacyNotes,
   importQuarantinedNotes,
   mergeNotesWithServer,
+  planNoteSyncChunks,
   selectNotesToPush,
   toWireNote,
+  type NoteSyncChunk,
 } from "@/lib/refleksoloji/notesClientCore";
+import { NOTE_SYNC_REQUEST_SAFE_BYTES } from "@/lib/refleksoloji/notesValidation";
 import { registerReflexologyRuntimeReset } from "@/lib/refleksoloji/runtimeReset";
 import {
   currentReflexScopeId,
@@ -131,90 +134,180 @@ async function doFlush(): Promise<NotesFlushOutcome> {
   const outbox = loadNotesOutbox();
   if (push.length === 0 && outbox.length === 0) return { status: "noop", results: [] };
 
-  const sent = new Map(push.map((n) => [n.id, n.updatedAt]));
+  // RF-04: TÜM kirli notlar artık tek dev PUT'a bağlanmaz. Bütçeli parçalar sırayla
+  // gönderilir; tek başına platform sınırını aşan not istek GÖNDERİLMEDEN yerelde
+  // işaretlenir → diğer notların senkronu bloke olmaz.
+  const plan = planNoteSyncChunks(push, outbox, { safeBytes: NOTE_SYNC_REQUEST_SAFE_BYTES });
+  if (plan.oversize.length > 0) markNotesRejected(plan.oversize.map((n) => n.id), OVERSIZE_MESSAGE);
+  if (plan.chunks.length === 0) {
+    setReflexologySyncStatus({
+      state: "error",
+      message: `${plan.oversize.length} not çok büyük olduğu için sunucuya gönderilemedi (ekler en fazla 3 MB). Eki küçültüp notu yeniden kaydedin.`,
+    });
+    return { status: "rejected", results: [] };
+  }
+
   setReflexologySyncStatus({ state: "syncing", message: "Notlar eşitleniyor…" });
 
-  let res: Response;
-  try {
-    res = await fetch(ENDPOINT, {
-      method: "PUT",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        notes: push.map(toWireNote),
-        deleted_uids: outbox.map((d) => ({ uid: d.uid, expected_updated_at: d.expected_updated_at })),
-      }),
-    });
-  } catch {
-    if (gen !== generation) return { status: "skipped", results: [] };
-    const offline = isOffline();
+  const allResults: NoteSyncResult[] = [];
+  const sent = new Map<string, string>();
+  let conflicts = 0;
+  let rejected = plan.oversize.length;
+  let failure: "offline" | "error" | null = null;
+
+  for (const chunk of plan.chunks) {
+    const r = await sendNoteChunk(headers, chunk, gen, scopeAtStart);
+    if (r.kind === "stale") return { status: "skipped", results: allResults };
+    if (r.kind === "network") {
+      failure = isOffline() ? "offline" : "error";
+      break; // kalan parçalar kirli kalır → sonraki denemede gönderilir
+    }
+    for (const n of chunk.notes) sent.set(n.id, n.updatedAt);
+    allResults.push(...r.results);
+    conflicts += r.conflicts;
+    rejected += r.rejected;
+    if (r.kind === "http-error") failure = "error";
+  }
+
+  if (failure === "offline" || (failure === "error" && allResults.length === 0)) {
     setReflexologySyncStatus(
-      offline
+      failure === "offline"
         ? { state: "offline", message: "Çevrimdışı — notlar cihazda saklandı." }
         : { state: "error", message: "Notlar eşitlenemedi.", retry: retryNotesSync },
     );
-    return { status: offline ? "offline" : "error", results: [] };
+    return { status: failure === "offline" ? "offline" : "error", results: allResults };
+  }
+
+  if (conflicts > 0) {
+    setReflexologySyncStatus({
+      state: "conflict",
+      message:
+        "Bazı notlar başka bir cihazda veya sekmede değiştirilmiş. Yerel metniniz korundu; sunucudaki güncel sürümü yeniden yükleyebilirsiniz.",
+      retry: reloadNotesFromServer,
+    });
+    return { status: "conflict", results: allResults };
+  }
+  if (rejected > 0) {
+    setReflexologySyncStatus({
+      state: "error",
+      message: `${rejected} not eşitlenemedi (geçersiz içerik veya ekler çok büyük). İşaretli notu düzenleyip yeniden kaydedin; diğer notlar eşitlendi.`,
+    });
+    return { status: "rejected", results: allResults };
+  }
+  if (failure === "error") {
+    setReflexologySyncStatus({ state: "error", message: "Notların bir kısmı eşitlenemedi.", retry: retryNotesSync });
+    return { status: "error", results: allResults };
+  }
+  setReflexologySyncStatus({ state: "synced", message: "Notlar eşitlendi" });
+  // Uçuştayken YENİ değişiklik olduysa onu da gönder (aynı sürümü tekrar gönderme → döngü yok).
+  const sentDeletes = new Set(outbox.map((d) => d.uid));
+  const newWork =
+    selectNotesToPush(loadNotesFromStorage()).some((n) => sent.get(n.id) !== n.updatedAt) ||
+    loadNotesOutbox().some((d) => !sentDeletes.has(d.uid));
+  if (newWork) scheduleNotesSync();
+  return { status: "ok", results: allResults };
+}
+
+const OVERSIZE_MESSAGE =
+  "Bu notun ekleri sunucu sınırını aşıyor (ekler toplam en fazla 3 MB). Eki küçültüp/kaldırıp notu yeniden kaydedin; not bu cihazda saklı.";
+
+/** Notları yerelde "reddedildi" olarak işaretle (kullanıcı düzenleyene dek yeniden gönderilmez). */
+function markNotesRejected(ids: string[], message: string): void {
+  const set = new Set(ids);
+  const list = loadNotesFromStorage();
+  let changed = false;
+  const next = list.map((n) => {
+    if (!set.has(n.id) || n.syncRejected === message) return n;
+    changed = true;
+    return { ...n, syncRejected: message };
+  });
+  if (changed && saveNotesToStorage(next)) notifyNotesUpdated();
+}
+
+type ChunkOutcome =
+  | { kind: "ok" | "http-error"; results: NoteSyncResult[]; conflicts: number; rejected: number }
+  | { kind: "network" }
+  | { kind: "stale" };
+
+/** Tek parça PUT; sonuçları yerele uygular. 413'te parça not-not bölünür / not reddedilir. */
+async function sendNoteChunk(
+  headers: Record<string, string>,
+  chunk: NoteSyncChunk,
+  gen: number,
+  scopeAtStart: string | null,
+): Promise<ChunkOutcome> {
+  let res: Response;
+  try {
+    res = await fetchNotesWithTimeout(ENDPOINT, {
+      method: "PUT",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        notes: chunk.notes.map(toWireNote),
+        deleted_uids: chunk.deleted.map((d) => ({ uid: d.uid, expected_updated_at: d.expected_updated_at })),
+      }),
+    });
+  } catch {
+    if (gen !== generation) return { kind: "stale" };
+    return { kind: "network" };
+  }
+  if (gen !== generation || currentReflexScopeId() !== scopeAtStart) return { kind: "stale" };
+
+  // Platform 413 (tahmin yetmediyse): tek notluk parça → o not reddedilir; çoklu → tek tek dene.
+  if (res.status === 413) {
+    if (chunk.notes.length <= 1 && chunk.deleted.length === 0) {
+      markNotesRejected(chunk.notes.map((n) => n.id), OVERSIZE_MESSAGE);
+      return { kind: "ok", results: [], conflicts: 0, rejected: chunk.notes.length };
+    }
+    const agg: NoteSyncResult[] = [];
+    let conflicts = 0;
+    let rejected = 0;
+    let httpError = false;
+    const parts: NoteSyncChunk[] = [
+      ...(chunk.deleted.length > 0 ? [{ notes: [], deleted: chunk.deleted }] : []),
+      ...chunk.notes.map((n) => ({ notes: [n], deleted: [] })),
+    ];
+    for (const p of parts) {
+      const r = await sendNoteChunk(headers, p, gen, scopeAtStart);
+      if (r.kind === "stale" || r.kind === "network") return r;
+      agg.push(...r.results);
+      conflicts += r.conflicts;
+      rejected += r.rejected;
+      if (r.kind === "http-error") httpError = true;
+    }
+    return { kind: httpError ? "http-error" : "ok", results: agg, conflicts, rejected };
   }
 
   const json = (await res.json().catch(() => null)) as
     | { ok?: boolean; results?: NoteSyncResult[]; conflicts?: number; rejected?: number }
     | null;
   const results = Array.isArray(json?.results) ? (json!.results as NoteSyncResult[]) : [];
-
-  // Uçuştayken çıkış yapıldı / kullanıcı değişti → sonucu başka kullanıcıya UYGULAMA.
-  if (gen !== generation || currentReflexScopeId() !== scopeAtStart) {
-    return { status: "skipped", results };
-  }
-
   if (results.length > 0) {
-    const applied = applySyncResults(
-      loadNotesFromStorage(),
-      loadNotesOutbox(),
-      results,
-      sent,
-      parseStoredNote,
-    );
+    const sent = new Map(chunk.notes.map((n) => [n.id, n.updatedAt]));
+    const applied = applySyncResults(loadNotesFromStorage(), loadNotesOutbox(), results, sent, parseStoredNote);
     if (applied.changed) {
       saveNotesToStorage(applied.notes);
       saveNotesOutbox(applied.outbox);
       notifyNotesUpdated();
     }
   }
-
-  const conflicts = typeof json?.conflicts === "number" ? json.conflicts : 0;
+  const conflicts =
+    (typeof json?.conflicts === "number" ? json.conflicts : 0) + (res.status === 409 && !json?.conflicts ? 1 : 0);
   const rejected = results.filter((r) => r.outcome === "rejected").length;
+  const ok = res.ok || res.status === 409;
+  return { kind: ok ? "ok" : "http-error", results, conflicts, rejected };
+}
 
-  if (res.status === 409 || conflicts > 0) {
-    setReflexologySyncStatus({
-      state: "conflict",
-      message:
-        "Bazı notlar başka bir cihazda değiştirilmiş. Yerel metniniz korundu; sunucudaki güncel sürümü yeniden yükleyebilirsiniz.",
-      retry: reloadNotesFromServer,
-    });
-    return { status: "conflict", results };
+const NOTES_REQUEST_TIMEOUT_MS = 30_000;
+
+/** Askıda kalan istek senkron zincirini kilitlemesin (zaman aşımı → ağ hatası). */
+async function fetchNotesWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), NOTES_REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
   }
-  if (res.ok && rejected > 0) {
-    setReflexologySyncStatus({
-      state: "error",
-      message: `${rejected} not eşitlenemedi (geçersiz içerik). İşaretli notu düzenleyip yeniden kaydedin; diğer notlar eşitlendi.`,
-    });
-    return { status: "rejected", results };
-  }
-  if (res.ok) {
-    setReflexologySyncStatus({ state: "synced", message: "Notlar eşitlendi" });
-    // Uçuştayken YENİ değişiklik olduysa onu da gönder (aynı sürümü tekrar gönderme → döngü yok).
-    const sentDeletes = new Set(outbox.map((d) => d.uid));
-    const newWork =
-      selectNotesToPush(loadNotesFromStorage()).some((n) => sent.get(n.id) !== n.updatedAt) ||
-      loadNotesOutbox().some((d) => !sentDeletes.has(d.uid));
-    if (newWork) scheduleNotesSync();
-    return { status: "ok", results };
-  }
-  setReflexologySyncStatus({
-    state: "error",
-    message: "Notlar eşitlenemedi.",
-    retry: retryNotesSync,
-  });
-  return { status: "error", results };
 }
 
 /**

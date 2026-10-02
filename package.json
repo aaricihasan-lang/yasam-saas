@@ -19,6 +19,7 @@
     "refleksoloji:atlas-backfill": "tsx scripts/reflexology-atlas-backfill.ts",
     "refleksoloji:saved-detail-render:harness": "tsx scripts/reflexology-saved-detail-render-harness.ts",
     "refleksoloji:word:harness": "tsx scripts/reflexology-word-report-harness.ts",
+    "refleksoloji:final-close:harness": "tsx scripts/reflexology-final-close-harness.ts",
     "cupping:calendar:word:harness": "tsx scripts/cupping-calendar-word-harness.ts",
     "cupping:protocol:word:harness": "tsx scripts/cupping-protocol-word-harness.ts",
     "test:cupping:security": "tsx scripts/cupping-security-harness.ts",

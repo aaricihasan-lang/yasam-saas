@@ -16,6 +16,7 @@ import { OrganListPanel } from "./OrganListPanel";
 import { RegionNotesPanel } from "./RegionNotesPanel";
 import { RegionToolbar } from "./RegionToolbar";
 import { SyncStatusBadge } from "@/app/refleksoloji/components/SyncStatusBadge";
+import { getReflexologySyncStatus } from "@/lib/refleksoloji/syncStatus";
 
 type RegionMapLayoutProps = {
   initialOrgan?: string | null;
@@ -27,6 +28,7 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
   const [toolMode, setToolMode] = useState<RegionToolMode>("select");
   const [drawShape, setDrawShape] = useState<RegionDrawShape>("oval");
   const [saveToastVisible, setSaveToastVisible] = useState(false);
+  const [saveSeq, setSaveSeq] = useState(0);
   const [savedTick, setSavedTick] = useState(0);
 
   // ÜRÜN KURALI: telefon/dar ekranda harita salt-okuma (hassas koordinat düzenleme
@@ -48,6 +50,8 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
   const handleSave = useCallback(() => {
     // Salt-okuma güvence: toolbar mobilde gizli olsa da kaydetme burada da engellenir.
     if (!editingAllowed) return;
+    // RF-03: bildirim yalnız bu kayıttan SONRAKİ gerçek senkron sonucunu gösterir.
+    setSaveSeq(getReflexologySyncStatus().seq);
     const saved = saveAtlas();
     if (!saved) {
       showToast({ type: "error", title: "Depolama Hatası", message: STORAGE_QUOTA_ERROR_MESSAGE });
@@ -158,7 +162,12 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
         </div>
       </div>
 
-      <AtlasSaveToast visible={saveToastVisible} onDismiss={dismissSaveToast} />
+      <AtlasSaveToast
+        visible={saveToastVisible}
+        onDismiss={dismissSaveToast}
+        sinceSeq={saveSeq}
+        localOnly={isDemo}
+      />
     </main>
   );
 }

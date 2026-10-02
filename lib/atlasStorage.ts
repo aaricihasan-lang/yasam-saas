@@ -7,18 +7,22 @@ import {
   registerAtlasLocalReader,
   hydrateAtlasFromServer,
   markAtlasHydrated,
-  setAtlasBaseHash,
+  loadAtlasBase,
+  commitAtlasBase,
+  reportAtlasMergeConflicts,
   type AtlasServerState,
 } from "@/lib/refleksolojiAtlasSync";
 import {
   markOrganDeleted,
   markOrganUpserted,
+  mergeAtlasThreeWay,
   mergeAtlasWithTombstones,
-  mergeOrganListsWithTombstones,
+  mergeOrganListThreeWay,
   type AtlasDocLike,
   type OrganTimeMap,
 } from "@/lib/refleksoloji/atlasMerge";
 import { normalizeAtlasDocument } from "@/lib/refleksoloji/atlasNormalize";
+import { setReflexologySyncStatus } from "@/lib/refleksoloji/syncStatus";
 import {
   atlasContentHash,
   atlasEquivalent,
@@ -29,6 +33,7 @@ import {
 import {
   LEGACY_QUARANTINE_KEYS,
   LEGACY_REFLEX_KEYS,
+  REFLEX_V2_PREFIX,
   readRawJson,
   removeRaw,
   writeRawJson,
@@ -42,6 +47,25 @@ import { currentReflexScopeId, readReflex, writeReflex } from "@/lib/refleksoloj
  */
 export const ATLAS_STORAGE_KEY = LEGACY_REFLEX_KEYS.atlas;
 export const ORGAN_LIST_STORAGE_KEY = LEGACY_REFLEX_KEYS.organs;
+
+/**
+ * RF-02: yerel atlas/organ listesi değişti (aynı sekmede kayıt, hydrate birleştirmesi,
+ * 409 çözümü). Diğer sekmeler aynı değişikliği `storage` olayıyla duyar; açık ekranlar
+ * React state'lerini bu olay(lar)la tazeler → bayat state ile tam belge yazılmaz.
+ */
+export const ATLAS_CHANGED_EVENT = "refleks:atlas-changed";
+
+export function notifyAtlasChanged(): void {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(ATLAS_CHANGED_EVENT));
+}
+
+/** Bu kullanıcının atlas/organ anahtarına ait mi (başka sekmeden `storage` olayı). */
+export function isAtlasStorageKey(key: string | null): boolean {
+  const scope = currentReflexScopeId();
+  if (!key || !scope) return false;
+  const prefix = `${REFLEX_V2_PREFIX}${scope}:`;
+  return key === `${prefix}atlas` || key === `${prefix}organs`;
+}
 
 export type AtlasMeta = {
   updated_at: string;
@@ -245,7 +269,10 @@ export function saveOrganList(organs: string[]): boolean {
   const ok = writeReflex("organs", organs);
   // P1-1: organ listesi değişince (kullanıcı eylemi) senkron planla. Hidrasyon
   // yazımları suspend ile bastırılır; hidrasyon bitmeden PUT gitmez (FA-13).
-  if (ok) scheduleAtlasSync();
+  if (ok) {
+    scheduleAtlasSync();
+    notifyAtlasChanged();
+  }
   return ok;
 }
 
@@ -280,7 +307,10 @@ export function saveAtlas(atlas: AtlasDocument): boolean {
   };
   const ok = writeReflex("atlas", next);
   // P1-1: atlas değişince (kullanıcı eylemi) senkron planla — içerik flush anında okunur.
-  if (ok) scheduleAtlasSync();
+  if (ok) {
+    scheduleAtlasSync();
+    notifyAtlasChanged();
+  }
   return ok;
 }
 
@@ -429,25 +459,70 @@ export function atlasHasRegionId(atlas: AtlasDocument, regionId: string): boolea
 function resolveAtlasConflict(server: AtlasServerState): {
   document: unknown;
   organ_list: string[];
-} {
-  const serverRaw =
-    server.document && typeof server.document === "object"
-      ? (server.document as AtlasDocument)
-      : createEmptyAtlas();
-  const serverDoc = normalizeAtlasDocument(serverRaw);
-  const local = loadAtlas();
-  const merged = mergeAtlasDocuments(serverDoc, local);
-  const mergedList = unionOrganLists(server.organ_list, loadOrganList());
+  conflicts: string[];
+} | null {
+  const serverDoc = normalizeAtlasDocument(
+    server.document && typeof server.document === "object" ? server.document : {},
+  );
+  const r = mergeServerIntoLocal(serverDoc, server);
+  if (!r.ok) return null;
+  return { document: loadAtlas(), organ_list: loadOrganList(), conflicts: r.conflicts };
+}
 
-  // Yerele yaz AMA scheduleAtlasSync'i tetikleme (retry PUT'u flush yapacak).
+const STORAGE_FULL_SYNC_MESSAGE =
+  "Cihaz depolama alanı dolu — atlas bu cihaza yazılamadı; sunucu atlası korunuyor. Yer açıp sayfayı yenileyin.";
+
+/**
+ * RF-01/02/03/13 — TEK birleştirme adımı (hydrate + 409 çözümü aynı yolu kullanır):
+ *   1) base (son birleştirilen/gönderilen sunucu belgesi) ile BÖLGE düzeyinde 3-yollu
+ *      birleştir (base yoksa birleşim — hiçbir bölge düşmez);
+ *   2) birleşik belgeyi + organ listesini YEREL'e yaz;
+ *   3) YALNIZ (2) başarılıysa tabanı sunucu belgesine ilerlet.
+ * Yazımlardan biri başarısızsa taban İLERLEMEZ ve ok=false → hidrasyon tamamlanmış
+ * sayılmaz, PUT gönderilmez; bir sonraki küçük kayıt sunucuyu küçültemez.
+ */
+function mergeServerIntoLocal(
+  serverDoc: AtlasDocument,
+  server: AtlasServerState,
+): { ok: true; conflicts: string[]; mode: "three-way" | "union" } | { ok: false } {
+  const base = loadAtlasBase();
+  const baseDoc = base?.doc ? (normalizeAtlasDocument(base.doc) as unknown as AtlasDocLike) : null;
+  const res = mergeAtlasThreeWay(
+    serverDoc as unknown as AtlasDocLike,
+    loadAtlas() as unknown as AtlasDocLike,
+    baseDoc,
+  );
+  const mergedDoc = res.document as unknown as AtlasDocument;
+  const mergedOrgans = mergeOrganListThreeWay(
+    server.organ_list,
+    loadOrganList(),
+    baseDoc ? (base?.organ_list ?? []) : null,
+    mergedDoc._meta,
+    listOrganNamesFromAtlas(mergedDoc),
+  );
+
+  // Yerele yaz AMA scheduleAtlasSync'i tetikleme (gönderim kararı çağıranda).
+  let okLocal = false;
   setAtlasSyncSuspended(true);
   try {
-    writeReflex("atlas", merged);
-    writeReflex("organs", mergedList);
+    okLocal = writeReflex("atlas", mergedDoc) && writeReflex("organs", mergedOrgans);
   } finally {
     setAtlasSyncSuspended(false);
   }
-  return { document: merged, organ_list: mergedList };
+  const okBase =
+    okLocal &&
+    commitAtlasBase({
+      updated_at: server.updated_at,
+      hash: server.updated_at ? atlasContentHash(serverDoc, server.organ_list) : null,
+      doc: serverDoc as unknown as Record<string, unknown>,
+      organ_list: server.organ_list,
+    });
+  if (!okLocal || !okBase) {
+    setReflexologySyncStatus({ state: "error", message: STORAGE_FULL_SYNC_MESSAGE });
+    return { ok: false };
+  }
+  notifyAtlasChanged();
+  return { ok: true, conflicts: res.conflicts, mode: res.mode };
 }
 
 // İstemci tarafında modül yüklenince çözücüyü + yerel okuyucuyu kaydet (SSR'de no-op).
@@ -529,29 +604,25 @@ export async function hydrateAndMergeAtlas(): Promise<{ quarantineCount: number 
   const serverDoc = normalizeAtlasDocument((server.document ?? {}) as AtlasDocument);
   processLegacyAtlas(serverDoc, server.organ_list);
 
-  const mergedDoc = mergeAtlasDocuments(serverDoc, loadAtlas());
-  const mergedOrgans = mergeOrganListsWithTombstones(
-    server.organ_list,
-    loadOrganList(),
-    mergedDoc._meta,
-  );
-  setAtlasSyncSuspended(true);
-  try {
-    writeReflex("atlas", mergedDoc);
-    writeReflex("organs", mergedOrgans);
-  } finally {
-    setAtlasSyncSuspended(false);
-  }
+  // RF-03: yerelde eşitlenmemiş değişiklik varsa 3-yollu birleştirme onu KORUR
+  // (eski "ortak organda sunucu kazanır" hydrate'i sessizce siliyordu).
+  const merged = mergeServerIntoLocal(serverDoc, server);
+  if (!merged.ok) return null; // RF-13: depolama yazılamadı → hidrasyon/PUT YOK
+
   // Yerel = sunucu (eşdeğer) ise tabanı yerel hash'e hizala → sahte "eşitlenmemiş" yok.
+  const localDoc = loadAtlas();
+  const localList = loadOrganList();
   if (
     atlasEquivalent(
-      { document: mergedDoc, organ_list: mergedOrgans },
+      { document: localDoc, organ_list: localList },
       { document: serverDoc, organ_list: server.organ_list },
     )
   ) {
-    setAtlasBaseHash(atlasContentHash(loadAtlas(), loadOrganList()));
+    const base = loadAtlasBase();
+    if (base) commitAtlasBase({ ...base, hash: atlasContentHash(localDoc, localList) });
   }
-  markAtlasHydrated();
+  markAtlasHydrated({ autoPush: merged.mode === "three-way" });
+  if (merged.conflicts.length > 0) reportAtlasMergeConflicts(merged.conflicts);
   return { quarantineCount: quarantinedAtlasOrganCount() };
 }
 

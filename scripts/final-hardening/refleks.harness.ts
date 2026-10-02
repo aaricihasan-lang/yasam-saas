@@ -264,9 +264,10 @@ async function main(): Promise<void> {
     ok("istemci ön-kontrol: docx reddedilir", !checkNoteAttachmentFile({ name: "a.docx", type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", size: 10 }).ok);
     const heic = checkNoteAttachmentFile({ name: "foto.HEIC", type: "", size: 10 });
     ok("istemci ön-kontrol: türsüz HEIC uzantıdan çözülür", heic.ok && heic.mime === "image/heic");
-    ok("istemci ön-kontrol: 5MB → Türkçe boyut hatası", (() => {
-      const r = checkNoteAttachmentFile({ name: "b.pdf", type: "application/pdf", size: 5 * 1024 * 1024 });
-      return !r.ok && /en fazla 4 MB/.test(r.message);
+    // RF-04: platform istek sınırı (≈4.5 MB, base64 ×4/3) → istemci sınırı 3 MB.
+    ok("istemci ön-kontrol: 3.5MB → Türkçe boyut hatası (en fazla 3 MB)", (() => {
+      const r = checkNoteAttachmentFile({ name: "b.pdf", type: "application/pdf", size: 3.5 * 1024 * 1024 });
+      return !r.ok && /en fazla 3 MB/.test(r.message);
     })());
     ok("accept listesi görsel+pdf, svg yok", /\.pdf/.test(NOTE_ATTACHMENT_ACCEPT) && !/svg/.test(NOTE_ATTACHMENT_ACCEPT));
   }

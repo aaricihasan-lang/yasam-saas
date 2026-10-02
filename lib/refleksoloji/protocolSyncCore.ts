@@ -26,6 +26,23 @@ export function decideProtocolCas(
   return currentVersion === expected ? { ok: true } : { ok: false, code: "PROTOCOL_STALE" };
 }
 
+/**
+ * RF-09 (protokol diriltme): by-uid PUT'ta hedef satır YOKSA ne yapılır.
+ *   - expected YOK → istemci satırı hiç görmedi (yeni / sunucuya hiç gitmemiş kayıt) → insert
+ *   - expected VAR → istemci satırı GÖRMÜŞTÜ; satır artık yok = başka cihazda SİLİNDİ →
+ *     409 PROTOCOL_DELETED (bayat düzenleme silinen protokolü DİRİLTMEZ, yeni satır YOK)
+ */
+export type ProtocolMissingRowDecision =
+  | { kind: "insert" }
+  | { kind: "conflict"; code: "PROTOCOL_DELETED" };
+
+export function decideProtocolMissingRow(expected: string | null): ProtocolMissingRowDecision {
+  return expected ? { kind: "conflict", code: "PROTOCOL_DELETED" } : { kind: "insert" };
+}
+
+export const PROTOCOL_DELETED_ERROR =
+  "Bu protokol başka bir cihazda silinmiş; değişiklik kaydedilmedi ve protokol yeniden oluşturulmadı. Gerekirse «Yeni protokol oluştur» ile yeniden kaydedin.";
+
 /** raw_json içinden istemci sürüm belirteci. */
 export function protocolRowVersion(rawJson: unknown): string | null {
   if (!rawJson || typeof rawJson !== "object") return null;

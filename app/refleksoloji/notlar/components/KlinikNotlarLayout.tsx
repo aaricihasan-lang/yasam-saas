@@ -45,6 +45,8 @@ export function KlinikNotlarLayout() {
   const [activeTab, setActiveTab] = useState<ClinicalNotesTab>("kayit");
   const [draft, setDraft] = useState<ClinicalNoteFormDraft>(EMPTY_NOTE_DRAFT);
   const [editingId, setEditingId] = useState<string | null>(null);
+  // RF-10: düzenleme başlarken görülen sürüm (bayat sekme sessiz ezme koruması).
+  const [editingSince, setEditingSince] = useState<string | null>(null);
   const [selectedAttachmentId, setSelectedAttachmentId] = useState<string | null>(null);
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -55,6 +57,7 @@ export function KlinikNotlarLayout() {
   const resetForm = useCallback(() => {
     setDraft({ ...EMPTY_NOTE_DRAFT, date: todayDateInputValue() });
     setEditingId(null);
+    setEditingSince(null);
     setSelectedAttachmentId(null);
     setValidationMessage(null);
   }, []);
@@ -62,6 +65,7 @@ export function KlinikNotlarLayout() {
   const loadNoteIntoForm = useCallback((note: SavedClinicalNote) => {
     setDraft(savedToDraft(note));
     setEditingId(note.id);
+    setEditingSince(note.updatedAt);
     setSelectedAttachmentId(null);
     setValidationMessage(null);
     setActiveTab("kayit");
@@ -109,14 +113,29 @@ export function KlinikNotlarLayout() {
     resetForm();
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editingId) {
       setValidationMessage("Güncellenecek not seçili değil.");
       return;
     }
     if (!validateTitle()) return;
 
-    const result = saveNote(draft, editingId);
+    let result = saveNote(draft, editingId, { expectedUpdatedAt: editingSince });
+    if (result.conflict) {
+      // RF-10: başka sekme/cihaz bu notu siz düzenlerken değiştirdi → sessiz ezme YOK.
+      const overwrite = await confirm({
+        title: "Not başka yerde değiştirildi",
+        message:
+          "Bu not siz düzenlerken başka bir sekmede veya cihazda değiştirildi.\n\n" +
+          "«Üzerine yaz» derseniz ekrandaki metniniz kaydedilir ve diğer değişiklik kaybolur. " +
+          "«Vazgeç» derseniz hiçbir şey kaydedilmez; metniniz formda kalır.",
+        confirmText: "Üzerine yaz",
+        cancelText: "Vazgeç",
+        tone: "warning",
+      });
+      if (!overwrite) return;
+      result = saveNote(draft, editingId, { force: true });
+    }
     if (!result.saved) {
       setValidationMessage("Güncelleme yapılamadı.");
       return;
@@ -132,6 +151,7 @@ export function KlinikNotlarLayout() {
       duration: 2500,
     });
     setEditingId(result.saved.id);
+    setEditingSince(result.saved.updatedAt);
   };
 
   // FA-25: silme sunucu-önce; sonuç kullanıcıya açıkça bildirilir.
@@ -180,7 +200,8 @@ export function KlinikNotlarLayout() {
     if (!files?.length) return;
 
     // FA-03: izinli tür (görsel/PDF) + boyut ön kontrolü; uygunsuz dosya eklenmez.
-    const { added, errors } = await readNoteAttachments(Array.from(files), newAttachmentId);
+    const existingBytes = draft.attachments.reduce((sum, a) => sum + (a.size || 0), 0);
+    const { added, errors } = await readNoteAttachments(Array.from(files), newAttachmentId, existingBytes);
     for (const message of errors) {
       showToast({ type: "warning", message });
     }

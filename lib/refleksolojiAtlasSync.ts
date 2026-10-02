@@ -17,7 +17,9 @@
  *     `atlas-base` anahtarında KALICIDIR (sayfa yenilense de expected doğru gider).
  *
  * REF-001 (optimistic concurrency): PUT `expected_updated_at` taşır; 409'da sunucu
- *   belgesi çekilir, yerel ile TOMBSTONE-FARKINDA birleştirilir, EN ÇOK 1 retry.
+ *   belgesi çekilir, yerel ile BÖLGE düzeyinde 3-yollu (base = son sunucu belgesi)
+ *   birleştirilir, EN ÇOK 1 retry (RF-01/02/03/13 — atlasMerge.mergeAtlasThreeWay).
+ * RF-08: her istek zaman aşımlı (AbortController); askıda kalan istek zinciri kilitlemez.
  * REF-007: sonuç paylaşımlı syncStatus store'una yazılır.
  * FA-04: modül durumu çıkışta `resetReflexologyRuntime` ile sıfırlanır; uçuştayken
  *   kullanıcı değişirse yanıt uygulanmaz.
@@ -26,7 +28,11 @@
  * Demo/oturumsuz/kapsamsız durumda senkron atlanır.
  */
 
-import { isOffline, setReflexologySyncStatus } from "@/lib/refleksoloji/syncStatus";
+import {
+  getReflexologySyncStatus,
+  isOffline,
+  setReflexologySyncStatus,
+} from "@/lib/refleksoloji/syncStatus";
 import { atlasContentHash, hasAtlasContent, planAtlasPush } from "@/lib/refleksoloji/atlasSyncCore";
 import { registerReflexologyRuntimeReset } from "@/lib/refleksoloji/runtimeReset";
 import {
@@ -61,11 +67,26 @@ registerReflexologyRuntimeReset(() => {
   generation += 1;
   hydratedScope = null;
   pendingAfterHydrate = false;
+  pendingConflictLabels = [];
 });
 
 // ─── Kalıcı sunucu tabanı (kapsamlı) ─────────────────────────────────────────
 
-export type AtlasBase = { updated_at: string | null; hash: string | null };
+/**
+ * RF-01/02/03/13: base = bu cihazın son BİRLEŞTİRDİĞİ / GÖNDERDİĞİ sunucu belgesi.
+ *   - updated_at → CAS belirteci (expected_updated_at)
+ *   - hash       → o belgenin içerik özeti ("eşitlenmemiş değişiklik var mı")
+ *   - doc/organ_list → 3-yollu birleştirmenin ORTAK ATASI (yoksa birleşim modu)
+ * Taban YALNIZ yerel kalıcı yazım başarılı olduktan SONRA ilerletilir
+ * (`commitAtlasBase`). Depolama yazımı başarısızsa taban ilerlemez → bir sonraki küçük
+ * kayıt sunucudaki atlası küçültemez (RF-13).
+ */
+export type AtlasBase = {
+  updated_at: string | null;
+  hash: string | null;
+  doc?: Record<string, unknown> | null;
+  organ_list?: string[] | null;
+};
 
 export function loadAtlasBase(): AtlasBase | null {
   const b = readReflex<Partial<AtlasBase>>("atlas-base");
@@ -73,23 +94,16 @@ export function loadAtlasBase(): AtlasBase | null {
   return {
     updated_at: typeof b.updated_at === "string" ? b.updated_at : null,
     hash: typeof b.hash === "string" ? b.hash : null,
+    doc: b.doc && typeof b.doc === "object" && !Array.isArray(b.doc) ? (b.doc as Record<string, unknown>) : null,
+    organ_list: Array.isArray(b.organ_list)
+      ? b.organ_list.filter((o): o is string => typeof o === "string")
+      : null,
   };
 }
 
-function saveAtlasBase(base: AtlasBase): void {
-  writeReflex("atlas-base", base);
-}
-
-/** Geriye dönük: sunucu sürüm belirtecini elle ayarla (hash korunur). */
-export function setAtlasBaseUpdatedAt(v: string | null): void {
-  const cur = loadAtlasBase();
-  saveAtlasBase({ updated_at: v, hash: cur?.hash ?? null });
-}
-
-/** Hidrasyon sonrası yerel içerik sunucuyla EŞDEĞERse tabanı yerel hash'e hizala. */
-export function setAtlasBaseHash(hash: string): void {
-  const cur = loadAtlasBase();
-  saveAtlasBase({ updated_at: cur?.updated_at ?? null, hash });
+/** Tabanı kalıcılaştır; depolama başarısızsa false (çağıran başarı VARSAYMAZ). */
+export function commitAtlasBase(base: AtlasBase): boolean {
+  return writeReflex("atlas-base", base);
 }
 
 // ─── atlasStorage'ın kaydettiği okuyucu + conflict çözücü (döngüsel import yok) ─
@@ -105,9 +119,13 @@ export type AtlasServerState = {
   organ_list: string[];
   updated_at: string | null;
 };
+/**
+ * 409 çözücüsü: sunucu belgesini 3-yollu birleştirir, YEREL + TABAN yazımı başarılıysa
+ * birleşik içeriği döndürür (retry PUT'u için). Depolama başarısızsa null → retry YOK.
+ */
 type AtlasConflictResolver = (
   server: AtlasServerState,
-) => { document: unknown; organ_list: string[] } | null;
+) => { document: unknown; organ_list: string[]; conflicts: string[] } | null;
 let conflictResolver: AtlasConflictResolver | null = null;
 export function registerAtlasConflictResolver(fn: AtlasConflictResolver): void {
   conflictResolver = fn;
@@ -132,14 +150,21 @@ export function atlasHasUnsyncedChanges(): boolean {
  * atlasStorage.hydrateAndMergeAtlas, sunucu belgesini yerelle birleştirip yazdıktan
  * SONRA çağırır → artık PUT serbest. Hidrasyondan önce kullanıcı eylemi olduysa gönderilir.
  */
-export function markAtlasHydrated(): void {
+export function markAtlasHydrated(opts: { autoPush?: boolean } = {}): void {
   hydratedScope = currentReflexScopeId();
   if (pendingAfterHydrate) {
     pendingAfterHydrate = false;
     scheduleAtlasSync();
     return;
   }
-  // Otomatik PUT YOK — yalnız görünür uyarı + kullanıcı "yeniden dene" ile gönderir.
+  // RF-03: 3-yollu modda (ortak ata biliniyor) birleşik belgede kalan fark YALNIZ bu
+  // cihazın eşitlenmemiş gerçek değişiklikleridir → otomatik gönder (sessizce kaybolmaz).
+  if (opts.autoPush && isReflexSyncEligible() && atlasHasUnsyncedChanges()) {
+    scheduleAtlasSync();
+    return;
+  }
+  // Birleşim modu (ata yok, ilk geçiş): otomatik PUT YOK (FA-13) — görünür uyarı +
+  // kullanıcı "yeniden dene" ile gönderir.
   if (isReflexSyncEligible() && atlasHasUnsyncedChanges()) {
     setReflexologySyncStatus({
       state: "conflict",
@@ -202,15 +227,22 @@ async function doFlush(retrying: boolean): Promise<AtlasFlushOutcome> {
   const { document, organ_list } = localReader();
   const base = loadAtlasBase();
   const plan = planAtlasPush(document, organ_list, base?.hash ?? null);
-  if (!plan.send) return { status: plan.reason };
+  if (!plan.send) {
+    // İçerik sunucudakiyle aynı (409 sonrası birleşik içerik zaten sunucuda / değişiklik
+    // yok) → durum "gönderiliyor"da ASILI KALMAZ; doğru sonuç "kaydedildi".
+    if (plan.reason === "unchanged" || retrying || getReflexologySyncStatus().state === "syncing") {
+      reportSynced();
+    }
+    return { status: plan.reason };
+  }
 
   const scopeAtStart = currentReflexScopeId();
   const gen = generation;
 
-  setReflexologySyncStatus({ state: "syncing", message: "Atlas eşitleniyor…" });
+  setReflexologySyncStatus({ state: "syncing", message: "Atlas sunucuya gönderiliyor…" });
   let res: Response;
   try {
-    res = await fetch(ENDPOINT, {
+    res = await fetchWithTimeout(ENDPOINT, {
       method: "PUT",
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -220,13 +252,21 @@ async function doFlush(retrying: boolean): Promise<AtlasFlushOutcome> {
         allow_empty: plan.allowEmpty,
       }),
     });
-  } catch {
+  } catch (err) {
     if (gen !== generation) return { status: "skipped" };
     const offline = isOffline();
+    // RF-08: zaman aşımı/ağ hatası SESSİZ başarı üretmez; yerel değişiklik cihazda
+    // kalır (taban ilerlemedi) ve "Yeniden dene" / çevrimiçi olunca yeniden gönderilir.
     setReflexologySyncStatus(
       offline
-        ? { state: "offline", message: "Çevrimdışı — atlas cihazda saklandı." }
-        : { state: "error", message: "Atlas eşitlenemedi.", retry: retryAtlasSync },
+        ? { state: "offline", message: "Çevrimdışı — atlas bu cihazda saklandı, bağlantı gelince gönderilecek." }
+        : {
+            state: "error",
+            message: isTimeoutError(err)
+              ? "Atlas sunucuya gönderilemedi (zaman aşımı) — bu cihazda saklandı."
+              : "Atlas sunucuya gönderilemedi — bu cihazda saklandı.",
+            retry: retryAtlasSync,
+          },
     );
     return { status: offline ? "offline" : "error" };
   }
@@ -235,8 +275,13 @@ async function doFlush(retrying: boolean): Promise<AtlasFlushOutcome> {
 
   if (res.ok) {
     const json = (await res.json().catch(() => null)) as { updated_at?: string } | null;
-    saveAtlasBase({ updated_at: json?.updated_at ?? base?.updated_at ?? null, hash: plan.hash });
-    setReflexologySyncStatus({ state: "synced", message: "Atlas eşitlendi" });
+    commitAtlasBase({
+      updated_at: json?.updated_at ?? base?.updated_at ?? null,
+      hash: plan.hash,
+      doc: (document && typeof document === "object" ? document : {}) as Record<string, unknown>,
+      organ_list,
+    });
+    reportSynced();
     // Uçuştayken yeni değişiklik olduysa onu da gönder.
     const latest = localReader();
     if (atlasContentHash(latest.document, latest.organ_list) !== plan.hash) scheduleAtlasSync();
@@ -245,39 +290,116 @@ async function doFlush(retrying: boolean): Promise<AtlasFlushOutcome> {
 
   if (res.status === 409) {
     if (retrying) {
-      await hydrateAtlasFromServer();
       setReflexologySyncStatus({
         state: "conflict",
-        message: "Atlas başka bir cihazda güncellendi — yeniden denendi.",
+        message: "Atlas başka bir cihazda güncellendi — değişiklikleriniz bu cihazda saklandı.",
         retry: retryAtlasSync,
       });
       return { status: "conflict" };
     }
-    // İlk 409: sunucuyu çek (taban güncellenir), yerelle birleştir, 1 retry.
+    // İlk 409 (ATLAS_STALE / ATLAS_SHRINK / insert yarışı): sunucuyu çek, 3-yollu birleştir
+    // (yerel + taban YAZIMI başarılıysa), en çok 1 retry.
     const server = await hydrateAtlasFromServer();
     if (server && conflictResolver && currentReflexScopeId() === scopeAtStart) {
       const merged = conflictResolver(server);
-      if (merged) return doFlush(true);
+      if (merged) {
+        if (merged.conflicts.length > 0) pendingConflictLabels = merged.conflicts;
+        return doFlush(true);
+      }
     }
     setReflexologySyncStatus({
       state: "conflict",
-      message: "Atlas başka bir cihazda güncellendi.",
+      message: "Atlas başka bir cihazda güncellendi — değişiklikleriniz bu cihazda saklandı.",
       retry: retryAtlasSync,
     });
     return { status: "conflict" };
   }
 
+  if (res.status === 400 || res.status === 413) {
+    setReflexologySyncStatus({
+      state: "error",
+      message: "Atlas verisi sunucu tarafından reddedildi — bu cihazda saklandı.",
+      retry: retryAtlasSync,
+    });
+    return { status: "error" };
+  }
+
   setReflexologySyncStatus({
     state: "error",
-    message: "Atlas eşitlenemedi.",
+    message: "Atlas sunucuya gönderilemedi — bu cihazda saklandı.",
     retry: retryAtlasSync,
   });
   return { status: "error" };
 }
 
+/** Son birleştirmede gerçek çakışma yaşanan organlar (bir kez raporlanır). */
+let pendingConflictLabels: string[] = [];
+
+function conflictMessage(labels: string[]): string {
+  return `Aynı bölge başka bir cihazda da değiştirilmişti (${labels.slice(0, 3).join(", ")}); bu cihazdaki sürüm korundu.`;
+}
+
+/** Birleştirme gerçek çakışma buldu → görünür uyarı (sessiz kayıp YOK); gönderim sonrası da kalır. */
+export function reportAtlasMergeConflicts(labels: string[]): void {
+  if (labels.length === 0) return;
+  pendingConflictLabels = labels;
+  setReflexologySyncStatus({ state: "conflict", message: conflictMessage(labels) });
+}
+
+function reportSynced(): void {
+  if (pendingConflictLabels.length > 0) {
+    const labels = pendingConflictLabels;
+    pendingConflictLabels = [];
+    setReflexologySyncStatus({ state: "conflict", message: conflictMessage(labels) });
+    return;
+  }
+  setReflexologySyncStatus({ state: "synced", message: "Atlas sunucuya kaydedildi" });
+}
+
+let REQUEST_TIMEOUT_MS = 20_000;
+
+/** YALNIZ harness: zaman aşımı senaryosunu saniyeler içinde doğrulamak için. */
+export function __setAtlasRequestTimeoutMsForTests(ms: number): void {
+  REQUEST_TIMEOUT_MS = ms;
+}
+
+function isTimeoutError(err: unknown): boolean {
+  return !!err && typeof err === "object" && (err as { name?: string }).name === "TimeoutError";
+}
+
+/** RF-08: askıda kalan istek zinciri kilitlemesin — zaman aşımında AbortError/TimeoutError. */
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    const e = new Error("timeout");
+    e.name = "TimeoutError";
+    controller.abort(e);
+  }, REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (controller.signal.aborted) {
+      const e = new Error("timeout");
+      e.name = "TimeoutError";
+      throw e;
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// RF-03: bağlantı geri gelince bekleyen yerel değişiklik otomatik gönderilir.
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => {
+    if (isAtlasHydrated() && atlasHasUnsyncedChanges()) scheduleAtlasSync();
+  });
+}
+
 /**
- * Sunucudan atlas belgesini indirir ve kalıcı tabanı (sürüm + içerik hash'i)
- * günceller. Dönüş null → demo/oturumsuz/erişilemez.
+ * Sunucudan atlas belgesini indirir. Tabanı GÜNCELLEMEZ (RF-13): taban ancak çağıran
+ * birleşik belgeyi yerele başarıyla yazdıktan sonra `commitAtlasBase` ile ilerler.
+ * Dönüş null → demo/oturumsuz/erişilemez.
  * NOT: hidrasyon "tamam" sayılması için çağıranın birleştirme sonrası
  * `markAtlasHydrated()` çağırması gerekir (atlasStorage.hydrateAndMergeAtlas).
  */
@@ -286,7 +408,7 @@ export async function hydrateAtlasFromServer(): Promise<AtlasServerState | null>
   if (!headers || !isReflexSyncEligible()) return null;
   const scopeAtStart = currentReflexScopeId();
   try {
-    const res = await fetch(ENDPOINT, { headers, cache: "no-store" });
+    const res = await fetchWithTimeout(ENDPOINT, { headers, cache: "no-store" });
     if (!res.ok) return null;
     const json = (await res.json().catch(() => null)) as
       | {
@@ -301,10 +423,6 @@ export async function hydrateAtlasFromServer(): Promise<AtlasServerState | null>
     const organ_list = Array.isArray(json.organ_list)
       ? json.organ_list.filter((o): o is string => typeof o === "string")
       : [];
-    saveAtlasBase({
-      updated_at: json.updated_at ?? null,
-      hash: json.updated_at ? atlasContentHash(json.document ?? {}, organ_list) : null,
-    });
     return {
       document: json.document ?? null,
       organ_list,

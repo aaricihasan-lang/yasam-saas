@@ -95,6 +95,22 @@ function ClinicalCard({
   );
 }
 
+/** RF-07: harita kutusunun DIŞINDA gösterilen eksik-atlas uyarısı (metin ProtocolFootMap ile aynı). */
+function MissingOrgansNotice({ organs }: { organs: string[] }) {
+  return (
+    <div className="mb-3 rounded-xl border border-amber-200/80 bg-amber-50/95 px-3 py-2">
+      <p className="text-xs font-bold text-amber-950">Atlas bulunamayan organlar: {organs.join(", ")}</p>
+      <p className="mt-0.5 text-xs font-medium text-amber-900/90">
+        Bu organ için atlas bölgesi kayıtlı değil. Önce{" "}
+        <Link href="/refleksoloji/bolge-haritasi" className="font-bold underline hover:text-amber-950">
+          Bölge Haritası
+        </Link>
+        &apos;ndan organ bölgesi ekleyin.
+      </p>
+    </div>
+  );
+}
+
 function ApplicationNotesBody({ text }: { text: string }) {
   const paragraphs = text.split(/\r?\n/).map((p) => p.trim()).filter(Boolean);
 
@@ -545,7 +561,15 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
                     zaten `h-[68vh]` KESİN yükseklikle çalıştığı için etkilenmiyordu; burada da
                     kırılım-başına KESİN yükseklik verilir. Ölçekleme YOK → koordinat paritesi
                     korunur; grup/görünüm mantığı (PR #222) değişmez. */}
-                <div className="relative h-[min(56vh,680px)] overflow-hidden rounded-2xl border border-violet-100/80 bg-white/90 shadow-inner sm:h-[min(64vh,760px)] xl:h-[min(72vh,820px)]">
+                {/* RF-07: "atlas bulunamayan organ" uyarısı KESİN yükseklikli harita kutusunun
+                    DIŞINDA → dar ekranda harita alanını yemez. */}
+                {missingOrgans.length > 0 ? (
+                  <MissingOrgansNotice organs={missingOrgans} />
+                ) : null}
+                {/* RF-07: dar telefon (320–375) ve yatay (≈390px yükseklik) ekranda vh tabanlı
+                    yükseklik ayağı ~120px'e düşürüyordu → asgari 460px (sayfa kayar). 390+
+                    portrait / tablet / masaüstü değerleri DEĞİŞMEZ (max(), vh zaten büyük). */}
+                <div className="relative h-[max(min(56vh,680px),460px)] overflow-hidden rounded-2xl border border-violet-100/80 bg-white/90 shadow-inner sm:h-[max(min(64vh,760px),460px)] xl:h-[min(72vh,820px)]">
                   <ProtocolFootMap
                     regions={regions}
                     footView={effectiveFootView}
@@ -554,6 +578,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
                     onFootViewChange={setFootView}
                     prominentControls
                     embedded
+                    showMissingNotice={false}
                   />
                 </div>
               </div>
