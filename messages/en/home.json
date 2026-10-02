@@ -155,6 +155,7 @@
     },
     "auth": {
       "sessionInvalid": "Your account was opened from another device or location, so for your security you need to sign in again.",
+      "sessionExpired": "Your session has expired. Please sign in again.",
       "emailPasswordRequired": "Enter your email and password.",
       "loggingIn": "Signing in...",
       "systemError": "A system error occurred.",
