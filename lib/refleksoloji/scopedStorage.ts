@@ -24,7 +24,9 @@ export type ReflexDataset =
   | "atlas"
   | "organs"
   | "protocols"
-  | "atlas-base";
+  | "atlas-base"
+  /** P1-5: base'siz (LWW) birleştirmede sunucuya kaybeden yerel organ girdilerinin yedeği. */
+  | "atlas-conflict-backup";
 
 export const REFLEX_DATASETS: readonly ReflexDataset[] = [
   "notes",
@@ -33,6 +35,7 @@ export const REFLEX_DATASETS: readonly ReflexDataset[] = [
   "organs",
   "protocols",
   "atlas-base",
+  "atlas-conflict-backup",
 ] as const;
 
 export const REFLEX_V2_PREFIX = "refleks:v2:";

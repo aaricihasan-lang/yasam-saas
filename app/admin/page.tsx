@@ -278,8 +278,57 @@ type AdminMetrics = {
   total: number | null;
   active: number | null;
   pending: number | null;
+  /** M4 — onaylı + aktif + muaf olmayan uzmanlardan yenileme tarihi geçmiş olanlar. */
+  renewalOverdue: number | null;
+  /** M4 — aynı küme; yenileme tarihi bugün..30 gün içinde. */
+  renewalDue30: number | null;
   systemOk: boolean;
 };
+
+const EMPTY_METRICS: AdminMetrics = {
+  total: null,
+  active: null,
+  pending: null,
+  renewalOverdue: null,
+  renewalDue30: null,
+  systemOk: false,
+};
+
+/**
+ * M4 — yenileme sayaçları (yalnız bilgilendirme; otomatik işlem yok). Tıklanınca üye listesi
+ * ilgili "Yenileme" filtresiyle açılır.
+ */
+function RenewalStatLink({
+  label,
+  hint,
+  value,
+  href,
+  tone,
+  loading,
+}: {
+  label: string;
+  hint: string;
+  value: number | null;
+  href: string;
+  tone: "rose" | "amber";
+  loading: boolean;
+}) {
+  const active = !loading && value != null && value > 0;
+  const t = active ? statTones[tone] : statTones.slate;
+  return (
+    <Link
+      href={href}
+      className={`block min-w-0 rounded-xl border px-4 py-3 no-underline shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-300 ${t.card}`}
+      aria-label={`${label}: ${loading ? "yükleniyor" : value ?? "bilinmiyor"} — üye listesinde göster`}
+    >
+      <p className={`text-[10px] font-bold uppercase tracking-widest ${t.lbl}`}>{label}</p>
+      <p className={`mt-1 text-xl font-black tabular-nums sm:text-2xl ${t.num}`}>
+        {loading ? "…" : value != null ? String(value) : "—"}
+      </p>
+      <p className="mt-0.5 truncate text-[10px] font-semibold text-slate-500">{hint}</p>
+    </Link>
+  );
+}
 
 const statTones = {
   slate:   { card: "bg-white/70 border-slate-200/70",       num: "text-slate-900",   lbl: "text-slate-500"   },
@@ -329,11 +378,27 @@ function AdminStatBar({
         : "Kontrol";
 
   return (
-    <div className="mb-6 grid grid-cols-2 gap-2 lg:grid-cols-4">
+    <div className="mb-6 grid grid-cols-2 gap-2 lg:grid-cols-6">
       <StatCell label="Toplam Üye"    value={fmt(metrics?.total)}   tone="slate"       />
       <StatCell label="Aktif"         value={fmt(metrics?.active)}  tone="emerald"     />
       <StatCell label="Onay Bekleyen" value={fmt(metrics?.pending)} tone={pendingTone} />
       <StatCell label="Sistem Durumu" value={sysVal}                tone={sysTone}     />
+      <RenewalStatLink
+        label="Yenilemesi Gecikmiş"
+        hint="Onaylı · aktif uzman · listeyi aç"
+        value={metrics?.renewalOverdue ?? null}
+        href="/admin/users?due=overdue"
+        tone="rose"
+        loading={loading}
+      />
+      <RenewalStatLink
+        label="30 Gün İçinde Yenileme"
+        hint="Onaylı · aktif uzman · listeyi aç"
+        value={metrics?.renewalDue30 ?? null}
+        href="/admin/users?due=due30&sort=next_payment_asc"
+        tone="amber"
+        loading={loading}
+      />
     </div>
   );
 }
@@ -387,23 +452,27 @@ export default function AdminPage() {
         headers: adminHeaders(adminId),
       });
       if (!res.ok) {
-        setAdminMetrics({ total: null, active: null, pending: null, systemOk: false });
+        setAdminMetrics(EMPTY_METRICS);
         return;
       }
       const json = (await res.json().catch(() => ({}))) as {
         total: number | null;
         active: number | null;
         pending: number | null;
+        renewalOverdue?: number | null;
+        renewalDue30?: number | null;
         systemOk?: boolean;
       };
       setAdminMetrics({
         total: json.total ?? null,
         active: json.active ?? null,
         pending: json.pending ?? null,
+        renewalOverdue: json.renewalOverdue ?? null,
+        renewalDue30: json.renewalDue30 ?? null,
         systemOk: json.systemOk !== false,
       });
     } catch {
-      setAdminMetrics({ total: null, active: null, pending: null, systemOk: false });
+      setAdminMetrics(EMPTY_METRICS);
     } finally {
       setMetricsLoading(false);
     }

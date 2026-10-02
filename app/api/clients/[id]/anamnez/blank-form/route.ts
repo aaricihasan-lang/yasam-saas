@@ -1,11 +1,11 @@
-import fs from "node:fs";
-import path from "node:path";
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { checkRateLimit } from "@/lib/security/rateLimit";
 import { buildBlankAnamnesisPdf } from "@/lib/danisan/anamnez/blankFormPdf";
+import { anamnezPdfFontBase64 } from "@/lib/danisan/anamnez/pdfFont";
+import { asciiSlug } from "@/lib/danisan/anamnez/format";
 import { CURRENT_TEMPLATE_VERSION, isKnownTemplateVersion, normalizeLocale } from "@/lib/danisan/anamnez/schema";
 import { validateFormCustom } from "@/lib/danisan/anamnez/validate";
 import {
@@ -27,23 +27,6 @@ export const runtime = "nodejs";
  * uygulanır; verilmezse güncel standart şablon. Cevap İÇERMEZ (boş form) — yalnız danışan adı
  * başlığa yazılır. Android dahil tüm istemcilere açıktır (cihaz tespitiyle kapatılmaz).
  */
-
-let fontCache: string | null = null;
-function fontBase64(): string {
-  if (!fontCache) {
-    fontCache = fs.readFileSync(path.join(process.cwd(), "public", "fonts", "Geist-Regular.ttf")).toString("base64");
-  }
-  return fontCache;
-}
-
-function asciiSlug(s: string): string {
-  return s
-    .toLocaleLowerCase("tr-TR")
-    .replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s").replace(/ö/g, "o").replace(/ç/g, "c")
-    .normalize("NFKD").replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
-    .slice(0, 60);
-}
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -80,7 +63,7 @@ export async function GET(req: NextRequest, { params }: RouteCtx): Promise<Respo
   const name = [client.ad, client.soyad].filter(Boolean).join(" ").trim() || null;
   let bytes: Uint8Array;
   try {
-    bytes = buildBlankAnamnesisPdf({ locale, version, formCustom, clientName: name, fontBase64: fontBase64() });
+    bytes = buildBlankAnamnesisPdf({ locale, version, formCustom, clientName: name, fontBase64: anamnezPdfFontBase64() });
   } catch (cause) {
     return serverErrorResponse({ route: "anamnez/blank-form", action: "build", tenantId, cause, usage: { guard, req, module: "clients", failedAction: "report_generated", subEntity: "anamnesis" } });
   }

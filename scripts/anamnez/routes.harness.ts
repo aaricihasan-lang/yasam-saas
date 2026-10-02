@@ -53,6 +53,7 @@ async function main(): Promise<void> {
     const cleanupRoute = await import("../../app/api/clients/[id]/anamnez/[anamnesisId]/attachments/cleanup/route");
     const attRoute = await import("../../app/api/clients/[id]/anamnez/[anamnesisId]/attachments/[attachmentId]/route");
     const blankRoute = await import("../../app/api/clients/[id]/anamnez/blank-form/route");
+    const filledRoute = await import("../../app/api/clients/[id]/anamnez/[anamnesisId]/pdf/route");
     const cascadeRoute = await import("../../app/api/clients/[id]/cascade-delete/route");
     const previewRoute = await import("../../app/api/clients/[id]/delete-preview/route");
     const { __resetRateLimitForTest } = await import("../../lib/security/rateLimit");
@@ -400,6 +401,33 @@ async function main(): Promise<void> {
     ok(bfA.status === 200 && (bfA.res.headers.get("content-disposition") ?? "").includes("intake-form"), "danışana özel form (EN) → PDF");
     ok((await call(blankRoute.GET, "GET", P(seed.clients.a1), asB)).status === 404, "B → A danışanı boş form → 404");
     ok((await call(blankRoute.GET, "GET", P(seed.clients.a1), {})).status === 401, "kimliksiz boş form → 401");
+
+    // Kayıtlı (dolu) form PDF.
+    section("8b. Kayıtlı anamnez PDF");
+    __resetRateLimitForTest();
+    const { extractText, getDocumentProxy } = await import("unpdf");
+    const pdfTextOf = async (b: Buffer) => ((await extractText(await getDocumentProxy(new Uint8Array(b)), { mergePages: true })).text as string).replace(/\s+/g, " ");
+    const revA1 = (await row(A1)).revision as number;
+    const fp = await call(filledRoute.GET, "GET", P(seed.clients.a1, A1), asA, undefined, `?rev=${revA1}&locale=tr`);
+    const fpBytes = Buffer.from(await fp.res.arrayBuffer());
+    ok(fp.status === 200 && fp.res.headers.get("content-type") === "application/pdf" && fpBytes.subarray(0, 5).toString() === "%PDF-", "tamamlanmış anamnez → 200 %PDF-");
+    ok(fp.res.headers.get("x-anamnez-revision") === String(revA1), "X-Anamnez-Revision başlığı");
+    ok(/attachment; filename="anamnez-zz-ayse-[a-z0-9-]*\d{4}-\d{2}-\d{2}\.pdf"/.test(fp.res.headers.get("content-disposition") ?? "") && /no-store/.test(fp.res.headers.get("cache-control") ?? ""), "attachment anamnez-<slug>-<tarih>.pdf + no-store", fp.res.headers.get("content-disposition"));
+    const fpText = await pdfTextOf(fpBytes);
+    ok(fpText.includes("ZZ Ayşe") && fpText.includes("TAMAMLANDI") && fpText.includes("Gece artıyor"), "PDF: danışan adı + TAMAMLANDI + özel soru cevabı");
+    ok(!/\bNaN\b|\bundefined\b/.test(fpText), "PDF: NaN/undefined YOK");
+    const fc409 = await call(filledRoute.GET, "GET", P(seed.clients.a1, A1), asA, undefined, `?rev=${revA1 - 1}`);
+    ok(fc409.status === 409 && fc409.json.code === "CONFLICT" && fc409.json.revision === revA1, "eski rev → 409 CONFLICT (+güncel revision)");
+    ok((await call(filledRoute.GET, "GET", P(seed.clients.a1, A1), asA, undefined, "?rev=abc")).status === 400, "geçersiz rev → 400");
+    ok((await call(filledRoute.GET, "GET", P(seed.clients.a1, A1), asA)).status === 200, "rev'siz → 200 (son kayıt)");
+    ok((await call(filledRoute.GET, "GET", P(seed.clients.a1, A1), asB)).status === 404, "B → A danışanı + A anamnezi PDF → 404");
+    ok((await call(filledRoute.GET, "GET", P(seed.clients.b1, A1), asB)).status === 404, "B kendi danışanı + A anamnez id → 404");
+    ok((await call(filledRoute.GET, "GET", P(seed.clients.a1, A1), {})).status === 401, "kimliksiz PDF → 401");
+    ok((await call(filledRoute.GET, "GET", P(seed.clients.a1, A1), { id: U.DEMO.id, token: U.DEMO.token })).status === 404, "demo → 404");
+    ok((await call(filledRoute.GET, "GET", P(seed.clients.a1, "not-a-uuid"), asA)).status === 404, "geçersiz anamnez id → 404");
+    const fpDraft = await call(filledRoute.GET, "GET", P(seed.clients.a1, A3), asA, undefined, `?rev=${(await row(A3)).revision}&locale=en`);
+    const fpDraftBytes = Buffer.from(await fpDraft.res.arrayBuffer());
+    ok(fpDraft.status === 200 && (fpDraft.res.headers.get("content-disposition") ?? "").includes("intake-") && (await pdfTextOf(fpDraftBytes)).includes("DRAFT"), "taslak (EN) → 200, DRAFT rozeti, intake-*.pdf");
 
     // ── 9. ANAMNEZ SİLME ────────────────────────────────────────────────────
     section("9. Tamamlanmış anamnez silme");

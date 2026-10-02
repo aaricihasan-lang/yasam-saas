@@ -7,8 +7,6 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  Eye,
-  EyeOff,
   FileJson,
   FileText,
   KeyRound,
@@ -22,6 +20,8 @@ import {
 import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
 import { readSessionToken } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
+import PasswordInput from "@/components/ui/PasswordInput";
+import { PASSWORD_HINT, newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
 import { searchLocations, type Location } from "@/lib/location";
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { getUserLocationPref, saveUserLocationPref, type UserLocationPref } from "@/lib/location/userLocationPref";
@@ -81,38 +81,33 @@ function fmtDate(iso: string): string {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function PasswordInput({
+function PasswordField({
+  id,
   label,
   value,
   onChange,
   placeholder,
+  autoComplete,
 }: {
+  id: string;
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  autoComplete: "current-password" | "new-password";
 }) {
-  const [show, setShow] = useState(false);
   return (
     <div>
-      <label className="block text-sm font-bold text-slate-700">{label}</label>
-      <div className="relative mt-1.5">
-        <input
-          type={show ? "text" : "password"}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 pr-11 text-sm text-slate-900 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-        />
-        <button
-          type="button"
-          onClick={() => setShow((s) => !s)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-          aria-label={show ? "Şifreyi gizle" : "Şifreyi göster"}
-        >
-          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-        </button>
-      </div>
+      <label htmlFor={id} className="block text-sm font-bold text-slate-700">{label}</label>
+      <PasswordInput
+        id={id}
+        wrapperClassName="mt-1.5"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+      />
     </div>
   );
 }
@@ -134,11 +129,12 @@ function SecurityTab({ user }: { user: YasamUser }) {
       return;
     }
     if (newPw !== confirmPw) {
-      showToast({ message: "Yeni şifre tekrarı eşleşmiyor.", type: "warning" });
+      showToast({ message: "Yeni parola tekrarı eşleşmiyor.", type: "warning" });
       return;
     }
-    if (newPw.length < 10) {
-      showToast({ message: "Yeni şifre en az 10 karakter olmalı.", type: "warning" });
+    const policyError = newPasswordPolicyMessage(newPw.trim(), user.email ?? "");
+    if (policyError) {
+      showToast({ message: policyError, type: "warning" });
       return;
     }
 
@@ -156,11 +152,11 @@ function SecurityTab({ user }: { user: YasamUser }) {
       });
       const json = (await res.json()) as { ok?: boolean; error?: string };
       if (!res.ok || !json.ok) {
-        showToast({ message: json.error ?? "Şifre değiştirilemedi.", type: "error" });
+        showToast({ message: json.error ?? "Parola değiştirilemedi.", type: "error" });
       } else {
         setSuccess(true);
         setOldPw(""); setNewPw(""); setConfirmPw("");
-        showToast({ title: "Başarılı", message: "Şifreniz güncellendi.", type: "success" });
+        showToast({ title: "Başarılı", message: "Parolanız güncellendi.", type: "success" });
       }
     } catch {
       showToast({ message: "Bağlantı hatası.", type: "error" });
@@ -174,13 +170,14 @@ function SecurityTab({ user }: { user: YasamUser }) {
       <div className="rounded-xl border border-violet-100 bg-violet-50/60 px-4 py-3">
         <p className="flex items-center gap-2 text-xs font-semibold text-violet-700">
           <Shield className="h-3.5 w-3.5 shrink-0" />
-          Şifre değiştiğinde diğer cihazlardaki oturumlar otomatik kapatılır.
+          Parola değiştiğinde diğer cihazlardaki oturumlar otomatik kapatılır.
         </p>
       </div>
 
-      <PasswordInput label="Mevcut Şifre"     value={oldPw}     onChange={setOldPw}     placeholder="Mevcut şifrenizi girin"      />
-      <PasswordInput label="Yeni Şifre"        value={newPw}     onChange={setNewPw}     placeholder="En az 10 karakter"            />
-      <PasswordInput label="Yeni Şifre Tekrar" value={confirmPw} onChange={setConfirmPw} placeholder="Yeni şifrenizi tekrar girin" />
+      <PasswordField id="settings-current-password" label="Mevcut Parola"     value={oldPw}     onChange={setOldPw}     placeholder="Mevcut parolanızı girin"      autoComplete="current-password" />
+      <PasswordField id="settings-new-password"     label="Yeni Parola"       value={newPw}     onChange={setNewPw}     placeholder="En az 6 karakter"             autoComplete="new-password" />
+      <p className="-mt-2 text-xs font-medium text-slate-500">{PASSWORD_HINT}</p>
+      <PasswordField id="settings-new-password-2"   label="Yeni Parola Tekrar" value={confirmPw} onChange={setConfirmPw} placeholder="Yeni parolanızı tekrar girin" autoComplete="new-password" />
 
       <button
         type="submit"
@@ -194,7 +191,7 @@ function SecurityTab({ user }: { user: YasamUser }) {
         ) : (
           <KeyRound className="h-4 w-4" />
         )}
-        {loading ? "Güncelleniyor…" : success ? "Güncellendi" : "Şifreyi Güncelle"}
+        {loading ? "Güncelleniyor…" : success ? "Güncellendi" : "Parolayı Güncelle"}
       </button>
     </form>
   );
@@ -568,7 +565,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <h1 className="text-xl font-black tracking-tight sm:text-2xl">Ayarlar & Güvenlik</h1>
-                <p className="mt-0.5 text-xs text-white/55">Şifre, iletişim, yedekleme ve dışa aktarma</p>
+                <p className="mt-0.5 text-xs text-white/55">Parola, iletişim, yedekleme ve dışa aktarma</p>
               </div>
             </div>
             <Link
@@ -614,7 +611,7 @@ export default function SettingsPage() {
           <div className="mb-4 flex items-start gap-3 rounded-[14px] border border-amber-300/80 bg-amber-50/90 px-4 py-3">
             <span className="mt-0.5 text-base leading-none" aria-hidden>⚠️</span>
             <p className="text-xs font-semibold text-amber-800 leading-relaxed">
-              Demo hesabında yedekleme, geri yükleme, dışa aktarma ve şifre değiştirme işlemleri kapalıdır.
+              Demo hesabında yedekleme, geri yükleme, dışa aktarma ve parola değiştirme işlemleri kapalıdır.
             </p>
           </div>
         )}
@@ -637,7 +634,7 @@ export default function SettingsPage() {
               <Shield className="h-10 w-10 text-slate-300" strokeWidth={1.5} />
               <p className="text-sm font-bold text-slate-600">Bu işlem demo hesabında kapalıdır.</p>
               <p className="text-xs text-slate-400 max-w-xs">
-                Yedekleme, geri yükleme, dışa aktarma ve şifre değiştirme yalnızca kayıtlı hesaplarda kullanılabilir.
+                Yedekleme, geri yükleme, dışa aktarma ve parola değiştirme yalnızca kayıtlı hesaplarda kullanılabilir.
               </p>
             </div>
           ) : (

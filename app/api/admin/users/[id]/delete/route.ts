@@ -47,7 +47,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   const adminPassword = typeof rawPassword === "string" ? rawPassword.trim() : "";
 
   if (!adminPassword) {
-    return NextResponse.json({ error: "Admin şifresi gerekli." }, { status: 400 });
+    return NextResponse.json({ error: "Yönetici parolası gerekli." }, { status: 400 });
   }
 
   // Silme yalnız ANA YÖNETİCİYE açıktır (kalıcı is_super_admin işareti; e-posta/
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
 
   if (verifyErr || !verified) {
     return NextResponse.json(
-      { error: "Admin şifresi doğrulanamadı." },
+      { error: "Yönetici parolası doğrulanamadı." },
       { status: 403 },
     );
   }

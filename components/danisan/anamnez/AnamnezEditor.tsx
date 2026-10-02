@@ -107,7 +107,7 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
   const [healthOpen, setHealthOpen] = useState(false);
   const [explicitConsent, setExplicitConsent] = useState<boolean | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(["A"]));
-  const [busy, setBusy] = useState<null | "save" | "complete" | "delete" | "new" | "pdf">(null);
+  const [busy, setBusy] = useState<null | "save" | "complete" | "delete" | "new" | "pdf" | "filledPdf">(null);
 
   const [importState, setImportState] = useState<{ plan: ImportPlan; section: string } | null>(null);
   const [changesOpen, setChangesOpen] = useState(false);
@@ -438,6 +438,33 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
     }
   }
 
+  /**
+   * Kayıtlı (dolu) form PDF'i — sunucudaki son kaydı yazar. Kaydedilmemiş değişiklik varken pasif
+   * (PDF ekrandakiyle çelişmesin); `rev` ile istenir → arada başka oturum kaydettiyse 409 CONFLICT.
+   * Cihaz tespitiyle gizlenmez (K8).
+   */
+  async function downloadFilled() {
+    if (busy || dirty || !rec) return;
+    setBusy("filledPdf");
+    try {
+      const res = await fetch(`${base}/pdf?rev=${rec.revision}&locale=${locale}`, {
+        headers: anamnezAuthHeaders(),
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        let code = "generic";
+        try { code = ((await res.json()) as { code?: string }).code ?? "generic"; } catch { /* yok */ }
+        toastError(code);
+        return;
+      }
+      await downloadFileResponse(res, `anamnez-${rec.assessment_date}.pdf`);
+    } catch {
+      toastError("generic");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function goBack(e: MouseEvent) {
     if (!dirty) return;
     e.preventDefault();
@@ -498,10 +525,25 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
           <button type="button" onClick={() => void downloadBlank()} disabled={busy !== null} className="inline-flex min-h-[40px] items-center rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
             {busy === "pdf" ? t("list.blankFormBusy") : t("list.blankForm")}
           </button>
+          <button
+            type="button"
+            onClick={() => void downloadFilled()}
+            disabled={busy !== null || dirty}
+            title={dirty ? t("list.filledFormSaveFirst") : undefined}
+            aria-describedby={dirty ? "anamnez-filled-pdf-hint" : undefined}
+            className="inline-flex min-h-[40px] items-center rounded-xl border border-teal-300 bg-white px-3 text-[13px] font-bold text-teal-800 hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {busy === "filledPdf" ? t("list.filledFormBusy") : t("list.filledForm")}
+          </button>
           <button type="button" onClick={() => void remove()} disabled={busy !== null} className="btn-outline btn-outline-danger min-h-[40px] disabled:opacity-60">
             {locked ? t("delete.completedAction") : t("delete.draftAction")}
           </button>
         </div>
+        {dirty ? (
+          <p id="anamnez-filled-pdf-hint" className="w-full text-right text-[12px] font-semibold text-amber-700">
+            {t("list.filledFormSaveFirst")}
+          </p>
+        ) : null}
       </div>
 
       {/* Başlık kartı */}

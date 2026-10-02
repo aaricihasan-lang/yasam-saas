@@ -24,7 +24,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .select("id, name");
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, tenants: data ?? [] });

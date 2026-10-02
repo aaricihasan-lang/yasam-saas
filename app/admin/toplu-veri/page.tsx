@@ -33,7 +33,6 @@ import {
   parseInventoryJsonPayload,
   type InventoryJsonRow,
 } from "@/lib/urun-stok/inventoryJsonImport";
-import { supabase } from "@/lib/supabase";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { HealingGuideJsonTab } from "./HealingGuideJsonTab";
 
@@ -991,6 +990,41 @@ async function insertCombinationsViaApi(
   }
 }
 
+/**
+ * AA-2: Mineral / Doğaltaş JSON aktarımı güvenli admin import API'sine gider (tarayıcı publishable
+ * insert KALDIRILDI). Hedef tenant sunucuda adminin kendi kütüphane tenant'ına zorlanır.
+ * `inserted` sunucunun doğruladığı eklenen satır sayısıdır.
+ */
+async function insertTopluVeriViaApi(
+  resource: "minerals" | "stones",
+  rows: Record<string, unknown>[],
+): Promise<{ ok: boolean; inserted: number; error?: string }> {
+  const adminId = readYasamUser()?.id ?? "";
+  const sessionToken = readSessionToken();
+  try {
+    const res = await fetch(`/api/admin/toplu-veri/${resource}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-id": adminId,
+        ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+      },
+      body: JSON.stringify({ rows }),
+    });
+    const json = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      inserted?: number;
+      error?: string;
+    };
+    if (!res.ok || !json.ok) {
+      return { ok: false, inserted: 0, error: json.error ?? "Kayıt eklenemedi." };
+    }
+    return { ok: true, inserted: typeof json.inserted === "number" ? json.inserted : 0 };
+  } catch {
+    return { ok: false, inserted: 0, error: "Bağlantı kurulamadı." };
+  }
+}
+
 /** Güvenli Biyoenerji admin import API'sine gönderir (publishable insert yerine service_role). */
 async function insertBioenergyViaApi(
   resource: string,
@@ -1418,10 +1452,10 @@ function flattenMineralItemsToRows(
 }
 
 function mineralInsertSucceeded(
-  data: { id: string }[] | null,
+  result: { ok: boolean; inserted: number },
   expectedCount: number,
 ): boolean {
-  return Boolean(data && data.length === expectedCount);
+  return result.ok && result.inserted === expectedCount;
 }
 
 async function importMineralRows(rows: MineralInsertRow[]): Promise<{
@@ -1442,29 +1476,22 @@ async function importMineralRows(rows: MineralInsertRow[]): Promise<{
 
   for (let offset = 0; offset < rows.length; offset += MINERAL_BATCH_SIZE) {
     const batch = rows.slice(offset, offset + MINERAL_BATCH_SIZE);
-    const { data, error } = await supabase.from("minerals").insert(batch).select("id");
+    const batchResult = await insertTopluVeriViaApi("minerals", batch);
 
-    if (!error && mineralInsertSucceeded(data, batch.length)) {
-      successCount += data!.length;
+    if (mineralInsertSucceeded(batchResult, batch.length)) {
+      successCount += batchResult.inserted;
       continue;
     }
 
     const batchMessage =
-      error?.message ??
+      batchResult.error ??
       "Toplu ekleme tamamlanamadı (public.minerals tablosuna kayıt doğrulanamadı).";
 
     for (const row of batch) {
-      const { data: rowData, error: singleError } = await supabase
-        .from("minerals")
-        .insert(row)
-        .select("id");
+      const single = await insertTopluVeriViaApi("minerals", [row]);
 
-      if (singleError || !mineralInsertSucceeded(rowData, 1)) {
-        recordFailure(
-          row.name,
-          singleError?.message ??
-            batchMessage,
-        );
+      if (!mineralInsertSucceeded(single, 1)) {
+        recordFailure(row.name, single.error ?? batchMessage);
       } else {
         successCount += 1;
       }
@@ -4290,16 +4317,17 @@ function DogaltasJsonTab() {
 
     for (let i = 0; i < importRows.length; i += BATCH_SIZE) {
       const chunk = importRows.slice(i, i + BATCH_SIZE);
-      const { error } = await supabase
-        .from("stones")
-        .insert(chunk.map((row) => row.payload));
+      const result = await insertTopluVeriViaApi(
+        "stones",
+        chunk.map((row) => row.payload),
+      );
 
-      if (error) {
+      if (!result.ok) {
         chunk.forEach((row, chunkIndex) => {
           failed.push({
             index: i + chunkIndex + 1,
             stoneName: row.stoneName,
-            message: error.message,
+            message: result.error ?? "Kayıt eklenemedi.",
           });
         });
       } else {
@@ -4344,7 +4372,8 @@ function DogaltasJsonTab() {
           <p className="mt-3 max-w-2xl rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-2 text-xs font-semibold text-amber-950">
             Yerel görsel yolları (C:\... veya göreli yol) production&apos;da desteklenmez; bu kayıtlar görselsiz aktarılır ve{" "}
             <code className="rounded bg-amber-100 px-1">image_upload_failed</code> işaretlenir.
-            Yalnızca http(s) URL&apos;leri işlenir.
+            Güvenlik nedeniyle dış bağlantı (http/https URL) görseller de aktarılmaz; görseller taş
+            düzenleme ekranından fotoğraf yüklenerek eklenir.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

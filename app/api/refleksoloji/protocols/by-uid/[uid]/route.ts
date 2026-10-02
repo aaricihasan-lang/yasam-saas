@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { pickProtocolContentFields } from "@/lib/refleksoloji/protocolDto";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
-import { decideProtocolCas, protocolRowVersion } from "@/lib/refleksoloji/protocolSyncCore";
+import {
+  PROTOCOL_DELETED_ERROR,
+  decideProtocolCas,
+  decideProtocolMissingRow,
+  protocolRowVersion,
+} from "@/lib/refleksoloji/protocolSyncCore";
 import { protocolContentUnchanged } from "@/lib/refleksoloji/usageChange";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
@@ -29,6 +34,9 @@ export const runtime = "nodejs";
  *   `raw_json.updatedAt`) taşırsa sunucudaki sürümle eşleşmesi gerekir; aksi halde
  *   409 PROTOCOL_STALE (başka cihazdaki düzenleme körlemesine ezilmez). Tabloda
  *   updated_at kolonu olmadığından belirteç raw_json.updatedAt'tir (migration yok).
+ *
+ * P1-5 (diriltme yok): `expected_updated_at` verilmiş ama satır YOKSA (başka cihazda
+ *   silinmiş) → 409 PROTOCOL_DELETED; insert YALNIZ expected null iken yapılır.
  */
 
 // ─── PUT /api/refleksoloji/protocols/by-uid/[uid] — güncelle (yoksa oluştur) ────
@@ -83,22 +91,28 @@ export async function PUT(
       return jsonServerError("protocols.by-uid.PUT.read", curErr, { usage: { guard, req, failedAction: "record_updated", subEntity: "protocol" } });
     }
     const cur = (curRows ?? [])[0] as ({ id: string; raw_json: unknown } & Record<string, unknown>) | undefined;
-    if (cur) {
-      usageCurrentRow = cur;
-      currentVersion = protocolRowVersion(cur.raw_json);
-      const decision = decideProtocolCas(expected, currentVersion);
-      if (!decision.ok) {
-        await trackUsage(guard, req, { module: "reflexology", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass: "conflict" });
-        return NextResponse.json(
-          {
-            ok: false,
-            conflict: true,
-            code: decision.code,
-            error: "Protokol başka bir cihazda değiştirilmiş. Güncel hâlini yükleyip tekrar deneyin.",
-          },
-          { status: 409 },
-        );
-      }
+    if (!cur) {
+      // P1-5: istemci satırı görmüştü (expected var) ama satır yok → başka cihazda silindi.
+      await trackUsage(guard, req, { module: "reflexology", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass: "conflict" });
+      return NextResponse.json(
+        { ok: false, conflict: true, code: "PROTOCOL_DELETED", error: PROTOCOL_DELETED_ERROR },
+        { status: 409 },
+      );
+    }
+    usageCurrentRow = cur;
+    currentVersion = protocolRowVersion(cur.raw_json);
+    const decision = decideProtocolCas(expected, currentVersion);
+    if (!decision.ok) {
+      await trackUsage(guard, req, { module: "reflexology", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass: "conflict" });
+      return NextResponse.json(
+        {
+          ok: false,
+          conflict: true,
+          code: decision.code,
+          error: "Protokol başka bir cihazda değiştirilmiş. Güncel hâlini yükleyip tekrar deneyin.",
+        },
+        { status: 409 },
+      );
     }
   }
 
@@ -132,7 +146,16 @@ export async function PUT(
 
   // Hiç satır güncellenmediyse (bu cihazda oluşturulmuş ama server'a hiç gitmemiş
   // eski kayıt) → tenant altına ekle. Böylece düzenleme de veri kaybetmez.
+  // P1-5: expected VARSA satır okuma→yazma arasında silinmiştir → insert YOK (diriltme yok).
   if (!updated || updated.length === 0) {
+    const missing = decideProtocolMissingRow(expected);
+    if (missing.kind === "conflict") {
+      await trackUsage(guard, req, { module: "reflexology", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass: "conflict" });
+      return NextResponse.json(
+        { ok: false, conflict: true, code: missing.code, error: PROTOCOL_DELETED_ERROR },
+        { status: 409 },
+      );
+    }
     const { data: inserted, error: insErr } = await db
       .from("reflexology_protocols")
       .insert({ ...fields, tenant_id: tenantId, source_uid: uid })

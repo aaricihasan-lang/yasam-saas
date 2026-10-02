@@ -96,6 +96,8 @@ export function friendlyPlanError(code?: string, status?: number): string {
       return "Plan başka yerde güncellendi, sayfayı yenileyin.";
     case "DEMO_READONLY":
       return "Demo hesabında değişiklik yapılamaz.";
+    case "MEMBERSHIP_INACTIVE":
+      return "Üyeliğiniz aktif değil. Beslenme planlarına erişmek için yöneticinizle iletişime geçin.";
     case "NETWORK":
       return "Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.";
     default:

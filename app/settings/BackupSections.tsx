@@ -11,6 +11,7 @@ import { AlertTriangle, Check, Download, FileJson, Loader2, RotateCcw, Upload } 
 import { readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
+import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
 import { downloadFileResponse, triggerBlobDownload } from "@/lib/http/downloadResponse";
 import {
   BACKUP_REGISTRY,
@@ -157,7 +158,7 @@ export function ExportTab({ user }: { user: YasamUser }) {
                 void handleExport("all", "Tüm modüller");
               }}
               disabled={isLoading}
-              className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-60"
+              className="no-android flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-60"
             >
               {loadingModule === "all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               {loadingModule === "all" ? "Hazırlanıyor…" : "Tümünü İndir"}
@@ -187,7 +188,7 @@ export function ExportTab({ user }: { user: YasamUser }) {
                     void handleExport(mod.key, mod.label);
                   }}
                   disabled={isLoading}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-violet-200 bg-violet-50 text-violet-700 transition hover:bg-violet-100 disabled:opacity-50"
+                  className="no-android flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-violet-200 bg-violet-50 text-violet-700 transition hover:bg-violet-100 disabled:opacity-50"
                   title={`${mod.label} Word İndir`}
                   aria-label={`${mod.label} Word İndir`}
                 >
@@ -217,6 +218,8 @@ export function BackupTab({ user }: { user: YasamUser }) {
   const [progress, setProgress] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<BackupOutcome | null>(null);
   const modules = useModuleSummaries("export");
+  // Android uygulama WebView'inde blob: JSON indirme çalışmaz → yedek butonu yerine not (plan §4.6).
+  const isAndroidApp = useIsAndroidApp();
 
   async function handleBackup() {
     if (loading) return;
@@ -282,17 +285,24 @@ export function BackupTab({ user }: { user: YasamUser }) {
           Hesap/oturum bilgileri, yönetici kayıtları, arama indeksleri ve paylaşımlı kataloglar yedeğe alınmaz (dosyadaki
           &quot;excluded&quot; listesinde gerekçeleriyle yazılıdır).
         </p>
+        {isAndroidApp && (
+          <p className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-center text-xs font-semibold text-slate-600" role="note">
+            Bu çıktı uygulamada desteklenmiyor; tarayıcıdan veya bilgisayardan açın.
+          </p>
+        )}
+        {!isAndroidApp && (
         <button
           type="button"
           onClick={() => {
             void handleBackup();
           }}
           disabled={loading}
-          className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-slate-700 to-slate-900 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:opacity-60"
+          className="no-android-app mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-slate-700 to-slate-900 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:opacity-60"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
           {loading ? "Hazırlanıyor…" : "Sistem Yedeği İndir"}
         </button>
+        )}
         {progress && <p className="mt-2 text-center text-[11px] text-slate-500">{progress}</p>}
       </div>
 

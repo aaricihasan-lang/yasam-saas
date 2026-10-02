@@ -27,6 +27,9 @@
         "new": "Yeni Anamnez Oluştur",
         "blankForm": "Boş Formu İndir (PDF)",
         "blankFormBusy": "Hazırlanıyor…",
+        "filledForm": "Kayıtlı Anamnez Formunu İndir (PDF)",
+        "filledFormBusy": "PDF hazırlanıyor…",
+        "filledFormSaveFirst": "Önce kaydedin: kaydedilmemiş değişiklikler PDF'e yansımaz.",
         "empty": "Bu danışan için henüz anamnez yok.",
         "emptyHint": "İlk anamnez standart formdan başlar; danışana göre soru ekleyip kaldırabilirsiniz.",
         "draftTitle": "Açık taslak",
@@ -244,7 +247,16 @@
         "optionalSection": "(Yalnız uygun olduğunda doldurunuz)",
         "page": "Sayfa {page} / {total}",
         "rowsHint": "Gerekirse satırları çoğaltabilirsiniz.",
-        "fileName": "anamnez-formu"
+        "fileName": "anamnez-formu",
+        "statusDraft": "TASLAK",
+        "statusCompleted": "TAMAMLANDI",
+        "signatureClient": "Danışan imzası",
+        "signatureExpert": "Uzman imzası",
+        "signatureDate": "Tarih",
+        "empty": "—",
+        "generatedAt": "Oluşturma: {date}",
+        "titleLabel": "Başlık",
+        "completedAtLabel": "Tamamlanma"
       },
       "errors": {
         "NOT_FOUND": "Kayıt bulunamadı veya erişim yetkiniz yok.",

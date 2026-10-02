@@ -46,6 +46,12 @@ ok("plan-guard authority 'module' (beslenme; unbound dahil) | 'client' (yalnız 
    /authority:\s*"module"/.test(guard) && /authority:\s*"client"/.test(guard));
 ok("plan-guard CLIENTS-ONLY unbound plan → fail-closed", /if \(!boundClientId\)/.test(guard) && /PLAN_NOT_FOUND/.test(guard));
 ok("plan-guard beslenme+clients ikisi de yoksa → 403 FORBIDDEN", /!hasBeslenme && !hasClients/.test(guard) && /FORBIDDEN/.test(guard));
+// P1-4: üyelik kapısı (requireModuleAccess ile aynı kural) plan lookup'tan ÖNCE.
+ok("plan-guard üyelik kapısı (hasMembershipAccessForRow → membershipInactiveResponse)",
+   /hasMembershipAccessForRow\(guard\.profile \?\? \{\}\)/.test(guard) && /membershipInactiveResponse\(\)/.test(guard));
+ok("plan-guard üyelik kontrolü plan lookup'tan ÖNCE",
+   guard.indexOf("hasMembershipAccessForRow(") > -1 &&
+   guard.indexOf("hasMembershipAccessForRow(") < guard.indexOf('from("nutrition_plans")'));
 
 // 6) Editör plan route'ları yeni bound-plan guard'ı kullanıyor (örneklem + tam liste).
 const PLAN_ACCESS_ROUTES = [

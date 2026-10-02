@@ -3,6 +3,8 @@
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
+import { composeOtherValue, splitOtherValue } from "@/lib/urun-stok/selectOther";
+import { SelectWithOther } from "../SelectWithOther";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MATERIALS,
@@ -250,8 +252,10 @@ export default function AksesuarUrunStokPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [productGroup, setProductGroup] = useState<string>(PRODUCT_GROUPS[0]);
+  const [productGroupCustom, setProductGroupCustom] = useState("");
   const [productModel, setProductModel] = useState("");
   const [material, setMaterial] = useState<string>(MATERIALS[0]);
+  const [materialCustom, setMaterialCustom] = useState("");
   const [color, setColor] = useState("");
   const [sizeKind, setSizeKind] = useState<string>(SIZE_KINDS[1]);
   const [sizeDetail, setSizeDetail] = useState("");
@@ -306,6 +310,8 @@ export default function AksesuarUrunStokPage() {
     setProfitPct("100");
     setBarcode("");
     setNote("");
+    setProductGroupCustom("");
+    setMaterialCustom("");
     setPhotos([]);
     setAddDelta(true);
   }
@@ -314,9 +320,14 @@ export default function AksesuarUrunStokPage() {
     retryRef.current = null;
     setEditId(it.id);
     setName(it.name);
-    setProductGroup(it.productGroup);
+    // Liste dışı (serbest metin) değer → "Diğer" + metin (düzenlemede kaybolmaz).
+    const pg = splitOtherValue(it.productGroup, PRODUCT_GROUPS);
+    setProductGroup(pg.select);
+    setProductGroupCustom(pg.custom);
     setProductModel(it.productModel);
-    setMaterial(it.material);
+    const mt = splitOtherValue(it.material, MATERIALS);
+    setMaterial(mt.select);
+    setMaterialCustom(mt.custom);
     setColor(it.color);
     setSizeKind(it.sizeKind || SIZE_KINDS[4]);
     setSizeDetail(it.sizeDetail);
@@ -341,8 +352,11 @@ export default function AksesuarUrunStokPage() {
     setMsg(null);
     const beforeIds = new Set(inventory.map((i) => i.id));
     const editingId = editId;
+    // "Diğer" + serbest metin → saklanacak etiket (ölçü türü sizeKind serbest girişe AÇILMAZ).
+    const productGroupValue = composeOtherValue(productGroup, productGroupCustom, PRODUCT_GROUPS);
+    const materialValue = composeOtherValue(material, materialCustom, MATERIALS);
     const signature = stockFormSignature([
-      editingId, name, productGroup, productModel, material, color, sizeKind, sizeDetail,
+      editingId, name, productGroupValue, productModel, materialValue, color, sizeKind, sizeDetail,
       stockQty, costTotal, salePriceTotal, profitPct, barcode, note, photos.length, addDelta,
     ]);
     // Aynı form tekrar gönderildiyse (önceki bulut yazımı başarısız) yerel birleştirme
@@ -357,9 +371,9 @@ export default function AksesuarUrunStokPage() {
       const result = addOrUpdateAccessoryItem(inventory, {
         id: plan.id,
         name: turkishUpper(name),
-        productGroup,
+        productGroup: productGroupValue,
         productModel,
-        material,
+        material: materialValue,
         color,
         sizeKind,
         sizeDetail,
@@ -673,26 +687,33 @@ export default function AksesuarUrunStokPage() {
                   <span className="mb-1 block text-xs font-black">Ürün adı</span>
                   <input className={inputClass} value={name} onChange={(e) => setName(turkishUpper(e.target.value))} />
                 </label>
-                <label className="block">
-                  <span className="mb-1 block text-xs font-black">Ürün grubu</span>
-                  <select className={inputClass} value={productGroup} onChange={(e) => setProductGroup(e.target.value)}>
-                    {PRODUCT_GROUPS.map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </select>
-                </label>
+                <SelectWithOther
+                  label="Ürün grubu"
+                  options={PRODUCT_GROUPS}
+                  value={productGroup}
+                  custom={productGroupCustom}
+                  onSelect={setProductGroup}
+                  onCustom={setProductGroupCustom}
+                  selectClassName={inputClass}
+                  labelClassName="mb-1 block text-xs font-black"
+                  placeholder="Örn. Halhal"
+                />
                 <label className="block">
                   <span className="mb-1 block text-xs font-black">Ürün tipi / model</span>
                   <input className={inputClass} value={productModel} onChange={(e) => setProductModel(e.target.value)} />
                 </label>
-                <label className="block">
-                  <span className="mb-1 block text-xs font-black">Malzeme</span>
-                  <select className={inputClass} value={material} onChange={(e) => setMaterial(e.target.value)}>
-                    {MATERIALS.map((m) => (
-                      <option key={m}>{m}</option>
-                    ))}
-                  </select>
-                </label>
+                <SelectWithOther
+                  label="Malzeme"
+                  options={MATERIALS}
+                  value={material}
+                  custom={materialCustom}
+                  onSelect={setMaterial}
+                  onCustom={setMaterialCustom}
+                  otherLabel="diğer"
+                  selectClassName={inputClass}
+                  labelClassName="mb-1 block text-xs font-black"
+                  placeholder="Örn. pirinç"
+                />
                 <label className="block">
                   <span className="mb-1 block text-xs font-black">Renk</span>
                   <input className={inputClass} value={color} onChange={(e) => setColor(e.target.value)} placeholder="Kahverengi, Gümüş..." />

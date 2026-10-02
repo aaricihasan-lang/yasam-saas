@@ -1,18 +1,28 @@
 import type { FootSide, FootView, Region, RegionPoint, RegionShapeType } from "@/app/refleksoloji/bolge-haritasi/types";
 import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
 import {
-  scheduleAtlasSync,
-  setAtlasSyncSuspended,
+  ATLAS_QUOTA_CONFLICT_MESSAGE,
+  commitAtlasBase,
+  fetchAtlasFromServer,
+  flushAtlasNow,
+  loadAtlasBase,
+  markAtlasHydrated,
   registerAtlasConflictResolver,
   registerAtlasLocalReader,
-  hydrateAtlasFromServer,
-  markAtlasHydrated,
+  retryAtlasSync,
+  scheduleAtlasSync,
   setAtlasBaseHash,
+  setAtlasConflict,
+  setAtlasSyncSuspended,
+  type AtlasBase,
+  type AtlasConflictResolution,
   type AtlasServerState,
 } from "@/lib/refleksolojiAtlasSync";
+import { setReflexologySyncStatus } from "@/lib/refleksoloji/syncStatus";
 import {
   markOrganDeleted,
   markOrganUpserted,
+  mergeAtlasThreeWay,
   mergeAtlasWithTombstones,
   mergeOrganListsWithTombstones,
   type AtlasDocLike,
@@ -22,6 +32,8 @@ import { normalizeAtlasDocument } from "@/lib/refleksoloji/atlasNormalize";
 import {
   atlasContentHash,
   atlasEquivalent,
+  hasAtlasContent,
+  hasAtlasTombstones,
   classifyLegacyAtlas,
   importLegacyAtlas,
   type LegacyAtlasPayload,
@@ -197,17 +209,18 @@ export function listOrganNamesFromAtlas(atlas: AtlasDocument): string[] {
 }
 
 /**
- * P1-1: hydrate birleştirme — sunucu ve yerel atlas belgelerini organ bazında
- * birleştirir. Ortak organda sunucu kazanır; yalnız yerelde olan organlar KORUNUR
- * (hydrate'te yerel-özel organ kaybolmaz → veri kaybı yok).
+ * P1-1: base'siz birleştirme — sunucu ve yerel atlas belgelerini organ bazında
+ * birleştirir. Ortak organda organUpdatedAt LWW (P1-5; eskiden koşulsuz sunucu
+ * kazanırdı); yalnız yerelde olan organlar KORUNUR (veri kaybı yok). Base snapshot'ı
+ * olan senkron yolları `mergeAtlasThreeWay` kullanır.
  */
 export function mergeAtlasDocuments(
   server: AtlasDocument,
   local: AtlasDocument,
 ): AtlasDocument {
-  // Tombstone-farkında birleştirme: ortak organda sunucu kazanır; yalnız yerelde
-  // olan organ korunur AMA silinme/yeniden-adlandırma mezar taşı son güncellemeden
-  // yeniyse organ DİRİLMEZ (zombie/duplicate engellenir). Mezar taşları _meta'da.
+  // Tombstone-farkında birleştirme: yalnız yerelde olan organ korunur AMA
+  // silinme/yeniden-adlandırma mezar taşı son güncellemeden yeniyse organ DİRİLMEZ
+  // (zombie/duplicate engellenir). Mezar taşları _meta'da.
   return mergeAtlasWithTombstones(
     server as unknown as AtlasDocLike,
     local as unknown as AtlasDocLike,
@@ -418,36 +431,186 @@ export function atlasHasRegionId(atlas: AtlasDocument, regionId: string): boolea
   return false;
 }
 
-/**
- * REF-001 — Atlas PUT 409 (concurrency conflict) çözücüsü.
- *
- * Sunucudaki güncel belge + yereldeki belge TOMBSTONE-FARKINDA birleştirilir (iki
- * sekmenin/cihazın eklemeleri kaybolmaz). Sonuç yerele yazılır (senkron döngüsü
- * tetiklenmez) ve retry PUT'u için döndürülür. Bu fonksiyon refleksolojiAtlasSync'e
- * kaydedilir (döngüsel import olmadan).
- */
-function resolveAtlasConflict(server: AtlasServerState): {
-  document: unknown;
-  organ_list: string[];
-} {
-  const serverRaw =
-    server.document && typeof server.document === "object"
-      ? (server.document as AtlasDocument)
-      : createEmptyAtlas();
-  const serverDoc = normalizeAtlasDocument(serverRaw);
-  const local = loadAtlas();
-  const merged = mergeAtlasDocuments(serverDoc, local);
-  const mergedList = unionOrganLists(server.organ_list, loadOrganList());
+// ─── P1-5: base-snapshot'lı birleştirme + çakışma çözümü ──────────────────────
 
-  // Yerele yaz AMA scheduleAtlasSync'i tetikleme (retry PUT'u flush yapacak).
+/** Bölge Haritası vb. açık ekranların state'i yeniden yüklemesi için yayınlanan olay. */
+export const ATLAS_CHANGED_EVENT = "refleks:atlas-changed";
+
+function emitAtlasChanged(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.dispatchEvent(new Event(ATLAS_CHANGED_EVENT));
+  } catch {
+    /* olay yayını en iyi çaba — veri yazımını etkilemez */
+  }
+}
+
+/**
+ * Birleştirme sonucunu yerele yazar (senkron döngüsü TETİKLENMEZ). Atlas yazılamazsa
+ * (kota) hiçbir şey değişmez → false; organ listesi yazılamazsa atlas geri alınır.
+ */
+function writeLocalAtlasState(doc: AtlasDocument, organs: string[]): boolean {
+  const prevAtlas = readReflex<unknown>("atlas");
   setAtlasSyncSuspended(true);
   try {
-    writeReflex("atlas", merged);
-    writeReflex("organs", mergedList);
+    if (!writeReflex("atlas", doc)) return false;
+    if (!writeReflex("organs", organs)) {
+      if (prevAtlas !== null) writeReflex("atlas", prevAtlas);
+      return false;
+    }
   } finally {
     setAtlasSyncSuspended(false);
   }
-  return { document: merged, organ_list: mergedList };
+  emitAtlasChanged();
+  return true;
+}
+
+/** Yerel taban belgesi: kayıtlı base belgesi; yoksa yerel hâlâ tabanla aynıysa yerelin kendisi. */
+function resolveBaseDocument(
+  base: AtlasBase | null,
+  local: AtlasDocument,
+  localOrgans: string[],
+): AtlasDocument | null {
+  // Yerel boş + mezar taşsız (önbellek temizlenmiş / okunamadı) → "bilinçli silme" DEĞİL;
+  // yerel değişmemiş sayılır → sunucu içeriği alınır (planAtlasPush ile aynı kural).
+  if (!hasAtlasContent(local, localOrgans) && !hasAtlasTombstones(local)) return local;
+  if (base?.doc) return normalizeAtlasDocument(base.doc as unknown as AtlasDocument);
+  // Belgesiz eski taban: yerel içerik taban hash'iyle aynıysa yerel DEĞİŞMEMİŞTİR →
+  // yerel = base (sunucu değişiklikleri güvenle alınır).
+  if (base?.hash && base.hash === atlasContentHash(local, localOrgans)) return local;
+  return null;
+}
+
+export type AtlasConflictBackupEntry = { saved_at: string; organs: Record<string, unknown> };
+const CONFLICT_BACKUP_LIMIT = 5;
+
+/** Base'siz (LWW) birleştirmede kaybeden yerel organları yedekle (en iyi çaba, son 5 kayıt). */
+function backupLostLocalOrgans(lost: Record<string, unknown>, at: string): void {
+  if (Object.keys(lost).length === 0) return;
+  const prev = readReflex<AtlasConflictBackupEntry[]>("atlas-conflict-backup");
+  const list = Array.isArray(prev) ? prev : [];
+  const next = [...list, { saved_at: at, organs: lost }].slice(-CONFLICT_BACKUP_LIMIT);
+  if (!writeReflex("atlas-conflict-backup", next)) {
+    writeReflex("atlas-conflict-backup", [{ saved_at: at, organs: lost }]);
+  }
+}
+
+/** Kayıtlı (base'siz birleştirmede kaybeden) yerel organ yedekleri. */
+export function loadAtlasConflictBackup(): AtlasConflictBackupEntry[] {
+  const v = readReflex<AtlasConflictBackupEntry[]>("atlas-conflict-backup");
+  return Array.isArray(v) ? v : [];
+}
+
+type AtlasMergeOutcome = {
+  serverDoc: AtlasDocument;
+  merged: AtlasDocument;
+  mergedOrgans: string[];
+  conflicts: string[];
+};
+
+/**
+ * Sunucu durumunu yerel ile birleştirir (YAZMAZ). Base = istemcinin son bildiği sunucu
+ * belgesi (çağıran, tabanı GÜNCELLEMEDEN önce okur).
+ */
+function computeAtlasMerge(
+  server: AtlasServerState,
+  base: AtlasBase | null,
+  onConflict: "local" | "server" = "local",
+): AtlasMergeOutcome {
+  const serverRaw =
+    server.document && typeof server.document === "object"
+      ? (server.document as unknown as AtlasDocument)
+      : createEmptyAtlas();
+  const serverDoc = normalizeAtlasDocument(serverRaw);
+  const local = loadAtlas();
+  const localOrgans = loadOrganList();
+  // Sunucuda satır YOKSA (updated_at null) base kullanılmaz: korunacak sunucu sürümü yok;
+  // yerel organlar "sunucu sildi" sanılıp silinmesin (önceki davranış: yerel korunur).
+  const baseDoc = server.updated_at ? resolveBaseDocument(base, local, localOrgans) : null;
+  const now = new Date().toISOString();
+  const r = mergeAtlasThreeWay(
+    serverDoc as unknown as AtlasDocLike,
+    local as unknown as AtlasDocLike,
+    baseDoc as unknown as AtlasDocLike | null,
+    now,
+    onConflict,
+  );
+  if (r.mode === "lww") backupLostLocalOrgans(r.lostLocal, now);
+  const merged = r.document as unknown as AtlasDocument;
+  const mergedOrgans = mergeOrganListsWithTombstones(server.organ_list, localOrgans, merged._meta);
+  return { serverDoc, merged, mergedOrgans, conflicts: r.conflicts };
+}
+
+/** Birleşik yerel içerik sunucu içeriğiyle eşdeğerse tabanı yerel hash'e hizala. */
+function alignBaseHashIfEquivalent(outcome: AtlasMergeOutcome, server: AtlasServerState): void {
+  if (
+    atlasEquivalent(
+      { document: outcome.merged, organ_list: outcome.mergedOrgans },
+      { document: outcome.serverDoc, organ_list: server.organ_list },
+    )
+  ) {
+    setAtlasBaseHash(atlasContentHash(loadAtlas(), loadOrganList()));
+  }
+}
+
+/**
+ * REF-001 + P1-5 — Atlas PUT 409 (concurrency conflict) çözücüsü.
+ *
+ * Sunucudaki güncel belge + yerel belge, istemcinin SON BİLDİĞİ sunucu belgesine (base)
+ * göre organ bazında 3-YOLLU birleştirilir:
+ *   - çakışma YOK → birleşim yerele yazılır, taban sunucuya ilerletilir → "merged"
+ *     (refleksolojiAtlasSync tek otomatik retry yapar; sunucuda A+B birlikte olur);
+ *   - aynı organ iki cihazda FARKLI değişti → yerel sürüm KORUNUR (diğer organlardaki
+ *     sunucu değişiklikleri alınır), taban İLERLETİLMEZ (çakışma yeniden yüklemede de
+ *     tespit edilir), otomatik retry YOK → "conflict";
+ *   - yerel yazılamadı (kota) → hiçbir şey değişmez → "failed".
+ */
+function resolveAtlasConflict(server: AtlasServerState): AtlasConflictResolution {
+  const outcome = computeAtlasMerge(server, loadAtlasBase());
+  if (!writeLocalAtlasState(outcome.merged, outcome.mergedOrgans)) return { kind: "failed" };
+  if (outcome.conflicts.length > 0) return { kind: "conflict", organs: outcome.conflicts };
+  if (!commitAtlasBase(server)) return { kind: "failed" };
+  alignBaseHashIfEquivalent(outcome, server);
+  return { kind: "merged" };
+}
+
+/**
+ * Kullanıcı kararı (çakışma banner'ı): sunucuyu TAZE çeker, çakışan organlarda
+ * `prefer` tarafını seçer, yerele yazar ve tabanı sunucuya ilerletir.
+ *   "local"  → "Benim sürümümü gönder": PUT taze expected ile gider.
+ *   "server" → "Sunucu sürümünü al": çakışan organlar sunucudan; kalan yerel-özel
+ *              (çakışmasız) değişiklik varsa o da gönderilir.
+ */
+async function resolveAtlasConflictByUser(prefer: "local" | "server"): Promise<boolean> {
+  const scopeAtStart = currentReflexScopeId();
+  const base = loadAtlasBase();
+  const server = await fetchAtlasFromServer();
+  if (!server || currentReflexScopeId() !== scopeAtStart) {
+    setReflexologySyncStatus({ state: "error", message: "Atlas sunucudan alınamadı.", retry: retryAtlasSync });
+    return false;
+  }
+  const outcome = computeAtlasMerge(server, base, prefer);
+  if (!writeLocalAtlasState(outcome.merged, outcome.mergedOrgans) || !commitAtlasBase(server)) {
+    setReflexologySyncStatus({ state: "conflict", message: ATLAS_QUOTA_CONFLICT_MESSAGE, retry: retryAtlasSync });
+    return false;
+  }
+  alignBaseHashIfEquivalent(outcome, server);
+  setAtlasConflict(null);
+  const r = await flushAtlasNow();
+  if (r.status === "unchanged" || r.status === "empty") {
+    setReflexologySyncStatus({ state: "synced", message: "Atlas eşitlendi" });
+  }
+  return r.status === "ok" || r.status === "unchanged" || r.status === "empty";
+}
+
+/** "Benim sürümümü gönder" — çakışan organlarda bu cihazın sürümü sunucuya yazılır. */
+export function pushLocalAtlasVersion(): Promise<boolean> {
+  return resolveAtlasConflictByUser("local");
+}
+
+/** "Sunucu sürümünü al" — çakışan organlarda sunucu sürümü bu cihaza alınır. */
+export function adoptServerAtlasVersion(): Promise<boolean> {
+  return resolveAtlasConflictByUser("server");
 }
 
 // İstemci tarafında modül yüklenince çözücüyü + yerel okuyucuyu kaydet (SSR'de no-op).
@@ -519,39 +682,36 @@ function processLegacyAtlas(serverDoc: AtlasDocument, serverList: string[]): voi
  * protokol önizleme — HEPSİ bunu kullanır). Otomatik PUT YOK (FA-13): yerel-özel
  * değişiklik varsa yalnız kullanıcı eylemiyle gönderilir. Dönüş null → demo /
  * oturumsuz / sunucu erişilemez (yerel korunur).
+ *
+ * P1-5: birleştirme, istemcinin SON BİLDİĞİ sunucu belgesine (atlas-base; GET'ten ÖNCE
+ * okunur) göre 3-yollu yapılır → çevrimdışı/eşitlenmemiş yerel düzenleme her açılışta
+ * sunucu tarafından EZİLMEZ. Aynı organ iki tarafta farklı değiştiyse yerel korunur ve
+ * çakışma bildirilir (taban ilerletilmez). Kota → yerel/taban DOKUNULMAZ.
  */
 export async function hydrateAndMergeAtlas(): Promise<{ quarantineCount: number } | null> {
   const scopeAtStart = currentReflexScopeId();
-  const server = await hydrateAtlasFromServer();
+  const base = loadAtlasBase();
+  const server = await fetchAtlasFromServer();
   if (!server || currentReflexScopeId() !== scopeAtStart) return null;
 
   // CANONICAL SINIR: sunucu belgesi legacy olabilir → 3-görünüme normalize.
   const serverDoc = normalizeAtlasDocument((server.document ?? {}) as AtlasDocument);
   processLegacyAtlas(serverDoc, server.organ_list);
 
-  const mergedDoc = mergeAtlasDocuments(serverDoc, loadAtlas());
-  const mergedOrgans = mergeOrganListsWithTombstones(
-    server.organ_list,
-    loadOrganList(),
-    mergedDoc._meta,
-  );
-  setAtlasSyncSuspended(true);
-  try {
-    writeReflex("atlas", mergedDoc);
-    writeReflex("organs", mergedOrgans);
-  } finally {
-    setAtlasSyncSuspended(false);
-  }
-  // Yerel = sunucu (eşdeğer) ise tabanı yerel hash'e hizala → sahte "eşitlenmemiş" yok.
-  if (
-    atlasEquivalent(
-      { document: mergedDoc, organ_list: mergedOrgans },
-      { document: serverDoc, organ_list: server.organ_list },
-    )
-  ) {
-    setAtlasBaseHash(atlasContentHash(loadAtlas(), loadOrganList()));
+  const outcome = computeAtlasMerge(server, base);
+  const wrote = writeLocalAtlasState(outcome.merged, outcome.mergedOrgans);
+  if (wrote && outcome.conflicts.length === 0) {
+    commitAtlasBase(server);
+    // Yerel = sunucu (eşdeğer) ise tabanı yerel hash'e hizala → sahte "eşitlenmemiş" yok.
+    alignBaseHashIfEquivalent(outcome, server);
+    setAtlasConflict(null);
+  } else if (wrote) {
+    setAtlasConflict(outcome.conflicts);
   }
   markAtlasHydrated();
+  if (!wrote) {
+    setReflexologySyncStatus({ state: "conflict", message: ATLAS_QUOTA_CONFLICT_MESSAGE, retry: retryAtlasSync });
+  }
   return { quarantineCount: quarantinedAtlasOrganCount() };
 }
 

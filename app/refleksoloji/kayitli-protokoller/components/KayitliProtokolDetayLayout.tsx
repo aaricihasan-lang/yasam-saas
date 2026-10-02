@@ -405,7 +405,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
                 type="button"
                 onClick={() => void downloadWord()}
                 disabled={wordBusy}
-                className="inline-flex h-8 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-[12px] font-semibold text-blue-800 transition hover:bg-blue-100 disabled:opacity-60"
+                className="no-android inline-flex h-8 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-[12px] font-semibold text-blue-800 transition hover:bg-blue-100 disabled:opacity-60"
               >
                 {wordBusy ? "Hazırlanıyor..." : "Word Raporu"}
               </button>

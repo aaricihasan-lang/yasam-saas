@@ -37,11 +37,12 @@ const LAST_SEEN_THROTTLE_MS = 90 * 1000; // 90 sn (FRESH_THRESHOLD_MS / 10)
 
 // ─── Oturum süresi politikası (FAZ1 FINAL HARDENING — AUTH) ─────────────────
 //
-// ROLLOUT KAPISI: `SESSION_EXPIRY_ENFORCE` ("1" / "true") → R2 (süre ZORLAMASI açık).
-// Varsayılan KAPALI = R1: yalnız gerçek (await edilen) last_seen_at touch'ı + yeni oturumlara
-// expires_at yazımı + sunucu logout. R1'de HİÇBİR oturum süre nedeniyle sonlandırılmaz.
-// Süreler (yalnız enforce açıkken uygulanır): admin mutlak 24 saat / idle 2 saat,
-// uzman mutlak 30 gün / idle 7 gün. Mutlak süre expires_at'e oturum oluşturulurken yazılır.
+// SATIŞ ÖNCESİ KAPANIŞ (P1-3): süre ZORLAMASI varsayılan AÇIK (R2). Env'e bağımlı değildir;
+// `SESSION_EXPIRY_ENFORCE` yalnız ACİL KAPATMA anahtarıdır ("0" / "false" / "off" / "no" → R1).
+// R1 (yalnız kill-switch ile): last_seen_at touch'ı + expires_at yazımı + sunucu logout; süre
+// nedeniyle sonlandırma YOK. Süreler: admin mutlak 24 saat / idle 2 saat, uzman mutlak 30 gün /
+// idle 7 gün. Mutlak süre expires_at'e oturum oluşturulurken yazılır. Birikmiş politika dışı
+// oturumlar migration 20271001000000 ile kapatıldı (DELETE yok).
 
 export const SESSION_ABSOLUTE_MS = {
   admin: 24 * 60 * 60 * 1000,
@@ -61,12 +62,17 @@ export type SessionExpiryPolicy = {
   adminAbsoluteSeconds: number;
 };
 
-/** Env'den rollout kapısını okur (saf; test edilebilir). Varsayılan: enforce KAPALI (R1). */
+const SESSION_EXPIRY_KILL_SWITCH_VALUES: ReadonlySet<string> = new Set(["0", "false", "off", "no"]);
+
+/**
+ * Süre zorlaması açık mı? (saf; test edilebilir). Varsayılan: AÇIK. Yalnız açıkça
+ * "0"/"false"/"off"/"no" verilirse kapanır (acil kill-switch); boş/tanımsız/diğer → AÇIK.
+ */
 export function isSessionExpiryEnforced(
   env: Record<string, string | undefined> = process.env,
 ): boolean {
   const raw = String(env.SESSION_EXPIRY_ENFORCE ?? "").trim().toLowerCase();
-  return raw === "1" || raw === "true";
+  return !SESSION_EXPIRY_KILL_SWITCH_VALUES.has(raw);
 }
 
 export function resolveSessionExpiryPolicy(

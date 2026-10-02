@@ -633,7 +633,7 @@ function DogaltasPageContent() {
                 <button
                   type="button"
                   onClick={() => { setShowReportModal(true); setReportError(""); setReportSuccess(""); }}
-                  className="btn-soft w-full shrink-0 !px-4 !py-2 sm:ml-auto sm:w-auto"
+                  className="no-android btn-soft w-full shrink-0 !px-4 !py-2 sm:ml-auto sm:w-auto"
                 >
                   {t("hero.reportButton")}
                 </button>

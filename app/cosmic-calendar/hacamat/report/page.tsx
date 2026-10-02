@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { Download, FileText } from "lucide-react";
 import { MONTH_NAMES_TR } from "@/lib/cosmic/hacamat";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
+import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
+import { isAndroidAppClient } from "@/lib/platform/outputSupport";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { runInEffect } from "@/lib/runInEffect";
@@ -33,6 +35,10 @@ function reportErrorMessage(status: number): string {
 function ReportView() {
   const params   = useSearchParams();
   const isAndroid = useIsAndroid();
+  // Android uygulama WebView'inde blob: önizleme (<object>), window.open(blob) ve blob
+  // indirme çalışmaz → PDF Aç/İndir + önizleme yerine kısa bilgi notu (plan §4.6).
+  // Android Chrome / iOS / masaüstünde mevcut davranış aynen korunur.
+  const isAndroidApp = useIsAndroidApp();
   const rawMonth = parseInt(params.get("month") ?? "", 10);
   const rawYear  = parseInt(params.get("year")  ?? "", 10);
   const month    = isNaN(rawMonth) ? new Date().getMonth()    : Math.min(11, Math.max(0, rawMonth));
@@ -53,6 +59,8 @@ function ReportView() {
   const [busy, setBusy]                 = useState<"pdf" | "word" | null>(null);
 
   useEffect(() => {
+    // Android uygulamasında önizleme gösterilmez → PDF hiç üretilmez/çekilmez.
+    if (isAndroidAppClient()) return;
     let cancelled = false;
     let createdUrl: string | null = null;
     runInEffect(() => {
@@ -125,8 +133,16 @@ function ReportView() {
           </p>
         )}
 
+        {/* Android uygulaması: bu çıktılar desteklenmez → yalnız bilgi notu */}
+        {isAndroidApp && (
+          <p className="mb-4 rounded-[12px] border border-slate-200 bg-white/80 px-3 py-3 text-[12px] font-semibold leading-relaxed text-slate-700" role="note">
+            Bu çıktı uygulamada desteklenmiyor; tarayıcıdan veya bilgisayardan açın.
+          </p>
+        )}
+
         {/* İndirme / Açma butonları — md ve üzerinde görünür */}
-        <div className="mb-4 hidden gap-2 md:flex md:justify-end">
+        {!isAndroidApp && (
+        <div className="no-android-app mb-4 hidden gap-2 md:flex md:justify-end">
           {/* PDF aç (sistem PDF görüntüleyicisi) */}
           <button
             type="button"
@@ -155,16 +171,18 @@ function ReportView() {
               type="button"
               onClick={() => void download("word")}
               disabled={busy !== null}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-3 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 active:scale-[0.98] disabled:opacity-60 sm:w-auto sm:py-2.5"
+              className="no-android flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-3 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 active:scale-[0.98] disabled:opacity-60 sm:w-auto sm:py-2.5"
             >
               <FileText className="h-4 w-4" />
               {busy === "word" ? "Hazırlanıyor…" : "Word İndir"}
             </button>
           )}
         </div>
+        )}
 
         {/* PDF önizleme — <object> (blob: URL) ile, fallback yerleşik */}
-        <div className="overflow-hidden rounded-2xl border border-white/80 bg-white/70 shadow-sm backdrop-blur-md">
+        {!isAndroidApp && (
+        <div className="no-android-app overflow-hidden rounded-2xl border border-white/80 bg-white/70 shadow-sm backdrop-blur-md">
           <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-2">
             <span className="text-[9px] font-black uppercase tracking-[0.2em] text-teal-700">📄 PDF Önizleme</span>
             <span className="text-[9px] text-slate-400">— {monthLabel}</span>
@@ -220,6 +238,7 @@ function ReportView() {
             </object>
           )}
         </div>
+        )}
 
       </div>
     </main>

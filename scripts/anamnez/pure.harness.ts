@@ -292,6 +292,10 @@ for (const f of uiFiles) {
 }
 ok(missing.length === 0, "UI'da kullanılan tüm çeviri anahtarları mevcut", missing);
 ok(["text", "textarea", "yn", "ynd", "single", "multi", "scale10", "date", "number"].every((k) => mTr.clients.anamnez.custom.types[k] && mEn.clients.anamnez.custom.types[k]), "özel soru tipleri TR/EN");
+ok(["filledForm", "filledFormBusy", "filledFormSaveFirst"].every((k) => mTr.clients.anamnez.list[k] && mEn.clients.anamnez.list[k]) &&
+  ["statusDraft", "statusCompleted", "signatureClient", "signatureExpert", "signatureDate", "empty", "generatedAt"].every((k) => mTr.clients.anamnez.pdf[k] && mEn.clients.anamnez.pdf[k]) &&
+  mTr.clients.anamnez.pdf.generatedAt.includes("{date}") && mEn.clients.anamnez.pdf.generatedAt.includes("{date}"), "kayıtlı form PDF metinleri TR/EN");
+ok(mTr.clients.anamnez.list.filledForm === "Kayıtlı Anamnez Formunu İndir (PDF)", "CTA metni: Kayıtlı Anamnez Formunu İndir (PDF)");
 ok(["NOT_FOUND", "INVALID", "DEMO_READ_ONLY", "NOT_READY", "LOCKED", "CONFLICT", "DRAFT_EXISTS", "PREVIOUS_REQUIRED", "CONFIRM_REQUIRED", "LIMIT_REACHED", "INVALID_TYPE", "TOO_LARGE", "EMPTY", "UPLOAD_MISSING", "STORAGE_FAILED", "RATE_LIMITED", "generic"].every((k) => mTr.clients.anamnez.errors[k] && mEn.clients.anamnez.errors[k]), "tüm hata kodları TR/EN");
 
 // ── 9. Statik güvenlik / entegrasyon ─────────────────────────────────────────
@@ -300,7 +304,8 @@ const routeDir = "app/api/clients/[id]/anamnez";
 const routes: string[] = [];
 const walk = (d: string) => { for (const e of readdirSync(path.join(ROOT, d), { withFileTypes: true })) { const p = `${d}/${e.name}`; if (e.isDirectory()) walk(p); else if (e.name === "route.ts") routes.push(p); } };
 walk(routeDir);
-ok(routes.length === 8, `8 anamnez route dosyası (${routes.length})`);
+ok(routes.length === 9, `9 anamnez route dosyası (${routes.length})`);
+ok(routes.includes("app/api/clients/[id]/anamnez/[anamnesisId]/pdf/route.ts"), "kayıtlı form PDF route'u mevcut");
 ok(routes.every((r) => /requireModuleAccess\(req, "clients"\)/.test(read(r))), "her route requireModuleAccess(req, \"clients\") çağırıyor");
 ok(routes.every((r) => !/body\.tenant|body\.tenantId|tenant_id:\s*body|searchParams\.get\("tenant/.test(read(r))), "hiçbir route istemciden tenant almıyor");
 ok(routes.every((r) => !/androidWordGuard|isAndroid/i.test(read(r))), "route'larda Android engeli YOK (K8)");
@@ -321,6 +326,13 @@ const mig = read("supabase/migrations/20270202000000_client_anamnesis.sql");
 ok(/REVOKE ALL ON TABLE public\.client_anamneses FROM PUBLIC, anon, authenticated, service_role;/.test(mig) && /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.client_anamneses TO service_role;/.test(mig), "migration: explicit REVOKE + allowlist GRANT");
 ok(!/ALTER DEFAULT PRIVILEGES/i.test(mig) && !/DROP TABLE|TRUNCATE|DELETE FROM public\.clients/i.test(mig.replace(/--.*$/gm, "")), "migration additive (default privileges / yıkıcı ifade yok)");
 ok(/"\/api\/clients\/\[id\]\/anamnez\/blank-form": \["\.\/public\/fonts\/Geist-Regular\.ttf"\]/.test(read("next.config.ts")), "boş form fontu Vercel paketine dahil");
+ok(/"\/api\/clients\/\[id\]\/anamnez\/\[anamnesisId\]\/pdf": \["\.\/public\/fonts\/Geist-Regular\.ttf"\]/.test(read("next.config.ts")), "kayıtlı form PDF fontu Vercel paketine dahil");
+{
+  const tab = read("app/dashboard/clients/[id]/components/AnamnezTab.tsx");
+  const ed = read("components/danisan/anamnez/AnamnezEditor.tsx");
+  ok(/\/pdf\?rev=\$\{item\.revision\}/.test(tab) && /t\("list\.filledForm"\)/.test(tab), "geçmiş satırı: kayıtlı form PDF (rev ile)");
+  ok(/\/pdf\?rev=\$\{rec\.revision\}/.test(ed) && /disabled=\{busy !== null \|\| dirty\}/.test(ed) && /t\("list\.filledFormSaveFirst"\)/.test(ed), "editör: kaydedilmemiş değişiklikte pasif + 'Önce kaydedin'");
+}
 
 console.log(`\nanamnez pure harness: ${pass} PASS / ${fail} FAIL`);
 if (fail) {

@@ -1,5 +1,4 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
@@ -90,12 +89,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     id?: string;
   };
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseKey)
-    return Response.json({ ok: false, error: "Supabase yapılandırması eksik." }, { status: 500 });
-
-  const db = createClient(supabaseUrl, supabaseKey);
+  // AA-6: route kendi service_role client'ını KURMAZ — guard'ın sunucu client'ı (guard.db).
+  const { db } = guard;
 
   let query = db.from("bioenergy_imaginations")
     .select("id,tenant_id,source_id,title,category,text,notes,source,created_at")

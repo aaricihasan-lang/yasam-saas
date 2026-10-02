@@ -283,6 +283,20 @@ async function main() {
        where si.tenant_id=$1 and si.inventory_type='oil' and s.status='cancelled'`, [TA])).rows;
     ok(cancelledStillListed.length >= 1, "iptal edilen satış satırı geçmişte kalır (status=cancelled)");
 
+    // ── S-DİĞER: serbest metin etiketleri (yağ türü / ambalaj / Doğaltaş türü) satış birimini ETKİLEMEZ ──
+    console.log("\n[S-DİĞER] Serbest metin tür/ambalaj → base_unit + satış korunur");
+    const oilFree = (await su.query(
+      `insert into oil_inventory(tenant_id, client_id, name, oil_type, package_type, stock_base, base_unit, cost_per_base, sale_per_base, profit_pct)
+       values ($1,'oil_free','Gül Suyu','Hidrosol','amber cam şişe',1000,'ml',0.4,0.8,100) returning id`, [TA])).rows[0].id;
+    await asSvc(c => callCreate(c, { key: "s-free-oil", lines: [{ inventory_type: "oil", inventory_id: oilFree, quantity: 250, markup_pct: 100 }] }));
+    const freeRow = (await su.query(`select stock_base, base_unit, oil_type from oil_inventory where id=$1`, [oilFree])).rows[0];
+    ok(freeRow.stock_base === 750 && freeRow.base_unit === "ml" && freeRow.oil_type === "Hidrosol", `serbest yağ türü: 1000 → 750 ml, base_unit ml (gerçek: ${freeRow.stock_base} ${freeRow.base_unit})`);
+    const freeItem = (await su.query(`select si.unit from inventory_sale_items si join inventory_sales s on s.id=si.sale_id where s.idempotency_key='s-free-oil'`)).rows[0];
+    ok(freeItem?.unit === "ml", `satış satırı birimi ml (gerçek: ${freeItem?.unit})`);
+    const dgFree = await addDogaltas(su, TA, "SİTRİN", "12 MM DİZİ", 5, 20, 40);
+    await asSvc(c => callCreate(c, { key: "s-free-dg", lines: [{ inventory_type: "dogaltas", inventory_id: dgFree, quantity: 2 }] }));
+    ok((await su.query(`select adet from dogaltas_inventory where id=$1`, [dgFree])).rows[0].adet === 3, "serbest Doğaltaş türü (12 MM DİZİ): adet 5→3");
+
     console.log(`\n${"=".repeat(56)}`);
     console.log(JSON.stringify({ pass, fail, total: pass + fail }, null, 2));
     if (fail > 0) process.exitCode = 1;

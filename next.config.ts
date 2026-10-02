@@ -52,6 +52,8 @@ const nextConfig: NextConfig = {
     "/api/refleksoloji/protocol-report": ["./public/refleksoloji/klinik_*.png"],
     // Anamnez boş form PDF'i Türkçe karakter için Geist TTF'yi fs ile okur.
     "/api/clients/[id]/anamnez/blank-form": ["./public/fonts/Geist-Regular.ttf"],
+    // Kayıtlı (dolu) anamnez PDF'i aynı fontu kullanır.
+    "/api/clients/[id]/anamnez/[anamnesisId]/pdf": ["./public/fonts/Geist-Regular.ttf"],
   },
 
   experimental: {
