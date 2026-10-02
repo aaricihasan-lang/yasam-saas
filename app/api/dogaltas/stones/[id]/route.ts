@@ -3,8 +3,10 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { stoneReadTenantIds } from "@/lib/dogaltas/stoneTenantScope";
 import { validateMineralAssignments } from "@/lib/dogaltas/mineralPercent";
 import { validateStoneStructuredFields, validateStoneImagesField, isUuid } from "@/lib/dogaltas/validation";
+import { normalizeTaxonomyValues } from "@/lib/dogaltas/stoneTaxonomy";
 import { STONE_PHOTO_BUCKET, collectStonePhotoPaths } from "@/lib/dogaltas/stonePhoto";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { filterUnreferencedStonePhotoPaths } from "@/lib/dogaltas/stonePhotoRefs";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
@@ -75,9 +77,22 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
   }
 
+  // P2-06: ad gönderildiyse "", yalnız boşluk veya metin olmayan değer KABUL EDİLMEZ
+  // (POST ile aynı kural; frontend doğrulamasına güvenilmez). Ad kırpılarak yazılır.
+  if ("stone_name" in fields) {
+    const nm = typeof fields.stone_name === "string" ? fields.stone_name.trim() : "";
+    if (!nm) return NextResponse.json({ ok: false, error: "Taş adı zorunludur." }, { status: 400 });
+    fields.stone_name = nm;
+  }
+
   // F-004: structured alan tip zorlaması (PATCH kısmi — yalnız gönderilen alanlar).
   const structured = validateStoneStructuredFields(fields);
   if (!structured.ok) return NextResponse.json({ ok: false, error: structured.error }, { status: 422 });
+
+  // P1-01: aynı kavramın ikinci yazımı ayıklanır (ilk görülen yazım KORUNUR → mevcut
+  // eski değer sessizce yeniden yazılmaz; migration/dönüşüm yok).
+  if (Array.isArray(fields.chakras)) fields.chakras = normalizeTaxonomyValues("chakra", fields.chakras as string[]);
+  if (Array.isArray(fields.warning_tags)) fields.warning_tags = normalizeTaxonomyValues("warning", fields.warning_tags as string[]);
 
   // SSRF kapanışı: images[] yalnız tenant'a ait canonical file_path; url reddedilir.
   if ("images" in fields) {
@@ -158,7 +173,11 @@ export async function DELETE(
   // Orphan storage temizliği (best-effort; başarısızlık DB delete'i geri almaz ama
   // sessiz gizlenmez → yanıt storageCleaned bayrağıyla dürüst raporlanır).
   let storageCleaned = true;
-  const paths = collectStonePhotoPaths([(preRow as { images?: unknown } | null)?.images], tenantId);
+  const collected = collectStonePhotoPaths([(preRow as { images?: unknown } | null)?.images], tenantId);
+  // P2-05: başka bir taşın hâlâ referans ettiği dosya silinmez (paylaşılan yol güvenliği).
+  const { removable: paths } = collected.length > 0
+    ? await filterUnreferencedStonePhotoPaths(db, tenantId, collected)
+    : { removable: [] as string[] };
   if (paths.length > 0) {
     const { error: rmErr } = await db.storage.from(STONE_PHOTO_BUCKET).remove(paths);
     if (rmErr) { storageCleaned = false; console.error("[stones/[id]] orphan temizliği hatası:", rmErr.message); }

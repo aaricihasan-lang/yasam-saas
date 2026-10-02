@@ -25,6 +25,14 @@ import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { getDemoReferenceStoneId } from "@/lib/dogaltas/stonesListFetch";
 import { getStone, updateStone, deleteStone as apiDeleteStone } from "@/lib/dogaltas/dogaltasApi";
+import {
+  STONE_CHAKRA_OPTIONS,
+  STONE_WARNING_OPTIONS,
+  isTaxonomyOptionSelected,
+  legacyTaxonomyValues,
+  toggleLegacyTaxonomyValue,
+  toggleTaxonomyOption,
+} from "@/lib/dogaltas/stoneTaxonomy";
 import { validateMineralAssignments } from "@/lib/dogaltas/mineralPercent";
 import {
   mergeMatchCardClass,
@@ -37,6 +45,8 @@ import { needsDiscardConfirm } from "@/lib/dogaltas/longTextEditor";
 import { useSignedStoneImageUrls, imageFilePath } from "@/lib/dogaltas/stoneImageClient";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
+import { reportErrorKind } from "@/lib/dogaltas/reportErrorKind";
+import { useToast } from "@/components/ui/ToastProvider";
 
 
 function SearchMatchBadge() {
@@ -52,28 +62,10 @@ function assignmentsSearchText(assignments: Record<string, string[][]> | null): 
     .join(" ");
 }
 
-const CHAKRA_OPTIONS = [
-  "Kök Çakra",
-  "Sakral Çakra",
-  "Solar Pleksus",
-  "Kalp Çakrası",
-  "Boğaz Çakrası",
-  "Üçüncü Göz",
-  "Taç Çakra",
-];
+// P1-01: çakra / uyarı seçenekleri TEK KAYNAKTAN (oluşturma ekranı + sunucu ile aynı).
+const CHAKRA_OPTIONS: readonly string[] = STONE_CHAKRA_OPTIONS;
 
-const WARNING_OPTIONS = [
-  "Çocuklar",
-  "Hamileler",
-  "Tansiyon",
-  "Kalp Rahatsızlığı",
-  "Epilepsi",
-  "Alerji",
-  "Böbrek",
-  "Uyku",
-  "Psikolojik Hassasiyet",
-  "Uzman Kontrolü",
-];
+const WARNING_OPTIONS: readonly string[] = STONE_WARNING_OPTIONS;
 
 const ASSIGNMENT_SECTIONS = [
   "Elementler",
@@ -138,7 +130,9 @@ type ActiveEditor =
       title: string;
       badge: string;
       selected: string[];
-      options: string[];
+      options: readonly string[];
+      /** P1-01: kanonik listede karşılığı olmayan kayıtlı eski değerler (editör açılışında sabitlenir). */
+      legacy: string[];
     }
   | {
       mode: "assignments";
@@ -529,6 +523,8 @@ function TextBlock({
 function StoneDetailPage() {
   const t = useTranslations("stones.detail");
   const tl = useTranslations("stones.longText");
+  const tre = useTranslations("stones.reportErrors");
+  const { showToast } = useToast();
   // Chakra/warning checkbox editör: seçili value KANONİK Türkçe kalır (chakras[]/warning_tags[]
   // yazımı canonical'da); yalnız etiket localize. Anahtar yoksa canonical'a düşer.
   const tf = useTranslations("stones");
@@ -762,19 +758,22 @@ function StoneDetailPage() {
     field: "chakras" | "warning_tags",
     title: string,
     badge: string,
-    options: string[]
+    options: readonly string[]
   ) {
     if (!stone || !editEnabled) return;
 
     setErrorMessage("");
     setSuccessMessage("");
+    const selected = [...(stone[field] || [])];
     openEditor({
       mode: "checkbox",
       field,
       title,
       badge,
-      selected: stone[field] || [],
+      selected,
       options,
+      // P1-01: listede olmayan kayıtlı değerler görünür + kaldırılabilir (sessiz kayıp yok).
+      legacy: legacyTaxonomyValues(field === "chakras" ? "chakra" : "warning", selected),
     });
   }
 
@@ -791,14 +790,25 @@ function StoneDetailPage() {
     });
   }
 
+  // P1-01: kanonik seçenek kavram bazında aç/kapa (eski yazım "Kalp Çakra" seçiliyse
+  // "Kalp Çakrası" işaretli görünür; kapatınca tüm yazımları kalkar; açınca kanonik eklenir).
   function toggleSelected(option: string) {
+    if (!activeEditor || activeEditor.mode !== "checkbox") return;
+    const kind = activeEditor.field === "chakras" ? "chakra" : "warning";
+
+    setActiveEditor({
+      ...activeEditor,
+      selected: toggleTaxonomyOption(kind, activeEditor.selected, option),
+    });
+  }
+
+  // P1-01: listede olmayan eski değer birebir (yazımıyla) aç/kapa.
+  function toggleLegacySelected(value: string) {
     if (!activeEditor || activeEditor.mode !== "checkbox") return;
 
     setActiveEditor({
       ...activeEditor,
-      selected: activeEditor.selected.includes(option)
-        ? activeEditor.selected.filter((item) => item !== option)
-        : [...activeEditor.selected, option],
+      selected: toggleLegacyTaxonomyValue(activeEditor.selected, value),
     });
   }
 
@@ -890,14 +900,17 @@ function StoneDetailPage() {
         body: JSON.stringify({}),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error || "Rapor oluşturulamadı");
+        // P2-09A: hata artık sessiz değil — durum koduna göre anlaşılır mesaj (ham metin yok).
+        const kind = await reportErrorKind(res);
+        showToast({ type: "error", message: tre(kind) });
+        return;
       }
       const safeName = safeFileName(safeStone.stone_name);
       const dateSlug = reportFileDate();
       await downloadFileResponse(res, `dogaltas-${safeName}-${dateSlug}.docx`);
-    } catch {
-      // sessiz hata — kullanıcı network iletişimini zaten görecek
+    } catch (err) {
+      console.error("[dogaltas-detay] Word raporu hatası:", err);
+      showToast({ type: "error", message: tre("generic") });
     } finally {
       setWordBusy(false);
     }
@@ -938,6 +951,42 @@ function StoneDetailPage() {
     router.push("/dogaltas/dogaltas-listesi");
   }
 
+  // P2-05: DB'ye yazılan görsel şekli — yalnız kalıcı alanlar (id/name/file_path; legacy
+  // kayıtta file_path yoksa eski url korunur). Görüntüleme alanları (displayable vb.) yazılmaz.
+  function toPersistedImages(
+    list: { id: string; name: string; url?: string; file_path?: string }[] | null | undefined,
+  ) {
+    return (list || []).map((img) => ({
+      id: img.id,
+      name: img.name,
+      ...(img.file_path ? { file_path: img.file_path } : img.url ? { url: img.url } : {}),
+    }));
+  }
+
+  // P2-05: storage temizliği (best-effort). Sunucu dosyayı YALNIZ hiçbir taş kaydı referans
+  // etmiyorsa siler; başarısızlık ana kaydı bozmaz (en kötü durum orphan dosya, sunucu loglar).
+  async function cleanupPhotoFiles(paths: string[]) {
+    if (paths.length === 0) return;
+    const userId = readYasamUser()?.id;
+    const sessionToken = readSessionToken();
+    for (const filePath of paths) {
+      try {
+        const res = await fetch("/api/dogaltas/stones/photos", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-id": userId ?? "",
+            ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+          },
+          body: JSON.stringify({ file_path: filePath }),
+        });
+        if (!res.ok) console.warn("[dogaltas-detay] görsel dosyası temizlenemedi:", `HTTP ${res.status}`);
+      } catch (err) {
+        console.warn("[dogaltas-detay] görsel dosyası temizlenemedi:", err);
+      }
+    }
+  }
+
   async function handlePhotoUpload(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || []).filter((file) =>
       file.type.startsWith("image/")
@@ -954,51 +1003,72 @@ function StoneDetailPage() {
     const sessionToken = readSessionToken();
     // F-016: DB source-of-truth = file_path (kalıcı public URL yok). Render sonra signed URL çözer.
     const additions: { id: string; name: string; file_path: string }[] = [];
-    const baseImages = [...(currentStone.images || [])];
+    const baseImages = toPersistedImages(currentStone.images);
 
-    for (const file of files) {
-      // F-016: SUNUCU-YETKİLİ yükleme — tip/boyut/path server'da doğrulanır, tenant oturumdan.
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("name", file.name);
-      const res = await fetch("/api/dogaltas/stones/photos", {
-        method: "POST",
-        headers: {
-          "x-user-id": userId ?? "",
-          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
-        },
-        body: fd,
-      });
-      const json = (await res.json().catch(() => ({}))) as {
-        ok?: boolean; demo?: boolean;
-        image?: { id: string; name: string; file_path: string };
-      };
-      if (json.demo) { setImageBusy(false); return; }
-      if (!res.ok || !json.ok || !json.image) {
-        setImageBusy(false);
-        setErrorMessage(t("image.uploadFailed"));
+    try {
+      for (const file of files) {
+        // F-016: SUNUCU-YETKİLİ yükleme — tip/boyut/path server'da doğrulanır, tenant oturumdan.
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("name", file.name);
+        let json: { ok?: boolean; demo?: boolean; image?: { id: string; name: string; file_path: string } } = {};
+        let okRes = false;
+        try {
+          const res = await fetch("/api/dogaltas/stones/photos", {
+            method: "POST",
+            headers: {
+              "x-user-id": userId ?? "",
+              ...(sessionToken ? { "x-session-token": sessionToken } : {}),
+            },
+            body: fd,
+          });
+          okRes = res.ok;
+          json = (await res.json().catch(() => ({}))) as typeof json;
+        } catch {
+          okRes = false;
+        }
+        if (json.demo) return;
+        if (!okRes || !json.ok || !json.image) {
+          // P2-05: yarıda kalan çoklu yüklemede önceki dosyalar orphan kalmaz.
+          await cleanupPhotoFiles(additions.map((a) => a.file_path));
+          setErrorMessage(t("image.uploadFailed"));
+          return;
+        }
+
+        additions.push({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          name: json.image.name || file.name,
+          file_path: json.image.file_path,
+        });
+      }
+
+      const nextImages = [...baseImages, ...additions];
+
+      // P2-05: görsel listesi de optimistic concurrency ile yazılır → başka sekmenin
+      // eklediği/kaldırdığı görsel referansı sessizce ezilmez (409 → güncel kayıt yüklenir).
+      const { ok, row: data, error, conflict } = await updateStone(
+        currentStone.id,
+        { images: nextImages },
+        currentStone.updated_at,
+      );
+
+      if (conflict || !ok || !data) {
+        // Kayda bağlanamayan yeni dosyalar temizlenir (referanssız oldukları sunucuda doğrulanır).
+        await cleanupPhotoFiles(additions.map((a) => a.file_path));
+        if (conflict) {
+          setErrorMessage(error ?? t("editor.updateFailedFallback"));
+          const fresh = await getStone(currentStone.id);
+          if (fresh.ok && fresh.row) commitStoneRecord(fresh.row as Record<string, unknown>);
+          return;
+        }
+        setErrorMessage(t("editor.updateFailed", { error: error ?? t("editor.updateFailedFallback") }));
         return;
       }
 
-      additions.push({
-        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        name: json.image.name || file.name,
-        file_path: json.image.file_path,
-      });
+      commitStoneRecord(data as Record<string, unknown>);
+    } finally {
+      setImageBusy(false);
     }
-
-    const nextImages = [...baseImages, ...additions];
-
-    const { ok, row: data, error } = await updateStone(currentStone.id, { images: nextImages });
-
-    setImageBusy(false);
-
-    if (!ok || !data) {
-      setErrorMessage(t("editor.updateFailed", { error: error ?? t("editor.updateFailedFallback") }));
-      return;
-    }
-
-    commitStoneRecord(data as Record<string, unknown>);
   }
 
   async function handleDeleteImage(image: {
@@ -1022,45 +1092,47 @@ function StoneDetailPage() {
     setErrorMessage("");
     setSuccessMessage("");
 
-    if (image.file_path) {
-      // F-016: SUNUCU-YETKİLİ silme — ownership (tenant öneki) server'da doğrulanır.
-      const userId = readYasamUser()?.id;
-      const sessionToken = readSessionToken();
-      const res = await fetch("/api/dogaltas/stones/photos", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": userId ?? "",
-          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
-        },
-        body: JSON.stringify({ file_path: image.file_path }),
-      });
-      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; demo?: boolean };
-      if (!res.ok || (!json.ok && !json.demo)) {
-        setImageBusy(false);
-        setErrorMessage(t("image.storageClearFailed"));
+    try {
+      // P2-05: ÖNCE kayıt güncellenir (optimistic concurrency ile); dosya ancak kayıt artık
+      // ona bakmıyorsa silinir. Eskiden storage önce siliniyordu → kayıt güncellemesi
+      // başarısız olursa kayıt silinmiş dosyaya bakıyordu (kısmi veri kaybı).
+      const nextImages = toPersistedImages(
+        (currentStone.images || []).filter((img) => img.id !== image.id),
+      );
+
+      const { ok, row: data, error, conflict } = await updateStone(
+        currentStone.id,
+        { images: nextImages },
+        currentStone.updated_at,
+      );
+
+      if (conflict) {
+        // Başka sekme/oturum kaydı değiştirmiş → hiçbir dosya silinmez; güncel kayıt yüklenir.
+        setErrorMessage(error ?? t("editor.updateFailedFallback"));
+        const fresh = await getStone(currentStone.id);
+        if (fresh.ok && fresh.row) commitStoneRecord(fresh.row as Record<string, unknown>);
         return;
       }
+
+      if (!ok || !data) {
+        setErrorMessage(t("editor.updateFailed", { error: error ?? t("editor.updateFailedFallback") }));
+        return;
+      }
+
+      if (previewImage?.url && image.url && previewImage.url === image.url) {
+        setPreviewImage(null);
+      }
+
+      commitStoneRecord(data as Record<string, unknown>);
+
+      // Kayıt artık bu dosyayı referans etmiyor → best-effort temizlik (sunucu referans kontrolü yapar).
+      if (image.file_path) await cleanupPhotoFiles([image.file_path]);
+    } catch (err) {
+      console.error("[dogaltas-detay] görsel kaldırma hatası:", err);
+      setErrorMessage(t("editor.updateFailed", { error: t("editor.updateFailedFallback") }));
+    } finally {
+      setImageBusy(false);
     }
-
-    const nextImages = (currentStone.images || []).filter((img) => img.id !== image.id);
-
-    const { ok, row: data, error } = await updateStone(currentStone.id, {
-      images: nextImages.length > 0 ? nextImages : [],
-    });
-
-    setImageBusy(false);
-
-    if (!ok || !data) {
-      setErrorMessage(t("editor.updateFailed", { error: error ?? t("editor.updateFailedFallback") }));
-      return;
-    }
-
-    if (previewImage?.url && image.url && previewImage.url === image.url) {
-      setPreviewImage(null);
-    }
-
-    commitStoneRecord(data as Record<string, unknown>);
   }
 
   const safeStone = useMemo(
@@ -1926,7 +1998,11 @@ function StoneDetailPage() {
             {activeEditor.mode === "checkbox" && (
               <div className="grid max-h-[56vh] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
                 {activeEditor.options.map((option) => {
-                  const checked = activeEditor.selected.includes(option);
+                  const checked = isTaxonomyOptionSelected(
+                    activeEditor.field === "chakras" ? "chakra" : "warning",
+                    activeEditor.selected,
+                    option,
+                  );
 
                   return (
                     <button
@@ -1952,6 +2028,39 @@ function StoneDetailPage() {
                     </button>
                   );
                 })}
+                {activeEditor.legacy.length > 0 && (
+                  <div className="sm:col-span-2 rounded-2xl bg-amber-50/70 p-3 ring-1 ring-amber-200" data-testid="taxonomy-legacy">
+                    <p className="text-[12px] font-black text-amber-900">{t("editor.legacyTitle")}</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-amber-800">{t("editor.legacyHint")}</p>
+                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {activeEditor.legacy.map((value) => {
+                        const checked = activeEditor.selected.includes(value);
+                        return (
+                          <button
+                            key={`legacy-${value}`}
+                            type="button"
+                            onClick={() => toggleLegacySelected(value)}
+                            aria-pressed={checked}
+                            className={`flex min-h-11 items-center justify-between rounded-2xl px-4 py-2 text-left text-[13px] font-black ring-1 transition ${
+                              checked
+                                ? "bg-white text-amber-900 ring-amber-300"
+                                : "bg-white/60 text-slate-400 line-through ring-slate-200"
+                            }`}
+                          >
+                            <span className="break-words">{facet(value)}</span>
+                            <span
+                              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[13px] ${
+                                checked ? "bg-amber-600 text-white" : "bg-white text-slate-300 ring-1 ring-slate-200"
+                              }`}
+                            >
+                              {checked ? "✓" : ""}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

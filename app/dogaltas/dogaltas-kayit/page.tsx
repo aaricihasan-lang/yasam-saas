@@ -19,15 +19,14 @@ import {
   DOGALTAS_LABEL_CLASS,
   DOGALTAS_TEXTAREA_CLASS,
 } from "@/lib/dogaltas/formStyles";
-const chakraOptions = [
-  "Kök Çakra",
-  "Sakral Çakra",
-  "Solar Pleksus",
-  "Kalp Çakra",
-  "Boğaz Çakra",
-  "Üçüncü Göz",
-  "Taç Çakra",
-];
+import {
+  STONE_CHAKRA_OPTIONS,
+  STONE_WARNING_OPTIONS,
+  isTaxonomyOptionSelected,
+  toggleTaxonomyOption,
+} from "@/lib/dogaltas/stoneTaxonomy";
+// P1-01: çakra / uyarı seçenekleri TEK KAYNAKTAN (düzenleme ekranı + sunucu ile aynı).
+const chakraOptions = STONE_CHAKRA_OPTIONS;
 
 const effectSections = [
   {
@@ -54,14 +53,7 @@ const usageSections = [
   { key: "application" },
 ];
 
-const warningTypes = [
-  "Genel Uyarı",
-  "Hamilelik",
-  "Çocuklar",
-  "Tansiyon / Kalp",
-  "Uyku / Huzursuzluk",
-  "Enerji Hassasiyeti",
-];
+const warningTypes = STONE_WARNING_OPTIONS;
 
 const assignmentSections = [
   {
@@ -403,16 +395,13 @@ export default function DogaltasKayitPage() {
     }));
   }
 
+  // P1-01: kavram bazında aç/kapa (aynı kavramın iki yazımı birlikte seçilemez).
   function toggleChakra(chakra: string) {
-    setSelectedChakras((prev) =>
-      prev.includes(chakra) ? prev.filter((item) => item !== chakra) : [...prev, chakra]
-    );
+    setSelectedChakras((prev) => toggleTaxonomyOption("chakra", prev, chakra));
   }
 
   function toggleWarning(warning: string) {
-    setSelectedWarnings((prev) =>
-      prev.includes(warning) ? prev.filter((item) => item !== warning) : [...prev, warning]
-    );
+    setSelectedWarnings((prev) => toggleTaxonomyOption("warning", prev, warning));
   }
 
   async function handleImageUpload(event: ChangeEvent<HTMLInputElement>) {
@@ -528,7 +517,27 @@ export default function DogaltasKayitPage() {
     }
   }
 
+  // P2-03: SENKRON çift-gönderim kilidi. React state (saving/dupChecking) aynı render içinde
+  // gelen ikinci tıklamayı durduramıyor ve kopya-kontrolü ile kaydetme arasındaki await
+  // penceresinde buton yeniden etkin oluyordu → yavaş ağda iki kayıt. Kilit her çıkışta
+  // (başarı / hata / istisna) bırakılır → başarısız istekten sonra tekrar denenebilir.
+  const saveLockRef = useRef(false);
   async function handleSave(forceCreate = false) {
+    if (saveLockRef.current) return;
+    saveLockRef.current = true;
+    try {
+      await handleSaveInner(forceCreate);
+    } catch (err) {
+      console.error("[dogaltas] kaydetme hatası:", err);
+      setDupChecking(false);
+      setIsSaving(false);
+      showError(t("toasts.saveFailed"));
+    } finally {
+      saveLockRef.current = false;
+    }
+  }
+
+  async function handleSaveInner(forceCreate = false) {
     if (!formData.stone_name.trim()) {
       showError(t("toasts.stoneNameRequired"));
       return;
@@ -546,13 +555,15 @@ export default function DogaltasKayitPage() {
       }
     }
 
+    // P2-03: buton tenant senkronu sırasında da kilitli/yükleniyor görünür.
+    setIsSaving(true);
     const tenantId = await getSyncedTenantId();
     if (!tenantId) {
+      setIsSaving(false);
       showError(tc("workspaceUnavailable"));
       return;
     }
 
-    setIsSaving(true);
     setErrorMessage("");
 
     const payload = {
@@ -985,7 +996,7 @@ export default function DogaltasKayitPage() {
                           <label key={warning} className={`${uiPanel} flex cursor-pointer items-center gap-2.5 px-3 py-2`}>
                             <input
                               type="checkbox"
-                              checked={selectedWarnings.includes(warning)}
+                              checked={isTaxonomyOptionSelected("warning", selectedWarnings, warning)}
                               onChange={() => toggleWarning(warning)}
                               className="h-5 w-5 accent-rose-600"
                             />
@@ -1050,7 +1061,7 @@ export default function DogaltasKayitPage() {
                       <label key={chakra} className="flex cursor-pointer items-center gap-2 rounded-xl border border-emerald-200/60 bg-white/80 px-3 py-2 transition hover:bg-emerald-50">
                         <input
                           type="checkbox"
-                          checked={selectedChakras.includes(chakra)}
+                          checked={isTaxonomyOptionSelected("chakra", selectedChakras, chakra)}
                           onChange={() => toggleChakra(chakra)}
                           className="h-4 w-4 accent-emerald-600"
                         />
@@ -1112,14 +1123,21 @@ export default function DogaltasKayitPage() {
       />
 
       {activeAssignment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/25 p-6 backdrop-blur-sm">
-          <div className="flex h-[78vh] w-full max-w-[980px] flex-col rounded-[30px] bg-white p-6 shadow-[0_35px_90px_rgba(15,23,42,0.22)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/25 p-3 backdrop-blur-sm sm:p-6">
+          {/* P2-09C: 320px / kısa yatay ekranda içerik kesilmez — mobilde panel içerik boyunda ve
+              kendi içinde kayar (kapatma + ekle butonları erişilebilir); sm+ düzen DEĞİŞMEDİ. */}
+          <div
+            role="dialog"
+            aria-modal="true"
+            data-testid="assignment-modal"
+            className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-[980px] flex-col overflow-y-auto overscroll-contain rounded-[30px] bg-white p-4 shadow-[0_35px_90px_rgba(15,23,42,0.22)] sm:h-[78vh] sm:max-h-[calc(100dvh-3rem)] sm:overflow-hidden sm:p-6"
+          >
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <div className="mb-2 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black text-emerald-700">
                   {t("assignModal.badge")}
                 </div>
-                <h2 className="text-[26px] font-black text-slate-950">{activeAssignment.icon} {asgLabel(activeAssignment.title)}</h2>
+                <h2 className="text-[22px] font-black text-slate-950 sm:text-[26px]">{activeAssignment.icon} {asgLabel(activeAssignment.title)}</h2>
                 <p className="mt-1 text-[13px] text-slate-500">{asgDesc(activeAssignment.title)}</p>
               </div>
 
@@ -1158,7 +1176,7 @@ export default function DogaltasKayitPage() {
               </div>
             )}
 
-            <div className="mt-5 min-h-0 flex-1 overflow-auto rounded-[24px] border-2 border-emerald-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 p-4">
+            <div className="mt-5 min-h-[140px] flex-1 rounded-[24px] border-2 border-emerald-300/50 bg-gradient-to-br from-slate-100 via-blue-50 to-violet-50 p-4 sm:min-h-0 sm:overflow-auto">
               {/* FAZ-3A: İsim ve oran tek içerik sütununda (görsel ayrım rows'da "•" / mobilde alt satır). */}
               <div className="grid grid-cols-[1fr_90px] border-b border-slate-200 pb-3 text-[12px] font-black text-slate-500">
                 <span>

@@ -3,6 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
+import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
 
 export const runtime = "nodejs";
 
@@ -33,11 +34,13 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
-  const { data, error } = await db
-    .from("stone_exclusions").select("stone_id").eq("tenant_id", tenantId);
+  const res = await fetchAllRows<{ stone_id: unknown }>((from, to) =>
+    db.from("stone_exclusions").select("stone_id").eq("tenant_id", tenantId)
+      .order("stone_id", { ascending: true }).range(from, to),
+  );
 
-  if (error) return serverErrorResponse({ route: "dogaltas/stone-exclusions", action: "GET", tenantId, cause: error });
-  return NextResponse.json({ ok: true, stoneIds: (data ?? []).map((r) => String((r as { stone_id: unknown }).stone_id)) });
+  if (!res.ok) return serverErrorResponse({ route: "dogaltas/stone-exclusions", action: "GET", tenantId, cause: res.error });
+  return NextResponse.json({ ok: true, stoneIds: res.rows.map((r) => String(r.stone_id)) });
 }
 
 export async function POST(req: NextRequest): Promise<Response> {

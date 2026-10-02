@@ -10,7 +10,9 @@ import {
   mapMineralListRow,
 } from "@/lib/dogaltas/mineralsListFetch";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { validateMineralStructuredFields } from "@/lib/dogaltas/validation";
 import { trackUsage } from "@/lib/usage/trackUsage";
+import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
 
 export const runtime = "nodejs";
 
@@ -56,11 +58,16 @@ export async function GET(req: NextRequest): Promise<Response> {
     if (mode === "all") {
       const ids = is_demo_account && tenantId !== ADMIN_LIBRARY_TENANT_ID
         ? [tenantId, ADMIN_LIBRARY_TENANT_ID] : [tenantId];
-      const { data, error } = await db
-        .from("minerals").select(MINERALS_LIST_SEARCH_SELECT)
-        .in("tenant_id", ids).order("created_at", { ascending: false, nullsFirst: false });
-      if (error) return serverErrorResponse({ route: "dogaltas/minerals", action: "GET:all", tenantId, cause: error });
-      return NextResponse.json({ ok: true, rows: data ?? [] });
+      // P2-07: mineral bankası "tümü" → sayfalı (1000-satır tavanı yok).
+      const res = await fetchAllRows<Record<string, unknown>>((from, to) =>
+        db
+          .from("minerals").select(MINERALS_LIST_SEARCH_SELECT)
+          .in("tenant_id", ids).order("created_at", { ascending: false, nullsFirst: false })
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
+      if (!res.ok) return serverErrorResponse({ route: "dogaltas/minerals", action: "GET:all", tenantId, cause: res.error });
+      return NextResponse.json({ ok: true, rows: res.rows });
     }
 
     // Arama artık SERVER-SIDE SQL ilike (.or) — F-05 çekirdek alanları
@@ -135,6 +142,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
   const payload = pick(body, MINERAL_WRITABLE);
+  // P2-01: dizi/metin alan tipleri DB'ye yazılmadan doğrulanır (bozuk kayıt raporu çökertmesin).
+  const structured = validateMineralStructuredFields(payload);
+  if (!structured.ok) return NextResponse.json({ ok: false, error: structured.error }, { status: 422 });
   payload.name = name;
   if (!payload.source_id || String(payload.source_id).trim() === "") payload.source_id = slugify(name);
   payload.tenant_id = tenantId; // SUNUCUDAN

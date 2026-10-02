@@ -766,8 +766,8 @@ function MineralListesiPageContent() {
 
       {/* Word raporu modal — demo'da gizli */}
       {!isDemo && showWordModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-3 backdrop-blur-sm sm:p-4">
+          <div role="dialog" aria-modal="true" data-testid="word-modal" className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-3xl bg-white p-5 shadow-2xl ring-1 ring-slate-200/50 sm:p-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-black text-slate-950">{tWord("reportTitle")}</h2>
               <button

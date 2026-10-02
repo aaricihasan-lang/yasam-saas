@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
@@ -25,13 +26,18 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
-  const { data, error } = await db
-    .from("dogaltas_inventory").select("*")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false, nullsFirst: false });
+  // P2-07: stok listesi "tümü" → sayfalı (1000-satır tavanı yok; tenant her sayfada).
+  const res = await fetchAllRows<Record<string, unknown>>((from, to) =>
+    db
+      .from("dogaltas_inventory").select("*")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
 
-  if (error) return serverErrorResponse({ route: "dogaltas/inventory", action: "GET", tenantId, cause: error });
-  return NextResponse.json({ ok: true, rows: data ?? [] });
+  if (!res.ok) return serverErrorResponse({ route: "dogaltas/inventory", action: "GET", tenantId, cause: res.error });
+  return NextResponse.json({ ok: true, rows: res.rows });
 }
 
 export async function POST(req: NextRequest): Promise<Response> {

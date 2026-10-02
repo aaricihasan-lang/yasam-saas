@@ -285,6 +285,7 @@ export default function TasBilgiKutuphanesiPage() {
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rawSearch, setRawSearch] = useState("");
   const [search, setSearch] = useState("");
@@ -391,9 +392,15 @@ export default function TasBilgiKutuphanesiPage() {
       if (res.ok && json.ok && json.articles) {
         const sorted = [...json.articles].sort((a, b) => trSort(a.title, b.title));
         setArticles(sorted);
+        setLoadError(false);
+      } else {
+        // P2-09B: sunucu hatası boş kütüphane gibi gösterilmez.
+        console.error("[tas-bilgi-kutuphanesi] makale yükleme hatası:", `HTTP ${res.status}`);
+        setLoadError(true);
       }
-    } catch {
-      /* sessiz — liste boş kalır */
+    } catch (err) {
+      console.error("[tas-bilgi-kutuphanesi] makale yükleme hatası:", err);
+      setLoadError(true);
     }
     setLoading(false);
   }
@@ -605,7 +612,26 @@ export default function TasBilgiKutuphanesiPage() {
 
   // ─── Yeni kayıt kaydetme ────────────────────────────────────────────────────
 
+  // P2-03: SENKRON çift-gönderim kilidi. React state (saving/dupChecking) aynı render içinde
+  // gelen ikinci tıklamayı durduramıyor ve kopya-kontrolü ile kaydetme arasındaki await
+  // penceresinde buton yeniden etkin oluyordu → yavaş ağda iki kayıt. Kilit her çıkışta
+  // (başarı / hata / istisna) bırakılır → başarısız istekten sonra tekrar denenebilir.
+  const saveLockRef = useRef(false);
   async function saveArticle(forceCreate = false) {
+    if (saveLockRef.current) return;
+    saveLockRef.current = true;
+    try {
+      await saveArticleInner(forceCreate);
+    } catch (err) {
+      console.error("[dogaltas] kaydetme hatası:", err);
+      setDupChecking(false);
+      setSaving(false);
+    } finally {
+      saveLockRef.current = false;
+    }
+  }
+
+  async function saveArticleInner(forceCreate = false) {
     if (!form.title.trim()) {
       setSaveError(t("errors.titleRequired"));
       return;
@@ -1218,6 +1244,11 @@ export default function TasBilgiKutuphanesiPage() {
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex h-32 items-center justify-center text-sm text-slate-400">{tc("loading")}</div>
+            ) : loadError && articles.length === 0 ? (
+              <div role="alert" data-testid="library-load-error" className="flex flex-col items-center justify-center gap-1 px-4 py-8 text-center text-sm font-semibold text-rose-700">
+                <span className="text-xl">⚠️</span>
+                {t("empty.loadError")}
+              </div>
             ) : filtered.length === 0 ? (
               <div className="flex h-32 flex-col items-center justify-center gap-1 text-sm text-slate-400">
                 <span className="text-xl">🔍</span>
@@ -1522,8 +1553,8 @@ export default function TasBilgiKutuphanesiPage() {
 
       {/* Word raporu modal */}
       {showWordModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-3 backdrop-blur-sm sm:p-4">
+          <div role="dialog" aria-modal="true" data-testid="word-modal" className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-3xl bg-white p-5 shadow-2xl ring-1 ring-slate-200/50 sm:p-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-black text-slate-950">{t("word.modalTitle")}</h2>
               <button

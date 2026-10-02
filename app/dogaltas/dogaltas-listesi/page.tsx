@@ -54,6 +54,7 @@ import {
 } from "@/lib/dogaltas/searchHighlight";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
+import { reportErrorKind } from "@/lib/dogaltas/reportErrorKind";
 
 const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-list-viewed-search-results";
 const LAST_VIEWED_STONE_KEY = "yasam-dogaltas-last-viewed-stone-id";
@@ -426,6 +427,10 @@ function DogaltasListesiPageContent() {
   // Detay filtreler için genişletilmiş veri (pagination yok, tüm taşlar)
   const [detailData, setDetailData] = useState<StoneListItemExtended[] | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  // P2-09B: detay-filtre sunucu/ağ hatası "sonuç yok" gibi gösterilmez.
+  const [detailError, setDetailError] = useState(false);
+  // P2-07: sunucu sonuç üst sınırına ulaşıldıysa kullanıcıya dürüstçe söylenir.
+  const [detailCapped, setDetailCapped] = useState(false);
 
   // UI
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -734,7 +739,11 @@ function DogaltasListesiPageContent() {
     // Tüm setState timeout callback'i içinde (senkron effect-body setState yok).
     const timer = window.setTimeout(async () => {
       if (!needsFullLoad) {
-        if (seq === detailSeq.current) setDetailData(null);
+        if (seq === detailSeq.current) {
+          setDetailData(null);
+          setDetailError(false);
+          setDetailCapped(false);
+        }
         return;
       }
       setDetailLoading(true);
@@ -748,7 +757,16 @@ function DogaltasListesiPageContent() {
       if (seq !== detailSeq.current) return; // stale response — ez me
       if (res.error === "aborted") return;
       setDetailLoading(false);
-      setDetailData(res.ok ? (res.rows as StoneListItemExtended[]) : []);
+      if (res.ok) {
+        setDetailError(false);
+        setDetailCapped(res.capped);
+        setDetailData(res.rows as StoneListItemExtended[]);
+      } else {
+        console.error("[dogaltas-listesi] detay filtre araması hatası:", res.error);
+        setDetailError(true);
+        setDetailCapped(false);
+        setDetailData([]);
+      }
     }, needsFullLoad ? 250 : 0);
     return () => { ctrl.abort(); window.clearTimeout(timer); };
   }, [queryTenantId, needsFullLoad, detailConditions, detailFilters.warningOnly, debouncedSearch, searchMode]);
@@ -845,8 +863,13 @@ function DogaltasListesiPageContent() {
   const signedCoverUrls = useSignedStoneImageUrls(coverFilePaths);
 
   const hasMore = !needsFullLoad && stones.length < totalCount;
+  // P2-09B: detay-filtre modunda ana liste isteği hiç çalışmaz (needsFullLoad) → `listLoading`
+  // başlangıç değerinde (true) kalıyordu: 0 sonuç / hata durumunda sonsuz iskelet + gizli toplu
+  // işlem çubuğu. Filtre modunda yükleme durumu detay aramasının kendi durumundan türetilir.
+  const effectiveListLoading = needsFullLoad ? detailLoading || detailData === null : listLoading;
+
   const listBusy =
-    listLoading ||
+    effectiveListLoading ||
     detailLoading ||
     (isSearchActive && searchTerm.trim() !== debouncedSearch);
 
@@ -987,13 +1010,20 @@ function DogaltasListesiPageContent() {
           selectedStoneIds = filteredStones.map((s) => s.id);
         } else {
           // Server-side arama/liste: yalnız YÜKLÜ sayfayı değil, eşleşen TÜM kayıtları
-          // (server-cap'li) dışa aktar → sessiz eksik export önlenir.
-          const all = await fetchStonesListPage(tenantId, {
-            offset: 0, limit: 500,
-            search: debouncedSearch.trim() || undefined, searchMode,
-          });
-          if (all.error) throw new Error("report-failed");
-          selectedStoneIds = all.rows.map((s) => s.id);
+          // dışa aktar. P2-07: eskiden tek istekte 500 ile sessizce kesiliyordu; artık 500'lük
+          // sayfalarla (sunucu sırası id ile kararlı) tamamı toplanır.
+          const PAGE = 500;
+          const collected = new Set<string>();
+          for (let offset = 0; offset < 100_000; offset += PAGE) {
+            const page = await fetchStonesListPage(tenantId, {
+              offset, limit: PAGE,
+              search: debouncedSearch.trim() || undefined, searchMode,
+            });
+            if (page.error) throw new Error("report-failed");
+            for (const s of page.rows) collected.add(s.id);
+            if (page.rows.length < PAGE) break;
+          }
+          selectedStoneIds = [...collected];
         }
         if (!selectedStoneIds.length) { showToast({ type: "warning", message: t("toast.noFilteredResult") }); return; }
       }
@@ -1015,10 +1045,12 @@ function DogaltasListesiPageContent() {
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({})) as { error?: string };
-        // FAZ-4A: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
-        console.error("[dogaltas-listesi] Word raporu hatası:", data.error ?? `HTTP ${res.status}`);
-        throw new Error("report-failed");
+        // FAZ-4A: ham backend hatası kullanıcıya gösterilmez. P2-02: seçili kayıt artık yoksa /
+        // seçim geçersizse sunucu Word ÜRETMEZ → hata türüne göre anlaşılır mesaj.
+        const kind = await reportErrorKind(res);
+        console.error("[dogaltas-listesi] Word raporu hatası:", `HTTP ${res.status}`, kind);
+        showToast({ type: "error", message: tf(`reportErrors.${kind}`) });
+        return;
       }
       const modeSlug = mode === "selected" ? "secili" : mode === "filtered" ? "filtreli" : "tumu";
       await downloadFileResponse(res, `dogaltas-${modeSlug}-${reportFileDate()}.docx`);
@@ -1030,7 +1062,7 @@ function DogaltasListesiPageContent() {
     } finally {
       setWordBusy(false);
     }
-  }, [queryTenantId, selectedIds, filteredStones, isDetailFilterActive, debouncedSearch, searchMode, showToast, isDemo, t, tc]);
+  }, [queryTenantId, selectedIds, filteredStones, isDetailFilterActive, debouncedSearch, searchMode, showToast, isDemo, t, tc, tf]);
 
   return (
     <DogaltasSectionShell
@@ -1244,7 +1276,7 @@ function DogaltasListesiPageContent() {
             )}
           </div>
 
-          {!listLoading && filteredStones.length > 0 && !isDemo ? (
+          {!effectiveListLoading && filteredStones.length > 0 && !isDemo ? (
             <div className="mt-3 border-t border-slate-100 pt-3">
               <BulkExportBar
                 compact
@@ -1275,8 +1307,14 @@ function DogaltasListesiPageContent() {
           </div>
         )}
 
+        {isDetailFilterActive && detailCapped && !detailError && (
+          <div role="status" data-testid="list-filter-capped" className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-bold text-amber-800">
+            {t("empty.filterCappedNote")}
+          </div>
+        )}
+
         <section className={uiTableCard}>
-          {listLoading && filteredStones.length === 0 ? (
+          {effectiveListLoading && filteredStones.length === 0 ? (
             <CardSkeletonGrid count={8} />
           ) : filteredStones.length === 0 ? (
             <div className="flex h-[360px] flex-col items-center justify-center px-6 text-center">
@@ -1285,7 +1323,17 @@ function DogaltasListesiPageContent() {
                 💎
               </div>
 
-              {isDetailFilterActive || isSearchActive ? (
+              {isDetailFilterActive && detailError ? (
+                /* P2-09B: sunucu/ağ hatası — "sonuç yok" DEĞİL */
+                <div role="alert" data-testid="list-filter-error">
+                  <h3 className="mt-4 text-lg font-black text-rose-800">
+                    {t("empty.filterErrorTitle")}
+                  </h3>
+                  <p className="mt-2 max-w-sm text-sm leading-6 text-rose-700">
+                    {t("empty.filterErrorDesc")}
+                  </p>
+                </div>
+              ) : isDetailFilterActive || isSearchActive ? (
                 /* Filtre / arama sonucu boş */
                 <>
                   <h3 className="mt-4 text-lg font-black text-slate-900">
@@ -1379,12 +1427,18 @@ function DogaltasListesiPageContent() {
           style={{ background: "rgba(15,23,42,0.45)", backdropFilter: "blur(6px)" }}
           onClick={() => setIsDetailPanelOpen(false)}
         >
+          {/* P2-09C: kısa/yatay ekranda (320px, 844×390, klavye açık) başlık ve alt bar her zaman
+              erişilebilir; yalnız gövde kayar (max-h = dinamik viewport). */}
           <div
-            className="w-full max-w-[520px] overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("panel.title")}
+            data-testid="list-filter-panel"
+            className="flex max-h-[calc(100dvh-2rem)] w-full max-w-[520px] flex-col overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Panel başlık */}
-            <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-violet-50 to-indigo-50 px-5 py-4">
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-gradient-to-r from-violet-50 to-indigo-50 px-5 py-4">
               <div>
                 <div className="text-[10px] font-black uppercase tracking-widest text-violet-600">
                   {t("panel.eyebrow")}
@@ -1394,12 +1448,14 @@ function DogaltasListesiPageContent() {
               <button
                 type="button"
                 onClick={() => setIsDetailPanelOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-lg text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
                 aria-label={t("panel.closeAria")}
               >
                 ×
               </button>
             </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
 
             {/* A) Astrolojik Atama — manuel text input */}
             <div className="border-b border-slate-100 px-5 py-4">
@@ -1495,8 +1551,10 @@ function DogaltasListesiPageContent() {
               </p>
             </div>
 
+            </div>
+
             {/* Footer */}
-            <div className="flex items-center justify-between px-5 py-4">
+            <div className="flex shrink-0 items-center justify-between border-t border-slate-100 bg-white px-5 py-3">
               <button
                 type="button"
                 onClick={() => setDetailFilters(EMPTY_DETAIL_FILTERS)}

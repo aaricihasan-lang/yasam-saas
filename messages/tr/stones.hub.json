@@ -29,7 +29,8 @@
         "noDescription": "Kısa açıklama eklenmemiş.",
         "viewed": "Bakıldı",
         "matched": "Eşleşme: {field}",
-        "detail": "Detaya Git"
+        "detail": "Detaya Git",
+        "cappedNote": "Çok fazla eşleşme var; yalnız ilk 500 sonuç gösteriliyor. Aramayı daraltın."
       },
       "field": {
         "stoneName": "Taş adı",
@@ -50,7 +51,8 @@
         "failedLabel": {
           "stones": "taş kaydı",
           "combinations": "kombinasyon",
-          "minerals": "mineral"
+          "minerals": "mineral",
+          "trend": "aylık trend"
         },
         "trendTitle": "Aylık Kayıt Trendi",
         "trendSubtitle": "Son 6 aylık kayıt dağılımı",
@@ -58,7 +60,8 @@
         "barTitle": "{label}: {count} kayıt",
         "totalStones": "Toplam Taş Kaydı",
         "mineralBank": "Mineral Bankası",
-        "activeCombinations": "Toplam Kombinasyon"
+        "activeCombinations": "Toplam Kombinasyon",
+        "trendError": "Aylık trend verisi şu anda alınamadı. Bu \"kayıt yok\" anlamına gelmez; sayfayı yenileyin."
       },
       "report": {
         "title": "Profesyonel Word Raporu Oluştur",

@@ -86,7 +86,10 @@
             "label": "Taş İsmi",
             "placeholder": "örn. Kuvars, Akik"
           }
-        }
+        },
+        "searchErrorTitle": "Arama şu anda yapılamadı",
+        "searchErrorDesc": "Sonuçlar sunucudan alınamadı; bu bir \"eşleşme yok\" sonucu değildir. Bağlantınızı kontrol edip koşulları yeniden deneyin.",
+        "suggestionsErrorNote": "Öneri listesi yüklenemedi. Koşulları elle yazarak aramaya devam edebilirsiniz."
       },
       "list": {
         "eyebrow": "DOĞALTAŞ · TAŞ KOMBİNASYONLARI",

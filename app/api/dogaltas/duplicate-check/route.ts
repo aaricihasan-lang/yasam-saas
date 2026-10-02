@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { normalizeDuplicateName } from "@/lib/dogaltas/duplicateName";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
 
 export const runtime = "nodejs";
 
@@ -40,11 +41,14 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!target) return NextResponse.json({ ok: true, exists: false });
 
   // tenant_id daima oturumdan — çapraz-tenant kontrol imkânsız.
-  let query = db.from(cfg.table).select(`id, ${cfg.col}`).eq("tenant_id", tenantId);
-  if (cfg.activeOnly) query = query.eq("is_active", true);
-
-  const { data, error } = await query;
-  if (error) return serverErrorResponse({ route: "dogaltas/duplicate-check", action: "GET", tenantId, cause: error });
+  // P2-07: 1000+ kayıtlı tenant'ta da tüm adlar taranır (sessiz yanlış-negatif yok).
+  const res = await fetchAllRows<Record<string, unknown>>((from, to) => {
+    let query = db.from(cfg.table).select(`id, ${cfg.col}`).eq("tenant_id", tenantId);
+    if (cfg.activeOnly) query = query.eq("is_active", true);
+    return query.order("id", { ascending: true }).range(from, to);
+  });
+  if (!res.ok) return serverErrorResponse({ route: "dogaltas/duplicate-check", action: "GET", tenantId, cause: res.error });
+  const data = res.rows;
 
   // Dinamik select string tipini statik çözemediğinden güvenli cast.
   const rows = (data ?? []) as unknown as Record<string, unknown>[];

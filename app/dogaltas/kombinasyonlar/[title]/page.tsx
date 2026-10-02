@@ -33,6 +33,8 @@ import {
 } from "@/lib/dogaltas/searchHighlight";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
+import { reportErrorKind } from "@/lib/dogaltas/reportErrorKind";
+import { useToast } from "@/components/ui/ToastProvider";
 
 
 type CombinationRecord = {
@@ -1329,6 +1331,8 @@ function KombinasyonDetayPageContent() {
   const router = useRouter();
   const t = useTranslations("stones.combinations.detail");
   const tc = useTranslations("stones.common");
+  const tre = useTranslations("stones.reportErrors");
+  const { showToast } = useToast();
 
   const downloadWord = useCallback(async () => {
     if (!decodedIssue) return;
@@ -1349,13 +1353,20 @@ function KombinasyonDetayPageContent() {
         },
         body: JSON.stringify({ exportMode: "single", combinationTitle: decodedIssue }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        // P2-09A: hata artık sessiz değil — durum koduna göre anlaşılır mesaj (ham metin yok).
+        showToast({ type: "error", message: tre(await reportErrorKind(res)) });
+        return;
+      }
       const safe = decodedIssue.toLowerCase()
         .replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u")
         .replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c")
         .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
       await downloadFileResponse(res, `kombinasyon-${safe}-${reportFileDate()}.docx`);
-    } catch { /* sessiz */ } finally {
+    } catch (err) {
+      console.error("[kombinasyon-detay] Word raporu hatası:", err);
+      showToast({ type: "error", message: tre("generic") });
+    } finally {
       setWordBusy(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

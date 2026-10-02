@@ -86,7 +86,10 @@
             "label": "Stone Name",
             "placeholder": "e.g. Quartz, Agate"
           }
-        }
+        },
+        "searchErrorTitle": "Search couldn't be completed",
+        "searchErrorDesc": "Results couldn't be loaded from the server — this is not a \"no match\" result. Check your connection and try again.",
+        "suggestionsErrorNote": "Suggestions couldn't be loaded. You can still search by typing conditions manually."
       },
       "list": {
         "eyebrow": "STONES · STONE COMBINATIONS",

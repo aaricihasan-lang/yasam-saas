@@ -128,3 +128,51 @@ export function validateStoneStructuredFields(
   }
   return { ok: true };
 }
+
+// ─── P2-01: Mineral yazma tip kapısı ──────────────────────────────────────────
+
+/** minerals tablosundaki `string[]` alanlar (rapor tarafı: reportSafe.MINERAL_ARRAY_FIELDS). */
+const MINERAL_STRING_ARRAY_FIELDS: ReadonlyArray<[string, string]> = [
+  ["organ_etkileri", "Organ etkileri"],
+  ["fiziksel", "Fiziksel etkiler"],
+  ["zihinsel", "Zihinsel etkiler"],
+  ["cakralar", "Çakralar"],
+  ["fizyoloji", "Fizyoloji"],
+  ["eksiklik_belirtileri", "Eksiklik belirtileri"],
+  ["fazlalik_belirtileri", "Fazlalık belirtileri"],
+  ["doz_asimi", "Doz aşımı"],
+  ["iceren_taslar", "İçeren taşlar"],
+];
+
+/** Metin olması gereken mineral kolonları (null serbest). */
+const MINERAL_TEXT_FIELDS: ReadonlyArray<[string, string]> = [
+  ["aciklama", "Açıklama"],
+  ["kategori", "Kategori"],
+  ["source_id", "Kaynak kimliği"],
+];
+
+/**
+ * Mineral POST/PATCH structured alan doğrulaması (stones F-004 deseninin mineral karşılığı).
+ * Yalnız body'de MEVCUT alanlar kontrol edilir (PATCH kısmi güncellemeyi bozmaz). Yanlış tip
+ * DB'ye YAZILMAZ → tek bozuk kayıt tenant'ın Profesyonel/mineral raporunu çökertemez.
+ * Sessiz coercion YOK; ilk hata döner.
+ */
+export function validateMineralStructuredFields(
+  body: Record<string, unknown>,
+): FieldValidation {
+  for (const [field, label] of MINERAL_STRING_ARRAY_FIELDS) {
+    if (field in body) {
+      const r = validateStringArrayField(label, body[field]);
+      if (!r.ok) return r;
+    }
+  }
+  for (const [field, label] of MINERAL_TEXT_FIELDS) {
+    if (field in body) {
+      const v = body[field];
+      if (v !== null && v !== undefined && typeof v !== "string") {
+        return { ok: false, error: `${label} alanı metin olmalıdır.` };
+      }
+    }
+  }
+  return { ok: true };
+}

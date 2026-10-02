@@ -1,6 +1,8 @@
 import type { NextRequest } from "next/server";
 import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { fetchAllRows, fetchAllRowsByIds } from "@/lib/dogaltas/fetchAllRows";
+import { badSelectionResponse, missingSelectionResponse, parseReportIds, sortByTrField } from "@/lib/dogaltas/reportIds";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { safeJoin, safeLen } from "@/lib/dogaltas/reportSafe";
@@ -192,21 +194,29 @@ export async function POST(req: NextRequest): Promise<Response> {
   const SELECT =
     "id, title, content, category, sub_category, source, source_section, notes, tags, related_stones, related_minerals, created_at";
 
-  let q = db.from("stone_knowledge_articles")
-    .select(SELECT).eq("tenant_id", tenantId).eq("is_active", true);
+  // P2-02: seçili id listesi doğrulanır; P2-07: sayfalı okuma (tenant filtresi her sayfada).
+  const wantsSubset = exportMode === "filtered" || exportMode === "viewed";
+  const parsedIds = wantsSubset ? parseReportIds(articleIds) : ({ ok: true, ids: null } as const);
+  if (!parsedIds.ok) return badSelectionResponse(parsedIds.error);
+  const ids = parsedIds.ids;
+  const category = exportMode === "category" ? categoryName?.trim() ?? "" : "";
 
   let exportLabel = "Tüm Makaleler";
-  if (exportMode === "category" && categoryName?.trim()) {
-    q = q.eq("category", categoryName.trim());
-    exportLabel = `Kategori: ${categoryName.trim()}`;
-  } else if ((exportMode === "filtered" || exportMode === "viewed") &&
-             Array.isArray(articleIds) && articleIds.length > 0) {
-    q = q.in("id", articleIds);
-    exportLabel = exportMode === "viewed" ? "Görüntülenen Kayıtlar" : "Filtrelenmiş Sonuçlar";
-  }
+  if (category) exportLabel = `Kategori: ${category}`;
+  else if (ids) exportLabel = exportMode === "viewed" ? "Görüntülenen Kayıtlar" : "Filtrelenmiş Sonuçlar";
 
-  const { data, error } = await q.order("category").order("title");
-  if (error) return serverErrorResponse({ route: "dogaltas/knowledge-report", action: "POST", tenantId, cause: error, usage: { guard: usageGuard, req, module: "stones", failedAction: "report_generated", subEntity: "knowledge" } });
+  const res = ids
+    ? await fetchAllRowsByIds<ArticleRow>(ids, (chunk, from, to) =>
+        db.from("stone_knowledge_articles").select(SELECT).eq("tenant_id", tenantId).eq("is_active", true)
+          .in("id", chunk).order("category").order("title").order("id").range(from, to))
+    : await fetchAllRows<ArticleRow>((from, to) => {
+        let q = db.from("stone_knowledge_articles").select(SELECT).eq("tenant_id", tenantId).eq("is_active", true);
+        if (category) q = q.eq("category", category);
+        return q.order("category").order("title").order("id").range(from, to);
+      });
+  if (!res.ok) return serverErrorResponse({ route: "dogaltas/knowledge-report", action: "POST", tenantId, cause: res.error, usage: { guard: usageGuard, req, module: "stones", failedAction: "report_generated", subEntity: "knowledge" } });
+  if (ids && res.rows.length !== ids.length) return missingSelectionResponse();
+  const data = ids && ids.length > 150 ? sortByTrField(sortByTrField(res.rows, "title"), "category") : res.rows;
 
   const articles = sanitizeXmlDeep((data ?? []) as ArticleRow[]); // RPT-XML
   if (!articles.length) return Response.json({ ok: false, error: "Bu seçim için makale bulunamadı." }, { status: 404 });

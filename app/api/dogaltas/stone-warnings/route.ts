@@ -3,6 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { stoneReadTenantIds } from "@/lib/dogaltas/stoneTenantScope";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { serverErrorResponse } from "@/lib/http/apiError";
+import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
 
 export const runtime = "nodejs";
 
@@ -56,14 +57,20 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const ids = tenantIdsFor(tenantId, is_demo_account);
-  const { data, error } = await db
-    .from("stones")
-    .select("id, stone_name, warning_text, warning_tags")
-    .in("tenant_id", ids);
+  // P2-07: güvenlik uyarısı eşleşmesi 1000. satırdan sonraki taşları da kapsar (sayfalı).
+  const res = await fetchAllRows<Record<string, unknown>>((from, to) =>
+    db
+      .from("stones")
+      .select("id, stone_name, warning_text, warning_tags")
+      .in("tenant_id", ids)
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
 
-  if (error) {
-    return serverErrorResponse({ route: "dogaltas/stone-warnings", action: "POST", tenantId, cause: error });
+  if (!res.ok) {
+    return serverErrorResponse({ route: "dogaltas/stone-warnings", action: "POST", tenantId, cause: res.error });
   }
+  const data = res.rows;
 
   const rows = (data ?? []) as Array<{
     id: unknown;

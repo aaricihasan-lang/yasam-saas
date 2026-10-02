@@ -35,7 +35,6 @@ import {
   readSessionToken,
   syncYasamUserFromDb,
 } from "@/lib/auth/yasamUser";
-import { supabase } from "@/lib/supabase";
 
 type ExpertOption = {
   id: string;
@@ -383,35 +382,24 @@ export default function VeriPaylasimiPage() {
       let items: RecordItem[] = [];
       let fetchError: string | null = null;
 
-      if (key === "stones") {
-        const { data, error } = await supabase
-          .from("stones")
-          .select("id, stone_name")
-          .eq("tenant_id", sourceAdminTenantId)
-          .order("stone_name", { ascending: true });
-        if (error) {
-          console.error("[veri-paylasimi] stones kayıt yükleme hatası:", error.message);
-          fetchError = error.message;
+      if (key === "stones" || key === "minerals") {
+        // P2-08: taş/mineral seçici artık admin-only sunucu route'undan okur (tarayıcı
+        // publishable anahtarıyla kilitli tablolara gitmez → "permission denied" yok).
+        const adminId = readYasamUser()?.id;
+        const res = await fetch(
+          `/api/admin/dogaltas/records?type=${key}&tenantId=${encodeURIComponent(sourceAdminTenantId)}`,
+          { headers: adminHeaders(adminId), cache: "no-store" },
+        );
+        const json = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          rows?: { id: string; label: string }[];
+          error?: string;
+        };
+        if (!res.ok || !json.ok) {
+          console.error(`[veri-paylasimi] ${key} kayıt yükleme hatası:`, json.error ?? `HTTP ${res.status}`);
+          fetchError = "Kayıt listesi yüklenemedi. Sayfayı yenileyip tekrar deneyin.";
         } else {
-          items = (data ?? []).map((r) => {
-            const row = r as Record<string, unknown>;
-            return { id: String(row.id), label: String(row.stone_name ?? row.id) };
-          });
-        }
-      } else if (key === "minerals") {
-        const { data, error } = await supabase
-          .from("minerals")
-          .select("id, name")
-          .eq("tenant_id", sourceAdminTenantId)
-          .order("name", { ascending: true });
-        if (error) {
-          console.error("[veri-paylasimi] minerals kayıt yükleme hatası:", error.message);
-          fetchError = error.message;
-        } else {
-          items = (data ?? []).map((r) => {
-            const row = r as Record<string, unknown>;
-            return { id: String(row.id), label: String(row.name ?? row.id) };
-          });
+          items = (json.rows ?? []).map((row) => ({ id: String(row.id), label: String(row.label ?? row.id) }));
         }
       } else if (key === "combinations") {
         const adminId = readYasamUser()?.id;
@@ -425,8 +413,8 @@ export default function VeriPaylasimiPage() {
           error?: string;
         };
         if (!res.ok || !json.ok) {
-          fetchError = json.error ?? `HTTP ${res.status}`;
-          console.error("[veri-paylasimi] combinations kayıt yükleme hatası:", fetchError);
+          console.error("[veri-paylasimi] combinations kayıt yükleme hatası:", json.error ?? `HTTP ${res.status}`);
+          fetchError = "Kayıt listesi yüklenemedi. Sayfayı yenileyip tekrar deneyin.";
         } else {
           items = (json.rows ?? []).map((row) => {
             const issue = String(row.issue ?? "");
