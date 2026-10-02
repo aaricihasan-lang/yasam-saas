@@ -16,6 +16,17 @@
  *   npx supabase db execute -f supabase/migrations/20260623200000_bioenergy_rls_tenant_isolation.sql
  */
 
+// ⛔ BIO-17 — BU SCRIPT KALICI OLARAK DEVRE DIŞI (güvenlik mayını).
+// Neden: 20260623200000 migration'ını uygular: anon/authenticated'a GRANT + SELECT USING(true) → çapraz-tenant erişimi YENİDEN AÇAR.
+// Güncel Biyoenerji erişim modeli: tarayıcı (anon/authenticated) erişimi YOK; tüm okuma/yazma
+// sunucu route'ları + service_role üzerinden. Nihai durum: 20271002000100_bioenergy_rls_final_lock.sql.
+// Doğrulama: scripts/bioenergy-presale-final/rlsLock.harness.ts (yerel embedded Postgres).
+const BIO17_LEGACY_SCRIPT_ENABLED = false as boolean;
+if (!BIO17_LEGACY_SCRIPT_ENABLED) {
+  console.error("⛔ Bu script devre dışı (BIO-17): eski gevşek Biyoenerji RLS modelini uygular/test eder. Çalıştırılmadı.");
+  process.exit(1);
+}
+
 import pg from "pg";
 import { config } from "dotenv";
 import { join, dirname } from "path";

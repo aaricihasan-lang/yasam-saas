@@ -354,9 +354,16 @@ function run(): void {
     ok(!new RegExp(bad).test(chakraFieldsBlock), `route: çakra allowlist teknik alan taşımaz (${bad})`);
   }
   // Graceful dormancy: child tablo yoksa (prod DORMANT) unit fail ETMEZ; gerçek hata eder
-  ok(/function isMissingTableError\b/.test(route) && /isMissingTableError\(cErr\)/.test(route),
+  // BIO-01 — child okuma lib/admin/transferPagedRead.ts'e taşındı (sayfalı + sayım doğrulamalı);
+  // DORMANT/gerçek-hata ayrımı AYNEN korunur: route isMissingTableError'ı geçirir, lib tablo-yok
+  // durumunda missingTable döner, gerçek hatada ok:false → route TransferError fırlatır.
+  const pagedRead = readFileSync(`${process.cwd()}/lib/admin/transferPagedRead.ts`, "utf8");
+  ok(/function isMissingTableError\b/.test(route) &&
+     /readChildrenGrouped\(db, childTable, childFk, sourceParentIds, isMissingTableError\)/.test(route) &&
+     /if \(isMissingTableError\(cr\.error\)\) return \{ ok: true, childrenByParent: new Map\(\), missingTable: true \}/.test(pagedRead),
     "route: child tablo DORMANT (relation does not exist) → graceful boş; gerçek hata unit'i düşürür");
-  ok(/if \(!isMissingTableError\(cErr\)\) throw new TransferError\("read", group\)/.test(route),
+  ok(/if \(!childRead\.ok\) throw new TransferError\("read", group\)/.test(route) &&
+     /return \{ ok: false, error: cr\.error \}/.test(pagedRead),
     "route: yalnız GERÇEK child okuma hatası TransferError; tablo yok değil");
   // Çakralar flat DEĞİL artık (parent-only success mümkün değil — child insert fail unit'i düşürür)
   ok(!/bioenergy_chakras:\s*\{\s*table:\s*"bioenergy_chakras"\s*\}/.test(route),

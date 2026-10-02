@@ -106,7 +106,15 @@ console.log("\n═══ 6. DOCX rapor sertleştirme (6 route) ═══");
 for (const rp of REPORT_ROUTES) {
   const s = read(rp);
   const name = rp.split("/").slice(-2, -1)[0];
-  assert(s.includes(".limit(MAX_EXPORT_RECORDS)"), `${name}: HARD CAP .limit(MAX_EXPORT_RECORDS)`);
+  // BIO-01: HARD CAP artık sayfalı okumada `maxRows: MAX_EXPORT_RECORDS` (chakra-report:
+  // readChakraReportData(..., MAX_EXPORT_RECORDS)) ile uygulanır; tek `.limit()` PostgREST
+  // max-rows'ta (1000) sessizce kesildiği için kaldırıldı. Tavan garantisi aynen korunur.
+  assert(
+    s.includes(".limit(MAX_EXPORT_RECORDS)") ||
+      s.includes("maxRows: MAX_EXPORT_RECORDS") ||
+      /readChakraReportData\([^)]*MAX_EXPORT_RECORDS\)/.test(s),
+    `${name}: HARD CAP (MAX_EXPORT_RECORDS)`,
+  );
   assert(s.includes("reportRateLimit("), `${name}: rate-limit uygulanır`);
   assert(s.includes("capSelectedIds("), `${name}: seçili id tavanı`);
   assert(s.includes("EXPORT_TRUNCATED_NOTE"), `${name}: kırpma notu (sessiz değil)`);

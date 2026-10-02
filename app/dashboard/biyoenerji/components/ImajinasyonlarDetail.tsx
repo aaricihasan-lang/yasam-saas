@@ -19,7 +19,15 @@ import { IMAGINATIONS_LIST_PATH, mapImaginationListRow } from "@/lib/bioenergy/i
 import { bioListFindRow } from "@/lib/biyoenerji/listCache";
 import { useImaginationsFontSize } from "@/lib/bioenergy/useImaginationsFontSize";
 import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
-import { authHeaders, bioApiDelete, bioApiGetOne, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
+import {
+  authHeaders,
+  bioApiDelete,
+  bioApiGetOne,
+  bioApiUpdate,
+  BIO_NETWORK_ERROR,
+  BIO_TIMEOUT_ERROR,
+} from "@/lib/biyoenerji/secureApi";
+import { BIO_REPORT_NETWORK_ERROR, bioReportErrorMessage } from "@/lib/biyoenerji/reportDownloadError";
 import { badgeFieldWrapClass } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
@@ -52,9 +60,9 @@ type BioImaginationForm = {
 };
 
 const tbBtn =
-  "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40";
+  "inline-flex min-h-[44px] sm:min-h-[px] items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40";
 const tbBtnDanger =
-  "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-[13px] font-bold text-rose-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-100 disabled:opacity-40";
+  "inline-flex min-h-[44px] sm:min-h-[px] items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-[13px] font-bold text-rose-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-100 disabled:opacity-40";
 
 function trimOrNull(v: string) {
   const t = v.trim();
@@ -143,22 +151,6 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
   const saveLock = useSubmitLock();
   const [wordBusy, setWordBusy] = useState(false);
 
-  const downloadWord = useCallback(async () => {
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId || !record) return;
-    setWordBusy(true);
-    try {
-      const res = await fetch("/api/biyoenerji/imagination-report", {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ tenantId, userId: readYasamUser()?.id ?? "", exportMode: "single", id: record.id }),
-      });
-      if (!res.ok) return;
-      await downloadFileResponse(res, `imajinasyon-${record.id.slice(0, 8)}-${reportFileDate()}.docx`);
-    } catch { /* sessiz */ } finally {
-      setWordBusy(false);
-    }
-  }, [record]);
   const [form, setForm] = useState<BioImaginationForm>({
     title: "",
     category: "",
@@ -184,6 +176,29 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
     }
   }, []);
 
+  const downloadWord = useCallback(async () => {
+    if (!record || wordBusy) return;
+    setWordBusy(true);
+    try {
+      const tenantId = await getSyncedTenantId();
+      if (!tenantId) return;
+      const res = await fetch("/api/biyoenerji/imagination-report", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ tenantId, userId: readYasamUser()?.id ?? "", exportMode: "single", id: record.id }),
+      });
+      if (!res.ok) {
+        setInfoError(await bioReportErrorMessage(res));
+        return;
+      }
+      await downloadFileResponse(res, `imajinasyon-${record.id.slice(0, 8)}-${reportFileDate()}.docx`);
+    } catch {
+      setInfoError(BIO_REPORT_NETWORK_ERROR);
+    } finally {
+      setWordBusy(false);
+    }
+  }, [record, wordBusy]);
+
   useEffect(() => {
     if (!infoSuccess && !infoError) return;
     const t = window.setTimeout(() => {
@@ -207,15 +222,8 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
     let seeded = false;
     const seed = bioListFindRow("imaginations", recordId);
     if (seed) {
-      const row = mapImaginationListRow(seed) as BioenergyImaginationRecord;
-      setRecord(row);
-      setForm({
-        title: row.title ?? "",
-        category: row.category ?? "",
-        text: row.text ?? "",
-        notes: row.notes ?? "",
-        source: row.source ?? "",
-      });
+      // BIO-10 — form burada doldurulmaz (yalnız "Düzenle" açılışında).
+      setRecord(mapImaginationListRow(seed) as BioenergyImaginationRecord);
       seeded = true;
     }
 
@@ -235,27 +243,32 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
 
     if (error) {
       setErrorMessage(`Kayıt okunamadı: ${error}`);
-      // Seed'lenmiş içerik varsa koru (arka plan hatasında ekranı boşaltma).
-      setRecord((prev) => prev);
+      // BIO-02 — yalnız geçici ağ hatasında seed korunur; erişim hatasında bayat kayıt gösterilmez.
+      if (error !== BIO_NETWORK_ERROR && error !== BIO_TIMEOUT_ERROR) setRecord(null);
       return;
     }
 
     if (!data) {
-      setErrorMessage("Kayıt bulunamadı.");
-      setRecord((prev) => prev);
+      setErrorMessage("Kayıt bulunamadı veya bu hesaba ait değil.");
+      setRecord(null);
       return;
     }
 
-    const row = data as BioenergyImaginationRecord;
-    setRecord(row);
-    setForm({
-      title: row.title ?? "",
-      category: row.category ?? "",
-      text: row.text ?? "",
-      notes: row.notes ?? "",
-      source: row.source ?? "",
-    });
+    setRecord(data as BioenergyImaginationRecord);
   }, [id]);
+
+  /** BIO-11 — düzenleme formu her açılışta güncel kayıttan doldurulur. */
+  const openEdit = useCallback(() => {
+    if (!record) return;
+    setForm({
+      title: record.title ?? "",
+      category: record.category ?? "",
+      text: record.text ?? "",
+      notes: record.notes ?? "",
+      source: record.source ?? "",
+    });
+    setFormModalOpen(true);
+  }, [record]);
 
   useEffect(() => {
     if (!id.trim()) {
@@ -308,10 +321,13 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
   }
 
   async function executeDelete() {
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId || !record) return;
-
+    if (!record || saving) return;
     setSaving(true);
+    const tenantId = await getSyncedTenantId();
+    if (!tenantId) {
+      setSaving(false);
+      return;
+    }
     const { error } = await bioApiDelete("imaginations", record.id);
 
     setSaving(false);
@@ -347,7 +363,6 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
   const notesContent = record.notes?.trim() ?? "";
   const sourceContent = record.source?.trim() ?? "";
   const categoryText = record.category?.trim() ?? "";
-  const sourceIdText = record.source_id?.trim() ?? "";
 
   return (
     <div className="w-full min-w-0 max-w-none">
@@ -377,10 +392,10 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
           </h1>
           <p className="mt-2 text-xs text-slate-500">
             {formatDate(record.created_at)}
-            {sourceIdText ? ` · ${sourceIdText}` : ""}
           </p>
         </div>
         <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
+          <div className="max-sm:[&_button]:min-h-[44px] max-sm:[&_button]:min-w-[44px]">
           <DogaltasFontSizeControl
             fontSizePx={fontSizePx}
             onDecrease={decreaseFontSize}
@@ -392,10 +407,11 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
             defaultFontSizePx={IMAGINATIONS_FONT_DEFAULT}
             compact
           />
+          </div>
           {!isDemo && (
             <>
               <div className="hidden h-7 w-px bg-slate-200 sm:block" aria-hidden />
-              <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>
+              <button type="button" onClick={openEdit} className={tbBtn}>
                 <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden />
                 Düzenle
               </button>
@@ -437,12 +453,12 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
         subtitle="Kaydettikten sonra detay yenilenir."
         titleId="imagination-edit-modal-title"
         accentRingClass="ring-amber-100/50"
-        footer={
+        footer={({ requestClose }) => (
           <>
             <button
               type="button"
               disabled={saving}
-              onClick={() => setFormModalOpen(false)}
+              onClick={requestClose}
               className="rounded-xl border border-slate-200/85 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
               Vazgeç
@@ -472,7 +488,7 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
               {saving ? "Güncelleniyor…" : "Güncelle"}
             </button>
           </>
-        }
+        )}
       >
         <div className="space-y-5">
           <label className="block">

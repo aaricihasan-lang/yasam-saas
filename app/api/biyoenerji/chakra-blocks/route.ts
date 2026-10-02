@@ -3,6 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { validateChakraBlockInput, chakraChildBreakdown } from "@/lib/bioenergy/chakraBlockCrud";
+import { isUuid } from "@/lib/biyoenerji/uuid";
+import { readAllPaged } from "@/lib/db/readAllPaged";
 
 export const runtime = "nodejs";
 
@@ -53,6 +55,9 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!chakraId) {
     return NextResponse.json({ ok: false, error: "chakraId gerekli." }, { status: 400 });
   }
+  if (!isUuid(chakraId)) {
+    return NextResponse.json({ ok: false, error: "Kayıt bu hesaba ait değil." }, { status: 404 });
+  }
 
   // IDOR: chakra bu tenant'a mı ait?
   const owner = await db
@@ -89,17 +94,21 @@ export async function GET(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: true, ...chakraChildBreakdown(total.count ?? 0, evidence.count ?? 0) });
   }
 
-  const { data, error } = await db
-    .from("bioenergy_chakra_blocks")
-    .select(BLOCK_COLUMNS)
-    .eq("chakra_id", chakraId)
-    .eq("tenant_id", tenantId)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true })
-    .order("id", { ascending: true });
+  // BIO-01 — sayfalı + sayım doğrulamalı okuma (tek çakrada 1000+ blokta sessiz kesilme yok).
+  const { rows: data, error } = await readAllPaged((from, to) =>
+    db
+      .from("bioenergy_chakra_blocks")
+      .select(BLOCK_COLUMNS, { count: "exact" })
+      .eq("chakra_id", chakraId)
+      .eq("tenant_id", tenantId)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
 
   if (error) {
-    console.error("[chakra-blocks] read:", error.message);
+    console.error("[chakra-blocks] read:", String((error as { message?: unknown })?.message ?? error));
     return NextResponse.json({ ok: false, error: "Bloklar okunamadı." }, { status: 500 });
   }
 
@@ -140,6 +149,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const chakraId = typeof body["chakraId"] === "string" ? (body["chakraId"] as string).trim() : "";
   if (!chakraId) return NextResponse.json({ ok: false, error: "chakraId gerekli." }, { status: 400 });
+  if (!isUuid(chakraId)) return NextResponse.json({ ok: false, error: "Kayıt bu hesaba ait değil." }, { status: 404 });
 
   // IDOR: chakra tenant'a ait mi? (aksi halde 404, sızıntı yok)
   if (!(await assertChakraOwned(db, chakraId, tenantId))) {

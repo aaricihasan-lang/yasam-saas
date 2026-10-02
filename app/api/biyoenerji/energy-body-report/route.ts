@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { readAllPaged } from "@/lib/db/readAllPaged";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import {
@@ -92,17 +93,27 @@ export async function POST(request: NextRequest): Promise<Response> {
   // AA-6: route kendi service_role client'ını KURMAZ — guard'ın sunucu client'ı (guard.db).
   const { db } = guard;
 
-  let query = db.from("bioenergy_energy_bodies")
-    .select("id,tenant_id,source_uid,genel_tanim,gorevi,bozulma,onerilen_taslar,not_text,created_at")
-    .eq("tenant_id", tenantId);
+  // BIO-01 — sayfalı + sayım doğrulamalı okuma: PostgREST max-rows (1000) sınırında
+  // sessiz kesilme yok; eksik okuma → hata (eksik rapor üretilmez).
+  const buildQuery = () => {
+    let query = db.from("bioenergy_energy_bodies")
+      .select("id,tenant_id,source_uid,genel_tanim,gorevi,bozulma,onerilen_taslar,not_text,created_at", { count: "exact" })
+      .eq("tenant_id", tenantId);
 
-  if (exportMode === "single" && id) {
-    query = query.eq("id", id);
-  } else if (exportMode === "selected" && Array.isArray(ids) && ids.length > 0) {
-    query = query.in("id", capSelectedIds(ids));
-  }
-
-  const { data, error } = await query.order("source_uid", { ascending: true }).limit(MAX_EXPORT_RECORDS);
+    if (exportMode === "single" && id) {
+      query = query.eq("id", id);
+    } else if (exportMode === "selected" && Array.isArray(ids) && ids.length > 0) {
+      query = query.in("id", capSelectedIds(ids));
+    }
+    return query;
+  };
+  const paged = await readAllPaged(
+    (from, to) => buildQuery().order("source_uid", { ascending: true }).order("id", { ascending: true }).range(from, to),
+    { maxRows: MAX_EXPORT_RECORDS },
+  );
+  const data = paged.rows;
+  const error = paged.error;
+  const truncatedRead = paged.truncated;
   if (error) {
     console.error("[energy-body-report] read failed:", error);
     await trackUsage(guard, request, { module: "energy_body", action: "action_failed", failedAction: "report_generated", subEntity: "energy_body", errorClass: "server" });
@@ -144,7 +155,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   all.push(...buildTOCPage());
 
-  if (rows.length >= MAX_EXPORT_RECORDS) {
+  if (truncatedRead) {
     all.push(muted(EXPORT_TRUNCATED_NOTE(MAX_EXPORT_RECORDS)));
   }
 

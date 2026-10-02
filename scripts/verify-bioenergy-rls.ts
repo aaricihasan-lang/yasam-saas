@@ -14,6 +14,17 @@
  *   .env.local → NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY
  */
 
+// ⛔ BIO-17 — BU SCRIPT KALICI OLARAK DEVRE DIŞI (güvenlik mayını).
+// Neden: Eski (gevşek) RLS modelini doğrular ve anon anahtarla canlı veritabanına test satırı yazmaya çalışır; güncel model (20261001000000 + 20271002000100) ile geçersizdir.
+// Güncel Biyoenerji erişim modeli: tarayıcı (anon/authenticated) erişimi YOK; tüm okuma/yazma
+// sunucu route'ları + service_role üzerinden. Nihai durum: 20271002000100_bioenergy_rls_final_lock.sql.
+// Doğrulama: scripts/bioenergy-presale-final/rlsLock.harness.ts (yerel embedded Postgres).
+const BIO17_LEGACY_SCRIPT_ENABLED = false as boolean;
+if (!BIO17_LEGACY_SCRIPT_ENABLED) {
+  console.error("⛔ Bu script devre dışı (BIO-17): eski gevşek Biyoenerji RLS modelini uygular/test eder. Çalıştırılmadı.");
+  process.exit(1);
+}
+
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
 import { join, dirname } from "path";

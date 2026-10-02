@@ -92,11 +92,15 @@ function formatDate(iso: string) {
   }
 }
 
-function previewText(s: string | null, max = 200) {
-  const t = (s ?? "").replace(/\s+/g, " ").trim();
-  if (!t) return "Özet için henüz metin yok.";
-  return t.length <= max ? t : `${t.slice(0, max)}…`;
+/** BIO-14 — yan panel listenin altına yığıldığında (Tailwind xl altı) paneli görünür alana getir. */
+function scrollPanelIntoViewIfStacked(el: HTMLElement | null) {
+  if (!el || typeof window === "undefined") return;
+  if (!window.matchMedia("(max-width: 1279px)").matches) return;
+  window.requestAnimationFrame(() => {
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 }
+
 
 export default function BiyoenerjiSeanslari() {
   const { isDemo } = useDemoGuard();
@@ -123,6 +127,7 @@ export default function BiyoenerjiSeanslari() {
   const [lastCreatedAt, setLastCreatedAt] = useState<string | null>(null);
   const lastCreatedAtRef = useRef<string | null>(null);
   useEffect(() => { lastCreatedAtRef.current = lastCreatedAt; }, [lastCreatedAt]);
+  const detailPanelRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<SessionForm>({ ...emptyForm });
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -332,6 +337,9 @@ export default function BiyoenerjiSeanslari() {
     setFormModalOpen(false);
     setInfoError("");
     setInfoSuccess("");
+    // BIO-14 — panel listenin ALTINDA yığılı olduğu genişliklerde (< xl) seçilen
+    // kaydın detayı görünür alana kaydırılır; masaüstü yan-panel düzeni etkilenmez.
+    scrollPanelIntoViewIfStacked(detailPanelRef.current);
   }
 
   function resetFormSelection() {
@@ -521,7 +529,7 @@ export default function BiyoenerjiSeanslari() {
 
   async function handleDeleteAll() {
     setIsBulkDeleting(true);
-    const { error } = await bioApiDeleteAll("sessions");
+    const { error } = await bioApiDeleteAll("sessions", totalInDb);
     setIsBulkDeleting(false);
     setDanger((d) => ({ ...d, open: false }));
     if (error) {
@@ -685,6 +693,7 @@ export default function BiyoenerjiSeanslari() {
                       >
                         <input
                           type="checkbox"
+                          aria-label="Bu kaydı seç"
                           checked={exportSelected}
                           onChange={() => toggleExportSelection(row.id)}
                           className="h-3.5 w-3.5 rounded border-violet-300 accent-violet-600"
@@ -733,7 +742,11 @@ export default function BiyoenerjiSeanslari() {
           ) : null}
         </div>
 
-        <div className={`${formGlassPanelClass} order-2 xl:order-none`}>
+        <div
+          ref={detailPanelRef}
+          className={`${formGlassPanelClass} order-2 scroll-mt-20 xl:order-none`}
+          aria-live="polite"
+        >
           {selectedRow ? (
             <>
               <div className="mb-1 inline-flex rounded-full bg-violet-50/90 px-2.5 py-1 text-[9px] font-black tracking-[0.14em] text-violet-800 ring-1 ring-violet-200/45">
@@ -756,9 +769,24 @@ export default function BiyoenerjiSeanslari() {
                 ) : null}
               </div>
               <DemoBlur isProtected={isDemo}>
-                <p className="mt-4 text-[12px] font-semibold leading-relaxed text-slate-600">
-                  {previewText(selectedRow.content)}
-                </p>
+                {/* BIO-16 — tam seans metni + Not (salt-okuma); düzenleme modalı ayrı kalır. */}
+                <div className="mt-4 max-h-[60vh] overflow-y-auto overscroll-contain pr-1">
+                  {selectedRow.content?.trim() ? (
+                    <p className="whitespace-pre-wrap break-words text-[13px] font-medium leading-relaxed text-slate-700 [overflow-wrap:anywhere]">
+                      {selectedRow.content}
+                    </p>
+                  ) : (
+                    <p className="text-[12px] font-semibold text-slate-400">Seans metni henüz girilmemiş.</p>
+                  )}
+                  {selectedRow.note?.trim() ? (
+                    <div className="mt-4 rounded-xl border border-slate-200/80 bg-white/70 px-3.5 py-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Not</p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-[13px] font-medium leading-relaxed text-slate-700 [overflow-wrap:anywhere]">
+                        {selectedRow.note}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
               </DemoBlur>
               {!isDemo && (
                 <div className="mt-6 flex flex-wrap gap-2 border-t border-white/55 pt-5">
@@ -812,12 +840,12 @@ export default function BiyoenerjiSeanslari() {
         }
         titleId="seans-form-modal-title"
         accentRingClass="ring-violet-100/50"
-        footer={
+        footer={({ requestClose }) => (
           <>
             <button
               type="button"
               disabled={saving}
-              onClick={closeFormModal}
+              onClick={requestClose}
               className="rounded-xl border border-slate-200/85 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
               Vazgeç
@@ -850,7 +878,7 @@ export default function BiyoenerjiSeanslari() {
               </button>
             )}
           </>
-        }
+        )}
       >
         <div className="space-y-5">
           <label className="block">
@@ -929,6 +957,7 @@ export default function BiyoenerjiSeanslari() {
 
       <BiyoenerjiDangerDeleteModal
         open={danger.open}
+        scope={{ filterActive: Boolean(debouncedSearch.trim() || categoryFilter), visibleCount: searchResultCount }}
         mode={danger.mode}
         count={danger.mode === "all" ? totalInDb : selectedVisibleRows.length}
         names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => (r.title?.trim() || "İsimsiz kayıt"))}

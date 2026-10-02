@@ -25,7 +25,14 @@ import {
 import { bioListFindRow } from "@/lib/biyoenerji/listCache";
 import { useSymbolLanguageFontSize } from "@/lib/bioenergy/useSymbolLanguageFontSize";
 import { BIOENERJI_FOLDER_BASE } from "../biyoenerjiFolderConfig";
-import { authHeaders, bioApiDelete, bioApiUpdate } from "@/lib/biyoenerji/secureApi";
+import {
+  authHeaders,
+  bioApiDelete,
+  bioApiUpdate,
+  BIO_NETWORK_ERROR,
+  BIO_TIMEOUT_ERROR,
+} from "@/lib/biyoenerji/secureApi";
+import { BIO_REPORT_NETWORK_ERROR, bioReportErrorMessage } from "@/lib/biyoenerji/reportDownloadError";
 import { badgeFieldWrapClass } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
@@ -45,9 +52,9 @@ type SymbolForm = {
 };
 
 const tbBtn =
-  "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40";
+  "inline-flex min-h-[44px] sm:min-h-[px] items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40";
 const tbBtnDanger =
-  "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-[13px] font-bold text-rose-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-100 disabled:opacity-40";
+  "inline-flex min-h-[44px] sm:min-h-[px] items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-[13px] font-bold text-rose-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-100 disabled:opacity-40";
 
 function trimOrNull(v: string) {
   const t = v.trim();
@@ -133,22 +140,6 @@ export default function SembolDiliDetail({ id }: { id: string }) {
   const saveLock = useSubmitLock();
   const [wordBusy, setWordBusy] = useState(false);
 
-  const downloadWord = useCallback(async () => {
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId || !record) return;
-    setWordBusy(true);
-    try {
-      const res = await fetch("/api/biyoenerji/symbol-report", {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ tenantId, userId: readYasamUser()?.id ?? "", exportMode: "single", id: record.id }),
-      });
-      if (!res.ok) return;
-      await downloadFileResponse(res, `sembol-${record.id.slice(0, 8)}-${reportFileDate()}.docx`);
-    } catch { /* sessiz */ } finally {
-      setWordBusy(false);
-    }
-  }, [record]);
   const [form, setForm] = useState<SymbolForm>({
     symbol_name: "",
     category: "",
@@ -172,6 +163,29 @@ export default function SembolDiliDetail({ id }: { id: string }) {
       setInfoError(text);
     }
   }, []);
+
+  const downloadWord = useCallback(async () => {
+    if (!record || wordBusy) return;
+    setWordBusy(true);
+    try {
+      const tenantId = await getSyncedTenantId();
+      if (!tenantId) return;
+      const res = await fetch("/api/biyoenerji/symbol-report", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ tenantId, userId: readYasamUser()?.id ?? "", exportMode: "single", id: record.id }),
+      });
+      if (!res.ok) {
+        setInfoError(await bioReportErrorMessage(res));
+        return;
+      }
+      await downloadFileResponse(res, `sembol-${record.id.slice(0, 8)}-${reportFileDate()}.docx`);
+    } catch {
+      setInfoError(BIO_REPORT_NETWORK_ERROR);
+    } finally {
+      setWordBusy(false);
+    }
+  }, [record, wordBusy]);
 
   useEffect(() => {
     if (!infoSuccess && !infoError) return;
@@ -198,14 +212,8 @@ export default function SembolDiliDetail({ id }: { id: string }) {
     if (seed) {
       const mapped = mapSymbolLanguageListRow(seed);
       lastGoodRecordRef.current = mapped;
+      // BIO-10 — form burada doldurulmaz (yalnız "Düzenle" açılışında).
       setRecord(mapped);
-      const seedName = symbolDisplayName(mapped);
-      setForm({
-        symbol_name: seedName === "İsimsiz sembol" ? "" : seedName,
-        category: mapped.category ?? "",
-        meaning: mapped.meaning ?? "",
-        source: mapped.source ?? "",
-      });
       seeded = true;
     }
 
@@ -225,21 +233,23 @@ export default function SembolDiliDetail({ id }: { id: string }) {
 
       if (result.error) {
         setErrorMessage(`Kayıt okunamadı: ${result.error}`);
-        if (lastGoodRecordRef.current) {
+        // BIO-02 — yalnız geçici ağ hatasında son iyi kayıt korunur; erişim
+        // hatalarında bayat kayıt ekranda TUTULMAZ.
+        const transient = result.error === BIO_NETWORK_ERROR || result.error === BIO_TIMEOUT_ERROR;
+        if (transient && lastGoodRecordRef.current) {
           setRecord(lastGoodRecordRef.current);
         } else {
+          lastGoodRecordRef.current = null;
           setRecord(null);
         }
         return;
       }
 
       if (!result.data) {
-        setErrorMessage("Kayıt bulunamadı.");
-        if (lastGoodRecordRef.current) {
-          setRecord(lastGoodRecordRef.current);
-        } else {
-          setRecord(null);
-        }
+        // BIO-02 — 404: silinmiş veya bu hesaba ait değil → bayat kayıt gösterilmez.
+        setErrorMessage("Kayıt bulunamadı veya bu hesaba ait değil.");
+        lastGoodRecordRef.current = null;
+        setRecord(null);
         return;
       }
 
@@ -247,13 +257,6 @@ export default function SembolDiliDetail({ id }: { id: string }) {
       lastGoodRecordRef.current = row;
       setRecord(row);
       setErrorMessage("");
-      const displayName = symbolDisplayName(row);
-      setForm({
-        symbol_name: displayName === "İsimsiz sembol" ? "" : displayName,
-        category: row.category ?? "",
-        meaning: row.meaning ?? "",
-        source: row.source ?? "",
-      });
     } catch (err) {
       setLoading(false);
       const message = err instanceof Error ? err.message : String(err);
@@ -264,6 +267,19 @@ export default function SembolDiliDetail({ id }: { id: string }) {
       }
     }
   }, [id]);
+
+  /** BIO-11 — düzenleme formu her açılışta güncel kayıttan doldurulur. */
+  const openEdit = useCallback(() => {
+    if (!record) return;
+    const displayName = symbolDisplayName(record);
+    setForm({
+      symbol_name: displayName === "İsimsiz sembol" ? "" : displayName,
+      category: record.category ?? "",
+      meaning: record.meaning ?? "",
+      source: record.source ?? "",
+    });
+    setFormModalOpen(true);
+  }, [record]);
 
   useEffect(() => {
     if (!id.trim()) {
@@ -290,9 +306,15 @@ export default function SembolDiliDetail({ id }: { id: string }) {
           }
 
           setSaving(true);
+          // BIO-12 — gizli `title` alanı sembol adıyla EZİLMEZ: yalnız boşsa veya
+          // zaten sembol adıyla eşitse (senkron tutulan kayıt) birlikte güncellenir.
+          // Eski / aktarılmış kayıtlarda farklı başlık korunur.
+          const prevTitle = (record.title ?? "").trim();
+          const prevSymbol = (record.symbol ?? "").trim();
+          const keepTitle = prevTitle !== "" && prevTitle !== prevSymbol;
           const { error } = await bioApiUpdate("symbols", record.id, {
             symbol: nameTrim,
-            title: nameTrim,
+            ...(keepTitle ? {} : { title: nameTrim }),
             category: trimOrNull(form.category),
             meaning: trimOrNull(form.meaning),
             source: trimOrNull(form.source),
@@ -316,10 +338,13 @@ export default function SembolDiliDetail({ id }: { id: string }) {
   }
 
   async function executeDelete() {
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId || !record) return;
-
+    if (!record || saving) return;
     setSaving(true);
+    const tenantId = await getSyncedTenantId();
+    if (!tenantId) {
+      setSaving(false);
+      return;
+    }
     const { error } = await bioApiDelete("symbols", record.id);
 
     setSaving(false);
@@ -390,6 +415,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
           <p className="mt-2 text-xs text-slate-500">{formatDate(record.created_at)}</p>
         </div>
         <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
+          <div className="max-sm:[&_button]:min-h-[44px] max-sm:[&_button]:min-w-[44px]">
           <DogaltasFontSizeControl
             fontSizePx={fontSizePx}
             onDecrease={decreaseFontSize}
@@ -401,10 +427,11 @@ export default function SembolDiliDetail({ id }: { id: string }) {
             defaultFontSizePx={SYMBOL_LANGUAGE_FONT_DEFAULT}
             compact
           />
+          </div>
           {!isDemo && (
             <>
               <div className="hidden h-7 w-px bg-slate-200 sm:block" aria-hidden />
-              <button type="button" onClick={() => setFormModalOpen(true)} className={tbBtn}>
+              <button type="button" onClick={openEdit} className={tbBtn}>
                 <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden />
                 Düzenle
               </button>
@@ -445,12 +472,12 @@ export default function SembolDiliDetail({ id }: { id: string }) {
         subtitle="Kaydettikten sonra detay yenilenir."
         titleId="symbol-edit-modal-title"
         accentRingClass="ring-emerald-100/50"
-        footer={
+        footer={({ requestClose }) => (
           <>
             <button
               type="button"
               disabled={saving}
-              onClick={() => setFormModalOpen(false)}
+              onClick={requestClose}
               className="rounded-xl border border-slate-200/85 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
               Vazgeç
@@ -480,7 +507,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
               {saving ? "Güncelleniyor…" : "Güncelle"}
             </button>
           </>
-        }
+        )}
       >
         <div className="space-y-5">
           <label className="block">
