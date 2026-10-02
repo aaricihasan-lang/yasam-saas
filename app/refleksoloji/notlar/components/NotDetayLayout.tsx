@@ -59,8 +59,12 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
     setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
   };
 
+  // RF-10: düzenleme başlarken görülen sürüm (bayat sekme sessiz ezme koruması).
+  const [editingSince, setEditingSince] = useState<string | null>(null);
+
   const handleStartEdit = () => {
     reload();
+    setEditingSince(note?.updatedAt ?? null);
     setEditing(true);
     setValidationMessage(null);
   };
@@ -70,7 +74,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
     setValidationMessage(null);
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!draft) return;
     if (!draft.title.trim()) {
       setValidationMessage("Not başlığı zorunludur.");
@@ -79,7 +83,21 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
 
     if (!note) return;
 
-    const result = saveNote(draft, noteId);
+    let result = saveNote(draft, noteId, { expectedUpdatedAt: editingSince });
+    if (result.conflict) {
+      const overwrite = await confirm({
+        title: "Not başka yerde değiştirildi",
+        message:
+          "Bu not siz düzenlerken başka bir sekmede veya cihazda değiştirildi.\n\n" +
+          "«Üzerine yaz» derseniz ekrandaki metniniz kaydedilir ve diğer değişiklik kaybolur. " +
+          "«Vazgeç» derseniz hiçbir şey kaydedilmez; metniniz formda kalır.",
+        confirmText: "Üzerine yaz",
+        cancelText: "Vazgeç",
+        tone: "warning",
+      });
+      if (!overwrite) return;
+      result = saveNote(draft, noteId, { force: true });
+    }
     if (!result.saved) {
       setValidationMessage("Güncelleme yapılamadı.");
       return;
@@ -133,7 +151,8 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
     if (!files?.length || !draft) return;
 
     // FA-03: izinli tür (görsel/PDF) + boyut ön kontrolü; uygunsuz dosya eklenmez.
-    const { added, errors } = await readNoteAttachments(Array.from(files), newAttachmentId);
+    const existingBytes = draft.attachments.reduce((sum, a) => sum + (a.size || 0), 0);
+    const { added, errors } = await readNoteAttachments(Array.from(files), newAttachmentId, existingBytes);
     for (const message of errors) {
       showToast({ type: "warning", message });
     }

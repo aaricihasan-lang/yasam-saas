@@ -25,6 +25,8 @@ type ProtocolFootMapProps = {
   prominentControls?: boolean;
   /** Üst kart başlığı dışarıda — çift başlık ve fazla çerçeveyi kaldırır */
   embedded?: boolean;
+  /** RF-07: false → eksik-atlas uyarısı çağıran tarafından harita kutusunun dışında gösterilir. */
+  showMissingNotice?: boolean;
 };
 
 export function ProtocolFootMap({
@@ -35,6 +37,7 @@ export function ProtocolFootMap({
   onFootViewChange,
   prominentControls = false,
   embedded = false,
+  showMissingNotice = true,
 }: ProtocolFootMapProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
@@ -130,7 +133,7 @@ export function ProtocolFootMap({
         </div>
       </div>
 
-      {missingOrgans.length > 0 ? (
+      {showMissingNotice && missingOrgans.length > 0 ? (
         <div className="shrink-0 border-b border-amber-200/80 bg-amber-50/95 px-3 py-2">
           <p className="text-xs font-bold text-amber-950">
             Atlas bulunamayan organlar: {missingOrgans.join(", ")}

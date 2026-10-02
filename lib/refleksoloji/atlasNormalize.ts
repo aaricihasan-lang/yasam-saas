@@ -20,6 +20,7 @@ import type {
   AtlasOrganEntry,
   StoredRegion,
 } from "@/lib/atlasStorage";
+import { isValidStoredRegion } from "./atlasValidate";
 
 type LegacyView = "yan";
 type AnyBucketKey = "taban" | "yan_ic" | "yan_dis" | LegacyView;
@@ -53,6 +54,9 @@ function copyBucket(
   for (const foot of ["sol", "sag"] as const) {
     const list = Array.isArray(src[foot]) ? src[foot] : [];
     for (const stored of list) {
+      // Hardening: null / id'siz / bozuk koordinatlı bölge renderer'ı ve Word'ü
+      // çökertir → canonical belgeye ALINMAZ (sunucu da aynı kuralla 400 döner).
+      if (!isValidStoredRegion(stored)) continue;
       const id = (stored as StoredRegion)?.id;
       if (typeof id === "string") {
         if (seen.has(id)) continue; // §8 dedup: explicit bucket kazanır, legacy duplicate atlanır

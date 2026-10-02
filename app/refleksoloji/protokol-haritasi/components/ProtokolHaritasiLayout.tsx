@@ -83,6 +83,8 @@ export function ProtokolHaritasiLayout() {
     editParam ? "loading" : "none",
   );
   const editResolvedRef = useRef(false);
+  // RF-09: düzenlenen protokol başka cihazda silinmiş (diriltme YOK; açık bilgi).
+  const [editDeletedElsewhere, setEditDeletedElsewhere] = useState(false);
 
   useEffect(() => {
     if (!hydrated || !editParam || editResolvedRef.current) return;
@@ -117,19 +119,30 @@ export function ProtokolHaritasiLayout() {
           | { ok?: boolean; protocols?: ServerProtocolRow[] }
           | null;
         if (cancelled) return;
-        const rows = res.ok && json?.ok && Array.isArray(json.protocols) ? json.protocols : [];
+        const listOk = res.ok && json?.ok === true && Array.isArray(json.protocols);
+        if (!listOk) {
+          // Liste alınamadı (ağ/sunucu hatası) → "silinmiş" SANMA; yerel kopya varsa kendi
+          // sürüm belirteciyle düzenle (sunucu CAS'ı korur), yoksa bulunamadı.
+          if (local) {
+            setDraft(savedToDraft(local));
+            setEditId(local.id);
+            setEditBaseVersion(local.baseVersion ?? null);
+            setEditState("ready");
+            return;
+          }
+          setEditState("notfound");
+          return;
+        }
+        const rows = json!.protocols!;
         const match =
           rows.find((r) => r.source_uid === editParam) ??
           rows.find((r) => r.id === editParam);
         if (!match) {
-          if (local) {
-            // Sunucuda yok ama yerel kopya var → yerelden düzenle (kayıt sunucuda oluşturur).
-            setDraft(savedToDraft(local));
-            setEditId(local.id);
-            setEditBaseVersion(null);
-            setEditState("ready");
-            return;
-          }
+          // RF-09: sunucu listesi ALINDI ve protokol yok. Yerel kopya sunucuya hiç
+          // gitmemiş olsaydı (pendingSync) yukarıda (1) yolunda açılırdı; buraya gelen
+          // yerel kopya daha önce eşitlenmişti → başka cihazda SİLİNMİŞ. Bayat kopyadan
+          // düzenleyip yeniden OLUŞTURMA (diriltme) YOK.
+          if (local) setEditDeletedElsewhere(true);
           setEditState("notfound");
           return;
         }
@@ -221,6 +234,11 @@ export function ProtokolHaritasiLayout() {
       if (!result.ok) {
         // FA-42: gerçek hata görünür; form KORUNUR (erken başarı / yönlendirme yok).
         setValidationMessage(result.error);
+        if (result.deleted) {
+          // RF-09: sunucuda silinmiş → bu düzenleme oturumu kapanır (tekrar kayıt = diriltme olurdu).
+          setEditDeletedElsewhere(true);
+          setEditState("notfound");
+        }
         if (result.kind !== "validation") {
           showToast({
             type: result.kind === "conflict" ? "warning" : "error",
@@ -262,7 +280,12 @@ export function ProtokolHaritasiLayout() {
   // (böylece kaydetme artık "yeni oluştur" yoludur, sessiz değil kullanıcı-onaylı).
   const startFreshProtocol = () => {
     editResolvedRef.current = true;
+    // RF-09: başka cihazda silinen protokolün formdaki içeriği kaybolmasın — kullanıcı
+    // isterse AÇIK niyetle yeni kayıt olarak kaydeder.
+    const keepDraft = editDeletedElsewhere ? draft : null;
     resetForm();
+    if (keepDraft) setDraft(keepDraft);
+    setEditDeletedElsewhere(false);
     router.replace("/refleksoloji/protokol-haritasi");
   };
 
@@ -308,10 +331,18 @@ export function ProtokolHaritasiLayout() {
               </p>
             ) : editState === "notfound" ? (
               <div className="mb-2 shrink-0 rounded-xl border border-amber-300/80 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950">
-                <p>
-                  Düzenlenecek protokol bulunamadı (silinmiş veya başka bir hesaba ait
-                  olabilir). Güvenlik için otomatik yeni kayıt <strong>oluşturulmaz</strong>.
-                </p>
+                {editDeletedElsewhere ? (
+                  <p>
+                    Bu protokol başka bir cihazda <strong>silinmiş</strong>. Değişiklik
+                    kaydedilmedi ve protokol yeniden <strong>oluşturulmadı</strong>. İçeriği
+                    yeni bir protokol olarak kaydetmek isterseniz aşağıdaki düğmeyi kullanın.
+                  </p>
+                ) : (
+                  <p>
+                    Düzenlenecek protokol bulunamadı (silinmiş veya başka bir hesaba ait
+                    olabilir). Güvenlik için otomatik yeni kayıt <strong>oluşturulmaz</strong>.
+                  </p>
+                )}
                 <button
                   type="button"
                   onClick={startFreshProtocol}

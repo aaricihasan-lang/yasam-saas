@@ -165,8 +165,22 @@ export function validateIncomingNotes(notes: unknown[]): NoteValidationError | n
 
 // ─── İstemci ön-kontrolü (sunucuyla PAYLAŞILAN allow-list) ───────────────────
 
-/** İstemci dosya boyutu sınırı (ikili). Sunucu data-URL sınırıyla uyumlu (4MB → ≤6MB base64). */
-export const NOTE_ATTACHMENT_MAX_BYTES = 4 * 1024 * 1024;
+/**
+ * RF-04: istemci dosya boyutu sınırı (ikili). Not, ekleriyle birlikte TEK istekte
+ * gönderilir ve ekler base64'e çevrilir (×4/3). Platform istek gövdesi sınırı ≈4.5 MB
+ * (Vercel Functions; canlıda 3.46 MB PNG → 4.62 MB PUT → 413 ölçüldü). 3 MB ikili ek
+ * ≈ 4.0 MB base64 + JSON → güvenlik payıyla sınırın altında kalır.
+ */
+export const NOTE_ATTACHMENT_MAX_BYTES = 3 * 1024 * 1024;
+
+/** RF-04: bir notun TÜM eklerinin toplam ikili boyutu (not tek istekte gider). */
+export const NOTE_ATTACHMENTS_TOTAL_MAX_BYTES = 3 * 1024 * 1024;
+
+/**
+ * RF-04: tek senkron isteğinin güvenli üst sınırı (JSON, bayt). Bunu aşan not
+ * gönderilmeden yerelde "çok büyük" olarak işaretlenir (diğer notlar etkilenmez).
+ */
+export const NOTE_SYNC_REQUEST_SAFE_BYTES = 4_200_000;
 
 /** Ek olarak kabul edilen MIME türleri (sunucu doğrulamasıyla AYNI liste). */
 export const NOTE_ATTACHMENT_ALLOWED_MIME: readonly string[] = [
@@ -225,9 +239,21 @@ export function checkNoteAttachmentFile(file: {
     return { ok: false, message: `${file.name} boş bir dosya.` };
   }
   if (file.size > NOTE_ATTACHMENT_MAX_BYTES) {
-    return { ok: false, message: `${file.name} çok büyük (en fazla 4 MB).` };
+    return {
+      ok: false,
+      message: `${file.name} çok büyük (en fazla 3 MB). Görseli küçültüp/sıkıştırıp tekrar deneyin.`,
+    };
   }
   return { ok: true, mime };
+}
+
+/**
+ * RF-04: notun mevcut ekleri + yeni dosya toplamı sınırı aşıyor mu (istemci, istek
+ * GÖNDERİLMEDEN). Aşıyorsa Türkçe hata mesajı; değilse null.
+ */
+export function checkNoteAttachmentsTotal(existingBytes: number, addBytes: number, fileName: string): string | null {
+  if (existingBytes + addBytes <= NOTE_ATTACHMENTS_TOTAL_MAX_BYTES) return null;
+  return `${fileName} eklenemedi: bir notun eklerinin toplamı en fazla 3 MB olabilir. Daha küçük bir dosya seçin veya ekleri ayrı notlara bölün.`;
 }
 
 /** FileReader data-URL'inin MIME önekini çözülen izinli MIME ile hizalar (boş tür → uzantı). */

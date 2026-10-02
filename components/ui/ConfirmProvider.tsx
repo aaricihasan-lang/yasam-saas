@@ -8,6 +8,16 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
+
+/**
+ * Onay penceresi KATMANI. Uygulama modalları/lightbox'ları `z-[9999]`–`z-[10000]`
+ * katmanında ve çoğu `document.body`'ye portal ile eklenir. Onay, bir modalın İÇİNDEN
+ * açılabildiğinden (ör. Kayıtlı Atlas → Düzenle → Bölge Sil) daima onların ÜSTÜNDE
+ * olmalıdır: (1) body'ye portal → hiçbir ata stacking context'ine hapsolmaz,
+ * (2) modal katmanının bir üstündeki sabit katman.
+ */
+const CONFIRM_LAYER_CLASS = "z-[10050]";
 
 type ConfirmTone = "danger" | "info" | "success" | "warning";
 
@@ -47,6 +57,12 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   const modalRef = useRef<HTMLDivElement>(null);
   const cancelBtnRef = useRef<HTMLButtonElement>(null);
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
+  // SSR güvenli portal hedefi (yalnız istemcide, mount sonrası).
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPortalTarget(document.body);
+  }, []);
 
   const confirm = (opts: ConfirmOptions) => {
     setBusy(false);
@@ -74,6 +90,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!options) return;
 
+    // Kapanınca odak, onayı açan elemana (ör. alttaki modaldaki "Bölge Sil") geri döner.
+    const previousFocus = document.activeElement as HTMLElement | null;
+
     // Modal açılınca cancel butonuna odaklan
     const timer = setTimeout(() => {
       cancelBtnRef.current?.focus();
@@ -81,6 +100,11 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 
     function handleKeyDown(e: KeyboardEvent) {
       if (!modalRef.current) return;
+
+      // Onay EN ÜST katmandır: Escape/Tab alttaki modalın (ör. Atlas Düzenle) klavye
+      // işleyicisine ULAŞMAZ — aksi halde Escape iki pencereyi birden kapatır ve alttaki
+      // modalın Tab tuzağı odağı onaydan geri çeker. (window capture → ilk çalışan.)
+      if (e.key === "Escape" || e.key === "Tab") e.stopPropagation();
 
       // Escape → iptal et (hiçbir şey silme)
       if (e.key === "Escape") {
@@ -97,14 +121,15 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         if (!focusable.length) return;
         const first = focusable[0]!;
         const last = focusable[focusable.length - 1]!;
+        const inside = modalRef.current.contains(document.activeElement);
 
         if (e.shiftKey) {
-          if (document.activeElement === first) {
+          if (!inside || document.activeElement === first) {
             e.preventDefault();
             last.focus();
           }
         } else {
-          if (document.activeElement === last) {
+          if (!inside || document.activeElement === last) {
             e.preventDefault();
             first.focus();
           }
@@ -112,10 +137,11 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, true);
     return () => {
-      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown, true);
       clearTimeout(timer);
+      if (previousFocus?.isConnected) previousFocus.focus?.();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [options]);
@@ -133,9 +159,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={{ confirm }}>
       {children}
 
-      {options && (
+      {options && portalTarget && createPortal(
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45 px-4 backdrop-blur-sm"
+          className={`fixed inset-0 ${CONFIRM_LAYER_CLASS} flex items-center justify-center bg-black/45 px-4 backdrop-blur-sm`}
           aria-hidden={false}
           onClick={(e) => {
             // Dışarı tıklama → iptal et (silmeyi tetikleme)
@@ -211,7 +237,8 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        portalTarget,
       )}
     </ConfirmContext.Provider>
   );

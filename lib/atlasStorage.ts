@@ -41,6 +41,7 @@ import {
 import {
   LEGACY_QUARANTINE_KEYS,
   LEGACY_REFLEX_KEYS,
+  REFLEX_V2_PREFIX,
   readRawJson,
   removeRaw,
   writeRawJson,
@@ -258,7 +259,10 @@ export function saveOrganList(organs: string[]): boolean {
   const ok = writeReflex("organs", organs);
   // P1-1: organ listesi değişince (kullanıcı eylemi) senkron planla. Hidrasyon
   // yazımları suspend ile bastırılır; hidrasyon bitmeden PUT gitmez (FA-13).
-  if (ok) scheduleAtlasSync();
+  if (ok) {
+    scheduleAtlasSync();
+    emitAtlasChanged(); // RF-02: aynı sekmedeki diğer açık ekranlar da tazelenir
+  }
   return ok;
 }
 
@@ -293,7 +297,10 @@ export function saveAtlas(atlas: AtlasDocument): boolean {
   };
   const ok = writeReflex("atlas", next);
   // P1-1: atlas değişince (kullanıcı eylemi) senkron planla — içerik flush anında okunur.
-  if (ok) scheduleAtlasSync();
+  if (ok) {
+    scheduleAtlasSync();
+    emitAtlasChanged(); // RF-02: aynı sekmedeki diğer açık ekranlar da tazelenir
+  }
   return ok;
 }
 
@@ -436,6 +443,17 @@ export function atlasHasRegionId(atlas: AtlasDocument, regionId: string): boolea
 /** Bölge Haritası vb. açık ekranların state'i yeniden yüklemesi için yayınlanan olay. */
 export const ATLAS_CHANGED_EVENT = "refleks:atlas-changed";
 
+/**
+ * RF-02: başka sekmedeki `storage` olayı bu kullanıcının atlas/organ anahtarına mı ait
+ * (`refleks:v2:{tenant}:{user}:atlas|organs`). Açık ekranlar bununla tazelenir.
+ */
+export function isAtlasStorageKey(key: string | null): boolean {
+  const scope = currentReflexScopeId();
+  if (!key || !scope) return false;
+  const prefix = `${REFLEX_V2_PREFIX}${scope}:`;
+  return key === `${prefix}atlas` || key === `${prefix}organs`;
+}
+
 function emitAtlasChanged(): void {
   if (typeof window === "undefined") return;
   try {
@@ -506,6 +524,8 @@ type AtlasMergeOutcome = {
   merged: AtlasDocument;
   mergedOrgans: string[];
   conflicts: string[];
+  /** "three-way": ortak ata (son sunucu belgesi) biliniyordu; "lww": ata yok (ilk geçiş). */
+  mode: "three-way" | "lww";
 };
 
 /**
@@ -538,7 +558,7 @@ function computeAtlasMerge(
   if (r.mode === "lww") backupLostLocalOrgans(r.lostLocal, now);
   const merged = r.document as unknown as AtlasDocument;
   const mergedOrgans = mergeOrganListsWithTombstones(server.organ_list, localOrgans, merged._meta);
-  return { serverDoc, merged, mergedOrgans, conflicts: r.conflicts };
+  return { serverDoc, merged, mergedOrgans, conflicts: r.conflicts, mode: r.mode };
 }
 
 /** Birleşik yerel içerik sunucu içeriğiyle eşdeğerse tabanı yerel hash'e hizala. */
@@ -700,18 +720,25 @@ export async function hydrateAndMergeAtlas(): Promise<{ quarantineCount: number 
 
   const outcome = computeAtlasMerge(server, base);
   const wrote = writeLocalAtlasState(outcome.merged, outcome.mergedOrgans);
-  if (wrote && outcome.conflicts.length === 0) {
+  if (!wrote) {
+    // RF-13: birleşik belge yerele YAZILAMADI (kota) → taban İLERLEMEZ ve hidrasyon
+    // TAMAMLANMIŞ SAYILMAZ → PUT gönderilmez; bayat/küçük yerel kopya sunucudaki atlası
+    // küçültemez. Kullanıcı görünür uyarı alır; yer açılıp yeniden açılınca normal akar.
+    setReflexologySyncStatus({ state: "error", message: ATLAS_QUOTA_CONFLICT_MESSAGE });
+    return null;
+  }
+  const clean = outcome.conflicts.length === 0;
+  if (clean) {
     commitAtlasBase(server);
     // Yerel = sunucu (eşdeğer) ise tabanı yerel hash'e hizala → sahte "eşitlenmemiş" yok.
     alignBaseHashIfEquivalent(outcome, server);
     setAtlasConflict(null);
-  } else if (wrote) {
+  } else {
     setAtlasConflict(outcome.conflicts);
   }
-  markAtlasHydrated();
-  if (!wrote) {
-    setReflexologySyncStatus({ state: "conflict", message: ATLAS_QUOTA_CONFLICT_MESSAGE, retry: retryAtlasSync });
-  }
+  // RF-03: ata biliniyorsa (3-yollu) kalan fark bu cihazın eşitlenmemiş GERÇEK
+  // değişikliğidir → otomatik gönderilir (çakışma varsa kullanıcı kararı beklenir).
+  markAtlasHydrated({ autoPush: clean && outcome.mode === "three-way" });
   return { quarantineCount: quarantinedAtlasOrganCount() };
 }
 

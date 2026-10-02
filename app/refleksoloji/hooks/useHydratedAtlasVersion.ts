@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { hydrateAndMergeAtlas } from "@/lib/atlasStorage";
+import { ATLAS_CHANGED_EVENT, hydrateAndMergeAtlas, isAtlasStorageKey } from "@/lib/atlasStorage";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 
 /**
@@ -27,9 +27,18 @@ export function useHydratedAtlasVersion(): number {
     void hydrateAndMergeAtlas().then((r) => {
       if (!cancelled && r) setVersion((v) => v + 1);
     });
+    // RF-02: başka sekme / birleştirme atlası değiştirince önizleme yeniden çözülür.
+    const bump = () => setVersion((v) => v + 1);
+    const onStorage = (e: StorageEvent) => {
+      if (isAtlasStorageKey(e.key)) bump();
+    };
+    window.addEventListener(ATLAS_CHANGED_EVENT, bump);
+    window.addEventListener("storage", onStorage);
 
     return () => {
       cancelled = true;
+      window.removeEventListener(ATLAS_CHANGED_EVENT, bump);
+      window.removeEventListener("storage", onStorage);
     };
   }, []);
 

@@ -2,6 +2,7 @@ import {
   NOTE_ATTACHMENT_MAX_BYTES,
   alignDataUrlMime,
   checkNoteAttachmentFile,
+  checkNoteAttachmentsTotal,
 } from "@/lib/refleksoloji/notesValidation";
 import type { NoteAttachment } from "../types";
 
@@ -29,13 +30,21 @@ export function readFileAsDataUrl(file: File): Promise<string> {
 export async function readNoteAttachments(
   files: File[],
   newId: () => string,
+  /** RF-04: nottaki mevcut eklerin toplam ikili boyutu (toplam sınırı için). */
+  existingBytes = 0,
 ): Promise<{ added: NoteAttachment[]; errors: string[] }> {
   const added: NoteAttachment[] = [];
   const errors: string[] = [];
+  let total = existingBytes;
   for (const file of files) {
     const check = checkNoteAttachmentFile({ name: file.name, type: file.type, size: file.size });
     if (!check.ok) {
       errors.push(check.message);
+      continue;
+    }
+    const totalError = checkNoteAttachmentsTotal(total, file.size, file.name);
+    if (totalError) {
+      errors.push(totalError);
       continue;
     }
     try {
@@ -48,6 +57,7 @@ export async function readNoteAttachments(
         size: file.size,
         dataUrl,
       });
+      total += file.size;
     } catch {
       errors.push(`${file.name} okunamadı.`);
     }
