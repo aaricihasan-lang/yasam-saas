@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "İşlem tamamlanamadı." }, { status: 500 });
 
   return NextResponse.json({ messages: data ?? [] });
 }
@@ -62,7 +62,7 @@ export async function PATCH(req: NextRequest) {
   if (adminNote !== undefined) update.admin_note = adminNote || null;
 
   const { error } = await db.from("support_messages").update(update).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "İşlem tamamlanamadı." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

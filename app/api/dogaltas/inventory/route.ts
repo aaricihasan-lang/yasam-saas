@@ -3,6 +3,7 @@ import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
+import { checkFreeTextFields, freeTextTooLongMessage } from "@/lib/urun-stok/selectOther";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,10 @@ export const runtime = "nodejs";
 
 // Client'tan kabul EDİLMEYECEK alanlar (tenant override + id güvenliği).
 const PROTECTED = new Set(["tenant_id", "id", "created_at"]);
+
+// Serbest metin girilebilen etiket kolonları (ürün türü/grup/ambalaj/malzeme) — ≤ 80 karakter.
+// Ölçü tipi / birim kolonları burada YOK (dönüşüm ve satış RPC base_unit bunlara bağlı).
+const FREE_TEXT_KEYS = ["type"] as const;
 
 function sanitize(body: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -49,6 +54,11 @@ export async function POST(req: NextRequest): Promise<Response> {
   try { body = (await req.json()) as Record<string, unknown>; }
   catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
+  // "Diğer" serbest metin alanları: kırp + uzunluk sınırı (başka davranış değişmez).
+  const freeText = checkFreeTextFields(body, FREE_TEXT_KEYS);
+  if (!freeText.ok) return NextResponse.json({ ok: false, error: freeTextTooLongMessage() }, { status: 400 });
+  body = freeText.body;
+
   const name = String(body.name ?? "").trim();
   if (!name) return NextResponse.json({ ok: false, error: "Stok adı zorunludur." }, { status: 400 });
 
@@ -70,6 +80,11 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
   catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+
+  // "Diğer" serbest metin alanları: kırp + uzunluk sınırı (başka davranış değişmez).
+  const freeText = checkFreeTextFields(body, FREE_TEXT_KEYS);
+  if (!freeText.ok) return NextResponse.json({ ok: false, error: freeTextTooLongMessage() }, { status: 400 });
+  body = freeText.body;
 
   const id = String(body.id ?? "").trim();
   if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });

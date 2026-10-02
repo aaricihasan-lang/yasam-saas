@@ -849,7 +849,7 @@ export default function CakralarDetail({ id }: { id: string }) {
                 Sil
               </button>
               {record && !isAndroid && (
-                <button type="button" onClick={() => void downloadWord()} disabled={wordBusy} className={tbBtn}>
+                <button type="button" onClick={() => void downloadWord()} disabled={wordBusy} className={`no-android ${tbBtn}`}>
                   <FileText className="h-4 w-4" strokeWidth={2} aria-hidden />
                   {wordBusy ? "Hazırlanıyor…" : "Word"}
                 </button>

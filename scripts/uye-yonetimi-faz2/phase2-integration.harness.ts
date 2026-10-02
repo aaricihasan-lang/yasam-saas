@@ -264,8 +264,11 @@ async function main(): Promise<void> {
     ok((await reg(undefined, { rawBody: "{bozuk" })).status === 400, "bozuk JSON → 400");
     ok((await reg(undefined, { rawBody: "{}", contentType: "text/plain" })).status === 400, "yanlış içerik türü → 400");
     ok((await reg(undefined, { rawBody: JSON.stringify({ fullName: "x".repeat(9000) }) })).status === 413, "aşırı büyük gövde → 413");
-    const weak = await reg({ fullName: "ZZ Kayıt", email: "zz.p2.reg1@example.test", password: "sadeceharf" });
-    ok(weak.status === 400 && weak.json.code === "weak_password", "rakamsız şifre → 400 weak_password");
+    // Owner kararı (2026-10): min 6, karmaşıklık zorunluluğu yok; bariz parolalar reddedilir.
+    const weak = await reg({ fullName: "ZZ Kayıt", email: "zz.p2.reg1@example.test", password: "48273" });
+    ok(weak.status === 400 && weak.json.code === "weak_password", "5 karakter parola → 400 weak_password");
+    const obvious = await reg({ fullName: "ZZ Kayıt", email: "zz.p2.reg1@example.test", password: "123456" });
+    ok(obvious.status === 400 && obvious.json.code === "weak_password", "bariz parola (123456) → 400 weak_password");
     ok((await reg({ fullName: "ZZ Kayıt", email: "zz.p2.reg1@example.test", password: "12345678" })).json.code === "weak_password", "harfsiz şifre → weak_password");
     ok((await reg({ fullName: "ZZ Kayıt", email: "zz.p2.reg1@example.test", password: "ab1" })).json.code === "weak_password", "kısa şifre → weak_password");
     ok((await reg({ fullName: "ZZ Kayıt", email: "gecersiz@", password: "abcd123456" })).json.code === "invalid_email", "geçersiz e-posta → invalid_email");
@@ -325,7 +328,7 @@ async function main(): Promise<void> {
     await su.query(`insert into public.security_events(user_id, event_type, severity) values ($1,'login','high')`, [E0]);
     const lsus = await list("q=ZZ_MEMBER_PHASE2_AUTH");
     ok((lsus.json.suspiciousCounts as Record<string, number>)[E0] === 1, "service_role ile güvenlik olayı okunuyor (liste şüpheli sayacı)");
-    const fn = (await su.query(`select has_function_privilege('anon','public.admin_list_users(text,text,text,text,text,text,text,integer,integer)','EXECUTE') a,
+    const fn = (await su.query(`select has_function_privilege('anon','public.admin_list_users(text,text,text,text,text,text,text,integer,integer,text,text)','EXECUTE') a,
         has_function_privilege('anon','public.admin_create_user_with_modules(jsonb,jsonb,jsonb,text[])','EXECUTE') b,
         has_function_privilege('authenticated','public.auth_rate_limit_hit(text,integer,integer)','EXECUTE') c`)).rows[0];
     ok(!fn.a && !fn.b && !fn.c, "yeni RPC'ler anon/authenticated'a KAPALI");

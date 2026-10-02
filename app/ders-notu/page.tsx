@@ -10,6 +10,7 @@ import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { useRef, useState } from "react";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
+import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   BookOpen,
@@ -56,6 +57,8 @@ export default function DersNotuPage() {
   const [processing, setProcessing] = useState(false);
   const [downloadingWord, setDownloadingWord] = useState(false);
   const isAndroid = useIsAndroid();
+  // Android uygulama WebView'inde blob: indirme çalışmaz → TXT İndir gizli (plan §4.6).
+  const isAndroidApp = useIsAndroidApp();
   // ── .txt dosya yükleme ─────────────────────────────────────────────────────
 
   function handleTxtUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -357,21 +360,23 @@ export default function DersNotuPage() {
                     Kopyala
                   </button>
 
+                  {!isAndroidApp && (
                   <button
                     type="button"
                     onClick={() => downloadTxt(result)}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-white py-2 text-[11px] font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
+                    className="no-android-app flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-white py-2 text-[11px] font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
                   >
                     <FileDown className="h-3.5 w-3.5" strokeWidth={2.25} />
                     TXT İndir
                   </button>
+                  )}
 
                   {!isAndroid && (
                   <button
                     type="button"
                     onClick={() => void handleWordDownload()}
                     disabled={downloadingWord}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2 text-[11px] font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
+                    className="no-android flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2 text-[11px] font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
                   >
                     {downloadingWord ? (
                       <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />

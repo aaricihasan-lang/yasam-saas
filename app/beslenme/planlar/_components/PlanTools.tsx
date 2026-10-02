@@ -519,7 +519,7 @@ function RefreshSnapshotsModal({
               <p className="text-[12px] font-black text-slate-500">
                 {data.changes.length} kalem güncellenecek (plandaki {data.totalItems} kalemden)
               </p>
-              <div className="max-h-[50vh] overflow-y-auto rounded-xl border border-slate-100">
+              <div className="max-h-[50vh] overflow-x-auto overflow-y-auto rounded-xl border border-slate-100">
                 <table className="w-full text-[12px]">
                   <thead className="sticky top-0 bg-slate-50 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
                     <tr>

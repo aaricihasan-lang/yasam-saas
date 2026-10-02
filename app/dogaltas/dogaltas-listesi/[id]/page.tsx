@@ -1348,7 +1348,7 @@ function StoneDetailPage() {
                 type="button"
                 onClick={() => void downloadWordReport()}
                 disabled={wordBusy}
-                className="btn-soft"
+                className="no-android btn-soft"
               >
                 {wordBusy ? t("wordBusy") : t("wordButton")}
               </button>

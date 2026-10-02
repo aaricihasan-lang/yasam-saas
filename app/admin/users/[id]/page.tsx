@@ -8,7 +8,6 @@ import {
   Banknote,
   ChevronDown,
   Eye,
-  EyeOff,
   Filter,
   HelpCircle,
   Home,
@@ -26,6 +25,8 @@ import {
   UserX,
   X,
 } from "lucide-react";
+import PasswordInput from "@/components/ui/PasswordInput";
+import { PASSWORD_HINT, PASSWORD_MIN_LENGTH, newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   ADMIN_MODULE_KIND,
@@ -43,6 +44,7 @@ import {
   parseAdminModulePermissions,
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_SELECT_OPTIONS,
+  buildPaymentDraftRequestBody,
   paymentSnapshotToEditDraft,
   rowHasPaymentColumns,
   SECURITY_MODE_OPTIONS,
@@ -83,6 +85,15 @@ import { ModuleCheckboxGrid } from "@/components/admin/members/ModuleCheckboxGri
 import { useDialogA11y } from "@/components/admin/members/useDialogA11y";
 import { classifyFetchFailure, FETCH_FAILURE_COPY, type FetchFailureKind } from "@/lib/admin/fetchState";
 import { MEMBER_LIST_RETURN_KEY, memberListReturnHref } from "@/lib/admin/memberListQuery";
+import {
+  addBillingPeriod,
+  BILLING_PERIOD_LABELS,
+  BILLING_PERIODS,
+  istanbulTodayIso,
+  renewalBadgeLabel,
+  renewalState,
+  type BillingPeriod,
+} from "@/lib/admin/memberCommercial";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -112,21 +123,10 @@ const deleteModalOverlay =
 const deleteModalPanel =
   "relative w-full max-w-lg rounded-[28px] border-2 border-white/90 bg-gradient-to-br from-rose-50/95 via-white to-violet-50/80 p-6 shadow-[0_24px_64px_rgba(15,23,42,0.22)] sm:p-8";
 
-function normalizeAdminLevel(value: unknown): string {
-  return String(value ?? "").trim().toLowerCase();
-}
-
-function isOwnerAdmin(admin: YasamUser | null | undefined): boolean {
-  if (!admin || !isAdminUser(admin)) return false;
-  if (normalizeAdminLevel(admin.admin_level) === "owner") return true;
-  const email = String(admin.email ?? "")
-    .trim()
-    .toLowerCase();
-  if (!normalizeAdminLevel(admin.admin_level) && email === OWNER_FALLBACK_EMAIL) {
-    return true;
-  }
-  return false;
-}
+// AŞAMA 2 · P1-7: istemci tarafı `isOwnerAdmin(currentAdminUser)` KALDIRILDI — canlıda
+// users.admin_level varsayılanı 'owner' olduğundan her admin "ana yönetici" görünüyordu.
+// Ana-yönetici kararı artık SUNUCUDAN gelir: GET /api/admin/users/[id] → viewer.isMainAdmin.
+// Yetki her işlemde ayrıca sunucuda doğrulanır; bu yalnız UI erken engellemesidir.
 
 /**
  * Yönetilen hedef kullanıcı owner (sistem sahibi) admin mi?
@@ -186,14 +186,15 @@ function PaymentHistorySection({
         </p>
       ) : (
         <div className="mt-6 overflow-hidden rounded-2xl border-2 border-teal-100/90 bg-gradient-to-br from-white/95 via-teal-50/30 to-emerald-50/40 shadow-sm">
-          <div className="hidden md:block">
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="border-b border-teal-100 bg-teal-50/80">
                   {[
                     "Ödeme Tarihi",
-                    "Sonraki Ödeme",
+                    "Yenileme",
                     "Tutar",
+                    "Ücret / Dönem",
                     "Durum",
                     "Not",
                     "Kayıt Zamanı",
@@ -221,6 +222,10 @@ function PaymentHistorySection({
                     </td>
                     <td className="px-4 py-4 text-base font-black text-slate-900">
                       {entry.amountLabel}
+                    </td>
+                    <td className="px-4 py-4 text-sm font-bold text-slate-800">
+                      {entry.agreedFeeLabel}
+                      <span className="block text-xs font-semibold text-slate-500">{entry.billingPeriodLabel}</span>
                     </td>
                     <td className="px-4 py-4">
                       <PaymentStatusBadge status={entry.status} />
@@ -253,8 +258,14 @@ function PaymentHistorySection({
                     <dd className="font-bold text-slate-900">{entry.paymentDateLabel}</dd>
                   </div>
                   <div className="flex justify-between gap-3">
-                    <dt className="font-bold text-slate-500">Sonraki</dt>
+                    <dt className="font-bold text-slate-500">Yenileme</dt>
                     <dd className="font-bold text-slate-900">{entry.nextPaymentDateLabel}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="font-bold text-slate-500">Ücret / Dönem</dt>
+                    <dd className="text-right font-bold text-slate-900">
+                      {entry.agreedFeeLabel} · {entry.billingPeriodLabel}
+                    </dd>
                   </div>
                   <div className="flex justify-between gap-3">
                     <dt className="font-bold text-slate-500">Kayıt</dt>
@@ -440,8 +451,15 @@ function LimitInput({
   );
 }
 
+type UserDetailJson = {
+  user: Record<string, unknown>;
+  paymentHistory: Record<string, unknown>[];
+  /** P1-7 — sunucu kararı: görüntüleyen admin ana yönetici mi? */
+  viewer?: { isMainAdmin?: boolean };
+};
+
 type UserDetailResult =
-  | { ok: true; json: { user: Record<string, unknown>; paymentHistory: Record<string, unknown>[] } }
+  | { ok: true; json: UserDetailJson }
   | { ok: false; failure: FetchFailureKind };
 
 /** Üye detayı (SAF fetch; state yazmaz). */
@@ -451,7 +469,7 @@ async function fetchUserDetail(userId: string, adminId: string): Promise<UserDet
   }).catch(() => null);
   if (!res || !res.ok) return { ok: false, failure: classifyFetchFailure(res ? res.status : null) };
   try {
-    const json = (await res.json()) as { user: Record<string, unknown>; paymentHistory: Record<string, unknown>[] };
+    const json = (await res.json()) as UserDetailJson;
     return { ok: true, json };
   } catch {
     return { ok: false, failure: "server" };
@@ -530,7 +548,6 @@ export default function AdminUserDetailPage() {
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordRepeat, setNewPasswordRepeat] = useState("");
-  const [showNewPassword, setShowNewPassword] = useState(false);
   // P2 — hesap müdahaleleri: pasife alma onayı + tüm cihazlardan çıkış (iki adım).
   const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [logoutAllStep, setLogoutAllStep] = useState<null | "confirm" | "verify">(null);
@@ -551,7 +568,10 @@ export default function AdminUserDetailPage() {
   const [canPersistModulePermissions, setCanPersistModulePermissions] =
     useState(true);
   const [paymentDraft, setPaymentDraft] = useState<PaymentEditDraft | null>(null);
+  // P1-7: sunucudan gelen ana-yönetici kararı (varsayılan KAPALI → yetkisiz kontrol gösterilmez).
+  const [viewerIsMainAdmin, setViewerIsMainAdmin] = useState(false);
   const [savingPayment, setSavingPayment] = useState(false);
+  const [paymentReceivedHint, setPaymentReceivedHint] = useState(false);
   const [canPersistPayment, setCanPersistPayment] = useState(true);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -710,6 +730,7 @@ export default function AdminUserDetailPage() {
 
     const mapped = mapDbUser(row);
     setUser(mapped);
+    setViewerIsMainAdmin(json.viewer?.isMainAdmin === true);
     setPaymentDraft(paymentSnapshotToEditDraft(mapped.payment));
     setLicenseDraft({ ...mapped.licenseSettings });
     setPaymentHistory((json.paymentHistory ?? []).map((r) => mapPaymentHistoryRow(r)));
@@ -788,7 +809,7 @@ export default function AdminUserDetailPage() {
     router.push("/");
   }
 
-  const canDeleteAsOwner = isOwnerAdmin(currentAdminUser);
+  const canDeleteAsOwner = viewerIsMainAdmin;
 
   function isSelf(): boolean {
     return Boolean(user && currentAdminId && user.id === currentAdminId);
@@ -812,7 +833,7 @@ export default function AdminUserDetailPage() {
     if (!user || isSelf() || !canDeleteAsOwner) return;
 
     if (!deleteAdminPassword.trim()) {
-      showToast({ title: "İşlem başarısız", message: "Admin şifresi giriniz.", type: "error" });
+      showToast({ title: "İşlem başarısız", message: "Yönetici parolasını giriniz.", type: "error" });
       return;
     }
     if (deleteConfirmPhrase.trim() !== DELETE_CONFIRM_PHRASE) {
@@ -863,7 +884,8 @@ export default function AdminUserDetailPage() {
   async function saveEdit() {
     if (!user || !editForm) return;
     const fullName = editForm.fullName.trim();
-    const email = editForm.email.trim().toLowerCase();
+    // P1-7: e-posta yalnız ana yöneticide düzenlenebilir; aksi halde mevcut değer aynen gider.
+    const email = (viewerIsMainAdmin ? editForm.email : user.email).trim().toLowerCase();
     if (!fullName || !email) {
       showToast({ title: "İşlem başarısız", message: "Ad ve e-posta zorunludur.", type: "error" });
       return;
@@ -903,7 +925,6 @@ export default function AdminUserDetailPage() {
     setPasswordOpen(false);
     setNewPassword("");
     setNewPasswordRepeat("");
-    setShowNewPassword(false);
   }
 
   /**
@@ -916,24 +937,30 @@ export default function AdminUserDetailPage() {
   function canManageAccountActions(): boolean {
     if (!user || isSelf()) return false;
     if (isManagedOwnerAdmin(user)) return false;
-    if (user.role === "admin" && !isOwnerAdmin(currentAdminUser)) return false;
+    if (user.role === "admin" && !viewerIsMainAdmin) return false;
     return true;
   }
 
+  /** P1-7: şifre sıfırlama YALNIZ ana yönetici (hedef uzman olsa da). Sunucu ayrıca doğrular. */
+  function canResetPassword(): boolean {
+    return canManageAccountActions() && viewerIsMainAdmin;
+  }
+
   async function savePassword() {
-    if (!user || !canManageAccountActions()) return;
+    if (!user || !canResetPassword()) return;
     const pw = newPassword.trim();
     const pw2 = newPasswordRepeat.trim();
     if (!pw) {
-      showToast({ title: "İşlem başarısız", message: "Yeni şifre giriniz.", type: "error" });
+      showToast({ title: "İşlem başarısız", message: "Yeni parola giriniz.", type: "error" });
       return;
     }
-    if (pw.length < 10) {
-      showToast({ title: "İşlem başarısız", message: "Yeni şifre en az 10 karakter olmalı.", type: "error" });
+    const policyError = newPasswordPolicyMessage(pw);
+    if (policyError) {
+      showToast({ title: "İşlem başarısız", message: policyError, type: "error" });
       return;
     }
     if (pw !== pw2) {
-      showToast({ title: "İşlem başarısız", message: "Şifreler eşleşmiyor.", type: "error" });
+      showToast({ title: "İşlem başarısız", message: "Parolalar eşleşmiyor.", type: "error" });
       return;
     }
 
@@ -951,14 +978,14 @@ export default function AdminUserDetailPage() {
     setSavingPassword(false);
 
     if (!res.ok || !json.ok) {
-      showToast({ title: "İşlem başarısız", message: json.error ?? "Şifre güncellenemedi.", type: "error" });
+      showToast({ title: "İşlem başarısız", message: json.error ?? "Parola güncellenemedi.", type: "error" });
       return;
     }
 
     closePasswordPanel();
     showToast({
       title: "Başarılı",
-      message: "Şifre değiştirildi ve kullanıcı tüm cihazlardan çıkarıldı.",
+      message: "Parola değiştirildi ve kullanıcı tüm cihazlardan çıkarıldı.",
       type: "success",
     });
   }
@@ -1145,22 +1172,52 @@ export default function AdminUserDetailPage() {
     const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/payment`, {
       method: "POST",
       headers: adminHeaders(currentAdminId, true),
-      body: JSON.stringify({ draft: paymentDraft }),
-    });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; warning?: string; error?: string };
+      body: JSON.stringify({ draft: buildPaymentDraftRequestBody(paymentDraft) }),
+    }).catch(() => null);
+    const json = res
+      ? ((await res.json().catch(() => ({}))) as { ok?: boolean; changed?: boolean; error?: string })
+      : {};
     setSavingPayment(false);
 
-    if (!res.ok) {
-      showToast({ title: "İşlem başarısız", message: json.error ?? "Ödeme güncellenemedi.", type: "error" });
+    if (!res || !res.ok || !json.ok) {
+      showToast({
+        title: "İşlem başarısız",
+        message: json.error ?? (res ? "Ödeme güncellenemedi." : "Sunucuya ulaşılamadı."),
+        type: "error",
+      });
       return;
     }
 
-    if (json.warning) {
-      showToast({ title: "Kısmi kayıt", message: json.warning, type: "warning" });
-    } else {
-      showToast({ title: "Başarılı", message: "Ödeme bilgileri güncellendi.", type: "success" });
-    }
+    showToast({
+      title: "Başarılı",
+      message: json.changed === false ? "Değişiklik yok; ödeme kaydı güncel." : "Ödeme bilgileri güncellendi.",
+      type: "success",
+    });
+    setPaymentReceivedHint(false);
     await loadUser(currentAdminId);
+  }
+
+  /**
+   * "Ödeme alındı" yardımcısı — YALNIZ formu doldurur (durum=Ödendi, son ödeme=bugün,
+   * yenileme=bugün + ödeme dönemi, tutar boşsa anlaşılan ücret). Kayıt admin'in
+   * "Ödemeyi Kaydet" onayıyla yapılır; otomatik işlem YOK.
+   */
+  function applyPaymentReceived() {
+    if (!paymentDraft || !paymentDraft.billingPeriod) return;
+    const today = istanbulTodayIso();
+    const period = paymentDraft.billingPeriod;
+    setPaymentDraft((d) =>
+      d
+        ? {
+            ...d,
+            status: "paid",
+            lastPaymentDate: today,
+            nextPaymentDate: addBillingPeriod(today, period),
+            paidAmount: d.paidAmount.trim() ? d.paidAmount : d.agreedFee,
+          }
+        : d,
+    );
+    setPaymentReceivedHint(true);
   }
 
   /**
@@ -1211,7 +1268,7 @@ export default function AdminUserDetailPage() {
   }
 
   async function saveLicenseSettings(confirmExcessRevocation = false) {
-    if (!user) return;
+    if (!user || !viewerIsMainAdmin) return;
     // MEM-001: değişiklik yoksa istek GÖNDERİLMEZ (sunucu da no-op'u yazmaz).
     if (licenseSettingsEqual(user.licenseSettings, licenseDraft)) {
       showToast({ title: "Değişiklik yok", message: "Lisans ayarları zaten güncel.", type: "info" });
@@ -1330,7 +1387,7 @@ export default function AdminUserDetailPage() {
   }
 
   async function terminateSession(sessionId: string) {
-    if (!user) return;
+    if (!user || !canManageAccountActions()) return;
     setTerminatingSessionId(sessionId);
     const res = await fetch(
       `/api/admin/users/${encodeURIComponent(user.id)}/sessions/${encodeURIComponent(sessionId)}`,
@@ -1622,8 +1679,25 @@ export default function AdminUserDetailPage() {
                         <dd className="mt-2">
                           <PaymentBadge status={user.payment.status} />
                           <p className="mt-2 text-xs font-semibold text-slate-600">
-                            Sonraki ödeme: {user.payment.nextPaymentLabel}
+                            Yenileme: {user.payment.nextPaymentLabel}
                           </p>
+                          {(() => {
+                            if (user.payment.status === "exempt") return null;
+                            const st = renewalState(user.payment.nextPaymentAt, istanbulTodayIso());
+                            const label = renewalBadgeLabel(st);
+                            if (!label) return null;
+                            return (
+                              <span
+                                className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-black ring-1 ${
+                                  st.kind === "overdue"
+                                    ? "bg-rose-100 text-rose-900 ring-rose-300"
+                                    : "bg-amber-100 text-amber-900 ring-amber-300"
+                                }`}
+                              >
+                                {label}
+                              </span>
+                            );
+                          })()}
                         </dd>
                       </div>
                     ) : null}
@@ -1639,6 +1713,23 @@ export default function AdminUserDetailPage() {
 
             {/* GİZLİLİK KARARI (2026-08-24): "Uzman Panelini Görüntüle" / çalışma alanı
                 kartı kaldırıldı — admin/owner artık uzman özel içeriğini görüntüleyemez. */}
+
+            {(() => {
+              // M4 — yalnız BİLGİLENDİRME: gecikmiş yenileme erişimi otomatik kısıtlamaz.
+              if (user.role !== "expert" || user.approvalStatus !== "approved" || !user.active) return null;
+              if (user.payment.status === "exempt") return null;
+              const st = renewalState(user.payment.nextPaymentAt, istanbulTodayIso());
+              if (st.kind !== "overdue") return null;
+              return (
+                <div
+                  role="status"
+                  className="rounded-2xl border-2 border-rose-300 bg-rose-50/90 px-4 py-3 text-sm font-bold text-rose-900 shadow-sm"
+                >
+                  Yenileme tarihi {st.days} gün önce geçti ({user.payment.nextPaymentLabel}). Bu yalnız
+                  bilgilendirmedir — hesap erişimi otomatik kısıtlanmaz. Ödeme alındıysa “Ödeme Takibi”nden kaydedin.
+                </div>
+              );
+            })()}
 
             {paymentDraft ? (
               <section
@@ -1658,7 +1749,7 @@ export default function AdminUserDetailPage() {
                       Ödeme Takibi
                     </p>
                     <p className="mt-0.5 text-sm font-medium text-teal-900/75">
-                      Ödeme durumu, tutar ve ödeme geçmişini yönet
+                      Anlaşılan ücret, dönem, yenileme tarihi ve ödeme geçmişi
                     </p>
                   </div>
                   <ChevronDown
@@ -1676,22 +1767,10 @@ export default function AdminUserDetailPage() {
                     <span className={labelClass}>Ödeme Durumu</span>
                     <select
                       className={inputClass}
-                      value={
-                        paymentDraft.status === "unknown"
-                          ? "pending"
-                          : paymentDraft.status
-                      }
+                      value={paymentDraft.status}
                       onChange={(e) =>
                         setPaymentDraft((d) =>
-                          d
-                            ? {
-                                ...d,
-                                status: e.target.value as Exclude<
-                                  PaymentStatusUi,
-                                  "unknown"
-                                >,
-                              }
-                            : d,
+                          d ? { ...d, status: e.target.value as PaymentStatusUi } : d,
                         )
                       }
                     >
@@ -1716,7 +1795,7 @@ export default function AdminUserDetailPage() {
                     />
                   </label>
                   <label className="block">
-                    <span className={labelClass}>Sonraki Ödeme Tarihi</span>
+                    <span className={labelClass}>Yenileme / Sonraki Ödeme Tarihi</span>
                     <input
                       type="date"
                       className={inputClass}
@@ -1727,6 +1806,41 @@ export default function AdminUserDetailPage() {
                         )
                       }
                     />
+                  </label>
+                  <label className="block">
+                    <span className={labelClass}>Anlaşılan Ücret (₺)</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className={inputClass}
+                      placeholder="örn. 1500"
+                      maxLength={14}
+                      value={paymentDraft.agreedFee}
+                      onChange={(e) =>
+                        setPaymentDraft((d) =>
+                          d ? { ...d, agreedFee: e.target.value } : d,
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="block">
+                    <span className={labelClass}>Ödeme Dönemi</span>
+                    <select
+                      className={inputClass}
+                      value={paymentDraft.billingPeriod}
+                      onChange={(e) =>
+                        setPaymentDraft((d) =>
+                          d ? { ...d, billingPeriod: e.target.value as BillingPeriod | "" } : d,
+                        )
+                      }
+                    >
+                      <option value="">Belirtilmemiş</option>
+                      {BILLING_PERIODS.map((p) => (
+                        <option key={p} value={p}>
+                          {BILLING_PERIOD_LABELS[p]}
+                        </option>
+                      ))}
+                    </select>
                   </label>
                   <label className="block">
                     <span className={labelClass}>Ödenen Tutar</span>
@@ -1748,6 +1862,7 @@ export default function AdminUserDetailPage() {
                     <textarea
                       className={`${inputClass} min-h-[100px] resize-y py-3`}
                       rows={3}
+                      maxLength={1000}
                       value={paymentDraft.note}
                       onChange={(e) =>
                         setPaymentDraft((d) =>
@@ -1759,7 +1874,40 @@ export default function AdminUserDetailPage() {
                   </label>
                 </div>
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="mt-4 rounded-2xl border-2 border-dashed border-teal-200 bg-white/70 px-4 py-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="min-w-0 text-xs font-semibold text-teal-900/80">
+                      Ödeme alındıysa formu tek tıkla doldurun: durum “Ödendi”, son ödeme bugün, yenileme
+                      tarihi ödeme dönemi kadar ileri. Kayıt yalnız “Ödemeyi Kaydet” ile yapılır.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={applyPaymentReceived}
+                      disabled={!paymentDraft.billingPeriod || savingPayment}
+                      title={!paymentDraft.billingPeriod ? "Önce ödeme dönemini seçin." : undefined}
+                      className={`${actionBtn} shrink-0 border-teal-300 bg-teal-50 text-teal-950 hover:bg-teal-100`}
+                    >
+                      <Banknote className="h-4 w-4" aria-hidden />
+                      Ödeme alındı
+                    </button>
+                  </div>
+                  {paymentReceivedHint ? (
+                    <p className="mt-2 text-xs font-black text-teal-800" role="status">
+                      Form dolduruldu — tarihleri ve tutarı kontrol edip “Ödemeyi Kaydet” ile kaydedin.
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-xl border border-white/90 bg-white/85 px-4 py-3 text-sm">
+                    <p className="text-[11px] font-black uppercase text-slate-500">
+                      Anlaşılan ücret / dönem
+                    </p>
+                    <p className="mt-1 font-black text-slate-900">
+                      {user.payment.agreedFeeLabel}
+                      <span className="font-bold text-slate-600"> · {user.payment.billingPeriodLabel}</span>
+                    </p>
+                  </div>
                   <div className="rounded-xl border border-white/90 bg-white/85 px-4 py-3 text-sm">
                     <p className="text-[11px] font-black uppercase text-slate-500">
                       Mevcut son ödeme
@@ -1770,7 +1918,7 @@ export default function AdminUserDetailPage() {
                   </div>
                   <div className="rounded-xl border border-white/90 bg-white/85 px-4 py-3 text-sm">
                     <p className="text-[11px] font-black uppercase text-slate-500">
-                      Mevcut sonraki ödeme
+                      Mevcut yenileme tarihi
                     </p>
                     <p className="mt-1 font-black text-slate-900">
                       {user.payment.nextPaymentLabel}
@@ -1880,12 +2028,12 @@ export default function AdminUserDetailPage() {
                   </button>
                   <button
                     type="button"
-                    disabled={!canManageAccountActions()}
+                    disabled={!canResetPassword()}
                     title={
                       isManagedOwnerAdmin(user)
                         ? "Ana yönetici hesabına bu işlem uygulanamaz."
-                        : user.role === "admin" && !isOwnerAdmin(currentAdminUser)
-                          ? "Yönetici şifresini yalnızca ana yönetici sıfırlayabilir."
+                        : !viewerIsMainAdmin
+                          ? "Parola sıfırlama yalnızca ana yöneticiye açıktır."
                           : undefined
                     }
                     onClick={() => {
@@ -1900,7 +2048,7 @@ export default function AdminUserDetailPage() {
                     className={`${actionBtn} border-amber-200 bg-amber-50 text-amber-950`}
                   >
                     <KeyRound className="h-4 w-4" aria-hidden />
-                    Şifreyi Sıfırla
+                    Parolayı Sıfırla
                   </button>
                   {!user.active && (user.role === "admin" || user.approvalStatus === "approved") ? (
                     <button
@@ -1915,7 +2063,9 @@ export default function AdminUserDetailPage() {
                   ) : null}
                 </div>
                 <p className="mt-2 text-[11px] font-medium text-slate-500">
-                  Şifre sıfırlandığında kullanıcı tüm cihazlardan çıkarılır.
+                  {viewerIsMainAdmin
+                    ? "Parola sıfırlandığında kullanıcı tüm cihazlardan çıkarılır."
+                    : "Parola sıfırlama ve e-posta değişikliği yalnızca ana yöneticiye açıktır (hesap güvenliği)."}
                 </p>
               </div>
 
@@ -1936,7 +2086,7 @@ export default function AdminUserDetailPage() {
                           ? "Kendi hesabınız üzerinde durum değişikliği yapamazsınız."
                           : isManagedOwnerAdmin(user)
                             ? "Ana yönetici pasifleştirilemez."
-                            : user.role === "admin" && !isOwnerAdmin(currentAdminUser)
+                            : user.role === "admin" && !viewerIsMainAdmin
                               ? "Yönetici hesabı durumunu yalnızca ana yönetici değiştirebilir."
                               : undefined
                       }
@@ -1953,7 +2103,7 @@ export default function AdminUserDetailPage() {
                     title={
                       isManagedOwnerAdmin(user)
                         ? "Ana yönetici hesabına bu işlem uygulanamaz."
-                        : user.role === "admin" && !isOwnerAdmin(currentAdminUser)
+                        : user.role === "admin" && !viewerIsMainAdmin
                           ? "Bu işlem yalnızca ana yöneticiye açıktır."
                           : undefined
                     }
@@ -1990,41 +2140,34 @@ export default function AdminUserDetailPage() {
                 ) : null}
               </div>
 
-              {passwordOpen ? (
+              {passwordOpen && canResetPassword() ? (
                 <div className="mt-4 rounded-2xl border-2 border-amber-200 bg-amber-50/80 p-4">
-                  <p className="text-sm font-black text-amber-950">Yeni şifre belirle</p>
+                  <p className="text-sm font-black text-amber-950">Yeni parola belirle</p>
                   <p className="mt-1 text-xs font-bold text-amber-900/85">
-                    Şifre değiştirildiğinde kullanıcı tüm cihazlardan çıkarılır ve tekrar giriş yapması gerekir.
+                    Parola değiştirildiğinde kullanıcı tüm cihazlardan çıkarılır ve tekrar giriş yapması gerekir.
                   </p>
                   <div className="mt-3 space-y-2">
-                    <div className="relative">
-                      <input
-                        type={showNewPassword ? "text" : "password"}
-                        autoComplete="new-password"
-                        className={`${inputClass} mt-0 w-full pr-11`}
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Yeni şifre (en az 10 karakter)"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowNewPassword((s) => !s)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-amber-700 transition hover:bg-amber-100"
-                        aria-label={showNewPassword ? "Şifreyi gizle" : "Şifreyi göster"}
-                      >
-                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    <input
-                      type={showNewPassword ? "text" : "password"}
+                    <PasswordInput
+                      id="admin-reset-password"
                       autoComplete="new-password"
+                      aria-label="Yeni parola"
+                      className={`${inputClass} mt-0 w-full`}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Yeni parola (en az 6 karakter)"
+                    />
+                    <PasswordInput
+                      id="admin-reset-password-repeat"
+                      autoComplete="new-password"
+                      aria-label="Yeni parola (tekrar)"
                       className={`${inputClass} mt-0 w-full`}
                       value={newPasswordRepeat}
                       onChange={(e) => setNewPasswordRepeat(e.target.value)}
-                      placeholder="Yeni şifre (tekrar)"
+                      placeholder="Yeni parola (tekrar)"
                     />
+                    <p className="text-xs font-medium text-amber-900/80">{PASSWORD_HINT}</p>
                     {newPasswordRepeat.length > 0 && newPassword.trim() !== newPasswordRepeat.trim() ? (
-                      <p className="text-xs font-bold text-rose-700">Şifreler eşleşmiyor.</p>
+                      <p className="text-xs font-bold text-rose-700">Parolalar eşleşmiyor.</p>
                     ) : null}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -2033,12 +2176,12 @@ export default function AdminUserDetailPage() {
                       onClick={savePassword}
                       disabled={
                         savingPassword ||
-                        newPassword.trim().length < 10 ||
+                        newPassword.trim().length < PASSWORD_MIN_LENGTH ||
                         newPassword.trim() !== newPasswordRepeat.trim()
                       }
                       className={`${saveBtnClass} disabled:cursor-not-allowed disabled:opacity-50`}
                     >
-                      {savingPassword ? "Kaydediliyor…" : "Şifreyi Sıfırla"}
+                      {savingPassword ? "Kaydediliyor…" : "Parolayı Sıfırla"}
                     </button>
                     <button
                       type="button"
@@ -2072,12 +2215,19 @@ export default function AdminUserDetailPage() {
                       <span className={labelClass}>E-posta</span>
                       <input
                         type="email"
-                        className={inputClass}
-                        value={editForm.email}
+                        className={`${inputClass} read-only:bg-slate-50 read-only:text-slate-500`}
+                        value={viewerIsMainAdmin ? editForm.email : user.email}
+                        readOnly={!viewerIsMainAdmin}
+                        aria-describedby={viewerIsMainAdmin ? undefined : "edit-email-hint"}
                         onChange={(e) =>
                           setEditForm((f) => (f ? { ...f, email: e.target.value } : f))
                         }
                       />
+                      {!viewerIsMainAdmin ? (
+                        <span id="edit-email-hint" className="mt-1 block text-xs font-bold text-slate-500">
+                          E-posta (giriş kimliği) yalnızca ana yönetici tarafından değiştirilebilir.
+                        </span>
+                      ) : null}
                     </label>
                     <label className="block">
                       <span className={labelClass}>Rol</span>
@@ -2615,7 +2765,8 @@ export default function AdminUserDetailPage() {
                                             {endReason ? <><span className="mx-1.5">·</span><span className="text-rose-500">{endReason}</span></> : null}
                                           </div>
                                         </div>
-                                        {isActive ? (
+                                        {/* P1-7: kendi hesabı / ana yönetici hedefi / (normal admin için) admin hedefi → buton GİZLİ. */}
+                                        {isActive && canManageAccountActions() ? (
                                           <button type="button" onClick={() => void terminateSession(sid)} disabled={terminatingSessionId === sid}
                                             className="inline-flex h-8 shrink-0 items-center gap-1.5 self-start rounded-xl border-2 border-rose-200 bg-white px-3 text-xs font-black text-rose-800 transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50 sm:self-center">
                                             {terminatingSessionId === sid ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : null}
@@ -2670,6 +2821,14 @@ export default function AdminUserDetailPage() {
                 </button>
               </div>
 
+              {/* P1-7 (owner kararı 14): lisans + güvenlik politikası yalnız ana yöneticide düzenlenebilir. */}
+              {!viewerIsMainAdmin ? (
+                <p className="mt-4 rounded-2xl border-2 border-slate-200 bg-slate-50/90 px-4 py-3 text-sm font-bold text-slate-700">
+                  Yalnız ana yönetici değiştirebilir. Lisans türü, oturum/cihaz limitleri, lokasyon, güvenlik
+                  modu ve güvenlik istisnası burada salt-okunur gösterilir.
+                </p>
+              ) : null}
+
               {/* ── Yardım Kutusu ──────────────────────────────────────── */}
               {showLicenseHelp ? (
                 <div className="mt-4 rounded-2xl border-2 border-indigo-200/80 bg-indigo-50/60 p-5 text-sm">
@@ -2718,6 +2877,11 @@ export default function AdminUserDetailPage() {
                 </div>
               ) : null}
 
+              <fieldset
+                disabled={!viewerIsMainAdmin}
+                aria-disabled={!viewerIsMainAdmin}
+                className="m-0 min-w-0 border-0 p-0 disabled:opacity-80"
+              >
               {/* Hazır Ayarlar */}
               <div className="mt-5">
                 <p className="mb-2 text-xs font-black uppercase tracking-wide text-indigo-800">Hazır Ayarlar</p>
@@ -2882,9 +3046,10 @@ export default function AdminUserDetailPage() {
                   </p>
                 </div>
               </div>
+              </fieldset>
 
               {/* ── Kaydet: önce/sonra farkı + kilitlenme onayı (MEM-001) ───────── */}
-              {(() => {
+              {viewerIsMainAdmin ? (() => {
                 const diff = diffLicenseSettings(user.licenseSettings, licenseDraft);
                 const lockout = analyzeLockout(licenseDraft);
                 const noChange = diff.length === 0;
@@ -2952,7 +3117,7 @@ export default function AdminUserDetailPage() {
                     </div>
                   </div>
                 );
-              })()}
+              })() : null}
             </section>
 
           </div>
@@ -3039,21 +3204,21 @@ export default function AdminUserDetailPage() {
               Admin doğrulaması gerekli
             </h2>
             <p className="mt-3 text-sm font-medium text-slate-700">
-              Pasife alma ve arşivleme işlemini tamamlamak için ana admin şifresini girin.
+              Pasife alma ve arşivleme işlemini tamamlamak için ana yönetici parolanızı girin.
             </p>
             <div className="mt-6 space-y-4">
               <label className="block">
                 <span className="text-xs font-black uppercase tracking-wide text-slate-600">
-                  Admin şifresi
+                  Yönetici parolası
                 </span>
-                <input
-                  type="password"
+                <PasswordInput
                   autoComplete="current-password"
+                  wrapperClassName="mt-1.5"
                   value={deleteAdminPassword}
                   onChange={(e) => setDeleteAdminPassword(e.target.value)}
                   disabled={deleteSubmitting}
-                  className="mt-1.5 w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none ring-violet-300 focus:border-violet-400 focus:ring-2 disabled:opacity-60"
-                  placeholder="Şifrenizi girin"
+                  className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none ring-violet-300 focus:border-violet-400 focus:ring-2 disabled:opacity-60"
+                  placeholder="Parolanızı girin"
                 />
               </label>
               <label className="block">
@@ -3348,7 +3513,7 @@ export default function AdminUserDetailPage() {
             </h2>
             <p className="mt-4 text-sm font-medium leading-relaxed text-slate-700">
               Kullanıcının <span className="font-black">masaüstü, mobil ve tablet dahil tüm aktif oturumları</span>{" "}
-              sonlandırılır. Hesap durumu, şifre ve modül izinleri değişmez. Kullanıcı isterse tekrar giriş
+              sonlandırılır. Hesap durumu, parola ve modül izinleri değişmez. Kullanıcı isterse tekrar giriş
               yapabilir (pasifse giriş yapamaz).
             </p>
             <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

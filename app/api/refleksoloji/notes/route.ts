@@ -159,6 +159,8 @@ export async function PUT(req: NextRequest): Promise<Response> {
       return row ? { updated_at: row.updated_at, raw_json: row.raw_json } : null;
     },
     async createNote(uid, fields, newUpdatedAt) {
+      // P1-5: kör upsert YOK — ON CONFLICT DO NOTHING; satır zaten varsa 0 satır döner
+      // ve çekirdek (reconcileNoteSync) unchanged/conflict kararını verir.
       const { data, error } = await db
         .from("reflexology_notes")
         .upsert(
@@ -168,13 +170,12 @@ export async function PUT(req: NextRequest): Promise<Response> {
             source_uid: uid,
             updated_at: newUpdatedAt,
           },
-          { onConflict: "tenant_id,source_uid" },
+          { onConflict: "tenant_id,source_uid", ignoreDuplicates: true },
         )
-        .select("raw_json, updated_at")
-        .single();
+        .select("raw_json, updated_at");
       if (error) throw error;
-      const row = data as ServerNoteSnapshot;
-      return { updated_at: row.updated_at, raw_json: row.raw_json };
+      const row = (data ?? [])[0] as ServerNoteSnapshot | undefined;
+      return row ? { updated_at: row.updated_at, raw_json: row.raw_json } : null;
     },
     async deleteNote(uid, expectedUpdatedAt) {
       let q = db

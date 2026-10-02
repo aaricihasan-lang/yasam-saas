@@ -190,7 +190,7 @@
       "cardSecure": "Secure Records",
       "cardSecureSub": "Your data is protected",
       "cardMobile": "Mobile App",
-      "cardMobileSub": "Mobile access",
+      "cardMobileSub": "Android available · iOS coming soon",
       "titlePart1": "Manage your clients, analyses and sessions",
       "titleHighlight": "in one place",
       "titlePart2": "",
@@ -325,6 +325,11 @@
       "item3": "Fast, secure access",
       "openApp": "Open the Android App",
       "googlePlay": "Available on Google Play",
+      "androidLabel": "Android App",
+      "iosLabel": "iOS App",
+      "statusAvailable": "Available",
+      "statusSoon": "Coming soon",
+      "platformsShort": "Android: Available · iOS: Coming soon",
       "phoneAppName": "Yaşam Sistemi",
       "phoneRemove": "Uninstall",
       "phoneOpen": "Open",
@@ -475,7 +480,7 @@
       "emailPlaceholder": "practitioner@example.com",
       "passwordLabel": "Password",
       "passwordRepeatLabel": "Confirm Password",
-      "passwordHint": "At least 10 characters, including a letter and a number.",
+      "passwordHint": "At least 6 characters. Digits, letters or both can be used.",
       "submit": "Create Account",
       "submitting": "Creating account…",
       "haveAccount": "Already have an account?",
@@ -493,7 +498,7 @@
         "hash": "Password could not be processed.",
         "invalidName": "Full name must be 2–120 characters.",
         "invalidEmail": "Please enter a valid email address.",
-        "weakPassword": "Password must be at least 10 characters and include a letter and a number.",
+        "weakPassword": "Password must be at least 6 characters and not easy to guess (e.g. 123456).",
         "rateLimited": "Too many attempts. Please try again later."
       }
     }

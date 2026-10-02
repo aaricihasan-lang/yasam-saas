@@ -1588,7 +1588,7 @@ function KombinasyonDetayPageContent() {
                 type="button"
                 onClick={() => void downloadWord()}
                 disabled={wordBusy}
-                className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 shadow-sm hover:bg-blue-100 disabled:opacity-60"
+                className="no-android rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 shadow-sm hover:bg-blue-100 disabled:opacity-60"
               >
                 {wordBusy ? t("wordBusy") : t("word")}
               </button>

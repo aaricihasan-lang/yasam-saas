@@ -17,6 +17,10 @@ export type MemberApprovalFilter = "all" | "pending" | "approved" | "rejected";
 export type MemberActiveFilter = "all" | "active" | "passive";
 export type MemberRoleFilter = "all" | "admin" | "expert";
 export type MemberPaymentFilter = "all" | "paid" | "pending" | "overdue" | "exempt";
+/** M4 — yenileme (sonraki ödeme) filtresi: yalnız onaylı + aktif + muaf olmayan uzmanlar. */
+export type MemberDueFilter = "all" | "overdue" | "due30" | "no_date";
+/** M4 — sıralama: varsayılan (onay grubu → kayıt tarihi) veya sonraki ödeme tarihi. */
+export type MemberSort = "default" | "next_payment_asc" | "next_payment_desc";
 
 export type MemberListQuery = {
   view: MemberView;
@@ -25,6 +29,8 @@ export type MemberListQuery = {
   active: MemberActiveFilter;
   role: MemberRoleFilter;
   payment: MemberPaymentFilter;
+  due: MemberDueFilter;
+  sort: MemberSort;
   page: number;
   pageSize: MemberPageSize;
 };
@@ -36,6 +42,8 @@ export const DEFAULT_MEMBER_LIST_QUERY: MemberListQuery = {
   active: "all",
   role: "all",
   payment: "all",
+  due: "all",
+  sort: "default",
   page: 1,
   pageSize: MEMBER_DEFAULT_PAGE_SIZE,
 };
@@ -45,6 +53,8 @@ const APPROVALS: readonly MemberApprovalFilter[] = ["all", "pending", "approved"
 const ACTIVES: readonly MemberActiveFilter[] = ["all", "active", "passive"];
 const ROLES: readonly MemberRoleFilter[] = ["all", "admin", "expert"];
 const PAYMENTS: readonly MemberPaymentFilter[] = ["all", "paid", "pending", "overdue", "exempt"];
+const DUES: readonly MemberDueFilter[] = ["all", "overdue", "due30", "no_date"];
+const SORTS: readonly MemberSort[] = ["default", "next_payment_asc", "next_payment_desc"];
 
 const FOLD_FROM = "İIıŞşĞğÜüÖöÇçÂâÎîÛû";
 const FOLD_TO = "iiissgguuooccaaiiuu";
@@ -84,7 +94,11 @@ export function parseMemberListQuery(sp: Search): MemberListQueryResult {
   const active = pick(sp.get("active"), ACTIVES, "all");
   const role = pick(sp.get("role"), ROLES, "all");
   const payment = pick(sp.get("payment"), PAYMENTS, "all");
-  if (!view || !approval || !active || !role || !payment) return { ok: false, error: "Geçersiz filtre değeri." };
+  const due = pick(sp.get("due"), DUES, "all");
+  const sort = pick(sp.get("sort"), SORTS, "default");
+  if (!view || !approval || !active || !role || !payment || !due || !sort) {
+    return { ok: false, error: "Geçersiz filtre değeri." };
+  }
   const q = (sp.get("q") ?? "").trim();
   if (q.length > MEMBER_QUERY_MAX) return { ok: false, error: "Arama metni çok uzun." };
   const pageRaw = sp.get("page");
@@ -93,7 +107,7 @@ export function parseMemberListQuery(sp: Search): MemberListQueryResult {
   const sizeRaw = sp.get("pageSize");
   const pageSize = sizeRaw === null || sizeRaw === "" ? MEMBER_DEFAULT_PAGE_SIZE : Number(sizeRaw);
   if (!(MEMBER_PAGE_SIZES as readonly number[]).includes(pageSize)) return { ok: false, error: "Geçersiz sayfa boyutu." };
-  return { ok: true, value: { view, q, approval, active, role, payment, page, pageSize: pageSize as MemberPageSize } };
+  return { ok: true, value: { view, q, approval, active, role, payment, due, sort, page, pageSize: pageSize as MemberPageSize } };
 }
 
 /** Filtre → query string (varsayılanlar yazılmaz → temiz URL). */
@@ -123,6 +137,8 @@ export function memberListQueryToSearch(q: MemberListQuery): string {
   if (q.active !== "all") p.set("active", q.active);
   if (q.role !== "all") p.set("role", q.role);
   if (q.payment !== "all") p.set("payment", q.payment);
+  if (q.due !== "all") p.set("due", q.due);
+  if (q.sort !== "default") p.set("sort", q.sort);
   if (q.page !== 1) p.set("page", String(q.page));
   if (q.pageSize !== MEMBER_DEFAULT_PAGE_SIZE) p.set("pageSize", String(q.pageSize));
   return p.toString();
@@ -135,6 +151,10 @@ export type MemberCounts = {
   archived: number;
   rejected: number;
   admins: number;
+  /** M4 — onaylı + aktif + muaf olmayan uzmanlardan yenileme tarihi geçmiş olanlar. */
+  renewal_overdue: number;
+  /** M4 — aynı küme; yenileme tarihi bugün..30 gün içinde. */
+  renewal_due30: number;
 };
 
 export function parseMemberCounts(raw: unknown): MemberCounts {
@@ -147,5 +167,7 @@ export function parseMemberCounts(raw: unknown): MemberCounts {
     archived: n("archived"),
     rejected: n("rejected"),
     admins: n("admins"),
+    renewal_overdue: n("renewal_overdue"),
+    renewal_due30: n("renewal_due30"),
   };
 }

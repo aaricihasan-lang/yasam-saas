@@ -60,7 +60,7 @@ export function HdProfessionalReportButton({ chartId, label }: { chartId: string
   if (isAndroid) return null;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="no-android flex flex-col gap-1.5">
       <button
         type="button"
         onClick={handleClick}

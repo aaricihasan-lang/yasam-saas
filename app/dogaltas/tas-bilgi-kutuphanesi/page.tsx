@@ -942,7 +942,7 @@ export default function TasBilgiKutuphanesiPage() {
               <button
                 type="button"
                 onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
-                className="btn-soft"
+                className="no-android btn-soft"
               >
                 {t("actions.wordReport")}
               </button>

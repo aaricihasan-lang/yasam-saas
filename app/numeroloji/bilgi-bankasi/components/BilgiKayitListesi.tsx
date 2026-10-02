@@ -377,7 +377,7 @@ export function BilgiKayitListesi() {
                   type="button"
                   disabled={wordBusy || yukleniyor || tumSatirlar.length === 0}
                   onClick={() => setWordPicker({ mode: "all" })}
-                  className="hidden min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-blue-300/80 bg-blue-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 md:inline-flex"
+                  className="no-android hidden min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-blue-300/80 bg-blue-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 md:inline-flex"
                 >
                   {wordBusy ? "⏳ Hazırlanıyor…" : "📄 Tümünü Word"}
                 </button>
@@ -387,7 +387,7 @@ export function BilgiKayitListesi() {
                   type="button"
                   disabled={wordBusy || filtrelenmis.length === 0}
                   onClick={() => setWordPicker({ mode: "filtered" })}
-                  className="hidden min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-violet-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 md:inline-flex"
+                  className="no-android hidden min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-violet-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 md:inline-flex"
                 >
                   {wordBusy ? "⏳…" : `📄 Filtrelenmiş Word (${filtrelenmis.length})`}
                 </button>

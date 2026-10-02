@@ -12,7 +12,7 @@
  */
 import { OUTBOX_OPERATIONS, type OutboxOperation } from "./outboxState";
 import {
-  OutboxRpcError,
+  callOutboxRpc,
   OutboxRpcInvariantError,
   type OutboxRpcDb,
 } from "./outboxRpcClient";
@@ -76,17 +76,10 @@ export interface SweptClientOutboxRow {
   readonly eventVersion: number;
 }
 
+// F-1: ortak çağrı yolu (güvenli kategori log'u; YALNIZ yh_client_outbox_sweep_expired için
+// tek jitter'lı retry — claim/complete/fail tekrar DENENMEZ). Hata → OutboxRpcError.
 async function callRpc(db: OutboxRpcDb, fn: string, args: Record<string, unknown>): Promise<unknown> {
-  let res;
-  try {
-    res = await db.rpc(fn, args);
-  } catch {
-    throw new OutboxRpcError(`rpc-transport-failed:${fn}`);
-  }
-  if (res.error !== null) {
-    throw new OutboxRpcError(`rpc-failed:${fn}`);
-  }
-  return res.data;
+  return callOutboxRpc(db, fn, args);
 }
 
 // ─── 1) claim ────────────────────────────────────────────────────────────────

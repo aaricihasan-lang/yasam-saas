@@ -553,7 +553,7 @@ export default function OilDetailPage() {
                   <>
                     {!isAndroid && (
                     <button type="button" onClick={() => void exportOilWord()} disabled={exportingWord}
-                      className={`${btnBase} border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-60`}
+                      className={`no-android ${btnBase} border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-60`}
                       title="Bu yağın monografisini Word'e aktar">
                       📄 {exportingWord ? "Hazırlanıyor…" : "Word'e Aktar"}
                     </button>

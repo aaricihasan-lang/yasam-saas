@@ -550,7 +550,7 @@ function MineralListesiPageContent() {
                 <button
                   type="button"
                   onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
-                  className="btn-soft"
+                  className="no-android btn-soft"
                 >
                   {t("wordReportButton")}
                 </button>

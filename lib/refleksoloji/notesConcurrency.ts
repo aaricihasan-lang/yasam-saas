@@ -11,9 +11,9 @@
  *       · satır başka cihazda değişmişse → { outcome: "conflict", server, server_updated_at }
  *         (SERVER SÜRÜMÜ KORUNUR — stale istemci overwrite ETMEZ; last-write-wins DEĞİL)
  *       · satır uzaktan silinmişse → { outcome: "conflict", server: null }
- *   - baseUpdatedAt YOKSA → CREATE (upsert; yeni not için idempotent).
- *       · Gözlemlenmemiş-base penceresinde last-write-wins'tir (yeni UUID id ile
- *         çakışma pratikte imkânsız) — rapor bunu AYRI belirtir.
+ *   - baseUpdatedAt YOKSA → CREATE (yalnız satır YOKSA ekler; P1-5: kör upsert YOK).
+ *       · Aynı uid'li satır zaten varsa (yeniden deneme / başka cihaz) ÜZERİNE YAZILMAZ:
+ *         içerik aynıysa { "unchanged" }, farklıysa { "conflict", server } (server korunur).
  *   - Silme: expected VARSA CAS delete; stale ise { outcome: "delete-conflict" }
  *       (silinmez, SERVER KORUNUR). Satır zaten yoksa idempotent { "delete-noop" }.
  *
@@ -51,12 +51,15 @@ export interface NotesStore {
   /** Mevcut satırın snapshot'ı (conflict ayrımı + server sürümünü döndürmek için). */
   getByUid(uid: string): Promise<ServerNoteSnapshot | null>;
 
-  /** Yeni not (upsert — tenant_id,source_uid çakışmasında günceller); snapshot döner. */
+  /**
+   * Yeni not — YALNIZ (tenant_id, source_uid) satırı yoksa ekler (ON CONFLICT DO NOTHING).
+   * Eklendiyse snapshot; satır zaten varsa null (mevcut satıra DOKUNULMAZ — P1-5).
+   */
   createNote(
     uid: string,
     fields: NoteFields,
     newUpdatedAt: string,
-  ): Promise<ServerNoteSnapshot>;
+  ): Promise<ServerNoteSnapshot | null>;
 
   /**
    * Silme. `expectedUpdatedAt` null ise KOŞULSUZ siler (legacy/best-effort).
@@ -169,9 +172,25 @@ export async function reconcileNoteSync(
         });
       }
     } else {
-      // ── Yeni not → upsert (idempotent) ───────────────────────────────────────
+      // ── Yeni not → yalnız yoksa ekle (P1-5: mevcut satır körlemesine ezilmez) ──
       const created = await store.createNote(n.uid, n.fields, nowIso);
-      results.push({ uid: n.uid, outcome: "created", updated_at: created.updated_at });
+      if (created) {
+        results.push({ uid: n.uid, outcome: "created", updated_at: created.updated_at });
+        continue;
+      }
+      const existing = await store.getByUid(n.uid);
+      if (existing && noteContentKey(existing.raw_json) === noteContentKey(n.fields.raw_json)) {
+        // Aynı not zaten sunucuda (ör. yanıtı kaybolan create'in yeniden denemesi) → idempotent.
+        results.push({ uid: n.uid, outcome: "unchanged", updated_at: existing.updated_at });
+      } else {
+        conflicts++;
+        results.push({
+          uid: n.uid,
+          outcome: "conflict",
+          server_updated_at: existing?.updated_at ?? null,
+          server: existing?.raw_json ?? null,
+        });
+      }
     }
   }
 

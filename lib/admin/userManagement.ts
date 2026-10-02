@@ -10,6 +10,11 @@ import {
 } from "@/lib/auth/yasamUser";
 import { limitFromDb } from "@/lib/admin/licenseLimits";
 import { resolveMembershipPackageType } from "@/lib/auth/membershipAccessCore";
+import {
+  BILLING_PERIOD_LABELS,
+  isBillingPeriod,
+  type BillingPeriod,
+} from "@/lib/admin/memberCommercial";
 
 export type ManagedUserRole = "admin" | "expert";
 
@@ -288,10 +293,16 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatusUi, string> = {
   unknown: "Belirtilmemiş",
 };
 
+/**
+ * Ödeme durumu seçenekleri. "Belirtilmemiş" (unknown) BİLİNÇLİ olarak seçilebilir: daha önce
+ * bilinmeyen durum düzenleme formunda sessizce "Bekliyor"a çevriliyordu (veri bozulması).
+ * Kaydedilirse DB'de NULL olarak tutulur.
+ */
 export const PAYMENT_STATUS_SELECT_OPTIONS: {
-  value: Exclude<PaymentStatusUi, "unknown">;
+  value: PaymentStatusUi;
   label: string;
 }[] = [
+  { value: "unknown", label: "Belirtilmemiş" },
   { value: "paid", label: "Ödendi" },
   { value: "pending", label: "Bekliyor" },
   { value: "overdue", label: "Gecikti" },
@@ -308,6 +319,11 @@ export type PaymentSnapshot = {
   paidAmountLabel: string;
   paidAmountRaw?: number;
   note?: string;
+  /** M4 — uzman bazlı anlaşılan ücret + ödeme dönemi (yalnız kayıt; otomasyon yok). */
+  agreedFeeRaw?: number;
+  agreedFeeLabel: string;
+  billingPeriod?: BillingPeriod;
+  billingPeriodLabel: string;
 };
 
 export type PaymentEditDraft = {
@@ -316,6 +332,8 @@ export type PaymentEditDraft = {
   nextPaymentDate: string;
   paidAmount: string;
   note: string;
+  agreedFee: string;
+  billingPeriod: BillingPeriod | "";
 };
 
 function pickPaymentString(
@@ -403,6 +421,8 @@ export function parsePaymentFromRow(row: Record<string, unknown>): PaymentSnapsh
   const { label: paidAmountLabel, amount: paidAmountRaw } = formatPaidAmount(paidRaw);
 
   const note = pickPaymentString(row, ["payment_note", "paymentNote", "odeme_notu"]);
+  const { label: agreedFeeLabel, amount: agreedFeeRaw } = formatPaidAmount(row.agreed_fee);
+  const billingPeriod = isBillingPeriod(row.billing_period) ? row.billing_period : undefined;
 
   return {
     status,
@@ -414,6 +434,10 @@ export function parsePaymentFromRow(row: Record<string, unknown>): PaymentSnapsh
     paidAmountLabel,
     paidAmountRaw,
     note,
+    agreedFeeRaw,
+    agreedFeeLabel,
+    billingPeriod,
+    billingPeriodLabel: billingPeriod ? BILLING_PERIOD_LABELS[billingPeriod] : "—",
   };
 }
 
@@ -427,6 +451,8 @@ export const PAYMENT_UPDATE_KEYS = [
   "next_payment_date",
   "paid_amount",
   "payment_note",
+  "agreed_fee",
+  "billing_period",
 ] as const;
 
 export type PaymentHistoryEntry = {
@@ -437,6 +463,8 @@ export type PaymentHistoryEntry = {
   paymentDateLabel: string;
   nextPaymentDateLabel: string;
   amountLabel: string;
+  agreedFeeLabel: string;
+  billingPeriodLabel: string;
   note?: string;
   createdAtLabel: string;
 };
@@ -469,6 +497,8 @@ export function mapPaymentHistoryRow(
   const note = pickPaymentString(row, ["payment_note"]);
   const createdAt =
     row.created_at != null ? String(row.created_at) : undefined;
+  const { label: agreedFeeLabel } = formatPaidAmount(row.agreed_fee);
+  const period = isBillingPeriod(row.billing_period) ? row.billing_period : undefined;
 
   return {
     id: row.id != null ? String(row.id) : "",
@@ -478,42 +508,45 @@ export function mapPaymentHistoryRow(
     paymentDateLabel: formatPaymentDate(paymentDate),
     nextPaymentDateLabel: formatPaymentDate(nextPaymentDate),
     amountLabel,
+    agreedFeeLabel,
+    billingPeriodLabel: period ? BILLING_PERIOD_LABELS[period] : "—",
     note,
     createdAtLabel: formatDateTimeTr(createdAt),
   };
 }
 
+/**
+ * Ödeme geçmişi satırı — kaydedilen SON durumun anlık görüntüsü + işlemi yapan admin.
+ * `state` users kolon adlarıyla (payment_status, last_payment_date, …, agreed_fee, billing_period).
+ */
 export function buildPaymentHistoryInsertPayload(
   userId: string,
-  usersPayload: Record<string, unknown>,
+  state: Record<string, unknown>,
+  actorAdminId: string | null = null,
 ): Record<string, unknown> {
   return {
     user_id: userId,
-    payment_status: usersPayload.payment_status,
-    payment_date: usersPayload.last_payment_date ?? null,
-    next_payment_date: usersPayload.next_payment_date ?? null,
-    paid_amount: usersPayload.paid_amount ?? null,
-    payment_note: usersPayload.payment_note ?? null,
+    payment_status: state.payment_status ?? null,
+    payment_date: state.last_payment_date ?? null,
+    next_payment_date: state.next_payment_date ?? null,
+    paid_amount: state.paid_amount ?? null,
+    payment_note: state.payment_note ?? null,
+    agreed_fee: state.agreed_fee ?? null,
+    billing_period: state.billing_period ?? null,
+    actor_admin_id: actorAdminId,
   };
 }
 
-export function buildPaymentUpdatePayload(
-  draft: PaymentEditDraft,
-): Record<string, unknown> {
-  const status =
-    draft.status === "unknown"
-      ? null
-      : (draft.status as Exclude<PaymentStatusUi, "unknown">);
-
-  const paidTrimmed = draft.paidAmount.trim().replace(",", ".");
-  const paidNum = paidTrimmed ? Number(paidTrimmed) : null;
-
+/** UI taslağı → API gövdesi (`draft`). Doğrulama SUNUCUDA (validatePaymentDraft) yapılır. */
+export function buildPaymentDraftRequestBody(draft: PaymentEditDraft): Record<string, unknown> {
   return {
-    payment_status: status,
-    last_payment_date: draft.lastPaymentDate.trim() || null,
-    next_payment_date: draft.nextPaymentDate.trim() || null,
-    paid_amount: paidNum != null && !Number.isNaN(paidNum) ? paidNum : null,
-    payment_note: draft.note.trim() || null,
+    status: draft.status,
+    lastPaymentDate: draft.lastPaymentDate.trim(),
+    nextPaymentDate: draft.nextPaymentDate.trim(),
+    paidAmount: draft.paidAmount.trim(),
+    note: draft.note,
+    agreedFee: draft.agreedFee.trim(),
+    billingPeriod: draft.billingPeriod,
   };
 }
 
@@ -529,43 +562,20 @@ export function isoToDateInputValue(iso?: string): string {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * Kayıtlı ödeme → düzenleme taslağı. Durum OLDUĞU GİBİ taşınır: "Belirtilmemiş" (unknown)
+ * artık sessizce "Bekliyor"a çevrilmez (kaydet → istenmeden pending yazılıyordu).
+ */
 export function paymentSnapshotToEditDraft(payment: PaymentSnapshot): PaymentEditDraft {
   return {
-    status: payment.status === "unknown" ? "pending" : payment.status,
+    status: payment.status,
     lastPaymentDate: isoToDateInputValue(payment.lastPaymentAt),
     nextPaymentDate: isoToDateInputValue(payment.nextPaymentAt),
     paidAmount:
       payment.paidAmountRaw != null ? String(payment.paidAmountRaw) : "",
     note: payment.note ?? "",
-  };
-}
-
-export function buildPaymentDisplayFromDraft(draft: PaymentEditDraft): PaymentSnapshot {
-  const status =
-    draft.status === "unknown" ? "unknown" : (draft.status as PaymentStatusUi);
-  const lastPaymentAt = draft.lastPaymentDate
-    ? new Date(`${draft.lastPaymentDate}T12:00:00`).toISOString()
-    : undefined;
-  const nextPaymentAt = draft.nextPaymentDate
-    ? new Date(`${draft.nextPaymentDate}T12:00:00`).toISOString()
-    : undefined;
-  const paidNum = draft.paidAmount.trim()
-    ? Number(draft.paidAmount.replace(",", "."))
-    : undefined;
-  const { label: paidAmountLabel, amount: paidAmountRaw } = formatPaidAmount(
-    paidNum != null && !Number.isNaN(paidNum) ? paidNum : undefined,
-  );
-
-  return {
-    status,
-    statusLabel: PAYMENT_STATUS_LABELS[status],
-    lastPaymentAt,
-    lastPaymentLabel: formatPaymentDate(lastPaymentAt),
-    nextPaymentAt,
-    nextPaymentLabel: formatPaymentDate(nextPaymentAt),
-    paidAmountLabel,
-    paidAmountRaw,
-    note: draft.note.trim() || undefined,
+    agreedFee: payment.agreedFeeRaw != null ? String(payment.agreedFeeRaw) : "",
+    billingPeriod: payment.billingPeriod ?? "",
   };
 }
 

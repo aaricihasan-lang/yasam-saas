@@ -5,7 +5,7 @@ import { provisionExpert } from "@/lib/auth/provisionExpert";
 import { DEFAULT_MODULE_PERMISSIONS } from "@/lib/auth/modulePermissions";
 import { readLimitedJsonBody } from "@/lib/admin/accountSessionControls";
 import { validateRegisterBody } from "@/lib/auth/registerValidation";
-import { NEW_PASSWORD_MIN_LENGTH } from "@/lib/auth/loginThrottle";
+import { newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
 import { clientIpFromHeaders, hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 
 export const runtime = "nodejs";
@@ -61,16 +61,19 @@ export async function POST(req: NextRequest) {
       missing_fields: "Tüm alanları doldurunuz.",
       invalid_name: "Ad soyad 2–120 karakter olmalıdır.",
       invalid_email: "Geçerli bir e-posta adresi girin.",
-      weak_password: "Şifre en az 10 karakter olmalı; en az bir harf ve bir rakam içermelidir.",
+      weak_password:
+        newPasswordPolicyMessage(
+          typeof parsed.value.password === "string" ? parsed.value.password.trim() : "",
+          typeof parsed.value.email === "string" ? parsed.value.email : "",
+        ) ?? "Parola en az 6 karakter olmalı.",
       invalid_request: "Geçersiz istek.",
     };
     return err(messages[v.code] ?? "Geçersiz istek.", v.code, 400);
   }
-  // FAZ1 FINAL HARDENING: yeni parolalar en az NEW_PASSWORD_MIN_LENGTH (10) — validateRegisterBody ile
-  // aynı eşik (harness eşitliği doğrular); sunucu tarafında ayrıca açıkça zorlanır.
-  if (v.value.password.length < NEW_PASSWORD_MIN_LENGTH) {
-    return err("Şifre en az 10 karakter olmalı; en az bir harf ve bir rakam içermelidir.", "weak_password", 400);
-  }
+  // Parola politikası (lib/auth/passwordPolicy — tek kaynak; validateRegisterBody ile aynı kural)
+  // sunucu tarafında ayrıca açıkça zorlanır.
+  const pwPolicy = newPasswordPolicyMessage(v.value.password, v.value.email);
+  if (pwPolicy) return err(pwPolicy, "weak_password", 400);
 
   // E-posta kovası (geçerli biçimli istekler; honeypot'lu istekler de sayılır).
   const emailHit = await hitDbRateLimit(db, rateLimitBucket("reg-email", v.value.email), EMAIL_LIMIT, EMAIL_WINDOW_SEC);
@@ -87,7 +90,7 @@ export async function POST(req: NextRequest) {
 
   // Şifreyi server-side bcrypt ile hashle (pgcrypto RPC; DB mutasyonu değil).
   const { data: hashResult, error: hashError } = await db.rpc("hash_password", { p_plain: password });
-  if (hashError || !hashResult) return err("Şifre işlenemedi.", "hash", 500);
+  if (hashError || !hashResult) return err("Parola işlenemedi.", "hash", 500);
 
   // Atomik provisioning (tenant+user+event TEK transaction). E-posta tekilliği +
   // race güvenliği DB'de (UNIQUE normalized email); orphan tenant üretilmez.

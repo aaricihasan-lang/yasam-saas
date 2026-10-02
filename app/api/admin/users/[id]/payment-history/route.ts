@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
+import { isUuid } from "@/lib/admin/memberRequestValidation";
 
 export const runtime = "nodejs";
 
@@ -12,8 +13,8 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
   const { db } = guard;
 
   const { id } = await ctx.params;
-  if (!id) {
-    return NextResponse.json({ error: "Kullanıcı ID gerekli." }, { status: 400 });
+  if (!isUuid(id)) {
+    return NextResponse.json({ error: "Geçersiz kullanıcı ID." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
   }
 
   const { data, error } = await db

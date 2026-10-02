@@ -260,10 +260,18 @@ async function run() {
       { id: "s2", session_token: "tok-revoked", is_active: false, user_id: "u1", last_seen_at: FRESH },
     ],
   });
-  ok("getActiveSessionUserId: geçerli aktif token → userId", (await getActiveSessionUserId(sessDb, "tok-ok")) === "u1");
+  // P1-3: süre zorlaması varsayılan AÇIK → touch_active_session RPC'si olmayan sahte DB'de
+  // doğrulama fail-closed (null). Aşağıdaki select tabanlı yedek yol YALNIZ kill-switch
+  // (SESSION_EXPIRY_ENFORCE=0) ile kullanılır; o yolun kontratı burada korunur.
+  ok("getActiveSessionUserId: varsayılan (enforce açık) + RPC yok → null (fail-closed)", (await getActiveSessionUserId(sessDb, "tok-ok")) === null);
+  const prevEnforce = process.env.SESSION_EXPIRY_ENFORCE;
+  process.env.SESSION_EXPIRY_ENFORCE = "0";
+  ok("getActiveSessionUserId (kill-switch yedek yolu): geçerli aktif token → userId", (await getActiveSessionUserId(sessDb, "tok-ok")) === "u1");
   ok("getActiveSessionUserId: revoke edilmiş (is_active=false) → null", (await getActiveSessionUserId(sessDb, "tok-revoked")) === null);
   ok("getActiveSessionUserId: bilinmeyen token → null", (await getActiveSessionUserId(sessDb, "yok")) === null);
   ok("getActiveSessionUserId: boş token → null", (await getActiveSessionUserId(sessDb, "")) === null);
+  if (prevEnforce === undefined) delete process.env.SESSION_EXPIRY_ENFORCE;
+  else process.env.SESSION_EXPIRY_ENFORCE = prevEnforce;
 
   ok("resolveModuleAccess: izinsiz uzman → false (403 yolu)", resolveModuleAccess("expert", {}, "cupping") === false);
   ok("resolveModuleAccess: cupping:true → true (handler İLERLER)", resolveModuleAccess("expert", { cupping: true }, "cupping") === true);
