@@ -157,6 +157,8 @@ export type RestoreTableReport = {
   dropped_columns: string[];
   /** SET NULL ebeveyni bulunamadığı için null yazılan FK sayısı. */
   fk_nulled: number;
+  /** Bu hesaba ait olmayan / eski geçersiz yol olduğu için görsel listesinden çıkarılan öğe sayısı. */
+  storage_refs_removed: number;
   warnings: string[];
   status: "COMPLETE" | "PARTIAL" | "FAILED" | "SKIPPED";
 };

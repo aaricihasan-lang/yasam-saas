@@ -435,8 +435,17 @@ export function RestoreTab({ user }: { user: YasamUser }) {
         setParsedBackup(b);
         setValidated({ ok: true, message: `✓ v${b.version} — ${names.length} tablo, ${rows} kayıt; biçim geçerli.`, warnings });
       } catch (err) {
-        setValidated({ ok: false, message: (err as Error).message || "Dosya okunamadı.", warnings: [] });
+        // JSON.parse hatası (bozuk / yarım / boş dosya) tarayıcının ham İngilizce metnini gösterir →
+        // anlaşılır Türkçe mesaj. normalizeBackupFile'ın kendi (Türkçe) mesajları aynen kalır.
+        const message =
+          err instanceof SyntaxError
+            ? "Dosya geçerli bir JSON yedeği değil (bozuk, yarım kalmış veya boş dosya). Sistem Yedeği sekmesinden alınmış dosyayı seçin."
+            : (err as Error).message || "Dosya okunamadı.";
+        setValidated({ ok: false, message, warnings: [] });
       }
+    };
+    reader.onerror = () => {
+      setValidated({ ok: false, message: "Dosya okunamadı.", warnings: [] });
     };
     reader.readAsText(file);
   }

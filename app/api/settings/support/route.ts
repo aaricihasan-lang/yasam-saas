@@ -20,7 +20,10 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false })
     .limit(50);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[settings/support] list", error);
+    return NextResponse.json({ error: "Mesajlar yüklenemedi." }, { status: 500 });
+  }
   return NextResponse.json({ messages: data ?? [] });
 }
 
@@ -29,11 +32,14 @@ export async function POST(req: NextRequest) {
   if (!guard.ok) return guard.response;
   const { userId, tenantId, db } = guard;
 
-  const body = (await req.json()) as {
-    subject?: unknown;
-    message?: unknown;
-    priority?: unknown;
-  };
+  let body: { subject?: unknown; message?: unknown; priority?: unknown };
+  try {
+    const parsed = (await req.json()) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("shape");
+    body = parsed as typeof body;
+  } catch {
+    return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
+  }
 
   const subject  = String(body.subject ?? "").trim();
   const message  = String(body.message ?? "").trim();
@@ -50,6 +56,9 @@ export async function POST(req: NextRequest) {
     .select("id")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error || !data) {
+    console.error("[settings/support] insert", error);
+    return NextResponse.json({ error: "Mesaj gönderilemedi; lütfen tekrar deneyin." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true, id: data.id });
 }
