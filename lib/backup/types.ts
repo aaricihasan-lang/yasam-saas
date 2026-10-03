@@ -94,17 +94,34 @@ export type BackupTableDump = {
   rows: Record<string, unknown>[];
 };
 
+/**
+ * P2-11: Yedeğe gömülü depolama dosyası (şimdilik yalnız Human Design: harita görseli + profesyonel
+ * rapor görsel snapshot'ı). `data_base64` dosyanın tamamı; geri yüklemede boyut + SHA-256 doğrulanır.
+ */
+export type BackupStoredFile = {
+  module: string;
+  bucket: string;
+  path: string;
+  content_type: string;
+  size: number;
+  sha256: string;
+  data_base64: string;
+};
+
 export type BackupFileV3 = {
   format: typeof BACKUP_FORMAT;
   version: typeof BACKUP_VERSION;
   registry_hash: string;
   exported_at: string;
   tenant_id: string;
-  scope: "database_records_only";
-  files_included: false;
+  /** "database_records_and_hd_files": DB kayıtları + Human Design dosyaları (P2-11). */
+  scope: "database_records_only" | "database_records_and_hd_files";
+  files_included: boolean;
   complete: boolean;
   tables: Record<string, BackupTableDump>;
   excluded: { table: string; class: BackupClass; reason: string }[];
+  /** Gömülü dosyalar (yalnız Human Design). Eski yedeklerde yoktur. */
+  files?: BackupStoredFile[];
 };
 
 // ─── Parça API sözleşmeleri ──────────────────────────────────────────────────

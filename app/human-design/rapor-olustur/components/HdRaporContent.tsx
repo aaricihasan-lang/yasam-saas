@@ -29,7 +29,7 @@ import { exportHdReportDocx } from "../helpers/exportHdReportDocx";
 import { reportUsageExport, reportUsageClientFailure } from "@/lib/usage/usageBeaconClient";
 import { HdUnsavedChangesDialog, type UnsavedAction } from "./HdUnsavedChangesDialog";
 import { HdMissingChartInfoBanner, detectMissingChartInfo } from "./HdMissingChartInfoBanner";
-import { useUnsavedGuard } from "../hooks/useUnsavedGuard";
+import { useHdLeaveGuard } from "../../hooks/useHdLeaveGuard";
 import { runInEffect } from "@/lib/runInEffect";
 
 const fieldBase =
@@ -84,6 +84,8 @@ export function HdRaporContent() {
   const buildGuard = useRef(false); // eşzamanlı build engeli
   const saveGuard = useRef(false); // kaydet yeniden-giriş engeli
   const didInit = useRef(false); // ilk build/edit-load yalnız mount'ta
+  // P2-9: düzenlenen kayıtlı raporun yüklendiği sürüm (updated_at) — koşullu güncelleme için.
+  const reportVersionRef = useRef<string | null>(null);
 
   // Gerçek dirty: kaydedilmiş baseline'dan sapma; baseline yoksa içerikten bağımsız yaşam-döngüsü işareti.
   // ESKİ metin-uzunluğu modeli (editedText.trim().length) KULLANILMAZ — boş metin veri kaybına yol açardı.
@@ -91,8 +93,9 @@ export function HdRaporContent() {
     if (savedSnapshot) {
       return reportTitle !== savedSnapshot.title || editedText !== savedSnapshot.editedText;
     }
-    return hasUnsavedDraft;
-  }, [savedSnapshot, reportTitle, editedText, hasUnsavedDraft]);
+    // P2-8: eşleşme yokken elle yazılan metin de kaydedilmemiş taslaktır.
+    return hasUnsavedDraft || editedText.trim() !== generatedText.trim();
+  }, [savedSnapshot, reportTitle, editedText, hasUnsavedDraft, generatedText]);
 
   // Save butonu etiketi: aktif kimlik varsa (edit URL veya ilk INSERT sonrası) UPDATE göster.
   const isUpdateTarget = activeReportId !== null;
@@ -110,9 +113,6 @@ export function HdRaporContent() {
     missingChartInfo.length > 0 &&
     dismissedMissingInfoClientId !== clientId;
 
-  // Çıkış koruması — yalnız dirty iken beforeunload bağlı.
-  useUnsavedGuard(dirty);
-
   // Promise-tabanlı çoklu-seçenek onay.
   const askUnsaved = useCallback(
     (cfg: Omit<UnsavedPrompt, "resolve">): Promise<string> =>
@@ -121,6 +121,21 @@ export function HdRaporContent() {
       }),
     [],
   );
+
+  // P2-7: kaydedilmemiş değişiklikte yenileme + uygulama içi link (menü/logo) + geri tuşu korunur.
+  const confirmLeave = useCallback(
+    () =>
+      askUnsaved({
+        title: "Kaydedilmemiş rapor değişiklikleri",
+        message: "Sayfadan ayrılırsanız rapordaki kaydedilmemiş değişiklikler kaybolacaktır.",
+        actions: [
+          { key: "cancel", label: "Sayfada Kal", tone: "safe" },
+          { key: "discard", label: "Değişiklikleri At ve Çık", tone: "danger" },
+        ],
+      }).then((k) => k === "discard"),
+    [askUnsaved],
+  );
+  useHdLeaveGuard(dirty, confirmLeave);
 
   // Danışan listesi (yalnız yeni rapor modu)
   useEffect(() => {
@@ -219,6 +234,7 @@ export function HdRaporContent() {
         setGeneratedText(row.generated_content ?? "");
         // Baseline: ilk açılışta dirty=false. Aktif kimlik = yüklenen rapor id (save → UPDATE).
         setSavedSnapshot({ title: row.title, editedText: content, reportId: id });
+        reportVersionRef.current = row.updated_at ?? null;
         activeReportIdRef.current = id;
         setActiveReportId(id);
         setHasUnsavedDraft(false);
@@ -357,15 +373,20 @@ export function HdRaporContent() {
 
       // Aktif kimlik VARSA → UPDATE. Duplicate count/confirm/INSERT yolu ÇALIŞMAZ.
       if (currentReportId) {
-        const { error } = await updateReport({
+        const { error, conflict, updatedAt } = await updateReport({
           id: currentReportId,
           title: reportTitle || "Human Design Raporu",
           editedContent: editedText,
+          expectedUpdatedAt: reportVersionRef.current,
         });
         if (error) {
-          showToast({ message: "Rapor güncellenemedi. Lütfen tekrar deneyin.", type: "error" });
+          showToast({
+            message: conflict ? error : "Rapor güncellenemedi. Lütfen tekrar deneyin.",
+            type: "error",
+          });
           return; // kimlik + baseline + metin/başlık KORUNUR, dirty kalır
         }
+        reportVersionRef.current = updatedAt ?? reportVersionRef.current;
         // active id DEĞİŞMEZ; yalnız baseline yenilenir.
         setSavedSnapshot({ title: reportTitle || "Human Design Raporu", editedText, reportId: currentReportId });
         setHasUnsavedDraft(false);
@@ -603,7 +624,7 @@ export function HdRaporContent() {
       )}
 
       {/* Rapor Düzenleyici */}
-      {(editedText || (chart && !loading)) && (
+      {(editedText || savedSnapshot || (chart && !loading)) && (
         <div className="overflow-hidden rounded-2xl border border-indigo-200/80 bg-white/95 shadow-sm ring-1 ring-indigo-100/60">
           <div className="border-b border-indigo-100/80 bg-white/75 px-4 py-3">
             <p className={sectionCls}>
@@ -635,18 +656,22 @@ export function HdRaporContent() {
           </div>
 
           <div className="p-4">
-            {editedText ? (
-              <textarea
-                value={editedText}
-                onChange={(e) => setEditedText(e.target.value)}
-                rows={32}
-                className="w-full rounded-xl border border-indigo-200/90 bg-white/70 px-4 py-3 font-mono text-sm leading-relaxed text-slate-800 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50"
-              />
-            ) : (
-              <div className="flex items-center justify-center rounded-xl border border-dashed border-indigo-200/80 bg-indigo-50/30 py-12 text-sm text-slate-500">
-                Eşleşen Bilgi Bankası kaydı bulunamadı. Önce harita değerlerini ve yorum içeriklerini ekleyin.
-              </div>
+            {/* P2-8: metin alanı HER ZAMAN görünür — eşleşme yoksa ya da metin silinirse
+                uzman raporu elle yazabilir (önceden düzenleyici kayboluyordu). */}
+            {!generatedText.trim() && !isEditMode && (
+              <p className="mb-2 rounded-lg border border-dashed border-indigo-200/80 bg-indigo-50/40 px-3 py-2 text-xs text-slate-600">
+                Bu haritayla eşleşen aktif Bilgi Bankası kaydı bulunamadı. Raporu aşağıya elle yazabilir
+                veya Bilgi Bankası&apos;na kayıt ekleyip Yenile&apos;ye basabilirsiniz.
+              </p>
             )}
+            <textarea
+              value={editedText}
+              onChange={(e) => setEditedText(e.target.value)}
+              rows={32}
+              aria-label="Rapor metni"
+              placeholder="Rapor metnini buraya yazın..."
+              className="w-full rounded-xl border border-indigo-200/90 bg-white/70 px-4 py-3 font-mono text-sm leading-relaxed text-slate-800 shadow-sm outline-none ring-1 ring-indigo-100/60 transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50"
+            />
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-indigo-100/80 bg-slate-50/60 px-4 py-3">

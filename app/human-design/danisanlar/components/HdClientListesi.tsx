@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -10,6 +10,7 @@ import {
   deleteHdClient,
   type HdClientRow,
 } from "../helpers/hdClients";
+import { getClientReportCount } from "../../rapor-olustur/helpers/hdRapor";
 
 function formatDate(val: string | null | undefined): string {
   if (!val) return "—";
@@ -31,6 +32,8 @@ export function HdClientListesi() {
   const [rows, setRows] = useState<HdClientRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const deletingRef = useRef(false);
 
   const loadRows = useCallback(async () => {
     setLoading(true);
@@ -63,19 +66,36 @@ export function HdClientListesi() {
       showToast({ message: "Demo hesabında danışan silinemez.", type: "info" });
       return;
     }
+    // P1-3: onay metni GERÇEK etkiyi söyler — danışan + haritası silinir, raporları korunur.
+    const { count, error: countErr } = await getClientReportCount(row.id);
+    const reportLine = countErr
+      ? "Bu danışana ait kayıtlı raporlar silinmez; Kayıtlı Raporlar'da kalır."
+      : count > 0
+        ? `Bu danışana ait ${count} kayıtlı rapor SİLİNMEZ; Kayıtlı Raporlar'da kalır (isterseniz oradan ayrıca silebilirsiniz).`
+        : "Bu danışana ait kayıtlı rapor yok.";
     const ok = await confirm({
       title: "Danışanı sil",
-      message: `"${row.name}" kalıcı olarak silinecek. Emin misiniz?`,
+      message: `"${row.name}" ile Human Design haritası ve harita görseli kalıcı olarak silinecek. ${reportLine} Emin misiniz?`,
       tone: "danger",
-      confirmText: "Sil",
+      confirmText: "Danışanı Sil",
       cancelText: "Vazgeç",
     });
     if (!ok) return;
-    const { error } = await deleteHdClient(row.id);
+    if (deletingRef.current) return;
+    deletingRef.current = true;
+    setDeletingId(row.id);
+    const { error, preservedReports, warnings } = await deleteHdClient(row.id);
+    deletingRef.current = false;
+    setDeletingId(null);
     if (error) {
       showToast({ message: `Silinemedi: ${error}`, type: "error" });
     } else {
-      showToast({ message: "Danışan silindi.", type: "success" });
+      const kept = preservedReports ? ` ${preservedReports} rapor Kayıtlı Raporlar'da korundu.` : "";
+      if (warnings && warnings.includes("charts_cleanup_failed")) {
+        showToast({ message: `Danışan silindi; harita kaydı temizlenemedi — Kayıtlı Haritalar'dan silebilirsiniz.${kept}`, type: "warning" });
+      } else {
+        showToast({ message: `Danışan silindi.${kept}`, type: "success" });
+      }
       loadRows();
     }
   }
@@ -135,7 +155,7 @@ export function HdClientListesi() {
               {filtered.map((row) => (
                 <tr key={row.id} className="bg-white transition-colors hover:bg-indigo-50/40">
                   <td className="px-4 py-3">
-                    <p className="font-semibold text-slate-900">{row.name}</p>
+                    <p className="font-semibold text-slate-900 [overflow-wrap:anywhere]">{row.name}</p>
                     {row.birth_place && (
                       <p className="text-xs text-slate-500 sm:hidden">{row.birth_place}</p>
                     )}
@@ -167,9 +187,10 @@ export function HdClientListesi() {
                       <button
                         type="button"
                         onClick={() => handleDelete(row)}
-                        className="h-7 rounded-lg border border-rose-200 bg-white px-2.5 text-xs font-bold text-rose-600 transition hover:border-rose-400 hover:bg-rose-50"
+                        disabled={deletingId === row.id}
+                        className="h-7 rounded-lg border border-rose-200 bg-white px-2.5 text-xs font-bold text-rose-600 transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50"
                       >
-                        Sil
+                        {deletingId === row.id ? "..." : "Sil"}
                       </button>
                     </div>
                   </td>

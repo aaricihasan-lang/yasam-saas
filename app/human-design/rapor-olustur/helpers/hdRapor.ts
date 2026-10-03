@@ -213,19 +213,21 @@ type UpdateReportInput = {
 };
 
 export async function updateReport(
-  input: UpdateReportInput,
-): Promise<{ error: string | null }> {
+  input: UpdateReportInput & { expectedUpdatedAt?: string | null },
+): Promise<{ error: string | null; conflict?: boolean; updatedAt?: string | null }> {
+  const { expectedUpdatedAt, ...rest } = input;
   let res: Response;
   try {
     res = await fetch("/api/hd/reports", {
       method: "PATCH",
       headers: authHeaders(),
-      body: JSON.stringify(input),
+      // P2-9: yüklenen sürüm gönderilir → başka oturumdaki değişiklik ezilmez (409).
+      body: JSON.stringify(expectedUpdatedAt ? { ...rest, expected_updated_at: expectedUpdatedAt } : rest),
     });
   } catch {
     return { error: "Ağ hatası. Bağlantını kontrol et." };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (res.ok && j.ok === true) return { error: null };
-  return { error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
+  if (res.ok && j.ok === true) return { error: null, updatedAt: typeof j.updated_at === "string" ? j.updated_at : null };
+  return { error: typeof j.error === "string" ? j.error : `HTTP ${res.status}`, conflict: res.status === 409 };
 }

@@ -13,6 +13,7 @@ import { handleCompute } from "./handleCompute";
 import { deriveChartColumns } from "./deriveChartColumns";
 import { hdSafeDbError } from "./safeError";
 import { withTenant, tenantInsertPayload } from "./tenantScope";
+import { manualChartIdFor, isUniqueViolation, sameInstant } from "./deterministicId";
 import type { HdChartResult } from "../engine";
 
 const TABLE = "human_design_charts";
@@ -310,7 +311,14 @@ export async function listManualChartsWithClients(
   return { rows, error: null };
 }
 
-/** Bir danışanın manuel haritasını getir — loadClientChart aynısı (tenant+client_id). */
+/**
+ * Bir danışanın manuel haritasını getir (tenant + client_id + YALNIZ manuel/legacy satır).
+ *
+ * P1-2: Geçmişte eşzamanlı ilk kayıtlarla aynı danışana birden çok manuel satır
+ * oluşabildi; `.maybeSingle()` bu durumda PGRST116 → 500 veriyordu ve danışan kullanılamaz
+ * hâle geliyordu. Artık deterministik sıra (en son güncellenen) + limit 1 okunur: eski
+ * yinelenen satırlar SİLİNMEZ (veri kaybı yok) ama danışan çalışmaya devam eder.
+ */
 export async function getManualChartByClient(
   db: SupabaseClient,
   tenantId: string,
@@ -318,26 +326,60 @@ export async function getManualChartByClient(
 ): Promise<{ row: Record<string, unknown> | null; error: string | null }> {
   const { data, error } = await withTenant(db.from(TABLE).select("*"), tenantId, "getManualChartByClient")
     .eq("client_id", clientId)
-    .maybeSingle();
+    .or(MANUAL_FILTER)
+    .order("updated_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(1);
   if (error) return { row: null, error: hdSafeDbError("getManualChartByClient", error) };
-  return { row: (data as Record<string, unknown> | null) ?? null, error: null };
+  const rows = (data ?? []) as Record<string, unknown>[];
+  return { row: rows[0] ?? null, error: null };
 }
 
-/** Manuel harita upsert (client başına tek satır) — saveClientChart aynısı + IDOR guard. */
+export type SaveManualChartResult = {
+  ok: boolean;
+  error: string | null;
+  id?: string | null;
+  updatedAt?: string | null;
+  /** HTTP durum ipucu (409 = eşzamanlı değişiklik çakışması). */
+  status?: number;
+  code?: string;
+};
+
+export const HD_CHART_CONFLICT_MESSAGE =
+  "Bu harita başka bir oturumda değiştirildi. Son hâlini görmek için Yenile'ye basıp tekrar deneyin.";
+
+/**
+ * Manuel harita upsert (danışan başına TEK satır) + IDOR guard + iyimser eşzamanlılık.
+ *
+ * Tekillik (P1-2, şema değişikliği gerekmez): yeni satırın id'si (tenant, client)'tan
+ * deterministik türetilir → eşzamanlı ikinci INSERT PRIMARY KEY ile reddedilir (23505) ve
+ * güncellemeye döner. 12 paralel ilk kayıt → tek satır.
+ *
+ * Eşzamanlılık (P2-9): `expectedUpdatedAt` VERİLİRSE (UI her zaman verir):
+ *   • null  = "yüklediğimde harita yoktu" → bu arada başka oturum oluşturduysa 409.
+ *   • string = yüklenen satırın updated_at'i → satır değiştiyse/silindiyse 409.
+ *   Güncelleme ayrıca okunan updated_at ile koşullu yapılır (okuma-yazma arası yarış → 409).
+ * Verilmezse (eski istemci / doğrudan API) son-yazan-kazanır davranışı korunur (geriye uyum).
+ */
 export async function saveManualChart(
   db: SupabaseClient,
   tenantId: string,
   clientId: string,
   values: Record<string, unknown>,
-): Promise<{ ok: boolean; error: string | null; id?: string | null }> {
-  if (!clientId) return { ok: false, error: "client_id gerekli." };
+  opts: { expectedUpdatedAt?: string | null } = {},
+): Promise<SaveManualChartResult> {
+  if (!clientId) return { ok: false, error: "client_id gerekli.", status: 400 };
   if (!(await clientInTenant(db, clientId, tenantId))) {
-    return { ok: false, error: "Danışan bu hesaba ait değil." };
+    return { ok: false, error: "Danışan bu hesaba ait değil.", status: 400 };
   }
+  const checkVersion = opts.expectedUpdatedAt !== undefined;
+  const expected = opts.expectedUpdatedAt ?? null;
+  const conflict = (): SaveManualChartResult => ({ ok: false, error: HD_CHART_CONFLICT_MESSAGE, status: 409, code: "CONFLICT" });
 
-  const { data: existing } = await withTenant(db.from(TABLE).select("id"), tenantId, "saveManualChart.existing")
-    .eq("client_id", clientId)
-    .maybeSingle();
+  const current = await getManualChartByClient(db, tenantId, clientId);
+  // Okuma hatası YUTULMAZ: aksi hâlde INSERT dalına düşülüp yinelenen satır oluşurdu.
+  if (current.error) return { ok: false, error: current.error, status: 500 };
+  const existing = current.row as { id: string; updated_at?: string | null } | null;
 
   const payload = {
     client_id: clientId,
@@ -345,19 +387,41 @@ export async function saveManualChart(
     updated_at: new Date().toISOString(),
   };
 
-  if (existing && (existing as { id?: string }).id) {
-    const existingId = (existing as { id: string }).id;
-    const { error } = await withTenant(db.from(TABLE).update(payload), tenantId, "saveManualChart.update")
-      .eq("id", existingId);
-    return { ok: !error, error: error ? hdSafeDbError("saveManualChart.update", error) : null, id: error ? null : existingId };
+  async function updateExisting(row: { id: string; updated_at?: string | null }, cas: boolean): Promise<SaveManualChartResult> {
+    let q = withTenant(db.from(TABLE).update(payload), tenantId, "saveManualChart.update").eq("id", row.id);
+    if (cas && row.updated_at) q = q.eq("updated_at", row.updated_at);
+    const { data, error } = await q.select("id, updated_at");
+    if (error) return { ok: false, error: hdSafeDbError("saveManualChart.update", error), status: 500 };
+    const out = (data ?? []) as { id: string; updated_at: string | null }[];
+    if (out.length === 0) return cas ? conflict() : { ok: false, error: "Harita bulunamadı.", status: 404 };
+    return { ok: true, error: null, id: out[0].id, updatedAt: out[0].updated_at ?? null };
   }
+
+  if (existing && existing.id) {
+    if (checkVersion && (expected === null || !sameInstant(existing.updated_at ?? null, expected))) return conflict();
+    return updateExisting(existing, checkVersion);
+  }
+
+  // Yüklenirken bir satır vardı ama artık yok → başka oturumda silinmiş.
+  if (checkVersion && expected !== null) return conflict();
+
   // id döner → UI kayıt sonrası "Profesyonel Word oluştur" CTA'sını bu haritaya bağlar.
-  const { data: inserted, error } = await db.from(TABLE).insert(tenantInsertPayload(tenantId, payload)).select("id").maybeSingle();
-  return {
-    ok: !error,
-    error: error ? hdSafeDbError("saveManualChart.insert", error) : null,
-    id: error ? null : ((inserted as { id?: string } | null)?.id ?? null),
-  };
+  const id = manualChartIdFor(tenantId, clientId);
+  const { data: inserted, error } = await db
+    .from(TABLE)
+    .insert(tenantInsertPayload(tenantId, { id, ...payload }))
+    .select("id, updated_at")
+    .maybeSingle();
+  if (!error) {
+    const row = inserted as { id?: string; updated_at?: string | null } | null;
+    return { ok: true, error: null, id: row?.id ?? id, updatedAt: row?.updated_at ?? null };
+  }
+  if (!isUniqueViolation(error)) {
+    return { ok: false, error: hdSafeDbError("saveManualChart.insert", error), status: 500 };
+  }
+  // Eşzamanlı ilk kayıt: satırı başka istek oluşturdu (PRIMARY KEY tekilliği).
+  if (checkVersion) return conflict();
+  return updateExisting({ id }, false);
 }
 
 /** Manuel harita güncelle (id ile) — additif PATCH desteği. */

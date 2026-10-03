@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import type { HdSourceRightsStatus, HdSourceType } from "@/lib/human-design/types";
@@ -145,7 +145,8 @@ export function HdKaynakEditor({
   recordId,
   onCreated,
   onDiscard,
-}: Props) {
+  onDirtyChange,
+}: Props & { onDirtyChange?: (dirty: boolean) => void }) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   // Aktif kaynak değişince bileşen `key` ile remount edilir (çağıran editör) →
@@ -159,6 +160,20 @@ export function HdKaynakEditor({
   );
 
   const locked = isDistributionLocked(form.rights_status);
+
+  // P2-13: kaydedilmemiş kaynak düzenlemesi üst editöre bildirilir → kaynak/sekme değişimi
+  // ve sayfadan çıkışta sorulur (önceden uzun özgün metin/çeviri sessizce kayboluyordu).
+  const [baseline, setBaseline] = useState(() => JSON.stringify(rowToForm(source)));
+  const [version, setVersion] = useState<string | null>(source.updated_at ?? null);
+  const dirty = !isDraft && JSON.stringify(form) !== baseline;
+  const onDirtyRef = useRef(onDirtyChange);
+  useEffect(() => {
+    onDirtyRef.current = onDirtyChange;
+  });
+  useEffect(() => {
+    onDirtyRef.current?.(dirty);
+  }, [dirty]);
+  useEffect(() => () => onDirtyRef.current?.(false), []);
 
   function setRights(rights: HdSourceRightsStatus) {
     setForm((p) => {
@@ -214,14 +229,17 @@ export function HdKaynakEditor({
       onCreated?.({ ...source, ...payload, id } as HdSourceRow);
       return;
     }
-    const { error } = await updateHdSource(source.id, payload);
+    const { error, conflict, updatedAt } = await updateHdSource(source.id, payload, version);
     setSaving(false);
     if (error) {
-      showToast({ message: `Hata: ${error}`, type: "error" });
+      showToast({ message: conflict ? error : `Hata: ${error}`, type: "error" });
       return;
     }
+    setBaseline(JSON.stringify(form));
+    setVersion(updatedAt ?? version);
+    onDirtyRef.current?.(false);
     showToast({ message: "Kaynak kaydedildi.", type: "success" });
-    onSaved({ ...source, ...payload } as HdSourceRow);
+    onSaved({ ...source, ...payload, updated_at: updatedAt ?? source.updated_at } as HdSourceRow);
   }
 
   async function handleDelete() {

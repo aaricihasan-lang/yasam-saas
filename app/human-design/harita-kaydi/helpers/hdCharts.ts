@@ -51,21 +51,44 @@ type ChartPayload = {
   notes: string | null;
 };
 
+export type SaveClientChartResult = {
+  error: string | null;
+  id?: string | null;
+  /** Kaydedilen satırın yeni sürümü (bir sonraki kayıtta beklenen sürüm olarak gönderilir). */
+  updatedAt?: string | null;
+  /** true → başka oturum haritayı değiştirdi/oluşturdu/sildi (409); üzerine yazılmadı. */
+  conflict?: boolean;
+};
+
+/**
+ * Manuel haritayı kaydet. `expectedUpdatedAt`: yüklenen haritanın updated_at'i (harita
+ * yoksa null) → sunucu başka oturumdaki değişikliği ezmek yerine 409 döner (P2-9).
+ */
 export async function saveClientChart(
   clientId: string,
   values: ChartPayload,
-): Promise<{ error: string | null; id?: string | null }> {
+  expectedUpdatedAt: string | null,
+): Promise<SaveClientChartResult> {
   let res: Response;
   try {
     res = await fetch("/api/hd/charts?scope=manual", {
       method: "POST",
       headers: authHeaders(),
-      body: JSON.stringify({ client_id: clientId, ...values }),
+      body: JSON.stringify({ client_id: clientId, ...values, expected_updated_at: expectedUpdatedAt }),
     });
   } catch {
     return { error: "Ağ hatası. Bağlantını kontrol et." };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (res.ok && j.ok === true) return { error: null, id: typeof j.id === "string" ? j.id : null };
-  return { error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
+  if (res.ok && j.ok === true) {
+    return {
+      error: null,
+      id: typeof j.id === "string" ? j.id : null,
+      updatedAt: typeof j.updated_at === "string" ? j.updated_at : null,
+    };
+  }
+  return {
+    error: typeof j.error === "string" ? j.error : `HTTP ${res.status}`,
+    conflict: res.status === 409,
+  };
 }

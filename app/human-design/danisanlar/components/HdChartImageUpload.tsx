@@ -5,6 +5,13 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { runInEffect } from "@/lib/runInEffect";
+import {
+  HD_CHART_IMAGE_MAX_BYTES,
+  HD_CHART_IMAGE_MAX_LABEL,
+  HD_CHART_IMAGE_MIME,
+  HD_CHART_IMAGE_TOO_LARGE_MESSAGE,
+  HD_CHART_IMAGE_TYPE_MESSAGE,
+} from "@/lib/human-design/chartImageLimits";
 
 /**
  * HD harita görseli yükleme/gösterme (HD-0 güvenlik).
@@ -29,7 +36,47 @@ type Props = {
   clientId: string;
   currentImageUrl?: string | null;
   onUrlChange?: (path: string | null) => void;
+  /** Görsel yüklendi/silindi (danışan satırının sürümü değişti) — üst bileşen tazeler. */
+  onChanged?: () => void;
 };
+
+/**
+ * P2-6: Sınırı aşan fotoğrafı yüklemeden önce tarayıcıda küçült (JPEG). Vercel gövde
+ * sınırına takılıp anlamsız 413 almak yerine telefon fotoğrafları da yüklenebilir.
+ * Küçültülemezse null döner (kullanıcıya net sınır mesajı gösterilir).
+ */
+async function shrinkImage(file: File): Promise<File | null> {
+  if (typeof window === "undefined" || typeof createImageBitmap !== "function") return null;
+  let bmp: ImageBitmap;
+  try {
+    bmp = await createImageBitmap(file);
+  } catch {
+    return null;
+  }
+  try {
+    for (const [maxSide, quality] of [[2400, 0.85], [2000, 0.8], [1600, 0.75], [1280, 0.7]] as const) {
+      const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+      const w = Math.max(1, Math.round(bmp.width * scale));
+      const h = Math.max(1, Math.round(bmp.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.fillStyle = "#ffffff"; // şeffaf PNG → JPEG'de siyah zemin olmasın
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(bmp, 0, 0, w, h);
+      const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", quality));
+      if (blob && blob.size <= HD_CHART_IMAGE_MAX_BYTES) {
+        const base = file.name.replace(/\.[^.]+$/, "") || "harita";
+        return new File([blob], `${base}.jpg`, { type: "image/jpeg" });
+      }
+    }
+    return null;
+  } finally {
+    bmp.close();
+  }
+}
 
 function authHeaders(): Record<string, string> {
   const u = readYasamUser();
@@ -44,7 +91,7 @@ function hasSession(): boolean {
   return !!readYasamUser()?.id && !!readSessionToken();
 }
 
-export function HdChartImageUpload({ clientId }: Props) {
+export function HdChartImageUpload({ clientId, onChanged }: Props) {
   const { showToast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -97,10 +144,25 @@ export function HdChartImageUpload({ clientId }: Props) {
       return;
     }
 
+    if (!(HD_CHART_IMAGE_MIME as readonly string[]).includes(file.type)) {
+      showToast({ message: HD_CHART_IMAGE_TYPE_MESSAGE, type: "error" });
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
+
     setUploading(true);
     try {
+      let upload: File = file;
+      if (file.size > HD_CHART_IMAGE_MAX_BYTES) {
+        const shrunk = await shrinkImage(file);
+        if (!shrunk) {
+          showToast({ message: HD_CHART_IMAGE_TOO_LARGE_MESSAGE, type: "error" });
+          return;
+        }
+        upload = shrunk;
+      }
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", upload);
       fd.append("clientId", clientId);
       // NOT: tenantId gönderilmez; Content-Type manuel set edilmez (FormData boundary'si korunur).
 
@@ -117,13 +179,22 @@ export function HdChartImageUpload({ clientId }: Props) {
       };
 
       if (!res.ok || !json.ok || !json.hasImage) {
-        showToast({ message: json.error ?? "Yükleme başarısız.", type: "error" });
+        // 413: altyapı gövde sınırı (JSON olmayan yanıt) dahil — anlamlı mesaj.
+        const message =
+          res.status === 413
+            ? HD_CHART_IMAGE_TOO_LARGE_MESSAGE
+            : json.error ?? `Yükleme başarısız (HTTP ${res.status}). Lütfen tekrar deneyin.`;
+        showToast({ message, type: "error" });
         return;
       }
 
       setDisplayUrl(json.signedUrl ?? null);
       setStatus(json.signedUrl ? "ready" : "empty");
-      showToast({ message: "Harita görseli yüklendi.", type: "success" });
+      showToast({
+        message: upload !== file ? "Harita görseli küçültülerek yüklendi." : "Harita görseli yüklendi.",
+        type: "success",
+      });
+      onChanged?.();
     } catch {
       showToast({ message: "Yükleme sırasında hata oluştu.", type: "error" });
     } finally {
@@ -163,6 +234,7 @@ export function HdChartImageUpload({ clientId }: Props) {
       setDisplayUrl(null);
       setStatus("empty");
       showToast({ message: "Harita görseli silindi.", type: "success" });
+      onChanged?.();
     } catch {
       showToast({ message: "Silme sırasında hata oluştu.", type: "error" });
     } finally {
@@ -235,6 +307,9 @@ export function HdChartImageUpload({ clientId }: Props) {
           {uploading ? "Yükleniyor..." : "PNG / JPG seç — Harita Görseli"}
         </button>
       )}
+      <p className="text-[11px] text-slate-500">
+        JPG, PNG veya WebP · en fazla {HD_CHART_IMAGE_MAX_LABEL} (daha büyük fotoğraflar otomatik küçültülür)
+      </p>
       <input
         ref={inputRef}
         type="file"

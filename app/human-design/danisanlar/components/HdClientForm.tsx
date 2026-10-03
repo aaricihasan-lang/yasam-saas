@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useHdLeaveGuard } from "../../hooks/useHdLeaveGuard";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { insertHdClient } from "../helpers/hdClients";
@@ -15,7 +17,6 @@ const empty = {
   birth_date: "",
   birth_time: "",
   birth_place: "",
-  chart_image_url: "",
   external_chart_url: "",
   notes: "",
 };
@@ -24,8 +25,24 @@ type Props = { onSuccess?: () => void };
 
 export function HdClientForm({ onSuccess }: Props) {
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
+
+  // P2-7: yarım doldurulmuş form menü/logo/geri ile sessizce kaybolmaz.
+  const dirty = Object.values(form).some((v) => v.trim() !== "");
+  const confirmLeave = useCallback(
+    () =>
+      confirm({
+        title: "Kaydedilmemiş danışan",
+        message: "Girdiğiniz danışan bilgileri henüz kaydedilmedi. Sayfadan ayrılmak istiyor musunuz?",
+        confirmText: "Bilgileri At ve Çık",
+        cancelText: "Sayfada Kal",
+        tone: "danger",
+      }),
+    [confirm],
+  );
+  useHdLeaveGuard(dirty && !saving, confirmLeave);
 
   function set(field: keyof typeof empty) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -47,7 +64,7 @@ export function HdClientForm({ onSuccess }: Props) {
       birth_date: form.birth_date || null,
       birth_time: form.birth_time || null,
       birth_place: form.birth_place.trim() || null,
-      chart_image_url: form.chart_image_url.trim() || null,
+      chart_image_url: null,
       external_chart_url: form.external_chart_url.trim() || null,
       notes: form.notes.trim() || null,
     });
@@ -115,16 +132,12 @@ export function HdClientForm({ onSuccess }: Props) {
       <section>
         <p className={sectionCls}>Harita Kaynakları</p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <label className={labelCls}>Harita Görseli URL</label>
-            <input
-              type="url"
-              value={form.chart_image_url}
-              onChange={set("chart_image_url")}
-              placeholder="https://..."
-              className={`h-9 ${fieldBase}`}
-            />
-          </div>
+          {/* P2-14: "Harita Görseli URL" alanı kaldırıldı — dış URL güvenli biçimde
+              gösterilemiyordu ("eski görsel formatı" çıkmazı). Görsel, danışan kaydedildikten
+              sonra Detay sayfasından dosya olarak yüklenir. */}
+          <p className="sm:col-span-2 -mt-1 text-[11px] text-slate-500">
+            Harita görselini danışanı kaydettikten sonra Detay sayfasından yükleyebilirsiniz.
+          </p>
           <div className="sm:col-span-2">
             <label className={labelCls}>Harita Linki (Jovian Archive vb.)</label>
             <input

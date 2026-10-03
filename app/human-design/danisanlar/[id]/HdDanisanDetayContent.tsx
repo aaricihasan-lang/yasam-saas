@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useHdLeaveGuard } from "../../hooks/useHdLeaveGuard";
 import { getHdClient, updateHdClient, type HdClientRow } from "../helpers/hdClients";
 import { HdChartImageUpload } from "../components/HdChartImageUpload";
 import { HumanDesignShell } from "../../components/HumanDesignShell";
@@ -40,8 +42,11 @@ type Props = { clientId: string };
 
 export function HdDanisanDetayContent({ clientId }: Props) {
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   const [row, setRow] = useState<HdClientRow | null>(null);
+  // P2-9: yüklenen satırın sürümü — koşullu güncelleme (başka oturumu ezmez).
+  const versionRef = useRef<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -58,7 +63,33 @@ export function HdDanisanDetayContent({ clientId }: Props) {
     }
     setRow(data);
     setForm(rowToForm(data));
+    versionRef.current = data.updated_at ?? null;
   }, [clientId, showToast]);
+
+  // Görsel yüklendi/silindi → danışan satırının sürümü değişti; yalnız sürüm tazelenir
+  // (formdaki kaydedilmemiş değişiklikler korunur).
+  const refreshVersion = useCallback(async () => {
+    const { row: data } = await getHdClient(clientId);
+    if (data) versionRef.current = data.updated_at ?? null;
+  }, [clientId]);
+
+  // P2-7: kaydedilmemiş profil değişikliği — menü/logo/geri/yenile korunur.
+  const dirty = useMemo(
+    () => !!row && !!form && JSON.stringify(form) !== JSON.stringify(rowToForm(row)),
+    [row, form],
+  );
+  const confirmLeave = useCallback(
+    () =>
+      confirm({
+        title: "Kaydedilmemiş değişiklikler",
+        message: "Danışan bilgilerindeki kaydedilmemiş değişiklikler kaybolacak. Sayfadan ayrılmak istiyor musunuz?",
+        confirmText: "Değişiklikleri At ve Çık",
+        cancelText: "Sayfada Kal",
+        tone: "danger",
+      }),
+    [confirm],
+  );
+  useHdLeaveGuard(dirty, confirmLeave);
 
   useEffect(() => {
     runInEffect(loadClient);
@@ -78,18 +109,23 @@ export function HdDanisanDetayContent({ clientId }: Props) {
     setSaving(true);
     // chart_image_url GÖNDERİLMEZ — görsel yönetimi HdChartImageUpload'a aittir
     // (profil güncellemesi görselin storage path'ini ezmemelidir).
-    const { error } = await updateHdClient(clientId, {
+    const payload = {
       name: form.name.trim(),
       birth_date: form.birth_date || null,
       birth_time: form.birth_time || null,
       birth_place: form.birth_place.trim() || null,
       external_chart_url: form.external_chart_url.trim() || null,
       notes: form.notes.trim() || null,
-    });
+    };
+    const { error, conflict, updatedAt } = await updateHdClient(clientId, payload, versionRef.current);
     setSaving(false);
     if (error) {
-      showToast({ message: `Hata: ${error}`, type: "error" });
+      showToast({ message: conflict ? error : `Hata: ${error}`, type: "error" });
     } else {
+      // Kaydedilen hâl yeni baseline (dirty temizlenir; başlık güncel adı gösterir).
+      versionRef.current = updatedAt ?? versionRef.current;
+      setRow((r) => (r ? { ...r, ...payload } : r));
+      setForm((f) => (f ? { ...f, name: payload.name, birth_place: payload.birth_place ?? "", external_chart_url: payload.external_chart_url ?? "", notes: payload.notes ?? "" } : f));
       showToast({ message: "Danışan güncellendi.", type: "success" });
     }
   }
@@ -140,7 +176,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
           {/* Harita Görseli */}
           <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-5 shadow-sm ring-1 ring-indigo-100/60">
             <p className={sectionCls}>Harita Görseli</p>
-            <HdChartImageUpload clientId={clientId} />
+            <HdChartImageUpload clientId={clientId} onChanged={() => void refreshVersion()} />
           </div>
 
           {/* Hızlı Erişim */}

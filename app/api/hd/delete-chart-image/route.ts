@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { reportReferencedImagePaths } from "@/lib/human-design/api/hdStorage";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { isOwnedChartImagePath } from "@/lib/human-design/api/chartImagePath";
@@ -81,11 +82,17 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // Yalnız bu tenant/client'a ait geçerli path silinir (legacy public URL/boş/başka
   // tenant path'i → atlanır). DB alanı yukarıda zaten temizlendi.
+  // P2-1: eski bir profesyonel rapor snapshot'ı bu nesneyi hâlâ kullanıyorsa nesne korunur.
   if (isOwnedChartImagePath(currentPath, guard.tenantId, clientId)) {
-    const { error: removeErr } = await guard.db.storage.from(BUCKET).remove([currentPath]);
-    if (removeErr) {
-      // Dosya temizliği best-effort; başarısızlık yalnız maskeli loglanır.
-      console.error("[hd/delete-chart-image] dosya silinemedi:", removeErr.message);
+    const refs = await reportReferencedImagePaths(guard.db, guard.tenantId, currentPath);
+    if (refs.error) {
+      console.error("[hd/delete-chart-image] rapor referansı okunamadı; dosya korunuyor:", refs.error);
+    } else if (!refs.paths.has(currentPath)) {
+      const { error: removeErr } = await guard.db.storage.from(BUCKET).remove([currentPath]);
+      if (removeErr) {
+        // Dosya temizliği best-effort; başarısızlık yapılandırılmış olarak loglanır.
+        console.error("[hd-storage-cleanup-failed] delete-chart-image:", removeErr.message);
+      }
     }
   }
 
