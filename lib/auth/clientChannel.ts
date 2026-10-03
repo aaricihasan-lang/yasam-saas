@@ -31,27 +31,40 @@ export type ClientChannel = (typeof CLIENT_CHANNELS)[number];
 export const CLIENT_CHANNEL_HEADER = "x-yasam-client";
 
 /**
- * Android wrapper sözleşmesi: WebView, her istekte
- *   x-yasam-client: android
- * (veya "android-app"/"android-webview") header'ını enjekte eder. Yalnız bu değerler
- * android_app'e maplenir; bilinmeyen/eksik işaret web fallback'e düşer.
+ * Eski/analitik ipucu değerleri — yalnız usage360 "türetilmiş Android" sınıfı için okunur.
+ * OTURUM sınıflandırması bunları TEK BAŞINA kabul ETMEZ (aşağıdaki iki-sinyal kuralı).
  */
 const ANDROID_APP_TOKENS = new Set(["android", "android-app", "android-webview", "yasam-android"]);
 
+/** Resmi uygulama UA soneki: `YasamSistemiAndroid/<sürüm>` (ör. YasamSistemiAndroid/2.4.1). */
+export const ANDROID_APP_UA_SUFFIX = /\bYasamSistemiAndroid\/\d+(?:\.\d+){0,3}\b/;
+
+/** Header bir Android ipucu mu? (analitik; oturum/yetki kararı DEĞİL) */
+export function isAndroidChannelHint(clientHeader: string | null | undefined): boolean {
+  const hint = String(clientHeader ?? "").trim().toLowerCase();
+  return hint !== "" && ANDROID_APP_TOKENS.has(hint);
+}
+
 /**
  * SAF resolver: (userAgent, clientHeader) → ClientChannel.
- * @param userAgent    request User-Agent (web fallback sınıflandırması için)
+ *
+ * OTURUM MODELİ v2 (owner kararı): `android_app` YALNIZ İKİ SİNYAL BİRLİKTE varsa —
+ *   (1) UA'da resmi sonek `YasamSistemiAndroid/<sürüm>` VE (2) `x-yasam-client: android` (tam değer).
+ * Tek sinyal (yalnız UA / yalnız header / `; wv)` WebView işareti) → web kanalı. Kanal yalnız
+ * oturum POLİTİKASINI (süre/cihaz sınıfı) seçer; rol/tenant/yetki kanıtı DEĞİLDİR.
+ * @param userAgent    request User-Agent
  * @param clientHeader x-yasam-client header değeri (yoksa null/undefined)
  */
 export function resolveClientChannel(
   userAgent: string | null | undefined,
   clientHeader: string | null | undefined,
 ): ClientChannel {
+  const ua = String(userAgent ?? "").slice(0, 1024);
   const hint = String(clientHeader ?? "").trim().toLowerCase();
-  if (hint && ANDROID_APP_TOKENS.has(hint)) return "android_app";
+  if (hint === "android" && ANDROID_APP_UA_SUFFIX.test(ua)) return "android_app";
 
-  // İşaret yok/tanınmıyor → UA-parse platform'a göre web kanalı (güvenli fallback).
-  switch (classifyDeviceType(String(userAgent ?? ""))) {
+  // İşaret yok/eksik → UA-parse platform'a göre web kanalı (güvenli fallback).
+  switch (classifyDeviceType(ua)) {
     case "desktop":
       return "desktop_web";
     case "mobile":

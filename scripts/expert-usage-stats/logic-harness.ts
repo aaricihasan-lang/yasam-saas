@@ -32,9 +32,12 @@ ok(resolveClientChannel(IPAD_UA, null) === "tablet_web", "iPad UA → tablet_web
 ok(resolveClientChannel("", null) === "unknown", "boş UA + işaret yok → unknown");
 // KRİTİK: WebView UA işaret olmadan mobil web'den AYIRT EDİLEMEZ (mobile_web'e düşer).
 ok(resolveClientChannel(WEBVIEW_UA, null) === "mobile_web", "WebView UA işaretSİZ → mobile_web (ayırt edilemez, dürüst fallback)");
-// İşaret varsa android_app (UA ne olursa olsun).
-ok(resolveClientChannel(WEBVIEW_UA, "android") === "android_app", "WebView UA + x-yasam-client:android → android_app");
-ok(resolveClientChannel(MOBILE_UA, "android-app") === "android_app", "mobil UA + android-app işareti → android_app");
+// OTURUM MODELİ v2: android_app YALNIZ iki sinyal birlikte (UA soneki + x-yasam-client:android).
+const APP_UA = "Mozilla/5.0 (Linux; Android 14; Pixel; wv) Chrome/126 Mobile Safari YasamSistemiAndroid/2.4.1";
+ok(resolveClientChannel(APP_UA, "android") === "android_app", "resmi UA soneki + x-yasam-client:android → android_app");
+ok(resolveClientChannel(WEBVIEW_UA, "android") === "mobile_web", "yalnız header (sonek yok) → android_app DEĞİL");
+ok(resolveClientChannel(APP_UA, null) === "mobile_web", "yalnız UA soneki (header yok) → android_app DEĞİL");
+ok(resolveClientChannel(APP_UA, "android-app") === "mobile_web", "eski 'android-app' ipucu oturum için kabul EDİLMEZ");
 ok(resolveClientChannel(DESKTOP_UA, "bilinmeyen-deger") === "desktop_web", "tanınmayan işaret → UA fallback (yetki DEĞİL)");
 ok(CLIENT_CHANNEL_HEADER === "x-yasam-client", "kanal header adı x-yasam-client");
 ok(CLIENT_CHANNELS.length === 5 && isClientChannel("android_app") && !isClientChannel("android"), "kanal sözlüğü 5 değer + isClientChannel");

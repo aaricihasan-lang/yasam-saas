@@ -8,9 +8,11 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   PASSWORD_MIN_LENGTH,
-  isObviousPassword,
+  PASSWORD_POLICY_I18N,
+  PASSWORD_POLICY_LOCALES,
   newPasswordPolicyCode,
   newPasswordPolicyMessage,
+  passwordHintFor,
 } from "../../lib/auth/passwordPolicy";
 import { passwordPolicyError, validateRegisterBody, REGISTER_PASSWORD_MIN } from "../../lib/auth/registerValidation";
 import { validateNewPassword, MIN_PASSWORD_LENGTH } from "../../lib/admin/accountSessionControls";
@@ -34,11 +36,20 @@ ok(newPasswordPolicyCode("Gü9!x#Lm2v") === null, "karmaşık parola → kabul")
 ok(newPasswordPolicyCode("deniz58") === null && newPasswordPolicyCode("denizkiz") === null, "özel karakter zorunluluğu YOK");
 ok(newPasswordPolicyCode("yasemin7") === null, "büyük harf zorunluluğu YOK");
 ok(newPasswordPolicyCode("993018") === null && newPasswordPolicyCode("ağaçlık") === null, "harf+rakam kombinasyonu ZORUNLU DEĞİL");
-for (const p of ["123456", "000000", "111111", "654321", "999999", "234567", "987654", "1234567890", "123123", "qwerty", "abcdef", "parola", "aaaaaa"]) {
-  ok(newPasswordPolicyCode(p) === "password_too_common", `bariz parola reddi: ${p}`);
+// OWNER NİHAİ KARARI (2026-10-03): tek kural en az 6 karakter — blocklist / e-posta kuralı YOK.
+for (const p of ["123456", "000000", "111111", "654321", "999999", "1234567890", "123123", "qwerty", "abcdef", "parola", "aaaaaa", "Ayse12"]) {
+  ok(newPasswordPolicyCode(p) === null, `6+ karakter kabul (blocklist YOK): ${p}`);
 }
-ok(!isObviousPassword("482731") && !isObviousPassword("135792") && !isObviousPassword("852147"), "rastgele 6 haneli rakamlar bariz SAYILMAZ");
-ok(newPasswordPolicyCode("a@b.co", "a@b.co") === "password_equals_email", "e-posta ile aynı → reddedilir");
+ok(newPasswordPolicyCode("a@b.co", "a@b.co") === null, "e-posta ile aynı olma kuralı YOK (yalnız uzunluk)");
+ok(newPasswordPolicyCode("12345") === "password_too_short" && newPasswordPolicyCode("") === "password_too_short", "5 karakter / boş → reddedilir");
+ok(PASSWORD_POLICY_LOCALES.join(",") === "tr,en,de,fr,nl,es", "mesaj dilleri: TR/EN/DE/FR/NL/ES");
+for (const l of PASSWORD_POLICY_LOCALES) {
+  const m = PASSWORD_POLICY_I18N[l];
+  ok(/\b6\b/.test(m.hint) && /\b6\b/.test(m.tooShort), `${l}: ipucu + hata yalnız "en az 6 karakter"`);
+  ok(!/büyük|özel|rakam|harf|upper|special|digit|letter|groß|sonder|ziffer|majuscule|spécial|chiffre|hoofdletter|speciaal|cijfer|mayúscula|especial|número/i.test(m.hint + " " + m.tooShort),
+    `${l}: bileşim (büyük harf/özel karakter/rakam) zorunluluğu ifadesi YOK`);
+}
+ok(newPasswordPolicyMessage("12", "", "de") === PASSWORD_POLICY_I18N.de.tooShort && passwordHintFor("fr-FR") === PASSWORD_POLICY_I18N.fr.hint && passwordHintFor("xx") === PASSWORD_POLICY_I18N.tr.hint, "dile göre mesaj; bilinmeyen dil → TR");
 ok(newPasswordPolicyCode("x".repeat(129)) === "password_too_long", "128 üstü → reddedilir");
 ok(/Parola/.test(newPasswordPolicyMessage("12") ?? "") && !/PIN|şifre/i.test(Object.values({ a: newPasswordPolicyMessage("12"), b: newPasswordPolicyMessage("123456") }).join(" ")), "mesajlar 'Parola' terimini kullanır (PIN/şifre YOK)");
 ok(!/bcrypt|hash|cost/i.test([newPasswordPolicyMessage("12"), newPasswordPolicyMessage("123456")].join(" ")), "kullanıcı mesajında hash/teknik ayrıntı YOK");
@@ -46,9 +57,9 @@ ok(!/bcrypt|hash|cost/i.test([newPasswordPolicyMessage("12"), newPasswordPolicyM
 console.log("\n── B) Sunucu yolları aynı politikayı uygular ──");
 ok(validateRegisterBody({ fullName: "Ad Soyad", email: "a@b.co", password: "482731" }).ok === true, "kayıt: 6 rakam kabul");
 ok(validateRegisterBody({ fullName: "Ad Soyad", email: "a@b.co", password: "48273" }).ok === false, "kayıt: 5 karakter red");
-ok(validateRegisterBody({ fullName: "Ad Soyad", email: "a@b.co", password: "123456" }).ok === false, "kayıt: bariz parola red");
+ok(validateRegisterBody({ fullName: "Ad Soyad", email: "a@b.co", password: "123456" }).ok === true, "kayıt: 123456 kabul (owner kararı)");
 ok(passwordPolicyError("kelime") === null, "kayıt istemci kontrolü: 6 harf kabul");
-ok(validateNewPassword("482731").ok === true && validateNewPassword("48273").ok === false && validateNewPassword("000000").ok === false, "admin sıfırlama: aynı politika");
+ok(validateNewPassword("482731").ok === true && validateNewPassword("48273").ok === false && validateNewPassword("000000").ok === true, "admin sıfırlama: aynı politika (000000 kabul)");
 const reg = read("app/api/register/route.ts");
 const cp = read("app/api/settings/change-password/route.ts");
 const adminCreate = read("app/api/admin/users/route.ts");

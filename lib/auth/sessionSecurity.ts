@@ -17,7 +17,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { classifyDeviceType, normalizeLimit, UNLIMITED, type LimitReason } from "@/lib/auth/sessionLimits";
+import { classifyDeviceType, type LimitReason } from "@/lib/auth/sessionLimits";
 import { resolveClientChannel, CLIENT_CHANNEL_HEADER, type ClientChannel } from "@/lib/auth/clientChannel";
 
 // ─── Eşikler ─────────────────────────────────────────────────────────────────
@@ -172,310 +172,252 @@ export function detectPlatform(userAgent: string): string {
   return classifyDeviceType(userAgent);
 }
 
-async function insertSession(
-  db: SupabaseClient,
-  userId: string,
-  location: LocationInfo,
-  sessionToken: string,
-  platform: string,
-  now: string,
-  clientChannel: ClientChannel,
-): Promise<void> {
-  // Zorunlu (şemada her zaman var olan) alanlar.
-  const base: Record<string, unknown> = {
-    user_id:       userId,
-    ip_address:    location.ip,
-    country:       location.country,
-    city:          location.city,
-    user_agent:    location.userAgent,
-    session_token: sessionToken,
-    is_active:     true,
-    created_at:    now,
-    last_seen_at:  now,
-  };
-  // Opsiyonel kolonlar — şemada yoksa (migration uygulanmadan deploy) insert bunları
-  // NAME'iyle tanıyıp bırakır (fail-open: oturum yine oluşur). İP-3: client_channel de
-  // aynı platform deseniyle geriye-uyumlu ele alınır.
-  const optional: Record<string, unknown> = { platform, client_channel: clientChannel };
+// ─── Oturum modeli v2 sabitleri (owner kararları — KİLİTLİ) ───────────────────
 
-  const payload = { ...base, ...optional };
-  const { error } = await db.from("user_sessions").insert(payload);
-  if (!error) return;
-
-  // Şemada eksik olan opsiyonel kolonları hatayı okuyup düşürerek en fazla iki kez dene.
-  let attempt: Record<string, unknown> = payload;
-  let lastMsg = error.message;
-  for (let i = 0; i < Object.keys(optional).length; i++) {
-    const dropKey = Object.keys(optional).find(
-      (k) => k in attempt && lastMsg.includes(k),
-    );
-    if (!dropKey) break;
-    const rest = { ...attempt };
-    delete rest[dropKey];
-    attempt = rest;
-    const retry = await db.from("user_sessions").insert(attempt);
-    if (!retry.error) return;
-    lastMsg = retry.error.message;
-  }
-  throw new Error(`Oturum kaydedilemedi: ${lastMsg}`);
+/** Admin için ONAYLI eşzamanlı web oturumu üst sınırı (resmi Android uygulaması hariç). */
+export const ADMIN_WEB_SESSION_CAP = 2;
+/** Admin ikinci/riskli web girişi onay bekleme süresi (saniye). */
+export const PENDING_APPROVAL_TTL_SECONDS = 10 * 60;
+/** Uzman WEB oturumu stale eşiği — yalnız yeni giriş sırasında (normal 15 dk / flexible 60 dk). */
+export function expertStaleSeconds(securityMode: string): number {
+  return (securityMode === "flexible" ? FLEXIBLE_THRESHOLD_MS : FRESH_THRESHOLD_MS) / 1000;
 }
 
 // ─── Ana fonksiyon ────────────────────────────────────────────────────────────
 
 /**
- * Giriş sonrası çağrılır. Lisans + platform ayarlarına göre dinamik risk politikası uygular.
+ * Giriş sonrası çağrılır (kimlik + active/approval gating ÇAĞIRANDA yapılmış olmalı).
+ *
+ * OTURUM MODELİ v2: karar TEK atomik RPC'de (create_session_v2, kullanıcı başına kilit):
+ *   - admin resmi Android: en fazla 1 aktif (ikinci → admin_mobile_active; mevcut KORUNUR)
+ *   - admin web: aktif web varsa (veya giriş yüksek riskliyse) → pending_approval (10 dk);
+ *     onaylı web üst sınırı ADMIN_WEB_SESSION_CAP (dolu → admin_web_limit)
+ *   - uzman: users.allowed_* tek kaynak (security_exempt ATLAMAZ); resmi Android mobil sayılır;
+ *     15 dk stale temizliği yalnız uzman web oturumlarında; limit dolu → yeni giriş RED
+ * Konum/risk motoru artık MEVCUT OTURUM KAPATMAZ; yalnız security_events kaydı + admin için
+ * pending sinyali üretir. security_exempt yalnız bu konum/risk değerlendirmesini atlar.
  */
 export type CreateSessionResult =
-  | { ok: true; suspiciousLogin: boolean; highRisk: boolean }
-  | { ok: false; reason: LimitReason; deviceType: string };
+  | {
+      ok: true;
+      state: "active" | "pending_approval";
+      sessionId: string | null;
+      pendingExpiresAt: string | null;
+      channel: ClientChannel;
+      role: "admin" | "expert";
+      suspiciousLogin: boolean;
+      highRisk: boolean;
+      exceptionUsed: boolean;
+    }
+  | { ok: false; reason: LimitReason; deviceType: string; role: "admin" | "expert" | null };
+
+export type CreateSessionOptions = {
+  /** Aynı cihazdaki ÖNCEKİ token (localStorage/pending) — aynı kullanıcıya aitse kapatılır. */
+  replaceToken?: string | null;
+};
 
 export async function createUserSession(
   db: SupabaseClient,
   userId: string,
   location: LocationInfo,
   sessionToken: string,
+  options: CreateSessionOptions = {},
 ): Promise<CreateSessionResult> {
-  const now      = new Date().toISOString();
   const platform = detectPlatform(location.userAgent);
-  // İP-3: kanal — extractLocationFromHeaders doldurur; doğrudan çağrılarda UA-parse fallback.
   const clientChannel = location.channel ?? resolveClientChannel(location.userAgent, null);
+  const limitPlatform = clientChannel === "android_app" ? "mobile" : platform;
 
-  // ── Kullanıcı lisans + platform ayarları ─────────────────────────────────
   const { data: lr } = await db
     .from("users")
-    .select("role, security_exempt, allowed_active_sessions, allowed_locations, security_mode, license_type, allowed_desktop_sessions, allowed_mobile_sessions, allowed_tablet_sessions, allowed_unknown_sessions")
+    .select("role, security_exempt, allowed_locations, security_mode, license_type")
     .eq("id", userId)
     .maybeSingle();
 
-  const securityExempt  = lr?.security_exempt === true;
-  // Owner kararı (FAZ1 final): telefon + bilgisayar NORMAL kullanımdır → etkin konum limiti
-  // en az 2 (migration 20270129000200 NULL/1 → 2 yapar; burada da taban 2). 3/999 korunur.
-  const allowedLocs     = effectiveAllowedLocations(lr?.allowed_locations);
-  const rawMode         = String(lr?.security_mode ?? "normal");
-  const secMode         = (["strict", "normal", "flexible"].includes(rawMode) ? rawMode : "normal") as
+  const roleRaw = String(lr?.role ?? "").trim().toLowerCase();
+  const role: "admin" | "expert" | null = roleRaw === "admin" ? "admin" : roleRaw === "expert" ? "expert" : null;
+  const securityExempt = lr?.security_exempt === true;
+  const allowedLocs = effectiveAllowedLocations(lr?.allowed_locations);
+  const rawMode = String(lr?.security_mode ?? "normal");
+  const secMode = (["strict", "normal", "flexible"].includes(rawMode) ? rawMode : "normal") as
     "strict" | "normal" | "flexible";
-  const freshThresholdMs = secMode === "flexible" ? FLEXIBLE_THRESHOLD_MS : FRESH_THRESHOLD_MS;
 
-  // P3 limit semantiği: -1 SINIRSIZ · 0 YASAK · N max (normalize; default -1).
-  const totalLimit = normalizeLimit(lr?.allowed_active_sessions);
-  const platformLimitByType: Record<string, number> = {
-    desktop: normalizeLimit(lr?.allowed_desktop_sessions),
-    mobile:  normalizeLimit(lr?.allowed_mobile_sessions),
-    tablet:  normalizeLimit(lr?.allowed_tablet_sessions),
-    unknown: normalizeLimit(lr?.allowed_unknown_sessions),
-  };
+  // ── Konum/risk değerlendirmesi (yalnız sinyal; mevcut oturum KAPATILMAZ) ──
+  const risk = securityExempt
+    ? { level: "low" as SecurityRiskLevel, refSession: undefined as ActiveSession | undefined }
+    : await evaluateLoginRisk(db, userId, location, secMode, allowedLocs);
 
-  // ── Güvenlik muafiyeti ────────────────────────────────────────────────────
-  if (securityExempt) {
-    await insertSession(db, userId, location, sessionToken, platform, now, clientChannel);
-    await finalizeNewSession(db, sessionToken, {
-      expires_at:     computeSessionExpiresAt(lr?.role),
-      client_channel: clientChannel,
-    });
-    return { ok: true, suspiciousLogin: false, highRisk: false };
+  const policy = resolveSessionExpiryPolicy();
+  const replaceToken = typeof options.replaceToken === "string" && options.replaceToken.trim()
+    ? options.replaceToken.trim().slice(0, 200)
+    : null;
+
+  const { data: rpcData, error: rpcError } = await db.rpc("create_session_v2", {
+    p_user_id: userId,
+    p_session_token: sessionToken,
+    p_ip: location.ip,
+    p_country: location.country,
+    p_city: location.city,
+    p_user_agent: location.userAgent,
+    p_platform: platform,
+    p_client_channel: clientChannel,
+    p_replace_token: replaceToken,
+    p_expires_at: clientChannel === "android_app" ? null : computeSessionExpiresAt(lr?.role),
+    p_high_risk: role === "admin" && risk.level === "high_risk",
+    p_enforce: policy.enforce,
+    p_expert_idle_seconds: policy.expertIdleSeconds,
+    p_admin_idle_seconds: policy.adminIdleSeconds,
+    p_admin_absolute_seconds: policy.adminAbsoluteSeconds,
+    p_expert_stale_seconds: expertStaleSeconds(secMode),
+    p_admin_web_cap: ADMIN_WEB_SESSION_CAP,
+    p_pending_ttl_seconds: PENDING_APPROVAL_TTL_SECONDS,
+  });
+  if (rpcError) {
+    throw new Error(`Oturum oluşturulamadı: ${rpcError.message}`);
   }
 
-  // ── Aktif oturumları çek ──────────────────────────────────────────────────
+  const result = (rpcData ?? {}) as {
+    inserted?: boolean;
+    reason?: string;
+    state?: string;
+    session_id?: string | null;
+    pending_expires_at?: string | null;
+    exception_used?: boolean;
+  };
+
+  if (!result.inserted) {
+    const reason = String(result.reason ?? "total_limit");
+    if (reason === "inactive" || reason === "no_role") {
+      // Çağıran gating'i zaten yaptı; yarışta pasifleşme → genel red (sızıntı yok).
+      return { ok: false, reason: "total_forbidden", deviceType: limitPlatform, role };
+    }
+    const isAdminReason = reason === "admin_mobile_active" || reason === "admin_web_limit";
+    await logSecurityEvent(db, userId, location, {
+      event_type: reason === "admin_mobile_active" ? "admin_mobile_login_rejected"
+        : reason === "admin_web_limit" ? "admin_web_login_rejected_limit"
+          : "session_limit_blocked",
+      severity: isAdminReason ? "medium" : "low",
+      message: `Yeni giriş reddedildi (${reason}) — ${limitPlatform}`,
+      metadata: { platform: limitPlatform, channel: clientChannel, reason },
+    });
+    return { ok: false, reason: reason as LimitReason, deviceType: limitPlatform, role };
+  }
+
+  // ── Risk / istisna kayıtları (mevcut oturum KAPATILMAZ) ──────────────────
+  if (risk.level !== "low") {
+    await logSecurityEvent(db, userId, location, {
+      event_type: risk.level === "high_risk" ? "high_risk_login" : "suspicious_login",
+      severity: risk.level === "high_risk" ? "high" : "medium",
+      message: risk.level === "high_risk"
+        ? `Farklı ülkeden hızlı giriş: ${risk.refSession?.country?.toUpperCase() ?? "?"} → ${location.country?.toUpperCase() ?? "?"}`
+        : `Farklı şehirden eş zamanlı giriş: ${risk.refSession?.city ?? "?"} → ${location.city ?? "?"}`,
+      metadata: {
+        platform: limitPlatform,
+        previous_city: risk.refSession?.city ?? null,
+        previous_country: risk.refSession?.country ?? null,
+        new_city: location.city,
+        new_country: location.country,
+        existing_sessions_closed: 0,
+        admin_pending: role === "admin" && result.state === "pending_approval",
+      },
+    });
+  }
+  if (result.exception_used === true) {
+    // TEMPORARY TEST ACCOUNT EXCEPTION — REMOVE AFTER SALES LAUNCH (görünür iz).
+    await logSecurityEvent(db, userId, location, {
+      event_type: "session_limit_exception_used",
+      severity: "low",
+      message: "Geçici test hesabı istisnası: cihaz/oturum limiti uygulanmadı.",
+      metadata: { platform: limitPlatform, channel: clientChannel },
+    });
+  }
+
+  return {
+    ok: true,
+    state: result.state === "pending_approval" ? "pending_approval" : "active",
+    sessionId: typeof result.session_id === "string" ? result.session_id : null,
+    pendingExpiresAt: typeof result.pending_expires_at === "string" ? result.pending_expires_at : null,
+    channel: clientChannel,
+    role: role ?? "expert",
+    suspiciousLogin: risk.level === "suspicious",
+    highRisk: risk.level === "high_risk",
+    exceptionUsed: result.exception_used === true,
+  };
+}
+
+/** Konum/risk sinyali — salt okuma (+ düşük seviyeli log); HİÇBİR oturumu kapatmaz. */
+async function evaluateLoginRisk(
+  db: SupabaseClient,
+  userId: string,
+  location: LocationInfo,
+  secMode: "strict" | "normal" | "flexible",
+  allowedLocs: number,
+): Promise<{ level: SecurityRiskLevel; refSession: ActiveSession | undefined }> {
+  const freshThresholdMs = secMode === "flexible" ? FLEXIBLE_THRESHOLD_MS : FRESH_THRESHOLD_MS;
   const { data: rawSessions } = await db
     .from("user_sessions")
     .select("id, city, country, last_seen_at, platform")
     .eq("user_id", userId)
     .eq("is_active", true)
     .order("last_seen_at", { ascending: false });
-
   const sessions: ActiveSession[] = (rawSessions ?? []) as ActiveSession[];
+  const knownFresh = sessions
+    .filter((s) => isFreshWith(s, freshThresholdMs))
+    .filter((s) => classifySession(s, location) !== "unknown");
 
-  // ── Stale oturumları kapat (dinamik eşik) ─────────────────────────────────
-  const staleSessions = sessions.filter((s) => !isFreshWith(s, freshThresholdMs));
-  if (staleSessions.length > 0) {
-    await db
-      .from("user_sessions")
-      .update({ is_active: false, ended_at: now, end_reason: "stale" })
-      .in("id", staleSessions.map((s) => s.id));
-  }
-
-  const freshSessions = sessions.filter((s) => isFreshWith(s, freshThresholdMs));
-
-  // ── Bilinmeyen konumlu fresh oturumlar ────────────────────────────────────
-  // FAZ1 FINAL HARDENING: konum başlığı olmayan (ör. mobil ağ/WebView) TAZE oturumlar artık
-  // KAPATILMAZ — telefon + bilgisayar eş zamanlı normal kullanım. Konum sayımına girmezler.
-
-  const knownFreshSessions = freshSessions.filter((s) => classifySession(s, location) !== "unknown");
-
-  // ── Lokasyon sınıflandırması ──────────────────────────────────────────────
-  const diffCitySessions:    ActiveSession[] = [];
-  const diffCountrySessions: ActiveSession[] = [];
-
-  for (const s of knownFreshSessions) {
+  const diffCity: ActiveSession[] = [];
+  const diffCountry: ActiveSession[] = [];
+  for (const s of knownFresh) {
     const cls = classifySession(s, location);
-    if (cls === "diff_city")    diffCitySessions.push(s);
-    else if (cls === "diff_country") diffCountrySessions.push(s);
+    if (cls === "diff_city") diffCity.push(s);
+    else if (cls === "diff_country") diffCountry.push(s);
   }
 
-  // ── Distinct lokasyon sayısı ──────────────────────────────────────────────
-  const locationKeys = new Set<string>();
-  if (location.city) {
-    locationKeys.add(`${normalizeStr(location.city)}|${normalizeStr(location.country ?? "")}`);
+  const keys = new Set<string>();
+  if (location.city) keys.add(`${normalizeStr(location.city)}|${normalizeStr(location.country ?? "")}`);
+  for (const s of knownFresh) {
+    if (s.city) keys.add(`${normalizeStr(s.city)}|${normalizeStr(s.country ?? "")}`);
   }
-  for (const s of knownFreshSessions) {
-    if (s.city) {
-      locationKeys.add(`${normalizeStr(s.city)}|${normalizeStr(s.country ?? "")}`);
-    }
-  }
-  const distinctLocs          = locationKeys.size;
-  const locationLimitExceeded = distinctLocs > allowedLocs;
-
-  // ── Konum riski ───────────────────────────────────────────────────────────
-  let riskLevel = "low" as SecurityRiskLevel;
-  const sessionsToCloseForRisk: string[] = [];
-
-  if (locationLimitExceeded) {
-    const activeHighRisk = diffCountrySessions.filter(isWithinHighRiskWindow);
-    if (activeHighRisk.length > 0) {
-      riskLevel = "high_risk";
-      sessionsToCloseForRisk.push(...activeHighRisk.map((s) => s.id));
-    }
-
-    // FAZ1 FINAL HARDENING (owner kararı): aynı ülke içinde farklı şehir (ör. telefon mobil
-    // ağda başka şehir IP'si) NORMAL sayılır; yalnız strict modda risk + kapatma uygulanır.
-    // Risk esas olarak farklı ülke (yukarıda) ve olağandışı girişlerdir.
-    if (diffCitySessions.length > 0 && secMode === "strict") {
-      if (riskLevel !== "high_risk") riskLevel = "high_risk";
-      sessionsToCloseForRisk.push(...diffCitySessions.map((s) => s.id));
-    }
-
-    const staleHighRisk = diffCountrySessions.filter((s) => !isWithinHighRiskWindow(s));
-    if (staleHighRisk.length > 0) {
-      await db
-        .from("user_sessions")
-        .update({ is_active: false, ended_at: now, end_reason: "stale" })
-        .in("id", staleHighRisk.map((s) => s.id));
-    }
-
-    if (sessionsToCloseForRisk.length > 0) {
-      await db
-        .from("user_sessions")
-        .update({ is_active: false, ended_at: now, end_reason: "new_login" })
-        .in("id", sessionsToCloseForRisk);
-    }
-  } else {
-    // Limit içinde — pencere dışı diff_country stale kapat
-    const staleHighRisk = diffCountrySessions.filter((s) => !isWithinHighRiskWindow(s));
-    if (staleHighRisk.length > 0) {
-      await db
-        .from("user_sessions")
-        .update({ is_active: false, ended_at: now, end_reason: "stale" })
-        .in("id", staleHighRisk.map((s) => s.id));
-    }
-
-    // Aktif diff_country + limit içinde → isteğe bağlı düşük seviyeli log
-    const activeDiffCountry = diffCountrySessions.filter(isWithinHighRiskWindow);
+  const distinctLocs = keys.size;
+  if (distinctLocs <= allowedLocs) {
+    const activeDiffCountry = diffCountry.filter(isWithinHighRiskWindow);
     if (activeDiffCountry.length > 0) {
-      await db.from("security_events").insert({
-        user_id:    userId,
+      await logSecurityEvent(db, userId, location, {
         event_type: "multi_location_allowed",
-        severity:   "low",
-        message:    `İzinli çoklu lokasyon: ${activeDiffCountry[0]?.country?.toUpperCase() ?? "?"} → ${location.country?.toUpperCase() ?? "?"}`,
-        ip_address: location.ip,
-        country:    location.country,
-        city:       location.city,
-        user_agent: location.userAgent,
-        metadata: {
-          platform,
-          license_type:       lr?.license_type ?? "single",
-          allowed_locations:  allowedLocs,
-          distinct_locations: distinctLocs,
-        },
+        severity: "low",
+        message: `İzinli çoklu lokasyon: ${activeDiffCountry[0]?.country?.toUpperCase() ?? "?"} → ${location.country?.toUpperCase() ?? "?"}`,
+        metadata: { allowed_locations: allowedLocs, distinct_locations: distinctLocs },
       });
     }
+    return { level: "low", refSession: undefined };
   }
 
-  // ── Risk olayı logu ───────────────────────────────────────────────────────
-  if (riskLevel !== "low") {
-    const refSession =
-      riskLevel === "high_risk"
-        ? (diffCountrySessions.find(isWithinHighRiskWindow) ?? diffCountrySessions[0])
-        : diffCitySessions[0];
+  const activeHighRisk = diffCountry.filter(isWithinHighRiskWindow);
+  if (activeHighRisk.length > 0) return { level: "high_risk", refSession: activeHighRisk[0] };
+  if (diffCity.length > 0 && secMode === "strict") return { level: "high_risk", refSession: diffCity[0] };
+  return { level: "low", refSession: undefined };
+}
 
+async function logSecurityEvent(
+  db: SupabaseClient,
+  userId: string,
+  location: LocationInfo,
+  ev: { event_type: string; severity: "low" | "medium" | "high"; message: string; metadata: Record<string, unknown> },
+): Promise<void> {
+  try {
     await db.from("security_events").insert({
-      user_id:    userId,
-      event_type: riskLevel === "high_risk" ? "high_risk_login" : "suspicious_login",
-      severity:   riskLevel === "high_risk" ? "high" : "medium",
-      message:
-        riskLevel === "high_risk"
-          ? `Farklı ülkeden hızlı giriş: ${refSession?.country?.toUpperCase() ?? "?"} → ${location.country?.toUpperCase() ?? "?"}`
-          : `Farklı şehirden eş zamanlı giriş: ${refSession?.city ?? "?"} → ${location.city ?? "?"}`,
+      user_id: userId,
+      event_type: ev.event_type,
+      severity: ev.severity,
+      message: ev.message,
       ip_address: location.ip,
-      country:    location.country,
-      city:       location.city,
+      country: location.country,
+      city: location.city,
       user_agent: location.userAgent,
-      metadata: {
-        platform,
-        previous_city:     refSession?.city    ?? null,
-        previous_country:  refSession?.country ?? null,
-        new_city:          location.city,
-        new_country:       location.country,
-        conflicting_count: sessionsToCloseForRisk.length,
-      },
+      metadata: ev.metadata,
     });
+  } catch {
+    /* güvenlik olayı logu girişi bloklamaz */
   }
-
-  // ── Platform + toplam limit: REJECT-NEW (atomik, race-safe) ───────────────
-  // Risk/stale kapatmalar yukarıda yapıldı. Yeni oturumu, aktif sayımı advisory
-  // lock altında yeniden yapan RPC ile ATOMİK oluştururuz: limit aşımında INSERT
-  // ETMEZ ve MEVCUT oturumlara DOKUNMAZ; yalnız reddeder (P3 reject-new).
-  const platformLimit = platformLimitByType[platform] ?? UNLIMITED;
-
-  const { data: rpcData, error: rpcError } = await db.rpc("create_session_within_limits", {
-    p_user_id:        userId,
-    p_session_token:  sessionToken,
-    p_ip:             location.ip,
-    p_country:        location.country,
-    p_city:           location.city,
-    p_user_agent:     location.userAgent,
-    p_platform:       platform,
-    p_platform_limit: platformLimit,
-    p_total_limit:    totalLimit,
-  });
-  if (rpcError) {
-    throw new Error(`Oturum oluşturulamadı: ${rpcError.message}`);
-  }
-
-  const result = (rpcData ?? {}) as { inserted?: boolean; reason?: string };
-  if (!result.inserted) {
-    const reason = (result.reason ?? "total_limit") as LimitReason;
-    // Gözlemlenebilirlik için düşük seviyeli log (best-effort; PII/secret yok).
-    try {
-      await db.from("security_events").insert({
-        user_id:    userId,
-        event_type: "session_limit_blocked",
-        severity:   "low",
-        message:    `Yeni giriş reddedildi (${reason}) — ${platform}`,
-        ip_address: location.ip,
-        country:    location.country,
-        city:       location.city,
-        user_agent: location.userAgent,
-        metadata:   { platform, reason, platform_limit: platformLimit, total_limit: totalLimit },
-      });
-    } catch {
-      /* log başarısızlığı yeni girişi bloke etmez */
-    }
-    return { ok: false, reason, deviceType: platform };
-  }
-
-  // FAZ1 FINAL HARDENING: create_session_within_limits RPC'si expires_at/client_channel yazmaz →
-  // aynı token satırına best-effort tamamlayıcı UPDATE (AWAIT edilir). Kolon henüz yoksa
-  // (migration 20270129000200 uygulanmadan deploy) kolon varsayılanı/NULL kalır; giriş ETKİLENMEZ.
-  await finalizeNewSession(db, sessionToken, {
-    expires_at:     computeSessionExpiresAt(lr?.role),
-    client_channel: clientChannel,
-  });
-
-  return {
-    ok: true,
-    suspiciousLogin: riskLevel === "suspicious",
-    highRisk:        riskLevel === "high_risk",
-  };
 }
 
 /** Etkin konum limiti: taban 2 (owner kararı), üst sınır yok (3/999 korunur). */
@@ -483,30 +425,6 @@ export function effectiveAllowedLocations(raw: unknown): number {
   const n = Number(raw ?? 2);
   if (!Number.isFinite(n)) return 2;
   return Math.max(2, Math.trunc(n));
-}
-
-async function finalizeNewSession(
-  db: SupabaseClient,
-  sessionToken: string,
-  fields: { expires_at: string; client_channel: ClientChannel },
-): Promise<void> {
-  let attempt: Record<string, unknown> = { ...fields };
-  for (let i = 0; i < 3 && Object.keys(attempt).length > 0; i++) {
-    try {
-      const { error } = await db
-        .from("user_sessions")
-        .update(attempt)
-        .eq("session_token", sessionToken);
-      if (!error) return;
-      const dropKey = Object.keys(attempt).find((k) => error.message?.includes(k));
-      if (!dropKey) return;
-      const rest = { ...attempt };
-      delete rest[dropKey];
-      attempt = rest;
-    } catch {
-      return; // best-effort: oturum zaten oluştu
-    }
-  }
 }
 
 // ─── Token doğrulama ─────────────────────────────────────────────────────────

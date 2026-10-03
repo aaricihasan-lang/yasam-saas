@@ -97,6 +97,11 @@ const STEPS = [
   ["pg:yh-null-client", ...pg([F("yh-null-client-fixture.sql"), M("20261218000200_yh_client_cdc_outbox.sql"),
     M("20261220000000_yh_client_outbox_activation_boundary.sql"), F("yh-null-client-acl-snapshot.sql")],
     ["20271001000100_yh_client_outbox_appointments_null_client.sql"], ["yh-null-client-assert.sql"])],
+  // OTURUM MODELİ v2: admin web onay / tek admin Android / uzman limitleri / test istisnası / değişmezlik.
+  ["pg:session-model", ...pg([F("session-model-fixture.sql")],
+    ["20270129000200_user_sessions_expiry_touch.sql", "20271003200000_session_model_v2.sql", "20271003200100_admin_audit_session_actions.sql"],
+    ["session-model-assert.sql"])],
+  ["session-model-concurrency", "node", ["scripts/session-model/pg-concurrency.mjs"]],
 ];
 
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : null;

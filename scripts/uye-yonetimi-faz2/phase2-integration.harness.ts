@@ -264,12 +264,12 @@ async function main(): Promise<void> {
     ok((await reg(undefined, { rawBody: "{bozuk" })).status === 400, "bozuk JSON → 400");
     ok((await reg(undefined, { rawBody: "{}", contentType: "text/plain" })).status === 400, "yanlış içerik türü → 400");
     ok((await reg(undefined, { rawBody: JSON.stringify({ fullName: "x".repeat(9000) }) })).status === 413, "aşırı büyük gövde → 413");
-    // Owner kararı (2026-10): min 6, karmaşıklık zorunluluğu yok; bariz parolalar reddedilir.
+    // Owner NİHAİ kararı (2026-10-03): tek kural min 6 karakter — blocklist / karmaşıklık YOK.
     const weak = await reg({ fullName: "ZZ Kayıt", email: "zz.p2.reg1@example.test", password: "48273" });
     ok(weak.status === 400 && weak.json.code === "weak_password", "5 karakter parola → 400 weak_password");
-    const obvious = await reg({ fullName: "ZZ Kayıt", email: "zz.p2.reg1@example.test", password: "123456" });
-    ok(obvious.status === 400 && obvious.json.code === "weak_password", "bariz parola (123456) → 400 weak_password");
-    ok((await reg({ fullName: "ZZ Kayıt", email: "zz.p2.reg1@example.test", password: "12345678" })).json.code === "weak_password", "harfsiz şifre → weak_password");
+    const obvious = await reg({ fullName: "ZZ Kayıt", email: "zz.p2.obvious@example.test", password: "123456" });
+    ok(obvious.status === 200, "'123456' parola → kabul (owner kararı)");
+    ok((await reg({ fullName: "ZZ Kayıt", email: "zz.p2.digits@example.test", password: "12345678" })).status === 200, "yalnız rakam parola → kabul");
     ok((await reg({ fullName: "ZZ Kayıt", email: "zz.p2.reg1@example.test", password: "ab1" })).json.code === "weak_password", "kısa şifre → weak_password");
     ok((await reg({ fullName: "ZZ Kayıt", email: "gecersiz@", password: "abcd123456" })).json.code === "invalid_email", "geçersiz e-posta → invalid_email");
     ok((await reg({ fullName: "Z", email: "zz.p2.reg1@example.test", password: "abcd123456" })).json.code === "invalid_name", "tek harf isim → invalid_name");

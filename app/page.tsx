@@ -1,6 +1,6 @@
 "use client";
 
-import { loginWithCredentials } from "@/lib/auth/loginUser";
+import { checkPendingLogin, clearPendingLoginToken, loginWithCredentials } from "@/lib/auth/loginUser";
 import PasswordInput from "@/components/ui/PasswordInput";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import {
@@ -47,6 +47,7 @@ import {
 } from "@/lib/contact/info";
 import SupportRequestForm from "@/components/auth/SupportRequestForm";
 import DemoIntroModal from "@/components/demo/DemoIntroModal";
+import AdminSessionApprovalBanner from "@/components/auth/AdminSessionApprovalBanner";
 import DemoAccessCard, {
   DEMO_ACCOUNT_EMAIL,
   DEMO_ACCOUNT_PASSWORD,
@@ -720,6 +721,8 @@ export default function Home() {
   const [profileSynced, setProfileSynced] = useState(false);
   const [profileError, setProfileError] = useState(false);
   const [loading, setLoading] = useState(false);
+  // OTURUM MODELİ v2: admin ikinci/riskli web girişi onay bekliyor (token yalnız durum sorgusu içindir).
+  const [pendingLogin, setPendingLogin] = useState<{ token: string; expiresAt: string | null } | null>(null);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [authModalView, setAuthModalView] = useState<
     "login" | "support" | "membership" | "membershipOptions"
@@ -1204,44 +1207,13 @@ export default function Home() {
     return () => io.disconnect();
   }, []);
 
-  const handleLogin = async () => {
-    const trimmedEmail = email.trim();
-    const trimmedPassword = password.trim();
-
-    if (!trimmedEmail || !trimmedPassword) {
-      setMessage(t("auth.emailPasswordRequired"));
-      return;
-    }
-
-    setLoading(true);
-    setMessage(t("auth.loggingIn"));
-
-    // FAZ1 FINAL HARDENING — TEK LOGIN YOLU: kimlik doğrulama + kısıtlama (throttle) + gating +
-    // oturum token'ı tek istekte SUNUCUDA (POST /api/auth/session). Tarayıcı login_user RPC'si
-    // ÇAĞRILMAZ. Oturum kurulamazsa giriş BAŞARISIZDIR (fail-closed; token'sız giriş yok).
-    const attempt = await loginWithCredentials(trimmedEmail, trimmedPassword);
-
-    if (!attempt.ok) {
-      if (attempt.code === "INVALID_CREDENTIALS") {
-        setMessage(t("auth.emailPasswordWrong"));
-      } else if (attempt.code === "SESSION_LIMIT") {
-        setMessage(attempt.message ?? t("auth.sessionLimit"));
-      } else if (attempt.code === "NO_ROLE") {
-        setMessage(t("auth.noValidRole"));
-      } else if (
-        attempt.code === "LOCKED" ||
-        attempt.code === "INACTIVE" ||
-        attempt.code === "PENDING"
-      ) {
-        setMessage(attempt.message ?? t("auth.systemError"));
-      } else {
-        setMessage(t("auth.systemError"));
-      }
-      setLoading(false);
-      return;
-    }
-
-    let loggedUser = parseLoginUserRecord(attempt.row);
+  // Başarılı kimlik doğrulama sonrası ORTAK tamamlama: doğrudan giriş + onaylanan bekleyen giriş.
+  const completeLogin = async (
+    row: Record<string, unknown>,
+    sessionToken: string,
+    isSuspiciousLogin: boolean,
+  ) => {
+    let loggedUser = parseLoginUserRecord(row);
 
     if (!loggedUser) {
       clearYasamUser();
@@ -1251,7 +1223,7 @@ export default function Home() {
     }
 
     // Token artık VAR → güncel profil (module_permissions/paket) güvenli API'den yüklenir.
-    saveSessionToken(attempt.sessionToken);
+    saveSessionToken(sessionToken);
     const freshUser = await syncYasamUserFromDb(loggedUser, { force: true });
     if (!freshUser) {
       // Profil doğrulanamadı → oturumu sunucuda da kapat (clearYasamUser DELETE gönderir).
@@ -1269,8 +1241,6 @@ export default function Home() {
       setLoading(false);
       return;
     }
-
-    const isSuspiciousLogin = attempt.suspiciousLogin;
 
     setUser(loggedUser);
     setProfileSynced(true);
@@ -1307,6 +1277,86 @@ export default function Home() {
       router.push("/admin");
     }
   };
+
+  const handleLogin = async () => {
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
+      setMessage(t("auth.emailPasswordRequired"));
+      return;
+    }
+
+    setLoading(true);
+    setPendingLogin(null);
+    setMessage(t("auth.loggingIn"));
+
+    // FAZ1 FINAL HARDENING — TEK LOGIN YOLU: kimlik doğrulama + kısıtlama (throttle) + gating +
+    // oturum token'ı tek istekte SUNUCUDA (POST /api/auth/session). Tarayıcı login_user RPC'si
+    // ÇAĞRILMAZ. Oturum kurulamazsa giriş BAŞARISIZDIR (fail-closed; token'sız giriş yok).
+    const attempt = await loginWithCredentials(trimmedEmail, trimmedPassword);
+
+    if (!attempt.ok) {
+      if (attempt.code === "PENDING_APPROVAL" && attempt.pendingToken) {
+        setPendingLogin({ token: attempt.pendingToken, expiresAt: attempt.pendingExpiresAt ?? null });
+        setMessage("");
+        setLoading(false);
+        return;
+      }
+      if (attempt.code === "INVALID_CREDENTIALS") {
+        setMessage(t("auth.emailPasswordWrong"));
+      } else if (attempt.code === "ADMIN_MOBILE_ACTIVE") {
+        setMessage(t("auth.adminMobileActive"));
+      } else if (attempt.code === "ADMIN_WEB_LIMIT") {
+        setMessage(t("auth.adminWebLimit"));
+      } else if (attempt.code === "SESSION_LIMIT") {
+        setMessage(attempt.message ?? t("auth.sessionLimit"));
+      } else if (attempt.code === "NO_ROLE") {
+        setMessage(t("auth.noValidRole"));
+      } else if (
+        attempt.code === "LOCKED" ||
+        attempt.code === "INACTIVE" ||
+        attempt.code === "PENDING"
+      ) {
+        setMessage(attempt.message ?? t("auth.systemError"));
+      } else {
+        setMessage(t("auth.systemError"));
+      }
+      setLoading(false);
+      return;
+    }
+
+    await completeLogin(attempt.row, attempt.sessionToken, attempt.suspiciousLogin);
+  };
+
+  // Bekleyen admin web girişi: 5 sn'de bir YALNIZ kendi durumunu sorgular (onay/ret/süre dolumu).
+  const completeLoginRef = useRef(completeLogin);
+  useEffect(() => {
+    completeLoginRef.current = completeLogin;
+  });
+  useEffect(() => {
+    if (!pendingLogin) return;
+    let cancelled = false;
+    const tick = async () => {
+      const st = await checkPendingLogin(pendingLogin.token);
+      if (cancelled || !st || st.state === "pending") return;
+      clearPendingLoginToken();
+      setPendingLogin(null);
+      if (st.state === "approved") {
+        setLoading(true);
+        await completeLoginRef.current(st.row, pendingLogin.token, false);
+      } else {
+        setMessage(st.state === "denied" ? t("auth.pendingDenied") : t("auth.pendingExpired"));
+      }
+    };
+    const first = window.setTimeout(() => void tick(), 2000);
+    const iv = window.setInterval(() => void tick(), 5000);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(first);
+      window.clearInterval(iv);
+    };
+  }, [pendingLogin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const logout = () => {
     clearYasamUser();
@@ -1421,6 +1471,9 @@ export default function Home() {
 
     return (
       <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(180deg,#eef5ff_0%,#f6f3ff_48%,#fff8fb_100%)] text-slate-950 antialiased">
+
+        {/* OTURUM MODELİ v2: admin hesabına başka cihazdan onay bekleyen web girişi uyarısı. */}
+        {isAdminUser(user) && <AdminSessionApprovalBanner />}
 
         <div className="relative mx-auto w-full max-w-[1800px] px-4 pt-4 pb-16 lg:px-8 xl:px-10" style={{ paddingBottom: "max(4rem, env(safe-area-inset-bottom, 0px))" }}>
 
@@ -3842,6 +3895,26 @@ export default function Home() {
             >
               {loading ? t("login.submitting") : t("login.submit")}
             </button>
+
+            {pendingLogin && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="relative z-10 mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900"
+              >
+                <p>{t("auth.pendingApproval")}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearPendingLoginToken();
+                    setPendingLogin(null);
+                  }}
+                  className="mt-2 text-xs font-bold text-amber-800 underline underline-offset-2"
+                >
+                  {t("auth.pendingCancel")}
+                </button>
+              </div>
+            )}
 
             {message && (
               <div className="relative z-10 mt-3 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">

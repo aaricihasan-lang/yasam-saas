@@ -14,7 +14,7 @@
  *   3) Aksi halde mevcut classifyDeviceType → desktop_web / mobile_web / tablet_web.
  */
 import { classifyDeviceType } from "@/lib/auth/sessionLimits";
-import { resolveClientChannel, CLIENT_CHANNEL_HEADER } from "@/lib/auth/clientChannel";
+import { isAndroidChannelHint, CLIENT_CHANNEL_HEADER } from "@/lib/auth/clientChannel";
 import type { UsageBrowserFamily, UsageChannel, UsageOsFamily } from "@/lib/usage/usageTaxonomy";
 
 export type UsageClientContext = {
@@ -63,7 +63,7 @@ export function parseUsageUserAgent(
 
   const isWebView = ANDROID_WEBVIEW_MARK.test(ua);
   // Eski başlık sözleşmesi geriye-uyumlu okunur ama yalnız TÜRETİLMİŞ sınıf üretir.
-  const legacyHint = resolveClientChannel(ua, clientHintHeader) === "android_app";
+  const legacyHint = isAndroidChannelHint(clientHintHeader);
   if (isWebView || legacyHint) {
     return {
       channel: "android_webview_derived",

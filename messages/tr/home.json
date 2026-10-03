@@ -156,6 +156,12 @@
     "auth": {
       "sessionInvalid": "Hesabınız başka bir cihaz veya konumdan açıldığı için güvenliğiniz amacıyla tekrar giriş yapmanız gerekiyor.",
       "sessionExpired": "Oturum süreniz doldu. Lütfen tekrar giriş yapın.",
+      "adminMobileActive": "Bu yönetici hesabı başka bir mobil cihazda aktif. Yeni cihazdan giriş yapabilmek için mevcut mobil oturumu kapatın.",
+      "adminWebLimit": "Yönetici hesabınız için izin verilen eşzamanlı web oturumu sayısına ulaşıldı. Yeni cihazdan giriş için açık bir web oturumunu kapatın.",
+      "pendingApproval": "Yönetici hesabınız başka bir cihazda açık. Bu giriş, mevcut oturumunuzdan onaylanana kadar bekliyor (en fazla 10 dakika).",
+      "pendingDenied": "Bu giriş, mevcut yönetici oturumundan reddedildi.",
+      "pendingExpired": "Onay süresi doldu. Lütfen tekrar giriş yapın.",
+      "pendingCancel": "Beklemeyi iptal et",
       "emailPasswordRequired": "E-posta ve parola giriniz.",
       "loggingIn": "Giriş yapılıyor...",
       "systemError": "Sistem hatası oluştu.",
@@ -481,7 +487,7 @@
       "emailPlaceholder": "uzman@ornek.com",
       "passwordLabel": "Parola",
       "passwordRepeatLabel": "Parola Tekrar",
-      "passwordHint": "En az 6 karakter. Rakam, harf veya ikisi birlikte kullanılabilir.",
+      "passwordHint": "En az 6 karakter.",
       "submit": "Kayıt Ol",
       "submitting": "Kaydediliyor…",
       "haveAccount": "Zaten hesabınız var mı?",
@@ -499,7 +505,7 @@
         "hash": "Parola işlenemedi.",
         "invalidName": "Ad soyad 2–120 karakter olmalıdır.",
         "invalidEmail": "Geçerli bir e-posta adresi girin.",
-        "weakPassword": "Parola en az 6 karakter olmalı ve kolay tahmin edilen bir parola (ör. 123456) olmamalı.",
+        "weakPassword": "Parola en az 6 karakter olmalı.",
         "rateLimited": "Çok fazla deneme yapıldı. Lütfen biraz sonra tekrar deneyin."
       }
     }
