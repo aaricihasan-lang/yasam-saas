@@ -32,6 +32,7 @@ import {
   BIO_NETWORK_ERROR,
   BIO_TIMEOUT_ERROR,
 } from "@/lib/biyoenerji/secureApi";
+import { changedFields } from "@/lib/biyoenerji/changedFields";
 import { BIO_REPORT_NETWORK_ERROR, bioReportErrorMessage } from "@/lib/biyoenerji/reportDownloadError";
 import { badgeFieldWrapClass } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
@@ -140,12 +141,15 @@ export default function SembolDiliDetail({ id }: { id: string }) {
   const saveLock = useSubmitLock();
   const [wordBusy, setWordBusy] = useState(false);
 
+
   const [form, setForm] = useState<SymbolForm>({
     symbol_name: "",
     category: "",
     meaning: "",
     source: "",
   });
+  // A3 — düzenleme formunun açılış anındaki değeri (değişen alan karşılaştırması).
+  const editOriginalRef = useRef<typeof form | null>(null);
   const [formModalOpen, setFormModalOpen] = useState(false);
   const isAndroid = useIsAndroid();
   // BIO-004/015 — form modalı için kaydedilmemiş değişiklik takibi.
@@ -272,12 +276,14 @@ export default function SembolDiliDetail({ id }: { id: string }) {
   const openEdit = useCallback(() => {
     if (!record) return;
     const displayName = symbolDisplayName(record);
-    setForm({
+    const next = {
       symbol_name: displayName === "İsimsiz sembol" ? "" : displayName,
       category: record.category ?? "",
       meaning: record.meaning ?? "",
       source: record.source ?? "",
-    });
+    };
+    setForm(next);
+    editOriginalRef.current = next;
     setFormModalOpen(true);
   }, [record]);
 
@@ -305,20 +311,28 @@ export default function SembolDiliDetail({ id }: { id: string }) {
             return;
           }
 
-          setSaving(true);
           // BIO-12 — gizli `title` alanı sembol adıyla EZİLMEZ: yalnız boşsa veya
           // zaten sembol adıyla eşitse (senkron tutulan kayıt) birlikte güncellenir.
           // Eski / aktarılmış kayıtlarda farklı başlık korunur.
           const prevTitle = (record.title ?? "").trim();
           const prevSymbol = (record.symbol ?? "").trim();
           const keepTitle = prevTitle !== "" && prevTitle !== prevSymbol;
-          const { error } = await bioApiUpdate("symbols", record.id, {
-            symbol: nameTrim,
-            ...(keepTitle ? {} : { title: nameTrim }),
-            category: trimOrNull(form.category),
-            meaning: trimOrNull(form.meaning),
-            source: trimOrNull(form.source),
+          // A3 — yalnız form açılışındaki değerden FARKLI alanlar gönderilir (lost update önlenir).
+          const payloadOf = (f: typeof form) => ({
+            symbol: f.symbol_name.trim(),
+            ...(keepTitle ? {} : { title: f.symbol_name.trim() }),
+            category: trimOrNull(f.category),
+            meaning: trimOrNull(f.meaning),
+            source: trimOrNull(f.source),
           });
+          const changes = changedFields(payloadOf(form), editOriginalRef.current ? payloadOf(editOriginalRef.current) : null);
+          if (Object.keys(changes).length === 0) {
+            setFormModalOpen(false);
+            showSoft("ok", "Değişiklik yok.");
+            return;
+          }
+          setSaving(true);
+          const { error } = await bioApiUpdate("symbols", record.id, changes);
 
           setSaving(false);
 

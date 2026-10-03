@@ -4,7 +4,7 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Brain, FileText, Pencil, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
@@ -29,6 +29,7 @@ import {
   BIO_NETWORK_ERROR,
   BIO_TIMEOUT_ERROR,
 } from "@/lib/biyoenerji/secureApi";
+import { changedFields } from "@/lib/biyoenerji/changedFields";
 import { BIO_REPORT_NETWORK_ERROR, bioReportErrorMessage } from "@/lib/biyoenerji/reportDownloadError";
 import { badgeFieldWrapClass } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
@@ -158,6 +159,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
   const saveLock = useSubmitLock();
   const [wordBusy, setWordBusy] = useState(false);
 
+
   const [form, setForm] = useState<SubconsciousCauseForm>({
     source_uid: "",
     title: "",
@@ -165,6 +167,8 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
     content: "",
     note_text: "",
   });
+  // A3 — düzenleme formunun açılış anındaki değeri (değişen alan karşılaştırması).
+  const editOriginalRef = useRef<typeof form | null>(null);
   const [formModalOpen, setFormModalOpen] = useState(false);
   const isAndroid = useIsAndroid();
   // BIO-004/015 — form modalı için kaydedilmemiş değişiklik takibi.
@@ -271,13 +275,15 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
   /** BIO-11 — düzenleme formu her açılışta güncel kayıttan doldurulur (eski taslak taşınmaz). */
   const openEdit = useCallback(() => {
     if (!record) return;
-    setForm({
+    const next = {
       source_uid: record.source_uid ?? "",
       title: record.title ?? "",
       category: record.category ?? "",
       content: record.content ?? "",
       note_text: record.note_text ?? "",
-    });
+    };
+    setForm(next);
+    editOriginalRef.current = next;
     setFormModalOpen(true);
   }, [record]);
 
@@ -305,14 +311,22 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
             return;
           }
 
-          setSaving(true);
-          const { error } = await bioApiUpdate("subconscious-causes", record.id, {
-            source_uid: form.source_uid.trim() || slugifySourceUid(titleTrim),
-            title: titleTrim,
-            category: trimOrEmpty(form.category),
-            content: trimOrEmpty(form.content),
-            note_text: trimOrEmpty(form.note_text),
+          // A3 — yalnız form açılışındaki değerden FARKLI alanlar gönderilir (lost update önlenir).
+          const payloadOf = (f: typeof form) => ({
+            source_uid: f.source_uid.trim() || slugifySourceUid(f.title.trim()),
+            title: f.title.trim(),
+            category: trimOrEmpty(f.category),
+            content: trimOrEmpty(f.content),
+            note_text: trimOrEmpty(f.note_text),
           });
+          const changes = changedFields(payloadOf(form), editOriginalRef.current ? payloadOf(editOriginalRef.current) : null);
+          if (Object.keys(changes).length === 0) {
+            setFormModalOpen(false);
+            showSoft("ok", "Değişiklik yok.");
+            return;
+          }
+          setSaving(true);
+          const { error } = await bioApiUpdate("subconscious-causes", record.id, changes);
 
           setSaving(false);
 

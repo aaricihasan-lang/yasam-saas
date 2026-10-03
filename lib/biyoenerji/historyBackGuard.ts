@@ -103,5 +103,19 @@ export function useHistoryBackGuard(
     return () => window.removeEventListener("popstate", onPop);
   }, [push]);
 
-  return { release, leave };
+  /**
+   * A6 — koruma girdisi en üstteyken uygulama içi bir hedefe gidilecekse, girdiyi
+   * TÜKETİR ve çağıranın `replace` kullanması gerektiğini bildirir (true). Böylece onaylı
+   * çıkıştan sonra geçmişte hayalet bir (aynı URL'li) koruma girdisi kalmaz ve geri tuşuna
+   * fazladan basmak gerekmez. Koruma yoksa false → normal `push`.
+   */
+  const consumeForReplace = useCallback((): boolean => {
+    if (pushedRef.current && isOnGuard()) {
+      pushedRef.current = false;
+      return true;
+    }
+    return false;
+  }, []);
+
+  return { release, leave, consumeForReplace };
 }
