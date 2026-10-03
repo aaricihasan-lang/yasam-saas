@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20271003000100_admin_audit_session_actions.sql
+-- 20271003200100_admin_audit_session_actions.sql
 --
 -- OTURUM MODELİ v2 — admin_audit_log action CHECK süperseti (+5 action).
 --   admin_web_login_pending      : admin ikinci/riskli web girişi onaya düştü

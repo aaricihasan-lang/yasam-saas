@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20271003000000_session_model_v2.sql
+-- 20271003200000_session_model_v2.sql
 --
 -- ADMIN / EXPERT OTURUM MODELİ v2 (owner kararları 2026-10-02/03 — KİLİTLİ).
 --
