@@ -93,7 +93,7 @@
       "stok": { "title": "Products & Inventory", "desc": "Manage your products, stock, sales and pricing in one place", "badge": "Module", "stat": "{n, plural, one {# product} other {# products}}" },
       "energy_body": { "title": "Energy & Body", "desc": "Bioenergy, Reflexology and Cupping & Hijama workspaces", "badge": "Module" },
       "sifa_rehberi": { "title": "Natural Support & Guide", "desc": "Natural support methods, nutrition and professional reference resources", "badge": "Module" },
-      "digital_content": { "title": "Digital Content Center", "desc": "Document conversion and personal archive management", "badge": "Center", "stat": "{n, plural, one {# item} other {# items}}" },
+      "digital_content": { "title": "Digital Content Center", "desc": "Manage your personal archive and digital content in one place", "badge": "Center", "stat": "{n, plural, one {# item} other {# items}}" },
       "numerology": { "title": "Life Analysis Center", "desc": "Numerology and Human Design analysis tools", "badge": "Center", "stat": "{n, plural, one {# analysis} other {# analyses}}" },
       "cosmic_calendar": { "title": "Life Calendar / Cosmic Agenda", "desc": "Hijri calendar, cupping days and the daily cosmic flow", "badge": "Center" }
     },

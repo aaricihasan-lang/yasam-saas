@@ -5,6 +5,7 @@ import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { validateClientWrite } from "@/lib/danisan/clientValidation";
 import { istanbulToday } from "@/lib/danisan/istanbulTime";
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 
 export const runtime = "nodejs";
 
@@ -72,9 +73,7 @@ export async function PATCH(
 
   const { db, tenantId, is_demo_account } = guard;
 
-  if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, client: null });
-  }
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let body: Record<string, unknown>;
   try {

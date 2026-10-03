@@ -3,6 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 
 export const runtime = "nodejs";
 
@@ -58,9 +59,7 @@ export async function PATCH(
 
   const { db, tenantId, is_demo_account } = guard;
 
-  if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true });
-  }
+  if (is_demo_account) return demoReadOnlyResponse();
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json(
@@ -136,9 +135,7 @@ export async function DELETE(
 
   const { db, tenantId, is_demo_account } = guard;
 
-  if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true });
-  }
+  if (is_demo_account) return demoReadOnlyResponse();
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json(

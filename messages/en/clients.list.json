@@ -8,9 +8,10 @@
       "statAlerts": "Active Alerts",
       "newClient": "New Record",
       "newClientDemo": "Demo Record",
+      "demoReadOnly": "The demo account is read-only; deleting and editing are disabled on this account.",
       "demoNotice": {
-        "title": "Demo Mode — Sample Data",
-        "desc": "You are exploring the platform with 20 sample client profiles prepared to resemble real data. Phone details are hidden. You can access the full content of only the <b>Eylül Karaca</b> profile."
+        "title": "Demo Mode — Synthetic Sample Data",
+        "desc": "You are exploring the platform with fully <b>synthetic</b> sample clients. Client details open in the real expert screen, with every tab available. The demo account is read-only."
       },
       "tenantMissing": {
         "noSession": "Session not found. Please sign in again to view the client list.",

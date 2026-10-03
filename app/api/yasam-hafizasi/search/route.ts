@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { demoYhProfessionalCandidates } from "@/lib/demo/demoYasamHafizasi";
 import { membershipInactiveResponse, verifyUserRequest } from "@/lib/auth/userGuard";
 import { hasMembershipAccessForRow } from "@/lib/auth/membershipAccessCore";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
@@ -69,7 +70,20 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!parsed.ok) return fail("", parsed.code, 400);
   const { q, modules, allowShared: requestedShared, limit } = parsed.value;
 
-  // Flag + demo kapısı → güvenli boş sonuç.
+  // DEMO VİTRİN: demo hesap gerçek retrieval'a (RPC/index) HİÇ gitmez; sentetik fixture aynı
+  // eşleme + kapsam + faset + limit akışından geçer (yanıt sözleşmesi birebir aynı).
+  if (is_demo_account) {
+    if (q.length === 0) return empty(q, { emptyReason: "no-query" });
+    const demoScope = resolveYhModuleScope(profile?.role, profile?.module_permissions);
+    const demoAll = filterByYhScope(demoScope, demoYhProfessionalCandidates(q).map(toSearchResult));
+    const demoShown = filterByModules(demoAll, modules).slice(0, limit);
+    return json({
+      ok: true, query: q, total: demoShown.length, facets: computeFacets(demoAll), results: demoShown,
+      emptyReason: demoShown.length === 0 ? (modules && modules.length > 0 ? "filtered" : "no-results") : undefined,
+    });
+  }
+
+  // Flag kapısı → güvenli boş sonuç.
   const flags = await getTenantFlags(tenantId, guard.db);
   if (isSearchDisabled(flags, is_demo_account)) {
     return empty(q, { disabled: true });

@@ -1,5 +1,10 @@
 import type { YasamUser } from "@/lib/auth/yasamUser";
-import { isAdminOnlyModuleKey } from "@/lib/auth/moduleAccessCore";
+import { isAdminOnlyModuleKey, isDemoDeniedModuleKey } from "@/lib/auth/moduleAccessCore";
+
+/** Demo vitrin hesabı (users.is_demo_account=true) — bkz. moduleAccessCore.DEMO_DENIED_MODULE_KEYS. */
+function isDemoUser(user: YasamUser | null | undefined): boolean {
+  return user?.is_demo_account === true;
+}
 
 function isAdminRole(user: YasamUser | null | undefined): boolean {
   return String(user?.role ?? "").trim().toLowerCase() === "admin";
@@ -131,6 +136,9 @@ export const PREMIUM_EXPERT_MODULE_KEYS = [
   // Mevcut Premium hesapların JSON'u DEĞİŞMEZ (backfill YOK); onlar admin toggle ile veya ileride
   // ayrı bir migration ile alır — bu faz mevcut izinleri TOPLUCA değiştirmez.
   "cupping",
+  // Beslenme — satışta aktif NORMAL uzman modülü (admin onay listesi ADMIN_MODULE_UI_KEYS ile hizalı).
+  // Yalnız bu varsayılan payload'ı etkiler; mevcut uzmanların module_permissions JSON'u DEĞİŞMEZ.
+  "beslenme",
   // yasam_hafizasi BİLİNÇLİ olarak BURADA YOKTUR: YH izni yalnız ATOMİK premium-grade sözleşmesinden
   // verilir (public.yh_grade_expert_premium → lib/yasam-hafizasi/expertPremiumGrant); membership +
   // perm + flags TEK transaction. Aksi halde düz premium payload'ı perm'i tenant flag'i OLMADAN set
@@ -235,7 +243,11 @@ export function hasAnyModulePermissionFlag(
   // backfill edildi). Server tarafı ayrıca lib/auth/moduleAccess ile zorlanır.
   const flags = getModulePermissionFlags(user);
   // AI admin-only anahtarlar (video_ceviri/ders_notu/belge_ceviri_ai) bayraktan bağımsız KAPALI.
-  return keys.some((key) => !isAdminOnlyModuleKey(key) && flags[key] === true);
+  // Demo vitrin: Dijital İçerik'te yalnız Kişisel Arşiv (Belge Çeviri bayraktan bağımsız KAPALI).
+  const demo = isDemoUser(user);
+  return keys.some(
+    (key) => !isAdminOnlyModuleKey(key) && !(demo && isDemoDeniedModuleKey(key)) && flags[key] === true,
+  );
 }
 
 export function hasModulePermission(
@@ -249,12 +261,17 @@ export function hasModulePermission(
   // P3: Premium bypass KALDIRILDI (bkz. hasAnyModulePermissionFlag notu).
   // FAZ1 FINAL HARDENING: AI admin-only anahtarlar sunucu (resolveModuleAccess) ile AYNI set.
   if (isAdminOnlyModuleKey(key)) return false;
+  // Demo vitrin: DEMO_DENIED_MODULE_KEYS bayraktan bağımsız kapalı (sunucu resolveModuleAccess ile AYNI).
+  const demo = isDemoUser(user);
+  if (demo && isDemoDeniedModuleKey(key)) return false;
   const perms = user.module_permissions ?? DEFAULT_MODULE_PERMISSIONS;
   // Hub kartı: uzmana AÇIK alt modüllerden (kişisel arşiv / belge çeviri) biri varsa erişilebilir
   // (sunucu resolveModuleAccess + lib/auth/hubVisibility ile aynı anahtarlar; TR alias dahil).
   if (key === "digital_content") {
     const raw = perms as Partial<Record<string, boolean>>;
-    return Boolean(perms.personal_archive || raw.kisisel_arsiv === true || perms.belge_ceviri);
+    return Boolean(
+      perms.personal_archive || raw.kisisel_arsiv === true || (!demo && perms.belge_ceviri),
+    );
   }
   return Boolean(perms[key]);
 }
@@ -295,6 +312,7 @@ export function hasModulePermissionForProfile(
     plan: typeof profile.plan === "string" ? profile.plan : undefined,
     membership_status:
       typeof profile.membership_status === "string" ? profile.membership_status : undefined,
+    is_demo_account: profile.is_demo_account === true,
     module_permissions: parseModulePermissions(profile.module_permissions),
   } as unknown as YasamUser;
   return hasModulePermission(user, key);

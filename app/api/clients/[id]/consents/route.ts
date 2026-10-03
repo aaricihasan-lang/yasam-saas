@@ -81,13 +81,9 @@ export async function GET(
   const { id: clientId } = await params;
   if (!clientId || !UUID_RE.test(clientId)) return notFound();
 
-  const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) {
-    return NextResponse.json(
-      { ok: true, demo: true, history: [], current: {}, summary: summarizeConsents({}) },
-      { headers: NO_STORE },
-    );
-  }
+  const { db, tenantId } = guard;
+  // DEMO VİTRİN: demo tenant'ı yalnız SENTETİK veri içerir → okuma (GET) gerçek uzman ile aynıdır;
+  // yazma uçları demoReadOnly/403 ile kapalı kalır.
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) return notFound();
 
   const { data, error } = await db

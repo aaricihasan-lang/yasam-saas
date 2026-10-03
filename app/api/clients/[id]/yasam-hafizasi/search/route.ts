@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { demoYhClientRows } from "@/lib/demo/demoYasamHafizasi";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { membershipInactiveResponse, verifyUserRequest } from "@/lib/auth/userGuard";
 import { hasMembershipAccessForRow } from "@/lib/auth/membershipAccessCore";
@@ -87,8 +88,21 @@ export async function POST(
   if (!parsed.ok) return fail("", parsed.code, 400);
   const { q, modules, dateFrom, dateTo, limit } = parsed.value;
 
-  // Demo / flag kapısı → güvenli boş (arama yapılmaz).
-  if (is_demo_account) return empty(q, { disabled: true, reason: "demo" });
+  // DEMO VİTRİN: danışan sahipliği yukarıda tenant-scoped doğrulandı (clientBelongsToTenant);
+  // demo hesap RPC'ye gitmez, yalnız BU danışanın sentetik fixture satırları döner.
+  if (is_demo_account) {
+    if (q.length === 0) return empty(q, { emptyReason: "no-query" });
+    const demoAll: ClientSearchResult[] = demoYhClientRows(q, clientId, limit)
+      .map(toClientSearchResult)
+      .filter((r): r is ClientSearchResult => r !== null);
+    const demoScope = resolveYhModuleScope(profile?.role, profile?.module_permissions);
+    const demoDated = filterByYhScope(demoScope, demoAll).filter((r) => withinDateWindow(r.occurredAt, dateFrom, dateTo));
+    const demoShown = filterClientByModules(demoDated, modules).slice(0, limit);
+    return json({
+      ok: true, query: q, total: demoShown.length, facets: computeClientFacets(demoDated), results: demoShown,
+      emptyReason: demoShown.length === 0 ? (modules || dateFrom || dateTo ? "filtered" : "no-results") : undefined,
+    });
+  }
   const flags = await getTenantFlags(tenantId, db);
   if (!flags.yh_enabled || !flags.yh_hizli) {
     return empty(q, { disabled: true, reason: "flag-disabled" });
