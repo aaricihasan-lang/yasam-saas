@@ -5,7 +5,7 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getCanonicalReportForDownload } from "@/lib/human-design/api/reportPersistence";
 import { hdReportFilename, renderHdReportBuffer } from "@/lib/human-design/reporting/wordReport";
-import { isOwnedChartImagePath } from "@/lib/human-design/api/chartImagePath";
+import { isOwnedChartImagePath, isOwnedReportSnapshotPath } from "@/lib/human-design/api/chartImagePath";
 import { fetchStorageImageBuffer, getImgDimensions } from "@/lib/docx/reportHelpers";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { reportFileDate, zonedDayKey } from "@/lib/time/reportTime";
@@ -69,7 +69,13 @@ export async function POST(req: NextRequest): Promise<Response> {
   // ── Ownership-safe BodyGraph görseli (opsiyonel; §36). Keyfi URL fetch YOK. ──
   let chartImage: Buffer | null = null;
   const imgPath = snapshot.chartImage?.storagePath ?? null;
-  if (imgPath && clientId && isOwnedChartImagePath(imgPath, guard.tenantId, clientId)) {
+  // P2-1: yeni raporlar kendi DONMUŞ kopyasını kullanır (danışan silinse de geçerli);
+  // eski raporlar danışanın canlı görsel yolunu (yalnız danışan bağı varsa) kullanır.
+  const imgOwned = !!imgPath && (
+    isOwnedReportSnapshotPath(imgPath, guard.tenantId) ||
+    (!!clientId && isOwnedChartImagePath(imgPath, guard.tenantId, clientId))
+  );
+  if (imgPath && imgOwned) {
     const buf = await fetchStorageImageBuffer(guard.db, BUCKET, imgPath);
     if (buf && getImgDimensions(buf)) chartImage = buf; // geçersiz/boş → görselsiz devam
   }

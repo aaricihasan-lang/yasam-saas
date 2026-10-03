@@ -372,6 +372,9 @@ function serviceFetcher(db: FakeDb, ctx: RestoreContext, log?: PageLog[]): JsonF
       const r = await handleRestoreChunk(asDb(db), ctx, body);
       status = r.status;
       json = r.body;
+    } else if (u.pathname === "/api/settings/backup/files") {
+      // P2-11 (HD): sahte DB'de depolama nesnesi yok → boş dosya listesi (dosya hattı ayrı harness'ta).
+      json = { ok: true, part_bytes: 1_048_575, files: [] };
     } else {
       status = 404;
       json = { error: "yok" };
@@ -943,13 +946,16 @@ function codeFromTables(): string[] {
     assert.equal(hits.length, 1);
     const idx = ui.search(/eksiksiz/i);
     assert.ok(ui.slice(Math.max(0, idx - 200), idx).includes("outcome.complete"), "eksiksiz yalnız complete dalında");
-    assert.ok(ui.includes("fotoğraf ve dosyalar dahil değildir"));
+    // P2-11: Human Design görselleri artık yedekte; diğer modüllerin dosyaları hâlâ dahil değil (dürüst metin).
+    assert.ok(ui.includes("Human Design harita ve rapor görselleri dahildir"));
+    assert.ok(ui.includes("fotoğraf ve dosyaları dahil değildir"));
     assert.ok(ui.includes("Yalnız eksik kayıtlar eklenir; mevcut kayıtlar değiştirilmez veya silinmez"));
     // SETTINGS-AUDIT: kullanıcı "yedek tarihine tam dönüş" sanmamalı; duplicate ve dosya kapsamı açık yazılı.
     assert.ok(ui.includes("hesabınızı yedek tarihindeki hâline döndürmez"));
     assert.ok(ui.includes("yedekten sonra eklediğiniz kayıtlar silinmez"));
     assert.ok(ui.includes("kopya (çift) kayıt oluşturmaz"));
-    assert.ok(ui.includes("Fotoğraf ve dosyaların kendisi yedeğe dahil değildir"));
+    assert.ok(ui.includes("diğer modüllerin fotoğraf ve dosyaları yedeğe dahil değildir"));
+    assert.ok(ui.includes("Human Design görselleri dosyadan geri yüklenir"));
   });
 
   console.log(`backup.harness: ${pass} PASS / ${fail} FAIL`);

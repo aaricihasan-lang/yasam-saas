@@ -27,7 +27,7 @@ import {
 } from "../helpers/hdBilgiKayit";
 import { listHdSources, type HdSourceRow } from "../helpers/hdKaynaklar";
 import { HdKaynakEditor, rightsStatusLabel } from "../components/HdKaynakEditor";
-import { useUnsavedGuard } from "../../rapor-olustur/hooks/useUnsavedGuard";
+import { useHdLeaveGuard } from "../../hooks/useHdLeaveGuard";
 import { HdUnsavedChangesDialog } from "../../rapor-olustur/components/HdUnsavedChangesDialog";
 
 const LIST_HREF = "/human-design/bilgi-bankasi";
@@ -149,6 +149,10 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
   const [openGates, setOpenGates] = useState(true);
 
   const [leaveOpen, setLeaveOpen] = useState(false);
+  // P2-9: kaydın yüklendiği sürüm (koşullu güncelleme).
+  const recordVersionRef = useRef<string | null>(null);
+  // P2-13: açık kaynak editöründe kaydedilmemiş değişiklik var mı?
+  const [sourceDirty, setSourceDirty] = useState(false);
 
   // Route'a özel FIXED işlem çubuğu: global logo çubuğunun (fixed, --logo-h) altına
   // sabitlenir. Fixed olduğu için akıştan çıkar; içeriğin altında başlaması için
@@ -180,6 +184,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
       const f = rowToForm(row);
       setForm(f);
       setSnapshot(JSON.stringify(f));
+      recordVersionRef.current = row.updated_at ?? null;
       setLoading(false);
     });
     return () => {
@@ -206,8 +211,49 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
   const dirty = form !== null && JSON.stringify(form) !== snapshot;
   // Kayıt formu kirli VEYA açık bir kaynak taslağı varsa kaydedilmemiş iş vardır;
   // sayfadan çıkışta uyarı ver (taslak metni sessizce kaybolmasın).
-  const hasUnsavedWork = dirty || draftSource !== null;
-  useUnsavedGuard(hasUnsavedWork);
+  const hasUnsavedWork = dirty || draftSource !== null || sourceDirty;
+  // P2-7: menü/logo linki + geri tuşu + yenileme korunur ("Listeye Dön" kendi dialog'unu kullanır).
+  const confirmLeave = useCallback(
+    () =>
+      confirm({
+        title: "Kaydedilmemiş değişiklikler",
+        message: "Bu kayıtta veya kaynaklarında kaydedilmemiş değişiklikler var. Sayfadan ayrılırsanız kaybolacak.",
+        confirmText: "Değişiklikleri At ve Çık",
+        cancelText: "Sayfada Kal",
+        tone: "danger",
+      }),
+    [confirm],
+  );
+  useHdLeaveGuard(hasUnsavedWork, confirmLeave);
+
+  // P2-13: kaynak editörü kirliyken kaynak/sekme değişimi (editör unmount olur) sorulur.
+  const confirmSourceSwitch = useCallback(async (): Promise<boolean> => {
+    if (!sourceDirty) return true;
+    const ok = await confirm({
+      title: "Kaydedilmemiş kaynak değişiklikleri",
+      message: "Açık kaynaktaki değişiklikler henüz kaydedilmedi. Devam ederseniz kaybolacak.",
+      confirmText: "Değişiklikleri At",
+      cancelText: "Vazgeç",
+      tone: "danger",
+    });
+    if (ok) setSourceDirty(false);
+    return ok;
+  }, [sourceDirty, confirm]);
+  const switchSource = useCallback(
+    async (id: string | null) => {
+      if (id === activeSourceId) return;
+      if (await confirmSourceSwitch()) setActiveSourceId(id);
+    },
+    [activeSourceId, confirmSourceSwitch],
+  );
+  const switchSection = useCallback(
+    async (id: SectionId) => {
+      if (id === section) return;
+      if (section === "sources" && !(await confirmSourceSwitch())) return;
+      setSection(id);
+    },
+    [section, confirmSourceSwitch],
+  );
 
   const patch = useCallback((upd: Partial<FormState>) => {
     setForm((p) => (p ? { ...p, ...upd } : p));
@@ -274,7 +320,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
     }
     setSaving(true);
     const code = computeCode(form.category, form.title, form.structuredValue);
-    const { error } = await updateHdKnowledgeRecord(recordId, {
+    const { error, conflict, updatedAt } = await updateHdKnowledgeRecord(recordId, {
       category: form.category,
       title: form.title.trim(),
       code,
@@ -287,12 +333,13 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
       related_gates: form.related_gates,
       sort_order: form.sort_order,
       is_active: form.is_active,
-    });
+    }, recordVersionRef.current);
     setSaving(false);
     if (error) {
-      showToast({ message: `Hata: ${error}`, type: "error" });
+      showToast({ message: conflict ? error : `Hata: ${error}`, type: "error" });
       return;
     }
+    recordVersionRef.current = updatedAt ?? recordVersionRef.current;
     setSnapshot(JSON.stringify(form)); // kayıttan sonra dirty=false
     showToast({ message: "Kayıt güncellendi.", type: "success" });
   }
@@ -324,12 +371,13 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
   }
 
   // "+ Ekle": yalnız yerel taslak açar — API POST YOK. Kalıcı kayıt "Kaynağı Kaydet"te.
-  function handleAddSource() {
+  async function handleAddSource() {
     if (draftSource) {
       // Zaten açık bir taslak var → onu odakla (birden fazla taslak oluşturma).
-      setActiveSourceId(DRAFT_SOURCE_ID);
+      await switchSource(DRAFT_SOURCE_ID);
       return;
     }
+    if (!(await confirmSourceSwitch())) return;
     setDraftSource(makeDraftSource(recordId, sources.length));
     setActiveSourceId(DRAFT_SOURCE_ID);
   }
@@ -441,18 +489,22 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
         ref={toolbarRef}
         className="fixed inset-x-0 top-[var(--logo-h)] z-40 border-b border-indigo-200/70 bg-white/90 backdrop-blur-xl"
       >
-        <div className="mx-auto w-full max-w-[1600px] px-4 py-3 lg:px-8 xl:px-10">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {/* P2-5: mobilde tek satır + kısa geri butonu + açıklama gizli → çubuk ekranın ~%28'i
+            yerine ~%14'ü kadar yer kaplar; tüm işlevler (geri/sil/kaydet/bölümler) korunur. */}
+        <div className="mx-auto w-full max-w-[1600px] px-3 py-2 sm:px-4 sm:py-3 lg:px-8 xl:px-10">
+        <div className="flex items-center gap-2 sm:flex-wrap sm:gap-x-4 sm:gap-y-2">
           <button
             type="button"
             onClick={requestLeave}
-            className="h-9 shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+            aria-label="Listeye Dön"
+            className="h-10 min-w-10 shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:h-9"
           >
-            ← Listeye Dön
+            <span aria-hidden className="sm:hidden">←</span>
+            <span className="hidden sm:inline">← Listeye Dön</span>
           </button>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="truncate text-[11px] font-black uppercase tracking-widest text-indigo-500">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="hidden truncate text-[11px] font-black uppercase tracking-widest text-indigo-500 sm:inline">
                 {form.category || "Kategori seçilmedi"}
               </span>
               <span
@@ -471,15 +523,15 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                 </span>
               )}
             </div>
-            <h1 className="truncate text-base font-black text-slate-900 sm:text-lg">
+            <h1 className="truncate text-sm font-black text-slate-900 sm:text-lg">
               {form.title || "Başlıksız kayıt"}
             </h1>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <button
               type="button"
               onClick={handleDelete}
-              className="h-9 rounded-xl border border-rose-200 bg-white px-3 text-sm font-black uppercase tracking-wide text-rose-600 shadow-sm transition hover:border-rose-300 hover:bg-rose-50"
+              className="h-10 rounded-xl border border-rose-200 bg-white px-3 text-sm font-black uppercase tracking-wide text-rose-600 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 sm:h-9"
             >
               Sil
             </button>
@@ -487,7 +539,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="h-9 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-6 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+              className="h-10 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-4 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 sm:h-9 sm:px-6"
             >
               {saving ? "Kaydediliyor..." : "Kaydet"}
             </button>
@@ -495,12 +547,12 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
         </div>
 
         {/* Bölüm navigasyonu */}
-        <div className="mt-3 flex flex-nowrap items-center gap-1.5 overflow-x-auto">
+        <div className="mt-2 flex flex-nowrap items-center gap-1.5 overflow-x-auto sm:mt-3">
           {SECTIONS.map((s) => (
             <button
               key={s.id}
               type="button"
-              onClick={() => setSection(s.id)}
+              onClick={() => void switchSection(s.id)}
               className={`shrink-0 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-sm font-bold transition ${
                 section === s.id
                   ? "bg-indigo-600 text-white shadow-sm"
@@ -511,7 +563,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
             </button>
           ))}
         </div>
-        <p className="mt-1.5 text-xs text-slate-500">
+        <p className="mt-1.5 hidden text-xs text-slate-500 sm:block">
           {SECTIONS.find((s) => s.id === section)?.desc}
         </p>
         </div>
@@ -699,7 +751,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                   <li key={s.id}>
                     <button
                       type="button"
-                      onClick={() => setActiveSourceId(s.id)}
+                      onClick={() => void switchSource(s.id)}
                       className={`w-full rounded-xl border px-3 py-2 text-left transition ${
                         s.id === activeSourceId
                           ? "border-indigo-400 bg-indigo-50"
@@ -719,7 +771,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                   <li key={DRAFT_SOURCE_ID}>
                     <button
                       type="button"
-                      onClick={() => setActiveSourceId(DRAFT_SOURCE_ID)}
+                      onClick={() => void switchSource(DRAFT_SOURCE_ID)}
                       className={`w-full rounded-xl border border-dashed px-3 py-2 text-left transition ${
                         activeSourceId === DRAFT_SOURCE_ID
                           ? "border-amber-400 bg-amber-50"
@@ -754,6 +806,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                 onDeleted={handleSourceDeleted}
                 onCreated={handleDraftCreated}
                 onDiscard={handleDraftDiscard}
+                onDirtyChange={setSourceDirty}
               />
             ) : (
               <p className="py-16 text-center text-sm text-slate-500">

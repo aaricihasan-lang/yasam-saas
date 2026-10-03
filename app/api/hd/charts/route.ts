@@ -95,14 +95,23 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (!codes.ok) {
       return NextResponse.json({ ok: false, code: "INVALID_CHART_CODE", error: codes.error }, { status: 400, headers: NO_STORE });
     }
-    const { ok, error, id } = await saveManualChart(guard.db, guard.tenantId, clientId, parsed.body);
+    // P2-9: istemci yüklediği sürümü (updated_at; harita yoksa null) gönderirse iyimser
+    // eşzamanlılık uygulanır → başka oturumdaki değişiklik sessizce ezilmez (409).
+    const body = parsed.body;
+    const expectedUpdatedAt = "expected_updated_at" in body
+      ? (typeof body.expected_updated_at === "string" && body.expected_updated_at.trim() ? body.expected_updated_at : null)
+      : undefined;
+    const { ok, error, id, updatedAt, status: saveStatus, code: saveCode } = await saveManualChart(
+      guard.db, guard.tenantId, clientId, body, { expectedUpdatedAt },
+    );
     if (!ok) {
-      return NextResponse.json({ ok: false, error: error ?? "Kaydedilemedi." }, { status: 400, headers: NO_STORE });
+      const status = saveStatus === 409 || saveStatus === 404 || saveStatus === 500 ? saveStatus : 400;
+      return NextResponse.json({ ok: false, code: saveCode, error: error ?? "Kaydedilemedi." }, { status, headers: NO_STORE });
     }
     // USAGE360: manuel harita upsert (danışan başına tek satır) — insert/update yolu route'ta
     // bilinmiyor → record_updated (sözleşme §2).
     await trackUsage(guard, req, { module: "human_design", action: "record_updated", subEntity: "chart", resourceId: id ?? `client:${clientId}` });
-    return NextResponse.json({ ok: true, id: id ?? null }, { status: 200, headers: NO_STORE });
+    return NextResponse.json({ ok: true, id: id ?? null, updated_at: updatedAt ?? null }, { status: 200, headers: NO_STORE });
   }
 
   let raw: unknown;

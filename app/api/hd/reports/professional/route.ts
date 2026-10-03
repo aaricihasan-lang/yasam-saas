@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
+import { isUuid, professionalReportIdFor } from "@/lib/human-design/api/deterministicId";
+import { isOwnedChartImagePath } from "@/lib/human-design/api/chartImagePath";
+import { copyChartImageToReportSnapshot, removeHdStorageObjects } from "@/lib/human-design/api/hdStorage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { createReportSnapshotFromChart } from "@/lib/human-design/reporting/reportSnapshotService";
 import { HD_REPORT_UNPUBLISHED_MESSAGE } from "@/lib/human-design/reporting/reportSnapshot";
-import { saveCanonicalReport } from "@/lib/human-design/api/reportPersistence";
+import { saveCanonicalReport, findReportBrief } from "@/lib/human-design/api/reportPersistence";
 import { hdReportTitle } from "@/lib/human-design/reporting/wordReport";
 
 export const runtime = "nodejs";
@@ -66,6 +70,26 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "chartId gerekli." }, { status: 400, headers: NO_STORE });
   }
 
+  // P2-2 — idempotency: istemci her KULLANICI EYLEMİ için bir requestId (uuid) üretir ve
+  // ağ tekrarı/çift tıklamada AYNISINI gönderir. Rapor id'si (tenant, requestId)'den
+  // deterministik türetilir → aynı eylem ikinci kez satır oluşturamaz (PRIMARY KEY).
+  // Bilinçli "yeni sürüm" yeni bir requestId ile gelir → yeni rapor (ürün semantiği korunur).
+  const rawRequestId = (raw as Record<string, unknown> | null)?.requestId;
+  const requestId = isUuid(rawRequestId) ? rawRequestId : null;
+  const reportId = requestId ? professionalReportIdFor(guard.tenantId, requestId) : randomUUID();
+  if (requestId) {
+    const prior = await findReportBrief(guard.db, guard.tenantId, reportId);
+    if (prior.error) {
+      return NextResponse.json({ ok: false, error: "Rapor durumu okunamadı. Lütfen tekrar deneyin." }, { status: 500, headers: NO_STORE });
+    }
+    if (prior.row) {
+      if (prior.row.report_kind === "canonical" && (prior.row.chart_id === chartId || prior.row.chart_id === null)) {
+        return NextResponse.json({ ok: true, id: prior.row.id, reused: true, omittedCount: 0 }, { status: 200, headers: NO_STORE });
+      }
+      return NextResponse.json({ ok: false, error: "Bu istek kimliği başka bir rapora ait." }, { status: 409, headers: NO_STORE });
+    }
+  }
+
   const built = await createReportSnapshotFromChart(guard.db, guard.tenantId, chartId, {
     onMissing: isAdmin ? "throw" : "omit",
   });
@@ -78,7 +102,23 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, code: built.code, error }, { status: built.status, headers: NO_STORE });
   }
 
+  // P2-1 — BodyGraph görseli rapora ait DONMUŞ kopyaya alınır (`{tenant}/report-snapshots/
+  // {reportId}.{ext}`): danışan görseli sonradan değişse/silinse de bu rapor görselini korur.
+  let copiedImagePath: string | null = null;
+  if (built.chartImagePath && built.clientId && isOwnedChartImagePath(built.chartImagePath, guard.tenantId, built.clientId)) {
+    const copied = await copyChartImageToReportSnapshot(guard.db, guard.tenantId, built.clientId, built.chartImagePath, reportId);
+    if (copied.error || !copied.path) {
+      return NextResponse.json(
+        { ok: false, error: "Harita görseli rapora kopyalanamadı. Lütfen tekrar deneyin." },
+        { status: 503, headers: NO_STORE },
+      );
+    }
+    copiedImagePath = copied.path;
+    built.snapshot.chartImage = { storagePath: copied.path, includedAtGeneration: true };
+  }
+
   const saved = await saveCanonicalReport(guard.db, guard.tenantId, guard.userId, {
+    id: reportId,
     chartId,
     clientId: built.clientId,
     title: hdReportTitle(built.clientName),
@@ -86,7 +126,13 @@ export async function POST(req: NextRequest): Promise<Response> {
     provenance: built.snapshot.provenance.canonical,
   });
   if (saved.error || !saved.id) {
+    // Satır oluşmadı → bu isteğin kopyaladığı görsel yetim kalmasın.
+    if (copiedImagePath) await removeHdStorageObjects(guard.db, [copiedImagePath], "professional-report-rollback");
     return NextResponse.json({ ok: false, error: saved.error ?? "Rapor kaydedilemedi." }, { status: 400, headers: NO_STORE });
+  }
+  if (saved.duplicate) {
+    // Aynı istek eşzamanlı geldi: satır diğer istekte oluştu → yeni satır YOK.
+    return NextResponse.json({ ok: true, id: saved.id, reused: true, omittedCount: 0 }, { status: 200, headers: NO_STORE });
   }
 
   // USAGE360: donmuş snapshot KAYDI oluşturuldu → record_created (Word indirme ayrı eylem:

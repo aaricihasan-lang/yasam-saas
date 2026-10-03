@@ -22,13 +22,17 @@ function authHeaders(): Record<string, string> {
 
 export type CreateResult = { ok: true; id: string; omittedCount: number } | { ok: false; error: string };
 
-export async function createProfessionalReport(chartId: string): Promise<CreateResult> {
+/**
+ * P2-2: `requestId` bir KULLANICI EYLEMİNİ temsil eder (uuid). Ağ tekrarı/çift tıklama aynı
+ * requestId ile gönderilir → sunucu aynı raporu döner, yeni satır oluşturmaz.
+ */
+export async function createProfessionalReport(chartId: string, requestId?: string): Promise<CreateResult> {
   let res: Response;
   try {
     res = await fetch("/api/hd/reports/professional", {
       method: "POST",
       headers: authHeaders(),
-      body: JSON.stringify({ chartId }),
+      body: JSON.stringify(requestId ? { chartId, requestId } : { chartId }),
     });
   } catch {
     return { ok: false, error: "Ağ hatası. Bağlantını kontrol et." };
