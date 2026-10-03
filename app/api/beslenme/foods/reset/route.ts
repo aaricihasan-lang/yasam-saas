@@ -3,7 +3,7 @@ import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { requireBeslenmeModule, denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { SYSTEM_NUTRITION_TENANT_ID, isSystemNutritionTenant } from "@/lib/beslenme/systemTenant";
-import { computeFoodResetScope } from "@/lib/beslenme/foodReset";
+import { computeFoodResetScope, remapFoodReferencesToOrigin } from "@/lib/beslenme/foodReset";
 import { consumeDestructiveChallenge } from "@/lib/beslenme/destructiveChallenge";
 import { mapFoodRpcError } from "@/lib/beslenme/foodEngine";
 
@@ -30,6 +30,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
  * Sunucu kapsamı YENİDEN hesaplar ve challenge'ı (kullanıcı + tenant + işlem + kapsam özeti +
  * kod + süre + tek kullanım) atomik tüketir; geçerli challenge olmadan hiçbir kayıt silinmez.
  * Etki: yalnız bu tenant'ın kişisel kopyaları kaldırılır, sistem besini yeniden kullanılır.
+ * Kopyaya işaret eden plan kalemi / şablon kalemi / danışan besin tercihi referansları kopyanın
+ * türediği SİSTEM besinine yeniden bağlanır (snapshot'lar DEĞİŞMEZ) → plan kalemleri "besin artık
+ * yok" durumuna düşmez; "Besin değerlerini güncelle" sistem besinine çözülür.
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const guard = await requireBeslenmeModule(req);
@@ -64,6 +67,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   });
   if (rejected) return beslenmeJson({ ok: false, code: rejected.code }, rejected.status);
 
+  // Referansları kopyadan SİSTEM besinine taşı (değer-nötr: kopya varken SİSTEM id'si zaten
+  // kopyaya çözülür; bkz. remapFoodReferencesToOrigin). Başarısızsa hiçbir kopya silinmez.
+  const pre = await remapFoodReferencesToOrigin(db, tenantId, scope.origins);
+  if (!pre.ok) return beslenmeJson({ ok: false, code: "RESET_FAILED" }, 500);
+
   const { data, error } = await db.rpc("nutrition_food_reset_personalized", {
     p_tenant_id: tenantId,
     p_system_tenant_id: SYSTEM_NUTRITION_TENANT_ID,
@@ -78,6 +86,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return beslenmeJson({ ok: false, code: m.code === "WRITE_FAILED" ? "RESET_FAILED" : m.code }, m.status);
   }
   const resetCount = Number(data ?? 0);
+  // Yarış penceresi: ön-bağlama ile silme arasında kopya id'siyle eklenmiş kalem kaldıysa onu da
+  // sistem besinine bağla (kopya artık yok; yeni ekleme zaten FOOD_NOT_FOUND alır). Best-effort.
+  await remapFoodReferencesToOrigin(db, tenantId, scope.origins);
   // Usage360: kişiselleştirmeyi sistem değerine döndürme = tek record_updated(food) + kayıt sayısı.
   if (resetCount > 0) {
     await trackUsage(guard, req, {

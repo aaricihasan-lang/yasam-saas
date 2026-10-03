@@ -289,6 +289,7 @@ async function main(): Promise<void> {
     if (nutritionReady) {
       const plansRoute = await import("../../app/api/beslenme/plans/route");
       const planIdRoute = await import("../../app/api/beslenme/plans/[id]/route");
+      const planDeleteChallengeRoute = await import("../../app/api/beslenme/plans/[id]/delete/challenge/route");
       const b1 = await call(plansRoute.POST as unknown as Handler, "POST", "/api/beslenme/plans", U1, { title: `${SENTINEL} plan`, start_date: "2026-10-01", end_date: "2026-10-03" });
       const planId = String((b1.json?.plan as { id?: string } | undefined)?.id ?? b1.json?.id ?? "");
       ok(b1.status < 300 && await count("beslenme", "record_created", "plan") === 1, `plan create (${b1.status}) → 1 record_created:plan`);
@@ -296,7 +297,13 @@ async function main(): Promise<void> {
       ok(b2.status < 300 && await count("beslenme", "record_updated", "plan") === 1, `plan update (${b2.status}) → 1 record_updated:plan`);
       const bBad = await call(plansRoute.POST as unknown as Handler, "POST", "/api/beslenme/plans", U1, { title: "x", start_date: "2026-10-05", end_date: "2026-10-01" });
       ok(bBad.status === 400 && await count("beslenme", "record_created", "plan") === 1, "geçersiz aralık (400) → olay YOK");
-      const b3 = await call(planIdRoute.DELETE as unknown as Handler, "DELETE", `/api/beslenme/plans/${planId}`, U1, undefined, { id: planId });
+      // DD-P2 BES-2: plan silme artık sunucu 4 haneli kodu (challenge) ZORUNLU kılar; challenge'sız
+      // DELETE reddedilir ve olay üretmez. Telemetri sözleşmesi (tek record_deleted:plan) aynen sınanır.
+      const b3none = await call(planIdRoute.DELETE as unknown as Handler, "DELETE", `/api/beslenme/plans/${planId}`, U1, undefined, { id: planId });
+      ok(b3none.status === 400 && await count("beslenme", "record_deleted", "plan") === 0, `challenge'sız plan delete (${b3none.status}) → silinmez, olay YOK`);
+      const b3ch = await call(planDeleteChallengeRoute.POST as unknown as Handler, "POST", `/api/beslenme/plans/${planId}/delete/challenge`, U1, {}, { id: planId });
+      const b3 = await call(planIdRoute.DELETE as unknown as Handler, "DELETE", `/api/beslenme/plans/${planId}`, U1,
+        { challenge_id: b3ch.json?.challenge_id, code: b3ch.json?.code }, { id: planId });
       ok(b3.status < 300 && await count("beslenme", "record_deleted", "plan") === 1, `plan delete (gerçek silme) (${b3.status}) → 1 record_deleted:plan`);
       ok(!(await events("beslenme")).some((e) => /archiv/.test(String(e.action) + String(e.sub_entity))), "arşiv olayı ÜRETİLMEZ");
     }

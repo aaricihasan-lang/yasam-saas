@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback } from "react";
 import { DetailScreen } from "@/app/aromaterapi/_components/read/DetailScreen";
+import { AromaterapiDeleteAction } from "@/app/aromaterapi/_components/write/AromaterapiDeleteAction";
 import {
   DetailField,
   DetailSection,
@@ -42,6 +43,25 @@ export default function PreparatDetayPage() {
       backHref="/aromaterapi/katalog?tab=preparatlar"
       backLabel="Kataloğa dön"
       wordExportUrl={id ? `/api/aromaterapi/preparations/${id}/word-report` : undefined}
+      extraActions={
+        data ? (
+          <AromaterapiDeleteAction
+            kind="preparation"
+            id={data.id}
+            updatedAt={data.updated_at}
+            recordLabel={
+              <>
+                {typeLabel}
+                {data.taxon_canonical_name ? <> · <span className="italic">{data.taxon_canonical_name}</span></> : null}
+              </>
+            }
+            entityNoun="preparat"
+            listHref="/aromaterapi/katalog?tab=preparatlar"
+            isDemo={isDemo}
+            onReload={retry}
+          />
+        ) : undefined
+      }
       loading={loading}
       notFound={notFound}
       errorCode={errorCode}
