@@ -289,7 +289,7 @@ async function main(): Promise<void> {
   await executeRetrieval(queryDescriptor(), rpc, okStone());
   const p = rpc.calls[0]!;
   const paramKeys = Object.keys(p).sort().join(",");
-  check("31 RPC params yalnız typed alanlar", paramKeys === "allowShared,limit,sessionTenantId,tsquery,weights");
+  check("31 RPC params yalnız typed alanlar", paramKeys === "allowShared,limit,modules,sessionTenantId,tsquery,weights");
   const blob = JSON.stringify(p).toLowerCase();
   check("32 RPC params'ta SQL/WHERE/SELECT yok", !blob.includes("select ") && !blob.includes(" where ") && !blob.includes("--"));
 }
@@ -318,6 +318,7 @@ async function main(): Promise<void> {
 /** Zincirleme select builder + rpc kaydı yapan mock DB client. */
 function mockDb(cfg: {
   rpcResponse?: RetrievalRpcResponse;
+  rpcByFn?: Record<string, RetrievalRpcResponse>;
   selectResponse?: RetrievalDbResult;
 }): RetrievalDbClient & {
   rpcCalls: Array<{ fn: string; params: Record<string, unknown> }>;
@@ -366,7 +367,7 @@ function mockDb(cfg: {
     },
     rpc(fn: string, params: Record<string, unknown>) {
       rpcCalls.push({ fn, params });
-      return Promise.resolve(rpcResponse);
+      return Promise.resolve(cfg.rpcByFn?.[fn] ?? rpcResponse);
     },
   } as unknown as RetrievalDbClient & {
     rpcCalls: typeof rpcCalls;
@@ -388,6 +389,7 @@ const rpcParams: RetrievalRpcParams = {
   sessionTenantId: "tenant-A",
   allowShared: true,
   weights: [1.0, 0.6, 0.35, 0.15],
+  modules: null,
   limit: 150,
 };
 
@@ -396,14 +398,33 @@ const rpcParams: RetrievalRpcParams = {
   const db = mockDb({ rpcResponse: { data: [makeRow()], error: null } });
   const port = createSupabaseRetrievalRpcPort(db);
   const r = await port(rpcParams);
-  check("37 RPC adı 'yh_search_candidates'", db.rpcCalls[0]?.fn === "yh_search_candidates");
+  // Satış öncesi (2026-10): v2 — modül kapsamı SQL'de LIMIT'ten ÖNCE; shared parametresi YOK.
+  check("37 RPC adı 'yh_search_candidates_v2'", db.rpcCalls[0]?.fn === "yh_search_candidates_v2");
   const pp = db.rpcCalls[0]?.params ?? {};
   check(
     "38 RPC p_* parametre adları doğru",
-    Object.keys(pp).sort().join(",") === "p_allow_shared,p_limit,p_session_tenant,p_tsquery,p_weights",
+    Object.keys(pp).sort().join(",") === "p_limit,p_modules,p_session_tenant,p_tsquery,p_weights",
   );
   check("39 p_weights [A,B,C,D] iletilir", JSON.stringify(pp.p_weights) === JSON.stringify([1.0, 0.6, 0.35, 0.15]));
   check("40 başarı → ok:true + rows", r.ok === true && r.rows.length === 1);
+}
+
+// 40b. v2 henüz yok (PGRST202) → v1'e düşer; başka hata → v1 DENENMEZ.
+{
+  const db = mockDb({
+    rpcByFn: {
+      yh_search_candidates_v2: { data: null, error: { message: "x", code: "PGRST202" } },
+      yh_search_candidates: { data: [makeRow()], error: null },
+    },
+  });
+  const r = await createSupabaseRetrievalRpcPort(db)({ ...rpcParams, modules: ["biyoenerji"] });
+  check("40b v2 yok → v1 fallback", r.ok === true && db.rpcCalls.map((c) => c.fn).join(",") === "yh_search_candidates_v2,yh_search_candidates");
+  const db2 = mockDb({ rpcByFn: { yh_search_candidates_v2: { data: null, error: { message: "x", code: "42501" } } } });
+  const r2 = await createSupabaseRetrievalRpcPort(db2)(rpcParams);
+  check("40c v2 başka hata → fail-closed, v1 denenmez", r2.ok === false && db2.rpcCalls.length === 1);
+  const db3 = mockDb({ rpcResponse: { data: [], error: null } });
+  await createSupabaseRetrievalRpcPort(db3)({ ...rpcParams, modules: ["dogaltas", "beslenme"] });
+  check("40d p_modules dizisi iletilir", JSON.stringify(db3.rpcCalls[0]?.params.p_modules) === JSON.stringify(["dogaltas", "beslenme"]));
 }
 
 // 41-42. RPC hata → fail-closed + ham mesaj yok

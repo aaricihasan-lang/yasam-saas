@@ -3,7 +3,10 @@ import { membershipInactiveResponse, verifyUserRequest } from "@/lib/auth/userGu
 import { hasMembershipAccessForRow } from "@/lib/auth/membershipAccessCore";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
 import { getTenantFlags } from "@/lib/yasam-hafizasi/flags";
-import { parseArchiveClassification } from "@/lib/yasam-hafizasi/archive/archiveClassificationRequest";
+import {
+  isArchiveRowIndexable,
+  parseArchiveClassification,
+} from "@/lib/yasam-hafizasi/archive/archiveClassificationRequest";
 import { YH_INDEX_SOURCES } from "@/lib/yasam-hafizasi/indexer/sources";
 import { runIndexUnit } from "@/lib/yasam-hafizasi/indexer/runIndexUnit";
 
@@ -37,6 +40,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { db, tenantId, userId, is_demo_account, profile } = guard;
 
   if (!hasModulePermissionForProfile(profile, "yasam_hafizasi")) return fail("YH_MODULE_FORBIDDEN", 403);
+  // Kişisel Arşiv modül izni de ZORUNLU (kapalı modül kaydı Hafıza üzerinden işaretlenemez).
+  if (!hasModulePermissionForProfile(profile, "personal_archive")) return fail("YH_ARC_MODULE_FORBIDDEN", 403);
   if (is_demo_account) return fail("YH_DEMO_READONLY", 403);
 
   const flags = await getTenantFlags(tenantId, db);
@@ -107,4 +112,63 @@ export async function POST(req: NextRequest): Promise<Response> {
         ? "Kayıt güvenli olarak işaretlendi; içerik değişirse (hash uyuşmazlığı) yeniden inceleme gerekir."
         : "Kayıt indexlenmeyecek (fail-closed).",
   });
+}
+
+/**
+ * GET /api/yasam-hafizasi/archive-classification?archiveId=<uuid> — tek arşiv kaydının Hafıza durumu.
+ * Yanıt yalnız durum bilgisi taşır (içerik YOK):
+ *   included        → safe-non-pii VE onaylanan içerik hâlâ güncel (indekslenir)
+ *   needs-review    → safe-non-pii idi ama içerik değişti (yeniden onay gerekir; indekslenmez)
+ *   excluded        → hiç onaylanmadı / çıkarıldı (indekslenmez)
+ * Tenant YALNIZ session'dan; başka tenant'ın kaydı → not-found.
+ */
+export async function GET(req: NextRequest): Promise<Response> {
+  const guard = await verifyUserRequest(req, { includeProfile: true });
+  if (!guard.ok) return guard.response;
+  if (!hasMembershipAccessForRow(guard.profile ?? {})) return membershipInactiveResponse();
+  const { db, tenantId, is_demo_account, profile } = guard;
+
+  if (!hasModulePermissionForProfile(profile, "yasam_hafizasi")) return fail("YH_MODULE_FORBIDDEN", 403);
+  if (!hasModulePermissionForProfile(profile, "personal_archive")) return fail("YH_ARC_MODULE_FORBIDDEN", 403);
+  if (is_demo_account) return fail("YH_DEMO_READONLY", 403);
+  const flags = await getTenantFlags(tenantId, db);
+  if (!flags.yh_enabled) return fail("YH_NOT_ACTIVE", 403);
+
+  const archiveId = req.nextUrl.searchParams.get("archiveId") ?? "";
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(archiveId)) {
+    return fail("YH_ARC_INVALID_ARCHIVE_ID", 400);
+  }
+
+  const arc = await db
+    .from("personal_archives")
+    .select("*")
+    .eq("id", archiveId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (arc.error) return fail(UNAVAILABLE.has(arc.error.code ?? "") ? "YH_ARC_NOT_ACTIVE" : "YH_ARC_READ_FAILED", 500);
+  if (!arc.data) return fail("YH_ARC_ARCHIVE_NOT_FOUND", 404);
+
+  const cls = await db
+    .from("yh_archive_classifications")
+    .select("classification, reviewed_content_hash")
+    .eq("tenant_id", tenantId)
+    .eq("archive_id", archiveId)
+    .maybeSingle();
+  if (cls.error) return fail(UNAVAILABLE.has(cls.error.code ?? "") ? "YH_ARC_NOT_ACTIVE" : "YH_ARC_READ_FAILED", 500);
+
+  const built = runIndexUnit({ config: ARCHIVE_SOURCE, row: arc.data as Record<string, unknown> });
+  const currentHash = built.status === "unit" ? built.unit.contentHash : null;
+  const classification = typeof cls.data?.classification === "string" ? cls.data.classification : "unclassified";
+  const reviewed = typeof cls.data?.reviewed_content_hash === "string" ? cls.data.reviewed_content_hash : null;
+
+  let state: "included" | "needs-review" | "excluded" = "excluded";
+  if (classification === "safe-non-pii") {
+    state = currentHash !== null && isArchiveRowIndexable({ classification, reviewedContentHash: reviewed }, currentHash)
+      ? "included"
+      : "needs-review";
+  }
+  return NextResponse.json(
+    { ok: true, archiveId, state, hasIndexableContent: currentHash !== null },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }

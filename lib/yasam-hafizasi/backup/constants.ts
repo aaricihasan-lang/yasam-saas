@@ -136,6 +136,9 @@ export const YH_SOURCE_MODULES = [
   //   'belge_video' ailesi ÜRÜN KARARIYLA emekliye ayrıldı (NON_SOURCE) → senkron korunur.
   "numeroloji",
   "yebs",
+  // config.YH_SOURCE_MODULES ile senkron (eksik kalan kupa_hacamat + satış öncesi beslenme).
+  "kupa_hacamat",
+  "beslenme",
 ] as const;
 
 /** Owner tenantında diğer uzmanlarca canlı okunan shared-read tablo(lar). */

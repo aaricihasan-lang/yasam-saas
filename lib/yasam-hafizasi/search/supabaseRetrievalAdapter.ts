@@ -23,10 +23,12 @@ import {
   executeRetrieval,
   type RetrievalExecutionResult,
   type RetrievalRpcPort,
+  type RetrievalExecutionOptions,
 } from "./retrievalExecutor";
 
-/** RPC fonksiyon adı (statik; migration ile birebir). */
+/** RPC fonksiyon adları (statik; migration ile birebir). v2: modül filtresi SQL'de LIMIT'ten ÖNCE. */
 const RETRIEVAL_RPC = "yh_search_candidates" as const;
+const RETRIEVAL_RPC_V2 = "yh_search_candidates_v2" as const;
 /** Kullanıcı-bazlı taş gizleme tablosu (statik). */
 const STONE_EXCLUSIONS_TABLE = "stone_exclusions" as const;
 
@@ -37,7 +39,7 @@ export interface RetrievalDbResult {
 }
 export interface RetrievalRpcResponse {
   readonly data: unknown;
-  readonly error: { readonly message: string } | null;
+  readonly error: { readonly message: string; readonly code?: string } | null;
 }
 export interface RetrievalSelectBuilder extends PromiseLike<RetrievalDbResult> {
   eq(column: string, value: unknown): RetrievalSelectBuilder;
@@ -63,6 +65,16 @@ function serverRetrievalDb(): RetrievalDbClient {
  */
 export function createSupabaseRetrievalRpcPort(db: RetrievalDbClient): RetrievalRpcPort {
   return async (params) => {
+    const v2 = await db.rpc(RETRIEVAL_RPC_V2, {
+      p_tsquery: params.tsquery,
+      p_session_tenant: params.sessionTenantId,
+      p_weights: params.weights,
+      p_limit: params.limit,
+      p_modules: params.modules === null ? null : [...params.modules],
+    });
+    if (!v2.error) return { ok: true, rows: Array.isArray(v2.data) ? v2.data : [] };
+    // v2 henüz uygulanmamış DB (PGRST202: fonksiyon yok) → v1 (modül filtresi uygulama katmanında kalır).
+    if (v2.error.code !== "PGRST202") return { ok: false, code: "retrieval-execution-failed" };
     const { data, error } = await db.rpc(RETRIEVAL_RPC, {
       p_tsquery: params.tsquery,
       p_session_tenant: params.sessionTenantId,
@@ -105,8 +117,40 @@ export function createSupabaseStoneExclusionPort(db: RetrievalDbClient): StoneEx
  */
 export function createSupabaseRetrievalExecutor(
   db: RetrievalDbClient = serverRetrievalDb(),
-): (descriptor: RetrievalQueryDescriptor) => Promise<RetrievalExecutionResult> {
+): (descriptor: RetrievalQueryDescriptor, opts?: RetrievalExecutionOptions) => Promise<RetrievalExecutionResult> {
   const rpc = createSupabaseRetrievalRpcPort(db);
-  const stonePort = createSupabaseStoneExclusionPort(db);
-  return (descriptor) => executeRetrieval(descriptor, rpc, stonePort);
+  // Her arama için YENİ önbellek (tenant/arama arası paylaşım YOK).
+  return (descriptor, opts) => executeRetrieval(descriptor, rpc, createBatchedStoneExclusionPort(db), opts);
+}
+
+/** Bir tenant için taş gizleme listesinin güvenli üst sınırı (tek sorgu). */
+const STONE_EXCLUSION_PREFETCH_LIMIT = 5000;
+
+/**
+ * N+1 önleme: tek aramada tenant'ın taş gizleme listesi TEK sorguyla bir kez okunur; sonraki
+ * Doğaltaş satırları bellekten yanıtlanır. Liste tavanı aşılırsa (çok nadir) satır-bazlı porta
+ * düşülür (doğruluk korunur). Hata → throw (evaluateVisibility fail-closed: görünmez).
+ */
+function createBatchedStoneExclusionPort(db: RetrievalDbClient): StoneExclusionPort {
+  const single = createSupabaseStoneExclusionPort(db);
+  let loaded: { tenant: string; ids: Set<string>; complete: boolean } | null = null;
+  return async (input) => {
+    if (loaded === null || loaded.tenant !== input.sessionTenantId) {
+      const { data, error } = await db
+        .from(STONE_EXCLUSIONS_TABLE)
+        .select("stone_id")
+        .eq("tenant_id", input.sessionTenantId)
+        .limit(STONE_EXCLUSION_PREFETCH_LIMIT);
+      if (error) throw new Error("stone-exclusion-failed"); // ham mesaj sızmaz
+      const rows = Array.isArray(data) ? data : [];
+      const ids = new Set<string>();
+      for (const r of rows) {
+        const id = (r as { stone_id?: unknown }).stone_id;
+        if (typeof id === "string") ids.add(id);
+      }
+      loaded = { tenant: input.sessionTenantId, ids, complete: rows.length < STONE_EXCLUSION_PREFETCH_LIMIT };
+    }
+    if (loaded.ids.has(input.stoneSourceId)) return true;
+    return loaded.complete ? false : single(input);
+  };
 }

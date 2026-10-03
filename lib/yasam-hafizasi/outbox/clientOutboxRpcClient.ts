@@ -13,6 +13,7 @@
 import { OUTBOX_OPERATIONS, type OutboxOperation } from "./outboxState";
 import {
   callOutboxRpc,
+  OutboxRpcError,
   OutboxRpcInvariantError,
   type OutboxRpcDb,
 } from "./outboxRpcClient";
@@ -131,12 +132,21 @@ export async function completeClientEvent(
   id: string,
   worker: string,
   claimedVersion: number,
+  outcome: string | null = null,
 ): Promise<ClientCompleteResult> {
-  const data = await callRpc(db, "yh_client_outbox_complete", {
-    p_id: id,
-    p_worker: worker,
-    p_claimed_version: claimedVersion,
-  });
+  const base = { p_id: id, p_worker: worker, p_claimed_version: claimedVersion };
+  let data: unknown;
+  if (outcome !== null) {
+    // last_outcome v2 RPC ile; v2 yoksa (PGRST202, hiç çalışmadı) eski RPC'ye düş (durum geçişi aynı).
+    try {
+      data = await callRpc(db, "yh_client_outbox_complete_v2", { ...base, p_outcome: outcome });
+    } catch (e) {
+      if (!(e instanceof OutboxRpcError) || !e.code.endsWith(":pg:PGRST202")) throw e;
+      data = await callRpc(db, "yh_client_outbox_complete", base);
+    }
+  } else {
+    data = await callRpc(db, "yh_client_outbox_complete", base);
+  }
   if (typeof data === "string" && (COMPLETE_RESULTS as readonly string[]).includes(data)) {
     return data as ClientCompleteResult;
   }

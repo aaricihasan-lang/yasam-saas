@@ -116,12 +116,16 @@ async function main(): Promise<void> {
   { const { deps } = fakeDeps({ readThrows: true }); const o = await runIndexSmoke(baseArgs(), deps); check(o.code === "source-read-failed" && J(o).indexOf("SECRET_DB_ERROR") === -1, `T22 ham error sızmaz`); }
   // ═══ 23/24 — shared/join tenant-model fail-closed (gate doğrudan) ══════════
   {
-    const shared = resolveYhSourceConfig("dogaltas:knowledge"); // column + allowSharedNull
+    // Satış öncesi (2026-10): registry'de shared (allowSharedNull) kaynak kalmadı → gate sözleşmesi
+    // sentetik bir shared config ile doğrulanır; knowledge artık column-non-shared.
+    const knowledge = resolveYhSourceConfig("dogaltas:knowledge");
+    const shared = knowledge === null ? null : { ...knowledge, tenant: { mode: "column" as const, column: "tenant_id", allowSharedNull: true } };
     const join = resolveYhSourceConfig("sifa_rehberi:guide-sections"); // join
     const col = resolveYhSourceConfig("biyoenerji:symbols"); // column non-shared
     check(shared !== null && evaluateSmokeTenantModel(shared) === "shared-record-disabled", `T23 shared→shared-record-disabled`);
     check(join !== null && evaluateSmokeTenantModel(join) === "join-source-disabled", `T24 join→join-source-disabled`);
     check(col !== null && evaluateSmokeTenantModel(col) === null, `T23b column-non-shared→null`);
+    check(knowledge !== null && evaluateSmokeTenantModel(knowledge) === null, `T23c knowledge artık tenant-only→null`);
   }
   // ═══ 25 — S2.12A write/cleanup fail-closed korunur ═════════════════════════
   const envs: SmokeEnvironment[] = ["local", "staging", "production"];

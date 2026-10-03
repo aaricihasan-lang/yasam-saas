@@ -213,8 +213,8 @@ async function run(): Promise<void> {
     add("policy-allow-real-false", isPrivateClientMemoryAllowedTenant(REAL_TENANT) === false, "");
     add("policy-allow-demo-false", isPrivateClientMemoryAllowedTenant(YH_CLIENT_DEMO_TENANT) === false, "");
     add("policy-allow-other-synthetic-false", isPrivateClientMemoryAllowedTenant(OTHER_SYNTHETIC) === false, "");
-    // isSyntheticTenantId global davranışı KORUNUR (admin hâlâ sentetik; gerçek değil).
-    add("policy-synthetic-admin-still-true", isSyntheticTenantId(ADMIN_LIBRARY_TENANT_ID) === true, "");
+    // Satış öncesi (2026-10): owner tenant (eski ADMIN_LIBRARY) GERÇEK uzman tenant'ı → sentetik DEĞİL.
+    add("policy-owner-tenant-not-synthetic", isSyntheticTenantId(ADMIN_LIBRARY_TENANT_ID) === false, "");
     add("policy-synthetic-real-false", isSyntheticTenantId(REAL_TENANT) === false, "");
     // GERÇEK uzman tenant davranışı değişmez (normal index).
     const h = makeDeps();
@@ -525,9 +525,9 @@ async function run(): Promise<void> {
     add("professional-writer-still-bans-synthetic", /isSyntheticTenantId\(u\.tenantId\)/.test(proWriter) && /synthetic-tenant-unit/.test(proWriter), "");
     add("allow-helper-not-in-professional-writer", !/isPrivateClientMemoryAllowedTenant/.test(proWriter), "");
     add("allow-helper-not-in-professional-eventprocessor", !/isPrivateClientMemoryAllowedTenant/.test(proEp), "");
-    // syntheticTenants global davranışı DEĞİŞMEDİ (liste tek eleman + import yok + helper eklenmedi).
+    // syntheticTenants: liste bugün BOŞ (owner tenant gerçek) + import yok + helper eklenmedi.
     const tenancy = read("lib/tenancy/syntheticTenants.ts");
-    add("synthetic-list-single-element", /SYNTHETIC_TENANT_IDS:\s*readonly string\[\]\s*=\s*\[ADMIN_LIBRARY_TENANT_ID\]/.test(tenancy), "");
+    add("synthetic-list-empty", /SYNTHETIC_TENANT_IDS:\s*readonly string\[\]\s*=\s*\[\]/.test(tenancy), "");
     add("synthetic-module-still-import-free", !/^\s*import\s/m.test(tenancy), "");
     // Pure module allow-helper'ı TANIMLAMAZ/uygulamaz (yorumda kontrat referansı serbest);
     // istisna mantığı yalnız client processor katmanında yaşar.

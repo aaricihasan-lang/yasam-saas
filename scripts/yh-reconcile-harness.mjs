@@ -134,9 +134,10 @@ function ixRow(tenant, sourceId, contentHash, over = {}) {
     return r.classification === "intentionally_excluded" && r.reason === "demo" && r.futureAction === "none";
   })());
 
-  check("A", "synthetic + index yok → intentionally_excluded(synthetic)", (() => {
+  // Satış öncesi (2026-10): owner tenant (eski ADMIN_LIBRARY) GERÇEK uzman tenant'ı → eksik indeks sayılır.
+  check("A", "owner tenant + index yok → missing_index (sentetik DEĞİL)", (() => {
     const r = decideSourceToIndex(STONES, stoneRow(ADMIN_LIBRARY_TENANT_ID, uid()), null);
-    return r.classification === "intentionally_excluded" && r.reason === "synthetic";
+    return r.classification === "missing_index";
   })());
 
   check("A", "shared/null tenant → intentionally_excluded(shared_not_allowed)", (() => {
@@ -415,7 +416,7 @@ function makeMockDb(tables) {
 {
   const rows = [];
   const idxMap = new Map();
-  // 291 sentetik (kanıtlı) → intentionally_excluded
+  // 291 owner tenant (kanıtlı, indexsiz) → missing (owner gerçek uzman tenant'ı; satış öncesi 2026-10)
   for (let i = 0; i < 291; i += 1) rows.push(stoneRow(ADMIN_LIBRARY_TENANT_ID, uid()));
   // 500 gerçek + indexli (healthy)
   for (let i = 0; i < 500; i += 1) {
@@ -429,12 +430,12 @@ function makeMockDb(tables) {
   const p = await runSourceToIndexPass(STONES, { source: makeSourcePort(rows), indexLookup: makeIndexLookupPort(idxMap) }, { ...RECON_DEFAULT_CAPS, pageSize: 500 });
   const c = p.byClassification;
   check("F", "toplam source taranan = 1447", p.scannedRows === 1447);
-  check("F", "sentetik → intentionally_excluded = 291", c.intentionally_excluded === 291);
+  check("F", "owner tenant sentetik değil → intentionally_excluded = 0", (c.intentionally_excluded ?? 0) === 0);
   check("F", "healthy = 500", c.healthy === 500);
-  check("F", "missing_index = 300", c.missing_index === 300);
+  check("F", "missing_index = 591 (300 uzman + 291 owner)", c.missing_index === 591);
   check("F", "skipped_build = 356", c.skipped_build === 356);
-  check("F", "KANIT: 1156-500=656 OTOMATİK missing DEĞİL (missing=300 < 656)", (c.missing_index ?? 0) === 300 && (c.missing_index ?? 0) < 656);
-  check("F", "sınıf toplamı = 1447 (kayıp yok)", (c.intentionally_excluded + c.healthy + c.missing_index + c.skipped_build) === 1447);
+  check("F", "KANIT: sıfır-kanıt satırlar OTOMATİK missing DEĞİL (missing=591 = 1447-500-356)", (c.missing_index ?? 0) === 591);
+  check("F", "sınıf toplamı = 1447 (kayıp yok)", ((c.intentionally_excluded ?? 0) + c.healthy + c.missing_index + c.skipped_build) === 1447);
 }
 
 // ═══ G. EXACT-RECORD PARİTESİ (indexSourcePage dry-run vs classifier) ═════════
@@ -452,9 +453,9 @@ async function exactStatus(row) {
   const dd = stoneRow(YH_DEMO_TENANT_ID, uid());
   check("G", "demo+kanıtlı: exact=excluded-demo & classifier excluded(demo)", (await exactStatus(dd)) === "excluded-demo" && decideSourceToIndex(STONES, dd, null).reason === "demo");
 
-  // Synthetic + kanıtlı.
+  // Owner tenant + kanıtlı: exact ok ⟺ classifier missing (owner gerçek tenant; parite tam).
   const ss = stoneRow(ADMIN_LIBRARY_TENANT_ID, uid());
-  check("G", "synthetic+kanıtlı: exact=excluded-synthetic & classifier excluded(synthetic)", (await exactStatus(ss)) === "excluded-synthetic" && decideSourceToIndex(STONES, ss, null).reason === "synthetic");
+  check("G", "owner+kanıtlı: exact=ok & classifier missing_index", (await exactStatus(ss)) === "ok" && decideSourceToIndex(STONES, ss, null).classification === "missing_index");
 
   // Real + sıfır-kanıt: HER İKİSİ skipped (parite tam).
   const zz = stoneRowNoEvidence(T1, uid());

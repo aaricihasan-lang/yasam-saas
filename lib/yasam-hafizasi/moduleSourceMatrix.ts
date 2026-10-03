@@ -102,6 +102,31 @@ export const YH_MODULE_SOURCE_MATRIX = [
     activationPrerequisite: "Coverage Completion CDC trigger + yh_source_activation_set (default OFF; ayrı production onayı).",
   },
   {
+    moduleKey: "beslenme",
+    label: "Beslenme",
+    classification: "PROFESSIONAL_ONLY",
+    professionalSourceKeys: ["beslenme:foods", "beslenme:topics", "beslenme:templates"],
+    clientSourceKeys: [],
+    allow: [
+      "tenant'a ait besin (ad, alias, grup, hazırlık, geleneksel nitelik, açıklama/not, porsiyon etiketi, kaynak)",
+      "konu (başlık, tür, çerçeve, özet, bölümler, bağlı besin + ilişki/gerekçe, kaynak)",
+      "şablon (başlık, tür, öğün tipleri/etiketleri, besin adları, porsiyon etiketleri, üst not)",
+    ],
+    deny: [
+      "SYSTEM katalog besinleri (ortak katalog)",
+      "besin değeri / gram / enerji sayıları",
+      "şablon öğün/öğe notları (plandan kopya)",
+      "planlar + plan-danışan bağı",
+      "nutrition_client_* (profil/ölçüm/alerji/tercih)",
+      "global sözlükler, formüller, challenge tabloları",
+    ],
+    rationale:
+      "Ortak/merkezî kütüphane YOK: yalnız uzmanın kendi tenant'ındaki besin (fork dahil), konu ve " +
+      "şablonları aggregate doküman olarak indekslenir. Danışana bağlı plan ve nutrition_client_* " +
+      "verileri Mesleki Hafıza'ya GİRMEZ (gelecekte Danışan Hafızası ayrı kapsamdır).",
+    activationPrerequisite: "M2 Beslenme CDC (20271004000100) + M3 aktivasyon (20271004000200) + tarihsel replay.",
+  },
+  {
     moduleKey: "refleksoloji",
     label: "Refleksoloji",
     classification: "PROFESSIONAL_ONLY",

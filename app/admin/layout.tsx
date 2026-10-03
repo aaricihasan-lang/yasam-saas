@@ -43,6 +43,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <Link href="/admin/magaza" className="font-semibold text-emerald-700 hover:underline">
           Doğal Pazar
         </Link>
+        <Link href="/admin/yasam-hafizasi" className="font-semibold text-sky-700 hover:underline">
+          Yaşam Hafızası Kapsamı
+        </Link>
       </nav>
       {children}
     </>

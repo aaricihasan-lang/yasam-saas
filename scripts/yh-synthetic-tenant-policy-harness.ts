@@ -10,6 +10,7 @@ import * as path from "node:path";
 
 import {
   ADMIN_LIBRARY_TENANT_ID,
+  OWNER_TENANT_ID,
   SYNTHETIC_TENANT_IDS,
   isSyntheticTenantId,
 } from "../lib/tenancy/syntheticTenants";
@@ -27,14 +28,15 @@ function check(name: string, cond: boolean): void {
 const EXPECTED_UUID = "aa8b960b-f4f1-4e5b-89f5-109bc030c147";
 const REAL_TENANT = "11111111-1111-1111-1111-111111111111";
 
-// ═══ A — Sabit ve liste sözleşmesi ═══════════════════════════════════════════
-check("1 ADMIN_LIBRARY_TENANT_ID birebir aynı UUID", ADMIN_LIBRARY_TENANT_ID === EXPECTED_UUID);
-check("2 SYNTHETIC_TENANT_IDS admin-library içerir", SYNTHETIC_TENANT_IDS.includes(ADMIN_LIBRARY_TENANT_ID));
-check("3 SYNTHETIC_TENANT_IDS şimdilik tek eleman", SYNTHETIC_TENANT_IDS.length === 1);
+// ═══ A — Sabit ve liste sözleşmesi (satış öncesi 2026-10: owner tenant GERÇEK uzman tenant'ı) ═══
+check("1 OWNER_TENANT_ID birebir aynı UUID", OWNER_TENANT_ID === EXPECTED_UUID);
+check("1b ADMIN_LIBRARY_TENANT_ID = OWNER_TENANT_ID (geçici takma ad)", ADMIN_LIBRARY_TENANT_ID === OWNER_TENANT_ID);
+check("2 SYNTHETIC_TENANT_IDS owner tenant'ı İÇERMEZ", !SYNTHETIC_TENANT_IDS.includes(OWNER_TENANT_ID));
+check("3 SYNTHETIC_TENANT_IDS bugün BOŞ (mekanizma korunur)", SYNTHETIC_TENANT_IDS.length === 0);
 check("4 liste readonly tip (derleme) + Array.isArray", Array.isArray(SYNTHETIC_TENANT_IDS));
 
 // ═══ B — isSyntheticTenantId davranışı ═══════════════════════════════════════
-check("5 ADMIN_LIBRARY_TENANT_ID → true", isSyntheticTenantId(ADMIN_LIBRARY_TENANT_ID) === true);
+check("5 OWNER_TENANT_ID → false (gerçek owner/uzman tenant'ı)", isSyntheticTenantId(OWNER_TENANT_ID) === false);
 check("6 gerçek tenant UUID → false", isSyntheticTenantId(REAL_TENANT) === false);
 check("7 null (shared) → false", isSyntheticTenantId(null) === false);
 check("8 boş string → false (belirsiz kimlik sentetik SAYILMAZ)", isSyntheticTenantId("") === false);
@@ -47,7 +49,7 @@ const root = path.join(__dirname, "..");
 const tenancySrc = readFileSync(path.join(root, "lib", "tenancy", "syntheticTenants.ts"), "utf8");
 const sessionSrc = readFileSync(path.join(root, "lib", "auth", "sessionTenant.ts"), "utf8");
 
-check("11 UUID tanımı tenancy modülünde", tenancySrc.includes(EXPECTED_UUID));
+check("11 UUID tanımı tenancy modülünde (OWNER_TENANT_ID)", tenancySrc.includes(`OWNER_TENANT_ID = "${EXPECTED_UUID}"`));
 check("12 tenancy modülünün import'u YOK (saf/dependency-free)", !/^\s*import\s/m.test(tenancySrc));
 check("13 sessionTenant UUID literalini KOPYALAMAZ", !sessionSrc.includes(EXPECTED_UUID));
 check("14 sessionTenant tenancy modülünden re-export eder",
@@ -56,6 +58,6 @@ check("14 sessionTenant tenancy modülünden re-export eder",
 console.log("");
 console.log("S2.19-BF/BF-1B-FIX sentetik tenant policy harness — saf; AĞ/DB/production YOK.");
 console.log(`CHECK: ${passed} kontrol OK, ${failed} FAIL.`);
-console.log("- sabit birebir UUID; readonly liste; exact-match (null/boş/case/trim varyantları sentetik DEĞİL)");
+console.log("- owner tenant gerçek uzman tenant'ı (sentetik DEĞİL); liste boş; exact-match mekanizma korunur");
 console.log("- tek-kaynak: UUID yalnız lib/tenancy/syntheticTenants.ts'te; sessionTenant re-export, literal kopya yok");
 if (failed > 0) process.exitCode = 1;

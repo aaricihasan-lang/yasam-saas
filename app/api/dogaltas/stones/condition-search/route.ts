@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { stoneReadTenantIds } from "@/lib/dogaltas/stoneTenantScope";
-import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 import { STONES_LIST_EXTENDED_SELECT } from "@/lib/dogaltas/stonesListFetch";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import {
@@ -46,7 +45,6 @@ const RESULT_CAP = 500;
 const tenantIdsFor = stoneReadTenantIds;
 
 async function exclusionIds(db: SupabaseClient, tenantId: string): Promise<Set<string>> {
-  if (tenantId === ADMIN_LIBRARY_TENANT_ID) return new Set();
   const res = await fetchAllRows<{ stone_id: unknown }>((from, to) =>
     db.from("stone_exclusions").select("stone_id").eq("tenant_id", tenantId)
       .order("stone_id", { ascending: true }).range(from, to),

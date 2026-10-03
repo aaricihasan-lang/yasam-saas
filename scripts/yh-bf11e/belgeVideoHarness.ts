@@ -96,11 +96,12 @@ async function run(): Promise<void> {
 {
   // Professional Cohort: registry 27→30 (+3 aroma); live 19→22 (+3 aroma; numeroloji enabled:false KORUNDU);
   // dormant enabled:false 8 (2 numeroloji + 6 yebs) DEĞİŞMEDİ; matris 33→36.
-  add("C-professional-registry-30", YH_INDEX_SOURCES.length === 36, String(YH_INDEX_SOURCES.length));
-  add("C-live-professional-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 28);
+  // Satış öncesi (2026-10): +3 Beslenme aggregate kaynağı → registry 39 / live 31 / matris 45 / aile 10.
+  add("C-professional-registry-30", YH_INDEX_SOURCES.length === 39, String(YH_INDEX_SOURCES.length));
+  add("C-live-professional-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 31);
   add("C-dormant-professional-8", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 8, String(YH_INDEX_SOURCES.filter((s) => s.enabled === false).length));
-  add("C-activation-matrix-36", YH_ACTIVATION_MATRIX.length === 42, String(YH_ACTIVATION_MATRIX.length));
-  add("C-family-modules-8", (YH_SOURCE_MODULES as readonly string[]).length === 9, String((YH_SOURCE_MODULES as readonly string[]).length));
+  add("C-activation-matrix-36", YH_ACTIVATION_MATRIX.length === 45, String(YH_ACTIVATION_MATRIX.length));
+  add("C-family-modules-8", (YH_SOURCE_MODULES as readonly string[]).length === 10, String((YH_SOURCE_MODULES as readonly string[]).length));
 }
 
 // ═══ D) NO QUERY/SEARCH/FILTER/RECONCILE/CDC SOURCE PATH ═══
@@ -149,7 +150,7 @@ async function run(): Promise<void> {
 
 // ═══ G) KEEP_LIVE / PERSONAL ARCHIVE / OTHER SOURCES UNCHANGED ═══
 {
-  add("G-live-professional-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 28);
+  add("G-live-professional-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 31);
   // Personal Archive BF-11E ROW-GATED CONTROLLED'a graduate (safe-non-pii + requiresRowEligibilityGate).
   const arc = YH_INDEX_SOURCES.find((s) => s.sourceKey === "kisisel_arsiv:archives") as SourceConfig | undefined;
   add("G-personal-archive-row-gated", arc?.classification === "safe-non-pii" && arc?.requiresRowEligibilityGate === true && arc?.enabled === true);

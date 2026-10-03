@@ -19,6 +19,19 @@
  *   - Ham Supabase/DB mesajı DIŞARI TAŞINMAZ; yalnız sabit kod + güvenli sayısal meta.
  */
 
+import {
+  BESLENME_FOODS_SOURCE_KEY,
+  BESLENME_PARENT_SELECT_COLUMNS,
+  BESLENME_READ_COLUMNS,
+  BESLENME_SOURCE_KEYS,
+  BESLENME_TABLES,
+  BESLENME_TEMPLATES_SOURCE_KEY,
+  BESLENME_TOPICS_SOURCE_KEY,
+  composeBeslenmeFoodRow,
+  composeBeslenmeTemplateRow,
+  composeBeslenmeTopicRow,
+  isBeslenmeParentIndexable,
+} from "./beslenmeSource";
 import { isSyntheticTenantId } from "../../tenancy/syntheticTenants";
 import { YH_TABLES } from "../config";
 import type { BuiltIndexUnit } from "./buildCandidate";
@@ -113,6 +126,8 @@ export function sourceSelectColumns(config: SourceConfig): string[] {
   // IO katmanında (readMethodSeriesExact) çözülür. Böylece reconcile-scan/smoke gibi generic
   // çağrılar da geçerli bir SELECT üretir (var olmayan kolon hatası olmaz).
   if (config.sourceKey === METHOD_SOURCE_KEY) return [...METHOD_SERIES_SELECT_COLUMNS];
+  // Beslenme aggregate — config kolonları SENTETİK; generic select yalnız gerçek ebeveyn kolonları.
+  if (BESLENME_SOURCE_KEYS.includes(config.sourceKey)) return [...BESLENME_PARENT_SELECT_COLUMNS];
 
   const cols = new Set<string>();
   cols.add(config.primaryKey);
@@ -130,7 +145,107 @@ export function sourceSelectColumns(config: SourceConfig): string[] {
   for (const c of config.relationColumns) cols.add(c);
   if (config.updatedAtColumn !== null) cols.add(config.updatedAtColumn);
   if (config.activeColumn !== null) cols.add(config.activeColumn);
+  for (const c of config.extraSelectColumns ?? []) cols.add(c);
+  // Türetilmiş anahtarlar DB kolonu DEĞİLDİR → select'e girmez (enrichSourceRows doldurur).
+  for (const c of config.derivedColumns ?? []) cols.delete(c);
   return [...cols];
+}
+
+// ─── Satır zenginleştirme (türetilmiş anahtarlar; IO) ─────────────────────────
+// Tablo/kolon adları STATİK; kullanıcı girdisi yok. Ebeveyn okuması tenant'a göre DOĞRULANIR
+// (başka tenant'ın ebeveyn adı asla başlığa girmez).
+
+const CHAKRA_SECTION_LABELS: Readonly<Record<string, string>> = {
+  "genel-bakis": "Genel Bakış",
+  "enerji-anatomisi": "Enerji Anatomisi",
+  "nedenler-blokajlar": "Nedenler & Blokajlar",
+  "beden-sistem": "Beden & Sistem",
+  "duygusal-zihinsel": "Duygusal & Zihinsel",
+  "uygulamalar": "Uygulamalar",
+  "taslar-destekleyiciler": "Taşlar & Destekleyiciler",
+  "notlar-kaynaklar": "Notlar & Kaynaklar",
+};
+
+/** Referans satırı `cells` ({"0":"…","1":"…"} veya dizi) → ilk anlamlı (boş olmayan metin) hücre. */
+export function firstMeaningfulCell(cells: unknown): string | null {
+  const values: unknown[] = Array.isArray(cells)
+    ? cells
+    : typeof cells === "object" && cells !== null
+      ? Object.keys(cells as Record<string, unknown>)
+          .sort((a, b) => Number(a) - Number(b))
+          .map((k) => (cells as Record<string, unknown>)[k])
+      : [];
+  for (const v of values) {
+    if (typeof v === "string" && v.trim().length > 0) return v.trim().slice(0, 160);
+  }
+  return null;
+}
+
+async function readIdNameMap(
+  db: IndexDbClient,
+  table: string,
+  nameColumn: string,
+  ids: readonly string[],
+): Promise<Map<string, { name: string | null; tenant: string | null }>> {
+  const map = new Map<string, { name: string | null; tenant: string | null }>();
+  for (const c of chunk([...new Set(ids)], PARENT_CHUNK_SIZE)) {
+    const { data, error } = await db.from(table).select(`id,tenant_id,${nameColumn}`).in("id", c);
+    if (error) throw new Error("enrich-read-failed"); // ham mesaj taşınmaz
+    for (const row of data ?? []) {
+      const id = row["id"];
+      if (typeof id !== "string") continue;
+      const name = row[nameColumn];
+      const tenant = row["tenant_id"];
+      map.set(id, {
+        name: typeof name === "string" && name.trim().length > 0 ? name.trim() : null,
+        tenant: typeof tenant === "string" ? tenant : null,
+      });
+    }
+  }
+  return map;
+}
+
+/** Okunan satırlara türetilmiş anahtarları ekler (yalnız derivedColumns tanımlı kaynaklar). */
+export async function enrichSourceRows(
+  db: IndexDbClient,
+  config: SourceConfig,
+  rows: DbRow[],
+): Promise<DbRow[]> {
+  if (rows.length === 0 || !config.derivedColumns || config.derivedColumns.length === 0) return rows;
+
+  if (config.sourceKey === "biyoenerji:chakra-blocks") {
+    const ids = rows.map((r) => r["chakra_id"]).filter((v): v is string => typeof v === "string");
+    const chakras = ids.length > 0 ? await readIdNameMap(db, "bioenergy_chakras", "name", ids) : new Map();
+    return rows.map((r) => {
+      const key = r["section_key"];
+      const section = typeof key === "string" ? (CHAKRA_SECTION_LABELS[key] ?? null) : null;
+      const cid = r["chakra_id"];
+      const parent = typeof cid === "string" ? chakras.get(cid) : undefined;
+      const chakraName = parent && parent.tenant === r["tenant_id"] ? parent.name : null;
+      const fallback = [chakraName, section].filter((x): x is string => typeof x === "string").join(" · ");
+      return { ...r, title_fallback: fallback.length > 0 ? fallback : null };
+    });
+  }
+
+  if (config.sourceKey === "aromaterapi:reference-rows") {
+    const ids = rows.map((r) => r["sheet_id"]).filter((v): v is string => typeof v === "string");
+    const sheets = ids.length > 0
+      ? await readIdNameMap(db, "aromatherapy_reference_sheets", "display_title", ids)
+      : new Map();
+    return rows.map((r) => {
+      const sid = r["sheet_id"];
+      const sheet = typeof sid === "string" ? sheets.get(sid) : undefined;
+      const first = firstMeaningfulCell(r["cells"]);
+      const title = [sheet?.name ?? null, first].filter((x): x is string => typeof x === "string").join(" · ");
+      return {
+        ...r,
+        row_title: title.length > 0 ? title : null,
+        row_kind: r["is_header"] === true ? "header" : "data",
+      };
+    });
+  }
+
+  return rows;
 }
 
 // ─── aromaterapi:method — SERİ-KİMLİKLİ verified-revizyon çözümleyici (IO) ─────
@@ -200,6 +315,119 @@ async function readMethodSeriesExact(
   return { rows: [composeMethodSyntheticRow({ series, verifiedRevision, preparation, taxon })] };
 }
 
+// ─── Beslenme aggregate — ebeveyn + çocuklar → sentetik satır (IO) ────────────
+// Her çocuk/ilişki okuması ebeveynin tenant'ına EŞİTLİKLE daraltılır (başka tenant verisi asla
+// karışmaz). SYSTEM / pasif / bulunamayan ebeveyn → 0 satır → not-found → defensive deindex.
+// NOT ve SAYI kolonları select'e hiç girmez (beslenmeSource READ allowlist'leri).
+async function readBeslenmeExact(
+  db: IndexDbClient,
+  sourceKey: string,
+  sourceId: string,
+): Promise<{ readonly rows: DbRow[] }> {
+  const T = BESLENME_TABLES;
+  const C = BESLENME_READ_COLUMNS;
+  const one = async (table: string, cols: readonly string[], id: string): Promise<DbRow[]> => {
+    const res = await db.from(table).select(cols.join(",")).eq("id", id).limit(2);
+    if (res.error) throw new Error("source-read-failed");
+    return (res.data ?? []).map((r) => ({ ...r }));
+  };
+  const children = async (
+    table: string, cols: readonly string[], fk: string, id: string, tenant: string, limit: number,
+  ): Promise<DbRow[]> => {
+    const res = await db.from(table).select(cols.join(",")).eq(fk, id).eq("tenant_id", tenant).limit(limit);
+    if (res.error) throw new Error("source-read-failed");
+    return (res.data ?? []).map((r) => ({ ...r }));
+  };
+  const byIds = async (
+    table: string, cols: readonly string[], ids: readonly string[], tenant: string | null,
+  ): Promise<DbRow[]> => {
+    const uniqIds = [...new Set(ids)];
+    if (uniqIds.length === 0) return [];
+    const out: DbRow[] = [];
+    for (const c of chunk(uniqIds, PARENT_CHUNK_SIZE)) {
+      let q = db.from(table).select(cols.join(",")).in("id", c);
+      if (tenant !== null) q = q.eq("tenant_id", tenant);
+      const res = await q;
+      if (res.error) throw new Error("source-read-failed");
+      for (const r of res.data ?? []) out.push({ ...r });
+    }
+    return out;
+  };
+  const nameOf = async (table: string, id: unknown): Promise<string | null> => {
+    if (typeof id !== "string" || id.length === 0) return null;
+    const rows = await byIds(table, ["id", "name_tr"], [id], null); // global sözlük (tenant yok)
+    const n = rows[0]?.["name_tr"];
+    return typeof n === "string" ? n : null;
+  };
+  const sourcesMap = async (ids: readonly string[], tenant: string): Promise<Map<string, DbRow>> =>
+    new Map((await byIds(T.sources, C.sources, ids, tenant)).map((r) => [String(r["id"]), r]));
+
+  if (sourceKey === BESLENME_FOODS_SOURCE_KEY) {
+    const parents = await one(T.foods, C.foods, sourceId);
+    if (parents.length > 1) return { rows: parents };
+    const food = parents[0];
+    if (!isBeslenmeParentIndexable(food)) return { rows: [] };
+    const tenant = String(food["tenant_id"]);
+    const portions = await children(T.portions, C.portions, "food_id", sourceId, tenant, 50);
+    const trad = (await children(T.traditional, C.traditional, "food_id", sourceId, tenant, 1))[0] ?? null;
+    const links = await children(T.foodSources, C.foodSources, "food_id", sourceId, tenant, 50);
+    return {
+      rows: [composeBeslenmeFoodRow({
+        food,
+        groupName: await nameOf(T.foodGroups, food["food_group_id"]),
+        portions,
+        traditional: trad,
+        frameworkName: trad ? await nameOf(T.frameworks, trad["framework_id"]) : null,
+        foodSources: links,
+        sourcesById: await sourcesMap(links.map((l) => String(l["source_id"])), tenant),
+      })],
+    };
+  }
+
+  if (sourceKey === BESLENME_TOPICS_SOURCE_KEY) {
+    const parents = await one(T.topics, C.topics, sourceId);
+    if (parents.length > 1) return { rows: parents };
+    const topic = parents[0];
+    if (!isBeslenmeParentIndexable(topic)) return { rows: [] };
+    const tenant = String(topic["tenant_id"]);
+    const sections = await children(T.sections, C.sections, "topic_id", sourceId, tenant, 100);
+    const tf = await children(T.topicFoods, C.topicFoods, "topic_id", sourceId, tenant, 200);
+    const foods = await byIds(T.foods, ["id", "name_tr", "is_active"], tf.map((r) => String(r["food_id"])), tenant);
+    const foodNamesById = new Map<string, string>();
+    for (const f of foods) {
+      if (f["is_active"] !== false && typeof f["name_tr"] === "string") foodNamesById.set(String(f["id"]), f["name_tr"] as string);
+    }
+    const links = await children(T.topicSources, C.topicSources, "topic_id", sourceId, tenant, 50);
+    return {
+      rows: [composeBeslenmeTopicRow({
+        topic,
+        frameworkName: await nameOf(T.frameworks, topic["framework_id"]),
+        sections,
+        topicFoods: tf,
+        foodNamesById,
+        topicSources: links,
+        sourcesById: await sourcesMap(links.map((l) => String(l["source_id"])), tenant),
+      })],
+    };
+  }
+
+  if (sourceKey === BESLENME_TEMPLATES_SOURCE_KEY) {
+    const parents = await one(T.templates, C.templates, sourceId);
+    if (parents.length > 1) return { rows: parents };
+    const template = parents[0];
+    if (!isBeslenmeParentIndexable(template)) return { rows: [] };
+    const tenant = String(template["tenant_id"]);
+    return {
+      rows: [composeBeslenmeTemplateRow({
+        template,
+        meals: await children(T.templateMeals, C.templateMeals, "template_id", sourceId, tenant, 50),
+        items: await children(T.templateItems, C.templateItems, "template_id", sourceId, tenant, 300),
+      })],
+    };
+  }
+  return { rows: [] };
+}
+
 // ─── SourceReader (gerçek) ────────────────────────────────────────────────────
 export function createSupabaseSourceReader(db: IndexDbClient): SourceReader {
   return {
@@ -207,6 +435,8 @@ export function createSupabaseSourceReader(db: IndexDbClient): SourceReader {
       // aromaterapi:method broad/tenant-scoped SAYFA DESTEKLEMEZ (yalnız event-driven exact).
       // Boş sayfa → backfill/broad yolları 0 unit üretir (kör backfill zaten YASAK; fail-closed).
       if (config.sourceKey === METHOD_SOURCE_KEY) return { rows: [] };
+      // Beslenme aggregate: sayfa/backfill YOK (tarihsel kayıtlar outbox replay ile exact yoldan gelir).
+      if (BESLENME_SOURCE_KEYS.includes(config.sourceKey)) return { rows: [] };
       const columns = sourceSelectColumns(config).join(",");
       let q = db
         .from(config.tableName)
@@ -223,7 +453,7 @@ export function createSupabaseSourceReader(db: IndexDbClient): SourceReader {
       const { data, error } = await q;
       if (error) throw new Error("source-read-failed"); // ham mesaj taşınmaz
       const rows = (data ?? []).map((r) => ({ ...r })); // shallow clone → saf çekirdek
-      return { rows };
+      return { rows: await enrichSourceRows(db, config, rows) };
     },
 
     // BF-2B exact-write gate: primary key EŞİTLİĞİ (`.eq(pk, sourceId)`); cursor/limit
@@ -232,6 +462,7 @@ export function createSupabaseSourceReader(db: IndexDbClient): SourceReader {
     readExactRecord: async ({ config, sourceId }) => {
       // aromaterapi:method — seri-kimlikli verified revizyon çözümleyici (yukarıdaki helper).
       if (config.sourceKey === METHOD_SOURCE_KEY) return readMethodSeriesExact(db, sourceId);
+      if (BESLENME_SOURCE_KEYS.includes(config.sourceKey)) return readBeslenmeExact(db, config.sourceKey, sourceId);
       const columns = sourceSelectColumns(config).join(",");
       let q = db
         .from(config.tableName)
@@ -243,7 +474,7 @@ export function createSupabaseSourceReader(db: IndexDbClient): SourceReader {
       const { data, error } = await q;
       if (error) throw new Error("source-read-failed"); // ham mesaj taşınmaz
       const rows = (data ?? []).map((r) => ({ ...r })); // shallow clone → saf çekirdek
-      return { rows };
+      return { rows: await enrichSourceRows(db, config, rows) };
     },
   };
 }

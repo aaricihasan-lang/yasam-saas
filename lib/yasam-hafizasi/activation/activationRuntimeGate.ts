@@ -64,7 +64,10 @@ export async function readSourceActivation(
     .select("is_active, backfill_allowed")
     .eq("source_key", sourceKey)
     .maybeSingle();
-  if (error || !data) return null;
+  // DB/transport hatası "inactive" DEĞİLDİR: yutulursa olay `inactive-source-noop` ile kalıcı
+  // düşer (silme kaybı). Hata YUKARI fırlar → processor transient → DB backoff ile yeniden dener.
+  if (error) throw new Error("activation-read-failed");
+  if (!data) return null; // satır yok = gerçek inactive (apply-safe default)
   const row = data as unknown as { is_active?: unknown; backfill_allowed?: unknown };
   return {
     isActive: row.is_active === true,

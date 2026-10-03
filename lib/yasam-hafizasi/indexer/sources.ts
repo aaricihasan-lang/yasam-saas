@@ -152,6 +152,14 @@ export interface SourceConfig {
    * listelenen capability için ilgili worker kapısı geçebilir; aksi FAIL-CLOSED (bkz. WorkerCapability).
    */
   readonly workerCapabilities?: readonly WorkerCapability[];
+  /**
+   * TÜRETİLMİŞ (sentetik) satır anahtarları: DB'den SEÇİLMEZ; IO adapter'ı okuma sonrası doldurur
+   * (bkz. supabaseIndexAdapters `enrichSourceRows`). Örn. çakra bloğu başlık yedeği (çakra adı +
+   * bölüm), referans satırı başlığı (sayfa adı + ilk hücre) / satır türü (başlık satırı hariç).
+   */
+  readonly derivedColumns?: readonly string[];
+  /** Zenginleştirme için ek GERÇEK kolonlar (select'e eklenir; dokümana kendi başına girmez). */
+  readonly extraSelectColumns?: readonly string[];
   /** Kaynak indekslemeye açık mı. */
   readonly enabled: boolean;
 }
@@ -303,7 +311,8 @@ export const YH_INDEX_SOURCES = [
     primaryKey: "id",
     unit: "record",
     tenant: { mode: "column", column: "tenant_id" },
-    titleColumns: ["title"],
+    // title boş olabilir → sembol adı başlık yedeği (ilk dolu kolon kart başlığıdır).
+    titleColumns: ["title", "symbol"],
     searchTextColumns: ["symbol", "meaning", "source"],
     snippetColumns: ["meaning"],
     topicTagsColumns: ["category"],
@@ -450,7 +459,9 @@ export const YH_INDEX_SOURCES = [
     tableName: "stone_knowledge_articles",
     primaryKey: "id",
     unit: "record",
-    tenant: { mode: "column", column: "tenant_id", allowSharedNull: true },
+    // Ortak/merkezî kütüphane YOK: yalnız tenant'a ait satırlar indexlenir; tenant_id NULL (eski
+    // global) satırlar Mesleki Hafıza'ya GİRMEZ (trigger NULL'u enqueue etmez; worker shared-excluded).
+    tenant: { mode: "column", column: "tenant_id" },
     titleColumns: ["title"],
     searchTextColumns: ["content", "keyword", "notes", "source", "source_section"],
     snippetColumns: ["content", "keyword"],
@@ -458,8 +469,6 @@ export const YH_INDEX_SOURCES = [
     relationColumns: ["related_stones", "related_minerals"],
     updatedAtColumn: "updated_at",
     activeColumn: "is_active",
-    // Worker-v2: shared professional (tenant_id NULL = paylaşımlı taş bilgi kütüphanesi).
-    workerCapabilities: ["shared-optional-professional"],
     enabled: true,
   },
   {
@@ -490,7 +499,8 @@ export const YH_INDEX_SOURCES = [
     tableName: "aromatherapy_oils",
     primaryKey: "id",
     unit: "record",
-    tenant: { mode: "column", column: "tenant_id", allowSharedNull: true },
+    // Yalnız tenant'a ait yağlar; tenant_id NULL canonical havuz Mesleki Hafıza'ya GİRMEZ.
+    tenant: { mode: "column", column: "tenant_id" },
     titleColumns: ["name"],
     searchTextColumns: [
       "latin_name",
@@ -517,8 +527,6 @@ export const YH_INDEX_SOURCES = [
     relationColumns: ["blends_well_with"],
     updatedAtColumn: "updated_at",
     activeColumn: "is_active",
-    // Worker-v2: shared professional (tenant_id NULL = paylaşımlı yağ kütüphanesi).
-    workerCapabilities: ["shared-optional-professional"],
     enabled: true,
   },
   {
@@ -529,7 +537,8 @@ export const YH_INDEX_SOURCES = [
     tableName: "aromatherapy_reference_sheets",
     primaryKey: "id",
     unit: "record",
-    tenant: { mode: "column", column: "tenant_id", allowSharedNull: true },
+    // Yalnız tenant'a ait sheet'ler; tenant_id NULL canonical (Excel import) sheet'ler GİRMEZ.
+    tenant: { mode: "column", column: "tenant_id" },
     titleColumns: ["display_title"],
     searchTextColumns: ["sheet_name", "display_title"],
     snippetColumns: ["display_title"],
@@ -537,8 +546,6 @@ export const YH_INDEX_SOURCES = [
     relationColumns: [],
     updatedAtColumn: "updated_at",
     activeColumn: "is_active",
-    // Worker-v2: shared professional (tenant_id NULL = paylaşımlı referans sheet); reference-rows parent'ı.
-    workerCapabilities: ["shared-optional-professional"],
     enabled: true,
   },
   {
@@ -554,18 +561,24 @@ export const YH_INDEX_SOURCES = [
       fkColumn: "sheet_id",
       parentTable: "aromatherapy_reference_sheets",
       parentTenantColumn: "tenant_id",
-      allowSharedNull: true, // parent sheet tenant NULL ise shared miras alınır
       parentActiveColumn: "is_active", // Worker-v2: parent sheet is_active=false → child current-state DIŞI
     },
-    titleColumns: [], // başlık cells JSONB'den türetilir → builder
+    // Başlık = sayfa adı + ilk anlamlı hücre (IO zenginleştirme; türetilmiş anahtar).
+    titleColumns: ["row_title"],
     searchTextColumns: ["cells"], // jsonb; hücre metni çıkarımı builder'da
     snippetColumns: [], // snippet cells JSONB'den türetilir → builder
     topicTagsColumns: [],
     relationColumns: [],
     updatedAtColumn: null, // yalnız created_at var → content_hash
     activeColumn: null,
-    // Worker-v2: parent (reference-sheets) türevi scope + shared-optional (parent sheet NULL→shared) + parent-side capture.
-    workerCapabilities: ["shared-optional-professional", "parent-derived-scope"],
+    // Başlık satırları (is_header=true) aranabilir içerik DEĞİLDİR → türetilmiş row_kind ile dışlanır.
+    ineligibleStatusColumn: "row_kind",
+    ineligibleStatuses: ["header"],
+    derivedColumns: ["row_title", "row_kind"],
+    extraSelectColumns: ["is_header"],
+    // Worker-v2: parent (reference-sheets) türevi scope + parent-side capture. Parent sheet tenant
+    // NULL (canonical) → satır Mesleki Hafıza'ya GİRMEZ (trigger enqueue etmez; worker shared-excluded).
+    workerCapabilities: ["parent-derived-scope"],
     enabled: true,
   },
   {
@@ -1009,7 +1022,8 @@ export const YH_INDEX_SOURCES = [
     primaryKey: "id",
     unit: "record",
     tenant: { mode: "column", column: "tenant_id" },
-    titleColumns: ["block_title"],
+    // block_title boşsa başlık = "<çakra adı> · <bölüm>" (IO zenginleştirme; türetilmiş anahtar).
+    titleColumns: ["block_title", "title_fallback"],
     searchTextColumns: [
       "source_excerpt",
       "source_translation",
@@ -1029,6 +1043,65 @@ export const YH_INDEX_SOURCES = [
     // Görünürlük = UI isVisibleChakraBlock: source-evidence blokları içerik olarak GÖSTERİLMEZ → aranmaz.
     ineligibleStatusColumn: "block_type",
     ineligibleStatuses: ["source-evidence"],
+    derivedColumns: ["title_fallback"],
+    extraSelectColumns: ["chakra_id", "section_key"],
+    enabled: true,
+  },
+
+  // ── Beslenme (satış öncesi nihai kapsam, 2026-10) — YALNIZ 3 AGGREGATE kaynak ──
+  //   Kolon adları SENTETİK satır anahtarlarıdır (lib/yasam-hafizasi/indexer/beslenmeSource.ts
+  //   composer'ı kurar; IO: supabaseIndexAdapters.readBeslenmeExact). SYSTEM tenant / pasif kayıt
+  //   → 0 satır → not-found → deindex. Besin değeri sayıları, şablon öğün/öğe NOTLARI, planlar ve
+  //   danışan tabloları ASLA okunmaz. Sayfa/backfill yok: tarihsel kayıtlar outbox replay ile gelir.
+  {
+    sourceKey: "beslenme:foods",
+    classification: "safe-non-pii", // uzmanın kendi besin kaydı (fork dahil); client_id yok
+    sourceFamily: "beslenme",
+    tableName: "nutrition_foods",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["name_tr"],
+    searchTextColumns: ["description", "notes", "traditional_text", "portion_labels", "source_text"],
+    snippetColumns: ["description", "notes"],
+    topicTagsColumns: ["group_name", "prep_label", "traditional_tags", "fork_tag"],
+    relationColumns: ["name_en", "aliases", "source_titles"],
+    updatedAtColumn: "updated_at",
+    activeColumn: null, // pasif/SYSTEM eleme IO katmanında (satır döndürülmez → deindex)
+    enabled: true,
+  },
+  {
+    sourceKey: "beslenme:topics",
+    classification: "safe-non-pii", // uzman bilgi konusu (bölüm + besin bağı + kaynak)
+    sourceFamily: "beslenme",
+    tableName: "nutrition_topics",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["title"],
+    searchTextColumns: ["summary", "sections_text", "food_rationale", "source_text"],
+    snippetColumns: ["summary", "sections_text"],
+    topicTagsColumns: ["topic_type_label", "framework_name"],
+    relationColumns: ["food_relations", "source_titles"],
+    updatedAtColumn: "updated_at",
+    activeColumn: null,
+    enabled: true,
+  },
+  {
+    sourceKey: "beslenme:templates",
+    classification: "safe-non-pii", // yeniden kullanılabilir şablon; öğün/öğe notları HARİÇ
+    sourceFamily: "beslenme",
+    tableName: "nutrition_templates",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["title"],
+    searchTextColumns: ["note", "meal_labels", "portion_labels"],
+    snippetColumns: ["note", "meal_labels"],
+    topicTagsColumns: ["template_type_label", "meal_types"],
+    relationColumns: ["food_names"],
+    updatedAtColumn: "updated_at",
+    activeColumn: null,
     enabled: true,
   },
 ] as const satisfies readonly SourceConfig[];
