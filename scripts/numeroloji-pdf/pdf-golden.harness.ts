@@ -69,10 +69,15 @@ for (const code of DM_CODES) {
   const date = dateWithDigitSum(total);
   t(`hayatYolu_total${total}_is_${code.replace("/", "_")}_per_pdf_k1_p83_153`, date ? calcHayatYolu(date).display : null, code);
 }
-// Kristal çocuk: toplam ≤ 11 → tek değer (10 ve 11 dahil)
-for (const total of [4, 7, 10, 11]) {
+// Kristal çocuk: toplam ≤ 11 → tek değer (kitap 1 s.51).
+// NİHAİ KULLANICI KARARI (2026-10-03): doğrudan toplam 10 → "10/1" (eski ürün sunumu); 11 → "11".
+for (const total of [4, 7, 11]) {
   const date = dateWithDigitSum(total);
   t(`hayatYolu_total${total}_single_value_per_pdf_k1_p51`, date ? calcHayatYolu(date).display : null, String(total));
+}
+{
+  const date = dateWithDigitSum(10);
+  t("hayatYolu_total10_is_10_1_per_user_decision_2026_10_03", date ? calcHayatYolu(date).display : null, "10/1");
 }
 t("hayatYolu_no_full_reduction_37_not_37_1_per_pdf_k1_p88", calcHayatYolu("19.02.1987").display, "37/10");
 
@@ -128,7 +133,9 @@ t("universalYear_2024_is_8_per_pdf_k1_p175", universalYear(2024).value, 8);
 t("universalYear_2025_is_9_per_pdf_k1_p175", universalYear(2025).value, 9);
 t("universalDay_23012024_is_5_per_pdf_k1_p176", universalDay(2024, 1, 23).value, 5);
 t("personalMonth_oct_counts_as_1_per_pdf_k1_p187", personalMonth("18.02.1987", { year: 2024, month: 10, day: 1 }).value, personalMonth("18.02.1987", { year: 2024, month: 1, day: 1 }).value);
-t("personalDay_1_plus_2_plus_5_is_8_per_pdf_k1_p190", personalDay("18.02.1987", { year: 2024, month: 1, day: 5 }).value, 8);
+// NİHAİ KULLANICI KARARI (2026-10-03): Kişisel Gün = Kişisel Ay + gün (Rafet s.94). Kitap 1 s.190'daki
+// KY + KA + gün zinciri (1 + 2 + 5 = 8) ARTIK BEKLENMEZ: KA 2 + gün 5 = 7.
+t("personalDay_KA2_plus_5_is_7_per_rafet_s94_user_decision", personalDay("18.02.1987", { year: 2024, month: 1, day: 5 }).value, 7);
 // DY ↔ Numeroloji parite: 2026 için tüm takvim (her ayın 1–28'i), 1950–2010
 {
   let mismatch = 0;

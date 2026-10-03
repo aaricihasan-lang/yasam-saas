@@ -115,14 +115,33 @@ const snapshotBefore = JSON.stringify(fullHarf);
   assert(vis2100.length >= vis.length, "ZIRVE-03 2100'de daha fazla/eşit zirve görünür (otomatik)");
 }
 
-// ── MÜCADELE (yaş-tabanlı): gelecekte başlayan gizli + ana mücadele görünürlüğü ──────
+// ── MÜCADELE (Kitap 2): yaşlar GEÇİŞ SINIRI; dönem bir önceki sınırda BAŞLAR (P2 düzeltmesi) ──
+// Owner kuralı aynı: BAŞLANGIÇ yılı ≤ currentYear → görünür. Önceki sürüm geçiş sınırını başlangıç
+// sanıp devam eden dönemi gizliyordu (HASAN 2026: yalnız 1. mücadele). Nihai karar 2026-10-03 (O).
 {
-  const m = cutoffMucadele(OUT.mucadeleYillari, 1987, CY)!;
-  assert(m.method1.every((it) => 1987 + it.age <= CY), "MUC-01 görünür mücadele dönemleri geçmişte/güncelde");
-  const full = OUT.mucadeleYillari!;
-  const futureExists = full.method1.some((it) => 1987 + it.age > CY);
-  if (futureExists) assert(m.method1.length < full.method1.length, "MUC-02 gelecekte başlayan mücadele gizli");
-  eq(m.anaMucadeleVisible, 1987 + full.anaMucadeleBaslangicYasi <= CY, "MUC-03 ana mücadele görünürlüğü = başlangıç yaşı geçmişte mi");
+  const m = cutoffMucadele(OUT.mucadeleYillari, 1987, 2026)!;
+  assert(m.format === "kitap2", "MUC-01 yeni hesap Kitap 2 formatında");
+  if (m.format === "kitap2") {
+    eq(m.periods.map((p) => p.index), [1, 2], "MUC-02 HASAN 2026: 1. ve DEVAM EDEN 2. mücadele görünür (3. 2047'de başlar → gizli)");
+    assert(m.periods.every((p) => 1987 + p.startAge <= 2026), "MUC-03 görünür dönemlerin BAŞLANGICI geçmişte/güncelde");
+    eq(m.ana, null, "MUC-04 ana mücadele (87 sonrası) henüz başlamadı → gizli");
+  }
+  const m2100 = cutoffMucadele(OUT.mucadeleYillari, 1987, 2100)!;
+  if (m2100.format === "kitap2") {
+    eq(m2100.periods.length, 3, "MUC-05 2100'de üç dönem de görünür (kod değişmeden)");
+    eq(m2100.ana?.startAge, 87, "MUC-06 2100'de ana mücadele (87 sonrası) görünür");
+  }
+  const txt = mucadeleBoundedText(OUT, 2026);
+  assert(txt.includes("1. Mücadele — 33 yaşına kadar") && txt.includes("2. Mücadele — sonraki 27 yıllık dönem; geçiş sınırı 60"),
+    "MUC-07 metin geçiş-sınırı diliyle (başlangıç sanılmaz)", txt);
+}
+
+// ── ZİRVE YAŞI: iki metot (nihai karar 2026-10-03, M) — her metot kendi yaşıyla süzülür ──
+{
+  const t2026 = zirveBoundedText(OUT, 2026);
+  assert(t2026.includes("Metot 1 — İlk Zirve Sayısına Göre") && t2026.includes("Metot 2 — Hayat Yoluna Göre"), "ZIRVE-04 iki metot nötr etiketlerle", t2026);
+  assert(t2026.includes("yaş 29") && t2026.includes("yaş 38") && t2026.includes("yaş 31") && !t2026.includes("yaş 40"),
+    "ZIRVE-05 HASAN 2026: Metot 1 29/38 · Metot 2 31 (40 = 2027 → gizli)", t2026);
 }
 
 // ── DEĞİŞİM (takvim yılı): BAŞLANGIÇ ≤ currentYear → TAM aralık; başlamamış gizli (KIRPMA YOK) ──
