@@ -945,6 +945,11 @@ function codeFromTables(): string[] {
     assert.ok(ui.slice(Math.max(0, idx - 200), idx).includes("outcome.complete"), "eksiksiz yalnız complete dalında");
     assert.ok(ui.includes("fotoğraf ve dosyalar dahil değildir"));
     assert.ok(ui.includes("Yalnız eksik kayıtlar eklenir; mevcut kayıtlar değiştirilmez veya silinmez"));
+    // SETTINGS-AUDIT: kullanıcı "yedek tarihine tam dönüş" sanmamalı; duplicate ve dosya kapsamı açık yazılı.
+    assert.ok(ui.includes("hesabınızı yedek tarihindeki hâline döndürmez"));
+    assert.ok(ui.includes("yedekten sonra eklediğiniz kayıtlar silinmez"));
+    assert.ok(ui.includes("kopya (çift) kayıt oluşturmaz"));
+    assert.ok(ui.includes("Fotoğraf ve dosyaların kendisi yedeğe dahil değildir"));
   });
 
   console.log(`backup.harness: ${pass} PASS / ${fail} FAIL`);

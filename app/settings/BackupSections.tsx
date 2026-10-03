@@ -487,11 +487,17 @@ export function RestoreTab({ user }: { user: YasamUser }) {
   return (
     <div className="w-full space-y-5">
       <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
-        <p className="text-xs font-semibold text-amber-700">
-          Yalnız eksik kayıtlar eklenir; mevcut kayıtlar değiştirilmez veya silinmez. İşlem tekrar çalıştırılabilir.
-          Hesabınızda aktif olmayan modüllerin kayıtları atlanır. Fotoğraf/dosyalar geri yüklenmez.
-          Desteklenen yedek sürümleri: 1.0, 2.0, 2.1, 3.0.
+        <p className="text-xs font-bold text-amber-800">
+          Geri Yükleme hesabınızı yedek tarihindeki hâline döndürmez.{" "}
+          Yalnız eksik kayıtlar eklenir; mevcut kayıtlar değiştirilmez veya silinmez.
         </p>
+        <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-xs font-semibold text-amber-700">
+          <li>Yedekte bulunup şu anda hesabınızda olmayan (ör. silinmiş) kayıtlar, orijinal kimlik ve tarihleriyle geri eklenir.</li>
+          <li>Yedekten sonra değiştirdiğiniz kayıtlar yedekteki hâline dönmez; yedekten sonra eklediğiniz kayıtlar silinmez.</li>
+          <li>Aynı yedeği tekrar yüklemek kopya (çift) kayıt oluşturmaz; işlem güvenle tekrar çalıştırılabilir.</li>
+          <li>Fotoğraf ve dosyaların kendisi yedeğe dahil değildir ve geri yüklenmez.</li>
+          <li>Hesabınızda aktif olmayan modüllerin kayıtları atlanır. Desteklenen yedek sürümleri: 1.0, 2.0, 2.1, 3.0.</li>
+        </ul>
       </div>
 
       <div>
@@ -544,7 +550,8 @@ export function RestoreTab({ user }: { user: YasamUser }) {
             className="mt-0.5 h-4 w-4 shrink-0 accent-amber-500"
           />
           <span className="text-xs font-semibold text-amber-800">
-            Onaylıyorum: yalnız eksik kayıtlar eklenecek; mevcut kayıtlarım değiştirilmeyecek veya silinmeyecek.
+            Onaylıyorum: yalnız eksik kayıtlar eklenecek; mevcut kayıtlarım değiştirilmeyecek veya silinmeyecek ve
+            hesabım yedek tarihindeki hâline dönmeyecek.
           </span>
         </label>
       )}
