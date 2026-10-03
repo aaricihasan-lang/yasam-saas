@@ -3,11 +3,13 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { pickWritableOilFields } from "@/lib/aromaterapi/oilFields";
 import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
+import { isValidExpectedUpdatedAt } from "@/lib/aromaterapi/service/writeValidation";
 
 export const runtime = "nodejs";
 
 /**
  * /api/aromaterapi/oils/[id] — tekil yağ oku (GET) / güncelle (PATCH) / sil (DELETE) (K-2).
+ * PATCH: expected_updated_at ile iyimser kilit (AROMA-3) — eski sekme yeni kaydı ezemez (409).
  * tenant_id DAİMA oturumdan. GET/PATCH/DELETE: YALNIZ kendi tenant kaydı
  * (.eq id + tenant) → IDOR koruması. Kanonik/paylaşımlı (null) satırlar uzman
  * UI'sında görünmez; admin bir yağı vermek isterse P4 transfer ile bağımsız
@@ -53,6 +55,8 @@ export async function PATCH(
   let body: unknown;
   try { body = await req.json(); }
   catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  if (!body || typeof body !== "object" || Array.isArray(body))
+    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
 
   // ARO-003: kısmi birleştirme — yalnız gövdede BULUNAN alanlar güncellenir; omit edilen
   // güvenlik alanları (safety_notes/contraindications/photosensitivity_status) DOKUNULMAZ.
@@ -63,23 +67,62 @@ export async function PATCH(
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
+  // AROMA-3 iyimser kilit (blends ARO-008 deseni) — expected_updated_at ZORUNLU.
+  // İstemci GET'te aldığı updated_at'i AYNEN geri gönderir; eksik/biçimsiz → 400 (sorgudan ÖNCE).
+  // KIRICI sözleşme: token göndermeyen eski istemci artık 400 alır (tek çağıran updateOil günceldir).
+  const rawExpected = (body as Record<string, unknown>).expected_updated_at;
+  const expectedUpdatedAt =
+    typeof rawExpected === "string" && rawExpected.trim() ? rawExpected.trim() : null;
+  if (!expectedUpdatedAt) {
+    return NextResponse.json(
+      { ok: false, error: "AROMA_MISSING_VERSION" },
+      { status: 400, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  if (!isValidExpectedUpdatedAt(expectedUpdatedAt)) {
+    return NextResponse.json(
+      { ok: false, error: "AROMA_INVALID_VERSION" },
+      { status: 400, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
+  // Atomik koşullu güncelleme — updated_at (timestamptz NOT NULL; trg_aro_oils_updated_at
+  // BEFORE UPDATE trigger'ı her güncellemede yeniler) tek-cümle iyimser kilit sağlar.
   const { data, error } = await db
     .from("aromatherapy_oils")
     .update(fields)
     .eq("tenant_id", tenantId) // oturumdan; başka tenant / global kayıt güncellenemez
     .eq("id", id)
-    .select("id");
+    .eq("updated_at", expectedUpdatedAt) // iyimser kilit — yalnız beklenen sürüm
+    .select("id,updated_at");
   if (error) {
     await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_updated", subEntity: "oil", errorClass: "server" });
     return legacyDbErrorResponse("oils.update", error, "Yağ güncellenemedi.");
   }
-  if (!data || data.length === 0)
+  if (!data || data.length === 0) {
+    // Satır güncellenmedi: kayıt (bu tenant'ta) varsa sürüm çakışması (409), yoksa 404.
+    const { data: existing } = await db
+      .from("aromatherapy_oils")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("id", id)
+      .maybeSingle();
+    if (existing) {
+      await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_updated", subEntity: "oil", errorClass: "conflict" });
+      return NextResponse.json(
+        { ok: false, error: "AROMA_STALE_OIL", stale: true },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
+      );
+    }
     return NextResponse.json(
-      { ok: false, error: "Güncelleme başarısız — kayıt bulunamadı veya erişim izniniz yok." },
-      { status: 403 },
+      { ok: false, error: "Kayıt bulunamadı veya bu hesaba ait değil.", notFound: true },
+      { status: 404 },
     );
+  }
   await trackUsage(guard, req, { module: "aromatherapy", action: "record_updated", subEntity: "oil", resourceId: id });
-  return NextResponse.json({ ok: true, id });
+  // Yeni sürüm token'ı döner → aynı sekme düzenlemeye devam edebilir.
+  const row = data[0] as { id: string; updated_at: string | null };
+  return NextResponse.json({ ok: true, id, updated_at: row.updated_at ?? null });
 }
 
 export async function DELETE(

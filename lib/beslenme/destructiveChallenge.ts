@@ -54,7 +54,13 @@ export async function createDestructiveChallenge(
     code_hash: challengeCodeHash(id, code),
     expires_at: expiresAt,
   });
-  if (error) return { ok: false, code: "CHALLENGE_FAILED", status: 500 };
+  if (error) {
+    // 23514 = action CHECK ihlali: işlem türü bu veritabanında henüz tanımlı değil (ör. "plan_delete"
+    // için 20271003100100 migration'ı uygulanmamış). Kararlı kod → route kullanıcıya net mesaj verir;
+    // challenge oluşmadığı için onay adımı da ÇALIŞMAZ (hiçbir kayıt silinmez).
+    if ((error as { code?: string }).code === "23514") return { ok: false, code: "ACTION_UNAVAILABLE", status: 503 };
+    return { ok: false, code: "CHALLENGE_FAILED", status: 500 };
+  }
   return { ok: true, value: { challenge_id: id, code, expires_at: expiresAt, count: keys.length } };
 }
 

@@ -1,7 +1,7 @@
 "use client";
 /**
  * Beslenme Planları listesi. Plan kartları + yeni plan. Kart aksiyonları:
- * Aç / Kopyala / Yeni Revizyon / Sil (açık onay; arşiv YOK). Geçmişten kalan
+ * Aç / Kopyala / Yeni Revizyon / Sil (3 aşamalı + sunucu kodlu onay; arşiv YOK). Geçmişten kalan
  * kilitli (legacy archived) planlarda yalnız Kopyala + Sil.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -11,12 +11,10 @@ import { useRouter } from "next/navigation";
 import { CalendarDays, Copy, GitBranch, Plus } from "lucide-react";
 import {
   copyPlan,
-  deletePlan,
   listPlans,
   revisePlan,
   type Plan,
 } from "@/lib/beslenme/planClient";
-import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { Trash2 } from "lucide-react";
 import {
   BeslenmeGate,
@@ -32,6 +30,7 @@ import {
   StatusMessage,
 } from "../_components/primitives";
 import { NewPlanDialog } from "./_components/NewPlanDialog";
+import { PlanDeleteDialog } from "./_components/PlanDeleteDialog";
 import {
   formatDateTr,
   friendlyPlanError,
@@ -51,7 +50,8 @@ export default function PlanlarPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionErr, setActionErr] = useState("");
   const [actionOk, setActionOk] = useState("");
-  const deleteConfirm = useDeleteConfirm();
+  // "Sil": 3 aşamalı + sunucu kodlu onay (PlanDeleteDialog). Açıkken başka silme açılmaz.
+  const [deleteTarget, setDeleteTarget] = useState<Plan | null>(null);
   // FAZ 7: danışan detayından "Yeni Beslenme Planı" → ?newForClient=&clientName= ile ön-seçili danışan.
   // useSearchParams yerine window.location (Suspense sınırı gerektirmez).
   const [presetClient, setPresetClient] = useState<{ id: string; name: string } | null>(null);
@@ -101,27 +101,15 @@ export default function PlanlarPage() {
     else setActionErr(friendlyPlanError(r.code, r.status));
   }
 
-  /** "Sil": bu plan revizyonu kalıcı silinir (onaylı; ilişkili gün/öğün/kalemler açıkça söylenir). */
-  async function doDelete(plan: Plan) {
-    if (busyId) return;
-    const ok = await deleteConfirm({
-      title: "Planı sil",
-      message:
-        "Bu plan kalıcı olarak silinecek. Plana ait tüm günler, öğünler ve besin kalemleri de silinir. " +
-        "Varsa diğer revizyonlar etkilenmez.",
-      names: [`${plan.title}${plan.revision_number > 1 ? ` (${revisionLabel(plan.revision_number)})` : ""}`],
-      confirmText: "Sil",
-    });
-    if (!ok) return;
-    setBusyId(plan.id);
+  /**
+   * "Sil": bu plan revizyonu kalıcı silinir — "Günü Temizle" ile aynı 3 aşamalı koruma
+   * (kapsam → geri alınamaz uyarısı → sunucu 4 haneli kod). Dialog kapatılırsa istek GİTMEZ.
+   */
+  function doDelete(plan: Plan) {
+    if (busyId || deleteTarget) return;
     setActionErr("");
     setActionOk("");
-    const r = await deletePlan(plan.id);
-    setBusyId(null);
-    if (r.ok) {
-      setActionOk(`"${plan.title}" silindi.`);
-      await load();
-    } else setActionErr(friendlyPlanError(r.code, r.status));
+    setDeleteTarget(plan);
   }
 
   return (
@@ -234,7 +222,7 @@ export default function PlanlarPage() {
                   <DangerButton
                     icon={<Trash2 className="h-4 w-4" />}
                     loading={busyId === p.id}
-                    onClick={() => void doDelete(p)}
+                    onClick={() => doDelete(p)}
                   >
                     Sil
                   </DangerButton>
@@ -244,6 +232,19 @@ export default function PlanlarPage() {
           })}
         </div>
       )}
+
+      {deleteTarget ? (
+        <PlanDeleteDialog
+          plan={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={() => {
+            const title = deleteTarget.title;
+            setDeleteTarget(null);
+            setActionOk(`"${title}" silindi.`);
+            void load();
+          }}
+        />
+      ) : null}
 
       {dialogOpen ? (
         <NewPlanDialog

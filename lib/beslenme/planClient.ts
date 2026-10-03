@@ -74,8 +74,19 @@ export function getPlan(id: string) {
 export function patchPlan(id: string, body: { title?: string; note?: string | null; daily_energy_target?: number | null; status?: string; expectedUpdatedAt?: string }) {
   return req<{ plan: Plan }>(`/api/beslenme/plans/${id}`, { method: "PATCH", headers: authHeaders(true), body: JSON.stringify(body) });
 }
-export function deletePlan(id: string) {
-  return req<Record<string, unknown>>(`/api/beslenme/plans/${id}`, { method: "DELETE", headers: authHeaders() });
+/** Planı Sil AŞAMA 3: sunucu kapsamı hesaplar + 4 haneli kod üretir (hiçbir şey silmez). */
+export function requestPlanDeleteChallenge(id: string) {
+  return req<{
+    challenge_id: string; code: string; expires_at: string;
+    plan: { id: string; title: string; status: string; revision_number: number };
+    days: number; meals: number; items: number; other_revisions: number;
+  }>(`/api/beslenme/plans/${id}/delete/challenge`, { method: "POST", headers: authHeaders(true), body: "{}" });
+}
+/** Plan revizyonunu sil — geçerli challenge + 4 haneli kod ZORUNLU (sunucu doğrular). */
+export function deletePlan(id: string, challengeId: string, code: string) {
+  return req<Record<string, unknown>>(`/api/beslenme/plans/${id}`, {
+    method: "DELETE", headers: authHeaders(true), body: JSON.stringify({ challenge_id: challengeId, code }),
+  });
 }
 export function copyPlan(id: string, body: { title?: string; start_date?: string | null }) {
   return req<{ plan: Plan }>(`/api/beslenme/plans/${id}/copy`, { method: "POST", headers: authHeaders(true), body: JSON.stringify(body) });

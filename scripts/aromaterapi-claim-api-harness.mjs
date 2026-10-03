@@ -167,7 +167,10 @@ check("C14 reason opsiyonel (present + non-null kontrolü)", /"reason"\s+in\s+ob
 console.log("\n[C2T-5] Update route (PATCH) sözleşmesi");
 // ============================================================
 check("U01 PATCH export", /export\s+async\s+function\s+PATCH\s*\(/.test(updateRoute));
-check("U02 DELETE handler YOK", !/export\s+async\s+function\s+DELETE\s*\(/.test(updateRoute));
+// AROMA-4 (2026-10-03 P2 kapatma): uzman KENDİ bilgi kaydını silebilir — DELETE artık VAR; yalnız
+// modül guard'ı + SECURITY DEFINER RPC (aromatherapy_delete_claim_with_audit) üzerinden.
+check("U02 DELETE handler var (AROMA-4 owner-only RPC)",
+  /export\s+async\s+function\s+DELETE\s*\(/.test(updateRoute) && /requireModuleAccess\(/.test(updateRoute));
 check("U03 params Promise + await ctx.params",
   /params:\s*Promise<\{\s*id:\s*string\s*\}>/.test(updateRoute) && /await\s+ctx\.params/.test(updateRoute));
 check("U04 requireModuleAccess includeProfile:true", /requireModuleAccess\(\s*req\s*,\s*["']aromatherapy["']\s*,\s*\{\s*includeProfile:\s*true\s*\}\s*\)/.test(updateRoute));

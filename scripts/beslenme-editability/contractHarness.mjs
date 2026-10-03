@@ -134,8 +134,6 @@ const confirmFiles = {
   "besin Sil": "app/beslenme/_components/BesinYonetimiScreen.tsx",
   "rehber/bölüm/besin-bağı Sil": "app/beslenme/_components/TopicDetailEditor.tsx",
   "kaynak Sil + bağ kaldır": "app/beslenme/_components/SourcesPanel.tsx",
-  "plan Sil (liste)": "app/beslenme/planlar/page.tsx",
-  "plan Sil (detay)": "app/beslenme/planlar/[id]/page.tsx",
   "şablon Sil": "app/beslenme/sablonlar/page.tsx",
   "plan kalemi Sil": "app/beslenme/planlar/_components/MealCard.tsx",
   "danışan ölçüm/tercih Sil": "app/dashboard/clients/[id]/components/BeslenmeTab.tsx",
@@ -150,6 +148,17 @@ ok("3 aşama: Kapsam → Uyarı → Kod (ayrı adımlar)", /stage === 1/.test(dl
 ok("son buton kod birebir eşleşmeden PASİF", /disabled=\{!codeMatches\}/.test(dlg) && /typed === info\.code/.test(dlg));
 ok("ikinci uyarı 'geri alınamaz' metni", /Bu işlem geri alınamaz/.test(dlg));
 ok("Günü Temizle → 3 aşamalı dialog + sunucu kodu", /DestructiveChallengeDialog/.test(src("app/beslenme/planlar/_components/DayEditor.tsx")) && /requestClearDayChallenge/.test(src("app/beslenme/planlar/_components/DayEditor.tsx")));
+// DD-P2 BES-2: plan Sil artık tek onay DEĞİL; "Günü Temizle" ile aynı 3 aşamalı dialog + sunucu kodu.
+// (Önceki "plan Sil (liste/detay): useDeleteConfirm" beklentisi bilinçli olarak bununla değiştirildi.)
+for (const [n, f] of [["plan Sil (liste)", "app/beslenme/planlar/page.tsx"], ["plan Sil (detay)", "app/beslenme/planlar/[id]/page.tsx"]]) {
+  const s = src(f);
+  ok(`${n}: 3 aşamalı PlanDeleteDialog (tek onay/deletePlan doğrudan çağrısı YOK)`, /<PlanDeleteDialog/.test(s) && !/deletePlan\(/.test(s) && !/useDeleteConfirm/.test(s));
+}
+{
+  const pd = src("app/beslenme/planlar/_components/PlanDeleteDialog.tsx");
+  ok("PlanDeleteDialog → DestructiveChallengeDialog + sunucu kodu (requestPlanDeleteChallenge) + kodlu deletePlan",
+    /<DestructiveChallengeDialog/.test(pd) && /requestPlanDeleteChallenge\(/.test(pd) && /deletePlan\(plan\.id, challengeId, code\)/.test(pd));
+}
 ok("Tek besin + tüm besinler reset → 3 aşamalı dialog", (src("app/beslenme/_components/BesinYonetimiScreen.tsx").match(/<DestructiveChallengeDialog/g) || []).length === 2);
 ok("Sil ≠ Sistem değerine dön (ayrı buton/ayrı akış)", /Sistem Değerine Dön/.test(src("app/beslenme/_components/BesinYonetimiScreen.tsx")) && /deleteFood\(effectiveId\)/.test(src("app/beslenme/_components/BesinYonetimiScreen.tsx")));
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { runInEffect } from "@/lib/runInEffect";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { readYasamUser, getYasamUserDisplayName } from "@/lib/auth/yasamUser";
@@ -39,7 +39,7 @@ import {
   type BlendItem,
   type Blend,
 } from "@/lib/aromaterapi/blendData";
-import { derivePhotosensitivity, type PhotosensitivityStatus } from "@/lib/aromaterapi/oilFields";
+import { type PhotosensitivityStatus } from "@/lib/aromaterapi/oilFields";
 import {
   DEFAULT_BLEND_BOTTLE_ML,
   DEFAULT_BLEND_DILUTION,
@@ -47,6 +47,12 @@ import {
   isBlendFormDirty,
   type BlendFormSnapshot,
 } from "./blendFormState";
+import {
+  carrierSaveBlockReason,
+  createCarrierSelectionGate,
+  resolveCarrierSelection,
+  type CarrierSafety,
+} from "./carrierSelection";
 
 const pageBg =
   "relative min-h-screen bg-[radial-gradient(ellipse_at_top_left,#fdf4ff_0%,#fff7ed_50%,#f8fafc_100%)] text-slate-950";
@@ -94,6 +100,11 @@ export default function KarisimOlusturucuPage() {
   const [carrierPhoto, setCarrierPhoto] = useState<PhotosensitivityStatus>("unknown");
   const [carrierContra, setCarrierContra] = useState("");
   const [carrierNotes, setCarrierNotes] = useState("");
+  // AROMA-1 — taşıyıcı detay yarış koruması: güvenlik alanlarının AİT OLDUĞU taşıyıcı id'si +
+  // detay yükleniyor bayrağı + istek sırası kapısı (eski yanıt yeni seçimin üstüne yazılmaz).
+  const [carrierSafetyFor, setCarrierSafetyFor] = useState<string | null>(null);
+  const [carrierLoading, setCarrierLoading] = useState(false);
+  const carrierGateRef = useRef(createCarrierSelectionGate());
   const [bottleMl, setBottleMl] = useState<number>(DEFAULT_BLEND_BOTTLE_ML);
   const [dilution, setDilution] = useState<number>(DEFAULT_BLEND_DILUTION);
   // ARO-021 — kayıttan yüklenen drops_per_ml korunur (20 hardcode etmeyiz).
@@ -186,6 +197,9 @@ export default function KarisimOlusturucuPage() {
   }
   function printActiveBlend() {
     if (items.length === 0) { showToast({ title: "Boş karışım", message: "Reçete için en az bir yağ ekleyin.", type: "warning" }); return; }
+    // AROMA-1 — yüklenmekte olan / eşleşmeyen taşıyıcı güvenlik verisi reçeteye basılmaz.
+    const carrierBlock = carrierSaveBlockReason({ carrierId, carrierLoading, carrierSafetyFor });
+    if (carrierBlock) { showToast({ title: "Taşıyıcı yağ", message: carrierBlock, type: "warning" }); return; }
     printReceteFor({
       name: name || "(Adsız karışım)",
       notes,
@@ -302,31 +316,41 @@ export default function KarisimOlusturucuPage() {
   }
 
   // ARO-024 — taşıyıcı seçilince güvenlik detayını çek; başarısız olursa 'unknown'/'' (güvenli DEME).
+  // AROMA-1 — yanıt YALNIZ hâlâ güncel seçime (aynı token + aynı id) aitse uygulanır; serbest
+  // metin / başka taşıyıcı seçimi bekleyen eski yanıtı geçersiz kılar. Önceki taşıyıcının
+  // güvenlik verisi yeni ad altında görünmesin diye alanlar HEMEN temizlenir.
+  function applyCarrierSafety(s: CarrierSafety) {
+    setCarrierPhoto(s.photo);
+    setCarrierContra(s.contra);
+    setCarrierNotes(s.notes);
+    setCarrierSafetyFor(s.forId);
+    setCarrierLoading(false);
+  }
+
   async function pickCarrier(value: string) {
     setCarrierName(value);
     const match = carrierOils.find((o) => o.name.toLocaleLowerCase("tr") === value.toLocaleLowerCase("tr"));
     const cid = match ? match.id : null;
     setCarrierId(cid);
-    if (cid && tenantId) {
-      const { oil, error } = await fetchOilDetail(tenantId, cid);
-      if (error || !oil) {
-        setCarrierPhoto("unknown");
-        setCarrierContra("");
-        setCarrierNotes("");
-      } else {
-        setCarrierPhoto(derivePhotosensitivity(oil));
-        setCarrierContra(oil.contraindications ?? "");
-        setCarrierNotes(oil.safety_notes ?? "");
-      }
-    } else {
-      setCarrierPhoto("unknown");
-      setCarrierContra("");
-      setCarrierNotes("");
-    }
+    setCarrierPhoto("unknown");
+    setCarrierContra("");
+    setCarrierNotes("");
+    setCarrierSafetyFor(null);
+    setCarrierLoading(cid !== null);
+    const tid = tenantId;
+    await resolveCarrierSelection(
+      carrierGateRef.current,
+      cid,
+      async (id) => (tid ? fetchOilDetail(tid, id) : { oil: null, error: MISSING_SESSION_TENANT_MESSAGE }),
+      applyCarrierSafety,
+    );
   }
 
   function resetForm() {
     const empty = emptyBlendSnapshot(DEFAULT_DROPS_PER_ML);
+    carrierGateRef.current.invalidate(); // AROMA-1 — bekleyen taşıyıcı yanıtı forma yazılmaz
+    setCarrierSafetyFor(null);
+    setCarrierLoading(false);
     setName(empty.name);
     setNotes(empty.notes);
     // Taşıyıcı alanları da sıfırlanır (önceden kalıyordu → kayıt sonrası sahte "kirli" durum).
@@ -361,6 +385,9 @@ export default function KarisimOlusturucuPage() {
     setCarrierName(blend.carrier_oil_name);
     setCarrierId(blend.carrier_oil_id);
     // ARO-024 — taşıyıcı güvenlik snapshot'ını kayıttan geri yükle.
+    carrierGateRef.current.invalidate(); // AROMA-1 — bekleyen taşıyıcı yanıtı kaydın üstüne yazılmaz
+    setCarrierSafetyFor(blend.carrier_oil_id ?? null);
+    setCarrierLoading(false);
     setCarrierPhoto(blend.carrier_photosensitivity_status ?? "unknown");
     setCarrierContra(blend.carrier_contraindications ?? "");
     setCarrierNotes(blend.carrier_safety_notes ?? "");
@@ -431,6 +458,10 @@ export default function KarisimOlusturucuPage() {
     };
     const err = validateBlendInput(input);
     if (err) { showToast({ title: "Eksik bilgi", message: err, type: "warning" }); return; }
+    // AROMA-1 — taşıyıcı detayı yüklenirken / snapshot seçili taşıyıcıya ait değilken KAYDETME
+    // (yanlış eşleşmiş kontrendikasyon/fotosensitivite kalıcı snapshot'a yazılmaz).
+    const carrierBlock = carrierSaveBlockReason({ carrierId, carrierLoading, carrierSafetyFor });
+    if (carrierBlock) { showToast({ title: "Taşıyıcı yağ", message: carrierBlock, type: "warning" }); return; }
     // ARO-008 — düzenlemede sürüm token'ı zorunlu; yoksa sürümsüz güncelleme GÖNDERME.
     if (editingId && !editingUpdatedAt) {
       showToast({ title: "Sürüm bulunamadı", message: "Karışım sürümü belirlenemedi. Lütfen sayfayı yenileyip düzenlemeyi tekrar açın.", type: "error" });
@@ -649,10 +680,10 @@ export default function KarisimOlusturucuPage() {
             <button
               type="button"
               onClick={() => void handleSave()}
-              disabled={saving}
-              className={`mt-3 w-full rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 py-2.5 text-[13px] font-black text-white shadow-md transition hover:brightness-105 ${saving ? "pointer-events-none opacity-70" : ""}`}
+              disabled={saving || carrierLoading}
+              className={`mt-3 w-full rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 py-2.5 text-[13px] font-black text-white shadow-md transition hover:brightness-105 ${saving || carrierLoading ? "pointer-events-none opacity-70" : ""}`}
             >
-              {saving ? "Kaydediliyor…" : editingId ? "Değişiklikleri Kaydet" : "Karışımı Kaydet"}
+              {saving ? "Kaydediliyor…" : carrierLoading ? "Taşıyıcı bilgisi yükleniyor…" : editingId ? "Değişiklikleri Kaydet" : "Karışımı Kaydet"}
             </button>
             {!isAndroidApp && (
             <button

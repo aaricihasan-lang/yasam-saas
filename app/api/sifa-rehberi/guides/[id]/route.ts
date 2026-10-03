@@ -3,6 +3,11 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { validateGuideBody } from "@/lib/sifa-rehberi/limits";
 import { isSifaUuid } from "@/lib/sifa-rehberi/ids";
 import { serverErrorResponse } from "@/lib/sifa-rehberi/publicApiError";
+import {
+  nextVersionStamp,
+  parseExpectedUpdatedAt,
+  SIFA_STALE_MESSAGE,
+} from "@/lib/sifa-rehberi/guideVersion";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
 export const runtime = "nodejs";
@@ -14,6 +19,7 @@ export const runtime = "nodejs";
  *   - requireModuleAccess → x-user-id + x-session-token + token↔user_id binding.
  *   - tenant_id SUNUCUDA session/user kaydından alınır; body/query'den GÜVENİLMEZ.
  *   - GET/PATCH/DELETE her zaman .eq("tenant_id", tenantId).eq("id", id) ile bağlanır.
+ *   - PATCH iyimser kilitlidir (SIFA-1): expected_updated_at zorunlu; bayat sürüm → 409 stale.
  *   - Demo hesap: Supabase'e yazma yapılmaz.
  *
  * healing_guide_sections JOIN ile okunur (service_role'lü db).
@@ -189,15 +195,35 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
     return NextResponse.json({ ok: false, error: bodyError }, { status: 400 });
   }
 
-  const fields = pickWritableFields(body);
-  fields.updated_at = new Date().toISOString();
+  // SIFA-1 iyimser kilit — expected_updated_at HER PATCH'te ZORUNLU (içerik VE yalnız-görsel
+  // gövdeler dahil). Karar: yalnız-görsel PATCH de bayat sekmeden gelirse daha yeni `images`
+  // listesini ezebilir (başka sekmede eklenen görsel metadata'dan düşer → orphan obje); bu
+  // yüzden muafiyet YOK. Tüm istemci çağıranlar (Kaydet + görsel ekle/sil persist) belirteci
+  // yollar. Eksik → 400 SIFA_MISSING_VERSION; biçimsiz → 400 SIFA_INVALID_VERSION (sorgudan ÖNCE).
+  // null yalnız updated_at'i NULL olan legacy kayıt içindir (.is(null) ile eşlenir).
+  const version = parseExpectedUpdatedAt(body);
+  if (!version.ok) {
+    return NextResponse.json(
+      { ok: false, code: version.code, error: version.error },
+      { status: 400, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  const expectedUpdatedAt = version.value;
 
-  const { data, error } = await db
+  const fields = pickWritableFields(body);
+  fields.updated_at = nextVersionStamp(expectedUpdatedAt);
+
+  // Atomik koşullu güncelleme (tek cümle CAS): yalnız beklenen sürüm güncellenir.
+  // SELECT-then-UPDATE'e zayıflatılMAZ.
+  const base = db
     .from("healing_guides")
     .update(fields)
     .eq("tenant_id", tenantId)
-    .eq("id", id)
-    .select("id");
+    .eq("id", id);
+  const { data, error } = await (expectedUpdatedAt === null
+    ? base.is("updated_at", null)
+    : base.eq("updated_at", expectedUpdatedAt)
+  ).select("id,updated_at");
 
   if (error) {
     await trackUsage(guard, req, { module: "sifa_rehberi", action: "action_failed", failedAction: "record_updated", subEntity: "guide", errorClass: "server" });
@@ -205,11 +231,31 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<Response> 
   }
 
   if (!data || data.length === 0) {
+    // Satır güncellenmedi: kayıt (bu tenant'ta) varsa sürüm çakışması (409), yoksa 404.
+    const { data: existing, error: existErr } = await db
+      .from("healing_guides")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("id", id)
+      .maybeSingle();
+    if (existErr) {
+      return serverErrorResponse({ route: "sifa/guides/[id]", action: "PATCH.staleCheck", tenantId, cause: existErr });
+    }
+    if (existing) {
+      await trackUsage(guard, req, { module: "sifa_rehberi", action: "action_failed", failedAction: "record_updated", subEntity: "guide", errorClass: "conflict" });
+      return NextResponse.json(
+        { ok: false, stale: true, code: "SIFA_STALE_GUIDE", error: SIFA_STALE_MESSAGE },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
+      );
+    }
     return NextResponse.json({ ok: false, notFound: true }, { status: 404 });
   }
 
+  const row = data[0] as { id: string; updated_at: string | null };
   await trackUsage(guard, req, { module: "sifa_rehberi", action: "record_updated", subEntity: "guide", resourceId: id });
-  return NextResponse.json({ ok: true });
+  // Yeni sürüm istemciye döner → aynı sekmenin sonraki yazımı (PUT sections / görsel) kendi
+  // kendisiyle çakışmaz.
+  return NextResponse.json({ ok: true, updated_at: row.updated_at ?? null });
 }
 
 // ─── DELETE /api/sifa-rehberi/guides/[id] ──────────────────────────────────────
