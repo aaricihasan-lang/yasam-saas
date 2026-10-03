@@ -12,13 +12,22 @@ import {
   KeyRound,
   Loader2,
   MapPin,
+  MessageCircle,
   MessageSquare,
+  Phone,
   RotateCcw,
   Send,
   Shield,
 } from "lucide-react";
 import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
 import { readSessionToken } from "@/lib/auth/yasamUser";
+import { CUSTOMER_SERVICE_DISPLAY, buildTelHref } from "@/lib/contact/info";
+import {
+  WHATSAPP_CONTACT_ENABLED,
+  WHATSAPP_DISPLAY_NUMBER,
+  WHATSAPP_SUPPORT_MESSAGE,
+  buildWhatsAppUrl,
+} from "@/lib/contact/whatsapp";
 import { useToast } from "@/components/ui/ToastProvider";
 import PasswordInput from "@/components/ui/PasswordInput";
 import { PASSWORD_HINT, newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
@@ -341,6 +350,8 @@ function ContactTab({ user }: { user: YasamUser }) {
         </button>
       </form>
 
+      <DirectContactOptions />
+
       {loadingMsgs ? (
         <div className="flex items-center gap-2 text-sm text-slate-400">
           <Loader2 className="h-4 w-4 animate-spin" /> Mesajlar yükleniyor…
@@ -391,6 +402,71 @@ function ContactTab({ user }: { user: YasamUser }) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Sistem mesajına ek doğrudan iletişim yolları (WhatsApp click-to-chat + telefon).
+ * Numaralar YALNIZ merkezî kaynaklardan gelir: WhatsApp → lib/contact/whatsapp.ts,
+ * telefon → lib/contact/info.ts. WhatsApp kartı mevcut default-deny gate'e
+ * (WHATSAPP_CONTACT_ENABLED) bağlıdır; kapalıyken link üretilmez/gösterilmez.
+ */
+function DirectContactOptions() {
+  const ctaBase =
+    "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold no-underline shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
+  return (
+    <section aria-labelledby="settings-direct-contact" className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+      <h3 id="settings-direct-contact" className="text-xs font-bold uppercase tracking-widest text-slate-500">
+        Daha hızlı iletişim için
+      </h3>
+      <p className="mt-1 text-xs text-slate-500">
+        Mesajınıza geç dönüş alırsanız bize WhatsApp veya telefonla da ulaşabilirsiniz.
+      </p>
+      <div className={`mt-3 grid grid-cols-1 gap-3 ${WHATSAPP_CONTACT_ENABLED ? "sm:grid-cols-2" : ""}`}>
+        {WHATSAPP_CONTACT_ENABLED && (
+          <div className="flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm" aria-hidden>
+                <MessageCircle className="h-5 w-5" strokeWidth={2.25} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-black text-emerald-900">WhatsApp</p>
+                <p className="text-base font-black tracking-tight text-emerald-800">{WHATSAPP_DISPLAY_NUMBER}</p>
+              </div>
+            </div>
+            <a
+              href={buildWhatsAppUrl(WHATSAPP_SUPPORT_MESSAGE)}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`WhatsApp’tan yaz: ${WHATSAPP_DISPLAY_NUMBER} (yeni sekmede açılır)`}
+              className={`${ctaBase} bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-400`}
+            >
+              <MessageCircle className="h-4 w-4" aria-hidden />
+              WhatsApp’tan Yaz
+            </a>
+          </div>
+        )}
+        <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm" aria-hidden>
+              <Phone className="h-5 w-5" strokeWidth={2.25} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-black text-slate-900">Telefon</p>
+              <p className="text-base font-black tracking-tight text-violet-800">{CUSTOMER_SERVICE_DISPLAY}</p>
+            </div>
+          </div>
+          <a
+            href={buildTelHref()}
+            aria-label={`Telefonla ara: ${CUSTOMER_SERVICE_DISPLAY}`}
+            className={`${ctaBase} bg-slate-900 text-white hover:bg-slate-800 focus-visible:ring-slate-400`}
+          >
+            <Phone className="h-4 w-4" aria-hidden />
+            Telefonla Ara
+          </a>
+        </div>
+      </div>
+    </section>
   );
 }
 
