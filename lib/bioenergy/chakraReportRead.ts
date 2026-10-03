@@ -13,6 +13,8 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { readAllPaged, chunkIds } from "@/lib/db/readAllPaged";
+import { sanitizeBioenergyRow } from "@/lib/biyoenerji/xmlSafeText";
+import { isUuid } from "@/lib/biyoenerji/uuid";
 import type { ChakraContentBlock } from "@/lib/bioenergy/chakraWorkspace";
 
 // "*": hızlı-bilgi kolonları (sanskrit_name/element/location/bija_mantra) dahil tüm
@@ -55,7 +57,7 @@ export type ChakraReportReadResult =
       truncated: boolean;
       blocksAvailable: boolean;
     }
-  | { ok: false; stage: "chakras" | "blocks"; error: unknown };
+  | { ok: false; stage: "chakras" | "blocks" | "missing"; error: unknown };
 
 function isMissingTableError(err: unknown): boolean {
   const e = err as { code?: unknown; message?: unknown } | null;
@@ -71,22 +73,40 @@ export async function readChakraReportData(
   maxRows: number,
   pageSize?: number,
 ): Promise<ChakraReportReadResult> {
-  const ch = await readAllPaged<ChakraReportRow>(
-    (from, to) => {
-      let q = db
-        .from("bioenergy_chakras")
-        .select(CHAKRA_REPORT_SELECT, { count: "exact" })
-        .eq("tenant_id", tenantId);
-      if (sel.mode === "single") q = q.eq("id", sel.chakraId);
-      else if (sel.mode === "selected") q = q.in("id", sel.chakraIds);
-      return q
-        .order("created_at", { ascending: false })
-        .order("id", { ascending: true })
-        .range(from, to);
-    },
-    { maxRows, pageSize },
-  );
-  if (ch.error) return { ok: false, stage: "chakras", error: ch.error };
+  const chakraQuery = () =>
+    db.from("bioenergy_chakras").select(CHAKRA_REPORT_SELECT, { count: "exact" }).eq("tenant_id", tenantId);
+  let ch: { rows: ChakraReportRow[]; error: unknown | null; truncated: boolean };
+  if (sel.mode === "selected") {
+    // A4-A — uzun id listesi URL'ye tek `.in()` olarak girmez: 100'lük parçalar, sonra sıralama.
+    const requested = [...new Set(sel.chakraIds.map((x) => String(x).trim()).filter(Boolean))];
+    const rows: ChakraReportRow[] = [];
+    // Geçersiz (uuid olmayan) id sorguya girmez → bulunamadı sayılır (409), 22P02/500 yok.
+    for (const part of chunkIds(requested.filter((id) => isUuid(id)), 100)) {
+      const r = await readAllPaged<ChakraReportRow>(
+        (from, to) =>
+          chakraQuery().in("id", part).order("created_at", { ascending: false }).order("id", { ascending: true }).range(from, to),
+        { pageSize },
+      );
+      if (r.error) return { ok: false, stage: "chakras", error: r.error };
+      rows.push(...r.rows);
+    }
+    const found = new Set(rows.map((r) => r.id));
+    const missing = requested.filter((id) => !found.has(id));
+    if (missing.length > 0) return { ok: false, stage: "missing", error: { requested: requested.length, missing: missing.length } };
+    rows.sort((a, b) =>
+      a.created_at !== b.created_at ? (a.created_at < b.created_at ? 1 : -1) : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    ch = { rows, error: null, truncated: false };
+  } else {
+    ch = await readAllPaged<ChakraReportRow>(
+      (from, to) => {
+        let q = chakraQuery();
+        if (sel.mode === "single") q = q.eq("id", sel.chakraId);
+        return q.order("created_at", { ascending: false }).order("id", { ascending: true }).range(from, to);
+      },
+      { maxRows, pageSize },
+    );
+    if (ch.error) return { ok: false, stage: "chakras", error: ch.error };
+  }
 
   const blocksByChakra = new Map<string, ChakraContentBlock[]>();
   let blocksAvailable = true;
@@ -114,10 +134,12 @@ export async function readChakraReportData(
     }
     for (const raw of bl.rows) {
       const arr = blocksByChakra.get(raw.chakra_id) ?? [];
-      arr.push(raw);
+      arr.push(sanitizeBioenergyRow(raw)); // A1 — Word öncesi XML-güvenli
       blocksByChakra.set(raw.chakra_id, arr);
     }
   }
 
-  return { ok: true, chakras: ch.rows, blocksByChakra, truncated: ch.truncated, blocksAvailable };
+  // A1 — çakra satırları da XML-güvenli (eski kayıtlarda geçersiz kontrol karakteri olabilir).
+  const chakras = ch.rows.map((r) => sanitizeBioenergyRow(r));
+  return { ok: true, chakras, blocksByChakra, truncated: ch.truncated, blocksAvailable };
 }

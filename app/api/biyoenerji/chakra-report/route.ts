@@ -6,6 +6,7 @@ import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import {
   reportRateLimit,
   capSelectedIds,
+  MAX_SELECTED_IDS,
   MAX_EXPORT_RECORDS,
   EXPORT_TRUNCATED_NOTE,
 } from "@/lib/biyoenerji/reportSecurity";
@@ -27,6 +28,8 @@ import {
   twoColTable,
 } from "@/lib/docx/reportHelpers";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { sanitizeBioenergyXmlText } from "@/lib/biyoenerji/xmlSafeText";
+
 import { formatInstantDate, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 import {
   deriveChakraBibliography,
@@ -37,6 +40,12 @@ import {
   type ChakraReportRow,
   type ChakraReportSelection,
 } from "@/lib/bioenergy/chakraReportRead";
+
+/** A1 — hazırlayan adı da XML-güvenli. */
+function safeExpertName(profile: Record<string, unknown> | null | undefined): string | null {
+  const n = expertDisplayName(profile);
+  return n === null ? null : sanitizeBioenergyXmlText(n);
+}
 
 export const runtime = "nodejs";
 
@@ -115,6 +124,12 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   // BIO-01 — çakralar + bloklar sayfalı, deterministik sıralı ve sayım-doğrulamalı okunur.
   // Okuma eksik/hatalıysa rapor ÜRETİLMEZ (sessiz kırpma / sessiz legacy fallback yok).
+  if (exportMode === "selected" && Array.isArray(chakraIds) && chakraIds.length > MAX_SELECTED_IDS) {
+    return Response.json(
+      { ok: false, error: `Tek raporda en fazla ${MAX_SELECTED_IDS} kayıt seçilebilir (seçilen: ${chakraIds.length}).` },
+      { status: 400 },
+    );
+  }
   const sel: ChakraReportSelection =
     exportMode === "single" && typeof chakraId === "string" && chakraId
       ? { mode: "single", chakraId }
@@ -122,6 +137,16 @@ export async function POST(request: NextRequest): Promise<Response> {
         ? { mode: "selected", chakraIds: capSelectedIds(chakraIds) }
         : { mode: "all" };
   const read = await readChakraReportData(db, tenantId, sel, MAX_EXPORT_RECORDS);
+  if (!read.ok && read.stage === "missing") {
+    const m = read.error as { requested: number; missing: number };
+    return Response.json(
+      {
+        ok: false,
+        error: `Seçilen ${m.requested} çakradan ${m.missing} tanesi bulunamadı (silinmiş veya bu hesaba ait değil). Eksik rapor üretilmedi; listeyi yenileyip tekrar deneyin.`,
+      },
+      { status: 409 },
+    );
+  }
   if (!read.ok) {
     console.error(`[chakra-report] ${read.stage} read failed:`, read.error);
     await trackUsage(guard, request, { module: "energy_body", action: "action_failed", failedAction: "report_generated", subEntity: "chakra", errorClass: "server" });
@@ -136,7 +161,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
-  const chakras = read.chakras as ChakraRow[];
+  const chakras = read.chakras as ChakraRow[]; // A1: readChakraReportData satırları temizlenmiş döner
   if (!chakras.length)
     return Response.json({ ok: false, error: "Bu seçim için çakra kaydı bulunamadı." }, { status: 404 });
   const blocksByChakra = read.blocksByChakra;
@@ -249,7 +274,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   });
 
   // FA-16: sade bilgilendirme notu + Hazırlayan (rapor sonu).
-  all.push(...buildWellnessNoteSection("biyoenerji", expertDisplayName(guard.profile)));
+  all.push(...buildWellnessNoteSection("biyoenerji", safeExpertName(guard.profile)));
 
   const doc = new Document({
     sections: [{
