@@ -111,9 +111,9 @@ create or replace function public.yh_immutable_unaccent(text) returns text
 const GRANTS = `grant select, insert, update, delete on all tables in schema public to service_role;
 grant usage, select on all sequences in schema public to service_role;`;
 
-const SEED_MIG = "20271003200000_demo_vitrin_fixture_seed.sql";
-const YH_MIG = "20271003200100_demo_vitrin_yh_permission.sql";
-const JUNK_MIG = "20271003200200_demo_vitrin_junk_client_cleanup.sql";
+const SEED_MIG = "20271005300000_demo_vitrin_fixture_seed.sql";
+const YH_MIG = "20271005300100_demo_vitrin_yh_permission.sql";
+const JUNK_MIG = "20271005300200_demo_vitrin_junk_client_cleanup.sql";
 
 async function main(): Promise<void> {
   // ═════════════════════════ A) SAF KURALLAR ═════════════════════════
@@ -247,6 +247,13 @@ async function main(): Promise<void> {
   ok(fx.DEMO_CLIENTS_SEED.every((c) => /^0500 000 00 \d\d$/.test(c.telefon) && c.email.endsWith("@example.test")), "telefon/e-posta atanmamış/örnek alanda");
   ok(fx.DEMO_NOTES_SEED.every((n) => n.notlar.includes("SENTETİK")), "notlar sentetik işaretli");
   ok(new Set(fx.DEMO_CLIENTS_SEED.map((c) => c.id)).size === fx.DEMO_CLIENTS_SEED.length, "danışan id'leri benzersiz");
+  // Migration version çakışması (2026-10-03 prod preflight bulgusu: 20271003200000/200100 başka işe ait).
+  const versions = readdirSync(MIG_DIR).filter((f) => f.endsWith(".sql")).map((f) => f.split("_")[0]);
+  const dupVersions = versions.filter((v, i) => versions.indexOf(v) !== i);
+  ok(dupVersions.length === 0, "repo'da migration version'ları benzersiz", dupVersions);
+  ok([SEED_MIG, YH_MIG, JUNK_MIG].every((m) => m.startsWith("202710053")) &&
+     !readdirSync(MIG_DIR).some((f) => f.startsWith("202710053") && ![SEED_MIG, YH_MIG, JUNK_MIG].includes(f)),
+    "demo vitrin migration'ları ayrı ve temiz 202710053xxxxx bloğunda");
 
   section("A9 Yaşam Hafızası demo fixture (saf)");
   ok(yhFx.demoYhProfessionalCandidates("uyku").length >= 3, "mesleki 'uyku' ≥3 sonuç");

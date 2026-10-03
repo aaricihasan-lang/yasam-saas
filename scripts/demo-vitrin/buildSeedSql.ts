@@ -2,7 +2,7 @@
  * DEMO VİTRİN — sentetik fixture → migration SQL üreticisi (deterministik).
  *
  * Kaynak: lib/demo/demoVitrinFixture.ts (TEK KAYNAK). Çıktı:
- *   supabase/migrations/20271003200000_demo_vitrin_fixture_seed.sql
+ *   supabase/migrations/20271005300000_demo_vitrin_fixture_seed.sql
  *
  * Kullanım:
  *   npx tsx scripts/demo-vitrin/buildSeedSql.ts          → dosyayı yazar
@@ -33,7 +33,7 @@ import {
   planItemNutrientId,
 } from "../../lib/demo/demoVitrinFixture";
 
-export const SEED_MIGRATION_FILE = "20271003200000_demo_vitrin_fixture_seed.sql";
+export const SEED_MIGRATION_FILE = "20271005300000_demo_vitrin_fixture_seed.sql";
 
 const T = `'${DEMO_TENANT_ID}'::uuid`;
 const U = "(SELECT u.id FROM public.users u WHERE u.tenant_id = " + T +

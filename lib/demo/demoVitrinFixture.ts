@@ -7,7 +7,7 @@
  *
  * Bu dosya:
  *   - migration SQL'inin kaynağıdır (scripts/demo-vitrin/buildSeedSql.ts → supabase/migrations/
- *     20271003200000_demo_vitrin_fixture_seed.sql; harness dosyanın bu kaynakla birebir aynı
+ *     20271005300000_demo_vitrin_fixture_seed.sql; harness dosyanın bu kaynakla birebir aynı
  *     olduğunu doğrular),
  *   - Yaşam Hafızası demo yanıtının (lib/demo/demoYasamHafizasi.ts) kayıt kimliklerini verir,
  *   - testlerin beklentilerini besler.
