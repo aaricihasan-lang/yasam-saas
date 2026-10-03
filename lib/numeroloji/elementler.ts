@@ -15,11 +15,19 @@ const DIGIT_ELEMENT_MAP: Record<number, ElementName | undefined> = {
 };
 
 export type ElementNameOrNeutral = ElementName | "Nötr";
+
+/**
+ * NİHAİ KULLANICI KARARI (2026-10-03): 9 sayısı "Eter / Nötr" olarak tanımlanır; dört elementin
+ * hiçbirine sayılmaz. Element dökümü yalnız PİN'in İLK 8 HANESİNDEN yapılır (9. hane dahil
+ * edilmez — kullanıcı notu s.2 "pin kodunun 8 hanesinden"; kitap 2 s.38–39).
+ * İç anahtar "Nötr" geriye dönük uyumluluk için korunur; kullanıcıya bu etiket gösterilir.
+ */
+export const NEUTRAL_ELEMENT_LABEL = "Eter / Nötr";
 export const ELEMENT_ORDER_WITH_NEUTRAL = ["Hava", "Su", "Ateş", "Toprak", "Nötr"] as const;
 
 /**
  * CANONICAL rakam→element eşlemesi (tek kaynak).
- *   Hava = 1,5 · Su = 2,7 · Ateş = 3,6 · Toprak = 4,8 · 9 = Nötr
+ *   Hava = 1,5 · Su = 2,7 · Ateş = 3,6 · Toprak = 4,8 · 9 = Eter / Nötr
  * Component-local kopya mantık yerine bu helper kullanılmalıdır.
  */
 export function elementOfDigit(d: number): ElementNameOrNeutral | null {
@@ -66,7 +74,7 @@ export function calcElementleri(birthDate: string): ElementResult {
   for (const d of digits) {
     const elem = DIGIT_ELEMENT_MAP[d];
     if (!elem) {
-      steps.push(`${d} → (Nötr / element yok, atlandı)`);
+      steps.push(`${d} → ${NEUTRAL_ELEMENT_LABEL} (dört elemente sayılmaz)`);
       neutralCount += 1;
       continue;
     }
@@ -85,7 +93,7 @@ export function calcElementleri(birthDate: string): ElementResult {
     partsForDisplay.push(`${name}:${cnt}`);
   }
 
-  if (neutralCount > 0) steps.push(`  ${"Nötr".padEnd(7, " ")}: ${"X".repeat(neutralCount)}`);
+  if (neutralCount > 0) steps.push(`  ${NEUTRAL_ELEMENT_LABEL}: ${"X".repeat(neutralCount)}`);
 
   const maxCount = Math.max(...Object.values(counts));
   const key = maxCount <= 0 ? "" : ELEMENT_ORDER.filter((name) => counts[name] === maxCount).join("/");

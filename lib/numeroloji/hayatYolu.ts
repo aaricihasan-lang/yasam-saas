@@ -13,6 +13,9 @@ import { NumerolojiResult, sumDigits } from "./ortak";
  *   - PDF s.51 (basılı s.50) "KRİSTAL ÇOCUK": rakamlar toplamı 11 ve altındaysa DM tek
  *     değerdir (1…11). Örnek 02.03.2000 → 7 → "DM: 7".
  *
+ * SUNUM KARARI (2026-10-03, kullanıcı): doğrudan toplam 10 → "10/1"; doğrudan toplam 11 → "11".
+ *   Millman'daki "11/2" ana gösterim olarak KULLANILMAZ. 29 → "29/11" (11 tekrar 2'ye inmez).
+ *
  * NOT (NUM-PDF-HY): 2026-07 tarihli "tam indirge + 11/22/33 koru" davranışı (37 → "37/1",
  * 22 → "22") kitaba aykırıydı; bu dosya kitabın tek-indirgeme kuralına döndürüldü.
  */
@@ -34,8 +37,17 @@ export function calcHayatYolu(birthDate: string): NumerolojiResult {
   const total = digits.reduce((a, b) => a + b, 0);
   steps.push(`Doğum tarihindeki rakamlar: ${digits.join(" + ")} = ${total}`);
 
+  if (total === 10) {
+    // NİHAİ KULLANICI KARARI (2026-10-03): doğrudan toplam 10 → "10/1" (eski ürün sunumu).
+    // Yalnız 10'un kendisi için geçerlidir; 19/10, 28/10, 37/10 tek indirgemeyle aynen kalır.
+    const display = "10/1";
+    steps.push(`Toplam 10 → ${display}`);
+    steps.push(`Hayat Yolu / DM Kodu: ${display}`);
+    return { display, key: display, steps };
+  }
+
   if (total <= 11) {
-    // Kristal çocuk: tek dönemli DM (kitap 1, PDF s.51).
+    // Kristal çocuk: tek dönemli DM (kitap 1, PDF s.51). 11 → "11" (11/2 ana gösterim DEĞİL).
     steps.push(`Toplam 11 veya altında → DM tek değerdir (kristal çocuk): ${total}`);
     const display = String(total);
     steps.push(`Hayat Yolu / DM Kodu: ${display}`);

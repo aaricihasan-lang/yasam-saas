@@ -4,16 +4,19 @@ import { hesaplaNumeroloji } from "./numerolojiMotor";
  * Numeroloji hesaplama metodolojisi sürümü (NUM-F02).
  *
  * Kayıtlı analizlerde `analysis_data.calc.methodology` olarak SUNUCUDA damgalanır.
- * Damgası bu değere eşit olmayan (eski) kayıtlar, ekranda/Word'de güncel yöntemle
- * yeniden hesaplanarak ve bu durum AÇIKÇA belirtilerek gösterilir; kayıtlı ilk sonuç
- * (snapshot) veritabanında DEĞİŞTİRİLMEZ.
  *
- * Kaynak: "kitap 1. seviye.pdf" (252 s.) ve "kitap 2. seviye.pdf" (239 s.) — Pera Akademi
- * Numeroloji Eğitimi. Kural → sayfa eşlemesi: docs/numeroloji-pdf-metodoloji-spec.md
+ * ESKİ KAYIT POLİTİKASI — MODEL C (nihai kullanıcı kararı, 2026-10-03):
+ *   - Damgası bu değere eşit olmayan (önceki metodoloji) kayıtlar KAYDEDİLDİĞİ GİBİ gösterilir;
+ *     motor açılışta rakamları sessizce DEĞİŞTİRMEZ (UI, Word ve toplu Word aynı snapshot'ı kullanır).
+ *   - Kullanıcı isterse "Güncel yöntemle yeniden hesapla" YENİ bir kayıt oluşturur
+ *     (`calc.recalculatedFrom` = kaynak kayıt id); orijinal kayıt hiçbir alanıyla değişmez.
+ *
+ * Kaynak: kitap 1. / 2. seviye PDF (Pera Akademi), kullanıcı notu (çakra sütunu), Rafet
+ * (Kişisel Gün). Kural → sayfa eşlemesi: docs/numeroloji-pdf-metodoloji-spec.md
  */
-export const NUMEROLOJI_METHODOLOGY_VERSION = "pdf-k1k2-2026-10";
+export const NUMEROLOJI_METHODOLOGY_VERSION = "num-v1-final-2026-10";
 
-export const NUMEROLOJI_METHODOLOGY_LABEL = "Numeroloji Eğitimi kitap 1. ve 2. seviye metodolojisi";
+export const NUMEROLOJI_METHODOLOGY_LABEL = "Numeroloji V1 nihai metodolojisi (2026-10)";
 
 /** Kayıt doğum tarihi (GG/AA/YYYY, GG.AA.YYYY veya YYYY-AA-GG) → motor girdisi (GG.AA.YYYY). */
 export function birthDateForEngine(raw: string): string {
