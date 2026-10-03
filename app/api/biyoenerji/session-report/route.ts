@@ -1,18 +1,26 @@
 import { NextRequest } from "next/server";
 import { Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
-import { readAllPaged } from "@/lib/db/readAllPaged";
+import { readBioReportRows } from "@/lib/biyoenerji/reportRead";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import {
   reportRateLimit,
-  capSelectedIds,
   MAX_EXPORT_RECORDS,
   EXPORT_TRUNCATED_NOTE,
+  MAX_SELECTED_IDS,
 } from "@/lib/biyoenerji/reportSecurity";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { sanitizeBioenergyRow, sanitizeBioenergyXmlText } from "@/lib/biyoenerji/xmlSafeText";
+
 // Saf belge kurucusu (FA-02 tarih/saat Europe/Istanbul + FA-16 bilgilendirme notu) — harness test eder.
 import { buildBioSessionReportDoc, type BioSessionExportMode, type BioSessionRow } from "./buildSessionReport";
+
+/** A1 — hazırlayan adı da XML-güvenli. */
+function safeExpertName(profile: Record<string, unknown> | null | undefined): string | null {
+  const n = expertDisplayName(profile);
+  return n === null ? null : sanitizeBioenergyXmlText(n);
+}
 
 export const runtime = "nodejs";
 
@@ -51,32 +59,40 @@ export async function POST(request: NextRequest): Promise<Response> {
   // AA-6: route kendi service_role client'ını KURMAZ — guard'ın sunucu client'ı (guard.db).
   const { db } = guard;
 
-  // BIO-01 — sayfalı + sayım doğrulamalı okuma: PostgREST max-rows (1000) sınırında
-  // sessiz kesilme yok; eksik okuma → hata (eksik rapor üretilmez).
-  const buildQuery = () => {
-    let query = db.from("bioenergy_sessions").select("*", { count: "exact" }).eq("tenant_id", tenantId);
-
-    if (exportMode === "single" && sessionId) {
-      query = query.eq("id", sessionId);
-    } else if (exportMode === "selected" && Array.isArray(sessionIds) && sessionIds.length > 0) {
-      query = query.in("id", capSelectedIds(sessionIds));
-    }
-    return query;
-  };
-  const paged = await readAllPaged(
-    (from, to) => buildQuery().order("created_at", { ascending: false }).order("id", { ascending: true }).range(from, to),
-    { maxRows: MAX_EXPORT_RECORDS },
-  );
-  const data = paged.rows;
-  const error = paged.error;
-  const truncatedRead = paged.truncated;
+  // BIO-01 + A4-A — sayfalı, sayım doğrulamalı okuma; seçili modda uzun id listesi parçalı
+  // okunur, eksik kayıt varsa rapor üretilmez (lib/biyoenerji/reportRead).
+  const read = await readBioReportRows<Record<string, unknown>>({
+    db,
+    table: "bioenergy_sessions",
+    select: "*",
+    tenantId,
+    orderCol: "created_at",
+    orderAsc: false,
+    maxRows: MAX_EXPORT_RECORDS,
+    mode:
+      exportMode === "single" && sessionId
+        ? "single"
+        : exportMode === "selected" && Array.isArray(sessionIds) && sessionIds.length > 0
+          ? "selected"
+          : "all",
+    singleId: sessionId ?? null,
+    ids: Array.isArray(sessionIds) ? sessionIds : null,
+    maxSelected: MAX_SELECTED_IDS,
+  });
+  if (!read.ok && read.status !== 500) {
+    return Response.json({ ok: false, error: read.error }, { status: read.status });
+  }
+  const data = read.ok ? read.rows : [];
+  const error = read.ok ? null : (read.cause ?? read.error);
+  const truncatedRead = read.ok ? read.truncated : false;
   if (error) {
     console.error("[session-report] read failed:", error);
     await trackUsage(guard, request, { module: "energy_body", action: "action_failed", failedAction: "report_generated", subEntity: "session", errorClass: "server" });
     return Response.json({ ok: false, error: "Seanslar okunamadı." }, { status: 500 });
   }
 
-  const sessions = (data || []) as SessionRow[];
+  // A1 — XML 1.0 geçersiz kontrol karakterleri (eski kayıtlar dahil) Word öncesi temizlenir.
+  const sessions = (data || []).map((r) => sanitizeBioenergyRow(r)) as SessionRow[];
   if (!sessions.length)
     return Response.json({ ok: false, error: "Bu seçim için seans bulunamadı." }, { status: 404 });
 
@@ -84,7 +100,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     sessions,
     exportMode,
     truncatedNote: truncatedRead ? EXPORT_TRUNCATED_NOTE(MAX_EXPORT_RECORDS) : null,
-    expertName: expertDisplayName(guard.profile),
+    expertName: safeExpertName(guard.profile),
   });
 
   const buffer = await Packer.toBuffer(doc);

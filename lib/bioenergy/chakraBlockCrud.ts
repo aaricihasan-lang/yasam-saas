@@ -1,3 +1,4 @@
+import { sanitizeBioenergyXmlText } from "@/lib/biyoenerji/xmlSafeText";
 /**
  * BİYOENERJİ FAZ 2 — Çakra visible content block CRUD saf-logic (validation + whitelist).
  *
@@ -130,7 +131,7 @@ export function validateChakraBlockInput(
     if (t !== null && !isPlainString(t)) {
       return { ok: false, error: "Geçersiz block_title.", status: 400 };
     }
-    const trimmed = t === null ? null : (t as string).trim();
+    const trimmed = t === null ? null : sanitizeBioenergyXmlText(t as string).trim();
     out.block_title = trimmed && trimmed.length > 0 ? trimmed.slice(0, 300) : null;
   }
 
@@ -153,7 +154,9 @@ export function validateChakraBlockInput(
     if (mode === "create" && trimmed.length === 0) {
       return { ok: false, error: "İçerik boş olamaz.", status: 400 };
     }
-    out.editorial_explanation = e; // metni AYNEN sakla (trim etme; içerik sözleşmesi)
+    // metni AYNEN sakla (trim etme; içerik sözleşmesi). A1: yalnız XML 1.0'da geçersiz
+    // kontrol karakterleri çıkarılır (Word'ü bozar); TAB/LF/CR ve tüm metin korunur.
+    out.editorial_explanation = sanitizeBioenergyXmlText(e);
   }
 
   return { ok: true, fields: out };

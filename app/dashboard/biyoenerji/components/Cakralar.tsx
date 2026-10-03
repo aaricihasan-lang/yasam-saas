@@ -39,6 +39,7 @@ import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./Biyoenerji
 import { bioSaveBtnClass, bioSearchInputClass, CrudEmptyState, newRecordBtnClass } from "./BiyoenerjiUi";
 import { chakraDisplayOrder } from "@/lib/bioenergy/chakraStoneMatch";
 import { bioListGet, bioListKey, bioListSet } from "@/lib/biyoenerji/listCache";
+import { useBioRequestGate } from "@/lib/biyoenerji/requestGate";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { LongTextareaField } from "./LargeTextModal";
 import { useDirtySnapshot } from "@/lib/biyoenerji/useDirtyGuard";
@@ -220,8 +221,11 @@ export default function Cakralar() {
     return synced;
   }, []);
 
+  // A7/A8 — eski / başka hesap yanıtlarını yok sayan istek kapısı.
+  const listGate = useBioRequestGate();
   const fetchList = useCallback(
     async (opts: { reset: boolean; append?: boolean; offset?: number }) => {
+      const ticket = listGate.begin({ append: Boolean(opts.append) });
       const tenantId = queryTenantId ?? getSessionTenantId();
       if (!tenantId) {
         setListLoading(false);
@@ -257,6 +261,7 @@ export default function Cakralar() {
       try {
         // 1) ÖNCE sayfa (grid) — istatistik beklenmez
         const pageRes = await fetchChakrasPage(tenantId, { offset, search });
+        if (!listGate.isCurrent(ticket)) return; // A7/A8 — eski/başka hesap yanıtı yazılmaz
         if (opts.reset) setListLoading(false);
         setLoadingMore(false);
 
@@ -297,6 +302,7 @@ export default function Cakralar() {
               searchP,
               bioApiLastCreated("chakras"),
             ]);
+            if (!listGate.isCurrent(ticket)) return; // A7/A8 — sayım/cache yazılmaz
             const total = totalRes.error ? totalInDbRef.current : totalRes.data;
             const searchCount = searchCountRes.error ? searchResultCountRef.current : searchCountRes.data;
             const lastAt = lastRes.error
@@ -312,10 +318,11 @@ export default function Cakralar() {
               searchCount,
               lastCreatedAt: lastAt,
               categories: null,
-            });
+            }, ticket);
           })();
         }
       } catch (err) {
+        if (!listGate.isCurrent(ticket)) return;
         if (opts.reset) setListLoading(false);
         setLoadingMore(false);
         const message = err instanceof Error ? err.message : String(err);
@@ -324,7 +331,7 @@ export default function Cakralar() {
         if (lastGoodRowsRef.current.length > 0) setRows(lastGoodRowsRef.current);
       }
     },
-    [debouncedSearch, queryTenantId],
+    [debouncedSearch, queryTenantId, listGate],
   );
 
   useEffect(() => {

@@ -20,7 +20,9 @@ import {
   bioApiList,
   bioApiUpdate,
 } from "@/lib/biyoenerji/secureApi";
+import { changedFields } from "@/lib/biyoenerji/changedFields";
 import { bioListGet, bioListKey, bioListSet } from "@/lib/biyoenerji/listCache";
+import { useBioRequestGate } from "@/lib/biyoenerji/requestGate";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import {
@@ -233,6 +235,8 @@ export default function EnerjiBedenleri() {
   const detailPanelRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<EnergyBodyForm>({ ...emptyForm });
+  // A3 — düzenleme formunun açılış anındaki değeri (değişen alan karşılaştırması).
+  const editOriginalRef = useRef<typeof form | null>(null);
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [formModalMode, setFormModalMode] = useState<"create" | "edit">("create");
   const isAndroid = useIsAndroid();
@@ -272,8 +276,11 @@ export default function EnerjiBedenleri() {
     void getSyncedTenantId().then(setTenantId);
   }, []);
 
+  // A7/A8 — eski / başka hesap yanıtlarını yok sayan istek kapısı.
+  const listGate = useBioRequestGate();
   const loadRecords = useCallback(
     async (opts: { reset: boolean; append?: boolean; offset?: number }) => {
+      const ticket = listGate.begin({ append: Boolean(opts.append) });
       if (!tenantId) {
         setLoading(false);
         setLoadingMore(false);
@@ -305,6 +312,7 @@ export default function EnerjiBedenleri() {
 
       // 1) ÖNCE sayfa (grid) — istatistik beklenmez
       const pageRes = await bioApiList("energy-bodies", { offset, limit: ENERGY_BODIES_PAGE_SIZE, search });
+      if (!listGate.isCurrent(ticket)) return; // A7/A8 — eski/başka hesap yanıtı yazılmaz
       if (opts.reset) setLoading(false);
       setLoadingMore(false);
 
@@ -328,6 +336,7 @@ export default function EnerjiBedenleri() {
             searchP,
             bioApiLastCreated("energy-bodies"),
           ]);
+          if (!listGate.isCurrent(ticket)) return; // A7/A8 — sayım/cache yazılmaz
           const total = totalRes.error ? totalInDbRef.current : totalRes.count;
           const searchCount = searchCountRes.error ? searchResultCountRef.current : searchCountRes.count;
           const lastAt = lastRes.error
@@ -343,11 +352,11 @@ export default function EnerjiBedenleri() {
             searchCount,
             lastCreatedAt: lastAt,
             categories: null,
-          });
+          }, ticket);
         })();
       }
     },
-    [tenantId, debouncedSearch],
+    [tenantId, debouncedSearch, listGate],
   );
 
   useEffect(() => {
@@ -392,14 +401,16 @@ export default function EnerjiBedenleri() {
   };
 
   function fillFormFromRow(row: BioenergyEnergyBodyRecord) {
-    setForm({
+    const next = {
       source_uid: row.source_uid ?? "",
       genel_tanim: row.genel_tanim ?? "",
       gorevi: row.gorevi ?? "",
       bozulma: row.bozulma ?? "",
       onerilen_taslar: row.onerilen_taslar ?? "",
       not_text: row.not_text ?? "",
-    });
+    };
+    setForm(next);
+    return next;
   }
 
   function selectRow(row: BioenergyEnergyBodyRecord) {
@@ -437,7 +448,7 @@ export default function EnerjiBedenleri() {
       return;
     }
     setFormModalMode("edit");
-    fillFormFromRow(selectedRow);
+    editOriginalRef.current = fillFormFromRow(selectedRow);
     setFormModalOpen(true);
     setInfoError("");
   }
@@ -506,16 +517,24 @@ export default function EnerjiBedenleri() {
             return;
           }
 
+          // A3 — yalnız form açılışındaki değerden FARKLI alanlar gönderilir (lost update önlenir).
+          const payloadOf = (f: typeof form) => ({
+            source_uid: f.source_uid.trim(),
+            genel_tanim: trimOrEmpty(f.genel_tanim),
+            gorevi: trimOrEmpty(f.gorevi),
+            bozulma: trimOrEmpty(f.bozulma),
+            onerilen_taslar: trimOrEmpty(f.onerilen_taslar),
+            not_text: trimOrEmpty(f.not_text),
+          });
+          const changes = changedFields(payloadOf(form), editOriginalRef.current ? payloadOf(editOriginalRef.current) : null);
+          if (Object.keys(changes).length === 0) {
+            setFormModalOpen(false);
+            showSoft("ok", "Değişiklik yok.");
+            return;
+          }
           setSaving(true);
           setInfoError("");
-          const { error } = await bioApiUpdate("energy-bodies", selectedId, {
-            source_uid: uidTrim,
-            genel_tanim: trimOrEmpty(form.genel_tanim),
-            gorevi: trimOrEmpty(form.gorevi),
-            bozulma: trimOrEmpty(form.bozulma),
-            onerilen_taslar: trimOrEmpty(form.onerilen_taslar),
-            not_text: trimOrEmpty(form.not_text),
-          });
+          const { error } = await bioApiUpdate("energy-bodies", selectedId, changes);
 
           setSaving(false);
 

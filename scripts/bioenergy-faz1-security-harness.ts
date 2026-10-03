@@ -116,10 +116,30 @@ for (const rp of REPORT_ROUTES) {
     `${name}: HARD CAP (MAX_EXPORT_RECORDS)`,
   );
   assert(s.includes("reportRateLimit("), `${name}: rate-limit uygulanır`);
-  assert(s.includes("capSelectedIds("), `${name}: seçili id tavanı`);
+  // A4-A: seçili id tavanı (5000) artık ya ortak okuyucuda (`readBioReportRows` + `maxSelected:
+  // MAX_SELECTED_IDS` → aşımda 400, parçalı okuma, eksik id → 409) ya da çakra rotasında açık
+  // `chakraIds.length > MAX_SELECTED_IDS` → 400 kontrolüyle uygulanır. Davranış testi:
+  // scripts/bioenergy-presale-final/finalA1A4.harness.ts (100/500/800/1200/2000, 409, 5001→400).
+  assert(
+    (s.includes("readBioReportRows") && s.includes("maxSelected: MAX_SELECTED_IDS")) ||
+      (/chakraIds\.length > MAX_SELECTED_IDS/.test(s) && s.includes("status: 400") && s.includes('stage === "missing"') && s.includes("status: 409")),
+    `${name}: seçili id tavanı (MAX_SELECTED_IDS) + eksik kayıtta 409`,
+  );
   assert(s.includes("EXPORT_TRUNCATED_NOTE"), `${name}: kırpma notu (sessiz değil)`);
   assert(!s.includes("${error.message}"), `${name}: ham DB error.message SIZMAZ`);
   assert(s.includes("console.error"), `${name}: hata server-side loglanır`);
+}
+
+{
+  // A4-A ortak okuyucu değişmezleri: parçalı okuma, tam küme doğrulaması, tavan, tenant kapsamı.
+  const rr = read("lib/biyoenerji/reportRead.ts");
+  assert(rr.includes("chunkIds(") && rr.includes("REPORT_ID_CHUNK = 100"), "reportRead: seçili id'ler 100'lük parçalarla okunur (URL sınırı yok)");
+  assert(/requested\.length > input\.maxSelected/.test(rr) && rr.includes("status: 400"), "reportRead: tavan aşımı → 400 (sessiz kırpma yok)");
+  assert(/missing\.length > 0/.test(rr) && rr.includes("status: 409"), "reportRead: eksik/başka tenant id → 409, eksik rapor üretilmez");
+  assert(rr.includes('.eq("tenant_id", tenantId)'), "reportRead: her parça tenant kapsamlı");
+  assert(rr.includes("readAllPaged"), "reportRead: sayfalı + sayım doğrulamalı okuma");
+  const sec = read("lib/biyoenerji/reportSecurity.ts");
+  assert(/MAX_SELECTED_IDS = 5000/.test(sec), "reportSecurity: MAX_SELECTED_IDS = 5000");
 }
 
 console.log("\n═══ 7. Rate-limit helper davranışı (deterministik) ═══");

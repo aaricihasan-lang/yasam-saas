@@ -1,3 +1,5 @@
+import { sanitizeBioenergyXmlText } from "@/lib/biyoenerji/xmlSafeText";
+
 /**
  * Biyoenerji güvenli API — kaynak (tablo) yapılandırması.
  * Sunucu tarafında kullanılır (verifyUserRequest + service_role). İstemciden
@@ -163,7 +165,8 @@ export function validateBioFields(
     if (typeof raw !== "string") {
       return { ok: false, error: "Geçersiz alan değeri." };
     }
-    const trimmed = raw.trim();
+    // A1 — XML 1.0'da geçersiz kontrol karakterleri (Word'ü bozan , NUL, , ESC…) yazılmaz.
+    const trimmed = sanitizeBioenergyXmlText(raw).trim();
     if (trimmed.length > maxLenFor(col)) {
       return { ok: false, error: "Girdiğiniz metin çok uzun. Lütfen kısaltın." };
     }

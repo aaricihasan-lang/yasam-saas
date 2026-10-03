@@ -4,7 +4,7 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, FileText, Pencil, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
@@ -27,6 +27,7 @@ import {
   BIO_NETWORK_ERROR,
   BIO_TIMEOUT_ERROR,
 } from "@/lib/biyoenerji/secureApi";
+import { changedFields } from "@/lib/biyoenerji/changedFields";
 import { BIO_REPORT_NETWORK_ERROR, bioReportErrorMessage } from "@/lib/biyoenerji/reportDownloadError";
 import { badgeFieldWrapClass } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
@@ -151,6 +152,7 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
   const saveLock = useSubmitLock();
   const [wordBusy, setWordBusy] = useState(false);
 
+
   const [form, setForm] = useState<BioImaginationForm>({
     title: "",
     category: "",
@@ -158,6 +160,8 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
     notes: "",
     source: "",
   });
+  // A3 — düzenleme formunun açılış anındaki değeri (değişen alan karşılaştırması).
+  const editOriginalRef = useRef<typeof form | null>(null);
   const [formModalOpen, setFormModalOpen] = useState(false);
   const isAndroid = useIsAndroid();
   // BIO-004/015 — form modalı için kaydedilmemiş değişiklik takibi.
@@ -260,13 +264,15 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
   /** BIO-11 — düzenleme formu her açılışta güncel kayıttan doldurulur. */
   const openEdit = useCallback(() => {
     if (!record) return;
-    setForm({
+    const next = {
       title: record.title ?? "",
       category: record.category ?? "",
       text: record.text ?? "",
       notes: record.notes ?? "",
       source: record.source ?? "",
-    });
+    };
+    setForm(next);
+    editOriginalRef.current = next;
     setFormModalOpen(true);
   }, [record]);
 
@@ -294,14 +300,22 @@ export default function ImajinasyonlarDetail({ id }: { id: string }) {
             return;
           }
 
-          setSaving(true);
-          const { error } = await bioApiUpdate("imaginations", record.id, {
-            title: titleTrim,
-            category: trimOrNull(form.category) || "Genel",
-            text: trimOrEmpty(form.text),
-            notes: trimOrEmpty(form.notes),
-            source: trimOrNull(form.source),
+          // A3 — yalnız form açılışındaki değerden FARKLI alanlar gönderilir (lost update önlenir).
+          const payloadOf = (f: typeof form) => ({
+            title: f.title.trim(),
+            category: trimOrNull(f.category) || "Genel",
+            text: trimOrEmpty(f.text),
+            notes: trimOrEmpty(f.notes),
+            source: trimOrNull(f.source),
           });
+          const changes = changedFields(payloadOf(form), editOriginalRef.current ? payloadOf(editOriginalRef.current) : null);
+          if (Object.keys(changes).length === 0) {
+            setFormModalOpen(false);
+            showSoft("ok", "Değişiklik yok.");
+            return;
+          }
+          setSaving(true);
+          const { error } = await bioApiUpdate("imaginations", record.id, changes);
 
           setSaving(false);
 
