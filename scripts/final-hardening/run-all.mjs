@@ -41,6 +41,8 @@ const STEPS = [
   ["auth-video", "npx", ["tsx", "scripts/final-hardening/auth-video.harness.ts"]],
   ["refleks", "npx", ["tsx", "scripts/final-hardening/refleks.harness.ts"]],
   ["backup", "npx", ["tsx", "scripts/final-hardening/backup.harness.ts"]],
+  // Ayarlar > Admin ile İrtibat: WhatsApp click-to-chat + telefon (merkezî numara kaynağı).
+  ["settings-contact", "npx", ["tsx", "scripts/final-hardening/settings-contact.harness.ts"]],
   ["word-tz", "npx", ["tsx", "scripts/final-hardening/word-tz.harness.ts"]],
   ["word-static-gate", "npx", ["tsx", "scripts/final-hardening/word-static-gate.harness.ts"]],
   ["dy", "npx", ["tsx", "scripts/final-hardening/dy.harness.ts"]],
@@ -64,6 +66,11 @@ const STEPS = [
     ["20270129000000_auth_login_throttle.sql", "20270129000100_auth_grants_password_hash_only.sql", "20270129000200_user_sessions_expiry_touch.sql",
      "20271001000000_auth_password_session_hardening.sql"],
     ["auth-m1-assert.sql"])],
+  // Ayarlar nihai denetim (2026-10-03): parola değişimi → diğer cihaz token'ları sunucuda reddedilir.
+  ["pg:settings-password-revoke", ...pg([F("auth-fixture.sql")],
+    ["20270129000000_auth_login_throttle.sql", "20270129000100_auth_grants_password_hash_only.sql", "20270129000200_user_sessions_expiry_touch.sql",
+     "20271001000000_auth_password_session_hardening.sql"],
+    ["settings-password-revoke-assert.sql"])],
   ["pg:auth", ...pg([F("auth-fixture.sql")],
     ["20270129000000_auth_login_throttle.sql", "20270129000100_auth_grants_password_hash_only.sql", "20270129000200_user_sessions_expiry_touch.sql"],
     ["auth-assert.sql"])],
