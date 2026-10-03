@@ -720,7 +720,7 @@ async function main() {
     ok(!candidates.some((c) => c.sourceKey.startsWith("kisisel_arsiv")), "row-gated kişisel arşiv aday DEĞİL");
     const sql = buildCoverageSql(candidates);
     ok(!/\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|GRANT)\b/i.test(sql.replace(/--.*$/gm, "")), "coverage SQL salt-okuma");
-    ok(sql.includes("aa8b960b-f4f1-4e5b-89f5-109bc030c147") && /yasam_hafizasi_index/.test(sql), "ADMIN_LIBRARY dışlanır + index karşılaştırması");
+    ok(!sql.includes("aa8b960b-f4f1-4e5b-89f5-109bc030c147") && sql.includes("40f842a0-e3e8-448c-8971-9a938e1faccb") && /yasam_hafizasi_index/.test(sql), "owner tenant DAHİL (sentetik değil), demo dışlanır + index karşılaştırması");
     const rb = buildRunbook(candidates, excluded);
     ok(/yh_source_activation_set\('dogaltas:stones', true, true/.test(rb) && /yh_source_activation_set\('dogaltas:stones', <önceki is_active>, false/.test(rb),
       "runbook: pencere aç (true,true) → kapat (önceki,false)");

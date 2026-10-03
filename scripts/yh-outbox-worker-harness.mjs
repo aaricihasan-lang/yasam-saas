@@ -207,7 +207,8 @@ async function main() {
   }
   {
     const d = await processOutboxEvent(ev({ sourceKey: "refleksoloji:notes", sourceTable: NOTES.tableName }), upsertDeps());
-    check("B", "18 PII source → permanent (source-not-indexable)", d.action === "fail" && d.retryClass === "permanent" && d.code === "source-not-indexable");
+    // Satış öncesi (2026-10): PII kaynak olayı hata değil bilinçli dışlama → yazmadan `pii-excluded` (dead-letter yok).
+    check("B", "18 PII source → complete pii-excluded (yazma yok)", d.action === "complete" && d.note === "pii-excluded");
   }
   {
     // BF-11E: archive artık safe-non-pii (source guard geçer). Row-gate ineligible (safe→unsafe/stale/
@@ -221,12 +222,13 @@ async function main() {
   }
   {
     const d = await processOutboxEvent(ev({ sourceKey: "sifa_rehberi:guide-sections", sourceTable: GUIDE_SECTIONS.tableName }), upsertDeps());
-    // BF-11E: join tenant ARTIK desteklenir; guide-sections unit "section" olduğu için Kapı 7 reddeder.
-    check("B", "20 join+section unit → permanent (non-record-unit-unsupported)", d.action === "fail" && d.code === "non-record-unit-unsupported");
+    // Worker-v2: guide-sections 'section-unit' capability ile işlenir (artık reddedilmez).
+    check("B", "20 join+section unit (section-unit capability) → kabul", d.action === "complete");
   }
   {
     const d = await processOutboxEvent(ev({ sourceKey: "dogaltas:knowledge", sourceTable: KNOWLEDGE.tableName }), upsertDeps());
-    check("B", "21 shared (allowSharedNull) source → permanent", d.action === "fail" && d.code === "shared-source-unsupported");
+    // Satış öncesi (2026-10): knowledge artık tenant-only (shared yok) → tenant'lı olay normal işlenir.
+    check("B", "21 eski shared kaynak (knowledge) tenant olayı → kabul", d.action === "complete");
   }
   {
     // column+non-shared+safe but non-record unit → clone STONES with unit override.
