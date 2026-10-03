@@ -165,7 +165,9 @@ export function HdKaynakEditor({
   // ve sayfadan çıkışta sorulur (önceden uzun özgün metin/çeviri sessizce kayboluyordu).
   const [baseline, setBaseline] = useState(() => JSON.stringify(rowToForm(source)));
   const [version, setVersion] = useState<string | null>(source.updated_at ?? null);
-  const dirty = !isDraft && JSON.stringify(form) !== baseline;
+  // Taslak (henüz kaydedilmemiş yeni kaynak) dahil: yazılan metin, sekme/kaynak değişiminde
+  // editör unmount olunca kaybolacağından taslaktaki her değişiklik de "kirli" sayılır.
+  const dirty = JSON.stringify(form) !== baseline;
   const onDirtyRef = useRef(onDirtyChange);
   useEffect(() => {
     onDirtyRef.current = onDirtyChange;
