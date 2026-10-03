@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
-import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 import {
   MINERALS_LIST_SELECT,
   MINERALS_LIST_SEARCH_SELECT,
@@ -44,7 +43,7 @@ function slugify(s: string): string {
 export async function GET(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "stones");
   if (!guard.ok) return guard.response;
-  const { db, tenantId, is_demo_account } = guard;
+  const { db, tenantId } = guard;
 
   const sp = req.nextUrl.searchParams;
   const mode = sp.get("mode") ?? "list";
@@ -56,8 +55,8 @@ export async function GET(req: NextRequest): Promise<Response> {
     // Mineral öneri DEMO hesapta library'yi de içerir (mevcut showcase davranışı);
     // normal uzman yalnız kendi tenant'ı.
     if (mode === "all") {
-      const ids = is_demo_account && tenantId !== ADMIN_LIBRARY_TENANT_ID
-        ? [tenantId, ADMIN_LIBRARY_TENANT_ID] : [tenantId];
+      // Ortak kütüphane YOK: demo dahil herkes yalnız kendi tenant'ının minerallerini görür.
+      const ids = [tenantId];
       // P2-07: mineral bankası "tümü" → sayfalı (1000-satır tavanı yok).
       const res = await fetchAllRows<Record<string, unknown>>((from, to) =>
         db

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { stoneReadTenantIds } from "@/lib/dogaltas/stoneTenantScope";
 import { trackUsage } from "@/lib/usage/trackUsage";
-import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 import { validateMineralAssignments } from "@/lib/dogaltas/mineralPercent";
 import { validateStoneStructuredFields, validateStoneImagesField } from "@/lib/dogaltas/validation";
 import { normalizeTaxonomyValues } from "@/lib/dogaltas/stoneTaxonomy";
@@ -46,7 +45,6 @@ const STONE_WRITABLE = [
 const tenantIdsFor = stoneReadTenantIds;
 
 async function exclusionIds(db: SupabaseClient, tenantId: string): Promise<string[]> {
-  if (tenantId === ADMIN_LIBRARY_TENANT_ID) return [];
   const res = await fetchAllRows<{ stone_id: unknown }>((from, to) =>
     db.from("stone_exclusions").select("stone_id").eq("tenant_id", tenantId)
       .order("stone_id", { ascending: true }).range(from, to),

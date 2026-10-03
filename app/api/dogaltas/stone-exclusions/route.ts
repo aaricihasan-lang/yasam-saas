@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
-import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/auth/sessionTenant";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
@@ -47,10 +46,6 @@ export async function POST(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "stones");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
-
-  if (tenantId === ADMIN_LIBRARY_TENANT_ID) {
-    return NextResponse.json({ ok: false, error: "Kütüphane kendi kayıtlarını gizleyemez." }, { status: 400 });
-  }
 
   let body: { stoneIds?: unknown };
   try { body = (await req.json()) as { stoneIds?: unknown }; }
