@@ -163,9 +163,9 @@ export function HdKaynakEditor({
 
   // P2-13: kaydedilmemiş kaynak düzenlemesi üst editöre bildirilir → kaynak/sekme değişimi
   // ve sayfadan çıkışta sorulur (önceden uzun özgün metin/çeviri sessizce kayboluyordu).
-  const baselineRef = useRef(JSON.stringify(rowToForm(source)));
+  const [baseline, setBaseline] = useState(() => JSON.stringify(rowToForm(source)));
   const [version, setVersion] = useState<string | null>(source.updated_at ?? null);
-  const dirty = !isDraft && JSON.stringify(form) !== baselineRef.current;
+  const dirty = !isDraft && JSON.stringify(form) !== baseline;
   const onDirtyRef = useRef(onDirtyChange);
   useEffect(() => {
     onDirtyRef.current = onDirtyChange;
@@ -235,7 +235,7 @@ export function HdKaynakEditor({
       showToast({ message: conflict ? error : `Hata: ${error}`, type: "error" });
       return;
     }
-    baselineRef.current = JSON.stringify(form);
+    setBaseline(JSON.stringify(form));
     setVersion(updatedAt ?? version);
     onDirtyRef.current?.(false);
     showToast({ message: "Kaynak kaydedildi.", type: "success" });
