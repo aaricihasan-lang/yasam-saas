@@ -612,7 +612,10 @@ const later = (iso: string, ms = 5) => new Date(Date.parse(iso) + ms).toISOStrin
   await t("P2-13: kaynak editörü kirli durumu bildirir; kaynak/sekme değişimi sorulur", () => {
     const e = src("app/human-design/bilgi-bankasi/[recordId]/HdKayitEditor.tsx");
     assert(/onDirtyChange=\{setSourceDirty\}/.test(e) && /switchSource\(/.test(e) && /switchSection\(/.test(e), "kaynak kaybı koruması yok");
-    assert(/onDirtyChange\?\.?\(?/.test(src("app/human-design/bilgi-bankasi/components/HdKaynakEditor.tsx")), "kaynak editörü bildirmiyor");
+    const ke = src("app/human-design/bilgi-bankasi/components/HdKaynakEditor.tsx");
+    assert(/onDirtyChange\?\.?\(?/.test(ke), "kaynak editörü bildirmiyor");
+    // Taslak kaynak da kapsanır (prod smoke bulgusu): isDraft dirty hesabından dışlanmaz.
+    assert(/const dirty = JSON\.stringify\(form\) !== baseline;/.test(ke) && !/const dirty = !isDraft/.test(ke), "taslak kaynak metni korumasız");
   });
   await t("P2-3: hub Word vaadi Android'de gizli (.no-android) + Kayıtlı Raporlar'da Özet", () => {
     const h = src("app/human-design/components/HdHubModules.tsx");
