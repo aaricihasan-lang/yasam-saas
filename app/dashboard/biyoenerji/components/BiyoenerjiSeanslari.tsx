@@ -707,7 +707,7 @@ export default function BiyoenerjiSeanslari() {
                   <div key={row.id} className="relative">
                     {!isDemo && (
                       <label
-                        className="absolute left-0.5 top-1/2 z-10 -translate-y-1/2 flex h-11 w-9 cursor-pointer items-center justify-center lg:left-1.5 lg:h-4 lg:w-4"
+                        className="absolute left-0 top-1/2 z-10 -translate-y-1/2 flex h-11 w-11 cursor-pointer items-center justify-center lg:left-1.5 lg:h-4 lg:w-4"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <input
@@ -722,7 +722,7 @@ export default function BiyoenerjiSeanslari() {
                   <button
                     type="button"
                     onClick={() => selectRow(row)}
-                    className={`w-full rounded-xl border ${isDemo ? "pl-3.5" : "pl-7"} pr-3.5 py-3 text-left transition-all duration-200 ease-out will-change-transform ${
+                    className={`w-full rounded-xl border ${isDemo ? "pl-3.5" : "pl-12 lg:pl-7"} pr-3.5 py-3 text-left transition-all duration-200 ease-out will-change-transform ${
                       active
                         ? "scale-[1.01] border-violet-300/60 bg-white/95 shadow-[0_0_0_2px_rgba(167,139,250,0.18),0_14px_36px_-12px_rgba(109,40,217,0.14)] ring-2 ring-violet-200/45 ring-offset-1 ring-offset-transparent"
                         : exportSelected
