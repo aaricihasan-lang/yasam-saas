@@ -191,6 +191,11 @@ export const YH_CLIENT_INDEX_SOURCES: readonly ClientSourceConfig[] = [
   },
 ];
 
+/** Danışan Hafızası source_module evreni (SQL modül filtresi için; registry'den türetilir). */
+export const YH_CLIENT_SOURCE_MODULE_KEYS: readonly string[] = Array.from(
+  new Set(YH_CLIENT_INDEX_SOURCES.map((s) => s.sourceModule)),
+);
+
 /** Bir config'in indexlenebilir kolonlarında hiçbir denylist alanı OLMADIĞINI zorlar. */
 export function assertNoDenylistedIndexColumns(config: ClientSourceConfig): void {
   const indexed = new Set<string>([

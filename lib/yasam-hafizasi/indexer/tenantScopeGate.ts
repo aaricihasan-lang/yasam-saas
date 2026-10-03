@@ -18,8 +18,9 @@
 import {
   evaluateRawRowTenantReady,
   normalizeApprovalStatus,
+  normalizeRole,
 } from "../../auth/approvalGate";
-import { ADMIN_LIBRARY_TENANT_ID } from "../../tenancy/syntheticTenants";
+import { isSyntheticTenantId } from "../../tenancy/syntheticTenants";
 import { YH_DEMO_TENANT_ID } from "../config";
 import type { SourceConfig } from "./sources";
 import { METHOD_SOURCE_KEY } from "./methodSource";
@@ -93,9 +94,18 @@ export type TenantScopeGateCode =
 export function canonicalTenantRejection(
   tenantId: string,
 ): "tenant-synthetic" | "tenant-demo" | null {
-  if (tenantId === ADMIN_LIBRARY_TENANT_ID) return "tenant-synthetic";
+  if (isSyntheticTenantId(tenantId)) return "tenant-synthetic";
   if (tenantId === YH_DEMO_TENANT_ID) return "tenant-demo";
   return null;
+}
+
+/**
+ * Aktif, demo olmayan admin satırı (owner admin + uzman). Admin uzman onay akışından geçmez;
+ * kendi tenant'ı gerçek uzman tenant'ıdır (bkz. syntheticTenants OWNER_TENANT_ID). `active`
+ * yalnız tam `true` kabul edilir (fail-closed).
+ */
+function isActiveNonDemoAdmin(row: Record<string, unknown>): boolean {
+  return normalizeRole(row.role) === "admin" && row.active === true && row.is_demo_account !== true;
 }
 
 /** IO adapter'ından gelen ham (PII-dışı) tenant + users satırları. */
@@ -116,8 +126,9 @@ export type TenantScopeEvaluation =
  *   4) users boş → tenant-not-ready,
  *   5) HERHANGİ bir user is_demo_account===true → (tümü demo ? tenant-demo : tenant-mixed-demo)
  *      (BAĞLAYICI: hazır uzman demo user ile birlikte olsa bile tenant REDDEDİLİR),
- *   6) EN AZ bir non-demo hazır uzman → ok (tek kanıt),
- *   7) aksi (admin-only / hazır uzman yok) → tenant-not-ready.
+ *   6) EN AZ bir non-demo hazır uzman VEYA aktif non-demo admin (owner'ın gerçek uzman tenant'ı;
+ *      admin rolü uzman onay akışından geçmez) → ok,
+ *   7) aksi (hazır uzman/aktif admin yok) → tenant-not-ready.
  */
 export function evaluateTenantScope(
   tenantId: string,
@@ -147,7 +158,7 @@ export function evaluateTenantScope(
     return { ok: false, code: allDemo ? "tenant-demo" : "tenant-mixed-demo" };
   }
 
-  const someReady = users.some((u) => evaluateRawRowTenantReady(u).ready);
+  const someReady = users.some((u) => evaluateRawRowTenantReady(u).ready || isActiveNonDemoAdmin(u));
   if (someReady) return { ok: true, scope: makeValidatedTenantScope(tenantId) };
   return { ok: false, code: "tenant-not-ready" };
 }

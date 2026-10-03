@@ -39,6 +39,43 @@ export type ProcessDirective =
   | { readonly action: "fail"; readonly retryClass: RetryClass; readonly code: string };
 
 const complete = (note: string): ProcessDirective => ({ action: "complete", note });
+
+// ─── İş sonucu (outbox `last_outcome`) ────────────────────────────────────────
+// `succeeded` tek başına "worker bitirdi" demektir; indekslendi mi, dışlandı mı, silindi mi
+// ayırt edilemez. Directive notu sabit, PII-siz bir sonuç koduna indirgenir ve complete RPC'si
+// ile kalıcı yazılır (last_error = hata; last_outcome = iş sonucu).
+export const YH_OUTBOX_OUTCOMES = [
+  "indexed",
+  "deindexed",
+  "source-not-found",
+  "inactive-source",
+  "shared-excluded",
+  "synthetic-excluded",
+  "demo-excluded",
+  "pii-excluded",
+  "row-ineligible",
+  "empty-content",
+] as const;
+export type YhOutboxOutcome = (typeof YH_OUTBOX_OUTCOMES)[number];
+
+const NOTE_OUTCOME: Readonly<Record<string, YhOutboxOutcome>> = {
+  "upsert-ok": "indexed",
+  "delete-one": "deindexed",
+  "delete-none": "deindexed",
+  "inactive-source-noop": "inactive-source",
+  "shared-excluded": "shared-excluded",
+  "pii-excluded": "pii-excluded",
+  "defensive-deindex:not-found": "source-not-found",
+  "defensive-deindex:skipped-build": "empty-content",
+  "defensive-deindex:excluded-demo": "demo-excluded",
+  "defensive-deindex:excluded-synthetic": "synthetic-excluded",
+  "defensive-deindex:row-ineligible": "row-ineligible",
+};
+
+/** Directive notu → kalıcı iş sonucu kodu (bilinmeyen not → null; sonuç yazılmaz). */
+export function outcomeOfNote(note: string): YhOutboxOutcome | null {
+  return NOTE_OUTCOME[note] ?? null;
+}
 const permanent = (code: string): ProcessDirective => ({ action: "fail", retryClass: "permanent", code });
 const transient = (code: string): ProcessDirective => ({ action: "fail", retryClass: "transient", code });
 
@@ -83,8 +120,12 @@ export async function processOutboxEvent(
   if (config === null) return permanent("unknown-source");
   // Kapı 3: event.source_table === registry config.tableName?
   if (event.sourceTable !== config.tableName) return permanent("source-table-mismatch");
-  // Kapı 4: safe-non-pii + enabled?
-  if (!isIndexableSource(config)) return permanent("source-not-indexable");
+  // Kapı 4: safe-non-pii + enabled? PII sınıflı kaynak olayı hata DEĞİL bilinçli dışlamadır
+  // (Mesleki Hafıza'ya ASLA girmez) → sonuçlu complete; disabled/unclassified → kalıcı hata.
+  if (!isIndexableSource(config)) {
+    if (config.classification === "pii") return complete("pii-excluded");
+    return permanent("source-not-indexable");
+  }
   // Kapı 4b (BF-11E RUNTIME ACTIVATION GATE): CONTROLLED kaynak enabled:true olsa dahi DB
   // is_active=true değilse index YAZILMAZ (CODE MERGED ≠ SOURCE ACTIVATED). Grandfathered CANLI
   // kaynaklar için gate true (davranış değişmez). Dep enjekte edilmemişse (harness) atlanır.
@@ -124,17 +165,12 @@ export async function processOutboxEvent(
   ) {
     return permanent("non-record-unit-unsupported");
   }
-  // Kapı 8: source_id her zaman UUID. tenant_id UUID VEYA (null + shared-optional-professional).
-  //   NULL tenant YALNIZ shared-capable kaynak için geçerli (shared professional referans); aksi
-  //   herhangi bir column-tenant kaynağında NULL hâlâ FAIL-CLOSED.
+  // Kapı 8: source_id her zaman UUID. Mesleki Hafıza'da ortak/merkezî kütüphane YOK: NULL tenant
+  //   (eski shared/canonical) olay HİÇBİR kaynakta indexlenmez → yazmadan `shared-excluded` ile
+  //   tamamlanır (dead-letter biriktirmez). Tenant'lı olayda geçerli UUID zorunlu.
   if (!isUuid(event.sourceId)) return permanent("invalid-event-contract");
-  if (event.tenantId === null) {
-    if (!hasWorkerCapability(config, "shared-optional-professional")) {
-      return permanent("shared-source-unsupported");
-    }
-  } else if (!isUuid(event.tenantId)) {
-    return permanent("invalid-event-contract");
-  }
+  if (event.tenantId === null) return complete("shared-excluded");
+  if (!isUuid(event.tenantId)) return permanent("invalid-event-contract");
 
   if (event.operation === "delete") {
     return handleDelete(event, config, deps);
@@ -288,7 +324,13 @@ export interface OutboxBatchDeps extends EventProcessorDeps {
   readonly maxDelaySeconds: number;
   readonly sweep: (leaseSeconds: number, batch: number) => Promise<ReadonlyArray<unknown>>;
   readonly claim: (worker: string, batch: number) => Promise<readonly ClaimedOutboxEvent[]>;
-  readonly complete: (id: string, worker: string, version: number) => Promise<CompleteRpcResult>;
+  /** `outcome` = iş sonucu (last_outcome); null → yalnız durum geçişi (eski davranış). */
+  readonly complete: (
+    id: string,
+    worker: string,
+    version: number,
+    outcome: YhOutboxOutcome | null,
+  ) => Promise<CompleteRpcResult>;
   readonly fail: (
     id: string,
     worker: string,
@@ -308,6 +350,8 @@ export interface OutboxBatchSummary {
   readonly failedPermanent: number;
   readonly failedTransient: number;
   readonly transportErrors: number;
+  /** Tamamlanan olayların iş sonucu dağılımı (yalnız sabit kodlar; PII yok). */
+  readonly outcomes: Readonly<Partial<Record<YhOutboxOutcome, number>>>;
 }
 
 export async function runOutboxBatch(deps: OutboxBatchDeps): Promise<OutboxBatchSummary> {
@@ -319,6 +363,7 @@ export async function runOutboxBatch(deps: OutboxBatchDeps): Promise<OutboxBatch
   let failedPermanent = 0;
   let failedTransient = 0;
   let transportErrors = 0;
+  const outcomes: Partial<Record<YhOutboxOutcome, number>> = {};
 
   for (const ev of claimed) {
     // SERİ. İki AYRI hata sınırı (BF-11B-FIX1):
@@ -335,9 +380,13 @@ export async function runOutboxBatch(deps: OutboxBatchDeps): Promise<OutboxBatch
 
     try {
       if (directive.action === "complete") {
-        const r = await deps.complete(ev.id, deps.worker, ev.eventVersion);
+        const outcome = outcomeOfNote(directive.note);
+        const r = await deps.complete(ev.id, deps.worker, ev.eventVersion, outcome);
         if (r === "requeued_newer_event") requeued += 1;
-        else completed += 1;
+        else {
+          completed += 1;
+          if (outcome !== null) outcomes[outcome] = (outcomes[outcome] ?? 0) + 1;
+        }
       } else {
         const maxAttempts =
           directive.retryClass === "permanent"
@@ -371,5 +420,6 @@ export async function runOutboxBatch(deps: OutboxBatchDeps): Promise<OutboxBatch
     failedPermanent,
     failedTransient,
     transportErrors,
+    outcomes,
   };
 }

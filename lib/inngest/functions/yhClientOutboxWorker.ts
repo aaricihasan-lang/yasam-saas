@@ -159,7 +159,7 @@ export const yhClientOutboxWorkerFunction = inngest.createFunction(
       maxDelaySeconds: DEFAULT_MAX_DELAY_SECONDS,
       sweep: (leaseSeconds, b) => sweepExpiredClient(rpcDb, leaseSeconds, b),
       claim: (w, b) => claimClientEvents(rpcDb, w, b),
-      complete: (id, w, v) => completeClientEvent(rpcDb, id, w, v),
+      complete: (id, w, v, outcome) => completeClientEvent(rpcDb, id, w, v, outcome),
       fail: (id, w, v, code, maxAttempts, baseDelay, maxDelay) =>
         failClientEvent(rpcDb, id, w, v, code, maxAttempts, baseDelay, maxDelay),
     });

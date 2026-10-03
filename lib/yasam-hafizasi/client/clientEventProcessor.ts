@@ -35,7 +35,7 @@
  *     → duplicate 0. DELETE → tenant+client scoped deindex.
  */
 import { OUTBOX_OPERATIONS } from "../outbox/outboxState";
-import type { ProcessDirective } from "../outbox/eventProcessor";
+import { outcomeOfNote, type ProcessDirective, type YhOutboxOutcome } from "../outbox/eventProcessor";
 import type { ClaimedClientOutboxEvent } from "../outbox/clientOutboxRpcClient";
 import { isSyntheticTenantId, ADMIN_LIBRARY_TENANT_ID } from "../../tenancy/syntheticTenants";
 import { buildClientIndexUnit, toClientIndexDbRow } from "./clientIndexUnit";
@@ -268,7 +268,12 @@ export interface ClientOutboxBatchDeps extends ClientEventProcessorDeps {
   readonly maxDelaySeconds: number;
   readonly sweep: (leaseSeconds: number, batch: number) => Promise<ReadonlyArray<unknown>>;
   readonly claim: (worker: string, batch: number) => Promise<readonly ClaimedClientOutboxEvent[]>;
-  readonly complete: (id: string, worker: string, version: number) => Promise<ClientCompleteRpcResult>;
+  readonly complete: (
+    id: string,
+    worker: string,
+    version: number,
+    outcome: YhOutboxOutcome | null,
+  ) => Promise<ClientCompleteRpcResult>;
   readonly fail: (
     id: string,
     worker: string,
@@ -280,6 +285,13 @@ export interface ClientOutboxBatchDeps extends ClientEventProcessorDeps {
   ) => Promise<ClientFailRpcResult>;
 }
 
+/** Client directive notu → kalıcı iş sonucu (professional sözlüğü + client'a özgü aktivasyon sınırı). */
+export function clientOutcomeOfNote(note: string): YhOutboxOutcome | null {
+  if (note === "pre-activation-upsert-noop") return "inactive-source";
+  if (note === "defensive-deindex:pre-activation-delete") return "deindexed";
+  return outcomeOfNote(note);
+}
+
 export interface ClientOutboxBatchSummary {
   readonly swept: number;
   readonly claimed: number;
@@ -288,6 +300,7 @@ export interface ClientOutboxBatchSummary {
   readonly failedPermanent: number;
   readonly failedTransient: number;
   readonly transportErrors: number;
+  readonly outcomes: Readonly<Partial<Record<YhOutboxOutcome, number>>>;
 }
 
 export async function runClientOutboxBatch(deps: ClientOutboxBatchDeps): Promise<ClientOutboxBatchSummary> {
@@ -299,6 +312,7 @@ export async function runClientOutboxBatch(deps: ClientOutboxBatchDeps): Promise
   let failedPermanent = 0;
   let failedTransient = 0;
   let transportErrors = 0;
+  const outcomes: Partial<Record<YhOutboxOutcome, number>> = {};
 
   for (const ev of claimed) {
     let directive: ProcessDirective;
@@ -310,9 +324,13 @@ export async function runClientOutboxBatch(deps: ClientOutboxBatchDeps): Promise
 
     try {
       if (directive.action === "complete") {
-        const r = await deps.complete(ev.id, deps.worker, ev.eventVersion);
+        const outcome = clientOutcomeOfNote(directive.note);
+        const r = await deps.complete(ev.id, deps.worker, ev.eventVersion, outcome);
         if (r === "requeued_newer_event") requeued += 1;
-        else completed += 1;
+        else {
+          completed += 1;
+          if (outcome !== null) outcomes[outcome] = (outcomes[outcome] ?? 0) + 1;
+        }
       } else {
         const maxAttempts =
           directive.retryClass === "permanent" ? deps.permanentMaxAttempts : deps.transientMaxAttempts;
@@ -342,5 +360,6 @@ export async function runClientOutboxBatch(deps: ClientOutboxBatchDeps): Promise
     failedPermanent,
     failedTransient,
     transportErrors,
+    outcomes,
   };
 }

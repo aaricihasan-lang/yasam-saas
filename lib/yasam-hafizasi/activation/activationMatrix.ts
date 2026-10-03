@@ -151,10 +151,11 @@ export const YH_ACTIVATION_MATRIX = [
   // dogaltas:stones KEEP_LIVE (grandfathered CANLI; mevcut koşulsuz outbox trigger — DEĞİŞMEZ).
   keepLive("dogaltas:stones", "Doğaltaş", "stones", "column", "source-classification"),
   controlled("dogaltas:minerals", "Doğaltaş / Mineral Bankası", "minerals", "column", "source-classification"),
-  // dogaltas:knowledge allowSharedNull=true → Worker-v2 'shared-optional-professional' capability ile READY.
+  // dogaltas:knowledge: satış öncesi (2026-10) ortak/NULL-tenant yeteneği KALDIRILDI → yalnız tenant satırları.
   controlledV2("dogaltas:knowledge", "Doğaltaş", "stone_knowledge_articles", "column", "source-classification"),
   controlled("dogaltas:combinations", "Doğaltaş", "combinations", "column", "source-classification"),
-  // aromaterapi:oils/reference-sheets shared-optional; reference-rows shared + parent-derived → Worker-v2 READY.
+  // aromaterapi:oils/reference-sheets/reference-rows: satış öncesi (2026-10) NULL-tenant (canonical) satırlar
+  //   Mesleki Hafıza'ya GİRMEZ; reference-rows parent-derived (tenant parent sheet'ten).
   controlledV2("aromaterapi:oils", "Aromaterapi", "aromatherapy_oils", "column", "source-classification"),
   controlledV2("aromaterapi:reference-sheets", "Aromaterapi", "aromatherapy_reference_sheets", "column", "source-classification"),
   controlledV2("aromaterapi:reference-rows", "Aromaterapi", "aromatherapy_reference_rows", "join", "source-classification"),
@@ -179,6 +180,12 @@ export const YH_ACTIVATION_MATRIX = [
   coverageControlled("kupa_hacamat:safety-notes", "Kupa & Hacamat", "cupping_safety_notes", "source-classification"),
   // chakra-blocks: block_type='source-evidence' DIŞLAMA kapısı (status-eligibility) → UI görünürlüğü ile birebir.
   coverageControlled("biyoenerji:chakra-blocks", "Biyoenerji", "bioenergy_chakra_blocks", "status-eligibility"),
+  // ── BESLENME (satış öncesi nihai kapsam, 2026-10) — 3 aggregate mesleki kaynak ──
+  //   Ebeveyn + çocuk→ebeveyn CDC (migration 20271004000100); SYSTEM tenant trigger + composer'da
+  //   reddedilir; aktivasyon sürüm kontrollü (20271004000200). Tarihsel kayıtlar outbox replay ile.
+  coverageControlled("beslenme:foods", "Beslenme", "nutrition_foods", "source-classification"),
+  coverageControlled("beslenme:topics", "Beslenme", "nutrition_topics", "source-classification"),
+  coverageControlled("beslenme:templates", "Beslenme", "nutrition_templates", "source-classification"),
 
   // ── E) KİŞİSEL ARŞİV (ROW_GATED_CONTROLLED) — row-gate WIRED + controlled (default OFF) ──
   {

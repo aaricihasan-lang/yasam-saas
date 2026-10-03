@@ -3,7 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { membershipInactiveResponse, verifyUserRequest } from "@/lib/auth/userGuard";
 import { hasMembershipAccessForRow } from "@/lib/auth/membershipAccessCore";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
-import { filterByYhScope, resolveYhModuleScope } from "@/lib/yasam-hafizasi/moduleScope";
+import { filterByYhScope, resolveYhModuleScope, yhSqlModuleFilter } from "@/lib/yasam-hafizasi/moduleScope";
+import { YH_CLIENT_SOURCE_MODULE_KEYS } from "@/lib/yasam-hafizasi/client/clientSources";
 import { getTenantFlags } from "@/lib/yasam-hafizasi/flags";
 import {
   parseClientSearchRequest,
@@ -96,11 +97,16 @@ export async function POST(
 
   if (q.length === 0) return empty(q, { emptyReason: "no-query" });
 
+  // Kapsam ∩ istenen modüller + tarih penceresi SQL'de LIMIT'ten ÖNCE (v2); aşağıdaki filtreler savunma.
+  const scope = resolveYhModuleScope(profile?.role, profile?.module_permissions);
   const outcome = await runClientRetrieval(db as unknown as ClientRpcDb, {
     rawQuery: q,
     sessionTenantId: tenantId,
     clientId,
     limit,
+    modules: yhSqlModuleFilter(scope, YH_CLIENT_SOURCE_MODULE_KEYS, modules),
+    dateFrom: dateFrom ?? null,
+    dateTo: dateTo ?? null,
   });
   if (outcome.kind === "noop") return empty(q, { emptyReason: "no-results" });
   // Şema/RPC henüz production'a uygulanmadı → dormant güvenli disabled state.
@@ -110,9 +116,9 @@ export async function POST(
   const all: ClientSearchResult[] = outcome.rows
     .map(toClientSearchResult)
     .filter((r): r is ClientSearchResult => r !== null);
-  // ÜYE YÖNETİMİ FAZ 2: aktif kapsam = GÜNCEL module_permissions (kayıt silinmez).
-  const scope = resolveYhModuleScope(profile?.role, profile?.module_permissions);
-  const dated = filterByYhScope(scope, all).filter((r) => withinDateWindow(r.occurredAt, dateFrom, dateTo));
+  const dated = filterByYhScope(scope, all).filter(
+    (r) => outcome.filteredInSql || withinDateWindow(r.occurredAt, dateFrom, dateTo),
+  );
   const facets = computeClientFacets(dated);
   const displayed = filterClientByModules(dated, modules).slice(0, limit);
   const emptyReason =
