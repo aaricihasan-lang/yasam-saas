@@ -231,8 +231,10 @@ async function main() {
   section("6. Route statik");
   const route = read("app/api/clients/[id]/anamnez/[anamnesisId]/pdf/route.ts");
   ok(/requireModuleAccess\(req, "clients"\)/.test(route) && /if \(!guard\.ok\) return guard\.response;/.test(route), "guard: requireModuleAccess(clients)");
-  ok(/const \{ db, tenantId, is_demo_account \} = guard;/.test(route) && !/searchParams\.get\("tenant|body\./.test(route), "tenant yalnız guard'dan");
-  ok(/if \(is_demo_account\) return notFound\(\);/.test(route), "demo → 404");
+  ok(/const \{ db, tenantId \} = guard;/.test(route) && !/searchParams\.get\("tenant|body\./.test(route), "tenant yalnız guard'dan");
+  // DEMO VİTRİN (2026-10-03): demo tenant'ı yalnız SENTETİK veri içerir → PDF okuması demo'da da açık
+  // (yazma uçları demoReadOnly ile kapalı). Eski "demo → 404" dalı bilinçli olarak kaldırıldı.
+  ok(!/is_demo_account/.test(route), "demo: salt-okunur PDF okuması açık (demo 404 dalı yok)");
   ok(/loadClientInTenant\(db, tenantId, clientId\)/.test(route) && /loadAnamnesis<AnamnezRecord>\(db, tenantId, clientId, anamnesisId,/.test(route), "danışan + anamnez tenant/client/id ile");
   ok(/anamnezError\("CONFLICT", 409/.test(route) && /searchParams\.get\("rev"\)/.test(route), "?rev uyuşmazlığı → 409 CONFLICT");
   ok(/checkRateLimit\(`anamnez-filled:\$\{tenantId\}`/.test(route), "rate limit anamnez-filled:<tenant>");

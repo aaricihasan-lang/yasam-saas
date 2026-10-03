@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
-import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
+import { beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { isUuid } from "@/lib/beslenme/planContracts";
 import { buildPlanDocxBuffer } from "@/lib/beslenme/word/planDocx";
@@ -29,8 +29,8 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   if (androidBlocked) return androidBlocked;
   const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
-  const demo = denyDemoMutation(guard);
-  if (demo) return demo;
+  // DEMO VİTRİN: plan Word'ü salt-okunur çıktı (snapshot okuması; DB yazımı/uzak fetch/ücretli
+  // servis yok; kullanıcı başına rate-limit aşağıda) → demo hesapta açık.
   const { db, tenantId, userId } = guard;
 
   const { id } = await ctx.params;

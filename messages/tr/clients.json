@@ -79,13 +79,13 @@
       "gorusmeHint": "Danışanın ilk/son görüşme tarihi. Planlı seanslar için <b>Ajanda & Randevu</b>’yu kullanın.",
       "submit": {
         "saving": "Kaydediliyor...",
-        "demo": "Demo Danışan Oluştur",
+        "demo": "Kaydet (demo hesapta pasif)",
         "default": "Danışanı Kaydet"
       },
       "backToList": "Listeye Dön",
       "demoNotice": {
-        "title": "Demo Modu — Geçici Kayıt",
-        "desc": "Bu danışan veritabanına kaydedilmeyecek; yalnızca oturumunuz süresince tarayıcınızda saklanacak. Çıkış yaptığınızda otomatik olarak silinir."
+        "title": "Demo Modu — Salt Okunur",
+        "desc": "Kayıt formunu inceleyebilirsiniz; demo hesabında yeni danışan kaydedilmez. Örnek danışanların tam detayını Danışan Listesi'nden açabilirsiniz."
       },
       "tenantMissing": {
         "noSession": "Oturum bulunamadı. Danışan kaydı için lütfen tekrar giriş yapın.",
@@ -115,7 +115,8 @@
         "invalidDateMsg": "Görüşme tarihini DD.MM.YYYY biçiminde geçerli bir tarih olarak girin ya da boş bırakın.",
         "invalidBirthMsg": "Doğum tarihini GG.AA.YYYY biçiminde gerçek bir takvim tarihi olarak girin (bugünden sonra olamaz) ya da boş bırakın.",
         "successTitle": "Başarılı",
-        "demoCreated": "Demo danışan oluşturuldu.",
+        "demoReadOnlyTitle": "Demo Hesabı",
+        "demoReadOnly": "Demo hesabı salt okunurdur; yeni danışan kaydı oluşturulmaz. Kayıtlı örnek danışanları Danışan Listesi'nden inceleyebilirsiniz.",
         "saved": "Danışan kaydedildi.",
         "saveError": "Kayıt hatası"
       }

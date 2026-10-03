@@ -213,7 +213,11 @@ export async function requireModuleAccess(
     return { ok: false, response: membershipInactiveResponse() };
   }
 
-  if (!resolveModuleAccess(profile.role, profile.module_permissions, moduleKey)) {
+  if (
+    !resolveModuleAccess(profile.role, profile.module_permissions, moduleKey, {
+      isDemo: guard.is_demo_account === true,
+    })
+  ) {
     return {
       ok: false,
       response: NextResponse.json(

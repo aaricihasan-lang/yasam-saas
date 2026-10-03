@@ -9,6 +9,7 @@ import {
   notesVersion,
   NOTES_CONFLICT_MESSAGE,
 } from "@/lib/danisan/notesPatch";
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 
 export const runtime = "nodejs";
 
@@ -107,9 +108,7 @@ export async function PATCH(
 
   // Demo hesap: hiçbir koşulda Supabase'e yazma yapılmaz.
   // (Demo akışı zaten /demo rotasında localStorage fixture kullanır; bu savunma derinliği içindir.)
-  if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, note: null });
-  }
+  if (is_demo_account) return demoReadOnlyResponse();
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json(

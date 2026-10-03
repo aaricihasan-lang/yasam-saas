@@ -20,7 +20,7 @@ import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 // SAF resolver + tipler artık server-bağımsız çekirdekte (client de kullanabilsin — REF-010).
 // Mevcut import yolları korunsun diye buradan YENİDEN EXPORT edilir (davranış aynı).
-import { resolveModuleAccess } from "./moduleAccessCore";
+import { resolveModuleAccess, isDemoAccountFlag } from "./moduleAccessCore";
 import type { ModuleGateKey } from "./moduleAccessCore";
 import {
   hasMembershipAccessForRow,
@@ -91,7 +91,11 @@ export async function assertUserModuleAccess(
   if (!hasMembershipAccessForRow(data as Record<string, unknown>)) {
     return { ok: false, response: MEMBERSHIP_INACTIVE() };
   }
-  if (!resolveModuleAccess(data.role, data.module_permissions, moduleKey)) {
+  if (
+    !resolveModuleAccess(data.role, data.module_permissions, moduleKey, {
+      isDemo: isDemoAccountFlag((data as Record<string, unknown>).is_demo_account),
+    })
+  ) {
     return { ok: false, response: MODULE_DENIED() };
   }
   return { ok: true };

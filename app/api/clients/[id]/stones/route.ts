@@ -4,6 +4,7 @@ import { serverErrorResponse, logServerError } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { deleteStoneAndPhotos, STONE_PHOTO_BUCKET } from "@/lib/clients/stonePhotoStorage";
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 
 export const runtime = "nodejs";
 
@@ -89,9 +90,7 @@ export async function POST(
   }
 
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, stone: null });
-  }
+  if (is_demo_account) return demoReadOnlyResponse();
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
@@ -143,9 +142,7 @@ export async function PATCH(
   }
 
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, stone: null });
-  }
+  if (is_demo_account) return demoReadOnlyResponse();
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
@@ -210,9 +207,7 @@ export async function DELETE(
   }
 
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, deleted: 0 });
-  }
+  if (is_demo_account) return demoReadOnlyResponse();
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }

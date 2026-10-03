@@ -7,6 +7,7 @@ import {
   extForMime,
   buildStonePhotoPath,
 } from "@/lib/clients/stonePhotoStorage";
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 
 export const runtime = "nodejs";
 
@@ -77,7 +78,7 @@ export async function POST(
   const { db, tenantId, is_demo_account } = guard;
 
   // Demo hesap: storage mutation yapılmaz — fail-safe no-op.
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let body: Record<string, unknown>;
   try {

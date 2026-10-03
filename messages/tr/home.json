@@ -93,7 +93,7 @@
       "stok": { "title": "Ürün & Stok Merkezi", "desc": "Tüm ürünler, stok, satış ve fiyatlandırma merkezi", "badge": "Modül", "stat": "{n} ürün" },
       "energy_body": { "title": "Enerji & Beden", "desc": "Biyoenerji, Refleksoloji ve Kupa & Hacamat çalışma alanları", "badge": "Modül" },
       "sifa_rehberi": { "title": "Doğal Destek & Rehber", "desc": "Doğal destek yöntemleri, beslenme ve profesyonel başvuru kaynakları", "badge": "Modül" },
-      "digital_content": { "title": "Dijital İçerik Merkezi", "desc": "Belge dönüştürme ve kişisel arşiv yönetimi", "badge": "Merkez", "stat": "{n} içerik" },
+      "digital_content": { "title": "Dijital İçerik Merkezi", "desc": "Kişisel arşiv ve dijital içeriklerinizi tek merkezde yönetin", "badge": "Merkez", "stat": "{n} içerik" },
       "numerology": { "title": "Yaşam Analiz Merkezi", "desc": "Numeroloji ve Human Design analiz araçları", "badge": "Merkez", "stat": "{n} analiz" },
       "cosmic_calendar": { "title": "Yaşam Takvimi / Kozmik Ajanda", "desc": "Hicri takvim, hacamat günleri ve günlük kozmik akış", "badge": "Merkez" }
     },

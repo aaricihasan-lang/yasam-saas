@@ -33,7 +33,8 @@ export async function GET(req: NextRequest): Promise<Response> {
   }
 
   if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, flags: { ...YH_DEFAULT_FLAGS } });
+    // DEMO VİTRİN: sentetik fixture araması açık (gerçek tenant flag'i okunmaz/yazılmaz).
+    return NextResponse.json({ ok: true, demo: true, flags: { ...YH_DEFAULT_FLAGS, yh_enabled: true, yh_hizli: true } });
   }
 
   const flags = await getTenantFlags(tenantId, db);

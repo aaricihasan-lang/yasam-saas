@@ -9,7 +9,6 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
 import { readYasamUser, readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
 import { invalidateDanisanListCache } from "@/lib/danisan/listCache";
-import { addDemoClient, initDemoSession } from "@/lib/demo/demoSession";
 import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
 import { computeBurc } from "@/lib/danisan/burc";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
@@ -387,22 +386,10 @@ export default function DanisanKayitPage() {
       return;
     }
 
-    // Demo hesap: DB yerine localStorage'a kaydet
+    // Demo vitrin hesabı SALT OKUNUR: form incelenebilir ama kayıt OLUŞTURULMAZ (sunucu da 403
+    // döner). Yerel/geçici sahte kayıt üretilmez — liste gerçek (sentetik) demo verisini gösterir.
     if (isDemo) {
-      setSaving(true);
-      initDemoSession();
-      addDemoClient({
-        ad: ad.trim(),
-        soyad: normalizeSurname(soyad),
-        telefon: telefon.trim(),
-        dogum,
-        gorusme,
-        burc,
-        kan,
-        mizac,
-      });
-      showToast({ title: t("toast.successTitle"), message: t("toast.demoCreated"), type: "success" });
-      router.push("/danisan-yolculugu/liste");
+      showToast({ title: t("toast.demoReadOnlyTitle"), message: t("toast.demoReadOnly"), type: "info" });
       return;
     }
 

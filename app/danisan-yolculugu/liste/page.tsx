@@ -30,9 +30,6 @@ import {
 } from "@/lib/danisan/listCache";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
-import { DEMO_CLIENTS, type DemoListClient } from "@/lib/demo/demoClients";
-import { DemoBlur } from "@/components/demo/DemoBlur";
-import { initDemoSession, readDemoClients, type DemoClient } from "@/lib/demo/demoSession";
 import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
 import { buildNameListLines } from "@/lib/ui/deleteConfirmMessage";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
@@ -123,7 +120,6 @@ const ClientCard = memo(function ClientCard({
   client,
   isSelected,
   expiredCount,
-  isDemo,
   onToggle,
   onOpen,
   onPrefetch,
@@ -131,7 +127,6 @@ const ClientCard = memo(function ClientCard({
   client: Client;
   isSelected: boolean;
   expiredCount: number;
-  isDemo: boolean;
   onToggle: (id: string) => void;
   onOpen: (id: string) => void;
   onPrefetch: (id: string) => void;
@@ -161,8 +156,8 @@ const ClientCard = memo(function ClientCard({
       onMouseEnter={() => onPrefetch(client.id)}
       title={t("card.openTitle")}
     >
-      {/* Checkbox — demo'da gizli */}
-      {!isDemo && (
+      {/* Checkbox — demo vitrin hesabında da görünür (toplu Word çıktısı salt-okunur çalışır) */}
+      {(
         <label
           className="absolute right-1 top-1 z-10 flex h-11 w-11 cursor-pointer items-center justify-center lg:right-3 lg:top-3 lg:h-6 lg:w-6"
           onClick={(e) => e.stopPropagation()}
@@ -204,9 +199,7 @@ const ClientCard = memo(function ClientCard({
       <div className="space-y-1.5 text-[12px] text-slate-500">
         <div className="flex items-center gap-1.5">
           <Phone className="h-3 w-3 flex-shrink-0 text-slate-400" />
-          <DemoBlur isProtected={isDemo} intensity={4} className="min-w-0 flex-1">
-            <span className="block truncate">{client.telefon || t("card.noPhone")}</span>
-          </DemoBlur>
+          <span className="block min-w-0 flex-1 truncate">{client.telefon || t("card.noPhone")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <CalendarCheck className="h-3 w-3 flex-shrink-0 text-slate-400" />
@@ -407,7 +400,7 @@ export default function DanisanListePage() {
   const needsFullData = hasActiveFilter || sortBy !== "newest";
   // Gözat modu: filtre yok + varsayılan sıralama + tüm veri henüz çekilmedi →
   // sunucu-sayfalı kayıtları göster, "Daha fazla yükle" ile devam et.
-  const browseMode = !isDemo && !fullLoaded && !needsFullData;
+  const browseMode = !fullLoaded && !needsFullData;
 
   // ─── Sayfalama ───────────────────────────────────────────────────────────────
   // DOM'da her zaman EN ÇOK PER_PAGE kart render edilir → liste ne kadar büyürse
@@ -462,15 +455,16 @@ export default function DanisanListePage() {
   // re-render'ını önler). Hover'da detay rotasını prefetch et → tıklayınca anında.
   const openClient = useCallback(
     (id: string) => {
-      router.push(isDemo ? `/demo/danisan/${id}` : `/dashboard/clients/${id}`);
+      // Demo vitrin hesabı da GERÇEK danışan detay sayfasını kullanır (paralel demo sayfası yok).
+      router.push(`/dashboard/clients/${id}`);
     },
-    [router, isDemo],
+    [router],
   );
   const prefetchClient = useCallback(
     (id: string) => {
-      if (!isDemo) router.prefetch(`/dashboard/clients/${id}`);
+      router.prefetch(`/dashboard/clients/${id}`);
     },
-    [router, isDemo],
+    [router],
   );
 
   // Sayfa değişiminde listenin başına kaydır → yeni sayfa hep en üstten görünür.
@@ -594,19 +588,6 @@ export default function DanisanListePage() {
 
   useEffect(() => {
     if (!sessionChecked) return;
-    // Demo hesap: gerçek DB sorgusu yerine session + fixture veri kullan (tümü)
-    if (isDemo) {
-      initDemoSession();
-      const sessionClients = readDemoClients() as DemoClient[] as Client[];
-      const fixtureClients = DEMO_CLIENTS as DemoListClient[] as Client[];
-      const all = [...sessionClients, ...fixtureClients];
-      setClients(all);
-      setTotal(all.length);
-      setFullLoaded(true);
-      setHomeworkAlerts({});
-      setLoading(false);
-      return;
-    }
     if (!tenantId) {
       setLoading(false);
       setClients([]);
@@ -620,17 +601,17 @@ export default function DanisanListePage() {
     }
     void loadInitial(tenantId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionChecked, tenantId, isDemo]);
+  }, [sessionChecked, tenantId]);
 
   // Arama/filtre/sıralama gerekiyorsa ve tüm veri henüz yoksa → tümünü çek.
   useEffect(() => {
-    if (isDemo || !tenantId || fullLoaded) return;
+    if (!tenantId || fullLoaded) return;
     if (needsFullData && !fullReqRef.current) {
       fullReqRef.current = true;
       void loadFull(tenantId).finally(() => { fullReqRef.current = false; });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needsFullData, fullLoaded, tenantId, isDemo]);
+  }, [needsFullData, fullLoaded, tenantId]);
 
   // Gözat modunda seçili sayfanın kayıtları henüz yüklenmediyse sonraki sunucu
   // sayfasını çek (chunk'lar birikerek istenen sayfayı kapsar).
@@ -999,7 +980,7 @@ export default function DanisanListePage() {
           </div>
 
           {/* Toplu işlem / Word export çubuğu */}
-          {!isDemo && !loading && filteredClients.length > 0 && (
+          {!loading && filteredClients.length > 0 && (
             <div className="mb-5">
               <BulkExportBar
                 selectedCount={visibleSelectedIds.length}
@@ -1012,7 +993,11 @@ export default function DanisanListePage() {
                 onExportAll={isAndroid ? undefined : () => void exportClientsWord("all")}
                 onExportFiltered={!isAndroid && hasActiveFilter ? () => void exportClientsWord("filtered") : undefined}
                 isExporting={wordBusy}
-                onDeleteSelected={() => void handleBulkDeleteClients()}
+                onDeleteSelected={
+                  isDemo
+                    ? () => showToast({ title: t("demoNotice.title"), message: t("demoReadOnly"), type: "info" })
+                    : () => void handleBulkDeleteClients()
+                }
                 isDeleting={deleteLoading}
                 hideWordOnMobile
               />
@@ -1062,7 +1047,6 @@ export default function DanisanListePage() {
                   client={client}
                   isSelected={selectedClientIds.has(client.id)}
                   expiredCount={homeworkAlerts[client.id] || 0}
-                  isDemo={isDemo}
                   onToggle={toggleClientSelection}
                   onOpen={openClient}
                   onPrefetch={prefetchClient}
