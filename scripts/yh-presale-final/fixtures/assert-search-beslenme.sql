@@ -150,3 +150,28 @@ BEGIN
   IF v_n <> 0 THEN RAISE EXCEPTION 'ASSERT m3-out-of-scope: kapsam disi kaynak aktive edilmemeli (%)', v_n; END IF;
 END
 $m3$;
+
+-- ─── Tüm 30 replay kaynağı: spesifikasyon dinamik SQL'i her dalda çalışır (coverage + 3 mod) ───
+DO $all$
+DECLARE
+  c_owner constant uuid := 'aa8b960b-f4f1-4e5b-89f5-109bc030c147';
+  k text; v_res jsonb; v_n int := 0; m text;
+BEGIN
+  FOREACH k IN ARRAY ARRAY[
+   'dogaltas:stones','dogaltas:minerals','dogaltas:knowledge','dogaltas:combinations','refleksoloji:protocols',
+   'sifa_rehberi:guides','sifa_rehberi:guide-sections','biyoenerji:subconscious-causes','biyoenerji:symbols',
+   'biyoenerji:chakras','biyoenerji:imaginations','biyoenerji:sessions','biyoenerji:energy-bodies','biyoenerji:chakra-blocks',
+   'aromaterapi:oils','aromaterapi:reference-sheets','aromaterapi:reference-rows','aromaterapi:blends','aromaterapi:plant-taxa',
+   'aromaterapi:preparations','aromaterapi:method','kupa_hacamat:knowledge','kupa_hacamat:points','kupa_hacamat:topics',
+   'kupa_hacamat:techniques','kupa_hacamat:safety-notes','kisisel_arsiv:archives','beslenme:foods','beslenme:topics','beslenme:templates']
+  LOOP
+    PERFORM * FROM public.yh_replay_coverage(k);
+    FOREACH m IN ARRAY ARRAY['missing','all','orphans'] LOOP
+      v_res := public.yh_outbox_replay_enqueue(k, c_owner, m, 5, NULL);
+      IF v_res ? 'enqueued' IS NOT TRUE THEN RAISE EXCEPTION 'ASSERT spec-%-%: %', k, m, v_res; END IF;
+    END LOOP;
+    v_n := v_n + 1;
+  END LOOP;
+  IF v_n <> 30 THEN RAISE EXCEPTION 'ASSERT spec-all: 30 kaynak beklenir (%)', v_n; END IF;
+END
+$all$;

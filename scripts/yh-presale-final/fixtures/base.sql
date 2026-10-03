@@ -71,6 +71,24 @@ CREATE TABLE public.nutrition_topic_sources (id uuid PRIMARY KEY DEFAULT gen_ran
 CREATE TABLE public.nutrition_template_meals (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, template_id uuid NOT NULL REFERENCES public.nutrition_templates(id) ON DELETE CASCADE, meal_type text, label text NOT NULL, note text, sort_order int DEFAULT 0);
 CREATE TABLE public.nutrition_template_items (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, template_id uuid NOT NULL REFERENCES public.nutrition_templates(id) ON DELETE CASCADE, template_meal_id uuid NOT NULL, food_name_snapshot text NOT NULL, portion_label_snapshot text, note text, sort_order int DEFAULT 0);
 
+-- Kapsam (yh_replay_coverage) tüm 30 kaynakta çalışsın diye kalan kaynak tablolarının minimal taklidi.
+CREATE TABLE public.combinations (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, issue text);
+CREATE TABLE public.reflexology_protocols (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid, title text);
+CREATE TABLE public.bioenergy_subconscious_causes (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, title text);
+CREATE TABLE public.bioenergy_symbols (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, title text, symbol text);
+CREATE TABLE public.bioenergy_imaginations (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, title text);
+CREATE TABLE public.bioenergy_sessions (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, title text);
+CREATE TABLE public.bioenergy_energy_bodies (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, source_uid text);
+CREATE TABLE public.aromatherapy_blends (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, name text, is_active boolean DEFAULT true);
+CREATE TABLE public.aromatherapy_plant_taxa (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, canonical_name text, status text DEFAULT 'draft');
+CREATE TABLE public.aromatherapy_preparations (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, preparation_type text, status text DEFAULT 'draft');
+CREATE TABLE public.aromatherapy_preparation_method_series (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, preparation_id uuid);
+CREATE TABLE public.aromatherapy_preparation_method_revisions (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, series_id uuid NOT NULL, status text DEFAULT 'draft');
+CREATE TABLE public.cupping_knowledge_records (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, title text, is_active boolean DEFAULT true);
+CREATE TABLE public.cupping_topics (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, title text, is_active boolean DEFAULT true);
+CREATE TABLE public.cupping_techniques (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, name text, is_active boolean DEFAULT true);
+CREATE TABLE public.cupping_safety_notes (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, title text, is_active boolean DEFAULT true);
+
 -- Kimlikler: owner (admin, gerçek), uzman A, uzman B, demo, kullanıcısız legacy tenant.
 INSERT INTO public.tenants (id, status) VALUES
   ('aa8b960b-f4f1-4e5b-89f5-109bc030c147', 'active'),
