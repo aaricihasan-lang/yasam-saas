@@ -58,7 +58,7 @@ export const ADMIN_AUDIT_ACTIONS = [
   "user_profile_updated",
   "license_settings_changed",
   "security_exempt_changed",
-  // OTURUM MODELİ v2 — ⚠️ 20271003000100_admin_audit_session_actions.sql CHECK süperseti ile BİREBİR.
+  // OTURUM MODELİ v2 — ⚠️ 20271003200100_admin_audit_session_actions.sql CHECK süperseti ile BİREBİR.
   "admin_web_login_pending",
   "admin_web_login_approved",
   "admin_web_login_denied",

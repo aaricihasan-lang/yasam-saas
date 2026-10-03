@@ -28,7 +28,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto SCHEMA extensions;`;
 const files = [
   "scripts/final-hardening/fixtures/session-model-fixture.sql",
   "supabase/migrations/20270129000200_user_sessions_expiry_touch.sql",
-  "supabase/migrations/20271003000000_session_model_v2.sql",
+  "supabase/migrations/20271003200000_session_model_v2.sql",
 ];
 
 const ADM = "00000000-0000-0000-0000-00000000a001";

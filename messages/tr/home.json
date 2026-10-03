@@ -487,7 +487,7 @@
       "emailPlaceholder": "uzman@ornek.com",
       "passwordLabel": "Parola",
       "passwordRepeatLabel": "Parola Tekrar",
-      "passwordHint": "En az 6 karakter. Rakam, harf veya ikisi birlikte kullanılabilir.",
+      "passwordHint": "En az 6 karakter.",
       "submit": "Kayıt Ol",
       "submitting": "Kaydediliyor…",
       "haveAccount": "Zaten hesabınız var mı?",
@@ -505,7 +505,7 @@
         "hash": "Parola işlenemedi.",
         "invalidName": "Ad soyad 2–120 karakter olmalıdır.",
         "invalidEmail": "Geçerli bir e-posta adresi girin.",
-        "weakPassword": "Parola en az 6 karakter olmalı ve kolay tahmin edilen bir parola (ör. 123456) olmamalı.",
+        "weakPassword": "Parola en az 6 karakter olmalı.",
         "rateLimited": "Çok fazla deneme yapıldı. Lütfen biraz sonra tekrar deneyin."
       }
     }
