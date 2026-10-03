@@ -7,13 +7,18 @@ import {
   type ReactNode,
   type Ref,
 } from "react";
-import { turkishUpper, turkishUpperDisplay, ELEMENT_ORDER, LETTER_TO_CHAKRA, type HarfYankilanisiSegment } from "@/lib/numeroloji";
+import { turkishUpper, turkishUpperDisplay, ELEMENT_ORDER, LETTER_TO_CHAKRA, mucadeleKonuText, type HarfYankilanisiSegment } from "@/lib/numeroloji";
 import { nrDisplay, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 import {
   CHRONO_CUTOFF_NOTE,
   cutoffDegisimYearOnly,
+  cutoffMucadele,
   dogumTarihiFromOut,
   dogumYilindanOut,
+  mucadeleSatirlari,
+  zirveYasGorunumu,
+  ZIRVE_METOT1_LABEL,
+  ZIRVE_METOT2_LABEL,
 } from "../utils/chronoCutoff";
 import { useCurrentYear } from "../hooks/useCurrentYear";
 
@@ -904,18 +909,28 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
   const tasBolumuAcik = gorselTaslariGoster && tasAny;
   const uzmanGoster = gorselTasMetinTemiz(uzmanAdi);
 
-  // Zirve/Mücadele yaş-tabanlı: doğum yılı + yaş > currentYear ise gelecekte başlar → gizli.
-  const peaks = (out.zirveYillari?.peaks ?? []).filter(
-    (p) => chronoBirthYear == null || chronoBirthYear + p.age <= currentYear,
-  );
-  const zirveGoster: string[] = peaks
-    .slice(0, Y)
-    .map((p) => `${p.index}. zirve · ${p.age} yaş · ${p.display && p.display.includes("/") ? `${p.display} · ` : ""}${p.topic}. çakra`);
+  // Zirve: iki metot (UI/Word ile aynı zirveYasGorunumu). Mücadele: yaşlar GEÇİŞ SINIRI —
+  // dönem başlangıcı bir önceki sınırdır; devam eden dönem görünür (cutoffMucadele, tek helper).
+  const zirveG = zirveYasGorunumu(out.zirveYillari?.peaks, chronoBirthYear, currentYear);
+  const zKonu = (p: { topic: number; display?: string }) => (p.display && p.display.includes("/") ? p.display : String(p.topic));
+  let zirveGoster: string[] = [];
+  if (zirveG?.format === "kayitli") {
+    zirveGoster = zirveG.peaks.slice(0, Y).map((p) => `${p.index}. zirve · ${p.age} yaş · ${zKonu(p)}. çakra`);
+  } else if (zirveG && (zirveG.metot1.length || zirveG.metot2.length)) {
+    const idx = new Map<number, string>();
+    for (const p of [...zirveG.metot1, ...zirveG.metot2]) idx.set(p.index, zKonu(p));
+    const sayilar = [...idx.entries()].sort((a, b) => a[0] - b[0]).map(([i, v]) => `${i}. ${v}`).join(" · ");
+    const yaslar = (rows: { age: number }[]) => (rows.length ? `${rows.map((r) => r.age).join(" · ")} yaş` : "—");
+    zirveGoster = [
+      `Zirve sayıları: ${sayilar}`,
+      `${ZIRVE_METOT1_LABEL}: ${yaslar(zirveG.metot1)}`,
+      `${ZIRVE_METOT2_LABEL}: ${yaslar(zirveG.metot2)}`,
+    ];
+  }
 
-  const mucObj = out.mucadeleYillari;
-  const mucGoster: string[] = (mucObj?.method1 ?? [])
-    .filter((m) => chronoBirthYear == null || chronoBirthYear + m.age <= currentYear)
-    .map((m) => `${m.index}. mücadele · ${m.age} yaş · ${m.topic}. çakra`)
+  const mucCut = cutoffMucadele(out.mucadeleYillari, chronoBirthYear, currentYear);
+  const mucGoster: string[] = mucadeleSatirlari(mucCut)
+    .map((r) => `${r.baslik} · konu ${mucadeleKonuText(r.konu)}`)
     .slice(0, Y);
 
   // Değişim-Dönüşüm: takvim yılı bazlı yapısal cutoff (regex serbest-metin KESME YOK).

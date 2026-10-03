@@ -12,7 +12,41 @@ export type NumerolojiListeSatir = {
   birth_date: string;
   created_at: string;
   analysis_data?: unknown;
+  /** Hafif liste özeti (?fields=summary): KAYITLI snapshot çekirdek değerleri (Model C). */
+  snap_ana?: string | null;
+  snap_yan?: string | null;
+  snap_ifade?: string | null;
+  snap_hy?: string | null;
+  snap_pin?: Record<string, unknown> | null;
+  snap_method?: string | null;
 };
+
+type KartDegerleri = { ana: string; yan: string; ifade: string; hy: string; pin: string | null };
+
+function pinKisa(pin: Record<string, unknown> | null | undefined): string | null {
+  if (!pin || typeof pin !== "object") return null;
+  const v = ["k1", "k2", "k3", "k4", "k5"].map((k) => pin[k]);
+  return v.every((x) => x !== undefined && x !== null && x !== "") ? v.join(" · ") : null;
+}
+
+const goster = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : "—");
+
+/** MODEL C: kart, kaydın KAYDEDİLDİĞİ GÜNKÜ değerlerini gösterir; ad/tarihten yeniden hesaplamaz. */
+function kartDegerleri(row: NumerolojiListeSatir): KartDegerleri | null {
+  const hasSnap = [row.snap_ana, row.snap_yan, row.snap_ifade, row.snap_hy].some((v) => typeof v === "string" && v.trim());
+  if (hasSnap) {
+    return { ana: goster(row.snap_ana), yan: goster(row.snap_yan), ifade: goster(row.snap_ifade), hy: goster(row.snap_hy), pin: pinKisa(row.snap_pin) };
+  }
+  const motor = row.analysis_data !== undefined ? resolveRecordMotor(row).motor : null;
+  if (!motor) return null;
+  return {
+    ana: nrDisplay(motor.anaKulvar),
+    yan: nrDisplay(motor.yanKulvar),
+    ifade: nrDisplay(motor.ifadeSayisi),
+    hy: nrDisplay(motor.hayatYolu),
+    pin: pinKisa(motor.pinKodu as unknown as Record<string, unknown>),
+  };
+}
 
 function NrChip({ label, value }: { label: string; value: string }) {
   return (
@@ -33,14 +67,8 @@ export function NumerolojiListeKarti({
   onToggleSelect?: () => void;
 }) {
   const adSoyad = `${row.name} ${row.surname}`.replace(/\s+/g, " ").trim();
-  // NUM-F02/F09: kart değerleri kaydın ad/soyad/doğum tarihinden güncel yöntemle üretilir
-  // (liste özeti analysis_data taşımaz; güncel damgalı kayıtta snapshot ile birebir aynıdır).
-  const motor = useMemo(() => resolveRecordMotor(row).motor, [row]);
-
-  const pin = motor?.pinKodu;
-  const pinStr = pin
-    ? [pin.k1, pin.k2, pin.k3, pin.k4, pin.k5].join(" · ")
-    : null;
+  const vals = useMemo(() => kartDegerleri(row), [row]);
+  const pinStr = vals?.pin ?? null;
 
   return (
     <li className="relative">
@@ -87,12 +115,12 @@ export function NumerolojiListeKarti({
           </span>
         </div>
 
-        {motor ? (
+        {vals ? (
           <div className="relative mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-violet-100 pt-1.5">
-            <NrChip label="Ana" value={nrDisplay(motor.anaKulvar)} />
-            <NrChip label="Yan" value={nrDisplay(motor.yanKulvar)} />
-            <NrChip label="İfade" value={nrDisplay(motor.ifadeSayisi)} />
-            <NrChip label="Hayat Yolu" value={nrDisplay(motor.hayatYolu)} />
+            <NrChip label="Ana" value={vals.ana} />
+            <NrChip label="Yan" value={vals.yan} />
+            <NrChip label="İfade" value={vals.ifade} />
+            <NrChip label="Hayat Yolu" value={vals.hy} />
             {pinStr ? (
               <span className="ml-auto text-[10px] font-medium text-slate-400">
                 PIN{" "}

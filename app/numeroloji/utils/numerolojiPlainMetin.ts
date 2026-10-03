@@ -4,13 +4,18 @@ import {
   type HarfYankilanisiSegment,
   type ElementResult,
   type PinKoduBoxes,
+  mucadeleKonuText,
+  MUCADELE_ONCEKI_METOD_NOTU,
 } from "@/lib/numeroloji";
 import { findKulvarSpecialCombinationsDetailed } from "@/lib/numeroloji/alternativeCombinations";
 import {
   CHRONO_CUTOFF_NOTE,
   cutoffHarfSegments,
-  cutoffZirvePeaks,
+  zirveYasGorunumu,
+  ZIRVE_METOT1_LABEL,
+  ZIRVE_METOT2_LABEL,
   cutoffMucadele,
+  mucadeleSatirlari,
   cutoffDegisimYearOnly,
   cutoffDegisimFullDate,
   dogumYilindanOut,
@@ -211,21 +216,29 @@ function zirveKonuText(p: { topic: number | string; display?: string }): string 
 
 export function zirveBoundedText(out: NumerolojiMotorOut, currentYear: number): string {
   const birthYear = dogumYilindanOut(out);
-  const peaks = cutoffZirvePeaks(out.zirveYillari?.peaks, birthYear, currentYear);
-  if (!peaks.length) return "—";
-  return peaks.map((p) => `${p.index}. zirve — yaş ${p.age}, konu ${zirveKonuText(p)}`).join("\n");
+  const g = zirveYasGorunumu(out.zirveYillari?.peaks, birthYear, currentYear);
+  if (!g) return "—";
+  const satir = (p: { index: number; age: number; topic: number; display?: string }) =>
+    `  ${p.index}. zirve — yaş ${p.age}, konu ${zirveKonuText(p)}`;
+  if (g.format === "kayitli") {
+    return g.peaks.length ? g.peaks.map((p) => satir(p).trim()).join("\n") : "—";
+  }
+  if (!g.metot1.length && !g.metot2.length) return "—";
+  const lines: string[] = [ZIRVE_METOT1_LABEL];
+  lines.push(...(g.metot1.length ? g.metot1.map(satir) : ["  —"]));
+  lines.push(ZIRVE_METOT2_LABEL);
+  lines.push(...(g.metot2.length ? g.metot2.map(satir) : ["  —"]));
+  return lines.join("\n");
 }
 
 export function mucadeleBoundedText(out: NumerolojiMotorOut, currentYear: number): string {
   const birthYear = dogumYilindanOut(out);
-  const m = cutoffMucadele(out.mucadeleYillari, birthYear, currentYear);
-  if (!m) return "—";
-  const lines: string[] = [];
-  for (const p of m.method1) lines.push(`${p.index}. mücadele — yaş ${p.age}, konu ${p.topic}`);
-  if (m.anaMucadeleVisible) {
-    lines.push(`Ana mücadele — ${m.anaMucadeleBaslangicYasi} yaşından itibaren, konu ${m.anaMucadele}`);
-  }
-  return lines.length ? lines.join("\n") : "—";
+  const c = cutoffMucadele(out.mucadeleYillari, birthYear, currentYear);
+  const rows = mucadeleSatirlari(c);
+  if (!rows.length) return "—";
+  const lines = rows.map((r) => `${r.baslik} · konu ${mucadeleKonuText(r.konu)}`);
+  if (c?.format === "onceki") lines.push(MUCADELE_ONCEKI_METOD_NOTU);
+  return lines.join("\n");
 }
 
 export function harfBoundedText(out: NumerolojiMotorOut, currentYear: number): string {

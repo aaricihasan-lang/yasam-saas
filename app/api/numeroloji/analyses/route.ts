@@ -5,8 +5,13 @@ import { readAllPaged } from "@/lib/db/readAllPaged";
 import { NUMEROLOJI_METHODOLOGY_VERSION, verifyMotorMatchesInputs } from "@/lib/numeroloji/methodology";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/** NUM-F09: liste özeti — kartlar çekirdek değerleri ad/soyad/doğum tarihinden üretir. */
-const SUMMARY_COLUMNS = "id, name, surname, birth_date, created_at";
+/** NUM-F09: hafif liste özeti (analysis_data taşınmaz). */
+// MODEL C: kartlar KAYITLI snapshot çekirdek değerlerini gösterir (yeniden hesap YOK).
+const SUMMARY_COLUMNS =
+  "id, name, surname, birth_date, created_at, " +
+  "snap_ana:analysis_data->motor->anaKulvar->>display, snap_yan:analysis_data->motor->yanKulvar->>display, " +
+  "snap_ifade:analysis_data->motor->ifadeSayisi->>display, snap_hy:analysis_data->motor->hayatYolu->>display, " +
+  "snap_pin:analysis_data->motor->pinKodu, snap_method:analysis_data->calc->>methodology";
 
 export const runtime = "nodejs";
 
@@ -160,8 +165,33 @@ export async function POST(req: NextRequest): Promise<Response> {
       { status: check.reason === "mismatch" ? 409 : 400 },
     );
   }
+  // MODEL C: "Güncel yöntemle yeniden hesapla" → YENİ kayıt. Kaynak kayıt aynı tenant'ta olmalı;
+  // kaynak hiçbir şekilde güncellenmez. İlişki yalnız yeni kaydın calc.recalculatedFrom alanında tutulur.
+  const { recalculatedFrom: recalcRaw, calc: _clientCalc, ...adRest } = ad;
+  void _clientCalc;
+  let recalculatedFrom: string | null = null;
+  if (recalcRaw !== undefined && recalcRaw !== null) {
+    const src = String(recalcRaw).trim();
+    if (!UUID_RE.test(src)) return NextResponse.json({ ok: false, error: "Kaynak analiz bulunamadı." }, { status: 404 });
+    const { data: srcRow, error: srcErr } = await db
+      .from("numerology_records")
+      .select("id")
+      .eq("id", src)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (srcErr) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+    if (!srcRow) return NextResponse.json({ ok: false, error: "Kaynak analiz bulunamadı." }, { status: 404 });
+    recalculatedFrom = src;
+  }
   // NUM-F02: metodoloji sürümü SUNUCUDA damgalanır (istemci değeri yok sayılır).
-  const stamped = { ...ad, calc: { methodology: NUMEROLOJI_METHODOLOGY_VERSION, stampedAt: new Date().toISOString() } };
+  const stamped = {
+    ...adRest,
+    calc: {
+      methodology: NUMEROLOJI_METHODOLOGY_VERSION,
+      stampedAt: new Date().toISOString(),
+      ...(recalculatedFrom ? { recalculatedFrom } : {}),
+    },
+  };
 
   const payload = { ...pickAllowed(body), analysis_data: stamped, tenant_id: tenantId };
   const { data, error } = await db

@@ -2,6 +2,7 @@ import { getSyncedTenantId, getSyncedYasamUser } from "@/lib/auth/sessionTenant"
 import { numApi, numApiError } from "./numApiClient";
 import { buildAnalizOzeti, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 import {
+  buildRecalculatedRecordBody,
   mergeGorselIntoAnalysisData,
   type AnalysisDataPayload,
   type AnalysisGorselData,
@@ -85,6 +86,22 @@ export async function saveNumerologyAnalysis(input: {
   if (err) return { error: err };
   const id = typeof res.json.id === "string" ? res.json.id : undefined;
   return { error: null, id };
+}
+
+/**
+ * MODEL C — "Güncel yöntemle yeniden hesapla": kayıttaki ad/soyad/doğum tarihinden GÜNCEL motorla
+ * YENİ bir analiz kaydı oluşturur. Orijinal kayıt (UUID, tarih, sonuçlar, Word çıktısı) DEĞİŞMEZ;
+ * yeni kayıt sunucuda güncel metodoloji damgası + calc.recalculatedFrom ile işaretlenir.
+ */
+export async function recalculateNumerologyAnalysis(row: NumerologyRecordRow): Promise<{ error: string | null; id?: string; demo?: boolean }> {
+  const body = buildRecalculatedRecordBody(row, buildAnalizOzeti);
+  if (!body) return { error: "Kayıttaki ad, soyad veya doğum tarihiyle yeniden hesaplama yapılamadı." };
+  const res = await numApi("/api/numeroloji/analyses", { method: "POST", body: JSON.stringify(body) });
+  const err = numApiError(res);
+  if (err) return { error: err };
+  if (res.json.demo === true) return { error: null, demo: true };
+  const id = typeof res.json.id === "string" ? res.json.id : undefined;
+  return id ? { error: null, id } : { error: "Yeni analiz kaydı oluşturulamadı." };
 }
 
 // NOT: `tenantId` parametresi geriye dönük uyumluluk için korunur; tenant artık
