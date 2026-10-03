@@ -249,8 +249,10 @@ async function main(): Promise<void> {
   ok(new Set(fx.DEMO_CLIENTS_SEED.map((c) => c.id)).size === fx.DEMO_CLIENTS_SEED.length, "danışan id'leri benzersiz");
   // Migration version çakışması (2026-10-03 prod preflight bulgusu: 20271003200000/200100 başka işe ait).
   const versions = readdirSync(MIG_DIR).filter((f) => f.endsWith(".sql")).map((f) => f.split("_")[0]);
-  const dupVersions = versions.filter((v, i) => versions.indexOf(v) !== i);
-  ok(dupVersions.length === 0, "repo'da migration version'ları benzersiz", dupVersions);
+  // (Repo'da tarihsel, bu işle ilgisiz duplicate version'lar mevcut; kontrol bu paketin version'larına odaklıdır.)
+  const ours = [SEED_MIG, YH_MIG, JUNK_MIG].map((m) => m.split("_")[0]);
+  ok(ours.every((v) => versions.filter((x) => x === v).length === 1), "demo vitrin version'larını başka migration KULLANMIYOR", ours);
+  ok(!ours.includes("20271003200000") && !ours.includes("20271003200100"), "prod ledger'daki session_model_v2 / admin_audit_session_actions version'ları kullanılmıyor");
   ok([SEED_MIG, YH_MIG, JUNK_MIG].every((m) => m.startsWith("202710053")) &&
      !readdirSync(MIG_DIR).some((f) => f.startsWith("202710053") && ![SEED_MIG, YH_MIG, JUNK_MIG].includes(f)),
     "demo vitrin migration'ları ayrı ve temiz 202710053xxxxx bloğunda");
