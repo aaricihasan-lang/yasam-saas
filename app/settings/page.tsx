@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -12,13 +12,22 @@ import {
   KeyRound,
   Loader2,
   MapPin,
+  MessageCircle,
   MessageSquare,
+  Phone,
   RotateCcw,
   Send,
   Shield,
 } from "lucide-react";
 import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
 import { readSessionToken } from "@/lib/auth/yasamUser";
+import { CUSTOMER_SERVICE_DISPLAY, buildTelHref } from "@/lib/contact/info";
+import {
+  WHATSAPP_CONTACT_ENABLED,
+  WHATSAPP_DISPLAY_NUMBER,
+  WHATSAPP_SUPPORT_MESSAGE,
+  buildWhatsAppUrl,
+} from "@/lib/contact/whatsapp";
 import { useToast } from "@/components/ui/ToastProvider";
 import PasswordInput from "@/components/ui/PasswordInput";
 import { PASSWORD_HINT, newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
@@ -150,13 +159,22 @@ function SecurityTab({ user }: { user: YasamUser }) {
         },
         body: JSON.stringify({ oldPassword: oldPw, newPassword: newPw }),
       });
-      const json = (await res.json()) as { ok?: boolean; error?: string };
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; sessions_revoked?: boolean };
       if (!res.ok || !json.ok) {
         showToast({ message: json.error ?? "Parola değiştirilemedi.", type: "error" });
       } else {
         setSuccess(true);
         setOldPw(""); setNewPw(""); setConfirmPw("");
-        showToast({ title: "Başarılı", message: "Parolanız güncellendi.", type: "success" });
+        if (json.sessions_revoked === false) {
+          showToast({
+            title: "Parola güncellendi",
+            message: "Ancak diğer cihazlardaki oturumlar kapatılamadı. Lütfen tekrar deneyin veya yöneticiye bildirin.",
+            type: "warning",
+            duration: 10000,
+          });
+        } else {
+          showToast({ title: "Başarılı", message: "Parolanız güncellendi; diğer cihazlardaki oturumlar kapatıldı.", type: "success" });
+        }
       }
     } catch {
       showToast({ message: "Bağlantı hatası.", type: "error" });
@@ -174,7 +192,7 @@ function SecurityTab({ user }: { user: YasamUser }) {
         </p>
       </div>
 
-      <PasswordField id="settings-current-password" label="Mevcut Parola"     value={oldPw}     onChange={setOldPw}     placeholder="Mevcut parolanızı girin"      autoComplete="current-password" />
+      <PasswordField id="settings-current-password" label="Mevcut Parola"     value={oldPw}     onChange={(v) => { setOldPw(v); setSuccess(false); }}     placeholder="Mevcut parolanızı girin"      autoComplete="current-password" />
       <PasswordField id="settings-new-password"     label="Yeni Parola"       value={newPw}     onChange={setNewPw}     placeholder="En az 6 karakter"             autoComplete="new-password" />
       <p className="-mt-2 text-xs font-medium text-slate-500">{PASSWORD_HINT}</p>
       <PasswordField id="settings-new-password-2"   label="Yeni Parola Tekrar" value={confirmPw} onChange={setConfirmPw} placeholder="Yeni parolanızı tekrar girin" autoComplete="new-password" />
@@ -209,8 +227,9 @@ function ContactTab({ user }: { user: YasamUser }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [loadingMsgs, setLoadingMsgs] = useState(true);
 
-  async function loadMessages() {
-    setLoadingMsgs(true);
+  // Spinner durumu effect gövdesinde senkron set edilmez (react-hooks/set-state-in-effect):
+  // ilk yüklemede loadingMsgs zaten true; gönderim sonrası yenilemede spinner gerekmez.
+  const loadMessages = useCallback(async () => {
     const sessionToken = readSessionToken();
     try {
       const res = await fetch("/api/settings/support", {
@@ -219,16 +238,22 @@ function ContactTab({ user }: { user: YasamUser }) {
           ...(sessionToken ? { "x-session-token": sessionToken } : {}),
         },
       });
-      const json = (await res.json()) as { messages?: SupportMessage[] };
-      setMessages(json.messages ?? []);
+      const json = (await res.json().catch(() => ({}))) as { messages?: SupportMessage[] };
+      if (res.ok) setMessages(json.messages ?? []);
     } catch {
-      /* silent */
+      /* liste yenilenemedi — mevcut liste korunur */
     } finally {
       setLoadingMsgs(false);
     }
-  }
+  }, [user.id]);
 
-  useEffect(() => { void loadMessages(); }, []);
+  useEffect(() => {
+    // İlk yükleme bir mikro-görevde başlar (effect gövdesinde senkron state güncellemesi yok);
+    // unmount sonrası başlatılmaz.
+    let alive = true;
+    void Promise.resolve().then(() => (alive ? loadMessages() : undefined));
+    return () => { alive = false; };
+  }, [loadMessages]);
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -247,7 +272,7 @@ function ContactTab({ user }: { user: YasamUser }) {
         },
         body: JSON.stringify({ subject, message, priority }),
       });
-      const json = (await res.json()) as { ok?: boolean; error?: string };
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
       if (!res.ok || !json.ok) {
         showToast({ message: json.error ?? "Gönderilemedi.", type: "error" });
       } else {
@@ -266,8 +291,9 @@ function ContactTab({ user }: { user: YasamUser }) {
     <div className="space-y-6 w-full">
       <form onSubmit={handleSend} className="space-y-4">
         <div>
-          <label className="block text-sm font-bold text-slate-700">Konu</label>
+          <label htmlFor="settings-contact-subject" className="block text-sm font-bold text-slate-700">Konu</label>
           <input
+            id="settings-contact-subject"
             type="text"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
@@ -278,8 +304,9 @@ function ContactTab({ user }: { user: YasamUser }) {
         </div>
 
         <div>
-          <label className="block text-sm font-bold text-slate-700">Mesaj</label>
+          <label htmlFor="settings-contact-message" className="block text-sm font-bold text-slate-700">Mesaj</label>
           <textarea
+            id="settings-contact-message"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Mesajınızı buraya yazın…"
@@ -291,12 +318,13 @@ function ContactTab({ user }: { user: YasamUser }) {
         </div>
 
         <div>
-          <label className="block text-sm font-bold text-slate-700">Öncelik</label>
-          <div className="mt-1.5 flex gap-2">
+          <p id="settings-contact-priority" className="block text-sm font-bold text-slate-700">Öncelik</p>
+          <div className="mt-1.5 flex gap-2" role="group" aria-labelledby="settings-contact-priority">
             {(["normal", "urgent"] as const).map((p) => (
               <button
                 key={p}
                 type="button"
+                aria-pressed={priority === p}
                 onClick={() => setPriority(p)}
                 className={`flex-1 rounded-xl border py-2 text-sm font-semibold transition ${
                   priority === p
@@ -321,6 +349,8 @@ function ContactTab({ user }: { user: YasamUser }) {
           {loading ? "Gönderiliyor…" : "Gönder"}
         </button>
       </form>
+
+      <DirectContactOptions />
 
       {loadingMsgs ? (
         <div className="flex items-center gap-2 text-sm text-slate-400">
@@ -372,6 +402,71 @@ function ContactTab({ user }: { user: YasamUser }) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Sistem mesajına ek doğrudan iletişim yolları (WhatsApp click-to-chat + telefon).
+ * Numaralar YALNIZ merkezî kaynaklardan gelir: WhatsApp → lib/contact/whatsapp.ts,
+ * telefon → lib/contact/info.ts. WhatsApp kartı mevcut default-deny gate'e
+ * (WHATSAPP_CONTACT_ENABLED) bağlıdır; kapalıyken link üretilmez/gösterilmez.
+ */
+function DirectContactOptions() {
+  const ctaBase =
+    "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold no-underline shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
+  return (
+    <section aria-labelledby="settings-direct-contact" className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+      <h3 id="settings-direct-contact" className="text-xs font-bold uppercase tracking-widest text-slate-500">
+        Daha hızlı iletişim için
+      </h3>
+      <p className="mt-1 text-xs text-slate-500">
+        Mesajınıza geç dönüş alırsanız bize WhatsApp veya telefonla da ulaşabilirsiniz.
+      </p>
+      <div className={`mt-3 grid grid-cols-1 gap-3 ${WHATSAPP_CONTACT_ENABLED ? "sm:grid-cols-2" : ""}`}>
+        {WHATSAPP_CONTACT_ENABLED && (
+          <div className="flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm" aria-hidden>
+                <MessageCircle className="h-5 w-5" strokeWidth={2.25} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-black text-emerald-900">WhatsApp</p>
+                <p className="text-base font-black tracking-tight text-emerald-800">{WHATSAPP_DISPLAY_NUMBER}</p>
+              </div>
+            </div>
+            <a
+              href={buildWhatsAppUrl(WHATSAPP_SUPPORT_MESSAGE)}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`WhatsApp’tan yaz: ${WHATSAPP_DISPLAY_NUMBER} (yeni sekmede açılır)`}
+              className={`${ctaBase} bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-400`}
+            >
+              <MessageCircle className="h-4 w-4" aria-hidden />
+              WhatsApp’tan Yaz
+            </a>
+          </div>
+        )}
+        <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm" aria-hidden>
+              <Phone className="h-5 w-5" strokeWidth={2.25} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-black text-slate-900">Telefon</p>
+              <p className="text-base font-black tracking-tight text-violet-800">{CUSTOMER_SERVICE_DISPLAY}</p>
+            </div>
+          </div>
+          <a
+            href={buildTelHref()}
+            aria-label={`Telefonla ara: ${CUSTOMER_SERVICE_DISPLAY}`}
+            className={`${ctaBase} bg-slate-900 text-white hover:bg-slate-800 focus-visible:ring-slate-400`}
+          >
+            <Phone className="h-4 w-4" aria-hidden />
+            Telefonla Ara
+          </a>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -510,15 +605,24 @@ function LocationTab({ user }: { user: YasamUser }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function SettingsPage() {
-  const [user,    setUser]    = useState<YasamUser | null>(null);
-  const [checked, setChecked] = useState(false);
-  const [tab,     setTab]     = useState<Tab>("security");
+// localStorage oturumu — useSyncExternalStore (SSR'da null; hydration uyumsuzluğu yok).
+const noopSubscribe = () => () => {};
+const readStoredUserRaw = () => {
+  try {
+    return localStorage.getItem("yasam_user");
+  } catch {
+    return null;
+  }
+};
+const serverUserRaw = () => null;
 
-  useEffect(() => {
-    setUser(readYasamUser());
-    setChecked(true);
-  }, []);
+export default function SettingsPage() {
+  const storedUserRaw = useSyncExternalStore(noopSubscribe, readStoredUserRaw, serverUserRaw);
+  const checked = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  // storedUserRaw değişince yeniden ayrıştır (readYasamUser şema doğrulamasını yapar).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const user = useMemo<YasamUser | null>(() => (checked ? readYasamUser() : null), [checked, storedUserRaw]);
+  const [tab,     setTab]     = useState<Tab>("security");
 
   if (!checked) {
     return (
@@ -548,7 +652,7 @@ export default function SettingsPage() {
   const isDemoLockedTab = isDemo && DEMO_LOCKED_TABS.includes(tab);
 
   return (
-    <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(160deg,#eef5ff_0%,#f6f3ff_45%,#fff8fb_100%)] text-slate-950 antialiased">
+    <main className="relative min-h-screen w-full overflow-x-clip bg-[linear-gradient(160deg,#eef5ff_0%,#f6f3ff_45%,#fff8fb_100%)] text-slate-950 antialiased">
       <div className="pointer-events-none absolute -left-32 top-0 h-[520px] w-[520px] rounded-full bg-violet-300/20 blur-[140px]" aria-hidden />
       <div className="pointer-events-none absolute -right-20 top-20 h-[420px] w-[420px] rounded-full bg-fuchsia-200/20 blur-[120px]" aria-hidden />
       <div className="pointer-events-none absolute bottom-0 left-1/2 h-[320px] w-[320px] -translate-x-1/2 rounded-full bg-sky-200/15 blur-[110px]" aria-hidden />
@@ -556,7 +660,7 @@ export default function SettingsPage() {
       <div className="relative mx-auto w-full lg:max-w-[1400px] 2xl:max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
 
         {/* Premium header — admin panel çizgisini takip eder */}
-        <header className="relative mb-6 overflow-hidden rounded-2xl border border-white/30 bg-gradient-to-r from-slate-900 via-violet-900 to-fuchsia-900 px-6 py-5 text-white shadow-[0_12px_40px_rgba(88,28,135,0.18)] sm:px-8">
+        <header className="relative mb-6 overflow-clip rounded-2xl border border-white/30 bg-gradient-to-r from-slate-900 via-violet-900 to-fuchsia-900 px-6 py-5 text-white shadow-[0_12px_40px_rgba(88,28,135,0.18)] sm:px-8">
           <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/5 blur-2xl" aria-hidden />
           <div className="relative flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -579,9 +683,10 @@ export default function SettingsPage() {
           </div>
         </header>
 
-        {/* Mobile: 2-sütun grid; md+: eşit genişlikte flex sekmeler */}
+        {/* Mobil: 2 sütun · tablet (md): 3 sütun · lg+: tek satır eşit genişlikte sekmeler.
+            (md'de tek satır 768–1000px arasında son sekmeyi ekran dışına itiyordu.) */}
         <div className="mb-5">
-          <div className="grid grid-cols-2 gap-1.5 rounded-2xl border border-white/80 bg-white/70 p-2 shadow-md backdrop-blur-xl md:flex md:gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5 rounded-2xl border border-white/80 bg-white/70 p-2 shadow-md backdrop-blur-xl md:grid-cols-3 lg:flex lg:gap-1.5">
             {TABS.map((t, idx) => {
               const Icon = t.icon;
               const isActive = tab === t.id;
@@ -589,11 +694,12 @@ export default function SettingsPage() {
                 <button
                   key={t.id}
                   type="button"
+                  aria-pressed={isActive}
                   onClick={() => setTab(t.id)}
                   className={[
                     "flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition-all duration-200",
-                    "md:flex-1 md:whitespace-nowrap md:text-sm",
-                    idx === TABS.length - 1 ? "col-span-2 mx-auto w-1/2 md:mx-0 md:w-auto" : "",
+                    "md:text-sm lg:flex-1 lg:whitespace-nowrap",
+                    idx === TABS.length - 1 ? "col-span-2 mx-auto w-1/2 md:col-span-1 md:mx-0 md:w-auto" : "",
                     isActive
                       ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md"
                       : "text-slate-500 hover:bg-violet-50 hover:text-violet-700",

@@ -174,6 +174,7 @@ export function emptyTableReport(table: string, module: string | null, expected 
     failed: [],
     dropped_columns: [],
     fk_nulled: 0,
+    storage_refs_removed: 0,
     warnings: [],
     status: "COMPLETE",
   };
@@ -211,6 +212,7 @@ export function mergeTableReports(a: RestoreTableReport, b: RestoreTableReport):
     skipped_unlicensed: a.skipped_unlicensed + b.skipped_unlicensed,
     parent_missing: a.parent_missing + b.parent_missing,
     fk_nulled: a.fk_nulled + b.fk_nulled,
+    storage_refs_removed: (a.storage_refs_removed ?? 0) + (b.storage_refs_removed ?? 0),
     failed: a.failed.map((f) => ({ ...f, sample_ids: [...f.sample_ids] })),
     dropped_columns: [...new Set([...a.dropped_columns, ...b.dropped_columns])],
     warnings: [...new Set([...a.warnings, ...b.warnings])],

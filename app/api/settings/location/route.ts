@@ -26,7 +26,10 @@ export async function GET(req: NextRequest) {
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[settings/location] get", error);
+    return NextResponse.json({ error: "Konum okunamadı." }, { status: 500 });
+  }
   return NextResponse.json({ location: data ?? null });
 }
 
@@ -75,6 +78,9 @@ export async function PUT(req: NextRequest) {
     .select(PREF_COLUMNS)
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[settings/location] put", error);
+    return NextResponse.json({ error: "Konum kaydedilemedi." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true, location: data });
 }
