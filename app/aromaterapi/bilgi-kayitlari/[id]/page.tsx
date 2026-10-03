@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DetailScreen } from "@/app/aromaterapi/_components/read/DetailScreen";
+import { AromaterapiDeleteAction } from "@/app/aromaterapi/_components/write/AromaterapiDeleteAction";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
   DetailField,
   DetailSection,
@@ -41,6 +43,7 @@ export default function BilgiKaydiDetayPage() {
   const fetcher = useCallback((signal: AbortSignal) => fetchKnowledgeRecord(id, signal), [id]);
   const { data, loading, notFound, errorCode, retry } =
     useAromaterapiDetail<KnowledgeRecordDetail>(fetcher, id);
+  const isDemo = readYasamUser()?.is_demo_account === true;
 
   return (
     <DetailScreen
@@ -51,6 +54,22 @@ export default function BilgiKaydiDetayPage() {
       backHref="/aromaterapi/bilgi-kayitlari"
       backLabel="Bilgi Kayıtlarına dön"
       wordExportUrl={id ? `/api/aromaterapi/claims/${id}/word-report` : undefined}
+      extraActions={
+        data ? (
+          <AromaterapiDeleteAction
+            kind="claim"
+            id={data.id}
+            updatedAt={data.updated_at}
+            recordLabel={
+              data.conclusion.length > 140 ? `${data.conclusion.slice(0, 140)}…` : data.conclusion
+            }
+            entityNoun="bilgi kaydı"
+            listHref="/aromaterapi/bilgi-kayitlari"
+            isDemo={isDemo}
+            onReload={retry}
+          />
+        ) : undefined
+      }
       loading={loading}
       notFound={notFound}
       errorCode={errorCode}
@@ -58,7 +77,7 @@ export default function BilgiKaydiDetayPage() {
     >
       {data ? (
         <div className="space-y-4">
-          {/* C3D-D: Düzenle aksiyonu (Sil aksiyonu YOK). */}
+          {/* C3D-D: Düzenle aksiyonu. Sil (AROMA-4) başlık eylem alanındadır (demo'da gizli). */}
           <div className="flex justify-end">
             <Link
               href={`/aromaterapi/bilgi-kayitlari/${data.id}/duzenle`}

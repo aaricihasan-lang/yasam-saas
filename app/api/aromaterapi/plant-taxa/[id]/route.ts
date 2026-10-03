@@ -23,6 +23,7 @@ import {
   optNullableString,
   reqNonEmptyString,
 } from "@/lib/aromaterapi/service/catalogWriteHttp";
+import { handleContentDelete } from "@/lib/aromaterapi/service/contentDeleteRoute";
 
 export const runtime = "nodejs";
 
@@ -136,4 +137,15 @@ export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Respon
     await trackUsage(guard, req, { module: "aromatherapy", action: "record_updated", subEntity: "plant_taxon", resourceId: id });
   }
   return emitCatalogWrite(result, 200);
+}
+
+/**
+ * DELETE /api/aromaterapi/plant-taxa/[id] — Uzmanın KENDİ taksonunu kalıcı siler (AROMA-4;
+ * migration 20271003100000 RPC: tenant-kapsamlı FOR UPDATE + preparat referans sayımı +
+ * audit 'delete' + tombstone). Preparata bağlı takson → 409 AROMA_TAXON_REFERENCED
+ * (+ references.preparations). Gövde { expected_updated_at, reason } zorunlu.
+ */
+export async function DELETE(req: NextRequest, ctx: RouteContext): Promise<Response> {
+  const { id } = await ctx.params;
+  return handleContentDelete(req, id, "plant_taxon");
 }

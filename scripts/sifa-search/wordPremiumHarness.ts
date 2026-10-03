@@ -525,7 +525,16 @@ async function main() {
     // Tüm-record kilitleme YOK (keepTogether/cantSplit) → katalog akışı korunur.
     const gs = [makeGuide({ name: "K1", healing_guide_sections: [makeSection({ note: "n".repeat(2000) })] }), makeGuide({ name: "K2", symptoms: "x" })];
     const { docXml } = await renderDoc(build(gs, "all"));
-    check(!/w:cantSplit/.test(docXml) && !/w:keepLines/.test(docXml), "60 tüm-record keepTogether/cantSplit/keepLines YOK");
+    // GEREKÇE (2026-10-03, doğal-destek P2): Eski kontrol belgede HİÇ `w:keepLines` olmamasını
+    // istiyordu. Paylaşılan `lib/docx/reportHelpers.ts` h1/h1Colored, 14eccc1c (Aromaterapi docx,
+    // 2026-08-18; bu kontrolü yazan e8b800d5 ile aynı gün) ile `keepNext+keepLines` aldı → tek
+    // satırlık "Şifa Rehberi Kayıtları" H1 başlığında keepLines görünür. Bu bir başlık-orphan
+    // ayarıdır, KAYIT kilitlemesi DEĞİLDİR; lib/sifa-rehberi/wordDocument.ts gerilemedi.
+    // Kontrolün NİYETİ korunur: cantSplit hiç yok + keepLines YALNIZ başlık (Heading) paragraflarında;
+    // hiçbir gövde/kayıt paragrafı keepLines ile kilitlenmez.
+    const pBlocks60 = docXml.match(/<w:p>[\s\S]*?<\/w:p>/g) || [];
+    const keepLinesNonHeading = pBlocks60.filter((b) => b.includes("w:keepLines") && !/<w:pStyle w:val="Heading\d"\/>/.test(b));
+    check(!/w:cantSplit/.test(docXml) && keepLinesNonHeading.length === 0, "60 tüm-record keepTogether/cantSplit YOK; keepLines yalnız başlıkta (gövde/kayıt kilidi YOK)");
     check(count(docXml, "w:pageBreakBefore") === 2, "61 per-guide page break YOK (forced break yalnız liste+katalog başı)");
   }
   {

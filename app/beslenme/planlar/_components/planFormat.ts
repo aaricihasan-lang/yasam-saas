@@ -86,6 +86,8 @@ export function friendlyPlanError(code?: string, status?: number): string {
       return "Plan bu arada değişti. Güncel farkları görmek için önizlemeyi yenileyin.";
     case "NOTHING_TO_CLEAR":
       return "Bu günde silinecek öğün yok.";
+    case "DELETE_UNAVAILABLE":
+      return "Plan silme şu anda kullanılamıyor (sistem güncellemesi bekleniyor). Plan silinmedi; lütfen daha sonra tekrar deneyin.";
     case "RANGE_HAS_CONTENT":
       return "Yeni tarih aralığının dışında öğün bulunan günler var. Önce bu günleri temizleyin veya planı kopyalayın.";
     case "TARGET_NOT_EMPTY":

@@ -9,7 +9,8 @@ import { createHash, randomInt } from "node:crypto";
  * kapsam yeniden hesaplanır; tek kayıt bile değişmişse özet tutmaz → işlem reddedilir.
  */
 
-export const CHALLENGE_ACTIONS = ["food_reset_one", "food_reset_all", "plan_day_clear"] as const;
+// "plan_delete": tüm plan (revizyon) silme — DB CHECK'i 20271003100100 migration'ı genişletir.
+export const CHALLENGE_ACTIONS = ["food_reset_one", "food_reset_all", "plan_day_clear", "plan_delete"] as const;
 export type ChallengeAction = (typeof CHALLENGE_ACTIONS)[number];
 
 /** Challenge ömrü (talimat: 5 dakika). */

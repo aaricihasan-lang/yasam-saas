@@ -1,6 +1,12 @@
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type { HealingGuideSectionType } from "@/lib/admin/healingGuideJsonImport";
 import { foldedIncludes, isMeaningfulText } from "@/lib/sifa-rehberi/normalizeTr";
+import {
+  patchGuideVersioned,
+  saveGuideVersioned,
+  type GuideSaveResult,
+  type GuideWriteDeps,
+} from "@/lib/sifa-rehberi/guideSaveFlow";
 
 /**
  * healing_guides tablosuna tarayıcıdan doğrudan (anon/publishable) erişim
@@ -10,6 +16,11 @@ import { foldedIncludes, isMeaningfulText } from "@/lib/sifa-rehberi/normalizeTr
  * fetchHealingGuideList/Detail imzalarındaki tenantId parametresi geriye-uyum
  * için korunur; gerçek tenant_id sunucuda session/user kaydından alınır.
  */
+/** Tarayıcı fetch'i + oturum header'ları (sürüm-kontrollü yazım orkestrasyonu için). */
+function browserWriteDeps(): GuideWriteDeps {
+  return { fetchImpl: (input, init) => fetch(input, init), headers: authHeaders };
+}
+
 function authHeaders(): Record<string, string> {
   const u = readYasamUser();
   const t = readSessionToken();
@@ -722,28 +733,41 @@ export async function createHealingGuide(
   return { id: json.guide?.id ?? null, error: null, idempotentReplay: json.idempotentReplay === true };
 }
 
-/** healing_guides kaydını günceller → PATCH /api/sifa-rehberi/guides/[id]. */
+/**
+ * healing_guides kaydını günceller → PATCH /api/sifa-rehberi/guides/[id] (SIFA-1: sürüm
+ * kontrollü). `expectedUpdatedAt` bu sekmenin bildiği sürümdür; bayatsa sunucu 409 döner
+ * (`stale=true`) ve HİÇBİR ŞEY yazılmaz. Başarıda yeni sürüm (`updatedAt`) döner.
+ */
 export async function updateHealingGuide(
   guideId: string,
   fields: Record<string, unknown>,
-): Promise<{ error: string | null }> {
-  let res: Response;
-  try {
-    res = await fetch(`/api/sifa-rehberi/guides/${encodeURIComponent(guideId)}`, {
-      method: "PATCH",
-      headers: authHeaders(),
-      body: JSON.stringify(fields),
-    });
-  } catch {
-    return { error: "Sunucuya ulaşılamadı." };
+  expectedUpdatedAt: string | null,
+): Promise<{ error: string | null; stale: boolean; updatedAt: string | null }> {
+  const r = await patchGuideVersioned(browserWriteDeps(), guideId, fields, expectedUpdatedAt);
+  // Başarı VE çakışma: önbellek düşer (çakışmada "Son hali yükle" taze veriyi çekmeli).
+  if (r.ok || r.stale) {
+    detailCache.delete(guideId);
+    listCache = null;
   }
-  const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-  if (!res.ok || json.ok !== true) {
-    return { error: json.error ?? `Kayıt güncellenemedi (HTTP ${res.status}).` };
-  }
-  detailCache.delete(guideId); // güncellenen kaydın önbelleğini düşür
+  if (!r.ok) return { error: r.error, stale: r.stale, updatedAt: expectedUpdatedAt };
+  return { error: null, stale: false, updatedAt: r.updatedAt };
+}
+
+/**
+ * Kaydet (SIFA-1): PATCH (sürüm kapısı) → [sections verildiyse] PUT sections.
+ * PATCH 409 ise PUT ÇAĞRILMAZ. Bkz. lib/sifa-rehberi/guideSaveFlow.ts.
+ */
+export async function saveHealingGuide(input: {
+  guideId: string;
+  fields: Record<string, unknown>;
+  sections: unknown[] | null;
+  expectedUpdatedAt: string | null;
+}): Promise<GuideSaveResult> {
+  const r = await saveGuideVersioned(browserWriteDeps(), input);
+  // Herhangi bir adım yazdıysa (veya çakışma varsa) önbellek bayattır → düşür.
+  detailCache.delete(input.guideId);
   listCache = null;
-  return { error: null };
+  return r;
 }
 
 /** Tek healing_guides kaydını siler → DELETE /api/sifa-rehberi/guides/[id]. */
@@ -794,33 +818,6 @@ export async function deleteHealingGuides(
   for (const gid of deletedIds) detailCache.delete(gid); // silinenlerin önbelleğini düşür
   listCache = null;
   return { deletedIds, error: null };
-}
-
-/**
- * Form-şekilli kaydın section'larını topluca değiştirir (canonical edit yolu).
- * Sunucu kayıp-güvenli sıra ile (önce ekle, sonra eskileri sil) uygular.
- */
-export async function replaceHealingGuideSections(
-  guideId: string,
-  sections: unknown[],
-): Promise<{ error: string | null }> {
-  let res: Response;
-  try {
-    res = await fetch(`/api/sifa-rehberi/guides/${encodeURIComponent(guideId)}/sections`, {
-      method: "PUT",
-      headers: authHeaders(),
-      body: JSON.stringify({ sections }),
-    });
-  } catch {
-    return { error: "Sunucuya ulaşılamadı." };
-  }
-  const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-  if (!res.ok || json.ok !== true) {
-    return { error: json.error ?? `Bölümler kaydedilemedi (HTTP ${res.status}).` };
-  }
-  detailCache.delete(guideId);
-  listCache = null;
-  return { error: null };
 }
 
 export function groupSectionsByType(

@@ -173,6 +173,30 @@ async function readJson(res: Response): Promise<Record<string, unknown>> {
   return (await res.json().catch(() => ({}))) as Record<string, unknown>;
 }
 
+/** AROMA-2 — ağ/bağlantı hatası (fetch throw) için kullanıcıya gösterilen sabit mesaj. */
+export const OIL_NETWORK_ERROR_MESSAGE =
+  "Sunucuya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.";
+/** AROMA-3 — 409 sürüm çakışması mesajı (form verisi korunur). */
+export const OIL_STALE_MESSAGE =
+  "Kayıt siz düzenlerken başka bir yerde güncellendi. Son değişiklikleri yükleyip tekrar deneyin.";
+export const OIL_MISSING_VERSION_MESSAGE =
+  "Kayıt sürümü belirlenemedi. Lütfen sayfayı yenileyip tekrar deneyin.";
+
+type SafeFetchResult =
+  | { ok: true; res: Response; j: Record<string, unknown> }
+  | { ok: false; error: string };
+
+/** fetch + JSON okuma; ağ hatası/throw DIŞARI SIZMAZ (AROMA-2) → {ok:false, error}. */
+async function safeFetch(url: string, init: RequestInit): Promise<SafeFetchResult> {
+  let res: Response;
+  try {
+    res = await fetch(url, init);
+  } catch {
+    return { ok: false, error: OIL_NETWORK_ERROR_MESSAGE };
+  }
+  return { ok: true, res, j: await readJson(res) };
+}
+
 // İmza korunur: tenantId parametresi geriye dönük uyumluluk için durur; gerçek
 // tenant server tarafında oturumdan belirlenir (istemci değeri güvenilmez).
 /**
@@ -283,8 +307,9 @@ export async function fetchOilCounts(): Promise<{
   counts: OilTypeCounts | null;
   error: string | null;
 }> {
-  const res = await fetch(`/api/aromaterapi/oils?count=1`, { headers: authHeaders() });
-  const j = await readJson(res);
+  const sent = await safeFetch(`/api/aromaterapi/oils?count=1`, { headers: authHeaders() });
+  if (!sent.ok) return { counts: null, error: sent.error };
+  const { res, j } = sent;
   if (!res.ok || j.ok !== true) return { counts: null, error: String(j.error ?? `HTTP ${res.status}`) };
   return {
     counts: j.counts as OilTypeCounts,
@@ -297,46 +322,65 @@ export async function fetchOilNameMap(): Promise<{
   names: { id: string; name: string }[];
   error: string | null;
 }> {
-  const res = await fetch(`/api/aromaterapi/oils?names=1`, { headers: authHeaders() });
-  const j = await readJson(res);
+  const sent = await safeFetch(`/api/aromaterapi/oils?names=1`, { headers: authHeaders() });
+  if (!sent.ok) return { names: [], error: sent.error };
+  const { res, j } = sent;
   if (!res.ok || j.ok !== true) return { names: [], error: String(j.error ?? `HTTP ${res.status}`) };
   return { names: (j.names as { id: string; name: string }[]) ?? [], error: null };
 }
 
 // -------------------------------------------------------
 // Yazma işlemleri — server API (tenant_id oturumdan zorlanır).
+// AROMA-2: ağ hatası (fetch throw) ASLA dışarı sızmaz → {error: OIL_NETWORK_ERROR_MESSAGE}.
+// Çağıranlar yükleniyor bayraklarını `finally` içinde sıfırlar; form verisi korunur.
 // -------------------------------------------------------
 
 export async function createOil(
   fields: Record<string, unknown>,
 ): Promise<{ id: string | null; error: string | null }> {
-  const res = await fetch(`/api/aromaterapi/oils`, {
+  const sent = await safeFetch(`/api/aromaterapi/oils`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify(fields),
   });
-  const j = await readJson(res);
+  if (!sent.ok) return { id: null, error: sent.error };
+  const { res, j } = sent;
   if (!res.ok || j.ok !== true) return { id: null, error: String(j.error ?? `HTTP ${res.status}`) };
   return { id: (j.id as string) ?? null, error: null };
 }
 
+/**
+ * AROMA-3 — iyimser kilitli yağ güncellemesi. `expectedUpdatedAt` = sunucudan okunan
+ * updated_at (AYNEN). 409 → `stale: true` (form verisi korunmalı; otomatik ezme YOK).
+ * Başarıda yeni sürüm token'ı (`updatedAt`) döner → aynı sekme düzenlemeye devam eder.
+ */
 export async function updateOil(
   id: string,
   fields: Record<string, unknown>,
-): Promise<{ error: string | null }> {
-  const res = await fetch(`/api/aromaterapi/oils/${id}`, {
+  expectedUpdatedAt: string | null,
+): Promise<{ error: string | null; stale: boolean; updatedAt: string | null }> {
+  if (!expectedUpdatedAt) {
+    // Sürümsüz güncelleme GÖNDERİLMEZ (sunucu zaten 400 döner).
+    return { error: OIL_MISSING_VERSION_MESSAGE, stale: false, updatedAt: null };
+  }
+  const sent = await safeFetch(`/api/aromaterapi/oils/${id}`, {
     method: "PATCH",
     headers: authHeaders(),
-    body: JSON.stringify(fields),
+    body: JSON.stringify({ ...fields, expected_updated_at: expectedUpdatedAt }),
   });
-  const j = await readJson(res);
-  if (!res.ok || j.ok !== true) return { error: String(j.error ?? `HTTP ${res.status}`) };
-  return { error: null };
+  if (!sent.ok) return { error: sent.error, stale: false, updatedAt: null };
+  const { res, j } = sent;
+  if (res.status === 409 || j.stale === true) {
+    return { error: OIL_STALE_MESSAGE, stale: true, updatedAt: null };
+  }
+  if (!res.ok || j.ok !== true) return { error: String(j.error ?? `HTTP ${res.status}`), stale: false, updatedAt: null };
+  return { error: null, stale: false, updatedAt: typeof j.updated_at === "string" ? j.updated_at : null };
 }
 
 export async function deleteOil(id: string): Promise<{ error: string | null }> {
-  const res = await fetch(`/api/aromaterapi/oils/${id}`, { method: "DELETE", headers: authHeaders() });
-  const j = await readJson(res);
+  const sent = await safeFetch(`/api/aromaterapi/oils/${id}`, { method: "DELETE", headers: authHeaders() });
+  if (!sent.ok) return { error: sent.error };
+  const { res, j } = sent;
   if (!res.ok || j.ok !== true) return { error: String(j.error ?? `HTTP ${res.status}`) };
   return { error: null };
 }
@@ -346,12 +390,13 @@ export async function deleteOils(
 ): Promise<{ deletedIds: string[]; error: string | null }> {
   const clean = ids.filter((x) => typeof x === "string" && x.trim().length > 0);
   if (clean.length === 0) return { deletedIds: [], error: null };
-  const res = await fetch(`/api/aromaterapi/oils`, {
+  const sent = await safeFetch(`/api/aromaterapi/oils`, {
     method: "DELETE",
     headers: authHeaders(),
     body: JSON.stringify({ ids: clean }),
   });
-  const j = await readJson(res);
+  if (!sent.ok) return { deletedIds: [], error: sent.error };
+  const { res, j } = sent;
   if (!res.ok || j.ok !== true) return { deletedIds: [], error: String(j.error ?? `HTTP ${res.status}`) };
   return { deletedIds: (j.deletedIds as string[]) ?? [], error: null };
 }

@@ -10,6 +10,7 @@ import {
 import { isUuid } from "@/lib/aromaterapi/service/readValidation";
 import { readFail, readNotFound, readServerError } from "@/lib/aromaterapi/service/readErrors";
 import { getKnowledgeRecord } from "@/lib/aromaterapi/service/claimReads";
+import { handleContentDelete } from "@/lib/aromaterapi/service/contentDeleteRoute";
 
 export const runtime = "nodejs";
 
@@ -219,4 +220,16 @@ export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Respon
     { ok: true, claim_id: result.claimId, warnings: result.warnings },
     { status: 200 },
   );
+}
+
+/**
+ * DELETE /api/aromaterapi/claims/[id] — Uzmanın KENDİ bilgi kaydını kalıcı siler (AROMA-4;
+ * migration 20271003100000). Kendi alt kayıtları (rota/popülasyon/kaynak/pasaj bağı) cascade
+ * silinir; başka bir bilgi kaydıyla ilişkisi (simetrik claim_relations) varsa → 409
+ * AROMA_CLAIM_REFERENCED (+ references.relations) — diğer kayıt sessizce değişmez.
+ * Claim audit'e 'delete' satırı (önceki snapshot) yazılır. Gövde { expected_updated_at, reason } zorunlu.
+ */
+export async function DELETE(req: NextRequest, ctx: RouteContext): Promise<Response> {
+  const { id } = await ctx.params;
+  return handleContentDelete(req, id, "claim");
 }

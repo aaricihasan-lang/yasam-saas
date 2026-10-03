@@ -6,6 +6,8 @@ import { cleanStr, cleanNumber, hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { PLAN_COLUMNS, PLAN_PATCH_KEYS, PLAN_STATUSES, isUuid } from "@/lib/beslenme/planContracts";
 import { getPlan, isPlanEditable, loadPlanDaySummaries, mapRpcError } from "@/lib/beslenme/planEngine";
 import { requireClientInTenant, clientDisplayName } from "@/lib/danisan/clientGuard";
+import { consumeDestructiveChallenge } from "@/lib/beslenme/destructiveChallenge";
+import { loadPlanDeleteScope } from "@/lib/beslenme/planDeleteScope";
 
 export const runtime = "nodejs";
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -112,15 +114,45 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
  * RPC: tek revizyon silinir; family'de BAŞKA revizyon varsa binding KORUNUR, SON revizyon
  * silinirse family-binding de temizlenir (yetim binding önle). GERÇEK client kaydına dokunulmaz.
  * RPC FOR UPDATE ile eşzamanlı son-revizyon silmelerine karşı yarışsızdır (bkz. migration).
+ *
+ * 3 AŞAMALI KORUMA ("Günü Temizle" ile aynı): kapsam + ikinci uyarı UI'da; SON ADIM burada sunucu
+ * doğrulamalı 4 haneli kod: body { challenge_id, code } ZORUNLU (…/delete/challenge ile üretilir).
+ * Kapsam (plan + family + revizyon + gün/öğün/kalem kimlikleri) onay anında YENİDEN hesaplanır;
+ * değiştiyse, kod yanlışsa, süresi dolmuş/kullanılmışsa veya başka işlem/plan içinse → hiçbir
+ * kayıt silinmez. Geçerli challenge olmadan → 400 CHALLENGE_REQUIRED.
  */
 export async function DELETE(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
   const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   const demo = denyDemoMutation(guard);
   if (demo) return demo;
-  const { db, tenantId } = guard;
+  const { db, tenantId, userId } = guard;
   const { id } = await ctx.params;
   if (!isUuid(id)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
+
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    body = {};
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body) || !hasOnlyKeys(body, ["challenge_id", "code"])) {
+    return beslenmeJson({ ok: false, code: "UNKNOWN_FIELD" }, 400);
+  }
+
+  const scope = await loadPlanDeleteScope(db, tenantId, id);
+  if (!scope.ok) return beslenmeJson({ ok: false, code: scope.code }, scope.status);
+
+  // Challenge TÜKETİLMEDEN silme RPC'si çağrılmaz (yanlış kod / başka plan / başka işlem → 0 silme).
+  const rejected = await consumeDestructiveChallenge(db, {
+    tenantId,
+    userId,
+    action: "plan_delete",
+    challengeId: body.challenge_id,
+    code: body.code,
+    scopeKeys: scope.value.keys,
+  });
+  if (rejected) return beslenmeJson({ ok: false, code: rejected.code }, rejected.status);
 
   const { data, error } = await db.rpc("nutrition_plan_delete_revision", {
     p_tenant_id: tenantId,

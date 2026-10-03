@@ -22,6 +22,7 @@ import {
   optNullableString,
   reqNonEmptyString,
 } from "@/lib/aromaterapi/service/catalogWriteHttp";
+import { handleContentDelete } from "@/lib/aromaterapi/service/contentDeleteRoute";
 
 export const runtime = "nodejs";
 
@@ -119,4 +120,15 @@ export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Respon
     await trackUsage(guard, req, { module: "aromatherapy", action: "record_updated", subEntity: "preparation", resourceId: id });
   }
   return emitCatalogWrite(result, 200);
+}
+
+/**
+ * DELETE /api/aromaterapi/preparations/[id] — Uzmanın KENDİ preparatını kalıcı siler (AROMA-4;
+ * migration 20271003100000). Bilgi kaydı veya üretim yöntemi bağlı preparat → 409
+ * AROMA_PREPARATION_REFERENCED (+ references.claims / method_series). Gövde
+ * { expected_updated_at, reason } zorunlu.
+ */
+export async function DELETE(req: NextRequest, ctx: RouteContext): Promise<Response> {
+  const { id } = await ctx.params;
+  return handleContentDelete(req, id, "preparation");
 }

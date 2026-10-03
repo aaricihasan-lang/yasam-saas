@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback } from "react";
 import { DetailScreen } from "@/app/aromaterapi/_components/read/DetailScreen";
+import { AromaterapiDeleteAction } from "@/app/aromaterapi/_components/write/AromaterapiDeleteAction";
 import {
   DetailField,
   DetailSection,
@@ -42,6 +43,20 @@ export default function BitkiDetayPage() {
       backHref="/aromaterapi/katalog"
       backLabel="Kataloğa dön"
       wordExportUrl={id ? `/api/aromaterapi/plant-taxa/${id}/word-report` : undefined}
+      extraActions={
+        taxon ? (
+          <AromaterapiDeleteAction
+            kind="plant_taxon"
+            id={taxon.id}
+            updatedAt={taxon.updated_at}
+            recordLabel={<span className="italic">{taxon.canonical_name}</span>}
+            entityNoun="bitki"
+            listHref="/aromaterapi/katalog"
+            isDemo={isDemo}
+            onReload={retry}
+          />
+        ) : undefined
+      }
       loading={loading}
       notFound={notFound}
       errorCode={errorCode}

@@ -12,12 +12,21 @@ import {
   deleteHealingGuide,
   fetchHealingGuideDetail,
   getHealingGuideSectionDisplayTitle,
+  invalidateHealingGuideCache,
   peekCachedDetail,
-  replaceHealingGuideSections,
+  saveHealingGuide,
   updateHealingGuide,
   type HealingGuideDetail,
   type HealingGuideSectionRow,
 } from "@/lib/sifa-rehberi/healingGuideLiveData";
+import { SIFA_STALE_MESSAGE } from "@/lib/sifa-rehberi/guideVersion";
+import {
+  SIFA_DISCARD_CONFIRM,
+  SIFA_RELOAD_CONFIRM,
+  unsavedUploadPaths,
+} from "@/lib/sifa-rehberi/leaveGuard";
+import { useSifaLinkLeaveGuard } from "@/components/sifa-rehberi/useSifaLinkLeaveGuard";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
   SectionEditor,
   sectionRowToEditable,
@@ -426,6 +435,7 @@ export default function SifaRehberiDetailPage() {
   const [saving, setSaving] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
   const deleteConfirm = useDeleteConfirm();
+  const { confirm } = useConfirm();
   const { run: runImageRemove, pending: imageRemoving, isLocked: isImageRemoveLocked } = useSubmitLock();
   const isAndroid = useIsAndroid();
   // BF-14 P2: danışana özel teslim eki (guide target). Yoksa çıktı değişmez.
@@ -447,6 +457,20 @@ export default function SifaRehberiDetailPage() {
   useEffect(() => {
     editEnabledRef.current = editEnabled;
   }, [editEnabled]);
+  // SIFA-1 iyimser kilit — bu sekmenin bildiği kayıt sürümü (`updated_at`, AYNEN sunucudan).
+  //   editBaseVersionRef: düzenleme oturumunun TABANI — Düzenle'ye basıldığı an GÖSTERİLEN
+  //     kayıttan alınır (önbellekten boyanmış bayat kopya ise Kaydet 409 alır, ezmez).
+  //     Arka plan revalidate'i bunu İLERLETMEZ (taslak hâlâ eski sürüme dayanır).
+  //   viewVersionRef: görünüm modunda gösterilen kaydın sürümü (revalidate ile güncellenir).
+  // Aynı sekmenin her başarılı yazımı (Kaydet / görsel persist) ikisini de yeni sürüme ilerletir.
+  const editBaseVersionRef = useRef<string | null>(null);
+  const viewVersionRef = useRef<string | null>(null);
+  const recordVersion = record?.updated_at ?? null;
+  useEffect(() => {
+    viewVersionRef.current = recordVersion;
+  }, [recordVersion]);
+  // 409 sonrası "Son hali yükle" önerisi (taslak KORUNUR; otomatik ezme YOK).
+  const [staleConflict, setStaleConflict] = useState(false);
 
   const activeTab = useMemo(
     () => DETAIL_TABS.find((t) => t.id === tab) ?? DETAIL_TABS[0],
@@ -472,6 +496,9 @@ export default function SifaRehberiDetailPage() {
     editDirty,
     "Bu kayıttaki değişiklikler kaydedilmedi. Sayfadan ayrılırsanız değişiklikleriniz kaybolur. Yine de ayrılmak istiyor musunuz?",
   );
+  // SIFA-2: global logo + tüm uygulama-içi linkler (istemci-tarafı navigasyon) için
+  // uygulama-içi onay. beforeunload/popstate yukarıdaki hook'larda kalır.
+  useSifaLinkLeaveGuard(editDirty);
   const { isDemo } = useDemoGuard();
   // Demo: sol menü ve bölüm başlıkları görünür; yalnızca içerik alanları DemoBlur ile korunur.
 
@@ -637,12 +664,32 @@ export default function SifaRehberiDetailPage() {
     setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
   }
 
+  /** SIFA-1: bu sekmenin şu anki yazım tabanı (düzenlemede oturum tabanı, görünümde gösterilen kayıt). */
+  function currentKnownVersion(): string | null {
+    return editEnabledRef.current ? editBaseVersionRef.current : viewVersionRef.current;
+  }
+
+  /** SIFA-1: aynı sekmenin başarılı yazımı → bilinen sürüm ilerler (kendi kendisiyle çakışmaz). */
+  function advanceKnownVersion(next: string | null) {
+    if (editEnabledRef.current) editBaseVersionRef.current = next;
+    viewVersionRef.current = next;
+  }
+
   async function persistImages(nextImages: GuideImage[]) {
-    if (!id || !queryTenantId) return { error: "id yok" };
-    const { error } = await updateHealingGuide(id, {
-      images: nextImages.length > 0 ? nextImages : null,
-    });
-    return { error };
+    if (!id || !queryTenantId) return { error: "id yok", stale: false };
+    // Görsel persist de sürüm belirtecini taşır → bayat sekme daha yeni görsel listesini EZEMEZ.
+    const { error, stale, updatedAt } = await updateHealingGuide(
+      id,
+      { images: nextImages.length > 0 ? nextImages : null },
+      currentKnownVersion(),
+    );
+    if (error) {
+      if (stale) setStaleConflict(true);
+      return { error, stale };
+    }
+    advanceKnownVersion(updatedAt);
+    setRecord((prev) => (prev ? { ...prev, images: nextImages, updated_at: updatedAt } : prev));
+    return { error: null, stale: false };
   }
 
   function triggerImagePick(section: DetailTabId) {
@@ -691,6 +738,7 @@ export default function SifaRehberiDetailPage() {
 
     const { error: dbErr } = await persistImages(nextImages);
     if (dbErr) {
+      // SIFA-1: 409 (bayat sekme) dahil — hata gösterilir, yeni obje orphan temizliğine gider.
       setErrorMessage(`Görsel kaydedilemedi: ${dbErr}`);
       // Rollback: metadata yazılamadıysa obje ORPHAN'dır (DB'de üye değil) → SUNUCU-YETKİLİ
       // orphan cleanup ile temizle (membership-tabanlı delete burada uygun değildir).
@@ -705,7 +753,6 @@ export default function SifaRehberiDetailPage() {
       return;
     }
 
-    setRecord((prev) => (prev ? { ...prev, images: nextImages } : prev));
     setSuccessMessage("Görsel eklendi.");
     setTimeout(() => setSuccessMessage(""), 2500);
   }
@@ -726,6 +773,19 @@ export default function SifaRehberiDetailPage() {
   async function removeGuideImageNow(img: GuideImage) {
     if (!draft || !id) return;
     setErrorMessage("");
+
+    // SIFA-1: storage objesi silinmeden ÖNCE sürüm doğrulanır (boş gövdeli sürüm-kontrollü
+    // PATCH = "claim"). Bayat sekme → 409 → HİÇBİR ŞEY silinmez (aksi hâlde obje silinip
+    // metadata PATCH'i çakışınca daha yeni kayıtta kırık görsel referansı kalırdı).
+    {
+      const { error: claimErr, stale, updatedAt } = await updateHealingGuide(id, {}, currentKnownVersion());
+      if (claimErr) {
+        if (stale) setStaleConflict(true);
+        setErrorMessage(`Görsel kaldırılamadı: ${claimErr}`);
+        return;
+      }
+      advanceKnownVersion(updatedAt);
+    }
 
     // P1 PHASE A: SUNUCU-YETKİLİ silme. Membership + guide ownership sunucuda doğrulanır.
     // DB metadata henüz bu görseli içerdiğinden (aşağıdaki persist ÖNCESİ) membership geçer.
@@ -749,13 +809,12 @@ export default function SifaRehberiDetailPage() {
       return;
     }
 
-    setRecord((prev) => (prev ? { ...prev, images: nextImages } : prev));
     setSuccessMessage("Görsel kaldırıldı.");
     setTimeout(() => setSuccessMessage(""), 2500);
   }
 
   // PREMIUM UX V2 — per-not fotoğraf (edit). Guide-scoped signed upload; obje kayıtla
-  // (Save → replaceHealingGuideSections) section.images'a yazılıp AUTHORITATIVE olur.
+  // (Save → saveHealingGuide: PATCH kapısı → PUT sections) section.images'a yazılıp AUTHORITATIVE olur.
   // Kaldırma: cleanupSifaPhoto membership-korumalıdır → DB'de HÂLÂ referanslıysa (kaydedilmiş
   // foto) güvenle reddeder; kaydedilmemiş (orphan) yüklemeyi güvenle temizler.
   const uploadEditNoteImage = useCallback(
@@ -796,31 +855,58 @@ export default function SifaRehberiDetailPage() {
     // SECTION-NATIVE edit yolu (Faz 2): içerik healing_guide_sections'ta durur.
     // Guide satırına yalnız üst-düzey alanlar (ad/kategori/görsel) yazılır; bölümler
     // section-native editör draft'ından atomic replace RPC ile kayıpsız kaydedilir.
-    if (sections.length > 0) {
-      const { error: guideErr } = await updateHealingGuide(id, {
-        name: nameTrim,
-        category: trimOrNull(draft.category),
-        images: draft.images.length > 0 ? draft.images : null,
-      });
-      if (guideErr) {
-        setSaving(false);
-        setErrorMessage(`Kayıt güncellenemedi: ${guideErr}`);
+    // SIFA-1: sıra PATCH (sürüm kapısı) → PUT; PATCH 409 ise PUT ÇAĞRILMAZ (saveHealingGuide).
+    const sectionMode = sections.length > 0;
+    const fields: Record<string, unknown> = sectionMode
+      ? {
+          name: nameTrim,
+          category: trimOrNull(draft.category),
+          images: draft.images.length > 0 ? draft.images : null,
+        }
+      : flatDraftFields(nameTrim);
+    const result = await saveHealingGuide({
+      guideId: id,
+      fields,
+      sections: sectionMode ? editableToPayload(editSections) : null,
+      expectedUpdatedAt: editBaseVersionRef.current,
+    });
+    setSaving(false);
+
+    if (!result.ok) {
+      // Kısmi başarıda (PATCH yazdı, PUT yazamadı) taban PATCH'in yeni sürümüne ilerler →
+      // aynı sekmenin yeniden denemesi KENDİ yazımıyla çakışmaz. Düzenleme modu ve taslak
+      // KORUNUR (reset YOK); çakışmada otomatik ezme YOK.
+      editBaseVersionRef.current = result.updatedAt;
+      if (result.stale) {
+        setStaleConflict(true);
+        setErrorMessage(
+          result.stage === "sections"
+            ? `Ad/kategori kaydedildi ancak bölümler kaydedilemedi. ${SIFA_STALE_MESSAGE}`
+            : SIFA_STALE_MESSAGE,
+        );
         return;
       }
-      const { error: secErr } = await replaceHealingGuideSections(id, editableToPayload(editSections));
-      setSaving(false);
-      if (secErr) {
-        setErrorMessage(`Bölümler kaydedilemedi: ${secErr}`);
-        return;
-      }
-      setEditEnabled(false);
-      setSuccessMessage("Kayıt güncellendi.");
-      await loadRecord();
+      setErrorMessage(
+        result.stage === "sections"
+          ? `Bölümler kaydedilemedi: ${result.error}`
+          : `Kayıt güncellenemedi: ${result.error}`,
+      );
       return;
     }
 
-    // Flat (legacy / eski manuel) kayıt: mevcut davranış aynen korunur.
-    const { error } = await updateHealingGuide(id, {
+    editBaseVersionRef.current = result.updatedAt;
+    viewVersionRef.current = result.updatedAt;
+    setStaleConflict(false);
+    editEnabledRef.current = false; // revalidate taslağı tazelesin (dirty sıfırlanır)
+    setEditEnabled(false);
+    setSuccessMessage("Kayıt güncellendi.");
+    await loadRecord();
+  }
+
+  /** Flat (legacy / eski manuel) kayıt: mevcut alan seti aynen korunur. */
+  function flatDraftFields(nameTrim: string): Record<string, unknown> {
+    if (!draft) return { name: nameTrim };
+    return {
       name: nameTrim,
       category: trimOrNull(draft.category),
       general_summary: trimOrNull(draft.general_summary),
@@ -845,17 +931,57 @@ export default function SifaRehberiDetailPage() {
       supportive_alternative_methods: trimOrNull(draft.supportive_alternative_methods),
       islamic_recommendations: trimOrNull(draft.islamic_recommendations),
       images: draft.images.length > 0 ? draft.images : null,
-    });
+    };
+  }
 
-    setSaving(false);
-
-    if (error) {
-      setErrorMessage(`Kayıt güncellenemedi: ${error}`);
-      return;
+  /**
+   * SIFA-2 "Vazgeç": düzenlemeden KAYDETMEDEN çıkar. dirty → uygulama-içi onay; değilse
+   * doğrudan çıkar. Taslak atılır, kayıt son bilinen haliyle gösterilir.
+   */
+  async function handleCancelEdit() {
+    if (!record || saving) return;
+    if (editDirty) {
+      const ok = await confirm({ ...SIFA_DISCARD_CONFIRM });
+      if (!ok) return;
     }
+    discardEditDraft();
+    // 409 sonrası vazgeçildiyse görünüm de taze veriyle yenilensin (önbellek zaten düşürüldü).
+    if (staleConflict) await loadRecord();
+  }
 
+  /** Taslağı at + düzenleme modundan çık (dirty sıfırlanır). Kaydedilmemiş not görselleri temizlenir. */
+  function discardEditDraft() {
+    if (!record) return;
+    // Bu oturumda yüklenip kayda hiç yazılmamış not görselleri → best-effort orphan temizliği
+    // (sunucu membership-korumalı: kayıtlı obje silinmez).
+    const orphanPaths = unsavedUploadPaths(
+      sections.map((s) => (Array.isArray(s.images) ? s.images : [])),
+      editSections.map((s) => s.images),
+    );
+    for (const p of orphanPaths) void cleanupSifaPhoto(p).catch(() => undefined);
+    editEnabledRef.current = false;
     setEditEnabled(false);
-    setSuccessMessage("Kayıt güncellendi.");
+    setDraft(recordToDraft(record));
+    setEditSections([]);
+    setEditInitialSig("");
+    setStaleConflict(false);
+    setErrorMessage("");
+  }
+
+  /**
+   * SIFA-1 409 sonrası "Son hali yükle": taslak YALNIZ açık onaydan sonra atılır; kayıt
+   * sunucudan taze çekilir (önbellek düşürülür → bayat kopya boyanmaz).
+   */
+  async function handleReloadLatest() {
+    if (!id) return;
+    if (editEnabled && editDirty) {
+      const ok = await confirm({ ...SIFA_RELOAD_CONFIRM });
+      if (!ok) return;
+    }
+    invalidateHealingGuideCache(id);
+    if (editEnabled) discardEditDraft();
+    setStaleConflict(false);
+    setErrorMessage("");
     await loadRecord();
   }
 
@@ -912,6 +1038,10 @@ export default function SifaRehberiDetailPage() {
       if (sections.length > 0) {
         setEditSections(initialEditable);
       }
+      // SIFA-1: düzenleme oturumunun sürüm TABANI = şu an GÖSTERİLEN kayıt (bayat önbellek
+      // kopyası ise Kaydet 409 alır — sessizce ezmez).
+      editBaseVersionRef.current = record.updated_at;
+      setStaleConflict(false);
       setEditEnabled(true);
       setErrorMessage("");
     }
@@ -1050,6 +1180,16 @@ export default function SifaRehberiDetailPage() {
               >
                 {saving ? "Kaydediliyor..." : editEnabled ? "Kaydet" : "Düzenle"}
               </button>
+              {editEnabled ? (
+                <button
+                  type="button"
+                  onClick={() => void handleCancelEdit()}
+                  disabled={saving}
+                  className={`${detailToolbarBtn} border border-slate-200/90 bg-white text-slate-700 shadow-sm hover:bg-slate-50`}
+                >
+                  Vazgeç
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => {
@@ -1066,8 +1206,21 @@ export default function SifaRehberiDetailPage() {
         </header>
 
         {errorMessage ? (
-          <div className="mb-4 rounded-2xl bg-rose-50 px-5 py-3 text-[13px] font-black text-rose-700 ring-1 ring-rose-100">
-            {errorMessage}
+          <div
+            role="alert"
+            className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-rose-50 px-5 py-3 text-[13px] font-black text-rose-700 ring-1 ring-rose-100"
+          >
+            <span className="min-w-0 flex-1">{errorMessage}</span>
+            {staleConflict ? (
+              <button
+                type="button"
+                onClick={() => void handleReloadLatest()}
+                disabled={saving}
+                className="shrink-0 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-[12px] font-bold text-rose-700 shadow-sm hover:bg-rose-100 disabled:opacity-60"
+              >
+                Son hali yükle
+              </button>
+            ) : null}
           </div>
         ) : null}
         {successMessage ? (

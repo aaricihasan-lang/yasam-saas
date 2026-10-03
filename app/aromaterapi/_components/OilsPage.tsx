@@ -18,6 +18,7 @@ import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/se
 import {
   createOil,
   deleteOils,
+  OIL_NETWORK_ERROR_MESSAGE,
   fetchOilListPage,
   fetchOilCounts,
   buildOilSearchBlob,
@@ -341,64 +342,71 @@ function NewOilForm({
     setSaving(true);
     setError("");
 
-    const tenantId = await getSyncedTenantId();
-    if (!tenantId) {
-      setError(MISSING_SESSION_TENANT_MESSAGE);
+    // AROMA-2 — beklenmeyen throw (ağ/oturum) dahil HER durumda saving bayrağı `finally`
+    // içinde sıfırlanır; başarısızlıkta kilit açılır (yeniden denenebilir), form verisi korunur.
+    let succeeded = false;
+    try {
+      const tenantId = await getSyncedTenantId();
+      if (!tenantId) {
+        setError(MISSING_SESSION_TENANT_MESSAGE);
+        return;
+      }
+
+      const t = (v: string) => v.trim() || "";
+
+      const { error: insertError } = await createOil({
+        name: nameTrim,
+        latin_name: t(form.latin_name),
+        english_name: t(form.english_name),
+        oil_type: form.oil_type || "essential",
+        category: t(form.category),
+        extraction_method: t(form.extraction_method),
+        plant_part: t(form.plant_part),
+        origin: t(form.origin),
+        shelf_life: t(form.shelf_life),
+        aroma_profile: t(form.aroma_profile),
+        aroma_note: t(form.aroma_note),
+        color: t(form.color),
+        consistency: t(form.consistency),
+        is_photosensitive: form.is_photosensitive,
+        main_components: t(form.main_components),
+        therapeutic_properties: parseTagsInput(form.therapeutic_properties_raw),
+        emotional_benefits: t(form.emotional_benefits),
+        spiritual_benefits: t(form.spiritual_benefits),
+        physical_benefits: t(form.physical_benefits),
+        skin_benefits: t(form.skin_benefits),
+        benefits: t(form.benefits),
+        diffuser_usage: t(form.diffuser_usage),
+        massage_usage: t(form.massage_usage),
+        usage_methods: t(form.usage_methods),
+        dilution_ratio: t(form.dilution_ratio),
+        blends_well_with: parseTagsInput(form.blends_well_with_raw),
+        target_systems: parseTagsInput(form.target_systems_raw),
+        chakra_connection: t(form.chakra_connection),
+        element_connection: t(form.element_connection),
+        safety_notes: t(form.safety_notes),
+        contraindications: t(form.contraindications),
+        images: parseImageUrls(form.images_raw),
+        notes: t(form.notes),
+        source: t(form.source),
+      });
+
+      if (insertError) {
+        setError(`Kayıt eklenemedi: ${insertError}`);
+        return;
+      }
+
+      succeeded = true;
+      // Başarılıda kilit açılmaz: onSaved() listeye yönlendirip formu unmount eder.
+      showToast({ title: "Başarılı", message: "Yağ kaydı oluşturuldu.", type: "success" });
+      onSaved();
+    } catch {
+      // Kayıt oluşturulduktan SONRA (yönlendirme) atılan hata "eklenemedi" diye gösterilmez.
+      if (!succeeded) setError(`Kayıt eklenemedi: ${OIL_NETWORK_ERROR_MESSAGE}`);
+    } finally {
       setSaving(false);
-      submittingRef.current = false;
-      return;
+      if (!succeeded) submittingRef.current = false;
     }
-
-    const t = (v: string) => v.trim() || "";
-
-    const { error: insertError } = await createOil({
-      name: nameTrim,
-      latin_name: t(form.latin_name),
-      english_name: t(form.english_name),
-      oil_type: form.oil_type || "essential",
-      category: t(form.category),
-      extraction_method: t(form.extraction_method),
-      plant_part: t(form.plant_part),
-      origin: t(form.origin),
-      shelf_life: t(form.shelf_life),
-      aroma_profile: t(form.aroma_profile),
-      aroma_note: t(form.aroma_note),
-      color: t(form.color),
-      consistency: t(form.consistency),
-      is_photosensitive: form.is_photosensitive,
-      main_components: t(form.main_components),
-      therapeutic_properties: parseTagsInput(form.therapeutic_properties_raw),
-      emotional_benefits: t(form.emotional_benefits),
-      spiritual_benefits: t(form.spiritual_benefits),
-      physical_benefits: t(form.physical_benefits),
-      skin_benefits: t(form.skin_benefits),
-      benefits: t(form.benefits),
-      diffuser_usage: t(form.diffuser_usage),
-      massage_usage: t(form.massage_usage),
-      usage_methods: t(form.usage_methods),
-      dilution_ratio: t(form.dilution_ratio),
-      blends_well_with: parseTagsInput(form.blends_well_with_raw),
-      target_systems: parseTagsInput(form.target_systems_raw),
-      chakra_connection: t(form.chakra_connection),
-      element_connection: t(form.element_connection),
-      safety_notes: t(form.safety_notes),
-      contraindications: t(form.contraindications),
-      images: parseImageUrls(form.images_raw),
-      notes: t(form.notes),
-      source: t(form.source),
-    });
-
-    setSaving(false);
-
-    if (insertError) {
-      setError(`Kayıt eklenemedi: ${insertError}`);
-      submittingRef.current = false;
-      return;
-    }
-
-    // Başarılıda kilit açılmaz: onSaved() listeye yönlendirip formu unmount eder.
-    showToast({ title: "Başarılı", message: "Yağ kaydı oluşturuldu.", type: "success" });
-    onSaved();
   }
 
   const scrollArea =
@@ -861,9 +869,16 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
 
     setDeleteLoading(true);
 
-    const { deletedIds, error: deleteError } = await deleteOils(ids);
-
-    setDeleteLoading(false);
+    // AROMA-2 — ağ hatasında da deleteLoading `finally` ile sıfırlanır (buton kilitli kalmaz).
+    let deletedIds: string[] = [];
+    let deleteError: string | null = null;
+    try {
+      ({ deletedIds, error: deleteError } = await deleteOils(ids));
+    } catch {
+      deleteError = OIL_NETWORK_ERROR_MESSAGE;
+    } finally {
+      setDeleteLoading(false);
+    }
 
     if (deleteError) {
       setBulkError(`Seçili kayıtlar silinemedi: ${deleteError}`);

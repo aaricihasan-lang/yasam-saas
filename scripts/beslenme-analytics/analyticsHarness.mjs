@@ -209,6 +209,10 @@ ok("aynı snapshot → aynı çıktı (canlı food mutasyonu etkisiz; determinis
 
 console.log(`\n${"=".repeat(56)}`);
 console.log(`  TOPLAM: ${pass} PASS / ${fail} FAIL`);
+// PGlite (WASM/emscripten) kapatılmadan süreç doğal biter ise çıkış kodu 99 olur (ürün hatası
+// DEĞİL; harness kapanış eksikliği — diğer PGlite harness'leri gibi açıkça kapat + çık).
+try { await db.close(); } catch { /* zaten kapalı */ }
 if (fail) { console.log("=".repeat(56)); process.exit(1); }
 console.log("  ✅ Beslenme Plan Analitiği: TÜM KONTROLLER GEÇTİ");
 console.log("=".repeat(56));
+process.exit(0);

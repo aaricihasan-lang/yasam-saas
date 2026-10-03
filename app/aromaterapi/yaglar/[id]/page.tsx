@@ -17,6 +17,7 @@ import {
   oilTypeBadgeClass,
   oilTypeLabel,
   oilToFormData,
+  OIL_STALE_MESSAGE,
   parseTagsInput,
   parseImageUrls,
   OIL_TYPES,
@@ -286,6 +287,8 @@ export default function OilDetailPage() {
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [pendingNavHref, setPendingNavHref] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  // AROMA-3 — 409 sürüm çakışması: taslak KORUNUR; kullanıcı son hâli bilerek yükler.
+  const [staleConflict, setStaleConflict] = useState(false);
   const [blendMap, setBlendMap] = useState<Map<string, string> | null>(null);
   const [exportingWord, setExportingWord] = useState(false);
   const isAndroid = useIsAndroid();
@@ -315,6 +318,7 @@ export default function OilDetailPage() {
     if (!id) { setNotFound(true); setLoading(false); return; }
     setLoading(true);
     setErrorMessage("");
+    setStaleConflict(false);
     setNotFound(false);
 
     // Demo fixture yağı — Supabase atlanır
@@ -374,16 +378,25 @@ export default function OilDetailPage() {
   function setDraftField(key: keyof OilFormData, value: string) {
     setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
   }
-  function startEdit() { if (!oil) return; setDraft(oilToFormData(oil)); setEditEnabled(true); setErrorMessage(""); }
-  function cancelEdit() { if (!oil) return; setDraft(oilToFormData(oil)); setEditEnabled(false); setErrorMessage(""); }
+  function startEdit() { if (!oil) return; setDraft(oilToFormData(oil)); setEditEnabled(true); setErrorMessage(""); setStaleConflict(false); }
+  function cancelEdit() { if (!oil) return; setDraft(oilToFormData(oil)); setEditEnabled(false); setErrorMessage(""); setStaleConflict(false); }
+
+  // AROMA-3 — çakışmada kullanıcı BİLEREK son kaydı yükler (taslak sunucu hâline döner,
+  // düzenleme modu açık kalır → değişikliklerini yeniden uygulayıp kaydedebilir).
+  async function reloadLatest() {
+    await loadOil();
+  }
 
   async function handleSave() {
-    if (!draft || !id || !tenantId) return;
+    if (!draft || !id || !tenantId || saving) return;
     const nameTrim = draft.name.trim();
     if (!nameTrim) { setErrorMessage("Yağ adı zorunludur."); return; }
-    setSaving(true); setErrorMessage("");
+    setSaving(true); setErrorMessage(""); setStaleConflict(false);
     const t = (v: string) => v.trim() || "";
-    const { error } = await updateOil(id, {
+    // AROMA-2 — her koşulda (ağ hatası dahil) saving bayrağı finally'de sıfırlanır; taslak korunur.
+    let result: Awaited<ReturnType<typeof updateOil>>;
+    try {
+      result = await updateOil(id, {
       name: nameTrim, latin_name: t(draft.latin_name), english_name: t(draft.english_name),
       oil_type: draft.oil_type || "essential", category: t(draft.category),
       extraction_method: t(draft.extraction_method), plant_part: t(draft.plant_part),
@@ -400,20 +413,35 @@ export default function OilDetailPage() {
       chakra_connection: t(draft.chakra_connection), element_connection: t(draft.element_connection),
       safety_notes: t(draft.safety_notes), contraindications: t(draft.contraindications),
       images: parseImageUrls(draft.images_raw), notes: t(draft.notes), source: t(draft.source),
-    });
-    setSaving(false);
+      }, oil?.updated_at ?? null); // AROMA-3 — sunucudan okunan sürüm token'ı (AYNEN)
+    } finally {
+      setSaving(false);
+    }
+    const { error, stale, updatedAt } = result;
+    if (stale) {
+      // Çakışma: formu SIFIRLAMA, otomatik ezme YOK — kullanıcı son hâli bilerek yükler.
+      setStaleConflict(true);
+      setErrorMessage(OIL_STALE_MESSAGE);
+      return;
+    }
     if (error) { setErrorMessage(`Kayıt güncellenemedi: ${error}`); return; }
+    // Yeni token hemen işlenir (yeniden yükleme başarısız olsa da aynı sekme devam edebilir).
+    if (updatedAt) setOil((prev) => (prev ? { ...prev, updated_at: updatedAt } : prev));
     setEditEnabled(false);
     showToast({ title: "Başarılı", message: "Kayıt güncellendi.", type: "success" });
     await loadOil();
   }
 
   async function handleDelete() {
-    if (!id || !tenantId) return;
+    if (!id || !tenantId || deleting) return;
     setDeleting(true); setErrorMessage("");
-    const { error } = await deleteOil(id);
-    setDeleting(false);
-    if (error) { setErrorMessage(`Silinemedi: ${error}`); return; }
+    let error: string | null;
+    try {
+      ({ error } = await deleteOil(id));
+    } finally {
+      setDeleting(false); // AROMA-2 — ağ hatasında da buton kilitli kalmaz
+    }
+    if (error) { setErrorMessage(`Silinemedi: ${error}`); setDeleteConfirmOpen(false); return; }
     setDeleteConfirmOpen(false); router.push("/aromaterapi/yaglar?view=list");
   }
 
@@ -447,7 +475,8 @@ export default function OilDetailPage() {
   // Ana Render
   // -------------------------------------------------------
 
-  const btnBase = "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12px] font-semibold transition disabled:opacity-60";
+  // NEW-2 — mobilde ≥40px dokunma hedefi; sm+ masaüstü görünümü (h-8) AYNEN korunur.
+  const btnBase = "inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 text-[12px] font-semibold transition disabled:opacity-60 sm:h-8 sm:justify-start";
 
   const plantPartChip = oil.plant_part.trim();
   const originChip    = oil.origin.trim().split(",")[0]?.trim() ?? "";
@@ -467,11 +496,13 @@ export default function OilDetailPage() {
         {/* ─── HERO HEADER ──────────────────────────────────── */}
         <header className="overflow-hidden rounded-[20px] bg-white/95 shadow-[0_2px_20px_rgba(245,158,11,0.09)] ring-1 ring-amber-200/40">
           <div className="px-4 py-3.5 sm:px-5">
-            <div className="flex items-start gap-3">
+            {/* NEW-2 — <sm: başlık tam genişlik, eylemler ALTINDA sarılır (çakışma yok);
+                sm+: önceki yan yana düzen (başlık solda, eylemler sağda) birebir. */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
 
               {/* Sol: isim + meta */}
-              <div className="min-w-0 flex-1">
-                <div className="mb-2 flex items-center gap-1.5">
+              <div className="min-w-0 w-full sm:flex-1">
+                <div className="mb-2 flex flex-wrap items-center gap-1.5">
                   <button type="button" onClick={() => handleNavigation("/aromaterapi")}
                     className="text-[10px] font-black uppercase tracking-[0.12em] text-amber-600/70 hover:text-amber-700">
                     Aromaterapi
@@ -491,7 +522,7 @@ export default function OilDetailPage() {
                     placeholder="Yağ adı"
                   />
                 ) : (
-                  <h1 className="text-[20px] font-black leading-tight tracking-tight text-slate-950 sm:text-[22px]">
+                  <h1 className="break-words text-[20px] font-black leading-tight tracking-tight text-slate-950 [overflow-wrap:anywhere] sm:text-[22px]">
                     {oil.name}
                   </h1>
                 )}
@@ -501,10 +532,10 @@ export default function OilDetailPage() {
                     {oilTypeLabel(oil.oil_type)}
                   </span>
                   {oil.latin_name.trim() ? (
-                    <span className="text-[12px] font-medium italic text-slate-500">{oil.latin_name}</span>
+                    <span className="min-w-0 break-words text-[12px] font-medium italic text-slate-500 [overflow-wrap:anywhere]">{oil.latin_name}</span>
                   ) : null}
                   {oil.english_name.trim() ? (
-                    <span className="text-[11px] text-slate-400">· {oil.english_name.split(";")[0]?.trim()}</span>
+                    <span className="min-w-0 break-words text-[11px] text-slate-400 [overflow-wrap:anywhere]">· {oil.english_name.split(";")[0]?.trim()}</span>
                   ) : null}
                   {oil.category.trim() ? (
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{oil.category}</span>
@@ -537,7 +568,7 @@ export default function OilDetailPage() {
 
               {/* Sağ: aksiyon butonları — demo hesapta gizli */}
               {!isDemo && (
-              <div className="flex shrink-0 flex-wrap items-center gap-1">
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:gap-1">
                 {editEnabled ? (
                   <>
                     <button type="button" onClick={() => void handleSave()} disabled={saving}
@@ -563,7 +594,7 @@ export default function OilDetailPage() {
                       ✏️ Düzenle
                     </button>
                     <button type="button" onClick={() => { setDeleteConfirmOpen(true); setErrorMessage(""); }}
-                      className={`${btnBase} border border-red-200 bg-red-50 text-red-700 hover:bg-red-100`}>
+                      className={`${btnBase} ml-auto border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 sm:ml-0`}>
                       Sil
                     </button>
                   </>
@@ -579,7 +610,16 @@ export default function OilDetailPage() {
             </div>
           )}
           {errorMessage ? (
-            <div className="border-t border-rose-100 bg-rose-50 px-4 py-2 text-[12px] font-black text-rose-700">{errorMessage}</div>
+            <div role="alert" className="flex flex-col gap-2 border-t border-rose-100 bg-rose-50 px-4 py-2 text-[12px] font-black text-rose-700 sm:flex-row sm:items-center sm:justify-between">
+              <span className="break-words [overflow-wrap:anywhere]">{errorMessage}</span>
+              {staleConflict ? (
+                <button type="button" onClick={() => void reloadLatest()}
+                  className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-rose-200 bg-white px-3 text-[12px] font-black text-rose-700 transition hover:bg-rose-100 sm:h-8"
+                  title="Sunucudaki son hâli yükler; bu formdaki kaydedilmemiş değişiklikler kaybolur">
+                  Son hâlini yükle
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </header>
 
