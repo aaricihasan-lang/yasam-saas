@@ -3,7 +3,8 @@
 // Tüm işlemler:
 //   • tenant_id + user_id YALNIZ guard'dan gelir (route katmanı verir); body'den GÜVENİLMEZ.
 //   • Yazma alanları allow-list ile süzülür (tenant_id/user_id/id/zaman override edilemez).
-//   • DELETE tenant-scoped cascade: önce raporlar, sonra haritalar, sonra danışan.
+//   • DELETE (P1-3): raporlar KORUNUR (client bağı koparılır), danışan + haritaları silinir,
+//     görsel klasörü temizlenir; ara adım hatasında telafi (raporlar geri bağlanır).
 // HD engine/compute/BodyGraph matematiğine DOKUNMAZ — yalnız human_design_clients CRUD.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -13,6 +14,9 @@ import type {
 } from "@/lib/human-design/types";
 import { hdSafeDbError } from "./safeError";
 import { withTenant, tenantInsertPayload } from "./tenantScope";
+import { HD_CONFLICT_CODE, HD_CONFLICT_MESSAGE } from "./optimistic";
+import { detachReportsFromClient, reattachReportsToClient } from "./reportPersistence";
+import { listClientImageObjects, removeHdStorageObjects, reportReferencedImagePaths } from "./hdStorage";
 
 const TABLE = "human_design_clients";
 
@@ -85,42 +89,111 @@ export async function updateHdClient(
   tenantId: string,
   id: string,
   input: Record<string, unknown>,
-): Promise<{ ok: boolean; error: string | null }> {
+  opts: { expectedUpdatedAt?: string } = {},
+): Promise<{ ok: boolean; error: string | null; status?: number; code?: string; updatedAt?: string | null }> {
   const fields = { ...pick(input), updated_at: new Date().toISOString() };
 
-  const { data, error } = await withTenant(db.from(TABLE).update(fields), tenantId, "updateHdClient")
-    .eq("id", id)
-    .select("id");
+  // P2-9: beklenen sürüm verildiyse koşullu (atomik) güncelleme — başka oturum ezilmez.
+  let q = withTenant(db.from(TABLE).update(fields), tenantId, "updateHdClient").eq("id", id);
+  if (opts.expectedUpdatedAt) q = q.eq("updated_at", opts.expectedUpdatedAt);
+  const { data, error } = await q.select("id, updated_at");
   if (error) return { ok: false, error: hdSafeDbError("updateHdClient", error) };
   if (!data || data.length === 0) {
-    return { ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." };
+    if (opts.expectedUpdatedAt) {
+      const { row } = await getHdClient(db, tenantId, id);
+      if (row) return { ok: false, error: HD_CONFLICT_MESSAGE, status: 409, code: HD_CONFLICT_CODE };
+    }
+    return { ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil.", status: 404 };
   }
-  return { ok: true, error: null };
+  return { ok: true, error: null, updatedAt: (data[0] as { updated_at?: string | null }).updated_at ?? null };
 }
 
+export type DeleteHdClientResult = {
+  ok: boolean;
+  error: string | null;
+  status?: number;
+  /** Korunan (danışan bağı koparılan) rapor sayısı. */
+  preservedReports?: number;
+  /** Silme tamam; ancak bazı yan temizlikler başarısız (loglandı). */
+  warnings?: string[];
+};
+
+/**
+ * P1-3 — Danışan silme: RAPORLAR KORUNUR, telafi edici sıralı işlem.
+ *
+ * Eski davranış raporları (profesyonel donmuş raporlar dahil) uyarısız ve atomik olmayan
+ * 3 ayrı DELETE ile siliyordu. Yeni sıra (her adım tenant-scoped):
+ *   1) Danışan var mı (tenant) → yoksa 404.
+ *   2) Danışanın harita id'leri okunur.
+ *   3) Raporların danışan bağı koparılır (client_id = NULL) — veri silinmez.
+ *   4) Danışan silinir. Hata → 3. adım GERİ ALINIR (raporlar yeniden bağlanır) → hiçbir şey
+ *      silinmemiş, tutarlı durum.
+ *   5) Haritalar silinir (yeniden denemeli). Hata → danışan zaten silindi; harita satırları
+ *      Kayıtlı Haritalar'da kalır (veri kaybı yok), uyarı döner + loglanır.
+ *   6) Görsel klasörü temizlenir; hâlâ bir rapor snapshot'ının kullandığı nesne KORUNUR.
+ *      Storage hatası DB'yi geri almaz → yeniden deneme + `[hd-storage-cleanup-failed]` log.
+ * Raporlar silinmediği için hiçbir adımda geri alınamaz veri kaybı oluşmaz.
+ */
 export async function deleteHdClient(
   db: SupabaseClient,
   tenantId: string,
   id: string,
-): Promise<{ ok: boolean; error: string | null }> {
-  // false-success koruması + tenant-scoped cascade (mevcut hdClients davranışıyla birebir).
-  // 1) Bağlı raporlar
-  const { error: repErr } = await withTenant(db.from("human_design_reports").delete(), tenantId, "deleteHdClient.reports")
-    .eq("client_id", id);
-  if (repErr) return { ok: false, error: hdSafeDbError("deleteHdClient.reports", repErr) };
+): Promise<DeleteHdClientResult> {
+  const { row: client, error: readErr } = await getHdClient(db, tenantId, id);
+  if (readErr) return { ok: false, error: readErr, status: 500 };
+  if (!client) return { ok: false, error: "Danışan bulunamadı veya bu tenant'a ait değil.", status: 404 };
 
-  // 2) Bağlı haritalar
-  const { error: chErr } = await withTenant(db.from("human_design_charts").delete(), tenantId, "deleteHdClient.charts")
-    .eq("client_id", id);
-  if (chErr) return { ok: false, error: hdSafeDbError("deleteHdClient.charts", chErr) };
+  const { data: chartRows, error: chartReadErr } = await withTenant(
+    db.from("human_design_charts").select("id"), tenantId, "deleteHdClient.charts.read",
+  ).eq("client_id", id);
+  if (chartReadErr) return { ok: false, error: hdSafeDbError("deleteHdClient.charts.read", chartReadErr), status: 500 };
+  const chartIds = ((chartRows ?? []) as { id: string }[]).map((r) => r.id);
 
-  // 3) Danışanın kendisi
-  const { data, error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteHdClient")
+  const detached = await detachReportsFromClient(db, tenantId, id);
+  if (detached.error) return { ok: false, error: detached.error, status: 500 };
+
+  const { data: delRows, error: delErr } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteHdClient")
     .eq("id", id)
     .select("id");
-  if (error) return { ok: false, error: hdSafeDbError("deleteHdClient", error) };
-  if (!data || data.length === 0) {
-    return { ok: false, error: "Danışan bulunamadı veya bu tenant'a ait değil." };
+  if (delErr || !delRows || delRows.length === 0) {
+    await reattachReportsToClient(db, tenantId, id, detached.ids);
+    return {
+      ok: false,
+      error: delErr ? hdSafeDbError("deleteHdClient", delErr) : "Danışan silinemedi.",
+      status: delErr ? 500 : 404,
+    };
   }
-  return { ok: true, error: null };
+
+  const warnings: string[] = [];
+  if (chartIds.length > 0) {
+    let chartErr = (await withTenant(db.from("human_design_charts").delete(), tenantId, "deleteHdClient.charts").in("id", chartIds)).error;
+    if (chartErr) {
+      chartErr = (await withTenant(db.from("human_design_charts").delete(), tenantId, "deleteHdClient.charts.retry").in("id", chartIds)).error;
+    }
+    if (chartErr) {
+      console.error(`[hd-client-delete] ${chartIds.length} harita silinemedi:`, hdSafeDbError("deleteHdClient.charts", chartErr));
+      warnings.push("charts_cleanup_failed");
+    }
+  }
+
+  // Görsel klasörü (P2-10) — rapor snapshot'ının hâlâ kullandığı nesne silinmez.
+  const prefix = `${tenantId}/${id}/`;
+  const listed = await listClientImageObjects(db, tenantId, id);
+  if (listed.error) {
+    console.error(`[hd-storage-cleanup-failed] client-delete list: ${listed.error}`);
+    warnings.push("storage_cleanup_failed");
+  } else if (listed.paths.length > 0) {
+    const refs = await reportReferencedImagePaths(db, tenantId, prefix);
+    if (refs.error) {
+      // Referans bilinmiyorsa güvenli taraf: SİLME (rapor görseli kaybolmasın), logla.
+      console.error(`[hd-storage-cleanup-failed] client-delete refs: ${refs.error}`);
+      warnings.push("storage_cleanup_failed");
+    } else {
+      const removable = listed.paths.filter((p) => !refs.paths.has(p));
+      const rm = await removeHdStorageObjects(db, removable, "client-delete");
+      if (!rm.ok) warnings.push("storage_cleanup_failed");
+    }
+  }
+
+  return { ok: true, error: null, preservedReports: detached.ids.length, warnings };
 }

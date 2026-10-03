@@ -372,6 +372,9 @@ function serviceFetcher(db: FakeDb, ctx: RestoreContext, log?: PageLog[]): JsonF
       const r = await handleRestoreChunk(asDb(db), ctx, body);
       status = r.status;
       json = r.body;
+    } else if (u.pathname === "/api/settings/backup/files") {
+      // P2-11 (HD): sahte DB'de depolama nesnesi yok → boş dosya listesi (dosya hattı ayrı harness'ta).
+      json = { ok: true, part_bytes: 1_048_575, files: [] };
     } else {
       status = 404;
       json = { error: "yok" };
@@ -774,6 +777,40 @@ function codeFromTables(): string[] {
     assert.equal(b.tenant_id, TB);
     assert.equal(b.ad, "B");
   });
+  await t("SETTINGS-AUDIT: görsel listesindeki eski/yabancı yol ayıklanır, metin içeriği eklenir", async () => {
+    const guideA = uid("hg");
+    adv.seed("healing_guides", [{ id: guideA, tenant_id: TA, name: "Rehber" }]);
+    const secId = uid("hs");
+    const okPath = `healing-guides/${TA}/${guideA}/ok.png`;
+    const rep = await restoreChunk(asDb(adv), ctxA(), "healing_guide_sections", [
+      { id: secId, guide_id: guideA, section_type: "note", note: "Önemli metin", images: ["images/healing/eski.jpg", `healing-guides/${TB}/x.png`, okPath] },
+    ]);
+    assert.equal(rep.inserted, 1);
+    assert.equal(rep.failed.length, 0);
+    assert.equal(rep.storage_refs_removed, 2);
+    assert.equal(rep.status, "COMPLETE");
+    const row = adv.rows("healing_guide_sections").find((r) => r.id === secId)!;
+    assert.equal(row.note, "Önemli metin");
+    assert.deepEqual(row.images, [okPath]);
+    assert.ok(rep.warnings.some((w) => w.includes("2 görsel bağlantısı")));
+  });
+  await t("SETTINGS-AUDIT: zaten mevcut satırdaki eski yol 'başarısız' sayılmaz (self-restore KISMİ olmaz)", async () => {
+    const guideA = uid("hg");
+    const secId = uid("hs");
+    adv.seed("healing_guides", [{ id: guideA, tenant_id: TA, name: "Rehber 2" }]);
+    adv.seed("healing_guide_sections", [{ id: secId, guide_id: guideA, section_type: "note", images: ["images/healing/eski.jpg"] }]);
+    const rep = await restoreChunk(asDb(adv), ctxA(), "healing_guide_sections", [
+      { id: secId, guide_id: guideA, section_type: "note", images: ["images/healing/eski.jpg"] },
+    ]);
+    assert.equal(rep.already_present, 1);
+    assert.equal(rep.failed.length, 0);
+    assert.equal(rep.status, "COMPLETE");
+  });
+  await t("SETTINGS-AUDIT: bilinen generated kolon 'tanınmayan alan' olarak raporlanmaz", async () => {
+    const rep = await restoreChunk(asDb(adv), ctxA(), "aromatherapy_oils", [{ id: uid("g2"), name: "Nane", search_norm: "x", identity_norm: "y", zz_evil: 1 }]);
+    assert.equal(rep.inserted, 1);
+    assert.deepEqual(rep.dropped_columns, ["zz_evil"]);
+  });
   await t("mevcut kayıt değiştirilmez (yalnız ekleme)", async () => {
     const rep = await restoreChunk(asDb(adv), ctxA(), "clients", [{ id: clientA, ad: "Üzerine yaz" }]);
     assert.equal(rep.already_present, 1);
@@ -909,8 +946,16 @@ function codeFromTables(): string[] {
     assert.equal(hits.length, 1);
     const idx = ui.search(/eksiksiz/i);
     assert.ok(ui.slice(Math.max(0, idx - 200), idx).includes("outcome.complete"), "eksiksiz yalnız complete dalında");
-    assert.ok(ui.includes("fotoğraf ve dosyalar dahil değildir"));
+    // P2-11: Human Design görselleri artık yedekte; diğer modüllerin dosyaları hâlâ dahil değil (dürüst metin).
+    assert.ok(ui.includes("Human Design harita ve rapor görselleri dahildir"));
+    assert.ok(ui.includes("fotoğraf ve dosyaları dahil değildir"));
     assert.ok(ui.includes("Yalnız eksik kayıtlar eklenir; mevcut kayıtlar değiştirilmez veya silinmez"));
+    // SETTINGS-AUDIT: kullanıcı "yedek tarihine tam dönüş" sanmamalı; duplicate ve dosya kapsamı açık yazılı.
+    assert.ok(ui.includes("hesabınızı yedek tarihindeki hâline döndürmez"));
+    assert.ok(ui.includes("yedekten sonra eklediğiniz kayıtlar silinmez"));
+    assert.ok(ui.includes("kopya (çift) kayıt oluşturmaz"));
+    assert.ok(ui.includes("diğer modüllerin fotoğraf ve dosyaları yedeğe dahil değildir"));
+    assert.ok(ui.includes("Human Design görselleri dosyadan geri yüklenir"));
   });
 
   console.log(`backup.harness: ${pass} PASS / ${fail} FAIL`);

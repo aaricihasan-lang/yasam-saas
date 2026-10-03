@@ -20,6 +20,9 @@ export const WHATSAPP_CANONICAL_NUMBER = "908503072093";
 export const WHATSAPP_MEMBERSHIP_MESSAGE =
   "Merhaba, Yaşam Sistemi üyeliği ve fiyatlandırması hakkında bilgi almak istiyorum.";
 
+/** Ayarlar > Admin ile İrtibat — destek için hazır mesaj. */
+export const WHATSAPP_SUPPORT_MESSAGE = "Merhaba, Yaşam Sistemi desteği için yazıyorum.";
+
 /**
  * WhatsApp iletişim gate'i.
  *

@@ -32,6 +32,7 @@ import {
   bioApiLastCreated,
 } from "@/lib/biyoenerji/secureApi";
 import { bioListGet, bioListKey, bioListSet } from "@/lib/biyoenerji/listCache";
+import { useBioRequestGate } from "@/lib/biyoenerji/requestGate";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
 import { badgeFieldWrapClass, bioSaveBtnClass, bioSearchInputClass, bioSelectClass, CrudEmptyState, newRecordBtnClass } from "./BiyoenerjiUi";
@@ -187,8 +188,11 @@ export default function SembolDili() {
     return synced;
   }, []);
 
+  // A7/A8 — eski / başka hesap yanıtlarını yok sayan istek kapısı.
+  const listGate = useBioRequestGate();
   const fetchList = useCallback(
     async (opts: { reset: boolean; append?: boolean; offset?: number }) => {
+      const ticket = listGate.begin({ append: Boolean(opts.append) });
       const tenantId = queryTenantId ?? getSessionTenantId();
       if (!tenantId) {
         setListLoading(false);
@@ -225,6 +229,7 @@ export default function SembolDili() {
       try {
         // 1) ÖNCE sayfa (grid) — istatistik beklenmez
         const pageRes = await fetchSymbolLanguagePage(tenantId, { offset, search, category });
+        if (!listGate.isCurrent(ticket)) return; // A7/A8 — eski/başka hesap yanıtı yazılmaz
 
         if (opts.reset) setListLoading(false);
         setLoadingMore(false);
@@ -268,6 +273,7 @@ export default function SembolDili() {
               searchP,
               bioApiLastCreated("symbols"),
             ]);
+            if (!listGate.isCurrent(ticket)) return; // A7/A8 — sayım/cache yazılmaz
             let total = totalInDbRef.current;
             if (totalRes.error) {
               setLoadErrorMessage((prev) =>
@@ -300,10 +306,11 @@ export default function SembolDili() {
               searchCount,
               lastCreatedAt: lastAt,
               categories: null,
-            });
+            }, ticket);
           })();
         }
       } catch (err) {
+        if (!listGate.isCurrent(ticket)) return;
         if (opts.reset) setListLoading(false);
         setLoadingMore(false);
         const message = err instanceof Error ? err.message : String(err);
@@ -314,7 +321,7 @@ export default function SembolDili() {
         }
       }
     },
-    [categoryFilter, debouncedSearch, queryTenantId],
+    [categoryFilter, debouncedSearch, queryTenantId, listGate],
   );
 
   const refreshCategories = useCallback(async () => {

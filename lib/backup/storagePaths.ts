@@ -58,6 +58,24 @@ function isSafeOwnedPath(path: string, prefixes: string[]): boolean {
   return prefixes.some((pre) => p.startsWith(pre));
 }
 
+/** Bir kolon değerindeki (iç içe) ilk yabancı yol; temizse null. */
+function firstForeignIn(value: unknown, prefixes: string[]): string | null {
+  const candidates: string[] = [];
+  collectCandidates(value, candidates);
+  for (const raw of candidates) {
+    const s = raw.trim();
+    if (!s || s.startsWith("data:")) continue;
+    if (/^https?:\/\//i.test(s)) {
+      const path = storagePathFromUrl(s);
+      if (path !== null && !isSafeOwnedPath(path, prefixes)) return s;
+      continue;
+    }
+    if (!s.includes("/") && !s.includes("\\")) continue;
+    if (!isSafeOwnedPath(s, prefixes)) return s;
+  }
+  return null;
+}
+
 /**
  * Satırın storage referansları bu tenant'a mı ait? İlk ihlali döndürür (kolon + değer); temizse null.
  * Sade metin (bölü işareti içermeyen) değerler yol sayılmaz (ör. açıklama etiketi).
@@ -70,19 +88,43 @@ export function findForeignStoragePath(
   for (const ref of e.storageRefs) {
     if (!(ref.column in row)) continue;
     const prefixes = ref.prefixes.map((k) => storagePrefix(k, tenantId));
-    const candidates: string[] = [];
-    collectCandidates(row[ref.column], candidates);
-    for (const raw of candidates) {
-      const s = raw.trim();
-      if (!s || s.startsWith("data:")) continue;
-      if (/^https?:\/\//i.test(s)) {
-        const path = storagePathFromUrl(s);
-        if (path !== null && !isSafeOwnedPath(path, prefixes)) return { column: ref.column, value: s };
-        continue;
-      }
-      if (!s.includes("/") && !s.includes("\\")) continue;
-      if (!isSafeOwnedPath(s, prefixes)) return { column: ref.column, value: s };
-    }
+    const bad = firstForeignIn(row[ref.column], prefixes);
+    if (bad !== null) return { column: ref.column, value: bad };
   }
   return null;
+}
+
+/**
+ * Restore için yabancı yolları ayıklar (yeni satır nesnesi döner; girdi değişmez).
+ *
+ * - Görsel LİSTESİ kolonları (dizi: images / photos): yalnız yabancı yol içeren ÖĞELER çıkarılır,
+ *   satırın geri kalanı (metin içeriği) korunur. Ör. masaüstü aktarımından kalan `images/healing/x.jpg`
+ *   gibi hiçbir hesaba ait olmayan (uygulamanın da gösteremediği) eski göreli yollar.
+ * - Tekil dosya kolonu (dosya kaydının kendisi: file_path, storage_path …) yabancıysa satır
+ *   KURTARILAMAZ → `blocking` döner (çağıran satırı `foreign_storage_path` ile reddeder).
+ * Yabancı yol hiçbir koşulda yazılmaz.
+ */
+export function stripForeignStoragePaths(
+  e: RegistryEntry,
+  row: Record<string, unknown>,
+  tenantId: string,
+): { row: Record<string, unknown>; removed: number; blocking: { column: string; value: string } | null } {
+  let out = row;
+  let removed = 0;
+  for (const ref of e.storageRefs) {
+    if (!(ref.column in row)) continue;
+    const prefixes = ref.prefixes.map((k) => storagePrefix(k, tenantId));
+    const value = row[ref.column];
+    if (Array.isArray(value)) {
+      const kept = value.filter((item) => firstForeignIn(item, prefixes) === null);
+      if (kept.length !== value.length) {
+        removed += value.length - kept.length;
+        out = { ...out, [ref.column]: kept };
+      }
+      continue;
+    }
+    const bad = firstForeignIn(value, prefixes);
+    if (bad !== null) return { row, removed: 0, blocking: { column: ref.column, value: bad } };
+  }
+  return { row: out, removed, blocking: null };
 }

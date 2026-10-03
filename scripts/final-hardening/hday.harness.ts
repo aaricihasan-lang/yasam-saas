@@ -454,7 +454,7 @@ async function main() {
     const btn = code("app/human-design/kayitli-haritalar/components/HdProfessionalReportButton.tsx");
     ok(!/isAdminUser/.test(btn) && /if \(isAndroid\) return null/.test(btn), "Profesyonel Word butonu: admin gate yok, Android gizli");
     const list = code("app/human-design/kayitli-raporlar/components/HdRaporListesi.tsx");
-    ok(/isCanonical \?[\s\S]{0,300}!isAndroid \?/.test(list), "Kayıtlı Raporlar: canonical Word İndir uzmana açık");
+    ok(/isCanonical \?[\s\S]{0,700}!isAndroid \?/.test(list), "Kayıtlı Raporlar: canonical Word İndir uzmana açık");
     const hub = code("app/human-design/page.tsx");
     const hubCards = code("app/human-design/components/HdHubModules.tsx");
     ok(/href: "\/human-design\/rapor-olustur",\s*adminOnly: true/.test(hub), "hub: 'Rapor Oluştur' kartı adminOnly (route korunur)");

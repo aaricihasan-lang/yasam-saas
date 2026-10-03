@@ -24,7 +24,7 @@ import { SYSTEM_NUTRITION_TENANT_ID } from "@/lib/beslenme/systemTenant";
 import { columnPolicyFor, hasTenantColumn, SAFE_COLUMN_RE } from "./columns";
 import { addFailure, computeTableStatus, emptyTableReport } from "./format";
 import { getRegistryEntry, isExportable, isOperationalBackupTable, topologicalOrder } from "./registry";
-import { findForeignStoragePath } from "./storagePaths";
+import { stripForeignStoragePaths } from "./storagePaths";
 import type { BackupPageResponse, RegistryEntry, RestoreDecision, RestoreTableReport } from "./types";
 
 type Row = Record<string, unknown>;
@@ -438,7 +438,10 @@ export async function restoreChunk(
     const safe = [...candidateKeys].filter((k) => SAFE_COLUMN_RE.test(k) && !policy.deny.has(k) && k !== "tenant_id");
     allowed = await probeColumns(db, entry.table, safe, probeCache);
   }
-  for (const k of candidateKeys) if (!allowed.has(k) && k !== "tenant_id") dropped.add(k);
+  // Bilinen generated / trigger-yönetimli kolonlar (deny) bilinçli olarak yazılmaz → "tanınmayan alan"
+  // olarak RAPORLANMAZ (her normal self-restore'da yanıltıcı uyarı üretiyordu). Yalnız gerçekten
+  // tanınmayan / izin dışı anahtarlar raporlanır.
+  for (const k of candidateKeys) if (!allowed.has(k) && k !== "tenant_id" && !policy.deny.has(k)) dropped.add(k);
   report.dropped_columns = [...dropped].sort();
 
   const userCols = new Set(entry.userColumns ?? []);
@@ -476,16 +479,6 @@ export async function restoreChunk(
     rows = rows.slice(0, 1);
   }
   const idOf = (r: Row) => (pkCol ? String(r[pkCol]) : ctx.tenantId);
-
-  // 3) Storage yolu tenant doğrulaması
-  rows = rows.filter((r) => {
-    const bad = findForeignStoragePath(entry, r, ctx.tenantId);
-    if (bad) {
-      addFailure(report, "foreign_storage_path", [idOf(r)]);
-      return false;
-    }
-    return true;
-  });
 
   // 4) Var olanlar (PK / doğal anahtar) — zaten mevcut veya başka hesapta
   if (rows.length > 0) {
@@ -570,6 +563,20 @@ export async function restoreChunk(
     }
   }
 
+  // 4b) Storage yolu tenant doğrulaması — YALNIZ yazılacak (eksik) satırlarda. Zaten mevcut satır
+  // yazılmadığı için yabancı/eski yol yüzünden "başarısız" sayılmaz (self-restore yanlış KISMİ olmaz).
+  // Görsel listelerindeki yabancı öğeler ayıklanır (metin içeriği korunur); tekil dosya yolu
+  // yabancıysa satır reddedilir. Yabancı yol hiçbir koşulda yazılmaz.
+  rows = rows.flatMap((r) => {
+    const res = stripForeignStoragePaths(entry, r, ctx.tenantId);
+    if (res.blocking) {
+      addFailure(report, "foreign_storage_path", [idOf(r)]);
+      return [];
+    }
+    report.storage_refs_removed += res.removed;
+    return [res.row];
+  });
+
   // 5) FK ebeveynleri aynı tenant'ta mı?
   for (const parent of entry.fkParents) {
     if (rows.length === 0) break;
@@ -610,6 +617,11 @@ export async function restoreChunk(
       report.parent_missing++;
       return false;
     });
+  }
+  if (report.storage_refs_removed > 0) {
+    report.warnings.push(
+      `${report.storage_refs_removed} görsel bağlantısı bu hesaba ait olmadığı (veya eski/geçersiz yol olduğu) için kaldırıldı (kaydın metin içeriği korunur).`,
+    );
   }
   if (report.fk_nulled > 0) {
     report.warnings.push(`${report.fk_nulled} kayıtta bağlı (isteğe bağlı) kayıt bulunamadı; bağlantı boş bırakıldı.`);

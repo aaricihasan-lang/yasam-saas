@@ -21,7 +21,7 @@ import { checkRateLimit } from "@/lib/security/rateLimit";
  */
 
 export const MAX_EXPORT_RECORDS = 5000;
-export const MAX_SELECTED_IDS = 1000;
+export const MAX_SELECTED_IDS = 5000; // A4-A: seçili mod parçalı okunur (URL sınırı yok); MAX_EXPORT_RECORDS ile eşit
 
 const RATE_LIMIT = 10; // pencere başına istek
 const RATE_WINDOW_MS = 60_000; // 60 sn

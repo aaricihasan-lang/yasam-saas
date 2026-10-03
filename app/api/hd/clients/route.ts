@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readExpectedVersion } from "@/lib/human-design/api/optimistic";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import {
@@ -125,15 +126,19 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     );
   }
 
-  const { ok, error } = await updateHdClient(guard.db, guard.tenantId, id, raw);
+  // P2-9: yüklenen sürüm gönderildiyse koşullu güncelleme (başka oturum ezilmez → 409).
+  const { ok, error, status: upStatus, code, updatedAt } = await updateHdClient(
+    guard.db, guard.tenantId, id, raw, { expectedUpdatedAt: readExpectedVersion(raw) },
+  );
   if (!ok) {
+    const status = upStatus === 409 || upStatus === 404 ? upStatus : 400;
     return NextResponse.json(
-      { ok: false, error: error ?? "Güncellenemedi." },
-      { status: 400, headers: NO_STORE },
+      { ok: false, code, error: error ?? "Güncellenemedi." },
+      { status, headers: NO_STORE },
     );
   }
   await trackUsage(guard, req, { module: "human_design", action: "record_updated", subEntity: "client", resourceId: id });
-  return NextResponse.json({ ok: true, id }, { status: 200, headers: NO_STORE });
+  return NextResponse.json({ ok: true, id, updated_at: updatedAt ?? null }, { status: 200, headers: NO_STORE });
 }
 
 export async function DELETE(req: NextRequest): Promise<Response> {
@@ -155,13 +160,16 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     );
   }
 
-  const { ok, error } = await deleteHdClient(guard.db, guard.tenantId, id);
+  const { ok, error, status: delStatus, preservedReports, warnings } = await deleteHdClient(guard.db, guard.tenantId, id);
   if (!ok) {
     return NextResponse.json(
       { ok: false, error: error ?? "Silinemedi." },
-      { status: 400, headers: NO_STORE },
+      { status: delStatus === 404 ? 404 : delStatus === 500 ? 500 : 400, headers: NO_STORE },
     );
   }
   await trackUsage(guard, req, { module: "human_design", action: "record_deleted", subEntity: "client", resourceId: id });
-  return NextResponse.json({ ok: true, deletedId: id }, { status: 200, headers: NO_STORE });
+  return NextResponse.json(
+    { ok: true, deletedId: id, preservedReports: preservedReports ?? 0, warnings: warnings ?? [] },
+    { status: 200, headers: NO_STORE },
+  );
 }

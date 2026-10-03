@@ -181,7 +181,7 @@ export default function ChakraContentEditor({ id }: { id: string }) {
 
   // BIO-07 — tarayıcı / Android geri tuşu: kirli editörde onay gösterilir; temizse normal geri.
   const [backPrompt, setBackPrompt] = useState(false);
-  const { leave: leaveViaHistory } = useHistoryBackGuard(
+  const { leave: leaveViaHistory, consumeForReplace } = useHistoryBackGuard(
     isDirty,
     ({ stay }) => {
       stay();
@@ -189,6 +189,47 @@ export default function ChakraContentEditor({ id }: { id: string }) {
     },
     { autoContinueWhenDisarmed: true },
   );
+
+  // A6 — uygulama içi çıkış: koruma girdisi en üstteyse onu `replace` ile tüket (hayalet yok).
+  const navigateAway = useCallback((href: string) => {
+    if (consumeForReplace()) router.replace(href);
+    else router.push(href);
+  }, [consumeForReplace, router]);
+
+  // A5 — kirli editörde HER uygulama içi <a> (logo, ana sayfa, üst/bölüm linkleri, "Detaya dön")
+  // çıkış onayı ister. Yakalama (capture) aşamasında, Next Link'ten ÖNCE çalışır.
+  // Dokunulmayanlar: Ctrl/Cmd/Shift/Alt + tık, orta tık, target≠_self, download, dış URL,
+  // aynı sayfa içi (#hash) hareket. Temiz editörde uyarı YOK (yalnız A6 replace uygulanır).
+  const isDirtyRef = useRef(isDirty);
+  useEffect(() => { isDirtyRef.current = isDirty; }, [isDirty]);
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const target = e.target as Element | null;
+      const a = target?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!a) return;
+      if (a.target && a.target !== "_self") return;
+      if (a.hasAttribute("download")) return;
+      let url: URL;
+      try { url = new URL(a.href, window.location.href); } catch { return; }
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return;
+      const href = `${url.pathname}${url.search}${url.hash}`;
+      if (isDirtyRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        setPendingHref(href);
+        return;
+      }
+      if (consumeForReplace()) {
+        e.preventDefault();
+        e.stopPropagation();
+        router.replace(href);
+      }
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [consumeForReplace, router]);
 
   // Kaydedilmemiş değişiklik uyarısı (Next.js 16 desteklenen beforeunload)
   useEffect(() => {
@@ -495,7 +536,8 @@ export default function ChakraContentEditor({ id }: { id: string }) {
                     // Kullanıcının asıl isteği "geri": koruma girdisini + bu sayfayı geride bırak.
                     leaveViaHistory(1);
                   } else if (href) {
-                    router.push(href);
+                    // A6 — koruma girdisi varsa replace (geçmişte hayalet /duzenle kalmaz).
+                    navigateAway(href);
                   }
                 }}
                 className="rounded-xl bg-rose-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_24px_rgba(225,29,72,0.22)] transition hover:bg-rose-700"
