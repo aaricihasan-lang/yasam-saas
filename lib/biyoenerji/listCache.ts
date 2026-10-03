@@ -27,6 +27,26 @@ export type BioListCacheEntry = {
 type StoredEntry = BioListCacheEntry & { owner: string };
 const store = new Map<string, StoredEntry>();
 
+/**
+ * A7 — oturum dönemi (epoch): her çıkışta artar. Çıkıştan ÖNCE başlamış bir isteğin
+ * geç dönen yanıtı, bilet (ticket) dönemi eşleşmediği için hiçbir state/cache'e yazamaz.
+ */
+let authEpoch = 0;
+export function getBioAuthEpoch(): number {
+  return authEpoch;
+}
+
+/** İsteğin başladığı andaki sahip + dönem. Yazma anında yeniden doğrulanır. */
+export type BioOwnerTicket = { owner: string | null; epoch: number };
+
+export function currentBioOwnerTicket(): BioOwnerTicket {
+  return { owner: currentOwner(), epoch: authEpoch };
+}
+
+export function isBioOwnerTicketCurrent(t: BioOwnerTicket): boolean {
+  return t.owner !== null && t.owner === currentOwner() && t.epoch === authEpoch;
+}
+
 function currentOwner(): string | null {
   const u = readYasamUser();
   const id = String(u?.id ?? "").trim();
@@ -35,9 +55,10 @@ function currentOwner(): string | null {
   return `${id}|${tenant}`;
 }
 
-/** Tüm Biyoenerji liste cache'ini temizler (çıkış / hesap değişimi). */
+/** Tüm Biyoenerji liste cache'ini temizler (çıkış / hesap değişimi) + dönemi ilerletir. */
 export function clearBioListCache(): void {
   store.clear();
+  authEpoch += 1;
 }
 
 registerLogoutCleanup(clearBioListCache);
@@ -63,9 +84,11 @@ export function bioListGet(key: string): BioListCacheEntry | undefined {
   return hit;
 }
 
-export function bioListSet(key: string, entry: BioListCacheEntry): void {
+export function bioListSet(key: string, entry: BioListCacheEntry, ticket?: BioOwnerTicket): void {
   const owner = currentOwner();
   if (!owner) return; // oturumsuz cache yazılmaz
+  // A7 — istek başka bir sahip/dönemde başladıysa (çıkış → başka hesapla giriş) YAZILMAZ.
+  if (ticket && (ticket.owner !== owner || ticket.epoch !== authEpoch)) return;
   store.set(key, { ...entry, owner });
 }
 

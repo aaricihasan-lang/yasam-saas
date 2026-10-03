@@ -30,6 +30,7 @@ import {
 export function MobileSilmeDialog({
   baslik,
   kimlik,
+  ek,
   onConfirm,
   onClose,
 }: {
@@ -37,6 +38,8 @@ export function MobileSilmeDialog({
   baslik: string;
   /** İki kapıda da gösterilen kimlik: "Ana Kulvar — 3" veya "5 kayıt". */
   kimlik: string;
+  /** NUM-F08: silmenin yan etkisi (ör. bağlı kaynak notları) — varsa iki kapıda da gösterilir. */
+  ek?: string;
   onConfirm: () => Promise<void>;
   onClose: () => void;
 }) {
@@ -104,6 +107,7 @@ export function MobileSilmeDialog({
               <p className="text-[15px] font-semibold leading-relaxed text-slate-700">
                 <span className="font-black text-rose-700">{kimlik}</span> silmek istediğinize emin misiniz?
               </p>
+              {ek ? <p className="mt-2 text-xs font-semibold leading-relaxed text-rose-800">{ek}</p> : null}
               <div className="mt-6 flex gap-2.5">
                 <button
                   type="button"
@@ -126,6 +130,7 @@ export function MobileSilmeDialog({
               <p className="text-[15px] font-semibold leading-relaxed text-slate-700">
                 <span className="font-black text-rose-700">{kimlik}</span> kalıcı olarak silinecek.
               </p>
+              {ek ? <p className="mt-2 text-xs font-semibold leading-relaxed text-rose-800">{ek}</p> : null}
               <label htmlFor="mobil-silme-onay" className="mt-4 block text-xs font-bold text-slate-600">
                 Onaylamak için <span className="font-black text-rose-700">{SILME_ONAY_METNI}</span> yazın
               </label>

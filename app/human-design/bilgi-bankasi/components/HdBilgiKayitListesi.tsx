@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -45,7 +45,7 @@ function CategoryBadge({ category }: { category: string }) {
   );
 }
 
-export function HdBilgiKayitListesi() {
+export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}) {
   const router = useRouter();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
@@ -56,6 +56,8 @@ export function HdBilgiKayitListesi() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [activeFilter, setActiveFilter] = useState<"" | "active" | "passive">("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const bulkRef = useRef(false);
 
   const loadRows = useCallback(async () => {
     setLoading(true);
@@ -89,8 +91,20 @@ export function HdBilgiKayitListesi() {
     });
   }, [rows, search, categoryFilter, activeFilter]);
 
+  // P2-12: seçim YALNIZ ekranda görünen (filtreye uyan) kayıtlar üzerinden çalışır. Filtre/
+  // arama değişince seçim temizlenir → gizli satırlar asla toplu silinmez.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelected(new Set());
+  }, [search, categoryFilter, activeFilter]);
+
+  const visibleSelectedIds = useMemo(
+    () => filtered.filter((r) => selected.has(r.id)).map((r) => r.id),
+    [filtered, selected],
+  );
+
   function toggleAll() {
-    if (selected.size === filtered.length && filtered.length > 0) {
+    if (visibleSelectedIds.length === filtered.length && filtered.length > 0) {
       setSelected(new Set());
     } else {
       setSelected(new Set(filtered.map((r) => r.id)));
@@ -124,17 +138,21 @@ export function HdBilgiKayitListesi() {
   }
 
   async function handleDeleteSelected() {
-    const ids = [...selected];
-    if (ids.length === 0) return;
+    const ids = [...visibleSelectedIds];
+    if (ids.length === 0 || bulkRef.current) return;
     const ok = await confirm({
       title: `${ids.length} kaydı sil`,
-      message: "Seçili kayıtlar kalıcı olarak silinecek. Emin misiniz?",
+      message: "Ekranda seçili kayıtlar ve bunlara bağlı kaynaklar kalıcı olarak silinecek. Kayıtlı raporlarınız etkilenmez. Emin misiniz?",
       tone: "danger",
       confirmText: "Sil",
       cancelText: "Vazgeç",
     });
     if (!ok) return;
+    bulkRef.current = true;
+    setBulkBusy(true);
     const { error } = await deleteHdKnowledgeRecords(ids);
+    bulkRef.current = false;
+    setBulkBusy(false);
     if (error) {
       showToast({ message: `Silinemedi: ${error}`, type: "error" });
     } else {
@@ -157,7 +175,8 @@ export function HdBilgiKayitListesi() {
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="h-9 rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400"
+          aria-label="Kategori filtresi"
+          className="h-9 w-full rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 sm:w-auto"
         >
           <option value="">Tüm Kategoriler</option>
           {HD_KNOWLEDGE_CATEGORIES.map((cat) => (
@@ -169,7 +188,8 @@ export function HdBilgiKayitListesi() {
         <select
           value={activeFilter}
           onChange={(e) => setActiveFilter(e.target.value as "" | "active" | "passive")}
-          className="h-9 rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400"
+          aria-label="Durum filtresi"
+          className="h-9 w-full rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 sm:w-auto"
         >
           <option value="">Tüm Durumlar</option>
           <option value="active">Aktif</option>
@@ -182,13 +202,14 @@ export function HdBilgiKayitListesi() {
         >
           Yenile
         </button>
-        {selected.size > 0 && (
+        {visibleSelectedIds.length > 0 && (
           <button
             type="button"
             onClick={handleDeleteSelected}
-            className="h-9 rounded-xl border border-rose-300/80 bg-rose-600 px-4 text-sm font-black uppercase tracking-wide text-white shadow-sm transition hover:brightness-105"
+            disabled={bulkBusy}
+            className="h-9 rounded-xl border border-rose-300/80 bg-rose-600 px-4 text-sm font-black uppercase tracking-wide text-white shadow-sm transition hover:brightness-105 disabled:opacity-60"
           >
-            {selected.size} Seçiliyi Sil
+            {bulkBusy ? "Siliniyor..." : `${visibleSelectedIds.length} Seçiliyi Sil`}
           </button>
         )}
       </div>
@@ -199,8 +220,18 @@ export function HdBilgiKayitListesi() {
           Yükleniyor...
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex items-center justify-center py-16 text-sm text-slate-500">
-          {rows.length === 0 ? "Henüz kayıt yok." : "Filtreye uyan kayıt bulunamadı."}
+        <div className="flex flex-col items-center justify-center gap-3 py-16 text-center text-sm text-slate-500">
+          {/* "Henüz kayıt yok" YALNIZ gerçekten sıfır kayıt varken görünür. */}
+          <span>{rows.length === 0 ? "Henüz Bilgi Bankası kaydınız yok." : "Filtreye uyan kayıt bulunamadı."}</span>
+          {rows.length === 0 && onAddNew && (
+            <button
+              type="button"
+              onClick={onAddNew}
+              className="h-10 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-5 text-sm font-black text-white shadow-sm transition hover:brightness-105"
+            >
+              İlk Kaydı Ekle
+            </button>
+          )}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-indigo-100/80">
@@ -210,8 +241,9 @@ export function HdBilgiKayitListesi() {
                 <th className="w-10 px-3 py-3">
                   <input
                     type="checkbox"
-                    checked={selected.size === filtered.length && filtered.length > 0}
+                    checked={visibleSelectedIds.length === filtered.length && filtered.length > 0}
                     onChange={toggleAll}
+                    aria-label="Görünen tüm kayıtları seç"
                     className="h-4 w-4 rounded border-indigo-300 accent-indigo-600"
                   />
                 </th>
@@ -233,7 +265,7 @@ export function HdBilgiKayitListesi() {
                 <th className="hidden px-3 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 lg:table-cell">
                   İlişkiler
                 </th>
-                <th className="px-3 py-3 text-right text-xs font-black uppercase tracking-wide text-slate-600">
+                <th className="hidden px-3 py-3 text-right text-xs font-black uppercase tracking-wide text-slate-600 sm:table-cell">
                   İşlem
                 </th>
               </tr>
@@ -249,6 +281,7 @@ export function HdBilgiKayitListesi() {
                       type="checkbox"
                       checked={selected.has(row.id)}
                       onChange={() => toggleOne(row.id)}
+                      aria-label={`${row.title} kaydını seç`}
                       className="h-4 w-4 rounded border-indigo-300 accent-indigo-600"
                     />
                   </td>
@@ -258,6 +291,23 @@ export function HdBilgiKayitListesi() {
                   <td className="max-w-[200px] px-3 py-3">
                     <p className="truncate font-semibold text-slate-900">{row.title}</p>
                     <p className="line-clamp-1 text-xs text-slate-500">{row.content}</p>
+                    {/* P2-4: mobilde aksiyonlar başlık altında (tablo içinde ekran dışına itilmez). */}
+                    <div className="mt-2 flex flex-wrap gap-2 sm:hidden">
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/human-design/bilgi-bankasi/${row.id}`)}
+                        className="h-9 rounded-lg border border-indigo-200 bg-white px-3.5 text-xs font-bold text-indigo-700"
+                      >
+                        Düzenle
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteOne(row.id)}
+                        className="h-9 rounded-lg border border-rose-200 bg-white px-3.5 text-xs font-bold text-rose-600"
+                      >
+                        Sil
+                      </button>
+                    </div>
                   </td>
                   <td className="hidden px-3 py-3 md:table-cell">
                     <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700">
@@ -287,7 +337,7 @@ export function HdBilgiKayitListesi() {
                       </span>
                     </div>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="hidden px-3 py-3 sm:table-cell">
                     <div className="flex items-center justify-end gap-1.5">
                       <button
                         type="button"
@@ -311,7 +361,7 @@ export function HdBilgiKayitListesi() {
           </table>
           <div className="border-t border-indigo-50/80 bg-slate-50/60 px-4 py-2 text-xs text-slate-500">
             {filtered.length} / {rows.length} kayıt
-            {selected.size > 0 && ` · ${selected.size} seçili`}
+            {visibleSelectedIds.length > 0 && ` · ${visibleSelectedIds.length} seçili`}
           </div>
         </div>
       )}

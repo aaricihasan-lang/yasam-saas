@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { HD_CHART_IMAGE_MAX_BYTES, HD_CHART_IMAGE_TOO_LARGE_MESSAGE, HD_CHART_IMAGE_TYPE_MESSAGE } from "@/lib/human-design/chartImageLimits";
+import { reportReferencedImagePaths } from "@/lib/human-design/api/hdStorage";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { isOwnedChartImagePath } from "@/lib/human-design/api/chartImagePath";
@@ -23,7 +25,8 @@ export const runtime = "nodejs";
 
 const BUCKET = "hd-chart-images";
 const NO_STORE = { "Cache-Control": "no-store" } as const;
-const MAX_BYTES = 5 * 1024 * 1024;
+// P2-6: gerçek altyapı sınırının (Vercel ~4.5 MB gövde) altında tek kaynak sınır.
+const MAX_BYTES = HD_CHART_IMAGE_MAX_BYTES;
 const SIGNED_TTL = 3600;
 
 // MIME allow-list → güvenli uzantı (uzantı MIME'dan türetilir, dosya adından DEĞİL).
@@ -61,10 +64,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   // MIME allow-list (dosya adı/uzantısı değil, gerçek tip).
   const ext = EXT_BY_MIME[file.type];
   if (!ext) {
-    return fail(400, "Sadece JPG, PNG veya WebP yüklenebilir.");
+    return fail(400, HD_CHART_IMAGE_TYPE_MESSAGE);
   }
   if (file.size > MAX_BYTES) {
-    return fail(400, "Dosya boyutu 5 MB'ı geçemez.");
+    return fail(413, HD_CHART_IMAGE_TOO_LARGE_MESSAGE);
   }
 
   // Danışan sahipliği — tenant guard'dan (IDOR koruması).
@@ -125,13 +128,20 @@ export async function POST(req: NextRequest): Promise<Response> {
   // DB başarıyla güncellendikten SONRA eski dosyayı temizlemeyi dene (best-effort).
   // Temizlik hatası yeni yüklemeyi veri kaybına uğratmaz; yalnız maskeli loglanır.
   // Yalnız bu tenant/client'a ait path silinir (legacy URL/başka path atlanır).
+  // P2-1: eski (snapshot kopyası öncesi) bir profesyonel rapor hâlâ bu görseli kullanıyorsa
+  // nesne SİLİNMEZ — rapor görselini kaybetmez (referans sahipliği).
   if (
     previousPath !== storagePath &&
     isOwnedChartImagePath(previousPath, guard.tenantId, clientId)
   ) {
-    const { error: removeErr } = await guard.db.storage.from(BUCKET).remove([previousPath]);
-    if (removeErr) {
-      console.error("[hd/upload-chart-image] eski dosya temizlenemedi:", removeErr.message);
+    const refs = await reportReferencedImagePaths(guard.db, guard.tenantId, previousPath);
+    if (refs.error) {
+      console.error("[hd/upload-chart-image] rapor referansı okunamadı; eski dosya korunuyor:", refs.error);
+    } else if (!refs.paths.has(previousPath)) {
+      const { error: removeErr } = await guard.db.storage.from(BUCKET).remove([previousPath]);
+      if (removeErr) {
+        console.error("[hd-storage-cleanup-failed] upload-replace:", removeErr.message);
+      }
     }
   }
 

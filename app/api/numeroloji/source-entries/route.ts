@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { readAllPaged } from "@/lib/db/readAllPaged";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import {
@@ -69,20 +70,20 @@ export async function GET(req: NextRequest): Promise<Response> {
   const knowledgeRecordId = str(url.searchParams.get("knowledge_record_id"));
   const includeOnly = url.searchParams.get("include_in_analysis") === "true";
 
-  let query = db.from(TABLE).select("*").eq("tenant_id", tenantId);
-  if (knowledgeRecordId) {
-    if (!isUuid(knowledgeRecordId)) {
-      return NextResponse.json({ ok: false, error: "Geçersiz knowledge_record_id." }, { status: 400 });
-    }
-    query = query.eq("knowledge_record_id", knowledgeRecordId);
+  if (knowledgeRecordId && !isUuid(knowledgeRecordId)) {
+    return NextResponse.json({ ok: false, error: "Geçersiz knowledge_record_id." }, { status: 400 });
   }
-  if (includeOnly) query = query.eq("include_in_analysis", true);
-
-  // Deterministik sıralama: display_order, created_at, id.
-  const { data, error } = await query
-    .order("display_order", { ascending: true })
-    .order("created_at", { ascending: true })
-    .order("id", { ascending: true });
+  // NUM-F09: sayfalı tam okuma; deterministik sıralama: display_order, created_at, id.
+  const { rows: data, error } = await readAllPaged((from, to) => {
+    let query = db.from(TABLE).select("*", { count: "exact" }).eq("tenant_id", tenantId);
+    if (knowledgeRecordId) query = query.eq("knowledge_record_id", knowledgeRecordId);
+    if (includeOnly) query = query.eq("include_in_analysis", true);
+    return query
+      .order("display_order", { ascending: true })
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to);
+  });
   if (error) {
     const e = safeDbError(error);
     return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
@@ -232,5 +233,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     // Toplu silme → TEK olay + itemCount (hiçbiri silinmediyse olay yok).
     await trackUsage(guard, req, { module: "numerology", action: "record_deleted", subEntity: "source_entry", resourceId: [...deletedIds].sort().join(","), itemCount: deletedIds.length });
   }
-  return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
+  // AŞAMA 1 P3: hiçbir satır silinmediyse (yok/başka tenant/zaten silinmiş) sahte başarı DÖNMEZ.
+  if (deletedIds.length === 0) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya zaten silinmiş.", deleted: 0 }, { status: 404 });
+  return NextResponse.json({ ok: true, deleted: deletedIds.length });
 }

@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
-import { readAllPaged } from "@/lib/db/readAllPaged";
+import { readBioReportRows } from "@/lib/biyoenerji/reportRead";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import {
   reportRateLimit,
-  capSelectedIds,
   MAX_EXPORT_RECORDS,
   EXPORT_TRUNCATED_NOTE,
+  MAX_SELECTED_IDS,
 } from "@/lib/biyoenerji/reportSecurity";
 import {
   bodyText,
@@ -28,7 +28,15 @@ import {
   twoColTable,
 } from "@/lib/docx/reportHelpers";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { sanitizeBioenergyRow, sanitizeBioenergyXmlText } from "@/lib/biyoenerji/xmlSafeText";
+
 import { formatInstantDate, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
+
+/** A1 — hazırlayan adı da XML-güvenli. */
+function safeExpertName(profile: Record<string, unknown> | null | undefined): string | null {
+  const n = expertDisplayName(profile);
+  return n === null ? null : sanitizeBioenergyXmlText(n);
+}
 
 export const runtime = "nodejs";
 
@@ -93,34 +101,40 @@ export async function POST(request: NextRequest): Promise<Response> {
   // AA-6: route kendi service_role client'ını KURMAZ — guard'ın sunucu client'ı (guard.db).
   const { db } = guard;
 
-  // BIO-01 — sayfalı + sayım doğrulamalı okuma: PostgREST max-rows (1000) sınırında
-  // sessiz kesilme yok; eksik okuma → hata (eksik rapor üretilmez).
-  const buildQuery = () => {
-    let query = db.from("bioenergy_energy_bodies")
-      .select("id,tenant_id,source_uid,genel_tanim,gorevi,bozulma,onerilen_taslar,not_text,created_at", { count: "exact" })
-      .eq("tenant_id", tenantId);
-
-    if (exportMode === "single" && id) {
-      query = query.eq("id", id);
-    } else if (exportMode === "selected" && Array.isArray(ids) && ids.length > 0) {
-      query = query.in("id", capSelectedIds(ids));
-    }
-    return query;
-  };
-  const paged = await readAllPaged(
-    (from, to) => buildQuery().order("source_uid", { ascending: true }).order("id", { ascending: true }).range(from, to),
-    { maxRows: MAX_EXPORT_RECORDS },
-  );
-  const data = paged.rows;
-  const error = paged.error;
-  const truncatedRead = paged.truncated;
+  // BIO-01 + A4-A — sayfalı, sayım doğrulamalı okuma; seçili modda uzun id listesi parçalı
+  // okunur, eksik kayıt varsa rapor üretilmez (lib/biyoenerji/reportRead).
+  const read = await readBioReportRows<Record<string, unknown>>({
+    db,
+    table: "bioenergy_energy_bodies",
+    select: "id,tenant_id,source_uid,genel_tanim,gorevi,bozulma,onerilen_taslar,not_text,created_at",
+    tenantId,
+    orderCol: "source_uid",
+    orderAsc: true,
+    maxRows: MAX_EXPORT_RECORDS,
+    mode:
+      exportMode === "single" && id
+        ? "single"
+        : exportMode === "selected" && Array.isArray(ids) && ids.length > 0
+          ? "selected"
+          : "all",
+    singleId: id ?? null,
+    ids: Array.isArray(ids) ? ids : null,
+    maxSelected: MAX_SELECTED_IDS,
+  });
+  if (!read.ok && read.status !== 500) {
+    return Response.json({ ok: false, error: read.error }, { status: read.status });
+  }
+  const data = read.ok ? read.rows : [];
+  const error = read.ok ? null : (read.cause ?? read.error);
+  const truncatedRead = read.ok ? read.truncated : false;
   if (error) {
     console.error("[energy-body-report] read failed:", error);
     await trackUsage(guard, request, { module: "energy_body", action: "action_failed", failedAction: "report_generated", subEntity: "energy_body", errorClass: "server" });
     return Response.json({ ok: false, error: "Enerji bedenleri okunamadı." }, { status: 500 });
   }
 
-  const rows = (data || []) as EnergyBodyRow[];
+  // A1 — XML 1.0 geçersiz kontrol karakterleri (eski kayıtlar dahil) Word öncesi temizlenir.
+  const rows = (data || []).map((r) => sanitizeBioenergyRow(r)) as EnergyBodyRow[];
   if (!rows.length)
     return Response.json({ ok: false, error: "Bu seçim için enerji bedeni kaydı bulunamadı." }, { status: 404 });
 
@@ -183,7 +197,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   });
 
   // FA-16: sade bilgilendirme notu + Hazırlayan (rapor sonu).
-  all.push(...buildWellnessNoteSection("biyoenerji", expertDisplayName(guard.profile)));
+  all.push(...buildWellnessNoteSection("biyoenerji", safeExpertName(guard.profile)));
 
   const doc = new Document({
     sections: [{

@@ -86,7 +86,8 @@ eq(personalYear(DOB, ref(2025, 2, 18)).active.value, 2, "PY-NEXT 18/02/2025→2"
 
 // ── PERSONAL MONTH / DAY (use NOMINAL PY) ────────────────────────────────────
 eq(personalMonth(DOB, ref(2024, 1, 15)).value, 2, "PM-1 Jan2024 nominalPY1+ay1→2");
-eq(personalDay(DOB, ref(2024, 1, 23)).value, 8, "PD-1 23/01/2024 1+2+5→8");
+// Kişisel Gün = Kişisel Ay + gün (Rafet s.94; nihai kullanıcı kararı 2026-10-03). Eski KY+KA+gün (8) beklenmez.
+eq(personalDay(DOB, ref(2024, 1, 23)).value, 7, "PD-1 23/01/2024 KA2+5→7");
 completeN(PERSONAL_MONTH_CATALOG, 9, "PM-CATALOG 9/9");
 completeN(PERSONAL_DAY_CATALOG, 9, "PD-CATALOG 9/9");
 completeN(UNIVERSAL_YEAR_CATALOG, 9, "UY-CATALOG 9/9");

@@ -66,7 +66,12 @@ for (const r of READ_ROUTES) {
   check(`R route var: ${r}`, has(r), "yok");
   const src = read(r);
   check(`R GET export: ${r}`, /export\s+async\s+function\s+GET\s*\(/.test(src));
-  check(`R DELETE yok: ${r}`, !/export\s+async\s+function\s+DELETE/.test(src));
+  // AROMA-4 (2026-10-03): takson/preparat [id] route'larında owner-only DELETE (RPC + audit) bilinçli eklendi.
+  const ownerDeleteAllowed = /plant-taxa\/\[id\]|preparations\/\[id\]/.test(r);
+  check(`R DELETE ${ownerDeleteAllowed ? "yalnız owner-RPC" : "yok"}: ${r}`,
+    ownerDeleteAllowed
+      ? !/export\s+async\s+function\s+DELETE/.test(src) || /requireModuleAccess\(/.test(src)
+      : !/export\s+async\s+function\s+DELETE/.test(src));
   check(`R POST/PATCH yok: ${r}`,
     !/export\s+async\s+function\s+(POST|PATCH|PUT)/.test(src));
 }

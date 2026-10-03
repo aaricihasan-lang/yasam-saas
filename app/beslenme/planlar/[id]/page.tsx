@@ -2,7 +2,8 @@
 /**
  * Beslenme Planı editörü (orkestratör). getPlan ile plan + gün özetleri yüklenir.
  * Gün / Hafta / Ay görünümleri arasında geçiş; seçili gün burada tutulur. Arşiv YOK:
- * kaldırma = "Sil" (açık onay). Geçmişten kalan kilitli (legacy archived) plan salt-okunur.
+ * kaldırma = "Sil" (3 aşamalı + sunucu 4 haneli kodlu onay; PlanDeleteDialog).
+ * Geçmişten kalan kilitli (legacy archived) plan salt-okunur.
  * Meta düzenleme optimistic-concurrency (expectedUpdatedAt).
  */
 import { useCallback, useEffect, useState, type ReactNode } from "react";
@@ -17,10 +18,8 @@ import {
   Trash2,
   UtensilsCrossed,
 } from "lucide-react";
-import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import {
   copyPlan,
-  deletePlan,
   getPlan,
   patchPlan,
   revisePlan,
@@ -50,6 +49,7 @@ import {
   statusLabel,
 } from "../_components/planFormat";
 import { PlanTools } from "../_components/PlanTools";
+import { PlanDeleteDialog } from "../_components/PlanDeleteDialog";
 import PlanClientContext from "./_components/PlanClientContext";
 import { AvoidedFoodIdsProvider } from "../_components/avoidedFoods";
 import { DayEditor } from "../_components/DayEditor";
@@ -74,7 +74,8 @@ export default function PlanEditorPage() {
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
   const [metaOpen, setMetaOpen] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
-  const deleteConfirm = useDeleteConfirm();
+  // "Sil": 3 aşamalı + sunucu kodlu onay (PlanDeleteDialog).
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [actionErr, setActionErr] = useState("");
   // FAZ 7 §17: bağlı danışanın kaçınılan besin id'leri (PlanClientContext'ten beslenir;
   // item satırlarına context ile taşınır). setState setter stabil → effect döngüsü yok.
@@ -133,24 +134,14 @@ export default function PlanEditorPage() {
     else setActionErr(friendlyPlanError(r.code, r.status));
   }
 
-  /** "Sil": bu plan revizyonu kalıcı silinir (açık onay; ilişkili kayıtlar söylenir). */
-  async function doDelete() {
-    if (!plan || actionBusy) return;
-    const ok = await deleteConfirm({
-      title: "Planı sil",
-      message:
-        `Bu plan (${days.length} gün) kalıcı olarak silinecek. Plana ait tüm öğünler ve besin kalemleri de silinir. ` +
-        "Varsa diğer revizyonlar etkilenmez.",
-      names: [plan.title],
-      confirmText: "Sil",
-    });
-    if (!ok) return;
-    setActionBusy(true);
+  /**
+   * "Sil": bu plan revizyonu kalıcı silinir — "Günü Temizle" ile aynı 3 aşamalı koruma
+   * (kapsam → geri alınamaz uyarısı → sunucu 4 haneli kod). Dialog kapatılırsa istek GİTMEZ.
+   */
+  function doDelete() {
+    if (!plan || actionBusy || deleteOpen) return;
     setActionErr("");
-    const r = await deletePlan(plan.id);
-    setActionBusy(false);
-    if (r.ok) router.push(cameFromClient && boundClient ? `/dashboard/clients/${boundClient.id}?tab=beslenme` : "/beslenme/planlar");
-    else setActionErr(friendlyPlanError(r.code, r.status));
+    setDeleteOpen(true);
   }
 
   const headerActions = plan ? (
@@ -179,7 +170,7 @@ export default function PlanEditorPage() {
           </GhostButton>
         </>
       ) : null}
-      <DangerButton icon={<Trash2 className="h-4 w-4" />} loading={actionBusy} onClick={() => void doDelete()}>
+      <DangerButton icon={<Trash2 className="h-4 w-4" />} loading={actionBusy} onClick={() => doDelete()}>
         Sil
       </DangerButton>
     </div>
@@ -280,6 +271,17 @@ export default function PlanEditorPage() {
         </div>
         </AvoidedFoodIdsProvider>
       )}
+
+      {plan && deleteOpen ? (
+        <PlanDeleteDialog
+          plan={plan}
+          onClose={() => setDeleteOpen(false)}
+          onDeleted={() => {
+            setDeleteOpen(false);
+            router.push(cameFromClient && boundClient ? `/dashboard/clients/${boundClient.id}?tab=beslenme` : "/beslenme/planlar");
+          }}
+        />
+      ) : null}
 
       {plan && metaOpen ? (
         <PlanMetaDialog

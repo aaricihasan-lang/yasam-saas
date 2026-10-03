@@ -8,12 +8,22 @@
  *
  * Numeroloji / Human Design / Refleksoloji / Biyoenerji kayıtları danışana FK ile
  * BAĞLI DEĞİLDİR → silinmez; onay ekranında ayrıca belirtilir.
+ *
+ * BESLENME PLANLARI: nutrition_plan_clients bağı clients FK ile cascade silinir ve AFTER DELETE
+ * trigger'ı (nutrition_plan_clients_cascade_plans, migration 20270102000400 — "client silinince
+ * bound plan ANONİM kalmaz") o plan ailesinin TÜM revizyonlarını (gün/öğün/kalemleriyle) siler.
+ * Bu yüzden yalnız "bağlantı" değil: plan AİLESİ sayısı (nutritionPlans) + toplam REVİZYON sayısı
+ * (nutritionPlanRevisions; danışana bağlı ailelerin nutrition_plans satırları) gösterilir.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseClientNotes } from "@/lib/clientNotes";
 
-/** Sayılan tablolar (anahtar = i18n `clients.detail.deletePreview.table.<key>`). */
-export const DELETE_PREVIEW_TABLES: ReadonlyArray<{ key: string; table: string }> = [
+/**
+ * Sayılan tablolar (anahtar = i18n `clients.detail.deletePreview.table.<key>`).
+ * `via: "planFamily"` → satır client_id ile değil, danışana bağlı plan AİLELERİ
+ * (nutrition_plan_clients.plan_family_id) üzerinden sayılır (tenant-scoped).
+ */
+export const DELETE_PREVIEW_TABLES: ReadonlyArray<{ key: string; table: string; via?: "planFamily" }> = [
   { key: "appointments", table: "appointments" },
   { key: "sessions", table: "client_sessions" },
   { key: "homeworks", table: "client_homeworks" },
@@ -30,6 +40,7 @@ export const DELETE_PREVIEW_TABLES: ReadonlyArray<{ key: string; table: string }
   { key: "nutritionPreferences", table: "nutrition_client_food_preferences" },
   { key: "nutritionMeasurements", table: "nutrition_client_measurements" },
   { key: "nutritionPlans", table: "nutrition_plan_clients" },
+  { key: "nutritionPlanRevisions", table: "nutrition_plans", via: "planFamily" },
   { key: "memorySnapshots", table: "yasam_hafizasi_report_snapshots" },
   { key: "memoryIndex", table: "yasam_hafizasi_client_index" },
   { key: "legacyGifts", table: "client_gifts" },
@@ -70,8 +81,13 @@ export async function collectDeletePreview(
   let partial = false;
 
   const counts = await Promise.all(
-    DELETE_PREVIEW_TABLES.map(async ({ key, table }) => {
+    DELETE_PREVIEW_TABLES.map(async ({ key, table, via }) => {
       try {
+        if (via === "planFamily") {
+          const n = await countPlanRevisionsForClient(db, tenantId, clientId);
+          if (n === null) partial = true;
+          return { key, count: n };
+        }
         const { count, error } = await db
           .from(table)
           .select("*", { count: "exact", head: true })
@@ -108,6 +124,36 @@ export async function collectDeletePreview(
   }
 
   return { counts, notes, unlinkedModules: [...UNLINKED_MODULES], partial };
+}
+
+/**
+ * Danışana bağlı plan ailelerinin TOPLAM revizyon sayısı (danışan silinince hepsi silinir).
+ * Tenant-scoped: aile listesi ve revizyonlar yalnız bu tenant'tan okunur. Hata → null (partial).
+ */
+async function countPlanRevisionsForClient(
+  db: SupabaseClient,
+  tenantId: string,
+  clientId: string,
+): Promise<number | null> {
+  const { data, error } = await db
+    .from("nutrition_plan_clients")
+    .select("plan_family_id")
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId);
+  if (error) return null;
+  const families = [...new Set(((data ?? []) as Array<{ plan_family_id: string }>).map((r) => r.plan_family_id))];
+  if (families.length === 0) return 0;
+  let total = 0;
+  for (let i = 0; i < families.length; i += 200) {
+    const { count, error: cErr } = await db
+      .from("nutrition_plans")
+      .select("*", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .in("plan_family_id", families.slice(i, i + 200));
+    if (cErr || typeof count !== "number") return null;
+    total += count;
+  }
+  return total;
 }
 
 /** Yalnız sıfırdan büyük kalemler — onay mesajı için (sayılamayanlar `partial` ile bildirilir). */

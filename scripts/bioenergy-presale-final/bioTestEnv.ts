@@ -155,7 +155,7 @@ export type BioTestEnv = {
   su: pg.Client;
   url: string;
   port: number;
-  stats: { requests: number; errors: number; maxReturned: number };
+  stats: { requests: number; errors: number; maxReturned: number; maxUrl: number; rejectedUrl: number; rpcCalls: Record<string, number>; deletes: number };
   setMaxRows: (n: number) => void;
   stop: () => Promise<void>;
 };
@@ -190,7 +190,7 @@ export async function applyBioMigrations(su: pg.Client, opts: { withFinal: boole
   await su.query(`grant select, insert, update, delete on all tables in schema public to service_role;`);
 }
 
-export async function startBioTestEnv(opts: { port: number; dirName: string; maxRows?: number }): Promise<BioTestEnv> {
+export async function startBioTestEnv(opts: { port: number; dirName: string; maxRows?: number; maxUrlBytes?: number }): Promise<BioTestEnv> {
   const { epg, su } = await startEmbeddedPg(opts.port, opts.dirName);
   await su.query(BASE_DDL);
   await su.query(readMig("20270129000200_user_sessions_expiry_touch.sql"));
@@ -198,7 +198,9 @@ export async function startBioTestEnv(opts: { port: number; dirName: string; max
 
   let maxRows = opts.maxRows ?? 1000;
   const pool = new pg.Pool({ host: "127.0.0.1", port: opts.port, user: "postgres", password: "testpw", database: "postgres", max: 16 });
-  const stats = { requests: 0, errors: 0, maxReturned: 0 };
+  const stats = { requests: 0, errors: 0, maxReturned: 0, maxUrl: 0, rejectedUrl: 0, rpcCalls: {} as Record<string, number>, deletes: 0 };
+  // Gerçek ağ geçidi URL sınırı (Supabase/Cloudflare önünde ~16 KB; varsayılan 8 KB = muhafazakâr).
+  const maxUrlBytes = opts.maxUrlBytes ?? 8192;
 
   const server = http.createServer(async (req, res) => {
     stats.requests++;
@@ -206,6 +208,13 @@ export async function startBioTestEnv(opts: { port: number; dirName: string; max
       res.writeHead(status, { "Content-Type": "application/json", ...headers });
       res.end(body === undefined ? "" : JSON.stringify(body));
     };
+    const rawUrlLen = Buffer.byteLength(req.url ?? "/", "utf8");
+    stats.maxUrl = Math.max(stats.maxUrl, rawUrlLen);
+    if (rawUrlLen > maxUrlBytes) {
+      stats.rejectedUrl++;
+      res.writeHead(414, { "Content-Type": "text/html" });
+      return res.end("<html><body>414 Request-URI Too Large</body></html>");
+    }
     const url = new URL(req.url ?? "/", "http://127.0.0.1");
     const client = await pool.connect();
     try {
@@ -222,6 +231,20 @@ export async function startBioTestEnv(opts: { port: number; dirName: string; max
         const r = await client.query(
           "select public.touch_active_session(p_token => $1, p_touch_after_seconds => $2, p_idle_seconds => $3, p_enforce => $4, p_admin_idle_seconds => $5, p_admin_absolute_seconds => $6) as v",
           [a.p_token ?? null, a.p_touch_after_seconds ?? null, a.p_idle_seconds ?? null, a.p_enforce ?? null, a.p_admin_idle_seconds ?? null, a.p_admin_absolute_seconds ?? null],
+        );
+        return send(200, r.rows[0]?.v ?? null);
+      }
+      // A4-B — bioenergy_delete_rows: fonksiyon kuruluysa gerçek çağrı (gövdede uuid[]),
+      // kurulu değilse PostgREST gibi 404 PGRST202 (uygulama fallback'i test edilir).
+      if (p === "rpc/bioenergy_delete_rows" && req.method === "POST") {
+        stats.rpcCalls[p] = (stats.rpcCalls[p] ?? 0) + 1;
+        const exists = (await client.query(`select to_regprocedure('public.bioenergy_delete_rows(text, uuid, uuid[])') is not null as e`)).rows[0].e;
+        if (!exists) return send(404, { code: "PGRST202", message: "Could not find the function public.bioenergy_delete_rows(p_ids, p_table, p_tenant_id) in the schema cache", details: null, hint: null });
+        const rawB = (await readRaw(req)).toString("utf8");
+        const a = (rawB ? JSON.parse(rawB) : {}) as Record<string, unknown>;
+        const r = await client.query(
+          "select public.bioenergy_delete_rows(p_table => $1, p_tenant_id => $2, p_ids => $3::uuid[]) as v",
+          [a.p_table ?? null, a.p_tenant_id ?? null, a.p_ids ?? null],
         );
         return send(200, r.rows[0]?.v ?? null);
       }
@@ -279,6 +302,7 @@ export async function startBioTestEnv(opts: { port: number; dirName: string; max
         return returning ? reply(200, r.rows) : send(204, undefined);
       }
       if (method === "DELETE") {
+        stats.deletes++;
         const where = buildWhere(url.searchParams, values);
         if (!where) return send(400, { code: "21000", message: "DELETE requires a WHERE clause" });
         const r = await client.query(`delete from public.${table}${where} returning ${sel}`, values);

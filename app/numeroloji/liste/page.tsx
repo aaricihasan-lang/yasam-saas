@@ -176,7 +176,7 @@ export default function NumerolojiListePage() {
     showToast({ title: "Başarılı", message: `${deletedCount} analiz başarıyla silindi.`, type: "success" });
   }
 
-  async function exportWord(mode: "selected" | "all" | "filtered", sections: WordPersonSections) {
+  async function exportWord(mode: "selected" | "all" | "filtered", sections: WordPersonSections, referenceDate?: string) {
     if (isDemo) {
       showToast({ title: "Demo Modu", message: "Demo hesapta toplu Word raporu alınamaz.", type: "error" });
       return;
@@ -200,7 +200,7 @@ export default function NumerolojiListePage() {
       const res = await fetch("/api/numeroloji/word-report", {
         method: "POST",
         headers: authHeaders(),
-        body: JSON.stringify({ exportMode: mode === "all" ? "all" : "selected", ids, sections }),
+        body: JSON.stringify({ exportMode: mode === "all" ? "all" : "selected", ids, sections, referenceDate }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
@@ -341,8 +341,8 @@ export default function NumerolojiListePage() {
         open={wordPicker !== null}
         busy={wordBusy}
         onCancel={() => setWordPicker(null)}
-        onConfirm={(sections) => {
-          if (wordPicker) void exportWord(wordPicker.mode, sections);
+        onConfirm={(sections, referenceDate) => {
+          if (wordPicker) void exportWord(wordPicker.mode, sections, referenceDate);
         }}
       />
     </div>

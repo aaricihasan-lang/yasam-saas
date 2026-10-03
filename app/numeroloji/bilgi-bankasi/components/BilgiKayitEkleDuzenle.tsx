@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getKnowledgeRecord, saveKnowledgeRecord, updateKnowledgeRecordById } from "../helpers/bilgiBankaKayit";
 import { CHAKRA_VALUE_OPTIONS } from "../helpers/bilgiCakraValueOptions";
@@ -60,6 +60,11 @@ export function BilgiKayitEkleDuzenle() {
   const [existingId, setExistingId] = useState<string | null>(null);
   const [kaydediliyor, setKaydediliyor] = useState(false);
   const [ack, setAck] = useState<AckState>(null);
+  // NUM-F06: kullanıcının elle yazdığı içerik (kaynak/açıklama/kulvar bölümleri) "kirli" ise,
+  // Değer alanındaki bir düzeltme/eşleşmeme bu metni SİLMEZ. Yalnız kayıttan yüklenmiş ve
+  // dokunulmamış içerik, eşleşme kaybolunca temizlenir.
+  const icerikKirliRef = useRef(false);
+  const [bekleyenKayit, setBekleyenKayit] = useState<Awaited<ReturnType<typeof getKnowledgeRecord>>["data"]>(null);
 
   const isKulvar = isKulvarAnalysisType(analizTuru);
   // Kaynak yönetimi yalnız kaydedilmiş (existingId) Kulvar kaydında etkin.
@@ -73,12 +78,34 @@ export function BilgiKayitEkleDuzenle() {
     setAciklamaMetni("");
     setKulvarBodies({ ...EMPTY_KULVAR_BODIES });
     setExistingId(null);
+    setBekleyenKayit(null);
+    icerikKirliRef.current = false;
+  }
+
+  function yukleKayit(data: NonNullable<Awaited<ReturnType<typeof getKnowledgeRecord>>["data"]>, tur: string) {
+    setExistingId(data.id);
+    setBilgiKaynagi(data.source ?? "");
+    if (isKulvarAnalysisType(tur)) {
+      setKulvarBodies(bodiesFromRecord(data));
+      setAciklamaMetni("");
+    } else {
+      setAciklamaMetni(data.description ?? "");
+      setKulvarBodies({ ...EMPTY_KULVAR_BODIES });
+    }
+    setBekleyenKayit(null);
+    icerikKirliRef.current = false;
   }
 
   function handleAnalizTuruChange(value: string) {
     setAnalizTuru(value as AnalizTuruValue);
     setDeger("");
-    resetIcerik();
+    if (icerikKirliRef.current) {
+      // Kullanıcının yazdığı metin korunur; yalnız eşleşme bağı kopar.
+      setExistingId(null);
+      setBekleyenKayit(null);
+    } else {
+      resetIcerik();
+    }
     setAck(null);
   }
 
@@ -89,35 +116,46 @@ export function BilgiKayitEkleDuzenle() {
 
   // Mevcut kaydı yükle: content_sections canonical, yoksa legacy description → overview fallback.
   // Bu fallback yalnız ARAYÜZDE üretilir; DB'ye YAZILMAZ (kullanıcı Kaydet demeden dönüşüm yok).
+  // NUM-F06: debounce'lu; kullanıcı metni (kirli) hiçbir durumda sessizce silinmez/ezilmez.
   useEffect(() => {
-    if (!analizTuru || !deger.trim()) {
-      resetIcerik();
-      return;
-    }
     let cancelled = false;
-    void (async () => {
-      const { data, error } = await getKnowledgeRecord(analizTuru, deger.trim());
-      if (cancelled) return;
-      if (error) return;
-      if (data) {
-        setExistingId(data.id);
-        setBilgiKaynagi(data.source ?? "");
-        if (isKulvarAnalysisType(analizTuru)) {
-          setKulvarBodies(bodiesFromRecord(data));
-          setAciklamaMetni("");
-        } else {
-          setAciklamaMetni(data.description ?? "");
-          setKulvarBodies({ ...EMPTY_KULVAR_BODIES });
+    const timer = setTimeout(() => {
+      void (async () => {
+        if (!analizTuru || !deger.trim()) {
+          if (cancelled) return;
+          setExistingId(null);
+          setBekleyenKayit(null);
+          if (!icerikKirliRef.current) {
+            setBilgiKaynagi("");
+            setAciklamaMetni("");
+            setKulvarBodies({ ...EMPTY_KULVAR_BODIES });
+          }
+          return;
         }
-      } else {
-        setExistingId(null);
-        setBilgiKaynagi("");
-        setAciklamaMetni("");
-        setKulvarBodies({ ...EMPTY_KULVAR_BODIES });
-      }
-    })();
+        const { data, error } = await getKnowledgeRecord(analizTuru, deger.trim());
+        if (cancelled || error) return;
+        if (data) {
+          if (icerikKirliRef.current) {
+            // Yazılmış metni EZME: eşleşen kaydı kullanıcıya göster, yüklemeyi ona bırak.
+            setExistingId(data.id);
+            setBekleyenKayit(data);
+          } else {
+            yukleKayit(data, analizTuru);
+          }
+        } else {
+          setExistingId(null);
+          setBekleyenKayit(null);
+          if (!icerikKirliRef.current) {
+            setBilgiKaynagi("");
+            setAciklamaMetni("");
+            setKulvarBodies({ ...EMPTY_KULVAR_BODIES });
+          }
+        }
+      })();
+    }, 300);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [analizTuru, deger]);
 
@@ -129,6 +167,7 @@ export function BilgiKayitEkleDuzenle() {
   }
 
   function handleKulvarBodyChange(key: KulvarSectionKey, value: string) {
+    icerikKirliRef.current = true;
     setKulvarBodies((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -286,6 +325,20 @@ export function BilgiKayitEkleDuzenle() {
           )}
         </div>
 
+        {bekleyenKayit ? (
+          <div role="status" className="lg:col-span-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+            Bu analiz türü ve değer için kayıtlı bir açıklama var. Yazdığınız metin korunuyor; kaydederseniz
+            mevcut kaydın yerine geçer.{" "}
+            <button
+              type="button"
+              onClick={() => yukleKayit(bekleyenKayit, analizTuru)}
+              className="ml-1 rounded-lg border border-amber-400 bg-white px-2 py-1 font-black text-amber-900 hover:bg-amber-100"
+            >
+              Kayıtlı açıklamayı yükle
+            </button>
+          </div>
+        ) : null}
+
         <div className="lg:col-span-2">
           <label htmlFor="bilgi-kaynak" className={labelClass}>
             Bilgi Kaynağı
@@ -294,7 +347,7 @@ export function BilgiKayitEkleDuzenle() {
             id="bilgi-kaynak"
             type="text"
             value={bilgiKaynagi}
-            onChange={(e) => setBilgiKaynagi(e.target.value)}
+            onChange={(e) => { icerikKirliRef.current = true; setBilgiKaynagi(e.target.value); }}
             placeholder="Örn. Eğitim notu, kitap, uzman yorumu…"
             className={inputClass}
           />
@@ -332,7 +385,7 @@ export function BilgiKayitEkleDuzenle() {
             <textarea
               id="bilgi-aciklama"
               value={aciklamaMetni}
-              onChange={(e) => setAciklamaMetni(e.target.value)}
+              onChange={(e) => { icerikKirliRef.current = true; setAciklamaMetni(e.target.value); }}
               rows={6}
               placeholder="Numeroloji açıklama ve yorum metnini buraya yazın..."
               className={textareaClass}

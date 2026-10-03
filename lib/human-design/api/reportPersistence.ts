@@ -9,6 +9,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { hdSafeDbError } from "./safeError";
 import { withTenant, tenantInsertPayload } from "./tenantScope";
+import { HD_CONFLICT_CODE, HD_CONFLICT_MESSAGE } from "./optimistic";
+import { isUniqueViolation } from "./deterministicId";
+import { removeReportSnapshotImage } from "./hdStorage";
 import type { HumanDesignReport, HumanDesignClient } from "@/lib/human-design/types";
 import {
   HD_REPORT_SCHEMA_VERSION,
@@ -143,7 +146,8 @@ export async function updateReport(
   tenantId: string,
   id: string,
   input: Record<string, unknown>,
-): Promise<{ ok: boolean; error: string | null }> {
+  opts: { expectedUpdatedAt?: string } = {},
+): Promise<{ ok: boolean; error: string | null; status?: number; code?: string; updatedAt?: string | null }> {
   // IMMUTABILITY (FAZ 2): canonical (profesyonel) rapor snapshot'ı DEĞİŞMEZ.
   // Legacy PATCH davranışı korunur; canonical satır güncellemesi AÇIKÇA reddedilir
   // (snapshot/canonical_provenance/generated içerik PATCH ile değiştirilemez).
@@ -151,23 +155,27 @@ export async function updateReport(
     .eq("id", id)
     .maybeSingle();
   if (kindErr) return { ok: false, error: hdSafeDbError("updateReport.kind", kindErr) };
-  if (!kindRow) return { ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." };
+  if (!kindRow) return { ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil.", status: 404 };
   if ((kindRow as { report_kind?: string }).report_kind === "canonical") {
     return { ok: false, error: "Profesyonel (canonical) rapor değiştirilemez; içeriği sabittir." };
   }
 
-  const { data, error } = await withTenant(db.from(TABLE).update({
+  // P2-9: beklenen sürüm verildiyse UPDATE koşullu (atomik) — başka oturumun kaydı ezilmez.
+  let q = withTenant(db.from(TABLE).update({
       title: String(input.title ?? ""),
       edited_content: String(input.editedContent ?? ""),
       updated_at: new Date().toISOString(),
     }), tenantId, "updateReport")
-    .eq("id", id)
-    .select("id");
+    .eq("id", id);
+  if (opts.expectedUpdatedAt) q = q.eq("updated_at", opts.expectedUpdatedAt);
+  const { data, error } = await q.select("id, updated_at");
   if (error) return { ok: false, error: hdSafeDbError("updateReport", error) };
   if (!data || data.length === 0) {
-    return { ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." };
+    return opts.expectedUpdatedAt
+      ? { ok: false, error: HD_CONFLICT_MESSAGE, status: 409, code: HD_CONFLICT_CODE }
+      : { ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil.", status: 404 };
   }
-  return { ok: true, error: null };
+  return { ok: true, error: null, updatedAt: (data[0] as { updated_at?: string | null }).updated_at ?? null };
 }
 
 export async function deleteReport(
@@ -175,8 +183,48 @@ export async function deleteReport(
   tenantId: string,
   id: string,
 ): Promise<{ ok: boolean; error: string | null }> {
+  // P2-1: raporun DONMUŞ görsel kopyası (varsa) rapor silinince temizlenir. Yol silmeden
+  // ÖNCE okunur; yalnız bu tenant'ın report-snapshots klasöründeki yol silinir (danışanın
+  // canlı görseli asla bu yoldan silinmez).
+  const { data: imgRow } = await withTenant(
+    db.from(TABLE).select("snapshot->chartImage->>storagePath"), tenantId, "deleteReport.image",
+  ).eq("id", id).maybeSingle();
   const { error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteReport").eq("id", id);
-  return { ok: !error, error: error ? hdSafeDbError("deleteReport", error) : null };
+  if (error) return { ok: false, error: hdSafeDbError("deleteReport", error) };
+  const imgPath = (imgRow as { storagePath?: string | null } | null)?.storagePath ?? null;
+  await removeReportSnapshotImage(db, tenantId, imgPath);
+  return { ok: true, error: null };
+}
+
+/**
+ * P1-3: Danışan silinirken raporları KORUMAK için client bağını kopar (client_id = NULL).
+ * Donmuş profesyonel rapor danışan adını snapshot'ta taşır; legacy rapor metni zaten kendi
+ * içindedir. Döner: koparılan rapor id'leri (hata durumunda geri bağlamak için).
+ */
+export async function detachReportsFromClient(
+  db: SupabaseClient,
+  tenantId: string,
+  clientId: string,
+): Promise<{ ids: string[]; error: string | null }> {
+  const { data, error } = await withTenant(db.from(TABLE).update({ client_id: null }), tenantId, "detachReportsFromClient")
+    .eq("client_id", clientId)
+    .select("id");
+  if (error) return { ids: [], error: hdSafeDbError("detachReportsFromClient", error) };
+  return { ids: ((data ?? []) as { id: string }[]).map((r) => r.id), error: null };
+}
+
+/** detachReportsFromClient telafisi: koparılan raporları danışana geri bağla. */
+export async function reattachReportsToClient(
+  db: SupabaseClient,
+  tenantId: string,
+  clientId: string,
+  reportIds: string[],
+): Promise<{ ok: boolean }> {
+  if (reportIds.length === 0) return { ok: true };
+  const { error } = await withTenant(db.from(TABLE).update({ client_id: clientId }), tenantId, "reattachReportsToClient")
+    .in("id", reportIds);
+  if (error) console.error("[hd] rapor geri bağlanamadı:", hdSafeDbError("reattachReportsToClient", error));
+  return { ok: !error };
 }
 
 // =============================================================================
@@ -185,6 +233,8 @@ export async function deleteReport(
 // =============================================================================
 
 export type SaveCanonicalReportInput = {
+  /** P2-2: deterministik rapor id'si (istek kimliğinden türetilir) → tekrar = aynı satır. */
+  id?: string;
   chartId: string;
   clientId: string | null;
   title: string;
@@ -197,7 +247,7 @@ export async function saveCanonicalReport(
   tenantId: string,
   userId: string,
   input: SaveCanonicalReportInput,
-): Promise<{ id: string | null; error: string | null }> {
+): Promise<{ id: string | null; error: string | null; duplicate?: boolean }> {
   // IDOR: chart bu tenant'a ait olmalı; client_id verildiyse o da tenant'a ait olmalı.
   if (!(await chartInTenant(db, input.chartId, tenantId))) {
     return { id: null, error: "Harita bu hesaba ait değil." };
@@ -212,6 +262,7 @@ export async function saveCanonicalReport(
   const { data, error } = await db
     .from(TABLE)
     .insert(tenantInsertPayload(tenantId, {
+      ...(input.id ? { id: input.id } : {}),
       user_id: userId,
       client_id: input.clientId,
       chart_id: input.chartId,
@@ -228,8 +279,25 @@ export async function saveCanonicalReport(
     }))
     .select("id")
     .single();
+  if (error && input.id && isUniqueViolation(error)) {
+    // Aynı istek kimliğiyle eşzamanlı/tekrar istek: satır zaten var → yeni satır YOK.
+    return { id: input.id, error: null, duplicate: true };
+  }
   if (error || !data) return { id: null, error: error ? hdSafeDbError("saveCanonicalReport", error) : "Rapor kaydedilemedi." };
   return { id: (data as { id: string }).id, error: null };
+}
+
+/** P2-2: idempotency ön kontrolü — bu tenant'ta bu id'li rapor var mı (hangi haritaya ait)? */
+export async function findReportBrief(
+  db: SupabaseClient,
+  tenantId: string,
+  id: string,
+): Promise<{ row: { id: string; chart_id: string | null; report_kind: string } | null; error: string | null }> {
+  const { data, error } = await withTenant(db.from(TABLE).select("id, chart_id, report_kind"), tenantId, "findReportBrief")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) return { row: null, error: hdSafeDbError("findReportBrief", error) };
+  return { row: (data as { id: string; chart_id: string | null; report_kind: string } | null) ?? null, error: null };
 }
 
 /**

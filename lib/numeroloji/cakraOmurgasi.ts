@@ -82,6 +82,17 @@ export function pinKoduCakraDestekleri(birthDate: string): number[] {
   return [b.k1, b.k2, b.k3, b.k4, b.k5, b.k6, b.k7, b.k8].filter((v) => v >= 1 && v <= 10);
 }
 
+/**
+ * Çakra sütunu — Ana Kulvar destekleri.
+ *
+ * NİHAİ KULLANICI KARARI (2026-10-03) — kullanıcı notu s.2 "Çakra Sütunu" ana metodolojidir:
+ *   - Özel Ana Kulvar (11/19/22/33): YALNIZ 10. çakraya bir destek + sadeleşmiş halin çakrasına
+ *     bir destek. Örnek "19/2" → [10, 2] ("19 için 10. sütuna bir destek, 19/2'nin 2'si için 2.
+ *     sütuna bir destek attık"). İsim/soyisim sadeleşmeleri bu durumda EKLENMEZ
+ *     (eski davranış [2, 1, 10, 2] idi).
+ *   - Diğer durumlar (değişmedi): her isim/soyisim sadeleşmesi + Ana Kulvar
+ *     (ör. isimler 1, 6, soyisim 8 → 1-6-8-6).
+ */
 export function anaKulvarCakraDestekleri(firstName: string, lastName: string): number[] {
   const destekler: number[] = [];
   const parts = splitNameParts(firstName, lastName);
@@ -89,10 +100,7 @@ export function anaKulvarCakraDestekleri(firstName: string, lastName: string): n
 
   for (const part of parts) {
     const v = vowelValueOfWord(part);
-    if (v) {
-      nameVals.push(v);
-      destekler.push(v);
-    }
+    if (v) nameVals.push(v);
   }
 
   const info = calcAnaKulvar(firstName, lastName);
@@ -103,6 +111,7 @@ export function anaKulvarCakraDestekleri(firstName: string, lastName: string): n
     destekler.push(10);
     if (right >= 1 && right <= 9) destekler.push(right);
   } else if (nameVals.length > 0) {
+    destekler.push(...nameVals);
     const akVal = reduceToDigit(nameVals.reduce((a, b) => a + b, 0));
     if (akVal >= 1 && akVal <= 9) destekler.push(akVal);
   }

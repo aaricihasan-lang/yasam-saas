@@ -12,6 +12,18 @@ import { isUuid } from "@/lib/biyoenerji/uuid";
 
 export const runtime = "nodejs";
 
+/** A4-B — `.in()` ile URL'ye güvenle sığan id sayısı (36+1 karakter × 150 ≈ 5.6 KB). */
+const IN_URL_SAFE_IDS = 150;
+/** A4-B — tek seçili silmede üst sınır (RPC ile aynı). */
+const MAX_DELETE_IDS = 5000;
+
+/** RPC henüz uygulanmamış (PostgREST PGRST202 / Postgres 42883) → mevcut yola düş. */
+function isMissingRpcError(err: unknown): boolean {
+  const e = err as { code?: unknown; message?: unknown } | null;
+  const code = String(e?.code ?? "");
+  return code === "PGRST202" || code === "42883" || /could not find the function/i.test(String(e?.message ?? ""));
+}
+
 /**
  * USAGE360: [resource] (resourceConfig anahtarı) → sabit alt-varlık eşlemesi.
  * Yalnız whitelist'teki kaynaklar (getBioResource) buraya ulaşır.
@@ -126,6 +138,9 @@ export async function GET(
     .select("*")
     .eq("tenant_id", tenantId)
     .order(cfg.orderCol, { ascending: cfg.orderAsc, nullsFirst: false })
+    // A2 — benzersiz ikinci anahtar (PK id): aynı başlık/ad değerlerinde sayfa sınırında
+    // tekrar/atlama olmaz; offset sayfalaması deterministik.
+    .order("id", { ascending: true })
     .range(offset, offset + limit - 1);
   if (orFilter) q = q.or(orFilter);
   if (categoryFilter) q = q.eq("category", categoryFilter);
@@ -262,21 +277,45 @@ export async function DELETE(
 
   // Seçilenleri sil
   if (Array.isArray(body.ids)) {
-    const ids = body.ids
-      .filter((x): x is string => isUuid(x))
-      .slice(0, 1000);
+    const ids = [...new Set(body.ids.filter((x): x is string => isUuid(x)).map((x) => x.trim()))];
     if (ids.length === 0) return NextResponse.json({ ok: true, deleted: 0 });
-    const { data, error } = await db
-      .from(cfg.table)
-      .delete()
-      .eq("tenant_id", tenantId)
-      .in("id", ids)
-      .select("id");
-    if (error) {
-      await trackUsage(guard, req, { module: "energy_body", action: "action_failed", failedAction: "record_deleted", subEntity: usageSubEntity, errorClass: "server" });
-      return bioDbError(`${resource}.deleteMany`, error, "Kayıtlar silinemedi.");
+    // Seçimin bir kısmını sessizce kırpıp YARIM silme yapılmaz: sınır aşılırsa hiçbir şey silinmez.
+    if (ids.length > MAX_DELETE_IDS) {
+      return NextResponse.json(
+        { ok: false, error: `Tek seferde en fazla ${MAX_DELETE_IDS} kayıt silinebilir (seçilen: ${ids.length}). Hiçbir kayıt silinmedi.` },
+        { status: 400 },
+      );
     }
-    const deleted = data?.length ?? 0;
+
+    // A4-B — uzun id listesi URL'ye girmesin diye RPC (gövdede uuid[]) ile TEK ifadede, ATOMİK
+    // silme. Kısa listede veya fonksiyon henüz yoksa mevcut tek-ifadeli `.in()` yolu (bugünkü
+    // davranışın aynısı; hata → hiçbir şey silinmez). Parça parça DELETE YOK (yarım silme riski).
+    let deleted = 0;
+    let delError: unknown = null;
+    let usedRpc = false;
+    if (ids.length > IN_URL_SAFE_IDS) {
+      const rpc = await db.rpc("bioenergy_delete_rows", { p_table: cfg.table, p_tenant_id: tenantId, p_ids: ids });
+      if (!rpc.error) {
+        usedRpc = true;
+        deleted = Number(rpc.data ?? 0);
+      } else if (!isMissingRpcError(rpc.error)) {
+        delError = rpc.error;
+      }
+    }
+    if (!usedRpc && !delError) {
+      const { data, error } = await db
+        .from(cfg.table)
+        .delete()
+        .eq("tenant_id", tenantId)
+        .in("id", ids)
+        .select("id");
+      if (error) delError = error;
+      else deleted = data?.length ?? 0;
+    }
+    if (delError) {
+      await trackUsage(guard, req, { module: "energy_body", action: "action_failed", failedAction: "record_deleted", subEntity: usageSubEntity, errorClass: "server" });
+      return bioDbError(`${resource}.deleteMany`, delError, "Kayıtlar silinemedi. Hiçbir kayıt silinmedi.");
+    }
     if (deleted > 0) {
       await trackUsage(guard, req, { module: "energy_body", action: "record_deleted", subEntity: usageSubEntity, itemCount: deleted });
     }

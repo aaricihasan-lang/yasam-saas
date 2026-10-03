@@ -220,6 +220,7 @@
         "peakInfo": "Zirve Bilgisi",
         "peakN": "{n}. Zirve",
         "ageYears": "{age} yaş",
+        "peakAgesTwoMethods": "Metot 1: {age1} yaş · Metot 2: {age2} yaş",
         "chakraN": "{topic}. çakra",
         "kisiselYilYear": "Kişisel Yıl ({year})"
       },

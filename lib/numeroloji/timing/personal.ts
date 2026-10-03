@@ -86,18 +86,21 @@ export function personalMonth(birthDate: string, ref: CalendarDate): ReducedResu
   };
 }
 
-/** Kişisel Gün = NOMINAL Kişisel Yıl + Kişisel Ay + reduce(takvim günü) → 1–9. */
+/**
+ * Kişisel Gün = Kişisel Ay + reduce(takvim günü) → 1–9.
+ *
+ * NİHAİ KULLANICI KARARI (2026-10-03): Rafet "Sayıların Gizemi" s.94 yöntemi (KA + gün).
+ * Önceki "Kişisel Yıl + Kişisel Ay + gün" zinciri KALDIRILDI (Kişisel Yıl, Kişisel Ay'ın
+ * içinde zaten vardır). Örnek HASAN 14.02.1987 / 20.02.2024: KA 8 + gün 2 = 10 → 1.
+ */
 export function personalDay(birthDate: string, ref: CalendarDate): ReducedResult {
-  const py = nominalPersonalYear(birthDate, ref.year).value;
   const pm = personalMonth(birthDate, ref).value;
   const dayReduced = reduce1To9(ref.day);
-  const value = reduce1To9(py + pm + dayReduced);
+  const value = reduce1To9(pm + dayReduced);
   return {
     value,
     display: String(value),
-    steps: [
-      `Kişisel Gün: NominalKişiselYıl(${py}) + KişiselAy(${pm}) + gün(${ref.day}→${dayReduced}) → ${value}`,
-    ],
+    steps: [`Kişisel Gün: KişiselAy(${pm}) + gün(${ref.day}→${dayReduced}) → ${value}`],
     interpretation: PERSONAL_DAY_CATALOG[value],
   };
 }

@@ -1,37 +1,25 @@
-# Numeroloji — Master Number / 19 Metodolojisi (Şeffaflık Notu)
+# Numeroloji — Master Number / 19 Metodolojisi
 
-> NUM-012 kapsamında hazırlanmıştır. Bu bir **hata düzeltmesi değildir**; mevcut,
-> **bilinçli** ve iç tutarlı metodolojinin belgelenmesidir. Hesap motorunun matematiği
-> (`lib/numeroloji/**`) bu çalışmada **DEĞİŞTİRİLMEMİŞTİR**.
+> **2026-10 güncellemesi (NUM-PDF):** Bu belgenin önceki sürümü Hayat Yolu'nda "tam indirge +
+> 11/22/33 koru", İfade ve Kişisel Yıl'da "11/19/22/33 koru" kuralını tanımlıyordu. Bu kurallar
+> Pera Akademi Numeroloji Eğitimi kitaplarıyla (kitap 1. ve 2. seviye) **çelişiyordu** ve
+> düzeltildi. Kural → sayfa kanıtı için: [numeroloji-pdf-metodoloji-spec.md](./numeroloji-pdf-metodoloji-spec.md).
 
-## Özet
+| Hesap | Kural (kitap) | 11 | 19 | 22 | 33 | Kaynak |
+|---|---|---|---|---|---|---|
+| Ana Kulvar | Kelime başına sesli toplam, sonra toplam | korunur | korunur | korunur | korunur | K1 PDF s.16 |
+| Yan Kulvar | Kelime başına sessiz toplam ("19/3", "22/9") | korunur | korunur | korunur | korunur | K1 PDF s.30, s.167 |
+| İfade = Kader | Tüm harfler, tek haneye | korunur | **indirgenir** (MİNA 19→1) | korunur | **indirgenir** | K2 PDF s.170–171 |
+| Hayat Yolu / DM | Tüm rakamlar, **bir kez** sadeleştir | toplam ≤11 tek değer | 19/10 | 22/4 | 33/6 | K1 PDF s.51, s.58, s.83–153 |
+| Zirve | Gün/ay/yıl ayrı; 11/22 korunur | 11/2 | — | 22/4 | — | K1 PDF s.210–216 |
+| Mücadele | Gün/ay/yıl ayrı tek hane | 2'ye iner | — | 4'e iner | — | K2 PDF s.181–183 |
+| Kişisel Yıl/Ay/Gün | Tek haneye (1–9) | iner | iner (19→10→1) | iner | iner | K1 PDF s.177, 187, 190 |
+| Evrensel Yıl/Ay/Gün | Tek haneye (1–9) | iner | — | iner | — | K1 PDF s.175–176 |
+| Olgunluk | Tarih + isim, 11/22 korunur | korunur | iner | korunur | iner | K2 PDF s.67 |
+| Hayat Dersi | Kişilik + Hayat Yolu, 11/22 korunur | korunur | — | korunur | — | K2 PDF s.169 |
 
-Motor iki ayrı özel-sayı kümesi kullanır ve bunları farklı hesaplarda bilinçli olarak
-uygular:
-
-| Sabit | Değer | Nerede korunur |
-|---|---|---|
-| `MASTER_NUMBERS` | `{11, 22, 33}` | **Hayat Yolu** (`reduceKeepMaster`) — klasik kural: **19 indirgenir** |
-| `SPECIAL_NUMBERS` | `{11, 19, 22, 33}` | **İfade Sayısı**, **Ana/Yan Kulvar**, **Kişisel Yıl** — **19 korunur** (karmik borç) |
-
-Kaynak: `lib/numeroloji/ortak.ts` (`MASTER_NUMBERS`, `SPECIAL_NUMBERS`, `reduceKeepMaster`,
-`reduceNumber`). İlgili kullanım noktaları: `hayatYolu.ts`, `ifadeSayisi.ts`, `anaKulvar.ts`,
-`yanKulvar.ts`, `kisiselYil.ts`.
-
-## Neden 19 farklı işleniyor?
-
-- **Hayat Yolu**: klasik (Pisagor) Hayat Yolu yönteminde yalnız 11/22/33 usta sayı olarak
-  korunur; 19 tek haneye indirgenir. Motor bunu `reduceKeepMaster` ile uygular.
-- **İfade / Kulvar / Kişisel Yıl**: bu katmanlarda 19 "karmik borç" sayısı olarak anlamlıdır
-  ve korunur. Motor bunu `SPECIAL_NUMBERS` üyeliğiyle uygular.
-
-## Zirve / Mücadele / Değişim / PIN
-
-Bu hesaplar gün/ay/yıl alt-rakamları üzerinde `reduce1To9` / `reduceToDigit` ile çalışır;
-tasarım gereği usta sayı / 19 koruması **uygulanmaz** (tek haneli çalışma sayıları üretir).
-
-## Bağlayıcı kural
-
-Bu metodoloji **kilitlidir**. "Daha tutarlı olsun" gerekçesiyle 11/19/22/33 davranışı
-değiştirilmez. Değişiklik yalnızca ürün sahibinin açık onayıyla ve golden regresyon
-vektörleri güncellenerek yapılır (bkz. `scripts/numeroloji-canonical/harness.ts`).
+Genel ilke (K1 PDF s.7): "1'den 9'a kadar sayılara anlamlar yüklenmiştir. Bu rakamlara ek olarak
+'değişmez sayı' olarak adlandırılan 11 ve 22 sayıları bulunuyor … Bazı sistemlerde 19, 33 gibi
+rakamların da sadeleştirilmeden kullanıldığına rastlayabilirsiniz. Ancak bizim eğitimimizde batı
+numeroloji esas alınmaktadır." 19 ve 33'ün korunması yalnız kitabın **Kulvar** bölümlerinde
+açıkça tanımlıdır (K1 s.16, s.30).

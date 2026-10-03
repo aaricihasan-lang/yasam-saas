@@ -124,7 +124,7 @@
         "previewHeader": "Birlikte silinecek kayıtlar:",
         "previewEmpty": "Danışana bağlı başka kayıt bulunmadı.",
         "previewPartial": "Bazı kayıt türleri sayılamadı; onlar da danışanla birlikte silinir.",
-        "previewFailed": "Kayıt sayıları alınamadı. Danışanla birlikte şunlar silinir: notlar ve genel bilgiler, randevular, seanslar, ödevler, ücretler, taşlar ve taş fotoğrafları, analizler, kombinasyonlar, beslenme ve kupa kayıtları, Yaşam Hafızası rapor seçimleri.",
+        "previewFailed": "Kayıt sayıları alınamadı. Danışanla birlikte şunlar silinir: notlar ve genel bilgiler, randevular, seanslar, ödevler, ücretler, taşlar ve taş fotoğrafları, analizler, kombinasyonlar, beslenme kayıtları, danışana bağlı beslenme planları (tüm revizyonları, günleri ve öğünleriyle), kupa kayıtları, Yaşam Hafızası rapor seçimleri.",
         "unlinked": "Numeroloji, Human Design, Refleksoloji ve Biyoenerji kayıtları danışana bağlı değildir; bunlar ayrıca silinmelidir.",
         "notesLine": "Notlar: {count}",
         "generalLine": "Genel bilgiler: {fields}",
@@ -174,7 +174,7 @@
         "element": "Element:",
         "dominant": "baskın:",
         "peak": "Zirve:",
-        "peakLabel": "{index}. zirve · {age} yaş · {topic}. çakra",
+        "peakLabel": "{index}. zirve · Metot 1: {age1} yaş · Metot 2: {age2} yaş · {topic}. çakra",
         "fullAnalysis": "∞ Tam Numeroloji Analizi Aç →"
       },
       "appt": {
@@ -285,7 +285,8 @@
           "nutritionAllergens": "Alerjenler",
           "nutritionPreferences": "Besin tercihleri",
           "nutritionMeasurements": "Ölçümler",
-          "nutritionPlans": "Beslenme planı bağlantıları",
+          "nutritionPlans": "Beslenme planları (tüm revizyonları, günleri ve öğünleriyle birlikte kalıcı silinir)",
+          "nutritionPlanRevisions": "Beslenme planı revizyonları (toplam, kalıcı silinir)",
           "memorySnapshots": "Yaşam Hafızası rapor seçimleri",
           "memoryIndex": "Yaşam Hafızası dizin kayıtları",
           "legacyGifts": "Eski hediye kayıtları",

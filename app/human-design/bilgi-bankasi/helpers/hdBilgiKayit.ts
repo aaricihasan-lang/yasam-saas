@@ -81,20 +81,22 @@ export async function insertHdKnowledgeRecord(
 export async function updateHdKnowledgeRecord(
   id: string,
   input: Partial<Omit<HumanDesignKnowledgeRecordInsert, "tenant_id" | "user_id">>,
-): Promise<{ error: string | null }> {
+  expectedUpdatedAt?: string | null,
+): Promise<{ error: string | null; conflict?: boolean; updatedAt?: string | null }> {
   let res: Response;
   try {
     res = await fetch("/api/hd/knowledge", {
       method: "PATCH",
       headers: authHeaders(),
-      body: JSON.stringify({ ...input, id }),
+      // P2-9: yüklenen sürüm gönderilir → başka oturumdaki değişiklik ezilmez (409).
+      body: JSON.stringify(expectedUpdatedAt ? { ...input, id, expected_updated_at: expectedUpdatedAt } : { ...input, id }),
     });
   } catch {
     return { error: "Ağ hatası. Bağlantını kontrol et." };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (res.ok && j.ok === true) return { error: null };
-  return { error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
+  if (res.ok && j.ok === true) return { error: null, updatedAt: typeof j.updated_at === "string" ? j.updated_at : null };
+  return { error: typeof j.error === "string" ? j.error : `HTTP ${res.status}`, conflict: res.status === 409 };
 }
 
 export async function deleteHdKnowledgeRecord(

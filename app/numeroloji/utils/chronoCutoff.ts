@@ -7,7 +7,8 @@
 //       Örn (currentYear=2026): Harf 2026–2034 → TAM göster; 2035–2037 → gizle.
 //                               Değişim 2026–2027 → TAM göster; 2027'de başlayan → gizle.
 //   • Yaş-tabanlı Zirve/Mücadele: BAŞLANGIÇ (doğum yılı + başlangıç yaşı) ≤ currentYear ise
-//     görünür; henüz başlamamışsa (> currentYear) gizli. Yaş→yıl için kaynak-kilitli hesap korunur.
+//     görünür; henüz başlamamışsa (> currentYear) gizli. Mücadele yaşları GEÇİŞ SINIRIDIR; dönemin
+//     başlangıcı bir önceki sınırdır (bkz. cutoffMucadele).
 //   • Yıl NUMARASI hardcode EDİLMEZ: çağıran `currentYear`'ı güvenilir Türkiye tarih kaynağından
 //     (useCurrentYear / currentIstanbulYear) geçirir. 2030/2050/2100'de kod değişmeden çalışır.
 //   • Ham serbest metni regex ile KESMEZ: tüm sınırlama YAPISAL (structured) veriden yapılır.
@@ -18,8 +19,11 @@ import {
   calcDegisimByFullDate,
   type HarfYankilanisiSegment,
   type Zirve,
-  type MucadeleItem,
   type MucadeleResult,
+  type MucadeleDonem,
+  type MucadeleAna,
+  type MucadeleOncekiNokta,
+  mucadeleDonemleri,
   type DegisimYearOnly,
   type DegisimFullDate,
 } from "@/lib/numeroloji";
@@ -106,31 +110,77 @@ export function cutoffZirvePeaks(
   return peaks.filter((p) => birthYear + p.age <= currentYear);
 }
 
-// ── MÜCADELE (yaş-tabanlı; gelecekte başlayan gizli) ────────────────────────────
-export type MucadeleCutoff = {
-  method1: MucadeleItem[];
-  /** ANA MÜCADELE başlangıç yaşı geçmişte/güncelde ise görünür. */
-  anaMucadeleVisible: boolean;
-  anaMucadele: number;
-  anaMucadeleBaslangicYasi: number;
-};
+export const ZIRVE_METOT1_LABEL = "Metot 1 — İlk Zirve Sayısına Göre";
+export const ZIRVE_METOT2_LABEL = "Metot 2 — Hayat Yoluna Göre";
 
+export type ZirveYasSatiri = { index: number; age: number; topic: number; display?: string };
+export type ZirveYasGorunumu =
+  | { format: "iki-metot"; metot1: ZirveYasSatiri[]; metot2: ZirveYasSatiri[] }
+  | { format: "kayitli"; peaks: ZirveYasSatiri[] };
+
+/**
+ * Zirve yaşları — NİHAİ KARAR (2026-10-03): iki metot birlikte gösterilir. UI / Word / infografik /
+ * düz metin TEK KAYNAK. Her metot kendi yaşına göre aynı owner kuralıyla süzülür
+ * (birthYear + yaş ≤ currentYear). `yasMetot1/2` alanı olmayan eski snapshot'lar (Model C)
+ * kaydedildiği tek yaş listesiyle ("kayitli") gösterilir.
+ */
+export function zirveYasGorunumu(
+  peaks: Zirve[] | undefined | null,
+  birthYear: number | null,
+  currentYear: number,
+): ZirveYasGorunumu | null {
+  if (!Array.isArray(peaks) || !peaks.length) return null;
+  const ok = (age: unknown): age is number => typeof age === "number" && Number.isFinite(age);
+  const vis = (age: number) => birthYear == null || birthYear + age <= currentYear;
+  const row = (p: Zirve, age: number): ZirveYasSatiri => ({ index: p.index, age, topic: p.topic, display: p.display });
+  const ikiMetot = peaks.every((p) => ok(p.yasMetot1) && ok(p.yasMetot2));
+  if (ikiMetot) {
+    return {
+      format: "iki-metot",
+      metot1: peaks.filter((p) => vis(p.yasMetot1 as number)).map((p) => row(p, p.yasMetot1 as number)),
+      metot2: peaks.filter((p) => vis(p.yasMetot2 as number)).map((p) => row(p, p.yasMetot2 as number)),
+    };
+  }
+  return { format: "kayitli", peaks: peaks.filter((p) => ok(p.age) && vis(p.age)).map((p) => row(p, p.age)) };
+}
+
+// ── MÜCADELE (Kitap 2: yaşlar GEÇİŞ SINIRI; dönem bir önceki sınırda BAŞLAR) ──────
+export type MucadeleCutoff =
+  | { format: "kitap2"; periods: MucadeleDonem[]; ana: MucadeleAna | null }
+  | { format: "onceki"; points: MucadeleOncekiNokta[] };
+
+/**
+ * P2 DÜZELTMESİ (2026-10-03): motorun mücadele yaşları DÖNEM GEÇİŞ SINIRIDIR (kitap 2 "X yaşına
+ * kadar"); önceki sürüm bunları BAŞLANGIÇ sanıyor ve devam eden dönemi gizliyordu
+ * (HASAN 2026: yalnız 1. mücadele görünüyordu, oysa 33–60 arası 2. dönemdedir).
+ * Owner kuralı korunur: dönem BAŞLANGIÇ yılı (doğum yılı + startAge) ≤ currentYear ise görünür;
+ * 1. dönem doğumda başladığı için her zaman görünür; ana mücadele 3. sınırdan sonra başlar.
+ * Önceki metodoloji snapshot'ları (method2'li / anaMucadele'siz) kaydedildiği nokta yaşlarıyla
+ * ve önceki görünürlük kuralıyla gösterilir (Model C). UI / Word / infografik / düz metin TEK KAYNAK.
+ */
 export function cutoffMucadele(
-  m: MucadeleResult | null,
+  m: MucadeleResult | null | undefined,
   birthYear: number | null,
   currentYear: number,
 ): MucadeleCutoff | null {
-  if (!m) return null;
-  const visible =
-    birthYear == null ? m.method1.slice() : m.method1.filter((it) => birthYear + it.age <= currentYear);
-  const anaMucadeleVisible =
-    birthYear == null ? true : birthYear + m.anaMucadeleBaslangicYasi <= currentYear;
+  const d = mucadeleDonemleri(m);
+  if (!d) return null;
+  const vis = (startYearAge: number) => birthYear == null || birthYear + startYearAge <= currentYear;
+  if (d.format === "onceki") return { format: "onceki", points: d.points.filter((p) => vis(p.age)) };
   return {
-    method1: visible,
-    anaMucadeleVisible,
-    anaMucadele: m.anaMucadele,
-    anaMucadeleBaslangicYasi: m.anaMucadeleBaslangicYasi,
+    format: "kitap2",
+    periods: d.periods.filter((p) => vis(p.startAge)),
+    ana: d.ana && vis(d.ana.startAge) ? d.ana : null,
   };
+}
+
+/** Mücadele görünür satırları (UI düz metin, infografik, Word aynı etiketleri kullanır). */
+export function mucadeleSatirlari(c: MucadeleCutoff | null): { baslik: string; konu: number }[] {
+  if (!c) return [];
+  if (c.format === "onceki") return c.points.map((p) => ({ baslik: p.label, konu: p.topic }));
+  const out = c.periods.map((p) => ({ baslik: p.label, konu: p.topic }));
+  if (c.ana) out.push({ baslik: c.ana.label, konu: c.ana.topic });
+  return out;
 }
 
 // ── DEĞİŞİM-DÖNÜŞÜM (takvim yılı bazlı; BAŞLANGIÇ ≤ currentYear → TAM aralık; başlamamış gizli) ──

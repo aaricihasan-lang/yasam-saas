@@ -8,6 +8,7 @@
 // Kaynaklar varsayılan rapora akmaz; yalnız uzman ekranında görünür.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { HD_CONFLICT_CODE, HD_CONFLICT_MESSAGE } from "./optimistic";
 import type { HumanDesignKnowledgeSource } from "@/lib/human-design/types";
 import { hdSafeDbError } from "./safeError";
 import { withTenant, tenantInsertPayload } from "./tenantScope";
@@ -128,7 +129,8 @@ export async function updateSource(
   tenantId: string,
   id: string,
   input: Record<string, unknown>,
-): Promise<{ ok: boolean; error: string | null }> {
+  opts: { expectedUpdatedAt?: string } = {},
+): Promise<{ ok: boolean; error: string | null; status?: number; code?: string; updatedAt?: string | null }> {
   // Kısmi payload'da nihai durumu değerlendirmek için mevcut rights_status okunur.
   // (Örn. yalnız rights_status=permission_pending gelirse, DB'deki eski true dağıtım
   //  bayrakları AYNI update içinde false'a çekilir — kalıcı true kalmaz.)
@@ -148,14 +150,17 @@ export async function updateSource(
     { ...picked, updated_at: new Date().toISOString() },
     effectiveRights,
   );
-  const { data, error } = await withTenant(db.from(TABLE).update(fields), tenantId, "updateSource")
-    .eq("id", id)
-    .select("id");
+  // P2-9: beklenen sürüm verildiyse koşullu (atomik) güncelleme — başka oturum ezilmez.
+  let q = withTenant(db.from(TABLE).update(fields), tenantId, "updateSource").eq("id", id);
+  if (opts.expectedUpdatedAt) q = q.eq("updated_at", opts.expectedUpdatedAt);
+  const { data, error } = await q.select("id, updated_at");
   if (error) return { ok: false, error: hdSafeDbError("updateSource", error) };
   if (!data || data.length === 0) {
-    return { ok: false, error: "Kaynak bulunamadı veya bu tenant'a ait değil." };
+    return opts.expectedUpdatedAt
+      ? { ok: false, error: HD_CONFLICT_MESSAGE, status: 409, code: HD_CONFLICT_CODE }
+      : { ok: false, error: "Kaynak bulunamadı veya bu tenant'a ait değil.", status: 404 };
   }
-  return { ok: true, error: null };
+  return { ok: true, error: null, updatedAt: (data[0] as { updated_at?: string | null }).updated_at ?? null };
 }
 
 export async function deleteSource(

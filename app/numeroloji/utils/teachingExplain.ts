@@ -207,31 +207,28 @@ export function personalDayExplain(
 ): ExplainOut | null {
   const p = parse(birthDate);
   if (!p) return null;
-  const py = nominalPersonalYearExplain(birthDate, ref.year)?.value;
   const pm = personalMonthExplain(birthDate, ref)?.value;
-  if (py === undefined || pm === undefined) return null;
+  if (pm === undefined) return null;
   const dayRed = reduce1To9Lines(ref.day);
   const dayReduced = dayRed.value;
-  const total = py + pm + dayReduced;
+  const total = pm + dayReduced;
   const finalRed = reduce1To9Lines(total);
   return {
     value: finalRed.value,
     explanation: {
       usedInputs: [
-        { label: `Nominal Kişisel Yıl (${ref.year})`, value: String(py) },
         { label: "Kişisel Ay", value: String(pm) },
         { label: "Seçilen gün", value: String(ref.day) },
       ],
       rationale:
-        "Kişisel Gün, Nominal Kişisel Yıl + Kişisel Ay + seçilen günün tek haneye indirilmiş değeri toplanarak bulunur. Zincir Nominal Kişisel Yıl üzerine kuruludur (aktif kişisel yıl değil).",
+        "Kişisel Gün, Kişisel Ay ile seçilen günün tek haneye indirilmiş değeri toplanarak bulunur (Kişisel Yıl, Kişisel Ay'ın içinde zaten yer alır).",
       steps: [
-        { title: "Adım 1 — Nominal Kişisel Yıl", lines: [String(py)] },
-        { title: "Adım 2 — Kişisel Ay", lines: [String(pm)] },
+        { title: "Adım 1 — Kişisel Ay", lines: [String(pm)] },
         {
-          title: "Adım 3 — Seçilen gün",
+          title: "Adım 2 — Seçilen gün",
           lines: ref.day > 9 ? [...dayRed.lines] : [`${ref.day}`],
         },
-        { title: "Adım 4 — Toplam", lines: [`${py} + ${pm} + ${dayReduced} = ${total}`] },
+        { title: "Adım 3 — Toplam", lines: [`${pm} + ${dayReduced} = ${total}`] },
       ],
       reduction: finalRed.lines.length ? finalRed.lines : undefined,
       result: `Kişisel Gün: ${finalRed.value}`,

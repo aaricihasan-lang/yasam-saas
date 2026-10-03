@@ -19,7 +19,9 @@ import {
   bioApiList,
   bioApiUpdate,
 } from "@/lib/biyoenerji/secureApi";
+import { changedFields } from "@/lib/biyoenerji/changedFields";
 import { bioListGet, bioListKey, bioListSet } from "@/lib/biyoenerji/listCache";
+import { useBioRequestGate } from "@/lib/biyoenerji/requestGate";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import {
   bioSaveBtnClass,
@@ -130,6 +132,8 @@ export default function BiyoenerjiSeanslari() {
   const detailPanelRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<SessionForm>({ ...emptyForm });
+  // A3 — düzenleme formunun açılış anındaki değeri (değişen alan karşılaştırması).
+  const editOriginalRef = useRef<typeof form | null>(null);
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [formModalMode, setFormModalMode] = useState<"create" | "edit">("create");
   const isAndroid = useIsAndroid();
@@ -169,8 +173,11 @@ export default function BiyoenerjiSeanslari() {
     void getSyncedTenantId().then(setTenantId);
   }, []);
 
+  // A7/A8 — eski / başka hesap yanıtlarını yok sayan istek kapısı.
+  const listGate = useBioRequestGate();
   const loadSessions = useCallback(
     async (opts: { reset: boolean; append?: boolean; offset?: number }) => {
+      const ticket = listGate.begin({ append: Boolean(opts.append) });
       if (!tenantId) {
         setLoading(false);
         setLoadingMore(false);
@@ -202,6 +209,7 @@ export default function BiyoenerjiSeanslari() {
 
       // 1) ÖNCE sayfa (grid) — istatistik beklenmez
       const pageRes = await bioApiList("sessions", { offset, limit: SESSIONS_PAGE_SIZE, search, category });
+      if (!listGate.isCurrent(ticket)) return; // A7/A8 — eski/başka hesap yanıtı yazılmaz
       if (opts.reset) setLoading(false);
       setLoadingMore(false);
 
@@ -225,6 +233,7 @@ export default function BiyoenerjiSeanslari() {
             searchP,
             bioApiLastCreated("sessions"),
           ]);
+          if (!listGate.isCurrent(ticket)) return; // A7/A8 — sayım/cache yazılmaz
           const total = totalRes.error ? totalInDbRef.current : totalRes.count;
           const searchCount = searchCountRes.error ? searchResultCountRef.current : searchCountRes.count;
           const lastAt = lastRes.error
@@ -240,11 +249,11 @@ export default function BiyoenerjiSeanslari() {
             searchCount,
             lastCreatedAt: lastAt,
             categories: null,
-          });
+          }, ticket);
         })();
       }
     },
-    [tenantId, debouncedSearch, categoryFilter, showSoft],
+    [tenantId, debouncedSearch, categoryFilter, showSoft, listGate],
   );
 
   const refreshCategories = useCallback(async () => {
@@ -323,13 +332,15 @@ export default function BiyoenerjiSeanslari() {
   }
 
   function fillFormFromRow(row: BioenergySession) {
-    setForm({
+    const next = {
       title: row.title ?? "",
       content: row.content ?? "",
       category: row.category ?? "",
       source: row.source ?? "",
       note: row.note ?? "",
-    });
+    };
+    setForm(next);
+    return next;
   }
 
   function selectRow(row: BioenergySession) {
@@ -365,7 +376,7 @@ export default function BiyoenerjiSeanslari() {
       return;
     }
     setFormModalMode("edit");
-    fillFormFromRow(selectedRow);
+    editOriginalRef.current = fillFormFromRow(selectedRow);
     setFormModalOpen(true);
     setInfoError("");
   }
@@ -434,15 +445,23 @@ export default function BiyoenerjiSeanslari() {
             return;
           }
 
+          // A3 — yalnız form açılışındaki değerden FARKLI alanlar gönderilir (lost update önlenir).
+          const payloadOf = (f: typeof form) => ({
+            title: f.title.trim(),
+            content: trimOrNull(f.content),
+            category: trimOrNull(f.category),
+            source: trimOrNull(f.source),
+            note: trimOrNull(f.note),
+          });
+          const changes = changedFields(payloadOf(form), editOriginalRef.current ? payloadOf(editOriginalRef.current) : null);
+          if (Object.keys(changes).length === 0) {
+            setFormModalOpen(false);
+            showSoft("ok", "Değişiklik yok.");
+            return;
+          }
           setSaving(true);
           setInfoError("");
-          const { error } = await bioApiUpdate("sessions", selectedId, {
-            title: titleTrim,
-            content: trimOrNull(form.content),
-            category: trimOrNull(form.category),
-            source: trimOrNull(form.source),
-            note: trimOrNull(form.note),
-          });
+          const { error } = await bioApiUpdate("sessions", selectedId, changes);
 
           setSaving(false);
 
@@ -688,7 +707,7 @@ export default function BiyoenerjiSeanslari() {
                   <div key={row.id} className="relative">
                     {!isDemo && (
                       <label
-                        className="absolute left-0.5 top-1/2 z-10 -translate-y-1/2 flex h-11 w-9 cursor-pointer items-center justify-center lg:left-1.5 lg:h-4 lg:w-4"
+                        className="absolute left-0 top-1/2 z-10 -translate-y-1/2 flex h-11 w-11 cursor-pointer items-center justify-center lg:left-1.5 lg:h-4 lg:w-4"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <input
@@ -703,7 +722,7 @@ export default function BiyoenerjiSeanslari() {
                   <button
                     type="button"
                     onClick={() => selectRow(row)}
-                    className={`w-full rounded-xl border ${isDemo ? "pl-3.5" : "pl-7"} pr-3.5 py-3 text-left transition-all duration-200 ease-out will-change-transform ${
+                    className={`w-full rounded-xl border ${isDemo ? "pl-3.5" : "pl-12 lg:pl-7"} pr-3.5 py-3 text-left transition-all duration-200 ease-out will-change-transform ${
                       active
                         ? "scale-[1.01] border-violet-300/60 bg-white/95 shadow-[0_0_0_2px_rgba(167,139,250,0.18),0_14px_36px_-12px_rgba(109,40,217,0.14)] ring-2 ring-violet-200/45 ring-offset-1 ring-offset-transparent"
                         : exportSelected

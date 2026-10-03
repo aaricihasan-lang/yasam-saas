@@ -63,6 +63,7 @@ const HD_MODULES: readonly HdHubModule[] = [
   {
     title: "Kayıtlı Raporlar",
     desc: "Oluşturulan raporları listele ve profesyonel Word raporlarını yeniden indir.",
+    androidDesc: "Oluşturulan raporları listele ve rapor özetlerini görüntüle.",
     href: "/human-design/kayitli-raporlar",
     icon: "📄",
     badge: "Liste",

@@ -16,6 +16,22 @@ export function collapseSpaces(value: string): string {
   return value.replace(/\s+/g, " ");
 }
 
+/**
+ * Tek kelimeyi "Baş harf büyük, kalanı küçük" (tr-TR) yapar.
+ *
+ * AŞAMA 1 P3 (ISMAIL → "Ismaıl"): TAMAMI BÜYÜK yazılmış ve Türkçe'ye özgü harf (Ç Ğ İ Ö Ş Ü)
+ * içermeyen bir kelimede "I" harfinin noktalı mı noktasız mı kastedildiği BİLİNEMEZ
+ * (ISMAIL → İsmail/Ismail? ILGIN → Ilgın?). Bu durumda kelime TAHMİN EDİLMEDEN olduğu gibi
+ * bırakılır. Numerolojik değer etkilenmez (kitap 1: I ve İ ikisi de 9).
+ */
+export function titleCaseTurkishWord(word: string): string {
+  const hasLower = word !== word.toLocaleUpperCase("tr-TR");
+  const hasTurkishSpecific = /[ÇĞİÖŞÜ]/.test(word);
+  if (!hasLower && word.includes("I") && !hasTurkishSpecific) return word;
+  const lower = word.toLocaleLowerCase("tr-TR");
+  return lower.charAt(0).toLocaleUpperCase("tr-TR") + lower.slice(1);
+}
+
 /** Ad: her kelime "Baş harf büyük, kalanı küçük" (tr-TR); sondaki tek boşluk korunur. */
 export function formatFirstNameTurkish(value: string): string {
   const s = collapseSpaces(value.trimStart());
@@ -25,10 +41,8 @@ export function formatFirstNameTurkish(value: string): string {
     s
       .split(" ")
       .filter(Boolean)
-      .map((word) => {
-        const lower = word.toLocaleLowerCase("tr-TR");
-        return lower.charAt(0).toLocaleUpperCase("tr-TR") + lower.slice(1);
-      })
+      // Tireli parçaların her biri ayrıca baş harf büyük yazılır (Ayşe-Nur); hesap etkilenmez.
+      .map((word) => word.split("-").map((part) => (part ? titleCaseTurkishWord(part) : part)).join("-"))
       .join(" ") + trailingSpace
   );
 }

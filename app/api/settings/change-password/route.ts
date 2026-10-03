@@ -27,7 +27,14 @@ export async function POST(req: NextRequest) {
   }
   const { userId, email, db } = guard;
 
-  const body = (await req.json()) as { oldPassword?: unknown; newPassword?: unknown };
+  let body: { oldPassword?: unknown; newPassword?: unknown };
+  try {
+    const parsed = (await req.json()) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("shape");
+    body = parsed as typeof body;
+  } catch {
+    return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
+  }
   const oldPassword = String(body.oldPassword ?? "").trim();
   const newPassword = String(body.newPassword ?? "").trim();
 
@@ -98,11 +105,15 @@ export async function POST(req: NextRequest) {
     .eq("user_id", userId)
     .eq("is_active", true);
 
-  if (currentToken) {
-    await sessQuery.neq("session_token", currentToken);
-  } else {
-    await sessQuery;
-  }
+  const { error: revokeError } = currentToken
+    ? await sessQuery.neq("session_token", currentToken)
+    : await sessQuery;
 
-  return NextResponse.json({ ok: true });
+  // Parola değişti; diğer oturumlar kapatılamadıysa bunu sessizce yutma (UI "diğer cihazlar
+  // kapatılır" der) — istemciye bildir ki kullanıcı yeniden denesin / yöneticiye başvursun.
+  if (revokeError) {
+    console.error("[settings/change-password] revoke other sessions", revokeError);
+    return NextResponse.json({ ok: true, sessions_revoked: false });
+  }
+  return NextResponse.json({ ok: true, sessions_revoked: true });
 }

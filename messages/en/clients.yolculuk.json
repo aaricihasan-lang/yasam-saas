@@ -220,6 +220,7 @@
         "peakInfo": "Peak Information",
         "peakN": "Peak {n}",
         "ageYears": "age {age}",
+        "peakAgesTwoMethods": "Method 1: age {age1} · Method 2: age {age2}",
         "chakraN": "chakra {topic}",
         "kisiselYilYear": "Personal Year ({year})"
       },

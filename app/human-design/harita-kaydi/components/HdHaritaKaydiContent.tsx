@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import { createPortal } from "react-dom";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
   HdUnsavedChangesDialog,
   type UnsavedAction,
 } from "../../rapor-olustur/components/HdUnsavedChangesDialog";
-import { useUnsavedGuard } from "../../rapor-olustur/hooks/useUnsavedGuard";
+import { useHdLeaveGuard } from "../../hooks/useHdLeaveGuard";
 import {
   HUMAN_DESIGN_TYPES,
   HUMAN_DESIGN_AUTHORITIES,
@@ -95,7 +96,22 @@ export function HdHaritaKaydiContent() {
   // Son yüklenen/kaydedilen hâlin referansı — dirty hesabı buna dayanır (HD-P2-C).
   const [baseline, setBaseline] = useState<HdChartForm>(emptyForm);
   const [loadingChart, setLoadingChart] = useState(false);
+  // P1-1: formdaki verinin AİT OLDUĞU danışan. Yalnız bu, seçili danışana eşit ve yükleme
+  // başarılıysa form düzenlenebilir/kaydedilebilir. Danışan değişince anında "" olur →
+  // eski danışanın değerleri yeni danışana asla kaydedilemez.
+  const [loadedClientId, setLoadedClientId] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  // P2-9: yüklenen haritanın sürümü (harita yoksa null) — kayıtta sunucuya gönderilir.
+  const chartVersionRef = useRef<string | null>(null);
+  // Bayat yanıt koruması: yalnız EN SON başlatılan yükleme sonucu uygulanır (A→B→C).
+  const loadSeqRef = useRef(0);
   const [saving, setSaving] = useState(false);
+  // Portal yalnız istemcide (hydration uyumu): mount sonrası açılır.
+  const [portalReady, setPortalReady] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPortalReady(true);
+  }, []);
   const [knowledgeGroups, setKnowledgeGroups] = useState<KnowledgeGroup[]>([]);
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [prompt, setPrompt] = useState<UnsavedPrompt | null>(null);
@@ -108,8 +124,7 @@ export function HdHaritaKaydiContent() {
   // Gerçek dirty: yüklenmiş baseline'dan sapma (sıra-bağımsız karşılaştırma).
   const dirty = useMemo(() => serializeForm(form) !== serializeForm(baseline), [form, baseline]);
 
-  // Çıkış koruması — YALNIZ dirty iken beforeunload bağlı (sekme kapatma / yenileme).
-  useUnsavedGuard(dirty);
+  const formReady = !!clientId && loadedClientId === clientId && !loadingChart && !loadError;
 
   // Promise-tabanlı çoklu-seçenek onay (rapor ekranıyla aynı erişilebilir dialog).
   const askUnsaved = useCallback(
@@ -119,6 +134,21 @@ export function HdHaritaKaydiContent() {
       }),
     [],
   );
+
+  // P2-7: kaydedilmemiş değişiklikte yenileme + uygulama içi link + geri tuşu korunur.
+  const confirmLeave = useCallback(
+    () =>
+      askUnsaved({
+        title: "Kaydedilmemiş harita değişiklikleri",
+        message: "Sayfadan ayrılırsanız haritadaki kaydedilmemiş değişiklikler kaybolacaktır.",
+        actions: [
+          { key: "cancel", label: "Sayfada Kal", tone: "safe" },
+          { key: "discard", label: "Değişiklikleri At ve Çık", tone: "danger" },
+        ],
+      }).then((k) => k === "discard"),
+    [askUnsaved],
+  );
+  useHdLeaveGuard(dirty, confirmLeave);
 
   // Danışan listesini yükle
   useEffect(() => {
@@ -143,14 +173,29 @@ export function HdHaritaKaydiContent() {
   }, [form]);
 
   // Seçili danışanın mevcut haritasını yükle (form + baseline birlikte kurulur → dirty=false).
+  // P1-1: yükleme BAŞLARKEN form temizlenir; hata olursa eski danışanın değerleri ekranda
+  // aktif form olarak KALMAZ ve kaydedilemez. Sıra numarası bayat yanıtları yok sayar.
   const loadChart = useCallback(async (id: string) => {
+    const seq = ++loadSeqRef.current;
     setSavedChartId(null);
-    if (!id) { setForm(emptyForm); setBaseline(emptyForm); return; }
+    setLoadError(null);
+    setForm(emptyForm);
+    setBaseline(emptyForm);
+    setLoadedClientId("");
+    chartVersionRef.current = null;
+    if (!id) { setLoadingChart(false); return; }
     setLoadingChart(true);
     const { row, error } = await loadClientChart(id);
+    if (seq !== loadSeqRef.current) return; // daha yeni bir danışan seçildi → bu yanıt bayat
     setLoadingChart(false);
-    if (error) { showToast({ message: `Harita yüklenemedi: ${error}`, type: "error" }); return; }
-    if (!row) { setForm(emptyForm); setBaseline(emptyForm); return; }
+    if (error) {
+      setLoadError(error);
+      showToast({ message: `Harita yüklenemedi: ${error}`, type: "error" });
+      return;
+    }
+    chartVersionRef.current = (row?.updated_at as string | null | undefined) ?? null;
+    setLoadedClientId(id);
+    if (!row) return;
     const loaded: HdChartForm = {
       type_code: row.type_code ?? "",
       authority_code: row.authority_code ?? "",
@@ -170,7 +215,7 @@ export function HdHaritaKaydiContent() {
 
   // Danışan değişimi — dirty ise onay iste; kullanıcı vazgeçerse form/danışan KORUNUR.
   async function handleClientChange(newId: string) {
-    if (newId === clientId || loadingChart || saving) return;
+    if (newId === clientId || saving) return;
     if (dirty) {
       const choice = await askUnsaved({
         title: "Kaydedilmemiş harita değişiklikleri",
@@ -190,7 +235,7 @@ export function HdHaritaKaydiContent() {
   // "Yenile" — dirty ise onay iste; değilse doğrudan yeniden yükle.
   async function handleReload() {
     if (!clientId || loadingChart) return;
-    if (dirty) {
+    if (dirty && formReady) {
       const choice = await askUnsaved({
         title: "Kaydedilmemiş harita değişiklikleri",
         message:
@@ -257,6 +302,12 @@ export function HdHaritaKaydiContent() {
       return;
     }
     if (saving) return;
+    // P1-1: form bu danışan için başarıyla yüklenmeden kayıt YOK (yanlış danışana yazma engeli).
+    if (!formReady) {
+      showToast({ message: "Harita henüz yüklenmedi. Lütfen yüklemenin bitmesini bekleyin veya Tekrar Dene'ye basın.", type: "warning" });
+      return;
+    }
+    const targetClientId = loadedClientId;
     // Tutarsızlık varsa ENGELLEMEYEN onay: kullanıcı "Yine de Kaydet" ile devam edebilir.
     if (consistencyWarnings.length > 0) {
       const choice = await askUnsaved({
@@ -270,7 +321,8 @@ export function HdHaritaKaydiContent() {
       if (choice !== "save") return;
     }
     setSaving(true);
-    const { error, id: savedId } = await saveClientChart(clientId, {
+    const submitted = form;
+    const { error, id: savedId, updatedAt, conflict } = await saveClientChart(targetClientId, {
       type_code: form.type_code || null,
       authority_code: form.authority_code || null,
       profile_code: form.profile_code || null,
@@ -280,19 +332,47 @@ export function HdHaritaKaydiContent() {
       gates: form.gates,
       channels: form.channels,
       notes: form.notes.trim() || null,
-    });
+    }, chartVersionRef.current);
     setSaving(false);
     if (error) {
-      showToast({ message: `Hata: ${error}`, type: "error" });
+      showToast({
+        message: conflict ? error : `Hata: ${error}`,
+        type: "error",
+      });
     } else {
-      // Başarılı kayıt → baseline mevcut forma sabitlenir; dirty temizlenir.
-      setBaseline(form);
+      // Başarılı kayıt → baseline kaydedilen hâle sabitlenir; dirty temizlenir.
+      chartVersionRef.current = updatedAt ?? chartVersionRef.current;
+      setBaseline(submitted);
       setSavedChartId(savedId ?? null);
       showToast({ message: "Harita kaydedildi.", type: "success" });
     }
   }
 
   const selectedClient = clients.find((c) => c.id === clientId);
+
+  // P2-5: Kaydet/Yenile — masaüstünde form sonunda; mobilde (~7.500px form) body'ye portal edilmiş
+  // SABİT alt çubukta her an erişilebilir (üst kapsayıcıdaki overflow/backdrop-filter sticky ve
+  // fixed konumu bozduğu için portal; safe-area ile çakışmaz).
+  const actionButtons = (
+    <>
+      <button
+        type="button"
+        onClick={handleReload}
+        disabled={!clientId || loadingChart}
+        className="h-10 rounded-xl border border-indigo-200/90 bg-white px-5 text-sm font-black uppercase tracking-wide text-indigo-900 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50/80 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9"
+      >
+        Yenile
+      </button>
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={saving || !formReady}
+        className="h-10 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-7 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 sm:h-9"
+      >
+        {saving ? "Kaydediliyor..." : "Kaydet"}
+      </button>
+    </>
+  );
 
   return (
     <div className="overflow-hidden rounded-2xl border border-indigo-200/80 bg-white/95 shadow-[0_8px_28px_-10px_rgba(79,70,229,0.18)] ring-1 ring-indigo-200/60 backdrop-blur-md">
@@ -314,9 +394,9 @@ export function HdHaritaKaydiContent() {
             </option>
           ))}
         </select>
-        {selectedClient && (
-          <p className="mt-1.5 text-xs text-slate-500">
-            {loadingChart
+        {selectedClient && !loadError && (
+          <p className="mt-1.5 text-xs text-slate-500" aria-live="polite">
+            {loadingChart || loadedClientId !== clientId
               ? "Mevcut harita yükleniyor..."
               : "Mevcut harita kaydı varsa otomatik yüklendi."}
           </p>
@@ -326,6 +406,22 @@ export function HdHaritaKaydiContent() {
       {/* Form Alanları */}
       <div className="bg-gradient-to-b from-white/95 to-indigo-50/25 p-4">
         <div className="space-y-7">
+          {/* P1-1: yükleme hatası — eski danışanın verisi gösterilmez/kaydedilmez; yeniden dene */}
+          {loadError && clientId && (
+            <div role="alert" className="flex flex-col gap-2 rounded-xl border border-rose-200 bg-rose-50/80 px-4 py-3 ring-1 ring-rose-100 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs font-semibold text-rose-800">
+                Bu danışanın haritası yüklenemedi ({loadError}). Veri kaybını önlemek için form kilitlendi.
+              </p>
+              <button
+                type="button"
+                onClick={() => void loadChart(clientId)}
+                className="h-9 shrink-0 rounded-xl border border-rose-300 bg-white px-4 text-xs font-black uppercase tracking-wide text-rose-700 shadow-sm transition hover:bg-rose-50"
+              >
+                Tekrar Dene
+              </button>
+            </div>
+          )}
+          <fieldset disabled={!formReady} aria-busy={loadingChart} className="m-0 min-w-0 space-y-7 border-0 p-0 disabled:opacity-60">
 
           {/* Tip, Otorite, Profil, Tanım */}
           <section>
@@ -588,27 +684,28 @@ export function HdHaritaKaydiContent() {
             </section>
           )}
 
-          {/* Aksiyon */}
-          <div className="flex items-center justify-end gap-3 border-t border-indigo-100/80 pt-4">
-            <button
-              type="button"
-              onClick={handleReload}
-              disabled={!clientId || loadingChart}
-              className="h-9 rounded-xl border border-indigo-200/90 bg-white px-5 text-sm font-black uppercase tracking-wide text-indigo-900 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50/80 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Yenile
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving || !clientId}
-              className="h-9 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-7 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {saving ? "Kaydediliyor..." : "Kaydet"}
-            </button>
+          </fieldset>
+
+          {/* Aksiyon — masaüstünde form sonunda. P2-5: mobilde aşağıdaki sabit alt çubuk kullanılır. */}
+          <div className="hidden items-center justify-end gap-3 border-t border-indigo-100/80 pt-4 sm:flex">
+            {dirty && (
+              <span className="mr-auto text-[11px] font-bold text-amber-700">Kaydedilmemiş değişiklikler</span>
+            )}
+            {actionButtons}
           </div>
+          {/* Mobil sabit çubuğun içeriği örtmemesi için boşluk */}
+          <div aria-hidden className="h-16 sm:hidden" />
         </div>
       </div>
+
+      {portalReady &&
+        createPortal(
+          <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-end gap-2 border-t border-indigo-100/80 bg-white/95 px-4 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] shadow-[0_-6px_20px_-12px_rgba(79,70,229,0.35)] backdrop-blur-md sm:hidden">
+            {dirty && <span className="mr-auto text-[11px] font-bold text-amber-700">Kaydedilmemiş</span>}
+            {actionButtons}
+          </div>,
+          document.body,
+        )}
 
       {/* Kaydedilmemiş-değişiklik onay dialog'u (erişilebilir; rapor ekranıyla aynı) */}
       {prompt && (

@@ -44,6 +44,9 @@ import {
 } from "@/lib/sifa-rehberi/topicTree";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { useBackNavigationGuard } from "@/hooks/useBackNavigationGuard";
+import { useSifaLinkLeaveGuard } from "@/components/sifa-rehberi/useSifaLinkLeaveGuard";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { SIFA_DISCARD_CONFIRM, unsavedUploadPaths } from "@/lib/sifa-rehberi/leaveGuard";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -355,6 +358,7 @@ function SifaRehberiContent() {
   const searchParams = useSearchParams();
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
+  const { confirm } = useConfirm();
   const isDemo = readYasamUser()?.is_demo_account === true;
   const [rows, setRows] = useState<HealingGuideListRow[]>([]);
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
@@ -852,6 +856,27 @@ function SifaRehberiContent() {
     createDirty,
     "Bu kayıttaki değişiklikler kaydedilmedi. Sayfadan ayrılırsanız girdiğiniz içerik kaybolur. Yine de ayrılmak istiyor musunuz?",
   );
+  // SIFA-2: global logo + uygulama-içi linkler için uygulama-içi onay; "Kaydetmeden ayrıl"
+  // seçilirse form (ve kaydedilmemiş yüklemeler) atılır.
+  useSifaLinkLeaveGuard(createDirty, discardCreateDraft);
+
+  /** Yeni-kayıt taslağını at: kayda hiç yazılmamış yüklemeler best-effort temizlenir + form sıfırlanır. */
+  function discardCreateDraft() {
+    const orphanPaths = unsavedUploadPaths([], [formImages, ...createSections.map((s) => s.images)]);
+    for (const p of orphanPaths) void cleanupSifaPhoto(p).catch(() => undefined);
+    resetForm();
+  }
+
+  /** SIFA-2 "Vazgeç" (yeni kayıt): dirty → onay; sonra taslak atılır ve ana menüye dönülür. */
+  async function handleCancelCreate() {
+    if (saving) return;
+    if (createDirty) {
+      const ok = await confirm({ ...SIFA_DISCARD_CONFIRM, message: "Girdiğiniz içerik kaydedilmedi ve silinecek. Yeni kayıttan çıkmak istiyor musunuz?" });
+      if (!ok) return;
+    }
+    discardCreateDraft();
+    goToMainMenu();
+  }
 
   // Aktif konu (create). "rahatsizlik" düğümü section tutmaz (null).
   const activeTopic = createTopic === RAHATSIZLIK_NODE ? null : topicById(createTopic);
@@ -1126,6 +1151,14 @@ function SifaRehberiContent() {
                   className="inline-flex h-10 items-center rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-6 text-[13px] font-black text-white shadow-md transition hover:brightness-105 disabled:opacity-60"
                 >
                   {saving ? "Kaydediliyor..." : "Kaydet"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleCancelCreate()}
+                  disabled={saving}
+                  className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-5 text-[13px] font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+                >
+                  Vazgeç
                 </button>
                 <span className="hidden text-[11px] font-medium text-slate-500 sm:inline">
                   Ad zorunlu; diğer bölümler opsiyoneldir. Tek Kaydet ile tümü kaydedilir.
