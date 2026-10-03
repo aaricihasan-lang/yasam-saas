@@ -2750,6 +2750,12 @@ export default function AdminUserDetailPage() {
                                             <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-black text-indigo-800 ring-1 ring-indigo-100">
                                               {platformIcon} {PLATFORM_LABELS[platform] ?? platform}
                                             </span>
+                                            {s.client_channel === "android_app" && (
+                                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-800 ring-1 ring-emerald-100">Android uygulama (kalıcı)</span>
+                                            )}
+                                            {s.session_state === "pending_approval" && !s.ended_at && (
+                                              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-800 ring-1 ring-amber-100">Onay bekliyor</span>
+                                            )}
                                             <span className="font-bold text-slate-900">{city}{country ? `, ${country}` : ""}</span>
                                           </div>
                                           {/* IP + Tarayıcı satırı */}

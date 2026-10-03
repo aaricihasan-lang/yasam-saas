@@ -35,6 +35,7 @@ import { searchLocations, type Location } from "@/lib/location";
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { getUserLocationPref, saveUserLocationPref, type UserLocationPref } from "@/lib/location/userLocationPref";
 import { BackupTab, ExportTab, RestoreTab } from "./BackupSections";
+import MySessionsPanel from "@/components/settings/MySessionsPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -212,6 +213,15 @@ function SecurityTab({ user }: { user: YasamUser }) {
         {loading ? "Güncelleniyor…" : success ? "Güncellendi" : "Parolayı Güncelle"}
       </button>
     </form>
+  );
+}
+
+function SecurityTabWithSessions({ user }: { user: YasamUser }) {
+  return (
+    <div className="w-full">
+      <SecurityTab user={user} />
+      <MySessionsPanel userId={String(user.id)} />
+    </div>
   );
 }
 
@@ -745,7 +755,7 @@ export default function SettingsPage() {
             </div>
           ) : (
             <>
-              {tab === "security"  && <SecurityTab user={user} />}
+              {tab === "security"  && <SecurityTabWithSessions user={user} />}
               {tab === "location"  && <LocationTab user={user} />}
               {tab === "contact"   && <ContactTab  user={user} />}
               {tab === "export"    && <ExportTab   user={user} />}

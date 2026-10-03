@@ -6,7 +6,7 @@
  *
  * Enforcement modeli: REJECT-NEW. Limit aşılırsa YENİ giriş reddedilir; mevcut
  * oturumlar REVOKE EDİLMEZ (P3 kararı). Atomik/race-safe karar DB tarafında
- * (create_session_within_limits RPC, advisory lock) verilir; buradaki fonksiyonlar
+ * (create_session_v2 RPC, advisory lock; eski: create_session_within_limits) verilir; buradaki fonksiyonlar
  * saf mantık + normalize + mesaj üretimi içindir.
  */
 
@@ -20,7 +20,22 @@ export type LimitReason =
   | "device_forbidden"
   | "device_limit"
   | "total_forbidden"
-  | "total_limit";
+  | "total_limit"
+  // OTURUM MODELİ v2 — admin cihaz politikası (owner kararı).
+  | "admin_mobile_active"
+  | "admin_web_limit";
+
+/** Owner metni: ikinci admin Android girişi reddi. */
+export const ADMIN_MOBILE_ACTIVE_MESSAGE =
+  "Bu yönetici hesabı başka bir mobil cihazda aktif. Yeni cihazdan giriş yapabilmek için mevcut mobil oturumu kapatın.";
+
+/** Admin onaylı eşzamanlı web üst sınırı doluyken yeni web girişi reddi. */
+export const ADMIN_WEB_LIMIT_MESSAGE =
+  "Yönetici hesabınız için izin verilen eşzamanlı web oturumu sayısına ulaşıldı. Yeni cihazdan giriş için açık bir web oturumunu kapatın.";
+
+/** Owner metni: uzman mobil cihaz limiti doluyken yeni mobil giriş reddi. */
+export const MOBILE_LIMIT_MESSAGE =
+  "Mobil cihaz oturum limitinize ulaştınız. Açık bir mobil oturumu kapatın veya yöneticinizle iletişime geçin.";
 
 export type LimitDecision = { allowed: true } | { allowed: false; reason: LimitReason };
 
@@ -93,11 +108,16 @@ export function limitReasonMessage(reason: LimitReason, deviceType: string): str
     case "device_forbidden":
       return `Bu cihaz türünden (${deviceLabel(deviceType)}) giriş kapalıdır. Lütfen yöneticinizle iletişime geçin.`;
     case "device_limit":
+      if (deviceType === "mobile") return MOBILE_LIMIT_MESSAGE;
       return `${deviceLabel(deviceType)} için eşzamanlı oturum limitine ulaşıldı. Açık bir oturumu kapatın veya yöneticinizle iletişime geçin.`;
     case "total_forbidden":
       return "Hesabınız için oturum açma kapalıdır. Lütfen yöneticinizle iletişime geçin.";
     case "total_limit":
       return "Eşzamanlı oturum limitine ulaşıldı. Açık bir oturumu kapatın veya yöneticinizle iletişime geçin.";
+    case "admin_mobile_active":
+      return ADMIN_MOBILE_ACTIVE_MESSAGE;
+    case "admin_web_limit":
+      return ADMIN_WEB_LIMIT_MESSAGE;
     default:
       return "Oturum açılamadı. Lütfen yöneticinizle iletişime geçin.";
   }

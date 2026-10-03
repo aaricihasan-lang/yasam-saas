@@ -7,7 +7,7 @@
  *
  * Çalıştır: npx tsx scripts/uye-yonetimi-faz1/unit.harness.ts
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import {
   ADMIN_MODULE_KIND,
@@ -170,8 +170,15 @@ console.log("\n[MEM-010] Audit action sözleşmesi");
 for (const a of ["user_profile_updated", "license_settings_changed", "security_exempt_changed"]) {
   ok((ADMIN_AUDIT_ACTIONS as readonly string[]).includes(a), `TS audit action: ${a}`);
 }
+// CHECK'i en son yeniden tanımlayan migration esas alınır (süperset; eski action'lar korunmuş olmalı).
 const mig = read("supabase/migrations/20270129235900_admin_member_phase1_hardening.sql");
-for (const a of ADMIN_AUDIT_ACTIONS) ok(mig.includes(`'${a}'`), `migration CHECK süperseti içerir: ${a}`);
+const latestAuditMig = readdirSync(path.join(process.cwd(), "supabase/migrations"))
+  .filter((f) => f.endsWith(".sql") && read(`supabase/migrations/${f}`).includes("ADD CONSTRAINT admin_audit_action_chk"))
+  .sort().slice(-1)[0];
+const latestMig = read(`supabase/migrations/${latestAuditMig}`);
+for (const a of ADMIN_AUDIT_ACTIONS) ok(latestMig.includes(`'${a}'`), `son audit CHECK migration'ı (${latestAuditMig}) içerir: ${a}`);
+const oldCheck = mig.slice(mig.indexOf("admin_audit_action_chk CHECK"), mig.indexOf("));", mig.indexOf("admin_audit_action_chk CHECK")));
+for (const m of oldCheck.match(/'[a-z_]+'/g) ?? []) ok(latestMig.includes(m), `eski action korunur: ${m}`);
 
 // ─── UI kaynak sözleşmesi (MEM-003/004/007/013) ──────────────────────────────
 console.log("\n[UI] Detay sayfası sözleşmesi");

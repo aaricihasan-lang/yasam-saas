@@ -95,7 +95,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
   if (limit > 0) {
     let dispQ = db.from("user_sessions")
       .select(
-        "id, ip_address, country, city, user_agent, platform, is_active, created_at, last_seen_at, ended_at, end_reason",
+        "id, ip_address, country, city, user_agent, platform, client_channel, session_state, is_active, created_at, last_seen_at, ended_at, end_reason",
         { count: "exact" },
       )
       .eq("user_id", id)

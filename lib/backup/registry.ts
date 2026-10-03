@@ -424,6 +424,7 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("tenants", "system", "Tenant kaydı.", "none"),
   off("user_sessions", "system", "Oturum kayıtları.", "none"),
   off("auth_login_throttle", "system", "Giriş deneme sınırlaması (güvenlik).", "none"),
+  off("session_limit_exceptions", "system", "Geçici test hesabı oturum-limiti istisnası (TEMPORARY — satış sonrası kaldırılacak).", "none"),
   off("auth_rate_limit_events", "system", "Global DB tabanlı istek hız sınırı olayları (güvenlik).", "none"),
   off("security_events", "system", "Güvenlik olay günlüğü.", "none"),
   off("appointment_notification_states", "system", "Randevu bildirimi görünürlük tercihi (Tamamlandı/Tekrar gösterme) — kullanıcı arayüz durumu.", "none"),

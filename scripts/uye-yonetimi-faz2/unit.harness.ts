@@ -96,11 +96,11 @@ console.log("\n[MEM-012] Kayıt doğrulama");
 const base = { fullName: "Ad Soyad", email: "a@b.co", password: "abcd123456" };
 ok(validateRegisterBody(base).ok, "geçerli kayıt");
 // Owner kararı (2026-10): min 6; karmaşıklık ZORUNLU DEĞİL; bariz parolalar reddedilir.
-ok(passwordPolicyError("abcde") === "weak_password" && passwordPolicyError("482731") === null && passwordPolicyError("abcdgh") === null && passwordPolicyError("123456") === "weak_password", "parola: min 6, yalnız rakam geçerli, bariz parola reddi");
+ok(passwordPolicyError("abcde") === "weak_password" && passwordPolicyError("482731") === null && passwordPolicyError("abcdgh") === null && passwordPolicyError("123456") === null, "parola: yalnız min 6 (owner nihai kararı) — 123456 kabul, blocklist YOK");
 ok(passwordPolicyError("şifrem12345") === null, "Türkçe harf + rakam kabul");
 ok(REGISTER_PASSWORD_MIN === NEW_PASSWORD_MIN_LENGTH && REGISTER_PASSWORD_MIN === MIN_PASSWORD_LENGTH, "parola minimumu main (NEW_PASSWORD_MIN_LENGTH / MIN_PASSWORD_LENGTH) ile birebir");
 ok(passwordPolicyError("a".repeat(125) + "1234") === "weak_password", "129 karakter parola reddedilir");
-ok(passwordPolicyError("a@b.co1", "a@b.co1") === "weak_password", "e-posta ile aynı parola reddedilir");
+ok(passwordPolicyError("a@b.co1", "a@b.co1") === null, "e-posta ile aynı olma kuralı YOK (yalnız uzunluk)");
 const hp = validateRegisterBody({ ...base, website: "x" });
 ok(hp.ok && hp.bot === true, "honeypot dolu → bot=true");
 ok(!validateRegisterBody({ ...base, website: 5 }).ok, "honeypot tipi yanlış → reddedilir");

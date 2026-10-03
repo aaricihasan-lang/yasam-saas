@@ -180,6 +180,20 @@ function fakeCreateSession(args: Row): unknown {
   return { inserted: true };
 }
 
+/** Oturum modeli v2 RPC'sinin sahte karşılığı: kanal/rol/süre INSERT'te yazılır (limit yok). */
+function fakeCreateSessionV2(args: Row): unknown {
+  const role = String(tables.users.find((u) => u.id === args.p_user_id)?.role ?? "");
+  const channel = String(args.p_client_channel ?? "unknown");
+  tables.user_sessions.push({
+    id: `s-${tables.user_sessions.length + 1}`, user_id: args.p_user_id, session_token: args.p_session_token,
+    ip_address: args.p_ip, country: args.p_country, city: args.p_city, user_agent: args.p_user_agent,
+    platform: channel === "android_app" ? "mobile" : args.p_platform, is_active: true,
+    created_at: new Date(nowMs).toISOString(), last_seen_at: new Date(nowMs).toISOString(),
+    expires_at: args.p_expires_at ?? null, client_channel: channel, session_role: role, session_state: "active",
+  });
+  return { inserted: true, state: "active", session_id: `s-${tables.user_sessions.length}`, exception_used: false };
+}
+
 const missingRpc = new Set<string>();
 
 function parseFilters(url: URL): ((r: Row) => boolean)[] {
@@ -222,6 +236,7 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     if (name === "auth_login_guarded") return jsonRes(fakeAuthLoginGuarded(body));
     if (name === "touch_active_session") return jsonRes(fakeTouch(body));
     if (name === "create_session_within_limits") return jsonRes(fakeCreateSession(body));
+    if (name === "create_session_v2") return jsonRes(fakeCreateSessionV2(body));
     if (name === "login_user") {
       const r = fakeAuthLoginGuarded({ ...body, p_ip_hash: "" }) as Row;
       return jsonRes(r.status === "ok" ? [r.user] : []);
@@ -342,8 +357,8 @@ async function run() {
   ok(extractClientIp(new Headers({ "x-vercel-forwarded-for": "4.4.4.4, 5.5.5.5", "x-forwarded-for": "2.2.2.2" })) === "4.4.4.4", "IP: x-vercel-forwarded-for ilk değer");
   ok(extractClientIp(new Headers({ "x-forwarded-for": " 2.2.2.2 , 3.3.3.3" })) === "2.2.2.2", "IP: x-forwarded-for ilk değer");
   ok(hashLoginIp("1.1.1.1", "p") !== "1.1.1.1" && hashLoginIp("1.1.1.1", "p") !== hashLoginIp("1.1.1.1", "q"), "IP pepper'lı SHA-256 (ham IP gitmez)");
-  // Owner kararı (2026-10): min 6, karmaşıklık zorunluluğu yok, bariz parola reddi (passwordPolicy tek kaynak).
-  ok(validateNewPassword("48273").ok === false && validateNewPassword("482731").ok === true && validateNewPassword("123456").ok === false, "yeni parola min 6 + bariz parola reddi (admin sıfırlama)");
+  // Owner NİHAİ kararı (2026-10-03): tek kural min 6 karakter — blocklist YOK (passwordPolicy tek kaynak).
+  ok(validateNewPassword("48273").ok === false && validateNewPassword("482731").ok === true && validateNewPassword("123456").ok === true, "yeni parola yalnız min 6 (123456 kabul; admin sıfırlama)");
 
   console.log("\n── B) Touch await + enforce kapısı ──");
   {
