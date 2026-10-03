@@ -1083,7 +1083,7 @@ function renderModalBody(entry: TimelineEntry, textSize: string, t: T): React.Re
               <div key={p.index} className="flex items-center gap-2 text-[12px] font-bold text-slate-700">
                 <span className="font-black text-indigo-600">{t("num.peakN", { n: p.index })}</span>
                 <span className="text-slate-400">·</span>
-                <span>{t("num.ageYears", { age: p.age })}</span>
+                <span>{p.yasMetot1 != null && p.yasMetot2 != null ? t("num.peakAgesTwoMethods", { age1: p.yasMetot1, age2: p.yasMetot2 }) : t("num.ageYears", { age: p.age })}</span>
                 <span className="text-slate-400">·</span>
                 <span>{t("num.chakraN", { topic: p.topic })}</span>
               </div>

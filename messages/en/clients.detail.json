@@ -174,7 +174,7 @@
         "element": "Element:",
         "dominant": "Dominant:",
         "peak": "Peak",
-        "peakLabel": "{index} · Age {age} · Chakra {topic}",
+        "peakLabel": "{index} · Method 1: age {age1} · Method 2: age {age2} · Chakra {topic}",
         "fullAnalysis": "∞ Open Full Numerology Analysis →"
       },
       "appt": {
