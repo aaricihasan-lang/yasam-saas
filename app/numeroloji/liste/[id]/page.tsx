@@ -3,12 +3,13 @@
 import { runInEffect } from "@/lib/runInEffect";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
-import { extractMotorFromAnalysisJson } from "../../utils/analysisJson";
+import { LEGACY_METHOD_NOTE, resolveRecordMotor } from "../../utils/analysisJson";
 import {
   getNumerologyAnalysisById,
+  recalculateNumerologyAnalysis,
   resolveNumerolojiTenantId,
   resolveNumerolojiUserAndTenant,
   type NumerologyRecordRow,
@@ -40,6 +41,9 @@ export default function NumerolojiKayitDetayPage() {
   const [loading, setLoading] = useState(true);
   const [wordBusy, setWordBusy] = useState(false);
   const [wordPicker, setWordPicker] = useState(false);
+  const [recalcBusy, setRecalcBusy] = useState(false);
+  const [recalcMsg, setRecalcMsg] = useState<string | null>(null);
+  const router = useRouter();
 
   const isOpenRecord = row ? isDemoNumerologiOpenRecord(row) : false;
   const gateActive = isDemo && !isOpenRecord;
@@ -116,7 +120,24 @@ export default function NumerolojiKayitDetayPage() {
     };
   }, [id]);
 
-  const motor = row ? extractMotorFromAnalysisJson(row.analysis_data, row.name, row.surname) : null;
+  // MODEL C: kayıt her zaman KAYDEDİLDİĞİ GÜNKÜ sonuçlarla gösterilir; önceki metodoloji
+  // kayıtlarında yalnız bilgi notu + "Güncel yöntemle yeniden hesapla" (YENİ kayıt) sunulur.
+  const resolved = row ? resolveRecordMotor(row) : null;
+
+  const recalculate = async () => {
+    if (!row || recalcBusy || gateActive) return;
+    setRecalcBusy(true);
+    setRecalcMsg(null);
+    try {
+      const r = await recalculateNumerologyAnalysis(row);
+      if (r.error) setRecalcMsg(r.error);
+      else if (r.demo) setRecalcMsg("Demo hesabında yeni analiz kaydı oluşturulmaz.");
+      else if (r.id) router.push(`/numeroloji/liste/${r.id}`);
+    } finally {
+      setRecalcBusy(false);
+    }
+  };
+  const motor = resolved?.motor ?? null;
   const adSoyad = row ? `${row.name} ${row.surname}`.replace(/\s+/g, " ").trim() : "";
 
   return (
@@ -205,6 +226,31 @@ export default function NumerolojiKayitDetayPage() {
               </div>
             </header>
 
+            {/* Demo hesabında örnek kayıtlar için metodoloji notu/aksiyonu gösterilmez (yeni kayıt da oluşturulamaz). */}
+            {resolved?.legacy && !isDemo ? (
+              <div role="note" className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-sky-200 bg-sky-50/90 px-3 py-2 text-xs font-semibold leading-relaxed text-sky-900">
+                <span className="min-w-0 flex-1">{LEGACY_METHOD_NOTE}</span>
+                {!gateActive ? (
+                  <button
+                    type="button"
+                    onClick={() => void recalculate()}
+                    disabled={recalcBusy}
+                    className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-bold text-sky-800 hover:bg-sky-100 disabled:opacity-60"
+                  >
+                    {recalcBusy ? "Hesaplanıyor…" : "Güncel yöntemle yeniden hesapla"}
+                  </button>
+                ) : null}
+                {recalcMsg ? <span role="alert" className="basis-full text-rose-700">{recalcMsg}</span> : null}
+              </div>
+            ) : null}
+            {resolved?.recalculatedFrom ? (
+              <p role="note" className="mb-2 text-xs font-medium text-slate-500">
+                Bu analiz, önceki bir kaydın güncel yöntemle yeniden hesaplanmasıyla oluşturuldu.{" "}
+                <Link href={`/numeroloji/liste/${resolved.recalculatedFrom}`} className="font-bold text-violet-700 underline">
+                  Orijinal kaydı aç
+                </Link>
+              </p>
+            ) : null}
             {motor ? (
               <DemoGate
                 isProtected={gateActive}

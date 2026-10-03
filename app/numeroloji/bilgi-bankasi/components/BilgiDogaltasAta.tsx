@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   getStoneAssignment,
@@ -55,12 +55,21 @@ export function BilgiDogaltasAta() {
   const [oneriAciklamasi, setOneriAciklamasi] = useState("");
   const [tasListesi, setTasListesi] = useState("");
   const [kaydediliyor, setKaydediliyor] = useState(false);
+  // NUM-F06: kullanıcı yazdıysa (kirli) Değer düzeltmesi metni silmez/ezmez.
+  const icerikKirliRef = useRef(false);
+  // Bu (tür, değer) için kayıtlı atama var mı? Kaydet = üzerine yazma → kullanıcıya açıkça söylenir.
+  const [mevcutAtama, setMevcutAtama] = useState<{ reason: string; stones: string[] } | null>(null);
+  // Mevcut atama okunamadıysa kaydetme engellenir (sessiz üzerine yazma riski).
+  const [yuklemeHatasi, setYuklemeHatasi] = useState(false);
 
   function handleAnalizTuruChange(value: string) {
     setAnalizTuru(value as AnalizTuruValue);
     setDeger("");
-    setOneriAciklamasi("");
-    setTasListesi("");
+    setMevcutAtama(null);
+    if (!icerikKirliRef.current) {
+      setOneriAciklamasi("");
+      setTasListesi("");
+    }
   }
 
   function handleDegerChange(value: string) {
@@ -68,30 +77,50 @@ export function BilgiDogaltasAta() {
   }
 
   useEffect(() => {
-    if (!analizTuru || !deger.trim()) {
-      setOneriAciklamasi("");
-      setTasListesi("");
-      return;
-    }
     let cancelled = false;
-    void (async () => {
-      const { data, error } = await getStoneAssignment(analizTuru, deger.trim());
-      if (cancelled) return;
-      if (error) return;
-      if (data) {
-        setOneriAciklamasi(data.reason);
-        setTasListesi(stonesToTextarea(data.stones));
-      } else {
-        setOneriAciklamasi("");
-        setTasListesi("");
-      }
-    })();
+    const timer = setTimeout(() => {
+      void (async () => {
+        if (!analizTuru || !deger.trim()) {
+          if (cancelled) return;
+          setMevcutAtama(null);
+          setYuklemeHatasi(false);
+          if (!icerikKirliRef.current) {
+            setOneriAciklamasi("");
+            setTasListesi("");
+          }
+          return;
+        }
+        const { data, error } = await getStoneAssignment(analizTuru, deger.trim());
+        if (cancelled) return;
+        if (error) {
+          setYuklemeHatasi(true);
+          return;
+        }
+        setYuklemeHatasi(false);
+        if (data) {
+          setMevcutAtama({ reason: data.reason, stones: data.stones });
+          if (!icerikKirliRef.current) {
+            setOneriAciklamasi(data.reason);
+            setTasListesi(stonesToTextarea(data.stones));
+          }
+        } else {
+          setMevcutAtama(null);
+          if (!icerikKirliRef.current) {
+            setOneriAciklamasi("");
+            setTasListesi("");
+          }
+        }
+      })();
+    }, 300);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [analizTuru, deger]);
 
   function handleYeni() {
+    icerikKirliRef.current = false;
+    setMevcutAtama(null);
     setAnalizTuru("");
     setDeger("");
     setOneriAciklamasi("");
@@ -105,6 +134,10 @@ export function BilgiDogaltasAta() {
     }
     if (!deger.trim()) {
       showToast({ message: "Değer alanını doldurun.", type: "warning" });
+      return;
+    }
+    if (yuklemeHatasi) {
+      showToast({ message: "Mevcut atama okunamadı; üzerine yazmamak için kayıt yapılmadı. Lütfen tekrar deneyin.", type: "error" });
       return;
     }
     const stones = normalizeStoneList(tasListesi);
@@ -126,11 +159,13 @@ export function BilgiDogaltasAta() {
         return;
       }
       // Başarı: ilgili seçimler ve durum TAMAMEN sıfırlanır.
+      icerikKirliRef.current = false;
+      setMevcutAtama(null);
       setAnalizTuru("");
       setDeger("");
       setOneriAciklamasi("");
       setTasListesi("");
-      showToast({ message: "Doğaltaş ataması kaydedildi", type: "success" });
+      showToast({ message: mevcutAtama ? "Doğaltaş ataması güncellendi" : "Doğaltaş ataması kaydedildi", type: "success" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
       showToast({
@@ -207,6 +242,30 @@ export function BilgiDogaltasAta() {
           )}
         </div>
 
+        {yuklemeHatasi ? (
+          <div role="alert" className="lg:col-span-2 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-900">
+            Bu değer için mevcut atama okunamadı. Var olan bir atamanın üzerine yanlışlıkla yazılmaması için kayıt
+            geçici olarak engellendi; değeri yeniden seçerek tekrar deneyin.
+          </div>
+        ) : mevcutAtama ? (
+          <div role="status" className="lg:col-span-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+            Bu analiz türü ve değer için kayıtlı bir doğaltaş ataması var. Kaydederseniz mevcut atamanın yerine geçer.
+            {oneriAciklamasi !== mevcutAtama.reason || tasListesi !== stonesToTextarea(mevcutAtama.stones) ? (
+              <button
+                type="button"
+                onClick={() => {
+                  icerikKirliRef.current = false;
+                  setOneriAciklamasi(mevcutAtama.reason);
+                  setTasListesi(stonesToTextarea(mevcutAtama.stones));
+                }}
+                className="ml-2 rounded-lg border border-amber-400 bg-white px-2 py-1 font-black text-amber-900 hover:bg-amber-100"
+              >
+                Kayıtlı atamayı yükle
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="lg:col-span-2">
           <label htmlFor="tas-ata-oneri" className={labelClass}>
             Öneri Açıklaması
@@ -214,7 +273,7 @@ export function BilgiDogaltasAta() {
           <textarea
             id="tas-ata-oneri"
             value={oneriAciklamasi}
-            onChange={(e) => setOneriAciklamasi(e.target.value)}
+            onChange={(e) => { icerikKirliRef.current = true; setOneriAciklamasi(e.target.value); }}
             rows={4}
             placeholder="Bu analiz türü ve değer için doğaltaş öneri açıklamasını yazın…"
             className={textareaClass}
@@ -228,7 +287,7 @@ export function BilgiDogaltasAta() {
           <textarea
             id="tas-ata-liste"
             value={tasListesi}
-            onChange={(e) => setTasListesi(e.target.value)}
+            onChange={(e) => { icerikKirliRef.current = true; setTasListesi(e.target.value); }}
             rows={5}
             placeholder="Taşları alt alta veya virgülle yazın. Örn: ametist, sitrin, turmalin"
             className={textareaClass}

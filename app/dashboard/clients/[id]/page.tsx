@@ -1913,7 +1913,8 @@ function NumerolojikOzetKart({
       if (zirve && zirve.peaks.length > 0) {
         // Yaşını bilmesek de tüm zirveleri göster — birincisini al
         const p = zirve.peaks[0];
-        nearestPeakLabel = t("num.peakLabel", { index: p.index, age: p.age, topic: p.topic });
+        // Zirve yaşı: iki metot (Metot 1 — İlk Zirve Sayısına Göre · Metot 2 — Hayat Yoluna Göre).
+        nearestPeakLabel = t("num.peakLabel", { index: p.index, age1: p.yasMetot1 ?? p.age, age2: p.yasMetot2 ?? p.age, topic: p.topic });
         // Varsa sonraki zirveleri de kontrol et — en küçük yaşlı birincisi zaten
       }
     } catch { /* sessiz */ }

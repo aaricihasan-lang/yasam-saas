@@ -174,7 +174,7 @@
         "element": "Element:",
         "dominant": "baskın:",
         "peak": "Zirve:",
-        "peakLabel": "{index}. zirve · {age} yaş · {topic}. çakra",
+        "peakLabel": "{index}. zirve · Metot 1: {age1} yaş · Metot 2: {age2} yaş · {topic}. çakra",
         "fullAnalysis": "∞ Tam Numeroloji Analizi Aç →"
       },
       "appt": {

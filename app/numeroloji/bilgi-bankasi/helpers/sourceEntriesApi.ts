@@ -32,6 +32,14 @@ export async function listAnalysisSourceEntries(): Promise<{ rows: SourceEntryRo
   return { rows: (Array.isArray(res.json.rows) ? res.json.rows : []) as SourceEntryRow[], error: null };
 }
 
+/** NUM-F08: tenant'ın TÜM kaynak notları (silme etkisi sayımı için tek sorgu; N+1 yok). */
+export async function listAllSourceEntries(): Promise<{ rows: SourceEntryRow[]; error: string | null }> {
+  const res = await numApi(SOURCE_ENTRIES_API);
+  const err = numApiError(res);
+  if (err) return { rows: [], error: err };
+  return { rows: (Array.isArray(res.json.rows) ? res.json.rows : []) as SourceEntryRow[], error: null };
+}
+
 export async function createSourceEntry(
   knowledgeRecordId: string,
   input: SourceEntryInput,

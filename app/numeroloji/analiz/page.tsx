@@ -84,6 +84,9 @@ export default function NumerolojiAnalizPage() {
   const [birthDate, setBirthDate] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [out, setOut] = useState<NumerolojiMotorOut | null>(null);
+  // NUM-F01: sonucun HANGİ girdilerle hesaplandığı. Form sonradan değişirse sonuç "bayat"tır
+  // ve kaydedilemez (yeni kişi + eski kişinin sayıları ASLA birleşmez).
+  const [computedFor, setComputedFor] = useState<{ fn: string; ln: string; bd: string } | null>(null);
   const [tab, setTab] = useState<TabId>("summary");
   const [formAcik, setFormAcik] = useState(true);
   const sonucRef = useRef<HTMLDivElement>(null);
@@ -226,6 +229,7 @@ export default function NumerolojiAnalizPage() {
           birthDate: birthDateForMotor(bd),
         }),
       );
+      setComputedFor({ fn: fn.trim(), ln: ln.trim(), bd: bd.trim() });
       setTab("summary");
     } catch (err) {
       console.error(err);
@@ -336,8 +340,16 @@ export default function NumerolojiAnalizPage() {
     });
   }
 
-  const isimGoster = `${firstName.trim()} ${lastName.trim()}`.replace(/\s+/g, " ").trim();
-  const dogumGoster = birthDate.trim();
+  // NUM-F01: sonuç paneli ve kayıt, HESAPLANAN kişinin bilgilerini kullanır (formdaki taslağı değil).
+  const sonucBilgisi = out && computedFor ? computedFor : { fn: firstName.trim(), ln: lastName.trim(), bd: birthDate.trim() };
+  const sonucBayat =
+    out !== null &&
+    computedFor !== null &&
+    (formatFirstNameTurkish(firstName.trim()) !== computedFor.fn ||
+      formatLastNameTurkish(lastName.trim()) !== computedFor.ln ||
+      birthDate.trim() !== computedFor.bd);
+  const isimGoster = `${sonucBilgisi.fn} ${sonucBilgisi.ln}`.replace(/\s+/g, " ").trim();
+  const dogumGoster = sonucBilgisi.bd;
   const inputClass =
     "h-10 w-full rounded-xl border border-slate-200/90 bg-white/95 px-3 py-0 text-sm font-medium text-slate-900 shadow-sm outline-none ring-violet-100/80 transition placeholder:text-slate-400 focus:border-violet-300 focus:ring-2 focus:ring-violet-200/40";
   const analizNavLinkClass =
@@ -398,10 +410,10 @@ export default function NumerolojiAnalizPage() {
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               <SaveAnalysisButton
-                firstName={firstName}
-                lastName={lastName}
-                birthDateDisplay={birthDate.trim()}
-                motorOutput={out}
+                firstName={sonucBilgisi.fn}
+                lastName={sonucBilgisi.ln}
+                birthDateDisplay={sonucBilgisi.bd}
+                motorOutput={sonucBayat ? null : out}
                 variant="premium"
               />
               <button
@@ -472,13 +484,18 @@ export default function NumerolojiAnalizPage() {
               HESAPLA
             </button>
             <SaveAnalysisButton
-              firstName={firstName}
-              lastName={lastName}
-              birthDateDisplay={birthDate.trim()}
-              motorOutput={out}
+              firstName={sonucBilgisi.fn}
+              lastName={sonucBilgisi.ln}
+              birthDateDisplay={sonucBilgisi.bd}
+              motorOutput={sonucBayat ? null : out}
               variant="premium"
             />
           </div>
+          {sonucBayat ? (
+            <p role="status" className="mt-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+              Bilgiler değişti. Aşağıdaki sonuç önceki bilgilere aittir; kaydetmeden önce HESAPLA&apos;ya basın.
+            </p>
+          ) : null}
         </form>
         )}
 
@@ -542,8 +559,8 @@ export default function NumerolojiAnalizPage() {
                       out={out}
                       isimGoster={isimGoster}
                       dogumGoster={dogumGoster}
-                      firstName={firstName}
-                      lastName={lastName}
+                      firstName={sonucBilgisi.fn}
+                      lastName={sonucBilgisi.ln}
                       layout="premium"
                     />
                   ) : null}
@@ -558,9 +575,9 @@ export default function NumerolojiAnalizPage() {
 
               {tab === "zamanlama" ? (
                 <NumerolojiZamanlamaGelisimTab
-                  firstName={firstName}
-                  lastName={lastName}
-                  birthDate={birthDate}
+                  firstName={sonucBilgisi.fn}
+                  lastName={sonucBilgisi.ln}
+                  birthDate={sonucBilgisi.bd}
                 />
               ) : null}
 
@@ -607,8 +624,8 @@ export default function NumerolojiAnalizPage() {
                           out={out}
                           isimGoster={isimGoster}
                           dogumGoster={dogumGoster}
-                          firstName={firstName}
-                          lastName={lastName}
+                          firstName={sonucBilgisi.fn}
+                          lastName={sonucBilgisi.ln}
                           temaId={gorselTema}
                           uzmanAdi={uzmanAdi}
                           gorselTaslariGoster={gorselTaslariGoster}
@@ -640,8 +657,8 @@ export default function NumerolojiAnalizPage() {
                                   out={out}
                                   isimGoster={isimGoster}
                                   dogumGoster={dogumGoster}
-                                  firstName={firstName}
-                                  lastName={lastName}
+                                  firstName={sonucBilgisi.fn}
+                                  lastName={sonucBilgisi.ln}
                                   temaId={gorselTema}
                                   uzmanAdi={uzmanAdi}
                                   gorselTaslariGoster={gorselTaslariGoster}

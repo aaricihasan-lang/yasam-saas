@@ -121,8 +121,9 @@ assert(Boolean(pm.explanation.rationale?.includes("Nominal Kişisel Yıl")), "TE
 const pd = personalDayExplain(BD, REF)!;
 {
   const labels = (pd.explanation.usedInputs ?? []).map((i) => i.label);
-  assert(labels.some((l) => l.includes("Nominal Kişisel Yıl")) && labels.includes("Kişisel Ay") && labels.includes("Seçilen gün"),
-    "TEACH-09 Kişisel Gün zinciri (Nominal Yıl + Kişisel Ay + gün)", labels.join(", "));
+  // Kişisel Gün = Kişisel Ay + gün (Rafet s.94; nihai kullanıcı kararı 2026-10-03) — Kişisel Yıl ayrıca toplanmaz.
+  assert(!labels.some((l) => l.includes("Nominal Kişisel Yıl")) && labels.includes("Kişisel Ay") && labels.includes("Seçilen gün"),
+    "TEACH-09 Kişisel Gün zinciri (Kişisel Ay + gün)", labels.join(", "));
 }
 
 // ── TEACH-10: Doğum Günü Enerjisi exact 1–31, sadeleştirme YOK ────────────────────

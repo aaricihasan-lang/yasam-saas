@@ -1,4 +1,5 @@
 import type { NumerolojiResult } from "@/lib/numeroloji";
+import { reduceKeepMaster, sumDigits } from "@/lib/numeroloji/ortak";
 import { numApi, numApiError } from "../../helpers/numApiClient";
 import type { NumerolojiMotorOut } from "../../utils/numerolojiPlainMetin";
 import type { KnowledgeRecordRow } from "./bilgiBankaKayit";
@@ -36,6 +37,11 @@ export type KnowledgeNote = {
   content_sections: KnowledgeSection[] | null;
   // Yalnız include_in_analysis=true notlar; yoksa alan atanmaz (eski davranış birebir korunur).
   sourceEntries?: AnalysisSourceEntry[];
+  /**
+   * NUM-F10: Hayat Yolu notu birebir kod yerine kodun SON SAYISI (nihai hedef çakrası,
+   * kitap 1 PDF s.58) üzerinden eşleştiyse başlığa eklenecek açıklama.
+   */
+  headingSuffix?: string;
 };
 
 export type KnowledgeNotesForAnalysis = {
@@ -136,6 +142,39 @@ export function exactValueFromResult(r: NumerolojiResult): string[] {
   return v && v !== "-" ? [v] : [];
 }
 
+/**
+ * NUM-F10 — Hayat Yolu / DM bilgi bankası aday sırası (ilk eşleşen KULLANILIR):
+ *   1) Birebir DM kodu ("25/7", "37/10") — kitap 1 PDF s.83–153 her bileşik kodu ayrı yorumlar.
+ *   2) 2026-07…2026-10 arasında motorun ürettiği eski gösterim ("37/1", "39/3", "22", "33");
+ *      o dönemde bu anahtarla yazılmış uzman notları kaybolmasın diye (aynı doğum tarihi).
+ *   3) Kodun son sayısının tek-hane kökü ("7") — kitap 1 PDF s.58: "son sayı … nihai hedef
+ *      çakrasını gösterir". Bu eşleşme ekranda "genel not" olarak AÇIKÇA etiketlenir.
+ */
+export function hayatYoluLookupCandidates(r: NumerolojiResult): { values: string[]; generalValues: Set<string> } {
+  const exact = exactValueFromResult(r);
+  if (!exact.length) return { values: [], generalValues: new Set() };
+  const code = exact[0];
+  const values = [code];
+  const total = Number(code.split("/")[0]);
+  if (Number.isFinite(total) && total > 0) {
+    const legacyReduced = reduceKeepMaster(total);
+    const legacy = legacyReduced === total ? String(total) : `${total}/${legacyReduced}`;
+    if (!values.includes(legacy)) values.push(legacy);
+  }
+  const generalValues = new Set<string>();
+  const last = Number(code.split("/").pop());
+  if (Number.isFinite(last) && last > 0) {
+    let root = last;
+    while (root > 9) root = sumDigits(root);
+    const rootStr = String(root);
+    if (!values.includes(rootStr)) {
+      values.push(rootStr);
+      generalValues.add(rootStr);
+    }
+  }
+  return { values, generalValues };
+}
+
 /** Sağ sütun (destek) X sayısı: 0–1 AZ, 2–3 ideal (not yok), 4+ FAZLA */
 export function chakraLookupValue(chakraNo: number, sagDestekXCount: number): string | null {
   if (sagDestekXCount === 2 || sagDestekXCount === 3) return null;
@@ -180,11 +219,19 @@ function rowToNote(row: KnowledgeRecordRow): KnowledgeNote {
   };
 }
 
+export type LookupPlanOptions = {
+  /** true → aday sırasında İLK eşleşen kayıt kullanılır (Hayat Yolu). */
+  firstMatchOnly?: boolean;
+  /** Bu değerlerden eşleşen not "genel not" olarak etiketlenir. */
+  generalValues?: Set<string>;
+};
+
 export function pickNotesForType(
   rows: KnowledgeRecordRow[],
   analysisType: string,
   valuesInOrder: string[],
   globalSeenIds: Set<string>,
+  opts: LookupPlanOptions = {},
 ): KnowledgeNote[] {
   const notes: KnowledgeNote[] = [];
 
@@ -192,16 +239,20 @@ export function pickNotesForType(
     const row = rows.find((r) => r.analysis_type === analysisType && r.value === value);
     if (!row || globalSeenIds.has(row.id)) continue;
     globalSeenIds.add(row.id);
-    notes.push(rowToNote(row));
+    const note = rowToNote(row);
+    if (opts.generalValues?.has(value)) note.headingSuffix = " · kodun son sayısı için genel not";
+    notes.push(note);
+    if (opts.firstMatchOnly) break;
   }
 
   return notes;
 }
 
-export function buildKnowledgeLookupPlan(out: NumerolojiMotorOut): {
+export function buildKnowledgeLookupPlan(out: NumerolojiMotorOut): ({
   analysisType: string;
   values: string[];
-}[] {
+} & LookupPlanOptions)[] {
+  const hy = hayatYoluLookupCandidates(out.hayatYolu);
   return [
     {
       analysisType: NUMERO_ANALYSIS_TYPES.anaKulvar,
@@ -216,9 +267,11 @@ export function buildKnowledgeLookupPlan(out: NumerolojiMotorOut): {
       values: valueCandidatesFromResult(out.ifadeSayisi),
     },
     {
-      // NKB-V2-K1: Hayat Yolu EXACT-only — bileşik değer parçalanmaz, indirgenmiş sayı fallback'i yok.
+      // NUM-F10: Hayat Yolu — birebir kod → eski gösterim → son sayı (genel not); ilk eşleşen.
       analysisType: NUMERO_ANALYSIS_TYPES.hayatYolu,
-      values: exactValueFromResult(out.hayatYolu),
+      values: hy.values,
+      firstMatchOnly: true,
+      generalValues: hy.generalValues,
     },
     {
       analysisType: NUMERO_ANALYSIS_TYPES.cakraOmurga,
@@ -290,7 +343,7 @@ export async function getKnowledgeNotesForAnalysis(
       anaKulvar: pickNotesForType(rows, NUMERO_ANALYSIS_TYPES.anaKulvar, plan[0].values, seenIds),
       yanKulvar: pickNotesForType(rows, NUMERO_ANALYSIS_TYPES.yanKulvar, plan[1].values, seenIds),
       ifadeSayisi: pickNotesForType(rows, NUMERO_ANALYSIS_TYPES.ifadeSayisi, plan[2].values, seenIds),
-      hayatYolu: pickNotesForType(rows, NUMERO_ANALYSIS_TYPES.hayatYolu, plan[3].values, seenIds),
+      hayatYolu: pickNotesForType(rows, NUMERO_ANALYSIS_TYPES.hayatYolu, plan[3].values, seenIds, plan[3]),
       cakraOmurga: pickNotesForType(rows, NUMERO_ANALYSIS_TYPES.cakraOmurga, plan[4].values, seenIds),
       element: pickNotesForType(rows, NUMERO_ANALYSIS_TYPES.element, plan[5].values, seenIds),
     };

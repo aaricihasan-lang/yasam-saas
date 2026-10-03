@@ -682,7 +682,7 @@ function buildNumerolojiBolumu(client: ClientRow): ReportChild[] {
         out.push(twoColTable(
           zirve.peaks.slice(0, 4).map((p) => [
             `${p.index}. Zirve`,
-            `${p.age} yaş · ${p.topic}. çakra`,
+            `Metot 1: ${p.yasMetot1 ?? p.age} yaş · Metot 2: ${p.yasMetot2 ?? p.age} yaş · ${p.topic}. çakra`,
           ] as [string, string])
         ));
       }

@@ -31,6 +31,8 @@ const ELEMENT_COLORS: Record<string, { text: string; bar: string; bg: string; ri
 };
 
 const ELEMENT_ORDER = ["Hava", "Su", "Ateş", "Toprak", "Nötr"] as const;
+/** Kullanıcıya gösterilen element adı: 9 = "Eter / Nötr" (iç anahtar "Nötr"). */
+const elementLabel = (el: string) => (el === "Nötr" ? "Eter/Nötr" : el);
 
 // ─── Input formatters ─────────────────────────────────────────────────────────
 
@@ -502,7 +504,7 @@ export function NumerolojiIliskiAnaliziTab({
               ) : (
                 analiz.elementBalance.highlighted.map((el) => (
                   <span key={el} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${ELEMENT_COLORS[el]?.bg} ${ELEMENT_COLORS[el]?.text} ${ELEMENT_COLORS[el]?.ring}`}>
-                    {ELEMENT_EMOJI[el]} {el} ({analiz.elementBalance.counts[el as keyof typeof analiz.elementBalance.counts]})
+                    {ELEMENT_EMOJI[el]} {elementLabel(el)} ({analiz.elementBalance.counts[el as keyof typeof analiz.elementBalance.counts]})
                   </span>
                 ))
               )}
@@ -515,7 +517,7 @@ export function NumerolojiIliskiAnaliziTab({
                 const pct = count === 0 ? 0 : Math.max(6, (count / 8) * 100);
                 return (
                   <div key={el} className="flex min-w-0 items-center gap-2">
-                    <span className={`w-14 shrink-0 text-[11px] font-bold ${c.text}`}>{ELEMENT_EMOJI[el]} {el}</span>
+                    <span className={`w-[4.5rem] shrink-0 text-[11px] font-bold ${c.text}`}>{ELEMENT_EMOJI[el]} {elementLabel(el)}</span>
                     <div className="min-w-0 flex-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
                       <div className={`h-full rounded-full transition-all duration-500 ${c.bar}`} style={{ width: `${pct}%` }} />
                     </div>

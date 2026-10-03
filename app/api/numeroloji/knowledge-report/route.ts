@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { readAllPaged } from "@/lib/db/readAllPaged";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { Document, Packer } from "docx";
 import {
@@ -42,6 +43,8 @@ import {
   sortSourceEntries,
   type SourceEntryRow,
 } from "@/app/numeroloji/bilgi-bankasi/helpers/sourceEntryUiLogic";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const runtime = "nodejs";
 
@@ -119,27 +122,41 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (is_demo_account)
     return NextResponse.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
-  let knowledgeQ = db.from("numerology_knowledge_records").select("*").eq("tenant_id", tenantId);
-  let stoneQ = db.from("numerology_stone_assignments").select("*").eq("tenant_id", tenantId);
-
+  // NUM-F05: filtreli modda boş id listesi = o türden kayıt YOK. Eskiden `.eq("id","none")`
+  // uuid kolonunda 22P02 → 500 veriyordu; artık o tür hiç sorgulanmaz (boş sonuç).
+  // NUM-F09: sayfalı tam okuma (PostgREST 1000 satır sınırında sessiz kesilme yok).
+  let kFilter: string[] | null = null;
+  let sFilter: string[] | null = null;
+  let skipKnowledge = false;
+  let skipStones = false;
   if (exportMode === "filtered") {
-    if (Array.isArray(knowledgeIds) && knowledgeIds.length > 0)
-      knowledgeQ = knowledgeQ.in("id", knowledgeIds);
-    else if (exportMode === "filtered") {
-      // If filtered mode but no knowledge IDs, fetch nothing
-      knowledgeQ = knowledgeQ.eq("id", "none");
-    }
-    if (Array.isArray(stoneIds) && stoneIds.length > 0)
-      stoneQ = stoneQ.in("id", stoneIds);
-    else if (exportMode === "filtered") {
-      stoneQ = stoneQ.eq("id", "none");
-    }
+    kFilter = Array.isArray(knowledgeIds) ? knowledgeIds.filter((x): x is string => typeof x === "string" && UUID_RE.test(x)) : [];
+    sFilter = Array.isArray(stoneIds) ? stoneIds.filter((x): x is string => typeof x === "string" && UUID_RE.test(x)) : [];
+    skipKnowledge = kFilter.length === 0;
+    skipStones = sFilter.length === 0;
+    if (skipKnowledge && skipStones)
+      return NextResponse.json({ ok: false, error: "Filtrede rapora eklenecek kayıt yok." }, { status: 400 });
   }
 
-  const [kRes, sRes] = await Promise.all([
-    knowledgeQ.order("analysis_type").order("value"),
-    stoneQ.order("analysis_type").order("value"),
+  const EMPTY = { rows: [] as unknown[], error: null, total: 0, truncated: false };
+  const [kPaged, sPaged] = await Promise.all([
+    skipKnowledge
+      ? Promise.resolve(EMPTY)
+      : readAllPaged((f, t) => {
+          let q = db.from("numerology_knowledge_records").select("*", { count: "exact" }).eq("tenant_id", tenantId);
+          if (kFilter) q = q.in("id", kFilter);
+          return q.order("analysis_type").order("value").order("id").range(f, t);
+        }),
+    skipStones
+      ? Promise.resolve(EMPTY)
+      : readAllPaged((f, t) => {
+          let q = db.from("numerology_stone_assignments").select("*", { count: "exact" }).eq("tenant_id", tenantId);
+          if (sFilter) q = q.in("id", sFilter);
+          return q.order("analysis_type").order("value").order("id").range(f, t);
+        }),
   ]);
+  const kRes = { data: kPaged.rows, error: kPaged.error };
+  const sRes = { data: sPaged.rows, error: sPaged.error };
 
   if (kRes.error) {
     await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "report_generated", subEntity: "knowledge", errorClass: "server" });
@@ -162,23 +179,17 @@ export async function POST(req: NextRequest): Promise<Response> {
   let recordSources: RecordSourceRow[] = [];
   const sourcesById = new Map<string, NumerologySourceRow>();
   if (kulvarIds.length > 0) {
-    const { data: rsData, error: rsErr } = await db
-      .from("numerology_record_sources")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .in("knowledge_record_id", kulvarIds);
-    if (rsErr) return Response.json({ ok: false, error: "Kaynak bağlantıları okunamadı." }, { status: 500 });
-    recordSources = (rsData || []) as RecordSourceRow[];
+    // NUM-F09: büyük id listesini URL'ye koymadan, tenant'ın tüm bağlantı/kaynaklarını sayfalı
+    // okuyup bellekte filtreler (1000 kesmesi ve uzun-URL riski yok).
+    const kulvarIdSet = new Set(kulvarIds);
+    const rsRes = await readAllPaged((f, t) => db.from("numerology_record_sources").select("*", { count: "exact" }).eq("tenant_id", tenantId).order("id").range(f, t));
+    if (rsRes.error) return Response.json({ ok: false, error: "Kaynak bağlantıları okunamadı." }, { status: 500 });
+    recordSources = (rsRes.rows as RecordSourceRow[]).filter((l) => kulvarIdSet.has(l.knowledge_record_id));
 
-    const srcIds = Array.from(new Set(recordSources.map((l) => l.source_id)));
-    if (srcIds.length > 0) {
-      const { data: sData, error: sErr } = await db
-        .from("numerology_sources")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .in("id", srcIds);
-      if (sErr) return Response.json({ ok: false, error: "Kaynaklar okunamadı." }, { status: 500 });
-      for (const s of (sData || []) as NumerologySourceRow[]) sourcesById.set(s.id, s);
+    if (recordSources.length > 0) {
+      const sRes = await readAllPaged((f, t) => db.from("numerology_sources").select("*", { count: "exact" }).eq("tenant_id", tenantId).order("id").range(f, t));
+      if (sRes.error) return Response.json({ ok: false, error: "Kaynaklar okunamadı." }, { status: 500 });
+      for (const src of sRes.rows as NumerologySourceRow[]) sourcesById.set(src.id, src);
     }
   }
   // record_id → bağlantılar (bellek map; N+1 yok).
@@ -193,14 +204,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   const entriesByRecord = new Map<string, SourceEntryRow[]>();
   const entrySourceLabelById = new Map<string, string>();
   if (sourceNotesEffective(sections) && knowledgeRows.length > 0) {
-    const kIds = knowledgeRows.map((r) => r.id);
-    const { data: seData, error: seErr } = await db
-      .from("numerology_knowledge_source_entries")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .eq("include_in_analysis", true)
-      .in("knowledge_record_id", kIds);
-    if (seErr) return Response.json({ ok: false, error: "Kaynak notları okunamadı." }, { status: 500 });
+    const kIdSet = new Set(knowledgeRows.map((r) => r.id));
+    const seRes = await readAllPaged((f, t) =>
+      db.from("numerology_knowledge_source_entries").select("*", { count: "exact" }).eq("tenant_id", tenantId).eq("include_in_analysis", true).order("id").range(f, t),
+    );
+    if (seRes.error) return Response.json({ ok: false, error: "Kaynak notları okunamadı." }, { status: 500 });
+    const seData = (seRes.rows as SourceEntryRow[]).filter((e) => kIdSet.has(e.knowledge_record_id));
     const seRows = (seData || []) as SourceEntryRow[];
     for (const e of sortSourceEntries(seRows)) {
       const arr = entriesByRecord.get(e.knowledge_record_id) ?? [];

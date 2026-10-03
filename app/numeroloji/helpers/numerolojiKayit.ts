@@ -2,6 +2,7 @@ import { getSyncedTenantId, getSyncedYasamUser } from "@/lib/auth/sessionTenant"
 import { numApi, numApiError } from "./numApiClient";
 import { buildAnalizOzeti, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 import {
+  buildRecalculatedRecordBody,
   mergeGorselIntoAnalysisData,
   type AnalysisDataPayload,
   type AnalysisGorselData,
@@ -87,6 +88,22 @@ export async function saveNumerologyAnalysis(input: {
   return { error: null, id };
 }
 
+/**
+ * MODEL C — "Güncel yöntemle yeniden hesapla": kayıttaki ad/soyad/doğum tarihinden GÜNCEL motorla
+ * YENİ bir analiz kaydı oluşturur. Orijinal kayıt (UUID, tarih, sonuçlar, Word çıktısı) DEĞİŞMEZ;
+ * yeni kayıt sunucuda güncel metodoloji damgası + calc.recalculatedFrom ile işaretlenir.
+ */
+export async function recalculateNumerologyAnalysis(row: NumerologyRecordRow): Promise<{ error: string | null; id?: string; demo?: boolean }> {
+  const body = buildRecalculatedRecordBody(row, buildAnalizOzeti);
+  if (!body) return { error: "Kayıttaki ad, soyad veya doğum tarihiyle yeniden hesaplama yapılamadı." };
+  const res = await numApi("/api/numeroloji/analyses", { method: "POST", body: JSON.stringify(body) });
+  const err = numApiError(res);
+  if (err) return { error: err };
+  if (res.json.demo === true) return { error: null, demo: true };
+  const id = typeof res.json.id === "string" ? res.json.id : undefined;
+  return id ? { error: null, id } : { error: "Yeni analiz kaydı oluşturulamadı." };
+}
+
 // NOT: `tenantId` parametresi geriye dönük uyumluluk için korunur; tenant artık
 // SUNUCUDA session'dan alınır. Admin (çapraz-tenant) için lib/admin/adminNumerologyApi kullanılır.
 export async function listNumerologyAnalyses(_tenantId?: string): Promise<{
@@ -94,7 +111,8 @@ export async function listNumerologyAnalyses(_tenantId?: string): Promise<{
   error: string | null;
 }> {
   void _tenantId;
-  const res = await numApi("/api/numeroloji/analyses");
+  // NUM-F09: hafif liste (analysis_data taşınmaz) + sunucuda sayfalı TAM okuma (1000 kesmesi yok).
+  const res = await numApi("/api/numeroloji/analyses?fields=summary");
   const err = numApiError(res);
   if (err) return { data: null, error: err };
   const rows = (Array.isArray(res.json.rows) ? res.json.rows : []) as NumerologyRecordListItem[];

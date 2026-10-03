@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readAllPaged } from "@/lib/db/readAllPaged";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { validateSourceInput, safeDbError } from "@/app/numeroloji/bilgi-bankasi/helpers/sourcesValidation";
@@ -32,11 +33,16 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
-  const { data, error } = await db
-    .from(TABLE)
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .order("updated_at", { ascending: false });
+  // NUM-F09: sayfalı tam okuma (PostgREST 1000 satır sınırında sessiz kesilme yok).
+  const { rows: data, error } = await readAllPaged((from, to) =>
+    db
+      .from(TABLE)
+      .select("*", { count: "exact" })
+      .eq("tenant_id", tenantId)
+      .order("updated_at", { ascending: false })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
 
   if (error) {
     const e = safeDbError(error);
@@ -149,5 +155,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     // Toplu silme → TEK olay + itemCount (hiçbiri silinmediyse olay yok).
     await trackUsage(guard, req, { module: "numerology", action: "record_deleted", subEntity: "source", resourceId: [...deletedIds].sort().join(","), itemCount: deletedIds.length });
   }
-  return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
+  // AŞAMA 1 P3: hiçbir satır silinmediyse (yok/başka tenant/zaten silinmiş) sahte başarı DÖNMEZ.
+  if (deletedIds.length === 0) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya zaten silinmiş.", deleted: 0 }, { status: 404 });
+  return NextResponse.json({ ok: true, deleted: deletedIds.length });
 }

@@ -733,7 +733,7 @@ function BilgiBankasiYorumBlock({ notes }: { notes: KnowledgeNote[] }) {
             key={note.id}
             className="border-t border-violet-100/70 pt-3 first:border-t-0 first:pt-0 md:rounded-xl md:border md:border-violet-100 md:bg-white/85 md:p-3 md:pt-3 md:shadow-sm md:ring-1 md:ring-violet-100/60 md:first:border md:first:pt-3"
           >
-            <p className={`${typo.body} font-black text-violet-900`}>{noteHeading(note.analysisType, note.value)}</p>
+            <p className={`${typo.body} font-black text-violet-900`}>{noteHeading(note.analysisType, note.value)}{note.headingSuffix ?? ""}</p>
             <div className="mt-2 space-y-2.5">
               {sections.map((s, i) => (
                 <div key={`${note.id}:${i}`}>
@@ -987,10 +987,14 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
         <TasDestekSectionBlock title="Çakra Omurgası Taş Destekleri" items={cakraStoneItems} stockIndex={stockIndex} />
       </DetayCard>
       <DetayCard title="Elementler">
-        <pre className={preScroll}>{out.elementlerMetni || "—"}</pre>
-        {out.elementler.steps?.length ? (
+        {/* AŞAMA 1 P3: elementlerMetni zaten adım dökümünü içerir; adımlar yalnız metin yoksa gösterilir (çift döküm yok). */}
+        {out.elementlerMetni ? (
+          <pre className={preScroll}>{out.elementlerMetni}</pre>
+        ) : out.elementler.steps?.length ? (
           <pre className={preSteps}>{out.elementler.steps.join("\n")}</pre>
-        ) : null}
+        ) : (
+          <pre className={preScroll}>—</pre>
+        )}
         {knowledgeNotes ? (
           <BilgiBankasiYorumBlock notes={knowledgeNotes.element} />
         ) : null}

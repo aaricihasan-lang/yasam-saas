@@ -44,7 +44,7 @@ export const CONCEPT_HELP: Record<string, string> = {
   personalMonth:
     "Seçilen ay için kişiye özel aylık zamanlama sayısıdır. Kişisel yıl hesabı ile takvim ayı birlikte değerlendirilir.",
   personalDay:
-    "Seçilen gün için kişiye özel günlük zamanlama sayısıdır. Kişisel yıl, kişisel ay ve gün değeri birlikte hesaplanır.",
+    "Seçilen gün için kişiye özel günlük zamanlama sayısıdır. Kişisel ay ile günün değeri toplanarak hesaplanır.",
   evre:
     "Yaşamın dokuz yıllık büyük gelişim dönemlerinden hangisinde bulunduğunuzu gösterir.",
   dongu:

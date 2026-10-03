@@ -1,4 +1,6 @@
 import { turkishUpperDisplay, type HarfYankilanisiSegment } from "@/lib/numeroloji";
+import { hesaplaNumeroloji } from "@/lib/numeroloji/numerolojiMotor";
+import { NUMEROLOJI_METHODOLOGY_VERSION, birthDateForEngine } from "@/lib/numeroloji/methodology";
 import type { NumerolojiMotorOut } from "./numerolojiPlainMetin";
 
 export type GorselTemaIdKayit = "kozmikMor" | "altinMist" | "kuzeyIsiklari" | "okyanusDerinligi";
@@ -91,6 +93,87 @@ export function extractMotorFromAnalysisJson(raw: unknown, firstName?: string, l
   if (ver !== undefined && ver !== 1) return null;
   if (!isValidMotorShape(motor)) return null;
   return remapHarfDisplayLetters(motor as NumerolojiMotorOut, firstName, lastName);
+}
+
+/** Kaydın metodoloji damgası (yoksa null → eski kayıt). */
+export function recordMethodologyStamp(raw: unknown): string | null {
+  const calc = asRecord(asRecord(raw)?.calc);
+  return typeof calc?.methodology === "string" ? calc.methodology : null;
+}
+
+export type ResolvedRecordMotor = {
+  /** Kayıtlı snapshot (Model C: her zaman kaydedildiği hali; okunamazsa null). */
+  motor: NumerolojiMotorOut | null;
+  /** true → kayıt önceki hesaplama metodolojisiyle oluşturulmuş (damga yok/eski). */
+  legacy: boolean;
+  /** Bu kayıt başka bir kayıttan "Güncel yöntemle yeniden hesapla" ile üretildiyse kaynak id. */
+  recalculatedFrom: string | null;
+};
+
+/** Kayıt "Güncel yöntemle yeniden hesapla" ile üretildiyse kaynak kayıt id'si. */
+export function recordRecalculatedFrom(raw: unknown): string | null {
+  const calc = asRecord(asRecord(raw)?.calc);
+  return typeof calc?.recalculatedFrom === "string" ? calc.recalculatedFrom : null;
+}
+
+/**
+ * ESKİ KAYIT POLİTİKASI — MODEL C (nihai kullanıcı kararı, 2026-10-03). UI + Word + toplu Word TEK KAYNAK.
+ *
+ * - Kayıt HER ZAMAN kaydedildiği gün üretilen snapshot ile gösterilir; motor açılışta rakamları
+ *   sessizce değiştirmez (önceki PR'daki "güncel yöntemle yeniden hesaplayıp göster" — Model B — KALDIRILDI).
+ * - Damgası güncel metodolojiye eşit olmayan kayıt `legacy: true` döner; çağıran yalnız
+ *   bilgilendirme notu (LEGACY_METHOD_NOTE) ve "Güncel yöntemle yeniden hesapla" aksiyonu gösterir.
+ * - Snapshot okunamıyorsa motor null döner (asla çökmez, asla sessiz yeniden hesap yok).
+ */
+export function resolveRecordMotor(row: {
+  name?: string | null;
+  surname?: string | null;
+  birth_date?: string | null;
+  analysis_data?: unknown;
+}): ResolvedRecordMotor {
+  const snapshot = extractMotorFromAnalysisJson(row.analysis_data, row.name ?? undefined, row.surname ?? undefined);
+  return {
+    motor: snapshot,
+    legacy: recordMethodologyStamp(row.analysis_data) !== NUMEROLOJI_METHODOLOGY_VERSION,
+    recalculatedFrom: recordRecalculatedFrom(row.analysis_data),
+  };
+}
+
+/** Önceki metodoloji bilgilendirme metni (UI + Word aynı cümle). */
+export const LEGACY_METHOD_NOTE = "Bu analiz önceki hesaplama metodolojisiyle oluşturulmuştur.";
+
+/**
+ * "Güncel yöntemle yeniden hesapla" için YENİ kayıt gövdesi. Orijinal kayda dokunmaz;
+ * ad/soyad/doğum tarihi kayıttaki haliyle kullanılır, sonuç güncel motordan üretilir.
+ * Sunucu `recalculatedFrom`u aynı tenant'taki kaynak kayda karşı doğrulayıp `calc` içine yazar.
+ */
+export function buildRecalculatedRecordBody(
+  row: { id: string; name: string; surname: string; birth_date: string; analysis_data?: unknown },
+  buildSummary: (motor: NumerolojiMotorOut) => string,
+): { name: string; surname: string; birth_date: string; analysis_data: AnalysisDataPayload & { recalculatedFrom: string } } | null {
+  const fn = String(row.name ?? "").trim();
+  const ln = String(row.surname ?? "").trim();
+  const bd = String(row.birth_date ?? "").trim();
+  if (!fn || !ln || !bd) return null;
+  let motor: NumerolojiMotorOut;
+  try {
+    motor = hesaplaNumeroloji({ firstName: fn, lastName: ln, birthDate: birthDateForEngine(bd) }) as unknown as NumerolojiMotorOut;
+  } catch {
+    return null;
+  }
+  if (!isValidMotorShape(motor) || (motor.hayatYolu as { display?: string }).display === "-") return null;
+  const payload: AnalysisDataPayload & { recalculatedFrom: string } = {
+    version: 1,
+    motor,
+    summary: buildSummary(motor),
+    recalculatedFrom: row.id,
+  };
+  // Taş seçimleri ve görsel rapor ayarları kullanıcı girdisidir (hesap değildir) → yeni kayda taşınır.
+  const tas = extractTasFromAnalysisData(row.analysis_data);
+  if (tas) payload.tas = tas;
+  const gorsel = extractGorselFromAnalysisData(row.analysis_data);
+  if (gorsel) payload.gorsel = gorsel;
+  return { name: fn, surname: ln, birth_date: bd, analysis_data: payload };
 }
 
 export function extractSummaryFromAnalysisData(raw: unknown): string | null {
