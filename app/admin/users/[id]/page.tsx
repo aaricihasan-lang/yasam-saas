@@ -94,6 +94,16 @@ import {
   renewalState,
   type BillingPeriod,
 } from "@/lib/admin/memberCommercial";
+import { formatPrice, phaseOn, resolveCommercialTerms, type PricingPhase } from "@/lib/admin/memberPricing";
+import { MemberCommercialPanel } from "@/components/admin/members/MemberCommercialPanel";
+import {
+  activeDaysText,
+  lastActivityText,
+  MemberAdminTimeline,
+  MemberSectionNav,
+  MemberUsagePanel,
+  useMemberUsage,
+} from "@/components/admin/members/MemberDetail360";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -164,9 +174,12 @@ function PaymentStatusBadge({ status }: { status: PaymentStatusUi }) {
 function PaymentHistorySection({
   entries,
   loading,
+  phaseLabelFor,
 }: {
   entries: PaymentHistoryEntry[];
   loading: boolean;
+  /** 360° — ödeme gününde geçerli fiyat dönemi ("200 TL / Ay"); dönem yoksa null. */
+  phaseLabelFor?: (isoDate?: string) => string | null;
 }) {
   return (
     <div className="mt-8 border-t border-teal-200/80 pt-8">
@@ -226,6 +239,9 @@ function PaymentHistorySection({
                     <td className="px-4 py-4 text-sm font-bold text-slate-800">
                       {entry.agreedFeeLabel}
                       <span className="block text-xs font-semibold text-slate-500">{entry.billingPeriodLabel}</span>
+                      {phaseLabelFor?.(entry.paymentDateIso) ? (
+                        <span className="block text-[11px] font-black text-teal-800">Dönem: {phaseLabelFor(entry.paymentDateIso)}</span>
+                      ) : null}
                     </td>
                     <td className="px-4 py-4">
                       <PaymentStatusBadge status={entry.status} />
@@ -265,6 +281,9 @@ function PaymentHistorySection({
                     <dt className="font-bold text-slate-500">Ücret / Dönem</dt>
                     <dd className="text-right font-bold text-slate-900">
                       {entry.agreedFeeLabel} · {entry.billingPeriodLabel}
+                      {phaseLabelFor?.(entry.paymentDateIso) ? (
+                        <span className="block text-[11px] font-black text-teal-800">Dönem: {phaseLabelFor(entry.paymentDateIso)}</span>
+                      ) : null}
                     </dd>
                   </div>
                   <div className="flex justify-between gap-3">
@@ -302,6 +321,8 @@ type AuditRow = {
   actorName: string | null;
   actorIsMainAdmin: boolean;
   createdAt: string | null;
+  /** Yalnız Yönetim Geçmişi etiketinde allowlist'li alanlar okunur (lib/admin/member360 auditTimelineText). */
+  context?: unknown;
 };
 
 /** İlk (en eski) user_approved kaydı — korunan approved_at ile eşleşen onaylayan için. */
@@ -578,6 +599,9 @@ export default function AdminUserDetailPage() {
   const [auditRows, setAuditRows] = useState<AuditRow[]>([]);
   const [auditFirstApproval, setAuditFirstApproval] = useState<FirstApproval | null>(null);
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
+  // 360° — ticari fiyat dönemleri (MemberCommercialPanel yükler) + Usage360 son 30 gün özeti.
+  const [pricingPhases, setPricingPhases] = useState<PricingPhase[]>([]);
+  const usage = useMemberUsage(userId, currentAdminId, Boolean(user && user.role === "expert" && user.id === userId));
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
   const [showSecurityPanel, setShowSecurityPanel] = useState(false);
   const [securityLoading, setSecurityLoading] = useState(false);
@@ -1203,9 +1227,12 @@ export default function AdminUserDetailPage() {
    * "Ödemeyi Kaydet" onayıyla yapılır; otomatik işlem YOK.
    */
   function applyPaymentReceived() {
-    if (!paymentDraft || !paymentDraft.billingPeriod) return;
+    if (!paymentDraft) return;
     const today = istanbulTodayIso();
-    const period = paymentDraft.billingPeriod;
+    // 360° — bugünü kapsayan fiyat dönemi varsa onun dönemi/tutarı; yoksa formdaki (eski) ücret/dönem.
+    const phase = phaseOn(pricingPhases, today);
+    const period = phase?.billingPeriod ?? (paymentDraft.billingPeriod || null);
+    if (!period) return;
     setPaymentDraft((d) =>
       d
         ? {
@@ -1213,7 +1240,7 @@ export default function AdminUserDetailPage() {
             status: "paid",
             lastPaymentDate: today,
             nextPaymentDate: addBillingPeriod(today, period),
-            paidAmount: d.paidAmount.trim() ? d.paidAmount : d.agreedFee,
+            paidAmount: d.paidAmount.trim() ? d.paidAmount : phase ? String(phase.amount) : d.agreedFee,
           }
         : d,
     );
@@ -1568,9 +1595,21 @@ export default function AdminUserDetailPage() {
               </p>
             </div>
 
+            <MemberSectionNav
+              sections={[
+                { id: "uye-ozet", label: "Özet" },
+                ...(user.role === "expert"
+                  ? [{ id: "uye-ticari", label: "Ticari" }, { id: "uye-kullanim", label: "Kullanım" }]
+                  : [{ id: "uye-ticari", label: "Ödeme" }]),
+                { id: "uye-erisim", label: "Erişim" },
+                { id: "uye-guvenlik", label: "Güvenlik" },
+                { id: "uye-gecmis", label: "Geçmiş" },
+              ]}
+            />
+
             {/* FAZ 2 — PROFİL ÖZETİ: her eksen AYRI alan; biri diğerinin yerine kullanılmaz. */}
-            <section className={`${panelClass} border-slate-200/80`} aria-labelledby="profile-summary-title">
-              <h2 id="profile-summary-title" className="text-xl font-black text-slate-950">Profil Özeti</h2>
+            <section id="uye-ozet" className={`${panelClass} scroll-mt-28 border-slate-200/80`} aria-labelledby="profile-summary-title">
+              <h2 id="profile-summary-title" className="text-xl font-black text-slate-950">Özet</h2>
               {(() => {
                 const approverName = approverForPreservedDate(auditFirstApproval, user.approvedAt ?? null);
                 const deactivation = auditRows.find(
@@ -1701,6 +1740,72 @@ export default function AdminUserDetailPage() {
                         </dd>
                       </div>
                     ) : null}
+                    {user.role === "expert" ? (
+                      <div className={tile}>
+                        <dt className={term}>Mevcut Ticari Fiyat</dt>
+                        <dd className="mt-2 text-sm font-black text-slate-900">
+                          {(() => {
+                            const t = resolveCommercialTerms(
+                              pricingPhases,
+                              { agreedFee: user.payment.agreedFeeRaw ?? null, billingPeriod: user.payment.billingPeriod ?? null },
+                              istanbulTodayIso(),
+                            );
+                            if (t.current.source === "none") return <span className="text-xs font-semibold text-slate-500">Belirtilmemiş</span>;
+                            return (
+                              <>
+                                {formatPrice(t.current.amount, t.current.billingPeriod)}
+                                {t.next ? (
+                                  <p className="mt-1 text-xs font-semibold text-slate-600">
+                                    Sonra: {formatPrice(t.next.amount, t.next.billingPeriod)}
+                                  </p>
+                                ) : null}
+                              </>
+                            );
+                          })()}
+                        </dd>
+                      </div>
+                    ) : null}
+                    {user.role === "expert" ? (
+                      <div className={tile}>
+                        <dt className={term}>Son Gerçek Aktivite</dt>
+                        <dd className="mt-2 text-sm font-black text-slate-900">
+                          {usage.kind === "ready" ? (
+                            <>
+                              {lastActivityText(usage.summary, usage.today)}
+                              {usage.summary.measurementStart ? (
+                                <p className="mt-1 text-xs font-semibold text-slate-600">
+                                  7g: {activeDaysText(usage.summary.d7ActiveDays, usage.summary.coverage7, usage.summary.measuredDaysIn30, 7)} ·
+                                  30g: {activeDaysText(usage.summary.d30ActiveDays, usage.summary.coverage30, usage.summary.measuredDaysIn30, 30)}
+                                </p>
+                              ) : null}
+                            </>
+                          ) : usage.kind === "error" ? (
+                            <span className="text-xs font-semibold text-slate-500">Kullanım verisi alınamadı</span>
+                          ) : (
+                            <span className="text-xs font-semibold text-slate-500">Yükleniyor…</span>
+                          )}
+                        </dd>
+                      </div>
+                    ) : null}
+                    <div className={tile}>
+                      <dt className={term}>Güvenlik Durumu</dt>
+                      <dd className="mt-2 text-sm font-black text-slate-900">
+                        {securitySummary ? (
+                          securitySummary.high30d > 0 || securitySummary.suspicious30d > 0 ? (
+                            <span className="text-rose-800">
+                              Son 30 gün: {securitySummary.high30d} yüksek · {securitySummary.suspicious30d} şüpheli olay
+                            </span>
+                          ) : (
+                            <span className="text-emerald-800">Son 30 günde uyarı yok</span>
+                          )
+                        ) : (
+                          <span className="text-xs font-semibold text-slate-500">Güvenlik özeti alınamadı</span>
+                        )}
+                        {user.licenseSettings.securityExempt ? (
+                          <p className="mt-1 text-xs font-semibold text-slate-600">Güvenlik istisnası açık</p>
+                        ) : null}
+                      </dd>
+                    </div>
                   </dl>
                 );
               })()}
@@ -1714,6 +1819,19 @@ export default function AdminUserDetailPage() {
             {/* GİZLİLİK KARARI (2026-08-24): "Uzman Panelini Görüntüle" / çalışma alanı
                 kartı kaldırıldı — admin/owner artık uzman özel içeriğini görüntüleyemez. */}
 
+            <div id="uye-ticari" className="scroll-mt-28 space-y-6">
+            {user.role === "expert" ? (
+              <MemberCommercialPanel
+                userId={user.id}
+                adminId={currentAdminId}
+                legacyFee={user.payment.agreedFeeRaw ?? null}
+                legacyPeriod={user.payment.billingPeriod ?? null}
+                nextPaymentAt={user.payment.nextPaymentAt ?? null}
+                paymentExempt={user.payment.status === "exempt"}
+                onPhasesChange={setPricingPhases}
+                onNotify={(type, title, message) => showToast({ type, title, message })}
+              />
+            ) : null}
             {(() => {
               // M4 — yalnız BİLGİLENDİRME: gecikmiş yenileme erişimi otomatik kısıtlamaz.
               if (user.role !== "expert" || user.approvalStatus !== "approved" || !user.active) return null;
@@ -1883,8 +2001,8 @@ export default function AdminUserDetailPage() {
                     <button
                       type="button"
                       onClick={applyPaymentReceived}
-                      disabled={!paymentDraft.billingPeriod || savingPayment}
-                      title={!paymentDraft.billingPeriod ? "Önce ödeme dönemini seçin." : undefined}
+                      disabled={(!paymentDraft.billingPeriod && !phaseOn(pricingPhases, istanbulTodayIso())) || savingPayment}
+                      title={!paymentDraft.billingPeriod && !phaseOn(pricingPhases, istanbulTodayIso()) ? "Önce ödeme dönemini seçin veya fiyat dönemi ekleyin." : undefined}
                       className={`${actionBtn} shrink-0 border-teal-300 bg-teal-50 text-teal-950 hover:bg-teal-100`}
                     >
                       <Banknote className="h-4 w-4" aria-hidden />
@@ -1894,6 +2012,14 @@ export default function AdminUserDetailPage() {
                   {paymentReceivedHint ? (
                     <p className="mt-2 text-xs font-black text-teal-800" role="status">
                       Form dolduruldu — tarihleri ve tutarı kontrol edip “Ödemeyi Kaydet” ile kaydedin.
+                      {(() => {
+                        // Yeni yenileme tarihi farklı bir fiyat dönemine düşüyorsa açıkça belirt.
+                        const nextDate = paymentDraft.nextPaymentDate;
+                        const at = nextDate ? phaseOn(pricingPhases, nextDate) : null;
+                        const cur = phaseOn(pricingPhases, istanbulTodayIso());
+                        if (!at || (cur && at.id === cur.id)) return null;
+                        return ` Bir sonraki ödemede geçerli fiyat: ${formatPrice(at.amount, at.billingPeriod)}.`;
+                      })()}
                     </p>
                   ) : null}
                 </div>
@@ -1964,12 +2090,19 @@ export default function AdminUserDetailPage() {
                   <PaymentHistorySection
                     entries={paymentHistory}
                     loading={historyLoading}
+                    phaseLabelFor={(iso) => {
+                      const ph = iso ? phaseOn(pricingPhases, iso) : null;
+                      return ph ? `${formatPrice(ph.amount, ph.billingPeriod)}${ph.label ? ` · ${ph.label}` : ""}` : null;
+                    }}
                   />
                 ) : null}
                   </div>
                 ) : null}
               </section>
             ) : null}
+            </div>
+
+            {user.role === "expert" ? <MemberUsagePanel userId={user.id} state={usage} /> : null}
 
             <section className={`${panelClass} border-indigo-200/80`}>
               <h2 className="text-xl font-black text-slate-950">İşlemler</h2>
@@ -2268,7 +2401,7 @@ export default function AdminUserDetailPage() {
               ) : null}
             </section>
 
-            <section className={`${panelClass} border-violet-200/80`}>
+            <section id="uye-erisim" className={`${panelClass} scroll-mt-28 border-violet-200/80`}>
               <h2 className="text-xl font-black text-slate-950">Modül İzinleri</h2>
               {user.role === "expert" ? (
                 <div className="mt-4">
@@ -2293,7 +2426,7 @@ export default function AdminUserDetailPage() {
             </section>
 
             {/* ── Güvenlik & Oturum Geçmişi ──────────────────────────────── */}
-            <section className={`${panelClass} border-rose-200/80 bg-gradient-to-br from-rose-50/90 via-white to-orange-50/60`}>
+            <section id="uye-guvenlik" className={`${panelClass} scroll-mt-28 border-rose-200/80 bg-gradient-to-br from-rose-50/90 via-white to-orange-50/60`}>
               <button
                 type="button"
                 onClick={() => {
@@ -3125,6 +3258,11 @@ export default function AdminUserDetailPage() {
                 );
               })() : null}
             </section>
+
+            <MemberAdminTimeline
+              rows={auditRows}
+              moduleLabel={(k) => (ADMIN_MODULE_UI_KEYS as readonly string[]).includes(k) ? ADMIN_MODULE_UI_LABELS[k as AdminModuleUiKey] : null}
+            />
 
           </div>
         )}
