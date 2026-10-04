@@ -545,7 +545,10 @@ function read(rel: string): string {
   ok("IDOR-3 normal A → ADMIN_LIBRARY taşı 404", get(rows[2].id, TA, false).status === 404);
   ok("IDOR-4 admin/library → kendi kütüphane taşı 200", get(rows[2].id, LIB_T, false).status === 200);
   ok("IDOR-4b admin/library → uzman taşı 404", get(rows[0].id, LIB_T, false).status === 404);
-  ok("IDOR-5 demo → kütüphane taşı 200 (liste showcase semantiği)", get(rows[2].id, TD, true).status === 200);
+  // d83ddd4a (owner kararı 2026-10-03/04): demo, owner tenant'ının GERÇEK taşlarını OKUYAMAZ (eski
+  // "showcase" cross-tenant birleşimi güvenlik gereği kaldırıldı; vitrin demo tenant'ına ait sentetik
+  // veriyle sağlanır — 20271006400000). Bu iddia bypass'ın GERİ GELMEDİĞİNİ zorlar.
+  ok("IDOR-5 demo → owner (eski kütüphane) taşı 404 (cross-tenant bypass yok)", get(rows[2].id, TD, true).status === 404);
   ok("IDOR-5b demo → başka uzman taşı 404", get(rows[1].id, TD, true).status === 404);
   const leak = JSON.stringify(get(rows[2].id, TA, false).body);
   ok("IDOR-7 404 gövdesi taş verisi sızdırmaz", !leak.includes("Kütüphane taşı") && !leak.includes('"row"'));
