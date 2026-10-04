@@ -5,7 +5,7 @@
  * Şema: sentetik users/tenants/user_sessions/... + GERÇEK repo migration zinciri:
  *   20260903 admin_audit_log → 20260910 provisioning (provision_expert) → 20261221 yh_grade →
  *   20270107 Aşama 1 RPC'leri → 20270129 FAZ 1 → 20270130 FAZ 2 → 20270129000200 oturum touch RPC →
- *   20271001000300 M4 (üye ticari takip).
+ *   20271001000300 M4 (üye ticari takip) → 360° zinciri (Usage360 + 20271006000000).
  * Yaşam Hafızası için yalnız test-stub: yasam_hafizasi_index (minimal) + yh_search_candidates
  * (tsquery'yi yok sayar; tenant satırlarını döner) — gerçek route kapsam mantığını sınamak için.
  */
@@ -14,6 +14,7 @@ import pg from "pg";
 import { readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { applyMember360Chain } from "../uye-yonetimi-360/migrationChain";
 
 process.env.LC_ALL = "C";
 process.env.LANG = "C";
@@ -166,6 +167,8 @@ export async function startTestDb(port: number, dirName: string): Promise<TestDb
   ]) {
     await su.query(readMig(f));
   }
+  // ÜYE YÖNETİMİ 360° — Usage360 rollup + audit v2 + 20271006000000 (liste RPC 15 arg, fiyat dönemleri).
+  await applyMember360Chain(su);
   await su.query(`grant select, insert, update on public.users, public.tenants, public.user_sessions, public.user_payment_history,
                     public.yasam_hafizasi_flags, public.yasam_hafizasi_index, public.stone_exclusions,
                     public.clients to service_role;

@@ -64,6 +64,9 @@ export const ADMIN_AUDIT_ACTIONS = [
   "admin_web_login_denied",
   "admin_mobile_login_rejected",
   "own_session_terminated",
+  // ÜYE YÖNETİMİ 360° — ⚠️ 20271006000000_admin_member360_commercial.sql CHECK süperseti ile BİREBİR.
+  // Yalnız SQL RPC (admin_pricing_phase_save/delete) yazar; context = {op, phase_id, fields} (değer YOK).
+  "pricing_phase_changed",
 ] as const;
 
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];

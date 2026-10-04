@@ -142,7 +142,11 @@
     "uye-yonetimi:faz2:unit": "tsx scripts/uye-yonetimi-faz2/unit.harness.ts",
     "uye-yonetimi:faz2:integration": "tsx scripts/uye-yonetimi-faz2/phase2-integration.harness.ts",
     "uye-yonetimi:faz2:hub": "tsx scripts/uye-yonetimi-faz2/hub-visibility.harness.ts",
-    "uye-yonetimi:faz2:check": "tsx scripts/uye-yonetimi-faz2/unit.harness.ts && tsx scripts/uye-yonetimi-faz2/hub-visibility.harness.ts && tsx scripts/uye-yonetimi-faz2/phase2-integration.harness.ts"
+    "uye-yonetimi:faz2:check": "tsx scripts/uye-yonetimi-faz2/unit.harness.ts && tsx scripts/uye-yonetimi-faz2/hub-visibility.harness.ts && tsx scripts/uye-yonetimi-faz2/phase2-integration.harness.ts",
+    "uye-yonetimi:360:unit": "tsx scripts/uye-yonetimi-360/unit.harness.ts",
+    "uye-yonetimi:360:db": "tsx scripts/uye-yonetimi-360/db.harness.ts",
+    "uye-yonetimi:360:routes": "tsx scripts/uye-yonetimi-360/route-integration.harness.ts",
+    "uye-yonetimi:360:check": "tsx scripts/uye-yonetimi-360/unit.harness.ts && tsx scripts/uye-yonetimi-360/db.harness.ts && tsx scripts/uye-yonetimi-360/route-integration.harness.ts"
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",

@@ -5,7 +5,7 @@ import { requireMainAdmin } from "@/lib/admin/adminGuards";
 import { readLimitedJsonBody } from "@/lib/admin/accountSessionControls";
 import { buildPremiumMembershipPayload } from "@/lib/auth/membership";
 import { ADMIN_MODULE_ALIAS_KEYS, validateApprovalModules } from "@/lib/admin/userManagement";
-import { parseMemberCounts, parseMemberListQuery, roleMatchFromQuery } from "@/lib/admin/memberListQuery";
+import { moduleFilterDbKeys, parseMemberCounts, parseMemberListQuery, roleMatchFromQuery } from "@/lib/admin/memberListQuery";
 import { newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
 import { rpcErrorStatus } from "@/lib/admin/memberRequestValidation";
 
@@ -19,8 +19,14 @@ function bad(error: string, status = 400) {
 
 /**
  * GET /api/admin/users — SUNUCU TARAFI liste (MEM-016).
- * Query: view(members|archive) · q · approval · active · role · payment · due(all|overdue|due30|no_date)
- *        · sort(default|next_payment_asc|next_payment_desc) · page · pageSize(10|20|50)
+ * Query: view(members|archive) · q · approval · active · role · payment
+ *        · due(all|overdue|due30|no_date|d0_7|d8_30|d31_60|d61_90|d90p)
+ *        · activity(all|today|d7|d30|idle30|idle60|idle90|unmeasured) · module(<canonical modül>) · security(all|alert)
+ *        · sort(default|next_payment_asc|next_payment_desc|activity_desc|activity_asc|d7_desc|d30_desc|created_desc|name_asc)
+ *        · page · pageSize(10|20|50)
+ * - 360° (20271006000000): aktivite Usage360 rollup'ından (usage_daily) SUNUCUDA hesaplanır; satırlara
+ *   last_activity / d7 / d30 / activity_state eklenir + `measurement` (ölçüm başlangıcı). Tarayıcıya tüm
+ *   üyeler çekilmez; filtre + sıralama + sayfalama tek RPC'de.
  * - Arama: ad + e-posta (Türkçe katlamalı, DB public.admin_search_fold) + rol kelimesi ("uzman",
  *   "yönetici"/"admin"). Filtreler + sayfalama + toplam aynı sorguda; sayaçlar GLOBAL.
  * - "members" görünümü arşivi (onaylı + pasif uzman) HARİÇ tutar; "archive" yalnız onları döner.
@@ -48,11 +54,15 @@ export async function GET(req: NextRequest) {
     // M4 (20271001000300): yenileme filtresi + sıralama — değerler parseMemberListQuery allowlist'inden.
     p_due: q.due,
     p_sort: q.sort,
+    // 360° (20271006000000) — varsayılanlı yeni parametreler; değerler allowlist'ten.
+    p_activity: q.activity,
+    p_module_keys: moduleFilterDbKeys(q.module),
+    p_security: q.security,
   });
   if (error) {
     return bad(rpcErrorStatus(error) === 400 ? "Geçersiz filtre." : "Üye listesi okunamadı.", rpcErrorStatus(error) === 400 ? 400 : 500);
   }
-  const result = (data ?? {}) as { total?: unknown; rows?: unknown; counts?: unknown };
+  const result = (data ?? {}) as { total?: unknown; rows?: unknown; counts?: unknown; measurement?: unknown };
   const users = Array.isArray(result.rows) ? (result.rows as Record<string, unknown>[]) : [];
   const total = Math.max(0, Math.trunc(Number(result.total) || 0));
 
@@ -76,6 +86,7 @@ export async function GET(req: NextRequest) {
       page: q.page,
       pageSize: q.pageSize,
       counts: parseMemberCounts(result.counts),
+      measurement: result.measurement ?? null,
       suspiciousCounts,
     },
     { headers: NO_STORE },

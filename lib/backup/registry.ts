@@ -429,6 +429,7 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("security_events", "system", "Güvenlik olay günlüğü.", "none"),
   off("appointment_notification_states", "system", "Randevu bildirimi görünürlük tercihi (Tamamlandı/Tekrar gösterme) — kullanıcı arayüz durumu.", "none"),
   off("user_payment_history", "system", "Ödeme geçmişi (yönetici kaydı).", "none"),
+  off("member_pricing_phases", "system", "Üye ticari fiyat dönemleri (yönetici kaydı; yalnız RPC).", "none"),
   off("admin_audit_log", "system", "Yönetici denetim günlüğü.", "none"),
   off("admin_library_transfer_batches", "system", "Yönetici kütüphane aktarım kayıtları.", "none"),
   off("provisioning_events", "system", "Hesap açma olayları.", "none"),

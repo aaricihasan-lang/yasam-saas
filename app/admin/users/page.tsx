@@ -17,12 +17,14 @@ import {
   RotateCcw,
   Search,
   Shield,
+  SlidersHorizontal,
   Users,
 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   ADMIN_MODULE_KIND,
   ADMIN_MODULE_UI_LABELS,
+  enabledAccessModules,
   formatCreatedAt,
   formatDateTimeTr,
   mapDbUser,
@@ -32,6 +34,7 @@ import {
 } from "@/lib/admin/userManagement";
 import {
   DEFAULT_MEMBER_LIST_QUERY,
+  MEMBER_FILTER_MODULE_KEYS,
   MEMBER_LIST_RETURN_KEY,
   MEMBER_PAGE_SIZES,
   memberListQueryToSearch,
@@ -42,6 +45,15 @@ import {
 } from "@/lib/admin/memberListQuery";
 import { classifyFetchFailure, FETCH_FAILURE_COPY, type FetchFailureKind } from "@/lib/admin/fetchState";
 import { istanbulTodayIso, renewalBadgeLabel, renewalState } from "@/lib/admin/memberCommercial";
+import {
+  activitySummaryLabel,
+  attentionReasons,
+  parseMeasurement,
+  parseMemberActivity,
+  type MemberActivity,
+  type MemberMeasurement,
+} from "@/lib/admin/member360";
+import { MemberOverviewPanel, OVERVIEW_TARGET_QUERY } from "@/components/admin/members/MemberOverviewPanel";
 import { PASSWORD_HINT, newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
 import PasswordInput from "@/components/ui/PasswordInput";
 import {
@@ -72,18 +84,46 @@ const ROLE_OPTIONS: { key: MemberListQuery["role"]; label: string }[] = [
   { key: "expert", label: "Uzman" },
   { key: "admin", label: "Yönetici" },
 ];
-// M4 — yenileme (sonraki ödeme) filtresi: yalnız onaylı + aktif + ödemeden muaf olmayan uzmanlar.
+// Ödeme / yenileme zamanı: yalnız onaylı + aktif + ödemeden muaf olmayan uzmanlar (sunucu filtresi).
 const DUE_OPTIONS: { key: MemberListQuery["due"]; label: string }[] = [
   { key: "all", label: "Tümü" },
   { key: "overdue", label: "Gecikmiş" },
+  { key: "d0_7", label: "0–7 gün" },
+  { key: "d8_30", label: "8–30 gün" },
   { key: "due30", label: "30 gün içinde" },
+  { key: "d31_60", label: "31–60 gün" },
+  { key: "d61_90", label: "61–90 gün" },
+  { key: "d90p", label: "90+ gün" },
   { key: "no_date", label: "Tarih yok" },
+];
+// Aktivite: Usage360 gerçek etkileşim (teknik "son görülme" DEĞİL); yalnız demo olmayan uzmanlar.
+const ACTIVITY_OPTIONS: { key: MemberListQuery["activity"]; label: string }[] = [
+  { key: "all", label: "Tümü" },
+  { key: "today", label: "Bugün" },
+  { key: "d7", label: "Son 7 gün" },
+  { key: "d30", label: "Son 30 gün" },
+  { key: "idle30", label: "30+ gün yok" },
+  { key: "idle60", label: "60+ gün yok" },
+  { key: "idle90", label: "90+ gün yok" },
+  { key: "unmeasured", label: "Ölçülemiyor" },
+];
+const SECURITY_OPTIONS: { key: MemberListQuery["security"]; label: string }[] = [
+  { key: "all", label: "Tümü" },
+  { key: "alert", label: "Uyarısı olan" },
 ];
 const SORT_OPTIONS: { key: MemberListQuery["sort"]; label: string }[] = [
   { key: "default", label: "Varsayılan" },
-  { key: "next_payment_asc", label: "Sonraki ödeme ↑" },
-  { key: "next_payment_desc", label: "Sonraki ödeme ↓" },
+  { key: "activity_desc", label: "Son aktivite: en yeni" },
+  { key: "activity_asc", label: "Son aktivite: en eski" },
+  { key: "d7_desc", label: "7g aktif gün" },
+  { key: "d30_desc", label: "30g aktif gün" },
+  { key: "next_payment_asc", label: "Sonraki ödeme: en yakın" },
+  { key: "next_payment_desc", label: "Sonraki ödeme: en uzak" },
+  { key: "created_desc", label: "Kayıt tarihi" },
+  { key: "name_asc", label: "A–Z" },
 ];
+/** Sayaç kartları bir grubu tam gösterir → 360° filtreleri de sıfırlanır. */
+const RESET_360 = { activity: "all", module: "all", security: "all" } as const;
 const PAYMENT_OPTIONS: { key: MemberListQuery["payment"]; label: string }[] = [
   { key: "all", label: "Tümü" },
   { key: "pending", label: "Ödeme Bekliyor" },
@@ -130,6 +170,9 @@ function FilterPillRow<T extends string>({
 }
 
 const panelClass = "rounded-2xl border border-white/80 bg-white/90 p-4 shadow-md backdrop-blur-sm sm:p-6";
+const EMPTY_ACTIVITY: MemberActivity = {
+  state: null, isDemo: false, lastActivityAt: null, daysSince: null, idleLowerBound: null, d7ActiveDays: null, d30ActiveDays: null,
+};
 const inputClass =
   "mt-2 h-12 w-full rounded-2xl border-2 border-indigo-100 bg-white px-4 text-base font-semibold text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100";
 const labelClass = "block text-sm font-black text-slate-700";
@@ -268,12 +311,102 @@ function RenewalInfo({ user, todayIso }: { user: ManagedUser; todayIso: string }
   );
 }
 
-function CompactUserRow({
+/**
+ * 360° satır metrikleri (yalnız uzman). Opak skor YOK: son gerçek aktivite, 7/30 gün aktif gün,
+ * açık gerçek modül sayısı ve açık "Dikkat" nedenleri. Ölçüm yetersizse açıkça yazılır.
+ */
+function MemberRowInsights({
   user,
+  activity,
+  measurement,
   suspiciousCount,
   todayIso,
 }: {
   user: ManagedUser;
+  activity: MemberActivity;
+  measurement: MemberMeasurement | null;
+  suspiciousCount: number;
+  todayIso: string;
+}) {
+  if (user.role !== "expert") return null;
+  const reasons = attentionReasons({
+    role: user.role,
+    approvalStatus: user.approvalStatus,
+    active: user.active,
+    paymentStatus: user.payment.status,
+    nextPaymentDate: user.payment.nextPaymentAt,
+    activity,
+    securityAlerts: suspiciousCount,
+    todayIso,
+  });
+  const moduleCount = enabledAccessModules(user.modulePermissions).length;
+  const measured = measurement?.measuredDays ?? null;
+  const tracked = activity.state !== null;
+  const partial30 = measured !== null && measured < 30;
+  const partial7 = measured !== null && measured < 7;
+  return (
+    <div className="mt-2 space-y-1.5">
+      <dl className="flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-slate-600">
+        {tracked ? (
+          <>
+            <div className="min-w-0">
+              <dt className="sr-only">Son gerçek aktivite</dt>
+              <dd className={activity.daysSince === null ? "text-slate-500" : "font-black text-slate-800"}>
+                {activitySummaryLabel(activity)}
+              </dd>
+            </div>
+            {measured !== null ? (
+              <>
+                <div>
+                  <dt className="inline">7g: </dt>
+                  <dd className="inline font-black tabular-nums text-slate-800">{activity.d7ActiveDays ?? 0} gün</dd>
+                  {partial7 ? <span className="text-slate-400"> (kısmi)</span> : null}
+                </div>
+                <div>
+                  <dt className="inline">30g: </dt>
+                  <dd className="inline font-black tabular-nums text-slate-800">{activity.d30ActiveDays ?? 0} gün</dd>
+                  {partial30 ? <span className="text-slate-400"> (kısmi)</span> : null}
+                </div>
+              </>
+            ) : null}
+          </>
+        ) : activity.isDemo ? (
+          <div><dd className="text-slate-500">Demo hesap · kullanım ölçülmez</dd></div>
+        ) : null}
+        <div>
+          <dt className="inline">Modül: </dt>
+          <dd className="inline font-black tabular-nums text-slate-800">{moduleCount}</dd>
+        </div>
+      </dl>
+      {reasons.length > 0 ? (
+        <p className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <span className="text-[10px] font-black uppercase tracking-wide text-slate-500">Dikkat</span>
+          {reasons.map((r) => (
+            <span
+              key={r.kind}
+              className={`rounded-full px-2 py-0.5 text-[10.5px] font-black ring-1 ${
+                r.tone === "rose" ? "bg-rose-100 text-rose-900 ring-rose-300" : "bg-amber-100 text-amber-900 ring-amber-300"
+              }`}
+            >
+              {r.text}
+            </span>
+          ))}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function CompactUserRow({
+  user,
+  activity,
+  measurement,
+  suspiciousCount,
+  todayIso,
+}: {
+  user: ManagedUser;
+  activity: MemberActivity;
+  measurement: MemberMeasurement | null;
   suspiciousCount: number;
   todayIso: string;
 }) {
@@ -311,6 +444,7 @@ function CompactUserRow({
           {user.licenseSettings.securityExempt ? <SecurityExemptBadge /> : null}
         </div>
         <RenewalInfo user={user} todayIso={todayIso} />
+        <MemberRowInsights user={user} activity={activity} measurement={measurement} suspiciousCount={suspiciousCount} todayIso={todayIso} />
         <p className="mt-2 text-xs font-semibold text-slate-500">Kayıt: {formatCreatedAt(user.createdAt)}</p>
       </div>
       <Link
@@ -398,7 +532,14 @@ function adminHeaders(adminId: string, json = false): Record<string, string> {
 
 type ListState =
   | { kind: "loading" }
-  | { kind: "ready"; users: ManagedUser[]; total: number; suspicious: Record<string, number> }
+  | {
+      kind: "ready";
+      users: ManagedUser[];
+      activity: Record<string, MemberActivity>;
+      measurement: MemberMeasurement | null;
+      total: number;
+      suspicious: Record<string, number>;
+    }
   | { kind: "error"; failure: FetchFailureKind };
 
 type ArchiveState =
@@ -533,12 +674,16 @@ function AdminUsersContent() {
           users?: Record<string, unknown>[];
           total?: number;
           counts?: unknown;
+          measurement?: unknown;
           suspiciousCounts?: Record<string, number>;
         };
         setCounts(parseMemberCounts(json.counts));
+        const rows = json.users ?? [];
         setList({
           kind: "ready",
-          users: (json.users ?? []).map((row) => mapDbUser(row)),
+          users: rows.map((row) => mapDbUser(row)),
+          activity: Object.fromEntries(rows.map((row) => [String(row.id ?? ""), parseMemberActivity(row)])),
+          measurement: json.measurement ? parseMeasurement(json.measurement) : null,
           total: Math.max(0, Number(json.total) || 0),
           suspicious: json.suspiciousCounts ?? {},
         });
@@ -583,7 +728,9 @@ function AdminUsersContent() {
     if (query.page > lastPage) setQuery({ page: lastPage }, "replace");
   }, [listTotal, query.page, query.pageSize, setQuery]);
 
-  const activeFilterCount = [query.approval, query.active, query.role, query.payment, query.due].filter((v) => v !== "all").length;
+  const activeFilterCount = [query.approval, query.active, query.role, query.payment, query.due, query.activity, query.module, query.security]
+    .filter((v) => v !== "all").length;
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const formHasModule = useMemo(() => [...formModules].some((k) => ADMIN_MODULE_KIND[k] === "module"), [formModules]);
 
   async function reactivateUser(target: ManagedUser) {
@@ -719,27 +866,37 @@ function AdminUsersContent() {
         <section aria-label="Üye sayıları" className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6 sm:gap-3">
           <CountCard label="Toplam Uzman" value={counts?.experts_total ?? null} tone="violet"
             active={!isArchive && query.role === "expert" && query.approval === "all" && query.active === "all"}
-            onClick={() => navigate({ view: "members", role: "expert", approval: "all", active: "all", payment: "all", due: "all", page: 1 })} />
+            onClick={() => navigate({ view: "members", role: "expert", approval: "all", active: "all", payment: "all", due: "all", ...RESET_360, page: 1 })} />
           <CountCard label="Onay Bekleyen" value={counts?.pending ?? null} tone="amber"
             active={!isArchive && query.approval === "pending"}
-            onClick={() => navigate({ view: "members", role: "expert", approval: "pending", active: "all", payment: "all", due: "all", page: 1 })} />
+            onClick={() => navigate({ view: "members", role: "expert", approval: "pending", active: "all", payment: "all", due: "all", ...RESET_360, page: 1 })} />
           <CountCard label="Onaylı · Aktif" value={counts?.approved_active ?? null} tone="emerald"
             active={!isArchive && query.approval === "approved" && query.active === "active"}
-            onClick={() => navigate({ view: "members", role: "expert", approval: "approved", active: "active", payment: "all", due: "all", page: 1 })} />
+            onClick={() => navigate({ view: "members", role: "expert", approval: "approved", active: "active", payment: "all", due: "all", ...RESET_360, page: 1 })} />
           <CountCard label="Arşiv" hint="Onaylı · Pasif" value={counts?.archived ?? null} tone="slate"
             active={isArchive}
             onClick={() => navigate({ ...DEFAULT_MEMBER_LIST_QUERY, view: "archive" })} />
           <CountCard label="Reddedilen" value={counts?.rejected ?? null} tone="rose"
             active={!isArchive && query.approval === "rejected"}
-            onClick={() => navigate({ view: "members", role: "expert", approval: "rejected", active: "all", payment: "all", due: "all", page: 1 })} />
+            onClick={() => navigate({ view: "members", role: "expert", approval: "rejected", active: "all", payment: "all", due: "all", ...RESET_360, page: 1 })} />
           <CountCard label="Yönetici" value={counts?.admins ?? null} tone="sky"
             active={!isArchive && query.role === "admin"}
-            onClick={() => navigate({ view: "members", role: "admin", approval: "all", active: "all", payment: "all", due: "all", page: 1 })} />
+            onClick={() => navigate({ view: "members", role: "admin", approval: "all", active: "all", payment: "all", due: "all", ...RESET_360, page: 1 })} />
         </section>
         <p className="mb-5 text-[11px] font-semibold text-slate-500">
           Her uzman yalnızca bir gruptadır: Onay Bekleyen + Onaylı · Aktif + Arşiv + Reddedilen = Toplam Uzman.
           Yöneticiler ayrı sayılır.
         </p>
+
+        <MemberOverviewPanel
+          adminId={currentUserId}
+          reloadKey={reloadTick}
+          query={query}
+          onSelect={(target) => {
+            setSearchText("");
+            navigate({ ...DEFAULT_MEMBER_LIST_QUERY, pageSize: query.pageSize, ...OVERVIEW_TARGET_QUERY[target] });
+          }}
+        />
 
         <div className="mb-5 flex flex-wrap gap-2" role="tablist" aria-label="Görünüm">
           <button type="button" role="tab" aria-selected={!isArchive}
@@ -858,7 +1015,20 @@ function AdminUsersContent() {
                   placeholder="Ad, e-posta veya rol (ör. uzman, yönetici) ara…"
                   className="h-12 w-full rounded-2xl border-2 border-indigo-100 bg-white py-3 pl-12 pr-4 text-base font-semibold outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100" />
               </label>
-              <div className="mt-3 space-y-2.5">
+              <button
+                type="button"
+                onClick={() => setFiltersOpen((o) => !o)}
+                aria-expanded={filtersOpen}
+                aria-controls="member-filter-rows"
+                className="mt-3 inline-flex h-10 w-full items-center justify-between gap-2 rounded-xl border-2 border-slate-200 bg-white px-3 text-sm font-black text-slate-800 sm:hidden"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <SlidersHorizontal className="h-4 w-4" aria-hidden />
+                  Filtreler{activeFilterCount > 0 ? ` · ${activeFilterCount} aktif` : ""}
+                </span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${filtersOpen ? "rotate-180" : ""}`} aria-hidden />
+              </button>
+              <div id="member-filter-rows" className={`mt-3 space-y-2.5 ${filtersOpen ? "" : "hidden"} sm:block`}>
                 <FilterPillRow label="Onay Durumu" options={APPROVAL_OPTIONS} value={query.approval}
                   onSelect={(approval) => navigate({ approval, page: 1 })} />
                 <FilterPillRow label="Hesap Durumu" options={ACTIVE_OPTIONS} value={query.active}
@@ -867,7 +1037,7 @@ function AdminUsersContent() {
                   onSelect={(role) => navigate({ role, page: 1 })} />
                 <FilterPillRow label="Ödeme" options={PAYMENT_OPTIONS} value={query.payment}
                   onSelect={(payment) => navigate({ payment, page: 1 })} />
-                <FilterPillRow label="Yenileme"
+                <FilterPillRow label="Ödeme Zamanı"
                   options={DUE_OPTIONS.map((o) =>
                     o.key === "overdue" && counts
                       ? { ...o, label: `${o.label} (${counts.renewal_overdue})` }
@@ -877,6 +1047,27 @@ function AdminUsersContent() {
                   )}
                   value={query.due}
                   onSelect={(due) => navigate({ due, page: 1 })} />
+                <FilterPillRow label="Aktivite" options={ACTIVITY_OPTIONS} value={query.activity}
+                  onSelect={(activity) => navigate({ activity, page: 1 })} />
+                <FilterPillRow label="Güvenlik" options={SECURITY_OPTIONS} value={query.security}
+                  onSelect={(security) => navigate({ security, page: 1 })} />
+                <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+                  <label htmlFor="member-module" className="text-[11px] font-black uppercase tracking-wide text-slate-500 sm:w-28 sm:shrink-0">
+                    Modül
+                  </label>
+                  <select id="member-module" value={query.module}
+                    onChange={(e) => navigate({ module: e.target.value as MemberListQuery["module"], page: 1 })}
+                    className="h-10 w-full rounded-xl border-2 border-slate-200 bg-white px-2 text-sm font-bold sm:max-w-xs">
+                    <option value="all">Tüm modüller</option>
+                    {MEMBER_FILTER_MODULE_KEYS.map((k) => (
+                      <option key={k} value={k}>{ADMIN_MODULE_UI_LABELS[k]} erişimi olan</option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-[11px] font-semibold text-slate-500">
+                  Aktivite = gerçek kullanım etkileşimi (oturumun açık kalması sayılmaz). Ödeme zamanı ve aktivite
+                  filtreleri yalnız onaylı uzmanlara uygulanır; demo hesap ölçülmez.
+                </p>
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                   <span className="text-xs font-bold text-slate-500">
                     {activeFilterCount > 0 ? `${activeFilterCount} filtre aktif` : "Filtre yok"} · Arşivdeki uzmanlar “Arşiv” sekmesindedir.
@@ -906,7 +1097,7 @@ function AdminUsersContent() {
                 Sıralama
                 <select id="member-sort" value={query.sort}
                   onChange={(e) => navigate({ sort: e.target.value as MemberListQuery["sort"], page: 1 })}
-                  className="h-9 max-w-[11rem] rounded-xl border-2 border-slate-200 bg-white px-2 text-sm font-bold">
+                  className="h-9 max-w-[13rem] rounded-xl border-2 border-slate-200 bg-white px-2 text-sm font-bold">
                   {SORT_OPTIONS.map((o) => (
                     <option key={o.key} value={o.key}>{o.label}</option>
                   ))}
@@ -941,7 +1132,8 @@ function AdminUsersContent() {
             ) : (
               <div className="grid gap-3">
                 {list.users.map((user) => (
-                  <CompactUserRow key={user.id} user={user} suspiciousCount={list.suspicious[user.id] ?? 0} todayIso={todayIso} />
+                  <CompactUserRow key={user.id} user={user} suspiciousCount={list.suspicious[user.id] ?? 0} todayIso={todayIso}
+                    activity={list.activity[user.id] ?? EMPTY_ACTIVITY} measurement={list.measurement} />
                 ))}
               </div>
             )}

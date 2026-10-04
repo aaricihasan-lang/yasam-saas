@@ -22,6 +22,7 @@ import os from "node:os";
 import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import { startPgrestShim } from "./pgrestShim";
+import { applyMember360Chain } from "../uye-yonetimi-360/migrationChain";
 
 process.env.LC_ALL = "C";
 process.env.LANG = "C";
@@ -132,6 +133,8 @@ async function main(): Promise<void> {
     // AŞAMA 2 · M4 — iki kez uygulanır (idempotent olmalı).
     await su.query(readMig("20271001000300_admin_member_commercial.sql"));
     await su.query(readMig("20271001000300_admin_member_commercial.sql"));
+    // ÜYE YÖNETİMİ 360° — liste route'u 15 argümanlı RPC'yi çağırır (migration FIRST); Usage360 önkoşulları ile.
+    await applyMember360Chain(su);
     await su.query(`grant select, insert, update on public.users, public.user_sessions, public.user_payment_history, public.yasam_hafizasi_flags to service_role;
                     grant select on public.security_events to service_role;
                     grant execute on function public.verify_admin_login(text, text), public.hash_password(text) to service_role;`);
@@ -793,10 +796,11 @@ async function main(): Promise<void> {
     const legacyCall = (await su.query(`select public.admin_list_users(p_q => '', p_role_match => null, p_view => 'members', p_approval => 'all',
         p_active => 'all', p_role => 'all', p_payment => 'all', p_limit => 5, p_offset => 0) r`)).rows[0].r;
     ok(typeof legacyCall.total === "number", "eski 9 adlı argümanla çağrı (geriye uyumlu varsayılanlar) çalışır");
+    // 20271006000000 (360°) 11-arg imzayı 15-arg (varsayılanlı) imza ile DEĞİŞTİRİR → ACL yeni imzada doğrulanır.
     const fnAcl = (await su.query(`select
-        has_function_privilege('anon','public.admin_list_users(text,text,text,text,text,text,text,integer,integer,text,text)','EXECUTE') a,
-        has_function_privilege('authenticated','public.admin_list_users(text,text,text,text,text,text,text,integer,integer,text,text)','EXECUTE') b,
-        has_function_privilege('service_role','public.admin_list_users(text,text,text,text,text,text,text,integer,integer,text,text)','EXECUTE') c,
+        has_function_privilege('anon','public.admin_list_users(text,text,text,text,text,text,text,integer,integer,text,text,text,text[],text,date)','EXECUTE') a,
+        has_function_privilege('authenticated','public.admin_list_users(text,text,text,text,text,text,text,integer,integer,text,text,text,text[],text,date)','EXECUTE') b,
+        has_function_privilege('service_role','public.admin_list_users(text,text,text,text,text,text,text,integer,integer,text,text,text,text[],text,date)','EXECUTE') c,
         (select count(*)::int from pg_proc where proname='admin_list_users') n,
         has_column_privilege('anon','public.users','agreed_fee','SELECT') ca`)).rows[0];
     ok(!fnAcl.a && !fnAcl.b && fnAcl.c && fnAcl.n === 1 && !fnAcl.ca, "ACL: yalnız service_role EXECUTE, tek imza, anon kolon erişimi yok");

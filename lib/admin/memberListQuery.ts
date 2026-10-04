@@ -5,7 +5,10 @@
  *   İ/I/ı → i, Ş/ş → s, Ğ/ğ → g, Ü/ü → u, Ö/ö → o, Ç/ç → c, Â/Î/Û → a/i/u, sonra küçük harf.
  * - Rol araması: "uzman"/"expert" veya "yönetici"/"admin" (≥3 harf önek) → rol eşleşmesi.
  * - URL ↔ filtre: parseMemberListQuery / memberListQueryToSearch (bilinmeyen değer → hata).
+ * - 360° (20271006000000): aktivite (Usage360 rollup), ödeme kovası, modül, güvenlik filtresi +
+ *   yeni sıralamalar. Hepsi SUNUCU tarafında (admin_list_users) uygulanır.
  */
+import { ADMIN_MODULE_KIND, ADMIN_MODULE_UI_KEYS, adminModuleAliasKeys, type AdminModuleUiKey } from "@/lib/admin/userManagement";
 
 export const MEMBER_PAGE_SIZES = [10, 20, 50] as const;
 export type MemberPageSize = (typeof MEMBER_PAGE_SIZES)[number];
@@ -17,10 +20,24 @@ export type MemberApprovalFilter = "all" | "pending" | "approved" | "rejected";
 export type MemberActiveFilter = "all" | "active" | "passive";
 export type MemberRoleFilter = "all" | "admin" | "expert";
 export type MemberPaymentFilter = "all" | "paid" | "pending" | "overdue" | "exempt";
-/** M4 — yenileme (sonraki ödeme) filtresi: yalnız onaylı + aktif + muaf olmayan uzmanlar. */
-export type MemberDueFilter = "all" | "overdue" | "due30" | "no_date";
-/** M4 — sıralama: varsayılan (onay grubu → kayıt tarihi) veya sonraki ödeme tarihi. */
-export type MemberSort = "default" | "next_payment_asc" | "next_payment_desc";
+/**
+ * Yenileme (sonraki ödeme) filtresi: yalnız onaylı + aktif + muaf olmayan uzmanlar.
+ * M4: overdue | due30 (0–30 gün) | no_date · 360°: kovalar d0_7 | d8_30 | d31_60 | d61_90 | d90p (>90).
+ */
+export type MemberDueFilter =
+  | "all" | "overdue" | "due30" | "no_date" | "d0_7" | "d8_30" | "d31_60" | "d61_90" | "d90p";
+/** Sıralama: varsayılan (onay grubu → kayıt tarihi), ödeme, aktivite, kayıt, A–Z. */
+export type MemberSort =
+  | "default" | "next_payment_asc" | "next_payment_desc" | "activity_desc" | "activity_asc"
+  | "d7_desc" | "d30_desc" | "created_desc" | "name_asc";
+/**
+ * Aktivite (Usage360 gerçek etkileşim; yalnız demo olmayan uzmanlar):
+ * today · d7 (son 7 gün, bugün dahil) · d30 · idle30/60/90 (N+ gündür yok) · unmeasured.
+ */
+export type MemberActivityFilter = "all" | "today" | "d7" | "d30" | "idle30" | "idle60" | "idle90" | "unmeasured";
+/** Gerçek erişim açan (kind=module) canonical modül anahtarları — hub (digital_content) hariç. */
+export type MemberModuleFilter = "all" | AdminModuleUiKey;
+export type MemberSecurityFilter = "all" | "alert";
 
 export type MemberListQuery = {
   view: MemberView;
@@ -31,6 +48,9 @@ export type MemberListQuery = {
   payment: MemberPaymentFilter;
   due: MemberDueFilter;
   sort: MemberSort;
+  activity: MemberActivityFilter;
+  module: MemberModuleFilter;
+  security: MemberSecurityFilter;
   page: number;
   pageSize: MemberPageSize;
 };
@@ -44,6 +64,9 @@ export const DEFAULT_MEMBER_LIST_QUERY: MemberListQuery = {
   payment: "all",
   due: "all",
   sort: "default",
+  activity: "all",
+  module: "all",
+  security: "all",
   page: 1,
   pageSize: MEMBER_DEFAULT_PAGE_SIZE,
 };
@@ -53,8 +76,27 @@ const APPROVALS: readonly MemberApprovalFilter[] = ["all", "pending", "approved"
 const ACTIVES: readonly MemberActiveFilter[] = ["all", "active", "passive"];
 const ROLES: readonly MemberRoleFilter[] = ["all", "admin", "expert"];
 const PAYMENTS: readonly MemberPaymentFilter[] = ["all", "paid", "pending", "overdue", "exempt"];
-const DUES: readonly MemberDueFilter[] = ["all", "overdue", "due30", "no_date"];
-const SORTS: readonly MemberSort[] = ["default", "next_payment_asc", "next_payment_desc"];
+const DUES: readonly MemberDueFilter[] = ["all", "overdue", "due30", "no_date", "d0_7", "d8_30", "d31_60", "d61_90", "d90p"];
+const SORTS: readonly MemberSort[] = [
+  "default", "next_payment_asc", "next_payment_desc", "activity_desc", "activity_asc",
+  "d7_desc", "d30_desc", "created_desc", "name_asc",
+];
+const ACTIVITIES: readonly MemberActivityFilter[] = ["all", "today", "d7", "d30", "idle30", "idle60", "idle90", "unmeasured"];
+const SECURITIES: readonly MemberSecurityFilter[] = ["all", "alert"];
+/** Modül filtresinde seçilebilen anahtarlar (gerçek modüller; hub hariç). */
+export const MEMBER_FILTER_MODULE_KEYS: readonly AdminModuleUiKey[] = ADMIN_MODULE_UI_KEYS.filter(
+  (k) => ADMIN_MODULE_KIND[k] === "module",
+);
+const MODULES: readonly MemberModuleFilter[] = ["all", ...MEMBER_FILTER_MODULE_KEYS];
+
+/**
+ * Modül filtresi → DB'de aranacak anahtarlar: canonical anahtar + eski TR alias'ları
+ * (parseAdminModulePermissions ile aynı anlam: anahtar VEYA alias'ı `true` ise erişim açık).
+ */
+export function moduleFilterDbKeys(module: MemberModuleFilter): string[] | null {
+  if (module === "all") return null;
+  return [module, ...adminModuleAliasKeys(module)];
+}
 
 const FOLD_FROM = "İIıŞşĞğÜüÖöÇçÂâÎîÛû";
 const FOLD_TO = "iiissgguuooccaaiiuu";
@@ -96,7 +138,10 @@ export function parseMemberListQuery(sp: Search): MemberListQueryResult {
   const payment = pick(sp.get("payment"), PAYMENTS, "all");
   const due = pick(sp.get("due"), DUES, "all");
   const sort = pick(sp.get("sort"), SORTS, "default");
-  if (!view || !approval || !active || !role || !payment || !due || !sort) {
+  const activity = pick(sp.get("activity"), ACTIVITIES, "all");
+  const moduleKey = pick(sp.get("module"), MODULES, "all");
+  const security = pick(sp.get("security"), SECURITIES, "all");
+  if (!view || !approval || !active || !role || !payment || !due || !sort || !activity || !moduleKey || !security) {
     return { ok: false, error: "Geçersiz filtre değeri." };
   }
   const q = (sp.get("q") ?? "").trim();
@@ -107,7 +152,10 @@ export function parseMemberListQuery(sp: Search): MemberListQueryResult {
   const sizeRaw = sp.get("pageSize");
   const pageSize = sizeRaw === null || sizeRaw === "" ? MEMBER_DEFAULT_PAGE_SIZE : Number(sizeRaw);
   if (!(MEMBER_PAGE_SIZES as readonly number[]).includes(pageSize)) return { ok: false, error: "Geçersiz sayfa boyutu." };
-  return { ok: true, value: { view, q, approval, active, role, payment, due, sort, page, pageSize: pageSize as MemberPageSize } };
+  return {
+    ok: true,
+    value: { view, q, approval, active, role, payment, due, sort, activity, module: moduleKey, security, page, pageSize: pageSize as MemberPageSize },
+  };
 }
 
 /** Filtre → query string (varsayılanlar yazılmaz → temiz URL). */
@@ -139,6 +187,9 @@ export function memberListQueryToSearch(q: MemberListQuery): string {
   if (q.payment !== "all") p.set("payment", q.payment);
   if (q.due !== "all") p.set("due", q.due);
   if (q.sort !== "default") p.set("sort", q.sort);
+  if (q.activity !== "all") p.set("activity", q.activity);
+  if (q.module !== "all") p.set("module", q.module);
+  if (q.security !== "all") p.set("security", q.security);
   if (q.page !== 1) p.set("page", String(q.page));
   if (q.pageSize !== MEMBER_DEFAULT_PAGE_SIZE) p.set("pageSize", String(q.pageSize));
   return p.toString();

@@ -9,6 +9,7 @@ import {
   normalizeRole,
 } from "@/lib/auth/yasamUser";
 import { limitFromDb } from "@/lib/admin/licenseLimits";
+import { paymentDayIso } from "@/lib/admin/member360";
 import { resolveMembershipPackageType } from "@/lib/auth/membershipAccessCore";
 import {
   BILLING_PERIOD_LABELS,
@@ -461,6 +462,8 @@ export type PaymentHistoryEntry = {
   status: PaymentStatusUi;
   statusLabel: string;
   paymentDateLabel: string;
+  /** Ham ödeme günü (YYYY-MM-DD) — fiyat dönemi eşlemesi için; yoksa undefined. */
+  paymentDateIso?: string;
   nextPaymentDateLabel: string;
   amountLabel: string;
   agreedFeeLabel: string;
@@ -506,6 +509,7 @@ export function mapPaymentHistoryRow(
     status,
     statusLabel: PAYMENT_STATUS_LABELS[status],
     paymentDateLabel: formatPaymentDate(paymentDate),
+    paymentDateIso: paymentDayIso(paymentDate) ?? undefined,
     nextPaymentDateLabel: formatPaymentDate(nextPaymentDate),
     amountLabel,
     agreedFeeLabel,
