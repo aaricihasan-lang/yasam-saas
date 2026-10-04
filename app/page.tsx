@@ -1,6 +1,13 @@
 "use client";
 
-import { checkPendingLogin, clearPendingLoginToken, loginWithCredentials } from "@/lib/auth/loginUser";
+import {
+  PENDING_LOGIN_STORAGE_KEY,
+  cancelPendingLogin,
+  checkPendingLogin,
+  clearPendingLoginToken,
+  loginWithCredentials,
+  readPendingLogin,
+} from "@/lib/auth/loginUser";
 import PasswordInput from "@/components/ui/PasswordInput";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import {
@@ -1279,6 +1286,8 @@ export default function Home() {
   };
 
   const handleLogin = async () => {
+    // Aynı tarayıcıda bekleyen onay varken yeni giriş başlatılmaz (form zaten kilitli; savunma).
+    if (pendingLogin || readPendingLogin()) return;
     const trimmedEmail = email.trim();
     const trimmedPassword = password.trim();
 
@@ -1338,14 +1347,24 @@ export default function Home() {
     if (!pendingLogin) return;
     let cancelled = false;
     const tick = async () => {
+      // 10 dk dolduysa (veya başka sekme iptal/tamamladıysa) yerel bekleme biter.
+      const stored = readPendingLogin();
+      if (!stored || stored.token !== pendingLogin.token) {
+        setPendingLogin(null);
+        if (!stored && !readSessionToken()) setMessage(t("auth.pendingExpired"));
+        return;
+      }
       const st = await checkPendingLogin(pendingLogin.token);
       if (cancelled || !st || st.state === "pending") return;
-      clearPendingLoginToken();
       setPendingLogin(null);
       if (st.state === "approved") {
+        // Onaylandı → bu sekme girişi tamamlar; bekleyen token ancak SONRA silinir (açık diğer
+        // giriş sekmeleri de onayı görüp kendi başına tamamlar).
         setLoading(true);
         await completeLoginRef.current(st.row, pendingLogin.token, false);
+        clearPendingLoginToken();
       } else {
+        clearPendingLoginToken();
         setMessage(st.state === "denied" ? t("auth.pendingDenied") : t("auth.pendingExpired"));
       }
     };
@@ -1357,6 +1376,36 @@ export default function Home() {
       window.clearInterval(iv);
     };
   }, [pendingLogin]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Yenileme / yeni sekme: geçerli bekleyen token varsa bekleme otomatik sürer. Başka sekme girişi
+  // tamamlarsa (oturum token'ı yazılır) bu sekme yenilenip aynı oturumla açılır.
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  });
+  useEffect(() => {
+    const restore = () => {
+      if (userRef.current || readSessionToken()) return;
+      const p = readPendingLogin();
+      if (!p) {
+        setPendingLogin(null);
+        return;
+      }
+      setAuthModalView("login");
+      setLoginModalOpen(true);
+      setPendingLogin((cur) => (cur && cur.token === p.token ? cur : { token: p.token, expiresAt: p.expiresAt }));
+    };
+    const id = window.setTimeout(restore, 0);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === PENDING_LOGIN_STORAGE_KEY) restore();
+      if (e.key === "yasam_user" && e.newValue && !userRef.current) window.location.reload();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.clearTimeout(id);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
 
   const logout = () => {
     clearYasamUser();
@@ -3835,6 +3884,8 @@ export default function Home() {
               />
             ) : (
               <>
+            {!pendingLogin && (
+            <>
             <div className="relative z-10 mt-5 space-y-3.5">
               <div>
                 <label htmlFor="login-email" className="mb-1.5 block text-sm font-semibold text-slate-700">
@@ -3895,6 +3946,8 @@ export default function Home() {
             >
               {loading ? t("login.submitting") : t("login.submit")}
             </button>
+            </>
+            )}
 
             {pendingLogin && (
               <div
@@ -3906,8 +3959,9 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => {
-                    clearPendingLoginToken();
+                    const tok = pendingLogin.token;
                     setPendingLogin(null);
+                    void cancelPendingLogin(tok);
                   }}
                   className="mt-2 text-xs font-bold text-amber-800 underline underline-offset-2"
                 >

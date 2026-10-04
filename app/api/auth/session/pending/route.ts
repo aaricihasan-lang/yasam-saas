@@ -41,3 +41,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ state: "error" }, { status: 500, headers: NO_STORE });
   }
 }
+
+/**
+ * DELETE /api/auth/session/pending — "Beklemeyi iptal et".
+ * YALNIZ bu token'a ait, hâlâ bekleyen (is_active=false, ended_at NULL) kaydı kapatır → admin web
+ * slotu hemen boşalır. Aktif/onaylanmış oturumlara DOKUNMAZ (onaylanmışsa normal çıkış kullanılır).
+ * İdempotent; her zaman 200 (token varlığı hakkında bilgi sızdırmaz).
+ */
+export async function DELETE(req: NextRequest) {
+  const token = req.headers.get("x-session-token")?.trim() ?? "";
+  if (token) {
+    try {
+      await getServerDb()
+        .from("user_sessions")
+        .update({ ended_at: new Date().toISOString(), end_reason: "pending_cancelled" })
+        .eq("session_token", token)
+        .eq("session_state", "pending_approval")
+        .eq("is_active", false)
+        .is("ended_at", null);
+    } catch {
+      /* iptal istemciyi bloklamaz; bekleyen kayıt 10 dk içinde zaten düşer */
+    }
+  }
+  return NextResponse.json({ ok: true }, { status: 200, headers: NO_STORE });
+}

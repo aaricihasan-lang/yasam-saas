@@ -1,20 +1,45 @@
 import { clearYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { ANDROID_APP_UA_SUFFIX, CLIENT_CHANNEL_HEADER } from "@/lib/auth/clientChannel";
 
-/** Onay bekleyen admin web girişinin token'ı (yalnız durum sorgusu; normal oturum anahtarına YAZILMAZ). */
-const PENDING_TOKEN_KEY = "yasam_pending_session_v1";
+/**
+ * Onay bekleyen admin web girişinin token'ı — YALNIZ durum sorgusu / iptal içindir; normal oturum
+ * anahtarına (yasam_session_token) YAZILMAZ ve hiçbir korumalı uçta geçerli değildir (sunucuda
+ * is_active=false). localStorage'da tutulur: sekmeler arasında paylaşılır ve yenileme sonrası
+ * bekleme devam eder. Bitiş (10 dk) geçince okunurken kendiliğinden silinir.
+ */
+export const PENDING_LOGIN_STORAGE_KEY = "yasam_pending_login_v2";
+const LEGACY_PENDING_KEY = "yasam_pending_session_v1";
+const PENDING_MAX_MS = 10 * 60 * 1000 + 30_000;
 
-export function readPendingLoginToken(): string | null {
+export type StoredPendingLogin = { token: string; expiresAt: string | null };
+
+export function readPendingLogin(): StoredPendingLogin | null {
   try {
-    return sessionStorage.getItem(PENDING_TOKEN_KEY);
+    const raw = localStorage.getItem(PENDING_LOGIN_STORAGE_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as { token?: unknown; expiresAt?: unknown; savedAt?: unknown };
+    const savedAt = Number(p.savedAt);
+    const token = typeof p.token === "string" ? p.token : "";
+    const expiresAt = typeof p.expiresAt === "string" ? p.expiresAt : null;
+    const expMs = expiresAt ? Date.parse(expiresAt) : savedAt + PENDING_MAX_MS;
+    const now = Date.now();
+    if (!token || !Number.isFinite(savedAt) || !Number.isFinite(expMs) || now > expMs || now - savedAt > PENDING_MAX_MS) {
+      localStorage.removeItem(PENDING_LOGIN_STORAGE_KEY);
+      return null;
+    }
+    return { token, expiresAt };
   } catch {
     return null;
   }
 }
 
-export function savePendingLoginToken(token: string): void {
+export function readPendingLoginToken(): string | null {
+  return readPendingLogin()?.token ?? null;
+}
+
+export function savePendingLogin(token: string, expiresAt: string | null): void {
   try {
-    sessionStorage.setItem(PENDING_TOKEN_KEY, token);
+    localStorage.setItem(PENDING_LOGIN_STORAGE_KEY, JSON.stringify({ token, expiresAt, savedAt: Date.now() }));
   } catch {
     /* depolama yoksa bekleme yalnız bu sayfa ömrü boyunca sürer */
   }
@@ -22,10 +47,21 @@ export function savePendingLoginToken(token: string): void {
 
 export function clearPendingLoginToken(): void {
   try {
-    sessionStorage.removeItem(PENDING_TOKEN_KEY);
+    localStorage.removeItem(PENDING_LOGIN_STORAGE_KEY);
+    sessionStorage.removeItem(LEGACY_PENDING_KEY);
   } catch {
     /* sessiz */
   }
+}
+
+/** "Beklemeyi iptal et": sunucudaki bekleyen kaydı kapatır (slotu boşaltır) + yerel token'ı siler. */
+export async function cancelPendingLogin(token: string, fetchImpl: typeof fetch = fetch): Promise<void> {
+  try {
+    await fetchImpl("/api/auth/session/pending", { method: "DELETE", headers: { "x-session-token": token } });
+  } catch {
+    /* ağ hatası: bekleyen kayıt 10 dk içinde zaten düşer */
+  }
+  clearPendingLoginToken();
 }
 
 /** Resmi Android uygulaması (UA soneki) içindeysek giriş isteğine kanal ipucu eklenir. */
@@ -180,7 +216,7 @@ export async function loginWithCredentials(
   };
 
   if (res.status === 202 && json.code === "PENDING_APPROVAL" && typeof json.pendingToken === "string") {
-    savePendingLoginToken(json.pendingToken);
+    savePendingLogin(json.pendingToken, typeof json.pendingExpiresAt === "string" ? json.pendingExpiresAt : null);
     return {
       ok: false,
       status: 202,
