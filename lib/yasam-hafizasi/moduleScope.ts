@@ -28,6 +28,7 @@ export const YH_SOURCE_MODULE_GATES: Readonly<Record<string, readonly ModuleGate
   kisisel_arsiv: ["personal_archive"],
   numeroloji: ["numerology"],
   kupa_hacamat: ["cupping"],
+  beslenme: ["beslenme"],
   // Danışan (client) index — YH_CLIENT_INDEX_SOURCES: danışan yolculuğu verileri
   // app/api/clients (clients kapısı) üzerinden yazılır/okunur.
   danisan_kombinasyon: ["clients"],
@@ -66,4 +67,21 @@ export function isYhSourceModuleInScope(scope: YhModuleScope, sourceModule: unkn
 /** Sonuç listesini aktif kapsama indirger (satır SİLİNMEZ; yalnız sunumdan çıkar). */
 export function filterByYhScope<T extends { module: string }>(scope: YhModuleScope, rows: readonly T[]): T[] {
   return rows.filter((r) => isYhSourceModuleInScope(scope, r.module));
+}
+
+/**
+ * SQL'e (LIMIT'ten ÖNCE) iletilecek modül filtresi: kullanıcının GÜNCEL kapsamı ∩ istenen modüller.
+ *   - admin + istek yok → null (filtre yok; tüm modüller),
+ *   - admin + istek var → istenenler,
+ *   - uzman → `universe` içindeki aktif modüller (∩ istenenler); boş dizi = hiçbir modül.
+ * Böylece kapalı/istenmeyen modül sonuçları ilk N'i doldurup açık modül sonucunu GİZLEYEMEZ.
+ */
+export function yhSqlModuleFilter(
+  scope: YhModuleScope,
+  universe: readonly string[],
+  requested?: readonly string[] | null,
+): string[] | null {
+  const req = requested && requested.length > 0 ? new Set(requested) : null;
+  if (scope.isAdmin) return req ? universe.filter((m) => req.has(m)) : null;
+  return universe.filter((m) => scope.activeSourceModules.has(m) && (req === null || req.has(m)));
 }

@@ -22,6 +22,12 @@
  *     - DELETE                         → yeni iş değil      → NO-OP
  *   Sürüm doğrulanamıyorsa FAIL-SAFE yön NO-OP'tur (loop üretmemek > tek event kaçırmak;
  *   kaçan gerçek enqueue'yu 15dk safety cron zaten toparlar).
+ *
+ * ─── REPLAY SATIRLARI (satış öncesi historical replay) ───
+ *   `record.replay === true` olan satırlar (yh_outbox_replay_enqueue; DB satır işaretleyici yalnız
+ *   replay RPC'sinin transaction'ında true yazar) için Inngest olayı GÖNDERİLMEZ: binlerce replay
+ *   satırı Inngest kotasını tüketmesin. Bunlar admin replay drain'i ile (ve 15dk cron ile) boşaltılır.
+ *   Gerçek CDC olayı her zaman replay=false yazılır → davranışı DEĞİŞMEZ.
  */
 
 import {
@@ -87,6 +93,11 @@ export function decideWebhookAction(payload: unknown): WebhookDecision {
 
   const type = payload.type;
   if (typeof type !== "string") return reject("missing-type");
+
+  // Replay satırı → kontrollü drain boşaltır (yalnız tam `true`; eksik/false → mevcut davranış).
+  if ((type === "INSERT" || type === "UPDATE") && isRecord(payload.record) && payload.record.replay === true) {
+    return { kind: "noop", reason: "replay-row-drain-only" };
+  }
 
   switch (type) {
     case "INSERT":

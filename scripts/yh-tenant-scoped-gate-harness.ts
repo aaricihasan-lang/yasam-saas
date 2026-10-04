@@ -80,12 +80,13 @@ async function main(): Promise<void> {
 
   // ══ B — supportsTenantScopedPage (gerçek kaynaklar) ═════════════════════════
   const symbols = resolveYhSourceConfig("biyoenerji:symbols")!; // clean column
-  const knowledge = resolveYhSourceConfig("dogaltas:knowledge")!; // allowSharedNull
+  const knowledge = resolveYhSourceConfig("dogaltas:knowledge")!; // satış öncesi: tenant-only (shared kaldırıldı)
   const guideSections = resolveYhSourceConfig("sifa_rehberi:guide-sections")!; // join
   const notes = resolveYhSourceConfig("refleksoloji:notes")!; // pii
   const archives = resolveYhSourceConfig("kisisel_arsiv:archives")!; // unclassified
   check(supportsTenantScopedPage(symbols) === true, "B clean-column → destekli");
-  check(supportsTenantScopedPage(knowledge) === false, "B allowSharedNull → desteksiz");
+  check(supportsTenantScopedPage(knowledge) === true, "B knowledge tenant-only (NULL/shared yok) → destekli");
+  check(supportsTenantScopedPage({ ...knowledge, tenant: { mode: "column", column: "tenant_id", allowSharedNull: true } }) === false, "B allowSharedNull (sentetik config) → desteksiz");
   check(supportsTenantScopedPage(guideSections) === false, "B join → desteksiz");
   check(supportsTenantScopedPage(notes) === false, "B pii → desteksiz");
   check(supportsTenantScopedPage(archives) === false, "B unclassified → desteksiz");
@@ -98,7 +99,9 @@ async function main(): Promise<void> {
   fail(evaluateTenantScope(REAL_TENANT, rows(null, [readyExpert])), "tenant-not-found", "C tenant-not-found");
   fail(evaluateTenantScope(REAL_TENANT, rows({ id: REAL_TENANT, status: "passive" }, [readyExpert])), "tenant-inactive", "C tenant-inactive");
   fail(evaluateTenantScope(REAL_TENANT, rows(activeTenant(REAL_TENANT), [])), "tenant-not-ready", "C not-ready no-user");
-  fail(evaluateTenantScope(REAL_TENANT, rows(activeTenant(REAL_TENANT), [adminUser])), "tenant-not-ready", "C not-ready admin-only");
+  // Owner admin + uzman tenant'ı (aktif, demo değil) GERÇEK uzman tenant'ıdır → ok.
+  check(evaluateTenantScope(REAL_TENANT, rows(activeTenant(REAL_TENANT), [adminUser])).ok === true, "C admin-only (aktif, demo değil) → ok");
+  fail(evaluateTenantScope(REAL_TENANT, rows(activeTenant(REAL_TENANT), [{ ...adminUser, active: false }])), "tenant-not-ready", "C pasif admin → not-ready");
   fail(evaluateTenantScope(REAL_TENANT, rows(activeTenant(REAL_TENANT), [pendingExpert])), "tenant-not-ready", "C not-ready pending");
   fail(evaluateTenantScope(REAL_TENANT, rows(activeTenant(REAL_TENANT), [rejectedExpert])), "tenant-not-ready", "C not-ready rejected");
   fail(evaluateTenantScope(REAL_TENANT, rows(activeTenant(REAL_TENANT), [unknownExpert])), "tenant-not-ready", "C not-ready unknown");
@@ -119,10 +122,10 @@ async function main(): Promise<void> {
     check(ev.ok === true, "C multi-ready → tek ok");
   }
   // Kanonik red (status/users fark etmeksizin).
-  check(canonicalTenantRejection(ADMIN_LIBRARY_TENANT_ID) === "tenant-synthetic", "C canonical synthetic");
+  check(canonicalTenantRejection(ADMIN_LIBRARY_TENANT_ID) === null, "C owner tenant artık sentetik DEĞİL → null");
   check(canonicalTenantRejection(YH_DEMO_TENANT_ID) === "tenant-demo", "C canonical demo");
   check(canonicalTenantRejection(REAL_TENANT) === null, "C canonical gerçek → null");
-  fail(evaluateTenantScope(ADMIN_LIBRARY_TENANT_ID, rows(activeTenant(ADMIN_LIBRARY_TENANT_ID), [readyExpert])), "tenant-synthetic", "C synthetic override");
+  check(evaluateTenantScope(ADMIN_LIBRARY_TENANT_ID, rows(activeTenant(ADMIN_LIBRARY_TENANT_ID), [adminUser])).ok === true, "C owner tenant (admin) → ok");
   fail(evaluateTenantScope(YH_DEMO_TENANT_ID, rows(activeTenant(YH_DEMO_TENANT_ID), [readyExpert])), "tenant-demo", "C demo override");
 
   // ══ D — validateScopedTenant (fake reader) ══════════════════════════════════
@@ -143,8 +146,8 @@ async function main(): Promise<void> {
       },
     };
     const r = await validateScopedTenant(ADMIN_LIBRARY_TENANT_ID, spyReader);
-    check(!r.ok && r.code === "tenant-synthetic", "D synthetic kısa-devre");
-    check(called === 0, "D synthetic → reader çağrılmaz");
+    check(r.ok === true, "D owner tenant → normal doğrulama (ok)");
+    check(called === 1, "D owner tenant → reader çağrılır (kısa-devre YOK)");
   }
   {
     const okReader: TenantScopeReader = {

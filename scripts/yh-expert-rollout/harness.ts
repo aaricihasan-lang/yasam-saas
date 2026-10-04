@@ -425,8 +425,8 @@ async function run(): Promise<void> {
     //     (flags parity ile arama da fonksiyonel; izin değeri değiştirilmez).
     add("admin-bypass-even-with-false-perm", hasModulePermissionForProfile({ role: "admin", module_permissions: { yasam_hafizasi: false } }, "yasam_hafizasi") === true, "");
 
-    // (D) Synthetic single-source: yalnız ADMIN_LIBRARY_TENANT_ID synthetic; gerçek tenant değil.
-    add("synthetic-single-source", SYNTHETIC_TENANT_IDS.length === 1 && isSyntheticTenantId(ADMIN_LIBRARY_TENANT_ID) === true, "");
+    // (D) Satış öncesi (2026-10): sentetik liste BOŞ; owner tenant (eski ADMIN_LIBRARY) gerçek uzman tenant'ı.
+    add("synthetic-list-empty-owner-real", SYNTHETIC_TENANT_IDS.length === 0 && isSyntheticTenantId(ADMIN_LIBRARY_TENANT_ID) === false, "");
     add("synthetic-real-tenant-false", isSyntheticTenantId("11111111-1111-4111-1111-111111111111") === false && isSyntheticTenantId(null) === false, "");
 
     // Client processor synthetic exclusion'ı bu TEK KAYNAK helper'ı kullanır (paralel mantık yok).

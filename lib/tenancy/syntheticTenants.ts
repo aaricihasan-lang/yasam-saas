@@ -1,46 +1,50 @@
 /**
- * Yaşam SaaS — Sentetik Tenant Ownership Policy (S2.19-BF / BF-1B-FIX).
+ * Yaşam SaaS — Sentetik Tenant Ownership Policy (S2.19-BF / BF-1B-FIX → YH satış öncesi revizyonu).
  *
  * TEK KAYNAK: Sentetik (gerçek kullanıcıya ait OLMAYAN) tenant kimlikleri yalnız
  * burada tanımlanır. Auth katmanı (`lib/auth/sessionTenant.ts`) ve Yaşam Hafızası™
  * indexer'ı bu modülü kullanır; UUID başka dosyada YENİDEN TANIMLANMAZ.
  *
- * BAĞLAYICI ÜRÜN KURALI (BF-1B):
- *   - `ADMIN_LIBRARY_TENANT_ID` gerçek kullanıcı veya gerçek tenant DEĞİLDİR;
- *     yalnız seed/import/template namespace'idir.
- *   - PROFESSIONAL / MAIN / SHARED Yaşam Hafızası: bu kimliğe bağlı kayıtlar mesleki/paylaşımlı
- *     indexe ALINAMAZ, shared/null'a ÇEVRİLEMEZ, hiçbir kullanıcı retrieval'ında GÖRÜNEMEZ.
- *     Bu yasak `isSyntheticTenantId` ile korunur (professional writer fail-fast reddeder).
- *   - Global/shared admin kütüphanesi ürün modeli YOKTUR.
- *   - TEK DAR İSTİSNA (professional yasağını GEVŞETMEZ): PRIVATE CLIENT MEMORY. Admin kendi
- *     danışan-scoped (tenant+client ownership) gerçek kayıtlarını Danışan Hafızası'nda arayabilir.
- *     Bu istisna BURADA DEĞİL, client processor katmanında explicit ve dar uygulanır
- *     (`lib/yasam-hafizasi/client/clientEventProcessor.ts` → isPrivateClientMemoryAllowedTenant);
- *     `isSyntheticTenantId` semantiği ve `SYNTHETIC_TENANT_IDS` listesi DEĞİŞMEZ.
+ * BAĞLAYICI ÜRÜN KURALI (2026-10-03 revizyonu):
+ *   - `OWNER_TENANT_ID` platform sahibinin (owner admin + uzman) GERÇEK uzman tenant'ıdır.
+ *     Production doğrulaması: bu tenant'a bağlı tek kullanıcı role=admin, admin_level=owner,
+ *     aktif, demo değil. Owner'ın mesleki kayıtları diğer uzmanlarınki gibi YALNIZ kendi
+ *     Mesleki Hafızasında aranır. Eski "seed/import namespace — kullanıcısı yok" varsayımı
+ *     (BF-1B, 2026-07-22) production'da YANLIŞ çıktı ve kaldırıldı.
+ *   - Admin rolü bir veri sahipliği türü DEĞİLDİR; ortak/merkezî mesleki kütüphane ürün
+ *     modeli YOKTUR. Sahiplik = tenant_id.
+ *   - `SYNTHETIC_TENANT_IDS` bugün BOŞTUR. Mekanizma (isSyntheticTenantId + indexer/writer
+ *     dışlama kapıları) gelecekte GERÇEK bir sentetik namespace (kullanıcısız seed/template
+ *     tenant'ı) eklenirse diye korunur; o kimlikler yalnız bu listeye eklenir.
  *
  * SAFLIK SINIRI:
  *   - Bu modülün HİÇBİR import'u yoktur; client ve server tarafında güvenle
  *     import edilebilir. Secret / runtime env / IO içermez.
  *   - Karşılaştırma AÇIK ve deterministik exact-match'tir; trim/lowercase gibi
- *     gizli normalizasyon YAPILMAZ (belirsiz kimlik sentetik SAYILMAZ; onun
- *     fail-closed değerlendirmesi çağıran katmanların sözleşmesine aittir).
+ *     gizli normalizasyon YAPILMAZ.
  */
 
-/** Admin kütüphane / toplu import varsayılan tenant (yalnızca seed/import kaynağı). */
-export const ADMIN_LIBRARY_TENANT_ID = "aa8b960b-f4f1-4e5b-89f5-109bc030c147";
+/** Platform sahibinin (owner admin + uzman) gerçek uzman tenant'ı. Sentetik DEĞİLDİR. */
+export const OWNER_TENANT_ID = "aa8b960b-f4f1-4e5b-89f5-109bc030c147";
 
 /**
- * Bilinen tüm sentetik tenant kimlikleri (readonly). Yeni bir sentetik namespace
- * eklenirse YALNIZ bu listeye eklenir; tüketen katmanlar otomatik kapsar.
+ * @deprecated Eski ad ("admin kütüphanesi"). Aynı UUID = `OWNER_TENANT_ID`; sentetik/ortak
+ * kütüphane anlamı TAŞIMAZ. Mevcut import'lar kırılmasın diye geçici takma ad olarak durur.
  */
-export const SYNTHETIC_TENANT_IDS: readonly string[] = [ADMIN_LIBRARY_TENANT_ID];
+export const ADMIN_LIBRARY_TENANT_ID = OWNER_TENANT_ID;
+
+/**
+ * Bilinen tüm sentetik tenant kimlikleri (readonly). Bugün BOŞ. Yeni bir gerçek sentetik
+ * namespace (kullanıcısız seed/template tenant'ı) eklenirse YALNIZ bu listeye eklenir;
+ * tüketen katmanlar (YH indexer/writer/reconcile/backfill kapıları) otomatik kapsar.
+ */
+export const SYNTHETIC_TENANT_IDS: readonly string[] = [];
 
 /**
  * Verilen tenant kimliği sentetik mi?
- *   - `null` (shared referans) → false (shared sentetik DEĞİLDİR; NULL/shared
- *     anlamı bu modülce DEĞİŞTİRİLMEZ).
- *   - Gerçek kullanıcı tenant UUID'si → false.
- *   - `ADMIN_LIBRARY_TENANT_ID` (birebir eşitlik) → true.
+ *   - `null` (shared referans) → false (NULL/shared anlamı bu modülce DEĞİŞTİRİLMEZ).
+ *   - Gerçek kullanıcı tenant UUID'si (owner dahil) → false.
+ *   - `SYNTHETIC_TENANT_IDS` üyesi (birebir eşitlik) → true.
  */
 export function isSyntheticTenantId(tenantId: string | null): boolean {
   if (tenantId === null) return false;

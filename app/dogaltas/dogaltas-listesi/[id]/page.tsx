@@ -14,7 +14,7 @@ import {
 } from "react";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import {
-  ADMIN_LIBRARY_TENANT_ID,
+  getSessionTenantId,
   getSyncedTenantId,
 } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
@@ -1249,7 +1249,9 @@ function StoneDetailPage() {
 
   if (!safeStone) return null;
 
-  const isLibraryStone = safeStone.tenant_id === ADMIN_LIBRARY_TENANT_ID;
+  // Ortak kütüphane YOK: owner'ın kendi taşı normal kayıttır (düzenlenir/silinir/raporlanır).
+  const sessionTenant = getSessionTenantId();
+  const isLibraryStone = sessionTenant !== null && safeStone.tenant_id !== sessionTenant;
 
   const safeChakras = Array.isArray(safeStone.chakras) ? safeStone.chakras : [];
   const safeImages = Array.isArray(safeStone.images) ? safeStone.images : [];

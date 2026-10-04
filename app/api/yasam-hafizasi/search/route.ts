@@ -4,7 +4,8 @@ import { membershipInactiveResponse, verifyUserRequest } from "@/lib/auth/userGu
 import { hasMembershipAccessForRow } from "@/lib/auth/membershipAccessCore";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
 import { getTenantFlags } from "@/lib/yasam-hafizasi/flags";
-import { filterByYhScope, resolveYhModuleScope } from "@/lib/yasam-hafizasi/moduleScope";
+import { filterByYhScope, resolveYhModuleScope, yhSqlModuleFilter } from "@/lib/yasam-hafizasi/moduleScope";
+import { YH_SOURCE_MODULES } from "@/lib/yasam-hafizasi/config";
 import { buildRetrievalDescriptor } from "@/lib/yasam-hafizasi/search/queryPipeline";
 import { createSupabaseRetrievalExecutor } from "@/lib/yasam-hafizasi/search/supabaseRetrievalAdapter";
 import {
@@ -96,14 +97,16 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { descriptor } = buildRetrievalDescriptor({ rawQuery: q, sessionTenantId: tenantId, allowShared });
   if (descriptor.kind === "noop") return empty(q, { emptyReason: "no-results" });
 
-  const execResult = await createSupabaseRetrievalExecutor()(descriptor);
+  // ÜYE YÖNETİMİ FAZ 2: aktif kapsam = uzmanın GÜNCEL module_permissions'ı (tek kaynak). Kapsam +
+  // istenen modüller SQL'de LIMIT'ten ÖNCE uygulanır (kapalı modül ilk N'i doldurup açık modül
+  // sonucunu gizleyemez). Aşağıdaki uygulama-katmanı filtreleri savunma derinliği olarak kalır.
+  const scope = resolveYhModuleScope(profile?.role, profile?.module_permissions);
+  const sqlModules = yhSqlModuleFilter(scope, YH_SOURCE_MODULES, modules);
+  const execResult = await createSupabaseRetrievalExecutor()(descriptor, { modules: sqlModules });
   if (execResult.kind === "error") return fail(q, "YH_SEARCH_FAILED", 500);
   if (execResult.kind === "noop") return empty(q, { emptyReason: "no-results" });
 
-  // Candidate → güvenli DTO; faset TÜM sonuçtan; sunum modül filtresi + limit.
-  // ÜYE YÖNETİMİ FAZ 2: aktif kapsam = uzmanın GÜNCEL module_permissions'ı (tek kaynak).
-  // Kapalı modülün kayıtları silinmez; yalnız sonuç/facet'ten çıkar.
-  const scope = resolveYhModuleScope(profile?.role, profile?.module_permissions);
+  // Candidate → güvenli DTO; faset sonuçtan; sunum modül filtresi + limit.
   const all = filterByYhScope(scope, execResult.candidates.map(toSearchResult));
   const facets = computeFacets(all);
   const displayed = filterByModules(all, modules).slice(0, limit);

@@ -4,7 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { membershipInactiveResponse, verifyUserRequest } from "@/lib/auth/userGuard";
 import { hasMembershipAccessForRow } from "@/lib/auth/membershipAccessCore";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
-import { filterByYhScope, resolveYhModuleScope } from "@/lib/yasam-hafizasi/moduleScope";
+import { filterByYhScope, resolveYhModuleScope, yhSqlModuleFilter } from "@/lib/yasam-hafizasi/moduleScope";
+import { YH_CLIENT_SOURCE_MODULE_KEYS } from "@/lib/yasam-hafizasi/client/clientSources";
 import { getTenantFlags } from "@/lib/yasam-hafizasi/flags";
 import {
   parseClientSearchRequest,
@@ -114,10 +115,16 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (q.length === 0) return empty(q, { emptyReason: "no-query" });
 
+  // ÜYE YÖNETİMİ FAZ 2: aktif kapsam = GÜNCEL module_permissions. Kapsam ∩ istenen modüller +
+  // tarih penceresi SQL'de LIMIT'ten ÖNCE uygulanır (v2); aşağıdaki filtreler savunma derinliğidir.
+  const scope = resolveYhModuleScope(profile?.role, profile?.module_permissions);
   const outcome = await runTenantClientRetrieval(db as unknown as TenantClientRpcDb, {
     rawQuery: q,
     sessionTenantId: tenantId,
     limit,
+    modules: yhSqlModuleFilter(scope, YH_CLIENT_SOURCE_MODULE_KEYS, modules),
+    dateFrom: dateFrom ?? null,
+    dateTo: dateTo ?? null,
   });
   if (outcome.kind === "noop") return empty(q, { emptyReason: "no-results" });
   // Şema/RPC henüz production'a uygulanmadı → dormant güvenli disabled state.
@@ -130,9 +137,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   const all: TenantClientSearchResult[] = outcome.rows
     .map((r) => toTenantClientSearchResult(r, nameById))
     .filter((r): r is TenantClientSearchResult => r !== null);
-  // ÜYE YÖNETİMİ FAZ 2: aktif kapsam = GÜNCEL module_permissions (kayıt silinmez).
-  const scope = resolveYhModuleScope(profile?.role, profile?.module_permissions);
-  const dated = filterByYhScope(scope, all).filter((r) => withinDateWindow(r.occurredAt, dateFrom, dateTo));
+  const dated = filterByYhScope(scope, all).filter(
+    (r) => outcome.filteredInSql || withinDateWindow(r.occurredAt, dateFrom, dateTo),
+  );
   const facets = computeTenantFacets(dated);
   const displayed = filterTenantByModules(dated, modules).slice(0, limit);
   const emptyReason =

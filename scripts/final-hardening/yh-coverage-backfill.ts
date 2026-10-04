@@ -20,7 +20,7 @@
  *   - Aktivasyon matrisinde backfill'i PII/row-gate ya da worker desteği nedeniyle yasak olanlar
  *     (blocked-pii / blocked-worker-unsupported) ve istemci tablo adları (client*, appointments…)
  *     HARİÇ.
- *   - ADMIN_LIBRARY (sentetik) ve demo tenant SQL'de dışlanır (bilinçli olarak indeks dışı).
+ *   - Demo tenant SQL'de dışlanır (bilinçli olarak indeks dışı). Owner tenant gerçek uzman tenant'ıdır (dahil).
  *
  * Kullanım:
  *   npx tsx scripts/final-hardening/yh-coverage-backfill.ts                 # özet → stdout
@@ -35,7 +35,7 @@ import { isIndexableSource } from "../../lib/yasam-hafizasi/indexer/sourceGuard"
 import { supportsTenantScopedPage } from "../../lib/yasam-hafizasi/indexer/tenantScopeGate";
 import { activationEntryOf } from "../../lib/yasam-hafizasi/activation/activationMatrix";
 import { ACTIVATION_CLASS_POLICY, isActivationClass } from "../../lib/yasam-hafizasi/activation/activationState";
-import { ADMIN_LIBRARY_TENANT_ID } from "../../lib/tenancy/syntheticTenants";
+import { SYNTHETIC_TENANT_IDS } from "../../lib/tenancy/syntheticTenants";
 import { YH_DEMO_TENANT_ID, YH_TABLES } from "../../lib/yasam-hafizasi/config";
 
 export const DEFAULT_FAMILIES = ["refleksoloji", "aromaterapi", "dogaltas", "biyoenerji"] as const;
@@ -123,7 +123,7 @@ export function selectBackfillSources(families: readonly string[] | "all"): {
 /** SAF: salt-okuma coverage SQL'i (UNION ALL; yalnız açığı olan tenant satırları). */
 export function buildCoverageSql(candidates: readonly BackfillCandidate[]): string {
   const idx = sqlIdent(YH_TABLES.index);
-  const excludedTenants = [ADMIN_LIBRARY_TENANT_ID, YH_DEMO_TENANT_ID].map(sqlLit).join(", ");
+  const excludedTenants = [...SYNTHETIC_TENANT_IDS, YH_DEMO_TENANT_ID].map(sqlLit).join(", ");
   const parts = candidates.map((c) => {
     const where = [`s.tenant_id IS NOT NULL`, `s.tenant_id NOT IN (${excludedTenants})`, ...c.filters].join("\n      AND ");
     return `  -- ${c.sourceKey} (${c.activationClass ?? "matris dışı"})
@@ -146,7 +146,7 @@ export function buildCoverageSql(candidates: readonly BackfillCandidate[]): stri
   return `-- ============================================================
 -- Yaşam Hafızası™ coverage (kaynak vs index) — SALT-OKUMA. DML YOK.
 -- Üretildi: scripts/final-hardening/yh-coverage-backfill.ts (prod'a bağlanmadan).
--- ADMIN_LIBRARY (sentetik) + demo tenant bilinçli olarak dışlanır.
+-- Sentetik (varsa) + demo tenant bilinçli olarak dışlanır; owner tenant dahildir.
 -- Uygun satır filtresi registry'deki active/status/ineligible kolonlarıyla hizalıdır.
 -- ============================================================
 SELECT * FROM (
@@ -163,7 +163,7 @@ export function buildRunbook(candidates: readonly BackfillCandidate[], excluded:
   lines.push("# Yaşam Hafızası™ — Kontrollü Coverage Backfill Runbook");
   lines.push("");
   lines.push("> Bu belge kod registry'sinden ÜRETİLİR; araç prod'a bağlanmaz. Her adım owner onayıyla, sırayla uygulanır.");
-  lines.push("> Danışan (client) PII kaynakları kapsam dışıdır. ADMIN_LIBRARY tenant'ı bilinçli olarak mesleki indeks dışındadır (açık sayılmaz).");
+  lines.push("> Danışan (client) PII kaynakları kapsam dışıdır. Owner tenant'ı gerçek uzman tenant'ıdır (açık sayılır).");
   lines.push("");
   lines.push("## 0. Ön koşullar");
   lines.push("- Kod (index-page write kapısı: `yh_source_activation.is_active && backfill_allowed`) prod'da.");

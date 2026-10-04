@@ -355,16 +355,17 @@ async function main(): Promise<void> {
   {
     const fake = makeFake({ select: mixedSelect });
     const r = await indexSourcePage({ config: colCfg, mode: "dry-run", db: fake.db });
-    check(r.excludedSynthetic === 1, `E1 sentetik → excludedSynthetic=1 (${r.excludedSynthetic})`);
+    // Satış öncesi (2026-10): owner tenant (eski ADMIN_LIBRARY) gerçek uzman tenant'ı → sentetik sayılmaz.
+    check(r.excludedSynthetic === 0, `E1 owner tenant sentetik DEĞİL → excludedSynthetic=0 (${r.excludedSynthetic})`);
     check(r.excludedDemo === 1, `E2 demo sayacı sentetikten ayrı (${r.excludedDemo})`);
-    check(r.eligibleUnits === 1, `E3 mixed page → yalnız gerçek tenant eligible (${r.eligibleUnits})`);
+    check(r.eligibleUnits === 2, `E3 mixed page → gerçek tenant + owner eligible (${r.eligibleUnits})`);
     check(r.fetched === 4 && r.summary.skipped === 1, `E4 NULL/shared sözleşme değişmedi (skip; fetched=${r.fetched})`);
   }
   {
     const fake = makeFake({ select: allSyntheticSelect });
     const r = await indexSourcePage({ config: colCfg, mode: "dry-run", db: fake.db });
-    check(r.eligibleUnits === 0 && r.excludedSynthetic === 2 && r.excludedDemo === 0 && r.write === null,
-      `E5 tümü sentetik → eligible=0, kontrollü başarı (${r.eligibleUnits}/${r.excludedSynthetic})`);
+    check(r.eligibleUnits === 2 && r.excludedSynthetic === 0 && r.excludedDemo === 0 && r.write === null,
+      `E5 tümü owner tenant → eligible=2 (dry-run), sentetik=0 (${r.eligibleUnits}/${r.excludedSynthetic})`);
   }
   {
     // BF-4B: geniş write fail-closed → BroadWriteDisabledError; okuma/yazma YOK.
@@ -402,8 +403,8 @@ async function main(): Promise<void> {
     } catch (e) {
       code = e instanceof Error ? e.message : "?";
     }
-    check(code === "synthetic-tenant-unit", `E8 writer guard fail-fast (${code})`);
-    check(fake.upserts.length === 0, `E9 guard sonrası hiçbir upsert denenmez`);
+    check(code === "", `E8 owner tenant unit writer'da reddedilmez (${code})`);
+    check(fake.upserts.length === 1, `E9 owner + gerçek tenant unit'leri tek chunk'ta upsert edilir (${fake.upserts.length})`);
   }
   {
     // Gerçek tenant + NULL/shared unit writer davranışı DEĞİŞMEZ (guard dokunmaz).

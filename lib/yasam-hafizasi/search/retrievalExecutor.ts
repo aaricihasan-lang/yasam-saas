@@ -45,6 +45,16 @@ export interface RetrievalRpcParams {
   /** [A, B, C, D] — YH_TSV_WEIGHTS doğal sırası; PG {D,C,B,A} dönüşümü RPC içinde. */
   readonly weights: readonly [number, number, number, number];
   readonly limit: number;
+  /**
+   * SQL'de LIMIT'ten ÖNCE uygulanan modül kapsamı (kullanıcının güncel izinleri ∩ istenen modüller).
+   * null → modül filtresi yok (admin kapsamı); boş dizi → hiçbir modül (0 satır).
+   */
+  readonly modules: readonly string[] | null;
+}
+
+/** Retrieval çağrı seçenekleri (route katmanı; tenant ASLA buradan gelmez). */
+export interface RetrievalExecutionOptions {
+  readonly modules?: readonly string[] | null;
 }
 
 /** RPC portu sonucu — fail-closed union (ham mesaj taşımaz). */
@@ -221,6 +231,7 @@ export async function executeRetrieval(
   descriptor: RetrievalQueryDescriptor,
   rpc: RetrievalRpcPort,
   stoneExclusionPort: StoneExclusionPort,
+  opts: RetrievalExecutionOptions = {},
 ): Promise<RetrievalExecutionResult> {
   if (descriptor.kind === "noop") {
     return { kind: "noop", reason: descriptor.reason };
@@ -237,6 +248,7 @@ export async function executeRetrieval(
       descriptor.ranking.weights.D,
     ],
     limit: descriptor.limit.value,
+    modules: opts.modules ?? null,
   };
 
   const rpcResult = await rpc(params);
