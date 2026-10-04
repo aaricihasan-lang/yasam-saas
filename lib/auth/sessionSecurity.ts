@@ -251,6 +251,60 @@ export async function createUserSession(
     ? options.replaceToken.trim().slice(0, 200)
     : null;
 
+  // ACİL OWNER KARARI (2026-10-04): ADMIN için ikinci-web onayı (pending), 2-web üst sınırı ve
+  // 3. web reddi DEVRE DIŞI — owner kendi hesabından kilitlendi. Admin web girişi (resmî Android
+  // dışındaki her kanal) doğrudan AKTİF oturum açar; başka oturumlara dokunulmaz. Parola, rol,
+  // active/approval, throttle, audit ve süre (2 sa / 24 sa) kuralları AYNEN geçerli. Uzman yolu ve
+  // resmî Android (android_app) yolu DEĞİŞMEZ (create_session_v2).
+  if (role === "admin" && clientChannel !== "android_app") {
+    if (replaceToken && replaceToken !== sessionToken) {
+      // Aynı cihazdaki eski token (yalnız bu kullanıcıya aitse) kapanır — mevcut davranışla aynı.
+      await db
+        .from("user_sessions")
+        .update({ is_active: false, ended_at: new Date().toISOString(), end_reason: "replaced_same_device" })
+        .eq("session_token", replaceToken)
+        .eq("user_id", userId)
+        .eq("is_active", true);
+    }
+    const nowIso = new Date().toISOString();
+    const { error: insErr } = await db.from("user_sessions").insert({
+      user_id: userId,
+      ip_address: location.ip,
+      country: location.country,
+      city: location.city,
+      user_agent: location.userAgent,
+      platform,
+      client_channel: clientChannel,
+      session_token: sessionToken,
+      is_active: true,
+      created_at: nowIso,
+      last_seen_at: nowIso,
+      expires_at: computeSessionExpiresAt(lr?.role),
+      session_role: "admin",
+      session_state: "active",
+    });
+    if (insErr) throw new Error(`Oturum oluşturulamadı: ${insErr.message}`);
+    if (risk.level !== "low") {
+      await logSecurityEvent(db, userId, location, {
+        event_type: risk.level === "high_risk" ? "high_risk_login" : "suspicious_login",
+        severity: risk.level === "high_risk" ? "high" : "medium",
+        message: `Admin girişi (onay devre dışı): ${risk.refSession?.country?.toUpperCase() ?? "?"} → ${location.country?.toUpperCase() ?? "?"}`,
+        metadata: { platform: limitPlatform, existing_sessions_closed: 0, admin_pending: false },
+      });
+    }
+    return {
+      ok: true,
+      state: "active",
+      sessionId: null,
+      pendingExpiresAt: null,
+      channel: clientChannel,
+      role: "admin",
+      suspiciousLogin: risk.level === "suspicious",
+      highRisk: risk.level === "high_risk",
+      exceptionUsed: false,
+    };
+  }
+
   const { data: rpcData, error: rpcError } = await db.rpc("create_session_v2", {
     p_user_id: userId,
     p_session_token: sessionToken,

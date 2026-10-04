@@ -54,7 +54,6 @@ import {
 } from "@/lib/contact/info";
 import SupportRequestForm from "@/components/auth/SupportRequestForm";
 import DemoIntroModal from "@/components/demo/DemoIntroModal";
-import AdminSessionApprovalBanner from "@/components/auth/AdminSessionApprovalBanner";
 import DemoAccessCard, {
   DEMO_ACCOUNT_EMAIL,
   DEMO_ACCOUNT_PASSWORD,
@@ -1520,9 +1519,6 @@ export default function Home() {
 
     return (
       <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(180deg,#eef5ff_0%,#f6f3ff_48%,#fff8fb_100%)] text-slate-950 antialiased">
-
-        {/* OTURUM MODELİ v2: admin hesabına başka cihazdan onay bekleyen web girişi uyarısı. */}
-        {isAdminUser(user) && <AdminSessionApprovalBanner />}
 
         <div className="relative mx-auto w-full max-w-[1800px] px-4 pt-4 pb-16 lg:px-8 xl:px-10" style={{ paddingBottom: "max(4rem, env(safe-area-inset-bottom, 0px))" }}>
 

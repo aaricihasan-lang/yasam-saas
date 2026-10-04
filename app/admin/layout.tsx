@@ -4,7 +4,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { getServerDb } from "@/lib/supabase-server";
 import { ADMIN_SESSION_COOKIE, resolveAdminShellUserId } from "@/lib/auth/adminShellSession";
-import AdminSessionApprovalBanner from "@/components/auth/AdminSessionApprovalBanner";
 
 /**
  * Admin route guard — Server Component.
@@ -27,8 +26,6 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   return (
     <>
-      {/* OTURUM MODELİ v2: hesabınıza başka cihazdan onay bekleyen web girişi uyarısı. */}
-      <AdminSessionApprovalBanner />
       {/* Admin navigation — merkezî içerik yönetimi bağlantıları. */}
       <nav className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-slate-200 bg-white/80 px-4 py-1.5 text-xs">
         <Link href="/admin/human-design" className="font-semibold text-indigo-700 hover:underline">
