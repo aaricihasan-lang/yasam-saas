@@ -274,16 +274,80 @@ type FeatureItem = {
 const landingModules: LandingModule[] = [
   { slug: "danisanYonetimi", titleKey: "landing.danisanYonetimi.title", descKey: "landing.danisanYonetimi.desc", icon: "👥" },
   { slug: "dogaltas",        titleKey: "landing.dogaltas.title",        descKey: "landing.dogaltas.desc",        icon: "💎" },
+  { slug: "urunStok",        titleKey: "landing.urunStok.title",        descKey: "landing.urunStok.desc",        icon: "📦" },
   { slug: "biyoenerji",      titleKey: "landing.biyoenerji.title",      descKey: "landing.biyoenerji.desc",      icon: "✨" },
   { slug: "refleksoloji",    titleKey: "landing.refleksoloji.title",    descKey: "landing.refleksoloji.desc",    icon: "🦶" },
+  { slug: "kupaHacamat",     titleKey: "landing.kupaHacamat.title",     descKey: "landing.kupaHacamat.desc",     icon: "🫙" },
   { slug: "aromaterapi",     titleKey: "landing.aromaterapi.title",     descKey: "landing.aromaterapi.desc",     icon: "🌸" },
   { slug: "sifaRehberi",     titleKey: "landing.sifaRehberi.title",     descKey: "landing.sifaRehberi.desc",     icon: "🌿" },
+  { slug: "beslenme",        titleKey: "landing.beslenme.title",        descKey: "landing.beslenme.desc",        icon: "🥗" },
   { slug: "numeroloji",      titleKey: "landing.numeroloji.title",      descKey: "landing.numeroloji.desc",      icon: "🔢" },
-  { slug: "videoCeviri",     titleKey: "landing.videoCeviri.title",     descKey: "landing.videoCeviri.desc",     icon: "🎬" },
-  { slug: "belgeCeviri",     titleKey: "landing.belgeCeviri.title",     descKey: "landing.belgeCeviri.desc",     icon: "📄" },
   { slug: "kisiselArsiv",    titleKey: "landing.kisiselArsiv.title",    descKey: "landing.kisiselArsiv.desc",    icon: "🗂️" },
   { slug: "humanDesign",     titleKey: "landing.humanDesign.title",     descKey: "landing.humanDesign.desc",     icon: "🔮" },
+  { slug: "kozmikAjanda",    titleKey: "landing.kozmikAjanda.title",    descKey: "landing.kozmikAjanda.desc",    icon: "🌙" },
 ];
+
+// Örnek ekran galerisi OLMAYAN satış modülleri: özellik listesi + "Modüle Git" (Human Design kartı deseni).
+// href = uzmana açılan gerçek modül rotası; feats = i18n `feats.<slug>` (gerçek alt ekranlardan).
+// Tailwind sınıfları literal kalmalı (JIT taraması) → tema burada sabit string.
+type LandingLinkCard = {
+  href: string;
+  border: string;
+  bg: string;
+  ring: string;
+  hoverShadow: string;
+  badge: string;
+  iconWrap: string;
+  check: string;
+  cta: string;
+};
+
+const landingLinkCards: Record<string, LandingLinkCard> = {
+  urunStok: {
+    href: "/urun-stok",
+    border: "border-amber-200/70",
+    bg: "from-amber-50/90 via-white to-orange-50/60",
+    ring: "ring-amber-100/50",
+    hoverShadow: "hover:shadow-[0_10px_24px_rgba(245,158,11,0.14)]",
+    badge: "bg-amber-700",
+    iconWrap: "from-amber-500 to-orange-500 shadow-amber-300/25",
+    check: "text-amber-500",
+    cta: "from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500",
+  },
+  kupaHacamat: {
+    href: "/kupa",
+    border: "border-rose-200/70",
+    bg: "from-rose-50/90 via-white to-red-50/60",
+    ring: "ring-rose-100/50",
+    hoverShadow: "hover:shadow-[0_10px_24px_rgba(225,29,72,0.14)]",
+    badge: "bg-rose-700",
+    iconWrap: "from-rose-500 to-red-600 shadow-rose-300/25",
+    check: "text-rose-500",
+    cta: "from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500",
+  },
+  beslenme: {
+    href: "/beslenme",
+    border: "border-lime-200/70",
+    bg: "from-lime-50/90 via-white to-emerald-50/60",
+    ring: "ring-lime-100/50",
+    hoverShadow: "hover:shadow-[0_10px_24px_rgba(101,163,13,0.14)]",
+    badge: "bg-lime-700",
+    iconWrap: "from-lime-500 to-emerald-600 shadow-lime-300/25",
+    check: "text-lime-600",
+    cta: "from-lime-600 to-emerald-600 hover:from-lime-500 hover:to-emerald-500",
+  },
+  kozmikAjanda: {
+    href: "/cosmic-calendar",
+    border: "border-indigo-200/70",
+    bg: "from-indigo-50/90 via-white to-sky-50/60",
+    ring: "ring-indigo-100/50",
+    hoverShadow: "hover:shadow-[0_10px_24px_rgba(79,70,229,0.14)]",
+    badge: "bg-indigo-700",
+    iconWrap: "from-indigo-500 to-sky-600 shadow-indigo-300/25",
+    check: "text-indigo-500",
+    cta: "from-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500",
+  },
+};
 
 // i18n anahtarları (görünen metin t ile çözülür).
 const trustPrincipleKeys: string[] = [
@@ -750,8 +814,6 @@ export default function Home() {
   const [danisanYonetimiPreviewOpen, setDanisanYonetimiPreviewOpen] = useState(false);
   const [danisanYonetimiSlide, setDanisanYonetimiSlide] = useState(0);
   const [kisiselArsivPreviewOpen, setKisiselArsivPreviewOpen] = useState(false);
-  const [belgeCeviriPreviewOpen, setBelgeCeviriPreviewOpen] = useState(false);
-  const [videoCeviriPreviewOpen, setVideoCeviriPreviewOpen] = useState(false);
   const [adminNavLoading, setAdminNavLoading] = useState(false);
   // NOT: Beslenme girişi "Doğal Destek & Rehber" hub'ına taşındı (DogalDestekCards, kendi
   // checkBeslenmeAccess probe'uyla). Ayrı "Besinlerim"/manuel-besin yeteneği ÜRÜNDEN KALDIRILDI →
@@ -1014,20 +1076,6 @@ export default function Home() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [kisiselArsivPreviewOpen]);
-
-  useEffect(() => {
-    if (!belgeCeviriPreviewOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setBelgeCeviriPreviewOpen(false); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [belgeCeviriPreviewOpen]);
-
-  useEffect(() => {
-    if (!videoCeviriPreviewOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setVideoCeviriPreviewOpen(false); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [videoCeviriPreviewOpen]);
 
   useEffect(() => {
     setNow(new Date());
@@ -2422,96 +2470,6 @@ export default function Home() {
                   <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
                 </Link>
               </div>
-            ) : item.slug === "belgeCeviri" ? (
-              <div
-                key={item.slug}
-                className="group relative flex flex-col rounded-[22px] border border-blue-200/70 bg-gradient-to-br from-blue-50/90 via-white to-cyan-50/60 p-4 shadow-md ring-1 ring-blue-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(59,130,246,0.14)]"
-              >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-blue-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  {t("common.sampleScreensBadge")}
-                </span>
-
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-xl text-white shadow-md shadow-blue-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
-                  {item.icon}
-                </div>
-
-                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  {t("landing.belgeCeviri.title")}
-                </h3>
-
-                <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  {t("landing.belgeCeviri.desc")}
-                </p>
-
-                <ul className="mt-2.5 flex flex-col gap-0.5">
-                  {(t.raw("feats.belgeCeviri") as string[]).map((feat) => (
-                    <li key={feat} className="flex items-center gap-1.5">
-                      <Check className="h-2.5 w-2.5 shrink-0 text-sky-500" strokeWidth={2.75} />
-                      <span className="text-[10px] font-medium text-slate-700">{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  type="button"
-                  onClick={() => setBelgeCeviriPreviewOpen(true)}
-                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-blue-500 hover:to-cyan-500 hover:shadow-md"
-                >
-                  {t("common.seeSampleScreens")}
-                </button>
-
-                <Link
-                  href="/belge-ceviri"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-sky-700"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {t("common.moduleGo")}
-                  <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
-                </Link>
-              </div>
-            ) : item.slug === "videoCeviri" ? (
-              <div
-                key={item.slug}
-                className="group relative flex flex-col rounded-[22px] border border-orange-200/70 bg-gradient-to-br from-orange-50/90 via-white to-amber-50/60 p-4 shadow-md ring-1 ring-orange-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(249,115,22,0.14)]"
-              >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-amber-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  {t("landing.previewBadge")}
-                </span>
-
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-400 to-amber-500 text-xl text-white shadow-md shadow-orange-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
-                  {item.icon}
-                </div>
-
-                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  {t("landing.videoCeviri.title")}
-                </h3>
-
-                <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  {t("landing.videoCeviri.desc")}
-                </p>
-
-                <ul className="mt-2.5 flex flex-col gap-0.5">
-                  {(t.raw("feats.videoCeviri") as string[]).map((feat) => (
-                    <li key={feat} className="flex items-center gap-1.5">
-                      <Check className="h-2.5 w-2.5 shrink-0 text-orange-500" strokeWidth={2.75} />
-                      <span className="text-[10px] font-medium text-slate-700">{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="mt-3.5 w-full cursor-not-allowed rounded-xl border border-orange-200/60 bg-orange-100/50 py-2 text-center text-xs font-bold text-orange-400">
-                  {t("landing.inDevelopment")}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setVideoCeviriPreviewOpen(true)}
-                  className="mt-2 inline-flex cursor-pointer items-center justify-center gap-1 text-[11px] font-semibold text-orange-600 transition hover:text-orange-800 hover:underline"
-                >
-                  {t("landing.peekScreen")}
-                  <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
-                </button>
-              </div>
             ) : item.slug === "danisanYonetimi" ? (
               <div
                 key={item.slug}
@@ -2677,6 +2635,44 @@ export default function Home() {
                 <Link
                   href="/aromaterapi"
                   className="mt-3 w-full rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-600 py-2 text-center text-xs font-bold text-white no-underline shadow-sm transition duration-200 hover:from-fuchsia-500 hover:to-purple-500 hover:shadow-md"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {t("common.moduleGo")}
+                </Link>
+              </div>
+            ) : landingLinkCards[item.slug] ? (
+              <div
+                key={item.slug}
+                className={`group relative flex flex-col rounded-[22px] border ${landingLinkCards[item.slug].border} bg-gradient-to-br ${landingLinkCards[item.slug].bg} p-4 shadow-md ring-1 ${landingLinkCards[item.slug].ring} transition-all duration-200 hover:-translate-y-1 ${landingLinkCards[item.slug].hoverShadow}`}
+              >
+                <span className={`absolute -right-1 -top-1.5 z-10 rounded-full ${landingLinkCards[item.slug].badge} px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow`}>
+                  {t("landing.activeModuleBadge")}
+                </span>
+
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${landingLinkCards[item.slug].iconWrap} text-xl text-white shadow-md transition-transform duration-200 group-hover:scale-[1.08]`}>
+                  {item.icon}
+                </div>
+
+                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
+                  {t(item.titleKey)}
+                </h3>
+
+                <p className="mt-1.5 text-xs leading-5 text-slate-600">
+                  {t(item.descKey)}
+                </p>
+
+                <ul className="mt-2.5 flex flex-1 flex-col gap-0.5">
+                  {(t.raw(`feats.${item.slug}`) as string[]).map((feat) => (
+                    <li key={feat} className="flex items-center gap-1.5">
+                      <Check className={`h-2.5 w-2.5 shrink-0 ${landingLinkCards[item.slug].check}`} strokeWidth={2.75} />
+                      <span className="text-[10px] font-medium text-slate-700">{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <Link
+                  href={landingLinkCards[item.slug].href}
+                  className={`mt-3.5 w-full rounded-xl bg-gradient-to-r ${landingLinkCards[item.slug].cta} py-2 text-center text-xs font-bold text-white no-underline shadow-sm transition duration-200 hover:shadow-md`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   {t("common.moduleGo")}
@@ -3197,140 +3193,6 @@ export default function Home() {
                     className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
                   >
                     <Check className="h-3 w-3 shrink-0 text-amber-400" strokeWidth={2.5} />
-                    {feat}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {belgeCeviriPreviewOpen && (
-        <div
-          className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-slate-950/80 p-4 pb-10 backdrop-blur-sm"
-          onClick={() => setBelgeCeviriPreviewOpen(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-label={t("preview.belgeCeviri.aria")}
-        >
-          <div
-            className="relative mt-6 w-full max-w-4xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setBelgeCeviriPreviewOpen(false)}
-              className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-black text-slate-500 shadow-md transition hover:bg-slate-50"
-              aria-label={t("common.close")}
-            >
-              ×
-            </button>
-
-            <div className="mb-4 text-center">
-              <span className="inline-flex items-center rounded-full border border-sky-400/40 bg-sky-900/60 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-sky-300">
-                {t("preview.belgeCeviri.badge")}
-              </span>
-              <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
-                {t("preview.belgeCeviri.title")}
-              </h4>
-              <p className="mt-1 text-sm text-slate-400">
-                {t("preview.belgeCeviri.subtitle")}
-              </p>
-            </div>
-
-            <div className="overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900">
-              <img
-                src="/assets/belge-ceviri-preview.png"
-                alt={t("preview.belgeCeviri.alt")}
-                className="w-full max-h-[75vh] object-contain rounded-2xl"
-              />
-            </div>
-
-            <div className="mt-4 rounded-xl border border-slate-700/40 bg-slate-800/60 p-5">
-              <h5 className="text-base font-black text-white">
-                {t("preview.belgeCeviri.panelTitle")}
-              </h5>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                {t("preview.belgeCeviri.panelDesc")}
-              </p>
-              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {(t.raw("feats.belgeCeviri") as string[]).map((feat) => (
-                  <div
-                    key={feat}
-                    className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
-                  >
-                    <Check className="h-3 w-3 shrink-0 text-sky-400" strokeWidth={2.5} />
-                    {feat}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {videoCeviriPreviewOpen && (
-        <div
-          className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-slate-950/80 p-4 pb-10 backdrop-blur-sm"
-          onClick={() => setVideoCeviriPreviewOpen(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-label={t("preview.videoCeviri.aria")}
-        >
-          <div
-            className="relative mt-6 w-full max-w-4xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setVideoCeviriPreviewOpen(false)}
-              className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-base font-black text-slate-500 shadow-md transition hover:bg-slate-50"
-              aria-label={t("common.close")}
-            >
-              ×
-            </button>
-
-            <div className="mb-4 text-center">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-900/60 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
-                {t("preview.videoCeviri.badge")}
-              </span>
-              <h4 className="mt-2 text-lg font-black text-white sm:text-xl">
-                {t("preview.videoCeviri.title")}
-              </h4>
-              <p className="mt-1 text-sm text-slate-400">
-                {t("preview.videoCeviri.subtitle")}
-              </p>
-            </div>
-
-            <div className="overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900">
-              <img
-                src="/assets/video-ceviri-preview.png"
-                alt={t("preview.videoCeviri.alt")}
-                className="w-full max-h-[75vh] object-contain rounded-2xl"
-              />
-            </div>
-
-            <div className="mt-4 rounded-xl border border-slate-700/40 bg-slate-800/60 p-5">
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-base">
-                  ⚠️
-                </span>
-                <div>
-                  <p className="text-sm font-black text-white">{t("preview.videoCeviri.devTitle")}</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-400">
-                    {t("preview.videoCeviri.devDesc")}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {(t.raw("feats.videoCeviri") as string[]).map((feat) => (
-                  <div
-                    key={feat}
-                    className="flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-700/30 px-3 py-2 text-xs font-medium text-slate-300"
-                  >
-                    <Check className="h-3 w-3 shrink-0 text-violet-400" strokeWidth={2.5} />
                     {feat}
                   </div>
                 ))}
