@@ -23,7 +23,6 @@ import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { backgroundSyncYasamUserFromDb, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import {
-  ADMIN_LIBRARY_TENANT_ID,
   getSessionTenantId,
   getSyncedTenantId,
 } from "@/lib/auth/sessionTenant";
@@ -256,7 +255,9 @@ const StoneCard = memo(function StoneCard({
   const facet = (v: string) => (tf.has(`facetLabels.${v}`) ? tf(`facetLabels.${v}`) : v);
   const imageCount = stoneListImageCount(stone.images);
   // F-016: kapak URL'i parent'ta batch signed-URL ile çözülür (private-read, N+1'siz).
-  const isLibraryStone = stone.tenant_id === ADMIN_LIBRARY_TENANT_ID;
+  // Ortak kütüphane YOK: owner'ın kendi taşları dahil herkesin kendi kaydı normal kayıttır.
+  const sessionTenant = getSessionTenantId();
+  const isLibraryStone = sessionTenant !== null && stone.tenant_id !== sessionTenant;
   const detailHref = stoneDetailHref(stone.id, filterQueryString);
   const displayName = stone.stone_name || tf("common.unnamedStone");
   const displayDescription = safeText(stone.short_description, 120, t("card.noShortDescription"));

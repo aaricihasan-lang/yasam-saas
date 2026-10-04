@@ -7,7 +7,6 @@ import { isUuid } from "@/lib/dogaltas/validation";
 import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
 import { STONE_PHOTO_BUCKET, isOwnedStonePhotoPath } from "@/lib/dogaltas/stonePhoto";
 import { stoneReadTenantIds } from "@/lib/dogaltas/stoneTenantScope";
-import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/tenancy/syntheticTenants";
 import { Packer } from "docx";
 import { extractFirstImageRef, fetchStorageImageBuffer } from "@/lib/docx/reportHelpers";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
@@ -74,7 +73,7 @@ export async function POST(
   const { doc, filename } = buildStoneReportDoc({
     stone,
     imageBuf,
-    isLibrary: stone.tenant_id === ADMIN_LIBRARY_TENANT_ID,
+    isLibrary: stone.tenant_id !== tenantId,
     expertName: expertDisplayName(auth.profile),
   });
 

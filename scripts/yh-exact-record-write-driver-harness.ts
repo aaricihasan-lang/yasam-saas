@@ -7,7 +7,6 @@
 
 import {
   WRITE_CONFIRMATION_PHRASE,
-  SYNTHETIC_TENANT_ID,
   DEMO_TENANT_ID,
   parseCliArgs,
   validateEnv,
@@ -21,6 +20,9 @@ import {
   type RequestResult,
   type TwoGateDeps,
 } from "./yh-exact-record-write-driver";
+
+/** Owner tenant UUID (lib/tenancy/syntheticTenants OWNER_TENANT_ID ile aynı; harness fixture). */
+const OWNER_TENANT_FIXTURE = "aa8b960b-f4f1-4e5b-89f5-109bc030c147";
 
 // ─── GERÇEK AĞ TRİPWİRE: herhangi bir gerçek fetch harness'i patlatır ─────────
 let realFetchCalls = 0;
@@ -119,7 +121,8 @@ async function run(): Promise<void> {
   check((validateTargets(fullEnv({ YH_TARGET_SOURCE_KEY: "dogaltas:stones" })) as { code: string }).code === "source-not-allowed", "T4: allowlist dışı source");
   check((validateTargets(fullEnv({ YH_TARGET_SOURCE_ID: "not-uuid" })) as { code: string }).code === "invalid-source-id", "T5: bozuk source id");
   check((validateTargets(fullEnv({ YH_TARGET_TENANT_ID: "not-uuid" })) as { code: string }).code === "invalid-tenant-id", "T6: bozuk tenant id");
-  check((validateTargets(fullEnv({ YH_TARGET_TENANT_ID: SYNTHETIC_TENANT_ID })) as { code: string }).code === "tenant-synthetic-forbidden", "T7: sentetik tenant hedefi red");
+  // Owner tenant (eski ADMIN_LIBRARY) artık gerçek uzman tenant'ı → sentetik reddi YOK.
+  check((validateTargets(fullEnv({ YH_TARGET_TENANT_ID: OWNER_TENANT_FIXTURE })) as { code?: string }).code !== "tenant-synthetic-forbidden", "T7: owner tenant sentetik sayılmaz");
   check((validateTargets(fullEnv({ YH_TARGET_TENANT_ID: DEMO_TENANT_ID })) as { code: string }).code === "tenant-demo-forbidden", "T8: demo tenant hedefi red");
 
   // ══════ validateEnv ══════
@@ -219,7 +222,6 @@ async function run(): Promise<void> {
   check((await main(["--execute"], fullEnv({ YH_TARGET_SOURCE_KEY: "dogaltas:stones" }))) === 2, "M5: allowlist dışı → 2");
   check((await main(["--execute"], fullEnv({ YH_TARGET_SOURCE_ID: "bad" }))) === 2, "M6: bozuk source id → 2");
   check((await main(["--execute"], fullEnv({ YH_TARGET_TENANT_ID: "bad" }))) === 2, "M7: bozuk tenant id → 2");
-  check((await main(["--execute"], fullEnv({ YH_TARGET_TENANT_ID: SYNTHETIC_TENANT_ID }))) === 2, "M8: sentetik tenant → 2");
   check((await main(["--execute"], fullEnv({ YH_TARGET_TENANT_ID: DEMO_TENANT_ID }))) === 2, "M9: demo tenant → 2");
 
   // ══════ Secret sızıntı + tripwire ══════

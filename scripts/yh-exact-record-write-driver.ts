@@ -22,6 +22,8 @@
 //   npx tsx scripts/yh-exact-record-write-driver.ts --execute
 
 // ─── Compile-time sabitler (değiştirilemez) ───────────────────────────────────
+import { isSyntheticTenantId } from "../lib/tenancy/syntheticTenants";
+
 export const ENDPOINT_PATH = "/api/admin/yasam-hafizasi/index-page" as const;
 export const WRITE_CONFIRMATION_PHRASE = "WRITE_ONE_EXACT_YH_RECORD" as const;
 export const REQUEST_TIMEOUT_MS = 120000 as const;
@@ -29,8 +31,7 @@ export const REQUEST_TIMEOUT_MS = 120000 as const;
 /** İlk pilot kaynak allowlist'i (Esra'ya özel DEĞİL; yalnız ilk kaynağı daraltır). */
 export const SOURCE_ALLOWLIST: ReadonlySet<string> = new Set(["biyoenerji:symbols"]);
 
-/** Sentetik (ADMIN_LIBRARY) ve demo tenant — exact pilot hedefi OLAMAZ (pre-network red). */
-export const SYNTHETIC_TENANT_ID = "aa8b960b-f4f1-4e5b-89f5-109bc030c147" as const;
+/** Sentetik tenant (SYNTHETIC_TENANT_IDS üyesi) ve demo tenant — exact pilot hedefi OLAMAZ (pre-network red). */
 export const DEMO_TENANT_ID = "40f842a0-e3e8-448c-8971-9a938e1faccb" as const;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -163,7 +164,7 @@ export function validateTargets(env: Readonly<Record<string, string | undefined>
   const expectedTenantId = (env.YH_TARGET_TENANT_ID ?? "").trim();
   if (expectedTenantId.length === 0) return { ok: false, code: "missing-tenant-id" };
   if (!isUuid(expectedTenantId)) return { ok: false, code: "invalid-tenant-id" };
-  if (expectedTenantId.toLowerCase() === SYNTHETIC_TENANT_ID) return { ok: false, code: "tenant-synthetic-forbidden" };
+  if (isSyntheticTenantId(expectedTenantId.toLowerCase())) return { ok: false, code: "tenant-synthetic-forbidden" };
   if (expectedTenantId.toLowerCase() === DEMO_TENANT_ID) return { ok: false, code: "tenant-demo-forbidden" };
 
   return { ok: true, target: { sourceKey, exactSourceId, expectedTenantId } };

@@ -7,6 +7,8 @@ import { buildRetrievalDescriptor } from "@/lib/yasam-hafizasi/search/queryPipel
 import type { ClientRpcRow } from "./clientSearchResult";
 
 const CLIENT_RPC = "yh_search_client_candidates";
+/** v2: modül + tarih penceresi SQL'de LIMIT'ten ÖNCE. */
+const CLIENT_RPC_V2 = "yh_search_client_candidates_v2";
 /** undefined function / undefined table / PostgREST rpc-not-found → şema henüz yok. */
 const UNAVAILABLE_CODES = new Set(["42883", "42P01", "PGRST202", "PGRST302"]);
 
@@ -18,7 +20,8 @@ export interface ClientRpcDb {
 }
 
 export type ClientRetrievalOutcome =
-  | { kind: "rows"; rows: ClientRpcRow[] }
+  /** filteredInSql: modül + tarih filtresi SQL'de (v2) uygulandı → uygulama katmanı tarih filtresi ATLANIR. */
+  | { kind: "rows"; rows: ClientRpcRow[]; filteredInSql: boolean }
   | { kind: "noop" }
   | { kind: "unavailable" }
   | { kind: "error" };
@@ -28,6 +31,9 @@ export interface ClientRetrievalInput {
   sessionTenantId: string;
   clientId: string;
   limit: number;
+  modules?: readonly string[] | null;
+  dateFrom?: string | null;
+  dateTo?: string | null;
 }
 
 export async function runClientRetrieval(
@@ -42,18 +48,32 @@ export async function runClientRetrieval(
   if (descriptor.kind !== "query") return { kind: "noop" };
 
   const w = descriptor.ranking.weights;
-  const { data, error } = await db.rpc(CLIENT_RPC, {
+  let filteredInSql = true;
+  let { data, error } = await db.rpc(CLIENT_RPC_V2, {
     p_tsquery: descriptor.tsquery,
     p_session_tenant: input.sessionTenantId,
     p_client_id: input.clientId,
     p_weights: [w.A, w.B, w.C, w.D],
     p_limit: input.limit,
+    p_modules: input.modules == null ? null : [...input.modules],
+    p_date_from: input.dateFrom ? input.dateFrom.slice(0, 10) : null,
+    p_date_to: input.dateTo ? input.dateTo.slice(0, 10) : null,
   });
+  if (error && error.code === "PGRST202") {
+    filteredInSql = false;
+    ({ data, error } = await db.rpc(CLIENT_RPC, {
+      p_tsquery: descriptor.tsquery,
+      p_session_tenant: input.sessionTenantId,
+      p_client_id: input.clientId,
+      p_weights: [w.A, w.B, w.C, w.D],
+      p_limit: input.limit,
+    }));
+  }
 
   if (error) {
     if (error.code && UNAVAILABLE_CODES.has(error.code)) return { kind: "unavailable" };
     return { kind: "error" };
   }
   const rows = Array.isArray(data) ? (data as ClientRpcRow[]) : [];
-  return { kind: "rows", rows };
+  return { kind: "rows", rows, filteredInSql };
 }

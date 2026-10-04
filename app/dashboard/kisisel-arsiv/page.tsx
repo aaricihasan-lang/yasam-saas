@@ -16,6 +16,7 @@ import {
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
+import ArchiveMemoryToggle from "@/components/yasam-hafizasi/ArchiveMemoryToggle";
 
 /** Güvenli kişisel arşiv API çağrıları için header — x-user-id + (varsa) x-session-token */
 function userHeaders(json = false): Record<string, string> {
@@ -1675,6 +1676,13 @@ export default function KisiselArsivPage() {
                   </p>
                 )}
               </div>
+
+              {!detailEditMode ? (
+                <ArchiveMemoryToggle
+                  key={`${detailRow.id}|${detailRow.title}|${detailRow.note ?? ""}|${detailRow.category}|${detailRow.tags ?? ""}`}
+                  archiveId={detailRow.id}
+                />
+              ) : null}
 
               <div className="mt-6">
                 <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">

@@ -38,7 +38,8 @@ function J(v: unknown): string {
 }
 
 const VALID_KEY = YH_INDEX_SOURCES[0].sourceKey; // refleksoloji:protocols (column, non-shared, safe → scoped destekli)
-const SHARED_KEY = "dogaltas:knowledge"; // allowSharedNull → scoped desteksiz
+// Satış öncesi (2026-10): knowledge artık tenant-only (scoped destekli); scoped-desteksiz örnek = join kaynak.
+const SHARED_KEY = "sifa_rehberi:guide-sections"; // join → scoped desteksiz
 const ADMIN = "admin-1";
 
 // Fixture UUID'ler (GERÇEK production değeri DEĞİL).

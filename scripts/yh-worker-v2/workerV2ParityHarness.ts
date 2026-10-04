@@ -92,14 +92,17 @@ async function run(): Promise<void> {
 // ═══ A) CAPABILITY MODEL (registry) ═══════════════════════════════════════════
 {
   add("A-five-in-registry", FIVE_KEYS.every((k) => cfg(k).tableName === FIVE[k]));
-  add("A-shared-capable-4", SHARED_CAPABLE.every((k) => hasWorkerCapability(cfg(k), "shared-optional-professional")));
+  // Satış öncesi (2026-10): ortak/merkezî mesleki kütüphane YOK → shared yeteneği HİÇBİR kaynakta yok;
+  // eski 4 shared kaynak artık yalnız tenant'a ait satırları indeksler.
+  add("A-shared-capable-4", SHARED_CAPABLE.every((k) => !hasWorkerCapability(cfg(k), "shared-optional-professional")
+    && (cfg(k).tenant as { allowSharedNull?: boolean }).allowSharedNull !== true));
   add("A-section-capable-guide-sections", hasWorkerCapability(cfg("sifa_rehberi:guide-sections"), "section-unit"));
   add("A-parent-derived-2", PARENT_DERIVED.every((k) => hasWorkerCapability(cfg(k), "parent-derived-scope")));
   // guide-sections SHARED DEĞİL (allowSharedNull yok) — yalnız section + parent-derived.
   add("A-guide-sections-not-shared", !hasWorkerCapability(cfg("sifa_rehberi:guide-sections"), "shared-optional-professional"));
   // Capability yalnız bu 5 kaynakta (başka kaynağa sızmadı).
   const withCap = (YH_INDEX_SOURCES as readonly SourceConfig[]).filter((s) => Array.isArray(s.workerCapabilities) && s.workerCapabilities.length > 0).map((s) => s.sourceKey).sort();
-  add("A-capability-only-on-5", JSON.stringify(withCap) === JSON.stringify([...FIVE_KEYS].sort()), withCap.join(","));
+  add("A-capability-only-on-5", JSON.stringify(withCap) === JSON.stringify(["aromaterapi:reference-rows", "sifa_rehberi:guide-sections"]), withCap.join(","));
 }
 
 // ═══ B) REAL processOutboxEvent — SUPPORTED (0 permanent reject) ══════════════
@@ -135,9 +138,9 @@ async function run(): Promise<void> {
     deps("dogaltas:knowledge", { exactStatus: "not-found", deindex: { status: "no-op" } as DeindexResult }));
   add("B-defensive-deindex", defensive.action === "complete" && String((defensive as { note?: string }).note).startsWith("defensive-deindex:"), JSON.stringify(defensive));
 
-  // NEGATİF: guide-sections SHARED (tenant null) olay → shared-source-unsupported (section shared DEĞİL).
+  // NEGATİF: NULL tenant (eski shared) olay → yazmadan `shared-excluded` ile tamamlanır (dead-letter yok).
   const guideShared = await processOutboxEvent(ev("sifa_rehberi:guide-sections", "upsert", null), deps("sifa_rehberi:guide-sections"));
-  add("B-guide-sections-shared-rejected", isPermanent(guideShared, "shared-source-unsupported"), JSON.stringify(guideShared));
+  add("B-guide-sections-shared-rejected", guideShared.action === "complete" && (guideShared as { note?: string }).note === "shared-excluded", JSON.stringify(guideShared));
 
   // Hiçbir supported olay tenant-model/unit/shared permanent koduna düşmez.
   const forbidden = new Set(["tenant-model-unsupported", "shared-source-unsupported", "non-record-unit-unsupported", "invalid-event-contract"]);
@@ -184,7 +187,7 @@ async function run(): Promise<void> {
     resolveConfig: () => plainColumn, runExactUpsert: async () => ({ exactStatus: "ok", write: { errors: [] } } as unknown as IndexSourcePageResult),
     deindex: async () => ({ status: "ok" } as DeindexResult), isSourceProcessingActive: async () => true,
   });
-  add("C4-plain-column-null-tenant-rejected", isPermanent(plainNull, "shared-source-unsupported"), JSON.stringify(plainNull));
+  add("C4-plain-column-null-tenant-rejected", plainNull.action === "complete" && (plainNull as { note?: string }).note === "shared-excluded", JSON.stringify(plainNull));
 }
 
 // ═══ D) ACTIVATION RECLASSIFICATION (5 → READY; OFF without activation) ═══════
@@ -198,7 +201,7 @@ async function run(): Promise<void> {
   // DEFERRED_SHARED_WORKER_V2 artık BOŞ (5 kaynak READY'ye taşındı).
   add("D-deferred-worker-v2-empty", sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").length === 0, sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").join(","));
   // Matris total DEĞİŞMEDİ (reclassification; entry sayısı sabit).
-  add("D-matrix-total-36", YH_ACTIVATION_MATRIX.length === 42, String(YH_ACTIVATION_MATRIX.length));
+  add("D-matrix-total-36", YH_ACTIVATION_MATRIX.length === 45, String(YH_ACTIVATION_MATRIX.length));
 }
 
 // ═══ E) MIGRATION STATIC CONTRACT (20261210000000) ════════════════════════════
@@ -298,18 +301,17 @@ async function run(): Promise<void> {
   // B/D: parent inactive (tenant) → child current-state DIŞI → defensiveDeindex; writer ÇAĞRILMADI (stale=0).
   const B = await runRef({ id: SHEET, tenant_id: TENANT_A, is_active: false }, TENANT_A);
   add("R-B-inactive-tenant-deindexed", B.d.action === "complete" && note(B.d).startsWith("defensive-deindex:") && B.written.length === 0, JSON.stringify(B.d));
-  // E: shared active parent → indexed (tenant NULL event).
+  // E: NULL-tenant (canonical) parent → olay `shared-excluded`; HİÇBİR index satırı yazılmaz.
   const E1 = await runRef({ id: SHEET, tenant_id: null, is_active: true }, null);
-  add("R-E-active-shared-indexed", E1.d.action === "complete" && note(E1.d) === "upsert-ok" && E1.written.length === 1, JSON.stringify(E1.d));
-  // E': shared inactive parent → deindexed.
+  add("R-E-active-shared-indexed", E1.d.action === "complete" && note(E1.d) === "shared-excluded" && E1.written.length === 0, JSON.stringify(E1.d));
   const E2 = await runRef({ id: SHEET, tenant_id: null, is_active: false }, null);
-  add("R-E-inactive-shared-deindexed", E2.d.action === "complete" && note(E2.d).startsWith("defensive-deindex:") && E2.written.length === 0, JSON.stringify(E2.d));
-  // G: isolation — shared active parent AMA event tenant A → tenant-mismatch (shared satır A'ya SIZMAZ).
+  add("R-E-inactive-shared-deindexed", E2.d.action === "complete" && note(E2.d) === "shared-excluded" && E2.written.length === 0, JSON.stringify(E2.d));
+  // G: isolation — canonical parent AMA olay tenant A → yazılmaz (savunma deindex; A'ya SIZMAZ).
   const G1 = await runRef({ id: SHEET, tenant_id: null, is_active: true }, TENANT_A);
-  add("R-G-shared-not-leaked-to-tenant", G1.d.action === "fail" && (G1.d as { code?: string }).code === "tenant-mismatch" && G1.written.length === 0, JSON.stringify(G1.d));
-  // Yazılan index satırı doğru scope taşır (tenant→A, shared→null).
-  add("R-written-scope-correct", A.written[0]?.["tenant_id"] === TENANT_A && E1.written[0]?.["tenant_id"] === null,
-    `A=${JSON.stringify(A.written[0]?.["tenant_id"])} E=${JSON.stringify(E1.written[0]?.["tenant_id"])}`);
+  add("R-G-shared-not-leaked-to-tenant", G1.d.action === "complete" && note(G1.d).startsWith("defensive-deindex:") && G1.written.length === 0, JSON.stringify(G1.d));
+  // Yazılan index satırı yalnız tenant scope taşır (NULL tenant satırı hiç yazılmaz).
+  add("R-written-scope-correct", A.written[0]?.["tenant_id"] === TENANT_A && E1.written.length === 0,
+    `A=${JSON.stringify(A.written[0]?.["tenant_id"])} E=${E1.written.length}`);
 }
 }
 

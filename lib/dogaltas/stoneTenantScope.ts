@@ -1,17 +1,16 @@
-import { ADMIN_LIBRARY_TENANT_ID } from "../tenancy/syntheticTenants";
-
 /**
  * Doğaltaş taş OKUMA görünürlüğü — tek kaynak (list, detay, Word, koşul arama,
  * uyarılar aynı kuralı kullanır; kopya iş kuralı YOK).
  *
- *   - Admin/kütüphane tenant'ı  → yalnız kendi kütüphanesi.
- *   - Demo hesap                → kendi tenant'ı + Admin Kütüphanesi (showcase).
- *   - Normal uzman              → YALNIZ kendi tenant'ı. Kütüphane (veya başka
- *                                 tenant) taşının id'sini bilse bile okuyamaz.
+ * KURAL (satış öncesi 2026-10): Ortak/merkezî "Admin Kütüphanesi" ürün modeli YOKTUR. Herkes —
+ * owner (admin + uzman), normal uzman ve DEMO hesap — YALNIZ kendi tenant'ının taşlarını okur.
+ * Owner tenant'ı (eski adıyla ADMIN_LIBRARY) owner'ın GERÇEK uzman verisidir; demo hesaba
+ * (giriş bilgileri herkese açık) UNION EDİLMEZ. Başka tenant taşının id'si bilinse bile okunamaz.
  *
  * Yazma (PATCH/DELETE) bu helper'ı KULLANMAZ; daima `.eq("tenant_id", tenantId)`.
+ * `isDemo` parametresi çağıranlarla imza uyumu için korunur (davranışı DEĞİŞTİRMEZ).
  */
-export function stoneReadTenantIds(tenantId: string, isDemo: boolean): string[] {
-  if (tenantId === ADMIN_LIBRARY_TENANT_ID) return [tenantId];
-  return isDemo ? [tenantId, ADMIN_LIBRARY_TENANT_ID] : [tenantId];
+export function stoneReadTenantIds(tenantId: string, _isDemo: boolean): string[] {
+  void _isDemo;
+  return [tenantId];
 }

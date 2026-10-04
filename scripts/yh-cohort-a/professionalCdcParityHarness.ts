@@ -139,6 +139,8 @@ async function run(): Promise<void> {
   const COVERAGE_COMPLETION_KEYS = [
     "kupa_hacamat:knowledge", "kupa_hacamat:points", "kupa_hacamat:topics",
     "kupa_hacamat:techniques", "kupa_hacamat:safety-notes", "biyoenerji:chakra-blocks",
+    // Satış öncesi (2026-10): Beslenme 3 aggregate kaynağı (column-tenant record; FUTURE_ONLY_READY).
+    "beslenme:foods", "beslenme:topics", "beslenme:templates",
   ];
   const futurePro = sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").sort();
   add("A-matrix-future-pro-equals-25", JSON.stringify(futurePro) === JSON.stringify([...READY_KEYS, ...DEFERRED_KEYS, ...PROFESSIONAL_COHORT_KEYS, ...COVERAGE_COMPLETION_KEYS].sort()), futurePro.join(","));
@@ -154,8 +156,11 @@ async function run(): Promise<void> {
   add("A2-deferred-class-empty", sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").length === 0, sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").join(","));
   // Registry enabled:true KORUNUR (arama semantiği bozulmadı).
   add("A2-graduated-registry-enabled", DEFERRED_KEYS.every((k) => cfg(k).enabled === true));
-  // Worker-v1 GERÇEKTEN işleyemez (config semantics) AMA worker-v2 capability ile READY (§ B2).
-  add("A2-graduated-not-workerv1", DEFERRED_KEYS.every((k) => workerV1Ok(k) === false), DEFERRED_KEYS.filter((k) => workerV1Ok(k)).join(","));
+  // Satış öncesi (2026-10): ortak/NULL-tenant yeteneği KALDIRILDI → knowledge/oils/reference-sheets/
+  // reference-rows artık düz tenant-scoped (worker-v1 ile işlenir). Yalnız guide-sections (unit=section)
+  // worker-v2 'section-unit' capability'sine muhtaç kalır.
+  add("A2-graduated-not-workerv1", DEFERRED_KEYS.filter((k) => workerV1Ok(k) === false).join(",") === "sifa_rehberi:guide-sections",
+    DEFERRED_KEYS.filter((k) => !workerV1Ok(k)).join(","));
   // triggerFeasibleNow=true + futureEventEligible=true (worker-v2 WIRED).
   add("A2-graduated-trigger-feasible", DEFERRED_KEYS.every((k) => entryOf(k)?.triggerFeasibleNow === true));
   add("A2-graduated-future-eligible", DEFERRED_KEYS.every((k) => entryOf(k)?.futureEventEligible === true));
@@ -219,7 +224,8 @@ async function run(): Promise<void> {
     graduatedResults.filter((r) => r.del.action !== "complete").map((r) => `${r.k}:${JSON.stringify(r.del)}`).join(" | "));
   // ÇAPRAZ: graduate kaynaklar workerV1Ok=false AMA worker-v2 capability ile processor KABUL eder.
   add("B2-graduated-not-workerv1-but-accepted",
-    DEFERRED_KEYS.every((k) => workerV1Ok(k) === false && graduatedResults.find((r) => r.k === k)?.up.action === "complete"));
+    DEFERRED_KEYS.every((k) => graduatedResults.find((r) => r.k === k)?.up.action === "complete")
+      && workerV1Ok("sifa_rehberi:guide-sections") === false);
   // READY 11 için: workerV1Ok=true ↔ accepted=true (worker-v1 parite korunur).
   add("B2-ready-workerv1ok-matches-accepted",
     READY_KEYS.every((k) => workerV1Ok(k) === (readyResults.find((r) => r.k === k)?.up.action === "complete")));
@@ -227,22 +233,22 @@ async function run(): Promise<void> {
 
 // ═══ C) SOURCE COUNT ARİTMETİĞİ (exact) ══════════════════════════════════════
 {
-  add("C-professional-registry-30", YH_INDEX_SOURCES.length === 36, String(YH_INDEX_SOURCES.length));
+  add("C-professional-registry-30", YH_INDEX_SOURCES.length === 39, String(YH_INDEX_SOURCES.length));
   // Professional Cohort: live 19 + 3 aroma = 22 (numeroloji enabled:false KORUNDU); dormant 2 numeroloji + 6 yebs = 8.
-  add("C-live-professional-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 28, String(YH_INDEX_SOURCES.filter((s) => s.enabled === true).length));
+  add("C-live-professional-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 31, String(YH_INDEX_SOURCES.filter((s) => s.enabled === true).length));
   add("C-dormant-professional-8", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 8);
   add("C-keep-live-1-professional-stones", sourceKeysByClass("KEEP_LIVE").filter((k) => k === "dogaltas:stones").length === 1);
   // KEEP_LIVE class = 2 (stones + refleksoloji:notes pii no-op); professional-live-catalog = 1 (stones).
   add("C-keep-live-class-2", sourceKeysByClass("KEEP_LIVE").length === 2, sourceKeysByClass("KEEP_LIVE").join(","));
   // FUTURE_ONLY_READY professional = 19 (11 worker-v1 Cohort A + 5 worker-v2 graduate + 3 Professional Cohort aroma).
-  add("C-future-only-controlled-19-pro", sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").length === 25, String(sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").length));
+  add("C-future-only-controlled-19-pro", sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").length === 28, String(sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").length));
   // FUTURE_ONLY_READY total = 19 professional + 6 client = 25.
-  add("C-future-only-total-25", sourceKeysByClass("FUTURE_ONLY_READY").length === 31, String(sourceKeysByClass("FUTURE_ONLY_READY").length));
+  add("C-future-only-total-25", sourceKeysByClass("FUTURE_ONLY_READY").length === 34, String(sourceKeysByClass("FUTURE_ONLY_READY").length));
   add("C-deferred-worker-v2-0", sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").length === 0, sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").join(","));
   add("C-row-gated-1-archive", sourceKeysByClass("ROW_GATED_CONTROLLED").length === 1 && sourceKeysByClass("ROW_GATED_CONTROLLED")[0] === "kisisel_arsiv:archives");
-  add("C-matrix-total-36", YH_ACTIVATION_MATRIX.length === 42, String(YH_ACTIVATION_MATRIX.length));
+  add("C-matrix-total-36", YH_ACTIVATION_MATRIX.length === 45, String(YH_ACTIVATION_MATRIX.length));
   // Kohort dispozisyonu: COHORT_1_READY = 19 professional ready (16 + 3 Professional Cohort aroma) + 1 archive = 20; DEFERRED cohort = 0.
-  add("C-cohort1-ready-20", sourceKeysByCohort("COHORT_1_READY").length === 26, sourceKeysByCohort("COHORT_1_READY").join(","));
+  add("C-cohort1-ready-20", sourceKeysByCohort("COHORT_1_READY").length === 29, sourceKeysByCohort("COHORT_1_READY").join(","));
   add("C-deferred-cohort-0", sourceKeysByCohort("DEFERRED_SHARED_WORKER_V2").length === 0);
 }
 

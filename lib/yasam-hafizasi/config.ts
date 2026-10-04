@@ -40,6 +40,9 @@ export const YH_SOURCE_MODULES = [
   // Terapisi bilgi/nokta/konu/teknik/güvenlik kayıtları (danışan-bağımsız katalog; client_id YOK).
   // Kozmik Ajanda 'hacamat_rules' (zamanlama) ile İLGİSİZ ve ONA DOKUNULMAZ.
   "kupa_hacamat",
+  // Satış öncesi nihai kapsam (2026-10): Beslenme Merkezi — YALNIZ 3 aggregate mesleki kaynak
+  // (tenant'a ait besin / konu / şablon). SYSTEM katalog, planlar ve danışan verileri GİRMEZ.
+  "beslenme",
 ] as const;
 export type YhSourceModule = (typeof YH_SOURCE_MODULES)[number];
 

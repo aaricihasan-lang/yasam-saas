@@ -44,6 +44,49 @@
 
 ---
 
+## 2026-10-03 — Yaşam Hafızası satış öncesi nihai: owner tenant gerçek, ortak kütüphane yok, replay, Beslenme
+
+### Tarih
+2026-10-03
+
+### Karar
+1. `aa8b960b-…` (`OWNER_TENANT_ID`, eski adı `ADMIN_LIBRARY_TENANT_ID`) platform sahibinin GERÇEK uzman
+   tenant'ıdır; `SYNTHETIC_TENANT_IDS` boşaltıldı (mekanizma korunur). 2026-07-22 kararının dayandığı
+   "bu tenant'ın public.users satırı yok" öncülü production'da YANLIŞ çıktı (owner admin bu tenant'ta).
+2. Mesleki Hafıza'da ortak/merkezî kütüphane YOK: NULL tenant'lı (eski canonical) satırlar indekslenmez
+   (trigger enqueue etmez; worker `shared-excluded`). Demo hesap owner'ın taş/mineral kataloğunu okumaz.
+3. Tarihsel kayıtlar outbox REPLAY ile (yh_outbox_replay_enqueue + admin drain) worker zincirinden
+   indekslenir; index'e doğrudan yazılmaz. Outbox `last_outcome` ile iş sonucu görünür.
+4. Beslenme 3 aggregate kaynakla (foods/topics/templates) Mesleki Hafıza'ya girer; SYSTEM katalog,
+   planlar ve danışan verileri girmez.
+5. Arama filtreleri (modül/tarih) SQL'de LIMIT'ten ÖNCE (v2 RPC).
+
+### Neden
+Production denetimi (2026-10-03): owner'ın Mesleki Hafızası yapısal olarak kapalıydı; aktivasyon
+öncesi kayıtlar hiç olay üretmemişti ve replay yolu yoktu; kapalı modül sonuçları ilk 150'yi doldurup
+açık modül sonucunu gizleyebiliyordu.
+
+### Etkilenen Dosyalar
+- lib/tenancy/syntheticTenants.ts, lib/yasam-hafizasi/** (outbox, indexer, search, replay, client)
+- supabase/migrations/20271004000000 (M1), 20271004000100 (M2 Beslenme CDC), 20271004000200 (M3 aktivasyon)
+- app/api/admin/yasam-hafizasi/replay, app/admin/yasam-hafizasi, Kişisel Arşiv "Hafızaya dahil et"
+- lib/dogaltas/stoneTenantScope.ts ve Doğaltaş owner/demo okuma noktaları
+
+### Breaking Change (Evet/Hayır)
+Evet (davranış): owner kayıtları indekslenir; demo artık owner taşlarını görmez; NULL-tenant satırlar
+indekslenmez; PII kaynak olayı `pii-excluded` ile tamamlanır (dead-letter değil).
+
+### Migration Gerektiriyor mu? (Evet/Hayır)
+Evet: M1 (kod deploy ÖNCESİ, add-only) → kod deploy → M2 → M3. Ardından kontrollü replay.
+
+### Geriye Dönük Uyumluluk
+v1 complete/search RPC'leri DEĞİŞMEZ; kod v2 RPC yoksa (PGRST202) v1'e düşer.
+
+### Notlar
+Ayrı iş: iki uzmandaki 1000'de kesilmiş chakra-block kopyalarının tamamlanması (veri aktarımı).
+
+---
+
 ## 2026-07-22 — S2.19-BF / BF-1B-FIX: Global sentetik tenant guard (ADMIN_LIBRARY_TENANT_ID indexlenemez)
 
 ### Tarih

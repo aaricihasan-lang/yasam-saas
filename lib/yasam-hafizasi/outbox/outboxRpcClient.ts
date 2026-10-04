@@ -248,12 +248,22 @@ export async function completeEvent(
   id: string,
   worker: string,
   claimedVersion: number,
+  outcome: string | null = null,
 ): Promise<CompleteResult> {
-  const data = await callRpc(db, "yh_outbox_complete", {
-    p_id: id,
-    p_worker: worker,
-    p_claimed_version: claimedVersion,
-  });
+  const base = { p_id: id, p_worker: worker, p_claimed_version: claimedVersion };
+  let data: unknown;
+  if (outcome !== null) {
+    // İş sonucu (last_outcome) v2 RPC ile yazılır. v2 henüz uygulanmamış bir DB'de (PGRST202:
+    // fonksiyon yok → hiç çalışmadı) eski RPC'ye düşülür; durum geçişi aynıdır, yalnız sonuç yazılmaz.
+    try {
+      data = await callRpc(db, "yh_outbox_complete_v2", { ...base, p_outcome: outcome });
+    } catch (e) {
+      if (!(e instanceof OutboxRpcError) || !e.code.endsWith(":pg:PGRST202")) throw e;
+      data = await callRpc(db, "yh_outbox_complete", base);
+    }
+  } else {
+    data = await callRpc(db, "yh_outbox_complete", base);
+  }
   if (typeof data === "string" && (COMPLETE_RESULTS as readonly string[]).includes(data)) {
     return data as CompleteResult;
   }

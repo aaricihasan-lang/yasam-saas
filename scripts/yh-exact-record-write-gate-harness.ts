@@ -225,13 +225,14 @@ async function main(): Promise<void> {
     check(upserts.length === 0, "P7: upsert yok");
   }
 
-  // 2.8 excluded-synthetic: sentetik (ADMIN_LIBRARY) tenant → writer yok.
+  // 2.8 owner tenant (eski ADMIN_LIBRARY) artık sentetik DEĞİL (satış öncesi 2026-10) → normal yazılır.
+  //     Sentetik dışlama MEKANİZMASI korunur; SYNTHETIC_TENANT_IDS boş olduğundan tetiklenmez.
   {
     const { db, upserts } = makeFake([row(EXACT_ID, ADMIN_LIBRARY_TENANT_ID)]);
     const r = await indexSourcePage({ config: cfg, mode: "write", exactSourceId: EXACT_ID, expectedTenantId: ADMIN_LIBRARY_TENANT_ID, db });
-    check(r.exactStatus === "excluded-synthetic", "P8: excluded-synthetic");
-    check(r.excludedSynthetic === 1 && r.write === null, "P8: excludedSynthetic=1 write null");
-    check(upserts.length === 0, "P8: upsert yok");
+    check(r.exactStatus === "ok", "P8: owner tenant → ok (sentetik değil)");
+    check(r.excludedSynthetic === 0, "P8: excludedSynthetic=0");
+    check(upserts.length === 1, "P8: owner kaydı yazılır (1 upsert)");
   }
 
   // 2.9 tenant-model-unsupported: shared (allowSharedNull) kaynak → okuma bile yapılmaz.
