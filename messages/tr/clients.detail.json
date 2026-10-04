@@ -7,6 +7,10 @@
       "notFound": "Danışan bulunamadı",
       "deleting": "Siliniyor...",
       "deleteClient": "Danışanı Sil",
+      "demo": {
+        "readOnlyTitle": "Demo Hesabı",
+        "banner": "Bu sentetik örnek danışan, gerçek uzman ekranıyla gösterilmektedir. Tüm sekmeleri ve Word raporlarını inceleyebilirsiniz; kaydetme, düzenleme, silme ve dosya yükleme işlemleri demo hesapta pasiftir."
+      },
       "a11y": {
         "tabs": "Danışan sekmeleri",
         "yhSelect": "Yaşam Hafızası'ndan rapora kayıt seç",

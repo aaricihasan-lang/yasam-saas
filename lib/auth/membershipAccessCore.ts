@@ -86,4 +86,4 @@ export const MODULE_DENIED_MESSAGE =
  * PROFILE_USER_SELECT alt kümesi; hassas alan (password/password_hash) YOK.
  */
 export const MEMBERSHIP_USER_SELECT =
-  "role, module_permissions, active, approval_status, status, package_type, plan" as const;
+  "role, module_permissions, active, approval_status, status, package_type, plan, is_demo_account" as const;

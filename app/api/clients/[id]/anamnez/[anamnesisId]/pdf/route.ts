@@ -41,8 +41,9 @@ export async function GET(req: NextRequest, { params }: RouteCtx): Promise<Respo
   const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
   const { id: clientId, anamnesisId } = await params;
-  const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return notFound();
+  const { db, tenantId } = guard;
+  // DEMO VİTRİN: demo tenant'ı yalnız SENTETİK veri içerir → okuma (GET) gerçek uzman ile aynıdır;
+  // yazma uçları demoReadOnly/403 ile kapalı kalır.
 
   const rl = checkRateLimit(`anamnez-filled:${tenantId}`, 20, 60_000, Date.now());
   if (!rl.ok) return anamnezError("RATE_LIMITED", 429);

@@ -75,6 +75,37 @@ export function isAdminOnlyModuleKey(moduleKey: string): boolean {
   return ADMIN_ONLY_MODULE_KEYS.has(moduleKey);
 }
 
+/**
+ * DEMO VİTRİN — Dijital İçerik ürün kuralı (owner kararı 2026-10-03, KALICI).
+ *
+ * Demo/vitrin uzman hesabında (users.is_demo_account=true) Dijital İçerik Merkezi'nde YALNIZ
+ * Kişisel Arşiv bulunur. Belge Çeviri (AI'sız pdf-to-word dahil), Video → Türkçe ve Ders Notu
+ * `module_permissions` bayraklarından BAĞIMSIZ olarak demo hesaba KAPALIDIR. Kural veride değil
+ * KODDA durur → hesap yeniden Premium'a alınsa / varsayılan paket yeniden uygulansa dahi
+ * Belge Çeviri geri gelmez. Sunucu (resolveModuleAccess) ve istemci (modulePermissions) AYNI seti
+ * kullanır; yalnız UI gizleme değildir (route + API 403).
+ */
+export const DEMO_DENIED_MODULE_KEYS: ReadonlySet<string> = new Set([
+  "belge_ceviri",
+  "belge_ceviri_ai",
+  "video_ceviri",
+  "ders_notu",
+]);
+
+export function isDemoDeniedModuleKey(moduleKey: string): boolean {
+  return DEMO_DENIED_MODULE_KEYS.has(moduleKey);
+}
+
+/** Demo vitrin hesabı mı? (yalnız boolean `true` sayılır; eksik/yanlış tip → false). */
+export function isDemoAccountFlag(value: unknown): boolean {
+  return value === true;
+}
+
+export type ModuleAccessOptions = {
+  /** users.is_demo_account — demo vitrin hesabında DEMO_DENIED_MODULE_KEYS kapalıdır. */
+  isDemo?: boolean;
+};
+
 function toFlags(raw: unknown): Record<string, boolean> {
   const flags: Record<string, boolean> = {};
   if (raw && typeof raw === "object") {
@@ -107,8 +138,12 @@ export function resolveModuleAccess(
   role: unknown,
   modulePermissions: unknown,
   moduleKey: string,
+  options?: ModuleAccessOptions,
 ): boolean {
   if (String(role ?? "").trim().toLowerCase() === "admin") return true;
+  const isDemo = options?.isDemo === true;
+  // Demo vitrin: Dijital İçerik'te yalnız Kişisel Arşiv (bayraktan bağımsız; bkz. DEMO_DENIED_MODULE_KEYS).
+  if (isDemo && isDemoDeniedModuleKey(moduleKey)) return false;
   // MERGE (KAJ-P1-04 × main): İki eski özel-durum KISAYOLU DA KALDIRILDI →
   //   • cosmic_calendar always-on YOK (owner "Gerçek kapı") → module_permissions.cosmic_calendar,
   //   • beslenme owner-only `return false` YOK (main: beslenme artık NORMAL modül) → module_permissions.beslenme.
@@ -121,7 +156,8 @@ export function resolveModuleAccess(
   const flags = toFlags(modulePermissions);
   if (moduleKey === "digital_content") {
     // Hub yalnız uzmana AÇIK kalan alt modüllerden açılır (video/ders notu artık admin-only).
-    return hasFlag(flags, "personal_archive") || hasFlag(flags, "belge_ceviri");
+    // Demo vitrin: Belge Çeviri hub'ı AÇMAZ (yalnız Kişisel Arşiv).
+    return hasFlag(flags, "personal_archive") || (!isDemo && hasFlag(flags, "belge_ceviri"));
   }
   return hasFlag(flags, moduleKey);
 }

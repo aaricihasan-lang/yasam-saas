@@ -8,6 +8,7 @@ import {
   validateAppointmentPatch,
 } from "@/lib/danisan/appointmentRules";
 import { advanceClientGorusme } from "@/lib/danisan/appointmentGorusme";
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 
 export const runtime = "nodejs";
 
@@ -41,9 +42,7 @@ export async function PATCH(
 
   const { db, tenantId, is_demo_account } = guard;
 
-  if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, appointment: null });
-  }
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let body: Record<string, unknown>;
   try {
@@ -150,9 +149,7 @@ export async function DELETE(
 
   const { db, tenantId, is_demo_account } = guard;
 
-  if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, deleted: 0 });
-  }
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await db
     .from("appointments")

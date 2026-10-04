@@ -3,6 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 
 export const runtime = "nodejs";
 
@@ -117,6 +118,8 @@ export async function POST(
   }
 
   const { db, tenantId, is_demo_account } = guard;
+  // Demo vitrin: salt-okunur → doğrulamadan ÖNCE 403 (hiçbir yazma/okuma yapılmaz).
+  if (is_demo_account) return demoReadOnlyResponse();
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json(
@@ -145,11 +148,6 @@ export async function POST(
       { ok: false, error: "En az bir taş seçilmelidir." },
       { status: 400 },
     );
-  }
-
-  // Demo hesap: gerçek yazma yapılmaz; başarılı gibi dönülür.
-  if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true });
   }
 
   // O-7: Aynı danışanda aynı isimde kombinasyon tekrarını engelle (case + boşluk

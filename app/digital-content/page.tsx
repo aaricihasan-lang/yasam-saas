@@ -32,7 +32,7 @@ export default function DigitalContentPage() {
             </div>
           </div>
           <p className="mt-2.5 max-w-lg text-sm font-medium text-slate-600 sm:text-base">
-            Belge dönüştürme ve kişisel arşiv yönetimi
+            Kişisel arşiv ve dijital içerik yönetimi
           </p>
           <div className="mt-3 h-px w-full bg-gradient-to-r from-indigo-200/80 via-sky-200/60 to-transparent" />
         </div>

@@ -7,6 +7,10 @@
       "notFound": "Client not found",
       "deleting": "Deleting...",
       "deleteClient": "Delete Client",
+      "demo": {
+        "readOnlyTitle": "Demo Account",
+        "banner": "This synthetic sample client is shown with the real expert screen. You can explore every tab and Word report; saving, editing, deleting and file uploads are disabled on the demo account."
+      },
       "a11y": {
         "tabs": "Client tabs",
         "yhSelect": "Select records from Life Memory for the report",

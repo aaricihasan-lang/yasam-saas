@@ -5,6 +5,7 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { filterOwnedStonePhotoPaths } from "@/lib/clients/stonePhotoStorage";
 import { collectAnamnesisObjectPaths, removeObjects } from "@/lib/danisan/anamnez/server";
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 
 export const runtime = "nodejs";
 
@@ -118,9 +119,7 @@ export async function DELETE(
   const { db, tenantId, is_demo_account } = guard;
 
   // Demo hesap: hiçbir DB DELETE yapılmaz.
-  if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true });
-  }
+  if (is_demo_account) return demoReadOnlyResponse();
 
   // client_id gerçekten bu tenant'a mı ait? (IDOR + ownership)
   const { data: cli, error: cliErr } = await db

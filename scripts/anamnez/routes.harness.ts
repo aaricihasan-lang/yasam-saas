@@ -114,7 +114,9 @@ async function main(): Promise<void> {
     // Demo
     const demo = { id: U.DEMO.id, token: U.DEMO.token };
     const dl = await call(listRoute.GET, "GET", P(seed.clients.a1), demo);
-    ok(dl.status === 200 && dl.json.demo === true && Array.isArray(dl.json.anamneses) && (dl.json.anamneses as unknown[]).length === 0, "demo okuma → boş liste");
+    // DEMO VİTRİN (2026-10-03): demo okuması gerçek uzmanla aynı (tenant-scoped; prod demo tenant'ı yalnız
+    // sentetik veri içerir). Yazmalar aşağıda demoReadOnly (403) ile kapalı kalır.
+    ok(dl.status === 200 && dl.json.demo === undefined && Array.isArray(dl.json.anamneses), "demo okuma → 200 (salt-okunur, tenant-scoped liste)");
     const dp = await call(listRoute.POST, "POST", P(seed.clients.a1), demo, { mode: "standard", fromId: null, assessmentDate: "2026-09-28" });
     ok(dp.status === 403 && dp.json.code === "DEMO_READ_ONLY", "demo yazma → 403 DEMO_READ_ONLY");
 
@@ -423,7 +425,7 @@ async function main(): Promise<void> {
     ok((await call(filledRoute.GET, "GET", P(seed.clients.a1, A1), asB)).status === 404, "B → A danışanı + A anamnezi PDF → 404");
     ok((await call(filledRoute.GET, "GET", P(seed.clients.b1, A1), asB)).status === 404, "B kendi danışanı + A anamnez id → 404");
     ok((await call(filledRoute.GET, "GET", P(seed.clients.a1, A1), {})).status === 401, "kimliksiz PDF → 401");
-    ok((await call(filledRoute.GET, "GET", P(seed.clients.a1, A1), { id: U.DEMO.id, token: U.DEMO.token })).status === 404, "demo → 404");
+    ok((await call(filledRoute.GET, "GET", P(seed.clients.a1, A1), { id: U.DEMO.id, token: U.DEMO.token })).status === 200, "demo PDF okuması → 200 (salt-okunur)");
     ok((await call(filledRoute.GET, "GET", P(seed.clients.a1, "not-a-uuid"), asA)).status === 404, "geçersiz anamnez id → 404");
     const fpDraft = await call(filledRoute.GET, "GET", P(seed.clients.a1, A3), asA, undefined, `?rev=${(await row(A3)).revision}&locale=en`);
     const fpDraftBytes = Buffer.from(await fpDraft.res.arrayBuffer());

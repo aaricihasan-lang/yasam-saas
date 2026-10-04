@@ -316,7 +316,7 @@ const cascade = read("app/api/clients/[id]/cascade-delete/route.ts");
 const clientDeleteAt = cascade.search(/\.from\("clients"\)\s*\.delete\(\)/);
 ok(cascade.indexOf("collectAnamnesisObjectPaths(db") > 0 && clientDeleteAt > 0 && cascade.indexOf("collectAnamnesisObjectPaths(db") < clientDeleteAt, "danışan silme: anamnez PDF'leri DB silmesinden ÖNCE");
 ok(/anamneses[\s\S]*client_anamneses[\s\S]*anamnesisFiles[\s\S]*client_anamnesis_attachments/.test(read("lib/danisan/deletePreview.ts")), "silme önizlemesi yeni tabloları sayıyor");
-ok(/"anamnez"/.test(read("lib/danisan/clientDetailTabs.ts")) && /id="anamnez"/.test(read("app/dashboard/clients/[id]/page.tsx")), "sekme allowlist + Danışan Detayı sekmesi");
+ok(/id: "anamnez"/.test(read("lib/danisan/clientDetailTabs.ts")) && /visibleTabs\.map\(\(tab\) =>/.test(read("app/dashboard/clients/[id]/page.tsx")) && /openedTabs\.has\("anamnez"\)/.test(read("app/dashboard/clients/[id]/page.tsx")), "sekme kaydı (tek kaynak) + Danışan Detayı sekmesi");
 const reg = read("lib/backup/registry.ts");
 ok(/entry\("client_anamneses"/.test(reg) && /entry\("client_anamnesis_attachments"[\s\S]*st\("storage_path", "tenant"\)/.test(reg), "backup registry (+ storage yolu tenant doğrulaması)");
 const man = JSON.parse(read("supabase/expected-manifest.json"));

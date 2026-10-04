@@ -8,9 +8,10 @@
       "statAlerts": "Aktif Uyarı",
       "newClient": "Yeni Kayıt",
       "newClientDemo": "Demo Kayıt",
+      "demoReadOnly": "Demo hesabı salt okunurdur; silme ve düzenleme işlemleri bu hesapta çalışmaz.",
       "demoNotice": {
-        "title": "Demo Modu — Örnek Veri",
-        "desc": "Gerçek verilere benzer hazırlanmış 20 örnek danışan profiliyle platformu keşfediyorsunuz. Telefon bilgileri gizlenmiştir. Yalnızca <b>Eylül Karaca</b> profilinin tam içeriğine erişebilirsiniz."
+        "title": "Demo Modu — Sentetik Örnek Veri",
+        "desc": "Platformu tamamen <b>sentetik</b> örnek danışanlarla keşfediyorsunuz. Danışan detayları gerçek uzman ekranında açılır; tüm sekmeleri inceleyebilirsiniz. Demo hesabı salt okunurdur."
       },
       "tenantMissing": {
         "noSession": "Oturum bulunamadı. Danışan listesi için lütfen tekrar giriş yapın.",

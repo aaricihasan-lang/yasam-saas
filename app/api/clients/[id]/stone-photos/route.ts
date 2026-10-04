@@ -9,6 +9,7 @@ import {
   stonePhotoPrefix,
   deleteStonePhotoRecords,
 } from "@/lib/clients/stonePhotoStorage";
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 
 export const runtime = "nodejs";
 
@@ -117,9 +118,7 @@ export async function POST(
 
   const { db, tenantId, is_demo_account } = guard;
 
-  if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, photo: null });
-  }
+  if (is_demo_account) return demoReadOnlyResponse();
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
@@ -243,9 +242,7 @@ export async function DELETE(
 
   const { db, tenantId, is_demo_account } = guard;
 
-  if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true });
-  }
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let photoId = "";
   let all = false;
