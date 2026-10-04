@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 
 export const runtime = "nodejs";
 
@@ -53,9 +54,7 @@ export async function POST(
   const { db, tenantId, is_demo_account } = guard;
 
   // 2) Demo hesap: gerçek storage'a yazma yapılmaz (mevcut davranış korunur).
-  if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true });
-  }
+  if (is_demo_account) return demoReadOnlyResponse();
 
   // 3) İstek gövdesi (formData). tenantId GÖNDERİLSE BİLE güvenlik kararında kullanılmaz.
   let formData: FormData;

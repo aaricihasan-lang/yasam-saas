@@ -4,6 +4,7 @@ import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mergeHomeworkDates, validateHomeworkDates } from "@/lib/danisan/homeworkDates";
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 
 export const runtime = "nodejs";
 
@@ -106,9 +107,7 @@ export async function POST(
 
   const { db, tenantId, is_demo_account } = guard;
 
-  if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, id: null });
-  }
+  if (is_demo_account) return demoReadOnlyResponse();
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
@@ -165,9 +164,7 @@ export async function PATCH(
 
   const { db, tenantId, is_demo_account } = guard;
 
-  if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true });
-  }
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let body: { homeworkId?: unknown; patch?: Record<string, unknown> };
   try {
@@ -251,9 +248,7 @@ export async function DELETE(
 
   const { db, tenantId, is_demo_account } = guard;
 
-  if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true });
-  }
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let homeworkId = "";
   try {

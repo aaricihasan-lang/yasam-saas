@@ -17,8 +17,6 @@ import {
   UsersRound,
 } from "lucide-react";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { DEMO_CLIENTS } from "@/lib/demo/demoClients";
-import { readDemoClients } from "@/lib/demo/demoSession";
 import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
 import { formatDate } from "@/lib/i18n/format";
 
@@ -33,54 +31,6 @@ function isoToTR(iso: string | null | undefined): string {
 function fmtCount(n: number | null): string {
   if (n === null) return "—";
   return String(n);
-}
-
-// ─── Demo stats — DEMO_CLIENTS + session clientlarından hesapla ──────────────
-type FlatClient = { created_at: string; gorusme: string | null };
-
-function calcDemoStats(clients: FlatClient[]): string[] {
-  const now = new Date();
-  const startOfMonth     = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-  // 1 — Toplam Danışan
-  const total = clients.length;
-
-  // 2 — Bu Ay Yeni (created_at bu ay)
-  const thisMonthNew = clients.filter((c) => {
-    const d = new Date(c.created_at);
-    return d >= startOfMonth && d < startOfNextMonth;
-  }).length;
-
-  // 3 — Son Kayıt (en yeni created_at)
-  const lastCreated = clients
-    .map((c) => c.created_at)
-    .filter(Boolean)
-    .sort()
-    .at(-1) ?? null;
-
-  // 4 — Bu Ay Randevu (demo: gorusme bu ay içinde)
-  const thisMonthAppts = clients.filter((c) => {
-    if (!c.gorusme) return false;
-    const d = new Date(c.gorusme);
-    return d >= startOfMonth && d < startOfNextMonth;
-  }).length;
-
-  // 5 — Bu Ay Tamamlanan (demo: gorusme bu ay ve geçmiş)
-  const thisMonthCompleted = clients.filter((c) => {
-    if (!c.gorusme) return false;
-    const d = new Date(c.gorusme);
-    return d >= startOfMonth && d < now;
-  }).length;
-
-  return [
-    fmtCount(total),              // 1 Toplam Danışan
-    fmtCount(thisMonthNew),       // 2 Bu Ay Yeni
-    isoToTR(lastCreated),         // 3 Son Kayıt
-    fmtCount(thisMonthAppts),     // 4 Bu Ay Randevu
-    "—",                          // 5 En Yakın Randevu (demo'da randevu verisi yok)
-    fmtCount(thisMonthCompleted), // 6 Bu Ay Tamamlanan
-  ];
 }
 
 // ─── Sabit kart tanımları (renk + ikon) ─────────────────────────────────────
@@ -211,21 +161,7 @@ export default function DanisanYolculuguPage() {
     let cancelled = false;
 
     async function loadStats() {
-      // Demo hesap: Supabase yerine local veriden hesapla
-      const user = readYasamUser();
-      if (user?.is_demo_account === true) {
-        const sessionClients = readDemoClients();
-        const allClients: FlatClient[] = [
-          ...sessionClients,
-          ...(DEMO_CLIENTS as FlatClient[]),
-        ];
-        if (!cancelled) {
-          setStats(calcDemoStats(allClients));
-          setLoading(false);
-        }
-        return;
-      }
-
+      // Demo vitrin hesabı da gerçek (sentetik demo tenant) özet ucunu kullanır.
       const uid = readYasamUser()?.id;
       if (!uid) {
         setLoading(false);

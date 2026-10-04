@@ -118,7 +118,7 @@ export async function POST(
   // tenant_id SUNUCUDA guard'dan gelir; body'deki tenantId/userId'ye ASLA güvenilmez.
   const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
-  const { db, tenantId, is_demo_account } = guard;
+  const { db, tenantId } = guard;
   // Yaşam Hafızası teslim eki: aktif modül kapsamı GÜNCEL module_permissions'tan (Üye Yönetimi).
   const yhScope = resolveYhModuleScope(guard.profile?.role, guard.profile?.module_permissions);
 
@@ -136,9 +136,9 @@ export async function POST(
     includeExpertNotes?: unknown;
   };
 
-  // Demo hesap: tüm export işlemleri sunucu seviyesinde engellenir
-  if (is_demo_account)
-    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+  // DEMO VİTRİN (owner kararı 2026-10-03): Word raporu SALT-OKUNUR bir çıktıdır — yalnız mevcut
+  // (demo tenant'ında SENTETİK) danışan verisini okur, DB'ye yazmaz, ücretli/harici servis
+  // çağırmaz → demo hesapta da üretilir. (Görsel gömme yalnız storage OKUMASIDIR.)
 
   // Rapor bağlamı: Hazırlayan (profil adı) + iç not opt-in. Tarihler builder'da Europe/Istanbul.
   const ctx: ClientReportCtx = {

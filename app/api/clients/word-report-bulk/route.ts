@@ -76,7 +76,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   // tenant_id SUNUCUDA guard'dan gelir; body'deki tenantId/userId'ye ASLA güvenilmez.
   const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
-  const { db, tenantId, is_demo_account } = guard;
+  const { db, tenantId } = guard;
 
   let body: unknown;
   try { body = await req.json(); }
@@ -87,9 +87,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     clientIds?: string[];
   };
 
-  // Demo hesap: export sunucu seviyesinde engellenir
-  if (is_demo_account)
-    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+  // DEMO VİTRİN: toplu Word de salt-okunur çıktı (DB yazımı/ücretli servis yok) → demo hesapta açık.
 
   const isBoundedList =
     (exportMode === "selected" || exportMode === "filtered") &&

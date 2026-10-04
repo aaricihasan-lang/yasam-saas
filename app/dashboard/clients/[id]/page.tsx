@@ -1,10 +1,13 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { formatDateTimeAbsolute } from "@/lib/i18n/format";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { resolveClientDetailTab } from "@/lib/danisan/clientDetailTabs";
+import { resolveClientDetailTab, visibleClientDetailTabs } from "@/lib/danisan/clientDetailTabs";
+import { hasModulePermission } from "@/lib/auth/modulePermissions";
+import { installDemoReadOnlyFetchGuard, DEMO_READONLY_MESSAGE } from "@/lib/demo/demoReadOnlyFetchGuard";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -15,7 +18,7 @@ import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken, syncYasamUserFromDb, type YasamUser } from "@/lib/auth/yasamUser";
 import { invalidateDanisanListCache, removeClientFromDanisanListCache } from "@/lib/danisan/listCache";
 import { computeBurc } from "@/lib/danisan/burc";
 import NotesTab from "./components/NotesTab";
@@ -226,6 +229,33 @@ function ClientDetailPageInner() {
   // Bu owner probe'u YALNIZ plan YÖNETİMİ capability'si için tutulur: owner=super-admin →
   // "Yeni Plan" + plan editörü; uzman → plan yalnız salt-okunur liste (editör AŞAMA 2). §22
   const [isBeslenmeOwner, setIsBeslenmeOwner] = useState(false);
+
+  // Sekme görünürlüğü TEK KAYNAK (lib/danisan/clientDetailTabs) + merkezî izin (hasModulePermission).
+  // İzinler canlı DB'den kesinleşene kadar izin-bağımlı sekmeler (Yaşam Hafızası) fail-closed gizli.
+  const [permUser, setPermUser] = useState<YasamUser | null>(null);
+  const [permResolved, setPermResolved] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    const cached = readYasamUser();
+    void syncYasamUserFromDb(cached)
+      .then((fresh) => { if (alive) setPermUser(fresh ?? cached ?? null); })
+      .catch(() => { if (alive) setPermUser(cached ?? null); })
+      .finally(() => { if (alive) setPermResolved(true); });
+    return () => { alive = false; };
+  }, []);
+  const visibleTabs = useMemo(
+    () => visibleClientDetailTabs(permUser ? (key) => hasModulePermission(permUser, key) : null),
+    [permUser],
+  );
+  const canSeeTab = useCallback((id: string) => visibleTabs.some((tab) => tab.id === id), [visibleTabs]);
+  // Demo vitrin hesabı: gerçek sayfa + salt-okunur (sunucu 403 asıl koruma; istemci kapısı UX içindir).
+  const isDemo = permUser?.is_demo_account === true;
+  useEffect(() => {
+    if (!isDemo) return;
+    return installDemoReadOnlyFetchGuard(() =>
+      showToast({ title: t("demo.readOnlyTitle"), message: DEMO_READONLY_MESSAGE, type: "info" }),
+    );
+  }, [isDemo, showToast, t]);
   useEffect(() => {
     let alive = true;
     void checkBeslenmeAccess().then((ok) => { if (alive) setIsBeslenmeOwner(ok === true); }).catch(() => {});
@@ -323,6 +353,14 @@ function ClientDetailPageInner() {
   useEffect(() => {
     setOpenedTabs((prev) => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)));
   }, [activeTab]);
+
+  // İzinler kesinleşince görünmeyen (izinsiz) sekme aktif kalamaz → Genel (deep-link dahil).
+  useEffect(() => {
+    if (!permResolved) return;
+    runInEffect(() => {
+      setActiveTab((cur) => resolveClientDetailTab(cur, visibleTabs));
+    });
+  }, [permResolved, visibleTabs]);
 
   // §4.2 Bildirim derin bağlantısı: sayfa zaten açıkken ?tab= değişirse (ör. zil →
   // "Danışan kartı") aktif sekme URL ile senkronlanır. Yalnız parametre DEĞİŞİMİNDE
@@ -804,6 +842,8 @@ function ClientDetailPageInner() {
         </div>
       </section>
 
+      {isDemo && <DemoModuleBanner message={t("demo.banner")} />}
+
       {/* Tabs section */}
       <DanisanSectionShell desktopClassName="sm:rounded-[20px] sm:border sm:border-white/78 sm:bg-white/92 sm:px-3.5 sm:pb-[18px] sm:pt-3.5 sm:shadow-lg">
 
@@ -815,18 +855,12 @@ function ClientDetailPageInner() {
             aria-label={t("a11y.tabs")}
             className="flex flex-wrap items-center gap-1.5 py-1 pb-1.5 sm:pb-1"
           >
-            <Tab label={t("tab.genel")}      id="genel"      activeTab={activeTab} setActiveTab={setActiveTab} color="#2563eb" />
-            <Tab label={t("tab.anamnez")}    id="anamnez"    activeTab={activeTab} setActiveTab={setActiveTab} color="#0f766e" />
-            <Tab label={t("tab.notlar")}     id="notlar"     activeTab={activeTab} setActiveTab={setActiveTab} color="#7c3aed" />
-            <Tab label={t("tab.randevular")} id="randevular" activeTab={activeTab} setActiveTab={setActiveTab} color="#db2777" />
-            <Tab label={t("tab.taslar")}     id="taslar"     activeTab={activeTab} setActiveTab={setActiveTab} color="#0891b2" />
-            <Tab label={t("tab.seanslar")}   id="seanslar"   activeTab={activeTab} setActiveTab={setActiveTab} color="#16a34a" />
-            <Tab label={t("tab.ucretlendirme")} id="ucretlendirme" activeTab={activeTab} setActiveTab={setActiveTab} color="#0d9488" />
-            <Tab label={t("tab.odevler")}    id="odevler"    activeTab={activeTab} setActiveTab={setActiveTab} color="#dc2626" />
-            <Tab label={t("tab.analizler")}  id="analizler"  activeTab={activeTab} setActiveTab={setActiveTab} color="#9333ea" />
-            <Tab label={t("tab.yolculuk")}   id="yolculuk"   activeTab={activeTab} setActiveTab={setActiveTab} color="#4f46e5" />
-            <Tab label={t("tab.hafiza")}     id="hafiza"     activeTab={activeTab} setActiveTab={setActiveTab} color="#7c3aed" />
-            <Tab label={t("tab.beslenme")}  id="beslenme"   activeTab={activeTab} setActiveTab={setActiveTab} color="#059669" />
+            {/* Sekmeler TEK KAYNAKTAN (lib/danisan/clientDetailTabs): yeni sekme kayda eklenince hem gerçek
+                uzman hem demo vitrin ekranında otomatik görünür; izin-bağımlı sekme (Yaşam Hafızası) yalnız
+                izinli kullanıcıya render edilir. */}
+            {visibleTabs.map((tab) => (
+              <Tab key={tab.id} label={t(`tab.${tab.labelKey}`)} id={tab.id} activeTab={activeTab} setActiveTab={setActiveTab} color={tab.color} />
+            ))}
             {/* "Yaşam Hafızası'ndan Seç" aksiyonu UAT sonrası UI'dan kaldırıldı
                 (işlev tamamlanınca ayrı fazda geri değerlendirilecek). MemoryPicker
                 plumbing (state + mount) dormant korunuyor; Yaşam Hafızası sekmesi
@@ -1159,7 +1193,7 @@ function ClientDetailPageInner() {
             />
           </div>
           )}
-          {openedTabs.has("hafiza") && (
+          {openedTabs.has("hafiza") && canSeeTab("hafiza") && (
           <div role="tabpanel" id="tabpanel-hafiza" aria-labelledby="tab-hafiza" hidden={activeTab !== "hafiza"}>
             <ClientMemoryTab clientId={client.id} clientName={fullName || t("clientFallback")} />
           </div>

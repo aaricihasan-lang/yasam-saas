@@ -9,11 +9,11 @@ export const DIGITAL_CONTENT_DEMO_TITLE = "Demo Hesabı";
 
 /** İşlem denendiğinde gösterilen standart uyarı (toast message). */
 export const DIGITAL_CONTENT_DEMO_MESSAGE =
-  "Bu özellik demo hesapta pasiftir. Dijital İçerik Merkezi araçlarını kullanmak için uzman hesabınızla giriş yapmanız gerekir. Demo hesapta yalnızca ekranlar ve iş akışları görüntülenebilir.";
+  "Bu işlem demo hesapta pasiftir. Kişisel Arşiv ekranlarını inceleyebilirsiniz; dosya yükleme, kayıt oluşturma, silme ve indirme işlemleri uzman hesabında çalışır.";
 
 /** Modül girişinde gösterilen standart Demo Banner metni (DemoModuleBanner). */
 export const DIGITAL_CONTENT_DEMO_BANNER =
-  "Dijital İçerik Merkezi'ni demo olarak inceliyorsunuz. Tüm ekranları ve iş akışlarını gezebilirsiniz; dosya yükleme, dönüştürme, çeviri, AI işlemleri, kayıt oluşturma ve indirme demo hesapta pasiftir.";
+  "Kişisel Arşiv'i demo olarak inceliyorsunuz. Arşiv ekranlarını gezebilirsiniz; dosya yükleme, kayıt oluşturma, silme ve indirme demo hesapta pasiftir.";
 
 type ToastFn = (o: {
   title?: string;
