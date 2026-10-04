@@ -259,12 +259,9 @@
     },
     "landing": {
       "sampleAnalysisBadge": "Sample Analysis",
-      "previewBadge": "Preview",
       "activeModuleBadge": "Active Module",
       "comingSoonBadge": "COMING SOON",
-      "inDevelopment": "In Development",
       "seeSampleAnalysis": "See Sample Analysis",
-      "peekScreen": "Take a Look",
       "discover": "Explore",
       "numeroloji": {
         "title": "Numerology",
@@ -282,14 +279,6 @@
         "title": "Personal Archive",
         "desc": "Keep your audio, video, documents, images and personal notes organized in one secure archive."
       },
-      "belgeCeviri": {
-        "title": "Document Translation",
-        "desc": "Process PDFs, Word files and images with AI-assisted Turkish translation and format-preserving output."
-      },
-      "videoCeviri": {
-        "title": "Video Translation",
-        "desc": "AI-assisted transcription and translation for video and audio, with Turkish-language output and Word/PDF export."
-      },
       "danisanYonetimi": {
         "title": "Client Management",
         "desc": "Manage client records, profiles, appointments and follow-up workflows in one place."
@@ -306,6 +295,22 @@
         "title": "Aromatherapy",
         "desc": "Manage essential oils, carrier oils and blends in one dedicated workspace."
       },
+      "urunStok": {
+        "title": "Product & Stock Center",
+        "desc": "Manage stock, pricing and sales records for your natural stones, soaps, creams, prayer beads, jewelry and other products in one place."
+      },
+      "kupaHacamat": {
+        "title": "Cupping & Hijama",
+        "desc": "Create your hijama protocols and manage points, techniques, the application calendar and safety notes in a single workspace."
+      },
+      "beslenme": {
+        "title": "Nutrition",
+        "desc": "Prepare nutrition plans for your clients with a food library, nutrition guide, and temperament and blood type profiles."
+      },
+      "kozmikAjanda": {
+        "title": "Cosmic Agenda",
+        "desc": "Follow the Hijri calendar, moon phases, retrograde periods, planetary hours and hijama days alongside the daily cosmic flow."
+      },
       "humanDesign": {
         "title": "Human Design",
         "desc": "Use your Human Design knowledge base to create personalized professional reports and interpretations for your clients."
@@ -314,11 +319,13 @@
     "feats": {
       "biyoenerji": ["Bioenergy Sessions", "Energy Bodies", "Subconscious Causes", "Imagination Library", "Symbol Language", "Chakra Library"],
       "kisiselArsiv": ["Audio & Video", "Documents & Images", "Personal Notes", "Search System", "File Tracking", "Secure Archive"],
-      "belgeCeviri": ["PDF → Word", "PDF → Turkish Word", "Image OCR", "Multi-Language Support", "Format Preservation", "Secure Processing"],
-      "videoCeviri": ["Video → Text", "Automatic Language Detection", "Translation to Turkish", "Word/PDF Output", "Training Content Preparation", "Privacy-Focused Processing"],
       "danisanYonetimi": ["Client Records", "Client Profiles", "Appointment Tracking", "Schedule Management", "Meeting History", "Follow-up Workflow"],
       "sifaRehberi": ["Condition References", "Saved Healing Guide", "Symptoms & Causes", "Applications & Methods", "Stones & Minerals", "Aromatherapy"],
       "refleksoloji": ["Zone Map", "Saved Atlas", "Protocol Map", "Saved Protocols", "Practitioner Notes", "Session Tracking"],
+      "urunStok": ["All Products List", "Natural Stone Products/Stock", "Soap / Cream Products", "Prayer Beads / Jewelry / Accessories", "Sales & Pricing", "Sales History"],
+      "kupaHacamat": ["Hijama Protocols", "Hijama Calendar", "Hijama Points", "Cupping Techniques", "Safety & Contraindications", "Word Protocol Export"],
+      "beslenme": ["Food Library", "Nutrition Guide", "Nutrition by Temperament", "Nutrition by Blood Type", "Nutrition Plans", "Plan Templates"],
+      "kozmikAjanda": ["Cosmic Calendar", "Moon Phases", "Retrograde Calendar", "Planetary Hours", "Hijama Calendar", "Hijri Calendar"],
       "humanDesign": ["Knowledge Base Management", "Gate and Channel Interpretations", "Center Analyses", "Type and Profile Descriptions", "Automatic Report Generation", "Personalized Reports"],
       "dogaltas": ["Stone Records", "Mineral Bank", "Combination Management", "Smart Search", "Category Filtering", "Detail Views", "Statistics", "Image Archive"]
     },
@@ -406,24 +413,6 @@
         "alt": "Personal Archive Preview",
         "panelTitle": "A Secure Workspace for Your Personal Archive",
         "panelDesc": "Store, search and organize your personal files by category."
-      },
-      "belgeCeviri": {
-        "aria": "Document Translation module preview",
-        "badge": "Document Translation Module",
-        "title": "Document Translation — Real Product Screen",
-        "subtitle": "Convert PDFs, Word files and images with AI and translate them into Turkish.",
-        "alt": "Document Translation Preview",
-        "panelTitle": "Fast Document Conversion and Translation",
-        "panelDesc": "Convert PDF documents to Word, translate them into Turkish, and read text from scanned images."
-      },
-      "videoCeviri": {
-        "aria": "Video Translation module preview",
-        "badge": "In Development",
-        "title": "Video Translation — Module Preview",
-        "subtitle": "Upload a video; the speech is automatically transcribed, translated into Turkish and becomes downloadable as Word and PDF.",
-        "alt": "Video Translation Preview",
-        "devTitle": "In Development",
-        "devDesc": "Before this module goes live, the infrastructure and membership plans will be finalized. File limits will be increased according to the infrastructure package."
       },
       "danisanYonetimi": {
         "aria": "Client Management module preview",
