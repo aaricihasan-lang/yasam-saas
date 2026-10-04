@@ -66,7 +66,7 @@ import {
   makeLabelResolver,
 } from "./AnamnezDialogs";
 import { AnamnezSectionCard, SourceBadge } from "./AnamnezSectionCard";
-import { aInput, aLabel } from "./styles";
+import { ANAMNEZ_PDF_CTA_HIDE, ANAMNEZ_PDF_HINT_HIDE, aInput, aLabel } from "./styles";
 
 type LoadedPayload = {
   anamnesis: AnamnezRecord;
@@ -522,7 +522,7 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
           ← {t("editor.back")}
         </Link>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => void downloadBlank()} disabled={busy !== null} className="inline-flex min-h-[40px] items-center rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
+          <button type="button" onClick={() => void downloadBlank()} disabled={busy !== null} className={`${ANAMNEZ_PDF_CTA_HIDE} min-h-[40px] items-center rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60`}>
             {busy === "pdf" ? t("list.blankFormBusy") : t("list.blankForm")}
           </button>
           <button
@@ -531,7 +531,7 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
             disabled={busy !== null || dirty}
             title={dirty ? t("list.filledFormSaveFirst") : undefined}
             aria-describedby={dirty ? "anamnez-filled-pdf-hint" : undefined}
-            className="inline-flex min-h-[40px] items-center rounded-xl border border-teal-300 bg-white px-3 text-[13px] font-bold text-teal-800 hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className={`${ANAMNEZ_PDF_CTA_HIDE} min-h-[40px] items-center rounded-xl border border-teal-300 bg-white px-3 text-[13px] font-bold text-teal-800 hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-60`}
           >
             {busy === "filledPdf" ? t("list.filledFormBusy") : t("list.filledForm")}
           </button>
@@ -540,7 +540,7 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
           </button>
         </div>
         {dirty ? (
-          <p id="anamnez-filled-pdf-hint" className="w-full text-right text-[12px] font-semibold text-amber-700">
+          <p id="anamnez-filled-pdf-hint" className={`${ANAMNEZ_PDF_HINT_HIDE} w-full text-right text-[12px] font-semibold text-amber-700`}>
             {t("list.filledFormSaveFirst")}
           </p>
         ) : null}
