@@ -259,12 +259,9 @@
     },
     "landing": {
       "sampleAnalysisBadge": "Örnek Analiz Var",
-      "previewBadge": "Önizleme",
       "activeModuleBadge": "Aktif Modül",
       "comingSoonBadge": "YAKINDA",
-      "inDevelopment": "Geliştirme Aşamasında",
       "seeSampleAnalysis": "Örnek Analizi Gör",
-      "peekScreen": "Ekrana Göz At",
       "discover": "Keşfet",
       "numeroloji": {
         "title": "Numeroloji",
@@ -282,14 +279,6 @@
         "title": "Kişisel Arşiv",
         "desc": "Ses, video, belge, resim ve kişisel notlarınızı tek merkezde güvenle saklayın."
       },
-      "belgeCeviri": {
-        "title": "Belge Çeviri",
-        "desc": "PDF, Word ve görselleri yapay zekâ destekli şekilde dönüştürüp Türkçeye çeviren belge merkezi."
-      },
-      "videoCeviri": {
-        "title": "Video Çeviri",
-        "desc": "Video ve ses dosyalarını metne çevirip Türkçeye aktararak Word/PDF çıktısı hazırlayan yapay zekâ destekli modül."
-      },
       "danisanYonetimi": {
         "title": "Danışan Yönetimi",
         "desc": "Danışan kayıtları, detay sayfaları ve randevu yönetimini tek merkezden yönetin."
@@ -306,6 +295,22 @@
         "title": "Aromaterapi",
         "desc": "Uçucu yağ, sabit yağ ve karışım yönetim sistemi."
       },
+      "urunStok": {
+        "title": "Ürün & Stok Merkezi",
+        "desc": "Doğaltaş, sabun, krem, tespih, takı ve diğer ürünlerinizin stok, fiyatlandırma ve satış kayıtlarını tek merkezden yönetin."
+      },
+      "kupaHacamat": {
+        "title": "Kupa & Hacamat",
+        "desc": "Hacamat protokollerinizi oluşturun; bölgeleri, teknikleri, uygulama takvimini ve güvenlik notlarını tek çalışma alanında yönetin."
+      },
+      "beslenme": {
+        "title": "Beslenme",
+        "desc": "Besin kütüphanesi, beslenme rehberi, mizaç ve kan grubu profilleriyle danışanlarınıza beslenme planları hazırlayın."
+      },
+      "kozmikAjanda": {
+        "title": "Kozmik Ajanda",
+        "desc": "Hicri takvim, ay fazları, retro dönemleri, gezegen saatleri ve hacamat günlerini günlük kozmik akışla takip edin."
+      },
       "humanDesign": {
         "title": "Human Design",
         "desc": "Bilgi bankasına yüklediğiniz Human Design içeriklerini kullanarak danışanlarınıza kişiye özel profesyonel raporlar ve yorumlar oluşturun."
@@ -314,11 +319,13 @@
     "feats": {
       "biyoenerji": ["Biyoenerji Seansları", "Enerji Bedenleri", "Bilinçaltı Sebepleri", "İmajinasyon Kütüphanesi", "Sembol Dili", "Çakra Kütüphanesi"],
       "kisiselArsiv": ["Ses & Video", "Belge & Resim", "Kişisel Notlar", "Arama Sistemi", "Dosya Takibi", "Güvenli Arşiv"],
-      "belgeCeviri": ["PDF → Word", "PDF → Türkçe Word", "Görsel OCR", "Çoklu Dil Desteği", "Format Koruma", "Güvenli İşlem"],
-      "videoCeviri": ["Video → Metin", "Otomatik Dil Algılama", "Türkçeye Çeviri", "Word/PDF Çıktı", "Eğitim İçeriği Hazırlama", "Gizlilik Odaklı İşlem"],
       "danisanYonetimi": ["Danışan Kayıtları", "Danışan Detayları", "Randevu Takibi", "Ajanda Yönetimi", "Görüşme Geçmişi", "Takip Süreci"],
       "sifaRehberi": ["Yeni Rahatsızlık Kaydı", "Kayıtlı Şifa Rehberi", "Belirtiler / Sebepler", "Uygulamalar / Yöntemler", "Doğaltaş & Mineral", "Aromaterapi"],
       "refleksoloji": ["Bölge Haritası", "Kayıtlı Atlas", "Protokol Haritası", "Kayıtlı Protokoller", "Klinik Notlar", "Seans Takibi"],
+      "urunStok": ["Tüm Ürünler Listesi", "Doğaltaş Ürün/Stok", "Sabun / Krem Ürünleri", "Tespih / Takı / Aksesuar", "Satış & Fiyatlandırma", "Satış Geçmişi"],
+      "kupaHacamat": ["Hacamat Protokolleri", "Hacamat Takvimi", "Hacamat Noktaları", "Kupa Teknikleri", "Güvenlik & Kontrendikasyonlar", "Word Protokol Çıktısı"],
+      "beslenme": ["Besin Kütüphanesi", "Beslenme Rehberi", "Mizaca Göre Beslenme", "Kan Grubuna Göre Beslenme", "Beslenme Planları", "Plan Şablonları"],
+      "kozmikAjanda": ["Kozmik Takvim", "Ay Fazları", "Retro Takvimi", "Gezegen Saatleri", "Hacamat Takvimi", "Hicri Takvim"],
       "humanDesign": ["Bilgi Bankası Yönetimi", "Kapı ve Kanal Yorumları", "Merkez Analizleri", "Tip ve Profil Açıklamaları", "Otomatik Rapor Oluşturma", "Kişiye Özel Raporlar"],
       "dogaltas": ["Taş Kayıt Yönetimi", "Mineral Bankası", "Kombinasyon Yönetimi", "Akıllı Arama", "Kategori Filtreleme", "Detay Sayfaları", "İstatistikler", "Görsel Arşivi"]
     },
@@ -406,24 +413,6 @@
         "alt": "Kişisel Arşiv Önizleme",
         "panelTitle": "Kişisel Arşiv ile Güvenli Kayıt Sistemi",
         "panelDesc": "Her türlü kişisel dosyayı kategorilere göre saklayın, arayın ve takip edin."
-      },
-      "belgeCeviri": {
-        "aria": "Belge Çeviri modülü ön izlemesi",
-        "badge": "Belge Çeviri Modülü",
-        "title": "Belge Çeviri — Gerçek Ürün Ekranı",
-        "subtitle": "PDF, Word ve görselleri yapay zekâ ile dönüştürün, Türkçeye çevirin.",
-        "alt": "Belge Çeviri Önizleme",
-        "panelTitle": "Belge Çeviri ile Hızlı Dönüşüm",
-        "panelDesc": "PDF belgelerini Word'e dönüştürün, Türkçeye çevirin; taranmış görsellerden metin okuyun."
-      },
-      "videoCeviri": {
-        "aria": "Video Çeviri modülü ön izlemesi",
-        "badge": "Geliştirme Aşamasında",
-        "title": "Video Çeviri — Modül Ön İzlemesi",
-        "subtitle": "Video yükleyin; konuşma otomatik metne çevrilir, Türkçeye aktarılır ve Word ile PDF olarak indirilebilir hale gelir.",
-        "alt": "Video Çeviri Önizleme",
-        "devTitle": "Geliştirme Aşamasında",
-        "devDesc": "Bu modül aktif kullanıma açılmadan önce altyapı ve üyelik planları tamamlanacaktır. Dosya limitleri altyapı paketine göre artırılacaktır."
       },
       "danisanYonetimi": {
         "aria": "Danışan Yönetimi modülü ön izlemesi",
