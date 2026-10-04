@@ -57,7 +57,9 @@ export function platformFlags(userAgent: string | null | undefined): { android: 
  *   - "client-blob": istemcide blob:/data: indirme (TXT/PNG/JSON/istemci PDF) → app'te gizli.
  *   - "print":       window.print → app'te gizli.
  *   - "blob-open":   window.open(blob:) / <object data=blob:> önizleme → app'te gizli.
- *   - "anamnez-pdf": Anamnez boş/dolu PDF → HER YERDE görünür (K8 istisnası).
+ *   - "anamnez-pdf": Anamnez boş/dolu PDF → tüm Android'de gizli (owner kararı 2026-10-04: mobil PDF
+ *                    indirme bu aşamada desteklenmiyor; K8 istisnası KALDIRILDI). UI ayrıca telefon
+ *                    genişliğinde (<768px) gizler; masaüstünde aynen görünür.
  *   - "user-file":   kullanıcı dosyası (signed URL / ek) → her yerde görünür (kategori B).
  */
 export type OutputKind = "word" | "client-blob" | "print" | "blob-open" | "anamnez-pdf" | "user-file";
@@ -73,12 +75,12 @@ export type OutputVisibility = {
 export function outputHideClass(kind: OutputKind): OutputVisibility["hideClass"] {
   switch (kind) {
     case "word":
+    case "anamnez-pdf":
       return NO_ANDROID_CLASS;
     case "client-blob":
     case "print":
     case "blob-open":
       return NO_ANDROID_APP_CLASS;
-    case "anamnez-pdf":
     case "user-file":
       return "";
   }

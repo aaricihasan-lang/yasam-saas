@@ -61,7 +61,8 @@ const EXPECT: Record<OutputKind, [boolean, boolean, boolean, boolean, boolean]> 
   "client-blob": [true, true, true, false, false],
   "print":       [true, true, true, false, false],
   "blob-open":   [true, true, true, false, false],
-  "anamnez-pdf": [true, true, true, true, true],
+  // Owner kararı 2026-10-04: mobil PDF indirme desteklenmiyor → tüm Android'de gizli (K8 kaldırıldı).
+  "anamnez-pdf": [true, true, false, false, false],
   "user-file":   [true, true, true, true, true],
 };
 const uaKeys = Object.keys(UA) as UaKey[];
@@ -74,7 +75,7 @@ for (const kind of KINDS) {
 ok(outputVisibility({ ua: null, kind: "word" }).visible === true, "UA yok (SSR/iç istek) → görünür (fail-open)");
 ok(outputVisibility({ ua: UA.desktop, kind: "word" }).hideClass === NO_ANDROID_CLASS, "word → .no-android");
 ok(outputVisibility({ ua: UA.desktop, kind: "print" }).hideClass === NO_ANDROID_APP_CLASS, "print → .no-android-app");
-ok(outputVisibility({ ua: UA.desktop, kind: "anamnez-pdf" }).hideClass === "", "anamnez-pdf → sınıf yok (K8)");
+ok(outputVisibility({ ua: UA.desktop, kind: "anamnez-pdf" }).hideClass === "no-android", "anamnez-pdf → no-android (owner 2026-10-04; K8 kaldırıldı)");
 ok(NO_ANDROID_CLASS === "no-android" && NO_ANDROID_APP_CLASS === "no-android-app", "sınıf sabitleri");
 const pf = (k: UaKey) => JSON.stringify(platformFlags(UA[k]));
 ok(pf("desktop") === '{"android":false,"androidApp":false}', "platformFlags desktop");
@@ -275,17 +276,29 @@ for (const f of ["app/api/belge-ceviri/job-status/[id]/route.ts", "app/api/belge
     && /if \(!wordBlocked && job\.status === "completed" && job\.result_path\)/.test(src), `${f}: Android'de downloadUrl null`);
 }
 
-// ── G. K8 — Anamnez PDF Android'de görünür ───────────────────────────────────
-section("G. K8: Anamnez UI/route'larında Android gizleme YOK");
-const ANAMNEZ_FILES = [
-  "components/danisan/anamnez/AnamnezEditor.tsx",
-  "components/danisan/anamnez/AnamnezAttachments.tsx",
-  "app/dashboard/clients/[id]/components/AnamnezTab.tsx",
-  "lib/danisan/anamnez/client.ts",
-];
-for (const f of ANAMNEZ_FILES) {
-  if (!existsSync(join(ROOT, f))) { ok(true, `${f}: (yok — atlandı)`); continue; }
-  ok(!/useIsAndroid|isAndroid|androidWordGuard|no-android/.test(read(f)), `${f}: Android tespiti/gizleme sınıfı yok`);
+// ── G. Anamnez PDF CTA'ları mobilde gizli (owner 2026-10-04) ────────────────
+section("G. Anamnez: PDF CTA'ları Android + telefon genişliğinde gizli; ekler ve PDF backend'i değişmedi");
+{
+  const st = read("components/danisan/anamnez/styles.ts");
+  const CTA = "${ANAMNEZ_PDF_CTA_HIDE}";
+  ok(st.includes('ANAMNEZ_PDF_CTA_HIDE = `${outputHideClass("anamnez-pdf")} hidden md:inline-flex`'), "CTA sınıfı: no-android + <768px gizli, md+ görünür");
+  ok(st.includes('ANAMNEZ_PDF_HINT_HIDE = `${outputHideClass("anamnez-pdf")} hidden md:block`'), "'önce kaydedin' ipucu aynı koşulda gizli");
+  const ed = read("components/danisan/anamnez/AnamnezEditor.tsx");
+  const tab = read("app/dashboard/clients/[id]/components/AnamnezTab.tsx");
+  const count = (src: string) => src.split(CTA).length - 1;
+  const after = (src: string, anchor: string, n: number) => { const i = src.indexOf(anchor); return i >= 0 && src.slice(i, i + n).includes(CTA); };
+  ok(count(ed) === 2 && after(ed, "void downloadBlank()", 200) && after(ed, "void downloadFilled()", 400), "editör: Boş Form + Kayıtlı Form CTA'ları gizlenebilir (tam 2)");
+  ok(count(tab) === 2 && after(tab, "void downloadBlank()", 200) && after(tab, "onClick={onPdf}", 200), "danışan detayı sekmesi: Boş Form + Kayıtlı Form CTA'ları gizlenebilir (tam 2)");
+  ok(ed.includes("${ANAMNEZ_PDF_HINT_HIDE}"), "editör: 'önce kaydedin' ipucu da gizlenebilir");
+  ok(!/useIsAndroid|androidWordGuard/.test(ed + tab), "UI'da JS tabanlı Android tespiti yok (SSR sınıfı + CSS)");
+  for (const f of ["components/danisan/anamnez/AnamnezAttachments.tsx", "lib/danisan/anamnez/client.ts"]) {
+    if (!existsSync(join(ROOT, f))) { ok(true, `${f}: (yok — atlandı)`); continue; }
+    ok(!/useIsAndroid|isAndroid|androidWordGuard|no-android|ANAMNEZ_PDF_CTA_HIDE/.test(read(f)), `${f}: değişmedi (ekler/kullanıcı dosyası her yerde görünür)`);
+  }
+  for (const f of ["app/api/clients/[id]/anamnez/blank-form/route.ts", "app/api/clients/[id]/anamnez/[anamnesisId]/pdf/route.ts"]) {
+    if (!existsSync(join(ROOT, f))) { ok(true, `${f}: (yok — atlandı)`); continue; }
+    ok(!/androidWordGuard|isAndroidUserAgent/.test(read(f)), `${f}: PDF backend'ine dokunulmadı (Android engeli yok)`);
+  }
 }
 
 // ── H. "Dokunmatik = gizle" eklenmedi ────────────────────────────────────────

@@ -12,6 +12,7 @@ import { normalizeLocale } from "@/lib/danisan/anamnez/schema";
 import type { AnamnezSummary } from "@/lib/danisan/anamnez/types";
 import { NewAnamnezDialog, errorKey } from "@/components/danisan/anamnez/AnamnezDialogs";
 import { SourceBadge } from "@/components/danisan/anamnez/AnamnezSectionCard";
+import { ANAMNEZ_PDF_CTA_HIDE } from "@/components/danisan/anamnez/styles";
 
 /**
  * Danışan Detayı › Anamnez sekmesi — tarihçe + yeni anamnez + boş form PDF + kayıtlı form PDF.
@@ -133,7 +134,7 @@ export default function AnamnezTab({
           <p className="mt-0.5 max-w-2xl text-[13px] font-medium text-slate-500">{t("subtitle")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => void downloadBlank()} disabled={pdfBusy} className="inline-flex min-h-[42px] items-center rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
+          <button type="button" onClick={() => void downloadBlank()} disabled={pdfBusy} className={`${ANAMNEZ_PDF_CTA_HIDE} min-h-[42px] items-center rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60`}>
             {pdfBusy ? t("list.blankFormBusy") : t("list.blankForm")}
           </button>
           {!state.demo ? (
@@ -258,7 +259,7 @@ function HistoryRow({
           type="button"
           onClick={onPdf}
           disabled={pdfDisabled}
-          className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          className={`${ANAMNEZ_PDF_CTA_HIDE} min-h-[40px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60`}
         >
           {pdfBusy ? t("list.filledFormBusy") : t("list.filledForm")}
         </button>
