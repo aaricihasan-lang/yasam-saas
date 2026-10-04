@@ -61,9 +61,13 @@
 --   EXISTS + CREATE OR REPLACE, tekrar çalıştırılabilir REVOKE/GRANT. Veri DML'i YOK.
 --
 -- ROLLBACK (önce kod geri alınır):
---   1) 20271001000300_admin_member_commercial.sql içindeki admin_list_users (11 arg) bloğu +
---      REVOKE/GRANT satırları çalıştırılır; ardından
---      DROP FUNCTION IF EXISTS public.admin_list_users(text,text,text,text,text,text,text,integer,integer,text,text,text,text[],text,date);
+--   1) ⚠️ TEK TRANSACTION (BEGIN … COMMIT) içinde, ikisi birlikte:
+--        a) 20271001000300_admin_member_commercial.sql içindeki admin_list_users (11 arg)
+--           CREATE OR REPLACE bloğu + o imzanın REVOKE/GRANT satırları,
+--        b) DROP FUNCTION IF EXISTS public.admin_list_users(text,text,text,text,text,text,text,integer,integer,text,text,text,text[],text,date);
+--      Ayrı adımlarda yapılırsa arada 11-arg ve 15-arg iki overload birlikte bulunur; eski
+--      adlı-argüman çağrıları (PostgREST) bu sürede 42725 "function is not unique" alır
+--      (PG17 provasında doğrulandı). Ardından NOTIFY pgrst, 'reload schema';
 --   2) DROP FUNCTION IF EXISTS public.admin_member_overview(date),
 --        public.admin_pricing_phase_list(uuid),
 --        public.admin_pricing_phase_save(uuid,uuid,uuid,date,date,numeric,text,text,text,timestamptz),

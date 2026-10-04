@@ -240,7 +240,36 @@ async function main(): Promise<void> {
     const audRows = aud.json.rows as Record<string, unknown>[];
     const pr = audRows.filter((r) => r.action === "pricing_phase_changed");
     ok(pr.length === 5, `audit: 3 ekleme + 1 güncelleme + 1 silme = 5 (no-op/reddedilen yazım audit üretmez) → ${pr.length}`);
-    ok(!/200|250|600|5000|Tanışma|İlk 5 ay|Yıllık peşin/.test(JSON.stringify(pr)), "audit satırlarında tutar/etiket/not yok");
+    // Yapısal sözleşme (UUID/zaman damgası içindeki rastlantısal rakamlar sızıntı SAYILMAZ):
+    // context anahtarları yalnız {op, phase_id, fields}; fields yalnız izinli alan ADLARI; değer objesi yok.
+    const PRICING_FIELDS = new Set(["starts_on", "ends_on", "amount", "billing_period", "label", "terms_note"]);
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const SECRET_VALUES = new Set(["200", "250", "600", "5000", "İlk 5 ay", "Tanışma", "Yıllık peşin — 12 ay kullanım / 10 aylık ücret"]);
+    const ctxSafe = (r: Record<string, unknown>) => {
+      const c = r.context as Record<string, unknown> | null;
+      if (!c || typeof c !== "object" || Array.isArray(c)) return false;
+      const keys = Object.keys(c).sort().join(",");
+      if (keys !== "fields,op,phase_id") return false;
+      if (!["created", "updated", "deleted"].includes(String(c.op))) return false;
+      if (typeof c.phase_id !== "string" || !UUID_RE.test(c.phase_id)) return false;
+      if (!Array.isArray(c.fields) || !c.fields.every((f) => typeof f === "string" && PRICING_FIELDS.has(f))) return false;
+      // Hiçbir context değeri gerçek ticari değere eşit olmamalı (tam eşleşme; alt dize DEĞİL).
+      const leaves = [c.op, c.phase_id, ...(c.fields as unknown[])].map(String);
+      return leaves.every((v) => !SECRET_VALUES.has(v)) && r.oldValue == null && r.newValue == null;
+    };
+    const ctxOk = pr.every(ctxSafe);
+    const valueObjectsAbsent = pr.every((r) => r.oldValue == null && r.newValue == null);
+    // Negatif öz-kontrol: denetim gerçek sızıntıyı yakalamalı, UUID'deki rakamları yakalamamalı.
+    const pid = "00000000-0000-4000-8000-000000200600";
+    ok(ctxSafe({ context: { op: "updated", phase_id: pid, fields: ["amount"] }, oldValue: null, newValue: null }),
+      "öz-kontrol: UUID içindeki '200'/'600' yanlış pozitif ÜRETMEZ");
+    ok(![
+      { context: { op: "updated", phase_id: pid, fields: ["amount"], amount: 600 }, oldValue: null, newValue: null },
+      { context: { op: "created", phase_id: pid, fields: ["label"], label: "İlk 5 ay" }, oldValue: null, newValue: null },
+      { context: { op: "updated", phase_id: pid, fields: ["Tanışma"] }, oldValue: null, newValue: null },
+      { context: { op: "updated", phase_id: pid, fields: ["amount"] }, oldValue: { amount: 200 }, newValue: null },
+    ].some(ctxSafe), "öz-kontrol: tutar / etiket / not değeri veya eski-yeni değer objesi YAKALANIR");
+    ok(ctxOk && valueObjectsAbsent, "audit context yapısal: yalnız {op, phase_id, fields}; tutar/etiket/not değeri ve eski/yeni değer objesi yok");
     ok(pr.some((r) => r.actorName === "ZZ_M360_ADMIN2"), "audit aktör adı çözülür");
 
     // ── E) Ödeme route regresyonu (M4 davranışı aynen) ──────────────────────────
