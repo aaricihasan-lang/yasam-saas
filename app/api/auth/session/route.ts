@@ -19,7 +19,6 @@ import { isExpertReady, normalizeRole, resolveApprovalStatus } from "@/lib/auth/
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { writeAdminAudit } from "@/lib/admin/adminAudit";
 import { resolveActorIsMainAdmin } from "@/lib/admin/accountSessionControls";
-import { logAppSignalDiag } from "@/lib/auth/appSignalDiag";
 
 export const runtime = "nodejs";
 
@@ -62,7 +61,6 @@ async function auditAdminSessionEvent(
  * 403 INACTIVE / PENDING / NO_ROLE / SESSION_LIMIT · 500 (ayrıntı sızdırılmaz).
  */
 export async function POST(req: NextRequest) {
-  logAppSignalDiag("session:POST", req.headers);
   try {
     const body = (await req.json().catch(() => null)) as
       | { email?: unknown; password?: unknown; replaceSessionToken?: unknown }
@@ -224,7 +222,6 @@ const EXPIRED_END_REASONS: ReadonlySet<string> = new Set([
  * okunur; başka kullanıcı/oturum hakkında bilgi vermez. Yetki kararı DEĞİLDİR.
  */
 export async function GET(req: NextRequest) {
-  logAppSignalDiag("session:GET", req.headers);
   try {
     const token =
       req.headers.get("x-session-token")?.trim() ||

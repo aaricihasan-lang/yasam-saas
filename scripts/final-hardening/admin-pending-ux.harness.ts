@@ -68,9 +68,10 @@ async function main() {
   ok(/clearPendingLoginToken\(\);\s*setMessage\(st\.state === "denied"/.test(tick), "ret / süre dolumu → token temizlenir + mesaj");
   ok(/const stored = readPendingLogin\(\);/.test(tick), "her turda yerel 10 dk süre + başka sekme iptali kontrol edilir");
 
-  console.log("\n── D) Tanılama logu kişisel veri içermez ──");
-  const diag = read("lib/auth/appSignalDiag.ts");
-  ok(/;\\s\*wv\\\)/.test(diag) && !/user_id|userId|session_token|x-session-token|ip|user-agent"\)\s*\}/.test(diag.replace(/headers\.get\("user-agent"\)/g, "")), "yalnız WebView isteklerinde; kimlik/token/IP loglanmaz");
+  console.log("\n── D) Geçici Android tanılama logu KALDIRILDI ──");
+  const { existsSync } = await import("node:fs");
+  const sess = read("app/api/auth/session/route.ts");
+  ok(!existsSync(join(ROOT, "lib/auth/appSignalDiag.ts")) && !/logAppSignalDiag|app-signal-diag/.test(sess), "header/referer telemetrisi production'da kalmadı");
 
   console.log(`\nadmin-pending-ux harness: ${pass} PASS, ${fail} FAIL`);
   if (fail > 0) process.exit(1);
