@@ -18,7 +18,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { classifyDeviceType, type LimitReason } from "@/lib/auth/sessionLimits";
-import { resolveClientChannel, CLIENT_CHANNEL_HEADER, type ClientChannel } from "@/lib/auth/clientChannel";
+import { resolveClientChannel, CLIENT_CHANNEL_HEADER, REQUESTED_WITH_HEADER, type ClientChannel } from "@/lib/auth/clientChannel";
 
 // ─── Eşikler ─────────────────────────────────────────────────────────────────
 
@@ -607,7 +607,7 @@ export function extractLocationFromHeaders(headers: Headers): LocationInfo {
 
   const userAgent = headers.get("user-agent") ?? "";
   // İP-3: analitik kanal (android_app vs *_web) — istemci ipucu + UA fallback. Güvenlik DEĞİL.
-  const channel = resolveClientChannel(userAgent, headers.get(CLIENT_CHANNEL_HEADER));
+  const channel = resolveClientChannel(userAgent, headers.get(CLIENT_CHANNEL_HEADER), headers.get(REQUESTED_WITH_HEADER));
 
   return { ip, country, city, userAgent, channel };
 }

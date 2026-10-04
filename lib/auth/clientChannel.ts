@@ -46,21 +46,37 @@ export function isAndroidChannelHint(clientHeader: string | null | undefined): b
 }
 
 /**
- * SAF resolver: (userAgent, clientHeader) → ClientChannel.
+ * Kurulu resmî Yaşam Sistemi Android uygulamasının paket adı. Android System WebView, uygulamanın
+ * isteklerine (giriş POST'u ve fetch'ler dahil) `X-Requested-With: <paket>` başlığını kendisi ekler —
+ * production tanılamasıyla doğrulandı (2026-10-04: admin giriş + oturum istekleri, tümü bu değer).
+ */
+export const OFFICIAL_ANDROID_PACKAGE = "com.yasamsistemi.app";
+export const REQUESTED_WITH_HEADER = "x-requested-with";
+const ANDROID_WEBVIEW_UA = /\bAndroid\b[^)]*;\s*wv\)/;
+
+/**
+ * SAF resolver: (userAgent, clientHeader, requestedWith) → ClientChannel.
  *
- * OTURUM MODELİ v2 (owner kararı): `android_app` YALNIZ İKİ SİNYAL BİRLİKTE varsa —
- *   (1) UA'da resmi sonek `YasamSistemiAndroid/<sürüm>` VE (2) `x-yasam-client: android` (tam değer).
- * Tek sinyal (yalnız UA / yalnız header / `; wv)` WebView işareti) → web kanalı. Kanal yalnız
- * oturum POLİTİKASINI (süre/cihaz sınıfı) seçer; rol/tenant/yetki kanıtı DEĞİLDİR.
- * @param userAgent    request User-Agent
- * @param clientHeader x-yasam-client header değeri (yoksa null/undefined)
+ * `android_app` YALNIZ şu iki kombinasyondan biriyle (her biri İKİ sinyal):
+ *   (A) mevcut kurulu uygulama: UA Android WebView (`Android … ; wv)`) VE
+ *       `X-Requested-With` = resmî paket adı (`com.yasamsistemi.app`, tam değer);
+ *   (B) ileride native güncelleme: UA soneki `YasamSistemiAndroid/<sürüm>` VE `x-yasam-client: android`.
+ * Tek sinyal (yalnız `; wv)`, yalnız paket header'ı, başka paket — Instagram/Facebook vb. —, mobil
+ * Chrome/Safari) → web kanalı. Kanal yalnız oturum POLİTİKASINI (süre/cihaz sınıfı) seçer; kimlik,
+ * rol, tenant veya yetki kanıtı DEĞİLDİR (parola/rol/tenant kontrolleri her istekte aynen geçerli).
+ * @param userAgent     request User-Agent
+ * @param clientHeader  x-yasam-client header değeri (yoksa null/undefined)
+ * @param requestedWith X-Requested-With header değeri (yoksa null/undefined)
  */
 export function resolveClientChannel(
   userAgent: string | null | undefined,
   clientHeader: string | null | undefined,
+  requestedWith?: string | null,
 ): ClientChannel {
   const ua = String(userAgent ?? "").slice(0, 1024);
   const hint = String(clientHeader ?? "").trim().toLowerCase();
+  const pkg = String(requestedWith ?? "").trim();
+  if (pkg === OFFICIAL_ANDROID_PACKAGE && ANDROID_WEBVIEW_UA.test(ua)) return "android_app";
   if (hint === "android" && ANDROID_APP_UA_SUFFIX.test(ua)) return "android_app";
 
   // İşaret yok/eksik → UA-parse platform'a göre web kanalı (güvenli fallback).

@@ -38,6 +38,17 @@ ok(resolveClientChannel(APP_UA, "android") === "android_app", "resmi UA soneki +
 ok(resolveClientChannel(WEBVIEW_UA, "android") === "mobile_web", "yalnız header (sonek yok) → android_app DEĞİL");
 ok(resolveClientChannel(APP_UA, null) === "mobile_web", "yalnız UA soneki (header yok) → android_app DEĞİL");
 ok(resolveClientChannel(APP_UA, "android-app") === "mobile_web", "eski 'android-app' ipucu oturum için kabul EDİLMEZ");
+// Mevcut kurulu uygulama (2026-10-04 prod tanılaması): Android WebView UA + X-Requested-With = resmî paket.
+const REAL_APP_UA = "Mozilla/5.0 (Linux; Android 16; 2407FPN8EG Build/BP2A.250605.031.A3; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/153.0.8010.36 Mobile Safari/537.36";
+const CHROME_ANDROID_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36";
+ok(resolveClientChannel(REAL_APP_UA, null, "com.yasamsistemi.app") === "android_app", "gerçek uygulama: WebView UA + X-Requested-With=com.yasamsistemi.app → android_app");
+ok(resolveClientChannel(REAL_APP_UA, null, "com.instagram.android") === "mobile_web", "WebView + başka paket (Instagram) → android_app DEĞİL");
+ok(resolveClientChannel(REAL_APP_UA, null, "com.facebook.katana") === "mobile_web", "WebView + Facebook paketi → android_app DEĞİL");
+ok(resolveClientChannel(REAL_APP_UA, null, null) === "mobile_web", "yalnız '; wv)' → android_app DEĞİL");
+ok(resolveClientChannel(CHROME_ANDROID_UA, null, "com.yasamsistemi.app") === "mobile_web", "mobil Chrome + paket header'ı (WebView değil) → android_app DEĞİL");
+ok(resolveClientChannel(DESKTOP_UA, null, "com.yasamsistemi.app") === "desktop_web", "masaüstü + paket header'ı → android_app DEĞİL");
+ok(resolveClientChannel(REAL_APP_UA, null, " COM.YASAMSISTEMI.APP ") === "mobile_web", "paket adı tam ve büyük/küçük harf duyarlı eşleşir");
+ok(resolveClientChannel("Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X; wv) Safari", null, "com.yasamsistemi.app") === "mobile_web", "Android olmayan UA → android_app DEĞİL");
 ok(resolveClientChannel(DESKTOP_UA, "bilinmeyen-deger") === "desktop_web", "tanınmayan işaret → UA fallback (yetki DEĞİL)");
 ok(CLIENT_CHANNEL_HEADER === "x-yasam-client", "kanal header adı x-yasam-client");
 ok(CLIENT_CHANNELS.length === 5 && isClientChannel("android_app") && !isClientChannel("android"), "kanal sözlüğü 5 değer + isClientChannel");
