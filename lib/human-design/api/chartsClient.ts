@@ -66,6 +66,7 @@ export type ComputedChartListRow = {
   client_id: string | null;
   client_name: string | null;
   birth_date: string | null;
+  birth_time?: string | null;
   birth_place: string | null;
   timezone: string | null;
   type_code: string | null;

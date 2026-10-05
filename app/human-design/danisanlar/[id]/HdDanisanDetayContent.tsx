@@ -8,6 +8,7 @@ import { useHdLeaveGuard } from "../../hooks/useHdLeaveGuard";
 import { getHdClient, updateHdClient, type HdClientRow } from "../helpers/hdClients";
 import { HdChartImageUpload } from "../components/HdChartImageUpload";
 import { HdAutoCalcPanel } from "../components/HdAutoCalcPanel";
+import { HdBirthLocationPicker, type HdPickedLocation } from "../../components/HdBirthLocationPicker";
 import { HumanDesignShell } from "../../components/HumanDesignShell";
 import { runInEffect } from "@/lib/runInEffect";
 
@@ -52,6 +53,9 @@ export function HdDanisanDetayContent({ clientId }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  // Listeden seçilen doğum yeri (kimlik + etiket + tz). Kalıcı DB alanı yok: etiket birth_place'e
+  // yazılır; tz/koordinat sunucuda kimlikten çözülür (hesaplanmış haritada saklanır).
+  const [pickedLocation, setPickedLocation] = useState<HdPickedLocation | null>(null);
 
   const loadClient = useCallback(async () => {
     setLoading(true);
@@ -179,24 +183,60 @@ export function HdDanisanDetayContent({ clientId }: Props) {
             clientId={clientId}
             birthDate={row.birth_date ?? null}
             birthTime={row.birth_time ?? null}
+            birthPlace={row.birth_place ?? null}
+            pickedLocation={pickedLocation}
             formDirty={dirty}
           />
-          {/* Harita Görseli */}
-          <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-5 shadow-sm ring-1 ring-indigo-100/60">
-            <p className={sectionCls}>Harita Görseli</p>
-            <HdChartImageUpload clientId={clientId} onChanged={() => void refreshVersion()} />
-          </div>
+
+          {/* Manuel fallback (eski yöntem) — veri ve özellikler korunur, varsayılan kapalı */}
+          <details className="group rounded-2xl border border-slate-200/90 bg-white/90 p-5 shadow-sm">
+            <summary className="cursor-pointer list-none text-xs font-black uppercase tracking-widest text-slate-500 marker:hidden">
+              <span className="mr-1 inline-block transition group-open:rotate-90">▸</span>
+              Manuel Harita (eski yöntem)
+            </summary>
+            <div className="mt-4 space-y-4">
+              <p className="text-xs leading-relaxed text-slate-500">
+                Otomatik hesaplama kullanılamadığında: dış programdan alınan harita bağlantısı/görseli ve manuel kapı-kanal işaretleme.
+              </p>
+              <Link
+                href={`/human-design/harita-kaydi?clientId=${clientId}`}
+                className="flex h-9 w-fit items-center rounded-xl border border-violet-300/80 bg-violet-50 px-4 text-sm font-bold text-violet-800 no-underline transition hover:border-violet-400 hover:bg-violet-100"
+              >
+                Manuel Harita Kaydı
+              </Link>
+              <div>
+                <label className={labelCls}>Harita Linki (Jovian Archive vb.)</label>
+                <input
+                  type="url"
+                  value={form.external_chart_url}
+                  onChange={set("external_chart_url")}
+                  placeholder="https://..."
+                  className={`h-9 ${fieldBase}`}
+                />
+                {form.external_chart_url.trim() && (
+                  <a
+                    href={form.external_chart_url.trim()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1.5 inline-flex max-w-full items-center gap-1 rounded-lg border border-indigo-200/80 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                  >
+                    <span className="truncate">Haritayı Dış Sitede Aç</span>
+                    <span aria-hidden className="shrink-0">↗</span>
+                  </a>
+                )}
+                <p className="mt-1 text-[11px] text-slate-400">Link değişikliği sağdaki “Güncelle” ile kaydedilir.</p>
+              </div>
+              <div>
+                <p className={labelCls}>Harita Görseli</p>
+                <HdChartImageUpload clientId={clientId} onChanged={() => void refreshVersion()} />
+              </div>
+            </div>
+          </details>
 
           {/* Hızlı Erişim */}
           <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-5 shadow-sm ring-1 ring-indigo-100/60">
             <p className={sectionCls}>Hızlı Erişim</p>
             <div className="flex flex-wrap gap-2">
-              <Link
-                href={`/human-design/harita-kaydi?clientId=${clientId}`}
-                className="flex h-9 items-center rounded-xl border border-violet-300/80 bg-violet-50 px-4 text-sm font-bold text-violet-800 no-underline transition hover:border-violet-400 hover:bg-violet-100"
-              >
-                Harita Bilgilerini Düzenle
-              </Link>
               <Link
                 href={`/human-design/rapor-olustur?clientId=${clientId}`}
                 className="flex h-9 items-center rounded-xl border border-indigo-300/80 bg-indigo-50 px-4 text-sm font-bold text-indigo-800 no-underline transition hover:border-indigo-400 hover:bg-indigo-100"
@@ -249,13 +289,23 @@ export function HdDanisanDetayContent({ clientId }: Props) {
                 </div>
               </div>
               <div>
-                <label className={labelCls}>Doğum Yeri</label>
-                <input
-                  type="text"
-                  value={form.birth_place}
-                  onChange={set("birth_place")}
-                  className={`h-9 ${fieldBase}`}
+                <label htmlFor="hd-client-birth-place" className={labelCls}>Doğum Yeri</label>
+                <HdBirthLocationPicker
+                  id="hd-client-birth-place"
+                  value={pickedLocation}
+                  initialText={form.birth_place}
+                  onChange={(loc) => {
+                    setPickedLocation(loc);
+                    if (loc) setForm((p) => (p ? { ...p, birth_place: loc.label } : p));
+                  }}
                 />
+                <p className="mt-1 text-[11px] text-slate-500">
+                  {pickedLocation
+                    ? `Saat dilimi: ${pickedLocation.tz}`
+                    : form.birth_place
+                      ? `Kayıtlı: ${form.birth_place}`
+                      : "İl, ilçe veya şehir yazıp listeden seçin."}
+                </p>
               </div>
             </div>
           </div>
@@ -264,27 +314,6 @@ export function HdDanisanDetayContent({ clientId }: Props) {
           <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-5 shadow-sm ring-1 ring-indigo-100/60">
             <p className={sectionCls}>Ek Bilgiler</p>
             <div className="space-y-4">
-              <div>
-                <label className={labelCls}>Harita Linki (Jovian Archive vb.)</label>
-                <input
-                  type="url"
-                  value={form.external_chart_url}
-                  onChange={set("external_chart_url")}
-                  placeholder="https://..."
-                  className={`h-9 ${fieldBase}`}
-                />
-                {form.external_chart_url.trim() && (
-                  <a
-                    href={form.external_chart_url.trim()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-1.5 inline-flex max-w-full items-center gap-1 rounded-lg border border-indigo-200/80 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
-                  >
-                    <span className="truncate">Haritayı Dış Sitede Aç</span>
-                    <span aria-hidden className="shrink-0">↗</span>
-                  </a>
-                )}
-              </div>
               <div>
                 <label className={labelCls}>Not</label>
                 <textarea

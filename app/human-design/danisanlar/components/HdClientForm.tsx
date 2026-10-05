@@ -6,6 +6,7 @@ import { useHdLeaveGuard } from "../../hooks/useHdLeaveGuard";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { insertHdClient } from "../helpers/hdClients";
+import { HdBirthLocationPicker, type HdPickedLocation } from "../../components/HdBirthLocationPicker";
 
 const fieldBase =
   "w-full rounded-xl border border-indigo-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400";
@@ -27,6 +28,8 @@ export function HdClientForm({ onSuccess }: Props) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const [form, setForm] = useState(empty);
+  const [birthLoc, setBirthLoc] = useState<HdPickedLocation | null>(null);
+  const [pickerKey, setPickerKey] = useState(0);
   const [saving, setSaving] = useState(false);
 
   // P2-7: yarım doldurulmuş form menü/logo/geri ile sessizce kaybolmaz.
@@ -74,6 +77,8 @@ export function HdClientForm({ onSuccess }: Props) {
     } else {
       showToast({ message: "Danışan eklendi.", type: "success" });
       setForm(empty);
+      setBirthLoc(null);
+      setPickerKey((k) => k + 1);
       onSuccess?.();
     }
   }
@@ -116,22 +121,28 @@ export function HdClientForm({ onSuccess }: Props) {
           </div>
 
           <div className="sm:col-span-2">
-            <label className={labelCls}>Doğum Yeri</label>
-            <input
-              type="text"
-              value={form.birth_place}
-              onChange={set("birth_place")}
-              placeholder="İstanbul, Türkiye"
-              className={`h-9 ${fieldBase}`}
+            <label htmlFor="hd-new-client-birth-place" className={labelCls}>Doğum Yeri</label>
+            {/* Listeden seçim: otomatik hesaplama tz/koordinatı seçilen kayıttan çözer. Etiket
+                birth_place'e yazılır (şema değişmez). Serbest metin seçim sayılmaz. */}
+            <HdBirthLocationPicker
+              key={pickerKey}
+              id="hd-new-client-birth-place"
+              value={birthLoc}
+              onChange={(loc) => {
+                setBirthLoc(loc);
+                setForm((p) => ({ ...p, birth_place: loc?.label ?? "" }));
+              }}
             />
           </div>
         </div>
       </section>
 
-      {/* Harita Kaynakları */}
-      <section>
-        <p className={sectionCls}>Harita Kaynakları</p>
-        <div className="grid gap-4 sm:grid-cols-2">
+      {/* Manuel harita kaynakları (eski yöntem) — otomatik hesaplamada gerekmez; varsayılan kapalı */}
+      <details className="group">
+        <summary className={`${sectionCls} cursor-pointer list-none`}>
+          <span className="mr-1 inline-block transition group-open:rotate-90">▸</span>Manuel Harita Kaynakları (isteğe bağlı)
+        </summary>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
           {/* P2-14: "Harita Görseli URL" alanı kaldırıldı — dış URL güvenli biçimde
               gösterilemiyordu ("eski görsel formatı" çıkmazı). Görsel, danışan kaydedildikten
               sonra Detay sayfasından dosya olarak yüklenir. */}
@@ -149,7 +160,7 @@ export function HdClientForm({ onSuccess }: Props) {
             />
           </div>
         </div>
-      </section>
+      </details>
 
       {/* Not */}
       <section>
@@ -167,7 +178,11 @@ export function HdClientForm({ onSuccess }: Props) {
       <div className="flex items-center justify-end gap-3 border-t border-indigo-100/80 pt-4">
         <button
           type="button"
-          onClick={() => setForm(empty)}
+          onClick={() => {
+            setForm(empty);
+            setBirthLoc(null);
+            setPickerKey((k) => k + 1);
+          }}
           className="h-9 rounded-xl border border-indigo-200/90 bg-white px-5 text-sm font-black uppercase tracking-wide text-indigo-900 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50/80"
         >
           Temizle

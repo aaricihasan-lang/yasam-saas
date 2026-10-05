@@ -63,7 +63,7 @@ export function HdHubModules({ modules }: { modules: readonly HdHubModule[] }) {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {visible.map((mod) => (
-          <Link key={mod.href} href={mod.href} className="group block no-underline">
+          <Link key={`${mod.href}:${mod.title}`} href={mod.href} className="group block no-underline">
             <div
               className={`flex h-full flex-col rounded-2xl border bg-gradient-to-br p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${mod.cardBorder} ${mod.cardBg}`}
             >

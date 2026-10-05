@@ -83,99 +83,80 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
 
   const result = row?.computed_result ?? null;
 
+  // Tam ekran profesyonel çalışma görünümü: üst bar (kimlik + eylemler) sabit, içerik kendi içinde
+  // kayar. Masaüstünde BodyGraph + Design 13 + Personality 13 tek bakışta (HdComputedChartView).
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6">
-      <button
-        type="button"
-        aria-label="Kapat"
-        onClick={onClose}
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-md"
-      />
-
+    <div className="fixed inset-0 z-50 bg-slate-100/95 backdrop-blur-sm">
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="hd-computed-detay-title"
         tabIndex={-1}
-        className="relative z-10 w-full max-w-6xl rounded-[28px] border-2 border-indigo-200/80 bg-white shadow-2xl focus:outline-none"
+        className="flex h-[100dvh] w-full flex-col focus:outline-none"
       >
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3 rounded-t-[26px] border-b border-indigo-100/80 bg-gradient-to-r from-indigo-50 to-violet-50/60 px-6 py-4">
+        {/* Üst bar */}
+        <div className="flex flex-none flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-indigo-100 bg-white px-4 py-2.5 shadow-sm sm:px-6">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-widest text-indigo-500">Hesaplanmış Harita</p>
-            <h2 id="hd-computed-detay-title" className="mt-0.5 truncate text-lg font-black text-slate-900">{row?.client_name || "Kişisel Kayıt"}</h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Hesaplanmış Human Design Haritası</p>
+            <h2 id="hd-computed-detay-title" className="truncate text-base font-black text-slate-900 sm:text-lg">{row?.client_name || "Kişisel Kayıt"}</h2>
+            <p className="truncate text-xs text-slate-500">
               {formatDate(row?.birth_date)}
-              {row?.birth_time ? ` · ${row.birth_time}` : ""}
-              {row?.birth_place ? ` · ${row.birth_place}` : ""}
-              {row?.timezone ? ` · ${row.timezone}` : ""}
+              {row?.birth_time ? ` • ${row.birth_time.slice(0, 5)}` : ""}
+              {row?.birth_place ? ` • ${row.birth_place}` : ""}
+              {row?.timezone ? ` (${row.timezone})` : ""}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Kapat"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
-          >
-            <span aria-hidden>✕</span>
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="max-h-[72vh] overflow-y-auto p-4 sm:p-6">
-          {loading ? (
-            <p className="py-10 text-center text-sm text-slate-500">Yükleniyor...</p>
-          ) : loadError ? (
-            <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
-              {loadError}
-            </p>
-          ) : result ? (
-            <div className="space-y-6">
-              <HdComputedChartView result={result} />
-              <div className="border-t border-emerald-100 pt-5">
-                <HdExpertKnowledgePanel chart={computedChartAppCodes(result)} />
-              </div>
-              <div className="border-t border-indigo-100/80 pt-5">
-                <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-700">Kişinin <span lang="en">Human Design</span> Bilgileri</p>
-                <HdPersonalKnowledgePanel chartId={id} />
-              </div>
-            </div>
-          ) : (
-            <p className="py-10 text-center text-sm text-slate-500">Kayıt bulunamadı.</p>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-b-[26px] border-t border-indigo-100/80 bg-slate-50/60 px-6 py-4">
-          <div className="min-h-[1rem] text-xs">
+          <div className="flex flex-wrap items-center gap-2">
             {deleteError ? (
-              <span role="alert" className="font-semibold text-rose-600">
+              <span role="alert" className="text-xs font-semibold text-rose-600">
                 {deleteError}
               </span>
             ) : null}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {/* FAZ 2.1: computed chart detayı başarıyla yüklendiğinde mevcut Professional
-                Word butonunu REUSE et (chartId = persisted computed row.id). Yeni akış YOK. */}
-            {!loading && !loadError && row ? (
-              <HdProfessionalReportButton chartId={id} />
-            ) : null}
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-9 rounded-xl border border-slate-200 bg-white px-5 text-sm font-black uppercase tracking-wide text-slate-700 shadow-sm transition hover:bg-slate-50"
-            >
-              Kapat
-            </button>
+            {/* FAZ 2.1: mevcut Profesyonel Word butonu REUSE (chartId = kayıtlı computed row.id). */}
+            {!loading && !loadError && row ? <HdProfessionalReportButton chartId={id} /> : null}
             <button
               type="button"
               onClick={() => void handleDelete()}
               disabled={deleting}
-              className="h-9 rounded-xl border border-rose-200 bg-white px-5 text-sm font-black uppercase tracking-wide text-rose-600 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50"
+              className="h-9 rounded-xl border border-rose-200 bg-white px-4 text-sm font-black uppercase tracking-wide text-rose-600 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50"
             >
               {deleting ? "Siliniyor..." : "Sil"}
             </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Kapat"
+              className="h-9 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black uppercase tracking-wide text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              Kapat ✕
+            </button>
+          </div>
+        </div>
+
+        {/* İçerik */}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-[1600px] p-3 sm:p-4 lg:px-6">
+            {loading ? (
+                <p className="py-10 text-center text-sm text-slate-500">Yükleniyor...</p>
+              ) : loadError ? (
+                <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+                  {loadError}
+                </p>
+              ) : result ? (
+                <div className="space-y-6">
+                  <HdComputedChartView result={result} />
+                  <div className="border-t border-emerald-100 pt-5">
+                    <HdExpertKnowledgePanel chart={computedChartAppCodes(result)} />
+                  </div>
+                  <div className="border-t border-indigo-100/80 pt-5">
+                    <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-700">Kişinin <span lang="en">Human Design</span> Bilgileri</p>
+                    <HdPersonalKnowledgePanel chartId={id} />
+                  </div>
+                </div>
+              ) : (
+                <p className="py-10 text-center text-sm text-slate-500">Kayıt bulunamadı.</p>
+              )}
           </div>
         </div>
       </div>

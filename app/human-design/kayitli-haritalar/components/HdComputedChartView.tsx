@@ -25,7 +25,7 @@ import { HD_NOT_SELF_TR, HD_SIGNATURE_TR, HD_STRATEGY_TR, hdCrossAngleLabel } fr
 
 function Field({ label, value, source }: { label: string; value: string; source?: string | null }) {
   return (
-    <div className="min-w-0 rounded-xl border border-indigo-100 bg-white px-3 py-2">
+    <div className="min-w-0 rounded-xl border border-indigo-100 bg-white px-3 py-1.5 shadow-sm">
       <p className="text-[10px] font-black uppercase tracking-wide text-indigo-500">{label}</p>
       <p className="break-words text-sm font-bold text-slate-900">{value}</p>
       {source ? <p className="break-words text-[10px] text-slate-400">Kaynak değeri: {source}</p> : null}
@@ -49,8 +49,11 @@ export function HdComputedChartView({ result }: { result: HdComputedChart }) {
 
   return (
     <div className="space-y-5" data-hd-computed-view={isProvider ? "roxyapi" : "engine"}>
+      {/* Masaüstü tek bakış: özet + sahne ekran yüksekliğini paylaşır (üst bar ~6.5rem düşülür);
+          sahne kalan alanı doldurur → Head→Root + 13+13 aktivasyon dikey kaydırmasız. */}
+      <div className="space-y-3 lg:flex lg:h-[calc(100dvh-6.5rem)] lg:min-h-[500px] lg:flex-col lg:gap-3 lg:space-y-0" data-hd-onelook>
       {/* Özet */}
-      <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 lg:flex-none lg:grid-cols-4 xl:grid-cols-8" data-hd-summary>
         <Field label="Tip" value={typeLabel} source={showRaw(result.type, typeLabel)} />
         <Field label="Strateji" value={typeCode ? HD_STRATEGY_TR[typeCode] : "—"} source={result.strategy ?? null} />
         <Field label="Otorite" value={authorityLabel} source={showRaw(result.authority, authorityLabel)} />
@@ -65,22 +68,25 @@ export function HdComputedChartView({ result }: { result: HdComputedChart }) {
         />
       </div>
 
-      {/* Design | BodyGraph | Personality */}
-      <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-b from-white to-indigo-50/40 p-3 shadow-sm">
-        <div className="flex flex-wrap items-start justify-center gap-x-3 gap-y-4 lg:flex-nowrap lg:gap-x-8">
-          <div className="order-2 w-[calc(50%-0.375rem)] max-w-[150px] lg:order-1 lg:w-[132px] lg:shrink-0">
+      {/* Design | BodyGraph | Personality — masaüstünde tek bakış: BodyGraph yüksekliği ekrana göre
+          ölçeklenir (Head→Root dikey kaydırmasız); mobilde BodyGraph üstte, altında iki sütun. */}
+      <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-b from-white to-indigo-50/40 p-3 shadow-sm lg:min-h-0 lg:flex-1 lg:p-3" data-hd-stage>
+        <div className="flex flex-wrap items-start justify-center gap-x-3 gap-y-4 lg:h-full lg:flex-nowrap lg:items-center lg:gap-x-6">
+          <div className="order-2 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-rose-100 bg-white/90 p-2 lg:order-1 lg:w-[210px] lg:shrink-0 lg:p-3">
             <HdPlanetColumn activations={result.activations} side="design" />
           </div>
-          {/* Orta hücre sabit genişlik: sütunlar grafiğe yakın durur (geniş ekranda araya boşluk açılmaz). */}
-          <div className="order-1 flex w-full justify-center lg:order-2 lg:w-[360px] lg:flex-none">
-            <div className="w-full max-w-[360px]">
+          {/* Orta: yükseklik-öncelikli BodyGraph (SVG viewBox 340×600 korunur; yalnız ölçek). */}
+          <div className="order-1 flex w-full justify-center lg:order-2 lg:h-full lg:w-auto lg:min-w-0 lg:flex-1">
+            <div className="w-full max-w-[420px] lg:h-full lg:w-auto lg:max-w-none [&_svg]:max-w-[420px] lg:[&_svg]:h-full lg:[&_svg]:w-auto lg:[&_svg]:max-w-none">
               <BodyGraph result={result} />
             </div>
           </div>
-          <div className="order-3 w-[calc(50%-0.375rem)] max-w-[150px] lg:w-[132px] lg:shrink-0">
+          <div className="order-3 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-slate-200 bg-white/90 p-2 lg:w-[210px] lg:shrink-0 lg:p-3">
             <HdPlanetColumn activations={result.activations} side="personality" />
           </div>
         </div>
+      </div>
+
       </div>
 
       {/* Merkezler / Kanallar / Kapılar */}

@@ -37,7 +37,12 @@ export const ROXY_RATE_LIMITS = Object.freeze({
   perTenant: { limit: 100, windowSeconds: 24 * 60 * 60 },
   /** Aynı girdi için eşzamanlı çağrı kilidi (çift tık / retry / çoklu instance). */
   inFlight: { limit: 1, windowSeconds: 20 },
+  /** Konum (ilçe/şehir) araması — yalnız cache'te olmayan, açık kullanıcı eylemiyle yapılan aramalar. */
+  locationSearchPerUser: { limit: 40, windowSeconds: 60 * 60 },
 });
+
+/** Konum araması önbelleği (aynı sorgu tekrar kredi harcamaz). */
+export const ROXY_LOCATION_CACHE = Object.freeze({ ttlMs: 30 * 24 * 60 * 60 * 1000, maxEntries: 1000, minQuery: 3, maxQuery: 60 });
 
 export type RoxyServerConfig = { apiKey: string; baseUrl: string };
 
