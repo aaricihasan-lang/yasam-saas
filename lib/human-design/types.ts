@@ -144,6 +144,12 @@ export type HumanDesignClient = {
   birth_date:         string | null;
   birth_time:         string | null;
   birth_place:        string | null;
+  // Yapılandırılmış doğum yeri (migration 20271008000000; SUNUCU yazar, istemci yalnız ref gönderir).
+  birth_location_id?:    string | null;
+  birth_location_label?: string | null;
+  birth_timezone?:       string | null;
+  birth_latitude?:       number | null;
+  birth_longitude?:      number | null;
   chart_image_url:    string | null;
   external_chart_url: string | null;
   notes:              string | null;

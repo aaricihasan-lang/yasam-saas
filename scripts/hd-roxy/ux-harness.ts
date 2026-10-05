@@ -175,6 +175,43 @@ async function main() {
     ok("V8 aktif kapı rozetleri komşuya değmez (2r + halka < en yakın anchor)", radii.length > 0 && Math.max(...radii) * 2 + 0.8 < minD, { r: Math.max(...radii), minD });
   }
 
+  // ── Danışanda kalıcı doğum yeri (migration 20271008000000) ──
+  {
+    const { resolveClientLocationFields, insertHdClient, updateHdClient } = await import("../../lib/human-design/api/clientPersistence");
+    ok("K1 ref alanı yok → konum kolonlarına dokunulmaz", resolveClientLocationFields({ name: "x" }).fields === null);
+    ok("K2 ref null → temizlenir", JSON.stringify(resolveClientLocationFields({ birth_location_ref: null }).fields) === JSON.stringify({ birth_location_id: null, birth_location_label: null, birth_timezone: null, birth_latitude: null, birth_longitude: null }));
+    const kTr = resolveClientLocationFields({ birth_location_ref: "tr-42-konya" });
+    ok("K3 yerel il kimliği → sunucu tz/koordinat yazar", kTr.fields?.birth_timezone === "Europe/Istanbul" && kTr.fields?.birth_location_id === "tr-42-konya");
+    const kRx = resolveClientLocationFields({ birth_location_ref: ref });
+    ok("K4 imzalı ilçe ref → Selcuklu kalıcı", kRx.fields?.birth_location_id === "rx-tr-konya-selcuklu" && kRx.fields?.birth_latitude === 37.8842);
+    ok("K5 oynanmış/serbest ref → hata (yazılmaz)", !!resolveClientLocationFields({ birth_location_ref: "Selçuklu" }).error);
+
+    const f = createFakeDb({ human_design_clients: [{ id: C_A, tenant_id: T_A, name: "A", birth_date: "2018-07-20", birth_time: "19:00", birth_place: "Selcuklu, Konya, Turkey" }], human_design_charts: [] });
+    const up = await updateHdClient(f.db, T_A, C_A, { birth_place: "Selcuklu, Konya, Turkey", birth_location_ref: ref, birth_timezone: "Asia/Tokyo" });
+    const cl = f.tables.human_design_clients[0];
+    ok("K6 güncelleme: konum kalıcı, istemcinin doğrudan gönderdiği tz YOK SAYILIR", up.ok && cl.birth_location_id === "rx-tr-konya-selcuklu" && cl.birth_timezone === "Europe/Istanbul");
+    ok("K7 birth_place değişmeden korunur", cl.birth_place === "Selcuklu, Konya, Turkey");
+    const calls: unknown[] = [];
+    const ctx = { db: f.db, tenantId: T_A, userId: U_A, isDemo: false };
+    const a1 = await computeRoxyChart(ctx, { client_id: C_A, location_id: "client" }, deps(calls));
+    ok("K8 kayıtlı konumla hesap (yeniden ilçe seçimi yok)", a1.body.ok && a1.body.reused === false && calls.length === 1 && (calls[0] as { latitude: number }).latitude === 37.8842);
+    const a2 = await computeRoxyChart(ctx, { client_id: C_A, location_id: "client" }, deps(calls));
+    const a3 = await computeRoxyChart(ctx, { client_id: C_A, location_id: ref }, deps(calls));
+    ok("K9 danışan tekrar açıldı → aynı input_hash → kayıtlı harita, Roxy YOK", a2.body.ok && a2.body.reused && a3.body.ok && a3.body.reused && calls.length === 1);
+    const xt = await computeRoxyChart({ ...ctx, tenantId: T_B }, { client_id: C_A, location_id: "client" }, deps(calls));
+    ok("K10 başka tenant 'client' konumunu kullanamaz → 404", xt.status === 404 && calls.length === 1);
+    const st = resolveAutoCalcState({ birthDate: "2018-07-20", birthTime: "19:00", birthPlace: "Selcuklu, Konya, Turkey", picked: { id: "client", label: "Selcuklu, Konya, Turkey", tz: "Europe/Istanbul" }, rows: f.tables.human_design_charts.map((r) => ({ id: r.id as string, birth_date: r.birth_date as string, birth_time: r.birth_time as string, birth_place: r.birth_place as string, timezone: r.timezone as string, engine_version: r.engine_version as string })) });
+    ok("K11 panel: kayıtlı konum + aynı doğum → 'Profesyonel haritayı aç'", st.kind === "open");
+
+    const fm = createFakeDb({ human_design_clients: [{ id: C_A, tenant_id: T_A, name: "A" }] }, { missingColumns: ["birth_location_id"] });
+    const upm = await updateHdClient(fm.db, T_A, C_A, { notes: "n", birth_location_ref: "tr-42-konya" });
+    ok("K12 migration öncesi: güncelleme konum olmadan yine kaydedilir", upm.ok && fm.tables.human_design_clients[0].notes === "n");
+    const ins = await insertHdClient(fm.db, T_A, U_A, { name: "Yeni", birth_location_ref: "tr-42-konya" });
+    ok("K13 migration öncesi: yeni danışan yine oluşturulur", !!ins.id && !ins.error);
+    const insBad = await insertHdClient(fm.db, T_A, U_A, { name: "Kötü", birth_location_ref: "rx1.sahte.imza" });
+    ok("K14 geçersiz ref ile kayıt reddedilir", !insBad.id && !!insBad.error);
+  }
+
   // ── Statik: manuel fallback / güvenlik / metin ──
   {
     const detail = src("app/human-design/danisanlar/[id]/HdDanisanDetayContent.tsx");

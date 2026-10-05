@@ -67,6 +67,8 @@ export function HdClientForm({ onSuccess }: Props) {
       birth_date: form.birth_date || null,
       birth_time: form.birth_time || null,
       birth_place: form.birth_place.trim() || null,
+      // Listeden seçildiyse yapılandırılmış konum sunucuda çözülüp kalıcılaşır.
+      ...(birthLoc ? { birth_location_ref: birthLoc.id } : {}),
       chart_image_url: null,
       external_chart_url: form.external_chart_url.trim() || null,
       notes: form.notes.trim() || null,

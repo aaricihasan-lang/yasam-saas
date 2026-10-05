@@ -40,8 +40,11 @@ export async function listHdClients(): Promise<{
   return { rows: [], error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
+/** Listeden seçilen doğum yeri referansı (yerel kimlik | sunucu-imzalı ref); sunucu çözer. */
+type LocationRefInput = { birth_location_ref?: string | null };
+
 export async function insertHdClient(
-  input: Omit<HumanDesignClientInsert, "tenant_id" | "user_id">,
+  input: Omit<HumanDesignClientInsert, "tenant_id" | "user_id"> & LocationRefInput,
 ): Promise<{ id: string | null; error: string | null }> {
   let res: Response;
   try {
@@ -62,7 +65,7 @@ export async function insertHdClient(
 
 export async function updateHdClient(
   id: string,
-  input: Partial<Omit<HumanDesignClientInsert, "tenant_id" | "user_id">>,
+  input: Partial<Omit<HumanDesignClientInsert, "tenant_id" | "user_id">> & LocationRefInput,
   expectedUpdatedAt?: string | null,
 ): Promise<{ error: string | null; conflict?: boolean; updatedAt?: string | null }> {
   let res: Response;

@@ -132,6 +132,22 @@ async function findExisting(
   return { found: !!data, error: null };
 }
 
+/** Danışanda kalıcı, SUNUCUNUN çözüp yazdığı yapılandırılmış doğum yeri (tenant-scoped). */
+async function locationFromClient(ctx: RoxyServiceCtx, clientId: string): Promise<HdBirthLocation | null> {
+  const { data, error } = await withTenant(
+    ctx.db.from("human_design_clients").select("id, birth_location_id, birth_location_label, birth_timezone, birth_latitude, birth_longitude"),
+    ctx.tenantId,
+    "roxy.clientLocation",
+  )
+    .eq("id", clientId)
+    .maybeSingle();
+  if (error || !data) return null; // migration yoksa / kayıt yoksa → konum seçimi istenir (422)
+  const r = data as { birth_location_id: string | null; birth_location_label: string | null; birth_timezone: string | null; birth_latitude: number | null; birth_longitude: number | null };
+  if (!r.birth_location_id || !r.birth_timezone || !isValidIanaTimeZone(r.birth_timezone)) return null;
+  if (typeof r.birth_latitude !== "number" || typeof r.birth_longitude !== "number") return null;
+  return { id: r.birth_location_id, label: r.birth_location_label ?? r.birth_location_id, timezone: r.birth_timezone, latitude: r.birth_latitude, longitude: r.birth_longitude };
+}
+
 /** Aynı tenant + AYNI danışanın Roxy kaydındaki doğum yeri (tz/koordinat sunucuda saklanmıştı). */
 async function locationFromPreviousChart(
   ctx: RoxyServiceCtx,
@@ -230,7 +246,9 @@ export async function computeRoxyChart(
   //    hesabındaki konum (sunucunun daha önce çözüp sakladığı değer; istemci verisi değil).
   const rawLoc = body.location_id;
   let location: HdBirthLocation | null;
-  if (typeof rawLoc === "string" && rawLoc.startsWith("chart:")) {
+  if (rawLoc === "client") {
+    location = await locationFromClient(ctx, clientId);
+  } else if (typeof rawLoc === "string" && rawLoc.startsWith("chart:")) {
     const r = await locationFromPreviousChart(ctx, clientId, rawLoc.slice("chart:".length));
     if ("error" in r) return r.error;
     location = r.location;

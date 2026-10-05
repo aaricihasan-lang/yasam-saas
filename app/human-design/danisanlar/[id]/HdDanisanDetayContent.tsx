@@ -56,6 +56,14 @@ export function HdDanisanDetayContent({ clientId }: Props) {
   // Listeden seçilen doğum yeri (kimlik + etiket + tz). Kalıcı DB alanı yok: etiket birth_place'e
   // yazılır; tz/koordinat sunucuda kimlikten çözülür (hesaplanmış haritada saklanır).
   const [pickedLocation, setPickedLocation] = useState<HdPickedLocation | null>(null);
+  // Danışanda kalıcı (sunucunun çözdüğü) doğum yeri → "client" referansıyla yeniden kullanılır.
+  const storedLocation = useMemo<HdPickedLocation | null>(
+    () =>
+      row?.birth_location_id && row.birth_timezone && row.birth_location_label
+        ? { id: "client", label: row.birth_location_label, tz: row.birth_timezone }
+        : null,
+    [row],
+  );
 
   const loadClient = useCallback(async () => {
     setLoading(true);
@@ -122,14 +130,30 @@ export function HdDanisanDetayContent({ clientId }: Props) {
       external_chart_url: form.external_chart_url.trim() || null,
       notes: form.notes.trim() || null,
     };
-    const { error, conflict, updatedAt } = await updateHdClient(clientId, payload, versionRef.current);
+    // Bu oturumda listeden yeni yer seçildiyse referansı gönder (sunucu çözer ve kalıcılaştırır).
+    const locationRef = pickedLocation && pickedLocation.label === payload.birth_place ? pickedLocation : null;
+    const { error, conflict, updatedAt } = await updateHdClient(
+      clientId,
+      locationRef ? { ...payload, birth_location_ref: locationRef.id } : payload,
+      versionRef.current,
+    );
     setSaving(false);
     if (error) {
       showToast({ message: conflict ? error : `Hata: ${error}`, type: "error" });
     } else {
       // Kaydedilen hâl yeni baseline (dirty temizlenir; başlık güncel adı gösterir).
       versionRef.current = updatedAt ?? versionRef.current;
-      setRow((r) => (r ? { ...r, ...payload } : r));
+      setRow((r) =>
+        r
+          ? {
+              ...r,
+              ...payload,
+              ...(locationRef
+                ? { birth_location_id: locationRef.id, birth_location_label: locationRef.label, birth_timezone: locationRef.tz }
+                : {}),
+            }
+          : r,
+      );
       setForm((f) => (f ? { ...f, name: payload.name, birth_place: payload.birth_place ?? "", external_chart_url: payload.external_chart_url ?? "", notes: payload.notes ?? "" } : f));
       showToast({ message: "Danışan güncellendi.", type: "success" });
     }
@@ -185,6 +209,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
             birthTime={row.birth_time ?? null}
             birthPlace={row.birth_place ?? null}
             pickedLocation={pickedLocation}
+            storedLocation={storedLocation}
             formDirty={dirty}
           />
 
@@ -292,7 +317,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
                 <label htmlFor="hd-client-birth-place" className={labelCls}>Doğum Yeri</label>
                 <HdBirthLocationPicker
                   id="hd-client-birth-place"
-                  value={pickedLocation}
+                  value={pickedLocation ?? (storedLocation && storedLocation.label === form.birth_place ? storedLocation : null)}
                   initialText={form.birth_place}
                   onChange={(loc) => {
                     setPickedLocation(loc);
@@ -300,8 +325,8 @@ export function HdDanisanDetayContent({ clientId }: Props) {
                   }}
                 />
                 <p className="mt-1 text-[11px] text-slate-500">
-                  {pickedLocation
-                    ? `Saat dilimi: ${pickedLocation.tz}`
+                  {pickedLocation || (storedLocation && storedLocation.label === form.birth_place)
+                    ? `Saat dilimi: ${(pickedLocation ?? storedLocation)!.tz}`
                     : form.birth_place
                       ? `Kayıtlı: ${form.birth_place}`
                       : "İl, ilçe veya şehir yazıp listeden seçin."}

@@ -30,6 +30,7 @@ export function HdAutoCalcPanel({
   birthTime,
   birthPlace,
   pickedLocation,
+  storedLocation = null,
   formDirty,
 }: {
   clientId: string;
@@ -39,6 +40,8 @@ export function HdAutoCalcPanel({
   birthPlace: string | null;
   /** Kişisel Bilgiler'de bu oturumda listeden seçilen doğum yeri (yoksa önceki hesaptan çözülür). */
   pickedLocation: AutoCalcLocation | null;
+  /** Danışanda kalıcı, sunucunun çözdüğü doğum yeri (id "client"). */
+  storedLocation?: AutoCalcLocation | null;
   formDirty: boolean;
 }) {
   const { showToast } = useToast();
@@ -68,7 +71,10 @@ export function HdAutoCalcPanel({
     const l = [...TR_LOCATIONS, ...WORLD_LOCATIONS].find((x) => labelOf(x) === birthPlace);
     return l ? { id: l.id, label: birthPlace, tz: l.tz } : null;
   }, [birthPlace]);
-  const picked = (pickedLocation && pickedLocation.label === birthPlace ? pickedLocation : null) ?? localMatch;
+  const picked =
+    (pickedLocation && pickedLocation.label === birthPlace ? pickedLocation : null) ??
+    (storedLocation && storedLocation.label === birthPlace ? storedLocation : null) ??
+    localMatch;
   const state = useMemo(
     () => resolveAutoCalcState({ birthDate, birthTime, birthPlace, picked, rows }),
     [birthDate, birthTime, birthPlace, picked, rows],

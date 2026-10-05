@@ -83,6 +83,8 @@ export function createFakeDb(seed: Record<string, Row[]> = {}, opts: FakeDbOptio
         return { data: del.map(project), error: null };
       }
       if (op === "update") {
+        const um = missingErr(Object.keys(payload as Row));
+        if (um) return { data: null, error: { code: "PGRST204", message: "Could not find the column" } };
         const upd = rows.filter(match);
         for (const r of upd) Object.assign(r, payload);
         return { data: upd.map(project), error: null };

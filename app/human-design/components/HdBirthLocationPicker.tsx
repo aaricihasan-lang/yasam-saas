@@ -137,7 +137,8 @@ export function HdBirthLocationPicker({
     }
   }
 
-  const canExtend = query.trim().length >= 3 && !value;
+  // Yazılan metin mevcut seçimden farklıysa (yeni yer aranıyor) genişletilmiş arama sunulur.
+  const canExtend = query.trim().length >= 3 && (!value || value.label !== query.trim());
 
   return (
     <div className="relative">
