@@ -31,6 +31,8 @@ export function hdProfileLabelFromCode(code: string | null | undefined): string 
 
 export function hdDefinitionLabelFromCode(code: string | null | undefined): string {
   if (!code) return "—";
+  // "none" yalnız hesaplanmış haritalarda (Reflector) görülür; manuel listede yoktur.
+  if (code === "none") return "Tanımsız (No Definition)";
   return HUMAN_DESIGN_DEFINITIONS.find((d) => d.code === code)?.label ?? code;
 }
 

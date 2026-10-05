@@ -80,6 +80,12 @@ export function searchGlobalLocations(query: string, opts: GlobalSearchOptions =
     .map(x => x.loc);
 }
 
+/** Kararlı kimlikle global kayıt (ör. "gn-1796236"); yoksa null. Yalnız server. */
+export function getGlobalLocationById(id: string): GlobalRecord | null {
+  if (typeof id !== "string" || !id) return null;
+  return LOCATIONS.find(l => l.id === id) ?? null;
+}
+
 /** Toplam yüklü kayıt sayısı (teşhis/harness için). */
 export function globalDatasetCount(): number {
   return LOCATIONS.length;

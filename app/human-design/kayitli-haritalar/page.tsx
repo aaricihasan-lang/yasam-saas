@@ -26,6 +26,18 @@ import {
 } from "./helpers/hdKayitliHaritalar";
 import { HdComputedChartModal } from "./components/HdComputedChartModal";
 import { listComputedCharts, type ComputedChartListRow } from "@/lib/human-design/api/chartsClient";
+import { toAppChartCodes } from "@/lib/human-design/normalize/hdAppCodes";
+
+// Hesaplanmış satır etiketleri: eski motor (RAW) ve RoxyAPI (uygulama kodu) kayıtları merkezi
+// normalizasyonla aynı Türkçe etikete iner; eşlenemeyen değer olduğu gibi gösterilir.
+function computedLabels(row: ComputedChartListRow): { type: string; authority: string; profile: string } {
+  const c = toAppChartCodes(row);
+  return {
+    type: c.type_code ? hdTypeLabelFromCode(c.type_code) : row.type_code || "—",
+    authority: c.authority_code ? hdAuthorityLabelFromCode(c.authority_code) : row.authority_code || "—",
+    profile: c.profile_code ? hdProfileLabelFromCode(c.profile_code).split(" — ")[0] : row.profile_code || "—",
+  };
+}
 
 function formatDate(val: string | null | undefined): string {
   if (!val) return "—";
@@ -393,14 +405,14 @@ export default function HdKayitliHaritalarPage() {
                           {formatDate(row.birth_date)}{row.birth_place ? ` · ${row.birth_place}` : ""}
                         </p>
                         {row.type_code && (
-                          <span className="mt-0.5 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800 sm:hidden">{row.type_code}</span>
+                          <span className="mt-0.5 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800 sm:hidden">{computedLabels(row).type}</span>
                         )}
                       </td>
                       <td className="hidden px-4 py-3 sm:table-cell">
-                        <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-800 ring-1 ring-indigo-200/60">{row.type_code || "—"}</span>
+                        <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-800 ring-1 ring-indigo-200/60">{computedLabels(row).type}</span>
                       </td>
-                      <td className="hidden px-4 py-3 text-xs text-slate-700 md:table-cell">{row.authority_code || "—"}</td>
-                      <td className="hidden px-4 py-3 text-xs text-slate-700 lg:table-cell">{row.profile_code || "—"}</td>
+                      <td className="hidden px-4 py-3 text-xs text-slate-700 md:table-cell">{computedLabels(row).authority}</td>
+                      <td className="hidden px-4 py-3 text-xs text-slate-700 lg:table-cell">{computedLabels(row).profile}</td>
                       <td className="hidden px-4 py-3 text-xs text-slate-500 lg:table-cell">{formatDate(row.created_at)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1.5">

@@ -7,6 +7,7 @@ import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useHdLeaveGuard } from "../../hooks/useHdLeaveGuard";
 import { getHdClient, updateHdClient, type HdClientRow } from "../helpers/hdClients";
 import { HdChartImageUpload } from "../components/HdChartImageUpload";
+import { HdAutoCalcPanel } from "../components/HdAutoCalcPanel";
 import { HumanDesignShell } from "../../components/HumanDesignShell";
 import { runInEffect } from "@/lib/runInEffect";
 
@@ -171,8 +172,15 @@ export function HdDanisanDetayContent({ clientId }: Props) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_400px]">
-        {/* Sol: Harita Görseli + Hızlı Erişim */}
+        {/* Sol: Otomatik Hesaplama + Harita Görseli + Hızlı Erişim */}
         <div className="space-y-4">
+          {/* FAZ 1 — RoxyAPI otomatik hesaplama (manuel akıştan bağımsız, ek yol) */}
+          <HdAutoCalcPanel
+            clientId={clientId}
+            birthDate={row.birth_date ?? null}
+            birthTime={row.birth_time ?? null}
+            formDirty={dirty}
+          />
           {/* Harita Görseli */}
           <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-5 shadow-sm ring-1 ring-indigo-100/60">
             <p className={sectionCls}>Harita Görseli</p>
