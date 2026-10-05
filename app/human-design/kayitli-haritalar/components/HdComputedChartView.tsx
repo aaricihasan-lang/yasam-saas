@@ -23,12 +23,13 @@ import {
 import { HUMAN_DESIGN_CENTERS } from "@/lib/human-design/constants";
 import { HD_NOT_SELF_TR, HD_SIGNATURE_TR, HD_STRATEGY_TR, hdCrossAngleLabel } from "@/lib/human-design/normalize/hdDisplayLabels";
 
+// Kompakt özet hücresi: masaüstünde tek satır şerit (BodyGraph'a dikey alan bırakır). Sağlayıcının
+// ham değeri görünür metni kalabalıklaştırmaz; title (üzerine gelince) olarak verilir.
 function Field({ label, value, source }: { label: string; value: string; source?: string | null }) {
   return (
-    <div className="min-w-0 rounded-xl border border-indigo-100 bg-white px-3 py-1.5 shadow-sm">
-      <p className="text-[10px] font-black uppercase tracking-wide text-indigo-500">{label}</p>
-      <p className="break-words text-sm font-bold text-slate-900">{value}</p>
-      {source ? <p className="break-words text-[10px] text-slate-400">Kaynak değeri: {source}</p> : null}
+    <div className="min-w-0 rounded-lg border border-indigo-100 bg-white px-2.5 py-1 shadow-sm" title={source ? `Kaynak değeri: ${source}` : undefined}>
+      <p className="truncate text-[9px] font-black uppercase tracking-wide text-indigo-500">{label}</p>
+      <p className="break-words text-[13px] font-bold leading-snug text-slate-900 xl:truncate">{value}</p>
     </div>
   );
 }
@@ -49,11 +50,11 @@ export function HdComputedChartView({ result }: { result: HdComputedChart }) {
 
   return (
     <div className="space-y-5" data-hd-computed-view={isProvider ? "roxyapi" : "engine"}>
-      {/* Masaüstü tek bakış: özet + sahne ekran yüksekliğini paylaşır (üst bar ~6.5rem düşülür);
-          sahne kalan alanı doldurur → Head→Root + 13+13 aktivasyon dikey kaydırmasız. */}
-      <div className="space-y-3 lg:flex lg:h-[calc(100dvh-6.5rem)] lg:min-h-[500px] lg:flex-col lg:gap-3 lg:space-y-0" data-hd-onelook>
+      {/* Masaüstü tek bakış: ince özet şeridi + sahne; sahne ekranın KALAN yüksekliğinin tamamını alır
+          (üst bar ~3.5rem + kenar boşluğu düşülür). BodyGraph yükseklik-öncelikli büyür; küçültülmez. */}
+      <div className="space-y-3 lg:flex lg:h-[calc(100dvh-5.25rem)] lg:min-h-[520px] lg:flex-col lg:gap-2 lg:space-y-0" data-hd-onelook>
       {/* Özet */}
-      <div className="grid grid-cols-2 gap-2 lg:flex-none lg:grid-cols-4 xl:grid-cols-8" data-hd-summary>
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 lg:flex-none xl:grid-cols-8" data-hd-summary>
         <Field label="Tip" value={typeLabel} source={showRaw(result.type, typeLabel)} />
         <Field label="Strateji" value={typeCode ? HD_STRATEGY_TR[typeCode] : "—"} source={result.strategy ?? null} />
         <Field label="Otorite" value={authorityLabel} source={showRaw(result.authority, authorityLabel)} />
@@ -70,18 +71,18 @@ export function HdComputedChartView({ result }: { result: HdComputedChart }) {
 
       {/* Design | BodyGraph | Personality — masaüstünde tek bakış: BodyGraph yüksekliği ekrana göre
           ölçeklenir (Head→Root dikey kaydırmasız); mobilde BodyGraph üstte, altında iki sütun. */}
-      <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-b from-white to-indigo-50/40 p-3 shadow-sm lg:min-h-0 lg:flex-1 lg:p-3" data-hd-stage>
-        <div className="flex flex-wrap items-start justify-center gap-x-3 gap-y-4 lg:h-full lg:flex-nowrap lg:items-center lg:gap-x-6">
-          <div className="order-2 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-rose-100 bg-white/90 p-2 lg:order-1 lg:w-[210px] lg:shrink-0 lg:p-3">
+      <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-b from-white to-indigo-50/40 p-3 shadow-sm lg:min-h-0 lg:flex-1 lg:px-4 lg:py-2" data-hd-stage>
+        <div className="flex flex-wrap items-start justify-center gap-x-3 gap-y-4 lg:h-full lg:flex-nowrap lg:items-center lg:justify-center lg:gap-x-[clamp(20px,3vw,64px)]">
+          <div className="order-2 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-rose-100 bg-white/90 p-2 lg:order-1 lg:w-[clamp(190px,17vw,280px)] lg:max-w-none lg:shrink-0 lg:p-3">
             <HdPlanetColumn activations={result.activations} side="design" />
           </div>
           {/* Orta: yükseklik-öncelikli BodyGraph (SVG viewBox 340×600 korunur; yalnız ölçek). */}
-          <div className="order-1 flex w-full justify-center lg:order-2 lg:h-full lg:w-auto lg:min-w-0 lg:flex-1">
+          <div className="order-1 flex w-full justify-center lg:order-2 lg:h-full lg:w-auto lg:flex-none">
             <div className="w-full max-w-[420px] lg:h-full lg:w-auto lg:max-w-none [&_svg]:max-w-[420px] lg:[&_svg]:h-full lg:[&_svg]:w-auto lg:[&_svg]:max-w-none">
               <BodyGraph result={result} />
             </div>
           </div>
-          <div className="order-3 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-slate-200 bg-white/90 p-2 lg:w-[210px] lg:shrink-0 lg:p-3">
+          <div className="order-3 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-slate-200 bg-white/90 p-2 lg:w-[clamp(190px,17vw,280px)] lg:max-w-none lg:shrink-0 lg:p-3">
             <HdPlanetColumn activations={result.activations} side="personality" />
           </div>
         </div>

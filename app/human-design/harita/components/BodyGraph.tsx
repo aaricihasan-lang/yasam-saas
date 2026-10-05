@@ -49,12 +49,18 @@ const GATE_PASSIVE_STROKE_DARK = "#0f172a";  // açık numara outline (renkli me
 // FAZ 7B → FAZ 10H-3 — kanal görsel katmanı (yalnız çizim kalitesi; koordinat/topoloji SABİT).
 // Tanımlı kanal = 3 katman: (1) koyu hacim/gölge kenarı → (2) renkli ana gövde → (3) camsı sheen.
 // Amaç: "kalın çizgi" değil "premium kanal gövdesi". Koordinat/topoloji DEĞİŞMEZ.
-// Aktif kapı rozeti: en yakın iki kapı anchor'ı arası 14.42 birim (layout.ts). Eski r=7.2 (çap 14.4
-// + halka) komşu rozetleri birbirine DEĞDİRİYORDU → r=6.4 (çap 12.8 + 0.8 halka) ile aralarında
-// boşluk kalır. Yalnız boyut; anchor/topoloji/renk mantığı değişmez.
-const GATE_BADGE_R = 6.4;
-const GATE_BADGE_RING = 0.8;
-const GATE_BADGE_FONT = 6.6;
+// Aktif kapı rozeti: en yakın iki kapı anchor'ı arası 14.42 birim (layout.ts). Çap + halka bu aralığı
+// AŞMAZ (2×6.8 + 0.6 = 14.2) → komşu rozetler değmez; yazı okunabilirlik için büyütüldü.
+// Yalnız boyut; anchor/topoloji/renk mantığı değişmez.
+const GATE_BADGE_R = 6.8;
+const GATE_BADGE_RING = 0.6;
+const GATE_BADGE_FONT = 8.0;
+// Pasif kapı numarası (okunabilirlik hotfix 6.0→8.0; iki hane ≈8.8 birim < 14.42 anchor aralığı).
+// Görünüm penceresi: layout içeriği y 22–582 (+rozet/etiket payı) → üst/alt boş şerit kırpılır;
+// koordinatlar/topoloji DEĞİŞMEZ, aynı ekran yüksekliğinde grafik daha büyük çizilir.
+const VIEW_Y0 = 12;
+const VIEW_H = 582;
+const GATE_PASSIVE_FONT = 8.0;
 const CH_BODY_W = 5.6;       // tanımlı kanal renkli ana gövde (10H-3 SABİT — inceltilmez)
 const CH_SHADOW_W = 9.0;     // koyu hacim/oluk kenarı (10H-3 SABİT — inceltilmez)
 const CH_SHADOW_COL = "#0b1220"; // koyu kasa/gölge tabanı
@@ -132,7 +138,7 @@ export function BodyGraph({ result }: { result: Pick<HdComputedChart, "activatio
 
   return (
     <svg
-      viewBox={`0 0 ${VIEWBOX.width} ${VIEWBOX.height}`}
+      viewBox={`0 ${VIEW_Y0} ${VIEWBOX.width} ${VIEW_H}`}
       className="mx-auto block h-auto w-full max-w-[380px] sm:max-w-[420px] xl:h-full xl:w-auto xl:max-w-none"
       role="img"
       aria-labelledby="hd-bodygraph-title hd-bodygraph-desc"
@@ -307,7 +313,7 @@ export function BodyGraph({ result }: { result: Pick<HdComputedChart, "activatio
               y={a.y}
               textAnchor="middle"
               dominantBaseline="central"
-              fontSize={6.0}
+              fontSize={GATE_PASSIVE_FONT}
               fontWeight={700}
               letterSpacing={-0.2}
               fill={coloredBg ? GATE_PASSIVE_FILL_LIGHT : GATE_PASSIVE_FILL_DARK}

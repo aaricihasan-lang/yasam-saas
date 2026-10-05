@@ -11,6 +11,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { isValidIanaTimeZone } from "./birthTimeResolution";
 import type { HdBirthLocation } from "./hdBirthLocation";
 import type { RoxyCity } from "../providers/roxy/location";
+import { TR_LOCATIONS } from "@/lib/location/tr";
+import { normalizeLocationQuery } from "@/lib/location";
 
 const PREFIX = "rx1.";
 
@@ -34,12 +36,21 @@ function slug(v: string): string {
     .slice(0, 24);
 }
 
-/** Roxy şehrinden deterministik, kararlı konum kimliği + etiket. */
+/** Türkiye sonuçlarında il adını yerel 81-il listesinin Türkçe yazımına çevirir (Istanbul → İstanbul). */
+function trProvinceName(province: string): string {
+  const key = normalizeLocationQuery(province);
+  return TR_LOCATIONS.find((l) => normalizeLocationQuery(l.name) === key)?.name ?? province;
+}
+
+/** Roxy şehrinden deterministik, kararlı konum kimliği + etiket (kimlik etiketten BAĞIMSIZ). */
 export function roxyCityToLocation(c: RoxyCity): HdBirthLocation {
-  const region = c.province && c.province !== c.city ? `${c.province}, ` : "";
+  const isTr = c.iso2 === "TR";
+  const province = isTr && c.province ? trProvinceName(c.province) : c.province;
+  const country = isTr ? "Türkiye" : c.country;
+  const region = province && normalizeLocationQuery(province) !== normalizeLocationQuery(c.city) ? `${province}, ` : "";
   return {
     id: `rx-${slug(c.iso2 || c.country)}-${slug(c.province || "x")}-${slug(c.city)}`.slice(0, 64),
-    label: `${c.city}, ${region}${c.country}`,
+    label: `${c.city}, ${region}${country}`,
     timezone: c.timezone,
     latitude: c.latitude,
     longitude: c.longitude,
