@@ -46,6 +46,11 @@ export async function saveComputedChart(
     return { ok: false, status: computed.status, code: computed.body.code, error: computed.body.error };
   }
 
+  // FAZ 1 (P2): client_id verilmişse AYNI tenant'a ait olmalı (cross-tenant bağlama yok).
+  if (body.client_id && !(await clientInTenant(db, body.client_id, tenantId))) {
+    return { ok: false, status: 404, code: "CLIENT_NOT_FOUND", error: "Danışan bulunamadı veya bu hesaba ait değil." };
+  }
+
   const result: HdChartResult = computed.body.data;
   const derived = deriveChartColumns(result);
 
@@ -84,11 +89,14 @@ export type ChartListRow = {
   profile_code: string | null;
   definition_code: string | null;
   source: string | null;
+  location_id?: string | null;
+  engine_version?: string | null;
   created_at: string;
 };
 
+// computed_result / provider_raw liste yanıtına GİRMEZ (yalnız özet kolonlar; hepsi FAZ 9A'da mevcut).
 const LIST_COLS =
-  "id,client_id,client_name,birth_date,birth_place,timezone,type_code,authority_code,profile_code,definition_code,source,created_at";
+  "id,client_id,client_name,birth_date,birth_place,timezone,type_code,authority_code,profile_code,definition_code,source,location_id,engine_version,created_at";
 
 export async function listComputedCharts(
   db: SupabaseClient,
@@ -112,7 +120,12 @@ export async function getComputedChart(
     .eq("id", id)
     .maybeSingle();
   if (error) return { row: null, error: hdSafeDbError("getComputedChart", error) };
-  return { row: (data as Record<string, unknown> | null) ?? null, error: null };
+  if (!data) return { row: null, error: null };
+  // Ham sağlayıcı yanıtı (RoxyAPI açıklama metinleri) istemciye GÖNDERİLMEZ — yalnız sunucuda
+  // kanıt/denetim amaçlı saklanır; uzman içeriğiyle karışmaz.
+  const row = { ...(data as Record<string, unknown>) };
+  delete row.provider_raw;
+  return { row, error: null };
 }
 
 /**
@@ -443,15 +456,25 @@ export async function updateManualChartById(
   return { ok: true, error: null };
 }
 
-/** Manuel harita sil (id ile) — deleteHdChart aynısı (tenant-scoped). */
+/**
+ * Manuel harita sil (id ile; tenant-scoped).
+ * FAZ 1 düzeltmesi: YALNIZ manuel/legacy satır (source NULL | 'manual') silinir — hesaplanmış
+ * (computed) kayıt manuel uç (?scope=manual) üzerinden SİLİNEMEZ. Eşleşme yoksa sahte başarı yok.
+ */
 export async function deleteManualChart(
   db: SupabaseClient,
   tenantId: string,
   id: string,
 ): Promise<{ ok: boolean; error: string | null }> {
-  const { error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteManualChart")
-    .eq("id", id);
-  return { ok: !error, error: error ? hdSafeDbError("deleteManualChart", error) : null };
+  const { data, error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteManualChart")
+    .eq("id", id)
+    .or(MANUAL_FILTER)
+    .select("id");
+  if (error) return { ok: false, error: hdSafeDbError("deleteManualChart", error) };
+  if (!data || data.length === 0) {
+    return { ok: false, error: "Silinecek manuel harita bulunamadı veya erişim izniniz yok." };
+  }
+  return { ok: true, error: null };
 }
 
 /** Bir danışanın manuel haritalarını sil (tenant-scoped, yalnız manuel satırlar). */

@@ -18,7 +18,7 @@ import {
   type Point,
 } from "@/lib/human-design/bodygraph/layout";
 import type { CenterName } from "@/lib/human-design/engine/channels";
-import type { HdChartResult } from "@/lib/human-design/engine/contract";
+import type { HdComputedChart } from "@/lib/human-design/chart/computedChart";
 
 // Premium palet (Genetic Matrix kopyası DEĞİL; Yaşam Sistemi tonları).
 const CENTER_FILL: Record<CenterName, string> = {
@@ -117,7 +117,8 @@ function ChannelSheen({ from, to, color }: { from: Point; to: Point; color: "bla
   );
 }
 
-export function BodyGraph({ result }: { result: HdChartResult }) {
+// Yalnız aktivasyonlar okunur (gate + side) → hem dahili motor hem RoxyAPI kayıtları render edilir.
+export function BodyGraph({ result }: { result: Pick<HdComputedChart, "activations"> }) {
   const { gateMap, definedChannels, definedCenters } = deriveActivation(result.activations);
   const definedCenterSet = new Set<CenterName>(definedCenters);
   const definedChannelIds = new Set(definedChannels.map((c) => c.id));
