@@ -18,7 +18,7 @@ import { searchLocations, type Location } from "@/lib/location";
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 
-export type HdPickedLocation = { id: string; label: string; tz: string };
+export type HdPickedLocation = { id: string; label: string; tz: string; locationId?: string | null };
 type Item = HdPickedLocation & { source: "local" | "roxy" };
 
 const inputCls =
@@ -59,6 +59,12 @@ export function HdBirthLocationPicker({
   const [remoteMsg, setRemoteMsg] = useState<string | null>(null);
   const seq = useRef(0);
   const remoteSeq = useRef(0);
+  const lastRemoteQ = useRef("");
+  // Otomatik ilçe araması için güncel fonksiyon referansı (effect bağımlılığına girmeden).
+  const extendedRef = useRef<() => Promise<void>>(async () => undefined);
+  useEffect(() => {
+    extendedRef.current = extendedSearch;
+  });
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- dış seçim → görünen metin senkronu
@@ -74,18 +80,28 @@ export function HdBirthLocationPicker({
     setLocal(tr);
     if (q.length < 2) return;
     const ac = new AbortController();
+    let autoTimer: ReturnType<typeof setTimeout> | null = null;
     const t = setTimeout(() => {
       fetch(`/api/location/search?q=${encodeURIComponent(q)}&limit=6`, { signal: ac.signal })
         .then((r) => r.json())
         .then((j: { ok?: boolean; results?: Location[] }) => {
           if (my !== seq.current) return;
           const world = j.ok && Array.isArray(j.results) ? j.results.map(toItem) : [];
-          setLocal([...tr, ...world].slice(0, 10));
+          const merged = [...tr, ...world].slice(0, 10);
+          setLocal(merged);
+          // Yerel il + dünya şehri sonucu YOKSA (ör. "fatih"), yazma durunca ilçe araması
+          // otomatik başlar (sunucu önbellekli + limitli; yerel sonuç varsa Roxy'ye gidilmez).
+          if (merged.length === 0 && q.length >= 4) {
+            autoTimer = setTimeout(() => {
+              if (my === seq.current) void extendedRef.current();
+            }, 450);
+          }
         })
         .catch(() => undefined);
     }, 250);
     return () => {
       clearTimeout(t);
+      if (autoTimer) clearTimeout(autoTimer);
       ac.abort();
     };
   }, [query, open]);
@@ -95,6 +111,9 @@ export function HdBirthLocationPicker({
   async function extendedSearch() {
     const q = query.trim();
     if (q.length < 3 || remoteBusy) return;
+    if (value && value.label === q) return; // zaten seçili yer
+    if (remote && remoteSeq.current > 0 && lastRemoteQ.current === q) return; // aynı sorgu zaten arandı
+    lastRemoteQ.current = q;
     const my = ++remoteSeq.current;
     setOpen(true);
     setRemoteBusy(true);

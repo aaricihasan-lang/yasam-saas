@@ -10,6 +10,7 @@
 // Sağlayıcı açıklama metinleri (typeDescription vb.) burada GÖSTERİLMEZ.
 
 import { BodyGraph } from "../../harita/components/BodyGraph";
+import { HdRoxyBodygraph, ROXY_BODYGRAPH_ASPECT } from "./HdRoxyBodygraph";
 import { HdPlanetColumn } from "./HdPlanetColumn";
 import { computedChartAppCodes, type HdComputedChart } from "@/lib/human-design/chart/computedChart";
 import {
@@ -34,7 +35,14 @@ function Field({ label, value, source }: { label: string; value: string; source?
   );
 }
 
-export function HdComputedChartView({ result }: { result: HdComputedChart }) {
+export function HdComputedChartView({
+  result,
+  roxyRender = null,
+}: {
+  result: HdComputedChart;
+  /** RoxyAPI kaydı: resmi renderer için KAYITLI yanıttan yapısal yük (sunucu üretir). */
+  roxyRender?: Record<string, unknown> | null;
+}) {
   const codes = computedChartAppCodes(result);
   const isProvider = result.provider?.id === "roxyapi";
   const typeCode = codes.type_code;
@@ -78,9 +86,17 @@ export function HdComputedChartView({ result }: { result: HdComputedChart }) {
           </div>
           {/* Orta: yükseklik-öncelikli BodyGraph (SVG viewBox 340×600 korunur; yalnız ölçek). */}
           <div className="order-1 flex w-full justify-center lg:order-2 lg:h-full lg:w-auto lg:flex-none">
-            <div className="w-full max-w-[420px] lg:h-full lg:w-auto lg:max-w-none [&_svg]:max-w-[420px] lg:[&_svg]:h-full lg:[&_svg]:w-auto lg:[&_svg]:max-w-none">
-              <BodyGraph result={result} />
-            </div>
+            {roxyRender ? (
+              // RoxyAPI otomatik harita → Roxy'nin RESMİ BodyGraph'ı (eski Yaşam Sistemi renderer'ı KULLANILMAZ).
+              <div className="w-full max-w-[440px] lg:h-full lg:w-auto lg:max-w-none" style={{ aspectRatio: ROXY_BODYGRAPH_ASPECT }} data-hd-renderer="roxy-official">
+                <HdRoxyBodygraph data={roxyRender} />
+              </div>
+            ) : (
+              // Eski (dahili motor) hesaplanmış kayıtlar: mevcut görünüm korunur (veri silinmez).
+              <div className="w-full max-w-[420px] lg:h-full lg:w-auto lg:max-w-none [&_svg]:max-w-[420px] lg:[&_svg]:h-full lg:[&_svg]:w-auto lg:[&_svg]:max-w-none" data-hd-renderer="legacy">
+                <BodyGraph result={result} />
+              </div>
+            )}
           </div>
           <div className="order-3 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-slate-200 bg-white/90 p-2 lg:w-[clamp(190px,17vw,280px)] lg:max-w-none lg:shrink-0 lg:p-3">
             <HdPlanetColumn activations={result.activations} side="personality" />
