@@ -4,7 +4,7 @@ import { HdHubModules, type HdHubModule } from "./components/HdHubModules";
 const HD_MODULES: readonly HdHubModule[] = [
   {
     title: "Danışanlar",
-    desc: "Yeni danışan ekle, ad, doğum bilgisi ve harita görselini kaydet.",
+    desc: "Danışan ekle, doğum bilgilerini kaydet ve Human Design haritasını otomatik hesapla.",
     href: "/human-design/danisanlar",
     icon: "👤",
     badge: "Yönetim",
@@ -14,11 +14,12 @@ const HD_MODULES: readonly HdHubModule[] = [
     badgeCls: "bg-indigo-100 text-indigo-800",
   },
   {
-    title: "Harita Kaydı",
-    desc: "Danışan seç, dış sitede hesaplanan HD değerlerini manuel olarak işaretle.",
-    href: "/human-design/harita-kaydi",
+    title: "Human Design Haritası",
+    desc: "Danışanın doğum bilgilerinden otomatik BodyGraph hesapla veya gerektiğinde manuel harita kaydı oluştur.",
+    // Otomatik hesaplama danışan detayında; manuel kayıt (fallback) /human-design/harita-kaydi'de korunur.
+    href: "/human-design/danisanlar",
     icon: "🗺️",
-    badge: "Veri Girişi",
+    badge: "Otomatik",
     accent: "from-violet-500 to-purple-600",
     cardBorder: "border-violet-200/70",
     cardBg: "from-violet-50/90 via-purple-50/60 to-white",

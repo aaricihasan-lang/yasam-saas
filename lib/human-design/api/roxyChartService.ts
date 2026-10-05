@@ -20,7 +20,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { withTenant, tenantInsertPayload } from "./tenantScope";
 import { deterministicUuid, isUniqueViolation, isUuid } from "./deterministicId";
 import { hdSafeDbError } from "./safeError";
-import { resolveBirthLocalTime, toHms } from "./birthTimeResolution";
+import { isValidIanaTimeZone, resolveBirthLocalTime, toHms } from "./birthTimeResolution";
 import { resolveHdBirthLocation, type HdBirthLocation } from "./hdBirthLocation";
 import {
   ROXY_ADAPTER_VERSION,
@@ -132,6 +132,59 @@ async function findExisting(
   return { found: !!data, error: null };
 }
 
+/** Danışanda kalıcı, SUNUCUNUN çözüp yazdığı yapılandırılmış doğum yeri (tenant-scoped). */
+async function locationFromClient(ctx: RoxyServiceCtx, clientId: string): Promise<HdBirthLocation | null> {
+  const { data, error } = await withTenant(
+    ctx.db.from("human_design_clients").select("id, birth_location_id, birth_location_label, birth_timezone, birth_latitude, birth_longitude"),
+    ctx.tenantId,
+    "roxy.clientLocation",
+  )
+    .eq("id", clientId)
+    .maybeSingle();
+  if (error || !data) return null; // migration yoksa / kayıt yoksa → konum seçimi istenir (422)
+  const r = data as { birth_location_id: string | null; birth_location_label: string | null; birth_timezone: string | null; birth_latitude: number | null; birth_longitude: number | null };
+  if (!r.birth_location_id || !r.birth_timezone || !isValidIanaTimeZone(r.birth_timezone)) return null;
+  if (typeof r.birth_latitude !== "number" || typeof r.birth_longitude !== "number") return null;
+  return { id: r.birth_location_id, label: r.birth_location_label ?? r.birth_location_id, timezone: r.birth_timezone, latitude: r.birth_latitude, longitude: r.birth_longitude };
+}
+
+/** Aynı tenant + AYNI danışanın Roxy kaydındaki doğum yeri (tz/koordinat sunucuda saklanmıştı). */
+async function locationFromPreviousChart(
+  ctx: RoxyServiceCtx,
+  clientId: string,
+  chartId: string,
+): Promise<{ location: HdBirthLocation | null } | { error: RoxyServiceResponse }> {
+  if (!isUuid(chartId)) return { location: null };
+  const { data, error } = await withTenant(
+    ctx.db.from(TABLE).select("id, client_id, provider, location_id, birth_place, timezone, input"),
+    ctx.tenantId,
+    "roxy.prevLocation",
+  )
+    .eq("id", chartId)
+    .eq("client_id", clientId)
+    .eq("provider", ROXY_PROVIDER_ID)
+    .maybeSingle();
+  if (error) {
+    if (isMissingColumn(error)) return { error: MIGRATION_PENDING };
+    return { error: fail(500, "DB_ERROR", hdSafeDbError("roxy.prevLocation", error)) };
+  }
+  const row = data as { location_id: string | null; birth_place: string | null; timezone: string | null; input: { latitude?: unknown; longitude?: unknown } | null } | null;
+  const lat = row?.input?.latitude;
+  const lon = row?.input?.longitude;
+  if (!row || !row.timezone || !isValidIanaTimeZone(row.timezone) || typeof lat !== "number" || typeof lon !== "number") {
+    return { location: null };
+  }
+  return {
+    location: {
+      id: row.location_id ?? `chart-${chartId.slice(0, 8)}`,
+      label: row.birth_place ?? row.timezone,
+      timezone: row.timezone,
+      latitude: lat,
+      longitude: lon,
+    },
+  };
+}
+
 const PROVIDER_ERRORS: Record<string, RoxyServiceResponse> = {
   timeout: fail(504, "PROVIDER_TIMEOUT", "Hesaplama servisi zamanında yanıt vermedi. Lütfen birazdan tekrar deneyin."),
   network: fail(502, "PROVIDER_UNAVAILABLE", "Hesaplama servisine şu anda ulaşılamıyor. Manuel harita kaydı kullanılabilir."),
@@ -189,8 +242,19 @@ export async function computeRoxyChart(
   const year = Number(date.slice(0, 4));
   if (year < 1800 || year > 2100) return fail(422, "BIRTH_DATE_RANGE", "Doğum tarihi 1800–2100 aralığında olmalıdır.");
 
-  // 5) Konum → IANA tz + koordinat (sunucuda).
-  const location: HdBirthLocation | null = resolveHdBirthLocation(body.location_id);
+  // 5) Konum → IANA tz + koordinat (sunucuda). "chart:<id>" = aynı danışanın önceki Roxy
+  //    hesabındaki konum (sunucunun daha önce çözüp sakladığı değer; istemci verisi değil).
+  const rawLoc = body.location_id;
+  let location: HdBirthLocation | null;
+  if (rawLoc === "client") {
+    location = await locationFromClient(ctx, clientId);
+  } else if (typeof rawLoc === "string" && rawLoc.startsWith("chart:")) {
+    const r = await locationFromPreviousChart(ctx, clientId, rawLoc.slice("chart:".length));
+    if ("error" in r) return r.error;
+    location = r.location;
+  } else {
+    location = resolveHdBirthLocation(rawLoc);
+  }
   if (!location) {
     return fail(422, "LOCATION_REQUIRED", "Doğum yeri listeden seçilmelidir. Saat dilimi bilinmeden hesaplama yapılmaz.");
   }

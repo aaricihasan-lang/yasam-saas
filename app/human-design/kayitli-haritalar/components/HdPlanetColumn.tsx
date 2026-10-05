@@ -49,17 +49,21 @@ export function HdPlanetColumn({
     <div role="group" aria-label={`${t.title} (${t.subtitle}) gezegen aktivasyonları`} className="w-full" data-hd-side={side}>
       <p className={`text-center text-[11px] font-black uppercase tracking-[0.18em] ${t.titleCls}`}>{t.title}</p>
       <p className="mb-2 text-center text-[10px] font-semibold text-slate-500">{t.subtitle}</p>
-      <ul className="m-0 flex list-none flex-col gap-1 p-0">
+      <ul className="m-0 flex list-none flex-col gap-1 p-0 lg:gap-0.5">
         {rows.map((a) => (
           <li
             key={a.body}
             data-hd-activation={`${side}:${a.body}:${a.gate}.${a.line}`}
-            className={`flex h-8 items-center justify-between gap-1.5 ${mirror ? "flex-row-reverse" : ""}`}
+            className={`flex h-8 items-center justify-between gap-1.5 lg:h-7 ${mirror ? "flex-row-reverse" : ""}`}
             aria-label={`${PLANET_LABEL_TR[a.body]}: kapı ${a.gate}, çizgi ${a.line}`}
             title={PLANET_LABEL_TR[a.body]}
           >
-            <span aria-hidden className={`w-6 shrink-0 text-center text-base leading-none ${t.glyphCls}`} style={{ fontFamily: SYMBOL_FONT }}>
-              {PLANET_GLYPH[a.body]}
+            <span className={`flex min-w-0 items-center gap-1.5 ${mirror ? "flex-row-reverse" : ""}`}>
+              <span aria-hidden className={`w-6 shrink-0 text-center text-base leading-none ${t.glyphCls}`} style={{ fontFamily: SYMBOL_FONT }}>
+                {PLANET_GLYPH[a.body]}
+              </span>
+              {/* Türkçe ad: dar mobilde gizli (glif + gate.line yeterli), sm+ görünür */}
+              <span aria-hidden className="hidden min-w-0 truncate text-xs font-semibold text-slate-600 sm:inline">{PLANET_LABEL_TR[a.body]}</span>
             </span>
             <span className={`inline-flex min-w-[3.4rem] items-center justify-center rounded-lg border px-2 py-1 text-[13px] font-black tabular-nums ${t.boxCls}`}>
               {a.gate}.{a.line}

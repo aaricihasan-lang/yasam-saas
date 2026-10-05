@@ -12,6 +12,7 @@ import { WORLD_LOCATIONS } from "@/lib/location/world";
 import { getGlobalLocationById } from "@/lib/location/server/search";
 import type { Location } from "@/lib/location";
 import { isValidIanaTimeZone } from "./birthTimeResolution";
+import { isLocationRef, verifyLocationRef } from "./hdLocationRef";
 
 export type HdBirthLocation = {
   id: string;
@@ -27,6 +28,8 @@ function label(l: Location): string {
 }
 
 export function resolveHdBirthLocation(id: unknown): HdBirthLocation | null {
+  // Roxy konum araması (ilçe/şehir) → sunucu imzalı referans; imza doğrulanmazsa null.
+  if (isLocationRef(id)) return verifyLocationRef(id);
   if (typeof id !== "string" || !/^[A-Za-z0-9_\-]{2,64}$/.test(id)) return null;
   const loc: Location | null =
     TR_LOCATIONS.find((l) => l.id === id) ??

@@ -82,6 +82,7 @@ export type ChartListRow = {
   client_id: string | null;
   client_name: string | null;
   birth_date: string | null;
+  birth_time?: string | null;
   birth_place: string | null;
   timezone: string | null;
   type_code: string | null;
@@ -96,7 +97,7 @@ export type ChartListRow = {
 
 // computed_result / provider_raw liste yanıtına GİRMEZ (yalnız özet kolonlar; hepsi FAZ 9A'da mevcut).
 const LIST_COLS =
-  "id,client_id,client_name,birth_date,birth_place,timezone,type_code,authority_code,profile_code,definition_code,source,location_id,engine_version,created_at";
+  "id,client_id,client_name,birth_date,birth_time,birth_place,timezone,type_code,authority_code,profile_code,definition_code,source,location_id,engine_version,created_at";
 
 export async function listComputedCharts(
   db: SupabaseClient,
