@@ -86,7 +86,9 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
   // Tam ekran profesyonel çalışma görünümü: üst bar (kimlik + eylemler) sabit, içerik kendi içinde
   // kayar. Masaüstünde BodyGraph + Design 13 + Personality 13 tek bakışta (HdComputedChartView).
   return (
-    <div className="fixed inset-0 z-50 bg-slate-100/95 backdrop-blur-sm">
+    // z-[70]: uygulama header'ı (fixed top-0 z-50) çalışma alanının üstüne binip toolbar'ı KIRPMASIN.
+    // backdrop-blur YOK: tam ekran opak zemin (blur gereksiz GPU yükü + ekran yakalamayı donduruyordu).
+    <div className="fixed inset-0 z-[70] bg-slate-50">
       <div
         ref={dialogRef}
         role="dialog"
@@ -96,10 +98,12 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
         className="flex h-[100dvh] w-full flex-col focus:outline-none"
       >
         {/* Üst bar */}
-        <div className="flex flex-none flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-indigo-100 bg-white px-4 py-2.5 shadow-sm sm:px-6">
+        <div className="flex flex-none flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-indigo-100 bg-white px-4 py-2 shadow-sm sm:px-6" data-hd-toolbar>
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Hesaplanmış Human Design Haritası</p>
-            <h2 id="hd-computed-detay-title" className="truncate text-base font-black text-slate-900 sm:text-lg">{row?.client_name || "Kişisel Kayıt"}</h2>
+            <h2 id="hd-computed-detay-title" className="truncate text-base font-black leading-tight text-slate-900">
+              <span className="mr-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">Human Design</span>
+              {row?.client_name || "Kişisel Kayıt"}
+            </h2>
             <p className="truncate text-xs text-slate-500">
               {formatDate(row?.birth_date)}
               {row?.birth_time ? ` • ${row.birth_time.slice(0, 5)}` : ""}

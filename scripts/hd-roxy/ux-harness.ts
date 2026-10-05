@@ -90,7 +90,7 @@ async function main() {
 
   // ── İmzalı referans ──
   const loc = roxyCityToLocation(cities![0]);
-  ok("R1 kararlı kimlik + etiket", loc.id === "rx-tr-konya-selcuklu" && loc.label === "Selcuklu, Konya, Turkey");
+  ok("R1 kararlı kimlik + etiket", loc.id === "rx-tr-konya-selcuklu" && loc.label === "Selcuklu, Konya, Türkiye");
   const ref = signLocationRef(loc, ENV)!;
   ok("R2 imza üretildi (rx1.)", !!ref && ref.startsWith("rx1."));
   ok("R3 doğrulama → aynı tz/koordinat", JSON.stringify(verifyLocationRef(ref, ENV)) === JSON.stringify(loc));
@@ -106,7 +106,7 @@ async function main() {
   {
     const f = createFakeDb({
       human_design_clients: [
-        { id: C_A, tenant_id: T_A, name: "A", birth_date: "2018-07-20", birth_time: "19:00", birth_place: "Selcuklu, Konya, Turkey" },
+        { id: C_A, tenant_id: T_A, name: "A", birth_date: "2018-07-20", birth_time: "19:00", birth_place: "Selcuklu, Konya, Türkiye" },
         { id: C_A2, tenant_id: T_A, name: "A2", birth_date: "2018-07-20", birth_time: "19:00", birth_place: "x" },
       ],
       human_design_charts: [],
@@ -117,7 +117,7 @@ async function main() {
     ok("S1 ilçe (imzalı ref) ile hesap", first.body.ok && first.body.reused === false && calls.length === 1);
     ok("S2 Roxy'ye giden tz/koordinat imzadan", JSON.stringify(calls[0]) === JSON.stringify({ date: "2018-07-20", time: "19:00:00", timezone: "Europe/Istanbul", latitude: 37.8842, longitude: 32.4922, nodeType: "true" }));
     const row = f.tables.human_design_charts[0];
-    ok("S3 kayıt: location_id kararlı, birth_place etiket", row.location_id === "rx-tr-konya-selcuklu" && row.birth_place === "Selcuklu, Konya, Turkey");
+    ok("S3 kayıt: location_id kararlı, birth_place etiket", row.location_id === "rx-tr-konya-selcuklu" && row.birth_place === "Selcuklu, Konya, Türkiye");
     const id = first.body.ok ? first.body.id : "";
     const again = await computeRoxyChart(ctx, { client_id: C_A, location_id: ref }, deps(calls));
     ok("S4 aynı ref tekrar → reused, Roxy çağrısı YOK", again.body.ok && again.body.reused && calls.length === 1);
@@ -163,7 +163,7 @@ async function main() {
     const expected = n.chart.activations.map((a) => `${a.side}:${a.body}:${a.gate}.${a.line}`);
     ok("V2 26 aktivasyon UI'da birebir", acts.length === 26 && expected.every((e) => acts.includes(e)));
     ok("V3 kanallar/merkezler birebir", (view.match(/data-hd-channel=/g) ?? []).length === 4 && (view.match(/data-hd-center="[a-z_]+:defined"/g) ?? []).length === 6);
-    ok("V4 masaüstü: BodyGraph yüksekliği ekrana göre (Head→Root tek bakış)", view.includes("lg:h-[calc(100dvh-6.5rem)]") && /data-hd-stage[^>]*|lg:flex-1/.test(view) && view.includes("lg:[&amp;_svg]:h-full"));
+    ok("V4 masaüstü: BodyGraph yüksekliği ekrana göre (Head→Root tek bakış)", view.includes("lg:h-[calc(100dvh-5.25rem)]") && /data-hd-stage[^>]*|lg:flex-1/.test(view) && view.includes("lg:[&amp;_svg]:h-full"));
     ok("V5 masaüstü 3 sütun: Design → BodyGraph → Personality", view.indexOf('data-hd-side="design"') < view.indexOf("<svg") && view.indexOf("<svg") < view.indexOf('data-hd-side="personality"'));
     ok("V6 mobil: BodyGraph önce (order-1), sütunlar sonra", /order-1 flex w-full/.test(view) && /order-2 w-\[calc\(50%-0\.375rem\)\]/.test(view));
     const svg = renderToStaticMarkup(createElement(BodyGraph, { result: n.chart }));
@@ -186,11 +186,11 @@ async function main() {
     ok("K4 imzalı ilçe ref → Selcuklu kalıcı", kRx.fields?.birth_location_id === "rx-tr-konya-selcuklu" && kRx.fields?.birth_latitude === 37.8842);
     ok("K5 oynanmış/serbest ref → hata (yazılmaz)", !!resolveClientLocationFields({ birth_location_ref: "Selçuklu" }).error);
 
-    const f = createFakeDb({ human_design_clients: [{ id: C_A, tenant_id: T_A, name: "A", birth_date: "2018-07-20", birth_time: "19:00", birth_place: "Selcuklu, Konya, Turkey" }], human_design_charts: [] });
-    const up = await updateHdClient(f.db, T_A, C_A, { birth_place: "Selcuklu, Konya, Turkey", birth_location_ref: ref, birth_timezone: "Asia/Tokyo" });
+    const f = createFakeDb({ human_design_clients: [{ id: C_A, tenant_id: T_A, name: "A", birth_date: "2018-07-20", birth_time: "19:00", birth_place: "Selcuklu, Konya, Türkiye" }], human_design_charts: [] });
+    const up = await updateHdClient(f.db, T_A, C_A, { birth_place: "Selcuklu, Konya, Türkiye", birth_location_ref: ref, birth_timezone: "Asia/Tokyo" });
     const cl = f.tables.human_design_clients[0];
     ok("K6 güncelleme: konum kalıcı, istemcinin doğrudan gönderdiği tz YOK SAYILIR", up.ok && cl.birth_location_id === "rx-tr-konya-selcuklu" && cl.birth_timezone === "Europe/Istanbul");
-    ok("K7 birth_place değişmeden korunur", cl.birth_place === "Selcuklu, Konya, Turkey");
+    ok("K7 birth_place değişmeden korunur", cl.birth_place === "Selcuklu, Konya, Türkiye");
     const calls: unknown[] = [];
     const ctx = { db: f.db, tenantId: T_A, userId: U_A, isDemo: false };
     const a1 = await computeRoxyChart(ctx, { client_id: C_A, location_id: "client" }, deps(calls));
@@ -200,7 +200,7 @@ async function main() {
     ok("K9 danışan tekrar açıldı → aynı input_hash → kayıtlı harita, Roxy YOK", a2.body.ok && a2.body.reused && a3.body.ok && a3.body.reused && calls.length === 1);
     const xt = await computeRoxyChart({ ...ctx, tenantId: T_B }, { client_id: C_A, location_id: "client" }, deps(calls));
     ok("K10 başka tenant 'client' konumunu kullanamaz → 404", xt.status === 404 && calls.length === 1);
-    const st = resolveAutoCalcState({ birthDate: "2018-07-20", birthTime: "19:00", birthPlace: "Selcuklu, Konya, Turkey", picked: { id: "client", label: "Selcuklu, Konya, Turkey", tz: "Europe/Istanbul" }, rows: f.tables.human_design_charts.map((r) => ({ id: r.id as string, birth_date: r.birth_date as string, birth_time: r.birth_time as string, birth_place: r.birth_place as string, timezone: r.timezone as string, engine_version: r.engine_version as string })) });
+    const st = resolveAutoCalcState({ birthDate: "2018-07-20", birthTime: "19:00", birthPlace: "Selcuklu, Konya, Türkiye", picked: { id: "client", label: "Selcuklu, Konya, Türkiye", tz: "Europe/Istanbul" }, rows: f.tables.human_design_charts.map((r) => ({ id: r.id as string, birth_date: r.birth_date as string, birth_time: r.birth_time as string, birth_place: r.birth_place as string, timezone: r.timezone as string, engine_version: r.engine_version as string })) });
     ok("K11 panel: kayıtlı konum + aynı doğum → 'Profesyonel haritayı aç'", st.kind === "open");
 
     const fm = createFakeDb({ human_design_clients: [{ id: C_A, tenant_id: T_A, name: "A" }] }, { missingColumns: ["birth_location_id"] });
@@ -210,6 +210,26 @@ async function main() {
     ok("K13 migration öncesi: yeni danışan yine oluşturulur", !!ins.id && !ins.error);
     const insBad = await insertHdClient(fm.db, T_A, U_A, { name: "Kötü", birth_location_ref: "rx1.sahte.imza" });
     ok("K14 geçersiz ref ile kayıt reddedilir", !insBad.id && !!insBad.error);
+  }
+
+  // ── PROD HOTFIX regresyonları ──
+  {
+    const fatih = roxyCityToLocation({ city: "Fatih", province: "Istanbul", country: "Turkey", iso2: "TR", latitude: 41.0225, longitude: 28.9408, timezone: "Europe/Istanbul" });
+    ok("H1 TR etiketi yerelleşir: 'Fatih, İstanbul, Türkiye' (kimlik değişmez)", fatih.label === "Fatih, İstanbul, Türkiye" && fatih.id === "rx-tr-istanbul-fatih");
+    const berlin = roxyCityToLocation({ city: "Berlin", province: "Berlin", country: "Germany", iso2: "DE", latitude: 52.52, longitude: 13.4, timezone: "Europe/Berlin" });
+    ok("H2 TR dışı etiket değişmez; il = şehir tekrarı yazılmaz", berlin.label === "Berlin, Germany");
+    const picker = src("app/human-design/components/HdBirthLocationPicker.tsx");
+    ok("H3 seçici: blur ZAMANLAYICISI yok (prod kök neden)", !picker.includes("blurTimer") && !picker.includes("setTimeout(() => setOpen(false)"));
+    ok("H4 seçici: liste içi mousedown odağı input'tan almaz", picker.includes("onMouseDown={(e) => e.preventDefault()}"));
+    ok("H5 seçici: yalnız odak bileşen dışına çıkınca kapanır", picker.includes("wrapRef.current?.contains(e.relatedTarget"));
+    ok("H6 seçici: teknik JSON gösterilmez, anlaşılır mesaj", !picker.includes("JSON.stringify(j") && picker.includes("Konum araması şu anda yapılamadı"));
+    const modal = src("app/human-design/kayitli-haritalar/components/HdComputedChartModal.tsx");
+    ok("H7 çalışma alanı uygulama header'ının (z-50) ÜSTÜNDE: z-[70]", modal.includes("fixed inset-0 z-[70]"));
+    ok("H8 tam ekranda backdrop-blur yok", !/fixed inset-0[^"]*backdrop-blur/.test(modal));
+    ok("H9 toolbar: başlık + Word + Sil + Kapat", modal.includes("data-hd-toolbar") && modal.includes("HdProfessionalReportButton") && modal.includes("handleDelete") && modal.includes("Kapat"));
+    const bg = src("app/human-design/harita/components/BodyGraph.tsx");
+    ok("H10 kapı yazıları büyüdü (pasif 8.0, aktif 8.0) + viewBox içerik kırpımı", bg.includes("const GATE_PASSIVE_FONT = 8.0;") && bg.includes("const GATE_BADGE_FONT = 8.0;") && bg.includes("viewBox={`0 ${VIEW_Y0} ${VIEWBOX.width} ${VIEW_H}`}"));
+    ok("H11 sahne: üç sütun ortada blok (boşluk dış kenarlara)", src("app/human-design/kayitli-haritalar/components/HdComputedChartView.tsx").includes("lg:justify-center lg:gap-x-[clamp(20px,3vw,64px)]"));
   }
 
   // ── Statik: manuel fallback / güvenlik / metin ──
