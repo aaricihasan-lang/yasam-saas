@@ -13,6 +13,7 @@ import { toHms } from "../api/birthTimeResolution";
 
 export type AutoCalcRow = {
   id: string;
+  location_id?: string | null;
   birth_date: string | null;
   birth_time?: string | null;
   birth_place: string | null;
@@ -21,7 +22,26 @@ export type AutoCalcRow = {
   created_at?: string;
 };
 
-export type AutoCalcLocation = { id: string; label: string; tz: string };
+/** id: hesap ucuna gönderilen referans; locationId: kalıcı konum kimliği (biliniyorsa). */
+export type AutoCalcLocation = { id: string; label: string; tz: string; locationId?: string | null };
+
+/** Konumun kalıcı kimliği: açık locationId > imzalı Roxy ref içindeki kimlik > yerel kimlik. */
+export function stableLocationId(loc: AutoCalcLocation): string | null {
+  if (loc.locationId) return loc.locationId;
+  if (loc.id === "client" || loc.id.startsWith("chart:")) return null;
+  if (loc.id.startsWith("rx1.")) {
+    try {
+      const body = loc.id.slice(4, loc.id.lastIndexOf("."));
+      const b64 = body.replace(/-/g, "+").replace(/_/g, "/");
+      const json = typeof atob === "function" ? atob(b64) : Buffer.from(b64, "base64").toString("binary");
+      const arr = JSON.parse(decodeURIComponent(escape(json))) as unknown[];
+      return typeof arr[0] === "string" ? arr[0] : null;
+    } catch {
+      return null;
+    }
+  }
+  return loc.id;
+}
 
 export type AutoCalcState =
   | { kind: "missing_birth"; location: AutoCalcLocation | null }
@@ -54,8 +74,12 @@ export function resolveAutoCalcState(input: {
   if (!date || !time) return { kind: "missing_birth", location };
   if (!location) return { kind: "need_location", location: null };
 
+  const locId = stableLocationId(location);
+  // Aynı yer: kalıcı konum kimliği eşit (etiket biçimi değişse bile) VEYA etiket eşit; tz de eşit.
+  const samePlace = (r: AutoCalcRow) =>
+    r.timezone === location.tz && ((!!locId && r.location_id === locId) || r.birth_place === location.label);
   const match = roxy.find(
-    (r) => (r.birth_date ?? "").slice(0, 10) === date && hms(r.birth_time) === time && r.birth_place === location.label && r.timezone === location.tz,
+    (r) => (r.birth_date ?? "").slice(0, 10) === date && hms(r.birth_time) === time && samePlace(r),
   );
   if (match) return { kind: "open", location, chartId: match.id };
   if (roxy.length > 0) return { kind: "changed", location, previousId: roxy[0].id };

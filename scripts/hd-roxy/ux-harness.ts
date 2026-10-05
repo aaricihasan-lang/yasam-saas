@@ -212,6 +212,56 @@ async function main() {
     ok("K14 geçersiz ref ile kayıt reddedilir", !insBad.id && !!insBad.error);
   }
 
+  // ── Roxy RESMİ BodyGraph renderer (self-host, kayıtlı yanıt) ──
+  {
+    const { buildRoxyRenderPayload } = await import("../../lib/human-design/providers/roxy/render");
+    const { getComputedChart } = await import("../../lib/human-design/api/chartPersistence");
+    const { stableLocationId } = await import("../../lib/human-design/chart/autoCalcState");
+    const { createHash } = await import("node:crypto");
+    const payload = buildRoxyRenderPayload(FIXTURE)!;
+    const pj = JSON.stringify(payload);
+    ok("RX1 render yükü: 26 aktivasyon, 9 merkez, 4 kanal", (payload.gates as unknown[]).length === 26 && (payload.centers as unknown[]).length === 9 && (payload.channels as unknown[]).length === 4);
+    ok("RX2 render yükü Roxy yorum metni İÇERMEZ", !/Description|lineMeaning|"theme"|biology|notSelfQuestion|ichingHexagram|profileKeynotes/.test(pj));
+    ok("RX3 bozuk ham yanıt → null (tahmin yok)", buildRoxyRenderPayload({ type: "x" }) === null && buildRoxyRenderPayload(null) === null);
+    const f = createFakeDb({ human_design_charts: [
+      { id: "rx-row", tenant_id: T_A, source: "computed", provider: "roxyapi", provider_raw: FIXTURE, computed_result: { schemaVersion: "1.0" } },
+      { id: "legacy-row", tenant_id: T_A, source: "computed", provider: null, computed_result: { schemaVersion: "1.0" } },
+    ] });
+    const g = await getComputedChart(f.db, T_A, "rx-row");
+    ok("RX4 detay: Roxy kaydına render yükü eklenir, ham yanıt GİTMEZ", !!g.row && !!g.row.roxy_render && !("provider_raw" in g.row));
+    const gl = await getComputedChart(f.db, T_A, "legacy-row");
+    ok("RX5 eski motor kaydında Roxy render yükü yok", !!gl.row && !gl.row.roxy_render);
+    const v = validateRoxyBodygraph(FIXTURE);
+    if (!v.ok) throw new Error("fx");
+    const n = normalizeRoxyBodygraph(v.value, { date: "2018-07-20", time: "19:00:00", timezone: "Europe/Istanbul", latitude: 37.87, longitude: 32.48, nodeType: "true", lang: "tr", birthUtcIso: "2018-07-20T16:00:00.000Z" });
+    if (!n.ok) throw new Error("nm");
+    const viewRoxy = renderToStaticMarkup(createElement(HdComputedChartView, { result: n.chart, roxyRender: payload }));
+    ok("RX6 Roxy otomatik harita → resmi <roxy-bodygraph>, eski renderer YOK", viewRoxy.includes('data-hd-renderer="roxy-official"') && viewRoxy.includes("<roxy-bodygraph") && !viewRoxy.includes('data-hd-renderer="legacy"') && (viewRoxy.match(/<polygon/g) ?? []).length === 0);
+    ok("RX7 resmi renderer: yorumlar ve başlık/legend gizli", viewRoxy.includes("hide-readings") && viewRoxy.includes('hide-sections="header,details,legend,themes,facts"'));
+    ok("RX8 Design 13 + Personality 13 korunur", [...viewRoxy.matchAll(/data-hd-activation=/g)].length === 26);
+    const viewLegacy = renderToStaticMarkup(createElement(HdComputedChartView, { result: n.chart }));
+    ok("RX9 eski kayıt (render yükü yok) eski görünümle açılır (veri korunur)", viewLegacy.includes('data-hd-renderer="legacy"'));
+    const vendor = readFileSync(join(ROOT, "public/vendor/roxy-ui/0.48.0/bodygraph.js"));
+    ok("RX10 resmi bileşen self-host (sürüm sabit, bütünlük hash'i)", createHash("sha256").update(vendor).digest("hex") === "dc73f7167f47c2c42f1bcee89ff0789b0f54736ee8d37aa481523aec56f9a6e9");
+    ok("RX11 MIT lisansı yanında", /MIT License/.test(src("public/vendor/roxy-ui/0.48.0/LICENSE.txt")));
+    const wrap = src("app/human-design/kayitli-haritalar/components/HdRoxyBodygraph.tsx");
+    ok("RX12 bileşen kendi origin'inden yüklenir; CDN / fetch / anahtar YOK", wrap.includes("/vendor/roxy-ui/") && !["cdn.jsdelivr", "fetch(", "publishable", "X-API-Key"].some((t) => wrap.includes(t)));
+    ok("RX13 eski renderer'a sessiz düşüş YOK (hata mesajı)", !wrap.includes("BodyGraph result") && wrap.includes("yüklenemedi"));
+    ok("RX20 resmi grafik 480px sınırı kaldırıldı (kabı doldurur)", wrap.includes("::part(chart){margin:0;padding:0;width:100%;max-width:none;height:auto}"));
+    const svc = src("lib/human-design/api/roxyChartService.ts");
+    ok("RX14 otomatik hesap: dahili motor / handleCompute KULLANILMAZ", !["engine/compute", "handleCompute", "computeHumanDesignChart"].some((t) => svc.includes(t)));
+    const reporting = ["lib/human-design/reporting/reportSnapshotService.ts", "lib/human-design/reporting/wordReport.ts", "app/api/hd/reports/professional/route.ts"].map(src).join(" ");
+    ok("RX15 Word yolu Roxy'yi ÇAĞIRMAZ (0 Bodygraph çağrısı)", !["providers/roxy", "callRoxyBodygraph", "roxyChartService"].some((t) => reporting.includes(t)));
+    const detailRoute = src("app/api/hd/charts/route.ts");
+    ok("RX16 görüntüleme ucu (GET) Roxy çağırmaz", !/callRoxyBodygraph|computeRoxyChart/.test(detailRoute));
+    const fatihRef = signLocationRef(roxyCityToLocation({ city: "Fatih", province: "Istanbul", country: "Turkey", iso2: "TR", latitude: 41.0225, longitude: 28.9408, timezone: "Europe/Istanbul" }), ENV)!;
+    ok("RX17 imzalı ref içinden kalıcı konum kimliği çözülür", stableLocationId({ id: fatihRef, label: "x", tz: "Europe/Istanbul" }) === "rx-tr-istanbul-fatih");
+    const st = resolveAutoCalcState({ birthDate: "2014-06-10", birthTime: "18:00", birthPlace: "Fatih, İstanbul, Türkiye", picked: { id: "client", label: "Fatih, İstanbul, Türkiye", tz: "Europe/Istanbul", locationId: "rx-tr-istanbul-fatih" }, rows: [{ id: "c1", location_id: "rx-tr-istanbul-fatih", birth_date: "2014-06-10", birth_time: "18:00:00", birth_place: "Fatih, Istanbul, Turkey", timezone: "Europe/Istanbul", engine_version: "roxyapi:roxy-bodygraph-1" }] });
+    ok("RX18 etiket biçimi değişse de aynı konum kimliği → 'Profesyonel haritayı aç' (kredi yok)", st.kind === "open");
+    const pk = src("app/human-design/components/HdBirthLocationPicker.tsx");
+    ok("RX19 yerel sonuç yoksa ilçe araması otomatik (≥4 karakter, yazma durunca)", pk.includes("merged.length === 0 && q.length >= 4"));
+  }
+
   // ── PROD HOTFIX regresyonları ──
   {
     const fatih = roxyCityToLocation({ city: "Fatih", province: "Istanbul", country: "Turkey", iso2: "TR", latitude: 41.0225, longitude: 28.9408, timezone: "Europe/Istanbul" });

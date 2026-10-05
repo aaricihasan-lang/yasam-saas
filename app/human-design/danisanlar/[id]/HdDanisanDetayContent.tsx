@@ -60,7 +60,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
   const storedLocation = useMemo<HdPickedLocation | null>(
     () =>
       row?.birth_location_id && row.birth_timezone && row.birth_location_label
-        ? { id: "client", label: row.birth_location_label, tz: row.birth_timezone }
+        ? { id: "client", label: row.birth_location_label, tz: row.birth_timezone, locationId: row.birth_location_id }
         : null,
     [row],
   );

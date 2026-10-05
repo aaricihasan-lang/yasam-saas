@@ -15,6 +15,7 @@ import { hdSafeDbError } from "./safeError";
 import { withTenant, tenantInsertPayload } from "./tenantScope";
 import { manualChartIdFor, isUniqueViolation, sameInstant } from "./deterministicId";
 import type { HdChartResult } from "../engine";
+import { buildRoxyRenderPayload } from "../providers/roxy/render";
 
 const TABLE = "human_design_charts";
 const SOURCE = "computed";
@@ -125,6 +126,9 @@ export async function getComputedChart(
   // Ham sağlayıcı yanıtı (RoxyAPI açıklama metinleri) istemciye GÖNDERİLMEZ — yalnız sunucuda
   // kanıt/denetim amaçlı saklanır; uzman içeriğiyle karışmaz.
   const row = { ...(data as Record<string, unknown>) };
+  // RoxyAPI kaydı: resmi renderer için KAYITLI yanıttan yalnız yapısal render yükü
+  // (yorum metni yok; yeni Roxy çağrısı yok). Ham yanıtın kendisi istemciye gitmez.
+  if (row.provider === "roxyapi") row.roxy_render = buildRoxyRenderPayload(row.provider_raw);
   delete row.provider_raw;
   return { row, error: null };
 }

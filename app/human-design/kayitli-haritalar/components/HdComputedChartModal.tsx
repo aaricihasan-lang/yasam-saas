@@ -149,7 +149,7 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
                 </p>
               ) : result ? (
                 <div className="space-y-6">
-                  <HdComputedChartView result={result} />
+                  <HdComputedChartView result={result} roxyRender={(row?.roxy_render as Record<string, unknown> | null | undefined) ?? null} />
                   <div className="border-t border-emerald-100 pt-5">
                     <HdExpertKnowledgePanel chart={computedChartAppCodes(result)} />
                   </div>
