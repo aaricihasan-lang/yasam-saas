@@ -183,7 +183,7 @@ const CHAKRA_BLOCK_COPY_FIELDS = [
   "tradition_frame",
 ] as const;
 
-type SourceMode = "admin_tenant" | "canonical_null" | "admin_library";
+type SourceMode = "admin_tenant" | "canonical_null" | "admin_library" | "hd_canonical";
 
 type GroupConfig = {
   /** Gerçek public tablo adı (yalnız buradan gelir). */
@@ -202,6 +202,8 @@ type GroupConfig = {
    *  - "admin_tenant" (varsayılan): kaynak adminin kendi tenant'ında.
    *  - "canonical_null": kaynak kanonik/global havuzda (tenant_id IS NULL).
    *  - "admin_library": kaynak sabit ADMIN_LIBRARY_TENANT_ID sentetik tenant'ında.
+   *  - "hd_canonical": kaynak adminin HD Bilgi Bankası (hd_canonical_entities +
+   *    hd_canonical_content); satırlar hedef tablonun alanlarına eşlenir (readHdCanonicalRows).
    */
   sourceMode?: SourceMode;
   /** Kaynak okumada ek SABİT eşitlik filtresi (ör. oil_type). Dinamik değer YOK. */
@@ -318,13 +320,13 @@ const REGISTRY = {
   },
   // Human Design bilgi bankası — RELATIONAL: human_design_knowledge_records (parent) +
   // human_design_knowledge_sources (child, record_id FK, ON DELETE CASCADE). Kaynak
-  // adminin kendi tenant'ı; her kayıt yeni UUID + hedef tenant; child'ın record_id'si
+  // adminin HD Bilgi Bankası (hd_canonical_*; bkz. readHdCanonicalRows); her kayıt yeni UUID + hedef tenant; child'ın record_id'si
   // YENİ parent id'ye REMAP edilir. Child tablonun tenant_id'si VARDIR → hedef yazılır.
   // expert_notes/user_id TAŞINMAZ (allowlist dışı). code per-tenant eşsizdir → çakışma
   // olan kayıt (unit) atlanır, diğerleri aktarılır (per-unit atomik).
   hd_knowledge: {
     table: "human_design_knowledge_records", kind: "relational",
-    copyFields: HD_RECORD_COPY_FIELDS, requireField: "title", sourceMode: "admin_tenant",
+    copyFields: HD_RECORD_COPY_FIELDS, requireField: "title", sourceMode: "hd_canonical",
     childTable: "human_design_knowledge_sources", childParentFk: "record_id",
     childCopyFields: HD_SOURCE_COPY_FIELDS, childHasTenant: true,
   },
@@ -515,6 +517,7 @@ async function readSourceRows(
   sourceTenantId: string,
   filterIds: string[] | undefined,
 ): Promise<{ rows: Record<string, unknown>[]; error: unknown | null }> {
+  if (cfg.sourceMode === "hd_canonical") return readHdCanonicalRows(db, filterIds);
   const parts: (string[] | undefined)[] =
     filterIds && filterIds.length > 0 ? chunkIds(filterIds, 100) : [undefined];
   const rows: Record<string, unknown>[] = [];
@@ -524,6 +527,78 @@ async function readSourceRows(
     );
     if (r.error) return { rows: [], error: r.error };
     rows.push(...r.rows);
+  }
+  return { rows, error: null };
+}
+
+const HD_CANONICAL_CATEGORY: Record<string, string> = {
+  tip: "Tipler",
+  otorite: "Otoriteler",
+  kapi: "Kapılar",
+  kanal: "Kanallar",
+};
+
+const HD_CANONICAL_TEXT_FIELDS: readonly [string, string | null][] = [
+  ["general_description", null],
+  ["strategy_text", "Strateji"],
+  ["signature_text", "İmza"],
+  ["not_self_text", "Benlik Dışı"],
+  ["decision_mechanism", "Karar Mekanizması"],
+  ["application_text", "Uygulama"],
+  ["caution_notes", "Dikkat Notları"],
+  ["general_theme", "Genel Tema"],
+  ["full_channel_text", "Kanal"],
+  ["hanging_gate_context", "Asılı Kapı"],
+  ["report_text", "Rapor Metni"],
+];
+
+/**
+ * Admin HD Bilgi Bankası kaynağı: admin ekranı içeriği hd_canonical_entities +
+ * hd_canonical_content'e yazar (human_design_knowledge_records'a DEĞİL). Her içerik satırı
+ * uzman Bilgi Bankası şekline (category/title/code/content) eşlenir; `id` = kaynak içerik
+ * id'si (yalnız origin_source_id provenance). Hedefte yeni UUID üretilir; kaynak değişmez.
+ */
+async function readHdCanonicalRows(
+  db: SupabaseClient,
+  filterIds: string[] | undefined,
+): Promise<{ rows: Record<string, unknown>[]; error: unknown | null }> {
+  const content = await readAllPaged<Record<string, unknown>>((from, to) => {
+    let q = db.from("hd_canonical_content").select("*", { count: "exact" });
+    if (filterIds && filterIds.length > 0) q = q.in("id", filterIds);
+    return q.order("id", { ascending: true }).range(from, to);
+  });
+  if (content.error) return { rows: [], error: content.error };
+  const entities = await readAllPaged<Record<string, unknown>>((from, to) =>
+    db
+      .from("hd_canonical_entities")
+      .select("id, name_tr", { count: "exact" })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+  if (entities.error) return { rows: [], error: entities.error };
+  const nameById = new Map<string, string>(
+    entities.rows.map((e) => [String(e.id), String(e.name_tr ?? "")] as [string, string]),
+  );
+
+  const rows: Record<string, unknown>[] = [];
+  for (const c of content.rows) {
+    const category = HD_CANONICAL_CATEGORY[String(c.entity_kind ?? "")];
+    const code = String(c.canonical_key ?? "").trim();
+    if (!category || !code) continue;
+    const parts: string[] = [];
+    for (const [key, label] of HD_CANONICAL_TEXT_FIELDS) {
+      const text = typeof c[key] === "string" ? (c[key] as string).trim() : "";
+      if (text) parts.push(label ? `${label}\n${text}` : text);
+    }
+    if (parts.length === 0) continue; // içeriği boş kimlik aktarılmaz
+    rows.push({
+      id: c.id,
+      category,
+      title: nameById.get(String(c.entity_id)) ?? "",
+      code,
+      content: parts.join("\n\n"),
+      is_active: true,
+    });
   }
   return { rows, error: null };
 }
