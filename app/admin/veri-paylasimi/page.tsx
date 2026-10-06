@@ -319,7 +319,9 @@ export default function VeriPaylasimiPage() {
   const loadExperts = useCallback(async () => {
     setExpertsLoading(true);
     const adminId = readYasamUser()?.id;
-    const res = await fetch("/api/admin/users", {
+    // /api/admin/users sayfalıdır (varsayılan 20, en yeni önce) — filtresiz ilk sayfa
+    // test/yönetici kayıtlarıyla dolup aktif uzmanları dışarıda bırakıyordu.
+    const res = await fetch("/api/admin/users?role=expert&active=active&pageSize=50", {
       headers: adminHeaders(adminId),
     });
 
