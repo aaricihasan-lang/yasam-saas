@@ -131,9 +131,11 @@ async function main() {
   ok("hata ham mesajı yanıta sızmaz", !JSON.stringify(f.body).includes("fake failure"));
   failTable = null;
 
+  // Windows/libuv: açık keep-alive soketleri kapat, süreç doğal biçimde sonlansın (process.exit YOK).
+  server.closeAllConnections();
   await new Promise<void>((r) => server.close(() => r()));
   console.log(`\nAŞAMA 2B dashboard/summary: ${pass} passed, ${fail} failed`);
-  process.exit(fail ? 1 : 0);
+  process.exitCode = fail ? 1 : 0;
 }
 
 main().catch((err) => {

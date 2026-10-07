@@ -108,8 +108,10 @@ async function main() {
     ok(`mevcut allowlist korunuyor: ${m} → 200`, (await call(`?metric=${m}`, adminH)).status === 200);
   }
 
+  // Windows/libuv: açık keep-alive soketleri kapat, süreç doğal biçimde sonlansın (process.exit YOK).
+  server.closeAllConnections();
   await new Promise<void>((r) => server.close(() => r()));
   console.log(`\nAŞAMA 2B system-health/counts: ${pass} passed, ${fail} failed`);
-  process.exit(fail ? 1 : 0);
+  process.exitCode = fail ? 1 : 0;
 }
 main().catch((e) => { console.error(e); server.close(); process.exit(1); });
