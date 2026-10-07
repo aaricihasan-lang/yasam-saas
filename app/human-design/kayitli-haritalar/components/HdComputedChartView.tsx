@@ -3,7 +3,8 @@
 // Hesaplanmış Human Design haritası — SAF SUNUM (fetch yok, hesap yok).
 //
 // Kayıtlı `computed_result`'tan (RECOMPUTE YOK) render edilir:
-//   • özet: Tip / Strateji / Otorite / İmza / Benlik-dışı tema / Profil / Tanım / Enkarnasyon Haçı
+//   • bilgi bloğu (HdChartInfoPanel): Danışan (ad, yerel/UTC doğum, yer, koordinat, yaş) +
+//     Tip / Strateji / Profil / Tanım / Enkarnasyon Haçı / İç Otorite / İmza / Benlik-dışı tema
 //   • Design | BodyGraph | Personality (tek DOM; mobilde BodyGraph üstte, altında iki sütun)
 //   • 9 merkez (tanımlı/açık), tanımlı kanallar, aktif kapılar
 // Etiketler uygulama sözlüğünden (Türkçe); sağlayıcı değeri yalnız küçük "kaynak değeri" olarak.
@@ -12,80 +13,47 @@
 import { BodyGraph } from "../../harita/components/BodyGraph";
 import { HdRoxyBodygraph, ROXY_BODYGRAPH_ASPECT } from "./HdRoxyBodygraph";
 import { HdPlanetColumn } from "./HdPlanetColumn";
+import { HdChartInfoPanel } from "./HdChartInfoPanel";
+import type { HdChartSubjectInfo } from "@/lib/human-design/chart/chartSubjectInfo";
 import { computedChartAppCodes, type HdComputedChart } from "@/lib/human-design/chart/computedChart";
-import {
-  hdAuthorityLabelFromCode,
-  hdCenterLabelFromCode,
-  hdChannelLabelFromCode,
-  hdDefinitionLabelFromCode,
-  hdProfileLabelFromCode,
-  hdTypeLabelFromCode,
-} from "@/lib/human-design/codeHelpers";
+import { hdCenterLabelFromCode, hdChannelLabelFromCode } from "@/lib/human-design/codeHelpers";
 import { HUMAN_DESIGN_CENTERS } from "@/lib/human-design/constants";
-import { HD_NOT_SELF_TR, HD_SIGNATURE_TR, HD_STRATEGY_TR, hdCrossAngleLabel } from "@/lib/human-design/normalize/hdDisplayLabels";
-
-// Kompakt özet hücresi: masaüstünde tek satır şerit (BodyGraph'a dikey alan bırakır). Sağlayıcının
-// ham değeri görünür metni kalabalıklaştırmaz; title (üzerine gelince) olarak verilir.
-function Field({ label, value, source }: { label: string; value: string; source?: string | null }) {
-  return (
-    <div className="min-w-0 rounded-lg border border-indigo-100 bg-white px-2.5 py-1 shadow-sm" title={source ? `Kaynak değeri: ${source}` : undefined}>
-      <p className="truncate text-[9px] font-black uppercase tracking-wide text-indigo-500">{label}</p>
-      <p className="break-words text-[13px] font-bold leading-snug text-slate-900 xl:truncate">{value}</p>
-    </div>
-  );
-}
 
 export function HdComputedChartView({
   result,
   roxyRender = null,
+  subject = null,
 }: {
   result: HdComputedChart;
   /** RoxyAPI kaydı: resmi renderer için KAYITLI yanıttan yapısal yük (sunucu üretir). */
   roxyRender?: Record<string, unknown> | null;
+  /** Danışan bilgi bloğu (kayıt satırından; buildChartSubjectInfo). Yoksa yalnız HD bilgileri. */
+  subject?: HdChartSubjectInfo | null;
 }) {
   const codes = computedChartAppCodes(result);
   const isProvider = result.provider?.id === "roxyapi";
-  const typeCode = codes.type_code;
   const definedSet = new Set(codes.active_centers);
-  const cross = result.incarnationCross;
-  const [pSun, pEarth, dSun, dEarth] = cross.gates;
-  const showRaw = (raw: string | undefined, label: string) => (raw && raw !== label ? raw : null);
-
-  const typeLabel = hdTypeLabelFromCode(typeCode);
-  const authorityLabel = hdAuthorityLabelFromCode(codes.authority_code);
-  const profileLabel = hdProfileLabelFromCode(codes.profile_code);
-  const definitionLabel = hdDefinitionLabelFromCode(codes.definition_code);
 
   return (
     <div className="space-y-5" data-hd-computed-view={isProvider ? "roxyapi" : "engine"}>
-      {/* Masaüstü tek bakış: ince özet şeridi + sahne; sahne ekranın KALAN yüksekliğinin tamamını alır
-          (üst bar ~3.5rem + kenar boşluğu düşülür). BodyGraph yükseklik-öncelikli büyür; küçültülmez. */}
-      <div className="space-y-3 lg:flex lg:h-[calc(100dvh-5.25rem)] lg:min-h-[520px] lg:flex-col lg:gap-2 lg:space-y-0" data-hd-onelook>
-      {/* Özet */}
-      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 lg:flex-none xl:grid-cols-8" data-hd-summary>
-        <Field label="Tip" value={typeLabel} source={showRaw(result.type, typeLabel)} />
-        <Field label="Strateji" value={typeCode ? HD_STRATEGY_TR[typeCode] : "—"} source={result.strategy ?? null} />
-        <Field label="Otorite" value={authorityLabel} source={showRaw(result.authority, authorityLabel)} />
-        <Field label="Profil" value={profileLabel} />
-        <Field label="İmza (Signature)" value={typeCode ? HD_SIGNATURE_TR[typeCode] : "—"} source={result.signature ?? null} />
-        <Field label="Benlik-dışı Tema (Not-Self)" value={typeCode ? HD_NOT_SELF_TR[typeCode] : "—"} source={result.notSelf ?? null} />
-        <Field label="Tanım" value={definitionLabel} source={showRaw(result.definition.kind, definitionLabel)} />
-        <Field
-          label="Enkarnasyon Haçı"
-          value={cross.name ?? `${hdCrossAngleLabel(cross.angle)} (yalnız kapılar)`}
-          source={`${pSun}/${pEarth} | ${dSun}/${dEarth}${cross.angle ? ` · ${hdCrossAngleLabel(cross.angle)}` : ""}`}
-        />
-      </div>
+      {/* Masaüstü tek bakış: bilgi bloğu + sahne; sahne ekranın KALAN yüksekliğinin tamamını alır
+          (üst bar ~3.5rem + kenar boşluğu düşülür). BodyGraph yükseklik-öncelikli büyür; küçültülmez.
+          lg: bilgi bloğu sahnenin üstünde ince şerit · hdwide (geniş+yatay): solda dar kolon
+          [Bilgi] [Design] [BodyGraph] [Personality] — üst şerit kalkar, BodyGraph dikeyde büyür.
+          hdwide'da kart yüzeyi dış kapsayıcıdadır: bilgi kolonu + sahne TEK harita kompozisyonu. */}
+      <div className="space-y-3 lg:flex lg:h-[calc(100dvh-5.25rem)] lg:min-h-[520px] lg:flex-col lg:gap-2 lg:space-y-0 hdwide:flex-row hdwide:gap-0 hdwide:rounded-2xl hdwide:border hdwide:border-indigo-200/70 hdwide:bg-gradient-to-b hdwide:from-white hdwide:to-indigo-50/40 hdwide:shadow-sm" data-hd-onelook>
+      <HdChartInfoPanel result={result} codes={codes} subject={subject} />
 
       {/* Design | BodyGraph | Personality — masaüstünde tek bakış: BodyGraph yüksekliği ekrana göre
           ölçeklenir (Head→Root dikey kaydırmasız); mobilde BodyGraph üstte, altında iki sütun. */}
-      <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-b from-white to-indigo-50/40 p-3 shadow-sm lg:min-h-0 lg:flex-1 lg:px-4 lg:py-2" data-hd-stage>
-        <div className="flex flex-wrap items-start justify-center gap-x-3 gap-y-4 lg:h-full lg:flex-nowrap lg:items-center lg:justify-center lg:gap-x-[clamp(20px,3vw,64px)]">
+      <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-b from-white to-indigo-50/40 p-3 shadow-sm lg:min-h-0 lg:flex-1 lg:px-4 lg:py-2 hdwide:min-w-0 hdwide:rounded-none hdwide:border-0 hdwide:bg-none hdwide:shadow-none" data-hd-stage>
+        <div className="flex flex-wrap items-start justify-center gap-x-3 gap-y-4 lg:h-full lg:flex-nowrap lg:items-center lg:justify-center lg:gap-x-[clamp(20px,3vw,64px)] hdwide:gap-x-[clamp(16px,2vw,40px)]">
           <div className="order-2 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-rose-100 bg-white/90 p-2 lg:order-1 lg:w-[clamp(190px,17vw,280px)] lg:max-w-none lg:shrink-0 lg:p-3">
             <HdPlanetColumn activations={result.activations} side="design" />
           </div>
           {/* Orta: yükseklik-öncelikli BodyGraph (SVG viewBox 340×600 korunur; yalnız ölçek). */}
-          <div className="order-1 flex w-full justify-center lg:order-2 lg:h-full lg:w-auto lg:flex-none">
+          {/* hdwide: alan yetmezse (dikey uzun pencere) taşma yerine yalnız BodyGraph genişliği daralır. */}
+          <div className="order-1 flex w-full justify-center lg:order-2 lg:h-full lg:w-auto lg:flex-none hdwide:min-w-0 hdwide:shrink">
             {roxyRender ? (
               // RoxyAPI otomatik harita → Roxy'nin RESMİ BodyGraph'ı (eski Yaşam Sistemi renderer'ı KULLANILMAZ).
               <div className="w-full max-w-[440px] lg:h-full lg:w-auto lg:max-w-none" style={{ aspectRatio: ROXY_BODYGRAPH_ASPECT }} data-hd-renderer="roxy-official">

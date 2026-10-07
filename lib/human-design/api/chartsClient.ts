@@ -102,6 +102,8 @@ export type ComputedChartDetail = {
   provider?: string | null;
   engine_version?: string | null;
   location_id?: string | null;
+  /** Kayıtlı hesap girdisi (Roxy kayıtlarında latitude/longitude dahil; yalnız okuma). */
+  input?: Record<string, unknown> | null;
   /** RoxyAPI kaydı: resmi renderer için kayıtlı yanıttan yapısal yük (yeni çağrı yok). */
   roxy_render?: Record<string, unknown> | null;
 };
