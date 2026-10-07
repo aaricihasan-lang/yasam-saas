@@ -23,6 +23,7 @@ import { runAstrology, type EngineDeps } from "@/lib/astrology/engine/service";
 import { resolveAstrologyEntitlements } from "@/lib/astrology/access/entitlements";
 import { resolveAstroLocation } from "@/lib/astrology/birth/location";
 import { createKb } from "@/lib/astrology/kb/service";
+import { lunarReturnsInMonth, natalMoonLongitude } from "@/lib/astrology/engine/lunarReturnDate";
 
 const PORT = Number(process.argv[2] ?? 54329);
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -113,6 +114,21 @@ function startFakeRoxy() {
       } else if (GOLDEN[path]) {
         raw = structuredClone(GOLDEN[path]);
         if (path === "/forecast/transits") raw.events = (raw.events as { date: string }[]).filter((e) => e.date >= body.startDate && e.date <= body.endDate);
+        if (path === "/astrology/lunar-return") {
+          // Sağlayıcı kuralı taklidi: returnDate'e EN YAKIN dönüş (SENTETİK; golden harita korunur, yalnız an).
+          const birthUtc = new Date(Date.parse(`${body.birthDate}T${body.birthTime}Z`) - Number(body.timezone) * 3600_000).toISOString();
+          const moon = natalMoonLongitude(birthUtc);
+          const target = Date.parse(`${body.returnDate}T12:00:00Z`);
+          const months = [-1, 0, 1].map((d) => {
+            const m = new Date(`${String(body.returnDate).slice(0, 7)}-15T00:00:00Z`);
+            m.setUTCMonth(m.getUTCMonth() + d);
+            return m.toISOString().slice(0, 7);
+          });
+          const near = months
+            .flatMap((m) => lunarReturnsInMonth(moon, m))
+            .sort((a, b) => Math.abs(Date.parse(`${a.approxUtc}:00Z`) - target) - Math.abs(Date.parse(`${b.approxUtc}:00Z`) - target))[0];
+          if (near) raw.lunarReturnDate = new Date(Date.parse(`${near.approxUtc}:00Z`) + Number(body.timezone) * 3600_000).toISOString().slice(0, 19);
+        }
       }
       res.writeHead(raw ? 200 : 400, { "Content-Type": "application/json" });
       res.end(JSON.stringify(raw ?? { error: "unknown endpoint" }));

@@ -60,7 +60,7 @@ export function buildPlan(selections: PlannedSelection[], isCached: (inputHash: 
     }
     const us = def.units(s.ctx, s.options);
     if (us.length === 0) {
-      blocks.push({ code: "NO_UNIT", error: `${def.label}: hesap birimi oluşturulamadı.` });
+      blocks.push({ code: "NO_UNIT", error: `${def.label}: ${def.noUnitsReason?.(s.ctx, s.options) ?? "hesap birimi oluşturulamadı."}` });
       return;
     }
     blocks.push(null);
@@ -106,7 +106,7 @@ export function buildPlan(selections: PlannedSelection[], isCached: (inputHash: 
 }
 
 /** İstemciye dönen özet (gövde/doğum verisi/hash İÇERMEZ). */
-export function publicPlanSummary(plan: ExecutionPlan, selections?: Selection[]) {
+export function publicPlanSummary(plan: ExecutionPlan, selections?: (Selection & { ctx?: UnitContext | null })[]) {
   return {
     selectedCount: plan.selectedCount,
     blockedCount: plan.blockedCount,
@@ -123,6 +123,14 @@ export function publicPlanSummary(plan: ExecutionPlan, selections?: Selection[])
       unitCount: plan.selectionUnits[i]?.length ?? 0,
       newRequests: (plan.selectionUnits[i] ?? []).filter((h) => plan.units.find((u) => u.inputHash === h && !u.cached)).length,
       blocked: b,
+      /** Teknik özel önizleme bilgisi (ör. ayın lunar return'leri ve yaklaşık anları). */
+      info: planInfoOf(selections?.[i]),
     })),
   };
+}
+
+function planInfoOf(s: (Selection & { ctx?: UnitContext | null }) | undefined): Record<string, unknown> | null {
+  if (!s || !s.ctx) return null;
+  const def = getTechnique(s.technique);
+  return def?.planInfo ? def.planInfo(s.ctx, s.options) : null;
 }

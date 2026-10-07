@@ -16,6 +16,7 @@ import type {
   SolarArcInterpretation,
   SolarArcTechnical,
   SynastryTechnical,
+  TransitInterpretation,
   TransitTechnical,
 } from "../model/westernTiming";
 import { maskTimeDependent, PROVIDER_INTERP_NOTICE } from "./natalView";
@@ -67,7 +68,15 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
       return { technical: maskTimeDependent(technical as NatalTechnical), masked: true, warnings: [MOON_WARN] };
     case "western.transit": {
       const t = technical as TransitTechnical;
-      return { technical: { ...t, aspects: t.aspects.filter((a) => !isAngle(a.natal)) }, masked: true, warnings: [MOON_WARN, "Natal Yükselen/MC hedefli transitler gösterilmez."] };
+      const aspects = t.aspects.filter((a) => !isAngle(a.natal));
+      // Sağlayıcı özet sayıları açısal hedefleri de sayabilir → maskeden SONRA kalan açılardan yeniden say
+      // (aksi hâlde gizlenen açılar sayılarda görünür kalırdı). Transit gezegen verisi saatten bağımsızdır, korunur.
+      const count = (n: string) => aspects.filter((a) => a.nature === n).length;
+      return {
+        technical: { ...t, aspects, summary: { harmonious: count("harmonious"), challenging: count("challenging"), neutral: count("neutral") } },
+        masked: true,
+        warnings: [MOON_WARN, "Natal Yükselen/MC hedefli transitler gösterilmez."],
+      };
     }
     case "western.forecast": {
       const t = technical as ForecastTechnical;
@@ -117,6 +126,11 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
 function maskInterpretation(technique: string, content: unknown, masked: boolean): unknown {
   if (!masked) return content;
   if (technique === "western.natal") return { ...(content as NatalInterpretation), bodies: [] };
+  if (technique === "western.transit") {
+    // Gizlenen (natal Yükselen/MC hedefli) açıların sağlayıcı anlatısı da gönderilmez.
+    const c = content as TransitInterpretation;
+    return { ...c, aspects: c.aspects.filter((a) => !isAngle(a.natal)) };
+  }
   if (technique === "western.solar_arc") {
     const c = content as SolarArcInterpretation;
     return { ...c, directed: c.directed.filter((d) => !isAngle(d.id)) };

@@ -66,7 +66,7 @@ import {
   type AdapterResult,
 } from "../providers/roxy/timing";
 import { isValidIanaTimeZone, isValidIsoDate, resolveAstroBirthTime } from "../birth/timeResolution";
-import { lunarReturnApproxDate, natalMoonLongitude } from "./lunarReturnDate";
+import { lunarReturnsInMonth, natalMoonLongitude } from "./lunarReturnDate";
 import { calcInputHash } from "./inputHash";
 
 export type TechniqueProjection =
@@ -119,6 +119,11 @@ export type CalcUnit = {
   timeDependent: boolean;
   /** Çok parçalı tekniklerde parça sırası (forecast). */
   part: number;
+  /**
+   * Yanıt denetimi için beklenen değerler (ör. lunar return'ün beklenen dönüş anı). Önbellek anahtarına
+   * GİRMEZ (anahtar yalnız gövdeden türer); projeksiyon sağlayıcı yanıtını bununla doğrular.
+   */
+  expect?: Record<string, string>;
 };
 
 export type TechniqueDefinition = {
@@ -135,6 +140,10 @@ export type TechniqueDefinition = {
   project: (unit: CalcUnit, raw: unknown, options: Record<string, unknown>) => TechniqueProjection;
   /** Çok parçalı sonuçları birleştir (yoksa tek parça). */
   combineTechnical?: (parts: unknown[], options: Record<string, unknown>) => unknown;
+  /** Plan önizlemesine teknik özel bilgi (ör. ayın lunar return'leri). Doğum verisi/gövde İÇERMEZ. */
+  planInfo?: (ctx: UnitContext, options: Record<string, unknown>) => Record<string, unknown> | null;
+  /** units() boş döndüğünde açık neden (ör. ayda 2. dönüş yok). */
+  noUnitsReason?: (ctx: UnitContext, options: Record<string, unknown>) => string | null;
 };
 
 function unit(technique: TechniqueId, meta: { endpoint: string; adapter: string }, body: Record<string, unknown>, extra: Partial<CalcUnit> = {}): CalcUnit {
@@ -315,15 +324,41 @@ const westernLunarReturn: TechniqueDefinition = {
     const r = o(raw);
     const hs = houseOf(r.houseSystem);
     if (typeof r.month !== "string" || !/^\d{4}-(0[1-9]|1[0-2])$/.test(r.month) || !yearOk(Number(r.month.slice(0, 4))) || !hs) return null;
-    return { month: r.month, houseSystem: hs };
+    // Ay içindeki dönüş sırası (1 | 2). Verilmezse 1 → Aşama 3 kayıtlarıyla AYNI istek gövdesi/anahtar.
+    const seq = r.sequence === undefined || r.sequence === null ? 1 : Number(r.sequence);
+    if (seq !== 1 && seq !== 2) return null;
+    return { month: r.month, sequence: seq, houseSystem: hs };
   },
   units: (ctx, opt) => {
-    const returnDate = lunarReturnApproxDate(natalMoonLongitude(ctx.birthUtc), String(opt.month));
-    if (!returnDate) return [];
-    return [unit("western.lunar_return", ROXY_LUNAR_RETURN, lunarReturnBody(ctx.birth, returnDate, opt.houseSystem as HouseSystem), { timeDependent: true })];
+    const pick = lunarReturnsInMonth(natalMoonLongitude(ctx.birthUtc), String(opt.month)).find((c) => c.sequence === Number(opt.sequence ?? 1));
+    if (!pick) return [];
+    return [
+      unit("western.lunar_return", ROXY_LUNAR_RETURN, lunarReturnBody(ctx.birth, pick.requestDate, opt.houseSystem as HouseSystem), {
+        timeDependent: true,
+        expect: { returnUtc: pick.approxUtc, sequence: String(pick.sequence) },
+      }),
+    ];
+  },
+  planInfo: (ctx, opt) => ({
+    lunarReturns: lunarReturnsInMonth(natalMoonLongitude(ctx.birthUtc), String(opt.month)).map((c) => ({ sequence: c.sequence, approxUtc: c.approxUtc })),
+  }),
+  noUnitsReason: (ctx, opt) => {
+    const n = lunarReturnsInMonth(natalMoonLongitude(ctx.birthUtc), String(opt.month)).length;
+    return `bu ayda ${n} lunar return var; ${String(opt.sequence ?? 1)}. dönüş yok.`;
   },
   project: (u, raw, opt) =>
-    fromAdapter(projectRoxyReturn(raw, "lunar", { houseSystem: opt.houseSystem as HouseSystem, returnYear: null, returnDate: String(u.body.returnDate) }), RETURN_TECHNICAL_SCHEMA, RETURN_INTERP_SCHEMA, ROXY_LUNAR_RETURN.projection),
+    fromAdapter(
+      projectRoxyReturn(raw, "lunar", {
+        houseSystem: opt.houseSystem as HouseSystem,
+        returnYear: null,
+        returnDate: String(u.body.returnDate),
+        sequence: u.expect?.sequence ? Number(u.expect.sequence) : null,
+        expectedUtc: u.expect?.returnUtc ?? null,
+      }),
+      RETURN_TECHNICAL_SCHEMA,
+      RETURN_INTERP_SCHEMA,
+      ROXY_LUNAR_RETURN.projection,
+    ),
 };
 
 const pairTechnique = (id: "western.synastry" | "western.composite", label: string): TechniqueDefinition => ({

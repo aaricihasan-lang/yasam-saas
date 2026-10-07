@@ -7,7 +7,7 @@
 
 import { HOUSE_SYSTEMS, NODE_TYPES, type HouseSystem, type NodeType } from "@/lib/astrology/model/western";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
-import { FORECAST_MAX_DAYS, TECHNIQUE_META, UI_TECHNIQUES, forecastPartCount, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
+import { FORECAST_MAX_DAYS, TECHNIQUE_META, UI_TECHNIQUES, fmtUtcMinute, forecastPartCount, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
 
 const inp = "rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm";
 const TZ_OPTIONS = ["Europe/Istanbul", "UTC", "Europe/London", "Europe/Berlin", "America/New_York", "Asia/Dubai"];
@@ -23,6 +23,7 @@ export default function TechniqueSelector({
   onMethod,
   partners,
   timeKnown,
+  lunarReturns = null,
 }: {
   checked: Partial<Record<UiTechniqueId, boolean>>;
   onChecked: (next: Partial<Record<UiTechniqueId, boolean>>) => void;
@@ -32,6 +33,8 @@ export default function TechniqueSelector({
   onMethod: (next: { houseSystem: HouseSystem; nodeType: NodeType }) => void;
   partners: PartnerOption[];
   timeKnown: boolean;
+  /** Sunucu planının bildirdiği, seçilen aydaki lunar return'ler (henüz plan yoksa null). */
+  lunarReturns?: LunarReturnInfo[] | null;
 }) {
   const set = <K extends keyof TechniqueParams>(k: K, v: TechniqueParams[K]) => onParams({ ...params, [k]: v });
   const anyPartner = !!(checked["western.synastry"] || checked["western.composite"]);
@@ -105,10 +108,32 @@ export default function TechniqueSelector({
         );
       case "western.lunar_return":
         return (
-          <label className="flex items-center gap-2 text-xs">
-            Dönüş ayı
-            <input type="month" className={inp} value={params.lunarMonth} onChange={(e) => set("lunarMonth", e.target.value)} aria-label="Lunar return ayı" />
-          </label>
+          <div className="flex flex-col gap-1.5">
+            <label className="flex items-center gap-2 text-xs">
+              Dönüş ayı (UTC)
+              <input
+                type="month"
+                className={inp}
+                value={params.lunarMonth}
+                onChange={(e) => onParams({ ...params, lunarMonth: e.target.value, lunarSequence: 1 })}
+                aria-label="Lunar return ayı"
+              />
+            </label>
+            {/* Ayın dönüşleri SUNUCU planından gelir (natal Ay sunucuda hesaplanır); her seçilen dönüş = 1 istek. */}
+            <div className="flex flex-wrap items-center gap-3 text-xs" role="radiogroup" aria-label="Ay içindeki lunar return">
+              {([1, 2] as const).map((seq) => {
+                const r = lunarReturns?.find((x) => x.sequence === seq) ?? null;
+                const disabled = lunarReturns !== null && !r;
+                return (
+                  <label key={seq} className={`flex items-center gap-1 ${disabled ? "text-slate-400" : ""}`}>
+                    <input type="radio" disabled={disabled} checked={params.lunarSequence === seq} onChange={() => set("lunarSequence", seq)} data-lunar-seq={seq} />
+                    {seq}. dönüş{r ? ` — ~${fmtUtcMinute(r.approxUtc)}` : disabled ? " (bu ayda yok)" : ""}
+                  </label>
+                );
+              })}
+            </div>
+            {lunarReturns && lunarReturns.length > 1 && <span className="text-xs text-violet-800">Bu ayda {lunarReturns.length} lunar return var. Diğerini hesaplamak için sırayı değiştirip yeniden hesaplayın (her dönüş 1 istek; ikisi de ayrı kayıt olarak kalır).</span>}
+          </div>
         );
       default:
         return null;

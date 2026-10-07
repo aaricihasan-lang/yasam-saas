@@ -444,7 +444,7 @@ function projectChart(c: Record<string, unknown> | null, houseSystem: HouseSyste
 export function projectRoxyReturn(
   raw: unknown,
   kind: "solar" | "lunar",
-  opts: { houseSystem: HouseSystem; returnYear: number | null; returnDate: string | null },
+  opts: { houseSystem: HouseSystem; returnYear: number | null; returnDate: string | null; sequence?: number | null; expectedUtc?: string | null },
 ): AdapterResult<ReturnTechnical, ReturnInterpretation> {
   const errors: string[] = [];
   const dropped: string[] = [];
@@ -459,6 +459,13 @@ export function projectRoxyReturn(
   const lon = num(loc?.longitude, -180, 180);
   const off = num(loc?.timezone, -18, 18);
   if (lat === null || lon === null || off === null) errors.push("location");
+  // Lunar: sağlayıcının döndürdüğü dönüş, SEÇİLEN dönüş olmalı (en yakın dönüş kuralı). ±36 saat dışı →
+  // başka dönüş hesaplanmış demektir → sonuç KAYDEDİLMEZ (sessizce yanlış dönüş gösterilmez).
+  if (kind === "lunar" && opts.expectedUtc && returnLocal && off !== null) {
+    const providerUtc = Date.parse(`${returnLocal.length === 16 ? `${returnLocal}:00` : returnLocal}Z`) - off * 3600_000;
+    const expected = Date.parse(`${opts.expectedUtc}:00Z`);
+    if (!Number.isFinite(providerUtc) || !Number.isFinite(expected) || Math.abs(providerUtc - expected) > 36 * 3600_000) errors.push("lunarReturnDate seçilen dönüşle uyuşmuyor");
+  }
   const natalPoint = eclipticPoint(obj(r[kind === "solar" ? "natalSunPosition" : "natalMoonPosition"]));
   if (!natalPoint) errors.push("natal nokta");
   const c = obj(r.chart);
@@ -473,7 +480,10 @@ export function projectRoxyReturn(
       schema: RETURN_TECHNICAL_SCHEMA,
       kind,
       zodiac: "tropical",
-      requested: { returnYear: opts.returnYear, returnDate: opts.returnDate },
+      requested:
+        kind === "lunar"
+          ? { returnYear: null, returnDate: opts.returnDate, sequence: opts.sequence ?? null, expectedUtc: opts.expectedUtc ?? null }
+          : { returnYear: opts.returnYear, returnDate: opts.returnDate },
       returnLocal: returnLocal!,
       returnOffsetHours: off!,
       natalPoint: natalPoint!,

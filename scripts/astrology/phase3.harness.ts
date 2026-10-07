@@ -29,6 +29,8 @@ import { getAnalysis, getWorkspace, listAnalyses, previewAnalysis, saveAnalysis,
 import { isSectionKeyForTechnique, parseAnyTopicKey, topicsForTechnique } from "@/lib/astrology/topics/index";
 import { maskTechnical } from "@/lib/astrology/view/techniqueView";
 import { forecastChunks } from "@/lib/astrology/providers/roxy/requests";
+import { lunarReturnsInMonth, natalMoonLongitude } from "@/lib/astrology/engine/lunarReturnDate";
+import { projectRoxyNatal } from "@/lib/astrology/providers/roxy/natal";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 import type { TransitTechnical } from "@/lib/astrology/model/westernTiming";
 
@@ -857,6 +859,226 @@ async function main() {
     const ctx = { birth: SYNTH_A, birthUtc: SYNTH_A.utc, partner: null };
     const plan = buildPlan([{ ...s.selections[0], ctx, blocked: null }, { ...s.selections[1], ctx: null, blocked: { code: "TIME_REQUIRED", error: "x" } }], () => false);
     assert.deepEqual([plan.units.length, plan.blockedCount, plan.selectionUnits[1].length], [1, 1, 0]);
+  });
+
+  // ═══ K) P2-1 — LUNAR RETURN: AYDA BİRDEN FAZLA DÖNÜŞ ═════════════════════════
+  const natalMoon = natalMoonLongitude(SYNTH_A.utc);
+  /** SENTETİK (golden'dan türetilmiş) lunar return yanıtı: dönüş anı istenen dönüşe ayarlanır. */
+  const lunarFor = (approxUtc: string) => {
+    const r = structuredClone(G["lunar-return"].response);
+    const local = new Date(Date.parse(`${approxUtc}:00Z`) + 3 * 3600_000).toISOString().slice(0, 19);
+    r.lunarReturnDate = local;
+    return r;
+  };
+  /** Sahte Roxy: lunar-return isteği için gönderilen güne EN YAKIN dönüşü (sağlayıcı kuralı) döndürür. */
+  function lunarRoxy(mode: "nearest" | "always-october" = "nearest") {
+    const calls: Call[] = [];
+    const deps: EngineDeps = {
+      ...roxy().deps,
+      callProvider: async (_c, endpoint, body) => {
+        calls.push({ endpoint, body });
+        if (endpoint !== "/astrology/lunar-return") return { ok: false, kind: "bad_request", status: 400, attempts: 1 };
+        if (mode === "always-october") return { ok: true, raw: structuredClone(G["lunar-return"].response), attempts: 1 };
+        const day = String(body.returnDate);
+        const month = day.slice(0, 7);
+        const near = [-1, 0, 1]
+          .map((d) => {
+            const m = new Date(`${month}-15T00:00:00Z`);
+            m.setUTCMonth(m.getUTCMonth() + d);
+            return m.toISOString().slice(0, 7);
+          })
+          .flatMap((m) => lunarReturnsInMonth(natalMoon, m))
+          .sort((a, b) => Math.abs(Date.parse(`${a.approxUtc}:00Z`) - Date.parse(`${day}T12:00:00Z`)) - Math.abs(Date.parse(`${b.approxUtc}:00Z`) - Date.parse(`${day}T12:00:00Z`)))[0];
+        return { ok: true, raw: lunarFor(near.approxUtc), attempts: 1 };
+      },
+    };
+    return { calls, deps };
+  }
+
+  await t("P2-1 dönüş listesi: 2026-10 → 1 dönüş, istek günü golden ile AYNI (önbellek uyumu); 2027-06 → 2 dönüş, ~27.3 gün arayla, her biri Ay=natal Ay (astronomy-engine)", () => {
+    const oct = lunarReturnsInMonth(natalMoon, "2026-10");
+    assert.equal(oct.length, 1);
+    assert.equal(oct[0].requestDate, G["lunar-return"].body.returnDate);
+    // Golden sağlayıcı anı (2026-10-25T14:43:22 +3 → 11:43:22 UTC) ile tahmin ≤ 2 dk.
+    assert.ok(Math.abs(Date.parse(`${oct[0].approxUtc}:00Z`) - Date.parse("2026-10-25T11:43:22Z")) <= 120_000, oct[0].approxUtc);
+    const jun = lunarReturnsInMonth(natalMoon, "2027-06");
+    assert.deepEqual(jun.map((c) => c.sequence), [1, 2]);
+    const gapDays = (Date.parse(`${jun[1].approxUtc}:00Z`) - Date.parse(`${jun[0].approxUtc}:00Z`)) / 86400_000;
+    assert.ok(gapDays > 27 && gapDays < 27.7, `aralık ${gapDays}`);
+    for (const c of jun) {
+      assert.ok(c.approxUtc.startsWith("2027-06"));
+      assert.ok(angDiff(lon(Astronomy.Body.Moon, new Date(`${c.approxUtc}:00Z`)), natalMoon) < 0.05, `${c.sequence}. dönüş Ay farkı`);
+    }
+    assert.notEqual(jun[0].requestDate, jun[1].requestDate);
+  });
+
+  await t("P2-1 geriye uyum: sırasız eski seçenek = sequence 1 → AYNI gövde/anahtar; eski kayıtlı sonuç 0 istekle açılır", async () => {
+    const def = getTechnique("western.lunar_return")!;
+    const ctx = { birth: SYNTH_A, birthUtc: SYNTH_A.utc, partner: null };
+    const old = def.parseOptions({ month: "2026-10", houseSystem: "placidus" }, new Date())!;
+    const seq1 = def.parseOptions({ month: "2026-10", sequence: 1, houseSystem: "placidus" }, new Date())!;
+    assert.equal(old.sequence, 1);
+    assert.equal(def.units(ctx, old)[0].inputHash, def.units(ctx, seq1)[0].inputHash);
+    assert.deepEqual(JSON.parse(JSON.stringify(def.units(ctx, seq1)[0].body)), G["lunar-return"].body, "gövde golden ile aynı olmalı");
+    assert.equal(def.parseOptions({ month: "2026-10", sequence: 3, houseSystem: "placidus" }, new Date()), null);
+    // Aşama 3'te (sırasız) kaydedilmiş sonuç → yeni sürüm sequence:1 ile 0 istek.
+    const store = seed();
+    const ectx = ctxOf(store);
+    const pa = await profile(ectx, "A");
+    const rx = roxy();
+    await run(ectx, pa, [{ technique: "western.lunar_return", options: { month: "2026-10", houseSystem: "placidus" } }], rx.deps);
+    assert.equal(rx.calls.length, 1);
+    const again = await run(ectx, pa, [{ technique: "western.lunar_return", options: { month: "2026-10", sequence: 1, houseSystem: "placidus" } }], rx.deps);
+    assert.equal(rx.calls.length, 1, "eski kayıt yeniden istendi");
+    assert.equal((again.body as J).results[0].view.technical.requested.sequence, 1);
+  });
+
+  await t("P2-1 iki dönüş: 2027-06 sıra 1 + sıra 2 → plan 2 dönüşü gösterir, 2 ayrı istek/anahtar, teknik + kayıtlı analiz sırayı ve anı taşır, açmak 0 istek", async () => {
+    const store = seed();
+    const ectx = ctxOf(store);
+    const pa = await profile(ectx, "A");
+    const lx = lunarRoxy();
+    const s1 = { technique: "western.lunar_return", options: { month: "2027-06", sequence: 1, houseSystem: "placidus" } };
+    const s2 = { technique: "western.lunar_return", options: { month: "2027-06", sequence: 2, houseSystem: "placidus" } };
+    const p = (await planAstrology(ectx, { profileId: pa, selections: [s1, s2] })).body as J;
+    assert.deepEqual([p.plan.newRequestCount, p.plan.dedupedCount], [2, 0]);
+    assert.deepEqual(p.plan.selections[0].info.lunarReturns.map((x: J) => x.sequence), [1, 2]);
+    assert.deepEqual(p.plan.selections.map((x: J) => x.options.sequence), [1, 2]);
+    const r = await run(ectx, pa, [s1, s2], lx.deps);
+    assert.equal(lx.calls.length, 2);
+    assert.notEqual(lx.calls[0].body.returnDate, lx.calls[1].body.returnDate);
+    const v = (r.body as J).results.map((x: J) => x.view);
+    assert.deepEqual(v.map((x: J) => x.technical.requested.sequence), [1, 2]);
+    const jun = lunarReturnsInMonth(natalMoon, "2027-06");
+    assert.deepEqual(v.map((x: J) => x.technical.requested.expectedUtc), jun.map((c) => c.approxUtc));
+    assert.notEqual(v[0].id, v[1].id);
+    const ids: string[] = [];
+    for (const s of [s1, s2]) {
+      const sv = await saveAnalysis(ectx, { profileId: pa, revision: 1, ...s, saveRequestId: randomUUID() }, false);
+      assert.equal(sv.status, 201, JSON.stringify(sv.body));
+      ids.push((sv.body as J).analysisId);
+    }
+    const n = lx.calls.length;
+    const a = await Promise.all(ids.map(async (id) => ((await getAnalysis(ectx, id, false)).body as J).analysis));
+    assert.deepEqual(a.map((x) => x.params.sequence), [1, 2]);
+    assert.deepEqual(a.map((x) => x.technical.requested.sequence), [1, 2]);
+    assert.notEqual(a[0].technical.returnLocal, a[1].technical.returnLocal);
+    assert.equal(lx.calls.length, n, "kayıtlı analizi açmak istek yaptı");
+    await run(ectx, pa, [s1, s2], lx.deps);
+    assert.equal(lx.calls.length, n, "önbellek: tekrar 0 istek");
+  });
+
+  await t("P2-1 yok olan dönüş: tek dönüşlü ayda sıra 2 → açık nedenle engellenir, 0 istek", async () => {
+    const store = seed();
+    const ectx = ctxOf(store);
+    const pa = await profile(ectx, "A");
+    const lx = lunarRoxy();
+    const r = await run(ectx, pa, [{ technique: "western.lunar_return", options: { month: "2026-10", sequence: 2, houseSystem: "placidus" } }], lx.deps);
+    assert.equal(lx.calls.length, 0);
+    const res = (r.body as J).results[0];
+    assert.equal(res.code, "NO_UNIT");
+    assert.match(res.error, /bu ayda 1 lunar return var; 2\. dönüş yok/);
+  });
+
+  await t("P2-1 koruma: sağlayıcı SEÇİLMEYEN dönüşü döndürürse sonuç kaydedilmez (PROVIDER_INVALID_RESPONSE), sessiz yanlış dönüş yok", async () => {
+    const store = seed();
+    const ectx = ctxOf(store);
+    const pa = await profile(ectx, "A");
+    const bad = lunarRoxy("always-october");
+    const r = await run(ectx, pa, [{ technique: "western.lunar_return", options: { month: "2027-06", sequence: 2, houseSystem: "placidus" } }], bad.deps);
+    assert.equal(bad.calls.length, 1);
+    assert.equal((r.body as J).results[0].code, "PROVIDER_INVALID_RESPONSE");
+    assert.equal((store.tables.astro_provider_results ?? []).length, 0, "yanlış dönüş kaydedildi");
+  });
+
+  // ═══ L) P2-2 — TRANSIT: SAAT BİLİNMİYORSA NATAL ASC/MC/EV SIZINTISI YOK ════════
+  await t("P2-2 kanıt (gerçek yanıt şeması): transit yanıtında ev/natal-açısal alan YOK; golden'da açısal hedef 0 iken aynı kişinin natal ASC/MC'si orb içinde transit açı ALIRDI", () => {
+    // Bilinen alan listesi (fail-closed): ev / cusp / ascendant / midheaven alanı yok → gelirse 'unmapped' olur, teknik sayılmaz.
+    const known = JSON.stringify(G.transit.response);
+    assert.ok(!/"house|"houses|"cusp|"ascendant"|"midheaven"/i.test(known), "transit yanıtında ev/açısal alan var");
+    assert.ok(!(G.transit.response.transitAspects as J[]).some((a) => /asc|mc|midheaven/i.test(String(a.natalPlanet))));
+    const natal = (projectRoxyNatal(NATAL_GOLDEN, { houseSystem: "placidus", nodeType: "true" }) as J).value.technical;
+    const maxOrb: Record<string, number> = {};
+    for (const a of G.transit.response.transitAspects as J[]) maxOrb[a.type] = Math.max(maxOrb[a.type] ?? 0, a.orb);
+    const ANG: Record<string, number> = { CONJUNCTION: 0, OPPOSITION: 180, TRINE: 120, SQUARE: 90, SEXTILE: 60 };
+    let wouldHit = 0;
+    for (const p of G.transit.response.transitPlanets as J[]) {
+      for (const target of [natal.angles.ascendant.longitude, natal.angles.midheaven.longitude]) {
+        for (const [type, ang] of Object.entries(ANG)) if (maxOrb[type] !== undefined && Math.abs(angDiff(p.longitude, target) - ang) <= maxOrb[type]) wouldHit += 1;
+      }
+    }
+    // Ampirik: sağlayıcı açısal hedef üretseydi bu kadar açı listede olurdu → sağlayıcı (bu sürümde) natal ASC/MC'ye açı ÜRETMİYOR.
+    assert.ok(wouldHit > 0, "kanıt zayıf: orb içinde açısal temas yok");
+    console.log(`     golden: natal ASC/MC'ye orb içinde ${wouldHit} olası transit teması, sağlayıcı listesinde 0`);
+  });
+
+  // SENTETİK (mutation) fixture — golden transit yanıtından türetilir; sağlayıcının ileride açısal hedef
+  // üretmesi durumunu taklit eder. Gerçek sağlayıcı verisi DEĞİLDİR.
+  const ASC_TEXT = "SENTETIK-ANLATI natal Yükselen hedefli transit — saat bilinmiyorsa istemciye ASLA gitmemeli";
+  const MC_TEXT = "SENTETIK-ANLATI natal MC hedefli transit — saat bilinmiyorsa istemciye ASLA gitmemeli (ikinci)";
+  const transitWithAngles = () => {
+    const r = structuredClone(G.transit.response);
+    const base = r.transitAspects[0];
+    r.transitAspects.push(
+      { ...base, transitPlanet: "Saturn", transitPlanetLocalized: "Satürn", natalPlanet: "Ascendant", natalPlanetLocalized: "Yükselen", type: "SQUARE", typeLocalized: "Kare", angle: 90, orb: 0.5, nature: "zorlayıcı", interpretation: { ...base.interpretation, summary: ASC_TEXT, impact: `${ASC_TEXT} (etki)`, guidance: `${ASC_TEXT} (öneri)` } },
+      { ...base, transitPlanet: "Jupiter", transitPlanetLocalized: "Jüpiter", natalPlanet: "Midheaven", natalPlanetLocalized: "MC", type: "TRINE", typeLocalized: "Üçgen", angle: 120, orb: 0.7, nature: "uyumlu", interpretation: { ...base.interpretation, summary: MC_TEXT, impact: `${MC_TEXT} (etki)`, guidance: `${MC_TEXT} (öneri)` } },
+    );
+    r.summary = { ...r.summary, totalAspects: r.summary.totalAspects + 2, harmonious: r.summary.harmonious + 1, challenging: r.summary.challenging + 1 };
+    return r;
+  };
+  const angleRoxy = () => {
+    const calls: Call[] = [];
+    const deps: EngineDeps = {
+      ...roxy().deps,
+      callProvider: async (_c, endpoint, body) => {
+        calls.push({ endpoint, body });
+        return endpoint === "/astrology/transits" ? { ok: true, raw: transitWithAngles(), attempts: 1 } : { ok: false, kind: "bad_request", status: 400, attempts: 1 };
+      },
+    };
+    return { calls, deps };
+  };
+
+  await t("P2-2 SENTETİK: saat BİLİNİYORSA açısal hedefli açılar + anlatı görünür (pozitif kontrol: adaptör bunları gerçekten taşıyor)", async () => {
+    const store = seed();
+    const ectx = ctxOf(store);
+    const pa = await profile(ectx, "A");
+    const r = await run(ectx, pa, [goldenSelection("western.transit")], angleRoxy().deps);
+    const v = (r.body as J).results[0].view;
+    assert.deepEqual(v.technical.aspects.filter((a: J) => a.natal === "ascendant" || a.natal === "midheaven").map((a: J) => a.natal), ["ascendant", "midheaven"]);
+    assert.ok(JSON.stringify(v.interpretation).includes(ASC_TEXT) && JSON.stringify(v.interpretation).includes(MC_TEXT));
+    assert.equal(v.timeUnknownMasked, false);
+  });
+
+  await t("P2-2 SENTETİK: saat BİLİNMİYORSA açısal açı, anlatısı ve sayılardaki izi YOK; transit gezegen verisi saatli profille AYNI; kayıtlı sonuç/analiz de temiz", async () => {
+    const store = seed();
+    const ectx = ctxOf(store);
+    const pk = await profile(ectx, "A");
+    const pu = await profile(ectx, "A", { timeKnown: false, birthTime: null, timeAccuracy: "unknown", label: "Saatsiz A" });
+    const known = ((await run(ectx, pk, [goldenSelection("western.transit")], angleRoxy().deps)).body as J).results[0].view;
+    const ur = await run(ectx, pu, [goldenSelection("western.transit")], angleRoxy().deps);
+    const v = (ur.body as J).results[0].view;
+    const all = JSON.stringify(ur.body);
+    assert.ok(!all.includes("SENTETIK-ANLATI"), "açısal hedefli anlatı istemciye gitti");
+    assert.ok(!v.technical.aspects.some((a: J) => a.natal === "ascendant" || a.natal === "midheaven"));
+    assert.ok(!(v.interpretation.content.aspects as J[]).some((a) => a.natal === "ascendant" || a.natal === "midheaven"));
+    // Özet sayıları maskeden sonra kalan açılardan: sağlayıcının (açısal dahil) sayıları değil.
+    const cnt = (n: string) => v.technical.aspects.filter((a: J) => a.nature === n).length;
+    assert.deepEqual(v.technical.summary, { harmonious: cnt("harmonious"), challenging: cnt("challenging"), neutral: cnt("neutral") });
+    assert.notDeepEqual(v.technical.summary, known.technical.summary, "sağlayıcı sayıları gizlenen açıları içeriyordu");
+    // Saatten bağımsız transit gezegen verisi korunur.
+    assert.deepEqual(v.technical.bodies, known.technical.bodies);
+    assert.equal(v.technical.bodies.length, 14);
+    assert.ok(v.timeUnknownMasked && v.warnings.some((w: string) => /Yükselen\/MC/.test(w)));
+    assert.equal(v.technical.aspects.length, known.technical.aspects.length - 2);
+    // Kayıtlı sonuç yeniden açma + kayıtlı analiz (yorum dahil) de temiz.
+    const reopen = await getAstrologyResult(ectx, v.id, { profileId: null, revision: null, ownerPreviewHideInterp: false });
+    assert.ok(!JSON.stringify(reopen.body).includes("SENTETIK-ANLATI"));
+    const sv = await saveAnalysis(ectx, { profileId: pu, revision: 1, ...goldenSelection("western.transit"), includeProviderInterp: true, saveRequestId: randomUUID() }, false);
+    assert.equal(sv.status, 201, JSON.stringify(sv.body));
+    const row = store.tables.astro_analyses.find((x) => x.id === (sv.body as J).analysisId)!;
+    assert.ok(!JSON.stringify(row).includes("SENTETIK-ANLATI"), "analiz snapshot'ına açısal anlatı yazıldı");
+    const topics = topicsForTechnique("western.transit", v.technical);
+    assert.ok(!topics.some((x) => /:ascendant$|:midheaven$/.test(x.key)), "açısal transit konusu üretildi");
   });
 
   console.log(`\nastrology phase3 harness: ${pass} PASS / ${fail} FAIL`);

@@ -441,6 +441,13 @@ export function ReturnPanel({ t }: { t: ReturnTechnical }) {
         {Math.abs(off)}) · natal {t.kind === "solar" ? "Güneş" : "Ay"} <SignCell sign={t.natalPoint.sign} degree={t.natalPoint.degreeInSign} /> ·{" "}
         {HOUSE_SYSTEM_LABELS[c.houseSystem]} · doğum yeri için
       </p>
+      {t.kind === "lunar" && (
+        <p className="text-xs text-slate-500" data-testid="astro-lunar-sequence">
+          {t.requested.sequence
+            ? `Ayın ${t.requested.sequence}. lunar return'ü (beklenen ~${(t.requested.expectedUtc ?? "").replace("T", " ")} UTC; sağlayıcı anı bununla doğrulandı)`
+            : "Ayın ilk lunar return'ü (eski kayıt — dönüş sırası saklanmamış)"}
+        </p>
+      )}
       <NatalWheel technical={wheel} label={t.kind === "solar" ? "Solar return çarkı" : "Lunar return çarkı"} />
       {c.angles && (c.angles.ascendant || c.angles.midheaven) && (
         <p className="text-sm text-slate-700">

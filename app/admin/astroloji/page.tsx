@@ -22,7 +22,7 @@ import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import type { TechniqueView } from "@/lib/astrology/view/techniqueView";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroFetch, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
-import { buildSelections, defaultParams, describeOptions, techniqueLabel, TECHNIQUE_META, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
+import { buildSelections, defaultParams, describeOptions, techniqueLabel, TECHNIQUE_META, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
 import ProviderInterpretationPanel, { type InterpretationLayer } from "./_components/ProviderInterpretationPanel";
 import ProfileForm, { type ProfileFormInitial } from "./_components/ProfileForm";
 import AnalysisWorkspace from "./_components/AnalysisWorkspace";
@@ -67,7 +67,14 @@ type ProfileDetail = {
   revisions: PublicRevision[];
 };
 
-type PlanSelection = { technique: string; options: Record<string, unknown> | null; unitCount: number; newRequests: number; blocked: { code: string; error: string } | null };
+type PlanSelection = {
+  technique: string;
+  options: Record<string, unknown> | null;
+  unitCount: number;
+  newRequests: number;
+  blocked: { code: string; error: string } | null;
+  info?: { lunarReturns?: LunarReturnInfo[] } | null;
+};
 type PlanSummary = {
   selectedCount: number;
   blockedCount: number;
@@ -205,6 +212,7 @@ export default function AstrologyWorkspacePage() {
   }, [planKey]);
   const plan = planState && planState.key === planKey ? planState.plan : null;
   const planError = planState && planState.key === planKey ? planState.error : null;
+  const lunarReturns = plan?.selections.find((s) => s.technique === "western.lunar_return")?.info?.lunarReturns ?? null;
 
   async function run() {
     if (!shownDetail || revision === null || !ctxKey || !plan || !planKey) return;
@@ -432,6 +440,7 @@ export default function AstrologyWorkspacePage() {
                   onMethod={setMethod}
                   partners={partners}
                   timeKnown={currentRev?.timeKnown ?? true}
+                  lunarReturns={lunarReturns}
                 />
               </div>
 

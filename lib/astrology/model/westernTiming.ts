@@ -140,8 +140,12 @@ export type ReturnTechnical = {
   schema: typeof RETURN_TECHNICAL_SCHEMA;
   kind: "solar" | "lunar";
   zodiac: "tropical";
-  /** İstenen yıl (solar) veya yaklaşık tarih (lunar). */
-  requested: { returnYear: number | null; returnDate: string | null };
+  /**
+   * İstenen yıl (solar) veya yaklaşık tarih (lunar). Lunar (Aşama 3 P2-1 sonrası): ay içindeki dönüş
+   * sırası + beklenen dönüş anı (UTC) — aynı ayda iki dönüş olduğunda hangisi olduğu belirsiz kalmaz.
+   * Eski kayıtlarda sequence/expectedUtc YOKTUR (o zaman yalnız ilk dönüş hesaplanabiliyordu).
+   */
+  requested: { returnYear: number | null; returnDate: string | null; sequence?: number | null; expectedUtc?: string | null };
   /** Dönüş anı — sağlayıcının verdiği yerel ofsetli zaman (doğum ofseti) ve ofset. */
   returnLocal: string;
   returnOffsetHours: number;

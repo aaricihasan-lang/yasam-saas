@@ -39,6 +39,8 @@ export type TechniqueParams = {
   targetDate: string;
   returnYear: number;
   lunarMonth: string;
+  /** Ay içindeki dönüş sırası (bir takvim ayında 2 lunar return olabilir). */
+  lunarSequence: 1 | 2;
   partnerProfileId: string;
 };
 
@@ -57,6 +59,7 @@ export function defaultParams(today: Date): TechniqueParams {
     targetDate: iso,
     returnYear: today.getUTCFullYear(),
     lunarMonth: iso.slice(0, 7),
+    lunarSequence: 1,
     partnerProfileId: "",
   };
 }
@@ -91,7 +94,7 @@ export function buildSelections(
         out.push({ technique: id, options: { returnYear: p.returnYear, houseSystem: method.houseSystem } });
         break;
       case "western.lunar_return":
-        out.push({ technique: id, options: { month: p.lunarMonth, houseSystem: method.houseSystem } });
+        out.push({ technique: id, options: { month: p.lunarMonth, sequence: p.lunarSequence, houseSystem: method.houseSystem } });
         break;
       case "western.synastry":
       case "western.composite":
@@ -127,7 +130,9 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
     case "western.solar_return":
       return `${String(o.returnYear)} dönüşü`;
     case "western.lunar_return":
-      return typeof o.month === "string" ? `${o.month.slice(5, 7)}.${o.month.slice(0, 4)} dönüşü` : "";
+      if (typeof o.month !== "string") return "";
+      // Eski (Aşama 3) kayıtlarda sıra yok: o zaman yalnız ayın ilk dönüşü hesaplanabiliyordu.
+      return `${o.month.slice(5, 7)}.${o.month.slice(0, 4)} · ${o.sequence === 2 ? "2." : "1."} dönüş${o.sequence === undefined ? " (ayın ilk dönüşü)" : ""}`;
     case "western.synastry":
     case "western.composite":
       return `${partner ?? ""}${o.partnerRevision ? ` (karşı taraf rev ${String(o.partnerRevision)})` : ""}`;
@@ -138,4 +143,11 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
 
 export function techniqueLabel(id: string): string {
   return (TECHNIQUE_META as Record<string, { label: string }>)[id]?.label ?? id;
+}
+
+export type LunarReturnInfo = { sequence: number; approxUtc: string };
+
+/** "2027-06-28T13:58" → "28.06.2027 13:58 UTC" */
+export function fmtUtcMinute(iso: string): string {
+  return `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)} ${iso.slice(11, 16)} UTC`;
 }
