@@ -553,6 +553,8 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   belge_ceviri: [],
   ders_notu: [],
   human_design: [],
+  // Alt-yetki (kart açmaz): Human Design — Sistem Yorumu.
+  hd_system_reading: [],
   // Admin-only AI alt modülleri (video_ceviri/ders_notu) hub'ı uzmana AÇMAZ → alias DEĞİL.
   digital_content: ["personal_archive", "belge_ceviri", "kisisel_arsiv"],
   cosmic_calendar: [],

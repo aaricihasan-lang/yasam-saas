@@ -7,6 +7,7 @@
 
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type { HdComputedChart } from "../chart/computedChart";
+import type { SystemReadingDto } from "../providers/roxy/systemReading";
 
 export type SaveChartInput = { date: string; time: string; timezone: string };
 
@@ -139,6 +140,35 @@ export async function getComputedChart(
     return { row: j.data as ComputedChartDetail, error: null };
   }
   return { row: null, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
+}
+
+/**
+ * AŞAMA 2B — "Sistem Yorumu" (kayıtlı RoxyAPI açıklamaları; salt-okunur). Sunucu yalnız whitelist DTO
+ * döndürür (ham provider_raw asla); yeni Roxy çağrısı yapılmaz. Yetki (human_design +
+ * hd_system_reading) sunucuda zorlanır.
+ */
+export type SystemReadingFetchResult =
+  | { status: "ok"; data: SystemReadingDto }
+  | { status: "unavailable" }
+  | { status: "error"; error: string };
+
+export async function getChartSystemReading(id: string): Promise<SystemReadingFetchResult> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/hd/charts/system-reading?id=${encodeURIComponent(id)}`, {
+      method: "GET",
+      headers: authHeaders(),
+      cache: "no-store",
+    });
+  } catch {
+    return { status: "error", error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true) {
+    if (j.available === true && j.data && typeof j.data === "object") return { status: "ok", data: j.data as SystemReadingDto };
+    return { status: "unavailable" };
+  }
+  return { status: "error", error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
 export async function deleteComputedChart(id: string): Promise<{ ok: boolean; error: string | null }> {

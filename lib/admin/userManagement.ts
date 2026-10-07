@@ -106,6 +106,10 @@ export const ADMIN_MODULE_UI_KEYS = [
   // ModuleGateKey + moduleRouteRegistry: app/api/hd → human_design; kozmik takvim + app/api/hacamat
   // → cosmic_calendar). Önceden listede YOKTU → yeni üyeye verilemiyor, mevcut üyeden alınamıyordu.
   "human_design",
+  // Human Design alt-yetkisi (capability): "Sistem Yorumu" — kayıtlı RoxyAPI açıklamaları. MODÜL
+  // DEĞİL (onay "en az bir modül" kuralına / modül sayısına girmez); human_design ile BİRLİKTE gerekir.
+  // Varsayılan KAPALI; Premium payload'ında YOK → admin uzman bazında açar.
+  "hd_system_reading",
   "cosmic_calendar",
   // Kupa & Hacamat — normal satılabilir modül; admin buradan açıp kapatabilir (canonical anahtar).
   "cupping",
@@ -134,6 +138,7 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
   belge_ceviri: "Belge Çeviri Merkezi",
   digital_content: "Dijital İçerik Merkezi",
   human_design: "Human Design",
+  hd_system_reading: "Human Design — Sistem Yorumu",
   cosmic_calendar: "Kozmik Takvim / Yaşam Takvimi",
   cupping: "Kupa & Hacamat",
   beslenme: "Beslenme",
@@ -144,6 +149,8 @@ export const ADMIN_MODULE_UI_DESCRIPTIONS: Partial<Record<AdminModuleUiKey, stri
     "Hub kartı: yalnız alt modüllerden (Kişisel Arşiv, Belge Çeviri) biri açıksa erişim verir. AI araçları yalnız yöneticiye açıktır.",
   belge_ceviri: "PDF → Word dönüşümü ve geçmiş. OCR / PDF → Türkçe Word gibi AI araçları yalnız yöneticiye açıktır.",
   human_design: "Human Design harita, analiz ve rapor modülü.",
+  hd_system_reading:
+    "Hesaplanmış haritada sistem açıklamalarını (Sistem Yorumu) gösterir. Human Design modülü de açık olmalıdır.",
   cosmic_calendar:
     "Kozmik Ajanda / Yaşam Takvimi ve takvime bağlı hacamat zamanlama kuralları & raporları.",
   cupping: "Kupa & Hacamat uygulama modülü (protokoller, takvim ve raporlar).",
@@ -164,6 +171,7 @@ export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
   belge_ceviri: false,
   digital_content: false,
   human_design: false,
+  hd_system_reading: false,
   cosmic_calendar: false,
   cupping: false,
   beslenme: false,
@@ -171,11 +179,12 @@ export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
 
 /**
  * Anahtar türü: "module" = gerçek erişim açan satılabilir modül · "hub" = yalnız alt
- * modüllerle etkili kart bayrağı (digital_content). Onayda "en az bir modül" kuralı ve açık
- * modül sayısı yalnız "module" türünü sayar. (Eski dar "capability" türü — beslenme_manual_food —
- * main'de üründen kaldırıldı.)
+ * modüllerle etkili kart bayrağı (digital_content) · "capability" = bir modülün alt-yetkisi
+ * (hd_system_reading; tek başına erişim açmaz, ana modülle birlikte gerekir). Onayda "en az bir
+ * modül" kuralı, açık modül sayısı ve üye filtresi yalnız "module" türünü sayar. (Eski
+ * beslenme_manual_food yeteneği main'de üründen kaldırılmıştı; tür bu kez Human Design için kullanılır.)
  */
-export type AdminModuleKind = "module" | "hub";
+export type AdminModuleKind = "module" | "hub" | "capability";
 
 export const ADMIN_MODULE_KIND: Record<AdminModuleUiKey, AdminModuleKind> = {
   clients: "module",
@@ -191,6 +200,7 @@ export const ADMIN_MODULE_KIND: Record<AdminModuleUiKey, AdminModuleKind> = {
   belge_ceviri: "module",
   digital_content: "hub",
   human_design: "module",
+  hd_system_reading: "capability",
   cosmic_calendar: "module",
   cupping: "module",
   beslenme: "module",
