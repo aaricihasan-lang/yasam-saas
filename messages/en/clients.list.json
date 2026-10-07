@@ -122,7 +122,13 @@
         "deleteRequireLabel": "Type “SİL” to confirm:",
         "deleteFailedTitle": "Some clients could not be deleted",
         "deleteFailedNames": "Not deleted (kept selected): {names}"
-      }
+      },
+      "alertsOpen": "Show active alerts",
+      "alertsPanelTitle": "Active Alerts — Overdue Homework",
+      "alertsOverdue": "{count} overdue homework",
+      "alertsGoTo": "Go to homework",
+      "alertsClose": "Close",
+      "alertsUnknownClient": "Client"
     }
   }
 }

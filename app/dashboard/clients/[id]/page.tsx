@@ -1047,6 +1047,7 @@ function ClientDetailPageInner() {
                   <ClientConsentPanel
                     clientId={client.id}
                     source="dy_detay"
+                    collapsible
                     className="mt-4"
                     onChange={() => setConsentRev((n) => n + 1)}
                   />

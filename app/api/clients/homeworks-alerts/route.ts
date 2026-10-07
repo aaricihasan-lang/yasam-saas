@@ -23,7 +23,11 @@ export const runtime = "nodejs";
  *   - tenant_id SUNUCUDA user kaydından alınır.
  *   - Sorgu yalnızca bu tenant'ın kayıtlarını döndürür.
  *
- * Dönüş: { ok, alerts: { [clientId]: adet } }
+ * Yalnız tenant'ta HÂLÂ VAR OLAN danışanlar sayılır (silinmiş danışana bağlı yetim satır sayaca
+ * yansımaz — FK cascade'e ek savunma). Aktif Uyarı listesinde ad gösterilebilsin diye yalnız
+ * uyarısı olan danışanların adları döner.
+ *
+ * Dönüş: { ok, alerts: { [clientId]: adet }, names: { [clientId]: "Ad Soyad" } }
  */
 export async function GET(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "clients");
@@ -54,5 +58,24 @@ export async function GET(req: NextRequest): Promise<Response> {
     alerts[row.client_id] = (alerts[row.client_id] || 0) + 1;
   }
 
-  return NextResponse.json({ ok: true, alerts });
+  const ids = Object.keys(alerts);
+  const names: Record<string, string> = {};
+  if (ids.length > 0) {
+    const { data: rows, error: clientErr } = await db
+      .from("clients")
+      .select("id,ad,soyad")
+      .eq("tenant_id", tenantId)
+      .in("id", ids);
+    if (clientErr) {
+      return serverErrorResponse({ route: "clients/homeworks-alerts", action: "GET", tenantId, cause: clientErr });
+    }
+    const existing = new Set<string>();
+    for (const c of (rows ?? []) as { id: string; ad?: string | null; soyad?: string | null }[]) {
+      existing.add(c.id);
+      names[c.id] = [c.ad, c.soyad].map((x) => (x ?? "").trim()).filter(Boolean).join(" ");
+    }
+    for (const id of ids) if (!existing.has(id)) delete alerts[id];
+  }
+
+  return NextResponse.json({ ok: true, alerts, names });
 }

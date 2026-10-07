@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { fieldOptions, optionSetLabels, type EffectiveField } from "@/lib/danisan/anamnez/schema";
 import type { TemplateCatalog } from "@/lib/danisan/anamnez/template/stdV1.i18n";
 import type { AnamnezTemplate, AnswerValue, RowColumn, RowValue, YndValue } from "@/lib/danisan/anamnez/types";
-import { aChip, aGhostBtn, aInput, aTextarea } from "./styles";
+import { aChip, aGhostBtn, aInput, aTextarea, freeTextFieldProps } from "./styles";
 
 type Props = {
   field: EffectiveField;
@@ -116,6 +116,7 @@ function RowsInput({
                   ) : (
                     <input
                       type="text"
+                      {...freeTextFieldProps(`row_${c.key}`)}
                       disabled={disabled}
                       maxLength={300}
                       value={typeof cell === "string" ? cell : ""}
@@ -150,6 +151,11 @@ function RowsInput({
   );
 }
 
+/** Alan anahtarı (şablon veya özel alan) — yalnız name metadata'sı için. */
+function fieldKeyOf(field: EffectiveField): string {
+  return field.key;
+}
+
 function AnamnezFieldInputImpl({ field, value, onChange, disabled, template, catalog, inputId, labelledBy }: Props) {
   const t = useTranslations("clients.anamnez.field");
   const type = field.kind === "template" ? field.field.type : field.custom.type;
@@ -165,6 +171,7 @@ function AnamnezFieldInputImpl({ field, value, onChange, disabled, template, cat
           <YesNo value={v.v} onChange={(nv) => onChange({ ...v, v: nv })} disabled={disabled} labelledBy={labelledBy} />
           <textarea
             id={inputId}
+            {...freeTextFieldProps(`${fieldKeyOf(field)}_detail`)}
             disabled={disabled}
             maxLength={4000}
             placeholder={t("detail")}
@@ -223,12 +230,12 @@ function AnamnezFieldInputImpl({ field, value, onChange, disabled, template, cat
     }
     case "text":
       return (
-        <input id={inputId} type="text" disabled={disabled} maxLength={300} value={typeof value === "string" ? value : ""}
+        <input id={inputId} type="text" {...freeTextFieldProps(fieldKeyOf(field))} disabled={disabled} maxLength={300} value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)} className={aInput} />
       );
     case "textarea":
       return (
-        <textarea id={inputId} disabled={disabled} maxLength={4000} value={typeof value === "string" ? value : ""}
+        <textarea id={inputId} {...freeTextFieldProps(fieldKeyOf(field))} disabled={disabled} maxLength={4000} value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)} className={aTextarea} />
       );
     case "date":

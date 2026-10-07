@@ -31,7 +31,6 @@ export const CLIENT_DETAIL_TAB_DEFS = [
   { id: "genel", labelKey: "genel", color: "#2563eb" },
   { id: "anamnez", labelKey: "anamnez", color: "#0f766e" },
   { id: "notlar", labelKey: "notlar", color: "#7c3aed" },
-  { id: "randevular", labelKey: "randevular", color: "#db2777" },
   { id: "taslar", labelKey: "taslar", color: "#0891b2" },
   { id: "seanslar", labelKey: "seanslar", color: "#16a34a" },
   { id: "ucretlendirme", labelKey: "ucretlendirme", color: "#0d9488" },
@@ -42,6 +41,9 @@ export const CLIENT_DETAIL_TAB_DEFS = [
   // (merkezî hasModulePermission; admin geçer). İzinsiz uzman sekmeyi görmez → 403 ekranı yok.
   { id: "hafiza", labelKey: "hafiza", color: "#7c3aed", requiresModule: "yasam_hafizasi" },
   { id: "beslenme", labelKey: "beslenme", color: "#059669" },
+  // Owner kararı 2026-10-07: uzman önce değerlendirir (analiz/seans/ödev/taş/beslenme), randevuyu SONRA
+  // planlar → Randevular Beslenme'den sonra. Yalnız SIRA değişti; id/?tab=/içerik aynı.
+  { id: "randevular", labelKey: "randevular", color: "#db2777" },
 ] as const satisfies readonly ClientDetailTabDef[];
 
 export type ClientDetailTab = (typeof CLIENT_DETAIL_TAB_DEFS)[number]["id"];
