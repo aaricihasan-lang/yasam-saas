@@ -5,17 +5,17 @@
  * `@/` alias'ı KULLANILMAZ (next.config.ts transpile'ında alias çözülmez) ve hiçbir
  * runtime bağımlılığı yoktur.
  *
- * STRATEJİ (kademeli CSP):
- *   1) ZORUNLU (enforced) minimal CSP — yalnız hiçbir mevcut akışı kırmayan direktifler:
- *        frame-ancestors 'self'; object-src 'self' blob:; base-uri 'self'; form-action 'self'
- *      NOT (object-src): Hacamat rapor sayfası PDF önizlemesini `<object data="blob:…">`
- *      ile gösterir (app/cosmic-calendar/hacamat/report). `object-src 'none'` bu önizlemeyi
- *      kırar → 'self' blob: (eklenti/Flash/dış kaynak yine yasak).
- *   2) TAM izin listeli policy `Content-Security-Policy-Report-Only` — ihlaller yalnız
- *      tarayıcı konsoluna raporlanır, hiçbir şey ENGELLENMEZ. Supabase (imzalı URL, TUS
- *      resumable upload), blob:/data: önizlemeler, Word/PDF indirmeleri, Vercel Analytics /
- *      Speed Insights ve (yalnız herkese açık sayfalarda yüklenen) Google Analytics hostları
- *      listededir. Gözlem süresi sonunda enforced'a taşınması AYRI karardır.
+ * STRATEJİ:
+ *   - TAM izin listeli CSP artık ZORUNLU (enforced) `Content-Security-Policy` başlığıdır
+ *     (satış öncesi AŞAMA 2A; önceki gözlem dönemi Report-Only idi). Supabase (imzalı URL,
+ *     TUS resumable upload), blob:/data: önizlemeler, Word/PDF indirmeleri, Vercel Analytics /
+ *     Speed Insights ve (yalnız herkese açık sayfalarda yüklenen) Google Analytics hostları
+ *     listededir.
+ *   - NOT (object-src): Hacamat rapor sayfası PDF önizlemesini `<object data="blob:…">`
+ *     ile gösterir (app/cosmic-calendar/hacamat/report). `object-src 'none'` bu önizlemeyi
+ *     kırar → 'self' blob: (eklenti/Flash/dış kaynak yine yasak).
+ *   - 'unsafe-inline' (script/style) bilinçli olarak KORUNUR; nonce + 'strict-dynamic'
+ *     geçişi satış sonrası ayrı iştir.
  *
  * Android WebView uygulamayı üst seviye yükler (iframe DEĞİL) → frame-ancestors 'self' ve
  * X-Frame-Options SAMEORIGIN WebView'ı etkilemez.
@@ -29,14 +29,6 @@ export type SecurityHeaderOptions = {
   /** Geliştirme modunda React hata yığını için 'unsafe-eval' gerekir (Next CSP rehberi). */
   isDev?: boolean;
 };
-
-/** Zorunlu (enforced) minimal CSP direktifleri. */
-export const ENFORCED_CSP_DIRECTIVES: ReadonlyArray<string> = [
-  "frame-ancestors 'self'",
-  "object-src 'self' blob:",
-  "base-uri 'self'",
-  "form-action 'self'",
-];
 
 /** Google Analytics (GA4) hostları — GA yalnız herkese açık sayfalarda yüklenir. */
 export const GA_SCRIPT_HOSTS = ["https://www.googletagmanager.com"] as const;
@@ -58,7 +50,7 @@ const VERCEL_LIVE = "https://vercel.live";
 /**
  * Supabase origin'lerini çıkarır: REST/Storage (https), doğrudan storage hostu
  * (<ref>.storage.supabase.co — büyük/TUS yüklemeler) ve realtime (wss).
- * Geçersiz/boş URL → *.supabase.co joker'i (yalnız Report-Only'de kullanılır).
+ * Geçersiz/boş URL → *.supabase.co joker'i (env eksik build'ler için güvenli varsayılan).
  */
 export function supabaseOrigins(supabaseUrl?: string | null): {
   https: string[];
@@ -87,13 +79,8 @@ function joinDirectives(directives: Array<[string, ReadonlyArray<string>]>): str
   return directives.map(([name, values]) => (values.length ? `${name} ${values.join(" ")}` : name)).join("; ");
 }
 
-/** Zorunlu minimal CSP değeri. */
-export function buildEnforcedCsp(): string {
-  return ENFORCED_CSP_DIRECTIVES.join("; ");
-}
-
-/** Tam izin listeli Report-Only CSP değeri. */
-export function buildReportOnlyCsp(opts: SecurityHeaderOptions = {}): string {
+/** Tam izin listeli, zorunlu (enforced) CSP değeri. */
+export function buildEnforcedCsp(opts: SecurityHeaderOptions = {}): string {
   const sb = supabaseOrigins(opts.supabaseUrl);
   const self = "'self'";
   return joinDirectives([
@@ -145,7 +132,6 @@ export function buildSecurityHeaders(opts: SecurityHeaderOptions = {}): HeaderEn
       // camera=(self): Doğaltaş kayıt formundaki <input capture> (kamera) aynı-origin'de kalır.
       value: "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
     },
-    { key: "Content-Security-Policy", value: buildEnforcedCsp() },
-    { key: "Content-Security-Policy-Report-Only", value: buildReportOnlyCsp(opts) },
+    { key: "Content-Security-Policy", value: buildEnforcedCsp(opts) },
   ];
 }
