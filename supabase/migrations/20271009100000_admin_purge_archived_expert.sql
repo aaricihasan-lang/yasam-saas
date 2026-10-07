@@ -11,7 +11,8 @@
 --   bu yetkiyi açmak ancak bilinçli bir kod + migration değişikliğiyle mümkündür.
 --
 -- KAPSAM (owner kararı 2026-10-07 — "Hesap + tüm iş verisi"):
---   * public şemasında `tenant_id uuid` kolonu olan HER tablo → WHERE tenant_id = uzman tenant'ı
+--   * public şemasında `tenant_id` (uuid; legacy text/varchar için lower(tenant_id) = uuid::text) kolonu
+--     olan HER tablo → uzman tenant'ının satırları
 --     (danışanlar + KVKK onamları cascade ile, kayıtlar, kütüphaneler, raporlar, YH, ...).
 --   * `user_id uuid` kolonu olan HER tablo → WHERE user_id = uzman (oturumlar, güvenlik olayları...).
 --   * users satırı, ardından tenants satırı.
@@ -20,6 +21,8 @@
 --     aromatherapy_content_audit_events, aromatherapy_content_delete_tombstones, yebs_audit_events.
 --     admin_audit_log / provisioning_events'teki users/tenants FK'leri ON DELETE SET NULL'dur →
 --     referans null'a düşer, satır korunur.
+--   * DEĞİŞMEZ İÇERİK: aromatherapy_preparation_method_revisions guard'ına DOKUNULMAZ (tasarım gereği
+--     silinemez). Böyle satırı olan uzman için purge FAIL-CLOSED reddedilir (UP020, tam rollback).
 --   * Storage dosyaları bu fonksiyonda DEĞİL, route'ta (Storage API) silinir (DB COMMIT sonrası).
 --
 -- FAIL-CLOSED SÖZLEŞME:
@@ -31,14 +34,14 @@
 --     owner'ın kendisi, arşivde olmayan uzman, e-posta doğrulaması uyuşmazlığı → RED.
 --
 -- APPEND-ONLY GUARD'LARINA DAR, TX-BAĞLI İSTİSNA:
---   admin_audit_log / provisioning_events (FK SET NULL güncellemesi) ve
---   aromatherapy_preparation_method_revisions (kalıcı silme) guard'ları YALNIZ aynı transaction'da
---   bu fonksiyonun yazdığı admin_purge_context işareti varsa geçer. İşaret tablosuna hiçbir
+--   admin_audit_log / provisioning_events guard'ları, users/tenants silinirken FK'nin yaptığı
+--   ON DELETE SET NULL güncellemesine YALNIZ aynı transaction'da bu fonksiyonun yazdığı
+--   admin_purge_context işareti varsa izin verir (satır korunur, referans null'a düşer). İşaret tablosuna hiçbir
 --   rolün (service_role dahil) yetkisi yoktur; işaret txid_current() ile bu tx'e bağlıdır ve
 --   fonksiyon sonunda silinir. service_role'ün bu tablolarda UPDATE/DELETE grant'i zaten yoktur.
 --
 -- GÜVENLİ / GERİYE UYUMLU:
---   Yeni tablo (boş, kilitli) + yeni fonksiyonlar + 3 guard fonksiyonunda CREATE OR REPLACE
+--   Yeni tablo (boş, kilitli) + yeni fonksiyonlar + 2 guard fonksiyonunda CREATE OR REPLACE
 --   (mevcut davranış BİREBİR korunur; yalnız işaretli purge istisnası eklenir). Mevcut veri DML YOK.
 --   CREATE OR REPLACE sahiplik/ACL'yi korur. IDEMPOTENT.
 -- =============================================================================
@@ -114,50 +117,7 @@ BEGIN
 END;
 $$;
 
--- ── 4) Aroma yöntem revizyonu guard — purge sırasında o tenant'ın revizyonları silinebilir ──
--- UPDATE kuralları 20260912000000 ile BİREBİR aynıdır.
-CREATE OR REPLACE FUNCTION public.aromatherapy_method_revision_guard()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = pg_catalog, public
-AS $$
-BEGIN
-  IF TG_OP = 'DELETE' THEN
-    IF public.admin_purge_in_progress(NULL, OLD.tenant_id) THEN
-      RETURN OLD;
-    END IF;
-    RAISE EXCEPTION 'AROMA_METHOD_REVISION_IMMUTABLE' USING ERRCODE = 'P0001';
-  END IF;
-  -- UPDATE: yalnız status ve updated_at değişebilir; diğer tüm içerik/kimlik değişmezdir.
-  IF NEW.id IS DISTINCT FROM OLD.id
-     OR NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
-     OR NEW.series_id IS DISTINCT FROM OLD.series_id
-     OR NEW.revision IS DISTINCT FROM OLD.revision
-     OR NEW.plant_part_used IS DISTINCT FROM OLD.plant_part_used
-     OR NEW.material_state IS DISTINCT FROM OLD.material_state
-     OR NEW.method_text IS DISTINCT FROM OLD.method_text
-     OR NEW.equipment IS DISTINCT FROM OLD.equipment
-     OR NEW.amount_ratio IS DISTINCT FROM OLD.amount_ratio
-     OR NEW.solvent_carrier IS DISTINCT FROM OLD.solvent_carrier
-     OR NEW.duration_text IS DISTINCT FROM OLD.duration_text
-     OR NEW.temperature_text IS DISTINCT FROM OLD.temperature_text
-     OR NEW.steps IS DISTINCT FROM OLD.steps
-     OR NEW.filtration IS DISTINCT FROM OLD.filtration
-     OR NEW.resting IS DISTINCT FROM OLD.resting
-     OR NEW.storage IS DISTINCT FROM OLD.storage
-     OR NEW.quality_notes IS DISTINCT FROM OLD.quality_notes
-     OR NEW.safety_notes IS DISTINCT FROM OLD.safety_notes
-     OR NEW.note_hash IS DISTINCT FROM OLD.note_hash
-     OR NEW.created_at IS DISTINCT FROM OLD.created_at
-  THEN
-    RAISE EXCEPTION 'AROMA_METHOD_REVISION_IMMUTABLE' USING ERRCODE = 'P0001';
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
--- ── 5) Owner-only arşiv uzman kalıcı silme ─────────────────────────────────────
+-- ── 4) Owner-only arşiv uzman kalıcı silme ─────────────────────────────────────
 -- Hata kodları (route eşlemesi): UP001 parametre · UP002 kendi hesabı · UP003 yetkisiz aktör ·
 -- UP004 hedef yok · UP005 hedef uzman değil/owner · UP006 arşivde değil · UP007 demo ·
 -- UP008 e-posta doğrulaması · UP009 sistem tenant'ı · UP010 paylaşımlı tenant ·
@@ -197,6 +157,9 @@ DECLARE
   v_users_before bigint;
   v_tenants_before bigint;
   v_unsupported  text[] := '{}';
+  v_text_tbls    text[] := '{}';
+  v_col          text;
+  v_val          text;
 BEGIN
   IF p_user_id IS NULL OR p_actor_admin_id IS NULL OR coalesce(btrim(p_confirm_email), '') = '' THEN
     RAISE EXCEPTION 'admin_purge: eksik parametre' USING ERRCODE = 'UP001';
@@ -255,16 +218,24 @@ BEGIN
       JOIN pg_namespace ns ON ns.oid = cl.relnamespace
       JOIN pg_attribute a ON a.attrelid = cl.oid AND a.attname = 'tenant_id' AND NOT a.attisdropped
      WHERE ns.nspname = 'public' AND cl.relkind IN ('r', 'p') AND NOT cl.relispartition
-       AND a.atttypid = 'uuid'::regtype
+       AND a.atttypid IN ('uuid'::regtype, 'text'::regtype, 'varchar'::regtype)
+       AND cl.relname <> ALL (v_excluded);
+    -- Legacy: bazı tablolarda tenant_id text (ör. prod stone_exclusions) → lower(tenant_id) = uuid::text.
+    SELECT coalesce(array_agg(cl.relname::text ORDER BY cl.relname), '{}') INTO v_text_tbls
+      FROM pg_class cl
+      JOIN pg_namespace ns ON ns.oid = cl.relnamespace
+      JOIN pg_attribute a ON a.attrelid = cl.oid AND a.attname = 'tenant_id' AND NOT a.attisdropped
+     WHERE ns.nspname = 'public' AND cl.relkind IN ('r', 'p') AND NOT cl.relispartition
+       AND a.atttypid IN ('text'::regtype, 'varchar'::regtype)
        AND cl.relname <> ALL (v_excluded);
   END IF;
-  -- Şeffaflık: uuid OLMAYAN tenant_id kolonlu tablolar kapsam dışıdır → sonuçta raporlanır.
+  -- Şeffaflık: uuid/text DIŞI tenant_id kolonlu tablolar kapsam dışıdır → sonuçta raporlanır.
   SELECT coalesce(array_agg(cl.relname::text ORDER BY cl.relname), '{}') INTO v_unsupported
     FROM pg_class cl
     JOIN pg_namespace ns ON ns.oid = cl.relnamespace
     JOIN pg_attribute a ON a.attrelid = cl.oid AND a.attname = 'tenant_id' AND NOT a.attisdropped
    WHERE ns.nspname = 'public' AND cl.relkind IN ('r', 'p') AND NOT cl.relispartition
-     AND a.atttypid <> 'uuid'::regtype
+     AND a.atttypid NOT IN ('uuid'::regtype, 'text'::regtype, 'varchar'::regtype)
      AND cl.relname <> ALL (v_excluded);
   SELECT coalesce(array_agg(cl.relname::text ORDER BY cl.relname), '{}') INTO v_user_tbls
     FROM pg_class cl
@@ -276,7 +247,9 @@ BEGIN
 
   -- Çapraz-tenant emniyet ağı: "hedef DIŞI" satır sayıları (önce).
   FOREACH v_t IN ARRAY v_tenant_tbls LOOP
-    EXECUTE format('SELECT count(*) FROM public.%I WHERE tenant_id IS DISTINCT FROM $1', v_t) INTO v_n USING v_tenant;
+    v_col := CASE WHEN v_t = ANY (v_text_tbls) THEN 'lower(tenant_id)' ELSE 'tenant_id' END;
+    v_val := CASE WHEN v_t = ANY (v_text_tbls) THEN '$1::text' ELSE '$1' END;
+    EXECUTE format('SELECT count(*) FROM public.%I WHERE %s IS DISTINCT FROM %s', v_t, v_col, v_val) INTO v_n USING v_tenant;
     v_before := v_before || jsonb_build_object('t:' || v_t, v_n);
   END LOOP;
   FOREACH v_t IN ARRAY v_user_tbls LOOP
@@ -293,8 +266,10 @@ BEGIN
     v_pass := v_pass + 1;
     v_progress := false;
     FOREACH v_t IN ARRAY v_tenant_tbls LOOP
+      v_col := CASE WHEN v_t = ANY (v_text_tbls) THEN 'lower(tenant_id)' ELSE 'tenant_id' END;
+      v_val := CASE WHEN v_t = ANY (v_text_tbls) THEN '$1::text' ELSE '$1' END;
       BEGIN
-        EXECUTE format('DELETE FROM public.%I WHERE tenant_id = $1', v_t) USING v_tenant;
+        EXECUTE format('DELETE FROM public.%I WHERE %s = %s', v_t, v_col, v_val) USING v_tenant;
         GET DIAGNOSTICS v_n = ROW_COUNT;
         IF v_n > 0 THEN
           v_progress := true;
@@ -321,7 +296,9 @@ BEGIN
 
   -- Kalan satır kontrolü (fail-closed).
   FOREACH v_t IN ARRAY v_tenant_tbls LOOP
-    EXECUTE format('SELECT count(*) FROM public.%I WHERE tenant_id = $1', v_t) INTO v_n USING v_tenant;
+    v_col := CASE WHEN v_t = ANY (v_text_tbls) THEN 'lower(tenant_id)' ELSE 'tenant_id' END;
+    v_val := CASE WHEN v_t = ANY (v_text_tbls) THEN '$1::text' ELSE '$1' END;
+    EXECUTE format('SELECT count(*) FROM public.%I WHERE %s = %s', v_t, v_col, v_val) INTO v_n USING v_tenant;
     IF v_n > 0 THEN
       RAISE EXCEPTION 'admin_purge: % tablosunda % satır silinemedi (son hata: %)', v_t, v_n, coalesce(v_last_err, '-')
         USING ERRCODE = 'UP020';
@@ -351,7 +328,9 @@ BEGIN
 
   -- Çapraz-tenant emniyet ağı (sonra): hedef DIŞI hiçbir satır eksilmemiş olmalı.
   FOREACH v_t IN ARRAY v_tenant_tbls LOOP
-    EXECUTE format('SELECT count(*) FROM public.%I WHERE tenant_id IS DISTINCT FROM $1', v_t) INTO v_n USING v_tenant;
+    v_col := CASE WHEN v_t = ANY (v_text_tbls) THEN 'lower(tenant_id)' ELSE 'tenant_id' END;
+    v_val := CASE WHEN v_t = ANY (v_text_tbls) THEN '$1::text' ELSE '$1' END;
+    EXECUTE format('SELECT count(*) FROM public.%I WHERE %s IS DISTINCT FROM %s', v_t, v_col, v_val) INTO v_n USING v_tenant;
     IF v_n < (v_before ->> ('t:' || v_t))::bigint THEN
       RAISE EXCEPTION 'admin_purge: % tablosunda başka tenant satırı etkilendi; işlem geri alındı', v_t USING ERRCODE = 'UP023';
     END IF;
@@ -406,7 +385,7 @@ NOTIFY pgrst, 'reload schema';
 -- ROLLBACK (tek tx):
 --   BEGIN;
 --   DROP FUNCTION IF EXISTS public.admin_purge_archived_expert(uuid, uuid, text);
---   -- 3 guard fonksiyonunu 20260903000000 / 20260910000000 / 20260912000000 tanımlarıyla yeniden oluşturun
+--   -- 2 guard fonksiyonunu 20260903000000 / 20260910000000 tanımlarıyla yeniden oluşturun
 --   -- (purge istisnası dalı olmadan), ardından:
 --   DROP FUNCTION IF EXISTS public.admin_purge_in_progress(uuid, uuid);
 --   DROP TABLE IF EXISTS public.admin_purge_context;

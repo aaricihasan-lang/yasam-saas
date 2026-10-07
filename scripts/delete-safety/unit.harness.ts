@@ -200,6 +200,10 @@ async function main(): Promise<void> {
   ok(/v_actor\.is_super_admin IS NOT TRUE/.test(mig), "DB fonksiyonu owner işaretini ayrıca doğrular");
   ok(/REVOKE ALL ON FUNCTION public\.admin_purge_archived_expert\(uuid, uuid, text\) FROM PUBLIC, anon, authenticated;/.test(mig),
     "purge RPC anon/authenticated'a kapalı");
+  ok(!mig.includes("FUNCTION public.aromatherapy_method_revision_guard"), "değişmez yöntem revizyonu guard'ına DOKUNULMAZ");
+  ok(purgeRpcError({ code: "UP020" }).error.includes("HİÇBİR veri silinmedi"), "UP020 → fail-closed mesajı");
+  const arch = read("app/api/admin/users/archive/route.ts");
+  ok(arch.includes("isPurgeRpcAvailable(db)"), "arşiv: buton yalnız RPC mevcutsa (deploy sırası güvenli)");
 
   console.log(`\nSONUÇ: ${pass} geçti, ${fail} kaldı`);
   if (fail > 0) {

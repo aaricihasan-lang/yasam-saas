@@ -3,6 +3,7 @@ import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { USERS_SAFE_SELECT } from "@/lib/supabase-server";
 import { DEACTIVATION_AUDIT_ACTIONS } from "@/lib/admin/membershipActions";
 import { resolveIsSuperAdmin } from "@/lib/admin/adminGuards";
+import { isPurgeRpcAvailable } from "@/lib/admin/expertPurge";
 
 export const runtime = "nodejs";
 
@@ -83,9 +84,10 @@ export async function GET(req: NextRequest): Promise<Response> {
     }
   }
 
-  // UI ipucu: kalıcı silme butonu YALNIZ sistem sahibine gösterilir. Yetki her durumda
-  // POST /api/admin/users/[id]/purge'da (route + DB) yeniden doğrulanır.
-  const canPermanentDelete = await resolveIsSuperAdmin(db, adminId);
+  // UI ipucu: kalıcı silme butonu YALNIZ sistem sahibine ve purge RPC'si veritabanında mevcutsa
+  // gösterilir (deploy sırası güvenli). Yetki her durumda POST /api/admin/users/[id]/purge'da
+  // (route + DB) yeniden doğrulanır.
+  const canPermanentDelete = (await resolveIsSuperAdmin(db, adminId)) && (await isPurgeRpcAvailable(db));
 
   return NextResponse.json(
     { ok: true, users, deactivations, viewer: { canPermanentDelete } },

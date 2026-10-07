@@ -163,6 +163,17 @@ async function main(): Promise<void> {
     ok((await su.query(`select active from public.users where id = $1`, [E.id])).rows[0].active === true, "uzman yeniden aktif");
     r = await call(archiveDeleteRoute.POST, "POST", `/api/admin/users/${E.id}/delete`, asAdmin2, { adminPassword: "zz-owner-pass" }, E.id);
     ok(r.status === 403, `"Pasife Al ve Arşivle" (ana yönetici kısıtı) mevcut davranış korunur → ${r.status}`);
+
+    // ── F) Deploy sırası: migration yoksa owner'a da buton gösterilmez ─────────
+    console.log("\n[F] Deploy sırası — purge RPC yokken buton gizli");
+    await su.query(`drop function public.admin_purge_archived_expert(uuid, uuid, text)`);
+    r = await call(archiveRoute.GET, "GET", "/api/admin/users/archive", asOwner);
+    ok(r.status === 200 && (r.json.viewer as { canPermanentDelete?: boolean })?.canPermanentDelete === false,
+      "RPC yok → owner'a da Kalıcı Sil gösterilmez (arşiv listesi çalışmaya devam eder)");
+    const E2 = await mkUser("expert", { active: false });
+    r = await purge(E2.id, asOwner, { ...good, confirmEmail: E2.email });
+    ok(r.status >= 500 && r.json.ok === false && (await su.query(`select count(*)::int n from public.users where id = $1`, [E2.id])).rows[0].n === 1,
+      `RPC yokken doğrudan purge → güvenli hata (${r.status}), hesap yerinde`);
   } finally {
     await proxy?.close().catch(() => undefined);
     await shim?.close().catch(() => undefined);

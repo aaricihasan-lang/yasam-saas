@@ -47,6 +47,20 @@ export function purgeEmailMatches(typed: unknown, actual: unknown): boolean {
   return a.length > 0 && normalizePurgeEmail(typed) === a;
 }
 
+/**
+ * Purge RPC'si veritabanında mevcut mu? (Kod migration'dan önce deploy edilirse buton gösterilmez.)
+ * Zararsız yoklama: tüm parametreler boş → fonksiyon HİÇBİR şey okumadan/yazmadan UP001 ile reddeder.
+ * PGRST202 / 42883 → fonksiyon yok.
+ */
+export async function isPurgeRpcAvailable(db: SupabaseClient): Promise<boolean> {
+  const { error } = await db.rpc("admin_purge_archived_expert", {
+    p_user_id: null,
+    p_actor_admin_id: null,
+    p_confirm_email: "",
+  });
+  return String((error as { code?: unknown } | null)?.code ?? "") === "UP001";
+}
+
 /** Owner'ın yazması gereken son onay ifadesi (aşama 3). */
 export const PURGE_FINAL_PHRASE = "KALICI OLARAK SİL";
 
@@ -74,6 +88,11 @@ export function purgeRpcError(error: unknown): { status: number; error: string }
     case "UP010":
       return { status: 409, error: "Bu uzmanın çalışma alanı paylaşımlı/sistem alanı olduğu için kalıcı silme yapılamaz." };
     case "UP020":
+      return {
+        status: 409,
+        error:
+          "Bu uzmanın tasarım gereği silinemeyen kayıtları var (ör. değişmez yöntem revizyonları); kalıcı silme yapılamadı. HİÇBİR veri silinmedi (işlem geri alındı).",
+      };
     case "UP021":
     case "UP022":
     case "UP023":

@@ -33,6 +33,8 @@ const PURGE_MIGRATION = "20271009100000_admin_purge_archived_expert.sql";
 const SYSTEM_TENANT = "00000000-0000-4000-8000-000000000001";
 
 const EXTRA_DDL = `
+-- Legacy prod deseni: tenant_id TEXT (ör. prod stone_exclusions).
+create table public.zz_text_tenant (id uuid primary key default gen_random_uuid(), tenant_id text not null, note text);
 create table public.zz_client_notes (
   id uuid primary key default gen_random_uuid(), tenant_id uuid not null,
   client_id uuid not null references public.clients(id) on delete restrict, body text
@@ -67,6 +69,11 @@ async function main(): Promise<void> {
   try {
     await su.query(EXTRA_DDL);
     await su.query(readMig("20270129000900_client_consents.sql"));
+    // Yöntem revizyonu guard'ı: repo'daki ORİJİNAL tanım (purge migration'ı bu fonksiyona dokunmaz).
+    const aromaMig = readMig("20260912000000_aromatherapy_catalog_method_foundation.sql");
+    const gStart = aromaMig.indexOf("CREATE FUNCTION public.aromatherapy_method_revision_guard()");
+    const gEnd = aromaMig.indexOf("$$;", aromaMig.indexOf("AS $$", gStart) + 5) + 3;
+    await su.query(aromaMig.slice(gStart, gEnd));
     await su.query(readMig(PURGE_MIGRATION));
     // İkinci uygulama (idempotent olmalı).
     await su.query(readMig(PURGE_MIGRATION));
@@ -95,7 +102,7 @@ async function main(): Promise<void> {
     };
 
     /** Bir uzmanın tenant'ına gerçekçi veri tohumlar; danışan id'lerini döner. */
-    const seed = async (u: Ids, actor: string) => {
+    const seed = async (u: Ids, actor: string, withRevision = false) => {
       const clients: string[] = [];
       for (let i = 0; i < 3; i++) {
         const r = await su.query(`insert into public.clients(tenant_id, full_name) values ($1,$2) returning id`, [u.tenant, `ZZ_DEL Danışan ${i}`]);
@@ -107,10 +114,13 @@ async function main(): Promise<void> {
           `insert into public.client_consents(tenant_id, client_id, consent_type, status, text_version, method, recorded_by_user_id)
            values ($1,$2,'aydinlatma_bildirildi','granted','v1','uygulama_onay',$3)`, [u.tenant, c, u.user]);
       }
-      const s = await su.query(`insert into public.aromatherapy_preparation_method_series(tenant_id) values ($1) returning id`, [u.tenant]);
-      await su.query(`insert into public.aromatherapy_preparation_method_revisions(tenant_id, series_id, method_text, note_hash)
-                      values ($1,$2,'yöntem',repeat('a',64))`, [u.tenant, s.rows[0].id]);
+      if (withRevision) {
+        const s = await su.query(`insert into public.aromatherapy_preparation_method_series(tenant_id) values ($1) returning id`, [u.tenant]);
+        await su.query(`insert into public.aromatherapy_preparation_method_revisions(tenant_id, series_id, method_text, note_hash)
+                        values ($1,$2,'yöntem',repeat('a',64))`, [u.tenant, s.rows[0].id]);
+      }
       await su.query(`insert into public.stone_exclusions(tenant_id, stone_id) values ($1,$2)`, [u.tenant, randomUUID()]);
+      await su.query(`insert into public.zz_text_tenant(tenant_id, note) values ($1,'lower'),(upper($1),'upper')`, [u.tenant]);
       await su.query(`insert into public.yasam_hafizasi_flags(tenant_id, yh_enabled) values ($1,true)`, [u.tenant]);
       await su.query(`insert into public.yasam_hafizasi_index(tenant_id, source_module, source_table, title) values ($1,'dy','clients','ZZ')`, [u.tenant]);
       await su.query(`insert into public.user_sessions(user_id, session_token, is_active) values ($1,$2,false)`, [u.user, `zz-del-${randomUUID()}`]);
@@ -156,7 +166,7 @@ async function main(): Promise<void> {
     const ADMIN2 = await mkUser({ role: "admin" });
     const INACTIVE_ADMIN = await mkUser({ role: "admin", active: false });
     const OTHER = await mkUser({ role: "expert" });            // başka (aktif) uzman — dokunulmamalı
-    await seed(OTHER, OWNER.user);
+    await seed(OTHER, OWNER.user, true);
     const otherBefore = await tenantCounts(OTHER.tenant);
 
     // ── A) Yetki ───────────────────────────────────────────────────────────────
@@ -221,6 +231,15 @@ async function main(): Promise<void> {
     ok(sum(await tenantCounts(T1.tenant)) === sum(t1Before), "UP020 → tam rollback");
     await su.query(`drop table public.zz_foreign_restrict`);
 
+    const T4 = await mkUser({ role: "expert", active: false });
+    await seed(T4, OWNER.user, true);
+    const t4Before = await tenantCounts(T4.tenant);
+    r = await purgeAs(null, OWNER.user, T4.user, T4.email);
+    ok(!r.ok && r.code === "UP020", `değişmez yöntem revizyonu olan uzman → UP020 fail-closed (${r.code})`);
+    ok(JSON.stringify(await tenantCounts(T4.tenant)) === JSON.stringify(t4Before) &&
+       (await su.query(`select count(*)::int n from public.users where id = $1`, [T4.user])).rows[0].n === 1,
+      "UP020 → tam rollback (hesap + tüm veri yerinde; revizyon değişmez kaldı)");
+
     // ── D) Başarılı purge ──────────────────────────────────────────────────────
     console.log("\n[D] Başarılı purge (owner)");
     const auditBefore = (await su.query(`select count(*)::int n from public.admin_audit_log where target_user_id = $1`, [T1.user])).rows[0].n;
@@ -250,7 +269,13 @@ async function main(): Promise<void> {
       purgeAudit.context?.purged_user_id === T1.user && purgeAudit.context?.purged_tenant_id === T1.tenant,
       "purge audit: user_deleted, aktör owner, silinen kimlik context'te");
     ok(!JSON.stringify(purgeAudit ?? {}).includes(T1.email), "purge audit e-posta (PII) içermiyor");
-    ok(Number((r.result as { total_rows?: number } | null)?.total_rows ?? 0) === 14, `sonuç toplam satır (doğrudan silinen; onamlar cascade) ${(r.result as { total_rows?: number } | null)?.total_rows}`);
+    ok((await su.query(`select count(*)::int n from public.zz_text_tenant where lower(tenant_id) = $1`, [T1.tenant])).rows[0].n === 0,
+      "text tenant_id tablosu (küçük + BÜYÜK harf kayıt) temizlendi");
+    ok((await su.query(`select count(*)::int n from public.zz_text_tenant where lower(tenant_id) = $1`, [OTHER.tenant])).rows[0].n === 2,
+      "text tenant_id tablosunda diğer tenant satırları yerinde");
+    ok(Array.isArray((r.result as { unsupported_tenant_tables?: unknown[] } | null)?.unsupported_tenant_tables) &&
+      ((r.result as { unsupported_tenant_tables: unknown[] }).unsupported_tenant_tables.length === 0), "kapsam dışı tenant tablosu yok");
+    ok(Number((r.result as { total_rows?: number } | null)?.total_rows ?? 0) === 14, `sonuç toplam satır (doğrudan silinen; onamlar cascade; +2 text tenant) ${(r.result as { total_rows?: number } | null)?.total_rows}`);
     ok((await su.query(`select count(*)::int n from public.admin_purge_context`)).rows[0].n === 0, "işaret tablosu boş (tx sonunda temizlendi)");
     r = await purgeAs(null, OWNER.user, T1.user, T1.email);
     ok(!r.ok && r.code === "UP004", `ikinci purge → UP004 (${r.code})`);
@@ -289,13 +314,14 @@ async function main(): Promise<void> {
     await expectErr(`delete from public.admin_audit_log`, [], "23514", "audit DELETE reddedilir");
     await expectErr(`update public.provisioning_events set target_user_id = null where target_user_id is not null`, [], "23514",
       "provisioning user → NULL (purge yok) reddedilir");
-    await expectErr(`delete from public.aromatherapy_preparation_method_revisions`, [], "P0001", "yöntem revizyonu DELETE reddedilir");
+    await expectErr(`delete from public.aromatherapy_preparation_method_revisions`, [], "P0001", "yöntem revizyonu DELETE reddedilir (guard'a dokunulmadı)");
     await expectErr(`update public.aromatherapy_preparation_method_revisions set method_text = 'x'`, [], "P0001", "yöntem revizyonu içerik UPDATE reddedilir");
     await su.query(`update public.aromatherapy_preparation_method_revisions set status = 'archived' where tenant_id = $1`, [OTHER.tenant]);
     ok(true, "yöntem revizyonu status UPDATE hâlâ serbest");
     // Başka bir tx'in işareti işe yaramaz (txid bağlı).
-    await su.query(`insert into public.admin_purge_context(txid, user_id, tenant_id) values (1, $1, $2)`, [OTHER.user, OTHER.tenant]);
-    await expectErr(`delete from public.aromatherapy_preparation_method_revisions where tenant_id = $1`, [OTHER.tenant], "P0001",
+    const auditTarget = (await su.query(`select target_user_id from public.admin_audit_log where target_user_id is not null limit 1`)).rows[0].target_user_id as string;
+    await su.query(`insert into public.admin_purge_context(txid, user_id, tenant_id) values (1, $1, null)`, [auditTarget]);
+    await expectErr(`update public.admin_audit_log set target_user_id = null where target_user_id = $1`, [auditTarget], "23514",
       "yabancı txid işareti istisna AÇMAZ");
     await su.query(`delete from public.admin_purge_context`);
 
