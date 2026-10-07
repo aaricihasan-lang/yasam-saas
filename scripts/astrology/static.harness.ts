@@ -164,6 +164,7 @@ async function main() {
       /^scripts\/final-hardening\/backup\.harness\.ts$/,
       /^package\.json$/,
       /^docs\/astrology\//,
+      /^ASTROLOGY-PHASE5-PROGRESS\.md$/,
     ];
     const outside = all.filter((p) => !allowed.some((r) => r.test(p)));
     assert.deepEqual(outside, [], `kapsam dışı değişiklik: ${outside.join(", ")}`);
