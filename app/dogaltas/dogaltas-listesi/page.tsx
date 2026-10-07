@@ -15,7 +15,6 @@ import {
   useState,
 } from "react";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
-import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -424,6 +423,9 @@ function DogaltasListesiPageContent() {
   const [listLoading, setListLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
+  // "Tümünü Seç" ile seçilen ama listede henüz yüklenmemiş taşların satırları (ad + sahiplik için).
+  const [scopeRows, setScopeRows] = useState<Map<string, StoneListItem>>(() => new Map());
+  const [selectingAll, setSelectingAll] = useState(false);
 
   // Detay filtreler için genişletilmiş veri (pagination yok, tüm taşlar)
   const [detailData, setDetailData] = useState<StoneListItemExtended[] | null>(null);
@@ -848,12 +850,27 @@ function DogaltasListesiPageContent() {
     return base.filter((s) => !excludedStoneIds.has(s.id));
   }, [stones, detailData, needsFullLoad, excludedStoneIds]);
 
-  // Arama/filtre değişince seçim görünür taşlarla kesişime budanır
-  // (değişiklik yoksa aynı Set döner → render döngüsü yok).
+  // Arama/filtre (kapsam) değişince seçim TEMİZLENİR — önceki kapsamdan gizli seçili kayıt kalmaz.
+  // ("Daha fazla yükle" kapsamı değiştirmez → "Tümünü Seç" ile yapılan seçim korunur.)
   useEffect(() => {
-    const visibleIds = filteredStones.map((s) => s.id);
-    runInEffect(() => setSelectedIds((prev) => pruneSelection(prev, visibleIds)));
-  }, [filteredStones]);
+    runInEffect(() => {
+      setSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
+      setScopeRows((prev) => (prev.size === 0 ? prev : new Map()));
+    });
+  }, [debouncedSearch, searchMode, detailFilters]);
+
+  // Gizlenen (kütüphane) taşlar seçimden düşer.
+  useEffect(() => {
+    if (excludedStoneIds.size === 0) return;
+    runInEffect(() =>
+      setSelectedIds((prev) => {
+        if (![...prev].some((id) => excludedStoneIds.has(id))) return prev;
+        const next = new Set(prev);
+        excludedStoneIds.forEach((id) => next.delete(id));
+        return next;
+      }),
+    );
+  }, [excludedStoneIds]);
 
   // F-016: görünen taşların kapak file_path'leri için TOPLU signed URL (private-read).
   // Liste lazy-load ile büyüdükçe yalnız eksik path'ler istenir → N+1 yok.
@@ -874,14 +891,51 @@ function DogaltasListesiPageContent() {
     detailLoading ||
     (isSearchActive && searchTerm.trim() !== debouncedSearch);
 
-  const selectAllFiltered = useCallback(() => {
+  /**
+   * "Tümünü Seç": sayfalı listede YÜKLÜ olanlarla sınırlı DEĞİL — aktif arama/filtre kapsamındaki
+   * TÜM taşlar seçilir (detay filtrede tam küme zaten istemcide; aksi halde sunucudan 500'lük
+   * sayfalarla toplanır; gizlenen kütüphane taşları hariç). Seçim açıktır: seçili sayı = gerçek küme.
+   */
+  const selectAllFiltered = useCallback(async () => {
     // FAZ-1: Mobilde "Tümünü Seç" sınırsız seçim yaptırmaz (max 2 kuralı).
     if (isMobile) {
       showToast({ type: "info", message: t("toast.maxSelectMobile") });
       return;
     }
-    setSelectedIds(new Set(filteredStones.map((stone) => stone.id)));
-  }, [filteredStones, isMobile, showToast, t]);
+    if (selectingAll) return;
+    if (needsFullLoad || stones.length >= totalCount) {
+      setSelectedIds(new Set(filteredStones.map((stone) => stone.id)));
+      return;
+    }
+    const tenantId = queryTenantId ?? (await getSyncedTenantId());
+    if (!tenantId) return;
+    setSelectingAll(true);
+    try {
+      const PAGE = 500;
+      const rows = new Map<string, StoneListItem>();
+      for (let offset = 0; offset < 100_000; offset += PAGE) {
+        const page = await fetchStonesListPage(tenantId, {
+          offset, limit: PAGE,
+          search: debouncedSearch.trim() || undefined, searchMode,
+        });
+        if (page.error) throw new Error(page.error);
+        for (const s of page.rows as StoneListItem[]) if (!excludedStoneIds.has(s.id)) rows.set(s.id, s);
+        if (page.rows.length < PAGE) break;
+      }
+      setScopeRows(rows);
+      setSelectedIds(new Set(rows.keys()));
+    } catch {
+      showToast({ type: "error", message: t("toast.selectAllFailed") });
+    } finally {
+      setSelectingAll(false);
+    }
+  }, [debouncedSearch, excludedStoneIds, filteredStones, isMobile, needsFullLoad, queryTenantId, searchMode, selectingAll, showToast, stones.length, t, totalCount]);
+
+  /** Seçili id → satır (yüklü liste veya "Tümünü Seç" ile toplanan kapsam). */
+  const stoneRowOf = useCallback(
+    (id: string): StoneListItem | undefined => filteredStones.find((s) => s.id === id) ?? scopeRows.get(id),
+    [filteredStones, scopeRows],
+  );
 
   const handleLoadMore = useCallback(() => {
     if (loadingMore || listLoading || !hasMore) return;
@@ -890,8 +944,11 @@ function DogaltasListesiPageContent() {
 
   const deleteSelectedStones = useCallback(async () => {
     if (deleteLoading) return;
-    // Yalnız görünür ∩ seçili: aramayla/filtreyle gizlenmiş seçili taş habersiz silinmez.
-    const targets = filteredStones.filter((s) => selectedIds.has(s.id));
+    // Seçim açıktır (kapsam değişince temizlenir) → silinecek küme tam olarak seçili taşlar.
+    const targets = [...selectedIds]
+      .filter((id) => !excludedStoneIds.has(id))
+      .map(stoneRowOf)
+      .filter((s): s is StoneListItem => Boolean(s));
     if (targets.length === 0) return;
     if (isDemo) {
       showToast({ type: "info", message: t("toast.demoAction") });
@@ -980,8 +1037,9 @@ function DogaltasListesiPageContent() {
 
     showToast({ type: "success", message: t("toast.removedCount", { count: deletedCount }) });
     setSelectedIds(new Set());
+    setScopeRows(new Map());
     if (ownIds.length > 0) await fetchList({ reset: true });
-  }, [deleteConfirm, deleteLoading, fetchList, filteredStones, queryTenantId, selectedIds, showToast, isDemo, t, tc, tf]);
+  }, [deleteConfirm, deleteLoading, excludedStoneIds, fetchList, queryTenantId, selectedIds, showToast, stoneRowOf, isDemo, t, tc, tf]);
 
   const loadedImages = useMemo(
     () =>
@@ -1004,7 +1062,7 @@ function DogaltasListesiPageContent() {
     try {
       let selectedStoneIds: string[] | undefined;
       if (mode === "selected") {
-        selectedStoneIds = visibleSelection(selectedIds, filteredStones.map((s) => s.id));
+        selectedStoneIds = [...selectedIds].filter((id) => !excludedStoneIds.has(id));
         if (!selectedStoneIds.length) { showToast({ type: "warning", message: t("toast.selectStoneFirst") }); return; }
       } else if (mode === "filtered") {
         if (isDetailFilterActive) {
@@ -1064,7 +1122,7 @@ function DogaltasListesiPageContent() {
     } finally {
       setWordBusy(false);
     }
-  }, [queryTenantId, selectedIds, filteredStones, isDetailFilterActive, debouncedSearch, searchMode, showToast, isDemo, t, tc, tf]);
+  }, [queryTenantId, selectedIds, excludedStoneIds, filteredStones, isDetailFilterActive, debouncedSearch, searchMode, showToast, isDemo, t, tc, tf]);
 
   return (
     <DogaltasSectionShell
@@ -1286,9 +1344,9 @@ function DogaltasListesiPageContent() {
                 totalCount={totalCount}
                 filteredCount={filteredStones.length}
                 hasActiveFilter={isSearchActive || isDetailFilterActive}
-                selectAllLabel={t("bulk.selectAll")}
-                selectAllCount={filteredStones.length}
-                onSelectAll={selectAllFiltered}
+                selectAllLabel={selectingAll ? t("bulk.selectingAll") : (isSearchActive || isDetailFilterActive ? t("bulk.selectAllResults") : t("bulk.selectAll"))}
+                selectAllCount={needsFullLoad ? filteredStones.length : totalCount}
+                onSelectAll={() => void selectAllFiltered()}
                 hideSelectAll={isMobile}
                 exportSelectedLabel={t("bulk.exportSelected")}
                 onClearSelection={clearSelection}

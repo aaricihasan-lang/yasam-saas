@@ -84,7 +84,7 @@
         "subtitle": "Mineral kayıtlarınızı görüntüleyin ve yönetin.",
         "totalLabel": "Toplam kayıt",
         "loadedTotal": "Yüklü / toplam",
-        "visibleResult": "Görünen sonuç",
+        "visibleResult": "Listelenen sonuç",
         "searchPlaceholder": "İsim, açıklama, fiziksel, zihinsel, fizyoloji veya taşlarda ara...",
         "categoryFilterAria": "Kategori filtresi",
         "allCategories": "Tüm kategoriler",
@@ -99,7 +99,7 @@
         "deleteSuccess": "{n} mineral başarıyla silindi.",
         "wordDownloadStarted": "Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz.",
         "wordFailed": "Word raporu oluşturulamadı. Lütfen tekrar deneyin.",
-        "selectAllLabel": "Görünenleri Seç",
+        "selectAllLabel": "Tümünü Seç",
         "exportSelectedLabel": "Seçilenleri Word'e Aktar",
         "loadingList": "Mineraller yükleniyor...",
         "emptyDbTitle": "Henüz mineral kaydı yok",
@@ -112,7 +112,10 @@
         "loadMore": "Daha Fazla Göster ({loaded} / {total})",
         "uncategorized": "Kategorisiz",
         "loadError": "Mineral kayıtları okunamadı: {error}",
-        "countError": "Kayıt sayısı alınamadı: {error}"
+        "countError": "Kayıt sayısı alınamadı: {error}",
+        "selectAllResults": "Sonuçların Tümünü Seç",
+        "selectingAll": "Tümü seçiliyor…",
+        "selectAllFailed": "Tüm mineraller seçilemedi. Lütfen tekrar deneyin."
       },
       "word": {
         "reportTitle": "Mineral Bankası Raporu",

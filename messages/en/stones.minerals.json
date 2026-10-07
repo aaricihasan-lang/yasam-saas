@@ -84,7 +84,7 @@
         "subtitle": "Browse and manage your mineral records.",
         "totalLabel": "Total records",
         "loadedTotal": "Loaded / total",
-        "visibleResult": "Visible results",
+        "visibleResult": "Listed results",
         "searchPlaceholder": "Search by name, description, physical, mental, physiology or stones…",
         "categoryFilterAria": "Category filter",
         "allCategories": "All categories",
@@ -99,7 +99,7 @@
         "deleteSuccess": "{n, plural, one {# mineral} other {# minerals}} deleted successfully.",
         "wordDownloadStarted": "The Word report download has started. You can find the file in your browser's Downloads.",
         "wordFailed": "Unable to generate the Word report. Please try again.",
-        "selectAllLabel": "Select Visible",
+        "selectAllLabel": "Select All",
         "exportSelectedLabel": "Export Selected to Word",
         "loadingList": "Loading minerals…",
         "emptyDbTitle": "No mineral records yet",
@@ -112,7 +112,10 @@
         "loadMore": "Show More ({loaded} / {total})",
         "uncategorized": "Uncategorized",
         "loadError": "Unable to load mineral records: {error}",
-        "countError": "Unable to get the record count: {error}"
+        "countError": "Unable to get the record count: {error}",
+        "selectAllResults": "Select All Results",
+        "selectingAll": "Selecting all…",
+        "selectAllFailed": "Could not select all minerals. Please try again."
       },
       "word": {
         "reportTitle": "Mineral Library Report",
