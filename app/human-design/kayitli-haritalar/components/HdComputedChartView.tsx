@@ -39,13 +39,14 @@ export function HdComputedChartView({
       {/* Masaüstü tek bakış: bilgi bloğu + sahne; sahne ekranın KALAN yüksekliğinin tamamını alır
           (üst bar ~3.5rem + kenar boşluğu düşülür). BodyGraph yükseklik-öncelikli büyür; küçültülmez.
           lg: bilgi bloğu sahnenin üstünde ince şerit · hdwide (geniş+yatay): solda dar kolon
-          [Bilgi] [Design] [BodyGraph] [Personality] — üst şerit kalkar, BodyGraph dikeyde büyür. */}
-      <div className="space-y-3 lg:flex lg:h-[calc(100dvh-5.25rem)] lg:min-h-[520px] lg:flex-col lg:gap-2 lg:space-y-0 hdwide:flex-row hdwide:gap-3" data-hd-onelook>
+          [Bilgi] [Design] [BodyGraph] [Personality] — üst şerit kalkar, BodyGraph dikeyde büyür.
+          hdwide'da kart yüzeyi dış kapsayıcıdadır: bilgi kolonu + sahne TEK harita kompozisyonu. */}
+      <div className="space-y-3 lg:flex lg:h-[calc(100dvh-5.25rem)] lg:min-h-[520px] lg:flex-col lg:gap-2 lg:space-y-0 hdwide:flex-row hdwide:gap-0 hdwide:rounded-2xl hdwide:border hdwide:border-indigo-200/70 hdwide:bg-gradient-to-b hdwide:from-white hdwide:to-indigo-50/40 hdwide:shadow-sm" data-hd-onelook>
       <HdChartInfoPanel result={result} codes={codes} subject={subject} />
 
       {/* Design | BodyGraph | Personality — masaüstünde tek bakış: BodyGraph yüksekliği ekrana göre
           ölçeklenir (Head→Root dikey kaydırmasız); mobilde BodyGraph üstte, altında iki sütun. */}
-      <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-b from-white to-indigo-50/40 p-3 shadow-sm lg:min-h-0 lg:flex-1 lg:px-4 lg:py-2 hdwide:min-w-0" data-hd-stage>
+      <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-b from-white to-indigo-50/40 p-3 shadow-sm lg:min-h-0 lg:flex-1 lg:px-4 lg:py-2 hdwide:min-w-0 hdwide:rounded-none hdwide:border-0 hdwide:bg-none hdwide:shadow-none" data-hd-stage>
         <div className="flex flex-wrap items-start justify-center gap-x-3 gap-y-4 lg:h-full lg:flex-nowrap lg:items-center lg:justify-center lg:gap-x-[clamp(20px,3vw,64px)] hdwide:gap-x-[clamp(16px,2vw,40px)]">
           <div className="order-2 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-rose-100 bg-white/90 p-2 lg:order-1 lg:w-[clamp(190px,17vw,280px)] lg:max-w-none lg:shrink-0 lg:p-3">
             <HdPlanetColumn activations={result.activations} side="design" />
