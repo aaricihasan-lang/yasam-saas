@@ -40,19 +40,14 @@ const delCode = stripJs(del);
 const bucketCode = stripSql(bucketMig);
 
 console.log("── UPLOAD ROUTE ──");
-check("verifyUserRequest çağrılır (oturumsuz → 401 guard)", /verifyUserRequest\(req\)/.test(upload) && /if \(!guard\.ok\) return guard\.response/.test(upload));
+// AŞAMA 3C: yeni manuel görsel yükleme KAPALI (410). Rota yalnız kimlik/modül kapısı + 410 döner;
+// depolamaya/DB'ye yazma kodu YOKTUR (görüntüleme + silme uçları aşağıda aynen denetlenir).
+check("kimlik + modül kapısı korunur (requireModuleAccess human_design)", /requireModuleAccess\(req, "human_design"\)/.test(upload) && /if \(!guard\.ok\) return guard\.response/.test(upload));
+check("yeni yükleme kapalı → 410 MANUAL_IMAGE_CLOSED", /status: 410/.test(upload) && /MANUAL_IMAGE_CLOSED/.test(upload));
 check("tenantId istekten OKUNMAZ (form.get('tenantId') yok)", !/get\(["']tenantId["']\)/.test(upload));
-check("tenant guard'dan alınır (guard.tenantId)", /guard\.tenantId/.test(upload));
-check("demo yazma bloğu guard'dan", /guard\.is_demo_account/.test(upload));
-check("MIME allow-list (jpeg/png/webp)", /image\/jpeg/.test(upload) && /image\/png/.test(upload) && /image\/webp/.test(upload) && /EXT_BY_MIME\[file\.type\]/.test(upload));
-check("5 MB sınırı", /5 \* 1024 \* 1024/.test(upload));
-check("dosya adı kullanıcıdan alınmaz — uuid path", /crypto\.randomUUID\(\)/.test(upload) && /\$\{guard\.tenantId\}\/\$\{clientId\}\//.test(upload));
+check("depolamaya yazma YOK (storage upload / formData yok)", !/\.upload\(/.test(upload) && !/formData\(\)/.test(upload) && !/storage\.from/.test(upload));
+check("DB'ye yazma YOK (update/insert yok)", !/\.update\(|\.insert\(/.test(upload));
 check("DB'ye publicUrl YAZILMAZ (getPublicUrl yok)", !/getPublicUrl/.test(upload));
-check("DB'ye storagePath yazılır", /chart_image_url: storagePath/.test(upload));
-check("response'ta storagePath DÖNMEZ (yalnız hasImage + signedUrl)", /\{ ok: true, hasImage: true, signedUrl \}/.test(upload) && !/ok: true, storagePath/.test(upload));
-check("danışan sahipliği tenant-scoped", /\.eq\("tenant_id", guard\.tenantId\)/.test(upload));
-check("eski dosya temizliği paylaşımlı sahiplik-predicate'i ile", /isOwnedChartImagePath\(previousPath, guard\.tenantId, clientId\)/.test(upload));
-check("ham hata metni sızmaz (genel mesaj)", /Görsel yüklenemedi/.test(upload) && !/uploadError\.message\s*\}/.test(upload));
 check("bucket oluşturma/ayar değişikliği yok (createBucket/updateBucket yok)", !/createBucket|updateBucket/.test(upload));
 check("yanıt no-store", /Cache-Control["']\s*:\s*["']no-store/.test(upload));
 
@@ -91,7 +86,7 @@ const helper = read("lib/human-design/api/chartImagePath.ts");
 check("isOwnedChartImagePath export edilir", /export function isOwnedChartImagePath/.test(helper));
 check("http(s) legacy → sahiplenilmez (predicate içinde)", /isHttpUrl\(p\)\)?\s*return false/.test(helper) || /if \(isHttpUrl\(p\)\) return false/.test(helper));
 check("prefix tam eşleşme ({tenant}/{client}/)", /startsWith\(`\$\{tenantId\}\/\$\{clientId\}\/`\)/.test(helper));
-check("3 route da paylaşımlı predicate'i kullanır", /isOwnedChartImagePath/.test(upload) && /isOwnedChartImagePath/.test(del) && /isOwnedChartImagePath/.test(signed));
+check("silme + signed-url route'ları paylaşımlı predicate'i kullanır (upload AŞAMA 3C'de kapalı)", /isOwnedChartImagePath/.test(del) && /isOwnedChartImagePath/.test(signed));
 
 console.log("── MIGRATION A (tablo kilidi) ──");
 check("5 HD tablosu hedeflenir", ["human_design_clients","human_design_charts","human_design_knowledge_records","human_design_reports","human_design_knowledge"].every((t) => lockMig.includes(t)));

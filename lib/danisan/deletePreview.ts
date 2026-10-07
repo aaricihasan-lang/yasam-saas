@@ -6,8 +6,13 @@
  * + client_stone_photos (client_stones üzerinden cascade) + Yaşam Hafızası rapor
  * snapshot'ları (migration 20270129000500 ile composite FK CASCADE).
  *
- * Numeroloji / Human Design / Refleksoloji / Biyoenerji kayıtları danışana FK ile
- * BAĞLI DEĞİLDİR → silinmez; onay ekranında ayrıca belirtilir.
+ * Numeroloji / Refleksoloji / Biyoenerji kayıtları danışana FK ile BAĞLI DEĞİLDİR → silinmez;
+ * onay ekranında ayrıca belirtilir.
+ *
+ * HUMAN DESIGN (AŞAMA 3C, migration 20271010000100): danışana BAĞLANMIŞ HD profili bileşik FK
+ * (ON DELETE CASCADE) ile silinir; profilin BEFORE DELETE trigger'ı o profile ait haritaları
+ * (provider_raw dahil) ve raporları aynı transaction'da siler. Bağlanmamış HD kayıtları etkilenmez.
+ * Sayım: hdProfiles / hdCharts / hdReports.
  *
  * BESLENME PLANLARI: nutrition_plan_clients bağı clients FK ile cascade silinir ve AFTER DELETE
  * trigger'ı (nutrition_plan_clients_cascade_plans, migration 20270102000400 — "client silinince
@@ -17,13 +22,14 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseClientNotes } from "@/lib/clientNotes";
+import { countHdForJourneyClient } from "@/lib/human-design/api/journeyLink";
 
 /**
  * Sayılan tablolar (anahtar = i18n `clients.detail.deletePreview.table.<key>`).
  * `via: "planFamily"` → satır client_id ile değil, danışana bağlı plan AİLELERİ
  * (nutrition_plan_clients.plan_family_id) üzerinden sayılır (tenant-scoped).
  */
-export const DELETE_PREVIEW_TABLES: ReadonlyArray<{ key: string; table: string; via?: "planFamily" }> = [
+export const DELETE_PREVIEW_TABLES: ReadonlyArray<{ key: string; table: string; via?: "planFamily" | "hdJourney" }> = [
   { key: "appointments", table: "appointments" },
   { key: "sessions", table: "client_sessions" },
   { key: "homeworks", table: "client_homeworks" },
@@ -49,10 +55,15 @@ export const DELETE_PREVIEW_TABLES: ReadonlyArray<{ key: string; table: string; 
   // Anamnez V1 (migration 20270202000000; composite FK CASCADE). Belgeler Storage'dan da silinir.
   { key: "anamneses", table: "client_anamneses" },
   { key: "anamnesisFiles", table: "client_anamnesis_attachments" },
+  // Human Design (AŞAMA 3C): danışana BAĞLI HD profili + o profile ait analizler/raporlar
+  // (bileşik FK CASCADE + BEFORE DELETE trigger). Sayım bağlı profil üzerinden (tenant-scoped).
+  { key: "hdProfiles", table: "human_design_clients", via: "hdJourney" },
+  { key: "hdCharts", table: "human_design_charts", via: "hdJourney" },
+  { key: "hdReports", table: "human_design_reports", via: "hdJourney" },
 ];
 
 /** Danışana bağlı OLMAYAN (silinmeyen) modüller. */
-export const UNLINKED_MODULES = ["Numeroloji", "Human Design", "Refleksoloji", "Biyoenerji"] as const;
+export const UNLINKED_MODULES = ["Numeroloji", "Refleksoloji", "Biyoenerji"] as const;
 
 export type DeletePreviewNotes = {
   noteCount: number;
@@ -80,9 +91,18 @@ export async function collectDeletePreview(
 ): Promise<DeletePreview> {
   let partial = false;
 
+  const hdCounts = countHdForJourneyClient(db, tenantId, clientId).catch(() => null);
   const counts = await Promise.all(
     DELETE_PREVIEW_TABLES.map(async ({ key, table, via }) => {
       try {
+        if (via === "hdJourney") {
+          const hd = await hdCounts;
+          if (hd === null) {
+            partial = true;
+            return { key, count: null };
+          }
+          return { key, count: key === "hdProfiles" ? hd.profiles : key === "hdCharts" ? hd.charts : hd.reports };
+        }
         if (via === "planFamily") {
           const n = await countPlanRevisionsForClient(db, tenantId, clientId);
           if (n === null) partial = true;

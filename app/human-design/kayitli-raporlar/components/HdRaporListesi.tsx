@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
-import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
@@ -41,13 +40,8 @@ export function HdRaporListesi() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   // Profesyonel (canonical) Word indirme TÜM HD uzmanlarına açıktır (sunucu modül kapısı).
-  // isAdmin yalnız eski "Rapor Oluştur" hattının boş-durum bağlantısı için kullanılır.
-  const [isAdmin, setIsAdmin] = useState(false);
+  // AŞAMA 3C: boş durum eski "Rapor Oluştur" hattına değil Human Design Hesaplama'ya yönlendirir.
   const isAndroid = useIsAndroid();
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsAdmin(isAdminUser(readYasamUser()));
-  }, []);
 
   async function handleDownload(row: HdReportWithClient) {
     setDownloadingId(row.id);
@@ -144,10 +138,10 @@ export function HdRaporListesi() {
           </p>
           {!search && (
             <Link
-              href={isAdmin ? "/human-design/rapor-olustur" : "/human-design/kayitli-haritalar"}
+              href="/human-design/danisanlar"
               className="mt-3 inline-flex h-9 items-center rounded-xl border border-fuchsia-300/80 bg-gradient-to-r from-fuchsia-600 to-violet-600 px-5 text-sm font-black text-white no-underline shadow-sm transition hover:brightness-105"
             >
-              {isAdmin ? "Rapor Oluştur" : isAndroid ? "Kayıtlı Haritalar" : "Kayıtlı Haritalar → Profesyonel Word"}
+              Human Design Hesaplama
             </Link>
           )}
         </div>

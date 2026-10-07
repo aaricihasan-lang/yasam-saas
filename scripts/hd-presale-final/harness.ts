@@ -469,10 +469,11 @@ const later = (iso: string, ms = 5) => new Date(Date.parse(iso) + ms).toISOStrin
   });
 
   console.log("\n== P2-6: görsel yükleme sınırı ==");
-  await t("sınır Vercel gövde sınırının (4.5 MB) altında ve tek kaynak", () => {
+  await t("sınır Vercel gövde sınırının (4.5 MB) altında; AŞAMA 3C: yeni manuel görsel yükleme KAPALI (410)", () => {
     assert(HD_CHART_IMAGE_MAX_BYTES <= 4 * 1024 * 1024, "sınır yüksek");
     const route = src("app/api/hd/upload-chart-image/route.ts");
-    assert(/MAX_BYTES = HD_CHART_IMAGE_MAX_BYTES/.test(route) && /fail\(413, HD_CHART_IMAGE_TOO_LARGE_MESSAGE\)/.test(route), "rota tek kaynağı kullanmıyor");
+    // AŞAMA 3C ürün kararı: yeni manuel harita görseli yükleme kapatıldı (kimlik kapısından sonra 410).
+    assert(/requireModuleAccess\(req, "human_design"\)/.test(route) && /status: 410/.test(route) && /MANUAL_IMAGE_CLOSED/.test(route), "yükleme ucu kapatılmamış");
     const comp = src("app/human-design/danisanlar/components/HdChartImageUpload.tsx");
     assert(/shrinkImage/.test(comp) && /res\.status === 413/.test(comp) && !/"Yükleme başarısız\."/.test(comp), "istemci 413/küçültme yok");
   });
@@ -619,8 +620,9 @@ const later = (iso: string, ms = 5) => new Date(Date.parse(iso) + ms).toISOStrin
   });
   await t("P2-3: hub Word vaadi Android'de gizli (.no-android) + Kayıtlı Raporlar'da Özet", () => {
     const h = src("app/human-design/components/HdHubModules.tsx");
-    assert(/<span className="no-android">Kayıtlı Haritalar → Profesyonel Word<\/span>/.test(h) && /isAndroid && /.test(h), "hub metni");
-    assert(/androidDesc/.test(src("app/human-design/page.tsx")), "kart Android açıklaması yok");
+    // AŞAMA 3C: hub iki çalışma alanına indi; Word vaadi içeren üst şerit kaldırıldı. Android metin
+    // mekanizması (androidDesc → .no-android / isAndroid) korunur.
+    assert(!/Kayıtlı Haritalar → Profesyonel Word/.test(h) && /<span className="no-android">\{mod\.desc\}<\/span>/.test(h) && /isAndroid && mod\.androidDesc/.test(h), "hub metni");
     const rl = src("app/human-design/kayitli-raporlar/components/HdRaporListesi.tsx");
     assert(/setSummaryId\(row\.id\)/.test(rl) && /HdProfessionalSummaryModal/.test(rl), "Android'de yalnız Sil");
   });

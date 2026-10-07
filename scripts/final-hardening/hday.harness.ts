@@ -423,7 +423,7 @@ async function main() {
   }
 
   // ─── HD: manuel harita kaydı route (uyarı sonrası kayıt) ──────────────────
-  section("HD · manuel harita kaydı (allow-list 400, tutarsızlık engel değil)");
+  section("HD · manuel harita kaydı (AŞAMA 3C: yeni kayıt kapalı, 410)");
   {
     const T1 = "11111111-1111-4111-8111-111111111111";
     const db = new FakeDb();
@@ -432,20 +432,20 @@ async function main() {
     currentGuard = guardFor(db, { tenantId: T1 });
     const charts = req("../../app/api/hd/charts/route.ts") as { POST: (r: unknown) => Promise<Response> };
     const U = "http://localhost/api/hd/charts?scope=manual";
+    // AŞAMA 3C: yeni manuel harita kaydı sunucuda KAPALI → 410, satır YAZILMAZ (eski kayıtlar okunur).
     let res = await charts.POST(jsonReq(U, "POST", {
       client_id: "c-1", type_code: "reflector", authority_code: "sacral", active_centers: ["sacral"], open_centers: [],
       gates: [1], channels: ["1-8"], profile_code: null, definition_code: null, notes: null,
     }));
     let body = (await res.json()) as Record<string, unknown>;
-    ok(res.status === 200 && body.ok === true && typeof body.id === "string" && db.tables.human_design_charts.length === 1,
-      "tutarsız manuel harita KAYDEDİLİR (200 + id → Profesyonel Word CTA)");
+    ok(res.status === 410 && body.code === "MANUAL_CHART_CLOSED" && db.tables.human_design_charts.length === 0,
+      "manuel harita POST kapalı (410 MANUAL_CHART_CLOSED, kayıt YOK)");
     res = await charts.POST(jsonReq(U, "POST", { client_id: "c-1", type_code: "wizard" }));
     body = (await res.json()) as Record<string, unknown>;
-    ok(res.status === 400 && body.code === "INVALID_CHART_CODE", "bilinmeyen kod → 400 INVALID_CHART_CODE");
-    const form = code("app/human-design/harita-kaydi/components/HdHaritaKaydiContent.tsx");
-    ok(/checkManualChartConsistency\(form\)/.test(form) && /Tutarsızlık uyarıları/.test(form) && /"Yine de Kaydet"/.test(form),
-      "form: amber uyarı paneli + engellemeyen 'Yine de Kaydet' onayı");
-    ok(/<HdProfessionalReportButton chartId=\{savedChartId\} label="Profesyonel Word oluştur"/.test(form), "kayıt sonrası 'Profesyonel Word oluştur' CTA");
+    ok(res.status === 410 && db.tables.human_design_charts.length === 0, "geçersiz kodla da 410 (doğrulamaya girmeden kapalı)");
+    const page = code("app/human-design/harita-kaydi/page.tsx");
+    ok(/Yeni manuel Human Design kaydı artık kullanılmıyor/.test(page) && !/HdHaritaKaydiContent/.test(page),
+      "harita-kaydi sayfası 404 değil: bilgi mesajı, eski form render EDİLMEZ");
   }
 
   // ─── HD: UI kapıları ───────────────────────────────────────────────────────
@@ -457,8 +457,11 @@ async function main() {
     ok(/isCanonical \?[\s\S]{0,700}!isAndroid \?/.test(list), "Kayıtlı Raporlar: canonical Word İndir uzmana açık");
     const hub = code("app/human-design/page.tsx");
     const hubCards = code("app/human-design/components/HdHubModules.tsx");
-    ok(/href: "\/human-design\/rapor-olustur",\s*adminOnly: true/.test(hub), "hub: 'Rapor Oluştur' kartı adminOnly (route korunur)");
-    ok(/Kayıtlı Haritalar → Profesyonel Word/.test(hubCards) && /!m\.adminOnly \|\| isAdmin/.test(hubCards), "hub ana CTA + adminOnly filtresi");
+    // AŞAMA 3C: hub yalnız iki çalışma alanı (Hesaplama + Bilgi Bankası); Rapor Oluştur kartı ve
+    // "Kayıtlı Haritalar → Profesyonel Word" şeridi herkes için kaldırıldı (eski route'lar korunur).
+    const hubHrefs = [...hub.matchAll(/href: "([^"]+)"/g)].map((m) => m[1]);
+    ok(JSON.stringify(hubHrefs) === JSON.stringify(["/human-design/danisanlar", "/human-design/bilgi-bankasi"]), "hub: yalnız Hesaplama + Bilgi Bankası kartları");
+    ok(!/Kayıtlı Haritalar → Profesyonel Word/.test(hubCards) && !/adminOnly/.test(hubCards.replace(/\/\/.*$/gm, "")), "hub: eski CTA şeridi + adminOnly filtresi yok");
     ok(read("app/human-design/rapor-olustur/page.tsx").length > 0, "eski rapor-olustur route'u KORUNDU");
   }
 

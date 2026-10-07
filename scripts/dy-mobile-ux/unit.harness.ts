@@ -28,11 +28,11 @@ ok(ids.indexOf("randevular") > ids.indexOf("beslenme"), "Randevular Beslenme'den
 ok(ids[ids.length - 1] === "randevular", "Randevular son sekme");
 ok(
   JSON.stringify([...ids].sort()) ===
-    JSON.stringify(["analizler", "anamnez", "beslenme", "genel", "hafiza", "notlar", "odevler", "randevular", "seanslar", "taslar", "ucretlendirme", "yolculuk"]),
+    JSON.stringify(["analizler", "anamnez", "beslenme", "genel", "hafiza", "humandesign", "notlar", "odevler", "randevular", "seanslar", "taslar", "ucretlendirme", "yolculuk"]), // AŞAMA 3C: + humandesign
   "sekme kümesi aynı (hiçbir sekme kaybolmadı)",
 );
 ok((CLIENT_DETAIL_TABS as readonly string[]).includes("randevular") && (CLIENT_DETAIL_TABS as readonly string[]).includes("odevler"), "?tab= allowlist randevular + odevler");
-ok(JSON.stringify(ids.filter((x) => x !== "randevular")) === JSON.stringify(["genel", "anamnez", "notlar", "taslar", "seanslar", "ucretlendirme", "odevler", "analizler", "yolculuk", "hafiza", "beslenme"]),
+ok(JSON.stringify(ids.filter((x) => x !== "randevular")) === JSON.stringify(["genel", "anamnez", "notlar", "taslar", "seanslar", "ucretlendirme", "odevler", "analizler", "yolculuk", "hafiza", "beslenme", "humandesign"]),
   "diğer sekmelerin göreli sırası korunuyor");
 
 console.log("\n[2] Liste önbelleği — silme sonrası Aktif Uyarı");

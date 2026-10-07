@@ -58,6 +58,7 @@ const HomeworkTab = dynamic(() => import("./components/HomeworkTab"), { loading:
 const AnalizlerTab = dynamic(() => import("./components/AnalizlerTab"), { loading: TabSkeleton, ssr: false });
 const YolculukTab = dynamic(() => import("./components/YolculukTab"), { loading: TabSkeleton, ssr: false });
 const ClientMemoryTab = dynamic(() => import("./components/ClientMemoryTab"), { loading: TabSkeleton, ssr: false });
+const HumanDesignTab = dynamic(() => import("./components/HumanDesignTab"), { loading: TabSkeleton, ssr: false });
 const BeslenmeTab = dynamic(() => import("./components/BeslenmeTab"), { loading: TabSkeleton, ssr: false });
 const AnamnezTab = dynamic(() => import("./components/AnamnezTab"), { loading: TabSkeleton, ssr: false });
 const MemoryPicker = dynamic(() => import("@/components/yasam-hafizasi/MemoryPicker"), { ssr: false });
@@ -693,6 +694,9 @@ function ClientDetailPageInner() {
       ].filter((x): x is string => !!x);
       if (general.length > 0) lines.push(`• ${t("delete.generalLine", { fields: general.join(", ") })}`);
       parts.push(lines.length > 0 ? `${t("delete.previewHeader")}\n${lines.join("\n")}` : t("delete.previewEmpty"));
+      // AŞAMA 3C: danışana bağlı Human Design profili varsa açık uyarı (kalıcı silme kapsamında).
+      const hdProfiles = preview.counts.find((c) => c.key === "hdProfiles")?.count;
+      if (typeof hdProfiles === "number" && hdProfiles > 0) parts.push(t("delete.hdWarning"));
       if (preview.partial) parts.push(t("delete.previewPartial"));
     }
     parts.push(t("delete.unlinked"));
@@ -1202,6 +1206,11 @@ function ClientDetailPageInner() {
           {openedTabs.has("hafiza") && canSeeTab("hafiza") && (
           <div role="tabpanel" id="tabpanel-hafiza" aria-labelledby="tab-hafiza" hidden={activeTab !== "hafiza"}>
             <ClientMemoryTab clientId={client.id} clientName={fullName || t("clientFallback")} />
+          </div>
+          )}
+          {openedTabs.has("humandesign") && canSeeTab("humandesign") && (
+          <div role="tabpanel" id="tabpanel-humandesign" aria-labelledby="tab-humandesign" hidden={activeTab !== "humandesign"}>
+            <HumanDesignTab clientId={client.id} />
           </div>
           )}
           {openedTabs.has("beslenme") && (

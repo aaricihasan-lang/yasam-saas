@@ -273,15 +273,18 @@ async function main(): Promise<void> {
     // ── HUMAN DESIGN ────────────────────────────────────────────────────────────
     console.log("\n[human_design] HD danışanları");
     const hdClientsRoute = await import("../../app/api/hd/clients/route");
+    // AŞAMA 3C: eski serbest HD danışan POST'u kapalı (410 NEW_CLIENT_FLOW_REQUIRED) → olay YOK.
+    // Yeni profil merkezî akıştan (/api/hd/clients/journey) gelir; burada profil doğrudan tohumlanır
+    // (migration öncesi şema = kod-önce-migration senaryosu: update/delete olayları aynen çalışmalı).
     const h1 = await call(hdClientsRoute.POST as unknown as Handler, "POST", "/api/hd/clients", U1, { name: `${SENTINEL} HD`, notes: SENTINEL, birth_date: "1990-01-01" });
-    const hdId = String(h1.json?.id ?? (h1.json?.client as { id?: string } | undefined)?.id ?? "");
-    ok(h1.status < 300 && await count("human_design", "record_created", "client") === 1, `HD danışan create (${h1.status}) → 1 record_created:client`);
+    ok(h1.status === 410 && h1.json?.code === "NEW_CLIENT_FLOW_REQUIRED" && await count("human_design", "record_created", "client") === 0 && await count("human_design", "action_failed") === 0, `eski HD danışan POST kapalı (${h1.status}) → olay YOK`);
+    const hdId = String((await su.query(`insert into public.human_design_clients(tenant_id, name, notes, birth_date) values ($1,$2,$3,'1990-01-01') returning id`, [T1, `${SENTINEL} HD`, SENTINEL])).rows[0].id);
     const h2 = await call(hdClientsRoute.PATCH as unknown as Handler, "PATCH", `/api/hd/clients?id=${hdId}`, U1, { id: hdId, notes: `${SENTINEL} yeni` });
     ok(h2.status < 300 && await count("human_design", "record_updated", "client") === 1, `HD danışan update (${h2.status}) → 1 record_updated`);
     const h3 = await call(hdClientsRoute.DELETE as unknown as Handler, "DELETE", `/api/hd/clients?id=${hdId}`, U1, { id: hdId });
     ok(h3.status < 300 && await count("human_design", "record_deleted", "client") === 1, `HD danışan delete (${h3.status}) → 1 record_deleted`);
     const hBad = await call(hdClientsRoute.POST as unknown as Handler, "POST", "/api/hd/clients", U1, { notes: "isim yok" });
-    ok(hBad.status === 400 && await count("human_design", "record_created", "client") === 1 && await count("human_design", "action_failed") === 0, "doğrulama hatası (400) → ne başarı ne hata olayı");
+    ok(hBad.status === 410 && await count("human_design", "record_created", "client") === 0 && await count("human_design", "action_failed") === 0, "kapalı POST (410) → ne başarı ne hata olayı");
 
     // ── BESLENME ────────────────────────────────────────────────────────────────
     console.log("\n[beslenme] plan create / update / delete");

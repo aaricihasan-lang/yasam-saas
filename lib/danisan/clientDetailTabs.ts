@@ -41,6 +41,9 @@ export const CLIENT_DETAIL_TAB_DEFS = [
   // (merkezî hasModulePermission; admin geçer). İzinsiz uzman sekmeyi görmez → 403 ekranı yok.
   { id: "hafiza", labelKey: "hafiza", color: "#7c3aed", requiresModule: "yasam_hafizasi" },
   { id: "beslenme", labelKey: "beslenme", color: "#059669" },
+  // AŞAMA 3C: danışana bağlı Human Design analiz geçmişi (özet + "Analizi Aç"). Yalnız human_design
+  // izni olan kullanıcıya görünür; veri HD'de kalır (kopyalanmaz).
+  { id: "humandesign", labelKey: "humandesign", color: "#4338ca", requiresModule: "human_design" },
   // Owner kararı 2026-10-07: uzman önce değerlendirir (analiz/seans/ödev/taş/beslenme), randevuyu SONRA
   // planlar → Randevular Beslenme'den sonra. Yalnız SIRA değişti; id/?tab=/içerik aynı.
   { id: "randevular", labelKey: "randevular", color: "#db2777" },
