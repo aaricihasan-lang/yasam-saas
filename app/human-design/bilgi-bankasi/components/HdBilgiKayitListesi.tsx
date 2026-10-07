@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
 import { HD_KNOWLEDGE_CATEGORIES } from "@/lib/human-design/constants";
 import {
   listHdKnowledgeRecords,
@@ -140,15 +141,22 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
   async function handleDeleteSelected() {
     const ids = [...visibleSelectedIds];
     if (ids.length === 0 || bulkRef.current) return;
-    const ok = await confirm({
-      title: `${ids.length} kaydı sil`,
-      message: "Ekranda seçili kayıtlar ve bunlara bağlı kaynaklar kalıcı olarak silinecek. Kayıtlı raporlarınız etkilenmez. Emin misiniz?",
-      tone: "danger",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
-    });
-    if (!ok) return;
-    bulkRef.current = true;
+    bulkRef.current = true; // onay süresince de kilitli → çift tıklama ikinci akış açmaz
+    const message =
+      "Ekranda seçili kayıtlar ve bunlara bağlı kaynaklar kalıcı olarak silinecek. Kayıtlı raporlarınız etkilenmez.";
+    const ok = requiresBulkDeleteGuard(ids.length)
+      ? await runBulkDeleteConfirm(confirm, { count: ids.length, detail: message })
+      : await confirm({
+          title: `${ids.length} kaydı sil`,
+          message: `${message} Emin misiniz?`,
+          tone: "danger",
+          confirmText: "Sil",
+          cancelText: "Vazgeç",
+        });
+    if (!ok) {
+      bulkRef.current = false;
+      return;
+    }
     setBulkBusy(true);
     const { error } = await deleteHdKnowledgeRecords(ids);
     bulkRef.current = false;

@@ -18,6 +18,7 @@ import {
   Search,
   Shield,
   SlidersHorizontal,
+  Trash2,
   Users,
 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -65,6 +66,7 @@ import {
   SecurityExemptBadge,
 } from "@/components/admin/members/MemberBadges";
 import { ModuleCheckboxGrid } from "@/components/admin/members/ModuleCheckboxGrid";
+import { ExpertPurgeDialog, type PurgeResult, type PurgeTarget } from "@/components/admin/members/ExpertPurgeDialog";
 import { clearYasamUser, isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 
 // ── Filtre seçenekleri (MEM-018: ham enum gösterilmez) ─────────────────────────
@@ -466,11 +468,14 @@ function ArchiveUserRow({
   deactivation,
   onReactivate,
   reactivating,
+  onPurge,
 }: {
   user: ManagedUser;
   deactivation?: DeactivationInfo;
   onReactivate: (user: ManagedUser) => void;
   reactivating: boolean;
+  /** Yalnız sistem sahibine verilir (owner-only kalıcı silme); yoksa buton render edilmez. */
+  onPurge?: (user: ManagedUser) => void;
 }) {
   return (
     <article className="flex min-w-0 flex-col gap-3 rounded-2xl border-2 border-slate-200/80 bg-white/95 px-4 py-4 shadow-sm transition hover:border-amber-200/80 hover:shadow-md sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-5">
@@ -505,6 +510,18 @@ function ArchiveUserRow({
           {reactivating ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <RotateCcw className="h-4 w-4" aria-hidden />}
           Yeniden Aktifleştir
         </button>
+        {onPurge ? (
+          <button
+            type="button"
+            onClick={() => onPurge(user)}
+            disabled={reactivating}
+            data-testid="archive-purge-button"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-rose-300/90 bg-rose-50 px-4 text-sm font-black text-rose-800 transition hover:border-rose-400 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden />
+            Kalıcı Sil
+          </button>
+        ) : null}
         <Link
           href={`/admin/users/${encodeURIComponent(user.id)}`}
           className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-violet-300/90 bg-gradient-to-r from-violet-50 to-indigo-50 px-4 text-sm font-black text-violet-950 no-underline transition hover:border-violet-400"
@@ -544,7 +561,7 @@ type ListState =
 
 type ArchiveState =
   | { kind: "loading" }
-  | { kind: "ready"; users: ManagedUser[]; deactivations: Record<string, DeactivationInfo> }
+  | { kind: "ready"; users: ManagedUser[]; deactivations: Record<string, DeactivationInfo>; canPermanentDelete: boolean }
   | { kind: "error"; failure: FetchFailureKind };
 
 /** İstek anahtarına bağlı sonuç: anahtar değişince türetilmiş durum otomatik "loading" olur. */
@@ -609,6 +626,7 @@ function AdminUsersContent() {
   const [formModules, setFormModules] = useState<Set<AdminModuleUiKey>>(() => new Set());
   const [formOpen, setFormOpen] = useState(false);
   const [reactivatingId, setReactivatingId] = useState<string>("");
+  const [purgeTarget, setPurgeTarget] = useState<PurgeTarget | null>(null);
 
   // Geçmiş davranışı: filtre / sayfa / sayfa boyutu / sekme / temizle → router.push (tarayıcı
   // Geri/İleri her adımı geri getirir). Arama yazımı: bir yazma oturumunun İLK değişikliği push,
@@ -707,8 +725,17 @@ function AdminUsersContent() {
           setArchive({ kind: "error", failure: classifyFetchFailure(res.status) });
           return;
         }
-        const json = (await res.json()) as { users?: Record<string, unknown>[]; deactivations?: Record<string, DeactivationInfo> };
-        setArchive({ kind: "ready", users: (json.users ?? []).map((r) => mapDbUser(r)), deactivations: json.deactivations ?? {} });
+        const json = (await res.json()) as {
+          users?: Record<string, unknown>[];
+          deactivations?: Record<string, DeactivationInfo>;
+          viewer?: { canPermanentDelete?: boolean };
+        };
+        setArchive({
+          kind: "ready",
+          users: (json.users ?? []).map((r) => mapDbUser(r)),
+          deactivations: json.deactivations ?? {},
+          canPermanentDelete: json.viewer?.canPermanentDelete === true,
+        });
       })
       .catch((e: unknown) => {
         if ((e as { name?: string })?.name === "AbortError") return;
@@ -750,6 +777,26 @@ function AdminUsersContent() {
       title: "Yeniden aktifleştirildi",
       message: `${target.fullName} aktif üyelere döndü. Eski oturumlar kapalıdır; yeniden giriş yapması gerekir.`,
       type: "success",
+    });
+    setReloadTick((n) => n + 1);
+  }
+
+  function handlePurged(target: PurgeTarget, result: PurgeResult) {
+    setPurgeTarget(null);
+    // Liste ANINDA güncellenir (hayalet satır yok), ardından sayaçlar sunucudan tazelenir.
+    setArchiveResult((prev) =>
+      prev && prev.state.kind === "ready"
+        ? { ...prev, state: { ...prev.state, users: prev.state.users.filter((u) => u.id !== target.id) } }
+        : prev,
+    );
+    showToast({
+      title: "Uzman kalıcı olarak silindi",
+      message:
+        `${target.fullName} hesabı ve ${result.deletedRows} ilişkili kayıt silindi` +
+        (result.storageFailures > 0
+          ? `. Uyarı: ${result.storageFailures} dosya grubu silinemedi; teknik destekle kontrol edin.`
+          : `; ${result.storageRemoved} dosya kaldırıldı.`),
+      type: result.storageFailures > 0 ? "warning" : "success",
     });
     setReloadTick((n) => n + 1);
   }
@@ -1164,8 +1211,11 @@ function AdminUsersContent() {
                 Arşiv — Onaylı ancak pasife alınmış uzmanlar
               </h2>
               <p className="mt-1 text-sm font-medium text-amber-900/80">
-                Hesap, veriler ve modül izinleri korunur (kalıcı silme yoktur). Açık oturumları kapatılmıştır;
+                Hesap, veriler ve modül izinleri korunur. Açık oturumları kapatılmıştır;
                 yeniden aktifleştirilen uzman tekrar giriş yapar. Onay bekleyen ve reddedilen başvurular arşivde gösterilmez.
+                {archive.kind === "ready" && archive.canPermanentDelete
+                  ? " Kalıcı silme yalnız sistem sahibine açıktır ve 3 aşamalı onay gerektirir."
+                  : ""}
               </p>
             </div>
 
@@ -1179,13 +1229,20 @@ function AdminUsersContent() {
               <div className="grid gap-3">
                 {archive.users.map((user) => (
                   <ArchiveUserRow key={user.id} user={user} deactivation={archive.deactivations[user.id]}
-                    onReactivate={reactivateUser} reactivating={reactivatingId === user.id} />
+                    onReactivate={reactivateUser} reactivating={reactivatingId === user.id}
+                    onPurge={archive.canPermanentDelete ? (u) => setPurgeTarget({ id: u.id, fullName: u.fullName, email: u.email }) : undefined} />
                 ))}
               </div>
             )}
           </>
         )}
       </div>
+      <ExpertPurgeDialog
+        target={purgeTarget}
+        headers={() => adminHeaders(currentUserId)}
+        onClose={() => setPurgeTarget(null)}
+        onPurged={handlePurged}
+      />
     </main>
   );
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { BULK_DELETE_LIMIT_ERROR, exceedsBulkDeleteLimit } from "@/lib/api/bulkDeleteLimits";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
@@ -6,6 +7,8 @@ import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
 import { validateStringArrayField } from "@/lib/dogaltas/validation";
 
 export const runtime = "nodejs";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * /api/dogaltas/knowledge — stone_knowledge_articles güvenli server kapısı.
@@ -198,6 +201,11 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     } catch { /* gövde yoksa query'e güven */ }
   }
   if (ids.length === 0) return NextResponse.json({ ok: false, error: "id veya ids zorunludur." }, { status: 400 });
+  if (exceedsBulkDeleteLimit(ids)) return NextResponse.json({ ok: false, error: BULK_DELETE_LIMIT_ERROR }, { status: 400 });
+  // Biçim guard'ı: geçersiz (non-UUID) id Postgres 22P02 → 500 yerine temiz 400.
+  if (!ids.every((v) => UUID_RE.test(v))) {
+    return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
+  }
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true, rows: [] });
 
