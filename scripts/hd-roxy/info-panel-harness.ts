@@ -179,27 +179,27 @@ async function main() {
   ok("C5 Koordinatlar", field("coords").includes("41,0225° K · 28,9408° D"));
   ok("C6 Yaş", /\|8\|/.test(field("age")));
   ok("C7 Tip (Türkçe uygulama etiketi)", field("type").includes("Generator"));
-  ok("C8 Strateji", field("strategy").includes("Yanıt vermek için beklemek"));
+  ok("C8 UAT: solda yalnız teknik kimlik (11 alan, sıra sabit)", [...info.matchAll(/data-hd-info-field="([a-z]+)"/g)].map((m) => m[1]).join(",") === "name,local,utc,place,coords,age,type,profile,definition,cross,authority");
   ok("C9 İç Otorite", field("authority").includes("Sacral Otorite"));
   ok("C10 Profil", field("profile").includes("2/4 — Münzevi / Fırsatçı"), field("profile"));
   ok("C11 Tanım", field("definition").includes("İkili Tanım (Split)"), field("definition"));
   ok("C12 Enkarnasyon Haçı + kapılar", field("cross").includes("Right Angle Cross of Laws 2") && field("cross").includes(`${ref2.incarnationCross.gates[0]}/${ref2.incarnationCross.gates[1]} | ${ref2.incarnationCross.gates[2]}/${ref2.incarnationCross.gates[3]}`));
-  ok("C13 İmza", field("signature").includes("Tatmin"));
-  ok("C14 Benlik-dışı Tema", field("notself").includes("Hayal kırıklığı"));
-  const chInfo = [...info.matchAll(/<li[^>]*>([^<]+)<\/li>/g)].map((m) => m[1]);
-  ok("C15 Kanallar (Türkçe ad, kayıtla birebir)", chInfo.length === n.codes.channels.length && n.codes.channels.every((c) => chInfo.some((t) => t.startsWith(`${c} `))), chInfo);
+  ok("C13 UAT: Strateji / İmza / Benlik-dışı solda YOK", !/data-hd-info-field="(strategy|signature|notself)"/.test(info) && !info.includes("Strateji") && !info.includes("İmza") && !info.includes("Benlik-dışı") && !info.includes("Yanıt vermek için beklemek") && !info.includes("Tatmin"));
+  ok("C14 UAT: kanal / merkez / kapı / Bilgi Bankası solda YOK", !info.includes("Kanal") && !info.includes("Merkez") && !info.includes("Kapı") && !info.includes("data-hd-info-group=\"channels\"") && !info.includes("Bilgi Bankası"));
+  const lower = html.slice(html.indexOf("data-hd-stage"));
+  ok("C15 alt bölümler korunur: Tanımlı Kanallar (Türkçe ad) + Merkezler + Aktif Kapılar", n.codes.channels.every((c) => lower.includes(`data-hd-channel="${c}"`)) && lower.includes("Tanımlı Kanallar") && lower.includes("Merkezler") && lower.includes("Aktif Kapılar"));
   ok("C16 Design 13 + Personality 13", count(html, /data-hd-activation="design:/g) === 13 && count(html, /data-hd-activation="personality:/g) === 13);
   const acts = [...html.matchAll(/data-hd-activation="([^"]+)"/g)].map((m) => m[1]);
   ok("C17 26 aktivasyon gate.line kayıtla birebir", ref2.activations.every((a) => acts.includes(`${a.side}:${a.body}:${a.gate}.${a.line}`)));
   ok("C18 alt bölüm: kanallar/merkezler/kapılar korunur", count(html, /data-hd-channel=/g) === n.codes.channels.length && count(html, /data-hd-center=/g) === 9 && count(html, /data-hd-gate=/g) === n.codes.gates.length);
 
   // ── D) Yerleşim / tekrar / marka ──
-  ok("D1 eski 8'li özet kart şeridi kaldırıldı (HD alanları tek yerde)", count(html, />Strateji</g) === 1 && count(html, />Enkarnasyon Haçı</g) === 1 && count(html, />Tip</g) === 1);
+  ok("D1 HD alanları sayfada tek yerde (tekrar yok)", count(html, />Enkarnasyon Haçı</g) === 1 && count(html, />Tip</g) === 1 && count(html, />Strateji</g) === 0);
   ok("D2 DOM sırası: bilgi → Design → BodyGraph → Personality (mobilde bilgi en üstte)", html.indexOf("data-hd-info") < html.indexOf('data-hd-side="design"') && html.indexOf('data-hd-side="design"') < html.indexOf("<roxy-bodygraph") && html.indexOf("<roxy-bodygraph") < html.indexOf('data-hd-side="personality"'));
-  ok("D3 geniş masaüstü: [Bilgi][Design][BodyGraph][Personality] satırı (hdwide:flex-row)", html.includes("hdwide:flex-row") && html.includes("hdwide:w-[252px]"));
+  ok("D3 geniş masaüstü: [Bilgi][Design][BodyGraph][Personality] TEK kart (bilgi kartsız, iç kaydırma YOK)", html.includes("hdwide:flex-row") && html.includes("hdwide:w-[252px]") && html.includes("hdwide:border-0 hdwide:border-r") && html.includes("hdwide:bg-transparent") && !info.includes("overflow-y-auto") && !info.includes("overflow-auto") && !info.includes("sticky") && html.includes("hdwide:rounded-2xl hdwide:border hdwide:border-indigo-200/70") && html.includes("hdwide:bg-none hdwide:shadow-none"));
   ok("D4 BodyGraph yükseklik-öncelikli yerleşim korunur", html.includes("lg:h-[calc(100dvh-5.25rem)]") && html.includes('data-hd-renderer="roxy-official"') && html.includes("lg:h-full lg:w-auto"));
   ok("D5 Design/Personality sütun genişliği DEĞİŞMEDİ", count(html, /lg:w-\[clamp\(190px,17vw,280px\)\]/g) === 2);
-  ok("D6 marka: YAŞAM SİSTEMİ + yasamsistemi.com panelde, sahnede DEĞİL", info.includes("YAŞAM SİSTEMİ") && info.includes("yasamsistemi.com") && !html.slice(html.indexOf("data-hd-stage")).includes("yasamsistemi.com"));
+  ok("D6 logo: şeffaf PNG, panelin altında, sahnede DEĞİL; alan adı ayrıca metin olarak YOK", info.includes('src="/assets/yasam-sistemi-chart-logo.png"') && info.includes('alt="Yaşam Sistemi — yasamsistemi.com"') && info.indexOf("data-hd-brand") > info.indexOf('data-hd-info-field="authority"') && !lower.includes("yasam-sistemi-chart-logo") && !info.replace(/alt="[^"]*"/g, "").includes("yasamsistemi.com") && !info.includes("Bütüncül"));
   ok("D7 Roxy / Genetic Matrix markası eklenmedi", !/genetic\s*matrix/i.test(html) && !/roxy/i.test(info));
   ok("D8 mobil: metin kesilmez (truncate yalnız lg şeritte)", !/class="[^"]*(?<!lg:)\btruncate\b[^"]*text-\[13px\]/.test(info) && info.includes("break-words"));
   const tw = src("tailwind.config.js");
@@ -219,6 +219,9 @@ async function main() {
   ok("E1 bilgi bloğu / görünüm / modal: Roxy çağrısı veya hesap ucu YOK", !/callRoxy|computeRoxyChart|providers\/roxy\/client|\/api\/hd\/charts\/roxy|fetch\(/.test(uiFiles));
   ok("E2 ROXY_API_KEY istemci dosyalarında YOK", !uiFiles.includes("ROXY_API_KEY"));
   ok("E3 tarayıcı saat dilimine güvenilmez (getTimezoneOffset / toLocale* UTC için yok)", !/getTimezoneOffset|toLocaleTimeString|Intl\.DateTimeFormat/.test(src("lib/human-design/chart/chartSubjectInfo.ts")));
+  const png = readFileSync(join(ROOT, "public/assets/yasam-sistemi-chart-logo.png"));
+  // PNG IHDR: genişlik/yükseklik (16..24), renk tipi 6 = RGBA (şeffaflık korunur)
+  ok("E4 logo varlığı: PNG, RGBA (şeffaf), 520×390", png.subarray(1, 4).toString() === "PNG" && png.readUInt32BE(16) === 520 && png.readUInt32BE(20) === 390 && png[25] === 6);
 
   console.log(`\n${passed} PASS / ${failed} FAIL`);
   if (failed) {
