@@ -173,13 +173,13 @@ async function main() {
     return m ? m[1].replace(/<[^>]+>/g, "|").replace(/\|+/g, "|") : "";
   };
   ok("C1 Ad Soyad", field("name").includes("Ayşe Yılmaz"));
-  ok("C2 Yerel + tz/ofset", field("local").includes("20.07.2018 19:00") && field("local").includes("Europe/Istanbul · UTC+03:00"));
-  ok("C3 UTC", field("utc").includes("20.07.2018 16:00 UTC"));
+  ok("C2 Doğum Tarihi = doğum yerinin YEREL saati + tz/ofset (etiket sade)", field("local").includes("|Doğum Tarihi|") && field("local").includes("20.07.2018 19:00") && field("local").includes("Europe/Istanbul · UTC+03:00"));
+  ok("C3 UTC künyede ayrı satır DEĞİL; UTC verisi korunur (kayıt + bilgi modeli)", !info.includes("(UTC)") && !info.includes("16:00 UTC") && !info.includes("(Yerel)") && subject.utcDateTime === "20.07.2018 16:00 UTC" && result.timing.birthUtcIso === "2018-07-20T16:00:00.000Z");
   ok("C4 Doğum yeri", field("place").includes("Fatih, İstanbul, Türkiye"));
   ok("C5 Koordinatlar", field("coords").includes("41,0225° K · 28,9408° D"));
   ok("C6 Yaş", /\|8\|/.test(field("age")));
   ok("C7 Tip (Türkçe uygulama etiketi)", field("type").includes("Generator"));
-  ok("C8 UAT: solda yalnız teknik kimlik (11 alan, sıra sabit)", [...info.matchAll(/data-hd-info-field="([a-z]+)"/g)].map((m) => m[1]).join(",") === "name,local,utc,place,coords,age,type,profile,definition,cross,authority");
+  ok("C8 UAT: solda yalnız teknik künye (10 alan, sıra sabit)", [...info.matchAll(/data-hd-info-field="([a-z]+)"/g)].map((m) => m[1]).join(",") === "name,local,place,coords,age,type,profile,definition,cross,authority");
   ok("C9 İç Otorite", field("authority").includes("Sacral Otorite"));
   ok("C10 Profil", field("profile").includes("2/4 — Münzevi / Fırsatçı"), field("profile"));
   ok("C11 Tanım", field("definition").includes("İkili Tanım (Split)"), field("definition"));
@@ -208,6 +208,9 @@ async function main() {
 
   const noSubject = renderToStaticMarkup(createElement(HdComputedChartView, { result }));
   ok("D10 subject yoksa yalnız HD bilgileri (danışan alanı uydurulmaz)", !noSubject.includes('data-hd-info-group="subject"') && noSubject.includes('data-hd-info-group="chart"'));
+  const panelSrc = src("app/human-design/kayitli-haritalar/components/HdChartInfoPanel.tsx");
+  ok("D11 logo kırpılmaz: geniş kolonda KALAN alana oranı korunarak sığar (abs + max-h/max-w + object-contain, sabit vh boyu YOK)", panelSrc.includes("hdwide:relative hdwide:block hdwide:min-h-[60px] hdwide:flex-1") && panelSrc.includes("hdwide:absolute hdwide:inset-x-0 hdwide:bottom-0 hdwide:top-3") && panelSrc.includes("hdwide:max-h-[min(150px,calc(100%-0.75rem))] hdwide:max-w-[200px]") && panelSrc.includes("object-contain") && !panelSrc.includes("hdwide:w-[clamp(144px,20vh"));
+  ok("D12 sakin tipografi: değerler bold değil, etiketler ikincil", panelSrc.includes("font-medium leading-snug text-slate-800") && panelSrc.includes("text-slate-400") && !panelSrc.includes("font-black"));
 
   // ── E) Statik: görüntüleme yolu Roxy çağırmaz; anahtar istemciye girmez ──
   const uiFiles = [
