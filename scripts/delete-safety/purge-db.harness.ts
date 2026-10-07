@@ -33,6 +33,8 @@ const PURGE_MIGRATION = "20271009100000_admin_purge_archived_expert.sql";
 const SYSTEM_TENANT = "00000000-0000-4000-8000-000000000001";
 
 const EXTRA_DDL = `
+-- Prod deseni (2026-10-07 prova bulgusu): clients'ta tenant_id + user_id (FK SET NULL) birlikte.
+alter table public.clients add column user_id uuid references public.users(id) on delete set null;
 -- Legacy prod deseni: tenant_id TEXT (ör. prod stone_exclusions).
 create table public.zz_text_tenant (id uuid primary key default gen_random_uuid(), tenant_id text not null, note text);
 create table public.zz_client_notes (
@@ -105,7 +107,8 @@ async function main(): Promise<void> {
     const seed = async (u: Ids, actor: string, withRevision = false) => {
       const clients: string[] = [];
       for (let i = 0; i < 3; i++) {
-        const r = await su.query(`insert into public.clients(tenant_id, full_name) values ($1,$2) returning id`, [u.tenant, `ZZ_DEL Danışan ${i}`]);
+        const r = await su.query(`insert into public.clients(tenant_id, full_name, user_id) values ($1,$2,$3) returning id`,
+          [u.tenant, `ZZ_DEL Danışan ${i}`, i === 0 ? null : u.user]);
         clients.push(r.rows[0].id);
       }
       for (const c of clients) {
@@ -242,6 +245,8 @@ async function main(): Promise<void> {
 
     // ── D) Başarılı purge ──────────────────────────────────────────────────────
     console.log("\n[D] Başarılı purge (owner)");
+    const crossRef = (await su.query(`insert into public.clients(tenant_id, full_name, user_id) values ($1,'ZZ_DEL çapraz ref',$2) returning id`,
+      [OTHER.tenant, T1.user])).rows[0].id as string;
     const auditBefore = (await su.query(`select count(*)::int n from public.admin_audit_log where target_user_id = $1`, [T1.user])).rows[0].n;
     r = await purgeAs(null, OWNER.user, T1.user, `  ${T1.email.toUpperCase()}  `);
     ok(r.ok, `owner purge başarılı (e-posta büyük harf + boşluk toleransı) ${r.ok ? "" : r.code}`);
@@ -251,8 +256,10 @@ async function main(): Promise<void> {
     ok((await su.query(`select count(*)::int n from public.tenants where id = $1`, [T1.tenant])).rows[0].n === 0, "tenants satırı silindi");
     ok((await su.query(`select count(*)::int n from public.user_sessions where user_id = $1`, [T1.user])).rows[0].n === 0, "oturumlar silindi");
     ok((await su.query(`select count(*)::int n from public.security_events where user_id = $1`, [T1.user])).rows[0].n === 0, "güvenlik olayları silindi");
-    const otherAfter = await tenantCounts(OTHER.tenant);
-    ok(JSON.stringify(otherAfter) === JSON.stringify(otherBefore), "diğer uzmanın verisi BİREBİR aynı");
+    const cross = (await su.query(`select user_id from public.clients where id = $1`, [crossRef])).rows;
+    ok(cross.length === 1 && cross[0].user_id === null, "başka tenant'taki çapraz referanslı danışan SİLİNMEDİ; user_id FK ile NULL");
+    await su.query(`delete from public.clients where id = $1`, [crossRef]);
+    ok(JSON.stringify(await tenantCounts(OTHER.tenant)) === JSON.stringify(otherBefore), "diğer uzmanın verisi BİREBİR aynı");
     ok((await su.query(`select count(*)::int n from public.users where id = $1`, [OTHER.user])).rows[0].n === 1, "diğer uzman hesabı yerinde");
     ok((await su.query(`select count(*)::int n from public.aromatherapy_content_audit_events where tenant_id = $1`, [T1.tenant])).rows[0].n === 1,
       "append-only aroma denetim satırı KORUNDU");

@@ -14,7 +14,8 @@
 --   * public şemasında `tenant_id` (uuid; legacy text/varchar için lower(tenant_id) = uuid::text) kolonu
 --     olan HER tablo → uzman tenant'ının satırları
 --     (danışanlar + KVKK onamları cascade ile, kayıtlar, kütüphaneler, raporlar, YH, ...).
---   * `user_id uuid` kolonu olan HER tablo → WHERE user_id = uzman (oturumlar, güvenlik olayları...).
+--   * `user_id uuid` kolonu olan ve tenant_id'si OLMAYAN tablolar → WHERE user_id = uzman (oturumlar,
+--     güvenlik olayları, ödeme geçmişi...). tenant_id'li tablolarda başka tenant satırı ASLA silinmez.
 --   * users satırı, ardından tenants satırı.
 --   * KORUNANLAR (append-only denetim/yasal kanıt tasarımı; SİLİNMEZ): admin_audit_log,
 --     provisioning_events, expert_usage_events, aromatherapy_claim_audit_events,
@@ -244,6 +245,14 @@ BEGIN
    WHERE ns.nspname = 'public' AND cl.relkind IN ('r', 'p') AND NOT cl.relispartition
      AND a.atttypid = 'uuid'::regtype
      AND cl.relname <> ALL (v_excluded);
+
+  -- Kullanıcı geçişi YALNIZ tenant_id'si OLMAYAN (kullanıcıya ait) tablolarda: tenant_id'li tablolar
+  -- tenant geçişiyle temizlenir; başka tenant'taki satırların user_id referansı FK (SET NULL) ile çözülür,
+  -- satırın kendisi ASLA silinmez (çapraz-tenant silme imkânsız). Prod'da clients/appointments/
+  -- module_records gibi tablolarda user_id + tenant_id birlikte bulunur (2026-10-07 prova bulgusu).
+  IF v_tenant IS NOT NULL THEN
+    v_user_tbls := ARRAY(SELECT x FROM unnest(v_user_tbls) AS x WHERE x <> ALL (v_tenant_tbls) ORDER BY x);
+  END IF;
 
   -- Çapraz-tenant emniyet ağı: "hedef DIŞI" satır sayıları (önce).
   FOREACH v_t IN ARRAY v_tenant_tbls LOOP
