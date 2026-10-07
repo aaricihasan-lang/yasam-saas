@@ -40,7 +40,8 @@
         "analizler": "Analyses",
         "yolculuk": "✦ Client Journey",
         "hafiza": "🧠 Life Memory",
-        "beslenme": "🥗 Nutrition"
+        "beslenme": "🥗 Nutrition",
+        "humandesign": "🧬 Human Design"
       },
       "yh": {
         "selectButton": "🧠 Select from Life Memory"
@@ -128,8 +129,8 @@
         "previewHeader": "Records deleted together:",
         "previewEmpty": "No other linked records were found.",
         "previewPartial": "Some record types could not be counted; they are deleted with the client as well.",
-        "previewFailed": "Record counts could not be loaded. Deleted with the client: notes and general info, appointments, sessions, homework, charges, stones and stone photos, analyses, combinations, nutrition records, nutrition plans linked to the client (with all revisions, days and meals), cupping records, Life Memory report selections.",
-        "unlinked": "Numerology, Human Design, Reflexology and Bioenergy records are not linked to the client; delete them separately.",
+        "previewFailed": "Record counts could not be loaded. Deleted with the client: notes and general info, appointments, sessions, homework, charges, stones and stone photos, analyses, combinations, nutrition records, nutrition plans linked to the client (with all revisions, days and meals), cupping records, Life Memory report selections. The Human Design profile and analyses linked to the client are also deleted.",
+        "unlinked": "Numerology, Reflexology and Bioenergy records are not linked to the client; delete them separately. In Human Design only the profile and analyses linked to this client are deleted.",
         "notesLine": "Notes: {count}",
         "generalLine": "General info: {fields}",
         "fieldSaglik": "health note",
@@ -137,7 +138,8 @@
         "fieldOneriler": "recommendations",
         "requireLabel": "Type the client's name to confirm: “{name}”",
         "requireLabelFallback": "Type “SİL” to confirm:",
-        "confirm": "Delete Permanently"
+        "confirm": "Delete Permanently",
+        "hdWarning": "The Human Design profile and Human Design analyses linked to this client will also be permanently deleted."
       },
       "toast": {
         "successTitle": "Success",
@@ -297,13 +299,31 @@
           "legacyPhotos": "Legacy photo records",
           "legacyTasks": "Legacy task records",
           "anamneses": "Intake records",
-          "anamnesisFiles": "Intake documents (PDF)"
+          "anamnesisFiles": "Intake documents (PDF)",
+          "hdProfiles": "Human Design profile",
+          "hdCharts": "Human Design analyses (charts, permanently deleted)",
+          "hdReports": "Human Design reports (permanently deleted)"
         }
       },
       "notesState": {
         "loading": "Loading notes…",
         "error": "Notes and general info could not be loaded. Editing is disabled to prevent data loss.",
         "retry": "Retry"
+      },
+      "hd": {
+        "title": "Human Design",
+        "loading": "Loading...",
+        "error": "Human Design records could not be loaded.",
+        "empty": "This client has no Human Design analysis yet.",
+        "emptyHint": "Select this client in Human Design Calculation to calculate the chart.",
+        "goCalc": "Human Design Calculation",
+        "calculatedWith": "Calculated with {date} data",
+        "analyzedAt": "Analysis: {date}",
+        "open": "Open Analysis",
+        "kindRoxy": "Automatic",
+        "kindEngine": "Legacy engine",
+        "kindManual": "Manual (legacy)",
+        "profileLink": "Open Human Design profile"
       }
     }
   }

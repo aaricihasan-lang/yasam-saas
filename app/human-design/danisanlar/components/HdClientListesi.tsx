@@ -156,6 +156,11 @@ export function HdClientListesi() {
                 <tr key={row.id} className="bg-white transition-colors hover:bg-indigo-50/40">
                   <td className="px-4 py-3">
                     <p className="font-semibold text-slate-900 [overflow-wrap:anywhere]">{row.name}</p>
+                    <span
+                      className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${row.journey_client_id ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}
+                    >
+                      {row.journey_client_id ? "Danışan Yolculuğu'na bağlı" : "Danışan Yolculuğu'na bağlı değil"}
+                    </span>
                     {row.birth_place && (
                       <p className="text-xs text-slate-500 sm:hidden">{row.birth_place}</p>
                     )}
@@ -176,13 +181,7 @@ export function HdClientListesi() {
                         href={`/human-design/danisanlar/${row.id}`}
                         className="flex h-7 items-center rounded-lg border border-indigo-200 bg-white px-2.5 text-xs font-bold text-indigo-700 no-underline transition hover:border-indigo-400 hover:bg-indigo-50"
                       >
-                        Detay
-                      </Link>
-                      <Link
-                        href={`/human-design/harita-kaydi?clientId=${row.id}`}
-                        className="flex h-7 items-center rounded-lg border border-violet-200 bg-white px-2.5 text-xs font-bold text-violet-700 no-underline transition hover:border-violet-400 hover:bg-violet-50"
-                      >
-                        Harita Kaydı
+                        Aç
                       </Link>
                       <button
                         type="button"
