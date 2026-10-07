@@ -126,7 +126,9 @@ export async function callRoxy(
   body: Record<string, unknown>,
   opts: RoxyCallOptions = {},
 ): Promise<RoxyCallResult> {
-  if (!/^\/[a-z0-9\-/]{1,120}$/.test(endpoint)) {
+  // Aşama 5E: Vimshottari yol parametreleri belgelenmiş enum yazımıyla (ör. /dasha/sub/Mercury) → büyük harf
+  // kabul edilir; uç yine yalnız sunucu beyaz listesinden kurulur ("..", sorgu, boşluk vb. hâlâ reddedilir).
+  if (!/^\/[a-zA-Z0-9\-/]{1,120}$/.test(endpoint) || endpoint.includes("//")) {
     return { ok: false, kind: "bad_request", status: null, attempts: 0 };
   }
   const lang = opts.lang ?? ASTRO_PROVIDER_LANG;

@@ -13,9 +13,9 @@
 | 5A Envanter + harita kabiliyeti | ✅ tamam (`docs/astrology/phase5a-vedic-inventory.md`) | 5a910e06 + e0fce311 |
 | 5B D1 çekirdek | ✅ tamam | d31d00ab |
 | 5C Nakshatra/Pada | ✅ tamam | 4786c58a |
-| 5D D9 + Varga | ✅ tamam | (5D commit) |
-| 5E Vimshottari Dasha | ⏳ sırada | — |
-| 5F Diğer Vedik teknikler | ⏳ | — |
+| 5D D9 + Varga | ✅ tamam | 94479fb2 |
+| 5E Vimshottari Dasha | ✅ tamam | (5E commit) |
+| 5F Diğer Vedik teknikler | ⏳ sırada | — |
 | 5G KB / analiz / premium UI / kapanış | ⏳ | — |
 
 ## Kararlar
@@ -34,10 +34,21 @@
 | (önceki aşamalar) | — | 14 |
 | 5B | /vedic-astrology/birth-chart (lahiri) → `vedic-d1.json` | 1 |
 | 5D | /vedic-astrology/divisional-chart (division 9, lahiri) → `vedic-d9.json` | 1 |
+| 5E | /vedic-astrology/dasha/major → `vedic-dasha-major.json` | 1 |
+| 5E | /vedic-astrology/dasha/sub/Mercury (doğumdaki, kesilmiş MD) → `vedic-dasha-sub-md.json` | 1 |
+| 5E | /vedic-astrology/dasha/sub/Moon/Rahu (bugünkü dönem, tam 9 PD) → `vedic-dasha-sub-md-ad.json` | 1 |
 
-Toplam: **16**. Aşama 5 bütçe planı ≈ 9–10.
+Toplam: **19** (Aşama 5: 5). Aşama 5 bütçe planı ≈ 9–10.
 
 ## Son test sonuçları
+
+- 5E: astroloji 39/19/17/37/20/15/**phase5 26**/static 10 + PG PASS; tsc/eslint 0; build OK; bundle: raw/anahtar/hash 0,
+  Roxy dasha anlatı cümleleri 0 (tek "Entelektüel" eşleşmesi başka modülün sabit metni). Mutasyon (mutate5.cjs): **14/14 yakalandı**
+  (dasha sıra/bakiye/ardışıklık, D9 pada↔navamsa, vargottama, significance sızıntısı, not bağlamı ×2, uç regex'i,
+  KB geleneği, Vedik saat maskesi, dasha büyük harf, D1 ayanamsa yankısı, varga↔D1 konu karışması).
+  Tarayıcı: MD listesi (Chandra "şimdi"), doğum bakiyesi 0 y 11 ay 21 g, Mercury → AD (Satürn, kesilmiş) tembel;
+  kapat/aç 0 istek (sahte Roxy günlüğü: yalnız 3 istek); "seçiciye aktar"; Moon/Rahu PD düzeyi (Budha "şimdi"),
+  yorum katmanı + not bağlamı "ayanamsa lahiri · mahadasha moon · antardasha rahu"; 390 px yatay taşma yok.
 
 - 5D: astroloji 39/19/17/37/20/15/**phase5 20**/static 10 + PG PASS; tsc/eslint 0; build OK; bundle taraması 0
   (significance metni bundle'da 0). D9 golden 0 bilinmeyen / 0 düşürülen. Bağımsız denetim: D9 rashisi =
@@ -77,6 +88,19 @@ Toplam: **16**. Aşama 5 bütçe planı ≈ 9–10.
 - division.significance = sağlayıcı anlatısı → yalnız yorum katmanı; harita verisine verilmez.
 - Yorum paneli Vedik D1/Varga şemalarını çizer (önceden "tanınmıyor"a düşüyordu).
 
+## 5E kararları
+
+- `vedic.dasha` seçenekleri {ayanamsa, mahadasha?, antardasha?}; her düzey AYRI birim/sonuç/önbellek; uç yalnız
+  beyaz listedeki yönetici adlarından (`dashaEndpoint`, belgelenmiş enum yazımı "Mercury"). significators GÖNDERİLMEZ
+  (varsayılan false; KP kapsam dışı) — gelirse bilinmeyen alan (yalnız yol).
+- İstemci uç regex'i büyük harfe genişletildi (`/^\/[a-zA-Z0-9\-/]{1,120}$/` + "//" reddi); ilk deneme yerelde
+  reddedilmişti (deneme 0 — gerçek çağrı YOK, maliyet yok).
+- Tembel alt düzey: aynı /engine/run (planlayıcı + önbellek + yorum kapısı); KB eşleşmesi /workspace (sağlayıcı çağrısı yok).
+  Kayıtlı analizde alt düzey yüklenmez (0 istek kuralı) — "çalışma alanında açın".
+- Tarihler sağlayıcının yerel (doğum ofseti) metni; yeniden hesaplanmaz. Bağımsız denetimler: doğum bakiyesi
+  (1−oran)×yıl ±0.003 y, kanonik oranlar, ardışıklık, üst dönem sınırları, Ay boylamı = D1 Ay.
+- Bilinen sınır: alt dönem drill'i yalnız golden'ı olan yollarda yerel sahte Roxy'de çalışır (gerçek ortamda her yol çağrılır).
+
 ## Açık hatalar
 
 - Yok. (5B sırasında bulunan ve düzeltilen: başlıkta "undefined" ev sistemi [whole_sign Batı etiket
@@ -88,6 +112,6 @@ Toplam: **16**. Aşama 5 bütçe planı ≈ 9–10.
 
 ## Sıradaki kesin adım
 
-5E: Vimshottari — önce sözleşme (major / sub/{md} / sub/{md}/{ad}); fixture kontrolü; en fazla 3 golden (major, sub-md,
-sub-md-ad; md/ad gerçek major listesinden). Tembel yükleme (Mahadasha → Antardasha → Pratyantardasha), zaman çizelgesi UI,
-konular dasha_*, not bağlamı ayanamsa|dasha yolu; bağımsız denetim: süreler (120 yıl oranları) ve Janma nakshatra bakiyesi.
+5F: D1 yoga denetimi (48) zaten var → /yoga/detect gerekli mi belgeden karar (gereksizse golden YOK). Sonra Graha Drishti
+(/aspects, yalnız Lahiri), Ashtakavarga, Shadbala — her biri sözleşme → en fazla 1 golden → adaptör/teknik/UI/test → commit.
+Panchanga yalnız sözleşme uygunsa.

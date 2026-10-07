@@ -17,7 +17,7 @@
 // DB biçim kısıtı (topic_key) ile uyumlu: ^[a-z][a-z_]{1,40}(:[a-z0-9_-]{1,40}){1,4}$
 
 import { SIGN_IDS, type SignId } from "../model/western";
-import { NAKSHATRAS, VEDIC_GRAHAS, type VedicD1Technical, type VedicVargaTechnical } from "../model/vedic";
+import { NAKSHATRAS, VEDIC_GRAHAS, type VedicD1Technical, type VedicDashaTechnical, type VedicVargaTechnical } from "../model/vedic";
 import { SIGN_LABELS } from "../labels/tr";
 
 export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha"] as const;
@@ -82,6 +82,7 @@ export const VEDIC_SPECS: Record<string, Spec> = {
   varga_vargottama: { args: ["division", "graha"], context: "vedic_varga", label: (p) => `${p[0].toUpperCase()}: ${g(p[1])} vargottama` },
   dasha_mahadasha: { args: ["graha"], context: "vedic_dasha", label: (p) => `Mahadasha: ${g(p[0])}` },
   dasha_antardasha: { args: ["graha", "graha"], context: "vedic_dasha", label: (p) => `Antardasha: ${g(p[0])} / ${g(p[1])}` },
+  dasha_pratyantardasha: { args: ["graha", "graha", "graha"], context: "vedic_dasha", label: (p) => `Pratyantardasha: ${g(p[0])} / ${g(p[1])} / ${g(p[2])}` },
 };
 export const VEDIC_KINDS = Object.keys(VEDIC_SPECS);
 
@@ -173,6 +174,16 @@ export function topicsFromVedicVarga(t: VedicVargaTechnical): VedicTopic[] {
       if (x.vargottama) items.push(["varga_vargottama", [d, x.id]]);
     }
   }
+  return vedicCollect(items);
+}
+
+/** Dasha konuları düzeye göre: MD listesi → dasha_mahadasha; AD → dasha_antardasha:md:ad; PD → dasha_pratyantardasha:md:ad:pd. */
+export function topicsFromVedicDasha(t: VedicDashaTechnical): VedicTopic[] {
+  const md = t.path.mahadasha;
+  const ad = t.path.antardasha;
+  const items: [string, string[]][] = t.periods.map((p): [string, string[]] =>
+    md && ad ? ["dasha_pratyantardasha", [md, ad, p.lord]] : md ? ["dasha_antardasha", [md, p.lord]] : ["dasha_mahadasha", [p.lord]],
+  );
   return vedicCollect(items);
 }
 

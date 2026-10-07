@@ -79,9 +79,9 @@ import {
 import type { NatalTechnical } from "../model/western";
 import { astrocartographyBody, LOCATION_EXTRA_BODIES, localSpaceBody, relocationBody, type GeoPoint } from "../providers/roxy/requests";
 import { projectRoxyAstrocartography, projectRoxyLocalSpace, projectRoxyRelocation, ROXY_ACG, ROXY_LOCAL_SPACE, ROXY_RELOCATION } from "../providers/roxy/location";
-import { projectRoxyVedicD1, projectRoxyVedicVarga, ROXY_VEDIC_D1, ROXY_VEDIC_VARGA } from "../providers/roxy/vedic";
+import { dashaEndpoint, mapGraha, projectRoxyVedicD1, projectRoxyVedicDasha, projectRoxyVedicVarga, ROXY_VEDIC_D1, ROXY_VEDIC_DASHA, ROXY_VEDIC_VARGA } from "../providers/roxy/vedic";
 import { vedicBirthBody, VEDIC_AYANAMSAS, type VedicAyanamsa } from "../providers/roxy/requests";
-import { VEDIC_D1_INTERP_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_VARGA_DIVISIONS, VEDIC_VARGA_INTERP_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, type VedicVargaDivision } from "../model/vedic";
+import { VEDIC_D1_INTERP_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_INTERP_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_VARGA_DIVISIONS, type VedicGrahaId, VEDIC_VARGA_INTERP_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, type VedicVargaDivision } from "../model/vedic";
 import { calcInputHash } from "./inputHash";
 
 export type TechniqueProjection =
@@ -112,6 +112,7 @@ export const TECHNIQUE_IDS = [
   "western.local_space",
   "vedic.d1",
   "vedic.varga",
+  "vedic.dasha",
 ] as const;
 export type TechniqueId = (typeof TECHNIQUE_IDS)[number];
 
@@ -611,6 +612,50 @@ const vedicVarga: TechniqueDefinition = {
     ),
 };
 
+/** Dasha yolu seçeneği: yok/boş → null; yalnız 9 graha kimliği (küçük harf). */
+function dashaLordOf(v: unknown): VedicGrahaId | null | undefined {
+  if (v === undefined || v === null || v === "") return null;
+  return typeof v === "string" && v === v.toLowerCase() ? (mapGraha(v) ?? undefined) : undefined;
+}
+
+const vedicDasha: TechniqueDefinition = {
+  id: "vedic.dasha",
+  label: "Vimshottari Dasha",
+  family: "vedic",
+  requiresPartner: false,
+  // Ay ~13°/gün: saat bilinmeden nakshatra/bakiye (tüm tarihler) güvenilmez.
+  requiresKnownTime: true,
+  timeDependent: false,
+  parseOptions: (raw) => {
+    const ay = ayanamsaOf(o(raw).ayanamsa);
+    const md = dashaLordOf(o(raw).mahadasha);
+    const ad = dashaLordOf(o(raw).antardasha);
+    if (!ay || md === undefined || ad === undefined || (ad && !md)) return null;
+    return { ayanamsa: ay, mahadasha: md, antardasha: ad };
+  },
+  units: (ctx, opt) => {
+    const md = (opt.mahadasha as VedicGrahaId | null) ?? null;
+    const ad = (opt.antardasha as VedicGrahaId | null) ?? null;
+    return [unit("vedic.dasha", { endpoint: dashaEndpoint(md, ad), adapter: ROXY_VEDIC_DASHA.adapter }, vedicBirthBody(ctx.birth, opt.ayanamsa as VedicAyanamsa))];
+  },
+  noteContext: (opt) => `ayanamsa:${String(opt.ayanamsa)}${opt.mahadasha ? `|mahadasha:${String(opt.mahadasha)}` : ""}${opt.antardasha ? `|antardasha:${String(opt.antardasha)}` : ""}`,
+  project: (u, raw, opt) => {
+    const b = u.body as { date: string; time: string; timezone: number };
+    return fromAdapter(
+      projectRoxyVedicDasha(raw, {
+        ayanamsa: opt.ayanamsa as VedicAyanamsa,
+        mahadasha: (opt.mahadasha as VedicGrahaId | null) ?? null,
+        antardasha: (opt.antardasha as VedicGrahaId | null) ?? null,
+        birthLocal: `${b.date}T${/^\d{2}:\d{2}$/.test(b.time) ? `${b.time}:00` : b.time}`,
+        utcOffsetHours: b.timezone,
+      }),
+      VEDIC_DASHA_TECHNICAL_SCHEMA,
+      VEDIC_DASHA_INTERP_SCHEMA,
+      ROXY_VEDIC_DASHA.projection,
+    );
+  },
+};
+
 export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Object.freeze({
   "western.natal": westernNatal,
   "western.transit": westernTransit,
@@ -626,6 +671,7 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "western.local_space": westernLocalSpace,
   "vedic.d1": vedicD1,
   "vedic.varga": vedicVarga,
+  "vedic.dasha": vedicDasha,
 });
 
 export function getTechnique(id: unknown): TechniqueDefinition | null {

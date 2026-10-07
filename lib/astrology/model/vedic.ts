@@ -155,3 +155,37 @@ export type VedicVargaTechnical = {
 };
 export const VEDIC_VARGA_INTERP_SCHEMA = "astro.vedic.varga.interp.v1" as const;
 export type VedicVargaInterpretation = { schema: typeof VEDIC_VARGA_INTERP_SCHEMA; significance: string | null };
+
+// ─── Vimshottari Dasha ───────────────────────────────────────────────────────
+/** Vimshottari dönem yılları (toplam 120) — yalnız tutarlılık denetimi + görselleştirme ölçeği; tarih HESAPLANMAZ. */
+export const VIMSHOTTARI_YEARS: Readonly<Record<VedicGrahaId, number>> = { ketu: 7, venus: 20, sun: 6, moon: 10, mars: 7, rahu: 18, jupiter: 16, saturn: 19, mercury: 17 };
+
+export const VEDIC_DASHA_TECHNICAL_SCHEMA = "astro.vedic.dasha.v1" as const;
+export type VedicDashaLevel = "mahadasha" | "antardasha" | "pratyantardasha";
+export type VedicDashaPeriod = {
+  lord: VedicGrahaId;
+  /** Sağlayıcının doğum ofsetine göre yerel tarih-saati ("YYYY-MM-DDTHH:MM:SS", ofsetsiz). */
+  start: string;
+  end: string;
+  durationYears: number;
+  /** Doğumla kesilmiş dönemin teorik başlangıcı (yalnız kesilmişse). */
+  nominalStart: string | null;
+};
+export type VedicDashaTechnical = {
+  schema: typeof VEDIC_DASHA_TECHNICAL_SCHEMA;
+  zodiac: "sidereal";
+  frame: VedicFrame;
+  system: "vimshottari";
+  /** Tarihlerin yerel saat ofseti (doğum ofseti, saat). */
+  utcOffsetHours: number;
+  level: VedicDashaLevel;
+  path: { mahadasha: VedicGrahaId | null; antardasha: VedicGrahaId | null };
+  moon: { longitude: number; nakshatraIndex: number; nakshatraLord: VedicGrahaId };
+  /** Yalnız mahadasha düzeyi: doğumdaki ilk dönem bakiyesi. */
+  balance: { years: number; months: number; days: number; totalDays: number } | null;
+  /** Alt düzeylerde üst dönem (mahadasha / antardasha). */
+  parent: VedicDashaPeriod | null;
+  periods: VedicDashaPeriod[];
+};
+export const VEDIC_DASHA_INTERP_SCHEMA = "astro.vedic.dasha.interp.v1" as const;
+export type VedicDashaInterpretation = { schema: typeof VEDIC_DASHA_INTERP_SCHEMA; parent: string | null; periods: { lord: VedicGrahaId; start: string; text: string | null }[] };

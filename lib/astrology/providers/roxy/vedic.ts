@@ -17,9 +17,16 @@ import {
   VEDIC_D1_INTERP_SCHEMA,
   VEDIC_D1_TECHNICAL_SCHEMA,
   VEDIC_GRAHAS,
+  VEDIC_DASHA_INTERP_SCHEMA,
+  VEDIC_DASHA_TECHNICAL_SCHEMA,
   VEDIC_VARGA_INTERP_SCHEMA,
+  VIMSHOTTARI_YEARS,
   VEDIC_VARGA_TECHNICAL_SCHEMA,
   type NakshatraPlacement,
+  type VedicDashaInterpretation,
+  type VedicDashaLevel,
+  type VedicDashaPeriod,
+  type VedicDashaTechnical,
   type VedicVargaDivision,
   type VedicVargaGraha,
   type VedicVargaInterpretation,
@@ -357,6 +364,201 @@ export function projectRoxyVedicVarga(raw: unknown, opts: { ayanamsa: VedicAyana
     () => ({ schema: VEDIC_VARGA_INTERP_SCHEMA, significance: text(div?.significance) }),
     raw,
     VARGA_KNOWN,
+    new Set(),
+  );
+}
+
+// ═══ Vimshottari Dasha (/vedic-astrology/dasha/major · /sub/{md} · /sub/{md}/{ad}) ═══════════════
+// Tutarlılık denetimleri (tarih HESAPLAMAYIZ; sağlayıcı dizisinin kendi içinde ve Vimshottari kuralıyla çelişmemesi):
+//   • ayanamsaType = istenen; moonNakshatra ↔ moonLongitude; nakshatraLord ↔ Vimshottari sırası
+//   • dönem sırası = döngü (üst dönemin yöneticisinden başlar; doğumla kesilmişse döngünün SONEKİ)
+//   • ardışıklık (bitiş_i = başlangıç_{i+1}); ilk başlangıç / son bitiş = üst dönem sınırları
+//   • süre = kanonik oran (MD yıl × AD yıl / 120 …) ±0.003 yıl; kesilmiş ilk dönem ≤ kanonik ve nominalStart taşır
+//   • mahadasha: ilk başlangıç = doğum yerel zamanı; ilk süre ≈ (1 − Ay'ın nakshatra oranı) × yıl (bağımsız)
+export const ROXY_VEDIC_DASHA = { adapter: "astro-roxy-vedic-dasha-1", projection: "vedic-dasha-proj-1" } as const;
+
+const ROXY_LORD: Record<VedicGrahaId, string> = { sun: "Sun", moon: "Moon", mars: "Mars", mercury: "Mercury", jupiter: "Jupiter", venus: "Venus", saturn: "Saturn", rahu: "Rahu", ketu: "Ketu" };
+
+/** Dasha uç yolu — YALNIZ beyaz listedeki yönetici adlarından (belgelenmiş enum yazımı) kurulur. */
+export function dashaEndpoint(md: VedicGrahaId | null, ad: VedicGrahaId | null): string {
+  if (!md) return "/vedic-astrology/dasha/major";
+  return ad ? `/vedic-astrology/dasha/sub/${ROXY_LORD[md]}/${ROXY_LORD[ad]}` : `/vedic-astrology/dasha/sub/${ROXY_LORD[md]}`;
+}
+
+const DASHA_TOL = 0.003;
+const LOCAL_DT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
+const PERIOD_KEYS = ["planet", "startDate", "endDate", "durationYears", "nominalStartDate", "interpretation", "mahadashaLord", "antardashaLord"];
+const DASHA_KNOWN = new Set<string>([
+  "moonNakshatra",
+  "nakshatraName",
+  "nakshatraLord",
+  "moonLongitude",
+  "ayanamsa",
+  "ayanamsaType",
+  ...paths("birthDashaBalance", ["years", "months", "days", "totalDays"]),
+  "mahadashas",
+  ...paths("mahadashas[]", PERIOD_KEYS),
+  "totalYears",
+  "mahadashaLord",
+  "antardashaLord",
+  ...paths("mahadashaPeriod", PERIOD_KEYS),
+  ...paths("antardashaPeriod", PERIOD_KEYS),
+  "antardashas",
+  ...paths("antardashas[]", PERIOD_KEYS),
+  "pratyantardashas",
+  ...paths("pratyantardashas[]", PERIOD_KEYS),
+]);
+
+function cycleFrom(lord: VedicGrahaId): VedicGrahaId[] {
+  const i = NAKSHATRA_LORDS.indexOf(lord);
+  return Array.from({ length: 9 }, (_, k) => NAKSHATRA_LORDS[(i + k) % 9]);
+}
+
+function projectPeriod(o: Record<string, unknown> | null, ctx: string, errors: string[]): (VedicDashaPeriod & { text: string | null }) | null {
+  const lord = mapGraha(o?.planet);
+  const start = typeof o?.startDate === "string" && LOCAL_DT_RE.test(o.startDate) ? o.startDate : null;
+  const end = typeof o?.endDate === "string" && LOCAL_DT_RE.test(o.endDate) ? o.endDate : null;
+  const durationYears = num(o?.durationYears, 0, 20 + 1e-6);
+  const nominalStart = o?.nominalStartDate === undefined ? null : typeof o.nominalStartDate === "string" && LOCAL_DT_RE.test(o.nominalStartDate) ? o.nominalStartDate : undefined;
+  if (!lord || !start || !end || durationYears === null || nominalStart === undefined || !(start < end)) {
+    errors.push(`${ctx}: dönem alanı`);
+    return null;
+  }
+  return { lord, start, end, durationYears, nominalStart, text: text(o?.interpretation) };
+}
+
+/** Dizi denetimi: sıra (döngü soneki), ardışıklık, kanonik süreler, üst sınırlar. */
+function checkSequence(
+  list: (VedicDashaPeriod & { text: string | null })[],
+  cycle: VedicGrahaId[],
+  fullYears: (l: VedicGrahaId) => number,
+  bounds: { start: string; end: string } | null,
+  ctx: string,
+  errors: string[],
+) {
+  if (list.length < 1 || list.length > 9) {
+    errors.push(`${ctx}: dönem sayısı`);
+    return;
+  }
+  const expected = cycle.slice(9 - list.length);
+  if (list.length === 9 ? list.some((p, i) => p.lord !== cycle[i]) : list.some((p, i) => p.lord !== expected[i])) errors.push(`${ctx}: Vimshottari sırası`);
+  list.forEach((p, i) => {
+    if (i > 0 && list[i - 1].end !== p.start) errors.push(`${ctx}[${i}]: ardışık değil`);
+    const full = fullYears(p.lord);
+    const truncated = i === 0 && (p.nominalStart !== null || list.length < 9);
+    if (truncated) {
+      if (p.durationYears > full + DASHA_TOL) errors.push(`${ctx}[0]: kesilmiş dönem kanonikten uzun`);
+    } else if (Math.abs(p.durationYears - full) > DASHA_TOL) errors.push(`${ctx}[${i}]: süre kanonik orana uymuyor`);
+    if (i > 0 && p.nominalStart !== null) errors.push(`${ctx}[${i}]: beklenmeyen nominalStart`);
+  });
+  if (list.length < 9 && list[0].nominalStart === null) errors.push(`${ctx}: eksik dizi ama kesilme işareti yok`);
+  if (bounds) {
+    if (list[0].start !== bounds.start) errors.push(`${ctx}: ilk başlangıç üst dönemle uyuşmuyor`);
+    if (list[list.length - 1].end !== bounds.end) errors.push(`${ctx}: son bitiş üst dönemle uyuşmuyor`);
+  }
+}
+
+export function projectRoxyVedicDasha(
+  raw: unknown,
+  opts: { ayanamsa: VedicAyanamsaId; mahadasha: VedicGrahaId | null; antardasha: VedicGrahaId | null; birthLocal: string; utcOffsetHours: number },
+): AdapterResult<VedicDashaTechnical, VedicDashaInterpretation> {
+  const errors: string[] = [];
+  const dropped: string[] = [];
+  const r = obj(raw);
+  if (!r) return { ok: false, errors: ["root"] };
+  if (r.ayanamsaType !== opts.ayanamsa) errors.push("ayanamsaType: istenen ayanamsa değil");
+  const ayDeg = num(r.ayanamsa, 0, 40);
+  const moonLon = num(r.moonLongitude, 0, 360);
+  if (ayDeg === null || moonLon === null) errors.push("ayanamsa/moonLongitude");
+  const nakIdx = moonLon === null ? 0 : Math.min(26, Math.floor(moonLon / NAK_SPAN));
+  const birthLord = NAKSHATRA_LORDS[nakIdx % 9];
+  const level: VedicDashaLevel = opts.antardasha ? "pratyantardasha" : opts.mahadasha ? "antardasha" : "mahadasha";
+  let parent: (VedicDashaPeriod & { text: string | null }) | null = null;
+  let balance: VedicDashaTechnical["balance"] = null;
+  const list: (VedicDashaPeriod & { text: string | null })[] = [];
+  const collect = (a: unknown, ctx: string, extra?: (o: Record<string, unknown>, i: number) => void) =>
+    (arr(a) ?? []).forEach((x, i) => {
+      const o = obj(x);
+      const p = projectPeriod(o, `${ctx}[${i}]`, errors);
+      if (p && o) {
+        extra?.(o, i);
+        list.push(p);
+      }
+    });
+  if (level === "mahadasha") {
+    const mn = int(r.moonNakshatra, 1, 27);
+    if (mn === null || mn - 1 !== nakIdx) errors.push("moonNakshatra boylamla uyuşmuyor");
+    if (mapGraha(r.nakshatraLord) !== birthLord) errors.push("nakshatraLord Vimshottari sırasıyla uyuşmuyor");
+    if (typeof r.nakshatraName === "string" && slug(r.nakshatraName) !== NAKSHATRAS[nakIdx]) dropped.push("nakshatraName");
+    if (r.totalYears !== 120) errors.push("totalYears 120 değil");
+    const b = obj(r.birthDashaBalance);
+    const by = int(b?.years, 0, 20);
+    const bm = int(b?.months, 0, 11);
+    const bd = int(b?.days, 0, 31);
+    const bt = int(b?.totalDays, 0, 7400);
+    if (by === null || bm === null || bd === null || bt === null) errors.push("birthDashaBalance");
+    else balance = { years: by, months: bm, days: bd, totalDays: bt };
+    collect(r.mahadashas, "mahadashas");
+    checkSequence(list, cycleFrom(birthLord), (l) => VIMSHOTTARI_YEARS[l], null, "mahadashas", errors);
+    if (list.length !== 9) errors.push("mahadashas: 9 dönem değil");
+    if (list[0]) {
+      if (list[0].start !== opts.birthLocal) errors.push("ilk mahadasha doğum anında başlamıyor");
+      // Bağımsız: doğumdaki bakiye = (1 − Ay'ın nakshatra içindeki oranı) × ilk yöneticinin yılı.
+      if (moonLon !== null) {
+        const ratio = (moonLon - nakIdx * NAK_SPAN) / NAK_SPAN;
+        if (Math.abs(list[0].durationYears - (1 - ratio) * VIMSHOTTARI_YEARS[birthLord]) > DASHA_TOL) errors.push("doğum bakiyesi Ay boylamıyla uyuşmuyor");
+      }
+      if (balance && Math.abs(balance.totalDays - list[0].durationYears * 365.25) > 2) errors.push("birthDashaBalance.totalDays süreyle uyuşmuyor");
+    }
+  } else {
+    const md = opts.mahadasha!;
+    if (mapGraha(r.mahadashaLord) !== md) errors.push("mahadashaLord istenen değil");
+    if (level === "antardasha") {
+      parent = projectPeriod(obj(r.mahadashaPeriod), "mahadashaPeriod", errors);
+      if (parent && parent.lord !== md) errors.push("mahadashaPeriod yöneticisi istenen değil");
+      collect(r.antardashas, "antardashas", (o) => {
+        if (mapGraha(o.mahadashaLord) !== md) errors.push("antardashas[].mahadashaLord");
+      });
+      checkSequence(list, cycleFrom(md), (l) => (VIMSHOTTARI_YEARS[md] * VIMSHOTTARI_YEARS[l]) / 120, parent, "antardashas", errors);
+      if (parent && list.length < 9 && parent.nominalStart === null) errors.push("kesilmiş antardasha dizisi ama mahadasha kesilmemiş");
+    } else {
+      const ad = opts.antardasha!;
+      if (mapGraha(r.antardashaLord) !== ad) errors.push("antardashaLord istenen değil");
+      const po = obj(r.antardashaPeriod);
+      parent = projectPeriod(po, "antardashaPeriod", errors);
+      if (parent && (parent.lord !== ad || mapGraha(po?.mahadashaLord) !== md)) errors.push("antardashaPeriod yöneticileri istenen değil");
+      const adFull = (VIMSHOTTARI_YEARS[md] * VIMSHOTTARI_YEARS[ad]) / 120;
+      if (parent && parent.nominalStart === null && Math.abs(parent.durationYears - adFull) > DASHA_TOL) errors.push("antardashaPeriod süresi kanonik değil");
+      collect(r.pratyantardashas, "pratyantardashas", (o) => {
+        if (mapGraha(o.mahadashaLord) !== md || mapGraha(o.antardashaLord) !== ad) errors.push("pratyantardashas[] üst yöneticiler");
+      });
+      checkSequence(list, cycleFrom(ad), (l) => (adFull * VIMSHOTTARI_YEARS[l]) / 120, parent, "pratyantardashas", errors);
+    }
+  }
+  const strip = (p: VedicDashaPeriod & { text: string | null }): VedicDashaPeriod => ({ lord: p.lord, start: p.start, end: p.end, durationYears: p.durationYears, nominalStart: p.nominalStart });
+  return done(
+    errors,
+    dropped,
+    () => ({
+      schema: VEDIC_DASHA_TECHNICAL_SCHEMA,
+      zodiac: "sidereal",
+      frame: { ayanamsa: opts.ayanamsa, ayanamsaDegrees: ayDeg! },
+      system: "vimshottari",
+      utcOffsetHours: opts.utcOffsetHours,
+      level,
+      path: { mahadasha: opts.mahadasha, antardasha: opts.antardasha },
+      moon: { longitude: moonLon!, nakshatraIndex: nakIdx, nakshatraLord: birthLord },
+      balance,
+      parent: parent ? strip(parent) : null,
+      periods: list.map(strip),
+    }),
+    () => ({
+      schema: VEDIC_DASHA_INTERP_SCHEMA,
+      parent: parent?.text ?? null,
+      periods: list.map((p) => ({ lord: p.lord, start: p.start, text: p.text })).filter((p) => p.text),
+    }),
+    raw,
+    DASHA_KNOWN,
     new Set(),
   );
 }

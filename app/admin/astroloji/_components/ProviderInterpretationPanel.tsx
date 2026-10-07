@@ -19,7 +19,7 @@ import type {
 } from "@/lib/astrology/model/westernTiming";
 import { ASPECT_GLYPHS, ASPECT_LABELS, BODY_GLYPHS, BODY_LABELS, PATTERN_LABELS } from "@/lib/astrology/labels/tr";
 import type { AstrocartographyInterpretation, LocalSpaceInterpretation, RelocationInterpretation } from "@/lib/astrology/model/westernLocation";
-import type { VedicD1Interpretation, VedicVargaInterpretation } from "@/lib/astrology/model/vedic";
+import type { VedicD1Interpretation, VedicDashaInterpretation, VedicVargaInterpretation } from "@/lib/astrology/model/vedic";
 import { GRAHA_LABELS, VEDIC_YOGA_NAMES } from "@/lib/astrology/topics/vedic";
 
 export type InterpretationLayer =
@@ -333,6 +333,24 @@ function Content({ content }: { content: unknown }) {
               </ul>
             </details>
           )}
+        </>
+      );
+    }
+    case "astro.vedic.dasha.interp.v1": {
+      const c = content as VedicDashaInterpretation;
+      return (
+        <>
+          {c.parent && <p className="rounded-lg bg-white px-3 py-2">Üst dönem: {c.parent}</p>}
+          <Block title="Dönem yorumları">
+            {c.periods.map((p) => (
+              <Item key={`${p.lord}-${p.start}`}>
+                <div className="font-medium">
+                  {GRAHA_LABELS[p.lord]} · {p.start.slice(0, 10)}
+                </div>
+                <P text={p.text} />
+              </Item>
+            ))}
+          </Block>
         </>
       );
     }

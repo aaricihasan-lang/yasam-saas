@@ -30,8 +30,8 @@ import {
   type TopicContext,
 } from "./contextual";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "../model/westernLocation";
-import type { VedicD1Technical, VedicVargaTechnical } from "../model/vedic";
-import { parseVedicTopicKey, topicsFromVedicD1, topicsFromVedicVarga, VEDIC_CONTEXT_LABELS, VEDIC_KINDS, VEDIC_SPECS, type VedicContext } from "./vedic";
+import type { VedicD1Technical, VedicDashaTechnical, VedicVargaTechnical } from "../model/vedic";
+import { parseVedicTopicKey, topicsFromVedicD1, topicsFromVedicDasha, topicsFromVedicVarga, VEDIC_CONTEXT_LABELS, VEDIC_KINDS, VEDIC_SPECS, type VedicContext } from "./vedic";
 
 /** Konu bağlamı: Batı bağlamları + Vedik bağlamlar (gelenek ayrımı anahtar türünde ve KB sütununda). */
 export type AnyContext = TopicContext | VedicContext;
@@ -93,6 +93,7 @@ function vedicKindLabel(kind: string): string {
     varga_vargottama: "Dn vargottama",
     dasha_mahadasha: "mahadasha",
     dasha_antardasha: "antardasha",
+    dasha_pratyantardasha: "pratyantardasha",
   };
   return `${VEDIC_CONTEXT_LABELS[VEDIC_SPECS[kind].context]} · ${L[kind] ?? kind}`;
 }
@@ -155,6 +156,8 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromVedicD1(technical as VedicD1Technical) : [];
     case "vedic.varga":
       return technical ? topicsFromVedicVarga(technical as VedicVargaTechnical) : [];
+    case "vedic.dasha":
+      return technical ? topicsFromVedicDasha(technical as VedicDashaTechnical) : [];
     default:
       return [];
   }
@@ -167,6 +170,7 @@ export type { TopicContext } from "./contextual";
 export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext> = {
   "vedic.d1": "vedic_d1",
   "vedic.varga": "vedic_varga",
+  "vedic.dasha": "vedic_dasha",
   "western.natal": "natal",
   "western.transit": "transit",
   "western.forecast": "transit",

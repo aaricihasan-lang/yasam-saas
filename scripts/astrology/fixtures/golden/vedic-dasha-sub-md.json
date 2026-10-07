@@ -1,0 +1,37 @@
+{
+  "endpoint": "/vedic-astrology/dasha/sub/Mercury",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "lahiri"
+  },
+  "response": {
+    "mahadashaLord": "Mercury",
+    "moonLongitude": 359.23584360616064,
+    "ayanamsa": 23.72875056,
+    "ayanamsaType": "lahiri",
+    "mahadashaPeriod": {
+      "planet": "Mercury",
+      "startDate": "1990-07-15T14:30:00",
+      "endDate": "1991-07-06T14:30:00",
+      "durationYears": 0.974674880219028,
+      "nominalStartDate": "1974-07-06T14:30:00",
+      "interpretation": "Entelektüel büyüme, iletişim becerileri ve uyum yeteneği dönemidir. Eğitim, iş ve yaratıcı uğraşlarda başarı ön plana çıkabilir."
+    },
+    "antardashas": [
+      {
+        "planet": "Saturn",
+        "startDate": "1990-07-15T14:30:00",
+        "endDate": "1991-07-06T14:30:00",
+        "durationYears": 0.974674880219028,
+        "nominalStartDate": "1988-10-26T12:18:00",
+        "mahadashaLord": "Mercury",
+        "interpretation": "Sıkı çalışma, disiplin ve sorumluluk dönemidir. Zorluklar ve engeller ortaya çıkabilir, ancak sebat ve öz disiplin yoluyla büyüme fırsatları sunar."
+      }
+    ]
+  }
+}

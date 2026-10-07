@@ -33,8 +33,8 @@ import {
 import NatalWheel, { type WheelChart } from "./NatalWheel";
 import NatalTechnicalPanel from "./NatalTechnicalPanel";
 import { AstrocartographyPanel, LocalSpacePanel, RelocationPanel, type Place } from "./LocationPanels";
-import { VedicD1Panel, VedicVargaPanel, type KbLookup } from "./VedicPanels";
-import type { VedicD1Technical, VedicVargaTechnical } from "@/lib/astrology/model/vedic";
+import { VedicD1Panel, VedicDashaPanel, VedicVargaPanel, type DashaDrill, type KbLookup } from "./VedicPanels";
+import type { VedicD1Technical, VedicDashaTechnical, VedicGrahaId, VedicVargaTechnical } from "@/lib/astrology/model/vedic";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "@/lib/astrology/model/westernLocation";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
@@ -643,6 +643,8 @@ export function TechniqueTechnical({
   options = {},
   birthplace = null,
   kbLookup = null,
+  dashaDrill,
+  onDashaLevel,
 }: {
   technique: string;
   technical: unknown;
@@ -654,6 +656,9 @@ export function TechniqueTechnical({
   birthplace?: Place | null;
   /** Aşama 5: Vedik ayrıntı panelinde Bilgi Bankam eşleşmesi (çalışma alanından; ek istek yok). */
   kbLookup?: KbLookup | null;
+  /** Aşama 5E: dasha alt düzeyini tembel yükle (yalnız çalışma alanında; kayıtlı analizde verilmez). */
+  dashaDrill?: DashaDrill;
+  onDashaLevel?: (o: { mahadasha: VedicGrahaId | null; antardasha: VedicGrahaId | null }) => void;
 }) {
   const placeLabel = (k: "target" | "reference") => (options[k] as { label?: string } | undefined)?.label ?? null;
   const body = (() => {
@@ -691,6 +696,8 @@ export function TechniqueTechnical({
         return <VedicD1Panel t={technical as VedicD1Technical} kbLookup={kbLookup} />;
       case "vedic.varga":
         return <VedicVargaPanel t={technical as VedicVargaTechnical} kbLookup={kbLookup} />;
+      case "vedic.dasha":
+        return <VedicDashaPanel t={technical as VedicDashaTechnical} kbLookup={kbLookup} drill={dashaDrill} onOpenLevel={onDashaLevel} />;
       case "western.local_space":
         return <LocalSpacePanel t={technical as LocalSpaceTechnical} referenceLabel={placeLabel("reference") ?? "doğum yeri"} />;
       default:

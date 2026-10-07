@@ -22,6 +22,8 @@ import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import type { TechniqueView } from "@/lib/astrology/view/techniqueView";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroFetch, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
+import type { DashaDrillResult } from "./_components/VedicPanels";
+import type { VedicDashaTechnical } from "@/lib/astrology/model/vedic";
 import { buildSelections, defaultParams, describeOptions, houseSystemLabel, techniqueLabel, TECHNIQUE_META, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
 import ProviderInterpretationPanel, { type InterpretationLayer } from "./_components/ProviderInterpretationPanel";
 import ProfileForm, { type ProfileFormInitial } from "./_components/ProfileForm";
@@ -248,6 +250,28 @@ export default function AstrologyWorkspacePage() {
     setRunState({ key, seq, items: r.data.results, executed: r.data.executed });
     const firstOk = r.data.results.findIndex((x) => x.ok);
     setActive({ key, seq, idx: firstOk >= 0 ? firstOk : 0 });
+  }
+
+  /**
+   * Aşama 5E: dasha alt düzeyini TEMBEL yükler — aynı çalıştırma ucu (planlayıcı + önbellek + yetki/yorum kapısı):
+   * önbellekte varsa 0 sağlayıcı isteği. Tek seçim eşik altında → onay gerekmez. KB eşleşmeleri çalışma alanı
+   * ucundan (sağlayıcı ÇAĞRILMAZ).
+   */
+  async function drillDasha(o: { mahadasha: string; antardasha: string | null }, base: Record<string, unknown>): Promise<DashaDrillResult> {
+    if (!shownDetail || revision === null) return { ok: false, error: "Profil seçili değil." };
+    const sel = { technique: "vedic.dasha", options: { ayanamsa: base.ayanamsa ?? "lahiri", mahadasha: o.mahadasha, antardasha: o.antardasha } };
+    const r = await astroFetch<RunResponse>(`/api/admin/astroloji/engine/run${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
+      method: "POST",
+      body: { profileId: shownDetail.id, revision, selections: [sel] },
+    });
+    if (!r.ok) return { ok: false, error: r.error };
+    const it = r.data.results[0];
+    if (!it || !it.ok || !it.view.technical) return { ok: false, error: it && !it.ok ? it.error : "Alt dönem yüklenemedi." };
+    const ws = await astroFetch<{ kbMatches: { topicKey: string; topicLabel: string; title: string; body: string }[] }>("/api/admin/astroloji/workspace", {
+      method: "POST",
+      body: { profileId: shownDetail.id, revision, technique: sel.technique, options: it.view.options },
+    });
+    return { ok: true, technical: it.view.technical as VedicDashaTechnical, kb: ws.ok ? ws.data.kbMatches : [] };
   }
 
   async function togglePreview(next: boolean) {
@@ -574,6 +598,15 @@ export default function AstrologyWorkspacePage() {
                         kbState && kbState.key === `${shownDetail.id}|${revision}|${activeItem.technique}|${JSON.stringify(activeItem.view.options)}`
                           ? (keys) => kbState.entries.filter((e) => keys.includes(e.topicKey))
                           : null
+                      }
+                      dashaDrill={activeItem.technique === "vedic.dasha" ? (o) => drillDasha(o, activeItem.view.options) : undefined}
+                      onDashaLevel={
+                        activeItem.technique === "vedic.dasha"
+                          ? (o) => {
+                              setParams((p) => ({ ...p, dashaMd: o.mahadasha ?? "", dashaAd: o.antardasha ?? "" }));
+                              document.querySelector('[aria-label="Dasha mahadasha"]')?.scrollIntoView({ block: "center", behavior: "smooth" });
+                            }
+                          : undefined
                       }
                     />
                   </section>
