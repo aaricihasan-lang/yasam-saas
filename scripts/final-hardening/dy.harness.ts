@@ -530,7 +530,7 @@ const CLI = "11111111-1111-4111-8111-111111111111";
     assert.equal(p.notes.adres, false);
     assert.equal(p.partial, false);
     assert.deepEqual(nonZeroPreviewItems(p).map((x) => x.key), ["appointments", "sessions", "memorySnapshots"]);
-    assert.deepEqual(p.unlinkedModules, ["Numeroloji", "Human Design", "Refleksoloji", "Biyoenerji"]);
+    assert.deepEqual(p.unlinkedModules, ["Numeroloji", "Refleksoloji", "Biyoenerji"]); // AŞAMA 3C: HD artık bağlı (kalıcı silmeye dahil)
     assert.equal(p.counts.length, DELETE_PREVIEW_TABLES.length);
   });
   await t("delete-preview: tablo hatası → partial (silme engellenmez)", async () => {

@@ -129,6 +129,9 @@ function condExpr(col: string, raw0: string, values: unknown[]): string {
     case "lt": values.push(v); expr = `${col} < $${values.length}`; break;
     case "lte": values.push(v); expr = `${col} <= $${values.length}`; break;
     case "in": values.push(parseInList(v)); expr = `${col}::text = ANY($${values.length})`; break;
+    // PostgREST desen eşleşmesi (* veya % joker). HD merkezî danışan araması (AŞAMA 3C) için eklendi.
+    case "ilike": values.push(v.replace(/\*/g, "%")); expr = `${col}::text ILIKE $${values.length}`; break;
+    case "like": values.push(v.replace(/\*/g, "%")); expr = `${col}::text LIKE $${values.length}`; break;
     case "is":
       if (v === "null") expr = `${col} IS NULL`;
       else if (v === "true") expr = `${col} IS TRUE`;
