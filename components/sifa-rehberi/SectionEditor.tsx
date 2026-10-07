@@ -15,6 +15,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useToast } from "@/components/ui/ToastProvider";
 import {
   MODALITIES,
   MODE_LABEL,
@@ -180,6 +181,7 @@ export function SectionEditor({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadTargetKey, setUploadTargetKey] = useState<string | null>(null);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+  const { showToast } = useToast();
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [imgLightbox, setImgLightbox] = useState<{ url: string; name?: string } | null>(null);
 
@@ -299,13 +301,19 @@ export function SectionEditor({
         const entry: NoteImage = { id: uploaded.id, name: uploaded.name, file_path: uploaded.file_path };
         const nextImages = [...asNoteImages(target.images), entry];
         update(key, { images: nextImages });
-      } catch {
-        /* hata: sessizce yut (üst katman kendi mesajını gösterebilir) */
+      } catch (err) {
+        // Sessiz hata YOK: uploadSifaPhoto anlamlı mesaj fırlatır (demo hesap, boyut/tür,
+        // depolama hatası) → kullanıcıya gösterilir; çağıranlar ayrıca mesaj göstermez.
+        showToast({
+          title: "Görsel yüklenemedi",
+          message: err instanceof Error && err.message ? err.message : "Lütfen tekrar deneyin.",
+          type: "error",
+        });
       } finally {
         setUploadingKey(null);
       }
     },
-    [uploadTargetKey, onUploadImage, value, update],
+    [uploadTargetKey, onUploadImage, value, update, showToast],
   );
 
   const removePhoto = useCallback(

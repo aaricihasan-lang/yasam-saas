@@ -615,11 +615,11 @@ function AjandaPageInner() {
           notes: formNotes.trim() || null,
           appointment_date: appointmentDate,
         }),
-      });
+      }).catch(() => null); // ağ hatası → hata toast'u; saving takılı kalmaz, form korunur
 
-      if (!res.ok) {
+      if (!res || !res.ok) {
         let serverMsg: string | null = null;
-        if (res.status === 409 || res.status === 400) {
+        if (res && (res.status === 409 || res.status === 400)) {
           try { serverMsg = ((await res.json()) as { error?: string }).error ?? null; } catch { serverMsg = null; }
         }
         showToast({ title: "Güncelleme hatası", message: serverMsg ?? "Randevu güncellenemedi.", type: "error" });
@@ -644,9 +644,9 @@ function AjandaPageInner() {
         appointment_date: appointmentDate,
         status: formStatus,
       }),
-    });
+    }).catch(() => null); // ağ hatası → hata toast'u; saving takılı kalmaz, form korunur
 
-    if (!res.ok) {
+    if (!res || !res.ok) {
       showToast({ title: "Kayıt hatası", message: "Randevu oluşturulamadı.", type: "error" });
       setSaving(false);
       return;

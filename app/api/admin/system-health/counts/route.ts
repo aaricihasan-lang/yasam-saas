@@ -14,7 +14,7 @@ const NO_STORE = { "Cache-Control": "no-store" } as const;
  * service_role'lü admin route'unda yapılır.
  *
  * Sorgu:
- *   ?metric=clients|personal_archives|stones → { ok, total, tenants: {tenant_id: count}, nullTenantRows }
+ *   ?metric=clients|personal_archives|stones|appointments → { ok, total, tenants: {tenant_id: count}, nullTenantRows }
  *   ?probe=errors|backups                    → { ok, available }  (aday tablolardan biri var mı)
  *
  * Güvenlik:
@@ -26,6 +26,8 @@ const METRIC_TABLES = {
   clients: "clients",
   personal_archives: "personal_archives",
   stones: "stones",
+  // Admin Tenant Kontrol denetimi (eskiden tarayıcıdan anon okuma → 42501).
+  appointments: "appointments",
 } as const;
 
 const PROBE_CANDIDATES = {

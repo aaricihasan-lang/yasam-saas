@@ -561,10 +561,10 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
         ...(sessionToken ? { "x-session-token": sessionToken } : {}),
       },
       body: JSON.stringify(formToPayload(form)),
-    });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    }).catch(() => null); // ağ hatası (offline/timeout) → hata toast'u; durum takılı kalmaz
+    const json = (res ? await res.json().catch(() => ({})) : {}) as { ok?: boolean; error?: string };
 
-    if (!res.ok || !json.ok) {
+    if (!res || !res.ok || !json.ok) {
       console.error("Ödev kaydı eklenemedi:", json.error);
       showToast({
         title: t("toast.failTitle"),
@@ -575,10 +575,16 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       return;
     }
 
+    // Kayıt oluştu: form önce kapanır; liste tazeleme hatası "eklenemedi" sayılmaz.
     setForm({ ...emptyForm, startDate: todayISO() });
     setShowForm(false);
-    await loadHomeworks();
-    setSaving(false);
+    try {
+      await loadHomeworks();
+    } catch {
+      console.error("Ödev eklendi; liste tazelenemedi");
+    } finally {
+      setSaving(false);
+    }
 
     showToast({
       title: t("toast.successTitle"),
@@ -625,10 +631,10 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
         ...(sessionToken ? { "x-session-token": sessionToken } : {}),
       },
       body: JSON.stringify({ homeworkId: id, patch: formToPayload(editForm) }),
-    });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    }).catch(() => null); // ağ hatası (offline/timeout) → hata toast'u; durum takılı kalmaz
+    const json = (res ? await res.json().catch(() => ({})) : {}) as { ok?: boolean; error?: string };
 
-    if (!res.ok || !json.ok) {
+    if (!res || !res.ok || !json.ok) {
       console.error("Ödev kaydı güncellenemedi:", json.error);
       showToast({
         title: t("toast.failTitle"),
@@ -640,8 +646,13 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     }
 
     cancelEdit();
-    await loadHomeworks();
-    setUpdating(false);
+    try {
+      await loadHomeworks();
+    } catch {
+      console.error("Ödev güncellendi; liste tazelenemedi");
+    } finally {
+      setUpdating(false);
+    }
 
     showToast({
       title: t("toast.successTitle"),
@@ -661,10 +672,10 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
         ...(sessionToken ? { "x-session-token": sessionToken } : {}),
       },
       body: JSON.stringify({ homeworkId: id, patch: { status } }),
-    });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    }).catch(() => null); // ağ hatası (offline/timeout) → hata toast'u; durum takılı kalmaz
+    const json = (res ? await res.json().catch(() => ({})) : {}) as { ok?: boolean; error?: string };
 
-    if (!res.ok || !json.ok) {
+    if (!res || !res.ok || !json.ok) {
       showToast({
         title: t("toast.failTitle"),
         message: t("toast.statusFailed") + ": " + (json.error ?? ""),
@@ -696,10 +707,10 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
         ...(sessionToken ? { "x-session-token": sessionToken } : {}),
       },
       body: JSON.stringify({ homeworkId: id, patch: { alert_dismissed_at: nowIso } }),
-    });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    }).catch(() => null); // ağ hatası (offline/timeout) → hata toast'u; durum takılı kalmaz
+    const json = (res ? await res.json().catch(() => ({})) : {}) as { ok?: boolean; error?: string };
 
-    if (!res.ok || !json.ok) {
+    if (!res || !res.ok || !json.ok) {
       showToast({
         title: t("toast.failTitle"),
         message: t("toast.dismissFailed") + ": " + (json.error ?? ""),
@@ -740,10 +751,10 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
         ...(sessionToken ? { "x-session-token": sessionToken } : {}),
       },
       body: JSON.stringify({ homeworkId: id }),
-    });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    }).catch(() => null); // ağ hatası (offline/timeout) → hata toast'u; durum takılı kalmaz
+    const json = (res ? await res.json().catch(() => ({})) : {}) as { ok?: boolean; error?: string };
 
-    if (!res.ok || !json.ok) {
+    if (!res || !res.ok || !json.ok) {
       showToast({
         title: t("toast.failTitle"),
         message: t("toast.deleteFailed") + ": " + (json.error ?? ""),

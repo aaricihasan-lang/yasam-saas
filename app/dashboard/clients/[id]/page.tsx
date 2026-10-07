@@ -542,7 +542,12 @@ function ClientDetailPageInner() {
       },
       // Yalnız notlar + base_version (CAS); genel alanlar gönderilmez.
       body: JSON.stringify({ notlar: notlarRaw, base_version: notesVersion }),
-    });
+    }).catch(() => null); // ağ hatası (offline/timeout) → hata toast'u; saving takılı kalmaz
+    if (!res) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.noteSaveError"), type: "error" });
+      setSavingClientNotes(false);
+      return false;
+    }
     const json = (await res.json().catch(() => ({}))) as {
       ok?: boolean; error?: string; code?: string; note?: ClientNote | null; notlar_version?: string;
     };
