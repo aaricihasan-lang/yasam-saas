@@ -10,8 +10,8 @@ const nextConfig: NextConfig = {
   // "X-Powered-By: Next.js" başlığı gönderilmez (sürüm/altyapı ifşası azaltılır).
   poweredByHeader: false,
 
-  // FAZ1 FINAL HARDENING (INFRA): tüm yanıtlara güvenlik başlıkları + minimal ZORUNLU CSP
-  // + tam izin listeli Report-Only CSP. Ayrıntı/gerekçe: lib/security/securityHeaders.ts.
+  // FAZ1 FINAL HARDENING (INFRA): tüm yanıtlara güvenlik başlıkları + tam izin listeli
+  // ZORUNLU CSP. Ayrıntı/gerekçe: lib/security/securityHeaders.ts.
   async headers() {
     return [
       {

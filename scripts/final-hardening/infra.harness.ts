@@ -4,7 +4,7 @@
  * Çalıştır: npx tsx scripts/final-hardening/infra.harness.ts
  *
  * Kapsam:
- *   - Güvenlik başlıkları + minimal enforced CSP + Report-Only CSP (Supabase host'u env'den)
+ *   - Güvenlik başlıkları + tam izin listeli ZORUNLU CSP (Supabase host'u env'den)
  *   - next.config.ts headers() bağlantısı + poweredByHeader:false
  *   - GA rota izin listesi (public-only, oturumda kapalı) + URL maskeleme
  *   - dataResidency (env yoksa placeholder; Tokyo/Frankfurt hardcode YOK)
@@ -22,7 +22,6 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   buildEnforcedCsp,
-  buildReportOnlyCsp,
   buildSecurityHeaders,
   supabaseOrigins,
 } from "../../lib/security/securityHeaders";
@@ -154,22 +153,27 @@ const isUseClient = (rel: string) => /^\s*(?:\/\/[^\n]*\n|\/\*[\s\S]*?\*\/\s*)*\
       "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
     );
   });
-  await t("enforced CSP minimal ve kırıcı direktif YOK", () => {
+  await t("tam CSP ZORUNLU; Report-Only başlığı YOK", () => {
     const csp = h("Content-Security-Policy")!;
-    assert.equal(csp, buildEnforcedCsp());
-    for (const d of ["frame-ancestors 'self'", "base-uri 'self'", "form-action 'self'", "object-src"]) {
+    assert.equal(csp, buildEnforcedCsp({ supabaseUrl: "https://abcd1234.supabase.co" }));
+    assert.equal(h("Content-Security-Policy-Report-Only"), undefined);
+    for (const d of [
+      "default-src 'self'",
+      "frame-ancestors 'self'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src",
+      "script-src",
+      "connect-src",
+    ]) {
       assert.ok(csp.includes(d), d);
-    }
-    // Enforced'ta içerik yükleme direktifleri OLMAMALI (Supabase/blob/Word/TUS/WebView kırılmasın).
-    for (const d of ["default-src", "script-src", "img-src", "connect-src", "frame-src", "media-src", "style-src"]) {
-      assert.ok(!new RegExp(`(^|;\\s*)${d}\\b`).test(csp), `enforced CSP ${d} içermemeli`);
     }
     // Hacamat PDF önizlemesi <object data="blob:"> → object-src 'none' OLMAMALI.
     assert.ok(!/object-src 'none'/.test(csp));
     assert.ok(/object-src 'self' blob:/.test(csp));
   });
-  await t("Report-Only CSP Supabase (https+storage+wss), blob:, data:, GA", () => {
-    const ro = h("Content-Security-Policy-Report-Only")!;
+  await t("zorunlu CSP Supabase (https+storage+wss), blob:, data:, GA", () => {
+    const ro = h("Content-Security-Policy")!;
     assert.ok(ro.includes("https://abcd1234.supabase.co"));
     assert.ok(ro.includes("https://abcd1234.storage.supabase.co"), "TUS/doğrudan storage hostu");
     assert.ok(ro.includes("wss://abcd1234.supabase.co"));
@@ -183,8 +187,8 @@ const isUseClient = (rel: string) => /^\s*(?:\/\/[^\n]*\n|\/\*[\s\S]*?\*\/\s*)*\
     assert.match(ro, /style-src 'self' 'unsafe-inline'/);
     assert.ok(!ro.includes("'unsafe-eval'"), "prod'da unsafe-eval yok");
   });
-  await t("Report-Only dev'de unsafe-eval; URL yoksa *.supabase.co", () => {
-    const ro = buildReportOnlyCsp({ isDev: true, supabaseUrl: undefined });
+  await t("CSP dev'de unsafe-eval; URL yoksa *.supabase.co", () => {
+    const ro = buildEnforcedCsp({ isDev: true, supabaseUrl: undefined });
     assert.ok(ro.includes("'unsafe-eval'"));
     assert.ok(ro.includes("https://*.supabase.co"));
     assert.deepEqual(supabaseOrigins("not a url").https, ["https://*.supabase.co"]);
@@ -207,7 +211,6 @@ const isUseClient = (rel: string) => /^\s*(?:\/\/[^\n]*\n|\/\*[\s\S]*?\*\/\s*)*\
       "X-Frame-Options",
       "Permissions-Policy",
       "Content-Security-Policy",
-      "Content-Security-Policy-Report-Only",
     ]) {
       assert.ok(keys.includes(k), k);
     }
