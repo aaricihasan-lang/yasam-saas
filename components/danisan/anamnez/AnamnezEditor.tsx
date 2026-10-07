@@ -66,7 +66,7 @@ import {
   makeLabelResolver,
 } from "./AnamnezDialogs";
 import { AnamnezSectionCard, SourceBadge } from "./AnamnezSectionCard";
-import { ANAMNEZ_PDF_CTA_HIDE, ANAMNEZ_PDF_HINT_HIDE, aInput, aLabel } from "./styles";
+import { ANAMNEZ_PDF_CTA_HIDE, ANAMNEZ_PDF_HINT_HIDE, aInput, aLabel, freeTextFieldProps } from "./styles";
 
 type LoadedPayload = {
   anamnesis: AnamnezRecord;
@@ -572,7 +572,7 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
             </label>
             <label className="block">
               <span className={aLabel}>{t("editor.titleLabel")}</span>
-              <input type="text" value={title} maxLength={120} placeholder={kindLabel} onChange={(e) => { setTitle(e.target.value); markDirty(); }} className={`${aInput} mt-1`} />
+              <input type="text" {...freeTextFieldProps("title")} value={title} maxLength={120} placeholder={kindLabel} onChange={(e) => { setTitle(e.target.value); markDirty(); }} className={`${aInput} mt-1`} />
             </label>
           </div>
         )}

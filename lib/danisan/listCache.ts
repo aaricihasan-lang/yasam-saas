@@ -42,7 +42,7 @@ export function invalidateDanisanListCache(): void {
 
 /**
  * Tekli danışan silme sonrası: cache'deki listeden yalnız bu danışanı id ile çıkar,
- * toplamı bir azalt; diğer alanlar (fullLoaded, alerts, kalan danışanlar ve sıralama)
+ * toplamı bir azalt ve danışanın "Aktif Uyarı" katkısını düşür; diğer alanlar (fullLoaded, kalan danışanlar ve sıralama)
  * korunur. Böylece detaydan silip listeye dönünce cold refetch/skeleton olmadan
  * güncel liste anında görünür — toplu silmedeki setDanisanListCache davranışıyla aynı.
  *
@@ -59,13 +59,18 @@ export function removeClientFromDanisanListCache(
   const clients = entry.clients.filter(
     (c) => (c as { id?: string } | null | undefined)?.id !== clientId,
   );
-  // clientId cache'de yoksa (uzunluk değişmedi) → hiçbir şey yazma, total'e dokunma.
-  // total yalnızca gerçekten bir danışan çıkarıldığında bir azaltılır.
-  if (clients.length === entry.clients.length) return;
+  // Silinen danışanın "Aktif Uyarı" katkısı da düşer (danışan sayfalı listede yüklü olmasa bile).
+  const hadAlert = Object.prototype.hasOwnProperty.call(entry.alerts ?? {}, clientId);
+  const alerts = hadAlert ? { ...entry.alerts } : entry.alerts;
+  if (hadAlert) delete (alerts as Record<string, number>)[clientId];
+  const removed = clients.length !== entry.clients.length;
+  // Ne liste ne uyarı değiştiyse hiçbir şey yazma; total yalnız gerçekten çıkarılınca azalır.
+  if (!removed && !hadAlert) return;
   cache.set(tenantId, {
     ...entry,
-    clients,
-    total: Math.max(0, entry.total - 1),
+    clients: removed ? clients : entry.clients,
+    total: removed ? Math.max(0, entry.total - 1) : entry.total,
+    alerts,
     ts: Date.now(),
   });
 }

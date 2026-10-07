@@ -122,7 +122,13 @@
         "deleteRequireLabel": "Onaylamak için “SİL” yazın:",
         "deleteFailedTitle": "Bazı danışanlar silinemedi",
         "deleteFailedNames": "Silinemeyenler (seçili bırakıldı): {names}"
-      }
+      },
+      "alertsOpen": "Aktif uyarıları göster",
+      "alertsPanelTitle": "Aktif Uyarılar — Geciken Ödevler",
+      "alertsOverdue": "{count} geciken ödev",
+      "alertsGoTo": "Ödevlere git",
+      "alertsClose": "Kapat",
+      "alertsUnknownClient": "Danışan"
     }
   }
 }

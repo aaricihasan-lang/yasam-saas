@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { MOBILE_HIDDEN_INLINE_FLEX } from "@/components/platform/mobileHidden";
 import { useTranslations } from "next-intl";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -137,7 +138,8 @@ export function AnamnezAttachments({
               type="button"
               disabled={busy || full}
               onClick={() => inputRef.current?.click()}
-              className="btn-secondary min-h-[42px] shrink-0 disabled:opacity-60"
+              data-testid="anamnez-pdf-upload"
+              className={`btn-secondary min-h-[42px] shrink-0 disabled:opacity-60 ${MOBILE_HIDDEN_INLINE_FLEX}`}
             >
               {busy ? t("attachments.uploading") : t("attachments.upload")}
             </button>

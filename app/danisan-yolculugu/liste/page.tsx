@@ -318,6 +318,9 @@ export default function DanisanListePage() {
   const [sessionChecked, setSessionChecked] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [homeworkAlerts, setHomeworkAlerts] = useState<Record<string, number>>({});
+  // Aktif Uyarı listesi: uyarısı olan danışanların adları (sunucudan) + panel aç/kapat.
+  const [alertNames, setAlertNames] = useState<Record<string, string>>({});
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -501,7 +504,8 @@ export default function DanisanListePage() {
   async function fetchAlerts(): Promise<Record<string, number>> {
     const res = await fetch("/api/clients/homeworks-alerts", { headers: authHeaders() });
     if (!res.ok) { console.error("Ödev uyarıları yüklenemedi:", res.status); return {}; }
-    const j = (await res.json().catch(() => ({}))) as { alerts?: Record<string, number> };
+    const j = (await res.json().catch(() => ({}))) as { alerts?: Record<string, number>; names?: Record<string, string> };
+    if (j.names) setAlertNames((prev) => ({ ...prev, ...j.names }));
     return j.alerts ?? {};
   }
 
@@ -704,12 +708,26 @@ export default function DanisanListePage() {
           for (const id of deletedIds) next.delete(id);
           return next;
         });
+        // Silinen danışanların "Aktif Uyarı" katkısı ANINDA düşer (sayfa yenilemeden).
+        const remainingAlerts: Record<string, number> = { ...homeworkAlerts };
+        for (const id of deletedIds) delete remainingAlerts[id];
+        setHomeworkAlerts(remainingAlerts);
         // Önbelleği güncel tut → geri dönüşte doğru (silinmiş) liste anında görünür.
         setDanisanListCache(tenantId, {
           clients: remaining,
           total: newTotal ?? remaining.length,
           fullLoaded,
-          alerts: homeworkAlerts,
+          alerts: remainingAlerts,
+        });
+        // Sunucu gerçeğiyle eşitle (başka sekme/cihaz değişiklikleri dahil).
+        void fetchAlerts().then((fresh) => {
+          setHomeworkAlerts(fresh);
+          setDanisanListCache(tenantId, {
+            clients: remaining,
+            total: newTotal ?? remaining.length,
+            fullLoaded,
+            alerts: fresh,
+          });
         });
       }
     }
@@ -803,14 +821,29 @@ export default function DanisanListePage() {
               <strong className="block text-2xl font-black text-slate-950 sm:text-3xl">{loading ? "—" : (total ?? clients.length)}</strong>
               <span className="mt-0.5 block text-xs font-bold uppercase tracking-wide text-slate-500">{t("statClients")}</span>
             </div>
-            <div className={`rounded-2xl border px-2 py-2.5 text-center shadow-md backdrop-blur-sm sm:min-w-[110px] sm:px-5 sm:py-4 ${
-              totalExpiredHomework > 0 ? "border-red-200/80 bg-red-50/90" : "border-blue-200/80 bg-blue-50/90"
-            }`}>
-              <strong className={`block text-2xl font-black sm:text-3xl ${totalExpiredHomework > 0 ? "text-red-600" : "text-blue-600"}`}>
-                {totalExpiredHomework}
-              </strong>
-              <span className="mt-0.5 block text-xs font-bold uppercase tracking-wide text-slate-500">{t("statAlerts")}</span>
-            </div>
+            {totalExpiredHomework > 0 ? (
+              // Uyarı > 0 → kart tıklanabilir: geciken ödevi olan danışanların listesi açılır.
+              <button
+                type="button"
+                onClick={() => setAlertsOpen((v) => !v)}
+                aria-expanded={alertsOpen}
+                aria-controls="dy-active-alerts-panel"
+                aria-label={t("alertsOpen")}
+                data-testid="dy-alerts-card"
+                className="rounded-2xl border border-red-200/80 bg-red-50/90 px-2 py-2.5 text-center shadow-md backdrop-blur-sm transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-400 sm:min-w-[110px] sm:px-5 sm:py-4"
+              >
+                <strong className="block text-2xl font-black text-red-600 sm:text-3xl">{totalExpiredHomework}</strong>
+                <span className="mt-0.5 flex items-center justify-center gap-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+                  {t("statAlerts")}
+                  <span aria-hidden className={`inline-block transition-transform ${alertsOpen ? "rotate-180" : ""}`}>▾</span>
+                </span>
+              </button>
+            ) : (
+              <div data-testid="dy-alerts-card" className="rounded-2xl border border-blue-200/80 bg-blue-50/90 px-2 py-2.5 text-center shadow-md backdrop-blur-sm sm:min-w-[110px] sm:px-5 sm:py-4">
+                <strong className="block text-2xl font-black text-blue-600 sm:text-3xl">{totalExpiredHomework}</strong>
+                <span className="mt-0.5 block text-xs font-bold uppercase tracking-wide text-slate-500">{t("statAlerts")}</span>
+              </div>
+            )}
             <Link
               href="/danisan-yolculugu/kayit"
               className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-2 py-2.5 text-center text-[13px] font-black text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg sm:gap-2 sm:px-5 sm:py-4 sm:text-sm"
@@ -820,6 +853,48 @@ export default function DanisanListePage() {
             </Link>
           </div>
         </header>
+
+        {alertsOpen && totalExpiredHomework > 0 ? (
+          <section
+            id="dy-active-alerts-panel"
+            data-testid="dy-alerts-panel"
+            className="mb-5 rounded-2xl border border-red-200 bg-white/95 p-3 shadow-md sm:p-4"
+          >
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-black text-red-700">⚠ {t("alertsPanelTitle")}</h2>
+              <button type="button" onClick={() => setAlertsOpen(false)} className="rounded-lg px-2 py-1 text-xs font-bold text-slate-500 hover:bg-slate-100">
+                {t("alertsClose")}
+              </button>
+            </div>
+            <ul className="divide-y divide-slate-100">
+              {Object.entries(homeworkAlerts)
+                .filter(([, n]) => n > 0)
+                .sort((a, b) => b[1] - a[1])
+                .map(([id, n]) => {
+                  const fromList = clients.find((c) => c.id === id);
+                  const name =
+                    alertNames[id] ||
+                    [fromList?.ad, fromList?.soyad].map((x) => (x ?? "").trim()).filter(Boolean).join(" ") ||
+                    t("alertsUnknownClient");
+                  return (
+                    <li key={id} className="flex flex-col gap-1.5 py-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-slate-900">{name}</p>
+                        <p className="text-xs font-bold text-red-600">{t("alertsOverdue", { count: n })}</p>
+                      </div>
+                      <Link
+                        href={`/dashboard/clients/${encodeURIComponent(id)}?tab=odevler`}
+                        data-testid="dy-alert-link"
+                        className="inline-flex w-fit items-center rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-100"
+                      >
+                        {t("alertsGoTo")} →
+                      </Link>
+                    </li>
+                  );
+                })}
+            </ul>
+          </section>
+        ) : null}
 
         {isDemo && (
           <div className="mb-6 overflow-hidden rounded-2xl border-2 border-amber-400 shadow-md">

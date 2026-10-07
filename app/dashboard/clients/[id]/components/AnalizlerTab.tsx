@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { formatDateAbsolute, formatDateTimeAbsolute } from "@/lib/i18n/format";
 // PERF (C1): html2canvas + jsPDF ağır kütüphaneler; statik import edilirse Analizler sekmesi
@@ -162,6 +162,10 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   // Yeni (henüz kaydedilmemiş) analizde null kalır.
   const [openedAnalysisId, setOpenedAnalysisId] = useState<string | null>(null);
   const [exportingWord, setExportingWord]   = useState(false);
+  // Kayıtlı analiz "Aç" ile SALT OKUNUR açılır; yalnız "Düzenle" sonrası değiştirilebilir
+  // (eski analizin yanlışlıkla üzerine yazılmasını engeller). Yeni analizde false.
+  const [readOnly, setReadOnly] = useState(false);
+  const savingRef = useRef(false);
   const isAndroid = useIsAndroid();
 
   // PERSIST için canonical TR etiket (analysis_data.title kararlı kalır — locale'e bağlı DEĞİL).
@@ -206,6 +210,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   function openNewAnalysis(type: AnalysisType) {
     setActiveAnalysis(type);
     setOpenedAnalysisId(null);
+    setReadOnly(false);
     if (type === "planet") setPlanetValues(makePlanetInitialValues());
     else setChakraValues(makeChakraInitialValues());
     setNote("");
@@ -215,6 +220,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     const type = item.analysis_type === "planet" ? "planet" : "chakra";
     setActiveAnalysis(type);
     setOpenedAnalysisId(item.id);
+    setReadOnly(true);
     setNote(item.note || "");
     if (type === "planet") {
       const data = item.analysis_data as { values?: Record<string, string> } | null | undefined;
@@ -248,15 +254,23 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     showToast({ title: t("toast.successTitle"), message: t("toast.deleted"), type: "success" });
   }
 
+  function closeModal() {
+    setActiveAnalysis(null);
+    setReadOnly(false);
+  }
+
   function updateChakraValue(key: string, field: keyof ChakraRowValue, value: string) {
+    if (readOnly) return; // savunma: salt okunurda değer değişmez
     setChakraValues((old) => ({ ...old, [key]: { ...(old[key] || { mark: "", male: "", female: "" }), [field]: value } }));
   }
 
   function updatePlanetValue(key: string, value: string) {
+    if (readOnly) return;
     setPlanetValues((old) => ({ ...old, [key]: value }));
   }
 
   async function clearAll() {
+    if (readOnly) return;
     const ok = await confirm({ message: t("clearConfirm.message"), tone: "warning", title: t("clearConfirm.title"), confirmText: t("clearConfirm.confirm"), cancelText: t("cancel") });
     if (!ok) return;
     if (activeAnalysis === "planet") setPlanetValues(makePlanetInitialValues());
@@ -358,14 +372,32 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
   async function saveAnalysis() {
     if (!activeAnalysis) { showToast({ title: t("toast.failTitle"), message: t("toast.selectFirst"), type: "error" }); return; }
+    if (readOnly || savingRef.current) return; // salt okunurda kayıt yok · çift tıklama → tek istek
+    savingRef.current = true;
     setSavingAnalysis(true);
+    try {
+      await saveAnalysisInner(activeAnalysis);
+    } finally {
+      savingRef.current = false;
+      setSavingAnalysis(false);
+    }
+  }
+
+  /**
+   * "Kaydet ve Kapat": kayıt BAŞARILI olduktan SONRA modal kapanır; hata/ağ hatasında açık kalır ve
+   * hata gösterilir. Çakra görüntüsü modal kapanmadan ÖNCE yakalanır, yükleme arka planda sürer.
+   */
+  async function saveAnalysisInner(currentType: AnalysisType) {
+    const activeAnalysis = currentType;
     const analysisData = { title: activeTitle, values: activeAnalysis === "planet" ? planetValues : chakraValues, saved_at: new Date().toISOString() };
     const userId = readYasamUser()?.id;
     const sessionToken = readSessionToken();
     // Kaydedilmiş bir analiz açıksa GÜNCELLE (aynı id, PATCH) → duplicate kayıt oluşmaz (spec §4).
     // Aksi halde yeni kayıt oluştur (POST).
     const editing = Boolean(openedAnalysisId);
-    const res = await fetch(`/api/clients/${clientId}/analyses`, {
+    let res: Response;
+    try {
+      res = await fetch(`/api/clients/${clientId}/analyses`, {
       method: editing ? "PATCH" : "POST",
       headers: {
         "Content-Type": "application/json",
@@ -377,28 +409,30 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
           ? { id: openedAnalysisId, analysis_type: activeAnalysis, analysis_data: analysisData, note }
           : { analysis_type: activeAnalysis, analysis_data: analysisData, note },
       ),
-    });
+      });
+    } catch {
+      showToast({ title: t("toast.failTitle"), message: t("toast.saveNetwork"), type: "error" });
+      return; // modal AÇIK kalır
+    }
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; id?: string | null };
     if (!res.ok || !json.ok) {
       showToast({ title: t("toast.failTitle"), message: t("toast.saveFailed") + ": " + (json.error ?? ""), type: "error" });
-      setSavingAnalysis(false);
-      return;
+      return; // modal AÇIK kalır
     }
-    // Güncellemede aynı id korunur; yeni kayıtta dönen id "açık kayıt" olur (Word Al hemen çalışır).
+    // Güncellemede aynı id korunur; yeni kayıtta dönen id döner.
     const savedId = json.id ?? (editing ? openedAnalysisId : null) ?? undefined;
-    if (savedId) setOpenedAnalysisId(savedId);
-    await loadSavedAnalyses();
+    // Çakra görüntüsü: DOM modal kapanmadan yakalanır (kayıt zaten başarılı; yakalama hatası kapanmayı engellemez).
+    const snapshot = activeAnalysis === "chakra" && savedId && tenantId ? await captureSnapshotBlob() : null;
+    closeModal();
+    setOpenedAnalysisId(null);
     showToast({ title: t("toast.successTitle"), message: t("toast.saved"), type: "success" });
-    setSavingAnalysis(false);
-    // Fire-and-forget snapshot — only for chakra analyses; failure doesn't affect the saved record
-    if (activeAnalysis === "chakra" && savedId && tenantId) {
-      void captureAndUploadSnapshot(savedId);
-    }
+    void loadSavedAnalyses();
+    if (snapshot && savedId) void uploadSnapshot(savedId, snapshot);
   }
 
-  async function captureAndUploadSnapshot(analysisId: string) {
+  async function captureSnapshotBlob(): Promise<Blob | null> {
     const element = document.getElementById("analysis-print-area");
-    if (!element) return;
+    if (!element) return null;
     try {
       const { default: html2canvas } = await import("html2canvas");
       const canvas = await html2canvas(element, {
@@ -408,10 +442,17 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
         ignoreElements: (node) =>
           node instanceof HTMLElement && node.classList.contains("no-pdf"),
       });
-      const blob = await new Promise<Blob | null>((resolve) =>
+      return await new Promise<Blob | null>((resolve) =>
         canvas.toBlob((b) => resolve(b), "image/png"),
       );
-      if (!blob) return;
+    } catch {
+      showToast({ title: t("toast.warningTitle"), message: t("toast.imageUploadFailed"), type: "info" });
+      return null;
+    }
+  }
+
+  async function uploadSnapshot(analysisId: string, blob: Blob) {
+    try {
       const fd = new FormData();
       fd.append("file", blob, "analysis.png");
       fd.append("analysisId", analysisId);
@@ -591,7 +632,8 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                 {/* no-pdf: excluded from html2canvas capture */}
                 <button
                   type="button"
-                  onClick={() => setActiveAnalysis(null)}
+                  onClick={closeModal}
+                  aria-label="Kapat"
                   className="no-pdf shrink-0 w-8 h-8 rounded-full border border-white/22 bg-white/14 text-white text-[22px] font-black cursor-pointer leading-none flex items-center justify-center hover:bg-white/25 transition-colors"
                 >
                   ×
@@ -600,6 +642,16 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
               {/* Modal body */}
               <div className="p-3 grid gap-[9px] pb-24 md:pb-[18px]">
+                {openedAnalysisId ? (
+                  <div
+                    data-testid="analysis-mode-banner"
+                    className={`no-pdf rounded-xl border px-3 py-2 text-[12px] font-bold ${readOnly ? "border-slate-300 bg-slate-100 text-slate-700" : "border-amber-300 bg-amber-50 text-amber-900"}`}
+                  >
+                    {readOnly ? t("modal.readOnlyHint") : t("modal.editingHint")}
+                  </div>
+                ) : null}
+                {/* Salt okunur: tüm alanlar yerel olarak devre dışı (değer/seçim değişemez). */}
+                <fieldset disabled={readOnly} data-testid="analysis-fields" className="m-0 grid min-w-0 gap-[9px] border-0 p-0">
                 {activeAnalysis === "chakra" ? (
                   <ChakraAnalysis values={chakraValues} updateValue={updateChakraValue} />
                 ) : (
@@ -616,15 +668,18 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                     className="w-full min-h-[48px] mt-1 rounded-[9px] border border-amber-300 p-1.5 text-[10px] outline-none resize-y bg-white box-border"
                   />
                 </div>
+                </fieldset>
               </div>
             </div>
 
             {/* Sticky action bar — no-pdf: excluded from html2canvas capture */}
             <div className="no-pdf sticky bottom-0 z-[3] grid grid-cols-2 md:flex md:justify-end md:flex-wrap gap-2 bg-slate-50/95 border-t border-slate-200 px-3 py-[9px] pb-[max(9px,env(safe-area-inset-bottom))] backdrop-blur-[10px]">
+              {!readOnly && (
               <button type="button" onClick={clearAll}
                 className={`${toolbarBtnBase} border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200`}>
                 {t("modal.clearAll")}
               </button>
+              )}
               {/* PDF Al: ürün kararıyla gizlendi (flag false). printPdf/creatingPdf
                   referansları burada korunur ki kod pasif ama derli toplu kalsın. */}
               {PDF_EXPORT_ENABLED && (
@@ -639,10 +694,17 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                 {exportingWord ? t("modal.wordPreparing") : t("modal.word")}
               </button>
               )}
-              <button type="button" onClick={saveAnalysis} disabled={savingAnalysis}
-                className={`${toolbarBtnBase} bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60`}>
-                {savingAnalysis ? t("modal.saving") : t("modal.save")}
-              </button>
+              {readOnly ? (
+                <button type="button" onClick={() => setReadOnly(false)} data-testid="analysis-edit"
+                  className={`${toolbarBtnBase} bg-indigo-600 text-white hover:bg-indigo-700`}>
+                  ✏️ {t("modal.edit")}
+                </button>
+              ) : (
+                <button type="button" onClick={saveAnalysis} disabled={savingAnalysis} data-testid="analysis-save-close"
+                  className={`${toolbarBtnBase} bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60`}>
+                  {savingAnalysis ? t("modal.saving") : t("modal.saveAndClose")}
+                </button>
+              )}
             </div>
           </div>
         </div>
