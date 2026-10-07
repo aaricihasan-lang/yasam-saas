@@ -29,7 +29,6 @@ import { DemoBlur } from "@/components/demo/DemoBlur";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
-import { useIsMobileOrPwa } from "@/hooks/useIsMobileOrPwa";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { bulkDeleteMinerals } from "@/lib/dogaltas/dogaltasApi";
@@ -160,7 +159,6 @@ function MineralListesiPageContent() {
 
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
-  const isMobile = useIsMobileOrPwa();
   const isAndroid = useIsAndroid();
   const { isDemo } = useDemoGuard();
 
@@ -310,20 +308,16 @@ function MineralListesiPageContent() {
     setViewedMineralIds(readViewedMineralIds());
   }, []);
 
+  // WT3.1 (owner kararı 2026-10-08): mobil "en fazla 2 seçim" sınırı KALDIRILDI — mobilde de
+  // gerçek "Tümünü Seç" + serbest seçim. Yanlış toplu silme koruması 3 aşamalı onaydır (#350).
   const toggleMineralSelection = useCallback((id: string) => {
-    // FAZ-1: Mobil/PWA'da aynı anda en fazla 2 kayıt seçilebilir.
-    if (isMobile && !selectedMineralIds.has(id) && selectedMineralIds.size >= 2) {
-      showToast({ type: "info", message: t("mobileSelectLimit") });
-      return;
-    }
     setSelectedMineralIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
-      else if (isMobile && next.size >= 2) return prev; // state seviyesinde sınır
       else next.add(id);
       return next;
     });
-  }, [isMobile, selectedMineralIds, showToast, t]);
+  }, []);
 
   /**
    * "Tümünü Seç": sayfalı listede YÜKLÜ olanlarla sınırlı DEĞİL — aktif arama/kategori kapsamındaki
@@ -331,10 +325,6 @@ function MineralListesiPageContent() {
    * seçili sayı = seçilen kayıt sayısı; silme/Word tam olarak bu kümeyi kullanır.
    */
   const selectAllMinerals = useCallback(async () => {
-    if (isMobile) {
-      showToast({ type: "info", message: t("mobileSelectLimit") });
-      return;
-    }
     if (selectingAll) return;
     if (minerals.length >= totalCount) {
       setSelectedMineralIds(new Set(minerals.map((m) => m.id)));
@@ -364,7 +354,7 @@ function MineralListesiPageContent() {
     } finally {
       setSelectingAll(false);
     }
-  }, [categoryFilter, debouncedSearch, isMobile, minerals, queryTenantId, selectingAll, showToast, t, totalCount]);
+  }, [categoryFilter, debouncedSearch, minerals, queryTenantId, selectingAll, showToast, t, totalCount]);
 
   const clearMineralSelection = useCallback(() => {
     setSelectedMineralIds(new Set());
@@ -631,7 +621,6 @@ function MineralListesiPageContent() {
               selectAllLabel={selectingAll ? t("selectingAll") : (isSearchActive || categoryFilter ? t("selectAllResults") : t("selectAllLabel"))}
               selectAllCount={totalCount}
               onSelectAll={() => void selectAllMinerals()}
-              hideSelectAll={isMobile}
               onClearSelection={clearMineralSelection}
               exportSelectedLabel={t("exportSelectedLabel")}
               onExportSelected={() => void exportSelectedMineralsWord()}

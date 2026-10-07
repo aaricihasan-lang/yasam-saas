@@ -13,16 +13,19 @@ import "server-only";
  * GÜVENLİK:
  *   - YALNIZ POST (GET/PUT/… export edilmez → 405). runtime: nodejs.
  *   - Zorunlu secret: header `x-yh-webhook-secret` VEYA `Authorization: Bearer <secret>`.
- *     Beklenen değer server-only env YH_OUTBOX_WEBHOOK_SECRET (NEXT_PUBLIC_ DEĞİL).
- *     Karşılaştırma constant-time (crypto.timingSafeEqual). Env yoksa → 503 fail-closed.
- *     Secret yok/yanlış → 401. Secret/ham payload/PII ASLA loglanmaz.
+ *     WT3.1 (2026-10-08): Beklenen değer Supabase VAULT'tadır (`yh_outbox_webhook_secret`);
+ *     uygulama secret'ı HİÇ tutmaz — adayı service_role-only RPC
+ *     `yh_outbox_webhook_secret_matches` doğrular (sha256 karşılaştırma, DB içinde).
+ *     Eski env YH_OUTBOX_WEBHOOK_SECRET artık OKUNMAZ (rotation sonrası eski değer geçersiz).
+ *     Vault yapılandırılmamış / RPC hatası → 503 fail-closed. Secret yok/yanlış → 401.
+ *     Secret/ham payload/PII ASLA loglanmaz.
  *   - Karar (tablo/tip + loop-prevention) saf `decideWebhookAction`'dadır; row içeriği
  *     işlenmez. Bilinmeyen tablo/tip/malformed → 4xx (fail-closed).
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { timingSafeEqual } from "node:crypto";
 import { inngest } from "@/lib/inngest/client";
+import { getServerDb } from "@/lib/supabase-server";
 import {
   decideWebhookAction,
   type WebhookDecision,
@@ -31,8 +34,8 @@ import type { YhOutboxEnqueuedEventData } from "@/lib/inngest/events";
 
 export const runtime = "nodejs";
 
-const SECRET_ENV = "YH_OUTBOX_WEBHOOK_SECRET";
 const SECRET_HEADER = "x-yh-webhook-secret";
+const SECRET_RPC = "yh_outbox_webhook_secret_matches";
 
 /** `Authorization: Bearer <token>` → token (yoksa null). */
 function bearerToken(authHeader: string | null): string | null {
@@ -41,27 +44,31 @@ function bearerToken(authHeader: string | null): string | null {
   return m ? m[1] : null;
 }
 
-/** Constant-time secret doğrulama (uzunluk farkında da timing-safe kısa devre). */
-function secretMatches(provided: string | null, expected: string): boolean {
-  if (!provided) return false;
-  const a = Buffer.from(provided, "utf8");
-  const b = Buffer.from(expected, "utf8");
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+/** Vault doğrulaması: true = eşleşti, false = yanlış, null = yapılandırılmamış/hata (fail-closed). */
+async function secretMatches(provided: string): Promise<boolean | null> {
+  try {
+    const { data, error } = await getServerDb().rpc(SECRET_RPC, { p_candidate: provided });
+    if (error) return null;
+    return typeof data === "boolean" ? data : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  // Misconfig → fail-closed (secret tanımsızsa hiçbir şey işleme).
-  const expected = process.env[SECRET_ENV];
-  if (!expected || expected.length === 0) {
-    console.error("[yh-outbox-webhook] secret env tanımsız → 503");
-    return NextResponse.json({ ok: false, reason: "not-configured" }, { status: 503 });
-  }
-
-  // Auth: secret header veya Bearer.
+  // Auth: secret header veya Bearer. Aday yoksa DB'ye gitmeden 401.
   const provided =
     request.headers.get(SECRET_HEADER) ?? bearerToken(request.headers.get("authorization"));
-  if (!secretMatches(provided, expected)) {
+  if (!provided) {
+    return NextResponse.json({ ok: false, reason: "unauthorized" }, { status: 401 });
+  }
+  const matched = await secretMatches(provided);
+  if (matched === null) {
+    // Vault'ta secret yok / RPC hatası → fail-closed (hiçbir şey işleme). Ham hata loglanmaz.
+    console.error("[yh-outbox-webhook] secret doğrulanamadı (yapılandırma/RPC) → 503");
+    return NextResponse.json({ ok: false, reason: "not-configured" }, { status: 503 });
+  }
+  if (!matched) {
     return NextResponse.json({ ok: false, reason: "unauthorized" }, { status: 401 });
   }
 

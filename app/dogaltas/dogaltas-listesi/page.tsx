@@ -445,7 +445,6 @@ function DogaltasListesiPageContent() {
   const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
   const [viewedStoneIds, setViewedStoneIds] = useState<Set<string>>(() => new Set());
   const [lastViewedStoneId, setLastViewedStoneId] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [excludedStoneIds, setExcludedStoneIds] = useState<Set<string>>(() => new Set());
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
@@ -634,32 +633,17 @@ function DogaltasListesiPageContent() {
   const selectedCount = selectedIds.size;
 
   // FAZ-1: toggleStoneSelection, StoneListRow/StoneCard React.memo'ya doğrudan
-  // geçtiği için STABİL kalmalı (re-render fırtınası koruması). En güncel değerler
-  // ref üzerinden okunur; refler efekt içinde senkronlanır (render'da mutasyon yok).
-  const isMobileRef = useRef(isMobile);
-  const selectedIdsRef = useRef(selectedIds);
-  const showToastRef = useRef(showToast);
-  useEffect(() => {
-    isMobileRef.current = isMobile;
-    selectedIdsRef.current = selectedIds;
-    showToastRef.current = showToast;
-  });
-
+  // geçtiği için STABİL kalmalı (re-render fırtınası koruması) — bağımlılıksız useCallback.
+  // WT3.1 (owner kararı 2026-10-08): mobil "en fazla 2 seçim" sınırı KALDIRILDI — mobilde de
+  // gerçek "Tümünü Seç" + serbest seçim. Yanlış toplu silme koruması 3 aşamalı onaydır (#350).
   const toggleStoneSelection = useCallback((stoneId: string) => {
-    // Mobil/PWA'da aynı anda en fazla 2 kayıt seçilebilir (yanlış toplu silme koruması).
-    const cur = selectedIdsRef.current;
-    if (isMobileRef.current && !cur.has(stoneId) && cur.size >= 2) {
-      showToastRef.current({ type: "info", message: t("toast.maxSelectMobile") });
-      return;
-    }
     setSelectedIds((current) => {
       const next = new Set(current);
       if (next.has(stoneId)) next.delete(stoneId);
-      else if (isMobileRef.current && next.size >= 2) return current; // state seviyesinde sınır
       else next.add(stoneId);
       return next;
     });
-  }, [t]);
+  }, []);
 
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set());
@@ -811,13 +795,6 @@ function DogaltasListesiPageContent() {
     return () => window.removeEventListener("focus", refreshViewed);
   }, []);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
-    setIsMobile(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
 
   const isSearchActive = Boolean(debouncedSearch);
   const activeSearch = debouncedSearch;
@@ -897,11 +874,6 @@ function DogaltasListesiPageContent() {
    * sayfalarla toplanır; gizlenen kütüphane taşları hariç). Seçim açıktır: seçili sayı = gerçek küme.
    */
   const selectAllFiltered = useCallback(async () => {
-    // FAZ-1: Mobilde "Tümünü Seç" sınırsız seçim yaptırmaz (max 2 kuralı).
-    if (isMobile) {
-      showToast({ type: "info", message: t("toast.maxSelectMobile") });
-      return;
-    }
     if (selectingAll) return;
     if (needsFullLoad || stones.length >= totalCount) {
       setSelectedIds(new Set(filteredStones.map((stone) => stone.id)));
@@ -929,7 +901,7 @@ function DogaltasListesiPageContent() {
     } finally {
       setSelectingAll(false);
     }
-  }, [debouncedSearch, excludedStoneIds, filteredStones, isMobile, needsFullLoad, queryTenantId, searchMode, selectingAll, showToast, stones.length, t, totalCount]);
+  }, [debouncedSearch, excludedStoneIds, filteredStones, needsFullLoad, queryTenantId, searchMode, selectingAll, showToast, stones.length, t, totalCount]);
 
   /** Seçili id → satır (yüklü liste veya "Tümünü Seç" ile toplanan kapsam). */
   const stoneRowOf = useCallback(
@@ -1347,7 +1319,6 @@ function DogaltasListesiPageContent() {
                 selectAllLabel={selectingAll ? t("bulk.selectingAll") : (isSearchActive || isDetailFilterActive ? t("bulk.selectAllResults") : t("bulk.selectAll"))}
                 selectAllCount={needsFullLoad ? filteredStones.length : totalCount}
                 onSelectAll={() => void selectAllFiltered()}
-                hideSelectAll={isMobile}
                 exportSelectedLabel={t("bulk.exportSelected")}
                 onClearSelection={clearSelection}
                 onExportSelected={() => void exportStonesWord("selected")}
