@@ -20,6 +20,7 @@ import { HdProfessionalReportButton } from "./HdProfessionalReportButton";
 import { HdComputedChartView } from "./HdComputedChartView";
 import { HdExpertKnowledgePanel } from "./HdExpertKnowledgePanel";
 import { computedChartAppCodes } from "@/lib/human-design/chart/computedChart";
+import { buildChartSubjectInfo, todayCalendarDate } from "@/lib/human-design/chart/chartSubjectInfo";
 
 type Props = {
   id: string;
@@ -45,6 +46,8 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
   const [loadError, setLoadError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  // Yaş için görüntüleyenin takvim günü (modal açılışında bir kez).
+  const [today] = useState(todayCalendarDate);
 
   useEffect(() => {
     let alive = true;
@@ -82,6 +85,25 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
   }
 
   const result = row?.computed_result ?? null;
+  // Danışan bilgi bloğu: YALNIZ kayıtlı satırdan (yeni hesap / sağlayıcı çağrısı yok). UTC anı hesap
+  // anında sunucuda (DST-güvenli) üretilip computed_result.timing'e kaydedilmiş değerdir.
+  const input = (row?.input ?? null) as { latitude?: unknown; longitude?: unknown } | null;
+  const subject =
+    row && result
+      ? buildChartSubjectInfo(
+          {
+            clientName: row.client_name,
+            birthDate: row.birth_date,
+            birthTime: row.birth_time,
+            birthPlace: row.birth_place,
+            timezone: row.timezone,
+            latitude: input?.latitude,
+            longitude: input?.longitude,
+            birthUtcIso: result.timing?.birthUtcIso ?? null,
+          },
+          today,
+        )
+      : null;
 
   // Tam ekran profesyonel çalışma görünümü: üst bar (kimlik + eylemler) sabit, içerik kendi içinde
   // kayar. Masaüstünde BodyGraph + Design 13 + Personality 13 tek bakışta (HdComputedChartView).
@@ -140,7 +162,8 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
 
         {/* İçerik */}
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-[1600px] p-3 sm:p-4 lg:px-6">
+          {/* hdwide: bilgi kolonu eklendiği için harita alanı genişler; alttaki bilgi panelleri 1600px'de kalır. */}
+          <div className="mx-auto w-full max-w-[1600px] p-3 sm:p-4 lg:px-6 hdwide:max-w-[1880px]">
             {loading ? (
                 <p className="py-10 text-center text-sm text-slate-500">Yükleniyor...</p>
               ) : loadError ? (
@@ -149,11 +172,15 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
                 </p>
               ) : result ? (
                 <div className="space-y-6">
-                  <HdComputedChartView result={result} roxyRender={(row?.roxy_render as Record<string, unknown> | null | undefined) ?? null} />
-                  <div className="border-t border-emerald-100 pt-5">
+                  <HdComputedChartView
+                    result={result}
+                    roxyRender={(row?.roxy_render as Record<string, unknown> | null | undefined) ?? null}
+                    subject={subject}
+                  />
+                  <div className="mx-auto max-w-[1552px] border-t border-emerald-100 pt-5">
                     <HdExpertKnowledgePanel chart={computedChartAppCodes(result)} />
                   </div>
-                  <div className="border-t border-indigo-100/80 pt-5">
+                  <div className="mx-auto max-w-[1552px] border-t border-indigo-100/80 pt-5">
                     <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-700">Kişinin <span lang="en">Human Design</span> Bilgileri</p>
                     <HdPersonalKnowledgePanel chartId={id} />
                   </div>
