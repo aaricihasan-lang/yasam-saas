@@ -175,7 +175,28 @@ export type TechniqueDefinition = {
   primaryPart?: number;
   /** units() boş döndüğünde açık neden (ör. ayda 2. dönüş yok). */
   noUnitsReason?: (ctx: UnitContext, options: Record<string, unknown>) => string | null;
+  /**
+   * Aşama 5: danışan notu bağlamı (kanonik, "k:v|k:v"; ör. "ayanamsa:lahiri"). Tanımlıysa notlar bu
+   * bağlama göre ayrılır (Lahiri notu Raman notuna karışmaz). Sunucu metni parseOptions ile yeniden
+   * türetip doğrular; istemcinin uuid'ine güvenilmez.
+   */
+  noteContext?: (options: Record<string, unknown>) => string;
 };
+
+/** Not bağlamı metnini seçenek nesnesine çevirir (doğrulama parseOptions + yeniden kanonikleştirme ile). */
+export function parseNoteContext(def: TechniqueDefinition, raw: unknown): Record<string, unknown> | null {
+  if (!def.noteContext || typeof raw !== "string" || raw.length === 0 || raw.length > 200) return null;
+  const obj: Record<string, string> = {};
+  for (const part of raw.split("|")) {
+    const i = part.indexOf(":");
+    if (i <= 0) return null;
+    const k = part.slice(0, i);
+    if (!/^[a-z][a-zA-Z0-9]{0,30}$/.test(k) || k in obj) return null;
+    obj[k] = part.slice(i + 1);
+  }
+  const opts = def.parseOptions(obj, new Date(0));
+  return opts && def.noteContext(opts) === raw ? opts : null;
+}
 
 function unit(technique: TechniqueId, meta: { endpoint: string; adapter: string }, body: Record<string, unknown>, extra: Partial<CalcUnit> = {}): CalcUnit {
   const identity = {
@@ -555,6 +576,7 @@ const vedicD1: TechniqueDefinition = {
     return ay ? { ayanamsa: ay } : null;
   },
   units: (ctx, opt) => [unit("vedic.d1", ROXY_VEDIC_D1, vedicBirthBody(ctx.birth, opt.ayanamsa as VedicAyanamsa))],
+  noteContext: (opt) => `ayanamsa:${String(opt.ayanamsa)}`,
   project: (_u, raw, opt) => fromAdapter(projectRoxyVedicD1(raw, { ayanamsa: opt.ayanamsa as VedicAyanamsa }), VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_D1_INTERP_SCHEMA, ROXY_VEDIC_D1.projection),
 };
 

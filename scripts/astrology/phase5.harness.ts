@@ -21,12 +21,12 @@ import { createAstroProfile } from "@/lib/astrology/profiles/service";
 import { getAstrologyResult, planAstrology, runAstrology, type EngineCtx, type EngineDeps } from "@/lib/astrology/engine/service";
 import { getTechnique } from "@/lib/astrology/engine/techniques";
 import { createKb } from "@/lib/astrology/kb/service";
-import { getAnalysis, getWorkspace, saveAnalysis, saveExpertNote } from "@/lib/astrology/analyses/service";
+import { getAnalysis, getWorkspace, locationContextKey, saveAnalysis, saveExpertNote, vedicContextKey } from "@/lib/astrology/analyses/service";
 import { isSectionKeyForTechnique, parseAnyTopicKey, topicsForTechnique, traditionOfKey } from "@/lib/astrology/topics/index";
 import { VEDIC_SPECS, VEDIC_YOGA_NAMES, parseVedicTopicKey, vedicArgOptions, vedicDefaultParts, vedicTopicKey } from "@/lib/astrology/topics/vedic";
 import { projectRoxyVedicD1 } from "@/lib/astrology/providers/roxy/vedic";
 import { maskTechnical } from "@/lib/astrology/view/techniqueView";
-import { toKundliData } from "@/app/admin/astroloji/_components/VedicPanels";
+import { nakshatraSummary, toKundliData } from "@/app/admin/astroloji/_components/VedicPanels";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 import type { VedicD1Technical } from "@/lib/astrology/model/vedic";
@@ -269,7 +269,7 @@ async function main() {
     const w = await ws(pa, { technique: "western.natal", options: { houseSystem: "placidus", nodeType: "true" } });
     assert.ok(w.kbMatches.every((e: J) => e.tradition === "western"), "Vedik KB Batı natal alanına karıştı");
     const note = (pid: string, o: J, status = 201) =>
-      saveExpertNote(ctx, { profileId: pid, technique: "vedic.d1", sectionKey: "overall", expectedRevision: null, ...o }).then((r) => assert.equal(r.status, status, JSON.stringify(r.body)));
+      saveExpertNote(ctx, { profileId: pid, technique: "vedic.d1", sectionKey: "overall", expectedRevision: null, noteContext: "ayanamsa:lahiri", ...o }).then((r) => assert.equal(r.status, status, JSON.stringify(r.body)));
     await note(pa, { body: "A Vedik notu" });
     await note(py, { body: "Y Vedik notu" });
     await note(pa, { sectionKey: "graha_in_rashi:sun:gemini", body: "A Güneş" });
@@ -277,6 +277,42 @@ async function main() {
     assert.deepEqual((await ws(pa, D1SEL())).notes.map((n: J) => n.body).sort(), ["A Güneş", "A Vedik notu"]);
     assert.deepEqual((await ws(py, D1SEL())).notes.map((n: J) => n.body), ["Y Vedik notu"]);
     assert.equal((await ws(pa, { technique: "western.natal", options: { houseSystem: "placidus", nodeType: "true" } })).notes.length, 0, "Vedik not Batı natal alanında");
+  });
+
+  await t("5C not bağlamı: ayanamsa'ya göre ayrı (Lahiri ≠ Raman); bağlam SUNUCUDA türetilir; sahte/eksik/uyumsuz bağlam reddedilir; kayıtlı analiz kendi bağlamının notunu taşır", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profile(ctx);
+    const rx = roxy({ mutate: (_e, r, body) => { r.frame.ayanamsa = body.ayanamsa; } });
+    await run(ctx, pa, [D1SEL(), D1SEL("raman")], rx.deps);
+    const ws = async (sel: J) => (await getWorkspace(ctx, { profileId: pa, revision: 1, ...sel })).body as J;
+    const L = await ws(D1SEL());
+    const Rm = await ws(D1SEL("raman"));
+    assert.equal(L.noteContext, "ayanamsa:lahiri");
+    assert.equal(Rm.noteContext, "ayanamsa:raman");
+    assert.match(L.contextKey, /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    assert.notEqual(L.contextKey, Rm.contextKey);
+    assert.equal(L.contextKey, vedicContextKey("vedic.d1", "ayanamsa:lahiri"));
+    assert.notEqual(vedicContextKey("vedic.d1", "ayanamsa:lahiri"), locationContextKey("vedic.d1", "ayanamsa:lahiri"), "konum ad alanıyla çakışma");
+    const note = (o: J) => saveExpertNote(ctx, { profileId: pa, technique: "vedic.d1", sectionKey: "overall", expectedRevision: null, ...o });
+    assert.equal((await note({ noteContext: "ayanamsa:lahiri", body: "Lahiri notu" })).status, 201);
+    assert.equal((await note({ noteContext: "ayanamsa:raman", body: "Raman notu" })).status, 201);
+    assert.deepEqual((await ws(D1SEL())).notes.map((n: J) => n.body), ["Lahiri notu"]);
+    assert.deepEqual((await ws(D1SEL("raman"))).notes.map((n: J) => n.body), ["Raman notu"]);
+    for (const bad of [undefined, "", "ayanamsa:custom", "ayanamsa:LAHIRI", "ayanamsa:lahiri|x:1", "ayanamsa:lahiri|ayanamsa:raman", "lahiri", "ayanamsa:", "x".repeat(300)]) {
+      const r = await note({ noteContext: bad, sectionKey: "lagna_rashi:libra", body: "x" });
+      assert.equal(r.status, 400, `kabul edildi: ${String(bad)}`);
+    }
+    // İstemci uuid'i uyumsuzsa reddedilir (Raman bağlamı + Lahiri uuid'i).
+    assert.equal((await note({ noteContext: "ayanamsa:raman", contextKey: L.contextKey, sectionKey: "lagna_rashi:libra", body: "x" })).status, 400);
+    assert.equal((await note({ noteContext: "ayanamsa:raman", contextKey: Rm.contextKey, sectionKey: "lagna_rashi:libra", body: "ok" })).status, 201);
+    // Kayıtlı analiz kendi ayanamsa bağlamının notlarını snapshot'lar.
+    const sv = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...D1SEL("raman"), title: "Raman D1", saveRequestId: randomUUID() }, false);
+    assert.equal(sv.status, 201, JSON.stringify(sv.body));
+    const got = (await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J;
+    const bodies = JSON.stringify(got.analysis);
+    assert.ok(bodies.includes("Raman notu") && !bodies.includes("Lahiri notu"), "kayıtlı analiz yanlış ayanamsa notunu taşıyor");
+    assert.equal(rx.calls.length, 2);
   });
 
   await t("5B kayıtlı analiz: snapshot ayanamsa/frame + teknik + sürüm + Vedik etiket; açmak 0 istek; yetkisizde anlatı yok; tenant izolasyonu", async () => {
@@ -357,6 +393,39 @@ async function main() {
     const kb = readFileSync(join(process.cwd(), "app/admin/astroloji/_components/KnowledgeBankPanel.tsx"), "utf8");
     assert.ok(kb.includes("tradition: traditionOfKey(topicKey)"), "KbEditor gelenek türetimi");
     assert.ok(!/tradition:\s*"western",/.test(kb), "sabit western gelenek kalmamalı");
+  });
+
+  await t("5C nakshatra/pada: özet SAF ve Roxy verisiyle aynı; 10 nokta; Janma = Chandra; yönetici yeri aynı haritadan; Vimshottari grupları bölüntü; bağımsız boylam → nakshatra/pada/oran", () => {
+    const tech = d1Tech();
+    const s = nakshatraSummary(tech);
+    assert.equal(s.rows.length, 10);
+    assert.equal(s.janma.point, "moon");
+    assert.equal(s.janma.nakshatra.id, "revati");
+    assert.equal(s.janma.nakshatra.pada, 4);
+    assert.deepEqual(s.byLord.map((g) => g.lord), ["ketu", "venus", "sun", "moon", "mars", "rahu", "jupiter", "saturn", "mercury"]);
+    assert.deepEqual(s.byLord.flatMap((g) => g.points).sort(), s.rows.map((r) => r.point).sort(), "gruplar bölüntü değil");
+    const span = 360 / 27;
+    const pts = [{ id: "lagna", ...tech.lagna }, ...tech.grahas];
+    for (const r of s.rows) {
+      const p = pts.find((x) => x.id === r.point)!;
+      assert.equal(r.nakshatra, p.nakshatra, "özet yeni nesne üretmemeli (Roxy değeri aynen)");
+      if (r.point !== "lagna") {
+        const lord = tech.grahas.find((g) => g.id === r.nakshatra.lord)!;
+        assert.equal(r.lordRashi, lord.rashi);
+        assert.equal(r.lordHouse, lord.house);
+      }
+      // Bağımsız denetim: sidereal boylam → nakshatra sırası, pada, oran, kalan.
+      const lon = SIGN_IDS.indexOf(p.rashi) * 30 + p.degreeInRashi;
+      const idx = Math.floor(lon / span);
+      const within = lon - idx * span;
+      assert.equal(r.nakshatra.index, idx, `${r.point} nakshatra`);
+      assert.equal(r.nakshatra.pada, Math.floor(within / (span / 4)) + 1, `${r.point} pada`);
+      assert.ok(Math.abs(r.nakshatra.ratio - within / span) < 0.01, `${r.point} oran`);
+      assert.ok(Math.abs(r.nakshatra.remaining - (span - within)) < 0.02, `${r.point} kalan`);
+      const topics = topicsForTechnique("vedic.d1", tech).map((x) => x.key);
+      if (r.point === "lagna") assert.ok(topics.includes(`lagna_nakshatra:${r.nakshatra.id}`));
+      else assert.ok(topics.includes(`graha_nakshatra_pada:${r.point}:${r.nakshatra.id}:${r.nakshatra.pada}`));
+    }
   });
 
   await t("golden kaydı: var olan Vedik fixture'lar plan adlarıyla uyumlu", () => {

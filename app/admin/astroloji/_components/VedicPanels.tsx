@@ -11,7 +11,7 @@
  */
 
 import { createElement, useEffect, useMemo, useRef, useState } from "react";
-import type { VedicD1Technical, VedicGraha } from "@/lib/astrology/model/vedic";
+import { NAKSHATRA_LORDS, type NakshatraPlacement, type VedicD1Technical, type VedicGraha, type VedicGrahaId } from "@/lib/astrology/model/vedic";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import { GRAHA_LABELS, NAKSHATRA_LABELS } from "@/lib/astrology/topics/vedic";
@@ -85,6 +85,30 @@ export function RoxyKundli({ data, style }: { data: ReturnType<typeof toKundliDa
   );
 }
 
+export type NakshatraRow = {
+  point: "lagna" | VedicGrahaId;
+  nakshatra: NakshatraPlacement;
+  /** Nakshatra yöneticisinin AYNI haritadaki yeri (Roxy verisinden okunur; hesap yok). */
+  lordRashi: string;
+  lordHouse: number;
+};
+
+/**
+ * 5C: Nakshatra/Pada özeti — SAF; yalnız Roxy D1 alanlarını yeniden düzenler (yeni hesap YOK).
+ * Janma nakshatra = Chandra'nın nakshatrası (Vimshottari'nin başlangıcı). Gruplar Vimshottari yönetici
+ * sırasıyla (Ketu → Venüs → … → Merkür) verilir.
+ */
+export function nakshatraSummary(t: VedicD1Technical): { rows: NakshatraRow[]; janma: NakshatraRow; byLord: { lord: VedicGrahaId; points: NakshatraRow["point"][] }[] } {
+  const place = new Map(t.grahas.map((g) => [g.id, g]));
+  const row = (point: NakshatraRow["point"], n: NakshatraPlacement): NakshatraRow => {
+    const l = place.get(n.lord)!;
+    return { point, nakshatra: n, lordRashi: l.rashi, lordHouse: l.house };
+  };
+  const rows = [row("lagna", t.lagna.nakshatra), ...t.grahas.map((g) => row(g.id, g.nakshatra))];
+  const byLord = NAKSHATRA_LORDS.map((lord) => ({ lord, points: rows.filter((r) => r.nakshatra.lord === lord).map((r) => r.point) }));
+  return { rows, janma: rows.find((r) => r.point === "moon")!, byLord };
+}
+
 function avasthaText(g: VedicGraha): string {
   return [g.avastha.baladi, g.avastha.jagradadi, g.avastha.deeptadi].filter(Boolean).map((x) => TITLE(String(x))).join(" · ") || "—";
 }
@@ -101,6 +125,8 @@ export function VedicD1Panel({ t, kbLookup }: { t: VedicD1Technical; kbLookup?: 
   const point = selected ?? { ...t.lagna, id: "lagna" as const };
   const lagnaIdx = SIGN_IDS.indexOf(t.lagna.rashi);
   const presentYogas = t.yogas.filter((y) => y.present);
+  const nak = useMemo(() => nakshatraSummary(t), [t]);
+  const pointLabel = (p: NakshatraRow["point"]) => (p === "lagna" ? "Lagna" : GRAHA_LABELS[p]);
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-vedic-d1-panel">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -231,6 +257,68 @@ export function VedicD1Panel({ t, kbLookup }: { t: VedicD1Technical; kbLookup?: 
               ))}
             </tbody>
           </table>
+        </div>
+      </section>
+      <section className="min-w-0 rounded-xl border border-slate-200 bg-white" aria-label="Nakshatra ve pada" data-testid="astro-vedic-nakshatra">
+        <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Nakshatra &amp; Pada (27 nakshatra · 4 pada = 3°20′)</h4>
+        <div className="flex flex-col gap-3 p-3">
+          <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 px-3 py-2 text-sm" data-testid="astro-vedic-janma">
+            <div className="text-xs font-semibold uppercase tracking-wide text-indigo-800">Janma nakshatra (Chandra)</div>
+            <div className="text-slate-800">
+              <strong>
+                {nak.janma.nakshatra.index + 1}. {nakName(nak.janma.nakshatra.id)}
+              </strong>{" "}
+              · {nak.janma.nakshatra.pada}. pada · yönetici {GRAHA_LABELS[nak.janma.nakshatra.lord]} · katedilen %{Math.round(nak.janma.nakshatra.ratio * 100)}, kalan{" "}
+              {formatDegree(nak.janma.nakshatra.remaining)}
+            </div>
+            <p className="text-xs text-slate-500">Vimshottari dasha bu nakshatranın yöneticisiyle ve kalan oranla başlar (dasha değerleri ayrıca Roxy&apos;den alınır).</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full" data-testid="astro-vedic-nakshatra-table">
+              <thead>
+                <tr>
+                  <th className={th}>Nokta</th>
+                  <th className={th}>Nakshatra</th>
+                  <th className={th}>Pada</th>
+                  <th className={th}>İlerleme</th>
+                  <th className={th}>Yönetici → yeri</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {nak.rows.map((r) => (
+                  <tr key={r.point} className={`cursor-pointer ${sel === r.point ? "bg-amber-50" : ""}`} onClick={() => setSel(r.point)} data-nakshatra-point={r.point}>
+                    <td className={`${td} font-medium`}>{pointLabel(r.point)}</td>
+                    <td className={td}>
+                      {r.nakshatra.index + 1}. {nakName(r.nakshatra.id)}
+                      {r.nakshatra.abhijit ? " · Abhijit" : ""}
+                    </td>
+                    <td className={td}>{r.nakshatra.pada}</td>
+                    <td className={td}>
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-16 overflow-hidden rounded bg-slate-100" aria-hidden>
+                          <div className="h-full bg-indigo-400" style={{ width: `${Math.round(r.nakshatra.ratio * 100)}%` }} />
+                        </div>
+                        <span className="text-xs text-slate-600">%{Math.round(r.nakshatra.ratio * 100)}</span>
+                      </div>
+                    </td>
+                    <td className={`${td} text-xs`}>
+                      {GRAHA_LABELS[r.nakshatra.lord]} → {SIGN_GLYPHS[r.lordRashi as keyof typeof SIGN_GLYPHS]} {SIGN_LABELS[r.lordRashi as keyof typeof SIGN_LABELS]}, {r.lordHouse}. bhava
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div>
+            <div className="mb-1 text-xs font-semibold text-slate-600">Nakshatra yöneticisine göre (Vimshottari sırası)</div>
+            <div className="flex flex-wrap gap-1.5 text-xs" data-testid="astro-vedic-nakshatra-lords">
+              {nak.byLord.map((g) => (
+                <span key={g.lord} className={`rounded-full border px-2 py-0.5 ${g.points.length ? "border-indigo-200 bg-white text-slate-800" : "border-slate-100 text-slate-400"}`}>
+                  <strong>{GRAHA_LABELS[g.lord]}</strong>: {g.points.length ? g.points.map(pointLabel).join(", ") : "—"}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
       <section className="min-w-0 rounded-xl border border-slate-200 bg-white">

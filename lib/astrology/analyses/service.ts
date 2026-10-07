@@ -22,7 +22,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { resolveAstroLocation } from "../birth/location";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { resolveInterpretationVisibility } from "../access/entitlements";
-import { getTechnique, type TechniqueId } from "../engine/techniques";
+import { getTechnique, parseNoteContext, type TechniqueId } from "../engine/techniques";
 import { ASTRO_NOT_READY, buildSelectionView, loadProfileRevision, planSelections, type EngineCtx, type ServiceResponse } from "../engine/service";
 import { findTenantClient, getProfile, getResultById, isSchemaMissing, isUuid, logAstroDbError, type ResultRow, type RevisionRow } from "../persistence/repo";
 import { matchKbEntries, publicKbEntry } from "../kb/service";
@@ -143,8 +143,20 @@ function contextLocationIdOf(technique: string, options: Record<string, unknown>
   return null;
 }
 
+/** Aşama 5: Vedik not bağlamı (ayanamsa [+ varga/dasha]) → deterministik uuid (ayrı ad alanı). */
+export function vedicContextKey(technique: string, noteContext: string): string {
+  return locationContextKey(technique, `vedic${noteContext}`);
+}
+
+function noteContextOf(technique: string, options: Record<string, unknown>): string | null {
+  const def = getTechnique(technique);
+  return def?.noteContext ? def.noteContext(options) : null;
+}
+
 function contextKeyOf(technique: string, options: Record<string, unknown>, partner: RevisionRow | null): string {
   if (partner) return partner.profile_id;
+  const nc = noteContextOf(technique, options);
+  if (nc) return vedicContextKey(technique, nc);
   const loc = contextLocationIdOf(technique, options);
   return loc ? locationContextKey(technique, loc) : "";
 }
@@ -185,6 +197,7 @@ export async function getWorkspace(ctx: EngineCtx, q: Record<string, unknown>): 
       technique: l.v.technique,
       contextKey,
       contextLocationId: contextLocationIdOf(l.v.technique, l.v.options),
+      noteContext: noteContextOf(l.v.technique, l.v.options),
       knowledgeBankEnabled: ctx.entitlements.knowledgeBank,
       topics,
       kbMatches: kb.rows.map(publicKbEntry),
@@ -202,7 +215,14 @@ export async function saveExpertNote(ctx: EngineCtx, raw: unknown): Promise<Serv
   if (!def) return fail(400, "UNKNOWN_TECHNIQUE", "Bilinmeyen hesaplama türü.");
   let contextKey = o.contextKey === undefined || o.contextKey === null || o.contextKey === "" ? "" : o.contextKey;
   const isLocationCtx = ["western.relocation", "western.local_space", "western.solar_return", "western.lunar_return"].includes(def.id);
-  if (isLocationCtx) {
+  if (def.noteContext) {
+    // Vedik bağlam: metin sunucuda parseOptions ile doğrulanır ve uuid SUNUCUDA türetilir.
+    const opts = parseNoteContext(def, o.noteContext);
+    if (!opts) return fail(400, "INVALID_CONTEXT", "Geçersiz not bağlamı (ayanamsa).");
+    const derived = vedicContextKey(def.id, def.noteContext(opts));
+    if (contextKey !== "" && contextKey !== derived) return fail(400, "INVALID_CONTEXT", "Geçersiz not bağlamı.");
+    contextKey = derived;
+  } else if (isLocationCtx) {
     // Konum bağlamı istemcinin uuid'sine güvenilmez: konum kimliğinden SUNUCUDA türetilir ve konum doğrulanır.
     const locIdRaw = o.contextLocationId;
     if (locIdRaw === undefined || locIdRaw === null || locIdRaw === "") {
