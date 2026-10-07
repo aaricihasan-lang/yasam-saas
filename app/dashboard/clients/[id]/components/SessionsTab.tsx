@@ -511,6 +511,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
     setErrorMessage("");
 
     const addToken = readSessionToken();
+    // Ağ hatası (offline/timeout/WebView askıya alma) fetch'i fırlatır → saving takılı kalmasın.
     const addRes = await fetch(`/api/clients/${clientId}/sessions`, {
       method: "POST",
       headers: {
@@ -519,9 +520,9 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
         ...(addToken ? { "x-session-token": addToken } : {}),
       },
       body: JSON.stringify(formToPayload(form)),
-    });
+    }).catch(() => null);
 
-    if (!addRes.ok) {
+    if (!addRes || !addRes.ok) {
       console.error("Seans kaydı eklenemedi");
       showToast({
         title: t("toast.failTitle"),
@@ -532,38 +533,47 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
       return;
     }
 
-    // Z-3: Seans tarihi kaydedilince clients.gorusme güncelle (son seans takibi için).
-    // DY-A: yalnız sessionDate ≤ bugün (İstanbul) — ileri tarihli seans son görüşmeyi ilerletmez.
-    if (form.sessionDate && tenantId && form.sessionDate <= todayISO()) {
-      const gToken = readSessionToken();
-      const cliRes = await fetch(`/api/clients/${clientId}`, {
-        headers: {
-          "x-user-id": readYasamUser()?.id ?? "",
-          ...(gToken ? { "x-session-token": gToken } : {}),
-        },
-      });
-      const cli = cliRes.ok
-        ? ((await cliRes.json()) as { client?: { gorusme?: string | null } }).client
-        : null;
-      if (cli && nextGorusme(cli.gorusme ?? null, form.sessionDate, todayISO())) {
-        const patchRes = await fetch(`/api/clients/${clientId}`, {
-          method: "PATCH",
+    // Kayıt oluştu: sonraki yan adımlar (görüşme tarihi, liste tazeleme) ağ hatası verse bile
+    // "eklenemedi" denmez (tekrar deneme → mükerrer kayıt) ve saving her durumda serbest kalır.
+    // Form, yan adımlardan ÖNCE kapatılır: hata olsa da aynı veri yeniden gönderilemez.
+    const savedSessionDate = form.sessionDate;
+    setForm({ ...emptyForm, sessionDate: todayISO() });
+    setShowForm(false);
+    try {
+      // Z-3: Seans tarihi kaydedilince clients.gorusme güncelle (son seans takibi için).
+      // DY-A: yalnız sessionDate ≤ bugün (İstanbul) — ileri tarihli seans son görüşmeyi ilerletmez.
+      if (savedSessionDate && tenantId && savedSessionDate <= todayISO()) {
+        const gToken = readSessionToken();
+        const cliRes = await fetch(`/api/clients/${clientId}`, {
           headers: {
-            "Content-Type": "application/json",
             "x-user-id": readYasamUser()?.id ?? "",
             ...(gToken ? { "x-session-token": gToken } : {}),
           },
-          body: JSON.stringify({ gorusme: form.sessionDate }),
         });
-        // Hero üst özeti full reload olmadan tazelensin (spec §6).
-        if (patchRes.ok) onGorusmeChange?.(form.sessionDate);
+        const cli = cliRes.ok
+          ? ((await cliRes.json()) as { client?: { gorusme?: string | null } }).client
+          : null;
+        if (cli && nextGorusme(cli.gorusme ?? null, savedSessionDate, todayISO())) {
+          const patchRes = await fetch(`/api/clients/${clientId}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              "x-user-id": readYasamUser()?.id ?? "",
+              ...(gToken ? { "x-session-token": gToken } : {}),
+            },
+            body: JSON.stringify({ gorusme: savedSessionDate }),
+          });
+          // Hero üst özeti full reload olmadan tazelensin (spec §6).
+          if (patchRes.ok) onGorusmeChange?.(savedSessionDate);
+        }
       }
-    }
 
-    setForm({ ...emptyForm, sessionDate: todayISO() });
-    setShowForm(false);
-    await loadSessions();
-    setSaving(false);
+      await loadSessions();
+    } catch {
+      console.error("Seans eklendi; liste/görüşme tazelenemedi");
+    } finally {
+      setSaving(false);
+    }
 
     showToast({
       title: t("toast.successTitle"),
@@ -604,9 +614,9 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
         ...(updToken ? { "x-session-token": updToken } : {}),
       },
       body: JSON.stringify({ id, ...formToPayload(editForm) }),
-    });
+    }).catch(() => null);
 
-    if (!updRes.ok) {
+    if (!updRes || !updRes.ok) {
       console.error("Seans kaydı güncellenemedi");
       showToast({
         title: t("toast.failTitle"),
@@ -618,8 +628,13 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
     }
 
     cancelEdit();
-    await loadSessions();
-    setUpdating(false);
+    try {
+      await loadSessions();
+    } catch {
+      console.error("Seans güncellendi; liste tazelenemedi");
+    } finally {
+      setUpdating(false);
+    }
 
     showToast({
       title: t("toast.successTitle"),
@@ -642,9 +657,9 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
         "x-user-id": readYasamUser()?.id ?? "",
         ...(delToken ? { "x-session-token": delToken } : {}),
       },
-    });
+    }).catch(() => null);
 
-    if (!delRes.ok) {
+    if (!delRes || !delRes.ok) {
       console.error("Seans kaydı silinemedi");
       showToast({
         title: t("toast.failTitle"),

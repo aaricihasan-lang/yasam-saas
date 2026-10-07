@@ -12,6 +12,7 @@ import {
   type HijamRule,
 } from "@/lib/cosmic/hacamat";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { useToast } from "@/components/ui/ToastProvider";
 import { supportedYears, SUPPORT_START_YEAR, SUPPORT_END_YEAR } from "@/lib/cosmic/dateRange";
 import { HIJRI_METHOD_NOTE } from "@/lib/cosmic/hijri";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
@@ -299,6 +300,7 @@ export default function HacamatPage() {
   const [rules,          setRules]          = useState<HijamRule[]>([]);
   const [isLoadingRules, setIsLoadingRules] = useState(false);
   const [rulesError,     setRulesError]     = useState<string | null>(null);
+  const { showToast } = useToast();
 
   // KAJ-P1-03: kural yönetimi HER aktif uzman için KENDİ tenant'ı kapsamında açık
   // (server tarafı requireModuleAccess + tenant-scope ile zorunlu kılar). Oturum açmamış
@@ -384,7 +386,14 @@ export default function HacamatPage() {
       if (!json.ok || !json.data) throw new Error(json.error ?? "Eklenemedi.");
       setRules(prev => [...prev, json.data!]);
       setNewRuleText("");
-    } catch { /* hata görmezden gelinir */ }
+    } catch (err) {
+      // Sessiz hata YOK: metin korunur, kullanıcı bilgilendirilir.
+      showToast({
+        title:   "Kural eklenemedi",
+        message: err instanceof Error && err.message ? err.message : "Lütfen tekrar deneyin.",
+        type:    "error",
+      });
+    }
     finally { setIsAddingRule(false); }
   }
 
@@ -392,11 +401,26 @@ export default function HacamatPage() {
   async function confirmDelete(id: string) {
     setConfirmingDeleteId(null);
     if (!userId) return;
+    const removedIndex = rules.findIndex(r => r.id === id);
+    const removed = removedIndex >= 0 ? rules[removedIndex] : null;
     setRules(prev => prev.filter(r => r.id !== id)); // optimistic
-    await fetch(`/api/hacamat/rules/${id}`, {
+    const res = await fetch(`/api/hacamat/rules/${id}`, {
       method:  "DELETE",
       headers: userHeaders(userId),
-    });
+    }).catch(() => null);
+    const json = (res ? await res.json().catch(() => ({})) : {}) as { ok?: boolean; error?: string };
+    if (!res || !res.ok || json.ok === false) {
+      // Sunucu silmediyse optimistic kaldırma geri alınır (sessiz veri kaybı/yanılgı yok).
+      if (removed) {
+        setRules(prev => {
+          if (prev.some(r => r.id === id)) return prev;
+          const next = [...prev];
+          next.splice(Math.min(removedIndex, next.length), 0, removed);
+          return next;
+        });
+      }
+      showToast({ title: "Kural silinemedi", message: json.error ?? "Lütfen tekrar deneyin.", type: "error" });
+    }
   }
 
   function startEdit(rule: HijamRule) {
@@ -409,13 +433,22 @@ export default function HacamatPage() {
     const t = editText.trim();
     if (!t) { cancelEdit(); return; }
     if (!userId) { cancelEdit(); return; }
+    const previousText = rules.find(r => r.id === id)?.rule_text;
     setRules(prev => prev.map(r => r.id === id ? { ...r, rule_text: t } : r)); // optimistic
     setEditingId(null);
-    await fetch(`/api/hacamat/rules/${id}`, {
+    const res = await fetch(`/api/hacamat/rules/${id}`, {
       method:  "PUT",
       headers: userHeaders(userId, true),
       body:    JSON.stringify({ rule_text: t }),
-    });
+    }).catch(() => null);
+    const json = (res ? await res.json().catch(() => ({})) : {}) as { ok?: boolean; error?: string };
+    if (!res || !res.ok || json.ok === false) {
+      // Sunucu kaydetmediyse eski metne dön (ekranda kaydedilmiş gibi görünmesin).
+      if (previousText !== undefined) {
+        setRules(prev => prev.map(r => r.id === id && r.rule_text === t ? { ...r, rule_text: previousText } : r));
+      }
+      showToast({ title: "Kural kaydedilemedi", message: json.error ?? "Lütfen tekrar deneyin.", type: "error" });
+    }
   }
 
   function cancelEdit() {

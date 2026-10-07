@@ -39,7 +39,6 @@ import {
   type ModulePermissionKey,
 } from "@/lib/auth/modulePermissions";
 import { DIGITAL_CONTENT_HUB_KEYS, ENERGY_BODY_HUB_KEYS } from "@/lib/auth/hubVisibility";
-import { supabase } from "@/lib/supabase";
 import { fetchYhHealth } from "@/lib/yasam-hafizasi/ui/searchApiClient";
 import { deriveYhCardStatus, type YhHealthPayload } from "@/lib/yasam-hafizasi/ui/healthStatus";
 import {
@@ -1095,12 +1094,23 @@ export default function Home() {
 
     let cancelled = false;
     const entries = Object.entries(MODULE_STAT_TABLES) as Array<[ModulePermissionKey, string]>;
-    // clients RLS-korumalı; anon HEAD count 401 verir → güvenli /api/clients hattından say.
+    // Tüm modül tabloları anon'a KAPALI (RLS + grant revoke) → sayımlar yalnız güvenli sunucu
+    // kapılarından: clients → /api/clients, numeroloji → /api/numeroloji/analyses,
+    // diğerleri → /api/dashboard/summary (tek istek, modül izni sunucuda).
     const token = readSessionToken();
     const authHeaders: Record<string, string> = {
       "x-user-id": user.id ?? "",
       ...(token ? { "x-session-token": token } : {}),
     };
+    let summaryPromise: Promise<Partial<Record<string, number | null>> | null> | null = null;
+    const loadSummaryCounts = () =>
+      (summaryPromise ??= fetch("/api/dashboard/summary", { headers: authHeaders })
+        .then(async (res) => {
+          if (!res.ok) return null;
+          const json = (await res.json()) as { counts?: Partial<Record<string, number | null>> };
+          return json.counts ?? null;
+        })
+        .catch(() => null));
 
     void Promise.allSettled(
       entries.map(async ([key, table]) => {
@@ -1117,11 +1127,9 @@ export default function Home() {
           const json = (await res.json()) as { count?: number };
           return { key, count: typeof json.count === "number" ? json.count : null };
         }
-        const { count, error } = await supabase
-          .from(table)
-          .select("*", { count: "exact", head: true })
-          .eq("tenant_id", tenantId);
-        return { key, count: error ? null : (count ?? null) };
+        const counts = await loadSummaryCounts();
+        const value = counts?.[key];
+        return { key, count: typeof value === "number" ? value : null };
       }),
     ).then((results) => {
       if (cancelled) return;
@@ -1154,16 +1162,16 @@ export default function Home() {
 
     let cancelled = false;
     type RawItem = { icon: string; label: string; rawDate: string };
-    // clients RLS-korumalı + isim ad/soyad kolonlarında → güvenli /api/clients hattı.
-    // Diğerleri anon-okunabilir; stones'ta isim kolonu `stone_name`.
+    // Tüm kaynaklar anon'a KAPALI → yalnız güvenli sunucu kapıları: clients → /api/clients,
+    // numeroloji → /api/numeroloji/analyses, Doğaltaş + Kişisel Arşiv → /api/dashboard/summary.
     const token = readSessionToken();
     const authHeaders: Record<string, string> = {
       "x-user-id": user.id ?? "",
       ...(token ? { "x-session-token": token } : {}),
     };
-    const directSources: { table: string; icon: string; col: string }[] = [
-      { table: "stones",              icon: "💎", col: "stone_name" },
-      { table: "personal_archives",   icon: "📚", col: "title" },
+    const summarySources: { key: string; icon: string }[] = [
+      { key: "stones",            icon: "💎" },
+      { key: "personal_archives", icon: "📚" },
     ];
 
     const clientsSource = (async (): Promise<RawItem[]> => {
@@ -1183,35 +1191,36 @@ export default function Home() {
     const numerologySource = (async (): Promise<RawItem[]> => {
       const res = await fetch("/api/numeroloji/analyses?recent=3", { headers: authHeaders });
       if (!res.ok) return [];
+      // Sunucu `name, surname` döner (numerology_records); eski `full_name` okuması hep boştu.
       const json = (await res.json()) as {
-        rows?: { full_name?: string | null; created_at?: string | null }[];
+        rows?: { name?: string | null; surname?: string | null; created_at?: string | null }[];
       };
       return (json.rows ?? []).map((r) => ({
         icon: "🧠",
-        label: String(r.full_name ?? t("dashboard.newRecord")).trim() || t("dashboard.newRecord"),
+        label: `${r.name ?? ""} ${r.surname ?? ""}`.trim() || t("dashboard.newRecord"),
         rawDate: String(r.created_at ?? ""),
       }));
+    })();
+
+    const summarySource = (async (): Promise<RawItem[]> => {
+      const res = await fetch("/api/dashboard/summary", { headers: authHeaders });
+      if (!res.ok) return [];
+      const json = (await res.json()) as {
+        recent?: Record<string, Array<{ label?: string | null; created_at?: string | null }>>;
+      };
+      return summarySources.flatMap(({ key, icon }) =>
+        (json.recent?.[key] ?? []).map((r) => ({
+          icon,
+          label: String(r.label ?? "").trim() || t("dashboard.newRecord"),
+          rawDate: String(r.created_at ?? ""),
+        })),
+      );
     })();
 
     void Promise.allSettled([
       clientsSource,
       numerologySource,
-      ...directSources.map(async ({ table, icon, col }): Promise<RawItem[]> => {
-        const { data } = await supabase
-          .from(table)
-          .select(`${col}, created_at`)
-          .eq("tenant_id", tenantId)
-          .order("created_at", { ascending: false })
-          .limit(3);
-        return (data ?? []).map((row) => {
-          const r = row as unknown as Record<string, unknown>;
-          return {
-            icon,
-            label: String(r[col] ?? t("dashboard.newRecord")).trim() || t("dashboard.newRecord"),
-            rawDate: String(r["created_at"] ?? ""),
-          } satisfies RawItem;
-        });
-      }),
+      summarySource,
     ]).then((results) => {
       if (cancelled) return;
       const all: RawItem[] = results

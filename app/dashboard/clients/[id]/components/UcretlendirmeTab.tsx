@@ -184,17 +184,24 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
         ...(token ? { "x-session-token": token } : {}),
       },
       body: JSON.stringify(toPayload(form)),
-    });
-    if (!res.ok) {
+    }).catch(() => null); // ağ hatası → saving takılı kalmasın
+    if (!res || !res.ok) {
       console.error("Ücret kaydı eklenemedi");
       showToast({ title: t("toast.failTitle"), message: t("toast.addFailed"), type: "error" });
       setSaving(false);
       return;
     }
+    // Kayıt oluştu: form önce kapanır (aynı ücret yeniden gönderilemez); liste tazeleme
+    // ağ hatası verse de "eklenemedi" denmez ve saving her durumda serbest kalır.
     setForm(emptyForm());
     setShowForm(false);
-    await loadCharges();
-    setSaving(false);
+    try {
+      await loadCharges();
+    } catch {
+      console.error("Ücret eklendi; liste tazelenemedi");
+    } finally {
+      setSaving(false);
+    }
     showToast({ title: t("toast.successTitle"), message: t("toast.added"), type: "success" });
   }
 
@@ -230,16 +237,21 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
         ...(token ? { "x-session-token": token } : {}),
       },
       body: JSON.stringify({ id, ...toPayload(editForm) }),
-    });
-    if (!res.ok) {
+    }).catch(() => null); // ağ hatası → saving takılı kalmasın
+    if (!res || !res.ok) {
       console.error("Ücret kaydı güncellenemedi");
       showToast({ title: t("toast.failTitle"), message: t("toast.updateFailed"), type: "error" });
       setSaving(false);
       return;
     }
     cancelEdit();
-    await loadCharges();
-    setSaving(false);
+    try {
+      await loadCharges();
+    } catch {
+      console.error("Ücret güncellendi; liste tazelenemedi");
+    } finally {
+      setSaving(false);
+    }
     showToast({ title: t("toast.successTitle"), message: t("toast.updated"), type: "success" });
   }
 
@@ -253,8 +265,8 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
         "x-user-id": readYasamUser()?.id ?? "",
         ...(token ? { "x-session-token": token } : {}),
       },
-    });
-    if (!res.ok) {
+    }).catch(() => null);
+    if (!res || !res.ok) {
       console.error("Ücret kaydı silinemedi");
       showToast({ title: t("toast.failTitle"), message: t("toast.deleteFailed"), type: "error" });
       return;
