@@ -133,7 +133,7 @@ export default function NumerolojiListePage() {
     const names = ids.map((id) => nameById.get(id) ?? "").filter((n) => n.trim().length > 0);
     const { title, message, secondMessage } = buildNumerolojiDeleteConfirm(ids.length, names);
 
-    const confirmed = await deleteConfirm({ title, message, secondMessage });
+    const confirmed = await deleteConfirm({ title, message, secondMessage, count: ids.length, noun: "analiz" });
     if (!confirmed) return;
 
     setDeleteLoading(true);

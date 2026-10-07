@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
 import { hdGet, hdSend } from "./adminHdApi";
 import { sortCanonicalRows } from "@/lib/human-design/admin/hdSort";
 import { badgeForContentStatus } from "@/lib/human-design/admin/hdContentBadge";
@@ -22,6 +24,8 @@ export default function HdAdminHome() {
   const [msg, setMsg] = useState<string | null>(null);
   const [pendingBulk, setPendingBulk] = useState<string[] | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const bulkGuardRef = useRef(false);
+  const { confirm } = useConfirm();
 
   const load = useCallback(async (k: HdEntityKind) => {
     setLoading(true);
@@ -44,12 +48,33 @@ export default function HdAdminHome() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(kind); }, [kind, load]);
 
-  const runBulkDelete = async () => {
-    if (!pendingBulk) return;
+  // 3+ kayıt → sistem geneli 3 aşamalı toplu silme (ortak ConfirmProvider); 1–2 kayıt → HdConfirmModal.
+  const requestBulkDelete = async (ids: string[]) => {
+    if (ids.length === 0 || bulkGuardRef.current) return;
+    if (!requiresBulkDeleteGuard(ids.length)) {
+      setPendingBulk(ids);
+      return;
+    }
+    bulkGuardRef.current = true;
+    try {
+      const ok = await runBulkDeleteConfirm(confirm, {
+        count: ids.length,
+        detail:
+          "İçeriği olan kayıtların içeriği (ve bağlı kanıt bağlantıları) kaldırılacaktır. Canonical kimlik kayıtları silinmeyecektir.",
+      });
+      if (ok) await runBulkDelete(ids);
+    } finally {
+      bulkGuardRef.current = false;
+    }
+  };
+
+  const runBulkDelete = async (idsArg?: string[]) => {
+    const pendingIds = idsArg ?? pendingBulk;
+    if (!pendingIds || pendingIds.length === 0) return;
     setBulkBusy(true);
     setMsg(null);
     const r = await hdSend<{ deleted_count: number; entities_without_content: number }>(
-      "POST", "content/bulk-delete", { entity_ids: pendingBulk },
+      "POST", "content/bulk-delete", { entity_ids: pendingIds },
     );
     setBulkBusy(false);
     setPendingBulk(null);
@@ -81,7 +106,7 @@ export default function HdAdminHome() {
           hrefFor={(key) => `/admin/human-design/${encodeURIComponent(key)}`}
           emptyLabel="Bu türde kimlik bulunamadı."
           selectable
-          onBulkDelete={(ids) => setPendingBulk(ids)}
+          onBulkDelete={(ids) => void requestBulkDelete(ids)}
           bulkBusy={bulkBusy}
         />
       </div>
@@ -99,9 +124,8 @@ export default function HdAdminHome() {
           </>
         }
         confirmLabel="Seçili İçerikleri Sil"
-        requireText={pendingCount >= 5 ? "SİL" : undefined}
         loading={bulkBusy}
-        onConfirm={runBulkDelete}
+        onConfirm={() => void runBulkDelete()}
         onCancel={() => setPendingBulk(null)}
       />
     </div>

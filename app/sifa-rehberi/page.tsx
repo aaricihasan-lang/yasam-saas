@@ -613,6 +613,8 @@ function SifaRehberiContent() {
 
     const confirmed = await deleteConfirm({
       title: "Seçili kayıtları sil",
+      count: ids.length,
+      noun: "şifa rehberi kaydı",
       message: `${ids.length} şifa rehberi kaydını silmek istediğinizden emin misiniz?`,
       secondMessage: "Bu işlem geri alınamaz. Seçili kayıtlar kalıcı olarak silinecek.",
       names: targetRows.map((r) => r.name || "(adsız kayıt)"),

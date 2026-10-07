@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { USERS_SAFE_SELECT } from "@/lib/supabase-server";
 import { DEACTIVATION_AUDIT_ACTIONS } from "@/lib/admin/membershipActions";
+import { resolveIsSuperAdmin } from "@/lib/admin/adminGuards";
 
 export const runtime = "nodejs";
 
@@ -17,7 +18,7 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest): Promise<Response> {
   const guard = await verifyAdminRequest(req);
   if (!guard.ok) return guard.response;
-  const { db } = guard;
+  const { db, adminId } = guard;
 
   const { data, error } = await db
     .from("users")
@@ -82,5 +83,12 @@ export async function GET(req: NextRequest): Promise<Response> {
     }
   }
 
-  return NextResponse.json({ ok: true, users, deactivations }, { headers: { "Cache-Control": "private, no-store" } });
+  // UI ipucu: kalıcı silme butonu YALNIZ sistem sahibine gösterilir. Yetki her durumda
+  // POST /api/admin/users/[id]/purge'da (route + DB) yeniden doğrulanır.
+  const canPermanentDelete = await resolveIsSuperAdmin(db, adminId);
+
+  return NextResponse.json(
+    { ok: true, users, deactivations, viewer: { canPermanentDelete } },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }

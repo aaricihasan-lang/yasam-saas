@@ -19,6 +19,13 @@ import { createPortal } from "react-dom";
  */
 const CONFIRM_LAYER_CLASS = "z-[10050]";
 
+/**
+ * Onaydan sonra kısa süre tıklama kalkanı: çift tıklamanın İKİNCİ tıklaması (a) çok aşamalı
+ * silmede aynı konumdaki bir sonraki aşamanın onay butonuna (ör. "Devam Et" → "Kalıcı Olarak
+ * Sil") ya da (b) pencere kapanınca alttaki sayfaya (silinmekte olan satıra) düşmesin.
+ */
+const CLICK_SHIELD_MS = 450;
+
 type ConfirmTone = "danger" | "info" | "success" | "warning";
 
 type ConfirmOptions = {
@@ -35,6 +42,11 @@ type ConfirmOptions = {
   requireText?: string;
   /** requireText alanının üstünde gösterilen yönerge. */
   requireTextLabel?: string;
+  /**
+   * Özel karşılaştırma (ör. toplu silme ifadesi — lib/ui/bulkDeleteGuard). Verilirse
+   * varsayılan normalizeConfirmText eşleşmesinin YERİNE kullanılır.
+   */
+  requireTextMatcher?: (typed: string) => boolean;
 };
 
 /** Yazarak onay karşılaştırması — tr-TR harf katlama + boşluk normalizasyonu. */
@@ -53,6 +65,11 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [resolver, setResolver] = useState<((value: boolean) => void) | null>(null);
   const [busy, setBusy] = useState(false);
   const [typed, setTyped] = useState("");
+  const [shield, setShield] = useState(false);
+  const shieldTimerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (shieldTimerRef.current !== null) window.clearTimeout(shieldTimerRef.current);
+  }, []);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const cancelBtnRef = useRef<HTMLButtonElement>(null);
@@ -75,6 +92,11 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 
   const close = (result: boolean) => {
     if (busy && result) return; // silme devam ederken tekrar tetikleme
+    if (result) {
+      setShield(true);
+      if (shieldTimerRef.current !== null) window.clearTimeout(shieldTimerRef.current);
+      shieldTimerRef.current = window.setTimeout(() => setShield(false), CLICK_SHIELD_MS);
+    }
     resolver?.(result);
     setOptions(null);
     setResolver(null);
@@ -84,7 +106,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 
   const typedOk =
     !options?.requireText ||
-    normalizeConfirmText(typed) === normalizeConfirmText(options.requireText);
+    (options.requireTextMatcher
+      ? options.requireTextMatcher(typed)
+      : normalizeConfirmText(typed) === normalizeConfirmText(options.requireText));
 
   // Focus yönetimi ve klavye trap
   useEffect(() => {
@@ -170,6 +194,13 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={{ confirm }}>
       {children}
 
+      {shield && portalTarget
+        ? createPortal(
+            <div className="fixed inset-0 z-[10060]" aria-hidden data-testid="confirm-click-shield" />,
+            portalTarget,
+          )
+        : null}
+
       {options && portalTarget && createPortal(
         <div
           className={`fixed inset-0 ${CONFIRM_LAYER_CLASS} flex items-center justify-center overscroll-contain bg-black/45 p-3 backdrop-blur-sm sm:p-4`}
@@ -218,6 +249,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                     onChange={(e) => setTyped(e.target.value)}
                     autoComplete="off"
                     spellCheck={false}
+                    data-testid="confirm-require-text"
                     aria-label={options.requireTextLabel ?? "Onay metni"}
                     className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-2.5 text-[16px] font-semibold text-slate-800 outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 sm:text-[15px]"
                   />
@@ -230,6 +262,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 <button
                   ref={cancelBtnRef}
                   type="button"
+                  data-testid="confirm-cancel"
                   onClick={() => close(false)}
                   className="rounded-2xl border border-slate-200 bg-slate-100 px-5 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
                 >
@@ -239,6 +272,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 <button
                   ref={confirmBtnRef}
                   type="button"
+                  data-testid="confirm-ok"
                   disabled={busy || !typedOk}
                   onClick={() => {
                     if (!typedOk) return;
