@@ -28,6 +28,13 @@ const FIXTURE = JSON.parse(readFileSync(join(__dirname, "fixtures", "roxy-natal-
 /** GERÇEK Roxy natal yanıtı (golden, 2026-10-07, tek çağrı, sentetik kişi). */
 const GOLDEN = JSON.parse(readFileSync(join(__dirname, "fixtures", "roxy-natal-golden-2026-10-07.json"), "utf8"));
 let roxyRawOverride: Record<string, unknown> | null = null;
+/** Aşama 3 golden yanıtları (gerçek, sentetik kişiler) — endpoint → yanıt. */
+const GOLDEN3: Record<string, Record<string, unknown>> = {};
+for (const n of ["transit", "forecast", "progression", "solar-arc", "solar-return", "lunar-return", "synastry", "composite"]) {
+  const f = JSON.parse(readFileSync(join(__dirname, "fixtures", "golden", `${n}.json`), "utf8"));
+  GOLDEN3[f.endpoint] = f.response;
+}
+const roxyEndpoints: string[] = [];
 
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const IDS = {
@@ -81,6 +88,14 @@ const restore = installFetchShim({
   roxy: ({ url, headers, body }) => {
     roxyHits += 1;
     roxyHeaderKeys.push(headers.get("x-api-key") ?? "");
+    const path = new URL(url).pathname.replace(/^\/api\/v2/, "");
+    roxyEndpoints.push(path);
+    assert.equal(new URL(url).searchParams.get("lang"), "tr", `lang=tr yok: ${url}`);
+    if (GOLDEN3[path]) {
+      const r = structuredClone(GOLDEN3[path]) as Record<string, unknown>;
+      if (path === "/forecast/transits") r.events = (r.events as { date: string }[]).filter((e) => e.date >= String(body.startDate) && e.date <= String(body.endDate));
+      return new Response(JSON.stringify(r), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
     assert.ok(url.startsWith(`${ROXY_BASE}/astrology/natal-chart?lang=tr`), `beklenmeyen Roxy URL: ${url}`);
     if (roxyRawOverride) return new Response(JSON.stringify(roxyRawOverride), { status: 200, headers: { "Content-Type": "application/json" } });
     const raw = structuredClone(FIXTURE);
@@ -118,6 +133,7 @@ async function main() {
   const revisions = await import("@/app/api/admin/astroloji/profiles/[id]/revisions/route");
   const plan = await import("@/app/api/admin/astroloji/engine/plan/route");
   const run = await import("@/app/api/admin/astroloji/engine/run/route");
+  const viewRoute = await import("@/app/api/admin/astroloji/engine/view/route");
   const result = await import("@/app/api/admin/astroloji/results/[id]/route");
   const kbList = await import("@/app/api/admin/astroloji/kb/route");
   const kbItem = await import("@/app/api/admin/astroloji/kb/[id]/route");
@@ -141,6 +157,7 @@ async function main() {
     { name: "POST revisions", exec: (w) => revisions.POST(req(`/api/admin/astroloji/profiles/${PID}/revisions`, w, "POST", { ...profileBody, expectedRevision: 1 }), ctxP(PID)) },
     { name: "POST engine/plan", exec: (w) => plan.POST(req("/api/admin/astroloji/engine/plan", w, "POST", runBody(PID))) },
     { name: "POST engine/run", exec: (w) => run.POST(req("/api/admin/astroloji/engine/run", w, "POST", runBody(PID))) },
+    { name: "POST engine/view", exec: (w) => viewRoute.POST(req("/api/admin/astroloji/engine/view", w, "POST", runBody(PID))) },
     { name: "GET results/[id]", exec: (w) => result.GET(req(`/api/admin/astroloji/results/${PID}`, w), ctxP(PID)) },
     // Aşama 2
     { name: "GET kb", exec: (w) => kbList.GET(req("/api/admin/astroloji/kb", w)) },
@@ -149,6 +166,7 @@ async function main() {
     { name: "PATCH kb/[id]", exec: (w) => kbItem.PATCH(req(`/api/admin/astroloji/kb/${PID}`, w, "PATCH", { expectedRevision: 1, tradition: "western", topicKey: "planet_in_house:saturn:7", title: "t", body: "b" }), ctxP(PID)) },
     { name: "DELETE kb/[id]", exec: (w) => kbItem.DELETE(req(`/api/admin/astroloji/kb/${PID}?expectedRevision=1`, w, "DELETE"), ctxP(PID)) },
     { name: "GET workspace", exec: (w) => workspace.GET(req(`/api/admin/astroloji/workspace?profileId=${PID}&revision=1&resultId=${PID}`, w)) },
+    { name: "POST workspace", exec: (w) => workspace.POST(req("/api/admin/astroloji/workspace", w, "POST", { profileId: PID, revision: 1, technique: "western.transit", options: { atUtc: "2026-10-07T09:00" } })) },
     { name: "PUT notes", exec: (w) => notes.PUT(req("/api/admin/astroloji/notes", w, "PUT", { profileId: PID, sectionKey: "overall", body: "x", expectedRevision: null })) },
     { name: "GET analyses", exec: (w) => analyses.GET(req(`/api/admin/astroloji/analyses?profileId=${PID}`, w)) },
     { name: "POST analyses", exec: (w) => analyses.POST(req("/api/admin/astroloji/analyses", w, "POST", { profileId: PID, revision: 1, resultId: PID, saveRequestId: PID })) },
@@ -345,6 +363,79 @@ async function main() {
       const tech = (r: { json: Record<string, unknown> }) => JSON.stringify((r.json.results as { view: { technical: unknown } }[])[0].view.technical);
       assert.equal(tech(b), tech(a), "teknik veri A/B arasında değişti");
       assert.deepEqual(b.json.executed, { newResults: 0, cachedResults: 1, providerAttempts: 0 });
+    });
+    await t("aşama 3 (HTTP): A+B profil → transit + forecast 180g + sinastri + composite planla/çalıştır → önizlemede anlatı yok → çalışma alanı → bağlamlı not → kaydet → aç = 0 Roxy", async () => {
+      store = seed();
+      const hits0 = roxyHits;
+      const ep0 = roxyEndpoints.length;
+      const a = await call(profiles.POST(req("/api/admin/astroloji/profiles", "owner", "POST", profileBody)));
+      const pa = (a.json.profile as { id: string }).id;
+      const b = await call(profiles.POST(req("/api/admin/astroloji/profiles", "owner", "POST", { label: "Sentetik B", birthDate: "1988-03-21", birthTime: "06:45", timeKnown: true, timeAccuracy: "exact_record", locationId: "tr-06-ankara" })));
+      assert.equal(b.status, 201, b.text);
+      const pb = (b.json.profile as { id: string }).id;
+      const sels = [
+        { technique: "western.transit", options: { atUtc: "2026-10-07T09:00", nodeType: "true" } },
+        { technique: "western.forecast", options: { startDate: "2026-10-01", days: 180 } },
+        { technique: "western.synastry", options: { partnerProfileId: pb, houseSystem: "placidus", nodeType: "true" } },
+        { technique: "western.composite", options: { partnerProfileId: pb, houseSystem: "placidus", nodeType: "true" } },
+      ];
+      const pl = await call(plan.POST(req("/api/admin/astroloji/engine/plan", "owner", "POST", { profileId: pa, selections: sels })));
+      const sum = pl.json.plan as { selectedCount: number; newRequestCount: number; selections: { newRequests: number }[] };
+      assert.deepEqual([sum.selectedCount, sum.newRequestCount, sum.selections.map((x) => x.newRequests).join(",")], [4, 5, "1,2,1,1"]);
+      assert.equal(roxyHits, hits0, "plan Roxy çağırdı");
+      const prev = await call(run.POST(req("/api/admin/astroloji/engine/run?previewNoInterp=1", "owner", "POST", { profileId: pa, selections: sels })));
+      assert.equal(prev.status, 200, prev.text.slice(0, 300));
+      assert.equal(roxyHits - hits0, 5);
+      assert.deepEqual(roxyEndpoints.slice(ep0).sort(), ["/astrology/composite-chart", "/astrology/synastry", "/astrology/transits", "/forecast/transits", "/forecast/transits"]);
+      const narr: string[] = [];
+      for (const r of Object.values(GOLDEN3)) {
+        const walk = (v: unknown) => {
+          if (Array.isArray(v)) v.forEach(walk);
+          else if (v && typeof v === "object") Object.values(v).forEach(walk);
+          else if (typeof v === "string" && v.length > 40) narr.push(v);
+        };
+        walk(r);
+      }
+      for (const x of narr) assert.ok(!prev.text.includes(JSON.stringify(x).slice(1, -1)), `önizlemede anlatı: ${x.slice(0, 30)}`);
+      for (const k of ["transitAspects", "interAspects", "compositePlanets", "raw_response", "input_hash"]) assert.ok(!prev.text.includes(k), k);
+      const full = await call(run.POST(req("/api/admin/astroloji/engine/run", "owner", "POST", { profileId: pa, selections: sels })));
+      assert.equal(roxyHits - hits0, 5, "ikinci run önbellekten gelmeli");
+      assert.ok(narr.some((x) => full.text.includes(JSON.stringify(x).slice(1, -1))), "owner yorumu görmeli");
+      // Yalnız-önbellek görünüm ucu: 0 Roxy; önizlemede anlatı yok; hesaplanmamış seçim NOT_COMPUTED.
+      const vw = await call(viewRoute.POST(req("/api/admin/astroloji/engine/view?previewNoInterp=1", "owner", "POST", { profileId: pa, selections: [...sels, { technique: "western.transit", options: { atUtc: "2031-01-01T00:00" } }] })));
+      assert.equal(vw.status, 200, vw.text.slice(0, 200));
+      assert.equal(roxyHits - hits0, 5, "görünüm ucu Roxy çağırdı");
+      const vr = vw.json.results as { ok: boolean; code?: string }[];
+      assert.deepEqual(vr.map((x) => x.ok), [true, true, true, true, false]);
+      assert.equal(vr[4].code, "NOT_COMPUTED");
+      for (const x of narr) assert.ok(!vw.text.includes(JSON.stringify(x).slice(1, -1)), "görünüm önizlemesinde anlatı");
+      const syn = sels[2];
+      const ws = await call(workspace.POST(req("/api/admin/astroloji/workspace", "owner", "POST", { profileId: pa, revision: 1, ...syn })));
+      assert.equal(ws.status, 200, ws.text.slice(0, 200));
+      assert.equal(ws.json.contextKey, pb);
+      const note = await call(notes.PUT(req("/api/admin/astroloji/notes", "owner", "PUT", { profileId: pa, technique: syn.technique, contextKey: pb, sectionKey: "overall", body: "Sinastri yorumum", expectedRevision: null })));
+      assert.equal(note.status, 201, note.text);
+      const wrong = await call(notes.PUT(req("/api/admin/astroloji/notes", "owner", "PUT", { profileId: pa, technique: syn.technique, contextKey: pb, sectionKey: "planet_in_house:saturn:7", body: "x", expectedRevision: null })));
+      assert.equal(wrong.status, 400, "natal bölümü sinastri notuna yazıldı");
+      const reqId = "6b6b6b6b-6b6b-4b6b-8b6b-6b6b6b6b6b6b";
+      const sv = await call(analyses.POST(req("/api/admin/astroloji/analyses", "owner", "POST", { profileId: pa, revision: 1, ...syn, includeProviderInterp: true, saveRequestId: reqId })));
+      assert.equal(sv.status, 201, sv.text);
+      const aid = sv.json.analysisId as string;
+      const hits1 = roxyHits;
+      const open = await call(analysisItem.GET(req(`/api/admin/astroloji/analyses/${aid}`, "owner"), ctxP(aid)));
+      const openPrev = await call(analysisItem.GET(req(`/api/admin/astroloji/analyses/${aid}?previewNoInterp=1`, "owner"), ctxP(aid)));
+      assert.equal(roxyHits, hits1, "kayıtlı analizi açmak Roxy çağırdı");
+      const an = open.json.analysis as { technique: string; profile: { partner: { label: string } }; notes: { body: string }[] };
+      assert.deepEqual([an.technique, an.profile.partner.label, an.notes[0].body], ["western.synastry", "Sentetik B", "Sinastri yorumum"]);
+      for (const x of narr) assert.ok(!openPrev.text.includes(JSON.stringify(x).slice(1, -1)), "kayıtlı analiz önizlemesinde anlatı");
+      // Başka uzman (owner değil) bu analiz ve çalışma alanı için 404.
+      assert.equal((await call(analysisItem.GET(req(`/api/admin/astroloji/analyses/${aid}`, "admin2"), ctxP(aid)))).status, 404);
+    });
+
+    await t("log (tüm koşu, aşama 3 dahil): anahtar / iki kişinin doğum verisi / koordinat / ad yok; yanıtlarda anahtar yok", async () => {
+      const logs = captured.join("\n");
+      for (const bad of [API_KEY, "1990-07-15", "1988-03-21", "41.0082", "39.9334", "32.8597", "Sentetik B", "Yılmaz"]) assert.ok(!logs.includes(bad), `log sızıntısı: ${bad}`);
+      assert.ok(!allBodies.join("\n").includes(API_KEY), "yanıtta anahtar");
     });
   } finally {
     console.error = origErr;

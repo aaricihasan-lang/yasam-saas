@@ -11,7 +11,8 @@
 import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { isSchemaMissing, isUuid, logAstroDbError } from "../persistence/repo";
-import { parseTopicKey, topicLabelForKey, TRADITIONS, WESTERN_TOPIC_KINDS, type Tradition } from "../topics/western";
+import { TRADITIONS, type Tradition } from "../topics/western";
+import { isKnownTopicKind, parseAnyTopicKey, topicLabelAny } from "../topics";
 import type { EngineCtx, ServiceResponse } from "../engine/service";
 import { ASTRO_NOT_READY } from "../engine/service";
 
@@ -47,7 +48,7 @@ export function publicKbEntry(r: KbRow) {
     id: r.id,
     tradition: r.tradition,
     topicKey: r.topic_key,
-    topicLabel: topicLabelForKey(r.topic_key),
+    topicLabel: topicLabelAny(r.topic_key),
     title: r.title,
     body: r.body,
     sourceNote: r.source_note,
@@ -65,8 +66,8 @@ export function parseKbInput(raw: unknown): { ok: true; v: KbInput } | { ok: fal
   if (!o) return { ok: false, r: fail(400, "INVALID_BODY", "İstek gövdesi nesne olmalı.") };
   const tradition = o.tradition ?? "western";
   if (!(TRADITIONS as readonly unknown[]).includes(tradition)) return { ok: false, r: fail(400, "INVALID_TRADITION", "Geçersiz gelenek.") };
-  if (!parseTopicKey(tradition, o.topicKey)) {
-    return { ok: false, r: fail(400, "INVALID_TOPIC", "Konu anahtarı geçersiz (yalnız kanonik konular; bu aşamada Batı natal).") };
+  if (!parseAnyTopicKey(tradition, o.topicKey)) {
+    return { ok: false, r: fail(400, "INVALID_TOPIC", "Konu anahtarı geçersiz (yalnız kanonik konular; bu aşamada Batı).") };
   }
   const title = typeof o.title === "string" ? o.title.trim() : "";
   if (title.length < 1 || title.length > 200) return { ok: false, r: fail(400, "INVALID_TITLE", "Başlık 1–200 karakter olmalıdır.") };
@@ -111,7 +112,7 @@ export async function listKb(ctx: EngineCtx, q: { search?: string | null; kind?:
   if (r.error) return dbFail("kb.list", r.error);
   let rows = r.rows;
   if (q.kind) {
-    if (!(WESTERN_TOPIC_KINDS as readonly string[]).includes(q.kind)) return fail(400, "INVALID_KIND", "Geçersiz konu türü.");
+    if (!isKnownTopicKind(q.kind)) return fail(400, "INVALID_KIND", "Geçersiz konu türü.");
     rows = rows.filter((x) => x.topic_key.startsWith(`${q.kind}:`));
   }
   if (q.topicKey) rows = rows.filter((x) => x.topic_key === q.topicKey);
@@ -121,7 +122,7 @@ export async function listKb(ctx: EngineCtx, q: { search?: string | null; kind?:
   }
   if (q.search && q.search.trim()) {
     const s = fold(q.search.trim().slice(0, 100));
-    rows = rows.filter((x) => fold(`${x.title}\n${x.body}\n${x.source_note ?? ""}\n${topicLabelForKey(x.topic_key)}\n${(x.tags ?? []).join(" ")}`).includes(s));
+    rows = rows.filter((x) => fold(`${x.title}\n${x.body}\n${x.source_note ?? ""}\n${topicLabelAny(x.topic_key)}\n${(x.tags ?? []).join(" ")}`).includes(s));
   }
   const allTags = [...new Set(r.rows.flatMap((x) => x.tags ?? []))].sort((a, b) => a.localeCompare(b, "tr"));
   return { status: 200, body: { ok: true, entries: rows.map(publicKbEntry), total: r.rows.length, tags: allTags } };
@@ -225,7 +226,7 @@ export async function deleteKb(ctx: EngineCtx, id: string, expectedRevision: unk
 
 /** Konu anahtarlarına göre uzmanın KENDİ kayıtları (eşleşme + snapshot için). */
 export async function matchKbEntries(ctx: EngineCtx, tradition: Tradition, topicKeys: string[]): Promise<{ rows: KbRow[]; error: { code?: string } | null }> {
-  const keys = [...new Set(topicKeys.filter((k) => parseTopicKey(tradition, k)))];
+  const keys = [...new Set(topicKeys.filter((k) => parseAnyTopicKey(tradition, k)))];
   if (keys.length === 0 || !ctx.entitlements.knowledgeBank) return { rows: [], error: null };
   const { data, error } = await ctx.db
     .from(TABLE)

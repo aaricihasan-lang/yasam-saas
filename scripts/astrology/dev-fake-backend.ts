@@ -6,10 +6,16 @@
  * danışan + bir doğum profili ve (sahte sağlayıcı fixture'ından) kayıtlı natal sonuç seed edilir →
  * UI "Kayıtlı sonucu aç" ile 0 sağlayıcı isteğiyle açılır. ROXY_API_KEY verilmez → yeni hesap 503.
  *
+ * Aşama 3: FAKE_ROXY_CERT + FAKE_ROXY_KEY (yerel, kendinden imzalı) verilirse <port+1> üzerinde YEREL
+ * HTTPS sahte Roxy açılır; golden fixture'ları (gerçek yanıtlar, sentetik kişiler) endpoint'e göre
+ * döndürür. Yalnız "local-fake-roxy-key" başlığını kabul eder (gerçek anahtar burada KULLANILMAZ);
+ * logda yalnız endpoint yolu ve sayaç vardır (gövde/doğum verisi YOK).
+ *
  * Çalıştırma: npx tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/dev-fake-backend.ts [port]
  */
 import { createServer } from "node:http";
-import { readFileSync } from "node:fs";
+import { createServer as createHttpsServer } from "node:https";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { createFakeClient, createStore, handlePostgrest } from "./fakeSupabase";
 import { createAstroProfile } from "@/lib/astrology/profiles/service";
@@ -65,9 +71,57 @@ async function seed() {
     { label: "Saat bilinmeyen örnek", birthDate: "1985-01-02", timeKnown: false, locationId: "tr-06-ankara" },
     resolveAstroLocation,
   );
+  // Aşama 3: sinastri/composite karşı tarafı (sentetik B; Ayşe danışanına bağlı).
+  await createAstroProfile(
+    ctx,
+    { label: "Sentetik B — Ankara", clientId: "22222222-2222-4222-8222-222222222222", birthDate: "1988-03-21", birthTime: "06:45", timeKnown: true, timeAccuracy: "exact_record", locationId: "tr-06-ankara" },
+    resolveAstroLocation,
+  );
+}
+
+const GOLDEN_DIR = join(__dirname, "fixtures", "golden");
+const GOLDEN: Record<string, Record<string, unknown>> = {};
+for (const f of readdirSync(GOLDEN_DIR).filter((x) => x.endsWith(".json"))) {
+  const g = JSON.parse(readFileSync(join(GOLDEN_DIR, f), "utf8"));
+  GOLDEN[g.endpoint] = g.response;
+}
+let roxyHits = 0;
+
+function startFakeRoxy() {
+  const cert = process.env.FAKE_ROXY_CERT;
+  const key = process.env.FAKE_ROXY_KEY;
+  if (!cert || !key) return;
+  createHttpsServer({ cert: readFileSync(cert), key: readFileSync(key) }, (req, res) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (c: Buffer) => chunks.push(c));
+    req.on("end", () => {
+      const path = new URL(req.url ?? "/", "https://x").pathname.replace(/^\/api\/v2/, "");
+      if (req.headers["x-api-key"] !== "local-fake-roxy-key") {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "unauthorized" }));
+        return;
+      }
+      roxyHits += 1;
+      console.log(`fake roxy #${roxyHits} ${path}`);
+      const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+      let raw: Record<string, unknown> | undefined;
+      if (path === "/astrology/natal-chart") {
+        const natal = structuredClone(FIXTURE) as Record<string, unknown>;
+        natal.birthDetails = { date: body.date, time: body.time, latitude: body.latitude, longitude: body.longitude, timezone: body.timezone };
+        natal.houseSystem = body.houseSystem;
+        raw = natal;
+      } else if (GOLDEN[path]) {
+        raw = structuredClone(GOLDEN[path]);
+        if (path === "/forecast/transits") raw.events = (raw.events as { date: string }[]).filter((e) => e.date >= body.startDate && e.date <= body.endDate);
+      }
+      res.writeHead(raw ? 200 : 400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(raw ?? { error: "unknown endpoint" }));
+    });
+  }).listen(PORT + 1, "127.0.0.1", () => console.log(`fake roxy https :${PORT + 1}`));
 }
 
 void seed().then(() => {
+  startFakeRoxy();
   createServer((req, res) => {
     const chunks: Buffer[] = [];
     req.on("data", (c: Buffer) => chunks.push(c));

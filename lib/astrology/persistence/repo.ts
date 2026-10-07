@@ -213,12 +213,14 @@ export async function appendRevisionRpc(
 
 /** raw_response BİLİNÇLİ OLARAK YOK. */
 const RESULT_SAFE_COLUMNS =
-  "id, profile_id, profile_revision, technique, provider, provider_api_version, adapter_version, endpoint, input_hash, technical, technical_schema, projection_version, unmapped_fields, created_at";
+  "id, profile_id, profile_revision, partner_profile_id, partner_profile_revision, technique, provider, provider_api_version, adapter_version, endpoint, input_hash, technical, technical_schema, projection_version, unmapped_fields, created_at";
 
 export type ResultRow = {
   id: string;
   profile_id: string;
   profile_revision: number;
+  partner_profile_id?: string | null;
+  partner_profile_revision?: number | null;
   technique: string;
   provider: string;
   provider_api_version: string;
@@ -255,6 +257,8 @@ export type NewResult = {
   id: string;
   profileId: string;
   profileRevision: number;
+  partnerProfileId?: string | null;
+  partnerProfileRevision?: number | null;
   technique: string;
   provider: string;
   providerApiVersion: string;
@@ -283,6 +287,8 @@ export async function insertResult(
       tenant_id: tenantId,
       profile_id: r.profileId,
       profile_revision: r.profileRevision,
+      partner_profile_id: r.partnerProfileId ?? null,
+      partner_profile_revision: r.partnerProfileRevision ?? null,
       technique: r.technique,
       provider: r.provider,
       provider_api_version: r.providerApiVersion,
@@ -310,10 +316,11 @@ export async function insertInterpretation(
   resultId: string,
   provider: string,
   lang: string,
-  contentSchema: string,
+  contentSchema: string | null,
   projectionVersion: string,
   content: unknown,
 ): Promise<{ error: DbErr }> {
+  if (contentSchema === null || content === null || content === undefined) return { error: null };
   assertTenant(tenantId, "insertInterpretation");
   const { error } = await db
     .from("astro_provider_interpretations")

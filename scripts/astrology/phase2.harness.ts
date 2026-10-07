@@ -279,7 +279,7 @@ async function main() {
     assert.equal(v.provider, "roxy");
     assert.equal(v.projectionVersion, "natal-proj-2");
     assert.equal(v.adapterVersion, "astro-roxy-natal-1");
-    assert.equal(v.snapshotSchema, "astro.analysis.v1");
+    assert.equal(v.snapshotSchema, "astro.analysis.v2");
     assert.equal(rx.calls.length, calls0, "kaydetme sağlayıcıyı çağırdı");
   });
 
@@ -374,7 +374,7 @@ async function main() {
     const pid = await profile(ctx);
     const rid = await computed(ctx, pid, roxy().deps);
     store.tables.astro_expert_notes ??= [];
-    store.tables.astro_expert_notes.push({ id: randomUUID(), tenant_id: TENANT_A, owner_user_id: OWNER, profile_id: pid, technique: "western.natal", section_key: "BOZUK BÖLÜM", body: "x", revision: 1 });
+    store.tables.astro_expert_notes.push({ id: randomUUID(), tenant_id: TENANT_A, owner_user_id: OWNER, profile_id: pid, technique: "western.natal", context_key: "", section_key: "BOZUK BÖLÜM", body: "x", revision: 1 });
     const r = await saveAnalysis(ctx, { profileId: pid, revision: 1, resultId: rid, saveRequestId: randomUUID() }, false);
     assert.equal(r.status, 500);
     assert.equal((store.tables.astro_analyses ?? []).length, 0);

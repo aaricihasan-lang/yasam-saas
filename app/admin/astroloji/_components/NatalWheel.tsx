@@ -9,7 +9,7 @@
  * Saat bilinmiyorsa (angles=null) 0° Koç solda, evler çizilmez.
  */
 
-import type { NatalTechnical, BodyId } from "@/lib/astrology/model/western";
+import type { AspectNature, AspectType, BodyId, NatalHouse, SignId } from "@/lib/astrology/model/western";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { BODY_GLYPHS, BODY_LABELS, SIGN_ELEMENT, SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
 
@@ -41,7 +41,15 @@ function norm(deg: number): number {
   return ((deg % 360) + 360) % 360;
 }
 
-export default function NatalWheel({ technical }: { technical: NatalTechnical }) {
+/** Çarkın ihtiyaç duyduğu en küçük harita biçimi (natal, solar/lunar return, composite ortak). */
+export type WheelChart = {
+  bodies: { id: BodyId; longitude: number; sign: SignId; degreeInSign: number; retrograde: boolean }[];
+  houses: NatalHouse[];
+  angles: { ascendant: { longitude: number }; midheaven: { longitude: number } } | null;
+  aspects: { a: BodyId; b: BodyId; type: AspectType; nature: AspectNature | null }[];
+};
+
+export default function NatalWheel({ technical, label = "Natal harita çarkı" }: { technical: WheelChart; label?: string }) {
   const ascLon = technical.angles?.ascendant.longitude ?? 0;
   const pt = (r: number, lon: number) => {
     const a = ((180 + (lon - ascLon)) * Math.PI) / 180;
@@ -80,7 +88,7 @@ export default function NatalWheel({ technical }: { technical: NatalTechnical })
     <svg
       viewBox={`0 0 ${SIZE} ${SIZE}`}
       role="img"
-      aria-label="Natal harita çarkı"
+      aria-label={label}
       className="mx-auto h-auto w-full max-w-[604px] select-none"
     >
       <circle cx={C} cy={C} r={R_OUT} fill="#fffdf7" stroke="#334155" strokeWidth={1.5} />

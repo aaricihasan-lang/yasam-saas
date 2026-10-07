@@ -7,15 +7,26 @@
  */
 
 import { useEffect, useState } from "react";
-import type { NatalTechnical } from "@/lib/astrology/model/western";
-import type { NatalView } from "@/lib/astrology/view/natalView";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroFetch } from "../_lib/api";
-import NatalWheel from "./NatalWheel";
-import NatalTechnicalPanel from "./NatalTechnicalPanel";
-import ProviderInterpretationPanel from "./ProviderInterpretationPanel";
+import { describeOptions, techniqueLabel } from "../_lib/techniques";
+import { TechniqueTechnical } from "./TimingPanels";
+import ProviderInterpretationPanel, { type InterpretationLayer } from "./ProviderInterpretationPanel";
 
-type ListItem = { id: string; title: string; analysisAt: string; profileRevision: number; houseSystem: string | null; providerInterpIncluded: boolean };
+type ListItem = {
+  id: string;
+  title: string;
+  technique: string;
+  params: Record<string, unknown>;
+  partnerLabel: string | null;
+  analysisAt: string;
+  profileRevision: number;
+  houseSystem: string | null;
+  providerInterpIncluded: boolean;
+};
+
+type RevSnap = { revision: number; birthDate: string; birthTime: string | null; locationLabel: string; timezone: string; timeAccuracyLabel: string };
+type PersonSnap = { profileId?: string; label: string; client: { name: string | null } | null; revision: RevSnap };
 
 type KbSnap = { entryId: string; topicKey: string; topicLabel: string; title: string; body: string; sourceNote: string | null; tags: string[]; revision: number; updatedAt: string };
 
@@ -23,12 +34,14 @@ type Analysis = {
   id: string;
   title: string;
   analysisAt: string;
-  profile: { label: string; client: { name: string | null } | null; revision: { revision: number; birthDate: string; birthTime: string | null; locationLabel: string; timezone: string; timeAccuracyLabel: string } };
-  method: { houseSystem: keyof typeof HOUSE_SYSTEM_LABELS; nodeType: "true" | "mean"; timeUnknownMasked: boolean };
-  technical: NatalTechnical;
+  technique: string;
+  params: Record<string, unknown>;
+  profile: PersonSnap & { partner?: PersonSnap | null };
+  method: { houseSystem: keyof typeof HOUSE_SYSTEM_LABELS | null; nodeType: "true" | "mean" | null; timeUnknownMasked: boolean; warnings?: string[] };
+  technical: unknown;
   knowledgeBank: KbSnap[];
   notes: { sectionKey: string; sectionLabel: string; body: string }[];
-  interpretation: NatalView["interpretation"] | { visible: false; reason: "not_included" };
+  interpretation: InterpretationLayer;
   versions: Record<string, unknown>;
 };
 
@@ -63,7 +76,9 @@ export function SavedAnalysesList({ profileId, reloadKey, onOpen, openId }: { pr
           >
             <div className="font-medium text-slate-800">{a.title}</div>
             <div className="text-xs text-slate-500">
-              {fmt(a.analysisAt)} · rev {a.profileRevision} · {a.houseSystem ?? "—"} {a.providerInterpIncluded ? "· Roxy yorumu dahil" : ""}
+              <span className="mr-1 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-700">{techniqueLabel(a.technique)}</span>
+              {describeOptions(a.technique, a.params, () => a.partnerLabel)} · {fmt(a.analysisAt)} · rev {a.profileRevision}
+              {a.providerInterpIncluded ? " · Roxy yorumu dahil" : ""}
             </div>
           </button>
         </li>
@@ -89,6 +104,13 @@ export function SavedAnalysisView({ id, previewNoInterp, onClose }: { id: string
   if (!cur.a) return <p className="text-sm text-rose-700">{cur.error}</p>;
   const a = cur.a;
   const interp = a.interpretation;
+  const partner = a.profile.partner ?? null;
+  const person = (p: PersonSnap) => (
+    <>
+      {p.client?.name ? `Danışan: ${p.client.name} · ` : ""}
+      {p.label} · rev {p.revision.revision} · {p.revision.birthDate} {p.revision.birthTime ? p.revision.birthTime.slice(0, 5) : "(saat bilinmiyor)"} · {p.revision.locationLabel}
+    </>
+  );
   return (
     <div className="flex flex-col gap-4" data-testid="astro-saved-analysis">
       <section className="rounded-2xl border-2 border-slate-400 bg-slate-50 p-4">
@@ -96,13 +118,14 @@ export function SavedAnalysisView({ id, previewNoInterp, onClose }: { id: string
           <div>
             <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-white">Kayıtlı analiz · değişmez</span>
             <h3 className="mt-1 text-lg font-semibold text-slate-900">{a.title}</h3>
-            <p className="text-sm text-slate-600">
-              {fmt(a.analysisAt)} · {a.profile.client?.name ? `Danışan: ${a.profile.client.name} · ` : ""}
-              {a.profile.label} · rev {a.profile.revision.revision} · {a.profile.revision.birthDate}{" "}
-              {a.profile.revision.birthTime ? a.profile.revision.birthTime.slice(0, 5) : "(saat bilinmiyor)"} · {a.profile.revision.locationLabel}
+            <p className="text-sm text-slate-800">
+              <strong>{techniqueLabel(a.technique)}</strong>
+              {describeOptions(a.technique, a.params, () => partner?.label ?? null) ? ` · ${describeOptions(a.technique, a.params, () => partner?.label ?? null)}` : ""} · kayıt {fmt(a.analysisAt)}
             </p>
+            <p className="text-sm text-slate-600">{partner ? <>1. kişi: {person(a.profile)}</> : person(a.profile)}</p>
+            {partner && <p className="text-sm text-slate-600">2. kişi: {person(partner)}</p>}
             <p className="text-xs text-slate-500">
-              Tropikal · {HOUSE_SYSTEM_LABELS[a.method.houseSystem]} · {NODE_TYPE_LABELS[a.method.nodeType]} · sağlayıcı {String(a.versions.provider)} ({String(a.versions.providerApiVersion)}) ·
+              Tropikal · {a.method.houseSystem ? HOUSE_SYSTEM_LABELS[a.method.houseSystem] : "ev sistemi yok"} · {a.method.nodeType ? NODE_TYPE_LABELS[a.method.nodeType] : "—"} · sağlayıcı {String(a.versions.provider)} ({String(a.versions.providerApiVersion)}) ·
               adaptör {String(a.versions.adapterVersion)} · projeksiyon {String(a.versions.projectionVersion)}
             </p>
           </div>
@@ -114,8 +137,13 @@ export function SavedAnalysisView({ id, previewNoInterp, onClose }: { id: string
 
       <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4" aria-label="Kayıtlı teknik veriler">
         <h4 className="text-base font-semibold text-slate-900">Hesaplama / Teknik Veriler (kayıt anı)</h4>
-        <NatalWheel technical={a.technical} />
-        <NatalTechnicalPanel technical={a.technical} timeUnknown={a.method.timeUnknownMasked} />
+        <TechniqueTechnical
+          technique={a.technique}
+          technical={a.technical}
+          timeUnknownMasked={a.method.timeUnknownMasked}
+          warnings={a.method.warnings ?? []}
+          names={[a.profile.label, partner?.label ?? "2. kişi"]}
+        />
       </section>
 
       <section className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4" aria-label="Kayıtlı Bilgi Bankası">
@@ -152,12 +180,10 @@ export function SavedAnalysisView({ id, previewNoInterp, onClose }: { id: string
         )}
       </section>
 
-      {interp.visible ? (
-        <ProviderInterpretationPanel interpretation={interp} />
-      ) : (interp as { reason: string }).reason === "not_included" ? (
+      {!interp.visible && interp.reason === "not_included" ? (
         <p className="rounded-xl border border-dashed border-violet-200 px-3 py-2 text-sm text-slate-500">Roxy otomatik yorumu bu analize dahil edilmedi.</p>
       ) : (
-        <ProviderInterpretationPanel interpretation={interp as NatalView["interpretation"]} />
+        <ProviderInterpretationPanel interpretation={interp} />
       )}
     </div>
   );

@@ -1,37 +1,38 @@
 // Astroloji — ÇALIŞMA ALANI (konu + Bilgi Bankası eşleşmesi + danışana özel uzman notu) ve
-// KAYITLI ANALİZ (değişmez snapshot) servisi. YALNIZ SUNUCU.
+// KAYITLI ANALİZ (değişmez snapshot) servisi. YALNIZ SUNUCU. Tüm teknikler (natal, transit, forecast,
+// progression, solar arc, solar/lunar return, synastry, composite) AYNI akıştan geçer.
 //
 // Katman ayrımı (karışmaz):
-//   A profil snapshot'ı · B metodoloji · C teknik · D sağlayıcı yorumu (opsiyonel, yetkiyle)
-//   E uzmanın danışana özel yorumu (astro_analysis_notes kopyası) · F Bilgi Bankası eşleşme snapshot'ı
-//   G sürüm metadata'sı.
+//   A profil snapshot'ı (+ karşı taraf) · B metodoloji (teknik + normalize seçenekler) · C teknik
+//   D sağlayıcı yorumu (opsiyonel, yetkiyle) · E uzmanın danışana özel yorumu (astro_analysis_notes kopyası)
+//   F Bilgi Bankası eşleşme snapshot'ı · G sürüm metadata'sı.
 //
 // Kurallar:
-//   • Snapshot SUNUCUDA, DB'deki gerçek durumdan kurulur; istemci içerik göndermez (yalnız kimlik + seçim).
-//   • Sonuç ↔ profil revizyonu tutarlılığı input_hash ile doğrulanır (başka danışanın sonucu karışmaz).
+//   • Snapshot SUNUCUDA, DB'deki gerçek durumdan kurulur; istemci içerik göndermez (kimlik + seçim).
+//   • Seçim → planlayıcı ile YENİDEN birimlere çevrilir (sağlayıcı ÇAĞRILMAZ); tüm parçalar önbellekte
+//     olmalıdır. Böylece sonuç ↔ profil revizyonu (ve karşı taraf) tutarlılığı input_hash ile garanti olur.
 //   • Kayıtlı analizi AÇMAK sağlayıcı bağımlılığı ALMAZ → yapısal olarak 0 Roxy isteği.
 //   • Sağlayıcı yorumu: kaydederken dahil etmek yetki + önizleme kapalı gerektirir; açarken de GÜNCEL
-//     yetki kontrol edilir (yetki kapanırsa yorum gösterilmez; uzman verisi etkilenmez, silinmez).
-//   • Uzman notu Bilgi Bankası'nı değiştirmez (ayrı tablo); analiz kendi kopyasını taşır.
+//     yetki kontrol edilir.
+//   • Not bağlamı: (profil, teknik, karşı taraf, bölüm). Bölüm anahtarı tekniğin konu bağlamında olmalı
+//     (ör. transit notu natal konusuna yazılamaz).
 
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { resolveInterpretationVisibility } from "../access/entitlements";
-import { getTechnique } from "../engine/techniques";
-import { buildResultView, ASTRO_NOT_READY, type EngineCtx, type ServiceResponse } from "../engine/service";
-import { findTenantClient, getProfile, getResultById, getRevision, isSchemaMissing, isUuid, logAstroDbError, type RevisionRow } from "../persistence/repo";
+import { getTechnique, type TechniqueId } from "../engine/techniques";
+import { ASTRO_NOT_READY, buildSelectionView, loadProfileRevision, planSelections, type EngineCtx, type ServiceResponse } from "../engine/service";
+import { findTenantClient, getProfile, getResultById, isSchemaMissing, isUuid, logAstroDbError, type ResultRow, type RevisionRow } from "../persistence/repo";
 import { matchKbEntries, publicKbEntry } from "../kb/service";
-import { parseTopicKey, topicLabelForKey, topicsFromNatal, type NatalTopic } from "../topics/western";
-import { publicRevision, type NatalView } from "../view/natalView";
-import type { NatalTechnical } from "../model/western";
-import { normalizeTime } from "../birth/timeResolution";
+import { isSectionKeyForTechnique, topicLabelAny, topicsForTechnique } from "../topics/index";
+import { publicRevision } from "../view/natalView";
+import type { TechniqueView } from "../view/techniqueView";
 
 assertServerOnly("lib/astrology/analyses/service");
 
-export const ANALYSIS_SNAPSHOT_SCHEMA = "astro.analysis.v1";
-export const TOPIC_TAXONOMY_VERSION = "western-topics-1";
-const NOTE_TECHNIQUE = "western.natal";
+export const ANALYSIS_SNAPSHOT_SCHEMA = "astro.analysis.v2";
+export const TOPIC_TAXONOMY_VERSION = "western-topics-2";
 
 const fail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): ServiceResponse => ({
   status,
@@ -47,84 +48,110 @@ function obj(raw: unknown): Record<string, unknown> | null {
   return raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
 }
 
-// ─── Ortak: sonuç + revizyon bağlamı ─────────────────────────────────────────
+const techniqueLabel = (t: string) => `Batı · ${getTechnique(t)?.label ?? t}`;
 
-type Loaded = { revision: RevisionRow; view: NatalView; profileLabel: string; clientId: string | null; resultRow: Awaited<ReturnType<typeof getResultById>>["row"] & object };
+// ─── Ortak: seçim + revizyon bağlamı ─────────────────────────────────────────
 
-/** Sonucun BU profil revizyonunun girdisinden üretildiğini doğrular (input_hash). */
-function resultMatchesRevision(row: { technique: string; input_hash: string; technical: Record<string, unknown> }, rev: RevisionRow): boolean {
-  const def = getTechnique(row.technique);
-  if (!def) return false;
-  const t = row.technical as unknown as Pick<NatalTechnical, "houseSystem" | "nodeType">;
-  const options = def.parseOptions({ houseSystem: t.houseSystem, nodeType: t.nodeType });
-  if (!options) return false;
-  const units = def.units(
-    {
-      birthDate: rev.birth_date,
-      birthTime: rev.time_known && rev.birth_time ? normalizeTime(rev.birth_time.slice(0, 8)) : null,
-      utcOffsetSeconds: rev.utc_offset_seconds,
-      latitude: rev.latitude,
-      longitude: rev.longitude,
-    },
-    options,
-  );
-  return units.some((u) => u.inputHash === row.input_hash);
-}
+type Loaded = {
+  revision: RevisionRow;
+  partnerRevision: RevisionRow | null;
+  technique: TechniqueId;
+  options: Record<string, unknown>;
+  view: TechniqueView;
+  rows: ResultRow[];
+  profileLabel: string;
+  clientId: string | null;
+};
 
-async function loadContext(
-  ctx: EngineCtx,
-  q: { profileId: unknown; revision: unknown; resultId: unknown },
-  ownerPreviewHideInterp: boolean,
-): Promise<{ ok: true; v: Loaded } | { ok: false; r: ServiceResponse }> {
-  if (!isUuid(q.profileId) || !isUuid(q.resultId)) return { ok: false, r: fail(400, "INVALID_INPUT", "Profil ve hesap sonucu gerekli.") };
-  const revNo = typeof q.revision === "number" ? q.revision : Number(q.revision);
-  if (!Number.isInteger(revNo) || revNo < 1) return { ok: false, r: fail(400, "INVALID_REVISION", "Geçersiz revizyon.") };
-  const p = await getProfile(ctx.db, ctx.tenantId, q.profileId);
-  if (p.error) return { ok: false, r: dbFail("ws.profile", p.error) };
-  if (!p.row) return { ok: false, r: fail(404, "PROFILE_NOT_FOUND", "Doğum profili bulunamadı.") };
-  const rv = await getRevision(ctx.db, ctx.tenantId, q.profileId, revNo);
-  if (rv.error) return { ok: false, r: dbFail("ws.revision", rv.error) };
-  if (!rv.row) return { ok: false, r: fail(404, "REVISION_NOT_FOUND", "Doğum profili revizyonu bulunamadı.") };
-  const res = await getResultById(ctx.db, ctx.tenantId, q.resultId);
-  if (res.error) return { ok: false, r: dbFail("ws.result", res.error) };
-  if (!res.row) return { ok: false, r: fail(404, "RESULT_NOT_FOUND", "Hesap sonucu bulunamadı.") };
-  if (!resultMatchesRevision(res.row, rv.row)) {
+/**
+ * Girdi: { profileId, revision, technique, options } (genel) VEYA { profileId, revision, resultId }
+ * (Aşama 2 uyumu — yalnız tek parçalı natal sonuç; seçenekler sonucun kendisinden türetilir).
+ */
+async function loadContext(ctx: EngineCtx, raw: Record<string, unknown>, ownerPreviewHideInterp: boolean): Promise<{ ok: true; v: Loaded } | { ok: false; r: ServiceResponse }> {
+  if (!isUuid(raw.profileId)) return { ok: false, r: fail(400, "INVALID_INPUT", "Profil ve hesap seçimi gerekli.") };
+  if (raw.revision === undefined || raw.revision === null) return { ok: false, r: fail(400, "INVALID_REVISION", "Geçersiz revizyon.") };
+  const pr = await loadProfileRevision(ctx, raw.profileId, raw.revision);
+  if (!pr.ok) return pr;
+
+  let selection: { technique: unknown; options: unknown };
+  let legacyRow: ResultRow | null = null;
+  if (raw.technique === undefined && raw.resultId !== undefined) {
+    if (!isUuid(raw.resultId)) return { ok: false, r: fail(400, "INVALID_INPUT", "Profil ve hesap sonucu gerekli.") };
+    const res = await getResultById(ctx.db, ctx.tenantId, raw.resultId);
+    if (res.error) return { ok: false, r: dbFail("ws.result", res.error) };
+    if (!res.row) return { ok: false, r: fail(404, "RESULT_NOT_FOUND", "Hesap sonucu bulunamadı.") };
+    if (res.row.technique !== "western.natal") return { ok: false, r: fail(400, "SELECTION_REQUIRED", "Bu sonuç türü için teknik ve seçenekler gönderilmelidir.") };
+    legacyRow = res.row;
+    const t = res.row.technical as { houseSystem?: unknown; nodeType?: unknown };
+    selection = { technique: "western.natal", options: { houseSystem: t.houseSystem, nodeType: t.nodeType } };
+  } else {
+    selection = { technique: raw.technique, options: raw.options };
+  }
+
+  const p = await planSelections(ctx, pr.revision, [selection], new Date());
+  if (!p.ok) return p;
+  const s = p.v.selections[0];
+  const block = p.v.plan.blocks[0];
+  if (block) return { ok: false, r: fail(409, block.code, block.error) };
+  const hashes = p.v.plan.selectionUnits[0];
+  if (legacyRow && !hashes.includes(legacyRow.input_hash)) {
     return { ok: false, r: fail(409, "RESULT_PROFILE_MISMATCH", "Hesap sonucu bu doğum profili revizyonuna ait değil.") };
   }
-  const view = await buildResultView(ctx, res.row, rv.row, ownerPreviewHideInterp);
-  return { ok: true, v: { revision: rv.row, view, profileLabel: p.row.label, clientId: p.row.client_id, resultRow: res.row } };
+  const rows = hashes.map((h) => p.v.cachedRows.get(h));
+  if (rows.some((r) => !r)) {
+    return { ok: false, r: fail(409, "RESULT_NOT_COMPUTED", "Bu seçimin hesabı (tüm parçalarıyla) henüz yapılmamış. Önce hesaplayın.") };
+  }
+  const view = await buildSelectionView(
+    ctx,
+    s.technique,
+    rows as ResultRow[],
+    s.options,
+    { primary: pr.revision.time_known === true, partner: s.partnerRevision ? s.partnerRevision.time_known === true : null },
+    ownerPreviewHideInterp,
+  );
+  return {
+    ok: true,
+    v: { revision: pr.revision, partnerRevision: s.partnerRevision, technique: s.technique, options: s.options, view, rows: rows as ResultRow[], profileLabel: pr.label, clientId: pr.clientId },
+  };
 }
+
+const contextKeyFor = (partner: RevisionRow | null) => (partner ? partner.profile_id : "");
 
 type NoteRow = { id: string; section_key: string; body: string; revision: number; updated_at: string };
 
-async function loadNotes(ctx: EngineCtx, profileId: string): Promise<{ rows: NoteRow[]; error: { code?: string } | null }> {
+async function loadNotes(ctx: EngineCtx, profileId: string, technique: string, contextKey: string): Promise<{ rows: NoteRow[]; error: { code?: string } | null }> {
   const { data, error } = await ctx.db
     .from("astro_expert_notes")
     .select("id, section_key, body, revision, updated_at")
     .eq("tenant_id", ctx.tenantId)
     .eq("owner_user_id", ctx.userId)
     .eq("profile_id", profileId)
-    .eq("technique", NOTE_TECHNIQUE)
+    .eq("technique", technique)
+    .eq("context_key", contextKey)
     .limit(500);
   return { rows: (data as NoteRow[] | null) ?? [], error };
 }
 
-const publicNote = (n: NoteRow) => ({ id: n.id, sectionKey: n.section_key, sectionLabel: n.section_key === "overall" ? "Genel yorum" : topicLabelForKey(n.section_key), body: n.body, revision: n.revision, updatedAt: n.updated_at });
+const sectionLabel = (k: string) => (k === "overall" ? "Genel yorum" : topicLabelAny(k));
+const publicNote = (n: NoteRow) => ({ id: n.id, sectionKey: n.section_key, sectionLabel: sectionLabel(n.section_key), body: n.body, revision: n.revision, updatedAt: n.updated_at });
 
 // ─── Çalışma alanı: konular + Bilgi Bankam + danışana özel notlar ────────────
 
-export async function getWorkspace(ctx: EngineCtx, q: { profileId: unknown; revision: unknown; resultId: unknown }): Promise<ServiceResponse> {
+export async function getWorkspace(ctx: EngineCtx, q: Record<string, unknown>): Promise<ServiceResponse> {
   const l = await loadContext(ctx, q, true); // yorum içeriği burada GEREKMEZ → okunmaz
   if (!l.ok) return l.r;
-  const topics = topicsFromNatal(l.v.view.technical);
+  const topics = topicsForTechnique(l.v.technique, l.v.view.technical);
   const kb = await matchKbEntries(ctx, "western", topics.map((t) => t.key));
   if (kb.error) return dbFail("ws.kb", kb.error);
-  const notes = await loadNotes(ctx, l.v.revision.profile_id);
+  const contextKey = contextKeyFor(l.v.partnerRevision);
+  const notes = await loadNotes(ctx, l.v.revision.profile_id, l.v.technique, contextKey);
   if (notes.error) return dbFail("ws.notes", notes.error);
   return {
     status: 200,
     body: {
       ok: true,
+      technique: l.v.technique,
+      contextKey,
       knowledgeBankEnabled: ctx.entitlements.knowledgeBank,
       topics,
       kbMatches: kb.rows.map(publicKbEntry),
@@ -138,17 +165,26 @@ export async function saveExpertNote(ctx: EngineCtx, raw: unknown): Promise<Serv
   const o = obj(raw);
   if (!o) return fail(400, "INVALID_BODY", "İstek gövdesi nesne olmalı.");
   if (!isUuid(o.profileId)) return fail(400, "INVALID_PROFILE", "Geçerli profil gerekli.");
+  const def = getTechnique(o.technique ?? "western.natal");
+  if (!def) return fail(400, "UNKNOWN_TECHNIQUE", "Bilinmeyen hesaplama türü.");
+  const contextKey = o.contextKey === undefined || o.contextKey === null || o.contextKey === "" ? "" : o.contextKey;
+  if (def.requiresPartner ? !isUuid(contextKey) : contextKey !== "") return fail(400, "INVALID_CONTEXT", "Geçersiz not bağlamı.");
   const section = o.sectionKey;
-  if (section !== "overall" && !parseTopicKey("western", section)) return fail(400, "INVALID_SECTION", "Geçersiz not bölümü.");
+  if (typeof section !== "string" || !isSectionKeyForTechnique(def.id, section)) return fail(400, "INVALID_SECTION", "Geçersiz not bölümü.");
   if (typeof o.body !== "string" || o.body.length > 20000) return fail(400, "INVALID_TEXT", "Not en fazla 20000 karakter olabilir.");
   const p = await getProfile(ctx.db, ctx.tenantId, o.profileId);
   if (p.error) return dbFail("note.profile", p.error);
   if (!p.row) return fail(404, "PROFILE_NOT_FOUND", "Doğum profili bulunamadı.");
+  if (contextKey !== "") {
+    const pp = await getProfile(ctx.db, ctx.tenantId, contextKey as string);
+    if (pp.error) return dbFail("note.partner", pp.error);
+    if (!pp.row) return fail(404, "PARTNER_NOT_FOUND", "Karşı taraf doğum profili bulunamadı.");
+  }
   const expected = o.expectedRevision;
   if (expected === null || expected === undefined) {
     const { data, error } = await ctx.db
       .from("astro_expert_notes")
-      .insert({ tenant_id: ctx.tenantId, owner_user_id: ctx.userId, profile_id: o.profileId, technique: NOTE_TECHNIQUE, section_key: section, body: o.body })
+      .insert({ tenant_id: ctx.tenantId, owner_user_id: ctx.userId, profile_id: o.profileId, technique: def.id, context_key: contextKey, section_key: section, body: o.body })
       .select("id, section_key, body, revision, updated_at")
       .single();
     if (error) {
@@ -164,8 +200,9 @@ export async function saveExpertNote(ctx: EngineCtx, raw: unknown): Promise<Serv
     .eq("tenant_id", ctx.tenantId)
     .eq("owner_user_id", ctx.userId)
     .eq("profile_id", o.profileId)
-    .eq("technique", NOTE_TECHNIQUE)
-    .eq("section_key", section as string)
+    .eq("technique", def.id)
+    .eq("context_key", contextKey as string)
+    .eq("section_key", section)
     .eq("revision", expected)
     .select("id, section_key, body, revision, updated_at");
   if (error) return dbFail("note.update", error);
@@ -178,17 +215,21 @@ export async function saveExpertNote(ctx: EngineCtx, raw: unknown): Promise<Serv
 
 type SnapshotBundle = {
   title: string;
+  technique: TechniqueId;
+  options: Record<string, unknown>;
   profileSnapshot: Record<string, unknown>;
   methodSnapshot: Record<string, unknown>;
-  technicalSnapshot: NatalTechnical;
+  technicalSnapshot: unknown;
   includeInterp: boolean;
   interpSnapshot: Record<string, unknown> | null;
   kbSnapshot: ReturnType<typeof kbSnapshotEntry>[];
   versionsSnapshot: Record<string, unknown>;
   notes: { section_key: string; body: string }[];
-  topics: NatalTopic[];
+  topicCount: number;
   revision: RevisionRow;
-  resultId: string;
+  partnerRevision: RevisionRow | null;
+  resultIds: string[];
+  partnerLabel: string | null;
 };
 
 function kbSnapshotEntry(e: ReturnType<typeof publicKbEntry>) {
@@ -211,61 +252,75 @@ function fmtDateTr(iso: string): string {
   return `${String(d.getUTCDate()).padStart(2, "0")}.${String(d.getUTCMonth() + 1).padStart(2, "0")}.${d.getUTCFullYear()}`;
 }
 
-async function buildSnapshot(
-  ctx: EngineCtx,
-  raw: unknown,
-  ownerPreviewHideInterp: boolean,
-): Promise<{ ok: true; v: SnapshotBundle } | { ok: false; r: ServiceResponse }> {
+async function clientRef(ctx: EngineCtx, clientId: string | null): Promise<{ ok: true; v: { id: string; name: string | null } | null } | { ok: false; r: ServiceResponse }> {
+  if (!clientId) return { ok: true, v: null };
+  const c = await findTenantClient(ctx.db, ctx.tenantId, clientId);
+  if (c.error) return { ok: false, r: dbFail("snap.client", c.error) };
+  return { ok: true, v: c.row ? { id: c.row.id, name: `${c.row.ad ?? ""} ${c.row.soyad ?? ""}`.trim() || null } : null };
+}
+
+async function buildSnapshot(ctx: EngineCtx, raw: unknown, ownerPreviewHideInterp: boolean): Promise<{ ok: true; v: SnapshotBundle } | { ok: false; r: ServiceResponse }> {
   if (!ctx.entitlements.engine) return { ok: false, r: fail(403, "ENGINE_NOT_ENTITLED", "Hesap Motoru yetkisi yok.") };
   const o = obj(raw);
   if (!o) return { ok: false, r: fail(400, "INVALID_BODY", "İstek gövdesi nesne olmalı.") };
   const includeInterp = o.includeProviderInterp === true;
-  const l = await loadContext(ctx, { profileId: o.profileId, revision: o.revision, resultId: o.resultId }, ownerPreviewHideInterp);
+  const l = await loadContext(ctx, o, ownerPreviewHideInterp);
   if (!l.ok) return l;
-  const { view, revision } = l.v;
+  const { view, revision, partnerRevision, technique } = l.v;
 
   let interpSnapshot: Record<string, unknown> | null = null;
   if (includeInterp) {
     const vis = resolveInterpretationVisibility(ctx.entitlements, ownerPreviewHideInterp);
     if (!vis.visible) return { ok: false, r: fail(403, "PROVIDER_INTERP_NOT_ENTITLED", "Roxy otomatik yorumu bu görünümde kapalı; analize dahil edilemez.") };
     if (!view.interpretation.visible) return { ok: false, r: fail(409, "PROVIDER_INTERP_UNAVAILABLE", "Bu sonuç için sağlayıcı yorum katmanı yok.") };
-    interpSnapshot = {
-      provider: view.interpretation.provider,
-      lang: view.interpretation.lang,
-      notice: view.interpretation.notice,
-      content: view.interpretation.content,
-    };
+    interpSnapshot = { provider: view.interpretation.provider, lang: view.interpretation.lang, notice: view.interpretation.notice, content: view.interpretation.content };
   }
 
-  const topics = topicsFromNatal(view.technical);
+  const topics = topicsForTechnique(technique, view.technical);
   const kb = await matchKbEntries(ctx, "western", topics.map((t) => t.key));
   if (kb.error) return { ok: false, r: dbFail("snap.kb", kb.error) };
-  const notes = await loadNotes(ctx, revision.profile_id);
+  const notes = await loadNotes(ctx, revision.profile_id, technique, contextKeyFor(partnerRevision));
   if (notes.error) return { ok: false, r: dbFail("snap.notes", notes.error) };
 
-  let client: { id: string; name: string | null } | null = null;
-  if (l.v.clientId) {
-    const c = await findTenantClient(ctx.db, ctx.tenantId, l.v.clientId);
-    if (c.error) return { ok: false, r: dbFail("snap.client", c.error) };
-    if (c.row) client = { id: c.row.id, name: `${c.row.ad ?? ""} ${c.row.soyad ?? ""}`.trim() || null };
+  const client = await clientRef(ctx, l.v.clientId);
+  if (!client.ok) return client;
+  let partner: Record<string, unknown> | null = null;
+  let partnerLabel: string | null = null;
+  if (partnerRevision) {
+    const pp = await getProfile(ctx.db, ctx.tenantId, partnerRevision.profile_id);
+    if (pp.error) return { ok: false, r: dbFail("snap.partner", pp.error) };
+    if (!pp.row) return { ok: false, r: fail(404, "PARTNER_NOT_FOUND", "Karşı taraf doğum profili bulunamadı.") };
+    const pc = await clientRef(ctx, pp.row.client_id);
+    if (!pc.ok) return pc;
+    partnerLabel = pp.row.label;
+    partner = { profileId: partnerRevision.profile_id, label: pp.row.label, client: pc.v, revision: publicRevision(partnerRevision) };
   }
 
   let title = typeof o.title === "string" ? o.title.trim() : "";
   if (title.length > 200) return { ok: false, r: fail(400, "INVALID_TITLE", "Başlık en fazla 200 karakter.") };
-  if (!title) title = `${l.v.profileLabel} · Natal · ${fmtDateTr(new Date().toISOString())}`;
+  if (!title) {
+    const def = getTechnique(technique)!;
+    title = `${l.v.profileLabel}${partnerLabel ? ` & ${partnerLabel}` : ""} · ${def.label} · ${fmtDateTr(new Date().toISOString())}`.slice(0, 200);
+  }
 
+  const tech = view.technical as { schema?: string; variants?: unknown };
   return {
     ok: true,
     v: {
       title,
-      profileSnapshot: { schema: "astro.analysis.profile.v1", profileId: revision.profile_id, label: l.v.profileLabel, client, revision: publicRevision(revision) },
+      technique,
+      options: l.v.options,
+      profileSnapshot: { schema: "astro.analysis.profile.v2", profileId: revision.profile_id, label: l.v.profileLabel, client: client.v, revision: publicRevision(revision), partner },
       methodSnapshot: {
-        technique: view.technique,
+        technique,
+        techniqueLabel: techniqueLabel(technique),
+        options: l.v.options,
         zodiac: view.method.zodiac,
         houseSystem: view.method.houseSystem,
         nodeType: view.method.nodeType,
-        variants: view.technical.variants ?? null,
+        variants: tech.variants ?? null,
         timeUnknownMasked: view.timeUnknownMasked,
+        warnings: view.warnings,
       },
       technicalSnapshot: view.technical,
       includeInterp,
@@ -277,16 +332,19 @@ async function buildSnapshot(
         provider: view.provider,
         providerApiVersion: view.providerApiVersion,
         adapterVersion: view.adapterVersion,
-        projectionVersion: l.v.resultRow.projection_version,
-        technicalSchema: view.technical.schema,
-        interpretationSchema: interpSnapshot ? (view.interpretation.visible ? view.interpretation.content.schema : null) : null,
+        projectionVersion: view.projectionVersion,
+        technicalSchema: tech.schema ?? null,
+        interpretationSchema: interpSnapshot && view.interpretation.visible ? ((view.interpretation.content as { schema?: string }).schema ?? null) : null,
         resultId: view.id,
+        resultIds: view.resultIds,
         resultComputedAt: view.computedAt,
       },
       notes: notes.rows.filter((n) => n.body.trim().length > 0).map((n) => ({ section_key: n.section_key, body: n.body })),
-      topics,
+      topicCount: topics.length,
       revision,
-      resultId: view.id,
+      partnerRevision,
+      resultIds: view.resultIds,
+      partnerLabel,
     },
   };
 }
@@ -304,15 +362,19 @@ export async function previewAnalysis(ctx: EngineCtx, raw: unknown, ownerPreview
         title: v.title,
         client: (v.profileSnapshot.client as { name: string | null } | null)?.name ?? null,
         profileLabel: v.profileSnapshot.label,
-        technique: "western.natal",
-        techniqueLabel: "Batı · Natal",
+        partnerLabel: v.partnerLabel,
+        partnerRevision: v.partnerRevision?.revision ?? null,
+        technique: v.technique,
+        techniqueLabel: techniqueLabel(v.technique),
+        options: v.options,
         revision: v.revision.revision,
         zodiac: "tropical",
         houseSystem: v.methodSnapshot.houseSystem,
         nodeType: v.methodSnapshot.nodeType,
         provider: v.versionsSnapshot.provider,
         resultComputedAt: v.versionsSnapshot.resultComputedAt,
-        topicCount: v.topics.length,
+        partCount: v.resultIds.length,
+        topicCount: v.topicCount,
         kbMatchCount: v.kbSnapshot.length,
         noteCount: v.notes.length,
         providerInterpIncluded: v.includeInterp,
@@ -328,15 +390,18 @@ export async function saveAnalysis(ctx: EngineCtx, raw: unknown, ownerPreviewHid
   const s = await buildSnapshot(ctx, raw, ownerPreviewHideInterp);
   if (!s.ok) return s.r;
   const v = s.v;
-  const { data, error } = await ctx.db.rpc("astro_analysis_save", {
+  const { data, error } = await ctx.db.rpc("astro_analysis_save_v2", {
     p_tenant_id: ctx.tenantId,
     p_user_id: ctx.userId,
     p_profile_id: v.revision.profile_id,
     p_profile_revision: v.revision.revision,
-    p_result_id: v.resultId,
-    p_technique: "western.natal",
+    p_partner_profile_id: v.partnerRevision?.profile_id ?? null,
+    p_partner_profile_revision: v.partnerRevision?.revision ?? null,
+    p_result_ids: v.resultIds,
+    p_technique: v.technique,
     p_title: v.title,
     p_save_request_id: o.saveRequestId,
+    p_technique_params: v.options,
     p_profile_snapshot: v.profileSnapshot,
     p_method_snapshot: v.methodSnapshot,
     p_technical_snapshot: v.technicalSnapshot,
@@ -363,11 +428,14 @@ type AnalysisRow = {
   id: string;
   profile_id: string;
   profile_revision: number;
+  partner_profile_id: string | null;
+  partner_profile_revision: number | null;
   client_id: string | null;
   technique: string;
   title: string;
   event_kind: string;
   analysis_at: string;
+  technique_params: Record<string, unknown>;
   profile_snapshot: Record<string, unknown>;
   method_snapshot: Record<string, unknown>;
   technical_snapshot: Record<string, unknown>;
@@ -378,7 +446,8 @@ type AnalysisRow = {
   created_at: string;
 };
 
-const LIST_COLUMNS = "id, profile_id, profile_revision, client_id, technique, title, event_kind, analysis_at, provider_interp_included, method_snapshot, created_at";
+const LIST_COLUMNS =
+  "id, profile_id, profile_revision, partner_profile_id, partner_profile_revision, client_id, technique, title, event_kind, analysis_at, technique_params, provider_interp_included, method_snapshot, profile_snapshot, created_at";
 
 export async function listAnalyses(ctx: EngineCtx, profileId: unknown): Promise<ServiceResponse> {
   if (!isUuid(profileId)) return fail(400, "INVALID_PROFILE", "Geçerli profil gerekli.");
@@ -391,7 +460,7 @@ export async function listAnalyses(ctx: EngineCtx, profileId: unknown): Promise<
     .order("analysis_at", { ascending: false })
     .limit(200);
   if (error) return dbFail("analysis.list", error);
-  const rows = (data as Pick<AnalysisRow, "id" | "profile_id" | "profile_revision" | "client_id" | "technique" | "title" | "event_kind" | "analysis_at" | "provider_interp_included" | "method_snapshot" | "created_at">[] | null) ?? [];
+  const rows = (data as AnalysisRow[] | null) ?? [];
   return {
     status: 200,
     body: {
@@ -400,6 +469,9 @@ export async function listAnalyses(ctx: EngineCtx, profileId: unknown): Promise<
         id: r.id,
         title: r.title,
         technique: r.technique,
+        techniqueLabel: techniqueLabel(r.technique),
+        params: r.technique_params ?? {},
+        partnerLabel: ((r.profile_snapshot?.partner as { label?: string } | null | undefined)?.label ?? null) as string | null,
         analysisAt: r.analysis_at,
         profileRevision: r.profile_revision,
         clientId: r.client_id,
@@ -417,7 +489,7 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
   const { data, error } = await ctx.db
     .from("astro_analyses")
     .select(
-      "id, profile_id, profile_revision, client_id, technique, title, event_kind, analysis_at, profile_snapshot, method_snapshot, technical_snapshot, provider_interp_included, provider_interp_snapshot, kb_snapshot, versions_snapshot, created_at",
+      "id, profile_id, profile_revision, partner_profile_id, partner_profile_revision, client_id, technique, title, event_kind, analysis_at, technique_params, profile_snapshot, method_snapshot, technical_snapshot, provider_interp_included, provider_interp_snapshot, kb_snapshot, versions_snapshot, created_at",
     )
     .eq("tenant_id", ctx.tenantId)
     .eq("owner_user_id", ctx.userId)
@@ -438,7 +510,6 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
     interpretation = vis.visible ? { visible: true, ...a.provider_interp_snapshot } : { visible: false, reason: vis.reason };
   }
 
-  const technical = a.technical_snapshot as unknown as NatalTechnical;
   return {
     status: 200,
     body: {
@@ -447,17 +518,19 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
         id: a.id,
         title: a.title,
         technique: a.technique,
+        techniqueLabel: techniqueLabel(a.technique),
+        params: a.technique_params ?? {},
         analysisAt: a.analysis_at,
         eventKind: a.event_kind,
         clientId: a.client_id,
         profile: a.profile_snapshot,
         method: a.method_snapshot,
-        technical,
-        topics: topicsFromNatal(technical),
+        technical: a.technical_snapshot,
+        topics: topicsForTechnique(a.technique, a.technical_snapshot),
         knowledgeBank: a.kb_snapshot,
         notes: ((notesRes.data as { section_key: string; body: string }[] | null) ?? []).map((n) => ({
           sectionKey: n.section_key,
-          sectionLabel: n.section_key === "overall" ? "Genel yorum" : topicLabelForKey(n.section_key),
+          sectionLabel: sectionLabel(n.section_key),
           body: n.body,
         })),
         interpretation,

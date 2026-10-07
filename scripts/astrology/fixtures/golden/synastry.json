@@ -1,0 +1,3118 @@
+{
+  "endpoint": "/astrology/synastry",
+  "body": {
+    "person1": {
+      "date": "1990-07-15",
+      "time": "14:30:00",
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3,
+      "nodeType": "true"
+    },
+    "person2": {
+      "date": "1988-03-21",
+      "time": "06:45:00",
+      "latitude": 39.9334,
+      "longitude": 32.8597,
+      "timezone": 2,
+      "nodeType": "true"
+    },
+    "houseSystem": "placidus"
+  },
+  "response": {
+    "person1": {
+      "ascendant": {
+        "sign": "Scorpio",
+        "degree": 5.049379203584408,
+        "signLocalized": "Akrep"
+      },
+      "sunSign": "Cancer",
+      "moonSign": "Aries",
+      "sunSignLocalized": "Yengeç",
+      "moonSignLocalized": "Koç",
+      "planets": [
+        {
+          "name": "Sun",
+          "nameLocalized": "Güneş",
+          "signLocalized": "Yengeç",
+          "longitude": 112.72628119187542,
+          "sign": "Cancer",
+          "degree": 22.726281191875415,
+          "house": 9,
+          "houseInOtherChart": 4,
+          "isRetrograde": false
+        },
+        {
+          "name": "Moon",
+          "nameLocalized": "Ay",
+          "signLocalized": "Koç",
+          "longitude": 22.964594167910846,
+          "sign": "Aries",
+          "degree": 22.964594167910846,
+          "house": 6,
+          "houseInOtherChart": 1,
+          "isRetrograde": false
+        },
+        {
+          "name": "Mercury",
+          "nameLocalized": "Merkür",
+          "signLocalized": "Aslan",
+          "longitude": 126.73395474097948,
+          "sign": "Leo",
+          "degree": 6.733954740979485,
+          "house": 9,
+          "houseInOtherChart": 5,
+          "isRetrograde": false
+        },
+        {
+          "name": "Venus",
+          "nameLocalized": "Venüs",
+          "signLocalized": "İkizler",
+          "longitude": 84.38628681760086,
+          "sign": "Gemini",
+          "degree": 24.386286817600862,
+          "house": 8,
+          "houseInOtherChart": 3,
+          "isRetrograde": false
+        },
+        {
+          "name": "Mars",
+          "nameLocalized": "Mars",
+          "signLocalized": "Boğa",
+          "longitude": 31.928151491422888,
+          "sign": "Taurus",
+          "degree": 1.9281514914228879,
+          "house": 6,
+          "houseInOtherChart": 1,
+          "isRetrograde": false
+        },
+        {
+          "name": "Jupiter",
+          "nameLocalized": "Jüpiter",
+          "signLocalized": "Yengeç",
+          "longitude": 112.5444682592102,
+          "sign": "Cancer",
+          "degree": 22.544468259210205,
+          "house": 9,
+          "houseInOtherChart": 4,
+          "isRetrograde": false
+        },
+        {
+          "name": "Saturn",
+          "nameLocalized": "Satürn",
+          "signLocalized": "Oğlak",
+          "longitude": 291.9651419416242,
+          "sign": "Capricorn",
+          "degree": 21.96514194162421,
+          "house": 3,
+          "houseInOtherChart": 10,
+          "isRetrograde": true
+        },
+        {
+          "name": "Uranus",
+          "nameLocalized": "Uranüs",
+          "signLocalized": "Oğlak",
+          "longitude": 276.9675085693738,
+          "sign": "Capricorn",
+          "degree": 6.96750856937382,
+          "house": 3,
+          "houseInOtherChart": 9,
+          "isRetrograde": true
+        },
+        {
+          "name": "Neptune",
+          "nameLocalized": "Neptün",
+          "signLocalized": "Oğlak",
+          "longitude": 282.92174301738237,
+          "sign": "Capricorn",
+          "degree": 12.921743017382369,
+          "house": 3,
+          "houseInOtherChart": 10,
+          "isRetrograde": true
+        },
+        {
+          "name": "Pluto",
+          "nameLocalized": "Plüton",
+          "signLocalized": "Akrep",
+          "longitude": 224.99957724822116,
+          "sign": "Scorpio",
+          "degree": 14.999577248221158,
+          "house": 1,
+          "houseInOtherChart": 7,
+          "isRetrograde": true
+        },
+        {
+          "name": "North Node",
+          "nameLocalized": "Kuzey Düğümü",
+          "signLocalized": "Kova",
+          "longitude": 307.35922396381466,
+          "sign": "Aquarius",
+          "degree": 7.359223963814657,
+          "house": 3,
+          "houseInOtherChart": 11,
+          "isRetrograde": true
+        },
+        {
+          "name": "South Node",
+          "nameLocalized": "Güney Düğümü",
+          "signLocalized": "Aslan",
+          "longitude": 127.35922396381466,
+          "sign": "Leo",
+          "degree": 7.359223963814657,
+          "house": 9,
+          "houseInOtherChart": 5,
+          "isRetrograde": true
+        },
+        {
+          "name": "Chiron",
+          "nameLocalized": "Chiron",
+          "signLocalized": "Yengeç",
+          "longitude": 109.2257005860414,
+          "sign": "Cancer",
+          "degree": 19.2257005860414,
+          "house": 9,
+          "houseInOtherChart": 4,
+          "isRetrograde": false
+        },
+        {
+          "name": "Black Moon Lilith",
+          "nameLocalized": "Kara Ay Lilith",
+          "signLocalized": "Akrep",
+          "longitude": 238.30763429857524,
+          "sign": "Scorpio",
+          "degree": 28.307634298575238,
+          "house": 1,
+          "houseInOtherChart": 8,
+          "isRetrograde": false
+        }
+      ]
+    },
+    "person2": {
+      "ascendant": {
+        "sign": "Aries",
+        "degree": 21.90635224514707,
+        "signLocalized": "Koç"
+      },
+      "sunSign": "Aries",
+      "moonSign": "Taurus",
+      "sunSignLocalized": "Koç",
+      "moonSignLocalized": "Boğa",
+      "planets": [
+        {
+          "name": "Sun",
+          "nameLocalized": "Güneş",
+          "signLocalized": "Koç",
+          "longitude": 0.7909293161058827,
+          "sign": "Aries",
+          "degree": 0.7909293161058827,
+          "house": 12,
+          "houseInOtherChart": 5,
+          "isRetrograde": false
+        },
+        {
+          "name": "Moon",
+          "nameLocalized": "Ay",
+          "signLocalized": "Boğa",
+          "longitude": 42.68738132854629,
+          "sign": "Taurus",
+          "degree": 12.687381328546287,
+          "house": 1,
+          "houseInOtherChart": 7,
+          "isRetrograde": false
+        },
+        {
+          "name": "Mercury",
+          "nameLocalized": "Merkür",
+          "signLocalized": "Balık",
+          "longitude": 336.49127041743975,
+          "sign": "Pisces",
+          "degree": 6.49127041743975,
+          "house": 12,
+          "houseInOtherChart": 4,
+          "isRetrograde": false
+        },
+        {
+          "name": "Venus",
+          "nameLocalized": "Venüs",
+          "signLocalized": "Boğa",
+          "longitude": 46.16492173077597,
+          "sign": "Taurus",
+          "degree": 16.164921730775973,
+          "house": 1,
+          "houseInOtherChart": 7,
+          "isRetrograde": false
+        },
+        {
+          "name": "Mars",
+          "nameLocalized": "Mars",
+          "signLocalized": "Oğlak",
+          "longitude": 288.7390571850722,
+          "sign": "Capricorn",
+          "degree": 18.739057185072227,
+          "house": 10,
+          "houseInOtherChart": 3,
+          "isRetrograde": false
+        },
+        {
+          "name": "Jupiter",
+          "nameLocalized": "Jüpiter",
+          "signLocalized": "Boğa",
+          "longitude": 32.69906310159314,
+          "sign": "Taurus",
+          "degree": 2.69906310159314,
+          "house": 1,
+          "houseInOtherChart": 6,
+          "isRetrograde": false
+        },
+        {
+          "name": "Saturn",
+          "nameLocalized": "Satürn",
+          "signLocalized": "Oğlak",
+          "longitude": 272.1949401170854,
+          "sign": "Capricorn",
+          "degree": 2.194940117085423,
+          "house": 9,
+          "houseInOtherChart": 2,
+          "isRetrograde": false
+        },
+        {
+          "name": "Uranus",
+          "nameLocalized": "Uranüs",
+          "signLocalized": "Oğlak",
+          "longitude": 270.95481086019686,
+          "sign": "Capricorn",
+          "degree": 0.9548108601968579,
+          "house": 9,
+          "houseInOtherChart": 2,
+          "isRetrograde": false
+        },
+        {
+          "name": "Neptune",
+          "nameLocalized": "Neptün",
+          "signLocalized": "Oğlak",
+          "longitude": 280.06816620512495,
+          "sign": "Capricorn",
+          "degree": 10.068166205124953,
+          "house": 9,
+          "houseInOtherChart": 3,
+          "isRetrograde": false
+        },
+        {
+          "name": "Pluto",
+          "nameLocalized": "Plüton",
+          "signLocalized": "Akrep",
+          "longitude": 222.2269919622936,
+          "sign": "Scorpio",
+          "degree": 12.226991962293596,
+          "house": 7,
+          "houseInOtherChart": 1,
+          "isRetrograde": true
+        },
+        {
+          "name": "North Node",
+          "nameLocalized": "Kuzey Düğümü",
+          "signLocalized": "Balık",
+          "longitude": 353.07192512174754,
+          "sign": "Pisces",
+          "degree": 23.07192512174754,
+          "house": 12,
+          "houseInOtherChart": 5,
+          "isRetrograde": true
+        },
+        {
+          "name": "South Node",
+          "nameLocalized": "Güney Düğümü",
+          "signLocalized": "Başak",
+          "longitude": 173.07192512174754,
+          "sign": "Virgo",
+          "degree": 23.07192512174754,
+          "house": 6,
+          "houseInOtherChart": 11,
+          "isRetrograde": true
+        },
+        {
+          "name": "Chiron",
+          "nameLocalized": "Chiron",
+          "signLocalized": "İkizler",
+          "longitude": 83.4360142863358,
+          "sign": "Gemini",
+          "degree": 23.436014286335805,
+          "house": 3,
+          "houseInOtherChart": 8,
+          "isRetrograde": false
+        },
+        {
+          "name": "Black Moon Lilith",
+          "nameLocalized": "Kara Ay Lilith",
+          "signLocalized": "Aslan",
+          "longitude": 144.0486293481381,
+          "sign": "Leo",
+          "degree": 24.048629348138093,
+          "house": 5,
+          "houseInOtherChart": 10,
+          "isRetrograde": false
+        }
+      ]
+    },
+    "compatibilityScore": 57.28004017277183,
+    "interAspects": [
+      {
+        "planet1": "Neptune",
+        "planet2": "Moon",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 0.23436168883608843,
+        "isApplying": true,
+        "strength": 97.0704788895489,
+        "interpretation": "harmonious",
+        "planet1Localized": "Neptün",
+        "planet2Localized": "Ay",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Neptune ve Moon uyumlu bir şekilde bağlanır, dreams, healing, and intuition ile inner emotional life arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Mars",
+        "planet2": "Saturn",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 0.26678862566254224,
+        "isApplying": true,
+        "strength": 96.66514217921822,
+        "interpretation": "harmonious",
+        "planet1Localized": "Mars",
+        "planet2Localized": "Satürn",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Mars ve Saturn uyumlu bir şekilde bağlanır, assertiveness and aggression ile responsibility, time, and routine arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Moon",
+        "planet2": "North Node",
+        "type": "SEMI_SEXTILE",
+        "angle": 30,
+        "orb": 0.10733095383670843,
+        "isApplying": true,
+        "strength": 96.4223015387764,
+        "interpretation": "neutral",
+        "planet1Localized": "Ay",
+        "planet2Localized": "Kuzey Düğümü",
+        "typeLocalized": "Yarı Sekstil",
+        "meaning": {
+          "name": "Yarı Sekstil",
+          "description": {
+            "short": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Gezegenler arasında ince ama bazen rahatsız edici bir farkındalık yaratarak küçük ama anlamlı ayarlamalar ve büyümeyi teşvik eder.",
+            "long": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Komşu burçlar ne element ne de modalite paylaşmadığından, yarı sekstil birbirini doğal olarak anlamayan enerjileri bütünleştirmemizi ister. Göz ardı edilmesi kolay olsa da bu aspekt kör noktaları vurgulayarak ve esnekliği teşvik ederek sessizce kişisel gelişimi ilerletir. Genellikle fark edildiğinde kademeli ama istikrarlı bir öz gelişim kaynağına dönüşen arka plan gerilimi olarak tanımlanır."
+          },
+          "keywords": [
+            "büyüme",
+            "incelik",
+            "ayarlama",
+            "farkındalık"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "Moon ve North Node, inner emotional life ile life purpose and destiny arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Moon",
+        "planet2": "South Node",
+        "type": "QUINCUNX",
+        "angle": 150,
+        "orb": 0.10733095383670843,
+        "isApplying": true,
+        "strength": 96.4223015387764,
+        "interpretation": "challenging",
+        "planet1Localized": "Ay",
+        "planet2Localized": "Güney Düğümü",
+        "typeLocalized": "Kuinkuks",
+        "meaning": {
+          "name": "Kuinkuks",
+          "description": {
+            "short": "Kuinkuks (uyumsuz açı olarak da bilinir) 150 derecelik zorlu bir küçük aspekttir. Element, modalite veya kutupluluk açısından hiçbir ortak noktası olmayan burçları bağlayarak, net bir yol olmadan bir şeylerin değişmesi gerektiği huzursuz hissini yaratır.",
+            "long": "Kuinkuks (uyumsuz açı olarak da bilinir) 150 derecelik zorlu bir küçük aspekttir. Kareler gibi doğrudan yüzleşme yaratmaz, karşıtlıklar gibi çekişme de yaratmaz; bunun yerine rahatsız edici bir uyumsuzluk hissi üretir. İlgili iki gezegen tamamen farklı dünyalarda çalışıyor gibi görünür ve sürekli ayarlama ile uzlaşma gerektirir. Sağlık sorunları, takıntılı alışkanlıklar ve uyum gerektiren durumlar klasik kuinkuks temalarıdır. İyi yönetildiğinde bu aspekt beceriklilik ve hayatın uyumsuz görünen parçalarını birleştirme yeteneği geliştirir."
+          },
+          "keywords": [
+            "ayarlama",
+            "gerilim",
+            "uyum",
+            "yön değiştirme"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Moon ve South Node, inner emotional life ile past life gifts and comfort zone arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Sun",
+        "planet2": "North Node",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 0.345643929872125,
+        "isApplying": true,
+        "strength": 95.67945087659844,
+        "interpretation": "harmonious",
+        "planet1Localized": "Güneş",
+        "planet2Localized": "Kuzey Düğümü",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Sun ve North Node uyumlu bir şekilde bağlanır, self-awareness and ego ile life purpose and destiny arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Venus",
+        "planet2": "Black Moon Lilith",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 0.3376574694627692,
+        "isApplying": false,
+        "strength": 94.37237550895384,
+        "interpretation": "harmonious",
+        "planet1Localized": "Venüs",
+        "planet2Localized": "Kara Ay Lilith",
+        "typeLocalized": "Sekstil",
+        "meaning": {
+          "name": "Sekstil",
+          "description": {
+            "short": "Sekstil genellikle üçgene benzer şekilde yorumlanır, ancak iki aspekt arasında bir fark vardır. Sekstiller, üçgenler gibi yetenek ve kolaylığa işaret eder, ama biraz daha belirgindir. Üçgenler insanlara o kadar doğal gelir ki yeteneklerini hatırlatmak gerekebilirken, sekstiller biraz daha fark edilirdir. Bunlar insanların kendilerinde takdir ettiği yeteneklerdir.",
+            "long": "Sekstiller iletişimci ve ilişki dostu aspektlerdir. Yönlendirilebilecek enerjilere işaret ederler. Sekstiller enerjilerin akıllıca kullanılma potansiyelini ortaya koyar."
+          },
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Venus ve Black Moon Lilith uyumlu bir şekilde bağlanır, love, beauty, and money ile primal instinct and the reclaimed self arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Sun",
+        "planet2": "South Node",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 0.345643929872125,
+        "isApplying": true,
+        "strength": 94.23926783546457,
+        "interpretation": "harmonious",
+        "planet1Localized": "Güneş",
+        "planet2Localized": "Güney Düğümü",
+        "typeLocalized": "Sekstil",
+        "meaning": {
+          "name": "Sekstil",
+          "description": {
+            "short": "Sekstil genellikle üçgene benzer şekilde yorumlanır, ancak iki aspekt arasında bir fark vardır. Sekstiller, üçgenler gibi yetenek ve kolaylığa işaret eder, ama biraz daha belirgindir. Üçgenler insanlara o kadar doğal gelir ki yeteneklerini hatırlatmak gerekebilirken, sekstiller biraz daha fark edilirdir. Bunlar insanların kendilerinde takdir ettiği yeteneklerdir.",
+            "long": "Sekstiller iletişimci ve ilişki dostu aspektlerdir. Yönlendirilebilecek enerjilere işaret ederler. Sekstiller enerjilerin akıllıca kullanılma potansiyelini ortaya koyar."
+          },
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Sun ve South Node uyumlu bir şekilde bağlanır, self-awareness and ego ile past life gifts and comfort zone arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Chiron",
+        "planet2": "Mars",
+        "type": "OPPOSITION",
+        "angle": 180,
+        "orb": 0.4866434009691716,
+        "isApplying": true,
+        "strength": 93.91695748788536,
+        "interpretation": "challenging",
+        "planet1Localized": "Chiron",
+        "planet2Localized": "Mars",
+        "typeLocalized": "Karşıtlık",
+        "meaning": {
+          "name": "Karşıtlık",
+          "description": {
+            "short": "Her işte iki kişi gerekir ifadesinde olduğu gibi, karşıtlık çemberin ikiye bölünmesiyle oluşur. Burada anahtar kelime ilişkidir. Karşıtlıkları olan insanlar kendi iç mücadelelerini yansıtmak için başkalarını arar. Başkalarıyla etkileşimler yoluyla kendileri hakkında öğrenirler. Karşıtlıklar çoğu zaman bir taraftan diğerine savrulmamıza neden olur ve kendimizi bölünmüş hissederiz.",
+            "long": "Karşıtlıklar bölünmüş sadakatlerin durumunu temsil eder. İç huzursuzluk, belirsizlik ve güvensizlik sonuç olabilir. Kare acil ve cesaretliyken, karşıtlık emin değildir ve bocalar. Karşıtlıklarımızı doğru kullandığımızda diğer tarafı düşünmeye daha istekliyiz ve usta müzakereciler olabiliriz. Karelerden farklı olarak, karşıtlıklar bizi ilişkiler ve dışsal aynalar yoluyla denge aramaya yönlendirir. Güçlü karşıtlıkları olan insanlar kavrayışlı olma eğilimindedir ve başkalarıyla bağlantıları aracılığıyla anlam arar."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "denge",
+            "meydan okuma",
+            "rehavet",
+            "kolay",
+            "büyüme",
+            "engel",
+            "ilişki",
+            "mücadele",
+            "yetenek",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Chiron ve Mars, healing and inner wounds ile assertiveness and aggression arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Jupiter",
+        "planet2": "North Node",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 0.527456862537349,
+        "isApplying": true,
+        "strength": 93.40678921828314,
+        "interpretation": "harmonious",
+        "planet1Localized": "Jüpiter",
+        "planet2Localized": "Kuzey Düğümü",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Jupiter ve North Node uyumlu bir şekilde bağlanır, luck and opportunity ile life purpose and destiny arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Moon",
+        "planet2": "Chiron",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 0.4714201184249589,
+        "isApplying": true,
+        "strength": 92.1429980262507,
+        "interpretation": "harmonious",
+        "planet1Localized": "Ay",
+        "planet2Localized": "Chiron",
+        "typeLocalized": "Sekstil",
+        "meaning": {
+          "name": "Sekstil",
+          "description": {
+            "short": "Sekstil genellikle üçgene benzer şekilde yorumlanır, ancak iki aspekt arasında bir fark vardır. Sekstiller, üçgenler gibi yetenek ve kolaylığa işaret eder, ama biraz daha belirgindir. Üçgenler insanlara o kadar doğal gelir ki yeteneklerini hatırlatmak gerekebilirken, sekstiller biraz daha fark edilirdir. Bunlar insanların kendilerinde takdir ettiği yeteneklerdir.",
+            "long": "Sekstiller iletişimci ve ilişki dostu aspektlerdir. Yönlendirilebilecek enerjilere işaret ederler. Sekstiller enerjilerin akıllıca kullanılma potansiyelini ortaya koyar."
+          },
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Moon ve Chiron uyumlu bir şekilde bağlanır, inner emotional life ile healing and inner wounds arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Uranus",
+        "planet2": "Mercury",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 0.47623815193406926,
+        "isApplying": true,
+        "strength": 92.0626974677655,
+        "interpretation": "harmonious",
+        "planet1Localized": "Uranüs",
+        "planet2Localized": "Merkür",
+        "typeLocalized": "Sekstil",
+        "meaning": {
+          "name": "Sekstil",
+          "description": {
+            "short": "Sekstil genellikle üçgene benzer şekilde yorumlanır, ancak iki aspekt arasında bir fark vardır. Sekstiller, üçgenler gibi yetenek ve kolaylığa işaret eder, ama biraz daha belirgindir. Üçgenler insanlara o kadar doğal gelir ki yeteneklerini hatırlatmak gerekebilirken, sekstiller biraz daha fark edilirdir. Bunlar insanların kendilerinde takdir ettiği yeteneklerdir.",
+            "long": "Sekstiller iletişimci ve ilişki dostu aspektlerdir. Yönlendirilebilecek enerjilere işaret ederler. Sekstiller enerjilerin akıllıca kullanılma potansiyelini ortaya koyar."
+          },
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Uranus ve Mercury uyumlu bir şekilde bağlanır, individuality and revolution ile communication arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Mercury",
+        "planet2": "Mercury",
+        "type": "QUINCUNX",
+        "angle": 150,
+        "orb": 0.24268432353972003,
+        "isApplying": false,
+        "strength": 91.910522548676,
+        "interpretation": "challenging",
+        "planet1Localized": "Merkür",
+        "planet2Localized": "Merkür",
+        "typeLocalized": "Kuinkuks",
+        "meaning": {
+          "name": "Kuinkuks",
+          "description": {
+            "short": "Kuinkuks (uyumsuz açı olarak da bilinir) 150 derecelik zorlu bir küçük aspekttir. Element, modalite veya kutupluluk açısından hiçbir ortak noktası olmayan burçları bağlayarak, net bir yol olmadan bir şeylerin değişmesi gerektiği huzursuz hissini yaratır.",
+            "long": "Kuinkuks (uyumsuz açı olarak da bilinir) 150 derecelik zorlu bir küçük aspekttir. Kareler gibi doğrudan yüzleşme yaratmaz, karşıtlıklar gibi çekişme de yaratmaz; bunun yerine rahatsız edici bir uyumsuzluk hissi üretir. İlgili iki gezegen tamamen farklı dünyalarda çalışıyor gibi görünür ve sürekli ayarlama ile uzlaşma gerektirir. Sağlık sorunları, takıntılı alışkanlıklar ve uyum gerektiren durumlar klasik kuinkuks temalarıdır. İyi yönetildiğinde bu aspekt beceriklilik ve hayatın uyumsuz görünen parçalarını birleştirme yeteneği geliştirir."
+          },
+          "keywords": [
+            "ayarlama",
+            "gerilim",
+            "uyum",
+            "yön değiştirme"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "İletişim yanlış anlamaları veya farklı zihinsel yaklaşımlar. Netlik ve sabır diyalogu geliştirir."
+        }
+      },
+      {
+        "planet1": "Jupiter",
+        "planet2": "South Node",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 0.5274568625373348,
+        "isApplying": true,
+        "strength": 91.20905229104443,
+        "interpretation": "harmonious",
+        "planet1Localized": "Jüpiter",
+        "planet2Localized": "Güney Düğümü",
+        "typeLocalized": "Sekstil",
+        "meaning": {
+          "name": "Sekstil",
+          "description": {
+            "short": "Sekstil genellikle üçgene benzer şekilde yorumlanır, ancak iki aspekt arasında bir fark vardır. Sekstiller, üçgenler gibi yetenek ve kolaylığa işaret eder, ama biraz daha belirgindir. Üçgenler insanlara o kadar doğal gelir ki yeteneklerini hatırlatmak gerekebilirken, sekstiller biraz daha fark edilirdir. Bunlar insanların kendilerinde takdir ettiği yeteneklerdir.",
+            "long": "Sekstiller iletişimci ve ilişki dostu aspektlerdir. Yönlendirilebilecek enerjilere işaret ederler. Sekstiller enerjilerin akıllıca kullanılma potansiyelini ortaya koyar."
+          },
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Jupiter ve South Node uyumlu bir şekilde bağlanır, luck and opportunity ile past life gifts and comfort zone arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Mars",
+        "planet2": "Jupiter",
+        "type": "CONJUNCTION",
+        "angle": 0,
+        "orb": 0.770911610170252,
+        "isApplying": true,
+        "strength": 90.36360487287185,
+        "interpretation": "neutral",
+        "planet1Localized": "Mars",
+        "planet2Localized": "Jüpiter",
+        "typeLocalized": "Kavuşum",
+        "meaning": {
+          "name": "Kavuşum",
+          "description": {
+            "short": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar.",
+            "long": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar."
+          },
+          "keywords": [
+            "harman",
+            "zorluk",
+            "birleşme",
+            "bütünlük"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "Mars ve Jupiter, assertiveness and aggression ile luck and opportunity arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Neptune",
+        "planet2": "Pluto",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 0.6947510550887728,
+        "isApplying": true,
+        "strength": 88.42081574852045,
+        "interpretation": "harmonious",
+        "planet1Localized": "Neptün",
+        "planet2Localized": "Plüton",
+        "typeLocalized": "Sekstil",
+        "meaning": {
+          "name": "Sekstil",
+          "description": {
+            "short": "Sekstil genellikle üçgene benzer şekilde yorumlanır, ancak iki aspekt arasında bir fark vardır. Sekstiller, üçgenler gibi yetenek ve kolaylığa işaret eder, ama biraz daha belirgindir. Üçgenler insanlara o kadar doğal gelir ki yeteneklerini hatırlatmak gerekebilirken, sekstiller biraz daha fark edilirdir. Bunlar insanların kendilerinde takdir ettiği yeteneklerdir.",
+            "long": "Sekstiller iletişimci ve ilişki dostu aspektlerdir. Yönlendirilebilecek enerjilere işaret ederler. Sekstiller enerjilerin akıllıca kullanılma potansiyelini ortaya koyar."
+          },
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Neptune ve Pluto uyumlu bir şekilde bağlanır, dreams, healing, and intuition ile sex, death, and transformation arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Venus",
+        "planet2": "Chiron",
+        "type": "CONJUNCTION",
+        "angle": 0,
+        "orb": 0.9502725312650568,
+        "isApplying": false,
+        "strength": 88.12159335918679,
+        "interpretation": "neutral",
+        "planet1Localized": "Venüs",
+        "planet2Localized": "Chiron",
+        "typeLocalized": "Kavuşum",
+        "meaning": {
+          "name": "Kavuşum",
+          "description": {
+            "short": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar.",
+            "long": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar."
+          },
+          "keywords": [
+            "harman",
+            "zorluk",
+            "birleşme",
+            "bütünlük"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "Venus ve Chiron, love, beauty, and money ile healing and inner wounds arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Mars",
+        "planet2": "Uranus",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 0.9733406312260229,
+        "isApplying": false,
+        "strength": 87.83324210967471,
+        "interpretation": "harmonious",
+        "planet1Localized": "Mars",
+        "planet2Localized": "Uranüs",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Mars ve Uranus uyumlu bir şekilde bağlanır, assertiveness and aggression ile individuality and revolution arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Moon",
+        "planet2": "Black Moon Lilith",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 1.0840351802272465,
+        "isApplying": true,
+        "strength": 86.44956024715941,
+        "interpretation": "harmonious",
+        "planet1Localized": "Ay",
+        "planet2Localized": "Kara Ay Lilith",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Moon ve Black Moon Lilith uyumlu bir şekilde bağlanır, inner emotional life ile primal instinct and the reclaimed self arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Saturn",
+        "planet2": "South Node",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 1.1067831801233297,
+        "isApplying": false,
+        "strength": 86.16521024845838,
+        "interpretation": "harmonious",
+        "planet1Localized": "Satürn",
+        "planet2Localized": "Güney Düğümü",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Saturn ve South Node uyumlu bir şekilde bağlanır, responsibility, time, and routine ile past life gifts and comfort zone arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Pluto",
+        "planet2": "Venus",
+        "type": "OPPOSITION",
+        "angle": 180,
+        "orb": 1.165344482554815,
+        "isApplying": false,
+        "strength": 85.43319396806481,
+        "interpretation": "challenging",
+        "planet1Localized": "Plüton",
+        "planet2Localized": "Venüs",
+        "typeLocalized": "Karşıtlık",
+        "meaning": {
+          "name": "Karşıtlık",
+          "description": {
+            "short": "Her işte iki kişi gerekir ifadesinde olduğu gibi, karşıtlık çemberin ikiye bölünmesiyle oluşur. Burada anahtar kelime ilişkidir. Karşıtlıkları olan insanlar kendi iç mücadelelerini yansıtmak için başkalarını arar. Başkalarıyla etkileşimler yoluyla kendileri hakkında öğrenirler. Karşıtlıklar çoğu zaman bir taraftan diğerine savrulmamıza neden olur ve kendimizi bölünmüş hissederiz.",
+            "long": "Karşıtlıklar bölünmüş sadakatlerin durumunu temsil eder. İç huzursuzluk, belirsizlik ve güvensizlik sonuç olabilir. Kare acil ve cesaretliyken, karşıtlık emin değildir ve bocalar. Karşıtlıklarımızı doğru kullandığımızda diğer tarafı düşünmeye daha istekliyiz ve usta müzakereciler olabiliriz. Karelerden farklı olarak, karşıtlıklar bizi ilişkiler ve dışsal aynalar yoluyla denge aramaya yönlendirir. Güçlü karşıtlıkları olan insanlar kavrayışlı olma eğilimindedir ve başkalarıyla bağlantıları aracılığıyla anlam arar."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "denge",
+            "meydan okuma",
+            "rehavet",
+            "kolay",
+            "büyüme",
+            "engel",
+            "ilişki",
+            "mücadele",
+            "yetenek",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Pluto ve Venus, sex, death, and transformation ile love, beauty, and money arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Saturn",
+        "planet2": "North Node",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 1.1067831801233297,
+        "isApplying": false,
+        "strength": 81.55361366461116,
+        "interpretation": "harmonious",
+        "planet1Localized": "Satürn",
+        "planet2Localized": "Kuzey Düğümü",
+        "typeLocalized": "Sekstil",
+        "meaning": {
+          "name": "Sekstil",
+          "description": {
+            "short": "Sekstil genellikle üçgene benzer şekilde yorumlanır, ancak iki aspekt arasında bir fark vardır. Sekstiller, üçgenler gibi yetenek ve kolaylığa işaret eder, ama biraz daha belirgindir. Üçgenler insanlara o kadar doğal gelir ki yeteneklerini hatırlatmak gerekebilirken, sekstiller biraz daha fark edilirdir. Bunlar insanların kendilerinde takdir ettiği yeteneklerdir.",
+            "long": "Sekstiller iletişimci ve ilişki dostu aspektlerdir. Yönlendirilebilecek enerjilere işaret ederler. Sekstiller enerjilerin akıllıca kullanılma potansiyelini ortaya koyar."
+          },
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Saturn ve North Node uyumlu bir şekilde bağlanır, responsibility, time, and routine ile life purpose and destiny arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Venus",
+        "planet2": "South Node",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 1.3143616958533215,
+        "isApplying": false,
+        "strength": 81.22340434495254,
+        "interpretation": "challenging",
+        "planet1Localized": "Venüs",
+        "planet2Localized": "Güney Düğümü",
+        "typeLocalized": "Kare",
+        "meaning": {
+          "name": "Kare",
+          "description": {
+            "short": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar.",
+            "long": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar."
+          },
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Venus ve South Node, love, beauty, and money ile past life gifts and comfort zone arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Venus",
+        "planet2": "North Node",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 1.3143616958533357,
+        "isApplying": false,
+        "strength": 81.22340434495234,
+        "interpretation": "challenging",
+        "planet1Localized": "Venüs",
+        "planet2Localized": "Kuzey Düğümü",
+        "typeLocalized": "Kare",
+        "meaning": {
+          "name": "Kare",
+          "description": {
+            "short": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar.",
+            "long": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar."
+          },
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Venus ve North Node, love, beauty, and money ile life purpose and destiny arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Sun",
+        "planet2": "Chiron",
+        "type": "SEMI_SEXTILE",
+        "angle": 30,
+        "orb": 0.7097330944603897,
+        "isApplying": true,
+        "strength": 76.34223018465369,
+        "interpretation": "neutral",
+        "planet1Localized": "Güneş",
+        "planet2Localized": "Chiron",
+        "typeLocalized": "Yarı Sekstil",
+        "meaning": {
+          "name": "Yarı Sekstil",
+          "description": {
+            "short": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Gezegenler arasında ince ama bazen rahatsız edici bir farkındalık yaratarak küçük ama anlamlı ayarlamalar ve büyümeyi teşvik eder.",
+            "long": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Komşu burçlar ne element ne de modalite paylaşmadığından, yarı sekstil birbirini doğal olarak anlamayan enerjileri bütünleştirmemizi ister. Göz ardı edilmesi kolay olsa da bu aspekt kör noktaları vurgulayarak ve esnekliği teşvik ederek sessizce kişisel gelişimi ilerletir. Genellikle fark edildiğinde kademeli ama istikrarlı bir öz gelişim kaynağına dönüşen arka plan gerilimi olarak tanımlanır."
+          },
+          "keywords": [
+            "büyüme",
+            "incelik",
+            "ayarlama",
+            "farkındalık"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "Sun ve Chiron, self-awareness and ego ile healing and inner wounds arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Saturn",
+        "planet2": "Mercury",
+        "type": "SEMI_SQUARE",
+        "angle": 45,
+        "orb": 0.4738715241844602,
+        "isApplying": true,
+        "strength": 76.30642379077699,
+        "interpretation": "challenging",
+        "planet1Localized": "Satürn",
+        "planet2Localized": "Merkür",
+        "typeLocalized": "Yarı Kare",
+        "meaning": {
+          "name": "Yarı Kare",
+          "description": {
+            "short": "Yarı Kare, gezegenler arasında düşük seviyeli sürtünme ve tahriş yaratan 45 derecelik küçük bir sert aspekttir. Göz ardı edilmesi kolay ama incelikle eylemi yönlendiren rahatsız edici bir gerilim üretir.",
+            "long": "Yarı Kare (45 derece) karenin yarısıdır ve benzer ama daha az yoğun bir gerilim taşır. İç ajitasyon, küçük hayal kırıklıkları ve sonunda ayarlamaları zorlayan hafif bir tahriş temsil eder. Kareden farklı olarak anında yüzleşme gerektirmez; bunun yerine baskıyı kademeli olarak biriktirir. Genellikle huzursuzluk, sabırsızlık veya mevcut durumdan memnuniyetsizlik olarak tezahür eder. Bilinçli olarak çalışıldığında, daha büyük krizlerin gelişmesini önleyen kademeli değişikliklere motivasyon sağlar."
+          },
+          "keywords": [
+            "sürtünme",
+            "tahriş",
+            "ajitasyon",
+            "küçük gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Saturn ve Mercury, responsibility, time, and routine ile communication arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Pluto",
+        "planet2": "Moon",
+        "type": "OPPOSITION",
+        "angle": 180,
+        "orb": 2.3121959196748776,
+        "isApplying": true,
+        "strength": 71.09755100406403,
+        "interpretation": "challenging",
+        "planet1Localized": "Plüton",
+        "planet2Localized": "Ay",
+        "typeLocalized": "Karşıtlık",
+        "meaning": {
+          "name": "Karşıtlık",
+          "description": {
+            "short": "Her işte iki kişi gerekir ifadesinde olduğu gibi, karşıtlık çemberin ikiye bölünmesiyle oluşur. Burada anahtar kelime ilişkidir. Karşıtlıkları olan insanlar kendi iç mücadelelerini yansıtmak için başkalarını arar. Başkalarıyla etkileşimler yoluyla kendileri hakkında öğrenirler. Karşıtlıklar çoğu zaman bir taraftan diğerine savrulmamıza neden olur ve kendimizi bölünmüş hissederiz.",
+            "long": "Karşıtlıklar bölünmüş sadakatlerin durumunu temsil eder. İç huzursuzluk, belirsizlik ve güvensizlik sonuç olabilir. Kare acil ve cesaretliyken, karşıtlık emin değildir ve bocalar. Karşıtlıklarımızı doğru kullandığımızda diğer tarafı düşünmeye daha istekliyiz ve usta müzakereciler olabiliriz. Karelerden farklı olarak, karşıtlıklar bizi ilişkiler ve dışsal aynalar yoluyla denge aramaya yönlendirir. Güçlü karşıtlıkları olan insanlar kavrayışlı olma eğilimindedir ve başkalarıyla bağlantıları aracılığıyla anlam arar."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "denge",
+            "meydan okuma",
+            "rehavet",
+            "kolay",
+            "büyüme",
+            "engel",
+            "ilişki",
+            "mücadele",
+            "yetenek",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Pluto ve Moon, sex, death, and transformation ile inner emotional life arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "North Node",
+        "planet2": "Mercury",
+        "type": "SEMI_SEXTILE",
+        "angle": 30,
+        "orb": 0.8679535463749062,
+        "isApplying": true,
+        "strength": 71.06821512083646,
+        "interpretation": "neutral",
+        "planet1Localized": "Kuzey Düğümü",
+        "planet2Localized": "Merkür",
+        "typeLocalized": "Yarı Sekstil",
+        "meaning": {
+          "name": "Yarı Sekstil",
+          "description": {
+            "short": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Gezegenler arasında ince ama bazen rahatsız edici bir farkındalık yaratarak küçük ama anlamlı ayarlamalar ve büyümeyi teşvik eder.",
+            "long": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Komşu burçlar ne element ne de modalite paylaşmadığından, yarı sekstil birbirini doğal olarak anlamayan enerjileri bütünleştirmemizi ister. Göz ardı edilmesi kolay olsa da bu aspekt kör noktaları vurgulayarak ve esnekliği teşvik ederek sessizce kişisel gelişimi ilerletir. Genellikle fark edildiğinde kademeli ama istikrarlı bir öz gelişim kaynağına dönüşen arka plan gerilimi olarak tanımlanır."
+          },
+          "keywords": [
+            "büyüme",
+            "incelik",
+            "ayarlama",
+            "farkındalık"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "North Node ve Mercury, life purpose and destiny ile communication arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "South Node",
+        "planet2": "Mercury",
+        "type": "QUINCUNX",
+        "angle": 150,
+        "orb": 0.8679535463749062,
+        "isApplying": true,
+        "strength": 71.06821512083646,
+        "interpretation": "challenging",
+        "planet1Localized": "Güney Düğümü",
+        "planet2Localized": "Merkür",
+        "typeLocalized": "Kuinkuks",
+        "meaning": {
+          "name": "Kuinkuks",
+          "description": {
+            "short": "Kuinkuks (uyumsuz açı olarak da bilinir) 150 derecelik zorlu bir küçük aspekttir. Element, modalite veya kutupluluk açısından hiçbir ortak noktası olmayan burçları bağlayarak, net bir yol olmadan bir şeylerin değişmesi gerektiği huzursuz hissini yaratır.",
+            "long": "Kuinkuks (uyumsuz açı olarak da bilinir) 150 derecelik zorlu bir küçük aspekttir. Kareler gibi doğrudan yüzleşme yaratmaz, karşıtlıklar gibi çekişme de yaratmaz; bunun yerine rahatsız edici bir uyumsuzluk hissi üretir. İlgili iki gezegen tamamen farklı dünyalarda çalışıyor gibi görünür ve sürekli ayarlama ile uzlaşma gerektirir. Sağlık sorunları, takıntılı alışkanlıklar ve uyum gerektiren durumlar klasik kuinkuks temalarıdır. İyi yönetildiğinde bu aspekt beceriklilik ve hayatın uyumsuz görünen parçalarını birleştirme yeteneği geliştirir."
+          },
+          "keywords": [
+            "ayarlama",
+            "gerilim",
+            "uyum",
+            "yön değiştirme"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "South Node ve Mercury, past life gifts and comfort zone ile communication arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Jupiter",
+        "planet2": "Chiron",
+        "type": "SEMI_SEXTILE",
+        "angle": 30,
+        "orb": 0.8915460271255995,
+        "isApplying": true,
+        "strength": 70.28179909581335,
+        "interpretation": "neutral",
+        "planet1Localized": "Jüpiter",
+        "planet2Localized": "Chiron",
+        "typeLocalized": "Yarı Sekstil",
+        "meaning": {
+          "name": "Yarı Sekstil",
+          "description": {
+            "short": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Gezegenler arasında ince ama bazen rahatsız edici bir farkındalık yaratarak küçük ama anlamlı ayarlamalar ve büyümeyi teşvik eder.",
+            "long": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Komşu burçlar ne element ne de modalite paylaşmadığından, yarı sekstil birbirini doğal olarak anlamayan enerjileri bütünleştirmemizi ister. Göz ardı edilmesi kolay olsa da bu aspekt kör noktaları vurgulayarak ve esnekliği teşvik ederek sessizce kişisel gelişimi ilerletir. Genellikle fark edildiğinde kademeli ama istikrarlı bir öz gelişim kaynağına dönüşen arka plan gerilimi olarak tanımlanır."
+          },
+          "keywords": [
+            "büyüme",
+            "incelik",
+            "ayarlama",
+            "farkındalık"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "Jupiter ve Chiron, luck and opportunity ile healing and inner wounds arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Black Moon Lilith",
+        "planet2": "Sun",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 2.4832950175306507,
+        "isApplying": false,
+        "strength": 68.95881228086687,
+        "interpretation": "harmonious",
+        "planet1Localized": "Kara Ay Lilith",
+        "planet2Localized": "Güneş",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Black Moon Lilith ve Sun uyumlu bir şekilde bağlanır, primal instinct and the reclaimed self ile self-awareness and ego arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Pluto",
+        "planet2": "Pluto",
+        "type": "CONJUNCTION",
+        "angle": 0,
+        "orb": 2.772585285927562,
+        "isApplying": false,
+        "strength": 65.34268392590548,
+        "interpretation": "neutral",
+        "planet1Localized": "Plüton",
+        "planet2Localized": "Plüton",
+        "typeLocalized": "Kavuşum",
+        "meaning": {
+          "name": "Kavuşum",
+          "description": {
+            "short": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar.",
+            "long": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar."
+          },
+          "keywords": [
+            "harman",
+            "zorluk",
+            "birleşme",
+            "bütünlük"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "Pluto ve Pluto, sex, death, and transformation ile sex, death, and transformation arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "North Node",
+        "planet2": "North Node",
+        "type": "SEMI_SQUARE",
+        "angle": 45,
+        "orb": 0.7127011579328837,
+        "isApplying": true,
+        "strength": 64.36494210335582,
+        "interpretation": "challenging",
+        "planet1Localized": "Kuzey Düğümü",
+        "planet2Localized": "Kuzey Düğümü",
+        "typeLocalized": "Yarı Kare",
+        "meaning": {
+          "name": "Yarı Kare",
+          "description": {
+            "short": "Yarı Kare, gezegenler arasında düşük seviyeli sürtünme ve tahriş yaratan 45 derecelik küçük bir sert aspekttir. Göz ardı edilmesi kolay ama incelikle eylemi yönlendiren rahatsız edici bir gerilim üretir.",
+            "long": "Yarı Kare (45 derece) karenin yarısıdır ve benzer ama daha az yoğun bir gerilim taşır. İç ajitasyon, küçük hayal kırıklıkları ve sonunda ayarlamaları zorlayan hafif bir tahriş temsil eder. Kareden farklı olarak anında yüzleşme gerektirmez; bunun yerine baskıyı kademeli olarak biriktirir. Genellikle huzursuzluk, sabırsızlık veya mevcut durumdan memnuniyetsizlik olarak tezahür eder. Bilinçli olarak çalışıldığında, daha büyük krizlerin gelişmesini önleyen kademeli değişikliklere motivasyon sağlar."
+          },
+          "keywords": [
+            "sürtünme",
+            "tahriş",
+            "ajitasyon",
+            "küçük gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "North Node ve North Node, life purpose and destiny ile life purpose and destiny arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "North Node",
+        "planet2": "South Node",
+        "type": "SESQUIQUADRATE",
+        "angle": 135,
+        "orb": 0.7127011579328837,
+        "isApplying": true,
+        "strength": 64.36494210335582,
+        "interpretation": "challenging",
+        "planet1Localized": "Kuzey Düğümü",
+        "planet2Localized": "Güney Düğümü",
+        "typeLocalized": "Seskikare",
+        "meaning": {
+          "name": "Seskikare",
+          "description": {
+            "short": "Seskikare, hayal kırıklığı ve dışsal ayarlama ihtiyacı yaratan 135 derecelik küçük bir sert aspekttir. Genellikle ilerlemenin kontrolünüz dışındaki koşullar tarafından engellendiği durumlar olarak tezahür eder.",
+            "long": "Seskikare (135 derece, sekstikare veya trioktil olarak da bilinir) kare ve yarı karenin enerjilerini birleştirir. Yarı kare içsel tahriş yaratırken, seskikare gerilimi dışa yansıtma eğilimindedir ve dışsal koşullar veya başka insanlarla çatışma olarak tezahür eder. Sıkışmış ya da engellenmiş olma hissi üretir; istenen sonuç tam ulaşılacakken kaçar. Bu aspekt genellikle doğrudan yüzleşme yerine uzlaşma veya yön değiştirme gerektiren durumlarla ilişkilidir. Olgunca yönetildiğinde uyum yeteneği ve ne zaman ileri gidilmesi, ne zaman alternatif bir yol bulunması gerektiği bilgeliğini öğretir."
+          },
+          "keywords": [
+            "hayal kırıklığı",
+            "ayarlama",
+            "dışsal gerilim",
+            "yön değiştirme"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "North Node ve South Node, life purpose and destiny ile past life gifts and comfort zone arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "South Node",
+        "planet2": "North Node",
+        "type": "SESQUIQUADRATE",
+        "angle": 135,
+        "orb": 0.7127011579328837,
+        "isApplying": true,
+        "strength": 64.36494210335582,
+        "interpretation": "challenging",
+        "planet1Localized": "Güney Düğümü",
+        "planet2Localized": "Kuzey Düğümü",
+        "typeLocalized": "Seskikare",
+        "meaning": {
+          "name": "Seskikare",
+          "description": {
+            "short": "Seskikare, hayal kırıklığı ve dışsal ayarlama ihtiyacı yaratan 135 derecelik küçük bir sert aspekttir. Genellikle ilerlemenin kontrolünüz dışındaki koşullar tarafından engellendiği durumlar olarak tezahür eder.",
+            "long": "Seskikare (135 derece, sekstikare veya trioktil olarak da bilinir) kare ve yarı karenin enerjilerini birleştirir. Yarı kare içsel tahriş yaratırken, seskikare gerilimi dışa yansıtma eğilimindedir ve dışsal koşullar veya başka insanlarla çatışma olarak tezahür eder. Sıkışmış ya da engellenmiş olma hissi üretir; istenen sonuç tam ulaşılacakken kaçar. Bu aspekt genellikle doğrudan yüzleşme yerine uzlaşma veya yön değiştirme gerektiren durumlarla ilişkilidir. Olgunca yönetildiğinde uyum yeteneği ve ne zaman ileri gidilmesi, ne zaman alternatif bir yol bulunması gerektiği bilgeliğini öğretir."
+          },
+          "keywords": [
+            "hayal kırıklığı",
+            "ayarlama",
+            "dışsal gerilim",
+            "yön değiştirme"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "South Node ve North Node, past life gifts and comfort zone ile life purpose and destiny arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "South Node",
+        "planet2": "South Node",
+        "type": "SEMI_SQUARE",
+        "angle": 45,
+        "orb": 0.7127011579328837,
+        "isApplying": true,
+        "strength": 64.36494210335582,
+        "interpretation": "challenging",
+        "planet1Localized": "Güney Düğümü",
+        "planet2Localized": "Güney Düğümü",
+        "typeLocalized": "Yarı Kare",
+        "meaning": {
+          "name": "Yarı Kare",
+          "description": {
+            "short": "Yarı Kare, gezegenler arasında düşük seviyeli sürtünme ve tahriş yaratan 45 derecelik küçük bir sert aspekttir. Göz ardı edilmesi kolay ama incelikle eylemi yönlendiren rahatsız edici bir gerilim üretir.",
+            "long": "Yarı Kare (45 derece) karenin yarısıdır ve benzer ama daha az yoğun bir gerilim taşır. İç ajitasyon, küçük hayal kırıklıkları ve sonunda ayarlamaları zorlayan hafif bir tahriş temsil eder. Kareden farklı olarak anında yüzleşme gerektirmez; bunun yerine baskıyı kademeli olarak biriktirir. Genellikle huzursuzluk, sabırsızlık veya mevcut durumdan memnuniyetsizlik olarak tezahür eder. Bilinçli olarak çalışıldığında, daha büyük krizlerin gelişmesini önleyen kademeli değişikliklere motivasyon sağlar."
+          },
+          "keywords": [
+            "sürtünme",
+            "tahriş",
+            "ajitasyon",
+            "küçük gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "South Node ve South Node, past life gifts and comfort zone ile past life gifts and comfort zone arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Neptune",
+        "planet2": "Neptune",
+        "type": "CONJUNCTION",
+        "angle": 0,
+        "orb": 2.8535768122574154,
+        "isApplying": true,
+        "strength": 64.3302898467823,
+        "interpretation": "neutral",
+        "planet1Localized": "Neptün",
+        "planet2Localized": "Neptün",
+        "typeLocalized": "Kavuşum",
+        "meaning": {
+          "name": "Kavuşum",
+          "description": {
+            "short": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar.",
+            "long": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar."
+          },
+          "keywords": [
+            "harman",
+            "zorluk",
+            "birleşme",
+            "bütünlük"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "Neptune ve Neptune, dreams, healing, and intuition ile dreams, healing, and intuition arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Mars",
+        "planet2": "Sun",
+        "type": "SEMI_SEXTILE",
+        "angle": 30,
+        "orb": 1.1372221753170066,
+        "isApplying": true,
+        "strength": 62.09259415609978,
+        "interpretation": "neutral",
+        "planet1Localized": "Mars",
+        "planet2Localized": "Güneş",
+        "typeLocalized": "Yarı Sekstil",
+        "meaning": {
+          "name": "Yarı Sekstil",
+          "description": {
+            "short": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Gezegenler arasında ince ama bazen rahatsız edici bir farkındalık yaratarak küçük ama anlamlı ayarlamalar ve büyümeyi teşvik eder.",
+            "long": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Komşu burçlar ne element ne de modalite paylaşmadığından, yarı sekstil birbirini doğal olarak anlamayan enerjileri bütünleştirmemizi ister. Göz ardı edilmesi kolay olsa da bu aspekt kör noktaları vurgulayarak ve esnekliği teşvik ederek sessizce kişisel gelişimi ilerletir. Genellikle fark edildiğinde kademeli ama istikrarlı bir öz gelişim kaynağına dönüşen arka plan gerilimi olarak tanımlanır."
+          },
+          "keywords": [
+            "büyüme",
+            "incelik",
+            "ayarlama",
+            "farkındalık"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "Mars ve Sun, assertiveness and aggression ile self-awareness and ego arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Uranus",
+        "planet2": "Neptune",
+        "type": "CONJUNCTION",
+        "angle": 0,
+        "orb": 3.1006576357511335,
+        "isApplying": false,
+        "strength": 61.24177955311083,
+        "interpretation": "neutral",
+        "planet1Localized": "Uranüs",
+        "planet2Localized": "Neptün",
+        "typeLocalized": "Kavuşum",
+        "meaning": {
+          "name": "Kavuşum",
+          "description": {
+            "short": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar.",
+            "long": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar."
+          },
+          "keywords": [
+            "harman",
+            "zorluk",
+            "birleşme",
+            "bütünlük"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "Uranus ve Neptune, individuality and revolution ile dreams, healing, and intuition arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Pluto",
+        "planet2": "Sun",
+        "type": "SESQUIQUADRATE",
+        "angle": 135,
+        "orb": 0.7913520678847306,
+        "isApplying": false,
+        "strength": 60.43239660576347,
+        "interpretation": "challenging",
+        "planet1Localized": "Plüton",
+        "planet2Localized": "Güneş",
+        "typeLocalized": "Seskikare",
+        "meaning": {
+          "name": "Seskikare",
+          "description": {
+            "short": "Seskikare, hayal kırıklığı ve dışsal ayarlama ihtiyacı yaratan 135 derecelik küçük bir sert aspekttir. Genellikle ilerlemenin kontrolünüz dışındaki koşullar tarafından engellendiği durumlar olarak tezahür eder.",
+            "long": "Seskikare (135 derece, sekstikare veya trioktil olarak da bilinir) kare ve yarı karenin enerjilerini birleştirir. Yarı kare içsel tahriş yaratırken, seskikare gerilimi dışa yansıtma eğilimindedir ve dışsal koşullar veya başka insanlarla çatışma olarak tezahür eder. Sıkışmış ya da engellenmiş olma hissi üretir; istenen sonuç tam ulaşılacakken kaçar. Bu aspekt genellikle doğrudan yüzleşme yerine uzlaşma veya yön değiştirme gerektiren durumlarla ilişkilidir. Olgunca yönetildiğinde uyum yeteneği ve ne zaman ileri gidilmesi, ne zaman alternatif bir yol bulunması gerektiği bilgeliğini öğretir."
+          },
+          "keywords": [
+            "hayal kırıklığı",
+            "ayarlama",
+            "dışsal gerilim",
+            "yön değiştirme"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Pluto ve Sun, sex, death, and transformation ile self-awareness and ego arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Saturn",
+        "planet2": "Mars",
+        "type": "CONJUNCTION",
+        "angle": 0,
+        "orb": 3.226084756551984,
+        "isApplying": true,
+        "strength": 59.6739405431002,
+        "interpretation": "neutral",
+        "planet1Localized": "Satürn",
+        "planet2Localized": "Mars",
+        "typeLocalized": "Kavuşum",
+        "meaning": {
+          "name": "Kavuşum",
+          "description": {
+            "short": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar.",
+            "long": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar."
+          },
+          "keywords": [
+            "harman",
+            "zorluk",
+            "birleşme",
+            "bütünlük"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "Saturn ve Mars, responsibility, time, and routine ile assertiveness and aggression arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Neptune",
+        "planet2": "Venus",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 3.243178713393604,
+        "isApplying": false,
+        "strength": 59.46026608257995,
+        "interpretation": "harmonious",
+        "planet1Localized": "Neptün",
+        "planet2Localized": "Venüs",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Neptune ve Venus uyumlu bir şekilde bağlanır, dreams, healing, and intuition ile love, beauty, and money arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Sun",
+        "planet2": "Black Moon Lilith",
+        "type": "SEMI_SEXTILE",
+        "angle": 30,
+        "orb": 1.3223481562626773,
+        "isApplying": true,
+        "strength": 55.92172812457743,
+        "interpretation": "neutral",
+        "planet1Localized": "Güneş",
+        "planet2Localized": "Kara Ay Lilith",
+        "typeLocalized": "Yarı Sekstil",
+        "meaning": {
+          "name": "Yarı Sekstil",
+          "description": {
+            "short": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Gezegenler arasında ince ama bazen rahatsız edici bir farkındalık yaratarak küçük ama anlamlı ayarlamalar ve büyümeyi teşvik eder.",
+            "long": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Komşu burçlar ne element ne de modalite paylaşmadığından, yarı sekstil birbirini doğal olarak anlamayan enerjileri bütünleştirmemizi ister. Göz ardı edilmesi kolay olsa da bu aspekt kör noktaları vurgulayarak ve esnekliği teşvik ederek sessizce kişisel gelişimi ilerletir. Genellikle fark edildiğinde kademeli ama istikrarlı bir öz gelişim kaynağına dönüşen arka plan gerilimi olarak tanımlanır."
+          },
+          "keywords": [
+            "büyüme",
+            "incelik",
+            "ayarlama",
+            "farkındalık"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "Sun ve Black Moon Lilith, self-awareness and ego ile primal instinct and the reclaimed self arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Jupiter",
+        "planet2": "Mars",
+        "type": "OPPOSITION",
+        "angle": 180,
+        "orb": 3.8054110741379645,
+        "isApplying": true,
+        "strength": 52.43236157327544,
+        "interpretation": "challenging",
+        "planet1Localized": "Jüpiter",
+        "planet2Localized": "Mars",
+        "typeLocalized": "Karşıtlık",
+        "meaning": {
+          "name": "Karşıtlık",
+          "description": {
+            "short": "Her işte iki kişi gerekir ifadesinde olduğu gibi, karşıtlık çemberin ikiye bölünmesiyle oluşur. Burada anahtar kelime ilişkidir. Karşıtlıkları olan insanlar kendi iç mücadelelerini yansıtmak için başkalarını arar. Başkalarıyla etkileşimler yoluyla kendileri hakkında öğrenirler. Karşıtlıklar çoğu zaman bir taraftan diğerine savrulmamıza neden olur ve kendimizi bölünmüş hissederiz.",
+            "long": "Karşıtlıklar bölünmüş sadakatlerin durumunu temsil eder. İç huzursuzluk, belirsizlik ve güvensizlik sonuç olabilir. Kare acil ve cesaretliyken, karşıtlık emin değildir ve bocalar. Karşıtlıklarımızı doğru kullandığımızda diğer tarafı düşünmeye daha istekliyiz ve usta müzakereciler olabiliriz. Karelerden farklı olarak, karşıtlıklar bizi ilişkiler ve dışsal aynalar yoluyla denge aramaya yönlendirir. Güçlü karşıtlıkları olan insanlar kavrayışlı olma eğilimindedir ve başkalarıyla bağlantıları aracılığıyla anlam arar."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "denge",
+            "meydan okuma",
+            "rehavet",
+            "kolay",
+            "büyüme",
+            "engel",
+            "ilişki",
+            "mücadele",
+            "yetenek",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Jupiter ve Mars, luck and opportunity ile assertiveness and aggression arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Pluto",
+        "planet2": "Uranus",
+        "type": "SEMI_SQUARE",
+        "angle": 45,
+        "orb": 0.9552336119757001,
+        "isApplying": false,
+        "strength": 52.238319401214994,
+        "interpretation": "challenging",
+        "planet1Localized": "Plüton",
+        "planet2Localized": "Uranüs",
+        "typeLocalized": "Yarı Kare",
+        "meaning": {
+          "name": "Yarı Kare",
+          "description": {
+            "short": "Yarı Kare, gezegenler arasında düşük seviyeli sürtünme ve tahriş yaratan 45 derecelik küçük bir sert aspekttir. Göz ardı edilmesi kolay ama incelikle eylemi yönlendiren rahatsız edici bir gerilim üretir.",
+            "long": "Yarı Kare (45 derece) karenin yarısıdır ve benzer ama daha az yoğun bir gerilim taşır. İç ajitasyon, küçük hayal kırıklıkları ve sonunda ayarlamaları zorlayan hafif bir tahriş temsil eder. Kareden farklı olarak anında yüzleşme gerektirmez; bunun yerine baskıyı kademeli olarak biriktirir. Genellikle huzursuzluk, sabırsızlık veya mevcut durumdan memnuniyetsizlik olarak tezahür eder. Bilinçli olarak çalışıldığında, daha büyük krizlerin gelişmesini önleyen kademeli değişikliklere motivasyon sağlar."
+          },
+          "keywords": [
+            "sürtünme",
+            "tahriş",
+            "ajitasyon",
+            "küçük gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Pluto ve Uranus, sex, death, and transformation ile individuality and revolution arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Chiron",
+        "planet2": "North Node",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 3.846224535706142,
+        "isApplying": true,
+        "strength": 51.922193303673225,
+        "interpretation": "harmonious",
+        "planet1Localized": "Chiron",
+        "planet2Localized": "Kuzey Düğümü",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Chiron ve North Node uyumlu bir şekilde bağlanır, healing and inner wounds ile life purpose and destiny arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Saturn",
+        "planet2": "Chiron",
+        "type": "QUINCUNX",
+        "angle": 150,
+        "orb": 1.4708723447116085,
+        "isApplying": false,
+        "strength": 50.97092184294638,
+        "interpretation": "challenging",
+        "planet1Localized": "Satürn",
+        "planet2Localized": "Chiron",
+        "typeLocalized": "Kuinkuks",
+        "meaning": {
+          "name": "Kuinkuks",
+          "description": {
+            "short": "Kuinkuks (uyumsuz açı olarak da bilinir) 150 derecelik zorlu bir küçük aspekttir. Element, modalite veya kutupluluk açısından hiçbir ortak noktası olmayan burçları bağlayarak, net bir yol olmadan bir şeylerin değişmesi gerektiği huzursuz hissini yaratır.",
+            "long": "Kuinkuks (uyumsuz açı olarak da bilinir) 150 derecelik zorlu bir küçük aspekttir. Kareler gibi doğrudan yüzleşme yaratmaz, karşıtlıklar gibi çekişme de yaratmaz; bunun yerine rahatsız edici bir uyumsuzluk hissi üretir. İlgili iki gezegen tamamen farklı dünyalarda çalışıyor gibi görünür ve sürekli ayarlama ile uzlaşma gerektirir. Sağlık sorunları, takıntılı alışkanlıklar ve uyum gerektiren durumlar klasik kuinkuks temalarıdır. İyi yönetildiğinde bu aspekt beceriklilik ve hayatın uyumsuz görünen parçalarını birleştirme yeteneği geliştirir."
+          },
+          "keywords": [
+            "ayarlama",
+            "gerilim",
+            "uyum",
+            "yön değiştirme"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Saturn ve Chiron, responsibility, time, and routine ile healing and inner wounds arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Sun",
+        "planet2": "Mars",
+        "type": "OPPOSITION",
+        "angle": 180,
+        "orb": 3.9872240068031886,
+        "isApplying": false,
+        "strength": 50.15969991496014,
+        "interpretation": "challenging",
+        "planet1Localized": "Güneş",
+        "planet2Localized": "Mars",
+        "typeLocalized": "Karşıtlık",
+        "meaning": {
+          "name": "Karşıtlık",
+          "description": {
+            "short": "Her işte iki kişi gerekir ifadesinde olduğu gibi, karşıtlık çemberin ikiye bölünmesiyle oluşur. Burada anahtar kelime ilişkidir. Karşıtlıkları olan insanlar kendi iç mücadelelerini yansıtmak için başkalarını arar. Başkalarıyla etkileşimler yoluyla kendileri hakkında öğrenirler. Karşıtlıklar çoğu zaman bir taraftan diğerine savrulmamıza neden olur ve kendimizi bölünmüş hissederiz.",
+            "long": "Karşıtlıklar bölünmüş sadakatlerin durumunu temsil eder. İç huzursuzluk, belirsizlik ve güvensizlik sonuç olabilir. Kare acil ve cesaretliyken, karşıtlık emin değildir ve bocalar. Karşıtlıklarımızı doğru kullandığımızda diğer tarafı düşünmeye daha istekliyiz ve usta müzakereciler olabiliriz. Karelerden farklı olarak, karşıtlıklar bizi ilişkiler ve dışsal aynalar yoluyla denge aramaya yönlendirir. Güçlü karşıtlıkları olan insanlar kavrayışlı olma eğilimindedir ve başkalarıyla bağlantıları aracılığıyla anlam arar."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "denge",
+            "meydan okuma",
+            "rehavet",
+            "kolay",
+            "büyüme",
+            "engel",
+            "ilişki",
+            "mücadele",
+            "yetenek",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Sun ve Mars, self-awareness and ego ile assertiveness and aggression arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Jupiter",
+        "planet2": "Black Moon Lilith",
+        "type": "SEMI_SEXTILE",
+        "angle": 30,
+        "orb": 1.5041610889278871,
+        "isApplying": true,
+        "strength": 49.861297035737095,
+        "interpretation": "neutral",
+        "planet1Localized": "Jüpiter",
+        "planet2Localized": "Kara Ay Lilith",
+        "typeLocalized": "Yarı Sekstil",
+        "meaning": {
+          "name": "Yarı Sekstil",
+          "description": {
+            "short": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Gezegenler arasında ince ama bazen rahatsız edici bir farkındalık yaratarak küçük ama anlamlı ayarlamalar ve büyümeyi teşvik eder.",
+            "long": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Komşu burçlar ne element ne de modalite paylaşmadığından, yarı sekstil birbirini doğal olarak anlamayan enerjileri bütünleştirmemizi ister. Göz ardı edilmesi kolay olsa da bu aspekt kör noktaları vurgulayarak ve esnekliği teşvik ederek sessizce kişisel gelişimi ilerletir. Genellikle fark edildiğinde kademeli ama istikrarlı bir öz gelişim kaynağına dönüşen arka plan gerilimi olarak tanımlanır."
+          },
+          "keywords": [
+            "büyüme",
+            "incelik",
+            "ayarlama",
+            "farkındalık"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "Jupiter ve Black Moon Lilith, luck and opportunity ile primal instinct and the reclaimed self arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Chiron",
+        "planet2": "Venus",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 3.0607788552654256,
+        "isApplying": true,
+        "strength": 48.987019078909576,
+        "interpretation": "harmonious",
+        "planet1Localized": "Chiron",
+        "planet2Localized": "Venüs",
+        "typeLocalized": "Sekstil",
+        "meaning": {
+          "name": "Sekstil",
+          "description": {
+            "short": "Sekstil genellikle üçgene benzer şekilde yorumlanır, ancak iki aspekt arasında bir fark vardır. Sekstiller, üçgenler gibi yetenek ve kolaylığa işaret eder, ama biraz daha belirgindir. Üçgenler insanlara o kadar doğal gelir ki yeteneklerini hatırlatmak gerekebilirken, sekstiller biraz daha fark edilirdir. Bunlar insanların kendilerinde takdir ettiği yeteneklerdir.",
+            "long": "Sekstiller iletişimci ve ilişki dostu aspektlerdir. Yönlendirilebilecek enerjilere işaret ederler. Sekstiller enerjilerin akıllıca kullanılma potansiyelini ortaya koyar."
+          },
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Chiron ve Venus uyumlu bir şekilde bağlanır, healing and inner wounds ile love, beauty, and money arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Jupiter",
+        "planet2": "Mercury",
+        "type": "SESQUIQUADRATE",
+        "angle": 135,
+        "orb": 1.0531978417704408,
+        "isApplying": true,
+        "strength": 47.34010791147796,
+        "interpretation": "challenging",
+        "planet1Localized": "Jüpiter",
+        "planet2Localized": "Merkür",
+        "typeLocalized": "Seskikare",
+        "meaning": {
+          "name": "Seskikare",
+          "description": {
+            "short": "Seskikare, hayal kırıklığı ve dışsal ayarlama ihtiyacı yaratan 135 derecelik küçük bir sert aspekttir. Genellikle ilerlemenin kontrolünüz dışındaki koşullar tarafından engellendiği durumlar olarak tezahür eder.",
+            "long": "Seskikare (135 derece, sekstikare veya trioktil olarak da bilinir) kare ve yarı karenin enerjilerini birleştirir. Yarı kare içsel tahriş yaratırken, seskikare gerilimi dışa yansıtma eğilimindedir ve dışsal koşullar veya başka insanlarla çatışma olarak tezahür eder. Sıkışmış ya da engellenmiş olma hissi üretir; istenen sonuç tam ulaşılacakken kaçar. Bu aspekt genellikle doğrudan yüzleşme yerine uzlaşma veya yön değiştirme gerektiren durumlarla ilişkilidir. Olgunca yönetildiğinde uyum yeteneği ve ne zaman ileri gidilmesi, ne zaman alternatif bir yol bulunması gerektiği bilgeliğini öğretir."
+          },
+          "keywords": [
+            "hayal kırıklığı",
+            "ayarlama",
+            "dışsal gerilim",
+            "yön değiştirme"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Jupiter ve Mercury, luck and opportunity ile communication arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Uranus",
+        "planet2": "Jupiter",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 4.26844546778068,
+        "isApplying": true,
+        "strength": 46.6444316527415,
+        "interpretation": "harmonious",
+        "planet1Localized": "Uranüs",
+        "planet2Localized": "Jüpiter",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Uranus ve Jupiter uyumlu bir şekilde bağlanır, individuality and revolution ile luck and opportunity arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "South Node",
+        "planet2": "Chiron",
+        "type": "SEMI_SQUARE",
+        "angle": 45,
+        "orb": 1.0767903225211484,
+        "isApplying": false,
+        "strength": 46.16048387394258,
+        "interpretation": "challenging",
+        "planet1Localized": "Güney Düğümü",
+        "planet2Localized": "Chiron",
+        "typeLocalized": "Yarı Kare",
+        "meaning": {
+          "name": "Yarı Kare",
+          "description": {
+            "short": "Yarı Kare, gezegenler arasında düşük seviyeli sürtünme ve tahriş yaratan 45 derecelik küçük bir sert aspekttir. Göz ardı edilmesi kolay ama incelikle eylemi yönlendiren rahatsız edici bir gerilim üretir.",
+            "long": "Yarı Kare (45 derece) karenin yarısıdır ve benzer ama daha az yoğun bir gerilim taşır. İç ajitasyon, küçük hayal kırıklıkları ve sonunda ayarlamaları zorlayan hafif bir tahriş temsil eder. Kareden farklı olarak anında yüzleşme gerektirmez; bunun yerine baskıyı kademeli olarak biriktirir. Genellikle huzursuzluk, sabırsızlık veya mevcut durumdan memnuniyetsizlik olarak tezahür eder. Bilinçli olarak çalışıldığında, daha büyük krizlerin gelişmesini önleyen kademeli değişikliklere motivasyon sağlar."
+          },
+          "keywords": [
+            "sürtünme",
+            "tahriş",
+            "ajitasyon",
+            "küçük gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "South Node ve Chiron, past life gifts and comfort zone ile healing and inner wounds arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "North Node",
+        "planet2": "Chiron",
+        "type": "SESQUIQUADRATE",
+        "angle": 135,
+        "orb": 1.0767903225211626,
+        "isApplying": false,
+        "strength": 46.16048387394187,
+        "interpretation": "challenging",
+        "planet1Localized": "Kuzey Düğümü",
+        "planet2Localized": "Chiron",
+        "typeLocalized": "Seskikare",
+        "meaning": {
+          "name": "Seskikare",
+          "description": {
+            "short": "Seskikare, hayal kırıklığı ve dışsal ayarlama ihtiyacı yaratan 135 derecelik küçük bir sert aspekttir. Genellikle ilerlemenin kontrolünüz dışındaki koşullar tarafından engellendiği durumlar olarak tezahür eder.",
+            "long": "Seskikare (135 derece, sekstikare veya trioktil olarak da bilinir) kare ve yarı karenin enerjilerini birleştirir. Yarı kare içsel tahriş yaratırken, seskikare gerilimi dışa yansıtma eğilimindedir ve dışsal koşullar veya başka insanlarla çatışma olarak tezahür eder. Sıkışmış ya da engellenmiş olma hissi üretir; istenen sonuç tam ulaşılacakken kaçar. Bu aspekt genellikle doğrudan yüzleşme yerine uzlaşma veya yön değiştirme gerektiren durumlarla ilişkilidir. Olgunca yönetildiğinde uyum yeteneği ve ne zaman ileri gidilmesi, ne zaman alternatif bir yol bulunması gerektiği bilgeliğini öğretir."
+          },
+          "keywords": [
+            "hayal kırıklığı",
+            "ayarlama",
+            "dışsal gerilim",
+            "yön değiştirme"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "North Node ve Chiron, life purpose and destiny ile healing and inner wounds arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Mercury",
+        "planet2": "Jupiter",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 4.034891639386345,
+        "isApplying": false,
+        "strength": 42.35869086590937,
+        "interpretation": "challenging",
+        "planet1Localized": "Merkür",
+        "planet2Localized": "Jüpiter",
+        "typeLocalized": "Kare",
+        "meaning": {
+          "name": "Kare",
+          "description": {
+            "short": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar.",
+            "long": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar."
+          },
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Mercury ve Jupiter, communication ile luck and opportunity arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Uranus",
+        "planet2": "Saturn",
+        "type": "CONJUNCTION",
+        "angle": 0,
+        "orb": 4.772568452288397,
+        "isApplying": true,
+        "strength": 40.34289434639504,
+        "interpretation": "neutral",
+        "planet1Localized": "Uranüs",
+        "planet2Localized": "Satürn",
+        "typeLocalized": "Kavuşum",
+        "meaning": {
+          "name": "Kavuşum",
+          "description": {
+            "short": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar.",
+            "long": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar."
+          },
+          "keywords": [
+            "harman",
+            "zorluk",
+            "birleşme",
+            "bütünlük"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "Uranus ve Saturn, individuality and revolution ile responsibility, time, and routine arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Moon",
+        "planet2": "Mars",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 4.225536982838605,
+        "isApplying": false,
+        "strength": 39.63518595944849,
+        "interpretation": "challenging",
+        "planet1Localized": "Ay",
+        "planet2Localized": "Mars",
+        "typeLocalized": "Kare",
+        "meaning": {
+          "name": "Kare",
+          "description": {
+            "short": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar.",
+            "long": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar."
+          },
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Moon ve Mars, inner emotional life ile assertiveness and aggression arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Black Moon Lilith",
+        "planet2": "Black Moon Lilith",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 4.259004950437145,
+        "isApplying": false,
+        "strength": 39.157072136612214,
+        "interpretation": "challenging",
+        "planet1Localized": "Kara Ay Lilith",
+        "planet2Localized": "Kara Ay Lilith",
+        "typeLocalized": "Kare",
+        "meaning": {
+          "name": "Kare",
+          "description": {
+            "short": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar.",
+            "long": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar."
+          },
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Black Moon Lilith ve Black Moon Lilith, primal instinct and the reclaimed self ile primal instinct and the reclaimed self arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Sun",
+        "planet2": "Mercury",
+        "type": "SESQUIQUADRATE",
+        "angle": 135,
+        "orb": 1.2350107744356649,
+        "isApplying": true,
+        "strength": 38.24946127821676,
+        "interpretation": "challenging",
+        "planet1Localized": "Güneş",
+        "planet2Localized": "Merkür",
+        "typeLocalized": "Seskikare",
+        "meaning": {
+          "name": "Seskikare",
+          "description": {
+            "short": "Seskikare, hayal kırıklığı ve dışsal ayarlama ihtiyacı yaratan 135 derecelik küçük bir sert aspekttir. Genellikle ilerlemenin kontrolünüz dışındaki koşullar tarafından engellendiği durumlar olarak tezahür eder.",
+            "long": "Seskikare (135 derece, sekstikare veya trioktil olarak da bilinir) kare ve yarı karenin enerjilerini birleştirir. Yarı kare içsel tahriş yaratırken, seskikare gerilimi dışa yansıtma eğilimindedir ve dışsal koşullar veya başka insanlarla çatışma olarak tezahür eder. Sıkışmış ya da engellenmiş olma hissi üretir; istenen sonuç tam ulaşılacakken kaçar. Bu aspekt genellikle doğrudan yüzleşme yerine uzlaşma veya yön değiştirme gerektiren durumlarla ilişkilidir. Olgunca yönetildiğinde uyum yeteneği ve ne zaman ileri gidilmesi, ne zaman alternatif bir yol bulunması gerektiği bilgeliğini öğretir."
+          },
+          "keywords": [
+            "hayal kırıklığı",
+            "ayarlama",
+            "dışsal gerilim",
+            "yön değiştirme"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "İletişim yanlış anlamaları veya farklı zihinsel yaklaşımlar. Netlik ve sabır diyalogu geliştirir."
+        }
+      },
+      {
+        "planet1": "Pluto",
+        "planet2": "Mars",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 3.739479936851069,
+        "isApplying": false,
+        "strength": 37.67533438581552,
+        "interpretation": "harmonious",
+        "planet1Localized": "Plüton",
+        "planet2Localized": "Mars",
+        "typeLocalized": "Sekstil",
+        "meaning": {
+          "name": "Sekstil",
+          "description": {
+            "short": "Sekstil genellikle üçgene benzer şekilde yorumlanır, ancak iki aspekt arasında bir fark vardır. Sekstiller, üçgenler gibi yetenek ve kolaylığa işaret eder, ama biraz daha belirgindir. Üçgenler insanlara o kadar doğal gelir ki yeteneklerini hatırlatmak gerekebilirken, sekstiller biraz daha fark edilirdir. Bunlar insanların kendilerinde takdir ettiği yeteneklerdir.",
+            "long": "Sekstiller iletişimci ve ilişki dostu aspektlerdir. Yönlendirilebilecek enerjilere işaret ederler. Sekstiller enerjilerin akıllıca kullanılma potansiyelini ortaya koyar."
+          },
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Pluto ve Mars uyumlu bir şekilde bağlanır, sex, death, and transformation ile assertiveness and aggression arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Chiron",
+        "planet2": "South Node",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 3.846224535706142,
+        "isApplying": true,
+        "strength": 35.896257738230965,
+        "interpretation": "harmonious",
+        "planet1Localized": "Chiron",
+        "planet2Localized": "Güney Düğümü",
+        "typeLocalized": "Sekstil",
+        "meaning": {
+          "name": "Sekstil",
+          "description": {
+            "short": "Sekstil genellikle üçgene benzer şekilde yorumlanır, ancak iki aspekt arasında bir fark vardır. Sekstiller, üçgenler gibi yetenek ve kolaylığa işaret eder, ama biraz daha belirgindir. Üçgenler insanlara o kadar doğal gelir ki yeteneklerini hatırlatmak gerekebilirken, sekstiller biraz daha fark edilirdir. Bunlar insanların kendilerinde takdir ettiği yeteneklerdir.",
+            "long": "Sekstiller iletişimci ve ilişki dostu aspektlerdir. Yönlendirilebilecek enerjilere işaret ederler. Sekstiller enerjilerin akıllıca kullanılma potansiyelini ortaya koyar."
+          },
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Chiron ve South Node uyumlu bir şekilde bağlanır, healing and inner wounds ile past life gifts and comfort zone arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Black Moon Lilith",
+        "planet2": "North Node",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 5.235709176827697,
+        "isApplying": false,
+        "strength": 34.55363528965378,
+        "interpretation": "harmonious",
+        "planet1Localized": "Kara Ay Lilith",
+        "planet2Localized": "Kuzey Düğümü",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Black Moon Lilith ve North Node uyumlu bir şekilde bağlanır, primal instinct and the reclaimed self ile life purpose and destiny arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "North Node",
+        "planet2": "Jupiter",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 4.660160862221517,
+        "isApplying": true,
+        "strength": 33.42627339683547,
+        "interpretation": "challenging",
+        "planet1Localized": "Kuzey Düğümü",
+        "planet2Localized": "Jüpiter",
+        "typeLocalized": "Kare",
+        "meaning": {
+          "name": "Kare",
+          "description": {
+            "short": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar.",
+            "long": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar."
+          },
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "North Node ve Jupiter, life purpose and destiny ile luck and opportunity arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "South Node",
+        "planet2": "Jupiter",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 4.660160862221517,
+        "isApplying": true,
+        "strength": 33.42627339683547,
+        "interpretation": "challenging",
+        "planet1Localized": "Güney Düğümü",
+        "planet2Localized": "Jüpiter",
+        "typeLocalized": "Kare",
+        "meaning": {
+          "name": "Kare",
+          "description": {
+            "short": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar.",
+            "long": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar."
+          },
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "South Node ve Jupiter, past life gifts and comfort zone ile luck and opportunity arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Mercury",
+        "planet2": "South Node",
+        "type": "SEMI_SQUARE",
+        "angle": 45,
+        "orb": 1.3379703807680556,
+        "isApplying": true,
+        "strength": 33.10148096159722,
+        "interpretation": "challenging",
+        "planet1Localized": "Merkür",
+        "planet2Localized": "Güney Düğümü",
+        "typeLocalized": "Yarı Kare",
+        "meaning": {
+          "name": "Yarı Kare",
+          "description": {
+            "short": "Yarı Kare, gezegenler arasında düşük seviyeli sürtünme ve tahriş yaratan 45 derecelik küçük bir sert aspekttir. Göz ardı edilmesi kolay ama incelikle eylemi yönlendiren rahatsız edici bir gerilim üretir.",
+            "long": "Yarı Kare (45 derece) karenin yarısıdır ve benzer ama daha az yoğun bir gerilim taşır. İç ajitasyon, küçük hayal kırıklıkları ve sonunda ayarlamaları zorlayan hafif bir tahriş temsil eder. Kareden farklı olarak anında yüzleşme gerektirmez; bunun yerine baskıyı kademeli olarak biriktirir. Genellikle huzursuzluk, sabırsızlık veya mevcut durumdan memnuniyetsizlik olarak tezahür eder. Bilinçli olarak çalışıldığında, daha büyük krizlerin gelişmesini önleyen kademeli değişikliklere motivasyon sağlar."
+          },
+          "keywords": [
+            "sürtünme",
+            "tahriş",
+            "ajitasyon",
+            "küçük gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Mercury ve South Node, communication ile past life gifts and comfort zone arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Mercury",
+        "planet2": "North Node",
+        "type": "SESQUIQUADRATE",
+        "angle": 135,
+        "orb": 1.3379703807680698,
+        "isApplying": true,
+        "strength": 33.10148096159651,
+        "interpretation": "challenging",
+        "planet1Localized": "Merkür",
+        "planet2Localized": "Kuzey Düğümü",
+        "typeLocalized": "Seskikare",
+        "meaning": {
+          "name": "Seskikare",
+          "description": {
+            "short": "Seskikare, hayal kırıklığı ve dışsal ayarlama ihtiyacı yaratan 135 derecelik küçük bir sert aspekttir. Genellikle ilerlemenin kontrolünüz dışındaki koşullar tarafından engellendiği durumlar olarak tezahür eder.",
+            "long": "Seskikare (135 derece, sekstikare veya trioktil olarak da bilinir) kare ve yarı karenin enerjilerini birleştirir. Yarı kare içsel tahriş yaratırken, seskikare gerilimi dışa yansıtma eğilimindedir ve dışsal koşullar veya başka insanlarla çatışma olarak tezahür eder. Sıkışmış ya da engellenmiş olma hissi üretir; istenen sonuç tam ulaşılacakken kaçar. Bu aspekt genellikle doğrudan yüzleşme yerine uzlaşma veya yön değiştirme gerektiren durumlarla ilişkilidir. Olgunca yönetildiğinde uyum yeteneği ve ne zaman ileri gidilmesi, ne zaman alternatif bir yol bulunması gerektiği bilgeliğini öğretir."
+          },
+          "keywords": [
+            "hayal kırıklığı",
+            "ayarlama",
+            "dışsal gerilim",
+            "yön değiştirme"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Mercury ve North Node, communication ile life purpose and destiny arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Saturn",
+        "planet2": "Black Moon Lilith",
+        "type": "QUINCUNX",
+        "angle": 150,
+        "orb": 2.083487406513882,
+        "isApplying": false,
+        "strength": 30.5504197828706,
+        "interpretation": "challenging",
+        "planet1Localized": "Satürn",
+        "planet2Localized": "Kara Ay Lilith",
+        "typeLocalized": "Kuinkuks",
+        "meaning": {
+          "name": "Kuinkuks",
+          "description": {
+            "short": "Kuinkuks (uyumsuz açı olarak da bilinir) 150 derecelik zorlu bir küçük aspekttir. Element, modalite veya kutupluluk açısından hiçbir ortak noktası olmayan burçları bağlayarak, net bir yol olmadan bir şeylerin değişmesi gerektiği huzursuz hissini yaratır.",
+            "long": "Kuinkuks (uyumsuz açı olarak da bilinir) 150 derecelik zorlu bir küçük aspekttir. Kareler gibi doğrudan yüzleşme yaratmaz, karşıtlıklar gibi çekişme de yaratmaz; bunun yerine rahatsız edici bir uyumsuzluk hissi üretir. İlgili iki gezegen tamamen farklı dünyalarda çalışıyor gibi görünür ve sürekli ayarlama ile uzlaşma gerektirir. Sağlık sorunları, takıntılı alışkanlıklar ve uyum gerektiren durumlar klasik kuinkuks temalarıdır. İyi yönetildiğinde bu aspekt beceriklilik ve hayatın uyumsuz görünen parçalarını birleştirme yeteneği geliştirir."
+          },
+          "keywords": [
+            "ayarlama",
+            "gerilim",
+            "uyum",
+            "yön değiştirme"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Saturn ve Black Moon Lilith, responsibility, time, and routine ile primal instinct and the reclaimed self arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "North Node",
+        "planet2": "Pluto",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 4.867767998478939,
+        "isApplying": true,
+        "strength": 30.460457164586586,
+        "interpretation": "challenging",
+        "planet1Localized": "Kuzey Düğümü",
+        "planet2Localized": "Plüton",
+        "typeLocalized": "Kare",
+        "meaning": {
+          "name": "Kare",
+          "description": {
+            "short": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar.",
+            "long": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar."
+          },
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "North Node ve Pluto, life purpose and destiny ile sex, death, and transformation arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "South Node",
+        "planet2": "Pluto",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 4.867767998478939,
+        "isApplying": true,
+        "strength": 30.460457164586586,
+        "interpretation": "challenging",
+        "planet1Localized": "Güney Düğümü",
+        "planet2Localized": "Plüton",
+        "typeLocalized": "Kare",
+        "meaning": {
+          "name": "Kare",
+          "description": {
+            "short": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar.",
+            "long": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar."
+          },
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "South Node ve Pluto, past life gifts and comfort zone ile sex, death, and transformation arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Uranus",
+        "planet2": "Moon",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 5.7198727591724605,
+        "isApplying": false,
+        "strength": 28.501590510344244,
+        "interpretation": "harmonious",
+        "planet1Localized": "Uranüs",
+        "planet2Localized": "Ay",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Uranus ve Moon uyumlu bir şekilde bağlanır, individuality and revolution ile inner emotional life arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Saturn",
+        "planet2": "Venus",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 5.800220210848238,
+        "isApplying": true,
+        "strength": 27.497247364397026,
+        "interpretation": "harmonious",
+        "planet1Localized": "Satürn",
+        "planet2Localized": "Venüs",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Saturn ve Venus uyumlu bir şekilde bağlanır, responsibility, time, and routine ile love, beauty, and money arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Neptune",
+        "planet2": "Mars",
+        "type": "CONJUNCTION",
+        "angle": 0,
+        "orb": 5.817314167689858,
+        "isApplying": false,
+        "strength": 27.283572903876774,
+        "interpretation": "neutral",
+        "planet1Localized": "Neptün",
+        "planet2Localized": "Mars",
+        "typeLocalized": "Kavuşum",
+        "meaning": {
+          "name": "Kavuşum",
+          "description": {
+            "short": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar.",
+            "long": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar."
+          },
+          "keywords": [
+            "harman",
+            "zorluk",
+            "birleşme",
+            "bütünlük"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "Neptune ve Mars, dreams, healing, and intuition ile assertiveness and aggression arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Moon",
+        "planet2": "Mercury",
+        "type": "SEMI_SQUARE",
+        "angle": 45,
+        "orb": 1.4733237504710814,
+        "isApplying": false,
+        "strength": 26.333812476445928,
+        "interpretation": "challenging",
+        "planet1Localized": "Ay",
+        "planet2Localized": "Merkür",
+        "typeLocalized": "Yarı Kare",
+        "meaning": {
+          "name": "Yarı Kare",
+          "description": {
+            "short": "Yarı Kare, gezegenler arasında düşük seviyeli sürtünme ve tahriş yaratan 45 derecelik küçük bir sert aspekttir. Göz ardı edilmesi kolay ama incelikle eylemi yönlendiren rahatsız edici bir gerilim üretir.",
+            "long": "Yarı Kare (45 derece) karenin yarısıdır ve benzer ama daha az yoğun bir gerilim taşır. İç ajitasyon, küçük hayal kırıklıkları ve sonunda ayarlamaları zorlayan hafif bir tahriş temsil eder. Kareden farklı olarak anında yüzleşme gerektirmez; bunun yerine baskıyı kademeli olarak biriktirir. Genellikle huzursuzluk, sabırsızlık veya mevcut durumdan memnuniyetsizlik olarak tezahür eder. Bilinçli olarak çalışıldığında, daha büyük krizlerin gelişmesini önleyen kademeli değişikliklere motivasyon sağlar."
+          },
+          "keywords": [
+            "sürtünme",
+            "tahriş",
+            "ajitasyon",
+            "küçük gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Moon ve Mercury, inner emotional life ile communication arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Mercury",
+        "planet2": "Sun",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 5.943025424873596,
+        "isApplying": false,
+        "strength": 25.712182189080046,
+        "interpretation": "harmonious",
+        "planet1Localized": "Merkür",
+        "planet2Localized": "Güneş",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Kolay iletişim ve zihinsel uyum. Partnerler birbirlerinin düşünce tarzını doğal olarak anlar."
+        }
+      },
+      {
+        "planet1": "Uranus",
+        "planet2": "Uranus",
+        "type": "CONJUNCTION",
+        "angle": 0,
+        "orb": 6.012697709176962,
+        "isApplying": true,
+        "strength": 24.841278635287978,
+        "interpretation": "neutral",
+        "planet1Localized": "Uranüs",
+        "planet2Localized": "Uranüs",
+        "typeLocalized": "Kavuşum",
+        "meaning": {
+          "name": "Kavuşum",
+          "description": {
+            "short": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar.",
+            "long": "Kavuşum oluşturan gezegen ve noktalar birleşmiş enerjilerdir. Harmanlanmışlardır ve birlikte hareket ederler. Kavuşuma ne kadar yakın olurlarsa, bu birleşmiş enerjiler o kadar öznel olur. Tek başlarına duramazlar ve birbirlerini ayrı veya farklı olarak tanımakta zorlanırlar."
+          },
+          "keywords": [
+            "harman",
+            "zorluk",
+            "birleşme",
+            "bütünlük"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "Uranus ve Uranus, individuality and revolution ile individuality and revolution arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Mars",
+        "planet2": "Mercury",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 4.563118926016841,
+        "isApplying": false,
+        "strength": 23.94801789971931,
+        "interpretation": "harmonious",
+        "planet1Localized": "Mars",
+        "planet2Localized": "Merkür",
+        "typeLocalized": "Sekstil",
+        "meaning": {
+          "name": "Sekstil",
+          "description": {
+            "short": "Sekstil genellikle üçgene benzer şekilde yorumlanır, ancak iki aspekt arasında bir fark vardır. Sekstiller, üçgenler gibi yetenek ve kolaylığa işaret eder, ama biraz daha belirgindir. Üçgenler insanlara o kadar doğal gelir ki yeteneklerini hatırlatmak gerekebilirken, sekstiller biraz daha fark edilirdir. Bunlar insanların kendilerinde takdir ettiği yeteneklerdir.",
+            "long": "Sekstiller iletişimci ve ilişki dostu aspektlerdir. Yönlendirilebilecek enerjilere işaret ederler. Sekstiller enerjilerin akıllıca kullanılma potansiyelini ortaya koyar."
+          },
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Mars ve Mercury uyumlu bir şekilde bağlanır, assertiveness and aggression ile communication arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "North Node",
+        "planet2": "Moon",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 5.328157364731624,
+        "isApplying": false,
+        "strength": 23.883466218119665,
+        "interpretation": "challenging",
+        "planet1Localized": "Kuzey Düğümü",
+        "planet2Localized": "Ay",
+        "typeLocalized": "Kare",
+        "meaning": {
+          "name": "Kare",
+          "description": {
+            "short": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar.",
+            "long": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar."
+          },
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "North Node ve Moon, life purpose and destiny ile inner emotional life arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "South Node",
+        "planet2": "Moon",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 5.328157364731624,
+        "isApplying": false,
+        "strength": 23.883466218119665,
+        "interpretation": "challenging",
+        "planet1Localized": "Güney Düğümü",
+        "planet2Localized": "Ay",
+        "typeLocalized": "Kare",
+        "meaning": {
+          "name": "Kare",
+          "description": {
+            "short": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar.",
+            "long": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar."
+          },
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "South Node ve Moon, past life gifts and comfort zone ile inner emotional life arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Mercury",
+        "planet2": "Pluto",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 5.493037221314111,
+        "isApplying": true,
+        "strength": 21.528039695512703,
+        "interpretation": "challenging",
+        "planet1Localized": "Merkür",
+        "planet2Localized": "Plüton",
+        "typeLocalized": "Kare",
+        "meaning": {
+          "name": "Kare",
+          "description": {
+            "short": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar.",
+            "long": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar."
+          },
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Mercury ve Pluto, communication ile sex, death, and transformation arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "South Node",
+        "planet2": "Sun",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 6.568294647708768,
+        "isApplying": true,
+        "strength": 17.896316903640397,
+        "interpretation": "harmonious",
+        "planet1Localized": "Güney Düğümü",
+        "planet2Localized": "Güneş",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "South Node ve Sun uyumlu bir şekilde bağlanır, past life gifts and comfort zone ile self-awareness and ego arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Venus",
+        "planet2": "Uranus",
+        "type": "OPPOSITION",
+        "angle": 180,
+        "orb": 6.568524042595982,
+        "isApplying": true,
+        "strength": 17.893449467550226,
+        "interpretation": "challenging",
+        "planet1Localized": "Venüs",
+        "planet2Localized": "Uranüs",
+        "typeLocalized": "Karşıtlık",
+        "meaning": {
+          "name": "Karşıtlık",
+          "description": {
+            "short": "Her işte iki kişi gerekir ifadesinde olduğu gibi, karşıtlık çemberin ikiye bölünmesiyle oluşur. Burada anahtar kelime ilişkidir. Karşıtlıkları olan insanlar kendi iç mücadelelerini yansıtmak için başkalarını arar. Başkalarıyla etkileşimler yoluyla kendileri hakkında öğrenirler. Karşıtlıklar çoğu zaman bir taraftan diğerine savrulmamıza neden olur ve kendimizi bölünmüş hissederiz.",
+            "long": "Karşıtlıklar bölünmüş sadakatlerin durumunu temsil eder. İç huzursuzluk, belirsizlik ve güvensizlik sonuç olabilir. Kare acil ve cesaretliyken, karşıtlık emin değildir ve bocalar. Karşıtlıklarımızı doğru kullandığımızda diğer tarafı düşünmeye daha istekliyiz ve usta müzakereciler olabiliriz. Karelerden farklı olarak, karşıtlıklar bizi ilişkiler ve dışsal aynalar yoluyla denge aramaya yönlendirir. Güçlü karşıtlıkları olan insanlar kavrayışlı olma eğilimindedir ve başkalarıyla bağlantıları aracılığıyla anlam arar."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "denge",
+            "meydan okuma",
+            "rehavet",
+            "kolay",
+            "büyüme",
+            "engel",
+            "ilişki",
+            "mücadele",
+            "yetenek",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Venus ve Uranus, love, beauty, and money ile individuality and revolution arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Pluto",
+        "planet2": "Neptune",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 4.931411043096205,
+        "isApplying": true,
+        "strength": 17.80981594839659,
+        "interpretation": "harmonious",
+        "planet1Localized": "Plüton",
+        "planet2Localized": "Neptün",
+        "typeLocalized": "Sekstil",
+        "meaning": {
+          "name": "Sekstil",
+          "description": {
+            "short": "Sekstil genellikle üçgene benzer şekilde yorumlanır, ancak iki aspekt arasında bir fark vardır. Sekstiller, üçgenler gibi yetenek ve kolaylığa işaret eder, ama biraz daha belirgindir. Üçgenler insanlara o kadar doğal gelir ki yeteneklerini hatırlatmak gerekebilirken, sekstiller biraz daha fark edilirdir. Bunlar insanların kendilerinde takdir ettiği yeteneklerdir.",
+            "long": "Sekstiller iletişimci ve ilişki dostu aspektlerdir. Yönlendirilebilecek enerjilere işaret ederler. Sekstiller enerjilerin akıllıca kullanılma potansiyelini ortaya koyar."
+          },
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Pluto ve Neptune uyumlu bir şekilde bağlanır, sex, death, and transformation ile dreams, healing, and intuition arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Mercury",
+        "planet2": "Moon",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 5.95342658756681,
+        "isApplying": false,
+        "strength": 14.95104874904557,
+        "interpretation": "challenging",
+        "planet1Localized": "Merkür",
+        "planet2Localized": "Ay",
+        "typeLocalized": "Kare",
+        "meaning": {
+          "name": "Kare",
+          "description": {
+            "short": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar.",
+            "long": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar."
+          },
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Mercury ve Moon, communication ile inner emotional life arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Mercury",
+        "planet2": "Chiron",
+        "type": "SEMI_SQUARE",
+        "angle": 45,
+        "orb": 1.7020595453563203,
+        "isApplying": true,
+        "strength": 14.897022732183984,
+        "interpretation": "challenging",
+        "planet1Localized": "Merkür",
+        "planet2Localized": "Chiron",
+        "typeLocalized": "Yarı Kare",
+        "meaning": {
+          "name": "Yarı Kare",
+          "description": {
+            "short": "Yarı Kare, gezegenler arasında düşük seviyeli sürtünme ve tahriş yaratan 45 derecelik küçük bir sert aspekttir. Göz ardı edilmesi kolay ama incelikle eylemi yönlendiren rahatsız edici bir gerilim üretir.",
+            "long": "Yarı Kare (45 derece) karenin yarısıdır ve benzer ama daha az yoğun bir gerilim taşır. İç ajitasyon, küçük hayal kırıklıkları ve sonunda ayarlamaları zorlayan hafif bir tahriş temsil eder. Kareden farklı olarak anında yüzleşme gerektirmez; bunun yerine baskıyı kademeli olarak biriktirir. Genellikle huzursuzluk, sabırsızlık veya mevcut durumdan memnuniyetsizlik olarak tezahür eder. Bilinçli olarak çalışıldığında, daha büyük krizlerin gelişmesini önleyen kademeli değişikliklere motivasyon sağlar."
+          },
+          "keywords": [
+            "sürtünme",
+            "tahriş",
+            "ajitasyon",
+            "küçük gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Mercury ve Chiron, communication ile healing and inner wounds arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Black Moon Lilith",
+        "planet2": "South Node",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 5.235709176827697,
+        "isApplying": false,
+        "strength": 12.738180386205045,
+        "interpretation": "harmonious",
+        "planet1Localized": "Kara Ay Lilith",
+        "planet2Localized": "Güney Düğümü",
+        "typeLocalized": "Sekstil",
+        "meaning": {
+          "name": "Sekstil",
+          "description": {
+            "short": "Sekstil genellikle üçgene benzer şekilde yorumlanır, ancak iki aspekt arasında bir fark vardır. Sekstiller, üçgenler gibi yetenek ve kolaylığa işaret eder, ama biraz daha belirgindir. Üçgenler insanlara o kadar doğal gelir ki yeteneklerini hatırlatmak gerekebilirken, sekstiller biraz daha fark edilirdir. Bunlar insanların kendilerinde takdir ettiği yeteneklerdir.",
+            "long": "Sekstiller iletişimci ve ilişki dostu aspektlerdir. Yönlendirilebilecek enerjilere işaret ederler. Sekstiller enerjilerin akıllıca kullanılma potansiyelini ortaya koyar."
+          },
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Black Moon Lilith ve South Node uyumlu bir şekilde bağlanır, primal instinct and the reclaimed self ile past life gifts and comfort zone arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Chiron",
+        "planet2": "Pluto",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 6.9987086237478024,
+        "isApplying": false,
+        "strength": 12.51614220315247,
+        "interpretation": "harmonious",
+        "planet1Localized": "Chiron",
+        "planet2Localized": "Plüton",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Chiron ve Pluto uyumlu bir şekilde bağlanır, healing and inner wounds ile sex, death, and transformation arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Uranus",
+        "planet2": "Pluto",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 5.259483392919776,
+        "isApplying": false,
+        "strength": 12.341943451337068,
+        "interpretation": "harmonious",
+        "planet1Localized": "Uranüs",
+        "planet2Localized": "Plüton",
+        "typeLocalized": "Sekstil",
+        "meaning": {
+          "name": "Sekstil",
+          "description": {
+            "short": "Sekstil genellikle üçgene benzer şekilde yorumlanır, ancak iki aspekt arasında bir fark vardır. Sekstiller, üçgenler gibi yetenek ve kolaylığa işaret eder, ama biraz daha belirgindir. Üçgenler insanlara o kadar doğal gelir ki yeteneklerini hatırlatmak gerekebilirken, sekstiller biraz daha fark edilirdir. Bunlar insanların kendilerinde takdir ettiği yeteneklerdir.",
+            "long": "Sekstiller iletişimci ve ilişki dostu aspektlerdir. Yönlendirilebilecek enerjilere işaret ederler. Sekstiller enerjilerin akıllıca kullanılma potansiyelini ortaya koyar."
+          },
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Uranus ve Pluto uyumlu bir şekilde bağlanır, individuality and revolution ile sex, death, and transformation arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Uranus",
+        "planet2": "Sun",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 6.17657925326796,
+        "isApplying": true,
+        "strength": 11.76315352474343,
+        "interpretation": "challenging",
+        "planet1Localized": "Uranüs",
+        "planet2Localized": "Güneş",
+        "typeLocalized": "Kare",
+        "meaning": {
+          "name": "Kare",
+          "description": {
+            "short": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar.",
+            "long": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar."
+          },
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Uranus ve Sun, individuality and revolution ile self-awareness and ego arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Black Moon Lilith",
+        "planet2": "Uranus",
+        "type": "SEMI_SEXTILE",
+        "angle": 30,
+        "orb": 2.6471765616216203,
+        "isApplying": true,
+        "strength": 11.76078127927932,
+        "interpretation": "neutral",
+        "planet1Localized": "Kara Ay Lilith",
+        "planet2Localized": "Uranüs",
+        "typeLocalized": "Yarı Sekstil",
+        "meaning": {
+          "name": "Yarı Sekstil",
+          "description": {
+            "short": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Gezegenler arasında ince ama bazen rahatsız edici bir farkındalık yaratarak küçük ama anlamlı ayarlamalar ve büyümeyi teşvik eder.",
+            "long": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Komşu burçlar ne element ne de modalite paylaşmadığından, yarı sekstil birbirini doğal olarak anlamayan enerjileri bütünleştirmemizi ister. Göz ardı edilmesi kolay olsa da bu aspekt kör noktaları vurgulayarak ve esnekliği teşvik ederek sessizce kişisel gelişimi ilerletir. Genellikle fark edildiğinde kademeli ama istikrarlı bir öz gelişim kaynağına dönüşen arka plan gerilimi olarak tanımlanır."
+          },
+          "keywords": [
+            "büyüme",
+            "incelik",
+            "ayarlama",
+            "farkındalık"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "Black Moon Lilith ve Uranus, primal instinct and the reclaimed self ile individuality and revolution arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "North Node",
+        "planet2": "Neptune",
+        "type": "SEMI_SEXTILE",
+        "angle": 30,
+        "orb": 2.7089422413102966,
+        "isApplying": false,
+        "strength": 9.701925289656776,
+        "interpretation": "neutral",
+        "planet1Localized": "Kuzey Düğümü",
+        "planet2Localized": "Neptün",
+        "typeLocalized": "Yarı Sekstil",
+        "meaning": {
+          "name": "Yarı Sekstil",
+          "description": {
+            "short": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Gezegenler arasında ince ama bazen rahatsız edici bir farkındalık yaratarak küçük ama anlamlı ayarlamalar ve büyümeyi teşvik eder.",
+            "long": "Yarı sekstil, komşu burçları bağlayan 30 derecelik küçük bir aspekttir. Komşu burçlar ne element ne de modalite paylaşmadığından, yarı sekstil birbirini doğal olarak anlamayan enerjileri bütünleştirmemizi ister. Göz ardı edilmesi kolay olsa da bu aspekt kör noktaları vurgulayarak ve esnekliği teşvik ederek sessizce kişisel gelişimi ilerletir. Genellikle fark edildiğinde kademeli ama istikrarlı bir öz gelişim kaynağına dönüşen arka plan gerilimi olarak tanımlanır."
+          },
+          "keywords": [
+            "büyüme",
+            "incelik",
+            "ayarlama",
+            "farkındalık"
+          ],
+          "nature": "nötr",
+          "relationshipContext": "North Node ve Neptune, life purpose and destiny ile dreams, healing, and intuition arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "South Node",
+        "planet2": "Neptune",
+        "type": "QUINCUNX",
+        "angle": 150,
+        "orb": 2.7089422413102966,
+        "isApplying": false,
+        "strength": 9.701925289656776,
+        "interpretation": "challenging",
+        "planet1Localized": "Güney Düğümü",
+        "planet2Localized": "Neptün",
+        "typeLocalized": "Kuinkuks",
+        "meaning": {
+          "name": "Kuinkuks",
+          "description": {
+            "short": "Kuinkuks (uyumsuz açı olarak da bilinir) 150 derecelik zorlu bir küçük aspekttir. Element, modalite veya kutupluluk açısından hiçbir ortak noktası olmayan burçları bağlayarak, net bir yol olmadan bir şeylerin değişmesi gerektiği huzursuz hissini yaratır.",
+            "long": "Kuinkuks (uyumsuz açı olarak da bilinir) 150 derecelik zorlu bir küçük aspekttir. Kareler gibi doğrudan yüzleşme yaratmaz, karşıtlıklar gibi çekişme de yaratmaz; bunun yerine rahatsız edici bir uyumsuzluk hissi üretir. İlgili iki gezegen tamamen farklı dünyalarda çalışıyor gibi görünür ve sürekli ayarlama ile uzlaşma gerektirir. Sağlık sorunları, takıntılı alışkanlıklar ve uyum gerektiren durumlar klasik kuinkuks temalarıdır. İyi yönetildiğinde bu aspekt beceriklilik ve hayatın uyumsuz görünen parçalarını birleştirme yeteneği geliştirir."
+          },
+          "keywords": [
+            "ayarlama",
+            "gerilim",
+            "uyum",
+            "yön değiştirme"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "South Node ve Neptune, past life gifts and comfort zone ile dreams, healing, and intuition arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Venus",
+        "planet2": "Sun",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 6.4046424985050265,
+        "isApplying": true,
+        "strength": 8.50510716421391,
+        "interpretation": "challenging",
+        "planet1Localized": "Venüs",
+        "planet2Localized": "Güneş",
+        "typeLocalized": "Kare",
+        "meaning": {
+          "name": "Kare",
+          "description": {
+            "short": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar.",
+            "long": "Bu aspekt ilgili gezegenler ve noktalar arasında gerilim yaratır. Eylemi uyarmak için gerilim gereklidir, ancak aşırı gerilim strese dönüşür. Karedeki gezegenler çapraz amaçlarla hareket eder. Kareler bizi rehavetten çıkarır ve işleri başlatır. Kareler gençlikte daha zor olabilir, çünkü bizi büyümeye ve derslerimizi almaya zorlar."
+          },
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Venus ve Sun, love, beauty, and money ile self-awareness and ego arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Venus",
+        "planet2": "Saturn",
+        "type": "OPPOSITION",
+        "angle": 180,
+        "orb": 7.808653299484547,
+        "isApplying": true,
+        "strength": 2.3918337564431624,
+        "interpretation": "challenging",
+        "planet1Localized": "Venüs",
+        "planet2Localized": "Satürn",
+        "typeLocalized": "Karşıtlık",
+        "meaning": {
+          "name": "Karşıtlık",
+          "description": {
+            "short": "Her işte iki kişi gerekir ifadesinde olduğu gibi, karşıtlık çemberin ikiye bölünmesiyle oluşur. Burada anahtar kelime ilişkidir. Karşıtlıkları olan insanlar kendi iç mücadelelerini yansıtmak için başkalarını arar. Başkalarıyla etkileşimler yoluyla kendileri hakkında öğrenirler. Karşıtlıklar çoğu zaman bir taraftan diğerine savrulmamıza neden olur ve kendimizi bölünmüş hissederiz.",
+            "long": "Karşıtlıklar bölünmüş sadakatlerin durumunu temsil eder. İç huzursuzluk, belirsizlik ve güvensizlik sonuç olabilir. Kare acil ve cesaretliyken, karşıtlık emin değildir ve bocalar. Karşıtlıklarımızı doğru kullandığımızda diğer tarafı düşünmeye daha istekliyiz ve usta müzakereciler olabiliriz. Karelerden farklı olarak, karşıtlıklar bizi ilişkiler ve dışsal aynalar yoluyla denge aramaya yönlendirir. Güçlü karşıtlıkları olan insanlar kavrayışlı olma eğilimindedir ve başkalarıyla bağlantıları aracılığıyla anlam arar."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "denge",
+            "meydan okuma",
+            "rehavet",
+            "kolay",
+            "büyüme",
+            "engel",
+            "ilişki",
+            "mücadele",
+            "yetenek",
+            "gerilim"
+          ],
+          "nature": "zorlayıcı",
+          "relationshipContext": "Venus ve Saturn, love, beauty, and money ile responsibility, time, and routine arasında dinamik bir gerilim yaratır. Bilinçli çaba bu sürtüşmeyi büyümeye dönüştürür."
+        }
+      },
+      {
+        "planet1": "Mars",
+        "planet2": "Black Moon Lilith",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 7.879522143284788,
+        "isApplying": false,
+        "strength": 1.5059732089401479,
+        "interpretation": "harmonious",
+        "planet1Localized": "Mars",
+        "planet2Localized": "Kara Ay Lilith",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Mars ve Black Moon Lilith uyumlu bir şekilde bağlanır, assertiveness and aggression ile primal instinct and the reclaimed self arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      },
+      {
+        "planet1": "Moon",
+        "planet2": "Uranus",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 7.990216692286026,
+        "isApplying": true,
+        "strength": 0.12229134642467443,
+        "interpretation": "harmonious",
+        "planet1Localized": "Ay",
+        "planet2Localized": "Uranüs",
+        "typeLocalized": "Üçgen",
+        "meaning": {
+          "name": "Üçgen",
+          "description": {
+            "short": "Üçgendeki gezegenler birbirini destekler. Üçgenler doğası gereği kabul edicidir. Başkalarını, kendimizi ve durumları kabul etmemize olanak tanır. Üçgenlerin sunduğu yetenekler o kadar doğaldır ki neredeyse bilinçdışıdır. Çoğu zaman insanlar bu üçgenlerin sunduğu yetenekleri gerçekten takdir etmez ve geliştirmeye çalışmayabilir.",
+            "long": "Ancak bu yetenekler ikinci doğadır ve tamamen doğaldır. Örneğin, Venüs üçgen Neptün olan bir erkek şiirsel, romantik veya sanatsal olabilir ve romantik partnerini olduğu gibi kolayca kabul edebilir. Venüs kare Neptün olan başka bir erkek benzer niteliklere sahip olabilir ve partnerini körü körüne kabul etme arzusu taşıyabilir, ama bunu yapmak ilki kadar doğal değildir."
+          },
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ],
+          "nature": "uyumlu",
+          "relationshipContext": "Moon ve Uranus uyumlu bir şekilde bağlanır, inner emotional life ile individuality and revolution arasındaki harmanlanmada doğal bir kolaylık yaratır."
+        }
+      }
+    ],
+    "summary": {
+      "total": 94,
+      "harmonious": 33,
+      "challenging": 43,
+      "neutral": 18,
+      "byType": {
+        "TRINE": 19,
+        "SEMI_SEXTILE": 9,
+        "QUINCUNX": 6,
+        "SEXTILE": 14,
+        "OPPOSITION": 7,
+        "CONJUNCTION": 9,
+        "SQUARE": 15,
+        "SEMI_SQUARE": 8,
+        "SESQUIQUADRATE": 7
+      }
+    },
+    "analysis": {
+      "overall": "Bu eşleşme, uyum ve yaratıcı gerilimin üretken bir dengesiyle sağlam bir uyuma sahiptir. İlişki bazı alanlarda aktif çaba gerektirir ancak bu yatırımı cömertçe ödüllendirir. Belirli kategorilerdeki güçlü yanlar, diğerlerindeki sürtüşmeyi telafi ederek her iki partneri de meşgul ve gelişen tutan dinamik bir yapı oluşturur.",
+      "strengths": [
+        "Güneş'in olumlu açıları karşılıklı saygıyı ve ortak yaşam hedeflerini destekler.",
+        "Ay'ın uyumlu açıları duygusal anlayışa ve besleyici desteğe işaret eder.",
+        "Venüs'ün olumlu açıları sevgi, takdir ve romantik kimya getirir."
+      ],
+      "challenges": [
+        "Uyumlu açılardan daha fazla zorlayıcı açı, sabır ve anlayış gerektirir.",
+        "Güneş'in zorlayıcı açıları ego çatışmalarına veya birbiriyle çelişen yaşam yönlerine yol açabilir.",
+        "Ay'ın zorlayıcı açıları duygusal yanlış anlamalara veya farklı ihtiyaçlara neden olabilir.",
+        "Mars'ın zorlayıcı açıları gerilim, tartışma veya çatışan arzulara yol açabilir."
+      ]
+    }
+  }
+}

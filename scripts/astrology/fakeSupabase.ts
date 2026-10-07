@@ -72,7 +72,8 @@ const UNIQUE_KEYS: Record<string, string[][]> = {
   astro_provider_results: [["tenant_id", "input_hash"]],
   astro_provider_interpretations: [["tenant_id", "result_id", "projection_version"]],
   astro_birth_profile_revisions: [["tenant_id", "profile_id", "revision"]],
-  astro_expert_notes: [["tenant_id", "owner_user_id", "profile_id", "technique", "section_key"]],
+  // Aşama 3 (20271101000200): tekillik bağlam anahtarını da içerir (astro_en_unique_ctx).
+  astro_expert_notes: [["tenant_id", "owner_user_id", "profile_id", "technique", "context_key", "section_key"]],
   astro_analyses: [["tenant_id", "save_request_id"]],
   astro_analysis_notes: [["tenant_id", "analysis_id", "section_key"]],
   astro_unmapped_fields: [["provider", "endpoint", "field_path"]],
@@ -81,12 +82,37 @@ const UNIQUE_KEYS: Record<string, string[][]> = {
 /** DB kolon varsayılanları (migration DEFAULT'ları) — gerçek DB davranışını taklit eder. */
 const COLUMN_DEFAULTS: Record<string, Row> = {
   astro_kb_entries: { revision: 1, tags: [], source_note: null },
-  astro_expert_notes: { revision: 1 },
+  astro_expert_notes: { revision: 1, context_key: "" },
+  astro_provider_results: { partner_profile_id: null, partner_profile_revision: null },
   astro_birth_profiles: { current_revision: 1 },
 };
 
 const SECTION_RE = /^(overall|[a-z][a-z_]{1,40}(:[a-z0-9_-]{1,40}){1,4})$/;
 const FIELD_PATH_RE = /^[A-Za-z0-9_.[\]:]{1,200}$/;
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** Migration CHECK/FK kısıtlarının taklidi (testlerin sahte biçimde yeşile dönmemesi için). */
+function checkRow(store: FakeStore, table: string, row: Row): FakeErr {
+  if (table === "astro_expert_notes") {
+    const ck = String(row.context_key ?? "");
+    if (ck !== "" && !UUID_RE.test(ck)) return { code: "23514", message: "new row violates check constraint astro_en_context_chk" };
+    if (!SECTION_RE.test(String(row.section_key))) return { code: "23514", message: "new row violates check constraint astro_en_section_chk" };
+  }
+  if (table === "astro_provider_results") {
+    const a = row.partner_profile_id ?? null;
+    const b = row.partner_profile_revision ?? null;
+    if ((a === null) !== (b === null)) return { code: "23514", message: "new row violates check constraint astro_pr_partner_pair_chk" };
+    if (a !== null && !partnerRevisionExists(store, String(row.tenant_id), String(a), Number(b))) {
+      return { code: "23503", message: "insert or update violates foreign key constraint astro_pr_partner_fk" };
+    }
+  }
+  return null;
+}
+
+function partnerRevisionExists(store: FakeStore, tenant: string, profileId: string, revision: number): boolean {
+  return (store.tables.astro_birth_profile_revisions ?? []).some((r) => r.tenant_id === tenant && r.profile_id === profileId && Number(r.revision) === revision);
+}
 
 export function execQuery(store: FakeStore, q: Query, via: "client" | "http"): { data: unknown; error: FakeErr } {
   store.log.push({ table: q.table, op: q.op, select: q.select, via });
@@ -104,6 +130,8 @@ export function execQuery(store: FakeStore, q: Query, via: "client" | "http"): {
       if (rows.some((r) => r.id === row.id) || prepared.some((r) => r.id === row.id)) {
         return { data: null, error: { code: "23505", message: `duplicate key value violates unique constraint "${q.table}_pkey"` } };
       }
+      const ce = checkRow(store, q.table, row);
+      if (ce) return { data: null, error: ce };
       for (const key of UNIQUE_KEYS[q.table] ?? []) {
         if (rows.some((r) => key.every((k) => String(r[k]) === String(row[k])))) {
           return { data: null, error: { code: "23505", message: `duplicate key value violates unique constraint (${key.join(",")})` } };
@@ -192,7 +220,8 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
     p.updated_at = now;
     return { data: { profile_id: p.id, revision: next }, error: null };
   }
-  if (fn === "astro_analysis_save") {
+  if (fn === "astro_analysis_save" || fn === "astro_analysis_save_v2") {
+    const v2 = fn === "astro_analysis_save_v2";
     const tenant = String(args.p_tenant_id);
     store.tables.astro_analyses ??= [];
     store.tables.astro_analysis_notes ??= [];
@@ -200,6 +229,17 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
     if (existing) return { data: { analysis_id: existing.id, reused: true }, error: null };
     const prof = (store.tables.astro_birth_profiles ?? []).find((x) => x.id === args.p_profile_id && x.tenant_id === tenant);
     if (!prof) return { data: null, error: { code: "P0002", message: "ASTRO_PROFILE_NOT_FOUND" } };
+    const partnerId = v2 ? (args.p_partner_profile_id ?? null) : null;
+    const partnerRev = v2 ? (args.p_partner_profile_revision ?? null) : null;
+    const resultIds = v2 ? (Array.isArray(args.p_result_ids) ? (args.p_result_ids as string[]) : []) : [];
+    const params = v2 ? (args.p_technique_params ?? {}) : {};
+    if (v2) {
+      if ((partnerId === null) !== (partnerRev === null)) return { data: null, error: { code: "23514", message: "astro_an_partner_pair_chk" } };
+      if (partnerId !== null && !partnerRevisionExists(store, tenant, String(partnerId), Number(partnerRev))) {
+        return { data: null, error: { code: "23503", message: "insert or update violates foreign key constraint astro_an_partner_fk" } };
+      }
+      if (typeof params !== "object" || Array.isArray(params) || resultIds.length > 10) return { data: null, error: { code: "23514", message: "astro_an_params_chk" } };
+    }
     const notes = Array.isArray(args.p_notes) ? (args.p_notes as { section_key: string; body: string }[]) : [];
     // Atomiklik: geçersiz not → hiçbir satır yazılmaz (DB CHECK + tek işlem davranışı).
     if (notes.some((n) => !SECTION_RE.test(String(n.section_key)) || String(n.body).length > 20000)) {
@@ -215,7 +255,11 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
       profile_id: args.p_profile_id,
       profile_revision: args.p_profile_revision,
       client_id: prof.client_id ?? null,
-      result_id: args.p_result_id ?? null,
+      result_id: v2 ? (resultIds.length === 1 ? resultIds[0] : null) : (args.p_result_id ?? null),
+      result_ids: [...resultIds],
+      partner_profile_id: partnerId,
+      partner_profile_revision: partnerRev,
+      technique_params: structuredClone(params),
       technique: args.p_technique,
       title: String(args.p_title).trim(),
       event_kind: "astrology.analysis.saved",

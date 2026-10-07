@@ -17,6 +17,7 @@ import { calcInputHash, resultIdFor } from "@/lib/astrology/engine/inputHash";
 import { buildNatalRequestBody, findUnmappedNatalFields, projectRoxyNatal } from "@/lib/astrology/providers/roxy/natal";
 import { NO_ASTROLOGY_ENTITLEMENTS, resolveAstrologyEntitlements, resolveInterpretationVisibility } from "@/lib/astrology/access/entitlements";
 import { buildPlan, parseSelections } from "@/lib/astrology/engine/planner";
+import type { TechniqueId } from "@/lib/astrology/engine/techniques";
 import { buildNatalView } from "@/lib/astrology/view/natalView";
 import { callRoxy } from "@/lib/astrology/providers/roxy/client";
 import { planAstrology, runAstrology, getAstrologyResult, type EngineCtx, type EngineDeps } from "@/lib/astrology/engine/service";
@@ -295,23 +296,25 @@ async function main() {
 
   // ─── F) Planlayıcı ─────────────────────────────────────────────────────────
   const birth = { birthDate: "1990-07-15", birthTime: "14:30:00", utcOffsetSeconds: 10800, latitude: 41.0082, longitude: 28.9784 };
+  const planned = (sels: { technique: TechniqueId; options: Record<string, unknown> }[]) =>
+    sels.map((x) => ({ ...x, ctx: { birth, birthUtc: "1990-07-15T11:30:00Z", partner: null }, blocked: null }));
   await t("plan: 1 natal → 1 birim/1 yeni istek; aynı natal iki kez → tekilleştirilir; kayıtlı → 0 istek", () => {
     const s = parseSelections(NATAL_SEL);
     assert.ok(s.ok);
     if (!s.ok) return;
-    const p1 = buildPlan(s.selections, birth, () => false);
+    const p1 = buildPlan(planned(s.selections), () => false);
     assert.deepEqual([p1.selectedCount, p1.units.length, p1.newRequestCount, p1.cachedCount], [1, 1, 1, 0]);
     const s2 = parseSelections([...NATAL_SEL, ...NATAL_SEL]);
     assert.ok(s2.ok);
     if (!s2.ok) return;
-    const p2 = buildPlan(s2.selections, birth, () => false);
+    const p2 = buildPlan(planned(s2.selections), () => false);
     assert.deepEqual([p2.selectedCount, p2.units.length, p2.newRequestCount, p2.dedupedCount], [2, 1, 1, 1]);
-    const p3 = buildPlan(s.selections, birth, () => true);
+    const p3 = buildPlan(planned(s.selections), () => true);
     assert.deepEqual([p3.newRequestCount, p3.cachedCount], [0, 1]);
     const s3 = parseSelections([{ technique: "western.natal", options: { houseSystem: "koch" } }]);
     assert.ok(s3.ok);
     if (!s3.ok) return;
-    assert.notEqual(buildPlan(s3.selections, birth, () => false).units[0].inputHash, p1.units[0].inputHash, "ev sistemi anahtara girmeli");
+    assert.notEqual(buildPlan(planned(s3.selections), () => false).units[0].inputHash, p1.units[0].inputHash, "ev sistemi anahtara girmeli");
   });
   await t("plan: seçim doğrulama (boş / bilinmeyen teknik / geçersiz seçenek / 20+ seçim)", () => {
     assert.equal((parseSelections([]) as { code: string }).code, "NO_SELECTION");

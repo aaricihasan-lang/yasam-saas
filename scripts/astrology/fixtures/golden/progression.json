@@ -1,0 +1,208 @@
+{
+  "endpoint": "/astrology/progressions",
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "nodeType": "true",
+    "targetDate": "2026-10-07"
+  },
+  "response": {
+    "birthDetails": {
+      "date": "1990-07-15",
+      "time": "14:30:00",
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3,
+      "nodeType": "true"
+    },
+    "targetDate": "2026-10-07",
+    "progressedDate": "1990-08-20",
+    "elapsedYears": 36.230753562673996,
+    "planets": [
+      {
+        "name": "Sun",
+        "nameLocalized": "Güneş",
+        "signLocalized": "Aslan",
+        "longitude": 147.4179722114435,
+        "sign": "Leo",
+        "degree": 27.417972211443498,
+        "house": 9,
+        "speed": 0.9631221135404076,
+        "isRetrograde": false,
+        "interpretation": "Aslan burcundaki ilerletilmiş Güneş, öz farkındalık ve ego temasının doğumdan bu yana nasıl olgunlaşıp değiştiğini yansıtır."
+      },
+      {
+        "name": "Moon",
+        "nameLocalized": "Ay",
+        "signLocalized": "Aslan",
+        "longitude": 149.71289871011473,
+        "sign": "Leo",
+        "degree": 29.71289871011473,
+        "house": 9,
+        "speed": 13.485081093444819,
+        "isRetrograde": false,
+        "interpretation": "Aslan burcundaki ilerletilmiş Ay, i̇ç duygusal yaşam temasının doğumdan bu yana nasıl olgunlaşıp değiştiğini yansıtır."
+      },
+      {
+        "name": "Mercury",
+        "nameLocalized": "Merkür",
+        "signLocalized": "Başak",
+        "longitude": 172.51070221626398,
+        "sign": "Virgo",
+        "degree": 22.51070221626398,
+        "house": 10,
+        "speed": 0.41679067832390615,
+        "isRetrograde": false,
+        "interpretation": "Başak burcundaki ilerletilmiş Merkür, i̇letişim temasının doğumdan bu yana nasıl olgunlaşıp değiştiğini yansıtır."
+      },
+      {
+        "name": "Venus",
+        "nameLocalized": "Venüs",
+        "signLocalized": "Aslan",
+        "longitude": 128.30160468306437,
+        "sign": "Leo",
+        "degree": 8.301604683064369,
+        "house": 9,
+        "speed": 1.2248964364189305,
+        "isRetrograde": false,
+        "interpretation": "Aslan burcundaki ilerletilmiş Venüs, aşk, güzellik ve para temasının doğumdan bu yana nasıl olgunlaşıp değiştiğini yansıtır."
+      },
+      {
+        "name": "Mars",
+        "nameLocalized": "Mars",
+        "signLocalized": "Boğa",
+        "longitude": 54.326826677344776,
+        "sign": "Taurus",
+        "degree": 24.326826677344776,
+        "house": 6,
+        "speed": 0.5529924738483771,
+        "isRetrograde": false,
+        "interpretation": "Boğa burcundaki ilerletilmiş Mars, atılganlık ve saldırganlık temasının doğumdan bu yana nasıl olgunlaşıp değiştiğini yansıtır."
+      },
+      {
+        "name": "Jupiter",
+        "nameLocalized": "Jüpiter",
+        "signLocalized": "Aslan",
+        "longitude": 120.5076545957656,
+        "sign": "Leo",
+        "degree": 0.5076545957656009,
+        "house": 9,
+        "speed": 0.21083926692884347,
+        "isRetrograde": false,
+        "interpretation": "Aslan burcundaki ilerletilmiş Jüpiter, şans ve fırsat temasının doğumdan bu yana nasıl olgunlaşıp değiştiğini yansıtır."
+      },
+      {
+        "name": "Saturn",
+        "nameLocalized": "Satürn",
+        "signLocalized": "Oğlak",
+        "longitude": 289.58468470500935,
+        "sign": "Capricorn",
+        "degree": 19.58468470500935,
+        "house": 2,
+        "speed": -0.05013565197816661,
+        "isRetrograde": true,
+        "interpretation": "Oğlak burcundaki ilerletilmiş Satürn, sorumluluk, zaman ve rutin temasının doğumdan bu yana nasıl olgunlaşıp değiştiğini yansıtır."
+      },
+      {
+        "name": "Uranus",
+        "nameLocalized": "Uranüs",
+        "signLocalized": "Oğlak",
+        "longitude": 275.85758590951787,
+        "sign": "Capricorn",
+        "degree": 5.857585909517866,
+        "house": 2,
+        "speed": -0.020007636382672445,
+        "isRetrograde": true,
+        "interpretation": "Oğlak burcundaki ilerletilmiş Uranüs, bireysellik ve devrim temasının doğumdan bu yana nasıl olgunlaşıp değiştiğini yansıtır."
+      },
+      {
+        "name": "Neptune",
+        "nameLocalized": "Neptün",
+        "signLocalized": "Oğlak",
+        "longitude": 282.0997401608513,
+        "sign": "Capricorn",
+        "degree": 12.099740160851297,
+        "house": 2,
+        "speed": -0.0169535989527958,
+        "isRetrograde": true,
+        "interpretation": "Oğlak burcundaki ilerletilmiş Neptün, rüyalar, şifa ve sezgi temasının doğumdan bu yana nasıl olgunlaşıp değiştiğini yansıtır."
+      },
+      {
+        "name": "Pluto",
+        "nameLocalized": "Plüton",
+        "signLocalized": "Akrep",
+        "longitude": 225.15576047538775,
+        "sign": "Scorpio",
+        "degree": 15.155760475387751,
+        "house": 12,
+        "speed": 0.014466921600259752,
+        "isRetrograde": false,
+        "interpretation": "Akrep burcundaki ilerletilmiş Plüton, cinsellik, ölüm ve dönüşüm temasının doğumdan bu yana nasıl olgunlaşıp değiştiğini yansıtır."
+      },
+      {
+        "name": "North Node",
+        "nameLocalized": "Kuzey Düğümü",
+        "signLocalized": "Kova",
+        "longitude": 307.26901842960797,
+        "sign": "Aquarius",
+        "degree": 7.269018429607968,
+        "house": 3,
+        "speed": -0.02733091334144433,
+        "isRetrograde": true,
+        "interpretation": "Kova burcundaki ilerletilmiş Kuzey Düğümü, yaşam amacı ve kader temasının doğumdan bu yana nasıl olgunlaşıp değiştiğini yansıtır."
+      },
+      {
+        "name": "South Node",
+        "nameLocalized": "Güney Düğümü",
+        "signLocalized": "Aslan",
+        "longitude": 127.26901842960797,
+        "sign": "Leo",
+        "degree": 7.269018429607968,
+        "house": 9,
+        "speed": -0.02733091334144433,
+        "isRetrograde": true,
+        "interpretation": "Aslan burcundaki ilerletilmiş Güney Düğümü, geçmiş yaşam yetenekleri ve konfor alanı temasının doğumdan bu yana nasıl olgunlaşıp değiştiğini yansıtır."
+      },
+      {
+        "name": "Chiron",
+        "nameLocalized": "Chiron",
+        "signLocalized": "Yengeç",
+        "longitude": 112.97410769541,
+        "sign": "Cancer",
+        "degree": 22.974107695409998,
+        "house": 8,
+        "speed": 0.095849322162735,
+        "isRetrograde": false,
+        "interpretation": "Yengeç burcundaki ilerletilmiş Chiron, şifa ve iç yaralar temasının doğumdan bu yana nasıl olgunlaşıp değiştiğini yansıtır."
+      },
+      {
+        "name": "Black Moon Lilith",
+        "nameLocalized": "Kara Ay Lilith",
+        "signLocalized": "Yay",
+        "longitude": 242.36077638564177,
+        "sign": "Sagittarius",
+        "degree": 2.3607763856417705,
+        "house": 1,
+        "speed": 0.1117892923737287,
+        "isRetrograde": false,
+        "interpretation": "Yay burcundaki ilerletilmiş Kara Ay Lilith, i̇lkel içgüdü ve geri kazanılan benlik temasının doğumdan bu yana nasıl olgunlaşıp değiştiğini yansıtır."
+      }
+    ],
+    "ascendant": {
+      "longitude": 243.0401728628472,
+      "sign": "Sagittarius",
+      "degree": 3.040172862847186,
+      "signLocalized": "Yay"
+    },
+    "midheaven": {
+      "longitude": 169.39181947979017,
+      "sign": "Virgo",
+      "degree": 19.391819479790172,
+      "signLocalized": "Başak"
+    },
+    "summary": "İkincil ilerletilmiş haritanız, doğum haritasını her yaşam yılı için bir gün ilerletir ve iç dünyanızın nasıl açıldığını gösterir. Şu anda ilerletilmiş Güneşiniz Aslan burcunda, ilerletilmiş Ayınız ise Aslan burcundadır; bu, kimliğin ve duygunun güncel bölümüdür."
+  }
+}

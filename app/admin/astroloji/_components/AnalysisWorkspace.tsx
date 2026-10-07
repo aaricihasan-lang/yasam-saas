@@ -1,11 +1,12 @@
 "use client";
 
 /**
- * Natal çalışma alanı — teknik sonucun ALTINDA, Roxy yorumundan AYRI:
+ * Çalışma alanı (tüm teknikler) — teknik sonucun ALTINDA, Roxy yorumundan AYRI:
  *   1) "Bilgi Bankam"  — haritanın kanonik konularıyla eşleşen KENDİ mesleki notlarım (Roxy değil)
  *   2) "Danışana Özel Yorumum" — bu profile özel çalışma notları (Bilgi Bankası'nı DEĞİŞTİRMEZ)
  *   3) "Analizi Kaydet" — özet → bilinçli onay → DEĞİŞMEZ snapshot (idempotent istek kimliği)
- * Bu panel sağlayıcıyı ÇAĞIRMAZ.
+ * Bu panel sağlayıcıyı ÇAĞIRMAZ. Bağlam = (profil, revizyon, teknik, normalize seçenekler); notlar
+ * (profil, teknik, karşı taraf) bağlamındadır — transit notu natal'e, Y sinastrisi Z'ye karışmaz.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -14,16 +15,20 @@ import { KbEditor, KbEntryCard, type KbEntry } from "./KnowledgeBankPanel";
 
 type Topic = { key: string; kind: string; label: string };
 type Note = { id: string; sectionKey: string; sectionLabel: string; body: string; revision: number; updatedAt: string };
-type Workspace = { knowledgeBankEnabled: boolean; topics: Topic[]; kbMatches: KbEntry[]; notes: Note[] };
+type Workspace = { technique: string; contextKey: string; knowledgeBankEnabled: boolean; topics: Topic[]; kbMatches: KbEntry[]; notes: Note[] };
+export type WorkspaceSelection = { technique: string; options: Record<string, unknown> };
 type Summary = {
   title: string;
   client: string | null;
   profileLabel: string;
+  partnerLabel: string | null;
+  partnerRevision: number | null;
   techniqueLabel: string;
+  partCount: number;
   revision: number;
   zodiac: string;
-  houseSystem: string;
-  nodeType: string;
+  houseSystem: string | null;
+  nodeType: string | null;
   provider: string;
   topicCount: number;
   kbMatchCount: number;
@@ -32,7 +37,23 @@ type Summary = {
   timeUnknownMasked: boolean;
 };
 
-function NoteEditor({ profileId, sectionKey, label, note, onSaved }: { profileId: string; sectionKey: string; label: string; note: Note | null; onSaved: () => void }) {
+function NoteEditor({
+  profileId,
+  technique,
+  contextKey,
+  sectionKey,
+  label,
+  note,
+  onSaved,
+}: {
+  profileId: string;
+  technique: string;
+  contextKey: string;
+  sectionKey: string;
+  label: string;
+  note: Note | null;
+  onSaved: () => void;
+}) {
   const [body, setBody] = useState(note?.body ?? "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -42,7 +63,7 @@ function NoteEditor({ profileId, sectionKey, label, note, onSaved }: { profileId
     setMsg(null);
     const r = await astroFetch("/api/admin/astroloji/notes", {
       method: "PUT",
-      body: { profileId, sectionKey, body, expectedRevision: note ? note.revision : null },
+      body: { profileId, technique, contextKey, sectionKey, body, expectedRevision: note ? note.revision : null },
     });
     setBusy(false);
     if (r.ok) {
@@ -67,7 +88,7 @@ function NoteEditor({ profileId, sectionKey, label, note, onSaved }: { profileId
 export default function AnalysisWorkspace({
   profileId,
   revision,
-  resultId,
+  selection,
   interpVisible,
   previewNoInterp,
   refreshKey = 0,
@@ -75,13 +96,14 @@ export default function AnalysisWorkspace({
 }: {
   profileId: string;
   revision: number;
-  resultId: string;
+  selection: WorkspaceSelection;
   interpVisible: boolean;
   previewNoInterp: boolean;
   refreshKey?: number;
   onSaved: (analysisId: string) => void;
 }) {
-  const key = `${profileId}|${revision}|${resultId}`;
+  const selJson = JSON.stringify(selection);
+  const key = `${profileId}|${revision}|${selJson}`;
   const [ws, setWs] = useState<{ key: string; data: Workspace; error: string | null } | null>(null);
   const [reload, setReload] = useState(0);
   const [addTopic, setAddTopic] = useState<string | null>(null);
@@ -94,15 +116,19 @@ export default function AnalysisWorkspace({
 
   useEffect(() => {
     let alive = true;
-    const qs = new URLSearchParams({ profileId, revision: String(revision), resultId });
-    void astroFetch<Workspace>(`/api/admin/astroloji/workspace?${qs.toString()}`).then((r) => {
+    const sel = JSON.parse(selJson) as WorkspaceSelection;
+    void astroFetch<Workspace>("/api/admin/astroloji/workspace", { method: "POST", body: { profileId, revision, technique: sel.technique, options: sel.options } }).then((r) => {
       if (!alive) return;
-      setWs(r.ok ? { key, data: r.data, error: null } : { key, data: { knowledgeBankEnabled: false, topics: [], kbMatches: [], notes: [] }, error: r.error });
+      setWs(
+        r.ok
+          ? { key, data: r.data, error: null }
+          : { key, data: { technique: sel.technique, contextKey: "", knowledgeBankEnabled: false, topics: [], kbMatches: [], notes: [] }, error: r.error },
+      );
     });
     return () => {
       alive = false;
     };
-  }, [key, profileId, revision, resultId, reload, refreshKey]);
+  }, [key, profileId, revision, selJson, reload, refreshKey]);
 
   const data = ws && ws.key === key ? ws.data : null;
   const matchesByTopic = useMemo(() => {
@@ -122,7 +148,7 @@ export default function AnalysisWorkspace({
     setSaveMsg(null);
     const r = await astroFetch<{ summary: Summary }>(`/api/admin/astroloji/analyses/preview${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
       method: "POST",
-      body: { profileId, revision, resultId, includeProviderInterp: effectiveInclude, title: title.trim() || undefined },
+      body: { profileId, revision, ...selection, includeProviderInterp: effectiveInclude, title: title.trim() || undefined },
     });
     setBusy(false);
     if (r.ok) setSummary({ key: `${key}|${effectiveInclude}|${title}`, s: r.data.summary, requestId: crypto.randomUUID() });
@@ -134,7 +160,7 @@ export default function AnalysisWorkspace({
     setBusy(true);
     const r = await astroFetch<{ analysisId: string; reused: boolean }>(`/api/admin/astroloji/analyses${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
       method: "POST",
-      body: { profileId, revision, resultId, includeProviderInterp: effectiveInclude, title: shownSummary.s.title, saveRequestId: shownSummary.requestId },
+      body: { profileId, revision, ...selection, includeProviderInterp: effectiveInclude, title: shownSummary.s.title, saveRequestId: shownSummary.requestId },
     });
     setBusy(false);
     if (r.ok) {
@@ -211,13 +237,15 @@ export default function AnalysisWorkspace({
       {/* 2) Danışana özel yorum */}
       <section className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4" aria-label="Danışana Özel Yorumum">
         <h3 className="mb-1 text-base font-semibold text-emerald-900">Danışana Özel Yorumum</h3>
-        <p className="mb-3 text-xs text-emerald-800">Bu notlar yalnız bu doğum profiline aittir; Bilgi Bankası kayıtlarınızı değiştirmez.</p>
+        <p className="mb-3 text-xs text-emerald-800">
+          Bu notlar yalnız bu doğum profiline ve bu analiz türüne{data.contextKey ? " (bu karşı tarafla)" : ""} aittir; Bilgi Bankası kayıtlarınızı değiştirmez.
+        </p>
         <div className="flex flex-col gap-3">
-          <NoteEditor key={`overall-${notesByKey.get("overall")?.revision ?? 0}`} profileId={profileId} sectionKey="overall" label="Genel yorum" note={notesByKey.get("overall") ?? null} onSaved={() => setReload((n) => n + 1)} />
+          <NoteEditor key={`overall-${notesByKey.get("overall")?.revision ?? 0}`} profileId={profileId} technique={data.technique} contextKey={data.contextKey} sectionKey="overall" label="Genel yorum" note={notesByKey.get("overall") ?? null} onSaved={() => setReload((n) => n + 1)} />
           {noteSections.map((k) => {
             const n = notesByKey.get(k) ?? null;
             const label = n?.sectionLabel ?? data.topics.find((t) => t.key === k)?.label ?? k;
-            return <NoteEditor key={`${k}-${n?.revision ?? 0}`} profileId={profileId} sectionKey={k} label={label} note={n} onSaved={() => setReload((x) => x + 1)} />;
+            return <NoteEditor key={`${k}-${n?.revision ?? 0}`} profileId={profileId} technique={data.technique} contextKey={data.contextKey} sectionKey={k} label={label} note={n} onSaved={() => setReload((x) => x + 1)} />;
           })}
         </div>
       </section>
@@ -247,7 +275,18 @@ export default function AnalysisWorkspace({
                 <dt className="text-slate-500">Danışan</dt>
                 <dd>{shownSummary.s.client ?? "— (bağımsız profil)"}</dd>
                 <dt className="text-slate-500">Analiz türü</dt>
-                <dd>{shownSummary.s.techniqueLabel}</dd>
+                <dd>
+                  {shownSummary.s.techniqueLabel}
+                  {shownSummary.s.partCount > 1 ? ` · ${shownSummary.s.partCount} parça` : ""}
+                </dd>
+                {shownSummary.s.partnerLabel && (
+                  <>
+                    <dt className="text-slate-500">Karşı taraf</dt>
+                    <dd>
+                      {shownSummary.s.partnerLabel} · rev {shownSummary.s.partnerRevision}
+                    </dd>
+                  </>
+                )}
                 <dt className="text-slate-500">Doğum profili</dt>
                 <dd>
                   {shownSummary.s.profileLabel} · rev {shownSummary.s.revision}
@@ -255,7 +294,7 @@ export default function AnalysisWorkspace({
                 </dd>
                 <dt className="text-slate-500">Yöntem</dt>
                 <dd>
-                  Tropikal · {shownSummary.s.houseSystem} · düğüm: {shownSummary.s.nodeType} · sağlayıcı: {shownSummary.s.provider}
+                  Tropikal · {shownSummary.s.houseSystem ?? "ev sistemi yok"} · düğüm: {shownSummary.s.nodeType ?? "—"} · sağlayıcı: {shownSummary.s.provider}
                 </dd>
                 <dt className="text-slate-500">Bilgi Bankası</dt>
                 <dd>

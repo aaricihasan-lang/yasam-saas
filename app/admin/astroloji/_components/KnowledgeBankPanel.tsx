@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { WESTERN_TOPIC_KIND_LABELS, WESTERN_TOPIC_KINDS } from "@/lib/astrology/topics/western";
+import { ALL_TOPIC_KINDS, TOPIC_CONTEXT_LABELS, TOPIC_CONTEXTS } from "@/lib/astrology/topics/index";
 import { astroFetch } from "../_lib/api";
 import TopicPicker from "./TopicPicker";
 
@@ -196,10 +196,14 @@ export default function KnowledgeBankPanel() {
         <input className="min-w-[220px] flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm" placeholder="Ara (başlık, metin, kaynak, konu)…" value={q} onChange={(e) => setQ(e.target.value)} />
         <select className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm" value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Konu türü filtresi">
           <option value="">Tüm konu türleri</option>
-          {WESTERN_TOPIC_KINDS.map((k) => (
-            <option key={k} value={k}>
-              {WESTERN_TOPIC_KIND_LABELS[k]}
-            </option>
+          {TOPIC_CONTEXTS.map((c) => (
+            <optgroup key={c} label={TOPIC_CONTEXT_LABELS[c]}>
+              {ALL_TOPIC_KINDS.filter((k) => k.context === c).map((k) => (
+                <option key={k.kind} value={k.kind}>
+                  {k.label}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
         <select className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm" value={tag} onChange={(e) => setTag(e.target.value)} aria-label="Etiket filtresi">

@@ -86,6 +86,8 @@ async function main() {
       for (const i of imports) {
         assert.ok(!SERVER_ONLY_MODULES.some((m) => i.endsWith(m.replace(/^lib\//, "")) || i === `@/${m}`), `${rel(f)} → ${i}`);
         assert.ok(!/supabase-server|dbRateLimit|adminGuard|server\/search/.test(i), `${rel(f)} → ${i}`);
+        // Aşama 3: sağlayıcı adaptörleri (ham alan adları) ve motor (hash/plan) istemci paketine girmez.
+        assert.ok(!/astrology\/providers\/|astrology\/engine\/|astrology\/persistence\//.test(i), `${rel(f)} → ${i} (sunucu tarafı modül)`);
       }
       assert.ok(!/ROXY_API_KEY|SUPABASE_SERVICE_ROLE_KEY/.test(s), `${rel(f)}: gizli env adı istemcide`);
     }
@@ -155,6 +157,7 @@ async function main() {
       /^scripts\/astrology\//,
       /^supabase\/migrations\/20271101000000_astrology_foundation\.sql$/,
       /^supabase\/migrations\/20271101000100_astrology_kb_analyses\.sql$/,
+      /^supabase\/migrations\/20271101000200_astrology_timing_relationship\.sql$/,
       /^app\/admin\/layout\.tsx$/,
       /^lib\/backup\/ownerPilotTables\.ts$/,
       /^lib\/backup\/schema\.generated\.ts$/,
