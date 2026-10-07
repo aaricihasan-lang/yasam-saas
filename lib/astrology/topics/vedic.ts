@@ -1,7 +1,7 @@
 // Astroloji — VEDİK konu taksonomisi (Aşama 5; SAF, istemci güvenli).
 //
 // Vedik gelenek (tradition = "vedic") Batı'dan AYRIDIR: KB kayıtları gelenek sütunuyla ayrışır, anahtar
-// türleri de ayrı adlandırılır (graha_*, d9_*, varga_*, dasha_*, yoga). Böylece Batı "planet_in_house"
+// türleri de ayrı adlandırılır (graha_*, navamsa_*, varga_*, dasha_*, yoga). Böylece Batı "planet_in_house"
 // notu Vedik D1 yorumu gibi GÖRÜNMEZ; D1 ile D9 konuları da ayrı türlerdir.
 //
 //   graha_in_rashi:<graha>:<rashi>            (D1)
@@ -10,14 +10,14 @@
 //   graha_nakshatra_pada:<graha>:<nakshatra>:<pada 1-4>
 //   lagna_rashi:<rashi> · lagna_nakshatra:<nakshatra>
 //   yoga:<yoga-id>                             (D1'de oluşan yoga)
-//   d9_graha_in_rashi:<graha>:<rashi> · d9_lagna_rashi:<rashi> · d9_vargottama:<graha>
+//   navamsa_graha_in_rashi:<graha>:<rashi> · navamsa_lagna_rashi:<rashi> · navamsa_vargottama:<graha>
 //   varga_graha_in_rashi:<dN>:<graha>:<rashi>  (D2…D60, D9 hariç; dN = d2, d3, …)
 //   dasha_mahadasha:<lord> · dasha_antardasha:<mahadasha lord>:<antardasha lord>
 //
 // DB biçim kısıtı (topic_key) ile uyumlu: ^[a-z][a-z_]{1,40}(:[a-z0-9_-]{1,40}){1,4}$
 
 import { SIGN_IDS, type SignId } from "../model/western";
-import { NAKSHATRAS, VEDIC_GRAHAS, type VedicD1Technical } from "../model/vedic";
+import { NAKSHATRAS, VEDIC_GRAHAS, type VedicD1Technical, type VedicVargaTechnical } from "../model/vedic";
 import { SIGN_LABELS } from "../labels/tr";
 
 export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha"] as const;
@@ -72,10 +72,14 @@ export const VEDIC_SPECS: Record<string, Spec> = {
   lagna_rashi: { args: ["rashi"], context: "vedic_d1", label: (p) => `D1: Lagna ${r(p[0])}` },
   lagna_nakshatra: { args: ["nakshatra"], context: "vedic_d1", label: (p) => `D1: Lagna ${n(p[0])} nakshatrasında` },
   yoga: { args: ["yoga"], context: "vedic_d1", label: (p) => `Yoga: ${VEDIC_YOGA_NAMES[p[0]] ? `${VEDIC_YOGA_NAMES[p[0]]} Yoga` : p[0]}` },
-  d9_graha_in_rashi: { args: ["graha", "rashi"], context: "vedic_varga", label: (p) => `D9 Navamsa: ${g(p[0])} ${r(p[1])} rashisinde` },
-  d9_lagna_rashi: { args: ["rashi"], context: "vedic_varga", label: (p) => `D9 Navamsa: Lagna ${r(p[0])}` },
-  d9_vargottama: { args: ["graha"], context: "vedic_varga", label: (p) => `D9 Navamsa: ${g(p[0])} vargottama` },
+  navamsa_graha_in_rashi: { args: ["graha", "rashi"], context: "vedic_varga", label: (p) => `D9 Navamsa: ${g(p[0])} ${r(p[1])} rashisinde` },
+  navamsa_lagna_rashi: { args: ["rashi"], context: "vedic_varga", label: (p) => `D9 Navamsa: Lagna ${r(p[0])}` },
+  navamsa_vargottama: { args: ["graha"], context: "vedic_varga", label: (p) => `D9 Navamsa: ${g(p[0])} vargottama` },
+  navamsa_graha_in_bhava: { args: ["graha", "bhava"], context: "vedic_varga", label: (p) => `D9 Navamsa: ${g(p[0])} ${p[1]}. bhavada` },
   varga_graha_in_rashi: { args: ["division", "graha", "rashi"], context: "vedic_varga", label: (p) => `${p[0].toUpperCase()}: ${g(p[1])} ${r(p[2])} rashisinde` },
+  varga_graha_in_bhava: { args: ["division", "graha", "bhava"], context: "vedic_varga", label: (p) => `${p[0].toUpperCase()}: ${g(p[1])} ${p[2]}. bhavada` },
+  varga_lagna_rashi: { args: ["division", "rashi"], context: "vedic_varga", label: (p) => `${p[0].toUpperCase()}: Lagna ${r(p[1])}` },
+  varga_vargottama: { args: ["division", "graha"], context: "vedic_varga", label: (p) => `${p[0].toUpperCase()}: ${g(p[1])} vargottama` },
   dasha_mahadasha: { args: ["graha"], context: "vedic_dasha", label: (p) => `Mahadasha: ${g(p[0])}` },
   dasha_antardasha: { args: ["graha", "graha"], context: "vedic_dasha", label: (p) => `Antardasha: ${g(p[0])} / ${g(p[1])}` },
 };
@@ -150,6 +154,26 @@ export function vedicCollect(items: [string, string[]][]): VedicTopic[] {
     if (p && !out.has(key)) out.set(key, { key, kind, label: p.label });
   }
   return [...out.values()];
+}
+
+/** Varga konuları: D9 kendi türlerini (navamsa_*), diğer bölümler varga_*:dN anahtarlarını kullanır — D1 ile karışmaz. */
+export function topicsFromVedicVarga(t: VedicVargaTechnical): VedicTopic[] {
+  const items: [string, string[]][] = [];
+  if (t.division.number === 9) {
+    items.push(["navamsa_lagna_rashi", [t.lagna.rashi]]);
+    for (const x of t.grahas) {
+      items.push(["navamsa_graha_in_rashi", [x.id, x.rashi]], ["navamsa_graha_in_bhava", [x.id, String(x.house)]]);
+      if (x.vargottama) items.push(["navamsa_vargottama", [x.id]]);
+    }
+  } else {
+    const d = `d${t.division.number}`;
+    items.push(["varga_lagna_rashi", [d, t.lagna.rashi]]);
+    for (const x of t.grahas) {
+      items.push(["varga_graha_in_rashi", [d, x.id, x.rashi]], ["varga_graha_in_bhava", [d, x.id, String(x.house)]]);
+      if (x.vargottama) items.push(["varga_vargottama", [d, x.id]]);
+    }
+  }
+  return vedicCollect(items);
 }
 
 export function topicsFromVedicD1(t: VedicD1Technical): VedicTopic[] {

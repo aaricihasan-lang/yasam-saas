@@ -19,6 +19,8 @@ import type {
 } from "@/lib/astrology/model/westernTiming";
 import { ASPECT_GLYPHS, ASPECT_LABELS, BODY_GLYPHS, BODY_LABELS, PATTERN_LABELS } from "@/lib/astrology/labels/tr";
 import type { AstrocartographyInterpretation, LocalSpaceInterpretation, RelocationInterpretation } from "@/lib/astrology/model/westernLocation";
+import type { VedicD1Interpretation, VedicVargaInterpretation } from "@/lib/astrology/model/vedic";
+import { GRAHA_LABELS, VEDIC_YOGA_NAMES } from "@/lib/astrology/topics/vedic";
 
 export type InterpretationLayer =
   | { visible: true; provider: string; lang: string; content: unknown; notice: string }
@@ -290,6 +292,53 @@ function Content({ content }: { content: unknown }) {
           </Block>
         </>
       );
+    }
+    case "astro.vedic.d1.interp.v1": {
+      const c = content as VedicD1Interpretation;
+      return (
+        <>
+          {c.grahas.length > 0 && (
+            <Block title="Graha yorumları (rashi / nakshatra)">
+              {c.grahas.map((g) => (
+                <Item key={g.id}>
+                  <div className="font-medium">{g.id === "lagna" ? "Lagna" : GRAHA_LABELS[g.id]}</div>
+                  <P text={g.rashi} />
+                  <P text={g.nakshatra} />
+                </Item>
+              ))}
+            </Block>
+          )}
+          {c.houses.length > 0 && (
+            <Block title="Bhava açıklamaları">
+              {c.houses.map((h) => (
+                <Item key={h.number}>
+                  <div className="font-medium">{h.number}. bhava</div>
+                  <P text={h.description} />
+                  <Chips items={h.themes} />
+                </Item>
+              ))}
+            </Block>
+          )}
+          {c.yogas.length > 0 && (
+            <details className="rounded-lg bg-white px-3 py-2">
+              <summary className="cursor-pointer font-semibold text-violet-900">Yoga açıklamaları ({c.yogas.length}) — oluşan yogalar teknik bölümde</summary>
+              <ul className="mt-2 flex flex-col gap-2">
+                {c.yogas.map((y) => (
+                  <li key={y.id}>
+                    <div className="font-medium">{VEDIC_YOGA_NAMES[y.id] ? `${VEDIC_YOGA_NAMES[y.id]} Yoga` : y.id}</div>
+                    <P text={y.description} />
+                    <P text={y.result} />
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </>
+      );
+    }
+    case "astro.vedic.varga.interp.v1": {
+      const c = content as VedicVargaInterpretation;
+      return c.significance ? <p className="rounded-lg bg-white px-3 py-2">Bölümün anlamı: {c.significance}</p> : <p className="text-slate-600">Bu bölüm için sağlayıcı açıklaması yok.</p>;
     }
     default:
       return <p className="text-slate-600">Bu yorum biçimi tanınmıyor.</p>;

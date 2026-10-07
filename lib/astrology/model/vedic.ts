@@ -124,3 +124,34 @@ export function houseRashi(lagna: SignId, house: number, signs: readonly SignId[
   const i = signs.indexOf(lagna);
   return signs[(i + house - 1) % 12];
 }
+
+// ─── Varga (D2…D60; D9 Navamsa) ──────────────────────────────────────────────
+/** Roxy /vedic-astrology/divisional-chart'ın kabul ettiği bölümler (belge, 2026-10). D1 ayrı tekniktir. */
+export const VEDIC_VARGA_DIVISIONS = [2, 3, 4, 7, 9, 10, 12, 16, 20, 24, 27, 30, 40, 45, 60] as const;
+export type VedicVargaDivision = (typeof VEDIC_VARGA_DIVISIONS)[number];
+
+export const VEDIC_VARGA_TECHNICAL_SCHEMA = "astro.vedic.varga.v1" as const;
+export type VedicVargaPoint = {
+  /** D1 sidereal boylamı (varga, D1 boylamından türetilir; sağlayıcı aynen taşır). */
+  longitude: number;
+  /** D1 rashisi (⌊boylam/30⌋) — vargottama karşılaştırması için. */
+  d1Rashi: SignId;
+  /** Bu vargadaki rashi. */
+  rashi: SignId;
+  /** Varga Lagna'sından bütün-burç ev. */
+  house: number;
+  nakshatra: NakshatraPlacement;
+};
+export type VedicVargaGraha = VedicVargaPoint & { id: VedicGrahaId; retrograde: boolean; vargottama: boolean };
+export type VedicVargaTechnical = {
+  schema: typeof VEDIC_VARGA_TECHNICAL_SCHEMA;
+  zodiac: "sidereal";
+  frame: VedicFrame;
+  houseSystem: "whole_sign";
+  division: { number: VedicVargaDivision; name: string; sanskritName: string; degreesPerDivision: string };
+  lagna: VedicVargaPoint & { vargottama: boolean };
+  grahas: VedicVargaGraha[];
+  vargottama: VedicGrahaId[];
+};
+export const VEDIC_VARGA_INTERP_SCHEMA = "astro.vedic.varga.interp.v1" as const;
+export type VedicVargaInterpretation = { schema: typeof VEDIC_VARGA_INTERP_SCHEMA; significance: string | null };

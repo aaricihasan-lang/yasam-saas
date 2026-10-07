@@ -11,7 +11,7 @@
  */
 
 import { createElement, useEffect, useMemo, useRef, useState } from "react";
-import { NAKSHATRA_LORDS, type NakshatraPlacement, type VedicD1Technical, type VedicGraha, type VedicGrahaId } from "@/lib/astrology/model/vedic";
+import { NAKSHATRA_LORDS, type NakshatraPlacement, type VedicD1Technical, type VedicGraha, type VedicGrahaId, type VedicVargaTechnical } from "@/lib/astrology/model/vedic";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import { GRAHA_LABELS, NAKSHATRA_LABELS } from "@/lib/astrology/topics/vedic";
@@ -57,29 +57,53 @@ export function toKundliData(t: VedicD1Technical) {
   };
 }
 
+/**
+ * Kanonik varga teknik verisi → `<roxy-divisional-chart>` sözleşmesi (yalnız TEKNİK alanlar; division.significance
+ * ANLATIDIR → verilmez). SAF; test edilir. Bileşen `chart.meta`, `division`, `frame`, `vargottama` okur.
+ */
+export function toVargaChartData(t: VedicVargaTechnical) {
+  const meta: Record<string, unknown> = {};
+  const point = (g: VedicVargaTechnical["lagna"] | VedicVargaTechnical["grahas"][number], name: string, retro: boolean) => ({
+    graha: name,
+    rashi: TITLE(g.rashi),
+    longitude: g.longitude,
+    nakshatra: { name: nakName(g.nakshatra.id), pada: g.nakshatra.pada, lord: ROXY_NAME[g.nakshatra.lord] },
+    isRetrograde: retro,
+    house: g.house,
+  });
+  for (const g of t.grahas) meta[ROXY_NAME[g.id]] = point(g, ROXY_NAME[g.id], g.retrograde);
+  meta.Lagna = point(t.lagna, "Lagna", false);
+  return {
+    division: { number: t.division.number, name: t.division.name, sanskritName: t.division.sanskritName, degreesPerDivision: t.division.degreesPerDivision },
+    frame: { ayanamsa: t.frame.ayanamsa, ayanamsaDegrees: t.frame.ayanamsaDegrees },
+    chart: { meta },
+    vargottama: t.vargottama.map((v) => ROXY_NAME[v]),
+  };
+}
+
 type ChartStyle = "north" | "south" | "east";
 
-/** Roxy kundli web bileşeni (yalnız istemcide, dinamik yükleme). */
-export function RoxyKundli({ data, style }: { data: ReturnType<typeof toKundliData>; style: ChartStyle }) {
+/** Roxy kundli / varga web bileşeni (yalnız istemcide, dinamik yükleme). */
+export function RoxyKundli({ data, style, kind = "kundli" }: { data: unknown; style: ChartStyle; kind?: "kundli" | "divisional" }) {
   const ref = useRef<HTMLElement | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let alive = true;
-    import("@roxyapi/ui/components/vedic-kundli")
+    (kind === "divisional" ? import("@roxyapi/ui/components/divisional-chart") : import("@roxyapi/ui/components/vedic-kundli"))
       .then(() => alive && setReady(true))
       .catch(() => alive && setFailed(true));
     return () => {
       alive = false;
     };
-  }, []);
+  }, [kind]);
   useEffect(() => {
     if (ready && ref.current) (ref.current as unknown as { data: unknown }).data = data;
   }, [ready, data]);
   if (failed) return <p className="text-sm text-rose-700">Harita bileşeni yüklenemedi; teknik tablo aşağıda.</p>;
   return (
     <div className="roxy-host w-full min-w-0" data-testid="astro-vedic-kundli">
-      {createElement("roxy-vedic-kundli", { ref, "chart-style": style, lang: "tr", "hide-readings": "", "hide-sections": "header,tablist" })}
+      {createElement(kind === "divisional" ? "roxy-divisional-chart" : "roxy-vedic-kundli", { ref, "chart-style": style, lang: "tr", "hide-readings": "", "hide-sections": "header,tablist" })}
       {!ready && <p className="text-sm text-slate-400">Harita yükleniyor…</p>}
     </div>
   );
@@ -349,6 +373,149 @@ export function VedicD1Panel({ t, kbLookup }: { t: VedicD1Technical; kbLookup?: 
               </li>
             ))}
           </ul>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function StyleTabs({ style, setStyle }: { style: ChartStyle; setStyle: (s: ChartStyle) => void }) {
+  return (
+    <div className="flex gap-1" role="tablist" aria-label="Harita düzeni">
+      {(["north", "south", "east"] as const).map((x) => (
+        <button
+          key={x}
+          type="button"
+          role="tab"
+          aria-selected={style === x}
+          onClick={() => setStyle(x)}
+          className={`rounded-lg border px-2 py-1 text-xs ${style === x ? "border-amber-600 bg-amber-50 text-amber-900" : "border-slate-200 text-slate-600"}`}
+          data-chart-style={x}
+        >
+          {x === "north" ? "Kuzey Hindistan" : x === "south" ? "Güney Hindistan" : "Doğu Hindistan"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Seçili noktanın varga konu anahtarları (KB eşleşmesi; D9 kendi türleri, diğerleri dN). */
+export function vargaTopicKeys(t: VedicVargaTechnical, point: "lagna" | VedicGrahaId): string[] {
+  const d9 = t.division.number === 9;
+  const d = `d${t.division.number}`;
+  if (point === "lagna") return [d9 ? `navamsa_lagna_rashi:${t.lagna.rashi}` : `varga_lagna_rashi:${d}:${t.lagna.rashi}`];
+  const g = t.grahas.find((x) => x.id === point);
+  if (!g) return [];
+  const keys = d9 ? [`navamsa_graha_in_rashi:${g.id}:${g.rashi}`, `navamsa_graha_in_bhava:${g.id}:${g.house}`] : [`varga_graha_in_rashi:${d}:${g.id}:${g.rashi}`, `varga_graha_in_bhava:${d}:${g.id}:${g.house}`];
+  if (g.vargottama) keys.push(d9 ? `navamsa_vargottama:${g.id}` : `varga_vargottama:${d}:${g.id}`);
+  return keys;
+}
+
+type VargaRow = { id: "lagna" | VedicGrahaId; p: VedicVargaTechnical["lagna"] | VedicVargaTechnical["grahas"][number]; retro: boolean };
+
+export function VedicVargaPanel({ t, kbLookup }: { t: VedicVargaTechnical; kbLookup?: KbLookup | null }) {
+  const [style, setStyle] = useState<ChartStyle>("north");
+  const [sel, setSel] = useState<"lagna" | VedicGrahaId>("lagna");
+  const data = useMemo(() => toVargaChartData(t), [t]);
+  const d9 = t.division.number === 9;
+  const dn = `D${t.division.number}`;
+  const dl = `${dn} ${t.division.name}`;
+  const point = sel === "lagna" ? t.lagna : (t.grahas.find((g) => g.id === sel) ?? t.lagna);
+  const kb = kbLookup ? kbLookup(vargaTopicKeys(t, sel)) : null;
+  const rows: VargaRow[] = [{ id: "lagna", p: t.lagna, retro: false }, ...t.grahas.map((g) => ({ id: g.id, p: g, retro: g.retrograde }))];
+  const label = (id: "lagna" | VedicGrahaId) => (id === "lagna" ? "Lagna" : GRAHA_LABELS[id]);
+  return (
+    <div className="flex min-w-0 flex-col gap-3" data-testid="astro-vedic-varga-panel" data-division={t.division.number}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-slate-700">
+          <strong>{dl}</strong>
+          {t.division.degreesPerDivision ? ` · bölüm ${t.division.degreesPerDivision}` : ""} · ayanamsa <strong>{AYANAMSA_LABEL[t.frame.ayanamsa] ?? t.frame.ayanamsa}</strong> · {dn} Lagna{" "}
+          <strong>
+            {SIGN_GLYPHS[t.lagna.rashi]} {SIGN_LABELS[t.lagna.rashi]}
+          </strong>{" "}
+          (D1: {SIGN_LABELS[t.lagna.d1Rashi]}) · vargottama: {t.vargottama.length ? t.vargottama.map((v) => GRAHA_LABELS[v]).join(", ") : "yok"}
+        </p>
+        <StyleTabs style={style} setStyle={setStyle} />
+      </div>
+      <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="mx-auto w-full max-w-[520px]">
+          <RoxyKundli data={data} style={style} kind="divisional" />
+        </div>
+        <section className="min-w-0 rounded-xl border border-amber-200 bg-amber-50/40 p-3" aria-label="Seçili nokta ayrıntısı" data-testid="astro-vedic-varga-detail">
+          <h4 className="mb-1 text-sm font-semibold text-amber-900">
+            {label(sel)} · {dl}
+          </h4>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+            <dt className="text-slate-500">D1 rashi</dt>
+            <dd>
+              {SIGN_GLYPHS[point.d1Rashi]} {SIGN_LABELS[point.d1Rashi]} {formatDegree(point.longitude % 30)}
+            </dd>
+            <dt className="text-slate-500">{dn} rashi</dt>
+            <dd>
+              {SIGN_GLYPHS[point.rashi]} {SIGN_LABELS[point.rashi]}
+              {point.d1Rashi === point.rashi ? " · vargottama" : ""}
+            </dd>
+            <dt className="text-slate-500">Bhava ({dn})</dt>
+            <dd>{point.house}</dd>
+            <dt className="text-slate-500">Nakshatra</dt>
+            <dd>
+              {nakName(point.nakshatra.id)} · {point.nakshatra.pada}. pada
+              {d9 ? ` → navamsa ${SIGN_LABELS[point.rashi]}` : ""}
+            </dd>
+          </dl>
+          <div className="mt-2 border-t border-amber-200 pt-2" data-testid="astro-vedic-varga-detail-kb">
+            <div className="text-xs font-semibold text-indigo-900">Bilgi Bankam</div>
+            {kb === null ? (
+              <p className="text-xs text-slate-500">Bilgi Bankası eşleşmeleri çalışma alanı yüklenince görünür.</p>
+            ) : kb.length === 0 ? (
+              <p className="text-xs text-slate-500">Bu yerleşim için Bilgi Bankası kaydınız yok.</p>
+            ) : (
+              <ul className="flex flex-col gap-1">
+                {kb.map((e) => (
+                  <li key={`${e.topicKey}-${e.title}`} className="rounded-lg bg-white px-2 py-1 text-xs">
+                    <div className="font-medium text-indigo-900">{e.topicLabel}</div>
+                    <div className="font-semibold text-slate-800">{e.title}</div>
+                    <p className="whitespace-pre-line text-slate-700">{e.body}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+      </div>
+      <section className="min-w-0 rounded-xl border border-slate-200 bg-white">
+        <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">D1 → {dl} — satıra tıklayın</h4>
+        <div className="overflow-x-auto">
+          <table className="min-w-full" data-testid="astro-vedic-varga-table">
+            <thead>
+              <tr>
+                <th className={th}>Nokta</th>
+                <th className={th}>D1 rashi</th>
+                <th className={th}>{dn} rashi</th>
+                <th className={th}>Bhava</th>
+                <th className={th}>Nakshatra · pada</th>
+                <th className={th}>Durum</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map(({ id, p, retro }) => (
+                <tr key={id} className={`cursor-pointer ${sel === id ? "bg-amber-50" : ""}`} onClick={() => setSel(id)} data-varga-point={id}>
+                  <td className={`${td} font-medium`}>{label(id)}</td>
+                  <td className={td}>
+                    {SIGN_GLYPHS[p.d1Rashi]} {SIGN_LABELS[p.d1Rashi]}
+                  </td>
+                  <td className={td}>
+                    {SIGN_GLYPHS[p.rashi]} {SIGN_LABELS[p.rashi]}
+                  </td>
+                  <td className={td}>{p.house}</td>
+                  <td className={td}>
+                    {nakName(p.nakshatra.id)} · {p.nakshatra.pada}
+                  </td>
+                  <td className={`${td} text-xs`}>{[p.d1Rashi === p.rashi ? "vargottama" : "", retro ? "℞ vakri" : ""].filter(Boolean).join(" · ")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
     </div>

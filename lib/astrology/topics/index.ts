@@ -30,8 +30,8 @@ import {
   type TopicContext,
 } from "./contextual";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "../model/westernLocation";
-import type { VedicD1Technical } from "../model/vedic";
-import { parseVedicTopicKey, topicsFromVedicD1, VEDIC_CONTEXT_LABELS, VEDIC_KINDS, VEDIC_SPECS, type VedicContext } from "./vedic";
+import type { VedicD1Technical, VedicVargaTechnical } from "../model/vedic";
+import { parseVedicTopicKey, topicsFromVedicD1, topicsFromVedicVarga, VEDIC_CONTEXT_LABELS, VEDIC_KINDS, VEDIC_SPECS, type VedicContext } from "./vedic";
 
 /** Konu bağlamı: Batı bağlamları + Vedik bağlamlar (gelenek ayrımı anahtar türünde ve KB sütununda). */
 export type AnyContext = TopicContext | VedicContext;
@@ -83,10 +83,14 @@ function vedicKindLabel(kind: string): string {
     lagna_rashi: "Lagna rashisi",
     lagna_nakshatra: "Lagna nakshatrası",
     yoga: "yoga",
-    d9_graha_in_rashi: "D9 graha rashide",
-    d9_lagna_rashi: "D9 Lagna",
-    d9_vargottama: "D9 vargottama",
+    navamsa_graha_in_rashi: "D9 graha rashide",
+    navamsa_lagna_rashi: "D9 Lagna",
+    navamsa_vargottama: "D9 vargottama",
+    navamsa_graha_in_bhava: "D9 graha bhavada",
     varga_graha_in_rashi: "Dn graha rashide",
+    varga_graha_in_bhava: "Dn graha bhavada",
+    varga_lagna_rashi: "Dn Lagna",
+    varga_vargottama: "Dn vargottama",
     dasha_mahadasha: "mahadasha",
     dasha_antardasha: "antardasha",
   };
@@ -149,6 +153,8 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromLocalSpace(technical as LocalSpaceTechnical) : [];
     case "vedic.d1":
       return technical ? topicsFromVedicD1(technical as VedicD1Technical) : [];
+    case "vedic.varga":
+      return technical ? topicsFromVedicVarga(technical as VedicVargaTechnical) : [];
     default:
       return [];
   }
@@ -160,6 +166,7 @@ export type { TopicContext } from "./contextual";
 /** Teknik → konu bağlamı (not bölümü + KB eşleşmesi natal ile KARIŞMAZ). */
 export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext> = {
   "vedic.d1": "vedic_d1",
+  "vedic.varga": "vedic_varga",
   "western.natal": "natal",
   "western.transit": "transit",
   "western.forecast": "transit",

@@ -99,6 +99,10 @@ function checkRow(store: FakeStore, table: string, row: Row): FakeErr {
     if (ck !== "" && !UUID_RE.test(ck)) return { code: "23514", message: "new row violates check constraint astro_en_context_chk" };
     if (!SECTION_RE.test(String(row.section_key))) return { code: "23514", message: "new row violates check constraint astro_en_section_chk" };
   }
+  // Aşama 5: KB konu anahtarı CHECK'i (astro_kb_topic_chk) — tür adında rakam YOK (ör. "d9_…" reddedilir).
+  if (table === "astro_kb_entries" && !(SECTION_RE.test(String(row.topic_key)) && row.topic_key !== "overall")) {
+    return { code: "23514", message: "new row violates check constraint astro_kb_topic_chk" };
+  }
   if (table === "astro_provider_results") {
     const a = row.partner_profile_id ?? null;
     const b = row.partner_profile_revision ?? null;

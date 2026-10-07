@@ -33,8 +33,8 @@ import {
 import NatalWheel, { type WheelChart } from "./NatalWheel";
 import NatalTechnicalPanel from "./NatalTechnicalPanel";
 import { AstrocartographyPanel, LocalSpacePanel, RelocationPanel, type Place } from "./LocationPanels";
-import { VedicD1Panel, type KbLookup } from "./VedicPanels";
-import type { VedicD1Technical } from "@/lib/astrology/model/vedic";
+import { VedicD1Panel, VedicVargaPanel, type KbLookup } from "./VedicPanels";
+import type { VedicD1Technical, VedicVargaTechnical } from "@/lib/astrology/model/vedic";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "@/lib/astrology/model/westernLocation";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
@@ -689,6 +689,8 @@ export function TechniqueTechnical({
         return <RelocationPanel t={technical as RelocationTechnical} targetLabel={placeLabel("target") ?? "hedef"} birthLabel={birthplace?.label ?? null} />;
       case "vedic.d1":
         return <VedicD1Panel t={technical as VedicD1Technical} kbLookup={kbLookup} />;
+      case "vedic.varga":
+        return <VedicVargaPanel t={technical as VedicVargaTechnical} kbLookup={kbLookup} />;
       case "western.local_space":
         return <LocalSpacePanel t={technical as LocalSpaceTechnical} referenceLabel={placeLabel("reference") ?? "doğum yeri"} />;
       default:

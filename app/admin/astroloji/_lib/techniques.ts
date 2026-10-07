@@ -18,6 +18,7 @@ export const UI_TECHNIQUES = [
   "western.relocation",
   "western.local_space",
   "vedic.d1",
+  "vedic.varga",
 ] as const;
 export type UiTechniqueId = (typeof UI_TECHNIQUES)[number];
 
@@ -35,7 +36,26 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "western.relocation": { label: "Relocation", hint: "Aynı doğum anı, yeni konum: ASC/MC/evler", needsPartner: false, needsTime: true },
   "western.local_space": { label: "Local Space", hint: "Doğum anında ufuk yönleri (pusula + harita)", needsPartner: false, needsTime: true },
   "vedic.d1": { label: "Vedik D1 (Rashi)", hint: "Sidereal kundli: Lagna, graha, nakshatra/pada, yogalar", needsPartner: false, needsTime: true },
+  "vedic.varga": { label: "Vedik Varga (D9 Navamsa / Dn)", hint: "Bölümsel harita: D9 varsayılan; D2…D60 seçilebilir; vargottama", needsPartner: false, needsTime: true },
 };
+
+export const VEDIC_VARGA_OPTIONS: [number, string][] = [
+  [9, "D9 Navamsa (varsayılan)"],
+  [2, "D2 Hora"],
+  [3, "D3 Drekkana"],
+  [4, "D4 Chaturthamsa"],
+  [7, "D7 Saptamsa"],
+  [10, "D10 Dasamsa"],
+  [12, "D12 Dwadasamsa"],
+  [16, "D16 Shodasamsa"],
+  [20, "D20 Vimsamsa"],
+  [24, "D24 Chaturvimsamsa"],
+  [27, "D27 Bhamsa"],
+  [30, "D30 Trimsamsa"],
+  [40, "D40 Khavedamsa"],
+  [45, "D45 Akshavedamsa"],
+  [60, "D60 Shashtiamsa"],
+];
 
 export const VEDIC_AYANAMSA_OPTIONS: [string, string][] = [
   ["lahiri", "Lahiri (Chitrapaksha) — varsayılan"],
@@ -64,6 +84,8 @@ export type TechniqueParams = {
   lunarReturnLocation: { id: string; label: string } | null;
   /** Aşama 5: Vedik ayanamsa (tüm Vedik seçimler için ortak). */
   vedicAyanamsa: string;
+  /** Aşama 5D: varga bölümü (D9 varsayılan). */
+  vargaDivision: number;
   /** Local space referansı; null = doğum yeri. */
   localSpaceReference: { id: string; label: string } | null;
 };
@@ -90,6 +112,7 @@ export function defaultParams(today: Date): TechniqueParams {
     solarReturnLocation: null,
     lunarReturnLocation: null,
     vedicAyanamsa: "lahiri",
+    vargaDivision: 9,
   };
 }
 
@@ -141,6 +164,9 @@ export function buildSelections(
       case "vedic.d1":
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa } });
         break;
+      case "vedic.varga":
+        out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa, division: p.vargaDivision } });
+        break;
     }
   }
   return out;
@@ -181,6 +207,8 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
       const t = o.target as { label?: string } | undefined;
       return t?.label ? `→ ${t.label}` : typeof o.targetLocationId === "string" ? `→ ${o.targetLocationId}` : "";
     }
+    case "vedic.varga":
+      return `D${Number(o.division ?? 9)} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
     case "vedic.d1":
       return `ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
     case "western.local_space": {

@@ -17,7 +17,14 @@ import {
   VEDIC_D1_INTERP_SCHEMA,
   VEDIC_D1_TECHNICAL_SCHEMA,
   VEDIC_GRAHAS,
+  VEDIC_VARGA_INTERP_SCHEMA,
+  VEDIC_VARGA_TECHNICAL_SCHEMA,
   type NakshatraPlacement,
+  type VedicVargaDivision,
+  type VedicVargaGraha,
+  type VedicVargaInterpretation,
+  type VedicVargaPoint,
+  type VedicVargaTechnical,
   type VedicAyanamsaId,
   type VedicD1Interpretation,
   type VedicD1Technical,
@@ -227,5 +234,129 @@ export function projectRoxyVedicD1(raw: unknown, opts: { ayanamsa: VedicAyanamsa
     raw,
     D1_KNOWN,
     D1_OPAQUE,
+  );
+}
+
+// ═══ Varga (/vedic-astrology/divisional-chart) — D9 Navamsa + D2…D60 ══════════
+// Ek tutarlılık denetimleri (bağımsız hesap motoru DEĞİL; sağlayıcı verisinin kendi içinde ve D1 kuralıyla
+// çelişmemesi):
+//   • division.number = istenen bölüm; frame (kök + chart.frame) = istenen ayanamsa
+//   • D1 boylamı ↔ nakshatra/pada (D1 ile aynı kural), ev ↔ varga Lagna'sından bütün-burç sayımı
+//   • 12 rashi kutusu (Lagna dahil) ↔ meta
+//   • vargottama listesi ↔ (D1 rashisi = varga rashisi)
+//   • YALNIZ D9: navamsa rashisi = (nakshatra sırası × 4 + pada − 1) mod 12 (Koç'tan) — klasik pada↔navamsa eşliği
+export const ROXY_VEDIC_VARGA = { endpoint: "/vedic-astrology/divisional-chart", adapter: "astro-roxy-vedic-varga-1", projection: "vedic-varga-proj-1" } as const;
+
+const VARGA_GRAHA_KEYS = ["graha", "rashi", "longitude", "latitude", "nakshatra", "isRetrograde", "house"];
+const VARGA_BOX_KEYS = ["graha", "nakshatra", "longitude", "isRetrograde", "house"];
+const VARGA_KNOWN = new Set<string>([
+  ...paths("frame", ["ayanamsa", "ayanamsaDegrees"]),
+  ...paths("division", ["number", "name", "sanskritName", "degreesPerDivision", "significance"]),
+  "chart",
+  ...paths("chart.frame", ["ayanamsa", "ayanamsaDegrees"]),
+  "chart.meta",
+  ...META_NAMES.flatMap((g) => [...paths(`chart.meta.${g}`, VARGA_GRAHA_KEYS), ...paths(`chart.meta.${g}.nakshatra`, NAK_KEYS)]),
+  ...SIGN_IDS.flatMap((s) => [...paths(`chart.${s}`, ["rashi", "signs"]), `chart.${s}.signs[]`, ...paths(`chart.${s}.signs[]`, VARGA_BOX_KEYS).slice(1), ...paths(`chart.${s}.signs[].nakshatra`, NAK_KEYS)]),
+  "vargottama",
+  "vargottama[]",
+]);
+
+/** Klasik pada → navamsa rashisi (Koç'tan; 108 pada = 12 burç × 9). Yalnız D9 tutarlılık denetimi. */
+export function navamsaRashiOfPada(nakIndex: number, pada: number): SignId {
+  return SIGN_IDS[(nakIndex * 4 + pada - 1) % 12];
+}
+
+function projectVargaPoint(o: Record<string, unknown> | null, ctx: string, division: number, errors: string[], dropped: string[]): VedicVargaPoint | null {
+  const longitude = num(o?.longitude, 0, 360);
+  const rashi = mapRashi(o?.rashi);
+  const house = int(o?.house, 1, 12);
+  if (longitude === null || !rashi || house === null) {
+    errors.push(`${ctx}: boylam/rashi/ev`);
+    return null;
+  }
+  const nakshatra = projectNakshatra(obj(o?.nakshatra), longitude, ctx, errors, dropped);
+  if (!nakshatra) return null;
+  if (division === 9 && navamsaRashiOfPada(nakshatra.index, nakshatra.pada) !== rashi) errors.push(`${ctx}: navamsa rashisi pada ile uyuşmuyor`);
+  return { longitude, d1Rashi: SIGN_IDS[Math.min(11, Math.floor(longitude / 30))], rashi, house, nakshatra };
+}
+
+export function projectRoxyVedicVarga(raw: unknown, opts: { ayanamsa: VedicAyanamsaId; division: VedicVargaDivision }): AdapterResult<VedicVargaTechnical, VedicVargaInterpretation> {
+  const errors: string[] = [];
+  const dropped: string[] = [];
+  const r = obj(raw);
+  if (!r) return { ok: false, errors: ["root"] };
+  const frame = obj(r.frame);
+  const ayDeg = num(frame?.ayanamsaDegrees, 0, 40);
+  if (frame?.ayanamsa !== opts.ayanamsa || ayDeg === null) errors.push("frame: istenen ayanamsa değil");
+  const chart = obj(r.chart);
+  const cf = obj(chart?.frame);
+  if (cf && (cf.ayanamsa !== frame?.ayanamsa || cf.ayanamsaDegrees !== frame?.ayanamsaDegrees)) errors.push("chart.frame kök frame ile uyuşmuyor");
+  const div = obj(r.division);
+  if (int(div?.number, 1, 300) !== opts.division) errors.push("division: istenen bölüm değil");
+  const meta = obj(chart?.meta);
+  const lagnaP = projectVargaPoint(obj(meta?.Lagna), "chart.meta.Lagna", opts.division, errors, dropped);
+  if (lagnaP && lagnaP.house !== 1) errors.push("chart.meta.Lagna.house 1 değil");
+  const grahas: VedicVargaGraha[] = [];
+  for (const name of META_NAMES.slice(0, 9)) {
+    const o = obj(meta?.[name]);
+    const id = mapGraha(name)!;
+    const p = projectVargaPoint(o, `chart.meta.${name}`, opts.division, errors, dropped);
+    if (!p || typeof o?.isRetrograde !== "boolean") {
+      errors.push(`chart.meta.${name}: alan`);
+      continue;
+    }
+    if (lagnaP) {
+      const exp = ((SIGN_IDS.indexOf(p.rashi) - SIGN_IDS.indexOf(lagnaP.rashi) + 12) % 12) + 1;
+      if (exp !== p.house) errors.push(`chart.meta.${name}.house bütün-burç sayımıyla uyuşmuyor`);
+    }
+    grahas.push({ ...p, id, retrograde: o.isRetrograde, vargottama: p.d1Rashi === p.rashi });
+  }
+  if (grahas.length !== 9) errors.push("chart.meta: 9 graha yok");
+  for (const s of SIGN_IDS) {
+    const box = obj(chart?.[s]);
+    if (!box || box.rashi !== s) {
+      errors.push(`chart.${s}: rashi kutusu`);
+      continue;
+    }
+    for (const it of arr(box.signs) ?? []) {
+      const g = obj(it);
+      const name = typeof g?.graha === "string" ? g.graha : "";
+      if (name === "Lagna") {
+        if (lagnaP && lagnaP.rashi !== s) errors.push(`chart.${s}: Lagna kutusu meta ile uyuşmuyor`);
+        continue;
+      }
+      const id = mapGraha(name);
+      const m = grahas.find((x) => x.id === id);
+      if (!id || !m) dropped.push(`chart.${s}.signs[].graha`);
+      else if (m.rashi !== s) errors.push(`chart.${s}: ${name} kutusu meta ile uyuşmuyor`);
+    }
+  }
+  // Vargottama: sağlayıcı listesi, (D1 rashisi = varga rashisi) kuralıyla birebir olmalı.
+  const vList: VedicGrahaId[] = [];
+  for (const v of arr(r.vargottama) ?? []) {
+    const id = mapGraha(v);
+    if (!id) dropped.push("vargottama[]");
+    else vList.push(id);
+  }
+  const vExp = grahas.filter((g) => g.vargottama).map((g) => g.id);
+  if ([...vList].sort().join() !== [...vExp].sort().join()) errors.push("vargottama listesi D1/varga rashileriyle uyuşmuyor");
+  const name = text(div?.name)?.slice(0, 60) ?? `D${opts.division}`;
+  return done(
+    errors,
+    dropped,
+    () => ({
+      schema: VEDIC_VARGA_TECHNICAL_SCHEMA,
+      zodiac: "sidereal",
+      frame: { ayanamsa: opts.ayanamsa, ayanamsaDegrees: ayDeg! },
+      houseSystem: "whole_sign",
+      division: { number: opts.division, name, sanskritName: text(div?.sanskritName)?.slice(0, 60) ?? name, degreesPerDivision: (typeof div?.degreesPerDivision === "string" ? div.degreesPerDivision : "").slice(0, 20) },
+      lagna: { longitude: lagnaP!.longitude, d1Rashi: lagnaP!.d1Rashi, rashi: lagnaP!.rashi, house: 1, nakshatra: lagnaP!.nakshatra, vargottama: lagnaP!.d1Rashi === lagnaP!.rashi },
+      grahas,
+      vargottama: vExp,
+    }),
+    () => ({ schema: VEDIC_VARGA_INTERP_SCHEMA, significance: text(div?.significance) }),
+    raw,
+    VARGA_KNOWN,
+    new Set(),
   );
 }
