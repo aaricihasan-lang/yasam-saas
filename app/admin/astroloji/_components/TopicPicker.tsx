@@ -5,6 +5,8 @@
  * Sinastri, Composite), sonra tür + kanonik kimlikler. Serbest metin anahtar GİRİLEMEZ; anahtar
  * lib/astrology/topics ile üretilir (sunucu da aynı modülle doğrular). Bağlamlar birbirine karışmaz:
  * "Satürn 7. ev" (natal) ile "Solar return: Satürn 7. ev" ayrı anahtarlardır.
+ * Aşama 5: Vedik/Jyotish bağlamları (D1, Varga, Dasha) ayrı grupta; anahtarları Batı'dan ayrıdır
+ * (graha_in_rashi ≠ planet_in_sign) ve KB kaydı "vedic" geleneğiyle saklanır.
  */
 
 import { useState } from "react";
@@ -23,11 +25,26 @@ import {
 } from "@/lib/astrology/topics/western";
 import { ANGLE4_IDS, ANGLE4_LABEL, COMPASS_LABEL, CONTEXT_SPECS, contextTopicKey, parseContextTopicKey, type ArgType } from "@/lib/astrology/topics/contextual";
 import { ALL_TOPIC_KINDS, TOPIC_CONTEXT_LABELS, TOPIC_CONTEXTS, type TopicContext } from "@/lib/astrology/topics/index";
+import {
+  VEDIC_CONTEXTS,
+  VEDIC_CONTEXT_LABELS,
+  VEDIC_SPECS,
+  parseVedicTopicKey,
+  vedicArgOptions,
+  vedicDefaultParts,
+  vedicTopicKey,
+  type VedicContext,
+} from "@/lib/astrology/topics/vedic";
 
 const sel = "rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm";
 const ANGLE_LABEL: Record<string, string> = { ascendant: "Yükselen", midheaven: "MC" };
 
-type State = { context: "natal"; natal: ParsedTopic } | { context: Exclude<TopicContext, "natal">; kind: string; parts: string[] };
+type State =
+  | { context: "natal"; natal: ParsedTopic }
+  | { context: Exclude<TopicContext, "natal">; kind: string; parts: string[] }
+  | { context: VedicContext; kind: string; parts: string[] };
+
+const isVedic = (c: string): c is VedicContext => (VEDIC_CONTEXTS as readonly string[]).includes(c);
 
 function defaultParts(kind: string): string[] {
   return CONTEXT_SPECS[kind].args.map((a, i): string => {
@@ -59,11 +76,14 @@ function initial(key: string | null): State {
   if (n) return { context: "natal", natal: n };
   const c = key ? parseContextTopicKey(key) : null;
   if (c && c.context !== "natal") return { context: c.context, kind: c.kind, parts: c.parts };
+  const v = key ? parseVedicTopicKey(key) : null;
+  if (v) return { context: v.context, kind: v.kind, parts: v.parts };
   return { context: "natal", natal: { kind: "planet_in_house", body: "saturn", house: 7 } };
 }
 
 function keyOf(s: State): string {
-  return s.context === "natal" ? topicKey(s.natal) : contextTopicKey(s.kind, s.parts);
+  if (s.context === "natal") return topicKey(s.natal);
+  return isVedic(s.context) ? vedicTopicKey(s.kind, s.parts) : contextTopicKey(s.kind, s.parts);
 }
 
 function ArgSelect({ type, value, onChange }: { type: ArgType; value: string; onChange: (v: string) => void }) {
@@ -110,8 +130,11 @@ export default function TopicPicker({ value, onChange }: { value: string | null;
     onChange(keyOf(next));
   };
 
-  const changeContext = (c: TopicContext) => {
-    if (c === "natal") update({ context: "natal", natal: { kind: "planet_in_house", body: "saturn", house: 7 } });
+  const changeContext = (c: TopicContext | VedicContext) => {
+    if (isVedic(c)) {
+      const kind = Object.keys(VEDIC_SPECS).find((k) => VEDIC_SPECS[k].context === c)!;
+      update({ context: c, kind, parts: vedicDefaultParts(kind) });
+    } else if (c === "natal") update({ context: "natal", natal: { kind: "planet_in_house", body: "saturn", house: 7 } });
     else {
       const kind = ALL_TOPIC_KINDS.find((k) => k.context === c)!.kind;
       update({ context: c, kind, parts: defaultParts(kind) });
@@ -214,20 +237,57 @@ export default function TopicPicker({ value, onChange }: { value: string | null;
   };
 
   const key = keyOf(s);
-  const label = s.context === "natal" ? topicLabel(s.natal) : (parseContextTopicKey(key)?.label ?? null);
+  const label =
+    s.context === "natal" ? topicLabel(s.natal) : isVedic(s.context) ? (parseVedicTopicKey(key)?.label ?? null) : (parseContextTopicKey(key)?.label ?? null);
+  const plain = (opts: [string, string][], value: string, on: (v: string) => void, aria?: string) => (
+    <select className={sel} value={value} aria-label={aria} onChange={(e) => on(e.target.value)}>
+      {opts.map(([v, l]) => (
+        <option key={v} value={v}>
+          {l}
+        </option>
+      ))}
+    </select>
+  );
 
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center gap-2">
-        <select className={sel} value={s.context} onChange={(e) => changeContext(e.target.value as TopicContext)} aria-label="Konu bağlamı">
-          {TOPIC_CONTEXTS.map((c) => (
-            <option key={c} value={c}>
-              {TOPIC_CONTEXT_LABELS[c]}
-            </option>
-          ))}
+        <select className={sel} value={s.context} onChange={(e) => changeContext(e.target.value as TopicContext | VedicContext)} aria-label="Konu bağlamı">
+          <optgroup label="Batı (tropikal)">
+            {TOPIC_CONTEXTS.map((c) => (
+              <option key={c} value={c}>
+                {TOPIC_CONTEXT_LABELS[c]}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Vedik / Jyotish (sidereal)">
+            {VEDIC_CONTEXTS.map((c) => (
+              <option key={c} value={c}>
+                {VEDIC_CONTEXT_LABELS[c]}
+              </option>
+            ))}
+          </optgroup>
         </select>
         {s.context === "natal" ? (
           natalEditor(s.natal)
+        ) : isVedic(s.context) ? (
+          <>
+            {plain(
+              ALL_TOPIC_KINDS.filter((k) => k.context === s.context).map((k): [string, string] => [k.kind, k.label]),
+              s.kind,
+              (kind) => update({ context: s.context, kind, parts: vedicDefaultParts(kind) } as State),
+              "Konu türü",
+            )}
+            {VEDIC_SPECS[s.kind].args.map((a, i) => (
+              <span key={`${s.kind}-${i}`}>
+                {plain(vedicArgOptions(a), s.parts[i], (v) => {
+                  const parts = [...s.parts];
+                  parts[i] = v;
+                  update({ ...s, parts });
+                })}
+              </span>
+            ))}
+          </>
         ) : (
           <>
             <select

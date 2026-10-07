@@ -33,6 +33,8 @@ import {
 import NatalWheel, { type WheelChart } from "./NatalWheel";
 import NatalTechnicalPanel from "./NatalTechnicalPanel";
 import { AstrocartographyPanel, LocalSpacePanel, RelocationPanel, type Place } from "./LocationPanels";
+import { VedicD1Panel, type KbLookup } from "./VedicPanels";
+import type { VedicD1Technical } from "@/lib/astrology/model/vedic";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "@/lib/astrology/model/westernLocation";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
@@ -640,6 +642,7 @@ export function TechniqueTechnical({
   names,
   options = {},
   birthplace = null,
+  kbLookup = null,
 }: {
   technique: string;
   technical: unknown;
@@ -649,6 +652,8 @@ export function TechniqueTechnical({
   /** Normalize seçenekler (Aşama 4: hedef/referans yer etiketi). */
   options?: Record<string, unknown>;
   birthplace?: Place | null;
+  /** Aşama 5: Vedik ayrıntı panelinde Bilgi Bankam eşleşmesi (çalışma alanından; ek istek yok). */
+  kbLookup?: KbLookup | null;
 }) {
   const placeLabel = (k: "target" | "reference") => (options[k] as { label?: string } | undefined)?.label ?? null;
   const body = (() => {
@@ -682,6 +687,8 @@ export function TechniqueTechnical({
         return <AstrocartographyPanel t={technical as AstrocartographyTechnical} birthplace={birthplace} />;
       case "western.relocation":
         return <RelocationPanel t={technical as RelocationTechnical} targetLabel={placeLabel("target") ?? "hedef"} birthLabel={birthplace?.label ?? null} />;
+      case "vedic.d1":
+        return <VedicD1Panel t={technical as VedicD1Technical} kbLookup={kbLookup} />;
       case "western.local_space":
         return <LocalSpacePanel t={technical as LocalSpaceTechnical} referenceLabel={placeLabel("reference") ?? "doğum yeri"} />;
       default:

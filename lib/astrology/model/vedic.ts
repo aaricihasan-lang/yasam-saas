@@ -1,0 +1,126 @@
+// Astroloji — Aşama 5 VEDİK / JYOTISH kanonik modelleri (SAF; istemci de import edebilir).
+//
+// Hesap motoru Roxy'dir; bu dosya yalnız Yaşam Sistemi'nin sağlayıcı-bağımsız veri biçimidir.
+// Teknik katmana sağlayıcı serbest metni (yorum, açıklama, tema, sonuç) GİRMEZ; yorumlar ayrı "interp"
+// tiplerindedir ve yalnız yetkiyle servis edilir. Kimlikler küçük harf kanonik.
+// Batı (tropikal) modellerinden AYRI: aynı danışanın Batı natal ve Vedik D1 sonuçları farklı tekniklerdir.
+
+import type { SignId } from "./western";
+
+/** Navagraha (dokuz graha) — klasik Jyotish. Modern gezegenler (Uranüs/Neptün/Plüton) bu sürümde yok. */
+export const VEDIC_GRAHAS = ["sun", "moon", "mars", "mercury", "jupiter", "venus", "saturn", "rahu", "ketu"] as const;
+export type VedicGrahaId = (typeof VEDIC_GRAHAS)[number];
+
+/** 27 nakshatra (kanonik sıra = Roxy `nakshatra.key` 0…26). */
+export const NAKSHATRAS = [
+  "ashwini",
+  "bharani",
+  "krittika",
+  "rohini",
+  "mrigashira",
+  "ardra",
+  "punarvasu",
+  "pushya",
+  "ashlesha",
+  "magha",
+  "purva_phalguni",
+  "uttara_phalguni",
+  "hasta",
+  "chitra",
+  "swati",
+  "vishakha",
+  "anuradha",
+  "jyeshtha",
+  "mula",
+  "purva_ashadha",
+  "uttara_ashadha",
+  "shravana",
+  "dhanishta",
+  "shatabhisha",
+  "purva_bhadrapada",
+  "uttara_bhadrapada",
+  "revati",
+] as const;
+export type NakshatraId = (typeof NAKSHATRAS)[number];
+
+/** Klasik nakshatra yöneticileri (Vimshottari sırası) — sağlayıcı lord'u bununla tutarlılık için denetlenir. */
+export const NAKSHATRA_LORDS: readonly VedicGrahaId[] = ["ketu", "venus", "sun", "moon", "mars", "rahu", "jupiter", "saturn", "mercury"];
+
+export const BALADI = ["bala", "kumara", "yuva", "vriddha", "mrita"] as const;
+export const JAGRADADI = ["jagrat", "swapna", "sushupti"] as const;
+export const DEEPTADI = ["dipta", "svastha", "pramudita", "shanta", "dina", "duhkhita", "vikala", "khala", "kopa"] as const;
+export type Baladi = (typeof BALADI)[number];
+export type Jagradadi = (typeof JAGRADADI)[number];
+export type Deeptadi = (typeof DEEPTADI)[number];
+
+export const VEDIC_AYANAMSA_IDS = ["lahiri", "raman", "kp-newcomb", "kp-old"] as const;
+export type VedicAyanamsaId = (typeof VEDIC_AYANAMSA_IDS)[number];
+
+export type NakshatraPlacement = {
+  /** 0…26 */
+  index: number;
+  id: NakshatraId;
+  pada: 1 | 2 | 3 | 4;
+  lord: VedicGrahaId;
+  /** Nakshatra içinde katedilen oran (0…1). */
+  ratio: number;
+  /** Nakshatra sonuna kalan derece. */
+  remaining: number;
+  abhijit: boolean;
+};
+
+export type VedicPoint = {
+  /** Sidereal ekliptik boylam (0…360), seçilen ayanamsa ile. */
+  longitude: number;
+  rashi: SignId;
+  degreeInRashi: number;
+  nakshatra: NakshatraPlacement;
+};
+
+export type VedicGraha = VedicPoint & {
+  id: VedicGrahaId;
+  latitude: number | null;
+  /** Lagna'dan bütün-burç (rashi) evi 1…12. */
+  house: number;
+  retrograde: boolean;
+  avastha: { baladi: Baladi | null; jagradadi: Jagradadi | null; deeptadi: Deeptadi | null };
+};
+
+export type VedicFrame = { ayanamsa: VedicAyanamsaId; ayanamsaDegrees: number };
+
+// ─── D1 Rashi ────────────────────────────────────────────────────────────────
+export const VEDIC_D1_TECHNICAL_SCHEMA = "astro.vedic.d1.v1" as const;
+export type VedicYogaCheck = {
+  id: string;
+  name: string;
+  family: string;
+  quality: "positive" | "negative" | "both" | null;
+  present: boolean;
+  /** Sağlayıcının hesapladığı oluşum kanıtı (teknik; tahmin/hüküm değil). */
+  evidence: string | null;
+};
+export type VedicD1Technical = {
+  schema: typeof VEDIC_D1_TECHNICAL_SCHEMA;
+  zodiac: "sidereal";
+  frame: VedicFrame;
+  /** Ev sistemi: Lagna rashisi = 1. ev (bütün-burç / rashi chakra). */
+  houseSystem: "whole_sign";
+  lagna: VedicPoint & { house: 1 };
+  grahas: VedicGraha[];
+  combustion: { id: VedicGrahaId; distanceFromSun: number; orb: number }[];
+  planetaryWar: { a: VedicGrahaId; b: VedicGrahaId; winner: VedicGrahaId | null }[];
+  yogas: VedicYogaCheck[];
+};
+export const VEDIC_D1_INTERP_SCHEMA = "astro.vedic.d1.interp.v1" as const;
+export type VedicD1Interpretation = {
+  schema: typeof VEDIC_D1_INTERP_SCHEMA;
+  grahas: { id: VedicGrahaId | "lagna"; rashi: string | null; nakshatra: string | null }[];
+  houses: { number: number; description: string | null; themes: string[] }[];
+  yogas: { id: string; description: string | null; result: string | null }[];
+};
+
+/** Lagna rashisinden bütün-burç ev rashisi (Jyotish rashi chakra kuralı; sağlayıcı verisinden türetme). */
+export function houseRashi(lagna: SignId, house: number, signs: readonly SignId[]): SignId {
+  const i = signs.indexOf(lagna);
+  return signs[(i + house - 1) % 12];
+}

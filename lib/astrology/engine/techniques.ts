@@ -79,6 +79,9 @@ import {
 import type { NatalTechnical } from "../model/western";
 import { astrocartographyBody, LOCATION_EXTRA_BODIES, localSpaceBody, relocationBody, type GeoPoint } from "../providers/roxy/requests";
 import { projectRoxyAstrocartography, projectRoxyLocalSpace, projectRoxyRelocation, ROXY_ACG, ROXY_LOCAL_SPACE, ROXY_RELOCATION } from "../providers/roxy/location";
+import { projectRoxyVedicD1, ROXY_VEDIC_D1 } from "../providers/roxy/vedic";
+import { vedicBirthBody, VEDIC_AYANAMSAS, type VedicAyanamsa } from "../providers/roxy/requests";
+import { VEDIC_D1_INTERP_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA } from "../model/vedic";
 import { calcInputHash } from "./inputHash";
 
 export type TechniqueProjection =
@@ -107,6 +110,7 @@ export const TECHNIQUE_IDS = [
   "western.astrocartography",
   "western.relocation",
   "western.local_space",
+  "vedic.d1",
 ] as const;
 export type TechniqueId = (typeof TECHNIQUE_IDS)[number];
 
@@ -529,6 +533,31 @@ const westernLocalSpace: TechniqueDefinition = {
     ),
 };
 
+// ─── Aşama 5: Vedik / Jyotish (hesap motoru Roxy; doğum saati ZORUNLU) ──────────
+// Roxy belgesi: saat Lagna, ev, pada ve varga için kritik; Dasha tarihleri Ay boylamından → saat bilinmezse
+// güvenilir kısım kalmaz → TIME_REQUIRED. Ayanamsa gövdenin (önbellek anahtarının) parçasıdır.
+
+/** Ayanamsa seçeneği: yoksa "lahiri" (Roxy belgelenmiş varsayılanı); bilinmeyen değer → ret. */
+export function ayanamsaOf(v: unknown): VedicAyanamsa | null {
+  if (v === undefined || v === null || v === "") return "lahiri";
+  return typeof v === "string" && (VEDIC_AYANAMSAS as readonly string[]).includes(v) ? (v as VedicAyanamsa) : null;
+}
+
+const vedicD1: TechniqueDefinition = {
+  id: "vedic.d1",
+  label: "Vedik D1 (Rashi)",
+  family: "vedic",
+  requiresPartner: false,
+  requiresKnownTime: true,
+  timeDependent: false,
+  parseOptions: (raw) => {
+    const ay = ayanamsaOf(o(raw).ayanamsa);
+    return ay ? { ayanamsa: ay } : null;
+  },
+  units: (ctx, opt) => [unit("vedic.d1", ROXY_VEDIC_D1, vedicBirthBody(ctx.birth, opt.ayanamsa as VedicAyanamsa))],
+  project: (_u, raw, opt) => fromAdapter(projectRoxyVedicD1(raw, { ayanamsa: opt.ayanamsa as VedicAyanamsa }), VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_D1_INTERP_SCHEMA, ROXY_VEDIC_D1.projection),
+};
+
 export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Object.freeze({
   "western.natal": westernNatal,
   "western.transit": westernTransit,
@@ -542,6 +571,7 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "western.astrocartography": westernAstrocartography,
   "western.relocation": westernRelocation,
   "western.local_space": westernLocalSpace,
+  "vedic.d1": vedicD1,
 });
 
 export function getTechnique(id: unknown): TechniqueDefinition | null {

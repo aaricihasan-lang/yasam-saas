@@ -22,7 +22,7 @@ import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import type { TechniqueView } from "@/lib/astrology/view/techniqueView";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroFetch, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
-import { buildSelections, defaultParams, describeOptions, techniqueLabel, TECHNIQUE_META, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
+import { buildSelections, defaultParams, describeOptions, houseSystemLabel, techniqueLabel, TECHNIQUE_META, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
 import ProviderInterpretationPanel, { type InterpretationLayer } from "./_components/ProviderInterpretationPanel";
 import ProfileForm, { type ProfileFormInitial } from "./_components/ProfileForm";
 import AnalysisWorkspace from "./_components/AnalysisWorkspace";
@@ -136,6 +136,8 @@ export default function AstrologyWorkspacePage() {
   const [openAnalysis, setOpenAnalysis] = useState<{ profileId: string; id: string } | null>(null);
   const [analysesReload, setAnalysesReload] = useState(0);
   const [workRefresh, setWorkRefresh] = useState(0);
+  // Aşama 5: etkin sonucun çalışma alanı KB eşleşmeleri (Vedik ayrıntı paneli için; ek istek yok).
+  const [kbState, setKbState] = useState<{ key: string; entries: { topicKey: string; topicLabel: string; title: string; body: string }[] } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -553,7 +555,9 @@ export default function AstrologyWorkspacePage() {
                       </h3>
                       <span className="text-xs text-slate-500">
                         {describeOptions(activeItem.technique, activeItem.view.options, labelOf)}
-                        {activeItem.view.method.houseSystem ? ` · ${HOUSE_SYSTEM_LABELS[activeItem.view.method.houseSystem as HouseSystem]}` : ""}
+                        {activeItem.view.method.houseSystem
+                          ? ` · ${houseSystemLabel(activeItem.view.method.houseSystem, HOUSE_SYSTEM_LABELS)}`
+                          : ""}
                         {activeItem.view.method.nodeType ? ` · ${NODE_TYPE_LABELS[activeItem.view.method.nodeType as NodeType]}` : ""} · sağlayıcı: {activeItem.view.provider} (
                         {activeItem.view.providerApiVersion})
                       </span>
@@ -566,6 +570,11 @@ export default function AstrologyWorkspacePage() {
                       names={[shownDetail.label, partnerLabelOf(activeItem.view)]}
                       options={activeItem.view.options}
                       birthplace={birthplace}
+                      kbLookup={
+                        kbState && kbState.key === `${shownDetail.id}|${revision}|${activeItem.technique}|${JSON.stringify(activeItem.view.options)}`
+                          ? (keys) => kbState.entries.filter((e) => keys.includes(e.topicKey))
+                          : null
+                      }
                     />
                   </section>
                   <ProviderInterpretationPanel interpretation={activeItem.view.interpretation} />
@@ -581,6 +590,12 @@ export default function AstrologyWorkspacePage() {
                       setAnalysesReload((n) => n + 1);
                       setOpenAnalysis({ profileId: shownDetail.id, id });
                     }}
+                    onData={(d) =>
+                      setKbState({
+                        key: `${shownDetail.id}|${revision}|${activeItem.technique}|${JSON.stringify(activeItem.view.options)}`,
+                        entries: d.kbMatches.map((e) => ({ topicKey: e.topicKey, topicLabel: e.topicLabel, title: e.title, body: e.body })),
+                      })
+                    }
                   />
                 </div>
               )}

@@ -17,6 +17,7 @@ export const UI_TECHNIQUES = [
   "western.astrocartography",
   "western.relocation",
   "western.local_space",
+  "vedic.d1",
 ] as const;
 export type UiTechniqueId = (typeof UI_TECHNIQUES)[number];
 
@@ -33,7 +34,15 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "western.astrocartography": { label: "Astrocartography", hint: "Gezegen MC/IC/AC/DC hatları — dünya haritası", needsPartner: false, needsTime: true },
   "western.relocation": { label: "Relocation", hint: "Aynı doğum anı, yeni konum: ASC/MC/evler", needsPartner: false, needsTime: true },
   "western.local_space": { label: "Local Space", hint: "Doğum anında ufuk yönleri (pusula + harita)", needsPartner: false, needsTime: true },
+  "vedic.d1": { label: "Vedik D1 (Rashi)", hint: "Sidereal kundli: Lagna, graha, nakshatra/pada, yogalar", needsPartner: false, needsTime: true },
 };
+
+export const VEDIC_AYANAMSA_OPTIONS: [string, string][] = [
+  ["lahiri", "Lahiri (Chitrapaksha) — varsayılan"],
+  ["raman", "B.V. Raman"],
+  ["kp-newcomb", "KP Newcomb"],
+  ["kp-old", "KP (eski)"],
+];
 
 export type TechniqueParams = {
   transitMode: "now" | "custom";
@@ -53,6 +62,8 @@ export type TechniqueParams = {
   /** Aşama 4.1: Solar/Lunar return dönüş konumu; null = doğum yeri. */
   solarReturnLocation: { id: string; label: string } | null;
   lunarReturnLocation: { id: string; label: string } | null;
+  /** Aşama 5: Vedik ayanamsa (tüm Vedik seçimler için ortak). */
+  vedicAyanamsa: string;
   /** Local space referansı; null = doğum yeri. */
   localSpaceReference: { id: string; label: string } | null;
 };
@@ -78,6 +89,7 @@ export function defaultParams(today: Date): TechniqueParams {
     localSpaceReference: null,
     solarReturnLocation: null,
     lunarReturnLocation: null,
+    vedicAyanamsa: "lahiri",
   };
 }
 
@@ -126,6 +138,9 @@ export function buildSelections(
       case "western.local_space":
         out.push({ technique: id, options: { referenceLocationId: p.localSpaceReference?.id ?? null } });
         break;
+      case "vedic.d1":
+        out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa } });
+        break;
     }
   }
   return out;
@@ -166,6 +181,8 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
       const t = o.target as { label?: string } | undefined;
       return t?.label ? `→ ${t.label}` : typeof o.targetLocationId === "string" ? `→ ${o.targetLocationId}` : "";
     }
+    case "vedic.d1":
+      return `ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
     case "western.local_space": {
       const r = o.reference as { label?: string } | undefined;
       return `merkez: ${r?.label ?? (o.referenceLocationId ? String(o.referenceLocationId) : "doğum yeri")}`;
@@ -192,4 +209,16 @@ export type LunarReturnInfo = { sequence: number; approxUtc: string };
 /** "2027-06-28T13:58" → "28.06.2027 13:58 UTC" */
 export function fmtUtcMinute(iso: string): string {
   return `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)} ${iso.slice(11, 16)} UTC`;
+}
+
+/** Aşama 5: ev/bhava sistemi etiketi — Vedik "whole_sign" Batı etiket tablosunda yok. */
+export function houseSystemLabel(h: string | null | undefined, westernLabels: Record<string, string>): string {
+  if (!h) return "ev sistemi yok";
+  if (h === "whole_sign") return "Bütün-burç (rashi chakra)";
+  return westernLabels[h] ?? h;
+}
+
+/** Zodyak çerçevesi: Vedik teknikler sidereal (nirayana), diğerleri tropikal. */
+export function zodiacLabel(technique: string): string {
+  return technique.startsWith("vedic.") ? "Sidereal (nirayana)" : "Tropikal";
 }

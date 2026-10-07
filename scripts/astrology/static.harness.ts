@@ -163,6 +163,8 @@ async function main() {
       /^lib\/backup\/schema\.generated\.ts$/,
       /^scripts\/final-hardening\/backup\.harness\.ts$/,
       /^package\.json$/,
+      // Aşama 5: @roxyapi/ui (MIT) tam sürüm bağımlılığı — kilit dosyası değişir.
+      /^package-lock\.json$/,
       /^docs\/astrology\//,
       /^ASTROLOGY-PHASE5-PROGRESS\.md$/,
     ];

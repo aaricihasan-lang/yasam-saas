@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroFetch } from "../_lib/api";
-import { describeOptions, techniqueLabel } from "../_lib/techniques";
+import { describeOptions, houseSystemLabel, techniqueLabel, zodiacLabel } from "../_lib/techniques";
 import { TechniqueTechnical } from "./TimingPanels";
 import ProviderInterpretationPanel, { type InterpretationLayer } from "./ProviderInterpretationPanel";
 
@@ -125,7 +125,7 @@ export function SavedAnalysisView({ id, previewNoInterp, onClose }: { id: string
             <p className="text-sm text-slate-600">{partner ? <>1. kişi: {person(a.profile)}</> : person(a.profile)}</p>
             {partner && <p className="text-sm text-slate-600">2. kişi: {person(partner)}</p>}
             <p className="text-xs text-slate-500">
-              Tropikal · {a.method.houseSystem ? HOUSE_SYSTEM_LABELS[a.method.houseSystem] : "ev sistemi yok"} · {a.method.nodeType ? NODE_TYPE_LABELS[a.method.nodeType] : "—"} · sağlayıcı {String(a.versions.provider)} ({String(a.versions.providerApiVersion)}) ·
+              {zodiacLabel(a.technique)} · {houseSystemLabel(a.method.houseSystem, HOUSE_SYSTEM_LABELS)} · {a.method.nodeType ? NODE_TYPE_LABELS[a.method.nodeType] : "—"} · sağlayıcı {String(a.versions.provider)} ({String(a.versions.providerApiVersion)}) ·
               adaptör {String(a.versions.adapterVersion)} · projeksiyon {String(a.versions.projectionVersion)}
             </p>
           </div>

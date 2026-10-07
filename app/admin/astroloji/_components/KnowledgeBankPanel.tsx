@@ -8,7 +8,8 @@
  */
 
 import { useEffect, useState } from "react";
-import { ALL_TOPIC_KINDS, TOPIC_CONTEXT_LABELS, TOPIC_CONTEXTS } from "@/lib/astrology/topics/index";
+import { ALL_TOPIC_KINDS, TOPIC_CONTEXT_LABELS, TOPIC_CONTEXTS, traditionOfKey } from "@/lib/astrology/topics/index";
+import { VEDIC_CONTEXTS, VEDIC_CONTEXT_LABELS } from "@/lib/astrology/topics/vedic";
 import { astroFetch } from "../_lib/api";
 import TopicPicker from "./TopicPicker";
 
@@ -44,7 +45,7 @@ export function KbEditor({ editing, onDone, onCancel }: { editing: Editing; onDo
     setBusy(true);
     setError(null);
     const payload = {
-      tradition: "western",
+      tradition: traditionOfKey(topicKey) ?? "western",
       topicKey,
       title,
       body,
@@ -198,6 +199,15 @@ export default function KnowledgeBankPanel() {
           <option value="">Tüm konu türleri</option>
           {TOPIC_CONTEXTS.map((c) => (
             <optgroup key={c} label={TOPIC_CONTEXT_LABELS[c]}>
+              {ALL_TOPIC_KINDS.filter((k) => k.context === c).map((k) => (
+                <option key={k.kind} value={k.kind}>
+                  {k.label}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+          {VEDIC_CONTEXTS.map((c) => (
+            <optgroup key={c} label={`Vedik · ${VEDIC_CONTEXT_LABELS[c]}`}>
               {ALL_TOPIC_KINDS.filter((k) => k.context === c).map((k) => (
                 <option key={k.kind} value={k.kind}>
                   {k.label}

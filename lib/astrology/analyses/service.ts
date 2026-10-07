@@ -26,7 +26,7 @@ import { getTechnique, type TechniqueId } from "../engine/techniques";
 import { ASTRO_NOT_READY, buildSelectionView, loadProfileRevision, planSelections, type EngineCtx, type ServiceResponse } from "../engine/service";
 import { findTenantClient, getProfile, getResultById, isSchemaMissing, isUuid, logAstroDbError, type ResultRow, type RevisionRow } from "../persistence/repo";
 import { matchKbEntries, publicKbEntry } from "../kb/service";
-import { isSectionKeyForTechnique, topicLabelAny, topicsForTechnique } from "../topics/index";
+import { isSectionKeyForTechnique, topicLabelAny, topicsForTechnique, traditionOfTechnique } from "../topics/index";
 import { publicRevision } from "../view/natalView";
 import type { TechniqueView } from "../view/techniqueView";
 
@@ -49,7 +49,7 @@ function obj(raw: unknown): Record<string, unknown> | null {
   return raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
 }
 
-const techniqueLabel = (t: string) => `Batı · ${getTechnique(t)?.label ?? t}`;
+const techniqueLabel = (t: string) => `${t.startsWith("vedic.") ? "Vedik" : "Batı"} · ${getTechnique(t)?.label ?? t}`;
 
 // ─── Ortak: seçim + revizyon bağlamı ─────────────────────────────────────────
 
@@ -173,7 +173,7 @@ export async function getWorkspace(ctx: EngineCtx, q: Record<string, unknown>): 
   const l = await loadContext(ctx, q, true); // yorum içeriği burada GEREKMEZ → okunmaz
   if (!l.ok) return l.r;
   const topics = topicsForTechnique(l.v.technique, l.v.view.technical);
-  const kb = await matchKbEntries(ctx, "western", topics.map((t) => t.key));
+  const kb = await matchKbEntries(ctx, traditionOfTechnique(l.v.technique), topics.map((t) => t.key));
   if (kb.error) return dbFail("ws.kb", kb.error);
   const contextKey = contextKeyOf(l.v.technique, l.v.options, l.v.partnerRevision);
   const notes = await loadNotes(ctx, l.v.revision.profile_id, l.v.technique, contextKey);
@@ -323,7 +323,7 @@ async function buildSnapshot(ctx: EngineCtx, raw: unknown, ownerPreviewHideInter
   }
 
   const topics = topicsForTechnique(technique, view.technical);
-  const kb = await matchKbEntries(ctx, "western", topics.map((t) => t.key));
+  const kb = await matchKbEntries(ctx, traditionOfTechnique(technique), topics.map((t) => t.key));
   if (kb.error) return { ok: false, r: dbFail("snap.kb", kb.error) };
   const notes = await loadNotes(ctx, revision.profile_id, technique, contextKeyOf(technique, l.v.options, partnerRevision));
   if (notes.error) return { ok: false, r: dbFail("snap.notes", notes.error) };

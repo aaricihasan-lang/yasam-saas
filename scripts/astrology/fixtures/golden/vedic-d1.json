@@ -1,0 +1,1122 @@
+{
+  "endpoint": "/vedic-astrology/birth-chart",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "lahiri"
+  },
+  "response": {
+    "frame": {
+      "ayanamsa": "lahiri",
+      "ayanamsaDegrees": 23.728750561750232
+    },
+    "aries": {
+      "rashi": "aries",
+      "signs": [
+        {
+          "graha": "Mars",
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 0,
+            "ratio": 0.6149550697254492,
+            "abhijit": false,
+            "left": 5.133932403660678,
+            "name": "Ashwini",
+            "pada": 3,
+            "lord": "Ketu"
+          },
+          "longitude": 8.199400929672656,
+          "isRetrograde": false,
+          "house": 7,
+          "awastha": "Kumara",
+          "jagradadi": "Jagrat",
+          "deeptadi": "Svastha"
+        }
+      ]
+    },
+    "taurus": {
+      "rashi": "taurus",
+      "signs": []
+    },
+    "gemini": {
+      "rashi": "gemini",
+      "signs": [
+        {
+          "graha": "Sun",
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 6,
+            "ratio": 0.6748147972593884,
+            "abhijit": false,
+            "left": 4.335802703208154,
+            "name": "Punarvasu",
+            "pada": 3,
+            "lord": "Jupiter"
+          },
+          "longitude": 88.99753063012518,
+          "isRetrograde": false,
+          "house": 9,
+          "awastha": "Mrita",
+          "jagradadi": "Swapna",
+          "deeptadi": "Shanta"
+        },
+        {
+          "graha": "Jupiter",
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 6,
+            "ratio": 0.6611788273094977,
+            "abhijit": false,
+            "left": 4.517615635873364,
+            "name": "Punarvasu",
+            "pada": 3,
+            "lord": "Jupiter"
+          },
+          "longitude": 88.81571769745997,
+          "isRetrograde": false,
+          "house": 9,
+          "awastha": "Mrita",
+          "jagradadi": "Sushupti",
+          "deeptadi": "Kopa"
+        },
+        {
+          "graha": "Venus",
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 4,
+            "ratio": 0.549315219188797,
+            "abhijit": false,
+            "left": 6.00913041081604,
+            "name": "Mrigashira",
+            "pada": 3,
+            "lord": "Mars"
+          },
+          "longitude": 60.65753625585063,
+          "isRetrograde": false,
+          "house": 9,
+          "awastha": "Bala",
+          "jagradadi": "Swapna",
+          "deeptadi": "Vikala"
+        }
+      ]
+    },
+    "cancer": {
+      "rashi": "cancer",
+      "signs": [
+        {
+          "graha": "Mercury",
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 7,
+            "ratio": 0.7253903134421936,
+            "abhijit": false,
+            "left": 3.6614624874374186,
+            "name": "Pushya",
+            "pada": 3,
+            "lord": "Saturn"
+          },
+          "longitude": 103.00520417922925,
+          "isRetrograde": false,
+          "house": 10,
+          "awastha": "Yuva",
+          "jagradadi": "Sushupti",
+          "deeptadi": "Khala"
+        },
+        {
+          "graha": "Ketu",
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 7,
+            "ratio": 0.8286445926149153,
+            "abhijit": false,
+            "left": 2.2847387651344633,
+            "name": "Pushya",
+            "pada": 4,
+            "lord": "Saturn"
+          },
+          "longitude": 104.38192790153221,
+          "isRetrograde": true,
+          "house": 10,
+          "awastha": "Yuva"
+        }
+      ]
+    },
+    "leo": {
+      "rashi": "leo",
+      "signs": []
+    },
+    "virgo": {
+      "rashi": "virgo",
+      "signs": []
+    },
+    "libra": {
+      "rashi": "libra",
+      "signs": []
+    },
+    "scorpio": {
+      "rashi": "scorpio",
+      "signs": []
+    },
+    "sagittarius": {
+      "rashi": "sagittarius",
+      "signs": [
+        {
+          "graha": "Saturn",
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 20,
+            "ratio": 0.11772935349054645,
+            "abhijit": false,
+            "left": 11.763608620126048,
+            "name": "Uttara Ashadha",
+            "pada": 1,
+            "lord": "Sun"
+          },
+          "longitude": 268.23639137987396,
+          "isRetrograde": true,
+          "house": 3,
+          "awastha": "Mrita",
+          "jagradadi": "Swapna",
+          "deeptadi": "Duhkhita"
+        }
+      ]
+    },
+    "capricorn": {
+      "rashi": "capricorn",
+      "signs": [
+        {
+          "graha": "Rahu",
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 21,
+            "ratio": 0.3286445926149147,
+            "abhijit": false,
+            "left": 8.951405431801138,
+            "name": "Shravana",
+            "pada": 2,
+            "lord": "Moon"
+          },
+          "longitude": 284.3819279015322,
+          "isRetrograde": true,
+          "house": 4,
+          "awastha": "Yuva"
+        }
+      ]
+    },
+    "aquarius": {
+      "rashi": "aquarius",
+      "signs": []
+    },
+    "pisces": {
+      "rashi": "pisces",
+      "signs": [
+        {
+          "graha": "Moon",
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 26,
+            "ratio": 0.942688270462047,
+            "abhijit": false,
+            "left": 0.7641563938393734,
+            "name": "Revati",
+            "pada": 4,
+            "lord": "Mercury"
+          },
+          "longitude": 359.23584360616064,
+          "isRetrograde": false,
+          "house": 6,
+          "awastha": "Bala",
+          "jagradadi": "Swapna",
+          "deeptadi": "Shanta"
+        }
+      ]
+    },
+    "meta": {
+      "Sun": {
+        "graha": "Sun",
+        "rashi": "Gemini",
+        "longitude": 88.99753063012518,
+        "latitude": 0.00017401955191091416,
+        "nakshatra": {
+          "anga": "nakshatra",
+          "key": 6,
+          "ratio": 0.6748147972593884,
+          "abhijit": false,
+          "left": 4.335802703208154,
+          "name": "Punarvasu",
+          "pada": 3,
+          "lord": "Jupiter"
+        },
+        "isRetrograde": false,
+        "house": 9,
+        "awastha": "Mrita",
+        "jagradadi": "Swapna",
+        "deeptadi": "Shanta"
+      },
+      "Moon": {
+        "graha": "Moon",
+        "rashi": "Pisces",
+        "longitude": 359.23584360616064,
+        "latitude": 5.101610986602505,
+        "nakshatra": {
+          "anga": "nakshatra",
+          "key": 26,
+          "ratio": 0.942688270462047,
+          "abhijit": false,
+          "left": 0.7641563938393734,
+          "name": "Revati",
+          "pada": 4,
+          "lord": "Mercury"
+        },
+        "isRetrograde": false,
+        "house": 6,
+        "awastha": "Bala",
+        "jagradadi": "Swapna",
+        "deeptadi": "Shanta"
+      },
+      "Mars": {
+        "graha": "Mars",
+        "rashi": "Aries",
+        "longitude": 8.199400929672656,
+        "latitude": -2.0652798983843237,
+        "nakshatra": {
+          "anga": "nakshatra",
+          "key": 0,
+          "ratio": 0.6149550697254492,
+          "abhijit": false,
+          "left": 5.133932403660678,
+          "name": "Ashwini",
+          "pada": 3,
+          "lord": "Ketu"
+        },
+        "isRetrograde": false,
+        "house": 7,
+        "awastha": "Kumara",
+        "jagradadi": "Jagrat",
+        "deeptadi": "Svastha"
+      },
+      "Mercury": {
+        "graha": "Mercury",
+        "rashi": "Cancer",
+        "longitude": 103.00520417922925,
+        "latitude": 1.7822104187711438,
+        "nakshatra": {
+          "anga": "nakshatra",
+          "key": 7,
+          "ratio": 0.7253903134421936,
+          "abhijit": false,
+          "left": 3.6614624874374186,
+          "name": "Pushya",
+          "pada": 3,
+          "lord": "Saturn"
+        },
+        "isRetrograde": false,
+        "house": 10,
+        "awastha": "Yuva",
+        "jagradadi": "Sushupti",
+        "deeptadi": "Khala"
+      },
+      "Jupiter": {
+        "graha": "Jupiter",
+        "rashi": "Gemini",
+        "longitude": 88.81571769745997,
+        "latitude": 0.22974634749064088,
+        "nakshatra": {
+          "anga": "nakshatra",
+          "key": 6,
+          "ratio": 0.6611788273094977,
+          "abhijit": false,
+          "left": 4.517615635873364,
+          "name": "Punarvasu",
+          "pada": 3,
+          "lord": "Jupiter"
+        },
+        "isRetrograde": false,
+        "house": 9,
+        "awastha": "Mrita",
+        "jagradadi": "Sushupti",
+        "deeptadi": "Kopa"
+      },
+      "Venus": {
+        "graha": "Venus",
+        "rashi": "Gemini",
+        "longitude": 60.65753625585063,
+        "latitude": -0.9606378530403038,
+        "nakshatra": {
+          "anga": "nakshatra",
+          "key": 4,
+          "ratio": 0.549315219188797,
+          "abhijit": false,
+          "left": 6.00913041081604,
+          "name": "Mrigashira",
+          "pada": 3,
+          "lord": "Mars"
+        },
+        "isRetrograde": false,
+        "house": 9,
+        "awastha": "Bala",
+        "jagradadi": "Swapna",
+        "deeptadi": "Vikala"
+      },
+      "Saturn": {
+        "graha": "Saturn",
+        "rashi": "Sagittarius",
+        "longitude": 268.23639137987396,
+        "latitude": 0.0743353023096857,
+        "nakshatra": {
+          "anga": "nakshatra",
+          "key": 20,
+          "ratio": 0.11772935349054645,
+          "abhijit": false,
+          "left": 11.763608620126048,
+          "name": "Uttara Ashadha",
+          "pada": 1,
+          "lord": "Sun"
+        },
+        "isRetrograde": true,
+        "house": 3,
+        "awastha": "Mrita",
+        "jagradadi": "Swapna",
+        "deeptadi": "Duhkhita"
+      },
+      "Rahu": {
+        "graha": "Rahu",
+        "rashi": "Capricorn",
+        "longitude": 284.3819279015322,
+        "latitude": 0,
+        "nakshatra": {
+          "anga": "nakshatra",
+          "key": 21,
+          "ratio": 0.3286445926149147,
+          "abhijit": false,
+          "left": 8.951405431801138,
+          "name": "Shravana",
+          "pada": 2,
+          "lord": "Moon"
+        },
+        "isRetrograde": true,
+        "house": 4,
+        "awastha": "Yuva"
+      },
+      "Ketu": {
+        "graha": "Ketu",
+        "rashi": "Cancer",
+        "longitude": 104.38192790153221,
+        "latitude": 0,
+        "nakshatra": {
+          "anga": "nakshatra",
+          "key": 7,
+          "ratio": 0.8286445926149153,
+          "abhijit": false,
+          "left": 2.2847387651344633,
+          "name": "Pushya",
+          "pada": 4,
+          "lord": "Saturn"
+        },
+        "isRetrograde": true,
+        "house": 10,
+        "awastha": "Yuva"
+      },
+      "Lagna": {
+        "graha": "Lagna",
+        "rashi": "Libra",
+        "longitude": 191.32062864183416,
+        "nakshatra": {
+          "anga": "nakshatra",
+          "key": 14,
+          "ratio": 0.3490471481375615,
+          "abhijit": false,
+          "left": 8.679371358165847,
+          "name": "Swati",
+          "pada": 2,
+          "lord": "Rahu"
+        },
+        "isRetrograde": false,
+        "house": 1,
+        "awastha": "Kumara"
+      }
+    },
+    "houses": [
+      {
+        "number": 1,
+        "name": "Lagna",
+        "description": "Lagna veya yükselen burç, Vedik astrolojide bir haritanın potansiyelinin en önemli göstergesidir. Birinci ev olan Lagna, benliği, bedeni ve kişiliği temsil eder. Hem birinci evin içinde yer alan burcu hem de o burcu yöneten gezegeni inceleyerek bir kişi hakkında önemli ipuçları buluruz. Lagna Lord olarak adlandırılan birinci evi yöneten gezegen büyük önem taşır. Güçlü bir Lagna Lord haritadaki potansiyeli yerine getirmek için esastır. Güçlü bir Lagna ve Lagna Lord haritada mevcut olan potansiyel zorluklarla başa çıkmamıza da yardımcı olabilir.",
+        "themes": [
+          "benlik",
+          "beden",
+          "sağlık",
+          "kişilik",
+          "canlılık"
+        ]
+      },
+      {
+        "number": 2,
+        "name": "Dhana Bhava",
+        "description": "Dhana zenginlik demektir ve ikinci ev edinim ve maliyeyi temsil eder. Bu ev miras ve metal, mücevher edinimini ortaya koyabilir. İkinci ev ayrıca değerlerimizi gösterir; hem maddi hem de manevi. Dhana Bhava ayrıca aile ilişkilerini ve geniş ailemizi gösterir. İkinci ev geçmiş yaşam bağlantılarını, özellikle aile içindekileri ortaya çıkarır. İkinci ev ayrıca yüzü yönetir; çene, ağız, dişler ve dil dahil. Ağıza ne girdiğini yönetir, bu da yediğimiz yiyeceğin kalitesini kontrol ettiğini gösterir. İkinci ev ayrıca ağızdan çıkanı yönetir, bu da konuşmamızı ve doğru söyleyip söylemediğimizi gösterir. Görme ve görüş de Dhana Bhava kapsamındadır.",
+        "themes": [
+          "zenginlik",
+          "aile",
+          "konuşma",
+          "mal varlığı",
+          "yiyecek"
+        ]
+      },
+      {
+        "number": 3,
+        "name": "Bhatru Bhava",
+        "description": "Üçüncü ev bireysel kendini ifade ve bir şeyler başarmak için harcadığımız çabayı gösterir. Bu ev yazma, müzik, oyunculuk ve resim yeteneklerini ortaya çıkarabilir; her türlü yaratıcı ifade. Üçüncü ev ayrıca cesaret, hobiler ve tutkularımızı ortaya çıkarır. Bu bir iletişim evidir ve ayrıca kısa yolculukları yönetir. Araştırma, ders verme ve satış üçüncü evin alanına girer. Üçüncü ev ayrıca erkek ve kız kardeşlerimizi ve onlarla ilişkimizi temsil eder. Yakın çevremizi, arkadaşlarımızı, meslektaşlarımızı ve komşularımızı yönetir.",
+        "themes": [
+          "kardeşler",
+          "cesaret",
+          "iletişim",
+          "kısa yolculuklar",
+          "beceriler"
+        ]
+      },
+      {
+        "number": 4,
+        "name": "Matri Bhava",
+        "description": "Dördüncü ev evimizi temsil eder ve zihinsel durumumuzu ve iç duygularımızı ortaya çıkarabilir. Matri anne anlamına gelir ve bu ev anneyle ilişkimizi ifade eder. Beslenme ve destek görme hissimiz de burada görülür. Ay veya Venüs gibi hayırlı gezegenler dördüncü evde yer aldığında memnuniyet ve mutluluk gösterebilir. Dördüncü ev eğitimi yönetir. Bu ev ayrıca araçlar, evler ve gayrimenkul gibi sabit varlıklarımızı gösterir. Bu bir moksha evidir ve kendini gerçekleştirme ve manevi aydınlanmaya ilgi bu ev aracılığıyla ifade edilebilir.",
+        "themes": [
+          "ev",
+          "anne",
+          "mülk",
+          "araçlar",
+          "ev huzuru"
+        ]
+      },
+      {
+        "number": 5,
+        "name": "Putra Bhava",
+        "description": "Beşinci ev bir yaratıcılık evidir ve eğitimi, eğlenceyi ve sanatsal yeteneği ortaya koyar. Fiziksel olarak bu evin yaratıcı enerjisi çocuklarımız olarak tezahür edebilir. Putra Sanskritçede oğul anlamına gelir, ancak burada bir bütün olarak çocukları işaret eder. Beşinci evin yaratıcı enerjisi yeni fikirlere hayat verir ve ortaya çıkan çocuklar yaratıcı çalışmalar olarak da tezahür edebilir. Yaratıcı zihin sezgiseldir ve bazen geleceği algılayabilir. Beşinci ev purva punya evidir, bu da geçmiş iyi eylemler anlamına gelir. Bu uğurlu bir evdir ve önceki iyi karma nedeniyle şans ve talih getirebilir. Beşinci ev bir dharma evidir. Bu ev mantra, meditasyon ve manevi metinleri okuma dahil olmak üzere daha yüksek farkındalık elde etmek için manevi araç ve teknikleri yönetir.",
+        "themes": [
+          "çocuklar",
+          "aşk",
+          "yaratıcılık",
+          "eğitim",
+          "spekülasyon"
+        ]
+      },
+      {
+        "number": 6,
+        "name": "Ari Bhava",
+        "description": "Altıncı ev karmik zorluklar evidir. Bu ev yolumuza çıkan ve gerçek hedeflerimize doğru ilerlememizi engelleyen engelleri ve mücadeleleri gösterir. Bu engeller hastalık, kaza, düşman, rakip veya borç şeklinde gelebilir. Altıncı evin olumlu tezahürleri başkalarına verdiğimiz hizmet aracılığıyla ifade edilebilir. Sağlık ve iyileştirme de altıncı eve aittir. Kötücül gezegenler altıncı evde yer aldığında geri savaşma ve sorunların üstesinden gelme yeteneği sağlarlar.",
+        "themes": [
+          "düşmanlar",
+          "hastalık",
+          "borçlar",
+          "hizmet",
+          "rekabet"
+        ]
+      },
+      {
+        "number": 7,
+        "name": "Jaya Bhava",
+        "description": "Jaya zafer anlamına gelir, ayrıca eş anlamına da gelir. Benliği temsil eden birinci evin karşısında yedinci ev başkalarını temsil eder. Bu ortaklık evidir. Tutku, arzu ve bağlılık evidir. Evlilik yaşamını ve ayrıca boşanmayı yönetir. Yedinci ev ilişkileri ve anlaşmaları yönetir. Bu nedenle bu aynı zamanda bir iş ve iş ortakları evidir. Yedinci evde görülen bir kariyer evlilik danışmanlığı veya halkla ilişkileri içerebilir. Ötekini temsil ettiği için yabancıları ve yurt dışı seyahati de yönetir.",
+        "themes": [
+          "evlilik",
+          "eş",
+          "iş ortaklığı",
+          "sözleşmeler",
+          "halkla ilişkiler"
+        ]
+      },
+      {
+        "number": 8,
+        "name": "Ayu Bhava",
+        "description": "Sekizinci ev dönüşüm ve değişim evidir. Ayu yaşam süresi demektir ve bu ev uzun ömürlülüğümüzü ortaya çıkarabilir. Gizli meseleleri ve bilinmeyeni yönetir. Sekizinci ev gizlidir ve özeldir. Dönüşüm evi olarak boşanma, skandal, bağımlılık, üzüntü ve uzun süreli hastalık gibi zorluklar olarak tezahür edebilir. Sezgi bu evde güçlüdür. Sekizinci ev soruşturma ve araştırmayı yönetir. Metafizik, gizemli ve okült sekizinci eve aittir. Ayrıca nafaka, sigorta yararları ve miras gibi kaynaklardan elde edilen geliri de yönetir.",
+        "themes": [
+          "uzun ömür",
+          "miras",
+          "ani olaylar",
+          "okült",
+          "dönüşüm"
+        ]
+      },
+      {
+        "number": 9,
+        "name": "Dharma Bhava",
+        "description": "Dokuzuncu ev lütuf ve iyi talih evidir. En uğurlu ev olarak kabul edilir ve bir kişiye ani refah getirebilir. İyi ahlak evidir ve faydalı bir dokuzuncu ev olumlu karmayı ortaya çıkarır. Yüksek bilgiyi ve dharmayı (doğru eylem) yönetir. Babayı temsil eder. Dokuzuncu ev bilgi ve bilgeliğimizi genişletebilir; bir öğretmen aracılığıyla, kitaplar, yüksek öğretim ve seyahat yoluyla. Genellikle felsefeye bir istek ve yüksek bilgi için fırsatlar getirir. Dokuzuncu ev ayrıca hukuku temsil eder. İyi yerleştirilmiş bir dokuzuncu ev doğru yönlendirilmiş ve iyi tavsiye alan bir kişiyi gösterir.",
+        "themes": [
+          "talih",
+          "baba",
+          "dharma",
+          "yüksek öğrenim",
+          "uzun yolculuklar"
+        ]
+      },
+      {
+        "number": 10,
+        "name": "Karma Bhava",
+        "description": "Onuncu ev, yaşam yönümüzü yerine getirmek için bu hayatta aldığımız eylemi temsil eder. Gezegenler burada çok enerjik olur. Güneş onuncu evde çok güçlüdür ve doğal otoritesini ve liderliğini ifade eder. Satürn onuncu evde sorumluluk alabilir ve bir organizasyon veya yapı içinde iyi çalışır. Bazıları onuncu evi baba olarak görür. Onuncu ev ayrıca devlet işi, yönetim ve iş dünyasını temsil edebilir. Bu yaşamın zirvesine ulaştığımız evdir, hayat hırsının doruk noktasıdır. Uğurlu bir onuncu ev güçlü bir kariyer, başarı, onur ve tanınma verecektir.",
+        "themes": [
+          "kariyer",
+          "meslek",
+          "statü",
+          "otorite",
+          "karma"
+        ]
+      },
+      {
+        "number": 11,
+        "name": "Labha Bhava",
+        "description": "On birinci ev kazanç ve tatmin evidir. Labha kar demektir. Bu ev sadece parasal kar değil manevi kar da gösterir. Tüm gezegenler on birinci evde iyi yapar ve doğalarına göre kazanç sağlayacaklardır. Bu ev para kazanma çabamızın sonucunu gösterir. Başarılarımızın meyvesi ve dileklerimizin gerçekleşmesidir. Sosyal aktiviteyi, kişisel zevkleri, büyük kardeşlerimizi, arkadaşları ve müttefikleri temsil eder. Bu ev ayrıca ağ oluşturma, topluluk, sangha, organizasyonlar ve dernekleri içerir.",
+        "themes": [
+          "kazançlar",
+          "gelir",
+          "arkadaşlar",
+          "büyük kardeşler",
+          "dileklerin gerçekleşmesi"
+        ]
+      },
+      {
+        "number": 12,
+        "name": "Vyaya Bhava",
+        "description": "Vyaya harcama demektir ve bu ev giderlerimizi temsil eder. On ikinci ev ayrıca bir bitiş evidir ve kayıp ve üzüntü hissi getirebilir. Ancak bu ev manevi olarak da güçlüdür ve burada özgürlük ve aydınlanma buluruz. On ikinci evde evrensel ve ebedi bir bilinç ile birleşmek için ego duygumuzdan vazgeçeriz. On ikinci evde enerji içeri doğru hareket eder ve inziva, meditasyon ve derin düşünce ihtiyacı olabilir. Bu ev, toplumdan bir ölçüde ayrı olan, kendi içinde birer dünya olan yerleri temsil eder. Bunlar inziva yerleri, manastırlar ve insanların kendilerini iyileştirdiği hastaneler veya hapishaneler gibi yerler olabilir. Bu ev aracılığıyla hapsolma, yalıtılma ve yalnızlık duygusu da yaşayabiliriz. On ikinci ev bize uzak yerlere seyahat etme dürtüsünü verebilir. Genellikle bilinmeyeni ve yabancıyı keşfetme arzusu vardır. Bu ev hissettiğimiz ama her zaman anlamadığımız ince enerjileri yönetir. Vyaya Bhava durugörüşü, iyileştirmeyi, uykuyu ve rüyaları yönetir. On ikinci evde sezgi ve hayal gücü güçlüdür ve genellikle yazarlar, düşünürler, oyuncular ve durugörüşçüler bu evde gezegenlere sahiptir. On ikinci ev ayrıca kurumlar, organizasyonlar, hayır işleri ve iyileştirme ile ilgili kariyerler oluşturabilir. On ikinci evde gezegenleri olan insanlar empatik olabilir ve genellikle başkalarına büyük ölçüde şefkat ve cömertlik ifade ederler.",
+        "themes": [
+          "kayıplar",
+          "giderler",
+          "yabancı ülkeler",
+          "izolasyon",
+          "moksha"
+        ]
+      }
+    ],
+    "combustion": [
+      {
+        "planet": "Jupiter",
+        "distanceFromSun": 0.18,
+        "orb": 11
+      }
+    ],
+    "planetaryWar": [],
+    "interpretations": {
+      "Sun": {
+        "rashi": "Sun, Gemini (Mithun) Rashisinde İkizler enerjisiyle kendini ifade eder. Şefkatli, arkadaşlığa değer verir, anlaşmalar yapar, grup çalışmasına yatkın, liberal, kapsayıcı dünya görüşü, zeki",
+        "nakshatra": "Sun, Punarvasu Nakshatrasında gezegen enerjisini Aditi (tanrıların annesi) tanrı etkisiyle birleştirir. Bu bireyler uyumlu, umut dolu ve aksiliklerden sonra kendilerini yenileme yetenekleriyle tanınır. Zorlu durumlara iyimserlik ve dayanıklılık getirirler."
+      },
+      "Moon": {
+        "rashi": "Moon, Pisces (Meen) Rashisinde Balık enerjisiyle kendini ifade eder. Sakin, zeki, yaratıcı, hayalperest, risk alan, aldatıcı",
+        "nakshatra": "Moon, Revati Nakshatrasında gezegen enerjisini Pushan tanrı etkisiyle birleştirir. Revati bireyleri besleyici, manevi ve cömerttir. Genellikle başkalarına rehberlik eder ve çevrelerindekileri korurlar."
+      },
+      "Mars": {
+        "rashi": "Mars, Aries (Mesha) Rashisinde Koç enerjisiyle kendini ifade eder. Yaratıcı, idealist yapıda, inatçı, iyi lider, şefkatli, bilgili",
+        "nakshatra": "Mars, Ashwini Nakshatrasında gezegen enerjisini Ashwini Kumaralar (göksel şifacılar) tanrı etkisiyle birleştirir. Ashwini doğumlular enerjik, öncü ve doğal problem çözücülerdir. Genellikle liderlik ederler ve hem mecazi hem de gerçek anlamda iyileştirme yeteneğine sahiptirler. Ashwini doğumlular yeni başlangıçlar için güçlü bir dürtüleri olan öncüler olarak görülürler."
+      },
+      "Mercury": {
+        "rashi": "Mercury, Cancer (Karka) Rashisinde Yengeç enerjisiyle kendini ifade eder. Çalışkan, hedef odaklı, otoriter, değerlerini savunmak için mücadele edebilir",
+        "nakshatra": "Mercury, Pushya Nakshatrasında gezegen enerjisini Brihaspati (Jüpiter) tanrı etkisiyle birleştirir. Pushya doğumlular disiplinli, besleyici ve genellikle koruyucu olarak hareket ederler. Yeni projelere başlamak için en uğurlu gruplardan biri olarak kabul edilirler."
+      },
+      "Jupiter": {
+        "rashi": "Jupiter, Gemini (Mithun) Rashisinde İkizler enerjisiyle kendini ifade eder. Şefkatli, arkadaşlığa değer verir, anlaşmalar yapar, grup çalışmasına yatkın, liberal, kapsayıcı dünya görüşü, zeki",
+        "nakshatra": "Jupiter, Punarvasu Nakshatrasında gezegen enerjisini Aditi (tanrıların annesi) tanrı etkisiyle birleştirir. Bu bireyler uyumlu, umut dolu ve aksiliklerden sonra kendilerini yenileme yetenekleriyle tanınır. Zorlu durumlara iyimserlik ve dayanıklılık getirirler."
+      },
+      "Venus": {
+        "rashi": "Venus, Gemini (Mithun) Rashisinde İkizler enerjisiyle kendini ifade eder. Şefkatli, arkadaşlığa değer verir, anlaşmalar yapar, grup çalışmasına yatkın, liberal, kapsayıcı dünya görüşü, zeki",
+        "nakshatra": "Venus, Mrigashira Nakshatrasında gezegen enerjisini Soma (Ay tanrısı) tanrı etkisiyle birleştirir. Bu doğumlular meraklı, hazırcevap ve keşif susuzluğuna sahiptir. Öğrenmeyi ve yeni deneyimlere uyum sağlamayı seven doğal arayıcılardır."
+      },
+      "Saturn": {
+        "rashi": "Saturn, Sagittarius (Dhanu) Rashisinde Yay ve Ok enerjisiyle kendini ifade eder. Din ve manevi konulara saygı duyar, zeki, seçilen alanda uzmanlaşmış, liberal tutum, adil",
+        "nakshatra": "Saturn, Uttara Ashadha Nakshatrasında gezegen enerjisini Vishvadevalar (evrensel tanrılar) tanrı etkisiyle birleştirir. Uttara Ashadha bireyleri pratik, güvenilir ve kararlıdır. Uzun vadeli hedeflerine sabır yoluyla ulaşma yetenekleriyle tanınırlar."
+      },
+      "Rahu": {
+        "rashi": "Rahu, Capricorn (Makar) Rashisinde Deniz Canavarı enerjisiyle kendini ifade eder. Hedeflerinde gayretli, iyi ve rahat bir yaşam sürmeyi sever, mükemmel karma yogiler, bazen miras konusunda aşırı endişeli",
+        "nakshatra": "Rahu, Shravana Nakshatrasında gezegen enerjisini Vishnu tanrı etkisiyle birleştirir. Shravana doğumlular bilge, iletişimci ve gözlemcidir. Genellikle öğretmenlik ve arabuluculuk rollerinde başarılı olurlar."
+      },
+      "Ketu": {
+        "rashi": "Ketu, Cancer (Karka) Rashisinde Yengeç enerjisiyle kendini ifade eder. Çalışkan, hedef odaklı, otoriter, değerlerini savunmak için mücadele edebilir",
+        "nakshatra": "Ketu, Pushya Nakshatrasında gezegen enerjisini Brihaspati (Jüpiter) tanrı etkisiyle birleştirir. Pushya doğumlular disiplinli, besleyici ve genellikle koruyucu olarak hareket ederler. Yeni projelere başlamak için en uğurlu gruplardan biri olarak kabul edilirler."
+      },
+      "Lagna": {
+        "rashi": "Lagna, Libra (Tula) Rashisinde Terazi enerjisiyle kendini ifade eder. İşte başarılı, zenginlik arayan, materyalist, iyi yön duygusu, gezgin ruh, zorlayıcı",
+        "nakshatra": "Lagna, Swati Nakshatrasında gezegen enerjisini Vayu (rüzgar tanrısı) tanrı etkisiyle birleştirir. Swati doğumlular uyumlu, bağımsız ve diplomatiktir. Müzakere ve esneklik gerektiren durumlarda başarılı olurlar."
+      }
+    },
+    "yogas": [
+      {
+        "id": "gajakesari",
+        "name": "Gajakesari Yoga",
+        "description": "Jüpiter'in Ay'dan itibaren bir kendrada, yani 1., 4., 7. ya da 10. evde bulunması, hiçbir doğal zararlı gezegenden bakış almaması ve geri hareketli olmaması.",
+        "result": "Gajakesari Yogası, yaşamınız boyunca çok sayıda akrabaya sahip olabileceğinize işaret eder. Kişilik bakımından cömert ve çevrenizdeki insanları gözeten biri olursunuz. Bir yargıç gibi üst düzey bir otorite olarak kalkınma ve gelişim işlerini başarmaya yazgılısınız. Bu yoga, ölümünüzden çok sonra dahi sürecek kalıcı bir itibar kazandırır.",
+        "quality": "Positive",
+        "family": "classical",
+        "present": false,
+        "evidence": "Jupiter in kendra from Moon, but aspected/joined by malefic: Saturn."
+      },
+      {
+        "id": "sunapha",
+        "name": "Sunapha Yoga",
+        "description": "Güneş ve ay düğümleri dışındaki bir grahanın Ay'dan itibaren 2. evde bulunması.",
+        "result": "Sunapha Yogası, azminiz ve isabetli kararlarınız sayesinde edineceğiniz birçok mülkün gururlu sahibi olacağınızı gösterir. Son derece varlıklı olur ve bir kralın yaşamını sürme ayrıcalığına erişirsiniz. Kişiliğinize gelince, zekisiniz ve nadiren yanlış kararlar verirsiniz. İtibarınız, saygın bir hükümdarınkiyle aynı düzeyde olur.",
+        "quality": "Positive",
+        "family": "classical",
+        "present": true,
+        "evidence": "Non-luminary, non-node planet placed in the 2nd house from Moon."
+      },
+      {
+        "id": "anapha",
+        "name": "Anapha Yoga",
+        "description": "Güneş ve ay düğümleri dışındaki bir grahanın Ay'dan itibaren 12. evde bulunması.",
+        "result": "Anapha Yogası, iyi biçimlenmiş ve düzgün işleyen organlarla sağlıklı bir yaşam süreceğinizi belirtir. Görünüm ve fiziğiniz bakımından görkemli olursunuz. Doğanız gereği nazik ve cömertsiniz; bu nedenle büyük saygı görürsünüz. Öz saygınız ve zarif giyim zevkinizle pekişen iyi bir itibara da sahip olursunuz. Bununla birlikte, yaşamınızın son demlerinde dünyevi şeylerden el etek çeker ve sadeliğinizle anılırsınız.",
+        "quality": "Positive",
+        "family": "classical",
+        "present": false,
+        "evidence": "No qualifying planet in the 12th house from Moon."
+      },
+      {
+        "id": "dhurdhura",
+        "name": "Dhurdhura Yoga",
+        "description": "Güneş ve ay düğümleri dışındaki grahaların Ay'dan itibaren hem 2. hem de 12. evde bulunması.",
+        "result": "Dhurdhura Yogası, cömertlik ve sıcaklıkla dolu bir yaşam süreceğinizi gösterir. Gerektiğinde başkalarına bağışta bulunmanıza ya da yardım etmenize olanak tanıyan kayda değer bir servetle kutsanırsınız. Kişiliğiniz bakımından iyilikseverliğiniz ve hayırsever doğanızla tanınırsınız. Yaşamınızda ün, güç ve itibar da edinirsiniz. Dahası, yaşamınıza iyilik ve zenginlik taşıyan vasıtalar damgasını vuracaktır.",
+        "quality": "Positive",
+        "family": "classical",
+        "present": false,
+        "evidence": "Moon is not flanked by qualifying planets in both 2nd and 12th."
+      },
+      {
+        "id": "kemadruma",
+        "name": "Kemadruma Yoga",
+        "description": "Güneş ve ay düğümleri dışında hiçbir grahanın Ay ile birlikte, Ay'dan itibaren 2. ya da 12. evde, ya da yükselenden itibaren bir kendrada bulunmaması.",
+        "result": "Kemadruma Yogası, kederle ve haksız işlerle anılan bir kişi olabileceğinize işaret eder. Genellikle tam anlamıyla bakımsız biri olarak görülür, insanlar dolandırılma ya da bir şekilde zarar görme korkusuyla sizden uzak durmaya çalışabilir. Haksız işlere düşkünlüğünüz sizi yoksulluğa sürükler ve bu da geçiminizi sağlamak için başkalarına bağımlı hale gelmenize yol açar. Kişiliğiniz bakımından bir düzenbaz ve dolandırıcı olarak görülmeniz olasıdır.",
+        "quality": "Negative",
+        "family": "classical",
+        "present": false,
+        "evidence": "Moon has at least one qualifying planet adjacent (2nd or 12th)."
+      },
+      {
+        "id": "chandramangala",
+        "name": "Chandra Mangala Yoga",
+        "description": "Mars'ın Ay ile kavuşum ya da karşıtlık yapması, 10 derece içinde.",
+        "result": "Chandra Mangala Yogası, vicdansız işlere bulaşan, duyarsız bir kişi olabileceğinize işaret eder. Kadınları çıkarınız için kullanmaktan çekinmeyeceğiniz bir noktaya kadar alçalmanız mümkündür; bu, insan ticaretini dahi içerebilir. Kendinize ve başkalarına saygı duymamanız sizi şiddete eğilimli kılar ve bu da annenize kötü davranmanızı olası hale getirir. Hatta ona ve akrabalarınıza sıkıntı bile verebilirsiniz.",
+        "quality": "Negative",
+        "family": "classical",
+        "present": true,
+        "evidence": "Moon and Mars in conjunction or opposition within 10 degree orb."
+      },
+      {
+        "id": "budhaaditya",
+        "name": "Budha-Aditya Yoga",
+        "description": "Merkür'ün Güneş ile kavuşum yapması, 10 derece içinde.",
+        "result": "Budha-Aditya Yogası, son derece zeki olacağınızı gösterir. Yeteneklerinizi geliştirmek için azimle çalışır ve ustalıklı işleriniz sayesinde oldukça iyi bir itibar edinirsiniz. Kendinize dair sağlıklı bir algıya ve öz saygıya da sahip olursunuz. Çevrenizdeki insanlar ve akranlarınız size saygı duyar. Yaşam tarzınıza gelince, hayal edebileceğiniz her türlü konforla çevrili olursunuz. Yaşamınız büyük ölçüde rahat geçer ve ömrünüz boyunca mutluluğu deneyimlersiniz.",
+        "quality": "Positive",
+        "family": "classical",
+        "present": false,
+        "evidence": "Mercury and Sun not within 10 degree orb."
+      },
+      {
+        "id": "ruchaka",
+        "name": "Ruchaka Yoga",
+        "description": "Mars yükselenden itibaren bir kendrada, yani 1., 4., 7. ya da 10. evde bulunur ve bu kendra onun kendi burcu ya da yücelme burcudur.",
+        "result": "Ruchaka Yogası, birçok görkemli ve seçkin özellik kazandırır. Tıpkı büyük bir lider gibi son derece güçlü bir fiziğe sahip olursunuz. Uzun bir süre boyunca büyük bir ün kazanırsınız. Ayrıca bazı kadim öğretilere doğal bir aşinalık gösterirsiniz. Kral olsanız da olmasanız da, tüm gelenek ve göreneklere uymaya özen gösterirsiniz. Mükemmel bir fizik ve hayırsever bir mizaçla birleşen kanlı canlı bir tene sahip olursunuz. Bolca servet edinir, uzun ve sağlıklı bir yaşam sürersiniz.",
+        "quality": "Positive",
+        "family": "classical",
+        "present": true,
+        "evidence": "Mars in own sign Aries, placed in kendra (house 7) from Lagna."
+      },
+      {
+        "id": "bhadra",
+        "name": "Bhadra Yoga",
+        "description": "Merkür yükselenden itibaren bir kendrada, yani 1., 4., 7. ya da 10. evde bulunur ve bu kendra onun kendi burcu ya da yücelme burcudur.",
+        "result": "Bhadra Yogası, kişinin güçlü bir fiziğe sahip olacağını gösterir. Görünümünüz bakımından yüzünüz bir aslanın ince hatlarını taşır ve bu da sizi güçlü gösterir. İyi gelişmiş bir göğse ve orantılı uzuvlara sahip olursunuz. Kişiliğinize gelince, çekingen ve çoğunlukla az konuşan birisinizdir. Bununla birlikte, akrabalarınıza son derece yardımcı olursunuz. Ayrıca uzun bir yaşam da sürersiniz.",
+        "quality": "Positive",
+        "family": "classical",
+        "present": false,
+        "evidence": "Mercury in Cancer (neither own sign Gemini/Virgo nor exaltation Virgo); placed in kendra (house 10) from Lagna."
+      },
+      {
+        "id": "hamsa",
+        "name": "Hamsa Yoga",
+        "description": "Jüpiter yükselenden itibaren bir kendrada, yani 1., 4., 7. ya da 10. evde bulunur ve bu kendra onun kendi burcu ya da yücelme burcudur.",
+        "result": "Hamsa Yogası, kişinin pek çok etkileyici fiziksel niteliğe sahip olacağını belirtir. Bacaklarınız deniz kabuğu, lotus, balık ve ankusa gibi dört farklı simgeyi yansıtır. Yakışıklı bir bedene sahip olursunuz. Belirtildiği gibi, diğer insanlardan biraz daha çekici olursunuz. Çevrenizdeki herkes sizi ve kişiliğinizi çok sever. Ahlakınız kesinlikle etik ve düzgün olur. Ayrıca zihniniz arıdır ve başkalarına kıyasla oldukça masumsunuzdur.",
+        "quality": "Positive",
+        "family": "classical",
+        "present": false,
+        "evidence": "Jupiter in Gemini (neither own sign Sagittarius/Pisces nor exaltation Cancer); placed in house 9 (not a kendra)."
+      },
+      {
+        "id": "malavya",
+        "name": "Malavya Yoga",
+        "description": "Venüs yükselenden itibaren bir kendrada, yani 1., 4., 7. ya da 10. evde bulunur ve bu kendra onun kendi burcu ya da yücelme burcudur.",
+        "result": "Malavya Yogası, yaşamınızın ve mutluluğunuzun saygın bir biçimine işaret eder. Bedeniniz bakımlı ve orantılı bir fiziğe sahip olur. Zihniniz çok güçlüdür ve bir şeye odaklanmaya kararlıysanız kolayca dikkatiniz dağılmaz. Eşiniz ve çocuklarınızla birlikte son derece varlıklı, sade ama zarif bir yaşam sürersiniz. Organlarınız sağlık ve arılıkla kayrılır. Yaşam ilkeleriniz oldukça ünlüdür ve iyi gelişmiş bir kişiliğe sahipsiniz.",
+        "quality": "Positive",
+        "family": "classical",
+        "present": false,
+        "evidence": "Venus in Gemini (neither own sign Taurus/Libra nor exaltation Pisces); placed in house 9 (not a kendra)."
+      },
+      {
+        "id": "sasa",
+        "name": "Sasa Yoga",
+        "description": "Satürn yükselenden itibaren bir kendrada, yani 1., 4., 7. ya da 10. evde bulunur ve bu kendra onun kendi burcu ya da yücelme burcudur.",
+        "result": "Sasa Yogası, başkaları üzerinde mutlak bir üstünlüğe işaret eder. Sasa Yogası ile doğduysanız, hizmetkarlarınız üzerinde sıkı bir denetiminiz olur. Yine de tartışmalı bir karaktere sahip olursunuz ve insanlar bunu hoş karşılamayabilir. Büyük olasılıkla bir köy ya da kasaba yönetirsiniz. Hatta bir kral bile olabilirsiniz. Ancak başkalarının servetine ve parasına göz diken, onlara imrenen türden bir kral olursunuz. Aşırı bir mizacınız vardır ve bu, gördüğünüz ilk kişiye öfke kusmanıza yol açar.",
+        "quality": "Both",
+        "family": "classical",
+        "present": false,
+        "evidence": "Saturn in Sagittarius (neither own sign Capricorn/Aquarius nor exaltation Libra); placed in house 3 (not a kendra)."
+      },
+      {
+        "id": "dhana",
+        "name": "Dhana Yoga",
+        "description": "Beşinci evin Venüs'ün yönettiği bir burca düşmesi, Venüs'ün aynı beşinci evde ve Mars'ın on birinci evde bulunması.",
+        "result": "Dhana Yogası bir servet birleşimidir ve klasik metinlerin bu konudaki dili alışılmadık ölçüde doğrudandır: bu birleşimlerle doğan kişi varlıklı olur. Bunu vaat edilmiş bir meblağ olarak değil, biriktirme kapasitesi olarak okumak gerekir. Örüntü, kalıcı olan kaynakları destekler; böylece kazançlar mal varlığına dönüşür, mal varlığı değerini korur ve yaşam düzeyi her aksilikten sonra yeniden kurulmak zorunda kalmadan yükselir. Bu türden bir servet çoğunlukla haritanın halihazırda taşıdığı güçlerden gelir, beklenmedik bir talihten değil. Ölçek ve zamanlama ise haritanın geri kalanına ve bu evleri öne çıkaran dönemlere aittir.",
+        "quality": "Positive",
+        "family": "classical",
+        "present": false,
+        "evidence": "No Dhana Yoga on this chart: all 11 rules evaluated and none holds. The eleven catalogued Dhana rows are BPHS ch. 41 verses 2 to 14, read in Parashara rather than Raman wherever the two name different occupants of the 11th."
+      },
+      {
+        "id": "daridra",
+        "name": "Daridra Yoga",
+        "description": "On birinci evin yöneticisinin altıncı, sekizinci ya da on ikinci evde bulunması.",
+        "result": "Daridra Yogası bir yoksulluk birleşimidir ve klasik betimlemesi hiçbir şeyi esirgemez: biriken borçlar, sıradan kalan bir iş ve maddi durumla birlikte aşınan bir itibar. Bunu bir hüküm olarak değil, kazanç akışı üzerindeki sürekli bir baskı olarak okumak gerekir. On birinci ev geliri ve artışı yönetir; bu yüzden yöneticisinin, sonuçların harcandığı, engellendiği ya da yitirildiği bir yere düşmesi çoğunlukla paranın geldiğinden daha hızlı gitmesi ve emeğin birikime kötü dönüşmesi anlamına gelir. Aynı kaynak, mali okumanın yanı sıra kulak rahatsızlıklarını ve kardeşlerle gergin ilişkileri de anar. Tek bir birleşim bir haritayı belirlemez. Destekleyici servet yogaları, iyi yerleşmiş bir ikinci ve on birinci ev yöneticisi ve elverişli dönemler bu birleşimi yumuşatır; dolayısıyla sağlam okuma, kabullenilecek bir sonuçtan değil, yönetilecek bir zayıflıktan söz eder.",
+        "quality": "Negative",
+        "family": "classical",
+        "present": true,
+        "evidence": "Daridra Yoga holds on 1 of the 8 rules evaluated. daridra-7 (BPHS 42.6): the Lagna lord Venus is joined by Jupiter (the 6th lord) and receives drishti from no natural benefic. Nine of the eleven catalogued Daridra rows are evaluated, as eight rules: daridra-4 and daridra-5 are the two halves of BPHS 42.4. daridra-8 and daridra-9 are excluded because B.V. Raman is their only authority, and an unverified rule may not decide a verdict."
+      },
+      {
+        "id": "lakshmi",
+        "name": "Lakshmi Yoga",
+        "description": "Dokuzuncu evin yöneticisinin kendi burcunda, Mulatrikona burcunda ya da yücelme burcunda bulunması ve bir kendrada ya da bir üçgen evde yer alması, Lagna Lord'un ise güçlü olması.",
+        "result": "Lakshmi Yogası adını talih tanrıçasından alır ve klasik sonuç da buna göre okunur: bolluk içinde bir servet, bir hükümdarınkine yakın bir konum, kalıcı bir ad ve bunu hak eden bir davranış. Buradaki talih, temeli olan bir talihtir. Dokuzuncu ev liyakati, himayeyi ve kazanılmadan gelen iyiliği taşır; bu yüzden onurlu ve iyi yerleşmiş bir dokuzuncu ev yöneticisi, bu desteği ara sıra görülen bir destek olmaktan çıkarıp yapısal kılar; aile, hocalar, kurumlar ve koşullar aynı yönde hareket eder. Güçlü Lagna Lord birleşimin ikinci yarısıdır ve bu desteği, yalnızca gelip geçen bir yaşama değil, kişinin tutabileceği bir yaşama çeviren de odur. Ölçeği, birleşimin yalnızca var olmasından değil, ilgili iki yöneticinin gücünden okumak gerekir.",
+        "quality": "Positive",
+        "family": "classical",
+        "present": false,
+        "evidence": "The 9th lord Mercury holds neither its own sign, its moolatrikona sign nor its exaltation sign (Cancer) in the 10th, and the Lagna lord Venus is strong. Strength of the Lagna lord is read as freedom from the three classical weaknesses, combustion, debilitation and dusthana placement, because the Shadbala minimum-required-strength reading is not computable from a birth chart alone. BPHS 36.27-28 with the placement widened to Raman 27."
+      },
+      {
+        "id": "dhanamalika",
+        "name": "Dhana Malika",
+        "description": "Yedi görünür gezegenin ikinci evden başlayarak birbirini izleyen yedi evi doldurması; böylece ikinciden sekizinciye kadar her ev doludur ve yedisinden hiçbiri bu dizinin dışına düşmez. Rahu ve Ketu sayılmaz.",
+        "result": "Dhana Malika, on iki Malika birleşiminden biridir ve bunların her biri, gezegenlerin kesintisiz dizisinin başladığı eve göre adlandırılır. Bu birleşim ikinci evden, yani biriken servetin, aile kaynaklarının ve konuşmanın evinden başlar ve diziyi çaba, yuva, zeka, engeller, ortaklık ve miras evleri boyunca ileri taşır. Okuma da bu biçimi izler. Servet, geri kalan her şeyden ayrı tutulmak yerine onlarla iç içe geçmiştir; bu yüzden kaynaklar, ilişkiler ve itibar birlikte yükselip birlikte düşme eğilimindedir ve para nadiren yaşamın ayrı bir bölümüdür. Bu türden bir yoğunlaşma seyrektir ve dengeli olmaktan çok vurguludur: yedi gezegeni servet ekseninde toplayan aynı dizi beş evi boş bırakır; dolayısıyla harita, dolu olduğu yerde kararlı, olmadığı yerde ince kalır.",
+        "quality": "Positive",
+        "family": "classical",
+        "present": false,
+        "evidence": "The seven visible grahas occupy bhavas 3, 6, 7, 9, 10, not the unbroken run from the 2nd to the 8th that Dhana Malika requires (Jataka Parijata 7.132)."
+      },
+      {
+        "id": "gada",
+        "name": "Gada Yoga",
+        "description": "Yedi grahanın birbirine komşu iki kendrada yer alması.",
+        "result": "Gada Yogası, kişiliğinizde ne ölçüde dindar bir kişi olduğunuzu ortaya koyar. Tüm zamanınızı ve emeğinizi izlediğiniz inanca adamanız ve elinizden gelenin en fazlasını yapmanız kuvvetle olasıdır. Bunun yanı sıra, oldukça varlıklı ve müreffeh olursunuz. İnsanların paranız ve servetiniz yüzünden sizi kullanmaya çalışması olasıdır.",
+        "quality": "Positive",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy two adjacent kendras"
+      },
+      {
+        "id": "sakata-2",
+        "name": "Sakata Yoga",
+        "description": "Yedi grahanın yalnızca Lagna ve 7. evde yer alması.",
+        "result": "Sakata Yogası ile doğan kişi yaşamı boyunca yoksul olur. Ev içi ve toplumsal yaşamınız bakımından hem yoksul hem de mutsuz bir kişisinizdir. Yaşamınızda mutlu olup olmadığınızı önemsediğiniz de görülmez. Bu davranışınız nedeniyle insanlar sizi görmezden gelme eğilimindedir.",
+        "quality": "Negative",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy the 1st and 7th bhavas"
+      },
+      {
+        "id": "vihaga",
+        "name": "Vihaga Yoga",
+        "description": "Yedi grahanın yalnızca 4. ve 10. evde yer alması.",
+        "result": "Vihaga Yogası, tek bir yerde yerleşik olmaktan çok hareket içinde geçen bir yaşama işaret eder; klasik olarak bu, bir habercinin ya da kuryenin yaşamıdır. Kişi sürekli olarak yer değiştirir ve kavgacı, küçük meseleleri tartışmaya yatkın, kendisine yapılan uyarıyı zor kabul eden biri olarak okunur.",
+        "quality": "Negative",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy the 4th and 10th bhavas"
+      },
+      {
+        "id": "sringhataka",
+        "name": "Sringhataka Yoga",
+        "description": "Tüm gezegenlerin yükselen burçta ve onun üçgenlerinde yer alması.",
+        "result": "Haritanızdaki Sringhataka Yogası, yaşamınızın ilerleyen döneminde mutluluk ve lütuf yaşayacağınızı ima eder. Yaşamınız boyunca mutlu olma eğilimindesinizdir; bununla birlikte, ileri yaşlarınıza geldiğinizde mutluluk ve bereket aynı düzeye çıkar. İnsanlar ve aileniz her seferinde nasıl bu kadar mutlu kalabildiğinizi merak eder. Düşmanlarınız da bu yönünüz nedeniyle sizi kıskanabilir.",
+        "quality": "Positive",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy the Lagna and its trines, 1-5-9"
+      },
+      {
+        "id": "hala",
+        "name": "Hala Yoga",
+        "description": "Tüm gezegenlerin yükselen burcu içermeyen tek bir üçgende, yani 2., 6. ve 10. evlerde ya da 3., 7. ve 11. evlerde ya da 4., 8. ve 12. evlerde yer alması.",
+        "result": "Doğum haritanızdaki Hala Yogası, adının kendisini anlatır. Doğuştan bir tarımcı olma eğilimindesinizdir ve aileniz de bir biçimde benzer bir alanın içindedir. Bir tarımcı olmak için gereken tüm temel bilgiye sahipsinizdir ve bu yeteneği neredeyse doğuştan taşırsınız.",
+        "quality": "Positive",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy a trine that does not involve the Lagna"
+      },
+      {
+        "id": "kamala",
+        "name": "Kamala Yoga",
+        "description": "Tüm gezegenlerin dört kendranın tamamında, yani 1., 4., 7. ve 10. evlerde yer alması.",
+        "result": "Haritasında Kamala Yogası bulunan kişi yaşamında çeşitli türden nitelikler taşır. Öncelikle, yaşamınız boyunca pek varlıklı olmazsınız. Temel gereksinimleri karşılayan, orta halli bir kişi olursunuz. Bununla birlikte, pek çok insanın gözünde yüksek bir itibara ve saygınlığa hükmedersiniz. Ayrıca yaşamınız boyunca geniş bir ün yaşarsınız ve insanlar sizi çoğunlukla ahlakınız ve ilkeleriniz nedeniyle tanır. Son olarak, birçok insanın takdir ettiği sayısız fazilete sahipsinizdir.",
+        "quality": "Positive",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy all four kendras"
+      },
+      {
+        "id": "vapee",
+        "name": "Vapee Yoga",
+        "description": "Gezegenlerin dört panapara ya da dört apoklima evinde dizilmesi.",
+        "result": "Haritanızdaki Vapee Yogası, para biriktiren bir kişi olacağınızı ortaya koyar. Para ve servet size zahmetsizce gelir ve onu değerli bir hazine gibi saklamaya eğilimlisinizdir. Servet azlığından kaynaklanan hiçbir türden mali sıkıntı yaşamazsınız.",
+        "quality": "Both",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy the four panaparas or the four apoklimas"
+      },
+      {
+        "id": "yupa",
+        "name": "Yupa Yoga",
+        "description": "Yedi grahanın Lagna'dan itibaren dört ardışık bhavada yer alması.",
+        "result": "Yupa Yogası, doğduğunuz andan itibaren cömert olduğunuza işaret eder. Ayrıca son derece kendine yeten biri olduğunuza ve başkalarının işlerine kulak vermeksizin yalnızca kendinizi düşündüğünüze inanılır. Pek çok insan arasında hayırsever işlerinizle tanınırsınız. Hayırseverlik alanında yaptıklarınız sayesinde ün kazanmışsınızdır.",
+        "quality": "Positive",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy four successive bhavas from the Lagna"
+      },
+      {
+        "id": "ishu",
+        "name": "Ishu Yoga",
+        "description": "Yedi grahanın 4. evden itibaren dört ardışık bhavada yer alması.",
+        "result": "Ishu Yogası, başkaları üzerinde kullanılan bir yetkiye işaret eder; klasik olarak bu, bir tutukevinin müdürünün ya da başındaki kişinin yetkisidir. Kişi, böyle bir görevi başarılı kılan nitelikleri taşır ve metinler bu okumayı, disiplinin ve sertliğin işin özünü oluşturduğu her konuma genişletir.",
+        "quality": "Negative",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy four successive bhavas from the 4th"
+      },
+      {
+        "id": "sakti",
+        "name": "Sakti Yoga",
+        "description": "Yedi grahanın 7. evden itibaren dört ardışık bhavada yer alması.",
+        "result": "Haritasında Sakti Yogası bulunan kişi bir ölçüde şanssız kabul edilir. İşlerinizi tamamlamaya gelince son derece tembel olma eğilimindesinizdir ve her zaman erteleme içindesinizdir. Ayrıca çevresindeki herkeste olumsuz bir enerji yaratan, uyuşuk bir kişi olarak görülürsünüz. Genel olarak insanlar doğanız nedeniyle sizi pek sevmez ve her zaman servetten yoksun kalırsınız.",
+        "quality": "Negative",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy four successive bhavas from the 7th"
+      },
+      {
+        "id": "danda",
+        "name": "Danda Yoga",
+        "description": "Yedi grahanın 10. evden itibaren dört ardışık bhavada yer alması.",
+        "result": "Danda Yogası, taşıdığınız canlı ve değişken doğalara işaret eder. Bu nedenle bir yerlerde mutluluktan ve keyiften yoksun kalırsınız. İnsanlar düzgün işlev göremediğinizi düşünür ve bu yüzden sizi geride bırakıp görmezden gelir. Bunun yanı sıra aileniz, yani eşiniz ve çocuklarınız da sizi sık sık üzme eğilimindedir ve onlar yüzünden sürekli olarak üzgün kalırsınız.",
+        "quality": "Negative",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy four successive bhavas from the 10th"
+      },
+      {
+        "id": "nav",
+        "name": "Nav Yoga",
+        "description": "Yedi grahanın Lagna'dan itibaren yedi ardışık bhavada yer alması.",
+        "result": "Haritanızdaki Nav Yogası, duygulandığınızda birtakım duygu dalgaları yaşadığınızı dile getirir. Zaman zaman çok mutlu ve kendinden emin olma eğilimindesinizdir. Ama bir süre sonra üzülürsünüz. Bunun yanı sıra yaşamınız boyunca bolca ün kazanırsınız. Son olarak, sık sık sıkıntı yaşama eğilimindesinizdir.",
+        "quality": "Both",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy seven successive bhavas from the Lagna"
+      },
+      {
+        "id": "kuta",
+        "name": "Kuta Yoga",
+        "description": "Yedi grahanın 4. evden itibaren yedi ardışık bhavada yer alması.",
+        "result": "Doğum haritasında Kuta Yogası bulunan kişi kendisinde birtakım olumsuz yönler taşır. Kuta Yogası ile doğan kişi deneyimli bir yalancı olur. Neredeyse akla gelen her şey hakkında yalan söyleme eğilimindesinizdir. Bir gardiyanın konumuna benzer bir konum edineceğinize inanılır.",
+        "quality": "Negative",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy seven successive bhavas from the 4th"
+      },
+      {
+        "id": "chhatra",
+        "name": "Chhatra Yoga",
+        "description": "Yedi grahanın 7. evden itibaren yedi ardışık bhavada yer alması.",
+        "result": "Chhatra Yogası tek başına yaşamınız boyunca süren mutluluğa işaret eder. Bu, yaşamınızda karşınıza çıkabilecek en iyi seçenektir. Karşılaştığınız her insandan mutluluktan başka bir şey almazsınız.",
+        "quality": "Positive",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy seven successive bhavas from the 7th"
+      },
+      {
+        "id": "chapa-2",
+        "name": "Chapa Yoga",
+        "description": "Yedi grahanın 10. evden itibaren yedi ardışık bhavada yer alması.",
+        "result": "Doğum haritasında Chapa Yogası bulunan kişi ilişkilerinde ve yaşamında her zaman mutluluğu taşır. Yaptığınız ya da yapmayı denediğiniz her işte yürekli olma eğilimindesinizdir. Yaşamınızın ilk ve son döneminde büyük bir mutluluk yaşarsınız. O dönemlerde, ne olursa olsun sizi kesinlikle mutlu edecek koşullar oluşur.",
+        "quality": "Positive",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy seven successive bhavas from the 10th"
+      },
+      {
+        "id": "ardhachandra",
+        "name": "Ardha Chandra Yoga",
+        "description": "Tüm gezegenlerin bir panapara ya da apoklima evinden başlayan yedi evde yer alması.",
+        "result": "Haritanızdaki Ardha Chandra Yogası birtakım iyimser sonuçlar gösterir. Fiziksel özelliklerinize gelince, açık tenli ve hoş hatlara sahip olursunuz. Size bakan biri ilk anda görünüşünüzden etkilenir. Yaşamınız boyunca mutlu olursunuz. Mutluluk herkese düşen bir şey değildir; ancak siz şanslı olansınız ve gençliğinizden bu yana mutlusunuz, bundan sonra da öyle kalırsınız.",
+        "quality": "Positive",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy seven successive bhavas starting from a panapara or apoklima"
+      },
+      {
+        "id": "chandra",
+        "name": "Chakra Yoga",
+        "description": "Tüm gezegenlerin 1., 3., 5., 7., 9. ve 11. evlerde yer alması.",
+        "result": "Chakra Yogası, bir kralın ya da onunla aynı düzeyde birinin taşıdığına benzer nitelikler taşıyacağınızı ima eder. Diğer insanlardan bolca ilgi, saygı ve destek görürsünüz. Ayrıca belirli kişiler üzerinde komuta ya da daha çok bir hüküm kurma eğilimindesinizdir. Bunun yanı sıra yaşamınız boyunca bolca kazanır ve bu serveti yerinde harcarsınız.",
+        "quality": "Positive",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy the six odd bhavas"
+      },
+      {
+        "id": "samudra",
+        "name": "Samudra Yoga",
+        "description": "Tüm gezegenlerin altı çift sayılı evde yer alması.",
+        "result": "Samudra Yogası genel olarak, kişinin bir kralın taşıdığına benzer nitelikler taşıyacağını ima eder. Bir kralın nitelikleri gibi niteliklere sahip olma eğilimindesinizdir ve bazı durumlarda gerçekten de bir kral olursunuz. Ayrıca yaşamınızı kuşkuya yer bırakmadan özgürce sürmeyi seversiniz. Kimseden korkmazsınız ve yaşamınızda yeni şeyler denemekten de çekinmezsiniz. Yaşamınızı korkusuzca ve gözü pek biçimde sürmeyi seversiniz.",
+        "quality": "Positive",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy the six even bhavas"
+      },
+      {
+        "id": "vajra",
+        "name": "Vajra Yoga",
+        "description": "Yararlı gezegenlerin yükselen burçta ve 7. evde, zararlı gezegenlerin ise 4. ve 10. evde yer alması.",
+        "result": "Haritanızdaki Vajra Yogası, yaşamınızda daha çok mutlu bir kişi olacağınızı gösterir. Yaşamınızda her zaman, ne olursa olsun sizi mutlu eden durumlar oluşma eğilimindedir. Bunun yanı sıra yakışıklı ve güzel fiziksel niteliklere sahipsinizdir. İnsanlar bu özellikleriniz nedeniyle size ilgi duyma eğilimindedir.",
+        "quality": "Positive",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy benefics in the 1st and 7th with malefics in the 4th and 10th"
+      },
+      {
+        "id": "yava",
+        "name": "Yava Yoga",
+        "description": "Yararlı gezegenlerin 4. ve 10. evde, zararlı gezegenlerin ise yükselen burçta ve 7. evde yer alması.",
+        "result": "Haritanızdaki Yava Yogası, yaşamınızın orta döneminde mutluluk ve lütuf yaşayacağınızı gösterir. Yaşamınız boyunca mutlu olma eğilimindesinizdir; bununla birlikte, orta yaşlarınıza geldiğinizde mutluluk ve bereket aynı düzeye çıkar. İnsanlar ve aileniz her seferinde nasıl bu kadar mutlu kalabildiğinizi merak eder. Düşmanlarınız da bu yönünüz nedeniyle sizi kıskanabilir.",
+        "quality": "Positive",
+        "family": "akriti",
+        "present": false,
+        "evidence": "The seven visible grahas do not occupy benefics in the 4th and 10th with malefics in the 1st and 7th"
+      },
+      {
+        "id": "rajju",
+        "name": "Rajju Yoga",
+        "description": "Tüm gezegenlerin yalnızca hareketli burçlarda yer alması.",
+        "result": "Doğum haritanızdaki Rajju Yogası, eğlenmeyi seven ve geleceği kaygı konusu yapmayan bir kişi olduğunuza işaret eder. Yolculuk etmeyi seversiniz ve büyük olasılıkla mümkün olan hemen her ülkeyi gezersiniz. Fiziksel özellikleriniz bakımından çekici niteliklere sahip, yakışıklı bir kişisinizdir ve insanlar sizi bu yönünüzle takdir eder. Servetini yabancı bir ülkede arayan türden birisinizdir. Son olarak, doğanız bir ölçüde acımasız ve kıskançtır; kimi zaman bir başkasının sizden daha iyi durumda olmasını kabullenmekte zorlanırsınız.",
+        "quality": "Both",
+        "family": "asraya",
+        "present": false,
+        "evidence": "Not all seven visible grahas are in movable signs"
+      },
+      {
+        "id": "musala",
+        "name": "Musala Yoga",
+        "description": "Tüm gezegenlerin yalnızca sabit burçlarda yer alması.",
+        "result": "Haritanızdaki Musala Yogası, öz saygıyı besleyen ve ona değer veren türden bir kişi olduğunuzu ima eder. Düşünceliliğinizin ve öngörünüzün önüne hiçbir şeyin geçmesine izin vermezsiniz. Bunun yanı sıra, yaşamınız boyunca çok varlıklı ve müreffeh olacağınıza inanılır. Ayrıca dikkatiniz dağılmadan öğrenmenize olanak tanıyan istikrarlı bir zihne sahip olursunuz. Çeşitli işlerle uğraşma eğilimindesinizdir ve büyük olasılıkla durmak bilmeyen bir çalışkansınızdır. Son olarak, bolca ün ve onur kazanırsınız; insanlar sizden çokça etkilenir.",
+        "quality": "Positive",
+        "family": "asraya",
+        "present": false,
+        "evidence": "Not all seven visible grahas are in fixed signs"
+      },
+      {
+        "id": "nala",
+        "name": "Nala Yoga",
+        "description": "Tüm gezegenlerin yalnızca değişken burçlarda yer alması.",
+        "result": "Nala Yogası, bedensel bir kusur taşıyan kişilerden biri olduğunuzu kuvvetle ima eder. Bu yönünüz nedeniyle farklı görünebilirsiniz ve insanlar size tepeden bakabilir. Kurnaz bir kişi olursunuz; ancak bu, yaşamınızda yalnızca büyük hayal kırıklıklarına yol açar. Son olarak, yaşamınız boyunca bedeniniz farklı türden hastalıklarla baştan sona yıpranmış olur.",
+        "quality": "Negative",
+        "family": "asraya",
+        "present": false,
+        "evidence": "Not all seven visible grahas are in common signs"
+      },
+      {
+        "id": "sarpa",
+        "name": "Sarpa Yoga",
+        "description": "Tüm zararlı gezegenlerin kendralarda yer alması ve hiçbir yararlı gezegenin bir kendrada bulunmaması.",
+        "result": "Sarpa Yogası yalnızca yaşam boyu süren sıkıntıya ve acıya işaret eder. Keyif alacağınız pek bir şey olmaz ve sürekli olarak mutsuz olursunuz. Doğanız bir ölçüde iki yüzlüdür ve insanlar tam da bu nedenle sizi sevmez. Ayrıca akılsız bir kişi olma eğilimindesinizdir ve pek çok akılsız karar verirsiniz.",
+        "quality": "Negative",
+        "family": "dala",
+        "present": false,
+        "evidence": "The malefics do not exclusively occupy the kendras"
+      },
+      {
+        "id": "mala",
+        "name": "Mala Yoga",
+        "description": "Merkür, Venüs ve Jüpiter'in, yani üç yararlı gezegenin kendralarda yer alması ve hiçbir zararlı gezegenin bir kendrada bulunmaması.",
+        "result": "İki Dala yogasının olumlu olanı olan Mala Yogası, mücadeleden çok konforla desteklenen bir yaşama işaret eder. Haritanın dört sütunu yalnızca yararlı gezegenlerce tutulduğundan, koşulların rahatlığı, taşıtlar ve ev içi keyif uğruna savaşılmadan gelme eğilimindedir. Ay bu yogada hesaba katılmaz.",
+        "quality": "Positive",
+        "family": "dala",
+        "present": false,
+        "evidence": "The benefics do not exclusively occupy the kendras"
+      },
+      {
+        "id": "gola-2",
+        "name": "Gola Yoga",
+        "description": "Yedi görünür grahanın tek bir burçta yer alması ve diğer on bir burcun boş kalması.",
+        "result": "Gola Yogası, her gezegensel anlamı yaşamın tek bir alanında yoğunlaştırır ve kalan on bir evi boş bırakır. Klasik metinler bu aşırı yoğunlaşmayı olumsuz okur; huzursuzluğa, yerleşik olmayan bir yaşam biçimine ve birikmek yerine dağılan bir çabaya işaret eder. Sankhya yogalarının en seyrek görülenidir.",
+        "quality": "Negative",
+        "family": "sankhya",
+        "present": false,
+        "evidence": "The seven visible grahas occupy 5 rasis, not 1"
+      },
+      {
+        "id": "yuga",
+        "name": "Yuga Yoga",
+        "description": "Yedi gezegenin tümünün herhangi iki burçta yer alması.",
+        "result": "Haritanızdaki Yuga Yogası, taşıdığınız olumsuz yönlere işaret eder. Büyük olasılıkla yoksul ve yoksun bir kişi olursunuz. Hiçbir birikiminizin olmaması ve çok az kazanmanız kuvvetle olasıdır. Ayrıca toplum tarafından dışlanmış kişilerden birisinizdir. Birtakım koşullar nedeniyle topluluğun dışında bırakılmışsınızdır. Bunun yanı sıra inançtan sapmış bir kişisinizdir. Ayyaş birisinizdir; bu da çoğu zaman her nedenle alkole sığındığınız anlamına gelir.",
+        "quality": "Negative",
+        "family": "sankhya",
+        "present": false,
+        "evidence": "The seven visible grahas occupy 5 rasis, not 2"
+      },
+      {
+        "id": "sula",
+        "name": "Sula Yoga",
+        "description": "Yedi gezegenin tümünün herhangi üç burçta yer alması.",
+        "result": "Haritanızdaki Sula Yogası, yaşamınızın farklı türden niteliklerine işaret eder. Öncelikle, servetten ve bereketten yoksun bir kişi olursunuz. Servet bir biçimde yaşamınızdan yok olur ve bu konuda yapabileceğiniz pek bir şey olmaz. Ayrıca yaşamında birçok riski almaktan korkmayan, yürekli bir kişisinizdir. Doğanız pek çok insana zaman zaman acımasız ya da kaba görünebilir. Son olarak, herhangi bir çarpışma ya da benzeri bir uğraş nedeniyle bedeninizde çeşitli yaralar ve izler taşırsınız.",
+        "quality": "Both",
+        "family": "sankhya",
+        "present": false,
+        "evidence": "The seven visible grahas occupy 5 rasis, not 3"
+      },
+      {
+        "id": "kedara",
+        "name": "Kedara Yoga",
+        "description": "Tüm gezegenlerin herhangi dört burçta yer alması.",
+        "result": "Haritanızdaki Kedara Yogası, tarımla uğraşan kişilerden biri olduğunuzu kuvvetle ima eder. Geçiminizin ve gelirinizin tümünü tarım yoluyla kazanırsınız. Bunun yanı sıra bir tarımcı olursunuz ve sizden sonraki kuşak da öyle olur. Ayrıca çevrenizdeki tüm insanlara bir biçimde yardım ettiğinize inanılır. Kavrama gücünüzün zayıf olduğu da kabul edilir; bu, zaman zaman bir dezavantaj olabilir.",
+        "quality": "Positive",
+        "family": "sankhya",
+        "present": false,
+        "evidence": "The seven visible grahas occupy 5 rasis, not 4"
+      },
+      {
+        "id": "pasa",
+        "name": "Pasa Yoga",
+        "description": "Tüm gezegenlerin herhangi beş burçta yer alması.",
+        "result": "Pasa Yogası, biriken bir servete işaret eder; ancak klasik metinler bu servetin geldiği yolların her zaman dürüst olmadığını açıkça belirtir. Kişi çok sayıda arkadaş, akraba ve ona bağımlı insan toplar ve nadiren arkadaşsız ya da desteksiz kalır. Pasa'nın adı ilmik anlamına gelir ve okuma da bu anlamı taşır: serveti sağlayan bağlar aynı zamanda kişinin ayağını bağlar.",
+        "quality": "Both",
+        "family": "sankhya",
+        "present": true,
+        "evidence": "The seven visible grahas occupy exactly 5 rasis and no other Nabhasa yoga applies"
+      },
+      {
+        "id": "damni",
+        "name": "Damni Yoga",
+        "description": "Tüm gezegenlerin herhangi altı burçta yer alması.",
+        "result": "Haritanızdaki Damni Yogası, genel olarak yaşamınız boyunca varlıklı olacağınıza işaret eder. Kazandığınız her şeyi hayır işlerine harcamanız kuvvetle olasıdır. Doğanız son derece hayırseverdir. İhtiyaç içinde olan başkalarına yardım etmeyi seven türden bir kişisinizdir. Bunun yanı sıra sığırların koruyucusu olma eğilimindesinizdir.",
+        "quality": "Positive",
+        "family": "sankhya",
+        "present": false,
+        "evidence": "The seven visible grahas occupy 5 rasis, not 6"
+      },
+      {
+        "id": "vallaki",
+        "name": "Vallaki Yoga",
+        "description": "Tüm gezegenlerin herhangi yedi burçta yer alması.",
+        "result": "Haritasında Vallaki Yogası bulunan kişinin mutlu biri olacağına işaret eder. Geniş bir çevreniz olur ve pek çok arkadaşınız size yakın durur. Beğenilerinize gelince, müziğe ve sanatlara çok düşkünsünüzdür. Bu alanlarda iyi bir zevke sahip olmanız da olasıdır. Eğitimli ve bilgili bir kişisinizdir; üst düzey bir kişinin taşıdığı bilgiyi taşırsınız. Son olarak, taşıdığınız nitelikler sayesinde bolca ün kazanırsınız.",
+        "quality": "Positive",
+        "family": "sankhya",
+        "present": false,
+        "evidence": "The seven visible grahas occupy 5 rasis, not 7"
+      }
+    ]
+  }
+}

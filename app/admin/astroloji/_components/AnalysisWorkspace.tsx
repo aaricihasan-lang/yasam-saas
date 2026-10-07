@@ -9,7 +9,7 @@
  * (profil, teknik, karşı taraf) bağlamındadır — transit notu natal'e, Y sinastrisi Z'ye karışmaz.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { astroFetch } from "../_lib/api";
 import { KbEditor, KbEntryCard, type KbEntry } from "./KnowledgeBankPanel";
 
@@ -95,6 +95,7 @@ export default function AnalysisWorkspace({
   previewNoInterp,
   refreshKey = 0,
   onSaved,
+  onData,
 }: {
   profileId: string;
   revision: number;
@@ -103,8 +104,15 @@ export default function AnalysisWorkspace({
   previewNoInterp: boolean;
   refreshKey?: number;
   onSaved: (analysisId: string) => void;
+  /** Çalışma alanı yüklendiğinde (konu + KB eşleşmeleri) üst bileşene bildirilir — ek istek yok. */
+  onData?: (data: { kbMatches: KbEntry[] }) => void;
 }) {
   const selJson = JSON.stringify(selection);
+  // Üst bileşen bildirimi: en güncel geri çağırma ref'te (efekt bağımlılığı değil → yeniden yükleme döngüsü yok).
+  const onDataRef = useRef(onData);
+  useEffect(() => {
+    onDataRef.current = onData;
+  });
   const key = `${profileId}|${revision}|${selJson}`;
   const [ws, setWs] = useState<{ key: string; data: Workspace; error: string | null } | null>(null);
   const [reload, setReload] = useState(0);
@@ -121,6 +129,7 @@ export default function AnalysisWorkspace({
     const sel = JSON.parse(selJson) as WorkspaceSelection;
     void astroFetch<Workspace>("/api/admin/astroloji/workspace", { method: "POST", body: { profileId, revision, technique: sel.technique, options: sel.options } }).then((r) => {
       if (!alive) return;
+      if (r.ok) onDataRef.current?.({ kbMatches: r.data.kbMatches });
       setWs(
         r.ok
           ? { key, data: r.data, error: null }

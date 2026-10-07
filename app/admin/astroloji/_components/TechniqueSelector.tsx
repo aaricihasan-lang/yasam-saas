@@ -8,7 +8,7 @@
 import { HOUSE_SYSTEMS, NODE_TYPES, type HouseSystem, type NodeType } from "@/lib/astrology/model/western";
 import LocationPicker from "./LocationPicker";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
-import { FORECAST_MAX_DAYS, TECHNIQUE_META, UI_TECHNIQUES, fmtUtcMinute, forecastPartCount, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
+import { FORECAST_MAX_DAYS, TECHNIQUE_META, UI_TECHNIQUES, VEDIC_AYANAMSA_OPTIONS, fmtUtcMinute, forecastPartCount, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
 
 const inp = "rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm";
 const TZ_OPTIONS = ["Europe/Istanbul", "UTC", "Europe/London", "Europe/Berlin", "America/New_York", "Asia/Dubai"];
@@ -158,6 +158,19 @@ export default function TechniqueSelector({
             {returnLocationChooser("lunarReturnLocation", "Lunar return")}
             {lunarReturns && lunarReturns.length > 1 && <span className="text-xs text-violet-800">Bu ayda {lunarReturns.length} lunar return var. Diğerini hesaplamak için sırayı değiştirip yeniden hesaplayın (her dönüş 1 istek; ikisi de ayrı kayıt olarak kalır).</span>}
           </div>
+        );
+      case "vedic.d1":
+        return (
+          <label className="flex items-center gap-2 text-xs">
+            Ayanamsa (tüm Vedik hesaplar)
+            <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label="Vedik ayanamsa">
+              {VEDIC_AYANAMSA_OPTIONS.map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </label>
         );
       case "western.relocation":
         return (

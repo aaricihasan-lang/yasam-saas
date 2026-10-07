@@ -121,3 +121,16 @@ export function localSpaceBody(b: BirthPoint, reference: GeoPoint) {
   const bb = birthBody(b);
   return { date: bb.date, time: bb.time, timezone: bb.timezone, latitude: r6(reference.latitude), longitude: r6(reference.longitude) };
 }
+
+// ─── Aşama 5: Vedik / Jyotish ────────────────────────────────────────────────
+// Roxy Vedik uçlarında timezone verilmezse 5.5 (IST) VARSAYILIR → doğum ofseti HER ZAMAN açıkça gönderilir.
+// Ayanamsa gövdenin parçasıdır (önbellek anahtarı ayanamsa ile ayrışır). custom ayanamsa bu sürümde kapalı.
+
+export const VEDIC_AYANAMSAS = ["lahiri", "raman", "kp-newcomb", "kp-old"] as const;
+export type VedicAyanamsa = (typeof VEDIC_AYANAMSAS)[number];
+
+/** Doğum tabanlı Vedik gövde (birth-chart, divisional-chart, dasha, yoga, ashtakavarga, shadbala…). */
+export function vedicBirthBody(b: BirthPoint, ayanamsa: VedicAyanamsa) {
+  const bb = birthBody(b);
+  return { date: bb.date, time: bb.time, latitude: bb.latitude, longitude: bb.longitude, timezone: bb.timezone, ayanamsa };
+}
