@@ -8,7 +8,6 @@ import {
   deleteComputedChart,
   listManualChartsWithClients,
   getManualChartByClient,
-  saveManualChart,
   updateManualChartById,
   deleteManualChart,
   deleteManualChartsByClient,
@@ -78,40 +77,18 @@ export async function POST(req: NextRequest): Promise<Response> {
     );
   }
 
-  // ── Manuel harita upsert (client başına tek satır) — computed'dan izole ──
+  // ── Manuel harita upsert — AŞAMA 3C: YENİ manuel kayıt KAPALI (410). Otomatik hesaplama
+  //    (POST /api/hd/charts/roxy) tek üretim yoludur. Mevcut manuel kayıtların okunması (GET
+  //    scope=manual), açılması ve silinmesi aynen çalışır; veri silinmez.
   if (new URL(req.url).searchParams.get("scope") === "manual") {
-    const parsed = await readManualBody(req);
-    if (!parsed.ok) return parsed.response;
-    const clientId = str(parsed.body.client_id).trim();
-    if (!clientId) {
-      return NextResponse.json(
-        { ok: false, error: "client_id gerekli." },
-        { status: 400, headers: NO_STORE },
-      );
-    }
-    // Allow-list: bilinmeyen kod → 400. Alanlar arası TUTARSIZLIK burada ENGEL DEĞİLDİR
-    // (manuel giriş korunur; uyarılar yalnız UI'da gösterilir).
-    const codes = validateManualChartCodes(parsed.body);
-    if (!codes.ok) {
-      return NextResponse.json({ ok: false, code: "INVALID_CHART_CODE", error: codes.error }, { status: 400, headers: NO_STORE });
-    }
-    // P2-9: istemci yüklediği sürümü (updated_at; harita yoksa null) gönderirse iyimser
-    // eşzamanlılık uygulanır → başka oturumdaki değişiklik sessizce ezilmez (409).
-    const body = parsed.body;
-    const expectedUpdatedAt = "expected_updated_at" in body
-      ? (typeof body.expected_updated_at === "string" && body.expected_updated_at.trim() ? body.expected_updated_at : null)
-      : undefined;
-    const { ok, error, id, updatedAt, status: saveStatus, code: saveCode } = await saveManualChart(
-      guard.db, guard.tenantId, clientId, body, { expectedUpdatedAt },
+    return NextResponse.json(
+      {
+        ok: false,
+        code: "MANUAL_CHART_CLOSED",
+        error: "Yeni manuel Human Design kaydı artık kullanılmıyor. Human Design Hesaplama bölümünden otomatik hesaplama yapın.",
+      },
+      { status: 410, headers: NO_STORE },
     );
-    if (!ok) {
-      const status = saveStatus === 409 || saveStatus === 404 || saveStatus === 500 ? saveStatus : 400;
-      return NextResponse.json({ ok: false, code: saveCode, error: error ?? "Kaydedilemedi." }, { status, headers: NO_STORE });
-    }
-    // USAGE360: manuel harita upsert (danışan başına tek satır) — insert/update yolu route'ta
-    // bilinmiyor → record_updated (sözleşme §2).
-    await trackUsage(guard, req, { module: "human_design", action: "record_updated", subEntity: "chart", resourceId: id ?? `client:${clientId}` });
-    return NextResponse.json({ ok: true, id: id ?? null, updated_at: updatedAt ?? null }, { status: 200, headers: NO_STORE });
   }
 
   let raw: unknown;

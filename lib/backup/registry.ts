@@ -105,6 +105,8 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
 
   // ── Human Design ──────────────────────────────────────────────────────────
   entry("human_design_clients", "human_design", "backup", "HD Danışanları", {
+    // AŞAMA 3C: merkezî Danışan Yolculuğu bağlantısı (isteğe bağlı; ebeveyn yoksa NULL — bağlantı uydurulmaz).
+    fkParents: [fk("journey_client_id", "clients", true)],
     storageRefs: [st("chart_image_url", "tenant")],
   }),
   entry("human_design_charts", "human_design", "backup", "Haritalar", {
