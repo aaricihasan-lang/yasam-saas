@@ -9,7 +9,7 @@
  * Numeroloji / Refleksoloji / Biyoenerji kayıtları danışana FK ile BAĞLI DEĞİLDİR → silinmez;
  * onay ekranında ayrıca belirtilir.
  *
- * HUMAN DESIGN (AŞAMA 3C, migration 20271010000000): danışana BAĞLANMIŞ HD profili bileşik FK
+ * HUMAN DESIGN (AŞAMA 3C, migration 20271010000100): danışana BAĞLANMIŞ HD profili bileşik FK
  * (ON DELETE CASCADE) ile silinir; profilin BEFORE DELETE trigger'ı o profile ait haritaları
  * (provider_raw dahil) ve raporları aynı transaction'da siler. Bağlanmamış HD kayıtları etkilenmez.
  * Sayım: hdProfiles / hdCharts / hdReports.

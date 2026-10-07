@@ -4,7 +4,7 @@
 //   • tenant_id + user_id YALNIZ route guard'ından; gövdeden ASLA alınmaz.
 //   • İsimle/doğum tarihiyle OTOMATİK bağlama YOK. Birebir eşleşen danışanlar yalnız ÖNERİ olarak döner;
 //     bağlantıyı uzman açık eylemle kurar.
-//   • Bağlantı DB'de tenant-güvenli bileşik FK + kısmi UNIQUE (migration 20271010000000) ile korunur;
+//   • Bağlantı DB'de tenant-güvenli bileşik FK + kısmi UNIQUE (migration 20271010000100) ile korunur;
 //     uygulama ayrıca her iki satırı da aynı tenant'ta okuyup doğrular (savunma derinliği).
 //   • Merkezî danışan oluşturma Danışan Yolculuğu ile AYNI doğrulama + idempotency + burç türetimini
 //     kullanır (validateClientWrite / createClientIdempotent / computeBurc) — ayrı bir CRM yok.
@@ -41,7 +41,7 @@ const fail = (status: JourneyFail["status"], code: string, error: string, extra:
 const pgCode = (e: unknown): string | undefined => (e as { code?: string } | null)?.code;
 
 /**
- * Migration 20271010000000 henüz uygulanmamışsa (journey_client_id kolonu / HD tablosu yok) bağlı HD
+ * Migration 20271010000100 henüz uygulanmamışsa (journey_client_id kolonu / HD tablosu yok) bağlı HD
  * profili OLAMAZ → kalıcı silme ön izlemesi/akışı "bağlı HD yok" kabul eder (rollout güvenliği: kod
  * migration'dan önce yayına çıksa bile danışan silme kilitlenmez). Diğer DB hataları fail-closed kalır.
  */

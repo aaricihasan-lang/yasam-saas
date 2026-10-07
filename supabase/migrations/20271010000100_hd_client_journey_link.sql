@@ -12,12 +12,14 @@
 -- 3) CHECK: journey_client_id doluysa tenant_id de dolu olmalı (MATCH SIMPLE FK'nin NULL tenant'ta
 --    denetimsiz kalmasını engeller). Mevcut satırların hepsi journey_client_id=NULL → ihlal yok.
 -- 4) Kısmi UNIQUE index: bir merkezî danışana aynı tenant'ta en fazla BİR HD profili.
--- 5) BEFORE DELETE trigger: HD profili silinirken ONA AİT (aynı tenant + client_id) haritalar ve
---    raporlar da silinir. Böylece merkezî danışanın kalıcı silinmesi TEK transaction'da (FK cascade
---    zinciri) HD kişisel verisini de temizler; haritalar/raporlar SET NULL ile sahipsiz KALMAZ.
---    Mevcut HD danışan silme akışı (deleteHdClient) davranışı korunur: raporlar silmeden ÖNCE
---    danışandan koparıldığı (client_id=NULL) için trigger onları görmez → raporlar KORUNUR; haritalar
---    o akışta zaten siliniyordu (artık aynı ifade içinde, atomik).
+-- 5) BEFORE DELETE trigger: YALNIZ Danışan Yolculuğu'na BAĞLI (journey_client_id dolu) bir HD profili
+--    silinirken ONA AİT (aynı tenant + client_id) haritalar ve raporlar da silinir. Böylece merkezî
+--    danışanın kalıcı silinmesi TEK transaction'da (FK cascade zinciri) HD kişisel verisini de
+--    temizler; haritalar/raporlar SET NULL ile sahipsiz KALMAZ.
+--    BAĞSIZ profillerde (tüm mevcut profiller) trigger hiçbir şey yapmaz → her silme yolunda davranış
+--    migration öncesiyle birebir aynı: 20260926000100 ilkesi ("danışan silinirse rapor KORUNUR",
+--    FK SET NULL) korunur. Mevcut HD danışan silme akışı (deleteHdClient) bağlı profilde de raporları
+--    silmeden ÖNCE koparır (client_id=NULL) → trigger onları görmez → raporlar KORUNUR.
 --    Emsal: nutrition_plan_clients_cascade_plans (20270102000400) trigger tabanlı cascade.
 --
 -- Storage (hd-chart-images) DB dışıdır → uygulama katmanı (cascade-delete route) silmeden önce
@@ -84,7 +86,11 @@ LANGUAGE plpgsql
 SET search_path = public, pg_catalog
 AS $$
 BEGIN
-  -- Yalnız SİLİNEN profile ait (aynı tenant + client_id) satırlar. Başka profil/tenant'a dokunulmaz.
+  -- Yalnız Danışan Yolculuğu'na BAĞLI profil silinirken çalışır; bağsız profilde
+  -- davranış migration öncesiyle aynıdır (raporlar FK SET NULL ile korunur).
+  IF OLD.journey_client_id IS NULL THEN
+    RETURN OLD;
+  END IF;
   DELETE FROM public.human_design_reports r
    WHERE r.client_id = OLD.id AND r.tenant_id IS NOT DISTINCT FROM OLD.tenant_id;
   DELETE FROM public.human_design_charts c

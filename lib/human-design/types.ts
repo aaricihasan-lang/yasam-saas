@@ -150,7 +150,7 @@ export type HumanDesignClient = {
   birth_timezone?:       string | null;
   birth_latitude?:       number | null;
   birth_longitude?:      number | null;
-  // Merkezî Danışan Yolculuğu danışanı (migration 20271010000000; uzman onayıyla bağlanır, NULL = bağlı değil).
+  // Merkezî Danışan Yolculuğu danışanı (migration 20271010000100; uzman onayıyla bağlanır, NULL = bağlı değil).
   journey_client_id?:    string | null;
   chart_image_url:    string | null;
   external_chart_url: string | null;

@@ -50,7 +50,7 @@ export const runtime = "nodejs";
  *   kalır; eksik belge metadata'sı kullanıcıya görünür ve silme tekrarlanabilir (idempotent).
  *   Yollar yalnız sunucu `${tenantId}/${clientId}/` önekinden türetilir → yabancı tenant'a dokunulmaz.
  *
- * HUMAN DESIGN (AŞAMA 3C, migration 20271010000000):
+ * HUMAN DESIGN (AŞAMA 3C, migration 20271010000100):
  *   Danışana BAĞLANMIŞ HD profili bileşik FK (ON DELETE CASCADE) ile aynı DELETE ifadesinde silinir;
  *   profilin BEFORE DELETE trigger'ı o profile ait haritaları (provider_raw dahil) ve raporları da
  *   siler (tek transaction; SET NULL ile sahipsiz satır kalmaz). Bağlanmamış HD kayıtlarına dokunulmaz.

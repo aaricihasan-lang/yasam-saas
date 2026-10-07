@@ -5,7 +5,7 @@
  *
  * Ortam: geçici embedded-postgres + PostgREST shim + Storage emülatörü (scripts/anamnez/testEnv —
  * yalnız 127.0.0.1, PRODUCTION'A SIFIR TEMAS). HD tabloları prod kolonlarıyla kurulur; AŞAMA 3C
- * migration'ı (20271010000000) GERÇEK SQL olarak uygulanır. Gerçek route handler'ları çağrılır.
+ * migration'ı (20271010000100) GERÇEK SQL olarak uygulanır. Gerçek route handler'ları çağrılır.
  * RoxyAPI ÇAĞRILMAZ (fixture + mock callRoxy; global fetch roxyapi.com'a giderse FAIL).
  */
 import { readFileSync } from "node:fs";
@@ -30,7 +30,7 @@ const ROOT = process.cwd();
   };
 }
 const src = (p: string) => readFileSync(path.join(ROOT, p), "utf8");
-const MIGRATION = src("supabase/migrations/20271010000000_hd_client_journey_link.sql");
+const MIGRATION = src("supabase/migrations/20271010000100_hd_client_journey_link.sql");
 const FIXTURE = JSON.parse(src("scripts/hd-roxy/fixtures/roxy-bodygraph-2018-07-20.json")) as Record<string, unknown>;
 const HD_BUCKET = "hd-chart-images";
 
@@ -209,6 +209,26 @@ async function main() {
     ok(!/^\s*(UPDATE|DELETE\s+FROM\s+public\.human_design_clients|DROP TABLE|TRUNCATE)/im.test(MIGRATION.replace(/\$\$[\s\S]*?\$\$/g, "").replace(/^--.*$/gm, "")), "A12 migration yalnız ekleme (UPDATE/DROP TABLE/TRUNCATE yok; DELETE yalnız trigger gövdesinde)");
     const schema = src("lib/backup/schema.generated.ts");
     ok(/human_design_clients:[^\n]*"journey_client_id"/.test(schema) && /fk\("journey_client_id", "clients", true\)/.test(src("lib/backup/registry.ts")), "A13 yedek şeması + kayıt defteri (isteğe bağlı FK) uyumlu");
+    // Trigger guard: BAĞSIZ profil (tüm mevcut prod profilleri) uygulama DIŞINDAN doğrudan silinse bile
+    // davranış migration öncesiyle aynı → rapor + harita SİLİNMEZ, yalnız client_id NULL (20260926000100).
+    const gUn = (await su.query(`insert into public.human_design_clients(tenant_id, name) values ($1,'ZZ guard bağsız') returning id`, [TA])).rows[0].id as string;
+    const gUnChart = (await su.query(`insert into public.human_design_charts(tenant_id, client_id, source) values ($1,$2,'manual') returning id`, [TA, gUn])).rows[0].id as string;
+    const gUnRep = (await su.query(`insert into public.human_design_reports(tenant_id, client_id, chart_id, title) values ($1,$2,$3,'R') returning id`, [TA, gUn, gUnChart])).rows[0].id as string;
+    await su.query(`delete from public.human_design_clients where id=$1`, [gUn]);
+    const gUnRows = (await su.query(`select (select client_id from public.human_design_reports where id=$1) r, (select client_id from public.human_design_charts where id=$2) c,
+      (select count(*) from public.human_design_reports where id=$1)::int rn, (select count(*) from public.human_design_charts where id=$2)::int cn`, [gUnRep, gUnChart])).rows[0];
+    ok(gUnRows.rn === 1 && gUnRows.cn === 1 && gUnRows.r === null && gUnRows.c === null, "A14 bağsız profil doğrudan silindi → rapor + harita KORUNDU (yalnız client_id NULL; migration öncesiyle aynı)");
+    // BAĞLI profil doğrudan silinince trigger devrede → profile ait rapor + harita silinir.
+    const gCli = (await su.query(`insert into public.clients(tenant_id, ad, soyad, dogum, telefon) values ($1,'ZZ','Guard','1999-09-09','05000000000') returning id`, [TA])).rows[0].id as string;
+    const gLn = (await su.query(`insert into public.human_design_clients(tenant_id, name, journey_client_id) values ($1,'ZZ guard bağlı',$2) returning id`, [TA, gCli])).rows[0].id as string;
+    const gLnChart = (await su.query(`insert into public.human_design_charts(tenant_id, client_id, source) values ($1,$2,'manual') returning id`, [TA, gLn])).rows[0].id as string;
+    const gLnRep = (await su.query(`insert into public.human_design_reports(tenant_id, client_id, title) values ($1,$2,'R') returning id`, [TA, gLn])).rows[0].id as string;
+    await su.query(`delete from public.human_design_clients where id=$1`, [gLn]);
+    ok((await count(`select count(*) n from public.human_design_reports where id=$1`, [gLnRep])) === 0 && (await count(`select count(*) n from public.human_design_charts where id=$1`, [gLnChart])) === 0
+      && (await count(`select count(*) n from public.clients where id=$1`, [gCli])) === 1, "A15 bağlı profil silindi → profile ait rapor + harita silindi; merkezî danışan DURUR");
+    await su.query(`delete from public.human_design_reports where id=$1`, [gUnRep]);
+    await su.query(`delete from public.human_design_charts where id=$1`, [gUnChart]);
+    await su.query(`delete from public.clients where id=$1`, [gCli]);
 
     // ── B) MERKEZÎ DANIŞAN SEÇİCİ ─────────────────────────────────────────────
     section("B. Merkezî danışan seçici");
