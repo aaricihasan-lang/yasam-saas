@@ -11,7 +11,8 @@
  *   - toplu silme 3 aşamalı onay (#350) ister; Vazgeç → istek YOK; 3 aşama → silinen id'ler = seçim,
  *     1000+ seçim sunucu sınırına uygun parçalara bölünür,
  *   - Word: mineral modalı yalnız "Tüm Mineraller" + "Seçili Mineraller"; seçili Word id'leri = seçim,
- *   - mobil (390px): "Tümünü Seç" gizli (max-2 kuralı korunur).
+ *   - mobil (390px, WT3.1 owner kararı): "Tümünü Seç" GÖRÜNÜR ve gerçek toplamı seçer; arama kapsamı,
+ *     Seçimi Temizle, 3+ seçimde serbest seçim, 3 aşamalı silme ve yatay taşma yok doğrulanır.
  *
  * Ön koşul (gizli değer YOK):
  *   NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54599 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=zz-w3-test-anon-not-a-secret \
@@ -322,20 +323,61 @@ async function stonesDesktop(browser: Browser) {
 }
 
 async function mobile(browser: Browser) {
-  section("Mobil 390px");
-  for (const route of ["/dogaltas/mineral-listesi", "/dogaltas/dogaltas-listesi"]) {
+  section("Mobil 390px — gerçek Tümünü Seç (WT3.1)");
+  const cases = [
+    { route: "/dogaltas/mineral-listesi", total: 250, q: "Çinko", qn: 50, delPath: "/api/dogaltas/minerals/bulk-delete" },
+    { route: "/dogaltas/dogaltas-listesi", total: 1200, q: "Ametist", qn: 300, delPath: "/api/dogaltas/stones/bulk-delete" },
+  ];
+  for (const c of cases) {
     be.reset();
     const ctx = await newContext(browser, MOBILE);
     const page = await ctx.newPage();
-    await page.goto(`${APP}${route}`, { waitUntil: "domcontentloaded" });
+    const L = c.route.replace("/dogaltas/", "");
+    await page.goto(`${APP}${c.route}`, { waitUntil: "domcontentloaded" });
     await page.locator('input[type="search"]').first().waitFor({ state: "visible", timeout: 30000 });
-    await page.waitForTimeout(2000);
+    await selectAllBtn(page).waitFor({ state: "visible", timeout: 30000 }).catch(() => {});
     const body = await page.locator("body").innerText();
-    ok(!/Görünenleri Seç/.test(body), `${route}: "Görünenleri Seç" yok`);
-    ok(!(await selectAllBtn(page).isVisible().catch(() => false)), `${route}: mobilde Tümünü Seç gizli (max-2 kuralı)`);
-    const sw = await page.evaluate(() => document.documentElement.scrollWidth);
-    ok(sw <= 390, `${route}: yatay taşma yok (scrollWidth=${sw})`);
-    await page.screenshot({ path: path.join(OUT, `mobil${route.replace(/\//g, "-")}.png`) });
+    ok(!/Görünenleri Seç/.test(body), `${L}: "Görünenleri Seç" yok`);
+    const btn = selectAllBtn(page);
+    ok(await btn.isVisible().catch(() => false), `${L}: mobilde "Tümünü Seç" görünür`);
+    ok(new RegExp(`Tümünü Seç \\(${c.total}\\)`).test((await btn.textContent().catch(() => "")) ?? ""), `${L}: "Tümünü Seç (${c.total})" gerçek toplam`);
+    const box = await btn.boundingBox();
+    ok(!!box && box.height >= 32, `${L}: dokunma hedefi yeterli (h=${box?.height ?? 0})`);
+    await btn.tap();
+    ok(await waitCount(page, c.total, 30000), `${L}: mobil Tümünü Seç → ${c.total} seçili`, await selectedCount(page));
+    const sw1 = await page.evaluate(() => document.documentElement.scrollWidth);
+    ok(sw1 <= 390, `${L}: tümü seçiliyken yatay taşma yok (scrollWidth=${sw1})`);
+    await page.screenshot({ path: path.join(OUT, `mobil-${L}-tumu-secili.png`) });
+
+    // Seçimi Temizle
+    const cb = clearBtn(page);
+    ok(await cb.isVisible() && await cb.isEnabled(), `${L}: Seçimi Temizle görünür + aktif`);
+    await cb.tap();
+    ok(await waitCount(page, 0), `${L}: Seçimi Temizle → 0`);
+
+    // Serbest tekli seçim: 3. kayıt da seçilebilir (eski max-2 sınırı yok)
+    const boxes = page.locator('input[type="checkbox"]:visible');
+    for (let i = 0; i < 3; i++) await boxes.nth(i).tap().catch(async () => { await boxes.nth(i).click(); });
+    ok(await waitCount(page, 3, 5000), `${L}: mobilde 3 kayıt tek tek seçilebilir (max-2 sınırı kalktı)`, await selectedCount(page));
+    await clearBtn(page).tap();
+    await waitCount(page, 0);
+
+    // Arama kapsamı
+    await page.locator('input[type="search"]').first().fill(c.q);
+    await page.waitForTimeout(1800);
+    const lbl = (await selectAllBtn(page).textContent().catch(() => "")) ?? "";
+    ok(new RegExp(`Sonuçların Tümünü Seç \\(${c.qn}\\)`).test(lbl), `${L}: arama → "Sonuçların Tümünü Seç (${c.qn})"`, lbl);
+    await selectAllBtn(page).tap();
+    ok(await waitCount(page, c.qn, 20000), `${L}: sonuçların tümü → ${c.qn} seçili`);
+
+    // 3 aşamalı silme (mobil)
+    await page.getByRole("button", { name: new RegExp(`Sil \\(${c.qn}\\)`) }).first().tap();
+    await runThreeStage(page, c.qn, `${L} mobil silme`);
+    await page.waitForTimeout(2000);
+    const ids = be.deleteCalls.filter((d) => d.path === c.delPath).flatMap((d) => d.ids);
+    ok(ids.length === c.qn, `${L}: mobil silme → tam ${c.qn} id gönderildi`, ids.length);
+    const sw2 = await page.evaluate(() => document.documentElement.scrollWidth);
+    ok(sw2 <= 390, `${L}: işlem sonrası yatay taşma yok (scrollWidth=${sw2})`);
     await ctx.close();
   }
 }

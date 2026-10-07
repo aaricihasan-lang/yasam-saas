@@ -113,9 +113,10 @@ const routeSrc = readFileSync(join(repo, "app/api/internal/yh/outbox-webhook/rou
 check("R", "25 yalnız POST export (GET/PUT/DELETE/PATCH export YOK)", /export\s+async\s+function\s+POST/.test(routeSrc) && !/export\s+(async\s+)?function\s+(GET|PUT|DELETE|PATCH)/.test(routeSrc));
 check("R", "26 runtime nodejs", /export\s+const\s+runtime\s*=\s*"nodejs"/.test(routeSrc));
 check("R", "27 server-only import", /^import\s+"server-only";/m.test(routeSrc));
-check("R", "28 constant-time compare (timingSafeEqual)", /timingSafeEqual/.test(routeSrc));
-check("R", "29 secret server-only env (NEXT_PUBLIC değil)", /process\.env\[SECRET_ENV\]/.test(routeSrc) && /YH_OUTBOX_WEBHOOK_SECRET/.test(routeSrc) && !/NEXT_PUBLIC_.*WEBHOOK/.test(routeSrc));
-check("R", "30 env yoksa 503 fail-closed", /status:\s*503/.test(routeSrc));
+// WT3.1: secret Vault'ta; uygulama secret tutmaz, service_role-only RPC ile doğrular.
+check("R", "28 secret doğrulaması Vault RPC (yh_outbox_webhook_secret_matches, DB içinde sha256)", /yh_outbox_webhook_secret_matches/.test(routeSrc) && /getServerDb\(\)\.rpc\(/.test(routeSrc));
+check("R", "29 eski env secret OKUNMUYOR (process.env yok, NEXT_PUBLIC yok)", !/process\.env/.test(routeSrc) && !/NEXT_PUBLIC_.*WEBHOOK/.test(routeSrc));
+check("R", "30 Vault yapılandırılmamış / RPC hatası → 503 fail-closed", /status:\s*503/.test(routeSrc));
 check("R", "31 yetkisiz → 401", /status:\s*401/.test(routeSrc));
 check("R", "32 malformed json → 400", /status:\s*400/.test(routeSrc));
 check("R", "33 inngest.send başarısız → 502", /status:\s*502/.test(routeSrc));
@@ -124,6 +125,18 @@ check("R", "35 karar saf modülden (decideWebhookAction import)", /decideWebhook
 // Ham payload/secret loglama YOK: console çağrılarında payload/record/old_record/provided/expected argümanı geçmemeli.
 check("R", "36 ham payload/secret loglanmıyor", !/console\.[a-z]+\([^)]*\b(payload|record|old_record|provided|expected)\b/.test(routeSrc));
 check("R", "37 route inngest.send kullanıyor (event-driven dispatch)", /inngest\.send\(/.test(routeSrc));
+
+// ── V: VAULT MİGRATION (statik; dosyada secret YOK) ─────────────────────────
+const migSrc = readFileSync(join(repo, "supabase/migrations/20271010000000_yh_outbox_webhook_vault_secret.sql"), "utf8");
+check("V", "38 migration'da secret literal yok (64-hex / header:değer çifti yok)", !/[0-9a-f]{40,}/i.test(migSrc) && !/x-yh-webhook-secret"\s*:\s*"[^"<]/.test(migSrc));
+check("V", "39 secret DB içinde rastgele üretilir (gen_random_bytes → vault create/update)", /vault\.create_secret\(\s*encode\(extensions\.gen_random_bytes\(32\)/.test(migSrc) && /vault\.update_secret\(v_id, encode\(extensions\.gen_random_bytes\(32\)/.test(migSrc));
+check("V", "40 trigger fonksiyonu secret'ı Vault'tan okur; trigger argümanı YOK", /FROM vault\.decrypted_secrets/.test(migSrc) && /EXECUTE FUNCTION public\.yh_outbox_webhook_notify\(\);/.test(migSrc) && !/supabase_functions\.http_request\(/.test(migSrc.replace(/^--.*$/gm, "")));
+check("V", "41 doğrulama RPC'si yalnız service_role (PUBLIC/anon/authenticated REVOKE)", /REVOKE ALL ON FUNCTION public\.yh_outbox_webhook_secret_matches\(text\) FROM PUBLIC;/.test(migSrc) && /REVOKE ALL ON FUNCTION public\.yh_outbox_webhook_secret_matches\(text\) FROM anon, authenticated;/.test(migSrc) && /GRANT EXECUTE ON FUNCTION public\.yh_outbox_webhook_secret_matches\(text\) TO service_role;/.test(migSrc));
+check("V", "42 SECURITY DEFINER + search_path='' (iki fonksiyon)", (migSrc.match(/SECURITY DEFINER\r?\nSET search_path = ''/g) ?? []).length === 2);
+check("V", "43 payload şekli korunur (old_record/record/type/table/schema)", ["'old_record'", "'record'", "'type'", "'table'", "'schema'"].every((k) => migSrc.includes(k)));
+check("V", "44 uyandırma best-effort (EXCEPTION → WARNING, RETURN NEW)", /EXCEPTION WHEN OTHERS THEN\r?\n\s+-- Best-effort/.test(migSrc));
+check("V", "45 URL migration'da yok (yerel/staging prod'a istek atmaz)", !/https?:\/\//.test(migSrc.replace(/^--.*$/gm, "")));
+check("V", "46 pg_net kuyruk/yanıt anon/authenticated SELECT REVOKE", /REVOKE SELECT ON TABLE net\.http_request_queue FROM anon, authenticated/.test(migSrc) && /REVOKE SELECT ON TABLE net\._http_response FROM anon, authenticated/.test(migSrc));
 
 // ── S: WORKER SÖZLEŞMESİ (statik; event-driven + safety cron + semantik korundu) ──
 const proWorker = readFileSync(join(repo, "lib/inngest/functions/yhOutboxWorker.ts"), "utf8");
