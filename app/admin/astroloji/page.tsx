@@ -312,10 +312,10 @@ export default function AstrologyWorkspacePage() {
       <header className="flex flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-semibold text-slate-900">Astroloji Çalışma Merkezi</h1>
-          <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-medium text-white">Owner pilot · Aşama 3</span>
+          <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-medium text-white">Owner pilot · Aşama 5</span>
         </div>
         <p className="text-sm text-slate-600">
-          Batı (tropikal): Natal · Transit · Transit takvimi · Secondary progression · Solar arc · Solar/Lunar return · Sinastri · Composite. Teknik sonuçlar ile sağlayıcının otomatik yorumu ayrı katmanlardadır.
+          Batı (tropikal): Natal · Transit · Transit takvimi · Progression · Solar arc · Solar/Lunar return · Sinastri · Composite · Astrocartography · Relocation · Local Space. Vedik / Jyotish (sidereal): D1 Rashi · Nakshatra/Pada · D9 + Varga · Vimshottari Dasha · Graha Drishti · Ashtakavarga · Shadbala · Janma Panchanga. Teknik sonuçlar ile sağlayıcının otomatik yorumu ayrı katmanlardadır.
         </p>
       </header>
 

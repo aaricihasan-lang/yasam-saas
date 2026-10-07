@@ -149,6 +149,7 @@ export function SavedAnalysisView({ id, previewNoInterp, onClose }: { id: string
               ? { lat: a.profile.revision.latitude, lon: a.profile.revision.longitude, label: a.profile.revision.locationLabel }
               : null
           }
+          kbLookup={(keys) => a.knowledgeBank.filter((e) => keys.includes(e.topicKey))}
         />
       </section>
 

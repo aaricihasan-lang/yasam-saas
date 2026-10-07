@@ -21,7 +21,7 @@ import { createAstroProfile } from "@/lib/astrology/profiles/service";
 import { getAstrologyResult, planAstrology, runAstrology, type EngineCtx, type EngineDeps } from "@/lib/astrology/engine/service";
 import { getTechnique } from "@/lib/astrology/engine/techniques";
 import { createKb } from "@/lib/astrology/kb/service";
-import { getAnalysis, getWorkspace, locationContextKey, saveAnalysis, saveExpertNote, vedicContextKey } from "@/lib/astrology/analyses/service";
+import { fmtDateTr, getAnalysis, getWorkspace, locationContextKey, saveAnalysis, saveExpertNote, vedicContextKey } from "@/lib/astrology/analyses/service";
 import { isSectionKeyForTechnique, parseAnyTopicKey, topicsForTechnique, traditionOfKey } from "@/lib/astrology/topics/index";
 import { NITYA_YOGA_LABELS, VEDIC_SPECS, VEDIC_YOGA_NAMES, parseVedicTopicKey, vedicArgOptions, vedicDefaultParts, vedicTopicKey } from "@/lib/astrology/topics/vedic";
 import {
@@ -1017,6 +1017,12 @@ async function main() {
     assert.equal(formatDegree(11 + 20 / 60), "11°20′");
     assert.equal(formatDegree(0), "0°00′");
     assert.equal(formatDegree(88.99753063012518 % 30), "28°59′");
+  });
+
+  await t("5G kayıt başlığı tarihi Europe/Istanbul takvim günü (sunucu UTC; 00:00–03:00 TR önceki günü göstermez)", () => {
+    assert.equal(fmtDateTr("2026-10-07T23:17:00Z"), "08.10.2026");
+    assert.equal(fmtDateTr("2026-10-07T20:59:00Z"), "07.10.2026");
+    assert.equal(fmtDateTr("2026-12-31T21:30:00Z"), "01.01.2027");
   });
 
   await t("golden kaydı: var olan Vedik fixture'lar plan adlarıyla uyumlu", () => {

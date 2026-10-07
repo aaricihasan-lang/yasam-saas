@@ -15,8 +15,8 @@
 | 5C Nakshatra/Pada | ✅ tamam | 4786c58a |
 | 5D D9 + Varga | ✅ tamam | 94479fb2 |
 | 5E Vimshottari Dasha | ✅ tamam | 3d856a50 |
-| 5F Diğer Vedik teknikler | ✅ tamam | (5F commit) |
-| 5G KB / analiz / premium UI / kapanış | ⏳ sırada | — |
+| 5F Diğer Vedik teknikler | ✅ tamam | 779236fe |
+| 5G KB / analiz / premium UI / kapanış | ✅ tamam — YEREL MÜHÜR | (5G commit) |
 
 ## Kararlar
 
@@ -134,6 +134,75 @@ Toplam: **23** (Aşama 5: 9 — plan ≈9–10 içinde). yoga/detect golden'ı Y
 
 ## Sıradaki kesin adım
 
-5G: KB editörü/konu seçici Vedik kapsamı (tüm bağlamlar) son kontrol, kayıtlı analiz görünümü tüm Vedik teknikler,
-premium görsel + mobil tur, tam regresyon (Aşama 1–4.1, HD Roxy, infra, admin-hygiene, output-visibility, PG, tsc, eslint, build),
-genel mutasyon turu, nihai 28 maddelik rapor → DUR.
+Aşama 5 kapandı (yerel mühür). **DUR** — Aşama 6 (KP) için owner onayı beklenir.
+
+---
+
+# AŞAMA 5 — NİHAİ RAPOR (2026-10-08)
+
+**Durum: YEREL MÜHÜR (P0/P1/P2 = 0).** Vedik Transit bilinçli olarak dışarıda bırakıldı (madde 26) — tamamlanmış gibi gösterilmez.
+
+1. **Başlangıç / final commit:** başlangıç `ca534a37` (Aşama 4.1). Aşama 5 commitleri: 5a910e06 (5A) · e0fce311 (5A static) ·
+   d31d00ab (5B) · 4786c58a (5C) · 94479fb2 (5D) · 3d856a50 (5E) · 779236fe (5F) · **5G = bu commit** (SHA sohbet raporunda).
+2. **Alt aşamalar:** 5A envanter + harita kararı · 5B D1 Rashi (kundli, ayrıntı, yoga) · 5C Nakshatra/Pada + ayanamsa not bağlamı ·
+   5D D9 + D2…D60 · 5E Vimshottari MD→AD→PD (tembel) · 5F Graha Drishti, Ashtakavarga, Shadbala, Janma Panchanga ·
+   5G KB/konu seçici tüm Vedik bağlamlar, kayıtlı analiz KB anlık görüntüsü, görsel/mobil tur, regresyon, mutasyon, rapor.
+3. **Roxy Vedik envanter:** `docs/astrology/phase5a-vedic-inventory.md` (uçlar, alanlar, yorum alanları, ayanamsa, timezone=5.5 tuzağı).
+4. **Hazır harita araştırması:** Roxy `@roxyapi/ui` (MIT, Lit web bileşenleri) `<roxy-vedic-kundli>` (Kuzey/Güney/Doğu) ve
+   `<roxy-divisional-chart>` (D2–D60) sunar; self-fetch yalnız data-endpoint/publishable-key ile — KULLANILMADI.
+5. **Seçilen çözüm:** `@roxyapi/ui@0.49.0` (tam sürüm), yalnız kendi TEKNİK projeksiyonumuzdan kurulan veriyle beslenir
+   (ham yanıt/anlatı yok; `hide-readings` + başlık/sekme/details gizli; dış ağ isteği 0 ölçüldü). Bileşen tıklama olayı
+   yaymadığı için ayrıntı + Bilgi Bankam bağlantılı teknik tablodan açılır. İkinci harita motoru YAZILMADI.
+6. **D1:** `/vedic-astrology/birth-chart` whitelist adaptörü; tutarlılık: frame ayanamsa, rashi↔boylam, nakshatra/pada/lord↔boylam,
+   bütün-burç ev, 12 kutu↔meta. Bağımsız astronomi: graha ≤2.1″, Lagna 1.2″, ayanamsa 23.7288°, Rahu = ORTALAMA düğüm.
+7. **Ayanamsa:** lahiri (belge varsayılanı), raman, kp-newcomb, kp-old; custom kapalı. Önbellek anahtarında, snapshot'ta ve not
+   bağlamında. /aspects ve /panchang ayanamsa ALMAZ → bu iki teknik yalnız Lahiri (başka ayanamsada 0 istek + açık neden).
+8. **Nakshatra/Pada:** Janma nakshatra, 10 nokta tablosu (sıra/pada/ilerleme/yönetici yeri), Vimshottari yönetici grupları;
+   bağımsız boylam→nakshatra/pada/oran denetimi. Konular graha_in_nakshatra, graha_nakshatra_pada, lagna_nakshatra.
+9. **D9 + Varga:** `vedic.varga` (D9 varsayılan; 2,3,4,7,10,12,16,20,24,27,30,40,45,60). D9: pada↔navamsa ve ⌊boylam×9/30⌋
+   bağımsız; vargottama listesi D1/varga rashileriyle. **D2–D60 yalnız yapısal denetimli** — UI'da açık uyarı (madde 26).
+10. **Vimshottari:** major / sub/{md} / sub/{md}/{ad}; sıra (kesilmişse döngü soneki), ardışıklık, kanonik oranlar, üst sınırlar;
+    bağımsız doğum bakiyesi (1−oran)×yıl ±0.003 y. Zaman çizelgesi + "bugün", tembel drill (önbellek → tekrar 0 istek), "seçiciye aktar".
+11. **Diğer:** Graha Drishti (Roxy derece+orb yöntemi, açıkça etiketli), Ashtakavarga (BAV/SAV=337/Shodhana/Shodhya Pinda),
+    Shadbala (Σ6, rupa, BPHS asgari, sıra), Janma Panchanga (tithi/nitya yoga/karana Güneş-Ay'dan bağımsız). Yogalar D1'de (48 denetim;
+    yoga/detect ayrı golden gereksiz).
+12. **KB taksonomisi:** gelenek `vedic` (DB CHECK'te vardı; migration YOK). Bağlamlar: vedic_d1, vedic_varga, vedic_dasha,
+    vedic_drishti, vedic_strength, vedic_panchanga. Tür adları rakamsız (DB regex) — `d9_*` hatası bulundu → `navamsa_*`.
+    Konu seçici + KB filtresi Vedik grupları; KB editörü geleneği anahtardan türetir.
+13. **Uzman notları:** `TechniqueDefinition.noteContext` → `ayanamsa[:…]|division|mahadasha|antardasha` kanonik metni; sunucu
+    parseOptions ile yeniden türetip doğrular → deterministik uuid (konumdan ayrı ad alanı). Lahiri≠Raman, D1≠D9≠D10, MD≠PD.
+14. **Kayıtlı analiz:** v2 snapshot (teknik, normalize seçenek, ayanamsa/bölüm/dasha yolu, sürümler, not, KB, yorum yetkiye bağlı);
+    açmak 0 istek; Vedik görünümde KB eşleşmesi anlık görüntüden; kayıtlı dashada drill yok. Başlık tarihi Europe/Istanbul (düzeltildi).
+15. **Cache/planner:** her Vedik birim kendi inputHash'i (uç + gövde: ayanamsa, bölüm, dasha yolu); D1/D9/Dn/MD/AD/PD ayrı sonuç;
+    tekrar 0 istek (harness + tarayıcı günlüğü). Tek seçimli drill eşik altında.
+16. **Bilinmeyen saat:** TÜM Vedik teknikler TIME_REQUIRED (Lagna/bhava/pada/varga/dasha/panchanga saate bağlı); saat uydurulmaz;
+    görünüm katmanında ayrıca maske.
+17. **Teknik/yorum:** yorumlar (rashi/nakshatra/bhava/yoga açıklamaları, division.significance, dasha interpretation, balaThemes,
+    characteristics) YALNIZ yorum katmanında; yetkisiz/önizlemede yanıtta bile yok (harness + tarayıcı). Bilinmeyen alan → yalnız yolu.
+    Not: brief Shadbala bileşen açıklamalarını teknik sayılabilir diyor; daha sıkı seçenek olarak yorum katmanında tutuldu.
+18. **Güvenlik/tenant:** owner-only kapı, uniform 404, kill switch korunuyor; kayıtlı analiz başka tenant'a 404; anahtar/ham yanıt/hash
+    bundle'da 0; dasha uçları yalnız beyaz liste yönetici adlarından; istemci uç regex'i büyük harfe genişledi + "//" reddi.
+19. **Görsel kalite:** Kuzey D1 + Güney D1 + Kuzey D9 ekran görüntüsüyle incelendi (yerleşimler tablo ve bağımsız denetimle aynı;
+    Lagna belirgin; kalabalık ev okunur). Doğu düzeni yalnız çizim doğrulandı (görsel ayrıntı incelemesi yapılmadı — P3).
+    Dasha/Ashtakavarga/Shadbala/Panchanga panelleri incelendi; 390 px'te 7 Vedik sekmede sayfa taşması yok.
+    Kusurlar: bileşen etiketleri İngilizce kısaltma (Su/Mo, PI/AR) — kütüphane `lang=tr` çevirmiyor (P3).
+20. **Bağımsız doğrulamalar:** astronomy-engine (D1), D9 iki yoldan, dasha bakiyesi + oranlar, Ay boylamı D1=dasha=panchanga,
+    drishti boylamları=D1 (≤1e-4°), panchanga D1 Güneş/Ay'ından, Ashtakavarga BPHS sabitleri, Shadbala BPHS sabitleri.
+21. **Testler:** astroloji 39/19/17/37/20/15/**phase5 33**/static 10 + PG PASS; tsc 0; eslint 0; next build OK; bundle taraması 0.
+    Diğer: infra 43/0, admin-hygiene 55/0, HD Roxy 220/0 + info-panel 65/0, output-visibility 205/0; faz1-p3 94/4 ve backup 53/1
+    ÖNCEDEN VAR OLAN, astroloji dışı (session-security RPC, route envanteri — astroloji route'u yok —, schema.generated senkronu).
+22. **Mutasyon:** mutate5 14/14 + mutate5f 7/7 = **21/21 yakalandı** (ilk turda yakalanamayan "yalnız sıra" mutasyonu için test eklendi).
+23. **P0/P1/P2/P3:** P0 0 · P1 0 · P2 0 · P3: (a) kütüphane İngilizce kısaltmaları, (b) Doğu düzeni görsel incelemesi yok,
+    (c) D2–D60 bağımsız formül doğrulaması yok (UI uyarılı), (d) drishti Roxy derece/orb yöntemi (rashi drishti değil; etiketli),
+    (e) yerel sahte Roxy'de drill yalnız golden yollarında çalışır (ürün etkisi yok).
+24. **Yeni gerçek Roxy çağrıları (Aşama 5): 9** — vedic-d1, vedic-d9, dasha major, dasha sub/Mercury, dasha sub/Moon/Rahu,
+    aspects, ashtakavarga, shadbala, panchang/basic. Endpoint başına 1; tekrar yok; anahtar loglanmadı. (dasha sub ilk denemesi
+    yerelde reddedildi — deneme 0, gerçek çağrı/maliyet yok.)
+25. **Genel toplam:** **23** gerçek Roxy çağrısı (Aşama 0–4.1: 14; Aşama 5: 9).
+26. **Açık eksikler:** Vedik Transit (Gochar) YAPILMADI (zamana bağlı, ayrı doğrulama + golden gerekir) · D2–D60 bağımsız doğrulama ·
+    Doğu düzeni görsel inceleme · kütüphane Türkçe etiket desteği yok · KP yok (kapsam dışı).
+27. **Production/main/push:** DEĞİŞMEDİ — push yok, preview yok, main merge/rebase yok, production deploy/migration/SQL yok,
+    yeni ücretli servis yok; diğer worktree'lere dokunulmadı. Yeni migration YOK.
+28. **Aşama 6 (KP) önerisi:** KP ayanamsa (kp-newcomb/kp-old) zaten destekli; Roxy KP uçları envanteri (cusp/sub-lord/significator,
+    ruling planets), dasha `significators=true` KP katmanı (şu an kapalı), Placidus cusp'ları, 249 sub-lord tablosu tutarlılık
+    denetimi, KP KB geleneği (`kp` DB CHECK'te var), horary (1–249) ayrı teknik; aynı golden disiplini (uç başına 1).

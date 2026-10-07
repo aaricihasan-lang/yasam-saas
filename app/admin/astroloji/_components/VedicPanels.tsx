@@ -103,7 +103,7 @@ export function RoxyKundli({ data, style, kind = "kundli" }: { data: unknown; st
   if (failed) return <p className="text-sm text-rose-700">Harita bileşeni yüklenemedi; teknik tablo aşağıda.</p>;
   return (
     <div className="roxy-host w-full min-w-0" data-testid="astro-vedic-kundli">
-      {createElement(kind === "divisional" ? "roxy-divisional-chart" : "roxy-vedic-kundli", { ref, "chart-style": style, lang: "tr", "hide-readings": "", "hide-sections": "header,tablist" })}
+      {createElement(kind === "divisional" ? "roxy-divisional-chart" : "roxy-vedic-kundli", { ref, "chart-style": style, lang: "tr", "hide-readings": "", "hide-sections": kind === "divisional" ? "header,tablist,details" : "header,tablist" })}
       {!ready && <p className="text-sm text-slate-400">Harita yükleniyor…</p>}
     </div>
   );
@@ -437,6 +437,12 @@ export function VedicVargaPanel({ t, kbLookup }: { t: VedicVargaTechnical; kbLoo
         </p>
         <StyleTabs style={style} setStyle={setStyle} />
       </div>
+      {!d9 && (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs text-amber-900" data-testid="astro-vedic-varga-unverified">
+          {dn} değerleri Roxy&apos;den gelir ve yapısal tutarlılık denetiminden geçer (bölüm/ayanamsa yankısı, ev, kutu, vargottama); bu bölüm için bağımsız formül doğrulaması YAPILMADI
+          (bağımsız doğrulama yalnız D9 Navamsa için var).
+        </p>
+      )}
       <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="mx-auto w-full max-w-[520px]">
           <RoxyKundli data={data} style={style} kind="divisional" />

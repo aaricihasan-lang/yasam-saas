@@ -313,9 +313,12 @@ function kbSnapshotEntry(e: ReturnType<typeof publicKbEntry>) {
   };
 }
 
-function fmtDateTr(iso: string): string {
-  const d = new Date(iso);
-  return `${String(d.getUTCDate()).padStart(2, "0")}.${String(d.getUTCMonth() + 1).padStart(2, "0")}.${d.getUTCFullYear()}`;
+export function fmtDateTr(iso: string): string {
+  // Aşama 5G: sunucu UTC'de çalışır; başlık tarihi kullanıcının takvim günü (Europe/Istanbul) olmalı —
+  // 00:00–03:00 TR arasında kaydedilen analiz önceki günü göstermesin.
+  const p = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Istanbul", day: "2-digit", month: "2-digit", year: "numeric" }).formatToParts(new Date(iso));
+  const get = (t: string) => p.find((x) => x.type === t)?.value ?? "";
+  return `${get("day")}.${get("month")}.${get("year")}`;
 }
 
 async function clientRef(ctx: EngineCtx, clientId: string | null): Promise<{ ok: true; v: { id: string; name: string | null } | null } | { ok: false; r: ServiceResponse }> {
