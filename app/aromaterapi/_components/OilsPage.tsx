@@ -855,18 +855,33 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
   }, [ownFilteredRows]);
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+  const bulkDeleteBusyRef = useRef(false);
 
   async function handleBulkDelete() {
-    const ids = Array.from(selectedIds);
+    if (bulkDeleteBusyRef.current) return; // çift tıklama → tek DELETE
+    // Silme kapsamı = seçili ∩ görünür (kendi) kayıtlar — gizli kalmış seçim silinmez.
+    const visibleById = new Map(ownFilteredRows.map((r) => [r.id, r] as const));
+    const ids = Array.from(selectedIds).filter((id) => visibleById.has(id));
     if (ids.length === 0 || !tenantId) return;
 
-    const confirmed = await deleteConfirm({
-      title: "Seçili yağları sil",
-      message: `${ids.length} yağ kaydını silmek istediğinizden emin misiniz?`,
-      secondMessage: "Bu işlem geri alınamaz. Seçili kayıtlar kalıcı olarak silinecek.",
-    });
-    if (!confirmed) return;
+    bulkDeleteBusyRef.current = true;
+    try {
+      const confirmed = await deleteConfirm({
+        title: "Seçili yağları sil",
+        message: `${ids.length} yağ kaydını silmek istediğinizden emin misiniz?`,
+        secondMessage: "Bu işlem geri alınamaz. Seçili kayıtlar kalıcı olarak silinecek.",
+        count: ids.length,
+        names: ids.map((id) => visibleById.get(id)?.name || "(adsız yağ)"),
+        noun: "yağ kaydı",
+      });
+      if (!confirmed) return;
+      await runBulkDelete(ids);
+    } finally {
+      bulkDeleteBusyRef.current = false;
+    }
+  }
 
+  async function runBulkDelete(ids: string[]) {
     setDeleteLoading(true);
 
     // AROMA-2 — ağ hatasında da deleteLoading `finally` ile sıfırlanır (buton kilitli kalmaz).

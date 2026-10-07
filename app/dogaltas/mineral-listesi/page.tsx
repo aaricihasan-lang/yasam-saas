@@ -350,6 +350,7 @@ function MineralListesiPageContent() {
 
     const ok = await deleteConfirm({
       title: t("deleteConfirmTitle"),
+      count: ids.length,
       message: t("deleteConfirmMessage", { n: ids.length }),
       names: targets.map((m) => m.name),
     });

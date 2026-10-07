@@ -648,6 +648,8 @@ export default function DanisanListePage() {
       // Ad listeli onay + bağlı olmayan modüller notu + "SİL" yazarak onay (geri alınamaz).
       const confirmed = await deleteConfirm({
         title: t("toast.deleteConfirmTitle"),
+        count: ids.length,
+        noun: "danışan",
         message: [
           t("toast.deleteConfirmMsg", { count: ids.length }),
           buildNameListLines(ids.map(nameOf), ids.length).join("\n"),

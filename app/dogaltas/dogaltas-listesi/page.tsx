@@ -918,6 +918,7 @@ function DogaltasListesiPageContent() {
 
     const confirmed = await deleteConfirm({
       title: t("confirm.bulkTitle"),
+      count: targets.length,
       message: t("confirm.bulkMessage", { count: targets.length }),
       secondMessage: t("confirm.bulkSecond"),
       names: targets.map((s) => s.stone_name || tf("common.unnamedStone")),

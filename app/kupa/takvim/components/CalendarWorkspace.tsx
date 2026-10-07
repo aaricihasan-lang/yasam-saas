@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
+import { buildNameListLines } from "@/lib/ui/deleteConfirmMessage";
 import { kupaBtnPrimary, kupaBtnSuccess, kupaBtnGhost, kupaCard } from "@/app/kupa/components/KupaShell";
 import { CUPPING_PLAN_DAYS_MAX_BATCH, type CuppingDayColorKey } from "@/lib/cupping/calendarTypes";
 import { gregorianToHijri, toYmd } from "@/lib/cupping/hijri";
@@ -407,6 +409,26 @@ export function CalendarWorkspace() {
   async function handleSave() {
     const current = planRef.current;
     if (!current || !dirty || savingRef.current) return;
+    // Kaydetme 3+ KAYITLI günü silecekse → sistem geneli 3 aşamalı toplu silme onayı.
+    // İptal → hiçbir şey kaydedilmez, taslak olduğu gibi kalır.
+    const savedRemovals = removals.filter((d) => !!savedDays.get(d)?.id);
+    if (requiresBulkDeleteGuard(savedRemovals.length)) {
+      savingRef.current = true;
+      let confirmed = false;
+      try {
+        confirmed = await runBulkDeleteConfirm(confirm, {
+          count: savedRemovals.length,
+          noun: "kayıtlı takvim günü",
+          detail: [
+            "Değişiklikleri kaydetmek, takvimden çıkardığınız şu kayıtlı günleri siler:",
+            buildNameListLines(savedRemovals, savedRemovals.length).join("\n"),
+          ].join("\n"),
+        });
+      } finally {
+        savingRef.current = false;
+      }
+      if (!confirmed) return;
+    }
     savingRef.current = true;
     setSaving(true);
     setEditYmd(null);

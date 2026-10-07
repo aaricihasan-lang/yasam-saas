@@ -317,6 +317,7 @@ export default function DogaltasUrunStokPage() {
   const [critAdet, setCritAdet] = useState("3");
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [stockMsg, setStockMsg] = useState<string | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const displayedStock = useMemo(() => {
     const filtered = filterInventory(inventory, search);
@@ -433,37 +434,50 @@ export default function DogaltasUrunStokPage() {
     setPendingPhotos([]);
   }
 
+  const deleteBusyRef = useRef(false);
   async function deleteSelectedStock() {
+    if (deleteBusyRef.current) return; // çift tıklama → tek silme akışı
     // Yalnız görünür ∩ seçili: aramayla gizlenmiş seçili kayıt habersiz silinmez.
     const removed = displayedStock.filter((it) => selectedKeys.has(itemKeyFrom(it)));
     if (removed.length === 0) {
       setStockMsg("Silmek için en az bir satır seçin.");
       return;
     }
-    const removedKeys = new Set(removed.map((it) => itemKeyFrom(it)));
-    const ok = await deleteConfirm({
-      title: "Stok kaydı silinecek",
-      message: `Seçili ${removed.length} stok kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
-      names: removed.map((it) => [it.name, it.type].filter(Boolean).join(" — ") || "(adsız taş)"),
-    });
-    if (!ok) return;
-    const next = inventory.filter((it) => !removedKeys.has(itemKeyFrom(it)));
-    saveInventory(next);
-    setInventory(next);
-    const count = removed.length;
-    setSelectedKeys(new Set());
-    // K-1: silmeyi DB ile uyumlu yap; aksi halde kayıt yenilemede DB'den geri gelir.
-    if (!isDemo && activeTenantId && removed.length > 0) {
-      const res = await deleteDogaltasInventoryItems(activeTenantId, removed);
-      await reloadInventory();
-      if (!res.ok) {
-        setStockMsg(
-          `${count} kayıt cihazınızdan silindi ancak buluttan silmede hata: ${res.error}`,
-        );
+    deleteBusyRef.current = true;
+    setDeleteBusy(true);
+    try {
+      const removedKeys = new Set(removed.map((it) => itemKeyFrom(it)));
+      const ok = await deleteConfirm({
+        title: "Stok kaydı silinecek",
+        message: `Seçili ${removed.length} stok kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+        names: removed.map((it) => [it.name, it.type].filter(Boolean).join(" — ") || "(adsız taş)"),
+        count: removed.length,
+        noun: "stok kaydı",
+      });
+      if (!ok) return;
+      const count = removed.length;
+      // Gerçek hesap: ÖNCE buluttan sil, sonra DB'den yeniden yükle. Silme başarısızsa kayıtlar
+      // ekrandan kaybolmuş gibi gösterilmez (liste DB gerçeğini yansıtır).
+      if (!isDemo && activeTenantId) {
+        const res = await deleteDogaltasInventoryItems(activeTenantId, removed);
+        await reloadInventory();
+        if (!res.ok) {
+          setStockMsg(`Silme tamamlanamadı: ${res.error} Silinemeyen kayıtlar listede kalır.`);
+          return;
+        }
+        setSelectedKeys(new Set());
+        setStockMsg(`${count} kayıt silindi.`);
         return;
       }
+      const next = inventory.filter((it) => !removedKeys.has(itemKeyFrom(it)));
+      saveInventory(next);
+      setInventory(next);
+      setSelectedKeys(new Set());
+      setStockMsg(`${count} kayıt silindi.`);
+    } finally {
+      deleteBusyRef.current = false;
+      setDeleteBusy(false);
     }
-    setStockMsg(`${count} kayıt silindi.`);
   }
 
   function itemKeyFrom(it: InvItem) {
@@ -712,13 +726,25 @@ export default function DogaltasUrunStokPage() {
   }, [sales]);
 
   // USM: iptal artık CANONICAL server RPC (inventory_sale_cancel_atomic) ile.
+  const salesCancelBusyRef = useRef(false);
   async function deleteSelectedSales() {
+    if (salesCancelBusyRef.current) return; // çift tıklama → tek iptal akışı
+    salesCancelBusyRef.current = true;
+    try {
+      await deleteSelectedSalesInner();
+    } finally {
+      salesCancelBusyRef.current = false;
+    }
+  }
+
+  async function deleteSelectedSalesInner() {
     if (!historySelected.size) {
       setStockMsg("İptal için en az bir satır seçin.");
       return;
     }
     const ok = await deleteConfirm({
       title: "Satış iptal edilecek",
+      noun: "satış kaydı",
       message: `Seçili ${historySelected.size} satış iptal edilecek. Satılan miktarlar stoğa geri eklenecektir.`,
       names: sales.filter((_, i) => historySelected.has(i)).map((r) => `${r.name || "Satış"} (${r.timestamp})`),
     });
@@ -1103,7 +1129,7 @@ export default function DogaltasUrunStokPage() {
                 </table>
               </div>
               <div className="mt-3 flex flex-wrap gap-3">
-                <button type="button" className={btnSecondary} onClick={() => void deleteSelectedStock()}>
+                <button type="button" className={btnSecondary} disabled={deleteBusy} onClick={() => void deleteSelectedStock()}>
                   Seçilenleri Sil
                 </button>
               </div>
