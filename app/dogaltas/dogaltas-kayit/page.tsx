@@ -264,7 +264,6 @@ export default function DogaltasKayitPage() {
   const [removingImageId, setRemovingImageId] = useState<string | null>(null);
   // FAZ-5B: explicit tetikleme — implicit label yerine ref.click() (mobil picker güvenilirliği).
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
-  const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const [assignmentsOpen, setAssignmentsOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
@@ -771,9 +770,8 @@ export default function DogaltasKayitPage() {
                       {t("image.hint")}
                     </p>
 
-                    {/* FAZ-5B: explicit ref.click() ile iki açık seçenek — implicit label kaldırıldı.
-                        Galeri (multiple, capture yok) ve Kamera (capture=environment, multiple yok)
-                        aynı handleImageUpload'ı kullanır. */}
+                    {/* FAZ-5B: explicit ref.click() ile galeri seçimi (multiple). Owner kararı 2026-10-07:
+                        "Fotoğraf Çek" KALDIRILDI (gerçek kamera açmıyordu, galeriyle aynı davranıyordu). */}
                     {/* Bakım kararı: mobilde (<768px) fotoğraf ekleme/çekme gizli; masaüstünde korunur. */}
                     <div className="hidden md:contents">
                     <div className="mt-3 flex w-full max-w-[320px] flex-col gap-2 sm:flex-row">
@@ -784,13 +782,6 @@ export default function DogaltasKayitPage() {
                       >
                         {t("image.pickFromGallery")}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => cameraInputRef.current?.click()}
-                        className={`${uiBtn} min-h-[44px] flex-1 cursor-pointer bg-gradient-to-r from-emerald-500 to-violet-600 text-white shadow-lg hover:brightness-110`}
-                      >
-                        {t("image.takePhoto")}
-                      </button>
                     </div>
                     <input
                       ref={galleryInputRef}
@@ -799,15 +790,6 @@ export default function DogaltasKayitPage() {
                       multiple
                       onChange={handleImageUpload}
                       aria-label={t("image.pickFromGalleryAria")}
-                      className="sr-only"
-                    />
-                    <input
-                      ref={cameraInputRef}
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={handleImageUpload}
-                      aria-label={t("image.takePhotoAria")}
                       className="sr-only"
                     />
                     </div>

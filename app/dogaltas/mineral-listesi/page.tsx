@@ -27,7 +27,6 @@ import {
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
-import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { useIsMobileOrPwa } from "@/hooks/useIsMobileOrPwa";
@@ -147,11 +146,14 @@ function MineralListesiPageContent() {
   const [viewedMineralIds, setViewedMineralIds] = useState<Set<string>>(() => new Set());
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [selectedMineralIds, setSelectedMineralIds] = useState<Set<string>>(() => new Set());
+  // "Tümünü Seç" ile seçilen ama henüz listede yüklenmemiş minerallerin adları (onay ekranı için).
+  const [scopeNames, setScopeNames] = useState<Map<string, string>>(() => new Map());
+  const [selectingAll, setSelectingAll] = useState(false);
   const [mineralWordBusy, setMineralWordBusy] = useState(false);
   const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
   // Word raporu modal
   const [showWordModal, setShowWordModal] = useState(false);
-  const [wordExportMode, setWordExportMode] = useState<"all" | "filtered" | "viewed" | "selected">("all");
+  const [wordExportMode, setWordExportMode] = useState<"all" | "selected">("all");
   const [wordReportLoading, setWordReportLoading] = useState(false);
   const [wordReportError, setWordReportError] = useState("");
   const [wordReportSuccess, setWordReportSuccess] = useState("");
@@ -323,36 +325,76 @@ function MineralListesiPageContent() {
     });
   }, [isMobile, selectedMineralIds, showToast, t]);
 
-  const selectAllMinerals = useCallback(() => {
+  /**
+   * "Tümünü Seç": sayfalı listede YÜKLÜ olanlarla sınırlı DEĞİL — aktif arama/kategori kapsamındaki
+   * TÜM mineraller sunucudan (100'lük sayfalarla) toplanır ve açıkça seçilir. Gizli kapsam yoktur:
+   * seçili sayı = seçilen kayıt sayısı; silme/Word tam olarak bu kümeyi kullanır.
+   */
+  const selectAllMinerals = useCallback(async () => {
     if (isMobile) {
       showToast({ type: "info", message: t("mobileSelectLimit") });
       return;
     }
-    setSelectedMineralIds(new Set(minerals.map((m) => m.id)));
-  }, [minerals, isMobile, showToast, t]);
+    if (selectingAll) return;
+    if (minerals.length >= totalCount) {
+      setSelectedMineralIds(new Set(minerals.map((m) => m.id)));
+      return;
+    }
+    const tenantId = queryTenantId ?? (await getSyncedTenantId());
+    if (!tenantId) return;
+    setSelectingAll(true);
+    try {
+      const search = debouncedSearch.trim() || undefined;
+      const category =
+        categoryFilter.trim() === UNCATEGORIZED_LABEL
+          ? MINERALS_UNCATEGORIZED_FILTER
+          : categoryFilter.trim() || undefined;
+      const names = new Map<string, string>();
+      const PAGE = 100;
+      for (let offset = 0; offset < 100_000; offset += PAGE) {
+        const page = await fetchMineralsListPage(tenantId, { offset, limit: PAGE, search, category });
+        if (page.error) throw new Error(page.error);
+        for (const m of page.rows) names.set(m.id, m.name);
+        if (page.rows.length < PAGE) break;
+      }
+      setScopeNames(names);
+      setSelectedMineralIds(new Set(names.keys()));
+    } catch {
+      showToast({ type: "error", message: t("selectAllFailed") });
+    } finally {
+      setSelectingAll(false);
+    }
+  }, [categoryFilter, debouncedSearch, isMobile, minerals, queryTenantId, selectingAll, showToast, t, totalCount]);
 
   const clearMineralSelection = useCallback(() => {
     setSelectedMineralIds(new Set());
+    setScopeNames(new Map());
   }, []);
 
-  // Arama/kategori ile liste değişince seçim görünür minerallerle kesişime budanır
-  // (değişiklik yoksa aynı Set döner → render döngüsü yok).
+  // Arama/kategori (kapsam) değişince seçim TEMİZLENİR — önceki kapsamdan gizli seçili kayıt kalmaz.
+  // ("Daha fazla yükle" kapsamı değiştirmez → seçim korunur.)
   useEffect(() => {
-    const visibleIds = minerals.map((m) => m.id);
-    runInEffect(() => setSelectedMineralIds((prev) => pruneSelection(prev, visibleIds)));
-  }, [minerals]);
+    runInEffect(() => {
+      setSelectedMineralIds((prev) => (prev.size === 0 ? prev : new Set()));
+      setScopeNames((prev) => (prev.size === 0 ? prev : new Map()));
+    });
+  }, [debouncedSearch, categoryFilter]);
+
+  const mineralNameOf = useCallback(
+    (id: string) => minerals.find((m) => m.id === id)?.name ?? scopeNames.get(id) ?? id,
+    [minerals, scopeNames],
+  );
 
   async function handleBulkDelete() {
-    // Yalnız görünür ∩ seçili: aramayla gizlenmiş seçili mineral habersiz silinmez.
-    const targets = minerals.filter((m) => selectedMineralIds.has(m.id));
-    const ids = targets.map((m) => m.id);
+    // Seçim açıktır (kapsam değişince temizlenir) → silinecek küme tam olarak seçili kayıtlar.
+    const ids = [...selectedMineralIds];
     if (!ids.length || bulkDeleteBusy) return;
 
     const ok = await deleteConfirm({
       title: t("deleteConfirmTitle"),
       count: ids.length,
       message: t("deleteConfirmMessage", { n: ids.length }),
-      names: targets.map((m) => m.name),
+      names: ids.map(mineralNameOf),
     });
     if (!ok) return;
 
@@ -380,7 +422,7 @@ function MineralListesiPageContent() {
   }
 
   async function exportSelectedMineralsWord() {
-    const ids = visibleSelection(selectedMineralIds, minerals.map((m) => m.id));
+    const ids = [...selectedMineralIds];
     if (!ids.length) return;
     const tid = await getSyncedTenantId();
     if (!tid) return;
@@ -450,16 +492,11 @@ function MineralListesiPageContent() {
     const uid = readYasamUser()?.id;
     if (!uid) { setWordReportError(tWord("errNoUser")); return; }
 
+    // Kapsam yalnız iki mantık: TÜM mineraller veya kullanıcının SEÇTİKLERİ ("görünenler" yok).
     let mineralIds: string[] | undefined;
-    if (wordExportMode === "filtered") {
-      mineralIds = filteredMinerals.map((m) => m.id);
-      if (!mineralIds.length) { setWordReportError(tWord("errNoFiltered")); return; }
-    } else if (wordExportMode === "viewed") {
-      mineralIds = [...viewedMineralIds];
-      if (!mineralIds.length) { setWordReportError(tWord("errNoViewed")); return; }
-    } else if (wordExportMode === "selected") {
+    if (wordExportMode === "selected") {
       if (selectedMineralIds.size > 0) {
-        mineralIds = visibleSelection(selectedMineralIds, minerals.map((m) => m.id));
+        mineralIds = [...selectedMineralIds];
       } else {
         setWordReportError(tWord("errNoSelected"));
         return;
@@ -591,9 +628,9 @@ function MineralListesiPageContent() {
               compact
               selectedCount={selectedMineralIds.size}
               totalCount={totalCount}
-              selectAllLabel={t("selectAllLabel")}
-              selectAllCount={minerals.length}
-              onSelectAll={selectAllMinerals}
+              selectAllLabel={selectingAll ? t("selectingAll") : (isSearchActive || categoryFilter ? t("selectAllResults") : t("selectAllLabel"))}
+              selectAllCount={totalCount}
+              onSelectAll={() => void selectAllMinerals()}
               hideSelectAll={isMobile}
               onClearSelection={clearMineralSelection}
               exportSelectedLabel={t("exportSelectedLabel")}
@@ -787,8 +824,6 @@ function MineralListesiPageContent() {
             <div className="space-y-2">
               {([
                 ["all",      tWord("modeAll"),      tWord("countMineral", { n: totalCount })],
-                ["filtered", tWord("modeFiltered"), `${tWord("countMineral", { n: filteredMinerals.length })}${hasMore ? tWord("loadedSuffix") : ""}`],
-                ["viewed",   tWord("modeViewed"),   tWord("countMineral", { n: viewedMineralIds.size })],
                 ["selected", selectedMineralIds.size > 0 ? tWord("modeSelectedCount", { n: selectedMineralIds.size }) : tWord("modeSelected"), null],
               ] as const).map(([mode, label, count]) => (
                 <label
@@ -797,7 +832,7 @@ function MineralListesiPageContent() {
                     wordExportMode === mode
                       ? "border-violet-300 bg-violet-50"
                       : "border-slate-200 bg-slate-50 hover:bg-slate-100"
-                  } ${mode === "viewed" && viewedMineralIds.size === 0 ? "opacity-50" : ""}`}
+                  }`}
                 >
                   <input
                     type="radio"
@@ -805,16 +840,12 @@ function MineralListesiPageContent() {
                     value={mode}
                     checked={wordExportMode === mode}
                     onChange={() => setWordExportMode(mode)}
-                    disabled={mode === "viewed" && viewedMineralIds.size === 0}
                     className="mt-0.5 h-4 w-4 accent-emerald-600"
                   />
                   <div className="min-w-0 flex-1">
                     <span className="text-sm font-semibold text-slate-800">{label}</span>
                     {count !== null && (
                       <span className="ml-2 text-xs font-medium text-slate-400">{count}</span>
-                    )}
-                    {mode === "viewed" && viewedMineralIds.size === 0 && (
-                      <p className="mt-0.5 text-xs text-slate-400">{tWord("noViewedInSession")}</p>
                     )}
                   </div>
                 </label>

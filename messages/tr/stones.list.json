@@ -44,8 +44,10 @@
         "loading": "Yükleniyor..."
       },
       "bulk": {
-        "selectAll": "Görünenleri Seç",
-        "exportSelected": "Seçilenleri Word'e Aktar"
+        "selectAll": "Tümünü Seç",
+        "exportSelected": "Seçilenleri Word'e Aktar",
+        "selectAllResults": "Sonuçların Tümünü Seç",
+        "selectingAll": "Tümü seçiliyor…"
       },
       "empty": {
         "noResultTitle": "Sonuç bulunamadı",
@@ -95,7 +97,8 @@
         "selectStoneFirst": "Önce taş seçin.",
         "noFilteredResult": "Filtrelenmiş sonuç yok.",
         "wordStarted": "Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz.",
-        "wordFailed": "Word raporu oluşturulamadı. Lütfen tekrar deneyin."
+        "wordFailed": "Word raporu oluşturulamadı. Lütfen tekrar deneyin.",
+        "selectAllFailed": "Tüm taşlar seçilemedi. Lütfen tekrar deneyin."
       },
       "error": {
         "fetchFailed": "Kayıtlar alınamadı: {error}",
