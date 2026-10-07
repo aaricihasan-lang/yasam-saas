@@ -19,7 +19,7 @@ import type {
 } from "@/lib/astrology/model/westernTiming";
 import { ASPECT_GLYPHS, ASPECT_LABELS, BODY_GLYPHS, BODY_LABELS, PATTERN_LABELS } from "@/lib/astrology/labels/tr";
 import type { AstrocartographyInterpretation, LocalSpaceInterpretation, RelocationInterpretation } from "@/lib/astrology/model/westernLocation";
-import type { VedicD1Interpretation, VedicDashaInterpretation, VedicVargaInterpretation } from "@/lib/astrology/model/vedic";
+import type { VedicD1Interpretation, VedicDashaInterpretation, VedicPanchangaInterpretation, VedicShadbalaInterpretation, VedicVargaInterpretation } from "@/lib/astrology/model/vedic";
 import { GRAHA_LABELS, VEDIC_YOGA_NAMES } from "@/lib/astrology/topics/vedic";
 
 export type InterpretationLayer =
@@ -352,6 +352,44 @@ function Content({ content }: { content: unknown }) {
             ))}
           </Block>
         </>
+      );
+    }
+    case "astro.vedic.shadbala.interp.v1": {
+      const c = content as VedicShadbalaInterpretation;
+      return (
+        <Block title="Shadbala bileşenleri (sağlayıcı açıklaması)">
+          {c.themes.map((x) => (
+            <Item key={x.component}>
+              <div className="font-medium">{x.name ?? x.component}</div>
+              <P text={x.meaning} />
+            </Item>
+          ))}
+        </Block>
+      );
+    }
+    case "astro.vedic.panchanga.interp.v1": {
+      const c = content as VedicPanchangaInterpretation;
+      return (
+        <Block title="Panchanga açıklamaları">
+          {c.nakshatra && (
+            <Item>
+              <div className="font-medium">Nakshatra</div>
+              <P text={c.nakshatra} />
+            </Item>
+          )}
+          {c.yoga && (
+            <Item>
+              <div className="font-medium">Nitya yoga</div>
+              <P text={c.yoga} />
+            </Item>
+          )}
+          {c.karana && (
+            <Item>
+              <div className="font-medium">Karana</div>
+              <P text={c.karana} />
+            </Item>
+          )}
+        </Block>
       );
     }
     case "astro.vedic.varga.interp.v1": {

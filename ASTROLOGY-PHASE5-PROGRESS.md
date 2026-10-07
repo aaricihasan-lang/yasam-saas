@@ -14,9 +14,9 @@
 | 5B D1 çekirdek | ✅ tamam | d31d00ab |
 | 5C Nakshatra/Pada | ✅ tamam | 4786c58a |
 | 5D D9 + Varga | ✅ tamam | 94479fb2 |
-| 5E Vimshottari Dasha | ✅ tamam | (5E commit) |
-| 5F Diğer Vedik teknikler | ⏳ sırada | — |
-| 5G KB / analiz / premium UI / kapanış | ⏳ | — |
+| 5E Vimshottari Dasha | ✅ tamam | 3d856a50 |
+| 5F Diğer Vedik teknikler | ✅ tamam | (5F commit) |
+| 5G KB / analiz / premium UI / kapanış | ⏳ sırada | — |
 
 ## Kararlar
 
@@ -37,10 +37,20 @@
 | 5E | /vedic-astrology/dasha/major → `vedic-dasha-major.json` | 1 |
 | 5E | /vedic-astrology/dasha/sub/Mercury (doğumdaki, kesilmiş MD) → `vedic-dasha-sub-md.json` | 1 |
 | 5E | /vedic-astrology/dasha/sub/Moon/Rahu (bugünkü dönem, tam 9 PD) → `vedic-dasha-sub-md-ad.json` | 1 |
+| 5F | /vedic-astrology/aspects (sidereal, Lahiri sabit) → `vedic-aspects.json` | 1 |
+| 5F | /vedic-astrology/ashtakavarga (lahiri) → `vedic-ashtakavarga.json` | 1 |
+| 5F | /vedic-astrology/shadbala (lahiri) → `vedic-shadbala.json` | 1 |
+| 5F | /vedic-astrology/panchang/basic (Lahiri sabit) → `vedic-panchang.json` | 1 |
 
-Toplam: **19** (Aşama 5: 5). Aşama 5 bütçe planı ≈ 9–10.
+Toplam: **23** (Aşama 5: 9 — plan ≈9–10 içinde). yoga/detect golden'ı YAPILMADI (D1 aynı 48 denetimi taşır). Aşama 5 bütçe planı ≈ 9–10.
 
 ## Son test sonuçları
+
+- 5F: astroloji 39/19/17/37/20/15/**phase5 32**/static 10 + PG PASS; tsc/eslint 0; build OK; bundle: raw/anahtar/hash 0,
+  Roxy anlatıları (balaThemes "Konum gücü", nakshatra/karana characteristics) 0. Mutasyon mutate5f.cjs **7/7**.
+  Bağımsız: drishti boylamları = D1 (≤1e-4°, uç 4 ondalık yuvarlar) ve açı=(n−1)×30°±orb; BAV toplamları BPHS + SAV=ΣBAV=337;
+  Shadbala Σ6/rupa/oran/sıra; Panchanga D1 Güneş/Ay'ından: tithi 23 Krishna, nitya yoga 7 Sukarma, karana Kaulava.
+  Tarayıcı: 4 teknik birlikte (4 istek), 4 panel; Ashtakavarga ızgarası + Shodhana sekmesi + Shodhya Pinda.
 
 - 5E: astroloji 39/19/17/37/20/15/**phase5 26**/static 10 + PG PASS; tsc/eslint 0; build OK; bundle: raw/anahtar/hash 0,
   Roxy dasha anlatı cümleleri 0 (tek "Entelektüel" eşleşmesi başka modülün sabit metni). Mutasyon (mutate5.cjs): **14/14 yakalandı**
@@ -101,6 +111,18 @@ Toplam: **19** (Aşama 5: 5). Aşama 5 bütçe planı ≈ 9–10.
   (1−oran)×yıl ±0.003 y, kanonik oranlar, ardışıklık, üst dönem sınırları, Ay boylamı = D1 Ay.
 - Bilinen sınır: alt dönem drill'i yalnız golden'ı olan yollarda yerel sahte Roxy'de çalışır (gerçek ortamda her yol çağrılır).
 
+## 5F kararları
+
+- yoga/detect AYRI teknik değil: D1 yanıtı aynı 48 yoga denetimini (present + evidence) taşıyor → golden yok, D1 yoga bölümü yeterli.
+- Graha Drishti: Roxy derece+orb yöntemi (bütün-burç rashi drishti değil) — UI'da açıkça yazılı; kendi drishti motorumuz YOK.
+  /aspects ve /panchang ayanamsa almaz → `lahiriOnlyTechnique`: Lahiri dışında birim YOK (0 istek) + açık neden (NO_UNIT).
+- Ashtakavarga konusu yok (yorum eşiği uygulanmaz; renk yalnız göreli). Shadbala konuları BPHS asgari oranına göre
+  (`shadbala_above_min` / `below_min`). Panchanga konuları `panchanga_tithi:n`, `panchanga_nitya_yoga:n`, `panchanga_karana:id`.
+- Yeni bağlamlar: vedic_drishti, vedic_strength (Shadbala + Ashtakavarga), vedic_panchanga.
+- Ortak `formatDegree` düzeltmesi: dakika yuvarlama → KESME (29°59.5′+ "30°00′" gösteriyordu; Güneş 28°59.85′ "29°00′" idi).
+  Tüm fazların testleri geçti.
+- Transit (Gochar) bu aşamada YOK (zamana bağlı; brief "doğrulanırsa"; bütçe korunsun).
+
 ## Açık hatalar
 
 - Yok. (5B sırasında bulunan ve düzeltilen: başlıkta "undefined" ev sistemi [whole_sign Batı etiket
@@ -112,6 +134,6 @@ Toplam: **19** (Aşama 5: 5). Aşama 5 bütçe planı ≈ 9–10.
 
 ## Sıradaki kesin adım
 
-5F: D1 yoga denetimi (48) zaten var → /yoga/detect gerekli mi belgeden karar (gereksizse golden YOK). Sonra Graha Drishti
-(/aspects, yalnız Lahiri), Ashtakavarga, Shadbala — her biri sözleşme → en fazla 1 golden → adaptör/teknik/UI/test → commit.
-Panchanga yalnız sözleşme uygunsa.
+5G: KB editörü/konu seçici Vedik kapsamı (tüm bağlamlar) son kontrol, kayıtlı analiz görünümü tüm Vedik teknikler,
+premium görsel + mobil tur, tam regresyon (Aşama 1–4.1, HD Roxy, infra, admin-hygiene, output-visibility, PG, tsc, eslint, build),
+genel mutasyon turu, nihai 28 maddelik rapor → DUR.

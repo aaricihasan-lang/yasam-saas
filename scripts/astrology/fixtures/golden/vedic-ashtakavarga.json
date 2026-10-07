@@ -1,0 +1,408 @@
+{
+  "endpoint": "/vedic-astrology/ashtakavarga",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "lahiri"
+  },
+  "response": {
+    "frame": {
+      "ayanamsa": "lahiri",
+      "ayanamsaDegrees": 23.728750561750232
+    },
+    "bhinnashtakavarga": [
+      {
+        "planet": "Sun",
+        "bindus": [
+          4,
+          4,
+          3,
+          4,
+          3,
+          4,
+          3,
+          4,
+          7,
+          5,
+          3,
+          4
+        ],
+        "total": 48
+      },
+      {
+        "planet": "Moon",
+        "bindus": [
+          5,
+          5,
+          2,
+          2,
+          5,
+          5,
+          3,
+          2,
+          6,
+          5,
+          4,
+          5
+        ],
+        "total": 49
+      },
+      {
+        "planet": "Mars",
+        "bindus": [
+          4,
+          5,
+          1,
+          3,
+          4,
+          2,
+          4,
+          5,
+          3,
+          3,
+          1,
+          4
+        ],
+        "total": 39
+      },
+      {
+        "planet": "Mercury",
+        "bindus": [
+          6,
+          5,
+          4,
+          5,
+          4,
+          3,
+          6,
+          5,
+          4,
+          6,
+          3,
+          3
+        ],
+        "total": 54
+      },
+      {
+        "planet": "Jupiter",
+        "bindus": [
+          8,
+          3,
+          3,
+          7,
+          4,
+          3,
+          4,
+          6,
+          3,
+          5,
+          5,
+          5
+        ],
+        "total": 56
+      },
+      {
+        "planet": "Venus",
+        "bindus": [
+          5,
+          4,
+          4,
+          3,
+          4,
+          4,
+          5,
+          3,
+          3,
+          5,
+          6,
+          6
+        ],
+        "total": 52
+      },
+      {
+        "planet": "Saturn",
+        "bindus": [
+          5,
+          5,
+          3,
+          2,
+          3,
+          2,
+          3,
+          2,
+          3,
+          4,
+          3,
+          4
+        ],
+        "total": 39
+      },
+      {
+        "planet": "Lagna",
+        "bindus": [
+          4,
+          4,
+          3,
+          4,
+          5,
+          5,
+          4,
+          2,
+          5,
+          3,
+          6,
+          4
+        ],
+        "total": 49
+      }
+    ],
+    "sarvashtakavarga": {
+      "bindus": [
+        37,
+        31,
+        20,
+        26,
+        27,
+        23,
+        28,
+        27,
+        29,
+        33,
+        25,
+        31
+      ],
+      "total": 337
+    },
+    "reducedBhinnashtakavarga": [
+      {
+        "planet": "Sun",
+        "bindus": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          4,
+          1,
+          0,
+          0
+        ],
+        "total": 6
+      },
+      {
+        "planet": "Moon",
+        "bindus": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          1,
+          0,
+          2,
+          3
+        ],
+        "total": 7
+      },
+      {
+        "planet": "Mars",
+        "bindus": [
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          1
+        ],
+        "total": 4
+      },
+      {
+        "planet": "Mercury",
+        "bindus": [
+          2,
+          2,
+          1,
+          2,
+          0,
+          0,
+          2,
+          0,
+          0,
+          3,
+          0,
+          0
+        ],
+        "total": 12
+      },
+      {
+        "planet": "Jupiter",
+        "bindus": [
+          5,
+          0,
+          0,
+          2,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "total": 9
+      },
+      {
+        "planet": "Venus",
+        "bindus": [
+          2,
+          0,
+          0,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          1,
+          1,
+          3
+        ],
+        "total": 9
+      },
+      {
+        "planet": "Saturn",
+        "bindus": [
+          2,
+          3,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          2
+        ],
+        "total": 9
+      },
+      {
+        "planet": "Lagna",
+        "bindus": [
+          0,
+          0,
+          0,
+          2,
+          1,
+          2,
+          0,
+          0,
+          1,
+          0,
+          3,
+          2
+        ],
+        "total": 11
+      }
+    ],
+    "reducedSarvashtakavarga": {
+      "bindus": [
+        13,
+        5,
+        1,
+        4,
+        3,
+        0,
+        5,
+        0,
+        5,
+        8,
+        3,
+        9
+      ],
+      "total": 56
+    },
+    "shodhyaPinda": [
+      {
+        "planet": "Sun",
+        "rashiPinda": 48,
+        "grahaPinda": 28,
+        "shodhyaPinda": 76
+      },
+      {
+        "planet": "Moon",
+        "rashiPinda": 74,
+        "grahaPinda": 20,
+        "shodhyaPinda": 94
+      },
+      {
+        "planet": "Mars",
+        "rashiPinda": 34,
+        "grahaPinda": 13,
+        "shodhyaPinda": 47
+      },
+      {
+        "planet": "Mercury",
+        "rashiPinda": 79,
+        "grahaPinda": 48,
+        "shodhyaPinda": 127
+      },
+      {
+        "planet": "Jupiter",
+        "rashiPinda": 60,
+        "grahaPinda": 50,
+        "shodhyaPinda": 110
+      },
+      {
+        "planet": "Venus",
+        "rashiPinda": 83,
+        "grahaPinda": 31,
+        "shodhyaPinda": 114
+      },
+      {
+        "planet": "Saturn",
+        "rashiPinda": 78,
+        "grahaPinda": 26,
+        "shodhyaPinda": 104
+      },
+      {
+        "planet": "Lagna",
+        "rashiPinda": 94,
+        "grahaPinda": 25,
+        "shodhyaPinda": 119
+      }
+    ],
+    "signs": [
+      "Aries",
+      "Taurus",
+      "Gemini",
+      "Cancer",
+      "Leo",
+      "Virgo",
+      "Libra",
+      "Scorpio",
+      "Sagittarius",
+      "Capricorn",
+      "Aquarius",
+      "Pisces"
+    ]
+  }
+}

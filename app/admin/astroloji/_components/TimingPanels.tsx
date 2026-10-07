@@ -34,7 +34,17 @@ import NatalWheel, { type WheelChart } from "./NatalWheel";
 import NatalTechnicalPanel from "./NatalTechnicalPanel";
 import { AstrocartographyPanel, LocalSpacePanel, RelocationPanel, type Place } from "./LocationPanels";
 import { VedicD1Panel, VedicDashaPanel, VedicVargaPanel, type DashaDrill, type KbLookup } from "./VedicPanels";
-import type { VedicD1Technical, VedicDashaTechnical, VedicGrahaId, VedicVargaTechnical } from "@/lib/astrology/model/vedic";
+import type {
+  VedicAshtakavargaTechnical,
+  VedicD1Technical,
+  VedicDashaTechnical,
+  VedicDrishtiTechnical,
+  VedicGrahaId,
+  VedicPanchangaTechnical,
+  VedicShadbalaTechnical,
+  VedicVargaTechnical,
+} from "@/lib/astrology/model/vedic";
+import { VedicAshtakavargaPanel, VedicDrishtiPanel, VedicPanchangaPanel, VedicShadbalaPanel } from "./VedicExtraPanels";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "@/lib/astrology/model/westernLocation";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
@@ -696,6 +706,14 @@ export function TechniqueTechnical({
         return <VedicD1Panel t={technical as VedicD1Technical} kbLookup={kbLookup} />;
       case "vedic.varga":
         return <VedicVargaPanel t={technical as VedicVargaTechnical} kbLookup={kbLookup} />;
+      case "vedic.drishti":
+        return <VedicDrishtiPanel t={technical as VedicDrishtiTechnical} kbLookup={kbLookup} />;
+      case "vedic.ashtakavarga":
+        return <VedicAshtakavargaPanel t={technical as VedicAshtakavargaTechnical} />;
+      case "vedic.shadbala":
+        return <VedicShadbalaPanel t={technical as VedicShadbalaTechnical} kbLookup={kbLookup} />;
+      case "vedic.panchanga":
+        return <VedicPanchangaPanel t={technical as VedicPanchangaTechnical} kbLookup={kbLookup} />;
       case "vedic.dasha":
         return <VedicDashaPanel t={technical as VedicDashaTechnical} kbLookup={kbLookup} drill={dashaDrill} onOpenLevel={onDashaLevel} />;
       case "western.local_space":

@@ -79,8 +79,33 @@ import {
 import type { NatalTechnical } from "../model/western";
 import { astrocartographyBody, LOCATION_EXTRA_BODIES, localSpaceBody, relocationBody, type GeoPoint } from "../providers/roxy/requests";
 import { projectRoxyAstrocartography, projectRoxyLocalSpace, projectRoxyRelocation, ROXY_ACG, ROXY_LOCAL_SPACE, ROXY_RELOCATION } from "../providers/roxy/location";
-import { dashaEndpoint, mapGraha, projectRoxyVedicD1, projectRoxyVedicDasha, projectRoxyVedicVarga, ROXY_VEDIC_D1, ROXY_VEDIC_DASHA, ROXY_VEDIC_VARGA } from "../providers/roxy/vedic";
+import {
+  dashaEndpoint,
+  mapGraha,
+  projectRoxyVedicAshtakavarga,
+  projectRoxyVedicD1,
+  projectRoxyVedicDasha,
+  projectRoxyVedicDrishti,
+  projectRoxyVedicPanchanga,
+  projectRoxyVedicShadbala,
+  projectRoxyVedicVarga,
+  ROXY_VEDIC_ASHTAKAVARGA,
+  ROXY_VEDIC_D1,
+  ROXY_VEDIC_DASHA,
+  ROXY_VEDIC_DRISHTI,
+  ROXY_VEDIC_PANCHANGA,
+  ROXY_VEDIC_SHADBALA,
+  ROXY_VEDIC_VARGA,
+} from "../providers/roxy/vedic";
 import { vedicBirthBody, VEDIC_AYANAMSAS, type VedicAyanamsa } from "../providers/roxy/requests";
+import {
+  VEDIC_ASHTAKAVARGA_TECHNICAL_SCHEMA,
+  VEDIC_DRISHTI_TECHNICAL_SCHEMA,
+  VEDIC_PANCHANGA_INTERP_SCHEMA,
+  VEDIC_PANCHANGA_TECHNICAL_SCHEMA,
+  VEDIC_SHADBALA_INTERP_SCHEMA,
+  VEDIC_SHADBALA_TECHNICAL_SCHEMA,
+} from "../model/vedic";
 import { VEDIC_D1_INTERP_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_INTERP_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_VARGA_DIVISIONS, type VedicGrahaId, VEDIC_VARGA_INTERP_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, type VedicVargaDivision } from "../model/vedic";
 import { calcInputHash } from "./inputHash";
 
@@ -113,6 +138,10 @@ export const TECHNIQUE_IDS = [
   "vedic.d1",
   "vedic.varga",
   "vedic.dasha",
+  "vedic.drishti",
+  "vedic.ashtakavarga",
+  "vedic.shadbala",
+  "vedic.panchanga",
 ] as const;
 export type TechniqueId = (typeof TECHNIQUE_IDS)[number];
 
@@ -656,6 +685,93 @@ const vedicDasha: TechniqueDefinition = {
   },
 };
 
+/** Doğum gövdesi (ayanamsasız) — Roxy /aspects ve /panchang Lahiri sabit; ayanamsa alanı göndermez. */
+function lahiriFixedBody(ctx: UnitContext): Record<string, unknown> {
+  const b = vedicBirthBody(ctx.birth, "lahiri");
+  return { date: b.date, time: b.time, latitude: b.latitude, longitude: b.longitude, timezone: b.timezone };
+}
+const LAHIRI_ONLY = "Roxy bu hesabı yalnız Lahiri ayanamsa ile yapar (uç ayanamsa almaz); Lahiri seçin.";
+
+/** Ayanamsa seçenekli basit Vedik doğum tekniği (tek birim). */
+function vedicBirthTechnique(
+  id: TechniqueId,
+  label: string,
+  meta: { endpoint: string; adapter: string; projection: string },
+  project: (raw: unknown, ay: VedicAyanamsa) => AdapterResult<unknown, unknown>,
+  schemas: { technical: string; interp: string | null },
+): TechniqueDefinition {
+  return {
+    id,
+    label,
+    family: "vedic",
+    requiresPartner: false,
+    requiresKnownTime: true,
+    timeDependent: false,
+    parseOptions: (raw) => {
+      const ay = ayanamsaOf(o(raw).ayanamsa);
+      return ay ? { ayanamsa: ay } : null;
+    },
+    units: (ctx, opt) => [unit(id, meta, vedicBirthBody(ctx.birth, opt.ayanamsa as VedicAyanamsa))],
+    noteContext: (opt) => `ayanamsa:${String(opt.ayanamsa)}`,
+    project: (_u, raw, opt) => fromAdapter(project(raw, opt.ayanamsa as VedicAyanamsa), schemas.technical, schemas.interp, meta.projection),
+  };
+}
+
+/** Lahiri-sabit Vedik doğum tekniği: başka ayanamsa → birim YOK (sağlayıcı çağrılmaz) + açık neden. */
+function lahiriOnlyTechnique(
+  id: TechniqueId,
+  label: string,
+  meta: { endpoint: string; adapter: string; projection: string },
+  body: (ctx: UnitContext) => Record<string, unknown>,
+  project: (raw: unknown, u: CalcUnit) => AdapterResult<unknown, unknown>,
+  schemas: { technical: string; interp: string | null },
+): TechniqueDefinition {
+  return {
+    id,
+    label,
+    family: "vedic",
+    requiresPartner: false,
+    requiresKnownTime: true,
+    timeDependent: false,
+    parseOptions: (raw) => {
+      const ay = ayanamsaOf(o(raw).ayanamsa);
+      return ay ? { ayanamsa: ay } : null;
+    },
+    units: (ctx, opt) => (opt.ayanamsa === "lahiri" ? [unit(id, meta, body(ctx))] : []),
+    noUnitsReason: () => LAHIRI_ONLY,
+    noteContext: () => "ayanamsa:lahiri",
+    project: (u, raw) => fromAdapter(project(raw, u), schemas.technical, schemas.interp, meta.projection),
+  };
+}
+
+const vedicDrishti = lahiriOnlyTechnique(
+  "vedic.drishti",
+  "Graha Drishti (Vedik bakışlar)",
+  ROXY_VEDIC_DRISHTI,
+  (ctx) => ({ ...lahiriFixedBody(ctx), coordinateSystem: "sidereal" }),
+  (raw, u) => {
+    const b = u.body as { date: string; time: string };
+    return projectRoxyVedicDrishti(raw, { birthLocal: `${b.date}T${/^\d{2}:\d{2}$/.test(b.time) ? `${b.time}:00` : b.time}` });
+  },
+  { technical: VEDIC_DRISHTI_TECHNICAL_SCHEMA, interp: null },
+);
+const vedicPanchanga = lahiriOnlyTechnique(
+  "vedic.panchanga",
+  "Janma Panchanga",
+  ROXY_VEDIC_PANCHANGA,
+  lahiriFixedBody,
+  (raw) => projectRoxyVedicPanchanga(raw),
+  { technical: VEDIC_PANCHANGA_TECHNICAL_SCHEMA, interp: VEDIC_PANCHANGA_INTERP_SCHEMA },
+);
+const vedicAshtakavarga = vedicBirthTechnique("vedic.ashtakavarga", "Ashtakavarga", ROXY_VEDIC_ASHTAKAVARGA, (raw, ay) => projectRoxyVedicAshtakavarga(raw, { ayanamsa: ay }), {
+  technical: VEDIC_ASHTAKAVARGA_TECHNICAL_SCHEMA,
+  interp: null,
+});
+const vedicShadbala = vedicBirthTechnique("vedic.shadbala", "Shadbala", ROXY_VEDIC_SHADBALA, (raw, ay) => projectRoxyVedicShadbala(raw, { ayanamsa: ay }), {
+  technical: VEDIC_SHADBALA_TECHNICAL_SCHEMA,
+  interp: VEDIC_SHADBALA_INTERP_SCHEMA,
+});
+
 export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Object.freeze({
   "western.natal": westernNatal,
   "western.transit": westernTransit,
@@ -672,6 +788,10 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "vedic.d1": vedicD1,
   "vedic.varga": vedicVarga,
   "vedic.dasha": vedicDasha,
+  "vedic.drishti": vedicDrishti,
+  "vedic.ashtakavarga": vedicAshtakavarga,
+  "vedic.shadbala": vedicShadbala,
+  "vedic.panchanga": vedicPanchanga,
 });
 
 export function getTechnique(id: unknown): TechniqueDefinition | null {

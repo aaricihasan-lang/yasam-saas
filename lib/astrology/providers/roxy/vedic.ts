@@ -17,12 +17,32 @@ import {
   VEDIC_D1_INTERP_SCHEMA,
   VEDIC_D1_TECHNICAL_SCHEMA,
   VEDIC_GRAHAS,
+  BAV_TOTALS,
+  KARANA_IDS,
+  NAISARGIKA_BALA,
+  SHADBALA_COMPONENTS,
+  SHADBALA_MIN_RUPAS,
+  VEDIC_ASHTAKAVARGA_TECHNICAL_SCHEMA,
   VEDIC_DASHA_INTERP_SCHEMA,
+  VEDIC_DRISHTI_TECHNICAL_SCHEMA,
+  VEDIC_PANCHANGA_INTERP_SCHEMA,
+  VEDIC_PANCHANGA_TECHNICAL_SCHEMA,
+  VEDIC_SHADBALA_INTERP_SCHEMA,
+  VEDIC_SHADBALA_TECHNICAL_SCHEMA,
   VEDIC_DASHA_TECHNICAL_SCHEMA,
   VEDIC_VARGA_INTERP_SCHEMA,
   VIMSHOTTARI_YEARS,
   VEDIC_VARGA_TECHNICAL_SCHEMA,
+  type AshtakaRow,
   type NakshatraPlacement,
+  type ShadbalaComponent,
+  type VedicAshtakavargaTechnical,
+  type VedicDrishtiTechnical,
+  type VedicDrishtiType,
+  type VedicPanchangaInterpretation,
+  type VedicPanchangaTechnical,
+  type VedicShadbalaInterpretation,
+  type VedicShadbalaTechnical,
   type VedicDashaInterpretation,
   type VedicDashaLevel,
   type VedicDashaPeriod,
@@ -559,6 +579,365 @@ export function projectRoxyVedicDasha(
     }),
     raw,
     DASHA_KNOWN,
+    new Set(),
+  );
+}
+
+// ═══ 5F · Graha Drishti (/vedic-astrology/aspects, Lahiri sabit) ══════════════
+// Denetimler: 9 graha konumu (rashi ↔ boylam); her bakış için açı ≈ (n−1)×30° ± orb (sağlayıcı orb'u ile
+// tutarlı); bakış türü grahaya izinli (herkes 7; Mars 4/8; Jüpiter 5/9; Satürn 3/10); karşılıklı bakışlar iki
+// yönde de listede; bakış tablosu listeyle aynı.
+export const ROXY_VEDIC_DRISHTI = { endpoint: "/vedic-astrology/aspects", adapter: "astro-roxy-vedic-drishti-1", projection: "vedic-drishti-proj-1" } as const;
+const DRISHTI_ALLOWED: Record<VedicGrahaId, number[]> = { sun: [7], moon: [7], mercury: [7], venus: [7], rahu: [7], ketu: [7], mars: [4, 7, 8], jupiter: [5, 7, 9], saturn: [3, 7, 10] };
+const DRISHTI_KNOWN = new Set<string>([
+  "datetime",
+  "planets",
+  ...paths("planets[]", ["name", "longitude", "sign"]),
+  "aspects",
+  ...paths("aspects[]", ["aspectingPlanet", "aspectedPlanet", "aspectType", "strength", "orb"]),
+  "aspectTable",
+  ...paths("aspectTable[]", ["planet", "aspects"]),
+  ...paths("aspectTable[].aspects[]", ["planet", "aspectType", "strength"]),
+  "mutualAspects",
+  ...paths("mutualAspects[]", ["planet1", "planet2", "aspectType"]),
+]);
+const drishtiType = (v: unknown): VedicDrishtiType | null => {
+  const m = typeof v === "string" ? /^(3|4|5|7|8|9|10)(st|nd|rd|th)$/.exec(v) : null;
+  return m ? (Number(m[1]) as VedicDrishtiType) : null;
+};
+
+export function projectRoxyVedicDrishti(raw: unknown, opts: { birthLocal: string }): AdapterResult<VedicDrishtiTechnical, null> {
+  const errors: string[] = [];
+  const dropped: string[] = [];
+  const r = obj(raw);
+  if (!r) return { ok: false, errors: ["root"] };
+  if (r.datetime !== opts.birthLocal) errors.push("datetime doğum anı değil");
+  const positions: VedicDrishtiTechnical["positions"] = [];
+  for (const p of arr(r.planets) ?? []) {
+    const o = obj(p);
+    const id = mapGraha(o?.name);
+    const lon = num(o?.longitude, 0, 360);
+    const rashi = mapRashi(o?.sign);
+    if (!id || lon === null || !rashi) {
+      errors.push("planets[]: alan");
+      continue;
+    }
+    if (SIGN_IDS[Math.min(11, Math.floor(lon / 30))] !== rashi) errors.push(`planets.${id}: rashi boylamla uyuşmuyor`);
+    positions.push({ id, longitude: lon, rashi });
+  }
+  if (positions.length !== 9 || new Set(positions.map((x) => x.id)).size !== 9) errors.push("planets: 9 graha yok");
+  const lonOf = new Map(positions.map((x) => [x.id, x.longitude]));
+  const aspects: VedicDrishtiTechnical["aspects"] = [];
+  for (const a of arr(r.aspects) ?? []) {
+    const o = obj(a);
+    const from = mapGraha(o?.aspectingPlanet);
+    const to = mapGraha(o?.aspectedPlanet);
+    const type = drishtiType(o?.aspectType);
+    const strength = num(o?.strength, 0, 100);
+    const orb = num(o?.orb, 0, 30);
+    if (!from || !to || from === to || !type || strength === null || orb === null) {
+      errors.push("aspects[]: alan");
+      continue;
+    }
+    if (!DRISHTI_ALLOWED[from].includes(type)) errors.push(`aspects: ${from} için ${type}. bakış izinli değil`);
+    const lf = lonOf.get(from);
+    const lt = lonOf.get(to);
+    if (lf !== undefined && lt !== undefined) {
+      const sep = (((lt - lf) % 360) + 360) % 360;
+      const want = (type - 1) * 30;
+      const dev = Math.abs(((sep - want + 540) % 360) - 180);
+      if (Math.abs(dev - orb) > 0.02) errors.push(`aspects: ${from}→${to} orb açıyla uyuşmuyor`);
+    }
+    aspects.push({ from, to, type, strength, orb });
+  }
+  const has = (a: VedicGrahaId, b: VedicGrahaId, t: number) => aspects.some((x) => x.from === a && x.to === b && x.type === t);
+  const mutual: VedicDrishtiTechnical["mutual"] = [];
+  for (const m of arr(r.mutualAspects) ?? []) {
+    const o = obj(m);
+    const a = mapGraha(o?.planet1);
+    const b = mapGraha(o?.planet2);
+    const type = drishtiType(o?.aspectType);
+    if (!a || !b || !type) {
+      errors.push("mutualAspects[]: alan");
+      continue;
+    }
+    if (!has(a, b, type) && !aspects.some((x) => x.from === a && x.to === b)) errors.push(`mutualAspects: ${a}→${b} listede yok`);
+    if (!aspects.some((x) => x.from === b && x.to === a)) errors.push(`mutualAspects: ${b}→${a} listede yok`);
+    mutual.push({ a, b, type });
+  }
+  for (const row of arr(r.aspectTable) ?? []) {
+    const o = obj(row);
+    const from = mapGraha(o?.planet);
+    for (const x of arr(o?.aspects) ?? []) {
+      const xo = obj(x);
+      const to = mapGraha(xo?.planet);
+      const type = drishtiType(xo?.aspectType);
+      if (!from || !to || !type || !has(from, to, type)) errors.push("aspectTable listeyle uyuşmuyor");
+    }
+  }
+  return done(
+    errors,
+    dropped,
+    () => ({ schema: VEDIC_DRISHTI_TECHNICAL_SCHEMA, zodiac: "sidereal", frame: { ayanamsa: "lahiri", ayanamsaDegrees: null }, method: "degree_orb", positions, aspects, mutual }),
+    () => null,
+    raw,
+    DRISHTI_KNOWN,
+    new Set(),
+  );
+}
+
+// ═══ 5F · Ashtakavarga (/vedic-astrology/ashtakavarga) ═══════════════════════
+// Denetimler: BAV toplamları BPHS sabitleri; SAV = 7 grahanın BAV toplamı (Lagna hariç) ve 337; indirgenmiş
+// SAV = indirgenmiş 7 BAV toplamı; indirgenmiş ≤ özgün; Shodhya Pinda = Rashi + Graha Pinda; burç sırası Koç→Balık.
+export const ROXY_VEDIC_ASHTAKAVARGA = { endpoint: "/vedic-astrology/ashtakavarga", adapter: "astro-roxy-vedic-ashtakavarga-1", projection: "vedic-ashtakavarga-proj-1" } as const;
+const ASHTAKA_KNOWN = new Set<string>([
+  ...paths("frame", ["ayanamsa", "ayanamsaDegrees"]),
+  "bhinnashtakavarga",
+  ...paths("bhinnashtakavarga[]", ["planet", "bindus", "total"]),
+  "bhinnashtakavarga[].bindus[]",
+  ...paths("sarvashtakavarga", ["bindus", "total"]),
+  "sarvashtakavarga.bindus[]",
+  "reducedBhinnashtakavarga",
+  ...paths("reducedBhinnashtakavarga[]", ["planet", "bindus", "total"]),
+  "reducedBhinnashtakavarga[].bindus[]",
+  ...paths("reducedSarvashtakavarga", ["bindus", "total"]),
+  "reducedSarvashtakavarga.bindus[]",
+  "shodhyaPinda",
+  ...paths("shodhyaPinda[]", ["planet", "rashiPinda", "grahaPinda", "shodhyaPinda"]),
+  "signs",
+  "signs[]",
+]);
+const ASHTAKA_ORDER = ["sun", "moon", "mars", "mercury", "jupiter", "venus", "saturn", "lagna"] as const;
+const ashtakaId = (v: unknown): VedicGrahaId | "lagna" | null => (typeof v === "string" && v.trim().toLowerCase() === "lagna" ? "lagna" : mapGraha(v));
+function bindus12(v: unknown, max: number): number[] | null {
+  const a = arr(v);
+  if (!a || a.length !== 12) return null;
+  const out = a.map((x) => int(x, 0, max));
+  return out.every((x) => x !== null) ? (out as number[]) : null;
+}
+function ashtakaRows(v: unknown, ctx: string, errors: string[]): AshtakaRow[] {
+  const rows: AshtakaRow[] = [];
+  for (const it of arr(v) ?? []) {
+    const o = obj(it);
+    const id = ashtakaId(o?.planet);
+    const b = bindus12(o?.bindus, 8);
+    const total = int(o?.total, 0, 96);
+    if (!id || !b || total === null) {
+      errors.push(`${ctx}[]: alan`);
+      continue;
+    }
+    if (b.reduce((x, y) => x + y, 0) !== total) errors.push(`${ctx}.${id}: toplam bindus ile uyuşmuyor`);
+    rows.push({ id, bindus: b, total });
+  }
+  if (rows.map((x) => x.id).join() !== ASHTAKA_ORDER.join()) errors.push(`${ctx}: 7 graha + Lagna sırası`);
+  return rows;
+}
+
+export function projectRoxyVedicAshtakavarga(raw: unknown, opts: { ayanamsa: VedicAyanamsaId }): AdapterResult<VedicAshtakavargaTechnical, null> {
+  const errors: string[] = [];
+  const r = obj(raw);
+  if (!r) return { ok: false, errors: ["root"] };
+  const frame = obj(r.frame);
+  const ayDeg = num(frame?.ayanamsaDegrees, 0, 40);
+  if (frame?.ayanamsa !== opts.ayanamsa || ayDeg === null) errors.push("frame: istenen ayanamsa değil");
+  const signs = arr(r.signs);
+  if (!signs || signs.map((s) => mapRashi(s)).join() !== SIGN_IDS.join()) errors.push("signs: Koç→Balık sırası değil");
+  const bav = ashtakaRows(r.bhinnashtakavarga, "bhinnashtakavarga", errors);
+  const rbav = ashtakaRows(r.reducedBhinnashtakavarga, "reducedBhinnashtakavarga", errors);
+  for (const row of bav) if (BAV_TOTALS[row.id] !== row.total) errors.push(`bhinnashtakavarga.${row.id}: BPHS toplamı değil`);
+  const savO = obj(r.sarvashtakavarga);
+  const rsavO = obj(r.reducedSarvashtakavarga);
+  const sav = { bindus: bindus12(savO?.bindus, 56), total: int(savO?.total, 0, 400) };
+  const rsav = { bindus: bindus12(rsavO?.bindus, 56), total: int(rsavO?.total, 0, 400) };
+  if (!sav.bindus || sav.total === null || !rsav.bindus || rsav.total === null) errors.push("sarvashtakavarga: alan");
+  const sum7 = (rows: AshtakaRow[], i: number) => rows.filter((x) => x.id !== "lagna").reduce((a, x) => a + x.bindus[i], 0);
+  if (sav.bindus && rsav.bindus && bav.length === 8 && rbav.length === 8) {
+    for (let i = 0; i < 12; i++) {
+      if (sav.bindus[i] !== sum7(bav, i)) errors.push(`sarvashtakavarga[${i}] ≠ 7 BAV toplamı`);
+      if (rsav.bindus[i] !== sum7(rbav, i)) errors.push(`reducedSarvashtakavarga[${i}] ≠ 7 indirgenmiş BAV toplamı`);
+    }
+    if (sav.total !== 337 || sav.bindus.reduce((a, b) => a + b, 0) !== 337) errors.push("sarvashtakavarga toplamı 337 değil");
+    if (rsav.total !== rsav.bindus.reduce((a, b) => a + b, 0)) errors.push("reducedSarvashtakavarga toplamı");
+    bav.forEach((row, k) => row.bindus.forEach((b, i) => rbav[k] && rbav[k].bindus[i] > b && errors.push(`indirgenmiş > özgün: ${row.id}[${i}]`)));
+  }
+  const shodhyaPinda: VedicAshtakavargaTechnical["shodhyaPinda"] = [];
+  for (const it of arr(r.shodhyaPinda) ?? []) {
+    const o = obj(it);
+    const id = ashtakaId(o?.planet);
+    const rp = num(o?.rashiPinda, 0, 10000);
+    const gp = num(o?.grahaPinda, 0, 10000);
+    const sp = num(o?.shodhyaPinda, 0, 20000);
+    if (!id || rp === null || gp === null || sp === null) {
+      errors.push("shodhyaPinda[]: alan");
+      continue;
+    }
+    if (Math.abs(rp + gp - sp) > 1e-6) errors.push(`shodhyaPinda.${id}: toplam`);
+    shodhyaPinda.push({ id, rashiPinda: rp, grahaPinda: gp, total: sp });
+  }
+  if (shodhyaPinda.map((x) => x.id).join() !== ASHTAKA_ORDER.join()) errors.push("shodhyaPinda: 7 graha + Lagna sırası");
+  return done(
+    errors,
+    [],
+    () => ({
+      schema: VEDIC_ASHTAKAVARGA_TECHNICAL_SCHEMA,
+      zodiac: "sidereal",
+      frame: { ayanamsa: opts.ayanamsa, ayanamsaDegrees: ayDeg! },
+      bav,
+      sav: { bindus: sav.bindus!, total: sav.total! },
+      reducedBav: rbav,
+      reducedSav: { bindus: rsav.bindus!, total: rsav.total! },
+      shodhyaPinda,
+    }),
+    () => null,
+    raw,
+    ASHTAKA_KNOWN,
+    new Set(),
+  );
+}
+
+// ═══ 5F · Shadbala (/vedic-astrology/shadbala) ═══════════════════════════════
+// Denetimler: toplam virupa = 6 bileşen toplamı; rupa = virupa/60; asgari rupa ve Naisargika Bala BPHS sabitleri;
+// oran = rupa/asgari; sıralama orana göre (1 = en güçlü). balaThemes (yerelleştirilmiş ad/anlam) → yorum katmanı.
+export const ROXY_VEDIC_SHADBALA = { endpoint: "/vedic-astrology/shadbala", adapter: "astro-roxy-vedic-shadbala-1", projection: "vedic-shadbala-proj-1" } as const;
+const SHADBALA_KNOWN = new Set<string>([
+  ...paths("frame", ["ayanamsa", "ayanamsaDegrees"]),
+  "balaThemes",
+  ...SHADBALA_COMPONENTS.flatMap((c) => paths(`balaThemes.${c}`, ["name", "meaning"])),
+  "planets",
+  ...paths("planets[]", ["planet", ...SHADBALA_COMPONENTS, "totalVirupas", "totalRupas", "minRequired", "strengthRatio", "ishtaPhala", "kashtaPhala", "relativeRank"]),
+]);
+const SHADBALA_ORDER: VedicGrahaId[] = ["sun", "moon", "mars", "mercury", "jupiter", "venus", "saturn"];
+
+export function projectRoxyVedicShadbala(raw: unknown, opts: { ayanamsa: VedicAyanamsaId }): AdapterResult<VedicShadbalaTechnical, VedicShadbalaInterpretation> {
+  const errors: string[] = [];
+  const r = obj(raw);
+  if (!r) return { ok: false, errors: ["root"] };
+  const frame = obj(r.frame);
+  const ayDeg = num(frame?.ayanamsaDegrees, 0, 40);
+  if (frame?.ayanamsa !== opts.ayanamsa || ayDeg === null) errors.push("frame: istenen ayanamsa değil");
+  const planets: VedicShadbalaTechnical["planets"] = [];
+  for (const it of arr(r.planets) ?? []) {
+    const o = obj(it);
+    const id = mapGraha(o?.planet);
+    const comp = Object.fromEntries(SHADBALA_COMPONENTS.map((c) => [c, num(o?.[c], -1000, 2000)])) as Record<ShadbalaComponent, number | null>;
+    const tv = num(o?.totalVirupas, -1000, 5000);
+    const tr = num(o?.totalRupas, -20, 100);
+    const mr = num(o?.minRequired, 0, 20);
+    const sr = num(o?.strengthRatio, -5, 20);
+    const ip = num(o?.ishtaPhala, 0, 60);
+    const kp = num(o?.kashtaPhala, 0, 60);
+    const rank = int(o?.relativeRank, 1, 7);
+    if (!id || Object.values(comp).some((x) => x === null) || tv === null || tr === null || mr === null || sr === null || ip === null || kp === null || rank === null) {
+      errors.push("planets[]: alan");
+      continue;
+    }
+    const sum = SHADBALA_COMPONENTS.reduce((a, c) => a + (comp[c] as number), 0);
+    if (Math.abs(sum - tv) > 0.05) errors.push(`${id}: toplam virupa bileşen toplamı değil`);
+    if (Math.abs(tv / 60 - tr) > 0.001) errors.push(`${id}: rupa = virupa/60 değil`);
+    if (SHADBALA_MIN_RUPAS[id] !== mr) errors.push(`${id}: asgari rupa BPHS değil`);
+    if (Math.abs((comp.naisargikaBala as number) - NAISARGIKA_BALA[id]) > 0.011) errors.push(`${id}: Naisargika Bala BPHS değil`);
+    if (Math.abs(tr / mr - sr) > 0.001) errors.push(`${id}: oran rupa/asgari değil`);
+    planets.push({ id, ...(comp as Record<ShadbalaComponent, number>), totalVirupas: tv, totalRupas: tr, minRequired: mr, strengthRatio: sr, ishtaPhala: ip, kashtaPhala: kp, rank });
+  }
+  if (planets.map((x) => x.id).join() !== SHADBALA_ORDER.join()) errors.push("planets: 7 klasik graha sırası");
+  const byRatio = [...planets].sort((a, b) => b.strengthRatio - a.strengthRatio).map((x) => x.id);
+  planets.forEach((p) => p.rank !== byRatio.indexOf(p.id) + 1 && errors.push(`${p.id}: sıralama orana göre değil`));
+  const th = obj(r.balaThemes);
+  return done(
+    errors,
+    [],
+    () => ({ schema: VEDIC_SHADBALA_TECHNICAL_SCHEMA, zodiac: "sidereal", frame: { ayanamsa: opts.ayanamsa, ayanamsaDegrees: ayDeg! }, planets }),
+    () => ({
+      schema: VEDIC_SHADBALA_INTERP_SCHEMA,
+      themes: SHADBALA_COMPONENTS.map((c) => ({ component: c, name: text(obj(th?.[c])?.name), meaning: text(obj(th?.[c])?.meaning) })).filter((x) => x.name || x.meaning),
+    }),
+    raw,
+    SHADBALA_KNOWN,
+    new Set(),
+  );
+}
+
+// ═══ 5F · Janma Panchanga (/vedic-astrology/panchang/basic, Lahiri sabit) ═════
+// BAĞIMSIZ denetimler (Güneş/Ay sidereal boylamından): tithi = ⌊(Ay−Güneş)/12°⌋+1, paksha, yüzde; nitya yoga =
+// ⌊(Güneş+Ay)/13°20′⌋+1, yüzde; karana = yarım-tithi sırası (0 Kimstughna, 1–56 hareketli 7'li döngü, 57–59
+// Shakuni/Chatushpada/Naga); nakshatra/pada/yönetici = Ay boylamı. characteristics → yorum katmanı.
+export const ROXY_VEDIC_PANCHANGA = { endpoint: "/vedic-astrology/panchang/basic", adapter: "astro-roxy-vedic-panchanga-1", projection: "vedic-panchanga-proj-1" } as const;
+const PANCHANGA_KNOWN = new Set<string>([
+  ...paths("tithi", ["number", "name", "paksha", "percent", "deity", "rulingPlanet", "element"]),
+  ...paths("nakshatra", ["number", "name", "lord", "pada", "deity", "symbol", "characteristics"]),
+  ...paths("yoga", ["number", "name", "percent", "characteristics"]),
+  ...paths("karana", ["number", "name", "percent", "type", "characteristics"]),
+  "sunLongitude",
+  "moonLongitude",
+]);
+/** Yarım-tithi sırası (0…59) → karana kimliği ve Roxy numarası (hareketli 1–7, Shakuni 8, Chatushpada 9, Naga 10, Kimstughna 11). */
+export function karanaOfHalfTithi(h: number): { id: (typeof KARANA_IDS)[number]; number: number; movable: boolean } {
+  if (h === 0) return { id: "kimstughna", number: 11, movable: false };
+  if (h >= 57) return { id: (["shakuni", "chatushpada", "naga"] as const)[h - 57], number: h - 49, movable: false };
+  const i = (h - 1) % 7;
+  return { id: KARANA_IDS[i], number: i + 1, movable: true };
+}
+
+export function projectRoxyVedicPanchanga(raw: unknown): AdapterResult<VedicPanchangaTechnical, VedicPanchangaInterpretation> {
+  const errors: string[] = [];
+  const dropped: string[] = [];
+  const r = obj(raw);
+  if (!r) return { ok: false, errors: ["root"] };
+  const sun = num(r.sunLongitude, 0, 360);
+  const moon = num(r.moonLongitude, 0, 360);
+  const t = obj(r.tithi);
+  const n = obj(r.nakshatra);
+  const y = obj(r.yoga);
+  const k = obj(r.karana);
+  const tn = int(t?.number, 1, 30);
+  const tp = num(t?.percent, 0, 100);
+  const pk = typeof t?.paksha === "string" ? t.paksha.trim().toLowerCase() : "";
+  const nn = int(n?.number, 1, 27);
+  const np = int(n?.pada, 1, 4);
+  const nl = mapGraha(n?.lord);
+  const yn = int(y?.number, 1, 27);
+  const yp = num(y?.percent, 0, 100);
+  const kn = int(k?.number, 1, 11);
+  const kpct = num(k?.percent, 0, 100);
+  if (sun === null || moon === null || tn === null || tp === null || (pk !== "shukla" && pk !== "krishna") || nn === null || np === null || !nl || yn === null || yp === null || kn === null || kpct === null || !text(t?.name) || !text(y?.name) || !text(k?.name)) {
+    return { ok: false, errors: ["panchang: alan"] };
+  }
+  const elong = (((moon - sun) % 360) + 360) % 360;
+  if (Math.floor(elong / 12) + 1 !== tn) errors.push("tithi Güneş/Ay boylamıyla uyuşmuyor");
+  if (Math.abs(((elong % 12) / 12) * 100 - tp) > 0.5) errors.push("tithi yüzdesi");
+  if ((tn <= 15 ? "shukla" : "krishna") !== pk) errors.push("paksha tithi ile uyuşmuyor");
+  const ysum = (sun + moon) % 360;
+  if (Math.floor(ysum / NAK_SPAN) + 1 !== yn) errors.push("nitya yoga Güneş+Ay ile uyuşmuyor");
+  if (Math.abs(((ysum % NAK_SPAN) / NAK_SPAN) * 100 - yp) > 0.5) errors.push("nitya yoga yüzdesi");
+  const h = Math.floor(elong / 6);
+  const kar = karanaOfHalfTithi(h);
+  if (kar.movable ? kar.number !== kn : !slug(String(k?.name)).startsWith(kar.id.slice(0, 4))) errors.push("karana yarım-tithi ile uyuşmuyor");
+  if (Math.abs(((elong % 6) / 6) * 100 - kpct) > 0.5) errors.push("karana yüzdesi");
+  const ni = Math.min(26, Math.floor(moon / NAK_SPAN));
+  if (nn - 1 !== ni) errors.push("nakshatra Ay boylamıyla uyuşmuyor");
+  if (Math.min(4, Math.floor((moon % NAK_SPAN) / PADA_SPAN) + 1) !== np) errors.push("pada Ay boylamıyla uyuşmuyor");
+  if (nl !== NAKSHATRA_LORDS[ni % 9]) errors.push("nakshatra yöneticisi sırayla uyuşmuyor");
+  if (typeof n?.name === "string" && slug(n.name) !== NAKSHATRAS[ni]) dropped.push("nakshatra.name");
+  const rp = t?.rulingPlanet === undefined ? null : mapGraha(t.rulingPlanet);
+  if (t?.rulingPlanet !== undefined && !rp) dropped.push("tithi.rulingPlanet");
+  const short = (v: unknown) => (typeof v === "string" && v.trim() && v.length <= 40 ? v.trim() : null);
+  return done(
+    errors,
+    dropped,
+    () => ({
+      schema: VEDIC_PANCHANGA_TECHNICAL_SCHEMA,
+      zodiac: "sidereal",
+      frame: { ayanamsa: "lahiri", ayanamsaDegrees: null },
+      sunLongitude: sun,
+      moonLongitude: moon,
+      tithi: { number: tn, name: (text(t?.name) as string).slice(0, 40), paksha: pk as "shukla" | "krishna", percent: tp, deity: short(t?.deity), rulingPlanet: rp, element: short(t?.element) },
+      nakshatra: { index: ni, id: NAKSHATRAS[ni], pada: np, lord: nl, deity: short(n?.deity), symbol: short(n?.symbol) },
+      nityaYoga: { number: yn, name: (text(y?.name) as string).slice(0, 40), percent: yp },
+      karana: { number: kn, id: kar.id, name: (text(k?.name) as string).slice(0, 40), percent: kpct, movable: kar.movable },
+    }),
+    () => ({ schema: VEDIC_PANCHANGA_INTERP_SCHEMA, nakshatra: text(n?.characteristics), yoga: text(y?.characteristics), karana: text(k?.characteristics) }),
+    raw,
+    PANCHANGA_KNOWN,
     new Set(),
   );
 }

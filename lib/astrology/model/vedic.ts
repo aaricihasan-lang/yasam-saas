@@ -189,3 +189,76 @@ export type VedicDashaTechnical = {
 };
 export const VEDIC_DASHA_INTERP_SCHEMA = "astro.vedic.dasha.interp.v1" as const;
 export type VedicDashaInterpretation = { schema: typeof VEDIC_DASHA_INTERP_SCHEMA; parent: string | null; periods: { lord: VedicGrahaId; start: string; text: string | null }[] };
+
+// ─── 5F: Graha Drishti · Ashtakavarga · Shadbala · Panchanga ─────────────────
+/** Roxy /aspects ve /panchang uçları ayanamsa ALMAZ (Lahiri sabit) → yalnız Lahiri seçiliyken çalışır. */
+export type VedicLahiriFrame = { ayanamsa: "lahiri"; ayanamsaDegrees: number | null };
+
+export const VEDIC_DRISHTI_TECHNICAL_SCHEMA = "astro.vedic.drishti.v1" as const;
+export type VedicDrishtiType = 3 | 4 | 5 | 7 | 8 | 9 | 10;
+export type VedicDrishtiTechnical = {
+  schema: typeof VEDIC_DRISHTI_TECHNICAL_SCHEMA;
+  zodiac: "sidereal";
+  frame: VedicLahiriFrame;
+  /** Roxy yöntemi: derece + orb (tam/özel bakışlar); bütün-burç (rashi) drishti DEĞİL. */
+  method: "degree_orb";
+  positions: { id: VedicGrahaId; longitude: number; rashi: SignId }[];
+  aspects: { from: VedicGrahaId; to: VedicGrahaId; type: VedicDrishtiType; strength: number; orb: number }[];
+  mutual: { a: VedicGrahaId; b: VedicGrahaId; type: VedicDrishtiType }[];
+};
+
+export const VEDIC_ASHTAKAVARGA_TECHNICAL_SCHEMA = "astro.vedic.ashtakavarga.v1" as const;
+export type AshtakaRow = { id: VedicGrahaId | "lagna"; bindus: number[]; total: number };
+export type VedicAshtakavargaTechnical = {
+  schema: typeof VEDIC_ASHTAKAVARGA_TECHNICAL_SCHEMA;
+  zodiac: "sidereal";
+  frame: VedicFrame;
+  /** bindus dizileri Koç → Balık (12). */
+  bav: AshtakaRow[];
+  sav: { bindus: number[]; total: number };
+  reducedBav: AshtakaRow[];
+  reducedSav: { bindus: number[]; total: number };
+  shodhyaPinda: { id: VedicGrahaId | "lagna"; rashiPinda: number; grahaPinda: number; total: number }[];
+};
+/** BPHS: Bhinnashtakavarga toplamları haritadan bağımsız sabittir (tutarlılık denetimi). */
+export const BAV_TOTALS: Readonly<Record<string, number>> = { sun: 48, moon: 49, mars: 39, mercury: 54, jupiter: 56, venus: 52, saturn: 39, lagna: 49 };
+
+export const VEDIC_SHADBALA_TECHNICAL_SCHEMA = "astro.vedic.shadbala.v1" as const;
+export const SHADBALA_COMPONENTS = ["sthanaBala", "digBala", "kalaBala", "chestaBala", "naisargikaBala", "drikBala"] as const;
+export type ShadbalaComponent = (typeof SHADBALA_COMPONENTS)[number];
+export type VedicShadbalaTechnical = {
+  schema: typeof VEDIC_SHADBALA_TECHNICAL_SCHEMA;
+  zodiac: "sidereal";
+  frame: VedicFrame;
+  planets: ({ id: VedicGrahaId } & Record<ShadbalaComponent, number> & {
+    totalVirupas: number;
+    totalRupas: number;
+    minRequired: number;
+    strengthRatio: number;
+    ishtaPhala: number;
+    kashtaPhala: number;
+    rank: number;
+  })[];
+};
+/** BPHS sabitleri (tutarlılık denetimi): Naisargika Bala (virupa) ve asgari Rupa. */
+export const NAISARGIKA_BALA: Readonly<Record<string, number>> = { sun: 60, moon: 51.43, venus: 42.86, jupiter: 34.29, mercury: 25.71, mars: 17.14, saturn: 8.57 };
+export const SHADBALA_MIN_RUPAS: Readonly<Record<string, number>> = { sun: 5, moon: 6, mars: 5, mercury: 7, jupiter: 6.5, venus: 5.5, saturn: 5 };
+export const VEDIC_SHADBALA_INTERP_SCHEMA = "astro.vedic.shadbala.interp.v1" as const;
+export type VedicShadbalaInterpretation = { schema: typeof VEDIC_SHADBALA_INTERP_SCHEMA; themes: { component: ShadbalaComponent; name: string | null; meaning: string | null }[] };
+
+export const VEDIC_PANCHANGA_TECHNICAL_SCHEMA = "astro.vedic.panchanga.v1" as const;
+export const KARANA_IDS = ["bava", "balava", "kaulava", "taitila", "gara", "vanija", "vishti", "shakuni", "chatushpada", "naga", "kimstughna"] as const;
+export type VedicPanchangaTechnical = {
+  schema: typeof VEDIC_PANCHANGA_TECHNICAL_SCHEMA;
+  zodiac: "sidereal";
+  frame: VedicLahiriFrame;
+  sunLongitude: number;
+  moonLongitude: number;
+  /** Doğum anı (Janma) panchangası. */
+  tithi: { number: number; name: string; paksha: "shukla" | "krishna"; percent: number; deity: string | null; rulingPlanet: VedicGrahaId | null; element: string | null };
+  nakshatra: { index: number; id: NakshatraId; pada: number; lord: VedicGrahaId; deity: string | null; symbol: string | null };
+  nityaYoga: { number: number; name: string; percent: number };
+  karana: { number: number; id: (typeof KARANA_IDS)[number]; name: string; percent: number; movable: boolean };
+};
+export const VEDIC_PANCHANGA_INTERP_SCHEMA = "astro.vedic.panchanga.interp.v1" as const;
+export type VedicPanchangaInterpretation = { schema: typeof VEDIC_PANCHANGA_INTERP_SCHEMA; nakshatra: string | null; yoga: string | null; karana: string | null };

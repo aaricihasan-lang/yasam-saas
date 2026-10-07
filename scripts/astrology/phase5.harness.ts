@@ -23,15 +23,39 @@ import { getTechnique } from "@/lib/astrology/engine/techniques";
 import { createKb } from "@/lib/astrology/kb/service";
 import { getAnalysis, getWorkspace, locationContextKey, saveAnalysis, saveExpertNote, vedicContextKey } from "@/lib/astrology/analyses/service";
 import { isSectionKeyForTechnique, parseAnyTopicKey, topicsForTechnique, traditionOfKey } from "@/lib/astrology/topics/index";
-import { VEDIC_SPECS, VEDIC_YOGA_NAMES, parseVedicTopicKey, vedicArgOptions, vedicDefaultParts, vedicTopicKey } from "@/lib/astrology/topics/vedic";
-import { dashaEndpoint, navamsaRashiOfPada, projectRoxyVedicD1, projectRoxyVedicDasha, projectRoxyVedicVarga } from "@/lib/astrology/providers/roxy/vedic";
+import { NITYA_YOGA_LABELS, VEDIC_SPECS, VEDIC_YOGA_NAMES, parseVedicTopicKey, vedicArgOptions, vedicDefaultParts, vedicTopicKey } from "@/lib/astrology/topics/vedic";
+import {
+  dashaEndpoint,
+  karanaOfHalfTithi,
+  navamsaRashiOfPada,
+  projectRoxyVedicAshtakavarga,
+  projectRoxyVedicD1,
+  projectRoxyVedicDasha,
+  projectRoxyVedicDrishti,
+  projectRoxyVedicPanchanga,
+  projectRoxyVedicShadbala,
+  projectRoxyVedicVarga,
+} from "@/lib/astrology/providers/roxy/vedic";
 import { callRoxy } from "@/lib/astrology/providers/roxy/client";
 import { vedicBirthBody } from "@/lib/astrology/providers/roxy/requests";
 import { maskTechnical } from "@/lib/astrology/view/techniqueView";
 import { currentDashaIndex, dashaTopicKey, dashaUtcMs, nakshatraSummary, toKundliData, toVargaChartData, vargaTopicKeys } from "@/app/admin/astroloji/_components/VedicPanels";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
+import { formatDegree } from "@/lib/astrology/labels/tr";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
-import { VEDIC_GRAHAS, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicDashaTechnical, type VedicGrahaId, type VedicVargaTechnical } from "@/lib/astrology/model/vedic";
+import {
+  SHADBALA_COMPONENTS,
+  VEDIC_GRAHAS,
+  VIMSHOTTARI_YEARS,
+  type VedicAshtakavargaTechnical,
+  type VedicD1Technical,
+  type VedicDashaTechnical,
+  type VedicDrishtiTechnical,
+  type VedicGrahaId,
+  type VedicPanchangaTechnical,
+  type VedicShadbalaTechnical,
+  type VedicVargaTechnical,
+} from "@/lib/astrology/model/vedic";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -44,6 +68,10 @@ const D9 = load("vedic-d9");
 const DM = load("vedic-dasha-major");
 const DS = load("vedic-dasha-sub-md");
 const DSA = load("vedic-dasha-sub-md-ad");
+const FA = load("vedic-aspects");
+const FK = load("vedic-ashtakavarga");
+const FS = load("vedic-shadbala");
+const FP = load("vedic-panchang");
 const NATAL_GOLDEN = JSON.parse(readFileSync(join(__dirname, "fixtures", "roxy-natal-golden-2026-10-07.json"), "utf8"));
 
 let pass = 0;
@@ -98,6 +126,10 @@ function roxy(opts: { mutate?: (endpoint: string, r: J, body: Record<string, unk
       } else if (endpoint === DM.endpoint) r = structuredClone(DM.response);
       else if (endpoint === DS.endpoint) r = structuredClone(DS.response);
       else if (endpoint === DSA.endpoint) r = structuredClone(DSA.response);
+      else if (endpoint === FA.endpoint) r = structuredClone(FA.response);
+      else if (endpoint === FK.endpoint) r = structuredClone(FK.response);
+      else if (endpoint === FS.endpoint) r = structuredClone(FS.response);
+      else if (endpoint === FP.endpoint) r = structuredClone(FP.response);
       else return { ok: false, kind: "bad_request", status: 400, attempts: 1 };
       if (r.frame && body.ayanamsa && body.ayanamsa !== "lahiri") r.frame = { ...r.frame, ayanamsa: body.ayanamsa };
       opts.mutate?.(endpoint, r, body);
@@ -124,6 +156,12 @@ const dashaTech = (fx: J, md: VedicGrahaId | null, ad: VedicGrahaId | null) => {
   assert.deepEqual(r.unmappedFields, []);
   assert.deepEqual(r.droppedValues, []);
   return r.technical as VedicDashaTechnical;
+};
+const projOk = (r: J) => {
+  assert.ok(r.ok, JSON.stringify(r.errors));
+  assert.deepEqual(r.unmappedFields, []);
+  assert.deepEqual(r.droppedValues, []);
+  return r.technical;
 };
 const d9Tech = () => (projectRoxyVedicVarga(D9.response, { ayanamsa: "lahiri", division: 9 }) as J).technical as VedicVargaTechnical;
 
@@ -811,6 +849,174 @@ async function main() {
     assert.equal(urls.length, 1);
     assert.ok(urls[0].startsWith("https://roxy-fake.local/api/v2/vedic-astrology/dasha/sub/Moon/Rahu?"));
     for (const md of VEDIC_GRAHAS) for (const ad of [null, ...VEDIC_GRAHAS]) assert.match(dashaEndpoint(md, ad), /^\/vedic-astrology\/dasha\/sub\/[A-Z][a-z]+(\/[A-Z][a-z]+)?$/);
+  });
+
+  await t("5F golden: 4 fixture = ürün uç/gövdesi (aspects/panchang ayanamsasız Lahiri-sabit; ashtakavarga/shadbala lahiri); yoga/detect golden'ı YOK (D1 48 yoga denetimini zaten taşır)", () => {
+    const b = vedicBirthBody(SYNTH_A, "lahiri");
+    const fixed = { date: b.date, time: b.time, latitude: b.latitude, longitude: b.longitude, timezone: b.timezone };
+    assert.equal(FA.endpoint, "/vedic-astrology/aspects");
+    assert.deepEqual(FA.body, { ...fixed, coordinateSystem: "sidereal" });
+    assert.equal(FP.endpoint, "/vedic-astrology/panchang/basic");
+    assert.deepEqual(FP.body, fixed);
+    assert.deepEqual(FK.body, b);
+    assert.deepEqual(FS.body, b);
+    for (const fx of [FA, FP, FK, FS]) assert.ok(!JSON.stringify(fx).match(/apiKey|x-api-key|Ayşe|Ali Örnek/i));
+    assert.equal(has("vedic-yoga"), false, "yoga/detect için gereksiz golden çağrısı yapılmış");
+    assert.equal((D1.response.yogas as J[]).length, 48);
+  });
+
+  await t("5F bağımsız denetim: drishti konumları = D1 boylamları ve açı = (n−1)×30° ± orb; Ashtakavarga BPHS toplamları + SAV; Shadbala toplam/rupa/oran/sıra; Panchanga D1'in Güneş/Ay'ından yeniden türetilir", () => {
+    const d1 = d1Tech();
+    const dr = projOk(projectRoxyVedicDrishti(FA.response, { birthLocal: "1990-07-15T14:30:00" })) as VedicDrishtiTechnical;
+    // /aspects boylamları 4 ondalığa yuvarlar (≤5e-5°): aynı Lahiri çerçevesi + aynı an.
+    for (const p of dr.positions) assert.ok(Math.abs(p.longitude - d1.grahas.find((g) => g.id === p.id)!.longitude) < 1e-4, `${p.id} boylamı D1 ile aynı değil`);
+    assert.ok(dr.aspects.some((a) => a.from === "sun" && a.to === "saturn" && a.type === 7));
+    for (const a of dr.aspects) {
+      const lf = dr.positions.find((p) => p.id === a.from)!.longitude;
+      const lt = dr.positions.find((p) => p.id === a.to)!.longitude;
+      const sep = (((lt - lf) % 360) + 360) % 360;
+      assert.ok(Math.abs(Math.abs(((sep - (a.type - 1) * 30 + 540) % 360) - 180) - a.orb) < 0.02, `${a.from}→${a.to}`);
+    }
+    const ak = projOk(projectRoxyVedicAshtakavarga(FK.response, { ayanamsa: "lahiri" })) as VedicAshtakavargaTechnical;
+    assert.deepEqual(ak.bav.map((r) => r.total), [48, 49, 39, 54, 56, 52, 39, 49]);
+    assert.equal(ak.sav.total, 337);
+    for (let i = 0; i < 12; i++) assert.equal(ak.sav.bindus[i], ak.bav.slice(0, 7).reduce((s, r) => s + r.bindus[i], 0));
+    const sb = projOk(projectRoxyVedicShadbala(FS.response, { ayanamsa: "lahiri" })) as VedicShadbalaTechnical;
+    for (const p of sb.planets) assert.ok(Math.abs(SHADBALA_COMPONENTS.reduce((s, c) => s + p[c], 0) - p.totalVirupas) < 0.05, p.id);
+    assert.deepEqual([...sb.planets].sort((a, b) => a.rank - b.rank).map((p) => p.id), ["sun", "mars", "moon", "venus", "saturn", "jupiter", "mercury"]);
+    const pc = projOk(projectRoxyVedicPanchanga(FP.response)) as VedicPanchangaTechnical;
+    const sun = d1.grahas.find((g) => g.id === "sun")!.longitude;
+    const moon = d1.grahas.find((g) => g.id === "moon")!.longitude;
+    const el = (((moon - sun) % 360) + 360) % 360;
+    assert.equal(pc.tithi.number, Math.floor(el / 12) + 1);
+    assert.equal(pc.tithi.number, 23);
+    assert.equal(pc.tithi.paksha, "krishna");
+    assert.equal(pc.nityaYoga.number, Math.floor(((sun + moon) % 360) / (360 / 27)) + 1);
+    assert.equal(NITYA_YOGA_LABELS[pc.nityaYoga.number - 1], "Sukarma");
+    assert.equal(pc.karana.id, karanaOfHalfTithi(Math.floor(el / 6)).id);
+    assert.equal(pc.karana.id, "kaulava");
+    assert.equal(pc.nakshatra.id, d1.grahas.find((g) => g.id === "moon")!.nakshatra.id);
+    assert.deepEqual([karanaOfHalfTithi(0).id, karanaOfHalfTithi(1).id, karanaOfHalfTithi(56).id, karanaOfHalfTithi(57).id, karanaOfHalfTithi(59).id], ["kimstughna", "bava", "vishti", "shakuni", "naga"]);
+    for (const x of [dr, ak, sb, pc]) assert.ok(!JSON.stringify(x).match(/characteristics|meaning|balaThemes|Konum gücü|bireyleri/), "teknikte anlatı");
+  });
+
+  await t("5F fail-closed: drishti (orb/izinsiz tür/eksik karşılık), Ashtakavarga (BAV toplamı/SAV/indirgenmiş>özgün/pinda), Shadbala (toplam/rupa/asgari/sıra), Panchanga (tithi/paksha/yoga/karana/pada) REDDEDİLİR; bilinmeyen alan yalnız yolu", () => {
+    const m = <T,>(fx: J, fn: (r: J) => void, p: (r: J) => T) => {
+      const r = structuredClone(fx.response);
+      fn(r);
+      return p(r) as J;
+    };
+    const DR = (fn: (r: J) => void) => m(FA, fn, (r) => projectRoxyVedicDrishti(r, { birthLocal: "1990-07-15T14:30:00" }));
+    const AK = (fn: (r: J) => void, ay: "lahiri" | "raman" = "lahiri") => m(FK, fn, (r) => projectRoxyVedicAshtakavarga(r, { ayanamsa: ay }));
+    const SB = (fn: (r: J) => void) => m(FS, fn, (r) => projectRoxyVedicShadbala(r, { ayanamsa: "lahiri" }));
+    const PC = (fn: (r: J) => void) => m(FP, fn, (r) => projectRoxyVedicPanchanga(r));
+    const no = (r: J, why: string) => assert.equal(r.ok, false, why);
+    no(DR((r) => { r.aspects[0].orb = 3; }), "orb");
+    no(DR((r) => { r.aspects[0].aspectType = "5th"; }), "Güneş 5. bakış");
+    no(DR((r) => { r.mutualAspects.push({ planet1: "Moon", planet2: "Mars", aspectType: "7th" }); }), "olmayan karşılıklı");
+    no(DR((r) => { r.planets[0].sign = "Cancer"; }), "rashi");
+    no(DR((r) => { r.datetime = "1990-07-15T12:30:00"; }), "tarih");
+    no(AK(() => {}, "raman"), "ayanamsa");
+    no(AK((r) => { r.bhinnashtakavarga[0].bindus[0] += 1; r.bhinnashtakavarga[0].total += 1; r.sarvashtakavarga.bindus[0] += 1; r.sarvashtakavarga.total += 1; }), "BAV toplamı BPHS");
+    no(AK((r) => { r.sarvashtakavarga.bindus[0] += 1; r.sarvashtakavarga.bindus[1] -= 1; }), "SAV ≠ Σ BAV");
+    no(AK((r) => { r.reducedBhinnashtakavarga[1].bindus[2] = 3; r.reducedBhinnashtakavarga[1].total += 3; r.reducedSarvashtakavarga.bindus[2] += 3; r.reducedSarvashtakavarga.total += 3; }), "indirgenmiş > özgün");
+    no(AK((r) => { r.shodhyaPinda[0].shodhyaPinda += 1; }), "pinda");
+    no(SB((r) => { r.planets[0].kalaBala += 10; }), "toplam");
+    no(SB((r) => { r.planets[3].minRequired = 5; }), "asgari");
+    no(SB((r) => { r.planets[6].naisargikaBala = 10; r.planets[6].totalVirupas += 1.43; r.planets[6].totalRupas = r.planets[6].totalVirupas / 60; r.planets[6].strengthRatio = r.planets[6].totalRupas / 5; }), "naisargika");
+    no(SB((r) => { [r.planets[0].relativeRank, r.planets[1].relativeRank] = [r.planets[1].relativeRank, r.planets[0].relativeRank]; }), "sıra");
+    no(PC((r) => { r.tithi.number = 22; }), "tithi");
+    no(PC((r) => { r.tithi.paksha = "Shukla"; }), "paksha");
+    no(PC((r) => { r.yoga.number = 8; }), "nitya yoga");
+    no(PC((r) => { r.karana.number = 4; }), "karana");
+    no(PC((r) => { r.nakshatra.pada = 3; }), "pada");
+    const u = PC((r) => { r.vara = { name: "SIZINTI" }; r.tithi.extra = "SIZINTI"; });
+    assert.ok(u.ok);
+    assert.deepEqual([...u.unmappedFields].sort(), ["tithi.extra", "vara"]);
+    assert.ok(!JSON.stringify(u.technical).includes("SIZINTI"));
+  });
+
+  await t("5F motor: 4 teknik ayrı sonuç; Lahiri dışında drishti/panchanga BİRİM YOK (0 istek, açık neden); ashtakavarga/shadbala ayanamsa ayrı anahtar; tekrar 0 istek; saat yok → TIME_REQUIRED; yorum A/B", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profile(ctx);
+    const rx = roxy();
+    const sels = ["vedic.drishti", "vedic.ashtakavarga", "vedic.shadbala", "vedic.panchanga"].map((technique) => ({ technique, options: {} }));
+    const r1 = (await run(ctx, pa, sels, rx.deps)).body as J;
+    assert.ok((r1.results as J[]).every((x) => x.ok), JSON.stringify(r1).slice(0, 400));
+    assert.deepEqual(rx.calls.map((c) => c.endpoint).sort(), ["/vedic-astrology/ashtakavarga", "/vedic-astrology/aspects", "/vedic-astrology/panchang/basic", "/vedic-astrology/shadbala"]);
+    assert.ok(!("ayanamsa" in rx.calls.find((c) => c.endpoint === "/vedic-astrology/aspects")!.body));
+    assert.ok(!("ayanamsa" in rx.calls.find((c) => c.endpoint === "/vedic-astrology/panchang/basic")!.body));
+    await run(ctx, pa, sels, rx.deps);
+    assert.equal(rx.calls.length, 4, "önbellek");
+    const rr = await run(ctx, pa, sels.map((s) => ({ ...s, options: { ayanamsa: "raman" } })), rx.deps);
+    const rb = JSON.stringify(rr.body);
+    assert.ok(rb.includes("yalnız Lahiri"), rb.slice(0, 300));
+    assert.equal(rx.calls.filter((c) => c.endpoint === "/vedic-astrology/aspects" || c.endpoint === "/vedic-astrology/panchang/basic").length, 2, "Lahiri dışı drishti/panchanga sağlayıcıya gitti");
+    assert.deepEqual(rx.calls.slice(4).map((c) => `${c.endpoint}:${String(c.body.ayanamsa)}`).sort(), ["/vedic-astrology/ashtakavarga:raman", "/vedic-astrology/shadbala:raman"]);
+    const pu = await profile(ctx, { timeKnown: false, birthTime: null, timeAccuracy: "unknown", label: "Saatsiz" });
+    const u = (await run(ctx, pu, sels, rx.deps)).body as J;
+    assert.ok((u.results as J[]).every((x) => x.code === "TIME_REQUIRED"));
+    const n = rx.calls.length;
+    const themes = Object.values(FS.response.balaThemes as J).map((x: J) => x.meaning as string);
+    const chars = [FP.response.nakshatra.characteristics, FP.response.karana.characteristics] as string[];
+    const vis = JSON.stringify((await run(ctx, pa, sels, rx.deps)).body);
+    const hid = JSON.stringify((await run(ctxOf(store, { entitlements: NO_INTERP }), pa, sels, rx.deps)).body);
+    const pre = JSON.stringify((await run(ctx, pa, sels, rx.deps, true)).body);
+    assert.ok(themes.some((x) => vis.includes(x)) && chars.some((x) => vis.includes(x)), "yetkili yorumu görmeli");
+    for (const b of [hid, pre]) assert.ok(![...themes, ...chars].some((x) => b.includes(x)), "yorum sızdı");
+    assert.equal(rx.calls.length, n);
+  });
+
+  await t("5F konular + notlar + kayıtlı analiz: graha_drishti / shadbala_*_min / panchanga_* (DB regex); bağlamlar Vedik D1'den ayrı; KB eşleşmesi; kayıtlı Panchanga 0 istek + yorum kapısı", async () => {
+    const dr = projOk(projectRoxyVedicDrishti(FA.response, { birthLocal: "1990-07-15T14:30:00" })) as VedicDrishtiTechnical;
+    const sb = projOk(projectRoxyVedicShadbala(FS.response, { ayanamsa: "lahiri" })) as VedicShadbalaTechnical;
+    const pc = projOk(projectRoxyVedicPanchanga(FP.response)) as VedicPanchangaTechnical;
+    const kd = topicsForTechnique("vedic.drishti", dr).map((x) => x.key);
+    const ks = topicsForTechnique("vedic.shadbala", sb).map((x) => x.key);
+    const kp = topicsForTechnique("vedic.panchanga", pc).map((x) => x.key);
+    assert.ok(kd.includes("graha_drishti:sun:saturn"));
+    assert.ok(ks.includes("shadbala_below_min:mercury") && ks.includes("shadbala_above_min:sun"));
+    assert.deepEqual(kp.sort(), ["panchanga_karana:kaulava", "panchanga_nitya_yoga:7", "panchanga_tithi:23"]);
+    assert.deepEqual(topicsForTechnique("vedic.ashtakavarga", {}), []);
+    for (const [tech, keys] of [["vedic.drishti", kd], ["vedic.shadbala", ks], ["vedic.panchanga", kp]] as const) {
+      for (const k of keys) {
+        assert.match(k, /^[a-z][a-z_]{1,40}(:[a-z0-9_-]{1,40}){1,4}$/);
+        assert.ok(isSectionKeyForTechnique(tech, k) && !isSectionKeyForTechnique("vedic.d1", k), k);
+        assert.equal(parseAnyTopicKey("western", k), null);
+      }
+    }
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profile(ctx);
+    const rx = roxy();
+    const PSEL = { technique: "vedic.panchanga", options: {} };
+    await run(ctx, pa, [PSEL, { technique: "vedic.shadbala", options: {} }], rx.deps);
+    await createKb(ctx, { tradition: "vedic", topicKey: "panchanga_tithi:23", title: "Krishna Ashtami notum", body: "kb" });
+    const ws = (await getWorkspace(ctx, { profileId: pa, revision: 1, ...PSEL })).body as J;
+    assert.equal(ws.noteContext, "ayanamsa:lahiri");
+    assert.deepEqual(ws.kbMatches.map((e: J) => e.title), ["Krishna Ashtami notum"]);
+    const nr = await saveExpertNote(ctx, { profileId: pa, technique: "vedic.panchanga", sectionKey: "panchanga_tithi:23", expectedRevision: null, noteContext: "ayanamsa:lahiri", body: "Panchanga notu" });
+    assert.equal(nr.status, 201, JSON.stringify(nr.body));
+    assert.equal((await saveExpertNote(ctx, { profileId: pa, technique: "vedic.panchanga", sectionKey: "overall", expectedRevision: null, noteContext: "ayanamsa:raman", body: "x" })).status, 400, "Lahiri-sabit teknikte raman bağlamı");
+    const sv = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...PSEL, includeProviderInterp: true, saveRequestId: randomUUID() }, false);
+    assert.equal(sv.status, 201, JSON.stringify(sv.body));
+    const n = rx.calls.length;
+    const a = JSON.stringify(((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis);
+    assert.equal(rx.calls.length, n);
+    assert.ok(a.includes("Panchanga notu") && a.includes("astro-roxy-vedic-panchanga-1"));
+    const hidden = JSON.stringify(((await getAnalysis(ctxOf(store, { entitlements: NO_INTERP }), (sv.body as J).analysisId, false)).body as J).analysis);
+    assert.ok(!hidden.includes(FP.response.nakshatra.characteristics as string));
+    assert.equal((await getAnalysis(ctxOf(store, { tenantId: TENANT_B, userId: USER_B }), (sv.body as J).analysisId, false)).status, 404);
+  });
+
+  await t("biçim: derece/dakika KESİLİR (yuvarlanmaz) — 29°59.9′ asla 30°00′ / sonraki burç olmaz", () => {
+    assert.equal(formatDegree(28.9975), "28°59′");
+    assert.equal(formatDegree(29.99999), "29°59′");
+    assert.equal(formatDegree(12.5), "12°30′");
+    assert.equal(formatDegree(11 + 20 / 60), "11°20′");
+    assert.equal(formatDegree(0), "0°00′");
+    assert.equal(formatDegree(88.99753063012518 % 30), "28°59′");
   });
 
   await t("golden kaydı: var olan Vedik fixture'lar plan adlarıyla uyumlu", () => {

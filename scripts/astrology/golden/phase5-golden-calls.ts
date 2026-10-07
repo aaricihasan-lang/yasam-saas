@@ -34,6 +34,8 @@ export function goldenPlan5(): GoldenEntry[] {
     { name: "vedic-aspects", subphase: "5F", endpoint: "/vedic-astrology/aspects", body: { date: lahiri.date, time: lahiri.time, latitude: lahiri.latitude, longitude: lahiri.longitude, timezone: lahiri.timezone, coordinateSystem: "sidereal" } },
     { name: "vedic-ashtakavarga", subphase: "5F", endpoint: "/vedic-astrology/ashtakavarga", body: lahiri },
     { name: "vedic-shadbala", subphase: "5F", endpoint: "/vedic-astrology/shadbala", body: lahiri },
+    // Panchang uçları ayanamsa almaz (Lahiri sabit) → gövdede ayanamsa YOK.
+    { name: "vedic-panchang", subphase: "5F", endpoint: "/vedic-astrology/panchang/basic", body: { date: lahiri.date, time: lahiri.time, latitude: lahiri.latitude, longitude: lahiri.longitude, timezone: lahiri.timezone } },
   ];
 }
 

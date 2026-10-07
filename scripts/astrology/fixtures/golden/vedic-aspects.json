@@ -1,0 +1,221 @@
+{
+  "endpoint": "/vedic-astrology/aspects",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "coordinateSystem": "sidereal"
+  },
+  "response": {
+    "datetime": "1990-07-15T14:30:00",
+    "planets": [
+      {
+        "name": "Sun",
+        "longitude": 88.9975,
+        "sign": "Gemini"
+      },
+      {
+        "name": "Moon",
+        "longitude": 359.2358,
+        "sign": "Pisces"
+      },
+      {
+        "name": "Mars",
+        "longitude": 8.1994,
+        "sign": "Aries"
+      },
+      {
+        "name": "Mercury",
+        "longitude": 103.0052,
+        "sign": "Cancer"
+      },
+      {
+        "name": "Jupiter",
+        "longitude": 88.8157,
+        "sign": "Gemini"
+      },
+      {
+        "name": "Venus",
+        "longitude": 60.6575,
+        "sign": "Gemini"
+      },
+      {
+        "name": "Saturn",
+        "longitude": 268.2364,
+        "sign": "Sagittarius"
+      },
+      {
+        "name": "Rahu",
+        "longitude": 284.3819,
+        "sign": "Capricorn"
+      },
+      {
+        "name": "Ketu",
+        "longitude": 104.3819,
+        "sign": "Cancer"
+      }
+    ],
+    "aspects": [
+      {
+        "aspectingPlanet": "Sun",
+        "aspectedPlanet": "Saturn",
+        "aspectType": "7th",
+        "strength": 100,
+        "orb": 0.76
+      },
+      {
+        "aspectingPlanet": "Mars",
+        "aspectedPlanet": "Mercury",
+        "aspectType": "4th",
+        "strength": 100,
+        "orb": 4.81
+      },
+      {
+        "aspectingPlanet": "Mars",
+        "aspectedPlanet": "Ketu",
+        "aspectType": "4th",
+        "strength": 100,
+        "orb": 6.18
+      },
+      {
+        "aspectingPlanet": "Mercury",
+        "aspectedPlanet": "Rahu",
+        "aspectType": "7th",
+        "strength": 100,
+        "orb": 1.38
+      },
+      {
+        "aspectingPlanet": "Jupiter",
+        "aspectedPlanet": "Saturn",
+        "aspectType": "7th",
+        "strength": 100,
+        "orb": 0.58
+      },
+      {
+        "aspectingPlanet": "Venus",
+        "aspectedPlanet": "Saturn",
+        "aspectType": "7th",
+        "strength": 100,
+        "orb": 27.58
+      },
+      {
+        "aspectingPlanet": "Saturn",
+        "aspectedPlanet": "Sun",
+        "aspectType": "7th",
+        "strength": 100,
+        "orb": 0.76
+      },
+      {
+        "aspectingPlanet": "Saturn",
+        "aspectedPlanet": "Jupiter",
+        "aspectType": "7th",
+        "strength": 100,
+        "orb": 0.58
+      },
+      {
+        "aspectingPlanet": "Saturn",
+        "aspectedPlanet": "Venus",
+        "aspectType": "7th",
+        "strength": 100,
+        "orb": 27.58
+      }
+    ],
+    "aspectTable": [
+      {
+        "planet": "Sun",
+        "aspects": [
+          {
+            "planet": "Saturn",
+            "aspectType": "7th",
+            "strength": 100
+          }
+        ]
+      },
+      {
+        "planet": "Mars",
+        "aspects": [
+          {
+            "planet": "Mercury",
+            "aspectType": "4th",
+            "strength": 100
+          },
+          {
+            "planet": "Ketu",
+            "aspectType": "4th",
+            "strength": 100
+          }
+        ]
+      },
+      {
+        "planet": "Mercury",
+        "aspects": [
+          {
+            "planet": "Rahu",
+            "aspectType": "7th",
+            "strength": 100
+          }
+        ]
+      },
+      {
+        "planet": "Jupiter",
+        "aspects": [
+          {
+            "planet": "Saturn",
+            "aspectType": "7th",
+            "strength": 100
+          }
+        ]
+      },
+      {
+        "planet": "Venus",
+        "aspects": [
+          {
+            "planet": "Saturn",
+            "aspectType": "7th",
+            "strength": 100
+          }
+        ]
+      },
+      {
+        "planet": "Saturn",
+        "aspects": [
+          {
+            "planet": "Sun",
+            "aspectType": "7th",
+            "strength": 100
+          },
+          {
+            "planet": "Jupiter",
+            "aspectType": "7th",
+            "strength": 100
+          },
+          {
+            "planet": "Venus",
+            "aspectType": "7th",
+            "strength": 100
+          }
+        ]
+      }
+    ],
+    "mutualAspects": [
+      {
+        "planet1": "Sun",
+        "planet2": "Saturn",
+        "aspectType": "7th"
+      },
+      {
+        "planet1": "Jupiter",
+        "planet2": "Saturn",
+        "aspectType": "7th"
+      },
+      {
+        "planet1": "Venus",
+        "planet2": "Saturn",
+        "aspectType": "7th"
+      }
+    ]
+  }
+}

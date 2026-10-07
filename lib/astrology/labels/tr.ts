@@ -146,14 +146,11 @@ export const NODE_TYPE_LABELS: Record<"true" | "mean", string> = { true: "Gerçe
 
 /** 123.456 → "3°27′" (burç içi derece). */
 export function formatDegree(deg: number): string {
-  const d = Math.floor(deg);
-  let m = Math.round((deg - d) * 60);
-  let dd = d;
-  if (m === 60) {
-    m = 0;
-    dd += 1;
-  }
-  return `${dd}°${String(m).padStart(2, "0")}′`;
+  // Aşama 5: efemeris geleneği — dakika YUVARLANMAZ, kesilir (29°59.9′ asla "30°00′" / sonraki burç görünmez).
+  // 1e-9 payı yalnız kayan nokta artığı içindir (ör. 12.5 → 12°30′).
+  const d = Math.floor(deg + 1e-9);
+  const m = Math.min(59, Math.floor((deg - d) * 60 + 1e-9));
+  return `${d}°${String(m).padStart(2, "0")}′`;
 }
 
 export function formatOrb(orb: number): string {

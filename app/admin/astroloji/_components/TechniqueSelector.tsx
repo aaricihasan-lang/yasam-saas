@@ -159,6 +159,27 @@ export default function TechniqueSelector({
             {lunarReturns && lunarReturns.length > 1 && <span className="text-xs text-violet-800">Bu ayda {lunarReturns.length} lunar return var. Diğerini hesaplamak için sırayı değiştirip yeniden hesaplayın (her dönüş 1 istek; ikisi de ayrı kayıt olarak kalır).</span>}
           </div>
         );
+      case "vedic.drishti":
+      case "vedic.panchanga":
+        return params.vedicAyanamsa === "lahiri" ? (
+          <p className="text-xs text-slate-500">Lahiri (sabit) — Roxy bu uçta ayanamsa almaz.</p>
+        ) : (
+          <p className="text-xs text-amber-800">Seçili ayanamsa Lahiri değil: bu hesap yapılmaz (Roxy yalnız Lahiri ile hesaplar). Vedik seçimlerde ayanamsa&apos;yı Lahiri yapın.</p>
+        );
+      case "vedic.ashtakavarga":
+      case "vedic.shadbala":
+        return (
+          <label className="flex items-center gap-2 text-xs">
+            Ayanamsa (tüm Vedik hesaplar)
+            <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label={`Vedik ayanamsa (${id})`}>
+              {VEDIC_AYANAMSA_OPTIONS.map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </label>
+        );
       case "vedic.dasha":
         return (
           <div className="flex flex-wrap items-center gap-3 text-xs">

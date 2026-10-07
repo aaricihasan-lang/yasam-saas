@@ -17,12 +17,45 @@
 // DB biçim kısıtı (topic_key) ile uyumlu: ^[a-z][a-z_]{1,40}(:[a-z0-9_-]{1,40}){1,4}$
 
 import { SIGN_IDS, type SignId } from "../model/western";
-import { NAKSHATRAS, VEDIC_GRAHAS, type VedicD1Technical, type VedicDashaTechnical, type VedicVargaTechnical } from "../model/vedic";
+import {
+  KARANA_IDS,
+  NAKSHATRAS,
+  VEDIC_GRAHAS,
+  type VedicD1Technical,
+  type VedicDashaTechnical,
+  type VedicDrishtiTechnical,
+  type VedicPanchangaTechnical,
+  type VedicShadbalaTechnical,
+  type VedicVargaTechnical,
+} from "../model/vedic";
 import { SIGN_LABELS } from "../labels/tr";
 
-export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha"] as const;
+export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha", "vedic_drishti", "vedic_strength", "vedic_panchanga"] as const;
 export type VedicContext = (typeof VEDIC_CONTEXTS)[number];
-export const VEDIC_CONTEXT_LABELS: Record<VedicContext, string> = { vedic_d1: "Vedik D1 (Rashi)", vedic_varga: "Vedik Varga (D9 / Dn)", vedic_dasha: "Vimshottari Dasha" };
+export const VEDIC_CONTEXT_LABELS: Record<VedicContext, string> = {
+  vedic_d1: "Vedik D1 (Rashi)",
+  vedic_varga: "Vedik Varga (D9 / Dn)",
+  vedic_dasha: "Vimshottari Dasha",
+  vedic_drishti: "Graha Drishti",
+  vedic_strength: "Graha gücü (Shadbala / Ashtakavarga)",
+  vedic_panchanga: "Janma Panchanga",
+};
+
+/** Geleneksel ad listeleri (yalnız etiket; hesap DEĞİL). */
+export const TITHI_LABELS: string[] = [
+  ...["Pratipada", "Dvitiya", "Tritiya", "Chaturthi", "Panchami", "Shashthi", "Saptami", "Ashtami", "Navami", "Dashami", "Ekadashi", "Dvadashi", "Trayodashi", "Chaturdashi"].map((n) => `Shukla ${n}`),
+  "Purnima",
+  ...["Pratipada", "Dvitiya", "Tritiya", "Chaturthi", "Panchami", "Shashthi", "Saptami", "Ashtami", "Navami", "Dashami", "Ekadashi", "Dvadashi", "Trayodashi", "Chaturdashi"].map((n) => `Krishna ${n}`),
+  "Amavasya",
+];
+export const NITYA_YOGA_LABELS: string[] = [
+  "Vishkambha", "Priti", "Ayushman", "Saubhagya", "Shobhana", "Atiganda", "Sukarma", "Dhriti", "Shula", "Ganda", "Vriddhi", "Dhruva", "Vyaghata", "Harshana",
+  "Vajra", "Siddhi", "Vyatipata", "Variyana", "Parigha", "Shiva", "Siddha", "Sadhya", "Shubha", "Shukla", "Brahma", "Indra", "Vaidhriti",
+];
+export const KARANA_LABELS: Record<string, string> = {
+  bava: "Bava", balava: "Balava", kaulava: "Kaulava", taitila: "Taitila", gara: "Gara", vanija: "Vanija", vishti: "Vishti (Bhadra)",
+  shakuni: "Shakuni", chatushpada: "Chatushpada", naga: "Naga", kimstughna: "Kimstughna",
+};
 
 export const GRAHA_LABELS: Record<string, string> = {
   sun: "Surya (Güneş)",
@@ -56,7 +89,7 @@ export const VEDIC_YOGA_NAMES: Record<string, string> = {
   kedara: "Kedara", pasa: "Pasa", damni: "Damni", vallaki: "Vallaki",
 };
 
-export type VedicArgType = "graha" | "rashi" | "bhava" | "nakshatra" | "pada" | "yoga" | "division";
+export type VedicArgType = "graha" | "rashi" | "bhava" | "nakshatra" | "pada" | "yoga" | "division" | "tithi" | "nitya_yoga" | "karana";
 type ArgType = VedicArgType;
 type Spec = { args: ArgType[]; context: VedicContext; label: (p: string[]) => string };
 
@@ -82,6 +115,12 @@ export const VEDIC_SPECS: Record<string, Spec> = {
   varga_vargottama: { args: ["division", "graha"], context: "vedic_varga", label: (p) => `${p[0].toUpperCase()}: ${g(p[1])} vargottama` },
   dasha_mahadasha: { args: ["graha"], context: "vedic_dasha", label: (p) => `Mahadasha: ${g(p[0])}` },
   dasha_antardasha: { args: ["graha", "graha"], context: "vedic_dasha", label: (p) => `Antardasha: ${g(p[0])} / ${g(p[1])}` },
+  graha_drishti: { args: ["graha", "graha"], context: "vedic_drishti", label: (p) => `Drishti: ${g(p[0])} → ${g(p[1])}` },
+  shadbala_above_min: { args: ["graha"], context: "vedic_strength", label: (p) => `Shadbala: ${g(p[0])} asgari gücün üstünde` },
+  shadbala_below_min: { args: ["graha"], context: "vedic_strength", label: (p) => `Shadbala: ${g(p[0])} asgari gücün altında` },
+  panchanga_tithi: { args: ["tithi"], context: "vedic_panchanga", label: (p) => `Janma tithi: ${p[0]}. ${TITHI_LABELS[Number(p[0]) - 1] ?? ""}` },
+  panchanga_nitya_yoga: { args: ["nitya_yoga"], context: "vedic_panchanga", label: (p) => `Janma nitya yoga: ${p[0]}. ${NITYA_YOGA_LABELS[Number(p[0]) - 1] ?? ""}` },
+  panchanga_karana: { args: ["karana"], context: "vedic_panchanga", label: (p) => `Janma karana: ${KARANA_LABELS[p[0]] ?? p[0]}` },
   dasha_pratyantardasha: { args: ["graha", "graha", "graha"], context: "vedic_dasha", label: (p) => `Pratyantardasha: ${g(p[0])} / ${g(p[1])} / ${g(p[2])}` },
 };
 export const VEDIC_KINDS = Object.keys(VEDIC_SPECS);
@@ -102,6 +141,12 @@ function valid(t: ArgType, v: string): boolean {
       return /^[a-z0-9-]{2,40}$/.test(v);
     case "division":
       return VARGA_DIVISIONS.some((d) => d !== 9 && `d${d}` === v);
+    case "tithi":
+      return /^(?:[1-9]|[12]\d|30)$/.test(v);
+    case "nitya_yoga":
+      return /^(?:[1-9]|1\d|2[0-7])$/.test(v);
+    case "karana":
+      return (KARANA_IDS as readonly string[]).includes(v);
   }
 }
 
@@ -122,6 +167,12 @@ export function vedicArgOptions(t: VedicArgType): [string, string][] {
       return Object.entries(VEDIC_YOGA_NAMES).map(([k, v]): [string, string] => [k, `${v} Yoga`]);
     case "division":
       return VARGA_DIVISIONS.filter((d) => d !== 9).map((d): [string, string] => [`d${d}`, `D${d}`]);
+    case "tithi":
+      return TITHI_LABELS.map((l, i): [string, string] => [String(i + 1), `${i + 1}. ${l}`]);
+    case "nitya_yoga":
+      return NITYA_YOGA_LABELS.map((l, i): [string, string] => [String(i + 1), `${i + 1}. ${l}`]);
+    case "karana":
+      return KARANA_IDS.map((k): [string, string] => [k, KARANA_LABELS[k]]);
   }
 }
 
@@ -185,6 +236,21 @@ export function topicsFromVedicDasha(t: VedicDashaTechnical): VedicTopic[] {
     md && ad ? ["dasha_pratyantardasha", [md, ad, p.lord]] : md ? ["dasha_antardasha", [md, p.lord]] : ["dasha_mahadasha", [p.lord]],
   );
   return vedicCollect(items);
+}
+
+export function topicsFromVedicDrishti(t: VedicDrishtiTechnical): VedicTopic[] {
+  return vedicCollect(t.aspects.map((a): [string, string[]] => ["graha_drishti", [a.from, a.to]]));
+}
+/** Oran ≥ 1 → BPHS asgari gücün üstünde (Roxy'nin strengthRatio değeri; eşik bizim yorumumuz değil, BPHS asgarisi). */
+export function topicsFromVedicShadbala(t: VedicShadbalaTechnical): VedicTopic[] {
+  return vedicCollect(t.planets.map((p): [string, string[]] => [p.strengthRatio >= 1 ? "shadbala_above_min" : "shadbala_below_min", [p.id]]));
+}
+export function topicsFromVedicPanchanga(t: VedicPanchangaTechnical): VedicTopic[] {
+  return vedicCollect([
+    ["panchanga_tithi", [String(t.tithi.number)]],
+    ["panchanga_nitya_yoga", [String(t.nityaYoga.number)]],
+    ["panchanga_karana", [t.karana.id]],
+  ]);
 }
 
 export function topicsFromVedicD1(t: VedicD1Technical): VedicTopic[] {

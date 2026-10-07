@@ -30,8 +30,8 @@ import {
   type TopicContext,
 } from "./contextual";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "../model/westernLocation";
-import type { VedicD1Technical, VedicDashaTechnical, VedicVargaTechnical } from "../model/vedic";
-import { parseVedicTopicKey, topicsFromVedicD1, topicsFromVedicDasha, topicsFromVedicVarga, VEDIC_CONTEXT_LABELS, VEDIC_KINDS, VEDIC_SPECS, type VedicContext } from "./vedic";
+import type { VedicD1Technical, VedicDashaTechnical, VedicDrishtiTechnical, VedicPanchangaTechnical, VedicShadbalaTechnical, VedicVargaTechnical } from "../model/vedic";
+import { parseVedicTopicKey, topicsFromVedicD1, topicsFromVedicDasha, topicsFromVedicDrishti, topicsFromVedicPanchanga, topicsFromVedicShadbala, topicsFromVedicVarga, VEDIC_CONTEXT_LABELS, VEDIC_KINDS, VEDIC_SPECS, type VedicContext } from "./vedic";
 
 /** Konu bağlamı: Batı bağlamları + Vedik bağlamlar (gelenek ayrımı anahtar türünde ve KB sütununda). */
 export type AnyContext = TopicContext | VedicContext;
@@ -94,6 +94,12 @@ function vedicKindLabel(kind: string): string {
     dasha_mahadasha: "mahadasha",
     dasha_antardasha: "antardasha",
     dasha_pratyantardasha: "pratyantardasha",
+    graha_drishti: "graha drishtisi",
+    shadbala_above_min: "Shadbala asgari üstü",
+    shadbala_below_min: "Shadbala asgari altı",
+    panchanga_tithi: "tithi",
+    panchanga_nitya_yoga: "nitya yoga",
+    panchanga_karana: "karana",
   };
   return `${VEDIC_CONTEXT_LABELS[VEDIC_SPECS[kind].context]} · ${L[kind] ?? kind}`;
 }
@@ -158,6 +164,14 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromVedicVarga(technical as VedicVargaTechnical) : [];
     case "vedic.dasha":
       return technical ? topicsFromVedicDasha(technical as VedicDashaTechnical) : [];
+    case "vedic.drishti":
+      return technical ? topicsFromVedicDrishti(technical as VedicDrishtiTechnical) : [];
+    case "vedic.shadbala":
+      return technical ? topicsFromVedicShadbala(technical as VedicShadbalaTechnical) : [];
+    case "vedic.panchanga":
+      return technical ? topicsFromVedicPanchanga(technical as VedicPanchangaTechnical) : [];
+    case "vedic.ashtakavarga":
+      return [];
     default:
       return [];
   }
@@ -171,6 +185,10 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext> = {
   "vedic.d1": "vedic_d1",
   "vedic.varga": "vedic_varga",
   "vedic.dasha": "vedic_dasha",
+  "vedic.drishti": "vedic_drishti",
+  "vedic.ashtakavarga": "vedic_strength",
+  "vedic.shadbala": "vedic_strength",
+  "vedic.panchanga": "vedic_panchanga",
   "western.natal": "natal",
   "western.transit": "transit",
   "western.forecast": "transit",

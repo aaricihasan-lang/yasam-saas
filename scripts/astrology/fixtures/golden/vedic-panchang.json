@@ -1,0 +1,46 @@
+{
+  "endpoint": "/vedic-astrology/panchang/basic",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3
+  },
+  "response": {
+    "tithi": {
+      "number": 23,
+      "name": "Aṣṭamī",
+      "paksha": "Krishna",
+      "percent": 51.98594146696204,
+      "deity": "Vasus",
+      "rulingPlanet": "Rahu",
+      "element": "Akasha"
+    },
+    "nakshatra": {
+      "number": 27,
+      "name": "Revati",
+      "lord": "Mercury",
+      "pada": 4,
+      "deity": "Pushan",
+      "symbol": "Balık",
+      "characteristics": "Revati bireyleri besleyici, manevi ve cömerttir. Genellikle başkalarına rehberlik eder ve çevrelerindekileri korurlar."
+    },
+    "yoga": {
+      "number": 7,
+      "name": "Sukarma",
+      "percent": 61.75030677214377,
+      "characteristics": "Bereketli (onurlu faaliyetler yapar, cömert ve hayırsever, müreffeh)"
+    },
+    "karana": {
+      "number": 3,
+      "name": "Kaulav",
+      "percent": 3.9718829339240784,
+      "type": "char",
+      "characteristics": "Kaulav Karana doğumlu bir kişi çok cana yakındır. Bu Karana insanlarına sevgi ve şefkat gibi en iyi yetenekleri kazandırır."
+    },
+    "sunLongitude": 88.99753063012518,
+    "moonLongitude": 359.23584360616064
+  }
+}

@@ -20,6 +20,10 @@ export const UI_TECHNIQUES = [
   "vedic.d1",
   "vedic.varga",
   "vedic.dasha",
+  "vedic.drishti",
+  "vedic.ashtakavarga",
+  "vedic.shadbala",
+  "vedic.panchanga",
 ] as const;
 export type UiTechniqueId = (typeof UI_TECHNIQUES)[number];
 
@@ -37,6 +41,10 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "western.relocation": { label: "Relocation", hint: "Aynı doğum anı, yeni konum: ASC/MC/evler", needsPartner: false, needsTime: true },
   "western.local_space": { label: "Local Space", hint: "Doğum anında ufuk yönleri (pusula + harita)", needsPartner: false, needsTime: true },
   "vedic.d1": { label: "Vedik D1 (Rashi)", hint: "Sidereal kundli: Lagna, graha, nakshatra/pada, yogalar", needsPartner: false, needsTime: true },
+  "vedic.drishti": { label: "Graha Drishti", hint: "Vedik bakışlar (Roxy: derece + orb) — yalnız Lahiri", needsPartner: false, needsTime: true },
+  "vedic.ashtakavarga": { label: "Ashtakavarga", hint: "Bhinna/Sarva bindu ızgarası, Shodhana, Shodhya Pinda", needsPartner: false, needsTime: true },
+  "vedic.shadbala": { label: "Shadbala", hint: "Altı katlı graha gücü (BPHS), oran ve sıralama", needsPartner: false, needsTime: true },
+  "vedic.panchanga": { label: "Janma Panchanga", hint: "Doğum anı tithi, nakshatra, nitya yoga, karana — yalnız Lahiri", needsPartner: false, needsTime: true },
   "vedic.dasha": { label: "Vimshottari Dasha", hint: "Mahadasha zaman çizelgesi; Antardasha / Pratyantardasha tıklayınca yüklenir", needsPartner: false, needsTime: true },
   "vedic.varga": { label: "Vedik Varga (D9 Navamsa / Dn)", hint: "Bölümsel harita: D9 varsayılan; D2…D60 seçilebilir; vargottama", needsPartner: false, needsTime: true },
 };
@@ -183,6 +191,12 @@ export function buildSelections(
       case "vedic.d1":
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa } });
         break;
+      case "vedic.drishti":
+      case "vedic.ashtakavarga":
+      case "vedic.shadbala":
+      case "vedic.panchanga":
+        out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa } });
+        break;
       case "vedic.dasha":
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa, mahadasha: p.dashaMd || null, antardasha: p.dashaMd && p.dashaAd ? p.dashaAd : null } });
         break;
@@ -229,6 +243,12 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
       const t = o.target as { label?: string } | undefined;
       return t?.label ? `→ ${t.label}` : typeof o.targetLocationId === "string" ? `→ ${o.targetLocationId}` : "";
     }
+    case "vedic.drishti":
+    case "vedic.panchanga":
+      return "ayanamsa: Lahiri (sabit)";
+    case "vedic.ashtakavarga":
+    case "vedic.shadbala":
+      return `ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
     case "vedic.dasha": {
       const lord = (v: unknown) => DASHA_LORD_OPTIONS.find((x) => x[0] === v)?.[1] ?? String(v);
       const lv = o.antardasha ? `Pratyantardasha · ${lord(o.mahadasha)} / ${lord(o.antardasha)}` : o.mahadasha ? `Antardasha · ${lord(o.mahadasha)}` : "Mahadasha";
