@@ -25,6 +25,9 @@ process.env.ASTROLOGY_MODULE_ENABLED = "true";
 process.env.RATE_LIMIT_SECRET = "fake-rl-secret";
 
 const FIXTURE = JSON.parse(readFileSync(join(__dirname, "fixtures", "roxy-natal-spec-derived.json"), "utf8"));
+/** GERÇEK Roxy natal yanıtı (golden, 2026-10-07, tek çağrı, sentetik kişi). */
+const GOLDEN = JSON.parse(readFileSync(join(__dirname, "fixtures", "roxy-natal-golden-2026-10-07.json"), "utf8"));
+let roxyRawOverride: Record<string, unknown> | null = null;
 
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const IDS = {
@@ -79,6 +82,7 @@ const restore = installFetchShim({
     roxyHits += 1;
     roxyHeaderKeys.push(headers.get("x-api-key") ?? "");
     assert.ok(url.startsWith(`${ROXY_BASE}/astrology/natal-chart?lang=tr`), `beklenmeyen Roxy URL: ${url}`);
+    if (roxyRawOverride) return new Response(JSON.stringify(roxyRawOverride), { status: 200, headers: { "Content-Type": "application/json" } });
     const raw = structuredClone(FIXTURE);
     raw.birthDetails = { date: body.date, time: body.time, latitude: body.latitude, longitude: body.longitude, timezone: body.timezone };
     raw.houseSystem = body.houseSystem;
@@ -252,6 +256,32 @@ async function main() {
     await t("log: konsol loglarında anahtar / doğum verisi / koordinat / danışan adı yok", async () => {
       const all = captured.join("\n");
       for (const bad of [API_KEY, "1990-07-15", "41.0082", "28.9784", "Yılmaz", "İstanbul", "[RXU-"]) assert.ok(!all.includes(bad), `log sızıntısı: ${bad}`);
+    });
+    await t("golden (HTTP): gerçek yanıtla run → owner yorum görür; ?previewNoInterp=1 → hiçbir anlatı/ham alan yok, teknik aynı; tekrar 0 istek", async () => {
+      store = seed();
+      roxyRawOverride = GOLDEN;
+      const hits0 = roxyHits;
+      const c = await call(profiles.POST(req("/api/admin/astroloji/profiles", "owner", "POST", profileBody)));
+      const gpid = (c.json.profile as { id: string }).id;
+      const a = await call(run.POST(req("/api/admin/astroloji/engine/run", "owner", "POST", runBody(gpid))));
+      const b = await call(run.POST(req("/api/admin/astroloji/engine/run?previewNoInterp=1", "owner", "POST", runBody(gpid))));
+      roxyRawOverride = null;
+      assert.equal(a.status, 200, a.text.slice(0, 200));
+      assert.equal(roxyHits - hits0, 1, "yalnız ilk run sağlayıcıya gitmeli");
+      const sum = (GOLDEN.planets as { interpretation: { summary: string } }[])[0].interpretation.summary;
+      assert.ok(a.text.includes(JSON.stringify(sum).slice(1, -1)), "A: yorum görünmeli");
+      const narr: string[] = [];
+      for (const pl of GOLDEN.planets) narr.push(pl.interpretation?.summary, pl.interpretation?.detailed, ...(pl.interpretation?.keywords ?? []));
+      for (const as of GOLDEN.aspects) narr.push(as.aspectInterpretation?.summary, ...(as.aspectInterpretation?.keywords ?? []));
+      for (const pt of GOLDEN.patterns) narr.push(pt.interpretation, pt.name, pt.interpretationKey);
+      narr.push(GOLDEN.aspectsInterpretation.summary);
+      for (const x of narr.filter((v): v is string => typeof v === "string" && v.length >= 6)) {
+        assert.ok(!b.text.includes(JSON.stringify(x).slice(1, -1)), `B: anlatı sızdı → ${x.slice(0, 30)}`);
+      }
+      for (const k of ["aspectInterpretation", "interpretationKey", "nameLocalized", "raw_response", "Black Moon Lilith"]) assert.ok(!b.text.includes(k), `B: ${k}`);
+      const tech = (r: { json: Record<string, unknown> }) => JSON.stringify((r.json.results as { view: { technical: unknown } }[])[0].view.technical);
+      assert.equal(tech(b), tech(a), "teknik veri A/B arasında değişti");
+      assert.deepEqual(b.json.executed, { newResults: 0, cachedResults: 1, providerAttempts: 0 });
     });
   } finally {
     console.error = origErr;

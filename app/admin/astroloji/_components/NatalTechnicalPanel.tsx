@@ -71,6 +71,10 @@ export default function NatalTechnicalPanel({ technical, timeUnknown }: { techni
                 <td className={td}>
                   <span className="mr-1.5 text-base">{BODY_GLYPHS[b.id]}</span>
                   {BODY_LABELS[b.id]}
+                  {b.id === "lilith" && t.variants?.lilith === "mean" && <span className="ml-1 text-xs text-slate-500">(ortalama)</span>}
+                  {(b.id === "north_node" || b.id === "south_node") && t.variants && (
+                    <span className="ml-1 text-xs text-slate-500">({t.variants.node === "true" ? "gerçek" : "ortalama"})</span>
+                  )}
                   {b.retrograde && <span className="ml-1 font-semibold text-rose-600" title="Retro">℞</span>}
                 </td>
                 <td className={td}>

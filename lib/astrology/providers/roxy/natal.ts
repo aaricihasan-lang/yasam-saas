@@ -60,7 +60,7 @@ export const ROXY_NATAL_ENDPOINT = "/astrology/natal-chart";
 /** Adaptör sürümü — önbellek anahtarının parçası (istek biçimi değişirse yeni hesap). */
 export const ROXY_NATAL_ADAPTER_VERSION = "astro-roxy-natal-1";
 /** Projeksiyon sürümü — beyaz liste değişirse ham yanıttan yeniden üretilebilir (yeni istek YOK). */
-export const ROXY_NATAL_PROJECTION_VERSION = "natal-proj-1";
+export const ROXY_NATAL_PROJECTION_VERSION = "natal-proj-2";
 
 // ─── İstek ───────────────────────────────────────────────────────────────────
 
@@ -197,7 +197,7 @@ export type NatalProjection = {
 export type NatalProjectionResult = { ok: true; value: NatalProjection } | { ok: false; errors: string[] };
 
 const MAX_TEXT = 4000;
-const MAX_KEYWORDS = 12;
+const MAX_KEYWORDS = 30; // golden 2026-10-07: açı başına 12 anahtar kelime görüldü → pay bırakıldı
 const MAX_KEYWORD_LEN = 60;
 
 function text(v: unknown): string | null {
@@ -229,6 +229,9 @@ export function projectRoxyNatal(raw: unknown, opts: NatalMethodOptions): NatalP
   const echoLat = num(bd?.latitude, -90, 90);
   const echoLon = num(bd?.longitude, -180, 180);
   if (!echoDate || !echoTime || echoTz === null || echoLat === null || echoLon === null) errors.push("birthDetails: eksik/geçersiz");
+  // Golden 2026-10-07: gerçek yanıt birthDetails.nodeType yankısı içeriyor (OpenAPI'de yok) → teknik yankı.
+  const echoNode = bd?.nodeType === undefined ? null : mapEnum<NodeType>(bd.nodeType, NODE_TYPES);
+  if (bd?.nodeType !== undefined && echoNode !== opts.nodeType) errors.push("birthDetails.nodeType: istenenle uyuşmuyor");
 
   const hsRaw = mapEnum(r.houseSystem, HOUSE_SYSTEMS);
   if (hsRaw === null) errors.push("houseSystem: eksik/geçersiz");
@@ -398,7 +401,8 @@ export function projectRoxyNatal(raw: unknown, opts: NatalMethodOptions): NatalP
     zodiac: "tropical",
     houseSystem: opts.houseSystem,
     nodeType: opts.nodeType,
-    echo: { date: echoDate!, time: echoTime!, utcOffsetHours: echoTz!, latitude: echoLat!, longitude: echoLon! },
+    echo: { date: echoDate!, time: echoTime!, utcOffsetHours: echoTz!, latitude: echoLat!, longitude: echoLon!, nodeType: echoNode },
+    variants: { lilith: "mean", node: opts.nodeType },
     bodies,
     houses,
     angles: { ascendant: asc!, midheaven: mc! },
@@ -443,6 +447,7 @@ const KNOWN_NATAL_PATHS = new Set<string>([
   "birthDetails.latitude",
   "birthDetails.longitude",
   "birthDetails.timezone",
+  "birthDetails.nodeType",
   "planets",
   ...[
     "name",

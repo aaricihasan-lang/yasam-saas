@@ -113,7 +113,12 @@ export type NatalTechnical = {
   houseSystem: HouseSystem;
   nodeType: NodeType;
   /** Sağlayıcının kullandığı girdinin yankısı (doğrulama amaçlı). */
-  echo: { date: string; time: string; utcOffsetHours: number; latitude: number; longitude: number };
+  echo: { date: string; time: string; utcOffsetHours: number; latitude: number; longitude: number; nodeType: NodeType | null };
+  /**
+   * Nokta varyantları (sağlayıcıdan doğrulanmış). Golden doğrulama 2026-10-07: Roxy natal yanıtındaki
+   * "Black Moon Lilith" = ORTALAMA (mean) apoje; düğüm = istenen nodeType. Diğer varyantlar ayrı teknik.
+   */
+  variants: { lilith: "mean"; node: NodeType };
   bodies: NatalBody[];
   houses: NatalHouse[];
   angles: { ascendant: EclipticPoint; midheaven: EclipticPoint } | null;

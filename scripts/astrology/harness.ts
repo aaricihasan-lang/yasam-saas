@@ -23,6 +23,7 @@ import { planAstrology, runAstrology, getAstrologyResult, type EngineCtx, type E
 import { appendAstroRevision, createAstroProfile, getAstroProfileDetail, listAstroProfiles } from "@/lib/astrology/profiles/service";
 import { createFakeClient, createStore, type FakeStore } from "./fakeSupabase";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
+import * as Astronomy from "astronomy-engine";
 
 const ROOT = join(__dirname, "..", "..");
 const FIXTURE = JSON.parse(readFileSync(join(__dirname, "fixtures", "roxy-natal-spec-derived.json"), "utf8"));
@@ -115,6 +116,21 @@ async function createProfile(ctx: EngineCtx, over: Record<string, unknown> = {})
   );
   assert.equal(r.status, 201, `profil oluşturma ${r.status} ${JSON.stringify(r.body)}`);
   return ((r.body as { profile: { id: string } }).profile).id;
+}
+
+/** Gerçek yanıttaki TÜM sağlayıcı anlatı/yorum metinleri (≥ 6 karakter; kısa ortak kelimeler hariç). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- ham sağlayıcı JSON'u (test yardımcısı)
+function collectNarrative(raw: Record<string, any>): string[] {
+  const out = new Set<string>();
+  const add = (v: unknown) => {
+    if (typeof v === "string" && v.trim().length >= 6) out.add(v.trim());
+    else if (Array.isArray(v)) v.forEach(add);
+  };
+  for (const p of raw.planets ?? []) add([p.interpretation?.summary, p.interpretation?.detailed, p.interpretation?.keywords]);
+  for (const a of raw.aspects ?? []) add([a.aspectInterpretation?.summary, a.aspectInterpretation?.keywords]);
+  for (const p of raw.patterns ?? []) add([p.interpretation, p.interpretationKey, p.name, ...Object.values(p.interpretationVars ?? {})]);
+  add(raw.aspectsInterpretation?.summary);
+  return [...out];
 }
 
 function resultSelectsOk(store: FakeStore) {
@@ -577,6 +593,137 @@ async function main() {
   } finally {
     console.error = origErr;
   }
+
+  // ─── I) GOLDEN: GERÇEK Roxy natal yanıtı (2026-10-07, tek çağrı, sentetik kişi) ─────────
+  const GOLDEN = JSON.parse(readFileSync(join(__dirname, "fixtures", "roxy-natal-golden-2026-10-07.json"), "utf8"));
+  const goldenNarrative = collectNarrative(GOLDEN);
+  const goldenDeps = () => {
+    const calls: Record<string, unknown>[] = [];
+    const deps: EngineDeps = {
+      config: { apiKey: API_KEY, baseUrl: "https://roxy-fake.local/api/v2" },
+      callProvider: async (_c, _e, body) => {
+        calls.push(body);
+        return { ok: true, raw: structuredClone(GOLDEN), attempts: 1 };
+      },
+      rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
+      log: () => undefined,
+    };
+    return { calls, deps };
+  };
+
+  await t("golden: anlatı metni envanteri çıkarıldı (planet/aspect/pattern/genel yorumlar)", () => {
+    assert.ok(goldenNarrative.length >= 14 + 33 + 3 + 1, `yalnız ${goldenNarrative.length} anlatı metni`);
+  });
+
+  await t("golden: adaptör gerçek yanıtı eksiksiz eşler — düşen değer YOK, bilinmeyen alan YOK", () => {
+    const p = projectRoxyNatal(GOLDEN, { houseSystem: "placidus", nodeType: "true" });
+    assert.ok(p.ok, p.ok ? "" : p.errors.join("; "));
+    if (!p.ok) return;
+    const tech = p.value.technical;
+    assert.equal(tech.bodies.length, GOLDEN.planets.length);
+    assert.equal(tech.houses.length, 12);
+    assert.equal(tech.aspects.length, GOLDEN.aspects.length);
+    assert.equal(tech.patterns.length, GOLDEN.patterns.length);
+    assert.deepEqual(p.value.droppedValues, []);
+    assert.deepEqual(p.value.unmappedFields, [], "sınıflandırılmamış gerçek alan");
+    // Sayısal kayıp yok: her gezegen boylamı birebir.
+    for (const raw of GOLDEN.planets as { longitude: number }[]) {
+      assert.ok(tech.bodies.some((b) => b.longitude === raw.longitude), "boylam kaybı");
+    }
+    // Teknik nitelik (aspects[].interpretation) ile sağlayıcı sayımları tutarlı.
+    const n = (k: string) => tech.aspects.filter((a) => a.nature === k).length;
+    assert.deepEqual(
+      [n("harmonious"), n("challenging"), n("neutral")],
+      [GOLDEN.aspectsInterpretation.harmonious, GOLDEN.aspectsInterpretation.challenging, GOLDEN.aspectsInterpretation.neutral],
+    );
+    assert.equal(tech.echo.nodeType, "true");
+    assert.deepEqual(tech.variants, { lilith: "mean", node: "true" });
+    assert.ok(tech.points.partOfFortune && tech.points.vertex && tech.angles);
+  });
+
+  await t("golden: bağımsız astronomi çapraz kontrolü (astronomy-engine) — gezegen ≤10″, ASC/MC ≤0.01°, Lilith=mean, düğüm=true", () => {
+    const tm = Astronomy.MakeTime(new Date("1990-07-15T11:30:00Z"));
+    const elon = (b: Astronomy.Body) => Astronomy.Ecliptic(Astronomy.GeoVector(b, tm, true)).elon;
+    const dd = (a: number, b: number) => ((a - b + 540) % 360) - 180;
+    const bodies: [string, Astronomy.Body][] = [
+      ["Sun", Astronomy.Body.Sun], ["Moon", Astronomy.Body.Moon], ["Mercury", Astronomy.Body.Mercury], ["Venus", Astronomy.Body.Venus],
+      ["Mars", Astronomy.Body.Mars], ["Jupiter", Astronomy.Body.Jupiter], ["Saturn", Astronomy.Body.Saturn], ["Uranus", Astronomy.Body.Uranus],
+      ["Neptune", Astronomy.Body.Neptune], ["Pluto", Astronomy.Body.Pluto],
+    ];
+    const pl = (n: string) => (GOLDEN.planets as { name: string; longitude: number }[]).find((x) => x.name === n)!;
+    for (const [n, b] of bodies) assert.ok(Math.abs(dd(pl(n).longitude, elon(b))) * 3600 <= 10, `${n}: ${(dd(pl(n).longitude, elon(b)) * 3600).toFixed(1)}″`);
+    const T = tm.tt / 36525;
+    const meanNode = (((125.0445479 - 1934.1362891 * T + 0.0020754 * T * T) % 360) + 360) % 360;
+    const meanApogee = ((((83.3532465 + 4069.0137287 * T - 0.01032 * T * T) % 360) + 360) % 360 + 180) % 360;
+    assert.ok(Math.abs(dd(pl("Black Moon Lilith").longitude, meanApogee)) < 0.2, "Lilith ortalama apoje değil");
+    assert.ok(Math.abs(dd(pl("North Node").longitude, meanNode)) > 0.05, "düğüm ortalama düğümle aynı (true beklenirdi)");
+    assert.ok(Math.abs(dd(pl("South Node").longitude, pl("North Node").longitude + 180)) < 1e-6);
+    const lst = (Astronomy.SiderealTime(tm) * 15 + GOLDEN.birthDetails.longitude + 360) % 360;
+    const r = Math.PI / 180;
+    const eps = 23.4393 - 0.0000004 * tm.tt;
+    const mc = ((Math.atan2(Math.sin(lst * r), Math.cos(lst * r) * Math.cos(eps * r)) / r) + 360) % 360;
+    const asc = ((Math.atan2(Math.cos(lst * r), -(Math.sin(lst * r) * Math.cos(eps * r) + Math.tan(GOLDEN.birthDetails.latitude * r) * Math.sin(eps * r))) / r) + 360) % 360;
+    assert.ok(Math.abs(dd(GOLDEN.ascendant.longitude, asc)) < 0.01 && Math.abs(dd(GOLDEN.midheaven.longitude, mc)) < 0.01, "ASC/MC sapması");
+  });
+
+  await t("golden: teknik katmanda sağlayıcı serbest metni YOK (kanonik kimlik denetimi)", () => {
+    const p = projectRoxyNatal(GOLDEN, { houseSystem: "placidus", nodeType: "true" });
+    assert.ok(p.ok);
+    if (!p.ok) return;
+    const json = JSON.stringify(p.value.technical);
+    for (const s of goldenNarrative) assert.ok(!json.includes(s), `teknikte anlatı: ${s.slice(0, 30)}`);
+    const allowed = /^([a-z][a-z_\-.0-9]*|\d{4}-\d{2}-\d{2}|\d{2}:\d{2}(:\d{2})?|tropical)$/;
+    const walk = (v: unknown, path: string) => {
+      if (typeof v === "string") assert.match(v, allowed, `kanonik değil: ${path}`);
+      else if (Array.isArray(v)) v.forEach((x, i) => walk(x, `${path}[${i}]`));
+      else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) walk(x, `${path}.${k}`);
+    };
+    walk(p.value.technical, "$");
+  });
+
+  await t("golden: sentetik profilin istek gövdesi gerçek çağrının yankısıyla birebir (önbellek anahtarı doğru girdiden)", () => {
+    const body = buildNatalRequestBody({ birthDate: "1990-07-15", birthTime: "14:30:00", utcOffsetSeconds: 10800, latitude: 41.0082, longitude: 28.9784 }, { houseSystem: "placidus", nodeType: "true" });
+    const bd = GOLDEN.birthDetails;
+    assert.deepEqual(
+      [body.date, body.time, body.latitude, body.longitude, body.timezone, body.nodeType, body.houseSystem],
+      [bd.date, bd.time, bd.latitude, bd.longitude, bd.timezone, bd.nodeType, GOLDEN.houseSystem],
+    );
+  });
+
+  await t("golden A/B: yorum AÇIK → anlatı var; KAPALI (önizleme + yetkisiz) → anlatı YOK, teknik BİREBİR aynı, ham yanıt YOK", async () => {
+    const store = seedStore();
+    const ctx = ownerCtx(store);
+    const pid = await createProfile(ctx);
+    const g = goldenDeps();
+    const a = await runAstrology(ctx, { profileId: pid, selections: NATAL_SEL }, g.deps, { ownerPreviewHideInterp: false });
+    assert.equal(a.status, 200, JSON.stringify(a.body).slice(0, 200));
+    const aJson = JSON.stringify(a.body);
+    const aView = (a.body as { results: { view: { technical: unknown; interpretation: { visible: boolean; content?: { bodies: unknown[]; aspects: unknown[]; patterns: unknown[] } } } }[] }).results[0].view;
+    assert.ok(aView.interpretation.visible && aView.interpretation.content!.bodies.length === 14 && aView.interpretation.content!.aspects.length === 33 && aView.interpretation.content!.patterns.length === 3);
+    // A: kalıp adı/şablon anahtarı (bilinçli yok sayılan tesisat) DIŞINDAKİ tüm yorum metinleri birebir görünür.
+    const plumbing = new Set<string>((GOLDEN.patterns as { name?: string; interpretationKey?: string }[]).flatMap((p) => [p.name ?? "", p.interpretationKey ?? ""]));
+    const expectVisible = goldenNarrative.filter((s) => !plumbing.has(s));
+    const missing = expectVisible.filter((s) => !aJson.includes(JSON.stringify(s).slice(1, -1)));
+    assert.deepEqual(missing.map((s) => s.slice(0, 40)), [], "A: yorum katmanında kayıp");
+
+    const b1 = await runAstrology(ctx, { profileId: pid, selections: NATAL_SEL }, g.deps, { ownerPreviewHideInterp: true });
+    const noInterp = ownerCtx(store, TENANT_A, OWNER, { module: true, engine: true, knowledgeBank: true, providerInterpretations: false });
+    const b2 = await runAstrology(noInterp, { profileId: pid, selections: NATAL_SEL }, g.deps, { ownerPreviewHideInterp: false });
+    for (const [label, r] of [["önizleme", b1], ["yetkisiz", b2]] as const) {
+      const json = JSON.stringify(r.body);
+      for (const s of goldenNarrative) assert.ok(!json.includes(s), `${label}: anlatı sızdı → ${s.slice(0, 40)}`);
+      for (const k of ["aspectInterpretation", "interpretationKey", "interpretationVars", "nameLocalized", "\"detailed\"", "Black Moon Lilith", "raw_response"]) {
+        assert.ok(!json.includes(k), `${label}: ham/yorum anahtarı sızdı → ${k}`);
+      }
+      const v = (r.body as { results: { view: { technical: unknown } }[] }).results[0].view;
+      assert.deepEqual(v.technical, aView.technical, `${label}: teknik veri eksildi/değişti`);
+    }
+    // Cache: ikinci ve üçüncü açılış 0 yeni sağlayıcı isteği.
+    assert.equal(g.calls.length, 1, `sağlayıcı ${g.calls.length} kez çağrıldı`);
+    assert.deepEqual((b1.body as { executed: object }).executed, { newResults: 0, cachedResults: 1, providerAttempts: 0 });
+    resultSelectsOk(store);
+    assert.ok(JSON.stringify(store.tables.astro_provider_results[0].raw_response).includes("Black Moon Lilith"), "ham yanıt sunucuda saklanmalı");
+  });
 
   console.log(`\nastrology harness: ${pass} PASS / ${fail} FAIL`);
   if (fail > 0) process.exit(1);
