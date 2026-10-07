@@ -18,11 +18,24 @@
 import { ASPECT_TYPES, BODY_IDS, SIGN_IDS, type AspectType, type BodyId } from "../model/western";
 import { ANGLE_POINT_IDS, type CompositeTechnical, type ForecastTechnical, type PointId, type ProgressionTechnical, type ReturnTechnical, type SolarArcTechnical, type SynastryTechnical, type TransitTechnical } from "../model/westernTiming";
 import { ASPECT_LABELS, BODY_LABELS, SIGN_LABELS } from "../labels/tr";
+import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "../model/westernLocation";
 
-export type ArgType = "body" | "point" | "sign" | "house" | "aspect" | "angle" | "station";
+export type ArgType = "body" | "point" | "sign" | "house" | "aspect" | "angle" | "station" | "angle4" | "compass";
 type Spec = { args: ArgType[]; ordered?: boolean; context: TopicContext; label: (p: string[]) => string };
 
-export const TOPIC_CONTEXTS = ["natal", "transit", "progression", "solar_arc", "solar_return", "lunar_return", "synastry", "composite"] as const;
+export const TOPIC_CONTEXTS = [
+  "natal",
+  "transit",
+  "progression",
+  "solar_arc",
+  "solar_return",
+  "lunar_return",
+  "synastry",
+  "composite",
+  "astrocartography",
+  "relocation",
+  "local_space",
+] as const;
 export type TopicContext = (typeof TOPIC_CONTEXTS)[number];
 export const TOPIC_CONTEXT_LABELS: Record<TopicContext, string> = {
   natal: "Natal",
@@ -33,6 +46,17 @@ export const TOPIC_CONTEXT_LABELS: Record<TopicContext, string> = {
   lunar_return: "Lunar return",
   synastry: "Sinastri",
   composite: "Composite",
+  astrocartography: "Astrocartography",
+  relocation: "Relocation",
+  local_space: "Local Space",
+};
+
+/** Dört açı (ACG hattı / relocation açısal yerleşim). */
+export const ANGLE4_IDS = ["asc", "dsc", "mc", "ic"] as const;
+export const ANGLE4_LABEL: Record<string, string> = { asc: "Yükselen (AC)", dsc: "Alçalan (DC)", mc: "Tepe (MC)", ic: "Dip (IC)" };
+export const COMPASS_LABEL: Record<string, string> = {
+  n: "K", nne: "KKD", ne: "KD", ene: "DKD", e: "D", ese: "DGD", se: "GD", sse: "GGD",
+  s: "G", ssw: "GGB", sw: "GB", wsw: "BGB", w: "B", wnw: "BKB", nw: "KB", nnw: "KKB",
 };
 
 const ANGLE_LABEL: Record<string, string> = { ascendant: "Yükselen", midheaven: "MC" };
@@ -60,6 +84,12 @@ export const CONTEXT_SPECS: Record<string, Spec> = {
   ...chartKinds("lunar_return", "Lunar return"),
   synastry_aspect: { args: ["body", "aspect", "body"], context: "synastry", label: (p) => `Sinastri: ${pointLabel(p[0])} (1. kişi) ${asp(p[1])} ${pointLabel(p[2])} (2. kişi)` },
   ...chartKinds("composite", "Composite"),
+  // Aşama 4 — konum teknikleri (her biri KENDİ bağlamında; natal/transit anahtarlarıyla çakışmaz).
+  astrocartography_line: { args: ["body", "angle4"], context: "astrocartography", label: (p) => `Astrocartography: ${pointLabel(p[0])} ${ANGLE4_LABEL[p[1]]} hattı` },
+  relocated_in_house: { args: ["body", "house"], context: "relocation", label: (p) => `Relocation: ${pointLabel(p[0])} ${p[1]}. evde` },
+  relocated_angle_in_sign: { args: ["angle", "sign"], context: "relocation", label: (p) => `Relocation: ${ANGLE_LABEL[p[0]]} ${sign(p[1])} burcunda` },
+  relocated_angular: { args: ["body", "angle4"], context: "relocation", label: (p) => `Relocation: ${pointLabel(p[0])} açısal (${ANGLE4_LABEL[p[1]]})` },
+  local_space_direction: { args: ["body", "compass"], context: "local_space", label: (p) => `Local Space: ${pointLabel(p[0])} hattı ${COMPASS_LABEL[p[1]]} (${p[1].toUpperCase()}) yönünde` },
 };
 export const CONTEXT_KINDS = Object.keys(CONTEXT_SPECS);
 
@@ -79,6 +109,10 @@ function valid(t: ArgType, v: string): boolean {
       return (ANGLE_POINT_IDS as readonly string[]).includes(v);
     case "station":
       return v === "retrograde" || v === "direct";
+    case "angle4":
+      return (ANGLE4_IDS as readonly string[]).includes(v);
+    case "compass":
+      return Object.prototype.hasOwnProperty.call(COMPASS_LABEL, v);
   }
 }
 
@@ -160,4 +194,38 @@ export function topicsFromSynastry(t: SynastryTechnical): ContextTopic[] {
 }
 export function topicsFromComposite(t: CompositeTechnical): ContextTopic[] {
   return chartTopics("composite", t.bodies, t.aspects, t.angles);
+}
+
+// ─── Aşama 4 konum teknikleri → konular ──────────────────────────────────────
+export function topicsFromAstrocartography(t: AstrocartographyTechnical): ContextTopic[] {
+  return collect(t.bodies.flatMap((b) => ANGLE4_IDS.map((a) => ["astrocartography_line", [b.id, a]] as [string, string[]])));
+}
+
+const angDist = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
+
+export function topicsFromRelocation(t: RelocationTechnical): ContextTopic[] {
+  const asc = t.angles.ascendant.longitude;
+  const mc = t.angles.midheaven.longitude;
+  const angles: [string, number][] = [
+    ["asc", asc],
+    ["dsc", (asc + 180) % 360],
+    ["mc", mc],
+    ["ic", (mc + 180) % 360],
+  ];
+  const angular = t.changes.angularBodies.flatMap((id) => {
+    const b = t.bodies.find((x) => x.id === id);
+    if (!b) return [];
+    const nearest = [...angles].sort((x, y) => angDist(b.longitude, x[1]) - angDist(b.longitude, y[1]))[0];
+    return [["relocated_angular", [id, nearest[0]]] as [string, string[]]];
+  });
+  return collect([
+    ...t.bodies.filter((b) => b.house !== null).map((b) => ["relocated_in_house", [b.id, String(b.house)]] as [string, string[]]),
+    ["relocated_angle_in_sign", ["ascendant", t.angles.ascendant.sign]],
+    ["relocated_angle_in_sign", ["midheaven", t.angles.midheaven.sign]],
+    ...angular,
+  ]);
+}
+
+export function topicsFromLocalSpace(t: LocalSpaceTechnical): ContextTopic[] {
+  return collect(t.bodies.map((b) => ["local_space_direction", [b.id, b.compass]] as [string, string[]]));
 }

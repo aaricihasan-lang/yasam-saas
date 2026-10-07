@@ -29,10 +29,17 @@ export type CalcIdentity = {
   endpoint: string;
   lang: string;
   body: Record<string, unknown>;
+  /**
+   * Sorgu parametreleri (ör. astrocartography `include`). Aşama 4 eki: YALNIZ doluysa anahtara girer →
+   * sorgusuz tüm eski anahtarlar birebir aynı kalır.
+   */
+  query?: Record<string, string>;
 };
 
 export function calcInputHash(i: CalcIdentity): string {
-  const canonical = canonicalJson([i.provider, i.providerApiVersion, i.adapterVersion, i.endpoint, i.lang, i.body]);
+  const parts: unknown[] = [i.provider, i.providerApiVersion, i.adapterVersion, i.endpoint, i.lang, i.body];
+  if (i.query && Object.keys(i.query).length > 0) parts.push(i.query);
+  const canonical = canonicalJson(parts);
   return createHash("sha256").update(canonical, "utf8").digest("hex");
 }
 

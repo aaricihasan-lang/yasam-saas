@@ -32,6 +32,8 @@ import {
 } from "@/lib/astrology/labels/tr";
 import NatalWheel, { type WheelChart } from "./NatalWheel";
 import NatalTechnicalPanel from "./NatalTechnicalPanel";
+import { AstrocartographyPanel, LocalSpacePanel, RelocationPanel, type Place } from "./LocationPanels";
+import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "@/lib/astrology/model/westernLocation";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -598,14 +600,21 @@ export function TechniqueTechnical({
   timeUnknownMasked,
   warnings,
   names,
+  options = {},
+  birthplace = null,
 }: {
   technique: string;
   technical: unknown;
   timeUnknownMasked: boolean;
   warnings: string[];
   names: [string, string];
+  /** Normalize seçenekler (Aşama 4: hedef/referans yer etiketi). */
+  options?: Record<string, unknown>;
+  birthplace?: Place | null;
 }) {
+  const placeLabel = (k: "target" | "reference") => (options[k] as { label?: string } | undefined)?.label ?? null;
   const body = (() => {
+    if (technical === null || technical === undefined) return <p className="text-sm text-slate-500">Teknik veri gösterilmiyor.</p>;
     switch (technique) {
       case "western.natal": {
         const n = technical as NatalTechnical;
@@ -631,6 +640,12 @@ export function TechniqueTechnical({
         return <SynastryPanel t={technical as SynastryTechnical} names={names} />;
       case "western.composite":
         return <CompositePanel t={technical as CompositeTechnical} />;
+      case "western.astrocartography":
+        return <AstrocartographyPanel t={technical as AstrocartographyTechnical} birthplace={birthplace} />;
+      case "western.relocation":
+        return <RelocationPanel t={technical as RelocationTechnical} targetLabel={placeLabel("target") ?? "hedef"} birthLabel={birthplace?.label ?? null} />;
+      case "western.local_space":
+        return <LocalSpacePanel t={technical as LocalSpaceTechnical} referenceLabel={placeLabel("reference") ?? "doğum yeri"} />;
       default:
         return <p className="text-sm text-slate-500">Bu teknik için görünüm yok.</p>;
     }

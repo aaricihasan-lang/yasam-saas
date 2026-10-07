@@ -15,7 +15,7 @@ import { KbEditor, KbEntryCard, type KbEntry } from "./KnowledgeBankPanel";
 
 type Topic = { key: string; kind: string; label: string };
 type Note = { id: string; sectionKey: string; sectionLabel: string; body: string; revision: number; updatedAt: string };
-type Workspace = { technique: string; contextKey: string; knowledgeBankEnabled: boolean; topics: Topic[]; kbMatches: KbEntry[]; notes: Note[] };
+type Workspace = { technique: string; contextKey: string; contextLocationId?: string | null; knowledgeBankEnabled: boolean; topics: Topic[]; kbMatches: KbEntry[]; notes: Note[] };
 export type WorkspaceSelection = { technique: string; options: Record<string, unknown> };
 type Summary = {
   title: string;
@@ -41,6 +41,7 @@ function NoteEditor({
   profileId,
   technique,
   contextKey,
+  contextLocationId = null,
   sectionKey,
   label,
   note,
@@ -49,6 +50,7 @@ function NoteEditor({
   profileId: string;
   technique: string;
   contextKey: string;
+  contextLocationId?: string | null;
   sectionKey: string;
   label: string;
   note: Note | null;
@@ -63,7 +65,7 @@ function NoteEditor({
     setMsg(null);
     const r = await astroFetch("/api/admin/astroloji/notes", {
       method: "PUT",
-      body: { profileId, technique, contextKey, sectionKey, body, expectedRevision: note ? note.revision : null },
+      body: { profileId, technique, contextKey, contextLocationId, sectionKey, body, expectedRevision: note ? note.revision : null },
     });
     setBusy(false);
     if (r.ok) {
@@ -241,11 +243,11 @@ export default function AnalysisWorkspace({
           Bu notlar yalnız bu doğum profiline ve bu analiz türüne{data.contextKey ? " (bu karşı tarafla)" : ""} aittir; Bilgi Bankası kayıtlarınızı değiştirmez.
         </p>
         <div className="flex flex-col gap-3">
-          <NoteEditor key={`overall-${notesByKey.get("overall")?.revision ?? 0}`} profileId={profileId} technique={data.technique} contextKey={data.contextKey} sectionKey="overall" label="Genel yorum" note={notesByKey.get("overall") ?? null} onSaved={() => setReload((n) => n + 1)} />
+          <NoteEditor key={`overall-${notesByKey.get("overall")?.revision ?? 0}`} profileId={profileId} technique={data.technique} contextKey={data.contextKey} contextLocationId={data.contextLocationId ?? null} sectionKey="overall" label="Genel yorum" note={notesByKey.get("overall") ?? null} onSaved={() => setReload((n) => n + 1)} />
           {noteSections.map((k) => {
             const n = notesByKey.get(k) ?? null;
             const label = n?.sectionLabel ?? data.topics.find((t) => t.key === k)?.label ?? k;
-            return <NoteEditor key={`${k}-${n?.revision ?? 0}`} profileId={profileId} technique={data.technique} contextKey={data.contextKey} sectionKey={k} label={label} note={n} onSaved={() => setReload((x) => x + 1)} />;
+            return <NoteEditor key={`${k}-${n?.revision ?? 0}`} profileId={profileId} technique={data.technique} contextKey={data.contextKey} contextLocationId={data.contextLocationId ?? null} sectionKey={k} label={label} note={n} onSaved={() => setReload((x) => x + 1)} />;
           })}
         </div>
       </section>

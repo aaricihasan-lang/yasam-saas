@@ -1,0 +1,3265 @@
+{
+  "endpoint": "/astrology/astrocartography",
+  "query": {
+    "include": "north-node,chiron,lilith"
+  },
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3
+  },
+  "response": {
+    "birthDetails": {
+      "date": "1990-07-15",
+      "time": "14:30:00",
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3,
+      "nodeType": "true"
+    },
+    "lines": [
+      {
+        "planet": "Sun",
+        "planetLocalized": "Güneş",
+        "symbol": "☉",
+        "rightAscension": 114.5381,
+        "declination": 21.5268,
+        "mc": {
+          "longitude": 8.9774,
+          "interpretation": "Güneş Tepe Noktası (MC) hattınız, Öz farkındalık ve ego konularının kamusal yaşamınızda, kariyerinizde ve itibarınızda öne çıktığı yerlerden geçer. Bu hat boyunca yaşamak ya da çalışmak, kişiliğinizin bu yönünü genellikle ön plana çıkarır."
+        },
+        "ic": {
+          "longitude": -171.0226,
+          "interpretation": "Güneş Dip Noktası (IC) hattınız, Öz farkındalık ve ego konularının evinize, ailenize ve içsel temellerinize yerleştiği yerlerden geçer. Bu hat, köklerinize ve özel yaşamınıza dair duygunuzu derinleştirir."
+        },
+        "ascendant": {
+          "points": [
+            {
+              "latitude": -65,
+              "longitude": -23.2537
+            },
+            {
+              "latitude": -60,
+              "longitude": -37.9276
+            },
+            {
+              "latitude": -55,
+              "longitude": -46.7359
+            },
+            {
+              "latitude": -50,
+              "longitude": -52.9825
+            },
+            {
+              "latitude": -45,
+              "longitude": -57.7909
+            },
+            {
+              "latitude": -40,
+              "longitude": -61.6941
+            },
+            {
+              "latitude": -35,
+              "longitude": -64.9892
+            },
+            {
+              "latitude": -30,
+              "longitude": -67.8588
+            },
+            {
+              "latitude": -25,
+              "longitude": -70.4235
+            },
+            {
+              "latitude": -20,
+              "longitude": -72.7682
+            },
+            {
+              "latitude": -15,
+              "longitude": -74.9555
+            },
+            {
+              "latitude": -10,
+              "longitude": -77.0343
+            },
+            {
+              "latitude": -5,
+              "longitude": -79.045
+            },
+            {
+              "latitude": 0,
+              "longitude": -81.0226
+            },
+            {
+              "latitude": 5,
+              "longitude": -83.0003
+            },
+            {
+              "latitude": 10,
+              "longitude": -85.0109
+            },
+            {
+              "latitude": 15,
+              "longitude": -87.0897
+            },
+            {
+              "latitude": 20,
+              "longitude": -89.277
+            },
+            {
+              "latitude": 25,
+              "longitude": -91.6217
+            },
+            {
+              "latitude": 30,
+              "longitude": -94.1865
+            },
+            {
+              "latitude": 35,
+              "longitude": -97.056
+            },
+            {
+              "latitude": 40,
+              "longitude": -100.3512
+            },
+            {
+              "latitude": 45,
+              "longitude": -104.2544
+            },
+            {
+              "latitude": 50,
+              "longitude": -109.0627
+            },
+            {
+              "latitude": 55,
+              "longitude": -115.3094
+            },
+            {
+              "latitude": 60,
+              "longitude": -124.1176
+            },
+            {
+              "latitude": 65,
+              "longitude": -138.7916
+            }
+          ],
+          "circumpolarBeyond": 68.4732,
+          "interpretation": "Güneş Yükselen (AC) hattınız, Öz farkındalık ve ego konularının kimliğinizi, canlılığınızı ve başkalarına bıraktığınız ilk izlenimi renklendirdiği yerlerden geçer. Kişiliğinizin bu yönü burada açılmış gibi hissettirir."
+        },
+        "descendant": {
+          "points": [
+            {
+              "latitude": -65,
+              "longitude": 41.2084
+            },
+            {
+              "latitude": -60,
+              "longitude": 55.8824
+            },
+            {
+              "latitude": -55,
+              "longitude": 64.6906
+            },
+            {
+              "latitude": -50,
+              "longitude": 70.9373
+            },
+            {
+              "latitude": -45,
+              "longitude": 75.7456
+            },
+            {
+              "latitude": -40,
+              "longitude": 79.6488
+            },
+            {
+              "latitude": -35,
+              "longitude": 82.944
+            },
+            {
+              "latitude": -30,
+              "longitude": 85.8135
+            },
+            {
+              "latitude": -25,
+              "longitude": 88.3783
+            },
+            {
+              "latitude": -20,
+              "longitude": 90.723
+            },
+            {
+              "latitude": -15,
+              "longitude": 92.9103
+            },
+            {
+              "latitude": -10,
+              "longitude": 94.9891
+            },
+            {
+              "latitude": -5,
+              "longitude": 96.9997
+            },
+            {
+              "latitude": 0,
+              "longitude": 98.9774
+            },
+            {
+              "latitude": 5,
+              "longitude": 100.955
+            },
+            {
+              "latitude": 10,
+              "longitude": 102.9657
+            },
+            {
+              "latitude": 15,
+              "longitude": 105.0445
+            },
+            {
+              "latitude": 20,
+              "longitude": 107.2318
+            },
+            {
+              "latitude": 25,
+              "longitude": 109.5765
+            },
+            {
+              "latitude": 30,
+              "longitude": 112.1412
+            },
+            {
+              "latitude": 35,
+              "longitude": 115.0108
+            },
+            {
+              "latitude": 40,
+              "longitude": 118.3059
+            },
+            {
+              "latitude": 45,
+              "longitude": 122.2091
+            },
+            {
+              "latitude": 50,
+              "longitude": 127.0175
+            },
+            {
+              "latitude": 55,
+              "longitude": 133.2641
+            },
+            {
+              "latitude": 60,
+              "longitude": 142.0724
+            },
+            {
+              "latitude": 65,
+              "longitude": 156.7463
+            }
+          ],
+          "circumpolarBeyond": 68.4732,
+          "interpretation": "Güneş Alçalan (DC) hattınız, Öz farkındalık ve ego konularının yakın ilişkilerinizi, ortaklıklarınızı ve kendinize çektiğiniz insanları şekillendirdiği yerlerden geçer. İlişki temaları bu hat boyunca belirginleşir."
+        }
+      },
+      {
+        "planet": "Moon",
+        "planetLocalized": "Ay",
+        "symbol": "☽",
+        "rightAscension": 19.3002,
+        "declination": 13.6613,
+        "mc": {
+          "longitude": -86.2605,
+          "interpretation": "Ay Tepe Noktası (MC) hattınız, İç duygusal yaşam konularının kamusal yaşamınızda, kariyerinizde ve itibarınızda öne çıktığı yerlerden geçer. Bu hat boyunca yaşamak ya da çalışmak, kişiliğinizin bu yönünü genellikle ön plana çıkarır."
+        },
+        "ic": {
+          "longitude": 93.7395,
+          "interpretation": "Ay Dip Noktası (IC) hattınız, İç duygusal yaşam konularının evinize, ailenize ve içsel temellerinize yerleştiği yerlerden geçer. Bu hat, köklerinize ve özel yaşamınıza dair duygunuzu derinleştirir."
+        },
+        "ascendant": {
+          "points": [
+            {
+              "latitude": -70,
+              "longitude": -134.3631
+            },
+            {
+              "latitude": -65,
+              "longitude": -144.845
+            },
+            {
+              "latitude": -60,
+              "longitude": -151.3634
+            },
+            {
+              "latitude": -55,
+              "longitude": -155.949
+            },
+            {
+              "latitude": -50,
+              "longitude": -159.4225
+            },
+            {
+              "latitude": -45,
+              "longitude": -162.1934
+            },
+            {
+              "latitude": -40,
+              "longitude": -164.4925
+            },
+            {
+              "latitude": -35,
+              "longitude": -166.4616
+            },
+            {
+              "latitude": -30,
+              "longitude": -168.1936
+            },
+            {
+              "latitude": -25,
+              "longitude": -169.7526
+            },
+            {
+              "latitude": -20,
+              "longitude": -171.1852
+            },
+            {
+              "latitude": -15,
+              "longitude": -172.5264
+            },
+            {
+              "latitude": -10,
+              "longitude": -173.8042
+            },
+            {
+              "latitude": -5,
+              "longitude": -175.0421
+            },
+            {
+              "latitude": 0,
+              "longitude": -176.2605
+            },
+            {
+              "latitude": 5,
+              "longitude": -177.479
+            },
+            {
+              "latitude": 10,
+              "longitude": -178.7169
+            },
+            {
+              "latitude": 15,
+              "longitude": -179.9947
+            },
+            {
+              "latitude": 20,
+              "longitude": 178.6641
+            },
+            {
+              "latitude": 25,
+              "longitude": 177.2315
+            },
+            {
+              "latitude": 30,
+              "longitude": 175.6725
+            },
+            {
+              "latitude": 35,
+              "longitude": 173.9405
+            },
+            {
+              "latitude": 40,
+              "longitude": 171.9714
+            },
+            {
+              "latitude": 45,
+              "longitude": 169.6723
+            },
+            {
+              "latitude": 50,
+              "longitude": 166.9015
+            },
+            {
+              "latitude": 55,
+              "longitude": 163.4279
+            },
+            {
+              "latitude": 60,
+              "longitude": 158.8423
+            },
+            {
+              "latitude": 65,
+              "longitude": 152.3239
+            },
+            {
+              "latitude": 70,
+              "longitude": 141.842
+            }
+          ],
+          "circumpolarBeyond": null,
+          "interpretation": "Ay Yükselen (AC) hattınız, İç duygusal yaşam konularının kimliğinizi, canlılığınızı ve başkalarına bıraktığınız ilk izlenimi renklendirdiği yerlerden geçer. Kişiliğinizin bu yönü burada açılmış gibi hissettirir."
+        },
+        "descendant": {
+          "points": [
+            {
+              "latitude": -70,
+              "longitude": -38.158
+            },
+            {
+              "latitude": -65,
+              "longitude": -27.6761
+            },
+            {
+              "latitude": -60,
+              "longitude": -21.1577
+            },
+            {
+              "latitude": -55,
+              "longitude": -16.5721
+            },
+            {
+              "latitude": -50,
+              "longitude": -13.0985
+            },
+            {
+              "latitude": -45,
+              "longitude": -10.3277
+            },
+            {
+              "latitude": -40,
+              "longitude": -8.0286
+            },
+            {
+              "latitude": -35,
+              "longitude": -6.0595
+            },
+            {
+              "latitude": -30,
+              "longitude": -4.3275
+            },
+            {
+              "latitude": -25,
+              "longitude": -2.7685
+            },
+            {
+              "latitude": -20,
+              "longitude": -1.3359
+            },
+            {
+              "latitude": -15,
+              "longitude": 0.0053
+            },
+            {
+              "latitude": -10,
+              "longitude": 1.2831
+            },
+            {
+              "latitude": -5,
+              "longitude": 2.521
+            },
+            {
+              "latitude": 0,
+              "longitude": 3.7395
+            },
+            {
+              "latitude": 5,
+              "longitude": 4.9579
+            },
+            {
+              "latitude": 10,
+              "longitude": 6.1958
+            },
+            {
+              "latitude": 15,
+              "longitude": 7.4736
+            },
+            {
+              "latitude": 20,
+              "longitude": 8.8148
+            },
+            {
+              "latitude": 25,
+              "longitude": 10.2474
+            },
+            {
+              "latitude": 30,
+              "longitude": 11.8064
+            },
+            {
+              "latitude": 35,
+              "longitude": 13.5384
+            },
+            {
+              "latitude": 40,
+              "longitude": 15.5075
+            },
+            {
+              "latitude": 45,
+              "longitude": 17.8066
+            },
+            {
+              "latitude": 50,
+              "longitude": 20.5775
+            },
+            {
+              "latitude": 55,
+              "longitude": 24.051
+            },
+            {
+              "latitude": 60,
+              "longitude": 28.6366
+            },
+            {
+              "latitude": 65,
+              "longitude": 35.155
+            },
+            {
+              "latitude": 70,
+              "longitude": 45.6369
+            }
+          ],
+          "circumpolarBeyond": null,
+          "interpretation": "Ay Alçalan (DC) hattınız, İç duygusal yaşam konularının yakın ilişkilerinizi, ortaklıklarınızı ve kendinize çektiğiniz insanları şekillendirdiği yerlerden geçer. İlişki temaları bu hat boyunca belirginleşir."
+        }
+      },
+      {
+        "planet": "Mercury",
+        "planetLocalized": "Merkür",
+        "symbol": "☿",
+        "rightAscension": 129.6032,
+        "declination": 20.3162,
+        "mc": {
+          "longitude": 24.0425,
+          "interpretation": "Merkür Tepe Noktası (MC) hattınız, İletişim konularının kamusal yaşamınızda, kariyerinizde ve itibarınızda öne çıktığı yerlerden geçer. Bu hat boyunca yaşamak ya da çalışmak, kişiliğinizin bu yönünü genellikle ön plana çıkarır."
+        },
+        "ic": {
+          "longitude": -155.9575,
+          "interpretation": "Merkür Dip Noktası (IC) hattınız, İletişim konularının evinize, ailenize ve içsel temellerinize yerleştiği yerlerden geçer. Bu hat, köklerinize ve özel yaşamınıza dair duygunuzu derinleştirir."
+        },
+        "ascendant": {
+          "points": [
+            {
+              "latitude": -65,
+              "longitude": -13.3996
+            },
+            {
+              "latitude": -60,
+              "longitude": -26.0715
+            },
+            {
+              "latitude": -55,
+              "longitude": -34.0366
+            },
+            {
+              "latitude": -50,
+              "longitude": -39.7753
+            },
+            {
+              "latitude": -45,
+              "longitude": -44.2275
+            },
+            {
+              "latitude": -40,
+              "longitude": -47.8583
+            },
+            {
+              "latitude": -35,
+              "longitude": -50.9325
+            },
+            {
+              "latitude": -30,
+              "longitude": -53.615
+            },
+            {
+              "latitude": -25,
+              "longitude": -56.016
+            },
+            {
+              "latitude": -20,
+              "longitude": -58.2131
+            },
+            {
+              "latitude": -15,
+              "longitude": -60.2642
+            },
+            {
+              "latitude": -10,
+              "longitude": -62.2144
+            },
+            {
+              "latitude": -5,
+              "longitude": -64.1013
+            },
+            {
+              "latitude": 0,
+              "longitude": -65.9575
+            },
+            {
+              "latitude": 5,
+              "longitude": -67.8137
+            },
+            {
+              "latitude": 10,
+              "longitude": -69.7005
+            },
+            {
+              "latitude": 15,
+              "longitude": -71.6508
+            },
+            {
+              "latitude": 20,
+              "longitude": -73.7019
+            },
+            {
+              "latitude": 25,
+              "longitude": -75.899
+            },
+            {
+              "latitude": 30,
+              "longitude": -78.2999
+            },
+            {
+              "latitude": 35,
+              "longitude": -80.9825
+            },
+            {
+              "latitude": 40,
+              "longitude": -84.0566
+            },
+            {
+              "latitude": 45,
+              "longitude": -87.6875
+            },
+            {
+              "latitude": 50,
+              "longitude": -92.1397
+            },
+            {
+              "latitude": 55,
+              "longitude": -97.8784
+            },
+            {
+              "latitude": 60,
+              "longitude": -105.8435
+            },
+            {
+              "latitude": 65,
+              "longitude": -118.5153
+            }
+          ],
+          "circumpolarBeyond": 69.6838,
+          "interpretation": "Merkür Yükselen (AC) hattınız, İletişim konularının kimliğinizi, canlılığınızı ve başkalarına bıraktığınız ilk izlenimi renklendirdiği yerlerden geçer. Kişiliğinizin bu yönü burada açılmış gibi hissettirir."
+        },
+        "descendant": {
+          "points": [
+            {
+              "latitude": -65,
+              "longitude": 61.4847
+            },
+            {
+              "latitude": -60,
+              "longitude": 74.1565
+            },
+            {
+              "latitude": -55,
+              "longitude": 82.1216
+            },
+            {
+              "latitude": -50,
+              "longitude": 87.8603
+            },
+            {
+              "latitude": -45,
+              "longitude": 92.3125
+            },
+            {
+              "latitude": -40,
+              "longitude": 95.9434
+            },
+            {
+              "latitude": -35,
+              "longitude": 99.0175
+            },
+            {
+              "latitude": -30,
+              "longitude": 101.7001
+            },
+            {
+              "latitude": -25,
+              "longitude": 104.101
+            },
+            {
+              "latitude": -20,
+              "longitude": 106.2981
+            },
+            {
+              "latitude": -15,
+              "longitude": 108.3492
+            },
+            {
+              "latitude": -10,
+              "longitude": 110.2995
+            },
+            {
+              "latitude": -5,
+              "longitude": 112.1863
+            },
+            {
+              "latitude": 0,
+              "longitude": 114.0425
+            },
+            {
+              "latitude": 5,
+              "longitude": 115.8987
+            },
+            {
+              "latitude": 10,
+              "longitude": 117.7856
+            },
+            {
+              "latitude": 15,
+              "longitude": 119.7358
+            },
+            {
+              "latitude": 20,
+              "longitude": 121.7869
+            },
+            {
+              "latitude": 25,
+              "longitude": 123.984
+            },
+            {
+              "latitude": 30,
+              "longitude": 126.385
+            },
+            {
+              "latitude": 35,
+              "longitude": 129.0675
+            },
+            {
+              "latitude": 40,
+              "longitude": 132.1417
+            },
+            {
+              "latitude": 45,
+              "longitude": 135.7725
+            },
+            {
+              "latitude": 50,
+              "longitude": 140.2247
+            },
+            {
+              "latitude": 55,
+              "longitude": 145.9634
+            },
+            {
+              "latitude": 60,
+              "longitude": 153.9285
+            },
+            {
+              "latitude": 65,
+              "longitude": 166.6004
+            }
+          ],
+          "circumpolarBeyond": 69.6838,
+          "interpretation": "Merkür Alçalan (DC) hattınız, İletişim konularının yakın ilişkilerinizi, ortaklıklarınızı ve kendinize çektiğiniz insanları şekillendirdiği yerlerden geçer. İlişki temaları bu hat boyunca belirginleşir."
+        }
+      },
+      {
+        "planet": "Venus",
+        "planetLocalized": "Venüs",
+        "symbol": "♀",
+        "rightAscension": 83.929,
+        "declination": 22.3631,
+        "mc": {
+          "longitude": -21.6318,
+          "interpretation": "Venüs Tepe Noktası (MC) hattınız, Aşk, güzellik ve para konularının kamusal yaşamınızda, kariyerinizde ve itibarınızda öne çıktığı yerlerden geçer. Bu hat boyunca yaşamak ya da çalışmak, kişiliğinizin bu yönünü genellikle ön plana çıkarır."
+        },
+        "ic": {
+          "longitude": 158.3682,
+          "interpretation": "Venüs Dip Noktası (IC) hattınız, Aşk, güzellik ve para konularının evinize, ailenize ve içsel temellerinize yerleştiği yerlerden geçer. Bu hat, köklerinize ve özel yaşamınıza dair duygunuzu derinleştirir."
+        },
+        "ascendant": {
+          "points": [
+            {
+              "latitude": -65,
+              "longitude": -49.7122
+            },
+            {
+              "latitude": -60,
+              "longitude": -66.1852
+            },
+            {
+              "latitude": -55,
+              "longitude": -75.6473
+            },
+            {
+              "latitude": -50,
+              "longitude": -82.2709
+            },
+            {
+              "latitude": -45,
+              "longitude": -87.3378
+            },
+            {
+              "latitude": -40,
+              "longitude": -91.4365
+            },
+            {
+              "latitude": -35,
+              "longitude": -94.8889
+            },
+            {
+              "latitude": -30,
+              "longitude": -97.8908
+            },
+            {
+              "latitude": -25,
+              "longitude": -100.5712
+            },
+            {
+              "latitude": -20,
+              "longitude": -103.0197
+            },
+            {
+              "latitude": -15,
+              "longitude": -105.3027
+            },
+            {
+              "latitude": -10,
+              "longitude": -107.4716
+            },
+            {
+              "latitude": -5,
+              "longitude": -109.569
+            },
+            {
+              "latitude": 0,
+              "longitude": -111.6318
+            },
+            {
+              "latitude": 5,
+              "longitude": -113.6945
+            },
+            {
+              "latitude": 10,
+              "longitude": -115.7919
+            },
+            {
+              "latitude": 15,
+              "longitude": -117.9608
+            },
+            {
+              "latitude": 20,
+              "longitude": -120.2438
+            },
+            {
+              "latitude": 25,
+              "longitude": -122.6924
+            },
+            {
+              "latitude": 30,
+              "longitude": -125.3727
+            },
+            {
+              "latitude": 35,
+              "longitude": -128.3747
+            },
+            {
+              "latitude": 40,
+              "longitude": -131.827
+            },
+            {
+              "latitude": 45,
+              "longitude": -135.9257
+            },
+            {
+              "latitude": 50,
+              "longitude": -140.9926
+            },
+            {
+              "latitude": 55,
+              "longitude": -147.6162
+            },
+            {
+              "latitude": 60,
+              "longitude": -157.0783
+            },
+            {
+              "latitude": 65,
+              "longitude": -173.5513
+            }
+          ],
+          "circumpolarBeyond": 67.6369,
+          "interpretation": "Venüs Yükselen (AC) hattınız, Aşk, güzellik ve para konularının kimliğinizi, canlılığınızı ve başkalarına bıraktığınız ilk izlenimi renklendirdiği yerlerden geçer. Kişiliğinizin bu yönü burada açılmış gibi hissettirir."
+        },
+        "descendant": {
+          "points": [
+            {
+              "latitude": -65,
+              "longitude": 6.4487
+            },
+            {
+              "latitude": -60,
+              "longitude": 22.9217
+            },
+            {
+              "latitude": -55,
+              "longitude": 32.3838
+            },
+            {
+              "latitude": -50,
+              "longitude": 39.0074
+            },
+            {
+              "latitude": -45,
+              "longitude": 44.0743
+            },
+            {
+              "latitude": -40,
+              "longitude": 48.173
+            },
+            {
+              "latitude": -35,
+              "longitude": 51.6253
+            },
+            {
+              "latitude": -30,
+              "longitude": 54.6273
+            },
+            {
+              "latitude": -25,
+              "longitude": 57.3076
+            },
+            {
+              "latitude": -20,
+              "longitude": 59.7562
+            },
+            {
+              "latitude": -15,
+              "longitude": 62.0392
+            },
+            {
+              "latitude": -10,
+              "longitude": 64.2081
+            },
+            {
+              "latitude": -5,
+              "longitude": 66.3055
+            },
+            {
+              "latitude": 0,
+              "longitude": 68.3682
+            },
+            {
+              "latitude": 5,
+              "longitude": 70.431
+            },
+            {
+              "latitude": 10,
+              "longitude": 72.5284
+            },
+            {
+              "latitude": 15,
+              "longitude": 74.6973
+            },
+            {
+              "latitude": 20,
+              "longitude": 76.9803
+            },
+            {
+              "latitude": 25,
+              "longitude": 79.4288
+            },
+            {
+              "latitude": 30,
+              "longitude": 82.1092
+            },
+            {
+              "latitude": 35,
+              "longitude": 85.1111
+            },
+            {
+              "latitude": 40,
+              "longitude": 88.5635
+            },
+            {
+              "latitude": 45,
+              "longitude": 92.6622
+            },
+            {
+              "latitude": 50,
+              "longitude": 97.7291
+            },
+            {
+              "latitude": 55,
+              "longitude": 104.3527
+            },
+            {
+              "latitude": 60,
+              "longitude": 113.8148
+            },
+            {
+              "latitude": 65,
+              "longitude": 130.2878
+            }
+          ],
+          "circumpolarBeyond": 67.6369,
+          "interpretation": "Venüs Alçalan (DC) hattınız, Aşk, güzellik ve para konularının yakın ilişkilerinizi, ortaklıklarınızı ve kendinize çektiğiniz insanları şekillendirdiği yerlerden geçer. İlişki temaları bu hat boyunca belirginleşir."
+        }
+      },
+      {
+        "planet": "Mars",
+        "planetLocalized": "Mars",
+        "symbol": "♂",
+        "rightAscension": 30.481,
+        "declination": 10.2061,
+        "mc": {
+          "longitude": -75.0797,
+          "interpretation": "Mars Tepe Noktası (MC) hattınız, Atılganlık ve saldırganlık konularının kamusal yaşamınızda, kariyerinizde ve itibarınızda öne çıktığı yerlerden geçer. Bu hat boyunca yaşamak ya da çalışmak, kişiliğinizin bu yönünü genellikle ön plana çıkarır."
+        },
+        "ic": {
+          "longitude": 104.9203,
+          "interpretation": "Mars Dip Noktası (IC) hattınız, Atılganlık ve saldırganlık konularının evinize, ailenize ve içsel temellerinize yerleştiği yerlerden geçer. Bu hat, köklerinize ve özel yaşamınıza dair duygunuzu derinleştirir."
+        },
+        "ascendant": {
+          "points": [
+            {
+              "latitude": -70,
+              "longitude": -135.433
+            },
+            {
+              "latitude": -65,
+              "longitude": -142.3681
+            },
+            {
+              "latitude": -60,
+              "longitude": -146.9098
+            },
+            {
+              "latitude": -55,
+              "longitude": -150.1804
+            },
+            {
+              "latitude": -50,
+              "longitude": -152.6899
+            },
+            {
+              "latitude": -45,
+              "longitude": -154.7077
+            },
+            {
+              "latitude": -40,
+              "longitude": -156.3907
+            },
+            {
+              "latitude": -35,
+              "longitude": -157.8375
+            },
+            {
+              "latitude": -30,
+              "longitude": -159.1133
+            },
+            {
+              "latitude": -25,
+              "longitude": -160.2638
+            },
+            {
+              "latitude": -20,
+              "longitude": -161.3225
+            },
+            {
+              "latitude": -15,
+              "longitude": -162.3146
+            },
+            {
+              "latitude": -10,
+              "longitude": -163.2605
+            },
+            {
+              "latitude": -5,
+              "longitude": -164.1771
+            },
+            {
+              "latitude": 0,
+              "longitude": -165.0797
+            },
+            {
+              "latitude": 5,
+              "longitude": -165.9822
+            },
+            {
+              "latitude": 10,
+              "longitude": -166.8989
+            },
+            {
+              "latitude": 15,
+              "longitude": -167.8447
+            },
+            {
+              "latitude": 20,
+              "longitude": -168.8369
+            },
+            {
+              "latitude": 25,
+              "longitude": -169.8955
+            },
+            {
+              "latitude": 30,
+              "longitude": -171.0461
+            },
+            {
+              "latitude": 35,
+              "longitude": -172.3219
+            },
+            {
+              "latitude": 40,
+              "longitude": -173.7686
+            },
+            {
+              "latitude": 45,
+              "longitude": -175.4516
+            },
+            {
+              "latitude": 50,
+              "longitude": -177.4694
+            },
+            {
+              "latitude": 55,
+              "longitude": -179.979
+            },
+            {
+              "latitude": 60,
+              "longitude": 176.7505
+            },
+            {
+              "latitude": 65,
+              "longitude": 172.2087
+            },
+            {
+              "latitude": 70,
+              "longitude": 165.2736
+            }
+          ],
+          "circumpolarBeyond": null,
+          "interpretation": "Mars Yükselen (AC) hattınız, Atılganlık ve saldırganlık konularının kimliğinizi, canlılığınızı ve başkalarına bıraktığınız ilk izlenimi renklendirdiği yerlerden geçer. Kişiliğinizin bu yönü burada açılmış gibi hissettirir."
+        },
+        "descendant": {
+          "points": [
+            {
+              "latitude": -70,
+              "longitude": -14.7264
+            },
+            {
+              "latitude": -65,
+              "longitude": -7.7913
+            },
+            {
+              "latitude": -60,
+              "longitude": -3.2495
+            },
+            {
+              "latitude": -55,
+              "longitude": 0.021
+            },
+            {
+              "latitude": -50,
+              "longitude": 2.5306
+            },
+            {
+              "latitude": -45,
+              "longitude": 4.5484
+            },
+            {
+              "latitude": -40,
+              "longitude": 6.2314
+            },
+            {
+              "latitude": -35,
+              "longitude": 7.6781
+            },
+            {
+              "latitude": -30,
+              "longitude": 8.9539
+            },
+            {
+              "latitude": -25,
+              "longitude": 10.1045
+            },
+            {
+              "latitude": -20,
+              "longitude": 11.1631
+            },
+            {
+              "latitude": -15,
+              "longitude": 12.1553
+            },
+            {
+              "latitude": -10,
+              "longitude": 13.1011
+            },
+            {
+              "latitude": -5,
+              "longitude": 14.0178
+            },
+            {
+              "latitude": 0,
+              "longitude": 14.9203
+            },
+            {
+              "latitude": 5,
+              "longitude": 15.8229
+            },
+            {
+              "latitude": 10,
+              "longitude": 16.7395
+            },
+            {
+              "latitude": 15,
+              "longitude": 17.6854
+            },
+            {
+              "latitude": 20,
+              "longitude": 18.6775
+            },
+            {
+              "latitude": 25,
+              "longitude": 19.7362
+            },
+            {
+              "latitude": 30,
+              "longitude": 20.8867
+            },
+            {
+              "latitude": 35,
+              "longitude": 22.1625
+            },
+            {
+              "latitude": 40,
+              "longitude": 23.6093
+            },
+            {
+              "latitude": 45,
+              "longitude": 25.2923
+            },
+            {
+              "latitude": 50,
+              "longitude": 27.3101
+            },
+            {
+              "latitude": 55,
+              "longitude": 29.8196
+            },
+            {
+              "latitude": 60,
+              "longitude": 33.0902
+            },
+            {
+              "latitude": 65,
+              "longitude": 37.6319
+            },
+            {
+              "latitude": 70,
+              "longitude": 44.567
+            }
+          ],
+          "circumpolarBeyond": null,
+          "interpretation": "Mars Alçalan (DC) hattınız, Atılganlık ve saldırganlık konularının yakın ilişkilerinizi, ortaklıklarınızı ve kendinize çektiğiniz insanları şekillendirdiği yerlerden geçer. İlişki temaları bu hat boyunca belirginleşir."
+        }
+      },
+      {
+        "planet": "Jupiter",
+        "planetLocalized": "Jüpiter",
+        "symbol": "♃",
+        "rightAscension": 114.3858,
+        "declination": 21.7832,
+        "mc": {
+          "longitude": 8.8251,
+          "interpretation": "Jüpiter Tepe Noktası (MC) hattınız, Şans ve fırsat konularının kamusal yaşamınızda, kariyerinizde ve itibarınızda öne çıktığı yerlerden geçer. Bu hat boyunca yaşamak ya da çalışmak, kişiliğinizin bu yönünü genellikle ön plana çıkarır."
+        },
+        "ic": {
+          "longitude": -171.1749,
+          "interpretation": "Jüpiter Dip Noktası (IC) hattınız, Şans ve fırsat konularının evinize, ailenize ve içsel temellerinize yerleştiği yerlerden geçer. Bu hat, köklerinize ve özel yaşamınıza dair duygunuzu derinleştirir."
+        },
+        "ascendant": {
+          "points": [
+            {
+              "latitude": -65,
+              "longitude": -22.192
+            },
+            {
+              "latitude": -60,
+              "longitude": -37.3718
+            },
+            {
+              "latitude": -55,
+              "longitude": -46.3735
+            },
+            {
+              "latitude": -50,
+              "longitude": -52.7333
+            },
+            {
+              "latitude": -45,
+              "longitude": -57.6197
+            },
+            {
+              "latitude": -40,
+              "longitude": -61.5822
+            },
+            {
+              "latitude": -35,
+              "longitude": -64.9251
+            },
+            {
+              "latitude": -30,
+              "longitude": -67.835
+            },
+            {
+              "latitude": -25,
+              "longitude": -70.435
+            },
+            {
+              "latitude": -20,
+              "longitude": -72.8113
+            },
+            {
+              "latitude": -15,
+              "longitude": -75.0278
+            },
+            {
+              "latitude": -10,
+              "longitude": -77.1341
+            },
+            {
+              "latitude": -5,
+              "longitude": -79.1712
+            },
+            {
+              "latitude": 0,
+              "longitude": -81.1749
+            },
+            {
+              "latitude": 5,
+              "longitude": -83.1785
+            },
+            {
+              "latitude": 10,
+              "longitude": -85.2156
+            },
+            {
+              "latitude": 15,
+              "longitude": -87.322
+            },
+            {
+              "latitude": 20,
+              "longitude": -89.5385
+            },
+            {
+              "latitude": 25,
+              "longitude": -91.9148
+            },
+            {
+              "latitude": 30,
+              "longitude": -94.5148
+            },
+            {
+              "latitude": 35,
+              "longitude": -97.4247
+            },
+            {
+              "latitude": 40,
+              "longitude": -100.7675
+            },
+            {
+              "latitude": 45,
+              "longitude": -104.73
+            },
+            {
+              "latitude": 50,
+              "longitude": -109.6165
+            },
+            {
+              "latitude": 55,
+              "longitude": -115.9763
+            },
+            {
+              "latitude": 60,
+              "longitude": -124.978
+            },
+            {
+              "latitude": 65,
+              "longitude": -140.1578
+            }
+          ],
+          "circumpolarBeyond": 68.2168,
+          "interpretation": "Jüpiter Yükselen (AC) hattınız, Şans ve fırsat konularının kimliğinizi, canlılığınızı ve başkalarına bıraktığınız ilk izlenimi renklendirdiği yerlerden geçer. Kişiliğinizin bu yönü burada açılmış gibi hissettirir."
+        },
+        "descendant": {
+          "points": [
+            {
+              "latitude": -65,
+              "longitude": 39.8422
+            },
+            {
+              "latitude": -60,
+              "longitude": 55.022
+            },
+            {
+              "latitude": -55,
+              "longitude": 64.0237
+            },
+            {
+              "latitude": -50,
+              "longitude": 70.3835
+            },
+            {
+              "latitude": -45,
+              "longitude": 75.27
+            },
+            {
+              "latitude": -40,
+              "longitude": 79.2325
+            },
+            {
+              "latitude": -35,
+              "longitude": 82.5753
+            },
+            {
+              "latitude": -30,
+              "longitude": 85.4852
+            },
+            {
+              "latitude": -25,
+              "longitude": 88.0852
+            },
+            {
+              "latitude": -20,
+              "longitude": 90.4615
+            },
+            {
+              "latitude": -15,
+              "longitude": 92.678
+            },
+            {
+              "latitude": -10,
+              "longitude": 94.7844
+            },
+            {
+              "latitude": -5,
+              "longitude": 96.8215
+            },
+            {
+              "latitude": 0,
+              "longitude": 98.8251
+            },
+            {
+              "latitude": 5,
+              "longitude": 100.8288
+            },
+            {
+              "latitude": 10,
+              "longitude": 102.8659
+            },
+            {
+              "latitude": 15,
+              "longitude": 104.9722
+            },
+            {
+              "latitude": 20,
+              "longitude": 107.1887
+            },
+            {
+              "latitude": 25,
+              "longitude": 109.565
+            },
+            {
+              "latitude": 30,
+              "longitude": 112.165
+            },
+            {
+              "latitude": 35,
+              "longitude": 115.0749
+            },
+            {
+              "latitude": 40,
+              "longitude": 118.4178
+            },
+            {
+              "latitude": 45,
+              "longitude": 122.3803
+            },
+            {
+              "latitude": 50,
+              "longitude": 127.2667
+            },
+            {
+              "latitude": 55,
+              "longitude": 133.6265
+            },
+            {
+              "latitude": 60,
+              "longitude": 142.6282
+            },
+            {
+              "latitude": 65,
+              "longitude": 157.808
+            }
+          ],
+          "circumpolarBeyond": 68.2168,
+          "interpretation": "Jüpiter Alçalan (DC) hattınız, Şans ve fırsat konularının yakın ilişkilerinizi, ortaklıklarınızı ve kendinize çektiğiniz insanları şekillendirdiği yerlerden geçer. İlişki temaları bu hat boyunca belirginleşir."
+        }
+      },
+      {
+        "planet": "Saturn",
+        "planetLocalized": "Satürn",
+        "symbol": "♄",
+        "rightAscension": 293.7176,
+        "declination": -21.5771,
+        "mc": {
+          "longitude": -171.8431,
+          "interpretation": "Satürn Tepe Noktası (MC) hattınız, Sorumluluk, zaman ve rutin konularının kamusal yaşamınızda, kariyerinizde ve itibarınızda öne çıktığı yerlerden geçer. Bu hat boyunca yaşamak ya da çalışmak, kişiliğinizin bu yönünü genellikle ön plana çıkarır."
+        },
+        "ic": {
+          "longitude": 8.1569,
+          "interpretation": "Satürn Dip Noktası (IC) hattınız, Sorumluluk, zaman ve rutin konularının evinize, ailenize ve içsel temellerinize yerleştiği yerlerden geçer. Bu hat, köklerinize ve özel yaşamınıza dair duygunuzu derinleştirir."
+        },
+        "ascendant": {
+          "points": [
+            {
+              "latitude": -65,
+              "longitude": 40.1536
+            },
+            {
+              "latitude": -60,
+              "longitude": 54.9239
+            },
+            {
+              "latitude": -55,
+              "longitude": 63.7696
+            },
+            {
+              "latitude": -50,
+              "longitude": 70.0383
+            },
+            {
+              "latitude": -45,
+              "longitude": 74.8619
+            },
+            {
+              "latitude": -40,
+              "longitude": 78.7767
+            },
+            {
+              "latitude": -35,
+              "longitude": 82.0811
+            },
+            {
+              "latitude": -30,
+              "longitude": 84.9586
+            },
+            {
+              "latitude": -25,
+              "longitude": 87.5302
+            },
+            {
+              "latitude": -20,
+              "longitude": 89.8811
+            },
+            {
+              "latitude": -15,
+              "longitude": 92.0741
+            },
+            {
+              "latitude": -10,
+              "longitude": 94.1583
+            },
+            {
+              "latitude": -5,
+              "longitude": 96.1741
+            },
+            {
+              "latitude": 0,
+              "longitude": 98.1569
+            },
+            {
+              "latitude": 5,
+              "longitude": 100.1396
+            },
+            {
+              "latitude": 10,
+              "longitude": 102.1554
+            },
+            {
+              "latitude": 15,
+              "longitude": 104.2396
+            },
+            {
+              "latitude": 20,
+              "longitude": 106.4327
+            },
+            {
+              "latitude": 25,
+              "longitude": 108.7835
+            },
+            {
+              "latitude": 30,
+              "longitude": 111.3552
+            },
+            {
+              "latitude": 35,
+              "longitude": 114.2326
+            },
+            {
+              "latitude": 40,
+              "longitude": 117.5371
+            },
+            {
+              "latitude": 45,
+              "longitude": 121.4519
+            },
+            {
+              "latitude": 50,
+              "longitude": 126.2754
+            },
+            {
+              "latitude": 55,
+              "longitude": 132.5441
+            },
+            {
+              "latitude": 60,
+              "longitude": 141.3899
+            },
+            {
+              "latitude": 65,
+              "longitude": 156.1602
+            }
+          ],
+          "circumpolarBeyond": 68.4229,
+          "interpretation": "Satürn Yükselen (AC) hattınız, Sorumluluk, zaman ve rutin konularının kimliğinizi, canlılığınızı ve başkalarına bıraktığınız ilk izlenimi renklendirdiği yerlerden geçer. Kişiliğinizin bu yönü burada açılmış gibi hissettirir."
+        },
+        "descendant": {
+          "points": [
+            {
+              "latitude": -65,
+              "longitude": -23.8398
+            },
+            {
+              "latitude": -60,
+              "longitude": -38.6101
+            },
+            {
+              "latitude": -55,
+              "longitude": -47.4559
+            },
+            {
+              "latitude": -50,
+              "longitude": -53.7246
+            },
+            {
+              "latitude": -45,
+              "longitude": -58.5481
+            },
+            {
+              "latitude": -40,
+              "longitude": -62.4629
+            },
+            {
+              "latitude": -35,
+              "longitude": -65.7674
+            },
+            {
+              "latitude": -30,
+              "longitude": -68.6448
+            },
+            {
+              "latitude": -25,
+              "longitude": -71.2165
+            },
+            {
+              "latitude": -20,
+              "longitude": -73.5673
+            },
+            {
+              "latitude": -15,
+              "longitude": -75.7604
+            },
+            {
+              "latitude": -10,
+              "longitude": -77.8446
+            },
+            {
+              "latitude": -5,
+              "longitude": -79.8604
+            },
+            {
+              "latitude": 0,
+              "longitude": -81.8431
+            },
+            {
+              "latitude": 5,
+              "longitude": -83.8259
+            },
+            {
+              "latitude": 10,
+              "longitude": -85.8417
+            },
+            {
+              "latitude": 15,
+              "longitude": -87.9259
+            },
+            {
+              "latitude": 20,
+              "longitude": -90.1189
+            },
+            {
+              "latitude": 25,
+              "longitude": -92.4698
+            },
+            {
+              "latitude": 30,
+              "longitude": -95.0414
+            },
+            {
+              "latitude": 35,
+              "longitude": -97.9189
+            },
+            {
+              "latitude": 40,
+              "longitude": -101.2233
+            },
+            {
+              "latitude": 45,
+              "longitude": -105.1381
+            },
+            {
+              "latitude": 50,
+              "longitude": -109.9617
+            },
+            {
+              "latitude": 55,
+              "longitude": -116.2304
+            },
+            {
+              "latitude": 60,
+              "longitude": -125.0761
+            },
+            {
+              "latitude": 65,
+              "longitude": -139.8464
+            }
+          ],
+          "circumpolarBeyond": 68.4229,
+          "interpretation": "Satürn Alçalan (DC) hattınız, Sorumluluk, zaman ve rutin konularının yakın ilişkilerinizi, ortaklıklarınızı ve kendinize çektiğiniz insanları şekillendirdiği yerlerden geçer. İlişki temaları bu hat boyunca belirginleşir."
+        }
+      },
+      {
+        "planet": "Uranus",
+        "planetLocalized": "Uranüs",
+        "symbol": "♅",
+        "rightAscension": 277.6061,
+        "declination": -23.5863,
+        "mc": {
+          "longitude": 172.0454,
+          "interpretation": "Uranüs Tepe Noktası (MC) hattınız, Bireysellik ve devrim konularının kamusal yaşamınızda, kariyerinizde ve itibarınızda öne çıktığı yerlerden geçer. Bu hat boyunca yaşamak ya da çalışmak, kişiliğinizin bu yönünü genellikle ön plana çıkarır."
+        },
+        "ic": {
+          "longitude": -7.9546,
+          "interpretation": "Uranüs Dip Noktası (IC) hattınız, Bireysellik ve devrim konularının evinize, ailenize ve içsel temellerinize yerleştiği yerlerden geçer. Bu hat, köklerinize ve özel yaşamınıza dair duygunuzu derinleştirir."
+        },
+        "ascendant": {
+          "points": [
+            {
+              "latitude": -65,
+              "longitude": 12.6057
+            },
+            {
+              "latitude": -60,
+              "longitude": 32.9131
+            },
+            {
+              "latitude": -55,
+              "longitude": 43.4705
+            },
+            {
+              "latitude": -50,
+              "longitude": 50.6913
+            },
+            {
+              "latitude": -45,
+              "longitude": 56.1579
+            },
+            {
+              "latitude": -40,
+              "longitude": 60.5544
+            },
+            {
+              "latitude": -35,
+              "longitude": 64.2443
+            },
+            {
+              "latitude": -30,
+              "longitude": 67.4451
+            },
+            {
+              "latitude": -25,
+              "longitude": 70.2983
+            },
+            {
+              "latitude": -20,
+              "longitude": 72.9017
+            },
+            {
+              "latitude": -15,
+              "longitude": 75.3271
+            },
+            {
+              "latitude": -10,
+              "longitude": 77.6301
+            },
+            {
+              "latitude": -5,
+              "longitude": 79.8563
+            },
+            {
+              "latitude": 0,
+              "longitude": 82.0454
+            },
+            {
+              "latitude": 5,
+              "longitude": 84.2345
+            },
+            {
+              "latitude": 10,
+              "longitude": 86.4607
+            },
+            {
+              "latitude": 15,
+              "longitude": 88.7637
+            },
+            {
+              "latitude": 20,
+              "longitude": 91.1891
+            },
+            {
+              "latitude": 25,
+              "longitude": 93.7925
+            },
+            {
+              "latitude": 30,
+              "longitude": 96.6457
+            },
+            {
+              "latitude": 35,
+              "longitude": 99.8466
+            },
+            {
+              "latitude": 40,
+              "longitude": 103.5364
+            },
+            {
+              "latitude": 45,
+              "longitude": 107.9329
+            },
+            {
+              "latitude": 50,
+              "longitude": 113.3995
+            },
+            {
+              "latitude": 55,
+              "longitude": 120.6203
+            },
+            {
+              "latitude": 60,
+              "longitude": 131.1777
+            },
+            {
+              "latitude": 65,
+              "longitude": 151.4851
+            }
+          ],
+          "circumpolarBeyond": 66.4137,
+          "interpretation": "Uranüs Yükselen (AC) hattınız, Bireysellik ve devrim konularının kimliğinizi, canlılığınızı ve başkalarına bıraktığınız ilk izlenimi renklendirdiği yerlerden geçer. Kişiliğinizin bu yönü burada açılmış gibi hissettirir."
+        },
+        "descendant": {
+          "points": [
+            {
+              "latitude": -65,
+              "longitude": -28.5149
+            },
+            {
+              "latitude": -60,
+              "longitude": -48.8223
+            },
+            {
+              "latitude": -55,
+              "longitude": -59.3797
+            },
+            {
+              "latitude": -50,
+              "longitude": -66.6005
+            },
+            {
+              "latitude": -45,
+              "longitude": -72.0671
+            },
+            {
+              "latitude": -40,
+              "longitude": -76.4636
+            },
+            {
+              "latitude": -35,
+              "longitude": -80.1534
+            },
+            {
+              "latitude": -30,
+              "longitude": -83.3543
+            },
+            {
+              "latitude": -25,
+              "longitude": -86.2075
+            },
+            {
+              "latitude": -20,
+              "longitude": -88.8109
+            },
+            {
+              "latitude": -15,
+              "longitude": -91.2363
+            },
+            {
+              "latitude": -10,
+              "longitude": -93.5393
+            },
+            {
+              "latitude": -5,
+              "longitude": -95.7655
+            },
+            {
+              "latitude": 0,
+              "longitude": -97.9546
+            },
+            {
+              "latitude": 5,
+              "longitude": -100.1437
+            },
+            {
+              "latitude": 10,
+              "longitude": -102.3699
+            },
+            {
+              "latitude": 15,
+              "longitude": -104.6729
+            },
+            {
+              "latitude": 20,
+              "longitude": -107.0983
+            },
+            {
+              "latitude": 25,
+              "longitude": -109.7017
+            },
+            {
+              "latitude": 30,
+              "longitude": -112.5549
+            },
+            {
+              "latitude": 35,
+              "longitude": -115.7557
+            },
+            {
+              "latitude": 40,
+              "longitude": -119.4456
+            },
+            {
+              "latitude": 45,
+              "longitude": -123.8421
+            },
+            {
+              "latitude": 50,
+              "longitude": -129.3087
+            },
+            {
+              "latitude": 55,
+              "longitude": -136.5295
+            },
+            {
+              "latitude": 60,
+              "longitude": -147.0869
+            },
+            {
+              "latitude": 65,
+              "longitude": -167.3943
+            }
+          ],
+          "circumpolarBeyond": 66.4137,
+          "interpretation": "Uranüs Alçalan (DC) hattınız, Bireysellik ve devrim konularının yakın ilişkilerinizi, ortaklıklarınızı ve kendinize çektiğiniz insanları şekillendirdiği yerlerden geçer. İlişki temaları bu hat boyunca belirginleşir."
+        }
+      },
+      {
+        "planet": "Neptune",
+        "planetLocalized": "Neptün",
+        "symbol": "♆",
+        "rightAscension": 283.9492,
+        "declination": -21.9458,
+        "mc": {
+          "longitude": 178.3885,
+          "interpretation": "Neptün Tepe Noktası (MC) hattınız, Rüyalar, şifa ve sezgi konularının kamusal yaşamınızda, kariyerinizde ve itibarınızda öne çıktığı yerlerden geçer. Bu hat boyunca yaşamak ya da çalışmak, kişiliğinizin bu yönünü genellikle ön plana çıkarır."
+        },
+        "ic": {
+          "longitude": -1.6115,
+          "interpretation": "Neptün Dip Noktası (IC) hattınız, Rüyalar, şifa ve sezgi konularının evinize, ailenize ve içsel temellerinize yerleştiği yerlerden geçer. Bu hat, köklerinize ve özel yaşamınıza dair duygunuzu derinleştirir."
+        },
+        "ascendant": {
+          "points": [
+            {
+              "latitude": -65,
+              "longitude": 28.6108
+            },
+            {
+              "latitude": -60,
+              "longitude": 44.1306
+            },
+            {
+              "latitude": -55,
+              "longitude": 53.2581
+            },
+            {
+              "latitude": -50,
+              "longitude": 59.6908
+            },
+            {
+              "latitude": -45,
+              "longitude": 64.6273
+            },
+            {
+              "latitude": -40,
+              "longitude": 68.6276
+            },
+            {
+              "latitude": -35,
+              "longitude": 72.001
+            },
+            {
+              "latitude": -30,
+              "longitude": 74.9366
+            },
+            {
+              "latitude": -25,
+              "longitude": 77.559
+            },
+            {
+              "latitude": -20,
+              "longitude": 79.9555
+            },
+            {
+              "latitude": -15,
+              "longitude": 82.1906
+            },
+            {
+              "latitude": -10,
+              "longitude": 84.3144
+            },
+            {
+              "latitude": -5,
+              "longitude": 86.3683
+            },
+            {
+              "latitude": 0,
+              "longitude": 88.3885
+            },
+            {
+              "latitude": 5,
+              "longitude": 90.4087
+            },
+            {
+              "latitude": 10,
+              "longitude": 92.4626
+            },
+            {
+              "latitude": 15,
+              "longitude": 94.5865
+            },
+            {
+              "latitude": 20,
+              "longitude": 96.8216
+            },
+            {
+              "latitude": 25,
+              "longitude": 99.2181
+            },
+            {
+              "latitude": 30,
+              "longitude": 101.8405
+            },
+            {
+              "latitude": 35,
+              "longitude": 104.776
+            },
+            {
+              "latitude": 40,
+              "longitude": 108.1494
+            },
+            {
+              "latitude": 45,
+              "longitude": 112.1498
+            },
+            {
+              "latitude": 50,
+              "longitude": 117.0863
+            },
+            {
+              "latitude": 55,
+              "longitude": 123.5189
+            },
+            {
+              "latitude": 60,
+              "longitude": 132.6464
+            },
+            {
+              "latitude": 65,
+              "longitude": 148.1662
+            }
+          ],
+          "circumpolarBeyond": 68.0542,
+          "interpretation": "Neptün Yükselen (AC) hattınız, Rüyalar, şifa ve sezgi konularının kimliğinizi, canlılığınızı ve başkalarına bıraktığınız ilk izlenimi renklendirdiği yerlerden geçer. Kişiliğinizin bu yönü burada açılmış gibi hissettirir."
+        },
+        "descendant": {
+          "points": [
+            {
+              "latitude": -65,
+              "longitude": -31.8338
+            },
+            {
+              "latitude": -60,
+              "longitude": -47.3536
+            },
+            {
+              "latitude": -55,
+              "longitude": -56.4811
+            },
+            {
+              "latitude": -50,
+              "longitude": -62.9137
+            },
+            {
+              "latitude": -45,
+              "longitude": -67.8502
+            },
+            {
+              "latitude": -40,
+              "longitude": -71.8506
+            },
+            {
+              "latitude": -35,
+              "longitude": -75.224
+            },
+            {
+              "latitude": -30,
+              "longitude": -78.1595
+            },
+            {
+              "latitude": -25,
+              "longitude": -80.7819
+            },
+            {
+              "latitude": -20,
+              "longitude": -83.1784
+            },
+            {
+              "latitude": -15,
+              "longitude": -85.4135
+            },
+            {
+              "latitude": -10,
+              "longitude": -87.5374
+            },
+            {
+              "latitude": -5,
+              "longitude": -89.5913
+            },
+            {
+              "latitude": 0,
+              "longitude": -91.6115
+            },
+            {
+              "latitude": 5,
+              "longitude": -93.6317
+            },
+            {
+              "latitude": 10,
+              "longitude": -95.6856
+            },
+            {
+              "latitude": 15,
+              "longitude": -97.8094
+            },
+            {
+              "latitude": 20,
+              "longitude": -100.0445
+            },
+            {
+              "latitude": 25,
+              "longitude": -102.441
+            },
+            {
+              "latitude": 30,
+              "longitude": -105.0634
+            },
+            {
+              "latitude": 35,
+              "longitude": -107.999
+            },
+            {
+              "latitude": 40,
+              "longitude": -111.3724
+            },
+            {
+              "latitude": 45,
+              "longitude": -115.3727
+            },
+            {
+              "latitude": 50,
+              "longitude": -120.3092
+            },
+            {
+              "latitude": 55,
+              "longitude": -126.7419
+            },
+            {
+              "latitude": 60,
+              "longitude": -135.8694
+            },
+            {
+              "latitude": 65,
+              "longitude": -151.3892
+            }
+          ],
+          "circumpolarBeyond": 68.0542,
+          "interpretation": "Neptün Alçalan (DC) hattınız, Rüyalar, şifa ve sezgi konularının yakın ilişkilerinizi, ortaklıklarınızı ve kendinize çektiğiniz insanları şekillendirdiği yerlerden geçer. İlişki temaları bu hat boyunca belirginleşir."
+        }
+      },
+      {
+        "planet": "Pluto",
+        "planetLocalized": "Plüton",
+        "symbol": "♇",
+        "rightAscension": 227.0614,
+        "declination": -1.3744,
+        "mc": {
+          "longitude": 121.5006,
+          "interpretation": "Plüton Tepe Noktası (MC) hattınız, Cinsellik, ölüm ve dönüşüm konularının kamusal yaşamınızda, kariyerinizde ve itibarınızda öne çıktığı yerlerden geçer. Bu hat boyunca yaşamak ya da çalışmak, kişiliğinizin bu yönünü genellikle ön plana çıkarır."
+        },
+        "ic": {
+          "longitude": -58.4994,
+          "interpretation": "Plüton Dip Noktası (IC) hattınız, Cinsellik, ölüm ve dönüşüm konularının evinize, ailenize ve içsel temellerinize yerleştiği yerlerden geçer. Bu hat, köklerinize ve özel yaşamınıza dair duygunuzu derinleştirir."
+        },
+        "ascendant": {
+          "points": [
+            {
+              "latitude": -70,
+              "longitude": 27.721
+            },
+            {
+              "latitude": -65,
+              "longitude": 28.5513
+            },
+            {
+              "latitude": -60,
+              "longitude": 29.1189
+            },
+            {
+              "latitude": -55,
+              "longitude": 29.537
+            },
+            {
+              "latitude": -50,
+              "longitude": 29.8621
+            },
+            {
+              "latitude": -45,
+              "longitude": 30.1258
+            },
+            {
+              "latitude": -40,
+              "longitude": 30.3471
+            },
+            {
+              "latitude": -35,
+              "longitude": 30.538
+            },
+            {
+              "latitude": -30,
+              "longitude": 30.7069
+            },
+            {
+              "latitude": -25,
+              "longitude": 30.8596
+            },
+            {
+              "latitude": -20,
+              "longitude": 31.0003
+            },
+            {
+              "latitude": -15,
+              "longitude": 31.1323
+            },
+            {
+              "latitude": -10,
+              "longitude": 31.2583
+            },
+            {
+              "latitude": -5,
+              "longitude": 31.3804
+            },
+            {
+              "latitude": 0,
+              "longitude": 31.5006
+            },
+            {
+              "latitude": 5,
+              "longitude": 31.6209
+            },
+            {
+              "latitude": 10,
+              "longitude": 31.743
+            },
+            {
+              "latitude": 15,
+              "longitude": 31.869
+            },
+            {
+              "latitude": 20,
+              "longitude": 32.001
+            },
+            {
+              "latitude": 25,
+              "longitude": 32.1417
+            },
+            {
+              "latitude": 30,
+              "longitude": 32.2944
+            },
+            {
+              "latitude": 35,
+              "longitude": 32.4633
+            },
+            {
+              "latitude": 40,
+              "longitude": 32.6542
+            },
+            {
+              "latitude": 45,
+              "longitude": 32.8755
+            },
+            {
+              "latitude": 50,
+              "longitude": 33.1392
+            },
+            {
+              "latitude": 55,
+              "longitude": 33.4643
+            },
+            {
+              "latitude": 60,
+              "longitude": 33.8824
+            },
+            {
+              "latitude": 65,
+              "longitude": 34.45
+            },
+            {
+              "latitude": 70,
+              "longitude": 35.2803
+            }
+          ],
+          "circumpolarBeyond": null,
+          "interpretation": "Plüton Yükselen (AC) hattınız, Cinsellik, ölüm ve dönüşüm konularının kimliğinizi, canlılığınızı ve başkalarına bıraktığınız ilk izlenimi renklendirdiği yerlerden geçer. Kişiliğinizin bu yönü burada açılmış gibi hissettirir."
+        },
+        "descendant": {
+          "points": [
+            {
+              "latitude": -70,
+              "longitude": -144.7197
+            },
+            {
+              "latitude": -65,
+              "longitude": -145.55
+            },
+            {
+              "latitude": -60,
+              "longitude": -146.1176
+            },
+            {
+              "latitude": -55,
+              "longitude": -146.5357
+            },
+            {
+              "latitude": -50,
+              "longitude": -146.8608
+            },
+            {
+              "latitude": -45,
+              "longitude": -147.1245
+            },
+            {
+              "latitude": -40,
+              "longitude": -147.3458
+            },
+            {
+              "latitude": -35,
+              "longitude": -147.5367
+            },
+            {
+              "latitude": -30,
+              "longitude": -147.7056
+            },
+            {
+              "latitude": -25,
+              "longitude": -147.8583
+            },
+            {
+              "latitude": -20,
+              "longitude": -147.999
+            },
+            {
+              "latitude": -15,
+              "longitude": -148.131
+            },
+            {
+              "latitude": -10,
+              "longitude": -148.257
+            },
+            {
+              "latitude": -5,
+              "longitude": -148.3791
+            },
+            {
+              "latitude": 0,
+              "longitude": -148.4994
+            },
+            {
+              "latitude": 5,
+              "longitude": -148.6196
+            },
+            {
+              "latitude": 10,
+              "longitude": -148.7417
+            },
+            {
+              "latitude": 15,
+              "longitude": -148.8677
+            },
+            {
+              "latitude": 20,
+              "longitude": -148.9997
+            },
+            {
+              "latitude": 25,
+              "longitude": -149.1404
+            },
+            {
+              "latitude": 30,
+              "longitude": -149.2931
+            },
+            {
+              "latitude": 35,
+              "longitude": -149.462
+            },
+            {
+              "latitude": 40,
+              "longitude": -149.6529
+            },
+            {
+              "latitude": 45,
+              "longitude": -149.8742
+            },
+            {
+              "latitude": 50,
+              "longitude": -150.1379
+            },
+            {
+              "latitude": 55,
+              "longitude": -150.463
+            },
+            {
+              "latitude": 60,
+              "longitude": -150.8811
+            },
+            {
+              "latitude": 65,
+              "longitude": -151.4487
+            },
+            {
+              "latitude": 70,
+              "longitude": -152.279
+            }
+          ],
+          "circumpolarBeyond": null,
+          "interpretation": "Plüton Alçalan (DC) hattınız, Cinsellik, ölüm ve dönüşüm konularının yakın ilişkilerinizi, ortaklıklarınızı ve kendinize çektiğiniz insanları şekillendirdiği yerlerden geçer. İlişki temaları bu hat boyunca belirginleşir."
+        }
+      },
+      {
+        "planet": "North Node",
+        "planetLocalized": "Kuzey Düğümü",
+        "symbol": "☊",
+        "rightAscension": 309.7642,
+        "declination": -18.4337,
+        "mc": {
+          "longitude": -155.7965,
+          "interpretation": "Kuzey Düğümü Tepe Noktası (MC) hattınız, Yaşam amacı ve kader konularının kamusal yaşamınızda, kariyerinizde ve itibarınızda öne çıktığı yerlerden geçer. Bu hat boyunca yaşamak ya da çalışmak, kişiliğinizin bu yönünü genellikle ön plana çıkarır."
+        },
+        "ic": {
+          "longitude": 24.2035,
+          "interpretation": "Kuzey Düğümü Dip Noktası (IC) hattınız, Yaşam amacı ve kader konularının evinize, ailenize ve içsel temellerinize yerleştiği yerlerden geçer. Bu hat, köklerinize ve özel yaşamınıza dair duygunuzu derinleştirir."
+        },
+        "ascendant": {
+          "points": [
+            {
+              "latitude": -70,
+              "longitude": 47.89
+            },
+            {
+              "latitude": -65,
+              "longitude": 68.5782
+            },
+            {
+              "latitude": -60,
+              "longitude": 78.9421
+            },
+            {
+              "latitude": -55,
+              "longitude": 85.7781
+            },
+            {
+              "latitude": -50,
+              "longitude": 90.7989
+            },
+            {
+              "latitude": -45,
+              "longitude": 94.7338
+            },
+            {
+              "latitude": -40,
+              "longitude": 97.9624
+            },
+            {
+              "latitude": -35,
+              "longitude": 100.707
+            },
+            {
+              "latitude": -30,
+              "longitude": 103.1085
+            },
+            {
+              "latitude": -25,
+              "longitude": 105.2621
+            },
+            {
+              "latitude": -20,
+              "longitude": 107.2355
+            },
+            {
+              "latitude": -15,
+              "longitude": 109.0796
+            },
+            {
+              "latitude": -10,
+              "longitude": 110.8342
+            },
+            {
+              "latitude": -5,
+              "longitude": 112.5325
+            },
+            {
+              "latitude": 0,
+              "longitude": 114.2035
+            },
+            {
+              "latitude": 5,
+              "longitude": 115.8745
+            },
+            {
+              "latitude": 10,
+              "longitude": 117.5728
+            },
+            {
+              "latitude": 15,
+              "longitude": 119.3274
+            },
+            {
+              "latitude": 20,
+              "longitude": 121.1714
+            },
+            {
+              "latitude": 25,
+              "longitude": 123.1449
+            },
+            {
+              "latitude": 30,
+              "longitude": 125.2984
+            },
+            {
+              "latitude": 35,
+              "longitude": 127.6999
+            },
+            {
+              "latitude": 40,
+              "longitude": 130.4445
+            },
+            {
+              "latitude": 45,
+              "longitude": 133.6732
+            },
+            {
+              "latitude": 50,
+              "longitude": 137.6081
+            },
+            {
+              "latitude": 55,
+              "longitude": 142.6288
+            },
+            {
+              "latitude": 60,
+              "longitude": 149.4648
+            },
+            {
+              "latitude": 65,
+              "longitude": 159.8288
+            },
+            {
+              "latitude": 70,
+              "longitude": -179.4831
+            }
+          ],
+          "circumpolarBeyond": null,
+          "interpretation": "Kuzey Düğümü Yükselen (AC) hattınız, Yaşam amacı ve kader konularının kimliğinizi, canlılığınızı ve başkalarına bıraktığınız ilk izlenimi renklendirdiği yerlerden geçer. Kişiliğinizin bu yönü burada açılmış gibi hissettirir."
+        },
+        "descendant": {
+          "points": [
+            {
+              "latitude": -70,
+              "longitude": 0.5169
+            },
+            {
+              "latitude": -65,
+              "longitude": -20.1712
+            },
+            {
+              "latitude": -60,
+              "longitude": -30.5352
+            },
+            {
+              "latitude": -55,
+              "longitude": -37.3712
+            },
+            {
+              "latitude": -50,
+              "longitude": -42.3919
+            },
+            {
+              "latitude": -45,
+              "longitude": -46.3268
+            },
+            {
+              "latitude": -40,
+              "longitude": -49.5555
+            },
+            {
+              "latitude": -35,
+              "longitude": -52.3001
+            },
+            {
+              "latitude": -30,
+              "longitude": -54.7016
+            },
+            {
+              "latitude": -25,
+              "longitude": -56.8551
+            },
+            {
+              "latitude": -20,
+              "longitude": -58.8286
+            },
+            {
+              "latitude": -15,
+              "longitude": -60.6726
+            },
+            {
+              "latitude": -10,
+              "longitude": -62.4272
+            },
+            {
+              "latitude": -5,
+              "longitude": -64.1255
+            },
+            {
+              "latitude": 0,
+              "longitude": -65.7965
+            },
+            {
+              "latitude": 5,
+              "longitude": -67.4675
+            },
+            {
+              "latitude": 10,
+              "longitude": -69.1658
+            },
+            {
+              "latitude": 15,
+              "longitude": -70.9204
+            },
+            {
+              "latitude": 20,
+              "longitude": -72.7645
+            },
+            {
+              "latitude": 25,
+              "longitude": -74.7379
+            },
+            {
+              "latitude": 30,
+              "longitude": -76.8915
+            },
+            {
+              "latitude": 35,
+              "longitude": -79.293
+            },
+            {
+              "latitude": 40,
+              "longitude": -82.0376
+            },
+            {
+              "latitude": 45,
+              "longitude": -85.2662
+            },
+            {
+              "latitude": 50,
+              "longitude": -89.2011
+            },
+            {
+              "latitude": 55,
+              "longitude": -94.2219
+            },
+            {
+              "latitude": 60,
+              "longitude": -101.0579
+            },
+            {
+              "latitude": 65,
+              "longitude": -111.4218
+            },
+            {
+              "latitude": 70,
+              "longitude": -132.11
+            }
+          ],
+          "circumpolarBeyond": null,
+          "interpretation": "Kuzey Düğümü Alçalan (DC) hattınız, Yaşam amacı ve kader konularının yakın ilişkilerinizi, ortaklıklarınızı ve kendinize çektiğiniz insanları şekillendirdiği yerlerden geçer. İlişki temaları bu hat boyunca belirginleşir."
+        }
+      },
+      {
+        "planet": "Chiron",
+        "planetLocalized": "Chiron",
+        "symbol": "⚷",
+        "rightAscension": 109.8972,
+        "declination": 15.8838,
+        "mc": {
+          "longitude": 4.3365,
+          "interpretation": "Chiron Tepe Noktası (MC) hattınız, Şifa ve iç yaralar konularının kamusal yaşamınızda, kariyerinizde ve itibarınızda öne çıktığı yerlerden geçer. Bu hat boyunca yaşamak ya da çalışmak, kişiliğinizin bu yönünü genellikle ön plana çıkarır."
+        },
+        "ic": {
+          "longitude": -175.6635,
+          "interpretation": "Chiron Dip Noktası (IC) hattınız, Şifa ve iç yaralar konularının evinize, ailenize ve içsel temellerinize yerleştiği yerlerden geçer. Bu hat, köklerinize ve özel yaşamınıza dair duygunuzu derinleştirir."
+        },
+        "ascendant": {
+          "points": [
+            {
+              "latitude": -70,
+              "longitude": -34.2381
+            },
+            {
+              "latitude": -65,
+              "longitude": -48.058
+            },
+            {
+              "latitude": -60,
+              "longitude": -56.135
+            },
+            {
+              "latitude": -55,
+              "longitude": -61.6858
+            },
+            {
+              "latitude": -50,
+              "longitude": -65.8406
+            },
+            {
+              "latitude": -45,
+              "longitude": -69.1315
+            },
+            {
+              "latitude": -40,
+              "longitude": -71.8497
+            },
+            {
+              "latitude": -35,
+              "longitude": -74.1707
+            },
+            {
+              "latitude": -30,
+              "longitude": -76.2078
+            },
+            {
+              "latitude": -25,
+              "longitude": -78.0385
+            },
+            {
+              "latitude": -20,
+              "longitude": -79.7188
+            },
+            {
+              "latitude": -15,
+              "longitude": -81.2907
+            },
+            {
+              "latitude": -10,
+              "longitude": -82.7875
+            },
+            {
+              "latitude": -5,
+              "longitude": -84.237
+            },
+            {
+              "latitude": 0,
+              "longitude": -85.6635
+            },
+            {
+              "latitude": 5,
+              "longitude": -87.09
+            },
+            {
+              "latitude": 10,
+              "longitude": -88.5395
+            },
+            {
+              "latitude": 15,
+              "longitude": -90.0363
+            },
+            {
+              "latitude": 20,
+              "longitude": -91.6082
+            },
+            {
+              "latitude": 25,
+              "longitude": -93.2885
+            },
+            {
+              "latitude": 30,
+              "longitude": -95.1192
+            },
+            {
+              "latitude": 35,
+              "longitude": -97.1563
+            },
+            {
+              "latitude": 40,
+              "longitude": -99.4773
+            },
+            {
+              "latitude": 45,
+              "longitude": -102.1955
+            },
+            {
+              "latitude": 50,
+              "longitude": -105.4865
+            },
+            {
+              "latitude": 55,
+              "longitude": -109.6412
+            },
+            {
+              "latitude": 60,
+              "longitude": -115.192
+            },
+            {
+              "latitude": 65,
+              "longitude": -123.269
+            },
+            {
+              "latitude": 70,
+              "longitude": -137.089
+            }
+          ],
+          "circumpolarBeyond": null,
+          "interpretation": "Chiron Yükselen (AC) hattınız, Şifa ve iç yaralar konularının kimliğinizi, canlılığınızı ve başkalarına bıraktığınız ilk izlenimi renklendirdiği yerlerden geçer. Kişiliğinizin bu yönü burada açılmış gibi hissettirir."
+        },
+        "descendant": {
+          "points": [
+            {
+              "latitude": -70,
+              "longitude": 42.911
+            },
+            {
+              "latitude": -65,
+              "longitude": 56.731
+            },
+            {
+              "latitude": -60,
+              "longitude": 64.808
+            },
+            {
+              "latitude": -55,
+              "longitude": 70.3588
+            },
+            {
+              "latitude": -50,
+              "longitude": 74.5135
+            },
+            {
+              "latitude": -45,
+              "longitude": 77.8045
+            },
+            {
+              "latitude": -40,
+              "longitude": 80.5227
+            },
+            {
+              "latitude": -35,
+              "longitude": 82.8437
+            },
+            {
+              "latitude": -30,
+              "longitude": 84.8808
+            },
+            {
+              "latitude": -25,
+              "longitude": 86.7115
+            },
+            {
+              "latitude": -20,
+              "longitude": 88.3918
+            },
+            {
+              "latitude": -15,
+              "longitude": 89.9637
+            },
+            {
+              "latitude": -10,
+              "longitude": 91.4605
+            },
+            {
+              "latitude": -5,
+              "longitude": 92.91
+            },
+            {
+              "latitude": 0,
+              "longitude": 94.3365
+            },
+            {
+              "latitude": 5,
+              "longitude": 95.763
+            },
+            {
+              "latitude": 10,
+              "longitude": 97.2125
+            },
+            {
+              "latitude": 15,
+              "longitude": 98.7093
+            },
+            {
+              "latitude": 20,
+              "longitude": 100.2812
+            },
+            {
+              "latitude": 25,
+              "longitude": 101.9615
+            },
+            {
+              "latitude": 30,
+              "longitude": 103.7922
+            },
+            {
+              "latitude": 35,
+              "longitude": 105.8293
+            },
+            {
+              "latitude": 40,
+              "longitude": 108.1503
+            },
+            {
+              "latitude": 45,
+              "longitude": 110.8685
+            },
+            {
+              "latitude": 50,
+              "longitude": 114.1594
+            },
+            {
+              "latitude": 55,
+              "longitude": 118.3142
+            },
+            {
+              "latitude": 60,
+              "longitude": 123.865
+            },
+            {
+              "latitude": 65,
+              "longitude": 131.942
+            },
+            {
+              "latitude": 70,
+              "longitude": 145.7619
+            }
+          ],
+          "circumpolarBeyond": null,
+          "interpretation": "Chiron Alçalan (DC) hattınız, Şifa ve iç yaralar konularının yakın ilişkilerinizi, ortaklıklarınızı ve kendinize çektiğiniz insanları şekillendirdiği yerlerden geçer. İlişki temaları bu hat boyunca belirginleşir."
+        }
+      },
+      {
+        "planet": "Black Moon Lilith",
+        "planetLocalized": "Kara Ay Lilith",
+        "symbol": "⚸",
+        "rightAscension": 234.8829,
+        "declination": -24.4909,
+        "mc": {
+          "longitude": 129.3222,
+          "interpretation": "Kara Ay Lilith Tepe Noktası (MC) hattınız, İlkel içgüdü ve geri kazanılan benlik konularının kamusal yaşamınızda, kariyerinizde ve itibarınızda öne çıktığı yerlerden geçer. Bu hat boyunca yaşamak ya da çalışmak, kişiliğinizin bu yönünü genellikle ön plana çıkarır."
+        },
+        "ic": {
+          "longitude": -50.6778,
+          "interpretation": "Kara Ay Lilith Dip Noktası (IC) hattınız, İlkel içgüdü ve geri kazanılan benlik konularının evinize, ailenize ve içsel temellerinize yerleştiği yerlerden geçer. Bu hat, köklerinize ve özel yaşamınıza dair duygunuzu derinleştirir."
+        },
+        "ascendant": {
+          "points": [
+            {
+              "latitude": -65,
+              "longitude": -38.338
+            },
+            {
+              "latitude": -60,
+              "longitude": -12.7708
+            },
+            {
+              "latitude": -55,
+              "longitude": -1.2625
+            },
+            {
+              "latitude": -50,
+              "longitude": 6.4419
+            },
+            {
+              "latitude": -45,
+              "longitude": 12.2228
+            },
+            {
+              "latitude": -40,
+              "longitude": 16.8497
+            },
+            {
+              "latitude": -35,
+              "longitude": 20.7216
+            },
+            {
+              "latitude": -30,
+              "longitude": 24.0739
+            },
+            {
+              "latitude": -25,
+              "longitude": 27.058
+            },
+            {
+              "latitude": -20,
+              "longitude": 29.7784
+            },
+            {
+              "latitude": -15,
+              "longitude": 32.3112
+            },
+            {
+              "latitude": -10,
+              "longitude": 34.7151
+            },
+            {
+              "latitude": -5,
+              "longitude": 37.0381
+            },
+            {
+              "latitude": 0,
+              "longitude": 39.3222
+            },
+            {
+              "latitude": 5,
+              "longitude": 41.6063
+            },
+            {
+              "latitude": 10,
+              "longitude": 43.9293
+            },
+            {
+              "latitude": 15,
+              "longitude": 46.3332
+            },
+            {
+              "latitude": 20,
+              "longitude": 48.866
+            },
+            {
+              "latitude": 25,
+              "longitude": 51.5864
+            },
+            {
+              "latitude": 30,
+              "longitude": 54.5705
+            },
+            {
+              "latitude": 35,
+              "longitude": 57.9228
+            },
+            {
+              "latitude": 40,
+              "longitude": 61.7946
+            },
+            {
+              "latitude": 45,
+              "longitude": 66.4215
+            },
+            {
+              "latitude": 50,
+              "longitude": 72.2024
+            },
+            {
+              "latitude": 55,
+              "longitude": 79.9069
+            },
+            {
+              "latitude": 60,
+              "longitude": 91.4152
+            },
+            {
+              "latitude": 65,
+              "longitude": 116.9824
+            }
+          ],
+          "circumpolarBeyond": 65.5091,
+          "interpretation": "Kara Ay Lilith Yükselen (AC) hattınız, İlkel içgüdü ve geri kazanılan benlik konularının kimliğinizi, canlılığınızı ve başkalarına bıraktığınız ilk izlenimi renklendirdiği yerlerden geçer. Kişiliğinizin bu yönü burada açılmış gibi hissettirir."
+        },
+        "descendant": {
+          "points": [
+            {
+              "latitude": -65,
+              "longitude": -63.0176
+            },
+            {
+              "latitude": -60,
+              "longitude": -88.5848
+            },
+            {
+              "latitude": -55,
+              "longitude": -100.0931
+            },
+            {
+              "latitude": -50,
+              "longitude": -107.7976
+            },
+            {
+              "latitude": -45,
+              "longitude": -113.5785
+            },
+            {
+              "latitude": -40,
+              "longitude": -118.2054
+            },
+            {
+              "latitude": -35,
+              "longitude": -122.0772
+            },
+            {
+              "latitude": -30,
+              "longitude": -125.4295
+            },
+            {
+              "latitude": -25,
+              "longitude": -128.4136
+            },
+            {
+              "latitude": -20,
+              "longitude": -131.134
+            },
+            {
+              "latitude": -15,
+              "longitude": -133.6668
+            },
+            {
+              "latitude": -10,
+              "longitude": -136.0707
+            },
+            {
+              "latitude": -5,
+              "longitude": -138.3937
+            },
+            {
+              "latitude": 0,
+              "longitude": -140.6778
+            },
+            {
+              "latitude": 5,
+              "longitude": -142.9619
+            },
+            {
+              "latitude": 10,
+              "longitude": -145.2849
+            },
+            {
+              "latitude": 15,
+              "longitude": -147.6888
+            },
+            {
+              "latitude": 20,
+              "longitude": -150.2216
+            },
+            {
+              "latitude": 25,
+              "longitude": -152.942
+            },
+            {
+              "latitude": 30,
+              "longitude": -155.9261
+            },
+            {
+              "latitude": 35,
+              "longitude": -159.2784
+            },
+            {
+              "latitude": 40,
+              "longitude": -163.1503
+            },
+            {
+              "latitude": 45,
+              "longitude": -167.7772
+            },
+            {
+              "latitude": 50,
+              "longitude": -173.5581
+            },
+            {
+              "latitude": 55,
+              "longitude": 178.7375
+            },
+            {
+              "latitude": 60,
+              "longitude": 167.2292
+            },
+            {
+              "latitude": 65,
+              "longitude": 141.662
+            }
+          ],
+          "circumpolarBeyond": 65.5091,
+          "interpretation": "Kara Ay Lilith Alçalan (DC) hattınız, İlkel içgüdü ve geri kazanılan benlik konularının yakın ilişkilerinizi, ortaklıklarınızı ve kendinize çektiğiniz insanları şekillendirdiği yerlerden geçer. İlişki temaları bu hat boyunca belirginleşir."
+        }
+      }
+    ],
+    "summary": "1990-07-15 14:30:00 için astrokartografi hatları. 13 gök cismi; her biri Tepe Noktası, Dip Noktası, Yükselen ve Alçalan hatlarıyla, temalarının dünya genelinde nerede açısal hale geldiğini taşınma planlaması için haritalandırır."
+  }
+}

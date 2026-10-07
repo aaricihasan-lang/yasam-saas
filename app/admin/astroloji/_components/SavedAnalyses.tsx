@@ -25,7 +25,7 @@ type ListItem = {
   providerInterpIncluded: boolean;
 };
 
-type RevSnap = { revision: number; birthDate: string; birthTime: string | null; locationLabel: string; timezone: string; timeAccuracyLabel: string };
+type RevSnap = { revision: number; birthDate: string; birthTime: string | null; locationLabel: string; timezone: string; timeAccuracyLabel: string; latitude?: number; longitude?: number };
 type PersonSnap = { profileId?: string; label: string; client: { name: string | null } | null; revision: RevSnap };
 
 type KbSnap = { entryId: string; topicKey: string; topicLabel: string; title: string; body: string; sourceNote: string | null; tags: string[]; revision: number; updatedAt: string };
@@ -143,6 +143,12 @@ export function SavedAnalysisView({ id, previewNoInterp, onClose }: { id: string
           timeUnknownMasked={a.method.timeUnknownMasked}
           warnings={a.method.warnings ?? []}
           names={[a.profile.label, partner?.label ?? "2. kişi"]}
+          options={a.params}
+          birthplace={
+            a.profile.revision.latitude !== undefined && a.profile.revision.longitude !== undefined
+              ? { lat: a.profile.revision.latitude, lon: a.profile.revision.longitude, label: a.profile.revision.locationLabel }
+              : null
+          }
         />
       </section>
 

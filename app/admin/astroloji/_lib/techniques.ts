@@ -14,6 +14,9 @@ export const UI_TECHNIQUES = [
   "western.lunar_return",
   "western.synastry",
   "western.composite",
+  "western.astrocartography",
+  "western.relocation",
+  "western.local_space",
 ] as const;
 export type UiTechniqueId = (typeof UI_TECHNIQUES)[number];
 
@@ -27,6 +30,9 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "western.lunar_return": { label: "Lunar return", hint: "Ay'ın natal konumuna dönüş haritası (doğum yeri)", needsPartner: false, needsTime: true },
   "western.synastry": { label: "Sinastri", hint: "İki kişinin haritaları arası açılar + ev bindirmesi", needsPartner: true, needsTime: false },
   "western.composite": { label: "Composite", hint: "İki haritanın orta nokta haritası", needsPartner: true, needsTime: false },
+  "western.astrocartography": { label: "Astrocartography", hint: "Gezegen MC/IC/AC/DC hatları — dünya haritası", needsPartner: false, needsTime: true },
+  "western.relocation": { label: "Relocation", hint: "Aynı doğum anı, yeni konum: ASC/MC/evler", needsPartner: false, needsTime: true },
+  "western.local_space": { label: "Local Space", hint: "Doğum anında ufuk yönleri (pusula + harita)", needsPartner: false, needsTime: true },
 };
 
 export type TechniqueParams = {
@@ -42,6 +48,10 @@ export type TechniqueParams = {
   /** Ay içindeki dönüş sırası (bir takvim ayında 2 lunar return olabilir). */
   lunarSequence: 1 | 2;
   partnerProfileId: string;
+  /** Relocation hedefi (konum kimliği sunucuda çözülür). */
+  relocationTarget: { id: string; label: string } | null;
+  /** Local space referansı; null = doğum yeri. */
+  localSpaceReference: { id: string; label: string } | null;
 };
 
 export const FORECAST_CHUNK_DAYS = 90;
@@ -61,6 +71,8 @@ export function defaultParams(today: Date): TechniqueParams {
     lunarMonth: iso.slice(0, 7),
     lunarSequence: 1,
     partnerProfileId: "",
+    relocationTarget: null,
+    localSpaceReference: null,
   };
 }
 
@@ -100,6 +112,15 @@ export function buildSelections(
       case "western.composite":
         out.push({ technique: id, options: { partnerProfileId: p.partnerProfileId, houseSystem: method.houseSystem, nodeType: method.nodeType } });
         break;
+      case "western.astrocartography":
+        out.push({ technique: id, options: {} });
+        break;
+      case "western.relocation":
+        if (p.relocationTarget) out.push({ technique: id, options: { targetLocationId: p.relocationTarget.id, houseSystem: method.houseSystem } });
+        break;
+      case "western.local_space":
+        out.push({ technique: id, options: { referenceLocationId: p.localSpaceReference?.id ?? null } });
+        break;
     }
   }
   return out;
@@ -136,6 +157,14 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
     case "western.synastry":
     case "western.composite":
       return `${partner ?? ""}${o.partnerRevision ? ` (karşı taraf rev ${String(o.partnerRevision)})` : ""}`;
+    case "western.relocation": {
+      const t = o.target as { label?: string } | undefined;
+      return t?.label ? `→ ${t.label}` : typeof o.targetLocationId === "string" ? `→ ${o.targetLocationId}` : "";
+    }
+    case "western.local_space": {
+      const r = o.reference as { label?: string } | undefined;
+      return `merkez: ${r?.label ?? (o.referenceLocationId ? String(o.referenceLocationId) : "doğum yeri")}`;
+    }
     default:
       return "";
   }

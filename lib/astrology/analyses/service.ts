@@ -18,7 +18,8 @@
 //     (ör. transit notu natal konusuna yazılamaz).
 
 import "server-only";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { resolveAstroLocation } from "../birth/location";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { resolveInterpretationVisibility } from "../access/entitlements";
 import { getTechnique, type TechniqueId } from "../engine/techniques";
@@ -97,17 +98,22 @@ async function loadContext(ctx: EngineCtx, raw: Record<string, unknown>, ownerPr
   if (legacyRow && !hashes.includes(legacyRow.input_hash)) {
     return { ok: false, r: fail(409, "RESULT_PROFILE_MISMATCH", "Hesap sonucu bu doğum profili revizyonuna ait değil.") };
   }
-  const rows = hashes.map((h) => p.v.cachedRows.get(h));
-  if (rows.some((r) => !r)) {
+  const all = hashes.map((h) => p.v.cachedRows.get(h));
+  // Zorunlu birimli tekniklerde (relocation) yalnız zorunlu birim şart; karşılaştırma birimi isteğe bağlı.
+  const primaryPart = getTechnique(s.technique)?.primaryPart;
+  const missing = primaryPart !== undefined ? !all[primaryPart] : all.some((r) => !r);
+  if (missing) {
     return { ok: false, r: fail(409, "RESULT_NOT_COMPUTED", "Bu seçimin hesabı (tüm parçalarıyla) henüz yapılmamış. Önce hesaplayın.") };
   }
+  const rows = all.filter((r): r is ResultRow => !!r);
   const view = await buildSelectionView(
     ctx,
     s.technique,
-    rows as ResultRow[],
+    rows,
     s.options,
     { primary: pr.revision.time_known === true, partner: s.partnerRevision ? s.partnerRevision.time_known === true : null },
     ownerPreviewHideInterp,
+    all.length - rows.length,
   );
   return {
     ok: true,
@@ -115,7 +121,31 @@ async function loadContext(ctx: EngineCtx, raw: Record<string, unknown>, ownerPr
   };
 }
 
-const contextKeyFor = (partner: RevisionRow | null) => (partner ? partner.profile_id : "");
+/**
+ * Konum bağlamı (Aşama 4): not tablosunun bağlam CHECK'i uuid ister → konum kimliğinden DETERMİNİSTİK
+ * uuid türetilir (migration gerekmez). New York relocation notu Berlin relocation notuna karışmaz.
+ */
+export function locationContextKey(technique: string, locationId: string): string {
+  const h = createHash("sha1").update(`yasam-astro-note-ctx\u001f${technique}\u001f${locationId}`, "utf8").digest();
+  const b = Buffer.from(h.subarray(0, 16));
+  b[6] = (b[6] & 0x0f) | 0x50;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const x = b.toString("hex");
+  return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20)}`;
+}
+
+/** Notun bağlam konum kimliği (relocation hedefi / local space referansı; doğum yeri = null). */
+function contextLocationIdOf(technique: string, options: Record<string, unknown>): string | null {
+  if (technique === "western.relocation") return typeof options.targetLocationId === "string" ? options.targetLocationId : null;
+  if (technique === "western.local_space") return typeof options.referenceLocationId === "string" ? options.referenceLocationId : null;
+  return null;
+}
+
+function contextKeyOf(technique: string, options: Record<string, unknown>, partner: RevisionRow | null): string {
+  if (partner) return partner.profile_id;
+  const loc = contextLocationIdOf(technique, options);
+  return loc ? locationContextKey(technique, loc) : "";
+}
 
 type NoteRow = { id: string; section_key: string; body: string; revision: number; updated_at: string };
 
@@ -143,7 +173,7 @@ export async function getWorkspace(ctx: EngineCtx, q: Record<string, unknown>): 
   const topics = topicsForTechnique(l.v.technique, l.v.view.technical);
   const kb = await matchKbEntries(ctx, "western", topics.map((t) => t.key));
   if (kb.error) return dbFail("ws.kb", kb.error);
-  const contextKey = contextKeyFor(l.v.partnerRevision);
+  const contextKey = contextKeyOf(l.v.technique, l.v.options, l.v.partnerRevision);
   const notes = await loadNotes(ctx, l.v.revision.profile_id, l.v.technique, contextKey);
   if (notes.error) return dbFail("ws.notes", notes.error);
   return {
@@ -152,6 +182,7 @@ export async function getWorkspace(ctx: EngineCtx, q: Record<string, unknown>): 
       ok: true,
       technique: l.v.technique,
       contextKey,
+      contextLocationId: contextLocationIdOf(l.v.technique, l.v.options),
       knowledgeBankEnabled: ctx.entitlements.knowledgeBank,
       topics,
       kbMatches: kb.rows.map(publicKbEntry),
@@ -167,15 +198,28 @@ export async function saveExpertNote(ctx: EngineCtx, raw: unknown): Promise<Serv
   if (!isUuid(o.profileId)) return fail(400, "INVALID_PROFILE", "Geçerli profil gerekli.");
   const def = getTechnique(o.technique ?? "western.natal");
   if (!def) return fail(400, "UNKNOWN_TECHNIQUE", "Bilinmeyen hesaplama türü.");
-  const contextKey = o.contextKey === undefined || o.contextKey === null || o.contextKey === "" ? "" : o.contextKey;
-  if (def.requiresPartner ? !isUuid(contextKey) : contextKey !== "") return fail(400, "INVALID_CONTEXT", "Geçersiz not bağlamı.");
+  let contextKey = o.contextKey === undefined || o.contextKey === null || o.contextKey === "" ? "" : o.contextKey;
+  const isLocationCtx = def.id === "western.relocation" || def.id === "western.local_space";
+  if (isLocationCtx) {
+    // Konum bağlamı istemcinin uuid'sine güvenilmez: konum kimliğinden SUNUCUDA türetilir ve konum doğrulanır.
+    const locIdRaw = o.contextLocationId;
+    if (locIdRaw === undefined || locIdRaw === null || locIdRaw === "") {
+      if (def.id === "western.relocation") return fail(400, "INVALID_CONTEXT", "Relocation notu için hedef konum gerekli.");
+      if (contextKey !== "") return fail(400, "INVALID_CONTEXT", "Geçersiz not bağlamı.");
+    } else {
+      if (!resolveAstroLocation(locIdRaw)) return fail(404, "LOCATION_NOT_FOUND", "Konum bulunamadı.");
+      const derived = locationContextKey(def.id, String(locIdRaw));
+      if (contextKey !== "" && contextKey !== derived) return fail(400, "INVALID_CONTEXT", "Geçersiz not bağlamı.");
+      contextKey = derived;
+    }
+  } else if (def.requiresPartner ? !isUuid(contextKey) : contextKey !== "") return fail(400, "INVALID_CONTEXT", "Geçersiz not bağlamı.");
   const section = o.sectionKey;
   if (typeof section !== "string" || !isSectionKeyForTechnique(def.id, section)) return fail(400, "INVALID_SECTION", "Geçersiz not bölümü.");
   if (typeof o.body !== "string" || o.body.length > 20000) return fail(400, "INVALID_TEXT", "Not en fazla 20000 karakter olabilir.");
   const p = await getProfile(ctx.db, ctx.tenantId, o.profileId);
   if (p.error) return dbFail("note.profile", p.error);
   if (!p.row) return fail(404, "PROFILE_NOT_FOUND", "Doğum profili bulunamadı.");
-  if (contextKey !== "") {
+  if (contextKey !== "" && def.requiresPartner) {
     const pp = await getProfile(ctx.db, ctx.tenantId, contextKey as string);
     if (pp.error) return dbFail("note.partner", pp.error);
     if (!pp.row) return fail(404, "PARTNER_NOT_FOUND", "Karşı taraf doğum profili bulunamadı.");
@@ -279,7 +323,7 @@ async function buildSnapshot(ctx: EngineCtx, raw: unknown, ownerPreviewHideInter
   const topics = topicsForTechnique(technique, view.technical);
   const kb = await matchKbEntries(ctx, "western", topics.map((t) => t.key));
   if (kb.error) return { ok: false, r: dbFail("snap.kb", kb.error) };
-  const notes = await loadNotes(ctx, revision.profile_id, technique, contextKeyFor(partnerRevision));
+  const notes = await loadNotes(ctx, revision.profile_id, technique, contextKeyOf(technique, l.v.options, partnerRevision));
   if (notes.error) return { ok: false, r: dbFail("snap.notes", notes.error) };
 
   const client = await clientRef(ctx, l.v.clientId);
@@ -300,7 +344,8 @@ async function buildSnapshot(ctx: EngineCtx, raw: unknown, ownerPreviewHideInter
   if (title.length > 200) return { ok: false, r: fail(400, "INVALID_TITLE", "Başlık en fazla 200 karakter.") };
   if (!title) {
     const def = getTechnique(technique)!;
-    title = `${l.v.profileLabel}${partnerLabel ? ` & ${partnerLabel}` : ""} · ${def.label} · ${fmtDateTr(new Date().toISOString())}`.slice(0, 200);
+    const place = (l.v.options.target ?? l.v.options.reference) as { label?: string } | undefined;
+    title = `${l.v.profileLabel}${partnerLabel ? ` & ${partnerLabel}` : ""} · ${def.label}${place?.label ? ` → ${place.label}` : ""} · ${fmtDateTr(new Date().toISOString())}`.slice(0, 200);
   }
 
   const tech = view.technical as { schema?: string; variants?: unknown };

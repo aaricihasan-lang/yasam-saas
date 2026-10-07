@@ -6,6 +6,7 @@
  */
 
 import { HOUSE_SYSTEMS, NODE_TYPES, type HouseSystem, type NodeType } from "@/lib/astrology/model/western";
+import LocationPicker from "./LocationPicker";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { FORECAST_MAX_DAYS, TECHNIQUE_META, UI_TECHNIQUES, fmtUtcMinute, forecastPartCount, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
 
@@ -38,7 +39,7 @@ export default function TechniqueSelector({
 }) {
   const set = <K extends keyof TechniqueParams>(k: K, v: TechniqueParams[K]) => onParams({ ...params, [k]: v });
   const anyPartner = !!(checked["western.synastry"] || checked["western.composite"]);
-  const anyHouse = !!(checked["western.natal"] || checked["western.solar_return"] || checked["western.lunar_return"] || anyPartner);
+  const anyHouse = !!(checked["western.natal"] || checked["western.solar_return"] || checked["western.lunar_return"] || checked["western.relocation"] || anyPartner);
   const anyNode = !!(checked["western.natal"] || checked["western.transit"] || checked["western.progression"] || checked["western.solar_arc"] || anyPartner);
 
   const params_ = (id: UiTechniqueId) => {
@@ -133,6 +134,25 @@ export default function TechniqueSelector({
               })}
             </div>
             {lunarReturns && lunarReturns.length > 1 && <span className="text-xs text-violet-800">Bu ayda {lunarReturns.length} lunar return var. Diğerini hesaplamak için sırayı değiştirip yeniden hesaplayın (her dönüş 1 istek; ikisi de ayrı kayıt olarak kalır).</span>}
+          </div>
+        );
+      case "western.relocation":
+        return (
+          <div className="flex flex-col gap-1 text-xs" data-testid="astro-relocation-target">
+            <span>Hedef konum (doğum anı aynı kalır; yalnız konum değişir)</span>
+            <LocationPicker value={params.relocationTarget} onChange={(v) => set("relocationTarget", v)} />
+          </div>
+        );
+      case "western.local_space":
+        return (
+          <div className="flex flex-col gap-1 text-xs" data-testid="astro-local-space-ref">
+            <label className="flex items-center gap-1">
+              <input type="radio" checked={params.localSpaceReference === null} onChange={() => set("localSpaceReference", null)} /> Merkez: doğum yeri
+            </label>
+            <label className="flex items-center gap-1">
+              <input type="radio" checked={params.localSpaceReference !== null} onChange={() => undefined} disabled={params.localSpaceReference === null} /> Merkez: başka konum
+            </label>
+            <LocationPicker value={params.localSpaceReference} onChange={(v) => set("localSpaceReference", v)} />
           </div>
         );
       default:

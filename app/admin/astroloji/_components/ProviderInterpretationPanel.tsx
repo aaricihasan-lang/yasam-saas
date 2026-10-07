@@ -18,6 +18,7 @@ import type {
   TransitInterpretation,
 } from "@/lib/astrology/model/westernTiming";
 import { ASPECT_GLYPHS, ASPECT_LABELS, BODY_GLYPHS, BODY_LABELS, PATTERN_LABELS } from "@/lib/astrology/labels/tr";
+import type { AstrocartographyInterpretation, LocalSpaceInterpretation, RelocationInterpretation } from "@/lib/astrology/model/westernLocation";
 
 export type InterpretationLayer =
   | { visible: true; provider: string; lang: string; content: unknown; notice: string }
@@ -222,6 +223,68 @@ function Content({ content }: { content: unknown }) {
                 <P text={b.summary} />
                 <P text={b.relationshipMeaning} />
                 <Chips items={b.keywords} />
+              </Item>
+            ))}
+          </Block>
+        </>
+      );
+    }
+    case "astro.western.astrocartography.interp.v1": {
+      const c = content as AstrocartographyInterpretation;
+      const ANG: Record<string, string> = { mc: "MC", ic: "IC", asc: "AC", dsc: "DC" };
+      return (
+        <>
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2">{c.summary}</p>}
+          <Block title="Hatlar">
+            {c.lines.map((l) => (
+              <Item key={`${l.id}-${l.angle}`}>
+                <div className="font-medium">
+                  {BODY_GLYPHS[l.id]} {BODY_LABELS[l.id]} — {ANG[l.angle]} hattı
+                </div>
+                <P text={l.text} />
+              </Item>
+            ))}
+          </Block>
+        </>
+      );
+    }
+    case "astro.western.relocation.interp.v1": {
+      const c = content as RelocationInterpretation;
+      return (
+        <>
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2">{c.summary}</p>}
+          <Block title="Yeni evlerdeki gezegenler">
+            {c.bodies.map((b) => (
+              <Item key={b.id}>
+                <div className="font-medium">
+                  {BODY_GLYPHS[b.id]} {BODY_LABELS[b.id]}
+                </div>
+                <P text={b.summary} />
+                {b.detailed && (
+                  <details className="mt-1">
+                    <summary className="cursor-pointer text-xs text-violet-700">Ayrıntılı metin</summary>
+                    <p className="mt-1 whitespace-pre-line text-slate-700">{b.detailed}</p>
+                  </details>
+                )}
+                <Chips items={b.keywords} />
+              </Item>
+            ))}
+          </Block>
+        </>
+      );
+    }
+    case "astro.western.local_space.interp.v1": {
+      const c = content as LocalSpaceInterpretation;
+      return (
+        <>
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2">{c.summary}</p>}
+          <Block title="Yön hatları">
+            {c.bodies.map((b) => (
+              <Item key={b.id}>
+                <div className="font-medium">
+                  {BODY_GLYPHS[b.id]} {BODY_LABELS[b.id]}
+                </div>
+                <P text={b.text} />
               </Item>
             ))}
           </Block>

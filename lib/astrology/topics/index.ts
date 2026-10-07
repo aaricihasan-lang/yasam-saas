@@ -24,8 +24,12 @@ import {
   topicsFromSolarArc,
   topicsFromSynastry,
   topicsFromTransit,
+  topicsFromAstrocartography,
+  topicsFromLocalSpace,
+  topicsFromRelocation,
   type TopicContext,
 } from "./contextual";
+import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "../model/westernLocation";
 
 export type AnyTopic = { key: string; kind: string; label: string; context: TopicContext };
 
@@ -61,7 +65,13 @@ function kindLabel(kind: string): string {
           ? "burç girişi"
           : kind.endsWith("_station")
             ? "istasyon"
-            : kind;
+            : kind.endsWith("_line")
+              ? "gezegen hattı (MC/IC/AC/DC)"
+              : kind.endsWith("_angular")
+                ? "açısal gezegen"
+                : kind.endsWith("_direction")
+                  ? "yön hattı"
+                  : kind;
   return `${ctx} · ${tail}`;
 }
 
@@ -89,6 +99,12 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return topicsFromSynastry(technical as SynastryTechnical);
     case "western.composite":
       return topicsFromComposite(technical as CompositeTechnical);
+    case "western.astrocartography":
+      return technical ? topicsFromAstrocartography(technical as AstrocartographyTechnical) : [];
+    case "western.relocation":
+      return technical ? topicsFromRelocation(technical as RelocationTechnical) : [];
+    case "western.local_space":
+      return technical ? topicsFromLocalSpace(technical as LocalSpaceTechnical) : [];
     default:
       return [];
   }
@@ -108,6 +124,9 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, TopicContext> = {
   "western.lunar_return": "lunar_return",
   "western.synastry": "synastry",
   "western.composite": "composite",
+  "western.astrocartography": "astrocartography",
+  "western.relocation": "relocation",
+  "western.local_space": "local_space",
 };
 
 /** Not bölüm anahtarı bu teknik için geçerli mi ("overall" her teknikte geçerli). */

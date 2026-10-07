@@ -21,7 +21,7 @@ import {
   type ParsedTopic,
   type WesternTopicKind,
 } from "@/lib/astrology/topics/western";
-import { CONTEXT_SPECS, contextTopicKey, parseContextTopicKey, type ArgType } from "@/lib/astrology/topics/contextual";
+import { ANGLE4_IDS, ANGLE4_LABEL, COMPASS_LABEL, CONTEXT_SPECS, contextTopicKey, parseContextTopicKey, type ArgType } from "@/lib/astrology/topics/contextual";
 import { ALL_TOPIC_KINDS, TOPIC_CONTEXT_LABELS, TOPIC_CONTEXTS, type TopicContext } from "@/lib/astrology/topics/index";
 
 const sel = "rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm";
@@ -46,6 +46,10 @@ function defaultParts(kind: string): string[] {
         return "ascendant";
       case "station":
         return "retrograde";
+      case "angle4":
+        return "mc";
+      case "compass":
+        return "n";
     }
   });
 }
@@ -82,6 +86,10 @@ function ArgSelect({ type, value, onChange }: { type: ArgType; value: string; on
           ["retrograde", "Retro istasyonu"],
           ["direct", "Direkt istasyonu"],
         ];
+      case "angle4":
+        return ANGLE4_IDS.map((a): [string, string] => [a, ANGLE4_LABEL[a]]);
+      case "compass":
+        return Object.entries(COMPASS_LABEL).map(([k, v]): [string, string] => [k, `${k.toUpperCase()} (${v})`]);
     }
   })();
   return (

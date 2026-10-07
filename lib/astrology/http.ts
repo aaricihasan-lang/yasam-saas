@@ -39,7 +39,7 @@ export function astroLog(msg: string, detail?: Record<string, unknown>): void {
 export function realEngineDeps(db: SupabaseClient): EngineDeps {
   return {
     config: readAstroRoxyConfig(),
-    callProvider: (config, endpoint, body, opts) => callRoxy(config, endpoint, body, { lang: opts.lang }),
+    callProvider: (config, endpoint, body, opts) => callRoxy(config, endpoint, body, { lang: opts.lang, query: opts.query }),
     rateLimit: async (scope, value, limit, windowSeconds) => {
       const r = await hitDbRateLimit(db, rateLimitBucket(scope, value), limit, windowSeconds);
       return { allowed: r.allowed, retryAfterSec: r.retryAfterSec };

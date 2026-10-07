@@ -180,6 +180,8 @@ export default function AstrologyWorkspacePage() {
   }, [profiles]);
   const partners = (profiles ?? []).filter((p) => p.id !== selectedId).map((p) => ({ id: p.id, label: p.clientName ? `${p.label} (${p.clientName})` : p.label }));
   const partnerMissing = !!(checked["western.synastry"] || checked["western.composite"]) && !params.partnerProfileId;
+  const relocationTargetMissing = !!checked["western.relocation"] && !params.relocationTarget;
+  const birthplace = currentRev ? { lat: currentRev.latitude, lon: currentRev.longitude, label: currentRev.locationLabel } : null;
   const selections = useMemo(() => {
     const all = buildSelections(checked, params, method);
     // Karşı taraf seçilmeden ikili teknikler plana girmez (uyarı ayrıca gösterilir).
@@ -446,6 +448,7 @@ export default function AstrologyWorkspacePage() {
 
               <div className="flex flex-col gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm" data-testid="astro-plan-box">
                 {partnerMissing && <p className="text-amber-800">Sinastri/Composite için karşı taraf profilini seçin (seçilene kadar plana alınmaz).</p>}
+                {relocationTargetMissing && <p className="text-amber-800">Relocation için hedef konumu seçin (seçilene kadar plana alınmaz).</p>}
                 {selections.length === 0 ? (
                   <span className="text-slate-500">Hesaplamak için en az bir teknik seçin.</span>
                 ) : plan ? (
@@ -561,6 +564,8 @@ export default function AstrologyWorkspacePage() {
                       timeUnknownMasked={activeItem.view.timeUnknownMasked}
                       warnings={activeItem.view.warnings}
                       names={[shownDetail.label, partnerLabelOf(activeItem.view)]}
+                      options={activeItem.view.options}
+                      birthplace={birthplace}
                     />
                   </section>
                   <ProviderInterpretationPanel interpretation={activeItem.view.interpretation} />

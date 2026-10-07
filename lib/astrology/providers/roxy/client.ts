@@ -38,7 +38,21 @@ export type RoxyCallOptions = {
   sleep?: (ms: number) => Promise<void>;
   /** Yeniden deneme sayısı üst sınırı (varsayılan 1). Testler 0 verebilir. */
   maxRetries?: number;
+  /** Ek sorgu parametreleri (beyaz liste: anahtar [a-z]+, değer [a-z0-9,-]+). */
+  query?: Record<string, string>;
 };
+
+const QUERY_KEY_RE = /^[a-z]{1,20}$/;
+const QUERY_VAL_RE = /^[a-z0-9,\-]{1,80}$/;
+
+function buildUrl(config: RoxyServerConfig, endpoint: string, lang: string, query: Record<string, string> | undefined): string | null {
+  const qs = new URLSearchParams({ lang });
+  for (const [k, v] of Object.entries(query ?? {})) {
+    if (!QUERY_KEY_RE.test(k) || k === "lang" || !QUERY_VAL_RE.test(v)) return null;
+    qs.set(k, v);
+  }
+  return `${config.baseUrl}${endpoint}?${qs.toString()}`;
+}
 
 const MAX_RETRY_AFTER_MS = 5_000;
 
@@ -56,8 +70,10 @@ async function once(
   lang: string,
   timeoutMs: number,
   doFetch: FetchLike,
+  query?: Record<string, string>,
 ): Promise<{ result: RoxyCallResult; retryAfter: number | null }> {
-  const url = `${config.baseUrl}${endpoint}?lang=${encodeURIComponent(lang)}`;
+  const url = buildUrl(config, endpoint, lang, query);
+  if (!url) return { result: { ok: false, kind: "bad_request", status: null, attempts: 0 }, retryAfter: null };
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), timeoutMs);
   let res: Response;
@@ -122,7 +138,7 @@ export async function callRoxy(
   let attempts = 0;
   for (;;) {
     attempts += 1;
-    const { result, retryAfter } = await once(config, endpoint, body, lang, timeoutMs, doFetch);
+    const { result, retryAfter } = await once(config, endpoint, body, lang, timeoutMs, doFetch, opts.query);
     if (result.ok) return { ...result, attempts };
     const canRetry = retryAfter !== null && retryAfter <= MAX_RETRY_AFTER_MS && attempts <= maxRetries;
     if (!canRetry) return { ...result, attempts };

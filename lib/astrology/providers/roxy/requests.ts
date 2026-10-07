@@ -75,3 +75,39 @@ export function forecastChunks(startDate: string, days: number): { start: string
   }
   return out;
 }
+
+// ─── Aşama 4: konum teknikleri ───────────────────────────────────────────────
+// Doğum ANI her zaman profilin doğum anıdır (doğum tarihi + saati + DOĞUM YERİ ofseti, ondalık saat).
+// Hedef/referans konumun saat dilimi hesaba GİRMEZ (yalnız gösterim) → yanlış tz ile sessiz hesap olmaz.
+
+export type GeoPoint = { latitude: number; longitude: number };
+
+/** Ek gövdeler (düğüm/Kiron/Lilith). Sabit → önbellek tek varyant. GOLDEN 2026-10-07: belge "north-node = ortalama" der,
+ * gerçek yanıt GERÇEK (true) düğümü verir (yankı nodeType=true; RA farkı 0.000°, ortalamadan 0.76°). */
+export const LOCATION_EXTRA_BODIES = "north-node,chiron,lilith";
+
+/** /astrology/astrocartography — çizgiler yalnız doğum ANINA bağlıdır (konum yalnız yankı). */
+export function astrocartographyBody(b: BirthPoint) {
+  return birthBody(b);
+}
+
+/** /astrology/relocation-chart — doğum anı + doğum yeri SABİT, yalnız yeni konum değişir. */
+export function relocationBody(b: BirthPoint, target: GeoPoint, houseSystem: HouseSystem) {
+  const bb = birthBody(b);
+  return {
+    date: bb.date,
+    time: bb.time,
+    timezone: bb.timezone,
+    birthLatitude: bb.latitude,
+    birthLongitude: bb.longitude,
+    relocationLatitude: r6(target.latitude),
+    relocationLongitude: r6(target.longitude),
+    houseSystem,
+  };
+}
+
+/** /astrology/local-space — doğum ANI sabit; gözlem (referans) noktası = doğum yeri veya seçilen konum. */
+export function localSpaceBody(b: BirthPoint, reference: GeoPoint) {
+  const bb = birthBody(b);
+  return { date: bb.date, time: bb.time, timezone: bb.timezone, latitude: r6(reference.latitude), longitude: r6(reference.longitude) };
+}

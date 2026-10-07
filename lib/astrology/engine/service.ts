@@ -42,6 +42,8 @@ import {
 import { publicRevision } from "../view/natalView";
 import { buildTechniqueView, type TechniqueView } from "../view/techniqueView";
 import { normalizeTime } from "../birth/timeResolution";
+import { resolveAstroLocation } from "../birth/location";
+import type { PlaceRef } from "../model/westernLocation";
 
 assertServerOnly("lib/astrology/engine/service");
 
@@ -54,7 +56,7 @@ export type EngineCtx = {
 
 export type EngineDeps = {
   config: RoxyServerConfig | null;
-  callProvider: (config: RoxyServerConfig, endpoint: string, body: Record<string, unknown>, opts: { lang: string }) => Promise<RoxyCallResult>;
+  callProvider: (config: RoxyServerConfig, endpoint: string, body: Record<string, unknown>, opts: { lang: string; query?: Record<string, string> }) => Promise<RoxyCallResult>;
   rateLimit: (scope: string, value: string, limit: number, windowSeconds: number) => Promise<{ allowed: boolean; retryAfterSec: number }>;
   sleep?: (ms: number) => Promise<void>;
   log?: (msg: string, detail?: Record<string, unknown>) => void;
@@ -107,7 +109,37 @@ export async function resolveSelectionContexts(
     const def = getTechnique(s.technique)!;
     const base = { birth, birthUtc: revision.birth_utc, partner: null as BirthPoint | null };
     if (def.requiresKnownTime && !revision.time_known) {
-      out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIME_REQUIRED", error: `${def.label} doğum saati bilinmeden güvenilir hesaplanamaz (dönüş anı doğum saatine bağlıdır).` } });
+      const why: Record<string, string> = {
+        "western.solar_return": "dönüş anı ve haritası doğum saatine bağlıdır",
+        "western.lunar_return": "dönüş anı ve haritası doğum saatine bağlıdır",
+        "western.astrocartography": "hatlar saat başına ~15° boylam kayar",
+        "western.relocation": "taşınmış Yükselen/MC ve evler doğum saatine bağlıdır",
+        "western.local_space": "ufuk yönleri (azimut) doğum saatine bağlıdır",
+      };
+      out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIME_REQUIRED", error: `${def.label} doğum saati bilinmeden güvenilir hesaplanamaz (${why[def.id] ?? "sonuç doğum saatine bağlıdır"}).` } });
+      continue;
+    }
+    if (def.id === "western.relocation" || def.id === "western.local_space") {
+      // Konum kimliği SUNUCUDA çözülür (Yaşam konum altyapısı; dış API yok). Çözülmezse ENGEL (istek yok).
+      // Normalize seçeneğe çözülen yer yazılır (snapshot/görünüm netliği); hesap anahtarı gövdeden türer.
+      const isTarget = def.id === "western.relocation";
+      const id = (isTarget ? s.options.targetLocationId : s.options.referenceLocationId) as string | null;
+      const loc = id ? resolveAstroLocation(id) : null;
+      if (id && !loc) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "LOCATION_NOT_FOUND", error: "Seçilen konum bulunamadı veya saat dilimi/koordinatı doğrulanamadı." } });
+        continue;
+      }
+      const place: PlaceRef = loc
+        ? { locationId: loc.id, label: loc.label, latitude: loc.latitude, longitude: loc.longitude, timezone: loc.timezone }
+        : { locationId: revision.location_id, label: revision.location_label, latitude: revision.latitude, longitude: revision.longitude, timezone: revision.timezone };
+      const geo = { latitude: place.latitude, longitude: place.longitude };
+      out.push({
+        ...s,
+        options: { ...s.options, [isTarget ? "target" : "reference"]: place },
+        ctx: { ...base, places: isTarget ? { target: geo } : { reference: geo } },
+        partnerRevision: null,
+        blocked: null,
+      });
       continue;
     }
     if (!def.requiresPartner) {
@@ -238,7 +270,9 @@ async function executeUnit(
   const log = deps.log ?? (() => undefined);
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const tag = { technique: unit.technique, hash: unit.inputHash.slice(0, 8) };
-  const def = getTechnique(unit.technique);
+  // Birimi, ona sahip SEÇİMİN tekniği projekte eder (çok birimli tekniklerde — relocation'ın natal
+  // karşılaştırma birimi — doğru seçenekler yalnız seçimin tanımında bilinir).
+  const def = getTechnique(selection.technique) ?? getTechnique(unit.technique);
   if (!def) return { ok: false, status: 400, code: "UNKNOWN_TECHNIQUE", error: "Bilinmeyen hesaplama türü.", providerAttempts: 0 };
 
   const reload = async (): Promise<ResultRow | null> => {
@@ -269,7 +303,7 @@ async function executeUnit(
     return { ok: false, status: 429, code: "RATE_LIMITED", error: "Günlük yeni hesaplama sınırına ulaşıldı.", providerAttempts: 0, retryAfterSec: tenantRl.retryAfterSec };
   }
 
-  const call = await deps.callProvider(deps.config, unit.endpoint, unit.body, { lang: unit.lang });
+  const call = await deps.callProvider(deps.config, unit.endpoint, unit.body, unit.query ? { lang: unit.lang, query: unit.query } : { lang: unit.lang });
   if (!call.ok) {
     log("[astro] provider call failed", { ...tag, kind: call.kind, status: call.status, attempts: call.attempts });
     const e = PROVIDER_ERRORS[call.kind] ?? PROVIDER_ERRORS.server_error;
@@ -299,7 +333,7 @@ async function executeUnit(
     providerApiVersion: unit.providerApiVersion,
     adapterVersion: unit.adapterVersion,
     endpoint: unit.endpoint,
-    input: { ...unit.body, lang: unit.lang },
+    input: unit.query ? { ...unit.body, lang: unit.lang, query: unit.query } : { ...unit.body, lang: unit.lang },
     inputHash: unit.inputHash,
     raw: call.raw,
     technical: proj.technical,
@@ -356,9 +390,12 @@ export async function buildSelectionView(
   const def = getTechnique(technique)!;
   const visibility = resolveInterpretationVisibility(ctx.entitlements, ownerPreviewHideInterp);
   let interps: ({ provider: string; lang: string; content: Record<string, unknown> } | null)[] | null = null;
+  // Zorunlu birimli tekniklerde (relocation) sağlayıcı yorumu YALNIZ o birimden (natal karşılaştırma
+  // biriminin yorumu bu tekniğin yorumu değildir).
+  const interpRows = def.primaryPart !== undefined ? rows.filter((r) => r.technique === def.id).slice(0, 1) : rows;
   if (visibility.visible) {
     interps = [];
-    for (const r of rows) {
+    for (const r of interpRows) {
       const it = await getInterpretation(ctx.db, ctx.tenantId, r.id, r.projection_version);
       if (it.error) logAstroDbError("view.interpretation", it.error);
       interps.push(it.row);
@@ -466,8 +503,10 @@ export async function runAstrology(
     const hashes = plan.selectionUnits[i];
     const outs = hashes.map((h) => outcomes.get(h)!);
     const okRows = outs.filter((o): o is Extract<UnitOutcome, { ok: true }> => o.ok).map((o) => o.row);
-    if (okRows.length === 0) {
-      const f = outs.find((o): o is Extract<UnitOutcome, { ok: false }> => !o.ok);
+    const primaryDef = getTechnique(s.technique);
+    const primaryFailed = primaryDef?.primaryPart !== undefined && !outs[primaryDef.primaryPart]?.ok;
+    if (okRows.length === 0 || primaryFailed) {
+      const f = (primaryFailed ? outs[primaryDef!.primaryPart!] : outs.find((o) => !o.ok)) as Extract<UnitOutcome, { ok: false }> | undefined;
       results.push({ selectionIndex: i, technique: s.technique, ok: false, code: f?.code ?? "FAILED", error: f?.error ?? "Hesaplanamadı.", retryAfterSec: f?.retryAfterSec });
       continue;
     }
@@ -522,7 +561,9 @@ export async function viewCachedSelections(ctx: EngineCtx, rawBody: unknown, opt
     }
     const hashes = plan.selectionUnits[i];
     const rows = hashes.map((h) => cachedRows.get(h)).filter((r): r is ResultRow => !!r);
-    if (rows.length === 0) {
+    const pdef = getTechnique(s.technique);
+    const primaryMissing = pdef?.primaryPart !== undefined && !cachedRows.has(hashes[pdef.primaryPart]);
+    if (rows.length === 0 || primaryMissing) {
       results.push({ selectionIndex: i, technique: s.technique, ok: false, code: "NOT_COMPUTED", error: "Bu seçim için kayıtlı sonuç yok." });
       continue;
     }

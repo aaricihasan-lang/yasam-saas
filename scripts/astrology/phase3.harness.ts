@@ -22,7 +22,10 @@ import { goldenPlan, SYNTH_A, SYNTH_B } from "./golden/phase3-golden-calls";
 import { resolveAstrologyEntitlements } from "@/lib/astrology/access/entitlements";
 import { appendAstroRevision, createAstroProfile } from "@/lib/astrology/profiles/service";
 import { getAstrologyResult, planAstrology, runAstrology, type EngineCtx, type EngineDeps } from "@/lib/astrology/engine/service";
-import { getTechnique, TECHNIQUE_IDS, type TechniqueId } from "@/lib/astrology/engine/techniques";
+import { getTechnique, TECHNIQUE_IDS as ALL_TECHNIQUE_IDS, type TechniqueId } from "@/lib/astrology/engine/techniques";
+
+/** Aşama 3 kapsamı (natal + 8 teknik). Aşama 4 konum teknikleri phase4 harness'indedir. */
+const TECHNIQUE_IDS = ALL_TECHNIQUE_IDS.filter((x) => !["western.astrocartography", "western.relocation", "western.local_space"].includes(x));
 import { buildPlan, parseSelections } from "@/lib/astrology/engine/planner";
 import { createKb } from "@/lib/astrology/kb/service";
 import { getAnalysis, getWorkspace, listAnalyses, previewAnalysis, saveAnalysis, saveExpertNote } from "@/lib/astrology/analyses/service";
@@ -141,6 +144,8 @@ function goldenSelection(id: TechniqueId, partner?: string): { technique: Techni
     case "western.synastry":
     case "western.composite":
       return { technique: id, options: { partnerProfileId: partner, houseSystem: "placidus", nodeType: "true" } };
+    default:
+      throw new Error(`goldenSelection: Aşama 3 dışı teknik ${id}`);
   }
 }
 const TIMING: TechniqueId[] = TECHNIQUE_IDS.filter((x) => x !== "western.natal");

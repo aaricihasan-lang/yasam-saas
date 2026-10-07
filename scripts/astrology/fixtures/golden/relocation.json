@@ -1,0 +1,602 @@
+{
+  "endpoint": "/astrology/relocation-chart",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "timezone": 3,
+    "birthLatitude": 41.0082,
+    "birthLongitude": 28.9784,
+    "relocationLatitude": 40.7128,
+    "relocationLongitude": -74.006,
+    "houseSystem": "placidus"
+  },
+  "response": {
+    "birthDetails": {
+      "date": "1990-07-15",
+      "time": "14:30:00",
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3
+    },
+    "relocation": {
+      "latitude": 40.7128,
+      "longitude": -74.006
+    },
+    "planets": [
+      {
+        "name": "Sun",
+        "longitude": 112.72628119187542,
+        "latitude": 0.00017401955191091416,
+        "sign": "Cancer",
+        "degree": 22.726281191875415,
+        "speed": 0.9539379403605182,
+        "isRetrograde": false,
+        "house": 12,
+        "nameLocalized": "Güneş",
+        "signLocalized": "Yengeç",
+        "interpretation": {
+          "summary": "On İkinci Ev evindeki, Yengeç burcundaki Güneş, gizli olan veya yüzeyin altındaki alanında sezgisel ve duygusal enerjisiyle öz farkındalık ve ego ifade etme biçiminizi ortaya koyar.",
+          "detailed": "Güneş, öz farkındalık ve ego alanını temsil eder. Yengeç (Yengeç) burcunda bu enerji, sezgisel, besleyici, koruyucu biçimini alır. On İkinci Ev evinde konumlanan bu Yengeç Güneş enerjisini gizli olan veya yüzeyin altındaki ve karma doğrultusunda yönlendirirsiniz. Bu, on i̇kinci ev ile ilgili konularda öz farkındalık ve ego alanının doğal olarak sezgisel, duygusal, zeki yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+          "keywords": [
+            "aktif",
+            "farkındalık",
+            "parlak",
+            "güven",
+            "bilinç",
+            "sezgisel",
+            "duygusal",
+            "zeki",
+            "tutkulu"
+          ]
+        }
+      },
+      {
+        "name": "Moon",
+        "longitude": 22.964594167910846,
+        "latitude": 5.101610986602505,
+        "sign": "Aries",
+        "degree": 22.964594167910846,
+        "speed": 14.031448167470657,
+        "isRetrograde": false,
+        "house": 9,
+        "nameLocalized": "Ay",
+        "signLocalized": "Koç",
+        "interpretation": {
+          "summary": "Dokuzuncu Ev evindeki, Koç burcundaki Ay, kişisel inanç sistemi alanında hırslı ve bağımsız enerjisiyle i̇ç duygusal yaşam ifade etme biçiminizi ortaya koyar.",
+          "detailed": "Ay, i̇ç duygusal yaşam alanını temsil eder. Koç (Koç) burcunda bu enerji, hırslı, bağımsız, sabırsız biçimini alır. Dokuzuncu Ev evinde konumlanan bu Koç Ay enerjisini kişisel inanç sistemi ve macera duygusu doğrultusunda yönlendirirsiniz. Bu, dokuzuncu ev ile ilgili konularda i̇ç duygusal yaşam alanının doğal olarak hırslı, bağımsız, sabırsız yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+          "keywords": [
+            "bakıcı",
+            "rahatlık",
+            "duygu",
+            "his",
+            "dişilik",
+            "hırslı",
+            "bağımsız",
+            "sabırsız"
+          ]
+        }
+      },
+      {
+        "name": "Mercury",
+        "longitude": 126.73395474097948,
+        "latitude": 1.7822104187711438,
+        "sign": "Leo",
+        "degree": 6.733954740979485,
+        "speed": 1.8781379282917499,
+        "isRetrograde": false,
+        "house": 12,
+        "nameLocalized": "Merkür",
+        "signLocalized": "Aslan",
+        "interpretation": {
+          "summary": "On İkinci Ev evindeki, Aslan burcundaki Merkür, gizli olan veya yüzeyin altındaki alanında gururlu ve cesur enerjisiyle i̇letişim ifade etme biçiminizi ortaya koyar.",
+          "detailed": "Merkür, i̇letişim alanını temsil eder. Aslan (Aslan) burcunda bu enerji, gururlu, cesur, hırslı biçimini alır. On İkinci Ev evinde konumlanan bu Aslan Merkür enerjisini gizli olan veya yüzeyin altındaki ve karma doğrultusunda yönlendirirsiniz. Bu, on i̇kinci ev ile ilgili konularda i̇letişim alanının doğal olarak gururlu, cesur, hırslı yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+          "keywords": [
+            "analiz",
+            "çocukluk",
+            "iletişim",
+            "merak",
+            "eğitim",
+            "gururlu",
+            "cesur",
+            "hırslı"
+          ]
+        }
+      },
+      {
+        "name": "Venus",
+        "longitude": 84.38628681760086,
+        "latitude": -0.9606378530403038,
+        "sign": "Gemini",
+        "degree": 24.386286817600862,
+        "speed": 1.1991844288731954,
+        "isRetrograde": false,
+        "house": 11,
+        "nameLocalized": "Venüs",
+        "signLocalized": "İkizler",
+        "interpretation": {
+          "summary": "On Birinci Ev evindeki, İkizler burcundaki Venüs, tanıdıklar ve arkadaşlar alanında meraklı ve sevecen enerjisiyle aşk, güzellik ve para ifade etme biçiminizi ortaya koyar.",
+          "detailed": "Venüs, aşk, güzellik ve para alanını temsil eder. İkizler (İkizler) burcunda bu enerji, meraklı, sevecen, nazik biçimini alır. On Birinci Ev evinde konumlanan bu İkizler Venüs enerjisini tanıdıklar ve arkadaşlar ve gruplar doğrultusunda yönlendirirsiniz. Bu, on birinci ev ile ilgili konularda aşk, güzellik ve para alanının doğal olarak meraklı, sevecen, nazik yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+          "keywords": [
+            "çekicilik",
+            "güzellik",
+            "kültür",
+            "eros",
+            "fantezi",
+            "meraklı",
+            "sevecen",
+            "nazik"
+          ]
+        }
+      },
+      {
+        "name": "Mars",
+        "longitude": 31.928151491422888,
+        "latitude": -2.0652798983843237,
+        "sign": "Taurus",
+        "degree": 1.9281514914228879,
+        "speed": 0.6698320690724131,
+        "isRetrograde": false,
+        "house": 9,
+        "nameLocalized": "Mars",
+        "signLocalized": "Boğa",
+        "interpretation": {
+          "summary": "Dokuzuncu Ev evindeki, Boğa burcundaki Mars, kişisel inanç sistemi alanında güvenilir ve müzikal enerjisiyle atılganlık ve saldırganlık ifade etme biçiminizi ortaya koyar.",
+          "detailed": "Mars, atılganlık ve saldırganlık alanını temsil eder. Boğa (Boğa) burcunda bu enerji, güvenilir, müzikal, pratik biçimini alır. Dokuzuncu Ev evinde konumlanan bu Boğa Mars enerjisini kişisel inanç sistemi ve macera duygusu doğrultusunda yönlendirirsiniz. Bu, dokuzuncu ev ile ilgili konularda atılganlık ve saldırganlık alanının doğal olarak güvenilir, müzikal, pratik yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+          "keywords": [
+            "eylem",
+            "maceraperest",
+            "atletik",
+            "cesur",
+            "cesaret",
+            "güvenilir",
+            "müzikal",
+            "pratik"
+          ]
+        }
+      },
+      {
+        "name": "Jupiter",
+        "longitude": 112.5444682592102,
+        "latitude": 0.22974634749064088,
+        "sign": "Cancer",
+        "degree": 22.544468259210205,
+        "speed": 0.2242697228956132,
+        "isRetrograde": false,
+        "house": 12,
+        "nameLocalized": "Jüpiter",
+        "signLocalized": "Yengeç",
+        "interpretation": {
+          "summary": "On İkinci Ev evindeki, Yengeç burcundaki Jüpiter, gizli olan veya yüzeyin altındaki alanında sezgisel ve duygusal enerjisiyle şans ve fırsat ifade etme biçiminizi ortaya koyar.",
+          "detailed": "Jüpiter, şans ve fırsat alanını temsil eder. Yengeç (Yengeç) burcunda bu enerji, sezgisel, besleyici, koruyucu biçimini alır. On İkinci Ev evinde konumlanan bu Yengeç Jüpiter enerjisini gizli olan veya yüzeyin altındaki ve karma doğrultusunda yönlendirirsiniz. Bu, on i̇kinci ev ile ilgili konularda şans ve fırsat alanının doğal olarak sezgisel, duygusal, zeki yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+          "keywords": [
+            "bolluk",
+            "üniversite",
+            "kültür",
+            "merak",
+            "çeşitlilik",
+            "sezgisel",
+            "duygusal",
+            "zeki",
+            "tutkulu"
+          ]
+        }
+      },
+      {
+        "name": "Saturn",
+        "longitude": 291.9651419416242,
+        "latitude": 0.0743353023096857,
+        "sign": "Capricorn",
+        "degree": 21.96514194162421,
+        "speed": -0.07406283613980236,
+        "isRetrograde": true,
+        "house": 6,
+        "nameLocalized": "Satürn",
+        "signLocalized": "Oğlak",
+        "interpretation": {
+          "summary": "Altıncı Ev evindeki, Oğlak burcundaki Satürn, i̇ş ve meslek alanında detaycı ve zeki enerjisiyle sorumluluk, zaman ve rutin ifade etme biçiminizi ortaya koyar.",
+          "detailed": "Satürn, sorumluluk, zaman ve rutin alanını temsil eder. Oğlak (Dağ Keçisi) burcunda bu enerji, hırslı, disiplinli, sabırlı biçimini alır. Altıncı Ev evinde konumlanan bu Oğlak Satürn enerjisini i̇ş ve meslek ve teknikler ve yöntemler doğrultusunda yönlendirirsiniz. Bu, altıncı ev ile ilgili konularda sorumluluk, zaman ve rutin alanının doğal olarak detaycı, zeki, çalışkan yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+          "keywords": [
+            "hırs",
+            "sınırlar",
+            "kararlılık",
+            "disiplin",
+            "deneyim",
+            "detaycı",
+            "zeki",
+            "çalışkan"
+          ]
+        }
+      },
+      {
+        "name": "Uranus",
+        "longitude": 276.9675085693738,
+        "latitude": -0.3281350196529605,
+        "sign": "Capricorn",
+        "degree": 6.96750856937382,
+        "speed": -0.03852756340492647,
+        "isRetrograde": true,
+        "house": 5,
+        "nameLocalized": "Uranüs",
+        "signLocalized": "Oğlak",
+        "interpretation": {
+          "summary": "Beşinci Ev evindeki, Oğlak burcundaki Uranüs, yaratıcı öz ifade alanında detaycı ve zeki enerjisiyle bireysellik ve devrim ifade etme biçiminizi ortaya koyar.",
+          "detailed": "Uranüs, bireysellik ve devrim alanını temsil eder. Oğlak (Dağ Keçisi) burcunda bu enerji, hırslı, disiplinli, sabırlı biçimini alır. Beşinci Ev evinde konumlanan bu Oğlak Uranüs enerjisini yaratıcı öz ifade ve eğlence doğrultusunda yönlendirirsiniz. Bu, beşinci ev ile ilgili konularda bireysellik ve devrim alanının doğal olarak detaycı, zeki, çalışkan yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+          "keywords": [
+            "avangard",
+            "değişim",
+            "komik",
+            "kararlı",
+            "deneysel",
+            "detaycı",
+            "zeki",
+            "çalışkan"
+          ]
+        }
+      },
+      {
+        "name": "Neptune",
+        "longitude": 282.92174301738237,
+        "latitude": 0.8725695094792569,
+        "sign": "Capricorn",
+        "degree": 12.921743017382369,
+        "speed": -0.026569598176621412,
+        "isRetrograde": true,
+        "house": 5,
+        "nameLocalized": "Neptün",
+        "signLocalized": "Oğlak",
+        "interpretation": {
+          "summary": "Beşinci Ev evindeki, Oğlak burcundaki Neptün, yaratıcı öz ifade alanında detaycı ve zeki enerjisiyle rüyalar, şifa ve sezgi ifade etme biçiminizi ortaya koyar.",
+          "detailed": "Neptün, rüyalar, şifa ve sezgi alanını temsil eder. Oğlak (Dağ Keçisi) burcunda bu enerji, hırslı, disiplinli, sabırlı biçimini alır. Beşinci Ev evinde konumlanan bu Oğlak Neptün enerjisini yaratıcı öz ifade ve eğlence doğrultusunda yönlendirirsiniz. Bu, beşinci ev ile ilgili konularda rüyalar, şifa ve sezgi alanının doğal olarak detaycı, zeki, çalışkan yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+          "keywords": [
+            "sanatsal",
+            "sakin",
+            "merhametli",
+            "derin",
+            "rüyalar",
+            "detaycı",
+            "zeki",
+            "çalışkan"
+          ]
+        }
+      },
+      {
+        "name": "Pluto",
+        "longitude": 224.99957724822116,
+        "latitude": 15.613563826100112,
+        "sign": "Scorpio",
+        "degree": 14.999577248221158,
+        "speed": -0.005895303774622107,
+        "isRetrograde": true,
+        "house": 4,
+        "nameLocalized": "Plüton",
+        "signLocalized": "Akrep",
+        "interpretation": {
+          "summary": "Dördüncü Ev evindeki, Akrep burcundaki Plüton, psikolojik temeller ve kökler alanında çekici ve tutkulu enerjisiyle cinsellik, ölüm ve dönüşüm ifade etme biçiminizi ortaya koyar.",
+          "detailed": "Plüton, cinsellik, ölüm ve dönüşüm alanını temsil eder. Akrep (Akrep) burcunda bu enerji, çekici, tutkulu, bağımsız biçimini alır. Dördüncü Ev evinde konumlanan bu Akrep Plüton enerjisini psikolojik temeller ve kökler ve aile doğrultusunda yönlendirirsiniz. Bu, dördüncü ev ile ilgili konularda cinsellik, ölüm ve dönüşüm alanının doğal olarak çekici, tutkulu, bağımsız yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+          "keywords": [
+            "simya",
+            "cesur",
+            "karizmatik",
+            "karmaşık",
+            "yürekli",
+            "çekici",
+            "tutkulu",
+            "bağımsız"
+          ]
+        }
+      },
+      {
+        "name": "North Node",
+        "longitude": 307.35922396381466,
+        "latitude": 0,
+        "sign": "Aquarius",
+        "degree": 7.359223963814657,
+        "speed": -0.00010267748325532011,
+        "isRetrograde": true,
+        "house": 6,
+        "nameLocalized": "Kuzey Düğümü",
+        "signLocalized": "Kova",
+        "interpretation": {
+          "summary": "Altıncı Ev evindeki, Kova burcundaki Kuzey Düğümü, i̇ş ve meslek alanında hayalperest ve idealist enerjisiyle yaşam amacı ve kader ifade etme biçiminizi ortaya koyar.",
+          "detailed": "Kuzey Düğümü, yaşam amacı ve kader alanını temsil eder. Kova (Su Taşıyıcı) burcunda bu enerji, hayalperest, idealist, sezgisel biçimini alır. Altıncı Ev evinde konumlanan bu Kova Kuzey Düğümü enerjisini i̇ş ve meslek ve teknikler ve yöntemler doğrultusunda yönlendirirsiniz. Bu, altıncı ev ile ilgili konularda yaşam amacı ve kader alanının doğal olarak hayalperest, idealist, sezgisel yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+          "keywords": [
+            "kader",
+            "yaşam amacı",
+            "ruhsal büyüme",
+            "gelecek yönü",
+            "karmik ödül",
+            "hayalperest",
+            "idealist",
+            "sezgisel"
+          ]
+        }
+      },
+      {
+        "name": "South Node",
+        "longitude": 127.35922396381466,
+        "latitude": 0,
+        "sign": "Leo",
+        "degree": 7.359223963814657,
+        "speed": -0.00010267748325532011,
+        "isRetrograde": true,
+        "house": 12,
+        "nameLocalized": "Güney Düğümü",
+        "signLocalized": "Aslan",
+        "interpretation": {
+          "summary": "On İkinci Ev evindeki, Aslan burcundaki Güney Düğümü, gizli olan veya yüzeyin altındaki alanında gururlu ve cesur enerjisiyle geçmiş yaşam yetenekleri ve konfor alanı ifade etme biçiminizi ortaya koyar.",
+          "detailed": "Güney Düğümü, geçmiş yaşam yetenekleri ve konfor alanı alanını temsil eder. Aslan (Aslan) burcunda bu enerji, gururlu, cesur, hırslı biçimini alır. On İkinci Ev evinde konumlanan bu Aslan Güney Düğümü enerjisini gizli olan veya yüzeyin altındaki ve karma doğrultusunda yönlendirirsiniz. Bu, on i̇kinci ev ile ilgili konularda geçmiş yaşam yetenekleri ve konfor alanı alanının doğal olarak gururlu, cesur, hırslı yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+          "keywords": [
+            "doğuştan yetenekler",
+            "geçmiş yaşam bilgeliği",
+            "doğal yetenekler",
+            "konfor alanı",
+            "ustalaşılmış beceriler",
+            "gururlu",
+            "cesur",
+            "hırslı"
+          ]
+        }
+      },
+      {
+        "name": "Chiron",
+        "longitude": 109.2257005860414,
+        "latitude": -6.239962078727229,
+        "sign": "Cancer",
+        "degree": 19.2257005860414,
+        "speed": 0.10749001141809345,
+        "isRetrograde": false,
+        "house": 12,
+        "nameLocalized": "Chiron",
+        "signLocalized": "Yengeç",
+        "interpretation": {
+          "summary": "On İkinci Ev evindeki, Yengeç burcundaki Chiron, gizli olan veya yüzeyin altındaki alanında sezgisel ve duygusal enerjisiyle şifa ve iç yaralar ifade etme biçiminizi ortaya koyar.",
+          "detailed": "Chiron, şifa ve iç yaralar alanını temsil eder. Yengeç (Yengeç) burcunda bu enerji, sezgisel, besleyici, koruyucu biçimini alır. On İkinci Ev evinde konumlanan bu Yengeç Chiron enerjisini gizli olan veya yüzeyin altındaki ve karma doğrultusunda yönlendirirsiniz. Bu, on i̇kinci ev ile ilgili konularda şifa ve iç yaralar alanının doğal olarak sezgisel, duygusal, zeki yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+          "keywords": [
+            "şifa",
+            "bilgelik",
+            "mentorluk",
+            "öğretme",
+            "empati",
+            "sezgisel",
+            "duygusal",
+            "zeki",
+            "tutkulu"
+          ]
+        }
+      },
+      {
+        "name": "Black Moon Lilith",
+        "longitude": 238.30763429857524,
+        "latitude": -4.830186388713839,
+        "sign": "Scorpio",
+        "degree": 28.307634298575238,
+        "speed": 0.1119024471716017,
+        "isRetrograde": false,
+        "house": 4,
+        "nameLocalized": "Kara Ay Lilith",
+        "signLocalized": "Akrep",
+        "interpretation": {
+          "summary": "Dördüncü Ev evindeki, Akrep burcundaki Kara Ay Lilith, psikolojik temeller ve kökler alanında çekici ve tutkulu enerjisiyle i̇lkel içgüdü ve geri kazanılan benlik ifade etme biçiminizi ortaya koyar.",
+          "detailed": "Kara Ay Lilith, i̇lkel içgüdü ve geri kazanılan benlik alanını temsil eder. Akrep (Akrep) burcunda bu enerji, çekici, tutkulu, bağımsız biçimini alır. Dördüncü Ev evinde konumlanan bu Akrep Kara Ay Lilith enerjisini psikolojik temeller ve kökler ve aile doğrultusunda yönlendirirsiniz. Bu, dördüncü ev ile ilgili konularda i̇lkel içgüdü ve geri kazanılan benlik alanının doğal olarak çekici, tutkulu, bağımsız yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+          "keywords": [
+            "özgünlük",
+            "özerklik",
+            "içgüdü",
+            "ham güç",
+            "kendine hakimiyet",
+            "çekici",
+            "tutkulu",
+            "bağımsız"
+          ]
+        }
+      }
+    ],
+    "houses": [
+      {
+        "number": 1,
+        "longitude": 133.98438908225677,
+        "sign": "Leo",
+        "degree": 13.984389082256769,
+        "signLocalized": "Aslan"
+      },
+      {
+        "number": 2,
+        "longitude": 155.29536172726696,
+        "sign": "Virgo",
+        "degree": 5.295361727266965,
+        "signLocalized": "Başak"
+      },
+      {
+        "number": 3,
+        "longitude": 181.5070811513233,
+        "sign": "Libra",
+        "degree": 1.5070811513232911,
+        "signLocalized": "Terazi"
+      },
+      {
+        "number": 4,
+        "longitude": 213.79684673589276,
+        "sign": "Scorpio",
+        "degree": 3.796846735892757,
+        "signLocalized": "Akrep"
+      },
+      {
+        "number": 5,
+        "longitude": 249.9588284130156,
+        "sign": "Sagittarius",
+        "degree": 9.958828413015596,
+        "signLocalized": "Yay"
+      },
+      {
+        "number": 6,
+        "longitude": 284.36482215667945,
+        "sign": "Capricorn",
+        "degree": 14.364822156679452,
+        "signLocalized": "Oğlak"
+      },
+      {
+        "number": 7,
+        "longitude": 313.98438908225677,
+        "sign": "Aquarius",
+        "degree": 13.984389082256769,
+        "signLocalized": "Kova"
+      },
+      {
+        "number": 8,
+        "longitude": 335.29536172726694,
+        "sign": "Pisces",
+        "degree": 5.295361727266936,
+        "signLocalized": "Balık"
+      },
+      {
+        "number": 9,
+        "longitude": 1.5070811513232911,
+        "sign": "Aries",
+        "degree": 1.5070811513232911,
+        "signLocalized": "Koç"
+      },
+      {
+        "number": 10,
+        "longitude": 33.79684673589277,
+        "sign": "Taurus",
+        "degree": 3.796846735892771,
+        "signLocalized": "Boğa"
+      },
+      {
+        "number": 11,
+        "longitude": 69.9588284130156,
+        "sign": "Gemini",
+        "degree": 9.958828413015596,
+        "signLocalized": "İkizler"
+      },
+      {
+        "number": 12,
+        "longitude": 104.36482215667948,
+        "sign": "Cancer",
+        "degree": 14.36482215667948,
+        "signLocalized": "Yengeç"
+      }
+    ],
+    "houseSystem": "placidus",
+    "ascendant": {
+      "sign": "Leo",
+      "degree": 13.984389082256769,
+      "longitude": 133.98438908225677,
+      "signLocalized": "Aslan"
+    },
+    "midheaven": {
+      "sign": "Taurus",
+      "degree": 3.796846735892771,
+      "longitude": 33.79684673589277,
+      "signLocalized": "Boğa"
+    },
+    "vertex": {
+      "sign": "Capricorn",
+      "degree": 1.1979834455920013,
+      "longitude": 271.197983445592,
+      "house": 5,
+      "signLocalized": "Oğlak"
+    },
+    "changes": {
+      "ascendantSignChanged": true,
+      "planetsChangedHouse": [
+        {
+          "planet": "Sun",
+          "planetLocalized": "Güneş",
+          "natalHouse": 9,
+          "relocatedHouse": 12
+        },
+        {
+          "planet": "Moon",
+          "planetLocalized": "Ay",
+          "natalHouse": 6,
+          "relocatedHouse": 9
+        },
+        {
+          "planet": "Mercury",
+          "planetLocalized": "Merkür",
+          "natalHouse": 9,
+          "relocatedHouse": 12
+        },
+        {
+          "planet": "Venus",
+          "planetLocalized": "Venüs",
+          "natalHouse": 8,
+          "relocatedHouse": 11
+        },
+        {
+          "planet": "Mars",
+          "planetLocalized": "Mars",
+          "natalHouse": 6,
+          "relocatedHouse": 9
+        },
+        {
+          "planet": "Jupiter",
+          "planetLocalized": "Jüpiter",
+          "natalHouse": 9,
+          "relocatedHouse": 12
+        },
+        {
+          "planet": "Saturn",
+          "planetLocalized": "Satürn",
+          "natalHouse": 3,
+          "relocatedHouse": 6
+        },
+        {
+          "planet": "Uranus",
+          "planetLocalized": "Uranüs",
+          "natalHouse": 3,
+          "relocatedHouse": 5
+        },
+        {
+          "planet": "Neptune",
+          "planetLocalized": "Neptün",
+          "natalHouse": 3,
+          "relocatedHouse": 5
+        },
+        {
+          "planet": "Pluto",
+          "planetLocalized": "Plüton",
+          "natalHouse": 1,
+          "relocatedHouse": 4
+        },
+        {
+          "planet": "North Node",
+          "planetLocalized": "Kuzey Düğümü",
+          "natalHouse": 3,
+          "relocatedHouse": 6
+        },
+        {
+          "planet": "South Node",
+          "planetLocalized": "Güney Düğümü",
+          "natalHouse": 9,
+          "relocatedHouse": 12
+        },
+        {
+          "planet": "Chiron",
+          "planetLocalized": "Chiron",
+          "natalHouse": 9,
+          "relocatedHouse": 12
+        },
+        {
+          "planet": "Black Moon Lilith",
+          "planetLocalized": "Kara Ay Lilith",
+          "natalHouse": 1,
+          "relocatedHouse": 4
+        }
+      ],
+      "angularPlanets": [
+        "Mars"
+      ],
+      "angularPlanetsLocalized": [
+        "Mars"
+      ],
+      "distanceKm": 8069.828631026015,
+      "direction": "northwest"
+    },
+    "interpretation": {
+      "summary": "Bu yere taşındığınızda, gezegenler doğum konumlarını korurken haritanızın açıları kayar. Yükselen Aslan burcuna, Tepe Noktası ise Boğa burcuna geçer; açılara yaklaşan Mars ile birlikte, buradaki günlük yaşamda etkisi en güçlü düzeye ulaşır."
+    }
+  }
+}

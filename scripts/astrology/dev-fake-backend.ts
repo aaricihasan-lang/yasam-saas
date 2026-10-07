@@ -114,6 +114,9 @@ function startFakeRoxy() {
       } else if (GOLDEN[path]) {
         raw = structuredClone(GOLDEN[path]);
         if (path === "/forecast/transits") raw.events = (raw.events as { date: string }[]).filter((e) => e.date >= body.startDate && e.date <= body.endDate);
+        // SENTETİK yankı: istenen konum (harita içeriği golden) → adaptörün konum doğrulaması geçer.
+        if (path === "/astrology/relocation-chart") raw.relocation = { latitude: body.relocationLatitude, longitude: body.relocationLongitude };
+        if (path === "/astrology/local-space") raw.birthDetails = { ...(raw.birthDetails as object), latitude: body.latitude, longitude: body.longitude };
         if (path === "/astrology/lunar-return") {
           // Sağlayıcı kuralı taklidi: returnDate'e EN YAKIN dönüş (SENTETİK; golden harita korunur, yalnız an).
           const birthUtc = new Date(Date.parse(`${body.birthDate}T${body.birthTime}Z`) - Number(body.timezone) * 3600_000).toISOString();

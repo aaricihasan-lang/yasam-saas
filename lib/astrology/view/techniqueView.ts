@@ -118,13 +118,23 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
         warnings: ["Kişilerden en az birinin doğum saati bilinmiyor: composite evleri ve Yükselen/MC gösterilmez.", MOON_WARN],
       };
     }
+    case "western.astrocartography":
+    case "western.relocation":
+    case "western.local_space":
+      // Bu teknikler saat bilinmeden hesaplanmaz (planlayıcı TIME_REQUIRED). Kayıtlı bir sonuç saati
+      // bilinmeyen bir revizyon bağlamında açılırsa hiçbir saat-bağımlı veri gösterilmez.
+      return { technical: null, masked: true, warnings: [LOCATION_TIME_WARN] };
     default:
       return { technical, masked: false, warnings };
   }
 }
 
+const LOCATION_TIME_WARN = "Doğum saati bilinmiyor: bu konum tekniği tamamen saate bağlıdır; sonuç gösterilmez.";
+const TIME_ONLY_TECHNIQUES = new Set(["western.astrocartography", "western.relocation", "western.local_space"]);
+
 function maskInterpretation(technique: string, content: unknown, masked: boolean): unknown {
   if (!masked) return content;
+  if (TIME_ONLY_TECHNIQUES.has(technique)) return null;
   if (technique === "western.natal") return { ...(content as NatalInterpretation), bodies: [] };
   if (technique === "western.transit") {
     // Gizlenen (natal Yükselen/MC hedefli) açıların sağlayıcı anlatısı da gönderilmez.
@@ -157,10 +167,9 @@ export function buildTechniqueView(args: {
   if (!args.visibility.visible) {
     interpretation = { visible: false, reason: args.visibility.reason };
   } else {
+    // Servis yorumu yalnız tek (veya zorunlu) birimden verir; çok parçalı (forecast) → yorum katmanı yok.
     const list = args.interpretations ?? [];
-    const allPresent = list.length === args.rows.length && list.every((x) => x !== null);
-    if (!allPresent || list.length !== 1) {
-      // Çok parçalı tekniklerde (forecast) yorum katmanı yoktur; eksikse "unavailable".
+    if (list.length !== 1 || list[0] === null || (m.masked && TIME_ONLY_TECHNIQUES.has(args.technique))) {
       interpretation = { visible: false, reason: "unavailable" };
     } else {
       const it = list[0]!;
