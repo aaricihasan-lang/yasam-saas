@@ -261,9 +261,7 @@ function simulatePruneEffect(initial: Set<string>, visibleIds: string[], maxLoop
   // ── 6) Statik kapılar: sahip olunan dosyalar ────────────────────────────────────────
   const LIST_FILES: Array<[string, RegExp]> = [
     ["app/sifa-rehberi/page.tsx", /filteredRows\.filter\(\(r\) => selectedForExport\.has\(r\.id\)\)/],
-    ["app/dogaltas/dogaltas-listesi/page.tsx", /filteredStones\.filter\(\(s\) => selectedIds\.has\(s\.id\)\)/],
     ["app/dogaltas/tas-bilgi-kutuphanesi/page.tsx", /filtered\.filter\(\(r\) => selectedIds\.has\(r\.id\)\)/],
-    ["app/dogaltas/mineral-listesi/page.tsx", /minerals\.filter\(\(m\) => selectedMineralIds\.has\(m\.id\)\)/],
     ["app/numeroloji/liste/page.tsx", /visibleSelection\(selectedIds, filteredRows\.map/],
     ["app/urun-stok/aksesuar/page.tsx", /displayed\.filter\(\(i\) => selectedIds\.has\(i\.id\)\)/],
     ["app/urun-stok/yag/page.tsx", /displayed\.filter\(\(i\) => selectedIds\.has\(i\.id\)\)/],
@@ -282,6 +280,29 @@ function simulatePruneEffect(initial: Set<string>, visibleIds: string[], maxLoop
       const src = read(file);
       assert.match(src, /pruneSelection\(prev, visible(Ids|Keys)\)/, "pruneSelection effect");
       assert.match(src, deleteRe, "silme görünür ∩ seçili");
+    });
+  }
+  // Sayfalı (sunucu) listeler — WT3 2026-10-07: "Tümünü Seç" yüklü 30 satırla sınırlı DEĞİL, aktif
+  // kapsamın TAMAMINI seçer; kapsam (arama/filtre) değişince seçim TEMİZLENİR (gizli seçim kalmaz),
+  // silme/Word = tam olarak seçili kayıtlar.
+  const PAGED_FILES: Array<[string, RegExp, RegExp, RegExp]> = [
+    ["app/dogaltas/dogaltas-listesi/page.tsx",
+      /\}, \[debouncedSearch, searchMode, detailFilters\]\);/,
+      /const targets = \[\.\.\.selectedIds\]/,
+      /fetchStonesListPage\(tenantId, \{\s*offset, limit: PAGE,/],
+    ["app/dogaltas/mineral-listesi/page.tsx",
+      /\}, \[debouncedSearch, categoryFilter\]\);/,
+      /const ids = \[\.\.\.selectedMineralIds\]/,
+      /fetchMineralsListPage\(tenantId, \{ offset, limit: PAGE, search, category \}\)/],
+  ];
+  for (const [file, clearRe, deleteRe, fullRe] of PAGED_FILES) {
+    await t(`liste: ${file} kapsam değişince seçim temizlenir + tam kapsam Tümünü Seç`, () => {
+      const src = read(file);
+      assert.match(src, clearRe, "kapsam değişimi → seçim temizleme effect'i");
+      assert.match(src, /\(prev\.size === 0 \? prev : new Set\(\)\)/, "seçim temizleme (değişiklik yoksa aynı Set)");
+      assert.match(src, deleteRe, "silme = seçili kayıtlar");
+      assert.match(src, fullRe, "Tümünü Seç sunucudan tam kapsamı sayfalar");
+      assert.doesNotMatch(src, /Görünenleri Seç|selectVisible/, "\"Görünenleri Seç\" yok");
     });
   }
   await t("liste silme onayları ad listesi taşır", () => {

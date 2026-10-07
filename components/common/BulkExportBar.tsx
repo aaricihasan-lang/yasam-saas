@@ -20,7 +20,7 @@ export type BulkExportBarProps = {
   isDeleting?: boolean;
   /** "Tümünü Sil" aksiyonu (çok güvenli, doğrulama kodlu modal tetikler) */
   onDeleteAll?: () => void;
-  /** Seç butonu etiketi (varsayılan i18n `common.bulk.selectAll`). Örn. "Görünenleri Seç" */
+  /** Seç butonu etiketi (varsayılan i18n `common.bulk.selectAll`). Örn. "Sonuçların Tümünü Seç" */
   selectAllLabel?: string;
   /** Seç butonunda gösterilecek sayı (varsayılan totalCount). Örn. görünen kayıt sayısı */
   selectAllCount?: number;
@@ -91,9 +91,10 @@ export function BulkExportBar({
             type="button"
             onClick={onClearSelection}
             disabled={busy}
-            className="rounded-lg border border-slate-200 bg-white px-2 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-slate-500 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+            data-testid="bulk-clear-selection"
+            className="rounded-lg border border-slate-400 bg-white px-2 min-h-[36px] py-1.5 text-xs sm:min-h-0 sm:py-0.5 sm:text-[11px] font-black text-slate-800 shadow-sm transition hover:border-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:shadow-none"
           >
-            {t("bulk.clearSelection")}
+            ✕ {t("bulk.clearSelection")}
           </button>
         )}
 
@@ -188,9 +189,10 @@ export function BulkExportBar({
           type="button"
           onClick={onClearSelection}
           disabled={busy}
-          className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-slate-500 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+          data-testid="bulk-clear-selection"
+          className="rounded-lg border border-slate-400 bg-white px-2.5 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-slate-800 shadow-sm transition hover:border-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:shadow-none"
         >
-          {t("bulk.clearSelection")}
+          ✕ {t("bulk.clearSelection")}
         </button>
       )}
 

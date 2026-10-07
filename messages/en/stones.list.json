@@ -44,8 +44,10 @@
         "loading": "Loading…"
       },
       "bulk": {
-        "selectAll": "Select Visible",
-        "exportSelected": "Export Selected to Word"
+        "selectAll": "Select All",
+        "exportSelected": "Export Selected to Word",
+        "selectAllResults": "Select All Results",
+        "selectingAll": "Selecting all…"
       },
       "empty": {
         "noResultTitle": "No results found",
@@ -95,7 +97,8 @@
         "selectStoneFirst": "Select a stone first.",
         "noFilteredResult": "No filtered results.",
         "wordStarted": "Your Word report download has started. You'll find the file in your browser's Downloads.",
-        "wordFailed": "Couldn't create the Word report. Please try again."
+        "wordFailed": "Couldn't create the Word report. Please try again.",
+        "selectAllFailed": "Could not select all stones. Please try again."
       },
       "error": {
         "fetchFailed": "Couldn't load records: {error}",
