@@ -34,6 +34,7 @@ import {
   isUniqueViolation,
   isUuid,
   logAstroDbError,
+  touchUnmappedFields,
   type ResultRow,
   type RevisionRow,
 } from "../persistence/repo";
@@ -204,6 +205,8 @@ async function executeUnit(
   if (proj.unmappedFields.length > 0 || proj.droppedValues.length > 0) {
     // Yalnız YOL adları (değer yok) — sonraki adaptör sürümünde sınıflandırılmak üzere.
     log("[astro] provider fields not mapped", { ...tag, unmapped: proj.unmappedFields.slice(0, 20), dropped: proj.droppedValues.slice(0, 20) });
+    // Owner denetim görünümü: yalnız yol kaydı (değer ASLA). Fail-closed korunur: kayıt adaptörü DEĞİŞTİRMEZ.
+    await touchUnmappedFields(ctx.db, unit.provider, unit.endpoint, [...proj.unmappedFields, ...proj.droppedValues.map((d) => `dropped:${d}`)]);
   }
 
   const id = resultIdFor(ctx.tenantId, unit.inputHash);

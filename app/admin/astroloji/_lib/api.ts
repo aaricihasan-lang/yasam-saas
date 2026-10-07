@@ -15,7 +15,7 @@ export function astroHeaders(json = false): Record<string, string> {
 
 export type ApiResult<T> = { ok: true; status: number; data: T } | { ok: false; status: number; code: string; error: string; data: Record<string, unknown> | null };
 
-export async function astroFetch<T>(path: string, init: { method?: "GET" | "POST"; body?: unknown } = {}): Promise<ApiResult<T>> {
+export async function astroFetch<T>(path: string, init: { method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown } = {}): Promise<ApiResult<T>> {
   let res: Response;
   try {
     res = await fetch(path, {

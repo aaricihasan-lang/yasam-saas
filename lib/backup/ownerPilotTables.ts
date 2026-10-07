@@ -21,6 +21,12 @@ export const OWNER_PILOT_EXCLUDED_TABLES: readonly { table: string; reason: stri
   { table: "astro_birth_profile_revisions", reason: "Astroloji owner-only pilot — yedek kapsamı Aşama 5 kararı." },
   { table: "astro_provider_results", reason: "Astroloji sağlayıcı sonucu/önbelleği (ham yanıt dahil) — owner-only pilot." },
   { table: "astro_provider_interpretations", reason: "Astroloji sağlayıcı otomatik yorumu — owner-only pilot; ayrı yetki katmanı." },
+  // Aşama 2
+  { table: "astro_kb_entries", reason: "Astroloji Bilgi Bankası (uzmanın kendi notları) — owner-only pilot; yedek kapsamı Aşama 5 kararı." },
+  { table: "astro_expert_notes", reason: "Astroloji danışana özel uzman çalışma notları — owner-only pilot." },
+  { table: "astro_analyses", reason: "Astroloji kayıtlı analiz snapshot'ları (değişmez) — owner-only pilot." },
+  { table: "astro_analysis_notes", reason: "Astroloji kayıtlı analiz uzman yorumu kopyası (değişmez) — owner-only pilot." },
+  { table: "astro_unmapped_fields", reason: "Sağlayıcı eşlenmemiş alan YOLLARI (değer yok) — sistem denetim kaydı." },
 ];
 
 export function isOwnerPilotExcludedTable(table: string): boolean {

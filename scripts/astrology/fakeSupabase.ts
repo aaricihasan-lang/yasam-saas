@@ -72,7 +72,21 @@ const UNIQUE_KEYS: Record<string, string[][]> = {
   astro_provider_results: [["tenant_id", "input_hash"]],
   astro_provider_interpretations: [["tenant_id", "result_id", "projection_version"]],
   astro_birth_profile_revisions: [["tenant_id", "profile_id", "revision"]],
+  astro_expert_notes: [["tenant_id", "owner_user_id", "profile_id", "technique", "section_key"]],
+  astro_analyses: [["tenant_id", "save_request_id"]],
+  astro_analysis_notes: [["tenant_id", "analysis_id", "section_key"]],
+  astro_unmapped_fields: [["provider", "endpoint", "field_path"]],
 };
+
+/** DB kolon varsayılanları (migration DEFAULT'ları) — gerçek DB davranışını taklit eder. */
+const COLUMN_DEFAULTS: Record<string, Row> = {
+  astro_kb_entries: { revision: 1, tags: [], source_note: null },
+  astro_expert_notes: { revision: 1 },
+  astro_birth_profiles: { current_revision: 1 },
+};
+
+const SECTION_RE = /^(overall|[a-z][a-z_]{1,40}(:[a-z0-9_-]{1,40}){1,4})$/;
+const FIELD_PATH_RE = /^[A-Za-z0-9_.[\]:]{1,200}$/;
 
 export function execQuery(store: FakeStore, q: Query, via: "client" | "http"): { data: unknown; error: FakeErr } {
   store.log.push({ table: q.table, op: q.op, select: q.select, via });
@@ -86,7 +100,7 @@ export function execQuery(store: FakeStore, q: Query, via: "client" | "http"): {
     const list = Array.isArray(q.payload) ? q.payload : [q.payload as Row];
     const prepared: Row[] = [];
     for (const p of list) {
-      const row: Row = { id: p.id ?? genId(), ...p, created_at: p.created_at ?? new Date().toISOString(), updated_at: new Date().toISOString() };
+      const row: Row = { id: p.id ?? genId(), ...(COLUMN_DEFAULTS[q.table] ?? {}), ...p, created_at: p.created_at ?? new Date().toISOString(), updated_at: new Date().toISOString() };
       if (rows.some((r) => r.id === row.id) || prepared.some((r) => r.id === row.id)) {
         return { data: null, error: { code: "23505", message: `duplicate key value violates unique constraint "${q.table}_pkey"` } };
       }
@@ -177,6 +191,63 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
     p.current_revision = next;
     p.updated_at = now;
     return { data: { profile_id: p.id, revision: next }, error: null };
+  }
+  if (fn === "astro_analysis_save") {
+    const tenant = String(args.p_tenant_id);
+    store.tables.astro_analyses ??= [];
+    store.tables.astro_analysis_notes ??= [];
+    const existing = store.tables.astro_analyses.find((a) => a.tenant_id === tenant && a.save_request_id === args.p_save_request_id);
+    if (existing) return { data: { analysis_id: existing.id, reused: true }, error: null };
+    const prof = (store.tables.astro_birth_profiles ?? []).find((x) => x.id === args.p_profile_id && x.tenant_id === tenant);
+    if (!prof) return { data: null, error: { code: "P0002", message: "ASTRO_PROFILE_NOT_FOUND" } };
+    const notes = Array.isArray(args.p_notes) ? (args.p_notes as { section_key: string; body: string }[]) : [];
+    // Atomiklik: geçersiz not → hiçbir satır yazılmaz (DB CHECK + tek işlem davranışı).
+    if (notes.some((n) => !SECTION_RE.test(String(n.section_key)) || String(n.body).length > 20000)) {
+      return { data: null, error: { code: "23514", message: "new row violates check constraint astro_ann_section_chk" } };
+    }
+    const id = genId();
+    const now = new Date().toISOString();
+    const include = args.p_provider_interp_included === true;
+    store.tables.astro_analyses.push({
+      id,
+      tenant_id: tenant,
+      owner_user_id: args.p_user_id,
+      profile_id: args.p_profile_id,
+      profile_revision: args.p_profile_revision,
+      client_id: prof.client_id ?? null,
+      result_id: args.p_result_id ?? null,
+      technique: args.p_technique,
+      title: String(args.p_title).trim(),
+      event_kind: "astrology.analysis.saved",
+      analysis_at: now,
+      save_request_id: args.p_save_request_id,
+      profile_snapshot: structuredClone(args.p_profile_snapshot),
+      method_snapshot: structuredClone(args.p_method_snapshot),
+      technical_snapshot: structuredClone(args.p_technical_snapshot),
+      provider_interp_included: include,
+      provider_interp_snapshot: include ? structuredClone(args.p_provider_interp_snapshot) : null,
+      kb_snapshot: structuredClone(args.p_kb_snapshot ?? []),
+      versions_snapshot: structuredClone(args.p_versions_snapshot),
+      created_at: now,
+    });
+    for (const n of notes) store.tables.astro_analysis_notes.push({ id: genId(), tenant_id: tenant, analysis_id: id, section_key: n.section_key, body: n.body, created_at: now });
+    return { data: { analysis_id: id, reused: false }, error: null };
+  }
+  if (fn === "astro_unmapped_touch") {
+    store.tables.astro_unmapped_fields ??= [];
+    const paths = (Array.isArray(args.p_paths) ? (args.p_paths as string[]) : []).slice(0, 200);
+    if (paths.some((x) => !FIELD_PATH_RE.test(x))) return { data: null, error: { code: "23514", message: "astro_uf_path_chk" } };
+    const now = new Date().toISOString();
+    for (const x of paths) {
+      const row = store.tables.astro_unmapped_fields.find((r) => r.provider === args.p_provider && r.endpoint === args.p_endpoint && r.field_path === x);
+      if (row) {
+        row.last_seen_at = now;
+        row.seen_count = Number(row.seen_count) + 1;
+      } else {
+        store.tables.astro_unmapped_fields.push({ id: genId(), provider: args.p_provider, endpoint: args.p_endpoint, field_path: x, first_seen_at: now, last_seen_at: now, seen_count: 1, classification: "unclassified", classified_at: null });
+      }
+    }
+    return { data: paths.length, error: null };
   }
   return { data: null, error: { code: "PGRST202", message: `Could not find the function public.${fn}` } };
 }

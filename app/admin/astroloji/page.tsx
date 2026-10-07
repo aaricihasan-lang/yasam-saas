@@ -20,6 +20,10 @@ import NatalWheel from "./_components/NatalWheel";
 import NatalTechnicalPanel from "./_components/NatalTechnicalPanel";
 import ProviderInterpretationPanel from "./_components/ProviderInterpretationPanel";
 import ProfileForm, { type ProfileFormInitial } from "./_components/ProfileForm";
+import AnalysisWorkspace from "./_components/AnalysisWorkspace";
+import KnowledgeBankPanel from "./_components/KnowledgeBankPanel";
+import UnmappedAuditPanel from "./_components/UnmappedAuditPanel";
+import { SavedAnalysesList, SavedAnalysisView } from "./_components/SavedAnalyses";
 
 type PublicRevision = {
   revision: number;
@@ -108,6 +112,12 @@ export default function AstrologyWorkspacePage() {
   const [detailReload, setDetailReload] = useState(0);
   // Owner önizleme bayrağı tarayıcı depolamasından (SSR: false) — useSyncExternalStore ile.
   const previewNoInterp = useSyncExternalStore(subscribePreviewFlag, readPreviewFlag, () => false);
+  const [tab, setTab] = useState<"work" | "kb" | "audit">("work");
+  // Açık kayıtlı analiz profil kimliğiyle saklanır (profil değişince başka profilin analizi görünmez).
+  const [openAnalysis, setOpenAnalysis] = useState<{ profileId: string; id: string } | null>(null);
+  const [analysesReload, setAnalysesReload] = useState(0);
+  // Çalışma sekmesine her dönüşte canlı çalışma alanı (Bilgi Bankam eşleşmeleri/notlar) tazelenir.
+  const [workRefresh, setWorkRefresh] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -207,7 +217,7 @@ export default function AstrologyWorkspacePage() {
       <header className="flex flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-semibold text-slate-900">Astroloji Çalışma Merkezi</h1>
-          <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-medium text-white">Owner pilot · Aşama 1</span>
+          <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-medium text-white">Owner pilot · Aşama 2</span>
         </div>
         <p className="text-sm text-slate-600">
           Hesap Motoru: Batı · Natal (tropikal). Teknik sonuçlar ile sağlayıcının otomatik yorumu ayrı katmanlardadır.
@@ -219,7 +229,30 @@ export default function AstrologyWorkspacePage() {
         Roxy Yorumu Kapalıymış Gibi Gör <span className="text-xs text-violet-700">(owner önizlemesi — yorum yetkisi kapalı uzman görünümü)</span>
       </label>
 
-      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+      <nav className="flex gap-1 border-b border-slate-200" aria-label="Astroloji bölümleri">
+        {([
+          ["work", "Çalışma"],
+          ["kb", "Bilgi Bankası"],
+          ["audit", "Alan denetimi"],
+        ] as const).map(([k, l]) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => {
+              setTab(k);
+              if (k === "work") setWorkRefresh((n) => n + 1);
+            }}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm ${tab === k ? "border-violet-600 font-semibold text-violet-800" : "border-transparent text-slate-600 hover:text-slate-900"}`}
+          >
+            {l}
+          </button>
+        ))}
+      </nav>
+
+      {tab === "kb" && <KnowledgeBankPanel />}
+      {tab === "audit" && <UnmappedAuditPanel />}
+
+      <div className={`grid gap-4 lg:grid-cols-[320px_1fr] ${tab === "work" ? "" : "hidden"}`}>
         {/* Sol: profiller */}
         <aside className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -391,7 +424,20 @@ export default function AstrologyWorkspacePage() {
                 </p>
               )}
               {runError && <p className="text-sm text-rose-700">{runError}</p>}
+              <div className="border-t border-slate-100 pt-3">
+                <h3 className="mb-1 text-sm font-semibold text-slate-700">Kayıtlı analizler</h3>
+                <SavedAnalysesList
+                  profileId={shownDetail.id}
+                  reloadKey={analysesReload}
+                  openId={openAnalysis && openAnalysis.profileId === shownDetail.id ? openAnalysis.id : null}
+                  onOpen={(id) => setOpenAnalysis({ profileId: shownDetail.id, id })}
+                />
+              </div>
             </div>
+          )}
+
+          {openAnalysis && shownDetail && openAnalysis.profileId === shownDetail.id && (
+            <SavedAnalysisView key={openAnalysis.id} id={openAnalysis.id} previewNoInterp={previewNoInterp} onClose={() => setOpenAnalysis(null)} />
           )}
 
           {view && (
@@ -407,6 +453,21 @@ export default function AstrologyWorkspacePage() {
                 <NatalTechnicalPanel technical={view.technical} timeUnknown={view.timeUnknownMasked} />
               </section>
               <ProviderInterpretationPanel interpretation={view.interpretation} />
+              {shownDetail && revision !== null && (
+                <AnalysisWorkspace
+                  key={`${shownDetail.id}|${revision}|${view.id}`}
+                  profileId={shownDetail.id}
+                  revision={revision}
+                  resultId={view.id}
+                  interpVisible={view.interpretation.visible}
+                  previewNoInterp={previewNoInterp}
+                  refreshKey={workRefresh}
+                  onSaved={(id) => {
+                    setAnalysesReload((n) => n + 1);
+                    setOpenAnalysis({ profileId: shownDetail.id, id });
+                  }}
+                />
+              )}
             </div>
           )}
         </section>

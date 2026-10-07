@@ -16,6 +16,7 @@ import { createAstroProfile } from "@/lib/astrology/profiles/service";
 import { runAstrology, type EngineDeps } from "@/lib/astrology/engine/service";
 import { resolveAstrologyEntitlements } from "@/lib/astrology/access/entitlements";
 import { resolveAstroLocation } from "@/lib/astrology/birth/location";
+import { createKb } from "@/lib/astrology/kb/service";
 
 const PORT = Number(process.argv[2] ?? 54329);
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -55,6 +56,10 @@ async function seed() {
     rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
   };
   await runAstrology(ctx, { profileId: pid, selections: [{ technique: "western.natal", options: { houseSystem: "placidus", nodeType: "true" } }] }, deps, { ownerPreviewHideInterp: false });
+  // Aşama 2 görsel doğrulama: haritadaki Satürn evine eşleşen bir Bilgi Bankası kaydı + ilgisiz bir kayıt.
+  const sat = (FIXTURE.planets as { name: string; house: number }[]).find((p) => p.name === "Saturn")!;
+  await createKb(ctx, { tradition: "western", topicKey: `planet_in_house:saturn:${sat.house}`, title: "Satürn bu evde — çalışma notum", body: "Sorumluluk temalarını önce aile ve günlük düzende okurum.", sourceNote: "Yerel test notu", tags: ["satürn", "test"] });
+  await createKb(ctx, { tradition: "western", topicKey: "planet_in_sign:sun:aries", title: "Koç Güneşi (ilgisiz)", body: "Bu haritayla eşleşmemeli." });
   await createAstroProfile(
     ctx,
     { label: "Saat bilinmeyen örnek", birthDate: "1985-01-02", timeKnown: false, locationId: "tr-06-ankara" },

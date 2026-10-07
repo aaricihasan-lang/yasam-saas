@@ -54,6 +54,9 @@ const SERVER_ONLY_MODULES = [
   "lib/astrology/providers/roxy/client",
   "lib/astrology/birth/location",
   "lib/astrology/http",
+  "lib/astrology/kb/service",
+  "lib/astrology/analyses/service",
+  "lib/astrology/audit/unmapped",
 ];
 
 async function main() {
@@ -151,6 +154,7 @@ async function main() {
       /^app\/api\/admin\/astroloji\//,
       /^scripts\/astrology\//,
       /^supabase\/migrations\/20271101000000_astrology_foundation\.sql$/,
+      /^supabase\/migrations\/20271101000100_astrology_kb_analyses\.sql$/,
       /^app\/admin\/layout\.tsx$/,
       /^lib\/backup\/ownerPilotTables\.ts$/,
       /^lib\/backup\/schema\.generated\.ts$/,

@@ -348,3 +348,57 @@ export async function getInterpretation(
     .maybeSingle();
   return { row: (data as { provider: string; lang: string; content_schema: string; content: Record<string, unknown> } | null) ?? null, error };
 }
+
+// ─── Eşlenmemiş sağlayıcı alanları (yalnız YOL; değer ASLA) ──────────────────
+
+const PATH_SAFE = /[^A-Za-z0-9_.[\]:]/g;
+
+/** Alan yolunu DB kısıtıyla uyumlu güvenli biçime getirir (değer içeremez; yalnız yol karakterleri). */
+export function sanitizeFieldPath(p: string): string {
+  return p.replace(PATH_SAFE, "_").slice(0, 200);
+}
+
+export async function touchUnmappedFields(db: SupabaseClient, provider: string, endpoint: string, paths: string[]): Promise<void> {
+  const clean = [...new Set(paths.map(sanitizeFieldPath).filter((p) => p.length > 0))].slice(0, 200);
+  if (clean.length === 0) return;
+  try {
+    const { error } = await db.rpc("astro_unmapped_touch", { p_provider: provider, p_endpoint: endpoint, p_paths: clean });
+    if (error && !isSchemaMissing(error)) logAstroDbError("unmapped.touch", error);
+  } catch {
+    /* denetim kaydı best-effort; hesap akışını bozmaz */
+  }
+}
+
+export const UNMAPPED_CLASSES = ["unclassified", "technical", "interpretation", "ignored", "unverified"] as const;
+export type UnmappedClass = (typeof UNMAPPED_CLASSES)[number];
+
+export type UnmappedRow = {
+  id: string;
+  provider: string;
+  endpoint: string;
+  field_path: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  seen_count: number;
+  classification: UnmappedClass;
+  classified_at: string | null;
+};
+
+export async function listUnmappedFields(db: SupabaseClient): Promise<{ rows: UnmappedRow[]; error: DbErr }> {
+  const { data, error } = await db
+    .from("astro_unmapped_fields")
+    .select("id, provider, endpoint, field_path, first_seen_at, last_seen_at, seen_count, classification, classified_at")
+    .order("last_seen_at", { ascending: false })
+    .limit(500);
+  return { rows: (data as UnmappedRow[] | null) ?? [], error };
+}
+
+export async function classifyUnmappedField(db: SupabaseClient, id: string, classification: UnmappedClass): Promise<{ found: boolean; error: DbErr }> {
+  if (!isUuid(id)) return { found: false, error: null };
+  const { data, error } = await db
+    .from("astro_unmapped_fields")
+    .update({ classification, classified_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("id");
+  return { found: ((data as { id: string }[] | null) ?? []).length === 1, error };
+}

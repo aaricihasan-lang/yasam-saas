@@ -1,0 +1,284 @@
+"use client";
+
+/**
+ * Natal çalışma alanı — teknik sonucun ALTINDA, Roxy yorumundan AYRI:
+ *   1) "Bilgi Bankam"  — haritanın kanonik konularıyla eşleşen KENDİ mesleki notlarım (Roxy değil)
+ *   2) "Danışana Özel Yorumum" — bu profile özel çalışma notları (Bilgi Bankası'nı DEĞİŞTİRMEZ)
+ *   3) "Analizi Kaydet" — özet → bilinçli onay → DEĞİŞMEZ snapshot (idempotent istek kimliği)
+ * Bu panel sağlayıcıyı ÇAĞIRMAZ.
+ */
+
+import { useEffect, useMemo, useState } from "react";
+import { astroFetch } from "../_lib/api";
+import { KbEditor, KbEntryCard, type KbEntry } from "./KnowledgeBankPanel";
+
+type Topic = { key: string; kind: string; label: string };
+type Note = { id: string; sectionKey: string; sectionLabel: string; body: string; revision: number; updatedAt: string };
+type Workspace = { knowledgeBankEnabled: boolean; topics: Topic[]; kbMatches: KbEntry[]; notes: Note[] };
+type Summary = {
+  title: string;
+  client: string | null;
+  profileLabel: string;
+  techniqueLabel: string;
+  revision: number;
+  zodiac: string;
+  houseSystem: string;
+  nodeType: string;
+  provider: string;
+  topicCount: number;
+  kbMatchCount: number;
+  noteCount: number;
+  providerInterpIncluded: boolean;
+  timeUnknownMasked: boolean;
+};
+
+function NoteEditor({ profileId, sectionKey, label, note, onSaved }: { profileId: string; sectionKey: string; label: string; note: Note | null; onSaved: () => void }) {
+  const [body, setBody] = useState(note?.body ?? "");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const dirty = body !== (note?.body ?? "");
+  async function save() {
+    setBusy(true);
+    setMsg(null);
+    const r = await astroFetch("/api/admin/astroloji/notes", {
+      method: "PUT",
+      body: { profileId, sectionKey, body, expectedRevision: note ? note.revision : null },
+    });
+    setBusy(false);
+    if (r.ok) {
+      setMsg("Kaydedildi");
+      onSaved();
+    } else setMsg(r.error);
+  }
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="text-xs font-medium text-emerald-800">{label}</div>
+      <textarea className="min-h-[90px] w-full rounded-lg border border-emerald-200 px-3 py-2 text-sm" value={body} maxLength={20000} onChange={(e) => setBody(e.target.value)} placeholder="Bu danışana özel yorumunuz…" />
+      <div className="flex items-center gap-2">
+        <button type="button" disabled={busy || !dirty} onClick={() => void save()} className="rounded-lg border border-emerald-300 bg-white px-3 py-1 text-xs text-emerald-800 disabled:opacity-50">
+          {busy ? "Kaydediliyor…" : "Notu kaydet"}
+        </button>
+        {msg && <span className="text-xs text-slate-500">{msg}</span>}
+      </div>
+    </div>
+  );
+}
+
+export default function AnalysisWorkspace({
+  profileId,
+  revision,
+  resultId,
+  interpVisible,
+  previewNoInterp,
+  refreshKey = 0,
+  onSaved,
+}: {
+  profileId: string;
+  revision: number;
+  resultId: string;
+  interpVisible: boolean;
+  previewNoInterp: boolean;
+  refreshKey?: number;
+  onSaved: (analysisId: string) => void;
+}) {
+  const key = `${profileId}|${revision}|${resultId}`;
+  const [ws, setWs] = useState<{ key: string; data: Workspace; error: string | null } | null>(null);
+  const [reload, setReload] = useState(0);
+  const [addTopic, setAddTopic] = useState<string | null>(null);
+  const [kbCreate, setKbCreate] = useState<string | null>(null);
+  const [includeInterp, setIncludeInterp] = useState(false);
+  const [title, setTitle] = useState("");
+  const [summary, setSummary] = useState<{ key: string; s: Summary; requestId: string } | null>(null);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    const qs = new URLSearchParams({ profileId, revision: String(revision), resultId });
+    void astroFetch<Workspace>(`/api/admin/astroloji/workspace?${qs.toString()}`).then((r) => {
+      if (!alive) return;
+      setWs(r.ok ? { key, data: r.data, error: null } : { key, data: { knowledgeBankEnabled: false, topics: [], kbMatches: [], notes: [] }, error: r.error });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [key, profileId, revision, resultId, reload, refreshKey]);
+
+  const data = ws && ws.key === key ? ws.data : null;
+  const matchesByTopic = useMemo(() => {
+    const m = new Map<string, KbEntry[]>();
+    for (const e of data?.kbMatches ?? []) m.set(e.topicKey, [...(m.get(e.topicKey) ?? []), e]);
+    return m;
+  }, [data]);
+  const matchedTopics = (data?.topics ?? []).filter((t) => matchesByTopic.has(t.key));
+  const unmatchedTopics = (data?.topics ?? []).filter((t) => !matchesByTopic.has(t.key));
+  const notesByKey = new Map((data?.notes ?? []).map((n) => [n.sectionKey, n]));
+  const noteSections = [...new Set([...(data?.notes ?? []).map((n) => n.sectionKey).filter((k) => k !== "overall"), ...(addTopic ? [addTopic] : [])])];
+  const effectiveInclude = includeInterp && interpVisible && !previewNoInterp;
+  const shownSummary = summary && summary.key === `${key}|${effectiveInclude}|${title}` ? summary : null;
+
+  async function prepare() {
+    setBusy(true);
+    setSaveMsg(null);
+    const r = await astroFetch<{ summary: Summary }>(`/api/admin/astroloji/analyses/preview${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
+      method: "POST",
+      body: { profileId, revision, resultId, includeProviderInterp: effectiveInclude, title: title.trim() || undefined },
+    });
+    setBusy(false);
+    if (r.ok) setSummary({ key: `${key}|${effectiveInclude}|${title}`, s: r.data.summary, requestId: crypto.randomUUID() });
+    else setSaveMsg(r.error);
+  }
+
+  async function save() {
+    if (!shownSummary) return;
+    setBusy(true);
+    const r = await astroFetch<{ analysisId: string; reused: boolean }>(`/api/admin/astroloji/analyses${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
+      method: "POST",
+      body: { profileId, revision, resultId, includeProviderInterp: effectiveInclude, title: shownSummary.s.title, saveRequestId: shownSummary.requestId },
+    });
+    setBusy(false);
+    if (r.ok) {
+      setSummary(null);
+      setSaveMsg(r.data.reused ? "Bu analiz zaten kaydedilmişti." : "Analiz kaydedildi (değişmez kayıt).");
+      onSaved(r.data.analysisId);
+    } else setSaveMsg(r.error);
+  }
+
+  if (!data) return <p className="text-sm text-slate-400">Çalışma alanı yükleniyor…</p>;
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* 1) Bilgi Bankam */}
+      <section className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4" aria-label="Bilgi Bankam">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-base font-semibold text-indigo-900">Bilgi Bankam</h3>
+          <span className="text-xs text-indigo-700">
+            {data.topics.length} konu · {matchedTopics.length} konuda {data.kbMatches.length} kendi notum
+          </span>
+        </div>
+        {!data.knowledgeBankEnabled && <p className="text-sm text-slate-600">Bilgi Bankası yetkisi kapalı.</p>}
+        {ws?.error && <p className="text-sm text-rose-700">{ws.error}</p>}
+        {matchedTopics.length === 0 ? (
+          <p className="text-sm text-slate-600">Bu haritanın konularıyla eşleşen Bilgi Bankası kaydınız yok.</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {matchedTopics.map((t) => (
+              <div key={t.key}>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-indigo-900">{t.label}</span>
+                  {!notesByKey.has(t.key) && (
+                    <button type="button" className="text-xs text-emerald-700 underline" onClick={() => setAddTopic(t.key)}>
+                      Bu konuya danışan yorumu yaz
+                    </button>
+                  )}
+                </div>
+                <ul className="flex flex-col gap-2">
+                  {(matchesByTopic.get(t.key) ?? []).map((e) => (
+                    <KbEntryCard key={e.id} entry={e} />
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+        {unmatchedTopics.length > 0 && data.knowledgeBankEnabled && (
+          <details className="mt-3">
+            <summary className="cursor-pointer text-xs text-indigo-700">Eşleşmeyen {unmatchedTopics.length} konu — Bilgi Bankama ekle</summary>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {unmatchedTopics.map((t) => (
+                <button key={t.key} type="button" className="rounded-full border border-indigo-200 bg-white px-2 py-0.5 text-xs text-indigo-800 hover:bg-indigo-50" onClick={() => setKbCreate(t.key)}>
+                  + {t.label}
+                </button>
+              ))}
+            </div>
+          </details>
+        )}
+        {kbCreate && (
+          <div className="mt-3">
+            <KbEditor
+              key={kbCreate}
+              editing={{ mode: "create", topicKey: kbCreate }}
+              onCancel={() => setKbCreate(null)}
+              onDone={() => {
+                setKbCreate(null);
+                setReload((n) => n + 1);
+              }}
+            />
+          </div>
+        )}
+      </section>
+
+      {/* 2) Danışana özel yorum */}
+      <section className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4" aria-label="Danışana Özel Yorumum">
+        <h3 className="mb-1 text-base font-semibold text-emerald-900">Danışana Özel Yorumum</h3>
+        <p className="mb-3 text-xs text-emerald-800">Bu notlar yalnız bu doğum profiline aittir; Bilgi Bankası kayıtlarınızı değiştirmez.</p>
+        <div className="flex flex-col gap-3">
+          <NoteEditor key={`overall-${notesByKey.get("overall")?.revision ?? 0}`} profileId={profileId} sectionKey="overall" label="Genel yorum" note={notesByKey.get("overall") ?? null} onSaved={() => setReload((n) => n + 1)} />
+          {noteSections.map((k) => {
+            const n = notesByKey.get(k) ?? null;
+            const label = n?.sectionLabel ?? data.topics.find((t) => t.key === k)?.label ?? k;
+            return <NoteEditor key={`${k}-${n?.revision ?? 0}`} profileId={profileId} sectionKey={k} label={label} note={n} onSaved={() => setReload((x) => x + 1)} />;
+          })}
+        </div>
+      </section>
+
+      {/* 3) Analizi Kaydet */}
+      <section className="rounded-2xl border border-slate-300 bg-white p-4" aria-label="Analizi Kaydet">
+        <h3 className="mb-2 text-base font-semibold text-slate-900">Analizi Kaydet</h3>
+        <p className="mb-2 text-xs text-slate-500">
+          Kayıt; doğum profili revizyonu, yöntem, teknik sonuç, eşleşen Bilgi Bankası notları ve danışan yorumunuzun o anki halini DEĞİŞMEZ olarak saklar.
+        </p>
+        <div className="flex flex-col gap-2">
+          <input className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm" placeholder="Başlık (boş bırakılırsa otomatik)" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
+          <label className={`flex items-center gap-2 text-sm ${interpVisible && !previewNoInterp ? "text-slate-700" : "text-slate-400"}`}>
+            <input type="checkbox" disabled={!interpVisible || previewNoInterp} checked={effectiveInclude} onChange={(e) => setIncludeInterp(e.target.checked)} />
+            Roxy otomatik yorumunu analize ayrı katman olarak dahil et
+            {(!interpVisible || previewNoInterp) && <span className="text-xs">(bu görünümde kapalı)</span>}
+          </label>
+          {!shownSummary ? (
+            <button type="button" disabled={busy} onClick={() => void prepare()} className="self-start rounded-lg border border-slate-400 px-4 py-1.5 text-sm text-slate-800 disabled:opacity-60">
+              {busy ? "Hazırlanıyor…" : "Kaydetmeden önce özeti gör"}
+            </button>
+          ) : (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm" data-testid="astro-save-summary">
+              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                <dt className="text-slate-500">Başlık</dt>
+                <dd>{shownSummary.s.title}</dd>
+                <dt className="text-slate-500">Danışan</dt>
+                <dd>{shownSummary.s.client ?? "— (bağımsız profil)"}</dd>
+                <dt className="text-slate-500">Analiz türü</dt>
+                <dd>{shownSummary.s.techniqueLabel}</dd>
+                <dt className="text-slate-500">Doğum profili</dt>
+                <dd>
+                  {shownSummary.s.profileLabel} · rev {shownSummary.s.revision}
+                  {shownSummary.s.timeUnknownMasked ? " · saat bilinmiyor" : ""}
+                </dd>
+                <dt className="text-slate-500">Yöntem</dt>
+                <dd>
+                  Tropikal · {shownSummary.s.houseSystem} · düğüm: {shownSummary.s.nodeType} · sağlayıcı: {shownSummary.s.provider}
+                </dd>
+                <dt className="text-slate-500">Bilgi Bankası</dt>
+                <dd>
+                  {shownSummary.s.kbMatchCount} eşleşen not ({shownSummary.s.topicCount} konu)
+                </dd>
+                <dt className="text-slate-500">Danışan yorumu</dt>
+                <dd>{shownSummary.s.noteCount} not bölümü</dd>
+                <dt className="text-slate-500">Roxy yorumu</dt>
+                <dd>{shownSummary.s.providerInterpIncluded ? "Dahil (ayrı katman)" : "Dahil değil"}</dd>
+              </dl>
+              <div className="mt-3 flex gap-2">
+                <button type="button" disabled={busy} onClick={() => void save()} className="btn-primary rounded-lg px-4 py-1.5 text-sm disabled:opacity-60">
+                  {busy ? "Kaydediliyor…" : "Analizi kaydet"}
+                </button>
+                <button type="button" onClick={() => setSummary(null)} className="rounded-lg border border-slate-300 px-4 py-1.5 text-sm">
+                  Vazgeç
+                </button>
+              </div>
+            </div>
+          )}
+          {saveMsg && <p className="text-sm text-slate-700">{saveMsg}</p>}
+        </div>
+      </section>
+    </div>
+  );
+}
