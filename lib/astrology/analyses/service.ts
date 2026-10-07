@@ -138,6 +138,8 @@ export function locationContextKey(technique: string, locationId: string): strin
 function contextLocationIdOf(technique: string, options: Record<string, unknown>): string | null {
   if (technique === "western.relocation") return typeof options.targetLocationId === "string" ? options.targetLocationId : null;
   if (technique === "western.local_space") return typeof options.referenceLocationId === "string" ? options.referenceLocationId : null;
+  // Aşama 4.1: relocated return notu kendi konum bağlamında; doğum yeri (null) → "" (Aşama 3 notları aynen).
+  if (technique === "western.solar_return" || technique === "western.lunar_return") return typeof options.returnLocationId === "string" ? options.returnLocationId : null;
   return null;
 }
 
@@ -199,7 +201,7 @@ export async function saveExpertNote(ctx: EngineCtx, raw: unknown): Promise<Serv
   const def = getTechnique(o.technique ?? "western.natal");
   if (!def) return fail(400, "UNKNOWN_TECHNIQUE", "Bilinmeyen hesaplama türü.");
   let contextKey = o.contextKey === undefined || o.contextKey === null || o.contextKey === "" ? "" : o.contextKey;
-  const isLocationCtx = def.id === "western.relocation" || def.id === "western.local_space";
+  const isLocationCtx = ["western.relocation", "western.local_space", "western.solar_return", "western.lunar_return"].includes(def.id);
   if (isLocationCtx) {
     // Konum bağlamı istemcinin uuid'sine güvenilmez: konum kimliğinden SUNUCUDA türetilir ve konum doğrulanır.
     const locIdRaw = o.contextLocationId;
@@ -344,7 +346,8 @@ async function buildSnapshot(ctx: EngineCtx, raw: unknown, ownerPreviewHideInter
   if (title.length > 200) return { ok: false, r: fail(400, "INVALID_TITLE", "Başlık en fazla 200 karakter.") };
   if (!title) {
     const def = getTechnique(technique)!;
-    const place = (l.v.options.target ?? l.v.options.reference) as { label?: string } | undefined;
+    const rl = l.v.options.returnLocation as { locationId?: string | null; label?: string } | undefined;
+    const place = (l.v.options.target ?? l.v.options.reference ?? (rl?.locationId ? rl : undefined)) as { label?: string } | undefined;
     title = `${l.v.profileLabel}${partnerLabel ? ` & ${partnerLabel}` : ""} · ${def.label}${place?.label ? ` → ${place.label}` : ""} · ${fmtDateTr(new Date().toISOString())}`.slice(0, 200);
   }
 

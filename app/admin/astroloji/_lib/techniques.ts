@@ -50,6 +50,9 @@ export type TechniqueParams = {
   partnerProfileId: string;
   /** Relocation hedefi (konum kimliği sunucuda çözülür). */
   relocationTarget: { id: string; label: string } | null;
+  /** Aşama 4.1: Solar/Lunar return dönüş konumu; null = doğum yeri. */
+  solarReturnLocation: { id: string; label: string } | null;
+  lunarReturnLocation: { id: string; label: string } | null;
   /** Local space referansı; null = doğum yeri. */
   localSpaceReference: { id: string; label: string } | null;
 };
@@ -73,6 +76,8 @@ export function defaultParams(today: Date): TechniqueParams {
     partnerProfileId: "",
     relocationTarget: null,
     localSpaceReference: null,
+    solarReturnLocation: null,
+    lunarReturnLocation: null,
   };
 }
 
@@ -103,10 +108,10 @@ export function buildSelections(
         out.push({ technique: id, options: { targetDate: p.targetDate, nodeType: method.nodeType } });
         break;
       case "western.solar_return":
-        out.push({ technique: id, options: { returnYear: p.returnYear, houseSystem: method.houseSystem } });
+        out.push({ technique: id, options: { returnYear: p.returnYear, houseSystem: method.houseSystem, returnLocationId: p.solarReturnLocation?.id ?? null } });
         break;
       case "western.lunar_return":
-        out.push({ technique: id, options: { month: p.lunarMonth, sequence: p.lunarSequence, houseSystem: method.houseSystem } });
+        out.push({ technique: id, options: { month: p.lunarMonth, sequence: p.lunarSequence, houseSystem: method.houseSystem, returnLocationId: p.lunarReturnLocation?.id ?? null } });
         break;
       case "western.synastry":
       case "western.composite":
@@ -149,11 +154,11 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
     case "western.solar_arc":
       return typeof o.targetDate === "string" ? `hedef ${fmtDate(o.targetDate)}` : "";
     case "western.solar_return":
-      return `${String(o.returnYear)} dönüşü`;
+      return `${String(o.returnYear)} dönüşü${returnPlace(o)}`;
     case "western.lunar_return":
       if (typeof o.month !== "string") return "";
       // Eski (Aşama 3) kayıtlarda sıra yok: o zaman yalnız ayın ilk dönüşü hesaplanabiliyordu.
-      return `${o.month.slice(5, 7)}.${o.month.slice(0, 4)} · ${o.sequence === 2 ? "2." : "1."} dönüş${o.sequence === undefined ? " (ayın ilk dönüşü)" : ""}`;
+      return `${o.month.slice(5, 7)}.${o.month.slice(0, 4)} · ${o.sequence === 2 ? "2." : "1."} dönüş${o.sequence === undefined ? " (ayın ilk dönüşü)" : ""}${returnPlace(o)}`;
     case "western.synastry":
     case "western.composite":
       return `${partner ?? ""}${o.partnerRevision ? ` (karşı taraf rev ${String(o.partnerRevision)})` : ""}`;
@@ -168,6 +173,14 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
     default:
       return "";
   }
+}
+
+/** Dönüş konumu etiketi: farklı konumsa " · konum: Londra", doğum yeriyse " · doğum yeri" (eski kayıtlarda boş). */
+function returnPlace(o: Record<string, unknown>): string {
+  const rl = o.returnLocation as { locationId?: string | null; label?: string } | undefined;
+  if (rl?.locationId) return ` · konum: ${rl.label ?? rl.locationId}`;
+  if (typeof o.returnLocationId === "string") return ` · konum: ${o.returnLocationId}`;
+  return rl || o.returnLocationId === null ? " · doğum yeri" : "";
 }
 
 export function techniqueLabel(id: string): string {

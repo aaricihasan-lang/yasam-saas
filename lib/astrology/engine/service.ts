@@ -119,6 +119,27 @@ export async function resolveSelectionContexts(
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIME_REQUIRED", error: `${def.label} doğum saati bilinmeden güvenilir hesaplanamaz (${why[def.id] ?? "sonuç doğum saatine bağlıdır"}).` } });
       continue;
     }
+    if (def.id === "western.solar_return" || def.id === "western.lunar_return") {
+      // Aşama 4.1 — dönüş konumu: kimlik SUNUCUDA çözülür; yoksa doğum yeri (gövde değişmez → eski anahtar).
+      // Doğum ANI ve ofseti değişmez; hedefin saat dilimi yalnız gösterim için normalize seçeneğe yazılır.
+      const id = s.options.returnLocationId as string | null;
+      const loc = id ? resolveAstroLocation(id) : null;
+      if (id && !loc) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "LOCATION_NOT_FOUND", error: "Seçilen dönüş konumu bulunamadı veya saat dilimi/koordinatı doğrulanamadı." } });
+        continue;
+      }
+      const place: PlaceRef = loc
+        ? { locationId: loc.id, label: loc.label, latitude: loc.latitude, longitude: loc.longitude, timezone: loc.timezone }
+        : { locationId: null, label: revision.location_label, latitude: revision.latitude, longitude: revision.longitude, timezone: revision.timezone };
+      out.push({
+        ...s,
+        options: { ...s.options, returnLocation: place },
+        ctx: loc ? { ...base, places: { target: { latitude: loc.latitude, longitude: loc.longitude } } } : base,
+        partnerRevision: null,
+        blocked: null,
+      });
+      continue;
+    }
     if (def.id === "western.relocation" || def.id === "western.local_space") {
       // Konum kimliği SUNUCUDA çözülür (Yaşam konum altyapısı; dış API yok). Çözülmezse ENGEL (istek yok).
       // Normalize seçeneğe çözülen yer yazılır (snapshot/görünüm netliği); hesap anahtarı gövdeden türer.

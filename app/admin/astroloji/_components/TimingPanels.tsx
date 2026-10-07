@@ -427,7 +427,26 @@ export function SolarArcPanel({ t }: { t: SolarArcTechnical }) {
 }
 
 // ─── Solar / Lunar return ───────────────────────────────────────────────────
-export function ReturnPanel({ t }: { t: ReturnTechnical }) {
+export type ReturnPlace = { locationId: string | null; label: string; latitude: number; longitude: number; timezone: string | null };
+
+/** Dönüş anı UTC (sağlayıcının yerel saati − ofset). Ayrıştırılamazsa null (tahmin yok). */
+export function returnUtcIso(t: Pick<ReturnTechnical, "returnLocal" | "returnOffsetHours">): string | null {
+  const local = t.returnLocal.length === 16 ? `${t.returnLocal}:00` : t.returnLocal;
+  const ms = Date.parse(`${local}Z`) - t.returnOffsetHours * 3600_000;
+  return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
+}
+
+/** IANA saat dilimiyle yerel saat; dilim yok/geçersizse null (tahmin üretilmez → yalnız UTC gösterilir). */
+export function localTimeIn(utcIso: string, timeZone: string | null): string | null {
+  if (!timeZone) return null;
+  try {
+    return new Intl.DateTimeFormat("tr-TR", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short" }).format(new Date(utcIso));
+  } catch {
+    return null;
+  }
+}
+
+export function ReturnPanel({ t, place = null }: { t: ReturnTechnical; place?: ReturnPlace | null }) {
   const c = t.chart;
   const wheel: WheelChart = {
     bodies: c.bodies,
@@ -441,8 +460,27 @@ export function ReturnPanel({ t }: { t: ReturnTechnical }) {
       <p className="text-sm text-slate-600">
         Dönüş anı: <strong>{t.returnLocal.replace("T", " ").slice(0, 16)}</strong> (UTC{off >= 0 ? "+" : "−"}
         {Math.abs(off)}) · natal {t.kind === "solar" ? "Güneş" : "Ay"} <SignCell sign={t.natalPoint.sign} degree={t.natalPoint.degreeInSign} /> ·{" "}
-        {HOUSE_SYSTEM_LABELS[c.houseSystem]} · doğum yeri için
+        {HOUSE_SYSTEM_LABELS[c.houseSystem]}
       </p>
+      {(() => {
+        const utc = returnUtcIso(t);
+        const local = utc && place ? localTimeIn(utc, place.timezone) : null;
+        const relocated = !!place?.locationId;
+        return (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700" data-testid="astro-return-place">
+            <div>
+              <strong>Hesaplama konumu:</strong>{" "}
+              {place ? `${place.label} (${Math.abs(t.location.latitude).toFixed(2)}° ${t.location.latitude >= 0 ? "K" : "G"}, ${Math.abs(t.location.longitude).toFixed(2)}° ${t.location.longitude >= 0 ? "D" : "B"})` : "doğum yeri"}
+              {relocated ? " · farklı konum (relocated return)" : " · doğum yeri"}
+            </div>
+            <div className="text-xs text-slate-600">
+              Kesin dönüş anı: <strong>{utc ? `${utc.slice(0, 16).replace("T", " ")} UTC` : "—"}</strong>
+              {local ? ` · ${place?.label?.split(",")[0] ?? "konum"} yerel saati: ${local}` : " · konumun yerel saati gösterilmiyor (saat dilimi doğrulanamadı)"}
+            </div>
+            <div className="text-[11px] text-slate-500">Dönüş anı konumdan bağımsızdır (doğum anı aynı); konum yalnız Yükselen/MC ve evleri değiştirir.</div>
+          </div>
+        );
+      })()}
       {t.kind === "lunar" && (
         <p className="text-xs text-slate-500" data-testid="astro-lunar-sequence">
           {t.requested.sequence
@@ -635,7 +673,7 @@ export function TechniqueTechnical({
         return <SolarArcPanel t={technical as SolarArcTechnical} />;
       case "western.solar_return":
       case "western.lunar_return":
-        return <ReturnPanel t={technical as ReturnTechnical} />;
+        return <ReturnPanel t={technical as ReturnTechnical} place={(options.returnLocation as ReturnPlace | undefined) ?? null} />;
       case "western.synastry":
         return <SynastryPanel t={technical as SynastryTechnical} names={names} />;
       case "western.composite":

@@ -323,6 +323,15 @@ const targetDateTechnique = (id: "western.progression" | "western.solar_arc", la
       : fromAdapter(projectRoxySolarArc(raw, { nodeType: opt.nodeType as NodeType, targetDate: String(opt.targetDate) }), SOLAR_ARC_TECHNICAL_SCHEMA, SOLAR_ARC_INTERP_SCHEMA, meta.projection),
 });
 
+/** Dönüş konumu seçeneği: yok/null/"" → doğum yeri (null); geçerli kimlik → kimlik; geçersiz → undefined (ret). */
+function returnLocationOf(r: Record<string, unknown>): string | null | undefined {
+  const v = r.returnLocationId;
+  if (v === undefined || v === null || v === "") return null;
+  return typeof v === "string" && /^[A-Za-z0-9_-]{2,64}$/.test(v) ? v : undefined;
+}
+/** Gövdedeki gözlem konumu (sağlayıcı yankısı bununla doğrulanır). */
+const bodyLocation = (u: CalcUnit) => ({ latitude: Number(u.body.latitude), longitude: Number(u.body.longitude) });
+
 const westernSolarReturn: TechniqueDefinition = {
   id: "western.solar_return",
   label: "Solar return",
@@ -334,11 +343,20 @@ const westernSolarReturn: TechniqueDefinition = {
     const r = o(raw);
     const y = Number(r.returnYear);
     const hs = houseOf(r.houseSystem);
-    return yearOk(y) && hs ? { returnYear: y, houseSystem: hs } : null;
+    const loc = returnLocationOf(r);
+    return yearOk(y) && hs && loc !== undefined ? { returnYear: y, houseSystem: hs, returnLocationId: loc } : null;
   },
-  units: (ctx, opt) => [unit("western.solar_return", ROXY_SOLAR_RETURN, solarReturnBody(ctx.birth, Number(opt.returnYear), opt.houseSystem as HouseSystem), { timeDependent: true })],
-  project: (_u, raw, opt) =>
-    fromAdapter(projectRoxyReturn(raw, "solar", { houseSystem: opt.houseSystem as HouseSystem, returnYear: Number(opt.returnYear), returnDate: null }), RETURN_TECHNICAL_SCHEMA, RETURN_INTERP_SCHEMA, ROXY_SOLAR_RETURN.projection),
+  // Dönüş konumu (Aşama 4.1): sunucuda çözülen ctx.places.target; yoksa doğum yeri (gövde Aşama 3 ile aynı).
+  units: (ctx, opt) => [
+    unit("western.solar_return", ROXY_SOLAR_RETURN, solarReturnBody(ctx.birth, Number(opt.returnYear), opt.houseSystem as HouseSystem, ctx.places?.target ?? null), { timeDependent: true }),
+  ],
+  project: (u, raw, opt) =>
+    fromAdapter(
+      projectRoxyReturn(raw, "solar", { houseSystem: opt.houseSystem as HouseSystem, returnYear: Number(opt.returnYear), returnDate: null, expectedLocation: bodyLocation(u) }),
+      RETURN_TECHNICAL_SCHEMA,
+      RETURN_INTERP_SCHEMA,
+      ROXY_SOLAR_RETURN.projection,
+    ),
 };
 
 const westernLunarReturn: TechniqueDefinition = {
@@ -355,13 +373,15 @@ const westernLunarReturn: TechniqueDefinition = {
     // Ay içindeki dönüş sırası (1 | 2). Verilmezse 1 → Aşama 3 kayıtlarıyla AYNI istek gövdesi/anahtar.
     const seq = r.sequence === undefined || r.sequence === null ? 1 : Number(r.sequence);
     if (seq !== 1 && seq !== 2) return null;
-    return { month: r.month, sequence: seq, houseSystem: hs };
+    const loc = returnLocationOf(r);
+    if (loc === undefined) return null;
+    return { month: r.month, sequence: seq, houseSystem: hs, returnLocationId: loc };
   },
   units: (ctx, opt) => {
     const pick = lunarReturnsInMonth(natalMoonLongitude(ctx.birthUtc), String(opt.month)).find((c) => c.sequence === Number(opt.sequence ?? 1));
     if (!pick) return [];
     return [
-      unit("western.lunar_return", ROXY_LUNAR_RETURN, lunarReturnBody(ctx.birth, pick.requestDate, opt.houseSystem as HouseSystem), {
+      unit("western.lunar_return", ROXY_LUNAR_RETURN, lunarReturnBody(ctx.birth, pick.requestDate, opt.houseSystem as HouseSystem, ctx.places?.target ?? null), {
         timeDependent: true,
         expect: { returnUtc: pick.approxUtc, sequence: String(pick.sequence) },
       }),
@@ -382,6 +402,7 @@ const westernLunarReturn: TechniqueDefinition = {
         returnDate: String(u.body.returnDate),
         sequence: u.expect?.sequence ? Number(u.expect.sequence) : null,
         expectedUtc: u.expect?.returnUtc ?? null,
+        expectedLocation: bodyLocation(u),
       }),
       RETURN_TECHNICAL_SCHEMA,
       RETURN_INTERP_SCHEMA,

@@ -39,15 +39,25 @@ export function targetDateBody(b: BirthPoint, targetDate: string, nodeType: Node
 }
 
 /** /astrology/solar-return — dönüş haritası DOĞUM YERİ için (relocation bu aşamada yok). */
-export function solarReturnBody(b: BirthPoint, returnYear: number, houseSystem: HouseSystem) {
+/**
+ * Aşama 4.1: isteğe bağlı DÖNÜŞ KONUMU (relocated return). Sağlayıcı sözleşmesi: latitude/longitude =
+ * dönüş haritasının gözlem yeri (ASC/evler); timezone = doğum tarih/saatini ANA çeviren ofset (natal
+ * Güneş/Ay) + çıktı biçimi → HER ZAMAN DOĞUM ofseti gönderilir (hedefin saat dilimi doğum anını kaydırırdı).
+ * Konum verilmezse gövde Aşama 3 ile BİREBİR aynı (önbellek anahtarı korunur).
+ */
+export function solarReturnBody(b: BirthPoint, returnYear: number, houseSystem: HouseSystem, at?: GeoPoint | null) {
   const bb = birthBody(b);
-  return { birthDate: bb.date, birthTime: bb.time, returnYear, latitude: bb.latitude, longitude: bb.longitude, timezone: bb.timezone, houseSystem };
+  const lat = at ? r6(at.latitude) : bb.latitude;
+  const lon = at ? r6(at.longitude) : bb.longitude;
+  return { birthDate: bb.date, birthTime: bb.time, returnYear, latitude: lat, longitude: lon, timezone: bb.timezone, houseSystem };
 }
 
 /** /astrology/lunar-return — returnDate: istenen dönüşe yakın (birkaç gün) tarih. */
-export function lunarReturnBody(b: BirthPoint, returnDate: string, houseSystem: HouseSystem) {
+export function lunarReturnBody(b: BirthPoint, returnDate: string, houseSystem: HouseSystem, at?: GeoPoint | null) {
   const bb = birthBody(b);
-  return { birthDate: bb.date, birthTime: bb.time, returnDate, latitude: bb.latitude, longitude: bb.longitude, timezone: bb.timezone, houseSystem };
+  const lat = at ? r6(at.latitude) : bb.latitude;
+  const lon = at ? r6(at.longitude) : bb.longitude;
+  return { birthDate: bb.date, birthTime: bb.time, returnDate, latitude: lat, longitude: lon, timezone: bb.timezone, houseSystem };
 }
 
 /** /astrology/synastry ve /astrology/composite-chart — person1 = profil, person2 = karşı taraf. */

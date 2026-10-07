@@ -82,9 +82,12 @@ async function seed() {
 
 const GOLDEN_DIR = join(__dirname, "fixtures", "golden");
 const GOLDEN: Record<string, Record<string, unknown>> = {};
+const GOLDEN_RELOCATED: Record<string, { body: Record<string, unknown>; response: Record<string, unknown> }> = {};
 for (const f of readdirSync(GOLDEN_DIR).filter((x) => x.endsWith(".json"))) {
   const g = JSON.parse(readFileSync(join(GOLDEN_DIR, f), "utf8"));
-  GOLDEN[g.endpoint] = g.response;
+  // Konumlu return golden'ları (Aşama 4.1, Londra) ayrı tutulur; varsayılan endpoint golden'ı doğum yeridir.
+  if (/-london\.json$/.test(f)) GOLDEN_RELOCATED[g.endpoint] = { body: g.body, response: g.response };
+  else GOLDEN[g.endpoint] = g.response;
 }
 let roxyHits = 0;
 
@@ -112,7 +115,11 @@ function startFakeRoxy() {
         natal.houseSystem = body.houseSystem;
         raw = natal;
       } else if (GOLDEN[path]) {
-        raw = structuredClone(GOLDEN[path]);
+        const rel = GOLDEN_RELOCATED[path];
+        const isRel = rel && Math.abs(Number(body.latitude) - Number(rel.body.latitude)) < 1e-3 && Math.abs(Number(body.longitude) - Number(rel.body.longitude)) < 1e-3;
+        raw = structuredClone(isRel ? rel.response : GOLDEN[path]);
+        // SENTETİK konum yankısı (golden dışı konumlar): harita içeriği golden'dır, yalnız yankı.
+        if ((path === "/astrology/solar-return" || path === "/astrology/lunar-return") && !isRel) raw.location = { ...(raw.location as object), latitude: body.latitude, longitude: body.longitude };
         if (path === "/forecast/transits") raw.events = (raw.events as { date: string }[]).filter((e) => e.date >= body.startDate && e.date <= body.endDate);
         // SENTETİK yankı: istenen konum (harita içeriği golden) → adaptörün konum doğrulaması geçer.
         if (path === "/astrology/relocation-chart") raw.relocation = { latitude: body.relocationLatitude, longitude: body.relocationLongitude };

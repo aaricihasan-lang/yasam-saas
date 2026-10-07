@@ -444,7 +444,15 @@ function projectChart(c: Record<string, unknown> | null, houseSystem: HouseSyste
 export function projectRoxyReturn(
   raw: unknown,
   kind: "solar" | "lunar",
-  opts: { houseSystem: HouseSystem; returnYear: number | null; returnDate: string | null; sequence?: number | null; expectedUtc?: string | null },
+  opts: {
+    houseSystem: HouseSystem;
+    returnYear: number | null;
+    returnDate: string | null;
+    sequence?: number | null;
+    expectedUtc?: string | null;
+    /** Aşama 4.1: istenen gözlem konumu — sağlayıcı yankısı (location) bununla uyuşmalı. */
+    expectedLocation?: { latitude: number; longitude: number } | null;
+  },
 ): AdapterResult<ReturnTechnical, ReturnInterpretation> {
   const errors: string[] = [];
   const dropped: string[] = [];
@@ -459,6 +467,10 @@ export function projectRoxyReturn(
   const lon = num(loc?.longitude, -180, 180);
   const off = num(loc?.timezone, -18, 18);
   if (lat === null || lon === null || off === null) errors.push("location");
+  // Sağlayıcı istenen konumda hesaplamalı (relocated return); aksi hâlde sonuç KAYDEDİLMEZ.
+  if (opts.expectedLocation && lat !== null && lon !== null && (Math.abs(lat - opts.expectedLocation.latitude) > 1e-3 || Math.abs(lon - opts.expectedLocation.longitude) > 1e-3)) {
+    errors.push("location: istenen dönüş konumuyla uyuşmuyor");
+  }
   // Lunar: sağlayıcının döndürdüğü dönüş, SEÇİLEN dönüş olmalı (en yakın dönüş kuralı). ±36 saat dışı →
   // başka dönüş hesaplanmış demektir → sonuç KAYDEDİLMEZ (sessizce yanlış dönüş gösterilmez).
   if (kind === "lunar" && opts.expectedUtc && returnLocal && off !== null) {

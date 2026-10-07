@@ -42,6 +42,25 @@ export default function TechniqueSelector({
   const anyHouse = !!(checked["western.natal"] || checked["western.solar_return"] || checked["western.lunar_return"] || checked["western.relocation"] || anyPartner);
   const anyNode = !!(checked["western.natal"] || checked["western.transit"] || checked["western.progression"] || checked["western.solar_arc"] || anyPartner);
 
+  // Aşama 4.1 — dönüş konumu: doğum yeri (varsayılan) veya sistemdeki konum listesinden başka bir yer.
+  // Doğum anı/dönüş anı DEĞİŞMEZ; yalnız dönüş haritasının ASC/MC/evleri seçilen yere göre hesaplanır.
+  const returnLocationChooser = (key: "solarReturnLocation" | "lunarReturnLocation", label: string) => {
+    const v = params[key];
+    return (
+      <div className="flex flex-col gap-1 text-xs" data-testid={`astro-${key}`}>
+        <div className="flex flex-wrap items-center gap-3" role="radiogroup" aria-label={`${label} konumu`}>
+          <label className="flex items-center gap-1">
+            <input type="radio" checked={v === null} onChange={() => set(key, null)} data-return-loc="birth" /> Doğum yerine göre
+          </label>
+          <label className="flex items-center gap-1">
+            <input type="radio" checked={v !== null} readOnly disabled={v === null} data-return-loc="other" /> Farklı konumda{v ? `: ${v.label}` : " (aşağıdan seçin)"}
+          </label>
+        </div>
+        <LocationPicker value={v} onChange={(x) => set(key, x)} />
+      </div>
+    );
+  };
+
   const params_ = (id: UiTechniqueId) => {
     switch (id) {
       case "western.transit":
@@ -94,6 +113,7 @@ export default function TechniqueSelector({
         );
       case "western.solar_return":
         return (
+          <div className="flex flex-col gap-1.5">
           <label className="flex items-center gap-2 text-xs">
             Dönüş yılı
             <input
@@ -106,6 +126,8 @@ export default function TechniqueSelector({
               aria-label="Solar return yılı"
             />
           </label>
+            {returnLocationChooser("solarReturnLocation", "Solar return")}
+          </div>
         );
       case "western.lunar_return":
         return (
@@ -133,6 +155,7 @@ export default function TechniqueSelector({
                 );
               })}
             </div>
+            {returnLocationChooser("lunarReturnLocation", "Lunar return")}
             {lunarReturns && lunarReturns.length > 1 && <span className="text-xs text-violet-800">Bu ayda {lunarReturns.length} lunar return var. Diğerini hesaplamak için sırayı değiştirip yeniden hesaplayın (her dönüş 1 istek; ikisi de ayrı kayıt olarak kalır).</span>}
           </div>
         );
