@@ -19,6 +19,7 @@ import { HdPersonalKnowledgePanel } from "./HdPersonalKnowledgePanel";
 import { HdProfessionalReportButton } from "./HdProfessionalReportButton";
 import { HdComputedChartView } from "./HdComputedChartView";
 import { HdExpertKnowledgePanel } from "./HdExpertKnowledgePanel";
+import { HdChartKnowledgeTabs, canUseHdSystemReading } from "./HdChartKnowledgeTabs";
 import { computedChartAppCodes } from "@/lib/human-design/chart/computedChart";
 import { buildChartSubjectInfo, todayCalendarDate } from "@/lib/human-design/chart/chartSubjectInfo";
 
@@ -48,6 +49,9 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
   const [deleteError, setDeleteError] = useState("");
   // Yaş için görüntüleyenin takvim günü (modal açılışında bir kez).
   const [today] = useState(todayCalendarDate);
+  // AŞAMA 2B: "Sistem Yorumu" sekmesi yalnız human_design + hd_system_reading yetkili uzmana görünür
+  // (erişim ayrıca sunucuda zorlanır).
+  const [canSystemReading] = useState(canUseHdSystemReading);
 
   useEffect(() => {
     let alive = true;
@@ -177,13 +181,15 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
                     roxyRender={(row?.roxy_render as Record<string, unknown> | null | undefined) ?? null}
                     subject={subject}
                   />
-                  <div className="mx-auto max-w-[1552px] border-t border-emerald-100 pt-5">
-                    <HdExpertKnowledgePanel chart={computedChartAppCodes(result)} />
-                  </div>
-                  <div className="mx-auto max-w-[1552px] border-t border-indigo-100/80 pt-5">
-                    <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-700">Kişinin <span lang="en">Human Design</span> Bilgileri</p>
-                    <HdPersonalKnowledgePanel chartId={id} />
-                  </div>
+                  <HdChartKnowledgeTabs chartId={id} allowed={canSystemReading}>
+                    <div className="mx-auto max-w-[1552px] border-t border-emerald-100 pt-5">
+                      <HdExpertKnowledgePanel chart={computedChartAppCodes(result)} />
+                    </div>
+                    <div className="mx-auto max-w-[1552px] border-t border-indigo-100/80 pt-5">
+                      <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-700">Kişinin <span lang="en">Human Design</span> Bilgileri</p>
+                      <HdPersonalKnowledgePanel chartId={id} />
+                    </div>
+                  </HdChartKnowledgeTabs>
                 </div>
               ) : (
                 <p className="py-10 text-center text-sm text-slate-500">Kayıt bulunamadı.</p>
