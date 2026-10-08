@@ -32,9 +32,38 @@ import {
   type VedicVargaTechnical,
 } from "../model/vedic";
 import { SIGN_LABELS } from "../labels/tr";
+import type { KpChartTechnical } from "../model/kp";
 
 export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha", "vedic_drishti", "vedic_strength", "vedic_panchanga", "vedic_gochara"] as const;
 export type VedicContext = (typeof VEDIC_CONTEXTS)[number];
+
+/**
+ * Aşama 6: KP (Krishnamurti Paddhati) bağlamları — AYRI gelenek ("kp"). Anahtar türleri "kp_" önekli; Vedik/Batı ayrıştırıcıları
+ * bunları KABUL ETMEZ (parseVedicTopicKey gelenek parametresi). Evler Placidus cusp'larıdır (bütün-burç bhava DEĞİL).
+ */
+export const KP_CONTEXTS = ["kp_principle", "kp_cusp", "kp_planet", "kp_significator", "kp_dasha", "kp_ruling", "kp_transit", "kp_horary"] as const;
+export type KpContext = (typeof KP_CONTEXTS)[number];
+export const KP_CONTEXT_LABELS: Record<KpContext, string> = {
+  kp_principle: "KP temel prensipler",
+  kp_cusp: "KP cusp (Placidus)",
+  kp_planet: "KP gezegen (star / sub lord)",
+  kp_significator: "KP significator",
+  kp_dasha: "KP dasha",
+  kp_ruling: "KP ruling planets",
+  kp_transit: "KP transit",
+  kp_horary: "KP horary",
+};
+/** KP temel prensip konuları (harita dışı genel bilgi; teknik eşleşme üretmez, yalnız elle seçilir). */
+export const KP_PRINCIPLES: Record<string, string> = {
+  cusp_sublord_rule: "Cusp sub-lord kuralı (vaat)",
+  significator_levels: "4 düzeyli significator sırası",
+  star_lord_rule: "Star lord ilkesi",
+  node_agency: "Rahu/Ketu ajanlığı",
+  retrograde_rule: "Retro gezegen ilkesi",
+  ruling_planets_rule: "Ruling planets ile doğrulama",
+  horary_method: "Horary (1–249) yöntemi",
+  dasha_timing: "Dasha ile zamanlama",
+};
 export const VEDIC_CONTEXT_LABELS: Record<VedicContext, string> = {
   vedic_d1: "Vedik D1 (Rashi)",
   vedic_varga: "Vedik Varga (D9 / Dn)",
@@ -93,9 +122,10 @@ export const VEDIC_YOGA_NAMES: Record<string, string> = {
   kedara: "Kedara", pasa: "Pasa", damni: "Damni", vallaki: "Vallaki",
 };
 
-export type VedicArgType = "graha" | "rashi" | "bhava" | "nakshatra" | "pada" | "yoga" | "division" | "tithi" | "nitya_yoga" | "karana";
+export type VedicArgType = "graha" | "rashi" | "bhava" | "nakshatra" | "pada" | "yoga" | "division" | "tithi" | "nitya_yoga" | "karana" | "kp_number" | "kp_principle";
 type ArgType = VedicArgType;
-type Spec = { args: ArgType[]; context: VedicContext; label: (p: string[]) => string };
+export type TopicTradition = "vedic" | "kp";
+type Spec = { args: ArgType[]; context: VedicContext | KpContext; label: (p: string[]) => string; tradition?: "kp" };
 
 const g = (s: string) => GRAHA_LABELS[s] ?? s;
 const r = (s: string) => (SIGN_LABELS as Record<string, string>)[s] ?? s;
@@ -126,12 +156,30 @@ export const VEDIC_SPECS: Record<string, Spec> = {
   panchanga_nitya_yoga: { args: ["nitya_yoga"], context: "vedic_panchanga", label: (p) => `Janma nitya yoga: ${p[0]}. ${NITYA_YOGA_LABELS[Number(p[0]) - 1] ?? ""}` },
   panchanga_karana: { args: ["karana"], context: "vedic_panchanga", label: (p) => `Janma karana: ${KARANA_LABELS[p[0]] ?? p[0]}` },
   dasha_pratyantardasha: { args: ["graha", "graha", "graha"], context: "vedic_dasha", label: (p) => `Pratyantardasha: ${g(p[0])} / ${g(p[1])} / ${g(p[2])}` },
+  // ─── Aşama 6: KP (tradition "kp") ───
+  kp_principle: { args: ["kp_principle"], context: "kp_principle", tradition: "kp", label: (p) => `KP prensip: ${KP_PRINCIPLES[p[0]] ?? p[0]}` },
+  kp_cusp_rashi: { args: ["bhava", "rashi"], context: "kp_cusp", tradition: "kp", label: (p) => `KP: ${p[0]}. cusp ${r(p[1])} burcunda` },
+  kp_cusp_starlord: { args: ["bhava", "graha"], context: "kp_cusp", tradition: "kp", label: (p) => `KP: ${p[0]}. cusp star lord ${g(p[1])}` },
+  kp_cusp_sublord: { args: ["bhava", "graha"], context: "kp_cusp", tradition: "kp", label: (p) => `KP: ${p[0]}. cusp sub-lord ${g(p[1])}` },
+  kp_planet_in_house: { args: ["graha", "bhava"], context: "kp_planet", tradition: "kp", label: (p) => `KP: ${g(p[0])} ${p[1]}. evde (Placidus)` },
+  kp_planet_starlord: { args: ["graha", "graha"], context: "kp_planet", tradition: "kp", label: (p) => `KP: ${g(p[0])} ${g(p[1])} yıldızında (star lord)` },
+  kp_planet_sublord: { args: ["graha", "graha"], context: "kp_planet", tradition: "kp", label: (p) => `KP: ${g(p[0])} sub-lord ${g(p[1])}` },
+  kp_significator: { args: ["graha", "bhava"], context: "kp_significator", tradition: "kp", label: (p) => `KP significator: ${g(p[0])} → ${p[1]}. ev` },
+  kp_dasha_lord: { args: ["graha"], context: "kp_dasha", tradition: "kp", label: (p) => `KP dasha lordu: ${g(p[0])}` },
+  kp_dasha_signifies: { args: ["graha", "bhava"], context: "kp_dasha", tradition: "kp", label: (p) => `KP dasha: ${g(p[0])} dönemi ${p[1]}. evi gösterir` },
+  kp_ruling_planet: { args: ["graha"], context: "kp_ruling", tradition: "kp", label: (p) => `KP ruling planet: ${g(p[0])}` },
+  kp_transit_sublord: { args: ["graha", "graha"], context: "kp_transit", tradition: "kp", label: (p) => `KP transit: ${g(p[0])} sub-lord ${g(p[1])}` },
+  kp_transit_starlord: { args: ["graha", "graha"], context: "kp_transit", tradition: "kp", label: (p) => `KP transit: ${g(p[0])} ${g(p[1])} yıldızında` },
+  kp_horary_number: { args: ["kp_number"], context: "kp_horary", tradition: "kp", label: (p) => `KP horary sayısı: ${p[0]}` },
+  kp_horary_cusp_sublord: { args: ["bhava", "graha"], context: "kp_horary", tradition: "kp", label: (p) => `KP horary: ${p[0]}. cusp sub-lord ${g(p[1])}` },
   gochara_graha_in_rashi: { args: ["graha", "rashi"], context: "vedic_gochara", label: (p) => `Gochara: transit ${g(p[0])} ${r(p[1])} rashisinde` },
   gochara_from_moon: { args: ["graha", "bhava"], context: "vedic_gochara", label: (p) => `Gochara: transit ${g(p[0])} Janma Rashi'den ${p[1]}. evde` },
   gochara_in_bhava: { args: ["graha", "bhava"], context: "vedic_gochara", label: (p) => `Gochara: transit ${g(p[0])} Lagna'dan ${p[1]}. bhavada` },
   gochara_drishti: { args: ["graha", "graha"], context: "vedic_gochara", label: (p) => `Gochara drishti: transit ${g(p[0])} → natal ${g(p[1])}` },
 };
-export const VEDIC_KINDS = Object.keys(VEDIC_SPECS);
+export const VEDIC_KINDS = Object.keys(VEDIC_SPECS).filter((k) => !VEDIC_SPECS[k].tradition);
+export const KP_KINDS = Object.keys(VEDIC_SPECS).filter((k) => VEDIC_SPECS[k].tradition === "kp");
+export const traditionOfSpec = (kind: string): TopicTradition => (VEDIC_SPECS[kind]?.tradition === "kp" ? "kp" : "vedic");
 
 function valid(t: ArgType, v: string): boolean {
   switch (t) {
@@ -155,6 +203,10 @@ function valid(t: ArgType, v: string): boolean {
       return /^(?:[1-9]|1\d|2[0-7])$/.test(v);
     case "karana":
       return (KARANA_IDS as readonly string[]).includes(v);
+    case "kp_number":
+      return /^(?:[1-9]|[1-9]\d|1\d\d|2[0-3]\d|24[0-9])$/.test(v);
+    case "kp_principle":
+      return Object.prototype.hasOwnProperty.call(KP_PRINCIPLES, v);
   }
 }
 
@@ -181,6 +233,10 @@ export function vedicArgOptions(t: VedicArgType): [string, string][] {
       return NITYA_YOGA_LABELS.map((l, i): [string, string] => [String(i + 1), `${i + 1}. ${l}`]);
     case "karana":
       return KARANA_IDS.map((k): [string, string] => [k, KARANA_LABELS[k]]);
+    case "kp_number":
+      return Array.from({ length: 249 }, (_, i): [string, string] => [String(i + 1), String(i + 1)]);
+    case "kp_principle":
+      return Object.entries(KP_PRINCIPLES);
   }
 }
 
@@ -193,13 +249,15 @@ export function vedicTopicKey(kind: string, parts: string[]): string {
   return [kind, ...parts].join(":");
 }
 
-export type ParsedVedicTopic = { kind: string; parts: string[]; context: VedicContext; label: string };
+export type ParsedVedicTopic = { kind: string; parts: string[]; context: VedicContext | KpContext; label: string };
 
-export function parseVedicTopicKey(key: unknown): ParsedVedicTopic | null {
+/** Gelenek ayrımı: "vedic" yalnız Vedik türleri, "kp" yalnız KP türlerini kabul eder (KP anahtarı Vedik olarak ASLA ayrışmaz). */
+export function parseVedicTopicKey(key: unknown, tradition: TopicTradition = "vedic"): ParsedVedicTopic | null {
   if (typeof key !== "string" || key.length > 160) return null;
   const [kind, ...parts] = key.split(":");
-  const spec = VEDIC_SPECS[kind];
+  const spec = Object.prototype.hasOwnProperty.call(VEDIC_SPECS, kind) ? VEDIC_SPECS[kind] : undefined;
   if (!spec || parts.length !== spec.args.length) return null;
+  if ((spec.tradition ?? "vedic") !== tradition) return null;
   if (!spec.args.every((t, i) => valid(t, parts[i]))) return null;
   return { kind, parts, context: spec.context, label: spec.label(parts) };
 }
@@ -210,7 +268,7 @@ export function vedicCollect(items: [string, string[]][]): VedicTopic[] {
   const out = new Map<string, VedicTopic>();
   for (const [kind, parts] of items) {
     const key = [kind, ...parts].join(":");
-    const p = parseVedicTopicKey(key);
+    const p = parseVedicTopicKey(key, traditionOfSpec(kind));
     if (p && !out.has(key)) out.set(key, { key, kind, label: p.label });
   }
   return [...out.values()];
@@ -278,6 +336,18 @@ export function topicsFromVedicD1(t: VedicD1Technical): VedicTopic[] {
   }
   items.push(["lagna_rashi", [t.lagna.rashi]], ["lagna_nakshatra", [t.lagna.nakshatra.id]]);
   for (const y of t.yogas) if (y.present) items.push(["yoga", [y.id]]);
+  return vedicCollect(items);
+}
+
+/** Aşama 6 KP haritası konuları: cusp (burç / star / sub lord), gezegen (Placidus evi / star / sub lord), significator (herhangi düzey). */
+export function topicsFromKpChart(t: KpChartTechnical): VedicTopic[] {
+  const items: [string, string[]][] = [];
+  for (const c of t.cusps) {
+    const h = String(c.house);
+    items.push(["kp_cusp_rashi", [h, c.rashi]], ["kp_cusp_starlord", [h, c.starLord]], ["kp_cusp_sublord", [h, c.subLord]]);
+  }
+  for (const b of t.bodies) items.push(["kp_planet_in_house", [b.id, String(b.house)]], ["kp_planet_starlord", [b.id, b.starLord]], ["kp_planet_sublord", [b.id, b.subLord]]);
+  for (const p of t.significators.planets) for (const h of [...new Set([1, 2, 3, 4].flatMap((l) => p.levels[l as 1 | 2 | 3 | 4]))].sort((a, b) => a - b)) items.push(["kp_significator", [p.id, String(h)]]);
   return vedicCollect(items);
 }
 

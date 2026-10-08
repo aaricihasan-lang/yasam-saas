@@ -127,13 +127,15 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
     default:
       // Aşama 5: tüm Vedik teknikler saat gerektirir (Lagna/ev/pada/varga/dasha) → hiçbir veri gösterilmez.
       if (technique.startsWith("vedic.")) return { technical: null, masked: true, warnings: ["Doğum saati bilinmiyor: Vedik hesaplar (Lagna, bhava, pada, varga, dasha) saate bağlıdır; sonuç gösterilmez."] };
+      // Aşama 6: KP doğum teknikleri saate bağlı (Placidus cusp ~4 dk/sub). Horary doğum verisi KULLANMAZ → maskelenmez.
+      if (technique.startsWith("kp.") && technique !== "kp.horary") return { technical: null, masked: true, warnings: ["Doğum saati bilinmiyor: KP cusp, sub-lord ve significator sonuçları saate bağlıdır; sonuç gösterilmez."] };
       return { technical, masked: false, warnings };
   }
 }
 
 const LOCATION_TIME_WARN = "Doğum saati bilinmiyor: bu konum tekniği tamamen saate bağlıdır; sonuç gösterilmez.";
 const TIME_ONLY = new Set(["western.astrocartography", "western.relocation", "western.local_space"]);
-const TIME_ONLY_TECHNIQUES = { has: (t: string) => TIME_ONLY.has(t) || t.startsWith("vedic.") };
+const TIME_ONLY_TECHNIQUES = { has: (t: string) => TIME_ONLY.has(t) || t.startsWith("vedic.") || (t.startsWith("kp.") && t !== "kp.horary") };
 
 function maskInterpretation(technique: string, content: unknown, masked: boolean): unknown {
   if (!masked) return content;

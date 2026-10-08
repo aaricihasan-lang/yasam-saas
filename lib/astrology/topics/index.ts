@@ -31,17 +31,19 @@ import {
 } from "./contextual";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "../model/westernLocation";
 import type { VedicD1Technical, VedicDashaTechnical, VedicDrishtiTechnical, VedicPanchangaTechnical, VedicShadbalaTechnical, VedicTransitTechnical, VedicVargaTechnical } from "../model/vedic";
+import { KP_CONTEXT_LABELS, KP_KINDS, topicsFromKpChart, type KpContext } from "./vedic";
+import type { KpChartTechnical } from "../model/kp";
 import { parseVedicTopicKey, topicsFromVedicD1, topicsFromVedicDasha, topicsFromVedicDrishti, topicsFromVedicPanchanga, topicsFromVedicShadbala, topicsFromVedicTransit, topicsFromVedicVarga, VEDIC_CONTEXT_LABELS, VEDIC_KINDS, VEDIC_SPECS, type VedicContext } from "./vedic";
 
 /** Konu bağlamı: Batı bağlamları + Vedik bağlamlar (gelenek ayrımı anahtar türünde ve KB sütununda). */
-export type AnyContext = TopicContext | VedicContext;
+export type AnyContext = TopicContext | VedicContext | KpContext;
 export type AnyTopic = { key: string; kind: string; label: string; context: AnyContext };
-export type Tradition = "western" | "vedic";
+export type Tradition = "western" | "vedic" | "kp";
 
 export function parseAnyTopicKey(tradition: unknown, key: unknown): AnyTopic | null {
   if (typeof key !== "string") return null;
-  if (tradition === "vedic") {
-    const v = parseVedicTopicKey(key);
+  if (tradition === "vedic" || tradition === "kp") {
+    const v = parseVedicTopicKey(key, tradition);
     return v ? { key, kind: v.kind, label: v.label, context: v.context } : null;
   }
   if (tradition !== "western") return null;
@@ -55,16 +57,17 @@ export function parseAnyTopicKey(tradition: unknown, key: unknown): AnyTopic | n
 export function traditionOfKey(key: unknown): Tradition | null {
   if (parseAnyTopicKey("western", key)) return "western";
   if (parseAnyTopicKey("vedic", key)) return "vedic";
+  if (parseAnyTopicKey("kp", key)) return "kp";
   return null;
 }
 
 export function topicLabelAny(key: string): string {
-  return parseAnyTopicKey("western", key)?.label ?? parseAnyTopicKey("vedic", key)?.label ?? key;
+  return parseAnyTopicKey("western", key)?.label ?? parseAnyTopicKey("vedic", key)?.label ?? parseAnyTopicKey("kp", key)?.label ?? key;
 }
 
-/** Tekniğin geleneği: "vedic.*" → vedic, diğerleri western. KB eşleşmesi bu gelenekte yapılır. */
+/** Tekniğin geleneği: "vedic.*" → vedic, "kp.*" → kp, diğerleri western. KB eşleşmesi bu gelenekte yapılır. */
 export function traditionOfTechnique(technique: string): Tradition {
-  return technique.startsWith("vedic.") ? "vedic" : "western";
+  return technique.startsWith("vedic.") ? "vedic" : technique.startsWith("kp.") ? "kp" : "western";
 }
 
 /** Filtre/seçici için tüm konu türleri (bağlama göre gruplu). */
@@ -72,6 +75,7 @@ export const ALL_TOPIC_KINDS: { kind: string; label: string; context: AnyContext
   ...WESTERN_TOPIC_KINDS.map((k) => ({ kind: k, label: WESTERN_TOPIC_KIND_LABELS[k], context: "natal" as const })),
   ...CONTEXT_KINDS.map((k) => ({ kind: k, label: kindLabel(k), context: CONTEXT_SPECS[k].context as AnyContext })),
   ...VEDIC_KINDS.map((k) => ({ kind: k, label: vedicKindLabel(k), context: VEDIC_SPECS[k].context as AnyContext })),
+  ...KP_KINDS.map((k) => ({ kind: k, label: `${KP_CONTEXT_LABELS[VEDIC_SPECS[k].context as KpContext]} · ${k.replace(/^kp_/, "").replace(/_/g, " ")}`, context: VEDIC_SPECS[k].context as AnyContext })),
 ];
 
 function vedicKindLabel(kind: string): string {
@@ -105,7 +109,7 @@ function vedicKindLabel(kind: string): string {
     gochara_in_bhava: "Lagna'dan bhava",
     gochara_drishti: "transit → natal drishti",
   };
-  return `${VEDIC_CONTEXT_LABELS[VEDIC_SPECS[kind].context]} · ${L[kind] ?? kind}`;
+  return `${VEDIC_CONTEXT_LABELS[VEDIC_SPECS[kind].context as VedicContext]} · ${L[kind] ?? kind}`;
 }
 
 function kindLabel(kind: string): string {
@@ -176,6 +180,8 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromVedicPanchanga(technical as VedicPanchangaTechnical) : [];
     case "vedic.transit":
       return technical ? topicsFromVedicTransit(technical as VedicTransitTechnical) : [];
+    case "kp.chart":
+      return technical ? topicsFromKpChart(technical as KpChartTechnical) : [];
     case "vedic.ashtakavarga":
       return [];
     default:
@@ -187,7 +193,8 @@ export { TOPIC_CONTEXT_LABELS, TOPIC_CONTEXTS } from "./contextual";
 export type { TopicContext } from "./contextual";
 
 /** Teknik → konu bağlamı (not bölümü + KB eşleşmesi natal ile KARIŞMAZ). */
-export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext> = {
+/** Bir teknik birden fazla bağlam taşıyabilir (KP haritası: cusp + gezegen + significator). */
+export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> = {
   "vedic.d1": "vedic_d1",
   "vedic.varga": "vedic_varga",
   "vedic.dasha": "vedic_dasha",
@@ -196,6 +203,7 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext> = {
   "vedic.shadbala": "vedic_strength",
   "vedic.panchanga": "vedic_panchanga",
   "vedic.transit": "vedic_gochara",
+  "kp.chart": ["kp_cusp", "kp_planet", "kp_significator", "kp_principle"],
   "western.natal": "natal",
   "western.transit": "transit",
   "western.forecast": "transit",
@@ -214,5 +222,6 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext> = {
 export function isSectionKeyForTechnique(technique: string, sectionKey: unknown): boolean {
   if (sectionKey === "overall") return true;
   const t = parseAnyTopicKey(traditionOfTechnique(technique), sectionKey);
-  return !!t && TECHNIQUE_TOPIC_CONTEXT[technique] === t.context;
+  const c = TECHNIQUE_TOPIC_CONTEXT[technique];
+  return !!t && (Array.isArray(c) ? c.includes(t.context) : c === t.context);
 }

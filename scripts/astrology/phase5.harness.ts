@@ -23,7 +23,7 @@ import { getTechnique } from "@/lib/astrology/engine/techniques";
 import { createKb } from "@/lib/astrology/kb/service";
 import { fmtDateTr, getAnalysis, getWorkspace, locationContextKey, saveAnalysis, saveExpertNote, vedicContextKey } from "@/lib/astrology/analyses/service";
 import { isSectionKeyForTechnique, parseAnyTopicKey, topicsForTechnique, traditionOfKey } from "@/lib/astrology/topics/index";
-import { NITYA_YOGA_LABELS, VEDIC_SPECS, VEDIC_YOGA_NAMES, parseVedicTopicKey, vedicArgOptions, vedicDefaultParts, vedicTopicKey } from "@/lib/astrology/topics/vedic";
+import { NITYA_YOGA_LABELS, VEDIC_KINDS, VEDIC_SPECS, VEDIC_YOGA_NAMES, parseVedicTopicKey, vedicArgOptions, vedicDefaultParts, vedicTopicKey } from "@/lib/astrology/topics/vedic";
 import {
   dashaEndpoint,
   karanaOfHalfTithi,
@@ -431,7 +431,8 @@ async function main() {
   // Planlı fixture'ların varlığı (alt aşamalar ilerledikçe).
   await t("5B konu seçici: her Vedik tür × her argüman seçeneği geçerli 'vedic' anahtarı üretir, Batı'da GEÇERSİZ; 48 yoga kimliği listede; KB editörü geleneği anahtardan türetir", () => {
     let n = 0;
-    for (const kind of Object.keys(VEDIC_SPECS)) {
+    // Aşama 6: ortak tür haritasında KP türleri de var (ayrı gelenek) → burada yalnız Vedik türler; KP eşdeğeri phase6 harness'ında.
+    for (const kind of VEDIC_KINDS) {
       const base = vedicDefaultParts(kind);
       assert.ok(parseVedicTopicKey(vedicTopicKey(kind, base)), `${kind} varsayılan`);
       VEDIC_SPECS[kind].args.forEach((a, i) => {

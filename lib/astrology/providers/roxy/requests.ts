@@ -135,6 +135,40 @@ export function vedicBirthBody(b: BirthPoint, ayanamsa: VedicAyanamsa) {
   return { date: bb.date, time: bb.time, latitude: bb.latitude, longitude: bb.longitude, timezone: bb.timezone, ayanamsa };
 }
 
+// ─── Aşama 6: KP (Krishnamurti Paddhati) ──────────────────────────────────────
+// KP uçlarında da timezone varsayılanı 5.5 (IST) → doğum ofseti HER ZAMAN açıkça gönderilir. Ayanamsa yalnız KP çerçeveleri
+// (kp-newcomb varsayılan, kp-old); Lahiri/Raman ile "KP haritası" üretilmez. Düğüm: mean (KP geleneği; Roxy varsayılanı) / true.
+export const KP_AYANAMSAS = ["kp-newcomb", "kp-old"] as const;
+export type KpAyanamsa = (typeof KP_AYANAMSAS)[number];
+export type KpNodeType = "mean" | "true";
+
+/** /vedic-astrology/kp/chart — doğum tabanlı KP haritası (Placidus). */
+export function kpChartBody(b: BirthPoint, ayanamsa: KpAyanamsa, nodeType: KpNodeType) {
+  const bb = birthBody(b);
+  return { date: bb.date, time: bb.time, latitude: bb.latitude, longitude: bb.longitude, timezone: bb.timezone, ayanamsa, nodeType };
+}
+
+/**
+ * /vedic-astrology/kp/ruling-planets — an + gözlem konumu (doğum yeri). TEK timezone alanı hem doğum saatine hem `datetime`'a
+ * uygulanır → an doğum ofsetinde yerel saate çevrilir (Gochara ile aynı kural). Doğum verisi significator için gönderilir.
+ */
+export function kpRulingBody(b: BirthPoint, atUtcMinute: string, nodeType: KpNodeType) {
+  const bb = birthBody(b);
+  const t = vedicTransitLocal(b, atUtcMinute);
+  return { latitude: bb.latitude, longitude: bb.longitude, timezone: bb.timezone, datetime: `${t.date}T${t.time}`, birthDate: bb.date, birthTime: bb.time, nodeType };
+}
+
+/** /vedic-astrology/kp/horary — doğum verisi YOK; soru anı UTC (timezone 0) + değerlendirme konumu. */
+export function kpHoraryBody(horaryNumber: number, atUtcMinute: string, place: GeoPoint, ayanamsa: KpAyanamsa, nodeType: KpNodeType) {
+  return { horaryNumber, date: atUtcMinute.slice(0, 10), time: `${atUtcMinute.slice(11, 16)}:00`, latitude: r6(place.latitude), longitude: r6(place.longitude), timezone: 0, ayanamsa, nodeType };
+}
+
+/** /vedic-astrology/kp/planets-interval — tek an KP efemerisi (UTC; 15 dk aralıkla 2 nokta: an ve +15 dk). */
+export function kpPlanetsAtBody(atUtcMinute: string, place: GeoPoint, ayanamsa: KpAyanamsa, nodeType: KpNodeType) {
+  const end = new Date(Date.parse(`${atUtcMinute}:00Z`) + 15 * 60_000).toISOString().slice(0, 19);
+  return { startDatetime: `${atUtcMinute}:00`, endDatetime: end, intervalMinutes: 15, latitude: r6(place.latitude), longitude: r6(place.longitude), timezone: 0, ayanamsa, nodeType };
+}
+
 /**
  * Aşama 5.1A — /vedic-astrology/transit (Gochar). Uç TEK bir timezone alanı alır ve hem doğum hem transit
  * saatini o ofsetle yorumlar → transit ANI (UTC) doğum ofsetinde yerel saate çevrilerek gönderilir

@@ -99,7 +99,9 @@ import {
   ROXY_VEDIC_SHADBALA,
   ROXY_VEDIC_VARGA,
 } from "../providers/roxy/vedic";
-import { vedicBirthBody, vedicTransitBody, VEDIC_AYANAMSAS, type VedicAyanamsa } from "../providers/roxy/requests";
+import { kpChartBody, KP_AYANAMSAS, vedicBirthBody, vedicTransitBody, VEDIC_AYANAMSAS, type KpAyanamsa, type KpNodeType, type VedicAyanamsa } from "../providers/roxy/requests";
+import { projectRoxyKpChart, ROXY_KP_CHART } from "../providers/roxy/kp";
+import { KP_CHART_INTERP_SCHEMA, KP_CHART_TECHNICAL_SCHEMA } from "../model/kp";
 import {
   VEDIC_ASHTAKAVARGA_TECHNICAL_SCHEMA,
   VEDIC_DRISHTI_TECHNICAL_SCHEMA,
@@ -147,6 +149,7 @@ export const TECHNIQUE_IDS = [
   "vedic.shadbala",
   "vedic.panchanga",
   "vedic.transit",
+  "kp.chart",
 ] as const;
 export type TechniqueId = (typeof TECHNIQUE_IDS)[number];
 
@@ -811,6 +814,44 @@ const vedicTransit: TechniqueDefinition = {
   },
 };
 
+// ─── Aşama 6: KP (Krishnamurti Paddhati) — hesap motoru Roxy; Vedik D1'den AYRI teknik (Placidus cusp + sub-lord) ───
+/** KP ayanamsa: yoksa kp-newcomb (Roxy KP varsayılanı); yalnız KP çerçeveleri (Lahiri/Raman ile KP haritası üretilmez). */
+export function kpAyanamsaOf(v: unknown): KpAyanamsa | null {
+  if (v === undefined || v === null || v === "") return "kp-newcomb";
+  return typeof v === "string" && (KP_AYANAMSAS as readonly string[]).includes(v) ? (v as KpAyanamsa) : null;
+}
+/** KP düğüm: yoksa mean (KP geleneği + Roxy varsayılanı). */
+export function kpNodeOf(v: unknown): KpNodeType | null {
+  if (v === undefined || v === null || v === "") return "mean";
+  return v === "mean" || v === "true" ? v : null;
+}
+
+const kpChart: TechniqueDefinition = {
+  id: "kp.chart",
+  label: "KP doğum haritası (Placidus + sub-lord)",
+  family: "kp",
+  requiresPartner: false,
+  // Cusp sub-lord'u ~4 dakikada değişir; saat bilinmeden KP haritası anlamsız → TIME_REQUIRED.
+  requiresKnownTime: true,
+  timeDependent: false,
+  parseOptions: (raw) => {
+    const ay = kpAyanamsaOf(o(raw).ayanamsa);
+    const nt = kpNodeOf(o(raw).nodeType);
+    return ay && nt ? { ayanamsa: ay, nodeType: nt } : null;
+  },
+  units: (ctx, opt) => [unit("kp.chart", ROXY_KP_CHART, kpChartBody(ctx.birth, opt.ayanamsa as KpAyanamsa, opt.nodeType as KpNodeType))],
+  noteContext: (opt) => `ayanamsa:${String(opt.ayanamsa)}|nodeType:${String(opt.nodeType)}`,
+  project: (u, raw, opt) => {
+    const b = u.body as { date: string; time: string; latitude: number; longitude: number; timezone: number };
+    return fromAdapter(
+      projectRoxyKpChart(raw, { ayanamsa: opt.ayanamsa as KpAyanamsa, nodeType: opt.nodeType as KpNodeType, birth: b }),
+      KP_CHART_TECHNICAL_SCHEMA,
+      KP_CHART_INTERP_SCHEMA,
+      ROXY_KP_CHART.projection,
+    );
+  },
+};
+
 const vedicAshtakavarga = vedicBirthTechnique("vedic.ashtakavarga", "Ashtakavarga", ROXY_VEDIC_ASHTAKAVARGA, (raw, ay) => projectRoxyVedicAshtakavarga(raw, { ayanamsa: ay }), {
   technical: VEDIC_ASHTAKAVARGA_TECHNICAL_SCHEMA,
   interp: null,
@@ -841,6 +882,7 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "vedic.shadbala": vedicShadbala,
   "vedic.panchanga": vedicPanchanga,
   "vedic.transit": vedicTransit,
+  "kp.chart": kpChart,
 });
 
 export function getTechnique(id: unknown): TechniqueDefinition | null {

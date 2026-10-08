@@ -26,6 +26,9 @@ import {
 import { ANGLE4_IDS, ANGLE4_LABEL, COMPASS_LABEL, CONTEXT_SPECS, contextTopicKey, parseContextTopicKey, type ArgType } from "@/lib/astrology/topics/contextual";
 import { ALL_TOPIC_KINDS, TOPIC_CONTEXT_LABELS, TOPIC_CONTEXTS, type TopicContext } from "@/lib/astrology/topics/index";
 import {
+  KP_CONTEXTS,
+  KP_CONTEXT_LABELS,
+  traditionOfSpec,
   VEDIC_CONTEXTS,
   VEDIC_CONTEXT_LABELS,
   VEDIC_SPECS,
@@ -33,6 +36,7 @@ import {
   vedicArgOptions,
   vedicDefaultParts,
   vedicTopicKey,
+  type KpContext,
   type VedicContext,
 } from "@/lib/astrology/topics/vedic";
 
@@ -42,9 +46,10 @@ const ANGLE_LABEL: Record<string, string> = { ascendant: "Yükselen", midheaven:
 type State =
   | { context: "natal"; natal: ParsedTopic }
   | { context: Exclude<TopicContext, "natal">; kind: string; parts: string[] }
-  | { context: VedicContext; kind: string; parts: string[] };
+  | { context: VedicContext | KpContext; kind: string; parts: string[] };
 
-const isVedic = (c: string): c is VedicContext => (VEDIC_CONTEXTS as readonly string[]).includes(c);
+// Vedik ve KP bağlamları aynı tür/argüman motorunu kullanır; GELENEK türün kendisinden okunur (KP anahtarı Vedik sayılmaz).
+const isVedic = (c: string): c is VedicContext | KpContext => (VEDIC_CONTEXTS as readonly string[]).includes(c) || (KP_CONTEXTS as readonly string[]).includes(c);
 
 function defaultParts(kind: string): string[] {
   return CONTEXT_SPECS[kind].args.map((a, i): string => {
@@ -76,7 +81,7 @@ function initial(key: string | null): State {
   if (n) return { context: "natal", natal: n };
   const c = key ? parseContextTopicKey(key) : null;
   if (c && c.context !== "natal") return { context: c.context, kind: c.kind, parts: c.parts };
-  const v = key ? parseVedicTopicKey(key) : null;
+  const v = key ? (parseVedicTopicKey(key) ?? parseVedicTopicKey(key, "kp")) : null;
   if (v) return { context: v.context, kind: v.kind, parts: v.parts };
   return { context: "natal", natal: { kind: "planet_in_house", body: "saturn", house: 7 } };
 }
@@ -130,7 +135,7 @@ export default function TopicPicker({ value, onChange }: { value: string | null;
     onChange(keyOf(next));
   };
 
-  const changeContext = (c: TopicContext | VedicContext) => {
+  const changeContext = (c: TopicContext | VedicContext | KpContext) => {
     if (isVedic(c)) {
       const kind = Object.keys(VEDIC_SPECS).find((k) => VEDIC_SPECS[k].context === c)!;
       update({ context: c, kind, parts: vedicDefaultParts(kind) });
@@ -238,7 +243,7 @@ export default function TopicPicker({ value, onChange }: { value: string | null;
 
   const key = keyOf(s);
   const label =
-    s.context === "natal" ? topicLabel(s.natal) : isVedic(s.context) ? (parseVedicTopicKey(key)?.label ?? null) : (parseContextTopicKey(key)?.label ?? null);
+    s.context === "natal" ? topicLabel(s.natal) : isVedic(s.context) ? (parseVedicTopicKey(key, traditionOfSpec(s.kind))?.label ?? null) : (parseContextTopicKey(key)?.label ?? null);
   const plain = (opts: [string, string][], value: string, on: (v: string) => void, aria?: string) => (
     <select className={sel} value={value} aria-label={aria} onChange={(e) => on(e.target.value)}>
       {opts.map(([v, l]) => (
@@ -252,7 +257,7 @@ export default function TopicPicker({ value, onChange }: { value: string | null;
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center gap-2">
-        <select className={sel} value={s.context} onChange={(e) => changeContext(e.target.value as TopicContext | VedicContext)} aria-label="Konu bağlamı">
+        <select className={sel} value={s.context} onChange={(e) => changeContext(e.target.value as TopicContext | VedicContext | KpContext)} aria-label="Konu bağlamı">
           <optgroup label="Batı (tropikal)">
             {TOPIC_CONTEXTS.map((c) => (
               <option key={c} value={c}>
@@ -264,6 +269,13 @@ export default function TopicPicker({ value, onChange }: { value: string | null;
             {VEDIC_CONTEXTS.map((c) => (
               <option key={c} value={c}>
                 {VEDIC_CONTEXT_LABELS[c]}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="KP (Krishnamurti Paddhati)">
+            {KP_CONTEXTS.map((c) => (
+              <option key={c} value={c}>
+                {KP_CONTEXT_LABELS[c]}
               </option>
             ))}
           </optgroup>

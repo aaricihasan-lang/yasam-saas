@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from "react";
 import { ALL_TOPIC_KINDS, TOPIC_CONTEXT_LABELS, TOPIC_CONTEXTS, traditionOfKey } from "@/lib/astrology/topics/index";
-import { VEDIC_CONTEXTS, VEDIC_CONTEXT_LABELS } from "@/lib/astrology/topics/vedic";
+import { KP_CONTEXTS, KP_CONTEXT_LABELS, VEDIC_CONTEXTS, VEDIC_CONTEXT_LABELS } from "@/lib/astrology/topics/vedic";
 import { astroFetch } from "../_lib/api";
 import TopicPicker from "./TopicPicker";
 
@@ -208,6 +208,15 @@ export default function KnowledgeBankPanel() {
           ))}
           {VEDIC_CONTEXTS.map((c) => (
             <optgroup key={c} label={`Vedik · ${VEDIC_CONTEXT_LABELS[c]}`}>
+              {ALL_TOPIC_KINDS.filter((k) => k.context === c).map((k) => (
+                <option key={k.kind} value={k.kind}>
+                  {k.label}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+          {KP_CONTEXTS.map((c) => (
+            <optgroup key={c} label={KP_CONTEXT_LABELS[c]}>
               {ALL_TOPIC_KINDS.filter((k) => k.context === c).map((k) => (
                 <option key={k.kind} value={k.kind}>
                   {k.label}
