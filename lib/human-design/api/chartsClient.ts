@@ -188,6 +188,15 @@ export async function deleteComputedChart(id: string): Promise<{ ok: boolean; er
 // Yalnız kimlikler gönderilir: doğum tarihi/saati danışan kaydından, tz/koordinat sunucuda çözülür.
 // -------------------------------------------------------
 
+/** Başarılı kayıt olayı (yalnız tarayıcı içi; veri kopyası değil, kimlik bildirimi). */
+export const HD_CHART_SAVED_EVENT = "hd:chart-saved";
+export type HdChartSavedDetail = { id: string; clientId: string; reused: boolean };
+
+function announceHdChartSaved(detail: HdChartSavedDetail): void {
+  if (typeof window === "undefined" || typeof window.dispatchEvent !== "function") return;
+  window.dispatchEvent(new CustomEvent<HdChartSavedDetail>(HD_CHART_SAVED_EVENT, { detail }));
+}
+
 export type RoxyComputeResult =
   | { ok: true; id: string; reused: boolean }
   | { ok: false; status: number; code?: string; error: string };
@@ -205,6 +214,9 @@ export async function computeRoxyChart(clientId: string, locationId: string): Pr
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true && typeof j.id === "string") {
+    // Kayıt KESİNLEŞTİ (sunucu satırı yazdı ya da kayıtlıyı döndürdü) → açık listeler yenilensin
+    // (Kayıtlı Analizler aynı sayfada anında görünür; sayfa yenileme gerekmez).
+    announceHdChartSaved({ id: j.id, clientId, reused: j.reused === true });
     return { ok: true, id: j.id, reused: j.reused === true };
   }
   return {

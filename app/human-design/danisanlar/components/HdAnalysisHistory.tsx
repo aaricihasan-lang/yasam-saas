@@ -6,12 +6,28 @@
 //   • Manuel (eski, salt-okunur) kayıtlar      → listChartsWithClients → /kayitli-haritalar/[id]
 //   • Kayıtlı raporlar (donmuş Profesyonel Word dahil) → listReportsWithClients → /kayitli-raporlar
 // Yeni liste sistemi / yeni renderer YOK. Seçili profil varsa yalnız onun analizleri.
+//
+// Satış öncesi sadeleştirme: "Kayıtlı Human Design Analizleri" — hesaplanan her analiz OTOMATİK
+// kaydedilir; burada açılır ve Word olarak indirilir (ayrı rapor sayfasında arama gerekmez).
+//   • "Word İndir": analizin hazır Word v2 raporu varsa AYNISI indirilir; yoksa analiz açılır ve
+//     Word akışı (PR #359 Word v2) bir kez başlar. Roxy çağrısı YOK. Android'de gizli (kural).
+//   • Aynı sayfada yeni hesap kaydedilince (HD_CHART_SAVED_EVENT) liste anında yenilenir ve yeni
+//     kayıt "Kaydedildi" ile işaretlenir.
+//   • Kısmi yükleme hatası (ör. otomatik analizler okunamadı) sessizce yutulmaz.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { listComputedCharts, type ComputedChartListRow } from "@/lib/human-design/api/chartsClient";
+import {
+  HD_CHART_SAVED_EVENT,
+  listComputedCharts,
+  type ComputedChartListRow,
+  type HdChartSavedDetail,
+} from "@/lib/human-design/api/chartsClient";
 import { listChartsWithClients, type HdChartWithClient } from "../../kayitli-haritalar/helpers/hdKayitliHaritalar";
-import { listReportsWithClients, type HdReportWithClient } from "../../kayitli-raporlar/helpers/hdKayitliRaporlar";
+import { listReportBriefs } from "../../kayitli-raporlar/helpers/hdKayitliRaporlar";
+import { latestWordReportId, type WordReportBrief } from "@/lib/human-design/reporting/wordReportPick";
+import { downloadProfessionalReport, HD_REPORT_REDACTED_MESSAGE } from "../../kayitli-raporlar/helpers/hdProfessionalReport";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { HdComputedChartModal } from "../../kayitli-haritalar/components/HdComputedChartModal";
 import { toAppChartCodes } from "@/lib/human-design/normalize/hdAppCodes";
 import { hdProfileLabelFromCode, hdTypeLabelFromCode } from "@/lib/human-design/codeHelpers";
@@ -56,23 +72,37 @@ export function HdAnalysisHistory({
   /** Değişince liste yeniden yüklenir (ör. yeni hesap sonrası). */
   refreshKey?: number;
 }) {
+  const isAndroid = useIsAndroid();
   const [items, setItems] = useState<Item[] | null>(null);
-  const [reportsByChart, setReportsByChart] = useState<Map<string, number>>(new Map());
+  const [reports, setReports] = useState<WordReportBrief[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [partialError, setPartialError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(initialChartId);
+  const [autoWord, setAutoWord] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [wordBusy, setWordBusy] = useState<string | null>(null);
+  const [wordMsg, setWordMsg] = useState<{ id: string; text: string; tone: "ok" | "err" } | null>(null);
 
   const load = useCallback(async () => {
-    const [computed, manual, reports] = await Promise.all([
+    const [computed, manual, reps] = await Promise.all([
       listComputedCharts(clientId ? { clientId } : {}),
       listChartsWithClients(),
-      listReportsWithClients(),
+      listReportBriefs(),
     ]);
     if (computed.error && manual.error) {
       setError(computed.error);
       setItems([]);
       return;
     }
+    // Bir kaynak okunamadıysa liste eksik olabilir → kullanıcıya açıkça söylenir.
+    setPartialError(
+      computed.error
+        ? "Otomatik hesaplanan analizler şu anda yüklenemedi; liste eksik olabilir. Sayfayı yenileyin."
+        : manual.error
+          ? "Eski manuel kayıtlar şu anda yüklenemedi; liste eksik olabilir."
+          : null,
+    );
     const out: Item[] = [];
     for (const r of computed.rows as ComputedChartListRow[]) {
       out.push({
@@ -98,69 +128,128 @@ export function HdAnalysisHistory({
       });
     }
     out.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
-    const byChart = new Map<string, number>();
-    for (const rep of (reports.rows ?? []) as HdReportWithClient[]) {
-      if (rep.chart_id) byChart.set(rep.chart_id, (byChart.get(rep.chart_id) ?? 0) + 1);
-    }
     setError(null);
-    setReportsByChart(byChart);
+    setReports(reps.rows);
     setItems(out);
   }, [clientId]);
 
   useEffect(() => {
     runInEffect(() => {
-      void load().catch(() => setError("Geçmiş analizler yüklenemedi."));
+      void load().catch(() => setError("Kayıtlı analizler yüklenemedi."));
     });
   }, [load, refreshKey]);
+
+  // Aynı sayfada (ör. danışan çalışma sayfası) yeni analiz kaydedildi → liste anında yenilenir.
+  useEffect(() => {
+    function onSaved(e: Event) {
+      const d = (e as CustomEvent<HdChartSavedDetail>).detail;
+      if (!d || (clientId && d.clientId !== clientId)) return;
+      setSavedId(d.id);
+      void load().catch(() => setError("Kayıtlı analizler yüklenemedi."));
+    }
+    window.addEventListener(HD_CHART_SAVED_EVENT, onSaved);
+    return () => window.removeEventListener(HD_CHART_SAVED_EVENT, onSaved);
+  }, [clientId, load]);
+
+  async function wordDownload(it: Item) {
+    if (wordBusy) return;
+    const ready = latestWordReportId(reports, it.id);
+    setWordMsg(null);
+    if (!ready) {
+      // Hazır Word yok → analiz açılır ve Word v2 akışı (BodyGraph + yorum seçimi) bir kez başlar.
+      setAutoWord(true);
+      setOpenId(it.id);
+      return;
+    }
+    setWordBusy(it.id);
+    const dl = await downloadProfessionalReport(ready);
+    setWordBusy(null);
+    setWordMsg(
+      dl.ok
+        ? { id: it.id, tone: "ok", text: dl.systemReadingRedacted ? `Word indirildi. ${HD_REPORT_REDACTED_MESSAGE}` : "Word indirildi (kayıtlı rapor; yeni hesaplama yapılmadı)." }
+        : { id: it.id, tone: "err", text: `Word indirilemedi: ${dl.error}` },
+    );
+  }
 
   const visible = useMemo(() => (items ? (showAll ? items : items.slice(0, PAGE)) : []), [items, showAll]);
 
   return (
     <section className="rounded-2xl border border-indigo-200/80 bg-white/95 p-5 shadow-sm ring-1 ring-indigo-100/60" data-hd-analysis-history>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="m-0 text-xs font-black uppercase tracking-widest text-indigo-700">Geçmiş Human Design Analizleri</h2>
+        <div className="min-w-0">
+          <h2 className="m-0 text-xs font-black uppercase tracking-widest text-indigo-700">Kayıtlı Human Design Analizleri</h2>
+          <p className="m-0 mt-1 text-[11px] leading-relaxed text-slate-500">
+            Hesaplanan her analiz otomatik kaydedilir. Buradan açabilir ve Word olarak indirebilirsiniz.
+          </p>
+        </div>
         <Link href="/human-design/kayitli-raporlar" className="text-xs font-bold text-indigo-600 hover:underline">
-          Kayıtlı Raporlar →
+          Tüm Word raporları →
         </Link>
       </div>
+      {partialError ? (
+        <p role="alert" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">{partialError}</p>
+      ) : null}
       {items === null ? (
         <p className="py-6 text-center text-sm text-slate-500">Yükleniyor...</p>
       ) : error ? (
         <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</p>
       ) : items.length === 0 ? (
-        <p className="py-6 text-center text-sm text-slate-500">Henüz Human Design analizi yok.</p>
+        <p className="py-6 text-center text-sm text-slate-500">Henüz kayıtlı Human Design analizi yok.</p>
       ) : (
         <>
           <ul className="m-0 list-none space-y-2 p-0">
             {visible.map((it) => {
-              const reports = reportsByChart.get(it.id) ?? 0;
+              const hasWord = it.kind !== "manual" && !!latestWordReportId(reports, it.id);
+              const justSaved = savedId === it.id;
               return (
-                <li key={`${it.kind}:${it.id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-white px-4 py-3" data-hd-history-item={`${it.kind}:${it.id}`}>
+                <li
+                  key={`${it.kind}:${it.id}`}
+                  className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white px-4 py-3 ${justSaved ? "border-emerald-300 ring-2 ring-emerald-100" : "border-indigo-100"}`}
+                  data-hd-history-item={`${it.kind}:${it.id}`}
+                >
                   <div className="min-w-0">
                     <p className="m-0 flex flex-wrap items-center gap-2 text-sm font-bold text-slate-900">
                       {!clientId ? <span className="break-words">{it.clientName}</span> : null}
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${KIND_CLS[it.kind]}`}>{KIND_LABEL[it.kind]}</span>
+                      {justSaved ? (
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800" data-hd-history-saved>
+                          ✓ Kaydedildi
+                        </span>
+                      ) : null}
+                      {hasWord ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Word hazır</span> : null}
                     </p>
                     <p className="m-0 mt-0.5 break-words text-xs text-slate-600">
                       {[`${formatIsoDateTr(it.birthDate)} verileriyle`, it.summary, `Analiz: ${formatIsoDateTr(it.createdAt)}`].filter(Boolean).join(" · ")}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    {reports > 0 ? (
-                      <Link href="/human-design/kayitli-raporlar" className="inline-flex h-9 items-center rounded-xl border border-fuchsia-200 bg-fuchsia-50 px-3 text-xs font-bold text-fuchsia-800 no-underline hover:bg-fuchsia-100">
-                        Kayıtlı Rapor ({reports})
-                      </Link>
+                    {it.kind !== "manual" && !isAndroid ? (
+                      <button
+                        type="button"
+                        onClick={() => void wordDownload(it)}
+                        disabled={wordBusy !== null}
+                        aria-busy={wordBusy === it.id}
+                        data-hd-history-word={it.id}
+                        className="h-9 rounded-xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-bold text-emerald-800 hover:bg-emerald-100 disabled:opacity-60"
+                      >
+                        {wordBusy === it.id ? "İndiriliyor…" : "Word İndir"}
+                      </button>
                     ) : null}
                     {it.kind === "manual" ? (
                       <Link href={`/human-design/kayitli-haritalar/${it.id}`} className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 no-underline hover:bg-slate-50">
                         Kaydı Aç
                       </Link>
                     ) : (
-                      <button type="button" onClick={() => setOpenId(it.id)} className="h-9 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-bold text-indigo-800 hover:bg-indigo-100">
+                      <button type="button" onClick={() => { setAutoWord(false); setOpenId(it.id); }} className="h-9 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-bold text-indigo-800 hover:bg-indigo-100">
                         Analizi Aç
                       </button>
                     )}
                   </div>
+                  {wordMsg && wordMsg.id === it.id ? (
+                    <p role="status" className={`m-0 w-full text-xs font-semibold ${wordMsg.tone === "ok" ? "text-emerald-700" : "text-rose-600"}`}>
+                      {wordMsg.text}
+                    </p>
+                  ) : null}
                 </li>
               );
             })}
@@ -177,9 +266,15 @@ export function HdAnalysisHistory({
       {openId ? (
         <HdComputedChartModal
           id={openId}
-          onClose={() => setOpenId(null)}
+          autoWord={autoWord}
+          onClose={() => {
+            setOpenId(null);
+            setAutoWord(false);
+            void load(); // pencerede oluşturulan Word raporu "Word hazır" olarak görünsün
+          }}
           onDeleted={() => {
             setOpenId(null);
+            setAutoWord(false);
             void load();
           }}
         />

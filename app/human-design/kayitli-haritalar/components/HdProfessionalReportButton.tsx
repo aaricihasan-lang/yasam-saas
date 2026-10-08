@@ -12,8 +12,14 @@
  *   • Roxy haritasında BodyGraph, ekrandaki RESMİ renderer'dan yüksek çözünürlüklü PNG olarak
  *     üretilir; üretilemezse rapor sessizce görselsiz oluşturulmaz — kullanıcı açıkça onaylar.
  * Android kuralı korunur: Word (.docx) indirme UI'si Android'de render edilmez.
+ *
+ * Satış öncesi akış (analiz ekranı):
+ *   • Düğme her zaman "Word İndir". Analizin hazır Word v2 raporu varsa (`existingReportId`)
+ *     AYNI donmuş rapor indirilir — yeni kopya / Roxy çağrısı YOK. Yoksa bir kez oluşturulur.
+ *   • "Güncel bilgilerle yeni Word oluştur" yalnız bilinçli yeni sürüm içindir.
+ *   • `autoStart`: listedeki "Word İndir" analizi açıp akışı bir kez başlatır.
  */
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import type { HdCommentarySelection } from "@/lib/human-design/reporting/reportV2Shared";
 import { captureRoxyBodygraphPng } from "@/lib/human-design/reporting/bodygraphCapture";
@@ -50,7 +56,7 @@ function successMessage(created: Extract<CreateResult, { ok: true }>, redacted: 
   if (created.systemReading === "unavailable") notes.push("Bu haritada kayıtlı Sistem Yorumu verisi olmadığından yalnız Uzman Bilgilerim eklendi.");
   if (created.expertEntries === 0 && created.systemReading !== "included") notes.push("Bilgi Bankanızda bu haritayla eşleşen kayıt yok; rapor teknik bilgilerle oluşturuldu.");
   if (redacted) notes.push(HD_REPORT_REDACTED_MESSAGE);
-  notes.push("Kayıtlı Raporlar'dan tekrar erişebilirsiniz.");
+  notes.push("Bu analizde “Word İndir” ile veya Kayıtlı Raporlar'dan tekrar indirebilirsiniz.");
   return notes.join(" ");
 }
 
@@ -58,11 +64,20 @@ export function HdProfessionalReportButton({
   chartId,
   label,
   roxyRender,
+  existingReportId = null,
+  lookupPending = false,
+  autoStart = false,
 }: {
   chartId: string;
   label?: string;
   /** Roxy haritasının KAYITLI yapısal render yükü (varsa BodyGraph PNG'si bundan üretilir). */
   roxyRender?: Record<string, unknown> | null;
+  /** Bu analizin hazır Word v2 raporu (varsa "Word İndir" onu indirir; yeni kopya oluşmaz). */
+  existingReportId?: string | null;
+  /** Hazır rapor araması sürüyor → düğme kısa süre bekler (yanlışlıkla kopya oluşmasın). */
+  lookupPending?: boolean;
+  /** Açılışta akışı bir kez başlat (listedeki "Word İndir"). */
+  autoStart?: boolean;
 }) {
   const isAndroid = useIsAndroid();
   const [phase, setPhase] = useState<Phase>("idle");
@@ -75,7 +90,12 @@ export function HdProfessionalReportButton({
   // yeni rapor yalnız bilinçli "Yeni sürüm oluştur" ile (yeni kimlik) oluşur.
   const requestIdRef = useRef<string | null>(null);
   const pendingModeRef = useRef<"default" | "newVersion">("default");
-  const [createdReportId, setCreatedReportId] = useState<string | null>(null);
+  const [createdReportId, setCreatedReportId] = useState<string | null>(existingReportId);
+  // Hazır rapor kimliği sonradan (asenkron arama) gelirse benimsenir; oluşturulmuş rapor ezilmez.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- dış (sunucu) rapor kimliği senkronu
+    if (existingReportId) setCreatedReportId((cur) => cur ?? existingReportId);
+  }, [existingReportId]);
   const busyRef = useRef(false);
   const busy = phase === "capturing" || phase === "creating" || phase === "downloading";
   const systemAvailable = !!roxyRender;
@@ -94,7 +114,7 @@ export function HdProfessionalReportButton({
         ? successMessage(created, dl.systemReadingRedacted)
         : dl.systemReadingRedacted
           ? `Rapor indirildi. ${HD_REPORT_REDACTED_MESSAGE}`
-          : "Rapor indirildi. Kayıtlı Raporlar'dan tekrar erişebilirsiniz.",
+          : "Word raporu indirildi (kayıtlı rapor; yeni hesaplama yapılmadı).",
     );
   }
 
@@ -166,14 +186,24 @@ export function HdProfessionalReportButton({
     void run({ commentary: c });
   }
 
+  // Listeden "Word İndir": hazır rapor araması bitince akış BİR KEZ başlar.
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (!autoStart || lookupPending || isAndroid || autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    start("default");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- yalnız hazır olunca bir kez
+  }, [autoStart, lookupPending, isAndroid]);
+
   if (isAndroid) return null;
   return (
     <div className="no-android flex flex-col gap-1.5">
       <button
         type="button"
         onClick={() => start("default")}
-        disabled={busy}
-        aria-busy={busy}
+        disabled={busy || lookupPending}
+        aria-busy={busy || lookupPending}
+        data-hd-word-download
         className="flex h-9 items-center rounded-xl border border-emerald-300/80 bg-gradient-to-r from-emerald-600 to-teal-600 px-5 text-sm font-black uppercase tracking-wide text-white no-underline shadow-sm transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {phase === "capturing"
@@ -183,8 +213,8 @@ export function HdProfessionalReportButton({
             : phase === "downloading"
               ? "İndiriliyor…"
               : createdReportId
-                ? "Word'ü Tekrar İndir"
-                : label ?? "Profesyonel Word Raporu"}
+                ? "Word İndir"
+                : label ?? "Word İndir"}
       </button>
       {createdReportId && !busy ? (
         <button
@@ -192,7 +222,7 @@ export function HdProfessionalReportButton({
           onClick={() => start("newVersion")}
           className="self-start text-[11px] font-bold text-emerald-700 underline-offset-2 hover:underline"
         >
-          Haritadaki güncel bilgilerle yeni sürüm oluştur
+          Güncel bilgilerle yeni Word oluştur
         </button>
       ) : null}
       {phase === "bodygraph_failed" ? (
