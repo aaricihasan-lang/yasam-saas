@@ -39,6 +39,7 @@ export function AnnualCalendarOverview({
   today,
   styleOf,
   onMonthClick,
+  onDayClick,
 }: {
   year: number;
   title: string;
@@ -49,6 +50,8 @@ export function AnnualCalendarOverview({
   /** Bir günün taslak stili (renk + kısa açıklama) — Aylık ile AYNI kaynak. */
   styleOf: (ymd: string) => CuppingDayStyleView | undefined;
   onMonthClick: (month: number) => void;
+  /** WT6: gün → SALT OKUNUR gün bilgisi (düzenleme AÇMAZ, yazma YOK). */
+  onDayClick?: (ymd: string) => void;
 }) {
   const months = useMemo(() => annualHijriCells(year), [year]);
   const hasSelection = selected.size > 0;
@@ -74,8 +77,8 @@ export function AnnualCalendarOverview({
       {/* Hiç gün seçilmemişse sakin boş-durum notu (12 ay yine gösterilir). */}
       {!hasSelection ? (
         <p className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-500">
-          Bu yıl için henüz uygulama günü seçilmedi. Bir ay kartına dokunup Aylık Düzenleme&apos;den
-          kendi günlerinizi işaretleyebilirsiniz.
+          Bu yıl için henüz uygulama günü işaretlenmedi. Günleri işaretlemek için <strong>Bu Ayı Düzenle</strong>
+          veya <strong>+ Yeni Takvim</strong> (yıl/ay) kullanın.
         </p>
       ) : null}
 
@@ -85,19 +88,23 @@ export function AnnualCalendarOverview({
           const month = i + 1;
           const leading = cells.length > 0 ? isoWeekday(cells[0].gregorian) - 1 : 0;
           return (
-            <button
+            <div
               key={month}
-              type="button"
-              onClick={() => onMonthClick(month)}
-              aria-label={`${MONTHS_TR[i]} ${year} — Aylık Düzenleme'de aç`}
-              className="group flex flex-col gap-1.5 rounded-2xl border border-slate-200 bg-white p-2.5 text-left outline-none transition hover:border-amber-300 hover:bg-amber-50/40 focus-visible:ring-2 focus-visible:ring-amber-400/60"
+              data-kupa-annual-month={month}
+              className="flex flex-col gap-1.5 rounded-2xl border border-slate-200 bg-white p-2.5 text-left transition hover:border-amber-200"
             >
-              <span className="flex items-center justify-between">
+              {/* WT6: ay başlığı → o ayın SALT OKUNUR aylık görünümü (düzenleme DEĞİL). */}
+              <button
+                type="button"
+                onClick={() => onMonthClick(month)}
+                aria-label={`${MONTHS_TR[i]} ${year} — aylık görünümde aç`}
+                className="group flex items-center justify-between rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+              >
                 <span className="text-sm font-black text-slate-800">{MONTHS_TR[i]}</span>
-                <span className="text-[10px] font-semibold text-amber-600 opacity-0 transition group-hover:opacity-100" aria-hidden>
-                  Düzenle →
+                <span className="text-[10px] font-semibold text-amber-600 opacity-70 transition group-hover:opacity-100" aria-hidden>
+                  Ayı görüntüle →
                 </span>
-              </span>
+              </button>
               {/* Haftagünü başlıkları */}
               <div className="grid grid-cols-7 gap-px">
                 {WD_INITIALS.map((w, wi) => (
@@ -138,30 +145,41 @@ export function AnnualCalendarOverview({
                           : "";
                   const colorWord = colorDef ? ` — ${colorDef.labelTr} renk` : "";
                   const labelWord = isSel && dayStyle?.label ? ` — ${dayStyle.label}` : "";
-                  return (
-                    <span
+                  const cellTitle = `${gDay} ${MONTHS_TR[i]} ${year} — Hicrî ${fullHijri}${statusWord}${colorWord}${labelWord}`;
+                  const cellCls = [
+                    "relative flex aspect-square items-center justify-center rounded text-[9px] leading-none sm:text-[10px]",
+                    fill,
+                    dashed,
+                    isToday && state.kind === "none" ? "ring-1 ring-inset ring-slate-300" : "",
+                  ].join(" ");
+                  return onDayClick ? (
+                    <button
                       key={ymd}
-                      title={`${gDay} ${MONTHS_TR[i]} ${year} — Hicrî ${fullHijri}${statusWord}${colorWord}${labelWord}`}
-                      className={[
-                        "relative flex aspect-square items-center justify-center rounded text-[9px] leading-none sm:text-[10px]",
-                        fill,
-                        dashed,
-                        isToday && state.kind === "none" ? "ring-1 ring-inset ring-slate-300" : "",
-                      ].join(" ")}
+                      type="button"
+                      data-kupa-annual-day={ymd}
+                      onClick={() => onDayClick(ymd)}
+                      title={cellTitle}
+                      aria-label={`${cellTitle} — bilgiyi göster`}
+                      className={`${cellCls} outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70`}
                     >
+                      {gDay}
+                    </button>
+                  ) : (
+                    <span key={ymd} title={cellTitle} className={cellCls}>
                       {gDay}
                     </span>
                   );
                 })}
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
 
       <p className="text-xs leading-relaxed text-slate-400">
-        Bir ayı düzenlemek için ay kartına dokunun — Aylık Düzenleme tam o ayda açılır. Bu özet,
-        kaydedilmemiş seçimleriniz dâhil güncel planınızı gösterir.
+        Bu yıllık görünüm kayıtlı takviminizi gösterir ve salt okunurdur: bir güne dokunduğunuzda
+        yalnız o günün bilgisi açılır. Günleri değiştirmek için <strong>Bu Ayı Düzenle</strong> veya
+        <strong> + Yeni Takvim</strong> (yıl/ay) kullanın.
       </p>
     </div>
   );

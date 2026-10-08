@@ -14,8 +14,30 @@ import { StepsSection } from "../components/StepsSection";
 import { PrepSection } from "../components/PrepSection";
 import { EntriesSection } from "../components/EntriesSection";
 import { SourcesSection } from "../components/SourcesSection";
+import { useUnsavedChangesGuard } from "@/app/kupa/lib/useUnsavedChangesGuard";
+import { ProtocolDirtyProvider, useAnyProtocolDirty, useConfirmLeave } from "../hooks/protocolDirty";
 
+/**
+ * WT6 — Protokol belgesi: veri YALNIZ bölümlerdeki açık "Kaydet" ile yazılır. Herhangi bir bölümde
+ * kaydedilmemiş değişiklik varken uygulama içi link, tarayıcı/Android geri ve yenileme açık onay ister
+ * ("Kaydetmeden Çık" / "Vazgeç"). Bölümler kirli durumlarını ProtocolDirtyProvider'a bildirir.
+ */
 export function ProtocolDocumentClient({ id }: { id: string }) {
+  return (
+    <ProtocolDirtyProvider>
+      <ProtocolDocumentInner id={id} />
+    </ProtocolDirtyProvider>
+  );
+}
+
+function PageLeaveGuard() {
+  const anyDirty = useAnyProtocolDirty();
+  const confirmLeave = useConfirmLeave();
+  useUnsavedChangesGuard(anyDirty, confirmLeave);
+  return null;
+}
+
+function ProtocolDocumentInner({ id }: { id: string }) {
   const router = useRouter();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
@@ -156,6 +178,7 @@ export function ProtocolDocumentClient({ id }: { id: string }) {
       )}
 
       {editingBasic ? <BasicInfoEditor doc={doc} onClose={() => setEditingBasic(false)} /> : null}
+      <PageLeaveGuard />
     </KupaShell>
   );
 }

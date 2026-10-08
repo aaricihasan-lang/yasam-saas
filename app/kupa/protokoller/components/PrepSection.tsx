@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useConfirmLeave, useReportDirty } from "../hooks/protocolDirty";
 import { useToast } from "@/components/ui/ToastProvider";
 import { kupaBtnGhost, kupaBtnSuccess, kupaRowAction } from "@/app/kupa/components/KupaShell";
 import { updateProtocol } from "@/app/kupa/lib/api";
@@ -17,6 +18,16 @@ export function PrepSection({ doc }: { doc: ProtocolDocument }) {
   const [after, setAfter] = useState("");
   const [follow, setFollow] = useState("");
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const confirmLeave = useConfirmLeave();
+  const dirty =
+    editing &&
+    (prep !== (p?.preparation_note ?? "") || after !== (p?.aftercare_note ?? "") || follow !== (p?.follow_up_note ?? ""));
+  useReportDirty("prep", dirty);
+  async function cancel() {
+    if (dirty && !(await confirmLeave())) return;
+    setEditing(false);
+  }
 
   function open() {
     setPrep(p?.preparation_note ?? "");
@@ -26,7 +37,8 @@ export function PrepSection({ doc }: { doc: ProtocolDocument }) {
   }
 
   async function save() {
-    if (!p) return;
+    if (!p || busyRef.current) return; // çift tık → tek kayıt
+    busyRef.current = true;
     setBusy(true);
     try {
       await updateProtocol(p.id, {
@@ -36,10 +48,11 @@ export function PrepSection({ doc }: { doc: ProtocolDocument }) {
       });
       await doc.reload.protocol();
       setEditing(false);
-      showToast({ message: "Güncellendi.", type: "success" });
+      showToast({ message: "Kaydedildi.", type: "success" });
     } catch (e) {
       showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
@@ -72,8 +85,8 @@ export function PrepSection({ doc }: { doc: ProtocolDocument }) {
           <InlineLongText label="Uygulama Sonrası" value={after} onChange={setAfter} rows={3} />
           <InlineLongText label="Takip / Sonraki Seans" value={follow} onChange={setFollow} rows={3} />
           <div className="flex items-center gap-2">
-            <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={save}>Kaydet</button>
-            <button type="button" className={kupaBtnGhost} onClick={() => setEditing(false)}>Vazgeç</button>
+            <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={save} data-testid="kupa-prep-save">{busy ? "Kaydediliyor…" : "Kaydet"}</button>
+            <button type="button" className={kupaBtnGhost} onClick={() => void cancel()}>Vazgeç</button>
           </div>
         </div>
       ) : (
