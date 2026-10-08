@@ -16,9 +16,12 @@ import type { HumanDesignReport, HumanDesignClient } from "@/lib/human-design/ty
 import {
   HD_REPORT_SCHEMA_VERSION,
   HD_REPORT_VERSION,
-  isHdReportSnapshot,
-  type HdReportSnapshot,
 } from "@/lib/human-design/reporting/reportSnapshot";
+import {
+  HD_REPORT_V2_VERSION,
+  isAnyHdReportSnapshot,
+  type AnyHdReportSnapshot,
+} from "@/lib/human-design/reporting/reportSnapshotV2";
 
 const TABLE = "human_design_reports";
 
@@ -238,7 +241,8 @@ export type SaveCanonicalReportInput = {
   chartId: string;
   clientId: string | null;
   title: string;
-  snapshot: HdReportSnapshot;
+  /** hd-report-1 (eski) ya da hd-report-2 (AŞAMA 4B). Şema sürümü snapshot'tan okunur. */
+  snapshot: AnyHdReportSnapshot;
   provenance: Record<string, unknown>;
 };
 
@@ -255,9 +259,10 @@ export async function saveCanonicalReport(
   if (input.clientId && !(await clientInTenant(db, input.clientId, tenantId))) {
     return { id: null, error: "Danışan bu hesaba ait değil." };
   }
-  if (!isHdReportSnapshot(input.snapshot)) {
+  if (!isAnyHdReportSnapshot(input.snapshot)) {
     return { id: null, error: "Geçersiz rapor snapshot'ı." };
   }
+  const isV2 = input.snapshot.schemaVersion !== HD_REPORT_SCHEMA_VERSION;
 
   const { data, error } = await db
     .from(TABLE)
@@ -273,8 +278,8 @@ export async function saveCanonicalReport(
       report_kind: "canonical",
       snapshot: input.snapshot,
       canonical_provenance: input.provenance,
-      report_version: HD_REPORT_VERSION,
-      schema_version: HD_REPORT_SCHEMA_VERSION,
+      report_version: isV2 ? HD_REPORT_V2_VERSION : HD_REPORT_VERSION,
+      schema_version: input.snapshot.schemaVersion,
       updated_at: new Date().toISOString(),
     }))
     .select("id")
@@ -310,7 +315,7 @@ export async function getCanonicalReportForDownload(
   tenantId: string,
   id: string,
 ): Promise<{
-  data: { snapshot: HdReportSnapshot; title: string; clientId: string | null } | null;
+  data: { snapshot: AnyHdReportSnapshot; title: string; clientId: string | null } | null;
   status: number;
   error: string | null;
 }> {
@@ -324,7 +329,7 @@ export async function getCanonicalReportForDownload(
   if (row.report_kind !== "canonical") {
     return { data: null, status: 400, error: "Bu rapor profesyonel (canonical) rapor değil." };
   }
-  if (!isHdReportSnapshot(row.snapshot)) {
+  if (!isAnyHdReportSnapshot(row.snapshot)) {
     return { data: null, status: 422, error: "Rapor snapshot'ı geçersiz veya eksik." };
   }
   return {

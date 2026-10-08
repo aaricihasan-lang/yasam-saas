@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import ModuleAccessDenied from "@/components/auth/ModuleAccessDenied";
 import ModuleAccessPending from "@/components/auth/ModuleAccessPending";
@@ -26,7 +26,7 @@ import {
   syncYasamUserFromDb,
 } from "@/lib/auth/yasamUser";
 import { useStoredSessionGuard } from "@/hooks/useSessionGuard";
-import { markSessionEnded } from "@/lib/auth/sessionExpiry";
+import { leaveAfterSessionEnd } from "@/lib/auth/sessionExit";
 
 type ModuleRouteGuardProps = {
   children: ReactNode;
@@ -34,8 +34,9 @@ type ModuleRouteGuardProps = {
 
 export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [decision, setDecision] = useState<RouteModuleGuardDecision>("skip");
-  const [denyReason, setDenyReason] = useState<"permission" | "membership">(
+  const [denyReason, setDenyReason] = useState<"permission" | "membership" | "session">(
     "permission",
   );
   // K-1: Yetki DB ile kesinleşene kadar "deny" ekranı GÖSTERİLMEZ. Cache belirsizken
@@ -52,10 +53,34 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
   // kullanıcı 401'lerle sayfada takılmaz — durum temizlenir, neden taşınır ve ana sayfadaki
   // giriş akışına dönülür. Ana sayfa ("/") kendi useSessionGuard'ını kullanır.
   useStoredSessionGuard((pathname ?? "/") !== "/", (reason) => {
-    markSessionEnded(reason);
     clearYasamUser();
-    window.location.replace("/");
+    // WT4: kaydedilmemiş-değişiklik (beforeunload) guard'ları bu çıkışı DURDURAMAZ → kullanıcı
+    // oturumsuz hâlde formda kalıp "Yetki gerekli" hataları almaz.
+    leaveAfterSessionEnd("/", reason, (href) => router.replace(href));
   });
+
+  // WT4: aynı tarayıcının başka sekmesinde/penceresinde çıkış yapıldıysa (yasam_user silindi) bu
+  // sayfa bayat oturumla çalışmaya devam etmez. Başka sekmede YENİDEN GİRİŞ de önce temizleyip
+  // sonra yazdığından kısa bir bekleme sonrası hâlâ oturum yoksa giriş akışına dönülür.
+  useEffect(() => {
+    if ((pathname ?? "/") === "/" || !readYasamUser()) return;
+    let timer: number | null = null;
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== null && e.key !== "yasam_user") return;
+      if (readYasamUser()) return;
+      if (timer !== null) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        timer = null;
+        if (readYasamUser()) return;
+        leaveAfterSessionEnd("/", "revoked", (href) => router.replace(href));
+      }, 1500);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      if (timer !== null) window.clearTimeout(timer);
+    };
+  }, [pathname, router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,8 +97,11 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
     const cached = readYasamUser();
     const initial = evaluateRouteModuleGuard(path, cached);
     setDecision(initial);
+    // WT4: oturum YOKSA red nedeni "yetki" değil "oturum"dur — giriş yapmış ama modül izni
+    // olmayan kullanıcıyla karıştırılmaz ("Yetkiniz Bulunmuyor" → "Ana Panele Dön" → giriş
+    // ekranı zinciri yerine doğrudan "Oturumunuz sona erdi" + "Giriş Yap").
     setDenyReason(
-      initial === "deny_membership" ? "membership" : "permission",
+      !cached ? "session" : initial === "deny_membership" ? "membership" : "permission",
     );
     // Cache erişime izin veriyorsa (allow/skip) anında göster — ekstra gecikme yok.
     // Cache belirsiz/deny ise, DB doğrulaması bitene kadar "resolved" false kalır.

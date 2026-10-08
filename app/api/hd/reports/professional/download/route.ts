@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getCanonicalReportForDownload } from "@/lib/human-design/api/reportPersistence";
@@ -8,6 +9,9 @@ import { hdReportFilename, renderHdReportBuffer } from "@/lib/human-design/repor
 import { isOwnedChartImagePath, isOwnedReportSnapshotPath } from "@/lib/human-design/api/chartImagePath";
 import { fetchStorageImageBuffer, getImgDimensions } from "@/lib/docx/reportHelpers";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { applyDownloadPermissions, HD_REPORT_REDACTED_HEADER, isHdReportSnapshotV2 } from "@/lib/human-design/reporting/reportSnapshotV2";
+import { renderHdReportV2Buffer } from "@/lib/human-design/reporting/wordReportV2";
+import { loadHdReportLogo } from "@/lib/human-design/reporting/reportBrandAssets";
 import { reportFileDate, zonedDayKey } from "@/lib/time/reportTime";
 
 export const runtime = "nodejs";
@@ -26,6 +30,10 @@ export const runtime = "nodejs";
  *   - Görsel: yalnız tenant/client OWNED private storage path'i (SSRF yok; keyfi URL fetch
  *     YOK). Doğrulama/getirme başarısız → rapor görselsiz devam eder.
  *   - Yanıt: no-store + sanitize edilmiş Content-Disposition.
+ *   - AŞAMA 4B (hd-report-2): Sistem Yorumu içeren raporda hd_system_reading yetkisi İNDİRME
+ *     ANINDA yeniden doğrulanır. Yetki kapalıysa bölüm bu çıktıdan çıkarılır (DB'deki donmuş
+ *     snapshot DEĞİŞMEZ) ve yanıt `X-HD-Report-Redacted: system-reading` başlığı taşır. Bu
+ *     kural doğrudan uç çağrıları için de geçerlidir (yalnız UI gizleme değil). Roxy çağrısı YOK.
  */
 
 const BUCKET = "hd-chart-images";
@@ -81,8 +89,20 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   let buffer: Buffer;
+  let redacted = false;
   try {
-    buffer = await renderHdReportBuffer(snapshot, { chartImage, expertName: expertDisplayName(guard.profile) });
+    if (isHdReportSnapshotV2(snapshot)) {
+      const view = applyDownloadPermissions(snapshot, hasModulePermissionForProfile(guard.profile, "hd_system_reading"));
+      redacted = view.systemReadingRedacted;
+      buffer = await renderHdReportV2Buffer(view.snapshot, {
+        bodygraphImage: chartImage,
+        logo: await loadHdReportLogo(),
+        expertName: expertDisplayName(guard.profile),
+        systemReadingRedacted: redacted,
+      });
+    } else {
+      buffer = await renderHdReportBuffer(snapshot, { chartImage, expertName: expertDisplayName(guard.profile) });
+    }
   } catch {
     await trackUsage(guard, req, { module: "human_design", action: "action_failed", failedAction: "report_generated", subEntity: "report", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Rapor belgesi oluşturulamadı." }, { status: 500, headers: { "Cache-Control": "no-store" } });
@@ -102,6 +122,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       "Content-Disposition": `attachment; filename="${filename}"`,
       "Content-Length": String(buffer.length),
       "Cache-Control": "no-store, private",
+      ...(redacted ? { [HD_REPORT_REDACTED_HEADER]: "system-reading" } : {}),
     },
   });
 }

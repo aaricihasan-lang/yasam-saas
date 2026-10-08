@@ -490,7 +490,13 @@ async function main() {
     ok(src("app/human-design/harita-kaydi/page.tsx").includes("Yeni manuel Human Design kaydı artık kullanılmıyor."), "L4 /harita-kaydi deep-link 404 değil, açıklayıcı mesaj");
     let roxyDiff = "x";
     try {
-      roxyDiff = execSync("git diff --name-only origin/main -- lib/human-design/providers lib/human-design/api/roxyChartService.ts lib/human-design/engine lib/human-design/reporting app/human-design/kayitli-haritalar/components/HdComputedChartView.tsx app/human-design/kayitli-haritalar/components/HdChartInfoPanel.tsx app/human-design/kayitli-haritalar/components/HdRoxyBodygraph.tsx app/human-design/kayitli-haritalar/components/HdSystemReadingPanel.tsx app/human-design/danisanlar/components/HdAutoCalcPanel.tsx", { cwd: ROOT }).toString().trim();
+      // AŞAMA 4B: profesyonel Word (lib/human-design/reporting) bilinçli olarak genişletildi →
+      // bu koruma Roxy hesabı / motor / harita görünümü dosyalarını kapsar. HdRoxyBodygraph'ta
+      // yalnız yükleyicinin export edilmesine izin verilir (aşağıda ayrıca doğrulanır).
+      roxyDiff = execSync("git diff --name-only origin/main -- lib/human-design/providers lib/human-design/api/roxyChartService.ts lib/human-design/engine app/human-design/kayitli-haritalar/components/HdComputedChartView.tsx app/human-design/kayitli-haritalar/components/HdChartInfoPanel.tsx app/human-design/kayitli-haritalar/components/HdSystemReadingPanel.tsx app/human-design/danisanlar/components/HdAutoCalcPanel.tsx", { cwd: ROOT }).toString().trim();
+      const bgDiff = execSync("git diff -U0 origin/main -- app/human-design/kayitli-haritalar/components/HdRoxyBodygraph.tsx", { cwd: ROOT }).toString();
+      const changed = bgDiff.split("\n").filter((l) => /^[-+](?![-+])/.test(l));
+      if (!(changed.length === 0 || (changed.length === 2 && changed.every((l) => /function loadRoxyBodygraph\(\): Promise<void> \{$/.test(l))))) roxyDiff += `\nHdRoxyBodygraph: ${changed.join(" | ")}`;
     } catch {
       roxyDiff = "git-unavailable";
     }

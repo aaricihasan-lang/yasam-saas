@@ -57,6 +57,31 @@ export async function copyChartImageToReportSnapshot(
   return { path: target, error: null };
 }
 
+/**
+ * AŞAMA 4B — tarayıcıda üretilip SUNUCUDA doğrulanmış (validateBodygraphPng) BodyGraph PNG'sini
+ * rapora ait snapshot yoluna yazar: `{tenant}/report-snapshots/{reportId}.png`. Yol istemciden
+ * ALINMAZ (tenant guard'dan, reportId sunucuda türetilir). Aynı rapor kimliğiyle eşzamanlı
+ * istek → hedef zaten var → başarı (üzerine yazma YOK; ilk yazılan görsel donmuş kalır).
+ */
+export async function uploadReportSnapshotPng(
+  db: SupabaseClient,
+  tenantId: string,
+  reportId: string,
+  png: Buffer,
+): Promise<{ path: string | null; error: string | null }> {
+  const target = reportSnapshotImagePath(tenantId, reportId, "png");
+  if (!isOwnedReportSnapshotPath(target, tenantId)) return { path: null, error: "Görsel yolu doğrulanamadı." };
+  const res = await withRetry(
+    () => db.storage.from(HD_CHART_IMAGE_BUCKET).upload(target, png, { contentType: "image/png", upsert: false }),
+    (r) => !r.error || /exist|duplicate/i.test(r.error.message),
+  );
+  if (res.error && !/exist|duplicate/i.test(res.error.message)) {
+    console.error("[hd-storage] BodyGraph PNG yüklenemedi:", res.error.message);
+    return { path: null, error: "BodyGraph görseli rapora kaydedilemedi." };
+  }
+  return { path: target, error: null };
+}
+
 /** Nesneleri sil (yeniden denemeli). Başarısızlık yapılandırılmış olarak loglanır. */
 export async function removeHdStorageObjects(
   db: SupabaseClient,

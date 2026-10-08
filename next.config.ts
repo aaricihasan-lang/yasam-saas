@@ -54,6 +54,8 @@ const nextConfig: NextConfig = {
     "/api/clients/[id]/anamnez/blank-form": ["./public/fonts/Geist-Regular.ttf"],
     // Kayıtlı (dolu) anamnez PDF'i aynı fontu kullanır.
     "/api/clients/[id]/anamnez/[anamnesisId]/pdf": ["./public/fonts/Geist-Regular.ttf"],
+    // Human Design profesyonel Word (v2) kapak logosu fs ile okunur.
+    "/api/hd/reports/professional/download": ["./public/assets/yasam-sistemi-chart-logo.png"],
   },
 
   experimental: {

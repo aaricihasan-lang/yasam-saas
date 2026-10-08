@@ -19,7 +19,7 @@ const STYLE_ID = "roxy-ui-bodygraph-fit";
 export const ROXY_BODYGRAPH_ASPECT = "432 / 612";
 
 let loader: Promise<void> | null = null;
-function loadRoxyBodygraph(): Promise<void> {
+export function loadRoxyBodygraph(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
   if (customElements.get("roxy-bodygraph")) return Promise.resolve();
   if (loader) return loader;
