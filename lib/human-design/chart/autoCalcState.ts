@@ -10,6 +10,7 @@
 // Sunucu ayrıca idempotent (input_hash); bu fonksiyon yalnız doğru düğmeyi seçer.
 
 import { toHms } from "../api/birthTimeResolution";
+import { sameHdLocationId } from "../location/trDistrictIndex";
 
 export type AutoCalcRow = {
   id: string;
@@ -75,9 +76,10 @@ export function resolveAutoCalcState(input: {
   if (!location) return { kind: "need_location", location: null };
 
   const locId = stableLocationId(location);
-  // Aynı yer: kalıcı konum kimliği eşit (etiket biçimi değişse bile) VEYA etiket eşit; tz de eşit.
+  // Aynı yer: kalıcı konum kimliği eşit (etiket biçimi değişse bile; eski Roxy/il kimliği ↔ yeni
+  // ilçe kimliği doğrulanmış takma adla eşdeğer) VEYA etiket eşit; tz de eşit.
   const samePlace = (r: AutoCalcRow) =>
-    r.timezone === location.tz && ((!!locId && r.location_id === locId) || r.birth_place === location.label);
+    r.timezone === location.tz && ((!!locId && sameHdLocationId(r.location_id, locId)) || r.birth_place === location.label);
   const match = roxy.find(
     (r) => (r.birth_date ?? "").slice(0, 10) === date && hms(r.birth_time) === time && samePlace(r),
   );
