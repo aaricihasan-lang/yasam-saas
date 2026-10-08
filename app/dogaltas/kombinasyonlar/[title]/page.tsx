@@ -421,8 +421,19 @@ function StonesBlock({
         ) : null}
         {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
+      {/* WT5: renk/işaret anlamı açıklama okumadan anlaşılsın (veri anlamı DEĞİŞMEDİ). */}
+      {stones.length > 0 && !stockLoading ? (
+        <div data-testid="combo-stone-legend" className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] font-semibold text-slate-500">
+          <span className="inline-flex items-center gap-1"><span className="font-black text-emerald-600">✓</span>{t("legendInStock")}</span>
+          <span className="inline-flex items-center gap-1"><span className="font-black text-slate-400">○</span>{t("legendOutOfStock")}</span>
+          {knownStoneKeys !== null ? (
+            <span className="inline-flex items-center gap-1"><span className="font-black text-amber-600">⚠</span>{t("legendGhost")}</span>
+          ) : null}
+        </div>
+      ) : null}
       <div className="mt-1.5">
         {hasAny ? (
+          <>
           <div className="flex flex-wrap gap-1.5">
             {resolvedChipData.map(({ stone, stockKey, canonical }, idx) => {
               if (stockLoading) {
@@ -455,6 +466,7 @@ function StonesBlock({
                   <span
                     key={`c-${idx}`}
                     title={t("chipInStockTitle")}
+                    data-testid="combo-chip-in"
                     className="inline-flex min-h-[24px] items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
                   >
                     <span className="text-[10px] font-black text-emerald-600">✓</span>
@@ -467,9 +479,10 @@ function StonesBlock({
                   <span
                     key={`c-${idx}`}
                     title={t("chipGhostTitle")}
-                    className="inline-flex min-h-[24px] items-center gap-1 rounded-full border border-dashed border-amber-400 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 line-through decoration-amber-400/70"
+                    data-testid="combo-chip-ghost"
+                    className="inline-flex min-h-[24px] items-center gap-1 rounded-full border border-dashed border-amber-400 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800"
                   >
-                    <span className="text-[10px] font-black text-amber-600 no-underline">⚠</span>
+                    <span className="text-[10px] font-black text-amber-600">⚠</span>
                     {chipLabel}
                   </span>
                 );
@@ -478,23 +491,33 @@ function StonesBlock({
                 <span
                   key={`c-${idx}`}
                   title={t("chipOutOfStockTitle")}
-                  className="inline-flex min-h-[24px] items-center rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-700"
+                  data-testid="combo-chip-out"
+                  className="inline-flex min-h-[24px] items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-700"
                 >
+                  <span className="text-[10px] font-black text-slate-400">○</span>
                   {chipLabel}
                 </span>
               );
             })}
-            {!stockLoading && extraTextStones.map((stone, idx) => (
-              <span
-                key={`e-${idx}`}
-                title={t("chipInStockTitle")}
-                className="inline-flex min-h-[24px] items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
-              >
-                <span className="text-[10px] font-black text-emerald-600">✓</span>
-                {stone}
-              </span>
-            ))}
           </div>
+          {!stockLoading && extraTextStones.length > 0 ? (
+            <div data-testid="combo-extra-stones" className="mt-2 border-t border-dashed border-slate-200 pt-1.5">
+              <p className="mb-1 text-[10.5px] font-bold text-slate-500">{t("extraStonesTitle")}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {extraTextStones.map((stone, idx) => (
+                  <span
+                    key={`e-${idx}`}
+                    title={t("chipInStockTitle")}
+                    className="inline-flex min-h-[24px] items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800"
+                  >
+                    <span className="text-[10px] font-black text-emerald-600">✓</span>
+                    {stone}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          </>
         ) : (
           <p className={uiEmptyText}>—</p>
         )}
@@ -816,6 +839,7 @@ function AnalysisDashboard({
             </span>
             <span className="text-[10px] font-medium text-rose-500">{t("stonesCount", { n: global.missingNames.length })}</span>
           </div>
+          <p className="mb-1.5 text-[10.5px] font-medium leading-snug text-rose-600/90">{t("missingStonesHint")}</p>
           <div className="flex flex-wrap gap-1">
             {global.missingNames.map((name, i) => (
               <span
@@ -838,6 +862,7 @@ function AnalysisDashboard({
               {t("criticalStockLabel")}
             </span>
           </div>
+          <p className="mb-1.5 text-[10.5px] font-medium leading-snug text-amber-700/90">{t("criticalStockHint")}</p>
           <div className="flex flex-wrap gap-1">
             {global.criticalStones.map(({ name, adet }, i) => (
               <span

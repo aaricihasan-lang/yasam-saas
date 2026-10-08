@@ -22,7 +22,6 @@ export default function YontemDetayPage() {
       subtitle="Yöntem içeriği, durumu ve revizyon geçmişi."
       icon="🧪"
       breadcrumbLeaf="Yöntem"
-      showNav={false}
       actions={
         <div className="flex flex-wrap items-center gap-2">
           {seriesId && !isAndroid ? (

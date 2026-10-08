@@ -3,7 +3,6 @@
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { AromaterapiBreadcrumb } from "@/app/aromaterapi/_components/AromaterapiBreadcrumb";
-import { AromaterapiModuleNav } from "@/app/aromaterapi/_components/AromaterapiModuleNav";
 import { AROMATERAPI_ACCENT } from "@/lib/aromaterapi/aromaterapiAccent";
 import { findAromaterapiModuleByPath } from "@/lib/aromaterapi/aromaterapiModules";
 
@@ -18,8 +17,6 @@ export type AromaterapiSectionShellProps = {
   actions?: ReactNode;
   /** Breadcrumb'ta aktif bölümden sonra gösterilecek yaprak (ör. "Detay"). */
   breadcrumbLeaf?: string;
-  /** Birincil navigasyon şeridi gösterilsin mi? (Ana Ekran'da kartlar nav'dır.) */
-  showNav?: boolean;
   /** Hero üstünde tam-genişlik alan (ör. demo banner). */
   banner?: ReactNode;
   /** İçerik genişliği (varsayılan max-w-[1600px] — data-management çalışma yüzeyi). */
@@ -31,7 +28,10 @@ export type AromaterapiSectionShellProps = {
 
 /**
  * Aromaterapi V2 ortak sayfa kabuğu: krem/amber pastel zemin + yumuşak blob'lar,
- * breadcrumb, birincil navigasyon, cam hero başlığı ve içerik container'ı.
+ * breadcrumb (+ "← Aromaterapi Ana"), cam hero başlığı ve içerik container'ı.
+ *
+ * WT5: alt bölümlerde Ana Ekran kartlarını TEKRAR EDEN yatay modül şeridi kaldırıldı (mobilde
+ * kalabalık + gizli yatay kaydırma). Bölümler arası geçiş Ana Ekran kartları + breadcrumb ile yapılır.
  *
  * Salt sunumdur: veri fetch veya iş mantığı YOKTUR. Admin ve uzman aynı kabuğu
  * kullanır (fark yalnız tenant verisindedir). Doğaltaş kabuğunun yapısı örnek
@@ -44,7 +44,6 @@ export function AromaterapiSectionShell({
   icon,
   actions,
   breadcrumbLeaf,
-  showNav = true,
   banner,
   maxWidthClass = "max-w-[1600px]",
   contentClassName = "mt-4",
@@ -109,8 +108,6 @@ export function AromaterapiSectionShell({
             ) : null}
           </div>
         </header>
-
-        {showNav ? <AromaterapiModuleNav className="mt-3" /> : null}
 
         <div className={contentClassName}>{children}</div>
       </div>

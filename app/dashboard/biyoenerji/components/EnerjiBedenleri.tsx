@@ -219,6 +219,11 @@ export default function EnerjiBedenleri() {
   const saveLock = useSubmitLock();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  // WT5: Biyoenerji genel aramasından gelindiyse (?q=) bölüm araması o terimle açılır.
+  useEffect(() => {
+    const initialQ = new URLSearchParams(window.location.search).get("q")?.trim();
+    if (initialQ) runInEffect(() => setSearchQuery(initialQ.slice(0, 100)));
+  }, []);
   const [totalInDb, setTotalInDb] = useState(0);
   // K-2: sayım çözülene kadar "…" göster; ilk yüklemede yanlış "0" önlenir.
   const [statsReady, setStatsReady] = useState(false);

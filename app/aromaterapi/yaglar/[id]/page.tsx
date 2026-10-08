@@ -7,7 +7,6 @@ import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { useToast } from "@/components/ui/ToastProvider";
-import { AromaterapiModuleNav } from "@/app/aromaterapi/_components/AromaterapiModuleNav";
 import { normalizeForSearch } from "@/lib/aromaterapi/searchNormalize";
 import {
   deleteOil,
@@ -487,8 +486,6 @@ export default function OilDetailPage() {
     <main className={`flex min-h-screen flex-col text-slate-950 ${pageBg}`}>
       <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-2 px-3 py-4 sm:px-5 lg:px-8 xl:px-10">
 
-        <AromaterapiModuleNav />
-
         {isDemo && (
           <DemoModuleBanner message="Bu demo yağ kaydıdır. Kimlik bilgileri görünürdür; klinik detaylar demo hesabında korunur." />
         )}
@@ -627,7 +624,7 @@ export default function OilDetailPage() {
         <section className="flex flex-col rounded-[20px] bg-white/92 shadow-[0_4px_28px_rgba(15,23,42,0.06)] ring-1 ring-amber-100/70 lg:flex-row lg:items-start">
 
           {/* Sidebar */}
-          <nav className="flex shrink-0 gap-0.5 overflow-x-auto border-b border-amber-100/60 bg-gradient-to-b from-amber-50/50 to-white/20 p-2 lg:w-[200px] lg:flex-col lg:overflow-x-hidden lg:border-b-0 lg:border-r lg:border-amber-100/60 lg:p-2.5">
+          <nav aria-label="Yağ bilgi sekmeleri" data-testid="oil-detail-tabs" className="flex shrink-0 flex-wrap gap-1.5 border-b border-amber-100/60 bg-gradient-to-b from-amber-50/50 to-white/20 p-2 lg:w-[200px] lg:flex-col lg:flex-nowrap lg:gap-0.5 lg:overflow-x-hidden lg:border-b-0 lg:border-r lg:border-amber-100/60 lg:p-2.5">
             {DETAIL_TABS.map((t) => {
               const active   = tab === t.id;
               const hasData  = tabHasData(t, draft);
@@ -638,7 +635,7 @@ export default function OilDetailPage() {
                   key={t.id}
                   type="button"
                   onClick={() => setTab(t.id)}
-                  className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-2.5 py-[9px] text-[12px] font-bold transition lg:w-full lg:rounded-lg ${
+                  className={`inline-flex min-h-[40px] shrink-0 items-center gap-2 rounded-xl border border-amber-100/70 px-2.5 py-[9px] lg:min-h-0 lg:border-0 text-[12px] font-bold transition lg:w-full lg:rounded-lg ${
                     active
                       ? "bg-gradient-to-r from-amber-500 to-rose-400 text-white shadow-[0_4px_16px_rgba(245,158,11,0.35)]"
                       : "text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm"

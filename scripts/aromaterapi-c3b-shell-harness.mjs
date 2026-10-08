@@ -7,7 +7,7 @@
 // Herhangi bir FAIL → process.exit(1).
 // ============================================================
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -32,7 +32,9 @@ function fileExists(rel) { return existsSync(resolve(ROOT, rel)); }
 // ------------------------------------------------------------
 const REG = read("lib/aromaterapi/aromaterapiModules.ts");
 const ACCENT = read("lib/aromaterapi/aromaterapiAccent.ts");
-const NAV = read("app/aromaterapi/_components/AromaterapiModuleNav.tsx");
+// WT5: tekrar eden üst modül şeridi (AromaterapiModuleNav) KALDIRILDI → dosya artık YOK.
+const NAV_REMOVED = !fileExists("app/aromaterapi/_components/AromaterapiModuleNav.tsx");
+const NAV = "";
 const SHELL = read("app/aromaterapi/_components/AromaterapiSectionShell.tsx");
 const CARD = read("app/aromaterapi/_components/AromaterapiModuleCard.tsx");
 const HUB = read("app/aromaterapi/page.tsx");
@@ -161,15 +163,25 @@ check("G01 hub kartları registry'den (AROMATERAPI_HUB_MODULES)",
   HUB.includes("AROMATERAPI_HUB_MODULES") && HUB.includes("AromaterapiModuleCard"));
 check("G02 hub .map ile kart üretir (hard-code YOK)",
   /AROMATERAPI_HUB_MODULES\.map/.test(HUB));
-check("G03 navigasyon registry'den (AROMATERAPI_NAV_MODULES)",
-  NAV.includes("AROMATERAPI_NAV_MODULES"));
-check("G04 nav .map ile pill üretir",
-  /AROMATERAPI_NAV_MODULES\.map/.test(NAV));
-check("G05 nav aria-current ile aktif bölüm",
-  NAV.includes('aria-current'));
-check("G06 nav min-h-[44px] dokunma hedefi", NAV.includes("min-h-[44px]"));
-check("G07 shell breadcrumb + nav içerir",
-  SHELL.includes("AromaterapiBreadcrumb") && SHELL.includes("AromaterapiModuleNav"));
+// WT5 — alt bölümlerde Ana Ekran kartlarını tekrar eden yatay modül şeridi kaldırıldı (mobil+web).
+check("G03 WT5: AromaterapiModuleNav bileşeni kaldırıldı", NAV_REMOVED);
+{
+  const offenders = [];
+  const walk = (dir) => {
+    for (const e of readdirSync(resolve(ROOT, dir), { withFileTypes: true })) {
+      const rel = dir + "/" + e.name;
+      if (e.isDirectory()) walk(rel);
+      else if (/\.tsx?$/.test(e.name) && /AromaterapiModuleNav|showNav/.test(readFileSync(resolve(ROOT, rel), "utf8"))) offenders.push(rel);
+    }
+  };
+  walk("app/aromaterapi");
+  check("G04 WT5: hiçbir aromaterapi sayfası modül şeridi / showNav kullanmıyor", offenders.length === 0, offenders.join(","));
+}
+check("G05 WT5: kabuk breadcrumb'ı (← Aromaterapi Ana) korur", SHELL.includes("AromaterapiBreadcrumb") && !SHELL.includes("AromaterapiModuleNav"));
+check("G06 WT5: hub kartları bölümler arası tek navigasyon", HUB.includes("AromaterapiModuleCard"));
+check("G07 WT5: yağ/karışım/bilgi bankası sayfalarında Aromaterapi'ye dönüş bağlantısı var",
+  ["app/aromaterapi/_components/OilsPage.tsx", "app/aromaterapi/karisim-olusturucu/page.tsx", "app/aromaterapi/bilgi-bankasi/page.tsx"]
+    .every((p) => /href="\/aromaterapi"/.test(readFileSync(resolve(ROOT, p), "utf8"))));
 
 // ============================================================
 console.log("\n[C3B-6] Admin/uzman ayrımı YOK (eşit modül)");

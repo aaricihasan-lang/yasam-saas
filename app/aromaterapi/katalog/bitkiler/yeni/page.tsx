@@ -14,7 +14,6 @@ export default function YeniBitkiPage() {
       subtitle="Kanonik bir bitki (takson) kaydı oluşturun."
       icon="🌱"
       breadcrumbLeaf="Yeni Bitki"
-      showNav={false}
       actions={
         <Link
           href="/aromaterapi/katalog"
