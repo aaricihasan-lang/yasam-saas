@@ -15,11 +15,11 @@
 | 6C Cusp ve Lord hiyerarşisi | ✅ tamam (backend) | 52fc00d4 |
 | 6D Significator | ✅ tamam (backend) | 52fc00d4 |
 | 6E Dasha ve zamanlama | ✅ tamam (backend) | 5911ff45 |
-| 6F Ruling Planets / Transit / Horary | ✅ tamam (backend) | (6F commit) |
-| 6G Premium görseller | ⏳ | — |
-| 6H Bilgi Bankası | 🟡 KP geleneği + konu türleri hazır (6B–D) | — |
-| 6I Kayıtlı analiz | 🟡 kp.chart için test edildi (6B–D) | — |
-| 6J Güvenlik ve regresyon | ⏳ | — |
+| 6F Ruling Planets / Transit / Horary | ✅ tamam (backend) | cc04c2d1 |
+| 6G Premium görseller | ✅ tamam (tarayıcı denetimi 390 / 768 / 1440) | 7a0f4d37 (+a7955f7d) |
+| 6H Bilgi Bankası | ✅ tamam (KP geleneği, 8 bağlam, seçici, KB filtreleri) | 52fc00d4 / cc04c2d1 |
+| 6I Kayıtlı analiz | ✅ tamam (5 KP tekniğinin hepsi: 0 istek + bağlam) | 7a0f4d37 |
+| 6J Güvenlik ve regresyon | ✅ tamam | (6J commit) |
 
 ## Gerçek Roxy çağrı kaydı
 
@@ -104,6 +104,50 @@ onay gerekmedi). Ücret/kota bilinmiyor. **Toplam: 44.**
 ### 6E/6F testler
 - phase6 33/33 (6E: 6 · 6F: 9). Astroloji tamamı yeşil (39/20/17/37/20/15/33/26/19/**33**/10 + PG) · tsc 0 · eslint 0.
 
-## Sıradaki kesin adım
+## 6G — Arayüz (tarayıcı denetimi)
 
-6F commit → 6G arayüz (KP seçenekleri, KP haritası + tablolar, dasha/ruling/transit/horary panelleri) → tarayıcıda görsel denetim.
+- Seçici: Batı / Vedik / KP grup başlıkları; KP parametreleri (ayanamsa, düğüm, an, horary sayısı, değerlendirme yeri). Başlık "Aşama 6".
+- `KpPanels.tsx`: Güney Hindistan burç-sabit KP haritası (çerçeveli = Placidus cusp, gri = graha; dokununca ayrıntı: derece, nakshatra/pada,
+  lord zinciri, significator, KB), cusp tablosu, gezegen tablosu, significator (gezegen→ev / ev→gezegen; "Roxy kp/chart sade kuralı" etiketi),
+  ruling (sıra + klasik 5 açıklaması + düğüm tutarsızlığı notu), transit (KISMİ uyarısı), horary (Asc orta nokta açıklaması).
+- KP dasha: Vimshottari çubuğu + "KP evleri (L1→L4)" sütunu + dönem detayında KP konumu; tembel alt düzey (Ay → antardasha doğrulandı);
+  "olay tahmini DEĞİLDİR" bandı.
+- Yerel denetim ortamı: `next start` + sahte PostgREST + yerel HTTPS sahte Roxy (golden yanıtlar; gerçek Roxy/DB/anahtar YOK), Chrome.
+  Golden'la eşleşmeyen profil (Sentetik B) için KP sonuçları **reddedildi** (doğum yankısı / ilk mahadasha / konum yankısı) → fail-closed
+  canlı ortamda da görüldü.
+- **Bulgu (düzeltildi, 390 px):** harita `aspect-square` + `overflow-hidden` → İkizler kutusunun 4. etiketi (Gü) kesiliyordu → satırlar
+  otomatik yükseklik (min 5.5rem / 8.5rem); etiketler en az 24 px dokunma hedefi. Sonrası 390 / 768 / 1440: yatay taşma 0, kesilen etiket 0,
+  24 px altı düğme 0 (5 KP sekmesi).
+- Horary cusp'larında sub-sub yok → boş sütun gizlenir. Ruling'de gözlem yeri adıyla (koordinatla birlikte) gösterilir.
+- P3 (Aşama 5'ten, ortak bileşen): alt dönem şeridinde "bugün" rozeti başlık metninin bir kısmını örtebiliyor (yalnız görsel).
+
+## 6H / 6I
+
+- KB: gelenek "kp" (migration YOK); 8 KP bağlamı; KP anahtarı Vedik/Batı ayrıştırıcılarında geçersiz, Vedik anahtarı KP'de geçersiz.
+- Kayıtlı analiz: kp.chart, kp.dasha (MD + AD), kp.ruling, kp.transit, kp.horary → kaydet + aç = **0 Roxy isteği**; anlık görüntü şema / ayanamsa /
+  an / horary sayısı bağlamını taşır; yorum kapalı kayıtta houseThemes yok; başka tenant 404.
+
+## 6J — Güvenlik ve regresyon
+
+- HTTP (routes harness 21/21, yeni KP testi): anon / admin2 / uzman / demo / sahte başlık → KP seçimde 404 (Roxy çağrısı 0); owner önizlemesinde
+  houseThemes / kpStrength / ham yanıt / input_hash / anahtar YOK, 5 KP şeması var; owner tam görünümde temaları görür; ikinci koşu 0 istek;
+  kayıtlı horary açılışı 0 istek; admin2 404. (Harness: başarısızlık mesajı log yakalama sırasında da görünür olacak şekilde stderr'e yazıldı.)
+- Mutasyon `mutate6.cjs`: **19/20** — kalan K2 (star lord Vimshottari denetimi) EŞDEĞER mutant: aynı hata sub/KP-no. aday denetiminde de yakalanır.
+  İlk turda 4 sağ kalan vardı (K7 ev↔gezegen çapraz, K9 klasik 5 küme, K12 Asc orta nokta) → kendi içinde tutarlı bozuk veriyle 3 yeni
+  fail-closed test eklendi → yakalandı.
+- Önceki mutasyonlar: mutate5 14/14 · mutate51 22/22 (B2 eskidi: 5.2'de teyit listesi değişti; aynı amaç mutate52 V4'te) · mutate52 18/18.
+- Astroloji tamamı: 39/21/17/37/20/15/33/26/19/**36**/10 + PG PASS · tsc 0 · eslint 0 · next build OK.
+- Bundle taraması: raw_response / ROXY_API_KEY / astro_analyses / calcInputHash / input_hash / sahte anahtar 0; `houseThemes` / `kpStrength`
+  yalnız alan adı olarak (istemci yorum paneli), tema içeriği (ör. "mal varlığı", "spekülasyon") 0.
+- Regresyon: HD Roxy 220/0, HD info-panel 65/0, output-visibility 205/0, infra 43/0, admin-hygiene 55/0. Önceden var olan, astroloji dışı:
+  backup 53/1, faz1-p3 94/4 (değişmedi).
+
+## Sonuç
+
+P0 = 0 · P1 = 0 · satışı engelleyen P2 = 0. Kısmi teknik (KP transit) arayüzde ve teknikte KISMİ olarak etiketli; tam gösterilmiyor.
+P3: Roxy düğüm significator yöntemi uçlar arası tutarsız (belgeli, UI'da kaynak etiketli) · dasha "bugün" rozeti örtüşmesi (görsel) ·
+KP dasha'da Ketu/Rahu listeleri ajan ekli (dasha ucu yöntemi; etiketli).
+Ertelenen: KP olay zamanlaması (ev grubu → dönem; Roxy'de uç yok), natal-transit KP analizi (Roxy'de yok), kp/ayanamsa GET (gereksiz),
+KP sayı 1–249 dışı horary yöntemleri, düğüm "ajan" kuralının bağımsız doğrulaması.
+
+**Aşama 6 yerel olarak mühürlendi. Push / preview / merge / production / migration YOK. DUR — Aşama 7 için ayrı onay beklenir.**

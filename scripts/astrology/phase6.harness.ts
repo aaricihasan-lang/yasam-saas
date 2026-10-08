@@ -333,6 +333,12 @@ async function main() {
     no((r) => (r.planets[5].house = 9), "Placidus ev");
     no((r) => (r.nodes.ketu.longitude = (r.nodes.rahu.longitude + 170) % 360), "Ketu karşıtı");
     no((r) => (r.ascendant.longitude = r.ascendant.longitude + 0.5), "ASC ≠ cusp 1");
+    // Ev listesi kendi içinde tutarlı (all = düzeyler) ama gezegen tablosuyla çelişiyor → çapraz denetim.
+    no((r) => {
+      const h9 = r.significators.houseWise[8];
+      h9.significators[2].planets = ["Venus"];
+      h9.all = h9.significators.flatMap((x: J) => x.planets);
+    }, "ev significator ↔ gezegen significator çelişkisi");
     no((r) => (r.significators.planetWise[0].signifies[0].houses = [10]), "significator çaprazı");
     no((r) => r.significators.houseWise[2].all.push("Sun"), "all düzleştirmesi");
     const r = structuredClone(KC.response);
@@ -754,6 +760,11 @@ async function main() {
     noR((r) => (r.location.timezone = 5.5), "IST");
     noR((r) => r.rulingPlanets.push("Saturn"), "5 öğe dışı");
     noR((r) => r.significators.pop(), "significator kümesi");
+    // Küme kendi içinde tutarlı (significator listesi de değişti) ama klasik 5 öğeden türemiyor.
+    noR((r) => {
+      r.rulingPlanets[3] = "Venus";
+      r.significators[3].planet = "Venus";
+    }, "klasik 5 dışı (tutarlı liste)");
     const noP = (f: (r: J) => void, w: string) => {
       const r = structuredClone(PA);
       f(r.response);
@@ -774,6 +785,13 @@ async function main() {
       r.ascendant.longitude = 153.5;
       r.cusps[0].longitude = 153.5;
     }, "Asc orta nokta değil");
+    // Asc + cusp 1 + cusp 7 tutarlı kaydırıldı (aynı KP 108 dilimi, karşıtlık korunur) → yalnız orta nokta kuralı yakalar.
+    noH((r) => {
+      r.ascendant.longitude = 153.5;
+      r.ascendant.degreeInSign = 3.5;
+      r.cusps[0].longitude = 153.5;
+      r.cusps[6].longitude = 333.5;
+    }, "Asc orta nokta değil (tutarlı kaydırma)");
     noH((r) => (r.ascendant.spanTo = 156), "span");
     noH((r) => (r.cusps[8].longitude = (r.cusps[8].longitude + 2) % 360), "karşıt cusp");
     noH((r) => (r.significators.planetWise[0].agentHouses = [1]), "Güneş'te ajan evi");

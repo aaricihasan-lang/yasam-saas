@@ -40,6 +40,12 @@ for (const n of ["vedic-transit", "vedic-aspects", "vedic-d30"]) {
   const f = JSON.parse(readFileSync(join(__dirname, "fixtures", "golden", `${n}.json`), "utf8"));
   G51[f.endpoint] = f.response;
 }
+// Aşama 6 KP golden yanıtları (gerçek, sentetik kişi A). KP dasha Vedik dasha ile aynı yolu kullanır → gövdede significators:true.
+const GKP: Record<string, Record<string, unknown>> = {};
+for (const n of ["kp-chart", "kp-dasha-major", "kp-ruling-planets", "kp-planets-at", "kp-horary"]) {
+  const f = JSON.parse(readFileSync(join(__dirname, "fixtures", "golden", `${n}.json`), "utf8"));
+  GKP[f.endpoint] = f.response;
+}
 const roxyEndpoints: string[] = [];
 
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -66,7 +72,8 @@ async function t(name: string, fn: () => Promise<void> | void) {
     console.log(`PASS ${name}`);
   } catch (e) {
     fail += 1;
-    console.error(`FAIL ${name}\n     ${(e as Error).message}`);
+    // Doğrudan stderr: log testleri console.error'u yakalarken de başarısızlık görünür kalsın.
+    process.stderr.write(`FAIL ${name}\n     ${(e as Error).message}\n`);
   }
 }
 
@@ -97,6 +104,7 @@ const restore = installFetchShim({
     const path = new URL(url).pathname.replace(/^\/api\/v2/, "");
     roxyEndpoints.push(path);
     assert.equal(new URL(url).searchParams.get("lang"), "tr", `lang=tr yok: ${url}`);
+    if (GKP[path] && (path.startsWith("/vedic-astrology/kp/") || body.significators === true)) return new Response(JSON.stringify(GKP[path]), { status: 200, headers: { "Content-Type": "application/json" } });
     if (G51[path]) return new Response(JSON.stringify(G51[path]), { status: 200, headers: { "Content-Type": "application/json" } });
     if (GOLDEN3[path]) {
       const r = structuredClone(GOLDEN3[path]) as Record<string, unknown>;
@@ -475,6 +483,52 @@ async function main() {
       assert.equal(open.status, 200);
       assert.equal(roxyHits, h1, "kayıtlı Gochara analizi Roxy çağırdı");
       assert.ok(open.text.includes("astro.vedic.transit.v1") && !desc.some((x) => open.text.includes(x)));
+      assert.equal((await call(analysisItem.GET(req(`/api/admin/astroloji/analyses/${aid}`, "admin2"), ctxP(aid)))).status, 404);
+    });
+
+    await t("aşama 6 (HTTP): owner olmayan → KP seçimde 404 (Roxy yok); owner KP harita + dasha + ruling + transit + horary → önizlemede houseThemes / güç değerlendirmesi / ham alan / anahtar YOK; owner yorumu görür; tekrar 0; kayıtlı horary 0 istek; admin2 404", async () => {
+      store = seed();
+      const a = await call(profiles.POST(req("/api/admin/astroloji/profiles", "owner", "POST", profileBody)));
+      const pa = (a.json.profile as { id: string }).id;
+      const AT = "2026-10-07T09:00";
+      const sels = [
+        { technique: "kp.chart", options: {} },
+        { technique: "kp.dasha", options: {} },
+        { technique: "kp.ruling", options: { atUtc: AT } },
+        { technique: "kp.transit", options: { atUtc: AT } },
+        { technique: "kp.horary", options: { atUtc: AT, horaryNumber: 108 } },
+      ];
+      const h0 = roxyHits;
+      for (const who of ["anon", "admin2", "expert", "demo", "spoof"] as Who[]) {
+        const r = await call(run.POST(req("/api/admin/astroloji/engine/run", who, "POST", { profileId: pa, selections: sels })));
+        assert.deepEqual([r.status, r.text], [404, NOT_FOUND], who);
+      }
+      assert.equal(roxyHits, h0, "owner olmayan Roxy çağırdı");
+      const ep0 = roxyEndpoints.length;
+      const prev = await call(run.POST(req("/api/admin/astroloji/engine/run?previewNoInterp=1", "owner", "POST", { profileId: pa, selections: sels })));
+      assert.equal(prev.status, 200, prev.text.slice(0, 300));
+      assert.ok((prev.json.results as { ok: boolean }[]).every((x) => x.ok), prev.text.slice(0, 400));
+      assert.deepEqual(roxyEndpoints.slice(ep0).sort(), ["/vedic-astrology/dasha/major", "/vedic-astrology/kp/chart", "/vedic-astrology/kp/horary", "/vedic-astrology/kp/planets-interval", "/vedic-astrology/kp/ruling-planets"]);
+      // Tema listeleri tek kelimelerdir (ör. "ev") → ev başına dizinin JSON'u işaretçi olarak aranır.
+      const themes = Object.values(GKP["/vedic-astrology/kp/chart"].houseThemes as Record<string, string[]>).map((x) => JSON.stringify(x));
+      const dashaNarr = Object.values(GKP["/vedic-astrology/dasha/major"].houseThemes as Record<string, string[]>).map((x) => JSON.stringify(x));
+      assert.equal(themes.length + dashaNarr.length, 24);
+      for (const x of [...themes, ...dashaNarr]) assert.ok(!prev.text.includes(x), `önizlemede anlatı: ${x.slice(0, 30)}`);
+      for (const k of ["houseThemes", "kpStrength", "raw_response", "input_hash", "calcInputHash", API_KEY]) assert.ok(!prev.text.includes(k), k);
+      for (const k of ["astro.kp.chart.v1", "astro.kp.dasha.v1", "astro.kp.ruling.v1", "astro.kp.transit.v1", "astro.kp.horary.v1"]) assert.ok(prev.text.includes(k), k);
+      const full = await call(run.POST(req("/api/admin/astroloji/engine/run", "owner", "POST", { profileId: pa, selections: sels })));
+      assert.equal(roxyEndpoints.length - ep0, 5, "ikinci run önbellekten gelmeli");
+      assert.ok(themes.every((x) => full.text.includes(x)), "owner KP yorumunu görmeli");
+      for (const k of ["raw_response", "input_hash", API_KEY]) assert.ok(!full.text.includes(k), k);
+      const sv = await call(analyses.POST(req("/api/admin/astroloji/analyses", "owner", "POST", { profileId: pa, revision: 1, ...sels[4], includeProviderInterp: false, saveRequestId: "6a6a6a6a-6a6a-4a6a-8a6a-6a6a6a6a6a6a" })));
+      assert.equal(sv.status, 201, sv.text);
+      const aid = sv.json.analysisId as string;
+      const h1 = roxyHits;
+      const open = await call(analysisItem.GET(req(`/api/admin/astroloji/analyses/${aid}`, "owner"), ctxP(aid)));
+      assert.equal(open.status, 200);
+      assert.equal(roxyHits, h1, "kayıtlı horary analizi Roxy çağırdı");
+      assert.ok(open.text.includes("astro.kp.horary.v1") && open.text.includes("108"));
+      for (const k of ["raw_response", "input_hash", API_KEY]) assert.ok(!open.text.includes(k), k);
       assert.equal((await call(analysisItem.GET(req(`/api/admin/astroloji/analyses/${aid}`, "admin2"), ctxP(aid)))).status, 404);
     });
 
