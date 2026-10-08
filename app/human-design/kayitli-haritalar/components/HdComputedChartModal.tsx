@@ -144,7 +144,7 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
               </span>
             ) : null}
             {/* FAZ 2.1: mevcut Profesyonel Word butonu REUSE (chartId = kayıtlı computed row.id). */}
-            {!loading && !loadError && row ? <HdProfessionalReportButton chartId={id} /> : null}
+            {!loading && !loadError && row ? <HdProfessionalReportButton chartId={id} roxyRender={row.roxy_render ?? null} /> : null}
             <button
               type="button"
               onClick={() => void handleDelete()}
