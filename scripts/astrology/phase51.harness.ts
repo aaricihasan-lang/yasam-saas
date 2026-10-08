@@ -393,7 +393,8 @@ async function main() {
       assert.equal(c.checked, 10);
       assert.equal(c.goldenConfirmed, true);
     }
-    assert.deepEqual([...VARGA_GOLDEN_CONFIRMED].sort((a, b) => a - b), [9, 30]);
+    // 5.2 sonrası tüm bölümler golden teyitli; her biri için golden dosyası 5.2 harness'ında denetlenir.
+    assert.ok(VARGA_GOLDEN_CONFIRMED.includes(9) && VARGA_GOLDEN_CONFIRMED.includes(30));
   });
 
   await t("5.1B ayırt edicilik: D9 golden 'düz eşit bölme' ile de uyuşur (tek başına kanıt DEĞİL); D30 golden düz bölmeyle UYUŞMAZ → Roxy gerçekten BPHS dilimlerini uyguluyor", () => {

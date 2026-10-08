@@ -366,14 +366,21 @@ export function projectRoxyVedicVarga(raw: unknown, opts: { ayanamsa: VedicAyana
     }
   }
   // Vargottama: sağlayıcı listesi, (D1 rashisi = varga rashisi) kuralıyla birebir olmalı.
+  // 5.2: Roxy, Lagna vargottama olduğunda listeye "Lagna" da koyar (golden D16) → kabul edilir ve Lagna'nın
+  // D1/varga rashisiyle denetlenir (Lagna'nın vargottama bilgisi teknikte lagna.vargottama olarak zaten var).
   const vList: VedicGrahaId[] = [];
+  let lagnaListed = false;
   for (const v of arr(r.vargottama) ?? []) {
     const id = mapGraha(v);
-    if (!id) dropped.push("vargottama[]");
+    if (typeof v === "string" && v.trim().toLowerCase() === "lagna") lagnaListed = true;
+    else if (!id) dropped.push("vargottama[]");
     else vList.push(id);
   }
   const vExp = grahas.filter((g) => g.vargottama).map((g) => g.id);
   if ([...vList].sort().join() !== [...vExp].sort().join()) errors.push("vargottama listesi D1/varga rashileriyle uyuşmuyor");
+  // Tek yönlü: listede Lagna varsa gerçekten vargottama olmalı (çelişki → ret). Listede yokluğu reddedilmez —
+  // tek golden örneğine (D16) dayanarak sağlayıcı kuralını kesin varsaymıyoruz.
+  if (lagnaP && lagnaListed && lagnaP.d1Rashi !== lagnaP.rashi) errors.push("vargottama: Lagna D1/varga rashisiyle uyuşmuyor");
   const name = text(div?.name)?.slice(0, 60) ?? `D${opts.division}`;
   return done(
     errors,

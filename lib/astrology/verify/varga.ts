@@ -70,8 +70,11 @@ export const BPHS_VARGA_RULES: Readonly<Record<number, VargaRule>> = {
   60: { division: 60, name: "Shashtiamsa", method: "Parashari", rule: "30′'lık dilimler; aynı burçtan ardışık sayılır (derece × 2, kalan + 1).", rashiIndex: (l) => { const { s, k } = parts(l, 60); return norm(s + k); } },
 };
 
-/** Golden (gerçek Roxy yanıtı) ile BPHS kuralı teyit edilmiş bölümler — test dosyası bunu doğrular. */
-export const VARGA_GOLDEN_CONFIRMED: readonly number[] = [9, 30];
+/**
+ * Golden (gerçek Roxy yanıtı) ile BPHS kuralı teyit edilmiş bölümler — test dosyası her biri için golden'ın varlığını ve
+ * 10/10 uyumu doğrular. 5D: D9 · 5.1B: D30 · 5.2: kalan 13 bölüm (2026-10-08, sentetik kişi A, Lahiri).
+ */
+export const VARGA_GOLDEN_CONFIRMED: readonly number[] = [2, 3, 4, 7, 9, 10, 12, 16, 20, 24, 27, 30, 40, 45, 60];
 
 export type VargaCheck = {
   division: number;
