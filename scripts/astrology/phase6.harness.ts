@@ -872,7 +872,7 @@ async function main() {
     for (let i = 0; i < sels.length; i++) {
       const sv = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...sels[i], includeProviderInterp: false, saveRequestId: randomUUID() }, false);
       assert.equal(sv.status, 201, `${sels[i].technique} ${JSON.stringify(sv.body)}`);
-      const n = calls.length;
+      const n: number = calls.length;
       const a = JSON.stringify(((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis);
       assert.equal(calls.length, n, `${sels[i].technique}: kayıtlı analiz Roxy çağırdı`);
       for (const k of expect[i]) assert.ok(a.includes(k), `${sels[i].technique}: ${k}`);
@@ -894,7 +894,7 @@ async function main() {
     for (const sg of SIGN_IDS) for (let i = 1; i < items[sg].length; i++) assert.ok(items[sg][i - 1].lon <= items[sg][i].lon, sg);
     for (const x of all) {
       const src = x.cusp ? k.cusps.find((c: J) => `c${c.house}` === x.key) : k.bodies.find((b: J) => b.id === x.key);
-      assert.equal(src.rashi, x.sg, x.key);
+      assert.equal(src?.rashi, x.sg, x.key);
     }
     assert.deepEqual(all.filter((x) => x.strong).map((x) => x.key), ["c1"]);
     const h = hoT().technical;
