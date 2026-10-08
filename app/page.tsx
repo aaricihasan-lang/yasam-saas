@@ -27,7 +27,7 @@ import {
   type YasamUser,
 } from "@/lib/auth/yasamUser";
 import { useSessionGuard } from "@/hooks/useSessionGuard";
-import { checkSessionStatus, consumeSessionEnded, type SessionEndReason } from "@/lib/auth/sessionExpiry";
+import { confirmSessionInvalid, consumeSessionEnded, type SessionEndReason } from "@/lib/auth/sessionExpiry";
 import { hasExpertMembershipAccess } from "@/lib/auth/membership";
 import {
   getModuleLockReason,
@@ -62,6 +62,7 @@ import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
 import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
 import { getSunSignInfo } from "@/lib/cosmic/planets";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useTranslations, useLocale, useMessages } from "next-intl";
 import { localeTag } from "@/lib/i18n/format";
 import type { ActiveLocale } from "@/lib/i18n/locales";
@@ -780,6 +781,7 @@ export default function Home() {
   const bcp47 = localeTag(locale);
   const router = useRouter();
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -934,8 +936,9 @@ export default function Home() {
       // bekletme — oturumu sunucudan doğrula; geçersizse giriş akışına dön.
       void adminCookiePromiseRef.current.then(async (status) => {
         if (status !== 401) return;
-        const s = await checkSessionStatus(adminRefreshToken);
-        if (s && !s.valid) endSessionRef.current(s.reason);
+        // WT4: iki kesin "geçersiz" yanıt gerekir; geçici hata/5xx çıkış yaptırmaz.
+        const s = await confirmSessionInvalid();
+        if (s) endSessionRef.current(s.reason);
       });
       void syncYasamUserFromDb(stored).then((fresh) => {
         if (fresh) setUser(fresh);
@@ -1473,6 +1476,19 @@ export default function Home() {
     setMessage("");
   };
 
+  // WT4: mobilde yalnız ikon olan çıkış düğmesi zil/dil seçicinin hemen yanında; yanlış dokunuş
+  // anında oturumu (sunucuda da) kapatıyordu. Çıkış artık YALNIZ açık onayla yapılır.
+  const requestLogout = async () => {
+    const ok = await confirm({
+      title: t("dashboard.logoutConfirmTitle"),
+      message: t("dashboard.logoutConfirmMessage"),
+      confirmText: t("dashboard.logout"),
+      cancelText: t("dashboard.logoutConfirmCancel"),
+      tone: "warning",
+    });
+    if (ok) logout();
+  };
+
   if (authLoading) {
     return <AuthBootScreen />;
   }
@@ -1539,9 +1555,13 @@ export default function Home() {
       setAdminNavLoading(false);
       if (status === 401) {
         // WEB P1: geçersiz/süresi dolmuş oturumla /admin'e körlemesine gidilmez (sessiz "/" dönüşü yok).
-        const s = await checkSessionStatus();
-        endSessionForReason(s && !s.valid ? s.reason : "revoked");
-        return;
+        // WT4: 401 tek başına oturum sonu SAYILMAZ (geçici doğrulama hatası da 401 döner);
+        // yalnız sunucu iki kez kesin "geçersiz" derse giriş akışına dönülür.
+        const s = await confirmSessionInvalid();
+        if (s) {
+          endSessionForReason(s.reason);
+          return;
+        }
       }
       showToast({ message: t("auth.adminSessionFailed"), type: "error" });
     }
@@ -1678,7 +1698,7 @@ export default function Home() {
                       <NotificationBell compact />
                       <button
                         type="button"
-                        onClick={logout}
+                        onClick={() => void requestLogout()}
                         aria-label={t("dashboard.logout")}
                         className="inline-flex min-h-[36px] min-w-[36px] items-center justify-center gap-1.5 rounded-xl border border-white/80 bg-white/80 px-2 text-[11px] font-semibold text-slate-600 shadow-sm backdrop-blur-sm transition hover:bg-white hover:text-violet-700 sm:px-3.5"
                       >

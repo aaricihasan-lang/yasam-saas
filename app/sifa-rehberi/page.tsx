@@ -27,7 +27,7 @@ import {
   matchesListSearch,
   type HealingGuideListRow,
 } from "@/lib/sifa-rehberi/healingGuideLiveData";
-import { SUGGESTED_CATEGORIES } from "@/lib/sifa-rehberi/categories";
+import SifaCategoryField from "@/components/sifa-rehberi/SifaCategoryField";
 import {
   SectionEditor,
   editableToPayload,
@@ -772,7 +772,20 @@ function SifaRehberiContent() {
     createRequestIdRef.current = null;
   }
 
+  // WT4: senkron çift-tık kilidi (state güncellenmeden gelen ikinci tık düşer; sunucu
+  // idempotency anahtarı ikinci savunma hattıdır).
+  const createInFlightRef = useRef(false);
   async function handleSave() {
+    if (createInFlightRef.current) return;
+    createInFlightRef.current = true;
+    try {
+      await runCreate();
+    } finally {
+      createInFlightRef.current = false;
+    }
+  }
+
+  async function runCreate() {
     if (isDemo) { showToast({ title: "Demo Hesabı", message: "Demo hesabında kayıt yapılamaz.", type: "info" }); return; }
     const nameTrim = form.name.trim();
     if (!nameTrim) {
@@ -1112,18 +1125,14 @@ function SifaRehberiContent() {
                             <h4 className="text-[13px] font-black text-slate-900">Kategori</h4>
                             <p className="text-[11px] font-medium text-slate-500">Opsiyonel</p>
                           </header>
-                          <input
+                          {/* WT4: datalist yerine yerel select + "Diğer" — seçimden sonra da her
+                              açılışta tam liste; Android'de gri bindirme / çift metin yok. */}
+                          <SifaCategoryField
                             value={form.category}
-                            onChange={(e) => setForm({ ...form, category: e.target.value })}
-                            className={newViewFieldInput}
-                            placeholder="Örn. Sinir sistemi"
-                            list="sifa-category-suggestions"
+                            onChange={(v) => setForm((prev) => ({ ...prev, category: v }))}
+                            disabled={saving}
+                            inputClassName={newViewFieldInput}
                           />
-                          <datalist id="sifa-category-suggestions">
-                            {SUGGESTED_CATEGORIES.map((c) => (
-                              <option key={c} value={c} />
-                            ))}
-                          </datalist>
                         </section>
                       </div>
                       {renderNewViewImagesBlock()}

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
-import { checkSessionStatus, type SessionEndReason } from "@/lib/auth/sessionExpiry";
+import { confirmSessionInvalid, type SessionEndReason } from "@/lib/auth/sessionExpiry";
 
 const VALIDATE_INTERVAL_MS = 60 * 1000; // 60 saniye — admin terminate / süre dolumu sonrası max 60s içinde
 
@@ -33,12 +33,20 @@ export function useSessionGuard({ user, onSessionInvalid }: UseSessionGuardOptio
 
     let cancelled = false;
 
+    let checking = false;
     async function validate() {
-      // Token yoksa eski oturum — geçmişe dönük zorlama yapma (checkSessionStatus → null)
-      const status = await checkSessionStatus();
-      // Ağ hatası / belirsiz yanıt → geçersiz SAYILMAZ
-      if (!status || cancelled) return;
-      if (!status.valid) onInvalidRef.current(status.reason);
+      if (checking) return;
+      checking = true;
+      try {
+        // Token yoksa eski oturum — geçmişe dönük zorlama yapma (→ null).
+        // WT4: tek "geçersiz" yanıt yetmez; kısa aralıkla İKİ kesin "geçersiz" gerekir.
+        // Ağ hatası / 5xx / belirsiz yanıt → geçersiz SAYILMAZ.
+        const status = await confirmSessionInvalid();
+        if (!status || cancelled) return;
+        onInvalidRef.current(status.reason);
+      } finally {
+        checking = false;
+      }
     }
 
     // İlk kontrol: sayfa yüklenince 5 saniye bekle
@@ -80,10 +88,17 @@ export function useStoredSessionGuard(
     if (!active || !readYasamUser()) return;
 
     let cancelled = false;
+    let checking = false;
     async function validate() {
-      const status = await checkSessionStatus();
-      if (!status || cancelled) return;
-      if (!status.valid) onInvalidRef.current(status.reason);
+      if (checking) return;
+      checking = true;
+      try {
+        const status = await confirmSessionInvalid();
+        if (!status || cancelled) return;
+        onInvalidRef.current(status.reason);
+      } finally {
+        checking = false;
+      }
     }
 
     const initialTimer = setTimeout(() => void validate(), 5_000);
