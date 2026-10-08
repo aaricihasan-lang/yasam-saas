@@ -169,6 +169,7 @@ async function main() {
       /^ASTROLOGY-PHASE5-PROGRESS\.md$/,
       /^ASTROLOGY-PHASE5-1-PROGRESS\.md$/,
       /^ASTROLOGY-PHASE5-2-PROGRESS\.md$/,
+      /^ASTROLOGY-PHASE6-PROGRESS\.md$/,
     ];
     const outside = all.filter((p) => !allowed.some((r) => r.test(p)));
     assert.deepEqual(outside, [], `kapsam dışı değişiklik: ${outside.join(", ")}`);
