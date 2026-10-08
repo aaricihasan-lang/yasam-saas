@@ -15,6 +15,7 @@ import { NAKSHATRAS as NAKSHATRA_IDS, NAKSHATRA_LORDS, type NakshatraPlacement, 
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import { GRAHA_LABELS, NAKSHATRA_LABELS } from "@/lib/astrology/topics/vedic";
+import { BPHS_VARGA_RULES, checkVargaAgainstBphs, type VargaCheck } from "@/lib/astrology/verify/varga";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -413,6 +414,38 @@ export function vargaTopicKeys(t: VedicVargaTechnical, point: "lagna" | VedicGra
 
 type VargaRow = { id: "lagna" | VedicGrahaId; p: VedicVargaTechnical["lagna"] | VedicVargaTechnical["grahas"][number]; retro: boolean };
 
+/** 5.1B: Roxy varga rashilerinin BPHS (Parashari) kuralıyla bağımsız denetimi — her görüntülemede, hesap ÜRETMEZ. */
+export function vargaCheckOf(t: VedicVargaTechnical): VargaCheck {
+  return checkVargaAgainstBphs(t.division.number, [{ id: "lagna", longitude: t.lagna.longitude, rashi: t.lagna.rashi }, ...t.grahas.map((g) => ({ id: g.id, longitude: g.longitude, rashi: g.rashi }))]);
+}
+function VargaVerification({ t }: { t: VedicVargaTechnical }) {
+  const c = vargaCheckOf(t);
+  const rule = BPHS_VARGA_RULES[t.division.number];
+  const dn = `D${t.division.number}`;
+  if (c.status === "mismatch") {
+    return (
+      <div className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs text-rose-900" data-testid="astro-vedic-varga-check" data-varga-check="mismatch">
+        <strong>Doğrulanmadı:</strong> {dn} için {c.mismatches.length}/{c.checked} noktada Roxy rashisi {c.method} kuralından farklı (
+        {c.mismatches.map((m) => `${m.id === "lagna" ? "Lagna" : GRAHA_LABELS[m.id]}: Roxy ${SIGN_LABELS[m.got]}, kural ${SIGN_LABELS[m.expected]}`).join("; ")}). Yöntem/ekol farkı olabilir;
+        bu harita doğrulanmış sayılmaz.
+      </div>
+    );
+  }
+  if (c.status === "unsupported") {
+    return (
+      <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs text-amber-900" data-testid="astro-vedic-varga-check" data-varga-check="unsupported">
+        {dn} için bağımsız referans kuralı yok — doğrulanmadı.
+      </p>
+    );
+  }
+  return (
+    <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-900" data-testid="astro-vedic-varga-check" data-varga-check="match">
+      <strong>Bağımsız denetim:</strong> {c.checked}/{c.checked} nokta (Lagna + 9 graha) {c.method} kuralıyla aynı — {rule?.rule}
+      {c.goldenConfirmed ? " Yöntem gerçek Roxy golden yanıtıyla da teyit edildi." : " (Bu bölüm için ayrıca golden teyidi yok; denetim bu haritanın kendi verisiyle yapıldı.)"}
+    </p>
+  );
+}
+
 export function VedicVargaPanel({ t, kbLookup }: { t: VedicVargaTechnical; kbLookup?: KbLookup | null }) {
   const [style, setStyle] = useState<ChartStyle>("north");
   const [sel, setSel] = useState<"lagna" | VedicGrahaId>("lagna");
@@ -437,12 +470,7 @@ export function VedicVargaPanel({ t, kbLookup }: { t: VedicVargaTechnical; kbLoo
         </p>
         <StyleTabs style={style} setStyle={setStyle} />
       </div>
-      {!d9 && (
-        <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs text-amber-900" data-testid="astro-vedic-varga-unverified">
-          {dn} değerleri Roxy&apos;den gelir ve yapısal tutarlılık denetiminden geçer (bölüm/ayanamsa yankısı, ev, kutu, vargottama); bu bölüm için bağımsız formül doğrulaması YAPILMADI
-          (bağımsız doğrulama yalnız D9 Navamsa için var).
-        </p>
-      )}
+      <VargaVerification t={t} />
       <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="mx-auto w-full max-w-[520px]">
           <RoxyKundli data={data} style={style} kind="divisional" />

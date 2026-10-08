@@ -24,12 +24,14 @@ import { createKb } from "@/lib/astrology/kb/service";
 import { getAnalysis, getWorkspace, saveAnalysis, saveExpertNote } from "@/lib/astrology/analyses/service";
 import { isSectionKeyForTechnique, parseAnyTopicKey, topicsForTechnique, TECHNIQUE_TOPIC_CONTEXT } from "@/lib/astrology/topics/index";
 import { parseVedicTopicKey } from "@/lib/astrology/topics/vedic";
-import { projectRoxyVedicTransit, signCount } from "@/lib/astrology/providers/roxy/vedic";
+import { navamsaRashiOfPada, projectRoxyVedicTransit, projectRoxyVedicVarga, signCount } from "@/lib/astrology/providers/roxy/vedic";
+import { BPHS_VARGA_RULES, checkVargaAgainstBphs, VARGA_GOLDEN_CONFIRMED } from "@/lib/astrology/verify/varga";
+import { vargaCheckOf } from "@/app/admin/astroloji/_components/VedicPanels";
 import { vedicTransitBody, vedicTransitLocal } from "@/lib/astrology/providers/roxy/requests";
 import { projectRoxyTransit } from "@/lib/astrology/providers/roxy/timing";
 import { maskTechnical } from "@/lib/astrology/view/techniqueView";
 import { SIGN_IDS, type SignId } from "@/lib/astrology/model/western";
-import { KAKSHA_LORDS, type VedicTransitTechnical } from "@/lib/astrology/model/vedic";
+import { KAKSHA_LORDS, VEDIC_VARGA_DIVISIONS, type VedicTransitTechnical, type VedicVargaTechnical } from "@/lib/astrology/model/vedic";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -351,6 +353,88 @@ async function main() {
     const hidden = JSON.stringify(((await getAnalysis(ctxOf(store, { entitlements: NO_INTERP }), (sv.body as J).analysisId, false)).body as J).analysis);
     assert.ok(!hidden.includes(desc));
     assert.equal((await getAnalysis(ctxOf(store, { tenantId: TENANT_B, userId: USER_B }), (sv.body as J).analysisId, false)).status, 404);
+  });
+
+  // ═══ 5.1B — D2…D60 bağımsız doğrulama ═══════════════════════════════════════
+  const D9G = load("vedic-d9");
+  const D30G = load("vedic-d30");
+  const vargaTech = (g: J) => {
+    const p = projectRoxyVedicVarga(g.response, { ayanamsa: "lahiri", division: g.body.division }) as J;
+    assert.ok(p.ok, JSON.stringify(p.errors));
+    assert.deepEqual([p.unmappedFields, p.droppedValues], [[], []]);
+    return p.technical as VedicVargaTechnical;
+  };
+  /** "Koç'tan düz eşit bölme" — YANLIŞ genel uygulama modeli (yalnız ayırt edicilik kanıtı için). */
+  const naive = (n: number) => (lon: number) => Math.floor((lon * n) / 30) % 12;
+
+  await t("5.1B golden D30: fixture = ürün gövdesi (division 30, lahiri, tz=doğum ofseti); projeksiyon temiz; Roxy yöntemi 'Unequal' (Parashari)", () => {
+    const g = goldenPlan51().find((x) => x.name === "vedic-d30")!;
+    assert.deepEqual(D30G.body, JSON.parse(JSON.stringify(g.body)));
+    assert.equal(D30G.body.timezone, 3);
+    const u = getTechnique("vedic.varga")!.units({ birth: SYNTH_A, birthUtc: SYNTH_A.utc, partner: null }, { ayanamsa: "lahiri", division: 30 })[0];
+    assert.deepEqual(JSON.parse(JSON.stringify(u.body)), D30G.body);
+    const v = vargaTech(D30G);
+    assert.equal(v.division.name, "Trimsamsa");
+    assert.equal(D30G.response.division.degreesPerDivision, "Unequal");
+    // D30 grahaları D1 boylamını aynen taşır (varga D1'den türetilir).
+    for (const x of v.grahas) assert.equal(x.longitude.toFixed(4), Number(D1.response.meta[NAME[x.id]].longitude).toFixed(4));
+  });
+
+  await t("5.1B BAĞIMSIZ: D9 ve D30 golden'ları BPHS Parashari kuralıyla 10/10 (Lagna + 9 graha) aynı; teyitli liste = golden'ı olan bölümler", () => {
+    for (const g of [D9G, D30G]) {
+      const c = vargaCheckOf(vargaTech(g));
+      assert.equal(c.status, "match", `D${g.body.division}: ${JSON.stringify(c.mismatches)}`);
+      assert.equal(c.checked, 10);
+      assert.equal(c.goldenConfirmed, true);
+    }
+    assert.deepEqual([...VARGA_GOLDEN_CONFIRMED].sort((a, b) => a - b), [9, 30]);
+  });
+
+  await t("5.1B ayırt edicilik: D9 golden 'düz eşit bölme' ile de uyuşur (tek başına kanıt DEĞİL); D30 golden düz bölmeyle UYUŞMAZ → Roxy gerçekten BPHS dilimlerini uyguluyor", () => {
+    const pts = (g: J) => [g.response.chart.meta.Lagna, ...Object.keys(NAME).map((k) => g.response.chart.meta[NAME[k]])] as J[];
+    assert.ok(pts(D9G).every((m) => SIGN_IDS[naive(9)(m.longitude)] === String(m.rashi).toLowerCase()), "D9 düz bölmeyle aynı olmalı (bu yüzden yetersiz kanıttı)");
+    const wrong = pts(D30G).filter((m) => SIGN_IDS[naive(30)(m.longitude)] !== String(m.rashi).toLowerCase()).length;
+    assert.ok(wrong >= 8, `D30: düz bölme ${wrong}/10 farklı olmalı`);
+  });
+
+  await t("5.1B referans tablosu iç tutarlılığı: D9 = pada↔navamsa = düz bölme; D27 = düz bölme; D2 yalnız Yengeç/Aslan; D30 asla Yengeç/Aslan + dilim sınırları; her bölüm sayısı = bölüm sayısı", () => {
+    for (let lon = 0; lon < 360; lon += 0.05) {
+      const nak = Math.floor(lon / (360 / 27));
+      const pada = Math.floor((lon % (360 / 27)) / (360 / 108)) + 1;
+      assert.equal(SIGN_IDS[BPHS_VARGA_RULES[9].rashiIndex(lon)], navamsaRashiOfPada(nak, pada), `D9 ${lon}`);
+      assert.equal(BPHS_VARGA_RULES[9].rashiIndex(lon), naive(9)(lon));
+      assert.equal(BPHS_VARGA_RULES[27].rashiIndex(lon), naive(27)(lon), `D27 ${lon}`);
+      assert.ok([3, 4].includes(BPHS_VARGA_RULES[2].rashiIndex(lon)));
+      assert.ok(![3, 4].includes(BPHS_VARGA_RULES[30].rashiIndex(lon)));
+    }
+    // D30 sınırları (tek burç Koç, çift burç Boğa) ve BPHS sıra örnekleri.
+    const d30 = (lon: number) => SIGN_IDS[BPHS_VARGA_RULES[30].rashiIndex(lon)];
+    assert.deepEqual([4.99, 5, 9.99, 10, 17.99, 18, 24.99, 25].map(d30), ["aries", "aquarius", "aquarius", "sagittarius", "sagittarius", "gemini", "gemini", "libra"]);
+    assert.deepEqual([34.99, 35, 41.99, 42, 49.99, 50, 54.99, 55].map(d30), ["taurus", "virgo", "virgo", "pisces", "pisces", "capricorn", "capricorn", "scorpio"]);
+    // D60 aynı burçtan sayılır (düz bölmeden FARKLI): Boğa 0°–0°30′ → Boğa.
+    assert.equal(SIGN_IDS[BPHS_VARGA_RULES[60].rashiIndex(30.1)], "taurus");
+    assert.equal(SIGN_IDS[naive(60)(30.1)], "aries");
+    // Her bölüm: bir burç içinde n dilim → kural dışı (ör. hareketli/sabit/çift) olmadıkça ardışık.
+    for (const n of VEDIC_VARGA_DIVISIONS) {
+      const r = BPHS_VARGA_RULES[n];
+      assert.ok(r && r.division === n && r.method.startsWith("Parashari"), `D${n} kuralı`);
+    }
+  });
+
+  await t("5.1B görünüm: uyuşmazlık REDDEDİLMEZ ama 'Doğrulanmadı' işaretlenir (nokta ve beklenen rashi listelenir); bilinmeyen bölüm → 'unsupported'", () => {
+    const r = structuredClone(D30G.response);
+    // İç tutarlı (ev + vargottama da uyarlanmış) ama BPHS dışı bir yanıt: kural farkı yalnız bağımsız denetimde görünür.
+    r.chart.meta.Sun.rashi = "Gemini";
+    r.chart.meta.Sun.house = 7;
+    r.vargottama = ["Sun"];
+    r.chart.gemini.signs.push({ graha: "Sun" });
+    r.chart.libra.signs = r.chart.libra.signs.filter((x: J) => x.graha !== "Sun");
+    const p = projectRoxyVedicVarga(r, { ayanamsa: "lahiri", division: 30 }) as J;
+    assert.ok(p.ok, "D30 kural farkı adaptörde reddedilmemeli (yalnız işaret): " + JSON.stringify(p.errors));
+    const c = vargaCheckOf(p.technical);
+    assert.equal(c.status, "mismatch");
+    assert.deepEqual(c.mismatches, [{ id: "sun", got: "gemini", expected: "libra" }]);
+    assert.equal(checkVargaAgainstBphs(5, [{ id: "sun", longitude: 10, rashi: "aries" }]).status, "unsupported");
   });
 
   console.log(`\nastrology phase51 harness: ${pass} PASS / ${fail} FAIL`);
