@@ -12,10 +12,10 @@
 |---|---|---|
 | 5.1A Vedik Transit (Gochara) | ✅ tamam | b1ea6f16 |
 | 5.1B D2–D60 bağımsız doğrulama | ✅ tamam | 004a897d |
-| 5.1C Kuzey/Güney/Doğu görsel denetim | ✅ tamam | (5.1C–E commit) |
-| 5.1D Türkçe gezegen etiketleri | ✅ tamam | (5.1C–E commit) |
-| 5.1E Graha Drishti yöntem denetimi | ✅ tamam | (5.1C–E commit) |
-| 5.1F Dasha alt düzey testleri | ⏳ | — |
+| 5.1C Kuzey/Güney/Doğu görsel denetim | ✅ tamam | 6f1bc0aa (+ 5.1F tablo düzeni) |
+| 5.1D Türkçe gezegen etiketleri | ✅ tamam | 6f1bc0aa |
+| 5.1E Graha Drishti yöntem denetimi | ✅ tamam | 6f1bc0aa |
+| 5.1F Dasha alt düzey testleri | ✅ tamam | (5.1F commit) |
 | 5.1G KB/kayıtlı analiz/güvenlik/regresyon/mutasyon + nihai rapor | ⏳ | — |
 
 ## Gerçek Roxy çağrı kaydı
@@ -155,6 +155,25 @@ Kalan görsel sınır (P3): kütüphane 4+ grahalı küçük üçgenlerde dar ka
   yerelleştirme (Lit işaretçileri korunur, kalabalık/Güney eşiği), drishti bütün-burç bulgusu + 5 fail-closed.
 - Tüm astroloji: 39/19/17/37/20/15/33/**20**/10 + PG PASS · tsc 0 · eslint 0 · build OK · bundle taraması 0.
 
+## 5.1F — Dasha alt düzeyleri
+
+- Aşama 5 açığı (P3-e): yerel sahte Roxy yalnız golden'ı olan 2 alt yolu yanıtlayabiliyordu. Golden'lardan Roxy'nin tarih kuralı
+  çıkarıldı: **mahadasha sınırları takvim yıldönümü**; **alt dönem = üst dönemin gerçek süresi × kümülatif kanonik oran, sınırlar
+  dakikaya yuvarlı, durationYears yuvarlanmamış süreden (gün/365.25)**; doğumla kesilmiş dönemde dizi teorik başlangıçtan kurulur.
+- `scripts/astrology/syntheticDasha.ts` (YALNIZ test + yerel sahte Roxy): bu kural **iki gerçek golden'ı 1e-12'ye kadar birebir**
+  üretiyor (kesilmiş sub/Mercury + 9 PD'li sub/Moon/Rahu) → doğrulanmış sentetik kapsam. Anlatı üretmez. Ürün kodunda yok.
+- Kapsam: 9 mahadasha + doğumdan sonraki **73 antardasha yolu** adaptörden geçer (sıra, ardışıklık, kanonik süre, üst sınır);
+  Mercury MD doğumla kesilmiş → yalnız Satürn AD (Roxy de doğum öncesi yolları vermez).
+- Motor: MD → Venüs AD → Satürn AD → Venüs/Rahu PD → Satürn/Jüpiter PD → Ketu/Ketu PD = 6 ayrı anahtar/istek; tekrar 0; Raman ayrı
+  anahtar; kayıtlı PD analizi 0 istek + yol snapshot'ta. "Şimdi" göstergesi MD/AD/PD'de tek; sınır anı yarı açık aralık.
+- Tarayıcı (yerel sahte Roxy, sentetik yollar): MD listesi → Venüs AD (golden'ı yok) → Venüs/Jüpiter PD; kapat/yeniden aç →
+  sahte Roxy günlüğü yalnız 3 istek (yeniden açılış 0).
+- Görsel (5.1C ek): Dasha ve Shadbala tabloları masaüstünde dar yan sütunda yatay kaydırma gerektiriyordu (Aşama 5'ten) → tablo tam
+  genişlik, ayrıntı altında. 1440 px'te 7 Vedik panelde tablo taşması 0; 390 px'te sayfa taşması 0.
+
+### 5.1F testler
+- phase51 +4 (24/24). Tüm astroloji: 39/19/17/37/20/15/33/**24**/10 + PG PASS · tsc 0 · eslint 0.
+
 ## Sıradaki kesin adım
 
-5.1C–E commit → 5.1F (Dasha alt düzey testleri).
+5.1F commit → 5.1G (KB/kayıtlı analiz/güvenlik/regresyon/mutasyon/HD regresyon + nihai rapor).

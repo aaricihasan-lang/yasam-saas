@@ -24,11 +24,12 @@ import { createKb } from "@/lib/astrology/kb/service";
 import { getAnalysis, getWorkspace, saveAnalysis, saveExpertNote } from "@/lib/astrology/analyses/service";
 import { isSectionKeyForTechnique, parseAnyTopicKey, topicsForTechnique, TECHNIQUE_TOPIC_CONTEXT } from "@/lib/astrology/topics/index";
 import { parseVedicTopicKey } from "@/lib/astrology/topics/vedic";
-import { navamsaRashiOfPada, projectRoxyVedicD1, projectRoxyVedicDrishti, projectRoxyVedicTransit, projectRoxyVedicVarga, signCount } from "@/lib/astrology/providers/roxy/vedic";
+import { dashaEndpoint, navamsaRashiOfPada, projectRoxyVedicD1, projectRoxyVedicDasha, projectRoxyVedicDrishti, projectRoxyVedicTransit, projectRoxyVedicVarga, signCount } from "@/lib/astrology/providers/roxy/vedic";
 import { kundliLegend, localizeGrahaLabel, localizeSignLabel, SIGN_TR_ABBR } from "@/app/admin/astroloji/_lib/kundliLocalize";
 import { GRAHA_LABELS } from "@/lib/astrology/topics/vedic";
 import { BPHS_VARGA_RULES, checkVargaAgainstBphs, VARGA_GOLDEN_CONFIRMED } from "@/lib/astrology/verify/varga";
-import { kundliTitles, localizeKundliDom, vargaCheckOf } from "@/app/admin/astroloji/_components/VedicPanels";
+import { currentDashaIndex, dashaTopicKey, dashaUtcMs, kundliTitles, localizeKundliDom, vargaCheckOf } from "@/app/admin/astroloji/_components/VedicPanels";
+import { syntheticSubResponse } from "./syntheticDasha";
 import { vedicTransitBody, vedicTransitLocal } from "@/lib/astrology/providers/roxy/requests";
 import { projectRoxyTransit } from "@/lib/astrology/providers/roxy/timing";
 import { maskTechnical } from "@/lib/astrology/view/techniqueView";
@@ -541,6 +542,118 @@ async function main() {
     const p = drishti(r);
     assert.ok(p.ok, JSON.stringify(p.errors));
     assert.deepEqual(p.droppedValues, ["aspects[].conjunction"]);
+  });
+
+  // ═══ 5.1F — Dasha alt düzeyleri ═══════════════════════════════════════════════
+  const DM = load("vedic-dasha-major");
+  const DS = load("vedic-dasha-sub-md");
+  const DSA = load("vedic-dasha-sub-md-ad");
+  const LORDS = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn", "Rahu", "Ketu"];
+  const dashaProj = (raw: J, md: string | null, ad: string | null) =>
+    projectRoxyVedicDasha(raw, { ayanamsa: "lahiri", mahadasha: md ? (md.toLowerCase() as J) : null, antardasha: ad ? (ad.toLowerCase() as J) : null, birthLocal: "1990-07-15T14:30:00", utcOffsetHours: 3 }) as J;
+  const strip = (p: J) => ({ planet: p.planet, startDate: p.startDate, endDate: p.endDate, d: Number(p.durationYears).toFixed(12), n: p.nominalStartDate ?? null });
+
+  await t("5.1F sentetik model DOĞRULAMASI: gözlenen Roxy tarih kuralı iki gerçek golden'ı (sub/Mercury kesilmiş + sub/Moon/Rahu 9 PD) 1e-12'ye kadar BİREBİR üretir", () => {
+    const s = syntheticSubResponse(DM.response, "Mercury", null) as J;
+    assert.deepEqual(s.antardashas.map(strip), DS.response.antardashas.map(strip));
+    assert.deepEqual(strip(s.mahadashaPeriod), strip(DS.response.mahadashaPeriod));
+    const a = syntheticSubResponse(DM.response, "Moon", "Rahu") as J;
+    assert.deepEqual(a.pratyantardashas.map(strip), DSA.response.pratyantardashas.map(strip));
+    assert.deepEqual(strip(a.antardashaPeriod), strip(DSA.response.antardashaPeriod));
+    assert.ok(!JSON.stringify(a).includes("interpretation"), "sentetik anlatı üretmez");
+  });
+
+  await t("5.1F kapsam: 9 mahadasha'nın tamamı + doğumdan sonraki TÜM antardasha yolları adaptörden geçer (sıra/ardışıklık/kanonik süre/üst sınır); tarih sırası artan; uçlar istemci regex'inde", () => {
+    let mdN = 0;
+    let adN = 0;
+    for (const md of LORDS) {
+      const r = syntheticSubResponse(DM.response, md, null) as J;
+      const p = dashaProj(r, md, null);
+      assert.ok(p.ok, `${md}: ${JSON.stringify(p.errors)}`);
+      assert.deepEqual([p.unmappedFields, p.droppedValues], [[], []]);
+      const ps = p.technical.periods as J[];
+      assert.ok(ps.every((x: J, i: number) => i === 0 || ps[i - 1].end === x.start), `${md} ardışık`);
+      assert.ok(ps.every((x: J) => x.start < x.end));
+      if (md !== "Mercury") assert.equal(ps[0].lord, md.toLowerCase(), "dizi MD yöneticisiyle başlar");
+      mdN++;
+      for (const x of ps) {
+        const ad = LORDS.find((l) => l.toLowerCase() === x.lord)!;
+        const ra = syntheticSubResponse(DM.response, md, ad) as J;
+        const pa = dashaProj(ra, md, ad);
+        assert.ok(pa.ok, `${md}/${ad}: ${JSON.stringify(pa.errors)}`);
+        assert.equal(pa.technical.parent.start, x.start);
+        assert.equal(pa.technical.parent.end, x.end);
+        assert.match(dashaEndpoint(md.toLowerCase() as J, ad.toLowerCase() as J), /^\/[a-zA-Z0-9\-/]{1,120}$/);
+        adN++;
+      }
+    }
+    assert.equal(mdN, 9);
+    // Mercury MD doğumla kesilmiş: yalnız Satürn AD kalır; 9 MD'nin 8'i tam (9 AD) → 8×9 + 1 = 73 AD yolu.
+    assert.equal(adN, 73);
+    assert.equal(syntheticSubResponse(DM.response, "Mercury", "Ketu"), null, "doğumdan önce biten AD yolu yok");
+  });
+
+  await t("5.1F motor (sentetik sahte Roxy): MD → farklı MD'ler → farklı AD yolları tembel; her yol ayrı anahtar; tekrar açılış 0 istek; ayanamsa ayrımı; kayıtlı AD analizi 0 istek; konu anahtarları düzeye göre", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profile(ctx);
+    const calls: string[] = [];
+    const deps: EngineDeps = {
+      config: { apiKey: "k-test-51f", baseUrl: "https://roxy-fake.local/api/v2" },
+      callProvider: async (_c, endpoint, body) => {
+        calls.push(`${endpoint}:${String(body.ayanamsa)}`);
+        const m = /^\/vedic-astrology\/dasha\/(?:major|sub\/([A-Za-z]+)(?:\/([A-Za-z]+))?)$/.exec(endpoint);
+        if (!m) return { ok: false, kind: "bad_request", status: 400, attempts: 1 };
+        const r: J = m[1] ? syntheticSubResponse(DM.response, m[1], m[2] ?? null) : structuredClone(DM.response);
+        if (!r) return { ok: false, kind: "bad_request", status: 400, attempts: 1 };
+        if (body.ayanamsa !== "lahiri") r.ayanamsaType = body.ayanamsa; // SENTETİK yankı (yalnız anahtar ayrımı testi)
+        return { ok: true, raw: r, attempts: 1 };
+      },
+      rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
+    };
+    const D = (md?: string, ad?: string, ay?: string) => ({ technique: "vedic.dasha", options: { ...(md ? { mahadasha: md } : {}), ...(ad ? { antardasha: ad } : {}), ...(ay ? { ayanamsa: ay } : {}) } });
+    const seq = [D(), D("venus"), D("saturn"), D("venus", "rahu"), D("saturn", "jupiter"), D("ketu", "ketu")];
+    for (const s of seq) {
+      const b = (await run(ctx, pa, [s], deps)).body as J;
+      assert.ok(b.results[0].ok, JSON.stringify(b).slice(0, 300));
+    }
+    assert.equal(calls.length, 6);
+    assert.equal(new Set(calls).size, 6);
+    for (const s of seq) await run(ctx, pa, [s], deps);
+    assert.equal(calls.length, 6, "tekrar açılış sağlayıcıya gitti");
+    await run(ctx, pa, [D("venus", "rahu", "raman")], deps);
+    assert.equal(calls.length, 7);
+    assert.equal(calls[6], "/vedic-astrology/dasha/sub/Venus/Rahu:raman");
+    assert.equal(new Set(store.tables.astro_provider_results.map((x: J) => x.input_hash)).size, 7);
+    // Konu anahtarları düzeye göre; DB regex'ine uyar; Vedik D1 ile karışmaz.
+    const pd = dashaProj(syntheticSubResponse(DM.response, "Venus", "Rahu"), "Venus", "Rahu").technical;
+    const keys = topicsForTechnique("vedic.dasha", pd).map((x) => x.key);
+    assert.equal(keys.length, 9);
+    assert.ok(keys.every((k) => /^dasha_pratyantardasha:venus:rahu:[a-z]+$/.test(k) && isSectionKeyForTechnique("vedic.dasha", k) && !isSectionKeyForTechnique("vedic.d1", k)));
+    // Kayıtlı Pratyantardasha analizi: açmak 0 istek; dönem yolu snapshot'ta.
+    const sv = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...D("venus", "rahu"), includeProviderInterp: false, saveRequestId: randomUUID() }, false);
+    assert.equal(sv.status, 201, JSON.stringify(sv.body));
+    const n = calls.length;
+    const a = JSON.stringify(((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis);
+    assert.equal(calls.length, n);
+    assert.ok(a.includes("\"antardasha\":\"rahu\"") && a.includes("\"mahadasha\":\"venus\""), a.slice(0, 200));
+  });
+
+  await t("5.1F 'şimdi' göstergesi + bugünkü yol: MD/AD/PD düzeylerinde bugünü içeren dönem tektir; sınır anında bir sonraki dönem başlar (yarı açık aralık)", () => {
+    const now = Date.parse("2026-10-08T12:00:00Z");
+    const md = dashaProj(DM.response, null, null).technical;
+    const i = currentDashaIndex(md, now);
+    assert.equal(md.periods[i].lord, "moon");
+    const ad = dashaProj(syntheticSubResponse(DM.response, "Moon", null), "Moon", null).technical;
+    const j = currentDashaIndex(ad, now);
+    assert.equal(ad.periods[j].lord, "rahu");
+    const pd = dashaProj(DSA.response, "Moon", "Rahu").technical;
+    const k = currentDashaIndex(pd, now);
+    assert.equal(pd.periods[k].lord, "mercury");
+    const edge = dashaUtcMs(pd.periods[3].end, 3);
+    assert.equal(currentDashaIndex(pd, edge), 4, "sınır anı bir sonraki dönem");
+    assert.equal(currentDashaIndex(pd, edge - 1), 3);
+    assert.equal(dashaTopicKey(pd, "mercury"), "dasha_pratyantardasha:moon:rahu:mercury");
   });
 
   console.log(`\nastrology phase51 harness: ${pass} PASS / ${fail} FAIL`);

@@ -787,7 +787,8 @@ function DashaLevelView({
         </div>
       )}
       <DashaTimeline t={t} current={current} sel={sel} onSel={setSel} now={now} />
-      <div className="grid min-w-0 gap-2 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      {/* 5.1C: 5 sütunlu dönem tablosu yan sütuna sığmıyordu (masaüstünde yatay kaydırma) → tablo tam genişlik, ayrıntı altında. */}
+      <div className="grid min-w-0 gap-2">
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
           <table className="min-w-full" data-testid={`astro-vedic-dasha-table-${t.level}`}>
             <thead>

@@ -24,6 +24,7 @@ import { resolveAstrologyEntitlements } from "@/lib/astrology/access/entitlement
 import { resolveAstroLocation } from "@/lib/astrology/birth/location";
 import { createKb } from "@/lib/astrology/kb/service";
 import { lunarReturnsInMonth, natalMoonLongitude } from "@/lib/astrology/engine/lunarReturnDate";
+import { syntheticSubResponse } from "./syntheticDasha";
 
 const PORT = Number(process.argv[2] ?? 54329);
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -148,6 +149,9 @@ function startFakeRoxy() {
           if (near) raw.lunarReturnDate = new Date(Date.parse(`${near.approxUtc}:00Z`) + Number(body.timezone) * 3600_000).toISOString().slice(0, 19);
         }
       }
+      // 5.1F: golden'ı olmayan dasha alt yolları → SENTETİK (golden'ları birebir üreten doğrulanmış model; anlatı yok).
+      const sub = !raw ? /^\/vedic-astrology\/dasha\/sub\/([A-Za-z]+)(?:\/([A-Za-z]+))?$/.exec(path) : null;
+      if (sub && GOLDEN["/vedic-astrology/dasha/major"]) raw = syntheticSubResponse(GOLDEN["/vedic-astrology/dasha/major"], sub[1], sub[2] ?? null) ?? undefined;
       res.writeHead(raw ? 200 : 400, { "Content-Type": "application/json" });
       res.end(JSON.stringify(raw ?? { error: "unknown endpoint" }));
     });

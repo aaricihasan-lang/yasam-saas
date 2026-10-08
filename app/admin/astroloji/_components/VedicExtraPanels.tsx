@@ -371,7 +371,8 @@ export function VedicShadbalaPanel({ t, kbLookup }: { t: VedicShadbalaTechnical;
             </button>
           ))}
       </div>
-      <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      {/* 5.1C: 9 sütunlu Shadbala tablosu yan sütuna sığmaz → tablo tam genişlik, ayrıntı altında. */}
+      <div className="grid min-w-0 gap-3">
         <div className={`${card} overflow-x-auto`}>
           <table className="min-w-full" data-testid="astro-vedic-shadbala-table">
             <thead>
