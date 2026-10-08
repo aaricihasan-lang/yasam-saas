@@ -284,8 +284,15 @@ async function main() {
     ok("D4 servis yalnız gerekli kolonları seçer ve ham yanıtı döndürmez", svc.includes('select("id, source, provider, provider_raw")') && !/body: \{[^}]*provider_raw/.test(svc));
     const modal = src("app/human-design/kayitli-haritalar/components/HdComputedChartModal.tsx");
     ok("D5 modal: uzman bölümleri korunur (Bilgi Bankası + Kişinin HD Bilgileri)", modal.includes("<HdExpertKnowledgePanel") && modal.includes("<HdPersonalKnowledgePanel") && modal.includes("<HdChartKnowledgeTabs"));
-    const reporting = ["lib/human-design/reporting/reportSnapshotService.ts", "lib/human-design/reporting/wordReport.ts", "app/api/hd/reports/professional/route.ts"].map(src).join(" ");
-    ok("D6 Word/PDF yolu Sistem Yorumu kullanmaz", !/systemReading|system-reading/.test(reporting));
+    // AŞAMA 4B (owner kararı): profesyonel Word v2 Sistem Yorumu'nu YALNIZ whitelist çıkarıcıdan ve
+    // YALNIZ sunucuda doğrulanan hd_system_reading yetkisiyle alır; v1 Word ve snapshot servisi kullanmaz.
+    const v1Reporting = ["lib/human-design/reporting/reportSnapshotService.ts", "lib/human-design/reporting/wordReport.ts"].map(src).join(" ");
+    const v2Service = src("lib/human-design/reporting/reportSnapshotV2Service.ts");
+    const v2Route = src("app/api/hd/reports/professional/route.ts");
+    ok("D6 Word: v1 yolu Sistem Yorumu kullanmaz; v2 yalnız extractSystemReading + sunucu yetkisi (hd_system_reading)",
+      !/systemReading|system-reading/.test(v1Reporting) &&
+      /extractSystemReading\(chart\.provider_raw\)/.test(v2Service) && /systemAllowed && isRoxy/.test(v2Service) &&
+      /hasModulePermissionForProfile\(guard\.profile, "hd_system_reading"\)/.test(v2Route));
     ok("D7 hesap/BodyGraph dosyaları Sistem Yorumu'na bağlanmadı", !/systemReading/.test(src("lib/human-design/api/roxyChartService.ts") + src("lib/human-design/providers/roxy/normalize.ts") + src("lib/human-design/providers/roxy/render.ts")));
   }
 

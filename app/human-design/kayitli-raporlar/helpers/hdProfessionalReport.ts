@@ -9,6 +9,7 @@
  */
 
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { HD_REPORT_REDACTED_HEADER, type HdCommentarySelection } from "@/lib/human-design/reporting/reportV2Shared";
 
 function authHeaders(): Record<string, string> {
   const u = readYasamUser();
@@ -20,28 +21,64 @@ function authHeaders(): Record<string, string> {
   };
 }
 
-export type CreateResult = { ok: true; id: string; omittedCount: number } | { ok: false; error: string };
+export type CreateResult =
+  | {
+      ok: true;
+      id: string;
+      omittedCount: number;
+      /** AŞAMA 4B: BodyGraph kaynağı ("roxy_render" | "uploaded_image" | "missing"); eski yanıtlarda yok. */
+      bodygraph?: string;
+      /** AŞAMA 4B: Sistem Yorumu durumu ("included" | "not_selected" | "not_permitted" | "unavailable"). */
+      systemReading?: string;
+      expertEntries?: number;
+    }
+  | { ok: false; error: string; code?: string };
+
+export type CreateOptions = {
+  /** Yorum kaynağı tercihi — YETKİ DEĞİL (sunucu hd_system_reading'i ayrıca doğrular). */
+  commentary?: HdCommentarySelection;
+  /** Kayıtlı renderer'dan üretilmiş BodyGraph PNG'si (data URL). */
+  bodygraphPng?: string;
+  /** Roxy haritasında BodyGraph görseli olmadan oluşturmaya AÇIK onay. */
+  allowMissingBodygraph?: boolean;
+};
 
 /**
  * P2-2: `requestId` bir KULLANICI EYLEMİNİ temsil eder (uuid). Ağ tekrarı/çift tıklama aynı
  * requestId ile gönderilir → sunucu aynı raporu döner, yeni satır oluşturmaz.
  */
-export async function createProfessionalReport(chartId: string, requestId?: string): Promise<CreateResult> {
+export async function createProfessionalReport(chartId: string, requestId?: string, opts: CreateOptions = {}): Promise<CreateResult> {
+  const body: Record<string, unknown> = { chartId };
+  if (requestId) body.requestId = requestId;
+  if (opts.commentary) body.commentary = opts.commentary;
+  if (opts.bodygraphPng) body.bodygraphPng = opts.bodygraphPng;
+  if (opts.allowMissingBodygraph) body.allowMissingBodygraph = true;
   let res: Response;
   try {
     res = await fetch("/api/hd/reports/professional", {
       method: "POST",
       headers: authHeaders(),
-      body: JSON.stringify(requestId ? { chartId, requestId } : { chartId }),
+      body: JSON.stringify(body),
     });
   } catch {
     return { ok: false, error: "Ağ hatası. Bağlantını kontrol et." };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true && typeof j.id === "string") {
-    return { ok: true, id: j.id, omittedCount: typeof j.omittedCount === "number" ? j.omittedCount : 0 };
+    return {
+      ok: true,
+      id: j.id,
+      omittedCount: typeof j.omittedCount === "number" ? j.omittedCount : 0,
+      bodygraph: typeof j.bodygraph === "string" ? j.bodygraph : undefined,
+      systemReading: typeof j.systemReading === "string" ? j.systemReading : undefined,
+      expertEntries: typeof j.expertEntries === "number" ? j.expertEntries : undefined,
+    };
   }
-  return { ok: false, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
+  return {
+    ok: false,
+    error: typeof j.error === "string" ? j.error : `HTTP ${res.status}`,
+    code: typeof j.code === "string" ? j.code : undefined,
+  };
 }
 
 function filenameFromDisposition(header: string | null): string {
@@ -50,7 +87,14 @@ function filenameFromDisposition(header: string | null): string {
   return m?.[1] ?? "Human-Design-Raporu.docx";
 }
 
-export type DownloadResult = { ok: true } | { ok: false; error: string };
+/**
+ * `systemReadingRedacted`: rapordaki Sistem Yorumu, hesabın GÜNCEL yetkisi kapalı olduğu için
+ * bu indirmede çıkarıldı (sunucu kararı; kayıtlı rapor değişmedi).
+ */
+export type DownloadResult = { ok: true; systemReadingRedacted: boolean } | { ok: false; error: string };
+
+export const HD_REPORT_REDACTED_MESSAGE =
+  "Bu rapordaki Sistem Yorumu bölümü, hesabınızın güncel yetkisi kapalı olduğu için indirilen dosyadan çıkarıldı. Kayıtlı rapor değiştirilmedi.";
 
 export async function downloadProfessionalReport(reportId: string): Promise<DownloadResult> {
   let res: Response;
@@ -77,5 +121,5 @@ export async function downloadProfessionalReport(reportId: string): Promise<Down
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-  return { ok: true };
+  return { ok: true, systemReadingRedacted: res.headers.get(HD_REPORT_REDACTED_HEADER) === "system-reading" };
 }

@@ -6,6 +6,7 @@
 // metin uzmana yalnız donmuş DOCX ile ulaşır" kararı bozulmaz.
 
 import type { HdReportSnapshot } from "./reportSnapshot";
+import { isHdReportSnapshotV2, type AnyHdReportSnapshot, type HdReportSnapshotV2 } from "./reportSnapshotV2";
 
 export type HdProfessionalReportSummary = {
   title: string;
@@ -25,7 +26,38 @@ export type HdProfessionalReportSummary = {
   hasChartImage: boolean;
 };
 
-export function buildProfessionalReportSummary(title: string, s: HdReportSnapshot): HdProfessionalReportSummary {
+/**
+ * AŞAMA 4B (hd-report-2): yalnız teknik özet (danışan + harita kimliği + başlık listeleri).
+ * Uzman yorumu ve Sistem Yorumu METNİ bu projeksiyona GİRMEZ.
+ */
+function buildV2Summary(title: string, s: HdReportSnapshotV2): HdProfessionalReportSummary {
+  return {
+    title,
+    generatedAt: s.generatedAt,
+    client: {
+      name: s.client.name,
+      birthDate: s.client.birthDate,
+      birthTime: s.client.birthTime,
+      birthPlace: s.client.birthPlace,
+    },
+    chart: {
+      profile: s.identity.profile,
+      definition: s.identity.definition,
+      definedCenters: s.centers.filter((c) => c.defined).map((c) => c.label),
+    },
+    type: s.identity.type,
+    authority: s.identity.authority,
+    channels: s.channels.map((c) => c.label),
+    gates: s.gates.map((g) => g.label),
+    hangingGates: [],
+    omittedCount: 0,
+    hasChartImage: !!s.chartImage?.storagePath,
+  };
+}
+
+export function buildProfessionalReportSummary(title: string, snap: AnyHdReportSnapshot): HdProfessionalReportSummary {
+  if (isHdReportSnapshotV2(snap)) return buildV2Summary(title, snap);
+  const s: HdReportSnapshot = snap;
   return {
     title,
     generatedAt: s.generatedAt,

@@ -10,7 +10,7 @@ import {
   deleteReport,
   type HdReportWithClient,
 } from "../helpers/hdKayitliRaporlar";
-import { downloadProfessionalReport } from "../helpers/hdProfessionalReport";
+import { downloadProfessionalReport, HD_REPORT_REDACTED_MESSAGE } from "../helpers/hdProfessionalReport";
 import { HdRaporDetayModal } from "./HdRaporDetayModal";
 import { HdProfessionalSummaryModal } from "./HdProfessionalSummaryModal";
 
@@ -48,6 +48,7 @@ export function HdRaporListesi() {
     const res = await downloadProfessionalReport(row.id);
     setDownloadingId(null);
     if (!res.ok) showToast({ message: `İndirilemedi: ${res.error}`, type: "error" });
+    else if (res.systemReadingRedacted) showToast({ message: HD_REPORT_REDACTED_MESSAGE, type: "warning" });
   }
 
   const loadRows = useCallback(async () => {

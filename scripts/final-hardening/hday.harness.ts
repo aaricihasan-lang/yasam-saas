@@ -27,7 +27,6 @@ import {
   buildHdGateCanonicalKey,
   buildHdTypeCanonicalKey,
 } from "../../lib/human-design/knowledge-system/canonicalKeys";
-import { HD_REPORT_UNPUBLISHED_MESSAGE } from "../../lib/human-design/reporting/reportSnapshot";
 import { countUniqueChartGates } from "../../lib/human-design/reporting/reportSnapshotService";
 import {
   blendSignature,
@@ -329,7 +328,12 @@ async function main() {
         { id: "ch-foreign", tenant_id: T2, source: "manual", type_code: "generator", authority_code: "sacral", gates: [5], channels: [],
           client_id: null, client_name: "Yabancı" },
       ];
-      // kapi_5 YAYIMLANMAMIŞ (yalnız draft) → uzman omit / admin fail-loud.
+      // AŞAMA 4B: profesyonel Word (hd-report-2) admin canonical içeriğini OKUMAZ; tablo yalnız
+      // "okunmadığını" kanıtlamak için dolu. Yorum = uzmanın KENDİ Bilgi Bankası kaydı.
+      db.tables.human_design_knowledge_records = [
+        { id: randomUUID(), tenant_id: T1, category: "Kapılar", title: "Kapı 5 Notum", code: "kapi_5", content: "UZMAN-NOTU-K5", is_active: true, sort_order: 0 },
+        { id: randomUUID(), tenant_id: T2, category: "Kapılar", title: "Yabancı", code: "kapi_5", content: "YABANCI-NOTU-K5", is_active: true, sort_order: 0 },
+      ];
       db.tables.hd_canonical_content = [
         content(kType, "tip"), content(kAuth, "otorite"), content(kCh, "kanal"),
         { ...content(kGate5, "kapi"), status: "draft" },
@@ -346,7 +350,7 @@ async function main() {
     const URL_C = "http://localhost/api/hd/reports/professional";
     const URL_D = "http://localhost/api/hd/reports/professional/download";
 
-    // Uzman: kapi_5 yayımlanmamış → rapor OLUŞUR (omit), anahtar sızmaz.
+    // AŞAMA 4B (hd-report-2): uzman raporu → kendi Bilgi Bankası; admin canonical okunmaz.
     const db = makeDb();
     guardCalls.length = 0;
     currentGuard = guardFor(db, { tenantId: T1, role: "expert", name: "Ayşe Uzman" });
@@ -355,11 +359,11 @@ async function main() {
     ok(res.status === 200 && body.ok === true && typeof body.id === "string", "uzman (non-admin) profesyonel rapor OLUŞTURUR → 200");
     ok(guardCalls.some((g) => g.kind === "module" && g.moduleKey === "human_design") && !guardCalls.some((g) => g.kind === "admin"),
       "route requireModuleAccess('human_design') kullanır (admin-only DEĞİL)");
-    ok(body.omittedCount === 1 && !JSON.stringify(body).includes(kGate5), "omit modu: 1 bölüm atlandı, yanıtta canonical anahtar YOK");
-    const saved = db.tables.human_design_reports[0] as Row & { snapshot: { provenance: { omitted?: Array<Record<string, unknown>> } } };
-    ok(!!saved && saved.report_kind === "canonical" && saved.tenant_id === T1, "donmuş snapshot tenant'a canonical olarak kaydedildi");
-    ok(JSON.stringify(saved.snapshot.provenance.omitted) === JSON.stringify([{ kind: "kapi", displayName: "Kapı 5" }]),
-      "provenance.omitted anahtarsız {kind, displayName}");
+    ok(!db.reads.includes("hd_canonical_content") && !JSON.stringify(body).includes(kGate5),
+      "v2: admin canonical içeriği OKUNMADI, yanıtta canonical anahtar YOK");
+    const saved = db.tables.human_design_reports[0] as Row & { snapshot: { schemaVersion?: string } };
+    ok(!!saved && saved.report_kind === "canonical" && saved.tenant_id === T1 && saved.schema_version === "hd-report-2" && saved.snapshot.schemaVersion === "hd-report-2",
+      "donmuş v2 snapshot tenant'a kaydedildi (report_kind canonical, schema hd-report-2)");
 
     // Liste / detay projeksiyonu snapshot taşımaz.
     const list = await persist.listReportsWithClients(db, T1);
@@ -376,8 +380,9 @@ async function main() {
     const txt = await docText(await res.arrayBuffer());
     ok(txt.includes("Hazırlayan: Ayşe Uzman") && txt.includes("Bilgilendirme"), "DOCX: wellness notu + 'Hazırlayan: <uzman>'");
     ok(txt.includes("1 Mayıs 1990"), "DOCX: doğum tarihi DATE olarak kaydırmasız (1 Mayıs 1990)");
-    ok(txt.includes("Kapı 5") && txt.includes("henüz yayımlanmadığı") && !txt.includes(kGate5), "DOCX: atlanan bölüm anahtarsız bildirildi");
-    ok(txt.includes("Profil") && txt.includes("Deneyimleyen (Martyr)") && txt.includes("Tanımlı Merkezler"), "DOCX özet: profil/tanım/merkez satırları");
+    ok(txt.includes("UZMAN-NOTU-K5") && !txt.includes("YABANCI-NOTU-K5") && !txt.includes("GD::") && !txt.includes(kGate5),
+      "DOCX: yalnız bu tenant'ın uzman bilgisi; admin canonical metni/anahtarı YOK");
+    ok(txt.includes("Profil") && txt.includes("Deneyimleyen (Martyr)") && txt.includes("Tanımlı") && txt.includes("Merkezler"), "DOCX özet: profil/tanım/merkez bilgileri");
     res = await download.POST(jsonReq(URL_D, "POST", { reportId: saved.id }, { "user-agent": "Mozilla/5.0 (Linux; Android 14) wv" }));
     ok(res.status === 403, "Android Word kuralı korunur (403)");
 
@@ -388,29 +393,20 @@ async function main() {
     res = await download.POST(jsonReq(URL_D, "POST", { reportId: saved.id }));
     ok(res.status === 404, "başka tenant'ın raporu indirme → 404");
 
-    // Uzman: hiçbir bölüm yayımlanmamış → sade 422, anahtarsız.
+    // Bilgi Bankası eşleşmesi olmayan harita → teknik rapor yine oluşur (yorum uydurulmaz).
     const db2 = makeDb();
     currentGuard = guardFor(db2, { tenantId: T1, role: "expert" });
     res = await create.POST(jsonReq(URL_C, "POST", { chartId: "ch-empty" }));
     body = (await res.json()) as Record<string, unknown>;
-    ok(res.status === 422 && body.error === HD_REPORT_UNPUBLISHED_MESSAGE && !/tip_|otorite_|kapi_|kanal_/.test(JSON.stringify(body)),
-      "uzman: içerik hiç yayımlanmamış → 422 'henüz yayımlanmadı' (anahtar sızmaz)");
+    ok(res.status === 200 && body.expertEntries === 0, "eşleşme yok → teknik rapor oluşur (expertEntries=0), engellenmez");
 
-    // Admin: fail-loud korunur (anahtarlı detay yalnız admin'e).
-    const db3 = makeDb();
-    currentGuard = guardFor(db3, { tenantId: T1, role: "admin" });
-    res = await create.POST(jsonReq(URL_C, "POST", { chartId: "ch-1" }));
-    body = (await res.json()) as Record<string, unknown>;
-    ok(res.status === 422 && body.code === "CANONICAL_MISSING" && String(body.error).includes(kGate5) && db3.tables.human_design_reports.length === 0,
-      "admin: yayımlanmamış içerik → 422 fail-loud (kayıt YOK)");
-
-    // Anti-scrape: >26 benzersiz kapı → canonical HİÇ okunmadan red.
+    // Anti-scrape: >26 benzersiz kapı → hiçbir içerik okunmadan red.
     const db4 = makeDb();
     currentGuard = guardFor(db4, { tenantId: T1, role: "expert" });
     res = await create.POST(jsonReq(URL_C, "POST", { chartId: "ch-scrape" }));
     body = (await res.json()) as Record<string, unknown>;
-    ok(res.status === 422 && body.code === "CHART_TOO_MANY_GATES" && !db4.reads.includes("hd_canonical_content"),
-      "anti-scrape: 40 kapılı harita → 422, canonical tablo okunmadı");
+    ok(res.status === 422 && body.code === "CHART_TOO_MANY_GATES" && !db4.reads.includes("hd_canonical_content") && !db4.reads.includes("human_design_knowledge_records"),
+      "anti-scrape: 40 kapılı harita → 422, içerik tabloları okunmadı");
     ok(countUniqueChartGates([1, 2, 2], ["1-8", "20-34"]) === 5, "countUniqueChartGates kapı+kanal birleşimi");
 
     // Demo → 403; guard yok → 401.
