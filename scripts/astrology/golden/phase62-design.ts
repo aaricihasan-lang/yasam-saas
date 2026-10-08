@@ -13,7 +13,6 @@ import * as Astronomy from "astronomy-engine";
 import { NAKSHATRA_LORDS, type VedicGrahaId } from "@/lib/astrology/model/vedic";
 import { SIGN_LORDS } from "@/lib/astrology/model/kp";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
-import { resolveAstroBirthTime } from "@/lib/astrology/birth/timeResolution";
 
 const D2R = Math.PI / 180;
 export const n360 = (x: number) => ((x % 360) + 360) % 360;
@@ -110,8 +109,8 @@ export const HYPS: Hyp[] = [];
 for (const conj of ["sign", "orb"] as const) for (const opp of ["sign", "orb", "none"] as const) for (const jup of [true, false]) for (const sat of [true, false]) HYPS.push({ conj, opp, jup, sat });
 const key = (c: Chart, h: Hyp) => JSON.stringify([agentLevels(c, "rahu", h), agentLevels(c, "ketu", h)]);
 /** Her soru boyutu için: yalnız o boyutta farklı hipotez çiftlerinin tamamı farklı tahmin veriyor mu. */
-export function identifiable(c: Chart) {
-  const res: Record<string, boolean> = {};
+export function identifiable(c: Chart): { conj: boolean; opp: boolean; jup: boolean; sat: boolean; distinct: number } {
+  const res = { conj: false, opp: false, jup: false, sat: false };
   const dims: (keyof Hyp)[] = ["conj", "opp", "jup", "sat"];
   for (const d of dims) {
     let ok = true;
@@ -119,7 +118,7 @@ export function identifiable(c: Chart) {
       const diffOnly = dims.every((x) => (x === d ? a[x] !== b[x] : a[x] === b[x]));
       if (diffOnly && key(c, a) === key(c, b)) ok = false;
     }
-    res[d] = ok;
+    res[d as keyof typeof res] = ok;
   }
   const distinct = new Set(HYPS.map((h) => key(c, h))).size;
   return { ...res, distinct };
@@ -138,47 +137,49 @@ export function margin(c: Chart): number {
 
 const LAT = 41.0082, LON = 28.9784; // İstanbul (sentetik kişiler: yer yalnız ev hesabı için)
 
-function searchNatal() {
-  const found: { date: string; time: string; ms: number; detail: string; distinct: number; margin: number }[] = [];
+/**
+ * Bölünmüş arama (Aşama 6.2'de kullanılan): aynı haritada A + B + Jüpiter + Satürn bulunamadığı (1955–2015) için
+ *   X1 = Jüpiter 5/9 bakışı + A tipi (düğüm burcunda, düğümden 18–28° uzak hızlı graha)
+ *   X2 = Satürn 3/10 bakışı + B tipi (komşu burçta, düğüme 0.8–3° hızlı graha)
+ * Hızlı graha = Güneş / Ay / Merkür / Venüs / Mars, düğüm burç lordları hariç. Kavuşma + karşıt her iki haritada da ayırt edilebilir olmalı.
+ */
+function searchSplit() {
+  const x1: string[] = [], x2: string[] = [];
   for (let day = Date.parse("1955-01-01T09:00:00Z"); day < Date.parse("2015-12-31T00:00:00Z"); day += 86400000) {
     const c0 = chartAt(day, LAT, LON);
     const R = signOf(c0.lon.rahu), K = signOf(c0.lon.ketu);
-    const lordR = SIGN_LORDS[SIGN_IDS[R]], lordK = SIGN_LORDS[SIGN_IDS[K]];
     const J = signOf(c0.lon.jupiter), S = signOf(c0.lon.saturn);
-    const jupHits = [R, K].filter((n) => (n - J + 12) % 12 === 4 || (n - J + 12) % 12 === 8).length;
-    const satHits = [R, K].filter((n) => (n - S + 12) % 12 === 2 || (n - S + 12) % 12 === 9).length;
-    if (!jupHits || !satHits) continue;
-    if ([lordR, lordK].includes("jupiter") || [lordR, lordK].includes("saturn")) continue;
-    if ([R, K].includes(J) || [R, K].includes(S)) continue;
-    // A: Ketu ya da Rahu burcunda, düğümden ≥ 18° uzak (Sun/Merkür/Venüs/Mars/Ay); B: komşu burçta, düğüme ≤ 4°.
-    for (let mins = 0; mins < 24 * 60; mins += 20) {
+    const lords = [SIGN_LORDS[SIGN_IDS[R]], SIGN_LORDS[SIGN_IDS[K]]];
+    const jClean = [R, K].some((n) => (n - J + 12) % 12 === 4 || (n - J + 12) % 12 === 8) && !lords.includes("jupiter") && ![R, K].includes(J);
+    const sClean = [R, K].some((n) => (n - S + 12) % 12 === 2 || (n - S + 12) % 12 === 9) && !lords.includes("saturn") && ![R, K].includes(S);
+    if (!jClean && !sClean) continue;
+    for (let mins = 0; mins < 1440; mins += 30) {
       const ms = day - 9 * 3600000 + mins * 60000;
       const c = chartAt(ms, LAT, LON);
-      let ok = false;
+      const fast = (["sun", "moon", "mars", "mercury", "venus"] as VedicGrahaId[]).filter((g) => !lords.includes(g));
+      let A: string | null = null, B: string | null = null;
       for (const node of ["rahu", "ketu"] as const) {
-        const nl = c.lon[node];
-        const lords = [lordR, lordK];
-        const fast = VISIBLE.filter((g) => !["jupiter", "saturn"].includes(g) && !lords.includes(g));
-        const A = fast.find((g) => signOf(c.lon[g]) === signOf(nl) && sep(c.lon[g], nl) >= 18);
-        const B = fast.find((g) => signOf(c.lon[g]) !== signOf(nl) && sep(c.lon[g], nl) <= 4);
-        if (A && B) ok = true;
+        for (const g of fast) {
+          const d = sep(c.lon[g], c.lon[node]);
+          if (signOf(c.lon[g]) === signOf(c.lon[node]) && d >= 18 && d <= 28) A = `${g}~${node} ${d.toFixed(1)}°`;
+          if (signOf(c.lon[g]) !== signOf(c.lon[node]) && d <= 3 && d >= 0.8) B = `${g}~${node} ${d.toFixed(1)}°`;
+        }
       }
-      if (!ok) continue;
+      if (!(jClean && A) && !(sClean && B)) continue;
       const id = identifiable(c);
       const m = margin(c);
-      if (id.conj && id.opp && id.jup && id.sat && m >= 0.75) {
-        const d = new Date(ms + 3 * 3600000);
-        found.push({ date: d.toISOString().slice(0, 10), time: d.toISOString().slice(11, 16), ms, detail: JSON.stringify(id), distinct: id.distinct, margin: +m.toFixed(2) });
-      }
+      if (m < 0.75 || !id.conj || !id.opp) continue;
+      const tag = `UTC ${new Date(ms).toISOString().slice(0, 16)} m=${m.toFixed(2)}`;
+      if (jClean && A && id.jup) x1.push(`${tag} A=${A}`);
+      if (sClean && B && id.sat) x2.push(`${tag} B=${B}`);
     }
   }
-  return found;
+  const bym = (a: string, b: string) => Number(b.split("m=")[1].split(" ")[0]) - Number(a.split("m=")[1].split(" ")[0]);
+  return { x1: x1.sort(bym), x2: x2.sort(bym) };
 }
 
 if (require.main === module) {
-  const f = searchNatal();
-  f.sort((a, b) => b.distinct - a.distinct || b.margin - a.margin);
-  console.log(`aday: ${f.length}`);
-  for (const x of f.slice(0, 12)) console.log(x.date, x.time, "(UTC+3 yaklaşık)", "distinct", x.distinct, "margin", x.margin);
-  void resolveAstroBirthTime;
+  const { x1, x2 } = searchSplit();
+  console.log(`X1 aday ${x1.length}`, x1.slice(0, 6));
+  console.log(`X2 aday ${x2.length}`, x2.slice(0, 6));
 }
