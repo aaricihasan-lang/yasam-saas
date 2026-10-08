@@ -20,7 +20,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { chromium, type Page } from "playwright";
-import { HD_RECALC_CONFIRM_MESSAGE } from "../../app/human-design/danisanlar/components/HdAutoCalcPanel";
+import { HD_RECALC_PROMPT_MESSAGE } from "../../app/human-design/danisanlar/components/HdAutoCalcPanel";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = process.argv[2] || join(ROOT, ".hd-credit-e2e");
@@ -79,18 +79,16 @@ async function bundle(): Promise<string> {
 }
 
 function tailwindCss(): string {
-  const input = join(OUT, "tw-in.css");
+  // Uygulamadaki gibi: app/globals.css Tailwind ile derlenir (@layer components → btn-primary vb.).
   const out = join(OUT, "tw-out.css");
-  writeFileSync(input, "@tailwind base;\n@tailwind components;\n@tailwind utilities;\n");
   const content = [
     "./app/human-design/danisanlar/components/HdAutoCalcPanel.tsx",
     "./app/human-design/components/HdBirthLocationPicker.tsx",
     "./components/ui/ConfirmProvider.tsx",
     "./components/ui/ToastProvider.tsx",
   ].join(",");
-  execSync(`npx tailwindcss -c tailwind.config.js -i "${input}" -o "${out}" --content "${content}"`, { cwd: ROOT, stdio: "ignore" });
-  const globals = readFileSync(join(ROOT, "app/globals.css"), "utf8").replace(/@tailwind[^;]+;/g, "").replace(/@import[^;]+;/g, "");
-  return readFileSync(out, "utf8") + "\n" + globals;
+  execSync(`npx tailwindcss -c tailwind.config.js -i "./app/globals.css" -o "${out}" --content "${content}"`, { cwd: ROOT, stdio: "ignore" });
+  return readFileSync(out, "utf8");
 }
 
 const ROW_BASE = {
@@ -174,37 +172,47 @@ async function main() {
       await mountPanel(page, PANEL_PROPS);
       await page.getByRole("button", { name: "Human Design Haritasını Hesapla" }).click();
       await page.waitForTimeout(400);
-      ok("onay penceresi açılmadı", (await page.getByRole("alertdialog").count()) === 0 && (await page.getByText(HD_RECALC_CONFIRM_MESSAGE).count()) === 0);
+      ok("onay penceresi açılmadı", (await page.getByRole("alertdialog").count()) === 0 && (await page.getByText(HD_RECALC_PROMPT_MESSAGE).count()) === 0);
       ok("hesaplama isteği doğrudan gönderildi (1)", c.compute === 1);
       await page.context().close();
     }
 
-    console.log("\n—— 2. Yeniden Hesapla: onay · iptal · onay");
+    console.log("\n—— 2. Kayıtlı analiz varken Yeniden Hesapla: nazik hatırlatma");
+    const BANNED = /roxy|kota|kredi|kullanım hakkı|hak tüket|maliyet|ücret|api/i;
     for (const vp of [{ width: 1280, height: 900 }, { width: 375, height: 740 }, { width: 390, height: 844 }]) {
       const { page, c, setRows } = await open(vp);
       setRows([ROW_BASE]); // kayıtlı harita 19:00; danışan 19:30 → "changed"
       await mountPanel(page, { ...PANEL_PROPS, birthTime: "19:30" });
-      await page.getByRole("button", { name: "Yeniden Hesapla" }).click();
+      const mainBtn = page.locator("[data-hd-autocalc] > button", { hasText: "Yeniden Hesapla" });
+      await mainBtn.click();
       const dlg = page.getByRole("alertdialog");
       await dlg.waitFor();
-      ok(`${vp.width}px: onay penceresi ve tam mesaj`, await dlg.getByText(HD_RECALC_CONFIRM_MESSAGE).isVisible());
+      ok(`${vp.width}px: yeni mesaj birebir gösteriliyor`, await dlg.getByText(HD_RECALC_PROMPT_MESSAGE, { exact: true }).isVisible());
+      const dlgText = (await dlg.innerText()) ?? "";
+      ok(`${vp.width}px: kota/hak/kredi/maliyet/sağlayıcı ifadesi YOK`, !BANNED.test(dlgText), dlgText);
+      ok(`${vp.width}px: iki buton: Mevcut Analizi Aç + Yeniden Hesapla`, (await dlg.getByRole("button").count()) === 2 &&
+        (await dlg.getByRole("button", { name: "Mevcut Analizi Aç" }).isVisible()) && (await dlg.getByRole("button", { name: "Yeniden Hesapla" }).isVisible()));
       const box = await dlg.boundingBox();
-      ok(`${vp.width}px: pencere ekran içinde, yatay kaydırma yok`, !!box && box.x >= 0 && box.x + box.width <= vp.width + 0.5 && (await page.evaluate(() => document.documentElement.scrollWidth)) <= vp.width);
-      await page.screenshot({ path: join(OUT, `recalc-confirm-${vp.width}.png`) });
-      // Pencere açıkken ikinci tıklama ikinci pencere/istek üretmez.
-      await page.evaluate(() => {
-        const b = [...document.querySelectorAll("button")].find((x) => x.textContent?.trim() === "Yeniden Hesapla");
-        b?.click(); // pencere açıkken ikinci tıklama (çift tıklama) doğrudan butona
-      });
-      await page.waitForTimeout(200);
-      ok(`${vp.width}px: çift tıklama ikinci pencere açmaz`, (await page.getByRole("alertdialog").count()) === 1);
-      await dlg.getByRole("button", { name: "Vazgeç" }).click();
-      await page.waitForTimeout(400);
-      ok(`${vp.width}px: iptal → hesaplama isteği 0`, c.compute === 0);
-      await page.getByRole("button", { name: "Yeniden Hesapla" }).click();
-      await page.getByRole("alertdialog").getByRole("button", { name: "Devam et" }).click();
-      await page.waitForTimeout(600);
-      ok(`${vp.width}px: onay → mevcut hesaplama akışı (1 istek)`, c.compute === 1);
+      ok(`${vp.width}px: pencere ekran içinde, yatay kaydırma yok`, !!box && box.x >= 0 && box.x + box.width <= vp.width + 0.5 && box.y + box.height <= vp.height + 0.5 && (await page.evaluate(() => document.documentElement.scrollWidth)) <= vp.width);
+      await page.screenshot({ path: join(OUT, `recalc-prompt-${vp.width}.png`) });
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(300);
+      ok(`${vp.width}px: Esc → pencere kapanır, hesaplama 0, analiz açılmadı`, (await dlg.count()) === 0 && c.compute === 0 && c.chartGet === 0);
+      await mainBtn.click();
+      await dlg.getByRole("button", { name: "Mevcut Analizi Aç" }).click();
+      await page.waitForTimeout(500);
+      ok(`${vp.width}px: Mevcut Analizi Aç → kayıtlı analiz okundu (GET ?id), hesaplama 0`, c.chartGet >= 1 && c.compute === 0);
+      await page.context().close();
+    }
+    {
+      const { page, c, setRows } = await open();
+      setRows([ROW_BASE]);
+      await mountPanel(page, { ...PANEL_PROPS, birthTime: "19:30" });
+      const mainBtn = page.locator("[data-hd-autocalc] > button", { hasText: "Yeniden Hesapla" });
+      await mainBtn.click();
+      await page.getByRole("alertdialog").getByRole("button", { name: "Yeniden Hesapla" }).dblclick();
+      await page.waitForTimeout(800);
+      ok("Yeniden Hesapla → mevcut hesaplama akışı; çift tıklamada TEK istek", c.compute === 1, String(c.compute));
       await page.context().close();
     }
 
@@ -215,7 +223,7 @@ async function main() {
       await mountPanel(page, PANEL_PROPS); // aynı girdi → "open"
       await page.getByRole("button", { name: "Profesyonel Haritayı Aç" }).click();
       await page.waitForTimeout(500);
-      ok("açma: onay yok, hesaplama 0, yalnız kayıtlı okuma (GET ?id)", (await page.getByText(HD_RECALC_CONFIRM_MESSAGE).count()) === 0 && c.compute === 0 && c.chartGet >= 1);
+      ok("açma: onay yok, hesaplama 0, yalnız kayıtlı okuma (GET ?id)", (await page.getByText(HD_RECALC_PROMPT_MESSAGE).count()) === 0 && c.compute === 0 && c.chartGet >= 1);
       await page.context().close();
     }
 

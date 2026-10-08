@@ -494,9 +494,9 @@ async function main() {
       // bu koruma Roxy hesabı / motor / harita görünümü dosyalarını kapsar. HdRoxyBodygraph'ta
       // yalnız yükleyicinin export edilmesine izin verilir (aşağıda ayrıca doğrulanır).
       roxyDiff = execSync("git diff --name-only origin/main -- lib/human-design/providers lib/human-design/api/roxyChartService.ts lib/human-design/engine app/human-design/kayitli-haritalar/components/HdComputedChartView.tsx app/human-design/kayitli-haritalar/components/HdChartInfoPanel.tsx app/human-design/kayitli-haritalar/components/HdSystemReadingPanel.tsx", { cwd: ROOT }).toString().trim();
-      // HdAutoCalcPanel: owner onaylı yeniden-hesap onayı (10-08) dışında hesap akışı AYNEN korunur.
+      // HdAutoCalcPanel: owner onaylı "kayıtlı analiz" hatırlatması (10-08) dışında hesap akışı AYNEN korunur.
       const ac = src("app/human-design/danisanlar/components/HdAutoCalcPanel.tsx");
-      if (!/const r = await computeRoxyChart\(clientId, state\.location\.id\);/.test(ac) || !/state\.kind === "changed"[\s\S]{0,120}await confirm\(/.test(ac)) roxyDiff += "\nHdAutoCalcPanel: hesap akışı beklenmedik biçimde değişti";
+      if (!/const r = await computeRoxyChart\(clientId, state\.location\.id\);/.test(ac) || !/state\.kind === "changed" \? setRecalcPrompt\(true\) : void compute\(\)/.test(ac) || !/setOpenId\(state\.previousId\); \/\/ kayıtlı analiz — hesaplama YOK/.test(ac)) roxyDiff += "\nHdAutoCalcPanel: hesap akışı beklenmedik biçimde değişti";
       const bgDiff = execSync("git diff -U0 origin/main -- app/human-design/kayitli-haritalar/components/HdRoxyBodygraph.tsx", { cwd: ROOT }).toString();
       const changed = bgDiff.split("\n").filter((l) => /^[-+](?![-+])/.test(l));
       if (!(changed.length === 0 || (changed.length === 2 && changed.every((l) => /function loadRoxyBodygraph\(\): Promise<void> \{$/.test(l))))) roxyDiff += `\nHdRoxyBodygraph: ${changed.join(" | ")}`;
