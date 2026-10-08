@@ -13,6 +13,7 @@ import { gregorianToHijri, toYmd } from "@/lib/cupping/hijri";
 import {
   listCalendarPlans,
   getCalendarPlan,
+  createCalendarPlan,
   addCalendarPlanDays,
   updateCalendarDay,
   deleteCalendarDay,
@@ -35,6 +36,9 @@ import { ClientAdviceSection } from "./ClientAdviceSection";
 import { CalendarViewToggle, type CalendarView } from "./CalendarViewToggle";
 import { AnnualCalendarOverview } from "./AnnualCalendarOverview";
 import { DayEditPanel, type DayStyleDraft } from "./DayEditPanel";
+import { DayInfoPanel } from "./DayInfoPanel";
+import { NewCalendarDialog } from "./NewCalendarDialog";
+import { pickPlanForYear } from "@/lib/cupping/calendarPlanResolve";
 
 /** useSyncExternalStore için değişmeyen abonelik (yalnız istemci/SSR ayrımı). */
 const subscribeNoop = () => () => {};
@@ -122,6 +126,14 @@ type PendingFailures = {
  *   paletten renk + kendi kısa açıklaması eklenebilir (opsiyonel; anlam platformca sabitlenmez).
  *   Aylık + Yıllık AYNI planı/taslağı gösterir (renk/açıklama dâhil). Renk/açıklama nihai kaydı
  *   ana "Değişiklikleri Kaydet" ile olur (tek kalıcılık yolu; kaydedilmemiş uyarısı stili de kapsar).
+ *
+ * WT6 — GÖRÜNTÜLEME ve DÜZENLEME AYRI:
+ *   - Varsayılan GÖRÜNTÜLEME modu: Aylık + Yıllık takvim KAYDEDİLMİŞ takvimin salt-okunur yüzeyidir;
+ *     güne dokunmak yalnız gün bilgisini (DayInfoPanel) açar — taslak değişmez, yazma isteği gitmez.
+ *     Toplu seçim ve kaydet barı gösterilmez.
+ *   - DÜZENLEME modu yalnız açık iki yoldan açılır: "Bu Ayı Düzenle" veya "+ Yeni Takvim → yıl/ay".
+ *     Yeni Takvim, yıl için zaten takvim varsa YENİSİNİ ÜRETMEZ (duplicate yok): mevcut takvim o ayda,
+ *     işaretli günleri/renkleri/notlarıyla açılır. "Düzenlemeyi Bitir" kaydedilmemiş değişiklik varsa sorar.
  */
 export function CalendarWorkspace() {
   const { showToast } = useToast();
@@ -140,6 +152,12 @@ export function CalendarWorkspace() {
   const [month, setMonth] = useState(1);
   const [view, setView] = useState<CalendarView>("monthly");
   const [editYmd, setEditYmd] = useState<string | null>(null);
+  // WT6: görüntüleme (false) ↔ düzenleme (true) modu; gün bilgisi paneli; Yeni Takvim penceresi.
+  const [editing, setEditing] = useState(false);
+  const [infoYmd, setInfoYmd] = useState<string | null>(null);
+  const [newOpen, setNewOpen] = useState(false);
+  const [opening, setOpening] = useState(false);
+  const openingRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [planLoading, setPlanLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -378,22 +396,91 @@ export function CalendarWorkspace() {
     setEditYmd(ymd);
   }, []);
 
+  // WT6: görüntüleme modunda güne dokunma → yalnız BİLGİ (yazma yok, taslak değişmez).
+  const openDayInfo = useCallback((ymd: string) => {
+    setInfoYmd(ymd);
+  }, []);
+
+  /** Taslağı kayıtlı duruma geri döndürür (düzenlemeden kaydetmeden çıkış). */
+  const revertDraftToSaved = useCallback(() => {
+    setDraft(new Set(savedDays.keys()));
+    setDraftStyle(() => {
+      const m = new Map<string, DayStyleDraft>();
+      for (const [ymd, d] of savedDays) m.set(ymd, { colorKey: d.colorKey, label: d.label ?? "", note: d.note ?? "" });
+      return m;
+    });
+    setEditYmd(null);
+  }, [savedDays]);
+
+  /** "Bu Ayı Düzenle" — görüntülenen ayı düzenleme modunda açar (aylık görünüm). */
+  function startEditingCurrentMonth() {
+    if (!plan || savingRef.current) return;
+    setInfoYmd(null);
+    setView("monthly");
+    setEditing(true);
+  }
+
+  /** "Düzenlemeyi Bitir" — kaydedilmemiş değişiklik varsa açık onay; onayda taslak kayıtlıya döner. */
+  async function finishEditing() {
+    if (savingRef.current) return;
+    if (dirty) {
+      if (!(await confirmDiscard())) return;
+      revertDraftToSaved();
+    }
+    setEditYmd(null);
+    setEditing(false);
+  }
+
+  /**
+   * "+ Yeni Takvim → yıl/ay": yıl için takvim VARSA onu açar (duplicate ÜRETMEZ, kayıtlı günler
+   * gelir); YOKSA yıl için tek takvim oluşturur (sunucu reuse_year ile ikinci kez korur). Ardından
+   * seçilen ay DÜZENLEME modunda açılır.
+   */
+  async function openMonthForEditing(year: number, month: number) {
+    if (openingRef.current || savingRef.current) return;
+    openingRef.current = true;
+    setOpening(true);
+    try {
+      if (!(await confirmDiscardIfDirty())) return;
+      const existing = pickPlanForYear(plans, year, activeIdRef.current);
+      if (existing) {
+        if (existing.id !== activeIdRef.current) {
+          await loadPlanInto(existing.id);
+        } else if (dirty) {
+          revertDraftToSaved();
+        }
+      } else {
+        const res = await createCalendarPlan({ name: `${year} Hacamat Takvimi`, year, reuse_year: true });
+        if (!res.plan) {
+          // Demo hesabı (persist=0): sahte takvim/gün gösterilmez.
+          showToast({ message: "Demo hesabında takvim kaydedilmez.", type: "info" });
+          setNewOpen(false);
+          return;
+        }
+        await refreshPlansList(res.plan.id);
+        showToast({ message: res.reused ? `${year} takviminiz açıldı.` : `${year} takvimi oluşturuldu.`, type: "success" });
+      }
+      setMonth(month);
+      setView("monthly");
+      setInfoYmd(null);
+      setEditing(true);
+      setNewOpen(false);
+    } catch (e) {
+      showToast({ message: e instanceof Error ? e.message : "Takvim açılamadı.", type: "error" });
+    } finally {
+      openingRef.current = false;
+      setOpening(false);
+    }
+  }
+
   async function handleSelectPlan(id: string) {
     if (id === (requestedIdRef.current ?? activeId)) return;
     if (!(await confirmDiscardIfDirty())) return;
     try {
       await loadPlanInto(id);
+      setEditing(false);
     } catch (e) {
       showToast({ message: e instanceof Error ? e.message : "Takvim yüklenemedi.", type: "error" });
-    }
-  }
-
-  /** Yeni plan oluşturuldu → (onay PlanPicker'da alındı) yeni planı otoriter durumuyla aç. */
-  async function handlePlanCreated(id: string) {
-    try {
-      await refreshPlansList(id);
-    } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Takvim listesi yenilenemedi.", type: "error" });
     }
   }
 
@@ -581,6 +668,21 @@ export function CalendarWorkspace() {
     setPlan(updated);
   }
 
+  // WT6: gün bilgisi paneli — YALNIZ KAYITLI durum (taslak değil) gösterilir.
+  const infoContext = useMemo(() => {
+    if (!infoYmd) return null;
+    const y = Number(infoYmd.slice(0, 4));
+    const m = Number(infoYmd.slice(5, 7));
+    const d = Number(infoYmd.slice(8, 10));
+    const h = gregorianToHijri(infoYmd);
+    const saved = savedDays.get(infoYmd);
+    return {
+      gregText: `${d} ${MONTHS_TR[m - 1]} ${y}`,
+      hijriText: h?.formatted ?? "",
+      info: saved ? { colorKey: saved.colorKey, label: saved.label, note: saved.note } : null,
+    };
+  }, [infoYmd, savedDays]);
+
   // Düzenleme paneli için tam Gregoryen + Hicrî tarih metni (motor: lib/cupping/hijri).
   const editContext = useMemo(() => {
     if (!editYmd) return null;
@@ -651,10 +753,21 @@ export function CalendarWorkspace() {
         <div>
           <h2 className="text-lg font-black text-slate-900">İlk Hacamat Takviminizi Oluşturun</h2>
           <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-            Yılı seçin, ardından uygulama günlerinizi takvim üzerinden kendiniz işaretleyin.
+            Yılı ve ayı seçin; o ayın düzenleme ekranında uygulama günlerinizi kendiniz işaretleyin.
           </p>
         </div>
-        <FirstPlanButton onCreated={(id) => handlePlanCreated(id)} />
+        <button type="button" className={`${kupaBtnPrimary} min-h-[44px]`} onClick={() => setNewOpen(true)}>
+          Takvim Oluştur
+        </button>
+        {newOpen ? (
+          <NewCalendarDialog
+            plans={plans}
+            activePlanId={activeId}
+            busy={opening}
+            onCancel={() => setNewOpen(false)}
+            onConfirm={(y, m) => void openMonthForEditing(y, m)}
+          />
+        ) : null}
       </div>
     );
   }
@@ -669,8 +782,9 @@ export function CalendarWorkspace() {
           belirlersiniz.
         </p>
         <p className="mt-1 text-xs leading-relaxed text-slate-400">
-          Yaşam Sistemi takvime hazır uygulama günü eklemez. Bir güne dokunduğunuzda açılan panelden
-          kendi renginizi seçersiniz (her yeni gün için renk zorunludur); kısa açıklama opsiyoneldir.
+          Yaşam Sistemi takvime hazır uygulama günü eklemez. Aşağıdaki takvim kayıtlı takviminizi
+          gösterir (salt okunur; güne dokunmak bilgisini açar). Günleri değiştirmek için
+          <strong> Bu Ayı Düzenle</strong> veya <strong>+ Yeni Takvim</strong> (yıl/ay) kullanın.
         </p>
       </div>
 
@@ -683,8 +797,9 @@ export function CalendarWorkspace() {
           hasPendingChanges={dirty}
           disabled={saving}
           onSelect={handleSelectPlan}
-          onBeforeCreate={confirmDiscardIfDirty}
-          onPlanCreated={handlePlanCreated}
+          onNewCalendar={() => {
+            if (!savingRef.current) setNewOpen(true);
+          }}
           onPlanUpdated={handlePlanUpdated}
           onDelete={handleDeletePlan}
         />
@@ -696,8 +811,40 @@ export function CalendarWorkspace() {
         <>
           {/* Görünüm anahtarı + kaydet durumu (AYNI plan/taslak; iki görünüm) */}
           <div className={`${edgeCard} flex flex-col gap-4`}>
+            {/* WT6: mod çubuğu — görüntüleme ↔ düzenleme AÇIK ayrım */}
+            {editing ? (
+              <div
+                data-testid="kupa-edit-banner"
+                className="flex flex-col gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <span className="text-sm font-bold text-amber-900">
+                  ✎ Düzenleniyor: {MONTHS_TR[month - 1]} {plan.year}
+                  <span className="block text-xs font-medium text-amber-800">
+                    Güne dokunarak ekleyin/düzenleyin; kalıcı olması için <strong>Değişiklikleri Kaydet</strong>&apos;e basın.
+                  </span>
+                </span>
+                <button type="button" className={`${kupaBtnGhost} min-h-[44px] shrink-0`} onClick={() => void finishEditing()} disabled={saving}>
+                  Düzenlemeyi Bitir
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-sm font-semibold text-slate-600">
+                  Görüntüleme <span className="text-xs font-medium text-slate-400">· salt okunur</span>
+                </span>
+                <button
+                  type="button"
+                  data-testid="kupa-edit-month"
+                  className={`${kupaBtnPrimary} min-h-[44px] shrink-0`}
+                  onClick={startEditingCurrentMonth}
+                  disabled={planLoading}
+                >
+                  ✎ Bu Ayı Düzenle ({MONTHS_TR[month - 1]})
+                </button>
+              </div>
+            )}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <CalendarViewToggle view={view} onChange={setView} />
+              {editing ? <span /> : <CalendarViewToggle view={view} onChange={setView} />}
               {/* Word İndir — kapsam AÇIK: Yıllık (12 ay) veya yalnız SEÇİLİ AY. Yalnız aktif plan;
                   kaydedilmemiş taslakta uyarır (üretmez). Yıllık indirme istemeden aylığa dönüşmez. */}
               {!isAndroid && (
@@ -727,7 +874,7 @@ export function CalendarWorkspace() {
               )}
             </div>
             {/* Kaydet/durum barı — MASAÜSTÜ (lg): kart içinde. MOBİL/TABLET: aşağıdaki PORTAL. */}
-            <div className="hidden lg:block">{saveBar("inline")}</div>
+            {editing ? <div className="hidden lg:block">{saveBar("inline")}</div> : null}
           </div>
 
           {/* Aylık bölümler görünüm değişiminde SÖKÜLMEZ (yarım şablon/danışan formu korunur). */}
@@ -742,7 +889,8 @@ export function CalendarWorkspace() {
                   saved={savedSet}
                   today={today}
                   styleOf={styleOf}
-                  onEditDay={openDayEditor}
+                  onEditDay={editing ? openDayEditor : openDayInfo}
+                  readOnly={!editing}
                 />
                 {/* Sade legend — yalnız uzman-seçim durumları (pastel; çalışma alanını ezmez). */}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-slate-500">
@@ -759,14 +907,16 @@ export function CalendarWorkspace() {
                     Kaldırılacak
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <span aria-hidden>✎</span>
-                    Eklemek/düzenlemek için güne dokunun (renk seçimi zorunlu)
+                    <span aria-hidden>{editing ? "✎" : "ⓘ"}</span>
+                    {editing
+                      ? "Eklemek/düzenlemek için güne dokunun (renk seçimi zorunlu)"
+                      : "Bilgisini görmek için güne dokunun (salt okunur)"}
                   </span>
                 </div>
               </div>
 
               {/* Toplu gün seçimi (uzmanın KENDİ ölçütü; hazır/önerilen değer YOK) */}
-              <BulkDateSelector year={plan.year} onAddDates={addBulk} />
+              {editing ? <BulkDateSelector year={plan.year} onAddDates={addBulk} /> : null}
 
               {/* Çıktı bilgilendirme notları */}
               <div className={`${edgeCard}`}>
@@ -796,17 +946,38 @@ export function CalendarWorkspace() {
                   setMonth(m);
                   setView("monthly");
                 }}
+                onDayClick={openDayInfo}
               />
             </div>
           ) : null}
           {/* MOBİL/TABLET sabit kaydet barı — body'ye portal (ekrana gerçekten sabit; hiçbir
               kontrolün üstüne binmez: sayfa altında pb boşluğu ayrılır). */}
-          {portalReady ? createPortal(<div className="lg:hidden">{saveBar("fixed")}</div>, document.body) : null}
+          {portalReady && editing ? createPortal(<div className="lg:hidden">{saveBar("fixed")}</div>, document.body) : null}
         </>
       ) : null}
 
-      {/* Gün düzenleme paneli (renk + kısa açıklama + detay notu) — seçili gün için */}
-      {editContext ? (
+      {/* WT6: gün bilgisi (salt okunur) */}
+      {infoContext && !editing ? (
+        <DayInfoPanel
+          gregText={infoContext.gregText}
+          hijriText={infoContext.hijriText}
+          info={infoContext.info}
+          onClose={() => setInfoYmd(null)}
+        />
+      ) : null}
+
+      {newOpen ? (
+        <NewCalendarDialog
+          plans={plans}
+          activePlanId={activeId}
+          busy={opening}
+          onCancel={() => setNewOpen(false)}
+          onConfirm={(y, m) => void openMonthForEditing(y, m)}
+        />
+      ) : null}
+
+      {/* Gün düzenleme paneli (renk + kısa açıklama + detay notu) — yalnız DÜZENLEME modunda */}
+      {editContext && editing ? (
         <DayEditPanel
           key={editYmd}
           gregText={editContext.gregText}
@@ -826,35 +997,5 @@ export function CalendarWorkspace() {
         anlamını siz belirlersiniz.
       </p>
     </div>
-  );
-}
-
-function FirstPlanButton({ onCreated }: { onCreated: (id: string) => void }) {
-  const { showToast } = useToast();
-  const [busy, setBusy] = useState(false);
-  async function create() {
-    setBusy(true);
-    try {
-      const y = new Date().getFullYear();
-      const { createCalendarPlan } = await import("@/app/kupa/lib/api");
-      const res = await createCalendarPlan({ name: `${y} Hacamat Takvimi`, year: y });
-      if (!res.plan) {
-        // Demo hesabı (persist=0).
-        showToast({ message: "Takvim oluşturuldu.", type: "success" });
-        return;
-      }
-      // OTORİTER durumu getir (yeni plan SIFIR seçili günle açılır; hazır gün YOK).
-      onCreated(res.plan.id);
-      showToast({ message: "Takvim oluşturuldu.", type: "success" });
-    } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Oluşturulamadı.", type: "error" });
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <button type="button" className={`${kupaBtnPrimary} min-h-[44px]`} onClick={create} disabled={busy}>
-      {busy ? "Oluşturuluyor…" : "Takvim Oluştur"}
-    </button>
   );
 }

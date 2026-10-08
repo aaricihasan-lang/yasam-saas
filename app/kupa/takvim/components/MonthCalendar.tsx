@@ -63,6 +63,7 @@ export function MonthCalendar({
   today,
   styleOf,
   onEditDay,
+  readOnly = false,
 }: {
   year: number;
   month: number; // 1–12
@@ -74,6 +75,9 @@ export function MonthCalendar({
   styleOf: (ymd: string) => CuppingDayStyleView | undefined;
   /** Gün panelini aç: boş gün → renkle EKLE; seçili gün → DÜZENLE. Seçimi DEĞİŞTİRMEZ. */
   onEditDay: (ymd: string) => void;
+  /** WT6: görüntüleme modu — dokunma yalnız GÜN BİLGİSİNİ açar (onEditDay = bilgi açıcı);
+   *  kalem/ekle ipuçları gizlenir, hiçbir düzenleme affordance'ı gösterilmez. */
+  readOnly?: boolean;
 }) {
   const cells = useMemo(() => monthHijriCells(year, month), [year, month]);
   // Ayın ilk günü hangi ISO haftagününe düşüyor → ızgarada baştaki boş hücre sayısı (Pzt-başlangıç).
@@ -127,10 +131,10 @@ export function MonthCalendar({
           gregCls: colorDef ? colorDef.greg : palette.greg,
           hijriCls: colorDef ? colorDef.hijri : palette.hijri,
           dashed: state.kind === "selected_pending_add",
-          aria: `${gDay} ${MONTHS_TR[month - 1]} ${year} — Hicrî ${fullHijri}${statusWord}${colorWord}${labelWord}`,
+          aria: `${gDay} ${MONTHS_TR[month - 1]} ${year} — Hicrî ${fullHijri}${statusWord}${colorWord}${labelWord}${readOnly ? " — bilgiyi göster" : ""}`,
         };
       }),
-    [cells, selected, saved, today, styleOf, month, year],
+    [cells, selected, saved, today, styleOf, month, year, readOnly],
   );
 
   return (
@@ -159,6 +163,8 @@ export function MonthCalendar({
               <button
                 type="button"
                 onClick={() => onEditDay(d.ymd)}
+                data-kupa-day={d.ymd}
+                data-kupa-mode={readOnly ? "view" : "edit"}
                 aria-pressed={d.isSel}
                 aria-label={d.aria}
                 title={d.aria}
@@ -193,7 +199,7 @@ export function MonthCalendar({
               </button>
 
               {/* "Düzenle" kalem simgesi — YALNIZ seçili günde (seçim durumunu DEĞİŞTİRMEZ). */}
-              {d.isSel ? (
+              {d.isSel && !readOnly ? (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -219,6 +225,8 @@ export function MonthCalendar({
             key={d.ymd}
             type="button"
             onClick={() => onEditDay(d.ymd)}
+            data-kupa-day={d.ymd}
+            data-kupa-mode={readOnly ? "view" : "edit"}
             aria-pressed={d.isSel}
             aria-label={d.aria}
             className={[
@@ -235,7 +243,7 @@ export function MonthCalendar({
               </span>
               {/* Düzenle/ekle görsel ipucu (aria-hidden; tüm kart zaten buton). */}
               <span aria-hidden className="text-xs text-slate-400">
-                {d.isSel ? "✎" : "+"}
+                {readOnly ? (d.isSel ? "ⓘ" : "") : d.isSel ? "✎" : "+"}
               </span>
             </span>
             <span className={["text-sm font-black leading-tight", d.gregCls].join(" ")}>

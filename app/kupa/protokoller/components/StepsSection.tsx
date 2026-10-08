@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useConfirmLeave, useReportDirty } from "../hooks/protocolDirty";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { kupaBtnPrimary, kupaBtnGhost, kupaBtnSuccess, kupaInput, kupaRowAction, kupaRowActionDanger, kupaRowActions } from "@/app/kupa/components/KupaShell";
@@ -20,6 +21,15 @@ export function StepsSection({ protocolId, doc }: { protocolId: string; doc: Pro
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [busy, setBusy] = useState(false);
   const [moving, setMoving] = useState(false);
+  const busyRef = useRef(false);
+  const confirmLeave = useConfirmLeave();
+  const [initialDraft, setInitialDraft] = useState<Draft>(EMPTY);
+  const dirty = formOpen && JSON.stringify(draft) !== JSON.stringify(initialDraft);
+  useReportDirty("steps", dirty);
+  async function cancelForm() {
+    if (dirty && !(await confirmLeave())) return;
+    setFormOpen(false);
+  }
 
   // DETERMİNİSTİK sıra: sort_order, eşitlikte oluşturulma zamanı, sonra id (eski veride aynı
   //   sort_order'lı adımlar her yüklemede aynı sırada görünür; sunucu da aynı kuralla sıralar).
@@ -28,28 +38,35 @@ export function StepsSection({ protocolId, doc }: { protocolId: string; doc: Pro
   const boundPoints = doc.points.map((r) => ({ id: r.point_id, name: doc.pointName(r.point_id) }));
   const boundTechniques = doc.techniques.map((r) => ({ id: r.technique_id, name: doc.techniqueName(r.technique_id) }));
 
-  function openNew() {
+  async function openNew() {
+    if (dirty && !(await confirmLeave())) return;
     setEditingId(null);
     setDraft(EMPTY);
+    setInitialDraft(EMPTY);
     setFormOpen(true);
   }
-  function openEdit(s: CuppingProtocolStep) {
-    setEditingId(s.id);
-    setDraft({
+  async function openEdit(s: CuppingProtocolStep) {
+    if (dirty && !(await confirmLeave())) return;
+    const next: Draft = {
       title: s.title ?? "",
       body: s.body ?? "",
       stage_label: s.stage_label ?? "",
       ref_point_id: s.ref_point_id ?? "",
       ref_technique_id: s.ref_technique_id ?? "",
-    });
+    };
+    setEditingId(s.id);
+    setDraft(next);
+    setInitialDraft(next);
     setFormOpen(true);
   }
 
   async function save() {
+    if (busyRef.current) return; // çift tık → tek kayıt
     if (!draft.body.trim()) {
       showToast({ message: "Adım metni gerekli.", type: "warning" });
       return;
     }
+    busyRef.current = true;
     setBusy(true);
     try {
       const payload = {
@@ -67,10 +84,11 @@ export function StepsSection({ protocolId, doc }: { protocolId: string; doc: Pro
       }
       await doc.reload.steps();
       setFormOpen(false);
-      showToast({ message: editingId ? "Adım güncellendi." : "Adım eklendi.", type: "success" });
+      showToast({ message: "Kaydedildi.", type: "success" });
     } catch (e) {
       showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
@@ -186,9 +204,9 @@ export function StepsSection({ protocolId, doc }: { protocolId: string; doc: Pro
             <p className="text-[11px] text-slate-400">Yalnızca bu protokole eklenmiş bölge/teknikler adıma bağlanabilir.</p>
             <div className="flex items-center gap-2">
               <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={save}>
-                {editingId ? "Adımı Kaydet" : "Adımı Ekle"}
+                {busy ? "Kaydediliyor…" : "Kaydet"}
               </button>
-              <button type="button" className={kupaBtnGhost} onClick={() => setFormOpen(false)}>
+              <button type="button" className={kupaBtnGhost} onClick={() => void cancelForm()}>
                 Vazgeç
               </button>
             </div>

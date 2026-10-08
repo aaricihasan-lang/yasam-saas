@@ -141,9 +141,23 @@ function buildOrder(raw: string | null): string {
     return s;
   }).join(", ")}`;
 }
-function toParam(v: unknown): unknown {
+function toParam(v: unknown, isArrayCol = false): unknown {
+  // PostgREST gibi: dizi (ARRAY) kolonlarına JSON dizisi → native PG dizisi; diğer nesneler (jsonb) → JSON metni.
+  if (isArrayCol && Array.isArray(v)) return v;
   if (v !== null && typeof v === "object" && !(v instanceof Date)) return JSON.stringify(v);
   return v;
+}
+const arrayColsCache = new Map<string, Set<string>>();
+async function arrayCols(client: pg.PoolClient, table: string): Promise<Set<string>> {
+  const hit = arrayColsCache.get(table);
+  if (hit) return hit;
+  const r = await client.query(
+    "select column_name from information_schema.columns where table_schema = 'public' and table_name = $1 and data_type = 'ARRAY'",
+    [table.replace(/"/g, "")],
+  );
+  const set = new Set<string>(r.rows.map((x: { column_name: string }) => x.column_name));
+  arrayColsCache.set(table, set);
+  return set;
 }
 async function readRaw(req: http.IncomingMessage): Promise<Buffer> {
   const chunks: Buffer[] = [];
@@ -248,7 +262,21 @@ export async function startBioTestEnv(opts: { port: number; dirName: string; max
         );
         return send(200, r.rows[0]?.v ?? null);
       }
-      if (p.startsWith("rpc/")) return send(404, { code: "PGRST202", message: "rpc yok (test)", details: null, hint: null });
+      // Genel RPC (WT6): fonksiyon şemada VARSA adlandırılmış argümanlarla gerçek çağrı; yoksa PGRST202.
+      if (p.startsWith("rpc/")) {
+        const fn = p.slice(4);
+        if (!IDENT_RE.test(fn)) return send(404, { code: "PGRST202", message: "rpc yok (test)", details: null, hint: null });
+        const exists = (await client.query(`select count(*)::int as n from pg_proc where proname = $1 and pronamespace = 'public'::regnamespace`, [fn])).rows[0].n;
+        if (!exists) return send(404, { code: "PGRST202", message: "rpc yok (test)", details: null, hint: null });
+        const rawB = (await readRaw(req)).toString("utf8");
+        const a = (rawB ? JSON.parse(rawB) : {}) as Record<string, unknown>;
+        const keys = Object.keys(a).filter((k) => IDENT_RE.test(k));
+        const r = await client.query(
+          `select public.${qi(fn)}(${keys.map((k, i) => `${qi(k)} => $${i + 1}`).join(", ")}) as v`,
+          keys.map((k) => { const v = a[k]; return v !== null && typeof v === "object" && !Array.isArray(v) ? JSON.stringify(v) : v; }),
+        );
+        return send(200, r.rows[0]?.v ?? null);
+      }
       const table = qi(p);
       const values: unknown[] = [];
       const sel = parseSelect(url.searchParams.get("select"));
@@ -283,11 +311,18 @@ export async function startBioTestEnv(opts: { port: number; dirName: string; max
       if (method === "POST") {
         const rows = Array.isArray(payload) ? payload : [payload];
         const out: unknown[] = [];
+        // PostgREST upsert (WT6): ?on_conflict=a,b + Prefer resolution=ignore-duplicates → ON CONFLICT DO NOTHING.
+        const onConflict = url.searchParams.get("on_conflict");
+        const conflictSql =
+          onConflict && /resolution=ignore-duplicates/.test(prefer)
+            ? ` on conflict (${onConflict.split(",").map((c) => qi(c.trim())).join(", ")}) do nothing`
+            : "";
+        const arrCols = await arrayCols(client, table);
         for (const row of rows as Record<string, unknown>[]) {
           const cols = Object.keys(row);
           const r = await client.query(
-            `insert into public.${table} (${cols.map(qi).join(", ")}) values (${cols.map((_, i) => `$${i + 1}`).join(", ")}) returning ${sel}`,
-            cols.map((c) => toParam(row[c])),
+            `insert into public.${table} (${cols.map(qi).join(", ")}) values (${cols.map((_, i) => `$${i + 1}`).join(", ")})${conflictSql} returning ${sel}`,
+            cols.map((c) => toParam(row[c], arrCols.has(c))),
           );
           out.push(...r.rows);
         }
@@ -295,7 +330,8 @@ export async function startBioTestEnv(opts: { port: number; dirName: string; max
       }
       if (method === "PATCH") {
         const cols = Object.keys(payload as Record<string, unknown>);
-        for (const c of cols) values.push(toParam((payload as Record<string, unknown>)[c]));
+        const arrColsP = await arrayCols(client, table);
+        for (const c of cols) values.push(toParam((payload as Record<string, unknown>)[c], arrColsP.has(c)));
         const setSql = cols.map((c, i) => `${qi(c)} = $${i + 1}`).join(", ");
         const where = buildWhere(url.searchParams, values);
         const r = await client.query(`update public.${table} set ${setSql}${where} returning ${sel}`, values);
