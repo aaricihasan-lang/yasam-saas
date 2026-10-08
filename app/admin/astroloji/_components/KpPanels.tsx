@@ -9,7 +9,7 @@
  */
 
 import { useMemo, useState } from "react";
-import type { KpBody, KpChartTechnical, KpCusp, KpHoraryTechnical, KpLevel, KpPoint, KpRulingTechnical, KpSignificators, KpTransitTechnical } from "@/lib/astrology/model/kp";
+import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, isKpNode, type KpBody, type KpChartTechnical, type KpCusp, type KpHoraryTechnical, type KpLevel, type KpNodeSigMethodId, type KpPoint, type KpRulingTechnical, type KpSignificators, type KpTransitTechnical } from "@/lib/astrology/model/kp";
 import type { VedicGrahaId } from "@/lib/astrology/model/vedic";
 import { SIGN_IDS, type SignId } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
@@ -217,7 +217,34 @@ export function KpBodyTable({ bodies, sel, onSel, title = "Gezegenler", testId =
   );
 }
 
-export function KpSignificatorTables({ s, note }: { s: KpSignificators; note: string }) {
+// ─── 6.1A: Rahu/Ketu yöntem etiketi (her düğüm satırında listenin hangi Roxy kuralından geldiği) ─────────────
+export function KpNodeMethodTag({ method }: { method: KpNodeSigMethodId }) {
+  const m = KP_NODE_SIG_METHODS[method];
+  return (
+    <span
+      className={`ml-1 inline-block whitespace-nowrap rounded border px-1 text-[10px] font-medium ${method === "sign_lord" ? "border-amber-400 bg-amber-50 text-amber-900" : method === "agent" ? "border-indigo-300 bg-indigo-50 text-indigo-900" : "border-slate-300 bg-slate-50 text-slate-700"}`}
+      title={`${m.label}. ${m.status}`}
+      data-kp-node-method={method}
+    >
+      {m.short}
+    </span>
+  );
+}
+export function KpNodeMethodLegend({ methods, context }: { methods: KpNodeSigMethodId[]; context: string }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-snug text-slate-700" data-testid="astro-kp-node-method">
+      <p className="font-semibold text-slate-800">Rahu/Ketu significator yöntemi — {context}</p>
+      {methods.map((id) => (
+        <p key={id} className="mt-1">
+          <KpNodeMethodTag method={id} /> <strong>{KP_NODE_SIG_METHODS[id].label}.</strong> {KP_NODE_SIG_METHODS[id].detail} <em>{KP_NODE_SIG_METHODS[id].status}</em>
+        </p>
+      ))}
+      <p className="mt-1 text-slate-500">Roxy uçları düğümler için farklı kurallar kullanır; bu yüzden aynı düğümün ev listesi harita, dasha ve ruling ekranlarında farklı olabilir. Listeler birbirine dönüştürülmez.</p>
+    </div>
+  );
+}
+
+export function KpSignificatorTables({ s, note, nodeMethod, agentMethod, context }: { s: KpSignificators; note: string; nodeMethod: KpNodeSigMethodId; agentMethod?: KpNodeSigMethodId; context: string }) {
   const [view, setView] = useState<"planet" | "house">("planet");
   return (
     <div className="flex min-w-0 flex-col gap-2" data-testid="astro-kp-significators">
@@ -248,12 +275,15 @@ export function KpSignificatorTables({ s, note }: { s: KpSignificators; note: st
             {view === "planet"
               ? s.planets.map((p) => (
                   <tr key={p.id}>
-                    <td className={`${td} whitespace-nowrap font-medium`}>{gs(p.id)}</td>
+                    <td className={`${td} whitespace-nowrap font-medium`}>
+                      {gs(p.id)}
+                      {isKpNode(p.id) && <KpNodeMethodTag method={nodeMethod} />}
+                    </td>
                     {LEVELS.map((l) => (
                       <td key={l} className={`${td} tabular-nums text-xs`}>
                         {p.levels[l].join(", ") || "—"}
                         {p.agent && p.agent.levels[l].some((h) => !p.levels[l].includes(h)) ? (
-                          <span className="ml-1 text-indigo-700" title="Roxy ajan eki (yalnız bu uçta)">+{p.agent.levels[l].filter((h) => !p.levels[l].includes(h)).join(",")}</span>
+                          <span className="ml-1 text-indigo-700" title={`${KP_NODE_SIG_METHODS[agentMethod ?? "agent"].label} — Roxy ajan eki`}>+{p.agent.levels[l].filter((h) => !p.levels[l].includes(h)).join(",")}</span>
                         ) : null}
                       </td>
                     ))}
@@ -272,12 +302,13 @@ export function KpSignificatorTables({ s, note }: { s: KpSignificators; note: st
           </tbody>
         </table>
       </div>
+      <KpNodeMethodLegend methods={agentMethod ? [nodeMethod, agentMethod] : [nodeMethod]} context={context} />
     </div>
   );
 }
 
 const SIG_NOTE =
-  "L1 = ev sakininin yıldızındaki grahalar (en güçlü) · L2 = evdeki grahalar · L3 = ev sahibinin yıldızındaki grahalar · L4 = ev sahibi (cusp burç lordu). Rahu/Ketu düğüm kuralları Roxy uçları arasında farklı uygulanır: bu tablo kp/chart ucunun (sade kural) sonucudur.";
+  "L1 = ev sakininin yıldızındaki grahalar (en güçlü) · L2 = evdeki grahalar · L3 = ev sahibinin yıldızındaki grahalar · L4 = ev sahibi (cusp burç lordu).";
 
 function Detail({ sel, cusps, bodies, sig, kbLookup }: { sel: KpSel | null; cusps: KpCusp[]; bodies: (KpPoint & { id: VedicGrahaId; retrograde?: boolean | null; house?: number })[]; sig?: KpSignificators; kbLookup?: KbLookup | null }) {
   if (!sel) return <p className="text-sm text-slate-500">Haritada veya tabloda bir cusp/graha seçin.</p>;
@@ -378,7 +409,7 @@ export function KpChartPanel({ t, kbLookup }: { t: KpChartTechnical; kbLookup?: 
       </div>
       <KpCuspTable cusps={t.cusps} sel={sel} onSel={setSel} />
       <KpBodyTable bodies={t.bodies} sel={sel} onSel={setSel} />
-      <KpSignificatorTables s={t.significators} note={SIG_NOTE} />
+      <KpSignificatorTables s={t.significators} note={SIG_NOTE} nodeMethod={KP_NODE_SIG_SOURCE.chart} context="KP haritası (kp/chart ucu)" />
     </div>
   );
 }
@@ -442,14 +473,17 @@ export function KpRulingPanel({ t, kbLookup, placeLabel }: { t: KpRulingTechnica
           <tbody className="divide-y divide-slate-100">
             {t.significators.map((s) => (
               <tr key={s.id}>
-                <td className={`${td} font-medium`}>{gs(s.id)}</td>
+                <td className={`${td} whitespace-nowrap font-medium`}>
+                  {gs(s.id)}
+                  {isKpNode(s.id) && <KpNodeMethodTag method={KP_NODE_SIG_SOURCE.ruling} />}
+                </td>
                 <td className={`${td} tabular-nums`}>{s.houses.join(", ") || "—"}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-amber-800">Not: Roxy ruling planets ucu Rahu/Ketu significator&apos;larını KP haritası ve dasha uçlarından farklı bir kuralla verebilir (doğrulamada görüldü).</p>
+      {t.significators.some((x) => isKpNode(x.id)) && <KpNodeMethodLegend methods={[KP_NODE_SIG_SOURCE.ruling]} context="ruling planets (kp/ruling-planets ucu)" />}
       <section className="rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm">
         <KbBox kb={kb} empty="Bu ruling planet'ler için KP Bilgi Bankası kaydınız yok." />
       </section>
@@ -514,7 +548,10 @@ export function KpHoraryPanel({ t, kbLookup, placeLabel }: { t: KpHoraryTechnica
       <KpBodyTable bodies={t.bodies} sel={sel} onSel={setSel} testId="astro-kp-horary-bodies" />
       <KpSignificatorTables
         s={t.significators}
-        note="Horary significator'ları (Roxy). Rahu/Ketu için Roxy bu uçta ajan ekli liste verir: tabloda sade kural, mavi '+' ekler Roxy'nin ajan evleridir."
+        note={`${SIG_NOTE} Horary'de düğümler için tablo sade kuralı gösterir; mavi '+' ile işaretli evler Roxy'nin aynı yanıtta verdiği ajan ekli listeden gelir.`}
+        nodeMethod={KP_NODE_SIG_SOURCE.horaryLevels}
+        agentMethod={KP_NODE_SIG_SOURCE.horaryAgent}
+        context="KP horary (kp/horary ucu)"
       />
       <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" data-testid="astro-kp-horary-ruling">
         <strong>Ruling planets (soru anı):</strong> {t.ruling.rulingPlanets.map((r) => GRAHA_TR[r].tr).join(" · ")}

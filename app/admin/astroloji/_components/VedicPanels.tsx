@@ -16,6 +16,8 @@ import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import { GRAHA_LABELS, NAKSHATRA_LABELS } from "@/lib/astrology/topics/vedic";
 import { BPHS_VARGA_RULES, checkVargaAgainstBphs, type VargaCheck } from "@/lib/astrology/verify/varga";
+import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, isKpNode } from "@/lib/astrology/model/kp";
+import { KpNodeMethodLegend, KpNodeMethodTag } from "./KpPanels";
 import { CROWDED_AT, GRAHA_TR, LIB_GRAHA_NAME, grahaTrName, kundliLegend, localizeGrahaLabel, localizeSignLabel } from "../_lib/kundliLocalize";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
@@ -818,7 +820,13 @@ function DashaLevelView({
                     {fmtYears(x.durationYears)}
                     {x.nominalStart ? " · doğumla kesilmiş" : ""}
                   </td>
-                  {isKp && <td className={`${td} whitespace-nowrap text-xs tabular-nums`}>{kpHouses(x).join(", ") || "—"}</td>}
+                  {isKp && (
+                    <td className={`${td} whitespace-nowrap text-xs tabular-nums`}>
+                      {kpHouses(x).join(", ") || "—"}
+                      {/* 6.1A: düğüm listesi ajan ekli (dasha ucu kuralı) — harita tablosundaki sade listeyle aynı şey DEĞİL. */}
+                      {isKpNode(x.lord) && <KpNodeMethodTag method={KP_NODE_SIG_SOURCE.dasha} />}
+                    </td>
+                  )}
                   {canDrill && (
                     <td className={td}>
                       <button
@@ -868,7 +876,12 @@ function DashaLevelView({
                 <dt className="text-slate-500">Gösterdiği evler</dt>
                 <dd data-testid="astro-kp-dasha-levels">
                   {[1, 2, 3, 4].map((l) => `L${l}: ${p.kp!.levels[l as 1 | 2 | 3 | 4].join(", ") || "—"}`).join(" · ")}
-                  {p.lord === "rahu" || p.lord === "ketu" ? " (Roxy dasha ucu düğümlere ajan evlerini ekler)" : ""}
+                  {isKpNode(p.lord) ? (
+                    <>
+                      {" "}
+                      <KpNodeMethodTag method={KP_NODE_SIG_SOURCE.dasha} /> <span className="text-xs text-slate-600">({KP_NODE_SIG_METHODS[KP_NODE_SIG_SOURCE.dasha].label})</span>
+                    </>
+                  ) : null}
                 </dd>
               </>
             )}
@@ -914,6 +927,7 @@ export function VedicDashaPanel({
           L1–L4) Roxy&apos;den. Bu bir olay tahmini DEĞİLDİR — Roxy&apos;de ev grubu ↔ dönem eşleştiren KP olay zamanlama ucu yok; yorum uzmana aittir.
         </p>
       )}
+      {t.periods.some((x) => !!x.kp && isKpNode(x.lord)) && <KpNodeMethodLegend methods={[KP_NODE_SIG_SOURCE.dasha]} context="KP dasha (dasha ucu, significators açık)" />}
       <p className="text-sm text-slate-700">
         <strong>Vimshottari</strong> · {LEVEL_LABEL[t.level]}
         {t.path.mahadasha ? ` · ${GRAHA_LABELS[t.path.mahadasha]}` : ""}

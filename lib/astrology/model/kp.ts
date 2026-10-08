@@ -103,3 +103,43 @@ export type KpHoraryTechnical = {
 };
 export const KP_EXTRA_INTERP_SCHEMA = "astro.kp.extra.interp.v1" as const;
 export type KpExtraInterpretation = { schema: typeof KP_EXTRA_INTERP_SCHEMA; houseThemes: { house: number; keywords: string[] }[] };
+
+// ─── Aşama 6.1A: Rahu/Ketu significator YÖNTEM etiketleri (hesap DEĞİL; yalnız sunum) ──────────────
+/**
+ * Roxy düğüm (Rahu/Ketu) significator'larını uç noktaya göre FARKLI kurallarla verir (golden'larla gösterildi,
+ * docs/astrology/phase6-1-rahu-ketu-method-audit.md). Yaşam Sistemi bu kuralları HESAPLAMAZ; yalnız hangi listenin
+ * hangi kuraldan geldiğini adlandırır. "status" = bağımsız denetimin vardığı güven düzeyi.
+ */
+export type KpNodeSigMethodId = "plain" | "agent" | "sign_lord";
+export const KP_NODE_SIG_METHODS: Readonly<Record<KpNodeSigMethodId, { short: string; label: string; detail: string; status: string }>> = {
+  plain: {
+    short: "sade kural",
+    label: "Sade 4 düzey (düğüm ajanlığı uygulanmaz)",
+    detail:
+      "Düğüm sıradan graha gibi okunur: L1 yıldız lordunun evi, L2 kendi evi, L3 yıldız lordunun sahip olduğu evler; düğüm burç sahibi olmadığından L4 boştur. Roxy bu uçta düğümleri 'burç lordunun ajanı' diye tanımlar ama tabloya ajan evlerini eklemez.",
+    status: "Bağımsız olarak doğrulandı (golden; natal + horary).",
+  },
+  agent: {
+    short: "ajan ekli",
+    label: "Ajan ekli 4 düzey (düğüm + burç lordu + aynı burçtaki + karşı burçtaki grahalar)",
+    detail:
+      "Düğümün kendi düzeylerine, ajanı sayılan grahaların aynı düzeydeki evleri eklenir. Roxy dasha ucu bu kuralı 'kavuşan, bakan, burç lordu' diye belgeler. Golden'larda ajanlar = burç lordu + aynı burçtaki grahalar + 7. burçtaki grahalar; Mars'ın 4. bakışı sayılmadı. 7. burç bakışı ile 'karşı düğümle kavuşma' bu verilerle ayırt edilemez.",
+    status: "Golden'larla tutarlı (4 düğüm × 4 düzey); 'bakış' kapsamı kısmen belirsiz.",
+  },
+  sign_lord: {
+    short: "burç lordu kümesi",
+    label: "Burç lordunun significator kümesi (Roxy belgelemiyor)",
+    detail:
+      "Bu uçta düğümün ev listesi, düğümün kendi 4 düzeyi değil, bulunduğu burcun lordunun ev kümesiyle aynıdır. Sıra o lordun düzey sırasına da uymaz. Roxy belgesi bu uç için yalnız '4 düzey KP hiyerarşisi' der; düğüm kuralı yazılı değildir.",
+    status: "Belgelenmemiş; tek örnekle gözlendi (Ketu) — kesin kural sayılmamalı.",
+  },
+};
+/** Hangi KP uç/alanının düğüm listesi hangi kuralla gelir (Aşama 6.1A golden denetimi). */
+export const KP_NODE_SIG_SOURCE = {
+  chart: "plain",
+  horaryLevels: "plain",
+  horaryAgent: "agent",
+  dasha: "agent",
+  ruling: "sign_lord",
+} as const satisfies Record<string, KpNodeSigMethodId>;
+export const isKpNode = (id: string): boolean => id === "rahu" || id === "ketu";
