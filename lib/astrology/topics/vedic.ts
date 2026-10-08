@@ -351,4 +351,14 @@ export function topicsFromKpChart(t: KpChartTechnical): VedicTopic[] {
   return vedicCollect(items);
 }
 
+/** 6E KP dasha konuları: dönem lordu + lordun gösterdiği evler (Roxy KP significator'ları, herhangi düzey). */
+export function topicsFromKpDasha(t: VedicDashaTechnical): VedicTopic[] {
+  const items: [string, string[]][] = [];
+  for (const p of t.periods) {
+    items.push(["kp_dasha_lord", [p.lord]]);
+    if (p.kp) for (const h of [...new Set([1, 2, 3, 4].flatMap((l) => p.kp!.levels[l as 1 | 2 | 3 | 4]))].sort((x, y) => x - y)) items.push(["kp_dasha_signifies", [p.lord, String(h)]]);
+  }
+  return vedicCollect(items);
+}
+
 export type { SignId };

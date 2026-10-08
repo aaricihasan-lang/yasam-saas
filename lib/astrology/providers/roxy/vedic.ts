@@ -442,13 +442,64 @@ const DASHA_KNOWN = new Set<string>([
   "pratyantardashas",
   ...paths("pratyantardashas[]", PERIOD_KEYS),
 ]);
+/** 6E: KP dasha (significators:true) ek alanları — yalnız KP dasha projeksiyonunda bilinir. */
+const KP_SIG_KEYS = ["house", "starLord", "subLord", "signifies", "signifiedHouses", "strongHouses", "strength"];
+const DASHA_KNOWN_KP = new Set<string>([
+  ...DASHA_KNOWN,
+  "houseThemes",
+  "focus",
+  ...["mahadashas[]", "mahadashaPeriod", "antardashaPeriod", "antardashas[]", "pratyantardashas[]"].flatMap((b) => [
+    ...paths(`${b}.significators`, KP_SIG_KEYS),
+    ...paths(`${b}.significators.signifies`, ["L1", "L2", "L3", "L4"]),
+    ...["L1", "L2", "L3", "L4"].map((l) => `${b}.significators.signifies.${l}[]`),
+    `${b}.significators.signifiedHouses[]`,
+    `${b}.significators.strongHouses[]`,
+    ...paths(`${b}.significators.strength`, ["score", "grade", "label"]),
+  ]),
+]);
 
 function cycleFrom(lord: VedicGrahaId): VedicGrahaId[] {
   const i = NAKSHATRA_LORDS.indexOf(lord);
   return Array.from({ length: 9 }, (_, k) => NAKSHATRA_LORDS[(i + k) % 9]);
 }
 
-function projectPeriod(o: Record<string, unknown> | null, ctx: string, errors: string[]): (VedicDashaPeriod & { text: string | null }) | null {
+type KpStrength = { score: number; grade: string; label: string };
+/**
+ * 6E: dönem lordunun KP significator nesnesi (dasha uçları, significators:true). Denetimler: ev 1–12, star/sub lord graha,
+ * L2 içinde kendi evi var (düğümde ajan evleri de olabilir), signifiedHouses = L1→L4 düzleştirmesinin TEKİLİ, strongHouses = L1∪L2
+ * tekili. strength (opak puan/derece/etiket) → yorum katmanı.
+ */
+function projectKpSig(o: Record<string, unknown> | null, ctx: string, errors: string[]): { kp: NonNullable<VedicDashaPeriod["kp"]>; strength: KpStrength | null } | null {
+  const house = int(o?.house, 1, 12);
+  const starLord = mapGraha(o?.starLord);
+  const subLord = mapGraha(o?.subLord);
+  const sig = obj(o?.signifies);
+  const lv = (k: string) => {
+    const a = (arr(sig?.[k]) ?? null)?.map((h) => int(h, 1, 12));
+    return a && a.every((h) => h !== null) ? (a as number[]) : null;
+  };
+  const L1 = lv("L1");
+  const L2 = lv("L2");
+  const L3 = lv("L3");
+  const L4 = lv("L4");
+  if (house === null || !starLord || !subLord || !L1 || !L2 || !L3 || !L4) {
+    errors.push(`${ctx}.significators: alan`);
+    return null;
+  }
+  if (!L2.includes(house)) errors.push(`${ctx}.significators: L2 kendi evini içermiyor`);
+  // Küme eşitliği: Roxy bu özet listelerin SIRASINI her zaman düzey sırasıyla vermiyor (golden: Rahu [3,6,9]); içerik bağlayıcıdır.
+  const uniq = (xs: number[]) => [...new Set(xs)].sort((a, b) => a - b);
+  const sh = (arr(o?.signifiedHouses) ?? []).map((h) => int(h, 1, 12));
+  if (uniq(sh as number[]).join() !== uniq([...L1, ...L2, ...L3, ...L4]).join() || sh.length !== new Set(sh).size) errors.push(`${ctx}.significators: signifiedHouses düzeylerle uyuşmuyor`);
+  const st = (arr(o?.strongHouses) ?? []).map((h) => int(h, 1, 12));
+  if (uniq(st as number[]).join() !== uniq([...L1, ...L2]).join() || st.length !== new Set(st).size) errors.push(`${ctx}.significators: strongHouses L1∪L2 değil`);
+  const s = obj(o?.strength);
+  const score = num(s?.score, 0, 100);
+  const strength = score !== null && typeof s?.grade === "string" && typeof s?.label === "string" ? { score, grade: s.grade.slice(0, 4), label: s.label.slice(0, 30) } : null;
+  return { kp: { house, starLord, subLord, levels: { 1: L1, 2: L2, 3: L3, 4: L4 } }, strength };
+}
+
+function projectPeriod(o: Record<string, unknown> | null, ctx: string, errors: string[], withKp = false): (VedicDashaPeriod & { text: string | null; kpStrength: KpStrength | null }) | null {
   const lord = mapGraha(o?.planet);
   const start = typeof o?.startDate === "string" && LOCAL_DT_RE.test(o.startDate) ? o.startDate : null;
   const end = typeof o?.endDate === "string" && LOCAL_DT_RE.test(o.endDate) ? o.endDate : null;
@@ -458,7 +509,9 @@ function projectPeriod(o: Record<string, unknown> | null, ctx: string, errors: s
     errors.push(`${ctx}: dönem alanı`);
     return null;
   }
-  return { lord, start, end, durationYears, nominalStart, text: text(o?.interpretation) };
+  // KP katmanı istenmediyse significators alanı beklenmez (Vedik dasha'da gelirse bilinmeyen alan olarak raporlanır).
+  const k = withKp ? projectKpSig(obj(o?.significators), ctx, errors) : null;
+  return { lord, start, end, durationYears, nominalStart, text: text(o?.interpretation), kpStrength: k?.strength ?? null, ...(k ? { kp: k.kp } : {}) };
 }
 
 /** Dizi denetimi: sıra (döngü soneki), ardışıklık, kanonik süreler, üst sınırlar. */
@@ -494,7 +547,7 @@ function checkSequence(
 
 export function projectRoxyVedicDasha(
   raw: unknown,
-  opts: { ayanamsa: VedicAyanamsaId; mahadasha: VedicGrahaId | null; antardasha: VedicGrahaId | null; birthLocal: string; utcOffsetHours: number },
+  opts: { ayanamsa: VedicAyanamsaId; mahadasha: VedicGrahaId | null; antardasha: VedicGrahaId | null; birthLocal: string; utcOffsetHours: number; kp?: boolean },
 ): AdapterResult<VedicDashaTechnical, VedicDashaInterpretation> {
   const errors: string[] = [];
   const dropped: string[] = [];
@@ -507,13 +560,13 @@ export function projectRoxyVedicDasha(
   const nakIdx = moonLon === null ? 0 : Math.min(26, Math.floor(moonLon / NAK_SPAN));
   const birthLord = NAKSHATRA_LORDS[nakIdx % 9];
   const level: VedicDashaLevel = opts.antardasha ? "pratyantardasha" : opts.mahadasha ? "antardasha" : "mahadasha";
-  let parent: (VedicDashaPeriod & { text: string | null }) | null = null;
+  let parent: (VedicDashaPeriod & { text: string | null; kpStrength?: KpStrength | null }) | null = null;
   let balance: VedicDashaTechnical["balance"] = null;
-  const list: (VedicDashaPeriod & { text: string | null })[] = [];
+  const list: (VedicDashaPeriod & { text: string | null; kpStrength?: KpStrength | null })[] = [];
   const collect = (a: unknown, ctx: string, extra?: (o: Record<string, unknown>, i: number) => void) =>
     (arr(a) ?? []).forEach((x, i) => {
       const o = obj(x);
-      const p = projectPeriod(o, `${ctx}[${i}]`, errors);
+      const p = projectPeriod(o, `${ctx}[${i}]`, errors, !!opts.kp);
       if (p && o) {
         extra?.(o, i);
         list.push(p);
@@ -548,7 +601,7 @@ export function projectRoxyVedicDasha(
     const md = opts.mahadasha!;
     if (mapGraha(r.mahadashaLord) !== md) errors.push("mahadashaLord istenen değil");
     if (level === "antardasha") {
-      parent = projectPeriod(obj(r.mahadashaPeriod), "mahadashaPeriod", errors);
+      parent = projectPeriod(obj(r.mahadashaPeriod), "mahadashaPeriod", errors, !!opts.kp);
       if (parent && parent.lord !== md) errors.push("mahadashaPeriod yöneticisi istenen değil");
       collect(r.antardashas, "antardashas", (o) => {
         if (mapGraha(o.mahadashaLord) !== md) errors.push("antardashas[].mahadashaLord");
@@ -559,7 +612,7 @@ export function projectRoxyVedicDasha(
       const ad = opts.antardasha!;
       if (mapGraha(r.antardashaLord) !== ad) errors.push("antardashaLord istenen değil");
       const po = obj(r.antardashaPeriod);
-      parent = projectPeriod(po, "antardashaPeriod", errors);
+      parent = projectPeriod(po, "antardashaPeriod", errors, !!opts.kp);
       if (parent && (parent.lord !== ad || mapGraha(po?.mahadashaLord) !== md)) errors.push("antardashaPeriod yöneticileri istenen değil");
       const adFull = (VIMSHOTTARI_YEARS[md] * VIMSHOTTARI_YEARS[ad]) / 120;
       if (parent && parent.nominalStart === null && Math.abs(parent.durationYears - adFull) > DASHA_TOL) errors.push("antardashaPeriod süresi kanonik değil");
@@ -569,7 +622,8 @@ export function projectRoxyVedicDasha(
       checkSequence(list, cycleFrom(ad), (l) => (adFull * VIMSHOTTARI_YEARS[l]) / 120, parent, "pratyantardashas", errors);
     }
   }
-  const strip = (p: VedicDashaPeriod & { text: string | null }): VedicDashaPeriod => ({ lord: p.lord, start: p.start, end: p.end, durationYears: p.durationYears, nominalStart: p.nominalStart });
+  const strip = (p: VedicDashaPeriod & { text: string | null }): VedicDashaPeriod => ({ lord: p.lord, start: p.start, end: p.end, durationYears: p.durationYears, nominalStart: p.nominalStart, ...(p.kp ? { kp: p.kp } : {}) });
+  const themes = obj(r.houseThemes);
   return done(
     errors,
     dropped,
@@ -590,10 +644,16 @@ export function projectRoxyVedicDasha(
       schema: VEDIC_DASHA_INTERP_SCHEMA,
       parent: parent?.text ?? null,
       periods: list.map((p) => ({ lord: p.lord, start: p.start, text: p.text })).filter((p) => p.text),
+      ...(opts.kp
+        ? {
+            kpStrength: [...(parent ? [parent] : []), ...list].filter((p) => p.kpStrength).map((p) => ({ lord: p.lord, start: p.start, ...p.kpStrength! })),
+            houseThemes: Array.from({ length: 12 }, (_, i) => ({ house: i + 1, keywords: keywords(themes?.[String(i + 1)]) })).filter((x) => x.keywords.length > 0),
+          }
+        : {}),
     }),
     raw,
-    DASHA_KNOWN,
-    new Set(),
+    opts.kp ? DASHA_KNOWN_KP : DASHA_KNOWN,
+    opts.kp ? new Set(["houseThemes"]) : new Set(),
   );
 }
 

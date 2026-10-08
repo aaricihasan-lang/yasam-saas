@@ -33,6 +33,7 @@ import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { NAKSHATRA_LORDS, VIMSHOTTARI_YEARS, type VedicGrahaId } from "@/lib/astrology/model/vedic";
 import { SIGN_LORDS, type KpChartTechnical } from "@/lib/astrology/model/kp";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
+import { syntheticSubResponse } from "./syntheticDasha";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -480,6 +481,106 @@ async function main() {
     const hidden = JSON.stringify(((await getAnalysis(ctxOf(store, { entitlements: NO_INTERP }), (sv.body as J).analysisId, false)).body as J).analysis);
     assert.ok(!hidden.includes(theme));
     assert.equal((await getAnalysis(ctxOf(store, { tenantId: TENANT_B, userId: USER_B }), (sv.body as J).analysisId, false)).status, 404);
+  });
+
+  // ═══ 6E — KP dasha ═══════════════════════════════════════════════════════════
+  const KDM = load("kp-dasha-major");
+  const KDS = load("kp-dasha-sub-md");
+  const kpDashaProj = (g: J, md: string | null) => {
+    const def = getTechnique("kp.dasha")!;
+    const opt = def.parseOptions({ mahadasha: md }, new Date())!;
+    const u = def.units({ birth: SYNTH_A, birthUtc: SYNTH_A.utc, partner: null }, opt)[0];
+    return { u, p: def.project(u, g.response, opt) as J };
+  };
+  await t("6E golden: gövde = ürün birimi (kp-newcomb, significators:true, mean, tz doğum ofseti); projeksiyon temiz; teknik şema astro.kp.dasha.v1; güç değerlendirmesi + houseThemes YALNIZ yorumda", () => {
+    for (const [g, md] of [[KDM, null], [KDS, "moon"]] as const) {
+      const { u, p } = kpDashaProj(g, md);
+      assert.deepEqual(JSON.parse(JSON.stringify(u.body)), g.body);
+      assert.equal(u.endpoint, g.endpoint);
+      assert.equal(g.body.significators, true);
+      assert.ok(p.ok, JSON.stringify(p.errors));
+      assert.deepEqual([p.unmappedFields, p.droppedValues], [[], []]);
+      assert.equal(p.technical.schema, "astro.kp.dasha.v1");
+      assert.ok(p.technical.periods.every((x: J) => x.kp && x.kp.levels[2].includes(x.kp.house)));
+      const tj = JSON.stringify(p.technical);
+      assert.ok(!/"strength"|"score"|"grade"|moderate|strong"/.test(tj), "güç değerlendirmesi teknikte");
+      assert.ok(p.interpretation.kpStrength.length >= 9 && p.interpretation.houseThemes.length === 12);
+    }
+  });
+
+  await t("6E BAĞIMSIZ: KP dasha Ay boylamı = kp/chart Ay (aynı KP çerçevesi); doğum bakiyesi (1 − Revati oranı) × 17 y (Lahiri dasha'dan farklı: 0.8515 y ≠ 0.9747 y — ayanamsa farkı tarihleri kaydırır)", () => {
+    const moon = KC.response.planets.find((x: J) => x.planet === "Moon").longitude;
+    assert.ok(Math.abs(KDM.response.moonLongitude - moon) < 1e-3);
+    const ratio = (KDM.response.moonLongitude - 26 * (360 / 27)) / (360 / 27);
+    const p = kpDashaProj(KDM, null).p.technical;
+    assert.ok(Math.abs(p.periods[0].durationYears - (1 - ratio) * 17) < 0.003);
+    const lah = load("vedic-dasha-major").response.mahadashas[0].durationYears;
+    assert.ok(Math.abs(p.periods[0].durationYears - lah) > 0.1, "KP ve Lahiri bakiyeleri aynı olmamalı");
+  });
+
+  await t("6E BAĞIMSIZ: alt dönem tarihleri — Aşama 5.1F'de golden'lardan çıkarılan Roxy kuralı (üst dönem süresi × oran, dakikaya) KP çerçevesinde de sub/Moon golden'ını BİREBİR üretir", () => {
+    const s = syntheticSubResponse(KDM.response, "Moon", null) as J;
+    const strip = (x: J) => [x.planet, x.startDate, x.endDate, Number(x.durationYears).toFixed(9)];
+    assert.deepEqual(s.antardashas.map(strip), KDS.response.antardashas.map(strip));
+  });
+
+  await t("6E ÇAPRAZ UÇ: görünür 7 graha için dasha significator'ları = kp/chart significator'ları (düzey düzey küme); DÜĞÜMLERDE Roxy dasha ucu 'ajan' ekli liste verir, kp/chart vermez → fark kaydedilir (UI'da belirtilir)", () => {
+    const chart = kpTech().significators.planets;
+    const set = (xs: number[]) => [...new Set(xs)].sort((a, b) => a - b).join();
+    const notes: string[] = [];
+    for (const per of kpDashaProj(KDM, null).p.technical.periods as J[]) {
+      const c = chart.find((x) => x.id === per.lord)!;
+      for (const l of [1, 2, 3, 4] as const) {
+        if (per.lord === "rahu" || per.lord === "ketu") {
+          for (const h of c.levels[l]) assert.ok(per.kp.levels[l].includes(h), `${per.lord} L${l}: kp/chart evi ${h} dasha listesinde yok`);
+        } else assert.equal(set(per.kp.levels[l]), set(c.levels[l]), `${per.lord} L${l}`);
+      }
+      if (per.lord === "rahu" || per.lord === "ketu") notes.push(`${per.lord}: dasha +${[1, 2, 3, 4].map((l) => per.kp.levels[l].filter((h: number) => !c.levels[l as 1 | 2 | 3 | 4].includes(h)).join(",") || "-").join("/")}`);
+    }
+    assert.ok(notes.some((n) => /\d/.test(n.split("+")[1])), "en az bir düğümde ajan eki bekleniyordu (golden)");
+    console.log(`     düğüm farkı (dasha ⊃ kp/chart): ${notes.join(" · ")}`);
+  });
+
+  await t("6E fail-closed: L2 kendi evini içermiyor / signifiedHouses eksik-fazla / strongHouses ≠ L1∪L2 / significator alanı yok → REDDEDİLİR", () => {
+    const no = (f: (r: J) => void, why: string) => {
+      const r = structuredClone(KDM);
+      f(r.response);
+      assert.equal(kpDashaProj(r, null).p.ok, false, why);
+    };
+    no((r) => (r.mahadashas[1].significators.house = 2), "ev");
+    no((r) => r.mahadashas[1].significators.signifiedHouses.push(1), "signifiedHouses fazla");
+    no((r) => (r.mahadashas[1].significators.strongHouses = [3]), "strongHouses eksik");
+    no((r) => delete r.mahadashas[2].significators, "significators yok");
+    no((r) => (r.ayanamsaType = "lahiri"), "Lahiri yankısı");
+  });
+
+  await t("6E motor: kp.dasha ve vedic.dasha AYNI yol için ayrı anahtar (ayanamsa + significators gövdede); Lahiri reddedilir; tembel alt düzey; tekrar 0; konular kp_dasha_* (kp geleneği)", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profile(ctx);
+    const calls: string[] = [];
+    const deps: EngineDeps = {
+      config: { apiKey: "k-test-6e", baseUrl: "https://roxy-fake.local/api/v2" },
+      callProvider: async (_c, endpoint, body) => {
+        calls.push(`${endpoint}:${String(body.ayanamsa)}:${String(body.significators ?? false)}`);
+        if (body.significators && endpoint === KDM.endpoint) return { ok: true, raw: structuredClone(KDM.response), attempts: 1 };
+        if (body.significators && endpoint === KDS.endpoint) return { ok: true, raw: structuredClone(KDS.response), attempts: 1 };
+        if (!body.significators && endpoint === "/vedic-astrology/dasha/major") return { ok: true, raw: structuredClone(load("vedic-dasha-major").response), attempts: 1 };
+        return { ok: false, kind: "bad_request", status: 400, attempts: 1 };
+      },
+      rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
+    };
+    const b = (await run(ctx, pa, [{ technique: "kp.dasha", options: {} }, { technique: "vedic.dasha", options: {} }], deps)).body as J;
+    assert.ok(b.results.every((x: J) => x.ok), JSON.stringify(b).slice(0, 300));
+    assert.deepEqual(calls.sort(), ["/vedic-astrology/dasha/major:kp-newcomb:true", "/vedic-astrology/dasha/major:lahiri:false"]);
+    await run(ctx, pa, [{ technique: "kp.dasha", options: { mahadasha: "moon" } }], deps);
+    assert.equal(calls.length, 3);
+    await run(ctx, pa, [{ technique: "kp.dasha", options: {} }, { technique: "kp.dasha", options: { mahadasha: "moon" } }], deps);
+    assert.equal(calls.length, 3, "tekrar");
+    assert.equal(getTechnique("kp.dasha")!.parseOptions({ ayanamsa: "lahiri" }, new Date()), null);
+    const keys = topicsForTechnique("kp.dasha", kpDashaProj(KDS, "moon").p.technical).map((x) => x.key);
+    assert.ok(keys.includes("kp_dasha_lord:rahu") && keys.includes("kp_dasha_signifies:rahu:11"));
+    for (const k of keys) assert.ok(traditionOfKey(k) === "kp" && isSectionKeyForTechnique("kp.dasha", k) && !isSectionKeyForTechnique("vedic.dasha", k) && !isSectionKeyForTechnique("kp.chart", k), k);
   });
 
   console.log(`\nastrology phase6 harness: ${pass} PASS / ${fail} FAIL`);

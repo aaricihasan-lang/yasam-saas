@@ -170,6 +170,11 @@ export type VedicDashaPeriod = {
   durationYears: number;
   /** Doğumla kesilmiş dönemin teorik başlangıcı (yalnız kesilmişse). */
   nominalStart: string | null;
+  /**
+   * Aşama 6E — yalnız KP dasha'da (significators:true): dönem lordunun KP significator'ları (Roxy). Placidus evi, star / sub lord,
+   * L1–L4 evleri. Roxy dasha ucu Rahu/Ketu'ya "ajan" eki uygular (kp/chart ucundan FARKLI) — görünümde belirtilir.
+   */
+  kp?: { house: number; starLord: VedicGrahaId; subLord: VedicGrahaId; levels: Record<1 | 2 | 3 | 4, number[]> };
 };
 export type VedicDashaTechnical = {
   schema: typeof VEDIC_DASHA_TECHNICAL_SCHEMA;
@@ -188,7 +193,17 @@ export type VedicDashaTechnical = {
   periods: VedicDashaPeriod[];
 };
 export const VEDIC_DASHA_INTERP_SCHEMA = "astro.vedic.dasha.interp.v1" as const;
-export type VedicDashaInterpretation = { schema: typeof VEDIC_DASHA_INTERP_SCHEMA; parent: string | null; periods: { lord: VedicGrahaId; start: string; text: string | null }[] };
+export type VedicDashaInterpretation = {
+  schema: typeof VEDIC_DASHA_INTERP_SCHEMA;
+  parent: string | null;
+  periods: { lord: VedicGrahaId; start: string; text: string | null }[];
+  /** 6E: Roxy'nin KP dönem gücü değerlendirmesi (puan/derece/etiket; yöntemi belgelenmemiş → yorum katmanı). */
+  kpStrength?: { lord: VedicGrahaId; start: string; score: number; grade: string; label: string }[];
+  /** 6E: Roxy houseThemes (ev anahtar kelimeleri, anlatı). */
+  houseThemes?: { house: number; keywords: string[] }[];
+};
+/** 6E: KP dasha teknik şeması (Vimshottari tarihleri + dönem lordlarının KP significator'ları). */
+export const KP_DASHA_TECHNICAL_SCHEMA = "astro.kp.dasha.v1" as const;
 
 // ─── 5F: Graha Drishti · Ashtakavarga · Shadbala · Panchanga ─────────────────
 /** Roxy /aspects ve /panchang uçları ayanamsa ALMAZ (Lahiri sabit) → yalnız Lahiri seçiliyken çalışır. */

@@ -102,6 +102,7 @@ import {
 import { kpChartBody, KP_AYANAMSAS, vedicBirthBody, vedicTransitBody, VEDIC_AYANAMSAS, type KpAyanamsa, type KpNodeType, type VedicAyanamsa } from "../providers/roxy/requests";
 import { projectRoxyKpChart, ROXY_KP_CHART } from "../providers/roxy/kp";
 import { KP_CHART_INTERP_SCHEMA, KP_CHART_TECHNICAL_SCHEMA } from "../model/kp";
+import { KP_DASHA_TECHNICAL_SCHEMA } from "../model/vedic";
 import {
   VEDIC_ASHTAKAVARGA_TECHNICAL_SCHEMA,
   VEDIC_DRISHTI_TECHNICAL_SCHEMA,
@@ -150,6 +151,7 @@ export const TECHNIQUE_IDS = [
   "vedic.panchanga",
   "vedic.transit",
   "kp.chart",
+  "kp.dasha",
 ] as const;
 export type TechniqueId = (typeof TECHNIQUE_IDS)[number];
 
@@ -852,6 +854,45 @@ const kpChart: TechniqueDefinition = {
   },
 };
 
+// 6E: KP dasha = Roxy Vimshottari (KP ayanamsa) + dönem lordlarının KP significator katmanı (significators:true). Tarihler klasik
+// Vimshottari ile aynı motor; bu bir "KP olay tahmini" DEĞİLDİR (Roxy'de olay zamanlama ucu yok). Alt düzeyler tembel (vedic.dasha gibi).
+const kpDasha: TechniqueDefinition = {
+  id: "kp.dasha",
+  label: "KP dasha (Vimshottari + significator)",
+  family: "kp",
+  requiresPartner: false,
+  requiresKnownTime: true,
+  timeDependent: false,
+  parseOptions: (raw) => {
+    const ay = kpAyanamsaOf(o(raw).ayanamsa);
+    const nt = kpNodeOf(o(raw).nodeType);
+    const md = dashaLordOf(o(raw).mahadasha);
+    const ad = dashaLordOf(o(raw).antardasha);
+    if (!ay || !nt || md === undefined || ad === undefined || (ad && !md)) return null;
+    return { ayanamsa: ay, nodeType: nt, mahadasha: md, antardasha: ad };
+  },
+  units: (ctx, opt) => {
+    const md = (opt.mahadasha as VedicGrahaId | null) ?? null;
+    const ad = (opt.antardasha as VedicGrahaId | null) ?? null;
+    const body = { ...vedicBirthBody(ctx.birth, opt.ayanamsa as KpAyanamsa), significators: true, nodeType: opt.nodeType };
+    return [unit("kp.dasha", { endpoint: dashaEndpoint(md, ad), adapter: "astro-roxy-kp-dasha-1" }, body)];
+  },
+  noteContext: (opt) => `ayanamsa:${String(opt.ayanamsa)}|nodeType:${String(opt.nodeType)}${opt.mahadasha ? `|mahadasha:${String(opt.mahadasha)}` : ""}${opt.antardasha ? `|antardasha:${String(opt.antardasha)}` : ""}`,
+  project: (u, raw, opt) => {
+    const b = u.body as { date: string; time: string; timezone: number };
+    const r = projectRoxyVedicDasha(raw, {
+      ayanamsa: opt.ayanamsa as KpAyanamsa,
+      mahadasha: (opt.mahadasha as VedicGrahaId | null) ?? null,
+      antardasha: (opt.antardasha as VedicGrahaId | null) ?? null,
+      birthLocal: `${b.date}T${/^\d{2}:\d{2}$/.test(b.time) ? `${b.time}:00` : b.time}`,
+      utcOffsetHours: b.timezone,
+      kp: true,
+    });
+    if (!r.ok) return r;
+    return fromAdapter({ ...r, technical: { ...r.technical, schema: KP_DASHA_TECHNICAL_SCHEMA } }, KP_DASHA_TECHNICAL_SCHEMA, VEDIC_DASHA_INTERP_SCHEMA, "kp-dasha-proj-1");
+  },
+};
+
 const vedicAshtakavarga = vedicBirthTechnique("vedic.ashtakavarga", "Ashtakavarga", ROXY_VEDIC_ASHTAKAVARGA, (raw, ay) => projectRoxyVedicAshtakavarga(raw, { ayanamsa: ay }), {
   technical: VEDIC_ASHTAKAVARGA_TECHNICAL_SCHEMA,
   interp: null,
@@ -883,6 +924,7 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "vedic.panchanga": vedicPanchanga,
   "vedic.transit": vedicTransit,
   "kp.chart": kpChart,
+  "kp.dasha": kpDasha,
 });
 
 export function getTechnique(id: unknown): TechniqueDefinition | null {
