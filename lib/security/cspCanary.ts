@@ -6,11 +6,13 @@
  *     aynı koşulu `has` ile uygular → canary olmayan istekler proxy'ye HİÇ girmez).
  *   - İstek başına kriptografik rastgele nonce üretir (16 bayt, Web Crypto). Nonce loglanmaz,
  *     saklanmaz, kullanıcı bilgisi içermez.
- *   - Nonce'ı istek başlığındaki `content-security-policy-report-only` ile Next'e aktarır:
- *     Next 16 nonce'ı `content-security-policy || content-security-policy-report-only` istek
- *     başlığından çıkarır (next/dist/server/app-render/app-render.js) ve kendi script'lerine
- *     uygular. İstemcinin gönderebileceği `content-security-policy` istek başlığı silinir
- *     (aksi halde Next onu önceliklendirirdi).
+ *   - Nonce'ı Next'e İSTEK başlığı `content-security-policy` ile aktarır (Next CSP rehberinin
+ *     resmi yolu). Next 16 nonce'ı bu istek başlığından çıkarır (next/dist/server/app-render/
+ *     app-render.js) ve kendi script'lerine uygular. İstek başlığı tarayıcıda HİÇBİR ŞEY
+ *     uygulatmaz (yalnız Next'e girdi); tarayıcı yalnız yanıt başlıklarını uygular. İstemcinin
+ *     gönderebileceği aynı adlı istek başlığı ezilir.
+ *     NOT: `content-security-policy-report-only` istek başlığı yerel `next start`'ta çalışır
+ *     ancak Vercel'de render'a ulaşmadı (preview'da nonce 0/16) → resmi yol kullanılır.
  *   - Yanıta `Content-Security-Policy-Report-Only` ekler (raporlar `report-uri` ile).
  *     Statik ZORUNLU `Content-Security-Policy` (next.config.ts headers()) DOKUNULMADAN kalır.
  *   - FAIL-OPEN: herhangi bir hata → düz `NextResponse.next()` (zorunlu CSP yine yanıtta).
@@ -67,8 +69,8 @@ export function withCspCanary(request: NextRequest, deps: CspCanaryDeps = {}): N
     const policy = buildNonceReportOnlyCsp(nonce, { isDev: env.NODE_ENV === "development" });
 
     const requestHeaders = new Headers(request.headers);
-    requestHeaders.delete("content-security-policy");
-    requestHeaders.set("content-security-policy-report-only", policy);
+    requestHeaders.delete("content-security-policy-report-only");
+    requestHeaders.set("content-security-policy", policy);
 
     const response = NextResponse.next({ request: { headers: requestHeaders } });
     response.headers.set("Content-Security-Policy-Report-Only", policy);

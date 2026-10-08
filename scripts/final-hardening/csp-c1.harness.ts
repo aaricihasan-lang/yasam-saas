@@ -158,17 +158,19 @@ async function main() {
     assert.ok(isPlainNext(proxy(req("/numeroloji", { cookies: { [CSP_CANARY_COOKIE]: "0" } }))));
   });
   await t("canary: Report-Only yanıt + istek başlığı (Next nonce kaynağı)", () => {
-    const res = proxy(req("/", { cookies: CANARY, headers: { "content-security-policy": "script-src 'nonce-EVILEVILEVILEVIL'" } }));
+    const res = proxy(req("/", { cookies: CANARY, headers: { "content-security-policy": "script-src 'nonce-EVILEVILEVILEVIL'", "content-security-policy-report-only": "script-src 'nonce-EVIL2EVIL2EVIL2EV'" } }));
     const ro = res.headers.get("Content-Security-Policy-Report-Only");
     const n = nonceOf(ro);
     assert.ok(n && CSP_NONCE_RE.test(n));
     assert.match(ro!, /'strict-dynamic'/);
     // NextResponse.next({ request: { headers } }) → x-middleware-request-* aktarımı
-    assert.equal(res.headers.get("x-middleware-request-content-security-policy-report-only"), ro);
+    // Next'e nonce kaynağı: İSTEK başlığı content-security-policy (resmi yol); istemci değerleri ezilir/silinir
+    assert.equal(res.headers.get("x-middleware-request-content-security-policy"), ro);
     const override = (res.headers.get("x-middleware-override-headers") ?? "").split(",");
-    assert.ok(override.includes("content-security-policy-report-only"));
-    assert.ok(!override.includes("content-security-policy"), "istemci CSP istek başlığı silinmeli");
-    assert.equal(res.headers.get("x-middleware-request-content-security-policy"), null);
+    assert.ok(override.includes("content-security-policy"));
+    assert.ok(!override.includes("content-security-policy-report-only"), "istemci RO istek başlığı silinmeli");
+    assert.equal(res.headers.get("x-middleware-request-content-security-policy-report-only"), null);
+    assert.ok(!ro!.includes("EVIL"));
     assert.equal(res.headers.get("Reporting-Endpoints"), null);
     // zorunlu CSP proxy'de set EDİLMEZ (next.config statik başlığı aynen kalır)
     assert.equal(res.headers.get("Content-Security-Policy"), null);
