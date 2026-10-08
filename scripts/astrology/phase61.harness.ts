@@ -17,6 +17,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SYNTH_A } from "./golden/phase3-golden-calls";
 import { getTechnique } from "@/lib/astrology/engine/techniques";
+import { isSectionKeyForTechnique, topicsForTechnique, traditionOfKey } from "@/lib/astrology/topics/index";
 import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, SIGN_LORDS, isKpNode } from "@/lib/astrology/model/kp";
 import type { VedicGrahaId } from "@/lib/astrology/model/vedic";
 import type { SignId } from "@/lib/astrology/model/western";
@@ -296,6 +297,22 @@ async function main() {
     const d = asSaved("kp.dasha", dashaT);
     // renderToStaticMarkup kesme işaretini &#x27; olarak kaçışlar.
     assert.ok(d.includes(KP_NODE_SIG_METHODS.agent.status.replace(/'/g, "&#x27;")) && d.includes("kısmen belirsiz"));
+  });
+
+  // ═══ 6.1D — Bilgi Bankası ayrımı (düğüm listeleri farklı türlerde; Vedik'e karışmaz) ═══
+  await t("6.1D KB: haritada kp_significator:<düğüm>:<ev> YALNIZ sade evlerden; dasha'da kp_dasha_signifies ajan ekli evlerden; türler ve bölümler ayrı; hepsi 'kp' geleneği", () => {
+    const keys = (tech: string, tt: unknown) => topicsForTechnique(tech, tt).map((x) => x.key);
+    const ck = keys("kp.chart", chartT);
+    const dk = keys("kp.dasha", dashaT);
+    const nodeHouses = (ks: string[], kind: string, node: string) => ks.filter((k) => k.startsWith(`${kind}:${node}:`)).map((k) => Number(k.split(":")[2])).sort((a, b) => a - b);
+    for (const n of ["rahu", "ketu"] as const) {
+      assert.deepEqual(nodeHouses(ck, "kp_significator", n), flat(plain(NATAL, n)).sort((a, b) => a - b), `harita ${n}`);
+      assert.deepEqual(nodeHouses(dk, "kp_dasha_signifies", n), flat(agent(NATAL, n)).sort((a, b) => a - b), `dasha ${n}`);
+    }
+    assert.ok(!ck.some((k) => k.startsWith("kp_dasha_")) && !dk.some((k) => k.startsWith("kp_significator:")));
+    for (const k of [...ck, ...dk]) assert.equal(traditionOfKey(k), "kp");
+    assert.ok(!isSectionKeyForTechnique("kp.chart", "kp_dasha_signifies:rahu:9") && !isSectionKeyForTechnique("kp.dasha", "kp_significator:rahu:3"));
+    assert.ok(!isSectionKeyForTechnique("vedic.dasha", "kp_dasha_signifies:rahu:9") && !isSectionKeyForTechnique("kp.dasha", "dasha_mahadasha:rahu") && isSectionKeyForTechnique("vedic.dasha", "dasha_mahadasha:rahu"));
   });
 
   console.log(`\nastrology phase6.1 harness: ${pass} PASS / ${fail} FAIL`);

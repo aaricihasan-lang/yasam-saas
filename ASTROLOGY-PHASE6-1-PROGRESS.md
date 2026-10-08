@@ -11,10 +11,10 @@
 | Alt aşama | Durum | Commit |
 |---|---|---|
 | 6.1A Rahu/Ketu yöntem denetimi | ✅ rapor + etiketler + test | 6c14d434 |
-| 6.1B Dasha "bugün" rozeti | ✅ düzeltildi + tarayıcı 390/768/1440 | (6.1B/C commit) |
-| 6.1C KP sınırlarının sunumu | ✅ | (6.1B/C commit) |
-| 6.1D Regresyon | ⏳ | — |
-| 6.1E Güvenlik ve kapanış | ⏳ | — |
+| 6.1B Dasha "bugün" rozeti | ✅ düzeltildi + tarayıcı 390/768/1440 | d56a1fb0 |
+| 6.1C KP sınırlarının sunumu | ✅ | d56a1fb0 |
+| 6.1D Regresyon | ✅ | (6.1D/E commit) |
+| 6.1E Güvenlik ve kapanış | ✅ | (6.1D/E commit) |
 
 ## 6.1A
 
@@ -55,3 +55,43 @@ Roxy düğüm significator'larında üç kural uyguluyor; bunlar golden'larla ba
   - Roxy "dönem gücü" bloğu: başlık "lordun gösterdiği evlere bağ derecesi; olay olasılığı veya olumluluk DEĞİLDİR"; İngilizce `strong` vb. → "güçlü bağ" vb. Yalnız yorum katmanında.
 - **Rahu/Ketu:** belirsiz yöntemler "doğrulandı" diye sunulmuyor. Ruling satırında "Belgelenmemiş; tek örnek", ajan kuralında "kısmen belirsiz" metni görünür (test).
 - Test: `phase61.harness.ts` 17/17 (6.1A 10, 6.1B 3, 6.1C 4).
+
+## 6.1D — Regresyon
+
+- **Yeni KB ayrımı testi:**
+  - Haritada `kp_significator:<düğüm>:<ev>` yalnız sade evlerden üretiliyor; dasha'da `kp_dasha_signifies:<düğüm>:<ev>` ajan ekli evlerden. Türler ve bölümler ayrı.
+  - Vedik `dasha_mahadasha:*` KP dasha'ya karışmıyor, KP anahtarı Vedik dasha'ya karışmıyor.
+  - Toplam: `phase61` **18/18**.
+- **Astroloji tamamı:** 39 / 21 / 17 / 37 / 20 / 15 / 33 / 26 / **19** (15 varga golden) / 36 / **18** / 10 + PostgreSQL migration kontrolü geçti.
+  - tsc 0, eslint 0, next build başarılı.
+- **Mutasyon:**
+  - Yeni `mutate61.cjs`: **17/17** (yanlış yöntem etiketi ×3, belirsizlik metni ×2, etiketin kaldırılması / yanlış satıra basılması ×4, horary "+" eki, rozet eski konum / hizalama / gizleme ×3, olay uyarısı, KISMİ bandı, güç etiketi ×2).
+  - Önceki: mutate5 14/14 · mutate51 (B2 hariç) 22/22 · mutate52 18/18 · mutate6 19/20 (kalan K2 eşdeğer, Aşama 6'dan beri aynı).
+- **Astroloji dışı regresyon:** HD Roxy 220/0, HD info-panel 65/0, output-visibility 205/0, infra 43/0, admin-hygiene 55/0.
+  - Önceden var olan başarısızlıklar değişmedi: backup 53/1, faz1-p3 94/4.
+
+## 6.1E — Güvenlik ve kapanış
+
+- **Kapsam:** Bu aşamadaki değişiklikler yalnız arayüz etiketi/metni ve test.
+  - Teknik şema, adaptör, önbellek anahtarı ve anlık görüntü değişmedi.
+  - Eski kayıtlı analizler etiketleri teknik adından türetilmiş olarak gösterir. Yeniden açılış 0 istek (phase6 6I; routes KP HTTP testi).
+- **Güvenlik testleri (paketin parçası, hepsi geçti):**
+  - Owner-only 404 ve tenant 404.
+  - Önizlemede houseThemes, kpStrength, ham yanıt ve anahtar yok.
+  - Yorum yetkisi kapısı.
+  - Önbellek ayrımı (KP ↔ Vedik dasha aynı yol, ayrı anahtar).
+  - Bozuk yanıtta fail-closed (phase6, 20 vakadan fazla).
+- **İstemci paketi taraması:**
+  - raw_response, ROXY_API_KEY, astro_analyses, calcInputHash, input_hash ve sahte anahtar: 0.
+  - Tema içeriği: 0.
+- **Tarayıcı (son derleme, 390 px):** 5 KP sekmesinde yatay taşma 0, taşan etiket 0.
+  - Düğüm etiketleri: harita 2, dasha 2, ruling 1, horary 2; transit 0.
+  - Ruling ekranı masaüstü görüntüsüyle incelendi.
+- **Gerçek Roxy çağrısı:** 0 yeni (toplam **44**).
+- **Bulgular:** P0 = 0 · P1 = 0 · P2 = 0. P3:
+  - Roxy düğüm yöntemi tutarsızlığı devam ediyor (sağlayıcı kaynaklı; etiketli, güvenli).
+  - Ruling Ketu sıra kuralı açıklanamadı.
+  - Ajan "bakış" kapsamı kısmen belirsiz.
+- **Kalan doğrulanmamış konular:** rapor §5. Gidermek için en fazla 3 yeni sentetik golden gerekir; owner onayı olmadan yapılmadı.
+
+**Aşama 6.1 yerel olarak mühürlendi.** Push / preview / merge / production / migration YOK. DUR.
