@@ -34,7 +34,7 @@ import { vedicTransitBody, vedicTransitLocal } from "@/lib/astrology/providers/r
 import { projectRoxyTransit } from "@/lib/astrology/providers/roxy/timing";
 import { maskTechnical } from "@/lib/astrology/view/techniqueView";
 import { SIGN_IDS, type SignId } from "@/lib/astrology/model/western";
-import { KAKSHA_LORDS, VEDIC_VARGA_DIVISIONS, type VedicTransitTechnical, type VedicVargaTechnical } from "@/lib/astrology/model/vedic";
+import { KAKSHA_LORDS, VEDIC_VARGA_DIVISIONS, type VedicDrishtiTechnical, type VedicTransitTechnical, type VedicVargaTechnical } from "@/lib/astrology/model/vedic";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,6 +46,7 @@ const GT = load("vedic-transit");
 const D1 = load("vedic-d1");
 const FK = load("vedic-ashtakavarga");
 const WT = load("transit");
+const D30M = load("vedic-d30");
 
 let pass = 0;
 let fail = 0;
@@ -86,6 +87,7 @@ function roxy(opts: { mutate?: (endpoint: string, r: J, body: Record<string, unk
         r = structuredClone(GT.response);
         r.transitDatetime = `${String(body.transitDate)}T${String(body.transitTime)}`;
       } else if (endpoint === WT.endpoint) r = structuredClone(WT.response);
+      else if (endpoint === D30M.endpoint && body.division === 30) r = structuredClone(D30M.response);
       else return { ok: false, kind: "bad_request", status: 400, attempts: 1 };
       opts.mutate?.(endpoint, r, body);
       return { ok: true, raw: r, attempts: 1 };
@@ -244,11 +246,12 @@ async function main() {
     no((r) => (r.transitDatetime = "2026-10-07T09:00:00"), "transit anı yankısı");
     no((r) => (r.birthDatetime = "1990-07-15T11:30:00"), "doğum anı yankısı");
     no((r) => (r.frame = { ayanamsa: "tropical", ayanamsaDegrees: 0 }), "tropikal çerçeve");
-    no((r) => (r.transitingPlanets[6].natalHouse = 7), "natalHouse");
-    no((r) => (r.transitingPlanets[6].houseFromMoon = 2), "houseFromMoon");
+    // Güneş (hızlı graha): keyTransits yansıma denetimi devreye girmez → yalnız hedef denetim sınanır.
+    no((r) => (r.transitingPlanets[0].natalHouse = 11), "natalHouse");
+    no((r) => (r.transitingPlanets[0].houseFromMoon = 6), "houseFromMoon");
     no((r) => (r.transitingPlanets[0].sign = "Libra"), "rashi ↔ boylam");
     no((r) => (r.natalPlanets[0].house = 10), "natal ev ↔ tek Lagna");
-    no((r) => (r.transitingPlanets[4].drishtiToNatal = r.transitingPlanets[4].drishtiToNatal.slice(1)), "eksik drishti");
+    no((r) => (r.transitingPlanets[0].drishtiToNatal = []), "eksik drishti (yalnız tamlık denetimi)");
     no((r) => r.transitingPlanets[7].drishtiToNatal.push({ natalPlanet: "Moon", aspectType: "7th", strength: 100, orb: 1 }), "Rahu drishtisi");
     no((r) => (r.transitingPlanets[2].drishtiToNatal[0].aspectType = "8th"), "drishti türü ↔ burç sayımı");
     no((r) => (r.transitingPlanets[0].drishtiToNatal[0].orb = 1.5), "orb ↔ burç-içi fark");
@@ -477,8 +480,12 @@ async function main() {
   await t("5.1C yerelleştirme uygulayıcısı (sahte DOM): yalnız metin düğümü verisi değişir (Lit işaretçi yorumları korunur); kalabalık hücre (Kuzey/Doğu ≥3, Güney ≥5) küçülür + kayar; Lagna yazımı", () => {
     type N = { nodeType: number; data?: string };
     const mkText = (data: string): N => ({ nodeType: 3, data });
+    const linkKids = (o: J): J => {
+      for (const k of o.childNodes) k.parentNode = o;
+      return o;
+    };
     const marker = (): N => ({ nodeType: 8, data: "lit-part" });
-    const el = (cls: string, kids: J[]): J => ({ cls, childNodes: kids, style: { fontSize: "", transform: "", textTransform: "", letterSpacing: "" }, querySelector: (s: string) => (s === "title" ? kids.find((k) => k.cls === "title") ?? null : null) });
+    const el = (cls: string, kids: J[]): J => linkKids({ cls, childNodes: kids, style: { fontSize: "", transform: "", textTransform: "", letterSpacing: "" }, querySelector: (s: string) => (s === "title" ? kids.find((k) => k.cls === "title") ?? null : null) });
     const planet = (label: string, title: string) => el("planet-text", [marker(), mkText(label), marker(), el("title", [marker(), mkText(title), marker()])]);
     const cellA = { cls: "cell", kids: [planet("Su 28°", "Sun · 28°59' Gemini · Punarvasu pada 3"), planet("Ju 28°ᶜ", "Jupiter · x"), planet("Ve 0°", "Venus · x")] };
     const cellB = { cls: "cell", kids: [planet("Ma 8°", "Mars · x")] };
@@ -534,6 +541,11 @@ async function main() {
       assert.equal(drishti(r).ok, false, why);
     };
     no((r) => (r.aspects = r.aspects.filter((a: J) => !(a.aspectingPlanet === "Venus" && a.aspectedPlanet === "Saturn"))), "eksik bakış (geniş orb)");
+    // Karşılıklı olmayan + tablodan da çıkarılmış bakış: yalnız bütün-burç tamlık denetimi yakalar.
+    no((r) => {
+      r.aspects = r.aspects.filter((a: J) => !(a.aspectingPlanet === "Mars" && a.aspectedPlanet === "Mercury"));
+      for (const row of r.aspectTable) row.aspects = row.aspects.filter((x: J) => !(row.planet === "Mars" && x.planet === "Mercury"));
+    }, "eksik bakış (tablo ile tutarlı)");
     no((r) => r.aspects.push({ aspectingPlanet: "Rahu", aspectedPlanet: "Mercury", aspectType: "7th", strength: 100, orb: 1.38 }), "Rahu bakışı");
     no((r) => (r.aspects[0].strength = 75), "kısmi güç");
     no((r) => (r.aspects[1].aspectType = "8th"), "tür ↔ burç sayımı");
@@ -654,6 +666,40 @@ async function main() {
     assert.equal(currentDashaIndex(pd, edge), 4, "sınır anı bir sonraki dönem");
     assert.equal(currentDashaIndex(pd, edge - 1), 3);
     assert.equal(dashaTopicKey(pd, "mercury"), "dasha_pratyantardasha:moon:rahu:mercury");
+  });
+
+  // ═══ 5.1G — Bilgi Bankası + kayıtlı analiz uyumu ════════════════════════════
+  await t("5.1G kayıtlı D30 analizi: 0 istekle açılır; snapshot teknik verisinden BPHS denetimi aynı sonucu verir (match + golden teyitli); varga notu bölüm bağlamında; D30 KB konusu D9/D1'e karışmaz", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profile(ctx);
+    const rx = roxy();
+    const V30 = { technique: "vedic.varga", options: { division: 30 } };
+    const b = (await run(ctx, pa, [V30], rx.deps)).body as J;
+    assert.ok(b.results[0].ok, JSON.stringify(b).slice(0, 300));
+    await createKb(ctx, { tradition: "vedic", topicKey: "varga_graha_in_rashi:d30:sun:libra", title: "D30 Güneş Terazi notum", body: "kb" });
+    await createKb(ctx, { tradition: "vedic", topicKey: "navamsa_graha_in_rashi:sun:gemini", title: "D9 kaydı (karışmamalı)", body: "kb" });
+    const ws = (await getWorkspace(ctx, { profileId: pa, revision: 1, ...V30 })).body as J;
+    assert.equal(ws.noteContext, "ayanamsa:lahiri|division:30");
+    assert.deepEqual(ws.kbMatches.map((e: J) => e.title), ["D30 Güneş Terazi notum"]);
+    const nr = await saveExpertNote(ctx, { profileId: pa, technique: "vedic.varga", sectionKey: "varga_graha_in_rashi:d30:sun:libra", expectedRevision: null, noteContext: "ayanamsa:lahiri|division:30", body: "D30 notu" });
+    assert.equal(nr.status, 201, JSON.stringify(nr.body));
+    const sv = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...V30, includeProviderInterp: false, saveRequestId: randomUUID() }, false);
+    assert.equal(sv.status, 201, JSON.stringify(sv.body));
+    const n = rx.calls.length;
+    const a = ((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis;
+    assert.equal(rx.calls.length, n);
+    const techSnap = (a.result?.technical ?? a.technical ?? a.view?.technical) as VedicVargaTechnical;
+    assert.ok(techSnap && techSnap.division.number === 30, JSON.stringify(Object.keys(a)));
+    const c = vargaCheckOf(techSnap);
+    assert.deepEqual([c.status, c.checked, c.goldenConfirmed], ["match", 10, true]);
+    assert.ok(JSON.stringify(a).includes("D30 notu") && JSON.stringify(a).includes("D30 Güneş Terazi notum") && !JSON.stringify(a).includes("D9 kaydı"));
+  });
+
+  await t("5.1G geriye uyum: Aşama 5 'degree_orb' etiketli eski drishti kaydı tipte geçerli ve görünüm yöntemi metinden değil sabit doğru açıklamadan alır; eski Gochara'sız kayıtlar etkilenmez", () => {
+    const old = { ...(drishti().technical as J), method: "degree_orb" } as VedicDrishtiTechnical;
+    assert.ok(old.aspects.length === 9);
+    assert.deepEqual(topicsForTechnique("vedic.drishti", old).map((x) => x.key), topicsForTechnique("vedic.drishti", drishti().technical).map((x) => x.key));
   });
 
   console.log(`\nastrology phase51 harness: ${pass} PASS / ${fail} FAIL`);

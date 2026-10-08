@@ -15,8 +15,8 @@
 | 5.1C Kuzey/Güney/Doğu görsel denetim | ✅ tamam | 6f1bc0aa (+ 5.1F tablo düzeni) |
 | 5.1D Türkçe gezegen etiketleri | ✅ tamam | 6f1bc0aa |
 | 5.1E Graha Drishti yöntem denetimi | ✅ tamam | 6f1bc0aa |
-| 5.1F Dasha alt düzey testleri | ✅ tamam | (5.1F commit) |
-| 5.1G KB/kayıtlı analiz/güvenlik/regresyon/mutasyon + nihai rapor | ⏳ | — |
+| 5.1F Dasha alt düzey testleri | ✅ tamam | d7d112d2 |
+| 5.1G KB/kayıtlı analiz/güvenlik/regresyon/mutasyon + nihai rapor | ✅ tamam — YEREL MÜHÜR | (5.1G commit) |
 
 ## Gerçek Roxy çağrı kaydı
 
@@ -174,6 +174,61 @@ Kalan görsel sınır (P3): kütüphane 4+ grahalı küçük üçgenlerde dar ka
 ### 5.1F testler
 - phase51 +4 (24/24). Tüm astroloji: 39/19/17/37/20/15/33/**24**/10 + PG PASS · tsc 0 · eslint 0.
 
+## 5.1G — KB / kayıtlı analiz / güvenlik / regresyon / mutasyon
+
+- Rota (HTTP) düzeyi yeni test: owner olmayan (admin2, uzman, demo, sahte kimlik) Vedik seçimlerde de tek tip 404, Roxy çağrısı 0;
+  owner Gochara + D30 + Drishti önizlemesinde anlatı / Batı sözlüğü / ham alan / input_hash / anahtar YOK; tekrar 0; kayıtlı Gochara
+  0 istekle açılır, admin2 404. routes 20/20.
+- Kayıtlı D30 analizi: 0 istek; snapshot teknik verisinden BPHS denetimi aynı sonucu verir; `ayanamsa:lahiri|division:30` not bağlamı;
+  D30 KB konusu D9'a karışmaz. Eski (Aşama 5) "degree_orb" etiketli drishti kayıtları geçerli kalır (görünüm sabit doğru açıklama).
+- Mutasyon: `mutate51.cjs` **23/23** (ilk turda 17/23 → 5 test hedefi izole edecek biçimde güçlendirildi, 1 eşdeğer mutant
+  anlamlı olanla değiştirildi). Aşama 5 setleri `mutate5` 14/14 + `mutate5f` 7/7 hâlâ yakalanıyor → toplam **44/44**.
+- Regresyon: astroloji 39/**20**/17/37/20/15/33/**26**/10 + PG PASS; HD Roxy 220/0, HD info-panel 65/0, HD izolasyon 21/0, HD
+  tenant-scope 21/0, output-visibility 205/0, infra 43/0, admin-hygiene 55/0. Önceden var olan, astroloji dışı: backup 53/1
+  (schema.generated YH drift), faz1-p3 94/4 (session-security RPC + route envanteri) — Aşama 5 raporundakiyle AYNI, değişmedi.
+- tsc 0 · eslint 0 · next build OK · bundle taraması (raw_response, ROXY_API_KEY, astro_analyses, calcInputHash, input_hash,
+  aspectsToNatal, Gochara/D30 anlatıları) = 0.
+
+---
+
+# AŞAMA 5.1 — NİHAİ RAPOR (2026-10-08)
+
+**Durum: YEREL MÜHÜR (P0 = 0 · P1 = 0 · P2 = 0).** Doğrulanmamış kısımlar aşağıda açıkça listelenmiştir; doğrulanmış gibi
+gösterilmez (arayüzde de işaretli).
+
+1. **SHA:** başlangıç `f132a624` → 5.1A `b1ea6f16` · 5.1B `004a897d` · 5.1C–E `6f1bc0aa` · 5.1F `d7d112d2` · 5.1G = bu commit.
+2. **Alt aşamalar:** A Gochara ✅ · B D2–D60 BPHS denetimi ✅ · C üç düzen görsel denetimi ✅ · D Türkçe etiketler ✅ · E Drishti yöntemi ✅ ·
+   F Dasha alt düzeyleri ✅ · G uyum/güvenlik/mutasyon/regresyon ✅.
+3. **Vedik Transit:** Roxy `/vedic-astrology/transit` var; ayanamsa almaz (Lahiri sabit) → yalnız Lahiri; tek timezone alanı → transit
+   anı doğum ofsetinde yerel saate çevrilir; Janma Rashi'den + Lagna'dan ev, bütün-burç drishti, Gochara Kaksha. Batı sözlüğü
+   (aspectsToNatal) ve anlatı teknik katmana alınmaz. Bağımsız: konumlar ≤0.0066°, natal = D1 golden, kaksha bindu BPHS tablolarıyla,
+   drishti Parashari kuralıyla birebir. Kapsam dışı: Vedha, Sade Sati, aylık transit takvimi (ayrı uçlar; bu aşamada yok).
+4. **D2–D60:** 15 varga (2,3,4,7,9,10,12,16,20,24,27,30,40,45,60). Golden teyitli: **D9, D30** (D30 = düz bölmeden ayırt edici kanıt).
+   Kalan 13 bölüm: her açılışta canlı BPHS denetimi (uyuşmazlık kırmızı "Doğrulanmadı"), GERÇEK veriyle teyit edilmedi (tablo yukarıda).
+5. **Görsel denetim:** Kuzey/Güney/Doğu D1 + D30 masaüstü, Doğu D1 + Gochara + 7 Vedik panel 390 px (iframe) — tarayıcıda gerçek
+   ekran görüntüsü. 8 kusur bulundu ve düzeltildi (5.1C listesi + Dasha/Shadbala tablo genişliği).
+6. **Türkçe etiketler:** Gü/Ay/Ma/Me/Jü/Ve/Sa/Ra/Ke + KOÇ…BAL + "Lagna"; ipucu "Güneş / Surya · …"; anahtar satırı; tablolar Türkçe önde.
+7. **Graha Drishti:** Aşama 5 etiketi ("derece+orb") yanlıştı; Roxy klasik Parashari bütün-burç tam bakış uygular. Farklar: kısmi
+   bakışlar, Rahu/Ketu bakışı, Jaimini rashi drishti YOK (Roxy sunmuyor; biz hesaplamıyoruz; UI'da yazılı).
+8. **Dasha alt düzeyleri:** Roxy tarih kuralı golden'lardan çıkarıldı ve doğrulandı (1e-12); 9 MD + 73 AD yolu adaptörden geçer; tembel
+   yükleme, yol başına ayrı anahtar, tekrar 0 istek (harness + tarayıcı günlüğü).
+9. **Bilgi Bankası:** yeni bağlam `vedic_gochara` (4 konu türü, DB regex uyumlu); Gochara/D1/D9/D30/dasha konuları birbirine karışmaz.
+10. **Kayıtlı analiz:** Gochara, D30, PD analizleri 0 istekle açılır; snapshot'tan denetimler yeniden üretilebilir; yorum kapısı korunur.
+11. **Gerçek Roxy çağrısı:** Aşama 5.1'de **2** (vedic-transit, vedic-d30; uç başına 1, tekrar yok) → **genel toplam 25**.
+12. **Testler:** yukarıda (5.1G). 13. **Mutasyon:** 23/23 (+ Aşama 5 21/21).
+14. **P0 0 · P1 0 · P2 0 · P3:** (a) 13 varga golden'sız (canlı denetimli), (b) kütüphane 4+ grahalı küçük üçgenlerde dar kalabilir,
+    (c) tarayıcı penceresi yeniden boyutlanamadığı için 390 px testleri aynı kökenli iframe ile yapıldı (gerçek cihaz değil),
+    (d) Gochara'da Vedha/Sade Sati yok, (e) drishti kısmi bakış yok (Roxy sınırı), (f) kütüphane etiket yerelleştirmesi DOM
+    üzerinden (sabit sürüm 0.49.0'a bağlı; yükseltmede yeniden doğrulanmalı).
+15. **Doğrulanamayan teknikler:** D2, D3, D4, D7, D10, D12, D16, D20, D24, D27, D40, D45, D60 (gerçek veriyle). Gochara kaksha
+    yorumu (bindu var/yok) yalnız teknik veri olarak gösterilir; "olumlu/olumsuz" hükmü verilmez.
+16. **Kalan görsel eksikler:** P3 (b), (f); Doğu düzeninde 3 harfli burç kısaltmaları küçük üçgenlerde sığ ama sıkışık değil.
+17. **Production/main/push:** DEĞİŞMEDİ — push yok, preview yok, merge/rebase yok, deploy yok, migration/SQL yok, yeni ücretli servis yok,
+    başka worktree'ye dokunulmadı, danışan verisi yok (yalnız sentetik kişi).
+18. **KP'ye hazırlık:** ayanamsa altyapısı kp-newcomb/kp-old'u destekliyor; Gochara/drishti/varga doğrulama kalıpları (golden + bağımsız
+    kural + canlı denetim) KP sub-lord/cusp için aynen uygulanabilir; Roxy KP uçları 5A envanterinde listeli. **Aşama 6 için ayrı onay
+    gerekir — başlanmadı.**
+
 ## Sıradaki kesin adım
 
-5.1F commit → 5.1G (KB/kayıtlı analiz/güvenlik/regresyon/mutasyon/HD regresyon + nihai rapor).
+Aşama 5.1 kapandı (yerel mühür). **DUR** — Aşama 6 (KP) ve/veya kalan 13 varga golden'ı (13 çağrı) için owner onayı beklenir.

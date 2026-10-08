@@ -34,6 +34,12 @@ for (const n of ["transit", "forecast", "progression", "solar-arc", "solar-retur
   const f = JSON.parse(readFileSync(join(__dirname, "fixtures", "golden", `${n}.json`), "utf8"));
   GOLDEN3[f.endpoint] = f.response;
 }
+// Aşama 5.1 golden yanıtları (gerçek, sentetik kişi A): Gochara, Drishti, D30.
+const G51: Record<string, Record<string, unknown>> = {};
+for (const n of ["vedic-transit", "vedic-aspects", "vedic-d30"]) {
+  const f = JSON.parse(readFileSync(join(__dirname, "fixtures", "golden", `${n}.json`), "utf8"));
+  G51[f.endpoint] = f.response;
+}
 const roxyEndpoints: string[] = [];
 
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -91,6 +97,7 @@ const restore = installFetchShim({
     const path = new URL(url).pathname.replace(/^\/api\/v2/, "");
     roxyEndpoints.push(path);
     assert.equal(new URL(url).searchParams.get("lang"), "tr", `lang=tr yok: ${url}`);
+    if (G51[path]) return new Response(JSON.stringify(G51[path]), { status: 200, headers: { "Content-Type": "application/json" } });
     if (GOLDEN3[path]) {
       const r = structuredClone(GOLDEN3[path]) as Record<string, unknown>;
       if (path === "/forecast/transits") r.events = (r.events as { date: string }[]).filter((e) => e.date >= String(body.startDate) && e.date <= String(body.endDate));
@@ -429,6 +436,45 @@ async function main() {
       assert.deepEqual([an.technique, an.profile.partner.label, an.notes[0].body], ["western.synastry", "Sentetik B", "Sinastri yorumum"]);
       for (const x of narr) assert.ok(!openPrev.text.includes(JSON.stringify(x).slice(1, -1)), "kayıtlı analiz önizlemesinde anlatı");
       // Başka uzman (owner değil) bu analiz ve çalışma alanı için 404.
+      assert.equal((await call(analysisItem.GET(req(`/api/admin/astroloji/analyses/${aid}`, "admin2"), ctxP(aid)))).status, 404);
+    });
+
+    await t("aşama 5.1 (HTTP): owner olmayan → Vedik seçimde de 404 (Roxy yok); owner Gochara + D30 + Drishti → önizlemede anlatı / Batı sözlüğü / ham alan / anahtar YOK; tekrar 0; kayıtlı Gochara 0 istek; admin2 404", async () => {
+      store = seed();
+      const a = await call(profiles.POST(req("/api/admin/astroloji/profiles", "owner", "POST", profileBody)));
+      const pa = (a.json.profile as { id: string }).id;
+      const sels = [
+        { technique: "vedic.transit", options: { atUtc: "2026-10-07T09:00" } },
+        { technique: "vedic.varga", options: { division: 30 } },
+        { technique: "vedic.drishti", options: {} },
+      ];
+      const h0 = roxyHits;
+      for (const who of ["admin2", "expert", "demo", "spoof"] as Who[]) {
+        const r = await call(run.POST(req("/api/admin/astroloji/engine/run", who, "POST", { profileId: pa, selections: sels })));
+        assert.deepEqual([r.status, r.text], [404, NOT_FOUND], who);
+      }
+      assert.equal(roxyHits, h0, "owner olmayan Roxy çağırdı");
+      const ep0 = roxyEndpoints.length;
+      const prev = await call(run.POST(req("/api/admin/astroloji/engine/run?previewNoInterp=1", "owner", "POST", { profileId: pa, selections: sels })));
+      assert.equal(prev.status, 200, prev.text.slice(0, 300));
+      assert.ok((prev.json.results as { ok: boolean }[]).every((x) => x.ok), prev.text.slice(0, 300));
+      assert.deepEqual(roxyEndpoints.slice(ep0).sort(), ["/vedic-astrology/aspects", "/vedic-astrology/divisional-chart", "/vedic-astrology/transit"]);
+      const desc = (G51["/vedic-astrology/transit"].keyTransits as { description: string }[]).map((k) => k.description);
+      const sig = (G51["/vedic-astrology/divisional-chart"].division as { significance: string }).significance;
+      for (const x of [...desc, sig]) assert.ok(!prev.text.includes(x), `önizlemede anlatı: ${x.slice(0, 30)}`);
+      for (const k of ["aspectsToNatal", "sextile", "keyTransits", "raw_response", "input_hash", API_KEY]) assert.ok(!prev.text.includes(k), k);
+      assert.ok(prev.text.includes("parashari_whole_sign") && prev.text.includes("astro.vedic.transit.v1"));
+      const full = await call(run.POST(req("/api/admin/astroloji/engine/run", "owner", "POST", { profileId: pa, selections: sels })));
+      assert.equal(roxyEndpoints.length - ep0, 3, "ikinci run önbellekten gelmeli");
+      assert.ok(desc.every((x) => full.text.includes(x)) && full.text.includes(sig), "owner yorumu görmeli");
+      const sv = await call(analyses.POST(req("/api/admin/astroloji/analyses", "owner", "POST", { profileId: pa, revision: 1, ...sels[0], includeProviderInterp: true, saveRequestId: "7c7c7c7c-7c7c-4c7c-8c7c-7c7c7c7c7c7c" })));
+      assert.equal(sv.status, 201, sv.text);
+      const aid = sv.json.analysisId as string;
+      const h1 = roxyHits;
+      const open = await call(analysisItem.GET(req(`/api/admin/astroloji/analyses/${aid}?previewNoInterp=1`, "owner"), ctxP(aid)));
+      assert.equal(open.status, 200);
+      assert.equal(roxyHits, h1, "kayıtlı Gochara analizi Roxy çağırdı");
+      assert.ok(open.text.includes("astro.vedic.transit.v1") && !desc.some((x) => open.text.includes(x)));
       assert.equal((await call(analysisItem.GET(req(`/api/admin/astroloji/analyses/${aid}`, "admin2"), ctxP(aid)))).status, 404);
     });
 
