@@ -518,7 +518,7 @@ async function main() {
     ok("ACCESS modal HdProfessionalReportButton import ediyor",
       /import\s*\{\s*HdProfessionalReportButton\s*\}\s*from\s*"\.\/HdProfessionalReportButton"/.test(modal));
     ok("ACCESS buton chartId={id} (persisted computed row.id) ile render",
-      /<HdProfessionalReportButton\s+chartId=\{id\}\s*\/>/.test(modal));
+      /<HdProfessionalReportButton\s+chartId=\{id\}(\s+roxyRender=\{row\.roxy_render \?\? null\})?\s*\/>/.test(modal));
     ok("ACCESS buton render guard'lı (yalnız !loading && !loadError && row)",
       /!loading\s*&&\s*!loadError\s*&&\s*row\s*\?[\s\S]{0,200}<HdProfessionalReportButton\s+chartId=\{id\}/.test(modal));
     ok("ACCESS modal duplicate report/snapshot/API logic İÇERMEZ",
