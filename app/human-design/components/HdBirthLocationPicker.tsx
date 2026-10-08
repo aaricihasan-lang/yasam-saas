@@ -2,7 +2,8 @@
 
 // HD doğum yeri seçici (otomatik hesaplama için).
 //
-//   • Anında (kredisiz): Türkiye 81 il (TR_LOCATIONS) + dünya şehirleri (/api/location/search, GeoNames)
+//   • Anında (kredisiz): Türkiye 81 il (TR_LOCATIONS) + HD 973 resmî ilçe dizini (yerel, koordinatsız)
+//     + dünya şehirleri (/api/location/search, GeoNames)
 //   • İlçe / küçük yerleşim: "İlçe / şehir ara" → /api/hd/location/search (RoxyAPI Location, sunucu,
 //     önbellekli). Typeahead DEĞİL → her tuşta Roxy kredisi harcanmaz.
 // Bileşen yalnız seçilen konumun KİMLİĞİNİ bildirir (yerel id | sunucu imzalı ref | client/chart).
@@ -16,6 +17,7 @@
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { searchLocations, type Location } from "@/lib/location";
 import { TR_LOCATIONS } from "@/lib/location/tr";
+import { searchTrDistricts } from "@/lib/human-design/location/trDistrictIndex";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 
 export type HdPickedLocation = { id: string; label: string; tz: string; locationId?: string | null };
@@ -75,7 +77,9 @@ export function HdBirthLocationPicker({
     if (!open) return;
     const q = query.trim();
     const my = ++seq.current;
-    const tr = q ? searchLocations(q, { dataset: TR_LOCATIONS, limit: 6 }).map(toItem) : [];
+    const provinces = q ? searchLocations(q, { dataset: TR_LOCATIONS, limit: 6 }).map(toItem) : [];
+    const districts = searchTrDistricts(q, Math.max(2, 8 - provinces.length)).map((d): Item => ({ id: d.id, label: d.label, tz: d.tz, source: "local" }));
+    const tr = [...provinces, ...districts];
     // eslint-disable-next-line react-hooks/set-state-in-effect -- TR sonuçları anında
     setLocal(tr);
     if (q.length < 2) return;
