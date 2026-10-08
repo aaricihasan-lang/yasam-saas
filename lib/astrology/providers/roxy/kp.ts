@@ -24,8 +24,16 @@ import {
   type KpLevel,
   type KpPoint,
   type KpSignificators,
+  KP_EXTRA_INTERP_SCHEMA,
+  KP_HORARY_TECHNICAL_SCHEMA,
+  KP_RULING_TECHNICAL_SCHEMA,
+  KP_TRANSIT_TECHNICAL_SCHEMA,
+  type KpExtraInterpretation,
+  type KpHoraryTechnical,
+  type KpRulingTechnical,
+  type KpTransitTechnical,
 } from "../../model/kp";
-import { kpLordCandidates } from "../../verify/kpSub";
+import { kpLordCandidates, kpSpan } from "../../verify/kpSub";
 import { mapGraha, mapRashi } from "./vedic";
 import { arr, findUnmapped, int, keywords, num, obj, paths } from "./shared";
 import type { AdapterResult } from "./timing";
@@ -55,7 +63,8 @@ const KP_CHART_KNOWN = new Set<string>([
   "significators.houseWise[].significators[].planets[]",
   "significators.houseWise[].all[]",
   "significators.planetWise",
-  ...paths("significators.planetWise[]", ["planet", "house", "starLord", "subLord", "signifies", "allHouses"]),
+  ...paths("significators.planetWise[]", ["planet", "house", "starLord", "subLord", "signifies", "allHouses", "agentHouses"]),
+  "significators.planetWise[].agentHouses[]",
   ...paths("significators.planetWise[].signifies[]", ["level", "houses"]),
   "significators.planetWise[].signifies[].houses[]",
   "significators.planetWise[].allHouses[]",
@@ -68,16 +77,17 @@ const norm360 = (x: number) => ((x % 360) + 360) % 360;
 const sep = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
 
 /** Ortak KP nokta projeksiyonu + tutarlılık denetimi. */
-export function projectKpPoint(o: Record<string, unknown> | null, ctx: string, errors: string[], dropped: string[], opts: { requirePada: boolean; requireSign: boolean }): KpPoint | null {
+export function projectKpPoint(o: Record<string, unknown> | null, ctx: string, errors: string[], dropped: string[], opts: { requirePada: boolean; requireSign: boolean; requireSubSub?: boolean }): KpPoint | null {
   const longitude = num(o?.longitude, 0, 360);
   const rashi = mapRashi(o?.sign);
   const signLord = mapGraha(o?.signLord);
   const star = mapGraha(o?.starLord);
   const sub = mapGraha(o?.subLord);
-  const subSub = mapGraha(o?.subSubLord);
+  const needSS = opts.requireSubSub !== false;
+  const subSub = o?.subSubLord === undefined && !needSS ? null : mapGraha(o?.subSubLord);
   const kpNumber = int(o?.kpNumber, 1, 249);
   const pada = o?.pada === undefined && !opts.requirePada ? null : int(o?.pada, 1, 4);
-  if (longitude === null || !rashi || (opts.requireSign && !signLord) || !star || !sub || !subSub || kpNumber === null || (opts.requirePada && pada === null)) {
+  if (longitude === null || !rashi || (opts.requireSign && !signLord) || !star || !sub || (needSS && !subSub) || kpNumber === null || (opts.requirePada && pada === null)) {
     errors.push(`${ctx}: alan`);
     return null;
   }
@@ -95,7 +105,7 @@ export function projectKpPoint(o: Record<string, unknown> | null, ctx: string, e
     if ((NAK_ALIAS[s] ?? s) !== NAKSHATRAS[ni]) dropped.push(`${ctx}.nakshatra`);
   }
   const cand = kpLordCandidates(lon);
-  if (!cand.some((c) => c.star === star && c.sub === sub && c.subSub === subSub && c.kpNumber === kpNumber)) errors.push(`${ctx}: sub/sub-sub lord veya KP numarası KP alt bölüm kuralıyla uyuşmuyor`);
+  if (!cand.some((c) => c.star === star && c.sub === sub && (subSub === null || c.subSub === subSub) && c.kpNumber === kpNumber)) errors.push(`${ctx}: sub/sub-sub lord veya KP numarası KP alt bölüm kuralıyla uyuşmuyor`);
   return {
     longitude: lon,
     rashi,
@@ -123,31 +133,8 @@ export function placidusHouse(longitude: number, cusps: { house: number; longitu
 
 const LEVELS: KpLevel[] = [1, 2, 3, 4];
 
-function projectSignificators(raw: Record<string, unknown> | null, errors: string[]): KpSignificators {
-  const planets: KpSignificators["planets"] = [];
-  for (const it of arr(raw?.planetWise) ?? []) {
-    const o = obj(it);
-    const id = mapGraha(o?.planet);
-    if (!id) {
-      errors.push("significators.planetWise[]: graha");
-      continue;
-    }
-    const levels = { 1: [], 2: [], 3: [], 4: [] } as Record<KpLevel, number[]>;
-    for (const s of arr(o?.signifies) ?? []) {
-      const so = obj(s);
-      const lv = int(so?.level, 1, 4) as KpLevel | null;
-      const hs = (arr(so?.houses) ?? []).map((h) => int(h, 1, 12));
-      if (!lv || hs.some((h) => h === null)) {
-        errors.push(`significators.planetWise.${id}: düzey`);
-        continue;
-      }
-      levels[lv] = hs as number[];
-    }
-    const flat = LEVELS.flatMap((l) => levels[l]);
-    const all = (arr(o?.allHouses) ?? []).map((h) => int(h, 1, 12));
-    if (all.join() !== flat.join()) errors.push(`significators.planetWise.${id}: allHouses düzeylerle uyuşmuyor`);
-    planets.push({ id, levels });
-  }
+export function projectSignificators(raw: Record<string, unknown> | null, errors: string[]): KpSignificators {
+  // 1) Ev-bazlı tablo (her uçta SADE kural; düğüm ajan eki içermez).
   const houses: KpSignificators["houses"] = [];
   for (const it of arr(raw?.houseWise) ?? []) {
     const o = obj(it);
@@ -171,9 +158,49 @@ function projectSignificators(raw: Record<string, unknown> | null, errors: strin
     if ((arr(o?.all) ?? []).map(mapGraha).join() !== flat.join()) errors.push(`significators.houseWise.${house}: all düzeylerle uyuşmuyor`);
     houses.push({ house, levels });
   }
+  // 2) Gezegen-bazlı tablo. Horary ucunda düğümler için Roxy `signifies`'ı AJAN EKLİ verir, `allHouses` ve ev tablosu ise SADE kural
+  //    (+ ayrı `agentHouses`). Bu durumda sade düzeyler ev tablosundan alınır; ajan ekli liste ayrı saklanır (kp/chart ucunda yok).
+  const planets: KpSignificators["planets"] = [];
+  for (const it of arr(raw?.planetWise) ?? []) {
+    const o = obj(it);
+    const id = mapGraha(o?.planet);
+    if (!id) {
+      errors.push("significators.planetWise[]: graha");
+      continue;
+    }
+    const given = { 1: [], 2: [], 3: [], 4: [] } as Record<KpLevel, number[]>;
+    for (const s of arr(o?.signifies) ?? []) {
+      const so = obj(s);
+      const lv = int(so?.level, 1, 4) as KpLevel | null;
+      const hs = (arr(so?.houses) ?? []).map((h) => int(h, 1, 12));
+      if (!lv || hs.some((h) => h === null)) {
+        errors.push(`significators.planetWise.${id}: düzey`);
+        continue;
+      }
+      given[lv] = hs as number[];
+    }
+    const all = (arr(o?.allHouses) ?? []).map((h) => int(h, 1, 12));
+    const agentRaw = o?.agentHouses;
+    if (agentRaw !== undefined) {
+      const agentHouses = (arr(agentRaw) ?? []).map((h) => int(h, 1, 12));
+      if (id !== "rahu" && id !== "ketu") errors.push(`significators.planetWise.${id}: ajan evleri yalnız düğümde olabilir`);
+      if (agentHouses.some((h) => h === null)) errors.push(`significators.planetWise.${id}: agentHouses`);
+      const plain = { 1: [], 2: [], 3: [], 4: [] } as Record<KpLevel, number[]>;
+      for (const l of LEVELS) plain[l] = houses.filter((h) => h.levels[l].includes(id)).map((h) => h.house);
+      const union = new Set(LEVELS.flatMap((l) => given[l]));
+      for (const l of LEVELS) for (const h of plain[l]) if (!given[l].includes(h)) errors.push(`significators.planetWise.${id}: sade L${l} evi ${h} ajan ekli listede yok`);
+      for (const h of agentHouses) if (h !== null && !union.has(h)) errors.push(`significators.planetWise.${id}: ajan evi ${h} listede yok`);
+      if ([...all].sort().join() !== LEVELS.flatMap((l) => plain[l]).sort().join()) errors.push(`significators.planetWise.${id}: allHouses sade düzeylerle uyuşmuyor`);
+      planets.push({ id, levels: plain, agent: { levels: given, houses: agentHouses as number[] } });
+      continue;
+    }
+    const flat = LEVELS.flatMap((l) => given[l]);
+    if (all.join() !== flat.join()) errors.push(`significators.planetWise.${id}: allHouses düzeylerle uyuşmuyor`);
+    planets.push({ id, levels: given });
+  }
   if (planets.length !== 9 || new Set(planets.map((p) => p.id)).size !== 9) errors.push("significators.planetWise: 9 graha yok");
   if (houses.map((h) => h.house).join() !== "1,2,3,4,5,6,7,8,9,10,11,12") errors.push("significators.houseWise: 12 ev sırası");
-  // Çapraz: ev h, düzey L'de graha p ⇔ graha p, düzey L'de ev h.
+  // Çapraz: ev h, düzey L'de graha p ⇔ graha p (sade), düzey L'de ev h.
   for (const h of houses) {
     for (const l of LEVELS) {
       const fromPlanets = planets.filter((p) => p.levels[l].includes(h.house)).map((p) => p.id).sort().join();
@@ -264,6 +291,230 @@ export function projectRoxyKpChart(
         unmappedFields: findUnmapped(raw, KP_CHART_KNOWN, KP_CHART_OPAQUE),
         droppedValues: [...new Set(dropped)],
       };
+}
+
+// ═══ 6F · Ruling Planets (/vedic-astrology/kp/ruling-planets) ═══════════════
+// Denetimler: datetime yankısı = istenen UTC anı; konum/ofset yankısı; tüm lordlar graha; rulingPlanets kümesi = klasik 5 öğe
+// (gün lordu, Ay burç + yıldız lordu, Lagna burç + yıldız lordu) — Roxy sub lordları kümeye katmaz; significator listesi =
+// ruling planets kümesi, evler 1–12. Ayanamsa alanı YOK (Roxy KP-Newcomb dahili; testte Ay sub lordu KP efemerisiyle çapraz denetlenir).
+export const ROXY_KP_RULING = { endpoint: "/vedic-astrology/kp/ruling-planets", adapter: "astro-roxy-kp-ruling-1", projection: "kp-ruling-proj-1" } as const;
+const RP_LORD_KEYS = ["dayLord", "moonSignLord", "moonStarLord", "moonSublord", "moonSubSublord", "lagnaSignLord", "lagnaStarLord", "lagnaSublord", "lagnaSubSublord"];
+const KP_RULING_KNOWN = new Set<string>([
+  "datetime",
+  ...paths("location", ["latitude", "longitude", "timezone"]),
+  ...RP_LORD_KEYS,
+  "rulingPlanets",
+  "rulingPlanets[]",
+  "significators",
+  ...paths("significators[]", ["planet", "signifies"]),
+  "significators[].signifies[]",
+  "houseThemes",
+  "focus",
+]);
+
+type RpLords = { dayLord: VedicGrahaId; moon: KpRulingTechnical["moon"]; lagna: KpRulingTechnical["lagna"]; rulingPlanets: VedicGrahaId[] };
+function projectRpLords(o: Record<string, unknown> | null, ctx: string, errors: string[]): RpLords | null {
+  const L = Object.fromEntries(RP_LORD_KEYS.map((k) => [k, mapGraha(o?.[k])])) as Record<string, VedicGrahaId | null>;
+  const rp = (arr(o?.rulingPlanets) ?? []).map(mapGraha);
+  if (Object.values(L).some((x) => !x) || rp.length === 0 || rp.some((x) => !x)) {
+    errors.push(`${ctx}: ruling planet alanları`);
+    return null;
+  }
+  const classical = [...new Set([L.dayLord, L.moonSignLord, L.moonStarLord, L.lagnaSignLord, L.lagnaStarLord])].sort().join();
+  if ([...new Set(rp)].sort().join() !== classical || new Set(rp).size !== rp.length) errors.push(`${ctx}: rulingPlanets klasik 5 öğe kümesi değil`);
+  return {
+    dayLord: L.dayLord!,
+    moon: { sign: L.moonSignLord!, star: L.moonStarLord!, sub: L.moonSublord!, subSub: L.moonSubSublord! },
+    lagna: { sign: L.lagnaSignLord!, star: L.lagnaStarLord!, sub: L.lagnaSublord!, subSub: L.lagnaSubSublord! },
+    rulingPlanets: rp as VedicGrahaId[],
+  };
+}
+const themesOf = (v: unknown) => {
+  const th = obj(v);
+  return Array.from({ length: 12 }, (_, i) => ({ house: i + 1, keywords: keywords(th?.[String(i + 1)]) })).filter((x) => x.keywords.length > 0);
+};
+
+export function projectRoxyKpRuling(raw: unknown, opts: { atUtc: string; local: string; utcOffsetHours: number; place: { latitude: number; longitude: number } }): AdapterResult<KpRulingTechnical, KpExtraInterpretation> {
+  const errors: string[] = [];
+  const r = obj(raw);
+  if (!r) return { ok: false, errors: ["root"] };
+  if (typeof r.datetime !== "string" || Date.parse(r.datetime) !== Date.parse(`${opts.atUtc}:00Z`)) errors.push("datetime istenen an değil");
+  const loc = obj(r.location);
+  if (Math.abs(Number(loc?.latitude) - opts.place.latitude) > 1e-6 || Math.abs(Number(loc?.longitude) - opts.place.longitude) > 1e-6 || loc?.timezone !== opts.utcOffsetHours) errors.push("location yankısı");
+  const lords = projectRpLords(r, "rulingPlanets", errors);
+  const significators: KpRulingTechnical["significators"] = [];
+  for (const it of arr(r.significators) ?? []) {
+    const o = obj(it);
+    const id = mapGraha(o?.planet);
+    const hs = (arr(o?.signifies) ?? []).map((h) => int(h, 1, 12));
+    if (!id || hs.some((h) => h === null) || new Set(hs).size !== hs.length) {
+      errors.push("significators[]: alan");
+      continue;
+    }
+    significators.push({ id, houses: hs as number[] });
+  }
+  if (lords && significators.map((x) => x.id).sort().join() !== [...lords.rulingPlanets].sort().join()) errors.push("significators ruling planets kümesiyle uyuşmuyor");
+  if (errors.length > 0) return { ok: false, errors: errors.slice(0, 25) };
+  return {
+    ok: true,
+    technical: { schema: KP_RULING_TECHNICAL_SCHEMA, frame: { ayanamsa: "kp-newcomb" }, at: { utc: opts.atUtc, local: opts.local, utcOffsetHours: opts.utcOffsetHours }, place: opts.place, ...lords!, significators },
+    interpretation: { schema: KP_EXTRA_INTERP_SCHEMA, houseThemes: themesOf(r.houseThemes) },
+    unmappedFields: findUnmapped(raw, KP_RULING_KNOWN, new Set(["houseThemes"])),
+    droppedValues: [],
+  };
+}
+
+// ═══ 6F · KP transit = KP efemeris tek an (/vedic-astrology/kp/planets-interval) ═
+export const ROXY_KP_PLANETS_AT = { endpoint: "/vedic-astrology/kp/planets-interval", adapter: "astro-roxy-kp-planets-at-1", projection: "kp-transit-proj-1" } as const;
+const PI_KEYS = ["longitude", "degreeInSign", "sign", "signLord", "nakshatra", "nakshatraLord", "sublord", "subSublord", "kpNumber", "isRetrograde"];
+const PI_NAMES = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn", "Rahu", "Ketu"];
+const KP_PI_KNOWN = new Set<string>([
+  "startDatetime",
+  "endDatetime",
+  "intervalMinutes",
+  "totalIntervals",
+  "ayanamsa",
+  "ayanamsaValue",
+  "intervals",
+  ...paths("intervals[]", ["date", "time", "datetime", "planets"]),
+  ...PI_NAMES.flatMap((n) => paths(`intervals[].planets.${n}`, PI_KEYS)),
+]);
+export function projectRoxyKpPlanetsAt(raw: unknown, opts: { atUtc: string; ayanamsa: KpAyanamsaId; nodeType: "mean" | "true" }): AdapterResult<KpTransitTechnical, null> {
+  const errors: string[] = [];
+  const dropped: string[] = [];
+  const r = obj(raw);
+  if (!r) return { ok: false, errors: ["root"] };
+  if (r.ayanamsa !== opts.ayanamsa) errors.push("ayanamsa yankısı");
+  const ayDeg = num(r.ayanamsaValue, 0, 40);
+  if (ayDeg === null) errors.push("ayanamsaValue");
+  const first = obj((arr(r.intervals) ?? [])[0]);
+  if (first?.datetime !== `${opts.atUtc}:00`) errors.push("ilk aralık istenen an değil");
+  const pl = obj(first?.planets);
+  const bodies: KpTransitTechnical["bodies"] = [];
+  for (const name of PI_NAMES) {
+    const o = obj(pl?.[name]);
+    const id = mapGraha(name)!;
+    const mapped = o ? { longitude: o.longitude, sign: o.sign, signLord: o.signLord, nakshatra: o.nakshatra, starLord: o.nakshatraLord, subLord: o.sublord, subSubLord: o.subSublord, kpNumber: o.kpNumber } : null;
+    const p = projectKpPoint(mapped, `planets.${name}`, errors, dropped, { requirePada: false, requireSign: true });
+    if (!p || typeof o?.isRetrograde !== "boolean") {
+      if (p) errors.push(`planets.${name}: retro`);
+      continue;
+    }
+    if (Math.abs(Number(o.degreeInSign) - p.degreeInRashi) > 1e-3) errors.push(`planets.${name}: degreeInSign`);
+    bodies.push({ ...p, id, retrograde: o.isRetrograde });
+  }
+  if (bodies.length !== 9) errors.push("9 graha yok");
+  const ra = bodies.find((x) => x.id === "rahu");
+  const ke = bodies.find((x) => x.id === "ketu");
+  if (ra && ke && sep(ke.longitude, norm360(ra.longitude + 180)) > 1e-3) errors.push("Ketu = Rahu + 180° değil");
+  if (errors.length > 0) return { ok: false, errors: errors.slice(0, 25) };
+  return {
+    ok: true,
+    technical: { schema: KP_TRANSIT_TECHNICAL_SCHEMA, frame: { ayanamsa: opts.ayanamsa, ayanamsaDegrees: ayDeg! }, nodeType: opts.nodeType, at: { utc: opts.atUtc }, bodies },
+    interpretation: null,
+    unmappedFields: findUnmapped(raw, KP_PI_KNOWN, new Set()),
+    droppedValues: [...new Set(dropped)],
+  };
+}
+
+// ═══ 6F · KP Horary (/vedic-astrology/kp/horary) ═══════════════════════════
+// Denetimler: sayı + soru anı + ayanamsa yankısı; Asc KP numarası = sayı; spanFrom/To = KP tablosundaki dilim; Asc = dilim ORTA
+// noktası (belge); cusp 1 = Asc; 12 cusp sırayla ve karşıt; noktalar KP alt bölüm kuralıyla tutarlı; gezegen evi ↔ Placidus aralığı;
+// significator çaprazı; ruling planets klasik 5 öğe.
+export const ROXY_KP_HORARY = { endpoint: "/vedic-astrology/kp/horary", adapter: "astro-roxy-kp-horary-1", projection: "kp-horary-proj-1" } as const;
+const H_POINT = ["longitude", "sign", "star", "starLord", "subLord", "kpNumber"];
+const KP_HORARY_KNOWN = new Set<string>([
+  "horaryNumber",
+  "questionTime",
+  "ayanamsaType",
+  "ayanamsaDegrees",
+  ...paths("ascendant", [...H_POINT, "degreeInSign", "spanFrom", "spanTo"]),
+  "cusps",
+  ...paths("cusps[]", ["house", ...H_POINT]),
+  "planets",
+  ...paths("planets[]", ["planet", "house", "isRetrograde", "subSubLord", ...H_POINT]),
+  ...paths("rulingPlanets", RP_LORD_KEYS),
+  "rulingPlanets.rulingPlanets",
+  "rulingPlanets.rulingPlanets[]",
+  ...[...KP_CHART_KNOWN].filter((k) => k.startsWith("significators")),
+  "houseThemes",
+  "focus",
+]);
+export function projectRoxyKpHorary(
+  raw: unknown,
+  opts: { horaryNumber: number; atUtc: string; ayanamsa: KpAyanamsaId; nodeType: "mean" | "true"; place: { latitude: number; longitude: number } },
+): AdapterResult<KpHoraryTechnical, KpExtraInterpretation> {
+  const errors: string[] = [];
+  const dropped: string[] = [];
+  const r = obj(raw);
+  if (!r) return { ok: false, errors: ["root"] };
+  if (r.horaryNumber !== opts.horaryNumber) errors.push("horaryNumber yankısı");
+  if (typeof r.questionTime !== "string" || Date.parse(r.questionTime) !== Date.parse(`${opts.atUtc}:00Z`)) errors.push("questionTime istenen an değil");
+  if (r.ayanamsaType !== opts.ayanamsa) errors.push("ayanamsaType yankısı");
+  const ayDeg = num(r.ayanamsaDegrees, 0, 40);
+  if (ayDeg === null) errors.push("ayanamsaDegrees");
+  const pt = (o: Record<string, unknown> | null) => (o ? { ...o, nakshatra: o.star } : null);
+  const ao = obj(r.ascendant);
+  const ascendant = projectKpPoint(pt(ao), "ascendant", errors, dropped, { requirePada: false, requireSign: false, requireSubSub: false });
+  const span = kpSpan(opts.horaryNumber);
+  const from = num(ao?.spanFrom, 0, 360);
+  const to = num(ao?.spanTo, 0, 360);
+  if (!span || from === null || to === null || Math.abs(from - span.start) > 1e-3 || Math.abs(to - span.end) > 1e-3) errors.push("ascendant span KP tablosuyla uyuşmuyor");
+  if (ascendant && span && (ascendant.kpNumber !== opts.horaryNumber || Math.abs(ascendant.longitude - (span.start + span.end) / 2) > 1e-3)) errors.push("ascendant sayının alt bölüm orta noktası değil");
+  const cusps: KpCusp[] = [];
+  for (const it of arr(r.cusps) ?? []) {
+    const o = obj(it);
+    const house = int(o?.house, 1, 12);
+    const p = projectKpPoint(pt(o), `cusps.${String(house)}`, errors, dropped, { requirePada: false, requireSign: false, requireSubSub: false });
+    if (house === null || !p) continue;
+    cusps.push({ ...p, house });
+  }
+  if (cusps.map((c) => c.house).join() !== "1,2,3,4,5,6,7,8,9,10,11,12") errors.push("cusps: 12 ev sırası");
+  else {
+    for (let h = 0; h < 6; h++) if (sep(cusps[h + 6].longitude, norm360(cusps[h].longitude + 180)) > 1e-3) errors.push(`cusps: ${h + 1}/${h + 7} karşıt değil`);
+    if (ascendant && sep(ascendant.longitude, cusps[0].longitude) > 1e-6) errors.push("ascendant ≠ cusp 1");
+  }
+  const bodies: KpBody[] = [];
+  for (const it of arr(r.planets) ?? []) {
+    const o = obj(it);
+    const id = mapGraha(o?.planet);
+    const p = projectKpPoint(pt(o), `planets.${String(o?.planet)}`, errors, dropped, { requirePada: false, requireSign: false });
+    const house = int(o?.house, 1, 12);
+    if (!id || !p || house === null || typeof o?.isRetrograde !== "boolean") {
+      errors.push(`planets.${String(o?.planet)}: alan`);
+      continue;
+    }
+    bodies.push({ ...p, id, house, retrograde: o.isRetrograde });
+  }
+  if (bodies.map((x) => x.id).join() !== "sun,moon,mars,mercury,jupiter,venus,saturn,rahu,ketu") errors.push("planets: 9 graha sırası");
+  const ra = bodies.find((x) => x.id === "rahu");
+  const ke = bodies.find((x) => x.id === "ketu");
+  if (!ra || !ke || sep(ke.longitude, norm360(ra.longitude + 180)) > 1e-3) errors.push("Ketu = Rahu + 180° değil");
+  if (cusps.length === 12) for (const x of bodies) if (placidusHouse(x.longitude, cusps) !== x.house) errors.push(`${x.id}: ev Placidus cusp aralığıyla uyuşmuyor`);
+  const significators = projectSignificators(obj(r.significators), errors);
+  const ruling = projectRpLords(obj(r.rulingPlanets), "rulingPlanets", errors);
+  if (errors.length > 0) return { ok: false, errors: errors.slice(0, 25) };
+  return {
+    ok: true,
+    technical: {
+      schema: KP_HORARY_TECHNICAL_SCHEMA,
+      frame: { ayanamsa: opts.ayanamsa, ayanamsaDegrees: ayDeg! },
+      houseSystem: "placidus",
+      nodeType: opts.nodeType,
+      horaryNumber: opts.horaryNumber,
+      at: { utc: opts.atUtc },
+      place: opts.place,
+      span: { from: from!, to: to! },
+      ascendant: ascendant!,
+      cusps,
+      bodies,
+      significators,
+      ruling: ruling!,
+    },
+    interpretation: { schema: KP_EXTRA_INTERP_SCHEMA, houseThemes: themesOf(r.houseThemes) },
+    unmappedFields: findUnmapped(raw, KP_HORARY_KNOWN, new Set(["houseThemes"])),
+    droppedValues: [...new Set(dropped)],
+  };
 }
 
 export type { SignId };

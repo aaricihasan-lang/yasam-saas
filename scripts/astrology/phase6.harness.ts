@@ -583,6 +583,256 @@ async function main() {
     for (const k of keys) assert.ok(traditionOfKey(k) === "kp" && isSectionKeyForTechnique("kp.dasha", k) && !isSectionKeyForTechnique("vedic.dasha", k) && !isSectionKeyForTechnique("kp.chart", k), k);
   });
 
+  // ═══ 6F — Ruling Planets · KP transit · Horary ═══════════════════════════════
+  const RP = load("kp-ruling-planets");
+  const PA = load("kp-planets-at");
+  const HO = load("kp-horary");
+  const AT = "2026-10-07T09:00";
+  const PLACE = { latitude: SYNTH_A.latitude, longitude: SYNTH_A.longitude };
+  const unitOf = (id: string, opts: Record<string, unknown>) => {
+    const def = getTechnique(id)!;
+    const o = def.parseOptions(opts, new Date())!;
+    return { def, o, u: def.units({ birth: SYNTH_A, birthUtc: SYNTH_A.utc, partner: null }, o)[0] };
+  };
+  const rpT = () => {
+    const { def, o, u } = unitOf("kp.ruling", { atUtc: AT });
+    return def.project(u, RP.response, o) as J;
+  };
+  const paT = () => {
+    const { def, o, u } = unitOf("kp.transit", { atUtc: AT });
+    return def.project(u, PA.response, o) as J;
+  };
+  const hoT = () => {
+    const { def, o, u } = unitOf("kp.horary", { atUtc: AT, horaryNumber: 108 });
+    return def.project(u, HO.response, o) as J;
+  };
+  /** Verilen RAMC/eğiklik/enlemle bağımsız Placidus (tropikal). */
+  function placidusFromRamc(ramc: number, eps: number, latDeg: number): number[] {
+    const phi = latDeg * D2R;
+    const R = ramc * D2R;
+    const mc = n360(Math.atan2(Math.sin(R), Math.cos(R) * Math.cos(eps)) / D2R);
+    const asc = n360(Math.atan2(Math.cos(R), -(Math.sin(R) * Math.cos(eps) + Math.tan(phi) * Math.sin(eps))) / D2R);
+    const raToLon = (ra: number) => n360(Math.atan2(Math.sin(ra * D2R), Math.cos(ra * D2R) * Math.cos(eps)) / D2R);
+    const cusp = (f: number, above: boolean) => {
+      let lam = raToLon(above ? ramc + 90 * f : ramc + 180 - 90 * f);
+      for (let i = 0; i < 100; i++) {
+        const dec = Math.asin(Math.sin(eps) * Math.sin(lam * D2R));
+        const ad = Math.asin(Math.max(-1, Math.min(1, Math.tan(phi) * Math.tan(dec)))) / D2R;
+        lam = raToLon(above ? ramc + f * (90 + ad) : ramc + 180 - f * (90 - ad));
+      }
+      return lam;
+    };
+    const c11 = cusp(1 / 3, true), c12 = cusp(2 / 3, true), c2 = cusp(2 / 3, false), c3 = cusp(1 / 3, false);
+    return [asc, c2, c3, n360(mc + 180), n360(c11 + 180), n360(c12 + 180), n360(asc + 180), n360(c2 + 180), n360(c3 + 180), mc, c11, c12];
+  }
+
+  await t("6F golden: 3 fixture = ürün birimi gövdeleri (ruling: doğum yeri + doğum ofsetinde yerel an + doğum verisi; efemeris: UTC tek an; horary: sayı 108, UTC, doğum yeri); projeksiyonlar temiz", () => {
+    for (const [id, g, opts] of [["kp.ruling", RP, { atUtc: AT }], ["kp.transit", PA, { atUtc: AT }], ["kp.horary", HO, { atUtc: AT, horaryNumber: 108 }]] as const) {
+      const { u } = unitOf(id, opts);
+      assert.deepEqual(JSON.parse(JSON.stringify(u.body)), g.body, id);
+      assert.equal(u.endpoint, g.endpoint);
+    }
+    assert.equal(RP.body.datetime, "2026-10-07T12:00:00");
+    for (const p of [rpT(), paT(), hoT()]) {
+      assert.ok(p.ok, JSON.stringify(p.errors));
+      assert.deepEqual([p.unmappedFields, p.droppedValues], [[], []]);
+    }
+  });
+
+  await t("6F BAĞIMSIZ ruling planets: gün lordu = Çarşamba → Merkür (yerel öğle, gün doğumundan sonra); Ay lordları = KP efemerisi Ay'ı (aynı an); Lagna lordları = bağımsız Asc (astronomy-engine RAMC) − KP ayanamsa'nın ikinci KP tablosundaki lordları", () => {
+    const rp = rpT().technical;
+    assert.equal(new Date(`${AT}:00Z`).getUTCDay(), 3);
+    assert.equal(rp.dayLord, "mercury");
+    const moon = paT().technical.bodies.find((b: J) => b.id === "moon");
+    assert.deepEqual([rp.moon.sign, rp.moon.star, rp.moon.sub, rp.moon.subSub], [moon.signLord, moon.starLord, moon.subLord, moon.subSubLord]);
+    const tm = Astronomy.MakeTime(new Date(`${AT}:00Z`));
+    const ramc = n360(Astronomy.SiderealTime(tm) * 15 + PLACE.longitude);
+    const ascSid = n360(placidusFromRamc(ramc, Astronomy.e_tilt(tm).tobl * D2R, PLACE.latitude)[0] - PA.response.ayanamsaValue);
+    const ind = kpIndependent(ascSid);
+    assert.deepEqual([rp.lagna.sign, rp.lagna.star, rp.lagna.sub, rp.lagna.subSub], [SIGN_LORDS[SIGN_IDS[Math.floor(ascSid / 30)]], ind.star, ind.sub, ind.subSub]);
+    // Klasik 5 öğe; sub lordlar kümede değil.
+    assert.deepEqual([...rp.rulingPlanets].sort(), [...new Set([rp.dayLord, rp.moon.sign, rp.moon.star, rp.lagna.sign, rp.lagna.star])].sort());
+  });
+
+  await t("6F ÇAPRAZ UÇ: ruling planet significator'ları görünür grahalarda kp/chart düzey düzleştirmesiyle aynı; KETU'da Roxy ruling ucu ÜÇÜNCÜ bir liste verir (kp/chart sade ≠ dasha ajan ≠ ruling) → yöntem tutarsızlığı kaydedilir; horary ruling = bağımsız ruling (aynı an + yer)", () => {
+    const rp = rpT().technical;
+    const chart = kpTech().significators.planets;
+    const diffs: string[] = [];
+    for (const s of rp.significators) {
+      const c = chart.find((x) => x.id === s.id)!;
+      const flat = [...new Set([1, 2, 3, 4].flatMap((l) => c.levels[l as 1 | 2 | 3 | 4]))];
+      if (s.id === "rahu" || s.id === "ketu") diffs.push(`${s.id}: ruling [${s.houses}] · kp/chart [${flat}]`);
+      else assert.deepEqual(s.houses, flat, s.id);
+    }
+    assert.ok(diffs.length > 0);
+    console.log(`     düğüm significator (uçlar arası): ${diffs.join(" · ")}`);
+    const h = hoT().technical.ruling;
+    assert.deepEqual([h.dayLord, h.moon, h.lagna, h.rulingPlanets], [rp.dayLord, rp.moon, rp.lagna, rp.rulingPlanets]);
+  });
+
+  await t("6F BAĞIMSIZ KP transit: 9 graha = astronomy-engine tropikal − Roxy KP ayanamsa(an) ≤ 0.01°; Lahiri Gochara golden'ıyla fark 9/9 sabit; lordlar ikinci KP tablosuyla", () => {
+    const tr = paT().technical;
+    const tm = Astronomy.MakeTime(new Date(`${AT}:00Z`));
+    const T = tm.tt / 36525;
+    const node = n360(125.0445479 - 1934.1362891 * T + 0.0020754 * T * T);
+    const B: Record<string, Astronomy.Body> = { sun: Astronomy.Body.Sun, moon: Astronomy.Body.Moon, mars: Astronomy.Body.Mars, mercury: Astronomy.Body.Mercury, jupiter: Astronomy.Body.Jupiter, venus: Astronomy.Body.Venus, saturn: Astronomy.Body.Saturn };
+    const gochara = load("vedic-transit").response.transitingPlanets as J[];
+    const dAy = tr.frame.ayanamsaDegrees;
+    let delta: number | null = null;
+    for (const b of tr.bodies as J[]) {
+      const trop = B[b.id] ? Astronomy.Ecliptic(Astronomy.GeoVector(B[b.id], tm, true)).elon : b.id === "rahu" ? node : n360(node + 180);
+      assert.ok(Math.abs(((b.longitude - n360(trop - dAy) + 540) % 360) - 180) <= 0.01, b.id);
+      const ind = kpIndependent(b.longitude);
+      assert.deepEqual([b.starLord, b.subLord, b.subSubLord, b.kpNumber], [ind.star, ind.sub, ind.subSub, ind.kp], b.id);
+      const lah = gochara.find((x) => x.name === NAME[b.id]).longitude;
+      const d = b.longitude - lah;
+      if (delta === null) delta = d;
+      assert.ok(Math.abs(d - delta) < 3e-4, `${b.id} Lahiri farkı`);
+    }
+    assert.ok(delta! > 0.09 && delta! < 0.11, `KP − Lahiri ${delta}`);
+  });
+
+  await t("6F BAĞIMSIZ horary: Asc = KP 108 diliminin orta noktası (ikinci tablo: 153°–155°06′40″); 12 cusp = verilen Asc'yi üreten RAMC'den bağımsız Placidus ≤ 0.05°; gezegenler = KP efemerisi (aynı an); Placidus evleri", () => {
+    const ho = hoT().technical;
+    assert.ok(Math.abs(ho.ascendant.longitude - (153 + 155 + 1 / 9) / 2) < 1e-3);
+    assert.equal(kpIndependent(ho.ascendant.longitude).kp, 108);
+    const tm = Astronomy.MakeTime(new Date(`${AT}:00Z`));
+    const eps = Astronomy.e_tilt(tm).tobl * D2R;
+    const targetTrop = n360(ho.ascendant.longitude + ho.frame.ayanamsaDegrees);
+    const diff = (r: number) => ((placidusFromRamc(r, eps, PLACE.latitude)[0] - targetTrop + 540) % 360) - 180;
+    let best = 0;
+    let bestD = 1e9;
+    for (let r = 0; r < 360; r += 0.01) {
+      const d = Math.abs(diff(r));
+      if (d < bestD) {
+        bestD = d;
+        best = r;
+      }
+    }
+    let lo = best - 0.01;
+    let hi = best + 0.01;
+    for (let i = 0; i < 60; i++) {
+      const mid = (lo + hi) / 2;
+      if (Math.sign(diff(mid)) === Math.sign(diff(lo))) lo = mid;
+      else hi = mid;
+    }
+    const cusps = placidusFromRamc((lo + hi) / 2, eps, PLACE.latitude).map((l) => n360(l - ho.frame.ayanamsaDegrees));
+    for (const c of ho.cusps) assert.ok(Math.abs(((c.longitude - cusps[c.house - 1] + 540) % 360) - 180) <= 0.05, `horary cusp ${c.house}`);
+    const eph = paT().technical.bodies as J[];
+    for (const b of ho.bodies) {
+      assert.ok(Math.abs(b.longitude - eph.find((x) => x.id === b.id).longitude) < 1e-3, b.id);
+      assert.equal(placidusHouse(b.longitude, ho.cusps), b.house);
+    }
+  });
+
+  await t("6F horary significator'ları: 7 görünür graha KP 4 düzey kuralıyla (sade) birebir; düğümlerde sade düzeyler ev tablosundan, Roxy ajan ekli liste ayrı saklanır (ajan evleri listede)", () => {
+    const ho = hoT().technical;
+    const occ = (h: number) => ho.bodies.filter((b: J) => b.house === h).map((b: J) => b.id);
+    const owns = (id: string) => ho.cusps.filter((c: J) => SIGN_LORDS[c.rashi as keyof typeof SIGN_LORDS] === id).map((c: J) => c.house);
+    for (const b of ho.bodies.filter((x: J) => x.id !== "rahu" && x.id !== "ketu")) {
+      const r = ho.significators.planets.find((p: J) => p.id === b.id);
+      const s = (xs: number[]) => [...xs].sort((a, c) => a - c);
+      assert.deepEqual([s(r.levels[1]), r.levels[2], s(r.levels[3]), s(r.levels[4])], [ho.cusps.map((c: J) => c.house).filter((h: number) => occ(h).includes(b.starLord)), [b.house], owns(b.starLord), owns(b.id)], b.id);
+      assert.equal(r.agent, undefined);
+    }
+    for (const id of ["rahu", "ketu"]) {
+      const r = ho.significators.planets.find((p: J) => p.id === id);
+      assert.ok(r.agent && r.agent.houses.length > 0, `${id} ajan`);
+    }
+  });
+
+  await t("6F fail-closed: ruling (an/konum yankısı, klasik 5 dışı ruling planet, significator kümesi), efemeris (an, ayanamsa, sub lord), horary (sayı, Asc orta noktası, span, cusp karşıtlığı, ajan evi yalnız düğümde) → REDDEDİLİR", () => {
+    const noR = (f: (r: J) => void, w: string) => {
+      const r = structuredClone(RP);
+      f(r.response);
+      const { def, o, u } = unitOf("kp.ruling", { atUtc: AT });
+      assert.equal((def.project(u, r.response, o) as J).ok, false, w);
+    };
+    noR((r) => (r.datetime = "2026-10-07T12:00:00.000Z"), "an yankısı (yerel saat UTC sanıldı)");
+    noR((r) => (r.location.timezone = 5.5), "IST");
+    noR((r) => r.rulingPlanets.push("Saturn"), "5 öğe dışı");
+    noR((r) => r.significators.pop(), "significator kümesi");
+    const noP = (f: (r: J) => void, w: string) => {
+      const r = structuredClone(PA);
+      f(r.response);
+      const { def, o, u } = unitOf("kp.transit", { atUtc: AT });
+      assert.equal((def.project(u, r.response, o) as J).ok, false, w);
+    };
+    noP((r) => (r.intervals[0].datetime = "2026-10-07T12:00:00"), "an");
+    noP((r) => (r.ayanamsa = "lahiri"), "ayanamsa");
+    noP((r) => (r.intervals[0].planets.Moon.sublord = "Venus"), "sub lord");
+    const noH = (f: (r: J) => void, w: string) => {
+      const r = structuredClone(HO);
+      f(r.response);
+      const { def, o, u } = unitOf("kp.horary", { atUtc: AT, horaryNumber: 108 });
+      assert.equal((def.project(u, r.response, o) as J).ok, false, w);
+    };
+    noH((r) => (r.horaryNumber = 107), "sayı");
+    noH((r) => {
+      r.ascendant.longitude = 153.5;
+      r.cusps[0].longitude = 153.5;
+    }, "Asc orta nokta değil");
+    noH((r) => (r.ascendant.spanTo = 156), "span");
+    noH((r) => (r.cusps[8].longitude = (r.cusps[8].longitude + 2) % 360), "karşıt cusp");
+    noH((r) => (r.significators.planetWise[0].agentHouses = [1]), "Güneş'te ajan evi");
+  });
+
+  await t("6F motor: horary ve KP transit doğum SAATİ OLMADAN çalışır (doğum verisi kullanılmaz); ruling TIME_REQUIRED; horary sayı/an ayrı anahtar, aynı an tekrar 0; değerlendirme yeri seçilebilir (konum kimliği sunucuda), bilinmeyen konum ENGEL; sayı 0/250 ret", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const calls: Call[] = [];
+    const deps: EngineDeps = {
+      config: { apiKey: "k-test-6f", baseUrl: "https://roxy-fake.local/api/v2" },
+      callProvider: async (_c, endpoint, body) => {
+        calls.push({ endpoint, body });
+        const g = endpoint === HO.endpoint ? HO : endpoint === PA.endpoint ? PA : endpoint === RP.endpoint ? RP : null;
+        if (!g) return { ok: false, kind: "bad_request", status: 400, attempts: 1 };
+        const r = structuredClone(g.response);
+        // SENTETİK yankı (yalnız anahtar ayrımı testi): başka sayı/an/konum.
+        if (endpoint === HO.endpoint) {
+          r.horaryNumber = body.horaryNumber;
+          r.questionTime = `${String(body.date)}T${String(body.time)}.000Z`;
+        }
+        return { ok: true, raw: r, attempts: 1 };
+      },
+      rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
+    };
+    const pu = await profile(ctx, { timeKnown: false, birthTime: null, timeAccuracy: "unknown", label: "Saatsiz" });
+    const h1 = ((await run(ctx, pu, [{ technique: "kp.horary", options: { atUtc: AT, horaryNumber: 108 } }, { technique: "kp.transit", options: { atUtc: AT } }, { technique: "kp.ruling", options: { atUtc: AT } }], deps)).body as J).results;
+    assert.deepEqual(h1.map((x: J) => x.ok || x.code), [true, true, "TIME_REQUIRED"]);
+    assert.equal(calls.length, 2);
+    await run(ctx, pu, [{ technique: "kp.horary", options: { atUtc: AT, horaryNumber: 108 } }], deps);
+    assert.equal(calls.length, 2, "tekrar");
+    // Farklı sayı ve farklı an → ayrı anahtar (sentetik yankı; Asc denetimi farklı sayıda düşer → yalnız anahtar sayılır).
+    await run(ctx, pu, [{ technique: "kp.horary", options: { atUtc: "2026-10-07T10:00", horaryNumber: 108 } }], deps);
+    assert.equal(calls.length, 3);
+    const ank = await run(ctx, pu, [{ technique: "kp.horary", options: { atUtc: AT, horaryNumber: 108, placeLocationId: "tr-06-ankara" } }], deps);
+    assert.equal(calls.length, 4);
+    assert.ok(Math.abs(Number(calls[3].body.latitude) - 39.9334) < 0.1, JSON.stringify(calls[3].body));
+    void ank;
+    const bad = ((await run(ctx, pu, [{ technique: "kp.horary", options: { atUtc: AT, horaryNumber: 108, placeLocationId: "yok-boyle-yer" } }], deps)).body as J).results[0];
+    assert.equal(bad.code, "LOCATION_NOT_FOUND");
+    assert.equal(calls.length, 4);
+    for (const n of [0, 250, 1.5, "abc"]) assert.equal(getTechnique("kp.horary")!.parseOptions({ atUtc: AT, horaryNumber: n }, new Date()), null, String(n));
+    assert.equal(maskTechnical("kp.transit", paT().technical, { primary: false } as J).masked, false);
+    assert.equal(maskTechnical("kp.ruling", rpT().technical, { primary: false } as J).masked, true);
+  });
+
+  await t("6F konular: kp_ruling_planet / kp_transit_* / kp_horary_* — yalnız kendi tekniğinin bölümünde; KP geleneği; DB regex", () => {
+    const sets: [string, J][] = [["kp.ruling", rpT().technical], ["kp.transit", paT().technical], ["kp.horary", hoT().technical]];
+    for (const [tech, tt] of sets) {
+      const keys = topicsForTechnique(tech, tt).map((x) => x.key);
+      assert.ok(keys.length > 0, tech);
+      for (const k of keys) {
+        assert.match(k, /^[a-z][a-z_]{1,40}(:[a-z0-9_-]{1,40}){1,4}$/);
+        assert.equal(traditionOfKey(k), "kp");
+        for (const [other] of sets) assert.equal(isSectionKeyForTechnique(other, k), other === tech, `${k} @ ${other}`);
+        assert.ok(!isSectionKeyForTechnique("kp.chart", k) && !isSectionKeyForTechnique("vedic.transit", k));
+      }
+    }
+    assert.ok(topicsForTechnique("kp.horary", hoT().technical).some((x) => x.key === "kp_horary_number:108"));
+  });
+
   console.log(`\nastrology phase6 harness: ${pass} PASS / ${fail} FAIL`);
   if (fail > 0) process.exit(1);
 }

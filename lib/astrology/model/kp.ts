@@ -24,7 +24,8 @@ export type KpPoint = {
   nakshatra: { index: number; id: NakshatraId; pada: 1 | 2 | 3 | 4 };
   starLord: VedicGrahaId;
   subLord: VedicGrahaId;
-  subSubLord: VedicGrahaId;
+  /** Horary cusp'larında Roxy sub-sub lord VERMEZ → null (uydurulmaz). */
+  subSubLord: VedicGrahaId | null;
   /** KP numarası 1…249 (burç sınırında bölünen alt bölümler ayrı numaralanır). */
   kpNumber: number;
 };
@@ -34,7 +35,8 @@ export type KpBody = KpPoint & { id: VedicGrahaId; house: number; retrograde: bo
 /** KP 4 düzey: 1 = yıldızı ev sakininde olan, 2 = sakin, 3 = yıldızı ev sahibinde olan, 4 = sahip. */
 export type KpLevel = 1 | 2 | 3 | 4;
 export type KpSignificators = {
-  planets: { id: VedicGrahaId; levels: Record<KpLevel, number[]> }[];
+  /** levels = SADE KP kuralı (ev tablosuyla birebir). agent = Roxy horary ucunun düğümler için ajan ekli listesi (varsa). */
+  planets: { id: VedicGrahaId; levels: Record<KpLevel, number[]>; agent?: { levels: Record<KpLevel, number[]>; houses: number[] } }[];
   houses: { house: number; levels: Record<KpLevel, VedicGrahaId[]> }[];
 };
 
@@ -54,3 +56,50 @@ export type KpChartTechnical = {
 };
 export const KP_CHART_INTERP_SCHEMA = "astro.kp.chart.interp.v1" as const;
 export type KpChartInterpretation = { schema: typeof KP_CHART_INTERP_SCHEMA; houseThemes: { house: number; keywords: string[] }[] };
+
+// ─── 6F: Ruling Planets · KP transit (efemeris) · Horary ──────────────────────
+export type KpLordSet = { sign: VedicGrahaId; star: VedicGrahaId; sub: VedicGrahaId; subSub: VedicGrahaId };
+export const KP_RULING_TECHNICAL_SCHEMA = "astro.kp.ruling.v1" as const;
+export type KpRulingTechnical = {
+  schema: typeof KP_RULING_TECHNICAL_SCHEMA;
+  /** Roxy: ruling planets ucu ayanamsa ALMAZ (KP-Newcomb dahili) → çerçeve sabit. */
+  frame: { ayanamsa: "kp-newcomb" };
+  at: { utc: string; local: string; utcOffsetHours: number };
+  place: { latitude: number; longitude: number };
+  /** Gün lordu — Hindu vara (gün doğumu esaslı; Roxy). */
+  dayLord: VedicGrahaId;
+  moon: KpLordSet;
+  lagna: KpLordSet;
+  /** Roxy sırası (güçlüden zayıfa); klasik 5 öğe: gün lordu, Ay burç/yıldız, Lagna burç/yıldız (sub lordlar kümeye girmez). */
+  rulingPlanets: VedicGrahaId[];
+  /** Her ruling planet'in natal haritada gösterdiği evler (Roxy, güç sırası). */
+  significators: { id: VedicGrahaId; houses: number[] }[];
+};
+export const KP_TRANSIT_TECHNICAL_SCHEMA = "astro.kp.transit.v1" as const;
+export type KpTransitTechnical = {
+  schema: typeof KP_TRANSIT_TECHNICAL_SCHEMA;
+  frame: { ayanamsa: KpAyanamsaId; ayanamsaDegrees: number };
+  nodeType: "mean" | "true";
+  at: { utc: string };
+  /** Roxy /kp/planets-interval tek an: KP hiyerarşili gökyüzü. Natal cusp'lara göre ev / transit analizi Roxy'de YOK (KISMİ). */
+  bodies: (KpPoint & { id: VedicGrahaId; retrograde: boolean })[];
+};
+export const KP_HORARY_TECHNICAL_SCHEMA = "astro.kp.horary.v1" as const;
+export type KpHoraryTechnical = {
+  schema: typeof KP_HORARY_TECHNICAL_SCHEMA;
+  frame: { ayanamsa: KpAyanamsaId; ayanamsaDegrees: number };
+  houseSystem: "placidus";
+  nodeType: "mean" | "true";
+  horaryNumber: number;
+  at: { utc: string };
+  place: { latitude: number; longitude: number };
+  /** Sayının KP alt bölümü; Asc = alt bölümün ORTA noktası (Roxy). */
+  span: { from: number; to: number };
+  ascendant: KpPoint;
+  cusps: KpCusp[];
+  bodies: KpBody[];
+  significators: KpSignificators;
+  ruling: { dayLord: VedicGrahaId; moon: KpLordSet; lagna: KpLordSet; rulingPlanets: VedicGrahaId[] };
+};
+export const KP_EXTRA_INTERP_SCHEMA = "astro.kp.extra.interp.v1" as const;
+export type KpExtraInterpretation = { schema: typeof KP_EXTRA_INTERP_SCHEMA; houseThemes: { house: number; keywords: string[] }[] };

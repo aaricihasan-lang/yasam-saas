@@ -32,7 +32,7 @@ import {
   type VedicVargaTechnical,
 } from "../model/vedic";
 import { SIGN_LABELS } from "../labels/tr";
-import type { KpChartTechnical } from "../model/kp";
+import type { KpChartTechnical, KpHoraryTechnical, KpRulingTechnical, KpTransitTechnical } from "../model/kp";
 
 export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha", "vedic_drishti", "vedic_strength", "vedic_panchanga", "vedic_gochara"] as const;
 export type VedicContext = (typeof VEDIC_CONTEXTS)[number];
@@ -359,6 +359,17 @@ export function topicsFromKpDasha(t: VedicDashaTechnical): VedicTopic[] {
     if (p.kp) for (const h of [...new Set([1, 2, 3, 4].flatMap((l) => p.kp!.levels[l as 1 | 2 | 3 | 4]))].sort((x, y) => x - y)) items.push(["kp_dasha_signifies", [p.lord, String(h)]]);
   }
   return vedicCollect(items);
+}
+
+/** 6F KP ruling planets / transit / horary konuları. */
+export function topicsFromKpRuling(t: KpRulingTechnical): VedicTopic[] {
+  return vedicCollect(t.rulingPlanets.map((g): [string, string[]] => ["kp_ruling_planet", [g]]));
+}
+export function topicsFromKpTransit(t: KpTransitTechnical): VedicTopic[] {
+  return vedicCollect(t.bodies.flatMap((b): [string, string[]][] => [["kp_transit_starlord", [b.id, b.starLord]], ["kp_transit_sublord", [b.id, b.subLord]]]));
+}
+export function topicsFromKpHorary(t: KpHoraryTechnical): VedicTopic[] {
+  return vedicCollect([["kp_horary_number", [String(t.horaryNumber)]], ...t.cusps.map((c): [string, string[]] => ["kp_horary_cusp_sublord", [String(c.house), c.subLord]])]);
 }
 
 export type { SignId };

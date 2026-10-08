@@ -99,9 +99,9 @@ import {
   ROXY_VEDIC_SHADBALA,
   ROXY_VEDIC_VARGA,
 } from "../providers/roxy/vedic";
-import { kpChartBody, KP_AYANAMSAS, vedicBirthBody, vedicTransitBody, VEDIC_AYANAMSAS, type KpAyanamsa, type KpNodeType, type VedicAyanamsa } from "../providers/roxy/requests";
-import { projectRoxyKpChart, ROXY_KP_CHART } from "../providers/roxy/kp";
-import { KP_CHART_INTERP_SCHEMA, KP_CHART_TECHNICAL_SCHEMA } from "../model/kp";
+import { kpChartBody, kpHoraryBody, kpPlanetsAtBody, kpRulingBody, KP_AYANAMSAS, vedicBirthBody, vedicTransitBody, VEDIC_AYANAMSAS, type KpAyanamsa, type KpNodeType, type VedicAyanamsa } from "../providers/roxy/requests";
+import { projectRoxyKpChart, projectRoxyKpHorary, projectRoxyKpPlanetsAt, projectRoxyKpRuling, ROXY_KP_CHART, ROXY_KP_HORARY, ROXY_KP_PLANETS_AT, ROXY_KP_RULING } from "../providers/roxy/kp";
+import { KP_CHART_INTERP_SCHEMA, KP_CHART_TECHNICAL_SCHEMA, KP_EXTRA_INTERP_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_RULING_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA } from "../model/kp";
 import { KP_DASHA_TECHNICAL_SCHEMA } from "../model/vedic";
 import {
   VEDIC_ASHTAKAVARGA_TECHNICAL_SCHEMA,
@@ -152,6 +152,9 @@ export const TECHNIQUE_IDS = [
   "vedic.transit",
   "kp.chart",
   "kp.dasha",
+  "kp.ruling",
+  "kp.transit",
+  "kp.horary",
 ] as const;
 export type TechniqueId = (typeof TECHNIQUE_IDS)[number];
 
@@ -893,6 +896,94 @@ const kpDasha: TechniqueDefinition = {
   },
 };
 
+// ─── 6F: Ruling Planets · KP transit (efemeris) · Horary ───────────────────────
+const kpPlaceOf = (v: unknown): string | null | undefined => (v === undefined || v === null || v === "" ? null : locId(v) ?? undefined);
+
+const kpRuling: TechniqueDefinition = {
+  id: "kp.ruling",
+  label: "KP ruling planets",
+  family: "kp",
+  requiresPartner: false,
+  // Ruling planet'lerin natal significator'ları doğum haritasından (Placidus) → saat gerekir.
+  requiresKnownTime: true,
+  timeDependent: true,
+  parseOptions: (raw, now) => {
+    const r = o(raw);
+    const atUtc = normalizeTransitMoment(r, now);
+    const nt = kpNodeOf(r.nodeType);
+    const place = kpPlaceOf(r.placeLocationId);
+    return atUtc && nt && place !== undefined ? { atUtc, nodeType: nt, placeLocationId: place } : null;
+  },
+  units: (ctx, opt) => [unit("kp.ruling", ROXY_KP_RULING, kpRulingBody(ctx.birth, String(opt.atUtc), opt.nodeType as KpNodeType, ctx.places?.target ?? null), { timeDependent: true })],
+  noteContext: (opt) => `nodeType:${String(opt.nodeType)}`,
+  parseNoteContextOptions: (raw) => (Object.keys(raw).join() === "nodeType" && (raw.nodeType === "mean" || raw.nodeType === "true") ? { nodeType: raw.nodeType } : null),
+  project: (u, raw, opt) => {
+    const b = u.body as { latitude: number; longitude: number; timezone: number; datetime: string };
+    return fromAdapter(projectRoxyKpRuling(raw, { atUtc: String(opt.atUtc), local: b.datetime, utcOffsetHours: b.timezone, place: { latitude: b.latitude, longitude: b.longitude } }), KP_RULING_TECHNICAL_SCHEMA, KP_EXTRA_INTERP_SCHEMA, ROXY_KP_RULING.projection);
+  },
+};
+
+const kpTransit: TechniqueDefinition = {
+  id: "kp.transit",
+  label: "KP transit (KP efemerisi, tek an)",
+  family: "kp",
+  requiresPartner: false,
+  // Gökyüzü konumları doğum verisine bağlı değil (Roxy natal ev/transit analizi vermez — KISMİ).
+  requiresKnownTime: false,
+  timeDependent: true,
+  parseOptions: (raw, now) => {
+    const r = o(raw);
+    const atUtc = normalizeTransitMoment(r, now);
+    const ay = kpAyanamsaOf(r.ayanamsa);
+    const nt = kpNodeOf(r.nodeType);
+    return atUtc && ay && nt ? { atUtc, ayanamsa: ay, nodeType: nt } : null;
+  },
+  units: (ctx, opt) => [unit("kp.transit", ROXY_KP_PLANETS_AT, kpPlanetsAtBody(String(opt.atUtc), { latitude: ctx.birth.latitude, longitude: ctx.birth.longitude }, opt.ayanamsa as KpAyanamsa, opt.nodeType as KpNodeType), { timeDependent: true })],
+  noteContext: (opt) => `ayanamsa:${String(opt.ayanamsa)}|nodeType:${String(opt.nodeType)}`,
+  parseNoteContextOptions: (raw) => {
+    const ay = kpAyanamsaOf(raw.ayanamsa);
+    const nt = kpNodeOf(raw.nodeType);
+    return Object.keys(raw).sort().join() === "ayanamsa,nodeType" && ay && nt ? { ayanamsa: ay, nodeType: nt } : null;
+  },
+  project: (_u, raw, opt) => fromAdapter(projectRoxyKpPlanetsAt(raw, { atUtc: String(opt.atUtc), ayanamsa: opt.ayanamsa as KpAyanamsa, nodeType: opt.nodeType as KpNodeType }), KP_TRANSIT_TECHNICAL_SCHEMA, null, ROXY_KP_PLANETS_AT.projection),
+};
+
+const kpHorary: TechniqueDefinition = {
+  id: "kp.horary",
+  label: "KP horary (1–249)",
+  family: "kp",
+  requiresPartner: false,
+  // Horary DOĞUM VERİSİ KULLANMAZ: sayı + soru anı + değerlendirme yeri (varsayılan: profil doğum yeri; seçilebilir).
+  requiresKnownTime: false,
+  timeDependent: true,
+  parseOptions: (raw, now) => {
+    const r = o(raw);
+    const n = typeof r.horaryNumber === "number" ? r.horaryNumber : typeof r.horaryNumber === "string" && /^\d{1,3}$/.test(r.horaryNumber) ? Number(r.horaryNumber) : NaN;
+    const atUtc = normalizeTransitMoment(r, now);
+    const ay = kpAyanamsaOf(r.ayanamsa);
+    const nt = kpNodeOf(r.nodeType);
+    const place = kpPlaceOf(r.placeLocationId);
+    if (!Number.isInteger(n) || n < 1 || n > 249 || !atUtc || !ay || !nt || place === undefined) return null;
+    return { horaryNumber: n, atUtc, ayanamsa: ay, nodeType: nt, placeLocationId: place };
+  },
+  units: (ctx, opt) => {
+    const place = ctx.places?.target ?? { latitude: ctx.birth.latitude, longitude: ctx.birth.longitude };
+    return [unit("kp.horary", ROXY_KP_HORARY, kpHoraryBody(Number(opt.horaryNumber), String(opt.atUtc), place, opt.ayanamsa as KpAyanamsa, opt.nodeType as KpNodeType), { timeDependent: true })];
+  },
+  // Not bağlamı = sayı (aynı sayının farklı anları aynı soru dosyasında toplanır).
+  noteContext: (opt) => `horary:${String(opt.horaryNumber)}`,
+  parseNoteContextOptions: (raw) => (Object.keys(raw).join() === "horary" && /^(?:[1-9]\d?|1\d\d|2[0-4]\d)$/.test(raw.horary) && Number(raw.horary) <= 249 ? { horaryNumber: Number(raw.horary) } : null),
+  project: (u, raw, opt) => {
+    const b = u.body as { latitude: number; longitude: number };
+    return fromAdapter(
+      projectRoxyKpHorary(raw, { horaryNumber: Number(opt.horaryNumber), atUtc: String(opt.atUtc), ayanamsa: opt.ayanamsa as KpAyanamsa, nodeType: opt.nodeType as KpNodeType, place: { latitude: b.latitude, longitude: b.longitude } }),
+      KP_HORARY_TECHNICAL_SCHEMA,
+      KP_EXTRA_INTERP_SCHEMA,
+      ROXY_KP_HORARY.projection,
+    );
+  },
+};
+
 const vedicAshtakavarga = vedicBirthTechnique("vedic.ashtakavarga", "Ashtakavarga", ROXY_VEDIC_ASHTAKAVARGA, (raw, ay) => projectRoxyVedicAshtakavarga(raw, { ayanamsa: ay }), {
   technical: VEDIC_ASHTAKAVARGA_TECHNICAL_SCHEMA,
   interp: null,
@@ -925,6 +1016,9 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "vedic.transit": vedicTransit,
   "kp.chart": kpChart,
   "kp.dasha": kpDasha,
+  "kp.ruling": kpRuling,
+  "kp.transit": kpTransit,
+  "kp.horary": kpHorary,
 });
 
 export function getTechnique(id: unknown): TechniqueDefinition | null {

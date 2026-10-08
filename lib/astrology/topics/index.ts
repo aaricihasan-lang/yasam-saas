@@ -31,8 +31,8 @@ import {
 } from "./contextual";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "../model/westernLocation";
 import type { VedicD1Technical, VedicDashaTechnical, VedicDrishtiTechnical, VedicPanchangaTechnical, VedicShadbalaTechnical, VedicTransitTechnical, VedicVargaTechnical } from "../model/vedic";
-import { KP_CONTEXT_LABELS, KP_KINDS, topicsFromKpChart, topicsFromKpDasha, type KpContext } from "./vedic";
-import type { KpChartTechnical } from "../model/kp";
+import { KP_CONTEXT_LABELS, KP_KINDS, topicsFromKpChart, topicsFromKpDasha, topicsFromKpHorary, topicsFromKpRuling, topicsFromKpTransit, type KpContext } from "./vedic";
+import type { KpChartTechnical, KpHoraryTechnical, KpRulingTechnical, KpTransitTechnical } from "../model/kp";
 import { parseVedicTopicKey, topicsFromVedicD1, topicsFromVedicDasha, topicsFromVedicDrishti, topicsFromVedicPanchanga, topicsFromVedicShadbala, topicsFromVedicTransit, topicsFromVedicVarga, VEDIC_CONTEXT_LABELS, VEDIC_KINDS, VEDIC_SPECS, type VedicContext } from "./vedic";
 
 /** Konu bağlamı: Batı bağlamları + Vedik bağlamlar (gelenek ayrımı anahtar türünde ve KB sütununda). */
@@ -180,6 +180,12 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromVedicPanchanga(technical as VedicPanchangaTechnical) : [];
     case "vedic.transit":
       return technical ? topicsFromVedicTransit(technical as VedicTransitTechnical) : [];
+    case "kp.ruling":
+      return technical ? topicsFromKpRuling(technical as KpRulingTechnical) : [];
+    case "kp.transit":
+      return technical ? topicsFromKpTransit(technical as KpTransitTechnical) : [];
+    case "kp.horary":
+      return technical ? topicsFromKpHorary(technical as KpHoraryTechnical) : [];
     case "kp.dasha":
       return technical ? topicsFromKpDasha(technical as VedicDashaTechnical) : [];
     case "kp.chart":
@@ -207,6 +213,9 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   "vedic.transit": "vedic_gochara",
   "kp.chart": ["kp_cusp", "kp_planet", "kp_significator", "kp_principle"],
   "kp.dasha": ["kp_dasha", "kp_principle"],
+  "kp.ruling": ["kp_ruling", "kp_principle"],
+  "kp.transit": ["kp_transit", "kp_principle"],
+  "kp.horary": ["kp_horary", "kp_principle"],
   "western.natal": "natal",
   "western.transit": "transit",
   "western.forecast": "transit",

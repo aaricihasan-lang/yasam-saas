@@ -115,6 +115,9 @@ export async function resolveSelectionContexts(
         "western.astrocartography": "hatlar saat başına ~15° boylam kayar",
         "western.relocation": "taşınmış Yükselen/MC ve evler doğum saatine bağlıdır",
         "western.local_space": "ufuk yönleri (azimut) doğum saatine bağlıdır",
+        "kp.chart": "KP cusp sub-lordu yaklaşık 4 dakikada değişir",
+        "kp.dasha": "dönem tarihleri ve significatorlar Ay boylamına ve Placidus cusplarına bağlıdır",
+        "kp.ruling": "ruling planet significatorları doğum haritasının cusplarından okunur",
       };
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIME_REQUIRED", error: `${def.label} doğum saati bilinmeden güvenilir hesaplanamaz (${why[def.id] ?? "sonuç doğum saatine bağlıdır"}).` } });
       continue;
@@ -161,6 +164,20 @@ export async function resolveSelectionContexts(
         partnerRevision: null,
         blocked: null,
       });
+      continue;
+    }
+    if (def.id === "kp.horary" || def.id === "kp.ruling") {
+      // Aşama 6F — değerlendirme / gözlem yeri: kimlik SUNUCUDA çözülür; yoksa profil doğum yeri. Çözülemezse ENGEL (istek yok).
+      const id = s.options.placeLocationId as string | null;
+      const loc = id ? resolveAstroLocation(id) : null;
+      if (id && !loc) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "LOCATION_NOT_FOUND", error: "Seçilen konum bulunamadı veya saat dilimi/koordinatı doğrulanamadı." } });
+        continue;
+      }
+      const place: PlaceRef = loc
+        ? { locationId: loc.id, label: loc.label, latitude: loc.latitude, longitude: loc.longitude, timezone: loc.timezone }
+        : { locationId: revision.location_id, label: revision.location_label, latitude: revision.latitude, longitude: revision.longitude, timezone: revision.timezone };
+      out.push({ ...s, options: { ...s.options, place }, ctx: loc ? { ...base, places: { target: { latitude: loc.latitude, longitude: loc.longitude } } } : base, partnerRevision: null, blocked: null });
       continue;
     }
     if (!def.requiresPartner) {

@@ -152,10 +152,10 @@ export function kpChartBody(b: BirthPoint, ayanamsa: KpAyanamsa, nodeType: KpNod
  * /vedic-astrology/kp/ruling-planets — an + gözlem konumu (doğum yeri). TEK timezone alanı hem doğum saatine hem `datetime`'a
  * uygulanır → an doğum ofsetinde yerel saate çevrilir (Gochara ile aynı kural). Doğum verisi significator için gönderilir.
  */
-export function kpRulingBody(b: BirthPoint, atUtcMinute: string, nodeType: KpNodeType) {
+export function kpRulingBody(b: BirthPoint, atUtcMinute: string, nodeType: KpNodeType, place?: GeoPoint | null) {
   const bb = birthBody(b);
   const t = vedicTransitLocal(b, atUtcMinute);
-  return { latitude: bb.latitude, longitude: bb.longitude, timezone: bb.timezone, datetime: `${t.date}T${t.time}`, birthDate: bb.date, birthTime: bb.time, nodeType };
+  return { latitude: place ? r6(place.latitude) : bb.latitude, longitude: place ? r6(place.longitude) : bb.longitude, timezone: bb.timezone, datetime: `${t.date}T${t.time}`, birthDate: bb.date, birthTime: bb.time, nodeType };
 }
 
 /** /vedic-astrology/kp/horary — doğum verisi YOK; soru anı UTC (timezone 0) + değerlendirme konumu. */

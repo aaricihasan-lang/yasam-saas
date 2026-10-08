@@ -1,0 +1,162 @@
+{
+  "endpoint": "/vedic-astrology/kp/ruling-planets",
+  "query": null,
+  "body": {
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "datetime": "2026-10-07T12:00:00",
+    "birthDate": "1990-07-15",
+    "birthTime": "14:30:00",
+    "nodeType": "mean"
+  },
+  "response": {
+    "datetime": "2026-10-07T09:00:00.000Z",
+    "location": {
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3
+    },
+    "dayLord": "Mercury",
+    "moonSignLord": "Sun",
+    "moonStarLord": "Ketu",
+    "moonSublord": "Saturn",
+    "moonSubSublord": "Saturn",
+    "lagnaSignLord": "Mars",
+    "lagnaStarLord": "Mercury",
+    "lagnaSublord": "Mercury",
+    "lagnaSubSublord": "Mercury",
+    "rulingPlanets": [
+      "Mercury",
+      "Mars",
+      "Ketu",
+      "Sun"
+    ],
+    "significators": [
+      {
+        "planet": "Mercury",
+        "signifies": [
+          3,
+          9,
+          4,
+          5,
+          12
+        ]
+      },
+      {
+        "planet": "Mars",
+        "signifies": [
+          9,
+          6,
+          2,
+          7
+        ]
+      },
+      {
+        "planet": "Ketu",
+        "signifies": [
+          9,
+          12,
+          6,
+          10
+        ]
+      },
+      {
+        "planet": "Sun",
+        "signifies": [
+          9,
+          3,
+          6,
+          11
+        ]
+      }
+    ],
+    "houseThemes": {
+      "1": [
+        "benlik",
+        "beden",
+        "sağlık",
+        "kişilik",
+        "canlılık"
+      ],
+      "2": [
+        "zenginlik",
+        "aile",
+        "konuşma",
+        "mal varlığı",
+        "yiyecek"
+      ],
+      "3": [
+        "kardeşler",
+        "cesaret",
+        "iletişim",
+        "kısa yolculuklar",
+        "beceriler"
+      ],
+      "4": [
+        "ev",
+        "anne",
+        "mülk",
+        "araçlar",
+        "ev huzuru"
+      ],
+      "5": [
+        "çocuklar",
+        "aşk",
+        "yaratıcılık",
+        "eğitim",
+        "spekülasyon"
+      ],
+      "6": [
+        "düşmanlar",
+        "hastalık",
+        "borçlar",
+        "hizmet",
+        "rekabet"
+      ],
+      "7": [
+        "evlilik",
+        "eş",
+        "iş ortaklığı",
+        "sözleşmeler",
+        "halkla ilişkiler"
+      ],
+      "8": [
+        "uzun ömür",
+        "miras",
+        "ani olaylar",
+        "okült",
+        "dönüşüm"
+      ],
+      "9": [
+        "talih",
+        "baba",
+        "dharma",
+        "yüksek öğrenim",
+        "uzun yolculuklar"
+      ],
+      "10": [
+        "kariyer",
+        "meslek",
+        "statü",
+        "otorite",
+        "karma"
+      ],
+      "11": [
+        "kazançlar",
+        "gelir",
+        "arkadaşlar",
+        "büyük kardeşler",
+        "dileklerin gerçekleşmesi"
+      ],
+      "12": [
+        "kayıplar",
+        "giderler",
+        "yabancı ülkeler",
+        "izolasyon",
+        "moksha"
+      ]
+    },
+    "focus": "general"
+  }
+}
