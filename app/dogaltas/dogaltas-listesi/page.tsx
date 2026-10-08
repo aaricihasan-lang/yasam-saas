@@ -53,8 +53,13 @@ import {
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { reportErrorKind } from "@/lib/dogaltas/reportErrorKind";
+import {
+  browserSessionStorage,
+  markChecked,
+  readCheckedIds,
+  searchContextKey,
+} from "@/lib/dogaltas/searchChecked";
 
-const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-list-viewed-search-results";
 const LAST_VIEWED_STONE_KEY = "yasam-dogaltas-last-viewed-stone-id";
 
 const DOGALTAS_LIST_SEARCH_STORAGE_KEYS = [
@@ -106,27 +111,6 @@ function stripUrlSearchQuery() {
   if (typeof window === "undefined") return;
   const cleanUrl = window.location.pathname;
   window.history.replaceState({}, "", cleanUrl);
-}
-
-function readViewedStoneIds(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = localStorage.getItem(VIEWED_SEARCH_STORAGE_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed)) {
-      return new Set(parsed.map((id) => String(id)));
-    }
-    return new Set();
-  } catch {
-    return new Set();
-  }
-}
-
-function markViewedStoneId(id: string) {
-  const viewed = readViewedStoneIds();
-  viewed.add(id);
-  localStorage.setItem(VIEWED_SEARCH_STORAGE_KEY, JSON.stringify([...viewed]));
 }
 
 function readLastViewedStoneId(): string | null {
@@ -300,16 +284,18 @@ const StoneCard = memo(function StoneCard({
       </div>
       <Link
         href={detailHref}
-        onClick={() => {
-          if (isSearchActive) onNavigate(stone.id);
-        }}
+        onClick={() => onNavigate(stone.id)}
         className={`group block ${isViewedInSearch ? "pl-2" : ""}`}
       >
-        {isSearchActive ? (
+        {isSearchActive || isViewedInSearch ? (
           <div className="mb-2 flex flex-wrap items-center gap-1.5">
-            <span className={SEARCH_MATCH_BADGE_CLASS}>{t("card.matchBadge")}</span>
+            {isSearchActive ? <span className={SEARCH_MATCH_BADGE_CLASS}>{t("card.matchBadge")}</span> : null}
             {isViewedInSearch ? (
-              <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
+              <span
+                data-testid="search-checked-badge"
+                className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9.5px] font-black tracking-wide text-emerald-800 ring-1 ring-emerald-200"
+              >
+                <span aria-hidden>✓</span>
                 {t("card.viewed")}
               </span>
             ) : null}
@@ -667,9 +653,24 @@ function DogaltasListesiPageContent() {
     }
   }, []);
 
+  // WT5: "Kontrol edildi" — işaretler arama BAĞLAMINA (metin + Detay Arama filtreleri) bağlı,
+  // sessionStorage'da. Bağlam yokken (arama/filtre kapalı) işaretlenmez/gösterilmez.
+  const searchCheckedContext = searchContextKey({
+    query: debouncedSearch,
+    zodiac: detailFilters.zodiac,
+    chakra: detailFilters.chakra,
+    mineral: detailFilters.mineral,
+    warningOnly: detailFilters.warningOnly,
+  });
+  const searchCheckedContextRef = useRef(searchCheckedContext);
+  useEffect(() => {
+    searchCheckedContextRef.current = searchCheckedContext;
+    runInEffect(() => setViewedStoneIds(readCheckedIds(browserSessionStorage(), searchCheckedContext)));
+  }, [searchCheckedContext]);
+
   const handleStoneNavigate = useCallback((stoneId: string) => {
-    markViewedStoneId(stoneId);
-    setViewedStoneIds(readViewedStoneIds());
+    const ctx = searchCheckedContextRef.current;
+    if (ctx) setViewedStoneIds(markChecked(browserSessionStorage(), ctx, stoneId));
     saveLastViewedStoneId(stoneId);
     setLastViewedStoneId(stoneId);
   }, []);
@@ -787,7 +788,7 @@ function DogaltasListesiPageContent() {
 
   useEffect(() => {
     const refreshViewed = () => {
-      setViewedStoneIds(readViewedStoneIds());
+      setViewedStoneIds(readCheckedIds(browserSessionStorage(), searchCheckedContextRef.current));
       setLastViewedStoneId(readLastViewedStoneId());
     };
     refreshViewed();
@@ -1420,7 +1421,7 @@ function DogaltasListesiPageContent() {
                   stone={stone}
                   coverImageUrl={resolveImageSrc(firstStoneImage(stone.images), signedCoverUrls)}
                   isSelected={selectedIds.has(stone.id)}
-                  isViewedInSearch={isSearchActive && viewedStoneIds.has(stone.id)}
+                  isViewedInSearch={searchCheckedContext !== "" && viewedStoneIds.has(stone.id)}
                   isLastViewed={stone.id === lastViewedStoneId}
                   isSearchActive={isSearchActive}
                   activeSearch={activeSearch}

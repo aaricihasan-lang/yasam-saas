@@ -77,7 +77,6 @@ export function DetailScreen({
       subtitle={subtitle}
       icon={icon}
       breadcrumbLeaf={breadcrumbLeaf}
-      showNav={false}
       actions={
         <div className="flex flex-wrap items-center gap-2">
           {extraActions && !loading && !notFound && !errorCode ? extraActions : null}

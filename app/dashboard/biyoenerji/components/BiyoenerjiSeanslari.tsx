@@ -114,6 +114,11 @@ export default function BiyoenerjiSeanslari() {
   const saveLock = useSubmitLock();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  // WT5: Biyoenerji genel aramasından gelindiyse (?q=) bölüm araması o terimle açılır.
+  useEffect(() => {
+    const initialQ = new URLSearchParams(window.location.search).get("q")?.trim();
+    if (initialQ) runInEffect(() => setSearchTerm(initialQ.slice(0, 100)));
+  }, []);
   const [categories, setCategories] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [totalInDb, setTotalInDb] = useState(0);

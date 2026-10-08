@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { type StoneListItemExtended } from "@/lib/dogaltas/stonesListFetch";
 import { useOverlay } from "@/lib/dogaltas/useOverlay";
@@ -167,9 +168,14 @@ export function StoneDetailDrawer({
     [t("usageApplication"), stone.application],
   ].filter(([, text]) => Boolean(text && String(text).trim())) as [string, string][];
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  // WT5: document.body portalı + z-[70] — drawer önceden sayfanın `relative z-10` yığın bağlamı içinde
+  // render ediliyordu; uygulamanın sabit üst çubuğu (z-50, 44px) tablet/masaüstünde drawer başlığını ve
+  // "Kapat" (×) düğmesini örtüyordu (tıklanamıyordu). Artık tüm sayfanın üstünde.
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex justify-end"
+      className="fixed inset-0 z-[70] flex justify-end"
       role="dialog"
       aria-modal="true"
       aria-label={t("detailAria", { name: stone.stone_name || t("stoneFallback") })}
@@ -181,11 +187,13 @@ export function StoneDetailDrawer({
         aria-hidden
       />
 
-      {/* Panel: mobil tam ekran (bottom sheet hissi), tablet/desktop sağ drawer */}
+      {/* Panel: mobil alttan açılan sayfa (üstte karartılmış boşluk kalır → dokununca kapanır;
+          WT5: önceden mobilde tam ekrandı, dışarı dokunacak alan yoktu), tablet/desktop sağ drawer. */}
       <div
         ref={containerRef}
         tabIndex={-1}
-        className="animate-drawer-in relative flex h-full w-full flex-col bg-white shadow-2xl sm:w-[440px] md:w-[480px] lg:w-[520px]"
+        data-testid="stone-detail-drawer-panel"
+        className="animate-drawer-in relative mt-auto flex h-[88dvh] w-full flex-col overflow-hidden rounded-t-[24px] bg-white shadow-2xl sm:mt-0 sm:h-full sm:w-[440px] sm:rounded-none md:w-[480px] lg:w-[520px]"
       >
         {/* Başlık */}
         <header className="flex items-start justify-between gap-3 border-b border-slate-100 bg-white/95 px-4 py-3">
@@ -416,7 +424,7 @@ export function StoneDetailDrawer({
       {/* Görsel lightbox */}
       {preview && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black p-6"
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black p-6"
           onClick={() => setPreview(null)}
         >
           <button
@@ -438,6 +446,7 @@ export function StoneDetailDrawer({
           />
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }

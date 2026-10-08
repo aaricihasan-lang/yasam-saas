@@ -5,7 +5,7 @@ import { AromaterapiDetailSkeleton } from "@/app/aromaterapi/_components/Aromate
 
 export default function YeniLoading() {
   return (
-    <AromaterapiSectionShell title="Yeni Bilgi Kaydı" icon="📑" breadcrumbLeaf="Yeni" showNav={false}>
+    <AromaterapiSectionShell title="Yeni Bilgi Kaydı" icon="📑" breadcrumbLeaf="Yeni">
       <AromaterapiDetailSkeleton />
     </AromaterapiSectionShell>
   );

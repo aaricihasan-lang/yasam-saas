@@ -17,7 +17,6 @@ export default function YeniBilgiKaydiPage() {
       subtitle="Kaynağa dayalı yeni bir bilgi kaydı oluşturun."
       icon="📑"
       breadcrumbLeaf="Yeni"
-      showNav={false}
       actions={
         <Link
           href="/aromaterapi/bilgi-kayitlari"

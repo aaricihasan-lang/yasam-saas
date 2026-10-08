@@ -18,7 +18,6 @@ export default function YeniYontemPage() {
       subtitle="Bu preparatın nasıl elde edildiğini kaynağıyla birlikte tanımlayın."
       icon="🧪"
       breadcrumbLeaf="Yeni Yöntem"
-      showNav={false}
       actions={
         <Link
           href={preparationId ? `/aromaterapi/katalog/preparatlar/${preparationId}` : "/aromaterapi/katalog?tab=preparatlar"}
