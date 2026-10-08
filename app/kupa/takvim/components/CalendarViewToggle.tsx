@@ -16,7 +16,7 @@ export function CalendarViewToggle({
   onChange: (view: CalendarView) => void;
 }) {
   const items: { key: CalendarView; label: string }[] = [
-    { key: "monthly", label: "Aylık Düzenleme" },
+    { key: "monthly", label: "Aylık Görünüm" },
     { key: "annual", label: "Yıllık Özet" },
   ];
   return (

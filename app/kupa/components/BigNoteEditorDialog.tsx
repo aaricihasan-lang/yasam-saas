@@ -8,10 +8,10 @@ import { kupaBtnGhost, kupaBtnSuccess } from "./KupaShell";
  * BÜYÜK NOT EDİTÖRÜ — uzun serbest metin alanları (Profesyonel / Çalışma Notu,
  * Serbest Kaynak Notu) için rahat, geniş yazı ekranı.
  *
- * Davranış (kritik): "Notu Kaydet" DB'ye AYRI kayıt yazmaz; metni yalnız parent
+ * Davranış (kritik): "Uygula" (WT6: eski adı "Notu Kaydet" kalıcı kayıt sanılıyordu) DB'ye AYRI kayıt yazmaz; metni yalnız parent
  * form state'ine aktarır. Asıl kayıt, ana formun "Kaydet" butonuyla topic create
  * API'sine gider. "Vazgeç" değişikliği açıkça iptal eder. ESC/overlay VERİ KAYBINA
- * yol açmaz: taslak değiştirilmişse (dirty) yalnız açık "Vazgeç"/"Notu Kaydet" kapatır.
+ * yol açmaz: taslak değiştirilmişse (dirty) yalnız açık "Vazgeç"/"Uygula" kapatır.
  *
  * KRİTİK (mobil tam-ekran): Overlay `document.body`'ye PORTAL edilir. Aksi halde
  * `fixed inset-0`, `backdrop-filter`/`transform`/`contain` içeren bir ata (ör.
@@ -119,13 +119,15 @@ export function BigNoteEditorDialog({
         </div>
 
         <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-5 py-3.5">
-          <span className="text-[11px] text-slate-400">{draft.trim().length} karakter</span>
+          <span className="text-[11px] text-slate-400">
+            {draft.trim().length} karakter · Kalıcı kayıt için formdaki <strong>Kaydet</strong>&apos;e basın
+          </span>
           <div className="flex items-center gap-2">
             <button type="button" onClick={onCancel} className={kupaBtnGhost}>
               Vazgeç
             </button>
-            <button type="button" onClick={() => onSave(draft)} className={kupaBtnSuccess}>
-              Notu Kaydet
+            <button type="button" onClick={() => onSave(draft)} className={kupaBtnSuccess} data-testid="kupa-bignote-apply">
+              Uygula
             </button>
           </div>
         </div>

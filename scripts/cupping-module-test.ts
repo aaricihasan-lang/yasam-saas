@@ -780,20 +780,20 @@ function run(): void {
   ok(!/listPoints\(|listTechniques\(|listSafety\(|listSources\(/.test(pSources),
     "faz3a-n+1: SourcesSection loop/section master GET yapmaz");
 
-  // I) KAYNAK — SourcesSection: K10 (owner FINAL) → katalogdan seç <select> + serbest-metin oluştur
-  // BİRLİKTE. Serbest-metin backward-compat KORUNUR; bibliyografik metadata UI'ı hâlâ EKLENMEZ.
-  ok(/Kimden öğrendim/.test(pSources) && /Katalogdan Kaynak Seç/.test(pSources) && /<select/.test(pSources),
-    "K10: SourcesSection katalog <select> + serbest metin BİRLİKTE (backward-compat korunur)");
+  // I) KAYNAK — SourcesSection: WT6 (owner FINAL) → hazır katalog <select> KALDIRILDI; kaynak SERBEST
+  // yazılır, öneri yalnız uzmanın KENDİ geçmiş kaynakları (SourceNameField). Bibliyografik UI hâlâ YOK.
+  ok(/kimden \/ nereden öğrendim/i.test(pSources) && !/Katalogdan Kaynak Seç/.test(pSources) && !/<select/.test(pSources) && /<SourceNameField/.test(pSources),
+    "WT6: SourcesSection hazır katalog <select> YOK; serbest metin + kendi-geçmiş önerisi");
   ok(!/author_or_organization|publication|identifier|source_type|\blanguage\b/.test(pSources),
     "faz3a-source: bibliyografik metadata (yazar/yayın/identifier/tür/dil) UI'da YOK");
   ok(/createSource\(/.test(pSources) && /source_name: text/.test(pSources) && /normalizeMasterName/.test(pSources),
     "faz3a-source: exact-normalized reuse veya arka planda minimal source create (source_name)");
-  ok(/datalist/.test(pSources), "faz3a-source: autocomplete datalist (öneri; seçime ZORLAMAZ)");
+  ok(/SourceNameField/.test(pSources) && !/<datalist/.test(pSources), "WT6-source: öneri yalnız kendi geçmiş kaynaklar (datalist/katalog YOK; seçime ZORLAMAZ)");
   ok(/!created \|\| !created\.id/.test(pSources), "faz3a-source: demo/null id → attach YAPMAZ");
 
   // J) SADE KAYNAK — EntriesSection: serbest metin + datalist + mevcut source_id chip korunur.
-  ok(/list="kupa-entry-source-suggestions"/.test(pEntries) && /datalist/.test(pEntries),
-    "faz3a-entry-source: serbest metin + autocomplete datalist");
+  ok(/<SourceNameField/.test(pEntries) && !/<datalist/.test(pEntries),
+    "WT6-entry-source: serbest metin + yalnız kendi geçmiş kaynak önerisi");
   ok(/draft\.source_id \?/.test(pEntries) && /Kaldır/.test(pEntries),
     "faz3a-entry-source: mevcut kayıtlı kaynak (source_id) chip + Kaldır ile korunur/temizlenir");
 
@@ -1111,8 +1111,8 @@ function run(): void {
   // Tek master: standalone create + protokol quick-create AYNI createTechnique API'sini kullanır.
   ok(/createTechnique\(/.test(tRead2),
     "faz4c-single-master: standalone editor createTechnique kullanır");
-  ok(/createTechnique\(\{/.test(rSec) && /addProtocolTechnique\(\{ protocol_id: protocolId, technique_id: created\.id \}\)/.test(rSec),
-    "faz4c-single-master: protokol quick-create AYNI createTechnique → dönen created.id ile attach");
+  ok(/createTechnique\(\{/.test(rSec) && /setPending\(\(p\) => \(p\.includes\(created\.id\) \? p : \[\.\.\.p, created\.id\]\)\)/.test(rSec),
+    "faz4c-single-master (WT6): protokol quick-create AYNI createTechnique → created.id 'eklenecek' listesine (bağlantı Kaydet ile)");
   ok(!/create[A-Za-z]*Technique.*master.*store|technique_master|protocolTechnique.*name/i.test(rSec),
     "faz4c-single-master: ayrı protokole-özel teknik master store YOK");
 
@@ -1526,8 +1526,8 @@ function run(): void {
       "P1-1: yeniden yüklemede kaydedilemeyen günler taslağa geri yazılır");
     ok(/failCount === 0 && reloaded[\s\S]{0,80}Takvim kaydedildi/.test(wsSrc),
       "P1-1: 'Takvim kaydedildi' yalnız tüm işlemler + doğrulama başarılıysa");
-    ok(/onBeforeCreate=\{confirmDiscardIfDirty\}/.test(wsSrc) && /onPlanUpdated=\{handlePlanUpdated\}/.test(wsSrc),
-      "P1-1: yeni plan öncesi onay + plan düzenleme taslağı SIFIRLAMAZ (yerinde güncelleme)");
+    ok(/async function openMonthForEditing[\s\S]{0,400}confirmDiscardIfDirty\(\)/.test(wsSrc) && /onPlanUpdated=\{handlePlanUpdated\}/.test(wsSrc),
+      "P1-1 (WT6): Yeni Takvim (yıl/ay) öncesi onay + plan ad/açıklama taslağı SIFIRLAMAZ (yerinde güncelleme)");
     ok(/useUnsavedChangesGuard\(dirty, confirmDiscard\)/.test(wsSrc),
       "P2-13: uygulama içi gezinme/geri tuşu kaydedilmemiş değişiklik koruması");
 
@@ -1553,8 +1553,8 @@ function run(): void {
       "faz5-final: uzman-sahipli açıklama metni");
     ok(/Yaşam Sistemi takvime hazır .*gün eklemez/.test(wsSrc),
       "faz5-final: 'hazır gün eklemez' netliği");
-    ok(/Takvim oluşturuldu/.test(plannerSrc) && !/autoSeeded/.test(plannerSrc),
-      "faz5-final: plan oluşturma başarı mesajı sade ('Takvim oluşturuldu')");
+    ok(/takvimi oluşturuldu/.test(wsSrc) && !/autoSeeded/.test(plannerSrc) && !/autoSeeded/.test(wsSrc),
+      "faz5-final (WT6): plan oluşturma başarı mesajı sade ('<yıl> takvimi oluşturuldu')");
 
     // ── CELL STATE — 4 sade uzman-sahipli durum (pür fonksiyon) ──────────────────
     ok(getCuppingCellState(false, false).kind === "none",
@@ -1603,8 +1603,8 @@ function run(): void {
       "faz5-nav: ay değişimi yalnız setMonth (yıl-geneli taslağı korur)");
 
     // ── VIEW TOGGLE — Aylık ↔ Yıllık; aynı plan/taslak ─────────────────────────
-    ok(/Aylık Düzenleme/.test(toggleSrc) && /Yıllık Özet/.test(toggleSrc),
-      "faz5-view: segmented control Aylık Düzenleme + Yıllık Özet");
+    ok(/Aylık Görünüm/.test(toggleSrc) && /Yıllık Özet/.test(toggleSrc),
+      "faz5-view (WT6): segmented control Aylık Görünüm + Yıllık Özet (görüntüleme; düzenleme ayrı)");
     ok(/aria-pressed/.test(toggleSrc), "faz5-view: segmented control erişilebilir");
     ok(/useState<CalendarView>\("monthly"\)/.test(wsSrc), "faz5-view: varsayılan görünüm Aylık");
     ok(/setView\("monthly"\)/.test(wsSrc) && /setMonth\(m\)/.test(wsSrc),
@@ -1620,7 +1620,7 @@ function run(): void {
       "faz5-annual: Yıllık Özet AYNI draft + saved alır (kaydedilmemiş dâhil)");
     ok(!/autoCount|practitionerCount|totalCount/.test(annualSrc),
       "faz5-annual: Yıllık Özet Otomatik/Uzman/Toplam sayıları GÖSTERMEZ");
-    ok(/Bu yıl için henüz uygulama günü seçilmedi/.test(annualSrc),
+    ok(/Bu yıl için henüz uygulama günü işaretlenmedi/.test(annualSrc),
       "faz5-annual: boş-durum mesajı (hiç seçim yoksa 12 ay yine gösterilir)");
     ok(/grid-cols-1/.test(annualSrc) && /sm:grid-cols-2/.test(annualSrc) && /lg:grid-cols-3/.test(annualSrc) && /xl:grid-cols-4/.test(annualSrc),
       "faz5-annual: responsive minik-ay ızgarası (12 kolonluk sıkışma YOK)");

@@ -76,6 +76,23 @@ export async function POST(req: NextRequest): Promise<Response> {
     delete fields.advice_template_id;
   }
 
+  // WT6 — "Yeni Takvim → yıl/ay" kanonik davranışı: aynı yıl için zaten plan varsa YENİ plan
+  //   ÜRETİLMEZ; mevcut (en son oluşturulan) plan döner ve uzman onun günlerinin üstünden düzenler.
+  //   (Veri modeli aynı yıla birden fazla plana izin verir; bu bayrak duplicate üretimini önler.)
+  if (parsed.data && (parsed.data as Record<string, unknown>).reuse_year === true) {
+    const { data: existing, error: exErr } = await db
+      .from(CUPPING_TABLES.calendarPlans)
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("year", year)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (exErr) return cuppingError(500, "İşlem tamamlanamadı.");
+    if (Array.isArray(existing) && existing.length > 0) {
+      return NextResponse.json({ ok: true, plan: existing[0], reused: true });
+    }
+  }
+
   // YENİ plan YALNIZ metadata oluşturur — SIFIR seçili gün. Otomatik tohumlama YOK; hazır
   // Sünnet/Altın günü YOK. Uzman her uygulama gününü kendisi /days ucundan ekler.
   const ins = await insertEntity(db, CUPPING_TABLES.calendarPlans, tenantId, fields);

@@ -585,12 +585,16 @@ export type CreateCalendarPlanResult = {
   ok: true;
   plan: CuppingCalendarPlan | null;
   demo?: boolean;
+  /** WT6: mevcut yıl planı döndü (yeni oluşturulmadı). */
+  reused?: boolean;
 };
 export const createCalendarPlan = (body: {
   name: string;
   year: number;
   description?: string | null;
   advice_template_id?: string | null;
+  /** WT6: aynı yıl için plan varsa yenisini OLUŞTURMA, mevcut planı döndür. */
+  reuse_year?: boolean;
 }): Promise<CreateCalendarPlanResult> =>
   callRaw<CreateCalendarPlanResult>(`${BASE}/calendar/plans`, {
     method: "POST",
