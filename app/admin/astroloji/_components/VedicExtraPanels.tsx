@@ -59,9 +59,13 @@ export function VedicDrishtiPanel({ t, kbLookup }: { t: VedicDrishtiTechnical; k
   const isMutual = (x: { from: VedicGrahaId; to: VedicGrahaId }) => t.mutual.some((m) => (m.a === x.from && m.b === x.to) || (m.a === x.to && m.b === x.from));
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-vedic-drishti-panel">
-      <p className="text-sm text-slate-700">
-        <strong>Graha Drishti</strong> · Lahiri (sabit) · Roxy yöntemi: <strong>derece + orb</strong> (herkes 7.; Mars 4./8.; Jüpiter 5./9.; Satürn 3./10.). Bütün-burç (rashi)
-        drishti listesi değildir; orb dışındaki bakışlar listelenmez.
+      <p className="text-sm text-slate-700" data-testid="astro-vedic-drishti-method">
+        <strong>Graha Drishti</strong> · Lahiri (sabit) · Roxy yöntemi: <strong>Parashari bütün-burç graha drishti</strong> — tam bakış herkes 7. burca; özel bakışlar Mars 4./8.,
+        Jüpiter 5./9., Satürn 3./10.; Rahu/Ketu bakış atmaz. Bakış burç sayımıyla belirlenir, derece uzaklığına bakılmaz (her bakış tam, %100).
+      </p>
+      <p className="text-xs text-slate-500">
+        Kapsam dışı: kısmi (¼, ½, ¾) graha bakışları, Rahu/Ketu bakışı (bazı ekoller 5./9. verir) ve Jaimini rashi drishti — Roxy bu uçta bunları sunmaz; Yaşam Sistemi ayrı
+        hesaplamaz. “Burç-içi fark”, iki grahanın burç içindeki derece farkıdır (bakışın ne kadar “tam denk” olduğu); bakış koşulu değildir.
       </p>
       <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className={`${card} overflow-x-auto`}>
@@ -71,15 +75,14 @@ export function VedicDrishtiPanel({ t, kbLookup }: { t: VedicDrishtiTechnical; k
                 <th className={th}>Bakan</th>
                 <th className={th}>Bakılan</th>
                 <th className={th}>Tür</th>
-                <th className={th}>Orb</th>
-                <th className={th}>Güç</th>
+                <th className={th}>Burç-içi fark</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {t.aspects.length === 0 && (
                 <tr>
-                  <td className={td} colSpan={5}>
-                    Orb içinde bakış yok.
+                  <td className={td} colSpan={4}>
+                    Bakış yok.
                   </td>
                 </tr>
               )}
@@ -90,15 +93,7 @@ export function VedicDrishtiPanel({ t, kbLookup }: { t: VedicDrishtiTechnical; k
                   <td className={td}>
                     {x.type}.{isMutual(x) ? <span className="ml-1 rounded bg-indigo-100 px-1 text-[10px] text-indigo-800">karşılıklı</span> : null}
                   </td>
-                  <td className={`${td} whitespace-nowrap`}>{x.orb.toFixed(2)}°</td>
-                  <td className={td}>
-                    <div className="flex items-center gap-2">
-                      <div className="h-1.5 w-14 overflow-hidden rounded bg-slate-100" aria-hidden>
-                        <div className="h-full bg-indigo-400" style={{ width: `${x.strength}%` }} />
-                      </div>
-                      <span className="text-xs">%{Math.round(x.strength)}</span>
-                    </div>
-                  </td>
+                  <td className={`${td} whitespace-nowrap tabular-nums`}>{x.orb.toFixed(2)}°</td>
                 </tr>
               ))}
             </tbody>
@@ -112,7 +107,7 @@ export function VedicDrishtiPanel({ t, kbLookup }: { t: VedicDrishtiTechnical; k
               </h4>
               <p className="text-xs text-slate-600">
                 {GRAHA_LABELS[a.from]} {formatDegree(t.positions.find((p) => p.id === a.from)!.longitude % 30)} {SIGN_LABELS[t.positions.find((p) => p.id === a.from)!.rashi]} ·{" "}
-                {GRAHA_LABELS[a.to]} {formatDegree(t.positions.find((p) => p.id === a.to)!.longitude % 30)} {SIGN_LABELS[t.positions.find((p) => p.id === a.to)!.rashi]} · orb {a.orb.toFixed(2)}°
+                {GRAHA_LABELS[a.to]} {formatDegree(t.positions.find((p) => p.id === a.to)!.longitude % 30)} {SIGN_LABELS[t.positions.find((p) => p.id === a.to)!.rashi]} · {a.type}. burç · burç-içi fark {a.orb.toFixed(2)}° · tam bakış
               </p>
               <KbBox kb={kb} empty="Bu bakış için Bilgi Bankası kaydınız yok." />
             </>
@@ -165,7 +160,8 @@ export function VedicTransitPanel({ t, kbLookup }: { t: VedicTransitTechnical; k
           })}
         </ol>
       </div>
-      <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      {/* 6 sütunlu tablo dar yan sütuna sığmaz (Drishti/Kaksha kaydırmaya gizlenirdi) → tablo tam genişlik, ayrıntı altında. */}
+      <div className="grid min-w-0 gap-3">
         <div className={`${card} overflow-x-auto`}>
           <table className="min-w-full" data-testid="astro-vedic-transit-table">
             <thead>

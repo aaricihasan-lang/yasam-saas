@@ -16,6 +16,7 @@ import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import { GRAHA_LABELS, NAKSHATRA_LABELS } from "@/lib/astrology/topics/vedic";
 import { BPHS_VARGA_RULES, checkVargaAgainstBphs, type VargaCheck } from "@/lib/astrology/verify/varga";
+import { CROWDED_AT, GRAHA_TR, LIB_GRAHA_NAME, grahaTrName, kundliLegend, localizeGrahaLabel, localizeSignLabel } from "../_lib/kundliLocalize";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -84,14 +85,79 @@ export function toVargaChartData(t: VedicVargaTechnical) {
 
 type ChartStyle = "north" | "south" | "east";
 
+/** 5.1D: haritadaki graha ipucu (SVG title) — Türkçe tam ad / Sanskritçe + konum. Anahtar = kütüphanenin İngilizce adı. */
+export function kundliTitles(points: { id: VedicGrahaId; rashi: (typeof SIGN_IDS)[number]; longitude: number; nakshatra: NakshatraPlacement; retrograde: boolean; d1Rashi?: (typeof SIGN_IDS)[number] }[], division?: number, combust: VedicGrahaId[] = []): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const p of points) {
+    const d1 = p.d1Rashi ?? SIGN_IDS[Math.floor(p.longitude / 30)];
+    const pos = division ? `D${division} ${SIGN_LABELS[p.rashi]} · D1 ${SIGN_LABELS[d1]} ${formatDegree(p.longitude % 30)}` : `${SIGN_LABELS[p.rashi]} ${formatDegree(p.longitude % 30)}`;
+    out[ROXY_NAME[p.id]] = [grahaTrName(p.id), pos, `${nakName(p.nakshatra.id)} ${p.nakshatra.pada}. pada`, `nakshatra yöneticisi ${GRAHA_TR[p.nakshatra.lord].tr}`, p.retrograde ? "vakri (retro)" : "", combust.includes(p.id) ? "yanık (asta)" : ""].filter(Boolean).join(" · ");
+  }
+  return out;
+}
+
+/**
+ * 5.1C/5.1D: kütüphane kısaltmalarını Türkçeleştirir, kalabalık hücrede (≥3 graha) dereceyi düşürüp yazıyı küçültür
+ * (Doğu düzeninde burç etiketinden uzaklaştırır). YALNIZ Lit'in metin düğümlerinin `data`'sı ve öğe `style`'ı değişir
+ * (Lit işaretçileri korunur); geometri/yerleşim kütüphanenindir. İdempotent → MutationObserver döngüye girmez.
+ */
+export function localizeKundliDom(root: ParentNode, titles: Record<string, string>, style: ChartStyle) {
+  // Güney düzeninin dikdörtgen hücreleri 4 satırı dereceyle taşır; Kuzey/Doğu üçgenleri 3 grahada sıkışır.
+  const crowdedAt = style === "south" ? CROWDED_AT + 2 : CROWDED_AT;
+  const textOf = (el: Element) => [...el.childNodes].find((n): n is Text => n.nodeType === 3 && (n as Text).data.trim() !== "");
+  const set = (n: Text | undefined, v: string) => {
+    if (n && n.data !== v) n.data = v;
+  };
+  for (const cell of root.querySelectorAll("g.cell")) {
+    const ps = [...cell.querySelectorAll("text.planet-text")] as SVGTextElement[];
+    const crowded = ps.length >= crowdedAt;
+    for (const p of ps) {
+      const title = p.querySelector("title");
+      const tn = title ? textOf(title) : undefined;
+      const first = tn?.data.split(" · ")[0] ?? "";
+      if (tn && LIB_GRAHA_NAME[first] && titles[first]) set(tn, titles[first]);
+      const label = textOf(p);
+      if (label) set(label, localizeGrahaLabel(label.data, crowded));
+      const fs = crowded ? "11px" : "";
+      if (p.style.fontSize !== fs) p.style.fontSize = fs;
+    }
+    // Yığın, hücrenin burç/rashi/ev/Lagna etiketinin üstüne binmesin: gerçek SVG ölçümü (getBBox; CSS transform'u
+    // içermez → idempotent). Ölçüm yoksa (test/eski tarayıcı) kalabalık hücrede sabit 3px.
+    const labels = [...cell.querySelectorAll("text.sign-text, text.rashi-num, text.house-num, text.lagna-marker")] as SVGTextElement[];
+    let shift = crowded ? 3 : 0;
+    if (ps.length > 0 && labels.length > 0 && typeof ps[0].getBBox === "function") {
+      const bottom = Math.max(...labels.map((l) => l.getBBox().y + l.getBBox().height));
+      const top = Math.min(...ps.map((p) => p.getBBox().y));
+      shift = Math.max(0, Math.ceil(bottom + 1 - top));
+    }
+    for (const p of ps) {
+      const tr = shift > 0 ? `translateY(${shift}px)` : "";
+      if (p.style.transform !== tr) p.style.transform = tr;
+    }
+  }
+  for (const s of root.querySelectorAll("text.sign-text, text.rashi-num")) {
+    const n = textOf(s);
+    if (n) set(n, localizeSignLabel(n.data));
+  }
+  for (const s of root.querySelectorAll("text.lagna-marker")) {
+    set(textOf(s), "Lagna");
+    // "LAGNA" (büyük harf + aralık) Güney düzeninde Lagna çizgisine değer → normal yazım, aralıksız.
+    const el = s as SVGTextElement;
+    if (el.style.textTransform !== "none") el.style.textTransform = "none";
+    if (el.style.letterSpacing !== "0px") el.style.letterSpacing = "0px";
+  }
+}
+
 /** Roxy kundli / varga web bileşeni (yalnız istemcide, dinamik yükleme). */
-export function RoxyKundli({ data, style, kind = "kundli" }: { data: unknown; style: ChartStyle; kind?: "kundli" | "divisional" }) {
+export function RoxyKundli({ data, style, kind = "kundli", titles = {} }: { data: unknown; style: ChartStyle; kind?: "kundli" | "divisional"; titles?: Record<string, string> }) {
   const ref = useRef<HTMLElement | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let alive = true;
-    (kind === "divisional" ? import("@roxyapi/ui/components/divisional-chart") : import("@roxyapi/ui/components/vedic-kundli"))
+    // Türkçe katalog: kütüphanenin kendi yazdığı metinler (gösterge, ipucu ekleri). Graha/burç kısaltmaları
+    // kütüphanede yerelleşmez → localizeKundliDom.
+    Promise.all([kind === "divisional" ? import("@roxyapi/ui/components/divisional-chart") : import("@roxyapi/ui/components/vedic-kundli"), import("@roxyapi/ui/locales/tr")])
       .then(() => alive && setReady(true))
       .catch(() => alive && setFailed(true));
     return () => {
@@ -101,14 +167,30 @@ export function RoxyKundli({ data, style, kind = "kundli" }: { data: unknown; st
   useEffect(() => {
     if (ready && ref.current) (ref.current as unknown as { data: unknown }).data = data;
   }, [ready, data]);
+  const titlesKey = JSON.stringify(titles);
+  useEffect(() => {
+    const root = ready ? ref.current?.shadowRoot : null;
+    if (!root) return;
+    const t = JSON.parse(titlesKey) as Record<string, string>;
+    const apply = () => localizeKundliDom(root, t, style);
+    apply();
+    const mo = new MutationObserver(apply);
+    mo.observe(root, { subtree: true, childList: true, characterData: true });
+    return () => mo.disconnect();
+  }, [ready, style, titlesKey]);
   if (failed) return <p className="text-sm text-rose-700">Harita bileşeni yüklenemedi; teknik tablo aşağıda.</p>;
+  // Mobilde bileşenin iç dolgusu (1.5rem) haritayı ~245 px'e küçültüyordu → küçük ekranda 0.5rem (CSS değişkeni gölge DOM'a miras geçer).
   return (
-    <div className="roxy-host w-full min-w-0" data-testid="astro-vedic-kundli">
+    <div className="roxy-host w-full min-w-0 [--roxy-space-lg:0.5rem] sm:[--roxy-space-lg:1.5rem]" data-testid="astro-vedic-kundli">
       {createElement(kind === "divisional" ? "roxy-divisional-chart" : "roxy-vedic-kundli", { ref, "chart-style": style, lang: "tr", "hide-readings": "", "hide-sections": kind === "divisional" ? "header,tablist,details" : "header,tablist" })}
       {!ready && <p className="text-sm text-slate-400">Harita yükleniyor…</p>}
+      <p className="mt-1 text-center text-[11px] leading-snug text-slate-500" data-testid="astro-vedic-kundli-legend">
+        {kundliLegend(VEDIC_GRAHA_ORDER)} · ʳ vakri · ᶜ yanık (asta) · ʷ graha yuddha. Kuzey/Doğu düzeninde 3+, Güney&apos;de 5+ grahalı hücrede derece haritada gösterilmez (tabloda ve ipucunda).
+      </p>
     </div>
   );
 }
+const VEDIC_GRAHA_ORDER: VedicGrahaId[] = ["sun", "moon", "mars", "mercury", "jupiter", "venus", "saturn", "rahu", "ketu"];
 
 export type NakshatraRow = {
   point: "lagna" | VedicGrahaId;
@@ -142,6 +224,7 @@ export function VedicD1Panel({ t, kbLookup }: { t: VedicD1Technical; kbLookup?: 
   const [style, setStyle] = useState<ChartStyle>("north");
   const [sel, setSel] = useState<string>("lagna");
   const data = useMemo(() => toKundliData(t), [t]);
+  const titles = useMemo(() => kundliTitles(t.grahas, undefined, t.combustion.map((c) => c.id)), [t]);
   const selected = sel === "lagna" ? null : t.grahas.find((g) => g.id === sel) ?? null;
   const keys = selected
     ? [`graha_in_rashi:${selected.id}:${selected.rashi}`, `graha_in_bhava:${selected.id}:${selected.house}`, `graha_in_nakshatra:${selected.id}:${selected.nakshatra.id}`, `graha_nakshatra_pada:${selected.id}:${selected.nakshatra.id}:${selected.nakshatra.pada}`]
@@ -180,7 +263,7 @@ export function VedicD1Panel({ t, kbLookup }: { t: VedicD1Technical; kbLookup?: 
       </div>
       <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="vedic-kundli-frame mx-auto w-full max-w-[520px]">
-          <RoxyKundli data={data} style={style} />
+          <RoxyKundli data={data} style={style} titles={titles} />
         </div>
         <section className="min-w-0 rounded-xl border border-amber-200 bg-amber-50/40 p-3" aria-label="Seçili graha ayrıntısı" data-testid="astro-vedic-detail">
           <h4 className="mb-1 text-sm font-semibold text-amber-900">{selected ? GRAHA_LABELS[selected.id] : "Lagna"}</h4>
@@ -450,6 +533,7 @@ export function VedicVargaPanel({ t, kbLookup }: { t: VedicVargaTechnical; kbLoo
   const [style, setStyle] = useState<ChartStyle>("north");
   const [sel, setSel] = useState<"lagna" | VedicGrahaId>("lagna");
   const data = useMemo(() => toVargaChartData(t), [t]);
+  const titles = useMemo(() => kundliTitles(t.grahas, t.division.number), [t]);
   const d9 = t.division.number === 9;
   const dn = `D${t.division.number}`;
   const dl = `${dn} ${t.division.name}`;
@@ -473,7 +557,7 @@ export function VedicVargaPanel({ t, kbLookup }: { t: VedicVargaTechnical; kbLoo
       <VargaVerification t={t} />
       <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="mx-auto w-full max-w-[520px]">
-          <RoxyKundli data={data} style={style} kind="divisional" />
+          <RoxyKundli data={data} style={style} kind="divisional" titles={titles} />
         </div>
         <section className="min-w-0 rounded-xl border border-amber-200 bg-amber-50/40 p-3" aria-label="Seçili nokta ayrıntısı" data-testid="astro-vedic-varga-detail">
           <h4 className="mb-1 text-sm font-semibold text-amber-900">

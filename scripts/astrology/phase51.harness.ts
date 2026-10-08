@@ -24,9 +24,11 @@ import { createKb } from "@/lib/astrology/kb/service";
 import { getAnalysis, getWorkspace, saveAnalysis, saveExpertNote } from "@/lib/astrology/analyses/service";
 import { isSectionKeyForTechnique, parseAnyTopicKey, topicsForTechnique, TECHNIQUE_TOPIC_CONTEXT } from "@/lib/astrology/topics/index";
 import { parseVedicTopicKey } from "@/lib/astrology/topics/vedic";
-import { navamsaRashiOfPada, projectRoxyVedicTransit, projectRoxyVedicVarga, signCount } from "@/lib/astrology/providers/roxy/vedic";
+import { navamsaRashiOfPada, projectRoxyVedicD1, projectRoxyVedicDrishti, projectRoxyVedicTransit, projectRoxyVedicVarga, signCount } from "@/lib/astrology/providers/roxy/vedic";
+import { kundliLegend, localizeGrahaLabel, localizeSignLabel, SIGN_TR_ABBR } from "@/app/admin/astroloji/_lib/kundliLocalize";
+import { GRAHA_LABELS } from "@/lib/astrology/topics/vedic";
 import { BPHS_VARGA_RULES, checkVargaAgainstBphs, VARGA_GOLDEN_CONFIRMED } from "@/lib/astrology/verify/varga";
-import { vargaCheckOf } from "@/app/admin/astroloji/_components/VedicPanels";
+import { kundliTitles, localizeKundliDom, vargaCheckOf } from "@/app/admin/astroloji/_components/VedicPanels";
 import { vedicTransitBody, vedicTransitLocal } from "@/lib/astrology/providers/roxy/requests";
 import { projectRoxyTransit } from "@/lib/astrology/providers/roxy/timing";
 import { maskTechnical } from "@/lib/astrology/view/techniqueView";
@@ -435,6 +437,110 @@ async function main() {
     assert.equal(c.status, "mismatch");
     assert.deepEqual(c.mismatches, [{ id: "sun", got: "gemini", expected: "libra" }]);
     assert.equal(checkVargaAgainstBphs(5, [{ id: "sun", longitude: 10, rashi: "aries" }]).status, "unsupported");
+  });
+
+  // ═══ 5.1C/5.1D — harita etiketleri (Türkçe) + kalabalık hücre ═════════════════
+  await t("5.1D graha/burç etiketleri: kütüphane İngilizcesi → Türkçe (Su→Gü, Mo→Ay, Ju→Jü); kalabalıkta derece düşer; işaretler korunur; idempotent; tanınmayan aynen", () => {
+    assert.equal(localizeGrahaLabel("Su 28°", false), "Gü 28°");
+    assert.equal(localizeGrahaLabel("Ju 28°ᶜ", false), "Jü 28°ᶜ");
+    assert.equal(localizeGrahaLabel("Ju 28°ᶜ", true), "Jüᶜ");
+    assert.equal(localizeGrahaLabel("Sa 28°ʳ", false), "Sa 28°ʳ");
+    assert.equal(localizeGrahaLabel("Mo", false), "Ay");
+    assert.equal(localizeGrahaLabel("Ra 14°ʳ", true), "Raʳ");
+    for (const x of ["Gü 28°", "Ay 29°", "Jüᶜ", "Ve"]) assert.equal(localizeGrahaLabel(x, false), x, "idempotent");
+    assert.equal(localizeGrahaLabel("Uranus", false), "Uranus", "uydurma kısaltma yok");
+    assert.equal(localizeSignLabel("Ar"), "Koç");
+    assert.equal(localizeSignLabel("Pi"), "Bal");
+    assert.equal(localizeSignLabel("7 · Li"), "7 · Ter");
+    assert.equal(localizeSignLabel("D1 Rashi"), "D1 Rashi");
+    assert.equal(localizeSignLabel("Ter"), "Ter");
+    // lang="tr" + CSS büyük harf: Türkçe kısaltmalar doğru büyür (eski "Pi/Li/Vi" → "Pİ/Lİ/Vİ" hatası yok).
+    assert.deepEqual(Object.values(SIGN_TR_ABBR).map((x) => x.toLocaleUpperCase("tr")), ["KOÇ", "BOĞ", "İKİ", "YEN", "ASL", "BAŞ", "TER", "AKR", "YAY", "OĞL", "KOV", "BAL"]);
+    assert.ok(!Object.values(SIGN_TR_ABBR).some((x) => /i/.test(x) && !/[İı]/.test(x.toLocaleUpperCase("tr"))));
+    assert.equal(GRAHA_LABELS.sun, "Güneş (Surya)");
+    assert.equal(GRAHA_LABELS.moon, "Ay (Chandra)");
+    assert.ok(kundliLegend(["sun", "jupiter", "rahu"]).startsWith("Gü = Güneş / Surya · Jü = Jüpiter / Guru · Ra = Rahu"));
+  });
+
+  await t("5.1D ipucu (SVG title): Türkçe ad / Sanskritçe · rashi derece · nakshatra pada · yönetici · vakri/yanık; varga'da Dn + D1", () => {
+    const d1 = projectRoxyVedicD1(D1.response, { ayanamsa: "lahiri" }) as J;
+    const tt = kundliTitles(d1.technical.grahas, undefined, d1.technical.combustion.map((c: J) => c.id));
+    assert.equal(tt.Sun, "Güneş / Surya · İkizler 28°59′ · Punarvasu 3. pada · nakshatra yöneticisi Jüpiter");
+    assert.ok(tt.Jupiter.includes("yanık (asta)"));
+    assert.ok(tt.Saturn.includes("vakri (retro)") && tt.Saturn.startsWith("Satürn / Shani · Yay"));
+    assert.ok(!Object.values(tt).some((x) => /Gemini|Sun |Moon |retrograde|combust/.test(x)), "İngilizce kaldı");
+    const vt = kundliTitles(vargaTech(D30G).grahas, 30);
+    assert.ok(vt.Sun.startsWith("Güneş / Surya · D30 Terazi · D1 İkizler 28°59′"), vt.Sun);
+  });
+
+  await t("5.1C yerelleştirme uygulayıcısı (sahte DOM): yalnız metin düğümü verisi değişir (Lit işaretçi yorumları korunur); kalabalık hücre (Kuzey/Doğu ≥3, Güney ≥5) küçülür + kayar; Lagna yazımı", () => {
+    type N = { nodeType: number; data?: string };
+    const mkText = (data: string): N => ({ nodeType: 3, data });
+    const marker = (): N => ({ nodeType: 8, data: "lit-part" });
+    const el = (cls: string, kids: J[]): J => ({ cls, childNodes: kids, style: { fontSize: "", transform: "", textTransform: "", letterSpacing: "" }, querySelector: (s: string) => (s === "title" ? kids.find((k) => k.cls === "title") ?? null : null) });
+    const planet = (label: string, title: string) => el("planet-text", [marker(), mkText(label), marker(), el("title", [marker(), mkText(title), marker()])]);
+    const cellA = { cls: "cell", kids: [planet("Su 28°", "Sun · 28°59' Gemini · Punarvasu pada 3"), planet("Ju 28°ᶜ", "Jupiter · x"), planet("Ve 0°", "Venus · x")] };
+    const cellB = { cls: "cell", kids: [planet("Ma 8°", "Mars · x")] };
+    const signs = [el("sign-text", [marker(), mkText("Ge"), marker()]), el("rashi-num", [mkText("7 · Li")])];
+    const lagna = el("lagna-marker", [marker(), mkText("ASC"), marker()]);
+    const cells = [cellA, cellB].map((c) => ({ querySelectorAll: (s: string) => (s === "text.planet-text" ? c.kids : []) }));
+    const root = { querySelectorAll: (s: string) => (s === "g.cell" ? cells : s === "text.sign-text, text.rashi-num" ? signs : s === "text.lagna-marker" ? [lagna] : []) } as unknown as ParentNode;
+    const titles = { Sun: "Güneş / Surya · İkizler 28°59′", Jupiter: "Jüpiter / Guru · x", Venus: "Venüs / Shukra · x", Mars: "Mars / Mangala · x" };
+    localizeKundliDom(root, titles, "east");
+    const label = (p: J) => p.childNodes[1].data;
+    assert.deepEqual(cellA.kids.map(label), ["Gü", "Jüᶜ", "Ve"]);
+    assert.deepEqual(cellA.kids.map((p: J) => [p.style.fontSize, p.style.transform]), Array(3).fill(["11px", "translateY(3px)"]));
+    assert.equal(label(cellB.kids[0]), "Ma 8°");
+    assert.equal(cellB.kids[0].style.fontSize, "");
+    assert.equal(cellA.kids[0].childNodes[3].childNodes[1].data, "Güneş / Surya · İkizler 28°59′");
+    assert.ok(cellA.kids.every((p: J) => p.childNodes[0].nodeType === 8 && p.childNodes[2].nodeType === 8), "Lit işaretçileri silindi");
+    assert.deepEqual(signs.map((s: J) => s.childNodes.find((n: N) => n.nodeType === 3).data), ["İki", "7 · Ter"]);
+    assert.equal(lagna.childNodes[1].data, "Lagna");
+    assert.deepEqual([lagna.style.textTransform, lagna.style.letterSpacing], ["none", "0px"]);
+    // İdempotent: ikinci uygulama hiçbir şeyi değiştirmez; Güney'de 3 graha kalabalık sayılmaz (derece geri gelmez ama küçültme kalkar).
+    const snap = JSON.stringify(cellA.kids.map(label));
+    localizeKundliDom(root, titles, "east");
+    assert.equal(JSON.stringify(cellA.kids.map(label)), snap);
+    cellA.kids[0].childNodes[1].data = "Su 28°"; // Lit yeniden çizdi (İngilizce)
+    localizeKundliDom(root, titles, "south");
+    assert.equal(label(cellA.kids[0]), "Gü 28°");
+    assert.equal(cellA.kids[0].style.fontSize, "");
+  });
+
+  // ═══ 5.1E — Graha Drishti yöntem denetimi ════════════════════════════════════
+  const FA = load("vedic-aspects");
+  const drishti = (r: J = FA.response) => projectRoxyVedicDrishti(r, { birthLocal: "1990-07-15T14:30:00" }) as J;
+  await t("5.1E BULGU: Roxy /aspects = Parashari BÜTÜN-BURÇ drishti (Venüs→Satürn 'orb' 27.58° ile güç 100; Rahu/Ketu bakmaz) — golden liste kuralla birebir; yöntem etiketi düzeltildi", () => {
+    const p = drishti();
+    assert.ok(p.ok, JSON.stringify(p.errors));
+    assert.deepEqual([p.unmappedFields, p.droppedValues], [[], []]);
+    assert.equal(p.technical.method, "parashari_whole_sign");
+    const vs = p.technical.aspects.find((a: J) => a.from === "venus" && a.to === "saturn");
+    assert.ok(vs && vs.orb > 27 && vs.strength === 100, "derece+orb yöntemi olsaydı 27.58° bakış olmazdı");
+    assert.ok(p.technical.aspects.every((a: J) => a.strength === 100));
+    assert.ok(!p.technical.aspects.some((a: J) => a.from === "rahu" || a.from === "ketu"));
+    const nr = d1Rashis();
+    const exp = Object.keys(NAME).flatMap((a) => Object.keys(NAME).filter((b) => b !== a && PARASHARI[a].includes(signCount(nr[a], nr[b]))).map((b) => `${a}>${b}`)).sort();
+    assert.deepEqual(p.technical.aspects.map((a: J) => `${a.from}>${a.to}`).sort(), exp);
+    // Aynı yöntem Gochara ucunda da (5.1A): iki uç aynı drishti sözlüğünü kullanır.
+    assert.ok(tech().transits.every((x) => x.drishti.every((d) => d.type !== 1)));
+  });
+
+  await t("5.1E fail-closed: eksik bakış / Rahu bakışı / kısmi güç / tür≠burç sayımı REDDEDİLİR; 'conjunction' graha drishti değil → düşürülür (raporlanır)", () => {
+    const no = (f: (r: J) => void, why: string) => {
+      const r = structuredClone(FA.response);
+      f(r);
+      assert.equal(drishti(r).ok, false, why);
+    };
+    no((r) => (r.aspects = r.aspects.filter((a: J) => !(a.aspectingPlanet === "Venus" && a.aspectedPlanet === "Saturn"))), "eksik bakış (geniş orb)");
+    no((r) => r.aspects.push({ aspectingPlanet: "Rahu", aspectedPlanet: "Mercury", aspectType: "7th", strength: 100, orb: 1.38 }), "Rahu bakışı");
+    no((r) => (r.aspects[0].strength = 75), "kısmi güç");
+    no((r) => (r.aspects[1].aspectType = "8th"), "tür ↔ burç sayımı");
+    const r = structuredClone(FA.response);
+    r.aspects.push({ aspectingPlanet: "Sun", aspectedPlanet: "Jupiter", aspectType: "conjunction", strength: 100, orb: 0.18 });
+    const p = drishti(r);
+    assert.ok(p.ok, JSON.stringify(p.errors));
+    assert.deepEqual(p.droppedValues, ["aspects[].conjunction"]);
   });
 
   console.log(`\nastrology phase51 harness: ${pass} PASS / ${fail} FAIL`);

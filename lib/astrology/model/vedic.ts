@@ -200,8 +200,12 @@ export type VedicDrishtiTechnical = {
   schema: typeof VEDIC_DRISHTI_TECHNICAL_SCHEMA;
   zodiac: "sidereal";
   frame: VedicLahiriFrame;
-  /** Roxy yöntemi: derece + orb (tam/özel bakışlar); bütün-burç (rashi) drishti DEĞİL. */
-  method: "degree_orb";
+  /**
+   * 5.1E: Roxy yöntemi = Parashari BÜTÜN-BURÇ graha drishti (tam bakış: herkes 7.; özel: Mars 4./8., Jüpiter 5./9.,
+   * Satürn 3./10.; Rahu/Ketu bakış ATMAZ; güç hep 100; kısmi ¼-½-¾ bakışlar yok). `orb` = burç-içi derece farkı,
+   * bakış koşulu DEĞİL. Aşama 5 kayıtları "degree_orb" etiketini taşır (yanlış etiket; veri aynı Roxy yanıtı).
+   */
+  method: "parashari_whole_sign" | "degree_orb";
   positions: { id: VedicGrahaId; longitude: number; rashi: SignId }[];
   aspects: { from: VedicGrahaId; to: VedicGrahaId; type: VedicDrishtiType; strength: number; orb: number }[];
   mutual: { a: VedicGrahaId; b: VedicGrahaId; type: VedicDrishtiType }[];

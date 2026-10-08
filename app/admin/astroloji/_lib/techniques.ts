@@ -42,7 +42,7 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "western.relocation": { label: "Relocation", hint: "Aynı doğum anı, yeni konum: ASC/MC/evler", needsPartner: false, needsTime: true },
   "western.local_space": { label: "Local Space", hint: "Doğum anında ufuk yönleri (pusula + harita)", needsPartner: false, needsTime: true },
   "vedic.d1": { label: "Vedik D1 (Rashi)", hint: "Sidereal kundli: Lagna, graha, nakshatra/pada, yogalar", needsPartner: false, needsTime: true },
-  "vedic.drishti": { label: "Graha Drishti", hint: "Vedik bakışlar (Roxy: derece + orb) — yalnız Lahiri", needsPartner: false, needsTime: true },
+  "vedic.drishti": { label: "Graha Drishti", hint: "Parashari bütün-burç graha drishti (Roxy) — yalnız Lahiri", needsPartner: false, needsTime: true },
   "vedic.ashtakavarga": { label: "Ashtakavarga", hint: "Bhinna/Sarva bindu ızgarası, Shodhana, Shodhya Pinda", needsPartner: false, needsTime: true },
   "vedic.shadbala": { label: "Shadbala", hint: "Altı katlı graha gücü (BPHS), oran ve sıralama", needsPartner: false, needsTime: true },
   "vedic.panchanga": { label: "Janma Panchanga", hint: "Doğum anı tithi, nakshatra, nitya yoga, karana — yalnız Lahiri", needsPartner: false, needsTime: true },
@@ -53,14 +53,14 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
 
 export const DASHA_LORD_OPTIONS: [string, string][] = [
   ["ketu", "Ketu"],
-  ["venus", "Shukra (Venüs)"],
-  ["sun", "Surya (Güneş)"],
-  ["moon", "Chandra (Ay)"],
-  ["mars", "Mangala (Mars)"],
+  ["venus", "Venüs (Shukra)"],
+  ["sun", "Güneş (Surya)"],
+  ["moon", "Ay (Chandra)"],
+  ["mars", "Mars (Mangala)"],
   ["rahu", "Rahu"],
-  ["jupiter", "Guru (Jüpiter)"],
-  ["saturn", "Shani (Satürn)"],
-  ["mercury", "Budha (Merkür)"],
+  ["jupiter", "Jüpiter (Guru)"],
+  ["saturn", "Satürn (Shani)"],
+  ["mercury", "Merkür (Budha)"],
 ];
 
 export const VEDIC_VARGA_OPTIONS: [number, string][] = [

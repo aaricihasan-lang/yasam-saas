@@ -62,13 +62,13 @@ export const KARANA_LABELS: Record<string, string> = {
 };
 
 export const GRAHA_LABELS: Record<string, string> = {
-  sun: "Surya (Güneş)",
-  moon: "Chandra (Ay)",
-  mars: "Mangala (Mars)",
-  mercury: "Budha (Merkür)",
-  jupiter: "Guru (Jüpiter)",
-  venus: "Shukra (Venüs)",
-  saturn: "Shani (Satürn)",
+  sun: "Güneş (Surya)",
+  moon: "Ay (Chandra)",
+  mars: "Mars (Mangala)",
+  mercury: "Merkür (Budha)",
+  jupiter: "Jüpiter (Guru)",
+  venus: "Venüs (Shukra)",
+  saturn: "Satürn (Shani)",
   rahu: "Rahu",
   ketu: "Ketu",
 };

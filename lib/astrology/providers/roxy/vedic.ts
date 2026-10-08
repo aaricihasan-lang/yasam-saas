@@ -594,8 +594,10 @@ export function projectRoxyVedicDasha(
 // Denetimler: 9 graha konumu (rashi ↔ boylam); her bakış için açı ≈ (n−1)×30° ± orb (sağlayıcı orb'u ile
 // tutarlı); bakış türü grahaya izinli (herkes 7; Mars 4/8; Jüpiter 5/9; Satürn 3/10); karşılıklı bakışlar iki
 // yönde de listede; bakış tablosu listeyle aynı.
-export const ROXY_VEDIC_DRISHTI = { endpoint: "/vedic-astrology/aspects", adapter: "astro-roxy-vedic-drishti-1", projection: "vedic-drishti-proj-1" } as const;
-const DRISHTI_ALLOWED: Record<VedicGrahaId, number[]> = { sun: [7], moon: [7], mercury: [7], venus: [7], rahu: [7], ketu: [7], mars: [4, 7, 8], jupiter: [5, 7, 9], saturn: [3, 7, 10] };
+// 5.1E: golden (Venüs→Satürn "orb" 27.58° ile güç 100; Rahu/Ketu bakışı yok) + /transit belgesi → Roxy bütün-burç
+// Parashari drishti uygular. Liste, burç sayımı kuralının TAMAMI olmalı (eksik/fazla → ret).
+export const ROXY_VEDIC_DRISHTI = { endpoint: "/vedic-astrology/aspects", adapter: "astro-roxy-vedic-drishti-1", projection: "vedic-drishti-proj-2" } as const;
+const DRISHTI_ALLOWED: Record<VedicGrahaId, number[]> = { sun: [7], moon: [7], mercury: [7], venus: [7], rahu: [], ketu: [], mars: [4, 7, 8], jupiter: [5, 7, 9], saturn: [3, 7, 10] };
 const DRISHTI_KNOWN = new Set<string>([
   "datetime",
   "planets",
@@ -639,6 +641,11 @@ export function projectRoxyVedicDrishti(raw: unknown, opts: { birthLocal: string
     const o = obj(a);
     const from = mapGraha(o?.aspectingPlanet);
     const to = mapGraha(o?.aspectedPlanet);
+    if (o?.aspectType === "conjunction") {
+      // Aynı rashi birlikteliği graha drishti değildir (D1'de görünür) → bilinçli düşürülür, raporlanır.
+      dropped.push("aspects[].conjunction");
+      continue;
+    }
     const type = drishtiType(o?.aspectType);
     const strength = num(o?.strength, 0, 100);
     const orb = num(o?.orb, 0, 30);
@@ -646,6 +653,7 @@ export function projectRoxyVedicDrishti(raw: unknown, opts: { birthLocal: string
       errors.push("aspects[]: alan");
       continue;
     }
+    if (strength !== 100) errors.push(`aspects: ${from}→${to} güç 100 değil (kısmi bakış beklenmiyor)`);
     if (!DRISHTI_ALLOWED[from].includes(type)) errors.push(`aspects: ${from} için ${type}. bakış izinli değil`);
     const lf = lonOf.get(from);
     const lt = lonOf.get(to);
@@ -656,6 +664,13 @@ export function projectRoxyVedicDrishti(raw: unknown, opts: { birthLocal: string
       if (Math.abs(dev - orb) > 0.02) errors.push(`aspects: ${from}→${to} orb açıyla uyuşmuyor`);
     }
     aspects.push({ from, to, type, strength, orb });
+  }
+  if (positions.length === 9) {
+    const rashiOf = new Map(positions.map((x) => [x.id, x.rashi]));
+    const count = (a: VedicGrahaId, b: VedicGrahaId) => ((SIGN_IDS.indexOf(rashiOf.get(b)!) - SIGN_IDS.indexOf(rashiOf.get(a)!) + 12) % 12) + 1;
+    for (const x of aspects) if (count(x.from, x.to) !== x.type) errors.push(`aspects: ${x.from}→${x.to} türü burç sayımıyla uyuşmuyor`);
+    const exp = positions.flatMap((a) => positions.filter((b) => b.id !== a.id && DRISHTI_ALLOWED[a.id].includes(count(a.id, b.id))).map((b) => `${a.id}>${b.id}`)).sort().join();
+    if (aspects.map((x) => `${x.from}>${x.to}`).sort().join() !== exp) errors.push("aspects: liste bütün-burç Parashari kuralıyla eksik/fazla");
   }
   const has = (a: VedicGrahaId, b: VedicGrahaId, t: number) => aspects.some((x) => x.from === a && x.to === b && x.type === t);
   const mutual: VedicDrishtiTechnical["mutual"] = [];
@@ -685,7 +700,7 @@ export function projectRoxyVedicDrishti(raw: unknown, opts: { birthLocal: string
   return done(
     errors,
     dropped,
-    () => ({ schema: VEDIC_DRISHTI_TECHNICAL_SCHEMA, zodiac: "sidereal", frame: { ayanamsa: "lahiri", ayanamsaDegrees: null }, method: "degree_orb", positions, aspects, mutual }),
+    () => ({ schema: VEDIC_DRISHTI_TECHNICAL_SCHEMA, zodiac: "sidereal", frame: { ayanamsa: "lahiri", ayanamsaDegrees: null }, method: "parashari_whole_sign", positions, aspects, mutual }),
     () => null,
     raw,
     DRISHTI_KNOWN,

@@ -10,7 +10,8 @@ import LocationPicker from "./LocationPicker";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { FORECAST_MAX_DAYS, TECHNIQUE_META, UI_TECHNIQUES, DASHA_LORD_OPTIONS, VEDIC_AYANAMSA_OPTIONS, VEDIC_VARGA_OPTIONS, fmtUtcMinute, forecastPartCount, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
 
-const inp = "rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm";
+// max-w-full: uzun seçenek metni (ör. "Lahiri (Chitrapaksha) — varsayılan") 390 px'te kartı taşırmasın.
+const inp = "max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm";
 const TZ_OPTIONS = ["Europe/Istanbul", "UTC", "Europe/London", "Europe/Berlin", "America/New_York", "Asia/Dubai"];
 
 export type PartnerOption = { id: string; label: string };
@@ -106,7 +107,7 @@ export default function TechniqueSelector({
       case "western.progression":
       case "western.solar_arc":
         return (
-          <label className="flex items-center gap-2 text-xs">
+          <label className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
             Hedef tarih (progression + solar arc ortak)
             <input type="date" className={inp} value={params.targetDate} onChange={(e) => set("targetDate", e.target.value)} aria-label="Hedef tarih" />
           </label>
@@ -114,7 +115,7 @@ export default function TechniqueSelector({
       case "western.solar_return":
         return (
           <div className="flex flex-col gap-1.5">
-          <label className="flex items-center gap-2 text-xs">
+          <label className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
             Dönüş yılı
             <input
               type="number"
@@ -132,7 +133,7 @@ export default function TechniqueSelector({
       case "western.lunar_return":
         return (
           <div className="flex flex-col gap-1.5">
-            <label className="flex items-center gap-2 text-xs">
+            <label className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
               Dönüş ayı (UTC)
               <input
                 type="month"
@@ -200,7 +201,7 @@ export default function TechniqueSelector({
       case "vedic.ashtakavarga":
       case "vedic.shadbala":
         return (
-          <label className="flex items-center gap-2 text-xs">
+          <label className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
             Ayanamsa (tüm Vedik hesaplar)
             <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label={`Vedik ayanamsa (${id})`}>
               {VEDIC_AYANAMSA_OPTIONS.map(([v, l]) => (
@@ -214,7 +215,7 @@ export default function TechniqueSelector({
       case "vedic.dasha":
         return (
           <div className="flex flex-wrap items-center gap-3 text-xs">
-            <label className="flex items-center gap-2">
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
               Düzey
               <select className={inp} value={params.dashaMd} onChange={(e) => onParams({ ...params, dashaMd: e.target.value, dashaAd: "" })} aria-label="Dasha mahadasha">
                 <option value="">Mahadasha listesi (120 yıl)</option>
@@ -226,7 +227,7 @@ export default function TechniqueSelector({
               </select>
             </label>
             {params.dashaMd && (
-              <label className="flex items-center gap-2">
+              <label className="flex min-w-0 flex-wrap items-center gap-2">
                 <select className={inp} value={params.dashaAd} onChange={(e) => set("dashaAd", e.target.value)} aria-label="Dasha antardasha">
                   <option value="">(antardasha listesi)</option>
                   {DASHA_LORD_OPTIONS.map(([v, l]) => (
@@ -237,7 +238,7 @@ export default function TechniqueSelector({
                 </select>
               </label>
             )}
-            <label className="flex items-center gap-2">
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
               Ayanamsa (tüm Vedik hesaplar)
               <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label="Vedik ayanamsa (dasha)">
                 {VEDIC_AYANAMSA_OPTIONS.map(([v, l]) => (
@@ -252,7 +253,7 @@ export default function TechniqueSelector({
       case "vedic.varga":
         return (
           <div className="flex flex-wrap items-center gap-3 text-xs">
-            <label className="flex items-center gap-2">
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
               Bölüm
               <select className={inp} value={params.vargaDivision} onChange={(e) => set("vargaDivision", Number(e.target.value))} aria-label="Varga bölümü">
                 {VEDIC_VARGA_OPTIONS.map(([v, l]) => (
@@ -262,7 +263,7 @@ export default function TechniqueSelector({
                 ))}
               </select>
             </label>
-            <label className="flex items-center gap-2">
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
               Ayanamsa (tüm Vedik hesaplar)
               <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label="Vedik ayanamsa (varga)">
                 {VEDIC_AYANAMSA_OPTIONS.map(([v, l]) => (
@@ -276,7 +277,7 @@ export default function TechniqueSelector({
         );
       case "vedic.d1":
         return (
-          <label className="flex items-center gap-2 text-xs">
+          <label className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
             Ayanamsa (tüm Vedik hesaplar)
             <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label="Vedik ayanamsa">
               {VEDIC_AYANAMSA_OPTIONS.map(([v, l]) => (
@@ -313,13 +314,14 @@ export default function TechniqueSelector({
 
   return (
     <div className="flex flex-col gap-3" data-testid="astro-technique-selector">
-      <fieldset className="grid gap-2 sm:grid-cols-2">
+      {/* fieldset varsayılanı min-inline-size: min-content → mobilde taşar; min-w-0 ile sıfırlanır. */}
+      <fieldset className="grid min-w-0 gap-2 sm:grid-cols-2">
         <legend className="mb-1 text-sm font-semibold text-slate-700">Hesaplanacak teknikler</legend>
         {UI_TECHNIQUES.map((id) => {
           const m = TECHNIQUE_META[id];
           const on = !!checked[id];
           return (
-            <div key={id} className={`rounded-xl border px-3 py-2 ${on ? "border-violet-300 bg-violet-50/50" : "border-slate-200 bg-white"}`}>
+            <div key={id} className={`min-w-0 rounded-xl border px-3 py-2 ${on ? "border-violet-300 bg-violet-50/50" : "border-slate-200 bg-white"}`}>
               <label className="flex items-start gap-2">
                 <input type="checkbox" className="mt-1" checked={on} onChange={(e) => onChecked({ ...checked, [id]: e.target.checked })} data-technique={id} />
                 <span>
