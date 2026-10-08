@@ -37,6 +37,7 @@
     "hd:roxy:harness": "tsx scripts/hd-roxy/harness.ts",
     "hd:info:harness": "tsx scripts/hd-roxy/info-panel-harness.ts",
     "hd:system-reading:harness": "tsx scripts/hd-roxy/system-reading-harness.ts",
+    "hd:roxy:credit-e2e": "tsx scripts/hd-roxy/credit-guard-e2e.ts",
     "hd:central-client:harness": "tsx scripts/hd-central-client/harness.ts",
     "aromaterapi:check": "node scripts/aromaterapi-presale-faz1-harness.mjs",
     "aromaterapi:check:full": "node scripts/aromaterapi-presale-faz1-harness.mjs && node scripts/aromaterapi-docx-contract-harness.mjs && node scripts/aromaterapi-phase1-hardening-harness.mjs && node scripts/aromaterapi-phase2-oils-harness.mjs && node scripts/aromaterapi-phase3-harness.mjs && tsx scripts/aromaterapi-blend-calc.test.ts && tsx scripts/aromaterapi-docx-harness.ts",

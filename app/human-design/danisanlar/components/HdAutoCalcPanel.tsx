@@ -7,9 +7,15 @@
 //   • Durum (resolveAutoCalcState): aynı girdiyle harita varsa "Profesyonel haritayı aç" — Roxy
 //     ÇAĞRILMAZ; girdi değiştiyse "Yeniden hesapla"; hiç yoksa "Hesapla".
 //   • Sunucu ayrıca idempotent (input_hash): aynı girdi tekrar gönderilse de kayıtlı sonuç döner.
+//   • "Yeniden hesapla" (girdi değişti) RoxyAPI hakkı tüketir → önce AÇIK onay; iptal = istek YOK.
+//     İlk "Hesapla" ek onay istemez (owner kararı).
+
+export const HD_RECALC_CONFIRM_MESSAGE =
+  "Yeni hesaplama RoxyAPI kullanım hakkı tüketebilir. Önceki analiziniz korunacaktır. Devam etmek istiyor musunuz?";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { computeRoxyChart, listComputedCharts, type ComputedChartListRow } from "@/lib/human-design/api/chartsClient";
 import { resolveAutoCalcState, isRoxyRow, type AutoCalcLocation } from "@/lib/human-design/chart/autoCalcState";
@@ -45,6 +51,7 @@ export function HdAutoCalcPanel({
   formDirty: boolean;
 }) {
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const isDemo = readYasamUser()?.is_demo_account === true;
   const [rows, setRows] = useState<ComputedChartListRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,7 +90,20 @@ export function HdAutoCalcPanel({
 
   async function compute() {
     if (busyRef.current || !state.location || formDirty || isDemo) return;
-    busyRef.current = true; // çift tıklama koruması (sunucu ayrıca idempotent)
+    busyRef.current = true; // çift tıklama koruması (onay penceresi açıkken de; sunucu ayrıca idempotent)
+    if (state.kind === "changed") {
+      const confirmed = await confirm({
+        title: "Yeniden hesapla",
+        message: HD_RECALC_CONFIRM_MESSAGE,
+        confirmText: "Devam et",
+        cancelText: "Vazgeç",
+        tone: "warning",
+      });
+      if (!confirmed) {
+        busyRef.current = false; // iptal → hiçbir hesaplama isteği gönderilmez
+        return;
+      }
+    }
     setBusy(true);
     setError(null);
     const r = await computeRoxyChart(clientId, state.location.id);
