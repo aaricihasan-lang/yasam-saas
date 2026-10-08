@@ -222,7 +222,7 @@ export function KpNodeMethodTag({ method }: { method: KpNodeSigMethodId }) {
   const m = KP_NODE_SIG_METHODS[method];
   return (
     <span
-      className={`ml-1 inline-block whitespace-nowrap rounded border px-1 text-[10px] font-medium ${method === "sign_lord" ? "border-amber-400 bg-amber-50 text-amber-900" : method === "agent" ? "border-indigo-300 bg-indigo-50 text-indigo-900" : "border-slate-300 bg-slate-50 text-slate-700"}`}
+      className={`ml-1 inline-block whitespace-nowrap rounded border px-1 text-[10px] font-medium ${method === "agent_houses" ? "border-amber-400 bg-amber-50 text-amber-900" : method === "agent" ? "border-indigo-300 bg-indigo-50 text-indigo-900" : "border-slate-300 bg-slate-50 text-slate-700"}`}
       title={`${m.label}. ${m.status}`}
       data-kp-node-method={method}
     >

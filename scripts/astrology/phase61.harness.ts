@@ -160,20 +160,19 @@ async function main() {
     }
   });
 
-  await t("6.1A ruling ucu: Ketu listesi = burç lordu AY'ın kümesi; Ketu'nun sade / ajan ekli kümesine EŞİT DEĞİL; sıra Ay'ın düzey sırası değil (açıklanamadı → belirsiz)", () => {
+  await t("6.1A→6.2 ruling ucu: natal Ketu listesi = ajan ekli L2 ∪ L4 ('ajan evleri'), sıra dahil [9,12,6,10]; 6.1'deki 'burç lordu Ay kümesi' eşitliği TESADÜF (6.2 X1 golden'ı çürüttü — phase62)", () => {
     const ketu = RP.response.significators.find((x: J) => x.planet === "Ketu").signifies as number[];
-    const lord = SIGN_LORDS[NATAL.bodies.get("ketu")!.sign];
-    assert.equal(lord, "moon");
-    assert.ok(setEq(ketu, flat(plain(NATAL, lord))), `ruling Ketu ${ketu} ≠ Ay kümesi`);
-    assert.ok(!setEq(ketu, flat(plain(NATAL, "ketu"))) && !setEq(ketu, flat(agent(NATAL, "ketu"))));
-    // Düzey sırasıyla düzleştirilmiş Ay listesi [9,6,12,10]; Roxy [9,12,6,10] → sıra kuralı bilinmiyor.
-    assert.deepEqual(flat(plain(NATAL, "moon")), [9, 6, 12, 10]);
-    assert.notDeepEqual(ketu, flat(plain(NATAL, "moon")));
+    const ag = agent(NATAL, "ketu");
+    assert.ok(setEq(ketu, [...ag[2], ...ag[4]]), `ruling Ketu ${ketu} ≠ ajan evleri`);
+    assert.deepEqual(ketu, [9, 12, 6, 10]); // Ketu (9) → kavuşan Merkür (9, 12) → burç lordu Ay (6, 10)
+    assert.ok(!setEq(ketu, flat(plain(NATAL, "ketu"))) && !setEq(ketu, flat(ag)));
+    // Bu doğumda burç lordu Ay'ın kümesi de {6,9,10,12} → iki hipotez burada ayrışmıyordu (6.1 hatalı etiket kaynağı).
+    assert.ok(setEq(ketu, flat(plain(NATAL, SIGN_LORDS[NATAL.bodies.get("ketu")!.sign]))));
     // Görünür ruling planet'lerde sıra = düzey sırası (L1→L4) — tutarsızlık yalnız düğümde.
     for (const s of RP.response.significators.filter((x: J) => x.planet !== "Ketu")) assert.deepEqual(s.signifies, flat(plain(NATAL, ID[s.planet])), s.planet);
   });
 
-  await t("6.1A belirsizlik sınırları: Mars'ın 4. bakışı sayılmıyor (sayılırsa natal Ketu L4'e 2,7 eklenir ≠ Roxy); 7. burç dışlanırsa natal + horary Rahu tutmaz; '7. burç bakışı' ↔ 'karşı düğümle kavuşma' bu golden'larda AYIRT EDİLEMEZ", () => {
+  await t("6.1A sınırlar: Mars'ın 4. bakışı sayılmıyor; 7. burç dışlanırsa natal + horary Rahu tutmaz; '7. burç bakışı' ↔ 'karşı düğümle kavuşma' burç bazında ÖZDEŞ (Ketu hep Rahu'nun 7. burcunda)", () => {
     assert.ok(!levelsEq(dashaNode("Ketu"), agent(NATAL, "ketu", { seventh: true, marsFourth: true })), "Mars 4. bakış dahil kural da tutuyorsa kapsam kanıtı yok");
     assert.ok(!levelsEq(dashaNode("Rahu"), agent(NATAL, "rahu", { seventh: false })));
     assert.ok(!levelsEq(fromRoxyArr(horaryPW("Rahu").signifies), agent(HORARY, "rahu", { seventh: false })));
@@ -184,12 +183,14 @@ async function main() {
     }
   });
 
-  await t("6.1A etiket kaynağı: uç → yöntem eşlemesi golden kanıtıyla aynı; her yöntemin durum metni (doğrulandı / kısmen belirsiz / belgelenmemiş) mevcut", () => {
-    assert.deepEqual({ ...KP_NODE_SIG_SOURCE }, { chart: "plain", horaryLevels: "plain", horaryAgent: "agent", dasha: "agent", ruling: "sign_lord" });
+  await t("6.1A/6.2 etiket kaynağı: uç → yöntem eşlemesi golden kanıtıyla aynı; durum metinleri kanıt kapsamını ve sınanmayan kalanları açıkça yazar", () => {
+    assert.deepEqual({ ...KP_NODE_SIG_SOURCE }, { chart: "plain", horaryLevels: "plain", horaryAgent: "agent", dasha: "agent", ruling: "agent_houses" });
     assert.match(KP_NODE_SIG_METHODS.plain.status, /doğrulandı/);
-    assert.match(KP_NODE_SIG_METHODS.agent.status, /belirsiz/);
-    assert.match(KP_NODE_SIG_METHODS.sign_lord.status, /Belgelenmemiş/);
-    assert.ok(!/doğrulandı/i.test(KP_NODE_SIG_METHODS.sign_lord.status) && !/^Bağımsız olarak doğrulandı/.test(KP_NODE_SIG_METHODS.agent.status), "belirsiz yöntem kesin diye sunulmamalı");
+    assert.match(KP_NODE_SIG_METHODS.agent.status, /doğrulandı/);
+    assert.match(KP_NODE_SIG_METHODS.agent.status, /ayrıca sınanmadı/, "sınanmayan özel bakışlar saklanmamalı");
+    assert.match(KP_NODE_SIG_METHODS.agent_houses.status, /doğrulandı/);
+    assert.match(KP_NODE_SIG_METHODS.agent_houses.status, /Belgelenmemiş/);
+    assert.ok(!/burç lordu kümesi|burç lordunun significator kümesi/i.test(JSON.stringify(KP_NODE_SIG_METHODS)), "çürütülen 6.1 etiketi kalmamalı");
   });
 
   // ═══ 6.1A — arayüz: her düğüm satırında doğru yöntem etiketi; listeler birleştirilmez ═════
@@ -202,7 +203,7 @@ async function main() {
     const h = html(createElement(KpChartPanel, { t: chartT, kbLookup: null }));
     assert.deepEqual(nodeTagsIn(h), ["plain", "plain"]);
     assert.ok(h.includes('data-testid="astro-kp-node-method"') && h.includes(KP_NODE_SIG_METHODS.plain.label));
-    assert.ok(!h.includes(KP_NODE_SIG_METHODS.agent.label) && !h.includes(KP_NODE_SIG_METHODS.sign_lord.label));
+    assert.ok(!h.includes(KP_NODE_SIG_METHODS.agent.label) && !h.includes(KP_NODE_SIG_METHODS.agent_houses.label));
   });
 
   await t("6.1A arayüz: KP dasha tablosunda yalnız Rahu/Ketu satırları 'ajan ekli'; görünür grahalar etiketsiz; Vedik (Lahiri) dasha'da etiket YOK", () => {
@@ -217,11 +218,11 @@ async function main() {
     assert.ok(!hv.includes("data-kp-node-method") && !hv.includes("astro-kp-node-method") && !hv.includes("astro-kp-dasha-method"));
   });
 
-  await t("6.1A arayüz: ruling significator tablosunda Ketu 'burç lordu kümesi (belgelenmemiş)'; Merkür/Mars/Güneş etiketsiz; eski belirsiz not kaldırıldı", () => {
+  await t("6.1A/6.2 arayüz: ruling significator tablosunda Ketu 'ajan evleri'; Merkür/Mars/Güneş etiketsiz; eski belirsiz not kaldırıldı", () => {
     const h = html(createElement(KpRulingPanel, { t: rulingT, kbLookup: null }));
     const sig = h.slice(h.indexOf('data-testid="astro-kp-ruling-sig"'));
-    assert.deepEqual(nodeTagsIn(sig.slice(0, sig.indexOf("</table>"))), ["sign_lord"]);
-    assert.ok(h.includes(KP_NODE_SIG_METHODS.sign_lord.status));
+    assert.deepEqual(nodeTagsIn(sig.slice(0, sig.indexOf("</table>"))), ["agent_houses"]);
+    assert.ok(h.includes(KP_NODE_SIG_METHODS.agent_houses.status));
     assert.ok(!h.includes("farklı bir kuralla verebilir"));
   });
 
@@ -291,12 +292,12 @@ async function main() {
     assert.ok(!JSON.stringify(pr.technical).includes('"strength"'));
   });
 
-  await t("6.1C Rahu/Ketu: belirsiz yöntemler arayüzde 'doğrulandı' diye sunulmuyor (ruling + ajan kapsamı durum metni görünür)", () => {
+  await t("6.1C/6.2 Rahu/Ketu: arayüz kanıt kapsamını gösterir — ruling 'belgelenmemiş sağlayıcı davranışı', ajan kuralında sınanmayan özel bakışlar açıkça yazılı", () => {
     const r = html(createElement(KpRulingPanel, { t: rulingT, kbLookup: null }));
-    assert.ok(r.includes("Belgelenmemiş") && !/burç lordu kümesi[^<]*doğrulandı/i.test(r));
+    assert.ok(r.includes("Belgelenmemiş sağlayıcı davranışı") && !r.includes("burç lordu kümesi"));
     const d = asSaved("kp.dasha", dashaT);
     // renderToStaticMarkup kesme işaretini &#x27; olarak kaçışlar.
-    assert.ok(d.includes(KP_NODE_SIG_METHODS.agent.status.replace(/'/g, "&#x27;")) && d.includes("kısmen belirsiz"));
+    assert.ok(d.includes(KP_NODE_SIG_METHODS.agent.status.replace(/'/g, "&#x27;")) && d.includes("ayrıca sınanmadı"));
   });
 
   // ═══ 6.1D — Bilgi Bankası ayrımı (düğüm listeleri farklı türlerde; Vedik'e karışmaz) ═══

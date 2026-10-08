@@ -74,3 +74,79 @@ Ek kontrol (her iki dasha): düğümün kendi 5/9 bakışı ve yıldız lordu aj
 | # | Fixture | Sonuç | Sayı |
 |---|---|---|---|
 | — | (Aşama 0–6.1) | — | 44 |
+| G1 | `kp62-dasha-x1.json` | OK (1 deneme, tekrar yok) | 1 |
+| G2 | `kp62-dasha-x2.json` | OK | 1 |
+| G3 | `kp62-ruling-x1.json` | OK | 1 |
+
+**Toplam gerçek Roxy çağrısı: 47** (onay sınırı 3, kullanılan 3). Fixture'larda API anahtarı yok (betik denetimi + tarama 0).
+
+## Sonuçlar
+
+Ayrıntı: `docs/astrology/phase6-1-rahu-ketu-method-audit.md` §7.
+
+- **Bağımsız model:** X1 ve X2'de 9 grahanın Placidus evi ve yıldız lordu, görünür 7 grahanın 4 düzeyi Roxy ile birebir.
+- **G1:**
+  - Jüpiter 9. bakışı **sayılmıyor**.
+  - Ketu burcunda 19.5° uzaktaki Merkür **ajan** sayılıyor → kavuşma burç bazlı.
+  - Aynı Merkür Rahu'nun 7. burcunda **ajan** → karşıt burç bazlı.
+  - Rahu ve Ketu 8/8 düzey birebir.
+- **G2:**
+  - Satürn 3. bakışı **sayılmıyor**.
+  - Komşu burçta Rahu'ya 2.8° yakın Mars **ajan değil**: orb kavuşma, orb karşıtlık ve "burç ∪ orb" karması çürüdü.
+  - 8/8 düzey birebir.
+- **G3:**
+  - Klasik 5 küme tasarlandığı gibi: {Ketu, Jüpiter, Rahu, Venüs, Ay}.
+  - Rahu [6,12,11,1,9,2,7] ve Ketu [12,11,1,9,10,8] → **ajan ekli kuralın L2 ∪ L4'ü** ("ajan evleri"), sıra dahil birebir.
+  - 6.1 natal Ketu [9,12,6,10] de aynı kurala uyuyor.
+  - "Burç lordu kümesi" (6.1 etiketi), sade kural ve tam ajan ekli kural çürüdü. Görünür ruling planet'ler tam 4 düzey (L1→L4) alıyor.
+
+### Çözülen / çözülemeyen
+
+| Soru | Durum |
+|---|---|
+| 1. Jüpiter / Satürn özel bakışları | **Çözüldü:** Jüpiter 9., Satürn 3. (ve 6.1'de Mars 4.) sayılmaz. Jüpiter 5., Satürn 10., Mars 8. ayrıca sınanmadı (P3). |
+| 2. 7. burç bakışı ↔ karşı düğüm kavuşması | **Çözüldü:** ikisi de burç bazlı; Ketu daima Rahu'nun 7. burcunda olduğu için iki kural her doğumda aynı sonucu verir. Gözlemlenebilir fark yok. |
+| 3. Rahu ruling iken liste | **Çözüldü:** "ajan evleri" (L2 ∪ L4), sıralı. 6.1'deki "burç lordu kümesi" etiketi tesadüfi bir eşleşmeydi → düzeltildi. |
+| 4. Burç mu, derece/orb mu | **Çözüldü:** burç bazlı (19.5° uzak aynı burç → evet; 2.8° yakın komşu burç → hayır). |
+| Kalan (P3) | Jüpiter 5. / Satürn 10. / Mars 8.; ajanlar arası sıra ölçütü (boylam ↔ graha sırası bu verilerde aynı); gerçek düğüm (`nodeType: true`). |
+
+## Yapılan düzeltmeler
+
+- `lib/astrology/model/kp.ts`: yöntem `sign_lord` → **`agent_houses`** ("ajan evleri"; doğrulandı + belgelenmemiş sağlayıcı davranışı).
+  - Ajan yönteminin açıklaması kanıtlanmış kurala göre yazıldı: burç bazlı, özel bakış yok, 7. burç ≡ karşı düğüm.
+  - Durum metni "doğrulandı; Jüpiter 5., Satürn 10., Mars 8. ayrıca sınanmadı" oldu.
+  - Hesap kodu, adaptör, şema ve önbellek değişmedi; **KP hesap motoru yok**.
+- `KpPanels.tsx`: yöntem rozeti rengi yeni kimliğe bağlandı (tek satır).
+- `phase61.harness.ts`: 6.1'in yanlış yorumunu kodlayan testler kanıta göre güncellendi.
+- **Yeni:** `phase62.harness.ts` 9/9; tasarım aracı `phase62-design.ts`; çağrı betiği `phase62-golden-calls.ts` (tasarım koşulu tutmazsa çağrı yapılmaz).
+
+## Testler
+
+- **Astroloji tamamı:** 39 / 21 / 17 / 37 / 20 / 15 / 33 / 26 / 19 / 36 / 18 / **9** / 10 + PostgreSQL migration kontrolü geçti.
+  - tsc 0, eslint 0, next build başarılı.
+  - İstemci paketi taraması (raw_response, ROXY_API_KEY, astro_analyses, calcInputHash, input_hash, sahte anahtar, tema içeriği): 0.
+- **Mutasyon:**
+  - `mutate62` 5/5 (ruling → sade / ajan ekli; dasha → ajan evleri; ruling etiketi kaldırma / yalnız Ketu).
+  - `mutate61` 17/17 (hedefler yeni metinlere güncellendi).
+  - Önceki: mutate5 14/14 · mutate51 (B2 hariç) 22/22 · mutate52 18/18 · mutate6 19/20 (kalan K2 eşdeğer).
+- **Güvenlik:** routes harness 21/21 (KP owner-only 404, önizlemede yorum / ham yanıt / anahtar yok, kayıtlı analiz 0 istek), phase6 tenant ve fail-closed testleri geçti. Yeni fixture'lar da üretim adaptöründen temiz geçiyor.
+- **Astroloji dışı:** HD Roxy 220/0, HD info-panel 65/0, output-visibility 205/0, infra 43/0, admin-hygiene 55/0.
+  - Önceden var olan başarısızlıklar değişmedi: backup 53/1, faz1-p3 94/4.
+- **Tarayıcı:** bu aşamada yalnız etiket metni ve kimliği değişti; yerleşim değişmedi. Ruling tablosundaki Rahu + Ketu etiketleri statik render testiyle doğrulandı. Gerçek tarayıcı denetimi yapılmadı (6.1'de aynı bileşen 390 px dahil incelenmişti).
+
+## P0 / P1 / P2 / P3
+
+- P0 = 0 · P1 = 0 · P2 = 0.
+- P3:
+  - Roxy düğüm yöntemi uçtan uca farklı (belgelenmemiş sağlayıcı davranışı; etiketli).
+  - Sınanmayan 3 özel bakış türü.
+  - Ajan sırası ölçütü.
+  - Gerçek düğüm davranışı.
+  - 6.1'deki ruling etiketi hatalıydı, düzeltildi (uyarı taşıdığı için yanıltıcı kesinlik yoktu).
+
+## Genel Astroloji denetimine hazırlık
+
+KP Rahu/Ketu belirsizlikleri kanıtla kapatıldı; kalanlar küçük ve açıkça etiketli. **Genel denetime hazır.**
+
+**Aşama 6.2 yerel olarak tamamlandı.** Push / preview / merge / production / migration YOK. DUR — genel denetim için owner onayı beklenir.
+

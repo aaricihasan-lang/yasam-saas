@@ -1,0 +1,529 @@
+{
+  "endpoint": "/vedic-astrology/dasha/major",
+  "query": null,
+  "body": {
+    "date": "1967-10-21",
+    "time": "07:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 2,
+    "ayanamsa": "kp-newcomb",
+    "significators": true,
+    "nodeType": "mean"
+  },
+  "response": {
+    "houseThemes": {
+      "1": [
+        "benlik",
+        "beden",
+        "sağlık",
+        "kişilik",
+        "canlılık"
+      ],
+      "2": [
+        "zenginlik",
+        "aile",
+        "konuşma",
+        "mal varlığı",
+        "yiyecek"
+      ],
+      "3": [
+        "kardeşler",
+        "cesaret",
+        "iletişim",
+        "kısa yolculuklar",
+        "beceriler"
+      ],
+      "4": [
+        "ev",
+        "anne",
+        "mülk",
+        "araçlar",
+        "ev huzuru"
+      ],
+      "5": [
+        "çocuklar",
+        "aşk",
+        "yaratıcılık",
+        "eğitim",
+        "spekülasyon"
+      ],
+      "6": [
+        "düşmanlar",
+        "hastalık",
+        "borçlar",
+        "hizmet",
+        "rekabet"
+      ],
+      "7": [
+        "evlilik",
+        "eş",
+        "iş ortaklığı",
+        "sözleşmeler",
+        "halkla ilişkiler"
+      ],
+      "8": [
+        "uzun ömür",
+        "miras",
+        "ani olaylar",
+        "okült",
+        "dönüşüm"
+      ],
+      "9": [
+        "talih",
+        "baba",
+        "dharma",
+        "yüksek öğrenim",
+        "uzun yolculuklar"
+      ],
+      "10": [
+        "kariyer",
+        "meslek",
+        "statü",
+        "otorite",
+        "karma"
+      ],
+      "11": [
+        "kazançlar",
+        "gelir",
+        "arkadaşlar",
+        "büyük kardeşler",
+        "dileklerin gerçekleşmesi"
+      ],
+      "12": [
+        "kayıplar",
+        "giderler",
+        "yabancı ülkeler",
+        "izolasyon",
+        "moksha"
+      ]
+    },
+    "focus": "general",
+    "moonNakshatra": 3,
+    "nakshatraName": "Krittika",
+    "nakshatraLord": "Sun",
+    "moonLongitude": 34.1532085149969,
+    "ayanamsa": 23.30819488,
+    "ayanamsaType": "kp-newcomb",
+    "birthDashaBalance": {
+      "years": 2,
+      "months": 7,
+      "days": 18,
+      "totalDays": 961
+    },
+    "mahadashas": [
+      {
+        "planet": "Sun",
+        "startDate": "1967-10-21T07:30:00",
+        "endDate": "1970-06-08T07:30:00",
+        "durationYears": 2.631074606433949,
+        "nominalStartDate": "1964-06-08T07:30:00",
+        "interpretation": "Bu dönem artan özgüven, liderlik yetenekleri ve kariyer konularında başarı getirebilir. Ayrıca çeşitli alanlarda tanınma ve başarıları işaret edebilir.",
+        "significators": {
+          "house": 12,
+          "starLord": "Mars",
+          "subLord": "Venus",
+          "signifies": {
+            "L1": [
+              2
+            ],
+            "L2": [
+              12
+            ],
+            "L3": [
+              2,
+              7
+            ],
+            "L4": [
+              11
+            ]
+          },
+          "signifiedHouses": [
+            2,
+            12,
+            7,
+            11
+          ],
+          "strongHouses": [
+            2,
+            12
+          ],
+          "strength": {
+            "score": 62.5,
+            "grade": "B",
+            "label": "strong"
+          }
+        }
+      },
+      {
+        "planet": "Moon",
+        "startDate": "1970-06-08T07:30:00",
+        "endDate": "1980-06-08T07:30:00",
+        "durationYears": 10,
+        "interpretation": "Bu dönemde duygular ve zihinsel durumlar önemli bir rol oynar. Duygusal büyüme, istikrar ve besleyici deneyimler getirebilir. Ancak ruh hali değişimleri ve yaşam dalgalanmalarına da yol açabilir.",
+        "significators": {
+          "house": 7,
+          "starLord": "Sun",
+          "subLord": "Saturn",
+          "signifies": {
+            "L1": [
+              12
+            ],
+            "L2": [
+              7
+            ],
+            "L3": [
+              11
+            ],
+            "L4": [
+              10
+            ]
+          },
+          "signifiedHouses": [
+            12,
+            7,
+            11,
+            10
+          ],
+          "strongHouses": [
+            12,
+            7
+          ],
+          "strength": {
+            "score": 62.5,
+            "grade": "B",
+            "label": "strong"
+          }
+        }
+      },
+      {
+        "planet": "Mars",
+        "startDate": "1980-06-08T07:30:00",
+        "endDate": "1987-06-08T07:30:00",
+        "durationYears": 7,
+        "interpretation": "Bu dönem enerji, hırs ve cesaret getirebilir. Ayrıca çatışmalar, rekabet ve olası sağlıkla ilgili sorunlar için potansiyel işaret edebilir.",
+        "significators": {
+          "house": 2,
+          "starLord": "Ketu",
+          "subLord": "Mars",
+          "signifies": {
+            "L1": [
+              12
+            ],
+            "L2": [
+              2
+            ],
+            "L3": [],
+            "L4": [
+              2,
+              7
+            ]
+          },
+          "signifiedHouses": [
+            12,
+            2,
+            7
+          ],
+          "strongHouses": [
+            12,
+            2
+          ],
+          "strength": {
+            "score": 66.7,
+            "grade": "B",
+            "label": "strong"
+          }
+        }
+      },
+      {
+        "planet": "Rahu",
+        "startDate": "1987-06-08T07:30:00",
+        "endDate": "2005-06-08T07:30:00",
+        "durationYears": 18,
+        "interpretation": "Bu dönem hem olumlu hem de olumsuz deneyimler getirebilir. Ani değişimler, hırslar ve maddi arzuları işaret edebilir. Bu dönemde manevi büyüme de mümkündür.",
+        "significators": {
+          "house": 6,
+          "starLord": "Ketu",
+          "subLord": "Moon",
+          "signifies": {
+            "L1": [
+              12,
+              2,
+              10
+            ],
+            "L2": [
+              6,
+              12,
+              1,
+              2
+            ],
+            "L3": [
+              2,
+              7,
+              3,
+              6
+            ],
+            "L4": [
+              11,
+              9,
+              12,
+              2,
+              7
+            ]
+          },
+          "signifiedHouses": [
+            2,
+            10,
+            12,
+            1,
+            6,
+            3,
+            7,
+            9,
+            11
+          ],
+          "strongHouses": [
+            2,
+            10,
+            12,
+            1,
+            6
+          ],
+          "strength": {
+            "score": 66.7,
+            "grade": "B",
+            "label": "strong"
+          }
+        }
+      },
+      {
+        "planet": "Jupiter",
+        "startDate": "2005-06-08T07:30:00",
+        "endDate": "2021-06-08T07:30:00",
+        "durationYears": 16,
+        "interpretation": "Bu dönem genellikle büyüme, genişleme ve olumlu etkiler getirir. Bilgelik, manevi eğilimler ve öğrenme ve gelişme fırsatlarını işaret edebilir.",
+        "significators": {
+          "house": 10,
+          "starLord": "Ketu",
+          "subLord": "Rahu",
+          "signifies": {
+            "L1": [
+              12
+            ],
+            "L2": [
+              10
+            ],
+            "L3": [],
+            "L4": [
+              3,
+              6
+            ]
+          },
+          "signifiedHouses": [
+            12,
+            10,
+            3,
+            6
+          ],
+          "strongHouses": [
+            12,
+            10
+          ],
+          "strength": {
+            "score": 56.3,
+            "grade": "C",
+            "label": "moderate"
+          }
+        }
+      },
+      {
+        "planet": "Saturn",
+        "startDate": "2021-06-08T07:30:00",
+        "endDate": "2040-06-08T07:30:00",
+        "durationYears": 19,
+        "interpretation": "Sıkı çalışma, disiplin ve sorumluluk dönemidir. Zorluklar ve engeller ortaya çıkabilir, ancak sebat ve öz disiplin yoluyla büyüme fırsatları sunar.",
+        "significators": {
+          "house": 5,
+          "starLord": "Saturn",
+          "subLord": "Rahu",
+          "signifies": {
+            "L1": [
+              5
+            ],
+            "L2": [
+              5
+            ],
+            "L3": [
+              4,
+              5
+            ],
+            "L4": [
+              4,
+              5
+            ]
+          },
+          "signifiedHouses": [
+            5,
+            4
+          ],
+          "strongHouses": [
+            5
+          ],
+          "strength": {
+            "score": 75,
+            "grade": "B",
+            "label": "strong"
+          }
+        }
+      },
+      {
+        "planet": "Mercury",
+        "startDate": "2040-06-08T07:30:00",
+        "endDate": "2057-06-08T07:30:00",
+        "durationYears": 17,
+        "interpretation": "Entelektüel büyüme, iletişim becerileri ve uyum yeteneği dönemidir. Eğitim, iş ve yaratıcı uğraşlarda başarı ön plana çıkabilir.",
+        "significators": {
+          "house": 1,
+          "starLord": "Jupiter",
+          "subLord": "Mercury",
+          "signifies": {
+            "L1": [
+              10
+            ],
+            "L2": [
+              1
+            ],
+            "L3": [
+              3,
+              6
+            ],
+            "L4": [
+              9,
+              12
+            ]
+          },
+          "signifiedHouses": [
+            10,
+            1,
+            3,
+            6,
+            9,
+            12
+          ],
+          "strongHouses": [
+            10,
+            1
+          ],
+          "strength": {
+            "score": 54.2,
+            "grade": "C",
+            "label": "moderate"
+          }
+        }
+      },
+      {
+        "planet": "Ketu",
+        "startDate": "2057-06-08T07:30:00",
+        "endDate": "2064-06-08T07:30:00",
+        "durationYears": 7,
+        "interpretation": "Bu dönem genellikle manevi yönelimlidir, kopuş, iç gözlem ve kendini gerçekleştirmeyi vurgular. Benzersiz deneyimler ve içgörüler getirebilir.",
+        "significators": {
+          "house": 12,
+          "starLord": "Mars",
+          "subLord": "Venus",
+          "signifies": {
+            "L1": [
+              2,
+              10
+            ],
+            "L2": [
+              12,
+              1,
+              10
+            ],
+            "L3": [
+              2,
+              7,
+              3,
+              6,
+              1,
+              8
+            ],
+            "L4": [
+              11,
+              9,
+              12,
+              1,
+              8
+            ]
+          },
+          "signifiedHouses": [
+            2,
+            10,
+            1,
+            12,
+            3,
+            6,
+            7,
+            8,
+            9,
+            11
+          ],
+          "strongHouses": [
+            2,
+            10,
+            1,
+            12
+          ],
+          "strength": {
+            "score": 60,
+            "grade": "C",
+            "label": "moderate"
+          }
+        }
+      },
+      {
+        "planet": "Venus",
+        "startDate": "2064-06-08T07:30:00",
+        "endDate": "2084-06-08T07:30:00",
+        "durationYears": 20,
+        "interpretation": "Bu dönem aşk, ilişkiler ve yaratıcılıkla ilişkilendirilir. Kişisel yaşama uyum, sanatsal uğraşlar ve sosyal tanınma getirebilir.",
+        "significators": {
+          "house": 10,
+          "starLord": "Venus",
+          "subLord": "Rahu",
+          "signifies": {
+            "L1": [
+              10
+            ],
+            "L2": [
+              10
+            ],
+            "L3": [
+              1,
+              8
+            ],
+            "L4": [
+              1,
+              8
+            ]
+          },
+          "signifiedHouses": [
+            10,
+            1,
+            8
+          ],
+          "strongHouses": [
+            10
+          ],
+          "strength": {
+            "score": 66.7,
+            "grade": "B",
+            "label": "strong"
+          }
+        }
+      }
+    ],
+    "totalYears": 120
+  }
+}

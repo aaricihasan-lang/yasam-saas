@@ -97,3 +97,44 @@ Bu belirsizlikleri gidermek yeni sentetik golden çağrıları gerektirir: Jüpi
 - Adaptör denetimleri değişmedi: dasha L2 kendi evi, signifiedHouses = düzey birleşimi, strongHouses = L1 ∪ L2; horary ajan evi yalnız düğümde; ruling kümesi klasik 5.
   Düğüm kuralları üretimde yeniden hesaplanmaz; **yeni KP hesap motoru yok.**
 - Test: `phase61.harness.ts` (6.1A: kural kanıtı 5 + etiket kaynağı 1 + arayüz 4).
+
+## 7. Aşama 6.2 — son doğrulama (3 ayırt edici sentetik golden; toplam çağrı 44 → 47)
+
+Tasarım: `scripts/astrology/golden/phase62-design.ts`, yerel astronomiyle hipotez ızgarası (Roxy çağrısı yok).
+Model, Roxy'nin görünür 7 grahasıyla iki yeni doğumda birebir eşleşti (ev, yıldız lordu, 4 düzey).
+Hipotezler çağrıdan önce `ASTROLOGY-PHASE6-2-PROGRESS.md` dosyasına yazıldı ve commit'lendi (`5ee48c17`).
+
+| Golden | Sınanan | Sonuç |
+|---|---|---|
+| `kp62-dasha-x1` (1967-10-21 07:30 İstanbul) | Jüpiter 9. bakışı → Rahu; Merkür Ketu burcunda 19.5° uzak | Jüpiter **sayılmaz**; Merkür **ajan** (Ketu: burç bazlı kavuşma; Rahu: 7. burç). 8/8 düzey birebir. |
+| `kp62-dasha-x2` (1983-06-17 23:00 İstanbul) | Satürn 3. bakışı → Ketu; Mars komşu burçta Rahu'ya 2.8° | Satürn **sayılmaz**; Mars **ajan değil** (orb kavuşma da, orb karşıtlık da yok; "burç ∪ orb" karması da çürüdü). 8/8 düzey birebir. |
+| `kp62-ruling-x1` (X1 natal; an 2026-10-12 10:05 UTC) | Rahu **ve** Ketu ruling planet (Ay Swati, Lagna Mula) | Listeler ne "burç lordu kümesi" ne sade ne tam ajan ekli: **ajan ekli kuralın L2 ∪ L4'ü** (bulunduğu + sahip olduğu evler). 3/3 liste sıra dahil birebir (6.1 natal Ketu dahil). |
+
+### Çözülen belirsizlikler
+
+1. **Özel bakışlar (Soru 1):** Jüpiter 9., Satürn 3. ve Mars 4. (6.1) ajan sayılmaz. Roxy belgesindeki "bakan" ifadesi yalnız 7. burç bakışı olarak uygulanıyor. Jüpiter 5., Satürn 10. ve Mars 8. ayrıca sınanmadı; üç özel bakışın da sayılmaması kalıbıyla tutarlı olmaları beklenir.
+2. **7. burç ↔ karşı düğüm (Soru 2):** İkisi de burç bazlı olduğundan bu iki kural her doğumda **aynı** ajan kümesini verir; Ketu daima Rahu'nun 7. burcundadır (test: 1955–2015 örneklemesi). Gözlemlenebilir bir fark yoktur, bu yüzden açık belirsizlik sayılmaz.
+3. **Ruling'de Rahu (Soru 3):** Rahu listesi de "ajan evleri" kuralına uyuyor. Sıra: düğümün evi → kavuşan / 7. burç ajanları → burç lordu; her ajanda önce bulunduğu ev, sonra sahip olduğu evler, tekrarlar atılır. Görünür ruling planet'ler tam 4 düzeyi (L1→L4) alır; yani düğümdeki fark sağlayıcının belgelenmemiş davranışıdır.
+4. **Burç mu orb mu (Soru 4):** Kavuşma ve karşıtlık **burç bazlı**. Aynı burçta 19.5° uzak graha sayılıyor, komşu burçta 2.8° yakın graha sayılmıyor.
+
+### 6.1 düzeltmesi
+
+6.1'de ruling ucuna "burç lordu kümesi (belgelenmemiş; tek örnek)" etiketi verilmişti. Bu **yanlıştı**: o doğumda burç lordu Ay'ın kümesi tesadüfen "ajan evleri" kümesine eşitti. X1 golden'ı iki hipotezi ayırdı; etiket `agent_houses` (ajan evleri) olarak düzeltildi.
+O zamanki etiket "kesin değildir" uyarısı taşıdığı için yanıltıcı bir kesinlik sunmuyordu; P2 değil, P3 düzeltmesi.
+
+### Son durum (uç → kural)
+
+| Uç / alan | Kural | Güven |
+|---|---|---|
+| `kp/chart` significator | Sade 4 düzey | Doğrulandı |
+| `dasha/*` (`significators:true`) | Ajan ekli 4 düzey | Doğrulandı (3 doğum, 6 düğüm listesi) |
+| `kp/horary` `signifies` | Ajan ekli 4 düzey | Doğrulandı (6.1) |
+| `kp/horary` `allHouses` / `houseWise` | Sade | Doğrulandı (6.1) |
+| `kp/horary` `agentHouses` | Ajan ekli L2 ∪ L4 | Doğrulandı (6.1) |
+| `kp/ruling-planets` düğüm | Ajan ekli L2 ∪ L4 (sıralı) | Doğrulandı (2 doğum, 3 liste); belgelenmemiş |
+
+### Kalan, sınanmamış küçük konular (P3)
+
+- Jüpiter 5., Satürn 10. ve Mars 8. özel bakışları.
+- Ajanlar arası sıra: boylam sırası mı, graha sırası mı? Bu verilerde iki ölçüt aynı sırayı veriyor.
+- Gerçek düğüm (`nodeType: true`) ile davranış: tüm golden'lar ortalama düğüm.
