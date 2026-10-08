@@ -683,6 +683,11 @@ const LORD_TONE: Record<VedicGrahaId, string> = {
   ketu: "bg-stone-300",
 };
 
+/** 6.1B: "bugün" rozetinin yatay kayması — uçlara yakınken rozet çizginin içe doğru tarafına hizalanır (taşma yok). */
+export function todayShift(pct: number): string {
+  return pct < 8 ? "0%" : pct > 92 ? "-100%" : "-50%";
+}
+
 function DashaTimeline({ t, current, sel, onSel, now }: { t: VedicDashaTechnical; current: number; sel: number; onSel: (i: number) => void; now: number }) {
   const total = t.periods.reduce((a, p) => a + p.durationYears, 0) || 1;
   const startMs = dashaUtcMs(t.periods[0].start, t.utcOffsetHours);
@@ -690,26 +695,36 @@ function DashaTimeline({ t, current, sel, onSel, now }: { t: VedicDashaTechnical
   const nowPct = now >= startMs && now < endMs ? ((now - startMs) / (endMs - startMs)) * 100 : null;
   return (
     <div className="relative" data-testid="astro-vedic-dasha-timeline">
-      <div className="flex h-9 w-full overflow-hidden rounded-lg border border-slate-200">
-        {t.periods.map((p, i) => (
-          <button
-            key={`${p.lord}-${p.start}`}
-            type="button"
-            onClick={() => onSel(i)}
-            title={`${GRAHA_LABELS[p.lord]} · ${fmtLocal(p.start)} → ${fmtLocal(p.end)}`}
-            className={`${LORD_TONE[p.lord]} min-w-0 border-r border-white/70 text-[10px] font-semibold text-slate-800 last:border-r-0 ${sel === i ? "ring-2 ring-inset ring-amber-600" : ""} ${current === i ? "brightness-95" : "opacity-90"}`}
-            style={{ width: `${(p.durationYears / total) * 100}%` }}
-            aria-label={`${GRAHA_LABELS[p.lord]} dönemi`}
-          >
-            <span className="block truncate px-0.5">{(p.durationYears / total) * 100 > 5 ? GRAHA_LABELS[p.lord].split(" ")[0] : ""}</span>
-          </button>
-        ))}
-      </div>
+      {/* 6.1B: rozet kendi satırında (başlığa / üst metne taşmaz); uçlarda kapsayıcı içinde kalacak şekilde hizalanır. */}
       {nowPct !== null && (
-        <div className="pointer-events-none absolute -top-1 bottom-0 w-0.5 bg-rose-600" style={{ left: `${nowPct}%` }} aria-hidden>
-          <span className="absolute -top-4 -translate-x-1/2 rounded bg-rose-600 px-1 text-[9px] text-white">bugün</span>
+        <div className="relative mb-0.5 h-4" data-testid="astro-dasha-today-row">
+          <span
+            className="absolute top-0 whitespace-nowrap rounded bg-rose-600 px-1 text-[10px] leading-4 text-white"
+            style={{ left: `${nowPct}%`, transform: `translateX(${todayShift(nowPct)})` }}
+            data-testid="astro-dasha-today"
+          >
+            bugün
+          </span>
         </div>
       )}
+      <div className="relative">
+        <div className="flex h-9 w-full overflow-hidden rounded-lg border border-slate-200">
+          {t.periods.map((p, i) => (
+            <button
+              key={`${p.lord}-${p.start}`}
+              type="button"
+              onClick={() => onSel(i)}
+              title={`${GRAHA_LABELS[p.lord]} · ${fmtLocal(p.start)} → ${fmtLocal(p.end)}`}
+              className={`${LORD_TONE[p.lord]} min-w-0 border-r border-white/70 text-[10px] font-semibold text-slate-800 last:border-r-0 ${sel === i ? "ring-2 ring-inset ring-amber-600" : ""} ${current === i ? "brightness-95" : "opacity-90"}`}
+              style={{ width: `${(p.durationYears / total) * 100}%` }}
+              aria-label={`${GRAHA_LABELS[p.lord]} dönemi`}
+            >
+              <span className="block truncate px-0.5">{(p.durationYears / total) * 100 > 5 ? GRAHA_LABELS[p.lord].split(" ")[0] : ""}</span>
+            </button>
+          ))}
+        </div>
+        {nowPct !== null && <div className="pointer-events-none absolute -top-0.5 bottom-0 w-0.5 bg-rose-600" style={{ left: `${nowPct}%` }} aria-hidden />}
+      </div>
       <div className="mt-1 flex justify-between text-[10px] text-slate-500">
         <span>{fmtLocal(t.periods[0].start)}</span>
         <span>{fmtLocal(t.periods[t.periods.length - 1].end)}</span>
@@ -923,8 +938,8 @@ export function VedicDashaPanel({
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-vedic-dasha-panel" data-level={t.level}>
       {t.periods.some((x) => !!x.kp) && (
         <p className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs text-indigo-900" data-testid="astro-kp-dasha-method">
-          <strong>KP dasha:</strong> tarihler Roxy Vimshottari motorundan (KP ayanamsa ile); her dönem lordunun KP significator&apos;ları (Placidus evi, star / sub lord,
-          L1–L4) Roxy&apos;den. Bu bir olay tahmini DEĞİLDİR — Roxy&apos;de ev grubu ↔ dönem eşleştiren KP olay zamanlama ucu yok; yorum uzmana aittir.
+          <strong>Olay tahmini değildir.</strong> Tarihler Vimshottari (KP ayanamsa); dönem lordlarının KP significator&apos;ları Roxy&apos;den. Roxy KP olay
+          zamanlaması (ev grubu → dönem eşleştirmesi) sunmaz, Yaşam Sistemi de üretmez; dönemleri yorumlamak uzmana aittir.
         </p>
       )}
       {t.periods.some((x) => !!x.kp && isKpNode(x.lord)) && <KpNodeMethodLegend methods={[KP_NODE_SIG_SOURCE.dasha]} context="KP dasha (dasha ucu, significators açık)" />}

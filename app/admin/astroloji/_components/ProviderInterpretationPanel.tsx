@@ -56,6 +56,8 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
     </div>
   );
 }
+/** 6.1C: Roxy KP güç etiketleri (İngilizce) → Türkçe; "bağ derecesi", olay olasılığı değil. */
+export const KP_STRENGTH_TR: Record<string, string> = { "very-strong": "çok güçlü bağ", strong: "güçlü bağ", moderate: "orta bağ", weak: "zayıf bağ" };
 const Item = ({ children }: { children: ReactNode }) => <li className="rounded-lg bg-white px-3 py-2">{children}</li>;
 const P = ({ text }: { text: string | null | undefined }) => (text ? <p className="mt-0.5 whitespace-pre-line">{text}</p> : null);
 /** 6: Roxy houseThemes (ev anahtar kelimeleri; sağlayıcı anlatısı). */
@@ -364,10 +366,10 @@ function Content({ content }: { content: unknown }) {
             ))}
           </Block>
           {c.kpStrength && c.kpStrength.length > 0 && (
-            <Block title="Roxy KP dönem gücü değerlendirmesi (yöntemi belgelenmemiş — sağlayıcı yorumu)">
+            <Block title="Roxy KP dönem gücü — lordun gösterdiği evlere bağ derecesi; olay olasılığı veya olumluluk DEĞİLDİR (sağlayıcı yorumu)">
               {c.kpStrength.map((k) => (
                 <Item key={`kp-${k.lord}-${k.start}`}>
-                  <span className="font-medium">{GRAHA_LABELS[k.lord]}</span> · {k.start.slice(0, 10)} · puan {k.score} · derece {k.grade} · {k.label}
+                  <span className="font-medium">{GRAHA_LABELS[k.lord]}</span> · {k.start.slice(0, 10)} · puan {k.score} · derece {k.grade} · {KP_STRENGTH_TR[k.label] ?? k.label}
                 </Item>
               ))}
             </Block>

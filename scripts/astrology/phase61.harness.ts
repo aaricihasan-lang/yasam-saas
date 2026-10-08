@@ -21,7 +21,10 @@ import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, SIGN_LORDS, isKpNode } from "@
 import type { VedicGrahaId } from "@/lib/astrology/model/vedic";
 import type { SignId } from "@/lib/astrology/model/western";
 import { KpChartPanel, KpHoraryPanel, KpRulingPanel } from "@/app/admin/astroloji/_components/KpPanels";
-import { VedicDashaPanel } from "@/app/admin/astroloji/_components/VedicPanels";
+import { VedicDashaPanel, todayShift } from "@/app/admin/astroloji/_components/VedicPanels";
+import { TechniqueTechnical } from "@/app/admin/astroloji/_components/TimingPanels";
+import ProviderInterpretationPanel, { KP_STRENGTH_TR } from "@/app/admin/astroloji/_components/ProviderInterpretationPanel";
+import { TECHNIQUE_META, techniqueLabel } from "@/app/admin/astroloji/_lib/techniques";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -227,6 +230,72 @@ async function main() {
     assert.deepEqual(nodeTagsIn(sig.slice(0, sig.indexOf("</table>"))), ["plain", "plain"]);
     assert.ok(/\+[0-9,]+<\/span>/.test(sig), "ajan eki işareti yok");
     assert.ok(h.includes(KP_NODE_SIG_METHODS.plain.label) && h.includes(KP_NODE_SIG_METHODS.agent.label));
+  });
+
+  // ═══ 6.1B — Dasha "bugün" rozeti ═════════════════════════════════════════
+  await t("6.1B rozet kayması: uçlarda içe hizalı (taşma yok), ortada ortalı", () => {
+    assert.deepEqual([0, 3, 7.9, 8, 50, 92, 92.1, 99.9, 100].map(todayShift), ["0%", "0%", "0%", "-50%", "-50%", "-50%", "-100%", "-100%", "-100%"]);
+  });
+
+  await t("6.1B yerleşim: rozet GİZLENMEDİ; kendi satırında (çubuktan ve başlıktan önce, mutlak -top YOK); KP ve Vedik (Lahiri) dasha aynı bileşen", () => {
+    for (const tech of [dashaT, project("vedic.dasha", {}, load("vedic-dasha-major").response)]) {
+      const h = html(createElement(VedicDashaPanel, { t: tech, kbLookup: null }));
+      const tl = h.slice(h.indexOf('data-testid="astro-vedic-dasha-timeline"'));
+      assert.ok(tl.includes('data-testid="astro-dasha-today"') && tl.includes(">bugün<"), "rozet görünmeli");
+      assert.ok(tl.indexOf('data-testid="astro-dasha-today-row"') < tl.indexOf("flex h-9"), "rozet satırı çubuktan önce");
+      assert.ok(!/-top-4/.test(tl.slice(0, tl.indexOf("mt-1 flex justify-between"))), "eski mutlak konum kaldı");
+      const span = tl.slice(tl.lastIndexOf("<span", tl.indexOf('data-testid="astro-dasha-today"')), tl.indexOf(">bugün<"));
+      assert.match(span, /style="left:[0-9.]+%;transform:translateX\((0%|-50%|-100%)\)"/);
+    }
+  });
+
+  await t("6.1B görsel düzeltme hesaba dokunmadı: dasha teknik çıktısı golden'dan aynı (9 dönem, tarih/süre/lord)", () => {
+    const again = project("kp.dasha", {}, KDM.response);
+    assert.deepEqual(again, dashaT);
+    assert.equal(dashaT.periods.length, 9);
+    assert.deepEqual(dashaT.periods.map((x: J) => x.lord), KDM.response.mahadashas.map((m: J) => ID[m.planet]));
+  });
+
+  // ═══ 6.1C — KP teknik sınırlarının sunumu ════════════════════════════════
+  const asSaved = (technique: string, technical: unknown, options: Record<string, unknown> = {}) =>
+    html(createElement(TechniqueTechnical, { technique, technical, timeUnknownMasked: false, warnings: [], names: ["A", "B"], options }));
+  const transitT = project("kp.transit", { atUtc: AT }, load("kp-planets-at").response);
+
+  await t("6.1C KP transit: seçici + sekme etiketi 'kısmi'; panel (çalışma alanı = kayıtlı analiz bileşeni) KISMİ uyarısı; natal cusp / Placidus ev sütunu / ev konumu YOK", () => {
+    assert.match(techniqueLabel("kp.transit"), /kısmi/);
+    assert.match(TECHNIQUE_META["kp.transit"].hint, /natal ev analizi yok/);
+    const h = asSaved("kp.transit", transitT);
+    assert.ok(h.includes("Kısmi destek:") && /natal cusp.*YOKTUR/.test(h) && h.includes("hesaplamaz"));
+    assert.ok(!h.includes("Ev (Placidus)") && !/data-kp-item="c\d/.test(h) && !h.includes("astro-kp-sig-"), "transitte natal ev / cusp / significator görünmemeli");
+    assert.ok(transitT.bodies.every((b: J) => b.house === undefined));
+  });
+
+  await t("6.1C olay zamanlaması: KP dasha bandı kısa ve açık ('olay tahmini değildir' + Roxy sunmaz + Yaşam Sistemi üretmez); kayıtlı analiz bileşeninde de var; tarih/olay eşleştiren bir alan YOK", () => {
+    const h = asSaved("kp.dasha", dashaT);
+    const band = h.slice(h.indexOf('data-testid="astro-kp-dasha-method"'), h.indexOf("</p>", h.indexOf('data-testid="astro-kp-dasha-method"')));
+    assert.ok(/Olay tahmini değildir/.test(band) && /sunmaz/.test(band) && /üretmez/.test(band));
+    assert.ok(band.replace(/<[^>]+>/g, "").length < 320, "uyarı kısa olmalı");
+    assert.ok(!/olay tarihi|gerçekleşme (tarihi|zamanı)|olasılığı yüksek|kesinlikle gerçekleşir/i.test(h));
+    assert.ok(!JSON.stringify(dashaT).match(/event|olay|predict/i), "teknik çıktıda olay alanı olmamalı");
+  });
+
+  await t("6.1C Roxy KP güç değerlendirmesi: başlık 'olay olasılığı değildir'; İngilizce etiket Türkçe 'bağ' etiketine çevrilir; yalnız yorum katmanında", () => {
+    const def = getTechnique("kp.dasha")!;
+    const o = def.parseOptions({}, new Date())!;
+    const u = def.units({ birth: SYNTH_A, birthUtc: SYNTH_A.utc, partner: null }, o)[0];
+    const pr = def.project(u, KDM.response, o) as J;
+    const h = html(createElement(ProviderInterpretationPanel, { interpretation: { visible: true, provider: "roxy", lang: "tr", content: pr.interpretation, notice: "n" } }));
+    assert.ok(h.includes("olay olasılığı veya olumluluk DEĞİLDİR"));
+    assert.ok(Object.values(KP_STRENGTH_TR).some((x) => h.includes(x)) && !/· (strong|very-strong|moderate|weak)</.test(h));
+    assert.ok(!JSON.stringify(pr.technical).includes('"strength"'));
+  });
+
+  await t("6.1C Rahu/Ketu: belirsiz yöntemler arayüzde 'doğrulandı' diye sunulmuyor (ruling + ajan kapsamı durum metni görünür)", () => {
+    const r = html(createElement(KpRulingPanel, { t: rulingT, kbLookup: null }));
+    assert.ok(r.includes("Belgelenmemiş") && !/burç lordu kümesi[^<]*doğrulandı/i.test(r));
+    const d = asSaved("kp.dasha", dashaT);
+    // renderToStaticMarkup kesme işaretini &#x27; olarak kaçışlar.
+    assert.ok(d.includes(KP_NODE_SIG_METHODS.agent.status.replace(/'/g, "&#x27;")) && d.includes("kısmen belirsiz"));
   });
 
   console.log(`\nastrology phase6.1 harness: ${pass} PASS / ${fail} FAIL`);
