@@ -45,6 +45,8 @@ import {
   validateConsentInput,
 } from "../../lib/legal/clientConsent";
 import { assertServerOnly } from "../../lib/server/serverOnlyGuard";
+import { NextRequest } from "next/server";
+import { withCspCanary } from "../../lib/security/cspCanary";
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
@@ -152,6 +154,19 @@ const isUseClient = (rel: string) => /^\s*(?:\/\/[^\n]*\n|\/\*[\s\S]*?\*\/\s*)*\
       h("Permissions-Policy"),
       "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
     );
+  });
+  // CSP NONCE C1: NORMAL (canary yok) → Report-Only YOK (aşağıdaki test aynen korunur);
+  // CANARY (yasam_csp_canary=1) → zorunlu CSP aynen + EK olarak nonce'lı Report-Only (proxy).
+  await t("C1 canary: Report-Only VAR + nonce; canary yok: Report-Only YOK", () => {
+    const mk = (cookie?: string) =>
+      new NextRequest("https://www.yasamsistemi.com/", { headers: cookie ? { cookie } : {} });
+    const normal = withCspCanary(mk(), { env: {} });
+    assert.equal(normal.headers.get("Content-Security-Policy-Report-Only"), null);
+    const canary = withCspCanary(mk("yasam_csp_canary=1"), { env: {} });
+    const ro = canary.headers.get("Content-Security-Policy-Report-Only") ?? "";
+    assert.match(ro, /script-src 'nonce-[A-Za-z0-9+/_-]{16,}={0,2}' 'strict-dynamic'/);
+    // proxy zorunlu CSP'yi set etmez → next.config statik başlığı (buildEnforcedCsp) aynen kalır
+    assert.equal(canary.headers.get("Content-Security-Policy"), null);
   });
   await t("tam CSP ZORUNLU; Report-Only başlığı YOK", () => {
     const csp = h("Content-Security-Policy")!;
