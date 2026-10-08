@@ -261,4 +261,41 @@ export type VedicPanchangaTechnical = {
   karana: { number: number; id: (typeof KARANA_IDS)[number]; name: string; percent: number; movable: boolean };
 };
 export const VEDIC_PANCHANGA_INTERP_SCHEMA = "astro.vedic.panchanga.interp.v1" as const;
+
+// ─── 5.1A: Gochara (Vedik transit; Roxy /vedic-astrology/transit, Lahiri sabit) ─────────────
+/** Kaksha yöneticileri (her burç 8 × 3°45′; Satürn → … → Lagna) — yalnız tutarlılık denetimi + etiket. */
+export const KAKSHA_LORDS = ["saturn", "jupiter", "mars", "sun", "venus", "mercury", "moon", "lagna"] as const;
+export type KakshaLord = (typeof KAKSHA_LORDS)[number];
+/** Gochara drishti: bütün-burç (Parashari) tam/özel bakışlar; Rahu/Ketu bakış atmaz (Roxy). 1 = aynı rashi (belgede "conjunction"). */
+export type GocharaDrishtiType = 1 | VedicDrishtiType;
+export const VEDIC_TRANSIT_TECHNICAL_SCHEMA = "astro.vedic.transit.v1" as const;
+export type VedicTransitTechnical = {
+  schema: typeof VEDIC_TRANSIT_TECHNICAL_SCHEMA;
+  zodiac: "sidereal";
+  /** Doğum anında okunan Lahiri; transit konumları kendi anlarındaki Lahiri ile (sağlayıcı). */
+  frame: VedicLahiriFrame;
+  /** Transit anı: UTC dakika + doğum ofsetinde yerel (sağlayıcıya giden). */
+  at: { utc: string; local: string; utcOffsetHours: number };
+  /** Natal D1 (Lagna'dan bütün-burç ev) — Lagna rashisi natal ev numaralarından türetilir. */
+  lagnaRashi: SignId;
+  /** Janma Rashi = natal Ay'ın rashisi (klasik Gochara referansı). */
+  janmaRashi: SignId;
+  natal: { id: VedicGrahaId; longitude: number; rashi: SignId; house: number }[];
+  transits: {
+    id: VedicGrahaId;
+    longitude: number;
+    rashi: SignId;
+    degreeInRashi: number;
+    /** Lagna'dan bütün-burç ev. */
+    natalHouse: number;
+    /** Janma Rashi'den bütün-burç ev (klasik Gochara). */
+    houseFromMoon: number;
+    drishti: { to: VedicGrahaId; type: GocharaDrishtiType; orb: number }[];
+    kaksha: { number: number; lord: KakshaLord; start: number; end: number; bindu: boolean | null; binduCount: number | null };
+  }[];
+  /** Sağlayıcının yavaş graha vurguları (Jüpiter, Satürn, Rahu, Ketu) — yalnız kimlik. */
+  slow: VedicGrahaId[];
+};
+export const VEDIC_TRANSIT_INTERP_SCHEMA = "astro.vedic.transit.interp.v1" as const;
+export type VedicTransitInterpretation = { schema: typeof VEDIC_TRANSIT_INTERP_SCHEMA; keyTransits: { id: VedicGrahaId; text: string | null }[] };
 export type VedicPanchangaInterpretation = { schema: typeof VEDIC_PANCHANGA_INTERP_SCHEMA; nakshatra: string | null; yoga: string | null; karana: string | null };

@@ -19,7 +19,7 @@ import type {
 } from "@/lib/astrology/model/westernTiming";
 import { ASPECT_GLYPHS, ASPECT_LABELS, BODY_GLYPHS, BODY_LABELS, PATTERN_LABELS } from "@/lib/astrology/labels/tr";
 import type { AstrocartographyInterpretation, LocalSpaceInterpretation, RelocationInterpretation } from "@/lib/astrology/model/westernLocation";
-import type { VedicD1Interpretation, VedicDashaInterpretation, VedicPanchangaInterpretation, VedicShadbalaInterpretation, VedicVargaInterpretation } from "@/lib/astrology/model/vedic";
+import type { VedicD1Interpretation, VedicDashaInterpretation, VedicPanchangaInterpretation, VedicShadbalaInterpretation, VedicTransitInterpretation, VedicVargaInterpretation } from "@/lib/astrology/model/vedic";
 import { GRAHA_LABELS, VEDIC_YOGA_NAMES } from "@/lib/astrology/topics/vedic";
 
 export type InterpretationLayer =
@@ -389,6 +389,19 @@ function Content({ content }: { content: unknown }) {
               <P text={c.karana} />
             </Item>
           )}
+        </Block>
+      );
+    }
+    case "astro.vedic.transit.interp.v1": {
+      const c = content as VedicTransitInterpretation;
+      return (
+        <Block title="Gochara vurguları (sağlayıcı metni)">
+          {c.keyTransits.map((x) => (
+            <Item key={x.id}>
+              <div className="font-medium">{GRAHA_LABELS[x.id]}</div>
+              <P text={x.text} />
+            </Item>
+          ))}
         </Block>
       );
     }

@@ -123,6 +123,8 @@ function startFakeRoxy() {
         if (path === "/forecast/transits") raw.events = (raw.events as { date: string }[]).filter((e) => e.date >= body.startDate && e.date <= body.endDate);
         // SENTETİK yankı: istenen konum (harita içeriği golden) → adaptörün konum doğrulaması geçer.
         if (path === "/astrology/relocation-chart") raw.relocation = { latitude: body.relocationLatitude, longitude: body.relocationLongitude };
+        // SENTETİK yankı (5.1A): Gochara içeriği golden anındır; yalnız transitDatetime istenen ana çekilir (UI testi).
+        if (path === "/vedic-astrology/transit") raw.transitDatetime = `${String(body.transitDate)}T${String(body.transitTime)}`;
         if (path === "/astrology/local-space") raw.birthDetails = { ...(raw.birthDetails as object), latitude: body.latitude, longitude: body.longitude };
         if (path === "/astrology/lunar-return") {
           // Sağlayıcı kuralı taklidi: returnDate'e EN YAKIN dönüş (SENTETİK; golden harita korunur, yalnız an).

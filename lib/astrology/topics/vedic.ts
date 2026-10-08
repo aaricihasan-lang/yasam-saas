@@ -13,6 +13,8 @@
 //   navamsa_graha_in_rashi:<graha>:<rashi> · navamsa_lagna_rashi:<rashi> · navamsa_vargottama:<graha>
 //   varga_graha_in_rashi:<dN>:<graha>:<rashi>  (D2…D60, D9 hariç; dN = d2, d3, …)
 //   dasha_mahadasha:<lord> · dasha_antardasha:<mahadasha lord>:<antardasha lord>
+//   gochara_graha_in_rashi:<graha>:<rashi> · gochara_from_moon:<graha>:<ev> · gochara_in_bhava:<graha>:<ev>
+//   gochara_drishti:<transit graha>:<natal graha>   (5.1A Vedik transit; Batı transit konularından AYRI tür)
 //
 // DB biçim kısıtı (topic_key) ile uyumlu: ^[a-z][a-z_]{1,40}(:[a-z0-9_-]{1,40}){1,4}$
 
@@ -26,11 +28,12 @@ import {
   type VedicDrishtiTechnical,
   type VedicPanchangaTechnical,
   type VedicShadbalaTechnical,
+  type VedicTransitTechnical,
   type VedicVargaTechnical,
 } from "../model/vedic";
 import { SIGN_LABELS } from "../labels/tr";
 
-export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha", "vedic_drishti", "vedic_strength", "vedic_panchanga"] as const;
+export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha", "vedic_drishti", "vedic_strength", "vedic_panchanga", "vedic_gochara"] as const;
 export type VedicContext = (typeof VEDIC_CONTEXTS)[number];
 export const VEDIC_CONTEXT_LABELS: Record<VedicContext, string> = {
   vedic_d1: "Vedik D1 (Rashi)",
@@ -39,6 +42,7 @@ export const VEDIC_CONTEXT_LABELS: Record<VedicContext, string> = {
   vedic_drishti: "Graha Drishti",
   vedic_strength: "Graha gücü (Shadbala / Ashtakavarga)",
   vedic_panchanga: "Janma Panchanga",
+  vedic_gochara: "Gochara (Vedik transit)",
 };
 
 /** Geleneksel ad listeleri (yalnız etiket; hesap DEĞİL). */
@@ -122,6 +126,10 @@ export const VEDIC_SPECS: Record<string, Spec> = {
   panchanga_nitya_yoga: { args: ["nitya_yoga"], context: "vedic_panchanga", label: (p) => `Janma nitya yoga: ${p[0]}. ${NITYA_YOGA_LABELS[Number(p[0]) - 1] ?? ""}` },
   panchanga_karana: { args: ["karana"], context: "vedic_panchanga", label: (p) => `Janma karana: ${KARANA_LABELS[p[0]] ?? p[0]}` },
   dasha_pratyantardasha: { args: ["graha", "graha", "graha"], context: "vedic_dasha", label: (p) => `Pratyantardasha: ${g(p[0])} / ${g(p[1])} / ${g(p[2])}` },
+  gochara_graha_in_rashi: { args: ["graha", "rashi"], context: "vedic_gochara", label: (p) => `Gochara: transit ${g(p[0])} ${r(p[1])} rashisinde` },
+  gochara_from_moon: { args: ["graha", "bhava"], context: "vedic_gochara", label: (p) => `Gochara: transit ${g(p[0])} Janma Rashi'den ${p[1]}. evde` },
+  gochara_in_bhava: { args: ["graha", "bhava"], context: "vedic_gochara", label: (p) => `Gochara: transit ${g(p[0])} Lagna'dan ${p[1]}. bhavada` },
+  gochara_drishti: { args: ["graha", "graha"], context: "vedic_gochara", label: (p) => `Gochara drishti: transit ${g(p[0])} → natal ${g(p[1])}` },
 };
 export const VEDIC_KINDS = Object.keys(VEDIC_SPECS);
 
@@ -235,6 +243,16 @@ export function topicsFromVedicDasha(t: VedicDashaTechnical): VedicTopic[] {
   const items: [string, string[]][] = t.periods.map((p): [string, string[]] =>
     md && ad ? ["dasha_pratyantardasha", [md, ad, p.lord]] : md ? ["dasha_antardasha", [md, p.lord]] : ["dasha_mahadasha", [p.lord]],
   );
+  return vedicCollect(items);
+}
+
+/** Gochara konuları: transit graha rashisi, Janma Rashi'den ev (klasik), Lagna'dan ev, transit→natal drishti. */
+export function topicsFromVedicTransit(t: VedicTransitTechnical): VedicTopic[] {
+  const items: [string, string[]][] = [];
+  for (const x of t.transits) {
+    items.push(["gochara_graha_in_rashi", [x.id, x.rashi]], ["gochara_from_moon", [x.id, String(x.houseFromMoon)]], ["gochara_in_bhava", [x.id, String(x.natalHouse)]]);
+    for (const d of x.drishti) items.push(["gochara_drishti", [x.id, d.to]]);
+  }
   return vedicCollect(items);
 }
 

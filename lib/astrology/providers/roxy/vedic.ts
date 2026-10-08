@@ -33,6 +33,13 @@ import {
   VEDIC_VARGA_INTERP_SCHEMA,
   VIMSHOTTARI_YEARS,
   VEDIC_VARGA_TECHNICAL_SCHEMA,
+  KAKSHA_LORDS,
+  VEDIC_TRANSIT_INTERP_SCHEMA,
+  VEDIC_TRANSIT_TECHNICAL_SCHEMA,
+  type GocharaDrishtiType,
+  type KakshaLord,
+  type VedicTransitInterpretation,
+  type VedicTransitTechnical,
   type AshtakaRow,
   type NakshatraPlacement,
   type ShadbalaComponent,
@@ -938,6 +945,171 @@ export function projectRoxyVedicPanchanga(raw: unknown): AdapterResult<VedicPanc
     () => ({ schema: VEDIC_PANCHANGA_INTERP_SCHEMA, nakshatra: text(n?.characteristics), yoga: text(y?.characteristics), karana: text(k?.characteristics) }),
     raw,
     PANCHANGA_KNOWN,
+    new Set(),
+  );
+}
+
+// ═══ 5.1A · Gochara (/vedic-astrology/transit, Lahiri sabit) ══════════════════
+// Roxy natal D1'i ve transit anının sidereal konumlarını kendi hesaplar; burada YALNIZ beyaz liste projeksiyon
+// + tutarlılık denetimi yapılır (ikinci hesap motoru YOK):
+//   • frame.ayanamsa = lahiri; birthDatetime / transitDatetime = gönderilen yerel zamanlar (tek timezone alanı)
+//   • rashi ↔ boylam; natal evler tek bir Lagna rashisinden bütün-burç sayımı; transit natalHouse ↔ o Lagna;
+//     houseFromMoon ↔ natal Ay rashisi (Janma Rashi)
+//   • drishti (Parashari, bütün-burç): tür grahaya izinli (herkes 7; Mars 4/8; Jüpiter 5/9; Satürn 3/10;
+//     Rahu/Ketu YOK), tür = burç sayımı, orb = burç-içi derece farkı, güç = 100; liste o burçlardaki natal
+//     grahaların TAMAMI (eksik/fazla → ret)
+//   • kaksha: sıra = ⌊burç-içi derece / 3°45′⌋ + 1, yönetici sırası Satürn…Lagna, sınırlar; Rahu/Ketu bindu null
+//   • keyTransits ↔ transitingPlanets (ev yansımaları)
+// aspectsToNatal (Batı sözlüğü: kare/üçgen/altmışlık, derece+orb) ve keyTransits[].aspects BİLİNÇLİ OLARAK
+// projekte edilmez → Batı transit sonuçlarıyla karışmaz. keyTransits[].description (anlatı) → yorum katmanı.
+export const ROXY_VEDIC_TRANSIT = { endpoint: "/vedic-astrology/transit", adapter: "astro-roxy-vedic-transit-1", projection: "vedic-transit-proj-1" } as const;
+const TRANSIT_KNOWN = new Set<string>([
+  ...paths("frame", ["ayanamsa", "ayanamsaDegrees"]),
+  "birthDatetime",
+  "transitDatetime",
+  "natalPlanets",
+  ...paths("natalPlanets[]", ["name", "longitude", "sign", "house"]),
+  "transitingPlanets",
+  ...paths("transitingPlanets[]", ["name", "longitude", "sign", "natalHouse", "houseFromMoon", "aspectsToNatal", "drishtiToNatal", "kaksha"]),
+  ...paths("transitingPlanets[].aspectsToNatal[]", ["natalPlanet", "aspectType", "orb"]),
+  ...paths("transitingPlanets[].drishtiToNatal[]", ["natalPlanet", "aspectType", "strength", "orb"]),
+  ...paths("transitingPlanets[].kaksha", ["number", "lord", "startDegree", "endDegree", "bindu", "binduCount"]),
+  "keyTransits",
+  ...paths("keyTransits[]", ["planet", "description", "natalHouse", "houseFromMoon", "aspects", "drishti"]),
+  "keyTransits[].aspects[]",
+  "keyTransits[].drishti[]",
+]);
+const GOCHARA_DRISHTI: Record<VedicGrahaId, number[]> = { sun: [7], moon: [7], mercury: [7], venus: [7], mars: [4, 7, 8], jupiter: [5, 7, 9], saturn: [3, 7, 10], rahu: [], ketu: [] };
+const SLOW: VedicGrahaId[] = ["jupiter", "saturn", "rahu", "ketu"];
+const KAKSHA_SPAN = 3.75;
+/** Bütün-burç sayımı (kapsayıcı): from rashisinden to rashisine 1…12. */
+export const signCount = (from: SignId, to: SignId) => ((SIGN_IDS.indexOf(to) - SIGN_IDS.indexOf(from) + 12) % 12) + 1;
+
+export function projectRoxyVedicTransit(
+  raw: unknown,
+  opts: { birthLocal: string; transitLocal: string; atUtc: string; utcOffsetHours: number },
+): AdapterResult<VedicTransitTechnical, VedicTransitInterpretation> {
+  const errors: string[] = [];
+  const r = obj(raw);
+  if (!r) return { ok: false, errors: ["root"] };
+  const frame = obj(r.frame);
+  const ayDeg = num(frame?.ayanamsaDegrees, 0, 40);
+  if (frame?.ayanamsa !== "lahiri" || ayDeg === null) errors.push("frame: Lahiri sidereal değil");
+  if (r.birthDatetime !== opts.birthLocal) errors.push("birthDatetime doğum anı değil");
+  if (r.transitDatetime !== opts.transitLocal) errors.push("transitDatetime istenen an değil");
+  const pos = (o: Record<string, unknown> | null, ctx: string) => {
+    const id = mapGraha(o?.name);
+    const longitude = num(o?.longitude, 0, 360);
+    const rashi = mapRashi(o?.sign);
+    if (!id || longitude === null || !rashi) {
+      errors.push(`${ctx}: alan`);
+      return null;
+    }
+    if (SIGN_IDS[Math.min(11, Math.floor(longitude / 30))] !== rashi) errors.push(`${ctx}.${id}: rashi boylamla uyuşmuyor`);
+    return { id, longitude, rashi };
+  };
+  const natal: VedicTransitTechnical["natal"] = [];
+  for (const it of arr(r.natalPlanets) ?? []) {
+    const o = obj(it);
+    const p = pos(o, "natalPlanets[]");
+    const house = int(o?.house, 1, 12);
+    if (!p) continue;
+    if (house === null) {
+      errors.push(`natalPlanets.${p.id}: ev`);
+      continue;
+    }
+    natal.push({ ...p, house });
+  }
+  if (natal.length !== 9 || new Set(natal.map((x) => x.id)).size !== 9) errors.push("natalPlanets: 9 graha yok");
+  const lagnas = new Set(natal.map((x) => SIGN_IDS[(SIGN_IDS.indexOf(x.rashi) - (x.house - 1) + 12) % 12]));
+  if (lagnas.size !== 1) errors.push("natalPlanets: evler tek bir Lagna'dan bütün-burç sayımı değil");
+  const lagnaRashi = [...lagnas][0] ?? SIGN_IDS[0];
+  const janmaRashi = natal.find((x) => x.id === "moon")?.rashi ?? SIGN_IDS[0];
+  const transits: VedicTransitTechnical["transits"] = [];
+  for (const it of arr(r.transitingPlanets) ?? []) {
+    const o = obj(it);
+    const p = pos(o, "transitingPlanets[]");
+    if (!p) continue;
+    const natalHouse = int(o?.natalHouse, 1, 12);
+    const houseFromMoon = int(o?.houseFromMoon, 1, 12);
+    if (natalHouse === null || houseFromMoon === null) {
+      errors.push(`transitingPlanets.${p.id}: ev alanı`);
+      continue;
+    }
+    if (natalHouse !== signCount(lagnaRashi, p.rashi)) errors.push(`transitingPlanets.${p.id}.natalHouse Lagna'dan bütün-burç değil`);
+    if (houseFromMoon !== signCount(janmaRashi, p.rashi)) errors.push(`transitingPlanets.${p.id}.houseFromMoon Janma Rashi'den değil`);
+    const deg = p.longitude - SIGN_IDS.indexOf(p.rashi) * 30;
+    // Drishti — bütün-burç; liste o burçlardaki natal grahaların tamamı olmalı.
+    const drishti: VedicTransitTechnical["transits"][number]["drishti"] = [];
+    for (const d of arr(o?.drishtiToNatal) ?? []) {
+      const x = obj(d);
+      const to = mapGraha(x?.natalPlanet);
+      const type = x?.aspectType === "conjunction" ? 1 : drishtiType(x?.aspectType);
+      const orb = num(x?.orb, 0, 30);
+      const n = to ? natal.find((y) => y.id === to) : undefined;
+      if (!to || !type || orb === null || x?.strength !== 100 || !n) {
+        errors.push(`transitingPlanets.${p.id}.drishtiToNatal[]: alan`);
+        continue;
+      }
+      if (type !== 1 && !GOCHARA_DRISHTI[p.id].includes(type)) errors.push(`drishti: ${p.id} için ${type}. bakış izinli değil`);
+      if (signCount(p.rashi, n.rashi) !== type) errors.push(`drishti: ${p.id}→${to} türü burç sayımıyla uyuşmuyor`);
+      if (Math.abs(Math.abs(deg - (n.longitude - SIGN_IDS.indexOf(n.rashi) * 30)) - orb) > 0.02) errors.push(`drishti: ${p.id}→${to} orb burç-içi derece farkı değil`);
+      drishti.push({ to, type: type as GocharaDrishtiType, orb });
+    }
+    const expected = natal.filter((n) => GOCHARA_DRISHTI[p.id].includes(signCount(p.rashi, n.rashi))).map((n) => n.id).sort().join();
+    const got = drishti.filter((d) => d.type !== 1).map((d) => d.to).sort().join();
+    if (natal.length === 9 && expected !== got) errors.push(`drishti: ${p.id} bakış listesi bütün-burç kuralıyla eksik/fazla`);
+    const k = obj(o?.kaksha);
+    const kn = int(k?.number, 1, 8);
+    const kl = typeof k?.lord === "string" ? k.lord.trim().toLowerCase() : "";
+    const ks = num(k?.startDegree, 0, 30);
+    const ke = num(k?.endDegree, 0, 30);
+    const node = p.id === "rahu" || p.id === "ketu";
+    const bindu = k?.bindu === null ? null : typeof k?.bindu === "boolean" ? k.bindu : undefined;
+    const bc = k?.binduCount === null ? null : int(k?.binduCount, 0, 8);
+    if (kn === null || ks === null || ke === null || bindu === undefined || (k?.binduCount !== null && bc === null) || !(KAKSHA_LORDS as readonly string[]).includes(kl)) {
+      errors.push(`transitingPlanets.${p.id}.kaksha: alan`);
+      continue;
+    }
+    if (Math.min(8, Math.floor(deg / KAKSHA_SPAN) + 1) !== kn) errors.push(`kaksha: ${p.id} sırası burç-içi dereceyle uyuşmuyor`);
+    if (KAKSHA_LORDS[kn - 1] !== kl) errors.push(`kaksha: ${p.id} yöneticisi sırayla uyuşmuyor`);
+    if (Math.abs(ks - (kn - 1) * KAKSHA_SPAN) > 1e-6 || Math.abs(ke - kn * KAKSHA_SPAN) > 1e-6) errors.push(`kaksha: ${p.id} sınırları`);
+    if (node !== (bindu === null) || node !== (bc === null)) errors.push(`kaksha: ${p.id} bindu (Rahu/Ketu null, diğerleri değer)`);
+    transits.push({ ...p, degreeInRashi: deg, natalHouse, houseFromMoon, drishti, kaksha: { number: kn, lord: kl as KakshaLord, start: ks, end: ke, bindu, binduCount: bc } });
+  }
+  if (transits.length !== 9 || new Set(transits.map((x) => x.id)).size !== 9) errors.push("transitingPlanets: 9 graha yok");
+  const slow: VedicGrahaId[] = [];
+  const keyText: VedicTransitInterpretation["keyTransits"] = [];
+  for (const it of arr(r.keyTransits) ?? []) {
+    const o = obj(it);
+    const id = mapGraha(o?.planet);
+    const t = id ? transits.find((x) => x.id === id) : undefined;
+    if (!id || !SLOW.includes(id)) {
+      errors.push("keyTransits[]: yavaş graha değil");
+      continue;
+    }
+    if (!t || o?.natalHouse !== t.natalHouse || o?.houseFromMoon !== t.houseFromMoon) errors.push(`keyTransits.${id}: transitingPlanets ile uyuşmuyor`);
+    if ((arr(o?.drishti) ?? []).length !== (t?.drishti.length ?? -1)) errors.push(`keyTransits.${id}: drishti sayısı uyuşmuyor`);
+    slow.push(id);
+    keyText.push({ id, text: text(o?.description) });
+  }
+  return done(
+    errors,
+    [],
+    () => ({
+      schema: VEDIC_TRANSIT_TECHNICAL_SCHEMA,
+      zodiac: "sidereal",
+      frame: { ayanamsa: "lahiri", ayanamsaDegrees: ayDeg },
+      at: { utc: opts.atUtc, local: opts.transitLocal, utcOffsetHours: opts.utcOffsetHours },
+      lagnaRashi,
+      janmaRashi,
+      natal,
+      transits,
+      slow,
+    }),
+    () => ({ schema: VEDIC_TRANSIT_INTERP_SCHEMA, keyTransits: keyText.filter((x) => x.text) }),
+    raw,
+    TRANSIT_KNOWN,
     new Set(),
   );
 }

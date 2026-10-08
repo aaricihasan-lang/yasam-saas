@@ -166,6 +166,37 @@ export default function TechniqueSelector({
         ) : (
           <p className="text-xs text-amber-800">Seçili ayanamsa Lahiri değil: bu hesap yapılmaz (Roxy yalnız Lahiri ile hesaplar). Vedik seçimlerde ayanamsa&apos;yı Lahiri yapın.</p>
         );
+      case "vedic.transit":
+        return (
+          <div className="flex flex-col gap-1.5 text-xs" data-testid="astro-vedic-transit-params">
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-1">
+                <input type="radio" checked={params.vedicTransitMode === "now"} onChange={() => set("vedicTransitMode", "now")} /> Şimdi (UTC saat başı)
+              </label>
+              <label className="flex items-center gap-1">
+                <input type="radio" checked={params.vedicTransitMode === "custom"} onChange={() => set("vedicTransitMode", "custom")} /> Tarih/saat
+              </label>
+              {params.vedicTransitMode === "custom" && (
+                <>
+                  <input type="date" className={inp} value={params.vedicTransitDate} onChange={(e) => set("vedicTransitDate", e.target.value)} aria-label="Gochara tarihi" />
+                  <input type="time" className={inp} value={params.vedicTransitTime} onChange={(e) => set("vedicTransitTime", e.target.value)} aria-label="Gochara saati" />
+                  <select className={inp} value={params.vedicTransitTz} onChange={(e) => set("vedicTransitTz", e.target.value)} aria-label="Gochara saat dilimi">
+                    {TZ_OPTIONS.map((z) => (
+                      <option key={z} value={z}>
+                        {z}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+            </div>
+            {params.vedicAyanamsa === "lahiri" ? (
+              <p className="text-slate-500">Lahiri (sabit) — Roxy Gochara ucu ayanamsa almaz. Batı transitinden ayrı hesap ve kayıttır.</p>
+            ) : (
+              <p className="text-amber-800">Seçili ayanamsa Lahiri değil: Gochara hesaplanmaz (Roxy yalnız Lahiri ile hesaplar).</p>
+            )}
+          </div>
+        );
       case "vedic.ashtakavarga":
       case "vedic.shadbala":
         return (

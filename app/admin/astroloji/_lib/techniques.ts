@@ -24,6 +24,7 @@ export const UI_TECHNIQUES = [
   "vedic.ashtakavarga",
   "vedic.shadbala",
   "vedic.panchanga",
+  "vedic.transit",
 ] as const;
 export type UiTechniqueId = (typeof UI_TECHNIQUES)[number];
 
@@ -45,6 +46,7 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "vedic.ashtakavarga": { label: "Ashtakavarga", hint: "Bhinna/Sarva bindu ızgarası, Shodhana, Shodhya Pinda", needsPartner: false, needsTime: true },
   "vedic.shadbala": { label: "Shadbala", hint: "Altı katlı graha gücü (BPHS), oran ve sıralama", needsPartner: false, needsTime: true },
   "vedic.panchanga": { label: "Janma Panchanga", hint: "Doğum anı tithi, nakshatra, nitya yoga, karana — yalnız Lahiri", needsPartner: false, needsTime: true },
+  "vedic.transit": { label: "Gochara (Vedik transit)", hint: "Seçilen anın sidereal grahaları → Janma Rashi'den / Lagna'dan ev, bütün-burç drishti, kaksha — yalnız Lahiri", needsPartner: false, needsTime: true },
   "vedic.dasha": { label: "Vimshottari Dasha", hint: "Mahadasha zaman çizelgesi; Antardasha / Pratyantardasha tıklayınca yüklenir", needsPartner: false, needsTime: true },
   "vedic.varga": { label: "Vedik Varga (D9 Navamsa / Dn)", hint: "Bölümsel harita: D9 varsayılan; D2…D60 seçilebilir; vargottama", needsPartner: false, needsTime: true },
 };
@@ -111,6 +113,11 @@ export type TechniqueParams = {
   /** Aşama 5E: dasha düzeyi ("" = mahadasha listesi). */
   dashaMd: string;
   dashaAd: string;
+  /** Aşama 5.1A: Gochara anı (Batı transitten AYRI parametre). */
+  vedicTransitMode: "now" | "custom";
+  vedicTransitDate: string;
+  vedicTransitTime: string;
+  vedicTransitTz: string;
   /** Local space referansı; null = doğum yeri. */
   localSpaceReference: { id: string; label: string } | null;
 };
@@ -140,6 +147,10 @@ export function defaultParams(today: Date): TechniqueParams {
     vargaDivision: 9,
     dashaMd: "",
     dashaAd: "",
+    vedicTransitMode: "now",
+    vedicTransitDate: iso,
+    vedicTransitTime: "12:00",
+    vedicTransitTz: "Europe/Istanbul",
   };
 }
 
@@ -200,6 +211,15 @@ export function buildSelections(
       case "vedic.dasha":
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa, mahadasha: p.dashaMd || null, antardasha: p.dashaMd && p.dashaAd ? p.dashaAd : null } });
         break;
+      case "vedic.transit":
+        out.push({
+          technique: id,
+          options:
+            p.vedicTransitMode === "now"
+              ? { ayanamsa: p.vedicAyanamsa, now: true }
+              : { ayanamsa: p.vedicAyanamsa, date: p.vedicTransitDate, time: p.vedicTransitTime, timezone: p.vedicTransitTz },
+        });
+        break;
       case "vedic.varga":
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa, division: p.vargaDivision } });
         break;
@@ -246,6 +266,8 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
     case "vedic.drishti":
     case "vedic.panchanga":
       return "ayanamsa: Lahiri (sabit)";
+    case "vedic.transit":
+      return typeof o.atUtc === "string" ? `${fmtDate(o.atUtc)} ${o.atUtc.slice(11, 16)} UTC · ayanamsa: Lahiri (sabit)` : "ayanamsa: Lahiri (sabit)";
     case "vedic.ashtakavarga":
     case "vedic.shadbala":
       return `ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;

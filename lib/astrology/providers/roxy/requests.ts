@@ -134,3 +134,20 @@ export function vedicBirthBody(b: BirthPoint, ayanamsa: VedicAyanamsa) {
   const bb = birthBody(b);
   return { date: bb.date, time: bb.time, latitude: bb.latitude, longitude: bb.longitude, timezone: bb.timezone, ayanamsa };
 }
+
+/**
+ * Aşama 5.1A — /vedic-astrology/transit (Gochar). Uç TEK bir timezone alanı alır ve hem doğum hem transit
+ * saatini o ofsetle yorumlar → transit ANI (UTC) doğum ofsetinde yerel saate çevrilerek gönderilir
+ * (ör. 09:00 UTC, doğum +3 → 12:00:00). Ayanamsa alanı YOK (sidereal = Lahiri sabit); coordinateSystem
+ * hep "sidereal" (tropikal sonucu Vedik diye etiketlememek için "tropical" ASLA gönderilmez).
+ */
+export function vedicTransitLocal(b: BirthPoint, atUtcMinute: string): { date: string; time: string } {
+  const ms = Date.parse(`${atUtcMinute}:00Z`) + b.utcOffsetSeconds * 1000;
+  const iso = new Date(ms).toISOString();
+  return { date: iso.slice(0, 10), time: iso.slice(11, 19) };
+}
+export function vedicTransitBody(b: BirthPoint, atUtcMinute: string) {
+  const bb = birthBody(b);
+  const t = vedicTransitLocal(b, atUtcMinute);
+  return { birthDate: bb.date, birthTime: bb.time, transitDate: t.date, transitTime: t.time, latitude: bb.latitude, longitude: bb.longitude, timezone: bb.timezone, coordinateSystem: "sidereal" };
+}

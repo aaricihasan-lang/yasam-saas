@@ -88,7 +88,9 @@ import {
   projectRoxyVedicDrishti,
   projectRoxyVedicPanchanga,
   projectRoxyVedicShadbala,
+  projectRoxyVedicTransit,
   projectRoxyVedicVarga,
+  ROXY_VEDIC_TRANSIT,
   ROXY_VEDIC_ASHTAKAVARGA,
   ROXY_VEDIC_D1,
   ROXY_VEDIC_DASHA,
@@ -97,7 +99,7 @@ import {
   ROXY_VEDIC_SHADBALA,
   ROXY_VEDIC_VARGA,
 } from "../providers/roxy/vedic";
-import { vedicBirthBody, VEDIC_AYANAMSAS, type VedicAyanamsa } from "../providers/roxy/requests";
+import { vedicBirthBody, vedicTransitBody, VEDIC_AYANAMSAS, type VedicAyanamsa } from "../providers/roxy/requests";
 import {
   VEDIC_ASHTAKAVARGA_TECHNICAL_SCHEMA,
   VEDIC_DRISHTI_TECHNICAL_SCHEMA,
@@ -105,6 +107,8 @@ import {
   VEDIC_PANCHANGA_TECHNICAL_SCHEMA,
   VEDIC_SHADBALA_INTERP_SCHEMA,
   VEDIC_SHADBALA_TECHNICAL_SCHEMA,
+  VEDIC_TRANSIT_INTERP_SCHEMA,
+  VEDIC_TRANSIT_TECHNICAL_SCHEMA,
 } from "../model/vedic";
 import { VEDIC_D1_INTERP_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_INTERP_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_VARGA_DIVISIONS, type VedicGrahaId, VEDIC_VARGA_INTERP_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, type VedicVargaDivision } from "../model/vedic";
 import { calcInputHash } from "./inputHash";
@@ -142,6 +146,7 @@ export const TECHNIQUE_IDS = [
   "vedic.ashtakavarga",
   "vedic.shadbala",
   "vedic.panchanga",
+  "vedic.transit",
 ] as const;
 export type TechniqueId = (typeof TECHNIQUE_IDS)[number];
 
@@ -212,6 +217,11 @@ export type TechniqueDefinition = {
    * türetip doğrular; istemcinin uuid'ine güvenilmez.
    */
   noteContext?: (options: Record<string, unknown>) => string;
+  /**
+   * 5.1A: not bağlamı metninin seçeneklere çevrilmesi parseOptions'tan farklıysa (ör. Gochara: bağlam yalnız
+   * ayanamsa; transit anı not bağlamına GİRMEZ ama parseOptions için zorunludur).
+   */
+  parseNoteContextOptions?: (raw: Record<string, string>) => Record<string, unknown> | null;
 };
 
 /** Not bağlamı metnini seçenek nesnesine çevirir (doğrulama parseOptions + yeniden kanonikleştirme ile). */
@@ -225,7 +235,7 @@ export function parseNoteContext(def: TechniqueDefinition, raw: unknown): Record
     if (!/^[a-z][a-zA-Z0-9]{0,30}$/.test(k) || k in obj) return null;
     obj[k] = part.slice(i + 1);
   }
-  const opts = def.parseOptions(obj, new Date(0));
+  const opts = def.parseNoteContextOptions ? def.parseNoteContextOptions(obj) : def.parseOptions(obj, new Date(0));
   return opts && def.noteContext(opts) === raw ? opts : null;
 }
 
@@ -763,6 +773,44 @@ const vedicPanchanga = lahiriOnlyTechnique(
   (raw) => projectRoxyVedicPanchanga(raw),
   { technical: VEDIC_PANCHANGA_TECHNICAL_SCHEMA, interp: VEDIC_PANCHANGA_INTERP_SCHEMA },
 );
+// 5.1A Gochara: Roxy /vedic-astrology/transit — ayanamsa ALMAZ (sidereal = Lahiri sabit) → yalnız Lahiri;
+// başka ayanamsa seçiliyse birim YOK (tropikal/başka çerçeve sonucu Vedik diye etiketlenmez). Transit anı
+// Batı transitle aynı normalizasyon (UTC dakika; "şimdi" = UTC saat başı) ama AYRI teknik/önbellek/konu.
+const vedicTransit: TechniqueDefinition = {
+  id: "vedic.transit",
+  label: "Gochara (Vedik transit)",
+  family: "vedic",
+  requiresPartner: false,
+  // natalHouse Lagna'ya, houseFromMoon natal Ay rashisine bağlı → saat bilinmeden güvenilmez.
+  requiresKnownTime: true,
+  timeDependent: true,
+  parseOptions: (raw, now) => {
+    const r = o(raw);
+    const ay = ayanamsaOf(r.ayanamsa);
+    const atUtc = normalizeTransitMoment(r, now);
+    return ay && atUtc ? { ayanamsa: ay, atUtc } : null;
+  },
+  units: (ctx, opt) => (opt.ayanamsa === "lahiri" ? [unit("vedic.transit", ROXY_VEDIC_TRANSIT, vedicTransitBody(ctx.birth, String(opt.atUtc)), { timeDependent: true })] : []),
+  noUnitsReason: () => LAHIRI_ONLY,
+  // Not bağlamı yalnız ayanamsa (an değil): aynı danışanın Gochara notları tarih tarih bölünmez.
+  noteContext: () => "ayanamsa:lahiri",
+  parseNoteContextOptions: (raw) => (Object.keys(raw).join() === "ayanamsa" && raw.ayanamsa === "lahiri" ? { ayanamsa: "lahiri" } : null),
+  project: (u, raw, opt) => {
+    const b = u.body as { birthDate: string; birthTime: string; transitDate: string; transitTime: string; timezone: number };
+    return fromAdapter(
+      projectRoxyVedicTransit(raw, {
+        birthLocal: `${b.birthDate}T${/^\d{2}:\d{2}$/.test(b.birthTime) ? `${b.birthTime}:00` : b.birthTime}`,
+        transitLocal: `${b.transitDate}T${b.transitTime}`,
+        atUtc: String(opt.atUtc),
+        utcOffsetHours: b.timezone,
+      }),
+      VEDIC_TRANSIT_TECHNICAL_SCHEMA,
+      VEDIC_TRANSIT_INTERP_SCHEMA,
+      ROXY_VEDIC_TRANSIT.projection,
+    );
+  },
+};
+
 const vedicAshtakavarga = vedicBirthTechnique("vedic.ashtakavarga", "Ashtakavarga", ROXY_VEDIC_ASHTAKAVARGA, (raw, ay) => projectRoxyVedicAshtakavarga(raw, { ayanamsa: ay }), {
   technical: VEDIC_ASHTAKAVARGA_TECHNICAL_SCHEMA,
   interp: null,
@@ -792,6 +840,7 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "vedic.ashtakavarga": vedicAshtakavarga,
   "vedic.shadbala": vedicShadbala,
   "vedic.panchanga": vedicPanchanga,
+  "vedic.transit": vedicTransit,
 });
 
 export function getTechnique(id: unknown): TechniqueDefinition | null {

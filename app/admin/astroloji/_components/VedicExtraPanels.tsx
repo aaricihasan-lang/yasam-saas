@@ -9,12 +9,14 @@
 import { useState } from "react";
 import {
   SHADBALA_COMPONENTS,
+  type KakshaLord,
   type ShadbalaComponent,
   type VedicAshtakavargaTechnical,
   type VedicDrishtiTechnical,
   type VedicGrahaId,
   type VedicPanchangaTechnical,
   type VedicShadbalaTechnical,
+  type VedicTransitTechnical,
 } from "@/lib/astrology/model/vedic";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
@@ -119,6 +121,125 @@ export function VedicDrishtiPanel({ t, kbLookup }: { t: VedicDrishtiTechnical; k
           )}
         </section>
       </div>
+    </div>
+  );
+}
+
+// ─── 5.1A Gochara (Vedik transit) ───────────────────────────────────────────
+const KAKSHA_LORD_LABEL = (l: KakshaLord) => (l === "lagna" ? "Lagna" : GRAHA_LABELS[l]);
+const drishtiLabel = (n: number) => (n === 1 ? "aynı rashi" : `${n}.`);
+export function VedicTransitPanel({ t, kbLookup }: { t: VedicTransitTechnical; kbLookup?: KbLookup | null }) {
+  const [sel, setSel] = useState<VedicGrahaId>(t.slow[0] ?? t.transits[0]?.id ?? "sun");
+  const x = t.transits.find((y) => y.id === sel) ?? t.transits[0];
+  const kb = x && kbLookup ? kbLookup([`gochara_graha_in_rashi:${x.id}:${x.rashi}`, `gochara_from_moon:${x.id}:${x.houseFromMoon}`, `gochara_in_bhava:${x.id}:${x.natalHouse}`, ...x.drishti.map((d) => `gochara_drishti:${x.id}:${d.to}`)]) : null;
+  const local = `${t.at.local.slice(8, 10)}.${t.at.local.slice(5, 7)}.${t.at.local.slice(0, 4)} ${t.at.local.slice(11, 16)}`;
+  const off = `${t.at.utcOffsetHours >= 0 ? "+" : "−"}${Math.abs(t.at.utcOffsetHours)}`;
+  return (
+    <div className="flex min-w-0 flex-col gap-3" data-testid="astro-vedic-transit-panel">
+      <p className="text-sm text-slate-700">
+        <strong>Gochara</strong> · {t.at.utc.slice(8, 10)}.{t.at.utc.slice(5, 7)}.{t.at.utc.slice(0, 4)} {t.at.utc.slice(11, 16)} UTC (doğum ofsetinde {local}, UTC{off}) · sidereal, Lahiri
+        (sabit) · Janma Rashi <strong>{SIGN_LABELS[t.janmaRashi]}</strong> · Lagna <strong>{SIGN_LABELS[t.lagnaRashi]}</strong>
+      </p>
+      <p className="text-xs text-slate-500">
+        Klasik Gochara Janma Rashi&apos;den (natal Ay rashisi) sayılır; Lagna&apos;dan ev ayrıca gösterilir. Drishti bütün-burç (Parashari): herkes 7.; Mars 4./8.; Jüpiter 5./9.;
+        Satürn 3./10.; Rahu/Ketu bakış atmaz. Batı açıları (kare/üçgen) bu görünümde YOKTUR.
+      </p>
+      <div className="min-w-0 overflow-x-auto" data-testid="astro-vedic-transit-moonstrip">
+        <ol className="grid min-w-[36rem] grid-cols-12 gap-1">
+          {Array.from({ length: 12 }, (_, i) => {
+            const rashi = SIGN_IDS[(SIGN_IDS.indexOf(t.janmaRashi) + i) % 12];
+            const here = t.transits.filter((y) => y.houseFromMoon === i + 1);
+            return (
+              <li key={i} className={`rounded-lg border px-1 py-1 text-center ${i === 0 ? "border-amber-400 bg-amber-50" : "border-slate-200 bg-white"}`} title={`Janma Rashi'den ${i + 1}. ev · ${SIGN_LABELS[rashi]}`}>
+                <div className="text-[10px] font-semibold text-slate-500">{i + 1}</div>
+                <div className="text-xs text-slate-600">{SIGN_GLYPHS[rashi]}</div>
+                <div className="flex min-h-[1rem] flex-wrap justify-center gap-0.5">
+                  {here.map((y) => (
+                    <button key={y.id} type="button" onClick={() => setSel(y.id)} className={`rounded px-0.5 text-[10px] font-semibold ${sel === y.id ? "bg-amber-200 text-amber-950" : "text-indigo-900"}`} title={GRAHA_LABELS[y.id]}>
+                      {GRAHA_LABELS[y.id].split(" ")[0]}
+                    </button>
+                  ))}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+      <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className={`${card} overflow-x-auto`}>
+          <table className="min-w-full" data-testid="astro-vedic-transit-table">
+            <thead>
+              <tr>
+                <th className={th}>Transit graha</th>
+                <th className={th}>Rashi</th>
+                <th className={th}>Janma Rashi&apos;den</th>
+                <th className={th}>Lagna&apos;dan</th>
+                <th className={th}>Drishti (natal)</th>
+                <th className={th}>Kaksha</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {t.transits.map((y) => (
+                <tr key={y.id} className={`cursor-pointer ${sel === y.id ? "bg-amber-50" : ""}`} onClick={() => setSel(y.id)} data-gochara={y.id}>
+                  <td className={`${td} whitespace-nowrap font-medium`}>
+                    {GRAHA_LABELS[y.id]}
+                    {t.slow.includes(y.id) && <span className="ml-1 rounded bg-indigo-100 px-1 text-[10px] text-indigo-800">yavaş</span>}
+                  </td>
+                  <td className={`${td} whitespace-nowrap`}>
+                    {SIGN_GLYPHS[y.rashi]} {SIGN_LABELS[y.rashi]} {formatDegree(y.degreeInRashi)}
+                  </td>
+                  <td className={`${td} tabular-nums`}>{y.houseFromMoon}.</td>
+                  <td className={`${td} tabular-nums`}>{y.natalHouse}.</td>
+                  <td className={`${td} text-xs`}>{y.drishti.length === 0 ? "—" : y.drishti.map((d) => `${drishtiLabel(d.type)} → ${GRAHA_LABELS[d.to].split(" ")[0]}`).join(", ")}</td>
+                  <td className={`${td} whitespace-nowrap text-xs`}>
+                    {y.kaksha.number}. · {KAKSHA_LORD_LABEL(y.kaksha.lord).split(" ")[0]}
+                    {y.kaksha.bindu === null ? "" : y.kaksha.bindu ? " · bindu var" : " · bindu yok"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {x && (
+          <section className="min-w-0 rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm" aria-label="Seçili transit graha" data-testid="astro-vedic-transit-detail">
+            <h4 className="font-semibold text-amber-900">
+              Transit {GRAHA_LABELS[x.id]} · {SIGN_LABELS[x.rashi]} {formatDegree(x.degreeInRashi)}
+            </h4>
+            <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+              <dt className="text-slate-500">Janma Rashi&apos;den</dt>
+              <dd>{x.houseFromMoon}. ev</dd>
+              <dt className="text-slate-500">Lagna&apos;dan</dt>
+              <dd>{x.natalHouse}. bhava</dd>
+              <dt className="text-slate-500">Drishti</dt>
+              <dd>
+                {x.drishti.length === 0
+                  ? x.id === "rahu" || x.id === "ketu"
+                    ? "Rahu/Ketu drishti atmaz (Roxy)."
+                    : "Bakılan burçlarda natal graha yok."
+                  : x.drishti.map((d) => `${drishtiLabel(d.type)} bakış → natal ${GRAHA_LABELS[d.to]} (burç-içi fark ${d.orb.toFixed(2)}°)`).join("; ")}
+              </dd>
+              <dt className="text-slate-500">Kaksha</dt>
+              <dd>
+                {x.kaksha.number}/8 · {formatDegree(x.kaksha.start)}–{formatDegree(x.kaksha.end)} · yönetici {KAKSHA_LORD_LABEL(x.kaksha.lord)}
+                {x.kaksha.bindu === null
+                  ? " · Rahu/Ketu için Bhinnashtakavarga yok (bindu sorusu uygulanmaz)"
+                  : ` · kaksha yöneticisi bindu ${x.kaksha.bindu ? "vermiş" : "vermemiş"} · bu rashide ${x.kaksha.binduCount}/8 bindu (natal BAV)`}
+              </dd>
+            </dl>
+            <KbBox kb={kb} empty="Bu transit için Bilgi Bankası kaydınız yok." />
+          </section>
+        )}
+      </div>
+      <details className="text-xs text-slate-600">
+        <summary className="cursor-pointer">Natal grahalar (Gochara referansı)</summary>
+        <ul className="mt-1 grid gap-x-4 sm:grid-cols-3">
+          {t.natal.map((n) => (
+            <li key={n.id}>
+              {GRAHA_LABELS[n.id]}: {SIGN_LABELS[n.rashi]} {formatDegree(n.longitude % 30)} · {n.house}. bhava
+            </li>
+          ))}
+        </ul>
+      </details>
     </div>
   );
 }

@@ -41,10 +41,11 @@ import type {
   VedicDrishtiTechnical,
   VedicGrahaId,
   VedicPanchangaTechnical,
+  VedicTransitTechnical,
   VedicShadbalaTechnical,
   VedicVargaTechnical,
 } from "@/lib/astrology/model/vedic";
-import { VedicAshtakavargaPanel, VedicDrishtiPanel, VedicPanchangaPanel, VedicShadbalaPanel } from "./VedicExtraPanels";
+import { VedicAshtakavargaPanel, VedicDrishtiPanel, VedicPanchangaPanel, VedicShadbalaPanel, VedicTransitPanel } from "./VedicExtraPanels";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "@/lib/astrology/model/westernLocation";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
@@ -714,6 +715,8 @@ export function TechniqueTechnical({
         return <VedicShadbalaPanel t={technical as VedicShadbalaTechnical} kbLookup={kbLookup} />;
       case "vedic.panchanga":
         return <VedicPanchangaPanel t={technical as VedicPanchangaTechnical} kbLookup={kbLookup} />;
+      case "vedic.transit":
+        return <VedicTransitPanel t={technical as VedicTransitTechnical} kbLookup={kbLookup} />;
       case "vedic.dasha":
         return <VedicDashaPanel t={technical as VedicDashaTechnical} kbLookup={kbLookup} drill={dashaDrill} onOpenLevel={onDashaLevel} />;
       case "western.local_space":
