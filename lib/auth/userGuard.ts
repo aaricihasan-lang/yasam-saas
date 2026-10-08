@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerDb } from "@/lib/supabase-server";
-import { getActiveSessionUserId } from "@/lib/auth/sessionSecurity";
+import { pickSessionCredential, resolveSessionUserId } from "@/lib/auth/sessionTransport";
 import { resolveModuleAccess, type ModuleGateKey } from "@/lib/auth/moduleAccess";
 import {
   hasMembershipAccessForRow,
@@ -25,6 +25,12 @@ export type UserGuardOk = {
    * undefined kalır → mevcut ~181 route ek kolon çekmez.
    */
   profile?: Record<string, unknown>;
+  /**
+   * HTTPONLY H1–H4: guard'ın DOĞRULADIĞI oturum token'ı (off modda = x-session-token).
+   * Yalnız server içi kullanım (ör. "mevcut oturum hariç" revoke, usage oturum eşlemesi);
+   * yanıt gövdesine/loglara KONMAZ.
+   */
+  sessionToken?: string;
 };
 
 export type UserGuardFail = {
@@ -65,7 +71,9 @@ export async function verifyUserRequest(
 ): Promise<UserGuardResult> {
   const includeProfile = options?.includeProfile === true;
   const userId = req.headers.get("x-user-id")?.trim() ?? "";
-  const sessionToken = req.headers.get("x-session-token")?.trim() ?? "";
+  // HTTPONLY H1–H4: token kaynağı merkezi çözücüde (SESSION_COOKIE_MODE=off → yalnız
+  // x-session-token, bugünkü davranış birebir). Yetki mantığı aşağıda DEĞİŞMEDEN kalır.
+  const credential = pickSessionCredential(req);
 
   if (!userId) {
     return {
@@ -75,10 +83,18 @@ export async function verifyUserRequest(
   }
 
   // x-session-token zorunlu — yalnızca x-user-id ile kimlik kabul edilmez.
-  if (!sessionToken) {
+  if (credential.kind === "none") {
     return {
       ok: false,
       response: NextResponse.json({ error: "Oturum doğrulaması gerekli." }, { status: 401 }),
+    };
+  }
+
+  // Yalnız cookie-auth + durum değiştiren metot: Origin/Sec-Fetch-Site doğrulaması başarısız.
+  if (credential.kind === "csrf_denied") {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "İstek kaynağı doğrulanamadı." }, { status: 403 }),
     };
   }
 
@@ -114,10 +130,19 @@ export async function verifyUserRequest(
   // (sessionToken / userId header'ları) dayanır ve ayrı tablolara vurur → paralel
   // çalıştırılır. Güvenlik kontrolleri aşağıda aynı sırayla, aynı status ve gövdeyle
   // değerlendirilir (davranış korunur; users satırı yalnız binding geçerse döner).
-  const [tokenUserId, userRes] = await Promise.all([
-    getActiveSessionUserId(db, sessionToken),
+  const [session, userRes] = await Promise.all([
+    resolveSessionUserId(db, credential),
     usersQuery,
   ]);
+
+  // Header ve cookie FARKLI kullanıcılara çözüldü → fail-closed.
+  if (session.status === "conflict") {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Oturum kimliği uyuşmuyor." }, { status: 401 }),
+    };
+  }
+  const tokenUserId = session.status === "ok" ? session.userId : null;
 
   // Token aktif mi + hangi kullanıcıya ait?
   if (!tokenUserId) {
@@ -170,6 +195,7 @@ export async function verifyUserRequest(
     db,
     // includeProfile=false ise undefined → diğer route'lar ek kolon/veri taşımaz.
     profile: includeProfile ? (data as Record<string, unknown>) : undefined,
+    sessionToken: session.status === "ok" ? session.token : undefined,
   };
 }
 
