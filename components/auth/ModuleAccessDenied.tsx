@@ -4,13 +4,15 @@ import Link from "next/link";
 import { ShieldX } from "lucide-react";
 
 type ModuleAccessDeniedProps = {
-  reason?: "permission" | "membership";
+  reason?: "permission" | "membership" | "session";
 };
 
 export default function ModuleAccessDenied({
   reason = "permission",
 }: ModuleAccessDeniedProps) {
   const isMembership = reason === "membership";
+  // WT4: oturum yok (süresi doldu / başka yerde çıkış) — yetki reddi DEĞİL. Hedef doğrudan giriş.
+  const isSession = reason === "session";
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#fff1f2_100%)] px-6 py-12 text-slate-900 antialiased">
       <div className="pointer-events-none absolute -left-24 top-0 h-[420px] w-[420px] rounded-full bg-violet-300/25 blur-[120px]" />
@@ -25,10 +27,16 @@ export default function ModuleAccessDenied({
           Erişim kısıtlı
         </p>
         <h1 className="mt-3 text-3xl font-black text-slate-950 sm:text-4xl">
-          {isMembership ? "Üyeliğiniz Aktif Değil" : "Yetkiniz Bulunmuyor"}
+          {isSession ? "Oturumunuz Sona Erdi" : isMembership ? "Üyeliğiniz Aktif Değil" : "Yetkiniz Bulunmuyor"}
         </h1>
         <p className="mt-4 text-base font-medium leading-relaxed text-slate-600 md:text-lg">
-          {isMembership ? (
+          {isSession ? (
+            <>
+              Güvenliğiniz için bu cihazdaki oturum kapandı.
+              <br />
+              Kaldığınız yerden devam etmek için yeniden giriş yapın.
+            </>
+          ) : isMembership ? (
             <>
               Üyeliğiniz henüz onaylanmadı veya yönetici tarafından pasife alındı.
               <br />
@@ -44,10 +52,10 @@ export default function ModuleAccessDenied({
         </p>
 
         <Link
-          href="/"
+          href={isSession ? "/?login=1" : "/"}
           className="mt-8 inline-flex min-h-[56px] items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-50 to-indigo-50 px-8 text-base font-black text-violet-950 shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-400 hover:from-violet-100 hover:to-indigo-100 hover:shadow-lg no-underline"
         >
-          Ana Panele Dön
+          {isSession ? "Giriş Yap" : "Ana Panele Dön"}
         </Link>
       </div>
     </main>

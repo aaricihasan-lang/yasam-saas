@@ -28,7 +28,8 @@ async function main() {
   const route = read("app/api/auth/session/route.ts");
   ok(/EXPIRED_END_REASONS[\s\S]*"expired_idle"[\s\S]*"expired_absolute"[\s\S]*"expired_policy_cleanup"/.test(route), "süre dolumu nedenleri → reason=expired");
   ok(/reason: "expired" \| "revoked" = "revoked"/.test(route), "diğer/okunamayan nedenler → güvenli varsayılan revoked");
-  ok(/\.eq\("session_token", token\)/.test(route) && /if \(valid\) return json\(\{ valid: true \}/.test(route), "neden yalnız aynı token için; geçerli oturumda ek bilgi yok");
+  ok(/\.eq\("session_token", token\)/.test(route) && /if \(state\.status === "active"\) return json\(\{ valid: true \}/.test(route), "neden yalnız aynı token için; geçerli oturumda ek bilgi yok");
+  ok(/if \(state\.status === "unavailable"\) return json\(\{ valid: null, unavailable: true \}, 503\)/.test(route), "WT4: geçici doğrulama hatası → 503 (oturum sonu SAYILMAZ)");
 
   console.log("\n── C) İstemci yardımcıları (davranış) ──");
   const g = globalThis as unknown as Record<string, unknown>;
@@ -64,7 +65,8 @@ async function main() {
   ok(/VALIDATE_INTERVAL_MS = 60 \* 1000/.test(guard) && /visibilitychange/.test(guard), "yük: 60 sn + görünürlük dönüşü (daha sık polling yok)");
   ok(/onSessionInvalid: \(reason: SessionEndReason\) => void/.test(guard), "guard nedeni iletir");
   const mrg = read("components/auth/ModuleRouteGuard.tsx");
-  ok(/useStoredSessionGuard\(\(pathname \?\? "\/"\) !== "\/"/.test(mrg) && /markSessionEnded\(reason\)/.test(mrg) && /clearYasamUser\(\)/.test(mrg) && /window\.location\.replace\("\/"\)/.test(mrg), "modül + /admin sayfaları: temizle → nedenle ana sayfa giriş akışı");
+  const exit = read("lib/auth/sessionExit.ts");
+  ok(/useStoredSessionGuard\(\(pathname \?\? "\/"\) !== "\/"/.test(mrg) && /clearYasamUser\(\)/.test(mrg) && /leaveAfterSessionEnd\("\/", reason,/.test(mrg) && /markSessionEnded\(reason\)/.test(exit) && /window\.location\.replace\(href\)/.test(exit), "modül + /admin sayfaları: temizle → nedenle ana sayfa giriş akışı");
 
   console.log("\n── E) Ana sayfa (hub) ──");
   const page = read("app/page.tsx");

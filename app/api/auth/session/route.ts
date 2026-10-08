@@ -6,7 +6,7 @@ import {
   endUserSession,
   extractClientIp,
   extractLocationFromHeaders,
-  validateSessionToken,
+  resolveActiveSession,
 } from "@/lib/auth/sessionSecurity";
 import { limitReasonMessage } from "@/lib/auth/sessionLimits";
 import { verifyLoginCredentialsGuarded } from "@/lib/auth/credentialLogin";
@@ -232,8 +232,12 @@ export async function GET(req: NextRequest) {
     }
 
     const db    = getServerDb();
-    const valid = await validateSessionToken(db, token);
-    if (valid) return json({ valid: true }, 200);
+    const state = await resolveActiveSession(db, token);
+    if (state.status === "active") return json({ valid: true }, 200);
+    // WT4: geçici DB/RPC hatası oturum sonu DEĞİLDİR → 503 (istemci karar vermez, çıkış yapmaz).
+    // Önceden burada 200 { valid:false, reason:"revoked" } dönüyor, istemci geçerli oturumu
+    // kapatıyordu (DELETE → end_reason=user_logout).
+    if (state.status === "unavailable") return json({ valid: null, unavailable: true }, 503);
 
     let reason: "expired" | "revoked" = "revoked";
     try {
@@ -249,7 +253,8 @@ export async function GET(req: NextRequest) {
     }
     return json({ valid: false, reason }, 200);
   } catch {
-    return json({ valid: false }, 500);
+    // Beklenmeyen sunucu hatası da oturum sonu değildir (istemci 5xx'te karar vermez).
+    return json({ valid: null, unavailable: true }, 503);
   }
 }
 

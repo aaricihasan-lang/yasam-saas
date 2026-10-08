@@ -39,6 +39,29 @@ export async function checkSessionStatus(token: string | null = readSessionToken
   }
 }
 
+/**
+ * WT4 — İKİ AŞAMALI karar: tek bir "geçersiz" yanıtı oturumu bitirmez. İlk yanıt geçersizse
+ * kısa bir aradan sonra AYNI token tekrar sorulur; yalnız ikisi de kesin "geçersiz" ise
+ * sonuç döner. Ağ hatası / 5xx / belirsiz yanıt / token değişti (ör. başka sekmede yeniden
+ * giriş) → null (çıkış YAPILMAZ). Sunucu süreleri ve güvenlik kararı DEĞİŞMEZ; yalnız istemci
+ * tek bir geçici yanıtla geçerli oturumu kapatmaz.
+ */
+export async function confirmSessionInvalid(
+  delayMs = 1500,
+  check: (token: string | null) => Promise<SessionStatus | null> = checkSessionStatus,
+  readToken: () => string | null = readSessionToken,
+): Promise<SessionStatus | null> {
+  const token = readToken();
+  if (!token) return null;
+  const first = await check(token);
+  if (!first || first.valid) return null;
+  await new Promise((r) => setTimeout(r, delayMs));
+  if (readToken() !== token) return null;
+  const second = await check(token);
+  if (!second || second.valid) return null;
+  return second;
+}
+
 export function markSessionEnded(reason: SessionEndReason): void {
   try {
     sessionStorage.setItem(SESSION_ENDED_KEY, reason);

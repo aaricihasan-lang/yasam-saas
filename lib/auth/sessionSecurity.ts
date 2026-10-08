@@ -499,8 +499,29 @@ export async function touchActiveSession(
   sessionToken: string,
   policy: SessionExpiryPolicy = resolveSessionExpiryPolicy(),
 ): Promise<string | null> {
+  const r = await resolveActiveSession(db, sessionToken, policy);
+  return r.status === "active" ? r.userId : null;
+}
+
+/**
+ * WT4 — oturum durumunun ÜÇ DEĞERLİ sonucu. `touchActiveSession` (ve guard'lar) için
+ * "unavailable" da null'dır (fail-closed, korumalı uç reddeder). Ancak İSTEMCİYE "oturumun
+ * bitti" diyen GET /api/auth/session bu ayrımı KORUMALIDIR: geçici DB/RPC hatası "revoked"
+ * sayılırsa istemci geçerli oturumu çıkış yaptırır ve DELETE ile sunucuda da kapatır
+ * (end_reason=user_logout) → kullanıcı sebepsiz sistem dışına atılır.
+ */
+export type ActiveSessionResult =
+  | { status: "active"; userId: string }
+  | { status: "inactive" }
+  | { status: "unavailable" };
+
+export async function resolveActiveSession(
+  db: SupabaseClient,
+  sessionToken: string,
+  policy: SessionExpiryPolicy = resolveSessionExpiryPolicy(),
+): Promise<ActiveSessionResult> {
   const token = (sessionToken ?? "").trim();
-  if (!token) return null;
+  if (!token) return { status: "inactive" };
 
   try {
     const { data, error } = await db.rpc("touch_active_session", {
@@ -512,14 +533,17 @@ export async function touchActiveSession(
       p_admin_absolute_seconds: policy.adminAbsoluteSeconds,
     });
     if (!error) {
-      return typeof data === "string" && data.length > 0 ? data : null;
+      return typeof data === "string" && data.length > 0
+        ? { status: "active", userId: data }
+        : { status: "inactive" };
     }
   } catch {
     /* aşağıdaki karar */
   }
 
-  if (policy.enforce) return null; // fail-closed
-  return legacyTouchActiveSession(db, token);
+  if (policy.enforce) return { status: "unavailable" }; // fail-closed — ama "bitti" DEĞİL
+  const legacy = await legacyTouchActiveSession(db, token);
+  return legacy ? { status: "active", userId: legacy } : { status: "inactive" };
 }
 
 async function legacyTouchActiveSession(

@@ -430,6 +430,18 @@ async function run() {
     ok(before.status === 200, "logout öncesi token geçerli (profil 200)");
     const g = await sessionGET(new NextRequest("http://localhost/api/auth/session", { headers: { "x-session-token": tok } }));
     ok(((await g.json()) as Row).valid === true, "GET /api/auth/session başlıkla token doğrular");
+    // WT4: geçici RPC/DB hatası "oturum bitti" DEĞİLDİR → 503 (istemci çıkış yapmaz); oturum AÇIK kalır.
+    missingRpc.add("touch_active_session");
+    const gErr = await sessionGET(new NextRequest("http://localhost/api/auth/session", { headers: { "x-session-token": tok } }));
+    const gErrJson = (await gErr.json()) as Row;
+    missingRpc.delete("touch_active_session");
+    ok(gErr.status === 503 && gErrJson.valid === null && gErrJson.unavailable === true, "WT4: touch RPC hatası → GET 503 {valid:null} (valid:false/revoked DEĞİL)");
+    ok(tables.user_sessions.find((x) => x.session_token === tok)?.is_active === true, "WT4: geçici hata oturumu KAPATMAZ");
+    const gBack = await sessionGET(new NextRequest("http://localhost/api/auth/session", { headers: { "x-session-token": tok } }));
+    ok(((await gBack.json()) as Row).valid === true, "WT4: hata geçince aynı token yine geçerli");
+    const gGone = await sessionGET(new NextRequest("http://localhost/api/auth/session", { headers: { "x-session-token": "yok-boyle-token" } }));
+    const gGoneJson = (await gGone.json()) as Row;
+    ok(gGone.status === 200 && gGoneJson.valid === false && gGoneJson.reason === "revoked", "WT4: gerçekten geçersiz token → 200 {valid:false, revoked} (davranış korunur)");
     const del = await sessionDELETE(new NextRequest("http://localhost/api/auth/session", { method: "DELETE", headers: { "x-session-token": tok } }));
     ok(del.status === 200, "DELETE /api/auth/session → 200");
     const s = tables.user_sessions.find((x) => x.session_token === tok);
