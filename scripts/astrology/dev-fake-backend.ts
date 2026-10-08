@@ -85,10 +85,13 @@ const GOLDEN_DIR = join(__dirname, "fixtures", "golden");
 const GOLDEN: Record<string, Record<string, unknown>> = {};
 const GOLDEN_RELOCATED: Record<string, { body: Record<string, unknown>; response: Record<string, unknown> }> = {};
 const GOLDEN_VARGA: Record<number, Record<string, unknown>> = {};
+const GOLDEN_KP: Record<string, Record<string, unknown>> = {};
 for (const f of readdirSync(GOLDEN_DIR).filter((x) => x.endsWith(".json"))) {
   const g = JSON.parse(readFileSync(join(GOLDEN_DIR, f), "utf8"));
   // Konumlu return golden'ları (Aşama 4.1, Londra) ayrı tutulur; varsayılan endpoint golden'ı doğum yeridir.
   if (/-london\.json$/.test(f)) GOLDEN_RELOCATED[g.endpoint] = { body: g.body, response: g.response };
+  // 6: KP golden'ları AYRI (KP dasha Vedik dasha ile aynı uç yolunu kullanır; ayrım gövdedeki significators:true).
+  else if (f.startsWith("kp-")) GOLDEN_KP[g.endpoint] = g.response;
   // 5.1B: birden fazla varga golden'ı (D9, D30) → bölüme göre seçilir; uç varsayılanı D9.
   else if (g.endpoint === "/vedic-astrology/divisional-chart") {
     GOLDEN_VARGA[Number(g.body.division)] = g.response;
@@ -115,7 +118,17 @@ function startFakeRoxy() {
       console.log(`fake roxy #${roxyHits} ${path}`);
       const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
       let raw: Record<string, unknown> | undefined;
-      if (path === "/astrology/natal-chart") {
+      const kpReq = path.startsWith("/vedic-astrology/kp/") || body.significators === true;
+      if (kpReq && GOLDEN_KP[path]) {
+        raw = structuredClone(GOLDEN_KP[path]);
+        // SENTETİK yankılar (yalnız UI testi; içerik golden anıdır): istenen an / sayı.
+        if (path === "/vedic-astrology/kp/ruling-planets") raw.datetime = new Date(Date.parse(`${String(body.datetime)}Z`) - Number(body.timezone) * 3600_000).toISOString();
+        if (path === "/vedic-astrology/kp/horary") raw.questionTime = `${String(body.date)}T${String(body.time)}.000Z`;
+        if (path === "/vedic-astrology/kp/planets-interval") (raw.intervals as { datetime: string }[])[0].datetime = String(body.startDatetime);
+      } else if (kpReq && path.startsWith("/vedic-astrology/dasha/sub/") && GOLDEN_KP["/vedic-astrology/dasha/major"]) {
+        const m = /^\/vedic-astrology\/dasha\/sub\/([A-Za-z]+)(?:\/([A-Za-z]+))?$/.exec(path);
+        raw = m ? (syntheticSubResponse(GOLDEN_KP["/vedic-astrology/dasha/major"], m[1], m[2] ?? null) ?? undefined) : undefined;
+      } else if (path === "/astrology/natal-chart") {
         const natal = structuredClone(FIXTURE) as Record<string, unknown>;
         natal.birthDetails = { date: body.date, time: body.time, latitude: body.latitude, longitude: body.longitude, timezone: body.timezone };
         natal.houseSystem = body.houseSystem;

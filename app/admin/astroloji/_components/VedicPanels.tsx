@@ -757,7 +757,10 @@ function DashaLevelView({
   const [sel, setSel] = useState<number>(current >= 0 ? current : 0);
   const [open, setOpen] = useState<Record<number, DashaDrillResult | "loading">>({});
   const p = t.periods[Math.min(sel, t.periods.length - 1)];
-  const kb = kbLookup ? kbLookup([dashaTopicKey(t, p.lord)]) : null;
+  // 6E: KP dasha — konu anahtarları KP geleneğinde (dönem lordu + gösterdiği evler).
+  const isKp = t.periods.some((x) => !!x.kp);
+  const kpHouses = (x: (typeof t.periods)[number]) => (x.kp ? [...new Set([1, 2, 3, 4].flatMap((l) => x.kp!.levels[l as 1 | 2 | 3 | 4]))] : []);
+  const kb = kbLookup ? kbLookup(isKp ? [`kp_dasha_lord:${p.lord}`, ...kpHouses(p).map((h) => `kp_dasha_signifies:${p.lord}:${h}`)] : [dashaTopicKey(t, p.lord)]) : null;
   const canDrill = !!drill && t.level !== "pratyantardasha";
   async function expand(i: number) {
     if (!drill) return;
@@ -797,6 +800,7 @@ function DashaLevelView({
                 <th className={th}>Başlangıç</th>
                 <th className={th}>Bitiş</th>
                 <th className={th}>Süre</th>
+                {isKp && <th className={th}>KP evleri (L1→L4)</th>}
                 {canDrill && <th className={th}>Alt dönem</th>}
               </tr>
             </thead>
@@ -814,6 +818,7 @@ function DashaLevelView({
                     {fmtYears(x.durationYears)}
                     {x.nominalStart ? " · doğumla kesilmiş" : ""}
                   </td>
+                  {isKp && <td className={`${td} whitespace-nowrap text-xs tabular-nums`}>{kpHouses(x).join(", ") || "—"}</td>}
                   {canDrill && (
                     <td className={td}>
                       <button
@@ -854,6 +859,19 @@ function DashaLevelView({
                 <dd>{fmtLocalTime(p.nominalStart)} (doğumdan önce; dönem doğumla kesildi)</dd>
               </>
             )}
+            {p.kp && (
+              <>
+                <dt className="text-slate-500">KP konumu</dt>
+                <dd>
+                  {p.kp.house}. ev (Placidus) · star lord {GRAHA_LABELS[p.kp.starLord]} · sub lord {GRAHA_LABELS[p.kp.subLord]}
+                </dd>
+                <dt className="text-slate-500">Gösterdiği evler</dt>
+                <dd data-testid="astro-kp-dasha-levels">
+                  {[1, 2, 3, 4].map((l) => `L${l}: ${p.kp!.levels[l as 1 | 2 | 3 | 4].join(", ") || "—"}`).join(" · ")}
+                  {p.lord === "rahu" || p.lord === "ketu" ? " (Roxy dasha ucu düğümlere ajan evlerini ekler)" : ""}
+                </dd>
+              </>
+            )}
           </dl>
           <KbList kb={kb} />
         </section>
@@ -890,6 +908,12 @@ export function VedicDashaPanel({
   const offLabel = `UTC${off >= 0 ? "+" : "−"}${String(Math.floor(Math.abs(off))).padStart(2, "0")}:${String(Math.round((Math.abs(off) % 1) * 60)).padStart(2, "0")}`;
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-vedic-dasha-panel" data-level={t.level}>
+      {t.periods.some((x) => !!x.kp) && (
+        <p className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs text-indigo-900" data-testid="astro-kp-dasha-method">
+          <strong>KP dasha:</strong> tarihler Roxy Vimshottari motorundan (KP ayanamsa ile); her dönem lordunun KP significator&apos;ları (Placidus evi, star / sub lord,
+          L1–L4) Roxy&apos;den. Bu bir olay tahmini DEĞİLDİR — Roxy&apos;de ev grubu ↔ dönem eşleştiren KP olay zamanlama ucu yok; yorum uzmana aittir.
+        </p>
+      )}
       <p className="text-sm text-slate-700">
         <strong>Vimshottari</strong> · {LEVEL_LABEL[t.level]}
         {t.path.mahadasha ? ` · ${GRAHA_LABELS[t.path.mahadasha]}` : ""}

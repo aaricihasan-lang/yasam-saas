@@ -45,6 +45,8 @@ import type {
   VedicShadbalaTechnical,
   VedicVargaTechnical,
 } from "@/lib/astrology/model/vedic";
+import { KpChartPanel, KpHoraryPanel, KpRulingPanel, KpTransitPanel } from "./KpPanels";
+import type { KpChartTechnical, KpHoraryTechnical, KpRulingTechnical, KpTransitTechnical } from "@/lib/astrology/model/kp";
 import { VedicAshtakavargaPanel, VedicDrishtiPanel, VedicPanchangaPanel, VedicShadbalaPanel, VedicTransitPanel } from "./VedicExtraPanels";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "@/lib/astrology/model/westernLocation";
 
@@ -717,6 +719,16 @@ export function TechniqueTechnical({
         return <VedicPanchangaPanel t={technical as VedicPanchangaTechnical} kbLookup={kbLookup} />;
       case "vedic.transit":
         return <VedicTransitPanel t={technical as VedicTransitTechnical} kbLookup={kbLookup} />;
+      case "kp.chart":
+        return <KpChartPanel t={technical as KpChartTechnical} kbLookup={kbLookup} />;
+      case "kp.dasha":
+        return <VedicDashaPanel t={technical as VedicDashaTechnical} kbLookup={kbLookup} drill={dashaDrill} onOpenLevel={onDashaLevel} />;
+      case "kp.ruling":
+        return <KpRulingPanel t={technical as KpRulingTechnical} kbLookup={kbLookup} placeLabel={(options.place as { label?: string } | undefined)?.label ?? null} />;
+      case "kp.transit":
+        return <KpTransitPanel t={technical as KpTransitTechnical} kbLookup={kbLookup} />;
+      case "kp.horary":
+        return <KpHoraryPanel t={technical as KpHoraryTechnical} kbLookup={kbLookup} placeLabel={(options.place as { label?: string } | undefined)?.label ?? null} />;
       case "vedic.dasha":
         return <VedicDashaPanel t={technical as VedicDashaTechnical} kbLookup={kbLookup} drill={dashaDrill} onOpenLevel={onDashaLevel} />;
       case "western.local_space":

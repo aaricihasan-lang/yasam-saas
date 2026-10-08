@@ -58,6 +58,18 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
 }
 const Item = ({ children }: { children: ReactNode }) => <li className="rounded-lg bg-white px-3 py-2">{children}</li>;
 const P = ({ text }: { text: string | null | undefined }) => (text ? <p className="mt-0.5 whitespace-pre-line">{text}</p> : null);
+/** 6: Roxy houseThemes (ev anahtar kelimeleri; sağlayıcı anlatısı). */
+function HouseThemes({ themes }: { themes: { house: number; keywords: string[] }[] }) {
+  return (
+    <Block title="Ev anahtar kelimeleri (Roxy)">
+      {themes.map((t) => (
+        <Item key={t.house}>
+          <span className="font-medium">{t.house}. ev:</span> {t.keywords.join(", ")}
+        </Item>
+      ))}
+    </Block>
+  );
+}
 
 function StrengthsChallenges({ strengths, challenges }: { strengths: string[]; challenges: string[] }) {
   return (
@@ -351,8 +363,23 @@ function Content({ content }: { content: unknown }) {
               </Item>
             ))}
           </Block>
+          {c.kpStrength && c.kpStrength.length > 0 && (
+            <Block title="Roxy KP dönem gücü değerlendirmesi (yöntemi belgelenmemiş — sağlayıcı yorumu)">
+              {c.kpStrength.map((k) => (
+                <Item key={`kp-${k.lord}-${k.start}`}>
+                  <span className="font-medium">{GRAHA_LABELS[k.lord]}</span> · {k.start.slice(0, 10)} · puan {k.score} · derece {k.grade} · {k.label}
+                </Item>
+              ))}
+            </Block>
+          )}
+          {c.houseThemes && c.houseThemes.length > 0 && <HouseThemes themes={c.houseThemes} />}
         </>
       );
+    }
+    case "astro.kp.chart.interp.v1":
+    case "astro.kp.extra.interp.v1": {
+      const c = content as { houseThemes: { house: number; keywords: string[] }[] };
+      return c.houseThemes.length > 0 ? <HouseThemes themes={c.houseThemes} /> : <p className="text-slate-600">Bu KP sonucu için sağlayıcı açıklaması yok.</p>;
     }
     case "astro.vedic.shadbala.interp.v1": {
       const c = content as VedicShadbalaInterpretation;

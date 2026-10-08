@@ -259,7 +259,11 @@ export default function AstrologyWorkspacePage() {
    */
   async function drillDasha(o: { mahadasha: string; antardasha: string | null }, base: Record<string, unknown>): Promise<DashaDrillResult> {
     if (!shownDetail || revision === null) return { ok: false, error: "Profil seçili değil." };
-    const sel = { technique: "vedic.dasha", options: { ayanamsa: base.ayanamsa ?? "lahiri", mahadasha: o.mahadasha, antardasha: o.antardasha } };
+    // 6E: KP dasha aynı tembel mekanizmayı kullanır (KP ayanamsa + düğüm seçeneği korunur).
+    const kp = base.nodeType !== undefined && typeof base.ayanamsa === "string" && base.ayanamsa.startsWith("kp-");
+    const sel = kp
+      ? { technique: "kp.dasha", options: { ayanamsa: base.ayanamsa, nodeType: base.nodeType, mahadasha: o.mahadasha, antardasha: o.antardasha } }
+      : { technique: "vedic.dasha", options: { ayanamsa: base.ayanamsa ?? "lahiri", mahadasha: o.mahadasha, antardasha: o.antardasha } };
     const r = await astroFetch<RunResponse>(`/api/admin/astroloji/engine/run${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
       method: "POST",
       body: { profileId: shownDetail.id, revision, selections: [sel] },
@@ -312,10 +316,10 @@ export default function AstrologyWorkspacePage() {
       <header className="flex flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-semibold text-slate-900">Astroloji Çalışma Merkezi</h1>
-          <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-medium text-white">Owner pilot · Aşama 5</span>
+          <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-medium text-white">Owner pilot · Aşama 6</span>
         </div>
         <p className="text-sm text-slate-600">
-          Batı (tropikal): Natal · Transit · Transit takvimi · Progression · Solar arc · Solar/Lunar return · Sinastri · Composite · Astrocartography · Relocation · Local Space. Vedik / Jyotish (sidereal): D1 Rashi · Nakshatra/Pada · D9 + Varga · Vimshottari Dasha · Graha Drishti · Ashtakavarga · Shadbala · Janma Panchanga. Teknik sonuçlar ile sağlayıcının otomatik yorumu ayrı katmanlardadır.
+          Batı (tropikal): Natal · Transit · Transit takvimi · Progression · Solar arc · Solar/Lunar return · Sinastri · Composite · Astrocartography · Relocation · Local Space. Vedik / Jyotish (sidereal): D1 Rashi · Nakshatra/Pada · D9 + Varga · Vimshottari Dasha · Graha Drishti · Ashtakavarga · Shadbala · Janma Panchanga · Gochara. KP (Krishnamurti, Placidus): harita · cusp/sub lord · significator · KP dasha · ruling planets · transit (kısmi) · horary. Teknik sonuçlar ile sağlayıcının otomatik yorumu ayrı katmanlardadır.
         </p>
       </header>
 
@@ -599,14 +603,19 @@ export default function AstrologyWorkspacePage() {
                           ? (keys) => kbState.entries.filter((e) => keys.includes(e.topicKey))
                           : null
                       }
-                      dashaDrill={activeItem.technique === "vedic.dasha" ? (o) => drillDasha(o, activeItem.view.options) : undefined}
+                      dashaDrill={activeItem.technique === "vedic.dasha" || activeItem.technique === "kp.dasha" ? (o) => drillDasha(o, activeItem.view.options) : undefined}
                       onDashaLevel={
                         activeItem.technique === "vedic.dasha"
                           ? (o) => {
                               setParams((p) => ({ ...p, dashaMd: o.mahadasha ?? "", dashaAd: o.antardasha ?? "" }));
                               document.querySelector('[aria-label="Dasha mahadasha"]')?.scrollIntoView({ block: "center", behavior: "smooth" });
                             }
-                          : undefined
+                          : activeItem.technique === "kp.dasha"
+                            ? (o) => {
+                                setParams((p) => ({ ...p, kpDashaMd: o.mahadasha ?? "", kpDashaAd: o.antardasha ?? "" }));
+                                document.querySelector('[aria-label="KP dasha mahadasha"]')?.scrollIntoView({ block: "center", behavior: "smooth" });
+                              }
+                            : undefined
                       }
                     />
                   </section>

@@ -47,12 +47,15 @@ export function syntheticSubResponse(major: Record<string, unknown>, md: string,
   const mds = major.mahadashas as P[];
   const m = mds.find((x) => x.planet === md);
   if (!mdId || !m || (ad && !ID[ad])) return null;
-  const head = { moonLongitude: major.moonLongitude, ayanamsa: major.ayanamsa, ayanamsaType: major.ayanamsaType };
+  const head = { moonLongitude: major.moonLongitude, ayanamsa: major.ayanamsa, ayanamsaType: major.ayanamsaType, ...(major.houseThemes ? { houseThemes: major.houseThemes, focus: major.focus } : {}) };
+  // 6E (KP dasha): golden'da aynı lordun significator'ları düzeyler arasında AYNI (sub/Moon golden = major) → lorddan kopyalanır.
+  const sigOf = new Map(mds.filter((x) => (x as { significators?: unknown }).significators).map((x) => [x.planet, (x as { significators?: unknown }).significators]));
+  const withSig = <T extends { planet: string }>(x: T): T => (sigOf.has(x.planet) ? { ...x, significators: sigOf.get(x.planet) } : x);
   const mdPeriod = { planet: m.planet, startDate: m.startDate, endDate: m.endDate, durationYears: m.durationYears, ...(m.nominalStartDate ? { nominalStartDate: m.nominalStartDate } : {}) };
   const ads = subPeriods({ lord: mdId, start: m.startDate, end: m.endDate, nominalStart: m.nominalStartDate ?? null }, { mahadashaLord: md });
-  if (!ad) return { mahadashaLord: md, ...head, mahadashaPeriod: mdPeriod, antardashas: ads };
+  if (!ad) return { mahadashaLord: md, ...head, mahadashaPeriod: withSig(mdPeriod), antardashas: ads.map(withSig) };
   const a = ads.find((x) => x.planet === ad);
   if (!a) return null; // doğumdan önce bitmiş antardasha: sağlayıcı da bu yolu vermez (sentetik kapsam dışı)
   const pds = subPeriods({ lord: ID[ad], start: a.startDate, end: a.endDate, nominalStart: a.nominalStartDate ?? null }, { mahadashaLord: md, antardashaLord: ad });
-  return { mahadashaLord: md, antardashaLord: ad, ...head, antardashaPeriod: a, pratyantardashas: pds };
+  return { mahadashaLord: md, antardashaLord: ad, ...head, antardashaPeriod: withSig(a), pratyantardashas: pds.map(withSig) };
 }

@@ -34,6 +34,8 @@ import { NAKSHATRA_LORDS, VIMSHOTTARI_YEARS, type VedicGrahaId } from "@/lib/ast
 import { SIGN_LORDS, type KpChartTechnical } from "@/lib/astrology/model/kp";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 import { syntheticSubResponse } from "./syntheticDasha";
+import { fmtDms, kpChartItems } from "@/app/admin/astroloji/_components/KpPanels";
+import { UI_TECHNIQUES, buildSelections, defaultParams, describeOptions, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -831,6 +833,88 @@ async function main() {
       }
     }
     assert.ok(topicsForTechnique("kp.horary", hoT().technical).some((x) => x.key === "kp_horary_number:108"));
+  });
+
+  await t("6I kayıtlı analiz (tüm KP teknikleri): kp.dasha (MD + AD düzeyi), ruling, transit, horary kaydedilir; yeniden açılış 0 Roxy isteği; anlık görüntü bağlamı (şema, sayı, an, ayanamsa) korunur; tenant 404", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const calls: Call[] = [];
+    const deps: EngineDeps = {
+      config: { apiKey: "k-test-6i", baseUrl: "https://roxy-fake.local/api/v2" },
+      callProvider: async (_c, endpoint, body) => {
+        calls.push({ endpoint, body });
+        const g =
+          endpoint === KDM.endpoint && body.significators === true ? KDM
+          : endpoint === KDS.endpoint && body.significators === true ? KDS
+          : endpoint === RP.endpoint ? RP : endpoint === PA.endpoint ? PA : endpoint === HO.endpoint ? HO : null;
+        return g ? { ok: true, raw: structuredClone(g.response), attempts: 1 } : { ok: false, kind: "bad_request", status: 400, attempts: 1 };
+      },
+      rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
+    };
+    const pa = await profile(ctx);
+    const sels = [
+      { technique: "kp.dasha", options: {} },
+      { technique: "kp.dasha", options: { mahadasha: "moon" } },
+      { technique: "kp.ruling", options: { atUtc: AT } },
+      { technique: "kp.transit", options: { atUtc: AT } },
+      { technique: "kp.horary", options: { atUtc: AT, horaryNumber: 108 } },
+    ];
+    const r = ((await run(ctx, pa, sels, deps)).body as J).results;
+    assert.deepEqual(r.map((x: J) => x.ok || x.code), [true, true, true, true, true]);
+    assert.equal(calls.length, 5);
+    const expect: string[][] = [
+      ["astro.kp.dasha.v1", "kp-newcomb", "astro-roxy-kp-dasha-1"],
+      ["astro.kp.dasha.v1", "moon"],
+      ["astro.kp.ruling.v1", "2026-10-07T"],
+      ["astro.kp.transit.v1", "kp-newcomb", "2026-10-07T"],
+      ["astro.kp.horary.v1", "108", "2026-10-07T"],
+    ];
+    for (let i = 0; i < sels.length; i++) {
+      const sv = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...sels[i], includeProviderInterp: false, saveRequestId: randomUUID() }, false);
+      assert.equal(sv.status, 201, `${sels[i].technique} ${JSON.stringify(sv.body)}`);
+      const n = calls.length;
+      const a = JSON.stringify(((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis);
+      assert.equal(calls.length, n, `${sels[i].technique}: kayıtlı analiz Roxy çağırdı`);
+      for (const k of expect[i]) assert.ok(a.includes(k), `${sels[i].technique}: ${k}`);
+      assert.ok(!/raw_response|k-test-6i|houseThemes/.test(a), `${sels[i].technique}: ham yanıt / anahtar / yorum sızıntısı`);
+      assert.equal((await getAnalysis(ctxOf(store, { tenantId: TENANT_B, userId: USER_B }), (sv.body as J).analysisId, false)).status, 404);
+    }
+    assert.equal(calls.length, 5, "kaydetme + açma yeni istek üretmedi");
+  });
+
+  await t("6G arayüz: fmtDms keser (yuvarlamaz); KP harita öğeleri burç kutusunda boylam sıralı, 12 cusp + 9 graha, Lagna vurgulu", () => {
+    assert.equal(fmtDms(29.999999), "29°59′59″");
+    assert.equal(fmtDms(0), "0°00′00″");
+    assert.equal(fmtDms(23.632), "23°37′55″");
+    const k = kpTech();
+    const items = kpChartItems(k.cusps, k.bodies);
+    const all = SIGN_IDS.flatMap((sg) => items[sg].map((x) => ({ ...x, sg })));
+    assert.equal(all.filter((x) => x.cusp).length, 12);
+    assert.equal(all.filter((x) => !x.cusp).length, 9);
+    for (const sg of SIGN_IDS) for (let i = 1; i < items[sg].length; i++) assert.ok(items[sg][i - 1].lon <= items[sg][i].lon, sg);
+    for (const x of all) {
+      const src = x.cusp ? k.cusps.find((c: J) => `c${c.house}` === x.key) : k.bodies.find((b: J) => b.id === x.key);
+      assert.equal(src.rashi, x.sg, x.key);
+    }
+    assert.deepEqual(all.filter((x) => x.strong).map((x) => x.key), ["c1"]);
+    const h = hoT().technical;
+    assert.ok(h.cusps.every((c: J) => c.subSubLord === null), "horary cusp sub-sub yok → UI sütunu gizler");
+  });
+
+  await t("6G seçici: 5 KP tekniği; seçimler motor seçenekleriyle ayrıştırılabilir; açıklamalar KP ayanamsa / sayı / kısmi destek", () => {
+    const kpIds = UI_TECHNIQUES.filter((x) => x.startsWith("kp."));
+    assert.deepEqual([...kpIds], ["kp.chart", "kp.dasha", "kp.ruling", "kp.transit", "kp.horary"]);
+    const p = { ...defaultParams(new Date("2026-10-08T12:00:00Z")), horaryNumber: 108, kpMomentMode: "custom" as const, kpDate: "2026-10-07", kpTime: "12:00", kpTz: "Europe/Istanbul" };
+    const sels = buildSelections(Object.fromEntries(kpIds.map((x) => [x, true])), p, { houseSystem: "placidus", nodeType: "true" } as J);
+    assert.equal(sels.length, 5);
+    for (const sl of sels) {
+      const o = getTechnique(sl.technique)!.parseOptions(sl.options, new Date("2026-10-08T12:00:00Z"));
+      assert.ok(o, sl.technique);
+      assert.equal(zodiacLabel(sl.technique), "Sidereal (KP)");
+    }
+    assert.match(describeOptions("kp.chart", { ayanamsa: "kp-newcomb", nodeType: "mean" }), /KP-Newcomb · Placidus · düğüm ortalama/);
+    assert.match(describeOptions("kp.dasha", { ayanamsa: "kp-old", mahadasha: "moon", antardasha: "rahu" }), /^Pratyantardasha .*KP \(eski tablo\)$/);
+    assert.match(describeOptions("kp.horary", { horaryNumber: 108, atUtc: "2026-10-07T09:00:00Z", place: { label: "İstanbul" } }), /^sayı 108 · 07\.10\.2026 09:00 UTC · İstanbul$/);
   });
 
   console.log(`\nastrology phase6 harness: ${pass} PASS / ${fail} FAIL`);

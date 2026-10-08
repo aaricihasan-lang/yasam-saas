@@ -25,6 +25,11 @@ export const UI_TECHNIQUES = [
   "vedic.shadbala",
   "vedic.panchanga",
   "vedic.transit",
+  "kp.chart",
+  "kp.dasha",
+  "kp.ruling",
+  "kp.transit",
+  "kp.horary",
 ] as const;
 export type UiTechniqueId = (typeof UI_TECHNIQUES)[number];
 
@@ -47,6 +52,11 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "vedic.shadbala": { label: "Shadbala", hint: "Altı katlı graha gücü (BPHS), oran ve sıralama", needsPartner: false, needsTime: true },
   "vedic.panchanga": { label: "Janma Panchanga", hint: "Doğum anı tithi, nakshatra, nitya yoga, karana — yalnız Lahiri", needsPartner: false, needsTime: true },
   "vedic.transit": { label: "Gochara (Vedik transit)", hint: "Seçilen anın sidereal grahaları → Janma Rashi'den / Lagna'dan ev, bütün-burç drishti, kaksha — yalnız Lahiri", needsPartner: false, needsTime: true },
+  "kp.chart": { label: "KP doğum haritası", hint: "Placidus cusp'ları, sign / star / sub / sub-sub lord, 4 düzey significator (KP-Newcomb)", needsPartner: false, needsTime: true },
+  "kp.dasha": { label: "KP dasha", hint: "Vimshottari (KP ayanamsa) + dönem lordlarının KP significator'ları; alt dönemler tıklayınca", needsPartner: false, needsTime: true },
+  "kp.ruling": { label: "KP ruling planets", hint: "Seçilen anın ruling planet'leri + natal significator'ları", needsPartner: false, needsTime: true },
+  "kp.transit": { label: "KP transit (kısmi)", hint: "Seçilen anın KP gökyüzü (star / sub lord); natal ev analizi yok", needsPartner: false, needsTime: false },
+  "kp.horary": { label: "KP horary (1–249)", hint: "Sayı + soru anı + değerlendirme yeri; doğum verisi kullanılmaz", needsPartner: false, needsTime: false },
   "vedic.dasha": { label: "Vimshottari Dasha", hint: "Mahadasha zaman çizelgesi; Antardasha / Pratyantardasha tıklayınca yüklenir", needsPartner: false, needsTime: true },
   "vedic.varga": { label: "Vedik Varga (D9 Navamsa / Dn)", hint: "Bölümsel harita: D9 varsayılan; D2…D60 seçilebilir; vargottama", needsPartner: false, needsTime: true },
 };
@@ -80,6 +90,12 @@ export const VEDIC_VARGA_OPTIONS: [number, string][] = [
   [45, "D45 Akshavedamsa"],
   [60, "D60 Shashtiamsa"],
 ];
+
+export const KP_AYANAMSA_OPTIONS: [string, string][] = [
+  ["kp-newcomb", "KP-Newcomb — varsayılan"],
+  ["kp-old", "KP (Krishnamurti eski tablo)"],
+];
+const KP_AY_LABEL: Record<string, string> = { "kp-newcomb": "KP-Newcomb", "kp-old": "KP (eski tablo)" };
 
 export const VEDIC_AYANAMSA_OPTIONS: [string, string][] = [
   ["lahiri", "Lahiri (Chitrapaksha) — varsayılan"],
@@ -118,6 +134,19 @@ export type TechniqueParams = {
   vedicTransitDate: string;
   vedicTransitTime: string;
   vedicTransitTz: string;
+  /** Aşama 6: KP seçenekleri (tüm KP teknikleri ortak). */
+  kpAyanamsa: string;
+  kpNodeType: string;
+  kpDashaMd: string;
+  kpDashaAd: string;
+  /** KP an (ruling / transit / horary ortak): şimdi veya tarih-saat. */
+  kpMomentMode: "now" | "custom";
+  kpDate: string;
+  kpTime: string;
+  kpTz: string;
+  horaryNumber: number;
+  /** Ruling / horary değerlendirme yeri; null = doğum yeri. */
+  kpPlace: { id: string; label: string } | null;
   /** Local space referansı; null = doğum yeri. */
   localSpaceReference: { id: string; label: string } | null;
 };
@@ -151,6 +180,16 @@ export function defaultParams(today: Date): TechniqueParams {
     vedicTransitDate: iso,
     vedicTransitTime: "12:00",
     vedicTransitTz: "Europe/Istanbul",
+    kpAyanamsa: "kp-newcomb",
+    kpNodeType: "mean",
+    kpDashaMd: "",
+    kpDashaAd: "",
+    kpMomentMode: "now",
+    kpDate: iso,
+    kpTime: "12:00",
+    kpTz: "Europe/Istanbul",
+    horaryNumber: 1,
+    kpPlace: null,
   };
 }
 
@@ -220,6 +259,21 @@ export function buildSelections(
               : { ayanamsa: p.vedicAyanamsa, date: p.vedicTransitDate, time: p.vedicTransitTime, timezone: p.vedicTransitTz },
         });
         break;
+      case "kp.chart":
+        out.push({ technique: id, options: { ayanamsa: p.kpAyanamsa, nodeType: p.kpNodeType } });
+        break;
+      case "kp.dasha":
+        out.push({ technique: id, options: { ayanamsa: p.kpAyanamsa, nodeType: p.kpNodeType, mahadasha: p.kpDashaMd || null, antardasha: p.kpDashaMd && p.kpDashaAd ? p.kpDashaAd : null } });
+        break;
+      case "kp.ruling":
+      case "kp.transit":
+      case "kp.horary": {
+        const at = p.kpMomentMode === "now" ? { now: true } : { date: p.kpDate, time: p.kpTime, timezone: p.kpTz };
+        if (id === "kp.ruling") out.push({ technique: id, options: { ...at, nodeType: p.kpNodeType, placeLocationId: p.kpPlace?.id ?? null } });
+        else if (id === "kp.transit") out.push({ technique: id, options: { ...at, ayanamsa: p.kpAyanamsa, nodeType: p.kpNodeType } });
+        else out.push({ technique: id, options: { ...at, horaryNumber: p.horaryNumber, ayanamsa: p.kpAyanamsa, nodeType: p.kpNodeType, placeLocationId: p.kpPlace?.id ?? null } });
+        break;
+      }
       case "vedic.varga":
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa, division: p.vargaDivision } });
         break;
@@ -266,6 +320,22 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
     case "vedic.drishti":
     case "vedic.panchanga":
       return "ayanamsa: Lahiri (sabit)";
+    case "kp.chart":
+      return `${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)} · Placidus · düğüm ${o.nodeType === "true" ? "gerçek" : "ortalama"}`;
+    case "kp.dasha": {
+      const lord = (v: unknown) => DASHA_LORD_OPTIONS.find((x) => x[0] === v)?.[1] ?? String(v);
+      const lv = o.antardasha ? `Pratyantardasha · ${lord(o.mahadasha)} / ${lord(o.antardasha)}` : o.mahadasha ? `Antardasha · ${lord(o.mahadasha)}` : "Mahadasha";
+      return `${lv} · ${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)}`;
+    }
+    case "kp.ruling":
+    case "kp.transit":
+    case "kp.horary": {
+      const at = typeof o.atUtc === "string" ? `${fmtDate(o.atUtc)} ${o.atUtc.slice(11, 16)} UTC` : "";
+      const pl = (o.place as { label?: string } | undefined)?.label;
+      if (technique === "kp.horary") return `sayı ${String(o.horaryNumber)} · ${at}${pl ? ` · ${pl}` : ""}`;
+      if (technique === "kp.ruling") return `${at}${pl ? ` · ${pl}` : ""}`;
+      return `${at} · ${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)}`;
+    }
     case "vedic.transit":
       return typeof o.atUtc === "string" ? `${fmtDate(o.atUtc)} ${o.atUtc.slice(11, 16)} UTC · ayanamsa: Lahiri (sabit)` : "ayanamsa: Lahiri (sabit)";
     case "vedic.ashtakavarga":
@@ -317,5 +387,5 @@ export function houseSystemLabel(h: string | null | undefined, westernLabels: Re
 
 /** Zodyak çerçevesi: Vedik teknikler sidereal (nirayana), diğerleri tropikal. */
 export function zodiacLabel(technique: string): string {
-  return technique.startsWith("vedic.") ? "Sidereal (nirayana)" : "Tropikal";
+  return technique.startsWith("kp.") ? "Sidereal (KP)" : technique.startsWith("vedic.") ? "Sidereal (nirayana)" : "Tropikal";
 }
