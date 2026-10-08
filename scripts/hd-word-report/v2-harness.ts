@@ -240,6 +240,7 @@ async function main() {
   const T1 = "11111111-1111-4111-8111-111111111111";
   const T2 = "22222222-2222-4222-8222-222222222222";
   const T3 = "33333333-3333-4333-8333-333333333333";
+  const { OWNER_TENANT_ID: TA } = await import("../../lib/tenancy/syntheticTenants"); // owner/admin'in kendi uzman tenant'ı
 
   // ── Gerçek Roxy fixture → kayıtlı harita (normalize; yeni çağrı YOK) ──
   const FIXTURE = JSON.parse(read("scripts/hd-roxy/fixtures/roxy-bodygraph-2018-07-20.json")) as Record<string, unknown>;
@@ -302,6 +303,7 @@ async function main() {
         profile_code: null, definition_code: null, active_centers: [], open_centers: null, gates: [5], channels: [], client_id: "c-1", client_name: null },
       roxyRow("ch-roxy-t2", T2, null),
       roxyRow("ch-roxy-t3", T3, null),
+      roxyRow("ch-roxy-admin", TA, null),
       { ...roxyRow("ch-roxy-badacts", T1, "c-1"), computed_result: { ...structuredClone(n.chart), activations: n.chart.activations.slice(0, 25) } },
     ];
     db.tables.human_design_knowledge_records = [
@@ -311,6 +313,8 @@ async function main() {
       kb(T1, `kapi_${gate0}`, "Boş Kayıt", "   "),
       kb(T1, "kapi_99", "Eşleşmeyen", "ESLESMEYEN-ICERIK"),
       kb(T2, typeCode, "Başka Uzman", "BASKA-TENANT-ICERIGI"),
+      kb(TA, typeCode, "Admin Kişisel Kaydı", "ADMIN-KISISEL-KAYIT"),
+      { ...kb(T1, `kapi_${gate0}`, "Tenant'sız Kayıt", "TENANTSIZ-KAYIT"), tenant_id: null },
     ];
     db.tables.hd_canonical_content = [{ id: "x", canonical_key: typeCode, status: "published", general_description: "ADMIN-CANONICAL-METIN" }];
     db.tables.human_design_reports = [];
@@ -493,6 +497,13 @@ async function main() {
     const t2 = await createAs(db, { tenantId: T2 }, { chartId: "ch-roxy-t2", bodygraphPng: dataUrl(pngForTests) });
     const tt = (await unzip(await (await downloadAs(db, { tenantId: T2 }, t2.body.id)).arrayBuffer())).text;
     ok("N4 T2 raporunda yalnız T2 uzman bilgisi (T1 kayıtları yok)", tt.includes("BASKA-TENANT-ICERIGI") && !tt.includes("Tip Yorumum"));
+    const ownText = (await unzip(await (await downloadAs(db, { tenantId: T1, system: true }, own.body.id)).arrayBuffer())).text;
+    ok("N6 uzman raporunda admin'in kişisel kaydı ve tenant'sız (NULL) kayıt YOK", !ownText.includes("ADMIN-KISISEL-KAYIT") && !ownText.includes("TENANTSIZ-KAYIT") && ownText.includes("Tip Yorumum"));
+    const adm = await createAs(db, { tenantId: TA, role: "admin" }, { chartId: "ch-roxy-admin", commentary: "expert", bodygraphPng: dataUrl(pngForTests) });
+    const admText = (await unzip(await (await downloadAs(db, { tenantId: TA, role: "admin" }, adm.body.id)).arrayBuffer())).text;
+    ok("N7 admin raporu YALNIZ admin'in kendi kayıtları (başka uzman kaydı yok)", adm.res.status === 200 && admText.includes("ADMIN-KISISEL-KAYIT") && !admText.includes("Tip Yorumum") && !admText.includes("BASKA-TENANT-ICERIGI"));
+    const admX = await createAs(db, { tenantId: TA, role: "admin" }, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests) });
+    ok("N8 admin rolü başka uzmanın haritasından rapor üretemez (404, tenant = oturum)", admX.res.status === 404);
     const img = reportRow(db, own.body.id)?.snapshot.chartImage?.storagePath as string;
     ok("N5 BodyGraph yolu tenant'ın rapor klasöründe ({tenant}/report-snapshots/{id}.png)", img === `${T1}/report-snapshots/${own.body.id}.png` && db.objects.has(`hd-chart-images/${img}`));
   }
