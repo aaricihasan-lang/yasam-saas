@@ -259,7 +259,10 @@ async function main() {
     const st = resolveAutoCalcState({ birthDate: "2014-06-10", birthTime: "18:00", birthPlace: "Fatih, İstanbul, Türkiye", picked: { id: "client", label: "Fatih, İstanbul, Türkiye", tz: "Europe/Istanbul", locationId: "rx-tr-istanbul-fatih" }, rows: [{ id: "c1", location_id: "rx-tr-istanbul-fatih", birth_date: "2014-06-10", birth_time: "18:00:00", birth_place: "Fatih, Istanbul, Turkey", timezone: "Europe/Istanbul", engine_version: "roxyapi:roxy-bodygraph-1" }] });
     ok("RX18 etiket biçimi değişse de aynı konum kimliği → 'Profesyonel haritayı aç' (kredi yok)", st.kind === "open");
     const pk = src("app/human-design/components/HdBirthLocationPicker.tsx");
-    ok("RX19 yerel sonuç yoksa ilçe araması otomatik (≥4 karakter, yazma durunca)", pk.includes("merged.length === 0 && q.length >= 4"));
+    // Owner kararı (10-08, P3-1): RoxyAPI konum araması yazarken OTOMATİK başlamaz; yalnız açık eylem.
+    ok("RX19 ilçe araması yalnız açık eylemle ('İlçe / şehir ara' / Enter); yazarken otomatik Roxy araması YOK",
+      !pk.includes("merged.length === 0 && q.length >= 4") && !/autoTimer|extendedRef/.test(pk) &&
+      /onClick=\{\(\) => void extendedSearch\(\)\}/.test(pk) && pk.includes("İlçe / şehir ara"));
   }
 
   // ── PROD HOTFIX regresyonları ──

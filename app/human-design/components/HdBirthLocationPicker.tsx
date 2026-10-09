@@ -62,11 +62,6 @@ export function HdBirthLocationPicker({
   const seq = useRef(0);
   const remoteSeq = useRef(0);
   const lastRemoteQ = useRef("");
-  // Otomatik ilçe araması için güncel fonksiyon referansı (effect bağımlılığına girmeden).
-  const extendedRef = useRef<() => Promise<void>>(async () => undefined);
-  useEffect(() => {
-    extendedRef.current = extendedSearch;
-  });
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- dış seçim → görünen metin senkronu
@@ -84,28 +79,20 @@ export function HdBirthLocationPicker({
     setLocal(tr);
     if (q.length < 2) return;
     const ac = new AbortController();
-    let autoTimer: ReturnType<typeof setTimeout> | null = null;
     const t = setTimeout(() => {
       fetch(`/api/location/search?q=${encodeURIComponent(q)}&limit=6`, { signal: ac.signal })
         .then((r) => r.json())
         .then((j: { ok?: boolean; results?: Location[] }) => {
           if (my !== seq.current) return;
           const world = j.ok && Array.isArray(j.results) ? j.results.map(toItem) : [];
-          const merged = [...tr, ...world].slice(0, 10);
-          setLocal(merged);
-          // Yerel il + dünya şehri sonucu YOKSA (ör. "fatih"), yazma durunca ilçe araması
-          // otomatik başlar (sunucu önbellekli + limitli; yerel sonuç varsa Roxy'ye gidilmez).
-          if (merged.length === 0 && q.length >= 4) {
-            autoTimer = setTimeout(() => {
-              if (my === seq.current) void extendedRef.current();
-            }, 450);
-          }
+          // Yalnız kredisiz kaynaklar (il + dünya şehirleri). RoxyAPI ilçe/şehir araması yazarken
+          // OTOMATİK başlamaz; yalnız "İlçe / şehir ara" düğmesi (ya da onun Enter kısayolu) ile.
+          setLocal([...tr, ...world].slice(0, 10));
         })
         .catch(() => undefined);
     }, 250);
     return () => {
       clearTimeout(t);
-      if (autoTimer) clearTimeout(autoTimer);
       ac.abort();
     };
   }, [query, open]);

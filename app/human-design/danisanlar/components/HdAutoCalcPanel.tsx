@@ -7,6 +7,13 @@
 //   • Durum (resolveAutoCalcState): aynı girdiyle harita varsa "Profesyonel haritayı aç" — Roxy
 //     ÇAĞRILMAZ; girdi değiştiyse "Yeniden hesapla"; hiç yoksa "Hesapla".
 //   • Sunucu ayrıca idempotent (input_hash): aynı girdi tekrar gönderilse de kayıtlı sonuç döner.
+//   • "Yeniden hesapla" (girdi değişti; kayıtlı analiz VAR) → önce nazik hatırlatma penceresi:
+//     [Mevcut Analizi Aç] (kayıtlı analiz; hesaplama YOK) | [Yeniden Hesapla] (açık tercih).
+//     Kapatma (Esc / dışarı tıklama) hiçbir şey yapmaz. İlk "Hesapla" ek pencere göstermez.
+//     Kullanıcı metninde kota / kredi / maliyet / sağlayıcı ifadesi YOK (owner kararı).
+
+export const HD_RECALC_PROMPT_MESSAGE =
+  "Bu danışanın kayıtlı bir analizi bulunuyor. Bilgiler değişmediyse mevcut analizi kullanabilirsiniz. Dilerseniz yeniden hesaplayabilirsiniz.";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -45,6 +52,7 @@ export function HdAutoCalcPanel({
   formDirty: boolean;
 }) {
   const { showToast } = useToast();
+  const [recalcPrompt, setRecalcPrompt] = useState(false);
   const isDemo = readYasamUser()?.is_demo_account === true;
   const [rows, setRows] = useState<ComputedChartListRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,7 +155,7 @@ export function HdAutoCalcPanel({
           ) : (
             <button
               type="button"
-              onClick={() => void compute()}
+              onClick={() => (state.kind === "changed" ? setRecalcPrompt(true) : void compute())}
               disabled={busy || !!blocked}
               aria-busy={busy}
               className="btn-primary h-11 w-full rounded-xl text-sm font-black uppercase tracking-wide disabled:cursor-not-allowed disabled:opacity-50"
@@ -189,6 +197,60 @@ export function HdAutoCalcPanel({
             ))}
           </ul>
         </details>
+      ) : null}
+
+      {recalcPrompt && state.kind === "changed" ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/40 p-0 sm:items-center sm:p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setRecalcPrompt(false); // kapatma = hiçbir işlem yok
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="hd-recalc-title"
+            aria-describedby="hd-recalc-msg"
+            data-hd-recalc-prompt
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.stopPropagation();
+                setRecalcPrompt(false);
+              }
+            }}
+            className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl"
+          >
+            <h3 id="hd-recalc-title" className="text-base font-black text-slate-900">
+              Kayıtlı analiz
+            </h3>
+            <p id="hd-recalc-msg" className="mt-2 text-sm leading-relaxed text-slate-700">
+              {HD_RECALC_PROMPT_MESSAGE}
+            </p>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => {
+                  setRecalcPrompt(false);
+                  setOpenId(state.previousId); // kayıtlı analiz — hesaplama YOK
+                }}
+                className="btn-primary h-11 rounded-xl px-5 text-sm font-black"
+              >
+                Mevcut Analizi Aç
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRecalcPrompt(false);
+                  void compute();
+                }}
+                className="h-11 rounded-xl border border-indigo-200 bg-white px-5 text-sm font-bold text-indigo-700 transition hover:bg-indigo-50"
+              >
+                Yeniden Hesapla
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {openId ? (
