@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { readExpectedVersion } from "@/lib/human-design/api/optimistic";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
+import { isUuid } from "@/lib/human-design/api/deterministicId";
 import {
   listReportsWithClients,
   getReportById,
   saveReport,
   getClientReportCount,
+  listReportBriefs,
   updateReport,
   deleteReport,
 } from "@/lib/human-design/api/reportPersistence";
@@ -45,6 +47,17 @@ export async function GET(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: true, count }, { status: 200, headers: NO_STORE });
   }
 
+  // Hafif liste (snapshot yok): ?brief=1 [&chartId=<uuid>] — analiz ekranı "Word İndir" mevcut
+  // donmuş raporu bulur (yeni kopya oluşturmaz). chartId tenant-scoped sorguyla filtrelenir.
+  if (url.searchParams.get("brief") === "1") {
+    const chartId = url.searchParams.get("chartId");
+    if (chartId !== null && !isUuid(chartId)) {
+      return NextResponse.json({ ok: false, error: "Geçersiz analiz kimliği." }, { status: 400, headers: NO_STORE });
+    }
+    const { rows, error } = await listReportBriefs(guard.db, guard.tenantId, chartId ? { chartId } : {});
+    if (error) return NextResponse.json({ ok: false, error }, { status: 500, headers: NO_STORE });
+    return NextResponse.json({ ok: true, rows }, { status: 200, headers: NO_STORE });
+  }
   if (id) {
     const { row, error } = await getReportById(guard.db, guard.tenantId, id);
     if (error && !row) {

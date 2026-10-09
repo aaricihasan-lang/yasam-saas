@@ -4,6 +4,7 @@
 //   Danışan seç (merkezî Danışan Yolculuğu) / Yeni danışan → danışan çalışma sayfası (doğum bilgileri +
 //   Hesapla + profesyonel harita) → Geçmiş Human Design Analizleri. Teknik kavramlar (profil/bağlantı
 //   kimlikleri) kullanıcıya gösterilmez.
+//   Satış öncesi sıra: Danışan seç → Kayıtlı Analizler (aç + Word İndir) → profil yönetimi (kapalı).
 
 import { useState } from "react";
 import { HumanDesignShell } from "../components/HumanDesignShell";
@@ -34,7 +35,8 @@ export default function HdHesaplamaPage() {
       <div className="mb-3 rounded-2xl border border-indigo-200/80 bg-white/90 px-5 py-4 shadow-[0_6px_24px_-8px_rgba(79,70,229,0.18)] ring-1 ring-indigo-200/60 backdrop-blur-xl">
         <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">Human Design Hesaplama</h1>
         <p className="mt-1 text-xs leading-relaxed text-slate-600 sm:text-sm">
-          Danışan seçin veya yeni danışan oluşturun ve profesyonel Human Design haritasını hesaplayın.
+          Danışan seçin veya yeni danışan oluşturun ve profesyonel Human Design haritasını hesaplayın. Hesaplanan
+          analizler otomatik kaydedilir; aşağıdaki listeden açıp Word olarak indirebilirsiniz.
         </p>
       </div>
 
@@ -63,17 +65,20 @@ export default function HdHesaplamaPage() {
           </div>
         </section>
 
+        <HdAnalysisHistory />
+
         <details className="group rounded-2xl border border-indigo-200/80 bg-white/95 p-5 shadow-sm ring-1 ring-indigo-100/60" data-hd-profiles>
           <summary className="cursor-pointer list-none text-xs font-black uppercase tracking-widest text-indigo-700 marker:hidden">
             <span className="mr-1 inline-block transition group-open:rotate-90">▸</span>
-            Human Design Danışanları
+            Human Design Profilleri (yönetim)
           </summary>
+          <p className="m-0 mt-2 text-[11px] text-slate-500">
+            Danışan Yolculuğu&apos;na bağlı olmayan eski profiller dahil tüm Human Design profilleri; profili açma ve silme.
+          </p>
           <div className="mt-4">
             <HdClientListesi />
           </div>
         </details>
-
-        <HdAnalysisHistory />
       </div>
     </HumanDesignShell>
   );
