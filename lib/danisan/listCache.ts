@@ -13,6 +13,8 @@ export type DanisanListCache = {
   total: number;
   fullLoaded: boolean;
   alerts: Record<string, number>;
+  /** WT7: ödenmemiş ücret özeti (clientId → adet/toplam); yalnız payment_status='unpaid'. */
+  unpaid?: Record<string, { count: number; total: number }>;
   ts: number;
 };
 

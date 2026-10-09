@@ -11,6 +11,12 @@ import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { odevDurumClass, aggregateHomeworks } from "@/lib/odevStatus";
 import { todayInZone } from "@/lib/time/reportTime";
 import { validateHomeworkDates } from "@/lib/danisan/homeworkDates";
+import {
+  applyDateFieldChange,
+  initDateFields,
+  parseDurationDays,
+  type DateAnchor,
+} from "@/lib/danisan/homeworkDuration";
 
 type HomeworkStatus = "bekliyor" | "devam" | "tamamlandi" | "gecikti" | "iptal";
 
@@ -40,6 +46,10 @@ type HomeworkFormState = {
   description: string;
   startDate: string;
   endDate: string;
+  /** WT7 "Kaç gün sonra?" — yalnız form yardımcısı (kaydedilmez; kalıcı olan endDate). */
+  durationDays: string;
+  /** Son tarih işlemi: "days" = bitiş gün sayısından, "end" = bitiş elle/kayıtlı. */
+  dateAnchor: DateAnchor;
   status: HomeworkStatus;
   expertNote: string;
   clientFeedback: string;
@@ -63,6 +73,8 @@ const emptyForm: HomeworkFormState = {
   description: "",
   startDate: "",
   endDate: "",
+  durationDays: "",
+  dateAnchor: "end",
   status: "devam",
   expertNote: "",
   clientFeedback: "",
@@ -104,12 +116,29 @@ function homeworkToForm(item: ClientHomework): HomeworkFormState {
     title: item.title || "",
     homeworkType: item.homework_type || "",
     description: item.description || "",
-    startDate: item.start_date || "",
-    endDate: item.end_date || "",
+    // Düzenleme: kayıtlı tarihler AYNEN; gün sayısı yalnız bilgi (anchor "end").
+    ...initDateFields(item.start_date || "", item.end_date || ""),
     status: item.status || "devam",
     expertNote: item.expert_note || "",
     clientFeedback: item.client_feedback || "",
   };
+}
+
+/** Tarih alanları birbirine bağlı ("son işlem kazanır" — lib/danisan/homeworkDuration); diğerleri düz atama. */
+function withFieldChange<K extends keyof HomeworkFormState>(
+  prev: HomeworkFormState,
+  key: K,
+  value: HomeworkFormState[K],
+): HomeworkFormState {
+  if (key === "startDate" || key === "endDate" || key === "durationDays") {
+    return { ...prev, ...applyDateFieldChange(prev, key, String(value)) };
+  }
+  return { ...prev, [key]: value };
+}
+
+/** Gün sayısı geçersizken (ve son işlem o iken) kayıt engellenir — bitiş belirsiz kalmasın. */
+function durationBlocksSave(form: HomeworkFormState): boolean {
+  return form.dateAnchor === "days" && parseDurationDays(form.durationDays).kind === "error";
 }
 
 // Renk/stil paylaşımlı helper'dan (server Word-route ile TEK kaynak); görünen
@@ -236,6 +265,40 @@ type HomeworkFormProps = {
   openEditor: (title: string, value: string, onSave: (value: string) => void) => void;
 };
 
+/** WT7 "Kaç gün sonra?" — bitişi başlangıç + N takvim günü olarak doldurur; elle tarih seçimi de açık. */
+function DurationDaysField({ data, onChange }: Pick<HomeworkFormProps, "data" | "onChange">) {
+  const t = useTranslations("clients.homework");
+  const parsed = parseDurationDays(data.durationDays);
+  const error =
+    parsed.kind === "error"
+      ? t(`form.durationErrors.${parsed.reason}`)
+      : parsed.kind === "ok" && !data.startDate && data.dateAnchor === "days"
+        ? t("form.durationErrors.noStart")
+        : null;
+  return (
+    <div className="mt-2">
+      <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-amber-700">
+        {t("form.durationLabel")}
+        <input
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          aria-invalid={error ? true : undefined}
+          value={data.durationDays}
+          onChange={(e) => onChange("durationDays", e.target.value)}
+          placeholder={t("form.durationPlaceholder")}
+          className={`${inputClass("amber")} mt-1 normal-case tracking-normal`}
+        />
+      </label>
+      {error ? (
+        <p role="alert" className="text-xs font-bold text-red-600">{error}</p>
+      ) : (
+        <p className="text-[11px] font-medium leading-4 text-slate-500">{t("form.durationHint")}</p>
+      )}
+    </div>
+  );
+}
+
 function HomeworkForm({ data, onChange, openEditor }: HomeworkFormProps) {
   const t = useTranslations("clients.homework");
   return (
@@ -275,11 +338,13 @@ function HomeworkForm({ data, onChange, openEditor }: HomeworkFormProps) {
           <SectionLabel icon="🏁" title={t("form.endLabel")} tone="amber" />
           <input
             type="date"
+            aria-label={t("form.endLabel")}
             value={data.endDate}
             min={data.startDate || undefined}
             onChange={(e) => onChange("endDate", e.target.value)}
             className={inputClass("amber")}
           />
+          <DurationDaysField data={data} onChange={onChange} />
         </div>
       </div>
 
@@ -453,14 +518,14 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     key: K,
     value: HomeworkFormState[K]
   ) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => withFieldChange(prev, key, value));
   }
 
   function updateEditField<K extends keyof HomeworkFormState>(
     key: K,
     value: HomeworkFormState[K]
   ) {
-    setEditForm((prev) => ({ ...prev, [key]: value }));
+    setEditForm((prev) => withFieldChange(prev, key, value));
   }
 
   function openEditor(
@@ -542,6 +607,11 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       return;
     }
 
+    if (durationBlocksSave(form)) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.invalidDuration"), type: "error" });
+      return;
+    }
+
     // DY-A: bitiş < başlangıç → kayıt yok (sunucu da 400 döner).
     if (validateHomeworkDates({ start_date: form.startDate, end_date: form.endDate })) {
       showToast({ title: t("toast.failTitle"), message: t("toast.endBeforeStart"), type: "error" });
@@ -610,6 +680,11 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
         message: t("toast.emptyUpdate"),
         type: "error",
       });
+      return;
+    }
+
+    if (durationBlocksSave(editForm)) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.invalidDuration"), type: "error" });
       return;
     }
 

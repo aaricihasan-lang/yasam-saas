@@ -188,8 +188,11 @@ async function run() {
     const single = read("app/api/clients/[id]/word-report/route.ts");
     const noteQs = single.match(/from\("client_notes"\)[^\n]*/g) ?? [];
     ok(noteQs.length >= 2 && noteQs.every((q) => /\.eq\("tenant_id", tenantId\)/.test(q)), "clients/[id]/word-report: client_notes sorguları tenant filtreli");
+    // WT7: toplu rapor tekli raporun tam veri kümesini ortak toplu okuyucudan alır (clientReportData).
     const bulk = read("app/api/clients/word-report-bulk/route.ts");
-    ok(/from\("client_notes"\)\s*\.select\("client_id, saglik_notu"\)\s*\.eq\("tenant_id", tenantId\)/.test(bulk), "word-report-bulk: client_notes tenant filtreli");
+    const bulkData = read("app/api/clients/[id]/word-report/clientReportData.ts");
+    ok(/loadClientDatasetsBulk\(db, tenantId,/.test(bulk) && /\.eq\("tenant_id", tenantId\)\.in\("client_id", chunk\)/.test(bulkData) && /"client_notes"/.test(bulkData), "word-report-bulk: client_notes (+ tüm alt tablolar) tenant filtreli");
+    ok(/from\("clients"\)\s*\.select\("\*"\)\s*\.eq\("tenant_id", tenantId\)/.test(bulk), "word-report-bulk: clients tenant filtreli");
     const aj = read("app/api/ajanda/word-report/route.ts");
     ok(/from\("clients"\)\.select\("id, ad, soyad"\)\.eq\("tenant_id", tenantId\)/.test(aj), "ajanda/word-report: clients ad çözümü tenant filtreli");
   }
