@@ -72,7 +72,7 @@ export function HdExpertKnowledgePanel({ chart }: { chart: StoredChartScalars })
                     ) : null}
                     {r.expert_notes ? (
                       <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2">
-                        <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">Uzman Notum</p>
+                        <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">Özel Çalışma Notları · yalnız size görünür, rapora eklenmez</p>
                         <p className="whitespace-pre-wrap text-xs leading-relaxed text-slate-700">{r.expert_notes}</p>
                       </div>
                     ) : null}
