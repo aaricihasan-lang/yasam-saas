@@ -365,8 +365,19 @@ async function main() {
     const f2 = await compute(U.A, hdFail, "client");
     roxyFail = "none";
     ok(f2.status >= 500 && f2.json.ok === false && (await count(`select count(*) n from public.human_design_charts where client_id=$1`, [hdFail])) === 0, "21c hesaplama servisine ağ hatası → başarısız + kayıt yok", f2.json);
+    // Ücretli çağrı koruması: aynı girdi için uçuş-içi kilit (20 sn) başarısızlıkta da açık kalır →
+    // hemen tekrar deneme Roxy'yi YENİDEN çağırmaz, anlaşılır "sürüyor" mesajı döner.
+    const callsAfterFail = roxyCalls;
+    const f2b = await compute(U.A, hdFail, "client");
+    ok(f2b.status === 409 && f2b.json.code === "IN_PROGRESS" && Number(f2b.json.retryAfterSec) > 0 && roxyCalls === callsAfterFail
+      && (await count(`select count(*) n from public.human_design_charts where client_id=$1`, [hdFail])) === 0,
+      "21c2 hata sonrası hemen tekrar → 'sürüyor' (409 + Retry-After), ek Roxy çağrısı ve kayıt yok", { st: f2b.status, j: f2b.json, d: roxyCalls - callsAfterFail });
+    // Kilit penceresi dolmuş gibi saati 25 sn ileri al (yalnız bu süreçte).
+    const realNow = Date.now;
+    Date.now = () => realNow() + 25_000;
     const f3 = await compute(U.A, hdFail, "client");
-    ok(f3.status === 200 && f3.json.ok === true && f3.json.reused === false, "21d ağ düzelince tekrar deneme kaydeder (veri kaybı yok)", f3.json);
+    Date.now = realNow;
+    ok(f3.status === 200 && f3.json.ok === true && f3.json.reused === false && roxyCalls === callsAfterFail + 1, "21d ağ düzelince (kilit süresi sonrası) tekrar deneme kaydeder (veri kaybı yok)", f3.json);
     const f4 = await compute(U.A, hdFail, "client");
     ok(f4.json.reused === true && f4.json.id === f3.json.id, "21e yanıt kaybolup tekrar denenirse kayıtlı analiz döner (mükerrer kayıt yok)");
 
@@ -376,6 +387,17 @@ async function main() {
     const del = await (routes.charts.DELETE as unknown as Handler)(delReq, { params: Promise.resolve({}) });
     const repOfA2 = (await su.query(`select chart_id from public.human_design_reports where id=$1`, [String(wNo.json.id)])).rows[0];
     ok(del.status === 200 && !!repOfA2 && repOfA2.chart_id === null, "analiz silinince Word raporu silinmez (Kayıtlı Raporlar'da kalır)", { st: del.status, repOfA2 });
+    ok((await count(`select count(*) n from public.human_design_charts where id=$1`, [chartA2])) === 0, "Ek-b silinen yalnız hedef analiz");
+    const afterDel = await call(routes.reports.GET, "GET", U.A);
+    ok(((afterDel.json.rows as Json[]) ?? []).some((r) => r.id === String(wNo.json.id)), "Ek-c silinen analizin Word raporu Kayıtlı Raporlar listesinde görünür");
+    const dlOrphan = await call(routes.download.POST, "POST", U.A, { reportId: String(wNo.json.id) });
+    ok(dlOrphan.status === 200 && !!dlOrphan.buf && dlOrphan.buf.length > 5000, "Ek-d silinen analizin Word raporu hâlâ indirilebilir (snapshot'tan)", { st: dlOrphan.status, j: dlOrphan.json });
+    if (dlOrphan.buf && dlOrphan.status === 200) {
+      const oz = await JSZip.loadAsync(dlOrphan.buf);
+      ok(Object.keys(oz.files).some((f) => f.startsWith("word/media/")), "Ek-e silinen analizin raporunda BodyGraph görseli korunur");
+    }
+    ok((await call(routes.download.POST, "POST", U.B, { reportId: String(wNo.json.id) })).status !== 200, "Ek-f silinen analizin raporu başka tenant'a açılmaz");
+    ok(JSON.stringify((await su.query(`select * from public.human_design_reports where id in ($1,$2) order by id`, [LEGACY_REPORT, LEGACY_V1_REPORT])).rows) === legacyNow, "Ek-g silme sonrası eski raporlar birebir aynı");
 
     ok(external.length === 0, "dış ağ: yalnız sahte Roxy; gerçek anahtar / başka servis YOK", external);
   } finally {
