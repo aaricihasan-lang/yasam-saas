@@ -250,9 +250,15 @@ export function harfBoundedText(out: NumerolojiMotorOut, currentYear: number): s
 
 /**
  * Hesap Özetsiz sekme: yalnızca nihai sonuçlar (adım/formül yok).
- * `currentYear`: kronolojik bölümler (Değişim/Zirve/Mücadele/Harfler) bu yıla kadar gösterilir.
+ * `currentYear`: kronolojik bölümler (Değişim/Zirve/Mücadele/Harfler) bu yıla kadar gösterilir
+ * (Gelecek Yıllar yetkisi açıksa çağıran chronoLimitYear ile sınırsız yıl geçirir).
+ * `chronoNote`: kronolojik blok notu (varsayılan = önceki not birebir; yetki açıkken CHRONO_FULL_NOTE).
  */
-export function buildPlainAnalizFull(out: NumerolojiMotorOut, currentYear: number): string {
+export function buildPlainAnalizFull(
+  out: NumerolojiMotorOut,
+  currentYear: number,
+  chronoNote: string = CHRONO_CUTOFF_NOTE,
+): string {
   const chunks: string[] = [];
 
   const pushBlock = (title: string, body: string) => {
@@ -261,7 +267,7 @@ export function buildPlainAnalizFull(out: NumerolojiMotorOut, currentYear: numbe
   // Kronolojik bloklar: içerik + TEK not (owner Section M). Not yılı sabitlemez.
   const pushChronoBlock = (title: string, body: string) => {
     const b = (body || "—").trim();
-    const withNote = b === "—" ? b : `${b}\n\n${CHRONO_CUTOFF_NOTE}`;
+    const withNote = b === "—" ? b : `${b}\n\n${chronoNote}`;
     chunks.push(title, "", withNote, "", "——————————", "");
   };
 

@@ -135,8 +135,14 @@ export function HdRaporListesi() {
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-indigo-200/80 bg-indigo-50/30 py-20 text-center">
           <p className="text-sm font-semibold text-slate-600">
-            {search ? "Arama sonucu bulunamadı." : "Henüz kayıtlı rapor yok."}
+            {search ? "Arama sonucu bulunamadı." : "Henüz hazırlanmış Word raporu yok."}
           </p>
+          {!search && (
+            <p className="mt-1 max-w-md px-4 text-xs text-slate-500" data-hd-reports-empty-hint>
+              Hesaplanan analizler otomatik kaydedilir ve Human Design Hesaplama sayfasında listelenir. Bir analizde
+              “Word İndir” kullandığınızda hazırlanan Word raporu burada da görünür.
+            </p>
+          )}
           {!search && (
             <Link
               href="/human-design/danisanlar"

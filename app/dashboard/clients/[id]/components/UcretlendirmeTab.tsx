@@ -20,6 +20,7 @@ import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { todayInZone } from "@/lib/time/reportTime";
+import { isPaymentStatus, readPaymentStatus, summarizeUnpaid, type PaymentStatus } from "@/lib/danisan/chargePayment";
 
 type ChargeCategory = "session" | "homework" | "analysis" | "other";
 const CATEGORIES: ChargeCategory[] = ["session", "homework", "analysis", "other"];
@@ -33,6 +34,8 @@ type ClientCharge = {
   detail: string | null;
   note: string | null;
   amount: number;
+  /** WT7: paid | unpaid | null (eski kayıt = Belirtilmemiş). */
+  payment_status?: PaymentStatus | null;
   source_session_id: string | null;
   created_at: string;
   updated_at: string;
@@ -44,10 +47,16 @@ type ChargeForm = {
   detail: string;
   note: string;
   amount: string;
+  /** "" = seçilmedi (yeni kayıtta kaydetme engellenir; eski kayıtta dokunulmaz). */
+  paymentStatus: PaymentStatus | "";
 };
+
+export type UnpaidSummary = { count: number; total: number };
 
 type UcretlendirmeTabProps = {
   clientId: string;
+  /** WT7: ücret listesi her yüklendiğinde/değiştiğinde ödenmemiş özeti (detay uyarısı + liste rozeti tazeleme). */
+  onUnpaidChange?: (summary: UnpaidSummary) => void;
 };
 
 // Form varsayılanı: İstanbul takvim günü (UTC 00:00–03:00 "dün" hatası yok).
@@ -56,7 +65,7 @@ function todayISO() {
 }
 
 function emptyForm(): ChargeForm {
-  return { chargeDate: todayISO(), category: "session", detail: "", note: "", amount: "" };
+  return { chargeDate: todayISO(), category: "session", detail: "", note: "", amount: "", paymentStatus: "" };
 }
 
 function formatMoney(value: number) {
@@ -80,11 +89,17 @@ const CATEGORY_TONE: Record<ChargeCategory, string> = {
   other: "border-amber-200 bg-amber-100 text-amber-800",
 };
 
+const PAYMENT_TONE: Record<PaymentStatus | "unknown", string> = {
+  paid: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  unpaid: "border-red-200 bg-red-50 text-red-700",
+  unknown: "border-slate-200 bg-slate-50 text-slate-500",
+};
+
 const inputCls =
   "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-100";
 const labelCls = "mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-600";
 
-export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
+export default function UcretlendirmeTab({ clientId, onUnpaidChange }: UcretlendirmeTabProps) {
   const t = useTranslations("clients.charges");
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
@@ -102,11 +117,18 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
   const [form, setForm] = useState<ChargeForm>(emptyForm());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<ChargeForm>(emptyForm());
+  const [loaded, setLoaded] = useState(false);
 
   const total = useMemo(
     () => charges.reduce((sum, c) => sum + Number(c.amount || 0), 0),
     [charges],
   );
+  const unpaid = useMemo(() => summarizeUnpaid(charges), [charges]);
+
+  // Yalnız gerçek yüklemeden sonra bildir (ilk boş durum "ödenmemiş yok" sayılmasın).
+  useEffect(() => {
+    if (loaded) onUnpaidChange?.(unpaid);
+  }, [loaded, unpaid, onUnpaidChange]);
 
   useEffect(() => {
     void getSyncedTenantId().then(setTenantId);
@@ -136,6 +158,7 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
       return (b.created_at ?? "").localeCompare(a.created_at ?? "");
     });
     setCharges(list);
+    setLoaded(true);
     setLoading(false);
   }, [clientId, tenantId, showToast, t]);
 
@@ -147,10 +170,12 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
   }, [tenantId, loadCharges]);
 
   /** Form doğrulama (server ile ayna). Geçerliyse null, değilse hata mesajı döner. */
-  function validate(f: ChargeForm): string | null {
+  function validate(f: ChargeForm, isNew: boolean): string | null {
     if (!CATEGORIES.includes(f.category)) return t("validation.category");
     if (!amountValid(f.amount)) return t("validation.amount");
     if (f.category === "other" && !f.detail.trim()) return t("validation.detailRequired");
+    // WT7: yeni kayıtta ödeme durumu açık seçim; eski (Belirtilmemiş) kayıt düzenlenirken zorlanmaz.
+    if (isNew && !isPaymentStatus(f.paymentStatus)) return t("validation.paymentStatus");
     return null;
   }
 
@@ -161,6 +186,8 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
       detail: f.detail.trim() || null,
       note: f.note.trim() || null,
       amount: Number(f.amount),
+      // Seçilmediyse gönderilmez → eski kaydın NULL durumu korunur (tahmin yazılmaz).
+      ...(isPaymentStatus(f.paymentStatus) ? { payment_status: f.paymentStatus } : {}),
     };
   }
 
@@ -169,7 +196,7 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
       showToast({ title: t("toast.failTitle"), message: t("toast.noClient"), type: "error" });
       return;
     }
-    const err = validate(form);
+    const err = validate(form, true);
     if (err) {
       showToast({ title: t("toast.failTitle"), message: err, type: "error" });
       return;
@@ -213,6 +240,7 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
       detail: charge.detail || "",
       note: charge.note || "",
       amount: charge.amount === null || charge.amount === undefined ? "" : String(charge.amount),
+      paymentStatus: readPaymentStatus(charge.payment_status) ?? "",
     });
   }
 
@@ -222,7 +250,7 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
   }
 
   async function updateCharge(id: string) {
-    const err = validate(editForm);
+    const err = validate(editForm, false);
     if (err) {
       showToast({ title: t("toast.failTitle"), message: err, type: "error" });
       return;
@@ -255,6 +283,31 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
     showToast({ title: t("toast.successTitle"), message: t("toast.updated"), type: "success" });
   }
 
+  /** WT7: Ödenmedi → Ödendi tek dokunuşla (kalıcı PATCH; yalnız payment_status). */
+  async function markPaid(id: string) {
+    if (saving) return;
+    setSaving(true);
+    const token = readSessionToken();
+    const res = await fetch(`/api/clients/${clientId}/charges`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": readYasamUser()?.id ?? "",
+        ...(token ? { "x-session-token": token } : {}),
+      },
+      body: JSON.stringify({ id, payment_status: "paid" }),
+    }).catch(() => null);
+    if (!res || !res.ok) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.updateFailed"), type: "error" });
+      setSaving(false);
+      return;
+    }
+    const json = (await res.json().catch(() => null)) as { charge?: ClientCharge } | null;
+    setCharges((prev) => prev.map((c) => (c.id === id ? { ...c, ...(json?.charge ?? {}), payment_status: "paid" } : c)));
+    setSaving(false);
+    showToast({ title: t("toast.successTitle"), message: t("toast.markedPaid"), type: "success" });
+  }
+
   async function removeCharge(id: string) {
     const ok = await deleteConfirm({ title: t("delete.title"), message: t("delete.message") });
     if (!ok) return;
@@ -279,9 +332,42 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
   function renderForm(
     data: ChargeForm,
     onChange: <K extends keyof ChargeForm>(key: K, value: ChargeForm[K]) => void,
+    isNew: boolean,
   ) {
+    const payLabelId = `pay-label-${isNew ? "new" : "edit"}`;
     return (
       <div className="grid gap-3 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <span className={labelCls} id={payLabelId}>
+            {t("payment.label")}
+            {isNew ? <span className="text-red-600"> *</span> : null}
+          </span>
+          <div role="radiogroup" aria-labelledby={payLabelId} className="grid grid-cols-2 gap-2 sm:max-w-sm">
+            {(["paid", "unpaid"] as const).map((ps) => {
+              const active = data.paymentStatus === ps;
+              const tone = ps === "paid"
+                ? active ? "border-emerald-500 bg-emerald-600 text-white" : "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
+                : active ? "border-red-500 bg-red-600 text-white" : "border-red-200 bg-white text-red-700 hover:bg-red-50";
+              return (
+                <button
+                  key={ps}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => onChange("paymentStatus", ps)}
+                  className={`min-h-[44px] rounded-xl border px-3 py-2 text-sm font-black shadow-sm transition ${tone}`}
+                >
+                  {t(`payment.${ps}`)}
+                </button>
+              );
+            })}
+          </div>
+          {isNew || data.paymentStatus === "" ? (
+            <p className="mt-1 text-xs font-medium text-slate-500">
+              {isNew ? t("payment.requiredHint") : t("payment.legacyHint")}
+            </p>
+          ) : null}
+        </div>
         <div>
           <label className={labelCls}>{t("form.dateLabel")}</label>
           <input
@@ -363,6 +449,11 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
                 <div className="text-xs font-black uppercase tracking-wide text-slate-500">
                   {t("totalLabel")} · {charges.length} {t("countLabel")}
                 </div>
+                {unpaid.count > 0 ? (
+                  <div data-testid="charges-unpaid-summary" className="mt-1 text-xs font-black text-red-600">
+                    {t("payment.unpaidSummary", { count: unpaid.count, total: formatMoney(unpaid.total) })}
+                  </div>
+                ) : null}
               </div>
               {/* Üst özet kartında yalnız "Yeni Ücret Ekle" bulunur; form açıkken
                   gizlenir. Tek "Vazgeç" aksiyonu form kartının içindedir (aşağıda). */}
@@ -388,7 +479,7 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
             <h3 className="text-base font-black text-slate-950">{t("form.newTitle")}</h3>
           </div>
           <div className="p-4">
-            {renderForm(form, (key, value) => setForm((p) => ({ ...p, [key]: value })))}
+            {renderForm(form, (key, value) => setForm((p) => ({ ...p, [key]: value })), true)}
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
@@ -443,7 +534,7 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
                 return (
                   <div key={charge.id} className="rounded-2xl border border-emerald-300 bg-emerald-50/40 p-4">
                     <h4 className="mb-3 text-sm font-black text-slate-950">{t("form.editTitle")}</h4>
-                    {renderForm(editForm, (key, value) => setEditForm((p) => ({ ...p, [key]: value })))}
+                    {renderForm(editForm, (key, value) => setEditForm((p) => ({ ...p, [key]: value })), false)}
                     <div className="mt-4 flex justify-end gap-2">
                       <button
                         onClick={cancelEdit}
@@ -478,6 +569,12 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
                       {charge.detail ? (
                         <span className="truncate text-sm font-bold text-slate-700">{charge.detail}</span>
                       ) : null}
+                      <span
+                        data-testid="charge-payment-chip"
+                        className={`rounded-full border px-2.5 py-0.5 text-xs font-black ${PAYMENT_TONE[readPaymentStatus(charge.payment_status) ?? "unknown"]}`}
+                      >
+                        {t(`payment.${readPaymentStatus(charge.payment_status) ?? "unknown"}`)}
+                      </span>
                     </div>
                     {charge.note ? (
                       <p className="mt-1.5 whitespace-pre-wrap text-xs font-medium leading-5 text-slate-500">
@@ -490,7 +587,17 @@ export default function UcretlendirmeTab({ clientId }: UcretlendirmeTabProps) {
                     <span className="rounded-xl bg-emerald-100 px-3 py-1.5 text-sm font-black text-emerald-800">
                       {formatMoney(Number(charge.amount || 0))}
                     </span>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {readPaymentStatus(charge.payment_status) === "unpaid" ? (
+                        <button
+                          type="button"
+                          onClick={() => markPaid(charge.id)}
+                          disabled={saving}
+                          className="rounded-xl border border-emerald-300 bg-emerald-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                        >
+                          {t("payment.markPaid")}
+                        </button>
+                      ) : null}
                       <button
                         onClick={() => startEdit(charge)}
                         className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 shadow-sm transition hover:bg-blue-100"

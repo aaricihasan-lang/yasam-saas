@@ -78,7 +78,8 @@
         "expiredHw": "⚠ {count} ödev",
         "noPhone": "Telefon yok",
         "noGorusme": "Görüşme tarihi yok",
-        "detail": "Detay →"
+        "detail": "Detay →",
+        "unpaid": "Ücret Alınmadı"
       },
       "durum": {
         "aktif": "Aktif",
@@ -128,7 +129,20 @@
       "alertsOverdue": "{count} geciken ödev",
       "alertsGoTo": "Ödevlere git",
       "alertsClose": "Kapat",
-      "alertsUnknownClient": "Danışan"
+      "alertsUnknownClient": "Danışan",
+      "bulkWord": {
+        "wordSelected": "Seçilenleri Word İndir",
+        "wordAll": "Tümünü Word İndir",
+        "selectAll": "Tümünü Seç",
+        "selectAllFiltered": "Sonuçların Tümünü Seç",
+        "loadingAll": "Tüm danışanlar yükleniyor...",
+        "scopeNone": "Word için danışan seçin. Word her seçilen danışanın tam dosyasını (tekli raporun tüm içeriği) içerir.",
+        "scopeAll": "Tüm danışanlar seçili ({total}). Word her danışanın tam dosyasını içerir.",
+        "scopeSelected": "{selected} / {total} danışan seçili. Word yalnız seçilenlerin tam dosyasını içerir.",
+        "scopeFiltered": "Arama/filtre aktif: {filtered} sonuç, {selected} seçili. Word yalnız seçilenleri içerir.",
+        "tooMany": "Tek Word dosyasında en fazla {max} danışan olabilir ({count} seçili). Lütfen seçimi daraltın.",
+        "success": "{count} danışanın tam dosyası indirildi."
+      }
     }
   }
 }

@@ -32,7 +32,16 @@
         "expertNoteLabel": "Uzman Notu",
         "expertNotePlaceholder": "Senin iç notun...",
         "feedbackLabel": "Danışan Geri Bildirimi",
-        "feedbackPlaceholder": "Danışanın dönüşleri, zorlandığı noktalar..."
+        "feedbackPlaceholder": "Danışanın dönüşleri, zorlandığı noktalar...",
+        "durationLabel": "Kaç gün sonra?",
+        "durationPlaceholder": "Örn: 21",
+        "durationHint": "Bitiş = başlangıç + gün sayısı. 0 = aynı gün biter. Tarihi elle de seçebilirsiniz.",
+        "durationErrors": {
+          "notInteger": "Yalnız tam sayı girin (örn. 7).",
+          "negative": "Gün sayısı negatif olamaz.",
+          "tooLarge": "En fazla 3650 gün girilebilir.",
+          "noStart": "Önce başlangıç tarihini seçin."
+        }
       },
       "header": {
         "badge": "Danışan Ödev Takibi",
@@ -110,7 +119,8 @@
         "dismissFailed": "Uyarı kapatılamadı",
         "deleted": "Ödev silindi.",
         "deleteFailed": "Ödev silinemedi",
-        "endBeforeStart": "Bitiş tarihi başlangıç tarihinden önce olamaz."
+        "endBeforeStart": "Bitiş tarihi başlangıç tarihinden önce olamaz.",
+        "invalidDuration": "Gün sayısını düzeltin veya bitiş tarihini elle seçin."
       },
       "error": {
         "loadFailed": "Ödev kayıtları yüklenemedi"

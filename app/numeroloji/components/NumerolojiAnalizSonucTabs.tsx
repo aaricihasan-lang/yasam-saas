@@ -44,13 +44,12 @@ import {
   type NumerolojiMotorOut,
 } from "../utils/numerolojiPlainMetin";
 import {
-  CHRONO_CUTOFF_NOTE,
   cutoffHarfSegments,
   harfDisplayAgeEnd,
   harfDisplayYearEnd,
   type HarfCutoffSegment,
 } from "../utils/chronoCutoff";
-import { useCurrentYear } from "../hooks/useCurrentYear";
+import { useChronoView } from "../hooks/useChronoView";
 import { useContentTypography } from "./numerolojiContentTypography";
 
 const OZET_VERI_YOK = "Bu bölüm için veri üretilemedi.";
@@ -167,9 +166,11 @@ function OzetMetinPre({ text }: { text: string | undefined | null }) {
 // OWNER: kronolojik bölümlerde TEK KEZ gösterilen bilgilendirme notu (yıl NUMARASI içermez;
 // her yıl otomatik geçerli). Premium arayüzle uyumlu, hesap metnine karışmayan ince şerit.
 function ChronoNote() {
+  // Yetki KAPALI → önceki not birebir; AÇIK → "gelecek dönemler dâhil" notu.
+  const { note } = useChronoView();
   return (
     <p className="mt-2 rounded-md border border-amber-200/60 bg-amber-50/50 px-2.5 py-1 text-[10px] font-medium leading-snug text-amber-800/90">
-      {CHRONO_CUTOFF_NOTE}
+      {note}
     </p>
   );
 }
@@ -406,7 +407,8 @@ function TabSonucOzetiPremium({
   lastName?: string;
 }) {
   const typo = useContentTypography();
-  const currentYear = useCurrentYear();
+  // limitYear: gösterim sınırı (yetki KAPALI → currentYear). currentYear: "Aktif" vurgusu.
+  const { currentYear, limitYear } = useChronoView();
   const el = out.elementler.counts;
   const elMax = Math.max(...ELEMENT_ORDER.map((n) => el[n]), 1);
 
@@ -455,7 +457,7 @@ function TabSonucOzetiPremium({
         <HarflerBuyukPanel
           segments={cutoffHarfSegments(
             Array.isArray(out.harflerinYankilanisi) ? out.harflerinYankilanisi : [],
-            currentYear,
+            limitYear,
           )}
           currentYear={currentYear}
         />
@@ -506,7 +508,8 @@ export function TabSonucOzeti({
   // Hook'lar erken return'den ÖNCE, koşulsuz çağrılır (rules-of-hooks). Premium dalı
   // kendi hook'larını kullanan TabSonucOzetiPremium'a devreder.
   const typo = useContentTypography();
-  const currentYear = useCurrentYear();
+  // Gösterim sınırı: yetki KAPALI → currentYear (önceki davranış); AÇIK → tüm dönemler.
+  const { limitYear } = useChronoView();
 
   if (layout === "premium") {
     return (
@@ -527,7 +530,7 @@ export function TabSonucOzeti({
   const harfHasSegments = Array.isArray(hy) && hy.length > 0;
   // OWNER YEAR-CUTOFF: kronolojik bölümler yapısal veriden currentYear'a sınırlanır (canonical
   // hesap DEĞİŞMEZ). İçerik plain-metin ile TEK kaynaktan (bounded builder) gelir; not styled.
-  const harfCut = harfHasSegments ? cutoffHarfSegments(hy as HarfYankilanisiSegment[], currentYear) : [];
+  const harfCut = harfHasSegments ? cutoffHarfSegments(hy as HarfYankilanisiSegment[], limitYear) : [];
 
   return (
     <div className="space-y-3">
@@ -569,17 +572,17 @@ export function TabSonucOzeti({
       <OzetSectionCard title="Çakra Omurgası Özeti"><OzetMetinPre text={out.cakraOmurgasiMetni} /></OzetSectionCard>
 
       <OzetSectionCard title="Değişim-Dönüşüm Yılları Özeti">
-        <OzetMetinPre text={degisimBoundedText(out, currentYear)} />
+        <OzetMetinPre text={degisimBoundedText(out, limitYear)} />
         <ChronoNote />
       </OzetSectionCard>
 
       <OzetSectionCard title="Zirve Yılları Özeti">
-        <OzetMetinPre text={zirveBoundedText(out, currentYear)} />
+        <OzetMetinPre text={zirveBoundedText(out, limitYear)} />
         <ChronoNote />
       </OzetSectionCard>
 
       <OzetSectionCard title="Mücadele Yılları Özeti">
-        <OzetMetinPre text={mucadeleBoundedText(out, currentYear)} />
+        <OzetMetinPre text={mucadeleBoundedText(out, limitYear)} />
         <ChronoNote />
       </OzetSectionCard>
 
@@ -800,8 +803,8 @@ function NumeroCardBody({
 }
 
 export function TabPlainAnaliz({ out }: { out: NumerolojiMotorOut }) {
-  const currentYear = useCurrentYear();
-  const raw = buildPlainAnalizFull(out, currentYear);
+  const { limitYear, note } = useChronoView();
+  const raw = buildPlainAnalizFull(out, limitYear, note);
   const blocks = raw
     .split(/\n——————————\n/)
     .map((chunk) => {
@@ -929,10 +932,10 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
   const elementStoneItems = stoneAssignments.filter((s) => s.typeKey === STONE_TYPE_ELEMENT);
 
   const typo = useContentTypography();
-  const currentYear = useCurrentYear();
-  // OWNER (detaylı sekmede de gelecek gizli): kronolojik bölümler currentYear'a sınırlanır;
-  // Harflerin Yankılanışı TEK KEZ gösterilir (numaralı liste + === === tekrarı KALDIRILDI).
-  const harfListe = harfBoundedText(out, currentYear);
+  // OWNER (detaylı sekmede de gelecek gizli): kronolojik bölümler limitYear'a sınırlanır (yetki
+  // KAPALI → currentYear; AÇIK → tüm dönemler). Harflerin Yankılanışı TEK KEZ gösterilir.
+  const { limitYear } = useChronoView();
+  const harfListe = harfBoundedText(out, limitYear);
   const preScroll =
     layout === "detay"
       ? `whitespace-pre-wrap ${typo.pre} text-slate-800`
@@ -1001,15 +1004,15 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
         <TasDestekSectionBlock title="Element Taş Destekleri" items={elementStoneItems} stockIndex={stockIndex} />
       </DetayCard>
       <DetayCard title="Değişim Dönüşüm">
-        <pre className={preScroll}>{degisimBoundedText(out, currentYear)}</pre>
+        <pre className={preScroll}>{degisimBoundedText(out, limitYear)}</pre>
         <ChronoNote />
       </DetayCard>
       <DetayCard title="Zirve">
-        <pre className={preScroll}>{zirveBoundedText(out, currentYear)}</pre>
+        <pre className={preScroll}>{zirveBoundedText(out, limitYear)}</pre>
         <ChronoNote />
       </DetayCard>
       <DetayCard title="Mücadele">
-        <pre className={preScroll}>{mucadeleBoundedText(out, currentYear)}</pre>
+        <pre className={preScroll}>{mucadeleBoundedText(out, limitYear)}</pre>
         <ChronoNote />
       </DetayCard>
       <DetayCard title="Harflerin Yankılanışı">

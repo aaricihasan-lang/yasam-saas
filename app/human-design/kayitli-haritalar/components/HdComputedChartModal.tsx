@@ -22,11 +22,15 @@ import { HdExpertKnowledgePanel } from "./HdExpertKnowledgePanel";
 import { HdChartKnowledgeTabs, canUseHdSystemReading } from "./HdChartKnowledgeTabs";
 import { computedChartAppCodes } from "@/lib/human-design/chart/computedChart";
 import { buildChartSubjectInfo, todayCalendarDate } from "@/lib/human-design/chart/chartSubjectInfo";
+import { latestWordReportId } from "@/lib/human-design/reporting/wordReportPick";
+import { listReportBriefs } from "../../kayitli-raporlar/helpers/hdKayitliRaporlar";
 
 type Props = {
   id: string;
   onClose: () => void;
   onDeleted: (id: string) => void;
+  /** Listeden "Word İndir" ile açıldı → Word akışı açılışta bir kez başlar. */
+  autoWord?: boolean;
 };
 
 function formatDate(val: string | null | undefined): string {
@@ -38,7 +42,7 @@ function formatDate(val: string | null | undefined): string {
   }
 }
 
-export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
+export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false }: Props) {
   const { confirm } = useConfirm();
   const dialogRef = useRef<HTMLDivElement>(null);
   useHdModalA11y(dialogRef, onClose);
@@ -52,6 +56,21 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
   // AŞAMA 2B: "Sistem Yorumu" sekmesi yalnız human_design + hd_system_reading yetkili uzmana görünür
   // (erişim ayrıca sunucuda zorlanır).
   const [canSystemReading] = useState(canUseHdSystemReading);
+  // "Word İndir": bu analizin hazır Word v2 raporu (varsa aynısı indirilir; yeni kopya YOK).
+  // undefined = arama sürüyor. Arama başarısızsa null → ilk tıklamada rapor oluşturulur.
+  const [wordReportId, setWordReportId] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    let alive = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- id başına hazır rapor araması
+    setWordReportId(undefined);
+    void listReportBriefs({ chartId: id }).then(({ rows }) => {
+      if (alive) setWordReportId(latestWordReportId(rows, id));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [id]);
 
   useEffect(() => {
     let alive = true;
@@ -145,7 +164,15 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
               </span>
             ) : null}
             {/* FAZ 2.1: mevcut Profesyonel Word butonu REUSE (chartId = kayıtlı computed row.id). */}
-            {!loading && !loadError && row ? <HdProfessionalReportButton chartId={id} roxyRender={row.roxy_render ?? null} /> : null}
+            {!loading && !loadError && row ? (
+              <HdProfessionalReportButton
+                chartId={id}
+                roxyRender={row.roxy_render ?? null}
+                existingReportId={wordReportId ?? null}
+                lookupPending={wordReportId === undefined}
+                autoStart={autoWord}
+              />
+            ) : null}
             <button
               type="button"
               onClick={() => void handleDelete()}

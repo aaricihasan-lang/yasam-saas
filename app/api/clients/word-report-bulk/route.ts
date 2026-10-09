@@ -3,69 +3,75 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
-import { Document, Packer } from "docx";
-import {
-  bodyText,
-  buildFooter,
-  buildPremiumCover,
-  buildStatsPage,
-  buildTOCPage,
-  divider,
-  fieldInline,
-  h1Colored,
-  h2,
-  muted,
-  profileLabel,
-  ReportChild,
-  spacer,
-  twoColTable,
-} from "@/lib/docx/reportHelpers";
+import { Packer } from "docx";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
-import { formatDateLoose, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
-import { mizacLabel, tidyUserText } from "@/lib/clients/wordReportText";
+import { BULK_WORD_MAX_CLIENTS } from "@/lib/danisan/bulkWord";
+import {
+  buildClientsBulkFullReport,
+  type ClientRow,
+} from "@/app/api/clients/[id]/word-report/clientReportBuilder";
+import {
+  isBulkReadError,
+  loadClientDatasetsBulk,
+} from "@/app/api/clients/[id]/word-report/clientReportData";
 
 export const runtime = "nodejs";
+// WT7: toplu TAM rapor (her danışan tekli raporun tüm içeriği) — görsel indirme + DOCX üretimi uzun sürebilir.
+export const maxDuration = 300;
 
-const C_CLIENT = "1e3a5f";
+/**
+ * POST /api/clients/word-report-bulk — WT7 TOPLU TAM DANIŞAN DOSYASI
+ *
+ * Eskiden yalnız ad/telefon/sağlık notu özetiydi; artık seçilen her danışan için TEKLİ Word
+ * raporunun AYNI içeriği (aynı builder gövdesi) üretilir — tekli raporda olan alan atlanmaz.
+ *
+ * KAPSAM (yalnız iki mod; "görünen/ilk sayfa" kapsamı YOK):
+ *   - exportMode "selected" + clientIds (boş → 400; tümü bu tenant'ta bulunmalı, yoksa 409)
+ *   - exportMode "all" → tenant'ın GERÇEK tüm danışanları (sayfalı okuma, kesilme yok)
+ *   ("filtered" eski istemci uyumu için "selected" ile aynı işlenir.)
+ *
+ * SINIR: MAX_BULK_REPORT_CLIENTS aşılırsa pahalı okuma/DOCX'ten ÖNCE 413 + açık mesaj;
+ * kayıt ASLA sessizce kırpılmaz. Yanıt akış (stream) olarak döner → Vercel 4.5 MB gövde
+ * sınırı büyük dosyalarda devreye girmez.
+ */
 
-// DYA-05: toplu Word export için sonlu üst sınır. Her danışan bellekte bir DOCX
-// özet bloğuna dönüşür; sınırsız export RAM/timeout/OOM ve gereksiz sunucu maliyeti
-// riskidir. 500 tek bir pratisyenin gerçekçi danışan hacmini fazlasıyla kapsar ve
-// DOCX üretimini sonlu tutar. Aşımda pahalı sorgu/DOCX üretimi başlamadan 413 döner.
-const MAX_BULK_REPORT_CLIENTS = 500;
+// DYA-05 → WT7: tam içerikli toplu dosya için sonlu üst sınır (bellek/süre ölçümüyle belirlendi;
+// 1/3/10/50/100 sentetik danışan testi — scripts/wt7). Aşımda kullanıcıya açık hata gösterilir.
+const MAX_BULK_REPORT_CLIENTS = BULK_WORD_MAX_CLIENTS;
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const PAGE = 1000;
+const ID_CHUNK = 150;
 
 type ExportMode = "all" | "selected" | "filtered";
 
-type ClientRow = {
-  id: string;
-  ad: string | null;
-  soyad: string | null;
-  telefon: string | null;
-  dogum: string | null;
-  gorusme: string | null;
-  burc: string | null;
-  kan: string | null;
-  mizac: string | null;
-  created_at: string;
-};
-
-type NoteRow = {
-  client_id: string;
-  saglik_notu: string | null;
-};
-
-function v(val: string | null | undefined): string {
-  return val?.trim() || "Bilgi girilmemiş";
+function tooMany(n: number, scope: "selected" | "all"): Response {
+  const error = scope === "all"
+    ? `Toplam danışan sayısı (${n}) tek Word dosyası sınırını (${MAX_BULK_REPORT_CLIENTS}) aşıyor. Lütfen danışanları seçerek en fazla ${MAX_BULK_REPORT_CLIENTS}'lik gruplar halinde indirin.`
+    : `Seçilen danışan sayısı (${n}) tek Word dosyası sınırını (${MAX_BULK_REPORT_CLIENTS}) aşıyor. Lütfen seçimi en fazla ${MAX_BULK_REPORT_CLIENTS} danışana düşürün.`;
+  return Response.json({ ok: false, error, limit: MAX_BULK_REPORT_CLIENTS, count: n }, { status: 413 });
 }
 
-/** clients.dogum / gorusme TEXT alanlar — takvim günü kaydırılmaz (FA-02). */
-function formatDateTR(date: string | null | undefined): string {
-  return formatDateLoose(date, { fallback: "Bilgi girilmemiş" });
-}
-
-/** FA-41: kullanıcı yazımı korunur (otomatik title-case YOK; yalnız trim + boşluk sadeleştirme). */
-function titleCaseTR(text: string): string {
-  return tidyUserText(text);
+/** DOCX'i parça parça akıtır (Vercel gövde sınırı akışta uygulanmaz). */
+function docxStreamResponse(buffer: Buffer, filename: string, clientCount: number): Response {
+  const CHUNK = 256 * 1024;
+  let offset = 0;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (offset >= buffer.length) { controller.close(); return; }
+      const end = Math.min(offset + CHUNK, buffer.length);
+      controller.enqueue(new Uint8Array(buffer.subarray(offset, end)));
+      offset = end;
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "X-Report-Client-Count": String(clientCount),
+      "Cache-Control": "no-store",
+    },
+  });
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -82,163 +88,99 @@ export async function POST(req: NextRequest): Promise<Response> {
   try { body = await req.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { exportMode = "all", clientIds } = body as {
+  const { exportMode = "all", clientIds } = (body ?? {}) as {
     exportMode?: ExportMode;
-    clientIds?: string[];
+    clientIds?: unknown;
   };
 
   // DEMO VİTRİN: toplu Word de salt-okunur çıktı (DB yazımı/ücretli servis yok) → demo hesapta açık.
 
-  const isBoundedList =
-    (exportMode === "selected" || exportMode === "filtered") &&
-    Array.isArray(clientIds) && clientIds.length > 0;
+  if (exportMode !== "all" && exportMode !== "selected" && exportMode !== "filtered")
+    return Response.json({ ok: false, error: "Geçersiz dışa aktarma kapsamı." }, { status: 400 });
 
-  // ── DYA-05 hard cap ───────────────────────────────────────────────────────
-  // Seçili/filtrelenmiş liste: boyutu pahalı sorgu/DOCX'ten ÖNCE sınırla.
-  if (isBoundedList && clientIds!.length > MAX_BULK_REPORT_CLIENTS) {
-    return Response.json(
-      { ok: false, error: `Tek seferde en fazla ${MAX_BULK_REPORT_CLIENTS} danışan raporlanabilir. Lütfen seçimi daraltın.` },
-      { status: 413 },
-    );
-  }
-  // "all" (veya boş seçim → tüm tenant) modu: veri çekmeden ÖNCE say; sınır aşılırsa
-  // DOCX üretimine hiç başlamadan reddet.
-  if (!isBoundedList) {
+  let clients: ClientRow[] = [];
+
+  if (exportMode === "selected" || exportMode === "filtered") {
+    // Boş seçim ASLA "tümü"ne düşmez (eski davranış sessizce tüm tenant'ı basıyordu).
+    if (!Array.isArray(clientIds) || clientIds.length === 0)
+      return Response.json({ ok: false, error: "Word için en az bir danışan seçin." }, { status: 400 });
+    // Geçersiz id sessizce elenmez → tüm istek reddedilir.
+    if (!clientIds.every((x) => typeof x === "string" && UUID_RE.test(x)))
+      return Response.json({ ok: false, error: "Geçersiz danışan seçimi." }, { status: 400 });
+    const ids = Array.from(new Set(clientIds as string[]));
+    if (ids.length > MAX_BULK_REPORT_CLIENTS) return tooMany(ids.length, "selected");
+
+    const found = new Map<string, ClientRow>();
+    for (let i = 0; i < ids.length; i += ID_CHUNK) {
+      const { data, error } = await db
+        .from("clients")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .in("id", ids.slice(i, i + ID_CHUNK));
+      if (error)
+        return serverErrorResponse({
+          route: "clients/word-report-bulk", action: "POST-clients", tenantId, cause: error,
+          usage: { guard, req, module: "clients", failedAction: "report_generated", subEntity: "client" },
+        });
+      for (const c of (data ?? []) as ClientRow[]) found.set(c.id, c);
+    }
+    const missing = ids.length - found.size;
+    if (found.size === 0)
+      return Response.json({ ok: false, error: "Bu seçim için danışan bulunamadı." }, { status: 404 });
+    if (missing > 0)
+      return Response.json(
+        { ok: false, error: `Seçilen danışanlardan ${missing} tanesi bulunamadı (silinmiş olabilir). Listeyi yenileyip tekrar deneyin.` },
+        { status: 409 },
+      );
+    // Seçim sırası korunur (kullanıcının listede gördüğü sıra).
+    clients = ids.map((id) => found.get(id)!);
+  } else {
+    // "all" — önce say; sınır aşılırsa pahalı okumaya hiç başlamadan reddet.
     const { count, error: countError } = await db
       .from("clients")
       .select("id", { count: "exact", head: true })
       .eq("tenant_id", tenantId);
     if (countError)
       return serverErrorResponse({ route: "clients/word-report-bulk", action: "POST-count", tenantId, cause: countError });
-    if ((count ?? 0) > MAX_BULK_REPORT_CLIENTS) {
-      return Response.json(
-        { ok: false, error: `Toplam danışan sayısı (${count}) tek seferlik export sınırını (${MAX_BULK_REPORT_CLIENTS}) aşıyor. Lütfen danışan seçerek dışa aktarın.` },
-        { status: 413 },
-      );
+    if ((count ?? 0) > MAX_BULK_REPORT_CLIENTS) return tooMany(count ?? 0, "all");
+
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await db
+        .from("clients")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (error)
+        return serverErrorResponse({
+          route: "clients/word-report-bulk", action: "POST", tenantId, cause: error,
+          usage: { guard, req, module: "clients", failedAction: "report_generated", subEntity: "client" },
+        });
+      const rows = (data ?? []) as ClientRow[];
+      clients.push(...rows);
+      if (rows.length < PAGE) break;
     }
+    if (!clients.length)
+      return Response.json({ ok: false, error: "Henüz danışan yok." }, { status: 404 });
+    // Sayım ile okuma arasında eşzamanlı ekleme → sınır yine korunur (kırpma yok, açık hata).
+    if (clients.length > MAX_BULK_REPORT_CLIENTS) return tooMany(clients.length, "all");
   }
 
-  // ── Danışan çekimi (DB sorgusunda da sınır — defense-in-depth)
-  let clientQuery = db
-    .from("clients")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
-    .limit(MAX_BULK_REPORT_CLIENTS);
-
-  if (isBoundedList) {
-    clientQuery = clientQuery.in("id", clientIds!);
-  }
-
-  const { data: clientData, error: clientError } = await clientQuery;
-  if (clientError)
+  let items;
+  try {
+    items = await loadClientDatasetsBulk(db, tenantId, clients);
+  } catch (e) {
     return serverErrorResponse({
-      route: "clients/word-report-bulk",
-      action: "POST",
-      tenantId,
-      cause: clientError,
+      route: "clients/word-report-bulk", action: isBulkReadError(e) ? `POST-read-${e.table}` : "POST-read", tenantId,
+      cause: isBulkReadError(e) ? e.cause : e,
       usage: { guard, req, module: "clients", failedAction: "report_generated", subEntity: "client" },
     });
-
-  const clients = (clientData || []) as ClientRow[];
-  if (!clients.length)
-    return Response.json({ ok: false, error: "Bu seçim için danışan bulunamadı." }, { status: 404 });
-
-  // ── Sağlık notu batch fetch
-  const { data: noteData } = await db
-    .from("client_notes")
-    .select("client_id, saglik_notu")
-    .eq("tenant_id", tenantId)
-    .in("client_id", clients.map((c) => c.id));
-
-  const notesMap = new Map<string, string | null>();
-  for (const note of (noteData || []) as NoteRow[]) {
-    notesMap.set(note.client_id, note.saglik_notu);
   }
 
-  // FA-02: rapor tarihi / dosya adı Europe/Istanbul yerel günü.
-  const today = reportGeneratedLabel();
-  const dateSlug = reportFileDate();
-  const expertName = expertDisplayName(guard.profile);
-
-  const exportLabel =
-    exportMode === "selected" ? `Seçili Danışanlar (${clients.length})` :
-    exportMode === "filtered" ? `Filtrelenmiş Danışanlar (${clients.length})` :
-    `Tüm Danışanlar (${clients.length})`;
-
-  const all: ReportChild[] = [];
-
-  // ── Premium kapak
-  all.push(...buildPremiumCover({
-    title1:   "YAŞAM SİSTEMİ",
-    title2:   "DANIŞAN LİSTESİ",
-    subtitle: "Toplu Danışan Özet Raporu",
-    date:     `Oluşturulma Tarihi: ${today}`,
-    stats: [
-      { label: "Toplam Danışan", value: String(clients.length) },
-      { label: "Kapsam",         value: exportLabel },
-    ],
-  }));
-
-  // ── Sistem özeti
-  all.push(...buildStatsPage([
-    ["Toplam Danışan", String(clients.length)],
-    ["Rapor Kapsamı",  exportLabel],
-    ...(expertName ? [["Hazırlayan", expertName] as [string, string]] : []),
-  ]));
-
-  // ── İçindekiler
-  all.push(...buildTOCPage());
-
-  // ── Danışan listesi bölümü
-  all.push(h1Colored("1. Danışan Listesi", C_CLIENT, true));
-  all.push(muted(`${clients.length} danışan · özet profil`));
-  all.push(spacer());
-
-  clients.forEach((client, i) => {
-    const fullName = titleCaseTR(`${client.ad ?? ""} ${client.soyad ?? ""}`.trim()) || "İsimsiz Danışan";
-    const saglikNotu = notesMap.get(client.id);
-
-    if (i > 0) all.push(divider());
-
-    all.push(profileLabel(`DANIŞAN #${String(i + 1).padStart(3, "0")}`, C_CLIENT));
-    all.push(h2(fullName));
-    all.push(twoColTable([
-      ["Telefon",        v(client.telefon)],
-      ["Doğum Tarihi",   formatDateTR(client.dogum)],
-      ["Görüşme Tarihi", formatDateTR(client.gorusme)],
-      ["Burç",           v(client.burc)],
-      ["Kan Grubu",      v(client.kan)],
-      ["Mizaç",          mizacLabel(client.mizac)],
-    ]));
-
-    if (saglikNotu?.trim()) {
-      const preview = saglikNotu.trim().length > 280
-        ? saglikNotu.trim().slice(0, 280) + "..."
-        : saglikNotu.trim();
-      all.push(fieldInline("Sağlık Notu", preview));
-    }
-  });
-
-  const doc = new Document({
-    sections: [{
-      properties: {},
-      footers: { default: buildFooter("Danışan Listesi Raporu · Yaşam Sistemi") },
-      children: all,
-    }],
-  });
-
+  const { doc, filename } = buildClientsBulkFullReport(items, { expertName: expertDisplayName(guard.profile) });
   const buffer = await Packer.toBuffer(doc);
   // Toplu rapor = tek kullanıcı eylemi → tek olay + itemCount (danışan sayısı).
-  await trackUsage(guard, req, { module: "clients", action: "report_generated", subEntity: "client", itemCount: clients.length });
-  const modeSlug = exportMode === "selected" ? "secili" : exportMode === "filtered" ? "filtreli" : "tumu";
-  const filename = `danisan-listesi-${modeSlug}-${dateSlug}.docx`;
-
-  return new Response(new Uint8Array(buffer), {
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-      "Content-Length": String(buffer.length),
-    },
-  });
+  await trackUsage(guard, req, { module: "clients", action: "report_generated", subEntity: "client", itemCount: items.length });
+  return docxStreamResponse(buffer, filename, items.length);
 }

@@ -4,6 +4,7 @@ import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { isPaymentStatus } from "@/lib/danisan/chargePayment";
 
 export const runtime = "nodejs";
 
@@ -25,6 +26,8 @@ export const runtime = "nodejs";
  *   - category ∈ {session, homework, analysis, other} (zorunlu).
  *   - amount: sonlu sayı ve > 0 (negatif/NaN/boş reddedilir).
  *   - category === "other" → detail (serbest metin) ZORUNLU.
+ *   - WT7 payment_status: POST'ta ZORUNLU ("paid" | "unpaid"); PATCH'te verilirse yalnız bu iki değer.
+ *     Eski kayıtlar NULL (Belirtilmemiş) kalır — sunucu tahmin/varsayılan YAZMAZ.
  */
 
 const CATEGORIES = new Set(["session", "homework", "analysis", "other"]);
@@ -152,6 +155,11 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Tarih geçerli bir gün (YYYY-AA-GG) olmalıdır." }, { status: 400 });
   }
 
+  // WT7: yeni kayıtta ödeme durumu açık seçim olmalı (varsayılan yazılmaz).
+  if (!isPaymentStatus(fields.payment_status)) {
+    return NextResponse.json({ ok: false, error: "Ödeme durumunu seçiniz (Ödendi / Ödenmedi)." }, { status: 400 });
+  }
+
   const insertRow = {
     tenant_id: tenantId,
     client_id: clientId,
@@ -159,6 +167,7 @@ export async function POST(
     amount,
     detail: nonEmpty(fields.detail) ? String(fields.detail).trim() : null,
     note: nonEmpty(fields.note) ? String(fields.note).trim() : null,
+    payment_status: fields.payment_status,
     ...(nonEmpty(fields.charge_date) ? { charge_date: String(fields.charge_date).trim() } : {}),
   };
 
@@ -252,6 +261,13 @@ export async function PATCH(
       return NextResponse.json({ ok: false, error: "Tarih geçerli bir gün (YYYY-AA-GG) olmalıdır." }, { status: 400 });
     }
     update.charge_date = String(fields.charge_date).trim();
+  }
+
+  if ("payment_status" in fields) {
+    if (!isPaymentStatus(fields.payment_status)) {
+      return NextResponse.json({ ok: false, error: "Ödeme durumu Ödendi veya Ödenmedi olmalıdır." }, { status: 400 });
+    }
+    update.payment_status = fields.payment_status;
   }
 
   if (Object.keys(update).length === 0) {

@@ -18,7 +18,9 @@
       },
       "hero": {
         "badge": "Client Detail",
-        "subtitle": "Everything for this client — information, notes, stones, sessions, assignments and appointments — in one place."
+        "subtitle": "Everything for this client — information, notes, stones, sessions, assignments and appointments — in one place.",
+        "unpaid": "Fee Not Collected",
+        "unpaidDetail": "{count} unpaid fee(s) · {total}"
       },
       "info": {
         "phone": "Phone",

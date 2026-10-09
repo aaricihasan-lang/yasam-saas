@@ -18,7 +18,9 @@
       },
       "hero": {
         "badge": "Danışan Detayı",
-        "subtitle": "Danışan bilgileri, notlar, taşlar, seanslar, ödevler ve randevular burada yönetilir."
+        "subtitle": "Danışan bilgileri, notlar, taşlar, seanslar, ödevler ve randevular burada yönetilir.",
+        "unpaid": "Ücret Alınmadı",
+        "unpaidDetail": "{count} ödenmemiş ücret · {total}"
       },
       "info": {
         "phone": "Telefon",
