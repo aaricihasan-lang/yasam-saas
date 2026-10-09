@@ -54,7 +54,7 @@ export function AstroSeparationInfo() {
         <span
           id="astro-separation-note"
           role="note"
-          className="absolute left-0 top-7 z-30 w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-700 shadow-lg"
+          className="fixed inset-x-4 top-24 z-30 rounded-xl border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-700 shadow-lg sm:absolute sm:inset-x-auto sm:left-0 sm:top-7 sm:w-80"
           data-testid="astro-info-note"
         >
           {ASTRO_SEPARATION_NOTE}

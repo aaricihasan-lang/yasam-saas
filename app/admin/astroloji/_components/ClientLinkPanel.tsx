@@ -124,7 +124,7 @@ export default function ClientLinkPanel({ profileId, profileLabel, birthDate, cl
       {pending && (
         <div className="flex flex-col gap-2 rounded-lg border border-amber-300 bg-amber-50 p-2" role="alertdialog" aria-label="Yeniden eşleştirme onayı" data-testid="astro-relink-confirm">
           <p className="text-xs text-amber-900">
-            Bu profil şu an <strong>{clientMissing ? "bulunamayan bir danışanla" : (clientName ?? "başka bir danışanla")}</strong> eşleşik. <strong>{pending.name ?? "Seçilen danışan"}</strong> (#{pending.ref}) ile değiştirmek istediğinize emin misiniz? Önceki kayıtlı analizlerin içeriği değişmez.
+            Bu profil şu an <strong>{clientMissing ? "bulunamayan bir danışanla" : clientName ? `${clientName} ile` : "başka bir danışanla"}</strong> eşleşik. <strong>{pending.name ?? "Seçilen danışan"}</strong> (#{pending.ref}) ile değiştirmek istediğinize emin misiniz? Önceki kayıtlı analizlerin içeriği değişmez.
           </p>
           <div className="flex gap-1.5">
             <button type="button" onClick={() => setPending(null)} className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs">

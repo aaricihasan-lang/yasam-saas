@@ -23,6 +23,7 @@ import { runAstrology, type EngineDeps } from "@/lib/astrology/engine/service";
 import { resolveAstrologyEntitlements } from "@/lib/astrology/access/entitlements";
 import { resolveAstroLocation } from "@/lib/astrology/birth/location";
 import { createKb } from "@/lib/astrology/kb/service";
+import { saveAnalysis } from "@/lib/astrology/analyses/service";
 import { lunarReturnsInMonth, natalMoonLongitude } from "@/lib/astrology/engine/lunarReturnDate";
 import { syntheticSubResponse } from "./syntheticDasha";
 
@@ -79,6 +80,27 @@ async function seed() {
     { label: "Sentetik B — Ankara", clientId: "22222222-2222-4222-8222-222222222222", birthDate: "1988-03-21", birthTime: "06:45", timeKnown: true, timeAccuracy: "exact_record", locationId: "tr-06-ankara" },
     resolveAstroLocation,
   );
+  // Aşama 7B görsel doğrulama (SENTETİK): aynı ad/soyad/doğum tarihli üç danışan, sayfalama için 40 ek profil,
+  // Ali profilinde üç gelenekte kayıtlı analizler (1 gerçek kaydet akışı + liste için sentetik satırlar).
+  store.tables.clients.push(
+    { id: "c7b70001-0000-4000-8000-000000000001", tenant_id: TENANT_A, ad: "İlknur", soyad: "IŞIK", dogum: "1985-05-06", telefon: "0532 123 45 67", kan: "A Rh+", created_at: "2026-01-02T10:00:00Z" },
+    { id: "c7b70002-0000-4000-8000-000000000002", tenant_id: TENANT_A, ad: "ilknur", soyad: "ışık", dogum: "1985-05-06", telefon: null, created_at: "2026-02-02T10:00:00Z" },
+    { id: "c7b70003-0000-4000-8000-000000000003", tenant_id: TENANT_A, ad: "İLKNUR", soyad: "Işık", dogum: "1985-05-06", telefon: "05559876543", created_at: "2026-03-02T10:00:00Z" },
+  );
+  await createAstroProfile(ctx, { label: "İlknur Işık — natal", birthDate: "1985-05-06", birthTime: "08:15", timeKnown: true, timeAccuracy: "exact_record", locationId: "tr-34-istanbul" }, resolveAstroLocation);
+  for (let i = 1; i <= 40; i += 1) {
+    await createAstroProfile(ctx, { label: `Sentetik Kişi ${String(i).padStart(2, "0")}`, birthDate: `1970-01-${String((i % 28) + 1).padStart(2, "0")}`, timeKnown: false, locationId: "tr-06-ankara" }, resolveAstroLocation);
+  }
+  await saveAnalysis(ctx, { profileId: pid, revision: 1, technique: "western.natal", options: { houseSystem: "placidus", nodeType: "true" }, includeProviderInterp: true, saveRequestId: "7b7b7b7b-0000-4000-8000-000000000001", title: "Ali natal (gerçek kayıt)" }, false);
+  for (let i = 1; i <= 14; i += 1) {
+    const technique = i % 3 === 0 ? "vedic.d1" : i % 3 === 1 ? "kp.chart" : "western.transit";
+    await ctx.db.rpc("astro_analysis_save_v2", {
+      p_tenant_id: TENANT_A, p_user_id: OWNER, p_profile_id: pid, p_profile_revision: 1, p_partner_profile_id: null, p_partner_profile_revision: null, p_result_ids: [],
+      p_technique: technique, p_title: `Sentetik liste kaydı ${i}`, p_save_request_id: `7b7b7b7b-0000-4000-8000-0000000001${String(i).padStart(2, "0")}`, p_technique_params: {},
+      p_profile_snapshot: { label: "Ali Örnek — natal" }, p_method_snapshot: {}, p_technical_snapshot: {}, p_kb_snapshot: [], p_provider_interp_included: false,
+      p_provider_interp_snapshot: null, p_versions_snapshot: {}, p_notes: [],
+    });
+  }
 }
 
 const GOLDEN_DIR = join(__dirname, "fixtures", "golden");
