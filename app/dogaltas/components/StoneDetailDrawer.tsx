@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { type StoneListItemExtended } from "@/lib/dogaltas/stonesListFetch";
 import { useOverlay } from "@/lib/dogaltas/useOverlay";
+import { useSearchHighlight } from "@/lib/search/useSearchHighlight";
 import {
   useSignedStoneImageUrls,
   imageFilePath,
@@ -18,7 +19,12 @@ type StoneDetailDrawerProps = {
   inCart: boolean;
   onToggleCart: () => void;
   onClose: () => void;
+  /** WT8: aranan metin değerleri (Detay Arama koşulları) — panelde sarı vurgu + ilk eşleşmeye kaydırma. */
+  highlightTerms?: readonly string[];
 };
+
+/** Bu kadar pikselden fazla kayan dokunuş "dokunma" sayılmaz (kaydırma/sürükleme panel kapatmaz). */
+const TAP_SLOP_PX = 10;
 
 /** assignments JSON'unu güvenli {başlık → satırlar[]} yapısına çevirir. */
 function normalizeAssignments(raw: unknown): Record<string, string[][]> {
@@ -103,6 +109,7 @@ export function StoneDetailDrawer({
   inCart,
   onToggleCart,
   onClose,
+  highlightTerms = [],
 }: StoneDetailDrawerProps) {
   const t = useTranslations("stones.detailDrawer");
   const tc = useTranslations("stones.common");
@@ -159,6 +166,23 @@ export function StoneDetailDrawer({
     [stone?.warning_tags],
   );
 
+  // WT8: arama eşleşmeleri — panel içindeki TÜM geçişler sarı; açılışta ilk eşleşmeye bir kez kaydırır.
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  useSearchHighlight(contentRef, highlightTerms, { enabled: open && Boolean(stone), resetKey: stone?.id ?? "" });
+
+  // WT8: arka plana gerçek DOKUNMA kapatır; içerikte başlayıp dışarıda biten sürükleme / kaydırma kapatmaz.
+  const backdropDown = useRef<{ x: number; y: number } | null>(null);
+  const onBackdropPointerDown = (e: ReactPointerEvent) => {
+    backdropDown.current = { x: e.clientX, y: e.clientY };
+  };
+  const onBackdropClick = (e: ReactMouseEvent) => {
+    const down = backdropDown.current;
+    backdropDown.current = null;
+    if (!down) return;
+    if (Math.abs(e.clientX - down.x) > TAP_SLOP_PX || Math.abs(e.clientY - down.y) > TAP_SLOP_PX) return;
+    onClose();
+  };
+
   if (!open || !stone) return null;
 
   const usage = [
@@ -175,25 +199,28 @@ export function StoneDetailDrawer({
   // "Kapat" (×) düğmesini örtüyordu (tıklanamıyordu). Artık tüm sayfanın üstünde.
   return createPortal(
     <div
-      className="fixed inset-0 z-[70] flex justify-end"
+      className="fixed inset-0 z-[70] flex items-center justify-center px-3 sm:items-stretch sm:justify-end sm:px-0"
       role="dialog"
       aria-modal="true"
       aria-label={t("detailAria", { name: stone.stone_name || t("stoneFallback") })}
     >
-      {/* Arka plan */}
+      {/* Arka plan — panelin ÜSTÜNDE ve ALTINDAKİ karartılmış alanın tamamı (dokunma → kapanır). */}
       <div
+        data-testid="stone-detail-drawer-backdrop"
         className="absolute inset-0 bg-slate-950/45 backdrop-blur-[2px]"
-        onClick={onClose}
+        onPointerDown={onBackdropPointerDown}
+        onClick={onBackdropClick}
         aria-hidden
       />
 
-      {/* Panel: mobil alttan açılan sayfa (üstte karartılmış boşluk kalır → dokununca kapanır;
-          WT5: önceden mobilde tam ekrandı, dışarı dokunacak alan yoktu), tablet/desktop sağ drawer. */}
+      {/* Panel — mobil: ortalanmış yüzen kart (WT8: üstte VE altta karartılmış dokunma alanı kalır;
+          WT5'te panel ekranın altına yapışıktı → alt boşluğa dokunmak kapatmıyordu; kısa içerikte
+          panelin kendisi kısalır, beyaz "boş" alan kalmaz). Tablet/desktop: sağ drawer (değişmedi). */}
       <div
         ref={containerRef}
         tabIndex={-1}
         data-testid="stone-detail-drawer-panel"
-        className="animate-drawer-in relative mt-auto flex h-[88dvh] w-full flex-col overflow-hidden rounded-t-[24px] bg-white shadow-2xl sm:mt-0 sm:h-full sm:w-[440px] sm:rounded-none md:w-[480px] lg:w-[520px]"
+        className="animate-drawer-in relative flex max-h-[calc(100dvh-7rem)] w-full flex-col overflow-hidden rounded-[24px] bg-white shadow-2xl sm:h-full sm:max-h-none sm:w-[440px] sm:rounded-none md:w-[480px] lg:w-[520px]"
       >
         {/* Başlık */}
         <header className="flex items-start justify-between gap-3 border-b border-slate-100 bg-white/95 px-4 py-3">
@@ -227,7 +254,7 @@ export function StoneDetailDrawer({
         </header>
 
         {/* İçerik */}
-        <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+        <div ref={contentRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
           {/* Görseller */}
           {images.length > 0 ? (
             <div className="space-y-2">

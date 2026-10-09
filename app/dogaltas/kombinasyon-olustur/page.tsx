@@ -46,6 +46,9 @@ import {
 } from "@/lib/dogaltas/stoneConditionSearch";
 import { MineralCombobox } from "@/app/dogaltas/components/MineralCombobox";
 import { StoneDetailDrawer } from "@/app/dogaltas/components/StoneDetailDrawer";
+import { SearchCheckedBadge, SEARCH_CHECKED_CARD_ACCENT } from "@/components/search/SearchCheckedBadge";
+import { browserSessionStorage, markChecked, readCheckedIds, searchContextKey } from "@/lib/search/searchChecked";
+import { runInEffect } from "@/lib/runInEffect";
 import {
   SaveCombinationModal,
   clientFullName,
@@ -284,6 +287,23 @@ export default function KombinasyonOlusturPage() {
     () => activeConditions.map((c) => `${c.type}:${c.value.trim()}:${c.minPercent ?? ""}`).join("|"),
     [activeConditions],
   );
+
+  // WT8: "Kontrol edildi" — detay paneli açılan sonuç bu koşul kümesinde işaretlenir (sessionStorage,
+  // ortak lib/search/searchChecked). Sıralama/filtre değişmez; koşullar değişince temiz başlar.
+  const checkedContext = searchContextKey({ scope: "builder", query: conditionsKey });
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(() => new Set());
+  useEffect(() => {
+    runInEffect(() => setCheckedIds(readCheckedIds(browserSessionStorage(), checkedContext)));
+  }, [checkedContext]);
+  const openDetail = useCallback(
+    (stone: StoneListItemExtended, inStock: boolean) => {
+      setDetail({ stone, inStock });
+      if (checkedContext) setCheckedIds(markChecked(browserSessionStorage(), checkedContext, stone.id));
+    },
+    [checkedContext],
+  );
+  // WT8: panelde vurgulanacak arama değerleri (koşul metinleri).
+  const highlightTerms = useMemo(() => activeConditions.map((c) => c.value.trim()), [activeConditions]);
 
   // ── SERVER-SIDE condition search (F-01/§5) — debounce + race guard ────────────
   // Tüm setState timeout callback'i içinde (senkron effect-body setState yok).
@@ -857,18 +877,21 @@ export default function KombinasyonOlusturPage() {
                     )
                     .slice(0, 5);
 
+                  const isChecked = checkedContext !== "" && checkedIds.has(stone.id);
                   return (
                     <div
                       key={stone.id}
+                      data-testid="builder-result-card"
                       className={`overflow-hidden rounded-[18px] border-[3px] p-4 shadow-sm transition-all duration-300 ${
                         inStock
                           ? "border-emerald-400/70 bg-emerald-50/60 shadow-[0_0_24px_rgba(16,185,129,0.18)]"
                           : "border-slate-200 bg-white/70 opacity-80 hover:opacity-100"
-                      }`}
+                      } ${isChecked ? SEARCH_CHECKED_CARD_ACCENT : ""}`}
                     >
+                      {isChecked ? <SearchCheckedBadge label={t("checked")} className="mb-2" /> : null}
                       <button
                         type="button"
-                        onClick={() => setDetail({ stone, inStock })}
+                        onClick={() => openDetail(stone, inStock)}
                         className="group block w-full text-left transition hover:-translate-y-0.5"
                       >
                       <div className="flex items-start gap-3">
@@ -931,7 +954,7 @@ export default function KombinasyonOlusturPage() {
                       <div className="mt-3 grid grid-cols-2 gap-2">
                         <button
                           type="button"
-                          onClick={() => setDetail({ stone, inStock })}
+                          onClick={() => openDetail(stone, inStock)}
                           className="btn-soft w-full !px-3 !py-1.5 !text-xs"
                         >
                           {t("detail")}
@@ -1288,6 +1311,7 @@ export default function KombinasyonOlusturPage() {
           }
         }}
         onClose={() => setDetail(null)}
+        highlightTerms={highlightTerms}
       />
 
       {/* Kaydetme hedef seçim modalı (Genel / Danışana Özel) */}

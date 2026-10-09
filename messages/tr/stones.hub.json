@@ -27,7 +27,7 @@
         "loading": "Yükleniyor...",
         "empty": "Bu arama için sonuç bulunamadı.",
         "noDescription": "Kısa açıklama eklenmemiş.",
-        "viewed": "Bakıldı",
+        "viewed": "Kontrol edildi",
         "matched": "Eşleşme: {field}",
         "detail": "Detaya Git",
         "cappedNote": "Çok fazla eşleşme var; yalnız ilk 500 sonuç gösteriliyor. Aramayı daraltın."

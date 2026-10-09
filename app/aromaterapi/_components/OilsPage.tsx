@@ -422,7 +422,14 @@ function NewOilForm({
 
   return (
     <>
-      <div className="flex h-dvh flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top_left,#fdf4ff_0%,#fff7ed_50%,#f8fafc_100%)] p-4 text-slate-950">
+      {/* WT8 yükseklik kontratı: global sabit logo çubuğu (fixed 44px) akışta 44px'lik bir boşluk
+          bırakır (--logo-h). Önceki `h-dvh` bu boşluğun ALTINDA tam ekran yüksekliği aldığından sayfa
+          viewport'tan 44px taşıyor, alt "Kaydet" çubuğu ekranın altında yarım kalıyordu (kaydırınca
+          düzeliyordu). Artık yükseklik = dinamik viewport − logo çubuğu; alt çubuk güvenli alanda. */}
+      <div
+        data-testid="new-oil-form"
+        className="flex h-[calc(100dvh-var(--logo-h,0px))] flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top_left,#fdf4ff_0%,#fff7ed_50%,#f8fafc_100%)] p-4 text-slate-950"
+      >
         {/* Header */}
         <header className="mb-4 flex h-16 shrink-0 items-center justify-between rounded-3xl border border-amber-100/70 bg-white/80 px-5 shadow sm:px-6">
           <button
@@ -595,9 +602,13 @@ function NewOilForm({
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2.5 border-t border-amber-100/80 bg-white/95 px-5 py-3 backdrop-blur-sm">
+            <div
+              data-testid="new-oil-save-bar"
+              className="flex shrink-0 items-center gap-2.5 border-t border-amber-100/80 bg-white/95 px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm"
+            >
               <button
                 type="button"
+                data-testid="new-oil-save"
                 onClick={() => void handleSave()}
                 disabled={saving}
                 className={`inline-flex h-9 items-center rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 px-5 text-[13px] font-black text-white shadow-md disabled:opacity-60 ${saving ? "pointer-events-none" : ""}`}

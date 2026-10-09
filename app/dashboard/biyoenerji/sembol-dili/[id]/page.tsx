@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import SembolDiliDetail from "../../components/SembolDiliDetail";
 import BiyoenerjiSectionShell from "../../components/BiyoenerjiSectionShell";
+import BiyoenerjiSearchHighlight from "../../components/BiyoenerjiSearchHighlight";
 import { safeSymbolLanguageId } from "@/lib/bioenergy/symbolLanguageRoutes";
 
 export default function SembolDiliDetailPage() {
@@ -19,7 +20,9 @@ export default function SembolDiliDetailPage() {
       subtitle="Kayıt detayı — anlam ve bilinçaltı mesajı"
     >
       <div className="w-full min-w-0 max-w-3xl">
-        <SembolDiliDetail id={safeId} />
+        <BiyoenerjiSearchHighlight recordKey={`sembol-dili:${safeId ?? ""}`}>
+          <SembolDiliDetail id={safeId} />
+        </BiyoenerjiSearchHighlight>
       </div>
     </BiyoenerjiSectionShell>
   );
