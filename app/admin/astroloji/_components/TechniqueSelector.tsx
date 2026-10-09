@@ -27,6 +27,8 @@ export default function TechniqueSelector({
   partners,
   timeKnown,
   lunarReturns = null,
+  partnerQuery,
+  onPartnerQuery,
 }: {
   checked: Partial<Record<UiTechniqueId, boolean>>;
   onChecked: (next: Partial<Record<UiTechniqueId, boolean>>) => void;
@@ -38,6 +40,9 @@ export default function TechniqueSelector({
   timeKnown: boolean;
   /** Sunucu planının bildirdiği, seçilen aydaki lunar return'ler (henüz plan yoksa null). */
   lunarReturns?: LunarReturnInfo[] | null;
+  /** Aşama 7B: karşı taraf listesi sunucu aramasıyla gelir (danışan listesi sayfalı). */
+  partnerQuery?: string;
+  onPartnerQuery?: (q: string) => void;
 }) {
   const set = <K extends keyof TechniqueParams>(k: K, v: TechniqueParams[K]) => onParams({ ...params, [k]: v });
   const anyPartner = !!(checked["western.synastry"] || checked["western.composite"]);
@@ -452,6 +457,17 @@ export default function TechniqueSelector({
           {anyPartner && (
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-slate-600">Karşı taraf (sinastri / composite)</span>
+              {onPartnerQuery && (
+                <input
+                  type="search"
+                  className={inp}
+                  value={partnerQuery ?? ""}
+                  onChange={(e) => onPartnerQuery(e.target.value)}
+                  maxLength={100}
+                  placeholder="Karşı tarafı ara"
+                  aria-label="Karşı taraf ara"
+                />
+              )}
               <select className={inp} value={params.partnerProfileId} onChange={(e) => set("partnerProfileId", e.target.value)} aria-label="Karşı taraf profili">
                 <option value="">— seçin —</option>
                 {partners.map((p) => (

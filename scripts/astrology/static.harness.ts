@@ -175,10 +175,41 @@ async function main() {
       /^ASTROLOGY-PHASE6-1-PROGRESS\.md$/,
       /^ASTROLOGY-PHASE6-2-PROGRESS\.md$/,
       /^ASTROLOGY-PHASE7A-PROGRESS\.md$/,
+      /^ASTROLOGY-PHASE7B-PROGRESS\.md$/,
+      // Aşama 7B: DY durum rozeti — bileşen Astroloji'ye ait; DY sayfasındaki fark ayrıca satır satır denetlenir.
+      /^components\/astrology\//,
+      /^app\/dashboard\/clients\/\[id\]\/page\.tsx$/,
     ];
     const outside = all.filter((p) => !allowed.some((r) => r.test(p)));
     assert.deepEqual(outside, [], `kapsam dışı değişiklik: ${outside.join(", ")}`);
     assert.ok(!all.some((p) => /^lib\/human-design\/|^app\/api\/hd\/|^app\/human-design\//.test(p)), "HD dosyası değişti");
+  });
+
+  await t("7B: Danışan Yolculuğu detay sayfasındaki fark YALNIZ Astroloji durum rozeti (dynamic import + tek JSX satırı)", () => {
+    let base = "";
+    try {
+      base = execSync("git merge-base HEAD origin/main", { cwd: ROOT, encoding: "utf8" }).trim();
+    } catch {
+      return;
+    }
+    const diff = execSync(`git diff -U0 ${base} -- "app/dashboard/clients/[id]/page.tsx"`, { cwd: ROOT, encoding: "utf8" });
+    const lines = diff.split(/\r?\n/).filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---) /.test(l));
+    assert.ok(lines.every((l) => l.startsWith("+")), "DY sayfasında satır silindi/değişti");
+    const allowedLines = [
+      /^\+\/\/ Astroloji Aşama 7B: yalnız durum rozeti/,
+      /^\+const AstrologyClientStatus = dynamic\(\(\) => import\("@\/components\/astrology\/AstrologyClientStatus"\), \{ ssr: false \}\);$/,
+      /^\+\s*<AstrologyClientStatus clientId=\{client\.id\} \/>$/,
+    ];
+    assert.ok(lines.length <= 3 && lines.every((l) => allowedLines.some((r) => r.test(l))), `beklenmeyen DY farkı:\n${lines.join("\n")}`);
+  });
+
+  await t("7B: DY durum rozeti yalnız durum ucunu çağırır, sunucu-yalnız / astroloji iç modülü içe aktarmaz, içerik göstermez", () => {
+    const s = readFileSync(join(ROOT, "components/astrology/AstrologyClientStatus.tsx"), "utf8");
+    const fetches = [...s.matchAll(/fetch\(`([^`]+)`/g)].map((m) => m[1]);
+    assert.deepEqual(fetches, ["/api/admin/astroloji/client-status?clientId=${encodeURIComponent(clientId)}"]);
+    assert.ok(!/from "@\/lib\/astrology|from "@\/app\/admin|server-only/.test(s), "durum rozeti iç modül içe aktarıyor");
+    assert.match(s, /user\.role !== "admin"/, "admin olmayan oturumda istek atılmamalı");
+    assert.ok(!/interpretation|technical|kbMatches|notes/.test(s.replace(/\/\*[\s\S]*?\*\//g, "")), "rozet analiz içeriğine dokunuyor");
   });
 
   await t("kabuk kararı: owner → true; owner olmayan admin / oturumsuz → false; kill switch kapalı → DB'ye gitmeden false", async () => {

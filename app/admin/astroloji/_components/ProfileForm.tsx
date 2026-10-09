@@ -7,7 +7,7 @@
  */
 
 import { useState } from "react";
-import ClientPicker, { type PickerClient } from "@/components/danisan/ClientPicker";
+import ClientCandidateSearch, { type ClientCandidate } from "./ClientCandidateSearch";
 import { TIME_ACCURACY_LABELS, TIME_ACCURACY_VALUES, type TimeAccuracy } from "@/lib/astrology/birth/profileInput";
 import LocationPicker, { type PickedLocation } from "./LocationPicker";
 import { astroFetch } from "../_lib/api";
@@ -42,7 +42,7 @@ export default function ProfileForm({
   onCancel: () => void;
 }) {
   const [label, setLabel] = useState("");
-  const [client, setClient] = useState<PickerClient | null>(null);
+  const [client, setClient] = useState<ClientCandidate | null>(null);
   const [pickClient, setPickClient] = useState(false);
   const [birthDate, setBirthDate] = useState(initial?.birthDate ?? "");
   const [timeKnown, setTimeKnown] = useState(initial?.timeKnown ?? true);
@@ -107,24 +107,29 @@ export default function ProfileForm({
             <input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={120} className="rounded-lg border border-slate-300 px-3 py-2" placeholder="ör. Ali Yılmaz — natal" />
           </label>
           <div className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-slate-700">Danışan bağı (opsiyonel)</span>
+            <span className="font-medium text-slate-700">Danışan Yolculuğu eşleştirmesi (opsiyonel)</span>
             {client ? (
               <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
-                <span>{`${client.ad ?? ""} ${client.soyad ?? ""}`.trim() || "Adsız danışan"}</span>
+                <span>
+                  {client.name ?? "Adsız danışan"} <span className="font-mono text-xs text-slate-500">#{client.ref}</span>
+                </span>
                 <button type="button" className="text-xs underline" onClick={() => setClient(null)}>
                   Kaldır
                 </button>
               </div>
             ) : pickClient ? (
-              <ClientPicker
-                onSelect={(c) => {
+              <ClientCandidateSearch
+                initialName={label.split(/\s[—–-]\s/)[0]?.trim() ?? ""}
+                initialBirthDate={birthDate}
+                currentClientId={null}
+                onChoose={(c) => {
                   setClient(c);
                   setPickClient(false);
                 }}
               />
             ) : (
               <button type="button" className="self-start text-xs text-violet-700 underline" onClick={() => setPickClient(true)}>
-                Danışan seç
+                Olası danışan kaydını ara
               </button>
             )}
           </div>

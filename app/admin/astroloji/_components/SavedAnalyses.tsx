@@ -50,40 +50,107 @@ function fmt(iso: string): string {
   return d.toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" });
 }
 
+type Group = { tradition: string; label: string; count: number; techniques: { technique: string; techniqueLabel: string; count: number; lastAnalysisAt: string | null }[] };
+type ListPage = { groups: Group[]; total: number; filteredTotal: number; hasMore: boolean; analyses: ListItem[] };
+
+/**
+ * Kayıtlı analiz geçmişi (Aşama 7B): Batı / Vedik / KP gruplarına ayrılır; grup ve teknik çipleri yalnız
+ * GERÇEKTEN kaydı olanlar için gösterilir; liste sunucudan sayfalı gelir. Açmak yalnız snapshot okur
+ * (0 sağlayıcı isteği); içerik değiştirilmez.
+ */
 export function SavedAnalysesList({ profileId, reloadKey, onOpen, openId }: { profileId: string; reloadKey: number; onOpen: (id: string) => void; openId: string | null }) {
-  const [state, setState] = useState<{ key: string; items: ListItem[] } | null>(null);
-  const key = `${profileId}|${reloadKey}`;
+  const [sel, setSel] = useState<{ key: string; tradition: string | null; technique: string | null }>({ key: "", tradition: null, technique: null });
+  const baseKey = `${profileId}|${reloadKey}`;
+  const tradition = sel.key === baseKey ? sel.tradition : null;
+  const technique = sel.key === baseKey ? sel.technique : null;
+  const key = `${baseKey}|${tradition ?? ""}|${technique ?? ""}`;
+  const [state, setState] = useState<{ key: string; page: ListPage | null; items: ListItem[]; error: string | null } | null>(null);
+  const [more, setMore] = useState(false);
+
+  const url = (offset: number) => {
+    const sp = new URLSearchParams({ profileId, offset: String(offset), limit: "30" });
+    if (tradition) sp.set("tradition", tradition);
+    if (technique) sp.set("technique", technique);
+    return `/api/admin/astroloji/analyses?${sp.toString()}`;
+  };
+
   useEffect(() => {
     let alive = true;
-    void astroFetch<{ analyses: ListItem[] }>(`/api/admin/astroloji/analyses?profileId=${profileId}`).then((r) => {
-      if (alive) setState({ key, items: r.ok ? r.data.analyses : [] });
+    void astroFetch<ListPage>(url(0)).then((r) => {
+      if (alive) setState({ key, page: r.ok ? r.data : null, items: r.ok ? r.data.analyses : [], error: r.ok ? null : r.error });
     });
     return () => {
       alive = false;
     };
-  }, [key, profileId]);
-  const items = state && state.key === key ? state.items : null;
-  if (!items) return <p className="text-xs text-slate-400">Kayıtlı analizler yükleniyor…</p>;
-  if (items.length === 0) return <p className="text-xs text-slate-500">Bu profil için kayıtlı analiz yok.</p>;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  const cur = state && state.key === key ? state : null;
+  if (!cur) return <p className="text-xs text-slate-400">Kayıtlı analizler yükleniyor…</p>;
+  if (cur.error) return <p className="text-xs text-rose-700">{cur.error}</p>;
+  const page = cur.page!;
+  if (page.total === 0) return <p className="text-xs text-slate-500">Bu profil için kayıtlı analiz yok.</p>;
+
+  async function loadMore() {
+    if (!cur) return;
+    setMore(true);
+    const r = await astroFetch<ListPage>(url(cur.items.length));
+    setMore(false);
+    if (!r.ok) return;
+    setState((s) => (s && s.key === key ? { ...s, page: r.data, items: [...s.items, ...r.data.analyses.filter((a) => !s.items.some((x) => x.id === a.id))] } : s));
+  }
+
+  const activeGroup = page.groups.find((g) => g.tradition === tradition) ?? null;
+  const chip = (on: boolean) => `rounded-full border px-2.5 py-1 text-xs ${on ? "border-slate-700 bg-slate-800 text-white" : "border-slate-300 bg-white text-slate-700"}`;
+
   return (
-    <ul className="flex flex-col gap-1">
-      {items.map((a) => (
-        <li key={a.id}>
-          <button
-            type="button"
-            onClick={() => onOpen(a.id)}
-            className={`w-full rounded-lg border px-3 py-1.5 text-left text-sm ${openId === a.id ? "border-slate-500 bg-slate-100" : "border-slate-200 bg-white hover:border-slate-400"}`}
-          >
-            <div className="font-medium text-slate-800">{a.title}</div>
-            <div className="text-xs text-slate-500">
-              <span className="mr-1 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-700">{techniqueLabel(a.technique)}</span>
-              {describeOptions(a.technique, a.params, () => a.partnerLabel)} · {fmt(a.analysisAt)} · rev {a.profileRevision}
-              {a.providerInterpIncluded ? " · Roxy yorumu dahil" : ""}
-            </div>
+    <div className="flex flex-col gap-2" data-testid="astro-saved-analyses">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Analiz grubu">
+        <button type="button" role="tab" aria-selected={!tradition} className={chip(!tradition)} onClick={() => setSel({ key: baseKey, tradition: null, technique: null })}>
+          Tümü ({page.total})
+        </button>
+        {page.groups.map((g) => (
+          <button key={g.tradition} type="button" role="tab" aria-selected={tradition === g.tradition} className={chip(tradition === g.tradition)} onClick={() => setSel({ key: baseKey, tradition: g.tradition, technique: null })}>
+            {g.label} ({g.count})
           </button>
-        </li>
-      ))}
-    </ul>
+        ))}
+      </div>
+      {activeGroup && activeGroup.techniques.length > 1 && (
+        <div className="flex flex-wrap gap-1" aria-label={`${activeGroup.label} teknikleri`}>
+          <button type="button" className={chip(!technique)} onClick={() => setSel({ key: baseKey, tradition, technique: null })}>
+            Tüm teknikler
+          </button>
+          {activeGroup.techniques.map((t) => (
+            <button key={t.technique} type="button" className={chip(technique === t.technique)} onClick={() => setSel({ key: baseKey, tradition, technique: t.technique })}>
+              {t.techniqueLabel} ({t.count})
+            </button>
+          ))}
+        </div>
+      )}
+      <ul className="flex flex-col gap-1">
+        {cur.items.map((a) => (
+          <li key={a.id}>
+            <button
+              type="button"
+              onClick={() => onOpen(a.id)}
+              className={`w-full rounded-lg border px-3 py-1.5 text-left text-sm ${openId === a.id ? "border-slate-500 bg-slate-100" : "border-slate-200 bg-white hover:border-slate-400"}`}
+            >
+              <div className="break-words font-medium text-slate-800">{a.title}</div>
+              <div className="text-xs text-slate-500">
+                <span className="mr-1 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-700">{techniqueLabel(a.technique)}</span>
+                {describeOptions(a.technique, a.params, () => a.partnerLabel)} · {fmt(a.analysisAt)} · rev {a.profileRevision}
+                {a.providerInterpIncluded ? " · Roxy yorumu dahil" : ""}
+              </div>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {page.hasMore && (
+        <button type="button" disabled={more} onClick={() => void loadMore()} className="self-start rounded-lg border border-slate-300 px-3 py-1 text-xs text-slate-700 disabled:opacity-60" data-testid="astro-analyses-more">
+          {more ? "Yükleniyor…" : `Daha fazla göster (${cur.items.length} / ${page.filteredTotal})`}
+        </button>
+      )}
+    </div>
   );
 }
 

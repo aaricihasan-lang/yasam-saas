@@ -33,6 +33,8 @@ import UnmappedAuditPanel from "./_components/UnmappedAuditPanel";
 import TechniqueSelector from "./_components/TechniqueSelector";
 import { TechniqueTechnical } from "./_components/TimingPanels";
 import { SavedAnalysesList, SavedAnalysisView } from "./_components/SavedAnalyses";
+import ClientList from "./_components/ClientList";
+import ClientLinkPanel from "./_components/ClientLinkPanel";
 
 type PublicRevision = {
   revision: number;
@@ -53,21 +55,19 @@ type PublicRevision = {
   createdAt: string | null;
 };
 
-type ProfileListItem = {
-  id: string;
-  label: string;
-  clientName: string | null;
-  currentRevision: number;
-  current: PublicRevision | null;
-};
-
 type ProfileDetail = {
   id: string;
   label: string;
+  clientId: string | null;
   clientName: string | null;
+  /** Aşama 7B: bağ var ama danışan kaydı artık bulunamıyor. */
+  clientMissing?: boolean;
+  archivedAt?: string | null;
   currentRevision: number;
   revisions: PublicRevision[];
 };
+
+type PartnerOption = { id: string; label: string; clientName: string | null };
 
 type PlanSelection = {
   technique: string;
@@ -113,8 +113,14 @@ function RevisionLine({ r }: { r: PublicRevision }) {
 }
 
 export default function AstrologyWorkspacePage() {
-  const [profiles, setProfiles] = useState<ProfileListItem[] | null>(null);
-  const [listError, setListError] = useState<string | null>(null);
+  // Aşama 7B: liste sunucuda sayfalı (ClientList); karşı taraf seçimi kendi aramasıyla gelir.
+  // Bilinen profil adları (liste + karşı taraf + detay) → plan/sonuç satırlarındaki karşı taraf etiketi.
+  const [knownLabels, setKnownLabels] = useState<Record<string, string>>({});
+  const [partnerQuery, setPartnerQuery] = useState("");
+  const [partnerOptions, setPartnerOptions] = useState<PartnerOption[]>([]);
+  const [archiveConfirm, setArchiveConfirm] = useState(false);
+  const [archiveBusy, setArchiveBusy] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ProfileDetail | null>(null);
   const [revision, setRevision] = useState<number | null>(null);
@@ -141,17 +147,12 @@ export default function AstrologyWorkspacePage() {
   // Aşama 5: etkin sonucun çalışma alanı KB eşleşmeleri (Vedik ayrıntı paneli için; ek istek yok).
   const [kbState, setKbState] = useState<{ key: string; entries: { topicKey: string; topicLabel: string; title: string; body: string }[] } | null>(null);
 
-  useEffect(() => {
-    let alive = true;
-    void astroFetch<{ profiles: ProfileListItem[] }>("/api/admin/astroloji/profiles").then((r) => {
-      if (!alive) return;
-      setProfiles(r.ok ? r.data.profiles : []);
-      setListError(r.ok ? null : r.error);
+  const rememberLabels = (rows: { id: string; label: string }[]) =>
+    setKnownLabels((m) => {
+      const next = { ...m };
+      for (const r of rows) next[r.id] = r.label;
+      return next;
     });
-    return () => {
-      alive = false;
-    };
-  }, [profilesReload]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -160,29 +161,68 @@ export default function AstrologyWorkspacePage() {
       if (!alive || !r.ok) return;
       setDetail(r.data.profile);
       setRevision(r.data.profile.currentRevision);
+      rememberLabels([r.data.profile]);
     });
     return () => {
       alive = false;
     };
   }, [selectedId, detailReload]);
 
+  // Karşı taraf seçimi (sinastri / composite): yalnız ikili teknik seçiliyken, sunucu aramasıyla (≤100; etkin kayıtlar).
+  const anyPartnerChecked = !!(checked["western.synastry"] || checked["western.composite"]);
+  useEffect(() => {
+    if (!anyPartnerChecked) return;
+    let alive = true;
+    const t = setTimeout(() => {
+      const sp = new URLSearchParams({ sort: "name", limit: "100" });
+      if (partnerQuery.trim()) sp.set("q", partnerQuery.trim());
+      void astroFetch<{ profiles: PartnerOption[] }>(`/api/admin/astroloji/profiles?${sp.toString()}`).then((r) => {
+        if (!alive || !r.ok) return;
+        setPartnerOptions(r.data.profiles);
+        rememberLabels(r.data.profiles);
+      });
+    }, 250);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [anyPartnerChecked, partnerQuery, profilesReload]);
+
   function selectProfile(id: string) {
     setSelectedId(id);
     setForm(null);
     setDetail(null);
     setRevision(null);
+    setArchiveConfirm(false);
+    setArchiveError(null);
     // Önceki profilin karşı taraf seçimi yeni profile taşınmaz.
     setParams((p) => ({ ...p, partnerProfileId: p.partnerProfileId === id ? "" : p.partnerProfileId }));
+  }
+
+  async function setArchived(archived: boolean) {
+    if (!shownDetail) return;
+    setArchiveBusy(true);
+    setArchiveError(null);
+    const r = await astroFetch(`/api/admin/astroloji/profiles/${shownDetail.id}`, { method: "PATCH", body: { archived } });
+    setArchiveBusy(false);
+    if (!r.ok) {
+      setArchiveError(r.error);
+      return;
+    }
+    setArchiveConfirm(false);
+    setProfilesReload((n) => n + 1);
+    setDetailReload((n) => n + 1);
   }
 
   const shownDetail = detail && detail.id === selectedId ? detail : null;
   const ctxKey = shownDetail && revision !== null ? `${shownDetail.id}|${revision}` : null;
   const currentRev = shownDetail?.revisions.find((r) => r.revision === revision) ?? null;
-  const labelOf = useMemo(() => {
-    const m = new Map((profiles ?? []).map((p) => [p.id, p.label]));
-    return (id: string) => m.get(id) ?? null;
-  }, [profiles]);
-  const partners = (profiles ?? []).filter((p) => p.id !== selectedId).map((p) => ({ id: p.id, label: p.clientName ? `${p.label} (${p.clientName})` : p.label }));
+  const labelOf = useMemo(() => (id: string) => knownLabels[id] ?? null, [knownLabels]);
+  const partners = partnerOptions.filter((p) => p.id !== selectedId).map((p) => ({ id: p.id, label: p.clientName ? `${p.label} (${p.clientName})` : p.label }));
+  // Seçili karşı taraf arama sonucunda yoksa da seçimde görünür kalsın.
+  if (params.partnerProfileId && !partners.some((p) => p.id === params.partnerProfileId)) {
+    partners.unshift({ id: params.partnerProfileId, label: knownLabels[params.partnerProfileId] ?? "Seçili karşı taraf" });
+  }
   const partnerMissing = !!(checked["western.synastry"] || checked["western.composite"]) && !params.partnerProfileId;
   const relocationTargetMissing = !!checked["western.relocation"] && !params.relocationTarget;
   const birthplace = currentRev ? { lat: currentRev.latitude, lon: currentRev.longitude, label: currentRev.locationLabel } : null;
@@ -352,40 +392,13 @@ export default function AstrologyWorkspacePage() {
       {tab === "audit" && <UnmappedAuditPanel />}
 
       <div className={`grid gap-4 lg:grid-cols-[300px_1fr] ${tab === "work" ? "" : "hidden"}`}>
-        <aside className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Doğum profilleri</h2>
-            <button type="button" className="text-sm text-violet-700 underline" onClick={() => setForm({ mode: "create" })}>
-              + Yeni
-            </button>
-          </div>
-          {listError && <p className="text-sm text-rose-700">{listError}</p>}
-          {profiles === null ? (
-            <p className="text-sm text-slate-400">Yükleniyor…</p>
-          ) : profiles.length === 0 ? (
-            <p className="text-sm text-slate-500">Henüz profil yok.</p>
-          ) : (
-            <ul className="flex flex-col gap-1.5">
-              {profiles.map((p) => (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    onClick={() => selectProfile(p.id)}
-                    className={`w-full rounded-xl border px-3 py-2 text-left text-sm ${selectedId === p.id ? "border-violet-400 bg-violet-50" : "border-slate-200 bg-white hover:border-violet-200"}`}
-                  >
-                    <div className="font-medium text-slate-800">{p.label}</div>
-                    {p.clientName && <div className="text-xs text-emerald-700">Danışan: {p.clientName}</div>}
-                    {p.current && (
-                      <div className="text-xs text-slate-500">
-                        <RevisionLine r={p.current} /> · rev {p.currentRevision}
-                      </div>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside>
+        <ClientList
+          selectedId={selectedId}
+          reloadKey={profilesReload}
+          onSelect={(p) => selectProfile(p.id)}
+          onCreate={() => setForm({ mode: "create" })}
+          onItems={rememberLabels}
+        />
 
         <section className="flex min-w-0 flex-col gap-4">
           {form?.mode === "create" && (
@@ -414,15 +427,18 @@ export default function AstrologyWorkspacePage() {
           {shownDetail && !form && (
             <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">{shownDetail.label}</h2>
-                  {shownDetail.clientName && <p className="text-sm text-emerald-700">Danışan: {shownDetail.clientName}</p>}
+                <div className="min-w-0">
+                  <h2 className="flex flex-wrap items-center gap-2 break-words text-lg font-semibold text-slate-900">
+                    {shownDetail.label}
+                    {shownDetail.archivedAt && <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[11px] font-medium text-slate-700">Arşivde</span>}
+                  </h2>
                   {currentRev && (
                     <p className="text-sm text-slate-600">
                       <RevisionLine r={currentRev} /> · saat doğruluğu: {currentRev.timeAccuracyLabel}
                     </p>
                   )}
                 </div>
+                <div className="flex flex-wrap gap-1.5">
                 {currentRev && (
                   <button
                     type="button"
@@ -445,7 +461,46 @@ export default function AstrologyWorkspacePage() {
                     Doğum bilgisini düzelt
                   </button>
                 )}
+                <button
+                  type="button"
+                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700"
+                  onClick={() => (shownDetail.archivedAt ? void setArchived(false) : setArchiveConfirm(true))}
+                  disabled={archiveBusy}
+                  data-testid="astro-archive-toggle"
+                >
+                  {shownDetail.archivedAt ? "Arşivden çıkar" : "Arşivle"}
+                </button>
+                </div>
               </div>
+
+              {archiveConfirm && !shownDetail.archivedAt && (
+                <div className="flex flex-col gap-2 rounded-lg border border-slate-300 bg-slate-50 p-2 text-xs sm:flex-row sm:items-center sm:justify-between" role="alertdialog" aria-label="Arşivleme onayı">
+                  <p className="text-slate-700">Profil arşivlensin mi? Etkin listeden kalkar; kayıtlı analizler, sonuçlar ve notlar silinmez. &quot;Arşiv&quot; filtresinden bulup geri alabilirsiniz.</p>
+                  <div className="flex gap-1.5">
+                    <button type="button" onClick={() => setArchiveConfirm(false)} className="rounded-lg border border-slate-300 bg-white px-2.5 py-1">
+                      Vazgeç
+                    </button>
+                    <button type="button" disabled={archiveBusy} onClick={() => void setArchived(true)} className="rounded-lg bg-slate-800 px-2.5 py-1 text-white disabled:opacity-60">
+                      Evet, arşivle
+                    </button>
+                  </div>
+                </div>
+              )}
+              {archiveError && <p className="text-sm text-rose-700">{archiveError}</p>}
+
+              <ClientLinkPanel
+                key={`${shownDetail.id}|${shownDetail.clientId ?? ""}`}
+                profileId={shownDetail.id}
+                profileLabel={shownDetail.label}
+                birthDate={shownDetail.revisions.find((r) => r.revision === shownDetail.currentRevision)?.birthDate ?? null}
+                clientId={shownDetail.clientId}
+                clientName={shownDetail.clientName}
+                clientMissing={!!shownDetail.clientMissing}
+                onChanged={() => {
+                  setDetailReload((n) => n + 1);
+                  setProfilesReload((n) => n + 1);
+                }}
+              />
 
               {shownDetail.revisions.length > 1 && (
                 <label className="flex items-center gap-2 text-sm">
@@ -471,6 +526,8 @@ export default function AstrologyWorkspacePage() {
                   method={method}
                   onMethod={setMethod}
                   partners={partners}
+                  partnerQuery={partnerQuery}
+                  onPartnerQuery={setPartnerQuery}
                   timeKnown={currentRev?.timeKnown ?? true}
                   lunarReturns={lunarReturns}
                 />
