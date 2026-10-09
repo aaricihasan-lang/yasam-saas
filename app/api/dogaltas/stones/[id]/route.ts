@@ -8,6 +8,7 @@ import { STONE_PHOTO_BUCKET, collectStonePhotoPaths } from "@/lib/dogaltas/stone
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { filterUnreferencedStonePhotoPaths } from "@/lib/dogaltas/stonePhotoRefs";
 import { trackUsage } from "@/lib/usage/trackUsage";
+import { normalizeSourceName, SOURCE_NAME_MAX } from "@/lib/dogaltas/stoneSources";
 
 export const runtime = "nodejs";
 
@@ -22,6 +23,8 @@ const STONE_WRITABLE = [
   "physical_effects", "spiritual_effects", "other_effects", "warning_text",
   "warning_tags", "feng_shui", "meditation", "care", "application",
   "chakras", "assignments", "images",
+  // WT9: birincil kaynağın adı (NULL = belirtilmemiş). Ek kaynaklar: /api/dogaltas/stones/[id]/sources.
+  "primary_source_name",
 ] as const;
 
 function pick(body: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {
@@ -107,6 +110,12 @@ export async function PATCH(
     fields.assignments = check.value;
   }
 
+  // WT9: birincil kaynak adı — normalize (boşluk), boş → NULL, üst sınır.
+  if ("primary_source_name" in fields) {
+    const n = normalizeSourceName(fields.primary_source_name);
+    if (n.length > SOURCE_NAME_MAX) return NextResponse.json({ ok: false, error: `Kaynak adı en fazla ${SOURCE_NAME_MAX} karakter olabilir.` }, { status: 400 });
+    fields.primary_source_name = n || null;
+  }
   fields.updated_at = new Date().toISOString();
 
   // F-03 optimistic concurrency: client GET'te aldığı updated_at'i geri gönderirse
@@ -122,6 +131,9 @@ export async function PATCH(
   if (expectedUpdatedAt) query = query.eq("updated_at", expectedUpdatedAt);
   const { data, error } = await query.select("*");
 
+  if (error && String((error as { code?: string }).code ?? "") === "23505") {
+    return NextResponse.json({ ok: false, code: "duplicate_source", error: "Bu kaynak adı bu taşta zaten var." }, { status: 409 });
+  }
   if (error) return serverErrorResponse({ route: "dogaltas/stones/[id]", action: "PATCH", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_updated", subEntity: "stone" } });
   if (!data || data.length === 0) {
     if (expectedUpdatedAt) {

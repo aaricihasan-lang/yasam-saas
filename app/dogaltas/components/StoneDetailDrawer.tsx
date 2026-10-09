@@ -5,7 +5,10 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { type StoneListItemExtended } from "@/lib/dogaltas/stonesListFetch";
 import { useOverlay } from "@/lib/dogaltas/useOverlay";
-import { useSearchHighlight } from "@/lib/search/useSearchHighlight";
+import { findMatchRanges, useSearchHighlight } from "@/lib/search/useSearchHighlight";
+import { StoneSourcesBar } from "@/app/dogaltas/components/StoneSourcesBar";
+import { PRIMARY_SOURCE_ID, sourceSearchText, type StoneSourceView } from "@/lib/dogaltas/stoneSources";
+import { fetchStoneSources } from "@/lib/dogaltas/stoneSourcesApi";
 import {
   useSignedStoneImageUrls,
   imageFilePath,
@@ -104,7 +107,7 @@ function TextSection({
 
 export function StoneDetailDrawer({
   open,
-  stone,
+  stone: listStone,
   inStock,
   inCart,
   onToggleCart,
@@ -117,6 +120,50 @@ export function StoneDetailDrawer({
   const tf = useTranslations("stones");
   const facet = (v: string) => (tf.has(`facetLabels.${v}`) ? tf(`facetLabels.${v}`) : v);
   const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
+
+  // WT9: çoklu kaynak — panel açılınca taşın kaynakları okunur (yalnız kendi tenant'ı; API).
+  // Seçili kaynağın metin alanları + çakraları gösterilir; ad/görsel/atama/uyarı etiketi taşa ortak.
+  // Taş seçimi / kombinasyona ekleme mantığı DEĞİŞMEZ (listStone üzerinden).
+  const [sources, setSources] = useState<{ stoneId: string; list: StoneSourceView[] } | null>(null);
+  const [activeSourceId, setActiveSourceId] = useState<string>(PRIMARY_SOURCE_ID);
+  const listStoneId = listStone?.id ?? null;
+  useEffect(() => {
+    if (!open || !listStoneId) return;
+    let alive = true;
+    queueMicrotask(() => { if (alive) setActiveSourceId(PRIMARY_SOURCE_ID); });
+    void fetchStoneSources(listStoneId).then((r) => {
+      if (alive && r.ok && Array.isArray(r.sources)) setSources({ stoneId: listStoneId, list: r.sources });
+    });
+    return () => { alive = false; };
+  }, [open, listStoneId]);
+  const sourceList = sources && sources.stoneId === listStoneId ? sources.list : null;
+  const activeExtra = sourceList?.find((s) => !s.isPrimary && s.id === activeSourceId) ?? null;
+  const stone = useMemo(() => {
+    if (!listStone || !activeExtra) return listStone;
+    const f = activeExtra.fields;
+    return { ...listStone, ...f, chakras: f.chakras ?? [] } as StoneListItemExtended;
+  }, [listStone, activeExtra]);
+  const termsKey = highlightTerms.join("\u0001");
+  const sourceMatchCounts = useMemo<Record<string, number>>(() => {
+    const terms = termsKey ? termsKey.split("\u0001") : [];
+    if (!sourceList || terms.length === 0) return {};
+    const out: Record<string, number> = {};
+    for (const s of sourceList) out[s.id] = findMatchRanges(sourceSearchText({ name: null, fields: s.fields }), terms).length;
+    return out;
+  }, [sourceList, termsKey]);
+  // Arama koşulu yalnız bir ek kaynakta eşleşiyorsa o kaynak açılır (bir kez / taş başına).
+  const autoPickedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!sourceList || !listStoneId || autoPickedFor.current === listStoneId) return;
+    autoPickedFor.current = listStoneId;
+    if ((sourceMatchCounts[PRIMARY_SOURCE_ID] ?? 0) > 0) return;
+    const first = sourceList.find((s) => !s.isPrimary && (sourceMatchCounts[s.id] ?? 0) > 0);
+    if (first) queueMicrotask(() => setActiveSourceId(first.id));
+  }, [sourceList, sourceMatchCounts, listStoneId]);
+  useEffect(() => {
+    if (!open) autoPickedFor.current = null;
+  }, [open]);
+  const showSources = Boolean(sourceList && (sourceList.length > 1 || sourceList[0]?.name));
 
   // ESC kapatma + body scroll kilidi + focus tuzağı (P0-4).
   // Esc önce açık görseli kapatır, sonra drawer'ı.
@@ -168,7 +215,7 @@ export function StoneDetailDrawer({
 
   // WT8: arama eşleşmeleri — panel içindeki TÜM geçişler sarı; açılışta ilk eşleşmeye bir kez kaydırır.
   const contentRef = useRef<HTMLDivElement | null>(null);
-  useSearchHighlight(contentRef, highlightTerms, { enabled: open && Boolean(stone), resetKey: stone?.id ?? "" });
+  useSearchHighlight(contentRef, highlightTerms, { enabled: open && Boolean(stone), resetKey: `${stone?.id ?? ""}:${activeSourceId}` });
 
   // WT8: arka plana gerçek DOKUNMA kapatır; içerikte başlayıp dışarıda biten sürükleme / kaydırma kapatmaz.
   const backdropDown = useRef<{ x: number; y: number } | null>(null);
@@ -255,6 +302,21 @@ export function StoneDetailDrawer({
 
         {/* İçerik */}
         <div ref={contentRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
+          {/* WT9: bilgi kaynağı sekmeleri (salt-okunur; düzenleme taş detayında). */}
+          {showSources && sourceList ? (
+            <div data-testid="drawer-sources" data-no-search-highlight>
+              <StoneSourcesBar
+                sources={sourceList}
+                activeId={activeSourceId}
+                onSelect={setActiveSourceId}
+                editable={false}
+                matchCounts={sourceMatchCounts}
+                onAdd={async () => null}
+                onRename={async () => null}
+                onDelete={() => {}}
+              />
+            </div>
+          ) : null}
           {/* Görseller */}
           {images.length > 0 ? (
             <div className="space-y-2">

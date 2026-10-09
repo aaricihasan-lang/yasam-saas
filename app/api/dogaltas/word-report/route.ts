@@ -42,6 +42,8 @@ import {
 } from "@/lib/docx/reportHelpers";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
+import { loadExtraSourcesForStones } from "@/lib/dogaltas/stoneSourcesServer";
+import { pickSourceFields, SOURCE_FIELD_LABELS, SOURCE_TEXT_FIELDS, sourceDisplayName } from "@/lib/dogaltas/stoneSources";
 
 export const runtime = "nodejs";
 
@@ -56,6 +58,9 @@ type Sections = {
 };
 
 type StoneRow = {
+  id: string;
+  /** WT9: birincil kaynağın adı (NULL = belirtilmemiş). */
+  primary_source_name?: string | null;
   stone_name: string;
   short_description: string | null;
   general_info: string | null;
@@ -176,10 +181,30 @@ function buildSummary(counts: Record<string, number>): ReportChild[] {
   ];
 }
 
+/** WT9: bir taşın EK kaynakları — "KAYNAK: <ad>" başlığı + dolu alanlar (metin aynen). */
+function buildStoneExtraSources(extras: readonly Record<string, unknown>[]): ReportChild[] {
+  const out: ReportChild[] = [];
+  for (const row of extras) {
+    const fields = pickSourceFields(row);
+    out.push(h3(`KAYNAK: ${sourceDisplayName(typeof row.source_name === "string" ? row.source_name : null)}`));
+    let filled = 0;
+    for (const f of SOURCE_TEXT_FIELDS) {
+      const v = fields[f];
+      if (!v?.trim()) continue;
+      filled++;
+      out.push(fieldInline(SOURCE_FIELD_LABELS[f], v.trim()));
+    }
+    if (fields.chakras?.length) { filled++; out.push(fieldInline("Çakralar", fields.chakras.join(", "))); }
+    if (filled === 0) out.push(muted("Bu kaynakta henüz bilgi girilmemiş."));
+  }
+  return out;
+}
+
 function buildStonesSection(
   stones: StoneRow[],
   n: number,
-  imageBuffers: (Buffer | null)[]
+  imageBuffers: (Buffer | null)[],
+  extraSources: ReadonlyMap<string, readonly Record<string, unknown>[]> = new Map(),
 ): ReportChild[] {
   const color = SECTION_COLORS.stones;
   const result: ReportChild[] = [
@@ -199,6 +224,12 @@ function buildStonesSection(
 
     // Image (if available)
     if (imgBuf) result.push(embedImageParagraph(imgBuf, 400));
+
+    // WT9: kaynak bilgisi varsa birincil kaynak açıkça etiketlenir (aşağıdaki metinler ona aittir).
+    const extras = extraSources.get(s.id) ?? [];
+    if ((s.primary_source_name ?? "").trim() || extras.length > 0) {
+      result.push(fieldInline("KAYNAK", sourceDisplayName(s.primary_source_name)));
+    }
 
     // Short metadata
     if (s.source_note?.trim())  result.push(fieldInline("Kaynak Not", s.source_note.trim()));
@@ -230,6 +261,7 @@ function buildStonesSection(
       result.push(h3("Uyarılar"));
       result.push(bodyText(s.warning_text.trim()));
     }
+    result.push(...buildStoneExtraSources(extras));
   }
   return result;
 }
@@ -404,7 +436,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   // Shared-library kaldırma: bilgi bölümü YALNIZ uzmanın kendi tenant kayıtları
   // (admin kütüphanesi UNION edilmez — stones/minerals/combinations ile tutarlı).
   // P2-07: her bölüm sayfalı okunur (1000-satır tavanı yok; tenant filtresi her sayfada).
-  const STONE_SELECT = "id, stone_name, short_description, general_info, source_note, physical_effects, spiritual_effects, other_effects, feng_shui, meditation, care, application, chakras, assignments, warning_text, warning_tags, images";
+  const STONE_SELECT = "id, primary_source_name, stone_name, short_description, general_info, source_note, physical_effects, spiritual_effects, other_effects, feng_shui, meditation, care, application, chakras, assignments, warning_text, warning_tags, images";
   const [stonesRes, mineralsRes, combinationsRes, knowledgeRes] = await Promise.all([
     sections.stones
       ? stoneIds
@@ -460,6 +492,17 @@ export async function POST(req: NextRequest): Promise<Response> {
   const comboHydrated = await hydrateCombinationStoneNames(db, tenantId, combinationsRes?.rows ?? []);
   const comboRows     = sanitizeXmlDeep(comboHydrated as CombinationRow[]);
   const knowledgeRows = sanitizeXmlDeep(knowledgeRes?.rows ?? []);
+
+  // WT9: seçilen taşların ek kaynakları (yalnız bu tenant; migration yoksa boş → eski düzen).
+  let stoneExtraSources = new Map<string, Record<string, unknown>[]>();
+  if (sections.stones && stonesRows.length > 0) {
+    try {
+      const loaded = await loadExtraSourcesForStones(db, tenantId, stonesRows.map((s) => s.id));
+      stoneExtraSources = new Map([...loaded].map(([k, v]) => [k, sanitizeXmlDeep(v)]));
+    } catch (e) {
+      return serverErrorResponse({ route: "dogaltas/word-report", action: "POST:stone_sources", tenantId, cause: e, usage: { guard: { ...auth, is_demo_account: false }, req, module: "stones", failedAction: "report_generated", subEntity: null } });
+    }
+  }
 
   // P2-02: seçili VERİ bölümlerinin hepsi boşsa "boş" Word indirtilmez → anlaşılır 404.
   const dataSections = (["stones", "minerals", "combinations", "knowledge"] as const).filter((k) => sections[k]);
@@ -524,7 +567,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   ];
 
   let sec = 2;
-  if (sections.stones)       allChildren.push(...buildStonesSection(stonesRows, sec++, stoneImageBuffers));
+  if (sections.stones)       allChildren.push(...buildStonesSection(stonesRows, sec++, stoneImageBuffers, stoneExtraSources));
   if (sections.minerals)     allChildren.push(...buildMineralsSection(mineralRows, sec++));
   if (sections.combinations) allChildren.push(...buildCombinationsSection(comboRows, sec++));
   if (sections.knowledge)    allChildren.push(...buildKnowledgeSection(knowledgeRows, sec++));

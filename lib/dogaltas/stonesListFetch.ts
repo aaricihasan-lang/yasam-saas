@@ -98,7 +98,16 @@ export const CONTENT_SEARCH_COLUMNS = [
   "meditation",
   "care",
   "application",
+  // WT9: çoklu kaynak — birincil kaynak adı + EK kaynakların türetilmiş metni (stone_sources →
+  // stones.extra_sources_text tetikleyicisi). "mide" farklı kaynaklarda geçse de taş bulunur.
+  "primary_source_name",
+  "extra_sources_text",
 ] as const;
+
+/** WT9 migration'ı öncesi şema (yeni kolonlar yok) için içerik arama kolonları — geri uyum. */
+export const LEGACY_CONTENT_SEARCH_COLUMNS = CONTENT_SEARCH_COLUMNS.filter(
+  (c) => c !== "primary_source_name" && c !== "extra_sources_text",
+);
 
 export type SearchMode = "name" | "content";
 
@@ -162,6 +171,7 @@ export function buildTurkishInsensitiveRegex(safeTerm: string): string | null {
 export function buildStonesListSearchOrFilter(
   term: string,
   mode: SearchMode = "name",
+  opts: { legacySchema?: boolean } = {},
 ): string | null {
   const safeTerm = sanitizeOrSearchTerm(term);
   if (!safeTerm) return null;
@@ -169,7 +179,9 @@ export function buildStonesListSearchOrFilter(
   if (!regex) return null;
 
   const columns =
-    mode === "content" ? CONTENT_SEARCH_COLUMNS : NAME_SEARCH_COLUMNS;
+    mode === "content"
+      ? (opts.legacySchema ? LEGACY_CONTENT_SEARCH_COLUMNS : CONTENT_SEARCH_COLUMNS)
+      : NAME_SEARCH_COLUMNS;
   return columns.map((col) => `${col}.imatch."${regex}"`).join(",");
 }
 

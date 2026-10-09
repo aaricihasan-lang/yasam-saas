@@ -27,6 +27,10 @@ import {
   spacer,
 } from "@/lib/docx/reportHelpers";
 import { formatInstantDate, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
+import { SOURCE_FIELD_LABELS, SOURCE_TEXT_FIELDS, sourceDisplayName, type SourceFields } from "@/lib/dogaltas/stoneSources";
+
+/** WT9: rapora girecek EK kaynak (birincil kaynak taş satırıdır). */
+export type StoneReportExtraSource = { name: string | null; fields: SourceFields };
 
 const C_STONE = "0e7490"; // turkuaz — taş rengi
 
@@ -51,7 +55,30 @@ export type StoneReportRow = {
   images: { id: string; name: string; url?: string; file_path?: string }[] | null;
   created_at: string;
   updated_at: string | null;
+  /** WT9: birincil kaynağın adı (NULL/yok = belirtilmemiş; eski kayıt). */
+  primary_source_name?: string | null;
 };
+
+/** WT9: tek bir ek kaynağın bölümü — her dolu alan kendi başlığıyla, metin AYNEN (kısaltma yok). */
+function buildExtraSourceSection(src: StoneReportExtraSource, index: number): ReportChild[] {
+  const out: ReportChild[] = [];
+  const name = sourceDisplayName(src.name);
+  out.push(divider());
+  out.push(profileLabel(`KAYNAK: ${name.toLocaleUpperCase("tr-TR")}`, C_STONE));
+  out.push(h1Colored(`Ek Kaynak ${index + 1}: ${name}`, C_STONE));
+  let filled = 0;
+  for (const f of SOURCE_TEXT_FIELDS) {
+    const v = src.fields[f];
+    if (!v?.trim()) continue;
+    filled++;
+    out.push(h2(SOURCE_FIELD_LABELS[f]));
+    out.push(bodyText(v.trim()));
+  }
+  const chakras = asStringArray(src.fields.chakras);
+  if (chakras.length) { filled++; out.push(...arraySection("Çakralar", chakras)); }
+  if (filled === 0) out.push(muted("Bu kaynakta henüz bilgi girilmemiş."));
+  return out;
+}
 
 function slugify(text: string): string {
   return text
@@ -104,8 +131,14 @@ export function buildStoneReportDoc(input: {
   isLibrary: boolean;
   expertName?: string | null;
   now?: Date;
+  /** WT9: taşın EK kaynakları (sıralı). Yoksa rapor eski tek-kaynak düzeniyle AYNI. */
+  extraSources?: readonly StoneReportExtraSource[];
 }): { doc: Document; filename: string } {
   const { stone, imageBuf, isLibrary } = input;
+  const extraSources = input.extraSources ?? [];
+  const primaryName = (stone.primary_source_name ?? "").trim();
+  // Kaynak etiketi yalnız kaynak bilgisi varsa basılır (eski kayıt raporu değişmez).
+  const showSources = Boolean(primaryName) || extraSources.length > 0;
   const now = input.now ?? new Date();
   const stoneName = stone.stone_name || "İsimsiz Taş";
   const today = reportGeneratedLabel(undefined, now);
@@ -134,6 +167,7 @@ export function buildStoneReportDoc(input: {
       { label: "Görsel Sayısı", value: String(imageCount) },
       { label: "Çakra Sayısı",  value: String(chakraCount) },
       ...(isLibrary ? [{ label: "Kaynak", value: "Kütüphane" }] : []),
+      ...(showSources ? [{ label: "Bilgi Kaynağı", value: String(1 + extraSources.length) }] : []),
     ].filter((s) => s.value.trim().length > 0),
   }));
 
@@ -144,6 +178,9 @@ export function buildStoneReportDoc(input: {
     ["Görsel Sayısı", `${imageCount} görsel`],
     ["Çakra",         chakraCount > 0 ? safeJoin(stone.chakras) : "Belirtilmemiş"],
     ["Kayıt Tarihi",  formatInstantDate(stone.created_at, { fallback: "-" })],
+    ...(showSources
+      ? [["Bilgi Kaynakları", [sourceDisplayName(primaryName), ...extraSources.map((s) => sourceDisplayName(s.name))].join(" · ")] as [string, string]]
+      : []),
   ]));
 
   // ── İçindekiler
@@ -153,6 +190,11 @@ export function buildStoneReportDoc(input: {
   if (imageBuf) {
     all.push(embedImageParagraph(imageBuf, 320));
     all.push(spacer());
+  }
+
+  // ── WT9: birincil kaynak etiketi — Bölüm 1–4'teki metinler bu kaynağa aittir.
+  if (showSources) {
+    all.push(profileLabel(`KAYNAK: ${sourceDisplayName(primaryName).toLocaleUpperCase("tr-TR")}`, C_STONE));
   }
 
   // ── Bölüm 1: Genel Bilgiler
@@ -217,6 +259,9 @@ export function buildStoneReportDoc(input: {
       Array.isArray(stone.assignments) || Object.keys(stone.assignments).length === 0)) {
     all.push(muted("Bu bölümde henüz bilgi girilmemiş."));
   }
+
+  // ── WT9: ek kaynaklar — her biri kendi "KAYNAK:" başlığıyla, karışmadan.
+  extraSources.forEach((src, i) => all.push(...buildExtraSourceSection(src, i)));
 
   // ── Ek görsel referansı
   if (imageCount > 1) {

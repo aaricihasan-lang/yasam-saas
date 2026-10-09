@@ -99,6 +99,8 @@ function condition(col: string, rawIn: string, values: unknown[]): string {
     case "lt": values.push(v); expr = `${c} < $${values.length}`; break;
     case "lte": values.push(v); expr = `${c} <= $${values.length}`; break;
     case "ilike": values.push(v.replace(/\*/g, "%")); expr = `${c} ILIKE $${values.length}`; break;
+    // WT9: PostgREST imatch (büyük/küçük harf duyarsız POSIX regex; değer çift tırnaklı gelebilir).
+    case "imatch": values.push(v.replace(/^"(.*)"$/, "$1")); expr = `${c} ~* $${values.length}`; break;
     case "in": values.push(parseInList(v)); expr = `${c}::text = ANY($${values.length})`; break;
     case "is":
       if (v === "null") expr = `${c} IS NULL`;
