@@ -300,7 +300,66 @@ async function testCreateForm() {
   }
 }
 
-const ALL = { testSourcesView, testSourcesSearch, testSourcesEdit, testSingleSource, testCreateForm };
+// ── F) Kombinasyon Oluştur taş paneli: kaynak sekmeleri (salt-okunur), seçim/ekleme mantığı aynı ──
+async function testBuilderDrawer() {
+  for (const vp of VIEWPORTS) {
+    const g = `F-kombinasyon-olustur-kaynak-${vp.tag}`;
+    const api = sourcesApi({ primary: { chakras: ["Kök Çakra"], general_info: "Kristal genel bilgi (birincil)." } });
+    const extra = api.getExtras()[0];
+    extra.chakras = ["Kalp Çakrası"];
+    extra.general_info = "Ahmet genel: kalp bölgesi.";
+    // Gerçek sunucu gibi: ek kaynak çakrası eşleşen satıra birleşik search_chakras eklenir.
+    const listRow = { ...api.getRow(), images: [], search_chakras: ["Kök Çakra", "Kalp Çakrası"] };
+    const { page, ctx, pageErrors } = await newPage({ viewport: vp, routes: [
+      ...api.routes,
+      ["POST", /^\/api\/dogaltas\/stones\/condition-search$/, (_r, _u, body) => {
+        const has = (body?.conditions ?? []).length > 0;
+        return { status: 200, json: { ok: true, rows: has ? [listRow] : [], total: has ? 1 : 0, capped: false,
+          suggestions: { chakra: [{ name: "Kalp Çakrası", count: 1 }], astrology: [], organ: [], stone_name: [], mineral: [] } } };
+      }],
+    ] });
+    try {
+      await page.goto(`${BASE}/dogaltas/kombinasyon-olustur`, { waitUntil: "load" });
+      await sleep(2500);
+      const sel = page.locator("section select:visible").first();
+      const chakraValue = await sel.evaluate((el) => [...el.options].find((o) => /Çakra/.test(o.text))?.value ?? "");
+      await sel.selectOption(chakraValue);
+      await page.locator('section input[type="text"]:visible').first().fill("Kalp");
+      await page.keyboard.press("Escape");
+      const scan = page.locator("button:visible", { hasText: "Taşları Tara" });
+      if (await scan.count()) await scan.first().click();
+      await sleep(1500);
+      const result = page.getByRole("button", { name: /ZZ Akik/ }).first();
+      await result.waitFor({ timeout: 8000 });
+      await result.click();
+      const panel = page.getByTestId("stone-detail-drawer-panel");
+      await panel.waitFor({ timeout: 5000 });
+      await panel.getByTestId("drawer-sources").waitFor({ timeout: 8000 });
+      await sleep(800);
+      const t = panel.getByTestId("stone-source-tab");
+      ok(g, "panelde 2 kaynak sekmesi (birincil + ek)", (await t.count()) === 2 && /Kristal Şifa Kitabı/.test(await t.first().innerText()) && /Ahmet Hoca/.test(await t.nth(1).innerText()));
+      ok(g, "koşul (Kalp) yalnız ek kaynakta → o kaynak otomatik açık + eşleşme rozeti", (await t.nth(1).getAttribute("aria-selected")) === "true" && /🔍/.test(await t.nth(1).innerText()));
+      let txt = await panel.innerText();
+      ok(g, "ek kaynak metni görünür, birincil metin GÖRÜNMEZ (karışmaz)", txt.includes("Ahmet genel: kalp bölgesi.") && !txt.includes("Kristal genel bilgi (birincil)."));
+      await t.first().click();
+      await sleep(400);
+      txt = await panel.innerText();
+      ok(g, "birincil sekme → birincil metin, ek metin yok", txt.includes("Kristal genel bilgi (birincil).") && !txt.includes("Ahmet genel: kalp bölgesi."));
+      ok(g, "salt-okunur (ekle/sil yok)", (await panel.getByTestId("stone-source-add").count()) === 0 && (await panel.getByTestId("stone-source-delete").count()) === 0);
+      ok(g, "taş adı ortak", txt.includes("ZZ Akik"));
+      // kombinasyon ekleme mantığı aynı
+      await panel.getByRole("button", { name: /Kombinasyona Ekle/ }).click();
+      await sleep(400);
+      ok(g, "Kombinasyona Ekle aynı çalışır (panel içi çıkar butonuna döner)", (await panel.getByRole("button", { name: /Çıkar/ }).count()) >= 1);
+      ok(g, "kaynaklar için yazma isteği YOK", api.writes.length === 0, JSON.stringify(api.writes));
+      const pb = await panel.boundingBox();
+      ok(g, "panel ekranda (yatay taşma yok)", pb.x >= 0 && pb.x + pb.width <= vp.width + 1 && (await noHScroll(page)));
+      ok(g, "JS hata yok", realErrors(pageErrors).length === 0, pageErrors.join(" ; "));
+    } catch (e) { ok(g, "senaryo çalıştı", false, e); } finally { await ctx.close(); }
+  }
+}
+
+const ALL = { testSourcesView, testSourcesSearch, testSourcesEdit, testSingleSource, testCreateForm, testBuilderDrawer };
 const only = process.env.ONLY ? process.env.ONLY.split(",") : Object.keys(ALL);
 try {
   for (const k of only) await ALL[k]();

@@ -94,7 +94,8 @@ const STONE_COPY_FIELDS = [
   "assignments",
   "images",
   "image_upload_failed",
-  // WT9: birincil kaynağın adı (içerik o kaynağa ait). Ek kaynaklar (stone_sources) aktarılmaz.
+  // WT9: birincil kaynağın adı (içerik o kaynağa ait). Ek kaynaklar (stone_sources) taşlardan
+  // HEMEN SONRA cloneStoneSources ile aynı batch'te kopyalanır.
   "primary_source_name",
 ] as const;
 
@@ -657,6 +658,67 @@ function buildCopyPayload(
   return copy;
 }
 
+/** WT9: ek kaynakta kopyalanan alanlar (tenant/stone/id/zaman YOK → hedefte yeniden kurulur). */
+const STONE_SOURCE_COPY_FIELDS = [
+  "source_name", "sort_order", "short_description", "general_info", "source_note", "physical_effects",
+  "spiritual_effects", "other_effects", "feng_shui", "meditation", "care", "application", "warning_text", "chakras",
+] as const;
+
+/**
+ * WT9 — Doğaltaş EK KAYNAKLARI (stone_sources) aktarımı. Taşlar bu batch'te kopyalandıktan sonra:
+ *   1) hedefte bu batch'in taş kimlik haritası (origin_source_id → yeni id) okunur (HATA = aktarım hatası);
+ *   2) KAYNAK tenant'ın o taşlara ait ek kaynakları okunur (yalnız kaynak tenant; başka uzman yok);
+ *   3) her satır HEDEF tenant + HEDEF taş id'siyle YENİ satır olarak yazılır (kaynak satıra bağ yok,
+ *      eski tenant/taş id'si kalmaz). Taş-başına ad tekilliği kaynakta zaten sağlanmıştır.
+ * Hata → çağıran grup-rollback'i taşları siler; ek kaynaklar ON DELETE CASCADE ile gider.
+ * Migration öncesi şema (tablo yok) → 0 kaynak (eski davranış), hata değil.
+ */
+async function cloneStoneSources(
+  db: SupabaseClient,
+  sourceTenantId: string,
+  targetTenantId: string,
+  batchId: string,
+): Promise<number> {
+  const mapRes = await readAllPaged<{ id: unknown; origin_source_id: unknown }>((from, to) =>
+    db.from("stones").select("id, origin_source_id", { count: "exact" })
+      .eq("tenant_id", targetTenantId).eq("origin_transfer_batch_id", batchId)
+      .order("id", { ascending: true }).range(from, to),
+  );
+  if (mapRes.error) throw new TransferError("read", "stones");
+  const idMap = new Map<string, string>();
+  for (const r of mapRes.rows) {
+    if (typeof r.id === "string" && typeof r.origin_source_id === "string") idMap.set(r.origin_source_id, r.id);
+  }
+  if (idMap.size === 0) return 0;
+
+  const payloads: Record<string, unknown>[] = [];
+  for (const chunk of chunkIds([...idMap.keys()])) {
+    const res = await readAllPaged<Record<string, unknown>>((from, to) =>
+      db.from("stone_sources").select(`stone_id, ${STONE_SOURCE_COPY_FIELDS.join(", ")}`, { count: "exact" })
+        .eq("tenant_id", sourceTenantId).in("stone_id", chunk)
+        .order("stone_id", { ascending: true }).order("sort_order", { ascending: true }).order("id", { ascending: true })
+        .range(from, to),
+    );
+    if (res.error) {
+      const code = String((res.error as { code?: string }).code ?? "");
+      if (code === "42P01" || code === "PGRST205") return 0; // WT9 migration'ı yok → ek kaynak yok
+      throw new TransferError("read", "stones");
+    }
+    for (const row of res.rows) {
+      const newStoneId = idMap.get(String(row.stone_id));
+      if (!newStoneId) continue; // bu batch'te kopyalanmayan taş → kaynağı da yok (dangling üretilmez)
+      const copy: Record<string, unknown> = { tenant_id: targetTenantId, stone_id: newStoneId };
+      for (const k of STONE_SOURCE_COPY_FIELDS) copy[k] = row[k] ?? null;
+      payloads.push(copy);
+    }
+  }
+  for (let off = 0; off < payloads.length; off += INSERT_BATCH) {
+    const { error } = await db.from("stone_sources").insert(payloads.slice(off, off + INSERT_BATCH));
+    if (error) throw new TransferError("insert", "stones");
+  }
+  return payloads.length;
+}
+
 /** Düz (flat) grubu kopyalar: SELECT kaynak → payload → batch INSERT. */
 async function cloneFlatGroup(
   db: SupabaseClient,
@@ -684,6 +746,11 @@ async function cloneFlatGroup(
     const { error: insErr } = await db.from(cfg.table).insert(batch);
     if (insErr) throw new TransferError("insert", group);
     inserted += batch.length;
+  }
+
+  // WT9: taşların ek bilgi kaynakları da aynı batch'te (hata → grup rollback'i, CASCADE).
+  if (group === "stones" && inserted > 0) {
+    await cloneStoneSources(db, sourceTenantId, targetTenantId, batchId);
   }
 
   return { requested: rows.length, inserted };

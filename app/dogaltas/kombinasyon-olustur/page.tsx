@@ -416,7 +416,9 @@ export default function KombinasyonOlusturPage() {
     // (aynı paylaşılan motor → sonuç birebir). inStock ve TR-sıralama client'ta.
     const list = serverRows
       .map((stone) => {
-        const evaluation = evaluateStoneConditions(stone, conditions);
+        // WT9: sunucu ek kaynak çakralarını da saydıysa (search_chakras) aynı küme ile değerlendir.
+        const searchChakras = (stone as { search_chakras?: string[] | null }).search_chakras;
+        const evaluation = evaluateStoneConditions(searchChakras ? { ...stone, chakras: searchChakras } : stone, conditions);
         return { stone, evaluation, inStock: stockMatcher(stone.stone_name) };
       })
       .filter((r) => r.evaluation.matches);
