@@ -36,7 +36,8 @@ import {
   type CalendarDate,
 } from "@/lib/numeroloji/timing";
 import {
-  CHRONO_CUTOFF_NOTE,
+  chronoLimitYear,
+  chronoNoteText,
   cutoffDegisimYearOnly,
   cutoffDegisimFullDate,
   cutoffHarfSegments,
@@ -576,6 +577,8 @@ export function buildPersonSections(
   stockIndex: StockIndex,
   refCalendar: CalendarDate | null = null,
   now: Date = new Date(),
+  /** SUNUCUDA doğrulanmış "Gelecek Yılları Göster" yetkisi (route; istemci değeri DEĞİL). Varsayılan KAPALI. */
+  futureYears: boolean = false,
 ): { children: Block[]; emptyTabs: WordTabKey[] } {
   const children: Block[] = [];
   const emptyTabs: WordTabKey[] = [];
@@ -587,7 +590,9 @@ export function buildPersonSections(
   // OWNER YEAR-CUTOFF: kronolojik bölümler rapor oluşturma anındaki Türkiye takvim yılına
   // sınırlanır (yıl hardcode DEĞİL; her yıl otomatik güncellenir). refCalendar timing sekmesi
   // içindir ve bu sınırı ETKİLEMEZ.
-  const chronoCutoffYear = currentIstanbulYear();
+  // Gelecek Yıllar yetkisi AÇIK → aynı filtreler sınırsız yılla (yöntemin doğal bitişi) çalışır;
+  // KAPALI → currentIstanbulYear() (önceki davranış birebir).
+  const chronoCutoffYear = chronoLimitYear(currentIstanbulYear(), futureYears);
   // NUM-005: row.birth_date DB'den ISO (YYYY-MM-DD) veya TR gelebilir → esnek sınır parser'ı.
   const chronoBirthYear = parseBirthDateFlexible(row.birth_date)?.year ?? null;
   const adSoyad = `${row.name} ${row.surname}`.trim() || "—";
@@ -644,7 +649,7 @@ export function buildPersonSections(
         blocks.push(...chakraSpine(motor));
         blocks.push(subHeading("Elementler"));
         blocks.push(...elementCards(motor));
-        const chronoNote = () => p(CHRONO_CUTOFF_NOTE, { size: S_SMALL, color: BODY, before: 40 });
+        const chronoNote = () => p(chronoNoteText(futureYears), { size: S_SMALL, color: BODY, before: 40 });
         const deg = degisimBlocks(row.birth_date, chronoCutoffYear);
         if (deg.length) { blocks.push(subHeading("Değişim — Dönüşüm")); blocks.push(...deg); blocks.push(chronoNote()); }
         const z = zirveCards(motor, chronoBirthYear, chronoCutoffYear); if (z.length) { blocks.push(subHeading("Zirve Yılları")); blocks.push(...z); blocks.push(chronoNote()); }
@@ -687,6 +692,8 @@ export function buildNumerolojiWordChildren(
   stockIndex: StockIndex = new Map(),
   refCalendar: CalendarDate | null = null,
   now: Date = new Date(),
+  /** SUNUCUDA doğrulanmış "Gelecek Yılları Göster" yetkisi. Varsayılan KAPALI (fail-closed). */
+  futureYears: boolean = false,
 ): { children: Block[]; emptyTabs: WordTabKey[]; anyContent: boolean } {
   const selected = WORD_TAB_ORDER.filter((k) => sections[k]);
   const reportType = selected.length === 1 ? WORD_TAB_LABELS[selected[0]!] : "Seçili Bölümler";
@@ -696,7 +703,7 @@ export function buildNumerolojiWordChildren(
   let anyContent = false;
 
   rows.forEach((row, i) => {
-    const { children, emptyTabs } = buildPersonSections(row, sections, shared, reportType, selectedLabels, i, stockIndex, refCalendar, now);
+    const { children, emptyTabs } = buildPersonSections(row, sections, shared, reportType, selectedLabels, i, stockIndex, refCalendar, now, futureYears === true);
     for (const t of emptyTabs) emptyTabSet.add(t);
     // Bu kişi en az bir seçili sekmede içerik ürettiyse belge içerik taşıyor.
     if (selected.some((k) => !emptyTabs.includes(k))) anyContent = true;

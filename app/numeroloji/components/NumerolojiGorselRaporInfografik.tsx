@@ -10,7 +10,6 @@ import {
 import { turkishUpper, turkishUpperDisplay, ELEMENT_ORDER, LETTER_TO_CHAKRA, mucadeleKonuText, type HarfYankilanisiSegment } from "@/lib/numeroloji";
 import { nrDisplay, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 import {
-  CHRONO_CUTOFF_NOTE,
   cutoffDegisimYearOnly,
   cutoffMucadele,
   dogumTarihiFromOut,
@@ -20,7 +19,7 @@ import {
   ZIRVE_METOT1_LABEL,
   ZIRVE_METOT2_LABEL,
 } from "../utils/chronoCutoff";
-import { useCurrentYear } from "../hooks/useCurrentYear";
+import { useChronoView } from "../hooks/useChronoView";
 
 function mergeRefs<T>(...refs: Array<Ref<T> | undefined | null>) {
   return (node: T | null) => {
@@ -889,7 +888,8 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
   const Y = 5;
   // OWNER YEAR-CUTOFF: görsel raporda da gelecek yıllar/dönemler gizli; devam eden aktif harf
   // segmenti currentYear'a kırpılır. Canonical hesap DEĞİŞMEZ.
-  const currentYear = useCurrentYear();
+  // limitYear: Gelecek Yıllar yetkisi KAPALI → currentYear (önceki davranış birebir); AÇIK → tüm dönemler.
+  const { limitYear, note: chronoNote } = useChronoView();
   const chronoBirthYear = dogumYilindanOut(out);
   const chronoBirthDate = dogumTarihiFromOut(out);
   const hy = out.harflerinYankilanisi;
@@ -898,7 +898,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
     if ("eksik" in item) return [item];
     const seg = item;
     // OWNER: başlangıç yılı > currentYear ise gizle; ≤ ise ORİJİNAL (tam) aralıkla göster (kırpma YOK).
-    if (seg.yearStart != null && seg.yearStart > currentYear) return [];
+    if (seg.yearStart != null && seg.yearStart > limitYear) return [];
     return [seg];
   });
 
@@ -911,7 +911,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
 
   // Zirve: iki metot (UI/Word ile aynı zirveYasGorunumu). Mücadele: yaşlar GEÇİŞ SINIRI —
   // dönem başlangıcı bir önceki sınırdır; devam eden dönem görünür (cutoffMucadele, tek helper).
-  const zirveG = zirveYasGorunumu(out.zirveYillari?.peaks, chronoBirthYear, currentYear);
+  const zirveG = zirveYasGorunumu(out.zirveYillari?.peaks, chronoBirthYear, limitYear);
   const zKonu = (p: { topic: number; display?: string }) => (p.display && p.display.includes("/") ? p.display : String(p.topic));
   let zirveGoster: string[] = [];
   if (zirveG?.format === "kayitli") {
@@ -928,14 +928,14 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
     ];
   }
 
-  const mucCut = cutoffMucadele(out.mucadeleYillari, chronoBirthYear, currentYear);
+  const mucCut = cutoffMucadele(out.mucadeleYillari, chronoBirthYear, limitYear);
   const mucGoster: string[] = mucadeleSatirlari(mucCut)
     .map((r) => `${r.baslik} · konu ${mucadeleKonuText(r.konu)}`)
     .slice(0, Y);
 
   // Değişim-Dönüşüm: takvim yılı bazlı yapısal cutoff (regex serbest-metin KESME YOK).
   const degGoster: string[] = chronoBirthDate
-    ? cutoffDegisimYearOnly(chronoBirthDate, currentYear, Y)
+    ? cutoffDegisimYearOnly(chronoBirthDate, limitYear, Y)
         .map((r) => `${r.index}. Değişim ${r.changeYear} → ${r.chakra}. çakra (${r.effectStartYear}–${r.effectEndYearDisplay})`)
         .slice(0, Y)
     : [];
@@ -1208,7 +1208,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
         ))}
       </div>
       <p className="relative z-[2] mt-2 text-center text-sm font-medium opacity-70" style={{ color: "var(--gr-line-text)" }}>
-        {CHRONO_CUTOFF_NOTE}
+        {chronoNote}
       </p>
 
       <section
@@ -1296,7 +1296,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
           })}
         </div>
         <p className="mt-4 text-center text-sm font-medium opacity-70" style={{ color: "var(--gr-line-text)" }}>
-          {CHRONO_CUTOFF_NOTE}
+          {chronoNote}
         </p>
       </section>
 

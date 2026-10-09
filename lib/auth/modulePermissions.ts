@@ -30,7 +30,12 @@ export type ModulePermissionKey =
   | "yasam_hafizasi"
   // Human Design alt-yetkisi: "Sistem Yorumu" (kayıtlı RoxyAPI açıklamaları). MODÜL DEĞİL —
   // human_design ile BİRLİKTE gerekir; varsayılan KAPALI, Premium payload'ında YOK (admin açar).
-  | "hd_system_reading";
+  | "hd_system_reading"
+  // Numeroloji alt-yetkisi: "Gelecek Yılları Göster" — kronolojik bölümlerde (Değişim-Dönüşüm,
+  // Zirve, Mücadele, Harflerin Yankılanışı) içinde bulunulan yıldan SONRA başlayan dönemleri de
+  // gösterir. MODÜL DEĞİL — numerology ile BİRLİKTE gerekir; varsayılan KAPALI, Premium
+  // payload'ında YOK (admin uzman bazında açar).
+  | "numerology_future_years";
 
 export type ModulePermissions = Record<ModulePermissionKey, boolean>;
 
@@ -53,6 +58,7 @@ export const MODULE_PERMISSION_KEYS: ModulePermissionKey[] = [
   "beslenme",
   "yasam_hafizasi",
   "hd_system_reading",
+  "numerology_future_years",
 ];
 
 export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
@@ -74,6 +80,7 @@ export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
   beslenme: "Beslenme",
   yasam_hafizasi: "Yaşam Hafızası",
   hd_system_reading: "Human Design — Sistem Yorumu",
+  numerology_future_years: "Numeroloji — Gelecek Yılları Göster",
 };
 
 export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
@@ -95,6 +102,7 @@ export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
   beslenme: false,
   yasam_hafizasi: false,
   hd_system_reading: false,
+  numerology_future_years: false,
 };
 
 /** Admin paneli + Türkçe alias anahtarları (route guard / panel) */
