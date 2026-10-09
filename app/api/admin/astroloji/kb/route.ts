@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
+import { enforceAstroWrite } from "@/lib/astrology/limits";
 import { readJsonBody, serviceJson } from "@/lib/astrology/http";
 import { createKb, listKb } from "@/lib/astrology/kb/service";
 
@@ -19,5 +20,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!gate.ok) return gate.response;
   const b = await readJsonBody(req);
   if (!b.ok) return b.response;
+  const limited = await enforceAstroWrite(gate.ctx, "kb_create");
+  if (limited) return limited;
   return serviceJson(await createKb(gate.ctx, b.body));
 }

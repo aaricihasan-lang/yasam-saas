@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
+import { enforceAstroWrite } from "@/lib/astrology/limits";
 import { readJsonBody, serviceJson } from "@/lib/astrology/http";
 import { deleteKb, getKbEntry, updateKb } from "@/lib/astrology/kb/service";
 
@@ -21,6 +22,8 @@ export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Respon
   const { id } = await ctx.params;
   const b = await readJsonBody(req);
   if (!b.ok) return b.response;
+  const limited = await enforceAstroWrite(gate.ctx, "kb_update");
+  if (limited) return limited;
   return serviceJson(await updateKb(gate.ctx, id, b.body));
 }
 

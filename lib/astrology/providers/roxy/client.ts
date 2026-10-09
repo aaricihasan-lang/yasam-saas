@@ -11,7 +11,7 @@
 
 import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
-import { ASTRO_PROVIDER_LANG, ASTRO_ROXY_TIMEOUT_MS, type RoxyServerConfig } from "../../config";
+import { ASTRO_PROVIDER_LANG, ASTRO_ROXY_MAX_RETRIES, ASTRO_ROXY_MAX_RETRY_AFTER_MS, ASTRO_ROXY_TIMEOUT_MS, type RoxyServerConfig } from "../../config";
 
 assertServerOnly("lib/astrology/providers/roxy/client");
 
@@ -54,7 +54,7 @@ function buildUrl(config: RoxyServerConfig, endpoint: string, lang: string, quer
   return `${config.baseUrl}${endpoint}?${qs.toString()}`;
 }
 
-const MAX_RETRY_AFTER_MS = 5_000;
+const MAX_RETRY_AFTER_MS = ASTRO_ROXY_MAX_RETRY_AFTER_MS;
 
 function retryAfterMs(res: Response): number {
   const h = res.headers.get("retry-after");
@@ -135,7 +135,7 @@ export async function callRoxy(
   const timeoutMs = opts.timeoutMs ?? ASTRO_ROXY_TIMEOUT_MS;
   const doFetch: FetchLike = opts.fetchImpl ?? ((u, i) => fetch(u, i));
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
-  const maxRetries = Math.max(0, Math.min(1, opts.maxRetries ?? 1));
+  const maxRetries = Math.max(0, Math.min(ASTRO_ROXY_MAX_RETRIES, opts.maxRetries ?? ASTRO_ROXY_MAX_RETRIES));
 
   let attempts = 0;
   for (;;) {

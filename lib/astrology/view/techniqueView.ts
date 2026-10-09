@@ -44,7 +44,7 @@ export type TechniqueView = {
   projectionVersion: string;
   computedAt: string;
   options: Record<string, unknown>;
-  method: { zodiac: "tropical"; houseSystem: string | null; nodeType: string | null };
+  method: { zodiac: Zodiac; houseSystem: string | null; nodeType: string | null };
   timeUnknownMasked: boolean;
   warnings: string[];
   missingParts: number;
@@ -53,6 +53,19 @@ export type TechniqueView = {
     | { visible: true; provider: string; lang: string; content: unknown; notice: string }
     | { visible: false; reason: "not_entitled" | "owner_preview_hidden" | "unavailable" };
 };
+
+export type Zodiac = "tropical" | "sidereal";
+
+/**
+ * Aşama 9A-P2-01: zodyak TEKNİĞİN geleneğinden gelir (Batı = tropikal; Vedik/KP = sidereal). Vedik/KP teknik
+ * katmanı kendi `zodiac: "sidereal"` alanını taşır; iki kaynak uyuşmazsa sessizce yazılmaz — hata fırlatılır.
+ */
+export function zodiacOfTechnique(technique: string, technical?: unknown): Zodiac {
+  const z: Zodiac = technique.startsWith("vedic.") || technique.startsWith("kp.") ? "sidereal" : "tropical";
+  const own = technical && typeof technical === "object" ? (technical as { zodiac?: unknown }).zodiac : undefined;
+  if (own !== undefined && own !== z) throw new Error(`zodiac uyuşmazlığı: ${technique} teknik=${String(own)} beklenen=${z}`);
+  return z;
+}
 
 const MOON_WARN = "Doğum saati bilinmediği için natal Ay konumu gün içinde ~13° değişebilir; Ay ile ilgili sonuçlar yaklaşık kabul edilmelidir.";
 const isAngle = (p: string) => p === "ascendant" || p === "midheaven";
@@ -194,7 +207,7 @@ export function buildTechniqueView(args: {
     projectionVersion: first.projection_version,
     computedAt: first.created_at,
     options: args.options,
-    method: { zodiac: "tropical", houseSystem: tech.houseSystem ?? tech.chart?.houseSystem ?? null, nodeType: tech.nodeType ?? null },
+    method: { zodiac: zodiacOfTechnique(args.technique, m.technical), houseSystem: tech.houseSystem ?? tech.chart?.houseSystem ?? null, nodeType: tech.nodeType ?? null },
     timeUnknownMasked: m.masked,
     warnings: [...m.warnings, ...(args.missingParts ? [`${args.missingParts} dönem parçası hesaplanamadı; takvim eksik olabilir.`] : [])],
     missingParts: args.missingParts ?? 0,

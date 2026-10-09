@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
 import { parseOwnerPreviewHideInterp } from "@/lib/astrology/access/entitlements";
+import { enforceAstroWrite } from "@/lib/astrology/limits";
 import { readJsonBody, serviceJson } from "@/lib/astrology/http";
 import { listAnalyses, saveAnalysis } from "@/lib/astrology/analyses/service";
 
@@ -27,6 +28,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!gate.ok) return gate.response;
   const b = await readJsonBody(req);
   if (!b.ok) return b.response;
+  const limited = await enforceAstroWrite(gate.ctx, "analysis_save");
+  if (limited) return limited;
   const preview = parseOwnerPreviewHideInterp(req.nextUrl.searchParams.get("previewNoInterp"));
   return serviceJson(await saveAnalysis(gate.ctx, b.body, preview));
 }

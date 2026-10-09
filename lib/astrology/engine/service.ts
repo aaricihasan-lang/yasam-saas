@@ -16,7 +16,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
-import { ASTRO_RATE_LIMITS, type RoxyServerConfig } from "../config";
+import { ASTRO_RATE_LIMITS, ASTRO_ROXY_WORST_CALL_MS, ASTRO_RUN_BUDGET_MS, ASTRO_UNIT_DB_MARGIN_MS, type RoxyServerConfig } from "../config";
 import { resolveInterpretationVisibility, type AstrologyEntitlements } from "../access/entitlements";
 import type { RoxyCallResult } from "../providers/roxy/client";
 import type { BirthPoint } from "../providers/roxy/requests";
@@ -62,6 +62,8 @@ export type EngineDeps = {
   log?: (msg: string, detail?: Record<string, unknown>) => void;
   /** Test/deterministik "şimdi". */
   now?: () => Date;
+  /** 9A-P2-02: süre bütçesi için monoton saat (ms). Test sahte saat verebilir. */
+  clock?: () => number;
 };
 
 export type ServiceResponse = { status: number; body: Record<string, unknown> };
@@ -332,6 +334,11 @@ async function executeUnit(
     return { ok: false, status: 409, code: "IN_PROGRESS", error: "Bu hesaplama şu anda sürüyor. Birkaç saniye sonra tekrar deneyin.", providerAttempts: 0, retryAfterSec: 10 };
   }
 
+  // 9A-P2-02: kilit ALINDIKTAN SONRA önbellek yeniden okunur — planlamadan beri başka bir istek (çift tık, ikinci sekme,
+  // başka instance) aynı hesabı tamamlayıp kaydettiyse sağlayıcı ikinci kez ÇAĞRILMAZ.
+  const fresh = await reload();
+  if (fresh) return { ok: true, row: fresh, reused: true, providerAttempts: 0 };
+
   const userRl = await deps.rateLimit("astro-roxy-user", ctx.userId, ASTRO_RATE_LIMITS.perUser.limit, ASTRO_RATE_LIMITS.perUser.windowSeconds);
   if (!userRl.allowed) {
     return { ok: false, status: 429, code: "RATE_LIMITED", error: "Kısa sürede çok fazla yeni hesaplama yapıldı. Lütfen daha sonra tekrar deneyin.", providerAttempts: 0, retryAfterSec: userRl.retryAfterSec };
@@ -520,9 +527,23 @@ export async function runAstrology(
 
   const outcomes = new Map<string, UnitOutcome>();
   let providerAttempts = 0;
+  // 9A-P2-02: çalıştırma süre bütçesi — yeni sağlayıcı çağrısı ancak en kötü süresiyle bütçeye sığıyorsa başlatılır.
+  const clock = deps.clock ?? (() => Date.now());
+  const startedAt = clock();
   for (const unit of plan.units) {
     if (unit.cached) {
       outcomes.set(unit.inputHash, { ok: true, row: cachedRows.get(unit.inputHash)!, reused: true, providerAttempts: 0 });
+      continue;
+    }
+    if (clock() - startedAt + ASTRO_ROXY_WORST_CALL_MS + ASTRO_UNIT_DB_MARGIN_MS > ASTRO_RUN_BUDGET_MS) {
+      outcomes.set(unit.inputHash, {
+        ok: false,
+        status: 503,
+        code: "RUN_TIME_BUDGET",
+        error: "Süre sınırı nedeniyle bu hesap başlatılmadı (tamamlananlar kaydedildi). Tekrar çalıştırın; kayıtlı sonuçlar yeniden hesaplanmaz.",
+        providerAttempts: 0,
+        retryAfterSec: 1,
+      });
       continue;
     }
     const o = await executeUnit(ctx, deps, unit, selections[unit.selectionIndexes[0]], revision);

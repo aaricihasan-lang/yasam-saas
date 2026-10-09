@@ -155,7 +155,13 @@ export function kpChartBody(b: BirthPoint, ayanamsa: KpAyanamsa, nodeType: KpNod
 export function kpRulingBody(b: BirthPoint, atUtcMinute: string, nodeType: KpNodeType, place?: GeoPoint | null) {
   const bb = birthBody(b);
   const t = vedicTransitLocal(b, atUtcMinute);
-  return { latitude: place ? r6(place.latitude) : bb.latitude, longitude: place ? r6(place.longitude) : bb.longitude, timezone: bb.timezone, datetime: `${t.date}T${t.time}`, birthDate: bb.date, birthTime: bb.time, nodeType };
+  const lat = place ? r6(place.latitude) : bb.latitude;
+  const lon = place ? r6(place.longitude) : bb.longitude;
+  // Aşama 9A-P2-04 (gerçek çağrıyla doğrulandı, R2/R3): Roxy bu uçta TEK konum alır ve doğum verisi verilirse natal
+  // haritayı da O konumda kurar. Gözlem yeri doğum yerinden farklıysa natal significator'lar yanlış konumla
+  // hesaplanırdı → doğum verisi GÖNDERİLMEZ (yalnız ruling planets; significator yok). Doğum yerinde gövde aynen.
+  if (lat !== bb.latitude || lon !== bb.longitude) return { latitude: lat, longitude: lon, timezone: bb.timezone, datetime: `${t.date}T${t.time}`, nodeType };
+  return { latitude: lat, longitude: lon, timezone: bb.timezone, datetime: `${t.date}T${t.time}`, birthDate: bb.date, birthTime: bb.time, nodeType };
 }
 
 /** /vedic-astrology/kp/horary — doğum verisi YOK; soru anı UTC (timezone 0) + değerlendirme konumu. */

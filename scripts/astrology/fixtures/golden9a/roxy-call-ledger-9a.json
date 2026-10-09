@@ -1,0 +1,23 @@
+{
+  "total": 50,
+  "calls": [
+    {
+      "name": "R1-ruling-istanbul-baseline",
+      "endpoint": "/vedic-astrology/kp/ruling-planets",
+      "at": "2026-10-09T20:39:15.617Z",
+      "status": "200"
+    },
+    {
+      "name": "R2-ruling-newyork-same-birth",
+      "endpoint": "/vedic-astrology/kp/ruling-planets",
+      "at": "2026-10-09T20:39:27.063Z",
+      "status": "200"
+    },
+    {
+      "name": "R3-ruling-newyork-no-birth",
+      "endpoint": "/vedic-astrology/kp/ruling-planets",
+      "at": "2026-10-09T20:39:57.023Z",
+      "status": "200"
+    }
+  ]
+}

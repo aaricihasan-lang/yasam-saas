@@ -23,10 +23,11 @@ type Summary = {
   profileLabel: string;
   partnerLabel: string | null;
   partnerRevision: number | null;
+  technique: string;
   techniqueLabel: string;
   partCount: number;
   revision: number;
-  zodiac: string;
+  zodiac: "tropical" | "sidereal";
   houseSystem: string | null;
   nodeType: string | null;
   provider: string;
@@ -313,7 +314,7 @@ export default function AnalysisWorkspace({
                 </dd>
                 <dt className="text-slate-500">Yöntem</dt>
                 <dd>
-                  Tropikal · {shownSummary.s.houseSystem ?? "ev sistemi yok"} · düğüm: {shownSummary.s.nodeType ?? "—"} · sağlayıcı: {shownSummary.s.provider}
+                  {shownSummary.s.zodiac === "sidereal" ? (shownSummary.s.technique.startsWith("kp.") ? "Sidereal (KP)" : "Sidereal (nirayana)") : "Tropikal"} · {shownSummary.s.houseSystem ?? "ev sistemi yok"} · düğüm: {shownSummary.s.nodeType ?? "—"} · sağlayıcı: {shownSummary.s.provider}
                 </dd>
                 <dt className="text-slate-500">Bilgi Bankası</dt>
                 <dd>

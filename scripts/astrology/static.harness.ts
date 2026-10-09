@@ -59,6 +59,7 @@ const SERVER_ONLY_MODULES = [
   "lib/astrology/audit/unmapped",
   "lib/astrology/report/service",
   "lib/astrology/report/chartPng",
+  "lib/astrology/limits",
 ];
 
 async function main() {
@@ -91,7 +92,9 @@ async function main() {
       const sub = rel(f).replace(/^app\/api\/astroloji/, "").replace(/\/route\.ts$/, "");
       const adminSrc = read(`app/api/admin/astroloji${sub}/route.ts`);
       const methods = [...adminSrc.matchAll(/export async function (GET|POST|PUT|PATCH|DELETE)\b/g)].map((m) => m[1]);
-      assert.equal(s, `export { ${methods.join(", ")} } from "@/app/api/admin/astroloji${sub}/route";\nexport const runtime = "nodejs";`, `${rel(f)}: yalnız re-export olmalı`);
+      // 9A-P2-02: admin route `maxDuration` taşıyorsa ayna da AYNI değeri taşır (segment ayarı yeniden dışa aktarılamaz).
+      const md = /^export const maxDuration = (\d+);$/m.exec(adminSrc);
+      assert.equal(s, `export { ${methods.join(", ")} } from "@/app/api/admin/astroloji${sub}/route";\nexport const runtime = "nodejs";${md ? `\nexport const maxDuration = ${md[1]};` : ""}`, `${rel(f)}: yalnız re-export olmalı`);
     }
     // Kapı yüzeyi yoldan seçer: admin yolu owner-only, uzman yolu modül yetkisi; başka yol 404.
     const g = read("lib/astrology/access/ownerGate.ts");
@@ -248,6 +251,8 @@ async function main() {
       /^ASTROLOGY-PHASE7B-PROGRESS\.md$/,
       /^ASTROLOGY-PHASE7C-PROGRESS\.md$/,
       /^ASTROLOGY-PHASE8-PROGRESS\.md$/,
+      /^ASTROLOGY-PHASE9A-AUDIT\.md$/,
+      /^ASTROLOGY-PHASE9A-P2-PROGRESS\.md$/,
       // Aşama 8: rapor route'larının font dosyası izleme kaydı — fark ayrıca satır satır sınırlanır.
       /^next\.config\.ts$/,
       // Aşama 7C: uzman yüzeyi (sayfa + API aynası) ve mevcut yetki sistemine Astroloji kayıtları.

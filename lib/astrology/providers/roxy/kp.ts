@@ -334,7 +334,11 @@ const themesOf = (v: unknown) => {
   return Array.from({ length: 12 }, (_, i) => ({ house: i + 1, keywords: keywords(th?.[String(i + 1)]) })).filter((x) => x.keywords.length > 0);
 };
 
-export function projectRoxyKpRuling(raw: unknown, opts: { atUtc: string; local: string; utcOffsetHours: number; place: { latitude: number; longitude: number } }): AdapterResult<KpRulingTechnical, KpExtraInterpretation> {
+export function projectRoxyKpRuling(
+  raw: unknown,
+  opts: { atUtc: string; local: string; utcOffsetHours: number; place: { latitude: number; longitude: number }; withBirth?: boolean },
+): AdapterResult<KpRulingTechnical, KpExtraInterpretation> {
+  const withBirth = opts.withBirth !== false;
   const errors: string[] = [];
   const r = obj(raw);
   if (!r) return { ok: false, errors: ["root"] };
@@ -353,11 +357,21 @@ export function projectRoxyKpRuling(raw: unknown, opts: { atUtc: string; local: 
     }
     significators.push({ id, houses: hs as number[] });
   }
-  if (lords && significators.map((x) => x.id).sort().join() !== [...lords.rulingPlanets].sort().join()) errors.push("significators ruling planets kümesiyle uyuşmuyor");
+  if (withBirth && lords && significators.map((x) => x.id).sort().join() !== [...lords.rulingPlanets].sort().join()) errors.push("significators ruling planets kümesiyle uyuşmuyor");
+  // 9A-P2-04: doğum verisi gönderilmediyse significator GELMEMELİ (gelirse gözlem yeri haritasından olur → reddedilir).
+  if (!withBirth && (r.significators !== undefined || significators.length > 0)) errors.push("doğum verisiz istekte significators beklenmiyor");
   if (errors.length > 0) return { ok: false, errors: errors.slice(0, 25) };
   return {
     ok: true,
-    technical: { schema: KP_RULING_TECHNICAL_SCHEMA, frame: { ayanamsa: "kp-newcomb" }, at: { utc: opts.atUtc, local: opts.local, utcOffsetHours: opts.utcOffsetHours }, place: opts.place, ...lords!, significators },
+    technical: {
+      schema: KP_RULING_TECHNICAL_SCHEMA,
+      frame: { ayanamsa: "kp-newcomb" },
+      at: { utc: opts.atUtc, local: opts.local, utcOffsetHours: opts.utcOffsetHours },
+      place: opts.place,
+      ...lords!,
+      significators,
+      ...(withBirth ? {} : { significatorsOmitted: "place_differs" as const }),
+    },
     interpretation: { schema: KP_EXTRA_INTERP_SCHEMA, houseThemes: themesOf(r.houseThemes) },
     unmappedFields: findUnmapped(raw, KP_RULING_KNOWN, new Set(["houseThemes"])),
     droppedValues: [],

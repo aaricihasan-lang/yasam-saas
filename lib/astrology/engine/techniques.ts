@@ -918,8 +918,13 @@ const kpRuling: TechniqueDefinition = {
   noteContext: (opt) => `nodeType:${String(opt.nodeType)}`,
   parseNoteContextOptions: (raw) => (Object.keys(raw).join() === "nodeType" && (raw.nodeType === "mean" || raw.nodeType === "true") ? { nodeType: raw.nodeType } : null),
   project: (u, raw, opt) => {
-    const b = u.body as { latitude: number; longitude: number; timezone: number; datetime: string };
-    return fromAdapter(projectRoxyKpRuling(raw, { atUtc: String(opt.atUtc), local: b.datetime, utcOffsetHours: b.timezone, place: { latitude: b.latitude, longitude: b.longitude } }), KP_RULING_TECHNICAL_SCHEMA, KP_EXTRA_INTERP_SCHEMA, ROXY_KP_RULING.projection);
+    const b = u.body as { latitude: number; longitude: number; timezone: number; datetime: string; birthDate?: string };
+    return fromAdapter(
+      projectRoxyKpRuling(raw, { atUtc: String(opt.atUtc), local: b.datetime, utcOffsetHours: b.timezone, place: { latitude: b.latitude, longitude: b.longitude }, withBirth: typeof b.birthDate === "string" }),
+      KP_RULING_TECHNICAL_SCHEMA,
+      KP_EXTRA_INTERP_SCHEMA,
+      ROXY_KP_RULING.projection,
+    );
   },
 };
 

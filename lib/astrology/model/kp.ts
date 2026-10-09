@@ -74,6 +74,11 @@ export type KpRulingTechnical = {
   rulingPlanets: VedicGrahaId[];
   /** Her ruling planet'in natal haritada gösterdiği evler (Roxy, güç sırası). */
   significators: { id: VedicGrahaId; houses: number[] }[];
+  /**
+   * Aşama 9A-P2-04: gözlem yeri doğum yerinden farklıysa significator İSTENMEZ (Roxy natal haritayı da gözlem yerinde
+   * kurduğu için yanlış olurdu) → "place_differs". Alan yoksa (eski kayıt) significator'lar istekteki konumla hesaplanmıştır.
+   */
+  significatorsOmitted?: "place_differs";
 };
 export const KP_TRANSIT_TECHNICAL_SCHEMA = "astro.kp.transit.v1" as const;
 export type KpTransitTechnical = {

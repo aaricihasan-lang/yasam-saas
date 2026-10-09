@@ -5,6 +5,8 @@ import { readJsonBody, realEngineDeps, serviceJson } from "@/lib/astrology/http"
 import { runAstrology } from "@/lib/astrology/engine/service";
 
 export const runtime = "nodejs";
+// Aşama 9A-P2-02: platform süre sınırı = ASTRO_RUN_MAX_DURATION_S (çalıştırma bütçesi bunun 60 sn altında).
+export const maxDuration = 300;
 
 /**
  * POST — hesapla (kayıtlı sonuç varsa sağlayıcı ÇAĞRILMAZ).

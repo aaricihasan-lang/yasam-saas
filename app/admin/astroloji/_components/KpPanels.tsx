@@ -415,7 +415,14 @@ export function KpChartPanel({ t, kbLookup }: { t: KpChartTechnical; kbLookup?: 
 }
 
 // ─── Ruling planets ──────────────────────────────────────────────────────────
-export function KpRulingPanel({ t, kbLookup, placeLabel }: { t: KpRulingTechnical; kbLookup?: KbLookup | null; placeLabel?: string | null }) {
+/** 9A-P2-04: Aşama 9A öncesi kayıt + gözlem yeri ≠ doğum yeri → significator'lar gözlem yeri haritasından (yanlış konum). */
+export function kpRulingLegacyPlaceMismatch(t: KpRulingTechnical, birthplace: { lat: number; lon: number } | null | undefined): boolean {
+  if (t.significatorsOmitted || !birthplace || t.significators.length === 0) return false;
+  return Math.abs(t.place.latitude - birthplace.lat) > 1e-6 || Math.abs(t.place.longitude - birthplace.lon) > 1e-6;
+}
+
+export function KpRulingPanel({ t, kbLookup, placeLabel, birthplace }: { t: KpRulingTechnical; kbLookup?: KbLookup | null; placeLabel?: string | null; birthplace?: { lat: number; lon: number } | null }) {
+  const legacyMismatch = kpRulingLegacyPlaceMismatch(t, birthplace);
   const kb = kbLookup ? kbLookup(t.rulingPlanets.map((r) => `kp_ruling_planet:${r}`)) : null;
   const local = `${t.at.local.slice(8, 10)}.${t.at.local.slice(5, 7)}.${t.at.local.slice(0, 4)} ${t.at.local.slice(11, 16)}`;
   const row = (label: string, l: KpRulingTechnical["moon"]) => (
@@ -467,6 +474,19 @@ export function KpRulingPanel({ t, kbLookup, placeLabel }: { t: KpRulingTechnica
           </tbody>
         </table>
       </div>
+      {t.significatorsOmitted === "place_differs" && (
+        <p className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900" data-testid="astro-kp-ruling-sig-omitted">
+          Gözlem yeri doğum yerinden farklı olduğu için natal significator&apos;lar bu hesapta gösterilmez: sağlayıcı bu uçta natal haritayı da gözlem
+          yerinde kurar, bu da yanlış konum olur. Natal significator&apos;lar için &quot;KP doğum haritası&quot; tekniğini kullanın veya ruling&apos;i doğum yerinde hesaplayın.
+        </p>
+      )}
+      {legacyMismatch && (
+        <p className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="astro-kp-ruling-legacy-warning">
+          Uyarı: Bu eski kayıtta gözlem yeri doğum yerinden farklı; aşağıdaki significator&apos;lar doğum yeri yerine gözlem yeri haritasından hesaplanmıştır ve natal
+          significator olarak kullanılmamalıdır.
+        </p>
+      )}
+      {t.significators.length > 0 && (
       <div className={`${card} overflow-x-auto`}>
         <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Ruling planet&apos;lerin natal significator&apos;ları (Roxy, güç sırası)</h4>
         <table className="min-w-full" data-testid="astro-kp-ruling-sig">
@@ -483,6 +503,7 @@ export function KpRulingPanel({ t, kbLookup, placeLabel }: { t: KpRulingTechnica
           </tbody>
         </table>
       </div>
+      )}
       {t.significators.some((x) => isKpNode(x.id)) && <KpNodeMethodLegend methods={[KP_NODE_SIG_SOURCE.ruling]} context="ruling planets (kp/ruling-planets ucu)" />}
       <section className="rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm">
         <KbBox kb={kb} empty="Bu ruling planet'ler için KP Bilgi Bankası kaydınız yok." />

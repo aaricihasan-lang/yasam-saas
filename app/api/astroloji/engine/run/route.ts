@@ -3,3 +3,4 @@
 // requireModuleAccess("astrology") + owner kuralı + module_permissions + uzman sahipliği.
 export { POST } from "@/app/api/admin/astroloji/engine/run/route";
 export const runtime = "nodejs";
+export const maxDuration = 300;

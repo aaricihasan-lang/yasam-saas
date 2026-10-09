@@ -29,6 +29,7 @@ import { matchKbEntries, publicKbEntry } from "../kb/service";
 import { isSectionKeyForTechnique, topicLabelAny, topicsForTechnique, traditionOfTechnique } from "../topics/index";
 import { TRADITIONS, type Tradition } from "../topics/western";
 import { publicRevision } from "../view/natalView";
+import { ASTRO_MAX_KB_SNAPSHOT_BYTES } from "../limits";
 import type { TechniqueView } from "../view/techniqueView";
 
 assertServerOnly("lib/astrology/analyses/service");
@@ -354,6 +355,11 @@ async function buildSnapshot(ctx: EngineCtx, raw: unknown, ownerPreviewHideInter
   if (kb.error) return { ok: false, r: dbFail("snap.kb", kb.error) };
   const notes = await loadNotes(ctx, revision.profile_id, technique, contextKeyOf(technique, l.v.options, partnerRevision));
   if (notes.error) return { ok: false, r: dbFail("snap.notes", notes.error) };
+  // 9A-P2-03: analize kopyalanacak Bilgi Bankası snapshot'ı DB sınırından (2 MB) önce anlaşılır biçimde reddedilir (eskiden 500).
+  const kbBytes = Buffer.byteLength(JSON.stringify(kb.rows.map(publicKbEntry).map(kbSnapshotEntry)), "utf8");
+  if (kbBytes > ASTRO_MAX_KB_SNAPSHOT_BYTES) {
+    return { ok: false, r: fail(413, "KB_SNAPSHOT_TOO_LARGE", `Bu analize eşleşen Bilgi Bankası içeriği çok büyük (${Math.ceil(kbBytes / 1024)} KB; sınır ${Math.floor(ASTRO_MAX_KB_SNAPSHOT_BYTES / 1024)} KB). Bu konulara bağlı uzun kayıtları kısaltın veya bölün.`) };
+  }
 
   const client = await clientRef(ctx, l.v.clientId);
   if (!client.ok) return client;
@@ -443,7 +449,7 @@ export async function previewAnalysis(ctx: EngineCtx, raw: unknown, ownerPreview
         techniqueLabel: techniqueLabel(v.technique),
         options: v.options,
         revision: v.revision.revision,
-        zodiac: "tropical",
+        zodiac: v.methodSnapshot.zodiac,
         houseSystem: v.methodSnapshot.houseSystem,
         nodeType: v.methodSnapshot.nodeType,
         provider: v.versionsSnapshot.provider,

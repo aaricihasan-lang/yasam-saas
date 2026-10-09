@@ -724,7 +724,7 @@ export function TechniqueTechnical({
       case "kp.dasha":
         return <VedicDashaPanel t={technical as VedicDashaTechnical} kbLookup={kbLookup} drill={dashaDrill} onOpenLevel={onDashaLevel} />;
       case "kp.ruling":
-        return <KpRulingPanel t={technical as KpRulingTechnical} kbLookup={kbLookup} placeLabel={(options.place as { label?: string } | undefined)?.label ?? null} />;
+        return <KpRulingPanel t={technical as KpRulingTechnical} kbLookup={kbLookup} placeLabel={(options.place as { label?: string } | undefined)?.label ?? null} birthplace={birthplace} />;
       case "kp.transit":
         return <KpTransitPanel t={technical as KpTransitTechnical} kbLookup={kbLookup} />;
       case "kp.horary":

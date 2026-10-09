@@ -640,7 +640,7 @@ function kpSignificators(b: B, sig: unknown, method: KpNodeSigMethodId) {
   nodeNote(b, method, "bu tablo");
 }
 
-function kp(b: B, technique: string, t: O, opts: O) {
+function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: number } | null) {
   const placeLabel = isObj(opts.place) && typeof opts.place.label === "string" ? opts.place.label : null;
   switch (technique) {
     case "kp.chart": {
@@ -663,6 +663,14 @@ function kp(b: B, technique: string, t: O, opts: O) {
         ["Ruling planets (güç sırası)", list(t.rulingPlanets, grahaL)],
       ]);
       const sg = arr(t.significators).map((x) => [grahaL(x.id), list(x.houses)]);
+      if (t.significatorsOmitted === "place_differs") {
+        b.p("Gözlem yeri doğum yerinden farklı olduğu için natal significator'lar bu hesapta alınmadı (sağlayıcı bu uçta natal haritayı da gözlem yerinde kurar). Natal significator'lar için KP doğum haritası analizini kullanın.", "muted");
+        return;
+      }
+      // 9A-P2-04: Aşama 9A öncesi kayıt + gözlem yeri ≠ doğum yeri → significator'lar yanlış konumdan.
+      if (birth && sg.length && (Math.abs(Number(pl.latitude) - birth.lat) > 1e-6 || Math.abs(Number(pl.longitude) - birth.lon) > 1e-6)) {
+        b.p("Uyarı: Bu eski kayıtta gözlem yeri doğum yerinden farklı; aşağıdaki significator'lar doğum yeri yerine gözlem yeri haritasından hesaplanmıştır ve natal significator olarak kullanılmamalıdır.", "warn");
+      }
       b.h(3, "Ruling planet'lerin natal evleri");
       b.table(["Graha", "Evler"], sg, { widths: [1, 2], empty: "Kayıtta significator yok." });
       nodeNote(b, KP_NODE_SIG_SOURCE.ruling, "ruling");
@@ -915,7 +923,10 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   else if (["western.transit", "western.forecast", "western.progression", "western.solar_arc", "western.solar_return", "western.lunar_return", "western.synastry", "western.composite"].includes(technique)) westernTiming(b, technique, tech, people);
   else if (["western.astrocartography", "western.relocation", "western.local_space"].includes(technique)) westernLocation(b, technique, tech, opts);
   else if (technique.startsWith("vedic.") || technique === "kp.dasha") vedic(b, technique, tech);
-  else if (technique.startsWith("kp.")) kp(b, technique, tech, opts);
+  else if (technique.startsWith("kp.")) {
+    const rv = profile && isObj(profile.revision) ? profile.revision : null;
+    kp(b, technique, tech, opts, rv && num(rv.latitude) !== null && num(rv.longitude) !== null ? { lat: rv.latitude as number, lon: rv.longitude as number } : null);
+  }
   else b.p("Bu analiz türünün teknik tabloları rapor biçiminde desteklenmiyor; uygulamada görüntüleyin.", "muted");
 
   // 8. Uzman notları

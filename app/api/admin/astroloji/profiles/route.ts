@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
+import { enforceAstroWrite } from "@/lib/astrology/limits";
 import { readJsonBody, serviceJson } from "@/lib/astrology/http";
 import { createAstroProfile, listAstroProfiles } from "@/lib/astrology/profiles/service";
 import { resolveAstroLocation } from "@/lib/astrology/birth/location";
@@ -22,5 +23,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!gate.ok) return gate.response;
   const b = await readJsonBody(req);
   if (!b.ok) return b.response;
+  const limited = await enforceAstroWrite(gate.ctx, "profile_create");
+  if (limited) return limited;
   return serviceJson(await createAstroProfile(gate.ctx, b.body, resolveAstroLocation));
 }
