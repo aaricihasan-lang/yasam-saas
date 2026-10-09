@@ -2,6 +2,10 @@
 //
 // Kurallar:
 //   • Her sorgu `.eq("tenant_id", tenantId)` taşır (assertTenant fail-closed).
+//   • Aşama 7A: profil / revizyon / sağlayıcı sonucu / yorum sorguları AYRICA
+//     `.eq("owner_user_id", ownerUserId)` taşır (assertOwner fail-closed). Tenant tek başına uzman
+//     sınırı DEĞİLDİR (users.tenant_id tekil değil); başka uzmanın kaydı = yok (404). DB'de bileşik
+//     FK'ler (20271101000300) aynı kuralı ikinci katman olarak zorlar.
 //   • `raw_response` OKUMA sorgularında SEÇİLMEZ (RESULT_SAFE_COLUMNS). Ham yanıt yalnız INSERT
 //     edilir; istemciye giden hiçbir yol onu okumaz.
 //   • Yorum katmanı ayrı fonksiyonla, yalnız görünürlük kararı "visible" ise okunur.
@@ -22,6 +26,11 @@ export function isUuid(v: unknown): v is string {
 
 function assertTenant(tenantId: string, ctx: string): void {
   if (!isUuid(tenantId)) throw new Error(`[astro] tenant invariant ihlali (${ctx})`);
+}
+
+function assertOwner(tenantId: string, ownerUserId: string, ctx: string): void {
+  assertTenant(tenantId, ctx);
+  if (!isUuid(ownerUserId)) throw new Error(`[astro] uzman invariant ihlali (${ctx})`);
 }
 
 export type DbErr = { code?: string; message?: string } | null | undefined;
@@ -96,36 +105,50 @@ const PROFILE_COLUMNS = "id, tenant_id, client_id, label, current_revision, crea
 const REVISION_COLUMNS =
   "id, profile_id, revision, birth_date, birth_time, time_known, time_accuracy, location_id, location_label, latitude, longitude, timezone, dst_choice, utc_offset_seconds, birth_utc, change_note, created_at";
 
-export async function listProfiles(db: SupabaseClient, tenantId: string): Promise<{ rows: ProfileRow[]; error: DbErr }> {
-  assertTenant(tenantId, "listProfiles");
+export async function listProfiles(db: SupabaseClient, tenantId: string, ownerUserId: string): Promise<{ rows: ProfileRow[]; error: DbErr }> {
+  assertOwner(tenantId, ownerUserId, "listProfiles");
   const { data, error } = await db
     .from("astro_birth_profiles")
     .select(PROFILE_COLUMNS)
     .eq("tenant_id", tenantId)
+    .eq("owner_user_id", ownerUserId)
     .order("created_at", { ascending: false })
     .limit(200);
   return { rows: (data as ProfileRow[] | null) ?? [], error };
 }
 
-export async function getProfile(db: SupabaseClient, tenantId: string, profileId: string): Promise<{ row: ProfileRow | null; error: DbErr }> {
-  assertTenant(tenantId, "getProfile");
+export async function getProfile(
+  db: SupabaseClient,
+  tenantId: string,
+  ownerUserId: string,
+  profileId: string,
+): Promise<{ row: ProfileRow | null; error: DbErr }> {
+  assertOwner(tenantId, ownerUserId, "getProfile");
   if (!isUuid(profileId)) return { row: null, error: null };
-  const { data, error } = await db.from("astro_birth_profiles").select(PROFILE_COLUMNS).eq("tenant_id", tenantId).eq("id", profileId).maybeSingle();
+  const { data, error } = await db
+    .from("astro_birth_profiles")
+    .select(PROFILE_COLUMNS)
+    .eq("tenant_id", tenantId)
+    .eq("owner_user_id", ownerUserId)
+    .eq("id", profileId)
+    .maybeSingle();
   return { row: (data as ProfileRow | null) ?? null, error };
 }
 
 export async function listRevisions(
   db: SupabaseClient,
   tenantId: string,
+  ownerUserId: string,
   profileIds: string[],
 ): Promise<{ rows: RevisionRow[]; error: DbErr }> {
-  assertTenant(tenantId, "listRevisions");
+  assertOwner(tenantId, ownerUserId, "listRevisions");
   const ids = profileIds.filter(isUuid);
   if (ids.length === 0) return { rows: [], error: null };
   const { data, error } = await db
     .from("astro_birth_profile_revisions")
     .select(REVISION_COLUMNS)
     .eq("tenant_id", tenantId)
+    .eq("owner_user_id", ownerUserId)
     .in("profile_id", ids)
     .order("revision", { ascending: false })
     .limit(2000);
@@ -135,15 +158,17 @@ export async function listRevisions(
 export async function getRevision(
   db: SupabaseClient,
   tenantId: string,
+  ownerUserId: string,
   profileId: string,
   revision: number,
 ): Promise<{ row: RevisionRow | null; error: DbErr }> {
-  assertTenant(tenantId, "getRevision");
+  assertOwner(tenantId, ownerUserId, "getRevision");
   if (!isUuid(profileId) || !Number.isInteger(revision) || revision < 1) return { row: null, error: null };
   const { data, error } = await db
     .from("astro_birth_profile_revisions")
     .select(REVISION_COLUMNS)
     .eq("tenant_id", tenantId)
+    .eq("owner_user_id", ownerUserId)
     .eq("profile_id", profileId)
     .eq("revision", revision)
     .maybeSingle();
@@ -234,22 +259,40 @@ export type ResultRow = {
   created_at: string;
 };
 
+/** Önbellek araması — uzman kapsamlı (aynı tenant'taki başka uzmanın sonucu yeniden KULLANILMAZ). */
 export async function findResultsByHashes(
   db: SupabaseClient,
   tenantId: string,
+  ownerUserId: string,
   hashes: string[],
 ): Promise<{ rows: ResultRow[]; error: DbErr }> {
-  assertTenant(tenantId, "findResultsByHashes");
+  assertOwner(tenantId, ownerUserId, "findResultsByHashes");
   const hs = hashes.filter((h) => /^[0-9a-f]{64}$/.test(h));
   if (hs.length === 0) return { rows: [], error: null };
-  const { data, error } = await db.from("astro_provider_results").select(RESULT_SAFE_COLUMNS).eq("tenant_id", tenantId).in("input_hash", hs);
+  const { data, error } = await db
+    .from("astro_provider_results")
+    .select(RESULT_SAFE_COLUMNS)
+    .eq("tenant_id", tenantId)
+    .eq("owner_user_id", ownerUserId)
+    .in("input_hash", hs);
   return { rows: (data as ResultRow[] | null) ?? [], error };
 }
 
-export async function getResultById(db: SupabaseClient, tenantId: string, id: string): Promise<{ row: ResultRow | null; error: DbErr }> {
-  assertTenant(tenantId, "getResultById");
+export async function getResultById(
+  db: SupabaseClient,
+  tenantId: string,
+  ownerUserId: string,
+  id: string,
+): Promise<{ row: ResultRow | null; error: DbErr }> {
+  assertOwner(tenantId, ownerUserId, "getResultById");
   if (!isUuid(id)) return { row: null, error: null };
-  const { data, error } = await db.from("astro_provider_results").select(RESULT_SAFE_COLUMNS).eq("tenant_id", tenantId).eq("id", id).maybeSingle();
+  const { data, error } = await db
+    .from("astro_provider_results")
+    .select(RESULT_SAFE_COLUMNS)
+    .eq("tenant_id", tenantId)
+    .eq("owner_user_id", ownerUserId)
+    .eq("id", id)
+    .maybeSingle();
   return { row: (data as ResultRow | null) ?? null, error };
 }
 
@@ -279,12 +322,13 @@ export async function insertResult(
   userId: string,
   r: NewResult,
 ): Promise<{ error: DbErr }> {
-  assertTenant(tenantId, "insertResult");
+  assertOwner(tenantId, userId, "insertResult");
   const { error } = await db
     .from("astro_provider_results")
     .insert({
       id: r.id,
       tenant_id: tenantId,
+      owner_user_id: userId,
       profile_id: r.profileId,
       profile_revision: r.profileRevision,
       partner_profile_id: r.partnerProfileId ?? null,
@@ -313,6 +357,7 @@ export async function insertResult(
 export async function insertInterpretation(
   db: SupabaseClient,
   tenantId: string,
+  ownerUserId: string,
   resultId: string,
   provider: string,
   lang: string,
@@ -321,11 +366,12 @@ export async function insertInterpretation(
   content: unknown,
 ): Promise<{ error: DbErr }> {
   if (contentSchema === null || content === null || content === undefined) return { error: null };
-  assertTenant(tenantId, "insertInterpretation");
+  assertOwner(tenantId, ownerUserId, "insertInterpretation");
   const { error } = await db
     .from("astro_provider_interpretations")
     .insert({
       tenant_id: tenantId,
+      owner_user_id: ownerUserId,
       result_id: resultId,
       provider,
       lang,
@@ -341,15 +387,17 @@ export async function insertInterpretation(
 export async function getInterpretation(
   db: SupabaseClient,
   tenantId: string,
+  ownerUserId: string,
   resultId: string,
   projectionVersion: string,
 ): Promise<{ row: { provider: string; lang: string; content_schema: string; content: Record<string, unknown> } | null; error: DbErr }> {
-  assertTenant(tenantId, "getInterpretation");
+  assertOwner(tenantId, ownerUserId, "getInterpretation");
   if (!isUuid(resultId)) return { row: null, error: null };
   const { data, error } = await db
     .from("astro_provider_interpretations")
     .select("provider, lang, content_schema, content")
     .eq("tenant_id", tenantId)
+    .eq("owner_user_id", ownerUserId)
     .eq("result_id", resultId)
     .eq("projection_version", projectionVersion)
     .maybeSingle();

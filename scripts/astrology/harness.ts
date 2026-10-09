@@ -212,7 +212,9 @@ async function main() {
     assert.notEqual(h1, calcInputHash({ ...baseId, lang: "en", body: { a: 1, b: { c: 2, d: 3 } } }));
     assert.notEqual(h1, calcInputHash({ ...baseId, adapterVersion: "a2", body: { a: 1, b: { c: 2, d: 3 } } }));
     assert.match(h1, /^[0-9a-f]{64}$/);
-    assert.notEqual(resultIdFor(TENANT_A, h1), resultIdFor(TENANT_B, h1));
+    assert.notEqual(resultIdFor(TENANT_A, h1, OWNER), resultIdFor(TENANT_B, h1, OWNER));
+    // Aşama 7A: aynı tenant, farklı uzman → farklı kimlik (önbellek uzman kapsamlı).
+    assert.notEqual(resultIdFor(TENANT_A, h1, OWNER), resultIdFor(TENANT_A, h1, "0e0e0e0e-0e0e-4e0e-8e0e-0e0e0e0e0e0e"));
   });
   await t("istek gövdesi: IANA değil ondalık ofset; saat bilinmiyorsa 12:00:00", () => {
     const b = buildNatalRequestBody({ birthDate: "1990-07-15", birthTime: null, utcOffsetSeconds: 7016, latitude: 41.00821234, longitude: 28.9784 }, { houseSystem: "koch", nodeType: "mean" });

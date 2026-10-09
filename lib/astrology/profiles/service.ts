@@ -49,9 +49,9 @@ function clientName(c: { ad: string | null; soyad: string | null } | undefined):
 }
 
 export async function listAstroProfiles(ctx: EngineCtx): Promise<ServiceResponse> {
-  const p = await listProfiles(ctx.db, ctx.tenantId);
+  const p = await listProfiles(ctx.db, ctx.tenantId, ctx.userId);
   if (p.error) return dbFail("profiles.list", p.error);
-  const revs = await listRevisions(ctx.db, ctx.tenantId, p.rows.map((r) => r.id));
+  const revs = await listRevisions(ctx.db, ctx.tenantId, ctx.userId, p.rows.map((r) => r.id));
   if (revs.error) return dbFail("profiles.listRevisions", revs.error);
   const current = new Map<string, RevisionRow>();
   for (const r of revs.rows) {
@@ -87,10 +87,10 @@ export async function listAstroProfiles(ctx: EngineCtx): Promise<ServiceResponse
 
 export async function getAstroProfileDetail(ctx: EngineCtx, profileId: string): Promise<ServiceResponse> {
   if (!isUuid(profileId)) return fail(404, "PROFILE_NOT_FOUND", "Doğum profili bulunamadı.");
-  const p = await getProfile(ctx.db, ctx.tenantId, profileId);
+  const p = await getProfile(ctx.db, ctx.tenantId, ctx.userId, profileId);
   if (p.error) return dbFail("profiles.get", p.error);
   if (!p.row) return fail(404, "PROFILE_NOT_FOUND", "Doğum profili bulunamadı.");
-  const revs = await listRevisions(ctx.db, ctx.tenantId, [profileId]);
+  const revs = await listRevisions(ctx.db, ctx.tenantId, ctx.userId, [profileId]);
   if (revs.error) return dbFail("profiles.revisions", revs.error);
   let name: string | null = null;
   if (p.row.client_id) {
@@ -156,7 +156,7 @@ export async function appendAstroRevision(
   if (typeof expected !== "number" || !Number.isInteger(expected) || expected < 1) {
     return fail(400, "INVALID_EXPECTED_REVISION", "Beklenen revizyon numarası gerekli.");
   }
-  const p = await getProfile(ctx.db, ctx.tenantId, profileId);
+  const p = await getProfile(ctx.db, ctx.tenantId, ctx.userId, profileId);
   if (p.error) return dbFail("profiles.append.get", p.error);
   if (!p.row) return fail(404, "PROFILE_NOT_FOUND", "Doğum profili bulunamadı.");
 

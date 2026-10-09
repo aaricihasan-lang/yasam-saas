@@ -78,7 +78,7 @@ async function loadContext(ctx: EngineCtx, raw: Record<string, unknown>, ownerPr
   let legacyRow: ResultRow | null = null;
   if (raw.technique === undefined && raw.resultId !== undefined) {
     if (!isUuid(raw.resultId)) return { ok: false, r: fail(400, "INVALID_INPUT", "Profil ve hesap sonucu gerekli.") };
-    const res = await getResultById(ctx.db, ctx.tenantId, raw.resultId);
+    const res = await getResultById(ctx.db, ctx.tenantId, ctx.userId, raw.resultId);
     if (res.error) return { ok: false, r: dbFail("ws.result", res.error) };
     if (!res.row) return { ok: false, r: fail(404, "RESULT_NOT_FOUND", "Hesap sonucu bulunamadı.") };
     if (res.row.technique !== "western.natal") return { ok: false, r: fail(400, "SELECTION_REQUIRED", "Bu sonuç türü için teknik ve seçenekler gönderilmelidir.") };
@@ -238,11 +238,11 @@ export async function saveExpertNote(ctx: EngineCtx, raw: unknown): Promise<Serv
   const section = o.sectionKey;
   if (typeof section !== "string" || !isSectionKeyForTechnique(def.id, section)) return fail(400, "INVALID_SECTION", "Geçersiz not bölümü.");
   if (typeof o.body !== "string" || o.body.length > 20000) return fail(400, "INVALID_TEXT", "Not en fazla 20000 karakter olabilir.");
-  const p = await getProfile(ctx.db, ctx.tenantId, o.profileId);
+  const p = await getProfile(ctx.db, ctx.tenantId, ctx.userId, o.profileId);
   if (p.error) return dbFail("note.profile", p.error);
   if (!p.row) return fail(404, "PROFILE_NOT_FOUND", "Doğum profili bulunamadı.");
   if (contextKey !== "" && def.requiresPartner) {
-    const pp = await getProfile(ctx.db, ctx.tenantId, contextKey as string);
+    const pp = await getProfile(ctx.db, ctx.tenantId, ctx.userId, contextKey as string);
     if (pp.error) return dbFail("note.partner", pp.error);
     if (!pp.row) return fail(404, "PARTNER_NOT_FOUND", "Karşı taraf doğum profili bulunamadı.");
   }
@@ -356,7 +356,7 @@ async function buildSnapshot(ctx: EngineCtx, raw: unknown, ownerPreviewHideInter
   let partner: Record<string, unknown> | null = null;
   let partnerLabel: string | null = null;
   if (partnerRevision) {
-    const pp = await getProfile(ctx.db, ctx.tenantId, partnerRevision.profile_id);
+    const pp = await getProfile(ctx.db, ctx.tenantId, ctx.userId, partnerRevision.profile_id);
     if (pp.error) return { ok: false, r: dbFail("snap.partner", pp.error) };
     if (!pp.row) return { ok: false, r: fail(404, "PARTNER_NOT_FOUND", "Karşı taraf doğum profili bulunamadı.") };
     const pc = await clientRef(ctx, pp.row.client_id);

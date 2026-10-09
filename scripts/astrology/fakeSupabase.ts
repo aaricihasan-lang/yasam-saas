@@ -7,9 +7,10 @@
  *      sahte Roxy base URL'ini sahte sağlayıcıya yönlendirir → GERÇEK route handler'ları +
  *      gerçek verifyAdminRequest + gerçek getServerDb ile uçtan uca çalışır.
  *
- * Kısıtlar (migration ile aynı): astro_provider_results UNIQUE(tenant_id,input_hash) + PK;
- * astro_provider_interpretations UNIQUE(tenant_id,result_id,projection_version); profil→danışan
- * tenant FK; revizyon iyimser kilidi. Erişim günlüğü (select kolonları dahil) tutulur.
+ * Kısıtlar (migration ile aynı): astro_provider_results UNIQUE(tenant_id,owner_user_id,input_hash) + PK
+ * (Aşama 7A: önbellek uzman kapsamlı); astro_provider_interpretations UNIQUE(tenant_id,result_id,
+ * projection_version); profil→danışan tenant FK; revizyon iyimser kilidi; Aşama 7A sahiplik FK'leri
+ * (sonuç/yorum/not → aynı uzmanın profili/sonucu). Erişim günlüğü (select kolonları dahil) tutulur.
  */
 
 type Row = Record<string, unknown>;
@@ -69,7 +70,7 @@ function project(r: Row, select: string): Row {
 }
 
 const UNIQUE_KEYS: Record<string, string[][]> = {
-  astro_provider_results: [["tenant_id", "input_hash"]],
+  astro_provider_results: [["tenant_id", "owner_user_id", "input_hash"]],
   astro_provider_interpretations: [["tenant_id", "result_id", "projection_version"]],
   astro_birth_profile_revisions: [["tenant_id", "profile_id", "revision"]],
   // Aşama 3 (20271101000200): tekillik bağlam anahtarını da içerir (astro_en_unique_ctx).
@@ -110,8 +111,25 @@ function checkRow(store: FakeStore, table: string, row: Row): FakeErr {
     if (a !== null && !partnerRevisionExists(store, String(row.tenant_id), String(a), Number(b))) {
       return { code: "23503", message: "insert or update violates foreign key constraint astro_pr_partner_fk" };
     }
+    // Aşama 7A: sonuç ve karşı tarafı aynı uzmanın profilleri olmalı (astro_pr_owner_fk / astro_pr_partner_owner_fk).
+    if (row.owner_user_id === undefined || row.owner_user_id === null) return { code: "23502", message: "null value in column owner_user_id" };
+    if (!ownedProfile(store, row, row.profile_id)) return { code: "23503", message: "insert or update violates foreign key constraint astro_pr_owner_fk" };
+    if (a !== null && !ownedProfile(store, row, a)) return { code: "23503", message: "insert or update violates foreign key constraint astro_pr_partner_owner_fk" };
+  }
+  if (table === "astro_provider_interpretations") {
+    if (row.owner_user_id === undefined || row.owner_user_id === null) return { code: "23502", message: "null value in column owner_user_id" };
+    const ok = (store.tables.astro_provider_results ?? []).some((r) => r.tenant_id === row.tenant_id && r.owner_user_id === row.owner_user_id && r.id === row.result_id);
+    if (!ok) return { code: "23503", message: "insert or update violates foreign key constraint astro_pi_owner_fk" };
+  }
+  if (table === "astro_expert_notes" && !ownedProfile(store, row, row.profile_id)) {
+    return { code: "23503", message: "insert or update violates foreign key constraint astro_en_owner_fk" };
   }
   return null;
+}
+
+/** Aşama 7A bileşik FK taklidi: (tenant_id, owner_user_id, profile_id) → astro_birth_profiles. */
+function ownedProfile(store: FakeStore, row: Row, profileId: unknown): boolean {
+  return (store.tables.astro_birth_profiles ?? []).some((p) => p.tenant_id === row.tenant_id && p.owner_user_id === row.owner_user_id && p.id === profileId);
 }
 
 function partnerRevisionExists(store: FakeStore, tenant: string, profileId: string, revision: number): boolean {
@@ -202,6 +220,7 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
     store.tables.astro_birth_profiles.push({
       id: pid,
       tenant_id: tenant,
+      owner_user_id: args.p_user_id,
       client_id: args.p_client_id ?? null,
       label: String(args.p_label).trim(),
       current_revision: 1,
@@ -214,7 +233,8 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
   }
   if (fn === "astro_profile_append_revision") {
     const tenant = String(args.p_tenant_id);
-    const p = (store.tables.astro_birth_profiles ?? []).find((x) => x.id === args.p_profile_id && x.tenant_id === tenant);
+    // Aşama 7A: başka uzmanın profili = yok.
+    const p = (store.tables.astro_birth_profiles ?? []).find((x) => x.id === args.p_profile_id && x.tenant_id === tenant && x.owner_user_id === args.p_user_id);
     if (!p) return { data: null, error: { code: "P0002", message: "ASTRO_PROFILE_NOT_FOUND" } };
     if (p.current_revision !== args.p_expected_revision) return { data: null, error: { code: "40001", message: "ASTRO_REVISION_CONFLICT" } };
     const next = Number(p.current_revision) + 1;
@@ -229,10 +249,15 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
     const tenant = String(args.p_tenant_id);
     store.tables.astro_analyses ??= [];
     store.tables.astro_analysis_notes ??= [];
-    const existing = store.tables.astro_analyses.find((a) => a.tenant_id === tenant && a.save_request_id === args.p_save_request_id);
+    // Aşama 7A (v2): idempotency + profil yalnız AYNI uzmanın; v1 sahiplik FK'sine takılır.
+    const existing = store.tables.astro_analyses.find((a) => a.tenant_id === tenant && a.save_request_id === args.p_save_request_id && (!v2 || a.owner_user_id === args.p_user_id));
     if (existing) return { data: { analysis_id: existing.id, reused: true }, error: null };
-    const prof = (store.tables.astro_birth_profiles ?? []).find((x) => x.id === args.p_profile_id && x.tenant_id === tenant);
+    if (store.tables.astro_analyses.some((a) => a.tenant_id === tenant && a.save_request_id === args.p_save_request_id)) {
+      return { data: null, error: { code: "23505", message: "duplicate key value violates unique constraint astro_an_request_key" } };
+    }
+    const prof = (store.tables.astro_birth_profiles ?? []).find((x) => x.id === args.p_profile_id && x.tenant_id === tenant && (!v2 || x.owner_user_id === args.p_user_id));
     if (!prof) return { data: null, error: { code: "P0002", message: "ASTRO_PROFILE_NOT_FOUND" } };
+    if (prof.owner_user_id !== args.p_user_id) return { data: null, error: { code: "23503", message: "insert or update violates foreign key constraint astro_an_owner_fk" } };
     const partnerId = v2 ? (args.p_partner_profile_id ?? null) : null;
     const partnerRev = v2 ? (args.p_partner_profile_revision ?? null) : null;
     const resultIds = v2 ? (Array.isArray(args.p_result_ids) ? (args.p_result_ids as string[]) : []) : [];
@@ -241,6 +266,9 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
       if ((partnerId === null) !== (partnerRev === null)) return { data: null, error: { code: "23514", message: "astro_an_partner_pair_chk" } };
       if (partnerId !== null && !partnerRevisionExists(store, tenant, String(partnerId), Number(partnerRev))) {
         return { data: null, error: { code: "23503", message: "insert or update violates foreign key constraint astro_an_partner_fk" } };
+      }
+      if (partnerId !== null && !ownedProfile(store, { tenant_id: tenant, owner_user_id: args.p_user_id }, partnerId)) {
+        return { data: null, error: { code: "23503", message: "insert or update violates foreign key constraint astro_an_partner_owner_fk" } };
       }
       if (typeof params !== "object" || Array.isArray(params) || resultIds.length > 10) return { data: null, error: { code: "23514", message: "astro_an_params_chk" } };
     }
@@ -304,6 +332,7 @@ function revisionRow(tenant: string, pid: string, revision: number, a: Record<st
   return {
     id: genId(),
     tenant_id: tenant,
+    owner_user_id: a.p_user_id,
     profile_id: pid,
     revision,
     birth_date: a.p_birth_date,

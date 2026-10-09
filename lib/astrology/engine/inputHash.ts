@@ -43,9 +43,13 @@ export function calcInputHash(i: CalcIdentity): string {
   return createHash("sha256").update(canonical, "utf8").digest("hex");
 }
 
-/** (tenant, input_hash) → deterministik UUID (v5 biçimi) — eşzamanlı ikinci INSERT PK/UNIQUE ile reddedilir. */
-export function resultIdFor(tenantId: string, inputHash: string): string {
-  const h = createHash("sha1").update(["yasam-astro-result", tenantId, inputHash].join("\u001f"), "utf8").digest();
+/**
+ * (tenant, uzman, input_hash) → deterministik UUID (v5 biçimi) — eşzamanlı ikinci INSERT PK/UNIQUE ile
+ * reddedilir. Aşama 7A: önbellek uzman kapsamlı → kimlik uzmanı da içerir (aynı tenant'taki iki uzman
+ * aynı girdide çakışmaz). Mevcut satırların kimliği değişmez; önbellek araması hash ile yapılır.
+ */
+export function resultIdFor(tenantId: string, inputHash: string, ownerUserId: string): string {
+  const h = createHash("sha1").update(["yasam-astro-result", tenantId, ownerUserId, inputHash].join("\u001f"), "utf8").digest();
   const b = Buffer.from(h.subarray(0, 16));
   b[6] = (b[6] & 0x0f) | 0x50;
   b[8] = (b[8] & 0x3f) | 0x80;

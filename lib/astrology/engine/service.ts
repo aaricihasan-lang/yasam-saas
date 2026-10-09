@@ -191,7 +191,7 @@ export async function resolveSelectionContexts(
     }
     const key = `${pid}|${s.options.partnerRevision ?? "current"}`;
     if (!partnerCache.has(key)) {
-      const pp = await getProfile(ctx.db, ctx.tenantId, pid);
+      const pp = await getProfile(ctx.db, ctx.tenantId, ctx.userId, pid);
       if (pp.error) {
         if (isSchemaMissing(pp.error)) return { ok: false, r: ASTRO_NOT_READY };
         logAstroDbError("engine.partner", pp.error);
@@ -200,7 +200,7 @@ export async function resolveSelectionContexts(
       let row: RevisionRow | null = null;
       if (pp.row) {
         const want = s.options.partnerRevision === null || s.options.partnerRevision === undefined ? pp.row.current_revision : Number(s.options.partnerRevision);
-        const rv = await getRevision(ctx.db, ctx.tenantId, pid, want);
+        const rv = await getRevision(ctx.db, ctx.tenantId, ctx.userId, pid, want);
         if (rv.error) {
           logAstroDbError("engine.partnerRevision", rv.error);
           return { ok: false, r: fail(500, "DB_ERROR", "İşlem tamamlanamadı.") };
@@ -230,7 +230,7 @@ export async function loadProfileRevision(
 ): Promise<{ ok: true; revision: RevisionRow; label: string; clientId: string | null } | { ok: false; r: ServiceResponse }> {
   const profileId = typeof profileIdRaw === "string" ? profileIdRaw.trim() : "";
   if (!isUuid(profileId)) return { ok: false, r: fail(400, "INVALID_PROFILE", "Geçerli bir doğum profili seçilmedi.") };
-  const p = await getProfile(ctx.db, ctx.tenantId, profileId);
+  const p = await getProfile(ctx.db, ctx.tenantId, ctx.userId, profileId);
   if (p.error) {
     if (isSchemaMissing(p.error)) return { ok: false, r: ASTRO_NOT_READY };
     logAstroDbError("engine.profile", p.error);
@@ -243,7 +243,7 @@ export async function loadProfileRevision(
     if (!Number.isInteger(n) || n < 1) return { ok: false, r: fail(400, "INVALID_REVISION", "Geçersiz revizyon.") };
     revNo = n;
   }
-  const rv = await getRevision(ctx.db, ctx.tenantId, profileId, revNo);
+  const rv = await getRevision(ctx.db, ctx.tenantId, ctx.userId, profileId, revNo);
   if (rv.error) {
     logAstroDbError("engine.revision", rv.error);
     return { ok: false, r: fail(500, "DB_ERROR", "İşlem tamamlanamadı.") };
@@ -264,7 +264,7 @@ export async function planSelections(
   const sc = await resolveSelectionContexts(ctx, revision, sel.selections);
   if (!sc.ok) return sc;
   const draft = buildPlan(sc.v, () => false);
-  const cached = await findResultsByHashes(ctx.db, ctx.tenantId, draft.units.map((u) => u.inputHash));
+  const cached = await findResultsByHashes(ctx.db, ctx.tenantId, ctx.userId, draft.units.map((u) => u.inputHash));
   if (cached.error) {
     if (isSchemaMissing(cached.error)) return { ok: false, r: ASTRO_NOT_READY };
     logAstroDbError("engine.cache", cached.error);
@@ -314,7 +314,7 @@ async function executeUnit(
   if (!def) return { ok: false, status: 400, code: "UNKNOWN_TECHNIQUE", error: "Bilinmeyen hesaplama türü.", providerAttempts: 0 };
 
   const reload = async (): Promise<ResultRow | null> => {
-    const r = await findResultsByHashes(ctx.db, ctx.tenantId, [unit.inputHash]);
+    const r = await findResultsByHashes(ctx.db, ctx.tenantId, ctx.userId, [unit.inputHash]);
     return r.rows.find((x) => x.input_hash === unit.inputHash) ?? null;
   };
 
@@ -322,7 +322,7 @@ async function executeUnit(
     return { ok: false, status: 503, code: "PROVIDER_NOT_CONFIGURED", error: "Hesaplama sağlayıcısı bu ortamda yapılandırılmamış. Kayıtlı sonuçlar görüntülenebilir.", providerAttempts: 0 };
   }
 
-  const claim = await deps.rateLimit("astro-roxy-inflight", `${ctx.tenantId}:${unit.inputHash}`, ASTRO_RATE_LIMITS.inFlight.limit, ASTRO_RATE_LIMITS.inFlight.windowSeconds);
+  const claim = await deps.rateLimit("astro-roxy-inflight", `${ctx.tenantId}:${ctx.userId}:${unit.inputHash}`, ASTRO_RATE_LIMITS.inFlight.limit, ASTRO_RATE_LIMITS.inFlight.windowSeconds);
   if (!claim.allowed) {
     for (let i = 0; i < 10; i++) {
       await sleep(1500);
@@ -358,7 +358,7 @@ async function executeUnit(
     await touchUnmappedFields(ctx.db, unit.provider, unit.endpoint, [...proj.unmappedFields, ...proj.droppedValues.map((d) => `dropped:${d}`)]);
   }
 
-  const id = resultIdFor(ctx.tenantId, unit.inputHash);
+  const id = resultIdFor(ctx.tenantId, unit.inputHash, ctx.userId);
   const partner = selection.partnerRevision;
   const ins = await insertResult(ctx.db, ctx.tenantId, ctx.userId, {
     id,
@@ -391,7 +391,7 @@ async function executeUnit(
     return { ok: false, status: 500, code: "DB_INSERT_FAILED", error: "Hesap sonucu kaydedilemedi.", providerAttempts: call.attempts };
   }
 
-  const interpIns = await insertInterpretation(ctx.db, ctx.tenantId, id, unit.provider, unit.lang, proj.interpretationSchema, proj.projectionVersion, proj.interpretation);
+  const interpIns = await insertInterpretation(ctx.db, ctx.tenantId, ctx.userId, id, unit.provider, unit.lang, proj.interpretationSchema, proj.projectionVersion, proj.interpretation);
   if (interpIns.error && !isUniqueViolation(interpIns.error)) logAstroDbError("engine.insertInterpretation", interpIns.error);
 
   const row: ResultRow = {
@@ -434,7 +434,7 @@ export async function buildSelectionView(
   if (visibility.visible) {
     interps = [];
     for (const r of interpRows) {
-      const it = await getInterpretation(ctx.db, ctx.tenantId, r.id, r.projection_version);
+      const it = await getInterpretation(ctx.db, ctx.tenantId, ctx.userId, r.id, r.projection_version);
       if (it.error) logAstroDbError("view.interpretation", it.error);
       interps.push(it.row);
     }
@@ -465,7 +465,7 @@ export async function getAstrologyResult(
   q: { profileId: string | null; revision: string | null; ownerPreviewHideInterp: boolean },
 ): Promise<ServiceResponse> {
   if (!isUuid(resultId)) return fail(404, "RESULT_NOT_FOUND", "Hesap sonucu bulunamadı.");
-  const r = await getResultById(ctx.db, ctx.tenantId, resultId);
+  const r = await getResultById(ctx.db, ctx.tenantId, ctx.userId, resultId);
   if (r.error) {
     if (isSchemaMissing(r.error)) return ASTRO_NOT_READY;
     logAstroDbError("result.get", r.error);
@@ -481,7 +481,7 @@ export async function getAstrologyResult(
     profileId = q.profileId;
     revNo = n;
   }
-  const rv = await getRevision(ctx.db, ctx.tenantId, profileId, revNo);
+  const rv = await getRevision(ctx.db, ctx.tenantId, ctx.userId, profileId, revNo);
   if (rv.error) {
     logAstroDbError("result.revision", rv.error);
     return fail(500, "DB_ERROR", "İşlem tamamlanamadı.");
@@ -489,7 +489,7 @@ export async function getAstrologyResult(
   if (!rv.row) return fail(404, "REVISION_NOT_FOUND", "Doğum profili revizyonu bulunamadı.");
   let partnerTimeKnown: boolean | null = null;
   if (r.row.partner_profile_id && r.row.partner_profile_revision) {
-    const pr = await getRevision(ctx.db, ctx.tenantId, r.row.partner_profile_id, r.row.partner_profile_revision);
+    const pr = await getRevision(ctx.db, ctx.tenantId, ctx.userId, r.row.partner_profile_id, r.row.partner_profile_revision);
     partnerTimeKnown = pr.row ? pr.row.time_known : false;
   }
   const view = await buildResultView(ctx, r.row, rv.row, q.ownerPreviewHideInterp, partnerTimeKnown);
