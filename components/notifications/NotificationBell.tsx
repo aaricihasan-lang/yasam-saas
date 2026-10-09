@@ -303,7 +303,7 @@ export default function NotificationBell({ className, compact = false }: Notific
                     >
                       <Link href={view.href} onClick={openItem} className="block min-w-0 rounded-lg px-1 py-0.5 hover:bg-white">
                         {unseen ? (
-                          <span className="mb-0.5 inline-flex items-center gap-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black leading-none text-white">
+                          <span className="mb-0.5 inline-flex items-center gap-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[11px] font-black leading-none text-white">
                             Yeni
                           </span>
                         ) : null}
