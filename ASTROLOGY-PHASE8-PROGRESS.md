@@ -63,3 +63,16 @@ uzman notları → Bilgi Bankası snapshot'ı → Roxy yorumu (yalnız yetkiliys
   raw_null / no_chart / cacheable: sistem bellek baskısıyla arka plan işi durdurduğu için ÇALIŞTIRILMADI; dosyalar yedekten geri
   yüklendi, temiz durumda 72/0 + statik 15/0 + tsc 0 yeniden doğrulandı.
 - `next build` ve yerel tarayıcıda masaüstü/390 px görsel kontrol bu aşamada YAPILMADI (bellek baskısı); tsc temiz.
+
+## 7. Eksik doğrulamaların tamamlanması (2026-10-09, kod değişikliği YOK)
+- Kaynak: ~6,3 GB boş RAM / 16 GB; başka oturumların Node süreçlerine ve kullanıcının açık Word belgesine dokunulmadı.
+  Önceki turdaki bellek kesintisi nedeniyle her ağır iş tek tek, ön planda çalıştırıldı; build `--max-old-space-size=4096`.
+- `next build`: BAŞARILI (rapor route'ları admin + uzman derlendi). Tek uyarı `app/globals.css @theme` — main'den, Aşama 8 dışı.
+- Tarayıcı (yerel sahte arka uç, sentetik uzman, gerçek düğmeler): Word + PDF indirme akışı çalışır (Blob: PK… / %PDF-, ASCII dosya adı);
+  API ile indirilen dosyalar Word 16'da açıldı (8 / 5 sayfa). Yorum yetkisi AÇIK → Word+PDF ve ekranda yorum var; KAPALI → hiçbirinde yok,
+  ekranda "yorumlar kapalı" rozeti. Başka uzmanın (owner) analizi uzmana 404, uzmanın analizi owner'a 404; Android 403; no-store.
+- 390 px: Word/PDF düğmeleri gizli, yatay taşma 0; 1280 px: düğmeler görünür, taşma 0.
+- Mutasyonlar (tek tek, her biri sonrası yedekten geri yükleme; çalışma ağacı temiz doğrulandı):
+  android_before_gate 1 FAIL · raw_null 1 FAIL · no_chart 1 FAIL · cacheable 29 FAIL → hepsi yakalandı.
+  (Önceki tur: interp_forced, preview_ignored, gate_unchecked, no_android_pdf, no_rate_limit yakalandı → toplam 9/9.)
+- Son regresyon `npm run test:astrology`: 440 PASS / 0 FAIL, PG senaryoları PASS. Gerçek Roxy: 0 (toplam 47).
