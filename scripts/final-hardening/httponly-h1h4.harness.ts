@@ -178,7 +178,7 @@ async function main() {
 
   // ── 5) Android ─────────────────────────────────────────────────────────────
   await t("android: her modda cookie yok sayılır (header yolu)", async () => {
-    const androidHeaders = [
+    const androidHeaders: Record<string, string>[] = [
       { "user-agent": ANDROID_UA, "x-requested-with": "com.yasamsistemi.app" },
       { "user-agent": ANDROID_UA },
       { "user-agent": WEB_UA, "x-yasam-client": "android" },
