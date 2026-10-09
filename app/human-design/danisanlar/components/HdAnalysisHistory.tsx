@@ -40,11 +40,17 @@ type Item = {
   clientId: string | null;
   clientName: string;
   birthDate: string | null;
+  /** Aynı tarihli farklı saatli analizler ayırt edilsin (HH:MM). */
+  birthTime: string | null;
   createdAt: string;
   summary: string;
 };
 
 const PAGE = 10;
+
+function hhmm(t: string | null | undefined): string | null {
+  return typeof t === "string" && /^\d{2}:\d{2}/.test(t) ? t.slice(0, 5) : null;
+}
 
 function summaryOf(row: { type_code?: unknown; authority_code?: unknown; profile_code?: unknown; definition_code?: unknown }): string {
   const c = toAppChartCodes(row);
@@ -111,6 +117,7 @@ export function HdAnalysisHistory({
         clientId: r.client_id,
         clientName: r.client_name ?? "—",
         birthDate: r.birth_date,
+        birthTime: hhmm(r.birth_time),
         createdAt: r.created_at,
         summary: summaryOf(r),
       });
@@ -123,6 +130,7 @@ export function HdAnalysisHistory({
         clientId: m.client_id ?? null,
         clientName: m.client?.name ?? "—",
         birthDate: m.client?.birth_date ?? null,
+        birthTime: hhmm(m.client?.birth_time),
         createdAt: m.created_at,
         summary: summaryOf(m),
       });
@@ -219,7 +227,7 @@ export function HdAnalysisHistory({
                       {hasWord ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Word hazır</span> : null}
                     </p>
                     <p className="m-0 mt-0.5 break-words text-xs text-slate-600">
-                      {[`${formatIsoDateTr(it.birthDate)} verileriyle`, it.summary, `Analiz: ${formatIsoDateTr(it.createdAt)}`].filter(Boolean).join(" · ")}
+                      {[`${formatIsoDateTr(it.birthDate)}${it.birthTime ? ` ${it.birthTime}` : ""} verileriyle`, it.summary, `Analiz: ${formatIsoDateTr(it.createdAt)}`].filter(Boolean).join(" · ")}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
