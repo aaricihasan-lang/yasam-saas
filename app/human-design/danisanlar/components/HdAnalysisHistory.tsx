@@ -14,11 +14,13 @@
 //   • Aynı sayfada yeni hesap kaydedilince (HD_CHART_SAVED_EVENT) liste anında yenilenir ve yeni
 //     kayıt "Kaydedildi" ile işaretlenir.
 //   • Kısmi yükleme hatası (ör. otomatik analizler okunamadı) sessizce yutulmaz.
+//   • Profil Yönetimi'nden profil silinince (HD_PROFILE_DELETED_EVENT) liste yeniden yüklenir.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   HD_CHART_SAVED_EVENT,
+  HD_PROFILE_DELETED_EVENT,
   listComputedCharts,
   type ComputedChartListRow,
   type HdChartSavedDetail,
@@ -158,6 +160,18 @@ export function HdAnalysisHistory({
     window.addEventListener(HD_CHART_SAVED_EVENT, onSaved);
     return () => window.removeEventListener(HD_CHART_SAVED_EVENT, onSaved);
   }, [clientId, load]);
+
+  // Profil Yönetimi'nden profil silindi (ya da silme denendi) → liste sunucudan yeniden okunur;
+  // silinen profilin analizleri ve Word rozetleri sayfa yenilemeden kalkar.
+  useEffect(() => {
+    function onProfileDeleted() {
+      setOpenId(null);
+      setAutoWord(false);
+      void load().catch(() => setError("Kayıtlı analizler yüklenemedi."));
+    }
+    window.addEventListener(HD_PROFILE_DELETED_EVENT, onProfileDeleted);
+    return () => window.removeEventListener(HD_PROFILE_DELETED_EVENT, onProfileDeleted);
+  }, [load]);
 
   async function wordDownload(it: Item) {
     if (wordBusy) return;
