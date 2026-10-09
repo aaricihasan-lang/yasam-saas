@@ -75,11 +75,20 @@ async function seed() {
     resolveAstroLocation,
   );
   // Aşama 3: sinastri/composite karşı tarafı (sentetik B; Ayşe danışanına bağlı).
-  await createAstroProfile(
+  const pb = await createAstroProfile(
     ctx,
     { label: "Sentetik B — Ankara", clientId: "22222222-2222-4222-8222-222222222222", birthDate: "1988-03-21", birthTime: "06:45", timeKnown: true, timeAccuracy: "exact_record", locationId: "tr-06-ankara" },
     resolveAstroLocation,
   );
+  // Kalıcı silme görsel doğrulaması (SENTETİK): Ali'nin, karşı tarafı Sentetik B olan ortak analizi → B silinince KORUNMALI.
+  const pbId = (pb.body as { profile: { id: string } }).profile.id;
+  await ctx.db.rpc("astro_analysis_save_v2", {
+    p_tenant_id: TENANT_A, p_user_id: OWNER, p_profile_id: pid, p_profile_revision: 1, p_partner_profile_id: pbId, p_partner_profile_revision: 1, p_result_ids: [],
+    p_technique: "western.synastry", p_title: "Ali & Sentetik B sinastri (ortak)", p_save_request_id: "7c7c7c7c-0000-4000-8000-000000000001", p_technique_params: { partnerProfileId: pbId },
+    p_profile_snapshot: { label: "Ali Örnek — natal", partner: { profileId: pbId, label: "Sentetik B — Ankara" } }, p_method_snapshot: { houseSystem: "placidus" },
+    p_technical_snapshot: { schema: "astro.western.synastry.v1", aspects: [{ a: "venus", type: "conjunction", b: "mars" }] }, p_kb_snapshot: [], p_provider_interp_included: false,
+    p_provider_interp_snapshot: null, p_versions_snapshot: {}, p_notes: [],
+  });
   // Aşama 7B görsel doğrulama (SENTETİK): aynı ad/soyad/doğum tarihli üç danışan, sayfalama için 40 ek profil,
   // Ali profilinde üç gelenekte kayıtlı analizler (1 gerçek kaydet akışı + liste için sentetik satırlar).
   store.tables.clients.push(

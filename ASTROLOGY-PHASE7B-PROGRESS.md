@@ -62,7 +62,7 @@
 ## 8. Arşiv ve silme kararları
 - **Arşiv uygulandı:** `archived_at` (migration 000400). `PATCH /profiles/[id] {archived}` (onaylı). Etkin listeden kalkar, "Arşiv" filtresinde
   bulunur, analiz sayısı ve açılabilirlik aynen, geri alınır. Başka uzman arşivleyemez (404).
-- **Kalıcı silme UYGULANMADI** (karar gerekiyor). Bağımlılık zinciri (kanıtlı, migration'lar):
+- **Kalıcı silme:** owner kararıyla uygulandı → 8b. Bağımlılık zinciri (kanıtlı, migration'lar):
   profil → revizyonlar → sağlayıcı sonuçları → yorumlar; çalışma notları; kayıtlı analizler + analiz notları (hepsi CASCADE).
   **Kritik:** karşı taraf FK'leri (`astro_pr_partner_fk`, `astro_an_partner_fk`, 7A `*_partner_owner_fk`) de CASCADE → B profili silinirse,
   B'yi sinastri/composite karşı tarafı olarak kullanan **A profilinin kayıtlı analizleri de silinir**. Bugün silme yolu ve `service_role`
@@ -73,6 +73,36 @@
   analizleri**), yazılı ad onayı (DY cascade-delete deseni), denetim kaydı; önce karşı taraf FK'lerini RESTRICT/SET NULL'a çevirme kararı.
   (B) anonimleştirme: değişmez snapshot'ları değiştirmeyi gerektirir (mimari kural ihlali). (C) yalnız arşiv + owner'ın elle yürüttüğü KVKK süreci.
   Toplu kalıcı silme eklenmedi.
+
+## 8b. KALICI SİLME (owner kararı uygulandı — `23d1a210`, `a6df11f2`, bu commit)
+- **Ürün kararları:** tekli 2, toplu 3 ayrı "Evet"; metin/isim yazdırma yok; ortak analizler eksiksiz korunur; KVKK kapsamlı silme olarak sunulmaz.
+- **Değiştirilen CASCADE ilişkileri** (migration `20271101000500_astrology_profile_delete.sql`):
+  - `astro_an_partner_fk` (analiz → karşı taraf revizyonu): `CASCADE` → `SET NULL (partner_profile_id, partner_profile_revision)`.
+  - `astro_an_partner_owner_fk` (analiz → karşı taraf profili): `CASCADE` → `NO ACTION` (bağ kalırsa silme reddedilir).
+  - Diğerleri bilinçli olarak AYNI: silinen profilin kendi revizyonları/analizleri/notları/sonuçları CASCADE ile silinir; karşı tarafı silinen
+    profil olan **önbellek** satırları (`astro_pr_partner_*` CASCADE) da silinir — silinen kişinin ham doğum verisini taşırlar; kayıtlı analiz bunlara
+    bağlı değildir (`astro_an_result_fk` zaten `SET NULL (result_id)`).
+- **Ortak analiz nasıl korunur:** ortak analiz, kaydeden profilin satırıdır; iki kişinin hesap verisi, haritası, yorumu, KB ve not kopyası değişmez
+  snapshot kolonlarındadır. Silme fonksiyonu (`astro_profile_delete`, SECURITY DEFINER, yalnız service_role; tablo DELETE yetkisi verilmedi):
+  sahiplik + 1..100 profil + tekrar eden kimlik reddi → `FOR UPDATE` kilit → onaylanan durumun (revizyon, updated_at, kendi analiz sayısı, korunacak
+  ortak analiz sayısı) kilit altında yeniden doğrulanması → korunacak analizlerin snapshot parmak izi → canlı karşı taraf bağlarını aynı işlemde
+  NULL yapma → silme → parmak izinin birebir yeniden doğrulanması (fark → tüm işlem geri alınır). Tek işlem; toplu silmede kısmi başarı yok.
+  Not: yalnız FK'ye güvenilmedi — PG testinde `NO ACTION` denetimi, tetikleyici sırası nedeniyle revizyon zincirinin `SET NULL`'undan önce çalıştı
+  (silme güvenli biçimde reddedildi); bu yüzden bağ fonksiyonda açıkça kaldırılır, FK'ler ikinci katmandır.
+- **API:** `POST /profiles/delete/preview` → sayılar + gereken onay + onay özeti; `POST /profiles/delete` → onay sayısı (2/3) eksikse 400,
+  seçim/mod değiştiyse 409, durum değiştiyse 409 (hiçbir şey silinmez), tekrar/eşzamanlı → biri 200 diğeri 404.
+- **Arayüz:** profil detayında "Kalıcı sil" (Onay 1/2: kimlik + kendi analiz sayısı + korunacak ortak analiz sayısı · Onay 2/2: geri alınamaz + KVKK
+  açıklaması); listede "Seç" → "Seçilenleri kalıcı sil (n)" (Onay 1/3 liste, 2/3 sayılar, 3/3 "n profil KALICI olarak silinecek"); seçim değişirse akış baştan.
+- **Testler:** PG `astrology-7b-delete-assert.sql` (Ahmet/Ayşe/Can, çoklu ortak analiz, Ahmet'in hesap verisinin snapshot'ta kalması, eskimiş onay,
+  sonradan eklenen ortak analiz, başka uzman/tenant, tekrar eden kimlik, tekrar, toplu + yabancı profil → hiçbiri silinmez, arşivli, doğrudan DELETE yasağı);
+  `phase7c.harness` 13/13 (gerçek route'lar; korunan analizlerin **açılan içeriği** silmeden önce/sonra birebir; eşzamanlı iki istek).
+  Mutasyon: eski CASCADE → fonksiyon geri alır; bütünlük denetimi de yoksa PG testi kaybı yakalar; servis onay sayısı / seçim denetimi kaldırılınca phase7c düşer.
+  Tarayıcı (yerel): tekli 2 adım (1. Evet sonrası profil duruyor), toplu 3 adım (2 Evet sonrası 40 kayıt aynen; seçim değişince "Onay 1 / 3 · 4 profil"),
+  silme sonrası Ali'nin ortak analizi açılan içerikte birebir; 390 px'te onay penceresi taşmasız.
+- **Açık riskler:** (1) onay özeti imzalı değildir — yetki belgesi değil, "görülen durum" kanıtıdır; yetki owner kapısı + RPC sahiplik denetimidir.
+  (2) Korunan ortak analizler silinen kişinin kayıt anındaki doğum verisini taşır (ürün kararı #5); KVKK talebinde bu analizler ayrıca ele alınmalı.
+  (3) Silinen kişiye ait, başka profillerdeki çalışma notları (bağlam anahtarı = silinen profil kimliği) metin olarak kalır (sahibinin notu).
+  (4) Eşzamanlılık PG'de tek bağlantıyla doğrulanamadı; `FOR UPDATE` + kilit altında yeniden doğrulama + tekrar 404 testleriyle kanıtlandı.
 
 ## 9–10. İzolasyon testleri ve sayılar
 | Test | Sonuç |
