@@ -160,6 +160,7 @@ async function main() {
       /^supabase\/migrations\/20271101000200_astrology_timing_relationship\.sql$/,
       /^supabase\/migrations\/20271101000300_astrology_owner_isolation\.sql$/,
       /^supabase\/migrations\/20271101000400_astrology_client_list\.sql$/,
+      /^supabase\/migrations\/20271101000500_astrology_profile_delete\.sql$/,
       /^app\/admin\/layout\.tsx$/,
       /^lib\/backup\/ownerPilotTables\.ts$/,
       /^lib\/backup\/schema\.generated\.ts$/,

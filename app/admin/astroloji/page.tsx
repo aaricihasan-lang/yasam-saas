@@ -35,6 +35,7 @@ import { TechniqueTechnical } from "./_components/TimingPanels";
 import { SavedAnalysesList, SavedAnalysisView } from "./_components/SavedAnalyses";
 import ClientList from "./_components/ClientList";
 import ClientLinkPanel from "./_components/ClientLinkPanel";
+import ProfileDeleteFlow from "./_components/ProfileDeleteFlow";
 
 type PublicRevision = {
   revision: number;
@@ -121,6 +122,9 @@ export default function AstrologyWorkspacePage() {
   const [archiveConfirm, setArchiveConfirm] = useState(false);
   const [archiveBusy, setArchiveBusy] = useState(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
+  // Kalıcı silme (tekli; 2 onay). Dizi durumda tutulur → onay akışına kararlı referans.
+  const [deleteIds, setDeleteIds] = useState<string[] | null>(null);
+  const [deleteInfo, setDeleteInfo] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ProfileDetail | null>(null);
   const [revision, setRevision] = useState<number | null>(null);
@@ -197,6 +201,14 @@ export default function AstrologyWorkspacePage() {
     setArchiveError(null);
     // Önceki profilin karşı taraf seçimi yeni profile taşınmaz.
     setParams((p) => ({ ...p, partnerProfileId: p.partnerProfileId === id ? "" : p.partnerProfileId }));
+  }
+
+  function clearSelection() {
+    setSelectedId(null);
+    setDetail(null);
+    setRevision(null);
+    setOpenAnalysis(null);
+    setArchiveConfirm(false);
   }
 
   async function setArchived(archived: boolean) {
@@ -398,9 +410,34 @@ export default function AstrologyWorkspacePage() {
           onSelect={(p) => selectProfile(p.id)}
           onCreate={() => setForm({ mode: "create" })}
           onItems={rememberLabels}
+          onProfilesDeleted={(ids) => {
+            if (selectedId && ids.includes(selectedId)) clearSelection();
+            setParams((p) => ({ ...p, partnerProfileId: ids.includes(p.partnerProfileId) ? "" : p.partnerProfileId }));
+          }}
         />
+        {deleteIds && (
+          <ProfileDeleteFlow
+            key={deleteIds.join(",")}
+            mode="single"
+            profileIds={deleteIds}
+            onClose={() => setDeleteIds(null)}
+            onDeleted={(r) => {
+              const ids = deleteIds;
+              setDeleteIds(null);
+              clearSelection();
+              setParams((p) => ({ ...p, partnerProfileId: ids.includes(p.partnerProfileId) ? "" : p.partnerProfileId }));
+              setDeleteInfo(`Profil ve ${r.deletedAnalyses} kayıtlı analizi kalıcı olarak silindi; ${r.preservedSharedAnalyses} ortak analiz korundu.`);
+              setProfilesReload((n) => n + 1);
+            }}
+          />
+        )}
 
         <section className="flex min-w-0 flex-col gap-4">
+          {deleteInfo && !shownDetail && (
+            <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900" data-testid="astro-delete-info">
+              {deleteInfo}
+            </p>
+          )}
           {form?.mode === "create" && (
             <ProfileForm
               mode="create"
@@ -469,6 +506,14 @@ export default function AstrologyWorkspacePage() {
                   data-testid="astro-archive-toggle"
                 >
                   {shownDetail.archivedAt ? "Arşivden çıkar" : "Arşivle"}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-rose-300 px-3 py-1.5 text-sm text-rose-700"
+                  onClick={() => setDeleteIds([shownDetail.id])}
+                  data-testid="astro-delete-single"
+                >
+                  Kalıcı sil
                 </button>
                 </div>
               </div>

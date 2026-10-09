@@ -8,6 +8,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { astroFetch } from "../_lib/api";
+import ProfileDeleteFlow from "./ProfileDeleteFlow";
 
 export type ClientListItem = {
   id: string;
@@ -73,13 +74,31 @@ export default function ClientList({
   onSelect,
   onCreate,
   onItems,
+  onProfilesDeleted,
 }: {
   selectedId: string | null;
   reloadKey: number;
   onSelect: (item: ClientListItem) => void;
   onCreate: () => void;
   onItems?: (items: ClientListItem[]) => void;
+  onProfilesDeleted?: (ids: string[]) => void;
 }) {
+  // Toplu kalıcı silme: seçim modu + seçili kimlikler (Set → aynı profil iki kez seçilemez).
+  const [selectMode, setSelectMode] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [bulkIds, setBulkIds] = useState<string[] | null>(null);
+  const [localReload, setLocalReload] = useState(0);
+  const [bulkInfo, setBulkInfo] = useState<string | null>(null);
+  const pickedKey = [...picked].sort().join(",");
+  // Seçim, akış açıldıktan sonra değişirse akış çizilmez (yeniden açılınca baştan başlar).
+  const bulkOpenIds = bulkIds && bulkIds.join(",") === pickedKey ? bulkIds : null;
+  const togglePick = (id: string) =>
+    setPicked((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else if (n.size < 100) n.add(id);
+      return n;
+    });
   const [q, setQ] = useState("");
   const [qDebounced, setQDebounced] = useState("");
   const [birthDate, setBirthDate] = useState("");
@@ -118,7 +137,7 @@ export default function ClientList({
       if (r.ok) onItemsRef.current?.(r.data.profiles);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qDebounced, birthDate, archived, sort, reloadKey]);
+  }, [qDebounced, birthDate, archived, sort, reloadKey, localReload]);
 
   async function loadMore() {
     if (!items) return;
@@ -180,12 +199,50 @@ export default function ClientList({
         <p className="text-sm text-slate-500">{archived ? "Arşivde kayıt yok." : filtered ? "Aramaya uyan danışan yok." : "Henüz profil yok."}</p>
       ) : (
         <>
-          <p className="text-xs text-slate-500" data-testid="astro-client-count">
-            {meta.total} kayıt{items.length < meta.total ? ` · ${items.length} gösteriliyor` : ""}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-slate-500" data-testid="astro-client-count">
+              {meta.total} kayıt{items.length < meta.total ? ` · ${items.length} gösteriliyor` : ""}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectMode((v) => !v);
+                setPicked(new Set());
+                setBulkInfo(null);
+              }}
+              className="text-xs text-slate-600 underline"
+              data-testid="astro-select-mode"
+            >
+              {selectMode ? "Seçimi kapat" : "Seç"}
+            </button>
+          </div>
+          {selectMode && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1.5 text-xs">
+              <span className="text-rose-900">{picked.size} profil seçildi</span>
+              <button
+                type="button"
+                disabled={picked.size === 0}
+                onClick={() => setBulkIds([...picked].sort())}
+                className="rounded-lg bg-rose-700 px-2.5 py-1 text-white disabled:opacity-50"
+                data-testid="astro-bulk-delete"
+              >
+                Seçilenleri kalıcı sil ({picked.size})
+              </button>
+            </div>
+          )}
+          {bulkInfo && <p className="rounded-lg bg-emerald-50 px-2 py-1.5 text-xs text-emerald-900">{bulkInfo}</p>}
           <ul className="flex flex-col gap-1.5">
             {items.map((p) => (
-              <li key={p.id}>
+              <li key={p.id} className={selectMode ? "flex items-start gap-2" : undefined}>
+                {selectMode && (
+                  <input
+                    type="checkbox"
+                    checked={picked.has(p.id)}
+                    onChange={() => togglePick(p.id)}
+                    aria-label={`${p.label} seç`}
+                    className="mt-3 h-4 w-4 shrink-0"
+                  />
+                )}
                 <button
                   type="button"
                   onClick={() => onSelect(p)}
@@ -215,6 +272,23 @@ export default function ClientList({
             </button>
           )}
         </>
+      )}
+      {bulkOpenIds && (
+        <ProfileDeleteFlow
+          key={bulkOpenIds.join(",")}
+          mode="bulk"
+          profileIds={bulkOpenIds}
+          onClose={() => setBulkIds(null)}
+          onDeleted={(r) => {
+            const ids = bulkOpenIds;
+            setBulkIds(null);
+            setPicked(new Set());
+            setSelectMode(false);
+            setBulkInfo(`${r.deletedProfiles} profil ve ${r.deletedAnalyses} kayıtlı analiz kalıcı olarak silindi; ${r.preservedSharedAnalyses} ortak analiz korundu.`);
+            setLocalReload((n) => n + 1);
+            onProfilesDeleted?.(ids);
+          }}
+        />
       )}
     </aside>
   );

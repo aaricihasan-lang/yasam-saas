@@ -131,6 +131,23 @@ function checkRow(store: FakeStore, table: string, row: Row): FakeErr {
   return null;
 }
 
+/** astro_profile_delete_preview taklidi (kendi analiz sayısı + korunacak ortak analiz sayısı). */
+function deletePreviewRows(store: FakeStore, tenant: string, owner: string, ids: string[]) {
+  const analyses = store.tables.astro_analyses ?? [];
+  return (store.tables.astro_birth_profiles ?? [])
+    .filter((p) => p.tenant_id === tenant && p.owner_user_id === owner && ids.includes(String(p.id)))
+    .map((p) => ({
+      id: String(p.id),
+      label: String(p.label),
+      archived_at: (p.archived_at as string | null) ?? null,
+      current_revision: Number(p.current_revision),
+      updated_ms: Math.floor(Date.parse(String(p.updated_at))),
+      own_analysis_count: analyses.filter((a) => a.tenant_id === tenant && a.owner_user_id === owner && a.profile_id === p.id).length,
+      shared_preserved_count: analyses.filter((a) => a.tenant_id === tenant && a.owner_user_id === owner && a.partner_profile_id === p.id && !ids.includes(String(a.profile_id))).length,
+    }))
+    .sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : a.id < b.id ? -1 : 1));
+}
+
 /** Aşama 7A bileşik FK taklidi: (tenant_id, owner_user_id, profile_id) → astro_birth_profiles. */
 function ownedProfile(store: FakeStore, row: Row, profileId: unknown): boolean {
   return (store.tables.astro_birth_profiles ?? []).some((p) => p.tenant_id === row.tenant_id && p.owner_user_id === row.owner_user_id && p.id === profileId);
@@ -407,6 +424,49 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
     const ids = new Set(linked.map((p) => p.id));
     const an = (store.tables.astro_analyses ?? []).filter((a) => a.tenant_id === args.p_tenant_id && a.owner_user_id === args.p_owner_user_id && ids.has(a.profile_id));
     return { data: [{ linked_profile_count: linked.length, analysis_count: an.length, last_analysis_at: an.map((a) => String(a.analysis_at)).sort().pop() ?? null }], error: null };
+  }
+  // ─── Kalıcı silme (20271101000500) — DB semantiğinin taklidi.
+  if (fn === "astro_profile_delete_preview") {
+    const ids = [...new Set((args.p_profile_ids as string[] | null) ?? [])];
+    return { data: deletePreviewRows(store, String(args.p_tenant_id), String(args.p_owner_user_id), ids), error: null };
+  }
+  if (fn === "astro_profile_delete") {
+    const tenant = String(args.p_tenant_id);
+    const owner = String(args.p_owner_user_id);
+    const exp = Array.isArray(args.p_expected) ? (args.p_expected as Record<string, unknown>[]) : null;
+    if (!exp) return { data: null, error: { code: "22023", message: "ASTRO_DELETE_INVALID" } };
+    const ids = [...new Set(exp.map((e) => String(e.id)))];
+    if (ids.length === 0 || ids.length > 100 || ids.length !== exp.length) return { data: null, error: { code: "22023", message: "ASTRO_DELETE_INVALID" } };
+    const profiles = store.tables.astro_birth_profiles ?? [];
+    if (profiles.filter((p) => p.tenant_id === tenant && p.owner_user_id === owner && ids.includes(String(p.id))).length !== ids.length) {
+      return { data: null, error: { code: "P0002", message: "ASTRO_DELETE_NOT_FOUND" } };
+    }
+    const pv = deletePreviewRows(store, tenant, owner, ids);
+    const stale = exp.some((e) => {
+      const r = pv.find((x) => x.id === e.id)!;
+      return r.current_revision !== Number(e.current_revision) || r.updated_ms !== Number(e.updated_ms) || r.own_analysis_count !== Number(e.own) || r.shared_preserved_count !== Number(e.shared);
+    });
+    if (stale) return { data: null, error: { code: "40001", message: "ASTRO_DELETE_STALE" } };
+    const analyses = store.tables.astro_analyses ?? [];
+    const preserved = analyses.filter((a) => a.tenant_id === tenant && a.owner_user_id === owner && ids.includes(String(a.partner_profile_id)) && !ids.includes(String(a.profile_id)));
+    const fp = (rows: Row[]) => JSON.stringify(rows.map((a) => [a.id, a.profile_snapshot, a.method_snapshot, a.technical_snapshot, a.provider_interp_snapshot, a.kb_snapshot, a.versions_snapshot, a.title, a.technique_params]));
+    const before = fp(preserved);
+    const own = analyses.filter((a) => a.tenant_id === tenant && a.owner_user_id === owner && ids.includes(String(a.profile_id)));
+    // Canlı karşı taraf bağları açıkça kaldırılır; ardından zincir (profil → revizyon/sonuç/yorum/not/kendi analizleri).
+    for (const a of analyses) if (a.tenant_id === tenant && a.owner_user_id === owner && ids.includes(String(a.partner_profile_id))) Object.assign(a, { partner_profile_id: null, partner_profile_revision: null });
+    const deadResults = new Set((store.tables.astro_provider_results ?? []).filter((r) => r.tenant_id === tenant && (ids.includes(String(r.profile_id)) || ids.includes(String(r.partner_profile_id)))).map((r) => String(r.id)));
+    const deadAnalyses = new Set(own.map((a) => String(a.id)));
+    store.tables.astro_provider_results = (store.tables.astro_provider_results ?? []).filter((r) => !deadResults.has(String(r.id)));
+    store.tables.astro_provider_interpretations = (store.tables.astro_provider_interpretations ?? []).filter((i) => !deadResults.has(String(i.result_id)));
+    store.tables.astro_analyses = analyses.filter((a) => !deadAnalyses.has(String(a.id)));
+    for (const a of store.tables.astro_analyses) if (a.result_id && deadResults.has(String(a.result_id))) a.result_id = null;
+    store.tables.astro_analysis_notes = (store.tables.astro_analysis_notes ?? []).filter((n) => !deadAnalyses.has(String(n.analysis_id)));
+    store.tables.astro_expert_notes = (store.tables.astro_expert_notes ?? []).filter((n) => !(n.tenant_id === tenant && ids.includes(String(n.profile_id))));
+    store.tables.astro_birth_profile_revisions = (store.tables.astro_birth_profile_revisions ?? []).filter((r) => !(r.tenant_id === tenant && ids.includes(String(r.profile_id))));
+    store.tables.astro_birth_profiles = profiles.filter((p) => !(p.tenant_id === tenant && p.owner_user_id === owner && ids.includes(String(p.id))));
+    const after = fp(store.tables.astro_analyses.filter((a) => preserved.some((x) => x.id === a.id)));
+    if (after !== before) return { data: null, error: { code: "P0001", message: "ASTRO_DELETE_SHARED_INTEGRITY" } };
+    return { data: { deleted_profiles: ids.length, deleted_analyses: own.length, preserved_shared_analyses: preserved.length }, error: null };
   }
   if (fn === "astro_unmapped_touch") {
     store.tables.astro_unmapped_fields ??= [];
