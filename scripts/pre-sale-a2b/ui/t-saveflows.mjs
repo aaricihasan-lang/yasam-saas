@@ -16,6 +16,8 @@ const AREAS = [
     fill: async (p) => {
       await p.getByPlaceholder("Örn: Hacamat, Biyoenerji, Refleksoloji...").fill("ZZ Hacamat");
       await p.getByPlaceholder("Örn: 1500").fill("1500");
+      // WT7: yeni ücret kaydında ödeme durumu açık seçim (zorunlu).
+      await p.getByRole("radio", { name: "Ödenmedi" }).first().click();
     },
     readValue: (p) => p.getByPlaceholder("Örn: 1500").inputValue().catch(() => null),
     successJson: { ok: true }, failText: "eklenemedi", successText: "eklendi",

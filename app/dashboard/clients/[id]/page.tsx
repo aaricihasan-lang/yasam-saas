@@ -21,6 +21,7 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken, syncYasamUserFromDb, type YasamUser } from "@/lib/auth/yasamUser";
 import { invalidateDanisanListCache, removeClientFromDanisanListCache } from "@/lib/danisan/listCache";
 import { computeBurc } from "@/lib/danisan/burc";
+import { summarizeUnpaid } from "@/lib/danisan/chargePayment";
 import NotesTab from "./components/NotesTab";
 import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
@@ -187,6 +188,10 @@ const wordBtnCls =
 
 // Soyad her zaman Türkçe locale ile BÜYÜK harf normalize edilir (i→İ, ı→I).
 // Kayıt anında savunmacı: trim + büyük harf. Yazım sırasında boşluk korunur.
+function formatTry(value: number) {
+  return new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 2 }).format(value);
+}
+
 function normalizeSurname(value: string) {
   return value.trim().toLocaleUpperCase("tr-TR");
 }
@@ -294,6 +299,8 @@ function ClientDetailPageInner() {
   const [drBusy, setDrBusy] = useState(false);
   const [drOpen, setDrOpen] = useState(false);
   const [consentRev, setConsentRev] = useState(0);
+  // WT7: ödenmemiş ücret özeti (hero uyarısı). null = henüz bilinmiyor → uyarı gösterilmez.
+  const [unpaidCharges, setUnpaidCharges] = useState<{ count: number; total: number } | null>(null);
   const [editDogum, setEditDogum] = useState("");
   // Satış öncesi kapanış: doğum alanı yarım/geçersizken kayıt YOK (eskiden "" → PATCH
   // dogum:null ile kayıtlı doğum tarihi sessizce siliniyordu).
@@ -435,6 +442,35 @@ function ClientDetailPageInner() {
       seqRef.current++; // unmount/yeniden yükleme → uçuştaki notes yanıtı yok sayılır
     };
   }, [clientId, tenantId, loadNotes]);
+
+  // WT7: hero "Ücret Alınmadı" uyarısı — sekme açılmadan da görünsün diye ücretler arka planda
+  // bir kez okunur (yalnız payment_status='unpaid' sayılır; eski/Belirtilmemiş kayıt uyarı üretmez).
+  useEffect(() => {
+    if (!tenantId || !clientId) return;
+    let cancelled = false;
+    const token = readSessionToken();
+    void fetch(`/api/clients/${clientId}/charges`, {
+      headers: { "x-user-id": readYasamUser()?.id ?? "", ...(token ? { "x-session-token": token } : {}) },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { charges?: { payment_status?: unknown; amount?: unknown }[] } | null) => {
+        if (!cancelled && j?.charges) setUnpaidCharges(summarizeUnpaid(j.charges));
+      })
+      .catch(() => { /* uyarı opsiyonel; sessiz */ });
+    return () => { cancelled = true; };
+  }, [clientId, tenantId]);
+
+  // Ücretlendirme sekmesinde ekle/düzenle/ödendi işaretle/sil → uyarı anında güncellenir;
+  // liste önbelleği bayatlar (liste rozeti dönüşte yeniden okunur).
+  const unpaidRef = useRef<{ count: number; total: number } | null>(null);
+  useEffect(() => { unpaidRef.current = unpaidCharges; }, [unpaidCharges]);
+  const handleUnpaidChange = useCallback((s: { count: number; total: number }) => {
+    const prev = unpaidRef.current;
+    if (prev && prev.count === s.count && prev.total === s.total) return;
+    if (prev) invalidateDanisanListCache();
+    unpaidRef.current = s;
+    setUnpaidCharges(s);
+  }, []);
 
   async function saveAllGeneralInfo() {
     if (!tenantId || !client) return;
@@ -833,6 +869,21 @@ function ClientDetailPageInner() {
             </span>
             {/* KVKK onam durumu rozeti; key değişince (panelde yeni kayıt) yeniden yüklenir. */}
             <ClientConsentPanel key={`consent-badge-${consentRev}`} clientId={client.id} variant="badge" />
+            {unpaidCharges && unpaidCharges.count > 0 ? (
+              <button
+                type="button"
+                data-testid="client-unpaid-warning"
+                onClick={() => { if (canSeeTab("ucretlendirme")) setActiveTab("ucretlendirme"); }}
+                title={t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total) })}
+                className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-black text-red-700"
+              >
+                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                {t("hero.unpaid")}
+                <span className="font-bold text-red-600">
+                  · {t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total) })}
+                </span>
+              </button>
+            ) : null}
           </div>
           <h1 className="mt-1.5 text-[24px] font-black text-slate-950">
             {fullName || t("unnamed")}
@@ -1152,7 +1203,7 @@ function ClientDetailPageInner() {
                 </button>
                 )}
               </div>
-              <UcretlendirmeTab clientId={client.id} />
+              <UcretlendirmeTab clientId={client.id} onUnpaidChange={handleUnpaidChange} />
           </div>
           )}
 

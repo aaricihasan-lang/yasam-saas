@@ -61,7 +61,8 @@
       "validation": {
         "category": "Lütfen bir ana tür seçin.",
         "amount": "Tutar 0'dan büyük geçerli bir sayı olmalıdır.",
-        "detailRequired": "\"Diğer\" için ürün / hizmet / işlem açıklaması zorunludur."
+        "detailRequired": "\"Diğer\" için ürün / hizmet / işlem açıklaması zorunludur.",
+        "paymentStatus": "Lütfen ödeme durumunu seçin (Ödendi / Ödenmedi)."
       },
       "toast": {
         "successTitle": "Başarılı",
@@ -73,7 +74,18 @@
         "updateFailed": "Ücret kaydı güncellenemedi.",
         "deleteFailed": "Ücret kaydı silinemedi.",
         "loadFailed": "Ücret kayıtları yüklenemedi.",
-        "noClient": "Danışan bilgisi bulunamadı."
+        "noClient": "Danışan bilgisi bulunamadı.",
+        "markedPaid": "Ücret ödendi olarak işaretlendi."
+      },
+      "payment": {
+        "label": "Ödeme Durumu",
+        "paid": "Ödendi",
+        "unpaid": "Ödenmedi",
+        "unknown": "Belirtilmemiş",
+        "requiredHint": "Yeni kayıtta seçim zorunludur.",
+        "legacyHint": "Bu eski kayıtta ödeme durumu belirtilmemiş; isterseniz seçebilirsiniz.",
+        "markPaid": "Ödendi İşaretle",
+        "unpaidSummary": "{count} ödenmemiş ücret · {total}"
       }
     }
   }

@@ -169,8 +169,9 @@ export type BioTestEnv = {
   su: pg.Client;
   url: string;
   port: number;
-  stats: { requests: number; errors: number; maxReturned: number; maxUrl: number; rejectedUrl: number; rpcCalls: Record<string, number>; deletes: number };
+  stats: { requests: number; errors: number; maxReturned: number; maxUrl: number; rejectedUrl: number; rpcCalls: Record<string, number>; deletes: number; storageGets?: number };
   setMaxRows: (n: number) => void;
+  setStorageFile: (b: Buffer | (() => Buffer) | null) => void;
   stop: () => Promise<void>;
 };
 
@@ -211,8 +212,9 @@ export async function startBioTestEnv(opts: { port: number; dirName: string; max
   await applyBioMigrations(su, { withFinal: true });
 
   let maxRows = opts.maxRows ?? 1000;
+  let storageFile: Buffer | (() => Buffer) | null = null;
   const pool = new pg.Pool({ host: "127.0.0.1", port: opts.port, user: "postgres", password: "testpw", database: "postgres", max: 16 });
-  const stats = { requests: 0, errors: 0, maxReturned: 0, maxUrl: 0, rejectedUrl: 0, rpcCalls: {} as Record<string, number>, deletes: 0 };
+  const stats = { requests: 0, errors: 0, maxReturned: 0, maxUrl: 0, rejectedUrl: 0, rpcCalls: {} as Record<string, number>, deletes: 0, storageGets: 0 as number | undefined };
   // Gerçek ağ geçidi URL sınırı (Supabase/Cloudflare önünde ~16 KB; varsayılan 8 KB = muhafazakâr).
   const maxUrlBytes = opts.maxUrlBytes ?? 8192;
 
@@ -230,6 +232,14 @@ export async function startBioTestEnv(opts: { port: number; dirName: string; max
       return res.end("<html><body>414 Request-URI Too Large</body></html>");
     }
     const url = new URL(req.url ?? "/", "http://127.0.0.1");
+    // WT7: Storage indirme taklidi — setStorageFile ile verilen görsel her nesne için döner (yoksa 404).
+    if (url.pathname.startsWith("/storage/v1/")) {
+      stats.storageGets = (stats.storageGets ?? 0) + 1;
+      if (!storageFile) return send(404, { statusCode: "404", error: "not_found", message: "Object not found" });
+      const body = typeof storageFile === "function" ? storageFile() : storageFile;
+      res.writeHead(200, { "Content-Type": "image/png", "Content-Length": String(body.length) });
+      return res.end(body);
+    }
     const client = await pool.connect();
     try {
       await client.query("SET ROLE service_role");
@@ -364,6 +374,7 @@ export async function startBioTestEnv(opts: { port: number; dirName: string; max
     port: opts.port,
     stats,
     setMaxRows: (n: number) => { maxRows = n; },
+    setStorageFile: (b: Buffer | (() => Buffer) | null) => { storageFile = b; },
     stop: async () => {
       await new Promise<void>((r) => server.close(() => r()));
       await pool.end().catch(() => undefined);

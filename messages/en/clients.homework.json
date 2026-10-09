@@ -32,7 +32,16 @@
         "expertNoteLabel": "Practitioner Note",
         "expertNotePlaceholder": "Your internal note...",
         "feedbackLabel": "Client Feedback",
-        "feedbackPlaceholder": "The client's feedback, points they struggled with..."
+        "feedbackPlaceholder": "The client's feedback, points they struggled with...",
+        "durationLabel": "How many days later?",
+        "durationPlaceholder": "e.g. 21",
+        "durationHint": "End = start + number of days. 0 = ends the same day. You can also pick the date manually.",
+        "durationErrors": {
+          "notInteger": "Enter a whole number only (e.g. 7).",
+          "negative": "Number of days cannot be negative.",
+          "tooLarge": "At most 3650 days allowed.",
+          "noStart": "Select the start date first."
+        }
       },
       "header": {
         "badge": "Client Assignment Tracking",
@@ -110,7 +119,8 @@
         "dismissFailed": "Alert could not be dismissed",
         "deleted": "Assignment deleted.",
         "deleteFailed": "Assignment could not be deleted",
-        "endBeforeStart": "End date cannot be before the start date."
+        "endBeforeStart": "End date cannot be before the start date.",
+        "invalidDuration": "Fix the number of days or pick the end date manually."
       },
       "error": {
         "loadFailed": "Assignments could not be loaded"
