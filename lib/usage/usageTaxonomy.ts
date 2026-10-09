@@ -10,12 +10,12 @@
  * URL / kayıt adı / hata mesajı alanı yoktur (yapısal engel).
  */
 import type { ModuleGateKey } from "@/lib/auth/moduleAccess";
-import { MODULE_USAGE_KEYS } from "@/lib/admin/stats/moduleUsageRegistry";
+import { MODULE_USAGE_KEYS, type UsageTrackedModuleKey } from "@/lib/admin/stats/moduleUsageRegistry";
 
 /** Kanonik modül anahtarları (ModuleGateKey ile tam kapsam; registry Record<ModuleGateKey> türetir). */
-export const USAGE_MODULE_KEYS: readonly ModuleGateKey[] = MODULE_USAGE_KEYS;
+export const USAGE_MODULE_KEYS: readonly UsageTrackedModuleKey[] = MODULE_USAGE_KEYS;
 
-export function isUsageModuleKey(v: unknown): v is ModuleGateKey {
+export function isUsageModuleKey(v: unknown): v is UsageTrackedModuleKey {
   return typeof v === "string" && (USAGE_MODULE_KEYS as readonly string[]).includes(v);
 }
 
@@ -105,7 +105,7 @@ export function toItemCountBucket(n: number): ItemCountBucket | null {
  * Admin-only modüller (video_ceviri, ders_notu, belge_ceviri_ai) ve hub (digital_content)
  * uzman işlem olayı üretmez → listeleri boştur.
  */
-export const USAGE_SUB_ENTITIES: Record<ModuleGateKey, readonly string[]> = {
+export const USAGE_SUB_ENTITIES: Record<UsageTrackedModuleKey, readonly string[]> = {
   clients: ["client", "analysis", "session", "homework", "stone", "charge", "combination", "consent", "appointment", "note", "photo", "anamnesis"],
   appointments: ["appointment"],
   numerology: ["analysis", "knowledge", "source", "source_entry", "source_link", "stone"],
@@ -134,7 +134,8 @@ export const USAGE_SUB_ENTITIES: Record<ModuleGateKey, readonly string[]> = {
 };
 
 export function isAllowedSubEntity(module: ModuleGateKey, sub: string): boolean {
-  return USAGE_SUB_ENTITIES[module].includes(sub);
+  // Kullanım kapsamı dışındaki modül (Astroloji) için alt-varlık yoktur → false (fail-closed).
+  return isUsageModuleKey(module) && USAGE_SUB_ENTITIES[module].includes(sub);
 }
 /**
  * AŞAMA 1 öncesi olay türleri (expert_usage_events.event_type) → Usage360 eylemi.

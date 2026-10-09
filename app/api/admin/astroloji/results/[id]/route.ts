@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAstrologyOwner } from "@/lib/astrology/access/ownerGate";
+import { requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
 import { parseOwnerPreviewHideInterp } from "@/lib/astrology/access/entitlements";
 import { serviceJson } from "@/lib/astrology/http";
 import { getAstrologyResult } from "@/lib/astrology/engine/service";
@@ -13,7 +13,7 @@ type RouteContext = { params: Promise<{ id: string }> };
  * ?profileId=&revision= → saat-bilinmiyor maskesi bu revizyona göre; ?previewNoInterp=1 → owner önizlemesi.
  */
 export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const gate = await requireAstrologyOwner(req);
+  const gate = await requireAstrologyAccess(req);
   if (!gate.ok) return gate.response;
   const { id } = await ctx.params;
   const sp = req.nextUrl.searchParams;

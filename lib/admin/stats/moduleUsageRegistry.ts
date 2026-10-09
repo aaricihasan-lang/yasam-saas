@@ -48,7 +48,13 @@ export type ModuleUsageDescriptor = {
  * Kanonik envanter. recordSources tablo isimleri repo route'larından doğrulanmıştır;
  * dashboard-managed tabloların kolonları için okuma tarafı fail-safe davranır.
  */
-export const MODULE_USAGE_REGISTRY: Record<ModuleGateKey, ModuleUsageDescriptor> = {
+/**
+ * Kullanım istatistiği (Usage360) kapsamındaki modüller. Astroloji (satış sonrası owner pilotu) BİLİNÇLİ
+ * olarak DIŞARIDA: kullanım olayı üretmez ve DB usage360 sözleşmesi (usage360_module_keys) değişmez.
+ */
+export type UsageTrackedModuleKey = Exclude<ModuleGateKey, "astrology">;
+
+export const MODULE_USAGE_REGISTRY: Record<UsageTrackedModuleKey, ModuleUsageDescriptor> = {
   clients: {
     key: "clients",
     label: "Danışan Yolculuğu",
@@ -175,14 +181,14 @@ export const MODULE_USAGE_REGISTRY: Record<ModuleGateKey, ModuleUsageDescriptor>
   },
 };
 
-export const MODULE_USAGE_KEYS = Object.keys(MODULE_USAGE_REGISTRY) as ModuleGateKey[];
+export const MODULE_USAGE_KEYS = Object.keys(MODULE_USAGE_REGISTRY) as UsageTrackedModuleKey[];
 
 /**
  * FAZ 1'de anlamlı-işlem olayı (expert_usage_events) ÜRETEN modüller — instrumentation
  * kapsamı. Bu kümede OLMAYAN bir modülün olay sayısı 0 değil "unavailable"dır (ölçülmüyor).
  * Yeni route enstrümante edildikçe BURAYA eklenir (kod ile senkron tek doğruluk kaynağı).
  */
-export const INSTRUMENTED_USAGE_MODULES = new Set<ModuleGateKey>([
+export const INSTRUMENTED_USAGE_MODULES = new Set<UsageTrackedModuleKey>([
   "numerology", // app/api/numeroloji/analyses (POST) → analysis_created
   "stones", // app/api/dogaltas/stones (POST) → record_created
   "reflexology", // app/api/refleksoloji/protocols (POST) → protocol_created

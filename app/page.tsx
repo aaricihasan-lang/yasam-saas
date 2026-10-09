@@ -532,6 +532,19 @@ const dashboardModules: ModuleCard[] = [
       border: "border-indigo-200/70",
     },
   },
+  // Astroloji (Aşama 7C): yalnız module_permissions.astrology açık uzmana görünür (admin uzman bazında
+  // açar; varsayılan kapalı). Erişim ayrıca route kuralı + API'de requireAstrologyAccess ile korunur.
+  {
+    href: "/astroloji",
+    permissionKey: "astrology",
+    emoji: "✨",
+    Icon: Sparkles,
+    theme: {
+      iconWrap: "from-violet-600 to-indigo-700",
+      cardBg: "from-violet-100/90 via-indigo-50/95 to-white",
+      border: "border-violet-200/70",
+    },
+  },
 ];
 
 /** Admin paneldeki Türkçe/ek anahtarlar → ana panel kartı */
@@ -558,6 +571,9 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   hd_system_reading: [],
   // Alt-yetki (kart açmaz): Numeroloji — Gelecek Yılları Göster.
   numerology_future_years: [],
+  astrology: [],
+  // Alt-yetki (kart açmaz): Astroloji — Roxy Otomatik Yorum.
+  astrology_provider_interp: [],
   // Admin-only AI alt modülleri (video_ceviri/ders_notu) hub'ı uzmana AÇMAZ → alias DEĞİL.
   digital_content: ["personal_archive", "belge_ceviri", "kisisel_arsiv"],
   cosmic_calendar: [],

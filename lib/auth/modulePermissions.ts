@@ -35,7 +35,13 @@ export type ModulePermissionKey =
   // Zirve, Mücadele, Harflerin Yankılanışı) içinde bulunulan yıldan SONRA başlayan dönemleri de
   // gösterir. MODÜL DEĞİL — numerology ile BİRLİKTE gerekir; varsayılan KAPALI, Premium
   // payload'ında YOK (admin uzman bazında açar).
-  | "numerology_future_years";
+  | "numerology_future_years"
+  // Astroloji modülü (Aşama 7C): varsayılan KAPALI, Premium payload'ında YOK — admin uzman bazında açar.
+  // Sistem sahibi (owner) her zaman erişir; owner OLMAYAN admin erişmez (owner kuralı, lib/astrology/access).
+  | "astrology"
+  // Astroloji alt-yetkisi: "Roxy Otomatik Yorum" — hesaplamalara ait sağlayıcı (Roxy) yorum metinleri.
+  // MODÜL DEĞİL — astrology ile BİRLİKTE gerekir; varsayılan KAPALI, Premium payload'ında YOK.
+  | "astrology_provider_interp";
 
 export type ModulePermissions = Record<ModulePermissionKey, boolean>;
 
@@ -59,6 +65,8 @@ export const MODULE_PERMISSION_KEYS: ModulePermissionKey[] = [
   "yasam_hafizasi",
   "hd_system_reading",
   "numerology_future_years",
+  "astrology",
+  "astrology_provider_interp",
 ];
 
 export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
@@ -81,6 +89,8 @@ export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
   yasam_hafizasi: "Yaşam Hafızası",
   hd_system_reading: "Human Design — Sistem Yorumu",
   numerology_future_years: "Numeroloji — Gelecek Yılları Göster",
+  astrology: "Astroloji",
+  astrology_provider_interp: "Astroloji — Roxy Otomatik Yorum",
 };
 
 export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
@@ -103,6 +113,8 @@ export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
   yasam_hafizasi: false,
   hd_system_reading: false,
   numerology_future_years: false,
+  astrology: false,
+  astrology_provider_interp: false,
 };
 
 /** Admin paneli + Türkçe alias anahtarları (route guard / panel) */

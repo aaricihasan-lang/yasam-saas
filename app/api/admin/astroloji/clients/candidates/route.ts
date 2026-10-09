@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAstrologyOwner } from "@/lib/astrology/access/ownerGate";
+import { requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
 import { serviceJson } from "@/lib/astrology/http";
 import { searchClientCandidates } from "@/lib/astrology/clients/service";
 
@@ -10,7 +10,7 @@ export const runtime = "nodejs";
  * Kesin eşleşme varsayılmaz; aynı kimlikli kayıtlar ayrı döner; hiçbir bağ kurulmaz.
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  const gate = await requireAstrologyOwner(req);
+  const gate = await requireAstrologyAccess(req);
   if (!gate.ok) return gate.response;
   return serviceJson(await searchClientCandidates(gate.ctx, req.nextUrl.searchParams));
 }

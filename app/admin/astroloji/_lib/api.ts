@@ -1,12 +1,30 @@
-// Astroloji owner UI — tarayıcı API istemcisi (yalnız istemci).
-// Güvenli admin başlık deseni (x-admin-id + x-session-token; lib/admin/stats/statsClient ile aynı).
-// Token URL'e/loga konmaz. Yetki her çağrıda SUNUCUDA (requireAstrologyOwner) verilir.
+// Astroloji UI — tarayıcı API istemcisi (yalnız istemci).
+// İki yüzey (Aşama 7C), aynı bileşenler:
+//   • Admin kabuğu (/admin/astroloji): x-admin-id + x-session-token → /api/admin/astroloji (owner-only).
+//   • Uzman sayfası (/astroloji): x-user-id + x-session-token → /api/astroloji (modül yetkisi).
+// Token URL'e/loga konmaz. Yetki her çağrıda SUNUCUDA (requireAstrologyAccess) verilir; istemci
+// yüzey seçimi yetki DEĞİLDİR (yanlış yüzeyden gelen istek sunucuda 404 alır).
 
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 
+const ADMIN_API = "/api/admin/astroloji";
+const EXPERT_API = "/api/astroloji";
+
+/** Sayfa admin kabuğunda mı? (Sunucu tarafında render edilirken admin varsayılır; çağrılar zaten istemcide.) */
+export function isAdminSurface(): boolean {
+  if (typeof window === "undefined") return true;
+  return window.location.pathname === "/admin" || window.location.pathname.startsWith("/admin/");
+}
+
+/** Bileşenlerdeki kanonik "/api/admin/astroloji/…" yolunu bulunulan yüzeyin API'sine çevirir. */
+export function astroPath(path: string): string {
+  if (isAdminSurface() || !path.startsWith(ADMIN_API)) return path;
+  return EXPERT_API + path.slice(ADMIN_API.length);
+}
+
 export function astroHeaders(json = false): Record<string, string> {
   const h: Record<string, string> = {
-    "x-admin-id": readYasamUser()?.id ?? "",
+    [isAdminSurface() ? "x-admin-id" : "x-user-id"]: readYasamUser()?.id ?? "",
     "x-session-token": readSessionToken() ?? "",
   };
   if (json) h["Content-Type"] = "application/json";
@@ -18,7 +36,7 @@ export type ApiResult<T> = { ok: true; status: number; data: T } | { ok: false; 
 export async function astroFetch<T>(path: string, init: { method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown } = {}): Promise<ApiResult<T>> {
   let res: Response;
   try {
-    res = await fetch(path, {
+    res = await fetch(astroPath(path), {
       method: init.method ?? "GET",
       headers: astroHeaders(init.body !== undefined),
       body: init.body !== undefined ? JSON.stringify(init.body) : undefined,

@@ -35,6 +35,9 @@ export const MODULE_ROUTE_PREFIXES: { prefix: string; key: ModuleGateKey }[] = [
   // tamamlandı) → ertelenmiş sınıftan kapılı modül sınıfına taşındı. Yalnız envanter
   // metadatası; çalışma zamanı yetki davranışı DEĞİŞMEZ.
   { prefix: "app/api/aromaterapi", key: "aromatherapy" },
+  // Astroloji uzman yüzeyi (Aşama 7C): her route requireAstrologyAccess → requireModuleAccess("astrology")
+  // (+ owner kuralı + uzman sahipliği). Owner'ın admin kabuğu yüzeyi app/api/admin/astroloji (admin EXCLUDE).
+  { prefix: "app/api/astroloji", key: "astrology" },
 ];
 
 /**

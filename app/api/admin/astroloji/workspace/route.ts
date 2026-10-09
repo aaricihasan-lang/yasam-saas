@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAstrologyOwner } from "@/lib/astrology/access/ownerGate";
+import { requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
 import { readJsonBody, serviceJson } from "@/lib/astrology/http";
 import { getWorkspace } from "@/lib/astrology/analyses/service";
 
@@ -13,14 +13,14 @@ export const runtime = "nodejs";
  * Sağlayıcı ÇAĞRILMAZ; sağlayıcı yorumu bu uçta okunmaz/dönmez.
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  const gate = await requireAstrologyOwner(req);
+  const gate = await requireAstrologyAccess(req);
   if (!gate.ok) return gate.response;
   const sp = req.nextUrl.searchParams;
   return serviceJson(await getWorkspace(gate.ctx, { profileId: sp.get("profileId"), revision: sp.get("revision"), resultId: sp.get("resultId") }));
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const gate = await requireAstrologyOwner(req);
+  const gate = await requireAstrologyAccess(req);
   if (!gate.ok) return gate.response;
   const b = await readJsonBody(req);
   if (!b.ok) return b.response;

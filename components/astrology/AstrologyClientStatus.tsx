@@ -7,8 +7,10 @@
  *     Harita, teknik hesap, yorum, not veya rapor GÖSTERİLMEZ ve bu bileşene gelmez.
  *   • Durum, uzmanın eşleştirilmiş Astroloji profillerindeki GERÇEK kayıtlı analizden hesaplanır (sunucu;
  *     sağlayıcı çağrılmaz). Doğum profili tek başına "analiz var" sayılmaz.
- *   • Görünürlük: Astroloji modülüne yetkili kullanıcı (bugün yalnız system owner). Admin olmayan oturumda
- *     istek bile atılmaz; sunucu kapısı (requireAstrologyOwner) yetkisizde tek tip 404 döner → hiçbir şey çizilmez.
+ *   • Görünürlük (Aşama 7C): Astroloji modülüne yetkili kullanıcı — sistem sahibi (admin kabuğu ucu) veya
+ *     module_permissions.astrology açık uzman (uzman ucu, yalnız KENDİ eşleştirmeleri/analizleri sayılır).
+ *     Roxy otomatik yorum alt-yetkisine BAĞLI DEĞİLDİR. İzni görünmeyen uzmanda / demoda istek bile atılmaz
+ *     (istemci ipucu); KARAR sunucudadır: requireAstrologyAccess yetkisizde tek tip 404 → hiçbir şey çizilmez.
  *     Hata/ağ sorunu da sessizce gizlenir: Danışan Yolculuğu akışı hiçbir koşulda etkilenmez.
  */
 
@@ -35,10 +37,15 @@ export default function AstrologyClientStatus({ clientId }: { clientId: string }
   useEffect(() => {
     const user = readYasamUser();
     const token = readSessionToken();
-    if (!user || user.role !== "admin" || !token) return; // uzman / demo / oturumsuz → istek yok
+    if (!user || !token) return; // oturumsuz → istek yok
+    const isAdmin = user.role === "admin";
+    const perms = user.module_permissions as Record<string, unknown> | null | undefined;
+    // İstemci ipucu (yetki DEĞİL): Astroloji izni görünmeyen uzman / demo hesap istek atmaz.
+    if (!isAdmin && (user.is_demo_account === true || perms?.astrology !== true)) return;
+    const q = `client-status?clientId=${encodeURIComponent(clientId)}`;
     let alive = true;
-    void fetch(`/api/admin/astroloji/client-status?clientId=${encodeURIComponent(clientId)}`, {
-      headers: { "x-admin-id": user.id, "x-session-token": token },
+    void fetch(isAdmin ? `/api/admin/astroloji/${q}` : `/api/astroloji/${q}`, {
+      headers: isAdmin ? { "x-admin-id": user.id, "x-session-token": token } : { "x-user-id": user.id, "x-session-token": token },
       cache: "no-store",
     })
       .then(async (r) => {

@@ -18,6 +18,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { verifyAdminRequest, type AdminGuardResult } from "@/lib/auth/adminGuard";
+import { requireModuleAccess, type UserGuardResult } from "@/lib/auth/userGuard";
 import { isAstrologyModuleEnabled } from "../config";
 import { resolveAstrologyEntitlements, type AstrologyEntitlements } from "./entitlements";
 
@@ -70,6 +71,8 @@ export type AstrologyOwnerContext = {
   userId: string;
   tenantId: string;
   entitlements: AstrologyEntitlements;
+  /** Aşama 7C: sistem sahibi mi (owner-only yüzeyler: alan denetimi, owner önizlemesi). */
+  isOwner?: boolean;
 };
 
 export type AstrologyGateResult = { ok: true; ctx: AstrologyOwnerContext } | { ok: false; response: NextResponse };
@@ -98,8 +101,69 @@ export async function requireAstrologyOwner(req: NextRequest, deps: AstrologyGat
       userId: guard.adminId,
       tenantId: owner.tenantId,
       entitlements: resolveAstrologyEntitlements({ isOwner: true }),
+      isOwner: true,
     },
   };
+}
+
+// ─── Aşama 7C: uzman yüzeyi (mevcut modül yetki sistemi) ─────────────────────────────────────────
+
+export type AstrologyAccessDeps = AstrologyGateDeps & {
+  /** Test enjeksiyonu: mevcut modül kapısı (varsayılan lib/auth/userGuard.requireModuleAccess). */
+  requireModule?: (req: NextRequest, key: "astrology") => Promise<UserGuardResult>;
+  /** Yalnız sistem sahibi (ör. sağlayıcı alan denetimi — tenant'sız sistem kaydı). */
+  ownerOnly?: boolean;
+};
+
+/**
+ * Her Astroloji API route'unun İLK satırı (Aşama 7C). Yüzeyi isteğin yolu belirler:
+ *
+ *   /api/admin/astroloji/**  → ADMIN KABUĞU: değişmeden owner-only (requireAstrologyOwner; x-admin-id).
+ *   /api/astroloji/**        → UZMAN YÜZEYİ (x-user-id): katmanlar sırayla, her biri tek başına reddeder:
+ *       1) kill switch;
+ *       2) mevcut modül kapısı requireModuleAccess("astrology"): oturum↔kullanıcı bağı (HttpOnly taşıma
+ *          dahil), aktif + onaylı + Premium üyelik, demo reddi (DEMO_DENIED_MODULE_KEYS), modül bayrağı
+ *          (admin muafiyeti bu katmanda geçer →)
+ *       3) owner kuralı: admin rolünde YALNIZ katı owner (is_super_admin) geçer; owner olmayan admin 404;
+ *       4) yetki çözümü users.module_permissions'tan (sunucuda, her istekte DB'den — önbellek YOK →
+ *          yetki kaldırılınca bir sonraki istek reddedilir; açık sekme dahil);
+ *       5) tenant = doğrulanmış kullanıcının kendi tenant'ı; uzman sahipliği servis katmanında (owner_user_id).
+ *   başka yol → 404.
+ * Tüm red dalları AYNI 404 gövdesini döner (modülün varlığı / red nedeni sızdırılmaz).
+ */
+export async function requireAstrologyAccess(req: NextRequest, deps: AstrologyAccessDeps = {}): Promise<AstrologyGateResult> {
+  const path = req.nextUrl.pathname;
+  if (path === "/api/admin/astroloji" || path.startsWith("/api/admin/astroloji/")) return requireAstrologyOwner(req, deps);
+  if (!(path === "/api/astroloji" || path.startsWith("/api/astroloji/"))) return { ok: false, response: astrologyNotFoundResponse() };
+  if (!isAstrologyModuleEnabled(deps.env)) return { ok: false, response: astrologyNotFoundResponse() };
+  let guard: UserGuardResult;
+  try {
+    guard = await (deps.requireModule ?? requireModuleAccess)(req, "astrology");
+  } catch {
+    return { ok: false, response: astrologyNotFoundResponse() };
+  }
+  if (!guard.ok) return { ok: false, response: astrologyNotFoundResponse() };
+  const role = String(guard.profile?.role ?? "").trim().toLowerCase();
+  let isOwner = false;
+  let tenantId = guard.tenantId;
+  if (role === "admin") {
+    const owner = await resolveAstrologyOwner(guard.db, guard.userId);
+    if (!owner.ok) return { ok: false, response: astrologyNotFoundResponse() };
+    isOwner = true;
+    tenantId = owner.tenantId;
+  } else if (role !== "expert") {
+    return { ok: false, response: astrologyNotFoundResponse() };
+  }
+  if (!UUID_RE.test(String(tenantId ?? ""))) return { ok: false, response: astrologyNotFoundResponse() };
+  const flags = guard.profile?.module_permissions;
+  const entitlements = resolveAstrologyEntitlements({
+    isOwner,
+    role,
+    flags: flags && typeof flags === "object" && !Array.isArray(flags) ? (flags as Record<string, unknown>) : null,
+  });
+  if (!entitlements.module) return { ok: false, response: astrologyNotFoundResponse() };
+  if (deps.ownerOnly && !isOwner) return { ok: false, response: astrologyNotFoundResponse() };
+  return { ok: true, ctx: { db: guard.db, userId: guard.userId, tenantId, entitlements, isOwner } };
 }
 
 /**

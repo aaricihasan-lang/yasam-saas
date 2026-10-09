@@ -36,6 +36,7 @@ import { SavedAnalysesList, SavedAnalysisView } from "./_components/SavedAnalyse
 import ClientList from "./_components/ClientList";
 import ClientLinkPanel from "./_components/ClientLinkPanel";
 import ProfileDeleteFlow from "./_components/ProfileDeleteFlow";
+import ModuleAccessDenied from "@/components/auth/ModuleAccessDenied";
 
 type PublicRevision = {
   revision: number;
@@ -143,7 +144,22 @@ export default function AstrologyWorkspacePage() {
   const [active, setActive] = useState<{ key: string; seq: number; idx: number } | null>(null);
   const [profilesReload, setProfilesReload] = useState(0);
   const [detailReload, setDetailReload] = useState(0);
-  const previewNoInterp = useSyncExternalStore(subscribePreviewFlag, readPreviewFlag, () => false);
+  const previewFlag = useSyncExternalStore(subscribePreviewFlag, readPreviewFlag, () => false);
+  // Aşama 7C: erişim + yetkiler SUNUCUDAN (fail-closed). Owner-only öğeler (önizleme, alan denetimi,
+  // pilot rozeti) yalnız isOwner'da; uzman yüzeyinde owner önizleme bayrağı yok sayılır.
+  const [access, setAccess] = useState<{ isOwner: boolean; providerInterp: boolean } | "denied" | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void astroFetch<{ isOwner?: boolean; entitlements: { providerInterpretations: boolean } }>("/api/admin/astroloji/access").then((r) => {
+      if (!alive) return;
+      setAccess(r.ok ? { isOwner: r.data.isOwner === true, providerInterp: r.data.entitlements.providerInterpretations === true } : "denied");
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const isOwnerView = access !== null && access !== "denied" && access.isOwner;
+  const previewNoInterp = isOwnerView && previewFlag;
   const [tab, setTab] = useState<"work" | "kb" | "audit">("work");
   const [openAnalysis, setOpenAnalysis] = useState<{ profileId: string; id: string } | null>(null);
   const [analysesReload, setAnalysesReload] = useState(0);
@@ -363,29 +379,49 @@ export default function AstrologyWorkspacePage() {
 
   const partnerLabelOf = (v: View) => (typeof v.options.partnerProfileId === "string" ? (labelOf(v.options.partnerProfileId) ?? "Karşı taraf") : "2. kişi");
 
+  if (access === "denied") return <ModuleAccessDenied reason="permission" />;
+  if (access === null) {
+    return (
+      <main className="mx-auto w-full max-w-6xl px-4 py-6">
+        <p className="text-sm text-slate-400">Yükleniyor…</p>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6">
       <header className="flex flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-semibold text-slate-900">Astroloji Çalışma Merkezi</h1>
-          <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-medium text-white">Owner pilot · Aşama 6</span>
+          {isOwnerView && <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-medium text-white">Owner pilot · Aşama 7</span>}
+          {!isOwnerView && !access.providerInterp && (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600" data-testid="astro-interp-off-badge">
+              Roxy otomatik yorumları bu hesap için kapalı
+            </span>
+          )}
         </div>
         <p className="text-sm text-slate-600">
           Batı (tropikal): Natal · Transit · Transit takvimi · Progression · Solar arc · Solar/Lunar return · Sinastri · Composite · Astrocartography · Relocation · Local Space. Vedik / Jyotish (sidereal): D1 Rashi · Nakshatra/Pada · D9 + Varga · Vimshottari Dasha · Graha Drishti · Ashtakavarga · Shadbala · Janma Panchanga · Gochara. KP (Krishnamurti, Placidus): harita · cusp/sub lord · significator · KP dasha · ruling planets · transit (kısmi) · horary. Teknik sonuçlar ile sağlayıcının otomatik yorumu ayrı katmanlardadır.
         </p>
       </header>
 
-      <label className="flex items-center gap-2 self-start rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-900">
-        <input type="checkbox" checked={previewNoInterp} onChange={(e) => void togglePreview(e.target.checked)} />
-        Roxy Yorumu Kapalıymış Gibi Gör <span className="text-xs text-violet-700">(owner önizlemesi — yorum yetkisi kapalı uzman görünümü)</span>
-      </label>
+      {isOwnerView && (
+        <label className="flex items-center gap-2 self-start rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-900">
+          <input type="checkbox" checked={previewNoInterp} onChange={(e) => void togglePreview(e.target.checked)} />
+          Roxy Yorumu Kapalıymış Gibi Gör <span className="text-xs text-violet-700">(owner önizlemesi — yorum yetkisi kapalı uzman görünümü)</span>
+        </label>
+      )}
 
       <nav className="flex gap-1 border-b border-slate-200" aria-label="Astroloji bölümleri">
-        {([
-          ["work", "Çalışma"],
-          ["kb", "Bilgi Bankası"],
-          ["audit", "Alan denetimi"],
-        ] as const).map(([k, l]) => (
+        {(
+          [
+            ["work", "Çalışma"],
+            ["kb", "Bilgi Bankası"],
+            ["audit", "Alan denetimi"],
+          ] as const
+        )
+          .filter(([k]) => k !== "audit" || isOwnerView)
+          .map(([k, l]) => (
           <button
             key={k}
             type="button"
@@ -401,7 +437,7 @@ export default function AstrologyWorkspacePage() {
       </nav>
 
       {tab === "kb" && <KnowledgeBankPanel />}
-      {tab === "audit" && <UnmappedAuditPanel />}
+      {tab === "audit" && isOwnerView && <UnmappedAuditPanel />}
 
       <div className={`grid gap-4 lg:grid-cols-[300px_1fr] ${tab === "work" ? "" : "hidden"}`}>
         <ClientList

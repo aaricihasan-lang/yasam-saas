@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAstrologyOwner } from "@/lib/astrology/access/ownerGate";
+import { requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
 import { readJsonBody, serviceJson } from "@/lib/astrology/http";
 import { deleteKb, getKbEntry, updateKb } from "@/lib/astrology/kb/service";
 
@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const gate = await requireAstrologyOwner(req);
+  const gate = await requireAstrologyAccess(req);
   if (!gate.ok) return gate.response;
   const { id } = await ctx.params;
   return serviceJson(await getKbEntry(gate.ctx, id));
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
 
 /** PATCH — düzenle (iyimser kilit: expectedRevision). */
 export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const gate = await requireAstrologyOwner(req);
+  const gate = await requireAstrologyAccess(req);
   if (!gate.ok) return gate.response;
   const { id } = await ctx.params;
   const b = await readJsonBody(req);
@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Respon
 
 /** DELETE ?expectedRevision=N — yalnız (tenant, uzman, id, revizyon) tam eşleşirse siler. */
 export async function DELETE(req: NextRequest, ctx: RouteContext): Promise<Response> {
-  const gate = await requireAstrologyOwner(req);
+  const gate = await requireAstrologyAccess(req);
   if (!gate.ok) return gate.response;
   const { id } = await ctx.params;
   const rev = Number(req.nextUrl.searchParams.get("expectedRevision"));

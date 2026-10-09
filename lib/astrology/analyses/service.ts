@@ -609,7 +609,8 @@ export async function listAnalyses(ctx: EngineCtx, profileId: unknown, sp: URLSe
         clientId: r.client_id,
         eventKind: r.event_kind,
         houseSystem: r.house_system ?? null,
-        providerInterpIncluded: r.provider_interp_included,
+        // Aşama 7C: yorum yetkisi yoksa kayıtta yorum bulunduğu bilgisi de verilmez.
+        providerInterpIncluded: ctx.entitlements.providerInterpretations ? r.provider_interp_included : false,
       })),
     },
   };
@@ -618,11 +619,13 @@ export async function listAnalyses(ctx: EngineCtx, profileId: unknown, sp: URLSe
 /** Kayıtlı analizi AÇ — yalnız snapshot okunur; sağlayıcı bağımlılığı YOK (0 Roxy isteği). */
 export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideInterp: boolean): Promise<ServiceResponse> {
   if (!isUuid(id)) return fail(404, "ANALYSIS_NOT_FOUND", "Analiz bulunamadı.");
+  // Aşama 7C: Roxy yorum yetkisi yoksa yorum snapshot kolonu DB'den HİÇ okunmaz (yanıtta da yok).
+  const cols =
+    "id, profile_id, profile_revision, partner_profile_id, partner_profile_revision, client_id, technique, title, event_kind, analysis_at, technique_params, profile_snapshot, method_snapshot, technical_snapshot, provider_interp_included, kb_snapshot, versions_snapshot, created_at" +
+    (ctx.entitlements.providerInterpretations ? ", provider_interp_snapshot" : "");
   const { data, error } = await ctx.db
     .from("astro_analyses")
-    .select(
-      "id, profile_id, profile_revision, partner_profile_id, partner_profile_revision, client_id, technique, title, event_kind, analysis_at, technique_params, profile_snapshot, method_snapshot, technical_snapshot, provider_interp_included, provider_interp_snapshot, kb_snapshot, versions_snapshot, created_at",
-    )
+    .select(cols)
     .eq("tenant_id", ctx.tenantId)
     .eq("owner_user_id", ctx.userId)
     .eq("id", id)
@@ -634,13 +637,22 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
   if (notesRes.error) return dbFail("analysis.notes", notesRes.error);
 
   let interpretation: Record<string, unknown>;
-  if (!a.provider_interp_included || !a.provider_interp_snapshot) {
+  // Aşama 7C: GÜNCEL yetki ÖNCE. Yetkisiz uzmana kayıtta yorum olup olmadığı bile söylenmez
+  // ("not_included" / "not_entitled" ayrımı varlık sızdırırdı); snapshot kolonu zaten okunmadı.
+  const vis = resolveInterpretationVisibility(ctx.entitlements, ownerPreviewHideInterp);
+  if (!ctx.entitlements.providerInterpretations) {
+    interpretation = { visible: false, reason: "not_entitled" };
+  } else if (!a.provider_interp_included || !a.provider_interp_snapshot) {
     interpretation = { visible: false, reason: "not_included" };
   } else {
-    // GÜNCEL yetki: kayıtta yorum olsa bile yetki/önizleme kapalıysa İÇERİK GÖNDERİLMEZ.
-    const vis = resolveInterpretationVisibility(ctx.entitlements, ownerPreviewHideInterp);
+    // GÜNCEL yetki: kayıtta yorum olsa bile önizleme kapalıysa İÇERİK GÖNDERİLMEZ.
     interpretation = vis.visible ? { visible: true, ...a.provider_interp_snapshot } : { visible: false, reason: vis.reason };
   }
+  // Sürüm metadata'sındaki yorum şeması adı da yalnız yorum görünürken döner (DB'deki snapshot DEĞİŞMEZ).
+  const versions =
+    vis.visible || !a.versions_snapshot || typeof a.versions_snapshot !== "object"
+      ? a.versions_snapshot
+      : { ...a.versions_snapshot, interpretationSchema: null };
 
   return {
     status: 200,
@@ -666,7 +678,7 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
           body: n.body,
         })),
         interpretation,
-        versions: a.versions_snapshot,
+        versions,
       },
     },
   };
