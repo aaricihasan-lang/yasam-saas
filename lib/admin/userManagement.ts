@@ -89,6 +89,10 @@ export const ADMIN_MODULE_UI_KEYS = [
   "clients",
   "appointments",
   "numerology",
+  // Numeroloji alt-yetkisi (capability): "Gelecek Yılları Göster" — kronolojik bölümlerde içinde
+  // bulunulan yıldan sonra başlayan dönemleri de gösterir. MODÜL DEĞİL; numerology ile BİRLİKTE
+  // gerekir. Varsayılan KAPALI; Premium payload'ında YOK → admin uzman bazında açar.
+  "numerology_future_years",
   "stones",
   "stok",
   "sifa_rehberi",
@@ -128,6 +132,7 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
   clients: "Danışan Yönetimi",
   appointments: "Ajanda",
   numerology: "Numeroloji",
+  numerology_future_years: "Numeroloji — Gelecek Yılları Göster",
   stones: "Doğaltaş",
   stok: "Ürün & Stok Merkezi",
   sifa_rehberi: "Şifa Rehberi",
@@ -145,6 +150,8 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
 };
 
 export const ADMIN_MODULE_UI_DESCRIPTIONS: Partial<Record<AdminModuleUiKey, string>> = {
+  numerology_future_years:
+    "Değişim-Dönüşüm, Zirve, Mücadele ve Harflerin Yankılanışı bölümlerinde içinde bulunulan yıldan sonra başlayan dönemleri de gösterir (ekran + Word). Numeroloji modülü de açık olmalıdır.",
   digital_content:
     "Hub kartı: yalnız alt modüllerden (Kişisel Arşiv, Belge Çeviri) biri açıksa erişim verir. AI araçları yalnız yöneticiye açıktır.",
   belge_ceviri: "PDF → Word dönüşümü ve geçmiş. OCR / PDF → Türkçe Word gibi AI araçları yalnız yöneticiye açıktır.",
@@ -161,6 +168,7 @@ export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
   clients: false,
   appointments: false,
   numerology: false,
+  numerology_future_years: false,
   stones: false,
   stok: false,
   sifa_rehberi: false,
@@ -190,6 +198,7 @@ export const ADMIN_MODULE_KIND: Record<AdminModuleUiKey, AdminModuleKind> = {
   clients: "module",
   appointments: "module",
   numerology: "module",
+  numerology_future_years: "capability",
   stones: "module",
   stok: "module",
   sifa_rehberi: "module",

@@ -556,6 +556,8 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   human_design: [],
   // Alt-yetki (kart açmaz): Human Design — Sistem Yorumu.
   hd_system_reading: [],
+  // Alt-yetki (kart açmaz): Numeroloji — Gelecek Yılları Göster.
+  numerology_future_years: [],
   // Admin-only AI alt modülleri (video_ceviri/ders_notu) hub'ı uzmana AÇMAZ → alias DEĞİL.
   digital_content: ["personal_archive", "belge_ceviri", "kisisel_arsiv"],
   cosmic_calendar: [],
