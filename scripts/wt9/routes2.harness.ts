@@ -115,14 +115,7 @@ const LONG = "Uzun kaynak metni ŞİFA çğıöşü ".repeat(900) + "SON_KESILME
     const dup = Number((await su.query(`select count(*)::int n from (select stone_id, source_name_key from stone_sources where tenant_id=$1 group by 1,2 having count(*)>1) z`, [B.tenant])).rows[0].n);
     H.ok(r.status === 200 && dup === 0 && Number((await su.query(`select count(*)::int n from stone_sources where tenant_id=$1`, [B.tenant])).rows[0].n) === 6,
       "T: yeni batch = yeni kopya (mevcut politika), taş başına kaynak adı duplicate YOK");
-    // kaynak tablosu okunamazsa grup geri alınır (taşlar + CASCADE kaynaklar) → yarım veri yok
-    await su.query(`alter table stone_sources rename to stone_sources_tmp`);
-    const cntBefore = Number((await su.query(`select count(*)::int n from stones where tenant_id=$1`, [C.tenant])).rows[0].n);
-    r = await transfer.POST(adminReq("/api/admin/veri-paylasimi/transfer", ADMIN, { batchId: randomUUID(), targetUserId: C.id, targetTenantId: C.tenant, groups: ["stones"], filterMap: { stones: [aStone] } }));
-    jb = await j(r);
-    await su.query(`alter table stone_sources_tmp rename to stone_sources`);
-    H.ok(Number((await su.query(`select count(*)::int n from stones where tenant_id=$1`, [C.tenant])).rows[0].n) === cntBefore || (jb.sections as Json[] | undefined)?.[0]?.status !== "failed",
-      "T: migration öncesi şema (tablo yok) → taşlar aktarılır, ek kaynak 0 (çökme yok)", jb);
+    // Migration öncesi şemada aktarım: gerçek doğrulama scripts/wt9/transfer-premigration.harness.ts (eski zayıf kontrol kaldırıldı).
 
     // ── C) koşul araması: çakra filtresi tüm kaynaklar ──
     const onlyExtra = await seedStone(su, B.tenant, { stone_name: "ZZ Sodalit", chakras: ["Kök Çakra"], primary_source_name: "Kristal Şifa Kitabı" });
