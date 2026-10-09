@@ -6,6 +6,7 @@ import { searchRoxyLocations } from "@/lib/human-design/providers/roxy/location"
 import { roxyCityToLocation, signLocationRef } from "@/lib/human-design/api/hdLocationRef";
 import { toHdSearchResults } from "@/lib/human-design/location/hdSearchResults";
 import type { HdBirthLocation } from "@/lib/human-design/api/hdBirthLocation";
+import { exonymTarget } from "@/lib/location/server/search";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,8 @@ export const runtime = "nodejs";
  *   - Türkiye: saat dilimi Europe/Istanbul olmayan "TR" sonucu atılır (ör. Cey — gerçekte Irak).
  *     HD 973 ilçe dizininde doğrulanmış karşılığı olan sonuç, yerel ilçe kimliğine (`trd-…`)
  *     çevrilir (koordinat sunucu veri setinden; Kadıköy gibi Roxy'de yanlış köye düşen kayıtlar dahil).
+ *   - Türkçe yabancı şehir adı ("Londra", "Münih"…) TAMAMEN yazılmışsa sağlayıcıya dataset'teki
+ *     kanonik ad ("London", "Munich") gönderilir — yalnız sorgu metni; sonuç/konum yine sağlayıcıdan.
  *   - Diğer sonuçlar HMAC-imzalı referans (`ref`) taşır; hesaplama ucu tz/koordinatı yalnız imzadan
  *     çözer (istemci değiştiremez). ROXY_API_KEY yalnız sunucuda; yanıt/hata/logda yer almaz.
  */
@@ -45,7 +48,8 @@ export async function GET(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, code: "NOT_CONFIGURED", error: "Genişletilmiş konum araması şu anda kullanılamıyor." }, { status: 503, headers: NO_STORE });
   }
 
-  const key = norm(q);
+  const providerQuery = exonymTarget(q)?.name ?? q;
+  const key = norm(providerQuery);
   const now = Date.now();
   let hit = cache.get(key);
   if (hit && now - hit.at > ROXY_LOCATION_CACHE.ttlMs) {
@@ -70,7 +74,7 @@ export async function GET(req: NextRequest): Promise<Response> {
         { status: 429, headers: { ...NO_STORE, "Retry-After": String(rl.retryAfterSec || 60) } },
       );
     }
-    const r = await searchRoxyLocations(config, q, { limit: 10 });
+    const r = await searchRoxyLocations(config, providerQuery, { limit: 10 });
     if (!r.ok) {
       console.error("[hd-roxy-location] search failed", { kind: r.kind, status: r.status });
       return NextResponse.json({ ok: false, code: "PROVIDER_ERROR", error: "Konum servisine şu anda ulaşılamıyor. İl listesinden seçim yapabilirsiniz." }, { status: 502, headers: NO_STORE });
