@@ -22,6 +22,8 @@ import {
   parseLoginUserRecord,
   readYasamUser,
   readSessionToken,
+  hasSessionCredential,
+  sessionTokenHeader,
   saveYasamUser,
   saveSessionToken,
   type YasamUser,
@@ -952,9 +954,10 @@ export default function Home() {
     // /api/auth/profile üzerinden alınmış GÜNCEL profile dayanmalı.
     // Bayat localStorage kaydı tek başına "doğrulanmış" sayılmaz:
     // profileSynced yalnız gerçek fetch başarılıysa true olur.
-    const token = readSessionToken();
-    if (!token) {
-      // Token yok → eski kullanıcı verisi doğrulanmış kabul edilemez.
+    // HTTPONLY H5: web'de token yoksa HttpOnly cookie ile doğrulanır (hasSessionCredential);
+    // Android'de bugünkü gibi yalnız token.
+    if (!hasSessionCredential()) {
+      // Oturum kimlik bilgisi yok → eski kullanıcı verisi doğrulanmış kabul edilemez.
       // Erişim reddi (eski membership snapshot'ı) ÜRETME; güvenli
       // "yeniden dene" ekranını göster. Logout/yönlendirme döngüsü yok.
       setProfileError(true);
@@ -1336,7 +1339,7 @@ export default function Home() {
         // P0-1: admin cookie yalnız GEÇERLİ (credential-gated) oturum token'ıyla verilir.
         headers: {
           "Content-Type": "application/json",
-          "x-session-token": readSessionToken() ?? "",
+          ...sessionTokenHeader(),
         },
       });
       if (!cookieRes.ok) {
@@ -1542,7 +1545,7 @@ export default function Home() {
           // P0-1: admin cookie yalnız geçerli (credential-gated) oturum token'ıyla verilir.
           headers: {
             "Content-Type": "application/json",
-            "x-session-token": readSessionToken() ?? "",
+            ...sessionTokenHeader(),
           },
         });
         status = r.status;
@@ -1571,8 +1574,8 @@ export default function Home() {
     async function retryProfileSync() {
       if (!user) return;
       setProfileError(false);
-      // Token yoksa canlı doğrulama yapılamaz — bayat kaydı "synced" sayma.
-      if (!readSessionToken()) {
+      // Oturum kimlik bilgisi yoksa canlı doğrulama yapılamaz — bayat kaydı "synced" sayma.
+      if (!hasSessionCredential()) {
         setProfileError(true);
         return;
       }

@@ -16,7 +16,7 @@
  *  - İstemci cache'i güvenlik katmanı DEĞİLDİR; API auth aynen korunur.
  */
 
-import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken, hasSessionCredential } from "@/lib/auth/yasamUser";
 
 /** Taş liste + exclusions için başlangıç TTL (ms). */
 export const STONES_LIST_CACHE_TTL_MS = 60_000;
@@ -45,8 +45,9 @@ function tokenFingerprint(token: string): string {
 function computeIdentity(): string | null {
   const user = readYasamUser();
   const token = readSessionToken();
-  if (!user?.id || !token) return null;
-  return `${user.id}|${user.tenant_id ?? ""}|${tokenFingerprint(token)}`;
+  if (!user?.id || !hasSessionCredential(token)) return null;
+  // HTTPONLY H5: web'de token yoksa kimlik HttpOnly cookie ile; cache anahtarı kullanıcı+tenant'a bağlı kalır.
+  return `${user.id}|${user.tenant_id ?? ""}|${token ? tokenFingerprint(token) : "cookie"}`;
 }
 
 let currentIdentity = "";

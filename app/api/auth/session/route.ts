@@ -240,7 +240,8 @@ const EXPIRED_END_REASONS: ReadonlySet<string> = new Set([
 
 /**
  * GET /api/auth/session — oturum geçerliliği (+ throttled touch).
- * Token tercihen `x-session-token` başlığıyla; geriye uyumluluk için `?token=` de kabul edilir.
+ * Token `x-session-token` başlığıyla; SESSION_COOKIE_MODE=primary iken web'de başlık yoksa HttpOnly
+ * cookie ile (HTTPONLY H5). `?token=` sorgu parametresi H5'te kaldırıldı (token URL'de taşınmaz).
  * Returns: { valid: true } | { valid: false, reason: "expired" | "revoked" }
  *
  * `reason` yalnız token'ı ELİNDE TUTAN istemciye, KENDİ oturumunun neden geçersiz olduğunu
@@ -249,10 +250,15 @@ const EXPIRED_END_REASONS: ReadonlySet<string> = new Set([
  */
 export async function GET(req: NextRequest) {
   try {
-    const token =
-      req.headers.get("x-session-token")?.trim() ||
-      req.nextUrl.searchParams.get("token") ||
-      "";
+    // HTTPONLY H5: token yalnız başlıktan (URL'deki `?token=` KALDIRILDI — token URL'de taşınmaz).
+    // primary modda header yoksa WEB isteği HttpOnly cookie ile sorulur (Android hariç).
+    const cookieCfg = getSessionCookieConfig();
+    let token = req.headers.get("x-session-token")?.trim() ?? "";
+    if (!token && cookieCfg.mode === "primary" && !isAndroidAppRequest(req.headers)) {
+      token = readWebSessionCookie(req);
+      // Web + primary + ne header ne cookie → bu tarayıcıda oturum yok (istemci giriş akışına döner).
+      if (!token) return json({ valid: false, reason: "revoked" }, 200);
+    }
     if (!token) {
       return json({ valid: false }, 400);
     }
@@ -262,7 +268,6 @@ export async function GET(req: NextRequest) {
     if (state.status === "active") {
       // HTTPONLY H2+: uygun web oturumunda cookie yok/bayatsa istemciye bootstrap ipucu
       // (POST /api/auth/session/cookie). off modda yanıt bugünküyle birebir.
-      const cookieCfg = getSessionCookieConfig();
       if (
         cookieCfg.mode !== "off" &&
         !isAndroidAppRequest(req.headers) &&

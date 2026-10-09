@@ -1,4 +1,4 @@
-import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { readSessionToken, readYasamUser, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import { derivePhotosensitivity, type PhotosensitivityStatus } from "@/lib/aromaterapi/oilFields";
 
 // =======================================================
@@ -270,8 +270,8 @@ export const BLEND_MISSING_AUTH = "Oturum bulunamadı. Lütfen tekrar giriş yap
 function authHeaders(json = false): Record<string, string> | null {
   const userId = readYasamUser()?.id;
   const token = readSessionToken();
-  if (!userId || !token) return null;
-  const h: Record<string, string> = { "x-user-id": userId, "x-session-token": token };
+  if (!userId || !hasSessionCredential(token)) return null;
+  const h: Record<string, string> = { "x-user-id": userId, ...sessionTokenHeader(token) };
   if (json) h["Content-Type"] = "application/json";
   return h;
 }
