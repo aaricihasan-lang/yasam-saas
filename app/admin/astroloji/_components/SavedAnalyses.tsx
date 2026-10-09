@@ -8,7 +8,8 @@
 
 import { useEffect, useState } from "react";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
-import { astroFetch } from "../_lib/api";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
+import { astroDownload, astroFetch } from "../_lib/api";
 import { describeOptions, houseSystemLabel, techniqueLabel, zodiacLabel } from "../_lib/techniques";
 import { TechniqueTechnical } from "./TimingPanels";
 import ProviderInterpretationPanel, { type InterpretationLayer } from "./ProviderInterpretationPanel";
@@ -196,9 +197,12 @@ export function SavedAnalysisView({ id, previewNoInterp, onClose }: { id: string
               adaptör {String(a.versions.adapterVersion)} · projeksiyon {String(a.versions.projectionVersion)}
             </p>
           </div>
-          <button type="button" className="rounded-lg border border-slate-300 px-3 py-1 text-sm" onClick={onClose}>
-            Kapat
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <ReportButtons id={a.id} previewNoInterp={previewNoInterp} />
+            <button type="button" className="rounded-lg border border-slate-300 px-3 py-1 text-sm" onClick={onClose}>
+              Kapat
+            </button>
+          </div>
         </div>
       </section>
 
@@ -260,5 +264,43 @@ export function SavedAnalysisView({ id, previewNoInterp, onClose }: { id: string
         <ProviderInterpretationPanel interpretation={interp} />
       )}
     </div>
+  );
+}
+
+/**
+ * Aşama 8 — Word / PDF raporu. Dosya SUNUCUDA, yalnız kayıtlı snapshot'tan üretilir (0 Roxy isteği).
+ * Mobil (ürün kuralı, DY Word + Anamnez PDF ile aynı): Android'de hiç render edilmez (`useIsAndroid`)
+ * ve SSR'da `.no-android` ile gizlidir; telefon genişliğinde (<768px) `hidden md:inline-flex` ile gizlidir.
+ * Sunucu da Android isteğini 403 ile reddeder. Masaüstü davranışı etkilenmez.
+ */
+function ReportButtons({ id, previewNoInterp }: { id: string; previewNoInterp: boolean }) {
+  const isAndroid = useIsAndroid();
+  const [busy, setBusy] = useState<"docx" | "pdf" | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  if (isAndroid) return null;
+  async function run(format: "docx" | "pdf") {
+    setBusy(format);
+    setErr(null);
+    const q = new URLSearchParams({ format });
+    if (previewNoInterp) q.set("previewNoInterp", "1");
+    const r = await astroDownload(`/api/admin/astroloji/analyses/${id}/report?${q.toString()}`, `Astroloji-Analiz.${format}`);
+    setBusy(null);
+    if (!r.ok) setErr(r.error);
+  }
+  const cls = "no-android hidden md:inline-flex items-center gap-1 rounded-lg border px-3 py-1 text-sm font-medium disabled:opacity-60";
+  return (
+    <>
+      <button type="button" data-testid="astro-report-docx" disabled={busy !== null} onClick={() => void run("docx")} className={`${cls} border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100`}>
+        {busy === "docx" ? "Hazırlanıyor…" : "Word"}
+      </button>
+      <button type="button" data-testid="astro-report-pdf" disabled={busy !== null} onClick={() => void run("pdf")} className={`${cls} border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100`}>
+        {busy === "pdf" ? "Hazırlanıyor…" : "PDF"}
+      </button>
+      {err && (
+        <span role="alert" className="hidden w-full text-xs text-rose-700 md:block" data-testid="astro-report-error">
+          {err}
+        </span>
+      )}
+    </>
   );
 }

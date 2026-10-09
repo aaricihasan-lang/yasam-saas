@@ -163,9 +163,9 @@ async function main() {
       for (const v of ["true", 1, { on: true }, null]) assert.equal(R({ isOwner: false, role: "expert", flags: { astrology: v } }).module, false, `bayrak ${JSON.stringify(v)}`);
     });
 
-    await t("yetkisiz matris (uzman yüzeyi): izinsiz uzman / owner olmayan admin / yalnız-yorum / demo / onay bekleyen / Premium değil / oturumsuz → 22 route'un hepsi tek tip 404, astroloji verisine sorgu yok", async () => {
+    await t("yetkisiz matris (uzman yüzeyi): izinsiz uzman / owner olmayan admin / yalnız-yorum / demo / onay bekleyen / Premium değil / oturumsuz → 23 route'un (Aşama 8 rapor ucu dahil) hepsi tek tip 404, astroloji verisine sorgu yok", async () => {
       const routes = walk(join(ROOT, "app/api/astroloji"));
-      assert.equal(routes.length, 22);
+      assert.equal(routes.length, 23); // Aşama 8: analyses/[id]/report eklendi
       const before = astroQueries();
       for (const who of ["exNone", "admin2", "exInterpOnly", "demo", "pending", "nonPremium", "anon"] as const) {
         for (const f of routes) {

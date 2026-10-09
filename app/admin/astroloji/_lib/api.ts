@@ -6,6 +6,7 @@
 // yüzey seçimi yetki DEĞİLDİR (yanlış yüzeyden gelen istek sunucuda 404 alır).
 
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
 
 const ADMIN_API = "/api/admin/astroloji";
 const EXPERT_API = "/api/astroloji";
@@ -59,6 +60,31 @@ export async function astroFetch<T>(path: string, init: { method?: "GET" | "POST
     error: typeof body?.error === "string" ? body.error : "Beklenmeyen hata.",
     data: body,
   };
+}
+
+/**
+ * Aşama 8: rapor indirme (Word / PDF). Dosya sunucuda üretilir; istemci yalnız yanıtı indirir
+ * (mevcut ortak indirme yardımcısı). Hata gövdesi JSON ise kullanıcıya okunur metin döner.
+ */
+export async function astroDownload(path: string, fallbackName: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  let res: Response;
+  try {
+    res = await fetch(astroPath(path), { method: "GET", headers: astroHeaders(), cache: "no-store" });
+  } catch {
+    return { ok: false, error: "Ağ hatası — bağlantıyı kontrol edin." };
+  }
+  if (!res.ok) {
+    let msg = "Rapor oluşturulamadı.";
+    try {
+      const b = (await res.json()) as { error?: unknown };
+      if (typeof b.error === "string") msg = b.error;
+    } catch {
+      /* gövde yok */
+    }
+    return { ok: false, error: msg };
+  }
+  await downloadFileResponse(res, fallbackName);
+  return { ok: true };
 }
 
 export const PREVIEW_STORAGE_KEY = "yasam.astro.previewNoInterp";

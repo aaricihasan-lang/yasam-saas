@@ -57,6 +57,8 @@ const SERVER_ONLY_MODULES = [
   "lib/astrology/kb/service",
   "lib/astrology/analyses/service",
   "lib/astrology/audit/unmapped",
+  "lib/astrology/report/service",
+  "lib/astrology/report/chartPng",
 ];
 
 async function main() {
@@ -245,6 +247,9 @@ async function main() {
       /^ASTROLOGY-PHASE7A-PROGRESS\.md$/,
       /^ASTROLOGY-PHASE7B-PROGRESS\.md$/,
       /^ASTROLOGY-PHASE7C-PROGRESS\.md$/,
+      /^ASTROLOGY-PHASE8-PROGRESS\.md$/,
+      // Aşama 8: rapor route'larının font dosyası izleme kaydı — fark ayrıca satır satır sınırlanır.
+      /^next\.config\.ts$/,
       // Aşama 7C: uzman yüzeyi (sayfa + API aynası) ve mevcut yetki sistemine Astroloji kayıtları.
       // Paylaşılan dosyalar ayrıca "yalnız Astroloji satırları" testiyle satır satır sınırlanır.
       /^app\/astroloji\//,
@@ -283,6 +288,24 @@ async function main() {
       /^\+\s*<AstrologyClientStatus clientId=\{client\.id\} \/>$/,
     ];
     assert.ok(lines.length <= 3 && lines.every((l) => allowedLines.some((r) => r.test(l))), `beklenmeyen DY farkı:\n${lines.join("\n")}`);
+  });
+
+  await t("8: next.config.ts farkı YALNIZ iki Astroloji rapor route'unun font izleme satırı (+ açıklama)", () => {
+    let base = "";
+    try {
+      base = execSync("git merge-base HEAD origin/main", { cwd: ROOT, encoding: "utf8" }).trim();
+    } catch {
+      return;
+    }
+    const diff = execSync(`git diff -U0 ${base} -- next.config.ts`, { cwd: ROOT, encoding: "utf8" });
+    const lines = diff.split(/\r?\n/).filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---) /.test(l));
+    assert.ok(lines.every((l) => l.startsWith("+")), "next.config.ts satır silindi/değişti");
+    const allowedLines = [
+      /^\+\s*\/\/ Astroloji Word\/PDF raporu: PDF fontu \+ çark PNG'si \(resvg\) aynı Geist TTF'yi fs ile okur\.$/,
+      /^\+\s*"\/api\/admin\/astroloji\/analyses\/\[id\]\/report": \["\.\/public\/fonts\/Geist-Regular\.ttf"\],$/,
+      /^\+\s*"\/api\/astroloji\/analyses\/\[id\]\/report": \["\.\/public\/fonts\/Geist-Regular\.ttf"\],$/,
+    ];
+    assert.ok(lines.length <= 3 && lines.every((l) => allowedLines.some((r) => r.test(l))), `beklenmeyen next.config farkı:\n${lines.join("\n")}`);
   });
 
   await t("7C: DY durum rozeti yalnız durum ucunu çağırır (owner → admin ucu, uzman → uzman ucu), iç modül içe aktarmaz, içerik göstermez", () => {
