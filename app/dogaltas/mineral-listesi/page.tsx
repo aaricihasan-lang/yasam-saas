@@ -8,6 +8,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -39,8 +40,11 @@ import {
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { DOGALTAS_INPUT_CLASS } from "@/lib/dogaltas/formStyles";
+import { browserSessionStorage, markChecked, readCheckedIds, searchContextKey } from "@/lib/search/searchChecked";
+import { SearchCheckedBadge, SEARCH_CHECKED_CARD_ACCENT } from "@/components/search/SearchCheckedBadge";
 
-const VIEWED_SEARCH_STORAGE_KEY = "yasam-mineral-viewed-search-results";
+/** WT8: eski bağlamsız, hiç silinmeyen localStorage "Bakıldı" listesi — yalnız temizlik için. */
+const LEGACY_VIEWED_STORAGE_KEY = "yasam-mineral-viewed-search-results";
 const LIST_PATH = "/dogaltas/mineral-listesi";
 
 const MINERAL_SEARCH_STORAGE_KEYS = [
@@ -85,27 +89,6 @@ function previewText(value: string | null | undefined, emptyLabel: string, limit
   if (!value || !value.trim()) return emptyLabel;
   const clean = value.replace(/\s+/g, " ").trim();
   return clean.length > limit ? `${clean.slice(0, limit)}…` : clean;
-}
-
-function readViewedMineralIds(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = localStorage.getItem(VIEWED_SEARCH_STORAGE_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed)) {
-      return new Set(parsed.map((id) => String(id)));
-    }
-    return new Set();
-  } catch {
-    return new Set();
-  }
-}
-
-function markViewedMineralId(id: string) {
-  const viewed = readViewedMineralIds();
-  viewed.add(id);
-  localStorage.setItem(VIEWED_SEARCH_STORAGE_KEY, JSON.stringify([...viewed]));
 }
 
 const uiHeaderCard =
@@ -296,16 +279,24 @@ function MineralListesiPageContent() {
     if (q) setSearchTerm(q);
   }, [urlQuery]);
 
+  // WT8: "Kontrol edildi" — Doğaltaş Detay Arama ile ORTAK mantık (lib/search/searchChecked):
+  // arama bağlamına bağlı, sessionStorage; yeni arama temiz başlar, önceki aramaya dönünce geri gelir.
+  const checkedContext = searchContextKey({ scope: "minerals", query: debouncedSearch });
+  const checkedContextRef = useRef(checkedContext);
   useEffect(() => {
-    const refreshViewed = () => setViewedMineralIds(readViewedMineralIds());
-    refreshViewed();
+    checkedContextRef.current = checkedContext;
+    runInEffect(() => setViewedMineralIds(readCheckedIds(browserSessionStorage(), checkedContext)));
+  }, [checkedContext]);
+  useEffect(() => {
+    try { localStorage.removeItem(LEGACY_VIEWED_STORAGE_KEY); } catch { /* erişim yok */ }
+    const refreshViewed = () => setViewedMineralIds(readCheckedIds(browserSessionStorage(), checkedContextRef.current));
     window.addEventListener("focus", refreshViewed);
     return () => window.removeEventListener("focus", refreshViewed);
   }, []);
 
   const handleResultNavigate = useCallback((mineralId: string) => {
-    markViewedMineralId(mineralId);
-    setViewedMineralIds(readViewedMineralIds());
+    const ctx = checkedContextRef.current;
+    if (ctx) setViewedMineralIds(markChecked(browserSessionStorage(), ctx, mineralId));
   }, []);
 
   // WT3.1 (owner kararı 2026-10-08): mobil "en fazla 2 seçim" sınırı KALDIRILDI — mobilde de
@@ -685,7 +676,7 @@ function MineralListesiPageContent() {
                       isMineralSelected
                         ? "ring-2 ring-blue-400 ring-offset-1"
                         : isViewedInSearch
-                          ? "border-l-4 border-rose-600"
+                          ? `border-l-4 border-emerald-500 ${SEARCH_CHECKED_CARD_ACCENT}`
                           : isSearchActive
                             ? "border-l-4 border-amber-400"
                             : ""
@@ -693,7 +684,7 @@ function MineralListesiPageContent() {
                   >
                     {isViewedInSearch ? (
                       <span
-                        className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
+                        className="absolute bottom-0 left-0 top-0 w-1.5 bg-emerald-500"
                         aria-hidden
                       />
                     ) : null}
@@ -722,11 +713,7 @@ function MineralListesiPageContent() {
                         {isSearchActive ? (
                           <div className="mb-2 flex flex-wrap items-center gap-2">
                             <span className={SEARCH_MATCH_BADGE_CLASS}>{tRoot("searchMatchBadge")}</span>
-                            {isViewedInSearch ? (
-                              <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
-                                {t("viewedBadge")}
-                              </span>
-                            ) : null}
+                            {isViewedInSearch ? <SearchCheckedBadge label={t("viewedBadge")} /> : null}
                           </div>
                         ) : null}
 

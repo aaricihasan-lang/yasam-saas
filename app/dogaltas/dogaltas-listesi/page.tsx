@@ -59,6 +59,7 @@ import {
   readCheckedIds,
   searchContextKey,
 } from "@/lib/dogaltas/searchChecked";
+import { SearchCheckedBadge, SEARCH_CHECKED_CARD_ACCENT } from "@/components/search/SearchCheckedBadge";
 
 const LAST_VIEWED_STONE_KEY = "yasam-dogaltas-last-viewed-stone-id";
 
@@ -255,7 +256,7 @@ const StoneCard = memo(function StoneCard({
             : "border-emerald-300/40 hover:border-violet-300/50"
       } ${
         isViewedInSearch
-          ? "border-l-4 border-rose-600"
+          ? `border-l-4 border-emerald-500 ${SEARCH_CHECKED_CARD_ACCENT}`
           : isSearchActive
             ? "border-l-4 border-amber-400"
             : ""
@@ -263,7 +264,7 @@ const StoneCard = memo(function StoneCard({
     >
       {isViewedInSearch ? (
         <span
-          className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
+          className="absolute bottom-0 left-0 top-0 w-1.5 bg-emerald-500"
           aria-hidden
         />
       ) : null}
@@ -290,15 +291,7 @@ const StoneCard = memo(function StoneCard({
         {isSearchActive || isViewedInSearch ? (
           <div className="mb-2 flex flex-wrap items-center gap-1.5">
             {isSearchActive ? <span className={SEARCH_MATCH_BADGE_CLASS}>{t("card.matchBadge")}</span> : null}
-            {isViewedInSearch ? (
-              <span
-                data-testid="search-checked-badge"
-                className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9.5px] font-black tracking-wide text-emerald-800 ring-1 ring-emerald-200"
-              >
-                <span aria-hidden>✓</span>
-                {t("card.viewed")}
-              </span>
-            ) : null}
+            {isViewedInSearch ? <SearchCheckedBadge label={t("card.viewed")} /> : null}
           </div>
         ) : null}
         <div className="flex items-start gap-3">
