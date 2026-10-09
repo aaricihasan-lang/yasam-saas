@@ -707,10 +707,10 @@ function bodygraphCell(s: HdReportSnapshotV2, img: Buffer | null): (Paragraph | 
         spacing: { before: 0, after: 0 },
         children: [new ImageRun({ data: img, transformation: { width: Math.round(d.w * scale), height: Math.round(d.h * scale) }, type: img[0] === 0x89 ? "png" : "jpg" })],
       }),
-      pp(
-        [{ text: s.bodygraph.status === "uploaded_image" ? "Danışan profiline yüklenmiş harita görseli" : "Kayıtlı haritadan üretilmiş BodyGraph", size: 15, color: PAL.faint }],
-        { align: AlignmentType.CENTER, before: 60, after: 0 },
-      ),
+      // Yalnız yüklenmiş harita görselinde kaynak notu (kayıtlı haritadan üretilen BodyGraph'ta açıklama YOK).
+      ...(s.bodygraph.status === "uploaded_image"
+        ? [pp([{ text: "Danışan profiline yüklenmiş harita görseli", size: 15, color: PAL.faint }], { align: AlignmentType.CENTER, before: 60, after: 0 })]
+        : []),
     ];
   }
   return [
@@ -739,12 +739,6 @@ function proBodygraph(s: HdReportSnapshotV2, img: Buffer | null): ReportChild[] 
         ],
       }),
     ]),
-  );
-  out.push(
-    pp(
-      [{ text: "Kanal çizgileri: kırmızı = Design, siyah = Personality, kırmızı-siyah çizgili = her ikisi. Renkli merkezler tanımlı, beyaz merkezler açıktır.", size: 16, color: PAL.soft }],
-      { align: AlignmentType.CENTER, before: 160, after: 0 },
-    ),
   );
   return out;
 }

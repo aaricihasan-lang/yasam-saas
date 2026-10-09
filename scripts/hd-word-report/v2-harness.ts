@@ -351,6 +351,7 @@ async function main() {
     const res = await downloadAs(db, { tenantId: T1, system: true }, saved.id);
     const { text } = await unzip(await res.arrayBuffer());
     ok("A3 v1 rapor v1 renderer'ıyla iner (Temel Human Design Kimliği + canonical metin)", res.status === 200 && text.includes("Temel Human Design Kimliği") && text.includes("V1::tip_generator"));
+    ok("A3b eski v1 rapor indirmesinde profil adı 'Hazırlayan' olarak YAZILMAZ", !text.includes("Hazırlayan"));
     ok("A4 v1 indirmesinde redaksiyon başlığı yok", res.headers.get("X-HD-Report-Redacted") === null);
     const sum = await (async () => { currentGuard = guardFor(db, { tenantId: T1 }); const { NextRequest } = req("next/server"); return summary.GET(new NextRequest(`http://localhost/x?id=${saved.id}`)); })();
     const sj = (await sum.json()) as Row;
@@ -769,6 +770,16 @@ async function main() {
     const { renderHdReportV2Buffer: renderV2 } = await import("../../lib/human-design/reporting/wordReportV2");
     const lt = (await unzip(await renderV2(legacy as never, { expertName: "Eski Profil Adı" }))).text;
     ok("W11 eski snapshot eski düzende: eski başlıklar + eski kimlik tablosu + eski 'Hazırlayan'", lt.includes("Design / Personality Aktivasyonları") && lt.includes("Ad Soyad") && lt.includes("Hazırlayan: Eski Profil Adı") && !lt.includes("BodyGraph ve Aktivasyonlar"));
+    // Eski kayıtlı v2 raporu ROUTE üzerinden indirilince: eski düzen AYNEN, profil adı "Hazırlayan" YOK,
+    // kayıtlı snapshot DEĞİŞMEZ (yalnız indirme davranışı).
+    const legacyRow = reportRow(db, none.r.body.id) as Row & { snapshot: Row };
+    delete legacyRow.snapshot.layout;
+    delete legacyRow.snapshot.preparedBy;
+    const legacyBefore = JSON.stringify(legacyRow.snapshot);
+    const ld = await downloadAs(db, sys, none.r.body.id);
+    const ldt = (await unzip(await ld.arrayBuffer())).text;
+    ok("W11b eski v2 rapor indirmesi: eski düzen AYNEN + profil adı 'Hazırlayan' olarak YAZILMAZ", ld.status === 200 && ldt.includes("Design / Personality Aktivasyonları") && ldt.includes("Ad Soyad") && !ldt.includes("Hazırlayan") && !ldt.includes("Ayşe Uzman"));
+    ok("W11c indirme kayıtlı eski snapshot'ı DEĞİŞTİRMEZ", JSON.stringify(reportRow(db, none.r.body.id).snapshot) === legacyBefore);
     // Word öncesi eşleşme sayısı (yalnız sayı; tenant izole)
     const km = req("../../app/api/hd/reports/professional/knowledge-match/route.ts") as { GET: (r: unknown) => Promise<Response> };
     const { NextRequest } = req("next/server");
