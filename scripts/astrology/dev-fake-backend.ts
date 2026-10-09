@@ -31,20 +31,28 @@ const PORT = Number(process.argv[2] ?? 54329);
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const OWNER = "0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a";
 const ADMIN2 = "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b";
+const EXPERT = "0e0e0e0e-0e0e-4e0e-8e0e-0e0e0e0e0e0e";
+const TENANT_E = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+const EXPERT_CLIENT = "e1e1e1e1-0000-4000-8000-0000000000e1";
 const FIXTURE = JSON.parse(readFileSync(join(__dirname, "fixtures", "roxy-natal-spec-derived.json"), "utf8"));
 
 const store = createStore({
   users: [
     { id: OWNER, role: "admin", active: true, is_super_admin: true, is_demo_account: false, tenant_id: TENANT_A, email: "admin@yasamsistemi.com", full_name: "Owner (yerel test)", module_permissions: {} },
     { id: ADMIN2, role: "admin", active: true, is_super_admin: false, is_demo_account: false, tenant_id: TENANT_A, email: "admin2@local.test", full_name: "Admin 2 (owner değil)", module_permissions: {} },
+    // Aşama 7C görsel doğrulama: SENTETİK uzman (kendi tenant'ı; onaylı Premium). Astroloji başta KAPALI → admin açar.
+    { id: EXPERT, role: "expert", active: true, approval_status: "approved", package_type: "premium", membership_status: "active", is_super_admin: false, is_demo_account: false, tenant_id: TENANT_E, email: "uzman@local.test", full_name: "Sentetik Uzman (yerel test)", module_permissions: { clients: true, astrology: false, astrology_provider_interp: false } },
   ],
   clients: [
     { id: "11111111-1111-4111-8111-111111111111", tenant_id: TENANT_A, ad: "Ali", soyad: "Örnek", dogum: "1990-07-15" },
     { id: "22222222-2222-4222-8222-222222222222", tenant_id: TENANT_A, ad: "Ayşe", soyad: "Deneme", dogum: null },
+    { id: EXPERT_CLIENT, tenant_id: TENANT_E, ad: "Uzman", soyad: "Danışanı", dogum: "1992-02-02", telefon: "05001112233", created_at: "2026-09-01T10:00:00Z" },
   ],
+  user_payment_history: [],
 });
 store.sessions.set("local-owner-token-aaaaaaaaaaaa", OWNER);
 store.sessions.set("local-admin2-token-bbbbbbbbbbb", ADMIN2);
+store.sessions.set("local-expert-token-eeeeeeeeeee", EXPERT);
 
 async function seed() {
   const ctx = { db: createFakeClient(store), tenantId: TENANT_A, userId: OWNER, entitlements: resolveAstrologyEntitlements({ isOwner: true }) };
@@ -101,6 +109,13 @@ async function seed() {
     await createAstroProfile(ctx, { label: `Sentetik Kişi ${String(i).padStart(2, "0")}`, birthDate: `1970-01-${String((i % 28) + 1).padStart(2, "0")}`, timeKnown: false, locationId: "tr-06-ankara" }, resolveAstroLocation);
   }
   await saveAnalysis(ctx, { profileId: pid, revision: 1, technique: "western.natal", options: { houseSystem: "placidus", nodeType: "true" }, includeProviderInterp: true, saveRequestId: "7b7b7b7b-0000-4000-8000-000000000001", title: "Ali natal (gerçek kayıt)" }, false);
+  // Aşama 7C: uzmanın KENDİ verisi (kendi tenant'ı): danışanına eşleşik profil + Roxy yorumlu kayıtlı natal analiz.
+  // (Tohum, yetkiden bağımsız servis bağlamıyla yazılır; ekranda görünürlük uzmanın GÜNCEL yetkisine göre sunucuda belirlenir.)
+  const ectx = { db: createFakeClient(store), tenantId: TENANT_E, userId: EXPERT, entitlements: resolveAstrologyEntitlements({ isOwner: true }) };
+  const ep = await createAstroProfile(ectx, { label: "Uzman Danışanı — natal", clientId: EXPERT_CLIENT, birthDate: "1992-02-02", birthTime: "09:15", timeKnown: true, timeAccuracy: "exact_record", locationId: "tr-06-ankara" }, resolveAstroLocation);
+  const epid = (ep.body as { profile: { id: string } }).profile.id;
+  await runAstrology(ectx, { profileId: epid, selections: [{ technique: "western.natal", options: { houseSystem: "placidus", nodeType: "true" } }] }, deps, { ownerPreviewHideInterp: false });
+  await saveAnalysis(ectx, { profileId: epid, revision: 1, technique: "western.natal", options: { houseSystem: "placidus", nodeType: "true" }, includeProviderInterp: true, saveRequestId: "7c7c7c7c-0000-4000-8000-0000000000e1", title: "Uzman natal (Roxy yorumlu kayıt)" }, false);
   for (let i = 1; i <= 14; i += 1) {
     const technique = i % 3 === 0 ? "vedic.d1" : i % 3 === 1 ? "kp.chart" : "western.transit";
     await ctx.db.rpc("astro_analysis_save_v2", {

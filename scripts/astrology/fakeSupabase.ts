@@ -425,6 +425,19 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
     const an = (store.tables.astro_analyses ?? []).filter((a) => a.tenant_id === args.p_tenant_id && a.owner_user_id === args.p_owner_user_id && ids.has(a.profile_id));
     return { data: [{ linked_profile_count: linked.length, analysis_count: an.length, last_analysis_at: an.map((a) => String(a.analysis_at)).sort().pop() ?? null }], error: null };
   }
+  // ─── Üye Yönetimi modül toggle'ı (yalnız yerel görsel doğrulama): yalnız uzman hesabında, değişen anahtarlar birleştirilir.
+  if (fn === "admin_set_module_permissions") {
+    const u = (store.tables.users ?? []).find((x) => x.id === args.p_user_id);
+    if (!u) return { data: null, error: { code: "P0002", message: "USER_NOT_FOUND" } };
+    if (u.role !== "expert") return { data: null, error: { code: "P0001", message: "NOT_EXPERT" } };
+    const prev = (u.module_permissions && typeof u.module_permissions === "object" ? u.module_permissions : {}) as Record<string, unknown>;
+    const changes = (args.p_changes ?? {}) as Record<string, boolean>;
+    const next = { ...prev, ...changes };
+    u.module_permissions = next;
+    const enabled = Object.keys(changes).filter((k) => changes[k] === true && prev[k] !== true);
+    const disabled = Object.keys(changes).filter((k) => changes[k] === false && prev[k] === true);
+    return { data: { enabled, disabled, module_permissions: next }, error: null };
+  }
   // ─── Kalıcı silme (20271101000500) — DB semantiğinin taklidi.
   if (fn === "astro_profile_delete_preview") {
     const ids = [...new Set((args.p_profile_ids as string[] | null) ?? [])];
