@@ -57,6 +57,14 @@ export function roxyCityToLocation(c: RoxyCity): HdBirthLocation {
   };
 }
 
+/**
+ * Türkiye etiketli ama saat dilimi Europe/Istanbul OLMAYAN sonuç (ör. Roxy "Cey, Hakkâri" —
+ * gerçekte Irak, Asia/Baghdad) güvenilmez: Türkiye'nin tamamı tek saat dilimindedir.
+ */
+export function isTrIdWithForeignTz(id: string, tz: string): boolean {
+  return id.startsWith("rx-tr-") && tz !== "Europe/Istanbul";
+}
+
 export function signLocationRef(loc: HdBirthLocation, env?: NodeJS.ProcessEnv): string | null {
   const key = secret(env);
   if (!key) return null;
@@ -91,5 +99,6 @@ export function verifyLocationRef(ref: unknown, env?: NodeJS.ProcessEnv): HdBirt
   if (typeof id !== "string" || typeof label !== "string" || typeof tz !== "string") return null;
   if (typeof lat !== "number" || typeof lon !== "number" || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
   if (lat < -90 || lat > 90 || lon < -180 || lon > 180 || !isValidIanaTimeZone(tz)) return null;
+  if (isTrIdWithForeignTz(id, tz)) return null;
   return { id, label, timezone: tz, latitude: lat, longitude: lon };
 }

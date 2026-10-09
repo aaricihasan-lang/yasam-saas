@@ -5,6 +5,7 @@ import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import { computeRoxyChart } from "@/lib/human-design/api/roxyChartService";
 import { readRoxyServerConfig } from "@/lib/human-design/providers/roxy/config";
 import { callRoxyBodygraph } from "@/lib/human-design/providers/roxy/client";
+import { guardReusedChartLocation } from "@/lib/human-design/location/reuseLocationGuard";
 
 export const runtime = "nodejs";
 
@@ -16,7 +17,8 @@ export const runtime = "nodejs";
  *   - Gövde: { client_id, location_id } — doğum tarihi/saati danışan kaydından, tz/koordinat
  *     sunucudaki konum altyapısından çözülür (istemciye güvenilmez).
  *   - ROXY_API_KEY yalnız server env; yanıt/hata/log içinde ASLA yer almaz.
- *   - Aynı girdi → kayıtlı sonuç (Roxy çağrılmaz). Demo → 403. Rate limit + eşzamanlılık kilidi.
+ *   - Aynı girdi → kayıtlı sonuç (Roxy çağrılmaz). Kayıtlı sonuç FARKLI bir doğum yeri adına ise
+ *     (aynı hesap koordinatı) 409 — yanlış yer etiketli analiz açılmaz (reuseLocationGuard). Demo → 403. Rate limit + eşzamanlılık kilidi.
  *   - Görüntüleme bu uçtan YAPILMAZ: GET /api/hd/charts?id= kayıtlı sonucu okur (yeniden hesap yok).
  *   - Yanıt no-store; doğum verisi loglanmaz.
  */
@@ -48,6 +50,11 @@ export async function POST(req: NextRequest): Promise<Response> {
       log: (msg, detail) => console.error(msg, detail ?? ""),
     },
   );
+
+  if (result.body.ok && result.body.reused) {
+    const g = await guardReusedChartLocation(guard.db, guard.tenantId, raw, result.body.id);
+    if (!g.ok) return NextResponse.json(g.body, { status: g.status, headers: NO_STORE });
+  }
 
   if (result.body.ok && !result.body.reused) {
     await trackUsage(guard, req, { module: "human_design", action: "analysis_run", subEntity: "chart", resourceId: result.body.id });

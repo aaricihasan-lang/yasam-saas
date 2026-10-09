@@ -7,6 +7,9 @@
 //   • UTC ofseti: yerel duvar saati − kayıtlı UTC anı (saf aritmetik; tarayıcı saat dilimi KULLANILMAZ)
 //   • koordinat: kayıt satırının input.latitude / input.longitude (Roxy kayıtlarında)
 // Eksik alan TAHMİN EDİLMEZ → null (ekranda "—").
+//   • vekil ilçe (HD 973 ilçe dizini): kayıtlı koordinat il merkezidir → koordinat yerine açıklama
+
+import { TR_DISTRICT_PROXY_NOTE, isTrDistrictProxy } from "../location/trDistrictIndex";
 
 export type HdChartSubjectSource = {
   clientName?: string | null;
@@ -17,6 +20,8 @@ export type HdChartSubjectSource = {
   latitude?: unknown;
   longitude?: unknown;
   birthUtcIso?: string | null;
+  /** Kayıtlı konum kimliği (vekil ilçe tespiti için). */
+  locationId?: string | null;
 };
 
 export type HdChartSubjectInfo = {
@@ -28,7 +33,7 @@ export type HdChartSubjectInfo = {
   /** "20.07.2018 16:00 UTC" */
   utcDateTime: string | null;
   place: string | null;
-  /** "37,8700° K · 32,4800° D" */
+  /** "37,8700° K · 32,4800° D" — vekil ilçede koordinat yerine TR_DISTRICT_PROXY_NOTE */
   coordinates: string | null;
   age: number | null;
 };
@@ -108,7 +113,7 @@ export function buildChartSubjectInfo(src: HdChartSubjectSource, today: { y: num
     zoneLabel: zoneParts.length ? zoneParts.join(" · ") : null,
     utcDateTime: formatUtcIso(src.birthUtcIso),
     place: src.birthPlace?.trim() || null,
-    coordinates: lat && lon ? `${lat} · ${lon}` : null,
+    coordinates: isTrDistrictProxy(src.locationId) ? TR_DISTRICT_PROXY_NOTE : lat && lon ? `${lat} · ${lon}` : null,
     age: ageOn(src.birthDate, today),
   };
 }
