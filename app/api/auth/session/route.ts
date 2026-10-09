@@ -7,7 +7,18 @@ import {
   extractClientIp,
   extractLocationFromHeaders,
   resolveActiveSession,
+  SESSION_ABSOLUTE_MS,
 } from "@/lib/auth/sessionSecurity";
+import {
+  clearWebSessionCookie,
+  getSessionCookieConfig,
+  hasWebSessionCookie,
+  isAndroidAppRequest,
+  isSessionCookieEligible,
+  readWebSessionCookie,
+  setWebSessionCookie,
+} from "@/lib/auth/sessionCookie";
+import { checkCookieAuthCsrf } from "@/lib/security/csrf";
 import { limitReasonMessage } from "@/lib/auth/sessionLimits";
 import { verifyLoginCredentialsGuarded } from "@/lib/auth/credentialLogin";
 import {
@@ -190,7 +201,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return json(
+    const response = json(
       {
         sessionToken,
         user: row,
@@ -199,6 +210,21 @@ export async function POST(req: NextRequest) {
       },
       200,
     );
+    // HTTPONLY H2+: yalnız uygun WEB oturumu → __Host-yasam_sid (JSON token + localStorage aynen
+    // devam eder). Android oturumuna ASLA set edilmez. Max-Age = mutlak oturum süresi.
+    // off modda (varsayılan) yanıt bugünküyle birebir; yalnız istekte bayat cookie varsa silinir.
+    const cookieCfg = getSessionCookieConfig();
+    if (
+      cookieCfg.mode !== "off" &&
+      result.channel !== "android_app" &&
+      !isAndroidAppRequest(req.headers) &&
+      isSessionCookieEligible(cookieCfg, String(row.id))
+    ) {
+      setWebSessionCookie(response, sessionToken, Math.floor(SESSION_ABSOLUTE_MS[result.role] / 1000));
+    } else if (hasWebSessionCookie(req)) {
+      clearWebSessionCookie(response);
+    }
+    return response;
   } catch {
     // Hata ayrıntısı/stack client'a sızdırılmaz.
     return json({ code: "ERROR", error: "Oturum oluşturulamadı." }, 500);
@@ -233,7 +259,20 @@ export async function GET(req: NextRequest) {
 
     const db    = getServerDb();
     const state = await resolveActiveSession(db, token);
-    if (state.status === "active") return json({ valid: true }, 200);
+    if (state.status === "active") {
+      // HTTPONLY H2+: uygun web oturumunda cookie yok/bayatsa istemciye bootstrap ipucu
+      // (POST /api/auth/session/cookie). off modda yanıt bugünküyle birebir.
+      const cookieCfg = getSessionCookieConfig();
+      if (
+        cookieCfg.mode !== "off" &&
+        !isAndroidAppRequest(req.headers) &&
+        isSessionCookieEligible(cookieCfg, state.userId) &&
+        readWebSessionCookie(req) !== token
+      ) {
+        return json({ valid: true, cookie: "bootstrap" }, 200);
+      }
+      return json({ valid: true }, 200);
+    }
     // WT4: geçici DB/RPC hatası oturum sonu DEĞİLDİR → 503 (istemci karar vermez, çıkış yapmaz).
     // Önceden burada 200 { valid:false, reason:"revoked" } dönüyor, istemci geçerli oturumu
     // kapatıyordu (DELETE → end_reason=user_logout).
@@ -267,12 +306,24 @@ export async function GET(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   const token = req.headers.get("x-session-token")?.trim() ?? "";
-  if (token) {
+  // HTTPONLY H1–H4: bu tarayıcının web session cookie'si de (header'dan farklıysa) kapatılır.
+  // off modda / Android'de cookie yok sayılır (bugünkü davranış). Header yoksa cookie-auth
+  // sayılır → CSRF katmanı (Origin/Sec-Fetch-Site + özel başlık).
+  let cookieToken = "";
+  const cookieCfg = getSessionCookieConfig();
+  if (cookieCfg.mode !== "off" && !isAndroidAppRequest(req.headers)) {
+    const c = readWebSessionCookie(req);
+    if (c && c !== token && (token || checkCookieAuthCsrf(req.method, req.headers).ok)) cookieToken = c;
+  }
+  for (const t of [token, cookieToken]) {
+    if (!t) continue;
     try {
-      await endUserSession(getServerDb(), token);
+      await endUserSession(getServerDb(), t);
     } catch {
       /* logout istemciyi asla bloklamaz */
     }
   }
-  return json({ ok: true }, 200);
+  const response = json({ ok: true }, 200);
+  if (hasWebSessionCookie(req)) clearWebSessionCookie(response);
+  return response;
 }

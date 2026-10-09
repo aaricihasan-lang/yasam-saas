@@ -29,7 +29,8 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   const decision = body?.decision === "approve" ? "approve" : body?.decision === "deny" ? "deny" : null;
   if (!decision) return jsonNoStore({ ok: false, error: "Geçersiz karar." }, 400);
 
-  const actorToken = req.headers.get("x-session-token")?.trim() ?? "";
+  // HTTPONLY H1–H4: guard'ın doğruladığı token (off modda = x-session-token, bugünkü gibi).
+  const actorToken = guard.sessionToken ?? req.headers.get("x-session-token")?.trim() ?? "";
   const { data, error } = await db.rpc("admin_decide_pending_session", {
     p_actor_token: actorToken,
     p_pending_id: id,

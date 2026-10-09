@@ -28,7 +28,17 @@ async function main() {
   const route = read("app/api/auth/session/route.ts");
   ok(/EXPIRED_END_REASONS[\s\S]*"expired_idle"[\s\S]*"expired_absolute"[\s\S]*"expired_policy_cleanup"/.test(route), "süre dolumu nedenleri → reason=expired");
   ok(/reason: "expired" \| "revoked" = "revoked"/.test(route), "diğer/okunamayan nedenler → güvenli varsayılan revoked");
-  ok(/\.eq\("session_token", token\)/.test(route) && /if \(state\.status === "active"\) return json\(\{ valid: true \}/.test(route), "neden yalnız aynı token için; geçerli oturumda ek bilgi yok");
+  // HTTPONLY H1–H4: aktif dalda yalnız { valid: true } (+ cookie modu açıkken bootstrap ipucu); neden YOK.
+  const activeBlock = /if \(state\.status === "active"\) \{([\s\S]*?)\n    \}/.exec(route)?.[1] ?? "";
+  ok(
+    /\.eq\("session_token", token\)/.test(route) &&
+      /cookieCfg\.mode !== "off"/.test(activeBlock) &&
+      /return json\(\{ valid: true \}, 200\);\s*$/.test(activeBlock) &&
+      (activeBlock.match(/return json\(/g) ?? []).length === 2 &&
+      /return json\(\{ valid: true, cookie: "bootstrap" \}, 200\)/.test(activeBlock) &&
+      !/reason/.test(activeBlock),
+    "neden yalnız aynı token için; geçerli oturumda ek bilgi yok",
+  );
   ok(/if \(state\.status === "unavailable"\) return json\(\{ valid: null, unavailable: true \}, 503\)/.test(route), "WT4: geçici doğrulama hatası → 503 (oturum sonu SAYILMAZ)");
 
   console.log("\n── C) İstemci yardımcıları (davranış) ──");
