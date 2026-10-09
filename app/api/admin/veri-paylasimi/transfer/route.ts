@@ -94,6 +94,8 @@ const STONE_COPY_FIELDS = [
   "assignments",
   "images",
   "image_upload_failed",
+  // WT9: birincil kaynağın adı (içerik o kaynağa ait). Ek kaynaklar (stone_sources) aktarılmaz.
+  "primary_source_name",
 ] as const;
 
 /** Biyoenerji Seansları (teknik/uygulama kütüphanesi) kopya alanları. */

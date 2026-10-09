@@ -19,6 +19,7 @@ import {
   DOGALTAS_LABEL_CLASS,
   DOGALTAS_TEXTAREA_CLASS,
 } from "@/lib/dogaltas/formStyles";
+import { fetchMySourceNames } from "@/lib/dogaltas/stoneSourcesApi";
 import {
   STONE_CHAKRA_OPTIONS,
   STONE_WARNING_OPTIONS,
@@ -94,6 +95,8 @@ type UploadedImage = {
 
 type FormData = {
   stone_name: string;
+  /** WT9: bu kayıttaki metinlerin bilgi kaynağı (birincil kaynak adı; boş = belirtilmemiş). */
+  primary_source_name: string;
   short_description: string;
   general_info: string;
   source_note: string;
@@ -109,6 +112,7 @@ type FormData = {
 
 const emptyFormData: FormData = {
   stone_name: "",
+  primary_source_name: "",
   short_description: "",
   general_info: "",
   source_note: "",
@@ -302,6 +306,14 @@ export default function DogaltasKayitPage() {
     setErrorMessage(message);
     setSavedMessage("");
   }
+
+  // WT9: uzmanın KENDİ kaynak adları (autocomplete; başka uzmanın adları gelmez).
+  const [mySourceNames, setMySourceNames] = useState<string[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void fetchMySourceNames().then((names) => { if (alive) setMySourceNames(names); });
+    return () => { alive = false; };
+  }, []);
 
   function updateField(field: keyof FormData, value: string) {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -568,6 +580,8 @@ export default function DogaltasKayitPage() {
     const payload = {
       tenant_id: tenantId,
       stone_name: formData.stone_name.trim(),
+      // WT9: boş bırakılırsa kaynak belirtilmemiş kalır (sunucu normalize eder).
+      ...(formData.primary_source_name.trim() ? { primary_source_name: formData.primary_source_name.trim() } : {}),
       short_description: formData.short_description,
       general_info: formData.general_info,
       source_note: formData.source_note,
@@ -832,6 +846,26 @@ export default function DogaltasKayitPage() {
                   {t("general.desc")}
                 </p>
               </div>
+            </div>
+
+            {/* WT9: bilgi kaynağı — aşağıdaki metinlerin hangi kaynaktan geldiği. Öneriler YALNIZ
+                uzmanın kendi daha önce girdiği kaynak adlarıdır. Başka kaynaklar taş detayında eklenir. */}
+            <div className="mb-4">
+              <label className={uiLabel} htmlFor="stone-primary-source">{t("general.primarySource")}</label>
+              <input
+                id="stone-primary-source"
+                data-testid="primary_source_name"
+                value={formData.primary_source_name}
+                onChange={(e) => updateField("primary_source_name", e.target.value)}
+                list="stone-primary-source-options"
+                maxLength={200}
+                placeholder={t("general.primarySourcePlaceholder")}
+                className="h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+              />
+              <datalist id="stone-primary-source-options">
+                {mySourceNames.map((n) => <option key={n} value={n} />)}
+              </datalist>
+              <p className="mt-1 text-[11px] font-medium text-slate-500">{t("general.primarySourceHint")}</p>
             </div>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
