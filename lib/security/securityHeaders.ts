@@ -119,6 +119,61 @@ export function buildEnforcedCsp(opts: SecurityHeaderOptions = {}): string {
   ]);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CSP NONCE C1 — CANARY / REPORT-ONLY (yalnız gözlem; hiçbir isteği BLOKLAMAZ)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** C1 canary seçici cookie'si. Kimlik/yetki TAŞIMAZ; yalnız Report-Only gözlem modunu seçer. */
+export const CSP_CANARY_COOKIE = "yasam_csp_canary";
+/**
+ * Report-Only ihlal raporlarının gittiği same-origin uç nokta (yalnız `report-uri`).
+ * `report-to` BİLİNÇLİ olarak YOK: Chromium report-to varken report-uri'yi yok sayar ve
+ * Reporting API teslimatı gecikmeli/toplu (yerel deneyde 70 sn içinde teslim yok);
+ * Firefox report-to desteklemez. report-uri tüm hedef tarayıcılarda anında POST eder.
+ */
+export const CSP_REPORT_PATH = "/api/security/csp-report";
+
+/**
+ * Next.js'in `getScriptNonceFromHeader` kabul ettiği biçim (base64/base64url, ≤2 '=').
+ * Bu kalıba uymayan nonce Next tarafından SESSİZCE yok sayılır → üretimde de doğrulanır.
+ */
+export const CSP_NONCE_RE = /^[A-Za-z0-9+/_-]{16,}={0,2}$/;
+
+export type NonceReportOnlyOptions = {
+  /** Geliştirmede React hata yığını eval kullanır; rapor gürültüsünü önlemek için. */
+  isDev?: boolean;
+};
+
+/**
+ * C1 Report-Only CSP: YALNIZ script korumasını gözlemler.
+ *   - script-src: 'nonce-…' + 'strict-dynamic' (CSP3 tarayıcıları 'unsafe-inline' ve host
+ *     listesini yok sayar; nonce'lı Next chunk'larının createElement ile yüklediği GA /
+ *     Vercel Analytics / Roxy bundle'ı 'strict-dynamic' ile güvenilir sayılır).
+ *     'self' + host listesi + 'unsafe-inline' yalnız CSP2/eski tarayıcı geri-dönüşüdür.
+ *   - style-src ve diğer directive'ler BİLİNÇLİ olarak YOK: zorunlu politika onları zaten
+ *     uyguluyor; bu turda stil sıkılaştırması kapsam dışı (211 inline style + <style>).
+ *   - 'report-sample' YOK: inline kod parçası rapora girmez.
+ */
+export function buildNonceReportOnlyCsp(nonce: string, opts: NonceReportOnlyOptions = {}): string {
+  if (!CSP_NONCE_RE.test(nonce)) throw new Error("invalid csp nonce");
+  return joinDirectives([
+    [
+      "script-src",
+      [
+        `'nonce-${nonce}'`,
+        "'strict-dynamic'",
+        ...(opts.isDev ? ["'unsafe-eval'"] : []),
+        "'self'",
+        "'unsafe-inline'",
+        ...GA_SCRIPT_HOSTS,
+        ...VERCEL_SCRIPT_HOSTS,
+        VERCEL_LIVE,
+      ],
+    ],
+    ["report-uri", [CSP_REPORT_PATH]],
+  ]);
+}
+
 /** Tüm rotalara uygulanacak güvenlik başlıkları. */
 export function buildSecurityHeaders(opts: SecurityHeaderOptions = {}): HeaderEntry[] {
   return [
