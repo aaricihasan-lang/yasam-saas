@@ -10,7 +10,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getServerDb } from "@/lib/supabase-server";
-import { getActiveSessionUserId } from "@/lib/auth/sessionSecurity";
+import { pickSessionCredential, resolveSessionUserId } from "@/lib/auth/sessionTransport";
 import { parseUsageUserAgent } from "@/lib/usage/clientContext";
 import { maskIp } from "@/lib/security/maskIp";
 
@@ -87,9 +87,13 @@ const NO_STORE = { "Cache-Control": "private, no-store" } as const;
 /** "Kendi oturumlarım" uçları: token ↔ x-user-id (veya x-admin-id) bağı + aktif kullanıcı. */
 export async function verifySelfSessionRequest(req: NextRequest): Promise<SelfSessionGuard> {
   const claimed = (req.headers.get("x-user-id") ?? req.headers.get("x-admin-id") ?? "").trim();
-  const token = (req.headers.get("x-session-token") ?? "").trim();
-  if (!claimed || !token) {
+  // HTTPONLY H1–H4: token kaynağı merkezi çözücüde (off → yalnız x-session-token).
+  const credential = pickSessionCredential(req);
+  if (!claimed || credential.kind === "none") {
     return { ok: false, response: NextResponse.json({ error: "Oturum doğrulaması gerekli." }, { status: 401, headers: NO_STORE }) };
+  }
+  if (credential.kind === "csrf_denied") {
+    return { ok: false, response: NextResponse.json({ error: "İstek kaynağı doğrulanamadı." }, { status: 403, headers: NO_STORE }) };
   }
   let db: SupabaseClient;
   try {
@@ -97,10 +101,15 @@ export async function verifySelfSessionRequest(req: NextRequest): Promise<SelfSe
   } catch {
     return { ok: false, response: NextResponse.json({ error: "Sunucu yapılandırma hatası." }, { status: 500, headers: NO_STORE }) };
   }
-  const [tokenUserId, userRes] = await Promise.all([
-    getActiveSessionUserId(db, token),
+  const [session, userRes] = await Promise.all([
+    resolveSessionUserId(db, credential),
     db.from("users").select("id, role, active").eq("id", claimed).maybeSingle(),
   ]);
+  if (session.status === "conflict") {
+    return { ok: false, response: NextResponse.json({ error: "Oturum kimliği uyuşmuyor." }, { status: 401, headers: NO_STORE }) };
+  }
+  const tokenUserId = session.status === "ok" ? session.userId : null;
+  const token = session.status === "ok" ? session.token : "";
   if (!tokenUserId) {
     return { ok: false, response: NextResponse.json({ error: "Oturum geçersiz veya süresi dolmuş." }, { status: 401, headers: NO_STORE }) };
   }

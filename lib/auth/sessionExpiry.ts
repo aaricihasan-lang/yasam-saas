@@ -20,6 +20,24 @@ const SESSION_ENDED_KEY = "yasam_session_ended_v1";
 
 export type SessionStatus = { valid: boolean; reason: SessionEndReason };
 
+/**
+ * HTTPONLY H2+: sunucu `cookie: "bootstrap"` ipucu verirse (yalnız SESSION_COOKIE_MODE≠off ve
+ * uygun web oturumu) sayfa başına EN FAZLA bir kez HttpOnly cookie bootstrap'i istenir. off modda
+ * ipucu hiç gelmez → çağrı da yapılmaz. Token localStorage'da ve header'da aynen kalır.
+ */
+let cookieBootstrapRequested = false;
+function requestSessionCookieBootstrap(token: string): void {
+  if (cookieBootstrapRequested) return;
+  cookieBootstrapRequested = true;
+  void fetch("/api/auth/session/cookie", {
+    method: "POST",
+    cache: "no-store",
+    headers: { "x-session-token": token },
+  }).catch(() => {
+    /* bootstrap best-effort; header yolu çalışmaya devam eder */
+  });
+}
+
 /** Oturumu sunucuda doğrular. Token yoksa/ağ hatasında null (karar verilmez). */
 export async function checkSessionStatus(token: string | null = readSessionToken()): Promise<SessionStatus | null> {
   if (!token) return null;
@@ -30,8 +48,11 @@ export async function checkSessionStatus(token: string | null = readSessionToken
       headers: { "x-session-token": token },
     });
     if (!res.ok) return null;
-    const json = (await res.json()) as { valid?: boolean; reason?: string };
-    if (json.valid === true) return { valid: true, reason: "revoked" };
+    const json = (await res.json()) as { valid?: boolean; reason?: string; cookie?: string };
+    if (json.valid === true) {
+      if (json.cookie === "bootstrap") requestSessionCookieBootstrap(token);
+      return { valid: true, reason: "revoked" };
+    }
     if (json.valid === false) return { valid: false, reason: json.reason === "expired" ? "expired" : "revoked" };
     return null;
   } catch {
