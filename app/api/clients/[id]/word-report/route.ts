@@ -1,5 +1,4 @@
 import { NextRequest } from "next/server";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
@@ -31,6 +30,7 @@ import {
   type ClientSessionRow,
   type ClientStoneRow,
 } from "./clientReportBuilder";
+import { downloadAnalysisImage, fetchAnalysisImages } from "./clientReportData";
 
 export const runtime = "nodejs";
 
@@ -40,54 +40,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // (fetchProfileImageBuffer) modülüne taşındı — trusted-host + redirect:"manual" +
 // byte cap + timeout + magic-byte format doğrulaması. Ortak reportHelpers DEĞİŞMEDİ.
 
-// ─── Analiz görseli okuma (PRIVATE bucket, service_role) ─────────────────────
-// Görsel PRIVATE bucket'ta tutulur; okuma yalnız server-side service_role ile,
-// DETERMINISTIK object path üzerinden yapılır: {tenantId}/{clientId}/{analysisId}.png.
-// image_url alanı yalnız "görsel var mı" göstergesi olarak kullanılır (path/URL fark
-// etmez) → eski (absolute public URL) ve yeni (object path) satırlar TEK yoldan okunur,
-// public URL'ye bağımlılık kalmaz. Bucket public de olsa private de olsa çalışır.
-const ANALYSIS_IMAGE_BUCKET = "client-analysis-images";
-
-async function downloadAnalysisImage(
-  db: SupabaseClient,
-  tenantId: string,
-  clientId: string,
-  analysisId: string,
-): Promise<Buffer | null> {
-  try {
-    const path = `${tenantId}/${clientId}/${analysisId}.png`;
-    const { data, error } = await db.storage.from(ANALYSIS_IMAGE_BUCKET).download(path);
-    if (error || !data) return null;
-    return Buffer.from(await data.arrayBuffer());
-  } catch {
-    return null;
-  }
-}
-
-/** analyses sırasıyla hizalı (Buffer|null)[]; yalnız image_url dolu kayıtlar indirilir. */
-async function fetchAnalysisImages(
-  db: SupabaseClient,
-  tenantId: string,
-  clientId: string,
-  analyses: ClientAnalysisRow[],
-): Promise<(Buffer | null)[]> {
-  const BATCH = 15;
-  const out: (Buffer | null)[] = new Array(analyses.length).fill(null);
-  for (let i = 0; i < analyses.length; i += BATCH) {
-    const slice = analyses.slice(i, i + BATCH);
-    const settled = await Promise.allSettled(
-      slice.map((a) =>
-        a.image_url?.trim()
-          ? downloadAnalysisImage(db, tenantId, clientId, a.id)
-          : Promise.resolve(null),
-      ),
-    );
-    settled.forEach((r, j) => {
-      out[i + j] = r.status === "fulfilled" ? r.value : null;
-    });
-  }
-  return out;
-}
+// Analiz görseli okuma (PRIVATE bucket) → ./clientReportData (tekli + toplu ortak, WT7).
 
 /** FA-26: iç notlar (ödev expert_note) yalnız açık opt-in ile: body.includeExpertNotes veya ?includeExpertNotes=1. */
 function wantsExpertNotes(req: NextRequest, bodyValue: unknown): boolean {

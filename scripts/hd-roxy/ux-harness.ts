@@ -285,13 +285,14 @@ async function main() {
   // ── Statik: manuel fallback / güvenlik / metin ──
   {
     const detail = src("app/human-design/danisanlar/[id]/HdDanisanDetayContent.tsx");
-    ok("M1 manuel harita kaydı danışan detayından erişilebilir", detail.includes("/human-design/harita-kaydi?clientId=") && detail.includes("Manuel Harita"));
-    ok("M2 harita görseli yükleme korunur (katlanır bölümde)", detail.includes("<HdChartImageUpload"));
+    // AŞAMA 3C ürün kararı: yeni manuel harita üretimi kapatıldı; eski görsel yalnız salt-okunur.
+    ok("M1 danışan sayfasında yeni manuel harita kaydı bağlantısı YOK", !detail.includes("/human-design/harita-kaydi?clientId=") && !detail.includes("Manuel Harita Kaydı"));
+    ok("M2 eski harita görseli yalnız salt-okunur gösterilir", detail.includes("<HdChartImageUpload clientId={clientId} readOnly />"));
     ok("M3 harita-kaydi sayfası duruyor", src("app/human-design/harita-kaydi/page.tsx").length > 0);
     const panel = src("app/human-design/danisanlar/components/HdAutoCalcPanel.tsx");
     ok("M4 panelde ikinci tarih/saat girişi YOK", !/type="date"|type="time"/.test(panel));
     const hub = src("app/human-design/page.tsx");
-    ok("M5 hub: otomatik hesaplama ana yetenek, manuel fallback anılıyor", hub.includes("otomatik BodyGraph hesapla") && hub.includes("manuel harita kaydı"));
+    ok("M5 hub: iki çalışma alanı (Human Design Hesaplama + Bilgi Bankası)", hub.includes('title: "Human Design Hesaplama"') && hub.includes('title: "Bilgi Bankası"') && !hub.includes('title: "Kayıtlı Haritalar"'));
     const route = src("app/api/hd/location/search/route.ts");
     ok("M6 konum ucu: modül yetkisi + demo engeli + cache + limit", route.includes('requireModuleAccess(req, "human_design")') && route.includes("is_demo_account") && route.includes("cache.get") && route.includes("hitDbRateLimit"));
     const picker = src("app/human-design/components/HdBirthLocationPicker.tsx");

@@ -7,6 +7,7 @@
 
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type { HdComputedChart } from "../chart/computedChart";
+import type { SystemReadingDto } from "../providers/roxy/systemReading";
 
 export type SaveChartInput = { date: string; time: string; timezone: string };
 
@@ -141,6 +142,35 @@ export async function getComputedChart(
   return { row: null, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
+/**
+ * AŞAMA 2B — "Sistem Yorumu" (kayıtlı RoxyAPI açıklamaları; salt-okunur). Sunucu yalnız whitelist DTO
+ * döndürür (ham provider_raw asla); yeni Roxy çağrısı yapılmaz. Yetki (human_design +
+ * hd_system_reading) sunucuda zorlanır.
+ */
+export type SystemReadingFetchResult =
+  | { status: "ok"; data: SystemReadingDto }
+  | { status: "unavailable" }
+  | { status: "error"; error: string };
+
+export async function getChartSystemReading(id: string): Promise<SystemReadingFetchResult> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/hd/charts/system-reading?id=${encodeURIComponent(id)}`, {
+      method: "GET",
+      headers: authHeaders(),
+      cache: "no-store",
+    });
+  } catch {
+    return { status: "error", error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true) {
+    if (j.available === true && j.data && typeof j.data === "object") return { status: "ok", data: j.data as SystemReadingDto };
+    return { status: "unavailable" };
+  }
+  return { status: "error", error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
+}
+
 export async function deleteComputedChart(id: string): Promise<{ ok: boolean; error: string | null }> {
   let res: Response;
   try {
@@ -157,6 +187,15 @@ export async function deleteComputedChart(id: string): Promise<{ ok: boolean; er
 // FAZ 1 — RoxyAPI otomatik hesaplama (POST /api/hd/charts/roxy)
 // Yalnız kimlikler gönderilir: doğum tarihi/saati danışan kaydından, tz/koordinat sunucuda çözülür.
 // -------------------------------------------------------
+
+/** Başarılı kayıt olayı (yalnız tarayıcı içi; veri kopyası değil, kimlik bildirimi). */
+export const HD_CHART_SAVED_EVENT = "hd:chart-saved";
+export type HdChartSavedDetail = { id: string; clientId: string; reused: boolean };
+
+function announceHdChartSaved(detail: HdChartSavedDetail): void {
+  if (typeof window === "undefined" || typeof window.dispatchEvent !== "function") return;
+  window.dispatchEvent(new CustomEvent<HdChartSavedDetail>(HD_CHART_SAVED_EVENT, { detail }));
+}
 
 export type RoxyComputeResult =
   | { ok: true; id: string; reused: boolean }
@@ -175,6 +214,9 @@ export async function computeRoxyChart(clientId: string, locationId: string): Pr
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true && typeof j.id === "string") {
+    // Kayıt KESİNLEŞTİ (sunucu satırı yazdı ya da kayıtlıyı döndürdü) → açık listeler yenilensin
+    // (Kayıtlı Analizler aynı sayfada anında görünür; sayfa yenileme gerekmez).
+    announceHdChartSaved({ id: j.id, clientId, reused: j.reused === true });
     return { ok: true, id: j.id, reused: j.reused === true };
   }
   return {

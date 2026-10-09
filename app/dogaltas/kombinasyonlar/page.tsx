@@ -4,9 +4,11 @@ import { runInEffect } from "@/lib/runInEffect";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
+import { buildNameListLines } from "@/lib/ui/deleteConfirmMessage";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
@@ -439,6 +441,7 @@ export default function KombinasyonlarPage() {
   }, [isMobile, selectedIds, showToast, t]);
 
   const clearSelection = useCallback(() => { setSelectedIds(new Set()); }, []);
+  const deleteBusyRef = useRef(false);
 
   const selectAllFiltered = useCallback(() => {
     if (isMobile) {
@@ -449,15 +452,39 @@ export default function KombinasyonlarPage() {
   }, [groups, isMobile, showToast, t]);
 
   const deleteSelectedCombinations = useCallback(async () => {
-    if (selectedIds.size === 0) return;
+    if (selectedIds.size === 0 || deleteBusyRef.current) return;
 
-    const issueKeys = Array.from(selectedIds);
+    // Yalnız görünür ∩ seçili: arama/kategoriyle gizlenmiş seçili başlık habersiz silinmez.
+    const visibleIssues = new Set(groups.map((g) => g.issue));
+    const issueKeys = Array.from(selectedIds).filter((issue) => visibleIssues.has(issue));
     const groupCount = issueKeys.length;
     // F-06: gerçek etkilenecek satır (varyant) sayısı — grup sayısı değil.
     const ids = resolveIdsForIssues(issueKeys);
     const recordCount = ids.length;
     if (recordCount === 0) return;
 
+    deleteBusyRef.current = true;
+    try {
+      // 3+ kayıt (varyant satırı) → sistem geneli 3 aşamalı toplu silme.
+      if (requiresBulkDeleteGuard(recordCount)) {
+        const ok = await runBulkDeleteConfirm(confirm, {
+          count: recordCount,
+          detail: [
+            t("deleteMessage", { n: recordCount, groups: groupCount }),
+            buildNameListLines(issueKeys, groupCount).join("\n"),
+          ].join("\n\n"),
+        });
+        if (!ok) return;
+        await performDelete(ids, recordCount);
+        return;
+      }
+      await confirmSmallDelete(ids, recordCount, groupCount);
+    } finally {
+      deleteBusyRef.current = false;
+    }
+  }, [confirm, groups, selectedIds, resolveIdsForIssues, t]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const confirmSmallDelete = async (ids: string[], recordCount: number, groupCount: number) => {
     const firstConfirmed = await confirm({
       title: isMobile ? t("deleteTitleMobile") : t("deleteTitle"),
       // Silinecek gerçek kayıt (varyant) sayısını göster; bir başlıkta birden çok
@@ -479,7 +506,10 @@ export default function KombinasyonlarPage() {
       });
       if (!secondConfirmed) return;
     }
+    await performDelete(ids, recordCount);
+  };
 
+  const performDelete = async (ids: string[], recordCount: number) => {
     setDeleteLoading(true);
     setErrorMessage("");
 
@@ -497,7 +527,7 @@ export default function KombinasyonlarPage() {
     showToast({ type: "success", message: t("deletedToast", { n: deletedShown }) });
     setSelectedIds(new Set());
     await loadCombinations();
-  }, [confirm, isMobile, selectedIds, resolveIdsForIssues, showToast, t, tc]);
+  };
 
   const exportCombosWord = useCallback(async (mode: "selected" | "all" | "filtered") => {
     const tenantId = await getSyncedTenantId();
@@ -555,23 +585,32 @@ export default function KombinasyonlarPage() {
     const ids = resolveIdsForIssues([issueKey]);
     if (ids.length === 0) return;
 
-    const firstConfirmed = await confirm({
-      title: t("deleteGroupTitle"),
-      message: t("deleteGroupMessage", { issue: issueKey, n: ids.length }),
-      tone: "danger",
-      confirmText: t("confirmYesMobile"),
-      cancelText: t("cancelNo"),
-    });
-    if (!firstConfirmed) return;
+    if (requiresBulkDeleteGuard(ids.length)) {
+      // Başlık altında 3+ varyant satırı → sistem geneli 3 aşamalı toplu silme.
+      const ok = await runBulkDeleteConfirm(confirm, {
+        count: ids.length,
+        detail: t("deleteGroupMessage", { issue: issueKey, n: ids.length }),
+      });
+      if (!ok) return;
+    } else {
+      const firstConfirmed = await confirm({
+        title: t("deleteGroupTitle"),
+        message: t("deleteGroupMessage", { issue: issueKey, n: ids.length }),
+        tone: "danger",
+        confirmText: t("confirmYesMobile"),
+        cancelText: t("cancelNo"),
+      });
+      if (!firstConfirmed) return;
 
-    const secondConfirmed = await confirm({
-      title: t("secondConfirmTitle"),
-      message: t("secondConfirmMessage"),
-      tone: "danger",
-      confirmText: t("secondConfirmYes"),
-      cancelText: tc("giveUp"),
-    });
-    if (!secondConfirmed) return;
+      const secondConfirmed = await confirm({
+        title: t("secondConfirmTitle"),
+        message: t("secondConfirmMessage"),
+        tone: "danger",
+        confirmText: t("secondConfirmYes"),
+        cancelText: tc("giveUp"),
+      });
+      if (!secondConfirmed) return;
+    }
 
     setDeleteLoading(true);
     setErrorMessage("");

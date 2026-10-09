@@ -110,14 +110,17 @@ function run(): void {
   ok(/if \(cfg\.matchColumn && cfg\.matchValue != null\) \{[\s\S]{0,80}del = del\.eq\(cfg\.matchColumn/.test(routeCode),
     "route: rollbackGroup paylaşılan tabloda matchColumn ile grup-scoped");
   // Her grup KENDİ try/catch'inde; catch içinde SADECE o grubun rollback'i
-  ok(/for \(const group of groupKeys\) \{[\s\S]*?try \{[\s\S]*?\} catch \(err\) \{[\s\S]*?rollbackGroup\(db, cfg, batchId\)/.test(routeCode),
+  ok(/for \(const group of groupKeys\) \{[\s\S]*?try \{[\s\S]*?\} catch \(err\) \{[\s\S]*?rollbackGroup\(db, cfg, batchId, targetTenantId\)/.test(routeCode),
     "route: her grup bağımsız try/catch + grup-scoped rollback");
+  // Telafi-silme HEDEF tenant ile sınırlı (istemci batchId'si başka tenant'taki eski batch'e dokunamaz).
+  ok(/\.eq\("origin_transfer_batch_id", batchId\)\s*\.eq\("tenant_id", targetTenantId\)/.test(routeCode),
+    "route: rollbackGroup hedef tenant ile sınırlı");
   // Bir grubun hatası döngüyü kırmaz (grup döngüsü bölgesinde throw yok)
   const loopStart = routeCode.indexOf("for (const group of groupKeys)");
   const loopEnd = routeCode.indexOf("const failedSectionCount");
   const loopRegion = loopStart >= 0 && loopEnd > loopStart ? routeCode.slice(loopStart, loopEnd) : routeCode;
   ok(loopStart >= 0 && loopEnd > loopStart, "route: grup döngüsü bölgesi bulundu");
-  ok(/rollbackGroup\(db, cfg, batchId\)/.test(loopRegion) && !/\bthrow\b/.test(loopRegion),
+  ok(/rollbackGroup\(db, cfg, batchId, targetTenantId\)/.test(loopRegion) && !/\bthrow\b/.test(loopRegion),
     "route: grup hatası tüm isteği düşürmez (döngüde rollback var, throw yok)");
 
   // ── C) BÖLÜM-BAZINDA SONUÇ RAPORU (kısmi başarı) ───────────────────────────

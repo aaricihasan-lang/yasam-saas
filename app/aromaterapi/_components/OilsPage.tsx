@@ -4,7 +4,6 @@ import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
-import { AromaterapiModuleNav } from "@/app/aromaterapi/_components/AromaterapiModuleNav";
 import {
   Suspense,
   useCallback,
@@ -855,18 +854,33 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
   }, [ownFilteredRows]);
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+  const bulkDeleteBusyRef = useRef(false);
 
   async function handleBulkDelete() {
-    const ids = Array.from(selectedIds);
+    if (bulkDeleteBusyRef.current) return; // çift tıklama → tek DELETE
+    // Silme kapsamı = seçili ∩ görünür (kendi) kayıtlar — gizli kalmış seçim silinmez.
+    const visibleById = new Map(ownFilteredRows.map((r) => [r.id, r] as const));
+    const ids = Array.from(selectedIds).filter((id) => visibleById.has(id));
     if (ids.length === 0 || !tenantId) return;
 
-    const confirmed = await deleteConfirm({
-      title: "Seçili yağları sil",
-      message: `${ids.length} yağ kaydını silmek istediğinizden emin misiniz?`,
-      secondMessage: "Bu işlem geri alınamaz. Seçili kayıtlar kalıcı olarak silinecek.",
-    });
-    if (!confirmed) return;
+    bulkDeleteBusyRef.current = true;
+    try {
+      const confirmed = await deleteConfirm({
+        title: "Seçili yağları sil",
+        message: `${ids.length} yağ kaydını silmek istediğinizden emin misiniz?`,
+        secondMessage: "Bu işlem geri alınamaz. Seçili kayıtlar kalıcı olarak silinecek.",
+        count: ids.length,
+        names: ids.map((id) => visibleById.get(id)?.name || "(adsız yağ)"),
+        noun: "yağ kaydı",
+      });
+      if (!confirmed) return;
+      await runBulkDelete(ids);
+    } finally {
+      bulkDeleteBusyRef.current = false;
+    }
+  }
 
+  async function runBulkDelete(ids: string[]) {
     setDeleteLoading(true);
 
     // AROMA-2 — ağ hatasında da deleteLoading `finally` ile sıfırlanır (buton kilitli kalmaz).
@@ -921,7 +935,6 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
       <div className="pointer-events-none absolute -right-20 top-40 h-[280px] w-[280px] rounded-full bg-violet-200/18 blur-[100px]" />
 
       <div className="relative z-10 mx-auto w-full max-w-[1600px] space-y-3 px-3 py-3 sm:px-5 xl:px-7">
-        <AromaterapiModuleNav />
         {isDemo && (
           <DemoModuleBanner message="Yağ kütüphanesi demo hesabı için temsili verilerle gösterilmektedir. Yağ adı, kategori ve tip görünürdür; klinik detaylar korunur. Yeni kayıt ve düzenleme işlemleri demo hesabında çalışmaz." />
         )}

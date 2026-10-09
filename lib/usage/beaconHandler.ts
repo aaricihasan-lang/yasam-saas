@@ -61,7 +61,7 @@ export async function handleUsageBeacon<R extends BeaconRequest>(
     return beaconNoContent();
   }
 
-  const token = req.headers.get("x-session-token")?.trim() || null;
+  const token = guard.sessionToken || req.headers.get("x-session-token")?.trim() || null;
   const ctx = resolveUsageClientContext(req.headers);
   const ctxArgs = {
     p_channel: ctx.channel,

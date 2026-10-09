@@ -84,9 +84,11 @@ export async function updateHdClient(
   return { error: typeof j.error === "string" ? j.error : `HTTP ${res.status}`, conflict: res.status === 409 };
 }
 
+export type HdJourneyRef = { id: string; ad: string; soyad: string; dogum: string | null };
+
 export async function getHdClient(
   id: string,
-): Promise<{ row: HdClientRow | null; error: string | null }> {
+): Promise<{ row: HdClientRow | null; error: string | null; journey?: HdJourneyRef | null; suggestions?: HdJourneyRef[] }> {
   let res: Response;
   try {
     res = await fetch(`/api/hd/clients?id=${encodeURIComponent(id)}`, {
@@ -98,7 +100,13 @@ export async function getHdClient(
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true && j.row && typeof j.row === "object") {
-    return { row: j.row as HdClientRow, error: null };
+    return {
+      row: j.row as HdClientRow,
+      error: null,
+      // AŞAMA 3C: bağlı merkezî danışan + (bağlı değilse) yalnız ÖNERİLER — otomatik bağlama yok.
+      journey: (j.journey as HdJourneyRef | null | undefined) ?? null,
+      suggestions: Array.isArray(j.journey_suggestions) ? (j.journey_suggestions as HdJourneyRef[]) : [],
+    };
   }
   return { row: null, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }

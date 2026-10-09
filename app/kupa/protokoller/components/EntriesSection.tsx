@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { SourceNameField } from "./SourceNameField";
+import { useConfirmLeave, useReportDirty } from "../hooks/protocolDirty";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { kupaBtnPrimary, kupaBtnGhost, kupaBtnSuccess, kupaInput, kupaRowAction, kupaRowActionDanger, kupaRowActions } from "@/app/kupa/components/KupaShell";
@@ -26,32 +28,49 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [pointPickerOpen, setPointPickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const confirmLeave = useConfirmLeave();
+  // WT6: açık formun başlangıç anlık görüntüsü → kirli mi? (kaydedilmemiş-değişiklik koruması)
+  const [initialDraft, setInitialDraft] = useState<Draft>(EMPTY);
+  const dirty = formOpen && JSON.stringify(draft) !== JSON.stringify(initialDraft);
+  useReportDirty("entries", dirty);
+  async function cancelForm() {
+    if (dirty && !(await confirmLeave())) return;
+    setFormOpen(false);
+  }
 
   const entries = [...doc.entries].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
-  function openNew() {
+  async function openNew() {
+    if (dirty && !(await confirmLeave())) return;
     setEditingId(null);
     setDraft(EMPTY);
+    setInitialDraft(EMPTY);
     setFormOpen(true);
   }
-  function openEdit(e: CuppingProtocolEntry) {
-    setEditingId(e.id);
-    setDraft({
+  async function openEdit(e: CuppingProtocolEntry) {
+    if (dirty && !(await confirmLeave())) return;
+    const next: Draft = {
       title: e.title ?? "",
       content: e.content ?? "",
       source_id: e.source_id ?? "",
       source_label: e.source_label ?? "",
       locator: e.locator ?? "",
       point_ids: e.point_ids ?? [],
-    });
+    };
+    setEditingId(e.id);
+    setDraft(next);
+    setInitialDraft(next);
     setFormOpen(true);
   }
 
   async function save() {
+    if (busyRef.current) return; // çift tık → tek kayıt
     if (!draft.content.trim()) {
       showToast({ message: "Bilgi içeriği gerekli.", type: "warning" });
       return;
     }
+    busyRef.current = true;
     setBusy(true);
     try {
       const common = {
@@ -74,7 +93,7 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
       setFormOpen(false);
       try {
         await doc.reload.entries(); // server canonical (point_ids dahil)
-        showToast({ message: editingId ? "Bilgi güncellendi." : "Bilgi eklendi.", type: "success" });
+        showToast({ message: "Kaydedildi.", type: "success" });
       } catch {
         // Kayıt BAŞARILI; yalnız liste tazelenemedi → "kaydedilemedi" denmez (mükerrer kayıt riski).
         showToast({ message: "Bilgi kaydedildi ancak liste yenilenemedi. Güncel hali görmek için sayfayı yenileyin.", type: "warning" });
@@ -83,6 +102,7 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
       // Atomik hata → mevcut veri DEĞİŞMEZ (server rollback). UI state'i de değiştirmedik.
       showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
@@ -186,26 +206,21 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
                 </button>
               </div>
             ) : (
-              <input
-                className={kupaInput}
-                list="kupa-entry-source-suggestions"
-                placeholder="Kaynak / kimden öğrendim — örn. Süleyman Gök kitabı, Ahmet Hoca eğitimi (opsiyonel)"
+              <SourceNameField
+                label="Kaynak / kimden öğrendim (opsiyonel)"
+                placeholder="Örn. Ahmet Hoca Eğitim Notu, kendi eğitim notlarım, X Kitabı…"
                 value={draft.source_label}
-                onChange={(e) => setDraft({ ...draft, source_label: e.target.value })}
-                aria-label="Kaynak / kimden öğrendim"
+                onChange={(v) => setDraft((d) => ({ ...d, source_label: v }))}
+                sources={doc.masterSources}
+                testId="kupa-entry-source"
               />
             )}
-            <datalist id="kupa-entry-source-suggestions">
-              {doc.masterSources.map((s) => (
-                <option key={s.id} value={s.source_name} />
-              ))}
-            </datalist>
             <input className={kupaInput} placeholder="Sayfa / bölüm (opsiyonel)" value={draft.locator} onChange={(e) => setDraft({ ...draft, locator: e.target.value })} aria-label="Sayfa / bölüm" />
             <div className="flex items-center gap-2">
               <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={save}>
-                {editingId ? "Bilgiyi Kaydet" : "Bilgiyi Ekle"}
+                {busy ? "Kaydediliyor…" : "Kaydet"}
               </button>
-              <button type="button" className={kupaBtnGhost} onClick={() => setFormOpen(false)}>
+              <button type="button" className={kupaBtnGhost} onClick={() => void cancelForm()}>
                 Vazgeç
               </button>
             </div>

@@ -4,6 +4,7 @@ import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import { readRoxyServerConfig, ROXY_LOCATION_CACHE, ROXY_RATE_LIMITS } from "@/lib/human-design/providers/roxy/config";
 import { searchRoxyLocations } from "@/lib/human-design/providers/roxy/location";
 import { roxyCityToLocation, signLocationRef } from "@/lib/human-design/api/hdLocationRef";
+import { toHdSearchResults } from "@/lib/human-design/location/hdSearchResults";
 import type { HdBirthLocation } from "@/lib/human-design/api/hdBirthLocation";
 
 export const runtime = "nodejs";
@@ -14,7 +15,10 @@ export const runtime = "nodejs";
  *   - requireModuleAccess("human_design"); demo hesap → 403 (kredi harcamaz).
  *   - Kredi koruması: açık kullanıcı eylemiyle çağrılır (typeahead DEĞİL); normalize sorgu
  *     önbelleği (30 gün, instance belleği) → aynı sorgu tekrar Roxy'ye gitmez; kullanıcı limiti.
- *   - Sonuçlar HMAC-imzalı referans (`ref`) taşır; hesaplama ucu tz/koordinatı yalnız imzadan
+ *   - Türkiye: saat dilimi Europe/Istanbul olmayan "TR" sonucu atılır (ör. Cey — gerçekte Irak).
+ *     HD 973 ilçe dizininde doğrulanmış karşılığı olan sonuç, yerel ilçe kimliğine (`trd-…`)
+ *     çevrilir (koordinat sunucu veri setinden; Kadıköy gibi Roxy'de yanlış köye düşen kayıtlar dahil).
+ *   - Diğer sonuçlar HMAC-imzalı referans (`ref`) taşır; hesaplama ucu tz/koordinatı yalnız imzadan
  *     çözer (istemci değiştiremez). ROXY_API_KEY yalnız sunucuda; yanıt/hata/logda yer almaz.
  */
 
@@ -76,13 +80,9 @@ export async function GET(req: NextRequest): Promise<Response> {
     cache.set(key, { at: now, locations });
   }
 
-  const results = [];
-  for (const l of locations) {
-    const ref = signLocationRef(l);
-    if (!ref) {
-      return NextResponse.json({ ok: false, code: "NOT_CONFIGURED", error: "Genişletilmiş konum araması şu anda kullanılamıyor." }, { status: 503, headers: NO_STORE });
-    }
-    results.push({ ref, id: l.id, label: l.label, tz: l.timezone });
+  const results = toHdSearchResults(locations, (l) => signLocationRef(l));
+  if (!results) {
+    return NextResponse.json({ ok: false, code: "NOT_CONFIGURED", error: "Genişletilmiş konum araması şu anda kullanılamıyor." }, { status: 503, headers: NO_STORE });
   }
   return NextResponse.json({ ok: true, cached, results }, { status: 200, headers: NO_STORE });
 }

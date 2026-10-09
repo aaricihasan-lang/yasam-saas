@@ -21,6 +21,7 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken, syncYasamUserFromDb, type YasamUser } from "@/lib/auth/yasamUser";
 import { invalidateDanisanListCache, removeClientFromDanisanListCache } from "@/lib/danisan/listCache";
 import { computeBurc } from "@/lib/danisan/burc";
+import { summarizeUnpaid } from "@/lib/danisan/chargePayment";
 import NotesTab from "./components/NotesTab";
 import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
@@ -58,6 +59,7 @@ const HomeworkTab = dynamic(() => import("./components/HomeworkTab"), { loading:
 const AnalizlerTab = dynamic(() => import("./components/AnalizlerTab"), { loading: TabSkeleton, ssr: false });
 const YolculukTab = dynamic(() => import("./components/YolculukTab"), { loading: TabSkeleton, ssr: false });
 const ClientMemoryTab = dynamic(() => import("./components/ClientMemoryTab"), { loading: TabSkeleton, ssr: false });
+const HumanDesignTab = dynamic(() => import("./components/HumanDesignTab"), { loading: TabSkeleton, ssr: false });
 const BeslenmeTab = dynamic(() => import("./components/BeslenmeTab"), { loading: TabSkeleton, ssr: false });
 const AnamnezTab = dynamic(() => import("./components/AnamnezTab"), { loading: TabSkeleton, ssr: false });
 const MemoryPicker = dynamic(() => import("@/components/yasam-hafizasi/MemoryPicker"), { ssr: false });
@@ -188,6 +190,10 @@ const wordBtnCls =
 
 // Soyad her zaman Türkçe locale ile BÜYÜK harf normalize edilir (i→İ, ı→I).
 // Kayıt anında savunmacı: trim + büyük harf. Yazım sırasında boşluk korunur.
+function formatTry(value: number) {
+  return new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 2 }).format(value);
+}
+
 function normalizeSurname(value: string) {
   return value.trim().toLocaleUpperCase("tr-TR");
 }
@@ -295,6 +301,8 @@ function ClientDetailPageInner() {
   const [drBusy, setDrBusy] = useState(false);
   const [drOpen, setDrOpen] = useState(false);
   const [consentRev, setConsentRev] = useState(0);
+  // WT7: ödenmemiş ücret özeti (hero uyarısı). null = henüz bilinmiyor → uyarı gösterilmez.
+  const [unpaidCharges, setUnpaidCharges] = useState<{ count: number; total: number } | null>(null);
   const [editDogum, setEditDogum] = useState("");
   // Satış öncesi kapanış: doğum alanı yarım/geçersizken kayıt YOK (eskiden "" → PATCH
   // dogum:null ile kayıtlı doğum tarihi sessizce siliniyordu).
@@ -437,6 +445,35 @@ function ClientDetailPageInner() {
     };
   }, [clientId, tenantId, loadNotes]);
 
+  // WT7: hero "Ücret Alınmadı" uyarısı — sekme açılmadan da görünsün diye ücretler arka planda
+  // bir kez okunur (yalnız payment_status='unpaid' sayılır; eski/Belirtilmemiş kayıt uyarı üretmez).
+  useEffect(() => {
+    if (!tenantId || !clientId) return;
+    let cancelled = false;
+    const token = readSessionToken();
+    void fetch(`/api/clients/${clientId}/charges`, {
+      headers: { "x-user-id": readYasamUser()?.id ?? "", ...(token ? { "x-session-token": token } : {}) },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { charges?: { payment_status?: unknown; amount?: unknown }[] } | null) => {
+        if (!cancelled && j?.charges) setUnpaidCharges(summarizeUnpaid(j.charges));
+      })
+      .catch(() => { /* uyarı opsiyonel; sessiz */ });
+    return () => { cancelled = true; };
+  }, [clientId, tenantId]);
+
+  // Ücretlendirme sekmesinde ekle/düzenle/ödendi işaretle/sil → uyarı anında güncellenir;
+  // liste önbelleği bayatlar (liste rozeti dönüşte yeniden okunur).
+  const unpaidRef = useRef<{ count: number; total: number } | null>(null);
+  useEffect(() => { unpaidRef.current = unpaidCharges; }, [unpaidCharges]);
+  const handleUnpaidChange = useCallback((s: { count: number; total: number }) => {
+    const prev = unpaidRef.current;
+    if (prev && prev.count === s.count && prev.total === s.total) return;
+    if (prev) invalidateDanisanListCache();
+    unpaidRef.current = s;
+    setUnpaidCharges(s);
+  }, []);
+
   async function saveAllGeneralInfo() {
     if (!tenantId || !client) return;
     // DY-A: notlar yüklenmeden (veya hata) genel bilgi kaydı YOK — boş alanlarla ezme riski.
@@ -544,7 +581,12 @@ function ClientDetailPageInner() {
       },
       // Yalnız notlar + base_version (CAS); genel alanlar gönderilmez.
       body: JSON.stringify({ notlar: notlarRaw, base_version: notesVersion }),
-    });
+    }).catch(() => null); // ağ hatası (offline/timeout) → hata toast'u; saving takılı kalmaz
+    if (!res) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.noteSaveError"), type: "error" });
+      setSavingClientNotes(false);
+      return false;
+    }
     const json = (await res.json().catch(() => ({}))) as {
       ok?: boolean; error?: string; code?: string; note?: ClientNote | null; notlar_version?: string;
     };
@@ -690,6 +732,9 @@ function ClientDetailPageInner() {
       ].filter((x): x is string => !!x);
       if (general.length > 0) lines.push(`• ${t("delete.generalLine", { fields: general.join(", ") })}`);
       parts.push(lines.length > 0 ? `${t("delete.previewHeader")}\n${lines.join("\n")}` : t("delete.previewEmpty"));
+      // AŞAMA 3C: danışana bağlı Human Design profili varsa açık uyarı (kalıcı silme kapsamında).
+      const hdProfiles = preview.counts.find((c) => c.key === "hdProfiles")?.count;
+      if (typeof hdProfiles === "number" && hdProfiles > 0) parts.push(t("delete.hdWarning"));
       if (preview.partial) parts.push(t("delete.previewPartial"));
     }
     parts.push(t("delete.unlinked"));
@@ -826,6 +871,21 @@ function ClientDetailPageInner() {
             </span>
             {/* KVKK onam durumu rozeti; key değişince (panelde yeni kayıt) yeniden yüklenir. */}
             <ClientConsentPanel key={`consent-badge-${consentRev}`} clientId={client.id} variant="badge" />
+            {unpaidCharges && unpaidCharges.count > 0 ? (
+              <button
+                type="button"
+                data-testid="client-unpaid-warning"
+                onClick={() => { if (canSeeTab("ucretlendirme")) setActiveTab("ucretlendirme"); }}
+                title={t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total) })}
+                className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-black text-red-700"
+              >
+                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                {t("hero.unpaid")}
+                <span className="font-bold text-red-600">
+                  · {t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total) })}
+                </span>
+              </button>
+            ) : null}
             <AstrologyClientStatus clientId={client.id} />
           </div>
           <h1 className="mt-1.5 text-[24px] font-black text-slate-950">
@@ -1050,6 +1110,7 @@ function ClientDetailPageInner() {
                   <ClientConsentPanel
                     clientId={client.id}
                     source="dy_detay"
+                    collapsible
                     className="mt-4"
                     onChange={() => setConsentRev((n) => n + 1)}
                   />
@@ -1145,7 +1206,7 @@ function ClientDetailPageInner() {
                 </button>
                 )}
               </div>
-              <UcretlendirmeTab clientId={client.id} />
+              <UcretlendirmeTab clientId={client.id} onUnpaidChange={handleUnpaidChange} />
           </div>
           )}
 
@@ -1199,6 +1260,11 @@ function ClientDetailPageInner() {
           {openedTabs.has("hafiza") && canSeeTab("hafiza") && (
           <div role="tabpanel" id="tabpanel-hafiza" aria-labelledby="tab-hafiza" hidden={activeTab !== "hafiza"}>
             <ClientMemoryTab clientId={client.id} clientName={fullName || t("clientFallback")} />
+          </div>
+          )}
+          {openedTabs.has("humandesign") && canSeeTab("humandesign") && (
+          <div role="tabpanel" id="tabpanel-humandesign" aria-labelledby="tab-humandesign" hidden={activeTab !== "humandesign"}>
+            <HumanDesignTab clientId={client.id} />
           </div>
           )}
           {openedTabs.has("beslenme") && (

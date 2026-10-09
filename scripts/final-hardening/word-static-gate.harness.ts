@@ -134,7 +134,9 @@ const mustUse: [string, RegExp][] = [
   ["app/api/ajanda/word-report/buildAjandaReport.ts", /formatInstantDateTime|zonedDayKey/],
   ["app/api/clients/[id]/word-report/clientReportBuilder.ts", /formatInstantDateTime/],
   ["app/api/clients/[id]/word-report/clientReportBuilder.ts", /looseDayKey/],
-  ["app/api/clients/word-report-bulk/route.ts", /reportFileDate/],
+  // WT7: toplu rapor tekli builder'ı kullanır (buildClientsBulkFullReport → reportDates → reportFileDate).
+  ["app/api/clients/word-report-bulk/route.ts", /buildClientsBulkFullReport/],
+  ["app/api/clients/[id]/word-report/clientReportBuilder.ts", /reportFileDate/],
   ["app/api/biyoenerji/session-report/buildSessionReport.ts", /formatInstantDateTime/],
   ["app/api/dogaltas/stones/[id]/word-report/buildStoneReport.ts", /reportFileDate/],
   ["app/api/numeroloji/knowledge-report/route.ts", /reportFileDate/],
@@ -166,7 +168,8 @@ for (const [f, re] of mustUse) {
   check("aroma word route'ları expertDisplayName(guard.profile) kullanır (expertName: null YOK)", bad.length === 0, bad.map(rel).join(", "));
 }
 // FA-41: DY üreticilerinde otomatik title-case (toLowerCase + ilk harf büyütme) KALDIRILDI.
-for (const f of ["app/api/clients/[id]/word-report/clientReportBuilder.ts", "app/api/clients/word-report-bulk/route.ts"]) {
+// WT7: toplu rapor artık kendi metin biçimlemesini yapmaz (tekli builder gövdesi) → yalnız builder.
+for (const f of ["app/api/clients/[id]/word-report/clientReportBuilder.ts"]) {
   const s = readFileSync(join(ROOT, f), "utf8");
   check(`${f}: otomatik title-case gövdesi YOK`, !/\.replace\(\/İ\/g, "i"\)\s*\.replace\(\/I\/g, "ı"\)/.test(s) && /tidyUserText/.test(s));
 }

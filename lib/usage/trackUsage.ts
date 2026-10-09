@@ -39,6 +39,8 @@ export type UsageGuardContext = {
   is_demo_account: boolean;
   db: SupabaseClient;
   profile?: Record<string, unknown>;
+  /** HTTPONLY H1–H4: guard'ın doğruladığı oturum token'ı (off modda = x-session-token). */
+  sessionToken?: string;
 };
 
 export type TrackUsageSpec = {
@@ -177,7 +179,7 @@ export async function trackUsage(
     }
 
     const ctx = req ? resolveUsageClientContext(req.headers) : UNKNOWN_CONTEXT;
-    const token = req?.headers.get("x-session-token")?.trim() || null;
+    const token = guard.sessionToken || req?.headers.get("x-session-token")?.trim() || null;
     const { data, error } = await guard.db.rpc("usage360_track", {
       p_user_id: guard.userId,
       p_tenant_id: guard.tenantId,

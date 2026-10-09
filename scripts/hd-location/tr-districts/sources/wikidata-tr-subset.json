@@ -1,0 +1,421 @@
+{
+ "_license": "Wikidata — CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/)",
+ "records": [
+  {
+   "qid": "Q1011344",
+   "label": "Torbalı",
+   "province": "İzmir",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    38.1513559,
+    27.3616214
+   ]
+  },
+  {
+   "qid": "Q1020659",
+   "label": "Sincan",
+   "province": "Ankara",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    39.967777777,
+    32.579722222
+   ]
+  },
+  {
+   "qid": "Q1021220",
+   "label": "Keçiören",
+   "province": "Ankara",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    39.9776661,
+    32.8670147
+   ]
+  },
+  {
+   "qid": "Q116029774",
+   "label": "Derecik ilçesi",
+   "province": "Hakkari",
+   "p36": [
+    37.081253,
+    44.311981
+   ],
+   "p625": [
+    null,
+    null
+   ]
+  },
+  {
+   "qid": "Q1430729",
+   "label": "Sarıçam",
+   "province": "Adana",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    37.040323,
+    35.419341
+   ]
+  },
+  {
+   "qid": "Q15989061",
+   "label": "Yenişehir",
+   "province": "Diyarbakır",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    37.917105,
+    40.223274
+   ]
+  },
+  {
+   "qid": "Q16028029",
+   "label": "Altıeylül",
+   "province": "Balıkesir",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    39.64527778,
+    27.88333333
+   ]
+  },
+  {
+   "qid": "Q16468567",
+   "label": "Başiskele İlçesi",
+   "province": "Kocaeli",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    40.712449,
+    29.928455
+   ]
+  },
+  {
+   "qid": "Q16895027",
+   "label": "Merkezefendi",
+   "province": "Denizli",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    37.779488888,
+    29.082981111
+   ]
+  },
+  {
+   "qid": "Q1831365",
+   "label": "Beydağ",
+   "province": "İzmir",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    38.08694444,
+    28.20888889
+   ]
+  },
+  {
+   "qid": "Q1865363",
+   "label": "Yenimahalle",
+   "province": "Ankara",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    39.9661445,
+    32.8087518
+   ]
+  },
+  {
+   "qid": "Q2002518",
+   "label": "Artuklu",
+   "province": "Mardin",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    37.312922,
+    40.733376
+   ]
+  },
+  {
+   "qid": "Q217411",
+   "label": "Beyoğlu",
+   "province": "İstanbul",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    41.031944444,
+    28.976111111
+   ]
+  },
+  {
+   "qid": "Q2195037",
+   "label": "Şahinbey",
+   "province": "Gaziantep",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    37.0575903,
+    37.3794008
+   ]
+  },
+  {
+   "qid": "Q2634212",
+   "label": "Canik",
+   "province": "Samsun",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    41.27194444,
+    36.35083333
+   ]
+  },
+  {
+   "qid": "Q2636596",
+   "label": "Balçova",
+   "province": "İzmir",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    38.392222222,
+    27.046388888
+   ]
+  },
+  {
+   "qid": "Q2670975",
+   "label": "Melikgazi",
+   "province": "Kayseri",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    38.720277777,
+    35.500277777
+   ]
+  },
+  {
+   "qid": "Q2672796",
+   "label": "Bahçe",
+   "province": "Osmaniye",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    37.2,
+    36.583333333
+   ]
+  },
+  {
+   "qid": "Q272948",
+   "label": "Çukurova",
+   "province": "Adana",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    37.04939,
+    35.27102
+   ]
+  },
+  {
+   "qid": "Q2860284",
+   "label": "Köyceğiz (ilçe)",
+   "province": "Muğla",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    36.957777777,
+    28.688333333
+   ]
+  },
+  {
+   "qid": "Q340148",
+   "label": "Avcılar",
+   "province": "İstanbul",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    40.979166666,
+    28.721388888
+   ]
+  },
+  {
+   "qid": "Q3906369",
+   "label": "İlkadım",
+   "province": "Samsun",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    41.2833,
+    36.3333
+   ]
+  },
+  {
+   "qid": "Q4812671",
+   "label": "Atakum",
+   "province": "Samsun",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    41.323333333,
+    36.294444444
+   ]
+  },
+  {
+   "qid": "Q49104088",
+   "label": "Hayrat İlçesi",
+   "province": "Trabzon",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    40.891388888,
+    40.3675
+   ]
+  },
+  {
+   "qid": "Q49106944",
+   "label": "Nilüfer",
+   "province": "Bursa",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    40.21375,
+    28.98464
+   ]
+  },
+  {
+   "qid": "Q643505",
+   "label": "Narlıdere",
+   "province": "İzmir",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    38.394444444,
+    27.009722222
+   ]
+  },
+  {
+   "qid": "Q6620651",
+   "label": "Seydikemer",
+   "province": "Muğla",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    36.647994,
+    29.361692
+   ]
+  },
+  {
+   "qid": "Q6817536",
+   "label": "Menteşe",
+   "province": "Muğla",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    37.2178776,
+    28.3645937
+   ]
+  },
+  {
+   "qid": "Q682981",
+   "label": "Altındağ",
+   "province": "Ankara",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    39.945833333,
+    32.856111111
+   ]
+  },
+  {
+   "qid": "Q791567",
+   "label": "Bayrampaşa",
+   "province": "İstanbul",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    41.048055555,
+    28.900277777
+   ]
+  },
+  {
+   "qid": "Q932166",
+   "label": "Güngören",
+   "province": "İstanbul",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    41.021111111,
+    28.878055555
+   ]
+  },
+  {
+   "qid": "Q932886",
+   "label": "Kadıköy",
+   "province": "İstanbul",
+   "p36": [
+    null,
+    null
+   ],
+   "p625": [
+    40.986944444,
+    29.036666666
+   ]
+  }
+ ]
+}

@@ -28,7 +28,6 @@ export default function BitkiDuzenlePage() {
       subtitle="Değişiklik yaparken bir gerekçe girmeniz gerekir."
       icon="🌱"
       breadcrumbLeaf="Düzenle"
-      showNav={false}
       actions={
         <Link
           href={id ? `/aromaterapi/katalog/bitkiler/${id}` : "/aromaterapi/katalog"}

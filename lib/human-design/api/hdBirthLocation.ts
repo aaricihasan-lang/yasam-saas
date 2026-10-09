@@ -6,11 +6,13 @@
 //   • Türkiye: TR_LOCATIONS (81 il, authoritative)
 //   • Pilot dünya şehirleri: WORLD_LOCATIONS
 //   • Global: GeoNames server-only dataset (getGlobalLocationById)
+//   • HD Türkiye 973 ilçe: "trd-…" kimlikleri YALNIZ sunucu veri setinden (trDistricts.ts)
 
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { WORLD_LOCATIONS } from "@/lib/location/world";
 import { getGlobalLocationById } from "@/lib/location/server/search";
 import type { Location } from "@/lib/location";
+import { getTrDistrictRecord } from "@/lib/human-design/location/trDistricts";
 import { isValidIanaTimeZone } from "./birthTimeResolution";
 import { isLocationRef, verifyLocationRef } from "./hdLocationRef";
 
@@ -31,6 +33,8 @@ export function resolveHdBirthLocation(id: unknown): HdBirthLocation | null {
   // Roxy konum araması (ilçe/şehir) → sunucu imzalı referans; imza doğrulanmazsa null.
   if (isLocationRef(id)) return verifyLocationRef(id);
   if (typeof id !== "string" || !/^[A-Za-z0-9_\-]{2,64}$/.test(id)) return null;
+  const d = getTrDistrictRecord(id);
+  if (d) return { id: d.id, label: d.label, timezone: d.tz, latitude: d.lat, longitude: d.lon };
   const loc: Location | null =
     TR_LOCATIONS.find((l) => l.id === id) ??
     WORLD_LOCATIONS.find((l) => l.id === id) ??

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { BULK_DELETE_LIMIT_ERROR, exceedsBulkDeleteLimit } from "@/lib/api/bulkDeleteLimits";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { STONE_PHOTO_BUCKET, collectStonePhotoPaths } from "@/lib/dogaltas/stonePhoto";
 import { serverErrorResponse } from "@/lib/http/apiError";
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (ids.length === 0) {
     return NextResponse.json({ ok: false, error: "Silinecek kayıt seçilmedi." }, { status: 400 });
   }
+  if (exceedsBulkDeleteLimit(ids)) return NextResponse.json({ ok: false, error: BULK_DELETE_LIMIT_ERROR }, { status: 400 });
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deletedIds: [] });
 

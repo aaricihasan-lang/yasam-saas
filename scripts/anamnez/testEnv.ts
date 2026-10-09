@@ -129,6 +129,9 @@ function condExpr(col: string, raw0: string, values: unknown[]): string {
     case "lt": values.push(v); expr = `${col} < $${values.length}`; break;
     case "lte": values.push(v); expr = `${col} <= $${values.length}`; break;
     case "in": values.push(parseInList(v)); expr = `${col}::text = ANY($${values.length})`; break;
+    // PostgREST desen eşleşmesi (* veya % joker). HD merkezî danışan araması (AŞAMA 3C) için eklendi.
+    case "ilike": values.push(v.replace(/\*/g, "%")); expr = `${col}::text ILIKE $${values.length}`; break;
+    case "like": values.push(v.replace(/\*/g, "%")); expr = `${col}::text LIKE $${values.length}`; break;
     case "is":
       if (v === "null") expr = `${col} IS NULL`;
       else if (v === "true") expr = `${col} IS TRUE`;
@@ -184,7 +187,7 @@ function buildOrder(raw: string | null): string {
     return s;
   }).join(", ")}`;
 }
-function toParam(v: unknown): unknown {
+function toParamJson(v: unknown): unknown {
   if (v !== null && typeof v === "object" && !(v instanceof Date)) return JSON.stringify(v);
   return v;
 }
@@ -332,6 +335,24 @@ async function handleStorage(
     }
     return send(200, [...names.entries()].map(([name, folder]) => ({ name, id: folder ? null : randomUUID() })));
   }
+  // Doğrudan (anahtarlı) yükleme: storage-js `upload()` → POST, `update()` → PUT (yalnız service).
+  if ((method === "POST" || method === "PUT") && p.startsWith("object/") && !p.startsWith("object/list/")) {
+    const { bucket, objPath } = splitBucket(p.slice("object/".length));
+    if (!state.buckets.has(bucket)) return notFoundBucket();
+    const raw = await readRaw(req);
+    if (!isService) return send(403, { statusCode: "403", error: "Unauthorized", message: "new row violates row-level security policy" });
+    const b = state.buckets.get(bucket)!;
+    const ct = String(req.headers["content-type"] ?? "");
+    const file = ct.startsWith("multipart/form-data") ? parseMultipartFile(raw, ct) : { bytes: raw, type: ct || "application/octet-stream" };
+    if (!file) return send(400, { statusCode: "400", error: "InvalidRequest", message: "no file" });
+    if (b.mimes && !b.mimes.includes(file.type)) return send(400, { statusCode: "415", error: "invalid_mime_type", message: `mime type ${file.type} is not supported` });
+    if (b.sizeLimit !== null && file.bytes.length > b.sizeLimit) return send(400, { statusCode: "413", error: "Payload too large", message: "The object exceeded the maximum allowed size" });
+    const objs = bucketMap(bucket);
+    const upsert = method === "PUT" || req.headers["x-upsert"] === "true";
+    if (objs.has(objPath) && !upsert) return send(400, { statusCode: "409", error: "Duplicate", message: "The resource already exists" });
+    objs.set(objPath, { bytes: file.bytes, contentType: file.type, createdAt: Date.now() });
+    return send(200, { Key: `${bucket}/${objPath}`, Id: randomUUID() });
+  }
   // Silme.
   if (method === "DELETE" && p.startsWith("object/")) {
     const bucket = decodeURIComponent(p.slice("object/".length));
@@ -416,6 +437,7 @@ export async function startAnamnezTestEnv(opts: {
     storage.buckets.set(b.id, { public: b.public, sizeLimit: b.file_size_limit === null ? null : Number(b.file_size_limit), mimes: b.allowed_mime_types });
   }
   const stats = { requests: 0, errors: 0 };
+  const arrayCols = new Map<string, Set<string>>();
 
   const server = http.createServer(async (req, res) => {
     stats.requests++;
@@ -497,6 +519,13 @@ export async function startAnamnezTestEnv(opts: {
       const raw = (await readRaw(req)).toString("utf8");
       const payload = raw ? JSON.parse(raw) : {};
       const returning = /return=representation/.test(prefer);
+      // Gerçek PostgREST gibi: Postgres dizi (text[] vb.) sütununa gelen JSON dizisi dizi olarak yazılır.
+      if (!arrayCols.has(table)) {
+        const r = await client.query(`select column_name from information_schema.columns where table_schema='public' and table_name=$1 and data_type='ARRAY'`, [table.slice(1, -1)]);
+        arrayCols.set(table, new Set(r.rows.map((x: { column_name: string }) => x.column_name)));
+      }
+      const arrCols = arrayCols.get(table)!;
+      const toParam = (v: unknown, col: string) => (Array.isArray(v) && arrCols.has(col) ? v : toParamJson(v));
       if (method === "POST") {
         const rows = Array.isArray(payload) ? payload : [payload];
         const out: unknown[] = [];
@@ -504,7 +533,7 @@ export async function startAnamnezTestEnv(opts: {
           const cols = Object.keys(row);
           const r = await client.query(
             `insert into public.${table} (${cols.map(qi).join(", ")}) values (${cols.map((_, i) => `$${i + 1}`).join(", ")}) returning ${sel}`,
-            cols.map((c) => toParam(row[c])),
+            cols.map((c) => toParam(row[c], c)),
           );
           out.push(...r.rows);
         }
@@ -512,7 +541,7 @@ export async function startAnamnezTestEnv(opts: {
       }
       if (method === "PATCH") {
         const cols = Object.keys(payload as Record<string, unknown>);
-        for (const c of cols) values.push(toParam((payload as Record<string, unknown>)[c]));
+        for (const c of cols) values.push(toParam((payload as Record<string, unknown>)[c], c));
         const setSql = cols.map((c, i) => `${qi(c)} = $${i + 1}`).join(", ");
         const where = buildWhere(url.searchParams, values);
         const r = await client.query(`update public.${table} set ${setSql}${where} returning ${sel}`, values);

@@ -70,10 +70,13 @@ ok("C2 download requireModuleAccess(req, \"human_design\") + tenant-scoped donmu
   /requireModuleAccess\(\s*req\s*,\s*"human_design"\s*\)/.test(download) && !/requireAdminUserRequest\(/.test(download) &&
   /getCanonicalReportForDownload\(\s*guard\.db\s*,\s*guard\.tenantId/.test(download) && /isOwnedChartImagePath/.test(download) &&
   !/canonicalReadService|getPublishedRecordsByKeys/.test(download));
-ok("C3 create canonical snapshot embed'i (reportSnapshotService) guard'dan SONRA",
-  /requireModuleAccess[\s\S]*createReportSnapshotFromChart/.test(create));
-ok("C4 uzman modu: onMissing 'omit' (admin 'throw' fail-loud) + uzman hatasında anahtarsız mesaj",
-  /onMissing:\s*isAdmin\s*\?\s*"throw"\s*:\s*"omit"/.test(create) && /HD_REPORT_UNPUBLISHED_MESSAGE/.test(create) &&
+// AŞAMA 4B: yeni raporlar (hd-report-2) admin canonical corpus'unu HİÇ okumaz → uzmana açılan canonical
+// yüzeyi daraldı. Eski (hd-report-1) raporlar donmuş snapshot'larıyla aynen indirilir.
+const v2Service = strip(read("lib/human-design/reporting/reportSnapshotV2Service.ts"));
+ok("C3 create v2 snapshot (reportSnapshotV2Service) guard'dan SONRA",
+  /requireModuleAccess[\s\S]*createReportSnapshotV2FromChart/.test(create));
+ok("C4 v2 servis canonical okuyucusunu KULLANMAZ; v1 omit/fail-loud sözleşmesi eski raporlar için korunur",
+  !/canonicalReadService|getPublishedRecordsByKeys/.test(v2Service) && !/getPublishedRecordsByKeys/.test(create) &&
   /omitMode/.test(snapshotSrc) && /HD_REPORT_UNPUBLISHED_MESSAGE/.test(snapshotSrc));
 ok("C5 anti-scrape: >26 benzersiz kapı → canonical okuma ÖNCESİ dostane red",
   /HD_REPORT_MAX_UNIQUE_GATES\s*=\s*26/.test(service) &&
@@ -93,8 +96,8 @@ ok("D1 /api/hd/knowledge canonical read servisi İMPORT ETMEZ (yalnız tenant kn
 const persistSrc = strip(read("lib/human-design/api/reportPersistence.ts"));
 const reportsRoute = strip(read("app/api/hd/reports/route.ts"));
 ok("D2 reportSnapshotService yalnız professional create route'undan çağrılır + liste/detay projeksiyonu snapshot'sız",
-  /createReportSnapshotFromChart/.test(create) &&
-  !/createReportSnapshotFromChart|reportSnapshotService/.test(reportsRoute) &&
+  /createReportSnapshotV2FromChart/.test(create) &&
+  !/createReportSnapshotFromChart|createReportSnapshotV2FromChart|reportSnapshotService|reportSnapshotV2Service/.test(reportsRoute) &&
   /HD_REPORT_HIDDEN_COLUMNS\s*=\s*\["snapshot",\s*"canonical_provenance"\]/.test(persistSrc) &&
   /export async function listReportsWithClients[\s\S]*?stripReportSecrets\(/.test(persistSrc) &&
   /export async function getReportById[\s\S]*?stripReportSecrets\(/.test(persistSrc));

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerDb } from "@/lib/supabase-server";
-import { getActiveSessionUserId } from "@/lib/auth/sessionSecurity";
+import { pickSessionCredential, resolveSessionUserId } from "@/lib/auth/sessionTransport";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type AdminGuardOk = {
   ok: true;
   adminId: string;
   db: SupabaseClient;
+  /** HTTPONLY H1–H4: guard'ın doğruladığı oturum token'ı (off modda = x-session-token). Server içi. */
+  sessionToken?: string;
 };
 
 export type AdminGuardFail = {
@@ -29,7 +31,8 @@ export type AdminGuardResult = AdminGuardOk | AdminGuardFail;
  */
 export async function verifyAdminRequest(req: NextRequest): Promise<AdminGuardResult> {
   const adminId = req.headers.get("x-admin-id")?.trim() ?? "";
-  const sessionToken = req.headers.get("x-session-token")?.trim() ?? "";
+  // HTTPONLY H1–H4: token kaynağı merkezi çözücüde (off → yalnız x-session-token).
+  const credential = pickSessionCredential(req);
 
   if (!adminId) {
     return {
@@ -42,12 +45,22 @@ export async function verifyAdminRequest(req: NextRequest): Promise<AdminGuardRe
   }
 
   // x-session-token zorunlu — yalnızca x-admin-id ile kimlik kabul edilmez.
-  if (!sessionToken) {
+  if (credential.kind === "none") {
     return {
       ok: false,
       response: NextResponse.json(
         { error: "Admin oturum doğrulaması gerekli." },
         { status: 401 },
+      ),
+    };
+  }
+
+  if (credential.kind === "csrf_denied") {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "İstek kaynağı doğrulanamadı." },
+        { status: 403 },
       ),
     };
   }
@@ -68,14 +81,25 @@ export async function verifyAdminRequest(req: NextRequest): Promise<AdminGuardRe
   // Token doğrulaması ve admin kaydı bağımsız girdilere (sessionToken / adminId
   // header'ları) dayanır → paralel çalıştırılır. Güvenlik kontrolleri aşağıda aynı
   // sırayla, aynı status ve gövdeyle değerlendirilir (davranış korunur).
-  const [tokenUserId, userRes] = await Promise.all([
-    getActiveSessionUserId(db, sessionToken),
+  const [session, userRes] = await Promise.all([
+    resolveSessionUserId(db, credential),
     db
       .from("users")
       .select("id, role, active")
       .eq("id", adminId)
       .maybeSingle(),
   ]);
+
+  if (session.status === "conflict") {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Admin oturum kimliği uyuşmuyor." },
+        { status: 401 },
+      ),
+    };
+  }
+  const tokenUserId = session.status === "ok" ? session.userId : null;
 
   // Token aktif mi + hangi kullanıcıya ait?
   if (!tokenUserId) {
@@ -111,5 +135,5 @@ export async function verifyAdminRequest(req: NextRequest): Promise<AdminGuardRe
     };
   }
 
-  return { ok: true, adminId, db };
+  return { ok: true, adminId, db, sessionToken: session.status === "ok" ? session.token : undefined };
 }

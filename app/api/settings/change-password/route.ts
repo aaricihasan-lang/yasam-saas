@@ -94,7 +94,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Diğer oturumları kapat (mevcut hariç)
-  const currentToken = req.headers.get("x-session-token")?.trim() ?? "";
+  // HTTPONLY H1–H4: guard'ın doğruladığı token (off modda = x-session-token, bugünkü gibi).
+  const currentToken = guard.sessionToken ?? req.headers.get("x-session-token")?.trim() ?? "";
   const sessQuery = db
     .from("user_sessions")
     .update({

@@ -5,7 +5,7 @@ import { AromaterapiDetailSkeleton } from "@/app/aromaterapi/_components/Aromate
 
 export default function DuzenleLoading() {
   return (
-    <AromaterapiSectionShell title="Bilgi Kaydını Düzenle" icon="📑" breadcrumbLeaf="Düzenle" showNav={false}>
+    <AromaterapiSectionShell title="Bilgi Kaydını Düzenle" icon="📑" breadcrumbLeaf="Düzenle">
       <AromaterapiDetailSkeleton />
     </AromaterapiSectionShell>
   );

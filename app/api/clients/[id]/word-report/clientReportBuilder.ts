@@ -69,6 +69,7 @@ import {
   toInstant,
 } from "@/lib/time/reportTime";
 import { mizacLabel, tidyUserText } from "@/lib/clients/wordReportText";
+import { paymentStatusLabelTR, summarizeUnpaid } from "@/lib/danisan/chargePayment";
 
 // ─── Bölüm renkleri ──────────────────────────────────────────────────────────
 
@@ -147,6 +148,8 @@ export type ClientChargeRow = {
   detail?: string | null;
   note?: string | null;
   amount?: number | null;
+  /** WT7: paid | unpaid | null (Belirtilmemiş). */
+  payment_status?: string | null;
   created_at: string;
 };
 
@@ -232,7 +235,13 @@ function buildChargeBody(charges: ClientChargeRow[]): ReportChild[] {
     out.push(muted("Henüz ücret kaydı yok."));
     return out;
   }
-  out.push(twoColTable([["Toplam Kayıt", `${charges.length}`], ["Toplam Ücret", formatTRY(total)]]));
+  const unpaid = summarizeUnpaid(charges);
+  out.push(twoColTable([
+    ["Toplam Kayıt", `${charges.length}`],
+    ["Toplam Ücret", formatTRY(total)],
+    // WT7: yalnız açıkça "Ödenmedi" kayıtlar; eski/Belirtilmemiş kayıtlar sayılmaz.
+    ...(unpaid.count > 0 ? [["Ödenmemiş", `${unpaid.count} kayıt · ${formatTRY(unpaid.total)}`] as [string, string]] : []),
+  ]));
   out.push(spacer());
   charges.forEach((c, i) => {
     out.push(profileLabel(`ÜCRET #${String(i + 1).padStart(3, "0")}`, C.ucret));
@@ -242,6 +251,7 @@ function buildChargeBody(charges: ClientChargeRow[]): ReportChild[] {
       ["Ana Tür", chargeCatLabel(c.category)],
       ["Detay", v(c.detail)],
       ["Tutar", formatTRY(c.amount ?? 0)],
+      ["Ödeme Durumu", paymentStatusLabelTR(c.payment_status)],
     ]));
     if (c.note?.trim()) { out.push(h3("Not")); out.push(bodyText(c.note.trim())); }
     if (i < charges.length - 1) out.push(divider());
@@ -334,16 +344,17 @@ function buildCompactChargeTable(charges: ClientChargeRow[]): ReportChild[] {
   const headerRow = new TableRow({
     tableHeader: true,
     cantSplit: true,
-    children: [headCell("Tarih", 16), headCell("Ana Tür", 16), headCell("Detay", 46), headCell("Tutar", 22)],
+    children: [headCell("Tarih", 15), headCell("Ana Tür", 15), headCell("Detay", 36), headCell("Ödeme", 15), headCell("Tutar", 19)],
   });
   const bodyRows = charges.map((c) =>
     new TableRow({
       cantSplit: true,
       children: [
-        textCell(formatDateTR(c.charge_date), 16),
-        textCell(chargeCatLabel(c.category), 16),
-        detailCell(c.detail, c.note, 46),
-        textCell(formatTRY(c.amount ?? 0), 22, { bold: true, align: AlignmentType.RIGHT }),
+        textCell(formatDateTR(c.charge_date), 15),
+        textCell(chargeCatLabel(c.category), 15),
+        detailCell(c.detail, c.note, 36),
+        textCell(paymentStatusLabelTR(c.payment_status), 15),
+        textCell(formatTRY(c.amount ?? 0), 19, { bold: true, align: AlignmentType.RIGHT }),
       ],
     }),
   );
@@ -497,15 +508,25 @@ function buildClientProfilePage(
   fullName: string,
   counts: { randevular: number; taslar: number; seanslar: number; odevler: number; analizler: number },
   profileImgBuf: Buffer | null,
+  badge?: string,
 ): ReportChild[] {
   const out: ReportChild[] = [];
 
+  // WT7: toplu dosyada her danışanın sıra etiketi ("DANIŞAN 3 / 12") — tekli raporda YOK (badge undefined).
+  if (badge) {
+    out.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: badge, bold: true, size: 26, font: REPORT_FONT, color: C_LIGHT, allCaps: true })],
+      pageBreakBefore: true,
+      spacing: { before: 400, after: 40 },
+    }));
+  }
   // Sayfa başlığı
   out.push(new Paragraph({
     alignment: AlignmentType.CENTER,
     children: [new TextRun({ text: "DANIŞAN PROFİLİ", bold: true, size: 48, font: REPORT_FONT, color: C.danisan, allCaps: true })],
-    pageBreakBefore: true,
-    spacing: { before: 600, after: 80 },
+    pageBreakBefore: !badge,
+    spacing: { before: badge ? 120 : 600, after: 80 },
   }));
   out.push(thickRule(C.danisan));
   out.push(gap(480));
@@ -1577,16 +1598,73 @@ export function buildClientDateRangeReport(
   return { doc, filename: `danisan-tarih-araligi-${drNameSlug}-${drStart}-${drEnd}.docx` };
 }
 
+export type ClientFullInput = {
+  data: ClientDataset;
+  profileImg: Buffer | null;
+  analysisImages?: (Buffer | null)[];
+  snapshotChildren?: ReportChild[];
+};
+
 /** Tam danışan dosyası. `snapshotChildren` (BF-14 teslim eki) route'ta async okunup verilir. */
-export function buildClientFullReport(
-  input: {
-    data: ClientDataset;
-    profileImg: Buffer | null;
-    analysisImages?: (Buffer | null)[];
-    snapshotChildren?: ReportChild[];
-  },
-  ctx: ClientReportCtx = {},
-): ClientReportResult {
+export function buildClientFullReport(input: ClientFullInput, ctx: ClientReportCtx = {}): ClientReportResult {
+  const body = buildClientFullBody(input, ctx, { cover: true, wellnessAndClosing: true });
+  const doc = new Document({ sections: buildDocSections(body.all, body.inserts, `Danışan Raporu · ${body.fullName}`) });
+  return { doc, filename: `danisan-raporu-${body.nameSlug}-${body.dateSlug}.docx` };
+}
+
+/**
+ * WT7 — TOPLU tam danışan dosyası: seçili danışanların HER BİRİ için TEKLİ tam raporun AYNI gövdesi
+ * (profil + 1–9 bölümler: temel bilgiler, genel bilgiler, randevular, taşlar, seanslar, ücretlendirme,
+ * ödevler, analizler, yolculuk). Özet DEĞİL — tekli raporla aynı kod yolu (alan atlanamaz).
+ * Yapı: toplu kapak + danışan dizini → her danışan yeni sayfada "DANIŞAN i / N" → bilgilendirme notu
+ * + kapanış bir kez. Tek footer; analiz yatay sayfaları danışan bazında doğru konuma yerleşir.
+ */
+export function buildClientsBulkFullReport(items: ClientFullInput[], ctx: ClientReportCtx = {}): ClientReportResult {
+  const { now, today, dateSlug } = reportDates(ctx);
+  const total = items.length;
+  const all: ReportChild[] = [];
+  const inserts: LandscapeInsert[] = [];
+
+  all.push(...buildPremiumCover({
+    title1: "YAŞAM SİSTEMİ",
+    title2: "Danışan Dosyaları",
+    subtitle: `${total} danışanın tam danışan dosyası`,
+    date: `Oluşturulma Tarihi: ${today}`,
+    stats: [{ label: "Danışan", value: String(total) }],
+  }));
+  all.push(h1Colored("Danışan Dizini", C.danisan, true));
+  all.push(muted(`Bu dosya ${total} danışanın tekli Word raporundaki tam içeriği sırasıyla içerir.`));
+  items.forEach((it, i) => {
+    const { fullName } = clientNames(it.data.client);
+    all.push(new Paragraph({
+      children: [
+        new TextRun({ text: `${String(i + 1).padStart(3, "0")}  `, bold: true, size: 22, font: REPORT_FONT, color: C_LIGHT }),
+        new TextRun({ text: titleCaseTR(fullName), bold: true, size: 22, font: REPORT_FONT, color: C_DARK }),
+      ],
+      spacing: { after: 60 },
+    }));
+  });
+
+  items.forEach((it, i) => {
+    const body = buildClientFullBody(it, ctx, { cover: false, wellnessAndClosing: false, badge: `DANIŞAN ${i + 1} / ${total}` });
+    const offset = all.length;
+    all.push(...body.all);
+    for (const ins of body.inserts) inserts.push({ ...ins, afterIndex: ins.afterIndex + offset });
+  });
+
+  all.push(...buildWellnessNoteSection("danisan", ctx.expertName));
+  all.push(...buildClosingPage(`${total} Danışan`, today, `RPT-${now.getTime().toString(36).toUpperCase()}`));
+
+  const doc = new Document({ sections: buildDocSections(all, inserts, "Danışan Dosyaları · Yaşam Sistemi") });
+  return { doc, filename: `danisan-dosyalari-${total}-danisan-${dateSlug}.docx` };
+}
+
+/** Tek danışanın TAM rapor gövdesi (tekli + toplu raporun ORTAK kaynağı; içerik tek yerde). */
+function buildClientFullBody(
+  input: ClientFullInput,
+  ctx: ClientReportCtx,
+  opts: { cover: boolean; wellnessAndClosing: boolean; badge?: string },
+): { all: ReportChild[]; inserts: LandscapeInsert[]; fullName: string; nameSlug: string; dateSlug: string } {
   const { client, notes, appointments, stones, sessions, homeworks, analyses, charges } = input.data;
   const profileImgBuf = input.profileImg;
   const analysisImages = input.analysisImages ?? [];
@@ -1662,8 +1740,8 @@ export function buildClientFullReport(
 
   const all: ReportChild[] = [];
 
-  all.push(...buildCoverV3(fullName, today));
-  all.push(...buildClientProfilePage(fullName, counts, profileImgBuf));
+  if (opts.cover) all.push(...buildCoverV3(fullName, today));
+  all.push(...buildClientProfilePage(fullName, counts, profileImgBuf, opts.badge));
 
   // ── 1. Danışan Temel Bilgileri
   all.push(h1Colored("1. Danışan Temel Bilgileri", C.danisan, true));
@@ -1825,12 +1903,13 @@ export function buildClientFullReport(
   // ── 10. Yaşam Hafızası Seçimleri (BF-14 P2; OPSİYONEL — route okur)
   if (input.snapshotChildren?.length) all.push(...input.snapshotChildren);
 
-  // ── FA-16: sade bilgilendirme + Hazırlayan (kapanış sayfasından önce)
-  all.push(...buildWellnessNoteSection("danisan", ctx.expertName));
+  if (opts.wellnessAndClosing) {
+    // ── FA-16: sade bilgilendirme + Hazırlayan (kapanış sayfasından önce)
+    all.push(...buildWellnessNoteSection("danisan", ctx.expertName));
 
-  // ── Kapanış (V3)
-  all.push(...buildClosingPage(fullName, today, reportId));
+    // ── Kapanış (V3)
+    all.push(...buildClosingPage(fullName, today, reportId));
+  }
 
-  const doc = new Document({ sections: buildDocSections(all, fullLsInserts, `Danışan Raporu · ${fullName}`) });
-  return { doc, filename: `danisan-raporu-${nameSlug}-${dateSlug}.docx` };
+  return { all, inserts: fullLsInserts, fullName, nameSlug, dateSlug };
 }

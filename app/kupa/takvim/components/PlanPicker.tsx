@@ -9,10 +9,13 @@ import {
   kupaInput,
 } from "@/app/kupa/components/KupaShell";
 import { CUPPING_PLAN_YEAR_MIN, CUPPING_PLAN_YEAR_MAX } from "@/lib/cupping/calendarTypes";
-import { createCalendarPlan, updateCalendarPlan, type CuppingCalendarPlan } from "@/app/kupa/lib/api";
+import { updateCalendarPlan, type CuppingCalendarPlan } from "@/app/kupa/lib/api";
 
 /**
- * FAZ 5 / AŞAMA 3 — Plan kontrolü: aktif plan seçimi + Yeni Takvim + düzenle/sil.
+ * FAZ 5 / AŞAMA 3 — Plan kontrolü: aktif plan seçimi + Yeni Takvim + ad/açıklama + sil.
+ * WT6: "+ Yeni Takvim" artık ad/açıklama formu AÇMAZ → yıl + ay seçim penceresi (çağıranda,
+ *   onNewCalendar). Eski "Düzenle" yalnız takvim ADI/AÇIKLAMASINI değiştirdiği için gün düzenleme
+ *   ile karışıyordu → "Ad / Açıklama" olarak adlandırıldı (gün düzenleme: "Bu Ayı Düzenle").
  * Düşük sürtünme: mobilde üstte plan seçici. Yıl invariantı korunur — seçili günleri olan
  * planın yılı DEĞİŞTİRİLEMEZ (sessiz gün taşıma/silme YOK).
  */
@@ -28,8 +31,7 @@ export function PlanPicker({
   hasPendingChanges = false,
   disabled = false,
   onSelect,
-  onBeforeCreate,
-  onPlanCreated,
+  onNewCalendar,
   onPlanUpdated,
   onDelete,
 }: {
@@ -41,16 +43,15 @@ export function PlanPicker({
   /** Kayıt sürerken plan kontrolleri kilitli. */
   disabled?: boolean;
   onSelect: (planId: string) => void;
-  /** Yeni plan oluşturup ona geçmeden ÖNCE: kaydedilmemiş taslak varsa onay (false → iptal). */
-  onBeforeCreate: () => Promise<boolean>;
-  onPlanCreated: (planId: string) => Promise<void> | void;
+  /** WT6: "+ Yeni Takvim" → yıl/ay seçim penceresi (çağıran açar). */
+  onNewCalendar: () => void;
   /** Ad/açıklama/yıl güncellendi → çağıran YERİNDE günceller (gün taslağı sıfırlanmaz). */
   onPlanUpdated: (plan: CuppingCalendarPlan) => void;
   onDelete: (plan: CuppingCalendarPlan) => void;
 }) {
   const { showToast } = useToast();
   const active = plans.find((p) => p.id === activePlanId) ?? null;
-  const [mode, setMode] = useState<"none" | "new" | "edit">("none");
+  const [mode, setMode] = useState<"none" | "edit">("none");
   const [name, setName] = useState("");
   const [year, setYear] = useState<number>(defaultYear());
   const [description, setDescription] = useState("");
@@ -60,13 +61,6 @@ export function PlanPicker({
   //   günler eski yıla aittir; yıl değişirse kaydedilemez hale gelirdi).
   const yearLocked = mode === "edit" && (currentDayCount > 0 || hasPendingChanges);
 
-  function openNew() {
-    const y = defaultYear();
-    setName(`${y} Hacamat Takvimi`);
-    setYear(y);
-    setDescription("");
-    setMode("new");
-  }
   function openEdit() {
     if (!active) return;
     setName(active.name);
@@ -86,20 +80,7 @@ export function PlanPicker({
     }
     setBusy(true);
     try {
-      if (mode === "new") {
-        // Yeni plana geçiş mevcut planın KAYDEDİLMEMİŞ taslağını bırakır → önce açık onay.
-        if (!(await onBeforeCreate())) return;
-        const res = await createCalendarPlan({ name: name.trim(), year, description: description.trim() || null });
-        // Demo hesabı: sunucu plan:null döndürür (persist=0) — sahte gün göstermeyiz.
-        if (!res.plan) {
-          showToast({ message: "Takvim oluşturuldu.", type: "success" });
-          setMode("none");
-          return;
-        }
-        // OTORİTER durumu getir. Yeni plan SIFIR seçili günle açılır (hazır gün YOK).
-        await onPlanCreated(res.plan.id);
-        showToast({ message: "Takvim oluşturuldu.", type: "success" });
-      } else if (mode === "edit" && active) {
+      if (mode === "edit" && active) {
         // Yıl yalnız gün yoksa gönderilir (invariant); ad/açıklama her zaman.
         const body: Parameters<typeof updateCalendarPlan>[1] = {
           name: name.trim(),
@@ -142,13 +123,13 @@ export function PlanPicker({
           </select>
         </label>
         <div className="flex gap-2">
-          <button type="button" className={`${kupaBtnPrimary} min-h-[40px]`} onClick={openNew} disabled={disabled}>
+          <button type="button" className={`${kupaBtnPrimary} min-h-[40px]`} onClick={onNewCalendar} disabled={disabled}>
             + Yeni Takvim
           </button>
           {active ? (
             <>
               <button type="button" className={`${kupaBtnGhost} min-h-[40px]`} onClick={openEdit} disabled={disabled}>
-                Düzenle
+                Ad / Açıklama
               </button>
               <button
                 type="button"
@@ -173,7 +154,7 @@ export function PlanPicker({
 
       {mode !== "none" ? (
         <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="mb-3 text-sm font-black text-slate-900">{mode === "new" ? "Yeni Takvim" : "Takvimi Düzenle"}</h3>
+          <h3 className="mb-3 text-sm font-black text-slate-900">Takvim Adı ve Açıklaması</h3>
           <div className="flex flex-col gap-3">
             <label className="flex flex-col gap-1">
               <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Takvim adı</span>

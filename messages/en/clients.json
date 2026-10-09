@@ -24,9 +24,9 @@
           "cta": "View Clients"
         },
         "takip": {
-          "title": "Client Follow-up",
+          "title": "Agenda & Appointment Center",
           "desc": "Manage appointments, session planning and day-to-day client follow-up.",
-          "badge": "Follow-up & Plan",
+          "badge": "Agenda & Appointments",
           "cta": "Open Schedule"
         }
       },

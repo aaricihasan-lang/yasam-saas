@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { formatInstantDateTime } from "@/lib/time/reportTime";
@@ -42,6 +42,12 @@ type Props = {
   /** Kaydın alındığı ekran (API `source`): ör. "dy_detay", "dy_kayit". */
   source?: string;
   className?: string;
+  /**
+   * Danışan detayı (mobil kompakt UX, owner kararı 2026-10-07): varsayılan KAPALI; yalnız kırmızı
+   * "KVKK Aydınlatma ve Onam" başlığı + aç/kapat oku görünür. İçerik DOM'da kalır (form/geçmiş/veri
+   * yüklemesi ve özet rozeti aynen çalışır) — yalnız görünürlük değişir. Veri modeli DEĞİŞMEZ.
+   */
+  collapsible?: boolean;
 };
 
 type LoadState = { forClientId: string } & (
@@ -117,7 +123,10 @@ export default function ClientConsentPanel({
   onChange,
   source,
   className = "",
+  collapsible = false,
 }: Props) {
+  const [open, setOpen] = useState(false);
+  const bodyId = `kvkk-body-${useId().replace(/:/g, "")}`;
   const [rawState, setState] = useState<LoadState>({ kind: "loading", forClientId: clientId });
   // clientId değişince eski danışanın verisi bir an bile gösterilmez.
   const state: LoadState =
@@ -207,9 +216,35 @@ export default function ClientConsentPanel({
       className={`rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm ${className}`}
       aria-label="KVKK aydınlatma ve onam kayıtları"
     >
-      <header className="flex flex-wrap items-start justify-between gap-2">
+      {collapsible ? (
+        <h3 className="m-0">
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls={bodyId}
+            data-testid="kvkk-toggle"
+            onClick={() => setOpen((v) => !v)}
+            className="flex w-full items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-left text-sm font-black text-rose-700 transition hover:bg-rose-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-400"
+          >
+            <span className="flex items-center gap-2">
+              <span aria-hidden>⚠</span>
+              KVKK Aydınlatma ve Onam
+            </span>
+            <svg
+              aria-hidden
+              viewBox="0 0 20 20"
+              className={`h-5 w-5 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+              fill="currentColor"
+            >
+              <path d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.06l3.71-3.83a.75.75 0 1 1 1.08 1.04l-4.25 4.39a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z" />
+            </svg>
+          </button>
+        </h3>
+      ) : null}
+      <div id={bodyId} hidden={collapsible && !open} data-testid="kvkk-body">
+      <header className={`flex flex-wrap items-start justify-between gap-2 ${collapsible ? "mt-3" : ""}`}>
         <div>
-          <h3 className="text-sm font-black text-slate-900">KVKK Aydınlatma ve Onam</h3>
+          {collapsible ? null : <h3 className="text-sm font-black text-slate-900">KVKK Aydınlatma ve Onam</h3>}
           <p className="mt-0.5 text-[11px] text-slate-500">
             Danışanınıza yaptığınız aydınlatmayı ve aldığınız izinleri kayıt altına alın. Kayıtlar
             değiştirilemez; geri çekme yeni bir kayıt olarak eklenir.
@@ -384,6 +419,7 @@ export default function ClientConsentPanel({
           Sonra tamamla
         </button>
       )}
+      </div>
     </section>
   );
 }

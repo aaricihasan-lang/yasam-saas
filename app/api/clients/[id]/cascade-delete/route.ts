@@ -6,6 +6,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { filterOwnedStonePhotoPaths } from "@/lib/clients/stonePhotoStorage";
 import { collectAnamnesisObjectPaths, removeObjects } from "@/lib/danisan/anamnez/server";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { collectHdStoragePathsForJourneyClient } from "@/lib/human-design/api/journeyLink";
+import { HD_CHART_IMAGE_BUCKET } from "@/lib/human-design/api/hdStorage";
 
 export const runtime = "nodejs";
 
@@ -47,6 +49,15 @@ export const runtime = "nodejs";
  *   döner (sessiz yetim PDF yok). Nesneler silinip DB silmesi başarısız olursa danışan yerinde
  *   kalır; eksik belge metadata'sı kullanıcıya görünür ve silme tekrarlanabilir (idempotent).
  *   Yollar yalnız sunucu `${tenantId}/${clientId}/` önekinden türetilir → yabancı tenant'a dokunulmaz.
+ *
+ * HUMAN DESIGN (AŞAMA 3C, migration 20271010000100):
+ *   Danışana BAĞLANMIŞ HD profili bileşik FK (ON DELETE CASCADE) ile aynı DELETE ifadesinde silinir;
+ *   profilin BEFORE DELETE trigger'ı o profile ait haritaları (provider_raw dahil) ve raporları da
+ *   siler (tek transaction; SET NULL ile sahipsiz satır kalmaz). Bağlanmamış HD kayıtlarına dokunulmaz.
+ *   HD storage (hd-chart-images: profil görsel klasörü + rapor snapshot görselleri) DB silmesinden ÖNCE
+ *   toplanır; toplanamazsa FAIL-CLOSED (danışan silinmez → sahipsiz kişisel görsel kalmaz). COMMIT
+ *   sonrası best-effort temizlenir (taş fotoğrafları ile aynı desen). Yollar yalnız bu tenant + bağlı
+ *   profil önekinden / rapor snapshot klasöründen türetilir.
  */
 
 const STONE_PHOTO_BUCKET = "stone-photos";
@@ -142,6 +153,16 @@ export async function DELETE(
     collectAnalysisImagePaths(db, tenantId, clientId),
   ]);
 
+  // 1a) Bağlı Human Design storage yolları (fail-closed: toplanamazsa silme yok).
+  const hdStorage = await collectHdStoragePathsForJourneyClient(db, tenantId, clientId);
+  if (!hdStorage.ok) {
+    logServerError({ route: "clients/[id]/cascade-delete", action: "hd-storage-collect", tenantId, cause: "hd storage collect failed" });
+    return NextResponse.json(
+      { ok: false, code: "HD_STORAGE_COLLECT_FAILED", error: "Human Design dosyaları doğrulanamadığı için danışan silinmedi. Lütfen tekrar deneyin." },
+      { status: 502 },
+    );
+  }
+
   // 1b) Anamnez PDF'leri: STORAGE-FIRST + fail-closed (bkz. dosya başı).
   const anamnesisObjects = await collectAnamnesisObjectPaths(db, tenantId, clientId);
   if (!anamnesisObjects.ok || !(await removeObjects(db, anamnesisObjects.paths))) {
@@ -176,6 +197,7 @@ export async function DELETE(
   const removals: Array<{ bucket: string; paths: string[] }> = [
     { bucket: STONE_PHOTO_BUCKET, paths: stonePhotoPaths },
     { bucket: ANALYSIS_IMAGE_BUCKET, paths: analysisImagePaths },
+    { bucket: HD_CHART_IMAGE_BUCKET, paths: hdStorage.paths },
   ];
   for (const { bucket, paths } of removals) {
     if (paths.length === 0) continue;

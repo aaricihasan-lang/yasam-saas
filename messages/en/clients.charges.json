@@ -61,7 +61,8 @@
       "validation": {
         "category": "Please select a main type.",
         "amount": "Amount must be a valid number greater than 0.",
-        "detailRequired": "A product / service / item description is required for \"Other\"."
+        "detailRequired": "A product / service / item description is required for \"Other\".",
+        "paymentStatus": "Please select the payment status (Paid / Unpaid)."
       },
       "toast": {
         "successTitle": "Success",
@@ -73,7 +74,18 @@
         "updateFailed": "Could not update the fee record.",
         "deleteFailed": "Could not delete the fee record.",
         "loadFailed": "Could not load fee records.",
-        "noClient": "Client information not found."
+        "noClient": "Client information not found.",
+        "markedPaid": "Fee marked as paid."
+      },
+      "payment": {
+        "label": "Payment Status",
+        "paid": "Paid",
+        "unpaid": "Unpaid",
+        "unknown": "Not specified",
+        "requiredHint": "Required for new records.",
+        "legacyHint": "Payment status was not recorded for this older entry; you may set it.",
+        "markPaid": "Mark as Paid",
+        "unpaidSummary": "{count} unpaid fee(s) · {total}"
       }
     }
   }

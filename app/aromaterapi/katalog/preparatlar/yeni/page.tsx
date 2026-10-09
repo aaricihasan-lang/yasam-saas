@@ -14,7 +14,6 @@ export default function YeniPreparatPage() {
       subtitle="Bir bitkiye bağlı hazırlık/elde ediliş türü ekleyin."
       icon="⚗️"
       breadcrumbLeaf="Yeni Preparat"
-      showNav={false}
       actions={
         <Link
           href="/aromaterapi/katalog?tab=preparatlar"

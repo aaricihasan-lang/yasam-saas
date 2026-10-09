@@ -14,6 +14,14 @@
  */
 import { SIFA_STALE_MESSAGE } from "@/lib/sifa-rehberi/guideVersion";
 
+/**
+ * WT4: 401 = istemcide oturum yok/sona ermiş (boş x-user-id veya geçersiz token). Ham sunucu
+ * metni ("Yetki gerekli.") kullanıcıya kayıt-yetkisi sorunu gibi görünüyordu; gerçek durum
+ * oturumun kapanmasıdır. Taslak sayfada KORUNUR (reset yok).
+ */
+export const SIFA_SESSION_ENDED_MESSAGE =
+  "Oturumunuz sona ermiş görünüyor. Değişiklikleriniz bu sayfada duruyor; yeniden giriş yapıp tekrar deneyin.";
+
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
 export type GuideWriteDeps = {
@@ -70,6 +78,9 @@ async function versionedWrite(
   }
   if (res.status === 404 || json.notFound === true) {
     return { ok: false, stale: false, notFound: true, error: "Kayıt bulunamadı veya erişim izniniz yok." };
+  }
+  if (res.status === 401) {
+    return { ok: false, stale: false, notFound: false, error: SIFA_SESSION_ENDED_MESSAGE };
   }
   if (!res.ok || json.ok !== true) {
     return { ok: false, stale: false, notFound: false, error: json.error ?? fallbackError(res.status) };

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { BULK_DELETE_LIMIT_ERROR, exceedsBulkDeleteLimit } from "@/lib/api/bulkDeleteLimits";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { validateGuideBody, validateSectionsBody } from "@/lib/sifa-rehberi/limits";
 import { normalizeReplaceSections } from "@/lib/sifa-rehberi/sectionModel";
@@ -291,6 +292,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   if (ids.length === 0) {
     return NextResponse.json({ ok: false, error: "Silinecek kayıt seçilmedi." }, { status: 400 });
   }
+  if (exceedsBulkDeleteLimit(ids)) return NextResponse.json({ ok: false, error: BULK_DELETE_LIMIT_ERROR }, { status: 400 });
 
   // Biçim guard'ı: geçersiz (non-UUID) id `.in("id", …)` üzerinden Postgres 22P02 → sanitize
   // 500 üretiyordu. Herhangi biri geçersizse temiz 400 (ham hata SIZMAZ; tenant binding değişmez).

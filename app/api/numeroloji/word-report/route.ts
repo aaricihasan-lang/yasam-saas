@@ -22,6 +22,7 @@ import type { CalendarDate } from "@/lib/numeroloji/timing";
 import type { SourceEntryRow } from "@/app/numeroloji/bilgi-bankasi/helpers/sourceEntryUiLogic";
 import type { KnowledgeRecordRow } from "@/app/numeroloji/bilgi-bankasi/helpers/bilgiBankaKayit";
 import { buildStockIndex, type StockIndex } from "@/app/numeroloji/bilgi-bankasi/helpers/stoneStockLogic";
+import { canSeeNumerologyFutureYears } from "@/app/numeroloji/utils/futureYearsAccess";
 
 export const runtime = "nodejs";
 
@@ -134,7 +135,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     stockIndex = buildStockIndex((invRes.error ? [] : invRes.rows) as { name?: unknown; adet?: unknown }[]);
   }
 
-  const { children, emptyTabs, anyContent } = buildNumerolojiWordChildren(rows, sections, shared, stockIndex, refCalendar);
+  // Gelecek Yıllar alt-yetkisi SUNUCUDA, doğrulanmış profilden (module_permissions) her istekte
+  // yeniden çözülür; body'de gelen hiçbir alan yetki sayılmaz. Rapor saklanmaz/önbelleğe alınmaz →
+  // yetki kapatıldıktan sonraki ilk indirme sınırı yeniden uygular.
+  const futureYears = canSeeNumerologyFutureYears(guard.profile);
+  const { children, emptyTabs, anyContent } = buildNumerolojiWordChildren(rows, sections, shared, stockIndex, refCalendar, new Date(), futureYears);
 
   // Tüm seçilen sekmeler boşsa → dosya üretme, açık mesaj döndür.
   if (!anyContent) {
@@ -175,6 +180,8 @@ export async function POST(req: NextRequest): Promise<Response> {
       "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
       "Content-Length": String(buffer.length),
       "X-Empty-Tabs": encodeURIComponent(emptyHeader),
+      // Yetkiye bağlı içerik (Gelecek Yıllar) → ara katman/tarayıcı önbelleğinde tekrar kullanılmaz.
+      "Cache-Control": "no-store",
     },
   });
 }

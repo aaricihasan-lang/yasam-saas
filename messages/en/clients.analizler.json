@@ -81,7 +81,11 @@
         "word": "Export to Word",
         "wordPreparing": "Preparing Word...",
         "save": "Save",
-        "saving": "Saving..."
+        "saving": "Saving...",
+        "saveAndClose": "Save & Close",
+        "edit": "Edit",
+        "readOnlyHint": "Saved analysis opened read-only. Press “Edit” to change it.",
+        "editingHint": "Edit mode — changes are saved with “Save & Close”."
       },
       "section": {
         "beforeEnergy": "Before Session — Energy Bodies",
@@ -130,7 +134,8 @@
         "sessionInvalid": "Session could not be verified, refresh the page and try again.",
         "wordFailed": "Word could not be generated.",
         "wordDownloaded": "Word file downloaded.",
-        "wordFailedRetry": "Word could not be generated. Check your connection and try again."
+        "wordFailedRetry": "Word could not be generated. Check your connection and try again.",
+        "saveNetwork": "Server unreachable; the analysis was not saved."
       },
       "error": {
         "pdfNoContent": "No PDF content found."

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { BULK_DELETE_LIMIT_ERROR, exceedsBulkDeleteLimit } from "@/lib/api/bulkDeleteLimits";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
@@ -84,6 +85,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
 
   const ids = readIds(body);
   if (ids.length === 0) return NextResponse.json({ ok: false, error: "stoneIds boş." }, { status: 400 });
+  if (exceedsBulkDeleteLimit(ids)) return NextResponse.json({ ok: false, error: BULK_DELETE_LIMIT_ERROR }, { status: 400 });
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 

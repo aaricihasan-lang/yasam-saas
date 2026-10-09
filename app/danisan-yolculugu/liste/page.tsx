@@ -34,6 +34,8 @@ import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
 import { buildNameListLines } from "@/lib/ui/deleteConfirmMessage";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
+import { BULK_WORD_MAX_CLIENTS, resolveBulkWordScope } from "@/lib/danisan/bulkWord";
+import { NO_ANDROID_CLASS } from "@/lib/platform/outputSupport";
 import { activityStatus, relativeDayInfo } from "@/lib/danisan/clientDisplay";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -120,6 +122,7 @@ const ClientCard = memo(function ClientCard({
   client,
   isSelected,
   expiredCount,
+  unpaidCount = 0,
   onToggle,
   onOpen,
   onPrefetch,
@@ -127,6 +130,8 @@ const ClientCard = memo(function ClientCard({
   client: Client;
   isSelected: boolean;
   expiredCount: number;
+  /** WT7: payment_status='unpaid' ücret kaydı adedi (eski/Belirtilmemiş sayılmaz). */
+  unpaidCount?: number;
   onToggle: (id: string) => void;
   onOpen: (id: string) => void;
   onPrefetch: (id: string) => void;
@@ -184,6 +189,14 @@ const ClientCard = memo(function ClientCard({
             {hasExpiredHw && (
               <span className="inline-flex shrink-0 items-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">
                 {t("card.expiredHw", { count: expiredCount })}
+              </span>
+            )}
+            {unpaidCount > 0 && (
+              <span
+                data-testid="client-unpaid-badge"
+                className="inline-flex shrink-0 items-center rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-700"
+              >
+                {t("card.unpaid")}
               </span>
             )}
           </div>
@@ -318,6 +331,13 @@ export default function DanisanListePage() {
   const [sessionChecked, setSessionChecked] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [homeworkAlerts, setHomeworkAlerts] = useState<Record<string, number>>({});
+  // WT7: "Ücret Alınmadı" rozeti — tek aggregate istek (N+1 yok); yalnız 'unpaid' kayıtlar.
+  const [unpaidCharges, setUnpaidCharges] = useState<Record<string, { count: number; total: number }>>({});
+  const unpaidRef = useRef<Record<string, { count: number; total: number }>>({});
+  useEffect(() => { unpaidRef.current = unpaidCharges; }, [unpaidCharges]);
+  // Aktif Uyarı listesi: uyarısı olan danışanların adları (sunucudan) + panel aç/kapat.
+  const [alertNames, setAlertNames] = useState<Record<string, string>>({});
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -342,6 +362,7 @@ export default function DanisanListePage() {
   // Toplu seçim ve Word export
   const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
+  const [selectingAll, setSelectingAll] = useState(false);
   const isAndroid = useIsAndroid();
 
   const tenantId = sessionUser?.tenant_id?.trim() || null;
@@ -434,6 +455,7 @@ export default function DanisanListePage() {
     () => visibleSelection(selectedClientIds, filteredIds),
     [selectedClientIds, filteredIds],
   );
+  const wordScope = resolveBulkWordScope(visibleSelectedIds.length, total, hasActiveFilter);
 
   const toggleClientSelection = useCallback((id: string) => {
     setSelectedClientIds((prev) => {
@@ -443,9 +465,24 @@ export default function DanisanListePage() {
     });
   }, []);
 
-  const selectAllFiltered = useCallback(() => {
-    setSelectedClientIds(new Set(filteredClients.map((c) => c.id)));
-  }, [filteredClients]);
+  // WT7: "Tümünü Seç" GERÇEK tam veri kümesini kapsar — gözat modunda yalnız yüklü sayfalar
+  // değil; önce tüm danışanlar çekilir, sonra (varsa) aktif arama/filtre uygulanır.
+  const selectAllBusyRef = useRef(false);
+  async function selectAllFiltered() {
+    if (!tenantId || selectAllBusyRef.current) return;
+    selectAllBusyRef.current = true;
+    setSelectingAll(true);
+    try {
+      let base: Client[] | null = clients;
+      if (!fullLoaded) base = await loadFull(tenantId);
+      if (!base) return;
+      const filters = { search, burc: filterBurc, kan: filterKan, mizac: filterMizac, initial: filterInitial };
+      setSelectedClientIds(new Set(base.filter((c) => matchesClientFilters(c, filters)).map((c) => c.id)));
+    } finally {
+      selectAllBusyRef.current = false;
+      setSelectingAll(false);
+    }
+  }
 
   const clearClientSelection = useCallback(() => {
     setSelectedClientIds(new Set());
@@ -498,10 +535,23 @@ export default function DanisanListePage() {
     return { clients: json.clients ?? [], count: typeof json.count === "number" ? json.count : null };
   }
 
+  async function fetchUnpaid(): Promise<Record<string, { count: number; total: number }>> {
+    const res = await fetch("/api/clients/charges-unpaid", { headers: authHeaders() }).catch(() => null);
+    if (!res || !res.ok) { console.error("Ödenmemiş ücret özeti yüklenemedi:", res?.status); return {}; }
+    const j = (await res.json().catch(() => ({}))) as { unpaid?: Record<string, { count: number; total: number }> };
+    return j.unpaid ?? {};
+  }
+
+  /** Önbelleğe yazarken güncel ödenmemiş özeti de korur. */
+  function writeCache(tid: string, entry: Omit<Parameters<typeof setDanisanListCache>[1], "unpaid">) {
+    setDanisanListCache(tid, { ...entry, unpaid: unpaidRef.current });
+  }
+
   async function fetchAlerts(): Promise<Record<string, number>> {
     const res = await fetch("/api/clients/homeworks-alerts", { headers: authHeaders() });
     if (!res.ok) { console.error("Ödev uyarıları yüklenemedi:", res.status); return {}; }
-    const j = (await res.json().catch(() => ({}))) as { alerts?: Record<string, number> };
+    const j = (await res.json().catch(() => ({}))) as { alerts?: Record<string, number>; names?: Record<string, string> };
+    if (j.names) setAlertNames((prev) => ({ ...prev, ...j.names }));
     return j.alerts ?? {};
   }
 
@@ -513,18 +563,22 @@ export default function DanisanListePage() {
       setTotal(cached.total);
       setFullLoaded(cached.fullLoaded);
       setHomeworkAlerts(cached.alerts);
+      if (cached.unpaid) setUnpaidCharges(cached.unpaid);
+      else void fetchUnpaid().then(setUnpaidCharges);
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const [page, alerts] = await Promise.all([fetchClientsPage(0, PAGE_SIZE), fetchAlerts()]);
+      const [page, alerts, unpaid] = await Promise.all([fetchClientsPage(0, PAGE_SIZE), fetchAlerts(), fetchUnpaid()]);
       const full = page.count !== null && page.clients.length >= page.count;
       setClients(page.clients);
       setTotal(page.count);
       setFullLoaded(full);
       setHomeworkAlerts(alerts);
-      setDanisanListCache(tid, {
+      setUnpaidCharges(unpaid);
+      unpaidRef.current = unpaid;
+      writeCache(tid, {
         clients: page.clients,
         total: page.count ?? page.clients.length,
         fullLoaded: full,
@@ -549,7 +603,7 @@ export default function DanisanListePage() {
       setClients(merged);
       setTotal(newTotal);
       setFullLoaded(full);
-      setDanisanListCache(tenantId, { clients: merged, total: newTotal, fullLoaded: full, alerts: homeworkAlerts });
+      writeCache(tenantId, { clients: merged, total: newTotal, fullLoaded: full, alerts: homeworkAlerts });
     } catch {
       showToast({ title: t("toast.errorTitle"), message: t("toast.loadMoreError"), type: "error" });
     } finally {
@@ -558,7 +612,7 @@ export default function DanisanListePage() {
   }
 
   // Arama/filtre/sıralama gerekince: tüm veriyi bir kez çek (Türkçe arama tam veriyle).
-  async function loadFull(tid: string) {
+  async function loadFull(tid: string): Promise<Client[] | null> {
     setLoadingMore(true);
     try {
       const all: Client[] = [];
@@ -578,9 +632,11 @@ export default function DanisanListePage() {
       setClients(all);
       setTotal(grand ?? all.length);
       setFullLoaded(true);
-      setDanisanListCache(tid, { clients: all, total: grand ?? all.length, fullLoaded: true, alerts: homeworkAlerts });
+      writeCache(tid, { clients: all, total: grand ?? all.length, fullLoaded: true, alerts: homeworkAlerts });
+      return all;
     } catch {
       showToast({ title: t("toast.errorTitle"), message: t("toast.loadAllError"), type: "error" });
+      return null;
     } finally {
       setLoadingMore(false);
     }
@@ -648,6 +704,8 @@ export default function DanisanListePage() {
       // Ad listeli onay + bağlı olmayan modüller notu + "SİL" yazarak onay (geri alınamaz).
       const confirmed = await deleteConfirm({
         title: t("toast.deleteConfirmTitle"),
+        count: ids.length,
+        noun: "danışan",
         message: [
           t("toast.deleteConfirmMsg", { count: ids.length }),
           buildNameListLines(ids.map(nameOf), ids.length).join("\n"),
@@ -702,12 +760,26 @@ export default function DanisanListePage() {
           for (const id of deletedIds) next.delete(id);
           return next;
         });
+        // Silinen danışanların "Aktif Uyarı" katkısı ANINDA düşer (sayfa yenilemeden).
+        const remainingAlerts: Record<string, number> = { ...homeworkAlerts };
+        for (const id of deletedIds) delete remainingAlerts[id];
+        setHomeworkAlerts(remainingAlerts);
         // Önbelleği güncel tut → geri dönüşte doğru (silinmiş) liste anında görünür.
-        setDanisanListCache(tenantId, {
+        writeCache(tenantId, {
           clients: remaining,
           total: newTotal ?? remaining.length,
           fullLoaded,
-          alerts: homeworkAlerts,
+          alerts: remainingAlerts,
+        });
+        // Sunucu gerçeğiyle eşitle (başka sekme/cihaz değişiklikleri dahil).
+        void fetchAlerts().then((fresh) => {
+          setHomeworkAlerts(fresh);
+          writeCache(tenantId, {
+            clients: remaining,
+            total: newTotal ?? remaining.length,
+            fullLoaded,
+            alerts: fresh,
+          });
         });
       }
     }
@@ -727,19 +799,21 @@ export default function DanisanListePage() {
     showToast({ title: t("toast.successTitle"), message: t("toast.deleteSuccess", { count: deletedIds.length }), type: "success" });
   }
 
-  async function exportClientsWord(mode: "selected" | "all" | "filtered") {
-    if (!tenantId) return;
+  // WT7: TEK dinamik Word aksiyonu — yalnız iki kapsam: seçilen danışanlar veya GERÇEKTEN tüm danışanlar.
+  async function exportClientsWord() {
+    if (!tenantId || wordBusy) return;
+    // DY-A: Word yalnız seçili ∩ görünür kesişim.
+    const ids = [...visibleSelectedIds];
+    const scope = resolveBulkWordScope(ids.length, total, hasActiveFilter);
+    if (scope.count === 0) { showToast({ title: t("toast.warnTitle"), message: t("toast.exportSelectFirst"), type: "warning" }); return; }
+    if (scope.count > BULK_WORD_MAX_CLIENTS) {
+      showToast({ title: t("toast.errorTitle"), message: t("bulkWord.tooMany", { max: BULK_WORD_MAX_CLIENTS, count: scope.count }), type: "error" });
+      return;
+    }
+    const mode = scope.mode;
+    const clientIds = mode === "selected" ? ids : undefined;
     setWordBusy(true);
     try {
-      let clientIds: string[] | undefined;
-      if (mode === "selected") {
-        // DY-A: Word "seçili" de yalnız görünür kesişim.
-        clientIds = [...visibleSelectedIds];
-        if (!clientIds.length) { showToast({ title: t("toast.warnTitle"), message: t("toast.exportSelectFirst"), type: "warning" }); return; }
-      } else if (mode === "filtered") {
-        clientIds = filteredClients.map((c) => c.id);
-        if (!clientIds.length) { showToast({ title: t("toast.warnTitle"), message: t("toast.exportNoFiltered"), type: "warning" }); return; }
-      }
 
       const userId = readYasamUser()?.id;
       const sessionToken = readSessionToken();
@@ -757,9 +831,9 @@ export default function DanisanListePage() {
         throw new Error((err as { error?: string }).error || t("toast.exportError"));
       }
       // Dosya adı sunucudan (Content-Disposition); yoksa yerel-gün (İstanbul) yedeği.
-      const modeSlug = mode === "selected" ? "secili" : mode === "filtered" ? "filtreli" : "tumu";
-      await downloadFileResponse(res, `danisan-listesi-${modeSlug}-${reportFileDate()}.docx`);
-      showToast({ title: t("toast.successTitle"), message: t("toast.exportSuccess"), type: "success" });
+      const count = Number(res.headers.get("X-Report-Client-Count")) || scope.count;
+      await downloadFileResponse(res, `danisan-dosyalari-${count}-danisan-${reportFileDate()}.docx`);
+      showToast({ title: t("toast.successTitle"), message: t("bulkWord.success", { count }), type: "success" });
     } catch (err) {
       showToast({ title: t("toast.errorTitle"), message: err instanceof Error ? err.message : t("toast.unknownError"), type: "error" });
     } finally {
@@ -801,14 +875,29 @@ export default function DanisanListePage() {
               <strong className="block text-2xl font-black text-slate-950 sm:text-3xl">{loading ? "—" : (total ?? clients.length)}</strong>
               <span className="mt-0.5 block text-xs font-bold uppercase tracking-wide text-slate-500">{t("statClients")}</span>
             </div>
-            <div className={`rounded-2xl border px-2 py-2.5 text-center shadow-md backdrop-blur-sm sm:min-w-[110px] sm:px-5 sm:py-4 ${
-              totalExpiredHomework > 0 ? "border-red-200/80 bg-red-50/90" : "border-blue-200/80 bg-blue-50/90"
-            }`}>
-              <strong className={`block text-2xl font-black sm:text-3xl ${totalExpiredHomework > 0 ? "text-red-600" : "text-blue-600"}`}>
-                {totalExpiredHomework}
-              </strong>
-              <span className="mt-0.5 block text-xs font-bold uppercase tracking-wide text-slate-500">{t("statAlerts")}</span>
-            </div>
+            {totalExpiredHomework > 0 ? (
+              // Uyarı > 0 → kart tıklanabilir: geciken ödevi olan danışanların listesi açılır.
+              <button
+                type="button"
+                onClick={() => setAlertsOpen((v) => !v)}
+                aria-expanded={alertsOpen}
+                aria-controls="dy-active-alerts-panel"
+                aria-label={t("alertsOpen")}
+                data-testid="dy-alerts-card"
+                className="rounded-2xl border border-red-200/80 bg-red-50/90 px-2 py-2.5 text-center shadow-md backdrop-blur-sm transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-400 sm:min-w-[110px] sm:px-5 sm:py-4"
+              >
+                <strong className="block text-2xl font-black text-red-600 sm:text-3xl">{totalExpiredHomework}</strong>
+                <span className="mt-0.5 flex items-center justify-center gap-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+                  {t("statAlerts")}
+                  <span aria-hidden className={`inline-block transition-transform ${alertsOpen ? "rotate-180" : ""}`}>▾</span>
+                </span>
+              </button>
+            ) : (
+              <div data-testid="dy-alerts-card" className="rounded-2xl border border-blue-200/80 bg-blue-50/90 px-2 py-2.5 text-center shadow-md backdrop-blur-sm sm:min-w-[110px] sm:px-5 sm:py-4">
+                <strong className="block text-2xl font-black text-blue-600 sm:text-3xl">{totalExpiredHomework}</strong>
+                <span className="mt-0.5 block text-xs font-bold uppercase tracking-wide text-slate-500">{t("statAlerts")}</span>
+              </div>
+            )}
             <Link
               href="/danisan-yolculugu/kayit"
               className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-2 py-2.5 text-center text-[13px] font-black text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg sm:gap-2 sm:px-5 sm:py-4 sm:text-sm"
@@ -818,6 +907,48 @@ export default function DanisanListePage() {
             </Link>
           </div>
         </header>
+
+        {alertsOpen && totalExpiredHomework > 0 ? (
+          <section
+            id="dy-active-alerts-panel"
+            data-testid="dy-alerts-panel"
+            className="mb-5 rounded-2xl border border-red-200 bg-white/95 p-3 shadow-md sm:p-4"
+          >
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-black text-red-700">⚠ {t("alertsPanelTitle")}</h2>
+              <button type="button" onClick={() => setAlertsOpen(false)} className="rounded-lg px-2 py-1 text-xs font-bold text-slate-500 hover:bg-slate-100">
+                {t("alertsClose")}
+              </button>
+            </div>
+            <ul className="divide-y divide-slate-100">
+              {Object.entries(homeworkAlerts)
+                .filter(([, n]) => n > 0)
+                .sort((a, b) => b[1] - a[1])
+                .map(([id, n]) => {
+                  const fromList = clients.find((c) => c.id === id);
+                  const name =
+                    alertNames[id] ||
+                    [fromList?.ad, fromList?.soyad].map((x) => (x ?? "").trim()).filter(Boolean).join(" ") ||
+                    t("alertsUnknownClient");
+                  return (
+                    <li key={id} className="flex flex-col gap-1.5 py-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-slate-900">{name}</p>
+                        <p className="text-xs font-bold text-red-600">{t("alertsOverdue", { count: n })}</p>
+                      </div>
+                      <Link
+                        href={`/dashboard/clients/${encodeURIComponent(id)}?tab=odevler`}
+                        data-testid="dy-alert-link"
+                        className="inline-flex w-fit items-center rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-100"
+                      >
+                        {t("alertsGoTo")} →
+                      </Link>
+                    </li>
+                  );
+                })}
+            </ul>
+          </section>
+        ) : null}
 
         {isDemo && (
           <div className="mb-6 overflow-hidden rounded-2xl border-2 border-amber-400 shadow-md">
@@ -987,12 +1118,13 @@ export default function DanisanListePage() {
                 totalCount={total ?? clients.length}
                 filteredCount={filteredClients.length}
                 hasActiveFilter={hasActiveFilter}
-                onSelectAll={selectAllFiltered}
+                onSelectAll={() => void selectAllFiltered()}
+                selectAllLabel={selectingAll ? t("bulkWord.loadingAll") : hasActiveFilter ? t("bulkWord.selectAllFiltered") : t("bulkWord.selectAll")}
+                selectAllCount={hasActiveFilter && fullLoaded ? filteredClients.length : (total ?? clients.length)}
                 onClearSelection={clearClientSelection}
-                onExportSelected={isAndroid ? undefined : () => void exportClientsWord("selected")}
-                onExportAll={isAndroid ? undefined : () => void exportClientsWord("all")}
-                onExportFiltered={!isAndroid && hasActiveFilter ? () => void exportClientsWord("filtered") : undefined}
-                isExporting={wordBusy}
+                onExportSelected={isAndroid ? undefined : () => void exportClientsWord()}
+                exportSelectedLabel={wordScope.isAll ? t("bulkWord.wordAll") : t("bulkWord.wordSelected")}
+                isExporting={wordBusy || selectingAll}
                 onDeleteSelected={
                   isDemo
                     ? () => showToast({ title: t("demoNotice.title"), message: t("demoReadOnly"), type: "info" })
@@ -1001,6 +1133,19 @@ export default function DanisanListePage() {
                 isDeleting={deleteLoading}
                 hideWordOnMobile
               />
+              {/* Kapsam açıklaması yalnız Word butonunun göründüğü yerde (md+, Android değil) — politika gereği
+                  Word gizliyken "Word…" metni yanıltmasın; seçim sayacı çubukta her yerde görünür. */}
+              {!isAndroid && (
+              <p data-testid="bulk-word-scope" className={`${NO_ANDROID_CLASS} mt-1.5 hidden px-1 text-[12px] font-semibold text-slate-500 md:block`}>
+                {visibleSelectedIds.length === 0
+                  ? t("bulkWord.scopeNone")
+                  : hasActiveFilter
+                    ? t("bulkWord.scopeFiltered", { filtered: filteredClients.length, selected: visibleSelectedIds.length })
+                    : wordScope.isAll
+                      ? t("bulkWord.scopeAll", { total: total ?? clients.length })
+                      : t("bulkWord.scopeSelected", { selected: visibleSelectedIds.length, total: total ?? clients.length })}
+              </p>
+              )}
             </div>
           )}
 
@@ -1047,6 +1192,7 @@ export default function DanisanListePage() {
                   client={client}
                   isSelected={selectedClientIds.has(client.id)}
                   expiredCount={homeworkAlerts[client.id] || 0}
+                  unpaidCount={unpaidCharges[client.id]?.count || 0}
                   onToggle={toggleClientSelection}
                   onOpen={openClient}
                   onPrefetch={prefetchClient}

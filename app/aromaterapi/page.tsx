@@ -97,7 +97,6 @@ export default function AromaTerapiHubPage() {
       title="Aromaterapi Merkezi"
       subtitle="Uçucu, sabit ve maserasyon yağı kütüphaneleri, karışım oluşturucu, kaynaklar ve bilgi kayıtları. Profesyonel referans ve çalışma merkezi."
       icon="🌸"
-      showNav={false}
       banner={
         isDemo ? (
           <DemoModuleBanner message="Aromaterapi modülü demo hesabı için temsili verilerle gösterilmektedir. İçerikler görüntülenebilir; düzenleme ve yeni kayıt işlemleri demo hesabında çalışmaz." />

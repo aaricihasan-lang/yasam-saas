@@ -1,7 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerDb } from "@/lib/supabase-server";
+import { clientIpFromHeaders, hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 
 export const runtime = "nodejs";
+
+// Anonim spam sınırı (MEM-012 global DB sayacı; kova anahtarı HMAC — ham IP/e-posta yazılmaz).
+// Gerçek ziyaretçi bir-iki talep gönderir; bot kısa sürede yüzlerce satır üretemez.
+const IP_LIMIT = 5;
+const IP_WINDOW_SEC = 15 * 60;
+const EMAIL_LIMIT = 3;
+const EMAIL_WINDOW_SEC = 60 * 60;
+
+function rateLimited(retryAfterSec: number) {
+  return NextResponse.json(
+    { error: "Çok fazla talep gönderildi. Lütfen daha sonra tekrar deneyin." },
+    { status: 429, headers: { "Retry-After": String(retryAfterSec) } },
+  );
+}
 
 /**
  * POST /api/contact/support-request
@@ -19,7 +34,8 @@ export const runtime = "nodejs";
  * Güvenlik: subject CLIENT'tan GÜVENİLMEZ. Yalnız `context` allowlist'ine göre
  * sunucu tarafında üretilir; admin panelde iki akış konudan ayırt edilir.
  * Kişisel GSM / hassas veri sunucuya gömülmez. Anonim spam'e karşı: alan
- * validasyonu + uzunluk sınırı + gizli honeypot alanı (aşırı altyapı yok).
+ * validasyonu + uzunluk sınırı + gizli honeypot alanı + global DB rate limit
+ * (IP ve e-posta kovaları; mevcut hitDbRateLimit — register ile aynı mekanizma).
  */
 type SupportContext = "password_support" | "membership_contact";
 
@@ -71,6 +87,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  let db: ReturnType<typeof getServerDb>;
+  try {
+    db = getServerDb();
+  } catch {
+    return NextResponse.json({ error: "Sunucu yapılandırma hatası." }, { status: 500 });
+  }
+
+  // IP kovası her (honeypot dışı) denemeyi sayar; geçersiz istekler de dahil.
+  const ipHit = await hitDbRateLimit(
+    db,
+    rateLimitBucket("support-ip", clientIpFromHeaders(req.headers)),
+    IP_LIMIT,
+    IP_WINDOW_SEC,
+  );
+  if (!ipHit.allowed) return rateLimited(ipHit.retryAfterSec || IP_WINDOW_SEC);
+
   const fullName = String(body.fullName ?? "").trim();
   const email = String(body.email ?? "").trim();
   const phone = String(body.phone ?? "").trim();
@@ -119,11 +151,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Mesaj en fazla 4000 karakter." }, { status: 400 });
   }
 
-  let db: ReturnType<typeof getServerDb>;
-  try {
-    db = getServerDb();
-  } catch {
-    return NextResponse.json({ error: "Sunucu yapılandırma hatası." }, { status: 500 });
+  if (email) {
+    const emailHit = await hitDbRateLimit(
+      db,
+      rateLimitBucket("support-email", email.toLowerCase()),
+      EMAIL_LIMIT,
+      EMAIL_WINDOW_SEC,
+    );
+    if (!emailHit.allowed) return rateLimited(emailHit.retryAfterSec || EMAIL_WINDOW_SEC);
   }
 
   // Anonim talebi iliştireceğimiz admin/sistem hesabı (FK + NOT NULL için).

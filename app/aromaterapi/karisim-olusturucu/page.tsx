@@ -6,7 +6,6 @@ import { runInEffect } from "@/lib/runInEffect";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { readYasamUser, getYasamUserDisplayName } from "@/lib/auth/yasamUser";
 import { BlendRecetePrint, type PrintableBlend } from "./_components/BlendRecetePrint";
-import { AromaterapiModuleNav } from "@/app/aromaterapi/_components/AromaterapiModuleNav";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
@@ -39,6 +38,7 @@ import {
   type BlendItem,
   type Blend,
 } from "@/lib/aromaterapi/blendData";
+import { suggestCopyName, validateCopyName } from "@/lib/aromaterapi/copyName";
 import { type PhotosensitivityStatus } from "@/lib/aromaterapi/oilFields";
 import {
   DEFAULT_BLEND_BOTTLE_ML,
@@ -126,6 +126,10 @@ export default function KarisimOlusturucuPage() {
   const [savedError, setSavedError] = useState<string | null>(null); // ARO-017
   const [saving, setSaving] = useState(false);
   const [copyingId, setCopyingId] = useState<string | null>(null); // ARO-007 çift-tık kilidi
+  // WT5: kopyalamadan önce yeni ad sorulur (otomatik "(Kopya)" eki YOK).
+  const [copyTarget, setCopyTarget] = useState<Blend | null>(null);
+  const [copyName, setCopyName] = useState("");
+  const [copyNameError, setCopyNameError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingUpdatedAt, setEditingUpdatedAt] = useState<string | null>(null); // ARO-008
   const [staleConflict, setStaleConflict] = useState(false); // ARO-008 çakışma bandı
@@ -427,13 +431,31 @@ export default function KarisimOlusturucuPage() {
     resetForm();
   }
 
-  // Tek tıkla kopya: "Ad (Kopya)" adıyla YENİ kayıt; orijinal değişmez.
-  async function copyBlend(blend: Blend) {
-    if (copyingId) return; // ARO-007 çift-tık kilidi
+  // WT5: "Kopyala" → ad penceresi. Öneri çakışmasız ("Ad 2"); uzman gerçek adı belirler.
+  // Boş / mevcut bir karışımla aynı ad kabul edilmez. Orijinal değişmez.
+  function openCopyDialog(blend: Blend) {
+    if (copyingId) return;
+    setCopyTarget(blend);
+    setCopyName(suggestCopyName(blend.name, saved.map((b) => b.name)));
+    setCopyNameError(null);
+  }
+
+  function closeCopyDialog() {
+    if (copyingId) return;
+    setCopyTarget(null);
+    setCopyNameError(null);
+  }
+
+  async function confirmCopyBlend() {
+    const blend = copyTarget;
+    if (!blend || copyingId) return; // ARO-007 çift-tık kilidi
+    const nameError = validateCopyName(copyName, saved.map((b) => b.name));
+    if (nameError) { setCopyNameError(nameError); return; }
     setCopyingId(blend.id);
-    const input = { ...blendToInput(blend), name: `${blend.name} (Kopya)` };
+    const input = { ...blendToInput(blend), name: copyName.trim() };
     const { blend: created, error, demo } = await saveBlend(input);
     setCopyingId(null);
+    setCopyTarget(null);
     if (demo) { showToast({ title: "Demo", message: "Demo hesabında kayıt yapılmaz.", type: "info" }); return; }
     if (error || !created) { showToast({ title: "Kopyalanamadı", message: error ?? "Bilinmeyen hata", type: "error" }); return; }
     showToast({ title: "Kopyalandı", message: `“${created.name}” oluşturuldu.`, type: "success" });
@@ -518,7 +540,6 @@ export default function KarisimOlusturucuPage() {
     <>
     <main className={`${pageBg} print:hidden`}>
       <div className="relative z-10 mx-auto w-full max-w-[1500px] space-y-4 px-3 py-4 sm:px-5 lg:px-7">
-        <AromaterapiModuleNav />
         {/* Header */}
         <header className={`${panel} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
           <div className="min-w-0">
@@ -738,7 +759,7 @@ export default function KarisimOlusturucuPage() {
                   </div>
                   <div className="mt-2 flex gap-1.5">
                     <button type="button" onClick={() => void loadBlend(b)} className="flex-1 rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-black text-amber-700 transition hover:bg-amber-50">Düzenle</button>
-                    <button type="button" onClick={() => void copyBlend(b)} disabled={copyingId === b.id} className="flex-1 rounded-lg border border-sky-200 bg-white px-2 py-1 text-[11px] font-black text-sky-700 transition hover:bg-sky-50 disabled:opacity-60">{copyingId === b.id ? "…" : "Kopyala"}</button>
+                    <button type="button" onClick={() => openCopyDialog(b)} disabled={copyingId === b.id} className="flex-1 rounded-lg border border-sky-200 bg-white px-2 py-1 text-[11px] font-black text-sky-700 transition hover:bg-sky-50 disabled:opacity-60">{copyingId === b.id ? "…" : "Kopyala"}</button>
                   </div>
                   <div className="mt-1.5 flex gap-1.5">
                     {!isAndroidApp && (
@@ -755,6 +776,45 @@ export default function KarisimOlusturucuPage() {
         </section>
       </div>
     </main>
+
+    {copyTarget ? (
+      <div
+        className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm print:hidden"
+        role="presentation"
+        onMouseDown={(e) => { if (e.target === e.currentTarget) closeCopyDialog(); }}
+      >
+        <form
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="blend-copy-title"
+          data-testid="blend-copy-dialog"
+          onSubmit={(e) => { e.preventDefault(); void confirmCopyBlend(); }}
+          className="w-full max-w-[440px] rounded-[24px] border border-white/90 bg-white p-5 shadow-[0_24px_70px_rgba(15,23,42,0.18)] ring-1 ring-amber-100/70"
+        >
+          <h2 id="blend-copy-title" className="text-[17px] font-black text-slate-950">Karışımı kopyala</h2>
+          <p className="mt-1 text-[12.5px] font-medium leading-relaxed text-slate-500">
+            “{copyTarget.name}” karışımının bir kopyası oluşturulacak. Yeni karışımın adını belirleyin; orijinal değişmez.
+          </p>
+          <label className="mt-4 block text-[12px] font-black text-slate-700" htmlFor="blend-copy-name">Yeni karışımın adı</label>
+          <input
+            id="blend-copy-name"
+            data-testid="blend-copy-name"
+            autoFocus
+            value={copyName}
+            onChange={(e) => { setCopyName(e.target.value); setCopyNameError(null); }}
+            maxLength={200}
+            className="mt-1.5 w-full rounded-xl border border-amber-200 bg-white px-3 py-2.5 text-[14px] font-semibold text-slate-900 outline-none focus:border-amber-300 focus:ring-4 focus:ring-amber-100/70"
+          />
+          {copyNameError ? (
+            <p role="alert" className="mt-1.5 text-[12px] font-bold text-rose-700">{copyNameError}</p>
+          ) : null}
+          <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <button type="button" onClick={closeCopyDialog} disabled={Boolean(copyingId)} className="min-h-[42px] rounded-xl bg-slate-100 px-5 text-[13px] font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60">Vazgeç</button>
+            <button type="submit" disabled={Boolean(copyingId)} className="min-h-[42px] rounded-xl bg-gradient-to-r from-amber-500 to-rose-400 px-5 text-[13px] font-black text-white shadow-md transition hover:brightness-105 disabled:opacity-60">{copyingId ? "Kopyalanıyor…" : "Kopyala"}</button>
+          </div>
+        </form>
+      </div>
+    ) : null}
 
     {printBlend ? (
       <div className="hidden print:block">

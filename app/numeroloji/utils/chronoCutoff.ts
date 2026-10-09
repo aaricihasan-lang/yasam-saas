@@ -33,6 +33,29 @@ import { filterHarfSegmentsThroughActive } from "./harfSummary";
 export const CHRONO_CUTOFF_NOTE =
   "Bu bölümde, içinde bulunduğumuz yıla kadar başlamış dönemler kaynak yöntemindeki tam tarih aralıklarıyla gösterilmiştir. Geleceğe ilişkin olay veya öngörü içermez.";
 
+// ── GELECEK YILLAR ALT-YETKİSİ (module_permissions.numerology_future_years) ─────
+// Yetki AÇIK uzmanda sınır yılı kaldırılır: motorun ZATEN hesapladığı tüm dönemler (Değişim 5
+// adım · Zirve 4 · Mücadele 3 + ana · Harfler 80 yaş — yöntemin doğal bitişi) gösterilir. Yeni
+// formül / ek adım / sonsuz döngü YOK; yalnız aynı filtrelerin sınır yılı değişir. Yetki KAPALI
+// → sınır = currentYear (önceki davranış birebir). "Aktif dönem" vurgusu HER ZAMAN currentYear'dır.
+
+/** Yetki açıkken sınır yılı: motorun ürettiği tüm yılları (≤ 2100+80) kapsayan sonlu üst değer. */
+export const CHRONO_NO_LIMIT_YEAR = 9999;
+
+/** Kronolojik filtrelerde kullanılacak sınır yılı (yetki KAPALI → currentYear; AÇIK → sınırsız). */
+export function chronoLimitYear(currentYear: number, futureYears: boolean): number {
+  return futureYears === true ? CHRONO_NO_LIMIT_YEAR : currentYear;
+}
+
+/** Yetki AÇIK iken gösterilen not (gelecek dönemler dahil). Yıl NUMARASI içermez. */
+export const CHRONO_FULL_NOTE =
+  "Bu bölümde, kaynak yöntemindeki tüm dönemler (gelecekte başlayacak olanlar dâhil) tam tarih aralıklarıyla gösterilmiştir. Geleceğe ilişkin olay veya öngörü içermez.";
+
+/** Yetkiye göre kronolojik bölüm notu (KAPALI → önceki not birebir). */
+export function chronoNoteText(futureYears: boolean): string {
+  return futureYears === true ? CHRONO_FULL_NOTE : CHRONO_CUTOFF_NOTE;
+}
+
 // ── Doğum yılı: motor snapshot'ından güvenle çıkar (yeni motor alanı GEREKMEZ) ──
 function firstDogumTarihi(...sources: (string | undefined | null)[]): string | null {
   for (const s of sources) {

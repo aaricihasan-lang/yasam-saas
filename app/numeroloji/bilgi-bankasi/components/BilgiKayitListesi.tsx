@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ANALIZ_TURU_FILTER_OPTIONS } from "../helpers/bilgiBankaLabels";
@@ -90,6 +91,7 @@ export function BilgiKayitListesi() {
   const [detayRow, setDetayRow] = useState<BilgiBankaListeSatir | null>(null);
   const [siliniyorId, setSiliniyorId] = useState<string | null>(null);
   const [topluSiliniyor, setTopluSiliniyor] = useState(false);
+  const topluSilBusyRef = useRef(false);
   const [wordBusy, setWordBusy] = useState(false);
   const [wordPicker, setWordPicker] = useState<{ mode: "all" | "filtered" } | null>(null);
   // NUM-MOB-1: mobil iki-aşamalı silme hedefi (masaüstü confirm akışı değişmez).
@@ -224,29 +226,38 @@ export function BilgiKayitListesi() {
   }
 
   async function handleSecilileriSil() {
-    if (seciliSayisi === 0) return;
-    const hedef = seciliSatirlar;
-    const etki = await silmeEtkisiGetir(hedef);
+    if (seciliSayisi === 0 || topluSilBusyRef.current) return;
+    topluSilBusyRef.current = true;
+    try {
+      const hedef = seciliSatirlar;
+      const etki = await silmeEtkisiGetir(hedef);
 
-    const ok = await confirm({
-      title: "Seçili kayıtları sil",
-      message: kbSilmeOnayMetni(hedef, etki),
-      tone: "danger",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
-    });
-    if (!ok) return;
-    await silTopluUygula();
+      // 3+ kayıt → sistem geneli 3 aşamalı toplu silme (masaüstü + mobil aynı akış).
+      const ok = requiresBulkDeleteGuard(hedef.length)
+        ? await runBulkDeleteConfirm(confirm, { count: hedef.length, detail: kbSilmeOnayMetni(hedef, etki) })
+        : await confirm({
+            title: "Seçili kayıtları sil",
+            message: kbSilmeOnayMetni(hedef, etki),
+            tone: "danger",
+            confirmText: "Sil",
+            cancelText: "Vazgeç",
+          });
+      if (!ok) return;
+      await silTopluUygula();
+    } finally {
+      topluSilBusyRef.current = false;
+    }
   }
 
   /**
    * Toplu silme tetikleyici: yalnız viewport genişliğine göre (PWA'dan bağımsız).
-   * Mobilde (<768) iki-kapılı dialog, md+ masaüstünde mevcut confirm akışı.
+   * 1–2 kayıt: mobilde (<768) iki-kapılı dialog, md+ masaüstünde mevcut confirm akışı.
+   * 3+ kayıt: her cihazda 3 aşamalı toplu silme akışı.
    */
   function topluSilTetikle() {
     if (seciliSayisi === 0) return;
     const mobil = typeof window !== "undefined" && isMobileViewport(window.innerWidth);
-    if (mobil) void mobilSilAc({ mode: "toplu" });
+    if (mobil && !requiresBulkDeleteGuard(seciliSayisi)) void mobilSilAc({ mode: "toplu" });
     else void handleSecilileriSil();
   }
 

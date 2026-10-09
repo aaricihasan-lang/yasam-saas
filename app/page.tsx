@@ -27,7 +27,7 @@ import {
   type YasamUser,
 } from "@/lib/auth/yasamUser";
 import { useSessionGuard } from "@/hooks/useSessionGuard";
-import { checkSessionStatus, consumeSessionEnded, type SessionEndReason } from "@/lib/auth/sessionExpiry";
+import { confirmSessionInvalid, consumeSessionEnded, type SessionEndReason } from "@/lib/auth/sessionExpiry";
 import { hasExpertMembershipAccess } from "@/lib/auth/membership";
 import {
   getModuleLockReason,
@@ -39,7 +39,6 @@ import {
   type ModulePermissionKey,
 } from "@/lib/auth/modulePermissions";
 import { DIGITAL_CONTENT_HUB_KEYS, ENERGY_BODY_HUB_KEYS } from "@/lib/auth/hubVisibility";
-import { supabase } from "@/lib/supabase";
 import { fetchYhHealth } from "@/lib/yasam-hafizasi/ui/searchApiClient";
 import { deriveYhCardStatus, type YhHealthPayload } from "@/lib/yasam-hafizasi/ui/healthStatus";
 import {
@@ -63,6 +62,7 @@ import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
 import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
 import { getSunSignInfo } from "@/lib/cosmic/planets";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useTranslations, useLocale, useMessages } from "next-intl";
 import { localeTag } from "@/lib/i18n/format";
 import type { ActiveLocale } from "@/lib/i18n/locales";
@@ -554,6 +554,10 @@ const EXPERT_PERMISSION_ALIAS_KEYS: Record<ModulePermissionKey, string[]> = {
   belge_ceviri: [],
   ders_notu: [],
   human_design: [],
+  // Alt-yetki (kart açmaz): Human Design — Sistem Yorumu.
+  hd_system_reading: [],
+  // Alt-yetki (kart açmaz): Numeroloji — Gelecek Yılları Göster.
+  numerology_future_years: [],
   // Admin-only AI alt modülleri (video_ceviri/ders_notu) hub'ı uzmana AÇMAZ → alias DEĞİL.
   digital_content: ["personal_archive", "belge_ceviri", "kisisel_arsiv"],
   cosmic_calendar: [],
@@ -779,6 +783,7 @@ export default function Home() {
   const bcp47 = localeTag(locale);
   const router = useRouter();
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -933,8 +938,9 @@ export default function Home() {
       // bekletme — oturumu sunucudan doğrula; geçersizse giriş akışına dön.
       void adminCookiePromiseRef.current.then(async (status) => {
         if (status !== 401) return;
-        const s = await checkSessionStatus(adminRefreshToken);
-        if (s && !s.valid) endSessionRef.current(s.reason);
+        // WT4: iki kesin "geçersiz" yanıt gerekir; geçici hata/5xx çıkış yaptırmaz.
+        const s = await confirmSessionInvalid();
+        if (s) endSessionRef.current(s.reason);
       });
       void syncYasamUserFromDb(stored).then((fresh) => {
         if (fresh) setUser(fresh);
@@ -1093,12 +1099,23 @@ export default function Home() {
 
     let cancelled = false;
     const entries = Object.entries(MODULE_STAT_TABLES) as Array<[ModulePermissionKey, string]>;
-    // clients RLS-korumalı; anon HEAD count 401 verir → güvenli /api/clients hattından say.
+    // Tüm modül tabloları anon'a KAPALI (RLS + grant revoke) → sayımlar yalnız güvenli sunucu
+    // kapılarından: clients → /api/clients, numeroloji → /api/numeroloji/analyses,
+    // diğerleri → /api/dashboard/summary (tek istek, modül izni sunucuda).
     const token = readSessionToken();
     const authHeaders: Record<string, string> = {
       "x-user-id": user.id ?? "",
       ...(token ? { "x-session-token": token } : {}),
     };
+    let summaryPromise: Promise<Partial<Record<string, number | null>> | null> | null = null;
+    const loadSummaryCounts = () =>
+      (summaryPromise ??= fetch("/api/dashboard/summary", { headers: authHeaders })
+        .then(async (res) => {
+          if (!res.ok) return null;
+          const json = (await res.json()) as { counts?: Partial<Record<string, number | null>> };
+          return json.counts ?? null;
+        })
+        .catch(() => null));
 
     void Promise.allSettled(
       entries.map(async ([key, table]) => {
@@ -1115,11 +1132,9 @@ export default function Home() {
           const json = (await res.json()) as { count?: number };
           return { key, count: typeof json.count === "number" ? json.count : null };
         }
-        const { count, error } = await supabase
-          .from(table)
-          .select("*", { count: "exact", head: true })
-          .eq("tenant_id", tenantId);
-        return { key, count: error ? null : (count ?? null) };
+        const counts = await loadSummaryCounts();
+        const value = counts?.[key];
+        return { key, count: typeof value === "number" ? value : null };
       }),
     ).then((results) => {
       if (cancelled) return;
@@ -1152,16 +1167,16 @@ export default function Home() {
 
     let cancelled = false;
     type RawItem = { icon: string; label: string; rawDate: string };
-    // clients RLS-korumalı + isim ad/soyad kolonlarında → güvenli /api/clients hattı.
-    // Diğerleri anon-okunabilir; stones'ta isim kolonu `stone_name`.
+    // Tüm kaynaklar anon'a KAPALI → yalnız güvenli sunucu kapıları: clients → /api/clients,
+    // numeroloji → /api/numeroloji/analyses, Doğaltaş + Kişisel Arşiv → /api/dashboard/summary.
     const token = readSessionToken();
     const authHeaders: Record<string, string> = {
       "x-user-id": user.id ?? "",
       ...(token ? { "x-session-token": token } : {}),
     };
-    const directSources: { table: string; icon: string; col: string }[] = [
-      { table: "stones",              icon: "💎", col: "stone_name" },
-      { table: "personal_archives",   icon: "📚", col: "title" },
+    const summarySources: { key: string; icon: string }[] = [
+      { key: "stones",            icon: "💎" },
+      { key: "personal_archives", icon: "📚" },
     ];
 
     const clientsSource = (async (): Promise<RawItem[]> => {
@@ -1181,35 +1196,36 @@ export default function Home() {
     const numerologySource = (async (): Promise<RawItem[]> => {
       const res = await fetch("/api/numeroloji/analyses?recent=3", { headers: authHeaders });
       if (!res.ok) return [];
+      // Sunucu `name, surname` döner (numerology_records); eski `full_name` okuması hep boştu.
       const json = (await res.json()) as {
-        rows?: { full_name?: string | null; created_at?: string | null }[];
+        rows?: { name?: string | null; surname?: string | null; created_at?: string | null }[];
       };
       return (json.rows ?? []).map((r) => ({
         icon: "🧠",
-        label: String(r.full_name ?? t("dashboard.newRecord")).trim() || t("dashboard.newRecord"),
+        label: `${r.name ?? ""} ${r.surname ?? ""}`.trim() || t("dashboard.newRecord"),
         rawDate: String(r.created_at ?? ""),
       }));
+    })();
+
+    const summarySource = (async (): Promise<RawItem[]> => {
+      const res = await fetch("/api/dashboard/summary", { headers: authHeaders });
+      if (!res.ok) return [];
+      const json = (await res.json()) as {
+        recent?: Record<string, Array<{ label?: string | null; created_at?: string | null }>>;
+      };
+      return summarySources.flatMap(({ key, icon }) =>
+        (json.recent?.[key] ?? []).map((r) => ({
+          icon,
+          label: String(r.label ?? "").trim() || t("dashboard.newRecord"),
+          rawDate: String(r.created_at ?? ""),
+        })),
+      );
     })();
 
     void Promise.allSettled([
       clientsSource,
       numerologySource,
-      ...directSources.map(async ({ table, icon, col }): Promise<RawItem[]> => {
-        const { data } = await supabase
-          .from(table)
-          .select(`${col}, created_at`)
-          .eq("tenant_id", tenantId)
-          .order("created_at", { ascending: false })
-          .limit(3);
-        return (data ?? []).map((row) => {
-          const r = row as unknown as Record<string, unknown>;
-          return {
-            icon,
-            label: String(r[col] ?? t("dashboard.newRecord")).trim() || t("dashboard.newRecord"),
-            rawDate: String(r["created_at"] ?? ""),
-          } satisfies RawItem;
-        });
-      }),
+      summarySource,
     ]).then((results) => {
       if (cancelled) return;
       const all: RawItem[] = results
@@ -1462,6 +1478,19 @@ export default function Home() {
     setMessage("");
   };
 
+  // WT4: mobilde yalnız ikon olan çıkış düğmesi zil/dil seçicinin hemen yanında; yanlış dokunuş
+  // anında oturumu (sunucuda da) kapatıyordu. Çıkış artık YALNIZ açık onayla yapılır.
+  const requestLogout = async () => {
+    const ok = await confirm({
+      title: t("dashboard.logoutConfirmTitle"),
+      message: t("dashboard.logoutConfirmMessage"),
+      confirmText: t("dashboard.logout"),
+      cancelText: t("dashboard.logoutConfirmCancel"),
+      tone: "warning",
+    });
+    if (ok) logout();
+  };
+
   if (authLoading) {
     return <AuthBootScreen />;
   }
@@ -1528,9 +1557,13 @@ export default function Home() {
       setAdminNavLoading(false);
       if (status === 401) {
         // WEB P1: geçersiz/süresi dolmuş oturumla /admin'e körlemesine gidilmez (sessiz "/" dönüşü yok).
-        const s = await checkSessionStatus();
-        endSessionForReason(s && !s.valid ? s.reason : "revoked");
-        return;
+        // WT4: 401 tek başına oturum sonu SAYILMAZ (geçici doğrulama hatası da 401 döner);
+        // yalnız sunucu iki kez kesin "geçersiz" derse giriş akışına dönülür.
+        const s = await confirmSessionInvalid();
+        if (s) {
+          endSessionForReason(s.reason);
+          return;
+        }
       }
       showToast({ message: t("auth.adminSessionFailed"), type: "error" });
     }
@@ -1667,7 +1700,7 @@ export default function Home() {
                       <NotificationBell compact />
                       <button
                         type="button"
-                        onClick={logout}
+                        onClick={() => void requestLogout()}
                         aria-label={t("dashboard.logout")}
                         className="inline-flex min-h-[36px] min-w-[36px] items-center justify-center gap-1.5 rounded-xl border border-white/80 bg-white/80 px-2 text-[11px] font-semibold text-slate-600 shadow-sm backdrop-blur-sm transition hover:bg-white hover:text-violet-700 sm:px-3.5"
                       >

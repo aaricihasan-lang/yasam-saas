@@ -121,22 +121,7 @@ export default function HdKayitliHaritalarPage() {
                             >
                               Detay
                             </Link>
-                            {clientId && (
-                              <>
-                                <Link
-                                  href={`/human-design/harita-kaydi?clientId=${clientId}`}
-                                  className={`${btn} flex items-center rounded-lg border border-violet-200 bg-white text-xs font-bold text-violet-700 no-underline transition hover:border-violet-400 hover:bg-violet-50`}
-                                >
-                                  Düzenle
-                                </Link>
-                                <Link
-                                  href={`/human-design/rapor-olustur?clientId=${clientId}`}
-                                  className={`${btn} flex items-center rounded-lg border border-fuchsia-200 bg-white text-xs font-bold text-fuchsia-700 no-underline transition hover:border-fuchsia-400 hover:bg-fuchsia-50`}
-                                >
-                                  Rapor
-                                </Link>
-                              </>
-                            )}
+                            {/* AŞAMA 3C: manuel "Düzenle" (harita-kaydi) ve eski "Rapor" (rapor-olustur) bağlantıları kaldırıldı — eski kayıt salt-okunur açılır. */}
                             <button
                               type="button"
                               disabled={deletingId === row.id}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
 
 type LegacyQuarantineBannerProps = {
   /** Sahibi belirsiz kayıt sayısı. */
@@ -54,12 +55,19 @@ export function LegacyQuarantineBanner({
 
   const handleDiscard = () =>
     run(async () => {
-      const ok = await confirm({
-        message: `Bu cihazdaki sahibi belirsiz ${count} ${noun} kalıcı olarak silinsin mi? Bu işlem geri alınamaz.`,
-        confirmText: "Sil",
-        cancelText: "Vazgeç",
-        tone: "danger",
-      });
+      // 3+ kayıt → sistem geneli 3 aşamalı toplu silme.
+      const ok = requiresBulkDeleteGuard(count)
+        ? await runBulkDeleteConfirm(confirm, {
+            count,
+            noun,
+            detail: "Bu cihazdaki sahibi belirsiz (hesaba bağlı olmayan) kayıtlar silinecek.",
+          })
+        : await confirm({
+            message: `Bu cihazdaki sahibi belirsiz ${count} ${noun} kalıcı olarak silinsin mi? Bu işlem geri alınamaz.`,
+            confirmText: "Sil",
+            cancelText: "Vazgeç",
+            tone: "danger",
+          });
       if (ok) await onDiscard();
     });
 

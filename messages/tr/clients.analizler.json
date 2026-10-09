@@ -81,7 +81,11 @@
         "word": "Word Al",
         "wordPreparing": "Word Hazırlanıyor...",
         "save": "Kaydet",
-        "saving": "Kaydediliyor..."
+        "saving": "Kaydediliyor...",
+        "saveAndClose": "Kaydet ve Kapat",
+        "edit": "Düzenle",
+        "readOnlyHint": "Kayıtlı analiz salt okunur açıldı. Değiştirmek için “Düzenle”ye basın.",
+        "editingHint": "Düzenleme modu — değişiklikler “Kaydet ve Kapat” ile kaydedilir."
       },
       "section": {
         "beforeEnergy": "Seans Öncesi — Enerji Bedenleri",
@@ -130,7 +134,8 @@
         "sessionInvalid": "Oturum doğrulanamadı, sayfayı yenileyip tekrar deneyin.",
         "wordFailed": "Word oluşturulamadı.",
         "wordDownloaded": "Word dosyası indirildi.",
-        "wordFailedRetry": "Word oluşturulamadı. Bağlantınızı kontrol edip tekrar deneyin."
+        "wordFailedRetry": "Word oluşturulamadı. Bağlantınızı kontrol edip tekrar deneyin.",
+        "saveNetwork": "Sunucuya ulaşılamadı; analiz kaydedilmedi."
       },
       "error": {
         "pdfNoContent": "PDF içeriği bulunamadı."

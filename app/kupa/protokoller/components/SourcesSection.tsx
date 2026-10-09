@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { kupaBtnPrimary, kupaBtnGhost, kupaBtnSuccess, kupaInput, kupaRowAction, kupaRowActionDanger, kupaRowActions } from "@/app/kupa/components/KupaShell";
@@ -8,22 +8,41 @@ import { addProtocolSource, updateProtocolSource, deleteProtocolSource, createSo
 import type { ProtocolDocument } from "../hooks/useProtocolDocument";
 import { ProtocolSectionShell, ProtocolEmpty } from "./ProtocolSectionShell";
 import { normalizeMasterName } from "./QuickCreateMasterForm";
+import { SourceNameField } from "./SourceNameField";
+import { findOwnSourceByName } from "@/lib/cupping/ownSources";
+import { useConfirmLeave, useReportDirty } from "../hooks/protocolDirty";
 
+/**
+ * WT6 — Kaynaklar: hazır katalog açılır listesi KALDIRILDI. Uzman kaynağı SERBEST yazar
+ * ("Ahmet Hoca Eğitim Notu", "kendi eğitim notlarım", "X Kitabı"…). Öneri yalnız uzmanın KENDİ
+ * daha önce yazdığı kaynak adlarıdır (SourceNameField / lib/cupping/ownSources). Yazma YALNIZ
+ * "Kaydet" ile; kaydedilmemiş form sayfa geneli korumaya bildirilir.
+ */
 export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: ProtocolDocument }) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const confirmLeave = useConfirmLeave();
   const [formOpen, setFormOpen] = useState(false);
-  const [pickedSourceId, setPickedSourceId] = useState("");
   const [sourceText, setSourceText] = useState("");
   const [locator, setLocator] = useState("");
   const [note, setNote] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
 
   const rows = [...doc.sources].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const editingRow = editingId ? rows.find((x) => x.id === editingId) ?? null : null;
+  const dirty =
+    (formOpen && (sourceText.trim() !== "" || locator.trim() !== "" || note.trim() !== "")) ||
+    (editingRow !== null && (locator.trim() !== (editingRow.locator ?? "").trim() || note.trim() !== (editingRow.note ?? "").trim()));
+  useReportDirty("sources", dirty);
+
+  async function cancelForm() {
+    if (dirty && !(await confirmLeave())) return;
+    reset();
+  }
 
   function reset() {
-    setPickedSourceId("");
     setSourceText("");
     setLocator("");
     setNote("");
@@ -32,21 +51,24 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
   }
 
   async function add() {
+    if (busyRef.current) return; // çift tık → tek kayıt
     const loc = locator.trim();
+    const text = sourceText.trim();
+    if (!text) {
+      showToast({ message: "Kaynak adını yazın (ör. Ahmet Hoca Eğitim Notu).", type: "warning" });
+      return;
+    }
+    busyRef.current = true;
     setBusy(true);
     try {
-      // K10 — İKİ yol: (A) katalogdan mevcut kaynak SEÇ (pickedSourceId) → doğrudan kullan;
-      //   (B) serbest metin YAZ → aynı isimde master varsa sessiz reuse, yoksa arka planda oluştur.
-      //   protocol_sources.source_id zorunlu (yapısal); serbest-metin backward-compat KORUNUR.
-      let sid = pickedSourceId;
-      if (!sid) {
-        const text = sourceText.trim();
-        if (!text) {
-          showToast({ message: "Katalogdan bir kaynak seçin veya yeni kaynak yazın.", type: "warning" });
-          return;
-        }
+      // Serbest metin → uzmanın KENDİ aynı adlı kaynağı varsa o yeniden kullanılır; yoksa (aynı tenant'ta
+      //   aynı adlı başka kayıt varsa onu, o da yoksa) yeni kaynak oluşturulur. source_id yapısal kalır.
+      let sid = "";
+      {
         const norm = normalizeMasterName(text);
-        const existing = doc.masterSources.find((s) => normalizeMasterName(s.source_name) === norm);
+        const existing =
+          findOwnSourceByName(doc.masterSources, text) ??
+          doc.masterSources.find((s) => normalizeMasterName(s.source_name) === norm);
         sid = existing?.id ?? "";
         if (!sid) {
           const created = await createSource({ source_name: text });
@@ -66,24 +88,28 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
       await addProtocolSource({ protocol_id: protocolId, source_id: sid, locator: loc || null, note: note.trim() || null, sort_order: rows.length });
       await doc.reload.sources();
       reset();
-      showToast({ message: "Kaynak eklendi.", type: "success" });
+      showToast({ message: "Kaydedildi.", type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Eklenemedi.", type: "error" });
+      showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
 
   async function saveEdit(r: CuppingProtocolSourceLink) {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       await updateProtocolSource(r.id, { locator: locator.trim() || null, note: note.trim() || null });
       await doc.reload.sources();
       reset();
-      showToast({ message: "Güncellendi.", type: "success" });
+      showToast({ message: "Kaydedildi.", type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Güncellenemedi.", type: "error" });
+      showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
@@ -105,7 +131,7 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
       title="Kaynaklar"
       description="Bu protokolün kaynak künyeleri."
       action={
-        <button type="button" onClick={() => { reset(); setFormOpen(true); }} className={kupaBtnPrimary}>
+        <button type="button" onClick={async () => { if (dirty && !(await confirmLeave())) return; reset(); setFormOpen(true); }} className={kupaBtnPrimary}>
           + Kaynak Ekle
         </button>
       }
@@ -123,7 +149,7 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
                   <input className={kupaInput} placeholder="Not (opsiyonel)" value={note} onChange={(e) => setNote(e.target.value)} aria-label="Not" />
                   <div className="flex items-center gap-2">
                     <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={() => saveEdit(r)}>Kaydet</button>
-                    <button type="button" className={kupaBtnGhost} onClick={reset}>Vazgeç</button>
+                    <button type="button" className={kupaBtnGhost} onClick={() => void cancelForm()}>Vazgeç</button>
                   </div>
                 </div>
               ) : (
@@ -146,52 +172,20 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
 
       {formOpen ? (
         <div className="mt-3 space-y-2 rounded-xl border border-amber-100 bg-amber-50/40 p-3">
-          {/* K10 — İKİ yol açıkça: (A) katalogdan seç VEYA (B) yeni kaynak yaz. */}
-          <label className="block">
-            <span className="block text-[11px] font-semibold text-slate-500">Katalogdan Kaynak Seç</span>
-            <select
-              className={`mt-1 ${kupaInput}`}
-              value={pickedSourceId}
-              onChange={(e) => {
-                setPickedSourceId(e.target.value);
-                if (e.target.value) setSourceText("");
-              }}
-              aria-label="Katalogdan kaynak seç"
-            >
-              <option value="">— katalogdan seç (opsiyonel) —</option>
-              {doc.masterSources.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.source_name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="text-center text-[10px] font-semibold uppercase tracking-wide text-slate-400">— veya —</p>
-          <label className="block">
-            <span className="block text-[11px] font-semibold text-slate-500">Yeni Kaynak Oluştur / Kimden öğrendim</span>
-            <input
-              className={`mt-1 ${kupaInput}`}
-              list="kupa-source-suggestions"
-              placeholder="Örn. Süleyman Gök kitabı, Ahmet Hoca eğitimi, kendi eğitim notlarım…"
-              value={sourceText}
-              onChange={(e) => {
-                setSourceText(e.target.value);
-                if (e.target.value) setPickedSourceId("");
-              }}
-              disabled={pickedSourceId !== ""}
-              aria-label="Yeni kaynak / kimden öğrendim"
-            />
-          </label>
-          <datalist id="kupa-source-suggestions">
-            {doc.masterSources.map((s) => (
-              <option key={s.id} value={s.source_name} />
-            ))}
-          </datalist>
+          {/* WT6: hazır katalog YOK — serbest yazı; öneri yalnız uzmanın kendi geçmiş kaynakları. */}
+          <SourceNameField
+            label="Kaynak (kimden / nereden öğrendim)"
+            placeholder="Örn. Ahmet Hoca Eğitim Notu, kendi eğitim notlarım, X Kitabı…"
+            value={sourceText}
+            onChange={setSourceText}
+            sources={doc.masterSources}
+            testId="kupa-source-name"
+          />
           <input className={kupaInput} placeholder="Sayfa / bölüm (opsiyonel)" value={locator} onChange={(e) => setLocator(e.target.value)} aria-label="Sayfa / bölüm" />
           <input className={kupaInput} placeholder="Not (opsiyonel)" value={note} onChange={(e) => setNote(e.target.value)} aria-label="Not" />
           <div className="flex items-center gap-2">
-            <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={add}>Ekle</button>
-            <button type="button" className={kupaBtnGhost} onClick={reset}>Vazgeç</button>
+            <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={add} data-testid="kupa-source-save">{busy ? "Kaydediliyor…" : "Kaydet"}</button>
+            <button type="button" className={kupaBtnGhost} onClick={() => void cancelForm()}>Vazgeç</button>
           </div>
         </div>
       ) : null}

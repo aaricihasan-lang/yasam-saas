@@ -262,6 +262,7 @@ export default function YagUrunStokPage() {
   }, [reloadInv, reloadSales]);
 
   const [msg, setMsg] = useState<string | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const [photoModal, setPhotoModal] = useState<string[] | null>(null);
   const [saleDetail, setSaleDetail] = useState<OilSaleRecord | null>(null);
 
@@ -449,35 +450,50 @@ export default function YagUrunStokPage() {
     setMsg(editingId ? "Kayıt güncellendi." : "Kayıt eklendi.");
   }
 
+  const deleteBusyRef = useRef(false);
   async function deleteSelected() {
+    if (deleteBusyRef.current) return; // çift tıklama → tek silme akışı
     // Yalnız görünür ∩ seçili: aramayla gizlenmiş seçili kayıt habersiz silinmez.
     const removed = displayed.filter((i) => selectedIds.has(i.id));
     if (!removed.length) {
       setMsg("Silmek için seçim yapın.");
       return;
     }
-    const removedIds = new Set(removed.map((i) => i.id));
-    const ok = await deleteConfirm({
-      title: "Stok kaydı silinecek",
-      message: `Seçili ${removed.length} stok kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
-      names: removed.map((i) => i.name || "(adsız ürün)"),
-    });
-    if (!ok) return;
-    const next = inventory.filter((i) => !removedIds.has(i.id));
-    saveOilInventory(next);
-    setInventory(next);
-    const count = removed.length;
-    setSelectedIds(new Set());
-    // K-2: silmeyi DB ile uyumlu yap; aksi halde kayıt yenilemede DB'den geri gelir.
-    if (!isDemo && activeTenantId && removed.length > 0) {
-      const res = await deleteOilInventoryItems(activeTenantId, removed);
-      await reloadInv();
-      if (!res.ok) {
-        setMsg(`${count} kayıt cihazınızdan silindi ancak buluttan silmede hata: ${res.error}`);
+    deleteBusyRef.current = true;
+    setDeleteBusy(true);
+    try {
+      const removedIds = new Set(removed.map((i) => i.id));
+      const ok = await deleteConfirm({
+        title: "Stok kaydı silinecek",
+        message: `Seçili ${removed.length} stok kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+        names: removed.map((i) => i.name || "(adsız ürün)"),
+        count: removed.length,
+        noun: "stok kaydı",
+      });
+      if (!ok) return;
+      const count = removed.length;
+      // Gerçek hesap: ÖNCE buluttan sil, sonra DB'den yeniden yükle. Silme başarısızsa kayıtlar
+      // ekrandan kaybolmuş gibi gösterilmez (liste DB gerçeğini yansıtır).
+      if (!isDemo && activeTenantId) {
+        const res = await deleteOilInventoryItems(activeTenantId, removed);
+        await reloadInv();
+        if (!res.ok) {
+          setMsg(`Silme tamamlanamadı (${res.deleted}/${count} silindi): ${res.error} Silinemeyen kayıtlar listede kalır.`);
+          return;
+        }
+        setSelectedIds(new Set());
+        setMsg(`${count} kayıt silindi.`);
         return;
       }
+      const next = inventory.filter((i) => !removedIds.has(i.id));
+      saveOilInventory(next);
+      setInventory(next);
+      setSelectedIds(new Set());
+      setMsg(`${count} kayıt silindi.`);
+    } finally {
+      deleteBusyRef.current = false;
+      setDeleteBusy(false);
     }
-    setMsg(`${count} kayıt silindi.`);
   }
 
   // —— Satış ——
@@ -600,10 +616,22 @@ export default function YagUrunStokPage() {
 
   // USM: iptal artık CANONICAL server RPC (inventory_sale_cancel_atomic) üzerinden;
   // atomik + tenant-scoped + çift-iptal güvenli. Stok DB'den yeniden yüklenir.
+  const salesCancelBusyRef = useRef(false);
   async function deleteSelectedSales() {
+    if (salesCancelBusyRef.current) return; // çift tıklama → tek iptal akışı
+    salesCancelBusyRef.current = true;
+    try {
+      await deleteSelectedSalesInner();
+    } finally {
+      salesCancelBusyRef.current = false;
+    }
+  }
+
+  async function deleteSelectedSalesInner() {
     if (!histSel.size) { setMsg("İptal için seçin."); return; }
     const ok = await deleteConfirm({
       title: "Satış iptal edilecek",
+      noun: "satış kaydı",
       message: `Seçili ${histSel.size} satış iptal edilecek. Satılan miktarlar stoğa geri eklenecektir.`,
       names: sales.filter((_, i) => histSel.has(i)).map((r) => `${r.name || "Satış"} (${r.timestamp})`),
     });
@@ -933,8 +961,8 @@ export default function YagUrunStokPage() {
                   </tbody>
                 </table>
               </div>
-              <button type="button" className={`${btnSecondary} mt-4`} onClick={() => void deleteSelected()}>
-                Seçilenleri Sil
+              <button type="button" className={`${btnSecondary} mt-4`} disabled={deleteBusy} onClick={() => void deleteSelected()}>
+                {deleteBusy ? "Siliniyor…" : "Seçilenleri Sil"}
               </button>
             </section>
           </div>

@@ -222,6 +222,51 @@ export async function getChartWithClientForReport(
   return { row: { ...chart, client }, error: null };
 }
 
+/**
+ * AŞAMA 4B Profesyonel Word v2 — rapor snapshot'ı için TENANT-GÜVENLİ okuma (MUTATION YOK).
+ * v1 okumasına ek olarak open_centers / timezone / provider / computed_result döner.
+ * `provider_raw` YALNIZ `withProviderRaw` true ise çekilir (sunucu, Sistem Yorumu yetkisi
+ * doğrulandıktan ve seçildikten sonra) ve hiçbir yanıta konmaz. Roxy ÇAĞRILMAZ.
+ */
+export type ChartForReportV2 = ChartForReport & {
+  open_centers: string[] | null;
+  timezone: string | null;
+  provider: string | null;
+  computed_result: unknown;
+  provider_raw?: unknown;
+};
+
+export async function getChartForReportV2(
+  db: SupabaseClient,
+  tenantId: string,
+  id: string,
+  opts: { withProviderRaw: boolean },
+): Promise<{ row: ChartForReportV2 | null; error: string | null }> {
+  const cols =
+    "id, source, provider, type_code, authority_code, profile_code, definition_code, active_centers, open_centers, gates, channels, client_id, client_name, birth_date, birth_time, birth_place, timezone, computed_result" +
+    (opts.withProviderRaw ? ", provider_raw" : "");
+  const { data, error } = await withTenant(db.from(TABLE).select(cols), tenantId, "getChartForReportV2")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) return { row: null, error: hdSafeDbError("getChartForReportV2", error) };
+  if (!data) return { row: null, error: null };
+
+  const chart = data as unknown as Omit<ChartForReportV2, "client">;
+  let client: ChartForReport["client"] = null;
+  if (chart.client_id) {
+    const { data: cli, error: cErr } = await withTenant(
+      db.from("human_design_clients").select("id, name, birth_date, birth_time, birth_place, chart_image_url"),
+      tenantId,
+      "getChartForReportV2.client",
+    )
+      .eq("id", chart.client_id)
+      .maybeSingle();
+    if (cErr) return { row: null, error: hdSafeDbError("getChartForReportV2.client", cErr) };
+    client = (cli as ChartForReport["client"]) ?? null;
+  }
+  return { row: { ...chart, client }, error: null };
+}
+
 export async function deleteComputedChart(
   db: SupabaseClient,
   tenantId: string,

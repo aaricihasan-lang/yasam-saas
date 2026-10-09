@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useConfirmLeave, useReportDirty } from "../hooks/protocolDirty";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { kupaBtnPrimary, kupaBtnGhost, kupaBtnSuccess, kupaRowAction, kupaRowActionDanger, kupaRowActions } from "@/app/kupa/components/KupaShell";
@@ -78,12 +79,21 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
   const [editingId, setEditingId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const confirmLeave = useConfirmLeave();
+  // WT6: seçim ANINDA YAZILMAZ. Seçilen kayıtlar "eklenecek" listesinde bekler; kalıcı bağlantı
+  //   yalnız bu bölümün "Kaydet" düğmesiyle kurulur (manuel kayıt; otomatik/yan-etki yazma YOK).
+  const [pending, setPending] = useState<string[]>([]);
 
   const relations: RelRow[] =
     kind === "point" ? (doc.points as RelRow[]) : kind === "technique" ? (doc.techniques as RelRow[]) : (doc.safety as RelRow[]);
 
   const master =
     kind === "point" ? doc.masterPoints : kind === "technique" ? doc.masterTechniques : doc.masterSafety;
+
+  const editingRel = editingId ? relations.find((x) => x.id === editingId) ?? null : null;
+  const noteDirty = editingRel !== null && noteDraft.trim() !== String(editingRel.protocol_note ?? "").trim();
+  useReportDirty(`rel-${kind}`, pending.length > 0 || noteDirty);
 
   // FAZ 4 (owner-locked): PASİF teknik YENİ attachment picker'ında adaydeğildir. Zaten ekli
   // pasif teknik relation listesinde render olmaya DEVAM eder (nameOf → doc.techniqueName;
@@ -112,29 +122,59 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
     return { id: m.id, label: s.title, meta: s.severity ?? undefined };
   });
 
-  const selectedIds = relations.map((r) => String(r[cfg.fk]));
+  const selectedIds = [...relations.map((r) => String(r[cfg.fk])), ...pending];
+  const masterLabel = (mid: string) => items.find((i) => i.id === mid)?.label ?? (kind === "point" ? doc.pointName(mid) : kind === "technique" ? doc.techniqueName(mid) : doc.safetyTitle(mid));
   const nameOf = (r: RelRow) =>
     kind === "point" ? doc.pointName(String(r.point_id)) : kind === "technique" ? doc.techniqueName(String(r.technique_id)) : doc.safetyTitle(String(r.safety_id));
   const reload = kind === "point" ? doc.reload.points : kind === "technique" ? doc.reload.techniques : doc.reload.safety;
 
-  async function handleAdd(masterId: string) {
+  /** Seçimi "eklenecek" listesine alır (YAZMA YOK). */
+  function queueAdd(masterId: string) {
+    if (relations.some((x) => String(x[cfg.fk]) === masterId) || pending.includes(masterId)) {
+      showToast({ message: "Bu kayıt zaten listede.", type: "info" });
+      return;
+    }
+    setPending((p) => [...p, masterId]);
+    setPickerOpen(false);
+  }
+
+  async function discardPending() {
+    if (pending.length > 0 && !(await confirmLeave())) return;
+    setPending([]);
+  }
+
+  /** "Kaydet": bekleyen seçimleri protokole bağlar (tek tek; başarısızlar listede KALIR). */
+  async function savePending() {
+    if (busyRef.current || pending.length === 0) return; // çift tık → tek kayıt
+    busyRef.current = true;
     setBusy(true);
+    const failed: string[] = [];
+    let lastErr: unknown = null;
     try {
-      const body = { protocol_id: protocolId, [cfg.fk]: masterId } as Record<string, string>;
-      if (kind === "point") await addProtocolPoint(body as { protocol_id: string; point_id: string });
-      else if (kind === "technique") await addProtocolTechnique(body as { protocol_id: string; technique_id: string });
-      else await addProtocolSafety(body as { protocol_id: string; safety_id: string });
-      await reload();
-      setPickerOpen(false);
-      showToast({ message: "Eklendi.", type: "success" });
-    } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Eklenemedi.", type: "error" });
+      for (const masterId of pending) {
+        try {
+          const body = { protocol_id: protocolId, [cfg.fk]: masterId } as Record<string, string>;
+          if (kind === "point") await addProtocolPoint(body as { protocol_id: string; point_id: string });
+          else if (kind === "technique") await addProtocolTechnique(body as { protocol_id: string; technique_id: string });
+          else await addProtocolSafety(body as { protocol_id: string; safety_id: string });
+        } catch (e) {
+          failed.push(masterId);
+          lastErr = e;
+        }
+      }
+      try { await reload(); } catch { /* liste yenilenemedi; kayıt sonucu aşağıda bildirilir */ }
+      setPending(failed);
+      if (failed.length === 0) showToast({ message: "Kaydedildi.", type: "success" });
+      else showToast({ message: `${failed.length} kayıt kaydedilemedi; listede duruyor. (${lastErr instanceof Error ? lastErr.message : "Hata"})`, type: "error" });
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
 
   async function saveNote(id: string) {
+    if (busyRef.current) return; // çift tık → tek kayıt
+    busyRef.current = true;
     setBusy(true);
     try {
       const patch = { protocol_note: noteDraft.trim() || null };
@@ -143,12 +183,18 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
       else await updateProtocolSafety(id, patch);
       await reload();
       setEditingId(null);
-      showToast({ message: "Güncellendi.", type: "success" });
+      showToast({ message: "Kaydedildi.", type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Güncellenemedi.", type: "error" });
+      showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
+  }
+
+  async function cancelNote() {
+    if (noteDirty && !(await confirmLeave())) return;
+    setEditingId(null);
   }
 
   async function handleDetach(r: RelRow) {
@@ -181,7 +227,7 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
       ? {
           entity: "technique",
           existing: doc.masterTechniques.map((m) => ({ id: m.id, label: m.name })),
-          onUseExisting: (id) => { if (!busy) void handleAdd(id); },
+          onUseExisting: (id) => { if (!busy) queueAdd(id); },
           onCreate: async (v) => {
             const created = await createTechnique({
               name: v.name,
@@ -194,23 +240,16 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
               return;
             }
             await doc.reload.masterTechniques();
-            try {
-              await addProtocolTechnique({ protocol_id: protocolId, technique_id: created.id });
-            } catch {
-              await reload();
-              showToast({ message: "Kayıt oluşturuldu ancak protokole eklenemedi. Listeden seçerek tekrar deneyebilirsiniz.", type: "warning" });
-              return;
-            }
-            await reload();
+            setPending((p) => (p.includes(created.id) ? p : [...p, created.id]));
             setPickerOpen(false);
-            showToast({ message: "Teknik oluşturuldu ve eklendi.", type: "success" });
+            showToast({ message: "Teknik oluşturuldu. Protokole bağlamak için Kaydet'e basın.", type: "info" });
           },
         }
       : kind === "safety"
         ? {
             entity: "safety",
             existing: doc.masterSafety.map((m) => ({ id: m.id, label: m.title })),
-            onUseExisting: (id) => { if (!busy) void handleAdd(id); },
+            onUseExisting: (id) => { if (!busy) queueAdd(id); },
             onCreate: async (v) => {
               const created = await createSafety({
                 title: v.title,
@@ -223,16 +262,9 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
                 return;
               }
               await doc.reload.masterSafety();
-              try {
-                await addProtocolSafety({ protocol_id: protocolId, safety_id: created.id });
-              } catch {
-                await reload();
-                showToast({ message: "Kayıt oluşturuldu ancak protokole eklenemedi. Listeden seçerek tekrar deneyebilirsiniz.", type: "warning" });
-                return;
-              }
-              await reload();
+              setPending((p) => (p.includes(created.id) ? p : [...p, created.id]));
               setPickerOpen(false);
-              showToast({ message: "Güvenlik maddesi oluşturuldu ve eklendi.", type: "success" });
+              showToast({ message: "Güvenlik maddesi oluşturuldu. Protokole bağlamak için Kaydet'e basın.", type: "info" });
             },
           }
         : undefined;
@@ -247,8 +279,37 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
         </button>
       }
     >
+      {pending.length > 0 ? (
+        <div data-testid={`kupa-pending-${kind}`} className="mb-3 rounded-xl border border-dashed border-amber-300 bg-amber-50/60 p-3">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-amber-800">Eklenecek — henüz kaydedilmedi</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {pending.map((mid) => (
+              <span key={mid} className="inline-flex items-center gap-1 rounded-md bg-white py-0.5 pl-2 text-[12px] font-semibold text-amber-900 ring-1 ring-amber-200">
+                {masterLabel(mid)}
+                <button
+                  type="button"
+                  aria-label={`${masterLabel(mid)} listeden çıkar`}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-md text-base text-amber-600 hover:bg-rose-50 hover:text-rose-600 lg:h-7 lg:w-7"
+                  onClick={() => setPending((p) => p.filter((x) => x !== mid))}
+                  disabled={busy}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={() => void savePending()} data-testid={`kupa-pending-save-${kind}`}>
+              {busy ? "Kaydediliyor…" : "Kaydet"}
+            </button>
+            <button type="button" disabled={busy} className={kupaBtnGhost} onClick={() => void discardPending()}>
+              Vazgeç
+            </button>
+          </div>
+        </div>
+      ) : null}
       {relations.length === 0 ? (
-        <ProtocolEmpty message={cfg.empty} />
+        pending.length > 0 ? null : <ProtocolEmpty message={cfg.empty} />
       ) : (
         <ul className="space-y-2">
           {relations.map((r) => (
@@ -276,9 +337,9 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
                   <InlineLongText label={cfg.noteLabel} value={noteDraft} onChange={setNoteDraft} rows={3} />
                   <div className="flex items-center gap-2">
                     <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={() => saveNote(r.id)}>
-                      Kaydet
+                      {busy ? "Kaydediliyor…" : "Kaydet"}
                     </button>
-                    <button type="button" className={kupaBtnGhost} onClick={() => setEditingId(null)}>
+                    <button type="button" className={kupaBtnGhost} onClick={() => void cancelNote()}>
                       Vazgeç
                     </button>
                   </div>
@@ -298,7 +359,7 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
         selectedIds={selectedIds}
         emptyMessage={cfg.pickerEmpty}
         onPick={(mid) => {
-          if (!busy) void handleAdd(mid);
+          if (!busy) queueAdd(mid);
         }}
         onClose={() => setPickerOpen(false)}
         quickCreate={quickCreate}

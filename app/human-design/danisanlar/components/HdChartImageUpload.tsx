@@ -38,6 +38,11 @@ type Props = {
   onUrlChange?: (path: string | null) => void;
   /** Görsel yüklendi/silindi (danışan satırının sürümü değişti) — üst bileşen tazeler. */
   onChanged?: () => void;
+  /**
+   * AŞAMA 3C: yeni manuel harita görseli yükleme KAPALI. Eski kayıtların görseli yalnız
+   * görüntülenir (yükle/değiştir/sil yok); görsel yoksa hiçbir şey çizilmez.
+   */
+  readOnly?: boolean;
 };
 
 /**
@@ -91,7 +96,7 @@ function hasSession(): boolean {
   return !!readYasamUser()?.id && !!readSessionToken();
 }
 
-export function HdChartImageUpload({ clientId, onChanged }: Props) {
+export function HdChartImageUpload({ clientId, onChanged, readOnly = false }: Props) {
   const { showToast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -244,6 +249,20 @@ export function HdChartImageUpload({ clientId, onChanged }: Props) {
 
   const busy = uploading || deleting;
   const pickFile = () => inputRef.current?.click();
+
+  if (readOnly) {
+    if (status === "loading") return <div className="h-12 rounded-xl bg-slate-50" aria-hidden />;
+    if (status === "ready" && displayUrl) {
+      return (
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={displayUrl} alt="Eski Human Design harita görseli" className="w-full object-contain" style={{ maxHeight: 320 }} />
+        </div>
+      );
+    }
+    if (status === "legacy") return <p className="text-xs text-slate-500">Eski harita görseli güvenli biçimde görüntülenemiyor.</p>;
+    return null;
+  }
 
   return (
     <div className="space-y-2">

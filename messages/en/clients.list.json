@@ -78,7 +78,8 @@
         "expiredHw": "⚠ {count, plural, one {# assignment} other {# assignments}}",
         "noPhone": "No phone",
         "noGorusme": "No meeting date",
-        "detail": "View Details →"
+        "detail": "View Details →",
+        "unpaid": "Fee Not Collected"
       },
       "durum": {
         "aktif": "Active",
@@ -122,6 +123,25 @@
         "deleteRequireLabel": "Type “SİL” to confirm:",
         "deleteFailedTitle": "Some clients could not be deleted",
         "deleteFailedNames": "Not deleted (kept selected): {names}"
+      },
+      "alertsOpen": "Show active alerts",
+      "alertsPanelTitle": "Active Alerts — Overdue Homework",
+      "alertsOverdue": "{count} overdue homework",
+      "alertsGoTo": "Go to homework",
+      "alertsClose": "Close",
+      "alertsUnknownClient": "Client",
+      "bulkWord": {
+        "wordSelected": "Download Selected as Word",
+        "wordAll": "Download All as Word",
+        "selectAll": "Select All",
+        "selectAllFiltered": "Select All Results",
+        "loadingAll": "Loading all clients...",
+        "scopeNone": "Select clients for Word. The file contains each selected client's full record (everything in the single report).",
+        "scopeAll": "All clients selected ({total}). The Word file contains each client's full record.",
+        "scopeSelected": "{selected} / {total} clients selected. The Word file contains only the selected clients' full records.",
+        "scopeFiltered": "Search/filter active: {filtered} results, {selected} selected. The Word file contains only the selected clients.",
+        "tooMany": "A single Word file can contain at most {max} clients ({count} selected). Please narrow the selection.",
+        "success": "Full records of {count} clients downloaded."
       }
     }
   }

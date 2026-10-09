@@ -33,7 +33,6 @@ export default function BilgiKaydiDuzenlePage() {
       subtitle="Değişiklik yaparken bir gerekçe girmeniz gerekir."
       icon="📑"
       breadcrumbLeaf="Düzenle"
-      showNav={false}
       actions={
         <Link
           href={id ? `/aromaterapi/bilgi-kayitlari/${id}` : "/aromaterapi/bilgi-kayitlari"}

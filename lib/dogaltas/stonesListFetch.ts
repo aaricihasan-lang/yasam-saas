@@ -376,11 +376,14 @@ export async function excludeStonesForTenant(
   stoneIds: string[],
 ): Promise<{ error: string | null }> {
   if (stoneIds.length === 0) return { error: null };
-  const r = await dogaltasApiSend("/api/dogaltas/stone-exclusions", "POST", { stoneIds });
-  if (r.ok) {
-    // PERF-2: gizleme başarılı → liste + exclusions cache'i geçersiz kıl.
-    invalidateStonesList();
-    invalidateStoneExclusions();
+  // Büyük seçimlerde (Tümünü Seç) sunucu toplu sınırına uygun 1000'lik parçalar.
+  let error: string | null = null;
+  for (let i = 0; i < stoneIds.length && !error; i += 1000) {
+    const r = await dogaltasApiSend("/api/dogaltas/stone-exclusions", "POST", { stoneIds: stoneIds.slice(i, i + 1000) });
+    if (!r.ok) error = r.error ?? "Gizlenemedi";
   }
-  return { error: r.ok ? null : (r.error ?? "Gizlenemedi") };
+  // PERF-2: gizleme (kısmen de olsa) yapıldı → liste + exclusions cache'i geçersiz kıl.
+  invalidateStonesList();
+  invalidateStoneExclusions();
+  return { error };
 }

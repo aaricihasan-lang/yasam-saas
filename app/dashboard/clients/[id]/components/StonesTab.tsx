@@ -1,6 +1,7 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
+import { MOBILE_HIDDEN_BLOCK } from "@/components/platform/mobileHidden";
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { formatDateAbsolute } from "@/lib/i18n/format";
@@ -364,8 +365,9 @@ function CreatePhotoPicker({
   onRemove,
 }: CreatePhotoPickerProps) {
   const t = useTranslations("clients.stones");
+  // Mobilde (Android + telefon genişliği) bilgisayardan dosya seçimi yok → kutu gizli; web'de aynen.
   return (
-    <div className={`mt-3 ${boxClass("rose")}`}>
+    <div className={`mt-3 ${boxClass("rose")} ${MOBILE_HIDDEN_BLOCK}`} data-testid="stone-create-photo-picker">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <SectionLabel icon="📷" title={t("photoPicker.title")} tone="rose" />
 

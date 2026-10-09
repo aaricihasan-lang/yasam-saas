@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { BULK_DELETE_LIMIT_ERROR, exceedsBulkDeleteLimit } from "@/lib/api/bulkDeleteLimits";
 import { readExpectedVersion } from "@/lib/human-design/api/optimistic";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
@@ -166,6 +167,9 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   const idsRaw = url.searchParams.get("ids");
   if (idsRaw !== null) {
     const ids = idsRaw.split(",").map((s) => s.trim()).filter(Boolean);
+    if (exceedsBulkDeleteLimit(ids)) {
+      return NextResponse.json({ ok: false, error: BULK_DELETE_LIMIT_ERROR }, { status: 400, headers: NO_STORE });
+    }
     const { ok, error } = await deleteKnowledgeBulk(guard.db, guard.tenantId, ids);
     if (!ok) return NextResponse.json({ ok: false, error: error ?? "Silinemedi." }, { status: 400, headers: NO_STORE });
     // USAGE360: toplu silme → TEK olay + itemCount.

@@ -94,16 +94,33 @@ export async function deleteStone(
  * Sıralı tekil DELETE yerine `/api/dogaltas/stones/bulk-delete` → hızlı + atomik;
  * sayfadan çıkınca kısmi silme riski yok. Dönüş şekli değişmedi ({deletedIds, error}).
  */
+/** Sunucu toplu silme üst sınırı (lib/api/bulkDeleteLimits MAX_BULK_DELETE_IDS) → istemci parçalar. */
+export const BULK_CHUNK = 1000;
+
+export function chunkIds<T>(ids: readonly T[], size = BULK_CHUNK): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < ids.length; i += size) out.push(ids.slice(i, i + size));
+  return out;
+}
+
 export async function deleteStones(
   ids: string[],
 ): Promise<{ deletedIds: string[]; error: string | null }> {
   if (ids.length === 0) return { deletedIds: [], error: null };
-  const r = await dogaltasApiSend<{ deletedIds?: string[] }>(
-    "/api/dogaltas/stones/bulk-delete", "POST", { ids });
-  if (!r.ok) return { deletedIds: [], error: r.error ?? "Silinemedi" };
+  // "Tümünü Seç" 1000'den fazla kayıt seçebilir → sunucu sınırına uygun parçalar (sıralı).
+  const deletedIds: string[] = [];
+  for (const chunk of chunkIds(ids)) {
+    const r = await dogaltasApiSend<{ deletedIds?: string[] }>(
+      "/api/dogaltas/stones/bulk-delete", "POST", { ids: chunk });
+    if (!r.ok) {
+      if (deletedIds.length > 0) invalidateStonesList();
+      return { deletedIds, error: r.error ?? "Silinemedi" };
+    }
+    // Demo hesapta server deletedIds:[] döner; gerçek silme yapılmaz.
+    deletedIds.push(...(r.data?.deletedIds ?? []));
+  }
   invalidateStonesList(); // PERF-2: toplu silme → liste cache'i geçersiz
-  // Demo hesapta server deletedIds:[] döner; gerçek silme yapılmaz.
-  return { deletedIds: r.data?.deletedIds ?? [], error: null };
+  return { deletedIds, error: null };
 }
 
 export async function getStone(
@@ -125,9 +142,17 @@ export async function createMineral(
 export async function bulkDeleteMinerals(
   ids: string[],
 ): Promise<{ ok: boolean; deleted?: number; error?: string; demo?: boolean }> {
-  const r = await dogaltasApiSend<{ deleted?: number }>(
-    "/api/dogaltas/minerals/bulk-delete", "POST", { ids });
-  return { ok: r.ok, deleted: r.data?.deleted, error: r.error, demo: r.demo };
+  // "Tümünü Seç" 1000'den fazla kayıt seçebilir → sunucu sınırına uygun parçalar (sıralı).
+  let deleted = 0;
+  let demo: boolean | undefined;
+  for (const chunk of chunkIds(ids)) {
+    const r = await dogaltasApiSend<{ deleted?: number }>(
+      "/api/dogaltas/minerals/bulk-delete", "POST", { ids: chunk });
+    if (!r.ok) return { ok: false, deleted, error: r.error, demo: r.demo };
+    deleted += r.data?.deleted ?? 0;
+    demo = demo || r.demo;
+  }
+  return { ok: true, deleted, demo };
 }
 
 export async function getMineral(

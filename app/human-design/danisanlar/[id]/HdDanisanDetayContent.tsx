@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useHdLeaveGuard } from "../../hooks/useHdLeaveGuard";
-import { getHdClient, updateHdClient, type HdClientRow } from "../helpers/hdClients";
+import { getHdClient, updateHdClient, type HdClientRow, type HdJourneyRef } from "../helpers/hdClients";
 import { HdChartImageUpload } from "../components/HdChartImageUpload";
 import { HdAutoCalcPanel } from "../components/HdAutoCalcPanel";
+import { HdJourneyPanel } from "../components/HdJourneyPanel";
+import { HdAnalysisHistory } from "../components/HdAnalysisHistory";
 import { HdBirthLocationPicker, type HdPickedLocation } from "../../components/HdBirthLocationPicker";
 import { HumanDesignShell } from "../../components/HumanDesignShell";
 import { runInEffect } from "@/lib/runInEffect";
@@ -17,9 +19,12 @@ const fieldBase =
 const labelCls = "mb-1.5 block text-xs font-bold text-slate-700";
 const sectionCls = "mb-3 text-xs font-black uppercase tracking-widest text-indigo-700";
 
-// NOT: chart_image_url bu formda TUTULMAZ/kaydedilmez — görsel yalnız
-// /api/hd/upload|delete|chart-image-url route'larıyla (HdChartImageUpload) yönetilir.
-// Böylece "Güncelle" profil kaydı, görselin storage path'ini asla ezmez.
+// NOT: chart_image_url bu formda TUTULMAZ/kaydedilmez — eski görsel yalnız salt-okunur gösterilir
+// (AŞAMA 3C: yeni manuel görsel yükleme kapalı). "Güncelle" görselin storage path'ini asla ezmez.
+//
+// AŞAMA 3C — danışan çalışma sayfası: merkezî danışan bağlantısı (HdJourneyPanel) + doğum bilgileri +
+// Hesapla / Profesyonel harita (HdAutoCalcPanel, DEĞİŞMEDİ) + Geçmiş Human Design Analizleri.
+// Manuel harita oluşturma ve Rapor Oluştur bağlantıları kaldırıldı (eski kayıtlar geçmişte açılır).
 type FormState = {
   name: string;
   birth_date: string;
@@ -47,6 +52,12 @@ export function HdDanisanDetayContent({ clientId }: Props) {
   const { confirm } = useConfirm();
 
   const [row, setRow] = useState<HdClientRow | null>(null);
+  const [journey, setJourney] = useState<HdJourneyRef | null>(null);
+  const [suggestions, setSuggestions] = useState<HdJourneyRef[]>([]);
+  // ?chart=<id> (ör. Danışan Yolculuğu "Analizi Aç") → ilgili analiz doğrudan açılır.
+  const [initialChartId] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("chart"),
+  );
   // P2-9: yüklenen satırın sürümü — koşullu güncelleme (başka oturumu ezmez).
   const versionRef = useRef<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
@@ -67,7 +78,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
 
   const loadClient = useCallback(async () => {
     setLoading(true);
-    const { row: data, error } = await getHdClient(clientId);
+    const { row: data, error, journey: j, suggestions: sug } = await getHdClient(clientId);
     setLoading(false);
     if (error || !data) {
       setNotFound(true);
@@ -75,16 +86,11 @@ export function HdDanisanDetayContent({ clientId }: Props) {
       return;
     }
     setRow(data);
+    setJourney(j ?? null);
+    setSuggestions(sug ?? []);
     setForm(rowToForm(data));
     versionRef.current = data.updated_at ?? null;
   }, [clientId, showToast]);
-
-  // Görsel yüklendi/silindi → danışan satırının sürümü değişti; yalnız sürüm tazelenir
-  // (formdaki kaydedilmemiş değişiklikler korunur).
-  const refreshVersion = useCallback(async () => {
-    const { row: data } = await getHdClient(clientId);
-    if (data) versionRef.current = data.updated_at ?? null;
-  }, [clientId]);
 
   // P2-7: kaydedilmemiş profil değişikliği — menü/logo/geri/yenile korunur.
   const dirty = useMemo(
@@ -178,7 +184,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
             href="/human-design/danisanlar"
             className="text-sm font-bold text-indigo-600 hover:underline"
           >
-            ← Danışan Listesine Dön
+            ← Human Design Hesaplama
           </Link>
         </div>
       </HumanDesignShell>
@@ -191,12 +197,23 @@ export function HdDanisanDetayContent({ clientId }: Props) {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div>
           <p className="text-xs font-black uppercase tracking-widest text-indigo-500">
-            Danışan Detayı
+            Human Design Hesaplama
           </p>
           <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
             {row.name}
           </h1>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <HdJourneyPanel
+          hdClientId={clientId}
+          profileName={row.name}
+          profileBirthDate={row.birth_date ?? null}
+          journey={journey}
+          suggestions={suggestions}
+          onChanged={() => void loadClient()}
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_400px]">
@@ -213,69 +230,20 @@ export function HdDanisanDetayContent({ clientId }: Props) {
             formDirty={dirty}
           />
 
-          {/* Manuel fallback (eski yöntem) — veri ve özellikler korunur, varsayılan kapalı */}
-          <details className="group rounded-2xl border border-slate-200/90 bg-white/90 p-5 shadow-sm">
-            <summary className="cursor-pointer list-none text-xs font-black uppercase tracking-widest text-slate-500 marker:hidden">
-              <span className="mr-1 inline-block transition group-open:rotate-90">▸</span>
-              Manuel Harita (eski yöntem)
-            </summary>
-            <div className="mt-4 space-y-4">
-              <p className="text-xs leading-relaxed text-slate-500">
-                Otomatik hesaplama kullanılamadığında: dış programdan alınan harita bağlantısı/görseli ve manuel kapı-kanal işaretleme.
-              </p>
-              <Link
-                href={`/human-design/harita-kaydi?clientId=${clientId}`}
-                className="flex h-9 w-fit items-center rounded-xl border border-violet-300/80 bg-violet-50 px-4 text-sm font-bold text-violet-800 no-underline transition hover:border-violet-400 hover:bg-violet-100"
-              >
-                Manuel Harita Kaydı
-              </Link>
-              <div>
-                <label className={labelCls}>Harita Linki (Jovian Archive vb.)</label>
-                <input
-                  type="url"
-                  value={form.external_chart_url}
-                  onChange={set("external_chart_url")}
-                  placeholder="https://..."
-                  className={`h-9 ${fieldBase}`}
-                />
-                {form.external_chart_url.trim() && (
-                  <a
-                    href={form.external_chart_url.trim()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-1.5 inline-flex max-w-full items-center gap-1 rounded-lg border border-indigo-200/80 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
-                  >
-                    <span className="truncate">Haritayı Dış Sitede Aç</span>
-                    <span aria-hidden className="shrink-0">↗</span>
-                  </a>
-                )}
-                <p className="mt-1 text-[11px] text-slate-400">Link değişikliği sağdaki “Güncelle” ile kaydedilir.</p>
+          {/* Eski manuel harita görseli varsa YALNIZ görüntülenir (yeni yükleme kapalı). */}
+          {row.chart_image_url ? (
+            <details className="group rounded-2xl border border-slate-200/90 bg-white/90 p-5 shadow-sm">
+              <summary className="cursor-pointer list-none text-xs font-black uppercase tracking-widest text-slate-500 marker:hidden">
+                <span className="mr-1 inline-block transition group-open:rotate-90">▸</span>
+                Eski Harita Görseli (salt okunur)
+              </summary>
+              <div className="mt-3">
+                <HdChartImageUpload clientId={clientId} readOnly />
               </div>
-              <div>
-                <p className={labelCls}>Harita Görseli</p>
-                <HdChartImageUpload clientId={clientId} onChanged={() => void refreshVersion()} />
-              </div>
-            </div>
-          </details>
+            </details>
+          ) : null}
 
-          {/* Hızlı Erişim */}
-          <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-5 shadow-sm ring-1 ring-indigo-100/60">
-            <p className={sectionCls}>Hızlı Erişim</p>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                href={`/human-design/rapor-olustur?clientId=${clientId}`}
-                className="flex h-9 items-center rounded-xl border border-indigo-300/80 bg-indigo-50 px-4 text-sm font-bold text-indigo-800 no-underline transition hover:border-indigo-400 hover:bg-indigo-100"
-              >
-                Rapor Oluştur
-              </Link>
-              <Link
-                href="/human-design/kayitli-raporlar"
-                className="flex h-9 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 no-underline transition hover:border-slate-300 hover:bg-slate-50"
-              >
-                Kayıtlı Raporlar
-              </Link>
-            </div>
-          </div>
+          <HdAnalysisHistory clientId={clientId} initialChartId={initialChartId} />
         </div>
 
         {/* Sağ: Kişisel Bilgiler + Kaydet */}
@@ -290,8 +258,12 @@ export function HdDanisanDetayContent({ clientId }: Props) {
                   type="text"
                   value={form.name}
                   onChange={set("name")}
-                  className={`h-9 ${fieldBase}`}
+                  readOnly={!!journey}
+                  className={`h-9 ${fieldBase} ${journey ? "bg-slate-50 text-slate-600" : ""}`}
                 />
+                {journey ? (
+                  <p className="mt-1 text-[11px] text-slate-500">Ad ve soyad Danışan Yolculuğu kaydından gelir.</p>
+                ) : null}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

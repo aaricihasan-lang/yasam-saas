@@ -26,7 +26,6 @@ export default function KaynakDuzenlePage() {
       subtitle="Değişiklik yaparken bir gerekçe girmeniz gerekir."
       icon="📜"
       breadcrumbLeaf="Düzenle"
-      showNav={false}
       actions={
         <Link
           href={detailHref}

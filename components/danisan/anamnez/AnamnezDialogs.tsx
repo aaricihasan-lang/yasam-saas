@@ -7,7 +7,7 @@ import { displayAnswer, formatIsoDate, todayIsoIstanbul } from "@/lib/danisan/an
 import { anamnezBase, anamnezFetch } from "@/lib/danisan/anamnez/client";
 import type { ConflictChoice, ImportConflict, SourceChange } from "@/lib/danisan/anamnez/sources";
 import { CUSTOM_FIELD_TYPES, type AnamnezSectionKey, type AnamnezSummary, type CustomFieldType, type RowValue } from "@/lib/danisan/anamnez/types";
-import { aHint, aInput, aLabel, aTextarea } from "./styles";
+import { aHint, aInput, aLabel, aTextarea, freeTextFieldProps } from "./styles";
 
 // ─── Modal kabuğu ────────────────────────────────────────────────────────────
 
@@ -171,6 +171,7 @@ function NewAnamnezDialogBody({ open, onClose, clientId, completed, locale, onCr
             <span className={aLabel}>{t("create.titleLabel")}</span>
             <input
               type="text"
+              {...freeTextFieldProps("create_title")}
               value={title}
               maxLength={120}
               placeholder={t("create.titlePlaceholder")}
@@ -471,7 +472,7 @@ function AddFieldDialogBody({ open, section, sectionTitle, onAdd, onClose }: Add
       <div className="space-y-3">
         <label className="block">
           <span className={aLabel}>{t("custom.label")}</span>
-          <input type="text" value={label} maxLength={200} onChange={(e) => setLabel(e.target.value)} className={`${aInput} mt-1`} />
+          <input type="text" {...freeTextFieldProps("custom_label")} value={label} maxLength={200} onChange={(e) => setLabel(e.target.value)} className={`${aInput} mt-1`} />
         </label>
         <label className="block">
           <span className={aLabel}>{t("custom.type")}</span>
@@ -484,7 +485,7 @@ function AddFieldDialogBody({ open, section, sectionTitle, onAdd, onClose }: Add
         {needsOptions ? (
           <label className="block">
             <span className={aLabel}>{t("custom.options")}</span>
-            <textarea value={options} onChange={(e) => setOptions(e.target.value)} rows={4} className={`${aTextarea} mt-1`} />
+            <textarea {...freeTextFieldProps("custom_options")} value={options} onChange={(e) => setOptions(e.target.value)} rows={4} className={`${aTextarea} mt-1`} />
             <span className={aHint}>{t("custom.optionsHint")}</span>
           </label>
         ) : null}
@@ -536,7 +537,7 @@ function LabelEditDialogBody({ open, current, standard, onSave, onClose }: Label
     >
       <label className="block">
         <span className={aLabel}>{t("custom.label")}</span>
-        <input type="text" value={value} maxLength={200} onChange={(e) => setValue(e.target.value)} className={`${aInput} mt-1`} />
+        <input type="text" {...freeTextFieldProps("rename_label")} value={value} maxLength={200} onChange={(e) => setValue(e.target.value)} className={`${aInput} mt-1`} />
       </label>
       {standard !== null ? <p className={`${aHint} mt-2`}>{t("field.standardLabel", { label: standard })}</p> : null}
       <p className={`${aHint} mt-2 rounded-xl bg-slate-50 px-3 py-2`}>{t("custom.scopeNote")}</p>

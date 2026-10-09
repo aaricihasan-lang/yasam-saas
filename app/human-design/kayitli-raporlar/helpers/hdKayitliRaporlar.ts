@@ -5,6 +5,7 @@
 
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type { HumanDesignReport, HumanDesignClient } from "@/lib/human-design/types";
+import type { WordReportBrief } from "@/lib/human-design/reporting/wordReportPick";
 
 export type HdReportWithClient = HumanDesignReport & {
   client: Pick<HumanDesignClient, "id" | "name"> | null;
@@ -72,4 +73,19 @@ export async function deleteReport(id: string): Promise<{ error: string | null }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true) return { error: null };
   return { error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
+}
+
+/** Hafif rapor listesi (içerik yok). `chartId` verilirse yalnız o analizin raporları. */
+export async function listReportBriefs(opts: { chartId?: string } = {}): Promise<{ rows: WordReportBrief[]; error: string | null }> {
+  const qs = new URLSearchParams({ brief: "1" });
+  if (opts.chartId) qs.set("chartId", opts.chartId);
+  let res: Response;
+  try {
+    res = await fetch(`/api/hd/reports?${qs.toString()}`, { method: "GET", headers: authHeaders(), cache: "no-store" });
+  } catch {
+    return { rows: [], error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true && Array.isArray(j.rows)) return { rows: j.rows as WordReportBrief[], error: null };
+  return { rows: [], error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }

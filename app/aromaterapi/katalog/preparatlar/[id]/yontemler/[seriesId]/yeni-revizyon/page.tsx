@@ -75,7 +75,6 @@ export default function YeniRevizyonPage() {
       subtitle="Mevcut yöntemin güncellenmiş bir sürümünü ekleyin (önceki revizyonlar değişmez)."
       icon="🧪"
       breadcrumbLeaf="Yeni Revizyon"
-      showNav={false}
       actions={
         <Link
           href={`/aromaterapi/katalog/preparatlar/${preparationId}/yontemler/${seriesId}`}

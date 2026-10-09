@@ -22,7 +22,8 @@ export default function KayitliRaporlarPage() {
           Kayıtlı Human Design Raporları
         </h1>
         <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-          Oluşturulan danışan raporlarını görüntüleyin, düzenleyin veya silin.
+          Daha önce hazırlanmış Word raporları (eski raporlar dahil). Yeni bir analizi Word olarak indirmek için
+          Human Design Hesaplama &gt; Kayıtlı Human Design Analizleri listesinde “Word İndir” kullanın.
         </p>
       </div>
 

@@ -765,6 +765,7 @@ export default function TasBilgiKutuphanesiPage() {
 
     const ok = await deleteConfirm({
       title: t("confirm.deleteTitle"),
+      count: ids.length,
       message: t("confirm.deleteMessage", { count: ids.length }),
       names: targets.map((r) => r.title),
     });

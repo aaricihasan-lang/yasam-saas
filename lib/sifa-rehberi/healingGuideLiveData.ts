@@ -4,6 +4,7 @@ import { foldedIncludes, isMeaningfulText } from "@/lib/sifa-rehberi/normalizeTr
 import {
   patchGuideVersioned,
   saveGuideVersioned,
+  SIFA_SESSION_ENDED_MESSAGE,
   type GuideSaveResult,
   type GuideWriteDeps,
 } from "@/lib/sifa-rehberi/guideSaveFlow";
@@ -726,6 +727,7 @@ export async function createHealingGuide(
   if (res.status === 409 && json.conflict === true) {
     return { id: null, error: json.error ?? "Bu istek farklı içerikle daha önce işlendi.", conflict: true };
   }
+  if (res.status === 401) return { id: null, error: SIFA_SESSION_ENDED_MESSAGE };
   if (!res.ok || json.ok !== true) {
     return { id: null, error: json.error ?? `Kayıt eklenemedi (HTTP ${res.status}).` };
   }
@@ -784,6 +786,7 @@ export async function deleteHealingGuide(
     return { error: "Sunucuya ulaşılamadı." };
   }
   const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+  if (res.status === 401) return { error: SIFA_SESSION_ENDED_MESSAGE };
   if (!res.ok || json.ok !== true) {
     return { error: json.error ?? `Kayıt silinemedi (HTTP ${res.status}).` };
   }
@@ -811,6 +814,7 @@ export async function deleteHealingGuides(
     deletedIds?: string[];
     error?: string;
   };
+  if (res.status === 401) return { deletedIds: [], error: SIFA_SESSION_ENDED_MESSAGE };
   if (!res.ok || json.ok !== true) {
     return { deletedIds: [], error: json.error ?? `Kayıtlar silinemedi (HTTP ${res.status}).` };
   }

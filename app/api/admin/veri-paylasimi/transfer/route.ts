@@ -919,12 +919,21 @@ async function rollbackGroup(
   db: SupabaseClient,
   cfg: GroupConfig,
   batchId: string,
+  targetTenantId: string,
 ): Promise<void> {
   try {
+    // Telafi-silme HEDEF tenant ile sınırlı: istemcinin verdiği batchId başka bir tenant'taki
+    // eski bir aktarımın batch'iyle çakışsa bile yalnız bu aktarımın hedefindeki satırlar silinir.
     if (cfg.kind === "relational" && cfg.childTable) {
-      await db.from(cfg.childTable).delete().eq("origin_transfer_batch_id", batchId);
+      let childDel = db.from(cfg.childTable).delete().eq("origin_transfer_batch_id", batchId);
+      if (cfg.childHasTenant) childDel = childDel.eq("tenant_id", targetTenantId);
+      await childDel;
     }
-    let del = db.from(cfg.table).delete().eq("origin_transfer_batch_id", batchId);
+    let del = db
+      .from(cfg.table)
+      .delete()
+      .eq("origin_transfer_batch_id", batchId)
+      .eq("tenant_id", targetTenantId);
     if (cfg.matchColumn && cfg.matchValue != null) {
       del = del.eq(cfg.matchColumn, cfg.matchValue);
     }
@@ -1119,7 +1128,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       });
     } catch (err) {
       // YALNIZ bu grubun batch satırlarını geri al; diğer grupları etkileme.
-      await rollbackGroup(db, cfg, batchId);
+      await rollbackGroup(db, cfg, batchId, targetTenantId);
       counts[group] = 0;
       sections.push({
         group,

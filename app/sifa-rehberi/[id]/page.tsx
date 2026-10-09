@@ -26,6 +26,7 @@ import {
   unsavedUploadPaths,
 } from "@/lib/sifa-rehberi/leaveGuard";
 import { useSifaLinkLeaveGuard } from "@/components/sifa-rehberi/useSifaLinkLeaveGuard";
+import SifaCategoryField from "@/components/sifa-rehberi/SifaCategoryField";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
   SectionEditor,
@@ -445,6 +446,10 @@ export default function SifaRehberiDetailPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  // WT4: üst + alt Kaydet AYNI eyleme bağlı; state güncellenmeden gelen ikinci tık (aynı tick /
+  // iki buton) senkron ref kilidiyle düşer → çift PATCH/PUT yok. Silme için de aynı kilit.
+  const saveInFlightRef = useRef(false);
+  const deleteInFlightRef = useRef(false);
   const [lightbox, setLightbox] = useState<GuideImage | null>(null);
   // P1 PHASE A: görsel render kaynağı — guide-scoped signed READ endpoint'inden gelen
   // kısa ömürlü signed URL'ler (imageId → signedUrl). DB'ye persist EDİLMEZ.
@@ -835,6 +840,16 @@ export default function SifaRehberiDetailPage() {
   }, []);
 
   async function handleSaveFields() {
+    if (saveInFlightRef.current) return;
+    saveInFlightRef.current = true;
+    try {
+      await runSaveFields();
+    } finally {
+      saveInFlightRef.current = false;
+    }
+  }
+
+  async function runSaveFields() {
     if (!draft || !id) return;
     const nameTrim = draft.name.trim();
     if (!nameTrim) {
@@ -1047,24 +1062,34 @@ export default function SifaRehberiDetailPage() {
     }
   }
 
+  /**
+   * WT4 — tek onay → tek işlem. KÖK NEDEN (onay döngüsü): hata durumunda modal AÇIK kalıyor,
+   * hata metni modalın ARKASINDAKİ sayfaya yazılıyordu → kullanıcı aynı "Evet, Sil" onayını
+   * tekrar tekrar görüyordu. Artık sonuç ne olursa olsun modal kapanır; hata tek kez görünür.
+   */
   async function confirmDeleteRecord() {
-    if (!id) return;
+    if (!id || deleteInFlightRef.current) return;
+    deleteInFlightRef.current = true;
     setDeleting(true);
     setErrorMessage("");
-    if (!queryTenantId) {
-      setDeleting(false);
-      setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
-      return;
-    }
+    try {
+      if (!queryTenantId) {
+        setDeleteConfirmOpen(false);
+        setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
+        return;
+      }
 
-    const { error } = await deleteHealingGuide(id);
-    setDeleting(false);
-    if (error) {
-      setErrorMessage(`Silinemedi: ${error}`);
-      return;
+      const { error } = await deleteHealingGuide(id);
+      setDeleteConfirmOpen(false);
+      if (error) {
+        setErrorMessage(`Silinemedi: ${error}`);
+        return;
+      }
+      router.push(SIFA_REHBERI_LIST_HREF);
+    } finally {
+      deleteInFlightRef.current = false;
+      setDeleting(false);
     }
-    setDeleteConfirmOpen(false);
-    router.push(SIFA_REHBERI_LIST_HREF);
   }
 
   if (loading) {
@@ -1121,11 +1146,12 @@ export default function SifaRehberiDetailPage() {
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="text-[12px] font-bold text-slate-400">Kategori</span>
                 {editEnabled ? (
-                  <input
+                  <SifaCategoryField
                     value={draft.category}
-                    onChange={(e) => setDraftField("category", e.target.value)}
-                    className="min-w-[200px] flex-1 rounded-2xl border border-slate-200/90 bg-white px-3 py-2 text-[13px] font-semibold text-slate-800 outline-none focus:border-emerald-200 focus:ring-4 focus:ring-emerald-100/60"
-                    placeholder="—"
+                    onChange={(v) => setDraftField("category", v)}
+                    disabled={saving}
+                    className="min-w-[200px] flex-1"
+                    inputClassName="w-full rounded-2xl border border-slate-200/90 bg-white px-3 py-2 text-[13px] font-semibold text-slate-800 outline-none focus:border-emerald-200 focus:ring-4 focus:ring-emerald-100/60"
                   />
                 ) : (
                   <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200/60">
@@ -1631,6 +1657,38 @@ export default function SifaRehberiDetailPage() {
           </>
           )}
         </section>
+
+        {/* WT4: uzun formda alttaki Kaydet — üstteki Kaydet ile AYNI eylem (handleSaveFields,
+            ref kilidi → çift gönderim yok). Hata da burada tekrar gösterilir (mobilde üstteki
+            uyarı ekran dışında kalıyordu). */}
+        {editEnabled && !isDemo ? (
+          <div className="mt-3 rounded-2xl border border-white/80 bg-white/90 p-3 shadow-[0_12px_32px_rgba(15,23,42,0.06)] ring-1 ring-white/90">
+            {errorMessage ? (
+              <p role="alert" className="mb-2 rounded-xl bg-rose-50 px-3 py-2 text-[12px] font-bold text-rose-700 ring-1 ring-rose-100">
+                {errorMessage}
+              </p>
+            ) : null}
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => void handleCancelEdit()}
+                disabled={saving}
+                className={`${detailToolbarBtn} border border-slate-200/90 bg-white text-slate-700 shadow-sm hover:bg-slate-50`}
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                data-testid="sifa-save-bottom"
+                onClick={() => void handleSaveFields()}
+                disabled={saving}
+                className={`${detailToolbarBtn} bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-[0_12px_28px_rgba(15,23,42,0.22)] ring-1 ring-emerald-500/30 hover:brightness-105 disabled:opacity-60`}
+              >
+                {saving ? "Kaydediliyor..." : "Kaydet"}
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {lightbox ? (
