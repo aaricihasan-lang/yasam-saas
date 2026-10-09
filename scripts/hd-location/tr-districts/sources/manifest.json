@@ -1,0 +1,44 @@
+{
+ "olusturma": "2026-10-09",
+ "kaynaklar": [
+  {
+   "ad": "e-İçişleri Mülki İdare Bölümleri",
+   "url": "https://www.e-icisleri.gov.tr/Anasayfa/MulkiIdariBolumleri.aspx",
+   "alinma": "2026-10-09",
+   "kapsam": "81 il, 973 ilçe resmî adları",
+   "dosya": "eicisleri-ilceler.json",
+   "lisans": "Kamu idari bilgisi (resmî ad listesi)"
+  },
+  {
+   "ad": "GeoNames TR dökümü",
+   "url": "https://download.geonames.org/export/dump/TR.zip",
+   "alinma": "2026-10-08",
+   "sha256_TR_txt": "43d108992402b65c4ca8e336e5a67956c4a331b735bddca53e90bf2a0d3aa185",
+   "dosya": "geonames-tr-subset.json",
+   "lisans": "CC BY 4.0 — atıf zorunlu"
+  },
+  {
+   "ad": "Wikidata SPARQL (Q1147395 Türkiye ilçesi; P36/P625)",
+   "url": "https://query.wikidata.org/",
+   "alinma": "2026-10-09",
+   "dosya": "wikidata-tr-subset.json",
+   "lisans": "CC0 1.0"
+  },
+  {
+   "ad": "OpenStreetMap (Overpass) — YALNIZ DOĞRULAMA",
+   "url": "https://overpass-api.de/",
+   "alinma": "2026-10-09",
+   "lisans": "ODbL 1.0",
+   "not": "OSM verisi bu depoya YAZILMAZ; yalnız GeoNames/Wikidata koordinatının ≤3 km doğrulanmasında kullanıldı."
+  },
+  {
+   "ad": "RoxyAPI",
+   "not": "Dizinde Roxy yanıtı KULLANILMAZ (Roxy kullanım şartları m. 2.3 ve 5.5). Roxy listesi yalnız denetimde karşılaştırma için kullanıldı."
+  }
+ ],
+ "kurallar": {
+  "koordinat": "4 ondalık, ROUND_HALF_UP",
+  "saatDilimi": "Europe/Istanbul (tümü)",
+  "vekil": "12 ilçe: il merkezi koordinatı yalnız hesap için; ilçe koordinatı olarak gösterilmez"
+ }
+}

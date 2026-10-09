@@ -104,6 +104,7 @@ export function HdComputedChartModal({ id, onClose, onDeleted }: Props) {
             latitude: input?.latitude,
             longitude: input?.longitude,
             birthUtcIso: result.timing?.birthUtcIso ?? null,
+            locationId: row.location_id ?? null,
           },
           today,
         )
