@@ -63,18 +63,38 @@ async function main() {
   const routeFiles = walk(join(ROOT, "app/api/admin/astroloji")).filter((f) => f.endsWith("route.ts"));
   const astroFiles = [...walk(join(ROOT, "lib/astrology")), ...walk(join(ROOT, "app/admin/astroloji")), ...routeFiles];
 
-  await t(`route: ${routeFiles.length} route'un her handler'ı önce requireAstrologyOwner çağırır`, () => {
+  await t(`route: ${routeFiles.length} route'un her handler'ı önce requireAstrologyAccess çağırır (alan denetimi ownerOnly)`, () => {
     assert.ok(routeFiles.length >= 7, `route sayısı ${routeFiles.length}`);
     for (const f of routeFiles) {
       const s = readFileSync(f, "utf8");
       const handlers = [...s.matchAll(/export async function (GET|POST|PUT|PATCH|DELETE)\([^)]*\)[^{]*\{\s*\n([^\n]*)\n([^\n]*)/g)];
       assert.ok(handlers.length > 0, `${rel(f)}: handler yok`);
+      const ownerOnly = /\/unmapped\/route\.ts$/.test(rel(f));
       for (const h of handlers) {
-        assert.match(h[2], /const gate = await requireAstrologyOwner\(req\);/, `${rel(f)} ${h[1]}: ilk satır kapı değil`);
+        assert.match(h[2], ownerOnly ? /const gate = await requireAstrologyAccess\(req, \{ ownerOnly: true \}\);/ : /const gate = await requireAstrologyAccess\(req\);/, `${rel(f)} ${h[1]}: ilk satır kapı değil`);
         assert.match(h[3], /if \(!gate\.ok\) return gate\.response;/, `${rel(f)} ${h[1]}: erken dönüş yok`);
       }
-      assert.ok(!/verifyUserRequest|requireModuleAccess/.test(s), `${rel(f)}: uzman guard'ı kullanılmamalı`);
+      // Kapı route'ta DEĞİL tek merkezde (lib/astrology/access/ownerGate.requireAstrologyAccess).
+      assert.ok(!/verifyUserRequest|requireModuleAccess|requireAstrologyOwner/.test(s), `${rel(f)}: kapı tek merkezden geçmeli`);
     }
+  });
+
+  await t("7C: uzman yüzeyi app/api/astroloji/** admin route'larının BİREBİR aynası (yalnız re-export, kendi mantığı yok)", () => {
+    const expert = walk(join(ROOT, "app/api/astroloji")).filter((f) => f.endsWith("route.ts"));
+    const adminRel = routeFiles.map((f) => rel(f).replace(/^app\/api\/admin\/astroloji/, "")).sort();
+    const expertRel = expert.map((f) => rel(f).replace(/^app\/api\/astroloji/, "")).sort();
+    assert.deepEqual(expertRel, adminRel, "uzman / admin route kümeleri aynı olmalı");
+    for (const f of expert) {
+      const s = readFileSync(f, "utf8").replace(/\r\n/g, "\n").replace(/^\s*\/\/.*$/gm, "").trim();
+      const sub = rel(f).replace(/^app\/api\/astroloji/, "").replace(/\/route\.ts$/, "");
+      const adminSrc = read(`app/api/admin/astroloji${sub}/route.ts`);
+      const methods = [...adminSrc.matchAll(/export async function (GET|POST|PUT|PATCH|DELETE)\b/g)].map((m) => m[1]);
+      assert.equal(s, `export { ${methods.join(", ")} } from "@/app/api/admin/astroloji${sub}/route";\nexport const runtime = "nodejs";`, `${rel(f)}: yalnız re-export olmalı`);
+    }
+    // Kapı yüzeyi yoldan seçer: admin yolu owner-only, uzman yolu modül yetkisi; başka yol 404.
+    const g = read("lib/astrology/access/ownerGate.ts");
+    assert.match(g, /if \(path === "\/api\/admin\/astroloji" \|\| path\.startsWith\("\/api\/admin\/astroloji\/"\)\) return requireAstrologyOwner\(req, deps\);/);
+    assert.match(g, /requireModuleAccess\)\(req, "astrology"\)/);
   });
 
   await t("istemci: 'use client' dosyaları sunucu-yalnız modülleri / supabase-server'ı import etmez", () => {
@@ -127,9 +147,56 @@ async function main() {
     assert.equal((s.match(/\/admin\/astroloji/g) ?? []).length, 1, "astroloji bağlantısı tek ve koşullu olmalı");
   });
 
-  await t("yetki: 4 anahtar Üye Yönetimi / module_permissions / ModuleGateKey / route registry'ye EKLENMEDİ", () => {
-    for (const f of ["lib/auth/modulePermissions.ts", "lib/auth/moduleAccessCore.ts", "lib/admin/userManagement.ts", "lib/auth/moduleRouteRegistry.ts", "lib/auth/routeModuleAccess.ts", "app/page.tsx"]) {
-      assert.ok(!/astrolog/i.test(read(f)), `${f}: astroloji izi var (Aşama 1'de olmamalı)`);
+  await t("7C yetki: astrology (modül) + astrology_provider_interp (alt-yetki) MEVCUT yetki sistemine eklendi; Premium payload'ında YOK; demo reddi", async () => {
+    const mp = await import("@/lib/auth/modulePermissions");
+    const um = await import("@/lib/admin/userManagement");
+    const core = await import("@/lib/auth/moduleAccessCore");
+    const reg = await import("@/lib/auth/moduleRouteRegistry");
+    for (const k of ["astrology", "astrology_provider_interp"] as const) {
+      assert.ok(mp.MODULE_PERMISSION_KEYS.includes(k), `MODULE_PERMISSION_KEYS: ${k}`);
+      assert.equal(mp.DEFAULT_MODULE_PERMISSIONS[k], false, `varsayılan kapalı: ${k}`);
+      assert.ok((um.ADMIN_MODULE_UI_KEYS as readonly string[]).includes(k), `Üye Yönetimi: ${k}`);
+      assert.equal(um.DEFAULT_ADMIN_MODULE_PERMISSIONS[k], false);
+    }
+    assert.equal(um.ADMIN_MODULE_KIND.astrology, "module");
+    assert.equal(um.ADMIN_MODULE_KIND.astrology_provider_interp, "capability", "Roxy yorumu tek başına erişim açmaz");
+    assert.equal(um.ADMIN_MODULE_UI_DESCRIPTIONS.astrology, "Uzmanın Astroloji modülüne erişmesini sağlar.");
+    assert.match(String(um.ADMIN_MODULE_UI_DESCRIPTIONS.astrology_provider_interp), /^Uzmanın Astroloji hesaplamalarına ait sistem yorumlarını kullanmasına izin verir\./);
+    assert.ok("astrology" in core.MODULE_ALIASES, "ModuleGateKey: astrology");
+    assert.ok(!("astrology_provider_interp" in core.MODULE_ALIASES), "alt-yetki gate anahtarı değildir");
+    assert.ok(core.DEMO_DENIED_MODULE_KEYS.has("astrology"), "demo hesap Astroloji'yi görmez");
+    assert.ok(reg.MODULE_ROUTE_PREFIXES.some((p) => p.prefix === "app/api/astroloji" && p.key === "astrology"));
+    assert.ok(!reg.MODULE_ROUTE_PREFIXES.some((p) => p.prefix.startsWith("app/api/admin")), "admin yüzeyi modül-gate'e girmez");
+    const prem = mp.buildPremiumModulePermissionsPayload?.() as Record<string, unknown> | undefined;
+    if (prem) assert.ok(prem.astrology !== true && prem.astrology_provider_interp !== true, "Premium payload Astroloji açmaz (admin uzman bazında açar)");
+    assert.ok(!(mp.PREMIUM_HOME_MODULE_KEYS as string[]).includes("astrology"));
+    assert.match(read("lib/auth/routeModuleAccess.ts"), /\{ prefix: "\/astroloji", keys: \["astrology"\] \}/);
+    assert.match(read("app/page.tsx"), /href: "\/astroloji",\s*\n\s*permissionKey: "astrology",/);
+  });
+
+  await t("7C: paylaşılan sistem dosyalarındaki fark YALNIZ Astroloji satırları (başka modül davranışı değişmez)", () => {
+    let base = "";
+    try {
+      base = execSync("git merge-base HEAD origin/main", { cwd: ROOT, encoding: "utf8" }).trim();
+    } catch {
+      return;
+    }
+    const SHARED = [
+      "lib/auth/modulePermissions.ts", "lib/auth/moduleAccessCore.ts", "lib/admin/userManagement.ts", "lib/auth/moduleRouteRegistry.ts",
+      "lib/auth/routeModuleAccess.ts", "lib/admin/stats/moduleUsageRegistry.ts", "lib/usage/usageTaxonomy.ts", "app/page.tsx",
+      "messages/tr/home.json", "messages/en/home.json",
+    ];
+    for (const f of SHARED) {
+      const diff = execSync(`git diff -U0 ${base} -- "${f}"`, { cwd: ROOT, encoding: "utf8" });
+      const minus = diff.split(/\r?\n/).filter((l) => l.startsWith("-") && !l.startsWith("---")).map((l) => l.slice(1).trim());
+      const plus = diff.split(/\r?\n/).filter((l) => l.startsWith("+") && !l.startsWith("+++")).map((l) => l.slice(1).trim());
+      // Usage360 tip daraltması (Astroloji kullanım kapsamı dışı): ModuleGateKey → UsageTrackedModuleKey eşdeğer sayılır.
+      const strip = (x: string) => x.replace(/[,;]\s*$/, "").replace(/UsageTrackedModuleKey/g, "ModuleGateKey").replace(/, type ModuleGateKey \}/, " }").replace("isUsageModuleKey(module) && ", "");
+      for (const m of minus) assert.ok(plus.some((p) => strip(p) === strip(m)), `${f}: silinen/değişen satır: ${m}`);
+      for (const p of plus) {
+        const ok = minus.some((m) => strip(m) === strip(p)) || /^export type UsageTrackedModuleKey = Exclude<ModuleGateKey, "astrology">;$|^return isUsageModuleKey\(module\) && USAGE_SUB_ENTITIES\[module\]\.includes\(sub\);$|astrolog|astroloji|Astroloji|Astrology|Roxy|owner kuralı|^\/\/|^\*|^\/\*\*$|^\}|^\{|^\],?$|^\),?$|^[a-z_]+: \[\],?$|^(label|key|hasDurableTrace|recordSources|note|href|permissionKey|emoji|Icon|theme|iconWrap|cardBg|border):/.test(p) || p === "";
+        assert.ok(ok, `${f}: Astroloji dışı eklenen satır: ${p}`);
+      }
     }
   });
 
@@ -177,6 +244,20 @@ async function main() {
       /^ASTROLOGY-PHASE6-2-PROGRESS\.md$/,
       /^ASTROLOGY-PHASE7A-PROGRESS\.md$/,
       /^ASTROLOGY-PHASE7B-PROGRESS\.md$/,
+      /^ASTROLOGY-PHASE7C-PROGRESS\.md$/,
+      // Aşama 7C: uzman yüzeyi (sayfa + API aynası) ve mevcut yetki sistemine Astroloji kayıtları.
+      // Paylaşılan dosyalar ayrıca "yalnız Astroloji satırları" testiyle satır satır sınırlanır.
+      /^app\/astroloji\//,
+      /^app\/api\/astroloji\//,
+      /^lib\/auth\/modulePermissions\.ts$/,
+      /^lib\/auth\/moduleAccessCore\.ts$/,
+      /^lib\/admin\/userManagement\.ts$/,
+      /^lib\/auth\/moduleRouteRegistry\.ts$/,
+      /^lib\/auth\/routeModuleAccess\.ts$/,
+      /^lib\/admin\/stats\/moduleUsageRegistry\.ts$/,
+      /^lib\/usage\/usageTaxonomy\.ts$/,
+      /^app\/page\.tsx$/,
+      /^messages\/(tr|en)\/home\.json$/,
       // Aşama 7B: DY durum rozeti — bileşen Astroloji'ye ait; DY sayfasındaki fark ayrıca satır satır denetlenir.
       /^components\/astrology\//,
       /^app\/dashboard\/clients\/\[id\]\/page\.tsx$/,
@@ -204,13 +285,17 @@ async function main() {
     assert.ok(lines.length <= 3 && lines.every((l) => allowedLines.some((r) => r.test(l))), `beklenmeyen DY farkı:\n${lines.join("\n")}`);
   });
 
-  await t("7B: DY durum rozeti yalnız durum ucunu çağırır, sunucu-yalnız / astroloji iç modülü içe aktarmaz, içerik göstermez", () => {
+  await t("7C: DY durum rozeti yalnız durum ucunu çağırır (owner → admin ucu, uzman → uzman ucu), iç modül içe aktarmaz, içerik göstermez", () => {
     const s = readFileSync(join(ROOT, "components/astrology/AstrologyClientStatus.tsx"), "utf8");
-    const fetches = [...s.matchAll(/fetch\(`([^`]+)`/g)].map((m) => m[1]);
-    assert.deepEqual(fetches, ["/api/admin/astroloji/client-status?clientId=${encodeURIComponent(clientId)}"]);
+    const code = s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    const urls = [...code.matchAll(/`(\/api\/[^`]+)`/g)].map((m) => m[1]).sort();
+    assert.deepEqual(urls, ["/api/admin/astroloji/${q}", "/api/astroloji/${q}"]);
+    assert.match(code, /const q = `client-status\?clientId=\$\{encodeURIComponent\(clientId\)\}`;/);
+    assert.equal((code.match(/fetch\(/g) ?? []).length, 1);
     assert.ok(!/from "@\/lib\/astrology|from "@\/app\/admin|server-only/.test(s), "durum rozeti iç modül içe aktarıyor");
-    assert.match(s, /user\.role !== "admin"/, "admin olmayan oturumda istek atılmamalı");
-    assert.ok(!/interpretation|technical|kbMatches|notes/.test(s.replace(/\/\*[\s\S]*?\*\//g, "")), "rozet analiz içeriğine dokunuyor");
+    assert.match(code, /if \(!isAdmin && \(user\.is_demo_account === true \|\| perms\?\.astrology !== true\)\) return;/, "izni görünmeyen uzman / demo istek atmamalı");
+    assert.ok(!/astrology_provider_interp/.test(code), "rozet Roxy yorum alt-yetkisine bağlı değildir");
+    assert.ok(!/interpretation|technical|kbMatches|notes/.test(code), "rozet analiz içeriğine dokunuyor");
   });
 
   await t("kabuk kararı: owner → true; owner olmayan admin / oturumsuz → false; kill switch kapalı → DB'ye gitmeden false", async () => {
