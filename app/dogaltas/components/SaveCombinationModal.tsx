@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { readSessionToken, readYasamUser, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { DOGALTAS_INPUT_CLASS } from "@/lib/dogaltas/formStyles";
 
@@ -96,7 +96,7 @@ export function SaveCombinationModal({
 
     const userId = readYasamUser()?.id;
     const sessionToken = readSessionToken();
-    if (!userId || !sessionToken) {
+    if (!userId || !hasSessionCredential(sessionToken)) {
       setClientError(t("errNoSession"));
       return;
     }
@@ -104,7 +104,7 @@ export function SaveCombinationModal({
     setLoadingClients(true);
     setClientError(null);
     fetch(`/api/clients?limit=1000`, {
-      headers: { "x-user-id": userId, "x-session-token": sessionToken },
+      headers: { "x-user-id": userId, ...sessionTokenHeader(sessionToken) },
       cache: "no-store",
     })
       .then((res) => res.json().catch(() => ({})))

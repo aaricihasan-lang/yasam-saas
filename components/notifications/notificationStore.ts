@@ -13,11 +13,7 @@
  *     YALNIZ "randevuId|epochMs" anahtarı + zaman damgası (ad/başlık/PII YOK).
  */
 
-import {
-  backgroundSyncYasamUserFromDb,
-  readSessionToken,
-  readYasamUser,
-} from "@/lib/auth/yasamUser";
+import { backgroundSyncYasamUserFromDb, readSessionToken, readYasamUser, hasWebSession } from "@/lib/auth/yasamUser";
 import {
   isNotifiable,
   notificationStateKey,
@@ -127,7 +123,7 @@ export function itemKey(item: Pick<FeedItem, "id" | "appointment_date">): string
 
 export function hasNotificationSession(): boolean {
   if (typeof window === "undefined") return false;
-  return !!readYasamUser()?.id && !!readSessionToken();
+  return hasWebSession(); // HTTPONLY H5: web token yoksa HttpOnly cookie
 }
 
 function authHeaders(json = false): Record<string, string> {

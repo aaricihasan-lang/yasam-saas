@@ -5,7 +5,7 @@
  * çağırır. Sunucu tarafı guard (verifyUserRequest) kimliği doğrular; bu helper yalnız
  * istemci tarafı kolaylık katmanıdır. Motorlara/UI'a bağımlı değildir.
  */
-import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import type { Location } from "@/lib/location";
 
 /** Sunucudan dönen varsayılan konum kaydı (snake_case — DB kolonlarıyla hizalı). */
@@ -25,8 +25,8 @@ export interface UserLocationPref {
 function authHeaders(): Record<string, string> | null {
   const user = readYasamUser();
   const token = readSessionToken();
-  if (!user?.id || !token) return null;
-  return { "x-user-id": user.id, "x-session-token": token };
+  if (!user?.id || !hasSessionCredential(token)) return null;
+  return { "x-user-id": user.id, ...sessionTokenHeader(token) };
 }
 
 /** Kullanıcının varsayılan konumunu getir; yoksa / oturum yoksa null. */

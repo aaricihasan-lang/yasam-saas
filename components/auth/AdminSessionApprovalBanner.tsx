@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ShieldAlert } from "lucide-react";
-import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { readSessionToken, readYasamUser, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 
 /**
  * OTURUM MODELİ v2 — admin hesabıyla başka bir cihazdan yapılan ve ONAY BEKLEYEN web
@@ -34,8 +34,8 @@ function fmtTime(iso: string | null): string {
 function authHeaders(): Record<string, string> | null {
   const user = readYasamUser();
   const token = readSessionToken();
-  if (!user || user.role !== "admin" || !token) return null;
-  return { "x-admin-id": String(user.id), "x-session-token": token };
+  if (!user || user.role !== "admin" || !hasSessionCredential(token)) return null;
+  return { "x-admin-id": String(user.id), ...sessionTokenHeader(token) };
 }
 
 export default function AdminSessionApprovalBanner() {

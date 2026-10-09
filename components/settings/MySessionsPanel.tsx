@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, LogOut, MonitorSmartphone, RefreshCw, Smartphone } from "lucide-react";
-import { readSessionToken } from "@/lib/auth/yasamUser";
+import { readSessionToken, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 
 /**
  * OTURUM MODELİ v2 — "Oturumlarım": kullanıcının KENDİ oturumları (admin + uzman).
@@ -58,11 +58,11 @@ export default function MySessionsPanel({ userId }: { userId: string }) {
 
   const load = useCallback(async () => {
     const token = readSessionToken();
-    if (!token) return;
+    if (!hasSessionCredential(token)) return;
     try {
       const res = await fetch("/api/me/sessions", {
         cache: "no-store",
-        headers: { "x-user-id": userId, "x-session-token": token },
+        headers: { "x-user-id": userId, ...sessionTokenHeader(token) },
       });
       const j = (await res.json().catch(() => ({}))) as { sessions?: SessionRow[]; error?: string };
       if (!res.ok) {
@@ -83,7 +83,7 @@ export default function MySessionsPanel({ userId }: { userId: string }) {
 
   async function revoke(row: SessionRow) {
     const token = readSessionToken();
-    if (!token || busyId) return;
+    if (!hasSessionCredential(token) || busyId) return;
     const ok = window.confirm(
       row.current
         ? "Bu cihazdaki oturumu kapatmak istiyor musunuz? Çıkış yapılacak."
@@ -94,7 +94,7 @@ export default function MySessionsPanel({ userId }: { userId: string }) {
     try {
       const res = await fetch(`/api/me/sessions/${row.id}`, {
         method: "DELETE",
-        headers: { "x-user-id": userId, "x-session-token": token },
+        headers: { "x-user-id": userId, ...sessionTokenHeader(token) },
       });
       const j = (await res.json().catch(() => ({}))) as { error?: string; wasCurrent?: boolean };
       if (!res.ok) setError(j.error ?? "Oturum kapatılamadı.");

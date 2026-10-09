@@ -10,7 +10,7 @@
  * Yalnız sabit enum değerleri gider; dosya adı / içerik / URL / hata mesajı ASLA.
  */
 import type { ModuleGateKey } from "@/lib/auth/moduleAccess";
-import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { readSessionToken, readYasamUser, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import type { ClientErrorClass } from "@/lib/usage/usageTaxonomy";
 
 const BEACON_URL = "/api/usage/beacon";
@@ -39,12 +39,12 @@ export function sendUsageBeacon(body: UsageBeaconBody): void {
   const user = readYasamUser();
   const token = readSessionToken();
   // Uzman değilse / demo / oturumsuz → gönderme (sunucu da ayrıca no-op yapar).
-  if (!user || !token || user.role !== "expert" || user.is_demo_account === true) return;
+  if (!user || !hasSessionCredential(token) || user.role !== "expert" || user.is_demo_account === true) return;
   void fetch(BEACON_URL, {
     method: "POST",
     keepalive: true,
     cache: "no-store",
-    headers: { "content-type": "application/json", "x-user-id": user.id, "x-session-token": token },
+    headers: { "content-type": "application/json", "x-user-id": user.id, ...sessionTokenHeader(token) },
     body: JSON.stringify(body),
   }).catch(() => {
     /* telemetri hatası kullanıcıyı etkilemez */
