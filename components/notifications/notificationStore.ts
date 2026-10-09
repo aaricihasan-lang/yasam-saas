@@ -9,7 +9,7 @@
  *
  * Kalıcılık:
  *   - "Tamamlandı" / "Tekrar gösterme" → SUNUCUDA (POST …/notifications/state).
- *   - "görüldü" (okunmamış rozeti) + son hatırlatma zamanı → cihaz-yerel localStorage;
+ *   - "görüldü" (okunmamış rozeti; WT8: yalnız açılan/işlenen bildirim) + son hatırlatma zamanı → cihaz-yerel localStorage;
  *     YALNIZ "randevuId|epochMs" anahtarı + zaman damgası (ad/başlık/PII YOK).
  */
 
@@ -294,12 +294,17 @@ export function registerReminderSink(sink: ReminderSink): () => void {
   };
 }
 
-/** Dropdown açılınca görünür öğeler "görüldü" olur (cihaz-yerel). */
-export function markAllNotificationsSeen(): void {
-  const vis = visibleItems(snapshot, Date.now());
-  if (vis.every((i) => snapshot.seen.has(itemKey(i)))) return;
+/**
+ * WT8 owner kararı: paneli AÇMAK hiçbir bildirimi "görüldü" saymaz (rozet sayısı değişmez).
+ * Yalnız kullanıcı o bildirimi gerçekten açtığında (randevu / danışan kartı bağlantısı) veya
+ * işlediğinde (Tamamlandı / Tekrar gösterme) YALNIZ O bildirim görüldü olur (cihaz-yerel).
+ * Saatlik hatırlatma bir bildirimi yine tekrar okunmamış yapar (runReminders — değişmedi).
+ */
+export function markNotificationSeen(item: Pick<FeedItem, "id" | "appointment_date">): void {
+  const key = itemKey(item);
+  if (snapshot.seen.has(key)) return;
   const seen = new Set(snapshot.seen);
-  for (const i of vis) seen.add(itemKey(i));
+  seen.add(key);
   const p = loadPersisted();
   p.seen = [...seen];
   savePersisted();

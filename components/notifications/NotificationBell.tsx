@@ -9,15 +9,17 @@
  * Davranış:
  *   - Oturumsuz ziyaretçide, /dogaltas* ve /admin* rotalarında HİÇ istek yok, hiçbir şey render edilmez.
  *   - 401/403 (oturum / üyelik / "appointments" izni yok) → polling durur, zil gizlenir.
- *   - Rozet = görünür & okunmamış bildirim sayısı ("görüldü" cihaz-yerel).
+ *   - Rozet = görünür & okunmamış bildirim sayısı ("görüldü" cihaz-yerel). WT8: paneli AÇMAK rozeti
+ *     DEĞİŞTİRMEZ; yalnız açılan (randevu / danışan kartı) veya işlenen (Tamamlandı / Tekrar gösterme)
+ *     bildirim görüldü olur, diğerleri okunmamış kalır ve panelde "Yeni" etiketiyle görünür.
  *   - "Tamamlandı" / "Tekrar gösterme" SUNUCUDA (hesap bazlı); iyimser güncelleme, hata → geri al + toast.
  *   - Saatlik tekrar: koşullar sürerken hatırlatma toast'u + rozet tekrar okunmamış (alert() YOK).
  *   - Rota değişimi / dışarı tıklama / Escape → dropdown kapanır.
  *   - WT8: panel document.body PORTALINDA, viewport'a göre "fixed" konumlanır (zile hizalı, ekran
  *     kenarlarına sıkıştırılmış, yükseklik = kalan görünür alan → içerik panel içinde kayar). Önceden
  *     zilin bulunduğu kartın (ana ekran üst kartı: overflow-hidden) içinde "absolute" açılıyor ve
- *     kırpılıyordu → kartlar küçük/kesik, aksiyonlar erişilemezdi. İş mantığı (görüldü / Tamamlandı /
- *     Tekrar gösterme) DEĞİŞMEDİ.
+ *     kırpılıyordu → kartlar küçük/kesik, aksiyonlar erişilemezdi. Tamamlandı / Tekrar gösterme ve
+ *     saatlik hatırlatma semantiği DEĞİŞMEDİ.
  */
 
 import Link from "next/link";
@@ -34,7 +36,7 @@ import {
   getServerNotificationSnapshot,
   hasNotificationSession,
   itemKey,
-  markAllNotificationsSeen,
+  markNotificationSeen,
   registerReminderSink,
   setNotificationState,
   subscribeNotifications,
@@ -196,6 +198,7 @@ export default function NotificationBell({ className, compact = false }: Notific
   const act = useCallback(
     async (item: FeedItem, state: NotificationStateValue) => {
       const key = itemKey(item);
+      markNotificationSeen(item); // işlenen bildirim görüldü (yalnız bu)
       setBusyKeys((prev) => new Set(prev).add(key));
       const ok = await setNotificationState(item, state);
       setBusyKeys((prev) => {
@@ -225,8 +228,8 @@ export default function NotificationBell({ className, compact = false }: Notific
       setOpenAt(null);
       return;
     }
+    // WT8: açmak "tümü görüldü" YAPMAZ — rozet sayısı korunur.
     setOpenAt(pathname);
-    markAllNotificationsSeen();
   };
 
   const size = compact ? "h-9 w-9" : "h-10 w-10";
@@ -286,9 +289,24 @@ export default function NotificationBell({ className, compact = false }: Notific
                   });
                   const key = itemKey(item);
                   const busy = busyKeys.has(key);
+                  const unseen = !snap.seen.has(key);
+                  const openItem = () => {
+                    markNotificationSeen(item);
+                    close();
+                  };
                   return (
-                    <li key={key} className="rounded-xl border border-slate-200 bg-slate-50/70 p-2">
-                      <Link href={view.href} onClick={close} className="block min-w-0 rounded-lg px-1 py-0.5 hover:bg-white">
+                    <li
+                      key={key}
+                      data-testid="notification-item"
+                      data-unread={unseen ? "1" : "0"}
+                      className={`rounded-xl border p-2 ${unseen ? "border-indigo-200 bg-indigo-50/60" : "border-slate-200 bg-slate-50/70"}`}
+                    >
+                      <Link href={view.href} onClick={openItem} className="block min-w-0 rounded-lg px-1 py-0.5 hover:bg-white">
+                        {unseen ? (
+                          <span className="mb-0.5 inline-flex items-center gap-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black leading-none text-white">
+                            Yeni
+                          </span>
+                        ) : null}
                         <span className="block break-words text-[13px] font-black leading-snug text-slate-900">{view.heading}</span>
                         {view.subtitle && (
                           <span className="block break-words text-xs font-semibold leading-snug text-slate-600">{view.subtitle}</span>
@@ -299,7 +317,7 @@ export default function NotificationBell({ className, compact = false }: Notific
                         {view.clientHref && (
                           <Link
                             href={view.clientHref}
-                            onClick={close}
+                            onClick={openItem}
                             className="inline-flex min-h-[34px] items-center rounded-lg border border-violet-200 bg-white px-2.5 py-1 text-[11px] font-black text-violet-700 hover:bg-violet-50"
                           >
                             Danışan kartı

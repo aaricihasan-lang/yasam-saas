@@ -215,6 +215,12 @@ console.log("\n[5] Statik: route güvenliği + bileşen sözleşmesi");
   ok(/res\.status === 401 \|\| res\.status === 403/.test(store) && /stopTimers\(\)/.test(store), "401/403 → polling durur");
   ok(/POLL_MS = 5 \* 60 \* 1000/.test(store), "polling 5 dk");
   ok(/type Persisted = \{ seen: string\[\]; reminded: Record<string, number> \}/.test(store), "localStorage yalnız anahtar + zaman (PII yok)");
+  // WT8 owner kararı: paneli açmak rozeti değiştirmez; yalnız açılan/işlenen bildirim görüldü olur.
+  ok(!/markAllNotificationsSeen/.test(bell + store), "WT8: 'paneli açınca tümü görüldü' YOK");
+  ok(/export function markNotificationSeen\(/.test(store) && /seen\.add\(key\)/.test(store), "WT8: tek bildirim görüldü (markNotificationSeen)");
+  ok(/setOpenAt\(pathname\);\s*\};/.test(bell), "WT8: zil açma yalnız paneli açar (görüldü yazmaz)");
+  ok(/markNotificationSeen\(item\);\s*\/\/ işlenen/.test(bell) && /onClick=\{openItem\}/.test(bell), "WT8: açılan (randevu/danışan) veya işlenen (Tamamlandı/Tekrar gösterme) bildirim görüldü");
+  ok(/seen\.delete\(k\); \/\/ rozet tekrar okunmamış/.test(store), "saatlik hatırlatma bildirimi yine okunmamış yapar (değişmedi)");
   ok(/hasNotificationSession\(\)/.test(bell) && /if \(!hasNotificationSession\(\)\)/.test(store), "oturumsuz ziyaretçide istek yok");
 
   const legacy = read("shared/DashboardNotifications.tsx");

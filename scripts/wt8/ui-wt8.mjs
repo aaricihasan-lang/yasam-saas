@@ -744,7 +744,77 @@ async function testBell() {
   }
 }
 
-const ALL = { testDrawer, testCheckedBuilder, testCheckedStones, testCheckedMinerals, testCheckedCombinations, testDetailHighlight, testCombo, testAromaSave, testBio, testBell };
+// ── G2) Bildirim rozeti: paneli açmak okundu YAPMAZ; yalnız açılan/işlenen bildirim ───────
+async function testBellUnread() {
+  for (const vp of VIEWPORTS) {
+    const g = `G2-bildirim-rozet-${vp.tag}`;
+    const posts = [];
+    const handled = new Set();
+    const items = apptItems(3);
+    const { page, ctx, pageErrors } = await newPage({ viewport: vp, routes: [
+      ["GET", /^\/api\/appointments\/notifications$/, () => ({ status: 200, json: { ok: true, items: items.filter((i) => !handled.has(i.id)) } })],
+      ["POST", /^\/api\/appointments\/notifications\/state/, (_r, _u, body) => { posts.push(body); handled.add(body?.appointmentId); return { status: 200, json: { ok: true } }; }],
+    ] });
+    const bell = () => page.getByRole("button", { name: "Bildirimler" }).first();
+    const badge = async () => {
+      const s = bell().locator("span");
+      return (await s.count()) ? Number((await s.first().innerText()).trim()) : 0;
+    };
+    const waitBadge = async (n) => page.waitForFunction((want) => {
+      const s = document.querySelector('button[aria-label="Bildirimler"] span');
+      return (s ? Number((s.textContent ?? "").trim()) : 0) === want;
+    }, n, { timeout: 10000 }).then(() => true).catch(() => false);
+    const panel = () => page.getByTestId("notification-panel");
+    const openPanel = async () => { await bell().click(); await panel().waitFor({ timeout: 5000 }); await sleep(300); };
+    const closePanel = async () => { await page.keyboard.press("Escape"); await sleep(300); };
+    const unreadFlags = () => panel().getByTestId("notification-item").evaluateAll((els) => els.map((e) => e.getAttribute("data-unread")));
+    try {
+      await page.goto(`${BASE}/danisan-yolculugu`, { waitUntil: "load" });
+      await bell().waitFor({ timeout: 20000 });
+      ok(g, "başlangıç: 3 okunmamış → rozet 3", await waitBadge(3), String(await badge()));
+      await openPanel();
+      ok(g, "paneli açmak rozeti DEĞİŞTİRMEZ (hâlâ 3)", (await badge()) === 3, String(await badge()));
+      ok(g, "panelde 3'ü de 'Yeni' (okunmamış) işaretli", JSON.stringify(await unreadFlags()) === JSON.stringify(["1", "1", "1"]));
+      await closePanel();
+      await openPanel();
+      ok(g, "kapat/aç → hâlâ 3 okunmamış", (await badge()) === 3 && (await unreadFlags()).every((f) => f === "1"));
+      // 1) bildirimi AÇ (randevu bağlantısı) → yalnız o görüldü
+      await panel().getByTestId("notification-item").first().locator("a").first().click();
+      await page.waitForURL(/\/dashboard\/ajanda\?randevu=/, { timeout: 10000 }).catch(() => {});
+      await bell().waitFor({ timeout: 20000 });
+      ok(g, "1 bildirim açıldı → rozet 2", await waitBadge(2), String(await badge()));
+      await openPanel();
+      const f1 = await unreadFlags();
+      ok(g, "açılan 'Yeni' değil, kalan 2'si hâlâ okunmamış", JSON.stringify(f1) === JSON.stringify(["0", "1", "1"]), JSON.stringify(f1));
+      await closePanel();
+      await openPanel();
+      ok(g, "kapat/aç → kalan 2 hâlâ okunmamış, rozet 2", (await badge()) === 2 && (await unreadFlags()).filter((f) => f === "1").length === 2);
+      ok(g, "açmak/okumak sunucuya durum YAZMAZ", posts.length === 0, JSON.stringify(posts));
+      // 2) bildirimi İŞLE (Tamamlandı) → mevcut semantik: tek 'done' kaydı, listeden düşer
+      await panel().getByTestId("notification-item").nth(1).getByRole("button", { name: "Tamamlandı" }).click();
+      await sleep(800);
+      ok(g, "Tamamlandı → tek 'done' kaydı (semantik aynı)", posts.length === 1 && posts[0]?.state === "done" && posts[0]?.appointmentId === items[1].id, JSON.stringify(posts));
+      ok(g, "işlenen düştü → rozet 1, kalan okunmamış korunur", (await badge()) === 1 && (await panel().getByTestId("notification-item").count()) === 2, `badge=${await badge()}`);
+      // 3) Tekrar gösterme → 'muted' (semantik aynı)
+      await panel().getByTestId("notification-item").last().getByRole("button", { name: "Tekrar gösterme" }).click();
+      await sleep(800);
+      ok(g, "Tekrar gösterme → tek 'muted' kaydı (semantik aynı)", posts.length === 2 && posts[1]?.state === "muted" && posts[1]?.appointmentId === items[2].id, JSON.stringify(posts));
+      ok(g, "tüm okunmamışlar işlendi → rozet yok", (await badge()) === 0);
+      // 4) yenileme: görüldü bilgisi cihazda kalıcı, işlenenler sunucudan gelmez
+      await page.reload({ waitUntil: "load" });
+      await bell().waitFor({ timeout: 20000 });
+      await sleep(2500);
+      ok(g, "yenilemeden sonra rozet 0 (açılan görüldü kalıcı, işlenenler gelmez)", (await badge()) === 0, String(await badge()));
+      await openPanel();
+      ok(g, "panelde yalnız açılmış (okunmuş) bildirim kalır", JSON.stringify(await unreadFlags()) === JSON.stringify(["0"]));
+      const geo = await panelGeometry(page);
+      ok(g, "WT8 responsive düzeltme korunur (viewport içinde, kırpılmıyor)", geo?.inside && geo?.notClipped, JSON.stringify(geo));
+      ok(g, "JS hata yok", realErrors(pageErrors).length === 0, pageErrors.join(" ; "));
+    } catch (e) { ok(g, "senaryo çalıştı", false, e); } finally { await ctx.close(); }
+  }
+}
+
+const ALL = { testDrawer, testCheckedBuilder, testCheckedStones, testCheckedMinerals, testCheckedCombinations, testDetailHighlight, testCombo, testAromaSave, testBio, testBell, testBellUnread };
 const only = process.env.ONLY ? process.env.ONLY.split(",") : Object.keys(ALL);
 try {
   for (const k of only) await ALL[k]();
