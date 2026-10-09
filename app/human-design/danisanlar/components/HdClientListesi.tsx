@@ -9,6 +9,7 @@ import {
   listHdClients,
   deleteHdClient,
   previewHdClientDelete,
+  retryHdImageCleanup,
   type HdClientRow,
 } from "../helpers/hdClients";
 import { notifyHdProfileDeleted } from "@/lib/human-design/api/chartsClient";
@@ -35,6 +36,23 @@ export function HdClientListesi() {
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const deletingRef = useRef(false);
+  // Silme tamam ama bazı görseller temizlenemedi → uzman yeniden temizlemeyi başlatabilir.
+  // (Sayfa yenilense de kalan dosyalar bir sonraki profil silmede sunucuda otomatik taranır.)
+  const [imageCleanupPending, setImageCleanupPending] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
+
+  async function handleImageCleanup() {
+    if (cleaning) return;
+    setCleaning(true);
+    const r = await retryHdImageCleanup();
+    setCleaning(false);
+    if (r.ok) {
+      setImageCleanupPending(false);
+      showToast({ message: r.removed > 0 ? `Kalan ${r.removed} görsel temizlendi.` : "Temizlenecek görsel kalmadı.", type: "success" });
+    } else {
+      showToast({ message: `Görseller temizlenemedi: ${r.error ?? "lütfen daha sonra tekrar deneyin."}`, type: "error" });
+    }
+  }
 
   const loadRows = useCallback(async () => {
     setLoading(true);
@@ -107,8 +125,9 @@ export function HdClientListesi() {
         return;
       }
       const storageWarn = res.warnings?.includes("storage_cleanup_failed")
-        ? " Bazı görsel dosyaları temizlenemedi (kayıtlar silindi)."
+        ? " Bazı görsel dosyaları temizlenemedi (kayıtlar silindi); 'Kalan görselleri temizle' ile yeniden deneyebilirsiniz."
         : "";
+      if (storageWarn) setImageCleanupPending(true);
       showToast({
         message: `Profil silindi: ${res.deletedAnalyses ?? 0} analiz ve ${res.deletedReports ?? 0} Word raporu kaldırıldı.${storageWarn}`,
         type: storageWarn ? "warning" : "success",
@@ -127,6 +146,20 @@ export function HdClientListesi() {
 
   return (
     <>
+      {imageCleanupPending ? (
+        <div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800" data-hd-image-cleanup>
+          <span className="min-w-0">Silinen profile ait bazı görsel dosyaları temizlenemedi. Kayıtlar silindi; görselleri yeniden temizleyebilirsiniz.</span>
+          <button
+            type="button"
+            onClick={() => void handleImageCleanup()}
+            disabled={cleaning}
+            className="h-8 shrink-0 rounded-lg border border-amber-300 bg-white px-3 text-xs font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-60"
+          >
+            {cleaning ? "Temizleniyor…" : "Kalan görselleri temizle"}
+          </button>
+        </div>
+      ) : null}
+
       {/* Filtre */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <input

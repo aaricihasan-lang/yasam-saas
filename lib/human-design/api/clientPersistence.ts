@@ -16,7 +16,7 @@ import { hdSafeDbError } from "./safeError";
 import { withTenant, tenantInsertPayload } from "./tenantScope";
 import { HD_CONFLICT_CODE, HD_CONFLICT_MESSAGE } from "./optimistic";
 import { HD_REPORT_SNAPSHOT_DIR, isOwnedChartImagePath, isOwnedReportSnapshotPath, isSafeStoragePath } from "./chartImagePath";
-import { listClientImageObjects, removeHdStorageObjects, reportReferencedImagePaths } from "./hdStorage";
+import { cleanupOrphanHdImages, listClientImageObjects, removeHdStorageObjects, reportReferencedImagePaths } from "./hdStorage";
 
 import { resolveHdBirthLocation } from "./hdBirthLocation";
 
@@ -264,6 +264,8 @@ export async function previewHdClientDelete(
  *      (her adım idempotent). Profil en son silinir → yetim analiz/rapor kalmaz.
  *   7) Storage (DB'den SONRA): profil klasörü (başka raporun hâlâ kullandığı nesne hariç) + silinen
  *      raporların kendi donmuş görselleri. Hata DB'yi geri almaz → uyarı + `[hd-storage-cleanup-failed]`.
+ *      Kalan dosyalar cleanupOrphanHdImages ile (sonraki silmede otomatik ya da "Kalan görselleri
+ *      temizle" ile) ilişkilerden yeniden bulunup temizlenir — profil artık olmasa da.
  * Danışan Yolculuğu: merkezî danışan (clients) SİLİNMEZ; bağ profil satırıyla birlikte kalkar.
  * Başka modül tablolarına dokunulmaz.
  */
@@ -333,13 +335,13 @@ export async function deleteHdClient(
   let removable: string[] = plan.reportImagePaths.filter((p) => !p.startsWith(prefix));
   const listed = await listClientImageObjects(db, tenantId, id);
   if (listed.error) {
-    console.error(`[hd-storage-cleanup-failed] client-delete list: ${listed.error}`);
+    console.error("[hd-storage-cleanup-failed] client-delete: klasör listelenemedi");
     warnings.push("storage_cleanup_failed");
   } else if (listed.paths.length > 0) {
     const refs = await reportReferencedImagePaths(db, tenantId, prefix);
     if (refs.error) {
       // Referans bilinmiyorsa güvenli taraf: profil klasörünü SİLME (başka rapor görseli kaybolmasın).
-      console.error(`[hd-storage-cleanup-failed] client-delete refs: ${refs.error}`);
+      console.error("[hd-storage-cleanup-failed] client-delete: referanslar okunamadı");
       warnings.push("storage_cleanup_failed");
     } else {
       removable = removable.concat(listed.paths.filter((p) => !refs.paths.has(p)));
@@ -349,6 +351,9 @@ export async function deleteHdClient(
     const rm = await removeHdStorageObjects(db, removable, "client-delete");
     if (!rm.ok && !warnings.includes("storage_cleanup_failed")) warnings.push("storage_cleanup_failed");
   }
+  // Telafi: bu tenant'ta önceki silmelerden kalmış yetim görseller (ilişkilerden yeniden türetilir;
+  // kullanılan/yeni/başka tenant dosyasına dokunulmaz). Hata silme sonucunu değiştirmez.
+  await cleanupOrphanHdImages(db, tenantId).catch(() => undefined);
 
   return { ok: true, error: null, deletedAnalyses: plan.chartIds.length, deletedReports: plan.reportIds.length, warnings };
 }

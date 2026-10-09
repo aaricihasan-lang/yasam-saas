@@ -299,6 +299,82 @@ async function main() {
     const wDel = await del(U.A, W.hd, Number(prevW.json.analyses), Number(prevW.json.reports));
     ok(wDel.status === 409 && (await count(`select count(*) n from public.human_design_charts where client_id=$1`, [W.hd])) === 2, "B7 kullanıcının görmediği yeni analiz silinmez (409, sıfır silme)", wDel.json);
 
+
+    section("B8. Storage hatası sonrası yetim görsellerin güvenli yeniden temizliği");
+    const cleanup = await import("../../app/api/hd/clients/storage-cleanup/route");
+    const put = (p: string, ageMs: number) => objects().set(p, { bytes: Buffer.from("img"), contentType: "image/png", createdAt: Date.now() - ageMs });
+    const HOUR = 60 * 60 * 1000;
+    const O = await mkJourney("Yetim", "Görsel", "1995-05-05", "trd-42-selcuklu");
+    const cO = await comp(U.A, O.hd);
+    const wO = await call(routes.professional.POST, "POST", U.A, { chartId: String(cO.json.id), requestId: randomUUID(), commentary: "expert", bodygraphPng: BODYGRAPH });
+    const snapO = (await su.query(`select snapshot->'chartImage'->>'storagePath' p from public.human_design_reports where id=$1`, [String(wO.json.id)])).rows[0]?.p as string;
+    // Profil klasörü: kendi görseli + BAŞKA kayıtların da kullandığı (ortak/eski) iki görsel.
+    put(`${TA}/${O.hd}/own.png`, 2 * HOUR);
+    put(`${TA}/${O.hd}/shared-report.png`, 2 * HOUR);
+    put(`${TA}/${O.hd}/shared-chart.png`, 2 * HOUR);
+    await su.query(`update public.human_design_clients set chart_image_url=$2 where id=$1`, [O.hd, `${TA}/${O.hd}/own.png`]);
+    // Başka profile (Q) ait eski rapor + bağımsız analiz bu klasördeki görselleri kullanıyor.
+    const sharedRep = (await su.query(`insert into public.human_design_reports(tenant_id, client_id, title, report_kind, snapshot) values ($1,$2,'ZZ ortak','canonical',$3) returning id`,
+      [TA, Q.hd, JSON.stringify({ chartImage: { storagePath: `${TA}/${O.hd}/shared-report.png` } })])).rows[0].id;
+    const sharedChart = (await su.query(`insert into public.human_design_charts(tenant_id, client_id, client_name, source, chart_image_url) values ($1,null,'Yetim Görsel','manual',$2) returning id`,
+      [TA, `${TA}/${O.hd}/shared-chart.png`])).rows[0].id;
+    // Yaşı 15 dk'dan küçük, kaydı henüz olmayan rapor görseli (Word oluşturulurken) — dokunulmamalı.
+    const freshSnap = `${TA}/report-snapshots/${randomUUID()}.png`;
+    put(freshSnap, 60 * 1000);
+    // Silinmeyecek alanlar: eski manuel profil klasörü, geri yükleme geçici klasörü, başka tenant.
+    const legacyImg = `${TA}/0a0a0a0a-0000-4000-8000-0000000000c1/legacy.png`;
+    put(legacyImg, 30 * 24 * HOUR);
+    const restoreTmp = `${TA}/.restore-tmp/${randomUUID()}/0.part`;
+    put(restoreTmp, 30 * 24 * HOUR);
+    const foreignOrphan = `${TB}/${randomUUID()}/x.png`;
+    put(foreignOrphan, 30 * 24 * HOUR);
+    const foreignSnap = `${TB}/report-snapshots/${randomUUID()}.png`;
+    put(foreignSnap, 30 * 24 * HOUR);
+    const keepQ = (await su.query(`select snapshot->'chartImage'->>'storagePath' p from public.human_design_reports where id=$1`, [String(wQ.json.id)])).rows[0]?.p as string;
+    ok(!!snapO && objects().has(snapO) && objects().has(keepQ), "B8.0 tohum: profil O (analiz + Word + görseller), ortak görseller, yeni/eski/başka tenant dosyaları");
+    // BodyGraph PNG'si az önce yüklendi → yaşlandır (kalan yetim gibi davranacak).
+    objects().get(snapO)!.createdAt = Date.now() - 2 * HOUR;
+
+    const prevO = await call(routes.clients.GET, "GET", U.A, undefined, `?id=${O.hd}&delete_preview=1`);
+    env.storage.failRemove = true;
+    const dO = await del(U.A, O.hd, Number(prevO.json.analyses), Number(prevO.json.reports));
+    env.storage.failRemove = false;
+    ok(dO.status === 200 && (dO.json.warnings as string[]).includes("storage_cleanup_failed") && (await count(`select count(*) n from public.human_design_clients where id=$1`, [O.hd])) === 0,
+      "B8.1 storage hatası: kayıtlar silindi, uyarı döndü", dO.json);
+    ok(objects().has(snapO) && objects().has(`${TA}/${O.hd}/own.png`), "B8.2 hata sonrası dosyalar geride kaldı (profil artık yok → aynı Sil çalıştırılamaz)");
+
+    ok((await call(cleanup.POST, "POST", {})).status === 401, "B8.3a kimliksiz yeniden temizleme 401");
+    ok((await call(cleanup.POST, "POST", DEMO)).status === 403 && (await call(cleanup.POST, "POST", U.NOHD)).status === 403, "B8.3b demo / HD yetkisiz 403");
+    const bBefore = [foreignOrphan, foreignSnap].every((p) => objects().has(p));
+    const re1 = await call(cleanup.POST, "POST", U.B);
+    ok(re1.status === 200 && objects().has(snapO) && objects().has(`${TA}/${O.hd}/own.png`), "B8.3c başka tenant'ın temizliği A'nın dosyalarına dokunmaz");
+    ok(bBefore && !objects().has(foreignOrphan) && !objects().has(foreignSnap), "B8.3d tenant B kendi yetim dosyalarını temizler (yalnız kendi öneki)", re1.json);
+    put(foreignOrphan, 30 * 24 * HOUR); // A'nın testinde B dosyası yeniden mevcut olsun
+    const re2 = await call(cleanup.POST, "POST", U.A);
+    ok(re2.status === 200 && re2.json.ok === true && re2.json.removed === 2 && !JSON.stringify(re2.json).includes(TA), "B8.4 yeniden temizleme: 2 yetim dosya silindi (yanıtta yol yok)", re2.json);
+    ok(!objects().has(snapO) && !objects().has(`${TA}/${O.hd}/own.png`), "B8.5 silinen Word'ün BodyGraph kopyası + profil görseli temizlendi");
+    ok(objects().has(`${TA}/${O.hd}/shared-report.png`) && objects().has(`${TA}/${O.hd}/shared-chart.png`), "B8.6 başka raporun / bağımsız analizin kullandığı ORTAK görseller korundu");
+    ok(objects().has(freshSnap), "B8.7 yeni (15 dk'dan genç) kayıtsız rapor görseli korundu (Word oluşturma yarışı)");
+    ok(objects().has(legacyImg) && objects().has(restoreTmp) && objects().has(foreignOrphan) && objects().has(keepQ), "B8.8 eski manuel profil, geri yükleme geçici dosyası, başka tenant, korunan Word korundu");
+    ok((await count(`select count(*) n from public.human_design_reports where id=$1`, [sharedRep])) === 1 && (await count(`select count(*) n from public.human_design_charts where id=$1`, [sharedChart])) === 1, "B8.9 temizlik hiçbir DB kaydını silmedi");
+    const snapAll = [...objects().keys()].sort().join("|");
+    const re3 = await call(cleanup.POST, "POST", U.A);
+    ok(re3.status === 200 && re3.json.removed === 0 && [...objects().keys()].sort().join("|") === snapAll, "B8.10 tekrar çalıştırma: 0 silme, hiçbir dosya değişmedi (idempotent)", re3.json);
+
+    section("B9. Sonraki profil silmede otomatik telafi");
+    const O2 = await mkJourney("Yetim", "İki", "1996-06-06", "trd-42-selcuklu");
+    put(`${TA}/${O2.hd}/a.png`, 2 * HOUR);
+    const prevO2 = await call(routes.clients.GET, "GET", U.A, undefined, `?id=${O2.hd}&delete_preview=1`);
+    env.storage.failRemove = true;
+    await del(U.A, O2.hd, Number(prevO2.json.analyses), Number(prevO2.json.reports));
+    env.storage.failRemove = false;
+    ok(objects().has(`${TA}/${O2.hd}/a.png`), "B9.1 hata sonrası dosya kaldı");
+    const O3 = await mkJourney("Yetim", "Üç", "1997-07-07", "trd-42-selcuklu");
+    const prevO3 = await call(routes.clients.GET, "GET", U.A, undefined, `?id=${O3.hd}&delete_preview=1`);
+    const dO3 = await del(U.A, O3.hd, Number(prevO3.json.analyses), Number(prevO3.json.reports));
+    ok(dO3.status === 200 && !objects().has(`${TA}/${O2.hd}/a.png`) && objects().has(`${TA}/${O.hd}/shared-report.png`) && objects().has(freshSnap) && objects().has(legacyImg),
+      "B9.2 sonraki normal silme önceki yetim dosyayı otomatik temizledi; ortak/yeni/eski dosyalar korundu", dO3.json);
+
     ok(roxy.external.length === 0, "dış ağ: yalnız sahte Roxy; başka servis YOK", roxy.external);
     console.log(`\nRoxy çağrıları (sahte): bodygraph=${roxy.bodygraph}, konum=${roxy.locationQueries.length} [${roxy.locationQueries.join(", ")}]`);
   } finally {

@@ -111,7 +111,25 @@ export async function getHdClient(
   return { row: null, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
-export type HdClientDeleteScope = { analyses: number; reports: number; journeyLinked: boolean };
+/**
+ * Profil silme sonrası kalmış yetim görselleri yeniden temizler (sunucu ilişkilerden türetir;
+ * istemciden yol gönderilmez). Dönen sayılar bilgi amaçlıdır.
+ */
+export async function retryHdImageCleanup(): Promise<{ ok: boolean; removed: number; failed: number; error: string | null }> {
+  let res: Response;
+  try {
+    res = await fetch("/api/hd/clients/storage-cleanup", { method: "POST", headers: authHeaders() });
+  } catch {
+    return { ok: false, removed: 0, failed: 0, error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const removed = typeof j.removed === "number" ? j.removed : 0;
+  const failed = typeof j.failed === "number" ? j.failed : 0;
+  if (res.ok && j.ok === true) return { ok: true, removed, failed, error: null };
+  return { ok: false, removed, failed, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
+}
+
+export type HdClientDeleteScope ={ analyses: number; reports: number; journeyLinked: boolean };
 
 /** Silme onayı öncesi KESİN kapsam (sunucu: yalnız profil + tenant kimliğiyle). */
 export async function previewHdClientDelete(id: string): Promise<{ scope: HdClientDeleteScope | null; error: string | null }> {

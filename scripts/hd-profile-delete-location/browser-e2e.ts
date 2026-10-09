@@ -19,7 +19,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { SERVICE_KEY, type TestEnv } from "../anamnez/testEnv";
-import { BODYGRAPH, TA, callRoute, installFakeRoxy, mkUser, startHdFlowEnv, type Auth, type Json } from "../hd-analysis-word-flow/env";
+import { BODYGRAPH, HD_BUCKET, TA, callRoute, installFakeRoxy, mkUser, startHdFlowEnv, type Auth, type Json } from "../hd-analysis-word-flow/env";
 
 const OUT = process.argv.includes("--out") ? process.argv[process.argv.indexOf("--out") + 1] : path.join(os.tmpdir(), "hd-profile-delete-location-browser");
 const PORT = 3988;
@@ -81,6 +81,7 @@ async function main() {
   const env: TestEnv = await startHdFlowEnv({ port: 54432, dirName: "hd-profile-delete-location-browser-pgdata", httpPort: SHIM_PORT });
   const su = env.su;
   const count = async (sql: string, p: unknown[] = []) => Number((await su.query(sql, p)).rows[0].n);
+  const objects = () => env.storage.objects.get(HD_BUCKET) ?? new Map();
   const roxy = installFakeRoxy();
   let app: ChildProcess | null = null;
   let browser: Browser | null = null;
@@ -184,12 +185,30 @@ async function main() {
       await dlg.waitFor({ state: "hidden" });
       ok((await snap()) === s0, `${d.name}: 2. aşamada Vazgeç → hiçbir şey silinmedi`);
 
-      // İki Evet → silme
+      // İki Evet → silme (390px: storage hatası simüle edilir → yeniden temizleme akışı)
+      const failStorage = d.name === "390px";
+      const snapPath = (await su.query(`select snapshot->'chartImage'->>'storagePath' p from public.human_design_reports where id=$1`, [v.report])).rows[0]?.p as string;
       await target.getByRole("button", { name: "Sil" }).click();
       await dlg.getByRole("button", { name: "Evet, devam et" }).click();
+      if (failStorage) env.storage.failRemove = true;
       await dlg.getByRole("button", { name: "Evet, kalıcı olarak sil" }).click();
       await page.getByText(/Profil silindi: 1 analiz ve 1 Word raporu kaldırıldı/).waitFor({ timeout: 30_000 });
+      env.storage.failRemove = false;
       ok(true, `${d.name}: başarı mesajı yalnız işlem tamamlanınca`);
+      if (failStorage) {
+        const banner = page.locator("[data-hd-image-cleanup]");
+        await banner.waitFor({ timeout: 10_000 });
+        ok(objects().has(snapPath), `${d.name}: storage hatası → BodyGraph dosyası kaldı + 'Kalan görselleri temizle' uyarısı göründü`);
+        const bb = await banner.boundingBox();
+        ok(!!bb && bb.x >= 0 && bb.x + bb.width <= d.viewport.width + 0.5, `${d.name}: uyarı ekrana sığıyor`, bb);
+        await page.screenshot({ path: path.join(OUT, `image-cleanup-${d.name}.png`) });
+        objects().get(snapPath)!.createdAt = Date.now() - 2 * 60 * 60 * 1000; // kalan dosya artık eski
+        await banner.getByRole("button", { name: "Kalan görselleri temizle" }).click();
+        await page.getByText(/Kalan 1 görsel temizlendi/).waitFor({ timeout: 20_000 });
+        await banner.waitFor({ state: "detached", timeout: 10_000 });
+        ok(!objects().has(snapPath) && objects().has((await su.query(`select snapshot->'chartImage'->>'storagePath' p from public.human_design_reports where id=$1`, [keeper.report])).rows[0].p),
+          `${d.name}: yeniden temizleme kalan dosyayı sildi; korunan profilin Word görseli duruyor`);
+      }
       await page.locator(`a[href="/human-design/danisanlar/${v.hd}"]`).waitFor({ state: "detached", timeout: 20_000 });
       await history.locator(`[data-hd-history-item$=":${v.chart}"]`).waitFor({ state: "detached", timeout: 20_000 });
       ok(true, `${d.name}: profil listesi + Kayıtlı analizler listesi sayfa yenilemeden güncellendi`);

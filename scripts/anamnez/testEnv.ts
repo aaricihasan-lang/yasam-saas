@@ -345,16 +345,22 @@ async function handleStorage(
     if (!state.buckets.has(bucket)) return notFoundBucket();
     if (!isService) return send(200, []); // policy yok → anon/auth hiçbir şey göremez
     if (state.failList) return send(500, { statusCode: "500", error: "internal", message: "list failed (simulated)" });
-    const body = JSON.parse((await readRaw(req)).toString("utf8") || "{}") as { prefix?: string };
+    const body = JSON.parse((await readRaw(req)).toString("utf8") || "{}") as { prefix?: string; limit?: number; offset?: number };
     const prefix = (body.prefix ?? "").replace(/\/?$/, "/").replace(/^\/$/, "");
-    const names = new Map<string, boolean>();
-    for (const key of bucketMap(bucket).keys()) {
+    const names = new Map<string, { folder: boolean; createdAt: number }>();
+    for (const [key, obj] of bucketMap(bucket).entries()) {
       if (!key.startsWith(prefix)) continue;
       const rest = key.slice(prefix.length);
       const seg = rest.split("/")[0];
-      names.set(seg, rest.includes("/"));
+      names.set(seg, { folder: rest.includes("/"), createdAt: obj.createdAt });
     }
-    return send(200, [...names.entries()].map(([name, folder]) => ({ name, id: folder ? null : randomUUID() })));
+    // Gerçek Storage gibi: ada göre sıralı, limit/offset sayfalı; dosyada created_at, klasörde id=null.
+    const all = [...names.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    const off = Math.max(0, Number(body.offset) || 0);
+    const lim = Math.max(1, Number(body.limit) || 100);
+    return send(200, all.slice(off, off + lim).map(([name, e]) => (e.folder
+      ? { name, id: null, created_at: null }
+      : { name, id: randomUUID(), created_at: new Date(e.createdAt).toISOString() })));
   }
   // Doğrudan (anahtarlı) yükleme: storage-js `upload()` → POST, `update()` → PUT (yalnız service).
   if ((method === "POST" || method === "PUT") && p.startsWith("object/") && !p.startsWith("object/list/")) {
