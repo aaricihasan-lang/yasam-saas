@@ -41,7 +41,10 @@
         "title": "Genel Bilgi",
         "desc": "Taşın genel tanımı, oluşumu ve kaynak bilgilerini girin.",
         "general_info": "Genel Bilgi / Tanım",
-        "source_note": "Oluşum / Kaynak Notu"
+        "source_note": "Oluşum / Kaynak Notu",
+        "primarySource": "Bilgi Kaynağı",
+        "primarySourcePlaceholder": "Ör. Kristal Şifa Kitabı",
+        "primarySourceHint": "Bu kayıttaki metinler hangi kaynaktan? Başka kaynakları taş detayında “Yeni Kaynak” ile ayrı ayrı ekleyebilirsiniz."
       },
       "effects": {
         "physical_effects": {
