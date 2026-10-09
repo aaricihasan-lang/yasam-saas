@@ -6,11 +6,15 @@ import { listAnalyses, saveAnalysis } from "@/lib/astrology/analyses/service";
 
 export const runtime = "nodejs";
 
-/** GET ?profileId= — profilin kayıtlı analizleri (özet; snapshot içeriği yok). */
+/**
+ * GET ?profileId= [&tradition=western|vedic|kp &technique= &offset= &limit=] — profilin kayıtlı analizleri:
+ * gelenek/teknik özeti + sayfa (snapshot içeriği yok; sağlayıcı çağrılmaz).
+ */
 export async function GET(req: NextRequest): Promise<Response> {
   const gate = await requireAstrologyOwner(req);
   if (!gate.ok) return gate.response;
-  return serviceJson(await listAnalyses(gate.ctx, req.nextUrl.searchParams.get("profileId")));
+  const sp = req.nextUrl.searchParams;
+  return serviceJson(await listAnalyses(gate.ctx, sp.get("profileId"), sp));
 }
 
 /**

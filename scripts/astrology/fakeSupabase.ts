@@ -13,6 +13,8 @@
  * (sonuç/yorum/not → aynı uzmanın profili/sonucu). Erişim günlüğü (select kolonları dahil) tutulur.
  */
 
+import { astroNorm } from "@/lib/astrology/search/normalize";
+
 type Row = Record<string, unknown>;
 export type FakeErr = { code: string; message: string } | null;
 
@@ -25,6 +27,8 @@ export type FakeStore = {
   log: QueryLog[];
   /** Bu tablo/kolon seçildiğinde hata simülasyonu (ör. is_super_admin kolonu yok). */
   failSelect?: (table: string, select: string) => FakeErr;
+  /** Bu RPC çağrıldığında hata simülasyonu (ör. migration uygulanmamış → PGRST202). */
+  failRpc?: (fn: string) => FakeErr;
   /** Rate limit RPC'sini tamamen devre dışı bırak (yarış testleri). */
   disableRateLimit?: boolean;
 };
@@ -195,6 +199,8 @@ export function execQuery(store: FakeStore, q: Query, via: "client" | "http"): {
 
 export function execRpc(store: FakeStore, fn: string, args: Record<string, unknown>): { data: unknown; error: FakeErr } {
   store.log.push({ table: `rpc:${fn}`, op: "rpc", select: "", via: "client" });
+  const rpcErr = store.failRpc?.(fn);
+  if (rpcErr) return { data: null, error: rpcErr };
   if (fn === "touch_active_session") {
     const uid = store.sessions.get(String(args.p_token ?? ""));
     return { data: uid ?? null, error: null };
@@ -308,6 +314,99 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
     });
     for (const n of notes) store.tables.astro_analysis_notes.push({ id: genId(), tenant_id: tenant, analysis_id: id, section_key: n.section_key, body: n.body, created_at: now });
     return { data: { analysis_id: id, reused: false }, error: null };
+  }
+  // ─── Aşama 7B (20271101000400) — SQL ile aynı mantık; normalizasyon astroNorm (PG testi aynı vektörleri doğrular).
+  if (fn === "astro_profile_page") {
+    const tenant = String(args.p_tenant_id);
+    const owner = String(args.p_owner_user_id);
+    const pat = astroNorm(args.p_query as string | null);
+    const bd = (args.p_birth_date as string | null) ?? null;
+    const archived = args.p_archived === true;
+    const clients = store.tables.clients ?? [];
+    const analyses = store.tables.astro_analyses ?? [];
+    const rows = (store.tables.astro_birth_profiles ?? [])
+      .filter((p) => p.tenant_id === tenant && p.owner_user_id === owner && (archived ? !!p.archived_at : !p.archived_at))
+      .map((p) => {
+        const r = (store.tables.astro_birth_profile_revisions ?? []).find((x) => x.tenant_id === tenant && x.owner_user_id === owner && x.profile_id === p.id && Number(x.revision) === Number(p.current_revision))!;
+        const c = p.client_id ? clients.find((x) => x.tenant_id === tenant && x.id === p.client_id) : undefined;
+        const mine = analyses.filter((a) => a.tenant_id === tenant && a.owner_user_id === owner && a.profile_id === p.id);
+        const last = mine.map((a) => String(a.analysis_at)).sort().pop() ?? null;
+        return {
+          id: p.id, label: p.label, client_id: p.client_id ?? null, client_ad: c?.ad ?? null, client_soyad: c?.soyad ?? null,
+          current_revision: p.current_revision, birth_date: r.birth_date, birth_time: r.birth_time ?? null, time_known: r.time_known,
+          location_label: r.location_label, archived_at: p.archived_at ?? null, created_at: p.created_at, updated_at: p.updated_at,
+          analysis_count: mine.length, last_analysis_at: last,
+        };
+      })
+      .filter((x) => !bd || x.birth_date === bd)
+      .filter((x) => pat === "" || astroNorm(String(x.label)).includes(pat) || astroNorm(`${x.client_ad ?? ""} ${x.client_soyad ?? ""}`).includes(pat));
+    const key = (x: (typeof rows)[number]) => [String(x.updated_at), String(x.last_analysis_at ?? x.updated_at)].sort().pop()!;
+    rows.sort((a, b) =>
+      args.p_sort === "name" && astroNorm(String(a.label)) !== astroNorm(String(b.label))
+        ? astroNorm(String(a.label)) < astroNorm(String(b.label)) ? -1 : 1
+        : key(a) !== key(b) ? (key(a) < key(b) ? 1 : -1) : String(a.id) < String(b.id) ? -1 : 1,
+    );
+    const limit = Math.max(1, Math.min(Number(args.p_limit ?? 50), 100));
+    const offset = Math.max(0, Number(args.p_offset ?? 0));
+    return { data: rows.slice(offset, offset + limit).map((x) => ({ ...x, total_count: rows.length })), error: null };
+  }
+  if (fn === "astro_analysis_summary" || fn === "astro_analysis_page") {
+    const mine = (store.tables.astro_analyses ?? []).filter((a) => a.tenant_id === args.p_tenant_id && a.owner_user_id === args.p_owner_user_id && a.profile_id === args.p_profile_id);
+    if (fn === "astro_analysis_summary") {
+      const by = new Map<string, Row[]>();
+      for (const a of mine) by.set(String(a.technique), [...(by.get(String(a.technique)) ?? []), a]);
+      return { data: [...by.entries()].sort(([x], [y]) => (x < y ? -1 : 1)).map(([t, l]) => ({ technique: t, analysis_count: l.length, last_analysis_at: l.map((a) => String(a.analysis_at)).sort().pop() ?? null })), error: null };
+    }
+    const sel = mine
+      .filter((a) => !args.p_tradition || String(a.technique).startsWith(`${args.p_tradition}.`))
+      .filter((a) => !args.p_technique || a.technique === args.p_technique)
+      .sort((a, b) => (String(a.analysis_at) !== String(b.analysis_at) ? (String(a.analysis_at) < String(b.analysis_at) ? 1 : -1) : String(a.id) < String(b.id) ? 1 : -1));
+    const limit = Math.max(1, Math.min(Number(args.p_limit ?? 50), 100));
+    const offset = Math.max(0, Number(args.p_offset ?? 0));
+    return {
+      data: sel.slice(offset, offset + limit).map((a) => ({
+        id: a.id, title: a.title, technique: a.technique, technique_params: a.technique_params ?? {},
+        partner_label: ((a.profile_snapshot as { partner?: { label?: string } } | null)?.partner?.label as string | undefined) ?? null,
+        analysis_at: a.analysis_at, profile_revision: a.profile_revision,
+        house_system: ((a.method_snapshot as { houseSystem?: string } | null)?.houseSystem as string | undefined) ?? null,
+        provider_interp_included: a.provider_interp_included, client_id: a.client_id ?? null, event_kind: a.event_kind,
+      })),
+      error: null,
+    };
+  }
+  if (fn === "astro_client_candidates") {
+    const n = astroNorm(args.p_name as string | null);
+    const bd = (args.p_birth_date as string | null) ?? null;
+    if (n.length < 2 && !bd) return { data: [], error: null };
+    const rows = (store.tables.clients ?? [])
+      .filter((c) => c.tenant_id === args.p_tenant_id)
+      .map((c) => ({ c, full: astroNorm(`${c.ad ?? ""} ${c.soyad ?? ""}`) }))
+      .filter(({ c, full }) => (n === "" || full.includes(n)) && (!bd || String(c.dogum ?? "").slice(0, 10) === bd))
+      .map(({ c, full }) => ({
+        id: c.id, ad: c.ad ?? null, soyad: c.soyad ?? null, dogum: c.dogum ? String(c.dogum).slice(0, 10) : null, created_at: c.created_at ?? null,
+        linked_profile_count: (store.tables.astro_birth_profiles ?? []).filter((p) => p.tenant_id === c.tenant_id && p.owner_user_id === args.p_owner_user_id && p.client_id === c.id).length,
+        name_exact: full === n,
+      }))
+      .sort((a, b) => (a.name_exact !== b.name_exact ? (a.name_exact ? -1 : 1) : String(b.created_at ?? "") < String(a.created_at ?? "") ? -1 : 1));
+    return { data: rows.slice(0, Math.max(1, Math.min(Number(args.p_limit ?? 20), 50))), error: null };
+  }
+  if (fn === "astro_profile_set_client") {
+    const p = (store.tables.astro_birth_profiles ?? []).find((x) => x.tenant_id === args.p_tenant_id && x.owner_user_id === args.p_owner_user_id && x.id === args.p_profile_id);
+    if (!p) return { data: null, error: { code: "P0002", message: "ASTRO_PROFILE_NOT_FOUND" } };
+    if ((p.client_id ?? null) !== (args.p_expected_client_id ?? null)) return { data: null, error: { code: "40001", message: "ASTRO_CLIENT_LINK_CONFLICT" } };
+    if (args.p_client_id && !(store.tables.clients ?? []).some((c) => c.tenant_id === args.p_tenant_id && c.id === args.p_client_id)) {
+      return { data: null, error: { code: "P0002", message: "ASTRO_CLIENT_NOT_FOUND" } };
+    }
+    const prev = p.client_id ?? null;
+    p.client_id = args.p_client_id ?? null;
+    p.updated_at = new Date().toISOString();
+    return { data: { profile_id: p.id, client_id: p.client_id, previous_client_id: prev }, error: null };
+  }
+  if (fn === "astro_client_status") {
+    const linked = (store.tables.astro_birth_profiles ?? []).filter((p) => p.tenant_id === args.p_tenant_id && p.owner_user_id === args.p_owner_user_id && p.client_id === args.p_client_id);
+    const ids = new Set(linked.map((p) => p.id));
+    const an = (store.tables.astro_analyses ?? []).filter((a) => a.tenant_id === args.p_tenant_id && a.owner_user_id === args.p_owner_user_id && ids.has(a.profile_id));
+    return { data: [{ linked_profile_count: linked.length, analysis_count: an.length, last_analysis_at: an.map((a) => String(a.analysis_at)).sort().pop() ?? null }], error: null };
   }
   if (fn === "astro_unmapped_touch") {
     store.tables.astro_unmapped_fields ??= [];

@@ -6,11 +6,14 @@ import { resolveAstroLocation } from "@/lib/astrology/birth/location";
 
 export const runtime = "nodejs";
 
-/** GET — owner tenant'ının doğum profilleri (güncel revizyon özetiyle). */
+/**
+ * GET — uzmanın Astroloji danışan listesi (doğum profilleri). Sunucu tarafı:
+ * ?q= (ad/soyad/profil adı, Türkçe duyarsız) &birthDate=YYYY-MM-DD &archived=1 &sort=recent|name &limit= (≤100) &offset=
+ */
 export async function GET(req: NextRequest): Promise<Response> {
   const gate = await requireAstrologyOwner(req);
   if (!gate.ok) return gate.response;
-  return serviceJson(await listAstroProfiles(gate.ctx));
+  return serviceJson(await listAstroProfiles(gate.ctx, req.nextUrl.searchParams));
 }
 
 /** POST — yeni profil + revizyon 1. Gövde: { label, clientId?, birthDate, birthTime?, timeKnown, timeAccuracy, locationId, dstChoice? } */

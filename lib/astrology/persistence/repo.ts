@@ -40,6 +40,7 @@ export function isSchemaMissing(err: DbErr): boolean {
   if (!err) return false;
   return (
     err.code === "42P01" ||
+    err.code === "42703" ||
     err.code === "42883" ||
     err.code === "PGRST202" ||
     err.code === "PGRST205" ||
@@ -77,6 +78,8 @@ export type ProfileRow = {
   client_id: string | null;
   label: string;
   current_revision: number;
+  /** Aşama 7B: arşiv zamanı (NULL = etkin). */
+  archived_at?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -101,7 +104,7 @@ export type RevisionRow = {
   created_at: string;
 };
 
-const PROFILE_COLUMNS = "id, tenant_id, client_id, label, current_revision, created_at, updated_at";
+const PROFILE_COLUMNS = "id, tenant_id, client_id, label, current_revision, archived_at, created_at, updated_at";
 const REVISION_COLUMNS =
   "id, profile_id, revision, birth_date, birth_time, time_known, time_accuracy, location_id, location_label, latitude, longitude, timezone, dst_choice, utc_offset_seconds, birth_utc, change_note, created_at";
 

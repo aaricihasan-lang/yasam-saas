@@ -363,7 +363,8 @@ async function main() {
     const aid = ((await saveAnalysis(ctx, { profileId: pid, revision: 1, resultId: rid, includeProviderInterp: false, saveRequestId: randomUUID() }, false)).body as { analysisId: string }).analysisId;
     for (const other of [ctxOf(store, { tenantId: TENANT_B, userId: USER_B }), ctxOf(store, { userId: OTHER_USER_SAME_TENANT })]) {
       assert.equal((await getAnalysis(other, aid, false)).status, 404);
-      assert.equal(((await listAnalyses(other, pid)).body as { analyses: unknown[] }).analyses.length, 0);
+      // Aşama 7B: başka uzmanın profiliyle liste artık boş 200 değil, tek tip 404 (varlık sızmaz).
+      assert.equal((await listAnalyses(other, pid)).status, 404);
     }
     assert.equal((await saveAnalysis(ctxOf(store, { tenantId: TENANT_B, userId: USER_B }), { profileId: pid, revision: 1, resultId: rid, saveRequestId: randomUUID() }, false)).status, 404);
   });

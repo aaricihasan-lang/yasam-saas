@@ -27,6 +27,7 @@ import { ASTRO_NOT_READY, buildSelectionView, loadProfileRevision, planSelection
 import { findTenantClient, getProfile, getResultById, isSchemaMissing, isUuid, logAstroDbError, type ResultRow, type RevisionRow } from "../persistence/repo";
 import { matchKbEntries, publicKbEntry } from "../kb/service";
 import { isSectionKeyForTechnique, topicLabelAny, topicsForTechnique, traditionOfTechnique } from "../topics/index";
+import { TRADITIONS, type Tradition } from "../topics/western";
 import { publicRevision } from "../view/natalView";
 import type { TechniqueView } from "../view/techniqueView";
 
@@ -49,7 +50,10 @@ function obj(raw: unknown): Record<string, unknown> | null {
   return raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
 }
 
-const techniqueLabel = (t: string) => `${t.startsWith("vedic.") ? "Vedik" : "Batı"} · ${getTechnique(t)?.label ?? t}`;
+export const TRADITION_LABELS: Record<Tradition, string> = { western: "Batı Astrolojisi", vedic: "Vedik / Jyotish", kp: "KP" };
+const TRADITION_PREFIX: Record<Tradition, string> = { western: "Batı", vedic: "Vedik", kp: "KP" };
+// Aşama 7B: KP teknikleri "Batı" diye etiketleniyordu → gelenek tekniğin kendisinden okunur.
+const techniqueLabel = (t: string) => `${TRADITION_PREFIX[traditionOfTechnique(t)]} · ${getTechnique(t)?.label ?? t}`;
 
 // ─── Ortak: seçim + revizyon bağlamı ─────────────────────────────────────────
 
@@ -517,37 +521,94 @@ type AnalysisRow = {
   created_at: string;
 };
 
-const LIST_COLUMNS =
-  "id, profile_id, profile_revision, partner_profile_id, partner_profile_revision, client_id, technique, title, event_kind, analysis_at, technique_params, provider_interp_included, method_snapshot, profile_snapshot, created_at";
+type PageRow = {
+  id: string;
+  title: string;
+  technique: string;
+  technique_params: Record<string, unknown> | null;
+  partner_label: string | null;
+  analysis_at: string;
+  profile_revision: number;
+  house_system: string | null;
+  provider_interp_included: boolean;
+  client_id: string | null;
+  event_kind: string;
+};
 
-export async function listAnalyses(ctx: EngineCtx, profileId: unknown): Promise<ServiceResponse> {
+const ANALYSIS_PAGE_DEFAULT = 50;
+
+/**
+ * Kayıtlı analiz geçmişi (Aşama 7B): teknik bazında ÖZET (gelenek → yalnız mevcut teknikler) + sayfa.
+ * ?tradition=western|vedic|kp &technique=… &offset= &limit= (en çok 100). Snapshot içeriği OKUNMAZ /
+ * DEĞİŞTİRİLMEZ; yalnız liste alanları. Sağlayıcı çağrılmaz. Başka uzmanın profili → 404.
+ */
+export async function listAnalyses(ctx: EngineCtx, profileId: unknown, sp: URLSearchParams = new URLSearchParams()): Promise<ServiceResponse> {
   if (!isUuid(profileId)) return fail(400, "INVALID_PROFILE", "Geçerli profil gerekli.");
-  const { data, error } = await ctx.db
-    .from("astro_analyses")
-    .select(LIST_COLUMNS)
-    .eq("tenant_id", ctx.tenantId)
-    .eq("owner_user_id", ctx.userId)
-    .eq("profile_id", profileId)
-    .order("analysis_at", { ascending: false })
-    .limit(200);
-  if (error) return dbFail("analysis.list", error);
-  const rows = (data as AnalysisRow[] | null) ?? [];
+  const p = await getProfile(ctx.db, ctx.tenantId, ctx.userId, profileId);
+  if (p.error) return dbFail("analysis.list.profile", p.error);
+  if (!p.row) return fail(404, "PROFILE_NOT_FOUND", "Doğum profili bulunamadı.");
+  const tRaw = sp.get("tradition");
+  const tradition = tRaw && (TRADITIONS as readonly string[]).includes(tRaw) ? (tRaw as Tradition) : null;
+  if (tRaw && !tradition) return fail(400, "INVALID_TRADITION", "Geçersiz gelenek.");
+  const techRaw = sp.get("technique");
+  if (techRaw && !getTechnique(techRaw)) return fail(400, "UNKNOWN_TECHNIQUE", "Bilinmeyen hesaplama türü.");
+  const limN = Number(sp.get("limit") ?? ANALYSIS_PAGE_DEFAULT);
+  const offN = Number(sp.get("offset") ?? 0);
+  const limit = Number.isInteger(limN) ? Math.min(100, Math.max(1, limN)) : ANALYSIS_PAGE_DEFAULT;
+  const offset = Number.isInteger(offN) ? Math.max(0, offN) : 0;
+
+  const sum = await ctx.db.rpc("astro_analysis_summary", { p_tenant_id: ctx.tenantId, p_owner_user_id: ctx.userId, p_profile_id: profileId });
+  if (sum.error) return dbFail("analysis.summary", sum.error);
+  const page = await ctx.db.rpc("astro_analysis_page", {
+    p_tenant_id: ctx.tenantId,
+    p_owner_user_id: ctx.userId,
+    p_profile_id: profileId,
+    p_tradition: tradition,
+    p_technique: techRaw || null,
+    p_limit: limit,
+    p_offset: offset,
+  });
+  if (page.error) return dbFail("analysis.page", page.error);
+  const summaryRows = ((sum.data as { technique: string; analysis_count: number | string; last_analysis_at: string | null }[] | null) ?? []).map((r) => ({
+    technique: r.technique,
+    tradition: traditionOfTechnique(r.technique),
+    techniqueLabel: getTechnique(r.technique)?.label ?? r.technique,
+    count: Number(r.analysis_count),
+    lastAnalysisAt: r.last_analysis_at,
+  }));
+  // Gelenek grupları: yalnız gerçekten kaydı olan gelenek + teknikler (sabit sıra: Batı → Vedik → KP).
+  const groups = TRADITIONS.map((t) => {
+    const techniques = summaryRows.filter((r) => r.tradition === t);
+    return { tradition: t, label: TRADITION_LABELS[t], count: techniques.reduce((a, r) => a + r.count, 0), techniques };
+  }).filter((g) => g.count > 0);
+  const filteredTotal = summaryRows
+    .filter((r) => (!tradition || r.tradition === tradition) && (!techRaw || r.technique === techRaw))
+    .reduce((a, r) => a + r.count, 0);
+  const rows = (page.data as PageRow[] | null) ?? [];
   return {
     status: 200,
     body: {
       ok: true,
+      total: summaryRows.reduce((a, r) => a + r.count, 0),
+      groups,
+      filter: { tradition, technique: techRaw || null },
+      filteredTotal,
+      offset,
+      limit,
+      hasMore: offset + rows.length < filteredTotal,
       analyses: rows.map((r) => ({
         id: r.id,
         title: r.title,
         technique: r.technique,
         techniqueLabel: techniqueLabel(r.technique),
+        tradition: traditionOfTechnique(r.technique),
         params: r.technique_params ?? {},
-        partnerLabel: ((r.profile_snapshot?.partner as { label?: string } | null | undefined)?.label ?? null) as string | null,
+        partnerLabel: r.partner_label ?? null,
         analysisAt: r.analysis_at,
         profileRevision: r.profile_revision,
         clientId: r.client_id,
         eventKind: r.event_kind,
-        houseSystem: (r.method_snapshot as { houseSystem?: string }).houseSystem ?? null,
+        houseSystem: r.house_system ?? null,
         providerInterpIncluded: r.provider_interp_included,
       })),
     },

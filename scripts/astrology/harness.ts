@@ -576,6 +576,8 @@ async function main() {
     await t("servis: migration yoksa → 503 ASTRO_NOT_READY (ham DB hatası dönmez)", async () => {
       const store = seedStore();
       store.failSelect = (table) => (table === "astro_birth_profiles" ? { code: "42P01", message: 'relation "public.astro_birth_profiles" does not exist' } : null);
+      // Aşama 7B: liste RPC'dir (astro_profile_page) → migration yoksa fonksiyon da yoktur.
+      store.failRpc = (fn) => (fn.startsWith("astro_") ? { code: "PGRST202", message: `Could not find the function public.${fn}` } : null);
       const r = await listAstroProfiles(ownerCtx(store));
       assert.equal(r.status, 503);
       assert.equal((r.body as { code: string }).code, "ASTRO_NOT_READY");

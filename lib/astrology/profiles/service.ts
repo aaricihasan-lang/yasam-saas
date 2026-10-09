@@ -16,12 +16,11 @@ import {
   getProfile,
   isSchemaMissing,
   isUuid,
-  listProfiles,
   listRevisions,
   logAstroDbError,
-  type RevisionRow,
 } from "../persistence/repo";
 import { publicRevision } from "../view/natalView";
+import { listProfilePage } from "../clients/service";
 import type { EngineCtx, ServiceResponse } from "../engine/service";
 import { ASTRO_NOT_READY } from "../engine/service";
 
@@ -48,41 +47,12 @@ function clientName(c: { ad: string | null; soyad: string | null } | undefined):
   return n || null;
 }
 
-export async function listAstroProfiles(ctx: EngineCtx): Promise<ServiceResponse> {
-  const p = await listProfiles(ctx.db, ctx.tenantId, ctx.userId);
-  if (p.error) return dbFail("profiles.list", p.error);
-  const revs = await listRevisions(ctx.db, ctx.tenantId, ctx.userId, p.rows.map((r) => r.id));
-  if (revs.error) return dbFail("profiles.listRevisions", revs.error);
-  const current = new Map<string, RevisionRow>();
-  for (const r of revs.rows) {
-    const prof = p.rows.find((x) => x.id === r.profile_id);
-    if (prof && prof.current_revision === r.revision) current.set(r.profile_id, r);
-  }
-  const clientIds = [...new Set(p.rows.map((r) => r.client_id).filter((x): x is string => !!x))];
-  const clients = new Map<string, { ad: string | null; soyad: string | null }>();
-  if (clientIds.length > 0) {
-    const { data, error } = await ctx.db.from("clients").select("id, ad, soyad").eq("tenant_id", ctx.tenantId).in("id", clientIds);
-    if (error) return dbFail("profiles.clients", error);
-    for (const c of (data as { id: string; ad: string | null; soyad: string | null }[] | null) ?? []) clients.set(c.id, c);
-  }
-  return {
-    status: 200,
-    body: {
-      ok: true,
-      profiles: p.rows.map((r) => {
-        const rev = current.get(r.id);
-        return {
-          id: r.id,
-          label: r.label,
-          clientId: r.client_id,
-          clientName: r.client_id ? clientName(clients.get(r.client_id)) : null,
-          currentRevision: r.current_revision,
-          current: rev ? publicRevision(rev) : null,
-          updatedAt: r.updated_at,
-        };
-      }),
-    },
-  };
+/**
+ * Danışan listesi (Aşama 7B): sunucu tarafı arama / doğum tarihi / arşiv filtresi / sayfalama + analiz sayısı.
+ * Eski 200 kayıt sınırı yok; her sayfa en çok 100. Uzman sahipliği RPC içinde (astro_profile_page).
+ */
+export async function listAstroProfiles(ctx: EngineCtx, sp: URLSearchParams = new URLSearchParams()): Promise<ServiceResponse> {
+  return listProfilePage(ctx, sp);
 }
 
 export async function getAstroProfileDetail(ctx: EngineCtx, profileId: string): Promise<ServiceResponse> {
@@ -93,10 +63,13 @@ export async function getAstroProfileDetail(ctx: EngineCtx, profileId: string): 
   const revs = await listRevisions(ctx.db, ctx.tenantId, ctx.userId, [profileId]);
   if (revs.error) return dbFail("profiles.revisions", revs.error);
   let name: string | null = null;
+  // Aşama 7B: bağ var ama danışan artık bulunamıyor (silinmiş / erişim dışı) → ad gösterilmez, işaretlenir.
+  let clientMissing = false;
   if (p.row.client_id) {
     const c = await findTenantClient(ctx.db, ctx.tenantId, p.row.client_id);
     if (c.error) return dbFail("profiles.client", c.error);
     name = clientName(c.row ?? undefined);
+    clientMissing = !c.row;
   }
   return {
     status: 200,
@@ -107,6 +80,8 @@ export async function getAstroProfileDetail(ctx: EngineCtx, profileId: string): 
         label: p.row.label,
         clientId: p.row.client_id,
         clientName: name,
+        clientMissing,
+        archivedAt: p.row.archived_at ?? null,
         currentRevision: p.row.current_revision,
         createdAt: p.row.created_at,
         updatedAt: p.row.updated_at,
