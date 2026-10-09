@@ -197,6 +197,15 @@ function announceHdChartSaved(detail: HdChartSavedDetail): void {
   window.dispatchEvent(new CustomEvent<HdChartSavedDetail>(HD_CHART_SAVED_EVENT, { detail }));
 }
 
+/** Profil silme denemesi bitti (başarılı ya da değil) — kayıtlı analiz listeleri sunucudan yenilensin. */
+export const HD_PROFILE_DELETED_EVENT = "hd:profile-deleted";
+export type HdProfileDeletedDetail = { clientId: string };
+
+export function notifyHdProfileDeleted(clientId: string): void {
+  if (typeof window === "undefined" || typeof window.dispatchEvent !== "function") return;
+  window.dispatchEvent(new CustomEvent<HdProfileDeletedDetail>(HD_PROFILE_DELETED_EVENT, { detail: { clientId } }));
+}
+
 export type RoxyComputeResult =
   | { ok: true; id: string; reused: boolean }
   | { ok: false; status: number; code?: string; error: string };
