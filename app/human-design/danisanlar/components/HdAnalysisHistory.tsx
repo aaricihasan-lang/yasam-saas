@@ -9,7 +9,8 @@
 //
 // Satış öncesi sadeleştirme: "Kayıtlı Human Design Analizleri" — hesaplanan her analiz OTOMATİK
 // kaydedilir; burada açılır ve Word olarak indirilir (ayrı rapor sayfasında arama gerekmez).
-//   • "Word İndir": analizin hazır Word v2 raporu varsa AYNISI indirilir; yoksa analiz açılır ve
+//   • "Kayıtlı Word'ü İndir" (hazır Word v2 varsa AYNISI, içerik değişmeden) / "Word Oluştur" (yoksa analiz açılır;
+//     içerik seçimi — varsayılan kapalı — ile) ayrı etiketlerdir. Yeni Word için analiz açılır ve
 //     Word akışı (PR #359 Word v2) bir kez başlar. Roxy çağrısı YOK. Android'de gizli (kural).
 //   • Aynı sayfada yeni hesap kaydedilince (HD_CHART_SAVED_EVENT) liste anında yenilenir ve yeni
 //     kayıt "Kaydedildi" ile işaretlenir.
@@ -31,6 +32,7 @@ import { latestWordReportId, type WordReportBrief } from "@/lib/human-design/rep
 import { downloadProfessionalReport, HD_REPORT_REDACTED_MESSAGE } from "../../kayitli-raporlar/helpers/hdProfessionalReport";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { HdComputedChartModal } from "../../kayitli-haritalar/components/HdComputedChartModal";
+import { HD_SAVED_WORD_MESSAGE } from "../../kayitli-haritalar/components/HdProfessionalReportButton";
 import { toAppChartCodes } from "@/lib/human-design/normalize/hdAppCodes";
 import { hdProfileLabelFromCode, hdTypeLabelFromCode } from "@/lib/human-design/codeHelpers";
 import { formatIsoDateTr } from "@/lib/human-design/api/journeyClient";
@@ -188,7 +190,7 @@ export function HdAnalysisHistory({
     setWordBusy(null);
     setWordMsg(
       dl.ok
-        ? { id: it.id, tone: "ok", text: dl.systemReadingRedacted ? `Word indirildi. ${HD_REPORT_REDACTED_MESSAGE}` : "Word indirildi (kayıtlı rapor; yeni hesaplama yapılmadı)." }
+        ? { id: it.id, tone: "ok", text: dl.systemReadingRedacted ? `${HD_SAVED_WORD_MESSAGE} ${HD_REPORT_REDACTED_MESSAGE}` : HD_SAVED_WORD_MESSAGE }
         : { id: it.id, tone: "err", text: `Word indirilemedi: ${dl.error}` },
     );
   }
@@ -254,7 +256,7 @@ export function HdAnalysisHistory({
                         data-hd-history-word={it.id}
                         className="h-9 rounded-xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-bold text-emerald-800 hover:bg-emerald-100 disabled:opacity-60"
                       >
-                        {wordBusy === it.id ? "İndiriliyor…" : "Word İndir"}
+                        {wordBusy === it.id ? "İndiriliyor…" : hasWord ? "Kayıtlı Word'ü İndir" : "Word Oluştur"}
                       </button>
                     ) : null}
                     {it.kind === "manual" ? (

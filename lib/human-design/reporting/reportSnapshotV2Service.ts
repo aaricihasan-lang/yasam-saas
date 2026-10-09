@@ -12,7 +12,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getChartForReportV2 } from "@/lib/human-design/api/chartPersistence";
-import { listKnowledgeByCodes } from "@/lib/human-design/api/knowledgePersistence";
+import { listKnowledgeForReport } from "@/lib/human-design/api/knowledgePersistence";
 import { buildExpertKnowledgeCodes, toAppChartCodes } from "@/lib/human-design/normalize/hdAppCodes";
 import { extractSystemReading, type SystemReadingDto } from "@/lib/human-design/providers/roxy/systemReading";
 import { ROXY_PROVIDER_ID } from "@/lib/human-design/providers/roxy/config";
@@ -54,8 +54,8 @@ export async function createReportSnapshotV2FromChart(
   const wantsSystem = opts.requested === "system" || opts.requested === "both";
   const wantsExpert = opts.requested === "expert" || opts.requested === "both";
   const systemAllowed = opts.systemReadingPermitted && wantsSystem;
-  // Yetki yoksa uzman bilgileri OTOMATİK dahil (seçim penceresi yok).
-  const expertIncluded = opts.systemReadingPermitted ? wantsExpert : true;
+  // Bilgi Bankası açıklamaları YALNIZ uzman açıkça seçtiyse (yetkiden bağımsız; varsayılan KAPALI).
+  const expertIncluded = wantsExpert;
 
   // provider_raw yalnız yetki + seçim varsa okunur.
   const { row: chart, error: chartErr } = await getChartForReportV2(db, tenantId, chartId, { withProviderRaw: systemAllowed });
@@ -84,9 +84,10 @@ export async function createReportSnapshotV2FromChart(
   }
 
   const codes = toAppChartCodes(chart);
-  let expertRecords: Awaited<ReturnType<typeof listKnowledgeByCodes>>["rows"] = [];
+  let expertRecords: Awaited<ReturnType<typeof listKnowledgeForReport>>["rows"] = [];
   if (expertIncluded) {
-    const kb = await listKnowledgeByCodes(db, tenantId, buildExpertKnowledgeCodes(codes));
+    // Özel Çalışma Notları (expert_notes) bu sorguda OKUNMAZ (yalnız rapora uygun kolonlar).
+    const kb = await listKnowledgeForReport(db, tenantId, buildExpertKnowledgeCodes(codes));
     if (kb.error) return { ok: false, status: 500, code: "KNOWLEDGE_READ_FAILED", error: "Bilgi Bankası okunamadı." };
     expertRecords = kb.rows;
   }
