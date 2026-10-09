@@ -110,7 +110,7 @@
 
 | Paket | Sonuç |
 |---|---|
-| `npm run test:astrology` (19 harness) | **461 PASS / 0 FAIL / 0 atlanan** |
+| `npm run test:astrology` (19 harness) | **461 PASS / 0 FAIL / 0 atlanan** (rapor commit'inden ÖNCE; sonrasında statik kapsam testi 14/1 → 9B-P3-03) |
 | PostgreSQL migration senaryoları | 5/5 PASS (biri beklenen başarısızlık: 7A çakışma) |
 | 9B ölçüm harness'i (scratchpad) | 7/7 PASS |
 | Üye Yönetimi faz1 unit / route | 149 / 250 PASS |
@@ -164,6 +164,12 @@ Not: Üye Yönetimi route testi ilk denemede embedded-postgres'in "pre-existing 
 | Etki | Profil ≈ 0,4 MB, KB ≈ 3,6 MB, analiz tipik 4 MB / en kötü 170 MB (en kötü değer 9B-P2-01 nedeniyle) |
 | Öneri | Sayım + ekleme DB'de atomik (RPC + advisory lock veya trigger; migration gerekir) ya da 9B-P2-01 düzeltilince kabul edilebilir |
 | Risk | 9B-P2-01 düzeltilirse düşük |
+
+**9B-P3-03 · Statik test kapsam izin listesi bu raporu tanımıyor (test altyapısı)**
+- Bu rapor commit edildikten sonra `scripts/astrology/static.harness.ts` "kapsam dışı değişiklik: ASTROLOGY-PHASE9B-AUDIT.md" diyerek **14/1** veriyor. Ürün hatası değil.
+- Commit öncesi regresyon 461/0 idi; tek fark bu rapor dosyası. 9A raporunda da aynı durum oluşmuş ve 9A P2 işinde düzeltilmişti.
+- Bu aşamada yalnız rapor commit edilebildiği için test dosyasına dokunulmadı.
+- Öneri: izin listesine `/^ASTROLOGY-PHASE9B-AUDIT\.md$/` satırı (tek satır).
 
 **9B-P3-02 · Kaydetme özetinde ham teknik kimlikler**
 - Özet `whole_sign`, `placidus`, "düğüm: true / mean", "sağlayıcı: roxy" gösteriyor (`AnalysisWorkspace.tsx` özet satırı).
