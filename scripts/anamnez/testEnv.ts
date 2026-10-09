@@ -102,9 +102,30 @@ function qi(name: string): string {
   if (!IDENT_RE.test(name)) throw Object.assign(new Error(`geçersiz tanımlayıcı: ${name}`), { code: "PGRST100" });
   return `"${name}"`;
 }
+/**
+ * Kolon ya da PostgREST JSON yolu (`snapshot->chartImage->>storagePath`). Gerçek PostgREST gibi:
+ * `->` jsonb, `->>` metin; her parça tanımlayıcı doğrulamasından geçer (SQL enjeksiyonu yok).
+ */
+function colExpr(name: string): { sql: string; key: string } {
+  if (!name.includes("->")) return { sql: qi(name), key: name };
+  const m = /^([a-z_][a-z0-9_]*)((?:->>?[A-Za-z_][A-Za-z0-9_]*)+)$/.exec(name);
+  if (!m) throw Object.assign(new Error(`geçersiz tanımlayıcı: ${name}`), { code: "PGRST100" });
+  let sql = qi(m[1]);
+  let key = m[1];
+  for (const seg of m[2].match(/->>?[A-Za-z_][A-Za-z0-9_]*/g)!) {
+    const text = seg.startsWith("->>");
+    key = seg.slice(text ? 3 : 2);
+    sql += `${text ? "->>" : "->"}'${key}'`;
+  }
+  return { sql, key };
+}
 function parseSelect(raw: string | null): string {
   if (!raw || raw.trim() === "*" || raw.trim() === "") return "*";
-  return raw.split(",").map((c) => c.trim()).filter(Boolean).map(qi).join(", ");
+  return raw.split(",").map((c) => c.trim()).filter(Boolean).map((c) => {
+    if (!c.includes("->")) return qi(c);
+    const e = colExpr(c); // anahtar colExpr regex'iyle doğrulandı ([A-Za-z0-9_])
+    return `${e.sql} AS "${e.key}"`;
+  }).join(", ");
 }
 function parseInList(v: string): string[] {
   const inner = v.replace(/^\(/, "").replace(/\)$/, "");
@@ -159,7 +180,7 @@ function logicExpr(kind: "or" | "and", inner: string, values: unknown[]): string
     const m = /^(or|and)\((.*)\)$/.exec(it);
     if (m) return logicExpr(m[1] as "or" | "and", m[2], values);
     const d = it.indexOf(".");
-    return condExpr(qi(it.slice(0, d)), it.slice(d + 1), values);
+    return condExpr(colExpr(it.slice(0, d)).sql, it.slice(d + 1), values);
   });
   return `(${parts.join(kind === "or" ? " OR " : " AND ")})`;
 }
@@ -171,7 +192,7 @@ function buildWhere(params: URLSearchParams, values: unknown[]): string {
       parts.push(logicExpr(key, raw0.replace(/^\(/, "").replace(/\)$/, ""), values));
       continue;
     }
-    parts.push(condExpr(qi(key), raw0, values));
+    parts.push(condExpr(colExpr(key).sql, raw0, values));
   }
   return parts.length ? ` WHERE ${parts.join(" AND ")}` : "";
 }

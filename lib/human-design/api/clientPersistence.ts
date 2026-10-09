@@ -3,8 +3,8 @@
 // Tüm işlemler:
 //   • tenant_id + user_id YALNIZ guard'dan gelir (route katmanı verir); body'den GÜVENİLMEZ.
 //   • Yazma alanları allow-list ile süzülür (tenant_id/user_id/id/zaman override edilemez).
-//   • DELETE (P1-3): raporlar KORUNUR (client bağı koparılır), danışan + haritaları silinir,
-//     görsel klasörü temizlenir; ara adım hatasında telafi (raporlar geri bağlanır).
+//   • DELETE (owner kararı 2026-10-09): profil + bağlı analizler + Word raporları silinir
+//     (sıralı, idempotent, yalnız kimlikle; bkz. deleteHdClient).
 // HD engine/compute/BodyGraph matematiğine DOKUNMAZ — yalnız human_design_clients CRUD.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -15,7 +15,7 @@ import type {
 import { hdSafeDbError } from "./safeError";
 import { withTenant, tenantInsertPayload } from "./tenantScope";
 import { HD_CONFLICT_CODE, HD_CONFLICT_MESSAGE } from "./optimistic";
-import { detachReportsFromClient, reattachReportsToClient } from "./reportPersistence";
+import { HD_REPORT_SNAPSHOT_DIR, isOwnedChartImagePath, isOwnedReportSnapshotPath, isSafeStoragePath } from "./chartImagePath";
 import { listClientImageObjects, removeHdStorageObjects, reportReferencedImagePaths } from "./hdStorage";
 
 import { resolveHdBirthLocation } from "./hdBirthLocation";
@@ -161,72 +161,176 @@ export type DeleteHdClientResult = {
   ok: boolean;
   error: string | null;
   status?: number;
-  /** Korunan (danışan bağı koparılan) rapor sayısı. */
-  preservedReports?: number;
+  code?: string;
+  /** Silinen Human Design analizi (harita) ve Word/rapor sayısı. */
+  deletedAnalyses?: number;
+  deletedReports?: number;
   /** Silme tamam; ancak bazı yan temizlikler başarısız (loglandı). */
   warnings?: string[];
 };
 
+/** Profil silinmeden ÖNCE kesin belirlenen kayıtlar (yalnız profil + tenant kimliğiyle). */
+export type HdClientDeletePlan = {
+  chartIds: string[];
+  reportIds: string[];
+  /** Silinecek raporların kendilerine ait donmuş BodyGraph/görsel dosyaları. */
+  reportImagePaths: string[];
+  /** Bu profilin analizine bağlı ama BAŞKA profile ait rapor — silinmez, yalnız raporlanır. */
+  keptForeignReports: number;
+};
+
+type ReportLinkRow = { id: string; client_id: string | null; chart_id: string | null; storagePath?: string | null };
+
 /**
- * P1-3 — Danışan silme: RAPORLAR KORUNUR, telafi edici sıralı işlem.
+ * Silme planı (salt okunur). Silinecekler:
+ *   • analizler: human_design_charts.client_id = profil (manuel/eski kayıtlar dahil; bağımsız
+ *     analizler — client_id NULL — ve başka profillerin analizleri ASLA);
+ *   • raporlar: client_id = profil, YA DA client_id NULL olup bu profilin bir analizine bağlı olanlar.
+ *     Başka profile ait rapor bu profilin analizine bağlı görünse bile silinmez (keptForeignReports).
+ * İsim/doğum benzerliği KULLANILMAZ; her sorgu tenant-scoped.
+ */
+export async function planHdClientDelete(
+  db: SupabaseClient,
+  tenantId: string,
+  id: string,
+): Promise<{ plan: HdClientDeletePlan | null; error: string | null }> {
+  const { data: chartRows, error: chartErr } = await withTenant(
+    db.from("human_design_charts").select("id"), tenantId, "planHdClientDelete.charts",
+  ).eq("client_id", id);
+  if (chartErr) return { plan: null, error: hdSafeDbError("planHdClientDelete.charts", chartErr) };
+  const chartIds = ((chartRows ?? []) as { id: string }[]).map((r) => r.id);
+
+  const cols = "id, client_id, chart_id, snapshot->chartImage->>storagePath";
+  const { data: byClient, error: rcErr } = await withTenant(
+    db.from("human_design_reports").select(cols), tenantId, "planHdClientDelete.reports",
+  ).eq("client_id", id);
+  if (rcErr) return { plan: null, error: hdSafeDbError("planHdClientDelete.reports", rcErr) };
+  let byChart: ReportLinkRow[] = [];
+  if (chartIds.length > 0) {
+    const { data, error } = await withTenant(
+      db.from("human_design_reports").select(cols), tenantId, "planHdClientDelete.chartReports",
+    ).in("chart_id", chartIds);
+    if (error) return { plan: null, error: hdSafeDbError("planHdClientDelete.chartReports", error) };
+    byChart = (data ?? []) as unknown as ReportLinkRow[];
+  }
+
+  const reports = new Map<string, ReportLinkRow>();
+  let keptForeignReports = 0;
+  for (const r of (byClient ?? []) as unknown as ReportLinkRow[]) reports.set(r.id, r);
+  for (const r of byChart) {
+    if (reports.has(r.id)) continue;
+    if (r.client_id === null) reports.set(r.id, r);
+    else if (r.client_id !== id) keptForeignReports++;
+  }
+  const reportImagePaths: string[] = [];
+  for (const r of reports.values()) {
+    const p = typeof r.storagePath === "string" ? r.storagePath.trim() : "";
+    // Yalnız BU rapora ait donmuş kopya ({tenant}/report-snapshots/{raporId}.*) ya da bu profilin klasörü.
+    if (isOwnedReportSnapshotPath(p, tenantId) && p.startsWith(`${tenantId}/${HD_REPORT_SNAPSHOT_DIR}/${r.id}.`)) reportImagePaths.push(p);
+    else if (isOwnedChartImagePath(p, tenantId, id) && isSafeStoragePath(p)) reportImagePaths.push(p);
+  }
+  return { plan: { chartIds, reportIds: [...reports.keys()], reportImagePaths, keptForeignReports }, error: null };
+}
+
+/** Silme onayı öncesi gösterilecek KESİN sayılar (salt okunur). */
+export async function previewHdClientDelete(
+  db: SupabaseClient,
+  tenantId: string,
+  id: string,
+): Promise<{ ok: boolean; error: string | null; status?: number; analyses?: number; reports?: number; journeyLinked?: boolean }> {
+  const { row: client, error: readErr } = await getHdClient(db, tenantId, id);
+  if (readErr) return { ok: false, error: readErr, status: 500 };
+  if (!client) return { ok: false, error: "Danışan bulunamadı veya bu tenant'a ait değil.", status: 404 };
+  const { plan, error } = await planHdClientDelete(db, tenantId, id);
+  if (!plan) return { ok: false, error, status: 500 };
+  return {
+    ok: true, error: null, analyses: plan.chartIds.length, reports: plan.reportIds.length,
+    journeyLinked: !!(client as { journey_client_id?: string | null }).journey_client_id,
+  };
+}
+
+/**
+ * Human Design profil silme (OWNER KARARI 2026-10-09): profil + ona bağlı TÜM Human Design
+ * analizleri + bu analizlere/profile bağlı Word raporları kalıcı olarak silinir.
+ * (Önceki P1-3 davranışı raporları korurdu; owner kararıyla değişti.)
  *
- * Eski davranış raporları (profesyonel donmuş raporlar dahil) uyarısız ve atomik olmayan
- * 3 ayrı DELETE ile siliyordu. Yeni sıra (her adım tenant-scoped):
- *   1) Danışan var mı (tenant) → yoksa 404.
- *   2) Danışanın harita id'leri okunur.
- *   3) Raporların danışan bağı koparılır (client_id = NULL) — veri silinmez.
- *   4) Danışan silinir. Hata → 3. adım GERİ ALINIR (raporlar yeniden bağlanır) → hiçbir şey
- *      silinmemiş, tutarlı durum.
- *   5) Haritalar silinir (yeniden denemeli). Hata → danışan zaten silindi; harita satırları
- *      Kayıtlı Haritalar'da kalır (veri kaybı yok), uyarı döner + loglanır.
- *   6) Görsel klasörü temizlenir; hâlâ bir rapor snapshot'ının kullandığı nesne KORUNUR.
- *      Storage hatası DB'yi geri almaz → yeniden deneme + `[hd-storage-cleanup-failed]` log.
- * Raporlar silinmediği için hiçbir adımda geri alınamaz veri kaybı oluşmaz.
+ * Güvenlik / tutarlılık (migration GEREKTİRMEZ; her adım tenant-scoped, yalnız kimlikle):
+ *   1) Profil bu tenant'ta yoksa 404 — hiçbir şey silinmez.
+ *   2) Plan: silinecek analiz/rapor kimlikleri kesin belirlenir (planHdClientDelete).
+ *   3) `expect` (onay penceresinde gösterilen sayılar) verildiyse ve şimdi DAHA FAZLA kayıt varsa
+ *      (arada yeni analiz/rapor oluştu) 409 — kullanıcının görmediği kayıt silinmez.
+ *   4) Raporlar → 5) analizler → (profilde kalan analiz varsa 409, profil korunur) → 6) profil.
+ *      Ara adım hatasında profil YERİNDE kalır; aynı "Sil" tekrar denendiğinde kalanlar tamamlanır
+ *      (her adım idempotent). Profil en son silinir → yetim analiz/rapor kalmaz.
+ *   7) Storage (DB'den SONRA): profil klasörü (başka raporun hâlâ kullandığı nesne hariç) + silinen
+ *      raporların kendi donmuş görselleri. Hata DB'yi geri almaz → uyarı + `[hd-storage-cleanup-failed]`.
+ * Danışan Yolculuğu: merkezî danışan (clients) SİLİNMEZ; bağ profil satırıyla birlikte kalkar.
+ * Başka modül tablolarına dokunulmaz.
  */
 export async function deleteHdClient(
   db: SupabaseClient,
   tenantId: string,
   id: string,
+  opts: { expect?: { analyses: number; reports: number } } = {},
 ): Promise<DeleteHdClientResult> {
   const { row: client, error: readErr } = await getHdClient(db, tenantId, id);
   if (readErr) return { ok: false, error: readErr, status: 500 };
   if (!client) return { ok: false, error: "Danışan bulunamadı veya bu tenant'a ait değil.", status: 404 };
 
-  const { data: chartRows, error: chartReadErr } = await withTenant(
-    db.from("human_design_charts").select("id"), tenantId, "deleteHdClient.charts.read",
-  ).eq("client_id", id);
-  if (chartReadErr) return { ok: false, error: hdSafeDbError("deleteHdClient.charts.read", chartReadErr), status: 500 };
-  const chartIds = ((chartRows ?? []) as { id: string }[]).map((r) => r.id);
+  const { plan, error: planErr } = await planHdClientDelete(db, tenantId, id);
+  if (!plan) return { ok: false, error: planErr, status: 500 };
+  const changed = (): DeleteHdClientResult => ({
+    ok: false, status: 409, code: "DELETE_SCOPE_CHANGED",
+    error: "Bu profile bağlı kayıtlar onaydan sonra değişti. Hiçbir şey silinmedi; lütfen silmeyi yeniden onaylayın.",
+  });
+  if (opts.expect && (plan.chartIds.length > opts.expect.analyses || plan.reportIds.length > opts.expect.reports)) {
+    return changed();
+  }
+  const partial = (what: string): DeleteHdClientResult => ({
+    ok: false, status: 500, code: "DELETE_INCOMPLETE",
+    error: `${what} Profil silinmedi; "Sil" ile tekrar deneyebilirsiniz (kalan kayıtlar tamamlanır).`,
+  });
 
-  const detached = await detachReportsFromClient(db, tenantId, id);
-  if (detached.error) return { ok: false, error: detached.error, status: 500 };
+  if (plan.reportIds.length > 0) {
+    const { error } = await withTenant(db.from("human_design_reports").delete(), tenantId, "deleteHdClient.reports")
+      .in("id", plan.reportIds);
+    if (error) {
+      console.error("[hd-client-delete] raporlar silinemedi:", hdSafeDbError("deleteHdClient.reports", error));
+      return partial("Word raporları silinemedi; hiçbir kayıt silinmedi.");
+    }
+  }
+
+  if (plan.chartIds.length > 0) {
+    const del = () => withTenant(db.from("human_design_charts").delete(), tenantId, "deleteHdClient.charts")
+      .eq("client_id", id).in("id", plan.chartIds);
+    let chartErr = (await del()).error;
+    if (chartErr) chartErr = (await del()).error;
+    if (chartErr) {
+      console.error(`[hd-client-delete] ${plan.chartIds.length} analiz silinemedi:`, hdSafeDbError("deleteHdClient.charts", chartErr));
+      return partial("Word raporları silindi ancak analizler silinemedi.");
+    }
+  }
+
+  // Arada (plan sonrası) profile yeni analiz eklendiyse profil SİLİNMEZ (yetim analiz kalmasın).
+  const { count: leftCharts, error: leftErr } = await withTenant(
+    db.from("human_design_charts").select("id", { count: "exact", head: true }), tenantId, "deleteHdClient.charts.left",
+  ).eq("client_id", id);
+  if (leftErr) return partial("Analizlerin silindiği doğrulanamadı.");
+  if ((leftCharts ?? 0) > 0) return changed();
 
   const { data: delRows, error: delErr } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteHdClient")
     .eq("id", id)
     .select("id");
   if (delErr || !delRows || delRows.length === 0) {
-    await reattachReportsToClient(db, tenantId, id, detached.ids);
-    return {
-      ok: false,
-      error: delErr ? hdSafeDbError("deleteHdClient", delErr) : "Danışan silinemedi.",
-      status: delErr ? 500 : 404,
-    };
+    if (delErr) console.error("[hd-client-delete] profil silinemedi:", hdSafeDbError("deleteHdClient", delErr));
+    return delErr ? partial("Analizler ve raporlar silindi ancak profil silinemedi.") : { ok: false, error: "Danışan bulunamadı.", status: 404 };
   }
 
   const warnings: string[] = [];
-  if (chartIds.length > 0) {
-    let chartErr = (await withTenant(db.from("human_design_charts").delete(), tenantId, "deleteHdClient.charts").in("id", chartIds)).error;
-    if (chartErr) {
-      chartErr = (await withTenant(db.from("human_design_charts").delete(), tenantId, "deleteHdClient.charts.retry").in("id", chartIds)).error;
-    }
-    if (chartErr) {
-      console.error(`[hd-client-delete] ${chartIds.length} harita silinemedi:`, hdSafeDbError("deleteHdClient.charts", chartErr));
-      warnings.push("charts_cleanup_failed");
-    }
-  }
-
-  // Görsel klasörü (P2-10) — rapor snapshot'ının hâlâ kullandığı nesne silinmez.
+  if (plan.keptForeignReports > 0) warnings.push("foreign_reports_kept");
+  // Görsel klasörü — başka (silinmemiş) bir raporun hâlâ kullandığı nesne silinmez.
   const prefix = `${tenantId}/${id}/`;
+  let removable: string[] = plan.reportImagePaths.filter((p) => !p.startsWith(prefix));
   const listed = await listClientImageObjects(db, tenantId, id);
   if (listed.error) {
     console.error(`[hd-storage-cleanup-failed] client-delete list: ${listed.error}`);
@@ -234,15 +338,17 @@ export async function deleteHdClient(
   } else if (listed.paths.length > 0) {
     const refs = await reportReferencedImagePaths(db, tenantId, prefix);
     if (refs.error) {
-      // Referans bilinmiyorsa güvenli taraf: SİLME (rapor görseli kaybolmasın), logla.
+      // Referans bilinmiyorsa güvenli taraf: profil klasörünü SİLME (başka rapor görseli kaybolmasın).
       console.error(`[hd-storage-cleanup-failed] client-delete refs: ${refs.error}`);
       warnings.push("storage_cleanup_failed");
     } else {
-      const removable = listed.paths.filter((p) => !refs.paths.has(p));
-      const rm = await removeHdStorageObjects(db, removable, "client-delete");
-      if (!rm.ok) warnings.push("storage_cleanup_failed");
+      removable = removable.concat(listed.paths.filter((p) => !refs.paths.has(p)));
     }
   }
+  if (removable.length > 0) {
+    const rm = await removeHdStorageObjects(db, removable, "client-delete");
+    if (!rm.ok && !warnings.includes("storage_cleanup_failed")) warnings.push("storage_cleanup_failed");
+  }
 
-  return { ok: true, error: null, preservedReports: detached.ids.length, warnings };
+  return { ok: true, error: null, deletedAnalyses: plan.chartIds.length, deletedReports: plan.reportIds.length, warnings };
 }

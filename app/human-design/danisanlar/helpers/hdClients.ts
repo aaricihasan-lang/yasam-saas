@@ -111,25 +111,49 @@ export async function getHdClient(
   return { row: null, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
-export async function deleteHdClient(
-  id: string,
-): Promise<{ error: string | null; preservedReports?: number; warnings?: string[] }> {
+export type HdClientDeleteScope = { analyses: number; reports: number; journeyLinked: boolean };
+
+/** Silme onayı öncesi KESİN kapsam (sunucu: yalnız profil + tenant kimliğiyle). */
+export async function previewHdClientDelete(id: string): Promise<{ scope: HdClientDeleteScope | null; error: string | null }> {
   let res: Response;
   try {
-    res = await fetch(`/api/hd/clients?id=${encodeURIComponent(id)}`, {
+    res = await fetch(`/api/hd/clients?id=${encodeURIComponent(id)}&delete_preview=1`, { headers: authHeaders(), cache: "no-store" });
+  } catch {
+    return { scope: null, error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true && typeof j.analyses === "number" && typeof j.reports === "number") {
+    return { scope: { analyses: j.analyses, reports: j.reports, journeyLinked: j.journeyLinked === true }, error: null };
+  }
+  return { scope: null, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
+}
+
+/**
+ * Profil + bağlı Human Design analizleri + Word raporları silinir. `expect` onayda gösterilen
+ * kapsamdır; sunucuda daha fazla kayıt varsa hiçbir şey silinmez (code: DELETE_SCOPE_CHANGED).
+ */
+export async function deleteHdClient(
+  id: string,
+  expect: { analyses: number; reports: number },
+): Promise<{ error: string | null; code?: string; deletedAnalyses?: number; deletedReports?: number; warnings?: string[] }> {
+  let res: Response;
+  try {
+    const qs = `id=${encodeURIComponent(id)}&expect_analyses=${expect.analyses}&expect_reports=${expect.reports}`;
+    res = await fetch(`/api/hd/clients?${qs}`, {
       method: "DELETE",
       headers: authHeaders(),
     });
   } catch {
-    return { error: "Ağ hatası. Bağlantını kontrol et." };
+    return { error: "Ağ hatası: silme sonucu doğrulanamadı. Listeyi yenileyip kontrol edin; gerekirse tekrar deneyin." };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true) {
     return {
       error: null,
-      preservedReports: typeof j.preservedReports === "number" ? j.preservedReports : 0,
+      deletedAnalyses: typeof j.deletedAnalyses === "number" ? j.deletedAnalyses : 0,
+      deletedReports: typeof j.deletedReports === "number" ? j.deletedReports : 0,
       warnings: Array.isArray(j.warnings) ? (j.warnings as string[]) : [],
     };
   }
-  return { error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
+  return { error: typeof j.error === "string" ? j.error : `HTTP ${res.status}`, code: typeof j.code === "string" ? j.code : undefined };
 }
