@@ -227,7 +227,8 @@
         "workspaceUnavailable": "Your workspace information could not be loaded. Please sign in again.",
         "invalidData": "Invalid record data."
       },
-      "thisStone": "this stone"
+      "thisStone": "this stone",
+      "matchCount": "{n, plural, one {# match} other {# matches}}"
     }
   }
 }

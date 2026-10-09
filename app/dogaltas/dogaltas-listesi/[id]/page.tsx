@@ -41,6 +41,7 @@ import {
   textMatchesQuery,
 } from "@/lib/dogaltas/searchHighlight";
 import { useOverlay } from "@/lib/dogaltas/useOverlay";
+import { useSearchHighlight } from "@/lib/search/useSearchHighlight";
 import { needsDiscardConfirm } from "@/lib/dogaltas/longTextEditor";
 import { useSignedStoneImageUrls, imageFilePath } from "@/lib/dogaltas/stoneImageClient";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
@@ -504,11 +505,13 @@ function TextBlock({
       </div>
 
       <div className={uiContentBox}>
+        {/* WT8: aramada eşleşen bölüm KISALTILMADAN gösterilir → metindeki TÜM geçişler görünür ve
+            sarı vurgulu (önceden 240 karakterlik önizlemede yalnız ilk kısım görünüyordu). */}
         <p
-          className={`line-clamp-4 whitespace-pre-wrap text-sm leading-6 ${!text?.trim() ? uiEmptyText : "text-slate-700"}`}
+          className={`${showMatchBadge ? "" : "line-clamp-4"} whitespace-pre-wrap text-sm leading-6 ${!text?.trim() ? uiEmptyText : "text-slate-700"}`}
         >
           {text?.trim()
-            ? renderHighlightedText(shortPreview(text, 240), highlightQuery)
+            ? renderHighlightedText(showMatchBadge ? text.trim() : shortPreview(text, 240), highlightQuery)
             : t("noInfoYet")}
         </p>
       </div>
@@ -1175,6 +1178,14 @@ function StoneDetailPage() {
     };
   }, [highlightQuery, safeStone]);
 
+  // WT8: sayfadaki TÜM görünür eşleşmeler (atamalar, çakralar, kullanım, uyarılar dahil) sarı; ilk
+  // eşleşmeye bir kez kaydırılır — sonra kullanıcı serbestçe gezinir.
+  const pageContentRef = useRef<HTMLDivElement | null>(null);
+  const pageMatchCount = useSearchHighlight(pageContentRef, [highlightQuery], {
+    enabled: Boolean(safeStone) && Boolean(highlightQuery.trim()),
+    resetKey: safeStone?.id ?? "",
+  });
+
   const readerHasMatch = useMemo(
     () =>
       Boolean(activeReader) &&
@@ -1275,7 +1286,7 @@ function StoneDetailPage() {
       <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-emerald-300/20 blur-[150px]" />
       <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-violet-300/20 blur-[150px]" />
 
-      <div className={pageContent}>
+      <div ref={pageContentRef} className={pageContent}>
         <header className={`${uiHeaderCard} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
           <div className="min-w-0 flex-1">
             <div className="mb-1.5 flex flex-wrap items-center gap-2">
@@ -1369,9 +1380,14 @@ function StoneDetailPage() {
         </header>
 
         {hasFilterContext && (
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2 shadow-sm">
+          <div data-no-search-highlight className="flex flex-wrap items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2 shadow-sm">
             <span className="text-[10px] font-black uppercase tracking-wider text-violet-600">{t("matchLabel")}</span>
             {highlightQuery && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-800">🔍 {highlightQuery}</span>}
+            {highlightQuery && pageMatchCount > 0 && (
+              <span data-testid="search-match-count" className="rounded-full bg-yellow-200 px-2 py-0.5 text-[11px] font-black text-slate-900">
+                {t("matchCount", { n: pageMatchCount })}
+              </span>
+            )}
             {astroFilter && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-800">♈ {astroFilter}</span>}
             {chakraFilter && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-800">🔵 {chakraFilter}</span>}
             {mineralFilter && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-800">💎 {mineralFilter}</span>}

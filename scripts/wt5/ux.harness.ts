@@ -73,8 +73,8 @@ async function main() {
     ok(m.readCheckedIds(st, kalp).has("s1") && m.readCheckedIds(st, filt).has("s9"), "önceki aramaya dönünce işaretleri geri gelir");
     m.markChecked(st, "", "x");
     ok(!st.getItem(m.SEARCH_CHECKED_STORAGE_KEY)!.includes('"x"'), "bağlam yokken işaret yazılmaz");
-    for (let i = 0; i < 25; i++) m.markChecked(st, m.searchContextKey({ query: "q" + i }), "id");
-    ok(m.readCheckedIds(st, kalp).size === 0 && JSON.parse(st.getItem(m.SEARCH_CHECKED_STORAGE_KEY)!).contexts.length === 20, "en fazla 20 bağlam (eskiler düşer)");
+    for (let i = 0; i < 45; i++) m.markChecked(st, m.searchContextKey({ query: "q" + i }), "id");
+    ok(m.readCheckedIds(st, kalp).size === 0 && JSON.parse(st.getItem(m.SEARCH_CHECKED_STORAGE_KEY)!).contexts.length === 40, "en fazla 40 bağlam (eskiler düşer; WT8: yüzeyler arası ortak depo)");
     const bad = new MemStorage(); bad.setItem(m.SEARCH_CHECKED_STORAGE_KEY, "{bozuk");
     ok(m.readCheckedIds(bad, kalp).size === 0, "bozuk depolama → boş (hata yok)");
     const page = read("app/dogaltas/dogaltas-listesi/page.tsx");
@@ -147,15 +147,15 @@ async function main() {
     const nav = oil.match(/<nav aria-label="Yağ bilgi sekmeleri"[^>]*className="([^"]+)"/);
     ok(Boolean(nav) && /\bflex-wrap\b/.test(nav![1]) && !/(^|\s)overflow-x-auto/.test(nav![1]) && /lg:flex-col/.test(nav![1]), "yağ sekmeleri mobilde sarar (yatay kaydırma yok), webde dikey kenar çubuğu");
     const drawer = read("app/dogaltas/components/StoneDetailDrawer.tsx");
-    ok(/mt-auto flex h-\[88dvh\]/.test(drawer) && /sm:h-full/.test(drawer) && /onClick=\{onClose\}/.test(drawer), "taş detay drawer: mobilde dokunulabilir karartılmış alan + backdrop kapatır");
+    ok(/max-h-\[calc\(100dvh-7rem\)\]/.test(drawer) && /sm:h-full/.test(drawer) && /onClick=\{onBackdropClick\}/.test(drawer), "taş detay drawer: mobilde üstte VE altta dokunulabilir karartılmış alan + backdrop kapatır (WT8)");
     ok(/return createPortal\(/.test(drawer) && /document\.body,/.test(drawer) && /fixed inset-0 z-\[70\]/.test(drawer), "taş detay drawer body'ye portal + üst çubuğun üstünde (× masaüstünde tıklanabilir)");
     const reader = read("components/common/reader/ReaderModal.tsx");
     ok(/event\.target === event\.currentTarget\) onClose\(\)/.test(reader) && /onMouseDown=\{\(event\) => event\.stopPropagation\(\)\}/.test(reader), "okuma modalı: backdrop kapatır, içerik kapatmaz");
     const combo = read("app/dogaltas/kombinasyonlar/[title]/page.tsx");
     ok(!/line-through/.test(combo), "kombinasyon: üstü çizili taş YOK");
-    ok(/combo-stone-legend/.test(combo) && /legendInStock/.test(combo) && /legendOutOfStock/.test(combo) && /legendGhost/.test(combo), "kombinasyon: renk/işaret lejantı");
+    ok(/combo-stone-legend/.test(combo) && /legendInStock/.test(combo) && !/legendGhost/.test(combo) && !/combo-chip-ghost/.test(combo), "kombinasyon: yalnız yeşil lejant; ghost/Eksik ayrımı YOK (WT8)");
     ok(/combo-extra-stones/.test(combo), "notlardan çıkan stoklu taşlar gereken listeden AYRI");
-    ok(/const missingStoneNames = chipsStones\.filter\(/.test(combo) && /resolveStockKey\(chip, stockMap\) === null/.test(combo), "veri anlamı (eksik = stokta olmayan) DEĞİŞMEDİ");
+    ok(/const chipsInStock = chipsStones\.filter\(\(chip\) => resolveStockKey\(chip, stockMap\) !== null\)/.test(combo) && !/ApplicabilityBadge/.test(combo), "stok durumu yalnız görünen çiplerden; açıklamasız yüzde rozeti YOK (WT8)");
     const ctr = JSON.parse(read("messages/tr/stones.combinations.json"));
     const find = (o: unknown): Record<string, string> | null => {
       if (o && typeof o === "object") {
