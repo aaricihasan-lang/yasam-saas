@@ -30,6 +30,8 @@ export type CreateSnapshotV2Options = {
   requested: HdCommentarySelection;
   /** SUNUCUDA doğrulanmış yetki (human_design + hd_system_reading). İstemci seçimi yetki DEĞİL. */
   systemReadingPermitted: boolean;
+  /** "Raporu Hazırlayan" — yalnız bu yeni rapora (sanitize buildReportSnapshotV2'de). */
+  preparedBy?: string | null;
 };
 
 export type CreateSnapshotV2Result =
@@ -115,6 +117,7 @@ export async function createReportSnapshotV2FromChart(
     systemReadingPermitted: opts.systemReadingPermitted,
     systemReading,
     expertRecords,
+    preparedBy: opts.preparedBy ?? null,
     // Görsel kararı route'ta (PNG doğrulama / yüklenen görsel kopyası) verilir.
     bodygraph: { status: "missing" },
     chartImage: null,

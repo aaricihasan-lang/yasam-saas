@@ -6,7 +6,9 @@
  * Document / Buffer. DB / auth / ağ YOK — görseller (BodyGraph, logo) hazır Buffer olarak gelir.
  * Mevcut lib/docx/reportHelpers toolkit'i ve v1'in SAF prose dönüştürücüsü REUSE edilir.
  *
- * Bölüm sırası: Kapak → Danışan ve Harita Kimliği → BodyGraph → Design / Personality →
+ * İki düzen: snapshot.layout === "pro-1" → profesyonel düzen (aşağıda, yeni raporlar); layout YOK →
+ * eski kayıtlı raporların düzeni AYNEN (eski Word'ler değişmez). Eski düzenin bölüm sırası:
+ * Kapak → Danışan ve Harita Kimliği → BodyGraph → Design / Personality →
  * Merkezler → Kanallar → Kapılar → Uzman Bilgilerim (varsa) → Sistem Yorumu (varsa) →
  * Kaynak Bilgisi. Boş bölüm OLUŞTURULMAZ. Uzman içeriği ile Sistem Yorumu AYRI başlık ve
  * kaynak etiketi taşır; birbirine karışmaz.
@@ -16,13 +18,18 @@ import {
   AlignmentType,
   BorderStyle,
   Document,
+  HeightRule,
   ImageRun,
   Packer,
   Paragraph,
+  ShadingType,
   Table,
   TableCell,
+  TableLayoutType,
   TableRow,
+  TabStopType,
   TextRun,
+  VerticalAlign,
   WidthType,
 } from "docx";
 import {
@@ -55,6 +62,8 @@ import {
 } from "./reportSnapshotV2";
 import type { SystemReadingDetail, SystemReadingDto } from "@/lib/human-design/providers/roxy/systemReading";
 import { toPlanetName } from "@/lib/human-design/providers/roxy/normalize";
+import { HUMAN_DESIGN_GATES } from "@/lib/human-design/constants";
+import { GATE_TECHNICAL_DATA } from "@/lib/human-design/gateTechnicalData";
 
 const REPORT_NAME = "Human Design Profesyonel Analiz Raporu · yasamsistemi.com";
 const HEADER_TEXT = "Human Design · Yaşam Sistemi";
@@ -446,6 +455,7 @@ function buildClosing(s: HdReportSnapshotV2, genDate: string, opts: WordReportV2
 
 // ── Belge ───────────────────────────────────────────────────────────────────────
 export function buildHdReportV2Children(s: HdReportSnapshotV2, opts: WordReportV2Options = {}): { cover: ReportChild[]; body: ReportChild[] } {
+  if (s.layout === "pro-1") return buildHdReportV2ProChildren(s, opts);
   const genDate = formatInstantDate(s.generatedAt, { style: "long", fallback: "—" });
   const reading = opts.systemReadingRedacted ? null : s.commentary.system.status === "included" ? s.commentary.system.reading : null;
   return {
@@ -460,6 +470,443 @@ export function buildHdReportV2Children(s: HdReportSnapshotV2, opts: WordReportV
       ...buildExpert(s),
       ...buildSystem(reading),
       ...buildClosing(s, genDate, opts),
+    ],
+  };
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// PROFESYONEL DÜZEN "pro-1" (2026-10-09) — yalnız `layout: "pro-1"` taşıyan YENİ snapshot'lar.
+// Eski kayıtlı raporlar (layout yok) yukarıdaki düzenle AYNEN üretilir.
+//   • Sayfa 2: kimlik kartı (ad · doğum · HD özeti · Enkarnasyon Haçı) + Merkezler 3×3 ızgara
+//     (Tanımlı ● / Açık ○ — siyah-beyaz baskıda da ayırt edilir) + Kanal satırları
+//   • Sayfa 3: Design (kırmızı) | BodyGraph | Personality (siyah) — 13 + 13 aktivasyon
+//   • Kapı tablosu (çoklu aktivasyon korunur; başlık her sayfada tekrar eder)
+//   • "Uzman Açıklamaları" / Sistem Yorumu AYRI bölümler · sade kapanış (teknik eşleşme notu YOK)
+//   • "Hazırlayan" yalnız snapshot.preparedBy doluysa (profil adı otomatik yazılmaz)
+// Tüm metin ve tablolar Word'de düzenlenebilir (yalnız BodyGraph görseldir).
+// ═════════════════════════════════════════════════════════════════════════════════
+
+const W = A4.width - 2 * MARGIN; // basılabilir genişlik (twip)
+const PAL = {
+  ink: "1e293b",
+  mid: "475569",
+  soft: "64748b",
+  faint: "94a3b8",
+  line: "e2e8f0",
+  card: "f8fafc",
+  accent: "3730a3",
+  design: "b91c1c",
+  personality: "111827",
+  definedFill: "e0e7ff",
+} as const;
+const NO_LINE = { style: BorderStyle.NONE, size: 0, color: "ffffff" } as const;
+const NO_BORDERS = { top: NO_LINE, bottom: NO_LINE, left: NO_LINE, right: NO_LINE } as const;
+const THIN = (color: string = PAL.line) => ({ style: BorderStyle.SINGLE, size: 4, color });
+
+type PRun = { text: string; size?: number; bold?: boolean; color?: string; italics?: boolean; allCaps?: boolean };
+function pr(o: PRun): TextRun {
+  return new TextRun({
+    text: sanitizeXmlText(o.text),
+    font: REPORT_FONT,
+    size: o.size ?? 20,
+    bold: o.bold,
+    italics: o.italics,
+    allCaps: o.allCaps,
+    color: o.color ?? PAL.mid,
+  });
+}
+function pp(runs: PRun[], o: { align?: (typeof AlignmentType)[keyof typeof AlignmentType]; before?: number; after?: number; keepNext?: boolean } = {}): Paragraph {
+  return new Paragraph({
+    alignment: o.align,
+    keepNext: o.keepNext,
+    spacing: { before: o.before ?? 0, after: o.after ?? 60 },
+    children: runs.map(pr),
+  });
+}
+function cardCell(children: (Paragraph | Table)[], width: number, o: { fill?: string; borders?: Record<string, unknown>; vAlign?: "top" | "center" | "bottom"; pad?: number } = {}): TableCell {
+  const pad = o.pad ?? 140;
+  return new TableCell({
+    width: { size: width, type: WidthType.DXA },
+    shading: o.fill ? { fill: o.fill, type: ShadingType.CLEAR, color: "auto" } : undefined,
+    borders: (o.borders ?? NO_BORDERS) as never,
+    verticalAlign: o.vAlign === "center" ? VerticalAlign.CENTER : o.vAlign === "bottom" ? VerticalAlign.BOTTOM : o.vAlign === "top" ? VerticalAlign.TOP : undefined,
+    margins: { top: pad, bottom: pad, left: pad + 40, right: pad },
+    children: children.length ? children : [new Paragraph({})],
+  });
+}
+function fixedTable(widths: number[], rows: TableRow[]): Table {
+  return new Table({
+    width: { size: widths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
+    columnWidths: widths,
+    layout: TableLayoutType.FIXED,
+    borders: { ...NO_BORDERS, insideHorizontal: NO_LINE, insideVertical: NO_LINE } as never,
+    rows,
+  });
+}
+/** Küçük, büyük harfli bölüm etiketi (kart başlıkları). */
+function capsLabel(text: string, color: string = PAL.accent): Paragraph {
+  return pp([{ text, size: 16, bold: true, color, allCaps: true }], { after: 100, keepNext: true });
+}
+function kv(label: string, value: string): Paragraph {
+  return new Paragraph({
+    spacing: { before: 0, after: 70 },
+    keepLines: true,
+    children: [pr({ text: `${label}  `, size: 17, color: PAL.soft }), pr({ text: value, size: 21, color: PAL.ink, bold: true })],
+  });
+}
+
+// ── Merkez adları: tutarlı Türkçe + parantez içinde özgün terim ──
+const CENTER_NAME: Record<string, { tr: string; en: string | null }> = {
+  head: { tr: "Baş Merkezi", en: "Head" },
+  ajna: { tr: "Ajna Merkezi", en: null },
+  throat: { tr: "Boğaz Merkezi", en: "Throat" },
+  g_identity: { tr: "G / Kimlik Merkezi", en: "G Center" },
+  heart_ego: { tr: "Kalp / Ego Merkezi", en: "Heart" },
+  spleen: { tr: "Dalak Merkezi", en: "Spleen" },
+  solar_plexus: { tr: "Solar Pleksus Merkezi", en: "Solar Plexus" },
+  sacral: { tr: "Sakral Merkez", en: "Sacral" },
+  root: { tr: "Kök Merkezi", en: "Root" },
+};
+const CENTER_GRID: string[][] = [
+  ["head", "ajna", "throat"],
+  ["g_identity", "heart_ego", "spleen"],
+  ["solar_plexus", "sacral", "root"],
+];
+/** gateTechnicalData merkez adı → merkez kodu (kapı tablosu da aynı adları kullansın). */
+const GATE_CENTER_CODE: Record<string, string> = {
+  Taç: "head", Zihin: "ajna", Boğaz: "throat", "Benlik G": "g_identity", "Kalp-İrade": "heart_ego",
+  Dalak: "spleen", "Solar Pleksus": "solar_plexus", Sakral: "sacral", Kök: "root",
+};
+function centerShort(code: string | null | undefined): string {
+  if (!code) return "—";
+  const n = CENTER_NAME[code];
+  return n ? n.tr.replace(/ Merkezi?$/, "") : code;
+}
+function gateCenterLabel(raw: string | null): string {
+  if (!raw) return "—";
+  const code = GATE_CENTER_CODE[raw];
+  return code ? centerShort(code) : raw;
+}
+function gateName(gate: number): string | null {
+  const l = HUMAN_DESIGN_GATES.find((g) => g.code === gate)?.label ?? null;
+  return l ? l.replace(/^\s*\d+\s*[—-]\s*/, "").trim() || null : null;
+}
+function channelName(label: string, code: string): string {
+  return label.replace(new RegExp(`^\\s*${code.replace("-", "[-–]")}\\s*`), "").trim() || label;
+}
+
+// ── P2) Danışan ve Harita Kimliği ──
+function proIdentity(s: HdReportSnapshotV2, genDate: string): ReportChild[] {
+  const out: ReportChild[] = [
+    pp([{ text: "Danışan ve Harita Kimliği", size: 18, bold: true, color: PAL.accent, allCaps: true }], { after: 80 }),
+    pp([{ text: s.client.name, size: 44, bold: true, color: PAL.ink }], { after: 40 }),
+    new Paragraph({
+      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: PAL.line } },
+      spacing: { before: 0, after: 240 },
+      children: [pr({ text: "Human Design Profesyonel Analiz Raporu", size: 20, color: PAL.soft })],
+    }),
+  ];
+  const birth: Paragraph[] = [capsLabel("Doğum Bilgileri")];
+  if (s.client.birthDate) {
+    birth.push(kv("Doğum Tarihi", formatDateOnly(s.client.birthDate, { style: "long" }) || formatDateLoose(s.client.birthDate, { style: "long" })));
+  }
+  if (s.client.birthTime) birth.push(kv("Doğum Saati (yerel)", s.client.birthTime));
+  if (s.client.birthPlace) birth.push(kv("Doğum Yeri", s.client.birthPlace));
+  if (s.client.timezone) birth.push(kv("Saat Dilimi", s.client.timezone));
+  const hd: Paragraph[] = [capsLabel("Human Design Özeti")];
+  if (s.identity.type) hd.push(kv("Tip", s.identity.type));
+  if (s.identity.profile) hd.push(kv("Profil", s.identity.profile));
+  if (s.identity.authority) hd.push(kv("İç Otorite", s.identity.authority));
+  if (s.identity.definition) hd.push(kv("Tanım", s.identity.definition));
+  const gap = 240;
+  const half = Math.floor((W - gap) / 2);
+  out.push(
+    fixedTable([half, gap, W - gap - half], [
+      new TableRow({
+        cantSplit: true,
+        children: [
+          cardCell(birth, half, { fill: PAL.card, borders: { ...NO_BORDERS, top: THIN(PAL.accent) } }),
+          cardCell([], gap),
+          cardCell(hd, W - gap - half, { fill: PAL.card, borders: { ...NO_BORDERS, top: THIN(PAL.accent) } }),
+        ],
+      }),
+    ]),
+  );
+  if (s.identity.cross) {
+    const x = s.identity.cross;
+    const crossChildren: Paragraph[] = [
+      capsLabel("Enkarnasyon Haçı (Yaşam Teması)"),
+      pp([{ text: x.name, size: 26, bold: true, color: PAL.ink }], { after: 80 }),
+      new Paragraph({
+        spacing: { after: 0 },
+        children: [
+          pr({ text: "Kapılar  ", size: 17, color: PAL.soft }),
+          pr({ text: x.gates, size: 21, bold: true, color: PAL.ink }),
+          ...(x.angle ? [pr({ text: "     Açı  ", size: 17, color: PAL.soft }), pr({ text: x.angle, size: 21, color: PAL.ink })] : []),
+        ],
+      }),
+      pp([{ text: "Personality Güneş/Dünya | Design Güneş/Dünya", size: 16, color: PAL.faint }], { before: 40, after: 0 }),
+    ];
+    out.push(new Paragraph({ spacing: { before: 0, after: 200 } }));
+    out.push(fixedTable([W], [new TableRow({ cantSplit: true, children: [cardCell(crossChildren, W, { fill: PAL.card, borders: { ...NO_BORDERS, top: THIN(PAL.accent) } })] })]));
+  }
+  out.push(
+    pp(
+      [
+        { text: `Harita kaynağı: ${s.chart.source === "computed" ? "Otomatik hesaplama (kayıtlı harita)" : "Manuel kayıt"}`, size: 16, color: PAL.faint },
+        { text: `   ·   Rapor tarihi: ${genDate}`, size: 16, color: PAL.faint },
+      ],
+      { before: 200, after: 0 },
+    ),
+  );
+  return out;
+}
+
+// ── P3) BodyGraph + Design / Personality (tek sayfa) ──
+/** Orta sütun genişliği (twip) ve görselin azami boyutu (px @96dpi). */
+const BG_COL = 5500;
+const SIDE_COL = Math.floor((W - BG_COL) / 2);
+export const HD_PRO_BODYGRAPH_PX = { width: Math.round((BG_COL - 100) / 15), height: 760 } as const; // 1 px = 15 twip
+
+function activationColumn(side: "design" | "personality", list: FrozenActivation[]): Paragraph[] {
+  const color = side === "design" ? PAL.design : PAL.personality;
+  const head = side === "design" ? "DESIGN" : "PERSONALITY";
+  const sub = side === "design" ? "Bilinçdışı · kırmızı" : "Bilinçli · siyah";
+  const out: Paragraph[] = [
+    pp([{ text: head, size: 22, bold: true, color }], { align: AlignmentType.CENTER, after: 0, keepNext: true }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      border: { bottom: { style: BorderStyle.SINGLE, size: 12, color } },
+      spacing: { before: 0, after: 120 },
+      keepNext: true,
+      children: [pr({ text: sub, size: 16, color: PAL.soft })],
+    }),
+  ];
+  for (const a of list) {
+    out.push(
+      new Paragraph({
+        tabStops: [{ type: TabStopType.RIGHT, position: SIDE_COL - 200 }],
+        spacing: { before: 0, after: 0, line: 330 },
+        border: { bottom: { style: BorderStyle.SINGLE, size: 2, color: PAL.line } },
+        keepLines: true,
+        children: [pr({ text: planetLabelTr(a.planet), size: 17, color: PAL.mid }), pr({ text: `\t${a.gate}.${a.line}`, size: 21, bold: true, color })],
+      }),
+    );
+  }
+  out.push(pp([{ text: `${list.length} aktivasyon`, size: 15, color: PAL.faint }], { align: AlignmentType.CENTER, before: 80, after: 0 }));
+  return out;
+}
+
+function bodygraphCell(s: HdReportSnapshotV2, img: Buffer | null): (Paragraph | Table)[] {
+  const d = img ? getImgDimensions(img) : null;
+  if (img && d) {
+    const scale = Math.min(HD_PRO_BODYGRAPH_PX.width / d.w, HD_PRO_BODYGRAPH_PX.height / d.h);
+    return [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 0, after: 0 },
+        children: [new ImageRun({ data: img, transformation: { width: Math.round(d.w * scale), height: Math.round(d.h * scale) }, type: img[0] === 0x89 ? "png" : "jpg" })],
+      }),
+      pp(
+        [{ text: s.bodygraph.status === "uploaded_image" ? "Danışan profiline yüklenmiş harita görseli" : "Kayıtlı haritadan üretilmiş BodyGraph", size: 15, color: PAL.faint }],
+        { align: AlignmentType.CENTER, before: 60, after: 0 },
+      ),
+    ];
+  }
+  return [
+    pp([{ text: "BodyGraph görseli bu rapora eklenemedi.", size: 18, bold: true, color: "b45309" }], { align: AlignmentType.CENTER, before: 1200 }),
+    pp([{ text: "Teknik harita verileri bu ve sonraki sayfalarda eksiksiz yer alır.", size: 17, color: PAL.soft }], { align: AlignmentType.CENTER }),
+  ];
+}
+
+function proBodygraph(s: HdReportSnapshotV2, img: Buffer | null): ReportChild[] {
+  const out: ReportChild[] = [h1("BodyGraph ve Aktivasyonlar", true)];
+  if (s.activations.status !== "ok") {
+    // Manuel / doğrulanamayan kayıt: aktivasyon sütunu yok; BodyGraph tek başına ortalanır.
+    out.push(...bodygraphCell(s, img));
+    if (s.activations.status === "invalid") out.push(bodyText("Kayıtlı aktivasyon verisi doğrulanamadığı için aktivasyonlar gösterilmiyor."));
+    return out;
+  }
+  out.push(muted("Kapı.Çizgi biçiminde; ör. 56.2 = Kapı 56, Çizgi 2."));
+  out.push(
+    fixedTable([SIDE_COL, BG_COL, W - SIDE_COL - BG_COL], [
+      new TableRow({
+        cantSplit: true,
+        children: [
+          cardCell(activationColumn("design", s.activations.design), SIDE_COL, { vAlign: "center", pad: 60 }),
+          cardCell(bodygraphCell(s, img), BG_COL, { vAlign: "center", pad: 40 }),
+          cardCell(activationColumn("personality", s.activations.personality), W - SIDE_COL - BG_COL, { vAlign: "center", pad: 60 }),
+        ],
+      }),
+    ]),
+  );
+  out.push(
+    pp(
+      [{ text: "Kanal çizgileri: kırmızı = Design, siyah = Personality, kırmızı-siyah çizgili = her ikisi. Renkli merkezler tanımlı, beyaz merkezler açıktır.", size: 16, color: PAL.soft }],
+      { align: AlignmentType.CENTER, before: 160, after: 0 },
+    ),
+  );
+  return out;
+}
+
+// ── P4) Merkezler (3×3) ──
+function proCenters(s: HdReportSnapshotV2): ReportChild[] {
+  if (s.centers.length === 0) return [];
+  const byCode = new Map(s.centers.map((c) => [c.code, c]));
+  const defined = s.centers.filter((c) => c.defined).length;
+  const gap = 160;
+  const col = Math.floor((W - 2 * gap) / 3);
+  const widths = [col, gap, col, gap, W - 2 * gap - 2 * col];
+  const cell = (code: string, width: number): TableCell => {
+    const c = byCode.get(code);
+    const n = CENTER_NAME[code] ?? { tr: c?.label ?? code, en: null };
+    const isDef = c?.defined === true;
+    const state = !c ? "—  Veri yok" : isDef ? "●  Tanımlı" : "○  Açık";
+    return cardCell(
+      [
+        pp([{ text: n.tr, size: 20, bold: true, color: PAL.ink }], { after: 0 }),
+        pp([{ text: n.en ?? " ", size: 15, color: PAL.faint }], { after: 60 }),
+        pp([{ text: state, size: 18, bold: isDef, color: isDef ? PAL.accent : PAL.soft }], { after: 0 }),
+      ],
+      width,
+      { fill: isDef ? PAL.definedFill : "ffffff", borders: { top: THIN(isDef ? PAL.accent : PAL.line), bottom: THIN(isDef ? PAL.accent : PAL.line), left: THIN(isDef ? PAL.accent : PAL.line), right: THIN(isDef ? PAL.accent : PAL.line) }, pad: 110 },
+    );
+  };
+  const rows: TableRow[] = [];
+  CENTER_GRID.forEach((codes, i) => {
+    if (i > 0) rows.push(new TableRow({ height: { value: gap, rule: HeightRule.EXACT }, children: widths.map((w) => cardCell([], w, { pad: 0 })) }));
+    rows.push(new TableRow({ cantSplit: true, children: [cell(codes[0], widths[0]), cardCell([], gap), cell(codes[1], widths[2]), cardCell([], gap), cell(codes[2], widths[4])] }));
+  });
+  return [
+    h2("Merkezler", { keepNext: true }),
+    muted(`9 merkezden ${defined} tanımlı, ${s.centers.length - defined} açık. Tanımlı merkezler dolgulu ve ● ile gösterilir.`),
+    fixedTable(widths, rows),
+  ];
+}
+
+// ── P4) Kanallar ──
+function proChannels(s: HdReportSnapshotV2): ReportChild[] {
+  if (s.channels.length === 0 && s.gates.length === 0) return [];
+  const out: ReportChild[] = [h2("Kanallar", { keepNext: true })];
+  if (s.channels.length === 0) {
+    out.push(bodyText("Bu haritada tanımlı kanal bulunmuyor."));
+    return out;
+  }
+  out.push(muted(`${s.channels.length} tanımlı kanal`));
+  const widths = [1500, 4300, W - 5800];
+  const rows = s.channels.map((c) => {
+    const [a, b] = c.gates;
+    const ca = gateCenterLabel(GATE_TECHNICAL_DATA[a]?.merkez ?? null);
+    const cb = gateCenterLabel(GATE_TECHNICAL_DATA[b]?.merkez ?? null);
+    const line = { ...NO_BORDERS, bottom: THIN() };
+    return new TableRow({
+      cantSplit: true,
+      children: [
+        cardCell([pp([{ text: `${a}–${b}`, size: 24, bold: true, color: PAL.accent }], { after: 0 })], widths[0], { borders: line, pad: 90, vAlign: "center" }),
+        cardCell([pp([{ text: channelName(c.label, c.code), size: 21, bold: true, color: PAL.ink }], { after: 0 })], widths[1], { borders: line, pad: 90, vAlign: "center" }),
+        cardCell([pp([{ text: `${ca} ↔ ${cb}`, size: 18, color: PAL.soft }], { after: 0 })], widths[2], { borders: line, pad: 90, vAlign: "center" }),
+      ],
+    });
+  });
+  out.push(fixedTable(widths, rows));
+  return out;
+}
+
+// ── P5) Kapılar ──
+function proGates(s: HdReportSnapshotV2): ReportChild[] {
+  if (s.gates.length === 0) return [];
+  const widths = [2700, 1700, 3700, W - 8100];
+  const border = { ...NO_BORDERS, bottom: THIN() };
+  const head = (t: string, w: number) =>
+    cardCell([pp([{ text: t, size: 16, bold: true, color: PAL.soft, allCaps: true }], { after: 0, keepNext: true })], w, { borders: { ...NO_BORDERS, bottom: THIN(PAL.faint) }, pad: 80 });
+  const rows: TableRow[] = [
+    new TableRow({ tableHeader: true, cantSplit: true, children: [head("Kapı", widths[0]), head("Merkez", widths[1]), head("Aktivasyonlar", widths[2]), head("Kanal", widths[3])] }),
+  ];
+  for (const g of s.gates) {
+    const name = gateName(g.gate);
+    const acts = g.activations.length
+      ? g.activations.map((a) =>
+          new Paragraph({
+            spacing: { before: 0, after: 10 },
+            children: [
+              pr({ text: a.side === "design" ? "Design" : "Personality", size: 17, bold: true, color: a.side === "design" ? PAL.design : PAL.personality }),
+              pr({ text: `  ${planetLabelTr(a.planet)}  `, size: 18, color: PAL.mid }),
+              pr({ text: `${g.gate}.${a.line}`, size: 19, bold: true, color: a.side === "design" ? PAL.design : PAL.personality }),
+            ],
+          }),
+        )
+      : [pp([{ text: "—", size: 18 }], { after: 0 })];
+    rows.push(
+      new TableRow({
+        cantSplit: true,
+        children: [
+          cardCell(
+            [pp([{ text: `${g.gate}. Kapı`, size: 21, bold: true, color: PAL.ink }], { after: 0 }), ...(name ? [pp([{ text: name, size: 16, color: PAL.soft }], { after: 0 })] : [])],
+            widths[0],
+            { borders: border, pad: 50 },
+          ),
+          cardCell([pp([{ text: gateCenterLabel(g.center), size: 18, color: PAL.mid }], { after: 0 })], widths[1], { borders: border, pad: 50 }),
+          cardCell(acts, widths[2], { borders: border, pad: 50 }),
+          cardCell([pp([{ text: g.channel ? g.channel.replace("-", "–") : "—", size: 18, bold: !!g.channel, color: g.channel ? PAL.accent : PAL.faint }], { after: 0 })], widths[3], { borders: border, pad: 50 }),
+        ],
+      }),
+    );
+  }
+  return [h1("Kapılar", true), muted(`${s.gates.length} aktif kapı · Design aktivasyonları kırmızı, Personality aktivasyonları siyah.`), fixedTable(widths, rows)];
+}
+
+// ── P6) Uzman Açıklamaları ──
+function proExpert(s: HdReportSnapshotV2): ReportChild[] {
+  const { expert } = s.commentary;
+  if (!expert.included || expert.entries.length === 0) return [];
+  const out: ReportChild[] = [
+    h1("Uzman Açıklamaları", true),
+    muted("Bu bölümdeki açıklamalar, raporu hazırlayan uzmanın kendi Human Design Bilgi Bankası'ndan, bu haritanın özellikleriyle eşleşen kayıtlardır."),
+  ];
+  let current = "";
+  for (const e of expert.entries as FrozenExpertEntry[]) {
+    if (e.category !== current) {
+      current = e.category;
+      out.push(h2(current, { keepNext: true }));
+    }
+    out.push(h3(e.title, { keepNext: true }));
+    out.push(...plainParagraphs(e.content)); // AYNEN (özet / yeniden yazım YOK)
+  }
+  return out;
+}
+
+// ── Son sayfa (sade) ──
+function proClosing(s: HdReportSnapshotV2, genDate: string, opts: WordReportV2Options): ReportChild[] {
+  const lines: string[] = [
+    "Teknik harita bilgileri (tip, profil, otorite, tanım, haç, aktivasyonlar, merkezler, kanallar, kapılar) kayıtlı Human Design haritasından alınmıştır.",
+  ];
+  if (opts.systemReadingRedacted) lines.push("Sistem Yorumu bu çıktıda yer almamaktadır.");
+  if (s.bodygraph.status === "missing") lines.push("BodyGraph görseli bu rapora eklenemedi.");
+  lines.push(`Rapor, oluşturulduğu anda (${genDate}) dondurularak hazırlanmıştır; içeriği bu rapora özgüdür.`);
+  lines.push("Bu rapor teşhis veya tedavi önerisi içermez.");
+  return [
+    divider(),
+    h2("Kaynak Bilgisi", { keepNext: true }),
+    ...lines.map((l) => muted(l)),
+    // Hazırlayan YALNIZ uzmanın bu rapora yazdığı ad/unvan; profil adı OTOMATİK yazılmaz.
+    ...buildWellnessNoteSection("human_design", s.preparedBy ?? null),
+  ];
+}
+
+function buildHdReportV2ProChildren(s: HdReportSnapshotV2, opts: WordReportV2Options): { cover: ReportChild[]; body: ReportChild[] } {
+  const genDate = formatInstantDate(s.generatedAt, { style: "long", fallback: "—" });
+  const reading = opts.systemReadingRedacted ? null : s.commentary.system.status === "included" ? s.commentary.system.reading : null;
+  return {
+    cover: buildCover(s, genDate, opts.logo ?? null),
+    body: [
+      ...proIdentity(s, genDate),
+      ...proCenters(s),
+      ...proChannels(s),
+      ...proBodygraph(s, opts.bodygraphImage ?? null),
+      ...proGates(s),
+      ...proExpert(s),
+      ...buildSystem(reading),
+      ...proClosing(s, genDate, opts),
     ],
   };
 }
