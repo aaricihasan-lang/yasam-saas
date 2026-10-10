@@ -350,10 +350,16 @@ export function isAndroidWebViewClient(): boolean {
  *     (SESSION_COOKIE_MODE=primary). Cookie geçersizse sunucu 401 döner; karar sunucudadır.
  * "localStorage token var mı?" web'de TEK BAŞINA oturum kararı DEĞİLDİR.
  */
-export function hasSessionCredential(token: string | null | undefined = readSessionToken()): boolean {
+export function hasSessionCredential(
+  token: string | null | undefined = readSessionToken(),
+  userId?: string | null,
+): boolean {
   if (token) return true;
   if (typeof window === "undefined" || isAndroidWebViewClient()) return false;
-  return !!readYasamUser()?.id;
+  // HTTPONLY H6a FIX: çağıran doğrulanmış kullanıcı kimliğini verirse (ör. taze login'de
+  // completeLogin → syncYasamUserFromDb → refresh) karar localStorage'daki yasam_user kaydına
+  // BAĞLI DEĞİLDİR — o kayıt profil eşitlemesinden SONRA yazılır.
+  return !!(userId ?? readYasamUser()?.id);
 }
 
 /** HTTPONLY H5 — profil kaydı + oturum kimlik bilgisi (web: token veya HttpOnly cookie). */
@@ -499,7 +505,9 @@ export async function refreshYasamUserFromDb(
   // Oturum kimlik bilgisi yoksa (ör. login anında, session oluşturulmadan önce; Android'de token
   // yok) güvenli API çağrılamaz — mevcut kaydı koru. HTTPONLY H5: web'de token yoksa HttpOnly
   // cookie ile doğrulanır (hasSessionCredential).
-  if (!hasSessionCredential(token)) return user;
+  // HTTPONLY H6a FIX: kimlik kararı eşitlenen kullanıcının kendi id'siyle (taze login'de
+  // yasam_user henüz localStorage'da yok). Kimlik/tenant doğrulaması yine sunucuda (/api/auth/profile).
+  if (!hasSessionCredential(token, user.id)) return user;
 
   // HTTPONLY H6a: cookie taşımasında saklı token'ın cookie'si henüz yoksa bir kez yazdırılır.
   await ensureWebCookieSession();
