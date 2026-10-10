@@ -12,7 +12,7 @@
  *   - markSessionEnded / consumeSessionEnded: modül/admin sayfasından ana sayfaya dönüşte
  *     nedenin taşınması (sessionStorage; kişisel veri YOK, yalnız neden kodu).
  */
-import { hasSessionCredential, readSessionToken, sessionTokenHeader } from "@/lib/auth/yasamUser";
+import { ensureWebCookieSession, hasSessionCredential, readSessionToken, sessionTokenHeader } from "@/lib/auth/yasamUser";
 
 export type SessionEndReason = "expired" | "revoked";
 
@@ -44,6 +44,8 @@ export async function checkSessionStatus(token: string | null = readSessionToken
   // okur). Android'de / profil kaydı yokken kimlik bilgisi yok → karar verilmez (null).
   if (!hasSessionCredential(token)) return null;
   try {
+    // HTTPONLY H6a: cookie taşımasında saklı token'ın cookie'si henüz yoksa bir kez yazdırılır.
+    if (!token) await ensureWebCookieSession();
     const res = await fetch("/api/auth/session", {
       method: "GET",
       cache: "no-store",

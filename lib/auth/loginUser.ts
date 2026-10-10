@@ -1,4 +1,4 @@
-import { clearYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { clearYasamUser, readStoredSessionToken } from "@/lib/auth/yasamUser";
 import { ANDROID_APP_UA_SUFFIX, CLIENT_CHANNEL_HEADER } from "@/lib/auth/clientChannel";
 
 /**
@@ -162,7 +162,8 @@ export async function loginWithCredentials(
 ): Promise<LoginAttemptResult> {
   // Aynı cihazdaki önceki token (aktif oturum veya bekleyen onay) — sunucu yalnız AYNI kullanıcıya
   // aitse kapatır; böylece aynı tarayıcıdan yeniden giriş kendi kendine onay istemez.
-  const replaceSessionToken = readSessionToken() ?? readPendingLoginToken();
+  // HTTPONLY H6a: saklı token (taşımadan bağımsız) — yalnız login GÖVDESİNDE aynı-cihaz kapatma için.
+  const replaceSessionToken = readStoredSessionToken() ?? readPendingLoginToken();
   clearYasamUser();
   clearPendingLoginToken();
 
