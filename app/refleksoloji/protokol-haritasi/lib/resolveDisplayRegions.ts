@@ -1,5 +1,5 @@
 import { getRegionsForOrgan, loadAtlas } from "@/lib/atlasStorage";
-import type { Region } from "@/app/refleksoloji/bolge-haritasi/types";
+import { ALL_FOOT_VIEWS, type Region } from "@/app/refleksoloji/bolge-haritasi/types";
 import type {
   ColoredDisplayRegion,
   OrganAtlasStatus,
@@ -16,7 +16,7 @@ import {
   type ResolvedAtlas,
 } from "@/lib/refleksoloji/atlasRegionsCore";
 
-const ALL_VIEWS: ProtocolFootView[] = ["taban", "yan_ic", "yan_dis"];
+const ALL_VIEWS: readonly ProtocolFootView[] = ALL_FOOT_VIEWS;
 
 /**
  * PROTOKOL UI (Protokol Haritası + Kayıtlı Protokol Detay) için TEK giriş.
@@ -64,6 +64,10 @@ export function atlasRegionToDisplay(region: Region): ProtocolDisplayRegion | nu
 
   if (region.shape === "free_draw") {
     return { ...base, shape: "free_draw", points: region.points };
+  }
+
+  if (region.shape === "point") {
+    return { ...base, shape: "point", cx: region.cx, cy: region.cy, pointSize: region.pointSize };
   }
 
   // thick_line

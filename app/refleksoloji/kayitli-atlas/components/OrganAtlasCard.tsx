@@ -37,6 +37,12 @@ export function OrganAtlasCard({
           <dt className="text-slate-500">Ayak</dt>
           <dd className="font-semibold text-slate-800">{summary.footLabel}</dd>
         </div>
+        {summary.handLabel ? (
+          <div className="flex justify-between gap-2">
+            <dt className="text-slate-500">El</dt>
+            <dd className="font-semibold text-slate-800">{summary.handLabel}</dd>
+          </div>
+        ) : null}
         {updatedAt ? (
           <div className="flex justify-between gap-2">
             <dt className="text-slate-500">Son güncelleme</dt>

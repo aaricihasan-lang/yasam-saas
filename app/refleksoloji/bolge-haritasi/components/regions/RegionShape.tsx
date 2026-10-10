@@ -1,7 +1,7 @@
 "use client";
 
 import type { Region } from "../../types";
-import { THICK_LINE_RENDER_STROKE_PX } from "../../types";
+import { pointDiameterPx, pointRingPx, THICK_LINE_RENDER_STROKE_PX } from "../../types";
 import { getPointsBounds, regionHasBox, regionToPercentBox } from "../../utils/regionGeometry";
 import {
   REGION_FILL,
@@ -223,6 +223,54 @@ export function RegionShape({
           <span
             className="pointer-events-none absolute z-30 max-w-[40%] truncate rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-red-950 shadow-sm"
             style={{ left: `${midX * 100}%`, top: `${midY * 100}%`, transform: "translate(-50%, -120%)" }}
+          >
+            {label}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (region.shape === "point") {
+    if (!isFiniteCoord(region.cx) || !isFiniteCoord(region.cy)) return null;
+    // Görünen nokta sabit px; dokunma hedefi daha geniş (mobil/dokunmatik seçilebilirlik).
+    const hitPx = 28;
+    return (
+      <div
+        className={`absolute select-none ${regionTouchClass(interactive, moveMode)} ${interactive ? "" : "pointer-events-none"} ${isSelected ? "z-20" : "z-10"}`}
+        style={{
+          left: `${region.cx * 100}%`,
+          top: `${region.cy * 100}%`,
+          width: hitPx,
+          height: hitPx,
+          transform: "translate(-50%, -50%)",
+        }}
+      >
+        <div
+          role="button"
+          tabIndex={interactive ? 0 : -1}
+          onPointerDown={handleBodyPointerDown}
+          onKeyDown={handleKeyDown}
+          className={`absolute inset-0 flex items-center justify-center rounded-full ${focusRingClass} ${
+            interactive ? (moveMode ? "cursor-move" : "cursor-pointer") : ""
+          }`}
+          aria-label={label}
+          title={label}
+        >
+          <span
+            className="pointer-events-none block rounded-full border-solid border-white transition-shadow"
+            style={{
+              width: pointDiameterPx(region.pointSize),
+              height: pointDiameterPx(region.pointSize),
+              borderWidth: pointRingPx(region.pointSize),
+              backgroundColor: REGION_STROKE,
+              boxShadow: isSelected ? REGION_SELECTED_SHADOW : "0 1px 4px rgba(127, 29, 29, 0.45)",
+            }}
+          />
+        </div>
+        {isSelected ? (
+          <span
+            className="pointer-events-none absolute left-1/2 top-0 z-30 max-w-[160px] -translate-x-1/2 -translate-y-full truncate rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-red-950 shadow-sm"
           >
             {label}
           </span>

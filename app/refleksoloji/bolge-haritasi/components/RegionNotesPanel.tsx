@@ -25,9 +25,11 @@ export function RegionNotesPanel({ selectedOrgan, atlasVersion = 0 }: RegionNote
       const taban = getRegionsForOrgan(atlas, selectedOrgan, { view: "taban" }).length;
       const yanIc = getRegionsForOrgan(atlas, selectedOrgan, { view: "yan_ic" }).length;
       const yanDis = getRegionsForOrgan(atlas, selectedOrgan, { view: "yan_dis" }).length;
-      return { taban, yanIc, yanDis, total: taban + yanIc + yanDis };
+      const elAvuc = getRegionsForOrgan(atlas, selectedOrgan, { view: "el_avuc" }).length;
+      const elSirt = getRegionsForOrgan(atlas, selectedOrgan, { view: "el_sirt" }).length;
+      return { taban, yanIc, yanDis, elAvuc, elSirt, total: taban + yanIc + yanDis + elAvuc + elSirt };
     } catch {
-      return { taban: 0, yanIc: 0, yanDis: 0, total: 0 };
+      return { taban: 0, yanIc: 0, yanDis: 0, elAvuc: 0, elSirt: 0, total: 0 };
     }
     // atlasVersion bilinçli bağımlılık: kaydetten sonra sayıları tazelemek için.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -59,6 +61,9 @@ export function RegionNotesPanel({ selectedOrgan, atlasVersion = 0 }: RegionNote
                 { label: "Taban görünümü", value: counts.taban },
                 { label: "Yan İç görünümü", value: counts.yanIc },
                 { label: "Yan Dış görünümü", value: counts.yanDis },
+                // El satırları yalnız bölge varsa (ayak-only organda panel aynen kalır).
+                ...(counts.elAvuc > 0 ? [{ label: "Avuç İçi görünümü", value: counts.elAvuc }] : []),
+                ...(counts.elSirt > 0 ? [{ label: "El Sırtı görünümü", value: counts.elSirt }] : []),
               ]).map(({ label, value }) => (
                 <div
                   key={label}

@@ -9,6 +9,7 @@ import {
   resolveAtlasBackgroundKey,
 } from "@/app/refleksoloji/bolge-haritasi/utils/atlasBackground";
 import { computeObjectContainRect } from "@/app/refleksoloji/bolge-haritasi/utils/imageContainRect";
+import { HandSideLabels, isHandView } from "@/app/refleksoloji/bolge-haritasi/components/HandSideLabels";
 
 type AtlasReadonlyFootMapProps = {
   regions: Region[];
@@ -69,11 +70,13 @@ export function AtlasReadonlyFootMap({
         <p className="text-base font-semibold text-slate-600">{imageLabel}</p>
         {/* EKOLE BAĞIMSIZ: 3 bağımsız görünüm — organın hangi görünümde bölgesi
             varsa manuel seçilebilir. Organ adı arka planı belirlemez. */}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {([
             { view: "taban", label: "Taban" },
             { view: "yan_ic", label: "Yan İç" },
             { view: "yan_dis", label: "Yan Dış" },
+            { view: "el_avuc", label: "Avuç İçi" },
+            { view: "el_sirt", label: "El Sırtı" },
           ] as const).map(({ view, label }) => (
             <button
               key={view}
@@ -103,6 +106,9 @@ export function AtlasReadonlyFootMap({
           }}
           className="pointer-events-none absolute inset-0 h-full w-full object-contain"
         />
+        {isHandView(footView) ? (
+          <HandSideLabels rect={imageRect} containerHeight={containerSize.h} placement="inside" />
+        ) : null}
 
         {imageRect.width > 0 ? (
           <div className="absolute z-10" style={overlayStyle}>
@@ -126,6 +132,9 @@ export function AtlasReadonlyFootMap({
           </div>
         ) : null}
       </div>
+      {isHandView(footView) ? (
+        <HandSideLabels rect={imageRect} containerHeight={containerSize.h} placement="strip" />
+      ) : null}
     </div>
   );
 }

@@ -122,8 +122,9 @@ const tabanInYan =
   full.regionsByGroup.yan_dis.filter((r) => r.view === "taban").length;
 check(`negative: taban region in yan buckets = 0 (got ${tabanInYan})`, tabanInYan === 0);
 
-/* 6. 4 shapes present in each group + left/right coverage */
-for (const g of ALL_ATLAS_GROUPS) {
+/* 6. 4 shapes present in each FOOT group + left/right coverage (el yüzeyleri:
+ *    scripts/reflexology-hand-point-harness.ts — bu fixture yalnız 3 ayak görünümü). */
+for (const g of ["taban", "yan_ic", "yan_dis"] as const) {
   const shapes = new Set(full.regionsByGroup[g].map((r) => r.shape));
   check(`${g}: all 4 shapes render (${[...shapes].sort().join(",")})`, SHAPES.every((s) => shapes.has(s)));
   const sides = new Set(full.regionsByGroup[g].map((r) => r.footSide));
