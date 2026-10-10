@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 // Relative import (alias YOK): next.config.ts transpile'ında `@/` çözülmez.
-import { buildSecurityHeaders } from "./lib/security/securityHeaders";
+import { buildBaseSecurityHeaders, buildSecurityHeaders } from "./lib/security/securityHeaders";
 
 // next-intl (URL-prefix'siz, TR source). İstek yapılandırması: ./i18n/request.ts
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
@@ -10,17 +10,28 @@ const nextConfig: NextConfig = {
   // "X-Powered-By: Next.js" başlığı gönderilmez (sürüm/altyapı ifşası azaltılır).
   poweredByHeader: false,
 
-  // FAZ1 FINAL HARDENING (INFRA): tüm yanıtlara güvenlik başlıkları + tam izin listeli
-  // ZORUNLU CSP. Ayrıntı/gerekçe: lib/security/securityHeaders.ts.
+  // FAZ1 FINAL HARDENING (INFRA): tüm yanıtlara güvenlik başlıkları. Ayrıntı:
+  // lib/security/securityHeaders.ts.
+  // CSP NONCE C1-v2: DOKÜMAN CSP'sinin tek kaynağı proxy.ts'tir (Vercel'de next.config CSP'si
+  // render'ın istek başlığını ezer → nonce kaybolur, vercel/next.js#99360). Burada CSP YALNIZ
+  // proxy'nin ÇALIŞMADIĞI yollara verilir (proxy matcher'ının tersi) → bugünkü kapsam korunur,
+  // doküman render'ıyla çakışma yoktur.
   async headers() {
+    const csp = buildSecurityHeaders({
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      isDev: process.env.NODE_ENV === "development",
+    }).filter((h) => h.key === "Content-Security-Policy");
     return [
-      {
-        source: "/:path*",
-        headers: buildSecurityHeaders({
-          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-          isDev: process.env.NODE_ENV === "development",
-        }),
-      },
+      { source: "/:path*", headers: buildBaseSecurityHeaders() },
+      { source: "/api/:path*", headers: csp },
+      { source: "/_next/:path*", headers: csp },
+      { source: "/_vercel/:path*", headers: csp },
+      // Uzantılı statik dosyalar (favicon, robots.txt, görseller…) — proxy bunları hariç tutar.
+      { source: "/:path((?!api/|_next/|_vercel/|admin/).*\\..*)", headers: csp },
+      // Prefetch / RSC istekleri proxy'ye girmez (yalnız /admin hariç; orada proxy CSP'yi kendi yazar).
+      { source: "/:path((?!admin$|admin/).*)", has: [{ type: "header", key: "rsc" }], headers: csp },
+      { source: "/:path((?!admin$|admin/).*)", has: [{ type: "header", key: "next-router-prefetch" }], headers: csp },
+      { source: "/:path((?!admin$|admin/).*)", has: [{ type: "header", key: "purpose", value: "prefetch" }], headers: csp },
     ];
   },
   async redirects() {
