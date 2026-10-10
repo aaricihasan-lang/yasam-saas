@@ -348,10 +348,11 @@ function detailBlocks(details: SystemReadingDetail[]): Paragraph[] {
   return out;
 }
 
-function buildSystem(reading: SystemReadingDto | null, o: { proCross?: boolean } = {}): ReportChild[] {
+function buildSystem(reading: SystemReadingDto | null, o: { proCross?: boolean; flowAfterGates?: boolean } = {}): ReportChild[] {
   if (!reading) return [];
   const out: ReportChild[] = [
-    h1("Sistem Yorumu", true),
+    // flowAfterGates (yalnız pro-1): zorunlu sayfa sonu yok; başlık zinciri (keepNext) ilk paragrafla birlikte kalır.
+    h1("Sistem Yorumu", !o.flowAfterGates),
     muted(
       "Kaynak: Harita hesaplanırken hesaplama servisinden alınıp kaydedilmiş sistem açıklamaları. Bu bölüm uzman yorumu değildir; raporu hazırlayan uzmanın bilgileri ayrı bölümdedir.",
     ),
@@ -717,7 +718,7 @@ function proBodygraph(s: HdReportSnapshotV2, img: Buffer | null): ReportChild[] 
     if (s.activations.status === "invalid") out.push(bodyText("Kayıtlı aktivasyon verisi doğrulanamadığı için aktivasyonlar gösterilmiyor."));
     return out;
   }
-  out.push(muted("Kapı.Çizgi biçiminde; ör. 56.2 = Kapı 56, Çizgi 2."));
+  // 2026-10-10 owner: "Kapı.Çizgi biçiminde…" açıklaması pro-1'de YOK (eski düzende aynen durur).
   out.push(
     fixedTable([SIDE_COL, BG_COL, W - SIDE_COL - BG_COL], [
       new TableRow({
@@ -934,7 +935,10 @@ function proExpert(s: HdReportSnapshotV2): ReportChild[] {
   const { expert } = s.commentary;
   if (!expert.included || expert.entries.length === 0) return [];
   const out: ReportChild[] = [
-    h1("Uzman Açıklamaları", true),
+    // Kapılardan hemen sonra gelir → zorunlu sayfa sonu YOK (2026-10-10 owner): yer varsa aynı sayfada
+    // devam eder; h1 → açıklama → kategori → başlık → ilk paragraf keepNext zinciri ile birlikte kalır,
+    // yer yoksa Word zinciri bütün olarak sonraki sayfaya taşır.
+    h1("Uzman Açıklamaları", false),
     muted("Bu bölümdeki açıklamalar, raporu hazırlayan uzmanın kendi Human Design Bilgi Bankası'ndan, bu haritanın özellikleriyle eşleşen kayıtlardır."),
   ];
   let current = "";
@@ -970,9 +974,10 @@ function proClosing(s: HdReportSnapshotV2, genDate: string, opts: WordReportV2Op
 
 // ── Uzman imza bölümü (son sayfa) ──
 // "Raporu Hazırlayan" YALNIZ uzmanın bu rapora yazdığı ad/unvan; profil adı OTOMATİK yazılmaz.
-// Boşsa: uzmanın Word'de doldurabileceği / elle yazabileceği boş "Ad Soyad / Unvan" satırı.
+// 2026-10-10 owner: ad boşsa imza kartı TAMAMEN gizlenir (boş satırlı kart yok).
 function proSignature(preparedBy: string | null, genDate: string): ReportChild[] {
   const name = preparedBy?.trim() || null;
+  if (!name) return [];
   const left = Math.floor(W * 0.62);
   const right = W - left;
   const blankLine = (label: string): Paragraph[] => [
@@ -981,9 +986,8 @@ function proSignature(preparedBy: string | null, genDate: string): ReportChild[]
   ];
   const leftCell: Paragraph[] = [
     pp([{ text: "RAPORU HAZIRLAYAN", size: 16, bold: true, color: PAL.accent }], { after: 160 }),
-    ...(name
-      ? [pp([{ text: name, size: 34, bold: true, color: PAL.ink }], { after: 60 }), pp([{ text: "Human Design Profesyonel Analiz Raporu", size: 17, color: PAL.soft }], { after: 0 })]
-      : blankLine("Ad Soyad / Unvan")),
+    pp([{ text: name, size: 34, bold: true, color: PAL.ink }], { after: 60 }),
+    pp([{ text: "Human Design Profesyonel Analiz Raporu", size: 17, color: PAL.soft }], { after: 0 }),
   ];
   const rightCell: Paragraph[] = [
     pp([{ text: "RAPOR TARİHİ", size: 16, bold: true, color: PAL.accent }], { after: 160 }),
@@ -1008,6 +1012,7 @@ function proSignature(preparedBy: string | null, genDate: string): ReportChild[]
 function buildHdReportV2ProChildren(s: HdReportSnapshotV2, opts: WordReportV2Options): { cover: ReportChild[]; body: ReportChild[] } {
   const genDate = formatInstantDate(s.generatedAt, { style: "long", fallback: "—" });
   const reading = opts.systemReadingRedacted ? null : s.commentary.system.status === "included" ? s.commentary.system.reading : null;
+  const expertPart = proExpert(s);
   return {
     cover: buildCover(s, genDate, opts.logo ?? null),
     body: [
@@ -1017,8 +1022,9 @@ function buildHdReportV2ProChildren(s: HdReportSnapshotV2, opts: WordReportV2Opt
       ...proCenters(s),
       ...proChannels(s),
       ...proGates(s),
-      ...proExpert(s),
-      ...buildSystem(reading, { proCross: true }),
+      ...expertPart,
+      // Uzman bölümü yoksa kapılardan hemen sonra Sistem Yorumu gelir → o da sayfa sonu zorlamadan akar.
+      ...buildSystem(reading, { proCross: true, flowAfterGates: expertPart.length === 0 }),
       ...proClosing(s, genDate, opts),
     ],
   };
