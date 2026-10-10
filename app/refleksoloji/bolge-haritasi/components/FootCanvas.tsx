@@ -23,6 +23,7 @@ import {
   type ResizeHandle,
 } from "../utils/regionTransform";
 import { regionHasThickLine, RegionDraftPreview, RegionShape } from "./regions/RegionShape";
+import { HandSideLabels, isHandView } from "./HandSideLabels";
 
 const MOVE_DRAG_THRESHOLD = 0.004;
 const FREE_DRAW_POINT_MIN_DIST = 0.003;
@@ -948,6 +949,10 @@ export function FootCanvas({
             </p>
           )}
 
+          {isHandView(selectedView) && imageReady ? (
+            <HandSideLabels rect={imageRect} containerHeight={containerSize.h} placement="inside" />
+          ) : null}
+
           {!imageReady && !imageLoadError ? (
             <p
               className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-6 text-center text-sm font-semibold text-violet-800"
@@ -1087,6 +1092,9 @@ export function FootCanvas({
             </div>
           ) : null}
         </div>
+        {isHandView(selectedView) && imageReady ? (
+          <HandSideLabels rect={imageRect} containerHeight={containerSize.h} placement="strip" />
+        ) : null}
       </div>
     </section>
   );

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ATLAS_IMAGE_SRC } from "@/app/refleksoloji/bolge-haritasi/utils/atlasBackground";
 import { computeObjectContainRect } from "@/app/refleksoloji/bolge-haritasi/utils/imageContainRect";
+import { HandSideLabels, isHandView } from "@/app/refleksoloji/bolge-haritasi/components/HandSideLabels";
 import { POINT_RENDER_DIAMETER_PX, THICK_LINE_RENDER_STROKE_PX } from "@/app/refleksoloji/bolge-haritasi/types";
 import { REGION_FREE_STROKE_WIDTH } from "@/app/refleksoloji/bolge-haritasi/utils/regionStyles";
 import {
@@ -97,7 +98,7 @@ export function ProtocolFootMap({
             ) : (
               <>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-800">
-                  Ayak Haritası Önizleme
+                  {isHandView(footView) ? "El Haritası Önizleme" : "Ayak Haritası Önizleme"}
                 </p>
                 <p className="text-xs font-semibold text-slate-600">{imageLabel}</p>
               </>
@@ -160,6 +161,9 @@ export function ProtocolFootMap({
           }}
           className="pointer-events-none absolute inset-0 h-full w-full object-contain"
         />
+        {isHandView(footView) ? (
+          <HandSideLabels rect={imageRect} containerHeight={containerSize.h} placement="inside" />
+        ) : null}
 
         {imageRect.width > 0 ? (
           <div className="absolute z-10" style={overlayStyle}>
@@ -311,6 +315,9 @@ export function ProtocolFootMap({
           </div>
         ) : null}
       </div>
+      {isHandView(footView) ? (
+        <HandSideLabels rect={imageRect} containerHeight={containerSize.h} placement="strip" />
+      ) : null}
     </div>
   );
 }

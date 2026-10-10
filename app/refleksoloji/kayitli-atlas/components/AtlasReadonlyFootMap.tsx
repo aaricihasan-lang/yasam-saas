@@ -9,6 +9,7 @@ import {
   resolveAtlasBackgroundKey,
 } from "@/app/refleksoloji/bolge-haritasi/utils/atlasBackground";
 import { computeObjectContainRect } from "@/app/refleksoloji/bolge-haritasi/utils/imageContainRect";
+import { HandSideLabels, isHandView } from "@/app/refleksoloji/bolge-haritasi/components/HandSideLabels";
 
 type AtlasReadonlyFootMapProps = {
   regions: Region[];
@@ -105,6 +106,9 @@ export function AtlasReadonlyFootMap({
           }}
           className="pointer-events-none absolute inset-0 h-full w-full object-contain"
         />
+        {isHandView(footView) ? (
+          <HandSideLabels rect={imageRect} containerHeight={containerSize.h} placement="inside" />
+        ) : null}
 
         {imageRect.width > 0 ? (
           <div className="absolute z-10" style={overlayStyle}>
@@ -128,6 +132,9 @@ export function AtlasReadonlyFootMap({
           </div>
         ) : null}
       </div>
+      {isHandView(footView) ? (
+        <HandSideLabels rect={imageRect} containerHeight={containerSize.h} placement="strip" />
+      ) : null}
     </div>
   );
 }
