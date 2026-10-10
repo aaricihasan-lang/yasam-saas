@@ -165,6 +165,10 @@ async function main() {
     ok("A21 kontrol / yön karakterleri temizlenir; metin DÜZ METİN kalır", !ht.includes("\u0000") && !ht.includes("‮") && ht.startsWith("<script>"));
     const markup = renderToStaticMarkup(createElement(HdSystemReadingView, { data: hd }));
     ok("A22 render: HTML YORUMLANMAZ (escape edilir)", !markup.includes("<script>") && !markup.includes("<img") && markup.includes("&lt;script&gt;"));
+    // 2026-10-10 owner: görünen başlık "Enkarnasyon Teması (Yaşam Amacı)"; kayıtlı eski okumada "Enkarnasyon Haçı" olsa bile.
+    const legacy = { ...hd, general: hd.general.map((x) => (x.key === "cross" ? { ...x, title: "Enkarnasyon Haçı" } : x)) };
+    const lm = renderToStaticMarkup(createElement(HdSystemReadingView, { data: legacy }));
+    ok("A22b Sistem Yorumu ekranı: \"Enkarnasyon Teması (Yaşam Amacı)\" (eski kayıtlı başlık dahil), \"Haç\" görünmez", lm.includes("Enkarnasyon Teması (Yaşam Amacı)") && !lm.includes("Haç"));
     const extra = clone(FIXTURE) as Record<string, unknown>;
     Object.assign(extra, { secretField: "S3CR3T", providerMeta: { key: "K" }, designInstantUtc: "2018-04-20T00:33:14.578Z" });
     ((extra.centers as Record<string, unknown>[])[0]).internal = "X1";

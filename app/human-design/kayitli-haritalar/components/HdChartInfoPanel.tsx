@@ -22,7 +22,7 @@ import {
   hdProfileLabelFromCode,
   hdTypeLabelFromCode,
 } from "@/lib/human-design/codeHelpers";
-import { hdCrossAngleLabel } from "@/lib/human-design/normalize/hdDisplayLabels";
+import { HD_CROSS_SECTION_TITLE, hdCrossAngleLabel } from "@/lib/human-design/normalize/hdDisplayLabels";
 
 export const HD_CHART_LOGO_SRC = "/assets/yasam-sistemi-chart-logo.png";
 
@@ -143,7 +143,7 @@ export function HdChartInfoPanel({
             <Item field="definition" label="Tanım" value={definitionLabel} source={showRaw(result.definition.kind, definitionLabel)} />
             <Item
               field="cross"
-              label="Enkarnasyon Haçı"
+              label={HD_CROSS_SECTION_TITLE}
               value={cross.name ?? `${hdCrossAngleLabel(cross.angle)} (yalnız kapılar)`}
               sub={`${crossGates}${cross.angle ? ` · ${hdCrossAngleLabel(cross.angle)}` : ""}`}
               source={`${crossGates}${cross.angle ? ` · ${hdCrossAngleLabel(cross.angle)}` : ""}`}

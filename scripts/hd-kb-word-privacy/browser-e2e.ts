@@ -199,9 +199,10 @@ async function main() {
       ok(!/OZEL-NOT-/.test(text), `${label}: Özel Çalışma Notları YOK`);
       ok(!text.includes("PASIF-KAYIT-METNI") && !text.includes("ILGISIZ-KAYIT-METNI") && !text.includes("BASKA-TENANT-METNI") && !text.includes("SERBEST-NOT-METNI"), `${label}: pasif / ilgisiz / başka tenant / serbest kayıt YOK`);
       if (!c.k && !c.s) ok(!text.includes("Uzman Açıklamaları") && !text.includes("eşleşen kayıt bulunmadığından"), `${label}: gereksiz boş başlık yok`);
-      ok(preparer ? text.includes(`Hazırlayan: ${preparer}`) : !text.includes("Hazırlayan"), `${label}: Hazırlayan ${preparer ? "yazılan ad/unvan" : "satırı YOK (boş)"}; profil adı otomatik yazılmaz`);
+      // 2026-10-10 owner: ad doluysa son sayfada "RAPORU HAZIRLAYAN" imza kartı; boşsa kart tamamen gizli.
+      ok(preparer ? text.includes("RAPORU HAZIRLAYAN") && text.includes(preparer) && !text.includes("Hazırlayan: ") : !text.includes("RAPORU HAZIRLAYAN") && !text.includes("Hazırlayan:") && !text.includes("Ad Soyad / Unvan"), `${label}: Hazırlayan ${preparer ? "imza kartında yazılan ad/unvan" : "imza kartı YOK (boş)"}; profil adı otomatik yazılmaz`);
       ok(!text.includes("ZZ_HDFLOW_KBP"), `${label}: kullanıcı profil adı raporda yok`);
-      ok(text.includes("BodyGraph ve Aktivasyonlar") && (text.match(/13 aktivasyon/g) ?? []).length === 2 && text.includes("Enkarnasyon Haçı (Yaşam Teması)"), `${label}: profesyonel düzen (BodyGraph + 13/13, kimlik kartı)`);
+      ok(text.includes("BodyGraph ve Aktivasyonlar") && (text.match(/13 aktivasyon/g) ?? []).length === 2 && text.includes("ENKARNASYON TEMASI (YAŞAM AMACI)") && !/haç/i.test(text), `${label}: profesyonel düzen (BodyGraph + 13/13, kimlik kartı)`);
       await page.getByText(/Yeni Word raporu oluşturuldu/).waitFor({ timeout: 20_000 });
 
       // Kayıtlı Word: AYNI dosya değişmeden iner + açık bildirim; yeni Word seçimleri tekrar kapalı.

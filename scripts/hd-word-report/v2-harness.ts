@@ -396,6 +396,19 @@ async function main() {
   }
 
   section("D. Enkarnasyon Haçı");
+  {
+    const { crossThemeNames, CROSS_THEME_KEYS } = await import("../../lib/human-design/reporting/crossThemeTr");
+    const c1 = crossThemeNames("Right Angle Cross of Contagion 2", "Sağ Açı (Right Angle)");
+    ok("D0a owner örneği: Contagion → \"Sağ Açılı Etki Yayma Teması\" + özgün ad", c1.tr === "Sağ Açılı Etki Yayma Teması 2" && c1.en === "Right Angle Cross of Contagion 2" && c1.themeKnown);
+    ok("D0b numarasız + \"the\": Sleeping Phoenix", crossThemeNames("Right Angle Cross of the Sleeping Phoenix", null).tr === "Sağ Açılı Uyuyan Anka Teması");
+    ok("D0c Sol Açılı + Yan Yana", crossThemeNames("Left Angle Cross of Healing 1", null).tr === "Sol Açılı Şifa Teması 1" && crossThemeNames("Juxtaposition Cross of Thinking", null).tr === "Yan Yana Düşünme Teması");
+    const unk = crossThemeNames("Right Angle Cross of Bilinmeyen 3", null);
+    ok("D0d sözlükte olmayan tema UYDURULMAZ (genel Türkçe ad + özgün ad)", unk.tr === "Sağ Açılı Enkarnasyon Teması" && unk.en === "Right Angle Cross of Bilinmeyen 3" && !unk.themeKnown);
+    const go = crossThemeNames("Sağ Açı (Right Angle) (yalnız kapılar)", "Sağ Açı (Right Angle)");
+    ok("D0e sağlayıcı adı yoksa (yalnız kapılar): \"Sağ Açılı Enkarnasyon Teması\" / \"Right Angle Cross\"", go.tr === "Sağ Açılı Enkarnasyon Teması" && go.en === "Right Angle Cross");
+    const all = CROSS_THEME_KEYS.flatMap((k) => ["Right Angle", "Left Angle", "Juxtaposition"].map((a) => crossThemeNames(`${a} Cross of ${k} 1`, null)));
+    ok("D0f sözlükteki HER tema × 3 açı: Türkçe adda \"Haç\" yok, tema bilinir, İngilizce ad aynen", all.length > 100 && all.every((n) => !/Haç/i.test(n.tr) && n.themeKnown && / Cross of /.test(n.en)));
+  }
   ok("D1 ad + kapılar (Personality Güneş/Dünya | Design Güneş/Dünya)", pure.identity.cross?.name === "Right Angle Cross of Laws 2" && pure.identity.cross?.gates === "56/60 | 3/50");
   ok("D2 bozuk haç → null (uydurma yok)", V2.freezeCross({ incarnationCross: { gates: [1, 2, 3] } }) === null);
 
@@ -709,10 +722,20 @@ async function main() {
     const ct = await zip.file("[Content_Types].xml")!.async("string");
     ok("Q3 Content_Types png kayıtlı", /Extension="png"/.test(ct));
     ok("Q4 ham markdown / kontrol karakteri yok", !/(^|\s)##\s|\*\*/.test(text) && !/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(xml));
-    ok("Q5 kimlik kartı: ad + doğum grubu + HD özeti + Enkarnasyon Haçı (Yaşam Teması)", text.includes("Elif Şahin Öztürk") && ["Doğum Bilgileri", "Doğum Tarihi", "Doğum Saati (yerel)", "Doğum Yeri", "Saat Dilimi", "Human Design Özeti", "Tip", "Profil", "İç Otorite", "Tanım", "Enkarnasyon Haçı (Yaşam Teması)", "Harita kaynağı", "Rapor tarihi"].every((k) => text.includes(k)));
+    ok("Q5 kimlik kartı: ad + doğum grubu + HD özeti", text.includes("Elif Şahin Öztürk") && ["Doğum Bilgileri", "Doğum Tarihi", "Doğum Saati (yerel)", "Doğum Yeri", "Saat Dilimi", "Human Design Özeti", "Tip", "Profil", "İç Otorite", "Tanım", "Harita kaynağı", "Rapor tarihi"].every((k) => text.includes(k)));
+    // 2026-10-10 owner: Enkarnasyon BodyGraph'tan SONRA; Türkçe ad "Haç"sız + özgün İngilizce ad.
+    ok("Q5b \"ENKARNASYON TEMASI (YAŞAM AMACI)\": Türkçe ad + özgün İngilizce ad", text.includes("ENKARNASYON TEMASI (YAŞAM AMACI)") && text.includes("Sağ Açılı Yasalar Teması 2") && text.includes("Right Angle Cross of Laws 2") && text.includes("açıklayıcı çevirisidir; özgün terim esas alınır"));
+    ok("Q5c yeni düzende hiçbir yerde \"Haç\" yok (büyük/küçük harf; sistem yorumu + kaynak bilgisi dahil)", !/haç/i.test(text) && !/HAÇ/.test(text));
+    // 2026-10-10 premium teknik bölümler (teknik veri korunur)
+    ok("Q5e Merkezler: özet sayaçlar + her merkezde aktif kapılar (kayıtlı kapı verisinden)", text.includes("Tanımlı merkez") && text.includes("Açık merkez") && (text.match(/Aktif kapılar/g) ?? []).length === 9);
+    ok("Q5f Kanallar: kod rozeti + ad + merkez yolu + kapılar", text.includes("Kapı 3 · Kapı 60") || /Kapı \d+ · Kapı \d+/.test(text));
+    ok("Q5g Kapılar: tekrar eden başlık bandı + kanal açıklaması", /<w:tblHeader\/>/.test(xml) && text.includes("Kanal sütunu, kapının tamamladığı tanımlı kanalı gösterir."));
+    const paraOf = (needle: string) => [...xml.matchAll(/<w:p[ >][\s\S]*?<\/w:p>/g)].map((m) => m[0]).find((p) => p.includes(needle)) ?? "";
+    ok("Q5d BodyGraph kimlikle AYNI sayfada (sayfa sonu yok); Enkarnasyon yeni sayfa başı", paraOf("BodyGraph ve Aktivasyonlar") !== "" && paraOf("Merkezler<") !== "" && !paraOf("BodyGraph ve Aktivasyonlar").includes("pageBreakBefore") && paraOf("ENKARNASYON TEMASI").includes("pageBreakBefore") && !paraOf("Merkezler<").includes("pageBreakBefore"));
     ok("Q6 UTC doğum anı görünür raporda YOK", !text.includes("UTC") && !text.includes("16:00"));
-    const order = ["Danışan ve Harita Kimliği", "Merkezler", "Kanallar", "BodyGraph ve Aktivasyonlar", "Kapılar", "Uzman Açıklamaları", "Sistem Yorumu", "Kaynak Bilgisi"].reduce<number[]>((acc, h) => [...acc, text.indexOf(h, (acc.at(-1) ?? -1) + 1)], []);
+    const order = ["Danışan ve Harita Kimliği", "BodyGraph ve Aktivasyonlar", "ENKARNASYON TEMASI (YAŞAM AMACI)", "Merkezler", "Kanallar", "Kapılar", "Uzman Açıklamaları", "Sistem Yorumu", "Kaynak Bilgisi"].reduce<number[]>((acc, h) => [...acc, text.indexOf(h, (acc.at(-1) ?? -1) + 1)], []);
     ok("Q7 bölüm sırası hedefle aynı", order.every((p, i) => p >= 0 && (i === 0 || p > order[i - 1])), JSON.stringify(order));
+    ok("Q8b pro-1: BodyGraph üstündeki 'Kapı.Çizgi biçiminde…' açıklaması YOK", !text.includes("Kapı.Çizgi biçiminde"));
     ok("Q8 aktivasyon sütunları: DESIGN (Bilinçdışı) + PERSONALITY (Bilinçli), Türkçe gezegen + Kapı.Çizgi", text.includes("DESIGN") && text.includes("Bilinçdışı") && text.includes("PERSONALITY") && text.includes("Bilinçli") && (text.match(/13 aktivasyon/g) ?? []).length === 2 && /Güneş\s*56\.2/.test(text) && text.includes("Kuzey Ay Düğümü"));
     ok("Q9 tablolar: başlık satırı tekrar + satır bölünmez", xml.includes("<w:tblHeader/>") && xml.includes("<w:cantSplit/>"));
     ok("Q10 boş sayfa riski: ardışık sayfa sonu / boş bölüm yok", !/<w:br w:type="page"\/>\s*<\/w:r>\s*<\/w:p>\s*<w:p>\s*<w:pPr>\s*<w:pageBreakBefore/.test(xml));
@@ -720,7 +743,7 @@ async function main() {
     ok("R1b uzman metni AYNEN: numaralar korunur, madde imine çevrilmez", text.includes("1. paragraf — Uzman açıklaması") && text.includes("6. paragraf — Uzman açıklaması"));
     ok("R1c Sistem Yorumu gezegen adları Türkçe (Pluto → Plüton)", text.includes("Design · Plüton · 61.1") && !text.includes("· Pluto ·"));
     ok("R2 başlıklar içerikten kopmaz (keepNext)", (xml.match(/<w:keepNext\/>/g) ?? []).length > 40);
-    ok("R3 teşhis/tedavi uyarısı + bilgilendirme notu; profil adı 'Hazırlayan' olarak OTOMATİK yazılmaz", text.includes("teşhis veya tedavi önerisi içermez") && text.includes("Bilgilendirme") && !text.includes("Hazırlayan"));
+    ok("R3 teşhis/tedavi uyarısı + bilgilendirme notu; profil adı 'Hazırlayan' olarak OTOMATİK yazılmaz", text.includes("teşhis veya tedavi önerisi içermez") && text.includes("Bilgilendirme") && !text.includes("Hazırlayan: ") && !text.includes("Ayşe Uzman"));
     const last = text.slice(text.lastIndexOf("Kaynak Bilgisi"));
     ok("R4 son sayfada teknik eşleşme / sistem kaydı notları YOK", !last.includes("Uzman Bilgilerim") && !last.includes("eşleşen kayıt") && !last.includes("harita hesaplanırken kaydedilmiş sistem açıklamaları"));
   }
@@ -735,12 +758,15 @@ async function main() {
       return { r, text: d ? (await unzip(await d.arrayBuffer())).text : "", row: r.res.status === 200 ? reportRow(db, r.body.id) : null };
     };
     const full = await mk({ commentary: "none", preparedBy: "  Human Design Uzmanı Ahmet Yılmaz  " });
-    ok("W1 dolu hazırlayan: 'Hazırlayan: <ad ve unvan>' (kırpılmış); snapshot'a donar", full.text.includes("Hazırlayan: Human Design Uzmanı Ahmet Yılmaz") && full.row?.snapshot.preparedBy === "Human Design Uzmanı Ahmet Yılmaz" && full.row?.snapshot.layout === "pro-1");
+    // 2026-10-10 owner: son sayfada büyük "RAPORU HAZIRLAYAN" uzman imza bölümü (eski küçük satır yok).
+    ok("W1 dolu hazırlayan: imza bölümünde 'RAPORU HAZIRLAYAN' + ad/unvan (kırpılmış); snapshot'a donar", full.text.includes("RAPORU HAZIRLAYAN") && full.text.includes("Human Design Uzmanı Ahmet Yılmaz") && !full.text.includes("Hazırlayan: ") && full.row?.snapshot.preparedBy === "Human Design Uzmanı Ahmet Yılmaz" && full.row?.snapshot.layout === "pro-1");
+    ok("W1c imza bölümü: Rapor Tarihi + İmza satırı; ad, raporun son bölümünde", full.text.includes("RAPOR TARİHİ") && full.text.includes("İmza") && full.text.lastIndexOf("Human Design Uzmanı Ahmet Yılmaz") > full.text.indexOf("Kaynak Bilgisi"));
     ok("W1b profil adı (Ayşe Uzman) yazılmaz", !full.text.includes("Ayşe Uzman"));
     const empty = await mk({ commentary: "none", preparedBy: "   " });
-    ok("W2 boş hazırlayan: 'Hazırlayan' satırı HİÇ yok", !empty.text.includes("Hazırlayan") && empty.row?.snapshot.preparedBy === null);
+    // 2026-10-10 owner: ad boşsa imza kartı TAMAMEN gizli (boş satırlı kart yok).
+    ok("W2 boş hazırlayan: ad YAZILMAZ; imza kartı tamamen gizli", !empty.text.includes("Hazırlayan: ") && !empty.text.includes("Ayşe Uzman") && !empty.text.includes("RAPORU HAZIRLAYAN") && !empty.text.includes("RAPOR TARİHİ") && !empty.text.includes("Ad Soyad / Unvan") && empty.text.includes("Kaynak Bilgisi") && empty.row?.snapshot.preparedBy === null);
     const none = await mk({ commentary: "none" });
-    ok("W3 hazırlayan önceki rapordan TAŞINMAZ (alan gönderilmezse yok)", !none.text.includes("Hazırlayan") && none.row?.snapshot.preparedBy === null);
+    ok("W3 hazırlayan önceki rapordan TAŞINMAZ (alan gönderilmezse ad yok, imza kartı yok)", !none.text.includes("Ahmet Yılmaz") && !none.text.includes("RAPORU HAZIRLAYAN") && none.row?.snapshot.preparedBy === null);
     const dirty = await mk({ commentary: "none", preparedBy: `Hasan\nHoca\u0007 ${"x".repeat(300)}` });
     ok("W4 kontrol karakteri / satır sonu temizlenir, 120 karakterle sınırlı", typeof dirty.row?.snapshot.preparedBy === "string" && Array.from(String(dirty.row?.snapshot.preparedBy)).length <= 120 && String(dirty.row?.snapshot.preparedBy).startsWith("Hasan Hoca ") && !/[\u0000-\u001f]/.test(String(dirty.row?.snapshot.preparedBy)));
     for (const bad of [123, ["Hasan"], { ad: "Hasan" }, true]) {
@@ -755,13 +781,13 @@ async function main() {
     const centersTr = ["Baş Merkezi", "Ajna Merkezi", "Boğaz Merkezi", "G / Kimlik Merkezi", "Kalp / Ego Merkezi", "Dalak Merkezi", "Solar Pleksus Merkezi", "Sakral Merkez", "Kök Merkezi"];
     ok("W7 dokuz merkezin tamamı (Türkçe ad + özgün terim)", centersTr.every((c) => t.includes(c)) && ["Head", "Throat", "G Center", "Heart", "Spleen", "Solar Plexus", "Sacral", "Root"].every((e) => t.includes(e)));
     const definedN = (full.row?.snapshot.centers ?? []).filter((c) => c.defined).length;
-    ok("W7b tanımlı/açık durumları hesaplama sonucundan", t.includes(`9 merkezden ${definedN} tanımlı, ${9 - definedN} açık`) && (t.match(/Tanımlı/g) ?? []).length >= definedN);
+    ok("W7b tanımlı/açık durumları hesaplama sonucundan", t.includes(`${definedN}  Tanımlı merkez`) && t.includes(`${9 - definedN}  Açık merkez`) && (t.match(/●  TANIMLI/g) ?? []).length === definedN && (t.match(/○  AÇIK/g) ?? []).length === 9 - definedN);
     ok("W8 tüm tanımlı kanallar: numara + kaynak veriden ad", n.codes.channels.length > 0 && n.codes.channels.every((c) => {
       const [a, b] = c.split("-");
       const label = (V2Labels.find((x) => x.code === c)?.label ?? "").replace(/^\S+\s/, "");
       return t.includes(`${a}–${b}`) && (!label || t.includes(label));
     }));
-    ok("W9 tüm aktif kapılar + çoklu aktivasyonlar kaybolmaz", (full.row?.snapshot.gates ?? []).every((g) => t.includes(`${g.gate}. Kapı`) && g.activations.every((a) => t.includes(`${g.gate}.${a.line}`))));
+    ok("W9 tüm aktif kapılar + çoklu aktivasyonlar kaybolmaz", (full.row?.snapshot.gates ?? []).every((g) => t.includes(`${g.gate}  Kapı`) && g.activations.every((a) => t.includes(`${g.gate}.${a.line}`))));
     ok("W10 Türkçe karakterler korunur", t.includes("Kuzey Ay Düğümü") && t.includes("Dalak Merkezi") && t.includes("Güneş"));
     // Eski kayıtlı rapor: layout YOK → eski düzen AYNEN (eski Word değişmez).
     const legacy = structuredClone(full.row!.snapshot) as Row;
@@ -769,7 +795,41 @@ async function main() {
     delete legacy.preparedBy;
     const { renderHdReportV2Buffer: renderV2 } = await import("../../lib/human-design/reporting/wordReportV2");
     const lt = (await unzip(await renderV2(legacy as never, { expertName: "Eski Profil Adı" }))).text;
-    ok("W11 eski snapshot eski düzende: eski başlıklar + eski kimlik tablosu + eski 'Hazırlayan'", lt.includes("Design / Personality Aktivasyonları") && lt.includes("Ad Soyad") && lt.includes("Hazırlayan: Eski Profil Adı") && !lt.includes("BodyGraph ve Aktivasyonlar"));
+    ok("W11 eski snapshot eski düzende: eski başlıklar + eski kimlik tablosu + eski 'Hazırlayan' + eski Kapı.Çizgi açıklaması", lt.includes("Design / Personality Aktivasyonları") && lt.includes("Ad Soyad") && lt.includes("Hazırlayan: Eski Profil Adı") && lt.includes("Kapı.Çizgi biçiminde") && !lt.includes("BodyGraph ve Aktivasyonlar"));
+    // 2026-10-10 owner: filigran İPTAL — iç sayfa üst bilgisinde görsel YOK (yalnız metin üst/alt bilgi + site adı).
+    {
+      const z = await JSZip.loadAsync(await renderV2(full.row!.snapshot as never, {}));
+      const hf = Object.keys(z.files).filter((f) => /^word\/(header|footer)\d*\.xml$/.test(f));
+      const xmls = await Promise.all(hf.map((f) => z.file(f)!.async("string")));
+      ok("W13 filigran YOK: üst/alt bilgide görsel yok; her iç sayfada yasamsistemi.com", hf.length > 0 && xmls.every((x) => !x.includes("<w:drawing")) && xmls.some((x) => x.includes("yasamsistemi.com")));
+    }
+    // 2026-10-10 owner: kapılardan sonraki ilk bölüm zorunlu sayfa sonu OLMADAN akar; başlık zinciri ilk paragrafla birlikte kalır.
+    {
+      const paras = (x: string) => [...x.matchAll(/<w:p[ >][\s\S]*?<\/w:p>/g)].map((m) => m[0]);
+      const docXml = async (buf: Buffer) => (await JSZip.loadAsync(buf)).file("word/document.xml")!.async("string");
+      const base = full.row!.snapshot as Row & { commentary: Row };
+      const variant = (expertOn: boolean, systemOn: boolean) => {
+        const v = structuredClone(base) as Row & { commentary: { expert: Row; system: Row } };
+        v.commentary.expert = { ...v.commentary.expert, included: expertOn, entries: expertOn ? [{ category: "Tipler", title: "Örnek", code: "tip_generator", content: "İlk paragraf.\n\nİkinci paragraf." }] : [] };
+        v.commentary.system = systemOn ? { status: "included", reading: extractSystemReading(rawTr) } : { status: "not_selected", reading: null };
+        return v as never;
+      };
+      const both = paras(await docXml(await renderV2(variant(true, true), {})));
+      const sysOnly = paras(await docXml(await renderV2(variant(false, true), {})));
+      const find = (ps: string[], needle: string) => ps.findIndex((p) => p.includes(`>${needle}<`));
+      const eI = find(both, "Uzman Açıklamaları");
+      const sI = find(both, "Sistem Yorumu");
+      ok("W13a kapılardan sonra 'Uzman Açıklamaları' sayfa sonu ZORLAMAZ; başlık→açıklama→kategori→başlık zinciri keepNext; ilk paragraf hemen ardından", eI > 0 && !both[eI].includes("pageBreakBefore") && [0, 1, 2, 3].every((k) => both[eI + k].includes("<w:keepNext/>")) && both[eI + 4].includes("İlk paragraf."));
+      ok("W13b uzman bölümü varken 'Sistem Yorumu' yine yeni sayfadan başlar", sI > eI && both[sI].includes("pageBreakBefore"));
+      const sJ = find(sysOnly, "Sistem Yorumu");
+      ok("W13c uzman bölümü yoksa kapılardan sonra 'Sistem Yorumu' sayfa sonu zorlamadan akar (keepNext)", sJ > 0 && !sysOnly[sJ].includes("pageBreakBefore") && sysOnly[sJ].includes("<w:keepNext/>") && sysOnly[sJ + 1].includes("<w:keepNext/>"));
+      ok("W13d 'Kapılar' güvenli sayfa kırılması korunur + tablo satırları bölünmez", both[find(both, "Kapılar")]?.includes("pageBreakBefore") && (await docXml(await renderV2(variant(true, true), {}))).includes("<w:cantSplit/>"));
+      const legacyBoth = structuredClone(variant(true, true) as unknown as Row);
+      delete legacyBoth.layout;
+      delete legacyBoth.preparedBy;
+      const legacyPs = paras(await docXml(await renderV2(legacyBoth as never, {})));
+      ok("W13e eski düzen: 'Sistem Yorumu' + 'Uzman Bilgilerim' sayfa sonu AYNEN (eski raporlar değişmez)", legacyPs[find(legacyPs, "Sistem Yorumu")]?.includes("pageBreakBefore") === true && !legacyPs.some((p) => p.includes(">Uzman Açıklamaları<")));
+    }
     // Eski kayıtlı v2 raporu ROUTE üzerinden indirilince: eski düzen AYNEN, profil adı "Hazırlayan" YOK,
     // kayıtlı snapshot DEĞİŞMEZ (yalnız indirme davranışı).
     const legacyRow = reportRow(db, none.r.body.id) as Row & { snapshot: Row };

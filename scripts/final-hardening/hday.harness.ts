@@ -380,7 +380,8 @@ async function main() {
     const cd = res.headers.get("content-disposition") ?? "";
     ok(/Human-Design-Ayse-Cag-\d{4}-\d{2}-\d{2}\.docx/.test(cd), "dosya adı yerel gün damgalı + TR transliterasyon");
     const txt = await docText(await res.arrayBuffer());
-    ok(txt.includes("Hazırlayan: Ayşe Uzman") && txt.includes("Bilgilendirme"), "DOCX: wellness notu + 'Hazırlayan: <uzmanın bu rapora yazdığı ad>'");
+    // 2026-10-10: ad, son sayfadaki "RAPORU HAZIRLAYAN" uzman imza bölümünde.
+ok(txt.includes("RAPORU HAZIRLAYAN") && txt.includes("Ayşe Uzman") && txt.includes("Bilgilendirme"), "DOCX: wellness notu + 'RAPORU HAZIRLAYAN' imza bölümünde uzmanın bu rapora yazdığı ad");
     ok(txt.includes("1 Mayıs 1990"), "DOCX: doğum tarihi DATE olarak kaydırmasız (1 Mayıs 1990)");
     ok(txt.includes("UZMAN-NOTU-K5") && !txt.includes("YABANCI-NOTU-K5") && !txt.includes("GD::") && !txt.includes(kGate5),
       "DOCX: yalnız bu tenant'ın uzman bilgisi; admin canonical metni/anahtarı YOK");

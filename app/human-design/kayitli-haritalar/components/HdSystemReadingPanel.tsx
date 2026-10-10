@@ -11,6 +11,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { getChartSystemReading, type SystemReadingFetchResult } from "@/lib/human-design/api/chartsClient";
+import { HD_CROSS_SECTION_TITLE } from "@/lib/human-design/normalize/hdDisplayLabels";
 import type {
   SystemReadingActivation,
   SystemReadingCenter,
@@ -53,7 +54,8 @@ function Fold({ summary, children, open = false, level = 1 }: { summary: ReactNo
 function GeneralItem({ item }: { item: SystemReadingGeneralItem }) {
   return (
     <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3" data-hd-sr-general={item.key}>
-      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-indigo-600">{item.title}</p>
+      {/* Kayıtlı eski okumalarda başlık "Enkarnasyon Haçı" olabilir → anahtara göre güncel başlık. */}
+      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-indigo-600">{item.key === "cross" ? HD_CROSS_SECTION_TITLE : item.title}</p>
       {item.value ? <p className="mt-0.5 break-words text-[15px] font-semibold text-slate-900">{item.value}</p> : null}
       {item.details.length > 0 ? (
         <div className="mt-2 space-y-2">
