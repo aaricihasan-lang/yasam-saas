@@ -41,6 +41,8 @@ export type CreateOptions = {
   bodygraphPng?: string;
   /** Roxy haritasında BodyGraph görseli olmadan oluşturmaya AÇIK onay. */
   allowMissingBodygraph?: boolean;
+  /** "Raporu Hazırlayan" (yalnız bu yeni rapor; boşsa gönderilmez → satır oluşmaz). */
+  preparedBy?: string;
 };
 
 /**
@@ -53,6 +55,7 @@ export async function createProfessionalReport(chartId: string, requestId?: stri
   if (opts.commentary) body.commentary = opts.commentary;
   if (opts.bodygraphPng) body.bodygraphPng = opts.bodygraphPng;
   if (opts.allowMissingBodygraph) body.allowMissingBodygraph = true;
+  if (opts.preparedBy && opts.preparedBy.trim()) body.preparedBy = opts.preparedBy.trim();
   let res: Response;
   try {
     res = await fetch("/api/hd/reports/professional", {
@@ -122,4 +125,21 @@ export async function downloadProfessionalReport(reportId: string): Promise<Down
   a.remove();
   URL.revokeObjectURL(url);
   return { ok: true, systemReadingRedacted: res.headers.get(HD_REPORT_REDACTED_HEADER) === "system-reading" };
+}
+
+/**
+ * Bu analizle eşleşen, Word'e girecek AKTİF Bilgi Bankası açıklaması sayısı (yalnız sayı).
+ * Hata / ağ sorunu → null (uyarı gösterilmez; Word akışı engellenmez).
+ */
+export async function fetchKnowledgeMatchCount(chartId: string): Promise<number | null> {
+  try {
+    const res = await fetch(`/api/hd/reports/professional/knowledge-match?chartId=${encodeURIComponent(chartId)}`, {
+      headers: authHeaders(),
+      cache: "no-store",
+    });
+    const j = (await res.json().catch(() => ({}))) as { ok?: boolean; count?: unknown };
+    return res.ok && j.ok === true && typeof j.count === "number" ? j.count : null;
+  } catch {
+    return null;
+  }
 }

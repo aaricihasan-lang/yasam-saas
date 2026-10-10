@@ -46,6 +46,8 @@ import type { HdCommentarySelection } from "./reportV2Shared";
 export const HD_REPORT_V2_SCHEMA_VERSION = "hd-report-2" as const;
 export const HD_REPORT_V2_VERSION = 2 as const;
 
+import { HD_PREPARED_BY_MAX } from "./reportV2Shared";
+export { HD_PREPARED_BY_MAX };
 export {
   HD_COMMENTARY_SELECTIONS,
   HD_REPORT_REDACTED_HEADER,
@@ -155,7 +157,31 @@ export type HdReportSnapshotV2 = {
   };
   /** v1 ile aynı konum: görsel temizliği bu yolu okur. */
   chartImage: { storagePath?: string; includedAtGeneration: boolean } | null;
+  /**
+   * Belge düzeni. "pro-1" = profesyonel tasarım (2026-10-09). YOKSA eski kayıtlı rapor →
+   * eski düzen AYNEN (eski Word'ler değişmez).
+   */
+  layout?: typeof HD_REPORT_V2_LAYOUT;
+  /**
+   * Uzmanın bu rapor için yazdığı "Raporu Hazırlayan" (ad + unvan). YALNIZ bu rapora özgü,
+   * donmuş. null/boş → "Hazırlayan" satırı hiç oluşturulmaz (profil adı otomatik yazılmaz).
+   */
+  preparedBy?: string | null;
 };
+
+/** Yeni raporların belge düzeni sürümü. */
+export const HD_REPORT_V2_LAYOUT = "pro-1" as const;
+
+/**
+ * "Raporu Hazırlayan" girdisini güvenli hale getirir: string değilse / boşsa null; kontrol
+ * karakterleri ve satır sonları tek boşluğa; en fazla HD_PREPARED_BY_MAX karakter.
+ */
+export function sanitizePreparedBy(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!t) return null;
+  return Array.from(t).slice(0, HD_PREPARED_BY_MAX).join("").trim() || null;
+}
 
 // ── Girdi ────────────────────────────────────────────────────────────────────────
 export type BuildSnapshotV2Input = {
@@ -173,6 +199,8 @@ export type BuildSnapshotV2Input = {
   /** Seçim+yetki uygunsa sunucunun çıkardığı DTO; kayıtlı veri yoksa null. */
   systemReading: SystemReadingDto | null;
   expertRecords: ReadonlyArray<{ category?: unknown; title?: unknown; code?: unknown; content?: unknown; is_active?: unknown }>;
+  /** "Raporu Hazırlayan" (sanitize edilmiş; yoksa null). */
+  preparedBy?: string | null;
   bodygraph: HdReportSnapshotV2["bodygraph"];
   chartImage: HdReportSnapshotV2["chartImage"];
 };
@@ -227,6 +255,14 @@ export function freezeCross(computed: unknown): FrozenCross | null {
   const name = str(xc.name) ?? (angle ? `${angle} (yalnız kapılar)` : null);
   if (!name) return null;
   return { name, gates: `${g[0]}/${g[1]} | ${g[2]}/${g[3]}`, angle };
+}
+
+/**
+ * Word'e girecek Bilgi Bankası açıklamalarının SAYISI — freezeExpert ile AYNI kural (aktif, dolu
+ * başlık/kod/metin). Word öncesi "eşleşen aktif açıklama yok" uyarısı için (içerik döndürmez).
+ */
+export function countReportableExpertEntries(records: BuildSnapshotV2Input["expertRecords"]): number {
+  return freezeExpert(records).length;
 }
 
 function freezeExpert(records: BuildSnapshotV2Input["expertRecords"]): FrozenExpertEntry[] {
@@ -333,6 +369,8 @@ export function buildReportSnapshotV2(input: BuildSnapshotV2Input): HdReportSnap
     },
     bodygraph: input.bodygraph,
     chartImage: input.chartImage,
+    layout: HD_REPORT_V2_LAYOUT,
+    preparedBy: sanitizePreparedBy(input.preparedBy),
   };
 }
 

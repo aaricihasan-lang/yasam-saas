@@ -8,7 +8,6 @@ import { getCanonicalReportForDownload } from "@/lib/human-design/api/reportPers
 import { hdReportFilename, renderHdReportBuffer } from "@/lib/human-design/reporting/wordReport";
 import { isOwnedChartImagePath, isOwnedReportSnapshotPath } from "@/lib/human-design/api/chartImagePath";
 import { fetchStorageImageBuffer, getImgDimensions } from "@/lib/docx/reportHelpers";
-import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { applyDownloadPermissions, HD_REPORT_REDACTED_HEADER, isHdReportSnapshotV2 } from "@/lib/human-design/reporting/reportSnapshotV2";
 import { renderHdReportV2Buffer } from "@/lib/human-design/reporting/wordReportV2";
 import { loadHdReportLogo } from "@/lib/human-design/reporting/reportBrandAssets";
@@ -97,11 +96,13 @@ export async function POST(req: NextRequest): Promise<Response> {
       buffer = await renderHdReportV2Buffer(view.snapshot, {
         bodygraphImage: chartImage,
         logo: await loadHdReportLogo(),
-        expertName: expertDisplayName(guard.profile),
+        // Profil adı OTOMATİK "Hazırlayan" yazılmaz (eski düzen dahil). Yeni raporlarda hazırlayan
+        // yalnız snapshot.preparedBy'dan gelir; kayıtlı snapshot DEĞİŞMEZ, yalnız çıktı davranışı.
+        expertName: null,
         systemReadingRedacted: redacted,
       });
     } else {
-      buffer = await renderHdReportBuffer(snapshot, { chartImage, expertName: expertDisplayName(guard.profile) });
+      buffer = await renderHdReportBuffer(snapshot, { chartImage, expertName: null });
     }
   } catch {
     await trackUsage(guard, req, { module: "human_design", action: "action_failed", failedAction: "report_generated", subEntity: "report", errorClass: "server" });
