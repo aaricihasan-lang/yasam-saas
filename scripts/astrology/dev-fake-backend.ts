@@ -49,6 +49,12 @@ const store = createStore({
     { id: EXPERT_CLIENT, tenant_id: TENANT_E, ad: "Uzman", soyad: "Danışanı", dogum: "1992-02-02", telefon: "05001112233", created_at: "2026-09-01T10:00:00Z" },
   ],
   user_payment_history: [],
+  // 9C: HttpOnly H5 bootstrap (/api/auth/session/cookie) user_sessions satırını okur (kanal + mutlak bitiş).
+  user_sessions: [
+    { session_token: "local-owner-token-aaaaaaaaaaaa", user_id: OWNER, client_channel: "web", is_active: true, expires_at: new Date(Date.now() + 8 * 3600_000).toISOString() },
+    { session_token: "local-admin2-token-bbbbbbbbbbb", user_id: ADMIN2, client_channel: "web", is_active: true, expires_at: new Date(Date.now() + 8 * 3600_000).toISOString() },
+    { session_token: "local-expert-token-eeeeeeeeeee", user_id: EXPERT, client_channel: "web", is_active: true, expires_at: new Date(Date.now() + 8 * 3600_000).toISOString() },
+  ],
 });
 store.sessions.set("local-owner-token-aaaaaaaaaaaa", OWNER);
 store.sessions.set("local-admin2-token-bbbbbbbbbbb", ADMIN2);
