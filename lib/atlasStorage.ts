@@ -1,7 +1,9 @@
 import {
   ALL_FOOT_VIEWS,
+  resolvePointSize,
   type FootSide,
   type FootView,
+  type PointSize,
   type Region,
   type RegionPoint,
   type RegionShapeType,
@@ -87,6 +89,7 @@ export type StoredRegion = {
   y2?: number;
   lineWidth?: number;
   color?: string;
+  pointSize?: PointSize;
 };
 
 export type AtlasFootBucket = {
@@ -171,6 +174,7 @@ export function regionToStored(region: Region): StoredRegion {
     y2: region.y2,
     lineWidth: region.lineWidth,
     color: region.color,
+    ...(region.shape === "point" && region.pointSize ? { pointSize: region.pointSize } : {}),
   };
 }
 
@@ -198,6 +202,7 @@ export function storedToRegion(
     y2: stored.y2,
     lineWidth: stored.lineWidth,
     color: stored.color,
+    ...(stored.shape === "point" ? { pointSize: resolvePointSize(stored.pointSize) } : {}),
   };
 }
 

@@ -23,7 +23,7 @@ import type {
   AtlasOrganEntry,
   StoredRegion,
 } from "@/lib/atlasStorage";
-import { ALL_FOOT_VIEWS, type FootSide, type FootView, type Region } from "@/app/refleksoloji/bolge-haritasi/types";
+import { ALL_FOOT_VIEWS, resolvePointSize, type FootSide, type FootView, type Region } from "@/app/refleksoloji/bolge-haritasi/types";
 import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
 import { getOrganColor, type OrganColorStyle } from "@/app/refleksoloji/protokol-haritasi/types";
 
@@ -132,6 +132,7 @@ function storedToRegion(
     y2: stored.y2,
     lineWidth: stored.lineWidth,
     color: stored.color,
+    ...(stored.shape === "point" ? { pointSize: resolvePointSize(stored.pointSize) } : {}),
   };
 }
 

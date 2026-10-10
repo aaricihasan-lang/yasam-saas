@@ -45,10 +45,50 @@ export type Region = {
   y2?: number;
   lineWidth?: number;
   color?: string;
+  /** Yalnız shape "point": nokta boyutu. Eski kayıtlarda yok → DEFAULT_POINT_SIZE. */
+  pointSize?: PointSize;
 };
 
-/** Nokta ekran çapı (px) — veri yalnız cx/cy taşır; boyut render'da sabittir. */
+/** Nokta boyutu — veri yalnız etiket taşır; ekran çapı render'da sabit px'tir. */
+export type PointSize = "xs" | "sm" | "md" | "lg";
+
+export const POINT_SIZES: readonly PointSize[] = ["xs", "sm", "md", "lg"];
+
+export const POINT_SIZE_LABEL: Record<PointSize, string> = {
+  xs: "Çok küçük",
+  sm: "Küçük",
+  md: "Orta",
+  lg: "Büyük",
+};
+
+/** Varsayılan = Orta = boyut özelliği öncesindeki tek sabit çap (eski kayıtlar aynen görünür). */
+export const DEFAULT_POINT_SIZE: PointSize = "md";
+
+/** Nokta ekran çapı (px) — Orta. */
 export const POINT_RENDER_DIAMETER_PX = 14;
+
+export const POINT_SIZE_DIAMETER_PX: Record<PointSize, number> = {
+  xs: 5,
+  sm: 9,
+  md: POINT_RENDER_DIAMETER_PX,
+  lg: 22,
+};
+
+/** Bilinmeyen/eksik değer → güvenli varsayılan. */
+export function resolvePointSize(value: unknown): PointSize {
+  return typeof value === "string" && (POINT_SIZES as readonly string[]).includes(value)
+    ? (value as PointSize)
+    : DEFAULT_POINT_SIZE;
+}
+
+export function pointDiameterPx(value: unknown): number {
+  return POINT_SIZE_DIAMETER_PX[resolvePointSize(value)];
+}
+
+/** Beyaz halka kalınlığı (px) — çok küçük noktada halka noktayı yutmasın. */
+export function pointRingPx(value: unknown): number {
+  return resolvePointSize(value) === "xs" ? 1 : 2;
+}
 
 /** Eski kayıtlar ve fallback render için varsayılan kalın çizgi genişliği (normalize) */
 /** Kalın çizgi veri modeli — görsel kalınlık render’da sabit px kullanır */

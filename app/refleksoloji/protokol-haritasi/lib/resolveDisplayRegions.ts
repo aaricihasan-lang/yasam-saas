@@ -67,7 +67,7 @@ export function atlasRegionToDisplay(region: Region): ProtocolDisplayRegion | nu
   }
 
   if (region.shape === "point") {
-    return { ...base, shape: "point", cx: region.cx, cy: region.cy };
+    return { ...base, shape: "point", cx: region.cx, cy: region.cy, pointSize: region.pointSize };
   }
 
   // thick_line

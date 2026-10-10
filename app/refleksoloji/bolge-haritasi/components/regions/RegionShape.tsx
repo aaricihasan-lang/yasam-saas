@@ -1,7 +1,7 @@
 "use client";
 
 import type { Region } from "../../types";
-import { POINT_RENDER_DIAMETER_PX, THICK_LINE_RENDER_STROKE_PX } from "../../types";
+import { pointDiameterPx, pointRingPx, THICK_LINE_RENDER_STROKE_PX } from "../../types";
 import { getPointsBounds, regionHasBox, regionToPercentBox } from "../../utils/regionGeometry";
 import {
   REGION_FILL,
@@ -258,10 +258,11 @@ export function RegionShape({
           title={label}
         >
           <span
-            className="pointer-events-none block rounded-full border-2 border-white transition-shadow"
+            className="pointer-events-none block rounded-full border-solid border-white transition-shadow"
             style={{
-              width: POINT_RENDER_DIAMETER_PX,
-              height: POINT_RENDER_DIAMETER_PX,
+              width: pointDiameterPx(region.pointSize),
+              height: pointDiameterPx(region.pointSize),
+              borderWidth: pointRingPx(region.pointSize),
               backgroundColor: REGION_STROKE,
               boxShadow: isSelected ? REGION_SELECTED_SHADOW : "0 1px 4px rgba(127, 29, 29, 0.45)",
             }}

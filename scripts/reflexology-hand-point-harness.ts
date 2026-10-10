@@ -11,6 +11,7 @@
  *   F. Protokol/Word    — el grupları çözülür, point SVG, el PNG'leri + DOCX
  *   G. Kayıtlı Atlas    — özet etiketleri (Ayak / El ayrımı)
  *   H. Sunucu doğrulama — point + el görünümü PUT gövdesi kabul
+ *   I. Nokta boyutu     — kayıt gidiş-dönüş, eski kayıt → Orta, ekran/Word çapı
  *
  * GERÇEK üretim fonksiyonlarını çağırır (kopya iş kuralı YOK).
  * Çalıştır:  npx tsx scripts/reflexology-hand-point-harness.ts
@@ -18,7 +19,14 @@
 import { Document, Packer } from "docx";
 import JSZip from "jszip";
 import type { FootSide, FootView, Region, RegionShapeType } from "@/app/refleksoloji/bolge-haritasi/types";
-import { ALL_FOOT_VIEWS } from "@/app/refleksoloji/bolge-haritasi/types";
+import {
+  ALL_FOOT_VIEWS,
+  DEFAULT_POINT_SIZE,
+  POINT_RENDER_DIAMETER_PX,
+  POINT_SIZES,
+  pointDiameterPx,
+  resolvePointSize,
+} from "@/app/refleksoloji/bolge-haritasi/types";
 import { ATLAS_IMAGE_SRC, atlasBackgroundLabel } from "@/app/refleksoloji/bolge-haritasi/utils/atlasBackground";
 import {
   emptyOrganEntry,
@@ -305,6 +313,31 @@ check("Word SVG: point merkez doğru", svg.includes(`cx="${(ptRender.cx! * 1448)
   const bad = clone(N1) as unknown as Record<string, Record<string, { sol: unknown[] }>>;
   bad.Böbrek.el_avuc.sol.push({ id: "x", shape: "point", cx: "a", cy: 0.1 });
   check("validateAtlasPayload: bozuk point reddedilir", validateAtlasPayload({ document: bad, organList: [], bodyBytes: 10 }) !== null);
+
+  /* ─── I. Nokta boyutu ───────────────────────────────────────────────────── */
+  check("boyut: varsayılan Orta = önceki sabit çap", DEFAULT_POINT_SIZE === "md" && pointDiameterPx(undefined) === POINT_RENDER_DIAMETER_PX);
+  check("boyut: bilinmeyen değer → Orta", resolvePointSize("dev") === "md" && resolvePointSize(42) === "md" && resolvePointSize(null) === "md");
+  const diam = POINT_SIZES.map((sz) => pointDiameterPx(sz));
+  check(`boyut: 4 kademe artan çap (${diam.join("/")})`, diam.length === 4 && diam.every((d, i) => i === 0 || d > diam[i - 1]));
+  const sized = POINT_SIZES.map((sz, i) => ({ ...makeRegion("point", "Mide", "right", "taban", 100 + i), pointSize: sz }));
+  const I1 = mergeDraftIntoAtlas(clone(EMPTY), sized, []);
+  const back = getRegionsForOrgan(I1, "Mide").filter((r) => r.shape === "point");
+  check("boyut: kayıt → okuma 4/4 korunur", POINT_SIZES.every((sz, i) => back.find((r) => r.id === sized[i].id)?.pointSize === sz));
+  const I2 = normalizeAtlasDocument(JSON.parse(JSON.stringify(I1)));
+  check("boyut: JSON + normalize sonrası korunur", POINT_SIZES.every((sz, i) => getRegionsForOrgan(I2, "Mide").find((r) => r.id === sized[i].id)?.pointSize === sz));
+  const legacyPoint = getRegionsForOrgan(E1, "Mide").find((r) => r.id === handPoint.id);
+  check("boyut: boyutsuz eski nokta → Orta açılır", legacyPoint?.pointSize === "md");
+  const nonPoint = getRegionsForOrgan(N1, "Böbrek").filter((r) => r.shape !== "point");
+  check("boyut: oval/kare/çizgi bölgelerine boyut eklenmez", nonPoint.length > 0 && nonPoint.every((r) => r.pointSize === undefined));
+  const IR = resolveProtocolAtlas(I1, ["Mide"]);
+  const radius = (sz: string) => {
+    const rr = IR.regionsByGroup.taban.find((r) => r.pointSize === sz) as RenderRegion;
+    return Number(/ r="([0-9.]+)"/.exec(regionToSvg(rr, 1448, 1086, 1))?.[1]);
+  };
+  const radii = POINT_SIZES.map(radius);
+  check(`Word SVG: boyuta göre artan yarıçap (${radii.join("/")})`, radii.every((r, i) => Number.isFinite(r) && (i === 0 || r > radii[i - 1])));
+  const legacySvg = regionToSvg({ ...ptRender, pointSize: undefined }, 1448, 1086, 1);
+  check("Word SVG: Orta = eski nokta çıktısı (bayt-eşit)", regionToSvg({ ...ptRender, pointSize: "md" }, 1448, 1086, 1) === legacySvg && svg === legacySvg);
 
   console.log(`\n──────── SONUÇ: ${pass} PASS / ${fail} FAIL ────────`);
   if (fail > 0) {

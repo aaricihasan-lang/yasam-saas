@@ -15,6 +15,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getImgDimensions } from "@/lib/docx/reportHelpers";
 import type { RenderRegion, AtlasBackgroundGroup } from "./atlasRegionsCore";
+import { POINT_RENDER_DIAMETER_PX, pointDiameterPx, pointRingPx } from "@/app/refleksoloji/bolge-haritasi/types";
 import { ATLAS_GROUP_ASSET } from "./atlasRegionsCore";
 
 /** Word içine gömülecek render sonucu. */
@@ -63,6 +64,11 @@ function n(value: number): string {
   return Number.isFinite(value) ? value.toFixed(2) : "0";
 }
 
+/** Tamsayı aynen (Orta/eski nokta çıktısı değişmez), kesirli → n(). */
+function px(value: number): string {
+  return Number.isInteger(value) ? String(value) : n(value);
+}
+
 /** Tek bir bölgeyi SVG parçasına çevirir (viewBox birimleri = doğal piksel). Test için export. */
 export function regionToSvg(region: RenderRegion, W: number, H: number, s = 1): string {
   const fill = parseColor(region.fill);
@@ -101,10 +107,12 @@ export function regionToSvg(region: RenderRegion, W: number, H: number, s = 1): 
   }
 
   if (region.shape === "point" && region.cx != null && region.cy != null) {
-    // Ekrandaki gibi: organ renginde dolu nokta + ince beyaz halka (sabit, görsele oranlı çap).
-    const r = Math.max(5, Math.round(W * 0.006) * s);
-    const ring = Math.max(2, Math.round(W * 0.002) * s);
-    return `<circle cx="${n(region.cx * W)}" cy="${n(region.cy * H)}" r="${r}" fill="${stroke.hex}" stroke="#ffffff" stroke-width="${ring}"/>`;
+    // Ekrandaki gibi: organ renginde dolu nokta + ince beyaz halka. Orta = önceki sabit çap;
+    // diğer boyutlar ekran çaplarıyla aynı oranda ölçeklenir (eski kayıt → Orta).
+    const ratio = pointDiameterPx(region.pointSize) / POINT_RENDER_DIAMETER_PX;
+    const r = Math.max(1.5, Math.max(5, Math.round(W * 0.006) * s) * ratio);
+    const ring = Math.max(2, Math.round(W * 0.002) * s) * (pointRingPx(region.pointSize) / 2);
+    return `<circle cx="${n(region.cx * W)}" cy="${n(region.cy * H)}" r="${px(r)}" fill="${stroke.hex}" stroke="#ffffff" stroke-width="${px(ring)}"/>`;
   }
 
   if (region.shape === "thick_line" && region.x1 != null && region.y1 != null && region.x2 != null && region.y2 != null) {

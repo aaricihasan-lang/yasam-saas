@@ -1,4 +1,5 @@
-import type { FootSide, FootView, RegionDrawShape, RegionToolMode } from "../types";
+import { POINT_SIZE_LABEL, POINT_SIZES } from "../types";
+import type { FootSide, FootView, PointSize, RegionDrawShape, RegionToolMode } from "../types";
 
 type RegionToolbarProps = {
   selectedFoot: FootSide;
@@ -9,6 +10,11 @@ type RegionToolbarProps = {
   setToolMode: (mode: RegionToolMode) => void;
   drawShape: RegionDrawShape;
   setDrawShape: (shape: RegionDrawShape) => void;
+  /** Nokta boyutu: seçili nokta varsa onun boyutu, yoksa yeni noktaların boyutu. */
+  pointSize: PointSize;
+  onPointSizeChange: (size: PointSize) => void;
+  /** Boyut seçici yalnız Nokta aracı ya da seçili bir nokta varken görünür. */
+  showPointSize: boolean;
   onSave: () => void;
   onClear: () => void;
   /**
@@ -29,6 +35,9 @@ function btnClass(idle: string, active: boolean) {
   return `${btnBase} ${idle} ${active ? activeRing : ""}`;
 }
 
+/** Seçicideki önizleme nokta çapı (px) — gerçek çapların küçültülmüş sırası. */
+const POINT_SIZE_SWATCH_PX: Record<PointSize, number> = { xs: 3, sm: 6, md: 9, lg: 13 };
+
 export function RegionToolbar({
   selectedFoot,
   setSelectedFoot,
@@ -38,6 +47,9 @@ export function RegionToolbar({
   setToolMode,
   drawShape,
   setDrawShape,
+  pointSize,
+  onPointSizeChange,
+  showPointSize,
   onSave,
   onClear,
   editingAllowed,
@@ -118,6 +130,39 @@ export function RegionToolbar({
         >
           Nokta
         </button>
+
+        {showPointSize ? (
+          <div
+            role="radiogroup"
+            aria-label="Nokta boyutu"
+            className="inline-flex min-h-11 shrink-0 items-center gap-0.5 rounded-lg border border-rose-200 bg-rose-50/70 px-0.5 shadow-sm sm:min-h-0 sm:h-7"
+          >
+            {POINT_SIZES.map((size) => {
+              const active = size === pointSize;
+              const swatch = POINT_SIZE_SWATCH_PX[size];
+              return (
+                <button
+                  key={size}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  aria-label={POINT_SIZE_LABEL[size]}
+                  title={POINT_SIZE_LABEL[size]}
+                  onClick={() => onPointSizeChange(size)}
+                  className={`flex h-10 w-9 items-center justify-center rounded-md transition-colors duration-200 sm:h-6 sm:w-6 ${
+                    active ? "bg-white shadow-sm ring-1 ring-rose-300" : "hover:bg-white/70"
+                  }`}
+                >
+                  <span
+                    aria-hidden
+                    className={`block rounded-full ${active ? "bg-rose-600" : "bg-rose-400"}`}
+                    style={{ width: swatch, height: swatch }}
+                  />
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
 
         <button
           type="button"

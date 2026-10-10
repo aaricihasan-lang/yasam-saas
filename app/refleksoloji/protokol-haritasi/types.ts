@@ -1,4 +1,4 @@
-import type { FootView } from "../bolge-haritasi/types";
+import type { FootView, PointSize } from "../bolge-haritasi/types";
 
 /** Canonical görünüm (3 ayak + 2 el) ile TEK type kaynağı (ekole bağımsız). Legacy "yan" YOK. */
 export type ProtocolFootView = FootView;
@@ -30,6 +30,8 @@ export type ProtocolDisplayRegion = {
   x2?: number;
   y2?: number;
   lineWidth?: number;
+  // point
+  pointSize?: PointSize;
 };
 
 export type OrganColorStyle = {

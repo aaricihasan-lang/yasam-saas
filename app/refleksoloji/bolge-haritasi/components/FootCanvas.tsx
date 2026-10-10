@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { FootSide, FootView, Region, RegionDrawShape, RegionToolMode } from "../types";
+import type { FootSide, FootView, PointSize, Region, RegionDrawShape, RegionToolMode } from "../types";
 import { normalizeThickLineRegion, THICK_LINE_RENDER_STROKE_PX } from "../types";
 
 /** Yeni kalın çizgi kayıtları — normalize 0..1 (yalnızca veri; görsel 3px) */
@@ -42,6 +42,8 @@ type FootCanvasProps = {
   selectedView: FootView;
   toolMode: RegionToolMode;
   drawShape: RegionDrawShape;
+  /** Yeni konan noktanın boyutu (yalnız Nokta aracı). */
+  pointSize: PointSize;
   regions: Region[];
   onUpsertRegion: (region: Region) => void;
   selectedRegionId: string | null;
@@ -179,6 +181,7 @@ export function FootCanvas({
   selectedView,
   toolMode,
   drawShape,
+  pointSize,
   regions,
   onUpsertRegion,
   selectedRegionId,
@@ -356,12 +359,13 @@ export function FootCanvas({
         cx: clamp01(point.x),
         cy: clamp01(point.y),
         color: REGION_COLOR,
+        pointSize,
       };
       onUpsertRegion(newRegion);
       onSelectRegion(newRegion.id);
       return true;
     },
-    [activeOrgan, selectedFoot, selectedView, onUpsertRegion, onSelectRegion],
+    [activeOrgan, selectedFoot, selectedView, pointSize, onUpsertRegion, onSelectRegion],
   );
 
   const finishThickLineDraw = useCallback(

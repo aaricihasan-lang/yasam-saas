@@ -5,7 +5,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ATLAS_IMAGE_SRC } from "@/app/refleksoloji/bolge-haritasi/utils/atlasBackground";
 import { computeObjectContainRect } from "@/app/refleksoloji/bolge-haritasi/utils/imageContainRect";
 import { HandSideLabels, isHandView } from "@/app/refleksoloji/bolge-haritasi/components/HandSideLabels";
-import { POINT_RENDER_DIAMETER_PX, THICK_LINE_RENDER_STROKE_PX } from "@/app/refleksoloji/bolge-haritasi/types";
+import { pointDiameterPx, pointRingPx, THICK_LINE_RENDER_STROKE_PX } from "@/app/refleksoloji/bolge-haritasi/types";
 import { REGION_FREE_STROKE_WIDTH } from "@/app/refleksoloji/bolge-haritasi/utils/regionStyles";
 import {
   ALL_ATLAS_GROUPS,
@@ -221,18 +221,19 @@ export function ProtocolFootMap({
                     );
                   })}
 
-                {/* point — sabit piksel çaplı nokta (Bölge Haritası ile aynı görsel ölçü) */}
+                {/* point — kayıtlı boyutun sabit piksel çapı (Bölge Haritası ile aynı görsel ölçü) */}
                 {regions
                   .filter((r) => r.shape === "point" && r.cx != null && r.cy != null)
                   .map((region) => (
                     <div
                       key={region.id}
-                      className="pointer-events-none absolute rounded-full border-2"
+                      className="pointer-events-none absolute rounded-full border-solid"
                       style={{
                         left: `${region.cx! * 100}%`,
                         top: `${region.cy! * 100}%`,
-                        width: POINT_RENDER_DIAMETER_PX,
-                        height: POINT_RENDER_DIAMETER_PX,
+                        width: pointDiameterPx(region.pointSize),
+                        height: pointDiameterPx(region.pointSize),
+                        borderWidth: pointRingPx(region.pointSize),
                         transform: "translate(-50%, -50%)",
                         backgroundColor: region.stroke,
                         borderColor: "rgba(255, 255, 255, 0.95)",
