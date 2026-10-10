@@ -1,4 +1,11 @@
-import type { FootSide, FootView, Region, RegionPoint, RegionShapeType } from "@/app/refleksoloji/bolge-haritasi/types";
+import {
+  ALL_FOOT_VIEWS,
+  type FootSide,
+  type FootView,
+  type Region,
+  type RegionPoint,
+  type RegionShapeType,
+} from "@/app/refleksoloji/bolge-haritasi/types";
 import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
 import {
   ATLAS_QUOTA_CONFLICT_MESSAGE,
@@ -96,6 +103,9 @@ export type AtlasOrganEntry = {
   taban: AtlasFootBucket;
   yan_ic: AtlasFootBucket;
   yan_dis: AtlasFootBucket;
+  /** El yüzeyleri — aynı sol/sag bucket şekli (sol el / sağ el). */
+  el_avuc: AtlasFootBucket;
+  el_sirt: AtlasFootBucket;
 };
 
 /** Legacy (eski) organ entry — yalnız normalizasyon girdisi olarak tanınır. */
@@ -117,6 +127,8 @@ export function emptyOrganEntry(): AtlasOrganEntry {
     taban: emptyFootBucket(),
     yan_ic: emptyFootBucket(),
     yan_dis: emptyFootBucket(),
+    el_avuc: emptyFootBucket(),
+    el_sirt: emptyFootBucket(),
   };
 }
 
@@ -312,7 +324,7 @@ export function getRegionsForOrgan(
   const entry = atlas[organ];
   if (!isOrganEntry(entry)) return [];
 
-  const views: FootView[] = filter?.view ? [filter.view] : ["taban", "yan_ic", "yan_dis"];
+  const views: readonly FootView[] = filter?.view ? [filter.view] : ALL_FOOT_VIEWS;
   const footKeys: ("sol" | "sag")[] = filter?.foot
     ? [footToStorageKey(filter.foot)]
     : ["sol", "sag"];
@@ -321,7 +333,7 @@ export function getRegionsForOrgan(
 
   for (const view of views) {
     const bucket = entry[view];
-    if (!bucket) continue; // normalize edilmiş belgede 3 bucket da vardır
+    if (!bucket) continue; // normalize edilmiş belgede tüm görünüm bucket'ları vardır
     for (const footKey of footKeys) {
       const storedList = bucket[footKey] ?? [];
       for (const stored of storedList) {

@@ -2,7 +2,9 @@
  * atlasNormalize — Refleksoloji atlas belgesi CANONICAL normalizasyon sınırı.
  *
  * AMAÇ: Downstream (editör, kayıtlı atlas, protokol, Word) yalnızca EKOLE BAĞIMSIZ
- * 3-görünüm şeklini görsün: `taban / yan_ic / yan_dis`. Eski (legacy) belgeler
+ * canonical görünüm şeklini görsün: ayak `taban / yan_ic / yan_dis` + el
+ * `el_avuc / el_sirt` (el bucket'ları da KAYIPSIZ kopyalanır — eksik kopya el
+ * bölgelerini sessizce düşürürdü). Eski (legacy) belgeler
  * `{ taban, yan }` şeklindeydi ve Yan İç/Dış ayrımı organ adından türetiliyordu.
  * Bu modül eski `yan` bucket'ını KAYIPSIZ olarak explicit bucket'lara dönüştürür.
  *
@@ -23,7 +25,7 @@ import type {
 import { isValidStoredRegion } from "./atlasValidate";
 
 type LegacyView = "yan";
-type AnyBucketKey = "taban" | "yan_ic" | "yan_dis" | LegacyView;
+type AnyBucketKey = "taban" | "yan_ic" | "yan_dis" | "el_avuc" | "el_sirt" | LegacyView;
 
 /**
  * LEGACY-ONLY: eski `yan` bölgesinin hedef explicit görünümü. Mevcut production
@@ -41,7 +43,13 @@ function emptyBucket(): AtlasFootBucket {
 }
 
 function emptyEntry(): AtlasOrganEntry {
-  return { taban: emptyBucket(), yan_ic: emptyBucket(), yan_dis: emptyBucket() };
+  return {
+    taban: emptyBucket(),
+    yan_ic: emptyBucket(),
+    yan_dis: emptyBucket(),
+    el_avuc: emptyBucket(),
+    el_sirt: emptyBucket(),
+  };
 }
 
 /** Kaynak bucket'ı hedefe kopyalar; region.id zaten görülmüşse (dedup) ATLAR. */
@@ -73,7 +81,7 @@ function isEntryLike(value: unknown): value is Record<AnyBucketKey, AtlasFootBuc
 }
 
 /**
- * Tek organ entry'sini canonical 3-görünüme dönüştürür. Sıra: explicit bucket'lar
+ * Tek organ entry'sini canonical görünümlere (3 ayak + 2 el) dönüştürür. Sıra: explicit bucket'lar
  * ÖNCE (id'ler işaretlenir), sonra legacy `yan` → hedef explicit'e EKLENİR (dedup).
  * Geometry/color/foot/id DEĞİŞMEZ; region sayısı korunur (duplicate hariç).
  */
@@ -87,6 +95,8 @@ function normalizeOrganEntry(entry: unknown, organName: string): AtlasOrganEntry
   copyBucket(e.taban, out.taban, seen);
   copyBucket(e.yan_ic, out.yan_ic, seen);
   copyBucket(e.yan_dis, out.yan_dis, seen);
+  copyBucket(e.el_avuc, out.el_avuc, seen);
+  copyBucket(e.el_sirt, out.el_sirt, seen);
 
   // 2) LEGACY "yan" bucket'ı → organ adına göre tek hedef explicit'e (dedup vs. seen)
   if (e.yan) {

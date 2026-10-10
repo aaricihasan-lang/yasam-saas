@@ -2,6 +2,7 @@ import type { Region } from "@/app/refleksoloji/bolge-haritasi/types";
 import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
 import type { AtlasDocument, AtlasMeta, AtlasOrganEntry } from "@/lib/atlasStorage";
 import {
+  emptyOrganEntry,
   footToStorageKey,
   getRegionsForOrgan,
   listOrganNamesFromAtlas,
@@ -24,15 +25,12 @@ function isOrganEntry(value: unknown): value is AtlasOrganEntry {
 }
 
 function regionsToOrganEntry(regions: Region[]): AtlasOrganEntry {
-  const entry: AtlasOrganEntry = {
-    taban: { sol: [], sag: [] },
-    yan_ic: { sol: [], sag: [] },
-    yan_dis: { sol: [], sag: [] },
-  };
+  // Tüm canonical bucket'lar (3 ayak + 2 el) — eksik iskelet el bölgelerini düşürürdü.
+  const entry = emptyOrganEntry();
 
   for (const region of regions) {
     const footKey = footToStorageKey(region.footSide);
-    // region.view canonical (taban/yan_ic/yan_dis) → doğrudan bucket. "yan" YAZILMAZ.
+    // region.view canonical (taban/yan_ic/yan_dis/el_avuc/el_sirt) → doğrudan bucket. "yan" YAZILMAZ.
     const bucket = entry[region.view];
     if (!bucket) continue;
     bucket[footKey].push(regionToStored(region));

@@ -5,7 +5,10 @@ export type FootSide = "left" | "right";
  * görünümü ASLA belirlemez. Depolama bucket'ı = region.view = grup (tek kaynak).
  * `AtlasBackgroundGroup` (lib/refleksoloji/atlasRegionsCore) bunun ALIAS'ıdır.
  */
-export type FootView = "taban" | "yan_ic" | "yan_dis";
+export type FootView = "taban" | "yan_ic" | "yan_dis" | "el_avuc" | "el_sirt";
+
+/** Canonical görünüm sırası (TEK kaynak): 3 ayak + 2 el yüzeyi. Sol/Sağ seçimi el için de geçerli. */
+export const ALL_FOOT_VIEWS: readonly FootView[] = ["taban", "yan_ic", "yan_dis", "el_avuc", "el_sirt"];
 
 /**
  * Eski depolama görünümü — YALNIZ legacy belge normalizasyonu (converter) girdisi.
@@ -13,10 +16,10 @@ export type FootView = "taban" | "yan_ic" | "yan_dis";
  */
 export type LegacyFootView = "taban" | "yan";
 
-export type RegionShapeType = "oval" | "rect" | "free_draw" | "thick_line";
+export type RegionShapeType = "oval" | "rect" | "free_draw" | "thick_line" | "point";
 
 /** Toolbar çizim tipi */
-export type RegionDrawShape = "oval" | "rect" | "free_draw" | "thick_line";
+export type RegionDrawShape = "oval" | "rect" | "free_draw" | "thick_line" | "point";
 
 export type RegionToolMode = "select" | "add" | "move";
 
@@ -43,6 +46,9 @@ export type Region = {
   lineWidth?: number;
   color?: string;
 };
+
+/** Nokta ekran çapı (px) — veri yalnız cx/cy taşır; boyut render'da sabittir. */
+export const POINT_RENDER_DIAMETER_PX = 14;
 
 /** Eski kayıtlar ve fallback render için varsayılan kalın çizgi genişliği (normalize) */
 /** Kalın çizgi veri modeli — görsel kalınlık render’da sabit px kullanır */

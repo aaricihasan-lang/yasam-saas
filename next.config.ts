@@ -49,7 +49,11 @@ const nextConfig: NextConfig = {
   // Refleksoloji premium Word raporu klinik ayak PNG'lerini server-side (fs) okur;
   // Vercel output tracing bunları route bundle'ına dahil etsin (ağ fetch YOK).
   outputFileTracingIncludes: {
-    "/api/refleksoloji/protocol-report": ["./public/refleksoloji/klinik_*.png"],
+    "/api/refleksoloji/protocol-report": [
+      "./public/refleksoloji/klinik_*.png",
+      "./public/refleksoloji/el_avuc_sag_sol.png",
+      "./public/refleksoloji/el_sirti_sag_sol.png",
+    ],
     // Anamnez boş form PDF'i Türkçe karakter için Geist TTF'yi fs ile okur.
     "/api/clients/[id]/anamnez/blank-form": ["./public/fonts/Geist-Regular.ttf"],
     // Kayıtlı (dolu) anamnez PDF'i aynı fontu kullanır.

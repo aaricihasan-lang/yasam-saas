@@ -14,6 +14,7 @@
     "refleksoloji:shape-view-ghost:harness": "tsx scripts/reflexology-shape-view-ghost-harness.ts",
     "refleksoloji:coordinate-parity:harness": "tsx scripts/reflexology-coordinate-parity-harness.ts",
     "refleksoloji:side-view:harness": "tsx scripts/reflexology-side-view-harness.ts",
+    "refleksoloji:hand-point:harness": "tsx scripts/reflexology-hand-point-harness.ts",
     "refleksoloji:school-neutral:harness": "tsx scripts/reflexology-school-neutral-harness.ts",
     "refleksoloji:atlas-backfill:harness": "tsx scripts/reflexology-atlas-backfill-harness.ts",
     "refleksoloji:atlas-backfill": "tsx scripts/reflexology-atlas-backfill.ts",

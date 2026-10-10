@@ -44,6 +44,9 @@ export function RegionToolbar({
 }: RegionToolbarProps) {
   const isAdd = toolMode === "add";
   const isMove = toolMode === "move";
+  // El yüzeylerinde aynı Sol/Sağ seçimi "El" olarak etiketlenir (veri: footSide aynı).
+  const isHandView = selectedView === "el_avuc" || selectedView === "el_sirt";
+  const sideNoun = isHandView ? "El" : "Ayak";
 
   return (
     <div className="flex w-full shrink-0 justify-center px-2 pb-2">
@@ -109,6 +112,15 @@ export function RegionToolbar({
 
         <button
           type="button"
+          onClick={() => setDrawShape("point")}
+          aria-pressed={drawShape === "point"}
+          className={btnClass("border-rose-200 bg-rose-50 text-rose-700", drawShape === "point")}
+        >
+          Nokta
+        </button>
+
+        <button
+          type="button"
           onClick={() => setToolMode("move")}
           aria-pressed={isMove}
           className={btnClass("border-cyan-200 bg-cyan-50 text-cyan-700", isMove)}
@@ -145,7 +157,7 @@ export function RegionToolbar({
             selectedFoot === "left",
           )}
         >
-          Sol Ayak
+          Sol {sideNoun}
         </button>
 
         <button
@@ -157,7 +169,7 @@ export function RegionToolbar({
             selectedFoot === "right",
           )}
         >
-          Sağ Ayak
+          Sağ {sideNoun}
         </button>
 
         <span className="hidden h-5 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
@@ -168,6 +180,24 @@ export function RegionToolbar({
           { view: "taban", label: "Taban", tone: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700" },
           { view: "yan_ic", label: "Yan İç", tone: "border-purple-200 bg-purple-50 text-purple-700" },
           { view: "yan_dis", label: "Yan Dış", tone: "border-violet-200 bg-violet-50 text-violet-700" },
+        ] as const).map(({ view, label, tone }) => (
+          <button
+            key={view}
+            type="button"
+            onClick={() => setSelectedView(view)}
+            aria-pressed={selectedView === view}
+            className={btnClass(tone, selectedView === view)}
+          >
+            {label}
+          </button>
+        ))}
+
+        <span className="hidden h-5 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
+
+        {/* El yüzeyleri — aynı Sol/Sağ seçimiyle (Sol → sol el, Sağ → sağ el). */}
+        {([
+          { view: "el_avuc", label: "Avuç İçi", tone: "border-teal-200 bg-teal-50 text-teal-700" },
+          { view: "el_sirt", label: "El Sırtı", tone: "border-amber-200 bg-amber-50 text-amber-700" },
         ] as const).map(({ view, label, tone }) => (
           <button
             key={view}

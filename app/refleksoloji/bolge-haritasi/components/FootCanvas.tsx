@@ -27,9 +27,12 @@ import { regionHasThickLine, RegionDraftPreview, RegionShape } from "./regions/R
 const MOVE_DRAG_THRESHOLD = 0.004;
 const FREE_DRAW_POINT_MIN_DIST = 0.003;
 const MIN_THICK_LINE_PX = 20;
+/** Nokta: dokunuş/tık bu kadar px'ten fazla kayarsa nokta OLUŞMAZ (kaydırma ≠ nokta). */
+const POINT_TAP_MAX_MOVE_PX = 8;
 
 type ThickLineDraft = { x1: number; y1: number; x2: number; y2: number };
 type ThickLineEndpoint = "start" | "end";
+type PointTapDraft = { pointerId: number; clientX: number; clientY: number; point: { x: number; y: number } };
 
 type FootCanvasProps = {
   activeOrgan: string | null;
@@ -82,6 +85,10 @@ type PendingMoveState = {
 };
 
 function applyRegionDelta(snapshot: Region, dx: number, dy: number): Region {
+  if (snapshot.shape === "point" && snapshot.cx != null && snapshot.cy != null) {
+    return { ...snapshot, cx: clamp01(snapshot.cx + dx), cy: clamp01(snapshot.cy + dy) };
+  }
+
   if (snapshot.shape === "free_draw" && snapshot.points) {
     return {
       ...snapshot,
@@ -157,7 +164,10 @@ function lockDocumentSelection(lock: boolean) {
 }
 
 function buildCanvasBadge(foot: FootSide, backgroundKey: ReturnType<typeof resolveAtlasBackgroundKey>) {
-  const footLabel = foot === "left" ? "Sol Ayak" : "Sağ Ayak";
+  const isHand = backgroundKey === "el_avuc" || backgroundKey === "el_sirt";
+  const footLabel = isHand
+    ? foot === "left" ? "Sol El" : "Sağ El"
+    : foot === "left" ? "Sol Ayak" : "Sağ Ayak";
   return `${footLabel} • ${atlasBackgroundLabel(backgroundKey)}`;
 }
 
@@ -194,6 +204,7 @@ export function FootCanvas({
   const isManualDrawingRef = useRef(false);
   const isThickLineDrawingRef = useRef(false);
   const thickLineDraftRef = useRef<ThickLineDraft | null>(null);
+  const pointTapRef = useRef<PointTapDraft | null>(null);
   const manualPointerIdRef = useRef<number | null>(null);
   const finishDraftRef = useRef<(state: DraftState) => boolean>(() => false);
   const onDrawCompleteRef = useRef(onDrawComplete);
@@ -332,6 +343,26 @@ export function FootCanvas({
 
   const finishManualDrawRef = useRef(finishManualDraw);
 
+  const finishPointTap = useCallback(
+    (point: { x: number; y: number }): boolean => {
+      if (!activeOrgan) return false;
+      const newRegion: Region = {
+        id: crypto.randomUUID(),
+        organ: activeOrgan,
+        footSide: selectedFoot,
+        view: selectedView,
+        shape: "point",
+        cx: clamp01(point.x),
+        cy: clamp01(point.y),
+        color: REGION_COLOR,
+      };
+      onUpsertRegion(newRegion);
+      onSelectRegion(newRegion.id);
+      return true;
+    },
+    [activeOrgan, selectedFoot, selectedView, onUpsertRegion, onSelectRegion],
+  );
+
   const finishThickLineDraw = useCallback(
     (draftLine: ThickLineDraft, overlayWidth: number, overlayHeight: number): boolean => {
       if (!activeOrgan || overlayWidth <= 0 || overlayHeight <= 0) return false;
@@ -454,11 +485,23 @@ export function FootCanvas({
       if (!editingAllowed) return;
       if (e.button !== 0 || !isAddMode || !activeOrgan || !imageReady) return;
 
+      // İkinci parmak (pinch) bekleyen nokta dokunuşunu iptal eder → yanlış nokta yok.
+      if (pointTapRef.current && pointTapRef.current.pointerId !== e.pointerId) {
+        pointTapRef.current = null;
+        return;
+      }
+
       const point = getNormalizedPoint(e.clientX, e.clientY, true);
       if (!point) return;
 
       e.preventDefault();
       e.stopPropagation();
+
+      if (drawShape === "point") {
+        pointTapRef.current = { pointerId: e.pointerId, clientX: e.clientX, clientY: e.clientY, point };
+        e.currentTarget.setPointerCapture(e.pointerId);
+        return;
+      }
 
       if (drawShape === "free_draw") {
         const initial = [point];
@@ -491,6 +534,14 @@ export function FootCanvas({
 
   const handleOverlayPointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
+      const tap = pointTapRef.current;
+      if (tap && tap.pointerId === e.pointerId) {
+        if (Math.hypot(e.clientX - tap.clientX, e.clientY - tap.clientY) > POINT_TAP_MAX_MOVE_PX) {
+          pointTapRef.current = null; // sürükleme/kaydırma → nokta yok
+        }
+        return;
+      }
+
       const point = getNormalizedPoint(e.clientX, e.clientY, true);
       if (!point) return;
 
@@ -527,6 +578,18 @@ export function FootCanvas({
 
   const handleOverlayPointerUp = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
+      const tap = pointTapRef.current;
+      if (tap && tap.pointerId === e.pointerId) {
+        pointTapRef.current = null;
+        e.preventDefault();
+        try {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        } catch {
+          /* capture may already be released */
+        }
+        if (finishPointTap(tap.point)) onDrawCompleteRef.current?.();
+        return;
+      }
       if (isThickLineDrawingRef.current) {
         e.preventDefault();
         finishThickLineStroke(e.currentTarget, e.pointerId);
@@ -536,11 +599,15 @@ export function FootCanvas({
       e.preventDefault();
       finishManualStroke(e.currentTarget, e.pointerId);
     },
-    [finishManualStroke, finishThickLineStroke],
+    [finishManualStroke, finishThickLineStroke, finishPointTap],
   );
 
   const handleOverlayPointerCancel = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
+      if (pointTapRef.current?.pointerId === e.pointerId) {
+        pointTapRef.current = null;
+        return;
+      }
       if (isThickLineDrawingRef.current) {
         finishThickLineStroke(e.currentTarget, e.pointerId);
         return;
@@ -929,9 +996,11 @@ export function FootCanvas({
                 <p className="pointer-events-none absolute bottom-2 left-1/2 z-40 max-w-[95%] -translate-x-1/2 rounded-full border border-violet-300/70 bg-white/92 px-3 py-1 text-center text-xs font-semibold text-violet-900 shadow-sm sm:text-sm">
                   {drawShape === "free_draw"
                     ? `«${activeOrgan}» için basılı tutup çizin`
-                    : drawShape === "thick_line"
-                      ? `«${activeOrgan}» için sürükleyerek kalın çizgi çizin`
-                      : `«${activeOrgan}» için sürükleyerek ${drawShape === "rect" ? "kare" : "oval"} çizin`}
+                    : drawShape === "point"
+                      ? `«${activeOrgan}» için dokunarak nokta koyun`
+                      : drawShape === "thick_line"
+                        ? `«${activeOrgan}» için sürükleyerek kalın çizgi çizin`
+                        : `«${activeOrgan}» için sürükleyerek ${drawShape === "rect" ? "kare" : "oval"} çizin`}
                 </p>
               ) : null}
 

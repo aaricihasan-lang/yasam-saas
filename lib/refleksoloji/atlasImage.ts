@@ -1,8 +1,8 @@
 /**
  * Refleksoloji atlas → deterministik server-side PNG (tarayıcısız).
  *
- * Word/PDF için klinik ayak arka planı + gerçek atlas bölgeleri (oval/rect/
- * free_draw/thick_line) TEK bir SVG'de birleştirilir ve `@resvg/resvg-js` ile
+ * Word/PDF için klinik ayak/el arka planı + gerçek atlas bölgeleri (oval/rect/
+ * free_draw/thick_line/point) TEK bir SVG'de birleştirilir ve `@resvg/resvg-js` ile
  * PNG'ye raster edilir. Tarayıcı screenshot / html2canvas / Playwright YOK.
  *
  * Koordinatlar Bölge Haritası'yla birebir: normalize 0..1 → arka plan PNG'sinin
@@ -98,6 +98,13 @@ export function regionToSvg(region: RenderRegion, W: number, H: number, s = 1): 
     }
     const pts = region.points.map((p) => `${n(p.x * W)},${n(p.y * H)}`).join(" ");
     return `<polyline points="${pts}" fill="none" stroke="${stroke.hex}" stroke-width="${freeStroke}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  }
+
+  if (region.shape === "point" && region.cx != null && region.cy != null) {
+    // Ekrandaki gibi: organ renginde dolu nokta + ince beyaz halka (sabit, görsele oranlı çap).
+    const r = Math.max(5, Math.round(W * 0.006) * s);
+    const ring = Math.max(2, Math.round(W * 0.002) * s);
+    return `<circle cx="${n(region.cx * W)}" cy="${n(region.cy * H)}" r="${r}" fill="${stroke.hex}" stroke="#ffffff" stroke-width="${ring}"/>`;
   }
 
   if (region.shape === "thick_line" && region.x1 != null && region.y1 != null && region.x2 != null && region.y2 != null) {

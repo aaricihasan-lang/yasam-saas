@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ATLAS_IMAGE_SRC } from "@/app/refleksoloji/bolge-haritasi/utils/atlasBackground";
 import { computeObjectContainRect } from "@/app/refleksoloji/bolge-haritasi/utils/imageContainRect";
-import { THICK_LINE_RENDER_STROKE_PX } from "@/app/refleksoloji/bolge-haritasi/types";
+import { POINT_RENDER_DIAMETER_PX, THICK_LINE_RENDER_STROKE_PX } from "@/app/refleksoloji/bolge-haritasi/types";
 import { REGION_FREE_STROKE_WIDTH } from "@/app/refleksoloji/bolge-haritasi/utils/regionStyles";
 import {
   ALL_ATLAS_GROUPS,
@@ -49,8 +49,9 @@ export function ProtocolFootMap({
   // yan_ic (mesane/rahim/prostat) bölgeleri asla yan_dis üzerine sızmaz.
   const imageSrc = ATLAS_IMAGE_SRC[footView];
   const imageLabel = ATLAS_GROUP_LABEL[footView];
-  // Gösterilecek görünüm düğmeleri: anlamlı olanlar; hiç yoksa üç grubun tamamı.
-  const viewButtons = availableViews.length > 0 ? availableViews : ALL_ATLAS_GROUPS;
+  // Gösterilecek görünüm düğmeleri: anlamlı olanlar; hiç yoksa üç AYAK grubu (önceki
+  // görünüm aynen; el yüzeyleri yalnız bölgesi varsa düğme olarak çıkar).
+  const viewButtons = availableViews.length > 0 ? availableViews : ALL_ATLAS_GROUPS.slice(0, 3);
 
   const imageRect = useMemo(
     () => computeObjectContainRect(containerSize.w, containerSize.h, naturalSize.w, naturalSize.h),
@@ -215,6 +216,29 @@ export function ProtocolFootMap({
                       </div>
                     );
                   })}
+
+                {/* point — sabit piksel çaplı nokta (Bölge Haritası ile aynı görsel ölçü) */}
+                {regions
+                  .filter((r) => r.shape === "point" && r.cx != null && r.cy != null)
+                  .map((region) => (
+                    <div
+                      key={region.id}
+                      className="pointer-events-none absolute rounded-full border-2"
+                      style={{
+                        left: `${region.cx! * 100}%`,
+                        top: `${region.cy! * 100}%`,
+                        width: POINT_RENDER_DIAMETER_PX,
+                        height: POINT_RENDER_DIAMETER_PX,
+                        transform: "translate(-50%, -50%)",
+                        backgroundColor: region.stroke,
+                        borderColor: "rgba(255, 255, 255, 0.95)",
+                        boxShadow: prominentControls
+                          ? `0 0 16px ${region.stroke}aa`
+                          : `0 0 10px ${region.stroke}77`,
+                      }}
+                      title={region.organ}
+                    />
+                  ))}
 
                 {/* free_draw / thick_line — SVG (Bölge Haritası geometrisiyle aynı) */}
                 {regions.some((r) => r.shape === "free_draw" || r.shape === "thick_line") ? (

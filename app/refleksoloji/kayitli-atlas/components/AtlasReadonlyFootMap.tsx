@@ -69,11 +69,13 @@ export function AtlasReadonlyFootMap({
         <p className="text-base font-semibold text-slate-600">{imageLabel}</p>
         {/* EKOLE BAĞIMSIZ: 3 bağımsız görünüm — organın hangi görünümde bölgesi
             varsa manuel seçilebilir. Organ adı arka planı belirlemez. */}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {([
             { view: "taban", label: "Taban" },
             { view: "yan_ic", label: "Yan İç" },
             { view: "yan_dis", label: "Yan Dış" },
+            { view: "el_avuc", label: "Avuç İçi" },
+            { view: "el_sirt", label: "El Sırtı" },
           ] as const).map(({ view, label }) => (
             <button
               key={view}

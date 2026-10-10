@@ -23,7 +23,7 @@ import type {
   AtlasOrganEntry,
   StoredRegion,
 } from "@/lib/atlasStorage";
-import type { FootSide, FootView, Region } from "@/app/refleksoloji/bolge-haritasi/types";
+import { ALL_FOOT_VIEWS, type FootSide, type FootView, type Region } from "@/app/refleksoloji/bolge-haritasi/types";
 import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
 import { getOrganColor, type OrganColorStyle } from "@/app/refleksoloji/protokol-haritasi/types";
 
@@ -38,12 +38,16 @@ export const ATLAS_GROUP_LABEL: Record<AtlasBackgroundGroup, string> = {
   taban: "Taban",
   yan_ic: "Yan İç",
   yan_dis: "Yan Dış",
+  el_avuc: "Avuç İçi",
+  el_sirt: "El Sırtı",
 };
 
 export const ATLAS_GROUP_ASSET: Record<AtlasBackgroundGroup, string> = {
   taban: "klinik_taban.png",
   yan_ic: "klinik_yan_ic.png",
   yan_dis: "klinik_yan_dis.png",
+  el_avuc: "el_avuc_sag_sol.png",
+  el_sirt: "el_sirti_sag_sol.png",
 };
 
 /**
@@ -57,7 +61,7 @@ export function regionBackgroundGroup(region: { view: FootView }): AtlasBackgrou
 // ─── Şekil geçerlilik kuralı (TEK kaynak; atlasMatch re-export eder) ───────────
 /**
  * Geçerli/çizilebilir atlas bölgesi mi? Bölge Haritası'nın TÜM şekilleri
- * (oval, rect, free_draw, thick_line) burada TEK yerde tanımlanır. `oval || rect`
+ * (oval, rect, free_draw, thick_line, point) burada TEK yerde tanımlanır. `oval || rect`
  * eski false-negative filtresi böbrek free_draw regresyonunun kök nedeniydi (PR #203).
  */
 export function isRenderableAtlasRegion(region: Region): boolean {
@@ -69,6 +73,13 @@ export function isRenderableAtlasRegion(region: Region): boolean {
       );
     case "free_draw":
       return Array.isArray(region.points) && region.points.length >= 1;
+    case "point":
+      return (
+        typeof region.cx === "number" &&
+        Number.isFinite(region.cx) &&
+        typeof region.cy === "number" &&
+        Number.isFinite(region.cy)
+      );
     case "thick_line":
       return (
         typeof region.x1 === "number" &&
@@ -150,7 +161,7 @@ export function getAtlasRegionsForOrgan(
   const entry = atlas[organAtlasKey];
   if (!isOrganEntry(entry)) return [];
 
-  const views: FootView[] = filter?.view ? [filter.view] : ["taban", "yan_ic", "yan_dis"];
+  const views: readonly FootView[] = filter?.view ? [filter.view] : ALL_FOOT_VIEWS;
   const footKeys: ("sol" | "sag")[] = ["sol", "sag"];
   const result: Region[] = [];
 
@@ -195,16 +206,16 @@ export type ResolvedAtlas = {
   missingOrgans: string[];
 };
 
-const GROUPS: AtlasBackgroundGroup[] = ["taban", "yan_ic", "yan_dis"];
+const GROUPS: AtlasBackgroundGroup[] = [...ALL_FOOT_VIEWS];
 
 function emptyGroupMap<T>(make: () => T): Record<AtlasBackgroundGroup, T> {
-  return { taban: make(), yan_ic: make(), yan_dis: make() };
+  return { taban: make(), yan_ic: make(), yan_dis: make(), el_avuc: make(), el_sirt: make() };
 }
 
 /**
  * Protokolün organ listesini (sıra korunur) atlas belgesiyle çözer: her organa
  * palet renginden STABİL renk (index bazlı → aynı organ her haritada aynı renk),
- * her çizilebilir bölgeyi taban/yan_ic/yan_dis grubuna dağıtır. Aynı bölge id iki
+ * her çizilebilir bölgeyi görünüm grubuna (taban/yan_ic/yan_dis/el_avuc/el_sirt) dağıtır. Aynı bölge id iki
  * kez sayılmaz. Date/random YOK → deterministik.
  */
 export function resolveProtocolAtlas(

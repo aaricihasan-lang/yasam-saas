@@ -613,7 +613,7 @@ async function main(): Promise<void> {
     ok("hidrasyon sunucu belgesini yerele getirdi", atlasStorage.listOrganNamesFromAtlas(atlasStorage.loadAtlas()).includes("Mide"));
 
     // Kullanıcı eylemi → PUT (expected = sunucu sürümü)
-    const withKalp = { ...atlasStorage.loadAtlas(), Kalp: entry([{ ...region, id: "r2" }]) } as ReturnType<typeof atlasStorage.loadAtlas>;
+    const withKalp = { ...atlasStorage.loadAtlas(), Kalp: entry([{ ...region, id: "r2" }]) } as unknown as ReturnType<typeof atlasStorage.loadAtlas>;
     atlasStorage.saveAtlas(withKalp);
     await sleep(800);
     ok("kullanıcı eylemi → tek PUT gönderildi", requestLog.filter((r) => r.startsWith("PUT /api/refleksoloji/atlas")).length === 1);
