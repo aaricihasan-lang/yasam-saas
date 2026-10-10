@@ -112,7 +112,8 @@ export type LoginAttemptResult =
       ok: true;
       /** login_user ile aynı gating alanları (id, email, name, role, status, tenant_id, active, approval_status). */
       row: Record<string, unknown>;
-      sessionToken: string;
+      /** HTTPONLY H6b: web + cookie taşımasında null (oturum HttpOnly cookie'de; JS token görmez). */
+      sessionToken: string | null;
       suspiciousLogin: boolean;
       normalizedEmail: string;
     }
@@ -206,6 +207,7 @@ export async function loginWithCredentials(
 
   const json = (await res.json().catch(() => ({}))) as {
     sessionToken?: unknown;
+    sessionCookie?: unknown;
     user?: unknown;
     suspiciousLogin?: unknown;
     highRisk?: unknown;
@@ -231,11 +233,14 @@ export async function loginWithCredentials(
   }
 
   const row = rpcLoginRowsToArray(json.user)[0];
-  if (res.ok && typeof json.sessionToken === "string" && json.sessionToken && row) {
+  // Oturum kanıtı: gövdede token (Android / header taşıması) VEYA sunucunun HttpOnly cookie ile
+  // oturum kurduğunu bildiren `sessionCookie: true` (HTTPONLY H6b web). İkisi de yoksa fail-closed.
+  const bodyToken = typeof json.sessionToken === "string" && json.sessionToken ? json.sessionToken : null;
+  if (res.ok && row && (bodyToken || json.sessionCookie === true)) {
     return {
       ok: true,
       row,
-      sessionToken: json.sessionToken,
+      sessionToken: bodyToken,
       suspiciousLogin: json.suspiciousLogin === true || json.highRisk === true,
       normalizedEmail,
     };

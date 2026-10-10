@@ -51,7 +51,7 @@ let memoryAck: string | null = null;
 const listeners = new Set<() => void>();
 
 function sessionFingerprint(): string {
-  const token = readStoredSessionToken() ?? "no-session"; // H6a: yerel parmak izi (başlık değil)
+  const token = readStoredSessionToken() ?? "cookie-session"; // H6a/H6b: yerel parmak izi; web cookie oturumunda kayıt clearYasamUser ile sıfırlanır
   let hash = 0x811c9dc5;
   for (let i = 0; i < token.length; i++) {
     hash ^= token.charCodeAt(i);

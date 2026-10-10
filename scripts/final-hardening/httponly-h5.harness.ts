@@ -258,8 +258,8 @@ async function main() {
   });
 
   // ── 6) statik: H5 kapsamı / H6 sınırı ────────────────────────────────────────────────────
-  await t("H6 YOK: login yanıtı token'ı gövdede döndürmeye devam eder; saveSessionToken çağrılır", () => {
-    assert.ok(/\r?\n\s+sessionToken,\r?\n/.test(read("app/api/auth/session/route.ts")));
+  await t("login gövdesi Android/header taşımasında token döndürür (H6b: web+cookie'de sessionCookie); completeLogin varsa kaydeder", () => {
+    assert.ok(/\{ sessionCookie: true \} : \{ sessionToken \}/.test(read("app/api/auth/session/route.ts")));
     assert.ok(/saveSessionToken\(sessionToken\)/.test(read("app/page.tsx")));
   });
   await t("pending onay: web cookie sunucuda (mod≠off, Android hariç, süreli); token gövdede YOK", () => {
