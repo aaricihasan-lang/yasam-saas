@@ -271,7 +271,7 @@ async function main() {
   await t("token-yok kapıları merkezi helper'da: bilinen kapılarda ham `!token` kalmadı", () => {
     const gates: Array<[string, RegExp]> = [
       ["app/page.tsx", /if \(!hasSessionCredential\(\)\) \{\r?\n\s+\/\/ Oturum kimlik bilgisi yok/],
-      ["lib/auth/yasamUser.ts", /if \(!hasSessionCredential\(token\)\) return user;/],
+      ["lib/auth/yasamUser.ts", /if \(!hasSessionCredential\(token(, user\.id)?\)\) return user;/],
       ["lib/auth/sessionExpiry.ts", /if \(!hasSessionCredential\(token\)\) return null;/],
       ["components/notifications/notificationStore.ts", /return hasWebSession\(\);/],
       ["app/human-design/danisanlar/components/HdChartImageUpload.tsx", /return hasWebSession\(\);/],
