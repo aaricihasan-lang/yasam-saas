@@ -3,10 +3,8 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import {
   MARKS_PER_SESSION_MAX,
-  SURFACE_DEFS,
   isMarkSide,
   isMarkSurface,
-  isValidSurfaceSide,
   validateMarkInput,
 } from "@/lib/refleksoloji/markSurfaces";
 import {
@@ -119,11 +117,8 @@ export async function DELETE(req: NextRequest, { params }: Ctx): Promise<Respons
   if (body.surface !== undefined) {
     if (!isMarkSurface(body.surface)) return jsonError(400, "Geçersiz yüzey.");
     filter.surface = body.surface;
-    const side = body.side ?? (SURFACE_DEFS[body.surface].sided ? undefined : "none");
-    if (!isMarkSide(side) || !isValidSurfaceSide(body.surface, side)) {
-      return jsonError(400, "Yüzey için geçersiz sağ/sol bilgisi.");
-    }
-    filter.side = side;
+    if (!isMarkSide(body.side)) return jsonError(400, "Sağ/sol bilgisi gerekli.");
+    filter.side = body.side;
   } else if (body.side !== undefined) {
     return jsonError(400, "Sağ/sol filtresi yüzey olmadan kullanılamaz.");
   }

@@ -2,7 +2,7 @@
  * Danışan İşaret Haritası — yüzey zemini (SVG içinde çizilir; viewBox = yüzey tanımı).
  *
  * Ayak: mevcut klinik atlas PNG'sinin ilgili YARISI (crop `surfaceView` ile).
- * El / yüz: bu modüle özgü SADE şema (dış kaynaklı görsel yok). Tıbbi/anatomik kesinlik
+ * El: bu modüle özgü SADE şema (dış kaynaklı görsel yok). Tıbbi/anatomik kesinlik
  * iddiası taşımaz; yalnız işaretleme zeminidir. Sol el = sağ el şemasının aynası.
  */
 import type { SurfaceView } from "@/lib/refleksoloji/markSurfaces";
@@ -77,44 +77,6 @@ function HandArt({ kind, mirror, width }: { kind: "hand_palm" | "hand_dorsum"; m
   );
 }
 
-function FaceArt({ width }: { width: number }) {
-  return (
-    <>
-      <path d="M 160 448 L 156 520 M 240 448 L 244 520" stroke={OUTLINE} strokeWidth={3} fill="none" />
-      <path
-        d="M 66 225 C 46 215 40 260 50 285 C 56 300 64 306 72 300 M 334 225 C 354 215 360 260 350 285 C 344 300 336 306 328 300"
-        fill={SKIN}
-        stroke={OUTLINE}
-        strokeWidth={3}
-      />
-      <path
-        d="M 200 70 C 290 70 336 140 334 240 C 332 330 300 400 252 438 C 230 456 214 462 200 462 C 186 462 170 456 148 438 C 100 400 68 330 66 240 C 64 140 110 70 200 70 Z"
-        fill={SKIN}
-        stroke={OUTLINE}
-        strokeWidth={3}
-      />
-      <g fill="none" stroke={DETAIL} strokeWidth={2} strokeLinecap="round">
-        <path d="M 80 186 C 102 112 160 94 200 98 C 240 94 298 112 320 186" />
-        <path d="M 122 205 Q 150 190 180 202 M 220 202 Q 250 190 278 205" strokeWidth={3} />
-        <path d="M 128 236 Q 152 221 176 236 Q 152 249 128 236 Z M 224 236 Q 248 221 272 236 Q 248 249 224 236 Z" />
-        <path d="M 200 244 L 191 310 Q 200 322 212 313" />
-        <path d="M 184 318 Q 190 326 198 322 M 216 318 Q 210 326 202 322" strokeOpacity={0.7} />
-        <path d="M 160 362 Q 180 352 200 357 Q 220 352 240 362 Q 200 388 160 362 Z" />
-        <path d="M 176 418 Q 200 428 224 418" strokeOpacity={0.5} />
-      </g>
-      <circle cx={152} cy={236} r={6} fill="#64748b" />
-      <circle cx={248} cy={236} r={6} fill="#64748b" />
-      {/* Ön görünüm: danışanın SAĞI ekranda SOLDA. Metin + konum, renk değil. */}
-      <text x={30} y={506} fontSize={16} fontWeight={800} fill="#334155" style={{ pointerEvents: "none" }}>
-        Sağ
-      </text>
-      <text x={width - 30} y={506} textAnchor="end" fontSize={16} fontWeight={800} fill="#334155" style={{ pointerEvents: "none" }}>
-        Sol
-      </text>
-    </>
-  );
-}
-
 export function SurfaceArt({ view }: { view: SurfaceView }) {
   if (view.image) {
     const img = view.image;
@@ -130,7 +92,6 @@ export function SurfaceArt({ view }: { view: SurfaceView }) {
       />
     );
   }
-  if (view.vector?.kind === "face") return <FaceArt width={view.width} />;
   if (view.vector) return <HandArt kind={view.vector.kind} mirror={view.vector.mirror} width={view.width} />;
   return null;
 }

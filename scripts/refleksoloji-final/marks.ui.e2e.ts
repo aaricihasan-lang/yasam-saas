@@ -198,7 +198,7 @@ async function main() {
     await m.touchscreen.tap(p4.x, p4.y);
     await m.getByText("Sol Ayak Tabanı · 1 nokta").waitFor();
 
-    // D/E/F/G/H: el ve yüz yüzeyleri
+    // B/C + D/E/F/G: ayak yanları + el yüzeyleri (2D yüz ürün kararıyla YOK)
     const tapOn = async (tab: string, side: "Sağ" | "Sol" | null, x: number, y: number, label: string) => {
       await m.getByRole("tab", { name: new RegExp(`^${tab}`) }).tap();
       if (side) await m.getByRole("radio", { name: new RegExp(`^${side} \\(`) }).tap();
@@ -213,13 +213,15 @@ async function main() {
     await tapOn("El Sırtı", "Sağ", 0.55, 0.45, "Sağ El — El Sırtı");
     await tapOn("El Sırtı", "Sol", 0.5, 0.4, "Sol El — El Sırtı");
     await shot(m, "m05-dorsum-left");
-    await tapOn("Yüz", null, 0.5, 0.33, "Yüz");
-    await shot(m, "m06-face");
+    await tapOn("Ayak İç Yan", "Sağ", 0.35, 0.55, "Sağ Ayak İç Yan");
+    await tapOn("Ayak Dış Yan", "Sol", 0.4, 0.6, "Sol Ayak Dış Yan");
+    await shot(m, "m06-foot-outer-left");
+    ok((await m.getByRole("tab", { name: /^Yüz/ }).count()) === 0 && (await m.getByRole("tab").count()) === 5, "2D Yüz sekmesi YOK; 5 yüzey sekmesi");
     await sleep(600);
     rows = await dbMarks();
     const kinds = rows.map((r) => `${r.surface}/${r.side}`).sort();
-    ok(JSON.stringify(kinds) === JSON.stringify(["face/none", "foot_sole/left", "foot_sole/right", "hand_dorsum/left", "hand_dorsum/right", "hand_palm/left", "hand_palm/right"]), "7 yüzey/taraf DB'de ayrı", kinds);
-    ok(await noHScroll(m), "yüz/el sekmeleri: yatay taşma yok");
+    ok(JSON.stringify(kinds) === JSON.stringify(["foot_inner/right", "foot_outer/left", "foot_sole/left", "foot_sole/right", "hand_dorsum/left", "hand_dorsum/right", "hand_palm/left", "hand_palm/right"]), "8 yüzey/taraf DB'de ayrı", kinds);
+    ok(await noHScroll(m), "ayak/el sekmeleri: yatay taşma yok");
     const sessionUrl = m.url();
     const S = new URL(sessionUrl).searchParams.get("session");
 
@@ -230,13 +232,13 @@ async function main() {
     const cvTop = await m.locator('svg[role="group"]').evaluate((el) => el.getBoundingClientRect().top);
     ok(cvTop < 844 * 0.5, `mobil: harita sayfa açılışında ekranın üst yarısında başlar (top=${Math.round(cvTop)}px)`);
     // Buton hit-area (seçim çipleri) ≥ 44px
-    const chipH = await m.getByRole("tab", { name: /^Yüz/ }).boundingBox();
+    const chipH = await m.getByRole("tab", { name: /^El Sırtı/ }).boundingBox();
     ok(!!chipH && chipH.height >= 43.5, `yüzey sekmesi dokunma yüksekliği ${chipH?.height}`);
 
     // Tarayıcı GERİ: seans → liste
     await m.goBack();
     await m.getByRole("heading", { name: "İşaret seansları" }).waitFor();
-    ok(await m.getByText("7 nokta").waitFor({ timeout: 15_000 }).then(() => true, () => false), "tarayıcı geri → seans listesi (7 nokta)");
+    ok(await m.getByText("8 nokta").waitFor({ timeout: 15_000 }).then(() => true, () => false), "tarayıcı geri → seans listesi (8 nokta)");
     await m.goForward();
     await m.locator('svg[role="group"]').waitFor();
 
@@ -358,16 +360,16 @@ async function main() {
     ok(after.filter((r) => r.surface === "hand_palm" && r.side === "right").length === 0 && after.length === otherBefore, "3 aşama sonrası yalnız bu yüzey silindi (U)");
 
     // Vazgeç yolu: aşama 2'de iptal → silme yok
-    await w.getByRole("tab", { name: /^Yüz/ }).click();
+    await w.getByRole("tab", { name: /^El Sırtı/ }).click();
     await w.getByRole("button", { name: "Tümünü sil" }).click();
     await dlg.getByRole("button", { name: "Devam Et" }).click();
     await dlg.getByText("Doğrulama — Adım 2/3").waitFor();
     await sleep(500);
     await dlg.getByRole("button", { name: "Vazgeç" }).click();
     await sleep(500);
-    ok((await dbMarks()).some((r) => r.surface === "face"), "aşama 2'de Vazgeç → yüz noktası korundu");
+    ok((await dbMarks()).filter((r) => r.surface === "hand_dorsum").length === 2, "aşama 2'de Vazgeç → el sırtı noktaları korundu");
     ok(await noHScroll(w), "web: yatay taşma yok");
-    await shot(w, "w04-face");
+    await shot(w, "w04-dorsum");
 
     // Seans bilgisi / mesleki not
     await w.getByRole("button", { name: "Seans bilgisi / not" }).click();

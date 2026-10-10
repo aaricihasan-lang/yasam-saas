@@ -1,7 +1,7 @@
 -- =============================================================================
 -- 20271013000000_reflexology_client_marks.sql   [ADDITIVE — 2 NEW TABLES + TRIGGER]
 --
--- REFLEKSOLOJİ — DANIŞAN İŞARET HARİTASI (ayak / avuç içi / el sırtı / yüz noktaları).
+-- REFLEKSOLOJİ — DANIŞAN İŞARET HARİTASI (ayak / avuç içi / el sırtı noktaları).
 --
 -- AMAÇ:
 --   reflexology_mark_sessions → danışana bağlı işaret SEANSI (tarih + başlık + mesleki not).
@@ -14,6 +14,13 @@
 --
 -- KOORDİNAT: x,y ∈ [0,1] yüzeyin SABİT viewBox'ına göre (lib/refleksoloji/markSurfaces.ts).
 --   Piksel saklanmaz → mobil/web aynı nokta.
+--
+-- YÜZEYLER (satış öncesi): foot_sole / foot_inner / foot_outer / hand_palm / hand_dorsum,
+--   hepsi side ∈ {right,left}. `surface` ve `side` serbest `text` + İSİMLİ CHECK kısıtıdır (enum DEĞİL).
+-- GELECEK PLANLANMIŞ GELİŞTİRME: Yüz Refleksolojisi doğrudan 3D olarak geliştirilecek; geçici 2D
+--   sürüm yayınlanmayacak. 3D yüz eklemek yalnız `reflexology_marks_surface_chk` ve
+--   `reflexology_marks_side_chk` kısıtlarının DROP/ADD ile genişletilmesini gerektirir (veri yeniden
+--   yazımı / tablo değişimi YOK); x,y 0..1 model doku (UV) koordinatı olarak kullanılabilir.
 --
 -- GÜVENLİK (client_anamneses deseni):
 --   * REVOKE ALL FROM PUBLIC, anon, authenticated, service_role → service_role'e AÇIK allowlist.
@@ -111,12 +118,9 @@ CREATE TABLE IF NOT EXISTS public.reflexology_marks (
   created_at          timestamptz      NOT NULL DEFAULT now(),
   updated_at          timestamptz      NOT NULL DEFAULT now(),
   CONSTRAINT reflexology_marks_surface_chk CHECK (
-    surface IN ('foot_sole', 'foot_inner', 'foot_outer', 'hand_palm', 'hand_dorsum', 'face')
+    surface IN ('foot_sole', 'foot_inner', 'foot_outer', 'hand_palm', 'hand_dorsum')
   ),
-  CONSTRAINT reflexology_marks_side_chk CHECK (
-    (surface = 'face' AND side = 'none')
-    OR (surface <> 'face' AND side IN ('right', 'left'))
-  ),
+  CONSTRAINT reflexology_marks_side_chk CHECK (side IN ('right', 'left')),
   CONSTRAINT reflexology_marks_xy_chk CHECK (x >= 0 AND x <= 1 AND y >= 0 AND y <= 1),
   CONSTRAINT reflexology_marks_size_chk CHECK (size IN ('small', 'medium', 'large')),
   CONSTRAINT reflexology_marks_intensity_chk CHECK (intensity IS NULL OR intensity IN ('light', 'medium', 'strong')),

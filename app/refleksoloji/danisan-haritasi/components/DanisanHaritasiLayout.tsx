@@ -89,7 +89,7 @@ export function DanisanHaritasiLayout() {
           <h1 className={`mt-1 font-black tracking-tight text-slate-900 sm:text-2xl ${sessionId ? "text-lg" : "text-xl"}`}>Danışan Haritası</h1>
           {/* Mobilde düzenleyicide gizli → harita ekranın üst yarısına çıkar. */}
           <p className={`mt-0.5 text-sm font-medium text-slate-600 ${sessionId ? "hidden sm:block" : ""}`}>
-            Danışana özel ayak, el ve yüz haritalarında nokta işaretleyin. Her seans ayrı kaydedilir.
+            Danışana özel ayak ve el haritalarında nokta işaretleyin. Her seans ayrı kaydedilir.
           </p>
         </header>
 

@@ -1,7 +1,7 @@
 /**
  * Refleksoloji — DANIŞAN İŞARET HARİTASI yüzey kayıt defteri (SAF; DOM/fetch yok).
  *
- * Uzman bir danışan seansında ayak / avuç içi / el sırtı / yüz yüzeylerine nokta koyar.
+ * Uzman bir danışan seansında ayak / avuç içi / el sırtı yüzeylerine nokta koyar.
  * Her işaret (surface, side) çiftine AİTTİR; bir yüzeyin noktası başka yüzeyde ASLA
  * çizilmez (filtre `marksForSurface`). Bu dosya istemci, API ve harness'in ORTAK tek
  * kaynağıdır — sunucu doğrulaması da buradaki listeleri kullanır.
@@ -11,8 +11,13 @@
  * aynı (x,y) aynı anatomik noktaya düşer (piksel koordinatı SAKLANMAZ).
  *
  * Görseller: ayak yüzeyleri mevcut atlas PNG'lerinin (çift ayak) ilgili YARISIDIR (crop);
- * el ve yüz yüzeyleri bu modüle özgü sade SVG şemalarıdır (dış kaynaklı görsel yok).
+ * el yüzeyleri bu modüle özgü sade SVG şemalarıdır (dış kaynaklı görsel yok).
  * Şemalar işaretleme zeminidir; anatomik/tıbbi kesinlik iddiası taşımaz.
+ *
+ * GELECEK PLANLANMIŞ GELİŞTİRME (owner kararı 2026-10-10): Yüz Refleksolojisi doğrudan 3D
+ * olarak geliştirilecek; geçici 2D sürüm yayınlanmayacak. Yeni yüzey = bu kayda yeni anahtar
+ * + DB'de `reflexology_marks_surface_chk` / `_side_chk` kısıt değişimi (veri yeniden yazımı YOK);
+ * x/y (0..1) 3D modelde doku/UV koordinatı olarak kullanılabilir.
  */
 
 export const MARK_SURFACES = [
@@ -21,11 +26,10 @@ export const MARK_SURFACES = [
   "foot_outer",
   "hand_palm",
   "hand_dorsum",
-  "face",
 ] as const;
 export type MarkSurface = (typeof MARK_SURFACES)[number];
 
-export const MARK_SIDES = ["right", "left", "none"] as const;
+export const MARK_SIDES = ["right", "left"] as const;
 export type MarkSide = (typeof MARK_SIDES)[number];
 
 export const MARK_SIZES = ["small", "medium", "large"] as const;
@@ -49,7 +53,6 @@ export const MARK_INTENSITY_LABEL: Record<MarkIntensity, string> = {
 export const MARK_SIDE_LABEL: Record<MarkSide, string> = {
   right: "Sağ",
   left: "Sol",
-  none: "",
 };
 
 /** Nokta yarıçapı — yüzey viewBox KISA kenarına oranla (ekran boyutundan bağımsız). */
@@ -65,24 +68,21 @@ export const SESSION_NOTE_MAX = 4000;
 /** Seans başına üst sınır (yanlışlıkla/otomasyonla şişmeyi engeller). */
 export const MARKS_PER_SESSION_MAX = 400;
 
-export type SurfaceGroup = "foot" | "hand" | "face";
+export type SurfaceGroup = "foot" | "hand";
 
 export type SurfaceDef = {
   key: MarkSurface;
   group: SurfaceGroup;
   /** Sekme etiketi */
   label: string;
-  /** Sağ/sol seçimi gerekir mi? (yüz: hayır → side="none") */
-  sided: boolean;
 };
 
 export const SURFACE_DEFS: Record<MarkSurface, SurfaceDef> = {
-  foot_sole: { key: "foot_sole", group: "foot", label: "Ayak Tabanı", sided: true },
-  foot_inner: { key: "foot_inner", group: "foot", label: "Ayak İç Yan", sided: true },
-  foot_outer: { key: "foot_outer", group: "foot", label: "Ayak Dış Yan", sided: true },
-  hand_palm: { key: "hand_palm", group: "hand", label: "Avuç İçi", sided: true },
-  hand_dorsum: { key: "hand_dorsum", group: "hand", label: "El Sırtı", sided: true },
-  face: { key: "face", group: "face", label: "Yüz", sided: false },
+  foot_sole: { key: "foot_sole", group: "foot", label: "Ayak Tabanı" },
+  foot_inner: { key: "foot_inner", group: "foot", label: "Ayak İç Yan" },
+  foot_outer: { key: "foot_outer", group: "foot", label: "Ayak Dış Yan" },
+  hand_palm: { key: "hand_palm", group: "hand", label: "Avuç İçi" },
+  hand_dorsum: { key: "hand_dorsum", group: "hand", label: "El Sırtı" },
 };
 
 export function isMarkSurface(v: unknown): v is MarkSurface {
@@ -98,14 +98,8 @@ export function isMarkIntensity(v: unknown): v is MarkIntensity {
   return typeof v === "string" && (MARK_INTENSITIES as readonly string[]).includes(v);
 }
 
-/** Yüzey/taraf uyumu: yönlü yüzey → right|left; yüz → none. (DB CHECK ile birebir.) */
-export function isValidSurfaceSide(surface: MarkSurface, side: MarkSide): boolean {
-  return SURFACE_DEFS[surface].sided ? side === "right" || side === "left" : side === "none";
-}
-
 export function surfaceLabel(surface: MarkSurface, side: MarkSide): string {
   const def = SURFACE_DEFS[surface];
-  if (!def.sided) return def.label;
   const s = MARK_SIDE_LABEL[side];
   if (def.group === "foot") return `${s} ${def.label}`;
   return `${s} El — ${def.label}`;
@@ -119,8 +113,8 @@ export type SurfaceView = {
   height: number;
   /** Raster zemin (ayak) — viewBox'a göre konumlanır; crop = görselin ilgili yarısı. */
   image?: { href: string; x: number; y: number; width: number; height: number };
-  /** Vektör şema (el/yüz) — çizim bileşeni `kind`'a göre çizer. */
-  vector?: { kind: "hand_palm" | "hand_dorsum" | "face"; mirror: boolean };
+  /** Vektör şema (el) — çizim bileşeni `kind`'a göre çizer. */
+  vector?: { kind: "hand_palm" | "hand_dorsum"; mirror: boolean };
 };
 
 /**
@@ -137,7 +131,6 @@ const FOOT_IMAGES: Record<
 };
 
 export const HAND_VIEWBOX = { width: 400, height: 560 } as const;
-export const FACE_VIEWBOX = { width: 400, height: 520 } as const;
 
 /**
  * El şemasının temel çizimi = başparmak SAĞDA. Kendi ellerine bakan uzman bakışı:
@@ -160,11 +153,7 @@ export function surfaceView(surface: MarkSurface, side: MarkSide): SurfaceView {
       image: { href: img.href, x: -cropX, y: -img.cropY, width: img.w, height: img.h },
     };
   }
-  if (surface === "hand_palm" || surface === "hand_dorsum") {
-    const s = side === "left" ? "left" : "right";
-    return { ...HAND_VIEWBOX, vector: { kind: surface, mirror: handMirrored(surface, s) } };
-  }
-  return { ...FACE_VIEWBOX, vector: { kind: "face", mirror: false } };
+  return { ...HAND_VIEWBOX, vector: { kind: surface, mirror: handMirrored(surface, side) } };
 }
 
 // ─── İşaret modeli ──────────────────────────────────────────────────────────────
@@ -200,8 +189,7 @@ export function marksForSurface<T extends Pick<ClientMark, "surface" | "side">>(
   surface: MarkSurface,
   side: MarkSide,
 ): T[] {
-  const effSide: MarkSide = SURFACE_DEFS[surface].sided ? side : "none";
-  return marks.filter((m) => m.surface === surface && m.side === effSide);
+  return marks.filter((m) => m.surface === surface && m.side === side);
 }
 
 export function countBySurface(
@@ -267,10 +255,8 @@ export function validateMarkInput(raw: unknown): ValidationResult<MarkInput> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ok: false, error: "Geçersiz işaret." };
   const r = raw as Record<string, unknown>;
   if (!isMarkSurface(r.surface)) return { ok: false, error: "Geçersiz yüzey." };
-  const side: unknown = r.side ?? (SURFACE_DEFS[r.surface].sided ? undefined : "none");
-  if (!isMarkSide(side) || !isValidSurfaceSide(r.surface, side)) {
-    return { ok: false, error: "Yüzey için geçersiz sağ/sol bilgisi." };
-  }
+  const side = r.side;
+  if (!isMarkSide(side)) return { ok: false, error: "Sağ/sol bilgisi gerekli." };
   const x = unitNumber(r.x);
   const y = unitNumber(r.y);
   if (x === null || y === null) return { ok: false, error: "Koordinat 0–1 aralığında olmalı." };

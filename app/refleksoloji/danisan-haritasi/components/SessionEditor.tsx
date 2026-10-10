@@ -183,9 +183,8 @@ export function SessionEditor({
   const [draftNote, setDraftNote] = useState("");
   const [infoBusy, setInfoBusy] = useState(false);
 
-  const effSide: MarkSide = SURFACE_DEFS[surface].sided ? side : "none";
-  const view = useMemo(() => surfaceView(surface, effSide), [surface, effSide]);
-  const surfaceMarks = useMemo(() => marksForSurface(marks, surface, effSide), [marks, surface, effSide]);
+  const view = useMemo(() => surfaceView(surface, side), [surface, side]);
+  const surfaceMarks = useMemo(() => marksForSurface(marks, surface, side), [marks, surface, side]);
   const counts = useMemo(() => countBySurface(marks), [marks]);
   const selected = useMemo(() => surfaceMarks.find((m) => m.id === selectedId) ?? null, [surfaceMarks, selectedId]);
   const selectedIndex = selected ? surfaceMarks.findIndex((m) => m.id === selected.id) + 1 : 0;
@@ -264,7 +263,7 @@ export function SessionEditor({
         id: tempId,
         session_id: sessionId,
         surface,
-        side: effSide,
+        side: side,
         x,
         y,
         size: newSize,
@@ -279,7 +278,7 @@ export function SessionEditor({
       try {
         const saved = await addMark(
           sessionId,
-          { surface, side: effSide, x, y, size: newSize, intensity: newIntensity, note: null },
+          { surface, side: side, x, y, size: newSize, intensity: newIntensity, note: null },
           uid,
         );
         setMarks((prev) => prev.map((m) => (m.id === tempId ? saved : m)));
@@ -290,7 +289,7 @@ export function SessionEditor({
         fail("Nokta eklenemedi", e);
       }
     },
-    [readOnly, sessionId, surface, effSide, newSize, newIntensity, showToast, fail],
+    [readOnly, sessionId, surface, side, newSize, newIntensity, showToast, fail],
   );
 
   const applyPatch = useCallback(
@@ -321,7 +320,7 @@ export function SessionEditor({
   const handleDeleteOne = useCallback(
     async (id: string) => {
       if (readOnly || id.startsWith("tmp-")) return;
-      const idx = marksForSurface(marksRef.current, surface, effSide).findIndex((m) => m.id === id) + 1;
+      const idx = marksForSurface(marksRef.current, surface, side).findIndex((m) => m.id === id) + 1;
       const ok = await confirm({
         title: "Noktayı sil",
         message: `${idx > 0 ? `${idx}. nokta` : "Nokta"} silinsin mi?`,
@@ -341,24 +340,24 @@ export function SessionEditor({
         fail("Nokta silinemedi", e);
       }
     },
-    [readOnly, surface, effSide, confirm, fail],
+    [readOnly, surface, side, confirm, fail],
   );
 
   const handleDeleteSurface = useCallback(async () => {
     if (readOnly || bulkBusy) return;
-    const list = marksForSurface(marksRef.current, surface, effSide).filter((m) => !m.pending);
+    const list = marksForSurface(marksRef.current, surface, side).filter((m) => !m.pending);
     if (list.length === 0) return;
     // "Tümünü Sil" → sayıdan bağımsız 3 aşamalı onay (sistem kuralı).
     const ok = await runBulkDeleteConfirm(confirm, {
       count: list.length,
       deleteAll: true,
       noun: "nokta",
-      detail: `${surfaceLabel(surface, effSide)} yüzeyindeki ${list.length} nokta silinecek. Diğer yüzeylerdeki noktalar korunur.`,
+      detail: `${surfaceLabel(surface, side)} yüzeyindeki ${list.length} nokta silinecek. Diğer yüzeylerdeki noktalar korunur.`,
     });
     if (!ok) return;
     setBulkBusy(true);
     try {
-      await deleteSurfaceMarks(sessionId, { surface, side: effSide }, list.length);
+      await deleteSurfaceMarks(sessionId, { surface, side: side }, list.length);
       const ids = new Set(list.map((m) => m.id));
       setMarks((prev) => prev.filter((m) => !ids.has(m.id)));
       setSelectedId(null);
@@ -369,7 +368,7 @@ export function SessionEditor({
     } finally {
       setBulkBusy(false);
     }
-  }, [readOnly, bulkBusy, surface, effSide, confirm, sessionId, showToast, fail, load]);
+  }, [readOnly, bulkBusy, surface, side, confirm, sessionId, showToast, fail, load]);
 
   async function saveInfo(e: React.FormEvent) {
     e.preventDefault();
@@ -407,9 +406,8 @@ export function SessionEditor({
 
   const infoDirty =
     draftDate !== session.session_date || draftTitle.trim() !== (session.title ?? "") || draftNote.trim() !== (session.note ?? "");
-  const surfaceTotal = (s: MarkSurface) =>
-    SURFACE_DEFS[s].sided ? (counts.get(`${s}:right`) ?? 0) + (counts.get(`${s}:left`) ?? 0) : counts.get(`${s}:none`) ?? 0;
-  const canvasLabel = `${surfaceLabel(surface, effSide)} haritası — ${surfaceMarks.length} nokta. ${
+  const surfaceTotal = (s: MarkSurface) => (counts.get(`${s}:right`) ?? 0) + (counts.get(`${s}:left`) ?? 0);
+  const canvasLabel = `${surfaceLabel(surface, side)} haritası — ${surfaceMarks.length} nokta. ${
     readOnly ? "" : mode === "add" ? "Nokta eklemek için haritaya dokunun." : "Seçmek için noktaya dokunun, taşımak için sürükleyin."
   }`;
 
@@ -524,19 +522,15 @@ export function SessionEditor({
         {/* Harita */}
         <section className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/90 bg-white shadow-sm ring-1 ring-violet-100">
           <div className="flex flex-wrap items-center gap-2 border-b border-violet-100 px-2 py-2 sm:px-3">
-            {SURFACE_DEFS[surface].sided ? (
-              <Segmented<"right" | "left">
+            <Segmented<"right" | "left">
                 label="Taraf"
-                value={side === "left" ? "left" : "right"}
+                value={side}
                 options={[
                   { value: "right", label: `Sağ (${counts.get(`${surface}:right`) ?? 0})` },
                   { value: "left", label: `Sol (${counts.get(`${surface}:left`) ?? 0})` },
                 ]}
                 onChange={(v) => changeSide(v ?? "right")}
               />
-            ) : (
-              <span className="text-xs font-bold text-slate-700">Ön görünüm — danışanın sağı ekranda solda</span>
-            )}
             {!readOnly ? (
               <div className="ml-auto">
                 <Segmented<"add" | "select">
@@ -626,7 +620,7 @@ export function SessionEditor({
           <section className="rounded-2xl border border-white/80 bg-white/90 p-3 shadow-sm ring-1 ring-violet-100" aria-labelledby="dh-list">
             <div className="mb-2 flex items-center justify-between gap-2">
               <h3 id="dh-list" className="text-sm font-black text-slate-800">
-                {surfaceLabel(surface, effSide)} · {surfaceMarks.length} nokta
+                {surfaceLabel(surface, side)} · {surfaceMarks.length} nokta
               </h3>
               {!readOnly && surfaceMarks.length > 0 ? (
                 <button

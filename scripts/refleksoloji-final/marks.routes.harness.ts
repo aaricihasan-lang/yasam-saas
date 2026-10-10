@@ -61,7 +61,7 @@ async function main(): Promise<void> {
     const sessionRoute = await import("../../app/api/refleksoloji/marks/sessions/[id]/route");
     const marksRoute = await import("../../app/api/refleksoloji/marks/sessions/[id]/marks/route");
     const itemRoute = await import("../../app/api/refleksoloji/marks/items/[markId]/route");
-    const { marksForSurface, MARK_SURFACES, SURFACE_DEFS } = await import("../../lib/refleksoloji/markSurfaces");
+    const { marksForSurface, MARK_SURFACES, MARK_SIDES } = await import("../../lib/refleksoloji/markSurfaces");
     const { collectDeletePreview } = await import("../../lib/danisan/deletePreview");
     const { createClient } = await import("@supabase/supabase-js");
 
@@ -131,7 +131,6 @@ async function main(): Promise<void> {
       { surface: "hand_palm", side: "left", x: 0.48, y: 0.58 },
       { surface: "hand_dorsum", side: "right", x: 0.55, y: 0.4 },
       { surface: "hand_dorsum", side: "left", x: 0.45, y: 0.41 },
-      { surface: "face", side: "none", x: 0.5, y: 0.3 },
     ];
     const ids: string[] = [];
     for (const p of placements) {
@@ -145,14 +144,14 @@ async function main(): Promise<void> {
     const row0 = await markRow(ids[0]);
     ok(row0.client_id === a1 && row0.tenant_id === seed.TA && row0.session_id === S1, "nokta client_id SEANSTAN (body client_id/tenant_id/session_id yok sayıldı)", row0);
     ok(Math.abs(row0.x - 0.41) < 1e-9 && Math.abs(row0.y - 0.33) < 1e-9, "normalize koordinat birebir saklandı");
-    // Yüz otomatik side=none
-    const faceAuto = await call(marksRoute.POST, "POST", { id: S1 }, asA, { surface: "face", x: 0.4, y: 0.4 });
-    ok(faceAuto.status === 201 && (faceAuto.json.mark as Json).side === "none" && (faceAuto.json.mark as Json).size === "medium", "yüz: side verilmezse none, boyut varsayılan orta");
-    ids.push((faceAuto.json.mark as Json).id as string);
+    const defSize = await call(marksRoute.POST, "POST", { id: S1 }, asA, { surface: "foot_outer", side: "right", x: 0.4, y: 0.4 });
+    ok(defSize.status === 201 && (defSize.json.mark as Json).size === "medium" && (defSize.json.mark as Json).intensity === null, "boyut varsayılan orta, yoğunluk yok");
+    ids.push((defSize.json.mark as Json).id as string);
 
     section("3b. Geçersiz girdiler");
     const bads: Array<[string, Json]> = [
-      ["yüz + sağ taraf", { surface: "face", side: "right", x: 0.5, y: 0.5 }],
+      ["2D yüz (ürün kararıyla yok) → reddedilir", { surface: "face", side: "right", x: 0.5, y: 0.5 }],
+      ["yüz + none", { surface: "face", side: "none", x: 0.5, y: 0.5 }],
       ["el + taraf yok", { surface: "hand_palm", x: 0.5, y: 0.5 }],
       ["ayak + none", { surface: "foot_sole", side: "none", x: 0.5, y: 0.5 }],
       ["x > 1", { surface: "foot_sole", side: "right", x: 1.2, y: 0.5 }],
@@ -172,16 +171,15 @@ async function main(): Promise<void> {
     section("4. Yüzey ayrımı");
     const g = await call(sessionRoute.GET, "GET", { id: S1 }, asA);
     const marks = g.json.marks as Array<{ surface: never; side: never; id: string }>;
-    ok(g.status === 200 && marks.length === 10, "seans GET: 10 nokta", g.json);
+    ok(g.status === 200 && marks.length === 9, "seans GET: 9 nokta", g.json);
+    ok(MARK_SURFACES.length === 5 && !(MARK_SURFACES as readonly string[]).includes("face"), "desteklenen yüzeyler: 5 (2D yüz YOK)");
     for (const s of MARK_SURFACES) {
-      const sides = SURFACE_DEFS[s].sided ? (["right", "left"] as const) : (["none"] as const);
-      for (const side of sides) {
+      for (const side of MARK_SIDES) {
         const got = marksForSurface(marks, s, side);
-        const expect = placements.filter((p) => p.surface === s && p.side === side).length + (s === "face" ? 1 : 0);
+        const expect = placements.filter((p) => p.surface === s && p.side === side).length + (s === "foot_outer" && side === "right" ? 1 : 0);
         ok(got.length === expect && got.every((m) => (m as { surface: string }).surface === s && (m as { side: string }).side === side), `${s}/${side}: yalnız kendi noktası (${expect})`);
       }
     }
-    ok(marksForSurface(marks, "face", "right").every((m) => (m as { side: string }).side === "none"), "yüz yönsüz: taraf parametresi yok sayılır");
 
     // ── 5. Güncelleme (taşı, boyut, yoğunluk, not) ────────────────────────────
     section("5. PATCH (J–L)");
@@ -193,13 +191,13 @@ async function main(): Promise<void> {
     ok(it1.status === 200 && (it1.json.mark as Json).intensity === "strong", "yoğunluk → yoğun (L)");
     const it2 = await call(itemRoute.PATCH, "PATCH", { markId: ids[4] }, asA, { intensity: null, note: "" });
     ok(it2.status === 200 && (it2.json.mark as Json).intensity === null && (it2.json.mark as Json).note === null, "yoğunluk kaldır + boş not → null");
-    const onlySurface = await call(itemRoute.PATCH, "PATCH", { markId: ids[4] }, asA, { surface: "face", side: "none" });
+    const onlySurface = await call(itemRoute.PATCH, "PATCH", { markId: ids[4] }, asA, { surface: "foot_sole", side: "left" });
     ok(onlySurface.status === 400, "yalnız yüzey/taraf PATCH → 400 (yüzeyler arası taşıma YOK)");
-    await call(itemRoute.PATCH, "PATCH", { markId: ids[4] }, asA, { surface: "face", side: "none", size: "small" });
+    await call(itemRoute.PATCH, "PATCH", { markId: ids[4] }, asA, { surface: "foot_sole", side: "left", size: "small" });
     const r4 = await markRow(ids[4]);
     ok(r4.surface === "hand_palm" && r4.side === "right" && r4.size === "small", "yüzey alanı sessizce yok sayıldı, yalnız boyut değişti", r4);
     let trigBlocked = false;
-    try { await su.query(`update public.reflexology_marks set surface='face', side='none' where id=$1`, [ids[4]]); } catch { trigBlocked = true; }
+    try { await su.query(`update public.reflexology_marks set surface='foot_sole', side='left' where id=$1`, [ids[4]]); } catch { trigBlocked = true; }
     ok(trigBlocked, "DB trigger: yüzey/taraf doğrudan SQL ile de değiştirilemez");
     ok((await call(itemRoute.PATCH, "PATCH", { markId: ids[4] }, asA, { x: 2, y: 0 })).status === 400, "PATCH x>1 → 400");
 
@@ -210,10 +208,10 @@ async function main(): Promise<void> {
     ok(bPatch.status === 404 && (await markRow(ids[0])).size === "medium", "B düzenleyemez (nokta) → 404, satır değişmedi");
     ok((await call(itemRoute.DELETE, "DELETE", { markId: ids[0] }, asB)).status === 404 && !!(await markRow(ids[0])), "B silemez (nokta) → 404, satır duruyor");
     ok((await call(marksRoute.POST, "POST", { id: S1 }, asB, placements[0])).status === 404, "B A'nın seansına yazamaz → 404");
-    ok((await call(marksRoute.DELETE, "DELETE", { id: S1 }, asB, { expected_count: 10 })).status === 404, "B toplu silemez → 404");
+    ok((await call(marksRoute.DELETE, "DELETE", { id: S1 }, asB, { expected_count: 9 })).status === 404, "B toplu silemez → 404");
     ok((await call(sessionRoute.PATCH, "PATCH", { id: S1 }, asB, { note: "hack" })).status === 404, "B seans düzenleyemez → 404");
-    ok((await call(sessionRoute.DELETE, "DELETE", { id: S1 }, asB, undefined, "?expected_marks=10")).status === 404, "B seans silemez → 404");
-    ok((await countMarks("session_id=$1", [S1])) === 10, "B denemeleri sonrası A'nın 10 noktası yerinde");
+    ok((await call(sessionRoute.DELETE, "DELETE", { id: S1 }, asB, undefined, "?expected_marks=9")).status === 404, "B seans silemez → 404");
+    ok((await countMarks("session_id=$1", [S1])) === 9, "B denemeleri sonrası A'nın 9 noktası yerinde");
     const a2g = await call(sessionRoute.GET, "GET", { id: S1 }, asA2);
     ok(a2g.status === 200, "aynı tenant'taki 2. uzman (A2) tenant verisini görür (mevcut tenant modeli)");
 
@@ -221,20 +219,28 @@ async function main(): Promise<void> {
     section("7. Danışan izolasyonu");
     const s2 = await call(sessionsRoute.POST, "POST", {}, asA, { client_id: a2, session_date: "2026-10-09" });
     const S2 = (s2.json.session as Json).id as string;
-    await call(marksRoute.POST, "POST", { id: S2 }, asA, { surface: "face", x: 0.1, y: 0.1 });
+    await call(marksRoute.POST, "POST", { id: S2 }, asA, { surface: "hand_dorsum", side: "left", x: 0.1, y: 0.1 });
     const la1 = await call(sessionsRoute.GET, "GET", {}, asA, undefined, `?client_id=${a1}`);
     const la2 = await call(sessionsRoute.GET, "GET", {}, asA, undefined, `?client_id=${a2}`);
     ok((la1.json.sessions as Json[]).every((s) => s.client_id === a1) && (la1.json.sessions as Json[]).length === 1, "a1 listesi yalnız a1 seansı");
     ok((la2.json.sessions as Json[]).length === 1 && (la2.json.sessions as Json[])[0].mark_count === 1, "a2 listesi yalnız a2 seansı (1 nokta)");
-    ok((la1.json.sessions as Json[])[0].mark_count === 10, "a1 seansı nokta sayısı 10");
+    ok((la1.json.sessions as Json[])[0].mark_count === 9, "a1 seansı nokta sayısı 9");
     let fkBlocked = false;
     try {
       await su.query(
-        `insert into public.reflexology_marks(tenant_id, client_id, session_id, surface, side, x, y) values ($1,$2,$3,'face','none',0.5,0.5)`,
+        `insert into public.reflexology_marks(tenant_id, client_id, session_id, surface, side, x, y) values ($1,$2,$3,'hand_palm','left',0.5,0.5)`,
         [seed.TA, a2, S1],
       );
     } catch { fkBlocked = true; }
     ok(fkBlocked, "DB composite FK: a2 noktası a1 seansına bağlanamaz");
+    let faceDb = false;
+    try {
+      await su.query(
+        `insert into public.reflexology_marks(tenant_id, client_id, session_id, surface, side, x, y) values ($1,$2,$3,'face','none',0.5,0.5)`,
+        [seed.TA, a1, S1],
+      );
+    } catch { faceDb = true; }
+    ok(faceDb, "DB CHECK: 2D 'face' yüzeyi kabul edilmez (satış öncesi desteklenmiyor)");
     let crossTenant = false;
     try {
       await su.query(
@@ -246,9 +252,9 @@ async function main(): Promise<void> {
 
     // ── 8. Tek nokta silme (J) + toplu silme (U) ─────────────────────────────
     section("8. Silme güvenliği");
-    const del1 = await call(itemRoute.DELETE, "DELETE", { markId: ids[8] }, asA);
-    ok(del1.status === 200 && !(await markRow(ids[8])), "tek nokta silme (tek istek, toplu kural yok)");
-    ok((await call(itemRoute.DELETE, "DELETE", { markId: ids[8] }, asA)).status === 404, "silinmiş nokta tekrar → 404");
+    const del1 = await call(itemRoute.DELETE, "DELETE", { markId: ids[7] }, asA);
+    ok(del1.status === 200 && !(await markRow(ids[7])), "tek nokta silme (tek istek, toplu kural yok)");
+    ok((await call(itemRoute.DELETE, "DELETE", { markId: ids[7] }, asA)).status === 404, "silinmiş nokta tekrar → 404");
     for (const p of [{ x: 0.1, y: 0.1 }, { x: 0.2, y: 0.2 }]) {
       await call(marksRoute.POST, "POST", { id: S1 }, asA, { surface: "hand_palm", side: "right", ...p });
     }

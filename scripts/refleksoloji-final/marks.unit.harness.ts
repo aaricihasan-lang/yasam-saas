@@ -5,6 +5,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import {
+  MARK_SIDES,
   MARK_SURFACES,
   MARK_SIZE_RATIO,
   SURFACE_DEFS,
@@ -12,7 +13,6 @@ import {
   describeMark,
   fromViewBox,
   handMirrored,
-  isValidSurfaceSide,
   markRadius,
   marksForSurface,
   surfaceLabel,
@@ -38,12 +38,10 @@ const read = (p: string) => readFileSync(path.join(root, p), "utf8");
 
 // ─── 1. Yüzey kaydı ─────────────────────────────────────────────────────────────
 section("1. Yüzey kaydı");
-ok(MARK_SURFACES.length === 6, "6 yüzey (taban/iç/dış ayak, avuç, el sırtı, yüz)");
-ok(MARK_SURFACES.filter((s) => SURFACE_DEFS[s].sided).length === 5 && !SURFACE_DEFS.face.sided, "yalnız yüz yönsüz");
-for (const s of MARK_SURFACES) {
-  ok(isValidSurfaceSide(s, SURFACE_DEFS[s].sided ? "right" : "none") && !isValidSurfaceSide(s, SURFACE_DEFS[s].sided ? "none" : "left"), `${s}: taraf kuralı`);
-}
-ok(surfaceLabel("hand_palm", "left") === "Sol El — Avuç İçi" && surfaceLabel("foot_sole", "right") === "Sağ Ayak Tabanı" && surfaceLabel("face", "none") === "Yüz", "Türkçe yüzey etiketleri");
+ok(JSON.stringify([...MARK_SURFACES]) === JSON.stringify(["foot_sole", "foot_inner", "foot_outer", "hand_palm", "hand_dorsum"]), "5 yüzey: taban/iç/dış ayak, avuç içi, el sırtı (2D yüz YOK — ürün kararı)");
+ok(JSON.stringify([...MARK_SIDES]) === JSON.stringify(["right", "left"]), "taraf yalnız sağ/sol ('none' yok)");
+ok(Object.keys(SURFACE_DEFS).length === 5 && !("face" in SURFACE_DEFS), "yüzey kaydında 'face' yok");
+ok(surfaceLabel("hand_palm", "left") === "Sol El — Avuç İçi" && surfaceLabel("foot_sole", "right") === "Sağ Ayak Tabanı" && surfaceLabel("hand_dorsum", "right") === "Sağ El — El Sırtı", "Türkçe yüzey etiketleri");
 
 // ─── 2. Görsel/crop ─────────────────────────────────────────────────────────────
 section("2. Ayak crop (doğru yarı) + el aynası");
@@ -54,7 +52,7 @@ ok(surfaceView("foot_inner", "right").image?.x === 0 && surfaceView("foot_inner"
 ok(surfaceView("foot_outer", "right").image?.x === -768 && surfaceView("foot_outer", "left").image?.x === 0, "dış yan: Sol solda (görsel düzeni ters)");
 ok(handMirrored("hand_palm", "right") === false && handMirrored("hand_palm", "left") === true, "avuç: sağ = temel (başparmak dışa), sol = ayna");
 ok(handMirrored("hand_dorsum", "right") === true && handMirrored("hand_dorsum", "left") === false, "el sırtı: sağ = ayna (başparmak içe), sol = temel");
-ok(surfaceView("face", "none").vector?.kind === "face" && !surfaceView("face", "none").image, "yüz = SVG şema (raster yok)");
+ok(surfaceView("hand_palm", "left").vector?.kind === "hand_palm" && !surfaceView("hand_palm", "left").image, "el = SVG şema (raster yok)");
 for (const f of ["klinik_taban.png", "klinik_yan_ic.png", "klinik_yan_dis.png"]) {
   ok(statSync(path.join(root, "public/refleksoloji", f)).size > 1000, `mevcut atlas görseli yeniden kullanıldı: ${f}`);
 }
@@ -82,7 +80,7 @@ const screens = [
 ];
 let maxErr = 0;
 for (const s of MARK_SURFACES) {
-  const side: MarkSide = SURFACE_DEFS[s].sided ? "left" : "none";
+  const side: MarkSide = "left";
   const v = surfaceView(s, side);
   for (const p of [{ x: 0.1234, y: 0.8765 }, { x: 0.5, y: 0.5 }, { x: 0.9999, y: 0.0001 }]) {
     // "mobilde konan" nokta → saklanan normalize → "webde" çizilen ekran noktası → geri normalize
@@ -111,25 +109,25 @@ ok(Math.abs(markRadius({ width: 400, height: 560 }, "large") - 400 * MARK_SIZE_R
 // ─── 4. Yüzey filtresi (5 — kayıtlar arası ayrım) ───────────────────────────────
 section("4. Yüzey filtresi");
 const sample = MARK_SURFACES.flatMap((s) =>
-  (SURFACE_DEFS[s].sided ? (["right", "left"] as MarkSide[]) : (["none"] as MarkSide[])).map((side) => ({ surface: s as MarkSurface, side, id: `${s}:${side}` })),
+  MARK_SIDES.map((side) => ({ surface: s as MarkSurface, side: side as MarkSide, id: `${s}:${side}` })),
 );
-ok(sample.length === 11, "11 (yüzey, taraf) çifti");
+ok(sample.length === 10, "10 (yüzey, taraf) çifti");
 for (const m of sample) {
   const got = marksForSurface(sample, m.surface, m.side);
   ok(got.length === 1 && got[0].id === m.id, `${m.id} yalnız kendisini görür`);
 }
-ok(marksForSurface(sample, "hand_palm", "none").length === 0, "yönlü yüzey + none → boş (sızma yok)");
-ok(countBySurface(sample).get("face:none") === 1 && countBySurface(sample).size === 11, "yüzey sayaçları");
+ok(countBySurface(sample).get("hand_dorsum:left") === 1 && countBySurface(sample).size === 10, "yüzey sayaçları");
 
 // ─── 5. Doğrulama ───────────────────────────────────────────────────────────────
 section("5. Doğrulama");
-ok(validateMarkInput({ surface: "face", x: 0.5, y: 0.5 }).ok, "yüz: taraf varsayılan none");
+ok(!validateMarkInput({ surface: "face", side: "right", x: 0.5, y: 0.5 }).ok && !validateMarkInput({ surface: "face", x: 0.5, y: 0.5 }).ok, "2D yüz girdisi reddedilir");
+ok(!validateMarkInput({ surface: "foot_sole", side: "none", x: 0.5, y: 0.5 }).ok, "taraf 'none' reddedilir");
 ok(!validateMarkInput({ surface: "hand_dorsum", x: 0.5, y: 0.5 }).ok, "el sırtı taraf zorunlu");
 ok(!validateMarkInput({ surface: "foot_sole", side: "right", x: Number.NaN, y: 0.5 }).ok, "NaN reddedilir");
 ok(!validateMarkInput({ surface: "foot_sole", side: "right", x: Infinity, y: 0.5 }).ok, "Infinity reddedilir");
-const longNote = validateMarkInput({ surface: "face", x: 0.1, y: 0.1, note: "a".repeat(900) });
+const longNote = validateMarkInput({ surface: "hand_palm", side: "right", x: 0.1, y: 0.1, note: "a".repeat(900) });
 ok(longNote.ok && longNote.value.note?.length === 500, "nokta notu 500 karaktere kırpılır");
-ok(!validateMarkPatch({ surface: "face" }).ok, "PATCH yalnız yüzey → reddedilir");
+ok(!validateMarkPatch({ surface: "foot_sole" }).ok, "PATCH yalnız yüzey → reddedilir");
 ok(!validateMarkPatch({ x: 0.5 }).ok, "PATCH x varken y zorunlu");
 ok(validateSessionInput({ session_date: "2028-02-29" }).ok && !validateSessionInput({ session_date: "2027-02-29" }).ok, "artık yıl tarih doğrulaması");
 ok(!validateSessionInput({ session_date: "10.10.2026" }).ok, "TR biçimli tarih API'de reddedilir (ISO zorunlu)");
@@ -141,6 +139,9 @@ section("6. Kaynak kilitleri");
 const mig = read("supabase/migrations/20271013000000_reflexology_client_marks.sql");
 const surfaceCheck = /surface IN \(([^)]+)\)/.exec(mig)?.[1].replace(/['\s]/g, "").split(",") ?? [];
 ok(JSON.stringify(surfaceCheck) === JSON.stringify([...MARK_SURFACES]), "DB CHECK yüzey listesi = TS MARK_SURFACES", surfaceCheck);
+ok(/CONSTRAINT reflexology_marks_side_chk CHECK \(side IN \('right', 'left'\)\)/.test(mig), "DB CHECK taraf = sağ/sol");
+ok(/surface\s+text\s+NOT NULL/.test(mig) && !/CREATE TYPE/i.test(mig), "yüzey serbest text + isimli CHECK (enum yok) → gelecekte 3D yüz yalnız kısıt değişimi");
+ok(/GELECEK PLANLANMIŞ GELİŞTİRME: Yüz Refleksolojisi doğrudan 3D/.test(mig) && /Yüz Refleksolojisi doğrudan 3D/.test(read("lib/refleksoloji/markSurfaces.ts")), "3D yüz planı migration + kayıtta belgelendi");
 ok(/FOREIGN KEY \(tenant_id, client_id\)\s+REFERENCES public\.clients \(tenant_id, id\) ON DELETE CASCADE/.test(mig), "seans → danışan composite FK CASCADE");
 ok(/FOREIGN KEY \(tenant_id, client_id, session_id\)\s+REFERENCES public\.reflexology_mark_sessions \(tenant_id, client_id, id\) ON DELETE CASCADE/.test(mig), "nokta → seans composite FK (aynı danışan) CASCADE");
 const sqlNoComments = mig.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
@@ -193,7 +194,10 @@ const rfFiles = [...walk("app/refleksoloji"), ...walk("lib/refleksoloji")];
 const badToken = rfFiles.filter((f) => /"x-session-token":\s*readSessionToken\(\)\s*\?\?/.test(read(f)));
 ok(badToken.length === 0, "refleksoloji: `x-session-token: readSessionToken() ?? \"\"` kalmadı", badToken);
 
+const art = read("app/refleksoloji/danisan-haritasi/components/SurfaceArt.tsx");
+ok(!/FaceArt|"face"/.test(art) && !/"face"|Yüz(?!ey)/.test(editor), "UI: 2D yüz çizimi/sekmesi yok");
 const menu = read("app/refleksoloji/components/ReflexologyMainMenu.tsx");
+ok(!/[yY]üz(?!ey)/.test(menu), "hub menüsünde yüz vaadi yok");
 ok(menu.includes('href: "/refleksoloji/danisan-haritasi"'), "ana menüde Danışan Haritası kartı");
 ok(read("lib/danisan/deletePreview.ts").includes('table: "reflexology_marks"'), "danışan silme önizlemesi yeni tabloları sayar");
 ok(read("lib/backup/registry.ts").includes('entry("reflexology_marks"'), "yedek kaydı yeni tabloları içerir");
