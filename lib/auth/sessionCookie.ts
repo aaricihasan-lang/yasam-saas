@@ -21,6 +21,7 @@
  *
  * Cookie değeri ASLA loglanmaz, URL'ye/yanıt gövdesine konmaz.
  */
+import type { WebSessionTransport } from "@/lib/auth/sessionTransportFlag";
 import type { NextRequest, NextResponse } from "next/server";
 import {
   CLIENT_CHANNEL_HEADER,
@@ -64,6 +65,15 @@ export type SessionCookieConfig = {
 
 export function getSessionCookieConfig(env: Env = process.env): SessionCookieConfig {
   return { mode: readSessionCookieMode(env), canaryUserIds: readSessionCookieCanaryUserIds(env) };
+}
+
+/**
+ * HTTPONLY H6a — web isteklerinin oturum taşıması (bkz. lib/auth/sessionTransportFlag.ts).
+ * "cookie" YALNIZ mod=primary VE kill-switch (SESSION_COOKIE_WEB_HEADER=on) kapalıyken; aksi "header".
+ */
+export function readWebSessionTransport(env: Env = process.env): WebSessionTransport {
+  if (readSessionCookieMode(env) !== "primary") return "header";
+  return String(env.SESSION_COOKIE_WEB_HEADER ?? "").trim().toLowerCase() === "on" ? "header" : "cookie";
 }
 
 /** Bu kullanıcıya web session cookie'si verilebilir mi? (kanal kontrolü ayrıca yapılır) */
