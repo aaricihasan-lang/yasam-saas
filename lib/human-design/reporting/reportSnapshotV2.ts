@@ -237,6 +237,8 @@ function freezeExpert(records: BuildSnapshotV2Input["expertRecords"]): FrozenExp
     const title = str(r.title);
     const code = str(r.code);
     if (!content || !title || !code) continue; // boş kayıt atlanır (uydurma yok)
+    // BEYAZ LİSTE: yalnız kategori/başlık/kod/metin. expert_notes (Özel Çalışma Notları), etiket,
+    // anahtar kelime vb. rapora ASLA taşınmaz — kaynak satırda bulunsa bile.
     entries.push({ category: str(r.category) ?? "Genel Notlar", title, code, content });
   }
   const rank = (c: string) => {
@@ -290,8 +292,9 @@ export function buildReportSnapshotV2(input: BuildSnapshotV2Input): HdReportSnap
 
   const wantsExpert = input.requested === "expert" || input.requested === "both";
   const wantsSystem = input.requested === "system" || input.requested === "both";
-  // Yetki YOKSA seçim ne olursa olsun Sistem Yorumu yok ve uzman bilgileri OTOMATİK dahil.
-  const expertIncluded = input.systemReadingPermitted ? wantsExpert : true;
+  // Yetki YOKSA Sistem Yorumu yok. Bilgi Bankası açıklamaları YALNIZ açıkça seçildiyse
+  // (varsayılan "none" → teknik içerik). Özel Çalışma Notları hiçbir durumda (freezeExpert beyaz listesi).
+  const expertIncluded = wantsExpert;
   let systemStatus: HdSystemReadingStatus;
   if (!input.systemReadingPermitted) systemStatus = "not_permitted";
   else if (!wantsSystem) systemStatus = "not_selected";

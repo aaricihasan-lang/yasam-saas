@@ -41,12 +41,31 @@ import {
   textMatchesQuery,
 } from "@/lib/dogaltas/searchHighlight";
 import { useOverlay } from "@/lib/dogaltas/useOverlay";
+import { useSearchHighlight } from "@/lib/search/useSearchHighlight";
 import { needsDiscardConfirm } from "@/lib/dogaltas/longTextEditor";
 import { useSignedStoneImageUrls, imageFilePath } from "@/lib/dogaltas/stoneImageClient";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { reportErrorKind } from "@/lib/dogaltas/reportErrorKind";
 import { useToast } from "@/components/ui/ToastProvider";
+import { StoneSourcesBar } from "@/app/dogaltas/components/StoneSourcesBar";
+import {
+  PRIMARY_SOURCE_ID,
+  SOURCE_FIELDS,
+  buildStoneSourcesView,
+  sourceDisplayName,
+  sourceSearchText,
+  type SourceField,
+  type StoneSourceView,
+} from "@/lib/dogaltas/stoneSources";
+import {
+  createStoneSource,
+  deleteStoneSource,
+  fetchMySourceNames,
+  fetchStoneSources,
+  updateStoneSource,
+} from "@/lib/dogaltas/stoneSourcesApi";
+import { findMatchRanges } from "@/lib/search/useSearchHighlight";
 
 
 function SearchMatchBadge() {
@@ -99,6 +118,8 @@ type StoneRecord = {
   images: { id: string; name: string; url?: string; file_path?: string }[] | null;
   created_at: string;
   updated_at: string | null;
+  /** WT9: birincil kaynağın adı (NULL = belirtilmemiş). */
+  primary_source_name?: string | null;
 };
 
 type EditableTextField =
@@ -271,6 +292,9 @@ function toSafeStone(data: Record<string, unknown> | null | undefined): StoneRec
     images: normalizeImages(data.images),
     created_at: stringField(data.created_at) || new Date().toISOString(),
     updated_at: data.updated_at != null ? stringField(data.updated_at) : null,
+    // WT9: birincil kaynağın adı (boş → NULL = belirtilmemiş).
+    primary_source_name:
+      typeof data.primary_source_name === "string" && data.primary_source_name.trim() ? data.primary_source_name : null,
   };
 }
 
@@ -504,11 +528,13 @@ function TextBlock({
       </div>
 
       <div className={uiContentBox}>
+        {/* WT8: aramada eşleşen bölüm KISALTILMADAN gösterilir → metindeki TÜM geçişler görünür ve
+            sarı vurgulu (önceden 240 karakterlik önizlemede yalnız ilk kısım görünüyordu). */}
         <p
-          className={`line-clamp-4 whitespace-pre-wrap text-sm leading-6 ${!text?.trim() ? uiEmptyText : "text-slate-700"}`}
+          className={`${showMatchBadge ? "" : "line-clamp-4"} whitespace-pre-wrap text-sm leading-6 ${!text?.trim() ? uiEmptyText : "text-slate-700"}`}
         >
           {text?.trim()
-            ? renderHighlightedText(shortPreview(text, 240), highlightQuery)
+            ? renderHighlightedText(showMatchBadge ? text.trim() : shortPreview(text, 240), highlightQuery)
             : t("noInfoYet")}
         </p>
       </div>
@@ -586,6 +612,111 @@ function StoneDetailPage() {
   const [imageBusy, setImageBusy] = useState(false);
   const [wasViewed, setWasViewed] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
+  // WT9 çoklu kaynak: ek kaynaklar (birincil = stones satırı), seçili kaynak, ad önerileri.
+  const [extraSources, setExtraSources] = useState<StoneSourceView[]>([]);
+  const [activeSourceId, setActiveSourceId] = useState<string>(PRIMARY_SOURCE_ID);
+  const [sourceNames, setSourceNames] = useState<string[]>([]);
+  const [sourcesBusy, setSourcesBusy] = useState(false);
+  const autoSourcePickedRef = useRef(false);
+
+  // WT9: kaynak listesi = [birincil (taş satırı), ...ek kaynaklar]; görünen kayıt = seçili kaynağın
+  // alanlarıyla taş (taşa özgü alanlar — ad, görseller, atamalar, uyarı etiketleri — ortak).
+  const allSources = useMemo<StoneSourceView[]>(
+    () => (stone ? buildStoneSourcesView(stone as unknown as Record<string, unknown>, []).slice(0, 1).concat(extraSources) : []),
+    [stone, extraSources],
+  );
+  const activeExtra = useMemo(
+    () => (activeSourceId === PRIMARY_SOURCE_ID ? null : extraSources.find((s) => s.id === activeSourceId) ?? null),
+    [activeSourceId, extraSources],
+  );
+  const displayRecord = useMemo<StoneRecord | null>(() => {
+    if (!stone) return null;
+    if (!activeExtra) return stone;
+    return { ...stone, ...activeExtra.fields, chakras: activeExtra.fields.chakras ?? [] };
+  }, [stone, activeExtra]);
+  // Aramada her kaynaktaki eşleşme sayısı (sekme rozeti) — mevcut aramayla aynı Türkçe katlama.
+  const sourceMatchCounts = useMemo<Record<string, number>>(() => {
+    const q = highlightQuery.trim();
+    if (!q) return {};
+    const out: Record<string, number> = {};
+    for (const s of allSources) out[s.id] = findMatchRanges(sourceSearchText({ name: null, fields: s.fields }), [q]).length;
+    return out;
+  }, [allSources, highlightQuery]);
+  // Aramayla gelindiyse ve birincil kaynakta eşleşme yoksa, ilk eşleşen kaynağı aç (bir kez).
+  useEffect(() => {
+    if (autoSourcePickedRef.current || !highlightQuery.trim() || extraSources.length === 0) return;
+    autoSourcePickedRef.current = true;
+    if ((sourceMatchCounts[PRIMARY_SOURCE_ID] ?? 0) > 0) return;
+    const first = extraSources.find((s) => (sourceMatchCounts[s.id] ?? 0) > 0);
+    if (first) runInEffect(() => setActiveSourceId(first.id));
+  }, [extraSources, sourceMatchCounts, highlightQuery]);
+
+  async function handleAddSource(name: string): Promise<string | null> {
+    if (!stone) return "Taş yüklenmedi.";
+    setSourcesBusy(true);
+    const r = await createStoneSource(stone.id, name);
+    setSourcesBusy(false);
+    if (r.demo) return null;
+    if (!r.ok) return r.error ?? "Kaynak eklenemedi.";
+    if (r.row) {
+      const created = buildStoneSourcesView(stone as unknown as Record<string, unknown>, [r.row])[1];
+      if (created) {
+        setExtraSources((prev) => [...prev, created]);
+        setActiveSourceId(created.id);
+      }
+    }
+    setSourceNames((prev) => (prev.includes(name) ? prev : [...prev, name]));
+    setSuccessMessage(`"${name}" kaynağı eklendi. Bu kaynağa ait alanları şimdi doldurabilirsiniz.`);
+    return null;
+  }
+
+  async function handleRenameSource(sourceId: string, name: string): Promise<string | null> {
+    if (!stone) return "Taş yüklenmedi.";
+    setSourcesBusy(true);
+    const r = await updateStoneSource(stone.id, sourceId, { source_name: name });
+    setSourcesBusy(false);
+    if (r.demo) return null;
+    if (!r.ok) return r.error ?? "Kaynak adı kaydedilemedi.";
+    if (sourceId === PRIMARY_SOURCE_ID) {
+      if (r.row) commitStoneRecord(r.row);
+    } else if (r.row) {
+      const updated = buildStoneSourcesView(stone as unknown as Record<string, unknown>, [r.row])[1];
+      if (updated) setExtraSources((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    }
+    return null;
+  }
+
+  async function handleDeleteSource(sourceId: string) {
+    if (!stone) return;
+    const target = allSources.find((s) => s.id === sourceId);
+    if (!target || allSources.length <= 1) return;
+    const isPrimary = sourceId === PRIMARY_SOURCE_ID;
+    const next = isPrimary ? extraSources[0] : null;
+    const confirmed = await deleteConfirm({
+      title: "Kaynağı sil",
+      message: isPrimary
+        ? `"${sourceDisplayName(target.name)}" kaynağı ve bu kaynağa ait metinler silinecek. "${sourceDisplayName(next?.name)}" ana kaynak olacak. Taş ve diğer kaynaklar korunur.`
+        : `"${sourceDisplayName(target.name)}" kaynağı ve bu kaynağa ait metinler silinecek. Taş ve diğer kaynaklar korunur.`,
+      secondMessage: "Bu işlem geri alınamaz. Emin misiniz?",
+    });
+    if (!confirmed) return;
+    setSourcesBusy(true);
+    const r = await deleteStoneSource(stone.id, sourceId);
+    setSourcesBusy(false);
+    if (r.demo) return;
+    if (!r.ok) {
+      setErrorMessage(r.error ?? "Kaynak silinemedi.");
+      return;
+    }
+    setActiveSourceId(PRIMARY_SOURCE_ID);
+    if (isPrimary) {
+      await loadStone();
+    } else {
+      setExtraSources((prev) => prev.filter((s) => s.id !== sourceId));
+    }
+    setSuccessMessage("Kaynak silindi.");
+  }
+
   const isAndroid = useIsAndroid();
   const [isDemoReference, setIsDemoReference] = useState(false);
   const { isDemo } = useDemoGuard();
@@ -703,6 +834,8 @@ function StoneDetailPage() {
       const safe = commitStoneRecord(data as Record<string, unknown>);
       if (!safe) {
         setLoadError({ kind: "loadFailed", detail: t("error.invalidData") });
+      } else {
+        void loadSources(id);
       }
     } catch (err) {
       setLoading(false);
@@ -717,6 +850,29 @@ function StoneDetailPage() {
       loadStone();
     });
   }, [id]);
+
+  // WT9: başka taşa geçilince kaynak seçimi sıfırlanır (önceki taşın kaynağı taşınmaz).
+  useEffect(() => {
+    autoSourcePickedRef.current = false;
+    runInEffect(() => {
+      setExtraSources([]);
+      setActiveSourceId(PRIMARY_SOURCE_ID);
+    });
+  }, [id]);
+
+  // WT9: ek kaynaklar (yalnız bu uzmanın taşı; migration yoksa boş → eski tek-kaynak görünümü).
+  async function loadSources(stoneId: string) {
+    const r = await fetchStoneSources(stoneId);
+    if (r.ok && Array.isArray(r.sources)) setExtraSources(r.sources.filter((s) => !s.isPrimary));
+  }
+
+  // Düzenleme moduna girince uzmanın KENDİ kaynak adları (autocomplete).
+  useEffect(() => {
+    if (!editEnabled || isDemo) return;
+    let alive = true;
+    void fetchMySourceNames().then((names) => { if (alive) setSourceNames(names); });
+    return () => { alive = false; };
+  }, [editEnabled, isDemo]);
 
   function openReader(title: string, badge: string, text: string | null | undefined) {
     if (editEnabled) return;
@@ -738,12 +894,14 @@ function StoneDetailPage() {
 
     setErrorMessage("");
     setSuccessMessage("");
+    // WT9: kaynak alanı → SEÇİLİ kaynağın değeri; taş adı → taş.
+    const base = (field !== "stone_name" && displayRecord) ? displayRecord : stone;
     openEditor({
       mode: "text",
       field,
       title,
       badge,
-      value: String(stone[field] || ""),
+      value: String(base[field] || ""),
       multiline,
     });
   }
@@ -764,7 +922,8 @@ function StoneDetailPage() {
 
     setErrorMessage("");
     setSuccessMessage("");
-    const selected = [...(stone[field] || [])];
+    // WT9: çakralar kaynağa özgü (seçili kaynak); uyarı etiketleri taşa özgü.
+    const selected = [...(((field === "chakras" && displayRecord) ? displayRecord : stone)[field]) || []];
     openEditor({
       mode: "checkbox",
       field,
@@ -856,6 +1015,26 @@ function StoneDetailPage() {
         return;
       }
       payload.assignments = check.value;
+    }
+
+    // WT9: ek kaynak seçiliyken kaynak alanları (metinler + çakralar) O KAYNAĞA yazılır; taşın
+    // kendisi ve diğer kaynaklar değişmez. Taşa özgü alanlar (ad, atamalar, uyarı etiketleri) taşa.
+    const sourceKeys = Object.keys(payload).filter((k) => (SOURCE_FIELDS as readonly string[]).includes(k));
+    if (activeExtra && sourceKeys.length > 0) {
+      const patch: Partial<Record<SourceField, string | string[] | null>> = {};
+      for (const k of sourceKeys) patch[k as SourceField] = payload[k] as string | string[] | null;
+      const r = await updateStoneSource(stone.id, activeExtra.id, patch);
+      setSaving(false);
+      if (!r.ok) {
+        setErrorMessage(t("editor.updateFailed", { error: r.error ?? t("editor.updateFailedFallback") }));
+        return;
+      }
+      if (r.row) {
+        const updated = buildStoneSourcesView(stone as unknown as Record<string, unknown>, [r.row])[1];
+        if (updated) setExtraSources((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+      }
+      closeEditorNow();
+      return;
     }
 
     // F-03: yüklenen kaydın updated_at'i gönderilir → başka oturum araya yazdıysa 409;
@@ -1136,8 +1315,8 @@ function StoneDetailPage() {
   }
 
   const safeStone = useMemo(
-    () => (stone ? toSafeStone(stone as unknown as Record<string, unknown>) : null),
-    [stone],
+    () => (displayRecord ? toSafeStone(displayRecord as unknown as Record<string, unknown>) : null),
+    [displayRecord],
   );
 
   const sectionMatches = useMemo(() => {
@@ -1174,6 +1353,14 @@ function StoneDetailPage() {
       assignments: textMatchesQuery(assignmentsSearchText(assignments), q),
     };
   }, [highlightQuery, safeStone]);
+
+  // WT8: sayfadaki TÜM görünür eşleşmeler (atamalar, çakralar, kullanım, uyarılar dahil) sarı; ilk
+  // eşleşmeye bir kez kaydırılır — sonra kullanıcı serbestçe gezinir.
+  const pageContentRef = useRef<HTMLDivElement | null>(null);
+  const pageMatchCount = useSearchHighlight(pageContentRef, [highlightQuery], {
+    enabled: Boolean(safeStone) && Boolean(highlightQuery.trim()),
+    resetKey: `${safeStone?.id ?? ""}:${activeSourceId}`,
+  });
 
   const readerHasMatch = useMemo(
     () =>
@@ -1275,7 +1462,7 @@ function StoneDetailPage() {
       <div className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full bg-emerald-300/20 blur-[150px]" />
       <div className="pointer-events-none absolute right-0 top-0 h-[520px] w-[520px] rounded-full bg-violet-300/20 blur-[150px]" />
 
-      <div className={pageContent}>
+      <div ref={pageContentRef} className={pageContent}>
         <header className={`${uiHeaderCard} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
           <div className="min-w-0 flex-1">
             <div className="mb-1.5 flex flex-wrap items-center gap-2">
@@ -1369,9 +1556,14 @@ function StoneDetailPage() {
         </header>
 
         {hasFilterContext && (
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2 shadow-sm">
+          <div data-no-search-highlight className="flex flex-wrap items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2 shadow-sm">
             <span className="text-[10px] font-black uppercase tracking-wider text-violet-600">{t("matchLabel")}</span>
             {highlightQuery && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-800">🔍 {highlightQuery}</span>}
+            {highlightQuery && pageMatchCount > 0 && (
+              <span data-testid="search-match-count" className="rounded-full bg-yellow-200 px-2 py-0.5 text-[11px] font-black text-slate-900">
+                {t("matchCount", { n: pageMatchCount })}
+              </span>
+            )}
             {astroFilter && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-800">♈ {astroFilter}</span>}
             {chakraFilter && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-800">🔵 {chakraFilter}</span>}
             {mineralFilter && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-black text-violet-800">💎 {mineralFilter}</span>}
@@ -1384,6 +1576,20 @@ function StoneDetailPage() {
             {t("editModeHint")}
           </div>
         )}
+
+        {/* WT9: bilgi kaynağı seçici — metinlerin hangi kaynağa ait olduğu açıkça görünür. */}
+        <StoneSourcesBar
+          sources={allSources}
+          activeId={activeSourceId}
+          onSelect={(sid) => { if (!activeEditor) setActiveSourceId(sid); }}
+          editable={editEnabled && !isDemo}
+          busy={sourcesBusy || saving}
+          matchCounts={sourceMatchCounts}
+          suggestions={sourceNames}
+          onAdd={handleAddSource}
+          onRename={handleRenameSource}
+          onDelete={(sid) => { void handleDeleteSource(sid); }}
+        />
 
         {(errorMessage || successMessage) && (
           <div

@@ -23,6 +23,13 @@
   height: calc(100vh - var(--logo-h, 0px));
 }
 
+/* WT8: arama eşleşmesi vurgusu (lib/search/useSearchHighlight — CSS Custom Highlight API; DOM'a
+   <mark> eklemez). Renk Doğaltaş <mark> vurgusuyla (bg-yellow-200) aynı. */
+::highlight(yasam-search-hit) {
+  background-color: #fef08a;
+  color: #020617;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

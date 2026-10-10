@@ -41,7 +41,10 @@
         "title": "General Information",
         "desc": "Capture the stone's overview, formation and source information.",
         "general_info": "General Information / Overview",
-        "source_note": "Formation / Source Note"
+        "source_note": "Formation / Source Note",
+        "primarySource": "Information Source",
+        "primarySourcePlaceholder": "e.g. Crystal Healing Book",
+        "primarySourceHint": "Which source are these texts from? You can add other sources separately on the stone detail page with “New Source”."
       },
       "effects": {
         "physical_effects": {

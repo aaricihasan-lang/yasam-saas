@@ -417,6 +417,11 @@ export const YH_INDEX_SOURCES = [
       "feng_shui",
       "source_note",
       "warning_text",
+      // WT9 çoklu kaynak: birincil kaynak adı + ek kaynakların türetilmiş metni ("Kaynak: <ad>"
+      // başlıklı). Taş başına TEK indeks belgesi kalır (ek kaynak ayrı belge DEĞİL → duplicate yok);
+      // ek kaynak değişince tetikleyici stones satırını günceller → mevcut outbox yeniden indeksler.
+      "primary_source_name",
+      "extra_sources_text",
     ],
     snippetColumns: ["short_description", "warning_text"],
     topicTagsColumns: ["chakras", "warning_tags"],

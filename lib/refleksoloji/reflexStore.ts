@@ -6,7 +6,7 @@
  * kullanıcının `refleks:v2:{tenant}:{user}:*` anahtarına gider.
  */
 
-import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { readSessionToken, readYasamUser, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import {
   readScopedJson,
   resolveReflexScope,
@@ -39,8 +39,8 @@ export function writeReflex(dataset: ReflexDataset, value: unknown): boolean {
 export function reflexUserHeaders(): Record<string, string> | null {
   const uid = readYasamUser()?.id;
   const token = readSessionToken();
-  if (!uid || !token) return null;
-  return { "x-user-id": uid, "x-session-token": token };
+  if (!uid || !hasSessionCredential(token)) return null;
+  return { "x-user-id": uid, ...sessionTokenHeader(token) };
 }
 
 export function isReflexDemo(): boolean {

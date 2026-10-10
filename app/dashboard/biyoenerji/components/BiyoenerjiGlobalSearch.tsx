@@ -2,42 +2,103 @@
 
 import Link from "next/link";
 import { Search, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { authHeaders, bioFetch } from "@/lib/biyoenerji/secureApi";
 import { BIO_GLOBAL_SEARCH_MIN, type BioGlobalHit } from "@/lib/biyoenerji/globalSearch";
 import { normalizeTr } from "@/lib/text/turkishSearch";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
+import { browserSessionStorage, markChecked, readCheckedIds, searchContextKey } from "@/lib/search/searchChecked";
+import { SearchCheckedBadge, SEARCH_CHECKED_CARD_ACCENT } from "@/components/search/SearchCheckedBadge";
+import {
+  BIO_SEARCH_GUARD_MARK,
+  bioDetailHrefWithQuery,
+  isBioSearchGuardState,
+  readBioSearchCache,
+  urlWithQuery,
+  writeBioSearchCache,
+  type BioSearchSection,
+} from "@/lib/biyoenerji/searchSession";
 
-type SectionResult = { key: string; label: string; total: number; hits: BioGlobalHit[] };
 type State =
   | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "error"; message: string }
-  | { kind: "done"; query: string; total: number; sections: SectionResult[] };
+  | { kind: "done"; query: string; total: number; sections: BioSearchSection[] };
 
 const DEBOUNCE_MS = 350;
+
+const hitKey = (h: BioGlobalHit) => `${h.section}:${h.id}`;
+
+function readUrlQuery(): string {
+  try {
+    return (new URLSearchParams(window.location.search).get("q") ?? "").trim();
+  } catch {
+    return "";
+  }
+}
 
 /**
  * Biyoenerji ana ekranı — modül-içi GENEL arama (WT5). Tüm alt bölümlerdeki (Çakralar, Enerji
  * Bedenleri, Bilinçaltı Sebepleri, Seanslar, İmajinasyonlar, Sembol Dili) KENDİ kayıtlarınızda
  * arar; sonuçta kayıt adı + geldiği bölüm görünür, dokununca kayda (veya bölüme) gider.
  * Sunucu: GET /api/biyoenerji/search (tenant session'dan).
+ *
+ * WT8 geri dönüş davranışı (gezinme geçmişi bozulmadan):
+ *   - Sonuçlar görününce geçmişe TEK bir "arama" kaydı eklenir (aynı sayfa, `?q=`). Sonuç → detay →
+ *     GERİ ⇒ aynı arama: metin + sonuç listesi (oturum önbelleği) + kaydırma konumu + "Kontrol edildi".
+ *   - Arama sonuçlarındayken bir kez daha GERİ ⇒ "Arama sonuçlarından çıkmak istiyor musunuz?"
+ *     [Aramada Kal] → arama kaydı geri eklenir; [Çık] → arama temizlenir, Biyoenerji ana ekranı.
+ *     Her geri basışta en fazla bir soru; Çık'tan sonra geçmiş normal akar (sonsuz döngü yok).
+ *   - Detaya `?q=` taşınır → kayıttaki tüm geçişler sarı (BiyoenerjiSearchHighlight).
  */
 export default function BiyoenerjiGlobalSearch() {
   const [q, setQ] = useState("");
   const [state, setState] = useState<State>({ kind: "idle" });
+  const [checked, setChecked] = useState<Set<string>>(() => new Set());
+  /** Çıkış sorusu açıkken sorulan arama terimi; kapalıyken null. */
+  const [exitAsk, setExitAsk] = useState<string | null>(null);
+  /** Bu arama oturumunda sonuç gösterildi mi (elle silme → arama kaydını kapatma için). */
+  const hadResultsRef = useRef(false);
   const reqSeq = useRef(0);
+  /** Önbellekten geri yüklenen terim → aynı terim için yeniden istek atılmaz. */
+  const restoredTerm = useRef<string | null>(null);
+  /** Geri yüklemede uygulanacak kaydırma konumu. */
+  const pendingScroll = useRef<number | null>(null);
+  /** Şu an ekranda sonuçları olan arama (geçmiş/guard kararları için). */
+  const activeQueryRef = useRef("");
   const { isDemo } = useDemoGuard();
 
+  const mountedRef = useRef(false);
   useEffect(() => {
+    // Açılışta: URL'de ?q= varsa (detaydan GERİ / yenileme) aramayı geri yükle. Aynı effect içinde
+    // (ayrı effect olsaydı ilk boş render'ın "idle" güncellemesi geri yüklenen sonuçları ezerdi).
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      const urlQ = readUrlQuery();
+      if (urlQ) {
+        const cached = readBioSearchCache(browserSessionStorage());
+        queueMicrotask(() => {
+          if (cached && cached.query === urlQ) {
+            restoredTerm.current = urlQ;
+            pendingScroll.current = cached.scrollY;
+            setState({ kind: "done", query: cached.query, total: cached.total, sections: cached.sections });
+          }
+          setQ(urlQ);
+        });
+        return;
+      }
+    }
     const term = q.trim();
     const seq = ++reqSeq.current;
     if (normalizeTr(term).length < BIO_GLOBAL_SEARCH_MIN) {
+      restoredTerm.current = null;
       queueMicrotask(() => {
         if (seq === reqSeq.current) setState({ kind: "idle" });
       });
       return;
     }
+    if (restoredTerm.current === term) return; // önbellekten geldi
+    restoredTerm.current = null;
     const timer = window.setTimeout(async () => {
       setState({ kind: "loading" });
       const res = await bioFetch(`/api/biyoenerji/search?q=${encodeURIComponent(term)}`, {
@@ -45,7 +106,7 @@ export default function BiyoenerjiGlobalSearch() {
         cache: "no-store",
       });
       const json = (await res.json().catch(() => ({}))) as {
-        ok?: boolean; error?: string; query?: string; total?: number; sections?: SectionResult[];
+        ok?: boolean; error?: string; query?: string; total?: number; sections?: BioSearchSection[];
       };
       if (seq !== reqSeq.current) return; // eski yanıt yeni aramayı ezmez
       if (!res.ok || json.ok !== true) {
@@ -56,6 +117,97 @@ export default function BiyoenerjiGlobalSearch() {
     }, DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
   }, [q]);
+
+  const doneQuery = state.kind === "done" ? state.query : "";
+  const hasResults = state.kind === "done" && state.total > 0;
+
+  // "Kontrol edildi" bağlamı = arama terimi (Doğaltaş ile ORTAK mantık; scope "bio").
+  const checkedContext = searchContextKey({ scope: "bio", query: doneQuery });
+  useEffect(() => {
+    queueMicrotask(() => setChecked(readCheckedIds(browserSessionStorage(), checkedContext)));
+  }, [checkedContext]);
+
+  // Sonuçlar + önbellek + geçmiş kaydı.
+  useEffect(() => {
+    activeQueryRef.current = hasResults ? doneQuery : "";
+    if (state.kind !== "done") return;
+    if (hasResults) {
+      hadResultsRef.current = true;
+      writeBioSearchCache(browserSessionStorage(), { query: state.query, total: state.total, sections: state.sections, scrollY: window.scrollY });
+      const target = urlWithQuery(window.location.href, state.query);
+      if (isBioSearchGuardState(window.history.state)) {
+        if (readUrlQuery() !== state.query) window.history.replaceState({ ...window.history.state, [BIO_SEARCH_GUARD_MARK]: true }, "", target);
+      } else {
+        window.history.pushState({ [BIO_SEARCH_GUARD_MARK]: true }, "", target);
+      }
+    }
+    if (pendingScroll.current !== null) {
+      const y = pendingScroll.current;
+      pendingScroll.current = null;
+      window.requestAnimationFrame(() => window.scrollTo(0, y));
+    }
+  }, [state, hasResults, doneQuery]);
+
+  // Arama tamamen temizlenince: arama kaydındaysak bir adım geri (geçmişte arama kaydı kalmaz).
+  const leavingRef = useRef(false);
+  const clearSearch = useCallback(() => {
+    setQ("");
+    setExitAsk(null);
+    activeQueryRef.current = "";
+    hadResultsRef.current = false;
+    writeBioSearchCache(browserSessionStorage(), null);
+    if (isBioSearchGuardState(window.history.state)) {
+      leavingRef.current = true;
+      window.history.back();
+    } else if (readUrlQuery()) {
+      window.history.replaceState(window.history.state, "", urlWithQuery(window.location.href, ""));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (q === "" && state.kind === "idle" && hadResultsRef.current && isBioSearchGuardState(window.history.state) && !leavingRef.current) {
+      // Kullanıcı metni elle tamamen sildi → arama kaydını kapat.
+      hadResultsRef.current = false;
+      leavingRef.current = true;
+      writeBioSearchCache(browserSessionStorage(), null);
+      window.history.back();
+    }
+  }, [q, state.kind]);
+
+  // GERİ: arama kaydından ana kayda inildi → çıkış sorusu (bir kez).
+  useEffect(() => {
+    const onPop = () => {
+      if (leavingRef.current) {
+        leavingRef.current = false;
+        return;
+      }
+      if (!isBioSearchGuardState(window.history.state) && activeQueryRef.current) setExitAsk(activeQueryRef.current);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  const stayInSearch = () => {
+    setExitAsk(null);
+    const query = activeQueryRef.current;
+    if (query) window.history.pushState({ [BIO_SEARCH_GUARD_MARK]: true }, "", urlWithQuery(window.location.href, query));
+  };
+  const exitSearch = () => {
+    setExitAsk(null);
+    activeQueryRef.current = "";
+    hadResultsRef.current = false;
+    writeBioSearchCache(browserSessionStorage(), null);
+    setQ("");
+    if (readUrlQuery()) window.history.replaceState(window.history.state, "", urlWithQuery(window.location.href, ""));
+    window.scrollTo(0, 0);
+  };
+
+  const onHitOpen = (h: BioGlobalHit) => {
+    if (state.kind === "done") {
+      writeBioSearchCache(browserSessionStorage(), { query: state.query, total: state.total, sections: state.sections, scrollY: window.scrollY });
+    }
+    if (checkedContext) setChecked(markChecked(browserSessionStorage(), checkedContext, hitKey(h)));
+  };
 
   return (
     <section
@@ -76,7 +228,7 @@ export default function BiyoenerjiGlobalSearch() {
         {q ? (
           <button
             type="button"
-            onClick={() => setQ("")}
+            onClick={clearSearch}
             aria-label="Aramayı temizle"
             className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
           >
@@ -102,6 +254,7 @@ export default function BiyoenerjiGlobalSearch() {
             <div data-testid="bio-global-results" className="space-y-3">
               <p className="text-[12px] font-bold text-slate-600">
                 “{state.query}” · {state.total} sonuç · {state.sections.length} bölüm
+                {checked.size > 0 ? <span className="ml-1 text-emerald-700">· {checked.size} kontrol edildi</span> : null}
               </p>
               {state.sections.map((s) => (
                 <div key={s.key}>
@@ -113,26 +266,33 @@ export default function BiyoenerjiGlobalSearch() {
                     ) : null}
                   </h3>
                   <ul className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
-                    {s.hits.map((h) => (
-                      <li key={`${h.section}:${h.id}`}>
-                        <Link
-                          href={h.href}
-                          data-testid="bio-global-hit"
-                          className="block rounded-xl border border-slate-200/80 bg-white px-3 py-2 shadow-sm transition hover:border-violet-300 hover:bg-violet-50/40"
-                        >
-                          <span className="flex flex-wrap items-center gap-1.5">
-                            <span className="min-w-0 truncate text-[13.5px] font-black text-slate-900">{h.title}</span>
-                            <span className="shrink-0 rounded-full bg-cyan-50 px-2 py-0.5 text-[10px] font-bold text-cyan-800 ring-1 ring-cyan-100">{h.sectionLabel}</span>
-                          </span>
-                          {h.snippet && !isDemo ? (
-                            <span className="mt-0.5 block text-[11.5px] leading-snug text-slate-500">
-                              <span className="font-bold text-slate-400">{h.matchedFieldLabel}: </span>
-                              {h.snippet}
+                    {s.hits.map((h) => {
+                      const isChecked = checked.has(hitKey(h));
+                      return (
+                        <li key={hitKey(h)}>
+                          <Link
+                            href={bioDetailHrefWithQuery(h.href, state.query)}
+                            onClick={() => onHitOpen(h)}
+                            data-testid="bio-global-hit"
+                            className={`block rounded-xl border bg-white px-3 py-2 shadow-sm transition hover:border-violet-300 hover:bg-violet-50/40 ${
+                              isChecked ? `border-emerald-300 bg-emerald-50/40 ${SEARCH_CHECKED_CARD_ACCENT}` : "border-slate-200/80"
+                            }`}
+                          >
+                            <span className="flex flex-wrap items-center gap-1.5">
+                              <span className="min-w-0 truncate text-[13.5px] font-black text-slate-900">{h.title}</span>
+                              <span className="shrink-0 rounded-full bg-cyan-50 px-2 py-0.5 text-[10px] font-bold text-cyan-800 ring-1 ring-cyan-100">{h.sectionLabel}</span>
+                              {isChecked ? <SearchCheckedBadge label="Kontrol edildi" /> : null}
                             </span>
-                          ) : null}
-                        </Link>
-                      </li>
-                    ))}
+                            {h.snippet && !isDemo ? (
+                              <span className="mt-0.5 block text-[11.5px] leading-snug text-slate-500">
+                                <span className="font-bold text-slate-400">{h.matchedFieldLabel}: </span>
+                                {h.snippet}
+                              </span>
+                            ) : null}
+                          </Link>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               ))}
@@ -140,6 +300,34 @@ export default function BiyoenerjiGlobalSearch() {
           )
         ) : null}
       </div>
+
+      {exitAsk !== null ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/40 p-3 backdrop-blur-[2px] sm:items-center"
+          role="presentation"
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="bio-exit-title"
+            data-testid="bio-search-exit-dialog"
+            className="w-full max-w-sm rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-slate-200 pb-[max(1rem,env(safe-area-inset-bottom))]"
+          >
+            <h2 id="bio-exit-title" className="text-[15px] font-black text-slate-950">Arama sonuçlarından çıkmak istiyor musunuz?</h2>
+            <p className="mt-1 text-[12.5px] font-medium text-slate-500">
+              “{exitAsk}” araması kapanır ve Biyoenerji ana ekranına dönülür.
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button type="button" autoFocus onClick={stayInSearch} className="btn-primary w-full">
+                Aramada Kal
+              </button>
+              <button type="button" onClick={exitSearch} className="btn-soft w-full">
+                Çık
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

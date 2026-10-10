@@ -18,7 +18,6 @@ import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
 import { STONES_WORKSPACE_UNAVAILABLE } from "@/lib/dogaltas/sessionError";
 import { updateCombination } from "@/lib/dogaltas/dogaltasApi";
 import { fetchInventoryRows } from "@/lib/urun-stok/dogaltasInventoryApi";
-import { fetchAllStonesExtended } from "@/lib/dogaltas/stonesListFetch";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -370,7 +369,6 @@ function StonesBlock({
   extraTextStones,
   stockMap,
   stockLoading,
-  knownStoneKeys,
   highlightQuery = "",
   hasSearchMatch = false,
 }: {
@@ -378,7 +376,6 @@ function StonesBlock({
   extraTextStones: string[];
   stockMap: Map<string, StockEntry>;
   stockLoading: boolean;
-  knownStoneKeys: Set<string> | null;
   highlightQuery?: string;
   hasSearchMatch?: boolean;
 }) {
@@ -421,14 +418,12 @@ function StonesBlock({
         ) : null}
         {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
-      {/* WT5: renk/işaret anlamı açıklama okumadan anlaşılsın (veri anlamı DEĞİŞMEDİ). */}
-      {stones.length > 0 && !stockLoading ? (
+      {/* WT8: TEK sade bölüm — stokta olan yeşil (✓), stokta olmayan nötr. "Eksik / Taş Listenizde
+          kayıtlı değil" ayrımı ve sarı/alarm görünümü YOK (kullanıcı satıcı olmayabilir; eğitmen /
+          protokol tutan için stokta olmamak uyarı değildir). Lejant yalnız yeşilin anlamını söyler. */}
+      {stones.length > 0 && !stockLoading && inStockCount > 0 ? (
         <div data-testid="combo-stone-legend" className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] font-semibold text-slate-500">
           <span className="inline-flex items-center gap-1"><span className="font-black text-emerald-600">✓</span>{t("legendInStock")}</span>
-          <span className="inline-flex items-center gap-1"><span className="font-black text-slate-400">○</span>{t("legendOutOfStock")}</span>
-          {knownStoneKeys !== null ? (
-            <span className="inline-flex items-center gap-1"><span className="font-black text-amber-600">⚠</span>{t("legendGhost")}</span>
-          ) : null}
         </div>
       ) : null}
       <div className="mt-1.5">
@@ -451,13 +446,6 @@ function StonesBlock({
               }
               const inStock = stockKey !== null;
               const canonical_ = canonical ?? null;
-              // F-007: stok'ta yoksa iki ayrı durum — (a) gerçek taş ama stokta yok,
-              // (b) GHOST: artık taş listesinde olmayan token (silinmiş/eski kayıt).
-              // knownStoneKeys henüz yüklenmediyse (null) ghost işaretlenmez (yanlış-pozitif önlenir).
-              const isGhost =
-                !inStock &&
-                knownStoneKeys !== null &&
-                !knownStoneKeys.has(normalizeForMatch(stone));
               const chipLabel = highlightQuery.trim()
                 ? renderHighlightedText(stone, highlightQuery)
                 : stone;
@@ -474,27 +462,12 @@ function StonesBlock({
                   </span>
                 );
               }
-              if (isGhost) {
-                return (
-                  <span
-                    key={`c-${idx}`}
-                    title={t("chipGhostTitle")}
-                    data-testid="combo-chip-ghost"
-                    className="inline-flex min-h-[24px] items-center gap-1 rounded-full border border-dashed border-amber-400 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800"
-                  >
-                    <span className="text-[10px] font-black text-amber-600">⚠</span>
-                    {chipLabel}
-                  </span>
-                );
-              }
               return (
                 <span
                   key={`c-${idx}`}
-                  title={t("chipOutOfStockTitle")}
                   data-testid="combo-chip-out"
-                  className="inline-flex min-h-[24px] items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-700"
+                  className="inline-flex min-h-[24px] items-center rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-700"
                 >
-                  <span className="text-[10px] font-black text-slate-400">○</span>
                   {chipLabel}
                 </span>
               );
@@ -665,31 +638,24 @@ type VariantSummary = {
   rowId: string;
   stockedCount: number;
   totalChips: number;
+  /** WT8: "Gereken Taşlar" çiplerinden stokta olanların sayısı (kullanıcının gördüğü yeşil çip sayısı). */
+  chipsInStock: number;
+  /** Yalnız "Önerilen kombinasyon" sıralaması için; ekranda yüzde olarak GÖSTERİLMEZ. */
   applicabilityPct: number;
   estimatedCost: number;
   stockedDisplayNames: string[];
-  missingStoneNames: string[];
 };
 
 type GlobalSummary = {
   totalCombinations: number;
   totalStockedUnique: number;
-  totalUniqueStones: number;
-  missingNames: string[];
   criticalStones: { name: string; adet: number }[];
   bestVariantIndex: number;
   bestVariantPct: number;
+  bestVariantChipsInStock: number;
+  bestVariantTotalChips: number;
   bestVariantCost: number;
 };
-
-function isLikelyStoneName(chip: string): boolean {
-  const trimmed = chip.trim();
-  if (trimmed.length < 3 || trimmed.length > 30) return false;
-  if (trimmed.split(/\s+/).filter(Boolean).length > 3) return false;
-  const norm = normalizeForMatch(trimmed);
-  const skip = ["kullan", "icin", "adet", "koy", "geri", "tamamla", "bunlar", "milim", "orta", "milimlik", "birlikte", "yapil"];
-  return !skip.some((w) => norm.includes(w));
-}
 
 function computeVariantSummary(
   row: CombinationRecord,
@@ -698,16 +664,11 @@ function computeVariantSummary(
   const { chipsStones, allStockedDisplayNames } = getMatchedStones(row, stockMap);
   const stockedCount = allStockedDisplayNames.length;
   const totalChips = chipsStones.length;
-  const applicabilityPct =
-    totalChips > 0
-      ? Math.min(100, Math.round((stockedCount / totalChips) * 100))
-      : stockedCount > 0
-        ? 100
-        : 0;
-
-  const missingStoneNames = chipsStones.filter(
-    (chip) => isLikelyStoneName(chip) && resolveStockKey(chip, stockMap) === null,
-  );
+  // WT8: eski oran = (çip + NOTLARDAN yakalanan stoklu taş) / çip → %100'e kırpılıyordu ve ekranda
+  // "%50 Kısmi / %0 Eksik" diye açıklamasız görünüyordu. Artık yalnız görünen çipler sayılır ve
+  // yüzde gösterilmez; yalnız "Önerilen" sıralamasında kullanılır.
+  const chipsInStock = chipsStones.filter((chip) => resolveStockKey(chip, stockMap) !== null).length;
+  const applicabilityPct = totalChips > 0 ? Math.round((chipsInStock / totalChips) * 100) : 0;
 
   const estimatedCost = allStockedDisplayNames.reduce((sum, name) => {
     const entry = stockMap.get(normalizeForMatch(name));
@@ -718,10 +679,10 @@ function computeVariantSummary(
     rowId: row.id,
     stockedCount,
     totalChips,
+    chipsInStock,
     applicabilityPct,
     estimatedCost,
     stockedDisplayNames: allStockedDisplayNames,
-    missingStoneNames,
   };
 }
 
@@ -730,14 +691,9 @@ function computeGlobalSummary(
   stockMap: Map<string, StockEntry>,
 ): GlobalSummary {
   const stockedSet = new Set<string>();
-  const missingSet = new Set<string>();
 
   for (const vs of variantSummaries) {
     vs.stockedDisplayNames.forEach((n) => stockedSet.add(normalizeForMatch(n)));
-    vs.missingStoneNames.forEach((n) => {
-      const k = normalizeForMatch(n);
-      if (!stockedSet.has(k)) missingSet.add(n);
-    });
   }
 
   const criticalStones: { name: string; adet: number }[] = [];
@@ -759,31 +715,16 @@ function computeGlobalSummary(
   return {
     totalCombinations: variantSummaries.length,
     totalStockedUnique: stockedSet.size,
-    totalUniqueStones: stockedSet.size + missingSet.size,
-    missingNames: [...missingSet],
     criticalStones,
     bestVariantIndex: bestIdx,
     bestVariantPct: best?.applicabilityPct ?? 0,
+    bestVariantChipsInStock: best?.chipsInStock ?? 0,
+    bestVariantTotalChips: best?.totalChips ?? 0,
     bestVariantCost: best?.estimatedCost ?? 0,
   };
 }
 
 // ─── Dashboard bileşenleri ─────────────────────────────────────────────────────
-
-function ApplicabilityBadge({ pct }: { pct: number }) {
-  const t = useTranslations("stones.combinations.detail");
-  const [cls, label] =
-    pct === 100
-      ? ["border-emerald-200 bg-emerald-50 text-emerald-700", t("full")]
-      : pct >= 50
-        ? ["border-amber-200 bg-amber-50 text-amber-700", t("partial")]
-        : ["border-rose-200 bg-rose-50 text-rose-700", t("missing")];
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black ${cls}`}>
-      {pct}% {label}
-    </span>
-  );
-}
 
 function AnalysisDashboard({
   global,
@@ -805,9 +746,6 @@ function AnalysisDashboard({
           </span>
           <StatChip label={t("statCombination")} value={global.totalCombinations} color="violet" />
           <StatChip label={t("statStockStone")} value={global.totalStockedUnique} color="emerald" />
-          {global.missingNames.length > 0 && (
-            <StatChip label={t("statMissing")} value={global.missingNames.length} color="rose" />
-          )}
           {global.criticalStones.length > 0 && (
             <StatChip label={t("statCriticalStock")} value={global.criticalStones.length} color="amber" />
           )}
@@ -820,7 +758,9 @@ function AnalysisDashboard({
                 <span className="text-[12px] font-black text-amber-900">
                   {t("recommended", { n: global.bestVariantIndex + 1 })}
                 </span>
-                <span className="text-[13px] font-black text-emerald-700">{global.bestVariantPct}%</span>
+                <span data-testid="combo-best-stock" className="text-[12px] font-bold text-emerald-700">
+                  {t("recommendedStock", { n: global.bestVariantChipsInStock, total: global.bestVariantTotalChips })}
+                </span>
                 {global.bestVariantCost > 0 && (
                   <span className="text-[11px] font-semibold text-slate-500">{fmtTL(global.bestVariantCost)} {t("estimatedCostSuffix")}</span>
                 )}
@@ -829,30 +769,6 @@ function AnalysisDashboard({
           </div>
         )}
       </div>
-
-      {/* Eksik taşlar */}
-      {global.missingNames.length > 0 && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50/60 px-3 py-2">
-          <div className="mb-1.5 flex items-center gap-1.5">
-            <span className="inline-flex items-center rounded-full border border-rose-300 bg-rose-100 px-2 py-0.5 text-[10px] font-black tracking-wide text-rose-800">
-              {t("missingStonesLabel")}
-            </span>
-            <span className="text-[10px] font-medium text-rose-500">{t("stonesCount", { n: global.missingNames.length })}</span>
-          </div>
-          <p className="mb-1.5 text-[10.5px] font-medium leading-snug text-rose-600/90">{t("missingStonesHint")}</p>
-          <div className="flex flex-wrap gap-1">
-            {global.missingNames.map((name, i) => (
-              <span
-                key={i}
-                className="inline-block max-w-[180px] break-words rounded-md border border-rose-200 bg-white px-2 py-0.5 text-[11px] font-semibold leading-snug text-rose-700"
-                title={name}
-              >
-                {name}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Kritik stok */}
       {global.criticalStones.length > 0 && (
@@ -914,10 +830,8 @@ function VariantCard({
   fieldMatches,
   stockMap,
   stockLoading,
-  knownStoneKeys,
   isCalcOpen,
   onToggleCalc,
-  applicabilityPct,
   isDemo = false,
   onSaved,
 }: {
@@ -934,10 +848,8 @@ function VariantCard({
   };
   stockMap: Map<string, StockEntry>;
   stockLoading: boolean;
-  knownStoneKeys: Set<string> | null;
   isCalcOpen: boolean;
   onToggleCalc: () => void;
-  applicabilityPct?: number;
   isDemo?: boolean;
   onSaved?: (newIssue: string) => void;
 }) {
@@ -1059,9 +971,6 @@ function VariantCard({
           <span>{t("combinationLabel")}</span>
           <span>{index + 1} / {total}</span>
         </span>
-        {!isDemo && applicabilityPct !== undefined && !stockLoading && !isEditing ? (
-          <ApplicabilityBadge pct={applicabilityPct} />
-        ) : null}
         {!isEditing && showMatchBadge ? <SearchMatchBadge /> : null}
         <div className="ml-auto flex items-center gap-2">
           {!isDemo && !isEditing ? (
@@ -1243,7 +1152,6 @@ function VariantCard({
           extraTextStones={extraTextStones}
           stockMap={stockMap}
           stockLoading={stockLoading}
-          knownStoneKeys={knownStoneKeys}
           highlightQuery={highlightQuery}
           hasSearchMatch={fieldMatches.stones}
         />
@@ -1346,10 +1254,6 @@ function KombinasyonDetayPageContent() {
   const [openCalcIds, setOpenCalcIds] = useState<Set<string>>(new Set());
   const [stockMap, setStockMap] = useState<Map<string, StockEntry>>(new Map());
   const [stockLoading, setStockLoading] = useState(true);
-  // F-007: tenant'ın MEVCUT taş adları (normalize) — kombinasyon token'ı stok'ta yoksa
-  // "gerçek taş ama stokta yok" mu yoksa "artık taş listesinde yok (silinmiş/eski)" mu
-  // ayrımı için. null = henüz yüklenmedi (o ana kadar ghost işaretlenmez).
-  const [knownStoneKeys, setKnownStoneKeys] = useState<Set<string> | null>(null);
   const [wordBusy, setWordBusy] = useState(false);
   const { isDemo } = useDemoGuard();
   const isAndroid = useIsAndroid();
@@ -1483,22 +1387,10 @@ function KombinasyonDetayPageContent() {
     }
   }, []);
 
-  const loadKnownStones = useCallback(async () => {
-    // F-007: mevcut taş adlarını (normalize) yükle — ghost token ayrımı için.
-    const tid = await getSyncedTenantId();
-    if (!tid) return;
-    const { rows } = await fetchAllStonesExtended(tid);
-    const keys = new Set<string>();
-    for (const r of rows) {
-      const n = String((r as { stone_name?: unknown }).stone_name ?? "").trim();
-      if (n) keys.add(normalizeForMatch(n));
-    }
-    setKnownStoneKeys(keys);
-  }, []);
-
   const handleRefresh = useCallback(async () => {
-    await Promise.all([loadRows(), loadStockNames(), loadKnownStones()]);
-  }, [loadRows, loadStockNames, loadKnownStones]);
+    // WT8: "Taş Listenizde kayıtlı değil" (ghost) ayrımı kaldırıldı → tüm taş listesini çekmeye gerek yok.
+    await Promise.all([loadRows(), loadStockNames()]);
+  }, [loadRows, loadStockNames]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -1674,8 +1566,6 @@ function KombinasyonDetayPageContent() {
                 }
                 stockMap={stockMap}
                 stockLoading={stockLoading}
-                knownStoneKeys={knownStoneKeys}
-                applicabilityPct={variantSummaries?.[index]?.applicabilityPct}
                 isCalcOpen={openCalcIds.has(row.id)}
                 isDemo={isDemo}
                 onSaved={(newIssue) => {

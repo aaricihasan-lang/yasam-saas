@@ -11,6 +11,7 @@
  */
 import type { Location } from "@/lib/location/types";
 import artifactData from "@/lib/location/server-data/global-cities.json";
+import { TR_EXONYMS } from "@/lib/location/server/trExonyms";
 
 /** Artefakt kaydı = Location + opsiyonel population (sıralama). */
 export type GlobalRecord = Location & { population?: number };
@@ -37,8 +38,59 @@ export function normalizeQuery(query: string): string {
     .trim();
 }
 
+/**
+ * Türkçe yabancı şehir adları → dataset kaydı (KİMLİKLE). Satır yalnız kimlik dataset'te varsa VE
+ * ülke kodu + dataset adı beklenenle aynıysa etkinleşir (aksi halde atlanır; yanlış eşleşme yok).
+ */
+const EXONYMS_BY_ID: ReadonlyMap<string, readonly string[]> = (() => {
+  const byId = new Map(LOCATIONS.map(l => [l.id, l] as const));
+  const out = new Map<string, string[]>();
+  for (const [tr, id, cc, name] of TR_EXONYMS) {
+    const rec = byId.get(id);
+    if (!rec || rec.countryCode !== cc || rec.name !== name) continue;
+    const list = out.get(id) ?? [];
+    list.push(normalizeQuery(tr));
+    out.set(id, list);
+  }
+  return out;
+})();
+
+/** Etkin (doğrulanmış) Türkçe takma ad sayısı / kimlikleri (harness teşhisi). */
+export function activeTrExonyms(): ReadonlyMap<string, readonly string[]> {
+  return EXONYMS_BY_ID;
+}
+
+/** Sorgu bir Türkçe takma adın TAMAMI ise dataset'teki kanonik kaydı döner (ör. "londra" → London). */
+export function exonymTarget(query: string): GlobalRecord | null {
+  const q = normalizeQuery(query);
+  if (!q) return null;
+  for (const [id, aliases] of EXONYMS_BY_ID) {
+    if (aliases.includes(q)) return LOCATIONS.find(l => l.id === id) ?? null;
+  }
+  return null;
+}
+
+/**
+ * Takma ad skoru: tam eşleşme 105 (aynı yazılan yerel adların önünde — "roma" → Rome, IT),
+ * ≥3 karakterlik önek 90 (ad öneki 80'in önünde — "londr" → London, Londrina'dan önce).
+ */
+function aliasScore(loc: GlobalRecord, q: string): number {
+  const aliases = EXONYMS_BY_ID.get(loc.id);
+  if (!aliases) return 0;
+  let s = 0;
+  for (const a of aliases) {
+    if (a === q) return 105;
+    if (q.length >= 3 && a.startsWith(q)) s = 90;
+  }
+  return s;
+}
+
 /** Uygunluk skoru (0 = eşleşme yok). exact > prefix > substring; name > adminRegion > country. */
 function scoreOf(loc: GlobalRecord, q: string): number {
+  return Math.max(aliasScore(loc, q), baseScore(loc, q));
+}
+
+function baseScore(loc: GlobalRecord, q: string): number {
   const name = normalizeQuery(loc.name);
   const admin = normalizeQuery(loc.adminRegion);
   const country = normalizeQuery(loc.country);

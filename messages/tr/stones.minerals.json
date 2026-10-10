@@ -106,7 +106,7 @@
         "emptyDbText": "Henüz mineral kaydınız bulunmuyor.",
         "emptyFilteredTitle": "Sonuç bulunamadı",
         "emptyFilteredText": "Arama veya kategori filtresini değiştirin.",
-        "viewedBadge": "Bakıldı",
+        "viewedBadge": "Kontrol edildi",
         "noDescription": "Açıklama henüz girilmedi.",
         "detailLink": "Detayı Gör →",
         "loadMore": "Daha Fazla Göster ({loaded} / {total})",

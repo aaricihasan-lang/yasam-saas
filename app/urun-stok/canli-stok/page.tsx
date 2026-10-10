@@ -28,7 +28,7 @@ import {
   sortLiveStock,
   summarizeLiveStock,
 } from "@/lib/urun-stok/liveStockLogic";
-import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { readSessionToken, readYasamUser, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
@@ -319,7 +319,7 @@ export default function CanliStokMerkeziPage() {
     // tenant sunucuda oturumdan belirlenir.
     const uid = readYasamUser()?.id;
     const token = readSessionToken();
-    if (!uid || !token) { alert("Oturum bulunamadı. Lütfen tekrar giriş yapın."); return; }
+    if (!uid || !hasSessionCredential(token)) { alert("Oturum bulunamadı. Lütfen tekrar giriş yapın."); return; }
     setWordBusy(true);
     try {
       const res = await fetch("/api/urun-stok/stock-report", {
@@ -327,7 +327,7 @@ export default function CanliStokMerkeziPage() {
         headers: {
           "Content-Type": "application/json",
           "x-user-id": uid,
-          "x-session-token": token,
+          ...sessionTokenHeader(token),
         },
         body: JSON.stringify({ exportMode: mode }),
       });

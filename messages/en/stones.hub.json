@@ -27,7 +27,7 @@
         "loading": "Loading…",
         "empty": "No results found for this search.",
         "noDescription": "No short description added.",
-        "viewed": "Viewed",
+        "viewed": "Checked",
         "matched": "Match: {field}",
         "detail": "View Details",
         "cappedNote": "There are too many matches; only the first 500 results are shown. Narrow your search."

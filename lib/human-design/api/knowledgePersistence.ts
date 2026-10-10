@@ -44,9 +44,9 @@ function pick(input: Record<string, unknown>): Record<string, unknown> {
 }
 
 // Taslak güvenliği (server savunması, "Ya doğru bilgi ya hiç"): AKTİF bir kaydın
-// Kaynaklandırılmış Ana Metin (content) alanı boş OLAMAZ. Pasif (taslak) kayıt boş içerikle olur.
+// "Bilgi ve Açıklamalar" (content) alanı boş OLAMAZ. Pasif (taslak) kayıt boş içerikle olur.
 const ACTIVE_CONTENT_ERROR =
-  "Kaydı aktif etmek için Kaynaklandırılmış Ana Metin alanını doldurun.";
+  "Kaydı aktif etmek için Bilgi ve Açıklamalar alanını doldurun.";
 
 function isBlank(v: unknown): boolean {
   return typeof v !== "string" || v.trim() === "";
@@ -89,6 +89,29 @@ export async function listKnowledgeByCodes(
     .order("created_at", { ascending: true });
   if (error) return { rows: [], error: hdSafeDbError("listKnowledgeByCodes", error) };
   return { rows: (data ?? []) as HumanDesignKnowledgeRecord[], error: null };
+}
+
+/**
+ * DANIŞAN RAPORU (Word v2) için Bilgi Bankası okuması — YALNIZ rapora girebilecek kolonlar.
+ * "Özel Çalışma Notları" (expert_notes) bu sorguda HİÇ OKUNMAZ → hiçbir seçim/istek onu rapora
+ * taşıyamaz. Yalnız bu tenant, yalnız aktif kayıt, yalnız haritanın kodları.
+ */
+export const KNOWLEDGE_REPORT_COLUMNS = "id, category, title, code, content, is_active, sort_order, created_at";
+export type KnowledgeReportRow = Pick<HumanDesignKnowledgeRecord, "id" | "category" | "title" | "code" | "content" | "is_active">;
+
+export async function listKnowledgeForReport(
+  db: SupabaseClient,
+  tenantId: string,
+  codes: string[],
+): Promise<{ rows: KnowledgeReportRow[]; error: string | null }> {
+  if (codes.length === 0) return { rows: [], error: null };
+  const { data, error } = await withTenant(db.from(TABLE).select(KNOWLEDGE_REPORT_COLUMNS), tenantId, "listKnowledgeForReport")
+    .eq("is_active", true)
+    .in("code", codes)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) return { rows: [], error: hdSafeDbError("listKnowledgeForReport", error) };
+  return { rows: (data ?? []) as unknown as KnowledgeReportRow[], error: null };
 }
 
 export async function insertKnowledge(

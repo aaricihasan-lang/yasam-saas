@@ -106,7 +106,7 @@
         "emptyDbText": "You don't have any mineral records yet.",
         "emptyFilteredTitle": "No results found",
         "emptyFilteredText": "Try changing your search or category filter.",
-        "viewedBadge": "Viewed",
+        "viewedBadge": "Checked",
         "noDescription": "No description added yet.",
         "detailLink": "View Details →",
         "loadMore": "Show More ({loaded} / {total})",

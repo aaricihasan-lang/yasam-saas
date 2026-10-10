@@ -7,6 +7,8 @@ import {
   LEGACY_ADMIN_ID_COOKIE,
   adminSessionCookieOptions,
 } from "@/lib/auth/adminShellSession";
+import { getSessionCookieConfig, isAndroidAppRequest, readWebSessionCookie } from "@/lib/auth/sessionCookie";
+import { checkSameOriginRequest } from "@/lib/security/csrf";
 
 export const runtime = "nodejs";
 
@@ -18,6 +20,16 @@ function getDb() {
 }
 
 const isProduction = process.env.NODE_ENV === "production";
+
+/**
+ * HTTPONLY H5: cookie modu açıkken (off DEĞİL) web isteğinde Origin / Sec-Fetch-Site doğrulaması.
+ * off modda ve Android'de bugünkü davranış birebir korunur (kontrol uygulanmaz).
+ */
+function originRejected(request: NextRequest): NextResponse | null {
+  if (getSessionCookieConfig().mode === "off" || isAndroidAppRequest(request.headers)) return null;
+  if (checkSameOriginRequest(request.headers).ok) return null;
+  return NextResponse.json({ error: "İstek kaynağı doğrulanamadı." }, { status: 403, headers: { "Cache-Control": "no-store" } });
+}
 
 /**
  * POST /api/auth/admin-session
@@ -32,7 +44,14 @@ const isProduction = process.env.NODE_ENV === "production";
  */
 export async function POST(request: NextRequest) {
   try {
-    const sessionToken = request.headers.get("x-session-token")?.trim() ?? "";
+    const rejected = originRejected(request);
+    if (rejected) return rejected;
+
+    // HTTPONLY H5: header yoksa primary modda web isteği HttpOnly oturum cookie'si ile (Android hariç).
+    let sessionToken = request.headers.get("x-session-token")?.trim() ?? "";
+    if (!sessionToken && getSessionCookieConfig().mode === "primary" && !isAndroidAppRequest(request.headers)) {
+      sessionToken = readWebSessionCookie(request);
+    }
     if (!sessionToken) {
       return NextResponse.json(
         { error: "Admin oturum doğrulaması gerekli." },
@@ -64,7 +83,9 @@ export async function POST(request: NextRequest) {
  * DELETE /api/auth/admin-session
  * Logout sırasında cookie temizlemek için çağrılır.
  */
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
+  const rejected = originRejected(request);
+  if (rejected) return rejected;
   const response = NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   for (const name of [ADMIN_SESSION_COOKIE, LEGACY_ADMIN_ID_COOKIE]) {
     response.cookies.set(name, "", { ...adminSessionCookieOptions(isProduction), maxAge: 0 });

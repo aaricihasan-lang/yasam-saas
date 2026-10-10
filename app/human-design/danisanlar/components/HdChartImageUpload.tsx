@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
-import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken, hasWebSession } from "@/lib/auth/yasamUser";
 import { runInEffect } from "@/lib/runInEffect";
 import {
   HD_CHART_IMAGE_MAX_BYTES,
@@ -93,7 +93,7 @@ function authHeaders(): Record<string, string> {
 }
 
 function hasSession(): boolean {
-  return !!readYasamUser()?.id && !!readSessionToken();
+  return hasWebSession(); // HTTPONLY H5: web token yoksa HttpOnly cookie
 }
 
 export function HdChartImageUpload({ clientId, onChanged, readOnly = false }: Props) {

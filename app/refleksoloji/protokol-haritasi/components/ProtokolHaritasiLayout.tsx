@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useToast } from "@/components/ui/ToastProvider";
-import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { protocolRowVersion } from "@/lib/refleksoloji/protocolSyncCore";
 import { createProtocolId, EMPTY_PROTOCOL_DRAFT, savedToDraft } from "../lib/protocolStorage";
@@ -95,7 +95,7 @@ export function ProtokolHaritasiLayout() {
     const local = protocols.find((p) => p.id === editParam);
     const uid = readYasamUser()?.id;
     const token = readSessionToken();
-    if (local && (local.pendingSync || isDemo || !uid || !token)) {
+    if (local && (local.pendingSync || isDemo || !uid || !hasSessionCredential(token))) {
       setDraft(savedToDraft(local));
       setEditId(local.id);
       setEditBaseVersion(local.baseVersion ?? null);
@@ -103,7 +103,7 @@ export function ProtokolHaritasiLayout() {
       return;
     }
     // 2) Demo veya oturumsuz → sunucu yok; düzenlenemez.
-    if (isDemo || !uid || !token) {
+    if (isDemo || !uid || !hasSessionCredential(token)) {
       setEditState("notfound");
       return;
     }
@@ -112,7 +112,7 @@ export function ProtokolHaritasiLayout() {
     void (async () => {
       try {
         const res = await fetch("/api/refleksoloji/protocols", {
-          headers: { "x-user-id": uid, "x-session-token": token },
+          headers: { "x-user-id": uid, ...sessionTokenHeader(token) },
           cache: "no-store",
         });
         const json = (await res.json().catch(() => null)) as

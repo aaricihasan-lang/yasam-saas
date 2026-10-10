@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { stoneReadTenantIds } from "@/lib/dogaltas/stoneTenantScope";
 import { trackUsage } from "@/lib/usage/trackUsage";
+import { normalizeSourceName, SOURCE_NAME_MAX } from "@/lib/dogaltas/stoneSources";
+import { isSourcesSchemaMissing } from "@/lib/dogaltas/stoneSourcesServer";
 import { validateMineralAssignments } from "@/lib/dogaltas/mineralPercent";
 import { validateStoneStructuredFields, validateStoneImagesField } from "@/lib/dogaltas/validation";
 import { normalizeTaxonomyValues } from "@/lib/dogaltas/stoneTaxonomy";
@@ -39,6 +41,8 @@ const STONE_WRITABLE = [
   "physical_effects", "spiritual_effects", "other_effects", "warning_text",
   "warning_tags", "feng_shui", "meditation", "care", "application",
   "chakras", "assignments", "images",
+  // WT9: birincil kaynağın adı (NULL = belirtilmemiş). Ek kaynaklar: /api/dogaltas/stones/[id]/sources.
+  "primary_source_name",
 ] as const;
 
 /** Okuma görünürlüğü: ortak kural (lib/dogaltas/stoneTenantScope). */
@@ -142,11 +146,16 @@ export async function GET(req: NextRequest): Promise<Response> {
     mark("exclusions", performance.now() - tExcl);
 
     if (mode === "count") {
-      let query = db.from("stones").select("id", { count: "exact", head: true }).in("tenant_id", ids);
-      if (excluded.length) query = query.not("id", "in", `(${excluded.join(",")})`);
-      if (q) { const or = buildStonesListSearchOrFilter(q, searchMode); if (or) query = query.or(or); }
+      const buildCount = (legacySchema: boolean) => {
+        let query = db.from("stones").select("id", { count: "exact", head: true }).in("tenant_id", ids);
+        if (excluded.length) query = query.not("id", "in", `(${excluded.join(",")})`);
+        if (q) { const or = buildStonesListSearchOrFilter(q, searchMode, { legacySchema }); if (or) query = query.or(or); }
+        return query;
+      };
       const tC = performance.now();
-      const { count, error } = await query;
+      let { count, error } = await buildCount(false);
+      // WT9 geri uyum: çoklu kaynak migration'ı henüz yoksa içerik araması eski kolonlarla yapılır.
+      if (error && q && searchMode === "content" && isSourcesSchemaMissing(error)) ({ count, error } = await buildCount(true));
       mark("count", performance.now() - tC);
       if (error) return send(serverErrorResponse({ route: "dogaltas/stones", action: "GET:count", tenantId, cause: error }));
       const tR = performance.now();
@@ -167,20 +176,24 @@ export async function GET(req: NextRequest): Promise<Response> {
     // aynı; ama wave-4'teki 2 paralel PostgREST çağrısı 1'e iner (round-trip azaltımı).
     const withCount = sp.get("withCount") === "1";
 
-    let query = db
-      .from("stones")
-      .select(STONES_LIST_SELECT, withCount ? { count: "exact" as const } : undefined)
-      .in("tenant_id", ids)
-      .order(STONES_LIST_ORDER_COLUMN, STONES_LIST_ORDER_OPTIONS)
-      // P2-07: eş adlı taşlarda sayfalar arası atlama/çift olmaması için kararlı ikincil sıra.
-      .order("id", { ascending: true })
-      .range(offset, offset + limit - 1);
-    if (excluded.length) query = query.not("id", "in", `(${excluded.join(",")})`);
-    if (q) { const or = buildStonesListSearchOrFilter(q, searchMode); if (or) query = query.or(or); }
+    const buildList = (legacySchema: boolean) => {
+      let query = db
+        .from("stones")
+        .select(STONES_LIST_SELECT, withCount ? { count: "exact" as const } : undefined)
+        .in("tenant_id", ids)
+        .order(STONES_LIST_ORDER_COLUMN, STONES_LIST_ORDER_OPTIONS)
+        // P2-07: eş adlı taşlarda sayfalar arası atlama/çift olmaması için kararlı ikincil sıra.
+        .order("id", { ascending: true })
+        .range(offset, offset + limit - 1);
+      if (excluded.length) query = query.not("id", "in", `(${excluded.join(",")})`);
+      if (q) { const or = buildStonesListSearchOrFilter(q, searchMode, { legacySchema }); if (or) query = query.or(or); }
+      return query;
+    };
 
     // stones_count: liste + (withCount ise) toplam sayı TEK sorguda (Content-Range).
     const tSC = performance.now();
-    const listRes = await query;
+    let listRes = await buildList(false);
+    if (listRes.error && q && searchMode === "content" && isSourcesSchemaMissing(listRes.error)) listRes = await buildList(true);
     mark("stones_count", performance.now() - tSC);
     if (listRes.error) return send(serverErrorResponse({ route: "dogaltas/stones", action: "GET:list", tenantId, cause: listRes.error }));
     const tR = performance.now();
@@ -238,6 +251,12 @@ export async function POST(req: NextRequest): Promise<Response> {
     payload.assignments = check.value;
   }
 
+  // WT9: birincil kaynak adı — normalize (boşluk), boş → NULL, üst sınır.
+  if ("primary_source_name" in payload) {
+    const n = normalizeSourceName(payload.primary_source_name);
+    if (n.length > SOURCE_NAME_MAX) return NextResponse.json({ ok: false, error: `Kaynak adı en fazla ${SOURCE_NAME_MAX} karakter olabilir.` }, { status: 400 });
+    payload.primary_source_name = n || null;
+  }
   payload.tenant_id = tenantId;              // SUNUCUDAN — body'deki tenant_id yok sayılır
   payload.updated_at = new Date().toISOString();
   if (!("images" in payload)) payload.images = [];

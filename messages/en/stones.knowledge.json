@@ -111,7 +111,7 @@
         "contentLabel": "Content"
       },
       "list": {
-        "viewed": "✓ Viewed"
+        "viewed": "Checked"
       },
       "empty": {
         "noArticles": "No articles yet. Use the Add Knowledge Record button to create one.",

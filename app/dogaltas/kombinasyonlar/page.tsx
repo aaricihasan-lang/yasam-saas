@@ -59,8 +59,11 @@ import {
 } from "@/lib/dogaltas/searchHighlight";
 import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
+import { browserSessionStorage, markChecked, readCheckedIds, searchContextKey } from "@/lib/search/searchChecked";
+import { SearchCheckedBadge, SEARCH_CHECKED_CARD_ACCENT } from "@/components/search/SearchCheckedBadge";
 
-const VIEWED_SEARCH_STORAGE_KEY = "yasam-combinations-viewed-search-results";
+/** WT8: eski bağlamsız, hiç silinmeyen localStorage "Bakıldı" listesi — yalnız temizlik için. */
+const LEGACY_VIEWED_STORAGE_KEY = "yasam-combinations-viewed-search-results";
 
 const COMBINATIONS_SEARCH_STORAGE_KEYS = [
   "yasam-combinations-search",
@@ -90,26 +93,6 @@ function stripUrlSearchQuery() {
   window.history.replaceState({}, "", cleanUrl);
 }
 
-function readViewedCombinationIssues(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = localStorage.getItem(VIEWED_SEARCH_STORAGE_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed)) {
-      return new Set(parsed.map((id) => String(id)));
-    }
-    return new Set();
-  } catch {
-    return new Set();
-  }
-}
-
-function markViewedCombinationIssue(issue: string) {
-  const viewed = readViewedCombinationIssues();
-  viewed.add(issue);
-  localStorage.setItem(VIEWED_SEARCH_STORAGE_KEY, JSON.stringify([...viewed]));
-}
 
 function combinationDetailHref(issue: string, query: string, isSearchActive: boolean) {
   const base = `/dogaltas/kombinasyonlar/${encodeURIComponent(issue)}`;
@@ -291,9 +274,18 @@ export default function KombinasyonlarPage() {
     }
   }, []);
 
+  // WT8: "Kontrol edildi" — Doğaltaş Detay Arama ile ORTAK mantık (lib/search/searchChecked):
+  // arama bağlamına bağlı, sessionStorage; yeni arama temiz başlar, önceki aramaya dönünce geri gelir.
+  const checkedContext = searchContextKey({ scope: "combinations", query: searchTerm });
+  const checkedContextRef = useRef(checkedContext);
+  useEffect(() => {
+    checkedContextRef.current = checkedContext;
+    runInEffect(() => setViewedIssueKeys(readCheckedIds(browserSessionStorage(), checkedContext)));
+  }, [checkedContext]);
+
   const handleCombinationNavigate = useCallback((issue: string) => {
-    markViewedCombinationIssue(issue);
-    setViewedIssueKeys(readViewedCombinationIssues());
+    const ctx = checkedContextRef.current;
+    if (ctx) setViewedIssueKeys(markChecked(browserSessionStorage(), ctx, issue));
   }, []);
 
   const handleRefresh = useCallback(() => {
@@ -329,9 +321,25 @@ export default function KombinasyonlarPage() {
     if (q) setSearchTerm(q);
   }, []);
 
+  // WT8: arama metni URL'de (?q=) tutulur → sonuç → detay → GERİ ile aynı arama ve "Kontrol edildi"
+  // işaretleri geri gelir (Taş Listesi ile aynı davranış). İlk çalıştırma atlanır: URL'deki q önce
+  // yukarıdaki effect ile state'e alınır, boş başlangıç değeri onu silmez.
+  const urlSyncReadyRef = useRef(false);
   useEffect(() => {
-    const refreshViewed = () => setViewedIssueKeys(readViewedCombinationIssues());
-    refreshViewed();
+    if (!urlSyncReadyRef.current) {
+      urlSyncReadyRef.current = true;
+      return;
+    }
+    const q = searchTerm.trim();
+    const next = q ? `${window.location.pathname}?q=${encodeURIComponent(q)}` : window.location.pathname;
+    if (`${window.location.pathname}${window.location.search}` !== next) {
+      window.history.replaceState(window.history.state, "", next);
+    }
+  }, [searchTerm]);
+
+  useEffect(() => {
+    try { localStorage.removeItem(LEGACY_VIEWED_STORAGE_KEY); } catch { /* erişim yok */ }
+    const refreshViewed = () => setViewedIssueKeys(readCheckedIds(browserSessionStorage(), checkedContextRef.current));
     window.addEventListener("focus", refreshViewed);
     return () => window.removeEventListener("focus", refreshViewed);
   }, []);
@@ -799,7 +807,7 @@ export default function KombinasyonlarPage() {
                 <article
                   key={issue}
                   className={`${uiComboCard} ${isSelected ? "border-violet-300 bg-violet-50/40" : ""} ${
-                    isViewedInSearch ? "border-l-[3px] border-rose-500" : isSearchActive ? "border-l-[3px] border-amber-400" : ""
+                    isViewedInSearch ? `border-l-[3px] border-emerald-500 ${SEARCH_CHECKED_CARD_ACCENT}` : isSearchActive ? "border-l-[3px] border-amber-400" : ""
                   }`}
                 >
                   {/* Checkbox + badges row */}
@@ -823,9 +831,7 @@ export default function KombinasyonlarPage() {
                     {isSearchActive && (
                       <span className={SEARCH_MATCH_BADGE_CLASS}>{t("matchBadge")}</span>
                     )}
-                    {isViewedInSearch && (
-                      <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-black text-rose-700">{t("viewed")}</span>
-                    )}
+                    {isViewedInSearch && <SearchCheckedBadge label={t("viewed")} />}
                   </div>
 
                   {/* Title */}

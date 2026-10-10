@@ -4,7 +4,8 @@ import { useTranslations } from "next-intl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import { dogaltasModalFontStore } from "@/lib/dogaltas/dogaltasModalFontSize";
 import { ReaderModal } from "@/components/common/reader/ReaderModal";
-import { type ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
+import { useSearchHighlight } from "@/lib/search/useSearchHighlight";
 
 /**
  * Doğaltaş büyük okuyucu — paylaşılan ReaderModal üzerinde İNCE SARMALAYICI.
@@ -41,6 +42,12 @@ export function StoneReaderModal({
   onClose,
 }: StoneReaderModalProps) {
   const t = useTranslations("stones.reader");
+  // WT8: okuyucu açılınca ilk arama eşleşmesine kaydır (vurgu <mark> ile zaten var; tüm geçişler).
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  useSearchHighlight(bodyRef, [highlightQuery ?? ""], {
+    enabled: open && !contentBlurred && Boolean(highlightQuery?.trim()),
+    resetKey: `${title}${text.length}`,
+  });
   const renderSegment = (segment: string, key: string): ReactNode => {
     const q = highlightQuery?.trim();
     if (q && renderHighlight) return renderHighlight(segment, key);
@@ -58,7 +65,7 @@ export function StoneReaderModal({
       blurredNote={<p className="mt-6 text-center text-sm font-black text-amber-600">{t("demoProtected")}</p>}
       fontStore={dogaltasModalFontStore}
       scrollClassName="stone-reader-scroll"
-      renderBody={(fontSizePx) => formatStoneContent(text, { renderSegment, fontSizePx })}
+      renderBody={(fontSizePx) => <div ref={bodyRef}>{formatStoneContent(text, { renderSegment, fontSizePx })}</div>}
       onClose={onClose}
     />
   );

@@ -1,4 +1,4 @@
-import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 
 export type StoneWarningResult = {
   /** Veritabanındaki stones.id — detay linki için */
@@ -45,7 +45,7 @@ export async function checkStoneWarnings(
 
   const userId = readYasamUser()?.id;
   const sessionToken = readSessionToken();
-  if (!userId || !sessionToken) {
+  if (!userId || !hasSessionCredential(sessionToken)) {
     console.warn("[stoneWarnings] Oturum bilgisi yok; taş uyarı kontrolü atlandı.");
     return [];
   }
@@ -56,7 +56,7 @@ export async function checkStoneWarnings(
       headers: {
         "Content-Type": "application/json",
         "x-user-id": userId,
-        "x-session-token": sessionToken,
+        ...sessionTokenHeader(sessionToken),
       },
       body: JSON.stringify({ stoneNames }),
     });

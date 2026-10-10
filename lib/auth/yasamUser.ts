@@ -12,6 +12,7 @@ import {
   parseModulePermissions,
   type ModulePermissions,
 } from "@/lib/auth/modulePermissions";
+import { isAndroidAppUserAgent } from "@/lib/platform/outputSupport";
 import { clearDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { handleReflexologyLogout } from "@/lib/refleksoloji/runtimeReset";
 
@@ -243,6 +244,46 @@ export function readSessionToken(): string | null {
   return localStorage.getItem(SESSION_TOKEN_KEY);
 }
 
+/**
+ * HTTPONLY H5 — İSTEMCİDE TEK ANDROID KARARI. Android uygulaması siteyi Android WebView içinde
+ * açar → web ile AYNI JS paketi çalışır. Mevcut gerçek işaret kullanılır (isAndroidAppUserAgent:
+ * `YasamSistemiAndroid/` soneki veya `; wv)`); sunucudaki isAndroidAppRequest'in cookie dışlaması
+ * da `; wv)` kuralını kullanır → sunucunun cookie vermediği her istemci burada token/header yolunda
+ * kalır. Android'de oturum YALNIZ localStorage token + x-session-token ile yürür (cookie yok).
+ */
+export function isAndroidWebViewClient(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return isAndroidAppUserAgent(navigator.userAgent);
+}
+
+/**
+ * HTTPONLY H5 — bu istemcinin kimlikli istek atabilecek bir oturum kimlik bilgisi var mı?
+ *   - token varsa: evet (bugünkü yol; Android dahil).
+ *   - Android: token yoksa HAYIR (Android cookie kullanmaz).
+ *   - Web: token yoksa profil kaydı varsa EVET — kimlik HttpOnly cookie ile sunucuda doğrulanır
+ *     (SESSION_COOKIE_MODE=primary). Cookie geçersizse sunucu 401 döner; karar sunucudadır.
+ * "localStorage token var mı?" web'de TEK BAŞINA oturum kararı DEĞİLDİR.
+ */
+export function hasSessionCredential(token: string | null | undefined = readSessionToken()): boolean {
+  if (token) return true;
+  if (typeof window === "undefined" || isAndroidWebViewClient()) return false;
+  return !!readYasamUser()?.id;
+}
+
+/** HTTPONLY H5 — profil kaydı + oturum kimlik bilgisi (web: token veya HttpOnly cookie). */
+export function hasWebSession(): boolean {
+  return !!readYasamUser()?.id && hasSessionCredential();
+}
+
+/**
+ * HTTPONLY H5 — `x-session-token` başlığı YALNIZ token varken eklenir. Token yoksa başlık HİÇ
+ * gönderilmez (null/boş değer "null" metnine dönüşüp cookie ile çelişen geçersiz credential
+ * üretmesin) → web isteği HttpOnly cookie ile kimliklenir.
+ */
+export function sessionTokenHeader(token: string | null | undefined = readSessionToken()): Record<string, string> {
+  return token ? { "x-session-token": token } : {};
+}
+
 export function clearSessionToken(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(SESSION_TOKEN_KEY);
@@ -297,6 +338,17 @@ export function clearYasamUser(): void {
       headers: { "x-session-token": logoutToken },
       keepalive: true,
     }).catch(() => {});
+  } else if (!isAndroidWebViewClient()) {
+    // HTTPONLY H5: web'de token yoksa HttpOnly cookie oturumu sunucuda kapatılır ve cookie silinir.
+    // Cookie-only DELETE → CSRF katmanı: özel başlık (x-user-id) + same-origin (tarayıcı Origin'i).
+    const logoutUserId = readYasamUser()?.id;
+    if (logoutUserId) {
+      void fetch("/api/auth/session", {
+        method: "DELETE",
+        headers: { "x-user-id": logoutUserId },
+        keepalive: true,
+      }).catch(() => {});
+    }
   }
 
   localStorage.removeItem(STORAGE_KEY);
@@ -348,13 +400,14 @@ export async function refreshYasamUserFromDb(
   if (!user.id) return null;
 
   const token = readSessionToken();
-  // Oturum token'ı henüz yoksa (ör. login anında, session oluşturulmadan önce)
-  // güvenli API çağrılamaz — mevcut (RPC'den gelen) kaydı koru, login akışını bozma.
-  if (!token) return user;
+  // Oturum kimlik bilgisi yoksa (ör. login anında, session oluşturulmadan önce; Android'de token
+  // yok) güvenli API çağrılamaz — mevcut kaydı koru. HTTPONLY H5: web'de token yoksa HttpOnly
+  // cookie ile doğrulanır (hasSessionCredential).
+  if (!hasSessionCredential(token)) return user;
 
   try {
     const res = await fetch("/api/auth/profile", {
-      headers: { "x-user-id": user.id, "x-session-token": token },
+      headers: { "x-user-id": user.id, ...sessionTokenHeader(token) },
       cache: "no-store",
     });
 

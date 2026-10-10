@@ -5,7 +5,7 @@
  * CSS'i ile çalışır. Yalnız oturum okuyucusu (readYasamUser) test kullanıcısına bağlanır ve API
  * yanıtları Playwright route'u ile taklit edilir (sunucu tarafı v2-harness'te ayrıca test edilir).
  *
- * Doğrular: yetkili uzmanda seçim penceresi (varsayılan Her ikisi) · yetkisizde pencere YOK ·
+ * Doğrular: içerik seçimi penceresi (iki onay kutusu, VARSAYILAN KAPALI; Sistem Yorumu yalnız yetkiliye) ·
  * Sistem verisi olmayan haritada yalnız Uzman seçilebilir + açık bilgi · istek gövdesi (commentary +
  * ≥1800 px PNG) · DOCX indirme · BodyGraph başarısızsa açık "olmadan oluştur" onayı · redaksiyon
  * bildirimi · mobil 375/390 px'de pencere taşmaz · Android'de buton YOK · harici ağ isteği YOK.
@@ -143,54 +143,85 @@ async function main() {
   const expertNoSystem = { id: "u2", role: "expert", membership_status: "active", module_permissions: { human_design: true } };
 
   try {
-    console.log("\n—— UI-1 Yetkili uzman + Roxy haritası: seçim penceresi → yakalama → oluştur → indir");
+    const DLG = "Word raporuna neler eklensin?";
+    const KNOW = /Bilgi Bankamdaki Açıklamaları Ekle/;
+    const SYS = /Sistem Yorumunu Ekle/;
+    console.log("\n—— UI-1 Yetkili uzman + Roxy haritası: içerik seçimi (varsayılan KAPALI) → yakalama → oluştur → indir");
     {
       const { page, bodies } = await open({ user: expertWithSystem, props: { chartId: "ch-roxy", roxyRender: renderData } });
-      await page.getByRole("button", { name: "Word İndir", exact: true }).click();
-      const dlg = page.getByRole("dialog", { name: "Word raporuna hangi yorumlar aktarılsın?" });
+      await page.getByRole("button", { name: "Yeni Word Oluştur", exact: true }).click();
+      const dlg = page.getByRole("dialog", { name: DLG });
       ok("pencere açıldı", await dlg.isVisible());
-      ok("varsayılan seçim: Her ikisi", await dlg.getByRole("radio", { name: /Her ikisi/ }).isChecked());
-      ok("üç seçenek de etkin", (await dlg.getByRole("radio").count()) === 3 && !(await dlg.getByRole("radio", { name: /Yalnız Sistem Yorumu/ }).isDisabled()));
+      ok("iki seçenek de VARSAYILAN KAPALI", !(await dlg.getByRole("checkbox", { name: KNOW }).isChecked()) && !(await dlg.getByRole("checkbox", { name: SYS }).isChecked()));
+      ok("açıklama metinleri birebir", await dlg.getByText("İlgili Human Design özellikleri için Bilgi Bankası'na yazdığınız açıklamalar Word raporuna eklenir.").isVisible()
+        && await dlg.getByText("Bu analiz için mevcut ve kullanılabilir sistem yorumları Word raporuna eklenir.").isVisible());
+      ok("özel notların asla eklenmeyeceği açıkça söylendi", await dlg.getByText(/Özel Çalışma Notlarınız hiçbir durumda rapora eklenmez/).isVisible());
       await page.screenshot({ path: join(OUT, "ui-dialog-desktop.png") });
-      await dlg.getByRole("radio", { name: /Yalnız Uzman Bilgilerim/ }).check();
+      await dlg.getByRole("checkbox", { name: KNOW }).check();
       const dlP = page.waitForEvent("download");
-      await dlg.getByRole("button", { name: "Raporu oluştur" }).click();
+      await dlg.getByRole("button", { name: "Word'ü oluştur" }).click();
       const dl = await dlP;
       ok("DOCX indirildi (dosya adı sunucudan)", dl.suggestedFilename() === "Human-Design-Test-2026-10-08.docx");
       const b = bodies[0] ?? {};
-      ok("istek: commentary=expert + chartId + requestId", b.commentary === "expert" && b.chartId === "ch-roxy" && typeof b.requestId === "string");
+      ok("istek: yalnız Bilgi Bankası → commentary=expert + chartId + requestId", b.commentary === "expert" && b.chartId === "ch-roxy" && typeof b.requestId === "string");
       const png = typeof b.bodygraphPng === "string" ? Buffer.from(String(b.bodygraphPng).split(",")[1], "base64") : null;
       const v = validateBodygraphPng(png);
       ok("istek: gerçek renderer PNG'si sunucu doğrulamasından geçer (≥1800 px)", v.ok && v.height >= 1800, v.ok ? "" : v.error);
       if (png) writeFileSync(join(OUT, "ui-captured.png"), png);
-      await page.getByText(/Rapor indirildi/).waitFor();
-      ok("başarı mesajı gösterildi", await page.getByText(/Rapor indirildi/).isVisible());
-      await page.getByRole("button", { name: "Word İndir", exact: true }).click();
+      await page.getByText(/Yeni Word raporu oluşturuldu/).waitFor();
+      ok("başarı mesajı gösterildi", await page.getByText(/Yeni Word raporu oluşturuldu/).isVisible());
+      await page.getByRole("button", { name: "Kayıtlı Word'ü İndir", exact: true }).click();
       await page.waitForTimeout(300);
-      ok("tekrar indir → yeni oluşturma isteği YOK (aynı rapor)", bodies.length === 1);
+      ok("tekrar → 'Kayıtlı Word'ü İndir' aynı raporu indirir (yeni oluşturma isteği YOK)", bodies.length === 1);
+      await page.getByText(/Önceden oluşturulmuş kayıtlı Word raporu indirildi/).waitFor();
+      ok("kayıtlı raporun indirildiği açıkça söylendi", true);
+      // Yeni sürüm: seçimler yeniden KAPALI gelir (önceki seçim hatırlanmaz).
+      await page.getByRole("button", { name: "Yeni Word oluştur (içerik seçerek)" }).click();
+      const dlg2 = page.getByRole("dialog", { name: DLG });
+      ok("yeni Word: seçenekler yeniden KAPALI (önceki 'Bilgi Bankası' seçimi hatırlanmadı)", !(await dlg2.getByRole("checkbox", { name: KNOW }).isChecked()) && !(await dlg2.getByRole("checkbox", { name: SYS }).isChecked()));
+      await dlg2.getByRole("button", { name: "Vazgeç" }).click();
+      ok("Vazgeç → istek yok", bodies.length === 1);
       await page.context().close();
     }
 
-    console.log("\n—— UI-2 Yetkisiz uzman: pencere YOK, uzman otomatik");
+    console.log("\n—— UI-1b Dört seçim kombinasyonu → doğru istek");
+    for (const [k, s2, want] of [[false, false, "none"], [true, false, "expert"], [false, true, "system"], [true, true, "both"]] as const) {
+      const { page, bodies } = await open({ user: expertWithSystem, props: { chartId: "ch-roxy", roxyRender: renderData } });
+      await page.getByRole("button", { name: "Yeni Word Oluştur", exact: true }).click();
+      const dlg = page.getByRole("dialog", { name: DLG });
+      if (k) await dlg.getByRole("checkbox", { name: KNOW }).check();
+      if (s2) await dlg.getByRole("checkbox", { name: SYS }).check();
+      const dlP = page.waitForEvent("download");
+      await dlg.getByRole("button", { name: "Word'ü oluştur" }).click();
+      await dlP;
+      ok(`bilgi=${k} sistem=${s2} → commentary=${want}`, bodies[0]?.commentary === want, JSON.stringify(bodies[0]?.commentary));
+      await page.context().close();
+    }
+
+    console.log("\n—— UI-2 Yetkisiz uzman: pencere VAR, yalnız Bilgi Bankası seçeneği (varsayılan kapalı)");
     {
       const { page, bodies } = await open({ user: expertNoSystem, props: { chartId: "ch-roxy", roxyRender: renderData } });
+      await page.getByRole("button", { name: "Yeni Word Oluştur", exact: true }).click();
+      const dlg = page.getByRole("dialog", { name: DLG });
+      ok("pencere açıldı; 'Sistem Yorumunu Ekle' gösterilmez", await dlg.isVisible() && (await dlg.getByRole("checkbox", { name: SYS }).count()) === 0);
+      ok("'Bilgi Bankamdaki Açıklamaları Ekle' kapalı", !(await dlg.getByRole("checkbox", { name: KNOW }).isChecked()));
       const dlP = page.waitForEvent("download");
-      await page.getByRole("button", { name: "Word İndir", exact: true }).click();
+      await dlg.getByRole("button", { name: "Word'ü oluştur" }).click();
       await dlP;
-      ok("seçim penceresi gösterilmedi", (await page.getByRole("dialog").count()) === 0);
-      ok("istekte commentary YOK (sunucu varsayılanı = uzman)", bodies.length === 1 && !("commentary" in bodies[0]));
+      ok("istek: commentary=none (Bilgi Bankası otomatik EKLENMEZ)", bodies.length === 1 && bodies[0].commentary === "none");
       await page.context().close();
     }
 
     console.log("\n—— UI-3 Sistem verisi olmayan (manuel) harita + yetkili uzman");
     {
       const { page, bodies } = await open({ user: expertWithSystem, props: { chartId: "ch-man" } });
-      await page.getByRole("button", { name: "Word İndir", exact: true }).click();
+      await page.getByRole("button", { name: "Yeni Word Oluştur", exact: true }).click();
       const dlg = page.getByRole("dialog");
-      ok("açık bilgi: Sistem Yorumu verisi yok", await dlg.getByText(/kayıtlı Sistem Yorumu verisi yok/).isVisible());
-      ok("yalnız Uzman seçilebilir (diğerleri devre dışı)", (await dlg.getByRole("radio", { name: /Yalnız Uzman/ }).isChecked()) && (await dlg.getByRole("radio", { name: /Her ikisi/ }).isDisabled()) && (await dlg.getByRole("radio", { name: /Yalnız Sistem/ }).isDisabled()));
+      ok("açık bilgi: sistem yorumu yok", await dlg.getByText(/kayıtlı sistem yorumu yok/).isVisible());
+      ok("'Sistem Yorumunu Ekle' pasif; Bilgi Bankası seçilebilir", (await dlg.getByRole("checkbox", { name: SYS }).isDisabled()) && !(await dlg.getByRole("checkbox", { name: KNOW }).isDisabled()));
+      await dlg.getByRole("checkbox", { name: KNOW }).check();
       const dlP = page.waitForEvent("download");
-      await dlg.getByRole("button", { name: "Raporu oluştur" }).click();
+      await dlg.getByRole("button", { name: "Word'ü oluştur" }).click();
       await dlP;
       ok("istek: commentary=expert, PNG YOK (manuel harita)", bodies[0]?.commentary === "expert" && !("bodygraphPng" in (bodies[0] ?? {})));
       await page.context().close();
@@ -200,13 +231,14 @@ async function main() {
     {
       const broken = { ...renderData, gates: [...(renderData.gates as unknown[]), { planet: "Sun", side: "design", gate: 999, line: 1 }] };
       const { page, bodies } = await open({ user: expertNoSystem, props: { chartId: "ch-roxy", roxyRender: broken }, createBody: { ok: true, id: "rep-2", omittedCount: 0, bodygraph: "missing", systemReading: "not_permitted", expertEntries: 1 } });
-      await page.getByRole("button", { name: "Word İndir", exact: true }).click();
+      await page.getByRole("button", { name: "Yeni Word Oluştur", exact: true }).click();
+      await page.getByRole("dialog", { name: DLG }).getByRole("button", { name: "Word'ü oluştur" }).click();
       await page.getByRole("button", { name: "BodyGraph olmadan oluştur" }).waitFor();
       ok("rapor sessizce oluşturulmadı (istek yok) + seçenekler gösterildi", bodies.length === 0 && (await page.getByRole("button", { name: "Tekrar dene" }).isVisible()));
       const dlP = page.waitForEvent("download");
       await page.getByRole("button", { name: "BodyGraph olmadan oluştur" }).click();
       await dlP;
-      ok("açık onayla istek: allowMissingBodygraph=true, PNG yok", bodies[0]?.allowMissingBodygraph === true && !("bodygraphPng" in bodies[0]));
+      ok("açık onayla istek: allowMissingBodygraph=true, PNG yok, seçim korunur (none)", bodies[0]?.allowMissingBodygraph === true && !("bodygraphPng" in bodies[0]) && bodies[0].commentary === "none");
       await page.getByText(/BodyGraph görseli OLMADAN/).waitFor();
       ok("kullanıcıya eksiklik açıkça bildirildi", await page.getByText(/BodyGraph görseli OLMADAN/).isVisible());
       await page.context().close();
@@ -214,9 +246,9 @@ async function main() {
 
     console.log("\n—— UI-5 İndirme yetki nedeniyle düzenlendiyse bildirim");
     {
-      const { page } = await open({ user: expertNoSystem, props: { chartId: "ch-roxy", roxyRender: renderData }, redacted: true });
+      const { page } = await open({ user: expertNoSystem, props: { chartId: "ch-roxy", roxyRender: renderData, existingReportId: "rep-ready" }, redacted: true });
       const dlP = page.waitForEvent("download");
-      await page.getByRole("button", { name: "Word İndir", exact: true }).click();
+      await page.getByRole("button", { name: "Kayıtlı Word'ü İndir", exact: true }).click();
       await dlP;
       await page.getByText(/güncel yetkisi kapalı/).waitFor();
       ok("redaksiyon mesajı gösterildi", await page.getByText(/güncel yetkisi kapalı/).isVisible());
@@ -226,12 +258,12 @@ async function main() {
     console.log("\n—— UI-6 Mobil 375 / 390 px: pencere taşmaz");
     for (const width of [375, 390]) {
       const { page } = await open({ user: expertWithSystem, props: { chartId: "ch-roxy", roxyRender: renderData }, viewport: { width, height: 760 } });
-      await page.getByRole("button", { name: "Word İndir", exact: true }).click();
+      await page.getByRole("button", { name: "Yeni Word Oluştur", exact: true }).click();
       const box = await page.getByRole("dialog").boundingBox();
       const scrollW = await page.evaluate(() => document.documentElement.scrollWidth);
       ok(`${width}px: pencere ekran içinde, yatay kaydırma yok`, !!box && box.x >= 0 && box.x + box.width <= width + 0.5 && box.y >= 0 && box.y + box.height <= 760 + 0.5 && scrollW <= width, JSON.stringify(box));
-      const radio = await page.getByRole("radio", { name: /Her ikisi/ }).locator("xpath=..").boundingBox();
-      ok(`${width}px: seçenek dokunma hedefi ≥ 44 px`, !!radio && radio.height >= 44);
+      const opt = await page.getByRole("checkbox", { name: KNOW }).locator("xpath=..").boundingBox();
+      ok(`${width}px: seçenek dokunma hedefi ≥ 44 px`, !!opt && opt.height >= 44);
       await page.screenshot({ path: join(OUT, `ui-dialog-${width}.png`) });
       await page.keyboard.press("Escape");
       ok(`${width}px: ESC pencereyi kapatır`, (await page.getByRole("dialog").count()) === 0);
@@ -246,33 +278,38 @@ async function main() {
       await page.context().close();
     }
 
-    console.log("\n—— UI-9 Analizin hazır Word v2 raporu var: Word İndir → AYNI rapor, yeni oluşturma YOK");
+    console.log("\n—— UI-9 Analizin kayıtlı Word v2 raporu var: 'Kayıtlı Word'ü İndir' → AYNI rapor, yeni oluşturma YOK");
     {
       const { page, bodies } = await open({ user: expertWithSystem, props: { chartId: "ch-roxy", roxyRender: renderData, existingReportId: "rep-ready" } });
       const dlP = page.waitForEvent("download");
-      await page.getByRole("button", { name: "Word İndir", exact: true }).click();
+      await page.getByRole("button", { name: "Kayıtlı Word'ü İndir", exact: true }).click();
       const dl = await dlP;
       ok("DOCX indirildi; seçim penceresi / yakalama / oluşturma isteği YOK", !!dl && bodies.length === 0 && (await page.getByRole("dialog").count()) === 0);
-      await page.getByText(/yeni hesaplama yapılmadı/).waitFor();
-      ok("kullanıcıya kayıtlı raporun indirildiği söylendi", await page.getByText(/yeni hesaplama yapılmadı/).isVisible());
-      ok("bilinçli yeni sürüm bağlantısı görünür", await page.getByRole("button", { name: "Güncel bilgilerle yeni Word oluştur" }).isVisible());
+      await page.getByText(/Önceden oluşturulmuş kayıtlı Word raporu indirildi; içeriği değiştirilmedi/).waitFor();
+      ok("kullanıcıya önceden oluşturulmuş raporun indirildiği söylendi", true);
+      ok("yeni Word oluşturma AYRI ve açık", await page.getByRole("button", { name: "Yeni Word oluştur (içerik seçerek)" }).isVisible());
       await page.context().close();
     }
 
     console.log("\n—— UI-10 Hazır rapor araması sürerken düğme bekler (kopya oluşmaz)");
     {
       const { page, bodies } = await open({ user: expertNoSystem, props: { chartId: "ch-roxy", roxyRender: renderData, lookupPending: true } });
-      ok("arama sürerken Word İndir devre dışı", await page.getByRole("button", { name: "Word İndir", exact: true }).isDisabled());
+      ok("arama sürerken Word düğmesi devre dışı", await page.locator("[data-hd-word-download]").isDisabled());
       ok("istek yok", bodies.length === 0);
       await page.context().close();
     }
 
-    console.log("\n—— UI-11 Listeden Word İndir (autoStart): akış bir kez kendiliğinden başlar");
+    console.log("\n—— UI-11 Listeden Word Oluştur (autoStart): içerik seçimi penceresi bir kez açılır");
     {
       const { page, bodies } = await open({ user: expertNoSystem, props: { chartId: "ch-roxy", roxyRender: renderData, autoStart: true } });
-      const dl = await page.waitForEvent("download");
+      const dlg = page.getByRole("dialog", { name: DLG });
+      await dlg.waitFor();
+      ok("pencere kendiliğinden açıldı; seçenek kapalı; istek henüz YOK", !(await dlg.getByRole("checkbox", { name: KNOW }).isChecked()) && bodies.length === 0);
+      const dl = page.waitForEvent("download");
+      await dlg.getByRole("button", { name: "Word'ü oluştur" }).click();
+      await dl;
       await page.waitForTimeout(400);
-      ok("tıklamasız tek oluşturma + indirme", !!dl && bodies.length === 1);
+      ok("tek oluşturma + indirme", bodies.length === 1 && bodies[0].commentary === "none");
       await page.context().close();
     }
 

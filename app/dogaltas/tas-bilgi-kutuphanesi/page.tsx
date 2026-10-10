@@ -28,6 +28,7 @@ import { DemoBlur } from "@/components/demo/DemoBlur";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { DogaltasBreadcrumb } from "@/app/dogaltas/components/DogaltasBreadcrumb";
 import { LongTextField } from "@/app/dogaltas/components/LongTextField";
+import { SearchCheckedBadge } from "@/components/search/SearchCheckedBadge";
 
 // ─── Tipler ────────────────────────────────────────────────────────────────────
 
@@ -1290,9 +1291,7 @@ export default function TasBilgiKutuphanesiPage() {
                             {rec.source && <><span>·</span><span>{rec.source.replace(/\.(docx|pdf)$/i, "")}</span></>}
                           </div>
                           {isSearchActive && viewed.has(rec.id) && (
-                            <div className={`mt-0.5 text-[11px] font-semibold ${isActive ? "text-white/55" : "text-rose-400/80"}`}>
-                              {t("list.viewed")}
-                            </div>
+                            <SearchCheckedBadge label={t("list.viewed")} className="mt-1" />
                           )}
                         </div>
                         {isSearchActive && matchCount > 0 && (

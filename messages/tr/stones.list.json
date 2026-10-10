@@ -227,7 +227,8 @@
         "workspaceUnavailable": "Çalışma alanı bilgileriniz yüklenemedi. Lütfen yeniden giriş yapın.",
         "invalidData": "Geçersiz kayıt verisi."
       },
-      "thisStone": "bu taş"
+      "thisStone": "bu taş",
+      "matchCount": "{n} eşleşme"
     }
   }
 }

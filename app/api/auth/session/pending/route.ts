@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerDb } from "@/lib/supabase-server";
+import {
+  cookieMaxAgeFromExpiresAt,
+  getSessionCookieConfig,
+  isAndroidAppRequest,
+  isSessionCookieEligible,
+  setWebSessionCookie,
+} from "@/lib/auth/sessionCookie";
+import { checkSameOriginRequest } from "@/lib/security/csrf";
 
 export const runtime = "nodejs";
 
@@ -31,7 +39,28 @@ export async function GET(req: NextRequest) {
         .eq("active", true)
         .maybeSingle();
       if (!u) return NextResponse.json({ state: "invalid" }, { status: 200, headers: NO_STORE });
-      return NextResponse.json({ state, user: u }, { status: 200, headers: NO_STORE });
+      const response = NextResponse.json({ state, user: u }, { status: 200, headers: NO_STORE });
+      // HTTPONLY H5: onaylanan WEB oturumunun HttpOnly cookie'si sunucuda yazılır (login yanıtıyla
+      // aynı kurallar: mod≠off, uygun kullanıcı, Android ASLA, süreli oturum). Token gövdede DEĞİL;
+      // istemci zaten elindeki pending token'ı kullanır (H5'te localStorage yolu aynen sürer).
+      const cookieCfg = getSessionCookieConfig();
+      if (cookieCfg.mode !== "off" && !isAndroidAppRequest(req.headers) && isSessionCookieEligible(cookieCfg, String(res.user_id))) {
+        try {
+          const { data: row } = await db
+            .from("user_sessions")
+            .select("user_id, client_channel, expires_at, is_active")
+            .eq("session_token", token)
+            .maybeSingle();
+          const r = row as { user_id?: unknown; client_channel?: unknown; expires_at?: unknown; is_active?: unknown } | null;
+          const maxAge = cookieMaxAgeFromExpiresAt(r?.expires_at);
+          if (r && r.is_active === true && String(r.user_id) === String(res.user_id) && r.client_channel !== "android_app" && maxAge !== null) {
+            setWebSessionCookie(response, token, maxAge);
+          }
+        } catch {
+          /* cookie best-effort; header yolu (H5) çalışmaya devam eder */
+        }
+      }
+      return response;
     }
     return NextResponse.json(
       state === "pending" ? { state, pendingExpiresAt: res.pending_expires_at ?? null } : { state },
@@ -49,6 +78,14 @@ export async function GET(req: NextRequest) {
  * İdempotent; her zaman 200 (token varlığı hakkında bilgi sızdırmaz).
  */
 export async function DELETE(req: NextRequest) {
+  // HTTPONLY H5: cookie modu açıkken (off DEĞİL) web isteğinde Origin / Sec-Fetch-Site doğrulaması.
+  if (
+    getSessionCookieConfig().mode !== "off" &&
+    !isAndroidAppRequest(req.headers) &&
+    !checkSameOriginRequest(req.headers).ok
+  ) {
+    return NextResponse.json({ error: "İstek kaynağı doğrulanamadı." }, { status: 403, headers: NO_STORE });
+  }
   const token = req.headers.get("x-session-token")?.trim() ?? "";
   if (token) {
     try {

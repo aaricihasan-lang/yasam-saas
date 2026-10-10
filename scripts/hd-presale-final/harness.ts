@@ -12,7 +12,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { saveManualChart, getManualChartByClient } from "../../lib/human-design/api/chartPersistence";
-import { deleteHdClient, updateHdClient } from "../../lib/human-design/api/clientPersistence";
+import { deleteHdClient, previewHdClientDelete, updateHdClient } from "../../lib/human-design/api/clientPersistence";
 import {
   deleteReport,
   findReportBrief,
@@ -345,43 +345,84 @@ const later = (iso: string, ms = 5) => new Date(Date.parse(iso) + ms).toISOStrin
     assert(c3.ok, "sürümsüz (eski istemci) geriye uyum bozuldu");
   });
 
-  console.log("\n== P1-3 + P2-10: danışan silme ==");
+  console.log("\n== Profil silme (owner kararı 2026-10-09): profil + analizler + Word raporları ==");
+  const C2 = "c2c2c2c2-0000-4000-8000-0000000000c2";
   function seedDelete() {
     const db = new FakeDb();
-    db.tables.human_design_clients = [{ id: C1, tenant_id: T1, name: "A", chart_image_url: `${T1}/${C1}/live.png` }];
-    db.tables.human_design_charts = [{ id: "ch1", tenant_id: T1, client_id: C1, source: "manual" }];
-    db.tables.human_design_reports = [
-      { id: "rp1", tenant_id: T1, client_id: C1, report_kind: "canonical", snapshot: { chartImage: { storagePath: `${T1}/report-snapshots/rp1.png` } } },
-      { id: "rp2", tenant_id: T1, client_id: C1, report_kind: "canonical", snapshot: { chartImage: { storagePath: `${T1}/${C1}/legacy-ref.png` } } },
-      { id: "rp3", tenant_id: T1, client_id: C1, report_kind: "legacy", edited_content: "metin" },
-      { id: "other", tenant_id: T2, client_id: C1, report_kind: "legacy" },
+    db.tables.human_design_clients = [
+      { id: C1, tenant_id: T1, name: "A", chart_image_url: `${T1}/${C1}/live.png` },
+      { id: C2, tenant_id: T1, name: "A", chart_image_url: null }, // AYNI İSİMLİ başka danışan
     ];
-    for (const p of [`${T1}/${C1}/live.png`, `${T1}/${C1}/legacy-ref.png`, `${T1}/${C1}/old-orphan.png`, `${T1}/report-snapshots/rp1.png`]) {
+    db.tables.human_design_charts = [
+      { id: "ch1", tenant_id: T1, client_id: C1, source: "manual" },
+      { id: "ch2", tenant_id: T1, client_id: C1, source: "computed" },
+      { id: "chFree", tenant_id: T1, client_id: null, source: "computed" }, // bağımsız analiz
+      { id: "chC2", tenant_id: T1, client_id: C2, source: "computed" },
+    ];
+    db.tables.human_design_reports = [
+      { id: "rp1", tenant_id: T1, client_id: C1, chart_id: "ch2", report_kind: "canonical", snapshot: { chartImage: { storagePath: `${T1}/report-snapshots/rp1.png` } } },
+      { id: "rp2", tenant_id: T1, client_id: C1, chart_id: null, report_kind: "canonical", snapshot: { chartImage: { storagePath: `${T1}/${C1}/legacy-ref.png` } } },
+      { id: "rp3", tenant_id: T1, client_id: C1, chart_id: null, report_kind: "legacy", edited_content: "metin" },
+      { id: "rp4", tenant_id: T1, client_id: null, chart_id: "ch1", report_kind: "legacy" }, // sahipsiz ama C1 analizine bağlı
+      { id: "rpForeign", tenant_id: T1, client_id: C2, chart_id: "ch1", report_kind: "legacy" }, // başka profile ait → KORUNUR
+      { id: "rpC2", tenant_id: T1, client_id: C2, chart_id: "chC2", report_kind: "canonical", snapshot: { chartImage: { storagePath: `${T1}/report-snapshots/rpC2.png` } } },
+      { id: "rpFree", tenant_id: T1, client_id: null, chart_id: null, report_kind: "legacy" }, // ilişkisiz
+      { id: "other", tenant_id: T2, client_id: C1, chart_id: "ch1", report_kind: "legacy" }, // başka tenant
+    ];
+    for (const p of [`${T1}/${C1}/live.png`, `${T1}/${C1}/legacy-ref.png`, `${T1}/${C1}/old-orphan.png`, `${T1}/report-snapshots/rp1.png`, `${T1}/report-snapshots/rpC2.png`, `${T1}/${C2}/c2.png`]) {
       db.storage.objects.set(`hd-chart-images/${p}`, Buffer.from("img"));
     }
     return db;
   }
-  await t("raporlar (profesyonel+legacy) KORUNUR, danışan+harita silinir, rapor-referanslı görsel kalır", async () => {
+  const ids = (db: FakeDb, t: string) => db.tables[t].map((x) => x.id).sort().join(",");
+  await t("önizleme kesin kapsamı verir (yalnız profil kimliği; aynı isimli danışan/bağımsız/başka tenant hariç)", async () => {
     const db = seedDelete();
-    const r = await deleteHdClient(asDb(db), T1, C1);
-    assert(r.ok && r.preservedReports === 3, "sonuç: " + JSON.stringify(r));
-    assert(db.tables.human_design_clients.length === 0, "danışan duruyor");
-    assert(db.tables.human_design_charts.length === 0, "harita duruyor");
-    const reps = db.tables.human_design_reports.filter((x) => x.tenant_id === T1);
-    assert(reps.length === 3 && reps.every((x) => x.client_id === null), "raporlar korunmadı/koparılmadı");
-    assert(db.tables.human_design_reports.find((x) => x.id === "other")?.client_id === C1, "başka tenant'ın raporuna dokunuldu");
-    const objs = [...db.storage.objects.keys()];
-    assert(!objs.some((k) => k.endsWith("live.png") || k.endsWith("old-orphan.png")), "görsel temizlenmedi: " + objs.join(","));
-    assert(objs.some((k) => k.endsWith("legacy-ref.png")), "rapor snapshot'ının kullandığı görsel silindi");
-    assert(objs.some((k) => k.endsWith("report-snapshots/rp1.png")), "rapor snapshot kopyası silindi");
+    const p = await previewHdClientDelete(asDb(db), T1, C1);
+    assert(p.ok && p.analyses === 2 && p.reports === 4, "kapsam: " + JSON.stringify(p));
+    assert(ids(db, "human_design_reports").split(",").length === 8, "önizleme veri değiştirdi");
   });
-  await t("danışan silme adımı hata verirse raporlar GERİ bağlanır, hiçbir şey silinmez", async () => {
+  await t("profil + 2 analiz + 4 Word raporu silinir; aynı isimli danışan, bağımsız analiz, ilişkisiz/başka profil/başka tenant raporu KORUNUR", async () => {
+    const db = seedDelete();
+    const r = await deleteHdClient(asDb(db), T1, C1, { expect: { analyses: 2, reports: 4 } });
+    assert(r.ok && r.deletedAnalyses === 2 && r.deletedReports === 4, "sonuç: " + JSON.stringify(r));
+    assert((r.warnings ?? []).includes("foreign_reports_kept"), "başka profile ait rapor bildirilmedi");
+    assert(ids(db, "human_design_clients") === C2, "profiller: " + ids(db, "human_design_clients"));
+    assert(ids(db, "human_design_charts") === "chC2,chFree", "analizler: " + ids(db, "human_design_charts"));
+    assert(ids(db, "human_design_reports") === "other,rpC2,rpForeign,rpFree", "raporlar: " + ids(db, "human_design_reports"));
+    const objs = [...db.storage.objects.keys()];
+    for (const gone of ["live.png", "legacy-ref.png", "old-orphan.png", "report-snapshots/rp1.png"]) assert(!objs.some((k) => k.endsWith(gone)), "silinmedi: " + gone);
+    for (const kept of ["report-snapshots/rpC2.png", `${C2}/c2.png`]) assert(objs.some((k) => k.endsWith(kept)), "yanlış silindi: " + kept);
+  });
+  await t("onaydan sonra kapsam büyüdüyse (yeni analiz/rapor) HİÇBİR ŞEY silinmez (409)", async () => {
+    const db = seedDelete();
+    const r = await deleteHdClient(asDb(db), T1, C1, { expect: { analyses: 1, reports: 4 } });
+    assert(!r.ok && r.status === 409 && r.code === "DELETE_SCOPE_CHANGED", JSON.stringify(r));
+    assert(ids(db, "human_design_reports").split(",").length === 8 && db.tables.human_design_charts.length === 4 && db.tables.human_design_clients.length === 2, "veri silindi");
+  });
+  await t("rapor silme hatası → hiçbir şey silinmez, başarı dönmez", async () => {
+    const db = seedDelete();
+    db.failNext["human_design_reports:delete"] = "db down";
+    const r = await deleteHdClient(asDb(db), T1, C1);
+    assert(!r.ok && r.code === "DELETE_INCOMPLETE", JSON.stringify(r));
+    assert(db.tables.human_design_reports.length === 8 && db.tables.human_design_charts.length === 4 && db.tables.human_design_clients.length === 2, "veri silindi");
+  });
+  await t("analiz silme ilk denemede hata → yeniden deneme ile tamamlanır", async () => {
+    const db = seedDelete();
+    db.failNext["human_design_charts:delete"] = "geçici";
+    const r = await deleteHdClient(asDb(db), T1, C1);
+    assert(r.ok && r.deletedAnalyses === 2, JSON.stringify(r));
+  });
+  await t("profil silme hatası → profil yerinde kalır (başarı yok); tekrar 'Sil' kalanları tamamlar", async () => {
     const db = seedDelete();
     db.failNext["human_design_clients:delete"] = "db down";
     const r = await deleteHdClient(asDb(db), T1, C1);
-    assert(!r.ok, "başarı döndü");
-    assert(db.tables.human_design_clients.length === 1 && db.tables.human_design_charts.length === 1, "veri silindi");
-    assert(db.tables.human_design_reports.filter((x) => x.tenant_id === T1).every((x) => x.client_id === C1), "raporlar geri bağlanmadı");
+    assert(!r.ok && r.code === "DELETE_INCOMPLETE", JSON.stringify(r));
+    assert(db.tables.human_design_clients.some((x) => x.id === C1), "profil silindi");
+    const p = await previewHdClientDelete(asDb(db), T1, C1);
+    assert(p.ok && p.analyses === 0 && p.reports === 0, "kalan kapsam: " + JSON.stringify(p));
+    const r2 = await deleteHdClient(asDb(db), T1, C1, { expect: { analyses: 0, reports: 0 } });
+    assert(r2.ok && !db.tables.human_design_clients.some((x) => x.id === C1), "tekrar deneme tamamlamadı: " + JSON.stringify(r2));
+    assert(ids(db, "human_design_reports") === "other,rpC2,rpForeign,rpFree", "ilişkisiz rapor etkilendi");
   });
   await t("storage temizliği başarısızsa DB işlemi geri alınmaz; uyarı döner (yanlış başarı yok)", async () => {
     const db = seedDelete();
@@ -389,11 +430,12 @@ const later = (iso: string, ms = 5) => new Date(Date.parse(iso) + ms).toISOStrin
     const r = await deleteHdClient(asDb(db), T1, C1);
     assert(r.ok && (r.warnings ?? []).includes("storage_cleanup_failed"), "uyarı yok: " + JSON.stringify(r));
   });
-  await t("yabancı tenant danışanı silinemez (404)", async () => {
+  await t("yabancı tenant danışanı silinemez / önizlenemez (404)", async () => {
     const db = seedDelete();
     const r = await deleteHdClient(asDb(db), T2, C1);
     assert(!r.ok && r.status === 404, "yabancı silme");
-    assert(db.tables.human_design_clients.length === 1, "silindi");
+    assert(!(await previewHdClientDelete(asDb(db), T2, C1)).ok, "yabancı önizleme");
+    assert(db.tables.human_design_clients.length === 2 && db.tables.human_design_reports.length === 8, "silindi");
   });
 
   console.log("\n== P2-1: profesyonel rapor görsel snapshot'ı ==");
@@ -639,9 +681,11 @@ const later = (iso: string, ms = 5) => new Date(Date.parse(iso) + ms).toISOStrin
     const f = src("app/human-design/danisanlar/components/HdClientForm.tsx");
     assert(!/<label className=\{labelCls\}>Harita Görseli URL<\/label>/.test(f) && !/set\("chart_image_url"\)/.test(f), "alan duruyor");
   });
-  await t("P1-3: silme onayı gerçek etkiyi söyler (raporlar korunur)", () => {
+  await t("Profil silme onayı gerçek etkiyi söyler + iki ayrı Evet onayı (owner kararı)", () => {
     const l = src("app/human-design/danisanlar/components/HdClientListesi.tsx");
-    assert(/SİLİNMEZ; Kayıtlı Raporlar'da kalır/.test(l), "onay metni");
+    assert(l.includes("Bu Human Design profiliyle birlikte ona bağlı tüm Human Design analizleri ve Word raporları kalıcı olarak silinecektir. Bu işlem geri alınamaz."), "onay metni");
+    assert((l.match(/await confirm\(/g) ?? []).length === 2 && /Evet, kalıcı olarak sil/.test(l), "iki aşamalı onay yok");
+    assert(/previewHdClientDelete/.test(l) && /notifyHdProfileDeleted/.test(l), "kesin kapsam / liste yenileme yok");
   });
   await t("P2-2: buton bir eylem = bir istek kimliği; başarıdan sonra aynı rapor yeniden indirilir", () => {
     const b = src("app/human-design/kayitli-haritalar/components/HdProfessionalReportButton.tsx");

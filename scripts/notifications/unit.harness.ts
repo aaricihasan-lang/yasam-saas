@@ -202,16 +202,25 @@ console.log("\n[5] Statik: route güvenliği + bileşen sözleşmesi");
 
   const bell = read("components/notifications/NotificationBell.tsx");
   const store = read("components/notifications/notificationStore.ts");
-  ok(!/position:\s*["']?fixed|\bfixed\b(?![-\w])/.test(bell.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "")), "NotificationBell: position fixed YOK");
+  // WT8: zil (düğme + sarmalayıcı) header AKIŞINDA kalır (fixed bindirme düğmesi YOK); yalnız açılan
+  // panel body portalında viewport'a sıkıştırılmış "fixed" konumlanır (kart overflow'u kırpmasın).
+  ok(/ref=\{wrapRef\} className=\{`relative inline-flex shrink-0/.test(bell) && !/ref=\{buttonRef\}[\s\S]{0,400}\bfixed\b/.test(bell), "NotificationBell: zil düğmesi header akışında (fixed düğme YOK)");
   const stripComments = (src: string) => src.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
   ok(!/\balert\(/.test(stripComments(bell + store)), "alert() YOK");
   ok(/aria-label="Bildirimler"/.test(bell) && /aria-expanded=\{open\}/.test(bell), "zil: aria-label + aria-expanded");
-  ok(/absolute right-0 top-full/.test(bell) && /min\(320px, calc\(100vw - 32px\)\)/.test(bell), "dropdown absolute right-0 top-full, min(320px, 100vw−32px)");
+  ok(/createPortal\(/.test(bell) && /document\.body,/.test(bell) && /computeBellPanelBox\(/.test(bell) && /maxHeight: box\.maxHeight/.test(bell) && /min-h-0 flex-1 overflow-y-auto/.test(bell), "panel: body portalı + viewport içine sıkıştırılmış + kendi içinde kayar (WT8)");
+  ok(/panelRef\.current\?\.contains\(e\.target\)/.test(bell), "panel: portal içi dokunuş 'dışarı' sayılmaz (WT8)");
   ok(/shouldSkipAppointmentNotifications\(pathname\)/.test(bell), "zil: /dogaltas* + /admin* atlama kuralı");
   ok(/export type NotificationBellProps = \{\s*className\?: string;[\s\S]*compact\?: boolean;\s*\}/.test(bell), "props: { className?, compact? }");
   ok(/res\.status === 401 \|\| res\.status === 403/.test(store) && /stopTimers\(\)/.test(store), "401/403 → polling durur");
   ok(/POLL_MS = 5 \* 60 \* 1000/.test(store), "polling 5 dk");
   ok(/type Persisted = \{ seen: string\[\]; reminded: Record<string, number> \}/.test(store), "localStorage yalnız anahtar + zaman (PII yok)");
+  // WT8 owner kararı: paneli açmak rozeti değiştirmez; yalnız açılan/işlenen bildirim görüldü olur.
+  ok(!/markAllNotificationsSeen/.test(bell + store), "WT8: 'paneli açınca tümü görüldü' YOK");
+  ok(/export function markNotificationSeen\(/.test(store) && /seen\.add\(key\)/.test(store), "WT8: tek bildirim görüldü (markNotificationSeen)");
+  ok(/setOpenAt\(pathname\);\s*\};/.test(bell), "WT8: zil açma yalnız paneli açar (görüldü yazmaz)");
+  ok(/markNotificationSeen\(item\);\s*\/\/ işlenen/.test(bell) && /onClick=\{openItem\}/.test(bell), "WT8: açılan (randevu/danışan) veya işlenen (Tamamlandı/Tekrar gösterme) bildirim görüldü");
+  ok(/seen\.delete\(k\); \/\/ rozet tekrar okunmamış/.test(store), "saatlik hatırlatma bildirimi yine okunmamış yapar (değişmedi)");
   ok(/hasNotificationSession\(\)/.test(bell) && /if \(!hasNotificationSession\(\)\)/.test(store), "oturumsuz ziyaretçide istek yok");
 
   const legacy = read("shared/DashboardNotifications.tsx");

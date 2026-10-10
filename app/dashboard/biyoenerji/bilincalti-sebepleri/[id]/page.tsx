@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import BilincaltiSebepleriDetail from "../../components/BilincaltiSebepleriDetail";
 import BiyoenerjiSectionShell from "../../components/BiyoenerjiSectionShell";
+import BiyoenerjiSearchHighlight from "../../components/BiyoenerjiSearchHighlight";
 import { safeSubconsciousCauseId } from "@/lib/bioenergy/subconsciousCausesRoutes";
 
 export default function BilincaltiSebepleriDetailPage() {
@@ -19,7 +20,9 @@ export default function BilincaltiSebepleriDetailPage() {
       subtitle="Kayıt detayı — içerik ve notlar"
     >
       <div className="w-full min-w-0 max-w-3xl">
-        <BilincaltiSebepleriDetail id={safeId} />
+        <BiyoenerjiSearchHighlight recordKey={`bilincalti-sebepleri:${safeId ?? ""}`}>
+          <BilincaltiSebepleriDetail id={safeId} />
+        </BiyoenerjiSearchHighlight>
       </div>
     </BiyoenerjiSectionShell>
   );

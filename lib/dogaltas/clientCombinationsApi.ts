@@ -1,4 +1,4 @@
-import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { readSessionToken, readYasamUser, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 
 /**
  * Danışana özel kombinasyon (public.client_combinations) için güvenli istemci
@@ -40,8 +40,8 @@ type ApiResult<T = unknown> = {
 function authHeaders(): Record<string, string> | null {
   const userId = readYasamUser()?.id;
   const sessionToken = readSessionToken();
-  if (!userId || !sessionToken) return null;
-  return { "x-user-id": userId, "x-session-token": sessionToken };
+  if (!userId || !hasSessionCredential(sessionToken)) return null;
+  return { "x-user-id": userId, ...sessionTokenHeader(sessionToken) };
 }
 
 /** Taş adlarını CSV'den ayıkla (kart üzerinde taş sayısı / listesi için). */

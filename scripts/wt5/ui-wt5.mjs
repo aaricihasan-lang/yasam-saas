@@ -375,11 +375,12 @@ async function testCombo() {
       await page.getByTestId("combo-stone-legend").first().waitFor({ timeout: 15000 });
       const t = await bodyText(page);
       ok(g, "başlık: 'Bu Kombinasyon İçin Gereken Taşlar'", /Bu Kombinasyon İçin Gereken Taşlar/.test(t));
-      ok(g, "lejant: Stokta var / Stokta yok / Taş Listenizde kayıtlı değil", /Stokta var/.test(t) && /Stokta yok/.test(t) && /Taş Listenizde kayıtlı değil/.test(t));
-      ok(g, "stokta olan (✓) + stokta olmayan + kayıtsız (⚠) ayrı gösterimde", (await page.getByTestId("combo-chip-in").count()) >= 2 && (await page.getByTestId("combo-chip-out").count()) >= 1 && (await page.getByTestId("combo-chip-ghost").count()) === 1);
+      // WT8 owner kararı: tek sade bölüm — stokta olan yeşil, olmayan nötr; "kayıtlı değil"/Eksik bölümü YOK.
+      ok(g, "lejant yalnız yeşilin anlamı: Stokta var (WT8)", /Stokta var/.test(t) && !/Taş Listenizde kayıtlı değil/.test(t));
+      ok(g, "stokta olan (✓) + stokta olmayan nötr; kayıtsız (⚠) ayrımı YOK (WT8)", (await page.getByTestId("combo-chip-in").count()) >= 2 && (await page.getByTestId("combo-chip-out").count()) >= 2 && (await page.getByTestId("combo-chip-ghost").count()) === 0);
       const struck = await page.evaluate(() => [...document.querySelectorAll("main *")].filter((el) => getComputedStyle(el).textDecorationLine.includes("line-through")).length);
       ok(g, "üstü çizili metin YOK", struck === 0, `struck=${struck}`);
-      ok(g, "Eksik bölümü açık başlıkla", /STOKTA OLMAYAN \(EKSİK\) TAŞLAR/.test(t) && /stoğunuzda bulunmayan/.test(t));
+      ok(g, "ayrı 'Eksik' bölümü YOK (WT8)", !/STOKTA OLMAYAN \(EKSİK\) TAŞLAR/.test(t) && !/stoğunuzda bulunmayan/.test(t));
       ok(g, "Kaynak / Notlar bölümleri ayrı", /ZZ Kaynak Kitap/.test(t) && /Notlar|NOTLAR/.test(t));
       ok(g, "uzun not + uzun taş listesi tam (veri kaybı yok)", t.includes("Notta Ametist geçiyor.") && /Taş18/.test(t) && /Eskitaş/.test(t));
       ok(g, "yatay taşma yok", await noHScroll(page));

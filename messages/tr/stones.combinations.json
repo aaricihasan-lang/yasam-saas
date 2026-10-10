@@ -89,7 +89,8 @@
         },
         "searchErrorTitle": "Arama şu anda yapılamadı",
         "searchErrorDesc": "Sonuçlar sunucudan alınamadı; bu bir \"eşleşme yok\" sonucu değildir. Bağlantınızı kontrol edip koşulları yeniden deneyin.",
-        "suggestionsErrorNote": "Öneri listesi yüklenemedi. Koşulları elle yazarak aramaya devam edebilirsiniz."
+        "suggestionsErrorNote": "Öneri listesi yüklenemedi. Koşulları elle yazarak aramaya devam edebilirsiniz.",
+        "checked": "Kontrol edildi"
       },
       "list": {
         "eyebrow": "DOĞALTAŞ · TAŞ KOMBİNASYONLARI",
@@ -114,7 +115,7 @@
         "variantBadge": "{n} variant",
         "selectAria": "{issue} seç",
         "matchBadge": "🔎 Eşleşme",
-        "viewed": "Bakıldı",
+        "viewed": "Kontrol edildi",
         "sourcesCount": "{n} kaynak",
         "stoneTextCount": "{n} taş metni",
         "detailLink": "Detay →",
@@ -223,7 +224,8 @@
         "legendGhost": "Taş Listenizde kayıtlı değil",
         "extraStonesTitle": "Notlarda geçen ve stokta olan taşlar",
         "missingStonesHint": "Bu kombinasyonlar için gerekli olup stoğunuzda bulunmayan taşlar.",
-        "criticalStockHint": "Stokta olan ama adedi azalmış taşlar."
+        "criticalStockHint": "Stokta olan ama adedi azalmış taşlar.",
+        "recommendedStock": "Gereken {total} taşın {n} tanesi stokta"
       }
     }
   }

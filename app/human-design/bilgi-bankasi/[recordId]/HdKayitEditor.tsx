@@ -1,5 +1,6 @@
 "use client";
 
+import { KB_CONTENT_LABEL, KB_NOTES_HELP, KB_NOTES_LABEL, kbContentHelp } from "@/lib/human-design/knowledge/kbFieldLabels";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -308,11 +309,11 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
       setSection("content");
       return;
     }
-    // Taslak güvenliği: aktif kayıt boş Kaynaklandırılmış Ana Metin ile kaydedilemez.
+    // Taslak güvenliği: aktif kayıt boş "Bilgi ve Açıklamalar" (content) ile kaydedilemez.
     // Pasif (taslak) kayıt boş içerikle kaydedilebilir.
     if (form.is_active && !form.content.trim()) {
       showToast({
-        message: "Kaydı aktif etmek için Kaynaklandırılmış Ana Metin alanını doldurun.",
+        message: `Kaydı aktif etmek için ${KB_CONTENT_LABEL} alanını doldurun.`,
         type: "warning",
       });
       setSection("content");
@@ -474,7 +475,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
     : sources.find((s) => s.id === activeSourceId) ?? null;
 
   const SECTIONS: { id: SectionId; label: string; desc: string }[] = [
-    { id: "content", label: "İçerik", desc: "Temel bilgiler, kaynaklandırılmış ana metin ve kişisel notlar." },
+    { id: "content", label: "İçerik", desc: "Temel bilgiler, bilgi ve açıklamalar, özel çalışma notları." },
     { id: "sources", label: "Kaynaklar", desc: "Bu bilgiyi dayandıran kaynaklar; her biri ayrı tutulur." },
     { id: "relations", label: "İlişkiler", desc: "Bu bilgiyle bağlantılı merkez, kanal ve kapıları işaretleyin." },
   ];
@@ -661,7 +662,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                 {isStructured ? (
                   <><span className="font-bold">Yapısal kategori: </span>Kod dropdown seçiminden otomatik üretilir ve rapor kod eşleşmesinde kullanılır. Başlığı elle yazmayın.</>
                 ) : form.category ? (
-                  <><span className="font-bold">Serbest kategori: </span>Başlık serbest; kod başlıktan türetilir. Rapor kod eşleşmesine girmez, raporda ek bölüm olur.</>
+                  <><span className="font-bold">Serbest kategori: </span>Başlık serbest; kod başlıktan türetilir. Harita kodlarıyla eşleşmediği için Word raporuna eklenmez.</>
                 ) : (
                   <>Önce kategori seçin.</>
                 )}
@@ -670,9 +671,9 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
           </section>
 
           <section className={cardCls}>
-            <p className={sectionCls}>Kaynaklandırılmış Ana Metin</p>
-            <div className="mb-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-emerald-800">
-              Kaynaklardaki anlamı, kesinlik derecesini ve teknik terminolojiyi koruyan ana rapor metnidir. Özet değildir; her önemli ifade kaynağına kadar izlenebilir olmalı, tek kaynağa özgü bilgiler açıkça kaynaklandırılmalıdır.
+            <p className={sectionCls}>{KB_CONTENT_LABEL}</p>
+            <div className="mb-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-emerald-800" data-hd-kb-content-help>
+              {kbContentHelp(form.category)}
             </div>
             <textarea
               value={form.content}
@@ -683,9 +684,9 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
           </section>
 
           <section className={cardCls}>
-            <p className={sectionCls}>Uzman Notu</p>
-            <div className="mb-2 rounded-lg border border-slate-200/80 bg-slate-50/70 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-slate-600">
-              Uzmanın özel çalışma notudur. Varsayılan danışan raporuna girmez.
+            <p className={sectionCls}>{KB_NOTES_LABEL}</p>
+            <div className="mb-2 rounded-lg border border-slate-200/80 bg-slate-50/70 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-slate-600" data-hd-kb-notes-help>
+              {KB_NOTES_HELP}
             </div>
             <textarea
               value={form.expertNotes}

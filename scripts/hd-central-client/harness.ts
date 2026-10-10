@@ -457,15 +457,20 @@ async function main() {
     const noHd = await ins(TA, "HDsiz", "Danışan", "1999-01-01");
     ok((await call(routes.cascade.DELETE, "DELETE", U.A, undefined, "", { id: noHd })).status === 200, "J17 HD'si olmayan danışan silme aynen çalışıyor");
 
-    // ── K) MEVCUT HD DANIŞAN SİLME AKIŞI KORUNDU ──────────────────────────────
-    section("K. Mevcut HD danışan silme (raporlar korunur)");
-    const { deleteHdClient } = await import("../../lib/human-design/api/clientPersistence");
+    // ── K) HD PROFİL SİLME (owner kararı 2026-10-09): analiz + Word raporları da silinir ──
+    section("K. HD profil silme — bağlı analizler + Word raporları silinir, merkezî danışan korunur");
+    const { deleteHdClient, previewHdClientDelete } = await import("../../lib/human-design/api/clientPersistence");
     await su.query(`insert into public.human_design_reports(tenant_id, client_id, title) values ($1,$2,'KORU')`, [TA, PY]);
-    const k1 = await deleteHdClient(db, TA, PY);
-    ok(k1.ok === true && !(await hdRow(PY)), "K1 HD profili silindi", k1);
-    ok((await count(`select count(*) n from public.human_design_reports where title in ('KORU','RY') and client_id is null`)) === 2, "K2 raporlar KORUNDU (bağ koparıldı) — trigger bu akışı bozmadı");
-    ok((await count(`select count(*) n from public.human_design_charts where client_id=$1`, [PY])) === 0, "K3 profilin haritaları silindi (önceki davranış)");
+    const notesBefore = await count(`select count(*) n from public.client_notes where client_id=$1`, [Y]);
+    const kp = await previewHdClientDelete(db, TA, PY);
+    ok(kp.ok === true && kp.analyses === 1 && kp.reports === 2 && kp.journeyLinked === true, "K0 önizleme kesin kapsam (1 analiz, 2 rapor; DY bağlı)", kp);
+    const k1 = await deleteHdClient(db, TA, PY, { expect: { analyses: 1, reports: 2 } });
+    ok(k1.ok === true && !(await hdRow(PY)) && k1.deletedAnalyses === 1 && k1.deletedReports === 2, "K1 HD profili silindi", k1);
+    ok((await count(`select count(*) n from public.human_design_reports where title in ('KORU','RY')`)) === 0, "K2 profile bağlı Word/raporlar SİLİNDİ (yetim kalmadı)");
+    ok((await count(`select count(*) n from public.human_design_charts where client_id=$1`, [PY])) === 0, "K3 profilin analizleri silindi");
     ok((await count(`select count(*) n from public.clients where id=$1`, [Y])) === 1, "K4 merkezî danışan HD profili silinince SİLİNMEZ");
+    ok((await count(`select count(*) n from public.client_notes where client_id=$1`, [Y])) === notesBefore, "K5 Danışan Yolculuğu'nun diğer modül verisi (notlar) dokunulmadı");
+    ok(!bucket.has(`${TA}/${PY}/b.png`), "K6 profil görsel klasörü temizlendi");
 
     // ── L) STATİK / KAPSAM ─────────────────────────────────────────────────────
     section("L. Statik kontroller / kapsam kilidi");

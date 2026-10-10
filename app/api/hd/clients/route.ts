@@ -7,6 +7,7 @@ import {
   getHdClient,
   updateHdClient,
   deleteHdClient,
+  previewHdClientDelete,
 } from "@/lib/human-design/api/clientPersistence";
 import { getHdJourneyInfo } from "@/lib/human-design/api/journeyLink";
 
@@ -19,7 +20,9 @@ export const runtime = "nodejs";
  *   - requireModuleAccess → x-user-id + x-session-token + token↔user binding.
  *   - tenant_id + user_id YALNIZ guard'dan; request gövdesinden GÜVENİLMEZ.
  *   - Tüm sorgu/insert/update/delete tenant-scoped (.eq("tenant_id", ...)).
- *   - DELETE: tenant-scoped cascade (raporlar → haritalar → danışan).
+ *   - DELETE: tenant-scoped; profil + bağlı analizler + Word raporları (owner kararı 2026-10-09).
+ *     GET ?id=&delete_preview=1 silinecek kesin sayıları döner; DELETE ?expect_analyses=&expect_reports=
+ *     ile onaylanan kapsamdan fazlası varsa 409 (hiçbir şey silinmez).
  *   - Yanıt no-store; doğum/kişisel veri LOGLANMAZ; demo hesap yazamaz.
  *
  * AŞAMA 3C: yeni HD danışanı YALNIZ merkezî danışanla birlikte oluşturulur
@@ -43,6 +46,16 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const url = new URL(req.url);
   const id = url.searchParams.get("id");
+
+  // Silme onayı öncesi KESİN kapsam (salt okunur): silinecek analiz + Word raporu sayısı.
+  if (id && url.searchParams.get("delete_preview") === "1") {
+    const p = await previewHdClientDelete(guard.db, guard.tenantId, id);
+    if (!p.ok) return NextResponse.json({ ok: false, error: p.error }, { status: p.status === 404 ? 404 : 500, headers: NO_STORE });
+    return NextResponse.json(
+      { ok: true, analyses: p.analyses, reports: p.reports, journeyLinked: p.journeyLinked },
+      { status: 200, headers: NO_STORE },
+    );
+  }
 
   if (id) {
     const { row, error } = await getHdClient(guard.db, guard.tenantId, id);
@@ -147,16 +160,21 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     );
   }
 
-  const { ok, error, status: delStatus, preservedReports, warnings } = await deleteHdClient(guard.db, guard.tenantId, id);
-  if (!ok) {
-    return NextResponse.json(
-      { ok: false, error: error ?? "Silinemedi." },
-      { status: delStatus === 404 ? 404 : delStatus === 500 ? 500 : 400, headers: NO_STORE },
-    );
+  // Onay penceresinde gösterilen sayılar: şimdi DAHA FAZLA kayıt varsa silme yapılmaz (409).
+  const expA = Number(url.searchParams.get("expect_analyses"));
+  const expR = Number(url.searchParams.get("expect_reports"));
+  const expect = Number.isInteger(expA) && expA >= 0 && Number.isInteger(expR) && expR >= 0 && url.searchParams.has("expect_analyses") && url.searchParams.has("expect_reports")
+    ? { analyses: expA, reports: expR }
+    : undefined;
+
+  const r = await deleteHdClient(guard.db, guard.tenantId, id, { expect });
+  if (!r.ok) {
+    const status = r.status === 404 || r.status === 409 || r.status === 500 ? r.status : 400;
+    return NextResponse.json({ ok: false, code: r.code, error: r.error ?? "Silinemedi." }, { status, headers: NO_STORE });
   }
   await trackUsage(guard, req, { module: "human_design", action: "record_deleted", subEntity: "client", resourceId: id });
   return NextResponse.json(
-    { ok: true, deletedId: id, preservedReports: preservedReports ?? 0, warnings: warnings ?? [] },
+    { ok: true, deletedId: id, deletedAnalyses: r.deletedAnalyses ?? 0, deletedReports: r.deletedReports ?? 0, warnings: r.warnings ?? [] },
     { status: 200, headers: NO_STORE },
   );
 }

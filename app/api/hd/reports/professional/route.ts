@@ -23,7 +23,7 @@ export const runtime = "nodejs";
 /**
  * POST /api/hd/reports/professional — PROFESYONEL Word raporu snapshot'ı OLUŞTUR (hd-report-2).
  *
- * Gövde (JSON): { chartId, requestId?, commentary?: "expert"|"system"|"both",
+ * Gövde (JSON): { chartId, requestId?, commentary?: "none"|"expert"|"system"|"both" (yoksa "none"),
  *                 bodygraphPng?: "data:image/png;base64,…", allowMissingBodygraph?: true }
  *
  * Güvenlik / sözleşme (AŞAMA 4B):
@@ -31,8 +31,11 @@ export const runtime = "nodejs";
  *   - tenantId + userId YALNIZ guard'dan; body'den GÜVENİLMEZ. chart_id tenant-scoped (yoksa 404).
  *   - Demo hesap YAZAMAZ → 403. Android → 403 (Word kapalı; boşuna üretim yok).
  *   - Sistem Yorumu yetkisi SUNUCUDA (hd_system_reading) doğrulanır; `commentary` seçimi YETKİ
- *     DEĞİLDİR. Yetki yoksa: Sistem Yorumu hiç okunmaz/eklenmez, uzman bilgileri otomatik dahil.
- *   - Uzman yorumu = YALNIZ bu tenant'ın Bilgi Bankası eşleşmeleri; admin merkezî içeriği v2'ye GİRMEZ.
+ *     DEĞİLDİR. Yetki yoksa: Sistem Yorumu hiç okunmaz/eklenmez.
+ *   - Bilgi Bankası açıklamaları ("Bilgi ve Açıklamalar") YALNIZ açıkça seçilirse; YALNIZ bu tenant'ın
+ *     aktif, haritanın kodlarıyla eşleşen kayıtları; admin merkezî içeriği v2'ye GİRMEZ.
+ *   - "Özel Çalışma Notları" (expert_notes) HİÇBİR seçimle rapora girmez: rapor sorgusu bu kolonu
+ *     okumaz (listKnowledgeForReport) ve snapshot beyaz listesi yalnız kategori/başlık/kod/metin alır.
  *   - RoxyAPI ÇAĞRILMAZ: yalnız kayıtlı computed_result / provider_raw okunur.
  *   - BodyGraph PNG'si (tarayıcıda kayıtlı renderer'dan) sunucuda doğrulanır (imza/CRC/çözme/
  *     piksel/oran/bayt) ve YALNIZ `{tenant}/report-snapshots/{reportId}.png` yoluna yazılır.
@@ -89,7 +92,9 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // Yetki SUNUCUDA: hd_system_reading (admin her zaman). İstemci seçimi yalnız TERCİHTİR.
   const systemReadingPermitted = hasModulePermissionForProfile(guard.profile, "hd_system_reading");
-  let requested: HdCommentarySelection = systemReadingPermitted ? "both" : "expert";
+  // İçerik seçimi gönderilmezse VARSAYILAN "none": yalnız teknik harita içeriği. Bilgi Bankası
+  // açıklamaları ve Sistem Yorumu yalnız uzman açıkça seçerse (sistem ayrıca yetki + veri ister).
+  let requested: HdCommentarySelection = "none";
   if (raw.commentary !== undefined) {
     const parsed = parseCommentarySelection(raw.commentary);
     if (!parsed) {

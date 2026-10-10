@@ -8,9 +8,11 @@ import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
   listHdClients,
   deleteHdClient,
+  previewHdClientDelete,
+  retryHdImageCleanup,
   type HdClientRow,
 } from "../helpers/hdClients";
-import { getClientReportCount } from "../../rapor-olustur/helpers/hdRapor";
+import { notifyHdProfileDeleted } from "@/lib/human-design/api/chartsClient";
 
 function formatDate(val: string | null | undefined): string {
   if (!val) return "—";
@@ -34,6 +36,23 @@ export function HdClientListesi() {
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const deletingRef = useRef(false);
+  // Silme tamam ama bazı görseller temizlenemedi → uzman yeniden temizlemeyi başlatabilir.
+  // (Sayfa yenilense de kalan dosyalar bir sonraki profil silmede sunucuda otomatik taranır.)
+  const [imageCleanupPending, setImageCleanupPending] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
+
+  async function handleImageCleanup() {
+    if (cleaning) return;
+    setCleaning(true);
+    const r = await retryHdImageCleanup();
+    setCleaning(false);
+    if (r.ok) {
+      setImageCleanupPending(false);
+      showToast({ message: r.removed > 0 ? `Kalan ${r.removed} görsel temizlendi.` : "Temizlenecek görsel kalmadı.", type: "success" });
+    } else {
+      showToast({ message: `Görseller temizlenemedi: ${r.error ?? "lütfen daha sonra tekrar deneyin."}`, type: "error" });
+    }
+  }
 
   const loadRows = useCallback(async () => {
     setLoading(true);
@@ -61,47 +80,86 @@ export function HdClientListesi() {
     );
   }, [rows, search]);
 
+  // Owner kararı (2026-10-09): profil silinince bağlı TÜM Human Design analizleri ve Word raporları
+  // da silinir. Kapsam sunucudan KESİN alınır (profil + tenant kimliği), iki ayrı onay istenir;
+  // onaydan sonra kapsam büyüdüyse sunucu hiçbir şey silmez (409).
   async function handleDelete(row: HdClientRow) {
     if (readYasamUser()?.is_demo_account === true) {
       showToast({ message: "Demo hesabında danışan silinemez.", type: "info" });
       return;
     }
-    // P1-3: onay metni GERÇEK etkiyi söyler — danışan + haritası silinir, raporları korunur.
-    const { count, error: countErr } = await getClientReportCount(row.id);
-    const reportLine = countErr
-      ? "Bu danışana ait kayıtlı raporlar silinmez; Kayıtlı Raporlar'da kalır."
-      : count > 0
-        ? `Bu danışana ait ${count} kayıtlı rapor SİLİNMEZ; Kayıtlı Raporlar'da kalır (isterseniz oradan ayrıca silebilirsiniz).`
-        : "Bu danışana ait kayıtlı rapor yok.";
-    const ok = await confirm({
-      title: "Danışanı sil",
-      message: `"${row.name}" ile Human Design haritası ve harita görseli kalıcı olarak silinecek. ${reportLine} Emin misiniz?`,
-      tone: "danger",
-      confirmText: "Danışanı Sil",
-      cancelText: "Vazgeç",
-    });
-    if (!ok) return;
     if (deletingRef.current) return;
     deletingRef.current = true;
     setDeletingId(row.id);
-    const { error, preservedReports, warnings } = await deleteHdClient(row.id);
-    deletingRef.current = false;
-    setDeletingId(null);
-    if (error) {
-      showToast({ message: `Silinemedi: ${error}`, type: "error" });
-    } else {
-      const kept = preservedReports ? ` ${preservedReports} rapor Kayıtlı Raporlar'da korundu.` : "";
-      if (warnings && warnings.includes("charts_cleanup_failed")) {
-        showToast({ message: `Danışan silindi; harita kaydı temizlenemedi — Kayıtlı Haritalar'dan silebilirsiniz.${kept}`, type: "warning" });
-      } else {
-        showToast({ message: `Danışan silindi.${kept}`, type: "success" });
+    let attempted = false;
+    try {
+      const { scope, error: scopeErr } = await previewHdClientDelete(row.id);
+      if (!scope) {
+        showToast({ message: `Silinecek kayıtlar belirlenemedi; hiçbir şey silinmedi. ${scopeErr ?? ""}`.trim(), type: "error" });
+        return;
       }
-      loadRows();
+      const counts = `${scope.analyses} Human Design analizi ve ${scope.reports} Word raporu`;
+      const journeyLine = scope.journeyLinked
+        ? " Danışan Yolculuğu'ndaki danışan kaydı ve diğer modüllerin verileri silinmez; yalnız Human Design bağlantısı kaldırılır."
+        : "";
+      const first = await confirm({
+        title: "Human Design profilini sil",
+        message: `Bu Human Design profiliyle birlikte ona bağlı tüm Human Design analizleri ve Word raporları kalıcı olarak silinecektir. Bu işlem geri alınamaz.\n\n"${row.name}": ${counts} silinecek.${journeyLine}`,
+        tone: "danger",
+        confirmText: "Evet, devam et",
+        cancelText: "Vazgeç",
+      });
+      if (!first) return;
+      const second = await confirm({
+        title: "Son onay",
+        message: `"${row.name}" profili, ${counts} kalıcı olarak silinecek. Geri alınamaz. Emin misiniz?`,
+        tone: "danger",
+        confirmText: "Evet, kalıcı olarak sil",
+        cancelText: "Vazgeç",
+      });
+      if (!second) return;
+      attempted = true;
+      const res = await deleteHdClient(row.id, { analyses: scope.analyses, reports: scope.reports });
+      if (res.error) {
+        showToast({ message: `Silinemedi: ${res.error}`, type: "error" });
+        return;
+      }
+      const storageWarn = res.warnings?.includes("storage_cleanup_failed")
+        ? " Bazı görsel dosyaları temizlenemedi (kayıtlar silindi); 'Kalan görselleri temizle' ile yeniden deneyebilirsiniz."
+        : "";
+      if (storageWarn) setImageCleanupPending(true);
+      showToast({
+        message: `Profil silindi: ${res.deletedAnalyses ?? 0} analiz ve ${res.deletedReports ?? 0} Word raporu kaldırıldı.${storageWarn}`,
+        type: storageWarn ? "warning" : "success",
+      });
+    } finally {
+      deletingRef.current = false;
+      setDeletingId(null);
+      // Silme isteği gönderildiyse sonuç ne olursa olsun (başarı / kısmi / ağ hatası) iki liste de
+      // sunucudan yeniden okunur; Vazgeç'te hiçbir şey değişmediği için yenileme yok.
+      if (attempted) {
+        void loadRows();
+        notifyHdProfileDeleted(row.id);
+      }
     }
   }
 
   return (
     <>
+      {imageCleanupPending ? (
+        <div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800" data-hd-image-cleanup>
+          <span className="min-w-0">Silinen profile ait bazı görsel dosyaları temizlenemedi. Kayıtlar silindi; görselleri yeniden temizleyebilirsiniz.</span>
+          <button
+            type="button"
+            onClick={() => void handleImageCleanup()}
+            disabled={cleaning}
+            className="h-8 shrink-0 rounded-lg border border-amber-300 bg-white px-3 text-xs font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-60"
+          >
+            {cleaning ? "Temizleniyor…" : "Kalan görselleri temizle"}
+          </button>
+        </div>
+      ) : null}
+
       {/* Filtre */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <input

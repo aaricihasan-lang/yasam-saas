@@ -9,15 +9,23 @@
  * Davranış:
  *   - Oturumsuz ziyaretçide, /dogaltas* ve /admin* rotalarında HİÇ istek yok, hiçbir şey render edilmez.
  *   - 401/403 (oturum / üyelik / "appointments" izni yok) → polling durur, zil gizlenir.
- *   - Rozet = görünür & okunmamış bildirim sayısı ("görüldü" cihaz-yerel).
+ *   - Rozet = görünür & okunmamış bildirim sayısı ("görüldü" cihaz-yerel). WT8: paneli AÇMAK rozeti
+ *     DEĞİŞTİRMEZ; yalnız açılan (randevu / danışan kartı) veya işlenen (Tamamlandı / Tekrar gösterme)
+ *     bildirim görüldü olur, diğerleri okunmamış kalır ve panelde "Yeni" etiketiyle görünür.
  *   - "Tamamlandı" / "Tekrar gösterme" SUNUCUDA (hesap bazlı); iyimser güncelleme, hata → geri al + toast.
  *   - Saatlik tekrar: koşullar sürerken hatırlatma toast'u + rozet tekrar okunmamış (alert() YOK).
  *   - Rota değişimi / dışarı tıklama / Escape → dropdown kapanır.
+ *   - WT8: panel document.body PORTALINDA, viewport'a göre "fixed" konumlanır (zile hizalı, ekran
+ *     kenarlarına sıkıştırılmış, yükseklik = kalan görünür alan → içerik panel içinde kayar). Önceden
+ *     zilin bulunduğu kartın (ana ekran üst kartı: overflow-hidden) içinde "absolute" açılıyor ve
+ *     kırpılıyordu → kartlar küçük/kesik, aksiyonlar erişilemezdi. Tamamlandı / Tekrar gösterme ve
+ *     saatlik hatırlatma semantiği DEĞİŞMEDİ.
  */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { useToast } from "@/components/ui/ToastProvider";
 import { shouldSkipAppointmentNotifications } from "@/shared/DashboardNotifications";
 import { buildNotificationView } from "@/lib/danisan/appointmentNotifications";
@@ -28,7 +36,7 @@ import {
   getServerNotificationSnapshot,
   hasNotificationSession,
   itemKey,
-  markAllNotificationsSeen,
+  markNotificationSeen,
   registerReminderSink,
   setNotificationState,
   subscribeNotifications,
@@ -60,6 +68,25 @@ function useOptionalToast(): ShowToast | null {
 
 const noopSubscribe = () => () => {};
 
+/** Panelin ekran kenarlarına en yakın mesafesi (px). */
+const PANEL_GUTTER = 12;
+const PANEL_MAX_W = 380;
+const PANEL_MAX_H = 600;
+
+type PanelBox = { top: number; left: number; width: number; maxHeight: number };
+
+/** Zil düğmesine göre panel kutusu: sağ kenara hizalı, viewport içine sıkıştırılmış. SAF. */
+export function computeBellPanelBox(
+  button: { top: number; bottom: number; right: number },
+  viewport: { width: number; height: number },
+): PanelBox {
+  const width = Math.max(0, Math.min(PANEL_MAX_W, viewport.width - PANEL_GUTTER * 2));
+  const left = Math.min(Math.max(PANEL_GUTTER, button.right - width), viewport.width - width - PANEL_GUTTER);
+  const top = Math.min(Math.max(PANEL_GUTTER, button.bottom + 8), Math.max(PANEL_GUTTER, viewport.height - 160));
+  const maxHeight = Math.max(160, Math.min(PANEL_MAX_H, viewport.height - top - PANEL_GUTTER));
+  return { top, left, width, maxHeight };
+}
+
 function BellIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
@@ -86,6 +113,8 @@ export default function NotificationBell({ className, compact = false }: Notific
   const [busyKeys, setBusyKeys] = useState<ReadonlySet<string>>(() => new Set());
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [box, setBox] = useState<PanelBox | null>(null);
   const panelId = useId();
 
   useEffect(() => {
@@ -119,8 +148,10 @@ export default function NotificationBell({ className, compact = false }: Notific
   useEffect(() => {
     if (!open) return;
     const onPointer = (e: MouseEvent | TouchEvent) => {
-      const el = wrapRef.current;
-      if (el && e.target instanceof Node && !el.contains(e.target)) setOpenAt(null);
+      if (!(e.target instanceof Node)) return;
+      // Panel artık body portalında → zil sarmalayıcısı VE panel "içeri" sayılır.
+      if (wrapRef.current?.contains(e.target) || panelRef.current?.contains(e.target)) return;
+      setOpenAt(null);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -138,9 +169,36 @@ export default function NotificationBell({ className, compact = false }: Notific
     };
   }, [open]);
 
+  // WT8: panel konumu — açılışta ve viewport/kaydırma değişiminde yeniden hesaplanır.
+  useLayoutEffect(() => {
+    if (!open) return;
+    let raf = 0;
+    const measure = () => {
+      raf = 0;
+      const b = buttonRef.current?.getBoundingClientRect();
+      if (!b) return;
+      const vv = window.visualViewport;
+      setBox(computeBellPanelBox(b, { width: vv?.width ?? window.innerWidth, height: vv?.height ?? window.innerHeight }));
+    };
+    const schedule = () => {
+      if (!raf) raf = window.requestAnimationFrame(measure);
+    };
+    schedule();
+    window.addEventListener("resize", schedule);
+    window.addEventListener("scroll", schedule, true);
+    window.visualViewport?.addEventListener("resize", schedule);
+    return () => {
+      if (raf) window.cancelAnimationFrame(raf);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("scroll", schedule, true);
+      window.visualViewport?.removeEventListener("resize", schedule);
+    };
+  }, [open]);
+
   const act = useCallback(
     async (item: FeedItem, state: NotificationStateValue) => {
       const key = itemKey(item);
+      markNotificationSeen(item); // işlenen bildirim görüldü (yalnız bu)
       setBusyKeys((prev) => new Set(prev).add(key));
       const ok = await setNotificationState(item, state);
       setBusyKeys((prev) => {
@@ -170,8 +228,8 @@ export default function NotificationBell({ className, compact = false }: Notific
       setOpenAt(null);
       return;
     }
+    // WT8: açmak "tümü görüldü" YAPMAZ — rozet sayısı korunur.
     setOpenAt(pathname);
-    markAllNotificationsSeen();
   };
 
   const size = compact ? "h-9 w-9" : "h-10 w-10";
@@ -201,20 +259,22 @@ export default function NotificationBell({ className, compact = false }: Notific
         )}
       </button>
 
-      {open && (
+      {open && box && typeof document !== "undefined" && createPortal(
         <div
+          ref={panelRef}
           id={panelId}
           role="region"
           aria-label="Bugünkü randevu bildirimleri"
-          style={{ width: "min(320px, calc(100vw - 32px))" }}
-          className="absolute right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_18px_36px_rgba(15,23,42,0.16)]"
+          data-testid="notification-panel"
+          style={{ top: box.top, left: box.left, width: box.width, maxHeight: box.maxHeight }}
+          className="fixed z-[90] flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_18px_36px_rgba(15,23,42,0.22)]"
         >
-          <div className="bg-gradient-to-r from-slate-900 via-indigo-700 to-fuchsia-600 px-3.5 py-2.5 text-white">
+          <div className="shrink-0 bg-gradient-to-r from-slate-900 via-indigo-700 to-fuchsia-600 px-3.5 py-2.5 text-white">
             <div className="text-[11px] font-bold opacity-80">Bildirimler</div>
             <div className="text-sm font-black">Bugünkü randevular</div>
           </div>
 
-          <div className="max-h-[min(60vh,420px)] overflow-y-auto overscroll-contain p-2">
+          <div data-testid="notification-panel-list" className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
             {visible.length === 0 ? (
               <p className="px-2 py-4 text-center text-xs font-semibold text-slate-500">
                 {snap.phase === "ready" ? "Bugün için bekleyen randevu bildirimi yok." : "Yükleniyor…"}
@@ -229,12 +289,27 @@ export default function NotificationBell({ className, compact = false }: Notific
                   });
                   const key = itemKey(item);
                   const busy = busyKeys.has(key);
+                  const unseen = !snap.seen.has(key);
+                  const openItem = () => {
+                    markNotificationSeen(item);
+                    close();
+                  };
                   return (
-                    <li key={key} className="rounded-xl border border-slate-200 bg-slate-50/70 p-2">
-                      <Link href={view.href} onClick={close} className="block min-w-0 rounded-lg px-1 py-0.5 hover:bg-white">
-                        <span className="block truncate text-[13px] font-black text-slate-900">{view.heading}</span>
+                    <li
+                      key={key}
+                      data-testid="notification-item"
+                      data-unread={unseen ? "1" : "0"}
+                      className={`rounded-xl border p-2 ${unseen ? "border-indigo-200 bg-indigo-50/60" : "border-slate-200 bg-slate-50/70"}`}
+                    >
+                      <Link href={view.href} onClick={openItem} className="block min-w-0 rounded-lg px-1 py-0.5 hover:bg-white">
+                        {unseen ? (
+                          <span className="mb-0.5 inline-flex items-center gap-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[11px] font-black leading-none text-white">
+                            Yeni
+                          </span>
+                        ) : null}
+                        <span className="block break-words text-[13px] font-black leading-snug text-slate-900">{view.heading}</span>
                         {view.subtitle && (
-                          <span className="block truncate text-xs font-semibold text-slate-600">{view.subtitle}</span>
+                          <span className="block break-words text-xs font-semibold leading-snug text-slate-600">{view.subtitle}</span>
                         )}
                         <span className="mt-0.5 block text-xs font-bold text-indigo-700">{view.whenLabel}</span>
                       </Link>
@@ -242,8 +317,8 @@ export default function NotificationBell({ className, compact = false }: Notific
                         {view.clientHref && (
                           <Link
                             href={view.clientHref}
-                            onClick={close}
-                            className="rounded-lg border border-violet-200 bg-white px-2 py-1 text-[11px] font-black text-violet-700 hover:bg-violet-50"
+                            onClick={openItem}
+                            className="inline-flex min-h-[34px] items-center rounded-lg border border-violet-200 bg-white px-2.5 py-1 text-[11px] font-black text-violet-700 hover:bg-violet-50"
                           >
                             Danışan kartı
                           </Link>
@@ -253,7 +328,7 @@ export default function NotificationBell({ className, compact = false }: Notific
                           disabled={busy}
                           onClick={() => void act(item, "done")}
                           title="Bildirimi kapatır; randevu durumunu değiştirmez."
-                          className="rounded-lg border border-emerald-200 bg-white px-2 py-1 text-[11px] font-black text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+                          className="inline-flex min-h-[34px] items-center rounded-lg border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-black text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
                         >
                           Tamamlandı
                         </button>
@@ -262,7 +337,7 @@ export default function NotificationBell({ className, compact = false }: Notific
                           disabled={busy}
                           onClick={() => void act(item, "muted")}
                           title="Bu randevu için bildirimi bir daha gösterme."
-                          className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+                          className="inline-flex min-h-[34px] items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-black text-slate-600 hover:bg-slate-100 disabled:opacity-60"
                         >
                           Tekrar gösterme
                         </button>
@@ -274,12 +349,13 @@ export default function NotificationBell({ className, compact = false }: Notific
             )}
           </div>
 
-          <div className="border-t border-slate-100 px-3 py-2 text-right">
-            <Link href="/dashboard/ajanda" onClick={close} className="text-xs font-black text-indigo-700 hover:underline">
+          <div className="shrink-0 border-t border-slate-100 px-3 py-2 text-right">
+            <Link href="/dashboard/ajanda" onClick={close} className="inline-flex min-h-[32px] items-center text-xs font-black text-indigo-700 hover:underline">
               Ajandayı aç
             </Link>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

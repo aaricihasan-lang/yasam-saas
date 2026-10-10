@@ -1,4 +1,4 @@
-import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { readSessionToken, readYasamUser, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import { STONES_WORKSPACE_UNAVAILABLE } from "@/lib/dogaltas/sessionError";
 
 /** Güvenli read API'sinden dönen kombinasyon satırı (12 kolon). */
@@ -51,7 +51,7 @@ export async function fetchCombinationsCount(): Promise<FetchCombinationsCountRe
   const userId = readYasamUser()?.id;
   const sessionToken = readSessionToken();
 
-  if (!userId || !sessionToken) {
+  if (!userId || !hasSessionCredential(sessionToken)) {
     return { ok: false, count: 0, error: STONES_WORKSPACE_UNAVAILABLE };
   }
 
@@ -59,7 +59,7 @@ export async function fetchCombinationsCount(): Promise<FetchCombinationsCountRe
     const res = await fetch(`/api/dogaltas/combinations?count=1`, {
       headers: {
         "x-user-id": userId,
-        "x-session-token": sessionToken,
+        ...sessionTokenHeader(sessionToken),
       },
       cache: "no-store",
     });
@@ -86,7 +86,7 @@ export async function fetchCombinationsViaApi(
   const userId = readYasamUser()?.id;
   const sessionToken = readSessionToken();
 
-  if (!userId || !sessionToken) {
+  if (!userId || !hasSessionCredential(sessionToken)) {
     // Locale-independent kod; görüntüleme sınırında localize edilir (Stones UI).
     return { ok: false, rows: [], error: STONES_WORKSPACE_UNAVAILABLE };
   }
@@ -98,7 +98,7 @@ export async function fetchCombinationsViaApi(
     const res = await fetch(`/api/dogaltas/combinations${query}`, {
       headers: {
         "x-user-id": userId,
-        "x-session-token": sessionToken,
+        ...sessionTokenHeader(sessionToken),
       },
       cache: "no-store",
     });

@@ -6,7 +6,7 @@
  * tenant_id sunucuda oturumdan belirlenir; burada gönderilmez.
  * Auth: combinationsApi.ts deseni — x-user-id + x-session-token.
  */
-import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { readSessionToken, readYasamUser, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import { invalidateStonesList } from "@/lib/dogaltas/stonesListCache";
 
 export const DOGALTAS_API_MISSING_AUTH =
@@ -15,8 +15,8 @@ export const DOGALTAS_API_MISSING_AUTH =
 function authHeaders(json = false): Record<string, string> | null {
   const userId = readYasamUser()?.id;
   const token = readSessionToken();
-  if (!userId || !token) return null;
-  const h: Record<string, string> = { "x-user-id": userId, "x-session-token": token };
+  if (!userId || !hasSessionCredential(token)) return null;
+  const h: Record<string, string> = { "x-user-id": userId, ...sessionTokenHeader(token) };
   if (json) h["Content-Type"] = "application/json";
   return h;
 }
