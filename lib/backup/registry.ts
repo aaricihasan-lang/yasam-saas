@@ -173,6 +173,17 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   entry("reflexology_protocols", "reflexology", "backup", "Protokoller"),
   entry("reflexology_notes", "reflexology", "backup", "Klinik Notlar"),
   entry("reflexology_atlas", "reflexology", "backup", "Atlas", { pk: ["tenant_id"], singleton: true }),
+  // Danışan Haritası (migration 20271013000000): danışana bağlı seans + noktalar (composite FK).
+  entry("reflexology_mark_sessions", "reflexology", "backup", "Danışan Haritası Seansları", {
+    fkParents: [clientFk],
+    userColumns: ["created_by_user_id"],
+    generatedColumns: ["source_uid"],
+  }),
+  entry("reflexology_marks", "reflexology", "backup", "Danışan Haritası Noktaları", {
+    fkParents: [clientFk, fk("session_id", "reflexology_mark_sessions")],
+    userColumns: ["created_by_user_id"],
+    generatedColumns: ["source_uid"],
+  }),
 
   // ── Aromaterapi ───────────────────────────────────────────────────────────
   entry("aromatherapy_oils", "aromatherapy", "backup", "Yağ Kayıtları", {

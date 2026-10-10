@@ -28,7 +28,7 @@ export type RefleksolojiUsageFailure = {
   guard: UsageGuardContext;
   req: { headers: Headers } | null;
   failedAction: FailableUsageAction;
-  subEntity: "protocol" | "organ" | "atlas" | "note";
+  subEntity: "protocol" | "organ" | "atlas" | "note" | "mark_session" | "mark";
 };
 
 /**

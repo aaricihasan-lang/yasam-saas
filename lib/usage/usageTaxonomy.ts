@@ -113,7 +113,7 @@ export const USAGE_SUB_ENTITIES: Record<ModuleGateKey, readonly string[]> = {
   stok: ["oil", "soap_cream", "accessory", "other_item", "sale", "inventory"],
   sifa_rehberi: ["guide", "section", "photo"],
   energy_body: ["session", "energy_body", "subconscious", "imagination", "symbol", "chakra", "chakra_block"],
-  reflexology: ["protocol", "organ", "atlas", "note"],
+  reflexology: ["protocol", "organ", "atlas", "note", "mark_session", "mark"],
   aromatherapy: ["oil", "blend", "article", "claim", "glossary_term", "plant_taxon", "preparation", "method", "source"],
   personal_archive: ["archive", "file"],
   video_ceviri: [],

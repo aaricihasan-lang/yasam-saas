@@ -132,7 +132,7 @@
         "previewEmpty": "No other linked records were found.",
         "previewPartial": "Some record types could not be counted; they are deleted with the client as well.",
         "previewFailed": "Record counts could not be loaded. Deleted with the client: notes and general info, appointments, sessions, homework, charges, stones and stone photos, analyses, combinations, nutrition records, nutrition plans linked to the client (with all revisions, days and meals), cupping records, Life Memory report selections. The Human Design profile and analyses linked to the client are also deleted.",
-        "unlinked": "Numerology, Reflexology and Bioenergy records are not linked to the client; delete them separately. In Human Design only the profile and analyses linked to this client are deleted.",
+        "unlinked": "Numerology, Reflexology (atlas, protocols, clinical notes) and Bioenergy records are not linked to the client; delete them separately. Reflexology Client Map sessions and points are deleted with the client. In Human Design only the profile and analyses linked to this client are deleted.",
         "notesLine": "Notes: {count}",
         "generalLine": "General info: {fields}",
         "fieldSaglik": "health note",
@@ -304,7 +304,9 @@
           "anamnesisFiles": "Intake documents (PDF)",
           "hdProfiles": "Human Design profile",
           "hdCharts": "Human Design analyses (charts, permanently deleted)",
-          "hdReports": "Human Design reports (permanently deleted)"
+          "hdReports": "Human Design reports (permanently deleted)",
+          "reflexologyMarkSessions": "Reflexology client map sessions",
+          "reflexologyMarks": "Reflexology map points"
         }
       },
       "notesState": {

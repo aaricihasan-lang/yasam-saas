@@ -133,13 +133,20 @@ export const YH_MODULE_SOURCE_MATRIX = [
     professionalSourceKeys: ["refleksoloji:protocols"],
     clientSourceKeys: [],
     allow: ["protokol başlığı", "hedef/sorun", "organ etiketleri", "uygulama notu (mesleki)"],
-    deny: ["reflexology_notes serbest seans metni (pii)", "danışan kimliği"],
+    deny: [
+      "reflexology_notes serbest seans metni (pii)",
+      "danışan kimliği",
+      "reflexology_marks koordinatları (x/y/boyut — anlamsız gürültü)",
+    ],
     rationale:
       "reflexology_protocols tenant-scoped REUSABLE mesleki içerik (client_id yok); professional " +
       "kaynak. reflexology_notes classification=pii → ana index'e GİRMEZ. Reusable protokol " +
       "client-specific hâle getirilmez; danışan teslimi BF-14 P2 snapshot katmanıyla yapılır " +
       "(snapshot yeniden source değildir).",
-    activationPrerequisite: "Client memory için isimden değil, doğrulanmış client_id'li ayrı uygulama tablosu gerekir.",
+    activationPrerequisite:
+      "Client memory için doğrulanmış client_id'li ayrı tablo artık VAR (reflexology_mark_sessions, " +
+      "20271013000000; yalnız seans başlığı/notu anlamlı metin). Kaynak olarak eklenmesi Private Memory " +
+      "Politika Kilidi (6 kaynak) değişikliğidir → ayrı owner onayı; CDC trigger YOK.",
   },
   {
     moduleKey: "numeroloji",

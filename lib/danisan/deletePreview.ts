@@ -6,8 +6,9 @@
  * + client_stone_photos (client_stones üzerinden cascade) + Yaşam Hafızası rapor
  * snapshot'ları (migration 20270129000500 ile composite FK CASCADE).
  *
- * Numeroloji / Refleksoloji / Biyoenerji kayıtları danışana FK ile BAĞLI DEĞİLDİR → silinmez;
- * onay ekranında ayrıca belirtilir.
+ * Numeroloji / Refleksoloji (atlas/protokol/not) / Biyoenerji kayıtları danışana FK ile BAĞLI
+ * DEĞİLDİR → silinmez; onay ekranında ayrıca belirtilir. Refleksoloji DANIŞAN HARİTASI
+ * (reflexology_mark_sessions/marks) bileşik FK CASCADE ile danışanla birlikte silinir.
  *
  * HUMAN DESIGN (AŞAMA 3C, migration 20271010000100): danışana BAĞLANMIŞ HD profili bileşik FK
  * (ON DELETE CASCADE) ile silinir; profilin BEFORE DELETE trigger'ı o profile ait haritaları
@@ -60,6 +61,10 @@ export const DELETE_PREVIEW_TABLES: ReadonlyArray<{ key: string; table: string; 
   { key: "hdProfiles", table: "human_design_clients", via: "hdJourney" },
   { key: "hdCharts", table: "human_design_charts", via: "hdJourney" },
   { key: "hdReports", table: "human_design_reports", via: "hdJourney" },
+  // Refleksoloji Danışan Haritası (migration 20271013000000; composite FK CASCADE). Atlas /
+  // protokol / klinik not tenant düzeyidir (danışana bağlı DEĞİL) → UNLINKED listesinde kalır.
+  { key: "reflexologyMarkSessions", table: "reflexology_mark_sessions" },
+  { key: "reflexologyMarks", table: "reflexology_marks" },
 ];
 
 /** Danışana bağlı OLMAYAN (silinmeyen) modüller. */

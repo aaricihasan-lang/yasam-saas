@@ -75,6 +75,17 @@ const MENU_MODULES: HubModule[] = [
     borderTint: "border-rose-200/80",
     accentGlow: "bg-fuchsia-400/30",
   },
+  {
+    href: "/refleksoloji/danisan-haritasi",
+    title: "Danışan Haritası",
+    icon: "🖐️",
+    lines: ["Danışana özel ayak, el ve yüz haritasında nokta işaretle.", "Her seans ayrı kaydedilir."],
+    gradient: "from-sky-300/35 via-violet-300/28 to-teal-200/38",
+    ring: "ring-sky-300/50",
+    hoverRing: "group-hover:ring-sky-400/80",
+    borderTint: "border-sky-200/75",
+    accentGlow: "bg-sky-400/26",
+  },
 ];
 
 function ReflexologyHubCard({
@@ -195,10 +206,10 @@ function ReflexologyMainMenu() {
               Refleksoloji
             </h1>
             <p className="mt-1.5 max-w-3xl text-sm font-medium leading-snug text-slate-600/90">
-              Ayak refleksoloji atlası, protokoller ve klinik çalışma alanı
+              Ayak, el ve yüz refleksolojisi — atlas, danışan haritası, protokoller ve klinik notlar
             </p>
             <p className="mt-2 inline-flex max-w-full flex-wrap items-center gap-x-1.5 rounded-full border border-violet-200/70 bg-white/55 px-3 py-1 text-[10px] font-bold leading-snug text-violet-900/90 shadow-sm ring-1 ring-white/60 backdrop-blur-sm sm:text-[11px]">
-              Ayak Refleksolojisi • Atlas • Protokol • Klinik Notlar
+              Ayak • El • Yüz • Atlas • Protokol • Klinik Notlar
             </p>
           </header>
 
@@ -213,7 +224,7 @@ function ReflexologyMainMenu() {
                 ))}
               </div>
               <div className="flex justify-center">
-                <div className="grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2 lg:w-[92%] lg:max-w-[1320px] lg:gap-3">
+                <div className="grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-3">
                   {MENU_MODULES.slice(3).map((module) => (
                     <ReflexologyHubCard key={module.href} module={module} size="bottom" />
                   ))}

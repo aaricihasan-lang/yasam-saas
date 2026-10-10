@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
-import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { readYasamUser, readSessionToken, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
@@ -205,7 +205,8 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         headers: {
           "Content-Type": "application/json",
           "x-user-id": readYasamUser()?.id ?? "",
-          "x-session-token": readSessionToken() ?? "",
+          // HTTPONLY H5: token yalnız varsa (web: HttpOnly cookie).
+          ...sessionTokenHeader(),
         },
         body: JSON.stringify({ tenantId: tid, exportMode: "single", protocolId: protocol.id, ...yhAttach }),
       });

@@ -132,7 +132,7 @@
         "previewEmpty": "Danışana bağlı başka kayıt bulunmadı.",
         "previewPartial": "Bazı kayıt türleri sayılamadı; onlar da danışanla birlikte silinir.",
         "previewFailed": "Kayıt sayıları alınamadı. Danışanla birlikte şunlar silinir: notlar ve genel bilgiler, randevular, seanslar, ödevler, ücretler, taşlar ve taş fotoğrafları, analizler, kombinasyonlar, beslenme kayıtları, danışana bağlı beslenme planları (tüm revizyonları, günleri ve öğünleriyle), kupa kayıtları, Yaşam Hafızası rapor seçimleri. Danışana bağlı Human Design profili ve analizleri de silinir.",
-        "unlinked": "Numeroloji, Refleksoloji ve Biyoenerji kayıtları danışana bağlı değildir; bunlar ayrıca silinmelidir. Human Design'da yalnız bu danışana bağlanmış profil ve analizler silinir.",
+        "unlinked": "Numeroloji, Refleksoloji (atlas, protokol, klinik not) ve Biyoenerji kayıtları danışana bağlı değildir; bunlar ayrıca silinmelidir. Refleksoloji Danışan Haritası seans ve noktaları danışanla birlikte silinir. Human Design'da yalnız bu danışana bağlanmış profil ve analizler silinir.",
         "notesLine": "Notlar: {count}",
         "generalLine": "Genel bilgiler: {fields}",
         "fieldSaglik": "sağlık notu",
@@ -304,7 +304,9 @@
           "anamnesisFiles": "Anamnez belgeleri (PDF)",
           "hdProfiles": "Human Design profili",
           "hdCharts": "Human Design analizleri (haritalar, kalıcı silinir)",
-          "hdReports": "Human Design raporları (kalıcı silinir)"
+          "hdReports": "Human Design raporları (kalıcı silinir)",
+          "reflexologyMarkSessions": "Refleksoloji danışan haritası seansları",
+          "reflexologyMarks": "Refleksoloji harita noktaları"
         }
       },
       "notesState": {

@@ -8,6 +8,13 @@
     { "route": "refleksoloji/protocols/organ", "method": "POST", "events": [{ "action": "record_updated", "subEntity": "organ" }], "failure": "server", "note": "organ adı değişikliği (tüm protokollerde cascade) → tek olay + itemCount; etkilenen yoksa olay yok" },
     { "route": "refleksoloji/atlas", "method": "PUT", "events": [{ "action": "record_updated", "subEntity": "atlas" }], "failure": "conflict", "note": "CAS tekil belge; yalnız başarılı yazma VE içerik değiştiyse; resourceId sabit 'atlas' → 60 sn kova; 409 → conflict, 500 → server" },
     { "route": "refleksoloji/notes", "method": "PUT", "events": [{ "action": "record_updated", "subEntity": "note" }], "failure": "conflict", "note": "per-not CAS senkronu; created/updated/deleted sayısı > 0 ise TEK olay + itemCount (deleted_uids dahil); unchanged/delete-noop olay yok; conflicts > 0 → conflict; reconcile throw → server" },
+    { "route": "refleksoloji/marks/sessions", "method": "POST", "events": [{ "action": "record_created", "subEntity": "mark_session" }], "failure": "server", "note": "Danışan Haritası seansı; source_uid tekrarında (çift tık) olay yok" },
+    { "route": "refleksoloji/marks/sessions/[id]", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "mark_session" }], "failure": "server", "note": "seans tarih/başlık/not" },
+    { "route": "refleksoloji/marks/sessions/[id]", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "mark_session" }], "failure": "server", "note": "seans + noktaları (CASCADE); onay sayısı uyuşmazlığı 409 olay değildir" },
+    { "route": "refleksoloji/marks/sessions/[id]/marks", "method": "POST", "events": [{ "action": "record_created", "subEntity": "mark" }], "failure": "server", "note": "tek nokta; source_uid tekrarında olay yok; 400 nokta sınırı 422 olay değildir" },
+    { "route": "refleksoloji/marks/sessions/[id]/marks", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "mark" }], "failure": "server", "note": "yüzeydeki noktaları toplu sil → tek olay + itemCount; silinen yoksa olay yok; onay sayısı uyuşmazlığı 409" },
+    { "route": "refleksoloji/marks/items/[markId]", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "mark" }], "failure": "server", "note": "taşı/boyut/yoğunluk/not" },
+    { "route": "refleksoloji/marks/items/[markId]", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "mark" }], "failure": "server", "note": "tek nokta" },
     { "route": "refleksoloji/protocol-report", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "protocol" }], "failure": "server", "note": "docx üretildikten sonra; Android Word guard 403 olay değildir" }
   ]
 }
