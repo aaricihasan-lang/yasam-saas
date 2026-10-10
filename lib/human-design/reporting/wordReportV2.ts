@@ -64,6 +64,7 @@ import type { SystemReadingDetail, SystemReadingDto } from "@/lib/human-design/p
 import { toPlanetName } from "@/lib/human-design/providers/roxy/normalize";
 import { HUMAN_DESIGN_GATES } from "@/lib/human-design/constants";
 import { GATE_TECHNICAL_DATA } from "@/lib/human-design/gateTechnicalData";
+import { crossThemeNames } from "@/lib/human-design/reporting/crossThemeTr";
 
 const REPORT_NAME = "Human Design Profesyonel Analiz Raporu · yasamsistemi.com";
 const HEADER_TEXT = "Human Design · Yaşam Sistemi";
@@ -347,7 +348,7 @@ function detailBlocks(details: SystemReadingDetail[]): Paragraph[] {
   return out;
 }
 
-function buildSystem(reading: SystemReadingDto | null): ReportChild[] {
+function buildSystem(reading: SystemReadingDto | null, o: { proCross?: boolean } = {}): ReportChild[] {
   if (!reading) return [];
   const out: ReportChild[] = [
     h1("Sistem Yorumu", true),
@@ -360,7 +361,12 @@ function buildSystem(reading: SystemReadingDto | null): ReportChild[] {
   if (general.length) {
     out.push(h2("Genel Human Design Açıklamaları", { keepNext: true }));
     for (const g of general) {
-      out.push(h3(g.value ? `${g.title}: ${g.value}` : g.title, { keepNext: g.details.length > 0 }));
+      if (o.proCross && g.key === "cross") {
+        const v = g.value ? crossThemeNames(g.value, null) : null;
+        out.push(h3(v ? `Enkarnasyon Teması (Yaşam Amacı): ${v.tr} (${v.en})` : "Enkarnasyon Teması (Yaşam Amacı)", { keepNext: g.details.length > 0 }));
+      } else {
+        out.push(h3(g.value ? `${g.title}: ${g.value}` : g.title, { keepNext: g.details.length > 0 }));
+      }
       out.push(...detailBlocks(g.details));
     }
   }
@@ -477,9 +483,10 @@ export function buildHdReportV2Children(s: HdReportSnapshotV2, opts: WordReportV
 // ═════════════════════════════════════════════════════════════════════════════════
 // PROFESYONEL DÜZEN "pro-1" (2026-10-09) — yalnız `layout: "pro-1"` taşıyan YENİ snapshot'lar.
 // Eski kayıtlı raporlar (layout yok) yukarıdaki düzenle AYNEN üretilir.
-//   • Sayfa 2: kimlik kartı (ad · doğum · HD özeti · Enkarnasyon Haçı) + Merkezler 3×3 ızgara
-//     (Tanımlı ● / Açık ○ — siyah-beyaz baskıda da ayırt edilir) + Kanal satırları
-//   • Sayfa 3: Design (kırmızı) | BodyGraph | Personality (siyah) — 13 + 13 aktivasyon
+//   • Sayfa 2: kimlik kartı (ad · doğum · HD özeti) + HEMEN ALTINDA BodyGraph:
+//     Design (kırmızı) | BodyGraph | Personality (siyah) — 13 + 13 aktivasyon
+//   • Sayfa 3: "ENKARNASYON TEMASI (YAŞAM AMACI)" (Türkçe ad "Haç"sız + özgün İngilizce ad)
+//     + Merkezler 3×3 ızgara (Tanımlı ● / Açık ○) + Kanal satırları
 //   • Kapı tablosu (çoklu aktivasyon korunur; başlık her sayfada tekrar eder)
 //   • "Uzman Açıklamaları" / Sistem Yorumu AYRI bölümler · sade kapanış (teknik eşleşme notu YOK)
 //   • "Hazırlayan" yalnız snapshot.preparedBy doluysa (profil adı otomatik yazılmaz)
@@ -632,24 +639,6 @@ function proIdentity(s: HdReportSnapshotV2, genDate: string): ReportChild[] {
       }),
     ]),
   );
-  if (s.identity.cross) {
-    const x = s.identity.cross;
-    const crossChildren: Paragraph[] = [
-      capsLabel("Enkarnasyon Haçı (Yaşam Teması)"),
-      pp([{ text: x.name, size: 26, bold: true, color: PAL.ink }], { after: 80 }),
-      new Paragraph({
-        spacing: { after: 0 },
-        children: [
-          pr({ text: "Kapılar  ", size: 17, color: PAL.soft }),
-          pr({ text: x.gates, size: 21, bold: true, color: PAL.ink }),
-          ...(x.angle ? [pr({ text: "     Açı  ", size: 17, color: PAL.soft }), pr({ text: x.angle, size: 21, color: PAL.ink })] : []),
-        ],
-      }),
-      pp([{ text: "Personality Güneş/Dünya | Design Güneş/Dünya", size: 16, color: PAL.faint }], { before: 40, after: 0 }),
-    ];
-    out.push(new Paragraph({ spacing: { before: 0, after: 200 } }));
-    out.push(fixedTable([W], [new TableRow({ cantSplit: true, children: [cardCell(crossChildren, W, { fill: PAL.card, borders: { ...NO_BORDERS, top: THIN(PAL.accent) } })] })]));
-  }
   out.push(
     pp(
       [
@@ -720,7 +709,8 @@ function bodygraphCell(s: HdReportSnapshotV2, img: Buffer | null): (Paragraph | 
 }
 
 function proBodygraph(s: HdReportSnapshotV2, img: Buffer | null): ReportChild[] {
-  const out: ReportChild[] = [h1("BodyGraph ve Aktivasyonlar", true)];
+  // 2026-10-10 owner: BodyGraph 2. sayfada kimlik/doğum/HD özetinin HEMEN ALTINDA (sayfa sonu yok).
+  const out: ReportChild[] = [h2("BodyGraph ve Aktivasyonlar", { keepNext: true })];
   if (s.activations.status !== "ok") {
     // Manuel / doğrulanamayan kayıt: aktivasyon sütunu yok; BodyGraph tek başına ortalanır.
     out.push(...bodygraphCell(s, img));
@@ -741,6 +731,32 @@ function proBodygraph(s: HdReportSnapshotV2, img: Buffer | null): ReportChild[] 
     ]),
   );
   return out;
+}
+
+// ── P3b) Enkarnasyon Teması (Yaşam Amacı) — BodyGraph'tan SONRA, yeni sayfa başı ──
+// Türkçe görünen adda "Haç" yok; özgün İngilizce terim aynen yanında (crossThemeNames).
+function proIncarnation(s: HdReportSnapshotV2): ReportChild[] {
+  const x = s.identity.cross;
+  if (!x) return [];
+  const names = crossThemeNames(x.name, x.angle);
+  const card: Paragraph[] = [
+    pp([{ text: names.tr, size: 30, bold: true, color: PAL.ink }], { after: 40 }),
+    pp([{ text: names.en, size: 21, italics: true, color: PAL.soft }], { after: 160 }),
+    new Paragraph({
+      spacing: { after: 0 },
+      children: [
+        pr({ text: "Kapılar  ", size: 17, color: PAL.soft }),
+        pr({ text: x.gates, size: 21, bold: true, color: PAL.ink }),
+        ...(x.angle ? [pr({ text: "     Açı  ", size: 17, color: PAL.soft }), pr({ text: x.angle, size: 21, color: PAL.ink })] : []),
+      ],
+    }),
+    pp([{ text: "Personality Güneş/Dünya | Design Güneş/Dünya", size: 16, color: PAL.faint }], { before: 40, after: 0 }),
+  ];
+  return [
+    h1("ENKARNASYON TEMASI (YAŞAM AMACI)", true),
+    fixedTable([W], [new TableRow({ cantSplit: true, children: [cardCell(card, W, { fill: PAL.card, borders: { ...NO_BORDERS, top: THIN(PAL.accent) } })] })]),
+    new Paragraph({ spacing: { before: 0, after: 120 } }),
+  ];
 }
 
 // ── P4) Merkezler (3×3) ──
@@ -894,12 +910,13 @@ function buildHdReportV2ProChildren(s: HdReportSnapshotV2, opts: WordReportV2Opt
     cover: buildCover(s, genDate, opts.logo ?? null),
     body: [
       ...proIdentity(s, genDate),
+      ...proBodygraph(s, opts.bodygraphImage ?? null),
+      ...proIncarnation(s),
       ...proCenters(s),
       ...proChannels(s),
-      ...proBodygraph(s, opts.bodygraphImage ?? null),
       ...proGates(s),
       ...proExpert(s),
-      ...buildSystem(reading),
+      ...buildSystem(reading, { proCross: true }),
       ...proClosing(s, genDate, opts),
     ],
   };

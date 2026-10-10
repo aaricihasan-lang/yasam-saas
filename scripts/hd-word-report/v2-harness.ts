@@ -396,6 +396,19 @@ async function main() {
   }
 
   section("D. Enkarnasyon Haçı");
+  {
+    const { crossThemeNames, CROSS_THEME_KEYS } = await import("../../lib/human-design/reporting/crossThemeTr");
+    const c1 = crossThemeNames("Right Angle Cross of Contagion 2", "Sağ Açı (Right Angle)");
+    ok("D0a owner örneği: Contagion → \"Sağ Açılı Etki Yayma Teması\" + özgün ad", c1.tr === "Sağ Açılı Etki Yayma Teması 2" && c1.en === "Right Angle Cross of Contagion 2" && c1.themeKnown);
+    ok("D0b numarasız + \"the\": Sleeping Phoenix", crossThemeNames("Right Angle Cross of the Sleeping Phoenix", null).tr === "Sağ Açılı Uyuyan Anka Teması");
+    ok("D0c Sol Açılı + Yan Yana", crossThemeNames("Left Angle Cross of Healing 1", null).tr === "Sol Açılı Şifa Teması 1" && crossThemeNames("Juxtaposition Cross of Thinking", null).tr === "Yan Yana Düşünme Teması");
+    const unk = crossThemeNames("Right Angle Cross of Bilinmeyen 3", null);
+    ok("D0d sözlükte olmayan tema UYDURULMAZ (genel Türkçe ad + özgün ad)", unk.tr === "Sağ Açılı Enkarnasyon Teması" && unk.en === "Right Angle Cross of Bilinmeyen 3" && !unk.themeKnown);
+    const go = crossThemeNames("Sağ Açı (Right Angle) (yalnız kapılar)", "Sağ Açı (Right Angle)");
+    ok("D0e sağlayıcı adı yoksa (yalnız kapılar): \"Sağ Açılı Enkarnasyon Teması\" / \"Right Angle Cross\"", go.tr === "Sağ Açılı Enkarnasyon Teması" && go.en === "Right Angle Cross");
+    const all = CROSS_THEME_KEYS.flatMap((k) => ["Right Angle", "Left Angle", "Juxtaposition"].map((a) => crossThemeNames(`${a} Cross of ${k} 1`, null)));
+    ok("D0f sözlükteki HER tema × 3 açı: Türkçe adda \"Haç\" yok, tema bilinir, İngilizce ad aynen", all.length > 100 && all.every((n) => !/Haç/i.test(n.tr) && n.themeKnown && / Cross of /.test(n.en)));
+  }
   ok("D1 ad + kapılar (Personality Güneş/Dünya | Design Güneş/Dünya)", pure.identity.cross?.name === "Right Angle Cross of Laws 2" && pure.identity.cross?.gates === "56/60 | 3/50");
   ok("D2 bozuk haç → null (uydurma yok)", V2.freezeCross({ incarnationCross: { gates: [1, 2, 3] } }) === null);
 
@@ -709,9 +722,14 @@ async function main() {
     const ct = await zip.file("[Content_Types].xml")!.async("string");
     ok("Q3 Content_Types png kayıtlı", /Extension="png"/.test(ct));
     ok("Q4 ham markdown / kontrol karakteri yok", !/(^|\s)##\s|\*\*/.test(text) && !/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(xml));
-    ok("Q5 kimlik kartı: ad + doğum grubu + HD özeti + Enkarnasyon Haçı (Yaşam Teması)", text.includes("Elif Şahin Öztürk") && ["Doğum Bilgileri", "Doğum Tarihi", "Doğum Saati (yerel)", "Doğum Yeri", "Saat Dilimi", "Human Design Özeti", "Tip", "Profil", "İç Otorite", "Tanım", "Enkarnasyon Haçı (Yaşam Teması)", "Harita kaynağı", "Rapor tarihi"].every((k) => text.includes(k)));
+    ok("Q5 kimlik kartı: ad + doğum grubu + HD özeti", text.includes("Elif Şahin Öztürk") && ["Doğum Bilgileri", "Doğum Tarihi", "Doğum Saati (yerel)", "Doğum Yeri", "Saat Dilimi", "Human Design Özeti", "Tip", "Profil", "İç Otorite", "Tanım", "Harita kaynağı", "Rapor tarihi"].every((k) => text.includes(k)));
+    // 2026-10-10 owner: Enkarnasyon BodyGraph'tan SONRA; Türkçe ad "Haç"sız + özgün İngilizce ad.
+    ok("Q5b \"ENKARNASYON TEMASI (YAŞAM AMACI)\": Türkçe ad + özgün İngilizce ad", text.includes("ENKARNASYON TEMASI (YAŞAM AMACI)") && text.includes("Sağ Açılı Yasalar Teması 2") && text.includes("Right Angle Cross of Laws 2"));
+    ok("Q5c yeni düzende hiçbir yerde \"Haç\" yok (sistem yorumu başlığı dahil)", !/Haç/.test(text));
+    const paraOf = (needle: string) => [...xml.matchAll(/<w:p[ >][\s\S]*?<\/w:p>/g)].map((m) => m[0]).find((p) => p.includes(needle)) ?? "";
+    ok("Q5d BodyGraph kimlikle AYNI sayfada (sayfa sonu yok); Enkarnasyon yeni sayfa başı", paraOf("BodyGraph ve Aktivasyonlar") !== "" && paraOf("Merkezler<") !== "" && !paraOf("BodyGraph ve Aktivasyonlar").includes("pageBreakBefore") && paraOf("ENKARNASYON TEMASI").includes("pageBreakBefore") && !paraOf("Merkezler<").includes("pageBreakBefore"));
     ok("Q6 UTC doğum anı görünür raporda YOK", !text.includes("UTC") && !text.includes("16:00"));
-    const order = ["Danışan ve Harita Kimliği", "Merkezler", "Kanallar", "BodyGraph ve Aktivasyonlar", "Kapılar", "Uzman Açıklamaları", "Sistem Yorumu", "Kaynak Bilgisi"].reduce<number[]>((acc, h) => [...acc, text.indexOf(h, (acc.at(-1) ?? -1) + 1)], []);
+    const order = ["Danışan ve Harita Kimliği", "BodyGraph ve Aktivasyonlar", "ENKARNASYON TEMASI (YAŞAM AMACI)", "Merkezler", "Kanallar", "Kapılar", "Uzman Açıklamaları", "Sistem Yorumu", "Kaynak Bilgisi"].reduce<number[]>((acc, h) => [...acc, text.indexOf(h, (acc.at(-1) ?? -1) + 1)], []);
     ok("Q7 bölüm sırası hedefle aynı", order.every((p, i) => p >= 0 && (i === 0 || p > order[i - 1])), JSON.stringify(order));
     ok("Q8 aktivasyon sütunları: DESIGN (Bilinçdışı) + PERSONALITY (Bilinçli), Türkçe gezegen + Kapı.Çizgi", text.includes("DESIGN") && text.includes("Bilinçdışı") && text.includes("PERSONALITY") && text.includes("Bilinçli") && (text.match(/13 aktivasyon/g) ?? []).length === 2 && /Güneş\s*56\.2/.test(text) && text.includes("Kuzey Ay Düğümü"));
     ok("Q9 tablolar: başlık satırı tekrar + satır bölünmez", xml.includes("<w:tblHeader/>") && xml.includes("<w:cantSplit/>"));
