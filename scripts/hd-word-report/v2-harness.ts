@@ -415,18 +415,18 @@ async function main() {
     const r = await createAs(db, { tenantId: T1 }, { chartId: "ch-roxy", commentary: "system", bodygraphPng: dataUrl(pngForTests) });
     ok("J1 rapor oluşur (200)", r.res.status === 200 && r.body.ok === true, JSON.stringify(r.body));
     const row = reportRow(db, r.body.id);
-    ok("J2 seçim 'system' olsa da: system=not_permitted, uzman OTOMATİK dahil", row?.snapshot.commentary.system.status === "not_permitted" && row.snapshot.commentary.expert.included === true && row.snapshot.commentary.system.reading === null);
+    ok("J2 seçim 'system' + yetki yok: system=not_permitted; Bilgi Bankası seçilmediği için EKLENMEZ", row?.snapshot.commentary.system.status === "not_permitted" && row.snapshot.commentary.expert.included === false && row.snapshot.commentary.system.reading === null);
     ok("J3 provider_raw HİÇ okunmadı (select kolonlarında yok)", !db.selects.some((s) => s.includes("provider_raw")));
     ok("J4 admin merkezî canonical içeriği okunmadı", !db.selects.some((s) => s.startsWith("hd_canonical_content")));
     const d = await downloadAs(db, { tenantId: T1 }, r.body.id);
     const { text } = await unzip(await d.arrayBuffer());
-    ok("J5 DOCX: Uzman Bilgilerim var, Sistem Yorumu bölümü YOK", text.includes("Uzman Bilgilerim") && !text.includes("Kaynak: Harita hesaplanırken") && !text.includes(ROXY_DESC_MARK));
+    ok("J5 DOCX: Bilgi Bankası açıklaması YOK (seçilmedi), Sistem Yorumu bölümü YOK", !text.includes("Uzman Bilgilerim") && !text.includes("Tip Yorumum") && !text.includes("Kaynak: Harita hesaplanırken") && !text.includes(ROXY_DESC_MARK));
     ok("J6 DOCX: admin içeriği / başka uzman / pasif / eşleşmeyen kayıt YOK", !text.includes("ADMIN-CANONICAL") && !text.includes("BASKA-TENANT") && !text.includes("PASİF-İÇERİK") && !text.includes("ESLESMEYEN-ICERIK"));
     // Bilgi Bankası boş tenant → teknik rapor yine oluşur, yorum uydurulmaz.
-    const r3 = await createAs(db, { tenantId: T3 }, { chartId: "ch-roxy-t3", bodygraphPng: dataUrl(pngForTests) });
+    const r3 = await createAs(db, { tenantId: T3 }, { chartId: "ch-roxy-t3", commentary: "expert", bodygraphPng: dataUrl(pngForTests) });
     const d3 = await downloadAs(db, { tenantId: T3 }, r3.body.id);
     const t3 = (await unzip(await d3.arrayBuffer())).text;
-    ok("J7 boş Bilgi Bankası: rapor oluşur, Uzman Bilgilerim bölümü yok, kapanışta açık not", r3.res.status === 200 && !t3.includes("Kaynak: Raporu hazırlayan uzmanın") && t3.includes("eşleşen kayıt bulunmadığından") && r3.body.expertEntries === 0);
+    ok("J7 boş Bilgi Bankası (açıklama seçili): rapor oluşur, Uzman Bilgilerim bölümü yok, kapanışta açık not", r3.res.status === 200 && !t3.includes("Kaynak: Raporu hazırlayan uzmanın") && t3.includes("eşleşen kayıt bulunmadığından") && r3.body.expertEntries === 0);
   }
 
   section("K. Sistem Yorumu yetkisi AÇIK — üç seçim");
@@ -445,9 +445,54 @@ async function main() {
   ok("K5 Sistem Yorumu Türkçe yerelleştirilmiş etiketleri kullanır", both.includes("Tip: Jeneratör") && both.includes("Strateji: Yanıt vermeyi bekle"));
   {
     const r = await createAs(sysDb, { tenantId: T1, system: true }, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests) });
-    ok("K6 seçim gönderilmezse varsayılan: her ikisi", reportRow(sysDb, r.body.id)?.snapshot.commentary.requested === "both" && reportRow(sysDb, r.body.id)?.snapshot.commentary.system.status === "included");
+    const k6 = reportRow(sysDb, r.body.id)?.snapshot.commentary;
+    ok("K6 seçim gönderilmezse varsayılan: HİÇBİRİ (yalnız teknik içerik)", k6?.requested === "none" && k6.system.status === "not_selected" && k6.expert.included === false && k6.expert.entries.length === 0);
     const bad = await createAs(sysDb, { tenantId: T1, system: true }, { chartId: "ch-roxy", commentary: "admin" });
     ok("K7 geçersiz seçim → 400", bad.res.status === 400 && bad.body.code === "INVALID_COMMENTARY");
+  }
+
+  section("P. Gizlilik — içerik seçimi (varsayılan kapalı) + Özel Çalışma Notları asla");
+  {
+    const pdb = makeDb();
+    const NOTE = "ÖZEL-NOT-SIZMAMALI";
+    const run = async (g: Parameters<typeof guardFor>[1], body: Row) => {
+      const r = await createAs(pdb, g, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests), ...body });
+      const d = r.res.status === 200 ? await downloadAs(pdb, g, r.body.id) : null;
+      const text = d ? (await unzip(await d.arrayBuffer())).text : "";
+      return { r, text, row: r.res.status === 200 ? reportRow(pdb, r.body.id) : null };
+    };
+    const sys = { tenantId: T1, system: true };
+    const none = await run(sys, { commentary: "none" });
+    ok("P1 ikisi de KAPALI: teknik içerik var; Bilgi Bankası ve Sistem Yorumu YOK", none.r.res.status === 200 && none.text.includes("Kapılar") && none.text.includes("Kanallar")
+      && !none.text.includes("Uzman Bilgilerim") && !none.text.includes("Tip Yorumum") && !none.text.includes(ROXY_DESC_MARK) && !none.text.includes("Sistem Yorumu:"), JSON.stringify(none.r.body));
+    ok("P1b ikisi de kapalı: boş başlık / 'eşleşen kayıt yok' notu oluşmaz", !none.text.includes("eşleşen kayıt bulunmadığından") && none.row?.snapshot.commentary.expert.entries.length === 0);
+    const kOnly = await run(sys, { commentary: "expert" });
+    ok("P2 yalnız Bilgi Bankası: eşleşen açıklamalar AYNEN var, sistem yok", kOnly.text.includes("Tip Yorumum") && kOnly.text.includes("Uzman Bilgilerim") && !kOnly.text.includes(ROXY_DESC_MARK));
+    const sOnly = await run(sys, { commentary: "system" });
+    ok("P3 yalnız Sistem Yorumu: sistem var, Bilgi Bankası yok", sOnly.text.includes(ROXY_DESC_MARK) && !sOnly.text.includes("Tip Yorumum") && sOnly.row?.snapshot.commentary.expert.included === false);
+    const both2 = await run(sys, { commentary: "both" });
+    ok("P4 ikisi de açık: iki ayrı bölüm", both2.text.includes("Tip Yorumum") && both2.text.includes(ROXY_DESC_MARK));
+    const all = [none, kOnly, sOnly, both2];
+    ok("P5 Özel Çalışma Notları HİÇBİR senaryoda ne snapshot'ta ne DOCX'te", all.every((x) => !x.text.includes(NOTE) && !JSON.stringify(x.row?.snapshot ?? {}).includes(NOTE)));
+    const kbSelects = pdb.selects.filter((q) => q.startsWith("human_design_knowledge_records:"));
+    ok("P5b rapor yolu Bilgi Bankası'nda expert_notes kolonunu HİÇ OKUMAZ (select * yok)", kbSelects.length > 0 && kbSelects.every((q) => !q.includes("expert_notes") && !q.endsWith(":*")), kbSelects.join(" | "));
+    // İstemci manipülasyonu: bilinmeyen/sahte alanlar ve seçimler.
+    const forged = await run(sys, { commentary: "expert", includeExpertNotes: true, expert_notes: NOTE, includePrivateNotes: true, notes: NOTE, expertNotes: NOTE });
+    ok("P6 manipüle istek (includeExpertNotes / expert_notes gövdede): not rapora GİRMEZ", forged.r.res.status === 200 && !forged.text.includes(NOTE) && !JSON.stringify(forged.row?.snapshot ?? {}).includes(NOTE));
+    for (const c of ["notes", "private", "expert_notes", "all", "", 1, true, ["expert"], { knowledge: true }]) {
+      const bad = await createAs(pdb, sys, { chartId: "ch-roxy", commentary: c, bodygraphPng: dataUrl(pngForTests) });
+      ok(`P6b geçersiz seçim ${JSON.stringify(c)} → 400 (sessizce genişletilmez)`, bad.res.status === 400 && bad.body.code === "INVALID_COMMENTARY");
+    }
+    const noPerm = await run({ tenantId: T1 }, { commentary: "both" });
+    ok("P6c yetkisiz uzman 'both' gönderse de Sistem Yorumu EKLENMEZ; yalnız seçtiği açıklamalar", noPerm.row?.snapshot.commentary.system.status === "not_permitted" && !noPerm.text.includes(ROXY_DESC_MARK) && noPerm.text.includes("Tip Yorumum"));
+    ok("P7 başka tenant'ın / pasif / ilgisiz kodlu kayıtları hiçbir seçimde yok", all.concat([forged, noPerm]).every((x) => !x.text.includes("BASKA-TENANT") && !x.text.includes("PASİF-İÇERİK") && !x.text.includes("ESLESMEYEN-ICERIK")));
+    // Kayıtlı eski Word: sonradan Bilgi Bankası değişse de indirilen içerik AYNI (donmuş snapshot).
+    const before = kOnly.text;
+    const tipRec = pdb.tables.human_design_knowledge_records.find((r) => String(r.code).startsWith("tip_") && r.tenant_id === T1 && r.is_active === true);
+    if (tipRec) { tipRec.content = "DEĞİŞTİRİLMİŞ-SONRADAN"; tipRec.expert_notes = "YENİ-ÖZEL-NOT"; }
+    const again = await downloadAs(pdb, sys, kOnly.r.body.id);
+    const againText = (await unzip(await again.arrayBuffer())).text;
+    ok("P9 kayıtlı eski Word değiştirilmeden iner (Bilgi Bankası sonradan değişse de)", againText === before && !againText.includes("DEĞİŞTİRİLMİŞ-SONRADAN") && !againText.includes("YENİ-ÖZEL-NOT"));
   }
 
   section("L. Yetki sonradan KAPANDI → indirme filtresi");
@@ -485,7 +530,7 @@ async function main() {
   section("N. Tenant izolasyonu");
   {
     const db = makeDb();
-    const own = await createAs(db, { tenantId: T1, system: true }, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests) });
+    const own = await createAs(db, { tenantId: T1, system: true }, { chartId: "ch-roxy", commentary: "expert", bodygraphPng: dataUrl(pngForTests) });
     const x = await createAs(db, { tenantId: T2, system: true }, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests) });
     ok("N1 başka tenant'ın haritası → 404", x.res.status === 404);
     const d = await downloadAs(db, { tenantId: T2, system: true }, own.body.id);
@@ -494,7 +539,7 @@ async function main() {
     const { NextRequest } = req("next/server");
     const s = await summary.GET(new NextRequest(`http://localhost/x?id=${own.body.id}`));
     ok("N3 başka tenant'ın rapor özeti → 404", s.status === 404);
-    const t2 = await createAs(db, { tenantId: T2 }, { chartId: "ch-roxy-t2", bodygraphPng: dataUrl(pngForTests) });
+    const t2 = await createAs(db, { tenantId: T2 }, { chartId: "ch-roxy-t2", commentary: "expert", bodygraphPng: dataUrl(pngForTests) });
     const tt = (await unzip(await (await downloadAs(db, { tenantId: T2 }, t2.body.id)).arrayBuffer())).text;
     ok("N4 T2 raporunda yalnız T2 uzman bilgisi (T1 kayıtları yok)", tt.includes("BASKA-TENANT-ICERIGI") && !tt.includes("Tip Yorumum"));
     const ownText = (await unzip(await (await downloadAs(db, { tenantId: T1, system: true }, own.body.id)).arrayBuffer())).text;
@@ -713,7 +758,7 @@ async function main() {
     ok("Y3 indirme anında yetki yeniden doğrulanır", /applyDownloadPermissions\(snapshot, hasModulePermissionForProfile\(guard\.profile, "hd_system_reading"\)\)/.test(dl));
     const btn = code("app/human-design/kayitli-haritalar/components/HdProfessionalReportButton.tsx");
     ok("Y4 buton Android'de render edilmez", /if \(isAndroid\) return null;/.test(btn));
-    ok("Y5 seçim penceresi yalnız yetkiliye (canUseHdSystemReading)", /canUseHdSystemReading/.test(btn) && /if \(canSystem\)/.test(btn));
+    ok("Y5 içerik penceresi herkese; 'Sistem Yorumunu Ekle' yalnız yetkiliye (canUseHdSystemReading); seçimler varsayılan kapalı", /canUseHdSystemReading/.test(btn) && /\{canSystem \?/.test(btn) && /setAddKnowledge\(false\)/.test(btn) && /setAddSystem\(false\)/.test(btn));
     const svc = code("lib/human-design/reporting/reportSnapshotV2Service.ts");
     ok("Y6 v2 servis admin canonical okuyucusunu kullanmaz", !/canonicalReadService|getPublishedRecordsByKeys/.test(svc));
     ok("Y7 uzman kodları Bilgi Bankası paneliyle aynı üretici (buildExpertKnowledgeCodes)", /buildExpertKnowledgeCodes\(codes\)/.test(svc) && /buildExpertKnowledgeCodes/.test(read("app/human-design/kayitli-haritalar/components/HdExpertKnowledgePanel.tsx")));

@@ -11,7 +11,7 @@
  * yapılamaz (yapılmaya çalışılsa 503 olurdu; ayrıca istekler izlenir).
  * Genişlikler: 375 px · 390 px (iPhone UA) · masaüstü 1366 px · Android 390 px (Word gizli kuralı).
  */
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { mkdirSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -166,19 +166,24 @@ async function main() {
       const text = (await zip.file("word/document.xml")!.async("string")).replace(/<[^>]+>/g, " ");
       ok(/\.docx$/.test(dl.suggestedFilename()) && text.includes("Elif Şahin") && Object.keys(zip.files).some((f) => f.startsWith("word/media/")),
         `${d.name}: hazır Word indi (DOCX, danışan adı, BodyGraph görseli)`, dl.suggestedFilename());
-      await itemReady.getByText(/yeni hesaplama yapılmadı/).waitFor();
+      await itemReady.getByText(/Önceden oluşturulmuş kayıtlı Word raporu indirildi/).waitFor();
+      ok(await itemReady.locator(`[data-hd-history-word="${chartReady}"]`).getByText("Kayıtlı Word'ü İndir").isVisible() && await itemNew.locator(`[data-hd-history-word="${chartNew}"]`).getByText("Word Oluştur").isVisible(),
+        `${d.name}: 'Kayıtlı Word'ü İndir' ile 'Word Oluştur' ayrı etiketler`);
       ok(w.create.length === 0, `${d.name}: hazır raporda yeni oluşturma isteği YOK`, w.create);
 
       // 2) Hazır raporu olmayan analiz → modal açılır, akış bir kez başlar, rapor oluşturulur ve iner.
       await itemNew.locator(`[data-hd-history-word="${chartNew}"]`).click();
-      const choose = page.getByRole("dialog", { name: "Word raporuna hangi yorumlar aktarılsın?" });
+      const choose = page.getByRole("dialog", { name: "Word raporuna neler eklensin?" });
       await choose.waitFor({ timeout: 60_000 });
-      ok(await choose.getByRole("radio", { name: /Her ikisi/ }).isChecked(), `${d.name}: yorum seçimi açıldı (varsayılan Her ikisi)`);
+      ok(!(await choose.getByRole("checkbox", { name: /Bilgi Bankamdaki Açıklamaları Ekle/ }).isChecked()) && !(await choose.getByRole("checkbox", { name: /Sistem Yorumunu Ekle/ }).isChecked()),
+        `${d.name}: içerik seçimi açıldı (iki seçenek de VARSAYILAN KAPALI)`);
+      await choose.getByRole("checkbox", { name: /Bilgi Bankamdaki Açıklamaları Ekle/ }).check();
+      await choose.getByRole("checkbox", { name: /Sistem Yorumunu Ekle/ }).check();
       const cb = await choose.boundingBox();
       ok(!!cb && cb.x >= 0 && cb.x + cb.width <= d.viewport.width + 0.5 && cb.y + cb.height <= d.viewport.height + 0.5, `${d.name}: seçim penceresi ekrana sığıyor`, cb);
       await page.screenshot({ path: path.join(OUT, `choose-${d.name}.png`) });
       const dl2P = page.waitForEvent("download", { timeout: 90_000 });
-      await choose.getByRole("button", { name: "Raporu oluştur" }).click();
+      await choose.getByRole("button", { name: "Word'ü oluştur" }).click();
       const dl2 = await dl2P;
       const z2 = await JSZip.loadAsync(readFileSync((await dl2.path())!));
       const t2 = (await z2.file("word/document.xml")!.async("string")).replace(/<[^>]+>/g, " ");
@@ -231,7 +236,7 @@ async function main() {
       await tab.locator(`[data-hd-journey-analysis="${chartReady}"]`).getByRole("link", { name: /Analizi Aç/ }).click();
       await page.waitForURL(new RegExp(`/human-design/danisanlar/${hd}\\?chart=${chartReady}`), { timeout: 60_000 });
       const chartModal = page.locator('[role="dialog"][aria-labelledby="hd-computed-detay-title"]');
-      const opened = await chartModal.getByRole("button", { name: "Word İndir", exact: true }).waitFor({ timeout: 60_000 }).then(() => true, () => false);
+      const opened = await chartModal.getByRole("button", { name: "Kayıtlı Word'ü İndir", exact: true }).waitFor({ timeout: 60_000 }).then(() => true, () => false);
       const sub = opened ? (await chartModal.locator("p").first().textContent()) ?? "" : "";
       ok(opened && sub.includes("19:00") && !sub.includes("07:15"), `${d.name}: DY'den ?chart= ile AYNI analiz penceresi açıldı (Word İndir hazır)`);
       ok(await noHScroll(page, d.viewport.width), `${d.name}: DY→HD sayfası yatay kaydırma yok`);
@@ -252,7 +257,8 @@ async function main() {
   } finally {
     try { await browser?.close(); } catch { /* kapandı */ }
     if (app?.pid) {
-      if (process.platform === "win32") spawn("taskkill", ["/pid", String(app.pid), "/T", "/F"], { stdio: "ignore" });
+      // SENKRON: süreç çıkmadan sunucu kapanmalı (kalan sunucu bir sonraki build'in chunk'larını bulamaz).
+      if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(app.pid), "/T", "/F"], { stdio: "ignore" });
       else app.kill("SIGTERM");
     }
     await env.stop();

@@ -33,6 +33,7 @@
     "hd:tr-districts:e2e": "tsx scripts/hd-location/tr-districts/picker-e2e.ts",
     "hd:word:bodygraph-e2e": "tsx scripts/hd-word-report/bodygraph-capture-e2e.ts",
     "hd:word:ui-e2e": "tsx scripts/hd-word-report/ui-flow-e2e.ts",
+    "hd:kb-privacy:browser": "tsx scripts/hd-kb-word-privacy/browser-e2e.ts",
     "hd:member:harness": "tsx scripts/hd-member-access-harness.ts",
     "hd:isolation:harness": "node scripts/hd-admin-knowledge-isolation-check.mjs",
     "hd:presale-final:harness": "tsx scripts/hd-presale-final/harness.ts",

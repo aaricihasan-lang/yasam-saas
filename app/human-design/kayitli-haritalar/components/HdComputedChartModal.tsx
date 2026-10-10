@@ -8,6 +8,7 @@
 // katmanı DEĞİŞMEZ; burada yalnız kullanılır.
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   getComputedChart,
   deleteComputedChart,
@@ -131,7 +132,11 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
 
   // Tam ekran profesyonel çalışma görünümü: üst bar (kimlik + eylemler) sabit, içerik kendi içinde
   // kayar. Masaüstünde BodyGraph + Design 13 + Personality 13 tek bakışta (HdComputedChartView).
-  return (
+  // PORTAL (document.body): modal sayfa içindeki bir üst öğenin yığın bağlamında (stacking context)
+  // kalırsa z-[70] işe yaramıyor ve uygulama header'ı (fixed z-50) masaüstünde araç çubuğunu
+  // (Word / Sil / Kapat) tamamen örtüyordu. body'ye taşınınca z-[70] header'ın üstündedir.
+  if (typeof document === "undefined") return null;
+  return createPortal(
     // z-[70]: uygulama header'ı (fixed top-0 z-50) çalışma alanının üstüne binip toolbar'ı KIRPMASIN.
     // backdrop-blur YOK: tam ekran opak zemin (blur gereksiz GPU yükü + ekran yakalamayı donduruyordu).
     <div className="fixed inset-0 z-[70] bg-slate-50">
@@ -225,6 +230,7 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
