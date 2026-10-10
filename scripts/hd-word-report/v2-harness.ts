@@ -724,8 +724,12 @@ async function main() {
     ok("Q4 ham markdown / kontrol karakteri yok", !/(^|\s)##\s|\*\*/.test(text) && !/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(xml));
     ok("Q5 kimlik kartı: ad + doğum grubu + HD özeti", text.includes("Elif Şahin Öztürk") && ["Doğum Bilgileri", "Doğum Tarihi", "Doğum Saati (yerel)", "Doğum Yeri", "Saat Dilimi", "Human Design Özeti", "Tip", "Profil", "İç Otorite", "Tanım", "Harita kaynağı", "Rapor tarihi"].every((k) => text.includes(k)));
     // 2026-10-10 owner: Enkarnasyon BodyGraph'tan SONRA; Türkçe ad "Haç"sız + özgün İngilizce ad.
-    ok("Q5b \"ENKARNASYON TEMASI (YAŞAM AMACI)\": Türkçe ad + özgün İngilizce ad", text.includes("ENKARNASYON TEMASI (YAŞAM AMACI)") && text.includes("Sağ Açılı Yasalar Teması 2") && text.includes("Right Angle Cross of Laws 2"));
-    ok("Q5c yeni düzende hiçbir yerde \"Haç\" yok (sistem yorumu başlığı dahil)", !/Haç/.test(text));
+    ok("Q5b \"ENKARNASYON TEMASI (YAŞAM AMACI)\": Türkçe ad + özgün İngilizce ad", text.includes("ENKARNASYON TEMASI (YAŞAM AMACI)") && text.includes("Sağ Açılı Yasalar Teması 2") && text.includes("Right Angle Cross of Laws 2") && text.includes("açıklayıcı çevirisidir; özgün terim esas alınır"));
+    ok("Q5c yeni düzende hiçbir yerde \"Haç\" yok (büyük/küçük harf; sistem yorumu + kaynak bilgisi dahil)", !/haç/i.test(text) && !/HAÇ/.test(text));
+    // 2026-10-10 premium teknik bölümler (teknik veri korunur)
+    ok("Q5e Merkezler: özet sayaçlar + her merkezde aktif kapılar (kayıtlı kapı verisinden)", text.includes("Tanımlı merkez") && text.includes("Açık merkez") && (text.match(/Aktif kapılar/g) ?? []).length === 9);
+    ok("Q5f Kanallar: kod rozeti + ad + merkez yolu + kapılar", text.includes("Kapı 3 · Kapı 60") || /Kapı \d+ · Kapı \d+/.test(text));
+    ok("Q5g Kapılar: tekrar eden başlık bandı + kanal açıklaması", /<w:tblHeader\/>/.test(xml) && text.includes("Kanal sütunu, kapının tamamladığı tanımlı kanalı gösterir."));
     const paraOf = (needle: string) => [...xml.matchAll(/<w:p[ >][\s\S]*?<\/w:p>/g)].map((m) => m[0]).find((p) => p.includes(needle)) ?? "";
     ok("Q5d BodyGraph kimlikle AYNI sayfada (sayfa sonu yok); Enkarnasyon yeni sayfa başı", paraOf("BodyGraph ve Aktivasyonlar") !== "" && paraOf("Merkezler<") !== "" && !paraOf("BodyGraph ve Aktivasyonlar").includes("pageBreakBefore") && paraOf("ENKARNASYON TEMASI").includes("pageBreakBefore") && !paraOf("Merkezler<").includes("pageBreakBefore"));
     ok("Q6 UTC doğum anı görünür raporda YOK", !text.includes("UTC") && !text.includes("16:00"));
@@ -738,7 +742,7 @@ async function main() {
     ok("R1b uzman metni AYNEN: numaralar korunur, madde imine çevrilmez", text.includes("1. paragraf — Uzman açıklaması") && text.includes("6. paragraf — Uzman açıklaması"));
     ok("R1c Sistem Yorumu gezegen adları Türkçe (Pluto → Plüton)", text.includes("Design · Plüton · 61.1") && !text.includes("· Pluto ·"));
     ok("R2 başlıklar içerikten kopmaz (keepNext)", (xml.match(/<w:keepNext\/>/g) ?? []).length > 40);
-    ok("R3 teşhis/tedavi uyarısı + bilgilendirme notu; profil adı 'Hazırlayan' olarak OTOMATİK yazılmaz", text.includes("teşhis veya tedavi önerisi içermez") && text.includes("Bilgilendirme") && !text.includes("Hazırlayan"));
+    ok("R3 teşhis/tedavi uyarısı + bilgilendirme notu; profil adı 'Hazırlayan' olarak OTOMATİK yazılmaz", text.includes("teşhis veya tedavi önerisi içermez") && text.includes("Bilgilendirme") && !text.includes("Hazırlayan: ") && !text.includes("Ayşe Uzman"));
     const last = text.slice(text.lastIndexOf("Kaynak Bilgisi"));
     ok("R4 son sayfada teknik eşleşme / sistem kaydı notları YOK", !last.includes("Uzman Bilgilerim") && !last.includes("eşleşen kayıt") && !last.includes("harita hesaplanırken kaydedilmiş sistem açıklamaları"));
   }
@@ -753,12 +757,14 @@ async function main() {
       return { r, text: d ? (await unzip(await d.arrayBuffer())).text : "", row: r.res.status === 200 ? reportRow(db, r.body.id) : null };
     };
     const full = await mk({ commentary: "none", preparedBy: "  Human Design Uzmanı Ahmet Yılmaz  " });
-    ok("W1 dolu hazırlayan: 'Hazırlayan: <ad ve unvan>' (kırpılmış); snapshot'a donar", full.text.includes("Hazırlayan: Human Design Uzmanı Ahmet Yılmaz") && full.row?.snapshot.preparedBy === "Human Design Uzmanı Ahmet Yılmaz" && full.row?.snapshot.layout === "pro-1");
+    // 2026-10-10 owner: son sayfada büyük "RAPORU HAZIRLAYAN" uzman imza bölümü (eski küçük satır yok).
+    ok("W1 dolu hazırlayan: imza bölümünde 'RAPORU HAZIRLAYAN' + ad/unvan (kırpılmış); snapshot'a donar", full.text.includes("RAPORU HAZIRLAYAN") && full.text.includes("Human Design Uzmanı Ahmet Yılmaz") && !full.text.includes("Hazırlayan: ") && full.row?.snapshot.preparedBy === "Human Design Uzmanı Ahmet Yılmaz" && full.row?.snapshot.layout === "pro-1");
+    ok("W1c imza bölümü: Rapor Tarihi + İmza satırı; ad, raporun son bölümünde", full.text.includes("RAPOR TARİHİ") && full.text.includes("İmza") && full.text.lastIndexOf("Human Design Uzmanı Ahmet Yılmaz") > full.text.indexOf("Kaynak Bilgisi"));
     ok("W1b profil adı (Ayşe Uzman) yazılmaz", !full.text.includes("Ayşe Uzman"));
     const empty = await mk({ commentary: "none", preparedBy: "   " });
-    ok("W2 boş hazırlayan: 'Hazırlayan' satırı HİÇ yok", !empty.text.includes("Hazırlayan") && empty.row?.snapshot.preparedBy === null);
+    ok("W2 boş hazırlayan: ad YAZILMAZ; imza bölümünde yalnız boş 'Ad Soyad / Unvan' satırı", !empty.text.includes("Hazırlayan: ") && !empty.text.includes("Ayşe Uzman") && empty.text.includes("RAPORU HAZIRLAYAN") && empty.text.includes("Ad Soyad / Unvan") && empty.row?.snapshot.preparedBy === null);
     const none = await mk({ commentary: "none" });
-    ok("W3 hazırlayan önceki rapordan TAŞINMAZ (alan gönderilmezse yok)", !none.text.includes("Hazırlayan") && none.row?.snapshot.preparedBy === null);
+    ok("W3 hazırlayan önceki rapordan TAŞINMAZ (alan gönderilmezse ad yok, boş satır)", !none.text.includes("Ahmet Yılmaz") && none.text.includes("Ad Soyad / Unvan") && none.row?.snapshot.preparedBy === null);
     const dirty = await mk({ commentary: "none", preparedBy: `Hasan\nHoca\u0007 ${"x".repeat(300)}` });
     ok("W4 kontrol karakteri / satır sonu temizlenir, 120 karakterle sınırlı", typeof dirty.row?.snapshot.preparedBy === "string" && Array.from(String(dirty.row?.snapshot.preparedBy)).length <= 120 && String(dirty.row?.snapshot.preparedBy).startsWith("Hasan Hoca ") && !/[\u0000-\u001f]/.test(String(dirty.row?.snapshot.preparedBy)));
     for (const bad of [123, ["Hasan"], { ad: "Hasan" }, true]) {
@@ -773,13 +779,13 @@ async function main() {
     const centersTr = ["Baş Merkezi", "Ajna Merkezi", "Boğaz Merkezi", "G / Kimlik Merkezi", "Kalp / Ego Merkezi", "Dalak Merkezi", "Solar Pleksus Merkezi", "Sakral Merkez", "Kök Merkezi"];
     ok("W7 dokuz merkezin tamamı (Türkçe ad + özgün terim)", centersTr.every((c) => t.includes(c)) && ["Head", "Throat", "G Center", "Heart", "Spleen", "Solar Plexus", "Sacral", "Root"].every((e) => t.includes(e)));
     const definedN = (full.row?.snapshot.centers ?? []).filter((c) => c.defined).length;
-    ok("W7b tanımlı/açık durumları hesaplama sonucundan", t.includes(`9 merkezden ${definedN} tanımlı, ${9 - definedN} açık`) && (t.match(/Tanımlı/g) ?? []).length >= definedN);
+    ok("W7b tanımlı/açık durumları hesaplama sonucundan", t.includes(`${definedN}  Tanımlı merkez`) && t.includes(`${9 - definedN}  Açık merkez`) && (t.match(/●  TANIMLI/g) ?? []).length === definedN && (t.match(/○  AÇIK/g) ?? []).length === 9 - definedN);
     ok("W8 tüm tanımlı kanallar: numara + kaynak veriden ad", n.codes.channels.length > 0 && n.codes.channels.every((c) => {
       const [a, b] = c.split("-");
       const label = (V2Labels.find((x) => x.code === c)?.label ?? "").replace(/^\S+\s/, "");
       return t.includes(`${a}–${b}`) && (!label || t.includes(label));
     }));
-    ok("W9 tüm aktif kapılar + çoklu aktivasyonlar kaybolmaz", (full.row?.snapshot.gates ?? []).every((g) => t.includes(`${g.gate}. Kapı`) && g.activations.every((a) => t.includes(`${g.gate}.${a.line}`))));
+    ok("W9 tüm aktif kapılar + çoklu aktivasyonlar kaybolmaz", (full.row?.snapshot.gates ?? []).every((g) => t.includes(`${g.gate}  Kapı`) && g.activations.every((a) => t.includes(`${g.gate}.${a.line}`))));
     ok("W10 Türkçe karakterler korunur", t.includes("Kuzey Ay Düğümü") && t.includes("Dalak Merkezi") && t.includes("Güneş"));
     // Eski kayıtlı rapor: layout YOK → eski düzen AYNEN (eski Word değişmez).
     const legacy = structuredClone(full.row!.snapshot) as Row;

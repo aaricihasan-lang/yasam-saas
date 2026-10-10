@@ -201,7 +201,7 @@ async function main() {
       if (!c.k && !c.s) ok(!text.includes("Uzman Açıklamaları") && !text.includes("eşleşen kayıt bulunmadığından"), `${label}: gereksiz boş başlık yok`);
       ok(preparer ? text.includes(`Hazırlayan: ${preparer}`) : !text.includes("Hazırlayan"), `${label}: Hazırlayan ${preparer ? "yazılan ad/unvan" : "satırı YOK (boş)"}; profil adı otomatik yazılmaz`);
       ok(!text.includes("ZZ_HDFLOW_KBP"), `${label}: kullanıcı profil adı raporda yok`);
-      ok(text.includes("BodyGraph ve Aktivasyonlar") && (text.match(/13 aktivasyon/g) ?? []).length === 2 && text.includes("Enkarnasyon Haçı (Yaşam Teması)"), `${label}: profesyonel düzen (BodyGraph + 13/13, kimlik kartı)`);
+      ok(text.includes("BodyGraph ve Aktivasyonlar") && (text.match(/13 aktivasyon/g) ?? []).length === 2 && text.includes("ENKARNASYON TEMASI (YAŞAM AMACI)") && !/haç/i.test(text), `${label}: profesyonel düzen (BodyGraph + 13/13, kimlik kartı)`);
       await page.getByText(/Yeni Word raporu oluşturuldu/).waitFor({ timeout: 20_000 });
 
       // Kayıtlı Word: AYNI dosya değişmeden iner + açık bildirim; yeni Word seçimleri tekrar kapalı.

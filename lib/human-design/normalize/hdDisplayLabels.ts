@@ -37,6 +37,9 @@ const ANGLE_TR: Readonly<Record<string, string>> = {
   juxtaposition: "Yan Yana (Juxtaposition)",
 };
 
+/** Enkarnasyon bölüm başlığı (2026-10-10 owner kararı: görünen Türkçe başlıkta "Haç" yok). */
+export const HD_CROSS_SECTION_TITLE = "Enkarnasyon Teması (Yaşam Amacı)";
+
 export function hdCrossAngleLabel(angle: string | null | undefined): string {
   if (!angle) return "—";
   return ANGLE_TR[angle.toLowerCase().replace(/[\s_\-]+/g, "")] ?? angle;
