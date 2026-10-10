@@ -351,6 +351,7 @@ async function main() {
     const res = await downloadAs(db, { tenantId: T1, system: true }, saved.id);
     const { text } = await unzip(await res.arrayBuffer());
     ok("A3 v1 rapor v1 renderer'ıyla iner (Temel Human Design Kimliği + canonical metin)", res.status === 200 && text.includes("Temel Human Design Kimliği") && text.includes("V1::tip_generator"));
+    ok("A3b eski v1 rapor indirmesinde profil adı 'Hazırlayan' olarak YAZILMAZ", !text.includes("Hazırlayan"));
     ok("A4 v1 indirmesinde redaksiyon başlığı yok", res.headers.get("X-HD-Report-Redacted") === null);
     const sum = await (async () => { currentGuard = guardFor(db, { tenantId: T1 }); const { NextRequest } = req("next/server"); return summary.GET(new NextRequest(`http://localhost/x?id=${saved.id}`)); })();
     const sj = (await sum.json()) as Row;
@@ -426,7 +427,7 @@ async function main() {
     const r3 = await createAs(db, { tenantId: T3 }, { chartId: "ch-roxy-t3", commentary: "expert", bodygraphPng: dataUrl(pngForTests) });
     const d3 = await downloadAs(db, { tenantId: T3 }, r3.body.id);
     const t3 = (await unzip(await d3.arrayBuffer())).text;
-    ok("J7 boş Bilgi Bankası (açıklama seçili): rapor oluşur, Uzman Bilgilerim bölümü yok, kapanışta açık not", r3.res.status === 200 && !t3.includes("Kaynak: Raporu hazırlayan uzmanın") && t3.includes("eşleşen kayıt bulunmadığından") && r3.body.expertEntries === 0);
+    ok("J7 boş Bilgi Bankası (açıklama seçili): rapor oluşur; Uzman Açıklamaları bölümü ve danışana teknik 'eşleşme yok' notu YOK", r3.res.status === 200 && !t3.includes("Uzman Açıklamaları") && !t3.includes("eşleşen kayıt bulunmadığından") && r3.body.expertEntries === 0);
   }
 
   section("K. Sistem Yorumu yetkisi AÇIK — üç seçim");
@@ -437,11 +438,11 @@ async function main() {
     const d = await downloadAs(sysDb, { tenantId: T1, system: true }, r.body.id);
     results[sel] = { id: r.body.id, text: (await unzip(await d.arrayBuffer())).text, row: reportRow(sysDb, r.body.id) };
   }
-  ok("K1 yalnız Uzman: uzman var, sistem yok", results.expert.text.includes("Uzman Bilgilerim") && !results.expert.text.includes(ROXY_DESC_MARK) && results.expert.row.snapshot.commentary.system.status === "not_selected");
+  ok("K1 yalnız Uzman: uzman var, sistem yok", results.expert.text.includes("Uzman Açıklamaları") && !results.expert.text.includes(ROXY_DESC_MARK) && results.expert.row.snapshot.commentary.system.status === "not_selected");
   ok("K2 yalnız Sistem: sistem var, uzman yok", results.system.text.includes("Sistem Yorumu") && results.system.text.includes(ROXY_DESC_MARK) && !results.system.text.includes("Tip Yorumum") && results.system.row.snapshot.commentary.expert.included === false);
   const both = results.both.text;
-  ok("K3 her ikisi: iki AYRI bölüm, kaynak etiketleri açık", both.includes("Kaynak: Raporu hazırlayan uzmanın") && both.includes("Kaynak: Harita hesaplanırken") && both.includes("Tip Yorumum") && both.includes(ROXY_DESC_MARK));
-  ok("K4 sıra: Uzman Bilgilerim → Sistem Yorumu → Kaynak Bilgisi", both.indexOf("Kaynak: Raporu hazırlayan") < both.indexOf("Kaynak: Harita hesaplanırken") && both.indexOf("Kaynak: Harita hesaplanırken") < both.lastIndexOf("Kaynak Bilgisi"));
+  ok("K3 her ikisi: iki AYRI bölüm, kaynak etiketleri açık", both.includes("Bu bölümdeki açıklamalar, raporu hazırlayan uzmanın") && both.includes("Kaynak: Harita hesaplanırken") && both.includes("Tip Yorumum") && both.includes(ROXY_DESC_MARK));
+  ok("K4 sıra: Uzman Bilgilerim → Sistem Yorumu → Kaynak Bilgisi", both.indexOf("Bu bölümdeki açıklamalar, raporu hazırlayan") >= 0 && both.indexOf("Bu bölümdeki açıklamalar, raporu hazırlayan") < both.indexOf("Kaynak: Harita hesaplanırken") && both.indexOf("Kaynak: Harita hesaplanırken") < both.lastIndexOf("Kaynak Bilgisi"));
   ok("K5 Sistem Yorumu Türkçe yerelleştirilmiş etiketleri kullanır", both.includes("Tip: Jeneratör") && both.includes("Strateji: Yanıt vermeyi bekle"));
   {
     const r = await createAs(sysDb, { tenantId: T1, system: true }, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests) });
@@ -467,7 +468,7 @@ async function main() {
       && !none.text.includes("Uzman Bilgilerim") && !none.text.includes("Tip Yorumum") && !none.text.includes(ROXY_DESC_MARK) && !none.text.includes("Sistem Yorumu:"), JSON.stringify(none.r.body));
     ok("P1b ikisi de kapalı: boş başlık / 'eşleşen kayıt yok' notu oluşmaz", !none.text.includes("eşleşen kayıt bulunmadığından") && none.row?.snapshot.commentary.expert.entries.length === 0);
     const kOnly = await run(sys, { commentary: "expert" });
-    ok("P2 yalnız Bilgi Bankası: eşleşen açıklamalar AYNEN var, sistem yok", kOnly.text.includes("Tip Yorumum") && kOnly.text.includes("Uzman Bilgilerim") && !kOnly.text.includes(ROXY_DESC_MARK));
+    ok("P2 yalnız Bilgi Bankası: eşleşen açıklamalar AYNEN var, sistem yok", kOnly.text.includes("Tip Yorumum") && kOnly.text.includes("Uzman Açıklamaları") && !kOnly.text.includes(ROXY_DESC_MARK));
     const sOnly = await run(sys, { commentary: "system" });
     ok("P3 yalnız Sistem Yorumu: sistem var, Bilgi Bankası yok", sOnly.text.includes(ROXY_DESC_MARK) && !sOnly.text.includes("Tip Yorumum") && sOnly.row?.snapshot.commentary.expert.included === false);
     const both2 = await run(sys, { commentary: "both" });
@@ -503,7 +504,7 @@ async function main() {
     const { text } = await unzip(await d.arrayBuffer());
     ok("L1 doğrudan download ucu: Sistem Yorumu bölümü ÇIKARILDI", d.status === 200 && !text.includes(ROXY_DESC_MARK) && !text.includes("Kaynak: Harita hesaplanırken"));
     ok("L2 yanıt başlığı X-HD-Report-Redacted: system-reading", d.headers.get("X-HD-Report-Redacted") === "system-reading");
-    ok("L3 belgede yetki nedeniyle düzenlendiği açıkça yazıyor", text.includes("güncel yetkisi nedeniyle çıkarılmıştır"));
+    ok("L3 belgede Sistem Yorumu'nun bu çıktıda yer almadığı yazıyor (teknik yetki ayrıntısı danışana gösterilmez)", text.includes("Sistem Yorumu bu çıktıda yer almamaktadır."));
     ok("L4 uzman bölümü korunur", text.includes("Tip Yorumum"));
     const after = createHash("sha256").update(JSON.stringify(reportRow(sysDb, id).snapshot)).digest("hex");
     ok("L5 DB snapshot DEĞİŞMEDİ (sessiz değişiklik yok)", before === after);
@@ -589,7 +590,7 @@ async function main() {
     ok("U1 Roxy haritası + görsel yok + onay yok → 422 BODYGRAPH_REQUIRED (sessiz eksik rapor YOK)", none.res.status === 422 && none.body.code === "BODYGRAPH_REQUIRED");
     const allow = await createAs(db, { tenantId: T1 }, { chartId: "ch-roxy", allowMissingBodygraph: true });
     const at = (await unzip(await (await downloadAs(db, { tenantId: T1 }, allow.body.id)).arrayBuffer())).text;
-    ok("U2 açık onayla oluşur; status=missing, belgede açık uyarı", allow.body.bodygraph === "missing" && at.includes("BodyGraph görseli eklenemedi") && at.includes("BodyGraph görseli bu rapora eklenemedi"));
+    ok("U2 açık onayla oluşur; status=missing, belgede açık uyarı", allow.body.bodygraph === "missing" && at.includes("BodyGraph görseli bu rapora eklenemedi") && at.includes("Teknik harita verileri bu ve sonraki sayfalarda"));
     const man = await createAs(db, { tenantId: T1 }, { chartId: "ch-man" });
     ok("U3 manuel harita: danışanın yüklenmiş görseli (owned kopya) → uploaded_image", man.res.status === 200 && man.body.bodygraph === "uploaded_image" && db.objects.has(`hd-chart-images/${T1}/report-snapshots/${man.body.id}.png`));
     const manNo = await createAs(db, { tenantId: T1 }, { chartId: "ch-man-noimg" });
@@ -641,10 +642,10 @@ async function main() {
     const bothM = await createAs(db, { tenantId: T1, system: true }, { chartId: "ch-man", commentary: "both" });
     ok("V2 her ikisi → rapor oluşur, system=unavailable (engellenmez, uydurulmaz)", bothM.res.status === 200 && bothM.body.systemReading === "unavailable");
     const tm = (await unzip(await (await downloadAs(db, { tenantId: T1, system: true }, bothM.body.id)).arrayBuffer())).text;
-    ok("V3 manuel rapor: aktivasyon bölümü yok, kimlik + kanal/kapı var, sistem notu açık", !tm.includes("Design / Personality Aktivasyonları") && tm.includes("Danışan ve Harita Kimliği") && tm.includes("Kanallar") && tm.includes("kayıtlı sistem açıklaması bulunmadığından"));
+    ok("V3 manuel rapor: aktivasyon sütunları yok, kimlik + kanal/kapı var; danışana teknik sistem notu YOK", !tm.includes("13 aktivasyon") && tm.includes("Danışan ve Harita Kimliği") && tm.includes("Kanallar") && !tm.includes("kayıtlı sistem açıklaması bulunmadığından"));
     const bad = await createAs(db, { tenantId: T1, system: true }, { chartId: "ch-roxy-badacts", bodygraphPng: dataUrl(pngForTests) });
     const tb = (await unzip(await (await downloadAs(db, { tenantId: T1, system: true }, bad.body.id)).arrayBuffer())).text;
-    ok("V4 bozuk kayıtlı aktivasyon → tablo yerine açık not (uydurma yok)", tb.includes("doğrulanamadığı için bu bölüm gösterilmiyor"));
+    ok("V4 bozuk kayıtlı aktivasyon → sütunlar yerine açık not (uydurma yok)", tb.includes("doğrulanamadığı için aktivasyonlar gösterilmiyor") && !tb.includes("13 aktivasyon"));
   }
 
   section("W. Malformed payload");
@@ -708,18 +709,94 @@ async function main() {
     const ct = await zip.file("[Content_Types].xml")!.async("string");
     ok("Q3 Content_Types png kayıtlı", /Extension="png"/.test(ct));
     ok("Q4 ham markdown / kontrol karakteri yok", !/(^|\s)##\s|\*\*/.test(text) && !/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(xml));
-    ok("Q5 kimlik: istenen 10 alan", ["Ad Soyad", "Doğum Tarihi", "Doğum Saati (yerel)", "Doğum Yeri", "Saat Dilimi", "Tip", "Profil", "İç Otorite", "Tanım", "Enkarnasyon Haçı"].every((k) => text.includes(k)));
+    ok("Q5 kimlik kartı: ad + doğum grubu + HD özeti + Enkarnasyon Haçı (Yaşam Teması)", text.includes("Elif Şahin Öztürk") && ["Doğum Bilgileri", "Doğum Tarihi", "Doğum Saati (yerel)", "Doğum Yeri", "Saat Dilimi", "Human Design Özeti", "Tip", "Profil", "İç Otorite", "Tanım", "Enkarnasyon Haçı (Yaşam Teması)", "Harita kaynağı", "Rapor tarihi"].every((k) => text.includes(k)));
     ok("Q6 UTC doğum anı görünür raporda YOK", !text.includes("UTC") && !text.includes("16:00"));
-    const order = ["Danışan ve Harita Kimliği", "BodyGraph", "Design / Personality Aktivasyonları", "Merkezler", "Kanallar", "Kapılar", "Uzman Bilgilerim", "Sistem Yorumu", "Kaynak Bilgisi"].map((h) => text.indexOf(h));
+    const order = ["Danışan ve Harita Kimliği", "Merkezler", "Kanallar", "BodyGraph ve Aktivasyonlar", "Kapılar", "Uzman Açıklamaları", "Sistem Yorumu", "Kaynak Bilgisi"].reduce<number[]>((acc, h) => [...acc, text.indexOf(h, (acc.at(-1) ?? -1) + 1)], []);
     ok("Q7 bölüm sırası hedefle aynı", order.every((p, i) => p >= 0 && (i === 0 || p > order[i - 1])), JSON.stringify(order));
-    ok("Q8 aktivasyon tablosu Türkçe gezegen + Kapı.Çizgi (Güneş 56.2)", text.includes("Design (bilinçdışı) — 13 aktivasyon") && text.includes("Personality (bilinçli) — 13 aktivasyon") && /Güneş56\.2/.test(text) && text.includes("Kuzey Ay Düğümü"));
+    ok("Q8 aktivasyon sütunları: DESIGN (Bilinçdışı) + PERSONALITY (Bilinçli), Türkçe gezegen + Kapı.Çizgi", text.includes("DESIGN") && text.includes("Bilinçdışı") && text.includes("PERSONALITY") && text.includes("Bilinçli") && (text.match(/13 aktivasyon/g) ?? []).length === 2 && /Güneş\s*56\.2/.test(text) && text.includes("Kuzey Ay Düğümü"));
     ok("Q9 tablolar: başlık satırı tekrar + satır bölünmez", xml.includes("<w:tblHeader/>") && xml.includes("<w:cantSplit/>"));
     ok("Q10 boş sayfa riski: ardışık sayfa sonu / boş bölüm yok", !/<w:br w:type="page"\/>\s*<\/w:r>\s*<\/w:p>\s*<w:p>\s*<w:pPr>\s*<w:pageBreakBefore/.test(xml));
     ok("R1 uzun Türkçe içerik eksiksiz (6 paragraf) + Türkçe karakterler", (text.match(/paragraf — Uzman açıklaması/g) ?? []).length === 6 && text.includes("İ ı Ş ş Ğ ğ Ü ü Ö ö Ç ç"));
     ok("R1b uzman metni AYNEN: numaralar korunur, madde imine çevrilmez", text.includes("1. paragraf — Uzman açıklaması") && text.includes("6. paragraf — Uzman açıklaması"));
     ok("R1c Sistem Yorumu gezegen adları Türkçe (Pluto → Plüton)", text.includes("Design · Plüton · 61.1") && !text.includes("· Pluto ·"));
     ok("R2 başlıklar içerikten kopmaz (keepNext)", (xml.match(/<w:keepNext\/>/g) ?? []).length > 40);
-    ok("R3 teşhis/tedavi uyarısı + bilgilendirme notu + hazırlayan", text.includes("teşhis veya tedavi önerisi içermez") && text.includes("Bilgilendirme") && text.includes("Hazırlayan: Ayşe Uzman"));
+    ok("R3 teşhis/tedavi uyarısı + bilgilendirme notu; profil adı 'Hazırlayan' olarak OTOMATİK yazılmaz", text.includes("teşhis veya tedavi önerisi içermez") && text.includes("Bilgilendirme") && !text.includes("Hazırlayan"));
+    const last = text.slice(text.lastIndexOf("Kaynak Bilgisi"));
+    ok("R4 son sayfada teknik eşleşme / sistem kaydı notları YOK", !last.includes("Uzman Bilgilerim") && !last.includes("eşleşen kayıt") && !last.includes("harita hesaplanırken kaydedilmiş sistem açıklamaları"));
+  }
+
+  section("W. Profesyonel düzen (pro-1): hazırlayan · eksiksizlik · eski düzen · eşleşme sayısı");
+  {
+    const db = makeDb();
+    const sys = { tenantId: T1, system: true };
+    const mk = async (body: Row) => {
+      const r = await createAs(db, sys, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests), ...body });
+      const d = r.res.status === 200 ? await downloadAs(db, sys, r.body.id) : null;
+      return { r, text: d ? (await unzip(await d.arrayBuffer())).text : "", row: r.res.status === 200 ? reportRow(db, r.body.id) : null };
+    };
+    const full = await mk({ commentary: "none", preparedBy: "  Human Design Uzmanı Ahmet Yılmaz  " });
+    ok("W1 dolu hazırlayan: 'Hazırlayan: <ad ve unvan>' (kırpılmış); snapshot'a donar", full.text.includes("Hazırlayan: Human Design Uzmanı Ahmet Yılmaz") && full.row?.snapshot.preparedBy === "Human Design Uzmanı Ahmet Yılmaz" && full.row?.snapshot.layout === "pro-1");
+    ok("W1b profil adı (Ayşe Uzman) yazılmaz", !full.text.includes("Ayşe Uzman"));
+    const empty = await mk({ commentary: "none", preparedBy: "   " });
+    ok("W2 boş hazırlayan: 'Hazırlayan' satırı HİÇ yok", !empty.text.includes("Hazırlayan") && empty.row?.snapshot.preparedBy === null);
+    const none = await mk({ commentary: "none" });
+    ok("W3 hazırlayan önceki rapordan TAŞINMAZ (alan gönderilmezse yok)", !none.text.includes("Hazırlayan") && none.row?.snapshot.preparedBy === null);
+    const dirty = await mk({ commentary: "none", preparedBy: `Hasan\nHoca\u0007 ${"x".repeat(300)}` });
+    ok("W4 kontrol karakteri / satır sonu temizlenir, 120 karakterle sınırlı", typeof dirty.row?.snapshot.preparedBy === "string" && Array.from(String(dirty.row?.snapshot.preparedBy)).length <= 120 && String(dirty.row?.snapshot.preparedBy).startsWith("Hasan Hoca ") && !/[\u0000-\u001f]/.test(String(dirty.row?.snapshot.preparedBy)));
+    for (const bad of [123, ["Hasan"], { ad: "Hasan" }, true]) {
+      const b = await createAs(db, sys, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests), preparedBy: bad });
+      ok(`W5 geçersiz hazırlayan ${JSON.stringify(bad)} → 400`, b.res.status === 400 && b.body.code === "INVALID_PREPARED_BY");
+    }
+    // Eksiksizlik (kayıtlı computed ile birebir)
+    const t = full.text;
+    const acts = n.chart.activations;
+    ok("W6 13 Design + 13 Personality: her aktivasyon kapı.çizgi değeriyle belgede", (t.match(/13 aktivasyon/g) ?? []).length === 2 && acts.every((a) => t.includes(`${a.gate}.${a.line}`)));
+    const { HUMAN_DESIGN_CHANNELS: V2Labels } = await import("../../lib/human-design/constants");
+    const centersTr = ["Baş Merkezi", "Ajna Merkezi", "Boğaz Merkezi", "G / Kimlik Merkezi", "Kalp / Ego Merkezi", "Dalak Merkezi", "Solar Pleksus Merkezi", "Sakral Merkez", "Kök Merkezi"];
+    ok("W7 dokuz merkezin tamamı (Türkçe ad + özgün terim)", centersTr.every((c) => t.includes(c)) && ["Head", "Throat", "G Center", "Heart", "Spleen", "Solar Plexus", "Sacral", "Root"].every((e) => t.includes(e)));
+    const definedN = (full.row?.snapshot.centers ?? []).filter((c) => c.defined).length;
+    ok("W7b tanımlı/açık durumları hesaplama sonucundan", t.includes(`9 merkezden ${definedN} tanımlı, ${9 - definedN} açık`) && (t.match(/Tanımlı/g) ?? []).length >= definedN);
+    ok("W8 tüm tanımlı kanallar: numara + kaynak veriden ad", n.codes.channels.length > 0 && n.codes.channels.every((c) => {
+      const [a, b] = c.split("-");
+      const label = (V2Labels.find((x) => x.code === c)?.label ?? "").replace(/^\S+\s/, "");
+      return t.includes(`${a}–${b}`) && (!label || t.includes(label));
+    }));
+    ok("W9 tüm aktif kapılar + çoklu aktivasyonlar kaybolmaz", (full.row?.snapshot.gates ?? []).every((g) => t.includes(`${g.gate}. Kapı`) && g.activations.every((a) => t.includes(`${g.gate}.${a.line}`))));
+    ok("W10 Türkçe karakterler korunur", t.includes("Kuzey Ay Düğümü") && t.includes("Dalak Merkezi") && t.includes("Güneş"));
+    // Eski kayıtlı rapor: layout YOK → eski düzen AYNEN (eski Word değişmez).
+    const legacy = structuredClone(full.row!.snapshot) as Row;
+    delete legacy.layout;
+    delete legacy.preparedBy;
+    const { renderHdReportV2Buffer: renderV2 } = await import("../../lib/human-design/reporting/wordReportV2");
+    const lt = (await unzip(await renderV2(legacy as never, { expertName: "Eski Profil Adı" }))).text;
+    ok("W11 eski snapshot eski düzende: eski başlıklar + eski kimlik tablosu + eski 'Hazırlayan'", lt.includes("Design / Personality Aktivasyonları") && lt.includes("Ad Soyad") && lt.includes("Hazırlayan: Eski Profil Adı") && !lt.includes("BodyGraph ve Aktivasyonlar"));
+    // Eski kayıtlı v2 raporu ROUTE üzerinden indirilince: eski düzen AYNEN, profil adı "Hazırlayan" YOK,
+    // kayıtlı snapshot DEĞİŞMEZ (yalnız indirme davranışı).
+    const legacyRow = reportRow(db, none.r.body.id) as Row & { snapshot: Row };
+    delete legacyRow.snapshot.layout;
+    delete legacyRow.snapshot.preparedBy;
+    const legacyBefore = JSON.stringify(legacyRow.snapshot);
+    const ld = await downloadAs(db, sys, none.r.body.id);
+    const ldt = (await unzip(await ld.arrayBuffer())).text;
+    ok("W11b eski v2 rapor indirmesi: eski düzen AYNEN + profil adı 'Hazırlayan' olarak YAZILMAZ", ld.status === 200 && ldt.includes("Design / Personality Aktivasyonları") && ldt.includes("Ad Soyad") && !ldt.includes("Hazırlayan") && !ldt.includes("Ayşe Uzman"));
+    ok("W11c indirme kayıtlı eski snapshot'ı DEĞİŞTİRMEZ", JSON.stringify(reportRow(db, none.r.body.id).snapshot) === legacyBefore);
+    // Word öncesi eşleşme sayısı (yalnız sayı; tenant izole)
+    const km = req("../../app/api/hd/reports/professional/knowledge-match/route.ts") as { GET: (r: unknown) => Promise<Response> };
+    const { NextRequest } = req("next/server");
+    const ask = async (g: Parameters<typeof guardFor>[1], chartId: string) => {
+      currentGuard = guardFor(db, g);
+      const res = await km.GET(new NextRequest(`http://localhost/x?chartId=${chartId}`));
+      return { status: res.status, body: (await res.json()) as Row };
+    };
+    const roxyUuid = db.tables.human_design_charts.find((c) => c.id === "ch-roxy");
+    if (roxyUuid) roxyUuid.id = "00000000-0000-4000-8000-0000000000aa";
+    const own = await ask(sys, "00000000-0000-4000-8000-0000000000aa");
+    ok("W12 eşleşme sayısı = Word'e girecek aktif açıklama sayısı (yalnız sayı döner)", own.status === 200 && own.body.count === 2 && Object.keys(own.body).sort().join() === "count,ok", JSON.stringify(own.body));
+    ok("W12b başka tenant aynı analiz için 404 (sayı sızmaz)", (await ask({ tenantId: T2 }, "00000000-0000-4000-8000-0000000000aa")).status === 404);
+    ok("W12c geçersiz kimlik 400", (await ask(sys, "ch-roxy")).status === 400);
+    const empty3 = await ask({ tenantId: T3 }, "00000000-0000-4000-8000-0000000000aa");
+    ok("W12d Bilgi Bankası boş tenant (analiz başkasının) → 404", empty3.status === 404);
+    if (roxyUuid) roxyUuid.id = "ch-roxy";
   }
 
   section("X. Özet / sızıntı");

@@ -13,7 +13,7 @@ import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { createReportSnapshotV2FromChart } from "@/lib/human-design/reporting/reportSnapshotV2Service";
-import { parseCommentarySelection, type HdCommentarySelection } from "@/lib/human-design/reporting/reportSnapshotV2";
+import { parseCommentarySelection, sanitizePreparedBy, type HdCommentarySelection } from "@/lib/human-design/reporting/reportSnapshotV2";
 import { decodePngBase64, validateBodygraphPng } from "@/lib/human-design/reporting/bodygraphPng";
 import { saveCanonicalReport, findReportBrief } from "@/lib/human-design/api/reportPersistence";
 import { hdReportTitle } from "@/lib/human-design/reporting/wordReport";
@@ -24,7 +24,8 @@ export const runtime = "nodejs";
  * POST /api/hd/reports/professional — PROFESYONEL Word raporu snapshot'ı OLUŞTUR (hd-report-2).
  *
  * Gövde (JSON): { chartId, requestId?, commentary?: "none"|"expert"|"system"|"both" (yoksa "none"),
- *                 bodygraphPng?: "data:image/png;base64,…", allowMissingBodygraph?: true }
+ *                 bodygraphPng?: "data:image/png;base64,…", allowMissingBodygraph?: true,
+ *                 preparedBy?: string (Raporu Hazırlayan; ≤120 karakter, yalnız bu rapora) }
  *
  * Güvenlik / sözleşme (AŞAMA 4B):
  *   - requireModuleAccess(req, "human_design") → token↔user binding + modül izni.
@@ -136,9 +137,16 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
   }
 
+  // "Raporu Hazırlayan": istemcinin yazdığı ad/unvan (yalnız bu rapor); profil adı OTOMATİK yazılmaz.
+  if (raw.preparedBy !== undefined && raw.preparedBy !== null && typeof raw.preparedBy !== "string") {
+    return NextResponse.json({ ok: false, code: "INVALID_PREPARED_BY", error: "Geçersiz hazırlayan bilgisi." }, { status: 400, headers: NO_STORE });
+  }
+  const preparedBy = sanitizePreparedBy(raw.preparedBy);
+
   const built = await createReportSnapshotV2FromChart(guard.db, guard.tenantId, chartId, {
     requested,
     systemReadingPermitted,
+    preparedBy,
   });
   if (!built.ok) {
     if (built.status >= 500) {

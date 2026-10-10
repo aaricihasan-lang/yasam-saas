@@ -354,7 +354,9 @@ async function main() {
     const db = makeDb();
     guardCalls.length = 0;
     currentGuard = guardFor(db, { tenantId: T1, role: "expert", name: "Ayşe Uzman" });
-    let res = await create.POST(jsonReq(URL_C, "POST", { chartId: "ch-1" }));
+    // #373: içerik seçimi varsayılan KAPALI → uzman bilgisi açıkça seçilir. #375: "Hazırlayan" yalnız
+    // uzmanın bu rapora yazdığı değerden gelir (profil adı otomatik yazılmaz).
+    let res = await create.POST(jsonReq(URL_C, "POST", { chartId: "ch-1", commentary: "expert", preparedBy: "Ayşe Uzman" }));
     let body = (await res.json()) as Record<string, unknown>;
     ok(res.status === 200 && body.ok === true && typeof body.id === "string", "uzman (non-admin) profesyonel rapor OLUŞTURUR → 200");
     ok(guardCalls.some((g) => g.kind === "module" && g.moduleKey === "human_design") && !guardCalls.some((g) => g.kind === "admin"),
@@ -378,7 +380,7 @@ async function main() {
     const cd = res.headers.get("content-disposition") ?? "";
     ok(/Human-Design-Ayse-Cag-\d{4}-\d{2}-\d{2}\.docx/.test(cd), "dosya adı yerel gün damgalı + TR transliterasyon");
     const txt = await docText(await res.arrayBuffer());
-    ok(txt.includes("Hazırlayan: Ayşe Uzman") && txt.includes("Bilgilendirme"), "DOCX: wellness notu + 'Hazırlayan: <uzman>'");
+    ok(txt.includes("Hazırlayan: Ayşe Uzman") && txt.includes("Bilgilendirme"), "DOCX: wellness notu + 'Hazırlayan: <uzmanın bu rapora yazdığı ad>'");
     ok(txt.includes("1 Mayıs 1990"), "DOCX: doğum tarihi DATE olarak kaydırmasız (1 Mayıs 1990)");
     ok(txt.includes("UZMAN-NOTU-K5") && !txt.includes("YABANCI-NOTU-K5") && !txt.includes("GD::") && !txt.includes(kGate5),
       "DOCX: yalnız bu tenant'ın uzman bilgisi; admin canonical metni/anahtarı YOK");

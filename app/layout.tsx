@@ -13,6 +13,8 @@ import AppLogoLink from "@/components/layout/AppLogoLink";
 import UsageTracker from "@/components/usage/UsageTracker";
 import { isUsage360Enabled } from "@/lib/usage/usageFlag";
 import { platformFlags } from "@/lib/platform/outputSupport";
+import { isAndroidAppRequest, readWebSessionTransport } from "@/lib/auth/sessionCookie";
+import { SESSION_TRANSPORT_HTML_ATTR } from "@/lib/auth/sessionTransportFlag";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -44,10 +46,15 @@ export default async function RootLayout({
   // WebView → blob/print tabanlı çıktılar gizli (app/globals.css .no-android / .no-android-app).
   // NOT: layout zaten istek-zamanlı (getLocale); sayfa statik/önbellekli yapılırsa UA'ya bağlı
   // bu attribute'lar önbelleğe girer — o durumda yeniden değerlendirilmeli.
-  const platform = platformFlags((await headers()).get("user-agent"));
+  const requestHeaders = await headers();
+  const platform = platformFlags(requestHeaders.get("user-agent"));
+  // HTTPONLY H6a: web oturum taşıması (cookie | header). Android isteği her zaman "header" (token yolu).
+  // Kill-switch: SESSION_COOKIE_WEB_HEADER=on → "header" (bkz. lib/auth/sessionTransportFlag.ts).
+  const sessionTransport = isAndroidAppRequest(requestHeaders) ? "header" : readWebSessionTransport();
   return (
     <html
       lang={locale}
+      {...{ [SESSION_TRANSPORT_HTML_ATTR]: sessionTransport }}
       data-android={platform.android ? "" : undefined}
       data-android-app={platform.androidApp ? "" : undefined}
       className={`${geistSans.variable} ${geistMono.variable} h-full overflow-x-hidden antialiased`}

@@ -22,6 +22,7 @@ import {
   parseLoginUserRecord,
   readYasamUser,
   readSessionToken,
+  readStoredSessionToken,
   hasSessionCredential,
   sessionTokenHeader,
   saveYasamUser,
@@ -1433,7 +1434,7 @@ export default function Home() {
       const stored = readPendingLogin();
       if (!stored || stored.token !== pendingLogin.token) {
         setPendingLogin(null);
-        if (!stored && !readSessionToken()) setMessage(t("auth.pendingExpired"));
+        if (!stored && !readStoredSessionToken()) setMessage(t("auth.pendingExpired"));
         return;
       }
       const st = await checkPendingLogin(pendingLogin.token);

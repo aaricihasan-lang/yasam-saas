@@ -13,6 +13,7 @@ import {
   type ModulePermissions,
 } from "@/lib/auth/modulePermissions";
 import { isAndroidAppUserAgent } from "@/lib/platform/outputSupport";
+import { SESSION_TRANSPORT_HTML_ATTR, parseWebSessionTransport } from "@/lib/auth/sessionTransportFlag";
 import { clearDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { handleReflexologyLogout } from "@/lib/refleksoloji/runtimeReset";
 
@@ -237,11 +238,96 @@ export function saveYasamUser(user: YasamUser): void {
 export function saveSessionToken(token: string): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(SESSION_TOKEN_KEY, token);
+  // HTTPONLY H6a: cookie taşımasında login yanıtı HttpOnly cookie'yi zaten yazdı → bu token için
+  // bir kerelik cookie geçişi (bootstrap) gereksiz.
+  if (webUsesCookieTransport()) markCookieSessionReady(token);
 }
 
+/**
+ * HTTPONLY H6a — web isteklerinde oturum HttpOnly cookie ile mi taşınıyor? Sunucunun SSR ile
+ * bastığı `<html data-session-transport>` işaretine bakar (bkz. lib/auth/sessionTransportFlag.ts).
+ * Android'de HER ZAMAN false (token + x-session-token yolu). İşaret yoksa (SSR dışı/test) false.
+ */
+export function webUsesCookieTransport(): boolean {
+  if (typeof document === "undefined" || isAndroidWebViewClient()) return false;
+  return parseWebSessionTransport(document.documentElement?.getAttribute(SESSION_TRANSPORT_HTML_ATTR)) === "cookie";
+}
+
+/**
+ * Kimlik için kullanılacak oturum token'ı. HTTPONLY H6a: web cookie taşımasında null döner →
+ * web isteklerine x-session-token EKLENMEZ (tüm başlık noktaları koşullu; H5 helper'ları web'i
+ * cookie ile kimlikler). localStorage'daki token SİLİNMEZ (rollback emniyeti; bkz.
+ * readStoredSessionToken). Android ve "header" taşımasında bugünkü gibi token döner.
+ */
 export function readSessionToken(): string | null {
   if (typeof window === "undefined") return null;
+  if (webUsesCookieTransport()) return null;
   return localStorage.getItem(SESSION_TOKEN_KEY);
+}
+
+/**
+ * HTTPONLY H6a — localStorage'da SAKLI ham token (taşımadan bağımsız). YALNIZ: bir kerelik cookie
+ * geçişi, login'de aynı-cihaz `replaceSessionToken` (gövde), bekleyen-giriş durumu ve yerel
+ * parmak izi için. Kimlik başlığı kurmak için KULLANILMAZ (readSessionToken / sessionTokenHeader).
+ */
+export function readStoredSessionToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(SESSION_TOKEN_KEY);
+}
+
+const COOKIE_SESSION_READY_KEY = "yasam_cookie_session_fp";
+
+function sessionTokenFingerprint(token: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < token.length; i++) {
+    hash ^= token.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16);
+}
+
+function markCookieSessionReady(token: string): void {
+  try {
+    localStorage.setItem(COOKIE_SESSION_READY_KEY, sessionTokenFingerprint(token));
+  } catch {
+    /* depolama yoksa geçiş bir sonraki açılışta tekrar denenir */
+  }
+}
+
+let cookieSessionMigration: Promise<void> | null = null;
+
+/**
+ * HTTPONLY H6a — BİR KERELİK cookie geçişi. Cookie taşımasında saklı token'ın HttpOnly cookie'si bu
+ * tarayıcıda henüz doğrulanmadıysa (ör. cookie modu açılmadan önce giriş yapmış web kullanıcısı)
+ * POST /api/auth/session/cookie ile cookie yazdırılır. Token başına YALNIZ bir kez (parmak izi
+ * işareti); başarısızlık oturumu kapatmaz (sonraki oturum kontrolü karar verir). Android / header
+ * taşımasında / token yokken no-op.
+ */
+export function ensureWebCookieSession(): Promise<void> {
+  if (typeof window === "undefined" || !webUsesCookieTransport()) return Promise.resolve();
+  const raw = readStoredSessionToken();
+  if (!raw) return Promise.resolve();
+  try {
+    if (localStorage.getItem(COOKIE_SESSION_READY_KEY) === sessionTokenFingerprint(raw)) return Promise.resolve();
+  } catch {
+    return Promise.resolve();
+  }
+  if (cookieSessionMigration) return cookieSessionMigration;
+  cookieSessionMigration = fetch("/api/auth/session/cookie", {
+    method: "POST",
+    cache: "no-store",
+    headers: { "x-session-token": raw },
+  })
+    .then((res) => {
+      if (res.ok) markCookieSessionReady(raw);
+    })
+    .catch(() => {
+      /* geçiş best-effort */
+    })
+    .finally(() => {
+      cookieSessionMigration = null;
+    });
+  return cookieSessionMigration;
 }
 
 /**
@@ -287,6 +373,7 @@ export function sessionTokenHeader(token: string | null | undefined = readSessio
 export function clearSessionToken(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(SESSION_TOKEN_KEY);
+  localStorage.removeItem(COOKIE_SESSION_READY_KEY);
 }
 
 export function clearYasamUser(): void {
@@ -343,9 +430,18 @@ export function clearYasamUser(): void {
     // Cookie-only DELETE → CSRF katmanı: özel başlık (x-user-id) + same-origin (tarayıcı Origin'i).
     const logoutUserId = readYasamUser()?.id;
     if (logoutUserId) {
+      // HTTPONLY H6a: cookie geçişi bu token için doğrulanmadıysa (cookie olmayabilir) saklı token
+      // da gönderilir → token oturumu da sunucuda kapanır. Doğrulanmışsa yalnız cookie.
+      const stored = readStoredSessionToken();
+      let cookieReady = false;
+      try {
+        cookieReady = !!stored && localStorage.getItem(COOKIE_SESSION_READY_KEY) === sessionTokenFingerprint(stored);
+      } catch {
+        /* depolama yok → güvenli yön: token da gönderilir */
+      }
       void fetch("/api/auth/session", {
         method: "DELETE",
-        headers: { "x-user-id": logoutUserId },
+        headers: { "x-user-id": logoutUserId, ...(stored && !cookieReady ? { "x-session-token": stored } : {}) },
         keepalive: true,
       }).catch(() => {});
     }
@@ -404,6 +500,9 @@ export async function refreshYasamUserFromDb(
   // yok) güvenli API çağrılamaz — mevcut kaydı koru. HTTPONLY H5: web'de token yoksa HttpOnly
   // cookie ile doğrulanır (hasSessionCredential).
   if (!hasSessionCredential(token)) return user;
+
+  // HTTPONLY H6a: cookie taşımasında saklı token'ın cookie'si henüz yoksa bir kez yazdırılır.
+  await ensureWebCookieSession();
 
   try {
     const res = await fetch("/api/auth/profile", {

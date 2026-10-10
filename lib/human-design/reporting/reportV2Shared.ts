@@ -25,5 +25,8 @@ export function commentaryFromFlags(knowledge: boolean, system: boolean): HdComm
   return "none";
 }
 
+/** "Raporu Hazırlayan" azami uzunluğu (istemci alanı + sunucu sanitize ortak). */
+export const HD_PREPARED_BY_MAX = 120;
+
 /** İndirme yanıtı başlığı: Sistem Yorumu güncel yetki nedeniyle çıkarıldıysa "system-reading". */
 export const HD_REPORT_REDACTED_HEADER = "X-HD-Report-Redacted";

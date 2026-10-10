@@ -114,6 +114,8 @@ async function main() {
     createStatus?: number;
     createBody?: Record<string, unknown>;
     redacted?: boolean;
+    /** Bu analizle eşleşen aktif Bilgi Bankası açıklaması sayısı (knowledge-match taklidi). */
+    kbMatch?: number;
   };
   async function open(s: Scenario): Promise<{ page: Page; bodies: Record<string, unknown>[] }> {
     const ctx = await browser.newContext({ viewport: s.viewport ?? { width: 1280, height: 900 }, userAgent: s.ua, acceptDownloads: true });
@@ -123,6 +125,9 @@ async function main() {
     await page.route(`${base}/api/hd/reports/professional`, async (route) => {
       bodies.push(JSON.parse(route.request().postData() ?? "{}"));
       await route.fulfill({ status: s.createStatus ?? 200, contentType: "application/json", body: JSON.stringify(s.createBody ?? { ok: true, id: "rep-1", omittedCount: 0, bodygraph: "roxy_render", systemReading: "included", expertEntries: 2 }) });
+    });
+    await page.route(`${base}/api/hd/reports/professional/knowledge-match**`, async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, count: s.kbMatch ?? 3 }) });
     });
     await page.route(`${base}/api/hd/reports/professional/download`, async (route) => {
       await route.fulfill({
@@ -181,6 +186,42 @@ async function main() {
       ok("yeni Word: seçenekler yeniden KAPALI (önceki 'Bilgi Bankası' seçimi hatırlanmadı)", !(await dlg2.getByRole("checkbox", { name: KNOW }).isChecked()) && !(await dlg2.getByRole("checkbox", { name: SYS }).isChecked()));
       await dlg2.getByRole("button", { name: "Vazgeç" }).click();
       ok("Vazgeç → istek yok", bodies.length === 1);
+      await page.context().close();
+    }
+
+    console.log("\n—— UI-12 Raporu Hazırlayan (boş / dolu / taşınmaz) + Bilgi Bankası eşleşme uyarısı");
+    {
+      const { page, bodies } = await open({ user: expertWithSystem, props: { chartId: "ch-roxy", roxyRender: renderData }, kbMatch: 0 });
+      await page.getByRole("button", { name: "Yeni Word Oluştur", exact: true }).click();
+      const dlg = page.getByRole("dialog", { name: DLG });
+      const field = dlg.getByLabel(/Raporu Hazırlayan/);
+      ok("'Raporu Hazırlayan' alanı + açıklaması görünür, boş başlar", (await field.isVisible()) && (await field.inputValue()) === "" && await dlg.getByText("Raporda görünmesini istediğiniz ad ve unvanı yazabilirsiniz.").isVisible());
+      ok("alan en fazla 120 karakter", (await field.getAttribute("maxlength")) === "120");
+      ok("Bilgi Bankası seçilmeden uyarı yok", (await dlg.locator("[data-hd-kb-no-match]").count()) === 0);
+      await dlg.getByRole("checkbox", { name: KNOW }).check();
+      await dlg.locator("[data-hd-kb-no-match]").waitFor();
+      ok("eşleşen aktif kayıt yoksa uyarı: 'Bu analizle eşleşen aktif Bilgi Bankası açıklaması bulunamadı.'", await dlg.getByText("Bu analizle eşleşen aktif Bilgi Bankası açıklaması bulunamadı.").isVisible());
+      await field.fill("  Hasan Hoca  ");
+      const dlP = page.waitForEvent("download");
+      await dlg.getByRole("button", { name: "Word'ü oluştur" }).click();
+      await dlP;
+      ok("istek: preparedBy kırpılmış gönderilir", bodies[0]?.preparedBy === "Hasan Hoca" && bodies[0]?.commentary === "expert", JSON.stringify(bodies[0]));
+      await page.getByRole("button", { name: "Yeni Word oluştur (içerik seçerek)" }).click();
+      const dlg2 = page.getByRole("dialog", { name: DLG });
+      ok("yeni Word: hazırlayan alanı yeniden BOŞ (önceki rapora/danışana taşınmaz)", (await dlg2.getByLabel(/Raporu Hazırlayan/).inputValue()) === "");
+      const dl2 = page.waitForEvent("download");
+      await dlg2.getByRole("button", { name: "Word'ü oluştur" }).click();
+      await dl2;
+      ok("boş hazırlayan → istekte preparedBy YOK", bodies.length === 2 && !("preparedBy" in bodies[1]), JSON.stringify(bodies[1]));
+      await page.context().close();
+    }
+    {
+      const { page } = await open({ user: expertNoSystem, props: { chartId: "ch-roxy", roxyRender: renderData }, kbMatch: 4 });
+      await page.getByRole("button", { name: "Yeni Word Oluştur", exact: true }).click();
+      const dlg = page.getByRole("dialog", { name: DLG });
+      await dlg.getByRole("checkbox", { name: KNOW }).check();
+      await dlg.locator("[data-hd-kb-match]").waitFor();
+      ok("eşleşen kayıt varsa sayı gösterilir, uyarı yok", (await dlg.getByText("Bu analizle eşleşen 4 aktif açıklama eklenecek.").isVisible()) && (await dlg.locator("[data-hd-kb-no-match]").count()) === 0);
       await page.context().close();
     }
 
@@ -264,6 +305,8 @@ async function main() {
       ok(`${width}px: pencere ekran içinde, yatay kaydırma yok`, !!box && box.x >= 0 && box.x + box.width <= width + 0.5 && box.y >= 0 && box.y + box.height <= 760 + 0.5 && scrollW <= width, JSON.stringify(box));
       const opt = await page.getByRole("checkbox", { name: KNOW }).locator("xpath=..").boundingBox();
       ok(`${width}px: seçenek dokunma hedefi ≥ 44 px`, !!opt && opt.height >= 44);
+      const fb = await page.getByLabel(/Raporu Hazırlayan/).boundingBox();
+      ok(`${width}px: 'Raporu Hazırlayan' alanı ekranda, ≥ 40 px yüksek`, !!fb && fb.x >= 0 && fb.x + fb.width <= width + 0.5 && fb.height >= 40, JSON.stringify(fb));
       await page.screenshot({ path: join(OUT, `ui-dialog-${width}.png`) });
       await page.keyboard.press("Escape");
       ok(`${width}px: ESC pencereyi kapatır`, (await page.getByRole("dialog").count()) === 0);

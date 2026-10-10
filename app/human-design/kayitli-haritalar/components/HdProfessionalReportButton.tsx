@@ -11,6 +11,9 @@
  *       [ ] Bilgi Bankamdaki Açıklamaları Ekle   [ ] Sistem Yorumunu Ekle (yalnız yetkiliye)
  *     Hiçbiri seçilmezse rapor teknik harita içeriğiyle oluşturulur. Seçim yalnız tercihtir;
  *     yetki ve "Özel Çalışma Notları asla" kuralı SUNUCUDA uygulanır.
+ *   • "Raporu Hazırlayan" (isteğe bağlı, her yeni Word'de boş): yalnız bu rapora donar; boşsa
+ *     raporda "Hazırlayan" satırı olmaz (profil adı otomatik yazılmaz).
+ *   • Bilgi Bankası seçiliyken eşleşen aktif açıklama yoksa pencerede uyarı (Word'e eklenmez).
  *   • Roxy haritasında BodyGraph, ekrandaki RESMİ renderer'dan yüksek çözünürlüklü PNG olarak
  *     üretilir; üretilemezse rapor sessizce görselsiz oluşturulmaz — kullanıcı açıkça onaylar.
  * Android kuralı korunur: Word (.docx) indirme UI'si Android'de render edilmez.
@@ -29,9 +32,11 @@ import { captureRoxyBodygraphPng } from "@/lib/human-design/reporting/bodygraphC
 import {
   createProfessionalReport,
   downloadProfessionalReport,
+  fetchKnowledgeMatchCount,
   HD_REPORT_REDACTED_MESSAGE,
   type CreateResult,
 } from "../../kayitli-raporlar/helpers/hdProfessionalReport";
+import { HD_PREPARED_BY_MAX } from "@/lib/human-design/reporting/reportV2Shared";
 import { canUseHdSystemReading } from "./HdChartKnowledgeTabs";
 import { loadRoxyBodygraph } from "./HdRoxyBodygraph";
 
@@ -90,6 +95,10 @@ export function HdProfessionalReportButton({
   // İçerik seçimi: pencere her açıldığında İKİSİ DE KAPALI başlar (önceki seçim hatırlanmaz).
   const [addKnowledge, setAddKnowledge] = useState(false);
   const [addSystem, setAddSystem] = useState(false);
+  // "Raporu Hazırlayan": her yeni Word için BOŞ başlar (başka rapora / danışana taşınmaz).
+  const [preparedBy, setPreparedBy] = useState("");
+  // Bu analizle eşleşen aktif Bilgi Bankası açıklaması sayısı (pencere açılınca okunur; yalnız sayı).
+  const [kbMatch, setKbMatch] = useState<number | null | "loading">(null);
   // P2-2: bir kullanıcı eylemi = bir istek kimliği. Hata sonrası tekrar denemede AYNI kimlik
   // kullanılır (sunucu ikinci satır oluşturmaz). Başarıdan sonra aynı rapor yeniden indirilir;
   // yeni rapor yalnız bilinçli "Yeni sürüm oluştur" ile (yeni kimlik) oluşur.
@@ -104,6 +113,7 @@ export function HdProfessionalReportButton({
   const busyRef = useRef(false);
   // Son kullanıcı seçimi (yeniden deneme / görselsiz onay aynı seçimle sürer).
   const lastCommentaryRef = useRef<HdCommentarySelection | undefined>(undefined);
+  const lastPreparedByRef = useRef<string>("");
   const busy = phase === "capturing" || phase === "creating" || phase === "downloading";
   const systemAvailable = !!roxyRender;
 
@@ -125,7 +135,7 @@ export function HdProfessionalReportButton({
     );
   }
 
-  async function run(opts: { commentary?: HdCommentarySelection; allowMissingBodygraph?: boolean }) {
+  async function run(opts: { commentary?: HdCommentarySelection; allowMissingBodygraph?: boolean; preparedBy?: string }) {
     if (busyRef.current) return;
     busyRef.current = true;
     try {
@@ -150,6 +160,7 @@ export function HdProfessionalReportButton({
         commentary: opts.commentary,
         bodygraphPng,
         allowMissingBodygraph: opts.allowMissingBodygraph,
+        preparedBy: opts.preparedBy,
       });
       if (!created.ok) {
         setPhase(created.code === "BODYGRAPH_REQUIRED" ? "bodygraph_failed" : "error");
@@ -176,16 +187,20 @@ export function HdProfessionalReportButton({
       return;
     }
     pendingModeRef.current = mode;
-    // Yeni Word: içerik seçimi HER SEFERİNDE kapalı başlar (tüm uzmanlar).
+    // Yeni Word: içerik seçimi HER SEFERİNDE kapalı başlar (tüm uzmanlar); hazırlayan boş.
     setAddKnowledge(false);
     setAddSystem(false);
+    setPreparedBy("");
+    setKbMatch("loading");
     setPhase("choosing");
+    void fetchKnowledgeMatchCount(chartId).then((n) => setKbMatch(n));
   }
 
   function confirmChoice() {
     const c = commentaryFromFlags(addKnowledge, canSystem && systemAvailable && addSystem);
     lastCommentaryRef.current = c;
-    void run({ commentary: c });
+    lastPreparedByRef.current = preparedBy.trim();
+    void run({ commentary: c, preparedBy: lastPreparedByRef.current });
   }
 
   // Listeden "Word İndir": hazır rapor araması bitince akış BİR KEZ başlar.
@@ -232,14 +247,14 @@ export function HdProfessionalReportButton({
         <div className="flex flex-wrap gap-2" data-hd-bodygraph-failed>
           <button
             type="button"
-            onClick={() => void run({ commentary: lastCommentaryRef.current })}
+            onClick={() => void run({ commentary: lastCommentaryRef.current, preparedBy: lastPreparedByRef.current })}
             className="h-8 rounded-lg border border-emerald-300 bg-white px-3 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
           >
             Tekrar dene
           </button>
           <button
             type="button"
-            onClick={() => void run({ commentary: lastCommentaryRef.current, allowMissingBodygraph: true })}
+            onClick={() => void run({ commentary: lastCommentaryRef.current, allowMissingBodygraph: true, preparedBy: lastPreparedByRef.current })}
             className="h-8 rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-bold text-amber-800 hover:bg-amber-100"
           >
             BodyGraph olmadan oluştur
@@ -302,6 +317,15 @@ export function HdProfessionalReportButton({
                   <span className="block text-xs text-slate-500">
                     İlgili Human Design özellikleri için Bilgi Bankası&apos;na yazdığınız açıklamalar Word raporuna eklenir.
                   </span>
+                  {addKnowledge && kbMatch === 0 ? (
+                    <span className="mt-1 block text-xs font-semibold text-amber-700" role="status" data-hd-kb-no-match>
+                      Bu analizle eşleşen aktif Bilgi Bankası açıklaması bulunamadı.
+                    </span>
+                  ) : addKnowledge && typeof kbMatch === "number" && kbMatch > 0 ? (
+                    <span className="mt-1 block text-xs font-semibold text-emerald-700" data-hd-kb-match>
+                      Bu analizle eşleşen {kbMatch} aktif açıklama eklenecek.
+                    </span>
+                  ) : null}
                 </span>
               </label>
               {canSystem ? (
@@ -332,6 +356,22 @@ export function HdProfessionalReportButton({
                 </label>
               ) : null}
             </fieldset>
+            <label className="mt-3 block" htmlFor={`hd-word-prepared-by-${chartId}`}>
+              <span className="block text-sm font-bold text-slate-800">Raporu Hazırlayan</span>
+              <span className="block text-xs text-slate-500">Raporda görünmesini istediğiniz ad ve unvanı yazabilirsiniz.</span>
+              <input
+                id={`hd-word-prepared-by-${chartId}`}
+                type="text"
+                value={preparedBy}
+                maxLength={HD_PREPARED_BY_MAX}
+                onChange={(e) => setPreparedBy(e.target.value)}
+                placeholder="Örn. Human Design Uzmanı Ahmet Yılmaz"
+                autoComplete="off"
+                data-hd-word-prepared-by
+                className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+              />
+              <span className="mt-1 block text-[11px] text-slate-400">Boş bırakırsanız raporda “Hazırlayan” satırı yer almaz.</span>
+            </label>
             <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"

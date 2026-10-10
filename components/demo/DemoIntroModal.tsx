@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Compass, FolderOpen, ShieldCheck, Sparkles } from "lucide-react";
-import { readSessionToken } from "@/lib/auth/yasamUser";
+import { readStoredSessionToken } from "@/lib/auth/yasamUser";
 
 /**
  * Demo / test hesabı açılış bilgilendirmesi (yalnız ana sayfa).
@@ -51,7 +51,7 @@ let memoryAck: string | null = null;
 const listeners = new Set<() => void>();
 
 function sessionFingerprint(): string {
-  const token = readSessionToken() ?? "no-session";
+  const token = readStoredSessionToken() ?? "no-session"; // H6a: yerel parmak izi (başlık değil)
   let hash = 0x811c9dc5;
   for (let i = 0; i < token.length; i++) {
     hash ^= token.charCodeAt(i);
