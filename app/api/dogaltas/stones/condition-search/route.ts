@@ -83,6 +83,60 @@ function parseConditions(raw: unknown): { ok: true; value: SearchCondition[] } |
   return { ok: true, value: out };
 }
 
+/**
+ * WT9 çoklu kaynak: bir taşın ÇAKRALARI = birincil kaynak (stones.chakras) ∪ tüm ek kaynaklar
+ * (stone_sources.chakras). Yalnız aynı tenant'ın satırları; TEK sorgu (N+1 yok). Migration öncesi
+ * şemada tablo yok → boş harita (eski davranış).
+ */
+async function extraSourceData(
+  db: SupabaseClient,
+  tenantIds: readonly string[],
+  opts: { chakras: boolean; text: boolean },
+): Promise<{ chakras: Map<string, string[]>; text: Map<string, string> }> {
+  const chakras = new Map<string, string[]>();
+  const text = new Map<string, string>();
+  const missing = (e: unknown) => /^(42P01|PGRST205|42703|PGRST204)$/.test(String((e as { code?: string })?.code ?? ""));
+  if (opts.chakras) {
+    const res = await fetchAllRows<{ stone_id: unknown; chakras: unknown }>((from, to) =>
+      db.from("stone_sources").select("stone_id, chakras").in("tenant_id", [...tenantIds])
+        .not("chakras", "is", null).order("id", { ascending: true }).range(from, to),
+    );
+    if (!res.ok && !missing(res.error)) throw res.error;
+    for (const r of res.ok ? res.rows : []) {
+      if (!Array.isArray(r.chakras)) continue;
+      const k = String(r.stone_id);
+      chakras.set(k, [...(chakras.get(k) ?? []), ...r.chakras.map(String)]);
+    }
+  }
+  if (opts.text) {
+    const res = await fetchAllRows<{ id: unknown; primary_source_name: unknown; extra_sources_text: unknown }>((from, to) =>
+      db.from("stones").select("id, primary_source_name, extra_sources_text").in("tenant_id", [...tenantIds])
+        .order("id", { ascending: true }).range(from, to),
+    );
+    if (!res.ok && !missing(res.error)) throw res.error;
+    for (const r of res.ok ? res.rows : []) {
+      const parts = [r.primary_source_name, r.extra_sources_text].filter((v): v is string => typeof v === "string" && v.length > 0);
+      if (parts.length) text.set(String(r.id), parts.join(" "));
+    }
+  }
+  return { chakras, text };
+}
+
+/** Birincil + ek kaynak çakraları (tekil, ilk görülen yazım korunur). */
+function mergedChakras(primary: unknown, extra: readonly string[] | undefined): string[] | null {
+  const base = Array.isArray(primary) ? (primary as unknown[]).map(String) : [];
+  if (!extra?.length) return Array.isArray(primary) ? base : null;
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const c of [...base, ...extra]) {
+    const k = c.trim().toLocaleLowerCase("tr-TR");
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    out.push(c);
+  }
+  return out;
+}
+
 function contentHaystack(s: Record<string, unknown>): string {
   const str = (v: unknown) => (typeof v === "string" ? v : "");
   const arr = (v: unknown) => (Array.isArray(v) ? v.map(String).join(" ") : "");
@@ -135,6 +189,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     const corpus = corpusCapped ? allRows.slice(0, CORPUS_CAP) : allRows;
 
     const hasCriteria = conditions.length > 0 || warningOnly || Boolean(q);
+    // WT9: ek kaynakların çakraları (çakra koşulu / öneriler) + metni (içerik araması) — tek sorgu.
+    const extra = await extraSourceData(db, ids, {
+      chakras: wantSuggestions || conditions.some((c) => c.type === "chakra"),
+      text: Boolean(q) && searchMode === "content",
+    });
 
     const matched = hasCriteria
       ? corpus.filter((row) => {
@@ -142,14 +201,16 @@ export async function POST(req: NextRequest): Promise<Response> {
           if (conditions.length > 0) {
             const cs: ConditionStone = {
               stone_name: String(s.stone_name ?? ""),
-              chakras: Array.isArray(s.chakras) ? (s.chakras as string[]) : null,
+              chakras: mergedChakras(s.chakras, extra.chakras.get(String(s.id))),
               assignments: s.assignments,
             };
             if (!evaluateStoneConditions(cs, conditions).matches) return false;
           }
           if (warningOnly && !stoneHasWarning(s.warning_text as string | null | undefined, s.warning_tags)) return false;
           if (q) {
-            const hay = searchMode === "content" ? contentHaystack(s) : String(s.stone_name ?? "");
+            const hay = searchMode === "content"
+              ? `${contentHaystack(s)} ${extra.text.get(String(s.id)) ?? ""}`
+              : String(s.stone_name ?? "");
             if (!containsTr(hay, q)) return false;
           }
           return true;
@@ -158,7 +219,15 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     const total = matched.length;
     const resultCapped = matched.length > RESULT_CAP;
-    const rows = resultCapped ? matched.slice(0, RESULT_CAP) : matched;
+    // WT9: ek kaynak çakrası olan satıra birleşik çakra listesi eklenir (search_chakras) → istemci
+    // (Kombinasyon Oluştur) aynı motorla yeniden değerlendirirken sonucu düşürmez. Görüntülenen
+    // birincil çakralar (chakras) DEĞİŞMEZ.
+    const rows = (resultCapped ? matched.slice(0, RESULT_CAP) : matched).map((row) => {
+      const extraChakras = extra.chakras.get(String((row as Record<string, unknown>).id));
+      return extraChakras?.length
+        ? { ...row, search_chakras: mergedChakras((row as Record<string, unknown>).chakras, extraChakras) }
+        : row;
+    });
 
     // Öneriler/sayımlar (dropdown) — istenirse korpus üzerinden server-side üretilir
     // (kombinasyon-oluştur artık öneri için korpusu tarayıcıya çekmez).
@@ -168,7 +237,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         const s = row as Record<string, unknown>;
         return {
           stone_name: String(s.stone_name ?? ""),
-          chakras: Array.isArray(s.chakras) ? (s.chakras as string[]) : null,
+          chakras: mergedChakras(s.chakras, extra.chakras.get(String(s.id))),
           assignments: s.assignments,
         };
       });

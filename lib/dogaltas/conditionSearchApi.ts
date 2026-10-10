@@ -5,7 +5,7 @@
  * TARAYICIYA indirmez; koşullar server-side değerlendirilir (paylaşılan AND motoru)
  * ve yalnız EŞLEŞEN alt küme + öneriler döner (bounded).
  */
-import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { readSessionToken, readYasamUser, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import type { StoneListItemExtended } from "@/lib/dogaltas/stonesListFetch";
 import type { SearchCondition, SearchType } from "@/lib/dogaltas/stoneConditionSearch";
 
@@ -36,13 +36,13 @@ export async function fetchStonesByConditions(
 ): Promise<ConditionSearchResult> {
   const userId = readYasamUser()?.id;
   const token = readSessionToken();
-  if (!userId || !token) {
+  if (!userId || !hasSessionCredential(token)) {
     return { ok: false, rows: [], total: 0, capped: false, error: "Oturum bulunamadı." };
   }
   try {
     const res = await fetch("/api/dogaltas/stones/condition-search", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-user-id": userId, "x-session-token": token },
+      headers: { "Content-Type": "application/json", "x-user-id": userId, ...sessionTokenHeader(token) },
       body: JSON.stringify({
         conditions: params.conditions ?? [],
         warningOnly: params.warningOnly ?? false,

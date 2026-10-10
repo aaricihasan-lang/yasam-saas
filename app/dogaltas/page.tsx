@@ -30,8 +30,11 @@ import { DOGALTAS_ACCENT } from "@/lib/dogaltas/dogaltasAccent";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { reportErrorKind } from "@/lib/dogaltas/reportErrorKind";
+import { browserSessionStorage, markChecked, readCheckedIds, searchContextKey } from "@/lib/search/searchChecked";
+import { SearchCheckedBadge, SEARCH_CHECKED_CARD_ACCENT } from "@/components/search/SearchCheckedBadge";
 
-const VIEWED_SEARCH_STORAGE_KEY = "yasam-dogaltas-viewed-search-results";
+/** WT8: eski bağlamsız, hiç silinmeyen localStorage "Bakıldı" listesi — yalnız temizlik için. */
+const LEGACY_VIEWED_STORAGE_KEY = "yasam-dogaltas-viewed-search-results";
 
 type StoneSearchRecord = {
   id: string;
@@ -60,26 +63,6 @@ type StoneSearchResult = {
   snippet: string;
 };
 
-function readViewedStoneIds(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = localStorage.getItem(VIEWED_SEARCH_STORAGE_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed)) {
-      return new Set(parsed.map((id) => String(id)));
-    }
-    return new Set();
-  } catch {
-    return new Set();
-  }
-}
-
-function markViewedStoneId(id: string) {
-  const viewed = readViewedStoneIds();
-  viewed.add(id);
-  localStorage.setItem(VIEWED_SEARCH_STORAGE_KEY, JSON.stringify([...viewed]));
-}
 
 function assignmentsToSearchText(assignments: Record<string, unknown> | null): string {
   if (!assignments || typeof assignments !== "object") return "";
@@ -411,9 +394,17 @@ function DogaltasPageContent() {
     setActiveQuery(urlQuery);
   }, [urlQuery]);
 
+  // WT8: "Kontrol edildi" — Doğaltaş Detay Arama ile ORTAK mantık (lib/search/searchChecked):
+  // arama bağlamına bağlı, sessionStorage; yeni arama temiz başlar, önceki aramaya dönünce geri gelir.
+  const checkedContext = searchContextKey({ scope: "hub", query: activeQuery });
+  const checkedContextRef = useRef(checkedContext);
   useEffect(() => {
-    const refreshViewed = () => setViewedStoneIds(readViewedStoneIds());
-    refreshViewed();
+    checkedContextRef.current = checkedContext;
+    runInEffect(() => setViewedStoneIds(readCheckedIds(browserSessionStorage(), checkedContext)));
+  }, [checkedContext]);
+  useEffect(() => {
+    try { localStorage.removeItem(LEGACY_VIEWED_STORAGE_KEY); } catch { /* erişim yok */ }
+    const refreshViewed = () => setViewedStoneIds(readCheckedIds(browserSessionStorage(), checkedContextRef.current));
     window.addEventListener("focus", refreshViewed);
     return () => window.removeEventListener("focus", refreshViewed);
   }, []);
@@ -507,8 +498,8 @@ function DogaltasPageContent() {
   );
 
   const handleResultNavigate = useCallback((stoneId: string) => {
-    markViewedStoneId(stoneId);
-    setViewedStoneIds(readViewedStoneIds());
+    const ctx = checkedContextRef.current;
+    if (ctx) setViewedStoneIds(markChecked(browserSessionStorage(), ctx, stoneId));
   }, []);
 
   // ─── Word raporu ─────────────────────────────────────────────────────────────
@@ -736,13 +727,13 @@ function DogaltasPageContent() {
                           key={result.id}
                           className={`relative overflow-hidden rounded-[22px] border bg-white/95 p-4 shadow-sm transition hover:shadow-md ${
                             isViewed
-                              ? "border-rose-200/90 ring-1 ring-rose-100"
+                              ? `border-emerald-200/90 ${SEARCH_CHECKED_CARD_ACCENT}`
                               : "border-slate-200/80"
                           }`}
                         >
                           {isViewed ? (
                             <span
-                              className="absolute bottom-0 left-0 top-0 w-1.5 bg-rose-600"
+                              className="absolute bottom-0 left-0 top-0 w-1.5 bg-emerald-500"
                               aria-hidden
                             />
                           ) : null}
@@ -752,11 +743,7 @@ function DogaltasPageContent() {
                               <h3 className="text-lg font-black text-slate-950">
                                 {result.stone_name}
                               </h3>
-                              {isViewed ? (
-                                <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-rose-800 ring-1 ring-rose-200">
-                                  {t("results.viewed")}
-                                </span>
-                              ) : null}
+                              {isViewed ? <SearchCheckedBadge label={t("results.viewed")} /> : null}
                             </div>
 
                             <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-600">

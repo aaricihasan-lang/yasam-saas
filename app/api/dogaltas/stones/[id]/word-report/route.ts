@@ -11,7 +11,9 @@ import { Packer } from "docx";
 import { extractFirstImageRef, fetchStorageImageBuffer } from "@/lib/docx/reportHelpers";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 // Saf belge kurucusu (FA-02 tarih Europe/Istanbul + FA-16 bilgilendirme notu) — harness test eder.
-import { buildStoneReportDoc, type StoneReportRow } from "./buildStoneReport";
+import { buildStoneReportDoc, type StoneReportExtraSource, type StoneReportRow } from "./buildStoneReport";
+import { loadExtraSourcesForStones } from "@/lib/dogaltas/stoneSourcesServer";
+import { pickSourceFields } from "@/lib/dogaltas/stoneSources";
 
 export const runtime = "nodejs";
 
@@ -70,11 +72,21 @@ export async function POST(
     imageBuf = await fetchStorageImageBuffer(db, STONE_PHOTO_BUCKET, candidatePath).catch(() => null);
   }
 
+  // WT9: ek kaynaklar (taşın tenant'ında; migration yoksa boş → eski rapor düzeni).
+  let extraSources: StoneReportExtraSource[] = [];
+  try {
+    const byStone = await loadExtraSourcesForStones(db, stone.tenant_id, [stone.id]);
+    extraSources = (byStone.get(stone.id) ?? []).map((r) => sanitizeXmlDeep({ name: (r.source_name as string | null) ?? null, fields: pickSourceFields(r) }));
+  } catch (e) {
+    return serverErrorResponse({ route: "dogaltas/stones/[id]/word-report", action: "POST:sources", tenantId, cause: e, usage: { guard: usageGuard, req, module: "stones", failedAction: "report_generated", subEntity: "stone" } });
+  }
+
   const { doc, filename } = buildStoneReportDoc({
     stone,
     imageBuf,
     isLibrary: stone.tenant_id !== tenantId,
     expertName: expertDisplayName(auth.profile),
+    extraSources,
   });
 
   const buffer = await Packer.toBuffer(doc);

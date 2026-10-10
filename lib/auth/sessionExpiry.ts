@@ -12,7 +12,7 @@
  *   - markSessionEnded / consumeSessionEnded: modül/admin sayfasından ana sayfaya dönüşte
  *     nedenin taşınması (sessionStorage; kişisel veri YOK, yalnız neden kodu).
  */
-import { readSessionToken } from "@/lib/auth/yasamUser";
+import { hasSessionCredential, readSessionToken, sessionTokenHeader } from "@/lib/auth/yasamUser";
 
 export type SessionEndReason = "expired" | "revoked";
 
@@ -40,17 +40,19 @@ function requestSessionCookieBootstrap(token: string): void {
 
 /** Oturumu sunucuda doğrular. Token yoksa/ağ hatasında null (karar verilmez). */
 export async function checkSessionStatus(token: string | null = readSessionToken()): Promise<SessionStatus | null> {
-  if (!token) return null;
+  // HTTPONLY H5: web'de token yoksa HttpOnly cookie ile sorulur (sunucu primary modda cookie'yi
+  // okur). Android'de / profil kaydı yokken kimlik bilgisi yok → karar verilmez (null).
+  if (!hasSessionCredential(token)) return null;
   try {
     const res = await fetch("/api/auth/session", {
       method: "GET",
       cache: "no-store",
-      headers: { "x-session-token": token },
+      headers: sessionTokenHeader(token),
     });
     if (!res.ok) return null;
     const json = (await res.json()) as { valid?: boolean; reason?: string; cookie?: string };
     if (json.valid === true) {
-      if (json.cookie === "bootstrap") requestSessionCookieBootstrap(token);
+      if (json.cookie === "bootstrap" && token) requestSessionCookieBootstrap(token);
       return { valid: true, reason: "revoked" };
     }
     if (json.valid === false) return { valid: false, reason: json.reason === "expired" ? "expired" : "revoked" };
@@ -73,7 +75,8 @@ export async function confirmSessionInvalid(
   readToken: () => string | null = readSessionToken,
 ): Promise<SessionStatus | null> {
   const token = readToken();
-  if (!token) return null;
+  // HTTPONLY H5: web'de token yoksa cookie oturumu sorulur (token=null); Android'de karar yok.
+  if (!hasSessionCredential(token)) return null;
   const first = await check(token);
   if (!first || first.valid) return null;
   await new Promise((r) => setTimeout(r, delayMs));
