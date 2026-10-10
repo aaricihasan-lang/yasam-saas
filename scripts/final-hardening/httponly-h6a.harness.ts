@@ -98,9 +98,10 @@ async function main() {
     reset();
     store.set("yasam_cookie_session_fp", "x"); // geçiş tetiklenmesin diye farklı → aşağıda ayrıca
     await se.checkSessionStatus();
+    // H6b: legacy-token temizliği önce kendi (başlıksız) doğrulamasını yapabilir → TÜM session GET'ler başlıksız.
     const sessionGet = calls.filter((c) => c.url === "/api/auth/session");
-    assert.equal(sessionGet.length, 1);
-    assert.ok(!("x-session-token" in sessionGet[0].headers));
+    assert.ok(sessionGet.length >= 1);
+    assert.ok(sessionGet.every((c) => !("x-session-token" in c.headers)));
   });
 
   // ── 3) KILL-SWITCH geri dönüşü (aynı tarayıcı) ──────────────────────────────────────────
@@ -237,10 +238,10 @@ async function main() {
     assert.ok(/isAndroidAppRequest\(requestHeaders\) \? "header" : readWebSessionTransport\(\)/.test(l));
     assert.ok(/\[SESSION_TRANSPORT_HTML_ATTR\]: sessionTransport/.test(l));
   });
-  await t("H6b YOK: saveSessionToken localStorage'a yazar; login gövdesi token döndürür; token silinmez", () => {
+  await t("H6b sözleşmesi: saveSessionToken web+cookie'de yazmaz (diğerlerinde yazar); login gövdesi taşımaya göre", () => {
     const y = read("lib/auth/yasamUser.ts");
-    assert.ok(/localStorage\.setItem\(SESSION_TOKEN_KEY, token\);/.test(y));
-    assert.ok(/\r?\n\s+sessionToken,\r?\n/.test(read("app/api/auth/session/route.ts")));
+    assert.ok(/if \(webUsesCookieTransport\(\)\) return;\r?\n\s+localStorage\.setItem\(SESSION_TOKEN_KEY, token\);/.test(y));
+    assert.ok(/\{ sessionCookie: true \} : \{ sessionToken \}/.test(read("app/api/auth/session/route.ts")));
     assert.ok(/saveSessionToken\(sessionToken\)/.test(read("app/page.tsx")));
   });
   await t("istemci cookie modülünü import etmez (taşıma bayrağı ayrı saf modülde)", () => {

@@ -237,10 +237,11 @@ export function saveYasamUser(user: YasamUser): void {
 
 export function saveSessionToken(token: string): void {
   if (typeof window === "undefined") return;
+  // HTTPONLY H6b: web + cookie taşımasında oturum token'ı JS depolamasına YAZILMAZ (HttpOnly cookie
+  // yeterli; ör. onaylanan bekleyen girişte sunucu cookie'yi yazar). Android ve header taşıması
+  // (kill-switch) bugünkü gibi saklar.
+  if (webUsesCookieTransport()) return;
   localStorage.setItem(SESSION_TOKEN_KEY, token);
-  // HTTPONLY H6a: cookie taşımasında login yanıtı HttpOnly cookie'yi zaten yazdı → bu token için
-  // bir kerelik cookie geçişi (bootstrap) gereksiz.
-  if (webUsesCookieTransport()) markCookieSessionReady(token);
 }
 
 /**
@@ -297,32 +298,50 @@ function markCookieSessionReady(token: string): void {
 let cookieSessionMigration: Promise<void> | null = null;
 
 /**
- * HTTPONLY H6a — BİR KERELİK cookie geçişi. Cookie taşımasında saklı token'ın HttpOnly cookie'si bu
- * tarayıcıda henüz doğrulanmadıysa (ör. cookie modu açılmadan önce giriş yapmış web kullanıcısı)
- * POST /api/auth/session/cookie ile cookie yazdırılır. Token başına YALNIZ bir kez (parmak izi
- * işareti); başarısızlık oturumu kapatmaz (sonraki oturum kontrolü karar verir). Android / header
- * taşımasında / token yokken no-op.
+ * HTTPONLY H6b — ESKİ (legacy) WEB TOKEN'ININ GÜVENLİ TEMİZLİĞİ. Cookie taşımasında localStorage'da
+ * eski bir token kaldıysa (H6a ve öncesinden açık sekme / eski giriş) SIRA KESİNDİR:
+ *   1. Bu token'ın cookie'si bu tarayıcıda doğrulanmadıysa → tek seferlik bootstrap
+ *      (POST /api/auth/session/cookie, token başlığıyla). Başarısızsa DUR (token SİLİNMEZ).
+ *   2. Cookie oturumu sunucuda doğrulanır (GET /api/auth/session, başlıksız → cookie).
+ *      YALNIZ `valid: true` ise →
+ *   3. localStorage token (+ geçiş işareti) silinir.
+ * Ağ hatası / 5xx / belirsiz yanıt → token kalır (sonraki açılışta tekrar denenir; toplu logout YOK).
+ * Kesin "geçersiz" yanıtında da burada silinmez — oturum sonu kararı oturum guard'ındadır.
+ * Android / header taşıması / token yok → no-op. Eşzamanlı çağrılar tek uçuşta birleşir.
  */
 export function ensureWebCookieSession(): Promise<void> {
   if (typeof window === "undefined" || !webUsesCookieTransport()) return Promise.resolve();
   const raw = readStoredSessionToken();
   if (!raw) return Promise.resolve();
-  try {
-    if (localStorage.getItem(COOKIE_SESSION_READY_KEY) === sessionTokenFingerprint(raw)) return Promise.resolve();
-  } catch {
-    return Promise.resolve();
-  }
   if (cookieSessionMigration) return cookieSessionMigration;
-  cookieSessionMigration = fetch("/api/auth/session/cookie", {
-    method: "POST",
-    cache: "no-store",
-    headers: { "x-session-token": raw },
-  })
-    .then((res) => {
-      if (res.ok) markCookieSessionReady(raw);
-    })
+  cookieSessionMigration = (async () => {
+    let ready = false;
+    try {
+      ready = localStorage.getItem(COOKIE_SESSION_READY_KEY) === sessionTokenFingerprint(raw);
+    } catch {
+      return;
+    }
+    if (!ready) {
+      const boot = await fetch("/api/auth/session/cookie", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "x-session-token": raw },
+      });
+      if (!boot.ok) return; // cookie yazılamadı → token KALIR
+      markCookieSessionReady(raw);
+    }
+    const check = await fetch("/api/auth/session", { method: "GET", cache: "no-store" });
+    if (!check.ok) return;
+    const j = (await check.json().catch(() => null)) as { valid?: unknown } | null;
+    if (j?.valid !== true) return; // cookie oturumu doğrulanmadı → token KALIR
+    // Cookie doğrulandı → eski token JS depolamasından çıkarılır (yalnız hâlâ aynı token ise).
+    if (readStoredSessionToken() === raw) {
+      localStorage.removeItem(SESSION_TOKEN_KEY);
+      localStorage.removeItem(COOKIE_SESSION_READY_KEY);
+    }
+  })()
     .catch(() => {
-      /* geçiş best-effort */
+      /* geçiş best-effort; token kalır */
     })
     .finally(() => {
       cookieSessionMigration = null;
@@ -455,6 +474,9 @@ export function clearYasamUser(): void {
 
   localStorage.removeItem(STORAGE_KEY);
   clearSessionToken();
+  // HTTPONLY H6b: demo tanıtım kapatma kaydı oturuma bağlıdır; web'de token olmadığından parmak izi
+  // yerine her çıkış/girişte temizlenir (yeni girişte yeniden gösterilir — bugünkü davranış).
+  localStorage.removeItem("yasam_demo_intro_ack");
   // Demo oturum verisini temizle (demo hesap olmasa da key yoksa no-op)
   localStorage.removeItem("yasam_demo_session");
   invalidateYasamUserSyncCache();

@@ -22,8 +22,8 @@ import {
   parseLoginUserRecord,
   readYasamUser,
   readSessionToken,
-  readStoredSessionToken,
   hasSessionCredential,
+  hasWebSession,
   sessionTokenHeader,
   saveYasamUser,
   saveSessionToken,
@@ -1284,7 +1284,7 @@ export default function Home() {
   // Başarılı kimlik doğrulama sonrası ORTAK tamamlama: doğrudan giriş + onaylanan bekleyen giriş.
   const completeLogin = async (
     row: Record<string, unknown>,
-    sessionToken: string,
+    sessionToken: string | null,
     isSuspiciousLogin: boolean,
   ) => {
     let loggedUser = parseLoginUserRecord(row);
@@ -1296,8 +1296,9 @@ export default function Home() {
       return;
     }
 
-    // Token artık VAR → güncel profil (module_permissions/paket) güvenli API'den yüklenir.
-    saveSessionToken(sessionToken);
+    // Oturum kuruldu → güncel profil (module_permissions/paket) güvenli API'den yüklenir.
+    // HTTPONLY H6b: web + cookie taşımasında token yok (HttpOnly cookie); saveSessionToken zaten yazmaz.
+    if (sessionToken) saveSessionToken(sessionToken);
     const freshUser = await syncYasamUserFromDb(loggedUser, { force: true });
     if (!freshUser) {
       // Profil doğrulanamadı → oturumu sunucuda da kapat (clearYasamUser DELETE gönderir).
@@ -1418,7 +1419,7 @@ export default function Home() {
       const stored = readPendingLogin();
       if (!stored || stored.token !== pendingLogin.token) {
         setPendingLogin(null);
-        if (!stored && !readStoredSessionToken()) setMessage(t("auth.pendingExpired"));
+        if (!stored && !hasWebSession()) setMessage(t("auth.pendingExpired")); // H6b: oturum token'dan değil kimlik bilgisinden
         return;
       }
       const st = await checkPendingLogin(pendingLogin.token);
