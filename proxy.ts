@@ -11,7 +11,8 @@ import { cspOptionsFromEnv, documentRequestHeaders, resolveDocumentCsp } from ".
  * ile aynıdır (proxy bundle'ına Supabase bağımlılığı sokmamak için burada tekrarlanır).
  *
  * 2) CSP NONCE C1-v2: DOKÜMAN isteklerinde CSP'nin TEK kaynağı (lib/security/documentCsp).
- * Normal trafik production ile byte-eşit CSP alır; canary (env + cookie) nonce'lu CSP alır.
+ * Mod CSP_NONCE_MODE (off|canary|all; tanımsızsa eski CSP_NONCE_CANARY): off → production ile
+ * byte-eşit CSP; canary → yalnız cookie'li istek, all → her doküman isteği nonce'lu CSP alır.
  * API / statik / prefetch-RSC istekleri proxy'ye girmez — onların CSP'si next.config'ten gelir.
  */
 const ADMIN_SESSION_COOKIE = "yasam_admin_session";
