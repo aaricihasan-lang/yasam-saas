@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { hasSessionCredential, readSessionToken, readYasamUser, sessionTokenHeader } from "@/lib/auth/yasamUser";
 
 type Status = "has_analyses" | "no_analyses" | "not_linked";
 
@@ -37,7 +37,7 @@ export default function AstrologyClientStatus({ clientId }: { clientId: string }
   useEffect(() => {
     const user = readYasamUser();
     const token = readSessionToken();
-    if (!user || !token) return; // oturumsuz → istek yok
+    if (!user || !hasSessionCredential(token)) return; // oturumsuz → istek yok (9C/H5: web'de HttpOnly çerez yeterli)
     const isAdmin = user.role === "admin";
     const perms = user.module_permissions as Record<string, unknown> | null | undefined;
     // İstemci ipucu (yetki DEĞİL): Astroloji izni görünmeyen uzman / demo hesap istek atmaz.
@@ -45,7 +45,7 @@ export default function AstrologyClientStatus({ clientId }: { clientId: string }
     const q = `client-status?clientId=${encodeURIComponent(clientId)}`;
     let alive = true;
     void fetch(isAdmin ? `/api/admin/astroloji/${q}` : `/api/astroloji/${q}`, {
-      headers: isAdmin ? { "x-admin-id": user.id, "x-session-token": token } : { "x-user-id": user.id, "x-session-token": token },
+      headers: isAdmin ? { "x-admin-id": user.id, ...sessionTokenHeader(token) } : { "x-user-id": user.id, ...sessionTokenHeader(token) },
       cache: "no-store",
     })
       .then(async (r) => {

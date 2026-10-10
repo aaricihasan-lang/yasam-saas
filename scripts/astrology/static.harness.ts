@@ -258,6 +258,7 @@ async function main() {
       /^ASTROLOGY-PHASE9A-P2-PROGRESS\.md$/,
       /^ASTROLOGY-PHASE9B-AUDIT\.md$/,
       /^ASTROLOGY-PHASE9B-P2-PROGRESS\.md$/,
+      /^ASTROLOGY-PHASE9C-READINESS\.md$/,
       // Aşama 8: rapor route'larının font dosyası izleme kaydı — fark ayrıca satır satır sınırlanır.
       /^next\.config\.ts$/,
       // Aşama 7C: uzman yüzeyi (sayfa + API aynası) ve mevcut yetki sistemine Astroloji kayıtları.

@@ -1,11 +1,13 @@
 // Astroloji UI — tarayıcı API istemcisi (yalnız istemci).
 // İki yüzey (Aşama 7C), aynı bileşenler:
-//   • Admin kabuğu (/admin/astroloji): x-admin-id + x-session-token → /api/admin/astroloji (owner-only).
-//   • Uzman sayfası (/astroloji): x-user-id + x-session-token → /api/astroloji (modül yetkisi).
+//   • Admin kabuğu (/admin/astroloji): x-admin-id (+ oturum) → /api/admin/astroloji (owner-only).
+//   • Uzman sayfası (/astroloji): x-user-id (+ oturum) → /api/astroloji (modül yetkisi).
+// 9C / HttpOnly H5: oturum kimliği web'de HttpOnly çerezle (aynı köken fetch'i çerezi taşır) ya da varsa yerel
+// token'la gider. Token başlığı YALNIZ token varsa eklenir (sessionTokenHeader); Android WebView yalnız token kullanır.
 // Token URL'e/loga konmaz. Yetki her çağrıda SUNUCUDA (requireAstrologyAccess) verilir; istemci
 // yüzey seçimi yetki DEĞİLDİR (yanlış yüzeyden gelen istek sunucuda 404 alır).
 
-import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { hasSessionCredential, readYasamUser, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 
 const ADMIN_API = "/api/admin/astroloji";
@@ -26,7 +28,7 @@ export function astroPath(path: string): string {
 export function astroHeaders(json = false): Record<string, string> {
   const h: Record<string, string> = {
     [isAdminSurface() ? "x-admin-id" : "x-user-id"]: readYasamUser()?.id ?? "",
-    "x-session-token": readSessionToken() ?? "",
+    ...sessionTokenHeader(),
   };
   if (json) h["Content-Type"] = "application/json";
   return h;
@@ -35,6 +37,8 @@ export function astroHeaders(json = false): Record<string, string> {
 export type ApiResult<T> = { ok: true; status: number; data: T } | { ok: false; status: number; code: string; error: string; data: Record<string, unknown> | null };
 
 export async function astroFetch<T>(path: string, init: { method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown } = {}): Promise<ApiResult<T>> {
+  // Oturum kimliği yoksa (ne token ne web çerez oturumu) istek atılmaz.
+  if (!readYasamUser()?.id || !hasSessionCredential()) return { ok: false, status: 401, code: "NO_SESSION", error: "Oturum bulunamadı. Lütfen yeniden giriş yapın.", data: null };
   let res: Response;
   try {
     res = await fetch(astroPath(path), {
@@ -67,6 +71,7 @@ export async function astroFetch<T>(path: string, init: { method?: "GET" | "POST
  * (mevcut ortak indirme yardımcısı). Hata gövdesi JSON ise kullanıcıya okunur metin döner.
  */
 export async function astroDownload(path: string, fallbackName: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!readYasamUser()?.id || !hasSessionCredential()) return { ok: false, error: "Oturum bulunamadı. Lütfen yeniden giriş yapın." };
   let res: Response;
   try {
     res = await fetch(astroPath(path), { method: "GET", headers: astroHeaders(), cache: "no-store" });
