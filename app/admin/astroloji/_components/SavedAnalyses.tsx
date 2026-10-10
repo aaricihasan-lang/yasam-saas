@@ -225,9 +225,9 @@ export function SavedAnalysisView({ id, previewNoInterp, onClose }: { id: string
       </section>
 
       <section className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4" aria-label="Kayıtlı Bilgi Bankası">
-        <h4 className="mb-2 text-base font-semibold text-indigo-900">Bilgi Bankam (kayıt anındaki hali)</h4>
+        <h4 className="mb-2 text-base font-semibold text-indigo-900">Bilgi Bankam (güncel)</h4>
         {a.knowledgeBank.length === 0 ? (
-          <p className="text-sm text-slate-600">Kayıt anında eşleşen Bilgi Bankası notu yoktu.</p>
+          <p className="text-sm text-slate-600">Bu analizle eşleşen güncel Bilgi Bankası kaydınız yok.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {a.knowledgeBank.map((e) => (

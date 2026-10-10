@@ -31,7 +31,20 @@ export type FakeStore = {
   failRpc?: (fn: string) => FakeErr;
   /** Rate limit RPC'sini tamamen devre dışı bırak (yarış testleri). */
   disableRateLimit?: boolean;
+  /**
+   * 9B: migration 000600 kayıt tavanı trigger'ının taklidi (VARSAYILAN KAPALI). Verilirse INSERT öncesi (tablo, tenant,
+   * uzman) sayımı yapılır; tavandaysa gerçek DB ile aynı mesaj döner: ASTRO_RECORD_CAP:<tablo>:<tavan> (P0001).
+   */
+  dbRecordCaps?: Partial<Record<"astro_birth_profiles" | "astro_analyses" | "astro_kb_entries" | "astro_expert_notes", number>>;
 };
+
+/** 9B: DB tavan trigger'ı taklidi (yalnız store.dbRecordCaps verilmişse). */
+function capError(store: FakeStore, table: string, row: Row): FakeErr {
+  const cap = store.dbRecordCaps?.[table as keyof NonNullable<FakeStore["dbRecordCaps"]>];
+  if (cap === undefined) return null;
+  const n = (store.tables[table] ?? []).filter((r) => r.tenant_id === row.tenant_id && r.owner_user_id === row.owner_user_id).length;
+  return n >= cap ? { code: "P0001", message: `ASTRO_RECORD_CAP:${table}:${cap}` } : null;
+}
 
 export function createStore(seed: Record<string, Row[]> = {}): FakeStore {
   const tables: Record<string, Row[]> = {};
@@ -175,6 +188,8 @@ export function execQuery(store: FakeStore, q: Query, via: "client" | "http"): {
       }
       const ce = checkRow(store, q.table, row);
       if (ce) return { data: null, error: ce };
+      const capE = capError(store, q.table, row);
+      if (capE) return { data: null, error: capE };
       for (const key of UNIQUE_KEYS[q.table] ?? []) {
         if (rows.some((r) => key.every((k) => String(r[k]) === String(row[k])))) {
           return { data: null, error: { code: "23505", message: `duplicate key value violates unique constraint (${key.join(",")})` } };
@@ -236,6 +251,8 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
       const ok = (store.tables.clients ?? []).some((c) => c.id === args.p_client_id && c.tenant_id === tenant);
       if (!ok) return { data: null, error: { code: "23503", message: "insert or update violates foreign key constraint astro_bp_client_fk" } };
     }
+    const capP = capError(store, "astro_birth_profiles", { tenant_id: tenant, owner_user_id: args.p_owner_user_id ?? args.p_user_id });
+    if (capP) return { data: null, error: capP };
     const pid = genId();
     store.tables.astro_birth_profiles ??= [];
     store.tables.astro_birth_profile_revisions ??= [];
@@ -280,6 +297,8 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
     }
     const prof = (store.tables.astro_birth_profiles ?? []).find((x) => x.id === args.p_profile_id && x.tenant_id === tenant && (!v2 || x.owner_user_id === args.p_user_id));
     if (!prof) return { data: null, error: { code: "P0002", message: "ASTRO_PROFILE_NOT_FOUND" } };
+    const capA = capError(store, "astro_analyses", { tenant_id: tenant, owner_user_id: args.p_user_id });
+    if (capA) return { data: null, error: capA };
     if (prof.owner_user_id !== args.p_user_id) return { data: null, error: { code: "23503", message: "insert or update violates foreign key constraint astro_an_owner_fk" } };
     const partnerId = v2 ? (args.p_partner_profile_id ?? null) : null;
     const partnerRev = v2 ? (args.p_partner_profile_revision ?? null) : null;

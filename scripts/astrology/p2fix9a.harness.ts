@@ -24,7 +24,7 @@ import { kpRulingBody } from "@/lib/astrology/providers/roxy/requests";
 import { projectRoxyKpRuling } from "@/lib/astrology/providers/roxy/kp";
 import { buildAstroReport, reportTexts } from "@/lib/astrology/report/model";
 import { ASTRO_RATE_LIMITS, ASTRO_ROXY_MAX_RETRIES, ASTRO_ROXY_MAX_RETRY_AFTER_MS, ASTRO_ROXY_TIMEOUT_MS, ASTRO_ROXY_WORST_CALL_MS, ASTRO_RUN_BUDGET_MS, ASTRO_RUN_MAX_DURATION_S } from "@/lib/astrology/config";
-import { ASTRO_MAX_KB_SNAPSHOT_BYTES, ASTRO_RECORD_CAPS, ASTRO_WRITE_LIMITS, enforceAstroWrite } from "@/lib/astrology/limits";
+import { ASTRO_RECORD_CAPS, ASTRO_WRITE_LIMITS, enforceAstroWrite } from "@/lib/astrology/limits";
 import { SYNTH_A } from "./golden/phase3-golden-calls";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 import { rateLimitBucket } from "@/lib/security/dbRateLimit";
@@ -439,7 +439,7 @@ async function main() {
     }
   });
 
-  await t("P2-03: tek analize kopyalanan Bilgi Bankası snapshot'ı > 1,5 MB → 413 KB_SNAPSHOT_TOO_LARGE (eskiden DB CHECK → 500); hiçbir şey yazılmaz", async () => {
+  await t("P2-03 (9B-P2-01 ile güncellendi): çok büyük eşleşen Bilgi Bankası analize KOPYALANMAZ → kayıt başarılı, satır küçük, KB açılışta güncel kayıtlardan gelir", async () => {
     const s = newStore();
     const c: EngineCtx = { db: createFakeClient(s), tenantId: TA, userId: U.ex1, entitlements: FULL };
     const pid = await mkProfile(c);
@@ -447,12 +447,13 @@ async function main() {
     assert.equal((await runAstrology(c, { profileId: pid, selections: [{ technique: "western.natal", options: { houseSystem: "placidus", nodeType: "true" } }] }, deps, { ownerPreviewHideInterp: false })).status, 200);
     const big = "ğüşıöç".repeat(3300); // ~19 800 karakter, ~40 KB UTF-8
     for (let i = 0; i < 45; i++) assert.equal((await createKb(c, { tradition: "western", topicKey: "planet_in_sign:sun:cancer", title: `Büyük ${i}`, body: big })).status, 201);
-    const n0 = s.tables.astro_analyses?.length ?? 0;
     const sv = await saveAnalysis(c, { profileId: pid, revision: 1, technique: "western.natal", options: { houseSystem: "placidus", nodeType: "true" }, saveRequestId: randomUUID() }, false);
-    assert.equal(sv.status, 413, JSON.stringify(sv.body).slice(0, 200));
-    assert.equal((sv.body as J).code, "KB_SNAPSHOT_TOO_LARGE");
-    assert.equal(s.tables.astro_analyses?.length ?? 0, n0);
-    assert.ok(ASTRO_MAX_KB_SNAPSHOT_BYTES < 2_097_152);
+    assert.equal(sv.status, 201, JSON.stringify(sv.body).slice(0, 200));
+    const row = s.tables.astro_analyses.find((r) => r.id === (sv.body as J).analysisId)!;
+    assert.deepEqual(row.kb_snapshot, [], "KB kopyası yazılmamalı");
+    assert.ok(Buffer.byteLength(JSON.stringify(row)) < 200_000, `satır ${Buffer.byteLength(JSON.stringify(row))} bayt`);
+    const a = ((await getAnalysis(c, row.id as string, false)).body as J).analysis;
+    assert.equal(a.knowledgeBank.length, 45, "KB açılışta güncel kayıtlardan");
   });
   restore();
 

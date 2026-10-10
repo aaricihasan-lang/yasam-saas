@@ -93,6 +93,33 @@ export function dateTr(v: unknown): string {
   if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}/.test(v)) return DASH;
   return `${v.slice(8, 10)}.${v.slice(5, 7)}.${v.slice(0, 4)}`;
 }
+/**
+ * 9B-P2-02: ANLIK zaman damgası (ISO UTC, ör. analysis_at) → Türkiye takvim günü / saati (Europe/Istanbul).
+ * Kayıt tarihi, kapak ve dosya adı bununla yazılır; DB'deki UTC değer değişmez. (00:00–03:00 TR arasında
+ * kaydedilen analiz artık bir önceki günü göstermez.)
+ */
+const TR_PARTS = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+function trParts(v: unknown): Record<string, string> | null {
+  if (typeof v !== "string") return null;
+  const ms = Date.parse(v);
+  if (!Number.isFinite(ms)) return null;
+  return Object.fromEntries(TR_PARTS.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+}
+/** ISO anı → "GG.AA.YYYY" (Türkiye saati). */
+export function instantDateTr(v: unknown): string {
+  const p = trParts(v);
+  return p ? `${p.day}.${p.month}.${p.year}` : DASH;
+}
+/** ISO anı → "YYYY-MM-DD" (Türkiye takvim günü; dosya adı için). */
+export function instantDayKeyTr(v: unknown): string | null {
+  const p = trParts(v);
+  return p ? `${p.year}-${p.month}-${p.day}` : null;
+}
+/** ISO anı → "GG.AA.YYYY SS:DD (TSİ)". */
+const instantTr = (v: unknown) => {
+  const p = trParts(v);
+  return p ? `${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute} (TSİ)` : DASH;
+};
 /** ISO UTC → "GG.AA.YYYY SS:DD UTC" */
 const utcTr = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v) ? `${dateTr(v)} ${v.slice(11, 16)} UTC` : dateTr(v));
 /** Ofsetsiz yerel "YYYY-MM-DDTHH:MM…" → "GG.AA.YYYY SS:DD" */
@@ -941,7 +968,8 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   // 9. Bilgi Bankası (analize kaydedilmiş snapshot)
   const kb = arr(a.knowledgeBank).filter((e) => typeof e.body === "string" || typeof e.title === "string");
   b.h(1, "Bilgi Bankası");
-  if (!kb.length) b.p("Bu analize kaydedilmiş Bilgi Bankası içeriği yok.", "muted");
+  if (!kb.length) b.p("Bu analizle eşleşen güncel Bilgi Bankası kaydınız yok.", "muted");
+  else b.p("Bilgi Bankası içeriği uzmanın güncel kayıtlarından alınmıştır (analize kopyalanmaz).", "muted");
   for (const e of kb) {
     b.h(3, `${s(e.title)}${typeof e.topicLabel === "string" ? ` · ${e.topicLabel}` : ""}`);
     if (typeof e.body === "string") b.p(e.body);
@@ -962,19 +990,19 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   b.h(1, "Kayıt bilgisi");
   b.kv([
     ["Analiz kimliği", a.id],
-    ["Kayıt tarihi", dateTr(a.analysisAt)],
-    ["Hesap tarihi", utcTr(v.resultComputedAt)],
+    ["Kayıt tarihi", instantTr(a.analysisAt)],
+    ["Hesap tarihi", instantTr(v.resultComputedAt)],
     ["Hesap motoru", typeof v.provider === "string" ? (v.provider === "roxy" ? "RoxyAPI" : v.provider) : DASH],
     ["Snapshot şeması", s(v.snapshotSchema)],
   ]);
-  b.p("Bu rapor, kaydedildiği andaki değişmez analiz kaydından üretilmiştir; rapor oluşturulurken yeni hesaplama yapılmaz.", "muted");
+  b.p("Harita ve teknik sonuçlar kaydedildiği andaki değişmez analiz kaydından, uzman notları kayıt anındaki hâlinden, Bilgi Bankası açıklamaları uzmanın güncel kayıtlarından alınmıştır; rapor oluşturulurken yeni hesaplama yapılmaz.", "muted");
 
-  const date = dateTr(a.analysisAt);
+  const date = instantDateTr(a.analysisAt);
   return {
     title: s(a.title),
     cover: { client: clientName, analysisDate: date, tradition: TRADITION_LABEL[tradition], technique: techLabel, options: optionSummary },
     blocks: b.blocks,
-    fileBase: `Astroloji-${asciiSlug(clientName, 40)}-${asciiSlug(techLabel, 40)}-${a.analysisAt.slice(0, 10)}`,
+    fileBase: `Astroloji-${asciiSlug(clientName, 40)}-${asciiSlug(techLabel, 40)}-${instantDayKeyTr(a.analysisAt) ?? "tarihsiz"}`,
     hasInterpretation: interpVisible,
     hasChart: !!chart,
   };

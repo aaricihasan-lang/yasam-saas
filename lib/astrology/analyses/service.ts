@@ -24,18 +24,19 @@ import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { resolveInterpretationVisibility } from "../access/entitlements";
 import { getTechnique, parseNoteContext, type TechniqueId } from "../engine/techniques";
 import { ASTRO_NOT_READY, buildSelectionView, loadProfileRevision, planSelections, type EngineCtx, type ServiceResponse } from "../engine/service";
-import { findTenantClient, getProfile, getResultById, isSchemaMissing, isUuid, logAstroDbError, type ResultRow, type RevisionRow } from "../persistence/repo";
+import { findTenantClient, getProfile, getResultById, isSchemaMissing, isUuid, logAstroDbError, recordCapOf, recordCapResponse, type ResultRow, type RevisionRow } from "../persistence/repo";
 import { matchKbEntries, publicKbEntry } from "../kb/service";
 import { isSectionKeyForTechnique, topicLabelAny, topicsForTechnique, traditionOfTechnique } from "../topics/index";
 import { TRADITIONS, type Tradition } from "../topics/western";
 import { publicRevision } from "../view/natalView";
-import { ASTRO_MAX_KB_SNAPSHOT_BYTES } from "../limits";
 import type { TechniqueView } from "../view/techniqueView";
 
 assertServerOnly("lib/astrology/analyses/service");
 
 export const ANALYSIS_SNAPSHOT_SCHEMA = "astro.analysis.v2";
 export const TOPIC_TAXONOMY_VERSION = "western-topics-2";
+/** 9B-P2-01: Bilgi Bankası analizde saklanmaz, açılışta uzmanın güncel kayıtlarından eşleştirilir. */
+export const KB_STORAGE_MODE = "live-v1";
 
 const fail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): ServiceResponse => ({
   status,
@@ -260,6 +261,8 @@ export async function saveExpertNote(ctx: EngineCtx, raw: unknown): Promise<Serv
       .single();
     if (error) {
       if (error.code === "23505") return fail(409, "NOTE_REVISION_CONFLICT", "Bu not bu arada oluşturulmuş. Yenileyip tekrar deneyin.");
+      const cap = recordCapOf(error);
+      if (cap) return recordCapResponse(cap);
       return dbFail("note.insert", error);
     }
     return { status: 201, body: { ok: true, note: publicNote(data as NoteRow) } };
@@ -294,6 +297,7 @@ type SnapshotBundle = {
   includeInterp: boolean;
   interpSnapshot: Record<string, unknown> | null;
   kbSnapshot: ReturnType<typeof kbSnapshotEntry>[];
+  kbMatchCount: number;
   versionsSnapshot: Record<string, unknown>;
   notes: { section_key: string; body: string }[];
   topicCount: number;
@@ -355,11 +359,6 @@ async function buildSnapshot(ctx: EngineCtx, raw: unknown, ownerPreviewHideInter
   if (kb.error) return { ok: false, r: dbFail("snap.kb", kb.error) };
   const notes = await loadNotes(ctx, revision.profile_id, technique, contextKeyOf(technique, l.v.options, partnerRevision));
   if (notes.error) return { ok: false, r: dbFail("snap.notes", notes.error) };
-  // 9A-P2-03: analize kopyalanacak Bilgi Bankası snapshot'ı DB sınırından (2 MB) önce anlaşılır biçimde reddedilir (eskiden 500).
-  const kbBytes = Buffer.byteLength(JSON.stringify(kb.rows.map(publicKbEntry).map(kbSnapshotEntry)), "utf8");
-  if (kbBytes > ASTRO_MAX_KB_SNAPSHOT_BYTES) {
-    return { ok: false, r: fail(413, "KB_SNAPSHOT_TOO_LARGE", `Bu analize eşleşen Bilgi Bankası içeriği çok büyük (${Math.ceil(kbBytes / 1024)} KB; sınır ${Math.floor(ASTRO_MAX_KB_SNAPSHOT_BYTES / 1024)} KB). Bu konulara bağlı uzun kayıtları kısaltın veya bölün.`) };
-  }
 
   const client = await clientRef(ctx, l.v.clientId);
   if (!client.ok) return client;
@@ -406,9 +405,13 @@ async function buildSnapshot(ctx: EngineCtx, raw: unknown, ownerPreviewHideInter
       technicalSnapshot: view.technical,
       includeInterp,
       interpSnapshot,
-      kbSnapshot: kb.rows.map(publicKbEntry).map(kbSnapshotEntry),
+      // 9B-P2-01 (owner kararı): genel Bilgi Bankası metinleri analize KOPYALANMAZ; analiz açılırken / rapor üretilirken
+      // uzmanın GÜNCEL Bilgi Bankası'ndan eşleştirilir (getAnalysis). Danışana özel notlar ayrı tabloya kopyalanmaya devam eder.
+      kbSnapshot: [],
+      kbMatchCount: kb.rows.length,
       versionsSnapshot: {
         snapshotSchema: ANALYSIS_SNAPSHOT_SCHEMA,
+        kbStorage: KB_STORAGE_MODE,
         topicTaxonomy: TOPIC_TAXONOMY_VERSION,
         provider: view.provider,
         providerApiVersion: view.providerApiVersion,
@@ -456,7 +459,7 @@ export async function previewAnalysis(ctx: EngineCtx, raw: unknown, ownerPreview
         resultComputedAt: v.versionsSnapshot.resultComputedAt,
         partCount: v.resultIds.length,
         topicCount: v.topicCount,
-        kbMatchCount: v.kbSnapshot.length,
+        kbMatchCount: v.kbMatchCount,
         noteCount: v.notes.length,
         providerInterpIncluded: v.includeInterp,
         timeUnknownMasked: v.methodSnapshot.timeUnknownMasked,
@@ -494,6 +497,8 @@ export async function saveAnalysis(ctx: EngineCtx, raw: unknown, ownerPreviewHid
   });
   if (error) {
     if (/ASTRO_PROFILE_NOT_FOUND/.test(String((error as { message?: string }).message ?? ""))) return fail(404, "PROFILE_NOT_FOUND", "Doğum profili bulunamadı.");
+    const cap = recordCapOf(error);
+    if (cap) return recordCapResponse(cap);
     return dbFail("analysis.save", error);
   }
   const d = data as { analysis_id?: unknown; reused?: unknown } | null;
@@ -522,7 +527,6 @@ type AnalysisRow = {
   technical_snapshot: Record<string, unknown>;
   provider_interp_included: boolean;
   provider_interp_snapshot: Record<string, unknown> | null;
-  kb_snapshot: unknown[];
   versions_snapshot: Record<string, unknown>;
   created_at: string;
 };
@@ -627,7 +631,7 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
   if (!isUuid(id)) return fail(404, "ANALYSIS_NOT_FOUND", "Analiz bulunamadı.");
   // Aşama 7C: Roxy yorum yetkisi yoksa yorum snapshot kolonu DB'den HİÇ okunmaz (yanıtta da yok).
   const cols =
-    "id, profile_id, profile_revision, partner_profile_id, partner_profile_revision, client_id, technique, title, event_kind, analysis_at, technique_params, profile_snapshot, method_snapshot, technical_snapshot, provider_interp_included, kb_snapshot, versions_snapshot, created_at" +
+    "id, profile_id, profile_revision, partner_profile_id, partner_profile_revision, client_id, technique, title, event_kind, analysis_at, technique_params, profile_snapshot, method_snapshot, technical_snapshot, provider_interp_included, versions_snapshot, created_at" +
     (ctx.entitlements.providerInterpretations ? ", provider_interp_snapshot" : "");
   const { data, error } = await ctx.db
     .from("astro_analyses")
@@ -641,6 +645,11 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
   if (!a) return fail(404, "ANALYSIS_NOT_FOUND", "Analiz bulunamadı.");
   const notesRes = await ctx.db.from("astro_analysis_notes").select("section_key, body").eq("tenant_id", ctx.tenantId).eq("analysis_id", id).limit(500);
   if (notesRes.error) return dbFail("analysis.notes", notesRes.error);
+  // 9B-P2-01: Bilgi Bankası = uzmanın GÜNCEL kayıtları (tenant + uzman kapsamlı; silinen kayıt gelmez). Eski analizlerdeki
+  // kopya (kb_snapshot) OKUNMAZ. Sağlayıcı çağrısı yok; kayıtlı teknik sonuçtan konu anahtarları çıkarılır.
+  const topics = topicsForTechnique(a.technique, a.technical_snapshot);
+  const kbLive = await matchKbEntries(ctx, traditionOfTechnique(a.technique), topics.map((t) => t.key));
+  if (kbLive.error) return dbFail("analysis.kb", kbLive.error);
 
   let interpretation: Record<string, unknown>;
   // Aşama 7C: GÜNCEL yetki ÖNCE. Yetkisiz uzmana kayıtta yorum olup olmadığı bile söylenmez
@@ -676,8 +685,9 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
         profile: a.profile_snapshot,
         method: a.method_snapshot,
         technical: a.technical_snapshot,
-        topics: topicsForTechnique(a.technique, a.technical_snapshot),
-        knowledgeBank: a.kb_snapshot,
+        topics,
+        knowledgeBank: kbLive.rows.map(publicKbEntry).map(kbSnapshotEntry),
+        knowledgeBankSource: "live",
         notes: ((notesRes.data as { section_key: string; body: string }[] | null) ?? []).map((n) => ({
           sectionKey: n.section_key,
           sectionLabel: sectionLabel(n.section_key),

@@ -10,7 +10,9 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroFetch } from "../_lib/api";
+import { houseSystemLabel } from "../_lib/techniques";
 import { KbEditor, KbEntryCard, type KbEntry } from "./KnowledgeBankPanel";
 
 type Topic = { key: string; kind: string; label: string };
@@ -314,7 +316,8 @@ export default function AnalysisWorkspace({
                 </dd>
                 <dt className="text-slate-500">Yöntem</dt>
                 <dd>
-                  {shownSummary.s.zodiac === "sidereal" ? (shownSummary.s.technique.startsWith("kp.") ? "Sidereal (KP)" : "Sidereal (nirayana)") : "Tropikal"} · {shownSummary.s.houseSystem ?? "ev sistemi yok"} · düğüm: {shownSummary.s.nodeType ?? "—"} · sağlayıcı: {shownSummary.s.provider}
+                  {shownSummary.s.zodiac === "sidereal" ? (shownSummary.s.technique.startsWith("kp.") ? "Sidereal (KP)" : "Sidereal (nirayana)") : "Tropikal"} · {houseSystemLabel(shownSummary.s.houseSystem, HOUSE_SYSTEM_LABELS)}
+                  {shownSummary.s.nodeType === "true" || shownSummary.s.nodeType === "mean" ? ` · ${NODE_TYPE_LABELS[shownSummary.s.nodeType]}` : ""} · hesap motoru: {shownSummary.s.provider === "roxy" ? "RoxyAPI" : shownSummary.s.provider}
                 </dd>
                 <dt className="text-slate-500">Bilgi Bankası</dt>
                 <dd>

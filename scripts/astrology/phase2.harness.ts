@@ -272,8 +272,11 @@ async function main() {
     assert.deepEqual(row.technical_snapshot, JSON.parse(JSON.stringify(goldenTech)));
     assert.ok(JSON.stringify(row.provider_interp_snapshot).includes(goldenNarr[0]), "D katmanı");
     assert.ok(!JSON.stringify(row.technical_snapshot).includes(goldenNarr[0]), "C'de yorum");
-    assert.ok(!JSON.stringify(row.kb_snapshot).includes(goldenNarr[0]), "F'de yorum");
-    assert.deepEqual((row.kb_snapshot as { topicKey: string; body: string; sourceNote: string }[]).map((x) => [x.topicKey, x.body, x.sourceNote]), [[SAT_KEY, "KB notu A", "Kitap Y"]]);
+    // 9B-P2-01 (owner kararı): genel Bilgi Bankası analize KOPYALANMAZ (F katmanı açılışta güncel kayıtlardan).
+    assert.deepEqual(row.kb_snapshot, [], "F katmanı kopyalanmamalı");
+    const opened = ((await getAnalysis(ctx, row.id as string, false)).body as { analysis: { knowledgeBank: { topicKey: string; body: string; sourceNote: string }[] } }).analysis;
+    assert.deepEqual(opened.knowledgeBank.map((x) => [x.topicKey, x.body, x.sourceNote]), [[SAT_KEY, "KB notu A", "Kitap Y"]]);
+    assert.ok(!JSON.stringify(opened.knowledgeBank).includes(goldenNarr[0]), "F'de yorum");
     assert.deepEqual(store.tables.astro_analysis_notes.map((n) => [n.section_key, n.body]), [["overall", "Ali yorumu v1"]]);
     const v = row.versions_snapshot as Record<string, unknown>;
     assert.equal(v.provider, "roxy");
@@ -283,7 +286,7 @@ async function main() {
     assert.equal(rx.calls.length, calls0, "kaydetme sağlayıcıyı çağırdı");
   });
 
-  await t("değişmez: KB değişir + not değişir + profil revize edilir → eski analiz AYNEN; yeni analiz yeni hali kullanır", async () => {
+  await t("değişmez: not değişir + profil revize edilir → eski analiz AYNEN (teknik, not, revizyon); Bilgi Bankası (9B-P2-01) eski ve yeni analizde GÜNCEL", async () => {
     const store = seed();
     const ctx = ctxOf(store);
     const pid = await profile(ctx);
@@ -298,7 +301,7 @@ async function main() {
     await appendAstroRevision(ctx, pid, { expectedRevision: 1, birthDate: "1990-07-15", birthTime: "14:45", timeKnown: true, timeAccuracy: "rectified", locationId: ISTANBUL.id }, resolveLoc);
     const g = await getAnalysis(ctx, aid, false);
     const a = (g.body as { analysis: { knowledgeBank: { body: string }[]; notes: { body: string }[]; profile: { revision: { revision: number; birthTime: string } } } }).analysis;
-    assert.equal(a.knowledgeBank[0].body, "A");
+    assert.equal(a.knowledgeBank[0].body, "B", "Bilgi Bankası güncel kayıtlardan (owner kararı 9B)");
     assert.equal(a.notes[0].body, "çalışma notu v1");
     assert.equal(a.profile.revision.revision, 1);
     assert.equal(a.profile.revision.birthTime.slice(0, 5), "14:30");
@@ -308,8 +311,8 @@ async function main() {
     const a2 = (g2.body as { analysis: { knowledgeBank: { body: string }[]; notes: { body: string }[] } }).analysis;
     assert.equal(a2.knowledgeBank[0].body, "B");
     assert.equal(a2.notes[0].body, "çalışma notu v2");
-    // Eski analiz hâlâ A.
-    assert.equal(((await getAnalysis(ctx, aid, false)).body as { analysis: { knowledgeBank: { body: string }[] } }).analysis.knowledgeBank[0].body, "A");
+    // Eski analizin notu hâlâ v1 (danışana özel not kayıt anındaki hâliyle korunur).
+    assert.equal(((await getAnalysis(ctx, aid, false)).body as { analysis: { notes: { body: string }[] } }).analysis.notes[0].body, "çalışma notu v1");
   });
 
   await t("Roxy yetkisi: kayıtta yorum var → açarken owner görür; önizleme/yetkisiz → içerik YOK; KB+not her durumda var", async () => {

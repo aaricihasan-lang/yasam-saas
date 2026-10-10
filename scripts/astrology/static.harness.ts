@@ -233,6 +233,9 @@ async function main() {
       /^supabase\/migrations\/20271101000300_astrology_owner_isolation\.sql$/,
       /^supabase\/migrations\/20271101000400_astrology_client_list\.sql$/,
       /^supabase\/migrations\/20271101000500_astrology_profile_delete\.sql$/,
+      // 9B P2 kapatma: atomik kayıt tavanı + eski Bilgi Bankası kopyalarının güvenli temizliği (yalnız yerel).
+      /^supabase\/migrations\/20271101000600_astrology_record_caps\.sql$/,
+      /^supabase\/migrations\/20271101000700_astrology_kb_snapshot_cleanup\.sql$/,
       /^app\/admin\/layout\.tsx$/,
       /^lib\/backup\/ownerPilotTables\.ts$/,
       /^lib\/backup\/schema\.generated\.ts$/,
@@ -253,6 +256,8 @@ async function main() {
       /^ASTROLOGY-PHASE8-PROGRESS\.md$/,
       /^ASTROLOGY-PHASE9A-AUDIT\.md$/,
       /^ASTROLOGY-PHASE9A-P2-PROGRESS\.md$/,
+      /^ASTROLOGY-PHASE9B-AUDIT\.md$/,
+      /^ASTROLOGY-PHASE9B-P2-PROGRESS\.md$/,
       // Aşama 8: rapor route'larının font dosyası izleme kaydı — fark ayrıca satır satır sınırlanır.
       /^next\.config\.ts$/,
       // Aşama 7C: uzman yüzeyi (sayfa + API aynası) ve mevcut yetki sistemine Astroloji kayıtları.

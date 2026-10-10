@@ -10,7 +10,7 @@
 
 import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
-import { isSchemaMissing, isUuid, logAstroDbError } from "../persistence/repo";
+import { isSchemaMissing, isUuid, logAstroDbError, recordCapOf, recordCapResponse } from "../persistence/repo";
 import { TRADITIONS, type Tradition } from "../topics/western";
 import { isKnownTopicKind, parseAnyTopicKey, topicLabelAny } from "../topics";
 import type { EngineCtx, ServiceResponse } from "../engine/service";
@@ -155,7 +155,10 @@ export async function createKb(ctx: EngineCtx, raw: unknown): Promise<ServiceRes
     })
     .select(COLUMNS)
     .single();
-  if (error) return dbFail("kb.create", error);
+  if (error) {
+    const cap = recordCapOf(error);
+    return cap ? recordCapResponse(cap) : dbFail("kb.create", error);
+  }
   return { status: 201, body: { ok: true, entry: publicKbEntry(data as KbRow) } };
 }
 

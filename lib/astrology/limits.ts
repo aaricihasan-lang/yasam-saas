@@ -4,17 +4,19 @@
 // arası paylaşılan) + kayıt sayısı tavanı. Tek kaydın boyutu zaten DB CHECK'leriyle sınırlı (KB/not gövdesi 20 000
 // karakter, analiz teknik ≤1 MB · KB snapshot ≤2 MB · yorum ≤1 MB, etiket 120/200 karakter).
 //
-// Gerekçe (ölçüm 2026-10-09): kayıtlı analizin teknik katmanı ort. ~11 KB (en büyük forecast ~27 KB), yorum katmanı
-// ≤ ~100 KB (sinastri); prod DB 128,5 MB / Supabase Free 500 MB; "dolu" bir uzman diğer modüllerde ≈122 MB.
+// Gerekçe — GERÇEK PostgreSQL ölçümü (9B P2 kapatma, 2026-10-10; tablo + TOAST + indeks, sıkıştırma dahil):
+//   9B'den itibaren genel Bilgi Bankası analize KOPYALANMAZ (açılışta güncel kayıtlardan eşleşir) → kayıtlı analiz
+//   ≈ 14 KB (gerçek natal teknik + Roxy yorumu + sürüm); 1000 analiz ≈ 13,9 MB, 3000 analiz ≈ 41,6 MB.
+//   Eski yapıda KB kopyası satırı 17 KB (tipik) – 60 KB (yoğun) – 465 KB'a (en fazla) çıkarıyordu.
+//   Prod DB 128,5 MB / Supabase Free 500 MB; "dolu" bir uzman diğer modüllerde ≈122 MB.
 // Tavanlar normal profesyonel kullanımın çok üstünde, kötüye kullanımın büyüme hızını ve üst sınırını keser:
 //   • yazma hızı: uzman başına 10 dakikada 120 yazma (dakikada ~12; elle kullanım dakikada birkaç yazma üretir),
-//   • kayıtlı analiz: günde 200 (yoğun gün: ~10 danışan × ~5 analiz = 50), toplam 3000,
-//   • doğum profili 2000 (7B: 231 profil sayfalı listede sorunsuz), Bilgi Bankası 1000 kayıt, danışan notu 10000.
-// En kötü durum (kötüye kullanım, tavanlar dolu): analiz 3000 × ~60 KB ≈ 180 MB'a ancak ≥15 günde ulaşılabilir
-// (günlük 200 tavanı) → owner'ın fark etme ve müdahale süresi var; KB 1000 × 20 000 karakter ≈ 20–40 MB.
+//   • kayıtlı analiz: günde 200 (yoğun gün: ~10 danışan × ~5 analiz = 50) → ≈ 2,8 MB / gün; toplam 3000 (≈ 42 MB),
+//   • doğum profili 2000 (7B: 231 profil sayfalı listede sorunsuz), Bilgi Bankası 1000 kayıt (≤ ~30 MB), not 10000.
 // Okuma, güncelleme ve SİLME tavanlardan etkilenmez → uzman kendi kayıtlarına her zaman erişir ve yer açabilir.
-// Eşzamanlılık: oran limiti DB'de atomiktir; sayı tavanı "say → ekle" olduğundan eşzamanlı isteklerle en çok
-// oran limiti penceresindeki eşzamanlı istek kadar aşılabilir (≤ birkaç kayıt) — kalıcı büyümeyi değiştirmez.
+// Eşzamanlılık: oran limiti DB'de atomiktir. Sayı tavanının buradaki kontrolü hızlı ve anlaşılır ilk kapıdır; KESİN
+// sınırı migration 000600 trigger'ı uygular (sayım + ekleme aynı işlemde, uzman başına advisory kilit → aşım 0;
+// cap-concurrency.mjs: 40 eşzamanlı bağlantıda 1 başarı). İki taraftaki değerler statik testle eşit tutulur.
 
 import "server-only";
 import { NextResponse } from "next/server";
@@ -39,9 +41,6 @@ export const ASTRO_RECORD_CAPS = Object.freeze({
   kbEntries: 1000,
   notes: 10000,
 });
-
-/** Tek bir analize kopyalanan Bilgi Bankası snapshot'ının üst sınırı (DB CHECK 2 MB'ın altında, anlaşılır hata için). */
-export const ASTRO_MAX_KB_SNAPSHOT_BYTES = 1_500_000;
 
 export type AstroWriteKind = "profile_create" | "profile_revision" | "kb_create" | "kb_update" | "note_save" | "analysis_save";
 

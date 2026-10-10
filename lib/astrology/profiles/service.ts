@@ -18,6 +18,8 @@ import {
   isUuid,
   listRevisions,
   logAstroDbError,
+  recordCapOf,
+  recordCapResponse,
 } from "../persistence/repo";
 import { publicRevision } from "../view/natalView";
 import { listProfilePage } from "../clients/service";
@@ -113,7 +115,10 @@ export async function createAstroProfile(ctx: EngineCtx, rawBody: unknown, resol
   }
 
   const r = await createProfileRpc(ctx.db, ctx.tenantId, ctx.userId, clientId, label, birth.value);
-  if (r.error) return dbFail("profiles.create", r.error);
+  if (r.error) {
+    const cap = recordCapOf(r.error);
+    return cap ? recordCapResponse(cap) : dbFail("profiles.create", r.error);
+  }
   if (!r.profileId) return fail(500, "DB_ERROR", "Profil oluşturulamadı.");
   return getAstroProfileDetail(ctx, r.profileId).then((d) => ({ ...d, status: d.status === 200 ? 201 : d.status }));
 }

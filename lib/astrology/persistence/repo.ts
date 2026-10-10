@@ -36,6 +36,22 @@ function assertOwner(tenantId: string, ownerUserId: string, ctx: string): void {
 export type DbErr = { code?: string; message?: string } | null | undefined;
 
 /** Tablo/fonksiyon yok (migration uygulanmamış) mı? */
+/**
+ * 9B-P3-01: migration 000600 kayıt tavanı trigger'ı (ASTRO_RECORD_CAP:<tablo>:<tavan>) → uygulamada 409.
+ * Eşzamanlı isteklerle uygulama katmanındaki sayım aşılsa bile DB son sözü söyler.
+ */
+export function recordCapOf(err: DbErr): { table: string; cap: number } | null {
+  const m = /ASTRO_RECORD_CAP:([a-z_]+):(\d+)/.exec(String((err as { message?: unknown } | null | undefined)?.message ?? ""));
+  return m ? { table: m[1], cap: Number(m[2]) } : null;
+}
+const CAP_LABEL: Record<string, string> = { astro_birth_profiles: "doğum profili", astro_analyses: "kayıtlı analiz", astro_kb_entries: "Bilgi Bankası kaydı", astro_expert_notes: "danışan notu" };
+export function recordCapResponse(c: { table: string; cap: number }): { status: number; body: Record<string, unknown> } {
+  return {
+    status: 409,
+    body: { ok: false, code: "RECORD_CAP_REACHED", error: `${c.cap} ${CAP_LABEL[c.table] ?? "kayıt"} sınırına ulaşıldı. Yeni kayıt için kullanılmayanları silin veya yöneticinizle görüşün.`, cap: c.cap },
+  };
+}
+
 export function isSchemaMissing(err: DbErr): boolean {
   if (!err) return false;
   return (
