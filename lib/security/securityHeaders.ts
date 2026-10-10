@@ -14,8 +14,10 @@
  *   - NOT (object-src): Hacamat rapor sayfası PDF önizlemesini `<object data="blob:…">`
  *     ile gösterir (app/cosmic-calendar/hacamat/report). `object-src 'none'` bu önizlemeyi
  *     kırar → 'self' blob: (eklenti/Flash/dış kaynak yine yasak).
- *   - 'unsafe-inline' (script/style) bilinçli olarak KORUNUR; nonce + 'strict-dynamic'
- *     geçişi satış sonrası ayrı iştir.
+ *   - 'unsafe-inline' (script/style) normal trafikte bilinçli olarak KORUNUR.
+ *   - CSP NONCE C1-v2: DOKÜMAN CSP'si TEK KAYNAKTAN proxy'de üretilir (Vercel'de next.config CSP'si
+ *     render'ın okuduğu istek başlığını ezer — vercel/next.js#99360). next.config CSP'yi yalnız
+ *     proxy'nin çalışmadığı yollara (API, statik, prefetch/RSC) uygular.
  *
  * Android WebView uygulamayı üst seviye yükler (iframe DEĞİL) → frame-ancestors 'self' ve
  * X-Frame-Options SAMEORIGIN WebView'ı etkilemez.
@@ -79,24 +81,23 @@ function joinDirectives(directives: Array<[string, ReadonlyArray<string>]>): str
   return directives.map(([name, values]) => (values.length ? `${name} ${values.join(" ")}` : name)).join("; ");
 }
 
-/** Tam izin listeli, zorunlu (enforced) CSP değeri. */
-export function buildEnforcedCsp(opts: SecurityHeaderOptions = {}): string {
+/** CSP raporlarının gönderildiği uç (yalnız nonce'lu canary politikasında). */
+export const CSP_REPORT_PATH = "/api/security/csp-report";
+
+/** Next nonce kalıbı (base64 karakterleri) — üretilen nonce bu kalıba uymalı. */
+export const CSP_NONCE_RE = /^[A-Za-z0-9+/]{16,}={0,2}$/;
+
+/** Ortak direktif listesi; yalnız script-src (ve opsiyonel ekler) politikaya göre değişir. */
+function cspDirectives(
+  opts: SecurityHeaderOptions,
+  scriptSrc: ReadonlyArray<string>,
+  extra: Array<[string, ReadonlyArray<string>]> = [],
+): Array<[string, ReadonlyArray<string>]> {
   const sb = supabaseOrigins(opts.supabaseUrl);
   const self = "'self'";
-  return joinDirectives([
+  return [
     ["default-src", [self]],
-    [
-      "script-src",
-      [
-        self,
-        // Next.js App Router hidrasyon script'leri + next/script inline'ları (nonce yok).
-        "'unsafe-inline'",
-        ...(opts.isDev ? ["'unsafe-eval'"] : []),
-        ...GA_SCRIPT_HOSTS,
-        ...VERCEL_SCRIPT_HOSTS,
-        VERCEL_LIVE,
-      ],
-    ],
+    ["script-src", scriptSrc],
     // ~200 inline style kullanımı (style={{…}}) → 'unsafe-inline' şart.
     ["style-src", [self, "'unsafe-inline'"]],
     ["img-src", [self, "data:", "blob:", ...sb.https, ...GA_IMG_HOSTS, VERCEL_LIVE, "https://vercel.com"]],
@@ -116,7 +117,56 @@ export function buildEnforcedCsp(opts: SecurityHeaderOptions = {}): string {
     ["frame-ancestors", [self]],
     ["base-uri", [self]],
     ["form-action", [self]],
-  ]);
+    ...extra,
+  ];
+}
+
+/** Tam izin listeli, zorunlu (enforced) CSP değeri — normal trafik (production ile aynı). */
+export function buildEnforcedCsp(opts: SecurityHeaderOptions = {}): string {
+  return joinDirectives(
+    cspDirectives(opts, [
+      "'self'",
+      // Next.js App Router hidrasyon script'leri + next/script inline'ları (nonce yok).
+      "'unsafe-inline'",
+      ...(opts.isDev ? ["'unsafe-eval'"] : []),
+      ...GA_SCRIPT_HOSTS,
+      ...VERCEL_SCRIPT_HOSTS,
+      VERCEL_LIVE,
+    ]),
+  );
+}
+
+/**
+ * CSP NONCE C1-v2 — canary (zorunlu) politika. Normal politikayla AYNI izin listesi; yalnız
+ * script-src: 'unsafe-inline' YOK, istek nonce'u + 'strict-dynamic' VAR. Host'lar CSP2 tarayıcılar
+ * için geri dönüş olarak kalır ('strict-dynamic' destekleyen tarayıcı onları yok sayar).
+ * style-src 'unsafe-inline' KORUNUR (stil nonce'u bu fazın kapsamı dışında). İhlaller report-uri'ye.
+ */
+export function buildNonceCsp(nonce: string, opts: SecurityHeaderOptions = {}): string {
+  if (!CSP_NONCE_RE.test(nonce)) throw new Error("invalid csp nonce");
+  return joinDirectives(
+    cspDirectives(
+      opts,
+      [
+        "'self'",
+        `'nonce-${nonce}'`,
+        "'strict-dynamic'",
+        ...(opts.isDev ? ["'unsafe-eval'"] : []),
+        ...GA_SCRIPT_HOSTS,
+        ...VERCEL_SCRIPT_HOSTS,
+        VERCEL_LIVE,
+      ],
+      [["report-uri", [CSP_REPORT_PATH]]],
+    ),
+  );
+}
+
+/**
+ * CSP NONCE C1-v2 — CSP'siz güvenlik başlıkları. DOKÜMAN isteklerinde CSP'yi proxy üretir
+ * (tek kaynak); next.config yalnız bunları tüm yollara uygular.
+ */
+export function buildBaseSecurityHeaders(): HeaderEntry[] {
+  return buildSecurityHeaders().filter((h) => h.key !== "Content-Security-Policy");
 }
 
 /** Tüm rotalara uygulanacak güvenlik başlıkları. */
