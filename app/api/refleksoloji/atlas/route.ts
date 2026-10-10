@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
-import { ATLAS_STALE_ERROR, decideAtlasPut } from "@/lib/refleksoloji/atlasSyncCore";
+import { ATLAS_STALE_ERROR, carryOverHandBuckets, decideAtlasPut } from "@/lib/refleksoloji/atlasSyncCore";
 import { validateAtlasPayload } from "@/lib/refleksoloji/atlasValidate";
 import { sameJsonContent } from "@/lib/refleksoloji/usageChange";
 import { trackUsage } from "@/lib/usage/trackUsage";
@@ -104,7 +104,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
     );
   }
 
-  const document = body.document as Record<string, unknown>;
+  const incomingDocument = body.document as Record<string, unknown>;
   const organList = Array.isArray(body.organ_list)
     ? body.organ_list.filter((o): o is string => typeof o === "string")
     : [];
@@ -124,6 +124,13 @@ export async function PUT(req: NextRequest): Promise<Response> {
   if (curErr) {
     return jsonServerError("atlas.PUT.read", curErr, { usage: { guard, req, failedAction: "record_updated", subEntity: "atlas" } });
   }
+
+  // El yüzeyleri: el bucket'larını bilmeyen eski istemci PUT'u sunucudaki el bölgelerini
+  // SİLMESİN (eski normalize yalnız 3 ayak bucket'ı yazar). Yeni istemci belgesi aynen geçer.
+  const document = carryOverHandBuckets(
+    cur ? (cur as { document: unknown }).document : null,
+    incomingDocument,
+  );
 
   const decision = decideAtlasPut({
     current: cur

@@ -10,6 +10,8 @@
  *   - decideAtlasPut: sunucu PUT kararı (satır varken expected null → 409; dolu
  *     belgeyi boşla değiştirme → 409, allow_empty yoksa).
  *   - Eski (v1, sahipsiz) atlas sınıflandırma + açık onaylı içe aktarma.
+ *   - carryOverHandBuckets: el yüzeylerini tanımayan ESKİ istemcinin PUT'u el
+ *     bölgelerini sessizce silmesin (sunucu tarafı koruma).
  */
 
 import { isOrganEntryLike, markOrganUpserted, normOrgan, type AtlasDocLike } from "./atlasMerge";
@@ -73,6 +75,54 @@ export function atlasOrganKeys(document: unknown): string[] {
   if (!document || typeof document !== "object") return [];
   const d = document as Record<string, unknown>;
   return Object.keys(d).filter((k) => k !== "_meta" && isOrganEntryLike(d[k]));
+}
+
+// ─── El yüzeyleri: eski istemci koruması ─────────────────────────────────────
+
+export const HAND_VIEW_KEYS = ["el_avuc", "el_sirt"] as const;
+
+function bucketHasRegions(bucket: unknown): boolean {
+  if (!bucket || typeof bucket !== "object") return false;
+  const b = bucket as Record<string, unknown>;
+  return (Array.isArray(b.sol) && b.sol.length > 0) || (Array.isArray(b.sag) && b.sag.length > 0);
+}
+
+/**
+ * El yüzeylerini (el_avuc / el_sirt) bilmeyen ESKİ istemci tam belgeyi PUT ettiğinde
+ * organ girdilerinde bu anahtarlar HİÇ bulunmaz (eski normalize yalnız 3 ayak bucket'ı
+ * yazar). Yeni istemci ise her organda iki anahtarı da (boş olsa bile) DAİMA yazar.
+ * Bu yüzden: gelen organ girdisinde iki el anahtarı da YOKSA → bu eski istemci imzasıdır;
+ * sunucudaki aynı organın dolu el bucket'ları korunur. Anahtar VARSA (boş dizi dahil)
+ * gelen değer kazanır (yeni istemcinin bilinçli silmesi). Organ tamamen düşmüşse
+ * (mezar taşı akışı) dokunulmaz. SAF: girdileri değiştirmez; değişiklik yoksa aynı nesne.
+ */
+export function carryOverHandBuckets(
+  currentDocument: unknown,
+  incomingDocument: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!currentDocument || typeof currentDocument !== "object") return incomingDocument;
+  const current = currentDocument as Record<string, unknown>;
+  const currentByNorm = new Map<string, Record<string, unknown>>();
+  for (const key of atlasOrganKeys(current)) {
+    const norm = normOrgan(key);
+    if (norm && !currentByNorm.has(norm)) currentByNorm.set(norm, current[key] as Record<string, unknown>);
+  }
+
+  let out: Record<string, unknown> | null = null;
+  for (const key of atlasOrganKeys(incomingDocument)) {
+    const entry = incomingDocument[key] as Record<string, unknown>;
+    if (HAND_VIEW_KEYS.some((v) => v in entry)) continue; // yeni istemci → gelen kazanır
+    const cur = currentByNorm.get(normOrgan(key));
+    if (!cur) continue;
+    const carried: Record<string, unknown> = {};
+    for (const v of HAND_VIEW_KEYS) {
+      if (bucketHasRegions(cur[v])) carried[v] = JSON.parse(JSON.stringify(cur[v]));
+    }
+    if (Object.keys(carried).length === 0) continue;
+    out ??= { ...incomingDocument };
+    out[key] = { ...entry, ...carried };
+  }
+  return out ?? incomingDocument;
 }
 
 /** Belgede organ VEYA organ listesinde ad var mı. */

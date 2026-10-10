@@ -15,7 +15,15 @@ export type OrganSummary = {
   hasRight: boolean;
   footLabel: string;
   viewLabel: string;
+  /** El yüzeylerinde (avuç içi / el sırtı) bölge varsa "Sol el" / "Sağ el" / "Her iki el"; yoksa null. */
+  handLabel: string | null;
 };
+
+const HAND_VIEWS: readonly FootView[] = ["el_avuc", "el_sirt"];
+
+function isHandView(view: FootView): boolean {
+  return HAND_VIEWS.includes(view);
+}
 
 function isOrganEntry(value: unknown): value is AtlasOrganEntry {
   if (typeof value !== "object" || value === null) return false;
@@ -33,11 +41,19 @@ export function buildFootLabel(hasLeft: boolean, hasRight: boolean): string {
   return "—";
 }
 
-export function buildViewLabel(hasTaban: boolean, hasYan: boolean): string {
-  if (hasTaban && hasYan) return "Taban · Yan";
-  if (hasTaban) return "Taban";
-  if (hasYan) return "Yan";
-  return "—";
+export function buildHandLabel(hasLeft: boolean, hasRight: boolean): string | null {
+  if (hasLeft && hasRight) return "Her iki el";
+  if (hasLeft) return "Sol el";
+  if (hasRight) return "Sağ el";
+  return null;
+}
+
+export function buildViewLabel(hasTaban: boolean, hasYan: boolean, hasEl = false): string {
+  const parts: string[] = [];
+  if (hasTaban) parts.push("Taban");
+  if (hasYan) parts.push("Yan");
+  if (hasEl) parts.push("El");
+  return parts.length ? parts.join(" · ") : "—";
 }
 
 export function buildOrganSummary(atlas: AtlasDocument, organName: string): OrganSummary {
@@ -57,8 +73,15 @@ export function buildOrganSummary(atlas: AtlasDocument, organName: string): Orga
       bucketHasRegions(entry, "yan_dis", "sag");
   }
 
-  const hasLeft = regions.some((r) => r.footSide === "left");
-  const hasRight = regions.some((r) => r.footSide === "right");
+  // "Ayak" etiketi yalnız ayak görünümlerinden; el bölgeleri ayrı "El" etiketine gider.
+  const footRegions = regions.filter((r) => !isHandView(r.view));
+  const handRegions = regions.filter((r) => isHandView(r.view));
+  const hasLeft = footRegions.some((r) => r.footSide === "left");
+  const hasRight = footRegions.some((r) => r.footSide === "right");
+  const handLabel = buildHandLabel(
+    handRegions.some((r) => r.footSide === "left"),
+    handRegions.some((r) => r.footSide === "right"),
+  );
 
   return {
     name: organName,
@@ -68,7 +91,8 @@ export function buildOrganSummary(atlas: AtlasDocument, organName: string): Orga
     hasLeft,
     hasRight,
     footLabel: buildFootLabel(hasLeft, hasRight),
-    viewLabel: buildViewLabel(hasTaban, hasYan),
+    viewLabel: buildViewLabel(hasTaban, hasYan, handRegions.length > 0),
+    handLabel,
   };
 }
 
@@ -76,11 +100,14 @@ export function buildAllOrganSummaries(atlas: AtlasDocument): OrganSummary[] {
   return listOrganNamesFromAtlas(atlas).map((name) => buildOrganSummary(atlas, name));
 }
 
-export function footSideLabel(side: FootSide): string {
+export function footSideLabel(side: FootSide, view?: FootView): string {
+  if (view && isHandView(view)) return side === "left" ? "Sol el" : "Sağ el";
   return side === "left" ? "Sol ayak" : "Sağ ayak";
 }
 
 export function viewLabel(view: FootView): string {
+  if (view === "el_avuc") return "Avuç İçi";
+  if (view === "el_sirt") return "El Sırtı";
   return view === "taban" ? "Taban" : "Yan";
 }
 
@@ -94,6 +121,8 @@ export function shapeLabel(shape: Region["shape"]): string {
       return "Manuel";
     case "thick_line":
       return "Çizgi";
+    case "point":
+      return "Nokta";
     default:
       return shape;
   }

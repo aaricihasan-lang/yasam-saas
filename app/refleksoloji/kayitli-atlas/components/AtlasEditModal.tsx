@@ -223,7 +223,7 @@ export function AtlasEditModal({
                       <div className="min-w-0">
                         <p className="text-base font-bold text-slate-900">
                           {shapeLabel(region.shape)} · {viewLabel(region.view)} ·{" "}
-                          {footSideLabel(region.footSide)}
+                          {footSideLabel(region.footSide, region.view)}
                         </p>
                         <p className="mt-1 font-mono text-sm font-medium text-slate-600">
                           {regionCoordSummary(region)}

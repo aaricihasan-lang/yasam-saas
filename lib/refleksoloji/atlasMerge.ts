@@ -134,7 +134,9 @@ export function organEntriesEqual(a: unknown, b: unknown): boolean {
 type OrganSlot = { key: string; entry: Record<string, unknown> };
 type RegionSlot = { view: string; foot: string; region: Record<string, unknown>; sig: string };
 
-const CANONICAL_VIEWS = ["taban", "yan_ic", "yan_dis"] as const;
+// El yüzeyleri de canonical: birleşik girdi her zaman 5 bucket taşır (regionIndex zaten
+// tüm bucket'ları gezer; bu liste yalnız boş bucket iskeletini belirler).
+const CANONICAL_VIEWS = ["taban", "yan_ic", "yan_dis", "el_avuc", "el_sirt"] as const;
 const FEET = ["sol", "sag"] as const;
 
 /** Organ girdisindeki bölgeler (id → görünüm/ayak + içerik imzası). İlk görülen id kazanır. */
