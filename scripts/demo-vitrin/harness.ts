@@ -199,17 +199,18 @@ async function main(): Promise<void> {
   ok(page.includes("visibleTabs.map((tab) =>") && !/<Tab label=\{t\("tab\./.test(page), "sekme çubuğu kayıttan render edilir (hard-coded <Tab> yok)");
   for (const t of tabs.CLIENT_DETAIL_TABS) ok(page.includes(`openedTabs.has("${t}")`), `sekme paneli mevcut: ${t}`);
   ok(tabs.resolveClientDetailTab("ucretlendirme") === "ucretlendirme", "DEMO-07 ?tab=ucretlendirme → Ücretlendirme");
-  const withYh = tabs.visibleClientDetailTabs((k) => perms.hasModulePermission(demoU, k)).map((t) => t.id);
-  const noYh = tabs.visibleClientDetailTabs((k) => perms.hasModulePermission(expert({ clients: true }, false), k)).map((t) => t.id);
-  ok(withYh.length === 12 && withYh.includes("hafiza") && withYh.includes("beslenme") && withYh.includes("anamnez") && withYh.includes("ucretlendirme"),
-    "demo (YH izinli) 12 sekme görür", withYh);
+  const withYh = tabs.visibleClientDetailTabs(tabs.clientTabGateFor(demoU)).map((t) => t.id);
+  const noYh = tabs.visibleClientDetailTabs(tabs.clientTabGateFor(expert({ clients: true }, false))).map((t) => t.id);
+  // Sayılar güncel kayıtla hizalı: +humandesign (AŞAMA 3C) + refleksoloji (Danışan Haritası) → tam set 14.
+  ok(withYh.length === 14 && withYh.includes("hafiza") && withYh.includes("beslenme") && withYh.includes("anamnez") && withYh.includes("ucretlendirme") && withYh.includes("refleksoloji"),
+    "demo (YH + HD + refleksoloji izinli) 14 sekme görür", withYh);
   ok(!noYh.includes("hafiza") && noYh.length === 11, "DEMO-03 YH izni olmayan uzman YH sekmesini GÖRMEZ", noYh);
   ok(tabs.visibleClientDetailTabs(null).every((t) => t.id !== "hafiza"), "izin henüz yüklenmedi → YH sekmesi fail-closed gizli");
-  ok(tabs.resolveClientDetailTab("hafiza", tabs.visibleClientDetailTabs((k) => perms.hasModulePermission(expert({ clients: true }, false), k))) === "genel",
+  ok(tabs.resolveClientDetailTab("hafiza", tabs.visibleClientDetailTabs(tabs.clientTabGateFor(expert({ clients: true }, false)))) === "genel",
     "izinsiz uzman ?tab=hafiza → genel");
   ok(page.includes('openedTabs.has("hafiza") && canSeeTab("hafiza")'), "YH paneli izin olmadan render edilmez");
-  ok(tabs.visibleClientDetailTabs((k) => perms.hasModulePermission(expert({}, false) as never, k)).length === 11 &&
-     tabs.visibleClientDetailTabs(() => true).length === 12, "admin/izinli = 12, izinsiz = 11");
+  ok(tabs.visibleClientDetailTabs(tabs.clientTabGateFor(expert({}, false) as never)).length === 11 &&
+     tabs.visibleClientDetailTabs(() => true).length === 14, "admin/izinli = 14, izinsiz = 11");
   ok(Object.values(CLIENT_MODULE_DETAIL_TAB).every((t) => (tabs.CLIENT_DETAIL_TABS as readonly string[]).includes(t)), "YH deep-link sekmeleri kayıtta");
 
   section("A6 Demo istemci salt-okunur kapısı (UX katmanı)");

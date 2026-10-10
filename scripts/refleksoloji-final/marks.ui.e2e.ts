@@ -83,7 +83,7 @@ async function renderedMarks(page: Page) {
 
 async function main() {
   const env = await startAnamnezTestEnv({
-    port: 54418, dirName: "rf-marks-ui-pgdata", httpPort: 54321,
+    port: 54440 + (process.pid % 400), dirName: `rf-marks-ui-pgdata-${process.pid}`, httpPort: 54321,
     extraSql: [
       mig("20260705120000_reflexology_notes_atlas.sql"),
       mig("20260924200817_reflexology_protocols_baseline_and_uid_unique.sql"),
@@ -379,6 +379,56 @@ async function main() {
     ok((await su.query(`select note from public.reflexology_mark_sessions where id=$1`, [S])).rows[0].note === "ZZ seans notu: sol omuz gerginliği", "seans notu kaydedildi");
 
     // ── ESKİ KAYITLAR (A/S) — tenant atlası etkilenmedi ──────────────────────
+    // ── DANIŞAN DETAY → REFLEKSOLOJİ SEKMESİ ─────────────────────────────────
+    console.log("\n[Danışan detay → Refleksoloji sekmesi]");
+    const { a1, a2, b1 } = seed.clients;
+    await su.query(
+      `insert into public.reflexology_mark_sessions(tenant_id, client_id, session_date, title) values ($1,$2,'2026-10-09','ZZ_RF B danisan seansi')`,
+      [seed.TA, a2],
+    );
+    await w.goto(`${APP}/dashboard/clients/${a1}`);
+    const rfTabBtn = w.locator("#tab-refleksoloji");
+    await rfTabBtn.waitFor({ timeout: 60_000 });
+    ok(await rfTabBtn.isVisible(), "web: danışan detayında Refleksoloji sekmesi görünür");
+    await rfTabBtn.click();
+    const rfPanel = w.locator("#tabpanel-refleksoloji");
+    await rfPanel.getByText("ZZ_RF mobil seans").waitFor({ timeout: 30_000 });
+    ok(!(await rfPanel.getByText("ZZ_RF B danisan seansi").count()), "A danışanı sekmesinde B danışanının seansı YOK");
+    await shot(w, "w06-client-detail-rf-tab");
+    await rfPanel.getByRole("link", { name: "Haritayı Aç" }).first().click();
+    await w.waitForURL(/\/refleksoloji\/danisan-haritasi\?client=/);
+    const u = new URL(w.url());
+    ok(u.searchParams.get("client") === a1 && u.searchParams.get("session") === S, "doğru client_id + session ile açıldı", w.url());
+    await w.locator('svg[role="group"]').waitFor();
+    ok((await w.getByRole("heading", { name: "Danışan seçin" }).count()) === 0, "tekrar danışan seçtirilmedi");
+    await w.goBack();
+    await w.waitForURL(new RegExp(`/dashboard/clients/${a1}\\?tab=refleksoloji`));
+    await w.locator("#tab-refleksoloji").waitFor();
+    ok((await w.locator("#tab-refleksoloji").getAttribute("aria-selected")) === "true", "tarayıcı geri → danışan detayında Refleksoloji sekmesi açık");
+    await w.locator("#tabpanel-refleksoloji").getByRole("link", { name: "Yeni İşaret Seansı" }).click();
+    await w.getByRole("button", { name: "Seansı başlat" }).waitFor();
+    const nameShown = await w.getByRole("heading", { name: "ZZ Ayşe YILMAZ" }).waitFor({ timeout: 15_000 }).then(() => true, () => false);
+    ok(new URL(w.url()).searchParams.get("client") === a1 && nameShown, "Yeni seans: danışan context'i taşındı (ad başlıkta)");
+    await w.goto(`${APP}/dashboard/clients/${a2}?tab=refleksoloji`);
+    const panelB = w.locator("#tabpanel-refleksoloji");
+    await panelB.getByText("ZZ_RF B danisan seansi").waitFor({ timeout: 30_000 });
+    ok(!(await panelB.getByText("ZZ_RF mobil seans").count()), "B danışanı sekmesinde A danışanının seansı YOK");
+    await w.goto(`${APP}/refleksoloji/danisan-haritasi?client=${b1}`);
+    await w.getByText("Danışan bulunamadı.").waitFor({ timeout: 30_000 });
+    // Kasıtlı yabancı-tenant denemesinin 404'ü BEKLENEN → beklenmeyen API hataları listesinden çıkar.
+    const foreign404 = apiErrors.filter((e) => e.startsWith("404 GET") && e.includes(b1));
+    ok(foreign404.length >= 1, "başka tenant'ın danışanı URL'den açılamaz (sunucu 404 → Danışan bulunamadı)");
+    apiErrors.splice(0, apiErrors.length, ...apiErrors.filter((e) => !e.includes(b1)));
+    await m.goto(`${APP}/dashboard/clients/${a1}?tab=refleksoloji`);
+    await m.locator("#tabpanel-refleksoloji").getByText("ZZ_RF mobil seans").waitFor({ timeout: 60_000 });
+    for (const vw of [360, 390, 412]) {
+      await m.setViewportSize({ width: vw, height: 800 });
+      await sleep(300);
+      const tb = await m.locator("#tab-refleksoloji").boundingBox();
+      ok((await noHScroll(m)) && !!tb && tb.x >= 0 && tb.x + tb.width <= vw + 1, `mobil ${vw}px: sekme çubuğu taşmıyor, Refleksoloji sekmesi ekranda`);
+    }
+    await shot(m, "m08-client-detail-rf-tab");
+
     console.log("\n[Eski kayıt uyumu]");
     await w.goto(`${APP}/refleksoloji/kayitli-atlas`);
     await w.getByText("ZZ Karaciğer").first().waitFor({ timeout: 60_000 });

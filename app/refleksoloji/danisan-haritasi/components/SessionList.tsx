@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { istanbulToday } from "@/lib/danisan/istanbulTime";
 import { SESSION_TITLE_MAX, type MarkSession } from "@/lib/refleksoloji/markSurfaces";
 import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
-import { MarksApiError, createSession, deleteSession, listSessions } from "../lib/marksApi";
+import { MarksApiError, createSession, deleteSession, listSessions } from "@/lib/refleksoloji/marksClient";
 
 function formatDate(iso: string): string {
   const [y, m, d] = iso.split("-");

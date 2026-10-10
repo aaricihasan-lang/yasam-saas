@@ -13,7 +13,16 @@
  * Not: sekme id'leri clientSources.CLIENT_MODULE_DETAIL_TAB değerleriyle hizalı olmalıdır
  * (harness cross-check ile zorlanır).
  */
-import type { ModulePermissionKey } from "@/lib/auth/modulePermissions";
+import { hasModulePermission, type ModulePermissionKey } from "@/lib/auth/modulePermissions";
+import { resolveModuleAccess } from "@/lib/auth/moduleAccessCore";
+import type { YasamUser } from "@/lib/auth/yasamUser";
+
+/**
+ * Sekme kapısı anahtarı: temel izin anahtarları + sunucu modül kapısı olarak var olan ama
+ * temel izin listesinde (ModulePermissionKey) bulunmayan modüller. "reflexology" kararı
+ * sayfada sunucu guard'ı ile AYNI saf resolver'la (moduleAccessCore.resolveModuleAccess) verilir.
+ */
+export type ClientDetailTabGateKey = ModulePermissionKey | "reflexology";
 
 export type ClientDetailTabDef = {
   readonly id: string;
@@ -24,7 +33,7 @@ export type ClientDetailTabDef = {
    * Sekmeyi görmek için gereken EK modül izni (Danışan Yolculuğu = `clients` izni sayfa
    * route'unda zaten zorunlu). Yoksa sekme her yetkili kullanıcıya görünür.
    */
-  readonly requiresModule?: ModulePermissionKey;
+  readonly requiresModule?: ClientDetailTabGateKey;
 };
 
 export const CLIENT_DETAIL_TAB_DEFS = [
@@ -44,6 +53,9 @@ export const CLIENT_DETAIL_TAB_DEFS = [
   // AŞAMA 3C: danışana bağlı Human Design analiz geçmişi (özet + "Analizi Aç"). Yalnız human_design
   // izni olan kullanıcıya görünür; veri HD'de kalır (kopyalanmaz).
   { id: "humandesign", labelKey: "humandesign", color: "#4338ca", requiresModule: "human_design" },
+  // Refleksoloji Danışan Haritası: bu danışanın işaret seansları (özet + "Haritayı Aç"). Yalnız
+  // reflexology izniyle görünür; veri Refleksoloji'de kalır, harita orada açılır (danışan seçtirmeden).
+  { id: "refleksoloji", labelKey: "refleksoloji", color: "#7e22ce", requiresModule: "reflexology" },
   // Owner kararı 2026-10-07: uzman önce değerlendirir (analiz/seans/ödev/taş/beslenme), randevuyu SONRA
   // planlar → Randevular Beslenme'den sonra. Yalnız SIRA değişti; id/?tab=/içerik aynı.
   { id: "randevular", labelKey: "randevular", color: "#db2777" },
@@ -69,13 +81,29 @@ export function isClientDetailTab(value: unknown): value is ClientDetailTab {
  * fail-closed GİZLİ kalır.
  */
 export function visibleClientDetailTabs(
-  canUseModule: ((key: ModulePermissionKey) => boolean) | null,
+  canUseModule: ((key: ClientDetailTabGateKey) => boolean) | null,
 ): ClientDetailTabDef[] {
   return CLIENT_DETAIL_TAB_DEFS.filter((t) => {
     const req = (t as ClientDetailTabDef).requiresModule;
     if (!req) return true;
     return canUseModule ? canUseModule(req) : false;
   });
+}
+
+/**
+ * Sayfa + harness ORTAK sekme kapısı (tek karar): temel izinler `hasModulePermission`;
+ * "reflexology" sunucu requireModuleAccess("reflexology") ile AYNI saf resolver.
+ */
+export function clientTabGateFor(
+  user: Pick<YasamUser, "role" | "module_permissions" | "is_demo_account"> | null | undefined,
+): ((key: ClientDetailTabGateKey) => boolean) | null {
+  if (!user) return null;
+  return (key) =>
+    key === "reflexology"
+      ? resolveModuleAccess(user.role, user.module_permissions ?? null, "reflexology", {
+          isDemo: user.is_demo_account === true,
+        })
+      : hasModulePermission(user as YasamUser, key);
 }
 
 /**

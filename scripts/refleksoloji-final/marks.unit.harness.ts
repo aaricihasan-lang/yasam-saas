@@ -24,6 +24,7 @@ import {
   type MarkSide,
   type MarkSurface,
 } from "../../lib/refleksoloji/markSurfaces";
+import { clientTabGateFor, visibleClientDetailTabs } from "../../lib/danisan/clientDetailTabs";
 
 let pass = 0;
 let fail = 0;
@@ -178,7 +179,7 @@ ok(/touchAction: "manipulation"/.test(canvas) && /touchAction: "none"/.test(canv
 ok(/MIN_HIT_PX = 22/.test(canvas), "dokunma alanı ≥ 44 CSS px");
 ok(/<clipPath id=\{clipId\}>/.test(canvas) && /clipPath=\{`url\(#\$\{clipId\}\)`\}/.test(canvas), "zemin viewBox'a kırpılır (ayak PNG'sinin diğer yarısı görünmez)");
 ok(/getScreenCTM\(\)/.test(canvas) && !/naturalWidth|getBoundingClientRect\(\)\.left/.test(canvas), "koordinat SVG CTM ile (görsel yüklenme/piksel bağımlılığı yok)");
-const api = read("app/refleksoloji/danisan-haritasi/lib/marksApi.ts");
+const api = read("lib/refleksoloji/marksClient.ts");
 ok(/reflexUserHeaders\(\)/.test(api), "istemci kimlik başlığı reflexUserHeaders (HTTPONLY H5)");
 
 // H5: refleksoloji içinde koşulsuz/boş token başlığı kalmadı.
@@ -201,6 +202,31 @@ ok(!/[yY]üz(?!ey)/.test(menu), "hub menüsünde yüz vaadi yok");
 ok(menu.includes('href: "/refleksoloji/danisan-haritasi"'), "ana menüde Danışan Haritası kartı");
 ok(read("lib/danisan/deletePreview.ts").includes('table: "reflexology_marks"'), "danışan silme önizlemesi yeni tabloları sayar");
 ok(read("lib/backup/registry.ts").includes('entry("reflexology_marks"'), "yedek kaydı yeni tabloları içerir");
+
+// ─── 7. Danışan detay Refleksoloji sekmesi ─────────────────────────────────────
+section("7. Danışan detay sekmesi");
+const tabsSrc = read("lib/danisan/clientDetailTabs.ts");
+ok(/\{ id: "refleksoloji", labelKey: "refleksoloji", color: "#[0-9a-f]{6}", requiresModule: "reflexology" \}/.test(tabsSrc), "sekme kaydı: refleksoloji (reflexology izni)");
+const detailPage = read("app/dashboard/clients/[id]/page.tsx");
+ok(detailPage.includes('openedTabs.has("refleksoloji") && canSeeTab("refleksoloji")') && detailPage.includes("<ReflexologyTab clientId={client.id} />"), "panel yalnız izinliye; danışan id sayfadan (tekrar seçtirme yok)");
+ok(detailPage.includes("visibleClientDetailTabs(clientTabGateFor(permUser))"), "sayfa ortak kapı yardımcısını kullanır");
+const tabIds = (u: Parameters<typeof clientTabGateFor>[0]) => visibleClientDetailTabs(clientTabGateFor(u)).map((t) => t.id);
+ok(tabIds({ role: "expert", module_permissions: { clients: true, reflexology: true } as never, is_demo_account: false }).includes("refleksoloji"), "izinli uzman sekmeyi görür");
+ok(!tabIds({ role: "expert", module_permissions: { clients: true, reflexology: false } as never, is_demo_account: false }).includes("refleksoloji"), "refleksoloji izni olmayan uzman GÖRMEZ");
+ok(tabIds({ role: "admin", module_permissions: {} as never, is_demo_account: false }).includes("refleksoloji"), "admin görür");
+ok(!visibleClientDetailTabs(null).some((t) => t.id === "refleksoloji"), "izin yüklenmeden fail-closed gizli");
+const rfTab = read("app/dashboard/clients/[id]/components/ReflexologyTab.tsx");
+ok(rfTab.includes("/refleksoloji/danisan-haritasi?client=${encodeURIComponent(clientId)}"), "harita bağlantısı ?client=<bu danışan>");
+ok(/listSessions\(clientId\)/.test(rfTab), "sekme yalnız prop clientId ile okur (sunucu tenant doğrular)");
+ok(/RECENT_LIMIT = 10/.test(rfTab), "son 10 seans + tümünü göster");
+
+// ─── 8. Yaşam Hafızası — entegrasyon YOK (owner kararı bekliyor) ──────────────
+section("8. Yaşam Hafızası");
+const clientSrc = read("lib/yasam-hafizasi/client/clientSources.ts");
+ok(!/reflexology_mark/.test(clientSrc), "danışan hafızası kaynaklarında refleksoloji tablosu YOK (6 kaynak kilidi korunur)");
+const matrix = read("lib/yasam-hafizasi/moduleSourceMatrix.ts");
+ok(/moduleKey: "refleksoloji"[\s\S]{0,200}clientSourceKeys: \[\]/.test(matrix), "matris: refleksoloji clientSourceKeys boş");
+ok(!/yh_cdc_enqueue|yh_client_outbox_enqueue/.test(sqlNoComments), "koordinat tablolarında YH tetikleyicisi yok → x/y indekslenemez");
 
 console.log(`\nSONUÇ: ${pass} PASS / ${fail} FAIL`);
 if (fail > 0) {

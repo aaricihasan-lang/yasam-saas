@@ -43,7 +43,8 @@
         "yolculuk": "✦ Client Journey",
         "hafiza": "🧠 Life Memory",
         "beslenme": "🥗 Nutrition",
-        "humandesign": "🧬 Human Design"
+        "humandesign": "🧬 Human Design",
+        "refleksoloji": "🦶 Reflexology"
       },
       "yh": {
         "selectButton": "🧠 Select from Life Memory"
@@ -328,6 +329,18 @@
         "kindEngine": "Legacy engine",
         "kindManual": "Manual (legacy)",
         "profileLink": "Open Human Design profile"
+      },
+      "rf": {
+        "title": "Reflexology Client Map",
+        "subtitle": "Foot and hand marking sessions for this client.",
+        "loading": "Loading...",
+        "error": "Reflexology sessions could not be loaded.",
+        "notReady": "Reflexology Client Map is not active yet.",
+        "empty": "No reflexology marking sessions for this client yet.",
+        "newSession": "New Marking Session",
+        "open": "Open Map",
+        "points": "{count} points",
+        "showAll": "Show all ({count})"
       }
     }
   }

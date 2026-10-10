@@ -4,8 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useTranslations } from "next-intl";
 import { formatDateTimeAbsolute } from "@/lib/i18n/format";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { resolveClientDetailTab, visibleClientDetailTabs } from "@/lib/danisan/clientDetailTabs";
-import { hasModulePermission } from "@/lib/auth/modulePermissions";
+import { clientTabGateFor, resolveClientDetailTab, visibleClientDetailTabs } from "@/lib/danisan/clientDetailTabs";
 import { installDemoReadOnlyFetchGuard, DEMO_READONLY_MESSAGE } from "@/lib/demo/demoReadOnlyFetchGuard";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
@@ -60,6 +59,7 @@ const AnalizlerTab = dynamic(() => import("./components/AnalizlerTab"), { loadin
 const YolculukTab = dynamic(() => import("./components/YolculukTab"), { loading: TabSkeleton, ssr: false });
 const ClientMemoryTab = dynamic(() => import("./components/ClientMemoryTab"), { loading: TabSkeleton, ssr: false });
 const HumanDesignTab = dynamic(() => import("./components/HumanDesignTab"), { loading: TabSkeleton, ssr: false });
+const ReflexologyTab = dynamic(() => import("./components/ReflexologyTab"), { loading: TabSkeleton, ssr: false });
 const BeslenmeTab = dynamic(() => import("./components/BeslenmeTab"), { loading: TabSkeleton, ssr: false });
 const AnamnezTab = dynamic(() => import("./components/AnamnezTab"), { loading: TabSkeleton, ssr: false });
 const MemoryPicker = dynamic(() => import("@/components/yasam-hafizasi/MemoryPicker"), { ssr: false });
@@ -250,7 +250,7 @@ function ClientDetailPageInner() {
     return () => { alive = false; };
   }, []);
   const visibleTabs = useMemo(
-    () => visibleClientDetailTabs(permUser ? (key) => hasModulePermission(permUser, key) : null),
+    () => visibleClientDetailTabs(clientTabGateFor(permUser)),
     [permUser],
   );
   const canSeeTab = useCallback((id: string) => visibleTabs.some((tab) => tab.id === id), [visibleTabs]);
@@ -1262,6 +1262,11 @@ function ClientDetailPageInner() {
           {openedTabs.has("humandesign") && canSeeTab("humandesign") && (
           <div role="tabpanel" id="tabpanel-humandesign" aria-labelledby="tab-humandesign" hidden={activeTab !== "humandesign"}>
             <HumanDesignTab clientId={client.id} />
+          </div>
+          )}
+          {openedTabs.has("refleksoloji") && canSeeTab("refleksoloji") && (
+          <div role="tabpanel" id="tabpanel-refleksoloji" aria-labelledby="tab-refleksoloji" hidden={activeTab !== "refleksoloji"}>
+            <ReflexologyTab clientId={client.id} />
           </div>
           )}
           {openedTabs.has("beslenme") && (

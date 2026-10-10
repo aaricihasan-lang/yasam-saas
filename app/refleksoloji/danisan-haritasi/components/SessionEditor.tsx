@@ -35,7 +35,7 @@ import {
   newSourceUid,
   patchMark,
   updateSession,
-} from "../lib/marksApi";
+} from "@/lib/refleksoloji/marksClient";
 import { MarkCanvas, type CanvasMark } from "./MarkCanvas";
 
 const chip =

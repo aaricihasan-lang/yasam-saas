@@ -43,7 +43,8 @@
         "yolculuk": "✦ Danışan Yolculuğu",
         "hafiza": "🧠 Yaşam Hafızası",
         "beslenme": "🥗 Beslenme",
-        "humandesign": "🧬 Human Design"
+        "humandesign": "🧬 Human Design",
+        "refleksoloji": "🦶 Refleksoloji"
       },
       "yh": {
         "selectButton": "🧠 Yaşam Hafızası'ndan Seç"
@@ -328,6 +329,18 @@
         "kindEngine": "Eski motor",
         "kindManual": "Manuel (eski)",
         "profileLink": "Human Design profilini aç"
+      },
+      "rf": {
+        "title": "Refleksoloji Danışan Haritası",
+        "subtitle": "Bu danışanın ayak ve el işaret seansları.",
+        "loading": "Yükleniyor...",
+        "error": "Refleksoloji seansları yüklenemedi.",
+        "notReady": "Refleksoloji Danışan Haritası henüz etkin değil.",
+        "empty": "Bu danışan için henüz refleksoloji işaret seansı yok.",
+        "newSession": "Yeni İşaret Seansı",
+        "open": "Haritayı Aç",
+        "points": "{count} nokta",
+        "showAll": "Tümünü göster ({count})"
       }
     }
   }
