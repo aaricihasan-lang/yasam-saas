@@ -363,6 +363,9 @@ export function projectRoxySolarArc(raw: unknown, opts: { nodeType: NodeType; ta
   const aspects: SolarArcAspect[] = [];
   for (const dp of directed) {
     for (const np of directed) {
+      // Bir noktanın KENDİ natal konumuna "açısı" anlamsızdır (tüm noktalar aynı yay kadar ilerler → yaşa göre
+      // hepsi aynı anda 30/60/90° "açı" yapar); bu eşleşmeler listelenmez.
+      if (np.id === dp.id) continue;
       for (const type of SOLAR_ARC_MAJOR) {
         const orb = Math.abs(angularDistance(dp.directedLongitude, np.natalLongitude) - ASPECT_EXACT[type]);
         if (orb <= SOLAR_ARC_ORB) aspects.push({ directed: dp.id, natal: np.id, type, orb: Math.round(orb * 1e4) / 1e4 });

@@ -1031,6 +1031,40 @@ async function main() {
     assert.ok(SIGN_IDS.length === 12);
   });
 
+  // ═══ 2026-10-11 — Roxy nakshatra `key` biçim değişikliği (canlı doğrulamada bulundu) ═══════════════════
+  // Golden kayıtlar 0-tabanlı (0–26); Roxy resmi belgesi ve 2026-10-11 canlı yanıtları 1-tabanlı (1–27). Dizin boylamdan
+  // türetilir; iki biçim de kabul edilir, ad/anahtar ÇELİŞKİSİ reddedilir (sessiz yanlış nakshatra yok).
+  const shiftKeys = (raw: J, delta: number): J => {
+    const c = JSON.parse(JSON.stringify(raw));
+    const walk = (o: J) => {
+      if (!o || typeof o !== "object") return;
+      if (o.nakshatra && typeof o.nakshatra === "object" && typeof o.nakshatra.key === "number") o.nakshatra.key += delta;
+      for (const v of Object.values(o)) walk(v as J);
+    };
+    walk(c);
+    return c;
+  };
+  await t("2026-10 Roxy 1-tabanlı nakshatra anahtarı: D1 ve D9 kabul edilir, teknik veri 0-tabanlı golden ile BİREBİR aynı", () => {
+    const old1 = projectRoxyVedicD1(D1.response, { ayanamsa: "lahiri" }) as J;
+    const new1 = projectRoxyVedicD1(shiftKeys(D1.response, 1), { ayanamsa: "lahiri" }) as J;
+    assert.ok(new1.ok, JSON.stringify(new1.errors));
+    assert.deepEqual(new1.technical, old1.technical);
+    const old9 = projectRoxyVedicVarga(D9.response, { ayanamsa: "lahiri", division: 9 }) as J;
+    const new9 = projectRoxyVedicVarga(shiftKeys(D9.response, 1), { ayanamsa: "lahiri", division: 9 }) as J;
+    assert.ok(new9.ok, JSON.stringify(new9.errors));
+    assert.deepEqual(new9.technical, old9.technical);
+  });
+  await t("2026-10 nakshatra çelişkisi reddedilir: anahtar ±2 kayık ya da ad başka nakshatrayı gösteriyor → PROVIDER_INVALID_RESPONSE", () => {
+    const bad = projectRoxyVedicD1(shiftKeys(D1.response, 2), { ayanamsa: "lahiri" }) as J;
+    assert.equal(bad.ok, false);
+    assert.ok(bad.errors.some((e: string) => /nakshatra\.key boylamla uyuşmuyor \(sağlayıcı/.test(e)), JSON.stringify(bad.errors));
+    const wrongName = JSON.parse(JSON.stringify(D1.response));
+    wrongName.meta.Sun.nakshatra.name = "Ardra"; // golden Güneş = Punarvasu
+    const bn = projectRoxyVedicD1(wrongName, { ayanamsa: "lahiri" }) as J;
+    assert.equal(bn.ok, false);
+    assert.ok(bn.errors.some((e: string) => /meta\.Sun\.nakshatra\.name boylamla uyuşmuyor/.test(e)), JSON.stringify(bn.errors));
+  });
+
   console.log(`\nastrology phase5 harness: ${pass} PASS / ${fail} FAIL`);
   if (fail > 0) process.exit(1);
 }

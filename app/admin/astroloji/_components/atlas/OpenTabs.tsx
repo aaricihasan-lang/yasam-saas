@@ -28,6 +28,7 @@ export default function OpenTabs({
   fails,
   onRetry,
   onCheck,
+  tone = "dark",
 }: {
   tabs: OpenTab[];
   active: string | null;
@@ -38,7 +39,10 @@ export default function OpenTabs({
   onRetry: (technique: string) => void;
   /** Ücretsiz durum kontrolü (yalnız önbellek; sağlayıcı çağrılmaz). */
   onCheck?: (failKey: string) => void;
+  /** "light": sade aydınlık çalışma masası (Natal) için açık renkli sekmeler. */
+  tone?: "dark" | "light";
 }) {
+  const L = tone === "light";
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [failOpen, setFailOpen] = useState(false);
   const failRef = useRef<HTMLDivElement | null>(null);
@@ -74,16 +78,22 @@ export default function OpenTabs({
 
   return (
     <div className="flex min-w-0 items-center gap-2" data-testid="astro-result-tabs">
-      <span className="hidden shrink-0 text-[10.5px] font-semibold tracking-[0.16em] text-[#E6CF9F]/80 sm:inline">AÇIK ANALİZLER</span>
+      <span className={`hidden shrink-0 text-[10.5px] font-semibold tracking-[0.16em] sm:inline ${L ? "text-slate-500" : "text-[#E6CF9F]/80"}`}>AÇIK ANALİZLER</span>
       <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-color:rgba(217,181,111,0.35)_transparent] [scrollbar-width:thin]" role="tablist" aria-label="Açık analizler">
-        {tabs.length === 0 && <span className="py-1.5 text-xs text-[#F6F2EA]/50">Açık analiz yok.</span>}
+        {tabs.length === 0 && <span className={`py-1.5 text-xs ${L ? "text-slate-500" : "text-[#F6F2EA]/50"}`}>Açık analiz yok.</span>}
         {tabs.map((t, i) => {
           const on = t.key === active;
           return (
             <span
               key={t.key}
               className={`inline-flex shrink-0 items-center rounded-xl border text-[13px] transition ${
-                on ? "border-[#D9B56F]/60 bg-[linear-gradient(180deg,rgba(52,49,108,0.9),rgba(20,28,64,0.95))] text-[#F6F2EA] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]" : "border-white/10 bg-white/[0.04] text-[#F6F2EA]/75 hover:border-white/25"
+                L
+                  ? on
+                    ? "border-[#0B1430] bg-[#0B1430] text-white"
+                    : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
+                  : on
+                    ? "border-[#D9B56F]/60 bg-[linear-gradient(180deg,rgba(52,49,108,0.9),rgba(20,28,64,0.95))] text-[#F6F2EA] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]"
+                    : "border-white/10 bg-white/[0.04] text-[#F6F2EA]/75 hover:border-white/25"
               }`}
             >
               <button
@@ -108,14 +118,14 @@ export default function OpenTabs({
                   <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-300 align-middle" title="Kaydedilmemiş not" aria-label="kaydedilmemiş not" />
                 )}
               </button>
-              <button type="button" onClick={() => onClose(t.key)} aria-label={`${t.label} sekmesini kapat (kayıt silinmez)`} title="Sekmeyi kapat (kayıt silinmez)" className="mr-1 rounded-md p-1 text-[#F6F2EA]/45 hover:bg-white/10 hover:text-[#F6F2EA]" data-tab-close={t.key}>
+              <button type="button" onClick={() => onClose(t.key)} aria-label={`${t.label} sekmesini kapat (kayıt silinmez)`} title="Sekmeyi kapat (kayıt silinmez)" className={`mr-1 rounded-md p-1 ${L ? (on ? "text-white/60 hover:bg-white/15 hover:text-white" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700") : "text-[#F6F2EA]/45 hover:bg-white/10 hover:text-[#F6F2EA]"}`} data-tab-close={t.key}>
                 <X className="h-3.5 w-3.5" />
               </button>
             </span>
           );
         })}
       </div>
-      <button type="button" onClick={onAdd} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#E6C887]/55 bg-[#D9B56F]/10 px-3 py-1.5 text-[13px] font-medium text-[#F6E7C3] hover:bg-[#D9B56F]/20" data-testid="atlas-add-technique-btn">
+      <button type="button" onClick={onAdd} className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[13px] font-medium ${L ? "border-slate-300 bg-white text-slate-800 hover:border-slate-500" : "border-[#E6C887]/55 bg-[#D9B56F]/10 text-[#F6E7C3] hover:bg-[#D9B56F]/20"}`} data-testid="atlas-add-technique-btn">
         <Plus className="h-3.5 w-3.5" /> <span className="whitespace-nowrap">Teknik Ekle</span>
       </button>
       {fails.length > 0 && (
@@ -124,7 +134,7 @@ export default function OpenTabs({
             type="button"
             aria-expanded={failOpen}
             onClick={() => setFailOpen((v) => !v)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-white/12 bg-white/[0.04] px-2.5 py-1.5 text-[12px] text-[#F6F2EA]/70 hover:border-rose-300/40 hover:text-[#F6F2EA]"
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[12px] ${L ? "border-rose-200 bg-rose-50 text-rose-800 hover:border-rose-300" : "border-white/12 bg-white/[0.04] text-[#F6F2EA]/70 hover:border-rose-300/40 hover:text-[#F6F2EA]"}`}
             data-testid="atlas-fail-indicator"
             title="Başarısız hesaplamalar — başarılı sekmeleri etkilemez"
           >

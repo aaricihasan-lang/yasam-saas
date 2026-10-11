@@ -13,7 +13,7 @@ import { astroDownload, astroFetch } from "../_lib/api";
 import { describeOptions, houseSystemLabel, techniqueLabel, zodiacLabel } from "../_lib/techniques";
 import { TechniqueTechnical, wheelForTechnique } from "./TimingPanels";
 import ProviderInterpretationPanel, { interpretationTitle, type InterpretationLayer } from "./ProviderInterpretationPanel";
-import ResultDesk, { DeskChip, deskGhost, type DeskTab } from "./atlas/ResultDesk";
+import ResultDesk, { DeskChip, deskGhostLight, type DeskTab } from "./atlas/ResultDesk";
 import NatalWheel from "./NatalWheel";
 import NatalTechnicalPanel from "./NatalTechnicalPanel";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
@@ -106,7 +106,10 @@ export function SavedAnalysesList({ profileId, reloadKey, onOpen, openId, curren
   }
 
   const activeGroup = page.groups.find((g) => g.tradition === tradition) ?? null;
-  const chip = (on: boolean) => `rounded-full border px-2.5 py-1 text-xs ${on ? "border-slate-700 bg-slate-800 text-white" : "border-slate-300 bg-white text-slate-700"}`;
+  const chip = (on: boolean) =>
+    `rounded-full border px-3 py-1 text-xs transition ${on ? "border-[#0B1430] bg-[#0B1430] text-[#F6E7C3] shadow-[0_6px_14px_-8px_rgba(11,20,48,0.8)]" : "border-[#d9c9a3] bg-white/80 text-slate-700 hover:border-[#b8954e]"}`;
+  /** Gelenek renk işareti (ana sayfa kart tonlarıyla aynı aile). */
+  const dot = (t: string) => (t.startsWith("vedic.") ? "bg-[#d9a65a]" : t.startsWith("kp.") ? "bg-[#46b3a3]" : "bg-[#9c86e8]");
 
   return (
     <div className="flex flex-col gap-2" data-testid="astro-saved-analyses">
@@ -132,19 +135,29 @@ export function SavedAnalysesList({ profileId, reloadKey, onOpen, openId, curren
           ))}
         </div>
       )}
-      <ul className="flex flex-col gap-1">
+      <div className="overflow-hidden rounded-xl border border-[#e7dcc3] bg-white/70">
+      <div className="hidden grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto_auto] gap-x-3 border-b border-[#efe6d2] bg-[#f6efe0]/70 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8a6d33] sm:grid" aria-hidden="true">
+        <span>Teknik</span>
+        <span>Ayrıntı</span>
+        <span>Kayıt</span>
+        <span>Doğum</span>
+      </div>
+      <ul className="flex flex-col divide-y divide-[#efe6d2]">
         {cur.items.map((a) => (
           <li key={a.id}>
             <button
               type="button"
               onClick={() => onOpen(a.id)}
-              className={`w-full rounded-lg border px-3 py-1.5 text-left text-sm ${openId === a.id ? "border-slate-500 bg-slate-100" : "border-slate-200 bg-white hover:border-slate-400"}`}
+              className={`w-full px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#c9a54e] ${openId === a.id ? "bg-[#f3e7c9]/70" : "hover:bg-[#fbf3e1]"}`}
             >
               {/* Ayrı alanlar: teknik · ayrıntı (hedef tarih / yıl / karşı taraf…) · kayıt tarihi · doğum revizyonu —
                   aynı teknikten farklı tarihli kayıtlar ve eski revizyonla kaydedilenler karışmaz. */}
-              <div className="grid gap-x-3 gap-y-0.5 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)_auto_auto] sm:items-center" data-saved-item={a.id}>
-                <span className="font-medium text-slate-800">{techniqueLabel(a.technique)}</span>
-                <span className="min-w-0 truncate text-xs text-slate-600" title={a.title}>
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 sm:grid sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto_auto] sm:items-center" data-saved-item={a.id}>
+                <span className="flex w-full min-w-0 items-center gap-2 font-medium text-slate-800 sm:w-auto">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${dot(a.technique)}`} aria-hidden="true" />
+                  {techniqueLabel(a.technique)}
+                </span>
+                <span className="min-w-0 max-w-full truncate pl-4 text-xs text-slate-600 sm:pl-0" title={a.title}>
                   {describeOptions(a.technique, a.params, () => a.partnerLabel) || "—"}
                   {a.providerInterpIncluded ? " · sistem yorumu dahil" : ""}
                 </span>
@@ -158,8 +171,9 @@ export function SavedAnalysesList({ profileId, reloadKey, onOpen, openId, curren
           </li>
         ))}
       </ul>
+      </div>
       {page.hasMore && (
-        <button type="button" disabled={more} onClick={() => void loadMore()} className="self-start rounded-lg border border-slate-300 px-3 py-1 text-xs text-slate-700 disabled:opacity-60" data-testid="astro-analyses-more">
+        <button type="button" disabled={more} onClick={() => void loadMore()} className="self-start rounded-lg border border-[#d9c9a3] bg-white/80 px-3 py-1 text-xs text-slate-700 hover:border-[#b8954e] disabled:opacity-60" data-testid="astro-analyses-more">
           {more ? "Yükleniyor…" : `Daha fazla göster (${cur.items.length} / ${page.filteredTotal})`}
         </button>
       )}
@@ -247,6 +261,7 @@ export function SavedAnalysisView({
   return (
     <div data-testid="astro-saved-analysis">
       <ResultDesk
+        variant="light"
         backLabel="Danışan Dosyası"
         onBack={onClose}
         eyebrow="KAYITLI ANALİZ"
@@ -262,6 +277,7 @@ export function SavedAnalysisView({
             {partner ? <>1. kişi: {person(a.profile)} · 2. kişi: {person(partner)}</> : person(a.profile)}
           </span>
         }
+        meta={[zodiacLabel(a.technique), a.method.houseSystem ? houseSystemLabel(a.method.houseSystem, HOUSE_SYSTEM_LABELS) : null, a.method.nodeType ? NODE_TYPE_LABELS[a.method.nodeType] : null, a.method.timeUnknownMasked ? "Saat bilinmiyor · evler gizli" : null]}
         chips={
           <>
             <DeskChip tone="saved">✓ Kaydedildi · değişmez kayıt</DeskChip>
@@ -275,9 +291,9 @@ export function SavedAnalysisView({
         }
         actions={
           <>
-            <ReportButtons id={a.id} previewNoInterp={previewNoInterp} dark />
+            <ReportButtons id={a.id} previewNoInterp={previewNoInterp} />
             {onAddTechnique && (
-              <button type="button" onClick={onAddTechnique} className={deskGhost} title="Bu kayıt değişmez; yeni teknik aynı danışanın çalışma masasında ayrı sekmede açılır." data-testid="atlas-saved-add-technique">
+              <button type="button" onClick={onAddTechnique} className={deskGhostLight} title="Bu kayıt değişmez; yeni teknik aynı danışanın çalışma masasında ayrı sekmede açılır." data-testid="atlas-saved-add-technique">
                 + Teknik Ekle
               </button>
             )}
@@ -289,9 +305,9 @@ export function SavedAnalysisView({
         chartKey={a.id}
         chart={
           natal
-            ? (cls: string) => <NatalWheel technical={natal} sizeClassName={cls} />
+            ? (cls: string) => <NatalWheel technical={natal} sizeClassName={cls} tinted />
             : otherWheel
-              ? (cls: string) => <NatalWheel technical={otherWheel.wheel} label={otherWheel.label} sizeClassName={cls} />
+              ? (cls: string) => <NatalWheel technical={otherWheel.wheel} label={otherWheel.label} sizeClassName={cls} tinted />
               : null
         }
         stage={natal ? null : technicalView(!!otherWheel)}

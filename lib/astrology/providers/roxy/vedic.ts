@@ -97,21 +97,31 @@ const enumOf = <T extends string>(v: unknown, values: readonly T[]): T | null =>
 
 /** Sağlayıcı nakshatra nesnesi → kanonik yerleşim; boylamla tutarlılık denetimi. */
 export function projectNakshatra(o: Record<string, unknown> | null, longitude: number, ctx: string, errors: string[], dropped: string[]): NakshatraPlacement | null {
-  const index = int(o?.key, 0, 26);
+  // Sağlayıcı `key` biçimi: 2026-10-07/08 golden kayıtlarında 0-tabanlı (0–26); Roxy resmi belgesi (openapi v2.0.0,
+  // 2026-10-11 tarandı) "Nakshatra index (1-27) ... starting from Ashwini" → 1-tabanlı. İkisi de kabul edilir; dizin
+  // her zaman BOYLAMDAN türetilir (yetkili alan), anahtar yalnız tutarlılık için denetlenir.
+  const key = int(o?.key, 0, 27);
   const pada = int(o?.pada, 1, 4);
   const lord = mapGraha(o?.lord);
   const ratio = num(o?.ratio, 0, 1);
   const remaining = num(o?.left, 0, NAK_SPAN + 1e-6);
-  if (index === null || pada === null || !lord || ratio === null || remaining === null || typeof o?.abhijit !== "boolean") {
+  if (key === null || pada === null || !lord || ratio === null || remaining === null || typeof o?.abhijit !== "boolean") {
     errors.push(`${ctx}.nakshatra: alan`);
     return null;
   }
   const expIndex = Math.min(26, Math.floor((((longitude % 360) + 360) % 360) / NAK_SPAN));
   const expPada = Math.min(4, Math.floor(((((longitude % 360) + 360) % 360) % NAK_SPAN) / PADA_SPAN) + 1);
-  if (index !== expIndex) errors.push(`${ctx}.nakshatra.key boylamla uyuşmuyor`);
-  if (pada !== expPada) errors.push(`${ctx}.nakshatra.pada boylamla uyuşmuyor`);
-  if (lord !== NAKSHATRA_LORDS[index % 9]) errors.push(`${ctx}.nakshatra.lord sırayla uyuşmuyor`);
-  if (typeof o?.name === "string" && slug(o.name) !== NAKSHATRAS[index]) dropped.push(`${ctx}.nakshatra.name`);
+  const index = expIndex;
+  if (key !== expIndex + 1 && key !== expIndex) errors.push(`${ctx}.nakshatra.key boylamla uyuşmuyor (sağlayıcı ${key}, beklenen ${expIndex + 1} [1–27] / ${expIndex} [0–26])`);
+  if (pada !== expPada) errors.push(`${ctx}.nakshatra.pada boylamla uyuşmuyor (sağlayıcı ${pada}, beklenen ${expPada})`);
+  if (lord !== NAKSHATRA_LORDS[index % 9]) errors.push(`${ctx}.nakshatra.lord sırayla uyuşmuyor (sağlayıcı ${lord}, beklenen ${NAKSHATRA_LORDS[index % 9]})`);
+  if (typeof o?.name === "string") {
+    // Ad, başka bir nakshatranın adıysa bu kesin çelişkidir (ör. 1-tabanlı anahtarın bir önceki nakshatrayı göstermesi);
+    // tanınmayan yazımlar yalnız düşürülen alan olarak raporlanır.
+    const nameIdx = (NAKSHATRAS as readonly string[]).indexOf(slug(o.name));
+    if (nameIdx >= 0 && nameIdx !== index) errors.push(`${ctx}.nakshatra.name boylamla uyuşmuyor (sağlayıcı ${o.name})`);
+    else if (nameIdx < 0) dropped.push(`${ctx}.nakshatra.name`);
+  }
   return { index, id: NAKSHATRAS[index], pada: pada as 1 | 2 | 3 | 4, lord, ratio, remaining, abhijit: o!.abhijit as boolean };
 }
 
@@ -1000,7 +1010,8 @@ export function projectRoxyVedicPanchanga(raw: unknown): AdapterResult<VedicPanc
   if (Math.abs(((ysum % NAK_SPAN) / NAK_SPAN) * 100 - yp) > 0.5) errors.push("nitya yoga yüzdesi");
   const h = Math.floor(elong / 6);
   const kar = karanaOfHalfTithi(h);
-  if (kar.movable ? kar.number !== kn : !slug(String(k?.name)).startsWith(kar.id.slice(0, 4))) errors.push("karana yarım-tithi ile uyuşmuyor");
+  if (kar.movable ? kar.number !== kn : !slug(String(k?.name)).startsWith(kar.id.slice(0, 4)))
+    errors.push(`karana yarım-tithi ile uyuşmuyor (sağlayıcı ${String(k?.name).slice(0, 24)} #${kn}, beklenen ${kar.id} #${kar.number}, yarım-tithi ${h})`);
   if (Math.abs(((elong % 6) / 6) * 100 - kpct) > 0.5) errors.push("karana yüzdesi");
   const ni = Math.min(26, Math.floor(moon / NAK_SPAN));
   if (nn - 1 !== ni) errors.push("nakshatra Ay boylamıyla uyuşmuyor");
