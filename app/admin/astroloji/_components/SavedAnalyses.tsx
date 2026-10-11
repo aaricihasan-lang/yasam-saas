@@ -59,7 +59,8 @@ export function isCustomTitle(title: string, profileLabel: string): boolean {
   const t = title.trim();
   if (!t) return false;
   const p = profileLabel.trim();
-  return !(p !== "" && t.startsWith(`${p} · `) && / · \d{2}\.\d{2}\.\d{4}$/.test(t));
+  // İlişki analizlerinde otomatik başlık "<A> & <B> · …" ile başlar.
+  return !(p !== "" && (t.startsWith(`${p} · `) || t.startsWith(`${p} & `)) && / · \d{2}\.\d{2}\.\d{4}$/.test(t));
 }
 
 function fmt(iso: string): string {
