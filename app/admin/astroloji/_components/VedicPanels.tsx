@@ -800,7 +800,7 @@ function DashaLevelView({
             {t.parent ? ` · ${fmtLocal(t.parent.start)} → ${fmtLocal(t.parent.end)}` : ""}
           </span>
           {onOpenLevel && (
-            <button type="button" className="text-violet-700 underline" onClick={() => onOpenLevel({ mahadasha: t.path.mahadasha, antardasha: t.path.antardasha })}>
+            <button type="button" className="text-sky-700 underline" onClick={() => onOpenLevel({ mahadasha: t.path.mahadasha, antardasha: t.path.antardasha })}>
               Bu düzeyi seçiciye aktar (not / kayıt için)
             </button>
           )}

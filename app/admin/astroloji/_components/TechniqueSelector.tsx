@@ -1,15 +1,17 @@
 "use client";
 
 /**
- * Çoklu teknik seçimi — yalnız İŞARETLİ tekniklerin parametreleri gösterilir. Bu bileşen istek
- * SAYISI hesaplamaz (tahmin yok); gerçek X/Y/Z sunucu planlayıcısından gelir (sayfa gösterir).
+ * Teknik parametre alanları (Aşama D3: Göksel Analiz Hazırlık Merkezi'nin ayar paneli kullanır).
+ * Bu bileşenler istek SAYISI hesaplamaz (tahmin yok); gerçek X/Y/Z sunucu planlayıcısından gelir (sayfa gösterir).
+ * Alan adları, aria etiketleri ve parametre → seçim dönüşümü (buildSelections) önceki teknik listesiyle AYNIDIR;
+ * D3 yalnız yerleşimi değiştirir. Ortak parametreler (Vedik ayanamsa, KP an/yer, ev sistemi, ay düğümü) tek
+ * durumdadır → bir teknikte değiştirmek aynı ortak alanı kullanan tüm teknikleri etkiler (etiketlerde belirtilir).
  */
 
 import { HOUSE_SYSTEMS, NODE_TYPES, type HouseSystem, type NodeType } from "@/lib/astrology/model/western";
-import { Fragment } from "react";
 import LocationPicker from "./LocationPicker";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
-import { FORECAST_MAX_DAYS, TECHNIQUE_META, UI_TECHNIQUES, DASHA_LORD_OPTIONS, KP_AYANAMSA_OPTIONS, VEDIC_AYANAMSA_OPTIONS, VEDIC_VARGA_OPTIONS, fmtUtcMinute, forecastPartCount, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
+import { FORECAST_MAX_DAYS, DASHA_LORD_OPTIONS, KP_AYANAMSA_OPTIONS, VEDIC_AYANAMSA_OPTIONS, VEDIC_VARGA_OPTIONS, fmtUtcMinute, forecastPartCount, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
 
 // max-w-full: uzun seçenek metni (ör. "Lahiri (Chitrapaksha) — varsayılan") 390 px'te kartı taşırmasın.
 const inp = "max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm";
@@ -17,37 +19,28 @@ const TZ_OPTIONS = ["Europe/Istanbul", "UTC", "Europe/London", "Europe/Berlin", 
 
 export type PartnerOption = { id: string; label: string };
 
-export default function TechniqueSelector({
-  checked,
-  onChecked,
+/** Ev sistemi kullanan Batı teknikleri (ortak seçim). */
+export const USES_HOUSE_SYSTEM: readonly UiTechniqueId[] = ["western.natal", "western.solar_return", "western.lunar_return", "western.relocation", "western.synastry", "western.composite"];
+/** Ay düğümü türü kullanan Batı teknikleri (ortak seçim). */
+export const USES_NODE_TYPE: readonly UiTechniqueId[] = ["western.natal", "western.transit", "western.progression", "western.solar_arc", "western.synastry", "western.composite"];
+
+/** Tek bir tekniğin kendi parametreleri (yoksa null). */
+export function TechniqueParamFields({
+  id,
   params,
   onParams,
-  method,
-  onMethod,
-  partners,
-  timeKnown,
   lunarReturns = null,
-  partnerQuery,
-  onPartnerQuery,
+  birthPlaceLabel = null,
 }: {
-  checked: Partial<Record<UiTechniqueId, boolean>>;
-  onChecked: (next: Partial<Record<UiTechniqueId, boolean>>) => void;
+  id: UiTechniqueId;
   params: TechniqueParams;
   onParams: (next: TechniqueParams) => void;
-  method: { houseSystem: HouseSystem; nodeType: NodeType };
-  onMethod: (next: { houseSystem: HouseSystem; nodeType: NodeType }) => void;
-  partners: PartnerOption[];
-  timeKnown: boolean;
+  /** FINAL: danışanın kayıtlı doğum yeri (gözlem yeri seçiminde ÖNERİ olarak gösterilir; otomatik seçilmez). */
+  birthPlaceLabel?: string | null;
   /** Sunucu planının bildirdiği, seçilen aydaki lunar return'ler (henüz plan yoksa null). */
   lunarReturns?: LunarReturnInfo[] | null;
-  /** Aşama 7B: karşı taraf listesi sunucu aramasıyla gelir (danışan listesi sayfalı). */
-  partnerQuery?: string;
-  onPartnerQuery?: (q: string) => void;
 }) {
   const set = <K extends keyof TechniqueParams>(k: K, v: TechniqueParams[K]) => onParams({ ...params, [k]: v });
-  const anyPartner = !!(checked["western.synastry"] || checked["western.composite"]);
-  const anyHouse = !!(checked["western.natal"] || checked["western.solar_return"] || checked["western.lunar_return"] || checked["western.relocation"] || anyPartner);
-  const anyNode = !!(checked["western.natal"] || checked["western.transit"] || checked["western.progression"] || checked["western.solar_arc"] || anyPartner);
 
   // Aşama 4.1 — dönüş konumu: doğum yeri (varsayılan) veya sistemdeki konum listesinden başka bir yer.
   // Doğum anı/dönüş anı DEĞİŞMEZ; yalnız dönüş haritasının ASC/MC/evleri seçilen yere göre hesaplanır.
@@ -163,15 +156,15 @@ export default function TechniqueSelector({
               })}
             </div>
             {returnLocationChooser("lunarReturnLocation", "Lunar return")}
-            {lunarReturns && lunarReturns.length > 1 && <span className="text-xs text-violet-800">Bu ayda {lunarReturns.length} lunar return var. Diğerini hesaplamak için sırayı değiştirip yeniden hesaplayın (her dönüş 1 istek; ikisi de ayrı kayıt olarak kalır).</span>}
+            {lunarReturns && lunarReturns.length > 1 && <span className="text-xs text-sky-800">Bu ayda {lunarReturns.length} lunar return var. Diğerini hesaplamak için sırayı değiştirip yeniden hesaplayın (her dönüş 1 istek; ikisi de ayrı kayıt olarak kalır).</span>}
           </div>
         );
       case "vedic.drishti":
       case "vedic.panchanga":
         return params.vedicAyanamsa === "lahiri" ? (
-          <p className="text-xs text-slate-500">Lahiri (sabit) — Roxy bu uçta ayanamsa almaz.</p>
+          <p className="text-xs text-slate-500">Lahiri (sabit) — sağlayıcı bu hesapta ayanamsa seçeneği almaz.</p>
         ) : (
-          <p className="text-xs text-amber-800">Seçili ayanamsa Lahiri değil: bu hesap yapılmaz (Roxy yalnız Lahiri ile hesaplar). Vedik seçimlerde ayanamsa&apos;yı Lahiri yapın.</p>
+          <p className="text-xs text-amber-800">Seçili ayanamsa Lahiri değil: bu hesap yapılmaz (sağlayıcı yalnız Lahiri ile hesaplar). Vedik seçimlerde ayanamsa&apos;yı Lahiri yapın.</p>
         );
       case "kp.chart":
       case "kp.dasha":
@@ -226,10 +219,23 @@ export default function TechniqueSelector({
           </div>
         );
         const place = (
-          <div className="flex min-w-0 flex-col gap-1">
-            <span>{id === "kp.horary" ? "Değerlendirme yeri" : "Gözlem yeri"}: {params.kpPlace ? params.kpPlace.label : "doğum yeri (varsayılan)"}</span>
-            <LocationPicker value={params.kpPlace} onChange={(v) => set("kpPlace", v)} />
-          </div>
+          <fieldset className="flex min-w-0 flex-col gap-1.5 rounded-lg border border-slate-300/80 bg-white/50 px-2.5 py-2" data-testid="astro-kp-place">
+            <legend className="px-1 text-[11px] font-semibold text-slate-700">{id === "kp.horary" ? "Değerlendirme yeri" : "Gözlem yeri"} (ruling + horary ortak)</legend>
+            <p className="text-[11px] leading-snug text-slate-600">
+              Sorunun veya olayın ele alındığı konum — <strong>doğum yeri değildir</strong>. Doğum haritası gereken teknikler kayıtlı doğum yerini ayrıca kullanır.
+            </p>
+            <label className="flex items-start gap-1.5">
+              <input type="radio" className="mt-0.5" checked={params.kpPlaceMode === "birth"} onChange={() => onParams({ ...params, kpPlaceMode: "birth" })} data-kp-place="birth" />
+              <span>Doğum yerini gözlem yeri olarak kullan{birthPlaceLabel ? `: ${birthPlaceLabel}` : ""}</span>
+            </label>
+            <label className="flex items-start gap-1.5">
+              <input type="radio" className="mt-0.5" checked={params.kpPlaceMode === "other"} onChange={() => onParams({ ...params, kpPlaceMode: "other" })} data-kp-place="other" />
+              <span>Başka konum{params.kpPlaceMode === "other" && params.kpPlace ? `: ${params.kpPlace.label}` : ""}</span>
+            </label>
+            {params.kpPlaceMode === "other" && <LocationPicker value={params.kpPlace} onChange={(v) => set("kpPlace", v)} />}
+            {params.kpPlaceMode === "unset" && <p className="text-[11px] text-amber-800">Gözlem yeri seçilmeden bu teknik plana alınmaz.</p>}
+            {params.kpPlaceMode === "other" && !params.kpPlace && <p className="text-[11px] text-amber-800">Konumu seçin.</p>}
+          </fieldset>
         );
         return (
           <div className="flex min-w-0 flex-col gap-1.5 text-xs" data-testid={`astro-kp-params-${id}`}>
@@ -272,8 +278,8 @@ export default function TechniqueSelector({
             {(id === "kp.ruling" || id === "kp.transit" || id === "kp.horary") && moment}
             {(id === "kp.ruling" || id === "kp.horary") && place}
             {kpCommon}
-            {id === "kp.ruling" && <p className="text-slate-500">Roxy ruling planets ucu ayanamsa almaz (KP-Newcomb dahili).</p>}
-            {id === "kp.transit" && <p className="text-amber-800">Kısmi: Roxy natal cusp&apos;lara göre transit analizi vermez; yalnız anın KP gökyüzü.</p>}
+            {id === "kp.ruling" && <p className="text-slate-500">Ruling planets hesabı ayanamsa seçeneği almaz (KP-Newcomb dahili).</p>}
+            {id === "kp.transit" && <p className="text-amber-800">Kısmi: sağlayıcı natal cusp&apos;lara göre transit analizi vermez; yalnız anın KP gökyüzü.</p>}
           </div>
         );
       }
@@ -302,9 +308,9 @@ export default function TechniqueSelector({
               )}
             </div>
             {params.vedicAyanamsa === "lahiri" ? (
-              <p className="text-slate-500">Lahiri (sabit) — Roxy Gochara ucu ayanamsa almaz. Batı transitinden ayrı hesap ve kayıttır.</p>
+              <p className="text-slate-500">Lahiri (sabit) — Gochara hesabı ayanamsa seçeneği almaz. Batı transitinden ayrı hesap ve kayıttır.</p>
             ) : (
-              <p className="text-amber-800">Seçili ayanamsa Lahiri değil: Gochara hesaplanmaz (Roxy yalnız Lahiri ile hesaplar).</p>
+              <p className="text-amber-800">Seçili ayanamsa Lahiri değil: Gochara hesaplanmaz (sağlayıcı yalnız Lahiri ile hesaplar).</p>
             )}
           </div>
         );
@@ -422,88 +428,79 @@ export default function TechniqueSelector({
     }
   };
 
-  return (
-    <div className="flex flex-col gap-3" data-testid="astro-technique-selector">
-      {/* fieldset varsayılanı min-inline-size: min-content → mobilde taşar; min-w-0 ile sıfırlanır. */}
-      <fieldset className="grid min-w-0 gap-2 sm:grid-cols-2">
-        <legend className="mb-1 text-sm font-semibold text-slate-700">Hesaplanacak teknikler</legend>
-        {UI_TECHNIQUES.map((id, i) => {
-          const m = TECHNIQUE_META[id];
-          // 6G: gelenek başlıkları (Batı / Vedik / KP) — 24 teknik tek düz listede ayırt edilemiyordu.
-          const fam = id.split(".")[0];
-          const head = i === 0 || UI_TECHNIQUES[i - 1].split(".")[0] !== fam ? (fam === "western" ? "Batı (tropikal)" : fam === "vedic" ? "Vedik / Jyotish (sidereal)" : "KP — Krishnamurti Paddhati (sidereal, Placidus)") : null;
-          const on = !!checked[id];
-          return (
-            <Fragment key={id}>
-            {head && <h3 className="col-span-full mt-1 text-xs font-semibold uppercase tracking-wide text-violet-800" data-technique-group={fam}>{head}</h3>}
-            <div className={`min-w-0 rounded-xl border px-3 py-2 ${on ? "border-violet-300 bg-violet-50/50" : "border-slate-200 bg-white"}`}>
-              <label className="flex items-start gap-2">
-                <input type="checkbox" className="mt-1" checked={on} onChange={(e) => onChecked({ ...checked, [id]: e.target.checked })} data-technique={id} />
-                <span>
-                  <span className="text-sm font-medium text-slate-800">{m.label}</span>
-                  <span className="block text-xs text-slate-500">{m.hint}</span>
-                  {m.needsTime && !timeKnown && <span className="block text-xs text-amber-800">Doğum saati bilinmiyor — bu teknik hesaplanmaz.</span>}
-                </span>
-              </label>
-              {on && <div className="mt-2 pl-6">{params_(id)}</div>}
-            </div>
-            </Fragment>
-          );
-        })}
-      </fieldset>
+  return params_(id);
+}
 
-      {(anyHouse || anyNode || anyPartner) && (
-        <div className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-          {anyPartner && (
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-slate-600">Karşı taraf (sinastri / composite)</span>
-              {onPartnerQuery && (
-                <input
-                  type="search"
-                  className={inp}
-                  value={partnerQuery ?? ""}
-                  onChange={(e) => onPartnerQuery(e.target.value)}
-                  maxLength={100}
-                  placeholder="Karşı tarafı ara"
-                  aria-label="Karşı taraf ara"
-                />
-              )}
-              <select className={inp} value={params.partnerProfileId} onChange={(e) => set("partnerProfileId", e.target.value)} aria-label="Karşı taraf profili">
-                <option value="">— seçin —</option>
-                {partners.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          {anyHouse && (
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-slate-600">Ev sistemi</span>
-              <select className={inp} value={method.houseSystem} onChange={(e) => onMethod({ ...method, houseSystem: e.target.value as HouseSystem })}>
-                {HOUSE_SYSTEMS.map((h) => (
-                  <option key={h} value={h}>
-                    {HOUSE_SYSTEM_LABELS[h]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          {anyNode && (
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-slate-600">Ay düğümü</span>
-              <select className={inp} value={method.nodeType} onChange={(e) => onMethod({ ...method, nodeType: e.target.value as NodeType })}>
-                {NODE_TYPES.map((n) => (
-                  <option key={n} value={n}>
-                    {NODE_TYPE_LABELS[n]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <span className="text-sm text-slate-500">Zodyak: Tropikal (bu satır yalnız Batı tekniklerini etkiler)</span>
-        </div>
+/** Karşı taraf seçimi (sinastri / composite ortak). Liste sunucu aramasıyla gelir (Aşama 7B). */
+export function PartnerField({
+  params,
+  onParams,
+  partners,
+  partnerQuery,
+  onPartnerQuery,
+}: {
+  params: TechniqueParams;
+  onParams: (next: TechniqueParams) => void;
+  partners: PartnerOption[];
+  partnerQuery?: string;
+  onPartnerQuery?: (q: string) => void;
+}) {
+  return (
+    <label className="flex min-w-0 flex-col gap-1 text-sm">
+      <span className="text-slate-600">Karşı taraf (sinastri / composite ortak)</span>
+      {onPartnerQuery && (
+        <input type="search" className={inp} value={partnerQuery ?? ""} onChange={(e) => onPartnerQuery(e.target.value)} maxLength={100} placeholder="Karşı tarafı ara" aria-label="Karşı taraf ara" />
+      )}
+      <select className={inp} value={params.partnerProfileId} onChange={(e) => onParams({ ...params, partnerProfileId: e.target.value })} aria-label="Karşı taraf profili">
+        <option value="">— seçin —</option>
+        {partners.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/** Batı yöntem alanları (ev sistemi / ay düğümü) — yalnız ilgili teknik için gösterilir; değer tüm Batı tekniklerinde ortaktır. */
+export function MethodFields({
+  id,
+  method,
+  onMethod,
+}: {
+  id: UiTechniqueId;
+  method: { houseSystem: HouseSystem; nodeType: NodeType };
+  onMethod: (next: { houseSystem: HouseSystem; nodeType: NodeType }) => void;
+}) {
+  const house = USES_HOUSE_SYSTEM.includes(id);
+  const node = USES_NODE_TYPE.includes(id);
+  if (!house && !node) return null;
+  return (
+    <div className="flex min-w-0 flex-wrap items-end gap-3">
+      {house && (
+        <label className="flex min-w-0 flex-col gap-1 text-sm">
+          <span className="text-slate-600">Ev sistemi (Batı ortak)</span>
+          <select className={inp} value={method.houseSystem} onChange={(e) => onMethod({ ...method, houseSystem: e.target.value as HouseSystem })} aria-label="Ev sistemi">
+            {HOUSE_SYSTEMS.map((h) => (
+              <option key={h} value={h}>
+                {HOUSE_SYSTEM_LABELS[h]}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {node && (
+        <label className="flex min-w-0 flex-col gap-1 text-sm">
+          <span className="text-slate-600">Ay düğümü (Batı ortak)</span>
+          <select className={inp} value={method.nodeType} onChange={(e) => onMethod({ ...method, nodeType: e.target.value as NodeType })} aria-label="Ay düğümü">
+            {NODE_TYPES.map((n) => (
+              <option key={n} value={n}>
+                {NODE_TYPE_LABELS[n]}
+              </option>
+            ))}
+          </select>
+        </label>
       )}
     </div>
   );

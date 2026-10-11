@@ -121,6 +121,109 @@ export async function listProfilePage(ctx: EngineCtx, sp: URLSearchParams): Prom
   };
 }
 
+// ─── 1b) Analiz Arşivi listesi ─────────────────────────────────────────────────
+//
+// Analiz Arşivi YALNIZ en az bir kayıtlı analizi olan profilleri listeler (etkin + arşivli birleşik; profilin
+// arşiv durumu DEĞİŞMEZ, yalnız rozet olarak gösterilir). Migration YOK: sahiplik / tenant filtresi mevcut
+// astro_profile_page RPC'sinde kalır; bu fonksiyon RPC'yi sayfa sayfa okur (profil tavanı 2000), analizi olmayanları
+// eler, Türkçe harf sırasıyla / tarihe göre sıralar ve sayfalar. ?scope=ids → tüm arşivin kimlikleri (Tümünü Sil
+// kapsamı; arama/filtreden BAĞIMSIZ, sunucuda hesaplanır).
+
+export const ARCHIVE_SORTS = ["name_asc", "name_desc", "last_desc", "last_asc", "birth_desc", "birth_asc"] as const;
+type ArchiveSort = (typeof ARCHIVE_SORTS)[number];
+const ARCHIVE_READ_CAP = 2000;
+const trCollator = new Intl.Collator("tr", { sensitivity: "base", numeric: true });
+
+async function readAllArchiveRows(ctx: EngineCtx, q: string | null): Promise<{ ok: true; rows: PageRow[] } | { ok: false; r: ServiceResponse }> {
+  const out: PageRow[] = [];
+  for (const archived of [false, true]) {
+    for (let offset = 0; offset < ARCHIVE_READ_CAP; offset += 100) {
+      const { data, error } = await ctx.db.rpc("astro_profile_page", {
+        p_tenant_id: ctx.tenantId,
+        p_owner_user_id: ctx.userId,
+        p_query: q,
+        p_birth_date: null,
+        p_archived: archived,
+        p_sort: "name",
+        p_limit: 100,
+        p_offset: offset,
+      });
+      if (error) return { ok: false, r: dbFail("profiles.archivePage", error) };
+      const rows = (data as PageRow[] | null) ?? [];
+      out.push(...rows);
+      if (rows.length < 100) break;
+    }
+  }
+  return { ok: true, rows: out.filter((r) => Number(r.analysis_count) > 0) };
+}
+
+function compareArchive(sort: ArchiveSort) {
+  const t = (v: string | null | undefined) => (v ? Date.parse(v.length === 10 ? `${v}T00:00:00Z` : v) : NaN);
+  const byName = (a: PageRow, b: PageRow) => trCollator.compare(a.label, b.label) || a.id.localeCompare(b.id);
+  // Tarih yoksa her iki yönde de SONA (boş değer sıralamayı karıştırmaz); eşitlikte ada göre.
+  const byDate = (pick: (r: PageRow) => string | null | undefined, dir: 1 | -1) => (a: PageRow, b: PageRow) => {
+    const x = t(pick(a));
+    const y = t(pick(b));
+    if (Number.isNaN(x) !== Number.isNaN(y)) return Number.isNaN(x) ? 1 : -1;
+    return (Number.isNaN(x) ? 0 : (x - y) * dir) || byName(a, b);
+  };
+  switch (sort) {
+    case "name_desc":
+      return (a: PageRow, b: PageRow) => -byName(a, b);
+    case "last_desc":
+      return byDate((r) => r.last_analysis_at, -1);
+    case "last_asc":
+      return byDate((r) => r.last_analysis_at, 1);
+    case "birth_desc":
+      return byDate((r) => r.birth_date, -1);
+    case "birth_asc":
+      return byDate((r) => r.birth_date, 1);
+    default:
+      return byName;
+  }
+}
+
+export async function listArchivePage(ctx: EngineCtx, sp: URLSearchParams): Promise<ServiceResponse> {
+  if (sp.get("scope") === "ids") {
+    // Tümünü Sil kapsamı: aramadan bağımsız TÜM arşiv (yetkili uzmanın). Kesin silme kümesi ayrıca önizleme + kilitte doğrulanır.
+    const all = await readAllArchiveRows(ctx, null);
+    if (!all.ok) return all.r;
+    return { status: 200, body: { ok: true, total: all.rows.length, ids: all.rows.map((r) => r.id).sort(), analysisTotal: all.rows.reduce((n, r) => n + Number(r.analysis_count), 0) } };
+  }
+  const q = (sp.get("q") ?? "").slice(0, ASTRO_SEARCH_MAX);
+  const sortRaw = sp.get("sort");
+  const sort: ArchiveSort = (ARCHIVE_SORTS as readonly string[]).includes(sortRaw ?? "") ? (sortRaw as ArchiveSort) : "name_asc";
+  const limit = intParam(sp.get("limit"), 1, 100, 30);
+  const offset = intParam(sp.get("offset"), 0, 1_000_000, 0);
+  const res = await readAllArchiveRows(ctx, astroNorm(q) === "" ? null : q);
+  if (!res.ok) return res.r;
+  const sorted = [...res.rows].sort(compareArchive(sort));
+  const page = sorted.slice(offset, offset + limit);
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      total: sorted.length,
+      offset,
+      limit,
+      sort,
+      hasMore: offset + page.length < sorted.length,
+      profiles: page.map((r, i) => ({
+        index: offset + i + 1,
+        id: r.id,
+        label: r.label,
+        clientId: r.client_id,
+        clientName: r.client_id ? fullName(r.client_ad, r.client_soyad) : null,
+        currentRevision: r.current_revision,
+        current: { birthDate: r.birth_date, birthTime: r.time_known ? r.birth_time : null, timeKnown: r.time_known, locationLabel: r.location_label },
+        archivedAt: r.archived_at,
+        analysisCount: Number(r.analysis_count),
+        lastAnalysisAt: r.last_analysis_at,
+      })),
+    },
+  };
+}
+
 // ─── 2) Arşiv ──────────────────────────────────────────────────────────────────
 
 export async function setProfileArchived(ctx: EngineCtx, profileId: string, raw: unknown): Promise<ServiceResponse> {

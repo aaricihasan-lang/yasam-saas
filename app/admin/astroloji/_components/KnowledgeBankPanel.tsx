@@ -7,7 +7,7 @@
  * değişiklikler geçmiş analizleri DEĞİŞTİRMEZ.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ALL_TOPIC_KINDS, TOPIC_CONTEXT_LABELS, TOPIC_CONTEXTS, traditionOfKey } from "@/lib/astrology/topics/index";
 import { KP_CONTEXTS, KP_CONTEXT_LABELS, VEDIC_CONTEXTS, VEDIC_CONTEXT_LABELS } from "@/lib/astrology/topics/vedic";
 import { astroFetch } from "../_lib/api";
@@ -31,7 +31,7 @@ export type Editing = { mode: "create"; topicKey?: string } | { mode: "edit"; en
 
 const input = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
 
-export function KbEditor({ editing, onDone, onCancel }: { editing: Editing; onDone: () => void; onCancel: () => void }) {
+export function KbEditor({ editing, onDone, onCancel, onDirtyChange }: { editing: Editing; onDone: () => void; onCancel: () => void; /** FINAL: kaydedilmemiş taslak bildirimi (isteğe bağlı). */ onDirtyChange?: (dirty: boolean) => void }) {
   const e = editing.mode === "edit" ? editing.entry : null;
   const [topicKey, setTopicKey] = useState<string>(e?.topicKey ?? (editing.mode === "create" ? editing.topicKey ?? "planet_in_house:saturn:7" : ""));
   const [title, setTitle] = useState(e?.title ?? "");
@@ -40,6 +40,14 @@ export function KbEditor({ editing, onDone, onCancel }: { editing: Editing; onDo
   const [tags, setTags] = useState((e?.tags ?? []).join(", "));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const draftDirty = editing.mode === "create" ? !!(title.trim() || body.trim() || sourceNote.trim()) : title !== (e?.title ?? "") || body !== (e?.body ?? "") || sourceNote !== (e?.sourceNote ?? "");
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  useEffect(() => {
+    onDirtyChangeRef.current = onDirtyChange;
+  }, [onDirtyChange]);
+  useEffect(() => {
+    onDirtyChangeRef.current?.(draftDirty);
+  }, [draftDirty]);
 
   async function save() {
     setBusy(true);
@@ -61,8 +69,8 @@ export function KbEditor({ editing, onDone, onCancel }: { editing: Editing; onDo
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-violet-200 bg-violet-50/40 p-3">
-      <h4 className="text-sm font-semibold text-violet-900">{e ? "Bilgi kaydını düzenle" : "Yeni bilgi kaydı"}</h4>
+    <div className="flex flex-col gap-2 rounded-xl border border-sky-200 bg-sky-50/40 p-3">
+      <h4 className="text-sm font-semibold text-sky-900">{e ? "Bilgi kaydını düzenle" : "Yeni bilgi kaydı"}</h4>
       <TopicPicker value={topicKey} onChange={setTopicKey} />
       <input className={input} placeholder="Başlık (ör. Satürn 7. ev — çalışma notum)" value={title} maxLength={200} onChange={(x) => setTitle(x.target.value)} />
       <textarea className={`${input} min-h-[140px]`} placeholder="Kendi mesleki notunuz / yorum metodolojiniz…" value={body} maxLength={20000} onChange={(x) => setBody(x.target.value)} />
@@ -70,7 +78,7 @@ export function KbEditor({ editing, onDone, onCancel }: { editing: Editing; onDo
       <input className={input} placeholder="Etiketler (virgülle) — opsiyonel" value={tags} onChange={(x) => setTags(x.target.value)} />
       {error && <p className="text-sm text-rose-700">{error}</p>}
       <div className="flex gap-2">
-        <button type="button" disabled={busy} onClick={() => void save()} className="btn-primary rounded-lg px-4 py-1.5 text-sm disabled:opacity-60">
+        <button type="button" disabled={busy} onClick={() => void save()} className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0b1430] font-semibold text-white transition hover:bg-[#1a2b5c] disabled:cursor-not-allowed disabled:opacity-50 px-4 py-1.5 text-sm disabled:opacity-60">
           {busy ? "Kaydediliyor…" : "Kaydet"}
         </button>
         <button type="button" onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-1.5 text-sm">
@@ -93,13 +101,13 @@ export function KbEntryCard({ entry, onEdit, onDeleted }: { entry: KbEntry; onEd
     <li className="rounded-xl border border-slate-200 bg-white px-3 py-2">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <div className="text-xs font-medium text-violet-700">{entry.topicLabel}</div>
+          <div className="text-xs font-medium text-sky-700">{entry.topicLabel}</div>
           <div className="font-semibold text-slate-800">{entry.title}</div>
         </div>
         {(onEdit || onDeleted) && (
           <div className="flex gap-2 text-xs">
             {onEdit && (
-              <button type="button" className="text-violet-700 underline" onClick={onEdit}>
+              <button type="button" className="text-sky-700 underline" onClick={onEdit}>
                 Düzenle
               </button>
             )}
@@ -183,10 +191,10 @@ export default function KnowledgeBankPanel() {
     <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Astroloji Bilgi Bankam</h2>
-          <p className="text-xs text-slate-500">Kendi eğitim notlarınız ve mesleki yorumlarınız. Sağlayıcı (Roxy) içeriği buraya aktarılmaz.</p>
+          <h3 className="text-base font-semibold text-slate-900">Kayıtlarım</h3>
+          <p className="text-xs text-slate-500">Kendi eğitim notlarınız ve mesleki yorumlarınız. Sağlayıcı içeriği (sistem yorumu) buraya aktarılmaz.</p>
         </div>
-        <button type="button" className="btn-primary rounded-lg px-3 py-1.5 text-sm" onClick={() => setEditing({ mode: "create" })}>
+        <button type="button" className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0b1430] font-semibold text-white transition hover:bg-[#1a2b5c] disabled:cursor-not-allowed disabled:opacity-50 px-3 py-1.5 text-sm" onClick={() => setEditing({ mode: "create" })}>
           + Yeni bilgi
         </button>
       </div>

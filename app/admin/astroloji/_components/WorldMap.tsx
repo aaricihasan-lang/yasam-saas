@@ -144,7 +144,7 @@ export default function WorldMap({
         {active ? (
           <>
             <div className="font-semibold text-slate-900">
-              {active.label} {pinned === active.key && <span className="ml-1 text-[10px] font-normal text-violet-700">(sabitlendi — tekrar tıklayınca kalkar)</span>}
+              {active.label} {pinned === active.key && <span className="ml-1 text-[10px] font-normal text-sky-700">(sabitlendi — tekrar tıklayınca kalkar)</span>}
             </div>
             {active.detail.map((x) => (
               <div key={x}>{x}</div>

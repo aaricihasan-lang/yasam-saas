@@ -922,9 +922,21 @@ async function main() {
   await t("6G seçici: 5 KP tekniği; seçimler motor seçenekleriyle ayrıştırılabilir; açıklamalar KP ayanamsa / sayı / kısmi destek", () => {
     const kpIds = UI_TECHNIQUES.filter((x) => x.startsWith("kp."));
     assert.deepEqual([...kpIds], ["kp.chart", "kp.dasha", "kp.ruling", "kp.transit", "kp.horary"]);
-    const p = { ...defaultParams(new Date("2026-10-08T12:00:00Z")), horaryNumber: 108, kpMomentMode: "custom" as const, kpDate: "2026-10-07", kpTime: "12:00", kpTz: "Europe/Istanbul" };
+    // FINAL (owner kararı): gözlem/değerlendirme yeri AÇIK seçimdir — varsayılan "unset" iken ruling + horary plana ALINMAZ.
+    const base = { ...defaultParams(new Date("2026-10-08T12:00:00Z")), horaryNumber: 108, kpMomentMode: "custom" as const, kpDate: "2026-10-07", kpTime: "12:00", kpTz: "Europe/Istanbul" };
+    assert.equal(base.kpPlaceMode, "unset");
+    const unset = buildSelections(Object.fromEntries(kpIds.map((x) => [x, true])), base, { houseSystem: "placidus", nodeType: "true" } as J);
+    assert.deepEqual(unset.map((x) => x.technique), ["kp.chart", "kp.dasha", "kp.transit"]);
+    // "Başka konum" seçili ama konum yok → yine plana alınmaz.
+    assert.equal(buildSelections({ "kp.ruling": true }, { ...base, kpPlaceMode: "other" as const, kpPlace: null }, { houseSystem: "placidus", nodeType: "true" } as J).length, 0);
+    // Doğum yeri AÇIKÇA seçilince istek gövdesi eskisiyle aynı (placeLocationId null → önbellek anahtarları değişmez).
+    const p = { ...base, kpPlaceMode: "birth" as const };
     const sels = buildSelections(Object.fromEntries(kpIds.map((x) => [x, true])), p, { houseSystem: "placidus", nodeType: "true" } as J);
     assert.equal(sels.length, 5);
+    assert.equal(sels.find((x) => x.technique === "kp.ruling")!.options.placeLocationId, null);
+    // "Başka konum" → seçilen kimlik; doğum yeri modunda eski kpPlace değeri sızmaz.
+    assert.equal(buildSelections({ "kp.horary": true }, { ...p, kpPlaceMode: "other" as const, kpPlace: { id: "tr-06-ankara", label: "Ankara" } }, { houseSystem: "placidus", nodeType: "true" } as J)[0].options.placeLocationId, "tr-06-ankara");
+    assert.equal(buildSelections({ "kp.horary": true }, { ...p, kpPlace: { id: "tr-06-ankara", label: "Ankara" } }, { houseSystem: "placidus", nodeType: "true" } as J)[0].options.placeLocationId, null);
     for (const sl of sels) {
       const o = getTechnique(sl.technique)!.parseOptions(sl.options, new Date("2026-10-08T12:00:00Z"));
       assert.ok(o, sl.technique);

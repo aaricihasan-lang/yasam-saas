@@ -24,6 +24,8 @@ export type FakeStore = {
   tables: Record<string, Row[]>;
   sessions: Map<string, string>; // token → user_id
   rateCounters: Map<string, number>;
+  /** Oran sınırı penceresinin başlangıcı (kova başına). */
+  rateWindowStart: Map<string, number>;
   log: QueryLog[];
   /** Bu tablo/kolon seçildiğinde hata simülasyonu (ör. is_super_admin kolonu yok). */
   failSelect?: (table: string, select: string) => FakeErr;
@@ -49,7 +51,7 @@ function capError(store: FakeStore, table: string, row: Row): FakeErr {
 export function createStore(seed: Record<string, Row[]> = {}): FakeStore {
   const tables: Record<string, Row[]> = {};
   for (const [k, v] of Object.entries(seed)) tables[k] = v.map((r) => ({ ...r }));
-  return { tables, sessions: new Map(), rateCounters: new Map(), log: [] };
+  return { tables, sessions: new Map(), rateCounters: new Map(), rateWindowStart: new Map(), log: [] };
 }
 
 type Filter = { col: string; op: "eq" | "in"; val: unknown };
@@ -239,11 +241,24 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
   }
   if (fn === "auth_rate_limit_hit") {
     if (store.disableRateLimit) return { data: { allowed: true, retry_after: 0 }, error: null };
+    // FINAL: gerçek SQL ile aynı anlam — sayaç PENCERE süresi dolunca sıfırlanır (eskiden hiç sıfırlanmıyordu → yerelde
+    // bir kez başarısız olan hesap sahte arka uç yeniden başlayana kadar sonsuza dek "sürüyor" kalıyordu); reddedilen
+    // denemeler sayılmaz (SQL yalnız izin verilen olayı ekler); retry_after kalan pencere süresidir.
     const b = String(args.p_bucket);
-    const n = (store.rateCounters.get(b) ?? 0) + 1;
-    store.rateCounters.set(b, n);
-    const allowed = n <= Number(args.p_limit);
-    return { data: { allowed, retry_after: allowed ? 0 : 10 }, error: null };
+    const now = Date.now();
+    const win = Math.max(1, Number(args.p_window_seconds)) * 1000;
+    const start = store.rateWindowStart.get(b);
+    if (start === undefined) store.rateWindowStart.set(b, now);
+    else if (now - start >= win) {
+      store.rateCounters.set(b, 0);
+      store.rateWindowStart.set(b, now);
+    }
+    const cur = store.rateCounters.get(b) ?? 0;
+    if (cur >= Number(args.p_limit)) {
+      return { data: { allowed: false, retry_after: Math.max(1, Math.ceil((store.rateWindowStart.get(b)! + win - now) / 1000)) }, error: null };
+    }
+    store.rateCounters.set(b, cur + 1);
+    return { data: { allowed: true, retry_after: 0 }, error: null };
   }
   if (fn === "astro_profile_create") {
     const tenant = String(args.p_tenant_id);
@@ -499,6 +514,31 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
     const after = fp(store.tables.astro_analyses.filter((a) => preserved.some((x) => x.id === a.id)));
     if (after !== before) return { data: null, error: { code: "P0001", message: "ASTRO_DELETE_SHARED_INTEGRITY" } };
     return { data: { deleted_profiles: ids.length, deleted_analyses: own.length, preserved_shared_analyses: preserved.length }, error: null };
+  }
+  // ─── A: yalnızca analizleri sil (20271101000800) — profil/revizyon/not/önbellek korunur.
+  if (fn === "astro_profile_analyses_delete") {
+    const tenant = String(args.p_tenant_id);
+    const owner = String(args.p_owner_user_id);
+    const exp = Array.isArray(args.p_expected) ? (args.p_expected as Record<string, unknown>[]) : null;
+    if (!exp) return { data: null, error: { code: "22023", message: "ASTRO_DELETE_INVALID" } };
+    const ids = [...new Set(exp.map((e) => String(e.id)))];
+    if (ids.length === 0 || ids.length > 100 || ids.length !== exp.length) return { data: null, error: { code: "22023", message: "ASTRO_DELETE_INVALID" } };
+    const profiles = store.tables.astro_birth_profiles ?? [];
+    if (profiles.filter((p) => p.tenant_id === tenant && p.owner_user_id === owner && ids.includes(String(p.id))).length !== ids.length) {
+      return { data: null, error: { code: "P0002", message: "ASTRO_DELETE_NOT_FOUND" } };
+    }
+    const pv = deletePreviewRows(store, tenant, owner, ids);
+    const stale = exp.some((e) => {
+      const r = pv.find((x) => x.id === e.id)!;
+      return r.current_revision !== Number(e.current_revision) || r.updated_ms !== Number(e.updated_ms) || r.own_analysis_count !== Number(e.own) || r.shared_preserved_count !== Number(e.shared);
+    });
+    if (stale) return { data: null, error: { code: "40001", message: "ASTRO_DELETE_STALE" } };
+    const analyses = store.tables.astro_analyses ?? [];
+    const dead = new Set(analyses.filter((a) => a.tenant_id === tenant && a.owner_user_id === owner && ids.includes(String(a.profile_id))).map((a) => String(a.id)));
+    store.tables.astro_analyses = analyses.filter((a) => !dead.has(String(a.id)));
+    store.tables.astro_analysis_notes = (store.tables.astro_analysis_notes ?? []).filter((n) => !dead.has(String(n.analysis_id)));
+    const shared = exp.reduce((a, e) => a + Number(e.shared), 0);
+    return { data: { deleted_profiles: 0, kept_profiles: ids.length, deleted_analyses: dead.size, preserved_shared_analyses: shared }, error: null };
   }
   if (fn === "astro_unmapped_touch") {
     store.tables.astro_unmapped_fields ??= [];

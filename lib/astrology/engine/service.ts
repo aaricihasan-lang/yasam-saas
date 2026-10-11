@@ -86,6 +86,17 @@ const PROVIDER_ERRORS: Record<string, { status: number; code: string; error: str
   malformed_json: { status: 502, code: "PROVIDER_INVALID_RESPONSE", error: "Hesaplama servisinden geçersiz yanıt alındı. Sonuç kaydedilmedi." },
 };
 
+/** Yerel sahte sağlayıcı mı? (production'da her zaman false — yalnız geliştirme ortamında yerel adres). */
+export function isLocalFakeProvider(config: EngineDeps["config"]): boolean {
+  if (process.env.NODE_ENV === "production" || !config) return false;
+  try {
+    const h = new URL(config.baseUrl).hostname;
+    return h === "127.0.0.1" || h === "localhost" || h === "[::1]" || h === "::1";
+  } catch {
+    return false;
+  }
+}
+
 export function revisionToBirth(r: RevisionRow): BirthPoint {
   return {
     birthDate: r.birth_date,
@@ -326,12 +337,24 @@ async function executeUnit(
 
   const claim = await deps.rateLimit("astro-roxy-inflight", `${ctx.tenantId}:${ctx.userId}:${unit.inputHash}`, ASTRO_RATE_LIMITS.inFlight.limit, ASTRO_RATE_LIMITS.inFlight.windowSeconds);
   if (!claim.allowed) {
+    const waitStart = Date.now();
     for (let i = 0; i < 10; i++) {
       await sleep(1500);
       const again = await reload();
       if (again) return { ok: true, row: again, reused: true, providerAttempts: 0 };
     }
-    return { ok: false, status: 409, code: "IN_PROGRESS", error: "Bu hesaplama şu anda sürüyor. Birkaç saniye sonra tekrar deneyin.", providerAttempts: 0, retryAfterSec: 10 };
+    // FINAL: kilit bir İŞLEM durumu değil, çift ücretli isteği önleyen pencere (önceki istek sürüyor ya da başarısız
+    // olmuş olabilir — ayırt edilemez). Kalan süre GERÇEK pencere süresinden hesaplanır (eskiden sabit 10 sn); kilit
+    // erken KALDIRILMAZ, sağlayıcı çağrılmaz.
+    const remaining = Math.max(1, (claim.retryAfterSec > 0 ? claim.retryAfterSec : ASTRO_RATE_LIMITS.inFlight.windowSeconds) - Math.round((Date.now() - waitStart) / 1000));
+    return {
+      ok: false,
+      status: 409,
+      code: "IN_PROGRESS",
+      error: `Bu hesaplama için kısa süre önce bir sağlayıcı isteği başlatıldı; hâlâ sürüyor olabilir ya da başarısız olmuş olabilir. Çift ücretli istek gönderilmedi. Yaklaşık ${remaining} sn sonra yeniden deneyebilirsiniz.`,
+      providerAttempts: 0,
+      retryAfterSec: remaining,
+    };
   }
 
   // 9A-P2-02: kilit ALINDIKTAN SONRA önbellek yeniden okunur — planlamadan beri başka bir istek (çift tık, ikinci sekme,
@@ -351,6 +374,11 @@ async function executeUnit(
   const call = await deps.callProvider(deps.config, unit.endpoint, unit.body, unit.query ? { lang: unit.lang, query: unit.query } : { lang: unit.lang });
   if (!call.ok) {
     log("[astro] provider call failed", { ...tag, kind: call.kind, status: call.status, attempts: call.attempts });
+    // FINAL: YALNIZ yerel geliştirme — sağlayıcı adresi yerel makine ve ortam production DEĞİLSE, sahte Roxy'nin "golden
+    // fixture yok" (501) yanıtı gerçek servis hatası gibi gösterilmez. Production'da bu dal hiç çalışmaz.
+    if (call.status === 501 && isLocalFakeProvider(deps.config)) {
+      return { ok: false, status: 502, code: "LOCAL_FIXTURE_MISSING", error: "Bu danışan ve teknik için yerel test verisi bulunmuyor. Gerçek Roxy hesaplaması yapılmadı.", providerAttempts: call.attempts };
+    }
     const e = PROVIDER_ERRORS[call.kind] ?? PROVIDER_ERRORS.server_error;
     return { ok: false, ...e, providerAttempts: call.attempts };
   }

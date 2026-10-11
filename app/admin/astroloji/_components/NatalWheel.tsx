@@ -49,7 +49,7 @@ export type WheelChart = {
   aspects: { a: BodyId; b: BodyId; type: AspectType; nature: AspectNature | null }[];
 };
 
-export default function NatalWheel({ technical, label = "Natal harita çarkı" }: { technical: WheelChart; label?: string }) {
+export default function NatalWheel({ technical, label = "Natal harita çarkı", sizeClassName = "h-auto w-full max-w-[604px]" }: { technical: WheelChart; label?: string; /** Yalnız görüntü boyutu (SVG viewBox ve çizim aynı; oran korunur). */ sizeClassName?: string }) {
   const ascLon = technical.angles?.ascendant.longitude ?? 0;
   const pt = (r: number, lon: number) => {
     const a = ((180 + (lon - ascLon)) * Math.PI) / 180;
@@ -89,7 +89,7 @@ export default function NatalWheel({ technical, label = "Natal harita çarkı" }
       viewBox={`0 0 ${SIZE} ${SIZE}`}
       role="img"
       aria-label={label}
-      className="mx-auto h-auto w-full max-w-[604px] select-none"
+      className={`mx-auto select-none ${sizeClassName}`}
     >
       <circle cx={C} cy={C} r={R_OUT} fill="#fffdf7" stroke="#334155" strokeWidth={1.5} />
       <circle cx={C} cy={C} r={R_SIGN_IN} fill="#ffffff" stroke="#334155" strokeWidth={1} />

@@ -22,7 +22,7 @@ import {
   recordCapResponse,
 } from "../persistence/repo";
 import { publicRevision } from "../view/natalView";
-import { listProfilePage } from "../clients/service";
+import { listArchivePage, listProfilePage } from "../clients/service";
 import type { EngineCtx, ServiceResponse } from "../engine/service";
 import { ASTRO_NOT_READY } from "../engine/service";
 
@@ -54,6 +54,8 @@ function clientName(c: { ad: string | null; soyad: string | null } | undefined):
  * Eski 200 kayıt sınırı yok; her sayfa en çok 100. Uzman sahipliği RPC içinde (astro_profile_page).
  */
 export async function listAstroProfiles(ctx: EngineCtx, sp: URLSearchParams = new URLSearchParams()): Promise<ServiceResponse> {
+  // ?view=archive → Analiz Arşivi (yalnız kayıtlı analizi olan profiller; etkin + arşivli birleşik). Aynı sahiplik kapısı.
+  if (sp.get("view") === "archive") return listArchivePage(ctx, sp);
   return listProfilePage(ctx, sp);
 }
 

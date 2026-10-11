@@ -9,7 +9,7 @@
  * (profil, teknik, karşı taraf) bağlamındadır — transit notu natal'e, Y sinastrisi Z'ye karışmaz.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroFetch } from "../_lib/api";
 import { houseSystemLabel } from "../_lib/techniques";
@@ -50,7 +50,10 @@ function NoteEditor({
   label,
   note,
   onSaved,
+  onDirty,
 }: {
+  /** FINAL: kaydedilmemiş değişiklik bildirimi (sekme kapatma / ekrandan ayrılma uyarısı için). */
+  onDirty?: (sectionKey: string, dirty: boolean) => void;
   profileId: string;
   technique: string;
   contextKey: string;
@@ -65,6 +68,14 @@ function NoteEditor({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const dirty = body !== (note?.body ?? "");
+  const onDirtyRef = useRef(onDirty);
+  useEffect(() => {
+    onDirtyRef.current = onDirty;
+  }, [onDirty]);
+  useEffect(() => {
+    onDirtyRef.current?.(sectionKey, dirty);
+  }, [sectionKey, dirty]);
+  useEffect(() => () => onDirtyRef.current?.(sectionKey, false), [sectionKey]);
   async function save() {
     setBusy(true);
     setMsg(null);
@@ -80,13 +91,28 @@ function NoteEditor({
   }
   return (
     <div className="flex flex-col gap-1">
-      <div className="text-xs font-medium text-emerald-800">{label}</div>
-      <textarea className="min-h-[90px] w-full rounded-lg border border-emerald-200 px-3 py-2 text-sm" value={body} maxLength={20000} onChange={(e) => setBody(e.target.value)} placeholder="Bu danışana özel yorumunuz…" />
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-teal-900">{label}</span>
+        {dirty ? (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900" data-testid="astro-note-dirty">
+            Kaydedilmemiş değişiklik
+          </span>
+        ) : note ? (
+          <span className="text-[11px] text-teal-800/80">Kayıtlı</span>
+        ) : null}
+      </div>
+      <textarea
+        className="min-h-[160px] w-full resize-y rounded-xl border border-teal-200 bg-white px-4 py-3 text-[15px] leading-relaxed text-slate-800 shadow-inner outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-200"
+        value={body}
+        maxLength={20000}
+        onChange={(e) => setBody(e.target.value)}
+        placeholder="Bu danışana özel yorumunuz…"
+      />
       <div className="flex items-center gap-2">
-        <button type="button" disabled={busy || !dirty} onClick={() => void save()} className="rounded-lg border border-emerald-300 bg-white px-3 py-1 text-xs text-emerald-800 disabled:opacity-50">
+        <button type="button" disabled={busy || !dirty} onClick={() => void save()} className="rounded-lg bg-teal-700 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:bg-teal-300">
           {busy ? "Kaydediliyor…" : "Notu kaydet"}
         </button>
-        {msg && <span className="text-xs text-slate-500">{msg}</span>}
+        {msg && <span className="text-xs text-slate-600">{msg}</span>}
       </div>
     </div>
   );
@@ -101,7 +127,13 @@ export default function AnalysisWorkspace({
   refreshKey = 0,
   onSaved,
   onData,
+  section = "all",
+  profileLabel,
+  techniqueLabel,
+  onDirtyChange,
 }: {
+  /** FINAL: bu çalışma alanında kaydedilmemiş not / Bilgi Bankası taslağı var mı (sessiz veri kaybını önlemek için). */
+  onDirtyChange?: (dirty: boolean) => void;
   profileId: string;
   revision: number;
   selection: WorkspaceSelection;
@@ -111,8 +143,23 @@ export default function AnalysisWorkspace({
   onSaved: (analysisId: string) => void;
   /** Çalışma alanı yüklendiğinde (konu + KB eşleşmeleri) üst bileşene bildirilir — ek istek yok. */
   onData?: (data: { kbMatches: KbEntry[] }) => void;
+  /** Sonuç çalışma masası sekmesi: tek örnek bölümler arasında geçer (durum korunur). Varsayılan "all" = önceki görünüm. */
+  section?: "all" | "kb" | "notes" | "save";
+  /** Kendi Yorumum başlığında hangi danışan / analiz için yazıldığını göstermek için (yalnız görüntü). */
+  profileLabel?: string;
+  techniqueLabel?: string;
 }) {
   const selJson = JSON.stringify(selection);
+  const dirtyMap = useRef(new Map<string, boolean>());
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  useEffect(() => {
+    onDirtyChangeRef.current = onDirtyChange;
+  }, [onDirtyChange]);
+  const reportDirty = useCallback((k: string, d: boolean) => {
+    dirtyMap.current.set(k, d);
+    onDirtyChangeRef.current?.([...dirtyMap.current.values()].some(Boolean));
+  }, []);
+  useEffect(() => () => onDirtyChangeRef.current?.(false), []);
   // Üst bileşen bildirimi: en güncel geri çağırma ref'te (efekt bağımlılığı değil → yeniden yükleme döngüsü yok).
   const onDataRef = useRef(onData);
   useEffect(() => {
@@ -191,10 +238,11 @@ export default function AnalysisWorkspace({
   return (
     <div className="flex flex-col gap-4">
       {/* 1) Bilgi Bankam */}
-      <section className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4" aria-label="Bilgi Bankam">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-base font-semibold text-indigo-900">Bilgi Bankam</h3>
-          <span className="text-xs text-indigo-700">
+      {/* Bölümler sekme değişince SÖKÜLMEZ, yalnız gizlenir: yazılan not / özet durumu korunur. */}
+      <section hidden={!(section === "all" || section === "kb")} className="rounded-2xl border border-[#ead9b0] bg-[#FFF8E8] p-5" aria-label="Bilgi Bankam">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-base font-semibold text-[#5b4416]">Bilgi Bankam</h3>
+          <span className="text-xs text-[#7a5d22]">
             {data.topics.length} konu · {matchedTopics.length} konuda {data.kbMatches.length} kendi notum
           </span>
         </div>
@@ -207,7 +255,7 @@ export default function AnalysisWorkspace({
             {matchedTopics.map((t) => (
               <div key={t.key}>
                 <div className="mb-1 flex items-center justify-between gap-2">
-                  <span className="text-sm font-semibold text-indigo-900">{t.label}</span>
+                  <span className="text-sm font-semibold text-[#5b4416]">{t.label}</span>
                   {!notesByKey.has(t.key) && (
                     <button type="button" className="text-xs text-emerald-700 underline" onClick={() => setAddTopic(t.key)}>
                       Bu konuya danışan yorumu yaz
@@ -225,10 +273,10 @@ export default function AnalysisWorkspace({
         )}
         {unmatchedTopics.length > 0 && data.knowledgeBankEnabled && (
           <details className="mt-3">
-            <summary className="cursor-pointer text-xs text-indigo-700">Eşleşmeyen {unmatchedTopics.length} konu — Bilgi Bankama ekle</summary>
+            <summary className="cursor-pointer text-xs text-[#7a5d22]">Eşleşmeyen {unmatchedTopics.length} konu — Bilgi Bankama ekle</summary>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {unmatchedTopics.map((t) => (
-                <button key={t.key} type="button" className="rounded-full border border-indigo-200 bg-white px-2 py-0.5 text-xs text-indigo-800 hover:bg-indigo-50" onClick={() => setKbCreate(t.key)}>
+                <button key={t.key} type="button" className="rounded-full border border-[#ead9b0] bg-white px-2 py-0.5 text-xs text-[#5b4416] hover:bg-[#FFF0D2]" onClick={() => setKbCreate(t.key)}>
                   + {t.label}
                 </button>
               ))}
@@ -240,8 +288,13 @@ export default function AnalysisWorkspace({
             <KbEditor
               key={kbCreate}
               editing={{ mode: "create", topicKey: kbCreate }}
-              onCancel={() => setKbCreate(null)}
+              onDirtyChange={(d) => reportDirty("kb-create", d)}
+              onCancel={() => {
+                reportDirty("kb-create", false);
+                setKbCreate(null);
+              }}
               onDone={() => {
+                reportDirty("kb-create", false);
                 setKbCreate(null);
                 setReload((n) => n + 1);
               }}
@@ -251,9 +304,24 @@ export default function AnalysisWorkspace({
       </section>
 
       {/* 2) Danışana özel yorum */}
-      <section className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4" aria-label="Danışana Özel Yorumum">
-        <h3 className="mb-1 text-base font-semibold text-emerald-900">Danışana Özel Yorumum</h3>
-        <p className="mb-3 text-xs text-emerald-800">
+      <section hidden={!(section === "all" || section === "notes")} className="rounded-2xl border border-teal-200 bg-[#EEF9F7] p-5" aria-label="Danışana Özel Yorumum">
+        <h3 className="mb-1 text-base font-semibold text-teal-950">Danışana Özel Yorumum</h3>
+        {(profileLabel || techniqueLabel) && (
+          <p className="mb-1 text-sm text-teal-900">
+            {profileLabel && (
+              <>
+                Danışan / profil: <strong>{profileLabel}</strong>
+              </>
+            )}
+            {profileLabel && techniqueLabel ? " · " : ""}
+            {techniqueLabel && (
+              <>
+                Analiz: <strong>{techniqueLabel}</strong>
+              </>
+            )}
+          </p>
+        )}
+        <p className="mb-4 text-xs text-teal-800">
           Bu notlar yalnız bu doğum profiline ve bu analiz türüne{data.noteContext
             ? ` (bağlam: ${data.noteContext.split("|").map((p) => p.replace(":", " ")).join(" · ")})`
             : data.contextLocationId
@@ -263,17 +331,17 @@ export default function AnalysisWorkspace({
                 : ""} aittir; Bilgi Bankası kayıtlarınızı değiştirmez.
         </p>
         <div className="flex flex-col gap-3">
-          <NoteEditor key={`overall-${notesByKey.get("overall")?.revision ?? 0}`} profileId={profileId} technique={data.technique} contextKey={data.contextKey} contextLocationId={data.contextLocationId ?? null} noteContext={data.noteContext ?? null} sectionKey="overall" label="Genel yorum" note={notesByKey.get("overall") ?? null} onSaved={() => setReload((n) => n + 1)} />
+          <NoteEditor key={`overall-${notesByKey.get("overall")?.revision ?? 0}`} profileId={profileId} technique={data.technique} contextKey={data.contextKey} contextLocationId={data.contextLocationId ?? null} noteContext={data.noteContext ?? null} sectionKey="overall" label="Genel yorum" note={notesByKey.get("overall") ?? null} onSaved={() => setReload((n) => n + 1)} onDirty={reportDirty} />
           {noteSections.map((k) => {
             const n = notesByKey.get(k) ?? null;
             const label = n?.sectionLabel ?? data.topics.find((t) => t.key === k)?.label ?? k;
-            return <NoteEditor key={`${k}-${n?.revision ?? 0}`} profileId={profileId} technique={data.technique} contextKey={data.contextKey} contextLocationId={data.contextLocationId ?? null} noteContext={data.noteContext ?? null} sectionKey={k} label={label} note={n} onSaved={() => setReload((x) => x + 1)} />;
+            return <NoteEditor key={`${k}-${n?.revision ?? 0}`} profileId={profileId} technique={data.technique} contextKey={data.contextKey} contextLocationId={data.contextLocationId ?? null} noteContext={data.noteContext ?? null} sectionKey={k} label={label} note={n} onSaved={() => setReload((x) => x + 1)} onDirty={reportDirty} />;
           })}
         </div>
       </section>
 
       {/* 3) Analizi Kaydet */}
-      <section className="rounded-2xl border border-slate-300 bg-white p-4" aria-label="Analizi Kaydet">
+      <section hidden={!(section === "all" || section === "save")} className="rounded-2xl border border-slate-300 bg-white p-5" aria-label="Analizi Kaydet">
         <h3 className="mb-2 text-base font-semibold text-slate-900">Analizi Kaydet</h3>
         <p className="mb-2 text-xs text-slate-500">
           Kayıt; doğum profili revizyonu, yöntem, teknik sonuç, eşleşen Bilgi Bankası notları ve danışan yorumunuzun o anki halini DEĞİŞMEZ olarak saklar.
@@ -282,7 +350,7 @@ export default function AnalysisWorkspace({
           <input className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm" placeholder="Başlık (boş bırakılırsa otomatik)" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
           <label className={`flex items-center gap-2 text-sm ${interpVisible && !previewNoInterp ? "text-slate-700" : "text-slate-400"}`}>
             <input type="checkbox" disabled={!interpVisible || previewNoInterp} checked={effectiveInclude} onChange={(e) => setIncludeInterp(e.target.checked)} />
-            Roxy otomatik yorumunu analize ayrı katman olarak dahil et
+            Sistem yorumunu analize ayrı katman olarak dahil et
             {(!interpVisible || previewNoInterp) && <span className="text-xs">(bu görünümde kapalı)</span>}
           </label>
           {!shownSummary ? (
@@ -325,11 +393,11 @@ export default function AnalysisWorkspace({
                 </dd>
                 <dt className="text-slate-500">Danışan yorumu</dt>
                 <dd>{shownSummary.s.noteCount} not bölümü</dd>
-                <dt className="text-slate-500">Roxy yorumu</dt>
+                <dt className="text-slate-500">Sistem yorumu</dt>
                 <dd>{shownSummary.s.providerInterpIncluded ? "Dahil (ayrı katman)" : "Dahil değil"}</dd>
               </dl>
               <div className="mt-3 flex gap-2">
-                <button type="button" disabled={busy} onClick={() => void save()} className="btn-primary rounded-lg px-4 py-1.5 text-sm disabled:opacity-60">
+                <button type="button" disabled={busy} onClick={() => void save()} className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0b1430] font-semibold text-white transition hover:bg-[#1a2b5c] disabled:cursor-not-allowed disabled:opacity-50 px-4 py-1.5 text-sm disabled:opacity-60">
                   {busy ? "Kaydediliyor…" : "Analizi kaydet"}
                 </button>
                 <button type="button" onClick={() => setSummary(null)} className="rounded-lg border border-slate-300 px-4 py-1.5 text-sm">

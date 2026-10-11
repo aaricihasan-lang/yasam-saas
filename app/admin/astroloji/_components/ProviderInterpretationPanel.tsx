@@ -27,9 +27,9 @@ export type InterpretationLayer =
   | { visible: false; reason: string };
 
 const HIDDEN_TEXT: Record<string, string> = {
-  not_entitled: "Bu hesap için Roxy otomatik yorum yetkisi kapalı. Hesaplama ve teknik veriler kullanılabilir.",
+  not_entitled: "Bu hesap için sistem yorumu yetkisi kapalı. Hesaplama ve teknik veriler kullanılabilir.",
   owner_preview_hidden:
-    "Önizleme: “Roxy Yorumu Kapalıymış Gibi Gör” açık. Yorum yetkisi kapalı bir uzman bu alanda yalnız bu notu görür; sunucu yorum içeriğini yanıta hiç koymaz.",
+    "Önizleme: “Yorumu kapalı uzman görünümü” açık. Yorum yetkisi kapalı bir uzman bu alanda yalnız bu notu görür; sunucu yorum içeriğini yanıta hiç koymaz.",
   unavailable: "Bu hesap sonucu için sağlayıcı yorum katmanı bulunmuyor.",
 };
 
@@ -40,7 +40,7 @@ function Chips({ items }: { items: string[] }) {
   return (
     <div className="mt-1 flex flex-wrap gap-1">
       {items.map((k, i) => (
-        <span key={`${k}-${i}`} className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] text-violet-700">
+        <span key={`${k}-${i}`} className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] text-sky-700">
           {k}
         </span>
       ))}
@@ -51,7 +51,7 @@ function Chips({ items }: { items: string[] }) {
 function Block({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <h4 className="mb-1 font-semibold text-violet-900">{title}</h4>
+      <h4 className="mb-1 font-semibold text-sky-900">{title}</h4>
       <ul className="flex flex-col gap-2">{children}</ul>
     </div>
   );
@@ -112,7 +112,7 @@ function Content({ content }: { content: unknown }) {
                   <P text={b.summary} />
                   {b.detailed && (
                     <details className="mt-1">
-                      <summary className="cursor-pointer text-xs text-violet-700">Ayrıntılı metin</summary>
+                      <summary className="cursor-pointer text-xs text-sky-700">Ayrıntılı metin</summary>
                       <p className="mt-1 whitespace-pre-line text-slate-700">{b.detailed}</p>
                     </details>
                   )}
@@ -212,7 +212,7 @@ function Content({ content }: { content: unknown }) {
                 <P text={a.short} />
                 {a.long && (
                   <details className="mt-1">
-                    <summary className="cursor-pointer text-xs text-violet-700">Ayrıntılı metin</summary>
+                    <summary className="cursor-pointer text-xs text-sky-700">Ayrıntılı metin</summary>
                     <p className="mt-1 whitespace-pre-line text-slate-700">{a.long}</p>
                   </details>
                 )}
@@ -278,7 +278,7 @@ function Content({ content }: { content: unknown }) {
                 <P text={b.summary} />
                 {b.detailed && (
                   <details className="mt-1">
-                    <summary className="cursor-pointer text-xs text-violet-700">Ayrıntılı metin</summary>
+                    <summary className="cursor-pointer text-xs text-sky-700">Ayrıntılı metin</summary>
                     <p className="mt-1 whitespace-pre-line text-slate-700">{b.detailed}</p>
                   </details>
                 )}
@@ -335,7 +335,7 @@ function Content({ content }: { content: unknown }) {
           )}
           {c.yogas.length > 0 && (
             <details className="rounded-lg bg-white px-3 py-2">
-              <summary className="cursor-pointer font-semibold text-violet-900">Yoga açıklamaları ({c.yogas.length}) — oluşan yogalar teknik bölümde</summary>
+              <summary className="cursor-pointer font-semibold text-sky-900">Yoga açıklamaları ({c.yogas.length}) — oluşan yogalar teknik bölümde</summary>
               <ul className="mt-2 flex flex-col gap-2">
                 {c.yogas.map((y) => (
                   <li key={y.id}>
@@ -443,21 +443,50 @@ function Content({ content }: { content: unknown }) {
   }
 }
 
+/**
+ * Görüntüleme koruması: metinlerin içine karışmış sistem anahtarlarını (ör. "[RXN-mars-summary]") YALNIZ ekranda
+ * gizler. Kayıtlı veri, API yanıtı ve teknik/denetim kayıtları DEĞİŞMEZ (salt-okunur kopya üzerinde çalışır).
+ */
+const SYSTEM_KEY_RE = /\[[A-Z]{2,6}-[A-Za-z0-9_.:-]+\]\s?/g;
+export function stripSystemKeys<T>(v: T): T {
+  if (typeof v === "string") return v.replace(SYSTEM_KEY_RE, "").trim() as T;
+  if (Array.isArray(v)) return v.map((x) => stripSystemKeys(x)) as T;
+  if (v && typeof v === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) out[k] = stripSystemKeys(x);
+    return out as T;
+  }
+  return v;
+}
+
+/** Sağlayıcı katmanında anlatı değil, teknik bileşen / terim açıklaması taşıyan şemalar (KP, Shadbala, Panchanga, Varga). */
+const TECHNICAL_DESCRIPTION_SCHEMAS = new Set(["astro.kp.chart.interp.v1", "astro.kp.extra.interp.v1", "astro.vedic.shadbala.interp.v1", "astro.vedic.panchanga.interp.v1", "astro.vedic.varga.interp.v1"]);
+
+/** Sekme / panel başlığı: anlatı içeriyorsa "Otomatik Yorum", yalnız teknik açıklamaysa "Teknik Açıklama". */
+export function interpretationTitle(interpretation: InterpretationLayer): "Otomatik Yorum" | "Teknik Açıklama" {
+  if (!interpretation.visible) return "Otomatik Yorum";
+  const schema = (interpretation.content as { schema?: string } | null)?.schema ?? "";
+  return TECHNICAL_DESCRIPTION_SCHEMAS.has(schema) ? "Teknik Açıklama" : "Otomatik Yorum";
+}
+
 export default function ProviderInterpretationPanel({ interpretation }: { interpretation: InterpretationLayer }) {
+  const title = interpretationTitle(interpretation);
   return (
-    <section className="rounded-2xl border-2 border-dashed border-violet-200 bg-violet-50/40 p-4" aria-label="Roxy Otomatik Yorumu">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-base font-semibold text-violet-900">Roxy Otomatik Yorumu</h3>
-        <span className="rounded-full border border-violet-200 bg-white px-2 py-0.5 text-[11px] font-medium text-violet-700">
-          Sağlayıcı içeriği · uzman yorumu değildir
+    <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]" aria-label={title}>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-slate-100 pb-2.5">
+        <h3 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+          <span className="h-2 w-2 rounded-full bg-[#c9a54e]" aria-hidden="true" />
+          {title}
+        </h3>
+        <span className="text-[11px] text-slate-500" title={interpretation.visible ? interpretation.notice : "Otomatik katman, hesaplama sağlayıcısı RoxyAPI tarafından üretilir."}>
+          Kaynak: RoxyAPI · uzman yorumu değildir
         </span>
       </div>
       {!interpretation.visible ? (
         <p className="text-sm text-slate-600">{HIDDEN_TEXT[interpretation.reason] ?? HIDDEN_TEXT.unavailable}</p>
       ) : (
         <div className="flex flex-col gap-4 text-sm text-slate-800">
-          <p className="text-xs text-violet-800">{interpretation.notice}</p>
-          <Content content={interpretation.content} />
+          <Content content={stripSystemKeys(interpretation.content)} />
         </div>
       )}
     </section>

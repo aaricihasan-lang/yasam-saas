@@ -300,7 +300,7 @@ export function ForecastPanel({ t }: { t: ForecastTechnical }) {
       </p>
       <div className="flex flex-wrap gap-1.5" role="group" aria-label="Olay türü filtresi">
         {(Object.keys(EVENT_LABELS) as ForecastEvent["type"][]).map((k) => (
-          <label key={k} className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${types.has(k) ? "border-violet-300 bg-violet-50 text-violet-900" : "border-slate-200 text-slate-500"}`}>
+          <label key={k} className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${types.has(k) ? "border-sky-300 bg-sky-50 text-sky-900" : "border-slate-200 text-slate-500"}`}>
             <input
               type="checkbox"
               checked={types.has(k)}
@@ -461,14 +461,35 @@ export function localTimeIn(utcIso: string, timeZone: string | null): string | n
   }
 }
 
-export function ReturnPanel({ t, place = null }: { t: ReturnTechnical; place?: ReturnPlace | null }) {
+/** Dönüş haritasının çark verisi (çizimle AYNI dönüşüm; yalnız ortak kullanım için dışa açıldı). */
+export function returnWheel(t: ReturnTechnical): WheelChart {
   const c = t.chart;
-  const wheel: WheelChart = {
+  return {
     bodies: c.bodies,
     houses: c.houses,
     angles: c.angles?.ascendant && c.angles.midheaven ? { ascendant: c.angles.ascendant, midheaven: c.angles.midheaven } : null,
     aspects: c.aspects,
   };
+}
+
+/**
+ * D3.1: çark üreten teknikler → çark verisi + etiket (sonuç ekranında harita istasyonunda gösterilir).
+ * Yalnız gerçekten çark çizen teknikler; diğerleri için null (sahte harita ÜRETİLMEZ).
+ */
+export function wheelForTechnique(technique: string, technical: unknown): { wheel: WheelChart; label: string } | null {
+  if (!technical) return null;
+  if (technique === "western.natal") return { wheel: technical as NatalTechnical, label: "Natal harita çarkı" };
+  if (technique === "western.solar_return" || technique === "western.lunar_return") {
+    const t = technical as ReturnTechnical;
+    return t.chart ? { wheel: returnWheel(t), label: t.kind === "solar" ? "Solar return çarkı" : "Lunar return çarkı" } : null;
+  }
+  if (technique === "western.composite") return { wheel: technical as CompositeTechnical, label: "Composite çarkı" };
+  return null;
+}
+
+export function ReturnPanel({ t, place = null, showWheel = true }: { t: ReturnTechnical; place?: ReturnPlace | null; /** D3.1: çark harita istasyonundaysa burada tekrar çizilmez. */ showWheel?: boolean }) {
+  const c = t.chart;
+  const wheel = returnWheel(t);
   const off = t.returnOffsetHours;
   return (
     <div className="flex flex-col gap-3">
@@ -503,7 +524,7 @@ export function ReturnPanel({ t, place = null }: { t: ReturnTechnical; place?: R
             : "Ayın ilk lunar return'ü (eski kayıt — dönüş sırası saklanmamış)"}
         </p>
       )}
-      <NatalWheel technical={wheel} label={t.kind === "solar" ? "Solar return çarkı" : "Lunar return çarkı"} />
+      {showWheel && <NatalWheel technical={wheel} label={t.kind === "solar" ? "Solar return çarkı" : "Lunar return çarkı"} />}
       {c.angles && (c.angles.ascendant || c.angles.midheaven) && (
         <p className="text-sm text-slate-700">
           {c.angles.ascendant && (
@@ -626,11 +647,11 @@ export function SynastryPanel({ t, names }: { t: SynastryTechnical; names: [stri
 }
 
 // ─── Composite ──────────────────────────────────────────────────────────────
-export function CompositePanel({ t }: { t: CompositeTechnical }) {
+export function CompositePanel({ t, showWheel = true }: { t: CompositeTechnical; showWheel?: boolean }) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-slate-600">Yöntem: orta nokta (midpoint) · {HOUSE_SYSTEM_LABELS[t.houseSystem]}</p>
-      <NatalWheel technical={t} label="Composite çarkı" />
+      {showWheel && <NatalWheel technical={t} label="Composite çarkı" />}
       {t.angles && (
         <p className="text-sm text-slate-700">
           Yükselen <SignCell sign={t.angles.ascendant.sign} degree={t.angles.ascendant.degreeInSign} /> · MC{" "}
@@ -658,6 +679,7 @@ export function TechniqueTechnical({
   kbLookup = null,
   dashaDrill,
   onDashaLevel,
+  hideWheel = false,
 }: {
   technique: string;
   technical: unknown;
@@ -672,6 +694,8 @@ export function TechniqueTechnical({
   /** Aşama 5E: dasha alt düzeyini tembel yükle (yalnız çalışma alanında; kayıtlı analizde verilmez). */
   dashaDrill?: DashaDrill;
   onDashaLevel?: (o: { mahadasha: VedicGrahaId | null; antardasha: VedicGrahaId | null }) => void;
+  /** D3.1: çark harita istasyonunda gösteriliyorsa ayrıntı panelinde tekrar çizilmez (veri ve tablolar aynı). */
+  hideWheel?: boolean;
 }) {
   const placeLabel = (k: "target" | "reference") => (options[k] as { label?: string } | undefined)?.label ?? null;
   const body = (() => {
@@ -696,11 +720,11 @@ export function TechniqueTechnical({
         return <SolarArcPanel t={technical as SolarArcTechnical} />;
       case "western.solar_return":
       case "western.lunar_return":
-        return <ReturnPanel t={technical as ReturnTechnical} place={(options.returnLocation as ReturnPlace | undefined) ?? null} />;
+        return <ReturnPanel t={technical as ReturnTechnical} place={(options.returnLocation as ReturnPlace | undefined) ?? null} showWheel={!hideWheel} />;
       case "western.synastry":
         return <SynastryPanel t={technical as SynastryTechnical} names={names} />;
       case "western.composite":
-        return <CompositePanel t={technical as CompositeTechnical} />;
+        return <CompositePanel t={technical as CompositeTechnical} showWheel={!hideWheel} />;
       case "western.astrocartography":
         return <AstrocartographyPanel t={technical as AstrocartographyTechnical} birthplace={birthplace} />;
       case "western.relocation":

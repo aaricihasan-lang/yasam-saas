@@ -41,8 +41,10 @@ export default function ClientCandidateSearch({
   onChoose: (c: ClientCandidate) => void;
 }) {
   const [name, setName] = useState(initialName);
-  const [birthDate, setBirthDate] = useState(initialBirthDate);
-  const [state, setState] = useState<{ items: ClientCandidate[] | null; error: string | null; loading: boolean }>({ items: null, error: null, loading: false });
+  // FINAL: doğum tarihi İSTEĞE BAĞLI daraltıcıdır ve başlangıçta BOŞTUR (eskiden profilin tarihiyle dolu gelir ve ad
+  // aramasına sessizce "VE" koşulu olarak eklenirdi → başka doğum tarihli kişiler gizlenirdi). Profil tarihi tek tıkla eklenebilir.
+  const [birthDate, setBirthDate] = useState("");
+  const [state, setState] = useState<{ items: ClientCandidate[] | null; error: string | null; loading: boolean; used?: { name: string; birthDate: string } }>({ items: null, error: null, loading: false });
   const [preview, setPreview] = useState<ClientCandidate | null>(null);
 
   async function search() {
@@ -51,7 +53,7 @@ export default function ClientCandidateSearch({
     if (name.trim()) sp.set("name", name.trim());
     if (birthDate) sp.set("birthDate", birthDate);
     const r = await astroFetch<{ candidates: ClientCandidate[] }>(`/api/admin/astroloji/clients/candidates?${sp.toString()}`);
-    setState({ items: r.ok ? r.data.candidates : null, error: r.ok ? null : r.error, loading: false });
+    setState({ items: r.ok ? r.data.candidates : null, error: r.ok ? null : r.error, loading: false, used: { name: name.trim(), birthDate } });
   }
 
   const choose = (c: ClientCandidate) => {
@@ -72,13 +74,33 @@ export default function ClientCandidateSearch({
           aria-label="Aday ad soyad"
           className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
         />
-        <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} aria-label="Aday doğum tarihi" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+        <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} aria-label="Doğum tarihi (isteğe bağlı daraltma)" title="İsteğe bağlı: yalnız bu doğum tarihli kayıtları gösterir" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
         <button type="button" onClick={() => void search()} disabled={state.loading} className="rounded-lg border border-emerald-400 bg-white px-3 py-2 text-sm text-emerald-800 disabled:opacity-60">
           {state.loading ? "Aranıyor…" : "Ara"}
         </button>
       </div>
+      <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+        <span>Doğum tarihi isteğe bağlıdır; boş bırakılırsa yalnız ad/soyad ile aranır.</span>
+        {initialBirthDate && birthDate !== initialBirthDate && (
+          <button type="button" onClick={() => setBirthDate(initialBirthDate)} className="text-emerald-800 underline" data-testid="astro-candidate-use-profile-date">
+            Profilin doğum tarihiyle daralt ({fmtDay(initialBirthDate)})
+          </button>
+        )}
+        {birthDate && (
+          <button type="button" onClick={() => setBirthDate("")} className="text-slate-700 underline" data-testid="astro-candidate-clear-date">
+            Tarih filtresini kaldır
+          </button>
+        )}
+      </div>
       {state.error && <p className="text-xs text-rose-700">{state.error}</p>}
-      {state.items && state.items.length === 0 && <p className="text-xs text-slate-600">Eşleşen danışan bulunamadı.</p>}
+      {state.items && state.items.length === 0 && (
+        <p className="text-xs text-slate-600" data-testid="astro-candidates-empty">
+          Danışan Yolculuğu&apos;nda eşleşen kayıt bulunamadı
+          {state.used?.name ? ` (ad/soyad: “${state.used.name}”` : " ("}
+          {state.used?.birthDate ? `${state.used?.name ? ", " : ""}doğum tarihi: ${fmtDay(state.used.birthDate)})` : ")"}.
+          {state.used?.birthDate ? " Tarih filtresini kaldırıp yeniden deneyebilirsiniz." : ""}
+        </p>
+      )}
       {state.items && state.items.length > 0 && (
         <ul className="flex flex-col gap-1.5" data-testid="astro-candidates">
           {state.items.length > 1 && <li className="text-xs font-medium text-amber-800">{state.items.length} olası kayıt — doğru kişiyi ön izlemeyle kontrol edin.</li>}

@@ -96,7 +96,7 @@
       "digital_content": { "title": "Digital Content Center", "desc": "Manage your personal archive and digital content in one place", "badge": "Center", "stat": "{n, plural, one {# item} other {# items}}" },
       "numerology": { "title": "Life Analysis Center", "desc": "Numerology and Human Design analysis tools", "badge": "Center", "stat": "{n, plural, one {# analysis} other {# analyses}}" },
       "cosmic_calendar": { "title": "Life Calendar / Cosmic Agenda", "desc": "Hijri calendar, cupping days and the daily cosmic flow", "badge": "Center" },
-      "astrology": { "title": "Astrology", "desc": "Western, Vedic and KP calculations; saved analyses and knowledge bank", "badge": "Analysis" }
+      "astrology": { "title": "Gökyüzü Atlası", "desc": "The language of the sky, the depth of your analyses.", "badge": "Astrology" }
     },
     "moduleCard": {
       "loading": "Loading",

@@ -134,6 +134,12 @@ async function seed() {
 }
 
 const GOLDEN_DIR = join(__dirname, "fixtures", "golden");
+/**
+ * D4: tarihe bağlı golden'lar (progression / solar arc) YALNIZ kendi hedef tarihleri için döndürülür. Başka tarih
+ * istenirse golden'ın tarihi DEĞİŞTİRİLMEZ (ilerletilmiş konumlar tarihe bağlıdır; sahte "gerçek sonuç" üretilmez):
+ * açıkça SENTETİK 501 yanıtı verilir → uygulama sonucu kaydetmez; log "gerçek hesaplama doğrulanamadı" der.
+ */
+const GOLDEN_TARGET_DATE: Record<string, string> = {};
 const GOLDEN: Record<string, Record<string, unknown>> = {};
 const GOLDEN_RELOCATED: Record<string, { body: Record<string, unknown>; response: Record<string, unknown> }> = {};
 const GOLDEN_VARGA: Record<number, Record<string, unknown>> = {};
@@ -149,8 +155,51 @@ for (const f of readdirSync(GOLDEN_DIR).filter((x) => x.endsWith(".json"))) {
     GOLDEN_VARGA[Number(g.body.division)] = g.response;
     if (Number(g.body.division) === 9) GOLDEN[g.endpoint] = g.response;
   } else GOLDEN[g.endpoint] = g.response;
+  if (g.endpoint === "/astrology/progressions" || g.endpoint === "/astrology/solar-arc") GOLDEN_TARGET_DATE[g.endpoint] = String(g.body.targetDate);
 }
 let roxyHits = 0;
+
+/**
+ * FINAL (owner kuralı): KATI MOD varsayılan. Sahte Roxy yalnız BİREBİR aynı istek gövdesine sahip GERÇEK golden yanıtını
+ * döndürür; başka tarih / an / konum / kişi için golden'ı YENİDEN ETİKETLEMEZ (eski "SENTETİK yankı" davranışı kapalı).
+ * Golden yoksa açıkça SENTETİK 501 → uygulama sonucu kaydetmez; log "gerçek sağlayıcı doğrulaması bekliyor" der.
+ *   • natal-chart: golden gerçek natal yerine OpenAPI'den türetilmiş fixture vardır → yalnız fixture'ın doğum girdisiyle.
+ *   • dasha alt dönemleri: golden major yanıtını 1e-12 ile üreten doğrulanmış model (syntheticDasha) → yalnız golden major
+ *     gövdesiyle BİREBİR aynı doğum girdisi için (başka kişiye uygulanmaz).
+ * Eski yeniden etiketleme yalnız açıkça FAKE_ROXY_RELABEL=1 ile (yerleşim denemesi; sonuçlar GERÇEK DEĞİLDİR).
+ */
+const STRICT = process.env.FAKE_ROXY_RELABEL !== "1";
+const canon = (v: unknown): string =>
+  v === null || typeof v !== "object"
+    ? JSON.stringify(v)
+    : Array.isArray(v)
+      ? `[${v.map(canon).join(",")}]`
+      : `{${Object.keys(v as Record<string, unknown>)
+          .sort()
+          .map((k) => `${JSON.stringify(k)}:${canon((v as Record<string, unknown>)[k])}`)
+          .join(",")}}`;
+const ALL_GOLDEN: { endpoint: string; body: string; response: Record<string, unknown>; file: string }[] = readdirSync(GOLDEN_DIR)
+  .filter((x) => x.endsWith(".json"))
+  .map((f) => {
+    const g = JSON.parse(readFileSync(join(GOLDEN_DIR, f), "utf8"));
+    return { endpoint: g.endpoint, body: canon(g.body), response: g.response, file: f };
+  });
+function strictMatch(path: string, body: Record<string, unknown>): { raw: Record<string, unknown>; source: string } | null {
+  const exact = ALL_GOLDEN.find((g) => g.endpoint === path && g.body === canon(body));
+  if (exact) return { raw: structuredClone(exact.response), source: `golden ${exact.file}` };
+  if (path === "/astrology/natal-chart") {
+    const bd = (FIXTURE as { birthDetails: Record<string, unknown>; houseSystem?: unknown }).birthDetails;
+    const same = ["date", "time", "latitude", "longitude", "timezone"].every((k) => canon(body[k]) === canon(bd[k]));
+    if (same && body.houseSystem === (FIXTURE as { houseSystem?: unknown }).houseSystem) return { raw: structuredClone(FIXTURE), source: "spec-derived natal fixture (OpenAPI)" };
+  }
+  const m = /^\/vedic-astrology\/dasha\/sub\/([A-Za-z]+)(?:\/([A-Za-z]+))?$/.exec(path);
+  if (m) {
+    const major = ALL_GOLDEN.find((g) => g.endpoint === "/vedic-astrology/dasha/major" && g.body === canon(body));
+    const sub = major ? syntheticSubResponse(major.response, m[1], m[2] ?? null) : null;
+    if (sub) return { raw: sub, source: `doğrulanmış dasha modeli (${major!.file})` };
+  }
+  return null;
+}
 
 function startFakeRoxy() {
   const cert = process.env.FAKE_ROXY_CERT;
@@ -171,7 +220,17 @@ function startFakeRoxy() {
       const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
       let raw: Record<string, unknown> | undefined;
       const kpReq = path.startsWith("/vedic-astrology/kp/") || body.significators === true;
-      if (kpReq && GOLDEN_KP[path]) {
+      if (STRICT) {
+        const hit = strictMatch(path, body);
+        if (!hit) {
+          console.log(`fake roxy SENTETİK 501 ${path}: bu istek için golden fixture yok — gerçek sağlayıcı doğrulaması bekliyor`);
+          res.writeHead(501, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ synthetic: true, error: `SENTETİK YEREL TEST: ${path} için bu girdilerle golden fixture yok; gerçek sağlayıcı doğrulaması bekliyor.` }));
+          return;
+        }
+        console.log(`fake roxy ${path} ← ${hit.source}`);
+        raw = hit.raw;
+      } else if (kpReq && GOLDEN_KP[path]) {
         raw = structuredClone(GOLDEN_KP[path]);
         // SENTETİK yankılar (yalnız UI testi; içerik golden anıdır): istenen an / sayı.
         if (path === "/vedic-astrology/kp/ruling-planets") raw.datetime = new Date(Date.parse(`${String(body.datetime)}Z`) - Number(body.timezone) * 3600_000).toISOString();
@@ -185,6 +244,11 @@ function startFakeRoxy() {
         natal.birthDetails = { date: body.date, time: body.time, latitude: body.latitude, longitude: body.longitude, timezone: body.timezone };
         natal.houseSystem = body.houseSystem;
         raw = natal;
+      } else if (GOLDEN_TARGET_DATE[path] && String(body.targetDate) !== GOLDEN_TARGET_DATE[path]) {
+        console.log(`fake roxy SENTETİK 501 ${path}: targetDate ${String(body.targetDate)} için golden fixture yok (yalnız ${GOLDEN_TARGET_DATE[path]}) — gerçek hesaplama doğrulanamadı`);
+        res.writeHead(501, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ synthetic: true, error: `SENTETİK YEREL TEST: ${path} için yalnız ${GOLDEN_TARGET_DATE[path]} tarihli golden var; gerçek hesaplama doğrulanamadı.` }));
+        return;
       } else if (GOLDEN[path]) {
         const rel = GOLDEN_RELOCATED[path];
         const isRel = rel && Math.abs(Number(body.latitude) - Number(rel.body.latitude)) < 1e-3 && Math.abs(Number(body.longitude) - Number(rel.body.longitude)) < 1e-3;

@@ -147,6 +147,12 @@ export type TechniqueParams = {
   horaryNumber: number;
   /** Ruling / horary değerlendirme yeri; null = doğum yeri. */
   kpPlace: { id: string; label: string } | null;
+  /**
+   * FINAL: gözlem / değerlendirme yeri AÇIK seçimdir — doğum yeri otomatik gözlem yeri kabul edilmez.
+   * "unset" → ruling/horary plana alınmaz; "birth" → doğum yeri (istek gövdesi eskisiyle aynı: placeLocationId null);
+   * "other" → seçilen konum.
+   */
+  kpPlaceMode: "unset" | "birth" | "other";
   /** Local space referansı; null = doğum yeri. */
   localSpaceReference: { id: string; label: string } | null;
 };
@@ -190,6 +196,7 @@ export function defaultParams(today: Date): TechniqueParams {
     kpTz: "Europe/Istanbul",
     horaryNumber: 1,
     kpPlace: null,
+    kpPlaceMode: "unset",
   };
 }
 
@@ -269,9 +276,11 @@ export function buildSelections(
       case "kp.transit":
       case "kp.horary": {
         const at = p.kpMomentMode === "now" ? { now: true } : { date: p.kpDate, time: p.kpTime, timezone: p.kpTz };
-        if (id === "kp.ruling") out.push({ technique: id, options: { ...at, nodeType: p.kpNodeType, placeLocationId: p.kpPlace?.id ?? null } });
+        // Gözlem yeri seçilmemişse (veya "başka konum" seçili ama konum yok) ruling/horary plana alınmaz.
+        if (id !== "kp.transit" && !kpPlaceReady(p)) break;
+        if (id === "kp.ruling") out.push({ technique: id, options: { ...at, nodeType: p.kpNodeType, placeLocationId: p.kpPlaceMode === "other" ? (p.kpPlace?.id ?? null) : null } });
         else if (id === "kp.transit") out.push({ technique: id, options: { ...at, ayanamsa: p.kpAyanamsa, nodeType: p.kpNodeType } });
-        else out.push({ technique: id, options: { ...at, horaryNumber: p.horaryNumber, ayanamsa: p.kpAyanamsa, nodeType: p.kpNodeType, placeLocationId: p.kpPlace?.id ?? null } });
+        else out.push({ technique: id, options: { ...at, horaryNumber: p.horaryNumber, ayanamsa: p.kpAyanamsa, nodeType: p.kpNodeType, placeLocationId: p.kpPlaceMode === "other" ? (p.kpPlace?.id ?? null) : null } });
         break;
       }
       case "vedic.varga":
@@ -280,6 +289,19 @@ export function buildSelections(
     }
   }
   return out;
+}
+
+/** Ruling / horary için gözlem yeri açıkça belirlendi mi? */
+export function kpPlaceReady(p: TechniqueParams): boolean {
+  return p.kpPlaceMode === "birth" || (p.kpPlaceMode === "other" && !!p.kpPlace);
+}
+
+/** Seçili ama eksik ayar yüzünden plana alınmayan tekniğin kısa nedeni (yoksa null). */
+export function missingReason(id: UiTechniqueId, p: TechniqueParams): string | null {
+  if (TECHNIQUE_META[id].needsPartner && !p.partnerProfileId) return "karşı taraf seçin";
+  if (id === "western.relocation" && !p.relocationTarget) return "hedef konum seçin";
+  if ((id === "kp.ruling" || id === "kp.horary") && !kpPlaceReady(p)) return id === "kp.horary" ? "değerlendirme yeri seçin" : "gözlem yeri seçin";
+  return null;
 }
 
 export function forecastPartCount(days: number): number {
@@ -321,7 +343,7 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
     case "vedic.panchanga":
       return "ayanamsa: Lahiri (sabit)";
     case "kp.chart":
-      return `${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)} · Placidus · düğüm ${o.nodeType === "true" ? "gerçek" : "ortalama"}`;
+      return `${o.ayanamsa ? `${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)} · ` : ""}Placidus · düğüm ${o.nodeType === "true" ? "gerçek" : "ortalama"}`;
     case "kp.dasha": {
       const lord = (v: unknown) => DASHA_LORD_OPTIONS.find((x) => x[0] === v)?.[1] ?? String(v);
       const lv = o.antardasha ? `Pratyantardasha · ${lord(o.mahadasha)} / ${lord(o.antardasha)}` : o.mahadasha ? `Antardasha · ${lord(o.mahadasha)}` : "Mahadasha";

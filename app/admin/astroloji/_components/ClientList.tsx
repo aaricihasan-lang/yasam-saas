@@ -59,7 +59,7 @@ export function AstroSeparationInfo() {
           data-testid="astro-info-note"
         >
           {ASTRO_SEPARATION_NOTE}
-          <button type="button" onClick={() => setOpen(false)} className="mt-2 block text-[11px] text-violet-700 underline">
+          <button type="button" onClick={() => setOpen(false)} className="mt-2 block text-[11px] text-sky-700 underline">
             Kapat
           </button>
         </span>
@@ -160,7 +160,7 @@ export default function ClientList({
         <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
           Danışanlar <AstroSeparationInfo />
         </h2>
-        <button type="button" className="text-sm text-violet-700 underline" onClick={onCreate}>
+        <button type="button" className="text-sm text-sky-700 underline" onClick={onCreate}>
           + Yeni
         </button>
       </div>
@@ -247,7 +247,7 @@ export default function ClientList({
                   type="button"
                   onClick={() => onSelect(p)}
                   aria-current={selectedId === p.id ? "true" : undefined}
-                  className={`w-full rounded-xl border px-3 py-2 text-left text-sm ${selectedId === p.id ? "border-violet-400 bg-violet-50" : "border-slate-200 bg-white hover:border-violet-200"}`}
+                  className={`w-full rounded-xl border px-3 py-2 text-left text-sm ${selectedId === p.id ? "border-sky-400 bg-sky-50" : "border-slate-200 bg-white hover:border-sky-200"}`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span className="min-w-0 break-words font-medium text-slate-800">{p.label}</span>

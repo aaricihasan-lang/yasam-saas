@@ -55,7 +55,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         </Link>
         {showAstrology && (
           <Link href="/admin/astroloji" className="font-semibold text-fuchsia-700 hover:underline">
-            Astroloji (owner pilot)
+            Gökyüzü Atlası
           </Link>
         )}
       </nav>

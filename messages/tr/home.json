@@ -96,7 +96,7 @@
       "digital_content": { "title": "Dijital İçerik Merkezi", "desc": "Kişisel arşiv ve dijital içeriklerinizi tek merkezde yönetin", "badge": "Merkez", "stat": "{n} içerik" },
       "numerology": { "title": "Yaşam Analiz Merkezi", "desc": "Numeroloji ve Human Design analiz araçları", "badge": "Merkez", "stat": "{n} analiz" },
       "cosmic_calendar": { "title": "Yaşam Takvimi / Kozmik Ajanda", "desc": "Hicri takvim, hacamat günleri ve günlük kozmik akış", "badge": "Merkez" },
-      "astrology": { "title": "Astroloji", "desc": "Batı, Vedik ve KP hesaplamaları; kayıtlı analizler ve Bilgi Bankası", "badge": "Analiz" }
+      "astrology": { "title": "Gökyüzü Atlası", "desc": "Gökyüzünün dili, analizlerinizin derinliği.", "badge": "Astroloji" }
     },
     "moduleCard": {
       "loading": "Yükleniyor",

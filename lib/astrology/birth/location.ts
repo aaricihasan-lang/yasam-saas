@@ -2,13 +2,17 @@
 //
 // Kaynaklar: Yaşam Sistemi genel konum altyapısı (lib/location) — Türkiye 81 il (authoritative),
 // pilot dünya şehirleri ve GeoNames sunucu veri seti. DIŞ API YOK (Roxy konum araması
-// kullanılmaz → ek istek maliyeti yok). Human Design'ın konum dosyalarına bağımlılık YOK.
+// kullanılmaz → ek istek maliyeti yok).
+// D4: Türkiye 973 resmî ilçe ("trd-…") — Human Design'ın derlenmiş ilçe VERİ SETİ salt-okunur yeniden kullanılır
+// (yeni veri kaynağı oluşturulmaz; HD kodu/davranışı değişmez). Koordinat + tz YALNIZ sunucu veri setinden çözülür.
+// 12 "vekil" ilçede koordinat il merkezidir (veri setinde işaretli; seçicide açıkça bildirilir).
 
 import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { WORLD_LOCATIONS } from "@/lib/location/world";
 import { getGlobalLocationById } from "@/lib/location/server/search";
+import { getTrDistrictRecord } from "@/lib/human-design/location/trDistricts";
 import type { Location } from "@/lib/location";
 import { isValidIanaTimeZone } from "./timeResolution";
 import type { ResolvedLocation } from "./profileInput";
@@ -22,6 +26,11 @@ function label(l: Location): string {
 
 export function resolveAstroLocation(id: unknown): ResolvedLocation | null {
   if (typeof id !== "string" || !/^[A-Za-z0-9_\-]{2,64}$/.test(id)) return null;
+  const d = id.startsWith("trd-") ? getTrDistrictRecord(id) : null;
+  if (d) {
+    if (!isValidIanaTimeZone(d.tz) || !Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return null;
+    return { id: d.id, label: d.label, timezone: d.tz, latitude: d.lat, longitude: d.lon };
+  }
   const loc: Location | null =
     TR_LOCATIONS.find((l) => l.id === id) ?? WORLD_LOCATIONS.find((l) => l.id === id) ?? getGlobalLocationById(id);
   if (!loc) return null;

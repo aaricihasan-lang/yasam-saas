@@ -35,8 +35,11 @@ export default function ProfileForm({
   initial,
   onDone,
   onCancel,
+  heading,
 }: {
   mode: "create" | "revise";
+  /** İsteğe bağlı görünür başlık (D3.1: Hazırlık Merkezi "Yeni Danışan" / "Doğum Bilgilerini Düzenle"); veri modeli aynı. */
+  heading?: string;
   initial?: ProfileFormInitial;
   onDone: (profileId: string) => void;
   onCancel: () => void;
@@ -93,7 +96,7 @@ export default function ProfileForm({
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4">
-      <h3 className="text-base font-semibold text-slate-800">{mode === "create" ? "Yeni doğum profili" : "Doğum bilgisini düzelt (yeni revizyon)"}</h3>
+      <h3 className="text-base font-semibold text-slate-800">{heading ?? (mode === "create" ? "Yeni doğum profili" : "Doğum bilgisini düzelt (yeni revizyon)")}</h3>
       {mode === "revise" && (
         <p className="text-xs text-slate-500">
           Düzeltme yeni bir revizyon oluşturur; önceki revizyon ve ona bağlı sonuçlar değiştirilmez ve silinmez.
@@ -128,7 +131,7 @@ export default function ProfileForm({
                 }}
               />
             ) : (
-              <button type="button" className="self-start text-xs text-violet-700 underline" onClick={() => setPickClient(true)}>
+              <button type="button" className="self-start text-xs text-sky-700 underline" onClick={() => setPickClient(true)}>
                 Olası danışan kaydını ara
               </button>
             )}
@@ -210,8 +213,8 @@ export default function ProfileForm({
       {error && <p className="text-sm text-rose-700">{error}</p>}
 
       <div className="flex gap-2">
-        <button type="button" disabled={busy} onClick={submit} className="btn-primary rounded-lg px-4 py-2 text-sm disabled:opacity-60">
-          {busy ? "Kaydediliyor…" : mode === "create" ? "Profili oluştur" : "Yeni revizyonu kaydet"}
+        <button type="button" disabled={busy} onClick={submit} className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0b1430] font-semibold text-white transition hover:bg-[#1a2b5c] disabled:cursor-not-allowed disabled:opacity-50 px-4 py-2 text-sm disabled:opacity-60">
+          {busy ? "Kaydediliyor…" : mode === "create" ? "Danışanı Oluştur" : "Yeni revizyonu kaydet"}
         </button>
         <button type="button" onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700">
           Vazgeç

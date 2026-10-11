@@ -285,6 +285,71 @@ async function main() {
       assert.equal(JSON.stringify(store.tables.astro_analyses.filter((a) => a.tenant_id === TB)), tbBefore);
     });
 
+    // ─── A — YALNIZCA ANALİZLERİ SİL (scope "analyses") ───────────────────────────────────────────────
+    const deniz = await mkProfile(TA, IDS.u1, "Deniz — natal", "1991-03-03");
+    const denizRow = store.tables.astro_birth_profiles.find((p) => p.id === deniz)!;
+    denizRow.client_id = "11111111-1111-4111-8111-111111111111"; // DY bağı (korunmalı)
+    const denizProfileBefore = JSON.stringify(denizRow);
+    await mkAnalysis(IDS.u1, TA, deniz, null, "western.natal", "Deniz natal");
+    await mkAnalysis(IDS.u1, TA, deniz, { id: ayse, label: "Ayşe — natal", birth: "1984-08-08" }, "western.synastry", "Deniz & Ayşe");
+    const aysDeniz = await mkAnalysis(IDS.u1, TA, ayse, { id: deniz, label: "Deniz — natal", birth: "1991-03-03" }, "western.synastry", "Ayşe & Deniz");
+    store.tables.astro_expert_notes ??= [];
+    store.tables.astro_expert_notes.push({ id: randomUUID(), tenant_id: TA, owner_user_id: IDS.u1, profile_id: deniz, technique: "western.natal", section_key: "overall", body: "Deniz çalışma notu" });
+    const aysDenizBefore = await openA(aysDeniz);
+    const denizCount = () => store.tables.astro_analyses.filter((a) => a.profile_id === deniz).length;
+
+    await t("A önizleme: kapsam 'analyses' özete yazılır; sayılar sunucuda (kendi 2, korunacak ortak 1)", async () => {
+      const pv = await P("u1", { mode: "single", scope: "analyses", profileIds: [deniz] });
+      assert.equal(pv.status, 200, pv.text);
+      assert.equal(pv.json.scope, "analyses");
+      assert.deepEqual(pv.json.totals, { ownAnalyses: 2, sharedPreserved: 1 });
+      assert.equal(pv.json.requiredConfirmations, 2);
+      assert.equal((await P("u1", { mode: "single", scope: "her-şey", profileIds: [deniz] })).status, 400, "bilinmeyen kapsam");
+    });
+
+    await t("A: kapsam değişirse (A özetiyle B / B özetiyle A) 409; onay 1 → 400; başka uzman / tenant 404; hiçbir şey silinmez", async () => {
+      const a = (await P("u1", { mode: "single", scope: "analyses", profileIds: [deniz] })).json.confirmToken;
+      const b = (await P("u1", { mode: "single", profileIds: [deniz] })).json.confirmToken;
+      assert.equal((await D("u1", { mode: "single", profileIds: [deniz], confirmToken: a, confirmations: 2 })).status, 409, "A özeti B olarak kullanılamaz");
+      assert.equal((await D("u1", { mode: "single", scope: "analyses", profileIds: [deniz], confirmToken: b, confirmations: 2 })).status, 409, "B özeti A olarak kullanılamaz");
+      assert.equal((await D("u1", { mode: "single", scope: "analyses", profileIds: [deniz], confirmToken: a, confirmations: 1 })).status, 400);
+      assert.equal((await D("u2", { mode: "single", scope: "analyses", profileIds: [deniz], confirmToken: a, confirmations: 2 })).status, 404);
+      assert.equal((await D("ub", { mode: "single", scope: "analyses", profileIds: [deniz], confirmToken: a, confirmations: 2 })).status, 404);
+      assert.equal(denizCount(), 2);
+      assert.ok(exists(deniz));
+    });
+
+    await t("A tekli (2 onay): Deniz'in 2 analizi silinir; profil + DY bağı + çalışma notu birebir; Ayşe & Deniz ortak analizi birebir; 0 Roxy", async () => {
+      const hits = roxyHits;
+      const a = (await P("u1", { mode: "single", scope: "analyses", profileIds: [deniz] })).json.confirmToken;
+      const d = await D("u1", { mode: "single", scope: "analyses", profileIds: [deniz], confirmToken: a, confirmations: 2 });
+      assert.equal(d.status, 200, d.text);
+      assert.deepEqual(d.json, { ok: true, scope: "analyses", deletedProfiles: 0, deletedAnalyses: 2, preservedSharedAnalyses: 1 });
+      assert.equal(denizCount(), 0);
+      assert.equal(JSON.stringify(store.tables.astro_birth_profiles.find((p) => p.id === deniz)), denizProfileBefore);
+      assert.ok(store.tables.astro_expert_notes.some((n) => n.profile_id === deniz && n.body === "Deniz çalışma notu"));
+      assert.equal(await openA(aysDeniz), aysDenizBefore);
+      assert.ok(store.tables.astro_analyses.some((a2) => a2.id === aysDeniz && a2.partner_profile_id === deniz), "canlı karşı taraf bağı duruyor");
+      assert.equal(roxyHits, hits);
+      // Aynı özetle tekrar → durum değişti (409), hiçbir şey olmaz.
+      assert.equal((await D("u1", { mode: "single", scope: "analyses", profileIds: [deniz], confirmToken: a, confirmations: 2 })).status, 409);
+    });
+
+    await t("A toplu: 3 onay zorunlu (2 → 400); Ayşe + Can analizleri silinir, profiller kalır; başka tenant aynen", async () => {
+      const tbBefore = JSON.stringify(store.tables.astro_analyses.filter((a) => a.tenant_id === TB));
+      const pv = await P("u1", { mode: "bulk", scope: "analyses", profileIds: [ayse, can] });
+      assert.equal(pv.json.requiredConfirmations, 3);
+      const body = { mode: "bulk", scope: "analyses", profileIds: [ayse, can], confirmToken: pv.json.confirmToken };
+      assert.equal((await D("u1", { ...body, confirmations: 2 })).status, 400);
+      assert.ok(store.tables.astro_analyses.some((a) => a.profile_id === ayse));
+      const d = await D("u1", { ...body, confirmations: 3 });
+      assert.equal(d.status, 200, d.text);
+      assert.equal(d.json.deletedProfiles, 0);
+      assert.ok(!store.tables.astro_analyses.some((a) => a.profile_id === ayse || a.profile_id === can));
+      assert.ok(exists(ayse) && exists(can) && exists(deniz));
+      assert.equal(JSON.stringify(store.tables.astro_analyses.filter((a) => a.tenant_id === TB)), tbBefore);
+    });
+
     await t("sınırlar: boş seçim / geçersiz kimlik / 100'den fazla → 400", async () => {
       assert.equal((await P("u1", { mode: "bulk", profileIds: [] })).status, 400);
       assert.equal((await P("u1", { mode: "bulk", profileIds: ["x"] })).status, 400);

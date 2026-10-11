@@ -27,7 +27,7 @@ const td = "px-2 py-1.5 text-sm text-slate-800";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white">
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
       <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">{title}</h4>
       <div className="overflow-x-auto">{children}</div>
     </section>
@@ -43,18 +43,32 @@ function SignCell({ sign, degree }: { sign: keyof typeof SIGN_LABELS; degree: nu
   );
 }
 
-export default function NatalTechnicalPanel({ technical, timeUnknown }: { technical: NatalTechnical; timeUnknown: boolean }) {
+/** Açı niteliği → küçük renk etiketi (yalnız görsel ayrım; veri/etiket metni aynen). */
+const NATURE_CHIP: Record<string, string> = {
+  harmonious: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+  challenging: "bg-rose-50 text-rose-800 ring-rose-200",
+  neutral: "bg-slate-50 text-slate-700 ring-slate-200",
+};
+
+/**
+ * part: sonuç çalışma masasındaki sekmeler için bölüm seçimi. Varsayılan "all" = önceki tam görünüm (kayıtlı analiz,
+ * raporlar ve testler etkilenmez). Veri, yuvarlama ve etiketler bölümler arasında DEĞİŞMEZ.
+ */
+export default function NatalTechnicalPanel({ technical, timeUnknown, part = "all" }: { technical: NatalTechnical; timeUnknown: boolean; part?: "all" | "overview" | "planets" | "houses" | "aspects" }) {
   const t = technical;
+  const show = (p: "overview" | "planets" | "houses" | "aspects") => part === "all" || part === p;
   return (
     <div className="flex flex-col gap-3">
-      {timeUnknown && (
+      {timeUnknown && part !== "aspects" && part !== "planets" && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
           Doğum saati bilinmiyor: evler, Yükselen/MC, ev yerleşimleri, Şans Noktası ve Vertex gösterilmez. Ay konumu gün
           içinde ~13° değişebileceğinden Ay açıları yaklaşık kabul edilmelidir (hesap yerel 12:00 için yapılmıştır).
         </p>
       )}
 
+      {show("planets") && (
       <Section title="Gezegenler ve noktalar">
+        <div className="overflow-x-auto">
         <table className="min-w-full">
           <thead>
             <tr>
@@ -87,9 +101,11 @@ export default function NatalTechnicalPanel({ technical, timeUnknown }: { techni
             ))}
           </tbody>
         </table>
+        </div>
       </Section>
+      )}
 
-      {!timeUnknown && t.angles && (
+      {(show("houses") || part === "overview") && !timeUnknown && t.angles && (
         <Section title="Açısal noktalar">
           <table className="min-w-full">
             <tbody className="divide-y divide-slate-100">
@@ -130,7 +146,7 @@ export default function NatalTechnicalPanel({ technical, timeUnknown }: { techni
         </Section>
       )}
 
-      {!timeUnknown && t.houses.length > 0 && (
+      {show("houses") && !timeUnknown && t.houses.length > 0 && (
         <Section title="Ev başlangıçları (cusp)">
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 px-3 py-2 text-sm sm:grid-cols-3">
             {t.houses.map((h) => (
@@ -143,7 +159,9 @@ export default function NatalTechnicalPanel({ technical, timeUnknown }: { techni
         </Section>
       )}
 
+      {show("aspects") && (
       <Section title={`Açılar (${t.aspects.length})`}>
+        <div className="overflow-x-auto">
         <table className="min-w-full">
           <thead>
             <tr>
@@ -164,7 +182,9 @@ export default function NatalTechnicalPanel({ technical, timeUnknown }: { techni
                     {BODY_LABELS[a.a]} – {BODY_LABELS[a.b]}
                   </span>
                 </td>
-                <td className={td}>{ASPECT_LABELS[a.type]}</td>
+                <td className={td}>
+                  <span className={`inline-flex rounded-md px-1.5 py-0.5 text-xs font-medium ring-1 ${NATURE_CHIP[a.nature ?? "neutral"] ?? NATURE_CHIP.neutral}`}>{ASPECT_LABELS[a.type]}</span>
+                </td>
                 <td className={`${td} tabular-nums`}>{formatDegree(a.orb)}</td>
                 <td className={td}>{a.applying ? "Yaklaşan" : "Ayrılan"}</td>
                 <td className={`${td} tabular-nums`}>%{Math.round(a.strength)}</td>
@@ -173,9 +193,11 @@ export default function NatalTechnicalPanel({ technical, timeUnknown }: { techni
             ))}
           </tbody>
         </table>
+        </div>
       </Section>
+      )}
 
-      {t.patterns.length > 0 && (
+      {show("aspects") && t.patterns.length > 0 && (
         <Section title="Açı kalıpları">
           <ul className="divide-y divide-slate-100">
             {t.patterns.map((p, i) => (
@@ -196,6 +218,7 @@ export default function NatalTechnicalPanel({ technical, timeUnknown }: { techni
         </Section>
       )}
 
+      {(part === "all" || part === "overview") && (
       <Section title="Dağılım özeti">
         <div className="grid gap-3 px-3 py-2 text-sm sm:grid-cols-2">
           {t.summary.elementDistribution && (
@@ -231,6 +254,7 @@ export default function NatalTechnicalPanel({ technical, timeUnknown }: { techni
           </div>
         </div>
       </Section>
+      )}
     </div>
   );
 }

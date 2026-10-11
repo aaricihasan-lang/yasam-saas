@@ -236,6 +236,8 @@ async function main() {
       // 9B P2 kapatma: atomik kayıt tavanı + eski Bilgi Bankası kopyalarının güvenli temizliği (yalnız yerel).
       /^supabase\/migrations\/20271101000600_astrology_record_caps\.sql$/,
       /^supabase\/migrations\/20271101000700_astrology_kb_snapshot_cleanup\.sql$/,
+      // Analiz Arşivi "A — yalnızca analizleri sil" fonksiyonu.
+      /^supabase\/migrations\/20271101000800_astrology_analysis_delete\.sql$/,
       /^app\/admin\/layout\.tsx$/,
       /^lib\/backup\/ownerPilotTables\.ts$/,
       /^lib\/backup\/schema\.generated\.ts$/,

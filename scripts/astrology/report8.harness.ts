@@ -554,7 +554,8 @@ async function main() {
     assert.ok(block.includes("const isAndroid = useIsAndroid();") && block.includes("if (isAndroid) return null;"));
     assert.ok(block.includes('"no-android hidden md:inline-flex'));
     assert.ok(block.includes('data-testid="astro-report-docx"') && block.includes('data-testid="astro-report-pdf"'));
-    assert.ok(src.includes("<ReportButtons id={a.id} previewNoInterp={previewNoInterp} />"));
+    // Gökyüzü Atlası (Aşama D): koyu başlıkta görünüm için isteğe bağlı `dark` prop'u; Android/telefon kuralları aynı.
+    assert.ok(/<ReportButtons id=\{a\.id\} previewNoInterp=\{previewNoInterp\}( dark)? \/>/.test(src));
   });
 
   // ── Snapshot değişmezliği + sıfır Roxy ───────────────────────────────────────────────────────────
