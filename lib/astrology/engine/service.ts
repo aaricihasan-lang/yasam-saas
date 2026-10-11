@@ -99,6 +99,12 @@ export function isLocalFakeProvider(config: EngineDeps["config"]): boolean {
 
 /** Kutup dairesi (yaklaşık): bu enlemin ötesinde Placidus/Koch ev bölmesi tanımsız olur. */
 export const POLAR_HOUSE_LATITUDE = 66.5;
+/** Placidus/Koch ev bölmesi bu enlemde tanımsız mı (Roxy sessizce sistem değiştirir → yanıt reddedilir ama ÜCRETLENİR). */
+export function polarHouseBlock(houseSystem: unknown, latitude: number, label: string, where: string): { code: "HOUSE_SYSTEM_POLAR"; error: string } | null {
+  if (houseSystem !== "placidus" && houseSystem !== "koch") return null;
+  if (!(Math.abs(latitude) > POLAR_HOUSE_LATITUDE)) return null;
+  return { code: "HOUSE_SYSTEM_POLAR", error: `${label}: seçilen ev sistemi ${where} (enlem ${latitude.toFixed(1)}°) tanımsızdır. Whole Sign veya Equal ev sistemini seçin.` };
+}
 
 export function revisionToBirth(r: RevisionRow): BirthPoint {
   return {
@@ -161,6 +167,12 @@ export async function resolveSelectionContexts(
       const place: PlaceRef = loc
         ? { locationId: loc.id, label: loc.label, latitude: loc.latitude, longitude: loc.longitude, timezone: loc.timezone }
         : { locationId: null, label: revision.location_label, latitude: revision.latitude, longitude: revision.longitude, timezone: revision.timezone };
+      // 2026-10-12: kutup bloğu dönüş haritasına da uygulanır (evler DÖNÜŞ KONUMUNDA kurulur).
+      const polarR = polarHouseBlock(hs, place.latitude, def.label, loc ? "dönüş konumunda" : "doğum yerinde");
+      if (polarR) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: polarR });
+        continue;
+      }
       out.push({
         ...s,
         options: { ...s.options, returnLocation: place },
@@ -184,6 +196,12 @@ export async function resolveSelectionContexts(
         ? { locationId: loc.id, label: loc.label, latitude: loc.latitude, longitude: loc.longitude, timezone: loc.timezone }
         : { locationId: revision.location_id, label: revision.location_label, latitude: revision.latitude, longitude: revision.longitude, timezone: revision.timezone };
       const geo = { latitude: place.latitude, longitude: place.longitude };
+      // 2026-10-12: taşınmış harita evleri HEDEF konumda kurulur → kutup bloğu hedefe uygulanır (Local Space ev kullanmaz).
+      const polarL = isTarget ? polarHouseBlock(hs, place.latitude, def.label, "hedef konumda") : null;
+      if (polarL) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: polarL });
+        continue;
+      }
       out.push({
         ...s,
         options: { ...s.options, [isTarget ? "target" : "reference"]: place },
@@ -239,6 +257,12 @@ export async function resolveSelectionContexts(
     const prow = partnerCache.get(key) ?? null;
     if (!prow) {
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "PARTNER_NOT_FOUND", error: "Karşı taraf doğum profili bulunamadı." } });
+      continue;
+    }
+    // 2026-10-12: sinastri/composite evleri iki kişinin doğum yerinde kurulur → biri kutup dairesi ötesindeyse blok.
+    const polarP = polarHouseBlock(hs, birth.latitude, def.label, "1. kişinin doğum yerinde") ?? polarHouseBlock(hs, prow.latitude, def.label, "karşı tarafın doğum yerinde");
+    if (polarP) {
+      out.push({ ...s, ctx: null, partnerRevision: null, blocked: polarP });
       continue;
     }
     // Normalize: karşı tarafın KULLANILAN revizyonu seçeneğe yazılır (anahtar + snapshot tutarlılığı).

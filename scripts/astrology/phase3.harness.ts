@@ -1149,6 +1149,43 @@ async function main() {
     assert.equal(plan.plan.newRequestCount, 1, "yalnız Whole Sign natal ücretli istek");
   });
 
+  await t("2026-10-12 kutup bloğu GENİŞLETİLDİ: dönüş (doğum/dönüş konumu), relocation hedefi, sinastri/composite karşı tarafı > 66.5° → 0 istek; Whole Sign / Local Space geçer", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const TROMSO: ResolvedLocation = { id: "gn-3133895", label: "Tromsø, Norveç", timezone: "Europe/Oslo", latitude: 69.6489, longitude: 18.9551 };
+    const IST: ResolvedLocation = { id: "tr-34-istanbul", label: "İstanbul, Türkiye", timezone: "Europe/Istanbul", latitude: 41.0082, longitude: 28.9784 };
+    const res = (id: unknown) => (id === TROMSO.id ? TROMSO : id === IST.id ? IST : null);
+    const mk = async (label: string, loc: string) => {
+      const r = await createAstroProfile(ctx, { label, clientId: CLIENT_X, birthDate: "1999-12-21", birthTime: "12:00", timeKnown: true, timeAccuracy: "exact_record", locationId: loc }, res);
+      assert.equal(r.status, 201, JSON.stringify(r.body));
+      return (r.body as J).profile.id as string;
+    };
+    const polar = await mk("Sentetik Kutup 2", TROMSO.id);
+    const ist = await mk("Sentetik İstanbul", IST.id);
+    const codes = async (pid: string, sels: unknown[]) => {
+      const p = (await planAstrology(ctx, { profileId: pid, selections: sels })).body as J;
+      return { codes: p.plan.selections.map((s: J) => s.blocked?.code ?? null), n: p.plan.newRequestCount };
+    };
+    const a = await codes(polar, [
+      { technique: "western.solar_return", options: { returnYear: 2026, houseSystem: "placidus", returnLocationId: null } },
+      { technique: "western.lunar_return", options: { month: "2026-11", sequence: 1, houseSystem: "koch", returnLocationId: null } },
+      { technique: "western.solar_return", options: { returnYear: 2026, houseSystem: "whole-sign", returnLocationId: null } },
+    ]);
+    assert.deepEqual(a.codes, ["HOUSE_SYSTEM_POLAR", "HOUSE_SYSTEM_POLAR", null]);
+    assert.equal(a.n, 1);
+    const b = await codes(ist, [
+      { technique: "western.solar_return", options: { returnYear: 2026, houseSystem: "placidus", returnLocationId: TROMSO.id } },
+      { technique: "western.relocation", options: { targetLocationId: TROMSO.id, houseSystem: "placidus" } },
+      { technique: "western.relocation", options: { targetLocationId: TROMSO.id, houseSystem: "whole-sign" } },
+      { technique: "western.local_space", options: { referenceLocationId: TROMSO.id } },
+      { technique: "western.synastry", options: { partnerProfileId: polar, houseSystem: "placidus", nodeType: "true" } },
+      { technique: "western.composite", options: { partnerProfileId: polar, houseSystem: "placidus", nodeType: "true" } },
+      { technique: "western.synastry", options: { partnerProfileId: polar, houseSystem: "whole-sign", nodeType: "true" } },
+    ]);
+    assert.deepEqual(b.codes, ["HOUSE_SYSTEM_POLAR", "HOUSE_SYSTEM_POLAR", null, null, "HOUSE_SYSTEM_POLAR", "HOUSE_SYSTEM_POLAR", null]);
+    assert.equal(b.n, 4, `ücretli yalnız: Whole Sign relocation (taşınmış + natal karşılaştırma = 2) + Local Space + Whole Sign sinastri (n=${b.n})`);
+  });
+
   console.log(`\nastrology phase3 harness: ${pass} PASS / ${fail} FAIL`);
   if (fail > 0) process.exit(1);
 }
