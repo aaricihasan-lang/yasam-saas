@@ -283,7 +283,32 @@ function forecastDetail(e: O): string {
   }
 }
 
-function westernTiming(b: B, technique: string, t: O, people: { a: string; b: string }) {
+/**
+ * Dönüş anı: Roxy yerel saati DOĞUM ofsetiyle verir (ör. 1988 Türkiye UTC+2). Dönüş tarihindeki gerçek yerel saat farklı
+ * olabilir (2026 Türkiye UTC+3) → rapor UTC anını ve (doğum yerinde hesaplanan dönüşte) IANA saat dilimiyle gerçek yerel
+ * saati AYRICA yazar; "yerel" etiketi sağlayıcı ofsetinin ne olduğunu açıkça söyler.
+ */
+export function returnTimes(t: O, birthTz: string | null, relocated: boolean): { utc: string | null; local: string | null } {
+  const rl = typeof t.returnLocal === "string" ? t.returnLocal : null;
+  const off = num(t.returnOffsetHours);
+  if (!rl || off === null || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(rl)) return { utc: null, local: null };
+  const ms = Date.parse(`${rl.length === 16 ? rl + ":00" : rl.slice(0, 19)}Z`) - off * 3600_000;
+  if (!Number.isFinite(ms)) return { utc: null, local: null };
+  const utc = new Date(ms).toISOString();
+  if (relocated || !birthTz) return { utc, local: null };
+  try {
+    const p = Object.fromEntries(
+      new Intl.DateTimeFormat("tr-TR", { timeZone: birthTz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short" })
+        .formatToParts(new Date(ms))
+        .map((x) => [x.type, x.value]),
+    );
+    return { utc, local: `${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute} (${p.timeZoneName}, ${birthTz})` };
+  } catch {
+    return { utc, local: null };
+  }
+}
+
+function westernTiming(b: B, technique: string, t: O, people: { a: string; b: string }, ret: { birthTz: string | null; relocated: boolean } = { birthTz: null, relocated: false }) {
   switch (technique) {
     case "western.transit": {
       b.kv([["Transit anı", utcTr(t.atUtc)]]);
@@ -336,12 +361,14 @@ function westernTiming(b: B, technique: string, t: O, people: { a: string; b: st
       const rq = isObj(t.requested) ? t.requested : {};
       const np = isObj(t.natalPoint) ? t.natalPoint : null;
       const loc = isObj(t.location) ? t.location : {};
+      const rt = returnTimes(t, ret.birthTz, ret.relocated);
       b.kv([
         ["Dönüş türü", t.kind === "lunar" ? "Lunar return (Ay dönüşü)" : "Solar return (Güneş dönüşü)"],
         ["İstenen", num(rq.returnYear) !== null ? `${rq.returnYear} yılı` : dateTr(rq.returnDate)],
         ["Dönüş sırası", num(rq.sequence) !== null ? `${rq.sequence}. dönüş` : DASH],
-        ["Dönüş anı (yerel)", localTr(t.returnLocal)],
-        ["Saat ofseti", offset(t.returnOffsetHours)],
+        ["Dönüş anı (UTC)", rt.utc ? utcTr(rt.utc) : DASH],
+        ...(rt.local ? ([["Dönüş anı (doğum yeri yerel saati)", rt.local]] as [string, string][]) : []),
+        ["Sağlayıcı saati (doğum ofseti)", `${localTr(t.returnLocal)} · ${offset(t.returnOffsetHours)}`],
         [t.kind === "lunar" ? "Natal Ay" : "Natal Güneş", np ? pos(np.sign, np.degreeInSign) : DASH],
         ["Dönüş konumu", coord(loc.latitude, loc.longitude)],
       ]);
@@ -947,7 +974,10 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   if (!tech) {
     b.p(warnings.length ? "Bu analizde saat-bağımlı teknik sonuçlar gösterilmez (yukarıdaki uyarıya bakın)." : "Bu kayıtta teknik sonuç bulunmuyor.", "muted");
   } else if (technique === "western.natal") westernNatal(b, tech);
-  else if (["western.transit", "western.forecast", "western.progression", "western.solar_arc", "western.solar_return", "western.lunar_return", "western.synastry", "western.composite"].includes(technique)) westernTiming(b, technique, tech, people);
+  else if (["western.transit", "western.forecast", "western.progression", "western.solar_arc", "western.solar_return", "western.lunar_return", "western.synastry", "western.composite"].includes(technique)) {
+    const rv = profile && isObj(profile.revision) ? profile.revision : null;
+    westernTiming(b, technique, tech, people, { birthTz: rv && typeof rv.timezone === "string" ? rv.timezone : null, relocated: typeof opts.returnLocationId === "string" && opts.returnLocationId !== "" });
+  }
   else if (["western.astrocartography", "western.relocation", "western.local_space"].includes(technique)) westernLocation(b, technique, tech, opts);
   else if (technique.startsWith("vedic.") || technique === "kp.dasha") vedic(b, technique, tech);
   else if (technique.startsWith("kp.")) {

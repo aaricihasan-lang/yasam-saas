@@ -693,6 +693,42 @@ async function main() {
     assert.match(adf, /!\(noAnalyses && kind === "A"\)/);
   });
 
+  await t("2026-10 DÖNÜŞ ANI: Roxy doğum ofsetiyle verir (1988 TR UTC+2) → rapor UTC + doğum yeri GERÇEK yerel saati (2026 UTC+3) yazar", async () => {
+    const { returnTimes } = await import("@/lib/astrology/report/model");
+    const t = { returnLocal: "2026-03-21T11:52:02", returnOffsetHours: 2 };
+    const r = returnTimes(t, "Europe/Istanbul", false);
+    assert.equal(r.utc, "2026-03-21T09:52:02.000Z");
+    assert.match(r.local ?? "", /^21\.03\.2026 12:52 \(GMT\+3, Europe\/Istanbul\)$/);
+    assert.equal(returnTimes(t, "Europe/Istanbul", true).local, null, "farklı konumda doğum yeri saati yazılmaz");
+    assert.equal(returnTimes({ returnLocal: "x", returnOffsetHours: 2 }, "Europe/Istanbul", false).utc, null);
+    const src = readFileSync(join(ROOT, "lib/astrology/report/model.ts"), "utf8");
+    assert.ok(!/"Dönüş anı \(yerel\)"/.test(src), "yanıltıcı 'yerel' etiketi kalktı");
+  });
+
+  await t("2026-10-12 VARSAYILAN TARİH: 'bugün' Türkiye takvim günü (00:00–03:00 TSİ'de dün değil; yılbaşında solar return yılı doğru)", async () => {
+    const { defaultParams, istanbulDateIso } = await import("@/app/admin/astroloji/_lib/techniques");
+    assert.equal(istanbulDateIso(new Date("2026-10-11T22:07:00Z")), "2026-10-12");
+    const p = defaultParams(new Date("2026-10-11T22:07:00Z"));
+    assert.equal(p.targetDate, "2026-10-12");
+    assert.equal(p.forecastStart, "2026-10-12");
+    assert.equal(p.transitDate, "2026-10-12");
+    assert.equal(p.lunarMonth, "2026-10");
+    const ny = defaultParams(new Date("2026-12-31T21:30:00Z"));
+    assert.equal(ny.returnYear, 2027);
+    assert.equal(ny.targetDate, "2027-01-01");
+  });
+
+  await t("2026-10-12 KAYIT BAŞLIĞI: uzmanın verdiği başlık listede görünür; otomatik başlık tekrar edilmez", () => {
+    const src = readFileSync(join(ROOT, "app/admin/astroloji/_components/SavedAnalyses.tsx"), "utf8");
+    assert.match(src, /data-testid="astro-saved-title"/);
+    const body = src.slice(src.indexOf("export function isCustomTitle"), src.indexOf("function fmt("));
+    const isCustomTitle = new Function("title", "techLabel", body.replace(/^export function isCustomTitle\([^)]*\): boolean \{/, "").replace(/\}\s*$/, "")) as (a: string, b: string) => boolean;
+    assert.equal(isCustomTitle("TEST · H Mumbai 1962 · Vedik D1 (Rashi) · 11.10.2026", "Vedik D1 (Rashi)"), false);
+    assert.equal(isCustomTitle("UI testi · Local Space (yorum dahil)", "Local Space"), true);
+    assert.equal(isCustomTitle("Ayşe · Local Space · ilk seans", "Local Space"), true);
+    assert.equal(isCustomTitle("  ", "Natal"), false);
+  });
+
   restore();
   console.log(`\nastrology report8 harness: ${pass} PASS / ${fail} FAIL`);
   if (fail > 0) process.exit(1);

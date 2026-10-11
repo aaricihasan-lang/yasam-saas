@@ -50,6 +50,15 @@ type Analysis = {
   versions: Record<string, unknown>;
 };
 
+/** Otomatik başlık "<profil> · <teknik> · GG.AA.YYYY" kalıbındadır; bunun dışındaki başlık uzmanın verdiği addır. */
+export function isCustomTitle(title: string, techLabel: string): boolean {
+  const t = title.trim();
+  if (!t) return false;
+  const suffix = ` · ${techLabel} · `;
+  const i = t.lastIndexOf(suffix);
+  return !(i > 0 && /^\d{2}\.\d{2}\.\d{4}$/.test(t.slice(i + suffix.length)));
+}
+
 function fmt(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" });
@@ -158,6 +167,12 @@ export function SavedAnalysesList({ profileId, reloadKey, onOpen, openId, curren
                   {techniqueLabel(a.technique)}
                 </span>
                 <span className="min-w-0 max-w-full truncate pl-4 text-xs text-slate-600 sm:pl-0" title={a.title}>
+                  {/* 2026-10-12: uzmanın kayıtta verdiği başlık listede görünür (otomatik başlık "… · Teknik · GG.AA.YYYY" gösterilmez). */}
+                  {isCustomTitle(a.title, techniqueLabel(a.technique)) && (
+                    <span className="mr-1.5 font-medium text-slate-800" data-testid="astro-saved-title">
+                      “{a.title}”
+                    </span>
+                  )}
                   {describeOptions(a.technique, a.params, () => a.partnerLabel) || "—"}
                   {a.providerInterpIncluded ? " · sistem yorumu dahil" : ""}
                 </span>

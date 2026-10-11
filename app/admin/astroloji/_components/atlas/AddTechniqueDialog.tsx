@@ -141,7 +141,8 @@ export default function AddTechniqueDialog<T>({
   const opts = ps?.options ? describeOptions(ps.technique, ps.options, labelOf) : "";
   const needsTimeBlocked = !!meta?.needsTime && !timeKnown;
   const missing = tech ? missingReason(tech, params) : null;
-  const btnLabel = busy ? "Hesaplanıyor…" : !ps ? "Plan hazırlanıyor…" : ps.blocked ? "Hesaplanamaz" : ps.newRequests === 0 ? "Hazır sonucu aç" : `${cur?.plan?.newRequestCount ?? ps.newRequests} yeni isteği onayla ve hesapla`;
+  // 2026-10-12 UI testi: teknik seçilmemişken "Plan hazırlanıyor…" yazıyordu (yanıltıcı; hazırlanan plan yok).
+  const btnLabel = busy ? "Hesaplanıyor…" : !tech ? "Önce teknik seçin" : !ps ? "Plan hazırlanıyor…" : ps.blocked ? "Hesaplanamaz" : ps.newRequests === 0 ? "Hazır sonucu aç" : `${cur?.plan?.newRequestCount ?? ps.newRequests} yeni isteği onayla ve hesapla`;
   const initials = profileLabel.split(/\s[—–-]\s/)[0].trim().split(/\s+/).filter(Boolean).map((w, i, a) => (i === 0 || i === a.length - 1 ? w[0] : "")).join("").toLocaleUpperCase("tr-TR");
 
   return (

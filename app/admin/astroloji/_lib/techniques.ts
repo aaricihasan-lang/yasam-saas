@@ -160,8 +160,17 @@ export type TechniqueParams = {
 export const FORECAST_CHUNK_DAYS = 90;
 export const FORECAST_MAX_DAYS = 366;
 
+/**
+ * "Bugün" Türkiye takvim günüdür (varsayılan saat dilimi Europe/Istanbul). 2026-10-12 canlı UI testi: UTC günü
+ * kullanılınca 00:00–03:00 TSİ arasında ilerletme/solar arc/transit/forecast varsayılanları DÜNÜN tarihini gösteriyordu.
+ */
+export function istanbulDateIso(d: Date): string {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
 export function defaultParams(today: Date): TechniqueParams {
-  const iso = today.toISOString().slice(0, 10);
+  const iso = istanbulDateIso(today);
   return {
     transitMode: "now",
     transitDate: iso,
@@ -170,7 +179,7 @@ export function defaultParams(today: Date): TechniqueParams {
     forecastStart: iso,
     forecastDays: 90,
     targetDate: iso,
-    returnYear: today.getUTCFullYear(),
+    returnYear: Number(iso.slice(0, 4)),
     lunarMonth: iso.slice(0, 7),
     lunarSequence: 1,
     partnerProfileId: "",
