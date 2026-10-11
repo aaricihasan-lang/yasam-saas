@@ -77,7 +77,8 @@ const done = <T, I>(errors: string[], dropped: string[], technical: () => T, int
 
 const NAK_SPAN = 360 / 27;
 const PADA_SPAN = 360 / 108;
-const slug = (s: string) => s.trim().toLowerCase().replace(/[^a-z]+/g, "_").replace(/^_|_$/g, "");
+// Aksan/uzatma işaretleri (ör. Roxy "Nāg", "Pūrva") ASCII tabana indirilir; aksi halde "n_g" gibi kırık anahtar çıkar.
+const slug = (s: string) => s.normalize("NFD").replace(/\p{M}+/gu, "").trim().toLowerCase().replace(/[^a-z]+/g, "_").replace(/^_|_$/g, "");
 
 export function mapGraha(v: unknown): VedicGrahaId | null {
   if (typeof v !== "string") return null;
@@ -1010,7 +1011,8 @@ export function projectRoxyVedicPanchanga(raw: unknown): AdapterResult<VedicPanc
   if (Math.abs(((ysum % NAK_SPAN) / NAK_SPAN) * 100 - yp) > 0.5) errors.push("nitya yoga yüzdesi");
   const h = Math.floor(elong / 6);
   const kar = karanaOfHalfTithi(h);
-  if (kar.movable ? kar.number !== kn : !slug(String(k?.name)).startsWith(kar.id.slice(0, 4)))
+  // Sabit karanalar: numara (Shakuni 8 … Kimstughna 11) VE ad öneki (sha/cha/nag/kim — Roxy "Nāg" yazar) birlikte tutmalı.
+  if (kar.movable ? kar.number !== kn : kar.number !== kn || !slug(String(k?.name)).startsWith(kar.id.slice(0, 3)))
     errors.push(`karana yarım-tithi ile uyuşmuyor (sağlayıcı ${String(k?.name).slice(0, 24)} #${kn}, beklenen ${kar.id} #${kar.number}, yarım-tithi ${h})`);
   if (Math.abs(((elong % 6) / 6) * 100 - kpct) > 0.5) errors.push("karana yüzdesi");
   const ni = Math.min(26, Math.floor(moon / NAK_SPAN));
