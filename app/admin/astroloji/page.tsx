@@ -1015,6 +1015,7 @@ export default function AstrologyWorkspacePage() {
                 </div>
                 <SavedAnalysesList
                   currentRevision={shownDetail.currentRevision}
+                  profileLabel={shownDetail.label}
                   profileId={shownDetail.id}
                   reloadKey={analysesReload}
                   openId={openAnalysis && openAnalysis.profileId === shownDetail.id ? openAnalysis.id : null}
