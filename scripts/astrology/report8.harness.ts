@@ -730,6 +730,7 @@ async function main() {
     assert.equal(isCustomTitle(`${P} · Solar return → London, England, United Kingdom · 12.10.2026`, P), false);
     assert.equal(isCustomTitle("Canlı UAT · Local Space (sahibin senaryosu)", P), true);
     assert.equal(isCustomTitle(`${P} · ilk seans notlarıyla`, P), true);
+    assert.equal(isCustomTitle(`${P} & TEST2 · İzmir saat bilinmiyor · Sinastri · 12.10.2026`, P), false, "ilişki otomatik başlığı");
     assert.equal(isCustomTitle("  ", P), false);
     assert.match(readFileSync(join(ROOT, "app/admin/astroloji/page.tsx"), "utf8"), /profileLabel=\{shownDetail\.label\}/);
   });
