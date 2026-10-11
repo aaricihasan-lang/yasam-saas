@@ -7,11 +7,14 @@
  *
  * Yerleşim: Yükselen solda (9 yönü), boylam saat yönünün TERSİNE artar (astrolojik standart).
  * Saat bilinmiyorsa (angles=null) 0° Koç solda, evler çizilmez.
+ *
+ * Ekran tipografisi (yalnız görünüm): glifler büyük; gezegen derecesi + dakikası tablolarla AYNI biçimlendiriciyle
+ * (formatDegree: dakika kesilir) iki satırda. Yarıçaplar ve glif itme aralığı rapor çarkıyla (report/wheelSvg) aynıdır.
  */
 
 import type { AspectNature, AspectType, BodyId, NatalHouse, SignId } from "@/lib/astrology/model/western";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
-import { BODY_GLYPHS, BODY_LABELS, SIGN_ELEMENT, SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
+import { BODY_GLYPHS, BODY_LABELS, formatDegree, SIGN_ELEMENT, SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
 
 const SIZE = 604;
 const C = SIZE / 2;
@@ -27,6 +30,14 @@ const ELEMENT_COLOR: Record<string, string> = {
   earth: "#15803d",
   air: "#ca8a04",
   water: "#2563eb",
+};
+
+/** Aydınlık masa (tinted): burç bandı için soluk element tonları (yalnız zemin rengi). */
+const ELEMENT_TINT: Record<string, string> = {
+  fire: "#fde8e8",
+  earth: "#e3f5e8",
+  air: "#fbf3d0",
+  water: "#e1ecfb",
 };
 
 const NATURE_COLOR: Record<string, string> = {
@@ -49,7 +60,20 @@ export type WheelChart = {
   aspects: { a: BodyId; b: BodyId; type: AspectType; nature: AspectNature | null }[];
 };
 
-export default function NatalWheel({ technical, label = "Natal harita çarkı", sizeClassName = "h-auto w-full max-w-[604px]" }: { technical: WheelChart; label?: string; /** Yalnız görüntü boyutu (SVG viewBox ve çizim aynı; oran korunur). */ sizeClassName?: string }) {
+export default function NatalWheel({
+  technical,
+  label = "Natal harita çarkı",
+  sizeClassName = "h-auto w-full max-w-[604px]",
+  tinted = false,
+}: {
+  technical: WheelChart;
+  label?: string;
+  /** Yalnız görüntü boyutu (SVG viewBox ve çizim aynı; oran korunur). */
+  sizeClassName?: string;
+  /** Aydınlık çalışma masası: element tonlu burç bandı + büyük yazı. Geometri, konumlar ve açılar AYNI. */
+  tinted?: boolean;
+}) {
+  const fs = tinted ? { sign: 22, glyph: 22, deg: 11, min: 8.5, house: 12, angle: 10.5 } : { sign: 19, glyph: 20, deg: 9.5, min: 7.5, house: 11, angle: 9.5 };
   const ascLon = technical.angles?.ascendant.longitude ?? 0;
   const pt = (r: number, lon: number) => {
     const a = ((180 + (lon - ascLon)) * Math.PI) / 180;
@@ -101,15 +125,23 @@ export default function NatalWheel({ technical, label = "Natal harita çarkı", 
         const p1 = pt(R_SIGN_IN, start);
         const p2 = pt(R_OUT, start);
         const g = pt((R_SIGN_IN + R_OUT) / 2, start + 15);
+        const o2 = pt(R_OUT, start + 30);
+        const i2 = pt(R_SIGN_IN, start + 30);
         return (
           <g key={sign}>
+            {tinted && (
+              <path
+                d={`M ${p2.x} ${p2.y} A ${R_OUT} ${R_OUT} 0 0 0 ${o2.x} ${o2.y} L ${i2.x} ${i2.y} A ${R_SIGN_IN} ${R_SIGN_IN} 0 0 1 ${p1.x} ${p1.y} Z`}
+                fill={ELEMENT_TINT[SIGN_ELEMENT[sign]]}
+              />
+            )}
             <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#334155" strokeWidth={0.8} />
             <text
               x={g.x}
               y={g.y}
               textAnchor="middle"
               dominantBaseline="central"
-              fontSize={17}
+              fontSize={fs.sign}
               fill={ELEMENT_COLOR[SIGN_ELEMENT[sign]]}
             >
               <title>{SIGN_LABELS[sign]}</title>
@@ -144,7 +176,7 @@ export default function NatalWheel({ technical, label = "Natal harita çarkı", 
               stroke={angleIds.has(h.number) ? "#0f172a" : "#94a3b8"}
               strokeWidth={angleIds.has(h.number) ? 1.6 : 0.7}
             />
-            <text x={mid.x} y={mid.y} textAnchor="middle" dominantBaseline="central" fontSize={10} fill="#64748b">
+            <text x={mid.x} y={mid.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.house} fill="#475569">
               {h.number}
             </text>
           </g>
@@ -161,11 +193,15 @@ export default function NatalWheel({ technical, label = "Natal harita çarkı", 
             { lon: technical.angles.midheaven.longitude + 180, t: "IC", title: "Dip Noktası (IC)" },
           ].map((a) => {
             const q = pt(R_OUT + 16, a.lon);
+            // Etiket çember DIŞINDA → zemin rengi (koyu masa / açık kâğıt) ne olursa olsun okunur küçük açık levha.
             return (
-              <text key={a.t} x={q.x} y={q.y} textAnchor="middle" dominantBaseline="central" fontSize={9} fontWeight={700} fill="#0f172a">
-                <title>{a.title}</title>
-                {a.t}
-              </text>
+              <g key={a.t}>
+                <rect x={q.x - 14} y={q.y - 7.5} width={28} height={15} rx={4} fill="#fffdf7" stroke="#334155" strokeWidth={0.7} />
+                <text x={q.x} y={q.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.angle} fontWeight={700} fill="#0f172a">
+                  <title>{a.title}</title>
+                  {a.t}
+                </text>
+              </g>
             );
           })}
         </>
@@ -202,17 +238,22 @@ export default function NatalWheel({ technical, label = "Natal harita çarkı", 
         const g = pt(R_GLYPH, d);
         const deg = pt(R_DEG, d);
         const dot = pt(R_ASPECT, b.longitude);
+        const mins = pt(R_DEG - 19, d);
+        const [degTxt, minTxt] = formatDegree(b.degreeInSign).split("°");
         return (
           <g key={b.id}>
             <line x1={tick1.x} y1={tick1.y} x2={tick2.x} y2={tick2.y} stroke="#0f172a" strokeWidth={1.2} />
             <line x1={tick2.x} y1={tick2.y} x2={g.x} y2={g.y} stroke="#cbd5e1" strokeWidth={0.6} />
             <circle cx={dot.x} cy={dot.y} r={1.8} fill="#0f172a" />
-            <text x={g.x} y={g.y} textAnchor="middle" dominantBaseline="central" fontSize={18} fill="#0f172a">
-              <title>{`${BODY_LABELS[b.id]} — ${SIGN_LABELS[b.sign]} ${Math.floor(b.degreeInSign)}°${b.retrograde ? " ℞" : ""}`}</title>
+            <text x={g.x} y={g.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.glyph} fill="#0f172a">
+              <title>{`${BODY_LABELS[b.id]} — ${SIGN_LABELS[b.sign]} ${formatDegree(b.degreeInSign)}${b.retrograde ? " ℞" : ""}`}</title>
               {BODY_GLYPHS[b.id]}
             </text>
-            <text x={deg.x} y={deg.y} textAnchor="middle" dominantBaseline="central" fontSize={8.5} fill="#475569">
-              {`${Math.floor(b.degreeInSign)}°${b.retrograde ? "℞" : ""}`}
+            <text x={deg.x} y={deg.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.deg} fontWeight={600} fill="#1e293b">
+              {`${degTxt}°${b.retrograde ? "℞" : ""}`}
+            </text>
+            <text x={mins.x} y={mins.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.min} fill="#64748b">
+              {minTxt}
             </text>
           </g>
         );

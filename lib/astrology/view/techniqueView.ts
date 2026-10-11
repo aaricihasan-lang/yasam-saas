@@ -15,6 +15,7 @@ import type {
   ProgressionTechnical,
   SolarArcInterpretation,
   SolarArcTechnical,
+  SynastryInterpretation,
   SynastryTechnical,
   TransitInterpretation,
   TransitTechnical,
@@ -165,6 +166,13 @@ function maskInterpretation(technique: string, content: unknown, masked: boolean
     const c = content as SolarArcInterpretation;
     return { ...c, directed: c.directed.filter((d) => !isAngle(d.id)) };
   }
+  // Saat bilinmiyorsa: ilerletilmiş ve composite anlatıları ev/açı (ASC-MC) ve saate duyarlı Ay konumuna dayanır →
+  // teknik katmanda gizlenen bilgiyi anlatıda göstermemek için sağlayıcı yorumu gösterilmez.
+  if (technique === "western.progression" || technique === "western.composite") return null;
+  if (technique === "western.synastry") {
+    const c = content as SynastryInterpretation;
+    return { ...c, aspects: c.aspects.filter((a) => !isAngle(a.a) && !isAngle(a.b)) };
+  }
   return content;
 }
 
@@ -193,7 +201,9 @@ export function buildTechniqueView(args: {
       interpretation = { visible: false, reason: "unavailable" };
     } else {
       const it = list[0]!;
-      interpretation = { visible: true, provider: it.provider, lang: it.lang, content: maskInterpretation(args.technique, it.content, m.masked), notice: PROVIDER_INTERP_NOTICE };
+      const content = maskInterpretation(args.technique, it.content, m.masked);
+      // Maske tüm anlatıyı kaldırdıysa (saat bilinmiyor) boş katman gösterilmez.
+      interpretation = content === null ? { visible: false, reason: "unavailable" } : { visible: true, provider: it.provider, lang: it.lang, content, notice: PROVIDER_INTERP_NOTICE };
     }
   }
 

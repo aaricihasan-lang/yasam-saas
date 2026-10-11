@@ -721,6 +721,38 @@ export default function PrepCenter({
           )}
         </div>
       </div>
+      {/* Adım şeridi: kullanıcı akışta nerede olduğunu görür (yalnız mevcut durumdan türetilir; yeni mantık yok). */}
+      <ol className="grid grid-cols-2 gap-1.5 sm:grid-cols-4" aria-label="Analiz adımları" data-testid="atlas-steps">
+        {(
+          [
+            ["Danışan", profile && rev ? "done" : "now", profile && rev ? profile.label : "seçilmedi"],
+            ["Teknik", chosen.length > 0 ? "done" : profile ? "now" : "todo", chosen.length > 0 ? `${chosen.length} seçili` : "seçilmedi"],
+            ["Ayarlar", chosen.length === 0 ? "todo" : missingN > 0 ? "warn" : "done", chosen.length === 0 ? "—" : missingN > 0 ? `${missingN} eksik` : "hazır"],
+            ["Başlat", running ? "done" : !runDisabled ? "now" : "todo", running ? "hesaplanıyor" : !runDisabled ? "hazır" : "bekliyor"],
+          ] as const
+        ).map(([label, st, sub], i) => (
+          <li
+            key={label}
+            aria-current={st === "now" ? "step" : undefined}
+            className={`flex min-w-0 items-center gap-2 rounded-xl border px-2.5 py-1.5 ${
+              st === "now" ? "border-[#D9B56F]/60 bg-[#D9B56F]/[0.08]" : st === "warn" ? "border-amber-300/40 bg-amber-300/[0.06]" : "border-white/[0.06] bg-black/15"
+            }`}
+          >
+            <span
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
+                st === "done" ? "bg-[#D9B56F] text-[#0B1430]" : st === "now" ? "border border-[#D9B56F] text-[#F6E7C3]" : st === "warn" ? "border border-amber-300/70 text-amber-100" : "border border-white/20 text-[#F6F2EA]/50"
+              }`}
+              aria-hidden="true"
+            >
+              {st === "done" ? <Check className="h-3.5 w-3.5" /> : i + 1}
+            </span>
+            <span className="min-w-0 leading-tight">
+              <span className={`block text-[12px] font-medium ${st === "todo" ? "text-[#F6F2EA]/55" : "text-[#F6F2EA]"}`}>{label}</span>
+              <span className="block truncate text-[10.5px] text-[#F6F2EA]/50">{sub}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
       {profile && rev && birthDetailsOpen && (
         <dl id="atlas-birth-details" className="atlas-prep-in grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5 sm:grid-cols-3 lg:grid-cols-6" data-testid="atlas-birth-details">
           {detail("DOĞUM TARİHİ", fmtDate(rev.birthDate))}

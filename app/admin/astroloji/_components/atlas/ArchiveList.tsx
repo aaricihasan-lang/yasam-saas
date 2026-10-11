@@ -7,7 +7,8 @@
  * ArchiveDeleteFlow'a iletir (çok katmanlı onay + sunucu doğrulaması).
  */
 import { useEffect, useRef, useState } from "react";
-import { FolderOpen, Search, Trash2 } from "lucide-react";
+import { ArrowDownUp, FolderOpen, Search, Trash2 } from "lucide-react";
+import { atlasDarkInput, atlasPanel, atlasSurface } from "../AtlasShell";
 import { astroFetch } from "../../_lib/api";
 
 export type ArchiveRow = {
@@ -44,16 +45,24 @@ export default function ArchiveList({
   onOpen,
   onDelete,
   onItems,
+  sortRequest,
 }: {
   reloadKey: number;
   onOpen: (id: string) => void;
   /** scope: "single" (satır) | "selected" (işaretliler) | "all" (TÜM arşiv — arama/filtreden bağımsız, sunucuda hesaplanır). */
   onDelete: (req: { scope: "single" | "selected" | "all"; ids: string[] }) => void;
   onItems?: (rows: { id: string; label: string }[]) => void;
+  /** Dışarıdan sıralama isteği (ör. ana sayfa "Son Çalışmalar" → "last_desc"); her yeni n bir kez uygulanır. */
+  sortRequest?: { sort: string; n: number };
 }) {
   const [q, setQ] = useState("");
   const [qd, setQd] = useState("");
-  const [sort, setSort] = useState("name_asc");
+  const [sort, setSort] = useState(sortRequest?.sort ?? "name_asc");
+  const [sortReqN, setSortReqN] = useState(sortRequest?.n);
+  if (sortRequest && sortRequest.n !== sortReqN) {
+    setSortReqN(sortRequest.n);
+    setSort(sortRequest.sort);
+  }
   const [items, setItems] = useState<ArchiveRow[] | null>(null);
   const [meta, setMeta] = useState({ total: 0, hasMore: false });
   const [error, setError] = useState<string | null>(null);
@@ -114,25 +123,28 @@ export default function ArchiveList({
 
   return (
     <section className="flex min-w-0 flex-col gap-3" aria-label="Analiz Arşivi" data-testid="astro-archive-list">
-      {/* Araç çubuğu */}
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-        <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-slate-300 px-2.5 py-1.5 focus-within:border-[#0b1430]/50">
-          <Search className="h-4 w-4 text-slate-400" />
-          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} maxLength={100} placeholder="Ad, soyad veya profil adı ara" aria-label="Arşivde ara" className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+      {/* Araç çubuğu (koyu cam): arama · sıralama · toplu işlemler */}
+      <div className={`${atlasSurface} flex flex-wrap items-center gap-2 px-3 py-2.5`}>
+        <label className={`${atlasDarkInput} flex min-w-[220px] flex-1 items-center gap-2 py-1.5 focus-within:border-[#D9B56F]/70`}>
+          <Search className="h-4 w-4 text-[#E6CF9F]/70" />
+          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} maxLength={100} placeholder="Ad, soyad veya profil adı ara" aria-label="Arşivde ara" className="min-w-0 flex-1 bg-transparent text-sm text-[#F6F2EA] outline-none placeholder:text-[#F6F2EA]/40" />
         </label>
-        <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sıralama" className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm" data-testid="astro-archive-sort">
-          {SORTS.map(([v, l]) => (
-            <option key={v} value={v}>
-              {l}
-            </option>
-          ))}
-        </select>
+        <label className="flex items-center gap-2 text-xs text-[#F6F2EA]/60">
+          <ArrowDownUp className="h-3.5 w-3.5" aria-hidden="true" />
+          <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sıralama" className={`${atlasDarkInput} py-1.5`} data-testid="astro-archive-sort">
+            {SORTS.map(([v, l]) => (
+              <option key={v} value={v} className="bg-[#0B1430]">
+                {l}
+              </option>
+            ))}
+          </select>
+        </label>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <button
             type="button"
             disabled={picked.size === 0}
             onClick={() => onDelete({ scope: picked.size === 1 ? "single" : "selected", ids: [...picked].sort() })}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-rose-300 px-3 py-1.5 text-sm text-rose-700 hover:bg-rose-50 disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-rose-300/50 px-3 py-1.5 text-sm text-rose-200 transition hover:bg-rose-500/15 disabled:opacity-35"
             data-testid="astro-archive-delete-selected"
           >
             <Trash2 className="h-4 w-4" /> Seçilenleri sil ({picked.size})
@@ -141,7 +153,7 @@ export default function ArchiveList({
             type="button"
             disabled={!items || meta.total === 0}
             onClick={() => onDelete({ scope: "all", ids: [] })}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-rose-300 hover:text-rose-700 disabled:opacity-40"
+            className="rounded-lg border border-white/12 px-3 py-1.5 text-sm text-[#F6F2EA]/70 transition hover:border-rose-300/60 hover:text-rose-200 disabled:opacity-35"
             data-testid="astro-archive-delete-all"
             title="Analiz Arşivi'ndeki TÜM danışanlar (arama/sıralamadan bağımsız)"
           >
@@ -150,18 +162,28 @@ export default function ArchiveList({
         </div>
       </div>
 
-      {error && <p className="text-sm text-rose-700">{error}</p>}
+      {error && <p className="rounded-xl border border-rose-300/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-100">{error}</p>}
       {items === null ? (
-        <p className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-400">Yükleniyor…</p>
+        <div className={`${atlasPanel} flex flex-col gap-2 p-4`} aria-busy="true">
+          {[0, 1, 2].map((i) => (
+            <span key={i} className="h-12 animate-pulse rounded-xl bg-[#efe6d2]/70 motion-reduce:animate-none" />
+          ))}
+        </div>
       ) : items.length === 0 ? (
-        <p className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-600" data-testid="astro-archive-empty">
-          {filtered ? "Aramaya uyan, kayıtlı analizi olan danışan yok." : "Henüz kayıtlı analizi olan danışan yok. Analiz kaydettiğiniz danışanlar burada listelenir."}
-        </p>
+        <div className={`${atlasPanel} flex flex-col items-center gap-2 px-6 py-12 text-center`} data-testid="astro-archive-empty">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0B1430] text-[#E6CF9F]" aria-hidden="true">
+            <FolderOpen className="h-5 w-5" />
+          </span>
+          <p className="font-medium text-slate-800">{filtered ? "Aramaya uyan danışan bulunamadı" : "Arşiv henüz boş"}</p>
+          <p className="max-w-md text-sm text-slate-600">
+            {filtered ? "Aramaya uyan, kayıtlı analizi olan danışan yok." : "Henüz kayıtlı analizi olan danışan yok. Analiz kaydettiğiniz danışanlar burada listelenir."}
+          </p>
+        </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-          <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2 text-xs text-slate-500">
+        <div className={`${atlasPanel} overflow-hidden`}>
+          <div className="flex items-center justify-between border-b border-[#efe6d2] px-4 py-2.5 text-xs text-slate-500">
             <span data-testid="astro-archive-count">
-              {meta.total} danışan{items.length < meta.total ? ` · ${items.length} gösteriliyor` : ""}
+              <strong className="font-semibold text-slate-800">{meta.total}</strong> danışan{items.length < meta.total ? ` · ${items.length} gösteriliyor` : ""}
               {filtered ? " · aramaya göre" : ""}
             </span>
             {picked.size > 0 && (
@@ -171,9 +193,9 @@ export default function ArchiveList({
             )}
           </div>
           {/* Masaüstü / tablet: tablo başlığı */}
-          <div className="hidden grid-cols-[2.5rem_2rem_minmax(0,2.2fr)_7rem_minmax(0,1.6fr)_7.5rem_5rem_auto] items-center gap-3 border-b border-slate-100 bg-slate-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 md:grid">
+          <div className="hidden grid-cols-[2.5rem_2rem_minmax(0,2.2fr)_7rem_minmax(0,1.6fr)_7.5rem_5rem_auto] items-center gap-3 border-b border-[#efe6d2] bg-[#f6efe0]/70 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8a6d33] md:grid">
             <span>#</span>
-            <input type="checkbox" checked={allShownPicked} onChange={() => setPicked(allShownPicked ? new Set() : new Set(shownIds))} aria-label="Gösterilen tüm satırları seç" data-testid="astro-archive-pick-all" />
+            <input type="checkbox" checked={allShownPicked} onChange={() => setPicked(allShownPicked ? new Set() : new Set(shownIds))} aria-label="Gösterilen tüm satırları seç" className="accent-[#0B1430]" data-testid="astro-archive-pick-all" />
             <span>Danışan</span>
             <span>Doğum tarihi</span>
             <span>Doğum yeri</span>
@@ -181,23 +203,29 @@ export default function ArchiveList({
             <span className="text-right">Analiz</span>
             <span className="sr-only">İşlemler</span>
           </div>
-          <ul className="divide-y divide-slate-100" data-testid="astro-archive-rows">
+          <ul className="divide-y divide-[#efe6d2]" data-testid="astro-archive-rows">
             {items.map((p) => {
               const on = picked.has(p.id);
               return (
-                <li key={p.id} className={`grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 px-3 py-2.5 text-sm md:grid-cols-[2.5rem_2rem_minmax(0,2.2fr)_7rem_minmax(0,1.6fr)_7.5rem_5rem_auto] md:items-center ${on ? "bg-rose-50/40" : "hover:bg-slate-50/60"}`} data-archive-row={p.id}>
+                <li key={p.id} className={`grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 px-4 py-3 text-sm transition md:grid-cols-[2.5rem_2rem_minmax(0,2.2fr)_7rem_minmax(0,1.6fr)_7.5rem_5rem_auto] md:items-center ${on ? "bg-rose-50/60" : "hover:bg-[#fbf3e1]"}`} data-archive-row={p.id}>
                   <span className="hidden text-xs tabular-nums text-slate-400 md:block">{p.index}</span>
-                  <input type="checkbox" className="mt-1 md:mt-0" checked={on} onChange={() => toggle(p.id)} aria-label={`${p.label} seç`} data-archive-pick={p.id} />
-                  <button type="button" onClick={() => onOpen(p.id)} className="min-w-0 text-left" title="Danışan dosyasını aç">
-                    <span className="block break-words font-medium text-slate-900 hover:underline">
-                      <span className="mr-1 text-xs tabular-nums text-slate-400 md:hidden">{p.index}.</span>
-                      {p.label}
-                      {p.archivedAt && <span className="ml-1.5 rounded bg-slate-200 px-1.5 py-0.5 align-middle text-[10px] font-normal text-slate-700">arşivli profil</span>}
+                  <input type="checkbox" className="mt-1 accent-[#0B1430] md:mt-0" checked={on} onChange={() => toggle(p.id)} aria-label={`${p.label} seç`} data-archive-pick={p.id} />
+                  <button type="button" onClick={() => onOpen(p.id)} className="flex min-w-0 items-center gap-3 text-left" title="Danışan dosyasını aç">
+                    <span className="relative hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0B1430] text-sm text-[#F6E7C3] sm:flex" aria-hidden="true">
+                      <span className="absolute inset-[3px] rounded-full border border-[#D9B56F]/45" />
+                      {p.label.trim().charAt(0).toLocaleUpperCase("tr-TR") || "✦"}
                     </span>
-                    {p.clientName && <span className="block text-[11px] text-emerald-700">Danışan Yolculuğu: {p.clientName}</span>}
-                    {/* mobil özet */}
-                    <span className="mt-0.5 block text-xs text-slate-500 md:hidden">
-                      {day(p.current?.birthDate)} · {p.current?.locationLabel ?? "—"} · son analiz {day(p.lastAnalysisAt)} · {p.analysisCount} analiz
+                    <span className="min-w-0">
+                      <span className="block break-words font-semibold text-slate-900 hover:underline">
+                        <span className="mr-1 text-xs tabular-nums text-slate-400 md:hidden">{p.index}.</span>
+                        {p.label}
+                        {p.archivedAt && <span className="ml-1.5 rounded-full bg-slate-200 px-1.5 py-0.5 align-middle text-[10px] font-normal text-slate-700">arşivli profil</span>}
+                      </span>
+                      {p.clientName && <span className="block text-[11px] text-emerald-700">Danışan Yolculuğu: {p.clientName}</span>}
+                      {/* mobil özet */}
+                      <span className="mt-0.5 block text-xs text-slate-500 md:hidden">
+                        {day(p.current?.birthDate)} · {p.current?.locationLabel ?? "—"} · son analiz {day(p.lastAnalysisAt)} · {p.analysisCount} analiz
+                      </span>
                     </span>
                   </button>
                   <span className="hidden tabular-nums text-slate-700 md:block">{day(p.current?.birthDate)}</span>
@@ -208,12 +236,14 @@ export default function ArchiveList({
                     <span className="block text-[11px] text-slate-400">{p.current?.timeKnown ? `saat ${p.current.birthTime?.slice(0, 5)}` : "saat bilinmiyor"}</span>
                   </span>
                   <span className="hidden tabular-nums text-slate-700 md:block">{day(p.lastAnalysisAt)}</span>
-                  <span className="hidden text-right tabular-nums font-medium text-slate-800 md:block">{p.analysisCount}</span>
+                  <span className="hidden justify-end md:flex">
+                    <span className="min-w-[2rem] rounded-full bg-[#0B1430]/[0.06] px-2 py-0.5 text-center text-xs font-semibold tabular-nums text-[#0B1430]">{p.analysisCount}</span>
+                  </span>
                   <span className="col-start-3 row-start-1 flex items-center justify-end gap-1 md:col-start-auto md:row-start-auto">
-                    <button type="button" onClick={() => onOpen(p.id)} aria-label={`${p.label} dosyasını aç`} title="Dosyayı aç" className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:border-[#0b1430]/40 hover:text-[#0b1430]" data-archive-open={p.id}>
+                    <button type="button" onClick={() => onOpen(p.id)} aria-label={`${p.label} dosyasını aç`} title="Dosyayı aç" className="rounded-lg border border-[#d9c9a3] bg-white/80 p-1.5 text-slate-600 transition hover:border-[#0b1430]/40 hover:text-[#0b1430]" data-archive-open={p.id}>
                       <FolderOpen className="h-4 w-4" />
                     </button>
-                    <button type="button" onClick={() => onDelete({ scope: "single", ids: [p.id] })} aria-label={`${p.label} sil`} title="Sil" className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:border-rose-300 hover:text-rose-700" data-archive-delete={p.id}>
+                    <button type="button" onClick={() => onDelete({ scope: "single", ids: [p.id] })} aria-label={`${p.label} sil`} title="Sil" className="rounded-lg border border-[#d9c9a3] bg-white/80 p-1.5 text-slate-500 transition hover:border-rose-300 hover:text-rose-700" data-archive-delete={p.id}>
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </span>
@@ -222,8 +252,8 @@ export default function ArchiveList({
             })}
           </ul>
           {meta.hasMore && (
-            <div className="border-t border-slate-100 p-2 text-center">
-              <button type="button" disabled={more} onClick={() => void loadMore()} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 disabled:opacity-60" data-testid="astro-archive-more">
+            <div className="border-t border-[#efe6d2] p-2 text-center">
+              <button type="button" disabled={more} onClick={() => void loadMore()} className="rounded-lg border border-[#d9c9a3] bg-white/80 px-3 py-1.5 text-sm text-slate-700 hover:border-[#b8954e] disabled:opacity-60" data-testid="astro-archive-more">
                 {more ? "Yükleniyor…" : `Daha fazla göster (${items.length} / ${meta.total})`}
               </button>
             </div>

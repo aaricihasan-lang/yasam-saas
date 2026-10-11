@@ -21,7 +21,23 @@ const MAX = 8;
 type View = { s: number; x: number; y: number };
 const FIT: View = { s: 1, x: 0, y: 0 };
 
-export default function ChartViewport({ children, className = "", label = "Harita görüntüleyici" }: { children: ReactNode; className?: string; label?: string }) {
+export default function ChartViewport({
+  children,
+  className = "",
+  label = "Harita görüntüleyici",
+  compact = false,
+  tone = "dark",
+}: {
+  children: ReactNode;
+  className?: string;
+  label?: string;
+  /** Dar ekran (<640px): araç sütunu haritanın üstüne binmesin diye gizlenir (iki parmak / çift dokunuş ile
+   *  yakınlaştırılır); yakınken köşede yalnız "Sığdır" görünür. 640px ve üstünde tam araç çubuğu. */
+  compact?: boolean;
+  /** "light": aydınlık çalışma masasında açık renkli araçlar. */
+  tone?: "dark" | "light";
+}) {
+  const L = tone === "light";
   const boxRef = useRef<HTMLDivElement | null>(null);
   const [view, setView] = useState<View>(FIT);
   const viewRef = useRef<View>(FIT);
@@ -139,8 +155,9 @@ export default function ChartViewport({ children, className = "", label = "Harit
   };
 
   const zoomed = view.s > 1;
-  const ctl =
-    "flex h-8 w-8 items-center justify-center rounded-lg text-[#F6F2EA]/85 transition hover:bg-white/10 hover:text-[#F6E7C3] disabled:opacity-35 disabled:hover:bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#D9B56F]";
+  const ctl = L
+    ? "flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-35 disabled:hover:bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0B1430]"
+    : "flex h-8 w-8 items-center justify-center rounded-lg text-[#F6F2EA]/85 transition hover:bg-white/10 hover:text-[#F6E7C3] disabled:opacity-35 disabled:hover:bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#D9B56F]";
 
   return (
     <div className={`relative h-full w-full min-h-0 ${className}`} data-testid="atlas-chart-viewport" data-scale={view.s.toFixed(2)}>
@@ -160,7 +177,7 @@ export default function ChartViewport({ children, className = "", label = "Harit
           if (viewRef.current.s >= 3.5) apply(FIT);
           else zoomAt(p.x, p.y, viewRef.current.s * 1.8);
         }}
-        className={`relative h-full w-full select-none overflow-hidden rounded-[inherit] outline-none focus-visible:ring-2 focus-visible:ring-[#D9B56F]/60 ${zoomed ? (dragging ? "cursor-grabbing" : "cursor-grab") : "cursor-zoom-in"}`}
+        className={`relative h-full w-full select-none overflow-hidden rounded-[inherit] outline-none focus-visible:ring-2 ${L ? "focus-visible:ring-[#0B1430]/40" : "focus-visible:ring-[#D9B56F]/60"} ${zoomed ? (dragging ? "cursor-grabbing" : "cursor-grab") : "cursor-zoom-in"}`}
         style={{ touchAction: zoomed ? "none" : "pan-y" }}
       >
         <div className="absolute inset-0 flex items-center justify-center" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})`, transformOrigin: "0 0" }}>
@@ -168,8 +185,20 @@ export default function ChartViewport({ children, className = "", label = "Harit
         </div>
       </div>
       {/* Kontroller: sağ üst köşe (dairesel haritada boş alan); harita noktalarını örtmez. */}
+      {compact && zoomed && (
+        <button
+          type="button"
+          onClick={() => apply(FIT)}
+          className={`absolute right-1.5 top-1.5 z-10 flex h-9 w-9 items-center justify-center rounded-lg border sm:hidden ${L ? "border-slate-200 bg-white/95 text-slate-700 shadow-sm" : "border-white/12 bg-[#0b1234]/85 text-[#F6F2EA]/85"}`}
+          data-viewport-control=""
+          aria-label="Sığdır"
+          data-testid="atlas-zoom-fit-compact"
+        >
+          <Maximize className="h-4 w-4" />
+        </button>
+      )}
       <div
-        className="absolute right-2 top-2 z-10 flex flex-col items-center gap-0.5 rounded-xl border border-white/12 bg-[#0b1234]/80 p-1 shadow-[0_10px_24px_-14px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur"
+        className={`absolute right-2 top-2 z-10 items-center gap-0.5 rounded-xl border p-1 ${L ? "flex-row border-slate-200 bg-white/95 shadow-sm" : "flex-col border-white/12 bg-[#0b1234]/80 shadow-[0_10px_24px_-14px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur"} ${compact ? "hidden sm:flex" : "flex"}`}
         data-viewport-control=""
         role="toolbar"
         aria-label="Harita yakınlaştırma"
@@ -177,7 +206,7 @@ export default function ChartViewport({ children, className = "", label = "Harit
         <button type="button" className={ctl} onClick={() => zoomCenter(1.35)} disabled={view.s >= MAX} aria-label="Yakınlaştır" title="Yakınlaştır (+)" data-testid="atlas-zoom-in">
           <Plus className="h-4 w-4" />
         </button>
-        <span className="py-0.5 text-[10px] tabular-nums text-[#F6F2EA]/60" aria-live="polite" data-testid="atlas-zoom-level">
+        <span className={`py-0.5 text-[10px] tabular-nums ${L ? "text-slate-500" : "text-[#F6F2EA]/60"}`} aria-live="polite" data-testid="atlas-zoom-level">
           {Math.round(view.s * 100)}%
         </span>
         <button type="button" className={ctl} onClick={() => zoomCenter(1 / 1.35)} disabled={!zoomed} aria-label="Uzaklaştır" title="Uzaklaştır (−)" data-testid="atlas-zoom-out">

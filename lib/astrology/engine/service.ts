@@ -97,6 +97,9 @@ export function isLocalFakeProvider(config: EngineDeps["config"]): boolean {
   }
 }
 
+/** Kutup dairesi (yaklaşık): bu enlemin ötesinde Placidus/Koch ev bölmesi tanımsız olur. */
+export const POLAR_HOUSE_LATITUDE = 66.5;
+
 export function revisionToBirth(r: RevisionRow): BirthPoint {
   return {
     birthDate: r.birth_date,
@@ -133,6 +136,17 @@ export async function resolveSelectionContexts(
         "kp.ruling": "ruling planet significatorları doğum haritasının cusplarından okunur",
       };
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIME_REQUIRED", error: `${def.label} doğum saati bilinmeden güvenilir hesaplanamaz (${why[def.id] ?? "sonuç doğum saatine bağlıdır"}).` } });
+      continue;
+    }
+    // 2026-10-11 canlı doğrulama: kutup dairesi ötesinde (|enlem| > 66.5°) Placidus/Koch ev bölmesi tanımsızdır; Roxy
+    // bu durumda sessizce başka bir sisteme geçiyor (yanıt reddedilir ama istek ÜCRETLENİR). Sağlayıcıya gitmeden durdur.
+    const hs = (s.options as { houseSystem?: unknown } | null)?.houseSystem;
+    const placidusLike = (def.id === "western.natal" && (hs === "placidus" || hs === "koch")) || def.id === "kp.chart" || def.id === "kp.dasha" || def.id === "kp.ruling";
+    if (placidusLike && Math.abs(birth.latitude) > POLAR_HOUSE_LATITUDE) {
+      const msg = def.id.startsWith("kp.")
+        ? `${def.label} yalnız Placidus evleriyle hesaplanır; doğum yeri kutup dairesi ötesinde (enlem ${birth.latitude.toFixed(1)}°) olduğundan bu bölme tanımsızdır.`
+        : `${def.label}: seçilen ev sistemi bu enlemde (${birth.latitude.toFixed(1)}°) tanımsızdır. Whole Sign veya Equal ev sistemini seçin.`;
+      out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "HOUSE_SYSTEM_POLAR", error: msg } });
       continue;
     }
     if (def.id === "western.solar_return" || def.id === "western.lunar_return") {

@@ -30,7 +30,7 @@ import { buildPlan, parseSelections } from "@/lib/astrology/engine/planner";
 import { createKb } from "@/lib/astrology/kb/service";
 import { getAnalysis, getWorkspace, listAnalyses, previewAnalysis, saveAnalysis, saveExpertNote } from "@/lib/astrology/analyses/service";
 import { isSectionKeyForTechnique, parseAnyTopicKey, topicsForTechnique } from "@/lib/astrology/topics/index";
-import { maskTechnical } from "@/lib/astrology/view/techniqueView";
+import { buildTechniqueView, maskTechnical } from "@/lib/astrology/view/techniqueView";
 import { forecastChunks } from "@/lib/astrology/providers/roxy/requests";
 import { lunarReturnsInMonth, natalMoonLongitude } from "@/lib/astrology/engine/lunarReturnDate";
 import { projectRoxyNatal } from "@/lib/astrology/providers/roxy/natal";
@@ -1084,6 +1084,69 @@ async function main() {
     assert.ok(!JSON.stringify(row).includes("SENTETIK-ANLATI"), "analiz snapshot'ına açısal anlatı yazıldı");
     const topics = topicsForTechnique("western.transit", v.technical);
     assert.ok(!topics.some((x) => /:ascendant$|:midheaven$/.test(x.key)), "açısal transit konusu üretildi");
+  });
+
+  // ═══ 2026-10-11 satış öncesi düzeltmeler ═══════════════════════════════════════════════════════════════
+  await t("2026-10 solar arc: hiçbir nokta KENDİ natal konumuyla 'açı' yapmaz (yay ≈ 60° iken bile)", () => {
+    const def = getTechnique("western.solar_arc")!;
+    const opts = def.parseOptions(goldenSelection("western.solar_arc").options, new Date())!;
+    const u = def.units({ birth: SYNTH_A, birthUtc: SYNTH_A.utc, partner: null }, opts)[0];
+    const raw = JSON.parse(JSON.stringify(G["solar-arc"].response)) as J;
+    raw.solarArc = 60.2; // tüm noktalar aynı yayla ilerler → eskiden her nokta kendine "sekstil" yapardı
+    for (const d of raw.directed) {
+      d.directedLongitude = (((d.natalLongitude + 60.2) % 360) + 360) % 360;
+      d.sign = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"][Math.floor(d.directedLongitude / 30)];
+      d.degree = d.directedLongitude % 30;
+    }
+    const p = def.project(u, raw, opts) as J;
+    assert.ok(p.ok, JSON.stringify(p.errors));
+    assert.ok(p.technical.aspects.every((a: J) => a.directed !== a.natal), JSON.stringify(p.technical.aspects.filter((a: J) => a.directed === a.natal)));
+  });
+  await t("2026-10 saat bilinmiyor: progression/composite sağlayıcı anlatısı gösterilmez; sinastride ASC/MC açı anlatısı ayıklanır", () => {
+    const row = (technique: string, technical: unknown) => ({ id: "r1", technique, provider: "roxy", provider_api_version: "v", adapter_version: "a", projection_version: "p", technical: technical as Record<string, unknown>, created_at: "2026-10-07T00:00:00Z" });
+    const view = (technique: string, golden: string, partnerKnown: boolean | null) => {
+      const def = getTechnique(technique)!;
+      const opts = def.parseOptions(goldenSelection(technique as never, "11111111-1111-4111-8111-111111111111").options, new Date())!;
+      const u = def.units({ birth: SYNTH_A, birthUtc: SYNTH_A.utc, partner: technique.includes("synastry") || technique.includes("composite") ? (SYNTH_B as never) : null }, opts)[0];
+      const p = def.project(u, G[golden].response, opts) as J;
+      assert.ok(p.ok, JSON.stringify(p.errors));
+      return buildTechniqueView({
+        technique,
+        rows: [row(technique, p.technical)],
+        combined: p.technical,
+        options: {},
+        timeKnowledge: { primary: false, partner: partnerKnown },
+        visibility: { visible: true },
+        interpretations: [{ provider: "roxy", lang: "tr", content: p.interpretation as Record<string, unknown> }],
+      } as never) as J;
+    };
+    for (const tid of ["western.progression", "western.composite"]) {
+      const v = view(tid, tid === "western.progression" ? "progression" : "composite", tid === "western.composite" ? true : null);
+      assert.equal(v.timeUnknownMasked, true, tid);
+      assert.equal(v.interpretation.visible, false, tid);
+    }
+    const s = view("western.synastry", "synastry", true);
+    assert.equal(s.timeUnknownMasked, true);
+    if (s.interpretation.visible) assert.ok(s.interpretation.content.aspects.every((a: J) => !["ascendant", "midheaven"].includes(a.a) && !["ascendant", "midheaven"].includes(a.b)));
+  });
+
+  await t("2026-10 kutup enlemi: Placidus/Koch natal ve KP sağlayıcıya GİTMEDEN engellenir (HOUSE_SYSTEM_POLAR, 0 istek); Whole Sign hesaplanır", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const TROMSO: ResolvedLocation = { id: "gn-3133895", label: "Tromsø, Norveç", timezone: "Europe/Oslo", latitude: 69.6489, longitude: 18.9551 };
+    const r0 = await createAstroProfile(ctx, { label: "Sentetik Kutup", clientId: CLIENT_X, birthDate: "1999-12-21", birthTime: "12:00", timeKnown: true, timeAccuracy: "exact_record", locationId: TROMSO.id }, (id) => (id === TROMSO.id ? TROMSO : null));
+    assert.equal(r0.status, 201, JSON.stringify(r0.body));
+    const pid = (r0.body as J).profile.id;
+    const sels = [
+      { technique: "western.natal", options: { houseSystem: "placidus", nodeType: "true" } },
+      { technique: "western.natal", options: { houseSystem: "koch", nodeType: "true" } },
+      { technique: "western.natal", options: { houseSystem: "whole-sign", nodeType: "true" } },
+      { technique: "kp.chart", options: { ayanamsa: "kp-newcomb", nodeType: "mean" } },
+    ];
+    const plan = (await planAstrology(ctx, { profileId: pid, selections: sels })).body as J;
+    const blocked = plan.plan.selections.map((s: J) => [s.technique, s.blocked?.code ?? null]);
+    assert.deepEqual(blocked, [["western.natal", "HOUSE_SYSTEM_POLAR"], ["western.natal", "HOUSE_SYSTEM_POLAR"], ["western.natal", null], ["kp.chart", "HOUSE_SYSTEM_POLAR"]]);
+    assert.equal(plan.plan.newRequestCount, 1, "yalnız Whole Sign natal ücretli istek");
   });
 
   console.log(`\nastrology phase3 harness: ${pass} PASS / ${fail} FAIL`);

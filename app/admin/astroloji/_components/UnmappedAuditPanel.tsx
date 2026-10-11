@@ -51,7 +51,7 @@ export default function UnmappedAuditPanel() {
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+    <section className="flex flex-col gap-3 rounded-2xl border border-[#e7dcc3] bg-[#FBF8F2] p-4 text-slate-800">
       <div>
         <h2 className="text-lg font-semibold text-slate-900">Eşlenmemiş sağlayıcı alanları</h2>
         <p className="text-xs text-slate-500">

@@ -65,12 +65,12 @@ export default function ClientPreviewModal({ clientId, onClose, footer }: { clie
   const cur = state && state.id === clientId ? state : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-3 sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose()} data-testid="astro-client-preview-backdrop">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#050816]/75 p-3 backdrop-blur-sm sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose()} data-testid="astro-client-preview-backdrop">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="astro-client-preview-title"
-        className="flex max-h-[88vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl md:w-[50vw] md:max-w-none"
+        className="flex max-h-[88vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-[#D9B56F]/45 shadow-[0_40px_90px_-30px_rgba(0,0,0,0.95),0_0_0_4px_rgba(217,181,111,0.08)] bg-[#FBF8F2] md:w-[50vw] md:max-w-none"
         data-testid="astro-client-preview"
       >
         <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">

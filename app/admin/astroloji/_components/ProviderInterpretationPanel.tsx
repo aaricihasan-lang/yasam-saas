@@ -425,6 +425,11 @@ function Content({ content }: { content: unknown }) {
       const c = content as VedicTransitInterpretation;
       return (
         <Block title="Gochara vurguları (sağlayıcı metni)">
+          {/* 2026-10-11 canlı doğrulama: Roxy bu uçta Türkçe (lang=tr) istense de metni İngilizce döndürüyor.
+              Metin çevrilmez, değiştirilmez; dili açıkça belirtilir. */}
+          <p className="text-xs text-slate-500" data-testid="astro-interp-lang-note">
+            Not: Sağlayıcı bu bölümü yalnız İngilizce veriyor; metin çevrilmeden, olduğu gibi gösterilir.
+          </p>
           {c.keyTransits.map((x) => (
             <Item key={x.id}>
               <div className="font-medium">{GRAHA_LABELS[x.id]}</div>

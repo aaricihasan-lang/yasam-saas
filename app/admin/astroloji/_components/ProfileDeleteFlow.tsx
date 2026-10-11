@@ -85,8 +85,8 @@ export default function ProfileDeleteFlow({
   const p0 = preview?.profiles[0];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-3 sm:p-6" data-testid="astro-delete-flow">
-      <div role="alertdialog" aria-modal="true" aria-labelledby="astro-delete-title" className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#050816]/75 p-3 backdrop-blur-sm sm:p-6" data-testid="astro-delete-flow">
+      <div role="alertdialog" aria-modal="true" aria-labelledby="astro-delete-title" className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[#D9B56F]/45 shadow-[0_40px_90px_-30px_rgba(0,0,0,0.95),0_0_0_4px_rgba(217,181,111,0.08)] bg-[#FBF8F2]">
         <div className="border-b border-rose-200 bg-rose-50 px-4 py-3">
           <h2 id="astro-delete-title" className="text-base font-semibold text-rose-900">
             {single ? "Profili kalıcı sil" : `${n} profili kalıcı sil`}

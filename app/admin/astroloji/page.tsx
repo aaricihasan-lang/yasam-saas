@@ -20,11 +20,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import type { TechniqueView } from "@/lib/astrology/view/techniqueView";
-import { HOUSE_SYSTEM_LABELS } from "@/lib/astrology/labels/tr";
+import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroFetch, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
 import type { DashaDrillResult } from "./_components/VedicPanels";
 import type { VedicDashaTechnical } from "@/lib/astrology/model/vedic";
-import { buildSelections, defaultParams, describeOptions, houseSystemLabel, techniqueLabel, TECHNIQUE_META, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
+import { buildSelections, defaultParams, describeOptions, houseSystemLabel, techniqueLabel, zodiacLabel, TECHNIQUE_META, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
 import ProviderInterpretationPanel, { interpretationTitle, type InterpretationLayer } from "./_components/ProviderInterpretationPanel";
 import ProfileForm, { type ProfileFormInitial } from "./_components/ProfileForm";
 import AnalysisWorkspace from "./_components/AnalysisWorkspace";
@@ -41,13 +41,13 @@ import ArchiveDeleteFlow from "./_components/atlas/ArchiveDeleteFlow";
 import ClientLinkPanel from "./_components/ClientLinkPanel";
 import ProfileDeleteFlow from "./_components/ProfileDeleteFlow";
 import ModuleAccessDenied from "@/components/auth/ModuleAccessDenied";
-import AstroHome from "./_components/AstroHome";
 import AtlasHero from "./_components/atlas/AtlasHero";
+import { atlasDisplay, atlasText } from "./_components/atlas/fonts";
 import ResultDesk, { DeskChip, deskPrimary, type DeskTab } from "./_components/atlas/ResultDesk";
 import NatalWheel from "./_components/NatalWheel";
 import NatalTechnicalPanel from "./_components/NatalTechnicalPanel";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
-import { AtlasHeader, AtlasViewTitle, atlasPanel, atlasSecondaryBtn, type AtlasView } from "./_components/AtlasShell";
+import { AtlasHeader, AtlasViewTitle, atlasDangerBtn, atlasGhostBtn, atlasNightBg, atlasPanel, atlasSecondaryBtn, type AtlasView } from "./_components/AtlasShell";
 import { ArrowLeft, CheckCircle2, Settings2 } from "lucide-react";
 
 type PublicRevision = {
@@ -199,17 +199,15 @@ export default function AstrologyWorkspacePage() {
   const isOwnerView = access !== null && access !== "denied" && access.isOwner;
   const previewNoInterp = isOwnerView && previewFlag;
   const [view, setView] = useState<AtlasView>("home");
+  // Ana sayfa "Son Çalışmalar" → Analiz Arşivi, mevcut "Son analiz: en yeni" sıralamasıyla.
+  const [archiveSortReq, setArchiveSortReq] = useState<{ sort: string; n: number } | undefined>(undefined);
   const viewRef = useRef<AtlasView>("home");
-  // FINAL: sonuç ve Yeni Analiz ekranlarında ana alanın en küçük yüksekliği = görünür ekran − üst (Yaşam Sistemi) çubuğu → masaüstünde
-  // gereksiz sayfa kaydırması olmaz. Diğer görünümler değişmez (sınıftaki min-h-screen geçerli kalır).
+  // FINAL: tüm görünümlerde ana alanın en küçük yüksekliği = görünür ekran − üst (Yaşam Sistemi) çubuğu → içerik kısaysa
+  // gereksiz sayfa kaydırması olmaz; uzun içerik doğal olarak kayar.
   const mainRef = useRef<HTMLElement | null>(null);
   useLayoutEffect(() => {
     const el = mainRef.current;
     if (!el) return;
-    if (view !== "result" && view !== "new") {
-      el.style.minHeight = "";
-      return;
-    }
     const fit = () => {
       const top = el.getBoundingClientRect().top + (document.scrollingElement?.scrollTop ?? 0) + document.body.scrollTop;
       el.style.minHeight = `${Math.max(0, Math.floor(window.innerHeight - top))}px`;
@@ -658,18 +656,19 @@ export default function AstrologyWorkspacePage() {
   }
 
   return (
-    <main ref={mainRef} className={`min-h-screen w-full overflow-x-hidden ${view === "home" ? "bg-[#0B1430]" : view === "result" || view === "new" ? "bg-[radial-gradient(ellipse_90%_60%_at_50%_0%,#1c2257_0%,#0d1438_45%,#080F24_100%)]" : "bg-[#f3f5fa]"}`}>
+    <main ref={mainRef} className={`${atlasDisplay.variable} ${atlasText.variable} min-h-screen w-full overflow-x-hidden data-[atlas-light=1]:bg-none data-[atlas-light=1]:bg-[#f2f1ed] ${view === "home" ? "bg-[#0B1430]" : atlasNightBg}`}>
       {view === "result" || view === "new" ? null : view === "home" ? (
-        <AtlasHero onNavigate={(v) => go(v)}>
-          <AstroHome
-            onNewProfile={() => {
-              startFreshAnalysis(null);
-              setForm({ mode: "create" });
-            }}
-            onOpenArchive={() => go("archive")}
-            onOpenProfile={(id) => openClientFile(id)}
-          />
-        </AtlasHero>
+        <AtlasHero
+          onNavigate={(v) => go(v)}
+          onRecent={() => {
+            setArchiveSortReq((r) => ({ sort: "last_desc", n: (r?.n ?? 0) + 1 }));
+            go("archive");
+          }}
+          onNewProfile={() => {
+            startFreshAnalysis(null);
+            setForm({ mode: "create" });
+          }}
+        />
       ) : (
       <AtlasHeader
         view={view}
@@ -704,13 +703,13 @@ export default function AstrologyWorkspacePage() {
       <div className={`mx-auto w-full max-w-[1600px] flex-col gap-5 px-4 sm:px-6 lg:px-8 ${view === "result" || view === "new" ? "py-3" : "py-6"} ${view === "home" ? "hidden" : "flex"}`}>
         {view === "kb" && (
           <>
-            <AtlasViewTitle title="Bilgi Bankası" sub="Kendi yorumlarınız ve kaynak notlarınız; analizlerde ilgili konuyla otomatik eşleşir." />
+            <AtlasViewTitle eyebrow="Çalışma alanı" title="Bilgi Bankası" sub="Kendi yorumlarınız ve kaynak notlarınız; analizlerde ilgili konuyla otomatik eşleşir." />
             <KnowledgeBankPanel />
           </>
         )}
         {view === "audit" && isOwnerView && <UnmappedAuditPanel />}
 
-        {view === "archive" && <AtlasViewTitle title="Analiz Arşivi" sub="Kayıtlı analizi olan danışanlar." />}
+        {view === "archive" && <AtlasViewTitle eyebrow="Kayıtlar" title="Analiz Arşivi" sub="Kayıtlı analizi olan danışanlar; bir satıra basarak danışan dosyasını açın." />}
 
         {/* Aşama D3: Yeni Analiz = Göksel Analiz Hazırlık Merkezi (yalnız yerleşim; plan/çalıştırma mantığı aşağıdaki run() ile aynı). */}
         {view === "new" && (
@@ -806,7 +805,7 @@ export default function AstrologyWorkspacePage() {
             bağlı kalır → geri dönüşte arama, filtre, sayfa ve kaydırma konumu korunur. */}
         <div className={`grid items-start gap-5 ${view === "archive" || view === "client" ? "" : "hidden"}`}>
           <div className={view === "client" ? "hidden" : "min-w-0"}>
-            <ArchiveList reloadKey={profilesReload + archiveReload} onOpen={(id) => openClientFile(id)} onDelete={(req) => setArchiveDelete(req)} onItems={rememberLabels} />
+            <ArchiveList reloadKey={profilesReload + archiveReload} onOpen={(id) => openClientFile(id)} onDelete={(req) => setArchiveDelete(req)} onItems={rememberLabels} sortRequest={archiveSortReq} />
           </div>
           {archiveDelete && (
             <ArchiveDeleteFlow
@@ -847,61 +846,68 @@ export default function AstrologyWorkspacePage() {
               }}
             />
           )}
-          <section className={`flex min-w-0 flex-col gap-5 ${view === "client" ? "" : "hidden"}`} data-testid={view === "client" ? "astro-client-file" : undefined}>
+          <section className={`min-w-0 flex-col gap-5 ${view === "client" ? "flex lg:grid lg:grid-cols-[minmax(340px,420px)_minmax(0,1fr)] lg:items-start" : "hidden"}`} data-testid={view === "client" ? "astro-client-file" : undefined}>
             {view === "client" && (
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <button type="button" onClick={() => go("archive")} className={atlasSecondaryBtn} data-testid="astro-client-file-back">
+              <div className="flex flex-wrap items-center justify-between gap-2 lg:col-span-2">
+                <button type="button" onClick={() => go("archive")} className={atlasGhostBtn} data-testid="astro-client-file-back">
                   <ArrowLeft className="h-4 w-4" /> Analiz Arşivi&apos;ne Dön
                 </button>
               </div>
             )}
             {view === "client" && detailError && detailError.id === selectedId && (
-              <div className={`${atlasPanel} px-6 py-10 text-center text-sm text-rose-800`} role="alert" data-testid="astro-client-file-error">
+              <div className={`${atlasPanel} px-6 py-10 text-center text-sm text-rose-800 lg:col-span-2`} role="alert" data-testid="astro-client-file-error">
                 {detailError.error}
               </div>
             )}
             {deleteInfo && !shownDetail && (
-              <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900" data-testid="astro-delete-info">
+              <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900 lg:col-span-2" data-testid="astro-delete-info">
                 {deleteInfo}
               </p>
             )}
             {view === "client" && form?.mode === "create" && (
-              <ProfileForm
-                mode="create"
-                onCancel={() => setForm(null)}
-                onDone={(id) => {
-                  setProfilesReload((n) => n + 1);
-                  openClientFile(id);
-                }}
-              />
+              <div className={`${atlasPanel} overflow-hidden lg:col-span-2`}>
+                <ProfileForm
+                  mode="create"
+                  onCancel={() => setForm(null)}
+                  onDone={(id) => {
+                    setProfilesReload((n) => n + 1);
+                    openClientFile(id);
+                  }}
+                />
+              </div>
             )}
             {view === "client" && form?.mode === "revise" && (
-              <ProfileForm
-                mode="revise"
-                initial={form.initial}
-                onCancel={() => setForm(null)}
-                onDone={(id) => {
-                  setForm(null);
-                  setProfilesReload((n) => n + 1);
-                  if (id === selectedId) setDetailReload((n) => n + 1);
-                }}
-              />
+              <div className={`${atlasPanel} overflow-hidden lg:col-span-2`}>
+                <ProfileForm
+                  mode="revise"
+                  initial={form.initial}
+                  onCancel={() => setForm(null)}
+                  onDone={(id) => {
+                    setForm(null);
+                    setProfilesReload((n) => n + 1);
+                    if (id === selectedId) setDetailReload((n) => n + 1);
+                  }}
+                />
+              </div>
             )}
 
             {view === "client" && shownDetail && !form && (
-              <div className={`${atlasPanel} flex flex-col gap-3 p-5`}>
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h3 className="flex flex-wrap items-center gap-2 break-words text-lg font-semibold text-slate-900">
-                      {shownDetail.label}
-                      {shownDetail.archivedAt && <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[11px] font-medium text-slate-700">Arşivde</span>}
-                    </h3>
-                    {currentRev && (
-                      <p className="text-sm text-slate-600">
-                        <RevisionLine r={currentRev} /> · saat doğruluğu: {currentRev.timeAccuracyLabel}
-                        {shownDetail.revisions.length > 1 ? ` · doğum bilgisi rev ${currentRev.revision}${currentRev.revision === shownDetail.currentRevision ? " (güncel)" : ""}` : ""}
-                      </p>
-                    )}
+              <div className={`${atlasPanel} flex flex-col gap-4 p-5 sm:p-6 lg:sticky lg:top-4`} data-testid="astro-client-card">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  {/* Danışan kimliği: monogram + ad + durum rozetleri */}
+                  <div className="flex min-w-0 items-center gap-4">
+                    <span className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#0B1430] text-xl font-light text-[#F6E7C3] shadow-[0_10px_24px_-12px_rgba(11,20,48,0.9)] [font-family:var(--font-atlas-display)]" aria-hidden="true">
+                      <span className="absolute inset-1 rounded-full border border-[#D9B56F]/50" />
+                      {shownDetail.label.trim().charAt(0).toLocaleUpperCase("tr-TR") || "✦"}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[#a8843e]">Danışan dosyası</p>
+                      <h3 className="mt-0.5 flex flex-wrap items-center gap-2 break-words text-2xl font-light tracking-[0.02em] text-[#0B1430] [font-family:var(--font-atlas-display)]">
+                        {shownDetail.label}
+                        {shownDetail.archivedAt && <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-700 [font-family:var(--font-atlas-text)]">Arşivde</span>}
+                      </h3>
+                      {shownDetail.clientName && <p className="text-xs text-emerald-800">Danışan Yolculuğu: {shownDetail.clientName}</p>}
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                   {currentRev && (
@@ -937,12 +943,7 @@ export default function AstrologyWorkspacePage() {
                   >
                     {shownDetail.archivedAt ? "Arşivden çıkar" : "Arşivle"}
                   </button>
-                  <button
-                    type="button"
-                    className="rounded-lg border border-rose-300 px-3 py-1.5 text-sm text-rose-700"
-                    onClick={() => setArchiveDelete({ scope: "single", ids: [shownDetail.id] })}
-                    data-testid="astro-delete-single"
-                  >
+                  <button type="button" className={atlasDangerBtn} onClick={() => setArchiveDelete({ scope: "single", ids: [shownDetail.id] })} data-testid="astro-delete-single">
                     Sil
                   </button>
                     </>
@@ -950,14 +951,37 @@ export default function AstrologyWorkspacePage() {
                   </div>
                 </div>
 
+                {/* Doğum kartı: harita künyesi gibi etiketli veri döşemeleri (yalnız mevcut alanlar). */}
+                {currentRev && (
+                  <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[#e7dcc3] bg-[#e7dcc3] sm:grid-cols-3 lg:grid-cols-2" data-testid="astro-birth-card">
+                    {(
+                      [
+                        ["Doğum tarihi", currentRev.birthDate.split("-").reverse().join(".")],
+                        ["Saat", currentRev.timeKnown ? (currentRev.birthTime?.slice(0, 5) ?? "—") : "bilinmiyor"],
+                        ["Doğum yeri", currentRev.locationLabel],
+                        ["Saat dilimi", `${currentRev.timezone} (${fmtOffset(currentRev.utcOffsetSeconds)})`],
+                        ["Saat doğruluğu", currentRev.timeAccuracyLabel],
+                        ["Doğum bilgisi", `rev ${currentRev.revision}${currentRev.revision === shownDetail.currentRevision ? " · güncel" : ""}`],
+                      ] as const
+                    ).map(([k, v]) => (
+                      <div key={k} className="min-w-0 bg-white/80 px-3.5 py-2.5">
+                        <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#a8843e]">{k}</dt>
+                        <dd className="mt-0.5 truncate text-sm font-medium tabular-nums text-slate-800" title={v}>
+                          {v}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+
                 {archiveConfirm && !shownDetail.archivedAt && (
-                  <div className="flex flex-col gap-2 rounded-lg border border-slate-300 bg-slate-50 p-2 text-xs sm:flex-row sm:items-center sm:justify-between" role="alertdialog" aria-label="Arşivleme onayı">
+                  <div className="flex flex-col gap-2 rounded-xl border border-amber-300/70 bg-amber-50/80 p-3 text-xs sm:flex-row sm:items-center sm:justify-between" role="alertdialog" aria-label="Arşivleme onayı">
                     <p className="text-slate-700">Profil arşivlensin mi? Etkin listeden kalkar; kayıtlı analizler, sonuçlar ve notlar silinmez. &quot;Arşiv&quot; filtresinden bulup geri alabilirsiniz.</p>
                     <div className="flex gap-1.5">
-                      <button type="button" onClick={() => setArchiveConfirm(false)} className="rounded-lg border border-slate-300 bg-white px-2.5 py-1">
+                      <button type="button" onClick={() => setArchiveConfirm(false)} className={atlasSecondaryBtn}>
                         Vazgeç
                       </button>
-                      <button type="button" disabled={archiveBusy} onClick={() => void setArchived(true)} className="rounded-lg bg-slate-800 px-2.5 py-1 text-white disabled:opacity-60">
+                      <button type="button" disabled={archiveBusy} onClick={() => void setArchived(true)} className="rounded-lg bg-[#0B1430] px-3 py-1.5 text-sm font-medium text-[#F6E7C3] disabled:opacity-60">
                         Evet, arşivle
                       </button>
                     </div>
@@ -1001,8 +1025,12 @@ export default function AstrologyWorkspacePage() {
 
             {shownDetail && !form && view === "client" && (
               <div className={`${atlasPanel} flex flex-col gap-3 p-5`} data-testid="astro-client-file-analyses">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-base font-semibold text-slate-900">Kayıtlı analizler</h3>
+                <div className="flex flex-wrap items-end justify-between gap-2">
+                  <div>
+                    <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[#a8843e]">Çalışmalar</p>
+                    <h3 className="text-xl font-light tracking-[0.02em] text-[#0B1430] [font-family:var(--font-atlas-display)]">Kayıtlı analizler</h3>
+                  </div>
+                  <p className="text-xs text-slate-500">Bir satıra basarak analizi açın; kayıtlar değişmez.</p>
                 </div>
                 <SavedAnalysesList
                   currentRevision={shownDetail.currentRevision}
@@ -1045,6 +1073,7 @@ export default function AstrologyWorkspacePage() {
                 });
               const switcher = (
                 <OpenTabs
+                  tone="light"
                   tabs={openTabs}
                   active={item?.key ?? null}
                   onSelect={(k) => setRunState((prev) => (prev ? { ...prev, active: k } : prev))}
@@ -1105,6 +1134,7 @@ export default function AstrologyWorkspacePage() {
               const opts = item && item.ok ? describeOptions(item.technique, item.view.options, labelOf) : "";
               return (
                 <ResultDesk
+                  variant="light"
                   backLabel="Teknik seçimine dön"
                   onBack={() => guardLeave(() => go("new"))}
                   eyebrow="ANALİZ SONUCU"
@@ -1119,6 +1149,15 @@ export default function AstrologyWorkspacePage() {
                     ) : null
                   }
                   details={currentRev ? <RevisionLine r={currentRev} /> : null}
+                  meta={
+                    item && item.ok
+                      ? [
+                          zodiacLabel(item.technique),
+                          item.view.method.nodeType ? (NODE_TYPE_LABELS[item.view.method.nodeType as keyof typeof NODE_TYPE_LABELS] ?? null) : null,
+                          item.view.timeUnknownMasked ? "Saat bilinmiyor · evler gizli" : null,
+                        ]
+                      : undefined
+                  }
                   chips={<DeskChip tone={saved ? "saved" : "muted"}>{saved ? "✓ Bu analiz kaydedildi" : "Bu analiz kaydedilmedi"}</DeskChip>}
                   actions={
                     saved ? (
@@ -1163,9 +1202,9 @@ export default function AstrologyWorkspacePage() {
                   chartKey={item.key}
                   chart={
                     natalTech
-                      ? (cls: string) => <NatalWheel technical={natalTech} sizeClassName={cls} />
+                      ? (cls: string) => <NatalWheel technical={natalTech} sizeClassName={cls} tinted />
                       : otherWheel
-                        ? (cls: string) => <NatalWheel technical={otherWheel.wheel} label={otherWheel.label} sizeClassName={cls} />
+                        ? (cls: string) => <NatalWheel technical={otherWheel.wheel} label={otherWheel.label} sizeClassName={cls} tinted />
                         : null
                   }
                   stage={

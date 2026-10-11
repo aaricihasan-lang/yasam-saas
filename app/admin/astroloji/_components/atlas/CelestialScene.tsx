@@ -10,7 +10,7 @@
  *   • three ayrı parçada (dynamic import) — ana pakete girmez; SSR'da hiç çalışmaz.
  *   • WebGL yoksa / kurulum hata verirse statik SVG alternatifi gösterilir (işlevler sahneye bağlı değil).
  *   • prefers-reduced-motion → tek kare çizilir, animasyon yok.
- *   • Mobil / dar ekran: daha az yıldız, düşük piksel oranı, ~30 fps.
+ *   • Mobil / dar ekran / düşük donanım (≤4 çekirdek veya ≤4 GB): daha az yıldız ve yörünge, düşük piksel oranı, ~30 fps.
  *   • Sekme gizliyken veya sahne görünmüyorken döngü durur; bileşen kapanırken tüm GPU kaynakları serbest bırakılır.
  */
 import { useEffect, useRef, useState } from "react";
@@ -73,13 +73,13 @@ export function StaticSky({ className = "" }: { className?: string }) {
 
 export default function CelestialScene({ className = "" }: { className?: string }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const [mode, setMode] = useState<"pending" | "webgl" | "static">("pending");
+  // Yalnız istemcide çalışır (dynamic, ssr:false) → WebGL denetimi ilk render sırasında yapılabilir.
+  const [mode, setMode] = useState<"pending" | "webgl" | "static">(() => (webglAvailable() ? "pending" : "static"));
 
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
     if (!webglAvailable()) {
-      setMode("static");
       (window as unknown as { __atlasPerf?: ScenePerf }).__atlasPerf = { mode: "static", avgFrameMs: null, frames: 0, stars: 0 };
       return;
     }
@@ -92,7 +92,9 @@ export default function CelestialScene({ className = "" }: { className?: string 
         const reduced = prefersReducedMotion();
         const narrow = host.clientWidth < 768;
         const coarse = window.matchMedia?.("(pointer: coarse)").matches === true;
-        const light = narrow || coarse;
+        const nav = navigator as Navigator & { deviceMemory?: number };
+        const lowEnd = (nav.hardwareConcurrency ?? 8) <= 4 || (nav.deviceMemory ?? 8) <= 4;
+        const light = narrow || coarse || lowEnd;
 
         const renderer = new THREE.WebGLRenderer({ antialias: !light, alpha: true, powerPreference: light ? "low-power" : "default" });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, light ? 1.25 : 1.75));
@@ -269,6 +271,13 @@ export default function CelestialScene({ className = "" }: { className?: string 
           { r: 1.25, tilt: [1.2, 0.2], color: 0xb9a6f2, speed: 0.11, body: "#e9e0fa", s: 0.2 },
           { r: 1.7, tilt: [1.45, -0.35], color: 0x8fd6cb, speed: -0.075, body: "#ddf3f0", s: 0.24 },
           { r: 2.05, tilt: [1.0, 0.6], color: 0xf0c9a4, speed: 0.05, body: "#fbe7dd", s: 0.18 },
+          // Düşük donanımda ek yörüngeler çizilmez.
+          ...(light
+            ? []
+            : [
+                { r: 0.85, tilt: [1.35, 0.9], color: 0xe9c98a, speed: 0.16, body: "#ffe9b8", s: 0.14 },
+                { r: 2.3, tilt: [1.55, -0.1], color: 0x9cc3ff, speed: -0.035, body: "#d6e6ff", s: 0.22 },
+              ]),
         ];
         for (const o of orbitDefs) {
           const g = new THREE.Group();
@@ -299,16 +308,20 @@ export default function CelestialScene({ className = "" }: { className?: string 
           renderer.setSize(w, h, false);
           camera.aspect = w / h;
           camera.updateProjectionMatrix();
-          if (w >= 1024) {
-            holder.position.set(2.3, 0.05, 0);
-            holder.scale.setScalar(0.92);
-          } else if (w >= 640) {
-            holder.position.set(1.95, 0.35, 0);
-            holder.scale.setScalar(0.78);
+          // Görünen yarı-yükseklik/genişlik (z=0 düzleminde); küre + burç sembolleri ~3 birim yarıçap kaplar.
+          const halfH = camera.position.z * Math.tan((camera.fov * Math.PI) / 360);
+          const halfW = halfH * camera.aspect;
+          const OUTER = 3.3;
+          if (w >= 640) {
+            // Başlık solda: küre sahnenin sağ tarafında, tamamı görünür.
+            const sc = Math.min(1.05, (0.9 * halfH) / OUTER, (0.6 * halfW) / OUTER);
+            holder.scale.setScalar(sc);
+            holder.position.set(Math.max(0, halfW - OUTER * sc - halfW * 0.08), 0.05, 0);
           } else {
-            // Mobil: küre başlığın ÜSTÜNDE (metinle çakışmaz); sahne yüksekliğinin üst bölümünde.
-            holder.position.set(0, 1.55, -1);
-            holder.scale.setScalar(0.62);
+            // Mobil: başlık altta; küre üst-sağda, metinle çakışmaz.
+            const sc = Math.min(0.62, (0.44 * halfH) / OUTER);
+            holder.scale.setScalar(sc);
+            holder.position.set(halfW * 0.3, halfH - OUTER * sc - 0.02, 0);
           }
         };
         layout();

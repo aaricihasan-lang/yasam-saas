@@ -132,7 +132,7 @@ export default function ArchiveDeleteFlow({
 
   return (
     <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-[#050816]/70 p-3 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={title} data-testid="astro-archive-delete-flow" data-step={step}>
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-2xl">
+      <div className="w-full max-w-lg rounded-2xl border border-[#D9B56F]/45 shadow-[0_40px_90px_-30px_rgba(0,0,0,0.95),0_0_0_4px_rgba(217,181,111,0.08)] bg-[#FBF8F2] text-slate-800">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wide text-rose-700">{title}</p>
