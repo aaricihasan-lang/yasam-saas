@@ -1,0 +1,1335 @@
+"use client";
+
+/**
+ * Astroloji Çalışma Merkezi — AŞAMA 3 (OWNER-ONLY, satış sonrası pilot).
+ *
+ * Bu sayfa yalnız owner'a render edilir (layout.tsx: kill switch + katı owner → aksi notFound).
+ * Veri yetkisi her API çağrısında sunucuda yeniden verilir (requireAstrologyOwner).
+ *
+ * Akış: Doğum profili → teknik(ler) seç (yalnız seçilenlerin parametreleri) → SUNUCU planı
+ *       (X hesap → Y yeni Roxy isteği → Z kayıtlı sonuç; engellenenler nedeniyle) → Hesapla →
+ *       sonuç sekmeleri (her teknik kendi görünümüyle) → Bilgi Bankam → Uzman notlarım → Analizi Kaydet.
+ * Owner önizlemesi: "Roxy Yorumu Kapalıymış Gibi Gör" → sunucu yorum içeriğini yanıta hiç koymaz;
+ * önizleme değişince sonuçlar YALNIZ-ÖNBELLEK ucundan yeniden okunur (0 sağlayıcı isteği).
+ *
+ * Bayat veri koruması: plan / sonuç / etkin sekme BAĞLAM ANAHTARIYLA (profil|revizyon) ve çalıştırma
+ * sırasıyla saklanır; geç gelen yanıt başka profilin / daha yeni bir çalıştırmanın üstüne YAZILMAZ.
+ * Çalışma alanı seçimi formdan değil, GÖSTERİLEN sonucun kendi normalize seçeneklerinden kurulur.
+ */
+
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
+import type { TechniqueView } from "@/lib/astrology/view/techniqueView";
+import { HOUSE_SYSTEM_LABELS } from "@/lib/astrology/labels/tr";
+import { astroFetch, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
+import type { DashaDrillResult } from "./_components/VedicPanels";
+import type { VedicDashaTechnical } from "@/lib/astrology/model/vedic";
+import { buildSelections, defaultParams, describeOptions, houseSystemLabel, techniqueLabel, TECHNIQUE_META, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
+import ProviderInterpretationPanel, { interpretationTitle, type InterpretationLayer } from "./_components/ProviderInterpretationPanel";
+import ProfileForm, { type ProfileFormInitial } from "./_components/ProfileForm";
+import AnalysisWorkspace from "./_components/AnalysisWorkspace";
+import KnowledgeBankPanel from "./_components/KnowledgeBankPanel";
+import UnmappedAuditPanel from "./_components/UnmappedAuditPanel";
+import PrepCenter from "./_components/atlas/PrepCenter";
+import ClientPicker from "./_components/atlas/ClientPicker";
+import OpenTabs from "./_components/atlas/OpenTabs";
+import AddTechniqueDialog, { type AddRunResult } from "./_components/atlas/AddTechniqueDialog";
+import { TechniqueTechnical, wheelForTechnique } from "./_components/TimingPanels";
+import { SavedAnalysesList, SavedAnalysisView } from "./_components/SavedAnalyses";
+import ArchiveList from "./_components/atlas/ArchiveList";
+import ArchiveDeleteFlow from "./_components/atlas/ArchiveDeleteFlow";
+import ClientLinkPanel from "./_components/ClientLinkPanel";
+import ProfileDeleteFlow from "./_components/ProfileDeleteFlow";
+import ModuleAccessDenied from "@/components/auth/ModuleAccessDenied";
+import AstroHome from "./_components/AstroHome";
+import AtlasHero from "./_components/atlas/AtlasHero";
+import ResultDesk, { DeskChip, deskPrimary, type DeskTab } from "./_components/atlas/ResultDesk";
+import NatalWheel from "./_components/NatalWheel";
+import NatalTechnicalPanel from "./_components/NatalTechnicalPanel";
+import type { NatalTechnical } from "@/lib/astrology/model/western";
+import { AtlasHeader, AtlasViewTitle, atlasPanel, atlasSecondaryBtn, type AtlasView } from "./_components/AtlasShell";
+import { ArrowLeft, CheckCircle2, Settings2 } from "lucide-react";
+
+type PublicRevision = {
+  revision: number;
+  birthDate: string;
+  birthTime: string | null;
+  timeKnown: boolean;
+  timeAccuracy: string;
+  timeAccuracyLabel: string;
+  locationId: string | null;
+  locationLabel: string;
+  latitude: number;
+  longitude: number;
+  timezone: string;
+  dstChoice: string;
+  utcOffsetSeconds: number;
+  birthUtc: string;
+  changeNote: string | null;
+  createdAt: string | null;
+};
+
+type ProfileDetail = {
+  id: string;
+  label: string;
+  clientId: string | null;
+  clientName: string | null;
+  /** Aşama 7B: bağ var ama danışan kaydı artık bulunamıyor. */
+  clientMissing?: boolean;
+  archivedAt?: string | null;
+  currentRevision: number;
+  revisions: PublicRevision[];
+};
+
+type PartnerOption = { id: string; label: string; clientName: string | null };
+
+type PlanSelection = {
+  technique: string;
+  options: Record<string, unknown> | null;
+  unitCount: number;
+  newRequests: number;
+  blocked: { code: string; error: string } | null;
+  info?: { lunarReturns?: LunarReturnInfo[] } | null;
+};
+type PlanSummary = {
+  selectedCount: number;
+  blockedCount: number;
+  newRequestCount: number;
+  cachedCount: number;
+  coveredCount: number;
+  dedupedCount: number;
+  requiresConfirmation: boolean;
+  selections: PlanSelection[];
+};
+
+type View = Omit<TechniqueView, "interpretation"> & { interpretation: InterpretationLayer };
+type ResultItem = { technique: string; ok: true; partial: boolean; reused: boolean; view: View } | { technique: string; ok: false; code: string; error: string; retryAfterSec?: number };
+/** Çalışma masası sekmesi: başarılı sonuç + kararlı anahtar (teknik | normalize seçenekler). */
+type BenchItem = Extract<ResultItem, { ok: true }> & { key: string };
+/** Hata kaydı: aynı teknik+seçenek tekrar başarısız olursa deneme sayısı artar (geçmiş kaybolmaz). */
+type BenchFail = { key: string; technique: string; code: string; error: string; options: Record<string, unknown> | null; attempts: number; lastAt: number; retryAfterSec?: number; note?: string };
+
+type RunResponse = {
+  plan: PlanSummary;
+  executed: { newResults: number; cachedResults: number; providerAttempts: number };
+  revision: PublicRevision;
+  results: ResultItem[];
+};
+
+function fmtOffset(sec: number): string {
+  const sign = sec >= 0 ? "+" : "−";
+  const a = Math.abs(sec);
+  return `UTC${sign}${String(Math.floor(a / 3600)).padStart(2, "0")}:${String(Math.floor((a % 3600) / 60)).padStart(2, "0")}`;
+}
+
+function RevisionLine({ r }: { r: PublicRevision }) {
+  return (
+    <span>
+      {r.birthDate} · {r.timeKnown ? r.birthTime?.slice(0, 5) : "saat bilinmiyor"} · {r.locationLabel} · {r.timezone} ({fmtOffset(r.utcOffsetSeconds)})
+    </span>
+  );
+}
+
+/** Olay işleyicilerinde zaman damgası (render dışı). */
+const nowMs = () => Date.now();
+
+const VIEW_HASH: Record<AtlasView, string> = { home: "", new: "yeni-analiz", archive: "analiz-arsivi", client: "danisan", result: "analiz-sonucu", kb: "bilgi-bankasi", audit: "alan-denetimi" };
+/** Danışan Dosyası adresi: #danisan/<profil-kimliği> (yenileme, geri/ileri ve doğrudan bağlantı için). */
+const CLIENT_HASH_RE = /^#?danisan\/([0-9a-fA-F-]{36})$/;
+function clientIdFromHash(hash: string): string | null {
+  return CLIENT_HASH_RE.exec(hash)?.[1] ?? null;
+}
+function viewFromHash(hash: string): AtlasView {
+  if (clientIdFromHash(hash)) return "client";
+  const h = hash.replace(/^#/, "");
+  const hit = (Object.keys(VIEW_HASH) as AtlasView[]).find((k) => VIEW_HASH[k] === h && h !== "");
+  return hit ?? "home";
+}
+
+export default function AstrologyWorkspacePage() {
+  // Aşama 7B: liste sunucuda sayfalı (ClientList); karşı taraf seçimi kendi aramasıyla gelir.
+  // Bilinen profil adları (liste + karşı taraf + detay) → plan/sonuç satırlarındaki karşı taraf etiketi.
+  const [knownLabels, setKnownLabels] = useState<Record<string, string>>({});
+  const [partnerQuery, setPartnerQuery] = useState("");
+  const [partnerOptions, setPartnerOptions] = useState<PartnerOption[]>([]);
+  const [archiveConfirm, setArchiveConfirm] = useState(false);
+  const [archiveBusy, setArchiveBusy] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  // Kalıcı silme (tekli; 2 onay). Dizi durumda tutulur → onay akışına kararlı referans.
+  const [deleteIds, setDeleteIds] = useState<string[] | null>(null);
+  // Analiz Arşivi silme akışı (tekli / seçilenler / tümü) + liste yenileme anahtarı.
+  const [archiveDelete, setArchiveDelete] = useState<{ scope: "single" | "selected" | "all"; ids: string[]; deleted?: string[] } | null>(null);
+  const [archiveReload, setArchiveReload] = useState(0);
+  const [deleteInfo, setDeleteInfo] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<ProfileDetail | null>(null);
+  const [detailError, setDetailError] = useState<{ id: string; error: string } | null>(null);
+  const [revision, setRevision] = useState<number | null>(null);
+  const [form, setForm] = useState<null | { mode: "create" } | { mode: "revise"; initial: ProfileFormInitial }>(null);
+
+  const [method, setMethod] = useState<{ houseSystem: HouseSystem; nodeType: NodeType }>({ houseSystem: "placidus", nodeType: "true" });
+  // D4: Natal zorunlu/sabit değil — başlangıçta hiçbir teknik seçili değildir.
+  const [checked, setChecked] = useState<Partial<Record<UiTechniqueId, boolean>>>({});
+  const [params, setParams] = useState<TechniqueParams>(() => defaultParams(new Date()));
+  const [planState, setPlanState] = useState<{ key: string; plan: PlanSummary | null; error: string | null } | null>(null);
+  const [planNonce, setPlanNonce] = useState(0);
+  const [running, setRunning] = useState(false);
+  // Sonuçlar BAĞLAM ANAHTARI + çalıştırma sırasıyla: geç yanıt başka profilin / yeni çalıştırmanın üstüne yazılmaz.
+  const runSeq = useRef(0);
+  // D4 çalışma masası: bu danışan+revizyon için oturumda hesaplanan/açılan sonuçlar BİRİKİR (yeni çalıştırma öncekileri
+  // silmez). open = açık sekmeler (× yalnız sekmeyi kapatır; sonuç bellekte kalır, kayıt/sonuç silinmez); fails = hatalar.
+  const [runState, setRunState] = useState<{ key: string; seq: number; items: BenchItem[]; fails: BenchFail[]; open: string[]; active: string | null; executed: RunResponse["executed"] } | null>(null);
+  const [runErrorState, setRunErrorState] = useState<{ key: string; message: string } | null>(null);
+  const [profilesReload, setProfilesReload] = useState(0);
+  const [detailReload, setDetailReload] = useState(0);
+  const previewFlag = useSyncExternalStore(subscribePreviewFlag, readPreviewFlag, () => false);
+  // Aşama 7C: erişim + yetkiler SUNUCUDAN (fail-closed). Owner-only öğeler (önizleme, alan denetimi,
+  // pilot rozeti) yalnız isOwner'da; uzman yüzeyinde owner önizleme bayrağı yok sayılır.
+  const [access, setAccess] = useState<{ isOwner: boolean; providerInterp: boolean } | "denied" | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void astroFetch<{ isOwner?: boolean; entitlements: { providerInterpretations: boolean } }>("/api/admin/astroloji/access").then((r) => {
+      if (!alive) return;
+      setAccess(r.ok ? { isOwner: r.data.isOwner === true, providerInterp: r.data.entitlements.providerInterpretations === true } : "denied");
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const isOwnerView = access !== null && access !== "denied" && access.isOwner;
+  const previewNoInterp = isOwnerView && previewFlag;
+  const [view, setView] = useState<AtlasView>("home");
+  const viewRef = useRef<AtlasView>("home");
+  // FINAL: sonuç ve Yeni Analiz ekranlarında ana alanın en küçük yüksekliği = görünür ekran − üst (Yaşam Sistemi) çubuğu → masaüstünde
+  // gereksiz sayfa kaydırması olmaz. Diğer görünümler değişmez (sınıftaki min-h-screen geçerli kalır).
+  const mainRef = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    if (view !== "result" && view !== "new") {
+      el.style.minHeight = "";
+      return;
+    }
+    const fit = () => {
+      const top = el.getBoundingClientRect().top + (document.scrollingElement?.scrollTop ?? 0) + document.body.scrollTop;
+      el.style.minHeight = `${Math.max(0, Math.floor(window.innerHeight - top))}px`;
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => {
+      window.removeEventListener("resize", fit);
+      el.style.minHeight = "";
+    };
+    // access: ilk yüklemede ana alan "Yükleniyor" durumundan SONRA çizilir → görünüm değişmese de yeniden uygulanır.
+  }, [view, access]);
+  // FINAL: kaydedilmemiş not / Bilgi Bankası taslağı olan sekmeler (sessiz veri kaybı yok: kapatma/ayrılma uyarısı).
+  const [dirtyTabs, setDirtyTabs] = useState<Record<string, boolean>>({});
+  const [pendingLeave, setPendingLeave] = useState<{ message: string; action: () => void } | null>(null);
+  const anyDirty = Object.values(dirtyTabs).some(Boolean);
+  const dirtyRef = useRef(false);
+  useEffect(() => {
+    dirtyRef.current = anyDirty;
+  }, [anyDirty]);
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
+  const [resultMode, setResultMode] = useState<"run" | "saved">("run");
+  // Kayıt kapsamı sekme bazında: yalnız kaydedilen tekniğin sekmesi "Kaydedildi" gösterir (anahtar profil|sekme).
+  const [savedIds, setSavedIds] = useState<Record<string, string>>({});
+  const [addOpen, setAddOpen] = useState<{ initial: UiTechniqueId | null } | null>(null);
+  // FINAL: tüm seçili teknikler başarısız olduğunda sonuç ekranı AÇILMAZ; özet Yeni Analiz'de gösterilir.
+  const [lastFailures, setLastFailures] = useState<{ key: string; at: number; items: { technique: string; code: string; error: string; retryAfterSec?: number }[] } | null>(null);
+  const [deskTab, setDeskTab] = useState("harita");
+  const [workRefresh, setWorkRefresh] = useState(0);
+  /**
+   * Görünüm ↔ adres çubuğu (#yeni-analiz vb.): tarayıcı geri/ileri ve sayfa yenileme aynı ekrana döner.
+   * Sonuç görünümü bellekteki hesaplamaya bağlıdır; yenilemede sonuç yoksa Yeni Analiz'e (seçimler korunur) döner.
+   */
+  function go(v: AtlasView, opts: { history?: "push" | "replace" | "none"; profileId?: string | null } = {}) {
+    // Arşiv listesine dönüşte kaydırma konumu korunur (liste bağlı kalır; arama/filtre durumu kaybolmaz).
+    if (typeof window !== "undefined" && viewRef.current === "archive" && v !== "archive") archiveScrollRef.current = window.scrollY;
+    setView(v);
+    if (v === "new" || v === "result") setWorkRefresh((n) => n + 1);
+    if (typeof window !== "undefined") {
+      const mode = opts.history ?? "push";
+      const hash = v === "client" ? `danisan/${opts.profileId ?? selectedIdRef.current ?? ""}` : VIEW_HASH[v];
+      const url = `${window.location.pathname}${window.location.search}${hash ? `#${hash}` : ""}`;
+      if (mode === "push" && window.location.hash.replace(/^#/, "") !== hash) window.history.pushState({ atlasView: v }, "", url);
+      else if (mode === "replace") window.history.replaceState({ atlasView: v }, "", url);
+      const y = v === "archive" ? archiveScrollRef.current : 0;
+      requestAnimationFrame(() => window.scrollTo({ top: y }));
+    }
+  }
+  const archiveScrollRef = useRef(0);
+  const selectedIdRef = useRef<string | null>(null);
+  // Sonuç görünümü yalnız bellekte bir sonuç/kayıt açıkken anlamlıdır (ref: popstate dinleyicisi güncel değeri okur).
+  const hasResultRef = useRef(false);
+  useEffect(() => {
+    const restore = () => {
+      let v = viewFromHash(window.location.hash);
+      // FINAL: tarayıcı geri/ileri ile sonuç ekranından ayrılırken kaydedilmemiş taslak varsa önce uyar.
+      if (viewRef.current === "result" && v !== "result" && dirtyRef.current) {
+        const target = v;
+        window.history.pushState({ atlasView: "result" }, "", `${window.location.pathname}${window.location.search}#${VIEW_HASH.result}`);
+        setPendingLeave({ message: "Açık sekmelerde kaydedilmemiş not veya Bilgi Bankası taslağı var. Ekrandan ayrılırsanız bu değişiklikler kaybolur.", action: () => go(target) });
+        return;
+      }
+      if (v === "result" && !hasResultRef.current) v = "new";
+      if (v === "audit" && !(access !== null && access !== "denied" && access.isOwner)) v = "home";
+      const cid = v === "client" ? clientIdFromHash(window.location.hash) : null;
+      if (cid) selectProfileRef.current(cid);
+      go(v, { history: "none", profileId: cid });
+    };
+    restore();
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+    // Yalnız ilk yüklemede + erişim bilgisi gelince (alan denetimi owner'a özel).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [access === null]);
+  const [openAnalysis, setOpenAnalysis] = useState<{ profileId: string; id: string } | null>(null);
+  const [analysesReload, setAnalysesReload] = useState(0);
+  // Aşama 5: etkin sonucun çalışma alanı KB eşleşmeleri (Vedik ayrıntı paneli için; ek istek yok).
+  // FINAL: her açık sekmenin çalışma alanı bağlı kalır → KB eşleşmeleri sekme bağlamına göre haritada tutulur.
+  const [kbMap, setKbMap] = useState<Record<string, { topicKey: string; topicLabel: string; title: string; body: string }[]>>({});
+
+
+  const rememberLabels = (rows: { id: string; label: string }[]) =>
+    setKnownLabels((m) => {
+      const next = { ...m };
+      for (const r of rows) next[r.id] = r.label;
+      return next;
+    });
+
+  useEffect(() => {
+    if (!selectedId) return;
+    let alive = true;
+    void astroFetch<{ profile: ProfileDetail }>(`/api/admin/astroloji/profiles/${selectedId}`).then((r) => {
+      if (!alive) return;
+      if (!r.ok) {
+        // Başka uzmanın / tenant'ın kimliği veya silinmiş profil → sunucu reddeder; dosya açılmaz (veri sızmaz).
+        setDetailError({ id: selectedId, error: r.status === 404 ? "Danışan dosyası bulunamadı veya erişim yetkiniz yok." : r.error });
+        return;
+      }
+      setDetailError(null);
+      setDetail(r.data.profile);
+      setRevision(r.data.profile.currentRevision);
+      rememberLabels([r.data.profile]);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [selectedId, detailReload]);
+
+  // Karşı taraf seçimi (sinastri / composite): yalnız ikili teknik seçiliyken, sunucu aramasıyla (≤100; etkin kayıtlar).
+  const anyPartnerChecked = !!(checked["western.synastry"] || checked["western.composite"]);
+  useEffect(() => {
+    if (!anyPartnerChecked) return;
+    let alive = true;
+    const t = setTimeout(() => {
+      const sp = new URLSearchParams({ sort: "name", limit: "100" });
+      if (partnerQuery.trim()) sp.set("q", partnerQuery.trim());
+      void astroFetch<{ profiles: PartnerOption[] }>(`/api/admin/astroloji/profiles?${sp.toString()}`).then((r) => {
+        if (!alive || !r.ok) return;
+        setPartnerOptions(r.data.profiles);
+        rememberLabels(r.data.profiles);
+      });
+    }, 250);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [anyPartnerChecked, partnerQuery, profilesReload]);
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
+  const selectProfileRef = useRef<(id: string) => void>(() => undefined);
+  useEffect(() => {
+    selectProfileRef.current = selectProfile;
+  });
+
+  /** Danışan Dosyası'nı aç (ayrı adres). */
+  function openClientFile(id: string) {
+    selectProfile(id);
+    go("client", { profileId: id });
+  }
+
+  /**
+   * YENİ ANALİZ OLUŞTUR (temiz taslak) — yalnız danışan + GÜNCEL doğum profili taşınır. Önceki teknik seçimleri ve
+   * tekniğe özgü geçici ayarlar (hedef tarihler, karşı taraf, relocation/konum seçimleri, KP an/yer, dasha düzeyi…)
+   * SIFIRLANIR → istenmeyen ücretli istek planlanamaz. Kayıtlı analizler ve hesaplanmış sonuçlar etkilenmez.
+   * (Üst menüdeki "Yeni Analiz" ise mevcut taslağa GERİ DÖNER — bu fonksiyon çağrılmaz.)
+   */
+  function startFreshAnalysis(id: string | null) {
+    if (id) selectProfile(id);
+    if (id && detail && detail.id === id) setRevision(detail.currentRevision);
+    setChecked({});
+    setParams(defaultParams(new Date()));
+    setMethod({ houseSystem: "placidus", nodeType: "true" });
+    setPartnerQuery("");
+    setLastFailures(null);
+    setRunErrorState(null);
+    go("new");
+  }
+
+  function selectProfile(id: string) {
+    // Aynı profil yeniden seçilirse ayrıntı temizlenmez (seçim değişmediği için yeniden yüklenmez; boş panelde kalırdı).
+    if (id === selectedId) {
+      setForm(null);
+      return;
+    }
+    setSelectedId(id);
+    setForm(null);
+    setDetail(null);
+    setRevision(null);
+    setArchiveConfirm(false);
+    setArchiveError(null);
+    // Önceki profilin karşı taraf seçimi yeni profile taşınmaz.
+    setParams((p) => ({ ...p, partnerProfileId: p.partnerProfileId === id ? "" : p.partnerProfileId }));
+  }
+
+  function clearSelection() {
+    setSelectedId(null);
+    setDetail(null);
+    setRevision(null);
+    setOpenAnalysis(null);
+    setArchiveConfirm(false);
+  }
+
+  async function setArchived(archived: boolean) {
+    if (!shownDetail) return;
+    setArchiveBusy(true);
+    setArchiveError(null);
+    const r = await astroFetch(`/api/admin/astroloji/profiles/${shownDetail.id}`, { method: "PATCH", body: { archived } });
+    setArchiveBusy(false);
+    if (!r.ok) {
+      setArchiveError(r.error);
+      return;
+    }
+    setArchiveConfirm(false);
+    setProfilesReload((n) => n + 1);
+    setDetailReload((n) => n + 1);
+  }
+
+  const shownDetail = detail && detail.id === selectedId ? detail : null;
+  const ctxKey = shownDetail && revision !== null ? `${shownDetail.id}|${revision}` : null;
+  const currentRev = shownDetail?.revisions.find((r) => r.revision === revision) ?? null;
+  const labelOf = useMemo(() => (id: string) => knownLabels[id] ?? null, [knownLabels]);
+  const partners = partnerOptions.filter((p) => p.id !== selectedId).map((p) => ({ id: p.id, label: p.clientName ? `${p.label} (${p.clientName})` : p.label }));
+  // Seçili karşı taraf arama sonucunda yoksa da seçimde görünür kalsın.
+  if (params.partnerProfileId && !partners.some((p) => p.id === params.partnerProfileId)) {
+    partners.unshift({ id: params.partnerProfileId, label: knownLabels[params.partnerProfileId] ?? "Seçili karşı taraf" });
+  }
+  const birthplace = currentRev ? { lat: currentRev.latitude, lon: currentRev.longitude, label: currentRev.locationLabel } : null;
+  const selections = useMemo(() => {
+    const all = buildSelections(checked, params, method);
+    // Karşı taraf seçilmeden ikili teknikler plana girmez (uyarı ayrıca gösterilir).
+    return params.partnerProfileId ? all : all.filter((s) => !TECHNIQUE_META[s.technique].needsPartner);
+  }, [checked, params, method]);
+
+  const runs = runState && runState.key === ctxKey ? runState : null;
+  const runError = runErrorState && runErrorState.key === ctxKey ? runErrorState.message : null;
+  const activeItem = runs && runs.active && runs.open.includes(runs.active) ? (runs.items.find((x) => x.key === runs.active) ?? null) : null;
+  useEffect(() => {
+    hasResultRef.current = !!(runs && (runs.items.length > 0 || runs.fails.length > 0)) || !!openAnalysis;
+  }, [runs, openAnalysis]);
+
+  // SUNUCU planı (sağlayıcı ÇAĞRILMAZ): X hesap → Y yeni istek → Z kayıtlı; engellenenler nedeniyle.
+  // Anahtar = isteğin kendisi (bağlam + seçimler + yenileme sayacı) → yanıt yalnız kendi anahtarında gösterilir.
+  const planKey = ctxKey && shownDetail && revision !== null && selections.length > 0 ? JSON.stringify({ profileId: shownDetail.id, revision, selections, n: planNonce }) : null;
+  useEffect(() => {
+    if (!planKey) return;
+    let alive = true;
+    const { profileId, revision: rev, selections: sels } = JSON.parse(planKey) as { profileId: string; revision: number; selections: unknown[] };
+    const body = { profileId, revision: rev, selections: sels };
+    const t = setTimeout(() => {
+      void astroFetch<{ plan: PlanSummary }>("/api/admin/astroloji/engine/plan", { method: "POST", body }).then((r) => {
+        if (!alive) return;
+        setPlanState({ key: planKey, plan: r.ok ? r.data.plan : null, error: r.ok ? null : r.error });
+      });
+    }, 250);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [planKey]);
+  const plan = planState && planState.key === planKey ? planState.plan : null;
+  const planError = planState && planState.key === planKey ? planState.error : null;
+  const lunarReturns = plan?.selections.find((s) => s.technique === "western.lunar_return")?.info?.lunarReturns ?? null;
+
+  async function run() {
+    if (!shownDetail || revision === null || !ctxKey || !plan || !planKey) return;
+    const key = ctxKey;
+    const seq = ++runSeq.current;
+    // Önizlemede gösterilen NORMALİZE seçenekler aynen çalıştırılır (ör. "şimdi" saat başı).
+    const sels = plan.selections.map((s, i) => ({ technique: s.technique, options: s.options ?? selections[i].options }));
+    setRunning(true);
+    setRunErrorState(null);
+    setLastFailures(null);
+    const r = await astroFetch<RunResponse>(`/api/admin/astroloji/engine/run${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
+      method: "POST",
+      body: { profileId: shownDetail.id, revision, selections: sels, confirmNewRequests: plan.newRequestCount },
+    });
+    if (seq !== runSeq.current) return; // daha yeni bir çalıştırma başladı
+    setRunning(false);
+    setPlanNonce((n) => n + 1);
+    if (!r.ok) {
+      if (r.code === "CONFIRMATION_REQUIRED" && r.data && typeof r.data.plan === "object") {
+        setRunErrorState({ key, message: `${r.error} (plan güncellendi — yeniden kontrol edin)` });
+      } else setRunErrorState({ key, message: r.error });
+      // Engellenen/başarısız seçimler hata geçmişine yazılır (Roxy isteği yapılmadan). Hiçbiri başarılı DEĞİLSE sonuç
+      // ekranına geçilmez (boş ekran yerine Yeni Analiz'de neden + sonraki adım gösterilir).
+      const items = (r.data?.results as ResultItem[] | undefined) ?? null;
+      if (items) {
+        mergeRun(key, items, sels, (r.data?.executed as RunResponse["executed"]) ?? { newResults: 0, cachedResults: 0, providerAttempts: 0 });
+        const failed = items.filter((x): x is Extract<ResultItem, { ok: false }> => !x.ok);
+        if (items.some((x) => x.ok)) {
+          setResultMode("run");
+          go("result");
+        } else if (failed.length > 0) {
+          setRunErrorState(null);
+          setLastFailures({ key, at: nowMs(), items: failed.map((f) => ({ technique: f.technique, code: f.code, error: f.error, retryAfterSec: f.retryAfterSec })) });
+        }
+      }
+      return;
+    }
+    mergeRun(key, r.data.results, sels, r.data.executed);
+    setResultMode("run");
+    go("result");
+  }
+
+  /**
+   * D4: sonuçları çalışma masasına BİRLEŞTİRİR (aynı teknik+normalize seçenek → güncellenir, yeni → eklenir ve sekmesi
+   * açılır). Başarısız seçimler sekme değil hata listesidir; aynı teknik sonradan başarılı olursa listeden düşer.
+   */
+  function mergeRun(key: string, results: ResultItem[], sels: { technique: string; options: Record<string, unknown> | null }[], executed: RunResponse["executed"]) {
+    setRunState((prev) => {
+      const base = prev && prev.key === key ? prev : { key, seq: 0, items: [] as BenchItem[], fails: [] as BenchFail[], open: [] as string[], active: null as string | null, executed };
+      const items = [...base.items];
+      let fails = [...base.fails];
+      const open = [...base.open];
+      let first: string | null = null;
+      results.forEach((res, i) => {
+        if (res.ok) {
+          const k = `${res.technique}|${JSON.stringify(res.view.options)}`;
+          const at = items.findIndex((x) => x.key === k);
+          if (at >= 0) items[at] = { ...res, key: k };
+          else items.push({ ...res, key: k });
+          if (!open.includes(k)) open.push(k);
+          fails = fails.filter((f) => f.technique !== res.technique);
+          first ??= k;
+        } else {
+          const fk = `${res.technique}|${JSON.stringify(sels[i]?.options ?? null)}`;
+          const prevF = fails.find((f) => f.key === fk);
+          fails = [
+            ...fails.filter((f) => f.key !== fk),
+            { key: fk, technique: res.technique, code: res.code, error: res.error, options: sels[i]?.options ?? null, attempts: (prevF?.attempts ?? 0) + 1, lastAt: Date.now(), retryAfterSec: res.retryAfterSec },
+          ];
+        }
+      });
+      return { ...base, seq: base.seq + 1, items, fails, open, active: first ?? (base.active && open.includes(base.active) ? base.active : (open[0] ?? null)), executed };
+    });
+  }
+
+  /** FINAL: kaydedilmemiş içerik varsa önce uyar (silme onayı değil; yalnız kaydedilmemiş not uyarısı). */
+  function requestCloseTab(k: string) {
+    if (dirtyTabs[k]) {
+      setPendingLeave({ message: "Bu sekmede kaydedilmemiş not veya Bilgi Bankası taslağı var. Sekmeyi kapatırsanız bu değişiklikler kaybolur. Kayıtlı analizler etkilenmez.", action: () => closeTab(k) });
+      return;
+    }
+    closeTab(k);
+  }
+  useEffect(() => {
+    if (!anyDirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [anyDirty]);
+  /** Sonuç ekranından ayrılma: kaydedilmemiş taslak varsa önce uyar. */
+  function guardLeave(action: () => void) {
+    if (anyDirty) setPendingLeave({ message: "Açık sekmelerde kaydedilmemiş not veya Bilgi Bankası taslağı var. Ekrandan ayrılırsanız bu değişiklikler kaybolur.", action });
+    else action();
+  }
+
+  /**
+   * FINAL: başarısız/kilitli seçim için ÜCRETSİZ durum kontrolü — YALNIZ-ÖNBELLEK uç (/engine/view; sağlayıcı bağımlılığı
+   * yoktur). Sonuç kaydedilmişse masaya eklenir; yoksa hata kaydına not düşülür. Yeni ücretli istek GÖNDERİLMEZ.
+   */
+  async function checkFailStatus(fk: string) {
+    if (!runs || !shownDetail || revision === null || !ctxKey) return;
+    const f = runs.fails.find((x) => x.key === fk);
+    if (!f || !f.options) return;
+    const key = ctxKey;
+    const r = await astroFetch<{ results: ResultItem[] }>(`/api/admin/astroloji/engine/view${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
+      method: "POST",
+      body: { profileId: shownDetail.id, revision, selections: [{ technique: f.technique, options: f.options }] },
+    });
+    const it = r.ok ? r.data.results[0] : null;
+    if (it && it.ok) {
+      mergeRun(key, [it], [{ technique: f.technique, options: f.options }], runs.executed);
+      return;
+    }
+    setRunState((prev) =>
+      prev && prev.key === key
+        ? { ...prev, fails: prev.fails.map((x) => (x.key === fk ? { ...x, note: `Kontrol ${new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}: kayıtlı sonuç yok — hesaplama tamamlanmamış veya başarısız olmuş.` } : x)) }
+        : prev,
+    );
+  }
+
+  function closeTab(k: string) {
+    setRunState((prev) => {
+      if (!prev) return prev;
+      const idx = prev.open.indexOf(k);
+      const open = prev.open.filter((x) => x !== k);
+      const active = prev.active === k ? (open[Math.min(idx, open.length - 1)] ?? null) : prev.active;
+      return { ...prev, open, active };
+    });
+  }
+
+  /**
+   * Aşama 5E: dasha alt düzeyini TEMBEL yükler — aynı çalıştırma ucu (planlayıcı + önbellek + yetki/yorum kapısı):
+   * önbellekte varsa 0 sağlayıcı isteği. Tek seçim eşik altında → onay gerekmez. KB eşleşmeleri çalışma alanı
+   * ucundan (sağlayıcı ÇAĞRILMAZ).
+   */
+  async function drillDasha(o: { mahadasha: string; antardasha: string | null }, base: Record<string, unknown>): Promise<DashaDrillResult> {
+    if (!shownDetail || revision === null) return { ok: false, error: "Profil seçili değil." };
+    // 6E: KP dasha aynı tembel mekanizmayı kullanır (KP ayanamsa + düğüm seçeneği korunur).
+    const kp = base.nodeType !== undefined && typeof base.ayanamsa === "string" && base.ayanamsa.startsWith("kp-");
+    const sel = kp
+      ? { technique: "kp.dasha", options: { ayanamsa: base.ayanamsa, nodeType: base.nodeType, mahadasha: o.mahadasha, antardasha: o.antardasha } }
+      : { technique: "vedic.dasha", options: { ayanamsa: base.ayanamsa ?? "lahiri", mahadasha: o.mahadasha, antardasha: o.antardasha } };
+    const r = await astroFetch<RunResponse>(`/api/admin/astroloji/engine/run${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
+      method: "POST",
+      body: { profileId: shownDetail.id, revision, selections: [sel] },
+    });
+    if (!r.ok) return { ok: false, error: r.error };
+    const it = r.data.results[0];
+    if (!it || !it.ok || !it.view.technical) return { ok: false, error: it && !it.ok ? it.error : "Alt dönem yüklenemedi." };
+    const ws = await astroFetch<{ kbMatches: { topicKey: string; topicLabel: string; title: string; body: string }[] }>("/api/admin/astroloji/workspace", {
+      method: "POST",
+      body: { profileId: shownDetail.id, revision, technique: sel.technique, options: it.view.options },
+    });
+    return { ok: true, technical: it.view.technical as VedicDashaTechnical, kb: ws.ok ? ws.data.kbMatches : [] };
+  }
+
+  async function togglePreview(next: boolean) {
+    writePreviewFlag(next);
+    if (!runs || !shownDetail || revision === null || !ctxKey) return;
+    const key = ctxKey;
+    const seq = runs.seq;
+    const okIdx = runs.items.map((_, i) => i);
+    if (okIdx.length === 0) return;
+    // YALNIZ-ÖNBELLEK görünüm ucu: hiçbir koşulda sağlayıcı çağrılmaz; yorum katmanına sunucu yeniden karar verir.
+    const r = await astroFetch<{ results: ResultItem[] }>(`/api/admin/astroloji/engine/view${next ? "?previewNoInterp=1" : ""}`, {
+      method: "POST",
+      body: {
+        profileId: shownDetail.id,
+        revision,
+        selections: okIdx.map((i) => {
+          const it = runs.items[i];
+          return { technique: it.technique, options: it.view.options };
+        }),
+      },
+    });
+    if (!r.ok) return;
+    setRunState((prev) => {
+      if (!prev || prev.key !== key || prev.seq !== seq) return prev;
+      const items = [...prev.items];
+      okIdx.forEach((i, j) => {
+        const v = r.data.results[j];
+        if (v && v.ok) items[i] = { ...v, key: items[i].key };
+      });
+      return { ...prev, items };
+    });
+  }
+
+  const partnerLabelOf = (v: View) => (typeof v.options.partnerProfileId === "string" ? (labelOf(v.options.partnerProfileId) ?? "Karşı taraf") : "2. kişi");
+
+  if (access === "denied") return <ModuleAccessDenied reason="permission" />;
+  if (access === null) {
+    return (
+      <main className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+        <p className="text-sm text-slate-400">Yükleniyor…</p>
+      </main>
+    );
+  }
+
+  return (
+    <main ref={mainRef} className={`min-h-screen w-full overflow-x-hidden ${view === "home" ? "bg-[#0B1430]" : view === "result" || view === "new" ? "bg-[radial-gradient(ellipse_90%_60%_at_50%_0%,#1c2257_0%,#0d1438_45%,#080F24_100%)]" : "bg-[#f3f5fa]"}`}>
+      {view === "result" || view === "new" ? null : view === "home" ? (
+        <AtlasHero onNavigate={(v) => go(v)}>
+          <AstroHome
+            onNewProfile={() => {
+              startFreshAnalysis(null);
+              setForm({ mode: "create" });
+            }}
+            onOpenArchive={() => go("archive")}
+            onOpenProfile={(id) => openClientFile(id)}
+          />
+        </AtlasHero>
+      ) : (
+      <AtlasHeader
+        view={view}
+        bare={view === "archive" || view === "client"}
+        resultFrom={resultMode === "saved" ? "archive" : "new"}
+        onNavigate={(v) => go(v)}
+        ownerTools={
+          isOwnerView ? (
+            <details className="relative">
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-white/15 px-2.5 py-1.5 text-xs text-slate-300 hover:border-white/30 hover:text-white">
+                <Settings2 className="h-3.5 w-3.5" /> Önizleme ve denetim
+              </summary>
+              <div className="absolute right-0 z-30 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-3 text-slate-800 shadow-xl">
+                <label className="flex items-start gap-2 text-sm">
+                  <input type="checkbox" className="mt-0.5" checked={previewNoInterp} onChange={(e) => void togglePreview(e.target.checked)} />
+                  <span>
+                    Yorumu kapalı uzman görünümü
+                    <span className="block text-xs text-slate-500">Sistem yorumu yetkisi kapalı bir uzmanın göreceği ekranı önizler.</span>
+                  </span>
+                </label>
+                <button type="button" onClick={() => go("audit")} className="mt-3 w-full rounded-lg border border-slate-200 px-3 py-1.5 text-left text-sm hover:border-slate-400">
+                  Alan denetimi
+                  <span className="block text-xs text-slate-500">Sağlayıcı yanıtında eşlenmemiş alanlar</span>
+                </button>
+              </div>
+            </details>
+          ) : undefined
+        }
+      />
+      )}
+
+      <div className={`mx-auto w-full max-w-[1600px] flex-col gap-5 px-4 sm:px-6 lg:px-8 ${view === "result" || view === "new" ? "py-3" : "py-6"} ${view === "home" ? "hidden" : "flex"}`}>
+        {view === "kb" && (
+          <>
+            <AtlasViewTitle title="Bilgi Bankası" sub="Kendi yorumlarınız ve kaynak notlarınız; analizlerde ilgili konuyla otomatik eşleşir." />
+            <KnowledgeBankPanel />
+          </>
+        )}
+        {view === "audit" && isOwnerView && <UnmappedAuditPanel />}
+
+        {view === "archive" && <AtlasViewTitle title="Analiz Arşivi" sub="Kayıtlı analizi olan danışanlar." />}
+
+        {/* Aşama D3: Yeni Analiz = Göksel Analiz Hazırlık Merkezi (yalnız yerleşim; plan/çalıştırma mantığı aşağıdaki run() ile aynı). */}
+        {view === "new" && (
+          <PrepCenter
+            profile={shownDetail}
+            rev={currentRev}
+            picker={
+              <ClientPicker
+                compact
+                selectedId={selectedId}
+                selectedLabel={shownDetail?.label ?? (selectedId ? (knownLabels[selectedId] ?? null) : null)}
+                reloadKey={profilesReload}
+                onSelect={(p) => selectProfile(p.id)}
+                onCreate={() => setForm({ mode: "create" })}
+                onItems={rememberLabels}
+              />
+            }
+            onCreateClient={() => setForm({ mode: "create" })}
+            onEditBirth={
+              shownDetail && currentRev
+                ? () =>
+                    setForm({
+                      mode: "revise",
+                      initial: {
+                        profileId: shownDetail.id,
+                        expectedRevision: shownDetail.currentRevision,
+                        birthDate: currentRev.birthDate,
+                        birthTime: currentRev.birthTime,
+                        timeKnown: currentRev.timeKnown,
+                        timeAccuracy: currentRev.timeAccuracy,
+                        location: currentRev.locationId ? { id: currentRev.locationId, label: currentRev.locationLabel } : null,
+                      },
+                    })
+                : null
+            }
+            checked={checked}
+            onChecked={setChecked}
+            params={params}
+            onParams={setParams}
+            method={method}
+            onMethod={setMethod}
+            partners={partners}
+            partnerQuery={partnerQuery}
+            onPartnerQuery={setPartnerQuery}
+            lunarReturns={lunarReturns}
+            selections={selections}
+            plan={plan}
+            planError={planError}
+            running={running}
+            runError={runError}
+            runFailures={lastFailures && lastFailures.key === ctxKey ? lastFailures : null}
+            onDismissFailures={() => setLastFailures(null)}
+            onRun={() => void run()}
+            labelOf={labelOf}
+          />
+        )}
+        {view === "new" && form && (
+          <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-[#050816]/80 p-3 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={form.mode === "create" ? "Yeni Danışan" : "Doğum Bilgilerini Düzenle"} data-testid="atlas-profile-dialog">
+            <div className="w-full max-w-2xl rounded-[1.4rem] border border-[#D9B56F]/40 bg-[linear-gradient(180deg,#E6C887,#C9A158)] p-[3px] shadow-[0_40px_90px_-30px_rgba(0,0,0,0.95)]">
+              <div className="relative max-h-[88svh] overflow-y-auto rounded-[1.25rem] bg-white">
+                <button type="button" onClick={() => setForm(null)} aria-label="Kapat" className="absolute right-3 top-3 z-10 rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100">
+                  ✕
+                </button>
+                {form.mode === "create" ? (
+                  <ProfileForm
+                    mode="create"
+                    heading="Yeni Danışan"
+                    onCancel={() => setForm(null)}
+                    onDone={(id) => {
+                      setProfilesReload((n) => n + 1);
+                      selectProfile(id);
+                    }}
+                  />
+                ) : (
+                  <ProfileForm
+                    mode="revise"
+                    heading="Doğum Bilgilerini Düzenle"
+                    initial={form.initial}
+                    onCancel={() => setForm(null)}
+                    onDone={(id) => {
+                      setForm(null);
+                      setProfilesReload((n) => n + 1);
+                      if (id === selectedId) setDetailReload((n) => n + 1);
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Analiz Arşivi (liste) ve Danışan Dosyası (#danisan/<id>) aynı kapta: liste Danışan Dosyası açıkken GİZLENİR ama
+            bağlı kalır → geri dönüşte arama, filtre, sayfa ve kaydırma konumu korunur. */}
+        <div className={`grid items-start gap-5 ${view === "archive" || view === "client" ? "" : "hidden"}`}>
+          <div className={view === "client" ? "hidden" : "min-w-0"}>
+            <ArchiveList reloadKey={profilesReload + archiveReload} onOpen={(id) => openClientFile(id)} onDelete={(req) => setArchiveDelete(req)} onItems={rememberLabels} />
+          </div>
+          {archiveDelete && (
+            <ArchiveDeleteFlow
+              key={`${archiveDelete.scope}|${archiveDelete.ids.join(",")}`}
+              scope={archiveDelete.scope}
+              ids={archiveDelete.ids}
+              onDeleted={(_r, deletedIds) => {
+                setArchiveDelete((d) => (d ? { ...d, deleted: deletedIds } : d));
+                setProfilesReload((n) => n + 1);
+                setArchiveReload((n) => n + 1);
+                setAnalysesReload((n) => n + 1);
+                setParams((p) => ({ ...p, partnerProfileId: deletedIds.includes(p.partnerProfileId) ? "" : p.partnerProfileId }));
+              }}
+              onClose={() => {
+                const deleted = archiveDelete.deleted ?? [];
+                setArchiveDelete(null);
+                // Açık danışan dosyası silindiyse listeye dön (silinmiş profil dosyası gösterilmez).
+                if (selectedId && deleted.includes(selectedId)) {
+                  clearSelection();
+                  if (view === "client") go("archive");
+                }
+              }}
+            />
+          )}
+          {deleteIds && (
+            <ProfileDeleteFlow
+              key={deleteIds.join(",")}
+              mode="single"
+              profileIds={deleteIds}
+              onClose={() => setDeleteIds(null)}
+              onDeleted={(r) => {
+                const ids = deleteIds;
+                setDeleteIds(null);
+                clearSelection();
+                setParams((p) => ({ ...p, partnerProfileId: ids.includes(p.partnerProfileId) ? "" : p.partnerProfileId }));
+                setDeleteInfo(`Profil ve ${r.deletedAnalyses} kayıtlı analizi kalıcı olarak silindi; ${r.preservedSharedAnalyses} ortak analiz korundu.`);
+                setProfilesReload((n) => n + 1);
+              }}
+            />
+          )}
+          <section className={`flex min-w-0 flex-col gap-5 ${view === "client" ? "" : "hidden"}`} data-testid={view === "client" ? "astro-client-file" : undefined}>
+            {view === "client" && (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <button type="button" onClick={() => go("archive")} className={atlasSecondaryBtn} data-testid="astro-client-file-back">
+                  <ArrowLeft className="h-4 w-4" /> Analiz Arşivi&apos;ne Dön
+                </button>
+              </div>
+            )}
+            {view === "client" && detailError && detailError.id === selectedId && (
+              <div className={`${atlasPanel} px-6 py-10 text-center text-sm text-rose-800`} role="alert" data-testid="astro-client-file-error">
+                {detailError.error}
+              </div>
+            )}
+            {deleteInfo && !shownDetail && (
+              <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900" data-testid="astro-delete-info">
+                {deleteInfo}
+              </p>
+            )}
+            {view === "client" && form?.mode === "create" && (
+              <ProfileForm
+                mode="create"
+                onCancel={() => setForm(null)}
+                onDone={(id) => {
+                  setProfilesReload((n) => n + 1);
+                  openClientFile(id);
+                }}
+              />
+            )}
+            {view === "client" && form?.mode === "revise" && (
+              <ProfileForm
+                mode="revise"
+                initial={form.initial}
+                onCancel={() => setForm(null)}
+                onDone={(id) => {
+                  setForm(null);
+                  setProfilesReload((n) => n + 1);
+                  if (id === selectedId) setDetailReload((n) => n + 1);
+                }}
+              />
+            )}
+
+            {view === "client" && shownDetail && !form && (
+              <div className={`${atlasPanel} flex flex-col gap-3 p-5`}>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h3 className="flex flex-wrap items-center gap-2 break-words text-lg font-semibold text-slate-900">
+                      {shownDetail.label}
+                      {shownDetail.archivedAt && <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[11px] font-medium text-slate-700">Arşivde</span>}
+                    </h3>
+                    {currentRev && (
+                      <p className="text-sm text-slate-600">
+                        <RevisionLine r={currentRev} /> · saat doğruluğu: {currentRev.timeAccuracyLabel}
+                        {shownDetail.revisions.length > 1 ? ` · doğum bilgisi rev ${currentRev.revision}${currentRev.revision === shownDetail.currentRevision ? " (güncel)" : ""}` : ""}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                  {currentRev && (
+                    <button
+                      type="button"
+                      className={atlasSecondaryBtn}
+                      onClick={() =>
+                        setForm({
+                          mode: "revise",
+                          initial: {
+                            profileId: shownDetail.id,
+                            expectedRevision: shownDetail.currentRevision,
+                            birthDate: currentRev.birthDate,
+                            birthTime: currentRev.birthTime,
+                            timeKnown: currentRev.timeKnown,
+                            timeAccuracy: currentRev.timeAccuracy,
+                            location: currentRev.locationId ? { id: currentRev.locationId, label: currentRev.locationLabel } : null,
+                          },
+                        })
+                      }
+                    >
+                      Doğum bilgisini düzelt
+                    </button>
+                  )}
+                  {view === "client" && (
+                    <>
+                  <button
+                    type="button"
+                    className={atlasSecondaryBtn}
+                    onClick={() => (shownDetail.archivedAt ? void setArchived(false) : setArchiveConfirm(true))}
+                    disabled={archiveBusy}
+                    data-testid="astro-archive-toggle"
+                  >
+                    {shownDetail.archivedAt ? "Arşivden çıkar" : "Arşivle"}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-rose-300 px-3 py-1.5 text-sm text-rose-700"
+                    onClick={() => setArchiveDelete({ scope: "single", ids: [shownDetail.id] })}
+                    data-testid="astro-delete-single"
+                  >
+                    Sil
+                  </button>
+                    </>
+                  )}
+                  </div>
+                </div>
+
+                {archiveConfirm && !shownDetail.archivedAt && (
+                  <div className="flex flex-col gap-2 rounded-lg border border-slate-300 bg-slate-50 p-2 text-xs sm:flex-row sm:items-center sm:justify-between" role="alertdialog" aria-label="Arşivleme onayı">
+                    <p className="text-slate-700">Profil arşivlensin mi? Etkin listeden kalkar; kayıtlı analizler, sonuçlar ve notlar silinmez. &quot;Arşiv&quot; filtresinden bulup geri alabilirsiniz.</p>
+                    <div className="flex gap-1.5">
+                      <button type="button" onClick={() => setArchiveConfirm(false)} className="rounded-lg border border-slate-300 bg-white px-2.5 py-1">
+                        Vazgeç
+                      </button>
+                      <button type="button" disabled={archiveBusy} onClick={() => void setArchived(true)} className="rounded-lg bg-slate-800 px-2.5 py-1 text-white disabled:opacity-60">
+                        Evet, arşivle
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {archiveError && <p className="text-sm text-rose-700">{archiveError}</p>}
+                {view === "client" && (
+                  <>
+                    <ClientLinkPanel
+                      key={`${shownDetail.id}|${shownDetail.clientId ?? ""}`}
+                      profileId={shownDetail.id}
+                      profileLabel={shownDetail.label}
+                      birthDate={shownDetail.revisions.find((r) => r.revision === shownDetail.currentRevision)?.birthDate ?? null}
+                      clientId={shownDetail.clientId}
+                      clientName={shownDetail.clientName}
+                      clientMissing={!!shownDetail.clientMissing}
+                      onChanged={() => {
+                        setDetailReload((n) => n + 1);
+                        setProfilesReload((n) => n + 1);
+                      }}
+                    />
+
+                    {shownDetail.revisions.length > 1 && (
+                      <label className="flex items-center gap-2 text-sm">
+                        <span className="text-slate-600">Revizyon:</span>
+                        <select value={revision ?? undefined} onChange={(e) => setRevision(Number(e.target.value))} className="rounded-lg border border-slate-300 px-2 py-1">
+                          {shownDetail.revisions.map((r) => (
+                            <option key={r.revision} value={r.revision}>
+                              rev {r.revision}
+                              {r.revision === shownDetail.currentRevision ? " (güncel)" : ""}
+                              {r.changeNote ? ` — ${r.changeNote}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {shownDetail && !form && view === "client" && (
+              <div className={`${atlasPanel} flex flex-col gap-3 p-5`} data-testid="astro-client-file-analyses">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-base font-semibold text-slate-900">Kayıtlı analizler</h3>
+                </div>
+                <SavedAnalysesList
+                  currentRevision={shownDetail.currentRevision}
+                  profileId={shownDetail.id}
+                  reloadKey={analysesReload}
+                  openId={openAnalysis && openAnalysis.profileId === shownDetail.id ? openAnalysis.id : null}
+                  onOpen={(id) => {
+                    setOpenAnalysis({ profileId: shownDetail.id, id });
+                    setResultMode("saved");
+                    go("result");
+                  }}
+                />
+              </div>
+            )}
+          </section>
+        </div>
+
+        {view === "result" &&
+          (resultMode === "saved" && openAnalysis && shownDetail && openAnalysis.profileId === shownDetail.id ? (
+            <SavedAnalysisView
+              key={openAnalysis.id}
+              id={openAnalysis.id}
+              previewNoInterp={previewNoInterp}
+              currentRevision={shownDetail.currentRevision}
+              onClose={() => go("client", { profileId: shownDetail.id })}
+              onAddTechnique={() => setAddOpen({ initial: null })}
+            />
+          ) : resultMode === "run" && runs && (runs.items.length > 0 || runs.fails.length > 0) && shownDetail && revision !== null ? (
+            (() => {
+              const item = activeItem;
+              const savedId = item ? (savedIds[`${shownDetail.id}|${item.key}`] ?? null) : null;
+              const saved = !!savedId;
+              const openTabs = runs.open
+                .map((k) => runs.items.find((x) => x.key === k))
+                .filter((x): x is BenchItem => !!x)
+                .map((x) => {
+                  const o = describeOptions(x.technique, x.view.options, labelOf);
+                  const dup = runs.open.filter((k) => k.startsWith(`${x.technique}|`)).length > 1;
+                  return { key: x.key, label: `${techniqueLabel(x.technique)}${dup && o ? ` · ${o}` : ""}`, title: `${techniqueLabel(x.technique)}${o ? ` · ${o}` : ""}`, partial: x.partial, dirty: !!dirtyTabs[x.key] };
+                });
+              const switcher = (
+                <OpenTabs
+                  tabs={openTabs}
+                  active={item?.key ?? null}
+                  onSelect={(k) => setRunState((prev) => (prev ? { ...prev, active: k } : prev))}
+                  onClose={requestCloseTab}
+                  onAdd={() => setAddOpen({ initial: null })}
+                  fails={runs.fails.map((f) => ({ key: f.key, technique: f.technique, label: techniqueLabel(f.technique), error: f.error, code: f.code, attempts: f.attempts, lastAt: f.lastAt, note: f.note ?? null, options: f.options ? describeOptions(f.technique, f.options, labelOf) : "", retryAt: f.retryAfterSec ? f.lastAt + f.retryAfterSec * 1000 : null }))}
+                  onRetry={(t) => setAddOpen({ initial: t as UiTechniqueId })}
+                  onCheck={(k) => void checkFailStatus(k)}
+                />
+              );
+              if (!item) {
+                return (
+                  <section className="flex flex-col gap-3 rounded-2xl border border-white/[0.07] bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.012))] p-4 text-[#F6F2EA]" data-testid="astro-result-view" aria-label="Analiz sonucu">
+                    <div className="flex items-center gap-3">
+                      <button type="button" onClick={() => guardLeave(() => go("new"))} aria-label="Teknik seçimine dön" className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-[#F6F2EA]/80 hover:border-[#D9B56F]/60">
+                        ←
+                      </button>
+                      <div>
+                        <p className="text-[10.5px] font-semibold tracking-[0.16em] text-[#E6CF9F]/90">ANALİZ SONUCU</p>
+                        <h2 className="text-lg font-light [font-family:var(--font-atlas-display)]">{shownDetail.label}</h2>
+                      </div>
+                    </div>
+                    {switcher}
+                    {runError && runs.fails.length === 0 && <p className="rounded-xl border border-rose-300/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-100">{runError}</p>}
+                    <p className="rounded-xl border border-white/[0.07] bg-black/20 px-4 py-6 text-center text-sm text-[#F6F2EA]/70" data-testid="atlas-no-open-tabs">
+                      Açık analiz yok. Kapatılan sekmeler silinmedi; <strong>+ Teknik Ekle</strong> ile bu danışan için bir tekniği yeniden açabilir ya da yeni teknik ekleyebilirsiniz.
+                    </p>
+                  </section>
+                );
+              }
+              const isNatal = !!item && item.ok && item.technique === "western.natal";
+              const natalTech = isNatal && item.ok ? (item.view.technical as NatalTechnical | null) : null;
+              const housesAvailable = !!natalTech && !!item && item.ok && !item.view.timeUnknownMasked && natalTech.houses.length > 0;
+              // D3.1: çark üreten diğer teknikler (Solar/Lunar Return, Composite) → çark harita istasyonunda, ayrıntılar sağ panelde.
+              const otherWheel = item && item.ok && !isNatal ? wheelForTechnique(item.technique, item.view.technical) : null;
+              const interpVisible = !!item && item.ok && item.view.interpretation.visible;
+              const kbCount =
+                item ? (kbMap[`${shownDetail.id}|${revision}|${item.technique}|${JSON.stringify(item.view.options)}`]?.length ?? null) : null;
+              const tabs: DeskTab[] = !item
+                ? []
+                : [
+                      ...(isNatal
+                        ? ([
+                            { id: "harita", label: "Harita", tone: "lavender", hint: "Açısal noktalar ve dağılım" },
+                            { id: "gezegenler", label: "Gezegenler", tone: "blue" },
+                            ...(housesAvailable ? [{ id: "evler", label: "Evler", tone: "sage" } as DeskTab] : []),
+                            { id: "acilar", label: "Açılar", tone: "peach", badge: natalTech?.aspects.length ?? null },
+                          ] as DeskTab[])
+                        : []),
+                      ...(otherWheel ? ([{ id: "teknik", label: "Teknik ayrıntı", tone: "blue", hint: "Dönüş anı, konum, açılar ve tablolar" }] as DeskTab[]) : []),
+                      ...(interpVisible ? ([{ id: "yorum", label: interpretationTitle(item.view.interpretation), tone: "gold", ownHeading: true }] as DeskTab[]) : []),
+                      { id: "bilgi", label: "Bilgi Bankam", tone: "gold", badge: kbCount || null, ownHeading: true },
+                      { id: "not", label: "Kendi Yorumum", tone: "turquoise", ownHeading: true },
+                      { id: "kaydet", label: saved ? "Kaydedildi" : "Kaydet", tone: "slate", ownHeading: true },
+                    ];
+              const tab = tabs.some((t) => t.id === deskTab) ? deskTab : (tabs[0]?.id ?? "durum");
+              const wsSection = tab === "bilgi" ? "kb" : tab === "not" ? "notes" : tab === "kaydet" ? "save" : null;
+              const opts = item && item.ok ? describeOptions(item.technique, item.view.options, labelOf) : "";
+              return (
+                <ResultDesk
+                  backLabel="Teknik seçimine dön"
+                  onBack={() => guardLeave(() => go("new"))}
+                  eyebrow="ANALİZ SONUCU"
+                  title={shownDetail.label}
+                  subtitle={
+                    item ? (
+                      <>
+                        <strong className="font-semibold text-[#F6F2EA]">{techniqueLabel(item.technique)}</strong>
+                        {opts ? ` · ${opts}` : ""}
+                        {item.ok && item.view.method.houseSystem ? ` · ${houseSystemLabel(item.view.method.houseSystem, HOUSE_SYSTEM_LABELS)}` : ""}
+                      </>
+                    ) : null
+                  }
+                  details={currentRev ? <RevisionLine r={currentRev} /> : null}
+                  chips={<DeskChip tone={saved ? "saved" : "muted"}>{saved ? "✓ Bu analiz kaydedildi" : "Bu analiz kaydedilmedi"}</DeskChip>}
+                  actions={
+                    saved ? (
+                      <button
+                        type="button"
+                        className={deskPrimary}
+                        onClick={() =>
+                          guardLeave(() => {
+                            setOpenAnalysis({ profileId: shownDetail.id, id: savedId! });
+                            setResultMode("saved");
+                          })
+                        }
+                      >
+                        Kayıtlı analizi aç
+                      </button>
+                    ) : (
+                      <button type="button" className={deskPrimary} onClick={() => setDeskTab("kaydet")} data-testid="astro-desk-save" title={`Yalnız “${techniqueLabel(item.technique)}” ayrı bir analiz kaydı olarak saklanır; diğer açık sekmeler etkilenmez.`}>
+                        {techniqueLabel(item.technique)} Analizini Kaydet
+                      </button>
+                    )
+                  }
+                  notices={
+                    <>
+                      <p className="sr-only" role="status" data-testid="astro-run-info">
+                        {runs.fails.length === 0 ? "Hesaplama tamamlandı" : "Bazı teknikler hesaplanamadı"} · {runs.executed.newResults} yeni sonuç · {runs.executed.cachedResults} önceden hesaplanmış ·{" "}
+                        {runs.executed.providerAttempts} sağlayıcı isteği
+                      </p>
+                      {runError && runs.fails.length === 0 && <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">{runError}</p>}
+                      {saved && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900" role="status" data-testid="astro-saved-notice">
+                          <span className="flex items-center gap-2">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600" /> “{techniqueLabel(item.technique)}” ayrı bir analiz kaydı olarak saklandı. Diğer açık sekmeler bu kayda dahil değildir; Word/PDF kayıtlı analizden üretilir.
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  }
+                  switcher={switcher}
+                  tabs={tabs}
+                  active={tab}
+                  onTab={setDeskTab}
+                  chartKey={item.key}
+                  chart={
+                    natalTech
+                      ? (cls: string) => <NatalWheel technical={natalTech} sizeClassName={cls} />
+                      : otherWheel
+                        ? (cls: string) => <NatalWheel technical={otherWheel.wheel} label={otherWheel.label} sizeClassName={cls} />
+                        : null
+                  }
+                  stage={
+                    item && item.ok && !natalTech ? (
+                      <TechniqueTechnical
+                        hideWheel={!!otherWheel}
+                        technique={item.technique}
+                        technical={item.view.technical}
+                        timeUnknownMasked={item.view.timeUnknownMasked}
+                        warnings={item.view.warnings}
+                        names={[shownDetail.label, partnerLabelOf(item.view)]}
+                        options={item.view.options}
+                        birthplace={birthplace}
+                        kbLookup={
+                          kbMap[`${shownDetail.id}|${revision}|${item.technique}|${JSON.stringify(item.view.options)}`]
+                            ? (keys) => (kbMap[`${shownDetail.id}|${revision}|${item.technique}|${JSON.stringify(item.view.options)}`] ?? []).filter((e) => keys.includes(e.topicKey))
+                            : null
+                        }
+                        dashaDrill={item.technique === "vedic.dasha" || item.technique === "kp.dasha" ? (o) => drillDasha(o, item.view.options) : undefined}
+                        onDashaLevel={
+                          item.technique === "vedic.dasha"
+                            ? (o) => {
+                                setParams((p) => ({ ...p, dashaMd: o.mahadasha ?? "", dashaAd: o.antardasha ?? "" }));
+                                go("new");
+                                setTimeout(() => document.querySelector('[aria-label="Dasha mahadasha"]')?.scrollIntoView({ block: "center", behavior: "smooth" }), 50);
+                              }
+                            : item.technique === "kp.dasha"
+                              ? (o) => {
+                                  setParams((p) => ({ ...p, kpDashaMd: o.mahadasha ?? "", kpDashaAd: o.antardasha ?? "" }));
+                                  go("new");
+                                  setTimeout(() => document.querySelector('[aria-label="KP dasha mahadasha"]')?.scrollIntoView({ block: "center", behavior: "smooth" }), 50);
+                                }
+                              : undefined
+                        }
+                      />
+                    ) : null
+                  }
+                >
+                  {item && (
+                    <div key={item.key}>
+                      {tab === "harita" && natalTech && <NatalTechnicalPanel technical={natalTech} timeUnknown={item.view.timeUnknownMasked} part="overview" />}
+                      {(tab === "gezegenler" || tab === "evler" || tab === "acilar") && natalTech && (
+                        <NatalTechnicalPanel technical={natalTech} timeUnknown={item.view.timeUnknownMasked} part={tab === "gezegenler" ? "planets" : tab === "evler" ? "houses" : "aspects"} />
+                      )}
+                      {tab === "teknik" && otherWheel && (
+                        <TechniqueTechnical
+                          technique={item.technique}
+                          technical={item.view.technical}
+                          timeUnknownMasked={item.view.timeUnknownMasked}
+                          warnings={item.view.warnings}
+                          names={[shownDetail.label, partnerLabelOf(item.view)]}
+                          options={item.view.options}
+                          birthplace={birthplace}
+                          hideWheel
+                        />
+                      )}
+                      {tab === "yorum" && interpVisible && <ProviderInterpretationPanel interpretation={item.view.interpretation} />}
+                    </div>
+                  )}
+                      {/* FINAL: Bilgi Bankam / Kendi Yorumum / Kaydet — her AÇIK sekmenin çalışma alanı bağlı kalır (yalnız etkin olan
+                      görünür) → sekme değiştirmek kaydedilmemiş notu silmez; kapatma/ayrılma kaydedilmemiş taslakta uyarır. */}
+                  <div hidden={wsSection === null}>
+                    {runs.open
+                      .map((k) => runs.items.find((x) => x.key === k))
+                      .filter((x): x is BenchItem => !!x)
+                      .map((bi) => {
+                        const bopts = describeOptions(bi.technique, bi.view.options, labelOf);
+                        const kbKey = `${shownDetail.id}|${revision}|${bi.technique}|${JSON.stringify(bi.view.options)}`;
+                        return (
+                          <div key={bi.key} hidden={bi.key !== item.key}>
+                            <AnalysisWorkspace
+                              key={kbKey}
+                              profileId={shownDetail.id}
+                              revision={revision}
+                              selection={{ technique: bi.technique, options: bi.view.options }}
+                              interpVisible={bi.view.interpretation.visible}
+                              previewNoInterp={previewNoInterp}
+                              refreshKey={workRefresh}
+                              section={wsSection ?? "kb"}
+                              profileLabel={shownDetail.label}
+                              techniqueLabel={`${techniqueLabel(bi.technique)}${bopts ? ` · ${bopts}` : ""}`}
+                              onDirtyChange={(d) => setDirtyTabs((m) => (!!m[bi.key] === d ? m : { ...m, [bi.key]: d }))}
+                              onSaved={(id) => {
+                                setAnalysesReload((n) => n + 1);
+                                setProfilesReload((n) => n + 1);
+                                setSavedIds((m) => ({ ...m, [`${shownDetail.id}|${bi.key}`]: id }));
+                              }}
+                              onData={(d) => setKbMap((m) => ({ ...m, [kbKey]: d.kbMatches.map((e) => ({ topicKey: e.topicKey, topicLabel: e.topicLabel, title: e.title, body: e.body })) }))}
+                            />
+                          </div>
+                        );
+                      })}
+                  </div>
+                </ResultDesk>
+              );
+            })()
+          ) : (
+            <div className={`${atlasPanel} px-6 py-12 text-center text-sm text-slate-500`}>
+              Gösterilecek sonuç yok.{" "}
+              <button type="button" className="font-semibold text-[#0b1430] underline" onClick={() => go("new")}>
+                Yeni analiz başlatın
+              </button>
+            </div>
+          ))}
+        {/* D4: "+ Teknik Ekle" — aynı danışan ve doğum profiliyle; plan + onay mevcut uçlarla. Kayıtlı analizler değişmez. */}
+        {addOpen && shownDetail && revision !== null && ctxKey && (
+          <AddTechniqueDialog<ResultItem>
+            open
+            initial={addOpen.initial}
+            onClose={() => setAddOpen(null)}
+            profileId={shownDetail.id}
+            revision={revision}
+            profileLabel={shownDetail.label}
+            birthSummary={currentRev ? `${currentRev.birthDate.split("-").reverse().join(".")} · ${currentRev.timeKnown ? (currentRev.birthTime?.slice(0, 5) ?? "") : "saat bilinmiyor"} · ${currentRev.locationLabel}` : null}
+            birthPlaceLabel={currentRev?.locationLabel ?? null}
+            timeKnown={currentRev?.timeKnown ?? true}
+            params={params}
+            onParams={setParams}
+            method={method}
+            onMethod={setMethod}
+            partners={partners}
+            partnerQuery={partnerQuery}
+            onPartnerQuery={setPartnerQuery}
+            openTechniques={runs ? runs.open.map((k) => k.split("|")[0]) : []}
+            labelOf={labelOf}
+            previewNoInterp={previewNoInterp}
+            onDone={(r: AddRunResult<ResultItem>) => {
+              const key = ctxKey;
+              if (r.results) mergeRun(key, r.results, r.selections, r.ok ? r.executed : { newResults: 0, cachedResults: 0, providerAttempts: 0 });
+              setPlanNonce((n) => n + 1);
+              if (r.ok) {
+                setAddOpen(null);
+                setResultMode("run");
+                if (view !== "result") go("result");
+              }
+            }}
+          />
+        )}
+        {pendingLeave && (
+          <div className="fixed inset-0 z-[85] flex items-center justify-center bg-[#050816]/80 p-4 backdrop-blur-sm" role="alertdialog" aria-modal="true" aria-label="Kaydedilmemiş değişiklik" data-testid="atlas-unsaved-dialog">
+            <div className="w-full max-w-md rounded-2xl border border-[#D9B56F]/40 bg-[linear-gradient(180deg,#151d4c,#0a1130)] p-5 text-[#F6F2EA] shadow-[0_40px_90px_-30px_rgba(0,0,0,0.95)]">
+              <p className="text-[10.5px] font-semibold tracking-[0.18em] text-[#E6CF9F]/80">KAYDEDİLMEMİŞ DEĞİŞİKLİK</p>
+              <p className="mt-2 text-sm leading-relaxed text-[#F6F2EA]/85">{pendingLeave.message}</p>
+              <div className="mt-4 flex flex-wrap justify-end gap-2">
+                <button type="button" autoFocus onClick={() => setPendingLeave(null)} className="rounded-lg border border-[#D9B56F]/60 bg-[#D9B56F]/15 px-3 py-2 text-sm font-medium text-[#F6E7C3]" data-testid="atlas-unsaved-stay">
+                  Geri dön ve kaydet
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const a = pendingLeave.action;
+                    setPendingLeave(null);
+                    a();
+                  }}
+                  className="rounded-lg border border-white/15 px-3 py-2 text-sm text-[#F6F2EA]/75 hover:border-rose-300/60"
+                  data-testid="atlas-unsaved-discard"
+                >
+                  Değişiklikleri bırak
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}

@@ -1,0 +1,429 @@
+{
+  "endpoint": "/vedic-astrology/divisional-chart",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "lahiri",
+    "division": 60
+  },
+  "response": {
+    "frame": {
+      "ayanamsa": "lahiri",
+      "ayanamsaDegrees": 23.728750561750232
+    },
+    "division": {
+      "number": 60,
+      "name": "Shashtiamsa",
+      "sanskritName": "Shashtiamsa",
+      "degreesPerDivision": "0°30'",
+      "significance": "Geçmiş yaşam karması, derin karmik kalıplar (kesin doğum saati gerektirir)"
+    },
+    "chart": {
+      "frame": {
+        "ayanamsa": "lahiri",
+        "ayanamsaDegrees": 23.728750561750232
+      },
+      "aries": {
+        "rashi": "aries",
+        "signs": []
+      },
+      "taurus": {
+        "rashi": "taurus",
+        "signs": [
+          {
+            "graha": "Rahu",
+            "nakshatra": {
+              "anga": "nakshatra",
+              "key": 21,
+              "ratio": 0.3286445926149147,
+              "abhijit": false,
+              "left": 8.951405431801138,
+              "name": "Shravana",
+              "pada": 2,
+              "lord": "Moon"
+            },
+            "longitude": 284.3819279015322,
+            "isRetrograde": true,
+            "house": 10
+          }
+        ]
+      },
+      "gemini": {
+        "rashi": "gemini",
+        "signs": []
+      },
+      "cancer": {
+        "rashi": "cancer",
+        "signs": [
+          {
+            "graha": "Venus",
+            "nakshatra": {
+              "anga": "nakshatra",
+              "key": 4,
+              "ratio": 0.549315219188797,
+              "abhijit": false,
+              "left": 6.00913041081604,
+              "name": "Mrigashira",
+              "pada": 3,
+              "lord": "Mars"
+            },
+            "longitude": 60.65753625585063,
+            "isRetrograde": false,
+            "house": 12
+          }
+        ]
+      },
+      "leo": {
+        "rashi": "leo",
+        "signs": [
+          {
+            "graha": "Mars",
+            "nakshatra": {
+              "anga": "nakshatra",
+              "key": 0,
+              "ratio": 0.6149550697254492,
+              "abhijit": false,
+              "left": 5.133932403660678,
+              "name": "Ashwini",
+              "pada": 3,
+              "lord": "Ketu"
+            },
+            "longitude": 8.199400929672656,
+            "isRetrograde": false,
+            "house": 1
+          },
+          {
+            "graha": "Saturn",
+            "nakshatra": {
+              "anga": "nakshatra",
+              "key": 20,
+              "ratio": 0.11772935349054645,
+              "abhijit": false,
+              "left": 11.763608620126048,
+              "name": "Uttara Ashadha",
+              "pada": 1,
+              "lord": "Sun"
+            },
+            "longitude": 268.23639137987396,
+            "isRetrograde": true,
+            "house": 1
+          },
+          {
+            "graha": "Lagna",
+            "nakshatra": {
+              "anga": "nakshatra",
+              "key": 14,
+              "ratio": 0.3490471481375615,
+              "abhijit": false,
+              "left": 8.679371358165847,
+              "name": "Swati",
+              "pada": 2,
+              "lord": "Rahu"
+            },
+            "longitude": 191.32062864183416,
+            "isRetrograde": false,
+            "house": 1
+          }
+        ]
+      },
+      "virgo": {
+        "rashi": "virgo",
+        "signs": [
+          {
+            "graha": "Mercury",
+            "nakshatra": {
+              "anga": "nakshatra",
+              "key": 7,
+              "ratio": 0.7253903134421936,
+              "abhijit": false,
+              "left": 3.6614624874374186,
+              "name": "Pushya",
+              "pada": 3,
+              "lord": "Saturn"
+            },
+            "longitude": 103.00520417922925,
+            "isRetrograde": false,
+            "house": 2
+          }
+        ]
+      },
+      "libra": {
+        "rashi": "libra",
+        "signs": []
+      },
+      "scorpio": {
+        "rashi": "scorpio",
+        "signs": [
+          {
+            "graha": "Ketu",
+            "nakshatra": {
+              "anga": "nakshatra",
+              "key": 7,
+              "ratio": 0.8286445926149153,
+              "abhijit": false,
+              "left": 2.2847387651344633,
+              "name": "Pushya",
+              "pada": 4,
+              "lord": "Saturn"
+            },
+            "longitude": 104.38192790153221,
+            "isRetrograde": true,
+            "house": 4
+          }
+        ]
+      },
+      "sagittarius": {
+        "rashi": "sagittarius",
+        "signs": []
+      },
+      "capricorn": {
+        "rashi": "capricorn",
+        "signs": [
+          {
+            "graha": "Moon",
+            "nakshatra": {
+              "anga": "nakshatra",
+              "key": 26,
+              "ratio": 0.942688270462047,
+              "abhijit": false,
+              "left": 0.7641563938393734,
+              "name": "Revati",
+              "pada": 4,
+              "lord": "Mercury"
+            },
+            "longitude": 359.23584360616064,
+            "isRetrograde": false,
+            "house": 6
+          }
+        ]
+      },
+      "aquarius": {
+        "rashi": "aquarius",
+        "signs": []
+      },
+      "pisces": {
+        "rashi": "pisces",
+        "signs": [
+          {
+            "graha": "Sun",
+            "nakshatra": {
+              "anga": "nakshatra",
+              "key": 6,
+              "ratio": 0.6748147972593884,
+              "abhijit": false,
+              "left": 4.335802703208154,
+              "name": "Punarvasu",
+              "pada": 3,
+              "lord": "Jupiter"
+            },
+            "longitude": 88.99753063012518,
+            "isRetrograde": false,
+            "house": 8
+          },
+          {
+            "graha": "Jupiter",
+            "nakshatra": {
+              "anga": "nakshatra",
+              "key": 6,
+              "ratio": 0.6611788273094977,
+              "abhijit": false,
+              "left": 4.517615635873364,
+              "name": "Punarvasu",
+              "pada": 3,
+              "lord": "Jupiter"
+            },
+            "longitude": 88.81571769745997,
+            "isRetrograde": false,
+            "house": 8
+          }
+        ]
+      },
+      "meta": {
+        "Sun": {
+          "graha": "Sun",
+          "rashi": "Pisces",
+          "longitude": 88.99753063012518,
+          "latitude": 0.00017401955191091416,
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 6,
+            "ratio": 0.6748147972593884,
+            "abhijit": false,
+            "left": 4.335802703208154,
+            "name": "Punarvasu",
+            "pada": 3,
+            "lord": "Jupiter"
+          },
+          "isRetrograde": false,
+          "house": 8
+        },
+        "Moon": {
+          "graha": "Moon",
+          "rashi": "Capricorn",
+          "longitude": 359.23584360616064,
+          "latitude": 5.101610986602505,
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 26,
+            "ratio": 0.942688270462047,
+            "abhijit": false,
+            "left": 0.7641563938393734,
+            "name": "Revati",
+            "pada": 4,
+            "lord": "Mercury"
+          },
+          "isRetrograde": false,
+          "house": 6
+        },
+        "Mars": {
+          "graha": "Mars",
+          "rashi": "Leo",
+          "longitude": 8.199400929672656,
+          "latitude": -2.0652798983843237,
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 0,
+            "ratio": 0.6149550697254492,
+            "abhijit": false,
+            "left": 5.133932403660678,
+            "name": "Ashwini",
+            "pada": 3,
+            "lord": "Ketu"
+          },
+          "isRetrograde": false,
+          "house": 1
+        },
+        "Mercury": {
+          "graha": "Mercury",
+          "rashi": "Virgo",
+          "longitude": 103.00520417922925,
+          "latitude": 1.7822104187711438,
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 7,
+            "ratio": 0.7253903134421936,
+            "abhijit": false,
+            "left": 3.6614624874374186,
+            "name": "Pushya",
+            "pada": 3,
+            "lord": "Saturn"
+          },
+          "isRetrograde": false,
+          "house": 2
+        },
+        "Jupiter": {
+          "graha": "Jupiter",
+          "rashi": "Pisces",
+          "longitude": 88.81571769745997,
+          "latitude": 0.22974634749064088,
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 6,
+            "ratio": 0.6611788273094977,
+            "abhijit": false,
+            "left": 4.517615635873364,
+            "name": "Punarvasu",
+            "pada": 3,
+            "lord": "Jupiter"
+          },
+          "isRetrograde": false,
+          "house": 8
+        },
+        "Venus": {
+          "graha": "Venus",
+          "rashi": "Cancer",
+          "longitude": 60.65753625585063,
+          "latitude": -0.9606378530403038,
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 4,
+            "ratio": 0.549315219188797,
+            "abhijit": false,
+            "left": 6.00913041081604,
+            "name": "Mrigashira",
+            "pada": 3,
+            "lord": "Mars"
+          },
+          "isRetrograde": false,
+          "house": 12
+        },
+        "Saturn": {
+          "graha": "Saturn",
+          "rashi": "Leo",
+          "longitude": 268.23639137987396,
+          "latitude": 0.0743353023096857,
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 20,
+            "ratio": 0.11772935349054645,
+            "abhijit": false,
+            "left": 11.763608620126048,
+            "name": "Uttara Ashadha",
+            "pada": 1,
+            "lord": "Sun"
+          },
+          "isRetrograde": true,
+          "house": 1
+        },
+        "Rahu": {
+          "graha": "Rahu",
+          "rashi": "Taurus",
+          "longitude": 284.3819279015322,
+          "latitude": 0,
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 21,
+            "ratio": 0.3286445926149147,
+            "abhijit": false,
+            "left": 8.951405431801138,
+            "name": "Shravana",
+            "pada": 2,
+            "lord": "Moon"
+          },
+          "isRetrograde": true,
+          "house": 10
+        },
+        "Ketu": {
+          "graha": "Ketu",
+          "rashi": "Scorpio",
+          "longitude": 104.38192790153221,
+          "latitude": 0,
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 7,
+            "ratio": 0.8286445926149153,
+            "abhijit": false,
+            "left": 2.2847387651344633,
+            "name": "Pushya",
+            "pada": 4,
+            "lord": "Saturn"
+          },
+          "isRetrograde": true,
+          "house": 4
+        },
+        "Lagna": {
+          "graha": "Lagna",
+          "rashi": "Leo",
+          "longitude": 191.32062864183416,
+          "nakshatra": {
+            "anga": "nakshatra",
+            "key": 14,
+            "ratio": 0.3490471481375615,
+            "abhijit": false,
+            "left": 8.679371358165847,
+            "name": "Swati",
+            "pada": 2,
+            "lord": "Rahu"
+          },
+          "isRetrograde": false,
+          "house": 1
+        }
+      }
+    },
+    "vargottama": []
+  }
+}

@@ -95,7 +95,8 @@
       "sifa_rehberi": { "title": "Doğal Destek & Rehber", "desc": "Doğal destek yöntemleri, beslenme ve profesyonel başvuru kaynakları", "badge": "Modül" },
       "digital_content": { "title": "Dijital İçerik Merkezi", "desc": "Kişisel arşiv ve dijital içeriklerinizi tek merkezde yönetin", "badge": "Merkez", "stat": "{n} içerik" },
       "numerology": { "title": "Yaşam Analiz Merkezi", "desc": "Numeroloji ve Human Design analiz araçları", "badge": "Merkez", "stat": "{n} analiz" },
-      "cosmic_calendar": { "title": "Yaşam Takvimi / Kozmik Ajanda", "desc": "Hicri takvim, hacamat günleri ve günlük kozmik akış", "badge": "Merkez" }
+      "cosmic_calendar": { "title": "Yaşam Takvimi / Kozmik Ajanda", "desc": "Hicri takvim, hacamat günleri ve günlük kozmik akış", "badge": "Merkez" },
+      "astrology": { "title": "Gökyüzü Atlası", "desc": "Gökyüzünün dili, analizlerinizin derinliği.", "badge": "Astroloji" }
     },
     "moduleCard": {
       "loading": "Yükleniyor",

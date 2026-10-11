@@ -1,0 +1,2083 @@
+{
+  "endpoint": "/astrology/transits",
+  "body": {
+    "date": "2026-10-07",
+    "time": "09:00:00",
+    "timezone": 0,
+    "nodeType": "true",
+    "natalChart": {
+      "date": "1990-07-15",
+      "time": "14:30:00",
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3
+    }
+  },
+  "response": {
+    "transitDate": "2026-10-07",
+    "transitTime": "09:00:00",
+    "timezone": 0,
+    "transitPlanets": [
+      {
+        "name": "Sun",
+        "nameLocalized": "Güneş",
+        "signLocalized": "Terazi",
+        "longitude": 194.11631250846125,
+        "latitude": 0.00002229092227708553,
+        "sign": "Libra",
+        "degree": 14.116312508461249,
+        "speed": 0.9867114616105397,
+        "isRetrograde": false
+      },
+      {
+        "name": "Moon",
+        "nameLocalized": "Ay",
+        "signLocalized": "Başak",
+        "longitude": 153.48949263972816,
+        "latitude": -0.3942565269844536,
+        "sign": "Virgo",
+        "degree": 3.489492639728155,
+        "speed": 13.65410629150307,
+        "isRetrograde": false
+      },
+      {
+        "name": "Mercury",
+        "nameLocalized": "Merkür",
+        "signLocalized": "Akrep",
+        "longitude": 218.65305730135822,
+        "latitude": -2.4556515712794984,
+        "sign": "Scorpio",
+        "degree": 8.653057301358217,
+        "speed": 1.1668592931296047,
+        "isRetrograde": false
+      },
+      {
+        "name": "Venus",
+        "nameLocalized": "Venüs",
+        "signLocalized": "Akrep",
+        "longitude": 218.1653083300784,
+        "latitude": -7.488820043153829,
+        "sign": "Scorpio",
+        "degree": 8.165308330078403,
+        "speed": -0.16079309561602884,
+        "isRetrograde": true
+      },
+      {
+        "name": "Mars",
+        "nameLocalized": "Mars",
+        "signLocalized": "Aslan",
+        "longitude": 125.36237172819524,
+        "latitude": 1.1266841222692185,
+        "sign": "Leo",
+        "degree": 5.362371728195242,
+        "speed": 0.5694656895904586,
+        "isRetrograde": false
+      },
+      {
+        "name": "Jupiter",
+        "nameLocalized": "Jüpiter",
+        "signLocalized": "Aslan",
+        "longitude": 140.7034275466923,
+        "latitude": 0.6142460359832406,
+        "sign": "Leo",
+        "degree": 20.703427546692296,
+        "speed": 0.16954563842092796,
+        "isRetrograde": false
+      },
+      {
+        "name": "Saturn",
+        "nameLocalized": "Satürn",
+        "signLocalized": "Koç",
+        "longitude": 11.077596969317282,
+        "latitude": -2.7141142211998766,
+        "sign": "Aries",
+        "degree": 11.077596969317282,
+        "speed": -0.07853792803808801,
+        "isRetrograde": true
+      },
+      {
+        "name": "Uranus",
+        "nameLocalized": "Uranüs",
+        "signLocalized": "İkizler",
+        "longitude": 65.40403238640567,
+        "latitude": -0.15310308514083074,
+        "sign": "Gemini",
+        "degree": 5.4040323864056745,
+        "speed": -0.021561118777412958,
+        "isRetrograde": true
+      },
+      {
+        "name": "Neptune",
+        "nameLocalized": "Neptün",
+        "signLocalized": "Koç",
+        "longitude": 2.687595265731544,
+        "latitude": -1.4200878327984439,
+        "sign": "Aries",
+        "degree": 2.687595265731544,
+        "speed": -0.02709812815893997,
+        "isRetrograde": true
+      },
+      {
+        "name": "Pluto",
+        "nameLocalized": "Plüton",
+        "signLocalized": "Kova",
+        "longitude": 303.0869544549713,
+        "latitude": -4.289539110348426,
+        "sign": "Aquarius",
+        "degree": 3.0869544549713055,
+        "speed": -0.004153794817085554,
+        "isRetrograde": true
+      },
+      {
+        "name": "North Node",
+        "nameLocalized": "Kuzey Düğümü",
+        "signLocalized": "Kova",
+        "longitude": 329.11116702030415,
+        "latitude": 0,
+        "sign": "Aquarius",
+        "degree": 29.11116702030415,
+        "speed": -0.010584544959499453,
+        "isRetrograde": true
+      },
+      {
+        "name": "South Node",
+        "nameLocalized": "Güney Düğümü",
+        "signLocalized": "Aslan",
+        "longitude": 149.11116702030415,
+        "latitude": 0,
+        "sign": "Leo",
+        "degree": 29.11116702030415,
+        "speed": -0.010584544959499453,
+        "isRetrograde": true
+      },
+      {
+        "name": "Chiron",
+        "nameLocalized": "Chiron",
+        "signLocalized": "Koç",
+        "longitude": 29.211955257461693,
+        "latitude": 0.16663887814623565,
+        "sign": "Aries",
+        "degree": 29.211955257461693,
+        "speed": -0.04466921055046669,
+        "isRetrograde": true
+      },
+      {
+        "name": "Black Moon Lilith",
+        "nameLocalized": "Kara Ay Lilith",
+        "signLocalized": "Oğlak",
+        "longitude": 272.5307245346846,
+        "latitude": -4.210385844728234,
+        "sign": "Capricorn",
+        "degree": 2.530724534684623,
+        "speed": 0.11160047219723879,
+        "isRetrograde": false
+      }
+    ],
+    "transitAspects": [
+      {
+        "transitPlanet": "Black Moon Lilith",
+        "natalPlanet": "Mars",
+        "type": "TRINE",
+        "transitPlanetLocalized": "Kara Ay Lilith",
+        "natalPlanetLocalized": "Mars",
+        "typeLocalized": "Üçgen",
+        "angle": 120,
+        "orb": 0.6025730432617422,
+        "isApplying": false,
+        "strength": 92.46783695922822,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Kara Ay Lilith, natal Mars üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "İlkel içgüdü ve geri kazanılan benlik, Atılganlık ve saldırganlık ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "North Node",
+        "natalPlanet": "Black Moon Lilith",
+        "type": "SQUARE",
+        "transitPlanetLocalized": "Kuzey Düğümü",
+        "natalPlanetLocalized": "Kara Ay Lilith",
+        "typeLocalized": "Kare",
+        "angle": 90,
+        "orb": 0.8035327217289137,
+        "isApplying": true,
+        "strength": 88.52096111815838,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Kuzey Düğümü, natal Kara Ay Lilith üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Yaşam amacı ve kader, İlkel içgüdü ve geri kazanılan benlik ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "South Node",
+        "natalPlanet": "Black Moon Lilith",
+        "type": "SQUARE",
+        "transitPlanetLocalized": "Güney Düğümü",
+        "natalPlanetLocalized": "Kara Ay Lilith",
+        "typeLocalized": "Kare",
+        "angle": 90,
+        "orb": 0.8035327217289137,
+        "isApplying": true,
+        "strength": 88.52096111815838,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Güney Düğümü, natal Kara Ay Lilith üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Geçmiş yaşam yetenekleri ve konfor alanı, İlkel içgüdü ve geri kazanılan benlik ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Venus",
+        "natalPlanet": "North Node",
+        "type": "SQUARE",
+        "transitPlanetLocalized": "Venüs",
+        "natalPlanetLocalized": "Kuzey Düğümü",
+        "typeLocalized": "Kare",
+        "angle": 90,
+        "orb": 0.8060843662637467,
+        "isApplying": true,
+        "strength": 88.48450905337505,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Venüs, natal Kuzey Düğümü üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "Aşk, güzellik ve para, Yaşam amacı ve kader ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Venus",
+        "natalPlanet": "South Node",
+        "type": "SQUARE",
+        "transitPlanetLocalized": "Venüs",
+        "natalPlanetLocalized": "Güney Düğümü",
+        "typeLocalized": "Kare",
+        "angle": 90,
+        "orb": 0.8060843662637467,
+        "isApplying": true,
+        "strength": 88.48450905337505,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Venüs, natal Güney Düğümü üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "Aşk, güzellik ve para, Geçmiş yaşam yetenekleri ve konfor alanı ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Pluto",
+        "natalPlanet": "Mars",
+        "type": "SQUARE",
+        "transitPlanetLocalized": "Plüton",
+        "natalPlanetLocalized": "Mars",
+        "typeLocalized": "Kare",
+        "angle": 90,
+        "orb": 1.1588029635483963,
+        "isApplying": true,
+        "strength": 83.44567194930863,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Plüton, natal Mars üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Cinsellik, ölüm ve dönüşüm, Atılganlık ve saldırganlık ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Sun",
+        "natalPlanet": "Neptune",
+        "type": "SQUARE",
+        "transitPlanetLocalized": "Güneş",
+        "natalPlanetLocalized": "Neptün",
+        "typeLocalized": "Kare",
+        "angle": 90,
+        "orb": 1.1945694910788802,
+        "isApplying": false,
+        "strength": 82.934721556016,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Güneş, natal Neptün üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "Öz farkındalık ve ego, Rüyalar, şifa ve sezgi ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Mars",
+        "natalPlanet": "Mercury",
+        "type": "CONJUNCTION",
+        "transitPlanetLocalized": "Mars",
+        "natalPlanetLocalized": "Merkür",
+        "typeLocalized": "Kavuşum",
+        "angle": 0,
+        "orb": 1.3715830127842423,
+        "isApplying": true,
+        "strength": 82.85521234019697,
+        "nature": "nötr",
+        "interpretation": {
+          "summary": "Mars, natal Merkür üzerinde nötr biçimde etkinleşiyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "Atılganlık ve saldırganlık, İletişim ile birleşiyor. Bu enerjiyi yoğunlaştırıyor.",
+          "guidance": "Bu kombinasyonun nasıl tezahür ettiğine dikkat edin. Güçlü enerji bilinçli bir yön gerektirir.",
+          "keywords": [
+            "harman",
+            "zorluk",
+            "birleşme",
+            "bütünlük"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Mercury",
+        "natalPlanet": "North Node",
+        "type": "SQUARE",
+        "transitPlanetLocalized": "Merkür",
+        "natalPlanetLocalized": "Kuzey Düğümü",
+        "typeLocalized": "Kare",
+        "angle": 90,
+        "orb": 1.2938333375435604,
+        "isApplying": false,
+        "strength": 81.51666660652057,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Merkür, natal Kuzey Düğümü üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "İletişim, Yaşam amacı ve kader ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Mercury",
+        "natalPlanet": "South Node",
+        "type": "SQUARE",
+        "transitPlanetLocalized": "Merkür",
+        "natalPlanetLocalized": "Güney Düğümü",
+        "typeLocalized": "Kare",
+        "angle": 90,
+        "orb": 1.2938333375435604,
+        "isApplying": false,
+        "strength": 81.51666660652057,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Merkür, natal Güney Düğümü üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "İletişim, Geçmiş yaşam yetenekleri ve konfor alanı ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Moon",
+        "natalPlanet": "Mars",
+        "type": "TRINE",
+        "transitPlanetLocalized": "Ay",
+        "natalPlanetLocalized": "Mars",
+        "typeLocalized": "Üçgen",
+        "angle": 120,
+        "orb": 1.5613411483052744,
+        "isApplying": false,
+        "strength": 80.48323564618407,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Ay, natal Mars üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Birkaç saat süreyle etkin",
+          "impact": "İç duygusal yaşam, Atılganlık ve saldırganlık ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Venus",
+        "natalPlanet": "Uranus",
+        "type": "SEXTILE",
+        "transitPlanetLocalized": "Venüs",
+        "natalPlanetLocalized": "Uranüs",
+        "typeLocalized": "Sekstil",
+        "angle": 60,
+        "orb": 1.1977997607045836,
+        "isApplying": true,
+        "strength": 80.0366706549236,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Venüs, natal Uranüs üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "Aşk, güzellik ve para, Bireysellik ve devrim ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Venus",
+        "natalPlanet": "Mercury",
+        "type": "SQUARE",
+        "transitPlanetLocalized": "Venüs",
+        "natalPlanetLocalized": "Merkür",
+        "typeLocalized": "Kare",
+        "angle": 90,
+        "orb": 1.4313535890989186,
+        "isApplying": true,
+        "strength": 79.55209158430117,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Venüs, natal Merkür üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "Aşk, güzellik ve para, İletişim ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Uranus",
+        "natalPlanet": "Mercury",
+        "type": "SEXTILE",
+        "transitPlanetLocalized": "Uranüs",
+        "natalPlanetLocalized": "Merkür",
+        "typeLocalized": "Sekstil",
+        "angle": 60,
+        "orb": 1.3299223545738101,
+        "isApplying": false,
+        "strength": 77.83462742376983,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Uranüs, natal Merkür üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Bireysellik ve devrim, İletişim ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Uranus",
+        "natalPlanet": "North Node",
+        "type": "TRINE",
+        "transitPlanetLocalized": "Uranüs",
+        "natalPlanetLocalized": "Kuzey Düğümü",
+        "typeLocalized": "Üçgen",
+        "angle": 120,
+        "orb": 1.955191577408982,
+        "isApplying": false,
+        "strength": 75.56010528238772,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Uranüs, natal Kuzey Düğümü üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Bireysellik ve devrim, Yaşam amacı ve kader ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Mars",
+        "natalPlanet": "South Node",
+        "type": "CONJUNCTION",
+        "transitPlanetLocalized": "Mars",
+        "natalPlanetLocalized": "Güney Düğümü",
+        "typeLocalized": "Kavuşum",
+        "angle": 0,
+        "orb": 1.9968522356194143,
+        "isApplying": true,
+        "strength": 75.03934705475731,
+        "nature": "nötr",
+        "interpretation": {
+          "summary": "Mars, natal Güney Düğümü üzerinde nötr biçimde etkinleşiyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "Atılganlık ve saldırganlık, Geçmiş yaşam yetenekleri ve konfor alanı ile birleşiyor. Bu enerjiyi yoğunlaştırıyor.",
+          "guidance": "Bu kombinasyonun nasıl tezahür ettiğine dikkat edin. Güçlü enerji bilinçli bir yön gerektirir.",
+          "keywords": [
+            "harman",
+            "zorluk",
+            "birleşme",
+            "bütünlük"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Mars",
+        "natalPlanet": "North Node",
+        "type": "OPPOSITION",
+        "transitPlanetLocalized": "Mars",
+        "natalPlanetLocalized": "Kuzey Düğümü",
+        "typeLocalized": "Karşıtlık",
+        "angle": 180,
+        "orb": 1.9968522356194285,
+        "isApplying": true,
+        "strength": 75.03934705475714,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Mars, natal Kuzey Düğümü üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "Atılganlık ve saldırganlık, Yaşam amacı ve kader ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "denge",
+            "meydan okuma",
+            "rehavet",
+            "kolay",
+            "büyüme",
+            "engel"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Neptune",
+        "natalPlanet": "Mars",
+        "type": "SEMI_SEXTILE",
+        "transitPlanetLocalized": "Neptün",
+        "natalPlanetLocalized": "Mars",
+        "typeLocalized": "Yarı Sekstil",
+        "angle": 30,
+        "orb": 0.7594437743086573,
+        "isApplying": true,
+        "strength": 74.68520752304475,
+        "nature": "nötr",
+        "interpretation": {
+          "summary": "Neptün, natal Mars üzerinde nötr biçimde etkinleşiyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Rüyalar, şifa ve sezgi, Atılganlık ve saldırganlık ile birleşiyor. Bu enerjiyi yoğunlaştırıyor.",
+          "guidance": "Bu kombinasyonun nasıl tezahür ettiğine dikkat edin. Güçlü enerji bilinçli bir yön gerektirir.",
+          "keywords": [
+            "büyüme",
+            "incelik",
+            "ayarlama",
+            "farkındalık"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Saturn",
+        "natalPlanet": "Neptune",
+        "type": "SQUARE",
+        "transitPlanetLocalized": "Satürn",
+        "natalPlanetLocalized": "Neptün",
+        "typeLocalized": "Kare",
+        "angle": 90,
+        "orb": 1.844146048065113,
+        "isApplying": false,
+        "strength": 73.65505645621266,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Satürn, natal Neptün üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç hafta süreyle etkin",
+          "impact": "Sorumluluk, zaman ve rutin, Rüyalar, şifa ve sezgi ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Mercury",
+        "natalPlanet": "Mercury",
+        "type": "SQUARE",
+        "transitPlanetLocalized": "Merkür",
+        "natalPlanetLocalized": "Merkür",
+        "typeLocalized": "Kare",
+        "angle": 90,
+        "orb": 1.9191025603787324,
+        "isApplying": false,
+        "strength": 72.58424913744668,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Merkür, natal Merkür üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "İletişim, İletişim ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Mercury",
+        "natalPlanet": "Uranus",
+        "type": "SEXTILE",
+        "transitPlanetLocalized": "Merkür",
+        "natalPlanetLocalized": "Uranüs",
+        "typeLocalized": "Sekstil",
+        "angle": 60,
+        "orb": 1.6855487319843974,
+        "isApplying": false,
+        "strength": 71.90752113359338,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Merkür, natal Uranüs üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "İletişim, Bireysellik ve devrim ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Jupiter",
+        "natalPlanet": "Moon",
+        "type": "TRINE",
+        "transitPlanetLocalized": "Jüpiter",
+        "natalPlanetLocalized": "Ay",
+        "typeLocalized": "Üçgen",
+        "angle": 120,
+        "orb": 2.2611666212185497,
+        "isApplying": true,
+        "strength": 71.73541723476814,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Jüpiter, natal Ay üzerinde uyumlu bir destek sağlıyor",
+          "timing": "1-2 hafta süreyle etkin",
+          "impact": "Şans ve fırsat, İç duygusal yaşam ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Sun",
+        "natalPlanet": "Pluto",
+        "type": "SEMI_SEXTILE",
+        "transitPlanetLocalized": "Güneş",
+        "natalPlanetLocalized": "Plüton",
+        "typeLocalized": "Yarı Sekstil",
+        "angle": 30,
+        "orb": 0.8832647397599089,
+        "isApplying": true,
+        "strength": 70.55784200800304,
+        "nature": "nötr",
+        "interpretation": {
+          "summary": "Güneş, natal Plüton üzerinde nötr biçimde etkinleşiyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "Öz farkındalık ve ego, Cinsellik, ölüm ve dönüşüm ile birleşiyor. Bu enerjiyi yoğunlaştırıyor.",
+          "guidance": "Bu kombinasyonun nasıl tezahür ettiğine dikkat edin. Güçlü enerji bilinçli bir yön gerektirir.",
+          "keywords": [
+            "büyüme",
+            "incelik",
+            "ayarlama",
+            "farkındalık"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Chiron",
+        "natalPlanet": "Black Moon Lilith",
+        "type": "QUINCUNX",
+        "transitPlanetLocalized": "Chiron",
+        "natalPlanetLocalized": "Kara Ay Lilith",
+        "typeLocalized": "Kuinkuks",
+        "angle": 150,
+        "orb": 0.9043209588864443,
+        "isApplying": true,
+        "strength": 69.85596803711853,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Chiron, natal Kara Ay Lilith üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Şifa ve iç yaralar, İlkel içgüdü ve geri kazanılan benlik ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "ayarlama",
+            "gerilim",
+            "uyum",
+            "yön değiştirme"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Uranus",
+        "natalPlanet": "South Node",
+        "type": "SEXTILE",
+        "transitPlanetLocalized": "Uranüs",
+        "natalPlanetLocalized": "Güney Düğümü",
+        "typeLocalized": "Sekstil",
+        "angle": 60,
+        "orb": 1.955191577408982,
+        "isApplying": false,
+        "strength": 67.4134737098503,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Uranüs, natal Güney Düğümü üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Bireysellik ve devrim, Geçmiş yaşam yetenekleri ve konfor alanı ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Chiron",
+        "natalPlanet": "Mars",
+        "type": "CONJUNCTION",
+        "transitPlanetLocalized": "Chiron",
+        "natalPlanetLocalized": "Mars",
+        "typeLocalized": "Kavuşum",
+        "angle": 0,
+        "orb": 2.7161962339611954,
+        "isApplying": false,
+        "strength": 66.04754707548506,
+        "nature": "nötr",
+        "interpretation": {
+          "summary": "Chiron, natal Mars üzerinde nötr biçimde etkinleşiyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Şifa ve iç yaralar, Atılganlık ve saldırganlık ile birleşiyor. Bu enerjiyi yoğunlaştırıyor.",
+          "guidance": "Bu kombinasyonun nasıl tezahür ettiğine dikkat edin. Güçlü enerji bilinçli bir yön gerektirir.",
+          "keywords": [
+            "harman",
+            "zorluk",
+            "birleşme",
+            "bütünlük"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "South Node",
+        "natalPlanet": "Mars",
+        "type": "TRINE",
+        "transitPlanetLocalized": "Güney Düğümü",
+        "natalPlanetLocalized": "Mars",
+        "typeLocalized": "Üçgen",
+        "angle": 120,
+        "orb": 2.8169844711187295,
+        "isApplying": false,
+        "strength": 64.78769411101588,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Güney Düğümü, natal Mars üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Geçmiş yaşam yetenekleri ve konfor alanı, Atılganlık ve saldırganlık ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Mercury",
+        "natalPlanet": "Venus",
+        "type": "SESQUIQUADRATE",
+        "transitPlanetLocalized": "Merkür",
+        "natalPlanetLocalized": "Venüs",
+        "typeLocalized": "Seskikare",
+        "angle": 135,
+        "orb": 0.733229516242659,
+        "isApplying": true,
+        "strength": 63.33852418786705,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Merkür, natal Venüs üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "İletişim, Aşk, güzellik ve para ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "hayal kırıklığı",
+            "ayarlama",
+            "dışsal gerilim",
+            "yön değiştirme"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Moon",
+        "natalPlanet": "Chiron",
+        "type": "SEMI_SQUARE",
+        "transitPlanetLocalized": "Ay",
+        "natalPlanetLocalized": "Chiron",
+        "typeLocalized": "Yarı Kare",
+        "angle": 45,
+        "orb": 0.7362079463132432,
+        "isApplying": true,
+        "strength": 63.18960268433784,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Ay, natal Chiron üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç saat süreyle etkin",
+          "impact": "İç duygusal yaşam, Şifa ve iç yaralar ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "sürtünme",
+            "tahriş",
+            "ajitasyon",
+            "küçük gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Sun",
+        "natalPlanet": "Black Moon Lilith",
+        "type": "SEMI_SQUARE",
+        "transitPlanetLocalized": "Güneş",
+        "natalPlanetLocalized": "Kara Ay Lilith",
+        "typeLocalized": "Yarı Kare",
+        "angle": 45,
+        "orb": 0.8086782098860112,
+        "isApplying": false,
+        "strength": 59.56608950569944,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Güneş, natal Kara Ay Lilith üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "Öz farkındalık ve ego, İlkel içgüdü ve geri kazanılan benlik ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "sürtünme",
+            "tahriş",
+            "ajitasyon",
+            "küçük gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Jupiter",
+        "natalPlanet": "Saturn",
+        "type": "QUINCUNX",
+        "transitPlanetLocalized": "Jüpiter",
+        "natalPlanetLocalized": "Satürn",
+        "typeLocalized": "Kuinkuks",
+        "angle": 150,
+        "orb": 1.2617143949319143,
+        "isApplying": true,
+        "strength": 57.94285350226953,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Jüpiter, natal Satürn üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "1-2 hafta süreyle etkin",
+          "impact": "Şans ve fırsat, Sorumluluk, zaman ve rutin ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "ayarlama",
+            "gerilim",
+            "uyum",
+            "yön değiştirme"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Moon",
+        "natalPlanet": "Uranus",
+        "type": "TRINE",
+        "transitPlanetLocalized": "Ay",
+        "natalPlanetLocalized": "Uranüs",
+        "typeLocalized": "Üçgen",
+        "angle": 120,
+        "orb": 3.4780159296456645,
+        "isApplying": true,
+        "strength": 56.52480087942919,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Ay, natal Uranüs üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Birkaç saat süreyle etkin",
+          "impact": "İç duygusal yaşam, Bireysellik ve devrim ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Pluto",
+        "natalPlanet": "Mercury",
+        "type": "OPPOSITION",
+        "transitPlanetLocalized": "Plüton",
+        "natalPlanetLocalized": "Merkür",
+        "typeLocalized": "Karşıtlık",
+        "angle": 180,
+        "orb": 3.647000286008165,
+        "isApplying": false,
+        "strength": 54.41249642489794,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Plüton, natal Merkür üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Cinsellik, ölüm ve dönüşüm, İletişim ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "denge",
+            "meydan okuma",
+            "rehavet",
+            "kolay",
+            "büyüme",
+            "engel"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Saturn",
+        "natalPlanet": "South Node",
+        "type": "TRINE",
+        "transitPlanetLocalized": "Satürn",
+        "natalPlanetLocalized": "Güney Düğümü",
+        "typeLocalized": "Üçgen",
+        "angle": 120,
+        "orb": 3.7183730055026274,
+        "isApplying": true,
+        "strength": 53.52033743121716,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Satürn, natal Güney Düğümü üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Birkaç hafta süreyle etkin",
+          "impact": "Sorumluluk, zaman ve rutin, Geçmiş yaşam yetenekleri ve konfor alanı ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "North Node",
+        "natalPlanet": "Mars",
+        "type": "SEXTILE",
+        "transitPlanetLocalized": "Kuzey Düğümü",
+        "natalPlanetLocalized": "Mars",
+        "typeLocalized": "Sekstil",
+        "angle": 60,
+        "orb": 2.816984471118758,
+        "isApplying": false,
+        "strength": 53.05025881468737,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Kuzey Düğümü, natal Mars üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Yaşam amacı ve kader, Atılganlık ve saldırganlık ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Mars",
+        "natalPlanet": "Mars",
+        "type": "SQUARE",
+        "transitPlanetLocalized": "Mars",
+        "natalPlanetLocalized": "Mars",
+        "typeLocalized": "Kare",
+        "angle": 90,
+        "orb": 3.4342202367723473,
+        "isApplying": false,
+        "strength": 50.93971090325218,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Çatışma potansiyeli taşıyan yüksek enerjili bir dönem",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "Güdü ve saldırganlık zirveye ulaşıyor. Sabırsızlık ya da öfke aniden yüzeye çıkabilir. Fiziksel enerji son derece yüksek.",
+          "guidance": "Enerjiyi üretken eylemlere kanalize edin. Egzersiz yardımcı olur. Çatışmalardan ve ani kararlardan kaçının.",
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Jupiter",
+        "natalPlanet": "Chiron",
+        "type": "SEMI_SEXTILE",
+        "transitPlanetLocalized": "Jüpiter",
+        "natalPlanetLocalized": "Chiron",
+        "typeLocalized": "Yarı Sekstil",
+        "angle": 30,
+        "orb": 1.477726960650898,
+        "isApplying": false,
+        "strength": 50.74243464497006,
+        "nature": "nötr",
+        "interpretation": {
+          "summary": "Jüpiter, natal Chiron üzerinde nötr biçimde etkinleşiyor",
+          "timing": "1-2 hafta süreyle etkin",
+          "impact": "Şans ve fırsat, Şifa ve iç yaralar ile birleşiyor. Bu enerjiyi yoğunlaştırıyor.",
+          "guidance": "Bu kombinasyonun nasıl tezahür ettiğine dikkat edin. Güçlü enerji bilinçli bir yön gerektirir.",
+          "keywords": [
+            "büyüme",
+            "incelik",
+            "ayarlama",
+            "farkındalık"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Neptune",
+        "natalPlanet": "Mercury",
+        "type": "TRINE",
+        "transitPlanetLocalized": "Neptün",
+        "natalPlanetLocalized": "Merkür",
+        "typeLocalized": "Üçgen",
+        "angle": 120,
+        "orb": 4.0463594752479395,
+        "isApplying": false,
+        "strength": 49.420506559400756,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Neptün, natal Merkür üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Rüyalar, şifa ve sezgi, İletişim ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Uranus",
+        "natalPlanet": "Uranus",
+        "type": "QUINCUNX",
+        "transitPlanetLocalized": "Uranüs",
+        "natalPlanetLocalized": "Uranüs",
+        "typeLocalized": "Kuinkuks",
+        "angle": 150,
+        "orb": 1.5634761829681452,
+        "isApplying": false,
+        "strength": 47.88412723439516,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Uranüs, natal Uranüs üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Bireysellik ve devrim, Bireysellik ve devrim ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "ayarlama",
+            "gerilim",
+            "uyum",
+            "yön değiştirme"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Pluto",
+        "natalPlanet": "North Node",
+        "type": "CONJUNCTION",
+        "transitPlanetLocalized": "Plüton",
+        "natalPlanetLocalized": "Kuzey Düğümü",
+        "typeLocalized": "Kavuşum",
+        "angle": 0,
+        "orb": 4.272269508843351,
+        "isApplying": false,
+        "strength": 46.59663113945811,
+        "nature": "nötr",
+        "interpretation": {
+          "summary": "Plüton, natal Kuzey Düğümü üzerinde nötr biçimde etkinleşiyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Cinsellik, ölüm ve dönüşüm, Yaşam amacı ve kader ile birleşiyor. Bu enerjiyi yoğunlaştırıyor.",
+          "guidance": "Bu kombinasyonun nasıl tezahür ettiğine dikkat edin. Güçlü enerji bilinçli bir yön gerektirir.",
+          "keywords": [
+            "harman",
+            "zorluk",
+            "birleşme",
+            "bütünlük"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Pluto",
+        "natalPlanet": "South Node",
+        "type": "OPPOSITION",
+        "transitPlanetLocalized": "Plüton",
+        "natalPlanetLocalized": "Güney Düğümü",
+        "typeLocalized": "Karşıtlık",
+        "angle": 180,
+        "orb": 4.272269508843351,
+        "isApplying": false,
+        "strength": 46.59663113945811,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Plüton, natal Güney Düğümü üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Cinsellik, ölüm ve dönüşüm, Geçmiş yaşam yetenekleri ve konfor alanı ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "denge",
+            "meydan okuma",
+            "rehavet",
+            "kolay",
+            "büyüme",
+            "engel"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Mars",
+        "natalPlanet": "Uranus",
+        "type": "QUINCUNX",
+        "transitPlanetLocalized": "Mars",
+        "natalPlanetLocalized": "Uranüs",
+        "typeLocalized": "Kuinkuks",
+        "angle": 150,
+        "orb": 1.6051368411785916,
+        "isApplying": true,
+        "strength": 46.49543862738028,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Mars, natal Uranüs üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "Atılganlık ve saldırganlık, Bireysellik ve devrim ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "ayarlama",
+            "gerilim",
+            "uyum",
+            "yön değiştirme"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Saturn",
+        "natalPlanet": "Mercury",
+        "type": "TRINE",
+        "transitPlanetLocalized": "Satürn",
+        "natalPlanetLocalized": "Merkür",
+        "typeLocalized": "Üçgen",
+        "angle": 120,
+        "orb": 4.343642228337799,
+        "isApplying": true,
+        "strength": 45.70447214577751,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Satürn, natal Merkür üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Birkaç hafta süreyle etkin",
+          "impact": "Sorumluluk, zaman ve rutin, İletişim ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Neptune",
+        "natalPlanet": "Black Moon Lilith",
+        "type": "TRINE",
+        "transitPlanetLocalized": "Neptün",
+        "natalPlanetLocalized": "Kara Ay Lilith",
+        "typeLocalized": "Üçgen",
+        "angle": 120,
+        "orb": 4.379960967156308,
+        "isApplying": true,
+        "strength": 45.250487910546155,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Neptün, natal Kara Ay Lilith üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Rüyalar, şifa ve sezgi, İlkel içgüdü ve geri kazanılan benlik ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Black Moon Lilith",
+        "natalPlanet": "Uranus",
+        "type": "CONJUNCTION",
+        "transitPlanetLocalized": "Kara Ay Lilith",
+        "natalPlanetLocalized": "Uranüs",
+        "typeLocalized": "Kavuşum",
+        "angle": 0,
+        "orb": 4.436784034689197,
+        "isApplying": true,
+        "strength": 44.54019956638504,
+        "nature": "nötr",
+        "interpretation": {
+          "summary": "Kara Ay Lilith, natal Uranüs üzerinde nötr biçimde etkinleşiyor",
+          "timing": "Uzun süre etkin",
+          "impact": "İlkel içgüdü ve geri kazanılan benlik, Bireysellik ve devrim ile birleşiyor. Bu enerjiyi yoğunlaştırıyor.",
+          "guidance": "Bu kombinasyonun nasıl tezahür ettiğine dikkat edin. Güçlü enerji bilinçli bir yön gerektirir.",
+          "keywords": [
+            "harman",
+            "zorluk",
+            "birleşme",
+            "bütünlük"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Neptune",
+        "natalPlanet": "South Node",
+        "type": "TRINE",
+        "transitPlanetLocalized": "Neptün",
+        "natalPlanetLocalized": "Güney Düğümü",
+        "typeLocalized": "Üçgen",
+        "angle": 120,
+        "orb": 4.671628698083111,
+        "isApplying": false,
+        "strength": 41.60464127396111,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Neptün, natal Güney Düğümü üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Rüyalar, şifa ve sezgi, Geçmiş yaşam yetenekleri ve konfor alanı ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Saturn",
+        "natalPlanet": "Uranus",
+        "type": "SQUARE",
+        "transitPlanetLocalized": "Satürn",
+        "natalPlanetLocalized": "Uranüs",
+        "typeLocalized": "Kare",
+        "angle": 90,
+        "orb": 4.110088399943436,
+        "isApplying": true,
+        "strength": 41.28445142937949,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Satürn, natal Uranüs üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç hafta süreyle etkin",
+          "impact": "Sorumluluk, zaman ve rutin, Bireysellik ve devrim ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Uranus",
+        "natalPlanet": "Chiron",
+        "type": "SEMI_SQUARE",
+        "transitPlanetLocalized": "Uranüs",
+        "natalPlanetLocalized": "Chiron",
+        "typeLocalized": "Yarı Kare",
+        "angle": 45,
+        "orb": 1.1783318003642762,
+        "isApplying": true,
+        "strength": 41.08340998178619,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Uranüs, natal Chiron üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Bireysellik ve devrim, Şifa ve iç yaralar ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "sürtünme",
+            "tahriş",
+            "ajitasyon",
+            "küçük gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "North Node",
+        "natalPlanet": "Venus",
+        "type": "TRINE",
+        "transitPlanetLocalized": "Kuzey Düğümü",
+        "natalPlanetLocalized": "Venüs",
+        "typeLocalized": "Üçgen",
+        "angle": 120,
+        "orb": 4.724880202703275,
+        "isApplying": true,
+        "strength": 40.93899746620906,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Kuzey Düğümü, natal Venüs üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Yaşam amacı ve kader, Aşk, güzellik ve para ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "North Node",
+        "natalPlanet": "Neptune",
+        "type": "SEMI_SQUARE",
+        "transitPlanetLocalized": "Kuzey Düğümü",
+        "natalPlanetLocalized": "Neptün",
+        "typeLocalized": "Yarı Kare",
+        "angle": 45,
+        "orb": 1.1894240029217826,
+        "isApplying": true,
+        "strength": 40.52879985391087,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Kuzey Düğümü, natal Neptün üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Yaşam amacı ve kader, Rüyalar, şifa ve sezgi ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "sürtünme",
+            "tahriş",
+            "ajitasyon",
+            "küçük gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "South Node",
+        "natalPlanet": "Neptune",
+        "type": "SESQUIQUADRATE",
+        "transitPlanetLocalized": "Güney Düğümü",
+        "natalPlanetLocalized": "Neptün",
+        "typeLocalized": "Seskikare",
+        "angle": 135,
+        "orb": 1.1894240029217826,
+        "isApplying": true,
+        "strength": 40.52879985391087,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Güney Düğümü, natal Neptün üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Geçmiş yaşam yetenekleri ve konfor alanı, Rüyalar, şifa ve sezgi ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "hayal kırıklığı",
+            "ayarlama",
+            "dışsal gerilim",
+            "yön değiştirme"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Venus",
+        "natalPlanet": "Venus",
+        "type": "SESQUIQUADRATE",
+        "transitPlanetLocalized": "Venüs",
+        "natalPlanetLocalized": "Venüs",
+        "typeLocalized": "Seskikare",
+        "angle": 135,
+        "orb": 1.2209784875224727,
+        "isApplying": false,
+        "strength": 38.95107562387636,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Venüs, natal Venüs üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "Aşk, güzellik ve para, Aşk, güzellik ve para ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "hayal kırıklığı",
+            "ayarlama",
+            "dışsal gerilim",
+            "yön değiştirme"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Neptune",
+        "natalPlanet": "Uranus",
+        "type": "SQUARE",
+        "transitPlanetLocalized": "Neptün",
+        "natalPlanetLocalized": "Uranüs",
+        "typeLocalized": "Kare",
+        "angle": 90,
+        "orb": 4.2799133036422745,
+        "isApplying": false,
+        "strength": 38.85838137653893,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Neptün, natal Uranüs üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Rüyalar, şifa ve sezgi, Bireysellik ve devrim ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Jupiter",
+        "natalPlanet": "Jupiter",
+        "type": "SEMI_SEXTILE",
+        "transitPlanetLocalized": "Jüpiter",
+        "natalPlanetLocalized": "Jüpiter",
+        "typeLocalized": "Yarı Sekstil",
+        "angle": 30,
+        "orb": 1.8410407125179091,
+        "isApplying": true,
+        "strength": 38.63197624940303,
+        "nature": "nötr",
+        "interpretation": {
+          "summary": "Jüpiter, natal Jüpiter üzerinde nötr biçimde etkinleşiyor",
+          "timing": "1-2 hafta süreyle etkin",
+          "impact": "Şans ve fırsat, Şans ve fırsat ile birleşiyor. Bu enerjiyi yoğunlaştırıyor.",
+          "guidance": "Bu kombinasyonun nasıl tezahür ettiğine dikkat edin. Güçlü enerji bilinçli bir yön gerektirir.",
+          "keywords": [
+            "büyüme",
+            "incelik",
+            "ayarlama",
+            "farkındalık"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Jupiter",
+        "natalPlanet": "Venus",
+        "type": "SEXTILE",
+        "transitPlanetLocalized": "Jüpiter",
+        "natalPlanetLocalized": "Venüs",
+        "typeLocalized": "Sekstil",
+        "angle": 60,
+        "orb": 3.6828592709085655,
+        "isApplying": true,
+        "strength": 38.61901215152391,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Bol sevgi, keyif ve sosyal neşe dönemi",
+          "timing": "1-2 hafta süreyle etkin",
+          "impact": "İlişkiler cömertlik ve iyi niyetle filizleniyor. Finansal fırsatlar ya da hediyeler karşınıza çıkabilir.",
+          "guidance": "Sosyal etkinliklerden ve romantik jestlerden keyif alın. Kutlamalar ve sevgi ifadesi için güzel bir zaman.",
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Saturn",
+        "natalPlanet": "North Node",
+        "type": "SEXTILE",
+        "transitPlanetLocalized": "Satürn",
+        "natalPlanetLocalized": "Kuzey Düğümü",
+        "typeLocalized": "Sekstil",
+        "angle": 60,
+        "orb": 3.718373005502599,
+        "isApplying": true,
+        "strength": 38.027116574956686,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Satürn, natal Kuzey Düğümü üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Birkaç hafta süreyle etkin",
+          "impact": "Sorumluluk, zaman ve rutin, Yaşam amacı ve kader ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Jupiter",
+        "natalPlanet": "Uranus",
+        "type": "SESQUIQUADRATE",
+        "transitPlanetLocalized": "Jüpiter",
+        "natalPlanetLocalized": "Uranüs",
+        "typeLocalized": "Seskikare",
+        "angle": 135,
+        "orb": 1.2640810226815233,
+        "isApplying": true,
+        "strength": 36.79594886592383,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Jüpiter, natal Uranüs üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "1-2 hafta süreyle etkin",
+          "impact": "Şans ve fırsat, Bireysellik ve devrim ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "hayal kırıklığı",
+            "ayarlama",
+            "dışsal gerilim",
+            "yön değiştirme"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Jupiter",
+        "natalPlanet": "Sun",
+        "type": "SEMI_SEXTILE",
+        "transitPlanetLocalized": "Jüpiter",
+        "natalPlanetLocalized": "Güneş",
+        "typeLocalized": "Yarı Sekstil",
+        "angle": 30,
+        "orb": 2.022853645183119,
+        "isApplying": true,
+        "strength": 32.5715451605627,
+        "nature": "nötr",
+        "interpretation": {
+          "summary": "Jüpiter, natal Güneş üzerinde nötr biçimde etkinleşiyor",
+          "timing": "1-2 hafta süreyle etkin",
+          "impact": "Şans ve fırsat, Öz farkındalık ve ego ile birleşiyor. Bu enerjiyi yoğunlaştırıyor.",
+          "guidance": "Bu kombinasyonun nasıl tezahür ettiğine dikkat edin. Güçlü enerji bilinçli bir yön gerektirir.",
+          "keywords": [
+            "büyüme",
+            "incelik",
+            "ayarlama",
+            "farkındalık"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Mercury",
+        "natalPlanet": "Neptune",
+        "type": "SEXTILE",
+        "transitPlanetLocalized": "Merkür",
+        "natalPlanetLocalized": "Neptün",
+        "typeLocalized": "Sekstil",
+        "angle": 60,
+        "orb": 4.268685716024152,
+        "isApplying": true,
+        "strength": 28.855238066264143,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Merkür, natal Neptün üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "İletişim, Rüyalar, şifa ve sezgi ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Sun",
+        "natalPlanet": "Chiron",
+        "type": "SQUARE",
+        "transitPlanetLocalized": "Güneş",
+        "natalPlanetLocalized": "Chiron",
+        "typeLocalized": "Kare",
+        "angle": 90,
+        "orb": 5.1093880775801495,
+        "isApplying": true,
+        "strength": 27.008741748855,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Güneş, natal Chiron üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "Öz farkındalık ve ego, Şifa ve iç yaralar ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Moon",
+        "natalPlanet": "Black Moon Lilith",
+        "type": "SQUARE",
+        "transitPlanetLocalized": "Ay",
+        "natalPlanetLocalized": "Kara Ay Lilith",
+        "typeLocalized": "Kare",
+        "angle": 90,
+        "orb": 5.1818583411529175,
+        "isApplying": false,
+        "strength": 25.973452269244035,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Ay, natal Kara Ay Lilith üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç saat süreyle etkin",
+          "impact": "İç duygusal yaşam, İlkel içgüdü ve geri kazanılan benlik ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "South Node",
+        "natalPlanet": "Moon",
+        "type": "TRINE",
+        "transitPlanetLocalized": "Güney Düğümü",
+        "natalPlanetLocalized": "Ay",
+        "typeLocalized": "Üçgen",
+        "angle": 120,
+        "orb": 6.146572852393305,
+        "isApplying": true,
+        "strength": 23.167839345083685,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Güney Düğümü, natal Ay üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Geçmiş yaşam yetenekleri ve konfor alanı, İç duygusal yaşam ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Neptune",
+        "natalPlanet": "North Node",
+        "type": "SEXTILE",
+        "transitPlanetLocalized": "Neptün",
+        "natalPlanetLocalized": "Kuzey Düğümü",
+        "typeLocalized": "Sekstil",
+        "angle": 60,
+        "orb": 4.671628698083111,
+        "isApplying": false,
+        "strength": 22.139521698614807,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Neptün, natal Kuzey Düğümü üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Rüyalar, şifa ve sezgi, Yaşam amacı ve kader ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Venus",
+        "natalPlanet": "Mars",
+        "type": "OPPOSITION",
+        "transitPlanetLocalized": "Venüs",
+        "natalPlanetLocalized": "Mars",
+        "typeLocalized": "Karşıtlık",
+        "angle": 180,
+        "orb": 6.2371568386555225,
+        "isApplying": true,
+        "strength": 22.03553951680597,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Venüs, natal Mars üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "Aşk, güzellik ve para, Atılganlık ve saldırganlık ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "denge",
+            "meydan okuma",
+            "rehavet",
+            "kolay",
+            "büyüme",
+            "engel"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Uranus",
+        "natalPlanet": "Saturn",
+        "type": "SESQUIQUADRATE",
+        "transitPlanetLocalized": "Uranüs",
+        "natalPlanetLocalized": "Satürn",
+        "typeLocalized": "Seskikare",
+        "angle": 135,
+        "orb": 1.5611095552185361,
+        "isApplying": false,
+        "strength": 21.944522239073194,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Uranüs, natal Satürn üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Bireysellik ve devrim, Sorumluluk, zaman ve rutin ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "hayal kırıklığı",
+            "ayarlama",
+            "dışsal gerilim",
+            "yön değiştirme"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Chiron",
+        "natalPlanet": "Moon",
+        "type": "CONJUNCTION",
+        "transitPlanetLocalized": "Chiron",
+        "natalPlanetLocalized": "Ay",
+        "typeLocalized": "Kavuşum",
+        "angle": 0,
+        "orb": 6.2473610895508465,
+        "isApplying": true,
+        "strength": 21.907986380614417,
+        "nature": "nötr",
+        "interpretation": {
+          "summary": "Chiron, natal Ay üzerinde nötr biçimde etkinleşiyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Şifa ve iç yaralar, İç duygusal yaşam ile birleşiyor. Bu enerjiyi yoğunlaştırıyor.",
+          "guidance": "Bu kombinasyonun nasıl tezahür ettiğine dikkat edin. Güçlü enerji bilinçli bir yön gerektirir.",
+          "keywords": [
+            "harman",
+            "zorluk",
+            "birleşme",
+            "bütünlük"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "South Node",
+        "natalPlanet": "Venus",
+        "type": "SEXTILE",
+        "transitPlanetLocalized": "Güney Düğümü",
+        "natalPlanetLocalized": "Venüs",
+        "typeLocalized": "Sekstil",
+        "angle": 60,
+        "orb": 4.7248802027032895,
+        "isApplying": true,
+        "strength": 21.251996621611845,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Güney Düğümü, natal Venüs üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Geçmiş yaşam yetenekleri ve konfor alanı, Aşk, güzellik ve para ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Venus",
+        "natalPlanet": "Neptune",
+        "type": "SEXTILE",
+        "transitPlanetLocalized": "Venüs",
+        "natalPlanetLocalized": "Neptün",
+        "typeLocalized": "Sekstil",
+        "angle": 60,
+        "orb": 4.756434687303965,
+        "isApplying": false,
+        "strength": 20.72608854493391,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Venüs, natal Neptün üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "Aşk, güzellik ve para, Rüyalar, şifa ve sezgi ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Mercury",
+        "natalPlanet": "Pluto",
+        "type": "CONJUNCTION",
+        "transitPlanetLocalized": "Merkür",
+        "natalPlanetLocalized": "Plüton",
+        "typeLocalized": "Kavuşum",
+        "angle": 0,
+        "orb": 6.346519946862941,
+        "isApplying": true,
+        "strength": 20.66850066421324,
+        "nature": "nötr",
+        "interpretation": {
+          "summary": "Merkür, natal Plüton üzerinde nötr biçimde etkinleşiyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "İletişim, Cinsellik, ölüm ve dönüşüm ile birleşiyor. Bu enerjiyi yoğunlaştırıyor.",
+          "guidance": "Bu kombinasyonun nasıl tezahür ettiğine dikkat edin. Güçlü enerji bilinçli bir yön gerektirir.",
+          "keywords": [
+            "harman",
+            "zorluk",
+            "birleşme",
+            "bütünlük"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Pluto",
+        "natalPlanet": "Black Moon Lilith",
+        "type": "SEXTILE",
+        "transitPlanetLocalized": "Plüton",
+        "natalPlanetLocalized": "Kara Ay Lilith",
+        "typeLocalized": "Sekstil",
+        "angle": 60,
+        "orb": 4.779320156396068,
+        "isApplying": true,
+        "strength": 20.344664060065533,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Plüton, natal Kara Ay Lilith üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Cinsellik, ölüm ve dönüşüm, İlkel içgüdü ve geri kazanılan benlik ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Chiron",
+        "natalPlanet": "Venus",
+        "type": "SEXTILE",
+        "transitPlanetLocalized": "Chiron",
+        "natalPlanetLocalized": "Venüs",
+        "typeLocalized": "Sekstil",
+        "angle": 60,
+        "orb": 4.825668439860834,
+        "isApplying": true,
+        "strength": 19.572192668986098,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Chiron, natal Venüs üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Uzun süre etkin",
+          "impact": "Şifa ve iç yaralar, Aşk, güzellik ve para ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kolaylık",
+            "doğal",
+            "ilişki",
+            "yetenek"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Jupiter",
+        "natalPlanet": "Pluto",
+        "type": "SQUARE",
+        "transitPlanetLocalized": "Jüpiter",
+        "natalPlanetLocalized": "Plüton",
+        "typeLocalized": "Kare",
+        "angle": 90,
+        "orb": 5.703850298471139,
+        "isApplying": false,
+        "strength": 18.51642430755517,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Jüpiter, natal Plüton üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "1-2 hafta süreyle etkin",
+          "impact": "Şans ve fırsat, Cinsellik, ölüm ve dönüşüm ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "zorluk",
+            "engel",
+            "stres",
+            "gerilim"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Mercury",
+        "natalPlanet": "Mars",
+        "type": "OPPOSITION",
+        "transitPlanetLocalized": "Merkür",
+        "natalPlanetLocalized": "Mars",
+        "typeLocalized": "Karşıtlık",
+        "angle": 180,
+        "orb": 6.724905809935336,
+        "isApplying": false,
+        "strength": 15.938677375808297,
+        "nature": "zorlayıcı",
+        "interpretation": {
+          "summary": "Merkür, natal Mars üzerinde dinamik bir gerilim yaratıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "İletişim, Atılganlık ve saldırganlık ile gerginlik oluşturuyor. Sürtüşme yoluyla büyüme sağlanıyor.",
+          "guidance": "Bu gerilimle bilinçli bir şekilde çalışın. Farkındalıkla ele alınan zorluklar büyüme getirir.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "denge",
+            "meydan okuma",
+            "rehavet",
+            "kolay",
+            "büyüme",
+            "engel"
+          ]
+        }
+      },
+      {
+        "transitPlanet": "Sun",
+        "natalPlanet": "North Node",
+        "type": "TRINE",
+        "transitPlanetLocalized": "Güneş",
+        "natalPlanetLocalized": "Kuzey Düğümü",
+        "typeLocalized": "Üçgen",
+        "angle": 120,
+        "orb": 6.757088544646592,
+        "isApplying": false,
+        "strength": 15.536393191917597,
+        "nature": "uyumlu",
+        "interpretation": {
+          "summary": "Güneş, natal Kuzey Düğümü üzerinde uyumlu bir destek sağlıyor",
+          "timing": "Birkaç gün süreyle etkin",
+          "impact": "Öz farkındalık ve ego, Yaşam amacı ve kader ile kolayca akıyor. Bu alanda fırsatlar kendiliğinden ortaya çıkıyor.",
+          "guidance": "Bu destekleyici enerjiden yararlanın. Her şey akıcı gidiyor; fırsatlar üzerinde harekete geçin.",
+          "keywords": [
+            "kabul",
+            "kabullenici",
+            "zorluk",
+            "doğal",
+            "destek",
+            "yetenek"
+          ]
+        }
+      }
+    ],
+    "summary": {
+      "totalAspects": 74,
+      "harmonious": 27,
+      "challenging": 35,
+      "neutral": 12
+    }
+  }
+}

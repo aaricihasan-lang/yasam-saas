@@ -65,6 +65,8 @@ const AnamnezTab = dynamic(() => import("./components/AnamnezTab"), { loading: T
 const MemoryPicker = dynamic(() => import("@/components/yasam-hafizasi/MemoryPicker"), { ssr: false });
 // KVKK onam (INFRA bileşeni): başlıkta rozet + Genel sekmesinde kayıt paneli.
 const ClientConsentPanel = dynamic(() => import("@/components/kvkk/ClientConsentPanel"), { ssr: false });
+// Astroloji Aşama 7B: yalnız durum rozeti (yetkisizde hiçbir şey çizmez; Astroloji verisi aktarılmaz).
+const AstrologyClientStatus = dynamic(() => import("@/components/astrology/AstrologyClientStatus"), { ssr: false });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Client = {
@@ -884,6 +886,7 @@ function ClientDetailPageInner() {
                 </span>
               </button>
             ) : null}
+            <AstrologyClientStatus clientId={client.id} />
           </div>
           <h1 className="mt-1.5 text-[24px] font-black text-slate-950">
             {fullName || t("unnamed")}

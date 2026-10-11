@@ -1,0 +1,479 @@
+{
+  "endpoint": "/vedic-astrology/transit",
+  "query": null,
+  "body": {
+    "birthDate": "1990-07-15",
+    "birthTime": "14:30:00",
+    "transitDate": "2026-10-07",
+    "transitTime": "12:00:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "coordinateSystem": "sidereal"
+  },
+  "response": {
+    "frame": {
+      "ayanamsa": "lahiri",
+      "ayanamsaDegrees": 23.728750561750232
+    },
+    "birthDatetime": "1990-07-15T14:30:00",
+    "transitDatetime": "2026-10-07T12:00:00",
+    "natalPlanets": [
+      {
+        "name": "Sun",
+        "longitude": 88.9975,
+        "sign": "Gemini",
+        "house": 9
+      },
+      {
+        "name": "Moon",
+        "longitude": 359.2358,
+        "sign": "Pisces",
+        "house": 6
+      },
+      {
+        "name": "Mars",
+        "longitude": 8.1994,
+        "sign": "Aries",
+        "house": 7
+      },
+      {
+        "name": "Mercury",
+        "longitude": 103.0052,
+        "sign": "Cancer",
+        "house": 10
+      },
+      {
+        "name": "Jupiter",
+        "longitude": 88.8157,
+        "sign": "Gemini",
+        "house": 9
+      },
+      {
+        "name": "Venus",
+        "longitude": 60.6575,
+        "sign": "Gemini",
+        "house": 9
+      },
+      {
+        "name": "Saturn",
+        "longitude": 268.2364,
+        "sign": "Sagittarius",
+        "house": 3
+      },
+      {
+        "name": "Rahu",
+        "longitude": 284.3819,
+        "sign": "Capricorn",
+        "house": 4
+      },
+      {
+        "name": "Ketu",
+        "longitude": 104.3819,
+        "sign": "Cancer",
+        "house": 10
+      }
+    ],
+    "transitingPlanets": [
+      {
+        "name": "Sun",
+        "longitude": 169.8829,
+        "sign": "Virgo",
+        "natalHouse": 12,
+        "houseFromMoon": 7,
+        "aspectsToNatal": [
+          {
+            "natalPlanet": "Moon",
+            "aspectType": "opposition",
+            "orb": 9.35
+          },
+          {
+            "natalPlanet": "Rahu",
+            "aspectType": "trine",
+            "orb": 5.5
+          },
+          {
+            "natalPlanet": "Ketu",
+            "aspectType": "sextile",
+            "orb": 5.5
+          }
+        ],
+        "drishtiToNatal": [
+          {
+            "natalPlanet": "Moon",
+            "aspectType": "7th",
+            "strength": 100,
+            "orb": 9.35
+          }
+        ],
+        "kaksha": {
+          "number": 6,
+          "lord": "Mercury",
+          "startDegree": 18.75,
+          "endDegree": 22.5,
+          "bindu": true,
+          "binduCount": 4
+        }
+      },
+      {
+        "name": "Moon",
+        "longitude": 129.2561,
+        "sign": "Leo",
+        "natalHouse": 11,
+        "houseFromMoon": 6,
+        "aspectsToNatal": [
+          {
+            "natalPlanet": "Mars",
+            "aspectType": "trine",
+            "orb": 1.06
+          }
+        ],
+        "drishtiToNatal": [],
+        "kaksha": {
+          "number": 3,
+          "lord": "Mars",
+          "startDegree": 7.5,
+          "endDegree": 11.25,
+          "bindu": true,
+          "binduCount": 5
+        }
+      },
+      {
+        "name": "Mars",
+        "longitude": 101.129,
+        "sign": "Cancer",
+        "natalHouse": 10,
+        "houseFromMoon": 5,
+        "aspectsToNatal": [
+          {
+            "natalPlanet": "Mars",
+            "aspectType": "square",
+            "orb": 2.93
+          },
+          {
+            "natalPlanet": "Mercury",
+            "aspectType": "conjunction",
+            "orb": 1.88
+          },
+          {
+            "natalPlanet": "Rahu",
+            "aspectType": "opposition",
+            "orb": 3.25
+          },
+          {
+            "natalPlanet": "Ketu",
+            "aspectType": "conjunction",
+            "orb": 3.25
+          }
+        ],
+        "drishtiToNatal": [
+          {
+            "natalPlanet": "Rahu",
+            "aspectType": "7th",
+            "strength": 100,
+            "orb": 3.25
+          }
+        ],
+        "kaksha": {
+          "number": 3,
+          "lord": "Mars",
+          "startDegree": 7.5,
+          "endDegree": 11.25,
+          "bindu": true,
+          "binduCount": 3
+        }
+      },
+      {
+        "name": "Mercury",
+        "longitude": 194.4197,
+        "sign": "Libra",
+        "natalHouse": 1,
+        "houseFromMoon": 8,
+        "aspectsToNatal": [
+          {
+            "natalPlanet": "Mars",
+            "aspectType": "opposition",
+            "orb": 6.22
+          },
+          {
+            "natalPlanet": "Mercury",
+            "aspectType": "square",
+            "orb": 1.41
+          },
+          {
+            "natalPlanet": "Rahu",
+            "aspectType": "square",
+            "orb": 0.04
+          },
+          {
+            "natalPlanet": "Ketu",
+            "aspectType": "square",
+            "orb": 0.04
+          }
+        ],
+        "drishtiToNatal": [
+          {
+            "natalPlanet": "Mars",
+            "aspectType": "7th",
+            "strength": 100,
+            "orb": 6.22
+          }
+        ],
+        "kaksha": {
+          "number": 4,
+          "lord": "Sun",
+          "startDegree": 11.25,
+          "endDegree": 15,
+          "bindu": true,
+          "binduCount": 6
+        }
+      },
+      {
+        "name": "Jupiter",
+        "longitude": 116.47,
+        "sign": "Cancer",
+        "natalHouse": 10,
+        "houseFromMoon": 5,
+        "aspectsToNatal": [
+          {
+            "natalPlanet": "Moon",
+            "aspectType": "trine",
+            "orb": 2.77
+          },
+          {
+            "natalPlanet": "Venus",
+            "aspectType": "sextile",
+            "orb": 4.19
+          }
+        ],
+        "drishtiToNatal": [
+          {
+            "natalPlanet": "Moon",
+            "aspectType": "9th",
+            "strength": 100,
+            "orb": 2.77
+          },
+          {
+            "natalPlanet": "Rahu",
+            "aspectType": "7th",
+            "strength": 100,
+            "orb": 12.09
+          }
+        ],
+        "kaksha": {
+          "number": 8,
+          "lord": "Lagna",
+          "startDegree": 26.25,
+          "endDegree": 30,
+          "bindu": true,
+          "binduCount": 7
+        }
+      },
+      {
+        "name": "Venus",
+        "longitude": 193.9319,
+        "sign": "Libra",
+        "natalHouse": 1,
+        "houseFromMoon": 8,
+        "aspectsToNatal": [
+          {
+            "natalPlanet": "Mars",
+            "aspectType": "opposition",
+            "orb": 5.73
+          },
+          {
+            "natalPlanet": "Mercury",
+            "aspectType": "square",
+            "orb": 0.93
+          },
+          {
+            "natalPlanet": "Rahu",
+            "aspectType": "square",
+            "orb": 0.45
+          },
+          {
+            "natalPlanet": "Ketu",
+            "aspectType": "square",
+            "orb": 0.45
+          }
+        ],
+        "drishtiToNatal": [
+          {
+            "natalPlanet": "Mars",
+            "aspectType": "7th",
+            "strength": 100,
+            "orb": 5.73
+          }
+        ],
+        "kaksha": {
+          "number": 4,
+          "lord": "Sun",
+          "startDegree": 11.25,
+          "endDegree": 15,
+          "bindu": false,
+          "binduCount": 5
+        }
+      },
+      {
+        "name": "Saturn",
+        "longitude": 346.8442,
+        "sign": "Pisces",
+        "natalHouse": 6,
+        "houseFromMoon": 1,
+        "aspectsToNatal": [
+          {
+            "natalPlanet": "Mercury",
+            "aspectType": "trine",
+            "orb": 3.84
+          },
+          {
+            "natalPlanet": "Rahu",
+            "aspectType": "sextile",
+            "orb": 2.46
+          },
+          {
+            "natalPlanet": "Ketu",
+            "aspectType": "trine",
+            "orb": 2.46
+          }
+        ],
+        "drishtiToNatal": [
+          {
+            "natalPlanet": "Saturn",
+            "aspectType": "10th",
+            "strength": 100,
+            "orb": 11.39
+          }
+        ],
+        "kaksha": {
+          "number": 5,
+          "lord": "Venus",
+          "startDegree": 15,
+          "endDegree": 18.75,
+          "bindu": false,
+          "binduCount": 4
+        }
+      },
+      {
+        "name": "Rahu",
+        "longitude": 303.1442,
+        "sign": "Aquarius",
+        "natalHouse": 5,
+        "houseFromMoon": 12,
+        "aspectsToNatal": [
+          {
+            "natalPlanet": "Moon",
+            "aspectType": "sextile",
+            "orb": 3.91
+          },
+          {
+            "natalPlanet": "Mars",
+            "aspectType": "sextile",
+            "orb": 5.06
+          },
+          {
+            "natalPlanet": "Venus",
+            "aspectType": "trine",
+            "orb": 2.49
+          }
+        ],
+        "drishtiToNatal": [],
+        "kaksha": {
+          "number": 1,
+          "lord": "Saturn",
+          "startDegree": 0,
+          "endDegree": 3.75,
+          "bindu": null,
+          "binduCount": null
+        }
+      },
+      {
+        "name": "Ketu",
+        "longitude": 123.1442,
+        "sign": "Leo",
+        "natalHouse": 11,
+        "houseFromMoon": 6,
+        "aspectsToNatal": [
+          {
+            "natalPlanet": "Moon",
+            "aspectType": "trine",
+            "orb": 3.91
+          },
+          {
+            "natalPlanet": "Mars",
+            "aspectType": "trine",
+            "orb": 5.06
+          },
+          {
+            "natalPlanet": "Venus",
+            "aspectType": "sextile",
+            "orb": 2.49
+          }
+        ],
+        "drishtiToNatal": [],
+        "kaksha": {
+          "number": 1,
+          "lord": "Saturn",
+          "startDegree": 0,
+          "endDegree": 3.75,
+          "bindu": null,
+          "binduCount": null
+        }
+      }
+    ],
+    "keyTransits": [
+      {
+        "planet": "Jupiter",
+        "description": "Jupiter transiting Cancer (natal house 10, 5 from the Moon)",
+        "natalHouse": 10,
+        "houseFromMoon": 5,
+        "aspects": [
+          "trine to natal Moon (orb 2.77°)",
+          "sextile to natal Venus (orb 4.19°)"
+        ],
+        "drishti": [
+          "9th drishti to natal Moon",
+          "7th drishti to natal Rahu"
+        ]
+      },
+      {
+        "planet": "Saturn",
+        "description": "Saturn transiting Pisces (natal house 6, 1 from the Moon)",
+        "natalHouse": 6,
+        "houseFromMoon": 1,
+        "aspects": [
+          "trine to natal Mercury (orb 3.84°)",
+          "sextile to natal Rahu (orb 2.46°)",
+          "trine to natal Ketu (orb 2.46°)"
+        ],
+        "drishti": [
+          "10th drishti to natal Saturn"
+        ]
+      },
+      {
+        "planet": "Rahu",
+        "description": "Rahu transiting Aquarius (natal house 5, 12 from the Moon)",
+        "natalHouse": 5,
+        "houseFromMoon": 12,
+        "aspects": [
+          "sextile to natal Moon (orb 3.91°)",
+          "sextile to natal Mars (orb 5.06°)",
+          "trine to natal Venus (orb 2.49°)"
+        ],
+        "drishti": []
+      },
+      {
+        "planet": "Ketu",
+        "description": "Ketu transiting Leo (natal house 11, 6 from the Moon)",
+        "natalHouse": 11,
+        "houseFromMoon": 6,
+        "aspects": [
+          "trine to natal Moon (orb 3.91°)",
+          "trine to natal Mars (orb 5.06°)",
+          "sextile to natal Venus (orb 2.49°)"
+        ],
+        "drishti": []
+      }
+    ]
+  }
+}

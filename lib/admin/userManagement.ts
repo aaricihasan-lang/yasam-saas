@@ -122,6 +122,12 @@ export const ADMIN_MODULE_UI_KEYS = [
   // yönetimi dahil). Canonical anahtar; toggle render + save/load zincirinde taşınır. Ayrı "Manuel
   // Besin Yönetimi" (beslenme_manual_food) yeteneği KALDIRILDI — artık okunmayan inert legacy key.
   "beslenme",
+  // Astroloji (Aşama 7C) — admin uzman bazında açar/kapatır; varsayılan KAPALI, Premium payload'ında YOK.
+  // Yetki kaldırılınca kayıtlar SİLİNMEZ; yeniden verilince uzmanın kendi kayıtları aynen erişilir.
+  "astrology",
+  // Astroloji alt-yetkisi (capability): "Roxy Otomatik Yorum" — hesaplamalara ait sağlayıcı yorum metinleri.
+  // MODÜL DEĞİL; astrology ile BİRLİKTE gerekir (Astroloji kapalıyken erişim sağlamaz).
+  "astrology_provider_interp",
 ] as const;
 
 export type AdminModuleUiKey = (typeof ADMIN_MODULE_UI_KEYS)[number];
@@ -147,6 +153,8 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
   cosmic_calendar: "Kozmik Takvim / Yaşam Takvimi",
   cupping: "Kupa & Hacamat",
   beslenme: "Beslenme",
+  astrology: "Astroloji",
+  astrology_provider_interp: "Astroloji — Roxy Otomatik Yorum",
 };
 
 export const ADMIN_MODULE_UI_DESCRIPTIONS: Partial<Record<AdminModuleUiKey, string>> = {
@@ -162,6 +170,9 @@ export const ADMIN_MODULE_UI_DESCRIPTIONS: Partial<Record<AdminModuleUiKey, stri
     "Kozmik Ajanda / Yaşam Takvimi ve takvime bağlı hacamat zamanlama kuralları & raporları.",
   cupping: "Kupa & Hacamat uygulama modülü (protokoller, takvim ve raporlar).",
   beslenme: "Beslenme modülünün tamamına (planlar, danışan-bound akış, Besinler / CUSTOM besin yönetimi dahil) erişim verir.",
+  astrology: "Uzmanın Astroloji modülüne erişmesini sağlar.",
+  astrology_provider_interp:
+    "Uzmanın Astroloji hesaplamalarına ait sistem yorumlarını kullanmasına izin verir. Astroloji modülü de açık olmalıdır.",
 };
 
 export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
@@ -183,6 +194,8 @@ export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
   cosmic_calendar: false,
   cupping: false,
   beslenme: false,
+  astrology: false,
+  astrology_provider_interp: false,
 };
 
 /**
@@ -213,6 +226,8 @@ export const ADMIN_MODULE_KIND: Record<AdminModuleUiKey, AdminModuleKind> = {
   cosmic_calendar: "module",
   cupping: "module",
   beslenme: "module",
+  astrology: "module",
+  astrology_provider_interp: "capability",
 };
 
 const ADMIN_MODULE_UI_KEY_SET: ReadonlySet<string> = new Set<string>(ADMIN_MODULE_UI_KEYS);

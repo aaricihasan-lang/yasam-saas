@@ -1,0 +1,674 @@
+{
+  "birthDetails": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3
+  },
+  "planets": [
+    {
+      "name": "Sun",
+      "nameLocalized": "Güneş",
+      "longitude": 112.79,
+      "latitude": 0,
+      "sign": "Cancer",
+      "signLocalized": "Yengeç",
+      "degree": 22.79,
+      "house": 9,
+      "speed": 0.9535,
+      "isRetrograde": false,
+      "dignity": "peregrine",
+      "interpretation": {
+        "summary": "Güneş Yengeç burcunda 9. evde: kişinin bu alandaki ifadesine dair genel bir okuma. [RXN-sun-summary]",
+        "detailed": "Güneş yerleşimi için ayrıntılı otomatik metin; yaşam alanları ve eğilimler hakkında sağlayıcı yorumu. [RXN-sun-detailed]",
+        "keywords": [
+          "anahtar-sun-1",
+          "RXK-sun"
+        ]
+      },
+      "traitProfile": {
+        "text": "Bilinmeyen yeni sağlayıcı alanı [RXU-nested]"
+      }
+    },
+    {
+      "name": "Moon",
+      "nameLocalized": "Ay",
+      "longitude": 37.3,
+      "latitude": -4.1,
+      "sign": "Taurus",
+      "signLocalized": "Boğa",
+      "degree": 7.3,
+      "house": 6,
+      "speed": 13.12,
+      "isRetrograde": false,
+      "dignity": "exaltation",
+      "interpretation": {
+        "summary": "Ay Boğa burcunda 6. evde: kişinin bu alandaki ifadesine dair genel bir okuma. [RXN-moon-summary]",
+        "detailed": "Ay yerleşimi için ayrıntılı otomatik metin; yaşam alanları ve eğilimler hakkında sağlayıcı yorumu. [RXN-moon-detailed]",
+        "keywords": [
+          "anahtar-moon-1",
+          "RXK-moon"
+        ]
+      }
+    },
+    {
+      "name": "Mercury",
+      "nameLocalized": "Merkür",
+      "longitude": 132.5,
+      "latitude": 1.1,
+      "sign": "Leo",
+      "signLocalized": "Aslan",
+      "degree": 12.5,
+      "house": 10,
+      "speed": 1.21,
+      "isRetrograde": false,
+      "dignity": "peregrine",
+      "interpretation": {
+        "summary": "Merkür Aslan burcunda 10. evde: kişinin bu alandaki ifadesine dair genel bir okuma. [RXN-mercury-summary]",
+        "detailed": "Merkür yerleşimi için ayrıntılı otomatik metin; yaşam alanları ve eğilimler hakkında sağlayıcı yorumu. [RXN-mercury-detailed]",
+        "keywords": [
+          "anahtar-mercury-1",
+          "RXK-mercury"
+        ]
+      }
+    },
+    {
+      "name": "Venus",
+      "nameLocalized": "Venüs",
+      "longitude": 76.4,
+      "latitude": 0.4,
+      "sign": "Gemini",
+      "signLocalized": "İkizler",
+      "degree": 16.4,
+      "house": 8,
+      "speed": 1.19,
+      "isRetrograde": false,
+      "dignity": "peregrine",
+      "interpretation": {
+        "summary": "Venüs İkizler burcunda 8. evde: kişinin bu alandaki ifadesine dair genel bir okuma. [RXN-venus-summary]",
+        "detailed": "Venüs yerleşimi için ayrıntılı otomatik metin; yaşam alanları ve eğilimler hakkında sağlayıcı yorumu. [RXN-venus-detailed]",
+        "keywords": [
+          "anahtar-venus-1",
+          "RXK-venus"
+        ]
+      }
+    },
+    {
+      "name": "Mars",
+      "nameLocalized": "Mars",
+      "longitude": 26.9,
+      "latitude": -0.8,
+      "sign": "Aries",
+      "signLocalized": "Koç",
+      "degree": 26.9,
+      "house": 6,
+      "speed": 0.61,
+      "isRetrograde": false,
+      "dignity": "domicile",
+      "interpretation": {
+        "summary": "Mars Koç burcunda 6. evde: kişinin bu alandaki ifadesine dair genel bir okuma. [RXN-mars-summary]",
+        "detailed": "Mars yerleşimi için ayrıntılı otomatik metin; yaşam alanları ve eğilimler hakkında sağlayıcı yorumu. [RXN-mars-detailed]",
+        "keywords": [
+          "anahtar-mars-1",
+          "RXK-mars"
+        ]
+      }
+    },
+    {
+      "name": "Jupiter",
+      "nameLocalized": "Jüpiter",
+      "longitude": 104.9,
+      "latitude": 0.1,
+      "sign": "Cancer",
+      "signLocalized": "Yengeç",
+      "degree": 14.9,
+      "house": 9,
+      "speed": 0.231,
+      "isRetrograde": false,
+      "dignity": "exaltation",
+      "interpretation": {
+        "summary": "Jüpiter Yengeç burcunda 9. evde: kişinin bu alandaki ifadesine dair genel bir okuma. [RXN-jupiter-summary]",
+        "detailed": "Jüpiter yerleşimi için ayrıntılı otomatik metin; yaşam alanları ve eğilimler hakkında sağlayıcı yorumu. [RXN-jupiter-detailed]",
+        "keywords": [
+          "anahtar-jupiter-1",
+          "RXK-jupiter"
+        ]
+      }
+    },
+    {
+      "name": "Saturn",
+      "nameLocalized": "Satürn",
+      "longitude": 289.6,
+      "latitude": 0.2,
+      "sign": "Capricorn",
+      "signLocalized": "Oğlak",
+      "degree": 19.6,
+      "house": 3,
+      "speed": -0.061,
+      "isRetrograde": true,
+      "dignity": "domicile",
+      "interpretation": {
+        "summary": "Satürn Oğlak burcunda 3. evde: kişinin bu alandaki ifadesine dair genel bir okuma. [RXN-saturn-summary]",
+        "detailed": "Satürn yerleşimi için ayrıntılı otomatik metin; yaşam alanları ve eğilimler hakkında sağlayıcı yorumu. [RXN-saturn-detailed]",
+        "keywords": [
+          "anahtar-saturn-1",
+          "RXK-saturn"
+        ]
+      }
+    },
+    {
+      "name": "Uranus",
+      "nameLocalized": "Uranüs",
+      "longitude": 277.1,
+      "latitude": -0.4,
+      "sign": "Capricorn",
+      "signLocalized": "Oğlak",
+      "degree": 7.1,
+      "house": 2,
+      "speed": -0.041,
+      "isRetrograde": true,
+      "dignity": "peregrine",
+      "interpretation": {
+        "summary": "Uranüs Oğlak burcunda 2. evde: kişinin bu alandaki ifadesine dair genel bir okuma. [RXN-uranus-summary]",
+        "detailed": "Uranüs yerleşimi için ayrıntılı otomatik metin; yaşam alanları ve eğilimler hakkında sağlayıcı yorumu. [RXN-uranus-detailed]",
+        "keywords": [
+          "anahtar-uranus-1",
+          "RXK-uranus"
+        ]
+      }
+    },
+    {
+      "name": "Neptune",
+      "nameLocalized": "Neptün",
+      "longitude": 283,
+      "latitude": 0.9,
+      "sign": "Capricorn",
+      "signLocalized": "Oğlak",
+      "degree": 13,
+      "house": 3,
+      "speed": -0.027,
+      "isRetrograde": true,
+      "dignity": "peregrine",
+      "interpretation": {
+        "summary": "Neptün Oğlak burcunda 3. evde: kişinin bu alandaki ifadesine dair genel bir okuma. [RXN-neptune-summary]",
+        "detailed": "Neptün yerleşimi için ayrıntılı otomatik metin; yaşam alanları ve eğilimler hakkında sağlayıcı yorumu. [RXN-neptune-detailed]",
+        "keywords": [
+          "anahtar-neptune-1",
+          "RXK-neptune"
+        ]
+      }
+    },
+    {
+      "name": "Pluto",
+      "nameLocalized": "Plüton",
+      "longitude": 225.3,
+      "latitude": 14.1,
+      "sign": "Scorpio",
+      "signLocalized": "Akrep",
+      "degree": 15.3,
+      "house": 1,
+      "speed": -0.004,
+      "isRetrograde": true,
+      "dignity": "detriment",
+      "interpretation": {
+        "summary": "Plüton Akrep burcunda 1. evde: kişinin bu alandaki ifadesine dair genel bir okuma. [RXN-pluto-summary]",
+        "detailed": "Plüton yerleşimi için ayrıntılı otomatik metin; yaşam alanları ve eğilimler hakkında sağlayıcı yorumu. [RXN-pluto-detailed]",
+        "keywords": [
+          "anahtar-pluto-1",
+          "RXK-pluto"
+        ]
+      }
+    },
+    {
+      "name": "North Node",
+      "nameLocalized": "Kuzey Ay Düğümü",
+      "longitude": 310.4,
+      "latitude": 0,
+      "sign": "Aquarius",
+      "signLocalized": "Kova",
+      "degree": 10.4,
+      "house": 4,
+      "speed": -0.052,
+      "isRetrograde": true,
+      "dignity": "peregrine",
+      "interpretation": {
+        "summary": "Kuzey Ay Düğümü Kova burcunda 4. evde: kişinin bu alandaki ifadesine dair genel bir okuma. [RXN-north_node-summary]",
+        "detailed": "Kuzey Ay Düğümü yerleşimi için ayrıntılı otomatik metin; yaşam alanları ve eğilimler hakkında sağlayıcı yorumu. [RXN-north_node-detailed]",
+        "keywords": [
+          "anahtar-north_node-1",
+          "RXK-north_node"
+        ]
+      }
+    },
+    {
+      "name": "South Node",
+      "nameLocalized": "Güney Ay Düğümü",
+      "longitude": 130.4,
+      "latitude": 0,
+      "sign": "Leo",
+      "signLocalized": "Aslan",
+      "degree": 10.4,
+      "house": 10,
+      "speed": -0.052,
+      "isRetrograde": true,
+      "dignity": "peregrine",
+      "interpretation": {
+        "summary": "Güney Ay Düğümü Aslan burcunda 10. evde: kişinin bu alandaki ifadesine dair genel bir okuma. [RXN-south_node-summary]",
+        "detailed": "Güney Ay Düğümü yerleşimi için ayrıntılı otomatik metin; yaşam alanları ve eğilimler hakkında sağlayıcı yorumu. [RXN-south_node-detailed]",
+        "keywords": [
+          "anahtar-south_node-1",
+          "RXK-south_node"
+        ]
+      }
+    },
+    {
+      "name": "Chiron",
+      "nameLocalized": "Kiron",
+      "longitude": 75.8,
+      "latitude": 1.2,
+      "sign": "Gemini",
+      "signLocalized": "İkizler",
+      "degree": 15.8,
+      "house": 8,
+      "speed": 0.071,
+      "isRetrograde": false,
+      "dignity": "peregrine",
+      "interpretation": {
+        "summary": "Kiron İkizler burcunda 8. evde: kişinin bu alandaki ifadesine dair genel bir okuma. [RXN-chiron-summary]",
+        "detailed": "Kiron yerleşimi için ayrıntılı otomatik metin; yaşam alanları ve eğilimler hakkında sağlayıcı yorumu. [RXN-chiron-detailed]",
+        "keywords": [
+          "anahtar-chiron-1",
+          "RXK-chiron"
+        ]
+      }
+    },
+    {
+      "name": "Black Moon Lilith",
+      "nameLocalized": "Kara Ay Lilith",
+      "longitude": 2.6,
+      "latitude": -3,
+      "sign": "Aries",
+      "signLocalized": "Koç",
+      "degree": 2.6,
+      "house": 5,
+      "speed": 0.111,
+      "isRetrograde": false,
+      "dignity": "peregrine",
+      "interpretation": {
+        "summary": "Kara Ay Lilith Koç burcunda 5. evde: kişinin bu alandaki ifadesine dair genel bir okuma. [RXN-black_moon_lilith-summary]",
+        "detailed": "Kara Ay Lilith yerleşimi için ayrıntılı otomatik metin; yaşam alanları ve eğilimler hakkında sağlayıcı yorumu. [RXN-black_moon_lilith-detailed]",
+        "keywords": [
+          "anahtar-black_moon_lilith-1",
+          "RXK-black_moon_lilith"
+        ]
+      }
+    },
+    {
+      "name": "Eris",
+      "nameLocalized": "Eris",
+      "longitude": 199.1,
+      "latitude": -11.9,
+      "sign": "Libra",
+      "signLocalized": "Terazi",
+      "degree": 19.1,
+      "house": 12,
+      "speed": 0.002,
+      "isRetrograde": false,
+      "dignity": "peregrine",
+      "interpretation": {
+        "summary": "Eris Terazi burcunda 12. evde: kişinin bu alandaki ifadesine dair genel bir okuma. [RXN-eris-summary]",
+        "detailed": "Eris yerleşimi için ayrıntılı otomatik metin; yaşam alanları ve eğilimler hakkında sağlayıcı yorumu. [RXN-eris-detailed]",
+        "keywords": [
+          "anahtar-eris-1",
+          "RXK-eris"
+        ]
+      }
+    }
+  ],
+  "houses": [
+    {
+      "number": 1,
+      "longitude": 220.5,
+      "sign": "Scorpio",
+      "signLocalized": "Akrep",
+      "degree": 10.5
+    },
+    {
+      "number": 2,
+      "longitude": 250.1,
+      "sign": "Sagittarius",
+      "signLocalized": "Yay",
+      "degree": 10.1
+    },
+    {
+      "number": 3,
+      "longitude": 283.4,
+      "sign": "Capricorn",
+      "signLocalized": "Oğlak",
+      "degree": 13.4
+    },
+    {
+      "number": 4,
+      "longitude": 310.2,
+      "sign": "Aquarius",
+      "signLocalized": "Kova",
+      "degree": 10.2
+    },
+    {
+      "number": 5,
+      "longitude": 338,
+      "sign": "Pisces",
+      "signLocalized": "Balık",
+      "degree": 8
+    },
+    {
+      "number": 6,
+      "longitude": 7.9,
+      "sign": "Aries",
+      "signLocalized": "Koç",
+      "degree": 7.9
+    },
+    {
+      "number": 7,
+      "longitude": 40.5,
+      "sign": "Taurus",
+      "signLocalized": "Boğa",
+      "degree": 10.5
+    },
+    {
+      "number": 8,
+      "longitude": 70.1,
+      "sign": "Gemini",
+      "signLocalized": "İkizler",
+      "degree": 10.1
+    },
+    {
+      "number": 9,
+      "longitude": 103.4,
+      "sign": "Cancer",
+      "signLocalized": "Yengeç",
+      "degree": 13.4
+    },
+    {
+      "number": 10,
+      "longitude": 130.2,
+      "sign": "Leo",
+      "signLocalized": "Aslan",
+      "degree": 10.2
+    },
+    {
+      "number": 11,
+      "longitude": 158,
+      "sign": "Virgo",
+      "signLocalized": "Başak",
+      "degree": 8
+    },
+    {
+      "number": 12,
+      "longitude": 187.9,
+      "sign": "Libra",
+      "signLocalized": "Terazi",
+      "degree": 7.9
+    }
+  ],
+  "houseSystem": "placidus",
+  "aspects": [
+    {
+      "planet1": "Sun",
+      "planet1Localized": "Sun",
+      "planet2": "Saturn",
+      "planet2Localized": "Saturn",
+      "type": "OPPOSITION",
+      "typeLocalized": "Karşıt",
+      "angle": 180,
+      "orb": 3.19,
+      "isApplying": true,
+      "strength": 68,
+      "interpretation": "challenging",
+      "aspectInterpretation": {
+        "summary": "Sun ile Saturn arasındaki Karşıt açısı ilişkiler ve kararlar üzerinde etkili olabilir. [RXN-asp-Sun-Saturn]",
+        "keywords": [
+          "birleşme",
+          "RXK-asp-Sun-Saturn"
+        ]
+      }
+    },
+    {
+      "planet1": "Venus",
+      "planet1Localized": "Venus",
+      "planet2": "Chiron",
+      "planet2Localized": "Chiron",
+      "type": "CONJUNCTION",
+      "typeLocalized": "Kavuşum",
+      "angle": 0,
+      "orb": 0.6,
+      "isApplying": false,
+      "strength": 92,
+      "interpretation": "neutral",
+      "aspectInterpretation": {
+        "summary": "Venus ile Chiron arasındaki Kavuşum açısı ilişkiler ve kararlar üzerinde etkili olabilir. [RXN-asp-Venus-Chiron]",
+        "keywords": [
+          "birleşme",
+          "RXK-asp-Venus-Chiron"
+        ]
+      }
+    },
+    {
+      "planet1": "Saturn",
+      "planet1Localized": "Saturn",
+      "planet2": "Neptune",
+      "planet2Localized": "Neptune",
+      "type": "CONJUNCTION",
+      "typeLocalized": "Kavuşum",
+      "angle": 0,
+      "orb": 6.6,
+      "isApplying": false,
+      "strength": 34,
+      "interpretation": "neutral",
+      "aspectInterpretation": {
+        "summary": "Saturn ile Neptune arasındaki Kavuşum açısı ilişkiler ve kararlar üzerinde etkili olabilir. [RXN-asp-Saturn-Neptune]",
+        "keywords": [
+          "birleşme",
+          "RXK-asp-Saturn-Neptune"
+        ]
+      }
+    },
+    {
+      "planet1": "Jupiter",
+      "planet1Localized": "Jupiter",
+      "planet2": "Pluto",
+      "planet2Localized": "Pluto",
+      "type": "TRINE",
+      "typeLocalized": "Üçgen",
+      "angle": 120,
+      "orb": 0.4,
+      "isApplying": true,
+      "strength": 95,
+      "interpretation": "harmonious",
+      "aspectInterpretation": {
+        "summary": "Jupiter ile Pluto arasındaki Üçgen açısı ilişkiler ve kararlar üzerinde etkili olabilir. [RXN-asp-Jupiter-Pluto]",
+        "keywords": [
+          "birleşme",
+          "RXK-asp-Jupiter-Pluto"
+        ]
+      }
+    },
+    {
+      "planet1": "Moon",
+      "planet1Localized": "Moon",
+      "planet2": "Pluto",
+      "planet2Localized": "Pluto",
+      "type": "OPPOSITION",
+      "typeLocalized": "Karşıt",
+      "angle": 180,
+      "orb": 8,
+      "isApplying": false,
+      "strength": 20,
+      "interpretation": "challenging",
+      "aspectInterpretation": {
+        "summary": "Moon ile Pluto arasındaki Karşıt açısı ilişkiler ve kararlar üzerinde etkili olabilir. [RXN-asp-Moon-Pluto]",
+        "keywords": [
+          "birleşme",
+          "RXK-asp-Moon-Pluto"
+        ]
+      }
+    },
+    {
+      "planet1": "Mercury",
+      "planet1Localized": "Mercury",
+      "planet2": "Jupiter",
+      "planet2Localized": "Jupiter",
+      "type": "SEMI_SEXTILE",
+      "typeLocalized": "Yarım altmışlık",
+      "angle": 30,
+      "orb": 2.4,
+      "isApplying": false,
+      "strength": 40,
+      "interpretation": "neutral",
+      "aspectInterpretation": {
+        "summary": "Mercury ile Jupiter arasındaki Yarım altmışlık açısı ilişkiler ve kararlar üzerinde etkili olabilir. [RXN-asp-Mercury-Jupiter]",
+        "keywords": [
+          "birleşme",
+          "RXK-asp-Mercury-Jupiter"
+        ]
+      }
+    },
+    {
+      "planet1": "Jupiter",
+      "planet1Localized": "Jupiter",
+      "planet2": "Uranus",
+      "planet2Localized": "Uranus",
+      "type": "OPPOSITION",
+      "typeLocalized": "Karşıt",
+      "angle": 180,
+      "orb": 7.8,
+      "isApplying": true,
+      "strength": 22,
+      "interpretation": "challenging",
+      "aspectInterpretation": {
+        "summary": "Jupiter ile Uranus arasındaki Karşıt açısı ilişkiler ve kararlar üzerinde etkili olabilir. [RXN-asp-Jupiter-Uranus]",
+        "keywords": [
+          "birleşme",
+          "RXK-asp-Jupiter-Uranus"
+        ]
+      }
+    },
+    {
+      "planet1": "Sun",
+      "planet1Localized": "Sun",
+      "planet2": "Mars",
+      "planet2Localized": "Mars",
+      "type": "BIQUINTILE",
+      "typeLocalized": "Bikuintil",
+      "angle": 144,
+      "orb": 1.1,
+      "isApplying": true,
+      "strength": 50,
+      "interpretation": "harmonious",
+      "aspectInterpretation": {
+        "summary": "Sun ile Mars arasındaki Bikuintil açısı ilişkiler ve kararlar üzerinde etkili olabilir. [RXN-asp-Sun-Mars]",
+        "keywords": [
+          "birleşme",
+          "RXK-asp-Sun-Mars"
+        ]
+      }
+    }
+  ],
+  "patterns": [
+    {
+      "kind": "STELLIUM",
+      "name": "Stellium",
+      "planets": [
+        "Saturn",
+        "Uranus",
+        "Neptune"
+      ],
+      "element": "earth",
+      "dissociate": false,
+      "tightness": 71,
+      "interpretation": "Oğlak burcunda Satürn, Uranüs ve Neptün yoğunlaşması sorumluluk temasını öne çıkarır. [RXN-pattern-stellium]",
+      "interpretationKey": "aspectPattern.stellium",
+      "interpretationVars": {
+        "sign": "Oğlak",
+        "planet1": "Satürn"
+      }
+    },
+    {
+      "kind": "HEXAGRAM",
+      "name": "Hexagram",
+      "planets": [
+        "Sun",
+        "Moon"
+      ],
+      "tightness": 10,
+      "interpretation": "Bilinmeyen kalıp türü metni [RXN-pattern-unknown]"
+    }
+  ],
+  "aspectsInterpretation": {
+    "summary": "Haritanızda zorlayıcı açılar baskın; gelişim için gerilim kaynakları öne çıkıyor. [RXN-overall]",
+    "dominant": "challenging",
+    "harmonious": 2,
+    "challenging": 3,
+    "neutral": 3
+  },
+  "ascendant": {
+    "sign": "Scorpio",
+    "signLocalized": "Akrep",
+    "degree": 10.5,
+    "longitude": 220.5
+  },
+  "midheaven": {
+    "sign": "Leo",
+    "signLocalized": "Aslan",
+    "degree": 10.2,
+    "longitude": 130.2
+  },
+  "partOfFortune": {
+    "sign": "Leo",
+    "signLocalized": "Aslan",
+    "degree": 25,
+    "longitude": 145,
+    "house": 10,
+    "sect": "day"
+  },
+  "vertex": {
+    "sign": "Taurus",
+    "signLocalized": "Boğa",
+    "degree": 11.2,
+    "longitude": 41.2,
+    "house": 7
+  },
+  "summary": {
+    "dominantElement": "Earth",
+    "dominantElementLocalized": "Toprak",
+    "dominantModality": "Cardinal",
+    "dominantModalityLocalized": "Öncü",
+    "retrogradePlanets": [
+      "Saturn",
+      "Uranus",
+      "Neptune",
+      "Pluto",
+      "North Node"
+    ],
+    "retrogradePlanetsLocalized": [
+      "Satürn",
+      "Uranüs",
+      "Neptün",
+      "Plüton",
+      "Kuzey Ay Düğümü"
+    ],
+    "elementDistribution": {
+      "Fire": 1,
+      "Earth": 4,
+      "Air": 1,
+      "Water": 4
+    },
+    "modalityDistribution": {
+      "Cardinal": 6,
+      "Fixed": 3,
+      "Mutable": 1
+    }
+  },
+  "aiReading": "Tamamen yeni, sınıflandırılmamış yorum alanı [RXU-top]"
+}

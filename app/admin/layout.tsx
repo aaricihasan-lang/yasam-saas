@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { getServerDb } from "@/lib/supabase-server";
 import { ADMIN_SESSION_COOKIE, resolveAdminShellUserId } from "@/lib/auth/adminShellSession";
+import { isAstrologyShellOwner } from "@/lib/astrology/access/ownerGate";
 
 /**
  * Admin route guard — Server Component.
@@ -24,6 +25,15 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   }
   if (!adminId) redirect("/");
 
+  // Astroloji (satış sonrası, OWNER-ONLY pilot): bağlantı yalnız kill switch açık + katı owner ise
+  // SUNUCUDA render edilir; diğer adminlerin HTML'inde hiç bulunmaz. Kill switch kapalıysa DB'ye gidilmez.
+  let showAstrology = false;
+  try {
+    showAstrology = await isAstrologyShellOwner(getServerDb(), adminId);
+  } catch {
+    showAstrology = false;
+  }
+
   return (
     <>
       {/* Admin navigation — merkezî içerik yönetimi bağlantıları. */}
@@ -43,6 +53,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <Link href="/admin/yasam-hafizasi" className="font-semibold text-sky-700 hover:underline">
           Yaşam Hafızası Kapsamı
         </Link>
+        {showAstrology && (
+          <Link href="/admin/astroloji" className="font-semibold text-fuchsia-700 hover:underline">
+            Gökyüzü Atlası
+          </Link>
+        )}
       </nav>
       {children}
     </>

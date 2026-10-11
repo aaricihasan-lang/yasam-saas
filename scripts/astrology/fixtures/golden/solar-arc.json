@@ -1,0 +1,171 @@
+{
+  "endpoint": "/astrology/solar-arc",
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "nodeType": "true",
+    "targetDate": "2026-10-07"
+  },
+  "response": {
+    "birthDetails": {
+      "date": "1990-07-15",
+      "time": "14:30:00",
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3,
+      "nodeType": "true"
+    },
+    "targetDate": "2026-10-07",
+    "solarArc": 34.69169101956808,
+    "summary": "Güneş yayı yönelimleri, haritanızdaki her noktayı Güneşin ilerleme yoluyla katettiği yay kadar ileri taşır; bu da yılda yaklaşık bir derece, bu tarihte 35 derece eder. Yönlendirilmiş bir nokta bir doğum gezegeni ya da köşeyle buluştuğunda, o tema gündeme gelir.",
+    "directed": [
+      {
+        "name": "Sun",
+        "nameLocalized": "Güneş",
+        "natalLongitude": 112.72628119187542,
+        "directedLongitude": 147.4179722114435,
+        "sign": "Leo",
+        "degree": 27.417972211443498,
+        "interpretation": "Güneş yayıyla yönlendirilmiş Güneş gezegeniniz Aslan burcuna ilerledi ve öz farkındalık ve ego temasını 35 derecelik yay kadar öne taşıdı."
+      },
+      {
+        "name": "Moon",
+        "nameLocalized": "Ay",
+        "natalLongitude": 22.964594167910846,
+        "directedLongitude": 57.65628518747893,
+        "sign": "Taurus",
+        "degree": 27.65628518747893,
+        "interpretation": "Güneş yayıyla yönlendirilmiş Ay gezegeniniz Boğa burcuna ilerledi ve i̇ç duygusal yaşam temasını 35 derecelik yay kadar öne taşıdı."
+      },
+      {
+        "name": "Mercury",
+        "nameLocalized": "Merkür",
+        "natalLongitude": 126.73395474097948,
+        "directedLongitude": 161.42564576054758,
+        "sign": "Virgo",
+        "degree": 11.425645760547582,
+        "interpretation": "Güneş yayıyla yönlendirilmiş Merkür gezegeniniz Başak burcuna ilerledi ve i̇letişim temasını 35 derecelik yay kadar öne taşıdı."
+      },
+      {
+        "name": "Venus",
+        "nameLocalized": "Venüs",
+        "natalLongitude": 84.38628681760086,
+        "directedLongitude": 119.07797783716894,
+        "sign": "Cancer",
+        "degree": 29.077977837168945,
+        "interpretation": "Güneş yayıyla yönlendirilmiş Venüs gezegeniniz Yengeç burcuna ilerledi ve aşk, güzellik ve para temasını 35 derecelik yay kadar öne taşıdı."
+      },
+      {
+        "name": "Mars",
+        "nameLocalized": "Mars",
+        "natalLongitude": 31.928151491422888,
+        "directedLongitude": 66.61984251099096,
+        "sign": "Gemini",
+        "degree": 6.6198425109909635,
+        "interpretation": "Güneş yayıyla yönlendirilmiş Mars gezegeniniz İkizler burcuna ilerledi ve atılganlık ve saldırganlık temasını 35 derecelik yay kadar öne taşıdı."
+      },
+      {
+        "name": "Jupiter",
+        "nameLocalized": "Jüpiter",
+        "natalLongitude": 112.5444682592102,
+        "directedLongitude": 147.2361592787783,
+        "sign": "Leo",
+        "degree": 27.236159278778302,
+        "interpretation": "Güneş yayıyla yönlendirilmiş Jüpiter gezegeniniz Aslan burcuna ilerledi ve şans ve fırsat temasını 35 derecelik yay kadar öne taşıdı."
+      },
+      {
+        "name": "Saturn",
+        "nameLocalized": "Satürn",
+        "natalLongitude": 291.9651419416242,
+        "directedLongitude": 326.6568329611923,
+        "sign": "Aquarius",
+        "degree": 26.656832961192322,
+        "interpretation": "Güneş yayıyla yönlendirilmiş Satürn gezegeniniz Kova burcuna ilerledi ve sorumluluk, zaman ve rutin temasını 35 derecelik yay kadar öne taşıdı."
+      },
+      {
+        "name": "Uranus",
+        "nameLocalized": "Uranüs",
+        "natalLongitude": 276.9675085693738,
+        "directedLongitude": 311.6591995889419,
+        "sign": "Aquarius",
+        "degree": 11.659199588941874,
+        "interpretation": "Güneş yayıyla yönlendirilmiş Uranüs gezegeniniz Kova burcuna ilerledi ve bireysellik ve devrim temasını 35 derecelik yay kadar öne taşıdı."
+      },
+      {
+        "name": "Neptune",
+        "nameLocalized": "Neptün",
+        "natalLongitude": 282.92174301738237,
+        "directedLongitude": 317.6134340369505,
+        "sign": "Aquarius",
+        "degree": 17.61343403695048,
+        "interpretation": "Güneş yayıyla yönlendirilmiş Neptün gezegeniniz Kova burcuna ilerledi ve rüyalar, şifa ve sezgi temasını 35 derecelik yay kadar öne taşıdı."
+      },
+      {
+        "name": "Pluto",
+        "nameLocalized": "Plüton",
+        "natalLongitude": 224.99957724822116,
+        "directedLongitude": 259.69126826778927,
+        "sign": "Sagittarius",
+        "degree": 19.69126826778927,
+        "interpretation": "Güneş yayıyla yönlendirilmiş Plüton gezegeniniz Yay burcuna ilerledi ve cinsellik, ölüm ve dönüşüm temasını 35 derecelik yay kadar öne taşıdı."
+      },
+      {
+        "name": "North Node",
+        "nameLocalized": "Kuzey Düğümü",
+        "natalLongitude": 307.35922396381466,
+        "directedLongitude": 342.05091498338277,
+        "sign": "Pisces",
+        "degree": 12.050914983382768,
+        "interpretation": "Güneş yayıyla yönlendirilmiş Kuzey Düğümü gezegeniniz Balık burcuna ilerledi ve yaşam amacı ve kader temasını 35 derecelik yay kadar öne taşıdı."
+      },
+      {
+        "name": "South Node",
+        "nameLocalized": "Güney Düğümü",
+        "natalLongitude": 127.35922396381466,
+        "directedLongitude": 162.05091498338274,
+        "sign": "Virgo",
+        "degree": 12.05091498338274,
+        "interpretation": "Güneş yayıyla yönlendirilmiş Güney Düğümü gezegeniniz Başak burcuna ilerledi ve geçmiş yaşam yetenekleri ve konfor alanı temasını 35 derecelik yay kadar öne taşıdı."
+      },
+      {
+        "name": "Chiron",
+        "nameLocalized": "Chiron",
+        "natalLongitude": 109.2257005860414,
+        "directedLongitude": 143.91739160560948,
+        "sign": "Leo",
+        "degree": 23.91739160560948,
+        "interpretation": "Güneş yayıyla yönlendirilmiş Chiron gezegeniniz Aslan burcuna ilerledi ve şifa ve iç yaralar temasını 35 derecelik yay kadar öne taşıdı."
+      },
+      {
+        "name": "Black Moon Lilith",
+        "nameLocalized": "Kara Ay Lilith",
+        "natalLongitude": 238.30763429857524,
+        "directedLongitude": 272.9993253181433,
+        "sign": "Capricorn",
+        "degree": 2.999325318143292,
+        "interpretation": "Güneş yayıyla yönlendirilmiş Kara Ay Lilith gezegeniniz Oğlak burcuna ilerledi ve i̇lkel içgüdü ve geri kazanılan benlik temasını 35 derecelik yay kadar öne taşıdı."
+      },
+      {
+        "name": "Ascendant",
+        "nameLocalized": "Yükselen",
+        "natalLongitude": 215.0493792035844,
+        "directedLongitude": 249.7410702231525,
+        "sign": "Sagittarius",
+        "degree": 9.74107022315249,
+        "interpretation": "Güneş yayıyla yönlendirilmiş Yükselen gezegeniniz Yay burcuna ilerledi ve kimlik ve öz ifade temasını 35 derecelik yay kadar öne taşıdı."
+      },
+      {
+        "name": "Midheaven",
+        "nameLocalized": "Tepe Noktası",
+        "natalLongitude": 132.07636875533754,
+        "directedLongitude": 166.76805977490562,
+        "sign": "Virgo",
+        "degree": 16.768059774905623,
+        "interpretation": "Güneş yayıyla yönlendirilmiş Tepe Noktası gezegeniniz Başak burcuna ilerledi ve kariyer ve kamusal imaj temasını 35 derecelik yay kadar öne taşıdı."
+      }
+    ]
+  }
+}

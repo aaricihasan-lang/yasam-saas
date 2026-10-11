@@ -28,6 +28,10 @@ import {
 } from "../../lib/backup/registry";
 import { denyColumnsFor, PROD_GENERATED_COLUMNS, restoreAllowlist } from "../../lib/backup/columns";
 import { MIGRATION_SCHEMA } from "../../lib/backup/schema.generated";
+import { OWNER_PILOT_EXCLUDED_TABLES, isOwnerPilotExcludedTable } from "../../lib/backup/ownerPilotTables";
+
+/** Sınıflandırılmış = registry girdisi VEYA sunucu-yalnız owner-pilot "yedek dışı" listesi. */
+const isClassified = (n: string): boolean => !!getRegistryEntry(n) || isOwnerPilotExcludedTable(n);
 import { exportTableAll, fetchTablePage, restoreChunk, type RestoreContext } from "../../lib/backup/engine";
 import {
   buildBackupPlan,
@@ -453,7 +457,7 @@ function codeFromTables(): string[] {
   const prod = prodTableNames();
   await t("registry: prod-tables.md'deki her tablo sınıflandırılmış", () => {
     assert.ok(prod.names.length > 150, `prod listesi ayrıştırılamadı (${prod.names.length})`);
-    const missing = prod.names.filter((n) => !getRegistryEntry(n));
+    const missing = prod.names.filter((n) => !isClassified(n));
     assert.deepEqual(missing, [], `sınıflandırılmamış: ${missing.join(", ")}`);
   });
   await t("registry: prod wildcard (hd_canonical_*, yebs_*) kapsanıyor", () => {
@@ -466,14 +470,26 @@ function codeFromTables(): string[] {
   });
   await t("registry: migration CREATE TABLE tablolarının hepsi sınıflandırılmış", () => {
     const mig = parseMigrationsWithDynamic(join(ROOT, "supabase/migrations"));
-    const missing = [...mig.keys()].filter((n) => !getRegistryEntry(n));
+    const missing = [...mig.keys()].filter((n) => !isClassified(n));
     assert.deepEqual(missing, [], `sınıflandırılmamış: ${missing.join(", ")}`);
   });
   await t("registry: koddaki .from() tabloları sınıflandırılmış", () => {
     const names = codeFromTables();
     assert.ok(names.length > 80, `kod taraması şüpheli (${names.length})`);
-    const missing = names.filter((n) => !getRegistryEntry(n));
+    const missing = names.filter((n) => !isClassified(n));
     assert.deepEqual(missing, [], `sınıflandırılmamış: ${missing.join(", ")}`);
+  });
+  await t("registry: owner-pilot yedek-dışı tablolar registry'de yok ve istemci paketine girmez", () => {
+    for (const e of OWNER_PILOT_EXCLUDED_TABLES) {
+      assert.ok(!getRegistryEntry(e.table), `owner-pilot tablo registry'de: ${e.table}`);
+    }
+    const files: string[] = [];
+    for (const d of ["app", "lib", "components", "hooks"]) walk(join(ROOT, d), files);
+    for (const f of files) {
+      const src = readFileSync(f, "utf8");
+      if (/^\s*["']use client["']/.test(src)) assert.ok(!/ownerPilotTables/.test(src), `istemci dosyası owner-pilot listesini import ediyor: ${f}`);
+    }
+    assert.ok(!/astro_/.test(readFileSync(join(ROOT, "lib/backup/registry.ts"), "utf8")), "registry.ts (istemci paketi) astro_ tablo adı içeriyor");
   });
   await t("registry: _bak_* excluded ve asla dışa aktarılmaz", () => {
     const baks = BACKUP_REGISTRY.filter((e) => e.table.startsWith("_bak_"));

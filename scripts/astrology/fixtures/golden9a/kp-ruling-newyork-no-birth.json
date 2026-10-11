@@ -1,0 +1,34 @@
+{
+  "endpoint": "/vedic-astrology/kp/ruling-planets",
+  "query": null,
+  "body": {
+    "latitude": 40.7128,
+    "longitude": -74.006,
+    "timezone": 3,
+    "datetime": "2026-10-07T12:00:00",
+    "nodeType": "mean"
+  },
+  "response": {
+    "datetime": "2026-10-07T09:00:00.000Z",
+    "location": {
+      "latitude": 40.7128,
+      "longitude": -74.006,
+      "timezone": 3
+    },
+    "dayLord": "Mars",
+    "moonSignLord": "Sun",
+    "moonStarLord": "Ketu",
+    "moonSublord": "Saturn",
+    "moonSubSublord": "Saturn",
+    "lagnaSignLord": "Sun",
+    "lagnaStarLord": "Venus",
+    "lagnaSublord": "Mercury",
+    "lagnaSubSublord": "Jupiter",
+    "rulingPlanets": [
+      "Venus",
+      "Sun",
+      "Ketu",
+      "Mars"
+    ]
+  }
+}

@@ -29,7 +29,9 @@ export type ModuleGateKey =
   | "digital_content"
   | "cosmic_calendar"
   | "cupping"
-  | "beslenme";
+  | "beslenme"
+  // Aşama 7C: Astroloji modülü (alt-yetki astrology_provider_interp gate anahtarı DEĞİLDİR).
+  | "astrology";
 
 /** Kanonik anahtar → kabul edilen alias'lar (DB'de her iki biçim de saklanabilir). */
 export const MODULE_ALIASES: Record<string, string[]> = {
@@ -52,6 +54,7 @@ export const MODULE_ALIASES: Record<string, string[]> = {
   digital_content: [],
   cosmic_calendar: [],
   beslenme: [],
+  astrology: [],
 };
 
 /**
@@ -90,6 +93,8 @@ export const DEMO_DENIED_MODULE_KEYS: ReadonlySet<string> = new Set([
   "belge_ceviri_ai",
   "video_ceviri",
   "ders_notu",
+  // Astroloji (owner kuralı 2026-10-07): demo/vitrin hesabı Astroloji'yi görmez — bayraktan bağımsız.
+  "astrology",
 ]);
 
 export function isDemoDeniedModuleKey(moduleKey: string): boolean {

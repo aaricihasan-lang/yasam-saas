@@ -85,6 +85,9 @@ const ROUTE_MODULE_RULES: RouteModuleRule[] = [
   // (moon-phases, retro-calendar, power-days, hacamat, transits/*) direct-URL ile AÇAMAZ.
   // API tarafı ayrıca requireModuleAccess(req,"cosmic_calendar") ile server-side korunur.
   { prefix: "/cosmic-calendar", keys: ["cosmic_calendar"] },
+  // Astroloji (Aşama 7C): izni olmayan uzman /astroloji'yi direct-URL ile AÇAMAZ; API ayrıca
+  // requireModuleAccess("astrology") + owner kuralı + uzman sahipliğiyle server-side korunur.
+  { prefix: "/astroloji", keys: ["astrology"] },
 ].sort((a, b) => b.prefix.length - a.prefix.length);
 
 const PUBLIC_EXACT_PATHS = new Set(["/"]);
@@ -206,4 +209,5 @@ export const MODULE_KEY_TO_ROUTE_PREFIX: Partial<
   yasam_hafizasi: "/yasam-hafizasi",
   cupping: "/kupa",
   cosmic_calendar: "/cosmic-calendar",
+  astrology: "/astroloji",
 };

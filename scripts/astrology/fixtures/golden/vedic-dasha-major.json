@@ -1,0 +1,93 @@
+{
+  "endpoint": "/vedic-astrology/dasha/major",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "lahiri"
+  },
+  "response": {
+    "moonNakshatra": 27,
+    "nakshatraName": "Revati",
+    "nakshatraLord": "Mercury",
+    "moonLongitude": 359.23584360616064,
+    "ayanamsa": 23.72875056,
+    "ayanamsaType": "lahiri",
+    "birthDashaBalance": {
+      "years": 0,
+      "months": 11,
+      "days": 21,
+      "totalDays": 356
+    },
+    "mahadashas": [
+      {
+        "planet": "Mercury",
+        "startDate": "1990-07-15T14:30:00",
+        "endDate": "1991-07-06T14:30:00",
+        "durationYears": 0.974674880219028,
+        "nominalStartDate": "1974-07-06T14:30:00",
+        "interpretation": "Entelektüel büyüme, iletişim becerileri ve uyum yeteneği dönemidir. Eğitim, iş ve yaratıcı uğraşlarda başarı ön plana çıkabilir."
+      },
+      {
+        "planet": "Ketu",
+        "startDate": "1991-07-06T14:30:00",
+        "endDate": "1998-07-06T14:30:00",
+        "durationYears": 7,
+        "interpretation": "Bu dönem genellikle manevi yönelimlidir, kopuş, iç gözlem ve kendini gerçekleştirmeyi vurgular. Benzersiz deneyimler ve içgörüler getirebilir."
+      },
+      {
+        "planet": "Venus",
+        "startDate": "1998-07-06T14:30:00",
+        "endDate": "2018-07-06T14:30:00",
+        "durationYears": 20,
+        "interpretation": "Bu dönem aşk, ilişkiler ve yaratıcılıkla ilişkilendirilir. Kişisel yaşama uyum, sanatsal uğraşlar ve sosyal tanınma getirebilir."
+      },
+      {
+        "planet": "Sun",
+        "startDate": "2018-07-06T14:30:00",
+        "endDate": "2024-07-06T14:30:00",
+        "durationYears": 6,
+        "interpretation": "Bu dönem artan özgüven, liderlik yetenekleri ve kariyer konularında başarı getirebilir. Ayrıca çeşitli alanlarda tanınma ve başarıları işaret edebilir."
+      },
+      {
+        "planet": "Moon",
+        "startDate": "2024-07-06T14:30:00",
+        "endDate": "2034-07-06T14:30:00",
+        "durationYears": 10,
+        "interpretation": "Bu dönemde duygular ve zihinsel durumlar önemli bir rol oynar. Duygusal büyüme, istikrar ve besleyici deneyimler getirebilir. Ancak ruh hali değişimleri ve yaşam dalgalanmalarına da yol açabilir."
+      },
+      {
+        "planet": "Mars",
+        "startDate": "2034-07-06T14:30:00",
+        "endDate": "2041-07-06T14:30:00",
+        "durationYears": 7,
+        "interpretation": "Bu dönem enerji, hırs ve cesaret getirebilir. Ayrıca çatışmalar, rekabet ve olası sağlıkla ilgili sorunlar için potansiyel işaret edebilir."
+      },
+      {
+        "planet": "Rahu",
+        "startDate": "2041-07-06T14:30:00",
+        "endDate": "2059-07-06T14:30:00",
+        "durationYears": 18,
+        "interpretation": "Bu dönem hem olumlu hem de olumsuz deneyimler getirebilir. Ani değişimler, hırslar ve maddi arzuları işaret edebilir. Bu dönemde manevi büyüme de mümkündür."
+      },
+      {
+        "planet": "Jupiter",
+        "startDate": "2059-07-06T14:30:00",
+        "endDate": "2075-07-06T14:30:00",
+        "durationYears": 16,
+        "interpretation": "Bu dönem genellikle büyüme, genişleme ve olumlu etkiler getirir. Bilgelik, manevi eğilimler ve öğrenme ve gelişme fırsatlarını işaret edebilir."
+      },
+      {
+        "planet": "Saturn",
+        "startDate": "2075-07-06T14:30:00",
+        "endDate": "2094-07-06T14:30:00",
+        "durationYears": 19,
+        "interpretation": "Sıkı çalışma, disiplin ve sorumluluk dönemidir. Zorluklar ve engeller ortaya çıkabilir, ancak sebat ve öz disiplin yoluyla büyüme fırsatları sunar."
+      }
+    ],
+    "totalYears": 120
+  }
+}

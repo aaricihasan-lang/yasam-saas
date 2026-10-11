@@ -1,0 +1,562 @@
+{
+  "endpoint": "/vedic-astrology/dasha/sub/Moon",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "kp-newcomb",
+    "significators": true,
+    "nodeType": "mean"
+  },
+  "response": {
+    "houseThemes": {
+      "1": [
+        "benlik",
+        "beden",
+        "sağlık",
+        "kişilik",
+        "canlılık"
+      ],
+      "2": [
+        "zenginlik",
+        "aile",
+        "konuşma",
+        "mal varlığı",
+        "yiyecek"
+      ],
+      "3": [
+        "kardeşler",
+        "cesaret",
+        "iletişim",
+        "kısa yolculuklar",
+        "beceriler"
+      ],
+      "4": [
+        "ev",
+        "anne",
+        "mülk",
+        "araçlar",
+        "ev huzuru"
+      ],
+      "5": [
+        "çocuklar",
+        "aşk",
+        "yaratıcılık",
+        "eğitim",
+        "spekülasyon"
+      ],
+      "6": [
+        "düşmanlar",
+        "hastalık",
+        "borçlar",
+        "hizmet",
+        "rekabet"
+      ],
+      "7": [
+        "evlilik",
+        "eş",
+        "iş ortaklığı",
+        "sözleşmeler",
+        "halkla ilişkiler"
+      ],
+      "8": [
+        "uzun ömür",
+        "miras",
+        "ani olaylar",
+        "okült",
+        "dönüşüm"
+      ],
+      "9": [
+        "talih",
+        "baba",
+        "dharma",
+        "yüksek öğrenim",
+        "uzun yolculuklar"
+      ],
+      "10": [
+        "kariyer",
+        "meslek",
+        "statü",
+        "otorite",
+        "karma"
+      ],
+      "11": [
+        "kazançlar",
+        "gelir",
+        "arkadaşlar",
+        "büyük kardeşler",
+        "dileklerin gerçekleşmesi"
+      ],
+      "12": [
+        "kayıplar",
+        "giderler",
+        "yabancı ülkeler",
+        "izolasyon",
+        "moksha"
+      ]
+    },
+    "focus": "general",
+    "mahadashaLord": "Moon",
+    "moonLongitude": 359.33238432727177,
+    "ayanamsa": 23.63220984,
+    "ayanamsaType": "kp-newcomb",
+    "mahadashaPeriod": {
+      "planet": "Moon",
+      "startDate": "2024-05-22T14:30:00",
+      "endDate": "2034-05-22T14:30:00",
+      "durationYears": 10,
+      "interpretation": "Bu dönemde duygular ve zihinsel durumlar önemli bir rol oynar. Duygusal büyüme, istikrar ve besleyici deneyimler getirebilir. Ancak ruh hali değişimleri ve yaşam dalgalanmalarına da yol açabilir.",
+      "significators": {
+        "house": 6,
+        "starLord": "Mercury",
+        "subLord": "Saturn",
+        "signifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            6
+          ],
+          "L3": [
+            9,
+            12
+          ],
+          "L4": [
+            10
+          ]
+        },
+        "signifiedHouses": [
+          9,
+          6,
+          12,
+          10
+        ],
+        "strongHouses": [
+          9,
+          6
+        ],
+        "strength": {
+          "score": 62.5,
+          "grade": "B",
+          "label": "strong"
+        }
+      }
+    },
+    "antardashas": [
+      {
+        "planet": "Moon",
+        "startDate": "2024-05-22T14:30:00",
+        "endDate": "2025-03-22T22:30:00",
+        "durationYears": 0.8332192562172028,
+        "mahadashaLord": "Moon",
+        "interpretation": "Bu dönemde duygular ve zihinsel durumlar önemli bir rol oynar. Duygusal büyüme, istikrar ve besleyici deneyimler getirebilir. Ancak ruh hali değişimleri ve yaşam dalgalanmalarına da yol açabilir.",
+        "significators": {
+          "house": 6,
+          "starLord": "Mercury",
+          "subLord": "Saturn",
+          "signifies": {
+            "L1": [
+              9
+            ],
+            "L2": [
+              6
+            ],
+            "L3": [
+              9,
+              12
+            ],
+            "L4": [
+              10
+            ]
+          },
+          "signifiedHouses": [
+            9,
+            6,
+            12,
+            10
+          ],
+          "strongHouses": [
+            9,
+            6
+          ],
+          "strength": {
+            "score": 62.5,
+            "grade": "B",
+            "label": "strong"
+          }
+        }
+      },
+      {
+        "planet": "Mars",
+        "startDate": "2025-03-22T22:30:00",
+        "endDate": "2025-10-21T23:18:00",
+        "durationYears": 0.583253479352042,
+        "mahadashaLord": "Moon",
+        "interpretation": "Bu dönem enerji, hırs ve cesaret getirebilir. Ayrıca çatışmalar, rekabet ve olası sağlıkla ilgili sorunlar için potansiyel işaret edebilir.",
+        "significators": {
+          "house": 6,
+          "starLord": "Ketu",
+          "subLord": "Jupiter",
+          "signifies": {
+            "L1": [
+              9
+            ],
+            "L2": [
+              6
+            ],
+            "L3": [],
+            "L4": [
+              2,
+              7
+            ]
+          },
+          "signifiedHouses": [
+            9,
+            6,
+            2,
+            7
+          ],
+          "strongHouses": [
+            9,
+            6
+          ],
+          "strength": {
+            "score": 56.3,
+            "grade": "C",
+            "label": "moderate"
+          }
+        }
+      },
+      {
+        "planet": "Rahu",
+        "startDate": "2025-10-21T23:18:00",
+        "endDate": "2027-04-22T18:30:00",
+        "durationYears": 1.4997946611909652,
+        "mahadashaLord": "Moon",
+        "interpretation": "Bu dönem hem olumlu hem de olumsuz deneyimler getirebilir. Ani değişimler, hırslar ve maddi arzuları işaret edebilir. Bu dönemde manevi büyüme de mümkündür.",
+        "significators": {
+          "house": 3,
+          "starLord": "Moon",
+          "subLord": "Jupiter",
+          "signifies": {
+            "L1": [
+              6,
+              3,
+              9
+            ],
+            "L2": [
+              3,
+              9
+            ],
+            "L3": [
+              10,
+              4,
+              5,
+              11
+            ],
+            "L4": [
+              9,
+              12,
+              4,
+              5
+            ]
+          },
+          "signifiedHouses": [
+            3,
+            6,
+            9,
+            4,
+            5,
+            10,
+            11,
+            12
+          ],
+          "strongHouses": [
+            3,
+            6,
+            9
+          ],
+          "strength": {
+            "score": 65.6,
+            "grade": "B",
+            "label": "strong"
+          }
+        }
+      },
+      {
+        "planet": "Jupiter",
+        "startDate": "2027-04-22T18:30:00",
+        "endDate": "2028-08-21T16:54:00",
+        "durationYears": 1.3331508099475244,
+        "mahadashaLord": "Moon",
+        "interpretation": "Bu dönem genellikle büyüme, genişleme ve olumlu etkiler getirir. Bilgelik, manevi eğilimler ve öğrenme ve gelişme fırsatlarını işaret edebilir.",
+        "significators": {
+          "house": 9,
+          "starLord": "Jupiter",
+          "subLord": "Sun",
+          "signifies": {
+            "L1": [
+              9
+            ],
+            "L2": [
+              9
+            ],
+            "L3": [
+              3,
+              6
+            ],
+            "L4": [
+              3,
+              6
+            ]
+          },
+          "signifiedHouses": [
+            9,
+            3,
+            6
+          ],
+          "strongHouses": [
+            9
+          ],
+          "strength": {
+            "score": 66.7,
+            "grade": "B",
+            "label": "strong"
+          }
+        }
+      },
+      {
+        "planet": "Saturn",
+        "startDate": "2028-08-21T16:54:00",
+        "endDate": "2030-03-22T22:30:00",
+        "durationYears": 1.5831165868126853,
+        "mahadashaLord": "Moon",
+        "interpretation": "Sıkı çalışma, disiplin ve sorumluluk dönemidir. Zorluklar ve engeller ortaya çıkabilir, ancak sebat ve öz disiplin yoluyla büyüme fırsatları sunar.",
+        "significators": {
+          "house": 3,
+          "starLord": "Sun",
+          "subLord": "Moon",
+          "signifies": {
+            "L1": [
+              9
+            ],
+            "L2": [
+              3
+            ],
+            "L3": [
+              11
+            ],
+            "L4": [
+              4,
+              5
+            ]
+          },
+          "signifiedHouses": [
+            9,
+            3,
+            11,
+            4,
+            5
+          ],
+          "strongHouses": [
+            9,
+            3
+          ],
+          "strength": {
+            "score": 55,
+            "grade": "C",
+            "label": "moderate"
+          }
+        }
+      },
+      {
+        "planet": "Mercury",
+        "startDate": "2030-03-22T22:30:00",
+        "endDate": "2031-08-22T07:18:00",
+        "durationYears": 1.4164727355692448,
+        "mahadashaLord": "Moon",
+        "interpretation": "Entelektüel büyüme, iletişim becerileri ve uyum yeteneği dönemidir. Eğitim, iş ve yaratıcı uğraşlarda başarı ön plana çıkabilir.",
+        "significators": {
+          "house": 9,
+          "starLord": "Saturn",
+          "subLord": "Rahu",
+          "signifies": {
+            "L1": [
+              3
+            ],
+            "L2": [
+              9
+            ],
+            "L3": [
+              4,
+              5
+            ],
+            "L4": [
+              9,
+              12
+            ]
+          },
+          "signifiedHouses": [
+            3,
+            9,
+            4,
+            5,
+            12
+          ],
+          "strongHouses": [
+            3,
+            9
+          ],
+          "strength": {
+            "score": 60,
+            "grade": "C",
+            "label": "moderate"
+          }
+        }
+      },
+      {
+        "planet": "Ketu",
+        "startDate": "2031-08-22T07:18:00",
+        "endDate": "2032-03-22T08:06:00",
+        "durationYears": 0.583253479352042,
+        "mahadashaLord": "Moon",
+        "interpretation": "Bu dönem genellikle manevi yönelimlidir, kopuş, iç gözlem ve kendini gerçekleştirmeyi vurgular. Benzersiz deneyimler ve içgörüler getirebilir.",
+        "significators": {
+          "house": 9,
+          "starLord": "Saturn",
+          "subLord": "Rahu",
+          "signifies": {
+            "L1": [
+              3,
+              9
+            ],
+            "L2": [
+              9,
+              6
+            ],
+            "L3": [
+              4,
+              5,
+              9,
+              12
+            ],
+            "L4": [
+              9,
+              12,
+              10
+            ]
+          },
+          "signifiedHouses": [
+            3,
+            9,
+            6,
+            4,
+            5,
+            12,
+            10
+          ],
+          "strongHouses": [
+            3,
+            9,
+            6
+          ],
+          "strength": {
+            "score": 64.3,
+            "grade": "B",
+            "label": "strong"
+          }
+        }
+      },
+      {
+        "planet": "Venus",
+        "startDate": "2032-03-22T08:06:00",
+        "endDate": "2033-11-21T00:06:00",
+        "durationYears": 1.6664385124344057,
+        "mahadashaLord": "Moon",
+        "interpretation": "Bu dönem aşk, ilişkiler ve yaratıcılıkla ilişkilendirilir. Kişisel yaşama uyum, sanatsal uğraşlar ve sosyal tanınma getirebilir.",
+        "significators": {
+          "house": 8,
+          "starLord": "Mars",
+          "subLord": "Mercury",
+          "signifies": {
+            "L1": [
+              6
+            ],
+            "L2": [
+              8
+            ],
+            "L3": [
+              2,
+              7
+            ],
+            "L4": [
+              1,
+              8
+            ]
+          },
+          "signifiedHouses": [
+            6,
+            8,
+            2,
+            7,
+            1
+          ],
+          "strongHouses": [
+            6,
+            8
+          ],
+          "strength": {
+            "score": 60,
+            "grade": "C",
+            "label": "moderate"
+          }
+        }
+      },
+      {
+        "planet": "Sun",
+        "startDate": "2033-11-21T00:06:00",
+        "endDate": "2034-05-22T14:30:00",
+        "durationYears": 0.4999315537303217,
+        "mahadashaLord": "Moon",
+        "interpretation": "Bu dönem artan özgüven, liderlik yetenekleri ve kariyer konularında başarı getirebilir. Ayrıca çeşitli alanlarda tanınma ve başarıları işaret edebilir.",
+        "significators": {
+          "house": 9,
+          "starLord": "Jupiter",
+          "subLord": "Sun",
+          "signifies": {
+            "L1": [
+              9
+            ],
+            "L2": [
+              9
+            ],
+            "L3": [
+              3,
+              6
+            ],
+            "L4": [
+              11
+            ]
+          },
+          "signifiedHouses": [
+            9,
+            3,
+            6,
+            11
+          ],
+          "strongHouses": [
+            9
+          ],
+          "strength": {
+            "score": 56.3,
+            "grade": "C",
+            "label": "moderate"
+          }
+        }
+      }
+    ]
+  }
+}

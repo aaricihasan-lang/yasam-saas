@@ -1,0 +1,935 @@
+{
+  "endpoint": "/astrology/composite-chart",
+  "body": {
+    "person1": {
+      "date": "1990-07-15",
+      "time": "14:30:00",
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3,
+      "nodeType": "true"
+    },
+    "person2": {
+      "date": "1988-03-21",
+      "time": "06:45:00",
+      "latitude": 39.9334,
+      "longitude": 32.8597,
+      "timezone": 2,
+      "nodeType": "true"
+    },
+    "houseSystem": "placidus"
+  },
+  "response": {
+    "person1": {
+      "date": "1990-07-15",
+      "time": "14:30:00",
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3,
+      "nodeType": "true"
+    },
+    "person2": {
+      "date": "1988-03-21",
+      "time": "06:45:00",
+      "latitude": 39.9334,
+      "longitude": 32.8597,
+      "timezone": 2,
+      "nodeType": "true"
+    },
+    "compositePlanets": [
+      {
+        "name": "Sun",
+        "longitude": 56.75860525399065,
+        "latitude": 0.00016526927506701138,
+        "sign": "Taurus",
+        "degree": 26.758605253990652,
+        "house": 5,
+        "speed": 0.9735915660774097,
+        "isRetrograde": false,
+        "compositeInterpretation": {
+          "summary": "Boğa burcundaki Güneş (Boğa), öz farkındalık ve ego temalarına güvenilir, müzikal, pratik enerjisi getirir. Bu konum, Güneş ifadenize belirgin bir Boğa karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "relationshipMeaning": "Kompozit Güneş taurus burcunda, ilişkinizin temel kimliğini ve amacını temsil eder. Bu, birlikte yarattığınız şey ve başkalarının sizi bir çift olarak nasıl gördüğüdür.",
+          "keywords": [
+            "aktif",
+            "farkındalık",
+            "parlak",
+            "güven",
+            "bilinç",
+            "güvenilir",
+            "müzikal",
+            "pratik"
+          ]
+        }
+      },
+      {
+        "name": "Moon",
+        "longitude": 32.82598774822857,
+        "latitude": 4.566797128187265,
+        "sign": "Taurus",
+        "degree": 2.8259877482285702,
+        "house": 4,
+        "speed": 13.943811550669338,
+        "isRetrograde": false,
+        "compositeInterpretation": {
+          "summary": "Boğa burcundaki Ay (Boğa), i̇ç duygusal yaşam temalarına güvenilir, müzikal, pratik enerjisi getirir. Bu konum, Ay ifadenize belirgin bir Boğa karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "relationshipMeaning": "Kompozit Ay taurus burcunda, duygusal bağınızı ve birbirinizi nasıl beslediğinizi gösterir. Bu, paylaşılan duygularınızı ve birlikte ev yaşamınızı ortaya koyar.",
+          "keywords": [
+            "bakıcı",
+            "rahatlık",
+            "duygu",
+            "his",
+            "dişilik",
+            "güvenilir",
+            "müzikal",
+            "pratik"
+          ]
+        }
+      },
+      {
+        "name": "Mercury",
+        "longitude": 51.61261257920961,
+        "latitude": -0.13887882636584792,
+        "sign": "Taurus",
+        "degree": 21.61261257920961,
+        "house": 4,
+        "speed": 1.650001964518765,
+        "isRetrograde": false,
+        "compositeInterpretation": {
+          "summary": "Boğa burcundaki Merkür (Boğa), i̇letişim temalarına güvenilir, müzikal, pratik enerjisi getirir. Bu konum, Merkür ifadenize belirgin bir Boğa karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "relationshipMeaning": "Kompozit Merkür taurus burcunda, bir çift olarak nasıl iletişim kurduğunuzu ve paylaşılan zihinsel ilgi alanlarınızı gösterir. Bu, entelektüel bağlantınızı ortaya koyar.",
+          "keywords": [
+            "analiz",
+            "çocukluk",
+            "iletişim",
+            "merak",
+            "eğitim",
+            "güvenilir",
+            "müzikal",
+            "pratik"
+          ]
+        }
+      },
+      {
+        "name": "Venus",
+        "longitude": 65.27560427418842,
+        "latitude": 0.6824993212515895,
+        "sign": "Gemini",
+        "degree": 5.275604274188424,
+        "house": 5,
+        "speed": 1.130960147285812,
+        "isRetrograde": false,
+        "compositeInterpretation": {
+          "summary": "İkizler burcundaki Venüs (İkizler), aşk, güzellik ve para temalarına meraklı, sevecen, nazik enerjisi getirir. Bu konum, Venüs ifadenize belirgin bir İkizler karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "relationshipMeaning": "Kompozit Venüs gemini burcunda, birlikte neye değer verdiğinizi ve sevgiyi nasıl ifade ettiğinizi ortaya koyar. Bu, ilişkinizin sevgi dilidir.",
+          "keywords": [
+            "çekicilik",
+            "güzellik",
+            "kültür",
+            "eros",
+            "fantezi",
+            "meraklı",
+            "sevecen",
+            "nazik"
+          ]
+        }
+      },
+      {
+        "name": "Mars",
+        "longitude": 340.3336043382476,
+        "latitude": -1.3572772095555083,
+        "sign": "Pisces",
+        "degree": 10.333604338247596,
+        "house": 2,
+        "speed": 0.6723781029005522,
+        "isRetrograde": false,
+        "compositeInterpretation": {
+          "summary": "Balık burcundaki Mars (Balıklar), atılganlık ve saldırganlık temalarına yaratıcı, hassas, sanatsal enerjisi getirir. Bu konum, Mars ifadenize belirgin bir Balık karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "relationshipMeaning": "Kompozit Mars pisces burcunda, bir çift olarak kendinizi nasıl ifade ettiğinizi ve çatışmaları nasıl ele aldığınızı gösterir. Bu, paylaşılan güdünüzü ve cinsel enerjiyi temsil eder.",
+          "keywords": [
+            "eylem",
+            "maceraperest",
+            "atletik",
+            "cesur",
+            "cesaret",
+            "yaratıcı",
+            "hassas",
+            "sanatsal"
+          ]
+        }
+      },
+      {
+        "name": "Jupiter",
+        "longitude": 72.62176568040167,
+        "latitude": -0.37801509618125784,
+        "sign": "Gemini",
+        "degree": 12.621765680401666,
+        "house": 5,
+        "speed": 0.22286497518236814,
+        "isRetrograde": false,
+        "compositeInterpretation": {
+          "summary": "İkizler burcundaki Jüpiter (İkizler), şans ve fırsat temalarına meraklı, sevecen, nazik enerjisi getirir. Bu konum, Jüpiter ifadenize belirgin bir İkizler karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "relationshipMeaning": "İkizler burcundaki Jüpiter (İkizler), şans ve fırsat temalarına meraklı, sevecen, nazik enerjisi getirir. Bu konum, Jüpiter ifadenize belirgin bir İkizler karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "keywords": [
+            "bolluk",
+            "üniversite",
+            "kültür",
+            "merak",
+            "çeşitlilik",
+            "meraklı",
+            "sevecen",
+            "nazik"
+          ]
+        }
+      },
+      {
+        "name": "Saturn",
+        "longitude": 282.0800410293548,
+        "latitude": 0.6043174579005864,
+        "sign": "Capricorn",
+        "degree": 12.080041029354788,
+        "house": 12,
+        "speed": -0.019959407134209073,
+        "isRetrograde": false,
+        "compositeInterpretation": {
+          "summary": "Oğlak burcundaki Satürn (Dağ Keçisi), sorumluluk, zaman ve rutin temalarına detaycı, zeki, çalışkan enerjisi getirir. Bu konum, Satürn ifadenize belirgin bir Oğlak karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "relationshipMeaning": "Oğlak burcundaki Satürn (Dağ Keçisi), sorumluluk, zaman ve rutin temalarına detaycı, zeki, çalışkan enerjisi getirir. Bu konum, Satürn ifadenize belirgin bir Oğlak karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "keywords": [
+            "hırs",
+            "sınırlar",
+            "kararlılık",
+            "disiplin",
+            "deneyim",
+            "detaycı",
+            "zeki",
+            "çalışkan"
+          ]
+        }
+      },
+      {
+        "name": "Uranus",
+        "longitude": 273.96115971478537,
+        "latitude": -0.25770535003700934,
+        "sign": "Capricorn",
+        "degree": 3.961159714785367,
+        "house": 12,
+        "speed": -0.012920788644009917,
+        "isRetrograde": false,
+        "compositeInterpretation": {
+          "summary": "Oğlak burcundaki Uranüs (Dağ Keçisi), bireysellik ve devrim temalarına detaycı, zeki, çalışkan enerjisi getirir. Bu konum, Uranüs ifadenize belirgin bir Oğlak karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "relationshipMeaning": "Oğlak burcundaki Uranüs (Dağ Keçisi), bireysellik ve devrim temalarına detaycı, zeki, çalışkan enerjisi getirir. Bu konum, Uranüs ifadenize belirgin bir Oğlak karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "keywords": [
+            "avangard",
+            "değişim",
+            "komik",
+            "kararlı",
+            "deneysel",
+            "detaycı",
+            "zeki",
+            "çalışkan"
+          ]
+        }
+      },
+      {
+        "name": "Neptune",
+        "longitude": 281.49495461125366,
+        "latitude": 0.9221755241310611,
+        "sign": "Capricorn",
+        "degree": 11.494954611253661,
+        "house": 12,
+        "speed": -0.0073957003342570715,
+        "isRetrograde": false,
+        "compositeInterpretation": {
+          "summary": "Oğlak burcundaki Neptün (Dağ Keçisi), rüyalar, şifa ve sezgi temalarına detaycı, zeki, çalışkan enerjisi getirir. Bu konum, Neptün ifadenize belirgin bir Oğlak karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "relationshipMeaning": "Oğlak burcundaki Neptün (Dağ Keçisi), rüyalar, şifa ve sezgi temalarına detaycı, zeki, çalışkan enerjisi getirir. Bu konum, Neptün ifadenize belirgin bir Oğlak karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "keywords": [
+            "sanatsal",
+            "sakin",
+            "merhametli",
+            "derin",
+            "rüyalar",
+            "detaycı",
+            "zeki",
+            "çalışkan"
+          ]
+        }
+      },
+      {
+        "name": "Pluto",
+        "longitude": 223.61328460525738,
+        "latitude": 16.058010196094532,
+        "sign": "Scorpio",
+        "degree": 13.613284605257377,
+        "house": 10,
+        "speed": -0.01245879224095603,
+        "isRetrograde": true,
+        "compositeInterpretation": {
+          "summary": "Akrep burcundaki Plüton (Akrep), cinsellik, ölüm ve dönüşüm temalarına çekici, tutkulu, bağımsız enerjisi getirir. Bu konum, Plüton ifadenize belirgin bir Akrep karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "relationshipMeaning": "Akrep burcundaki Plüton (Akrep), cinsellik, ölüm ve dönüşüm temalarına çekici, tutkulu, bağımsız enerjisi getirir. Bu konum, Plüton ifadenize belirgin bir Akrep karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "keywords": [
+            "simya",
+            "cesur",
+            "karizmatik",
+            "karmaşık",
+            "yürekli",
+            "çekici",
+            "tutkulu",
+            "bağımsız"
+          ]
+        }
+      },
+      {
+        "name": "North Node",
+        "longitude": 330.2155745427811,
+        "latitude": 0,
+        "sign": "Pisces",
+        "degree": 0.21557454278109844,
+        "house": 2,
+        "speed": -0.00793705408082701,
+        "isRetrograde": true,
+        "compositeInterpretation": {
+          "summary": "Balık burcundaki Kuzey Düğümü (Balıklar), yaşam amacı ve kader temalarına yaratıcı, hassas, sanatsal enerjisi getirir. Bu konum, Kuzey Düğümü ifadenize belirgin bir Balık karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "relationshipMeaning": "Balık burcundaki Kuzey Düğümü (Balıklar), yaşam amacı ve kader temalarına yaratıcı, hassas, sanatsal enerjisi getirir. Bu konum, Kuzey Düğümü ifadenize belirgin bir Balık karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "keywords": [
+            "kader",
+            "yaşam amacı",
+            "ruhsal büyüme",
+            "gelecek yönü",
+            "karmik ödül",
+            "yaratıcı",
+            "hassas",
+            "sanatsal"
+          ]
+        }
+      },
+      {
+        "name": "South Node",
+        "longitude": 150.2155745427811,
+        "latitude": 0,
+        "sign": "Virgo",
+        "degree": 0.21557454278109844,
+        "house": 8,
+        "speed": -0.00793705408082701,
+        "isRetrograde": true,
+        "compositeInterpretation": {
+          "summary": "Başak burcundaki Güney Düğümü (Başak), geçmiş yaşam yetenekleri ve konfor alanı temalarına zarif, düzenli, nazik enerjisi getirir. Bu konum, Güney Düğümü ifadenize belirgin bir Başak karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "relationshipMeaning": "Başak burcundaki Güney Düğümü (Başak), geçmiş yaşam yetenekleri ve konfor alanı temalarına zarif, düzenli, nazik enerjisi getirir. Bu konum, Güney Düğümü ifadenize belirgin bir Başak karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "keywords": [
+            "doğuştan yetenekler",
+            "geçmiş yaşam bilgeliği",
+            "doğal yetenekler",
+            "konfor alanı",
+            "ustalaşılmış beceriler",
+            "zarif",
+            "düzenli",
+            "nazik"
+          ]
+        }
+      },
+      {
+        "name": "Chiron",
+        "longitude": 96.33085743618861,
+        "latitude": -6.066145062365976,
+        "sign": "Cancer",
+        "degree": 6.330857436188609,
+        "house": 6,
+        "speed": 0.06840801035168198,
+        "isRetrograde": false,
+        "compositeInterpretation": {
+          "summary": "Yengeç burcundaki Chiron (Yengeç), şifa ve iç yaralar temalarına sezgisel, duygusal, zeki enerjisi getirir. Bu konum, Chiron ifadenize belirgin bir Yengeç karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "relationshipMeaning": "Yengeç burcundaki Chiron (Yengeç), şifa ve iç yaralar temalarına sezgisel, duygusal, zeki enerjisi getirir. Bu konum, Chiron ifadenize belirgin bir Yengeç karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "keywords": [
+            "şifa",
+            "bilgelik",
+            "mentorluk",
+            "öğretme",
+            "empati",
+            "sezgisel",
+            "duygusal",
+            "zeki"
+          ]
+        }
+      },
+      {
+        "name": "Black Moon Lilith",
+        "longitude": 191.17813182335667,
+        "latitude": -1.170363866365539,
+        "sign": "Libra",
+        "degree": 11.178131823356665,
+        "house": 9,
+        "speed": 0.11147264898101383,
+        "isRetrograde": false,
+        "compositeInterpretation": {
+          "summary": "Terazi burcundaki Kara Ay Lilith (Terazi), i̇lkel içgüdü ve geri kazanılan benlik temalarına diplomatik, sanatsal, zeki enerjisi getirir. Bu konum, Kara Ay Lilith ifadenize belirgin bir Terazi karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "relationshipMeaning": "Terazi burcundaki Kara Ay Lilith (Terazi), i̇lkel içgüdü ve geri kazanılan benlik temalarına diplomatik, sanatsal, zeki enerjisi getirir. Bu konum, Kara Ay Lilith ifadenize belirgin bir Terazi karakteri kazandırarak bu yaşam alanlarını nasıl yönlendirdiğinizi şekillendirir.",
+          "keywords": [
+            "özgünlük",
+            "özerklik",
+            "içgüdü",
+            "ham güç",
+            "kendine hakimiyet",
+            "diplomatik",
+            "sanatsal",
+            "zeki"
+          ]
+        }
+      }
+    ],
+    "compositeHouses": [
+      {
+        "number": 1,
+        "sign": "Capricorn",
+        "degree": 28.477865724365756,
+        "longitude": 298.47786572436576
+      },
+      {
+        "number": 2,
+        "sign": "Pisces",
+        "degree": 0.2135155460944702,
+        "longitude": 330.21351554609447
+      },
+      {
+        "number": 3,
+        "sign": "Pisces",
+        "degree": 28.725795161367955,
+        "longitude": 358.72579516136796
+      },
+      {
+        "number": 4,
+        "sign": "Aries",
+        "degree": 27.03275925538975,
+        "longitude": 27.03275925538975
+      },
+      {
+        "number": 5,
+        "sign": "Taurus",
+        "degree": 25.08229996596924,
+        "longitude": 55.08229996596924
+      },
+      {
+        "number": 6,
+        "sign": "Gemini",
+        "degree": 24.317379763857957,
+        "longitude": 84.31737976385796
+      },
+      {
+        "number": 7,
+        "sign": "Cancer",
+        "degree": 28.477865724365742,
+        "longitude": 118.47786572436574
+      },
+      {
+        "number": 8,
+        "sign": "Virgo",
+        "degree": 0.2135155460944702,
+        "longitude": 150.21351554609447
+      },
+      {
+        "number": 9,
+        "sign": "Virgo",
+        "degree": 28.725795161367927,
+        "longitude": 178.72579516136793
+      },
+      {
+        "number": 10,
+        "sign": "Libra",
+        "degree": 27.03275925538975,
+        "longitude": 207.03275925538975
+      },
+      {
+        "number": 11,
+        "sign": "Scorpio",
+        "degree": 25.08229996596927,
+        "longitude": 235.08229996596927
+      },
+      {
+        "number": 12,
+        "sign": "Sagittarius",
+        "degree": 24.317379763857957,
+        "longitude": 264.31737976385796
+      }
+    ],
+    "compositeAscendant": {
+      "sign": "Capricorn",
+      "degree": 28.477865724365756,
+      "longitude": 298.47786572436576
+    },
+    "compositeMidheaven": {
+      "sign": "Libra",
+      "degree": 27.03275925538975,
+      "longitude": 207.03275925538975
+    },
+    "aspects": [
+      {
+        "planet1": "North Node",
+        "planet2": "South Node",
+        "type": "OPPOSITION",
+        "angle": 180,
+        "orb": 0,
+        "isApplying": false,
+        "strength": 100,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Neptune",
+        "planet2": "Black Moon Lilith",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 0.3168227878969958,
+        "isApplying": true,
+        "strength": 95.47396017290006,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Saturn",
+        "planet2": "Neptune",
+        "type": "CONJUNCTION",
+        "angle": 0,
+        "orb": 0.5850864181011275,
+        "isApplying": false,
+        "strength": 92.6864197737359,
+        "interpretation": "neutral"
+      },
+      {
+        "planet1": "Saturn",
+        "planet2": "Black Moon Lilith",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 0.9019092059981233,
+        "isApplying": true,
+        "strength": 87.11558277145538,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Sun",
+        "planet2": "Neptune",
+        "type": "SESQUIQUADRATE",
+        "angle": 135,
+        "orb": 0.2636506427369909,
+        "isApplying": false,
+        "strength": 86.81746786315045,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Mercury",
+        "planet2": "Chiron",
+        "type": "SEMI_SQUARE",
+        "angle": 45,
+        "orb": 0.2817551430210017,
+        "isApplying": false,
+        "strength": 85.91224284894992,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Moon",
+        "planet2": "Uranus",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 1.1351719665568112,
+        "isApplying": true,
+        "strength": 85.81035041803986,
+        "interpretation": "harmonious"
+      },
+      {
+        "planet1": "Sun",
+        "planet2": "Saturn",
+        "type": "SESQUIQUADRATE",
+        "angle": 135,
+        "orb": 0.3214357753641366,
+        "isApplying": true,
+        "strength": 83.92821123179317,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Jupiter",
+        "planet2": "Black Moon Lilith",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 1.4436338570450005,
+        "isApplying": false,
+        "strength": 81.9545767869375,
+        "interpretation": "harmonious"
+      },
+      {
+        "planet1": "Jupiter",
+        "planet2": "Saturn",
+        "type": "QUINCUNX",
+        "angle": 150,
+        "orb": 0.5417246510468772,
+        "isApplying": false,
+        "strength": 81.94251163177077,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Mars",
+        "planet2": "Neptune",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 1.1613502730060645,
+        "isApplying": true,
+        "strength": 80.64416211656558,
+        "interpretation": "harmonious"
+      },
+      {
+        "planet1": "Saturn",
+        "planet2": "Pluto",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 1.5332435759025884,
+        "isApplying": true,
+        "strength": 74.44594040162353,
+        "interpretation": "harmonious"
+      },
+      {
+        "planet1": "Mars",
+        "planet2": "Black Moon Lilith",
+        "type": "QUINCUNX",
+        "angle": 150,
+        "orb": 0.8445274851090687,
+        "isApplying": true,
+        "strength": 71.8490838296977,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Sun",
+        "planet2": "Black Moon Lilith",
+        "type": "SESQUIQUADRATE",
+        "angle": 135,
+        "orb": 0.5804734306339867,
+        "isApplying": false,
+        "strength": 70.97632846830066,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Mars",
+        "planet2": "Saturn",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 1.746436691107192,
+        "isApplying": true,
+        "strength": 70.89272181488013,
+        "interpretation": "harmonious"
+      },
+      {
+        "planet1": "Uranus",
+        "planet2": "Chiron",
+        "type": "OPPOSITION",
+        "angle": 180,
+        "orb": 2.3696977214032415,
+        "isApplying": false,
+        "strength": 70.37877848245948,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Moon",
+        "planet2": "South Node",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 2.610413205447472,
+        "isApplying": false,
+        "strength": 67.36983493190661,
+        "interpretation": "harmonious"
+      },
+      {
+        "planet1": "Mars",
+        "planet2": "Jupiter",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 2.288161342154069,
+        "isApplying": true,
+        "strength": 67.31198082637044,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Jupiter",
+        "planet2": "Pluto",
+        "type": "QUINCUNX",
+        "angle": 150,
+        "orb": 0.9915189248557112,
+        "isApplying": true,
+        "strength": 66.94936917147629,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Venus",
+        "planet2": "Chiron",
+        "type": "SEMI_SEXTILE",
+        "angle": 30,
+        "orb": 1.0552531620001844,
+        "isApplying": true,
+        "strength": 64.82489459999385,
+        "interpretation": "neutral"
+      },
+      {
+        "planet1": "Neptune",
+        "planet2": "Pluto",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 2.118329994003716,
+        "isApplying": true,
+        "strength": 64.69450009993807,
+        "interpretation": "harmonious"
+      },
+      {
+        "planet1": "Jupiter",
+        "planet2": "Neptune",
+        "type": "QUINCUNX",
+        "angle": 150,
+        "orb": 1.1268110691480047,
+        "isApplying": false,
+        "strength": 62.439631028399845,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Mars",
+        "planet2": "Pluto",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 3.2796802670097804,
+        "isApplying": true,
+        "strength": 59.003996662377745,
+        "interpretation": "harmonious"
+      },
+      {
+        "planet1": "Moon",
+        "planet2": "North Node",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 2.6104132054474576,
+        "isApplying": false,
+        "strength": 56.49311324254238,
+        "interpretation": "harmonious"
+      },
+      {
+        "planet1": "Venus",
+        "planet2": "Uranus",
+        "type": "QUINCUNX",
+        "angle": 150,
+        "orb": 1.3144445594030572,
+        "isApplying": false,
+        "strength": 56.18518135323143,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Uranus",
+        "planet2": "South Node",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 3.7455851720042688,
+        "isApplying": false,
+        "strength": 53.18018534994664,
+        "interpretation": "harmonious"
+      },
+      {
+        "planet1": "Sun",
+        "planet2": "North Node",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 3.4569692887904466,
+        "isApplying": true,
+        "strength": 50.614724445850754,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Sun",
+        "planet2": "South Node",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 3.4569692887904466,
+        "isApplying": true,
+        "strength": 50.614724445850754,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Mars",
+        "planet2": "Chiron",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 4.002746902058988,
+        "isApplying": false,
+        "strength": 49.965663724262654,
+        "interpretation": "harmonious"
+      },
+      {
+        "planet1": "Moon",
+        "planet2": "Chiron",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 3.5048696879600385,
+        "isApplying": true,
+        "strength": 41.58550520066603,
+        "interpretation": "harmonious"
+      },
+      {
+        "planet1": "Uranus",
+        "planet2": "North Node",
+        "type": "SEXTILE",
+        "angle": 60,
+        "orb": 3.7455851720042688,
+        "isApplying": false,
+        "strength": 37.57358046659552,
+        "interpretation": "harmonious"
+      },
+      {
+        "planet1": "Sun",
+        "planet2": "Mercury",
+        "type": "CONJUNCTION",
+        "angle": 0,
+        "orb": 5.145992674781041,
+        "isApplying": true,
+        "strength": 35.67509156523698,
+        "interpretation": "neutral"
+      },
+      {
+        "planet1": "Neptune",
+        "planet2": "Chiron",
+        "type": "OPPOSITION",
+        "angle": 180,
+        "orb": 5.164097175065052,
+        "isApplying": true,
+        "strength": 35.44878531168685,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Chiron",
+        "planet2": "Black Moon Lilith",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 4.847274387168056,
+        "isApplying": false,
+        "strength": 30.753223040456334,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Saturn",
+        "planet2": "Chiron",
+        "type": "OPPOSITION",
+        "angle": 180,
+        "orb": 5.74918359316618,
+        "isApplying": true,
+        "strength": 28.135205085422754,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Venus",
+        "planet2": "Mars",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 5.058000064059172,
+        "isApplying": true,
+        "strength": 27.742856227726108,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Venus",
+        "planet2": "North Node",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 5.060029731407326,
+        "isApplying": false,
+        "strength": 27.713860979895344,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Venus",
+        "planet2": "South Node",
+        "type": "SQUARE",
+        "angle": 90,
+        "orb": 5.060029731407326,
+        "isApplying": false,
+        "strength": 27.713860979895344,
+        "interpretation": "challenging"
+      },
+      {
+        "planet1": "Venus",
+        "planet2": "Black Moon Lilith",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 5.902527549168241,
+        "isApplying": true,
+        "strength": 26.21840563539699,
+        "interpretation": "harmonious"
+      },
+      {
+        "planet1": "North Node",
+        "planet2": "Chiron",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 6.11528289340751,
+        "isApplying": false,
+        "strength": 23.55896383240612,
+        "interpretation": "harmonious"
+      },
+      {
+        "planet1": "Pluto",
+        "planet2": "Black Moon Lilith",
+        "type": "SEMI_SEXTILE",
+        "angle": 30,
+        "orb": 2.4351527819007117,
+        "isApplying": true,
+        "strength": 18.82824060330961,
+        "interpretation": "neutral"
+      },
+      {
+        "planet1": "Moon",
+        "planet2": "Venus",
+        "type": "SEMI_SEXTILE",
+        "angle": 30,
+        "orb": 2.449616525959854,
+        "isApplying": true,
+        "strength": 18.346115801338193,
+        "interpretation": "neutral"
+      },
+      {
+        "planet1": "Pluto",
+        "planet2": "Chiron",
+        "type": "TRINE",
+        "angle": 120,
+        "orb": 7.282427169068768,
+        "isApplying": true,
+        "strength": 8.969660386640399,
+        "interpretation": "harmonious"
+      },
+      {
+        "planet1": "Venus",
+        "planet2": "Jupiter",
+        "type": "CONJUNCTION",
+        "angle": 0,
+        "orb": 7.346161406213241,
+        "isApplying": true,
+        "strength": 8.172982422334485,
+        "interpretation": "neutral"
+      },
+      {
+        "planet1": "Uranus",
+        "planet2": "Neptune",
+        "type": "CONJUNCTION",
+        "angle": 0,
+        "orb": 7.533794896468294,
+        "isApplying": true,
+        "strength": 5.827563794146329,
+        "interpretation": "neutral"
+      },
+      {
+        "planet1": "Mercury",
+        "planet2": "Pluto",
+        "type": "OPPOSITION",
+        "angle": 180,
+        "orb": 7.999327973952234,
+        "isApplying": false,
+        "strength": 0.008400325597079927,
+        "interpretation": "challenging"
+      }
+    ],
+    "interpretation": {
+      "summary": "Bu ilişki, bilinçli çaba ve büyüme gerektiren alanlarla dinamik bir enerjiye sahiptir.",
+      "strengths": [
+        "Kompozit Güneş taurus burcunda, ilişkinizin temel kimliğini ve amacını temsil eder. Bu, birlikte yarattığınız şey ve başkalarının sizi bir çift olarak nasıl gördüğüdür.",
+        "Kompozit Ay taurus burcunda, duygusal bağınızı ve birbirinizi nasıl beslediğinizi gösterir. Bu, paylaşılan duygularınızı ve birlikte ev yaşamınızı ortaya koyar.",
+        "Kompozit Venüs gemini burcunda, birlikte neye değer verdiğinizi ve sevgiyi nasıl ifade ettiğinizi ortaya koyar. Bu, ilişkinizin sevgi dilidir."
+      ],
+      "challenges": [
+        "Uyumludan daha fazla zorlayıcı açı var; çalışma ve anlayış gerektiriyor."
+      ]
+    }
+  }
+}
