@@ -64,6 +64,7 @@ import type { SystemReadingDetail, SystemReadingDto } from "@/lib/human-design/p
 import { toPlanetName } from "@/lib/human-design/providers/roxy/normalize";
 import { HUMAN_DESIGN_GATES } from "@/lib/human-design/constants";
 import { GATE_TECHNICAL_DATA } from "@/lib/human-design/gateTechnicalData";
+import { crossThemeNames } from "@/lib/human-design/reporting/crossThemeTr";
 
 const REPORT_NAME = "Human Design Profesyonel Analiz Raporu · yasamsistemi.com";
 const HEADER_TEXT = "Human Design · Yaşam Sistemi";
@@ -347,10 +348,11 @@ function detailBlocks(details: SystemReadingDetail[]): Paragraph[] {
   return out;
 }
 
-function buildSystem(reading: SystemReadingDto | null): ReportChild[] {
+function buildSystem(reading: SystemReadingDto | null, o: { proCross?: boolean; flowAfterGates?: boolean } = {}): ReportChild[] {
   if (!reading) return [];
   const out: ReportChild[] = [
-    h1("Sistem Yorumu", true),
+    // flowAfterGates (yalnız pro-1): zorunlu sayfa sonu yok; başlık zinciri (keepNext) ilk paragrafla birlikte kalır.
+    h1("Sistem Yorumu", !o.flowAfterGates),
     muted(
       "Kaynak: Harita hesaplanırken hesaplama servisinden alınıp kaydedilmiş sistem açıklamaları. Bu bölüm uzman yorumu değildir; raporu hazırlayan uzmanın bilgileri ayrı bölümdedir.",
     ),
@@ -360,7 +362,12 @@ function buildSystem(reading: SystemReadingDto | null): ReportChild[] {
   if (general.length) {
     out.push(h2("Genel Human Design Açıklamaları", { keepNext: true }));
     for (const g of general) {
-      out.push(h3(g.value ? `${g.title}: ${g.value}` : g.title, { keepNext: g.details.length > 0 }));
+      if (o.proCross && g.key === "cross") {
+        const v = g.value ? crossThemeNames(g.value, null) : null;
+        out.push(h3(v ? `Enkarnasyon Teması (Yaşam Amacı): ${v.tr} (${v.en})` : "Enkarnasyon Teması (Yaşam Amacı)", { keepNext: g.details.length > 0 }));
+      } else {
+        out.push(h3(g.value ? `${g.title}: ${g.value}` : g.title, { keepNext: g.details.length > 0 }));
+      }
       out.push(...detailBlocks(g.details));
     }
   }
@@ -477,9 +484,10 @@ export function buildHdReportV2Children(s: HdReportSnapshotV2, opts: WordReportV
 // ═════════════════════════════════════════════════════════════════════════════════
 // PROFESYONEL DÜZEN "pro-1" (2026-10-09) — yalnız `layout: "pro-1"` taşıyan YENİ snapshot'lar.
 // Eski kayıtlı raporlar (layout yok) yukarıdaki düzenle AYNEN üretilir.
-//   • Sayfa 2: kimlik kartı (ad · doğum · HD özeti · Enkarnasyon Haçı) + Merkezler 3×3 ızgara
-//     (Tanımlı ● / Açık ○ — siyah-beyaz baskıda da ayırt edilir) + Kanal satırları
-//   • Sayfa 3: Design (kırmızı) | BodyGraph | Personality (siyah) — 13 + 13 aktivasyon
+//   • Sayfa 2: kimlik kartı (ad · doğum · HD özeti) + HEMEN ALTINDA BodyGraph:
+//     Design (kırmızı) | BodyGraph | Personality (siyah) — 13 + 13 aktivasyon
+//   • Sayfa 3: "ENKARNASYON TEMASI (YAŞAM AMACI)" (Türkçe ad "Haç"sız + özgün İngilizce ad)
+//     + Merkezler 3×3 ızgara (Tanımlı ● / Açık ○) + Kanal satırları
 //   • Kapı tablosu (çoklu aktivasyon korunur; başlık her sayfada tekrar eder)
 //   • "Uzman Açıklamaları" / Sistem Yorumu AYRI bölümler · sade kapanış (teknik eşleşme notu YOK)
 //   • "Hazırlayan" yalnız snapshot.preparedBy doluysa (profil adı otomatik yazılmaz)
@@ -632,24 +640,6 @@ function proIdentity(s: HdReportSnapshotV2, genDate: string): ReportChild[] {
       }),
     ]),
   );
-  if (s.identity.cross) {
-    const x = s.identity.cross;
-    const crossChildren: Paragraph[] = [
-      capsLabel("Enkarnasyon Haçı (Yaşam Teması)"),
-      pp([{ text: x.name, size: 26, bold: true, color: PAL.ink }], { after: 80 }),
-      new Paragraph({
-        spacing: { after: 0 },
-        children: [
-          pr({ text: "Kapılar  ", size: 17, color: PAL.soft }),
-          pr({ text: x.gates, size: 21, bold: true, color: PAL.ink }),
-          ...(x.angle ? [pr({ text: "     Açı  ", size: 17, color: PAL.soft }), pr({ text: x.angle, size: 21, color: PAL.ink })] : []),
-        ],
-      }),
-      pp([{ text: "Personality Güneş/Dünya | Design Güneş/Dünya", size: 16, color: PAL.faint }], { before: 40, after: 0 }),
-    ];
-    out.push(new Paragraph({ spacing: { before: 0, after: 200 } }));
-    out.push(fixedTable([W], [new TableRow({ cantSplit: true, children: [cardCell(crossChildren, W, { fill: PAL.card, borders: { ...NO_BORDERS, top: THIN(PAL.accent) } })] })]));
-  }
   out.push(
     pp(
       [
@@ -720,14 +710,15 @@ function bodygraphCell(s: HdReportSnapshotV2, img: Buffer | null): (Paragraph | 
 }
 
 function proBodygraph(s: HdReportSnapshotV2, img: Buffer | null): ReportChild[] {
-  const out: ReportChild[] = [h1("BodyGraph ve Aktivasyonlar", true)];
+  // 2026-10-10 owner: BodyGraph 2. sayfada kimlik/doğum/HD özetinin HEMEN ALTINDA (sayfa sonu yok).
+  const out: ReportChild[] = [h2("BodyGraph ve Aktivasyonlar", { keepNext: true })];
   if (s.activations.status !== "ok") {
     // Manuel / doğrulanamayan kayıt: aktivasyon sütunu yok; BodyGraph tek başına ortalanır.
     out.push(...bodygraphCell(s, img));
     if (s.activations.status === "invalid") out.push(bodyText("Kayıtlı aktivasyon verisi doğrulanamadığı için aktivasyonlar gösterilmiyor."));
     return out;
   }
-  out.push(muted("Kapı.Çizgi biçiminde; ör. 56.2 = Kapı 56, Çizgi 2."));
+  // 2026-10-10 owner: "Kapı.Çizgi biçiminde…" açıklaması pro-1'de YOK (eski düzende aynen durur).
   out.push(
     fixedTable([SIDE_COL, BG_COL, W - SIDE_COL - BG_COL], [
       new TableRow({
@@ -743,27 +734,82 @@ function proBodygraph(s: HdReportSnapshotV2, img: Buffer | null): ReportChild[] 
   return out;
 }
 
-// ── P4) Merkezler (3×3) ──
+// ── P3b) Enkarnasyon Teması (Yaşam Amacı) — BodyGraph'tan SONRA, yeni sayfa başı ──
+// Türkçe görünen adda "Haç" yok; özgün İngilizce terim aynen yanında (crossThemeNames).
+function proIncarnation(s: HdReportSnapshotV2): ReportChild[] {
+  const x = s.identity.cross;
+  if (!x) return [];
+  const names = crossThemeNames(x.name, x.angle);
+  const card: Paragraph[] = [
+    pp([{ text: names.tr, size: 30, bold: true, color: PAL.ink }], { after: 40 }),
+    pp([{ text: names.en, size: 21, italics: true, color: PAL.soft }], { after: 160 }),
+    new Paragraph({
+      spacing: { after: 0 },
+      children: [
+        pr({ text: "Kapılar  ", size: 17, color: PAL.soft }),
+        pr({ text: x.gates, size: 21, bold: true, color: PAL.ink }),
+        ...(x.angle ? [pr({ text: "     Açı  ", size: 17, color: PAL.soft }), pr({ text: x.angle, size: 21, color: PAL.ink })] : []),
+      ],
+    }),
+    pp([{ text: "Personality Güneş/Dünya | Design Güneş/Dünya", size: 16, color: PAL.faint }], { before: 40, after: 0 }),
+    // Türkçe ad resmî/standart karşılık olarak SUNULMAZ; bağlayıcı ad özgün İngilizce terimdir.
+    pp([{ text: "Türkçe ad, özgün İngilizce Human Design teriminin açıklayıcı çevirisidir; özgün terim esas alınır.", size: 15, italics: true, color: PAL.faint }], { before: 100, after: 0 }),
+  ];
+  return [
+    h1("ENKARNASYON TEMASI (YAŞAM AMACI)", true),
+    fixedTable([W], [new TableRow({ cantSplit: true, children: [cardCell(card, W, { fill: PAL.card, borders: { ...NO_BORDERS, top: THIN(PAL.accent) } })] })]),
+    new Paragraph({ spacing: { before: 0, after: 120 } }),
+  ];
+}
+
+// ── P4) Merkezler (3×3) — premium kartlar: durum + o merkezdeki aktif kapılar ──
+/** Küçük özet "pill" kartı (ör. "6 Tanımlı merkez"). */
+function statPill(value: string, label: string, width: number, fill: string, color: string): TableCell {
+  return cardCell(
+    [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 0 }, children: [pr({ text: value, size: 30, bold: true, color }), pr({ text: `  ${label}`, size: 18, color: PAL.mid })] })],
+    width,
+    { fill, vAlign: "center", pad: 90 },
+  );
+}
+
 function proCenters(s: HdReportSnapshotV2): ReportChild[] {
   if (s.centers.length === 0) return [];
   const byCode = new Map(s.centers.map((c) => [c.code, c]));
   const defined = s.centers.filter((c) => c.defined).length;
-  const gap = 160;
+  // Merkez → bu haritada o merkezdeki aktif kapılar (kayıtlı kapı verisinden; yeni veri ÜRETİLMEZ).
+  const gatesByCenter = new Map<string, number[]>();
+  for (const g of s.gates) {
+    const code = g.center ? GATE_CENTER_CODE[g.center] : undefined;
+    if (code) gatesByCenter.set(code, [...(gatesByCenter.get(code) ?? []), g.gate].sort((a, b) => a - b));
+  }
+  const gap = 200;
   const col = Math.floor((W - 2 * gap) / 3);
   const widths = [col, gap, col, gap, W - 2 * gap - 2 * col];
   const cell = (code: string, width: number): TableCell => {
     const c = byCode.get(code);
     const n = CENTER_NAME[code] ?? { tr: c?.label ?? code, en: null };
     const isDef = c?.defined === true;
-    const state = !c ? "—  Veri yok" : isDef ? "●  Tanımlı" : "○  Açık";
+    const gates = gatesByCenter.get(code) ?? [];
+    const edge = isDef ? PAL.accent : PAL.line;
     return cardCell(
       [
-        pp([{ text: n.tr, size: 20, bold: true, color: PAL.ink }], { after: 0 }),
-        pp([{ text: n.en ?? " ", size: 15, color: PAL.faint }], { after: 60 }),
-        pp([{ text: state, size: 18, bold: isDef, color: isDef ? PAL.accent : PAL.soft }], { after: 0 }),
+        pp([{ text: isDef ? "●  TANIMLI" : c ? "○  AÇIK" : "—  VERİ YOK", size: 15, bold: true, color: isDef ? PAL.accent : PAL.soft }], { after: 80 }),
+        pp([{ text: n.tr, size: 22, bold: true, color: PAL.ink }], { after: 0 }),
+        pp([{ text: n.en ?? " ", size: 15, color: PAL.faint }], { after: 100 }),
+        pp(
+          [
+            { text: "Aktif kapılar  ", size: 15, color: PAL.soft },
+            { text: gates.length ? gates.join(" · ") : "—", size: 18, bold: gates.length > 0, color: gates.length ? PAL.ink : PAL.faint },
+          ],
+          { after: 0 },
+        ),
       ],
       width,
-      { fill: isDef ? PAL.definedFill : "ffffff", borders: { top: THIN(isDef ? PAL.accent : PAL.line), bottom: THIN(isDef ? PAL.accent : PAL.line), left: THIN(isDef ? PAL.accent : PAL.line), right: THIN(isDef ? PAL.accent : PAL.line) }, pad: 110 },
+      {
+        fill: isDef ? PAL.definedFill : "ffffff",
+        borders: { top: { style: BorderStyle.SINGLE, size: 24, color: isDef ? PAL.accent : PAL.faint }, bottom: THIN(edge), left: THIN(edge), right: THIN(edge) },
+        pad: 140,
+      },
     );
   };
   const rows: TableRow[] = [];
@@ -771,14 +817,26 @@ function proCenters(s: HdReportSnapshotV2): ReportChild[] {
     if (i > 0) rows.push(new TableRow({ height: { value: gap, rule: HeightRule.EXACT }, children: widths.map((w) => cardCell([], w, { pad: 0 })) }));
     rows.push(new TableRow({ cantSplit: true, children: [cell(codes[0], widths[0]), cardCell([], gap), cell(codes[1], widths[2]), cardCell([], gap), cell(codes[2], widths[4])] }));
   });
+  const pillW = Math.floor((W - gap) / 2);
   return [
     h2("Merkezler", { keepNext: true }),
-    muted(`9 merkezden ${defined} tanımlı, ${s.centers.length - defined} açık. Tanımlı merkezler dolgulu ve ● ile gösterilir.`),
+    fixedTable([pillW, gap, W - gap - pillW], [
+      new TableRow({
+        cantSplit: true,
+        children: [
+          statPill(String(defined), "Tanımlı merkez", pillW, PAL.definedFill, PAL.accent),
+          cardCell([], gap),
+          statPill(String(s.centers.length - defined), "Açık merkez", W - gap - pillW, PAL.card, PAL.soft),
+        ],
+      }),
+    ]),
+    new Paragraph({ spacing: { before: 0, after: 160 }, keepNext: true }),
     fixedTable(widths, rows),
+    pp([{ text: "Tanımlı merkezler dolgulu ve ● ile, açık merkezler ○ ile gösterilir; siyah-beyaz baskıda da ayırt edilir.", size: 15, italics: true, color: PAL.faint }], { before: 100, after: 0 }),
   ];
 }
 
-// ── P4) Kanallar ──
+// ── P4) Kanallar — her kanal ayrı kart: renkli kod rozeti + ad + merkez yolu ──
 function proChannels(s: HdReportSnapshotV2): ReportChild[] {
   if (s.channels.length === 0 && s.gates.length === 0) return [];
   const out: ReportChild[] = [h2("Kanallar", { keepNext: true })];
@@ -787,66 +845,89 @@ function proChannels(s: HdReportSnapshotV2): ReportChild[] {
     return out;
   }
   out.push(muted(`${s.channels.length} tanımlı kanal`));
-  const widths = [1500, 4300, W - 5800];
-  const rows = s.channels.map((c) => {
+  const gap = 120;
+  const widths = [1700, W - 1700];
+  const rows: TableRow[] = [];
+  s.channels.forEach((c, i) => {
     const [a, b] = c.gates;
     const ca = gateCenterLabel(GATE_TECHNICAL_DATA[a]?.merkez ?? null);
     const cb = gateCenterLabel(GATE_TECHNICAL_DATA[b]?.merkez ?? null);
-    const line = { ...NO_BORDERS, bottom: THIN() };
-    return new TableRow({
-      cantSplit: true,
-      children: [
-        cardCell([pp([{ text: `${a}–${b}`, size: 24, bold: true, color: PAL.accent }], { after: 0 })], widths[0], { borders: line, pad: 90, vAlign: "center" }),
-        cardCell([pp([{ text: channelName(c.label, c.code), size: 21, bold: true, color: PAL.ink }], { after: 0 })], widths[1], { borders: line, pad: 90, vAlign: "center" }),
-        cardCell([pp([{ text: `${ca} ↔ ${cb}`, size: 18, color: PAL.soft }], { after: 0 })], widths[2], { borders: line, pad: 90, vAlign: "center" }),
-      ],
-    });
+    if (i > 0) rows.push(new TableRow({ height: { value: gap, rule: HeightRule.EXACT }, children: widths.map((w) => cardCell([], w, { pad: 0 })) }));
+    rows.push(
+      new TableRow({
+        cantSplit: true,
+        children: [
+          cardCell([pp([{ text: `${a}–${b}`, size: 28, bold: true, color: "ffffff" }], { align: AlignmentType.CENTER, after: 0 })], widths[0], { fill: PAL.accent, vAlign: "center", pad: 120 }),
+          cardCell(
+            [
+              pp([{ text: channelName(c.label, c.code), size: 23, bold: true, color: PAL.ink }], { after: 30 }),
+              pp([{ text: `${ca}  ↔  ${cb}`, size: 17, color: PAL.soft }, { text: `     Kapı ${a} · Kapı ${b}`, size: 15, color: PAL.faint }], { after: 0 }),
+            ],
+            widths[1],
+            { fill: PAL.card, vAlign: "center", pad: 120, borders: { ...NO_BORDERS, top: THIN(), bottom: THIN(), right: THIN() } },
+          ),
+        ],
+      }),
+    );
   });
   out.push(fixedTable(widths, rows));
   return out;
 }
 
-// ── P5) Kapılar ──
+// ── P5) Kapılar — başlık bandı + zebra satırlar + renkli aktivasyon etiketleri ──
 function proGates(s: HdReportSnapshotV2): ReportChild[] {
   if (s.gates.length === 0) return [];
-  const widths = [2700, 1700, 3700, W - 8100];
-  const border = { ...NO_BORDERS, bottom: THIN() };
+  const widths = [2900, 1600, 3700, W - 8200];
   const head = (t: string, w: number) =>
-    cardCell([pp([{ text: t, size: 16, bold: true, color: PAL.soft, allCaps: true }], { after: 0, keepNext: true })], w, { borders: { ...NO_BORDERS, bottom: THIN(PAL.faint) }, pad: 80 });
+    cardCell([pp([{ text: t, size: 16, bold: true, color: "ffffff", allCaps: true }], { after: 0, keepNext: true })], w, { fill: PAL.accent, pad: 100, vAlign: "center" });
   const rows: TableRow[] = [
     new TableRow({ tableHeader: true, cantSplit: true, children: [head("Kapı", widths[0]), head("Merkez", widths[1]), head("Aktivasyonlar", widths[2]), head("Kanal", widths[3])] }),
   ];
-  for (const g of s.gates) {
+  s.gates.forEach((g, i) => {
+    const fill = i % 2 === 0 ? "ffffff" : PAL.card;
+    const border = { ...NO_BORDERS, bottom: THIN() };
     const name = gateName(g.gate);
     const acts = g.activations.length
-      ? g.activations.map((a) =>
-          new Paragraph({
-            spacing: { before: 0, after: 10 },
+      ? g.activations.map((a) => {
+          const color = a.side === "design" ? PAL.design : PAL.personality;
+          return new Paragraph({
+            spacing: { before: 0, after: 30 },
             children: [
-              pr({ text: a.side === "design" ? "Design" : "Personality", size: 17, bold: true, color: a.side === "design" ? PAL.design : PAL.personality }),
-              pr({ text: `  ${planetLabelTr(a.planet)}  `, size: 18, color: PAL.mid }),
-              pr({ text: `${g.gate}.${a.line}`, size: 19, bold: true, color: a.side === "design" ? PAL.design : PAL.personality }),
+              pr({ text: a.side === "design" ? "● Design" : "● Personality", size: 16, bold: true, color }),
+              pr({ text: `   ${planetLabelTr(a.planet)}   `, size: 18, color: PAL.mid }),
+              pr({ text: `${g.gate}.${a.line}`, size: 20, bold: true, color }),
             ],
-          }),
-        )
-      : [pp([{ text: "—", size: 18 }], { after: 0 })];
+          });
+        })
+      : [pp([{ text: "—", size: 18, color: PAL.faint }], { after: 0 })];
     rows.push(
       new TableRow({
         cantSplit: true,
         children: [
           cardCell(
-            [pp([{ text: `${g.gate}. Kapı`, size: 21, bold: true, color: PAL.ink }], { after: 0 }), ...(name ? [pp([{ text: name, size: 16, color: PAL.soft }], { after: 0 })] : [])],
+            [
+              new Paragraph({ spacing: { before: 0, after: 0 }, children: [pr({ text: String(g.gate), size: 30, bold: true, color: PAL.accent }), pr({ text: "  Kapı", size: 17, color: PAL.soft })] }),
+              ...(name ? [pp([{ text: name, size: 17, color: PAL.mid }], { after: 0 })] : []),
+            ],
             widths[0],
-            { borders: border, pad: 50 },
+            { fill, borders: border, pad: 100, vAlign: "center" },
           ),
-          cardCell([pp([{ text: gateCenterLabel(g.center), size: 18, color: PAL.mid }], { after: 0 })], widths[1], { borders: border, pad: 50 }),
-          cardCell(acts, widths[2], { borders: border, pad: 50 }),
-          cardCell([pp([{ text: g.channel ? g.channel.replace("-", "–") : "—", size: 18, bold: !!g.channel, color: g.channel ? PAL.accent : PAL.faint }], { after: 0 })], widths[3], { borders: border, pad: 50 }),
+          cardCell([pp([{ text: gateCenterLabel(g.center), size: 19, color: PAL.ink }], { after: 0 })], widths[1], { fill, borders: border, pad: 100, vAlign: "center" }),
+          cardCell(acts, widths[2], { fill, borders: border, pad: 100, vAlign: "center" }),
+          cardCell(
+            [pp([{ text: g.channel ? g.channel.replace("-", "–") : "—", size: 20, bold: !!g.channel, color: g.channel ? PAL.accent : PAL.faint }], { after: 0 })],
+            widths[3],
+            { fill, borders: border, pad: 100, vAlign: "center" },
+          ),
         ],
       }),
     );
-  }
-  return [h1("Kapılar", true), muted(`${s.gates.length} aktif kapı · Design aktivasyonları kırmızı, Personality aktivasyonları siyah.`), fixedTable(widths, rows)];
+  });
+  return [
+    h1("Kapılar", true),
+    muted(`${s.gates.length} aktif kapı · Design aktivasyonları kırmızı, Personality aktivasyonları siyah. Kanal sütunu, kapının tamamladığı tanımlı kanalı gösterir.`),
+    fixedTable(widths, rows),
+  ];
 }
 
 // ── P6) Uzman Açıklamaları ──
@@ -854,7 +935,10 @@ function proExpert(s: HdReportSnapshotV2): ReportChild[] {
   const { expert } = s.commentary;
   if (!expert.included || expert.entries.length === 0) return [];
   const out: ReportChild[] = [
-    h1("Uzman Açıklamaları", true),
+    // Kapılardan hemen sonra gelir → zorunlu sayfa sonu YOK (2026-10-10 owner): yer varsa aynı sayfada
+    // devam eder; h1 → açıklama → kategori → başlık → ilk paragraf keepNext zinciri ile birlikte kalır,
+    // yer yoksa Word zinciri bütün olarak sonraki sayfaya taşır.
+    h1("Uzman Açıklamaları", false),
     muted("Bu bölümdeki açıklamalar, raporu hazırlayan uzmanın kendi Human Design Bilgi Bankası'ndan, bu haritanın özellikleriyle eşleşen kayıtlardır."),
   ];
   let current = "";
@@ -872,7 +956,7 @@ function proExpert(s: HdReportSnapshotV2): ReportChild[] {
 // ── Son sayfa (sade) ──
 function proClosing(s: HdReportSnapshotV2, genDate: string, opts: WordReportV2Options): ReportChild[] {
   const lines: string[] = [
-    "Teknik harita bilgileri (tip, profil, otorite, tanım, haç, aktivasyonlar, merkezler, kanallar, kapılar) kayıtlı Human Design haritasından alınmıştır.",
+    "Teknik harita bilgileri (tip, profil, otorite, tanım, enkarnasyon teması, aktivasyonlar, merkezler, kanallar, kapılar) kayıtlı Human Design haritasından alınmıştır.",
   ];
   if (opts.systemReadingRedacted) lines.push("Sistem Yorumu bu çıktıda yer almamaktadır.");
   if (s.bodygraph.status === "missing") lines.push("BodyGraph görseli bu rapora eklenemedi.");
@@ -882,24 +966,65 @@ function proClosing(s: HdReportSnapshotV2, genDate: string, opts: WordReportV2Op
     divider(),
     h2("Kaynak Bilgisi", { keepNext: true }),
     ...lines.map((l) => muted(l)),
-    // Hazırlayan YALNIZ uzmanın bu rapora yazdığı ad/unvan; profil adı OTOMATİK yazılmaz.
-    ...buildWellnessNoteSection("human_design", s.preparedBy ?? null),
+    // Bilgilendirme notu (Hazırlayan satırı burada YOK — aşağıdaki uzman imza bölümü taşır).
+    ...buildWellnessNoteSection("human_design", null),
+    ...proSignature(s.preparedBy ?? null, genDate),
+  ];
+}
+
+// ── Uzman imza bölümü (son sayfa) ──
+// "Raporu Hazırlayan" YALNIZ uzmanın bu rapora yazdığı ad/unvan; profil adı OTOMATİK yazılmaz.
+// 2026-10-10 owner: ad boşsa imza kartı TAMAMEN gizlenir (boş satırlı kart yok).
+function proSignature(preparedBy: string | null, genDate: string): ReportChild[] {
+  const name = preparedBy?.trim() || null;
+  if (!name) return [];
+  const left = Math.floor(W * 0.62);
+  const right = W - left;
+  const blankLine = (label: string): Paragraph[] => [
+    new Paragraph({ spacing: { before: 420, after: 0 }, border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: PAL.faint } }, children: [pr({ text: " ", size: 20 })] }),
+    pp([{ text: label, size: 15, color: PAL.soft }], { before: 40, after: 0 }),
+  ];
+  const leftCell: Paragraph[] = [
+    pp([{ text: "RAPORU HAZIRLAYAN", size: 16, bold: true, color: PAL.accent }], { after: 160 }),
+    pp([{ text: name, size: 34, bold: true, color: PAL.ink }], { after: 60 }),
+    pp([{ text: "Human Design Profesyonel Analiz Raporu", size: 17, color: PAL.soft }], { after: 0 }),
+  ];
+  const rightCell: Paragraph[] = [
+    pp([{ text: "RAPOR TARİHİ", size: 16, bold: true, color: PAL.accent }], { after: 160 }),
+    pp([{ text: genDate, size: 22, bold: true, color: PAL.ink }], { after: 0 }),
+    ...blankLine("İmza"),
+  ];
+  const top = { style: BorderStyle.SINGLE, size: 24, color: PAL.accent };
+  return [
+    new Paragraph({ spacing: { before: 480, after: 0 }, keepNext: true }),
+    fixedTable([left, right], [
+      new TableRow({
+        cantSplit: true,
+        children: [
+          cardCell(leftCell, left, { fill: PAL.card, pad: 260, borders: { ...NO_BORDERS, top } }),
+          cardCell(rightCell, right, { fill: PAL.card, pad: 260, borders: { ...NO_BORDERS, top, left: THIN() } }),
+        ],
+      }),
+    ]),
   ];
 }
 
 function buildHdReportV2ProChildren(s: HdReportSnapshotV2, opts: WordReportV2Options): { cover: ReportChild[]; body: ReportChild[] } {
   const genDate = formatInstantDate(s.generatedAt, { style: "long", fallback: "—" });
   const reading = opts.systemReadingRedacted ? null : s.commentary.system.status === "included" ? s.commentary.system.reading : null;
+  const expertPart = proExpert(s);
   return {
     cover: buildCover(s, genDate, opts.logo ?? null),
     body: [
       ...proIdentity(s, genDate),
+      ...proBodygraph(s, opts.bodygraphImage ?? null),
+      ...proIncarnation(s),
       ...proCenters(s),
       ...proChannels(s),
-      ...proBodygraph(s, opts.bodygraphImage ?? null),
       ...proGates(s),
-      ...proExpert(s),
-      ...buildSystem(reading),
+      ...expertPart,
+      // Uzman bölümü yoksa kapılardan hemen sonra Sistem Yorumu gelir → o da sayfa sonu zorlamadan akar.
+      ...buildSystem(reading, { proCross: true, flowAfterGates: expertPart.length === 0 }),
       ...proClosing(s, genDate, opts),
     ],
   };

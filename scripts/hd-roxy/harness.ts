@@ -594,7 +594,7 @@ async function main(): Promise<void> {
     ok("U görünüm: Design → BodyGraph → Personality DOM sırası (mobilde order ile BodyGraph üstte)", view.indexOf('data-hd-side="design"') < view.indexOf("<svg") && view.indexOf("<svg") < view.indexOf('data-hd-side="personality"'));
     ok("U görünüm: lg'de üç sütun sırası / mobilde BodyGraph order-1", /order-1[^"]*lg:order-2/.test(view));
     // PR #348 UAT: sol bilgi alanı yalnız teknik kimlik (Strateji / İmza / Benlik-dışı tema yorum niteliğinde → çıkarıldı).
-    ok("U görünüm: Tip/Profil/Tanım/Haç/İç Otorite", ["Tip", "Otorite", "Profil", "Tanım", "Enkarnasyon Haçı"].every((l) => view.includes(l)) && !["Strateji", "İmza", "Benlik-dışı"].some((l) => view.includes(l)));
+    ok("U görünüm: Tip/Profil/Tanım/Enkarnasyon Teması/İç Otorite", ["Tip", "Otorite", "Profil", "Tanım", "Enkarnasyon Teması (Yaşam Amacı)"].every((l) => view.includes(l)) && !view.includes("Haç") && !["Strateji", "İmza", "Benlik-dışı"].some((l) => view.includes(l)));
     ok("U görünüm: Türkçe değerler", view.includes("Generator") && view.includes("Sacral Otorite") && view.includes("Right Angle Cross of Laws 2"));
     ok("U görünüm: 9 merkez durumu", (view.match(/data-hd-center="/g) ?? []).length === 9 && view.includes('data-hd-center="g_identity:open"') && view.includes('data-hd-center="sacral:defined"'));
     ok("U görünüm: 4 kanal + aktif kapılar", (view.match(/data-hd-channel="/g) ?? []).length === 4 && (view.match(/data-hd-gate="/g) ?? []).length === n.codes.gates.length);

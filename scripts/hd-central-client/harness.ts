@@ -498,7 +498,13 @@ async function main() {
       // AŞAMA 4B: profesyonel Word (lib/human-design/reporting) bilinçli olarak genişletildi →
       // bu koruma Roxy hesabı / motor / harita görünümü dosyalarını kapsar. HdRoxyBodygraph'ta
       // yalnız yükleyicinin export edilmesine izin verilir (aşağıda ayrıca doğrulanır).
-      roxyDiff = execSync("git diff --name-only origin/main -- lib/human-design/providers lib/human-design/api/roxyChartService.ts lib/human-design/engine app/human-design/kayitli-haritalar/components/HdComputedChartView.tsx app/human-design/kayitli-haritalar/components/HdChartInfoPanel.tsx app/human-design/kayitli-haritalar/components/HdSystemReadingPanel.tsx app/human-design/danisanlar/components/HdAutoCalcPanel.tsx", { cwd: ROOT }).toString().trim();
+      roxyDiff = execSync("git diff --name-only origin/main -- lib/human-design/providers lib/human-design/api/roxyChartService.ts lib/human-design/engine app/human-design/kayitli-haritalar/components/HdComputedChartView.tsx app/human-design/danisanlar/components/HdAutoCalcPanel.tsx", { cwd: ROOT }).toString().trim();
+      // 2026-10-10 owner: bilgi/sistem yorumu panellerinde YALNIZ "Enkarnasyon Haçı" başlığı →
+      // HD_CROSS_SECTION_TITLE ("Enkarnasyon Teması (Yaşam Amacı)"). Başka satır değişirse yine FAIL.
+      const panelDiff = execSync("git diff -U0 origin/main -- app/human-design/kayitli-haritalar/components/HdChartInfoPanel.tsx app/human-design/kayitli-haritalar/components/HdSystemReadingPanel.tsx", { cwd: ROOT }).toString();
+      const panelChanged = panelDiff.split(/\r?\n/).filter((l) => /^[-+](?![-+])/.test(l));
+      const panelOk = panelChanged.every((l) => /HD_CROSS_SECTION_TITLE|label="Enkarnasyon Haçı"|başlık "Enkarnasyon Haçı" olabilir|import \{ hdCrossAngleLabel \} from "@\/lib\/human-design\/normalize\/hdDisplayLabels";|\{item\.title\}<\/p>$/.test(l));
+      if (!panelOk) roxyDiff += `\nHD paneller: ${panelChanged.join(" | ")}`;
       const bgDiff = execSync("git diff -U0 origin/main -- app/human-design/kayitli-haritalar/components/HdRoxyBodygraph.tsx", { cwd: ROOT }).toString();
       const changed = bgDiff.split("\n").filter((l) => /^[-+](?![-+])/.test(l));
       if (!(changed.length === 0 || (changed.length === 2 && changed.every((l) => /function loadRoxyBodygraph\(\): Promise<void> \{$/.test(l))))) roxyDiff += `\nHdRoxyBodygraph: ${changed.join(" | ")}`;

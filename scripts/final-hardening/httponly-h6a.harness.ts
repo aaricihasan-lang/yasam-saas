@@ -98,9 +98,10 @@ async function main() {
     reset();
     store.set("yasam_cookie_session_fp", "x"); // geçiş tetiklenmesin diye farklı → aşağıda ayrıca
     await se.checkSessionStatus();
+    // H6b: legacy-token temizliği önce kendi (başlıksız) doğrulamasını yapabilir → TÜM session GET'ler başlıksız.
     const sessionGet = calls.filter((c) => c.url === "/api/auth/session");
-    assert.equal(sessionGet.length, 1);
-    assert.ok(!("x-session-token" in sessionGet[0].headers));
+    assert.ok(sessionGet.length >= 1);
+    assert.ok(sessionGet.every((c) => !("x-session-token" in c.headers)));
   });
 
   // ── 3) KILL-SWITCH geri dönüşü (aynı tarayıcı) ──────────────────────────────────────────
@@ -185,16 +186,62 @@ async function main() {
     assert.equal(del?.headers["x-user-id"], UID);
   });
 
+  // ── 6b) TAZE LOGIN (H6a FIX): boş localStorage + gerçek completeLogin sırası ─────────────
+  const PROFILE = { id: UID, email: "a@test.invalid", name: "A", role: "expert", status: "active", active: true, approval_status: "approved", tenant_id: "t1", membership_status: "active", subscription_status: "active", package_type: "premium", module_permissions: { numerology: true } };
+  const loginRow = { id: UID, email: "a@test.invalid", name: "A", role: "expert", status: "active", active: true, approval_status: "approved", tenant_id: "t1" };
+  async function freshLogin(opts: { android?: boolean; transport?: string }) {
+    reset({ token: false, user: false, android: opts.android, transport: opts.transport ?? "cookie" });
+    respond = (u) => (u.startsWith("/api/auth/profile") ? new Response(JSON.stringify({ profile: PROFILE }), { status: 200 }) : new Response("{}", { status: 200 }));
+    // app/page.tsx completeLogin: parseLoginUserRecord → saveSessionToken → syncYasamUserFromDb(force)
+    const logged = yu.parseLoginUserRecord(loginRow)!;
+    assert.equal(store.get("yasam_user"), undefined, "başlangıçta yasam_user YOK");
+    yu.saveSessionToken(TOKEN);
+    const fresh = await yu.syncYasamUserFromDb(logged, { force: true });
+    return { fresh, profileCalls: calls.filter((c) => c.url.startsWith("/api/auth/profile")) };
+  }
+  await t("TAZE LOGIN (cookie, boş localStorage): /api/auth/profile ÇAĞRILIR, başlıksız; yasam_user SONRA yazılır", async () => {
+    const { fresh, profileCalls } = await freshLogin({});
+    assert.equal(profileCalls.length, 1, "profil isteği atlanmamalı (regresyon)");
+    assert.ok(!("x-session-token" in profileCalls[0].headers));
+    assert.equal(profileCalls[0].headers["x-user-id"], UID);
+    assert.equal(fresh?.membership_status, "active");
+    assert.ok(JSON.parse(store.get("yasam_user") ?? "{}").id === UID, "yasam_user yazıldı");
+    assert.equal(yu.canLoginYasamUser(fresh!).allowed, true, "'aktif değil' DEĞİL");
+    assert.ok(!calls.some((c) => c.url === "/api/auth/session/cookie"), "login sonrası bootstrap gereksiz");
+  });
+  await t("TAZE LOGIN (KILL-SWITCH header): profil token başlığıyla (H5 yolu)", async () => {
+    const { fresh, profileCalls } = await freshLogin({ transport: "header" });
+    assert.equal(profileCalls.length, 1);
+    assert.equal(profileCalls[0].headers["x-session-token"], TOKEN);
+    assert.equal(yu.canLoginYasamUser(fresh!).allowed, true);
+  });
+  await t("TAZE LOGIN (ANDROID): profil token başlığıyla; cookie yolu YOK", async () => {
+    const { fresh, profileCalls } = await freshLogin({ android: true });
+    assert.equal(profileCalls.length, 1);
+    assert.equal(profileCalls[0].headers["x-session-token"], TOKEN);
+    assert.equal(yu.canLoginYasamUser(fresh!).allowed, true);
+    assert.ok(!calls.some((c) => c.url === "/api/auth/session/cookie"));
+  });
+  await t("Android tokensuz + id verilse bile kimlik bilgisi YOK (cookie yolu Android'de yok)", () => {
+    reset({ android: true, token: false, user: false });
+    assert.equal(yu.hasSessionCredential(null, UID), false);
+  });
+  await t("web id'siz + profil kaydı yok → kimlik bilgisi YOK (karar sunucuya bırakılmaz)", () => {
+    reset({ token: false, user: false });
+    assert.equal(yu.hasSessionCredential(null), false);
+    assert.equal(yu.hasSessionCredential(null, UID), true);
+  });
+
   // ── 7) statik ───────────────────────────────────────────────────────────────────────────
   await t("layout: <html data-session-transport> SSR; Android isteği her zaman header", () => {
     const l = read("app/layout.tsx");
     assert.ok(/isAndroidAppRequest\(requestHeaders\) \? "header" : readWebSessionTransport\(\)/.test(l));
     assert.ok(/\[SESSION_TRANSPORT_HTML_ATTR\]: sessionTransport/.test(l));
   });
-  await t("H6b YOK: saveSessionToken localStorage'a yazar; login gövdesi token döndürür; token silinmez", () => {
+  await t("H6b sözleşmesi: saveSessionToken web+cookie'de yazmaz (diğerlerinde yazar); login gövdesi taşımaya göre", () => {
     const y = read("lib/auth/yasamUser.ts");
-    assert.ok(/localStorage\.setItem\(SESSION_TOKEN_KEY, token\);/.test(y));
-    assert.ok(/\r?\n\s+sessionToken,\r?\n/.test(read("app/api/auth/session/route.ts")));
+    assert.ok(/if \(webUsesCookieTransport\(\)\) return;\r?\n\s+localStorage\.setItem\(SESSION_TOKEN_KEY, token\);/.test(y));
+    assert.ok(/\{ sessionCookie: true \} : \{ sessionToken \}/.test(read("app/api/auth/session/route.ts")));
     assert.ok(/saveSessionToken\(sessionToken\)/.test(read("app/page.tsx")));
   });
   await t("istemci cookie modülünü import etmez (taşıma bayrağı ayrı saf modülde)", () => {

@@ -183,7 +183,7 @@ async function main() {
   ok("C9 İç Otorite", field("authority").includes("Sacral Otorite"));
   ok("C10 Profil", field("profile").includes("2/4 — Münzevi / Fırsatçı"), field("profile"));
   ok("C11 Tanım", field("definition").includes("İkili Tanım (Split)"), field("definition"));
-  ok("C12 Enkarnasyon Haçı + kapılar", field("cross").includes("Right Angle Cross of Laws 2") && field("cross").includes(`${ref2.incarnationCross.gates[0]}/${ref2.incarnationCross.gates[1]} | ${ref2.incarnationCross.gates[2]}/${ref2.incarnationCross.gates[3]}`));
+  ok("C12 Enkarnasyon Teması (Yaşam Amacı) + kapılar", field("cross").includes("Right Angle Cross of Laws 2") && field("cross").includes(`${ref2.incarnationCross.gates[0]}/${ref2.incarnationCross.gates[1]} | ${ref2.incarnationCross.gates[2]}/${ref2.incarnationCross.gates[3]}`));
   ok("C13 UAT: Strateji / İmza / Benlik-dışı solda YOK", !/data-hd-info-field="(strategy|signature|notself)"/.test(info) && !info.includes("Strateji") && !info.includes("İmza") && !info.includes("Benlik-dışı") && !info.includes("Yanıt vermek için beklemek") && !info.includes("Tatmin"));
   ok("C14 UAT: kanal / merkez / kapı / Bilgi Bankası solda YOK", !info.includes("Kanal") && !info.includes("Merkez") && !info.includes("Kapı") && !info.includes("data-hd-info-group=\"channels\"") && !info.includes("Bilgi Bankası"));
   const lower = html.slice(html.indexOf("data-hd-stage"));
@@ -194,7 +194,7 @@ async function main() {
   ok("C18 alt bölüm: kanallar/merkezler/kapılar korunur", count(html, /data-hd-channel=/g) === n.codes.channels.length && count(html, /data-hd-center=/g) === 9 && count(html, /data-hd-gate=/g) === n.codes.gates.length);
 
   // ── D) Yerleşim / tekrar / marka ──
-  ok("D1 HD alanları sayfada tek yerde (tekrar yok)", count(html, />Enkarnasyon Haçı</g) === 1 && count(html, />Tip</g) === 1 && count(html, />Strateji</g) === 0);
+  ok("D1 HD alanları sayfada tek yerde (tekrar yok)", count(html, />Enkarnasyon Teması \(Yaşam Amacı\)</g) === 1 && !html.includes("Haç") && count(html, />Tip</g) === 1 && count(html, />Strateji</g) === 0);
   ok("D2 DOM sırası: bilgi → Design → BodyGraph → Personality (mobilde bilgi en üstte)", html.indexOf("data-hd-info") < html.indexOf('data-hd-side="design"') && html.indexOf('data-hd-side="design"') < html.indexOf("<roxy-bodygraph") && html.indexOf("<roxy-bodygraph") < html.indexOf('data-hd-side="personality"'));
   ok("D3 geniş masaüstü: [Bilgi][Design][BodyGraph][Personality] TEK kart (bilgi kartsız, iç kaydırma YOK)", html.includes("hdwide:flex-row") && html.includes("hdwide:w-[252px]") && html.includes("hdwide:border-0 hdwide:border-r") && html.includes("hdwide:bg-transparent") && !info.includes("overflow-y-auto") && !info.includes("overflow-auto") && !info.includes("sticky") && html.includes("hdwide:rounded-2xl hdwide:border hdwide:border-indigo-200/70") && html.includes("hdwide:bg-none hdwide:shadow-none"));
   ok("D4 BodyGraph yükseklik-öncelikli yerleşim korunur", html.includes("lg:h-[calc(100dvh-5.25rem)]") && html.includes('data-hd-renderer="roxy-official"') && html.includes("lg:h-full lg:w-auto"));

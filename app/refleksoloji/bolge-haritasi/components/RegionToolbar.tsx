@@ -1,4 +1,5 @@
-import type { FootSide, FootView, RegionDrawShape, RegionToolMode } from "../types";
+import { POINT_SIZE_LABEL, POINT_SIZES } from "../types";
+import type { FootSide, FootView, PointSize, RegionDrawShape, RegionToolMode } from "../types";
 
 type RegionToolbarProps = {
   selectedFoot: FootSide;
@@ -9,6 +10,11 @@ type RegionToolbarProps = {
   setToolMode: (mode: RegionToolMode) => void;
   drawShape: RegionDrawShape;
   setDrawShape: (shape: RegionDrawShape) => void;
+  /** Nokta boyutu: seçili nokta varsa onun boyutu, yoksa yeni noktaların boyutu. */
+  pointSize: PointSize;
+  onPointSizeChange: (size: PointSize) => void;
+  /** Boyut seçici yalnız Nokta aracı ya da seçili bir nokta varken görünür. */
+  showPointSize: boolean;
   onSave: () => void;
   onClear: () => void;
   /**
@@ -29,6 +35,9 @@ function btnClass(idle: string, active: boolean) {
   return `${btnBase} ${idle} ${active ? activeRing : ""}`;
 }
 
+/** Seçicideki önizleme nokta çapı (px) — gerçek çapların küçültülmüş sırası. */
+const POINT_SIZE_SWATCH_PX: Record<PointSize, number> = { xs: 3, sm: 6, md: 9, lg: 13 };
+
 export function RegionToolbar({
   selectedFoot,
   setSelectedFoot,
@@ -38,12 +47,18 @@ export function RegionToolbar({
   setToolMode,
   drawShape,
   setDrawShape,
+  pointSize,
+  onPointSizeChange,
+  showPointSize,
   onSave,
   onClear,
   editingAllowed,
 }: RegionToolbarProps) {
   const isAdd = toolMode === "add";
   const isMove = toolMode === "move";
+  // El yüzeylerinde aynı Sol/Sağ seçimi "El" olarak etiketlenir (veri: footSide aynı).
+  const isHandView = selectedView === "el_avuc" || selectedView === "el_sirt";
+  const sideNoun = isHandView ? "El" : "Ayak";
 
   return (
     <div className="flex w-full shrink-0 justify-center px-2 pb-2">
@@ -109,6 +124,48 @@ export function RegionToolbar({
 
         <button
           type="button"
+          onClick={() => setDrawShape("point")}
+          aria-pressed={drawShape === "point"}
+          className={btnClass("border-rose-200 bg-rose-50 text-rose-700", drawShape === "point")}
+        >
+          Nokta
+        </button>
+
+        {showPointSize ? (
+          <div
+            role="radiogroup"
+            aria-label="Nokta boyutu"
+            className="inline-flex min-h-11 shrink-0 items-center gap-0.5 rounded-lg border border-rose-200 bg-rose-50/70 px-0.5 shadow-sm sm:min-h-0 sm:h-7"
+          >
+            {POINT_SIZES.map((size) => {
+              const active = size === pointSize;
+              const swatch = POINT_SIZE_SWATCH_PX[size];
+              return (
+                <button
+                  key={size}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  aria-label={POINT_SIZE_LABEL[size]}
+                  title={POINT_SIZE_LABEL[size]}
+                  onClick={() => onPointSizeChange(size)}
+                  className={`flex h-10 w-9 items-center justify-center rounded-md transition-colors duration-200 sm:h-6 sm:w-6 ${
+                    active ? "bg-white shadow-sm ring-1 ring-rose-300" : "hover:bg-white/70"
+                  }`}
+                >
+                  <span
+                    aria-hidden
+                    className={`block rounded-full ${active ? "bg-rose-600" : "bg-rose-400"}`}
+                    style={{ width: swatch, height: swatch }}
+                  />
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+
+        <button
+          type="button"
           onClick={() => setToolMode("move")}
           aria-pressed={isMove}
           className={btnClass("border-cyan-200 bg-cyan-50 text-cyan-700", isMove)}
@@ -145,7 +202,7 @@ export function RegionToolbar({
             selectedFoot === "left",
           )}
         >
-          Sol Ayak
+          Sol {sideNoun}
         </button>
 
         <button
@@ -157,7 +214,7 @@ export function RegionToolbar({
             selectedFoot === "right",
           )}
         >
-          Sağ Ayak
+          Sağ {sideNoun}
         </button>
 
         <span className="hidden h-5 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
@@ -168,6 +225,24 @@ export function RegionToolbar({
           { view: "taban", label: "Taban", tone: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700" },
           { view: "yan_ic", label: "Yan İç", tone: "border-purple-200 bg-purple-50 text-purple-700" },
           { view: "yan_dis", label: "Yan Dış", tone: "border-violet-200 bg-violet-50 text-violet-700" },
+        ] as const).map(({ view, label, tone }) => (
+          <button
+            key={view}
+            type="button"
+            onClick={() => setSelectedView(view)}
+            aria-pressed={selectedView === view}
+            className={btnClass(tone, selectedView === view)}
+          >
+            {label}
+          </button>
+        ))}
+
+        <span className="hidden h-5 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
+
+        {/* El yüzeyleri — aynı Sol/Sağ seçimiyle (Sol → sol el, Sağ → sağ el). */}
+        {([
+          { view: "el_avuc", label: "Avuç İçi", tone: "border-teal-200 bg-teal-50 text-teal-700" },
+          { view: "el_sirt", label: "El Sırtı", tone: "border-amber-200 bg-amber-50 text-amber-700" },
         ] as const).map(({ view, label, tone }) => (
           <button
             key={view}

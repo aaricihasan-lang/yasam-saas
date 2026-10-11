@@ -83,7 +83,7 @@ async function main() {
     (long.client as Record<string, unknown>).name = "Şükriye Gülçiçek Özdemir-Karaağaçlıoğlu İçtenlikçi";
     (long.client as Record<string, unknown>).birthPlace = "Kızılcahamam, Ankara İli, Türkiye Cumhuriyeti (İç Anadolu Bölgesi)";
     const cross = (long.identity as Record<string, unknown>).cross as Record<string, unknown> | null;
-    if (cross) cross.name = "Right Angle Cross of the Sleeping Phoenix 2 (çok uzun özgün ad denemesi)";
+    if (cross) cross.name = "Right Angle Cross of the Sleeping Phoenix 2";
     outputs.push(["hd-yeni-uzun-degerler", long as never, { bodygraphImage: bodygraph, logo }]);
   }
   for (const [name, snap, opts] of outputs) {

@@ -52,6 +52,9 @@ const STEPS = [
   ["httponly-h1h4", "npx", ["tsx", "scripts/final-hardening/httponly-h1h4.harness.ts"]],
   ["httponly-h5", "npx", ["tsx", "scripts/final-hardening/httponly-h5.harness.ts"]],
   ["httponly-h6a", "npx", ["tsx", "scripts/final-hardening/httponly-h6a.harness.ts"]],
+  ["httponly-h6b", "npx", ["tsx", "scripts/final-hardening/httponly-h6b.harness.ts"]],
+  ["csp-c1v2", "npx", ["tsx", "scripts/final-hardening/csp-c1v2.harness.ts"]],
+  ["csp-c3-mode", "npx", ["tsx", "scripts/final-hardening/csp-c3-mode.harness.ts"]],
   // F-1: outbox RPC güvenli hata kategorisi + yalnız sweep için tek jitter retry.
   ["outbox-sweep-retry", "npx", ["tsx", "scripts/final-hardening/outbox-sweep-retry.harness.ts"]],
   // Satış öncesi kapanış (2026-10): yeni kapsam harness'ları.

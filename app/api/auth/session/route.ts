@@ -16,6 +16,7 @@ import {
   isAndroidAppRequest,
   isSessionCookieEligible,
   readWebSessionCookie,
+  readWebSessionTransport,
   setWebSessionCookie,
 } from "@/lib/auth/sessionCookie";
 import { checkCookieAuthCsrf } from "@/lib/security/csrf";
@@ -66,7 +67,7 @@ async function auditAdminSessionEvent(
  * yanıt istemcinin oturumu kurması için gereken gating satırını da döndürür.
  *
  * Body: { email: string, password: string }
- * 200: { sessionToken, user: {id,email,name,role,status,tenant_id,active,approval_status},
+ * 200: { sessionToken | sessionCookie:true (HTTPONLY H6b: web+cookie taşımasında token gövdede DÖNMEZ), user: {id,email,name,role,status,tenant_id,active,approval_status},
  *        suspiciousLogin, highRisk }
  * 401 INVALID_CREDENTIALS (hesap varlığı sızdırmayan tek mesaj) · 429 LOCKED (+Retry-After)
  * 403 INACTIVE / PENDING / NO_ROLE / SESSION_LIMIT · 500 (ayrıntı sızdırılmaz).
@@ -79,10 +80,17 @@ export async function POST(req: NextRequest) {
     const email = typeof body?.email === "string" ? body.email : "";
     const password = typeof body?.password === "string" ? body.password : "";
     // Aynı cihazdaki önceki token (yalnız aynı kullanıcıya aitse kapatılır; aksi halde etkisiz).
-    const replaceSessionToken =
+    // HTTPONLY H6b: web istemcisi token'ı artık tutmaz → gövdede yoksa bu tarayıcının HttpOnly oturum
+    // cookie'si "aynı cihaz" kanıtı olarak kullanılır (Android/off modda bugünkü gibi yalnız gövde).
+    const bodyReplaceToken =
       typeof body?.replaceSessionToken === "string" && UUID_RE.test(body.replaceSessionToken.trim())
         ? body.replaceSessionToken.trim()
         : null;
+    const cookieReplaceToken =
+      !bodyReplaceToken && getSessionCookieConfig().mode !== "off" && !isAndroidAppRequest(req.headers)
+        ? readWebSessionCookie(req)
+        : "";
+    const replaceSessionToken = bodyReplaceToken ?? (UUID_RE.test(cookieReplaceToken) ? cookieReplaceToken : null);
 
     if (!email.trim() || !password.trim()) {
       // Credential yok → kimlik kanıtı yok. Token ÜRETİLMEZ.
@@ -201,25 +209,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // HTTPONLY H2+: yalnız uygun WEB oturumu → __Host-yasam_sid. Android oturumuna ASLA set edilmez.
+    // Max-Age = mutlak oturum süresi. off modda (varsayılan) yanıt bugünküyle birebir.
+    const cookieCfg = getSessionCookieConfig();
+    const webCookieSession =
+      cookieCfg.mode !== "off" &&
+      result.channel !== "android_app" &&
+      !isAndroidAppRequest(req.headers) &&
+      isSessionCookieEligible(cookieCfg, String(row.id));
+    // HTTPONLY H6b: web + cookie taşımasında oturum token'ı GÖVDEDE DÖNMEZ (JS hiç görmez); istemci
+    // `sessionCookie: true` ile HttpOnly cookie'ye güvenir. Android ve header taşıması (kill-switch /
+    // primary dışı mod) → token gövdede aynen (bugünkü sözleşme).
+    const webCookieOnly = webCookieSession && readWebSessionTransport() === "cookie";
     const response = json(
       {
-        sessionToken,
+        ...(webCookieOnly ? { sessionCookie: true } : { sessionToken }),
         user: row,
         suspiciousLogin: result.suspiciousLogin,
         highRisk: result.highRisk,
       },
       200,
     );
-    // HTTPONLY H2+: yalnız uygun WEB oturumu → __Host-yasam_sid (JSON token + localStorage aynen
-    // devam eder). Android oturumuna ASLA set edilmez. Max-Age = mutlak oturum süresi.
-    // off modda (varsayılan) yanıt bugünküyle birebir; yalnız istekte bayat cookie varsa silinir.
-    const cookieCfg = getSessionCookieConfig();
-    if (
-      cookieCfg.mode !== "off" &&
-      result.channel !== "android_app" &&
-      !isAndroidAppRequest(req.headers) &&
-      isSessionCookieEligible(cookieCfg, String(row.id))
-    ) {
+    if (webCookieSession) {
       setWebSessionCookie(response, sessionToken, Math.floor(SESSION_ABSOLUTE_MS[result.role] / 1000));
     } else if (hasWebSessionCookie(req)) {
       clearWebSessionCookie(response);

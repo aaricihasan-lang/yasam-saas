@@ -210,10 +210,14 @@ const isUseClient = (rel: string) => /^\s*(?:\/\/[^\n]*\n|\/\*[\s\S]*?\*\/\s*)*\
       "Referrer-Policy",
       "X-Frame-Options",
       "Permissions-Policy",
-      "Content-Security-Policy",
     ]) {
       assert.ok(keys.includes(k), k);
     }
+    // CSP NONCE C1-v2: doküman CSP'si proxy'de (tek kaynak); /:path* kuralında CSP OLMAMALI,
+    // proxy dışı yollarda (API/statik) CSP next.config'ten gelmeye devam eder.
+    assert.ok(!keys.includes("Content-Security-Policy"), "/:path* doküman CSP'si içermemeli (#99360)");
+    const api = rules.find((r) => r.source === "/api/:path*");
+    assert.ok(api?.headers.some((x) => x.key === "Content-Security-Policy"), "/api CSP kaybolmamalı");
     // redirects korunmuş olmalı (regresyon)
     const redirects = await (cfg as { redirects?: () => Promise<unknown[]> }).redirects!();
     assert.ok(redirects.length >= 10);
