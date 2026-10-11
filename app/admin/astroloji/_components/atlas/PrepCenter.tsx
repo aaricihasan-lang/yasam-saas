@@ -19,7 +19,7 @@
  * 3D: WebGL KULLANILMAZ; derinlik CSS perspektifli kaide/halka katmanları, iç gölge, cam ve metal degradelerle verilir.
  */
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { AlertTriangle, Check, ChevronDown, Loader2, Pencil, Plus, Sparkles, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, Loader2, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import { describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
@@ -276,6 +276,7 @@ export default function PrepCenter({
   picker,
   onCreateClient,
   onEditBirth,
+  onDeleteProfile,
   checked,
   onChecked,
   params,
@@ -302,6 +303,8 @@ export default function PrepCenter({
   /** D3.1: her zaman görünür "+ Yeni Danışan" (mevcut doğum profili formunu açar). */
   onCreateClient: () => void;
   onEditBirth: (() => void) | null;
+  /** Seçili doğum profilini silme akışı (analizi olmayan profil dahil; A/B seçimi + sunucu onayı ArchiveDeleteFlow'da). */
+  onDeleteProfile?: (() => void) | null;
   checked: Partial<Record<UiTechniqueId, boolean>>;
   /** Durum ayarlayıcı (işlevsel güncelleme desteklenir → hızlı ardışık tıklamalarda seçim kaybolmaz). */
   onChecked: (next: Partial<Record<UiTechniqueId, boolean>> | ((prev: Partial<Record<UiTechniqueId, boolean>>) => Partial<Record<UiTechniqueId, boolean>>)) => void;
@@ -717,6 +720,11 @@ export default function PrepCenter({
           {profile && rev && (
             <button type="button" onClick={() => setBirthDetailsOpen((v) => !v)} aria-expanded={birthDetailsOpen} aria-controls="atlas-birth-details" className={ghostBtn} data-testid="atlas-birth-details-toggle">
               Doğum Ayrıntıları <ChevronDown className={`h-3.5 w-3.5 transition ${birthDetailsOpen ? "rotate-180" : ""}`} />
+            </button>
+          )}
+          {profile && onDeleteProfile && (
+            <button type="button" onClick={onDeleteProfile} className={`${ghostBtn} hover:border-rose-300/70 hover:text-rose-100`} data-testid="atlas-delete-profile" title="Doğum profilini veya yalnız kayıtlı analizlerini kalıcı sil (onaylı)">
+              <Trash2 className="h-3.5 w-3.5" /> Profili Sil
             </button>
           )}
         </div>

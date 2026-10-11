@@ -103,10 +103,12 @@ export default function ArchiveDeleteFlow({
     return () => window.removeEventListener("keydown", onKey);
   }, [busy, onClose]);
 
+  // Kayıtlı analizi olmayan profil (Yeni Analiz → "Profili Sil"): A anlamsızdır (silinecek analiz yok) → yalnız B.
+  const noAnalyses = !!pv && pv.totals.ownAnalyses === 0;
   const isA = kind === "A";
   const n = pv?.profileCount ?? ids?.length ?? 0;
   const phrase = isA ? (scope === "all" ? "TÜM ANALİZLERİ SİL" : `${n} DANIŞANIN ANALİZLERİNİ SİL`) : scope === "all" ? "TÜM ARŞİVİ SİL" : `${n} DANIŞANI SİL`;
-  const pvReady = !!pv && !!kind && pv.scope === wantScope;
+  const pvReady = !!pv && !!kind && pv.scope === wantScope && !(noAnalyses && kind === "A");
   const typedOk = typed.trim().toLocaleUpperCase("tr-TR") === phrase;
   const tooMany = scope === "all" && allTotal !== null && allTotal > MAX;
 
@@ -169,11 +171,15 @@ export default function ArchiveDeleteFlow({
               {step === 1 && (
                 <>
                   <p className="font-medium">Silme türünü seçin</p>
-                  <label className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 ${kind === "A" ? "border-rose-400 bg-rose-50/60" : "border-slate-200 hover:border-rose-300"}`} data-testid="astro-delete-option-a">
-                    <input type="radio" name="astro-delete-kind" className="mt-1" checked={kind === "A"} onChange={() => setKind("A")} />
+                  <label
+                    className={`flex items-start gap-2 rounded-lg border p-3 ${noAnalyses ? "cursor-not-allowed border-slate-200 opacity-55" : kind === "A" ? "cursor-pointer border-rose-400 bg-rose-50/60" : "cursor-pointer border-slate-200 hover:border-rose-300"}`}
+                    data-testid="astro-delete-option-a"
+                    aria-disabled={noAnalyses}
+                  >
+                    <input type="radio" name="astro-delete-kind" className="mt-1" checked={kind === "A"} disabled={noAnalyses} onChange={() => setKind("A")} />
                     <span>
                       <span className="block font-medium">Yalnızca analizleri sil</span>
-                      <span className="block text-xs text-slate-600">{OPTION_A}</span>
+                      <span className="block text-xs text-slate-600">{noAnalyses ? "Bu profilin kayıtlı analizi yok; silinecek analiz bulunmadığı için bu seçenek kullanılamaz." : OPTION_A}</span>
                     </span>
                   </label>
                   <label className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 ${kind === "B" ? "border-rose-400 bg-rose-50/60" : "border-slate-200 hover:border-rose-300"}`} data-testid="astro-delete-option-b">

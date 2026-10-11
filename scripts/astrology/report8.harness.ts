@@ -661,6 +661,38 @@ async function main() {
     assert.equal(last, 429);
   });
 
+  await t("2026-10 KAYIT AKIŞI: başlıktaki altın 'Analizini Kaydet' artık kaydeder (özet → onay → POST → geri okuma); hata görünür", () => {
+    const page = readFileSync(join(ROOT, "app/admin/astroloji/page.tsx"), "utf8");
+    const ws = readFileSync(join(ROOT, "app/admin/astroloji/_components/AnalysisWorkspace.tsx"), "utf8");
+    // Kök neden: düğme yalnız setDeskTab("kaydet") çağırıyordu → hiçbir kayıt isteği gitmiyordu.
+    const btn = page.slice(page.indexOf('data-testid="astro-desk-save"') - 600, page.indexOf('data-testid="astro-desk-save"'));
+    assert.match(btn, /setSaveSignals\(\(m\) => \(\{ \.\.\.m, \[item\.key\]: \(m\[item\.key\] \?\? 0\) \+ 1 \}\)\)/, "düğme çalışma alanına adım sinyali gönderir");
+    assert.match(page, /Kaydı Onayla · \$\{techniqueLabel\(item\.technique\)\}/);
+    assert.match(page, /saveSignal=\{saveSignals\[bi\.key\] \?\? 0\}/, "sinyal doğru sekmenin çalışma alanına bağlı");
+    assert.match(page, /data-testid="astro-desk-save-error"/, "kayıt hatası başlıkta görünür");
+    assert.match(ws, /if \(shownSummary\) void save\(\);\r?\n\s+else void prepare\(\);/);
+    // Başarı yalnız sunucudan geri okunursa; aksi hâlde açık hata ve aynı saveRequestId (mükerrer yok).
+    const save = ws.slice(ws.indexOf("async function save()"), ws.indexOf("// Başlıktaki altın düğme sinyali"));
+    assert.ok(save.indexOf("/api/admin/astroloji/analyses/${encodeURIComponent(r.data.analysisId)}") > 0, "kayıt sonrası doğrulama okuması");
+    assert.ok(save.indexOf("onSaved(r.data.analysisId)") > save.indexOf("if (!check.ok)"), "onSaved yalnız doğrulamadan sonra");
+    assert.match(save, /Analiz KAYDEDİLMEDİ: \$\{r\.error\}/);
+    assert.ok(save.indexOf("setSummary(null)") > save.indexOf("if (!check.ok)"), "doğrulanamazsa özet (saveRequestId) korunur");
+  });
+
+  await t("2026-10 PROFİL SİLME: analizi olmayan profil Yeni Analiz'den silinebilir (ortak A/B akışı; A yalnız analiz varsa)", () => {
+    const page = readFileSync(join(ROOT, "app/admin/astroloji/page.tsx"), "utf8");
+    const prep = readFileSync(join(ROOT, "app/admin/astroloji/_components/atlas/PrepCenter.tsx"), "utf8");
+    const adf = readFileSync(join(ROOT, "app/admin/astroloji/_components/atlas/ArchiveDeleteFlow.tsx"), "utf8");
+    assert.match(prep, /data-testid="atlas-delete-profile"/);
+    assert.match(page, /onDeleteProfile=\{shownDetail \? \(\) => setArchiveDelete\(\{ scope: "single", ids: \[shownDetail\.id\] \}\) : null\}/);
+    // Akış gizli arşiv ızgarasının DIŞINDA (Yeni Analiz görünümünde de görünür).
+    assert.ok(page.indexOf("<ArchiveDeleteFlow") < page.indexOf("Aşama D3: Yeni Analiz"), "silme katmanı görünümden bağımsız");
+    assert.ok(!/ProfileDeleteFlow/.test(page), "ölü ikinci silme akışı kaldırıldı");
+    assert.match(adf, /const noAnalyses = !!pv && pv\.totals\.ownAnalyses === 0;/);
+    assert.match(adf, /disabled=\{noAnalyses\}/);
+    assert.match(adf, /!\(noAnalyses && kind === "A"\)/);
+  });
+
   restore();
   console.log(`\nastrology report8 harness: ${pass} PASS / ${fail} FAIL`);
   if (fail > 0) process.exit(1);

@@ -31,6 +31,8 @@ export type FakeStore = {
   failSelect?: (table: string, select: string) => FakeErr;
   /** Bu RPC çağrıldığında hata simülasyonu (ör. migration uygulanmamış → PGRST202). */
   failRpc?: (fn: string) => FakeErr;
+  /** Bu tabloya INSERT hata simülasyonu (ör. admin_audit_log yazılamıyor → silme fail-closed). */
+  failInsert?: (table: string) => FakeErr;
   /** Rate limit RPC'sini tamamen devre dışı bırak (yarış testleri). */
   disableRateLimit?: boolean;
   /**
@@ -181,6 +183,8 @@ export function execQuery(store: FakeStore, q: Query, via: "client" | "http"): {
     if (e) return { data: null, error: e };
   }
   if (q.op === "insert") {
+    const insErr = store.failInsert?.(q.table);
+    if (insErr) return { data: null, error: insErr };
     const list = Array.isArray(q.payload) ? q.payload : [q.payload as Row];
     const prepared: Row[] = [];
     for (const p of list) {
