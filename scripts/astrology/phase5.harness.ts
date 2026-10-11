@@ -933,6 +933,19 @@ async function main() {
     no(PC((r) => { r.nakshatra.pada = 3; }), "pada");
     const u = PC((r) => { r.vara = { name: "SIZINTI" }; r.tithi.extra = "SIZINTI"; });
     assert.ok(u.ok);
+    // 2026-10-11 canlı: Amavasya ikinci yarısı (yarım-tithi 59) Roxy "Nāg" #10 döner → kabul; numara/ad çelişkisi → ret.
+    const amavasya = (name: string, num: number) => (r: J) => {
+      r.sunLongitude = (((r.moonLongitude as number) - 357) % 360 + 360) % 360;
+      r.tithi.number = 30; r.tithi.percent = 75; r.tithi.paksha = "Krishna";
+      const ys = ((r.sunLongitude as number) + (r.moonLongitude as number)) % 360;
+      r.yoga.number = Math.floor(ys / (360 / 27)) + 1; r.yoga.percent = ((ys % (360 / 27)) / (360 / 27)) * 100;
+      r.karana.name = name; r.karana.number = num; r.karana.percent = 50;
+    };
+    const nag = PC(amavasya("Nāg", 10));
+    assert.ok(nag.ok, JSON.stringify(nag.errors));
+    assert.equal((nag.technical as VedicPanchangaTechnical).karana.id, "naga");
+    no(PC(amavasya("Nāg", 9)), "sabit karana numarası");
+    no(PC(amavasya("Shakuni", 10)), "sabit karana adı");
     assert.deepEqual([...u.unmappedFields].sort(), ["tithi.extra", "vara"]);
     assert.ok(!JSON.stringify(u.technical).includes("SIZINTI"));
   });
