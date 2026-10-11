@@ -722,11 +722,16 @@ async function main() {
     const src = readFileSync(join(ROOT, "app/admin/astroloji/_components/SavedAnalyses.tsx"), "utf8");
     assert.match(src, /data-testid="astro-saved-title"/);
     const body = src.slice(src.indexOf("export function isCustomTitle"), src.indexOf("function fmt("));
-    const isCustomTitle = new Function("title", "techLabel", body.replace(/^export function isCustomTitle\([^)]*\): boolean \{/, "").replace(/\}\s*$/, "")) as (a: string, b: string) => boolean;
-    assert.equal(isCustomTitle("TEST · H Mumbai 1962 · Vedik D1 (Rashi) · 11.10.2026", "Vedik D1 (Rashi)"), false);
-    assert.equal(isCustomTitle("UI testi · Local Space (yorum dahil)", "Local Space"), true);
-    assert.equal(isCustomTitle("Ayşe · Local Space · ilk seans", "Local Space"), true);
-    assert.equal(isCustomTitle("  ", "Natal"), false);
+    const isCustomTitle = new Function("title", "profileLabel", body.replace(/^export function isCustomTitle\([^)]*\): boolean \{/, "").replace(/\}\s*$/, "")) as (a: string, b: string) => boolean;
+    const P = "TEST2 · Ankara 1988 sabah";
+    assert.equal(isCustomTitle(`${P} · Vedik D1 (Rashi) · 11.10.2026`, P), false);
+    // sunucu etiketi arayüz etiketinden uzun olabilir (canlı UAT 12.10.2026)
+    assert.equal(isCustomTitle(`${P} · KP dasha (Vimshottari + significator) · 12.10.2026`, P), false);
+    assert.equal(isCustomTitle(`${P} · Solar return → London, England, United Kingdom · 12.10.2026`, P), false);
+    assert.equal(isCustomTitle("Canlı UAT · Local Space (sahibin senaryosu)", P), true);
+    assert.equal(isCustomTitle(`${P} · ilk seans notlarıyla`, P), true);
+    assert.equal(isCustomTitle("  ", P), false);
+    assert.match(readFileSync(join(ROOT, "app/admin/astroloji/page.tsx"), "utf8"), /profileLabel=\{shownDetail\.label\}/);
   });
 
   restore();

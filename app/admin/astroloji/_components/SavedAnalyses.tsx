@@ -50,13 +50,16 @@ type Analysis = {
   versions: Record<string, unknown>;
 };
 
-/** Otomatik başlık "<profil> · <teknik> · GG.AA.YYYY" kalıbındadır; bunun dışındaki başlık uzmanın verdiği addır. */
-export function isCustomTitle(title: string, techLabel: string): boolean {
+/**
+ * Otomatik başlık "<profil adı> · <sunucunun teknik etiketi + seçenekler> · GG.AA.YYYY" kalıbındadır (teknik etiketi
+ * arayüzdekinden uzun olabilir: "KP dasha (Vimshottari + significator)", "Solar return → London…"). Profil adıyla
+ * başlayıp tarihle biten başlık otomatiktir; bunun dışındaki başlık uzmanın verdiği addır.
+ */
+export function isCustomTitle(title: string, profileLabel: string): boolean {
   const t = title.trim();
   if (!t) return false;
-  const suffix = ` · ${techLabel} · `;
-  const i = t.lastIndexOf(suffix);
-  return !(i > 0 && /^\d{2}\.\d{2}\.\d{4}$/.test(t.slice(i + suffix.length)));
+  const p = profileLabel.trim();
+  return !(p !== "" && t.startsWith(`${p} · `) && / · \d{2}\.\d{2}\.\d{4}$/.test(t));
 }
 
 function fmt(iso: string): string {
@@ -72,7 +75,23 @@ type ListPage = { groups: Group[]; total: number; filteredTotal: number; hasMore
  * GERÇEKTEN kaydı olanlar için gösterilir; liste sunucudan sayfalı gelir. Açmak yalnız snapshot okur
  * (0 sağlayıcı isteği); içerik değiştirilmez.
  */
-export function SavedAnalysesList({ profileId, reloadKey, onOpen, openId, currentRevision = null }: { profileId: string; reloadKey: number; onOpen: (id: string) => void; openId: string | null; /** Güncel doğum revizyonu (eski revizyonla kaydedilenler işaretlenir). */ currentRevision?: number | null }) {
+export function SavedAnalysesList({
+  profileId,
+  reloadKey,
+  onOpen,
+  openId,
+  currentRevision = null,
+  profileLabel = "",
+}: {
+  profileId: string;
+  reloadKey: number;
+  onOpen: (id: string) => void;
+  openId: string | null;
+  /** Güncel doğum revizyonu (eski revizyonla kaydedilenler işaretlenir). */
+  currentRevision?: number | null;
+  /** Otomatik başlığı uzman başlığından ayırmak için (yalnız görüntü). */
+  profileLabel?: string;
+}) {
   const [sel, setSel] = useState<{ key: string; tradition: string | null; technique: string | null }>({ key: "", tradition: null, technique: null });
   const baseKey = `${profileId}|${reloadKey}`;
   const tradition = sel.key === baseKey ? sel.tradition : null;
@@ -168,7 +187,7 @@ export function SavedAnalysesList({ profileId, reloadKey, onOpen, openId, curren
                 </span>
                 <span className="min-w-0 max-w-full truncate pl-4 text-xs text-slate-600 sm:pl-0" title={a.title}>
                   {/* 2026-10-12: uzmanın kayıtta verdiği başlık listede görünür (otomatik başlık "… · Teknik · GG.AA.YYYY" gösterilmez). */}
-                  {isCustomTitle(a.title, techniqueLabel(a.technique)) && (
+                  {isCustomTitle(a.title, profileLabel) && (
                     <span className="mr-1.5 font-medium text-slate-800" data-testid="astro-saved-title">
                       “{a.title}”
                     </span>
