@@ -350,6 +350,59 @@ async function main() {
       assert.equal(JSON.stringify(store.tables.astro_analyses.filter((a) => a.tenant_id === TB)), tbBefore);
     });
 
+    await t("2026-10 KALICI DENETİM: B silme admin_audit_log'a started + succeeded yazar (kimlik + sayı; ad/doğum verisi YOK)", async () => {
+      const z = await mkProfile(TA, IDS.u1, "Zehra Denetim", "1979-03-03");
+      await mkAnalysis(IDS.u1, TA, z, null, "western.natal", "Zehra natal");
+      const before = (store.tables.admin_audit_log ?? []).length;
+      const pv = await P("u1", { mode: "single", profileIds: [z] });
+      const d = await D("u1", { mode: "single", profileIds: [z], confirmToken: pv.json.confirmToken, confirmations: 2 });
+      assert.equal(d.status, 200, d.text);
+      assert.ok(!exists(z));
+      const rows = (store.tables.admin_audit_log ?? []).slice(before);
+      assert.deepEqual(rows.map((r) => (r.context as { phase: string }).phase), ["started", "succeeded"]);
+      for (const r of rows) {
+        assert.equal(r.action, "main_admin_critical_action");
+        assert.equal(r.actor_admin_id, IDS.u1);
+        assert.equal(r.actor_is_main_admin, true);
+        const c = r.context as Record<string, unknown>;
+        assert.equal(c.domain, "astrology");
+        assert.equal(c.operation, "astro.profile.delete");
+        assert.equal(c.tenantId, TA);
+        assert.deepEqual(c.entityIds, [z]);
+        const txt = JSON.stringify(r);
+        assert.ok(!/Zehra|1979-03-03|İstanbul/.test(txt), "denetim kaydına kişisel veri yazılmaz");
+      }
+      assert.deepEqual(rows[1].result, { status: "succeeded", deletedProfiles: 1, deletedAnalyses: 1, preservedSharedAnalyses: 0 });
+    });
+
+    await t("2026-10 KALICI DENETİM fail-closed: audit yazılamazsa HİÇBİR ŞEY silinmez (503); RPC reddi → started + failed", async () => {
+      const y = await mkProfile(TA, IDS.u1, "Yaren Denetim", "1981-04-04");
+      const pv = await P("u1", { mode: "single", profileIds: [y] });
+      const body = { mode: "single", profileIds: [y], confirmToken: pv.json.confirmToken, confirmations: 2 };
+      store.failInsert = (tb) => (tb === "admin_audit_log" ? { code: "XX000", message: "audit down" } : null);
+      try {
+        const d = await D("u1", body);
+        assert.equal(d.status, 503, d.text);
+        assert.equal(d.json.code, "AUDIT_UNAVAILABLE");
+        assert.ok(exists(y), "audit yoksa silme yok");
+      } finally {
+        store.failInsert = undefined;
+      }
+      // Başka tenant'ın kullanıcısı aynı profili silemez (404) ve bu deneme de denetlenir (started + failed).
+      const before = (store.tables.admin_audit_log ?? []).length;
+      const pvB = await P("ub", { mode: "single", profileIds: [y] });
+      assert.equal(pvB.status, 404);
+      const forged = await D("ub", body);
+      assert.notEqual(forged.status, 200);
+      assert.ok(exists(y));
+      const ok = await D("u1", body);
+      assert.equal(ok.status, 200, ok.text);
+      const again = await D("u1", body);
+      assert.equal(again.status, 404, again.text);
+      const phases = (store.tables.admin_audit_log ?? []).slice(before).map((r) => `${(r.context as { phase: string }).phase}:${(r.result as { errorCode?: string }).errorCode ?? ""}`);
+      assert.ok(phases.includes("started:") && phases.includes("succeeded:") && phases.includes("failed:PROFILE_NOT_FOUND"), phases.join(","));
+    });
+
     await t("sınırlar: boş seçim / geçersiz kimlik / 100'den fazla → 400", async () => {
       assert.equal((await P("u1", { mode: "bulk", profileIds: [] })).status, 400);
       assert.equal((await P("u1", { mode: "bulk", profileIds: ["x"] })).status, 400);

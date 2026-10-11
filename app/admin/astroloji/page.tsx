@@ -39,7 +39,6 @@ import { SavedAnalysesList, SavedAnalysisView } from "./_components/SavedAnalyse
 import ArchiveList from "./_components/atlas/ArchiveList";
 import ArchiveDeleteFlow from "./_components/atlas/ArchiveDeleteFlow";
 import ClientLinkPanel from "./_components/ClientLinkPanel";
-import ProfileDeleteFlow from "./_components/ProfileDeleteFlow";
 import ModuleAccessDenied from "@/components/auth/ModuleAccessDenied";
 import AtlasHero from "./_components/atlas/AtlasHero";
 import { atlasDisplay, atlasText } from "./_components/atlas/fonts";
@@ -156,11 +155,9 @@ export default function AstrologyWorkspacePage() {
   const [archiveBusy, setArchiveBusy] = useState(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
   // Kalıcı silme (tekli; 2 onay). Dizi durumda tutulur → onay akışına kararlı referans.
-  const [deleteIds, setDeleteIds] = useState<string[] | null>(null);
   // Analiz Arşivi silme akışı (tekli / seçilenler / tümü) + liste yenileme anahtarı.
   const [archiveDelete, setArchiveDelete] = useState<{ scope: "single" | "selected" | "all"; ids: string[]; deleted?: string[] } | null>(null);
   const [archiveReload, setArchiveReload] = useState(0);
-  const [deleteInfo, setDeleteInfo] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ProfileDetail | null>(null);
   const [detailError, setDetailError] = useState<{ id: string; error: string } | null>(null);
@@ -234,6 +231,9 @@ export default function AstrologyWorkspacePage() {
   const [resultMode, setResultMode] = useState<"run" | "saved">("run");
   // Kayıt kapsamı sekme bazında: yalnız kaydedilen tekniğin sekmesi "Kaydedildi" gösterir (anahtar profil|sekme).
   const [savedIds, setSavedIds] = useState<Record<string, string>>({});
+  // Başlıktaki altın kaydet düğmesi → çalışma alanına adım sinyali (özet → kaydet) ve geri bildirilen aşama/hata.
+  const [saveSignals, setSaveSignals] = useState<Record<string, number>>({});
+  const [saveStates, setSaveStates] = useState<Record<string, { stage: "idle" | "summary" | "busy"; error: string | null }>>({});
   const [addOpen, setAddOpen] = useState<{ initial: UiTechniqueId | null } | null>(null);
   // FINAL: tüm seçili teknikler başarısız olduğunda sonuç ekranı AÇILMAZ; özet Yeni Analiz'de gösterilir.
   const [lastFailures, setLastFailures] = useState<{ key: string; at: number; items: { technique: string; code: string; error: string; retryAfterSec?: number }[] } | null>(null);
@@ -711,6 +711,30 @@ export default function AstrologyWorkspacePage() {
 
         {view === "archive" && <AtlasViewTitle eyebrow="Kayıtlar" title="Analiz Arşivi" sub="Kayıtlı analizi olan danışanlar; bir satıra basarak danışan dosyasını açın." />}
 
+        {/* Kalıcı silme akışı (Arşiv, Danışan Dosyası ve Yeni Analiz'deki "Profili Sil" ortak; görünümden bağımsız katman). */}
+        {archiveDelete && (
+          <ArchiveDeleteFlow
+            key={`${archiveDelete.scope}|${archiveDelete.ids.join(",")}`}
+            scope={archiveDelete.scope}
+            ids={archiveDelete.ids}
+            onDeleted={(_r, deletedIds) => {
+              setArchiveDelete((d) => (d ? { ...d, deleted: deletedIds } : d));
+              setProfilesReload((n) => n + 1);
+              setArchiveReload((n) => n + 1);
+              setAnalysesReload((n) => n + 1);
+              setParams((p) => ({ ...p, partnerProfileId: deletedIds.includes(p.partnerProfileId) ? "" : p.partnerProfileId }));
+            }}
+            onClose={() => {
+              const deleted = archiveDelete.deleted ?? [];
+              setArchiveDelete(null);
+              // Açık danışan dosyası silindiyse listeye dön (silinmiş profil dosyası gösterilmez).
+              if (selectedId && deleted.includes(selectedId)) {
+                clearSelection();
+                if (view === "client") go("archive");
+              }
+            }}
+          />
+        )}
         {/* Aşama D3: Yeni Analiz = Göksel Analiz Hazırlık Merkezi (yalnız yerleşim; plan/çalıştırma mantığı aşağıdaki run() ile aynı). */}
         {view === "new" && (
           <PrepCenter
@@ -745,6 +769,7 @@ export default function AstrologyWorkspacePage() {
                     })
                 : null
             }
+            onDeleteProfile={shownDetail ? () => setArchiveDelete({ scope: "single", ids: [shownDetail.id] }) : null}
             checked={checked}
             onChecked={setChecked}
             params={params}
@@ -807,45 +832,6 @@ export default function AstrologyWorkspacePage() {
           <div className={view === "client" ? "hidden" : "min-w-0"}>
             <ArchiveList reloadKey={profilesReload + archiveReload} onOpen={(id) => openClientFile(id)} onDelete={(req) => setArchiveDelete(req)} onItems={rememberLabels} sortRequest={archiveSortReq} />
           </div>
-          {archiveDelete && (
-            <ArchiveDeleteFlow
-              key={`${archiveDelete.scope}|${archiveDelete.ids.join(",")}`}
-              scope={archiveDelete.scope}
-              ids={archiveDelete.ids}
-              onDeleted={(_r, deletedIds) => {
-                setArchiveDelete((d) => (d ? { ...d, deleted: deletedIds } : d));
-                setProfilesReload((n) => n + 1);
-                setArchiveReload((n) => n + 1);
-                setAnalysesReload((n) => n + 1);
-                setParams((p) => ({ ...p, partnerProfileId: deletedIds.includes(p.partnerProfileId) ? "" : p.partnerProfileId }));
-              }}
-              onClose={() => {
-                const deleted = archiveDelete.deleted ?? [];
-                setArchiveDelete(null);
-                // Açık danışan dosyası silindiyse listeye dön (silinmiş profil dosyası gösterilmez).
-                if (selectedId && deleted.includes(selectedId)) {
-                  clearSelection();
-                  if (view === "client") go("archive");
-                }
-              }}
-            />
-          )}
-          {deleteIds && (
-            <ProfileDeleteFlow
-              key={deleteIds.join(",")}
-              mode="single"
-              profileIds={deleteIds}
-              onClose={() => setDeleteIds(null)}
-              onDeleted={(r) => {
-                const ids = deleteIds;
-                setDeleteIds(null);
-                clearSelection();
-                setParams((p) => ({ ...p, partnerProfileId: ids.includes(p.partnerProfileId) ? "" : p.partnerProfileId }));
-                setDeleteInfo(`Profil ve ${r.deletedAnalyses} kayıtlı analizi kalıcı olarak silindi; ${r.preservedSharedAnalyses} ortak analiz korundu.`);
-                setProfilesReload((n) => n + 1);
-              }}
-            />
-          )}
           <section className={`min-w-0 flex-col gap-5 ${view === "client" ? "flex lg:grid lg:grid-cols-[minmax(340px,420px)_minmax(0,1fr)] lg:items-start" : "hidden"}`} data-testid={view === "client" ? "astro-client-file" : undefined}>
             {view === "client" && (
               <div className="flex flex-wrap items-center justify-between gap-2 lg:col-span-2">
@@ -858,11 +844,6 @@ export default function AstrologyWorkspacePage() {
               <div className={`${atlasPanel} px-6 py-10 text-center text-sm text-rose-800 lg:col-span-2`} role="alert" data-testid="astro-client-file-error">
                 {detailError.error}
               </div>
-            )}
-            {deleteInfo && !shownDetail && (
-              <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900 lg:col-span-2" data-testid="astro-delete-info">
-                {deleteInfo}
-              </p>
             )}
             {view === "client" && form?.mode === "create" && (
               <div className={`${atlasPanel} overflow-hidden lg:col-span-2`}>
@@ -1174,8 +1155,23 @@ export default function AstrologyWorkspacePage() {
                         Kayıtlı analizi aç
                       </button>
                     ) : (
-                      <button type="button" className={deskPrimary} onClick={() => setDeskTab("kaydet")} data-testid="astro-desk-save" title={`Yalnız “${techniqueLabel(item.technique)}” ayrı bir analiz kaydı olarak saklanır; diğer açık sekmeler etkilenmez.`}>
-                        {techniqueLabel(item.technique)} Analizini Kaydet
+                      <button
+                        type="button"
+                        className={deskPrimary}
+                        disabled={saveStates[item.key]?.stage === "busy"}
+                        onClick={() => {
+                          setDeskTab("kaydet");
+                          setSaveSignals((m) => ({ ...m, [item.key]: (m[item.key] ?? 0) + 1 }));
+                        }}
+                        data-testid="astro-desk-save"
+                        data-stage={saveStates[item.key]?.stage ?? "idle"}
+                        title={`Yalnız “${techniqueLabel(item.technique)}” ayrı bir analiz kaydı olarak saklanır; diğer açık sekmeler etkilenmez.`}
+                      >
+                        {saveStates[item.key]?.stage === "busy"
+                          ? "Kaydediliyor…"
+                          : saveStates[item.key]?.stage === "summary"
+                            ? `Kaydı Onayla · ${techniqueLabel(item.technique)}`
+                            : `${techniqueLabel(item.technique)} Analizini Kaydet`}
                       </button>
                     )
                   }
@@ -1186,6 +1182,11 @@ export default function AstrologyWorkspacePage() {
                         {runs.executed.providerAttempts} sağlayıcı isteği
                       </p>
                       {runError && runs.fails.length === 0 && <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">{runError}</p>}
+                      {!saved && saveStates[item.key]?.error && (
+                        <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800" role="alert" data-testid="astro-desk-save-error">
+                          {saveStates[item.key]?.error}
+                        </p>
+                      )}
                       {saved && (
                         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900" role="status" data-testid="astro-saved-notice">
                           <span className="flex items-center gap-2">
@@ -1287,6 +1288,13 @@ export default function AstrologyWorkspacePage() {
                               profileLabel={shownDetail.label}
                               techniqueLabel={`${techniqueLabel(bi.technique)}${bopts ? ` · ${bopts}` : ""}`}
                               onDirtyChange={(d) => setDirtyTabs((m) => (!!m[bi.key] === d ? m : { ...m, [bi.key]: d }))}
+                              saveSignal={saveSignals[bi.key] ?? 0}
+                              onSaveState={(st) =>
+                                setSaveStates((m) => {
+                                  const cur = m[bi.key];
+                                  return cur && cur.stage === st.stage && cur.error === st.error ? m : { ...m, [bi.key]: st };
+                                })
+                              }
                               onSaved={(id) => {
                                 setAnalysesReload((n) => n + 1);
                                 setProfilesReload((n) => n + 1);

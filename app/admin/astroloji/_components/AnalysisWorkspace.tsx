@@ -131,7 +131,16 @@ export default function AnalysisWorkspace({
   profileLabel,
   techniqueLabel,
   onDirtyChange,
+  saveSignal = 0,
+  onSaveState,
 }: {
+  /**
+   * Üst başlıktaki altın "… Analizini Kaydet" düğmesi: her artış bir adım ilerletir — özet yoksa özeti hazırlar
+   * (sunucu önizlemesi), özet görünüyorsa KAYDEDER. (Önceden düğme yalnız sekmeyi açıyordu → kayıt hiç yapılmıyordu.)
+   */
+  saveSignal?: number;
+  /** Kaydetme aşaması + görünür hata (başlıktaki düğme etiketi ve uyarı için). */
+  onSaveState?: (s: { stage: "idle" | "summary" | "busy"; error: string | null }) => void;
   /** FINAL: bu çalışma alanında kaydedilmemiş not / Bilgi Bankası taslağı var mı (sessiz veri kaybını önlemek için). */
   onDirtyChange?: (dirty: boolean) => void;
   profileId: string;
@@ -174,7 +183,10 @@ export default function AnalysisWorkspace({
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState<{ key: string; s: Summary; requestId: string } | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [saveErr, setSaveErr] = useState(false);
   const [busy, setBusy] = useState(false);
+  const summaryRef = useRef<HTMLDivElement | null>(null);
+  const confirmRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -209,29 +221,81 @@ export default function AnalysisWorkspace({
   async function prepare() {
     setBusy(true);
     setSaveMsg(null);
+    setSaveErr(false);
     const r = await astroFetch<{ summary: Summary }>(`/api/admin/astroloji/analyses/preview${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
       method: "POST",
       body: { profileId, revision, ...selection, includeProviderInterp: effectiveInclude, title: title.trim() || undefined },
     });
     setBusy(false);
     if (r.ok) setSummary({ key: `${key}|${effectiveInclude}|${title}`, s: r.data.summary, requestId: crypto.randomUUID() });
-    else setSaveMsg(r.error);
+    else {
+      setSaveErr(true);
+      setSaveMsg(r.error);
+    }
   }
 
   async function save() {
     if (!shownSummary) return;
     setBusy(true);
+    setSaveMsg(null);
+    setSaveErr(false);
+    // Aynı özet = aynı saveRequestId → yeniden deneme / çift tıklama MÜKERRER kayıt üretmez (DB UNIQUE + reused).
     const r = await astroFetch<{ analysisId: string; reused: boolean }>(`/api/admin/astroloji/analyses${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
       method: "POST",
       body: { profileId, revision, ...selection, includeProviderInterp: effectiveInclude, title: shownSummary.s.title, saveRequestId: shownSummary.requestId },
     });
+    if (!r.ok) {
+      setBusy(false);
+      setSaveErr(true);
+      setSaveMsg(`Analiz KAYDEDİLMEDİ: ${r.error}`);
+      return;
+    }
+    // Başarı yalnız kayıt sunucudan GERİ OKUNABİLİRSE gösterilir (yanıt kaybı / sahte başarı yok).
+    const check = await astroFetch<{ analysis: { id: string } }>(`/api/admin/astroloji/analyses/${encodeURIComponent(r.data.analysisId)}`);
     setBusy(false);
-    if (r.ok) {
-      setSummary(null);
-      setSaveMsg(r.data.reused ? "Bu analiz zaten kaydedilmişti." : "Analiz kaydedildi (değişmez kayıt).");
-      onSaved(r.data.analysisId);
-    } else setSaveMsg(r.error);
+    if (!check.ok) {
+      setSaveErr(true);
+      setSaveMsg(`Kayıt doğrulanamadı (${check.error}). Tekrar "Analizi kaydet"e basabilirsiniz; aynı kayıt yinelenmez.`);
+      return;
+    }
+    setSummary(null);
+    setSaveMsg(r.data.reused ? "Bu analiz zaten kaydedilmişti." : "Analiz kaydedildi (değişmez kayıt).");
+    onSaved(r.data.analysisId);
   }
+
+  // Başlıktaki altın düğme sinyali: özet yoksa hazırla, varsa kaydet (en güncel işlevler ref'te).
+  const stepRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    stepRef.current = () => {
+      if (busy) return;
+      if (shownSummary) void save();
+      else void prepare();
+    };
+  });
+  const lastSignal = useRef(saveSignal);
+  useEffect(() => {
+    if (saveSignal === lastSignal.current) return;
+    lastSignal.current = saveSignal;
+    stepRef.current();
+  }, [saveSignal]);
+  // Özet hazır olunca onay düğmesi görünür alana getirilir ve odaklanır (panelin altında kalmasın).
+  const summaryShown = !!shownSummary;
+  useEffect(() => {
+    if (!summaryShown) return;
+    // Önce özetin başı, sonra onay düğmesi görünür alana (anında; yumuşak kaydırma ölçümde/küçük ekranda geride kalıyordu).
+    summaryRef.current?.scrollIntoView({ block: "nearest" });
+    confirmRef.current?.scrollIntoView({ block: "nearest" });
+    confirmRef.current?.focus({ preventScroll: true });
+  }, [summaryShown]);
+  const onSaveStateRef = useRef(onSaveState);
+  useEffect(() => {
+    onSaveStateRef.current = onSaveState;
+  });
+  const stage: "idle" | "summary" | "busy" = busy ? "busy" : summaryShown ? "summary" : "idle";
+  const visibleError = saveErr ? saveMsg : null;
+  useEffect(() => {
+    onSaveStateRef.current?.({ stage, error: visibleError });
+  }, [stage, visibleError]);
 
   if (!data) return <p className="text-sm text-slate-400">Çalışma alanı yükleniyor…</p>;
 
@@ -358,7 +422,7 @@ export default function AnalysisWorkspace({
               {busy ? "Hazırlanıyor…" : "Kaydetmeden önce özeti gör"}
             </button>
           ) : (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm" data-testid="astro-save-summary">
+            <div ref={summaryRef} className="scroll-mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm" data-testid="astro-save-summary">
               <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
                 <dt className="text-slate-500">Başlık</dt>
                 <dd>{shownSummary.s.title}</dd>
@@ -397,7 +461,7 @@ export default function AnalysisWorkspace({
                 <dd>{shownSummary.s.providerInterpIncluded ? "Dahil (ayrı katman)" : "Dahil değil"}</dd>
               </dl>
               <div className="mt-3 flex gap-2">
-                <button type="button" disabled={busy} onClick={() => void save()} className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0b1430] font-semibold text-white transition hover:bg-[#1a2b5c] disabled:cursor-not-allowed disabled:opacity-50 px-4 py-1.5 text-sm disabled:opacity-60">
+                <button ref={confirmRef} type="button" disabled={busy} onClick={() => void save()} data-testid="astro-save-confirm" className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0b1430] font-semibold text-white transition hover:bg-[#1a2b5c] disabled:cursor-not-allowed disabled:opacity-50 px-4 py-1.5 text-sm disabled:opacity-60">
                   {busy ? "Kaydediliyor…" : "Analizi kaydet"}
                 </button>
                 <button type="button" onClick={() => setSummary(null)} className="rounded-lg border border-slate-300 px-4 py-1.5 text-sm">
@@ -406,7 +470,11 @@ export default function AnalysisWorkspace({
               </div>
             </div>
           )}
-          {saveMsg && <p className="text-sm text-slate-700">{saveMsg}</p>}
+          {saveMsg && (
+            <p className={saveErr ? "rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800" : "text-sm text-emerald-800"} role={saveErr ? "alert" : "status"} data-testid="astro-save-msg">
+              {saveMsg}
+            </p>
+          )}
         </div>
       </section>
     </div>

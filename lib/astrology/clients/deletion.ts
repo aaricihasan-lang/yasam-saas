@@ -22,6 +22,7 @@ import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { isSchemaMissing, isUuid, logAstroDbError } from "../persistence/repo";
 import type { EngineCtx, ServiceResponse } from "../engine/service";
 import { ASTRO_NOT_READY } from "../engine/service";
+import { writeAdminAudit } from "@/lib/admin/adminAudit";
 
 assertServerOnly("lib/astrology/clients/deletion");
 
@@ -132,6 +133,33 @@ export async function previewProfileDeletion(ctx: EngineCtx, raw: unknown): Prom
   };
 }
 
+/**
+ * Mevcut yönetim denetim altyapısı (lib/admin/adminAudit.writeAdminAudit — fail-closed, PII/sır anahtarı reddeder).
+ * DB CHECK listesi sabit olduğundan eylem "main_admin_critical_action"; astroloji ayrıntısı context'te. Ad, doğum
+ * bilgisi vb. kişisel veri YAZILMAZ — yalnız kimlikler, kapsam ve sayılar.
+ */
+function auditWriter(ctx: EngineCtx, s: { mode: DeleteMode; scope: DeleteScope; ids: string[] }) {
+  const isOwner = (ctx as EngineCtx & { isOwner?: boolean }).isOwner === true;
+  return async (phase: "started" | "succeeded" | "failed", result: Record<string, unknown> | null) => {
+    await writeAdminAudit(ctx.db, {
+      actorAdminId: ctx.userId,
+      actorIsMainAdmin: isOwner,
+      action: "main_admin_critical_action",
+      context: {
+        domain: "astrology",
+        operation: s.scope === "analyses" ? "astro.profile.analyses_delete" : "astro.profile.delete",
+        phase,
+        mode: s.mode,
+        scope: s.scope,
+        tenantId: ctx.tenantId,
+        entityType: s.scope === "analyses" ? "astro_analyses_of_profile" : "astro_birth_profile",
+        entityIds: s.ids,
+      },
+      result: { status: phase, ...(result ?? {}) },
+    });
+  };
+}
+
 export async function deleteProfiles(ctx: EngineCtx, raw: unknown): Promise<ServiceResponse> {
   const s = parseSelection(raw);
   if (!s.ok) return s.r;
@@ -147,17 +175,41 @@ export async function deleteProfiles(ctx: EngineCtx, raw: unknown): Promise<Serv
     return fail(409, "SELECTION_CHANGED", "Seçim onaydan sonra değişti. Silme işlemini baştan başlatın. Hiçbir kayıt silinmedi.");
   }
   const fn = s.scope === "analyses" ? "astro_profile_analyses_delete" : "astro_profile_delete";
+  // KALICI DENETİM İZİ (admin_audit_log; append-only, UPDATE/DELETE tetikleyiciyle yasak). Silmeden ÖNCE "started"
+  // satırı yazılır; yazılamazsa HİÇBİR ŞEY silinmez (fail-closed). Sonuç ayrı "succeeded"/"failed" satırıdır; silme
+  // işlendikten sonra sonuç satırı yazılamazsa "started" satırı denetim izini taşır ve hata yüksek sesle loglanır.
+  const audit = auditWriter(ctx, s);
+  try {
+    await audit("started", null);
+  } catch (e) {
+    console.error(JSON.stringify({ event: "astro.delete.audit_failed", phase: "started", code: (e as { code?: string }).code ?? "unknown" }));
+    return fail(503, "AUDIT_UNAVAILABLE", "Denetim kaydı yazılamadığı için silme yapılmadı. Hiçbir kayıt silinmedi; biraz sonra yeniden deneyin.");
+  }
   const { data, error } = await ctx.db.rpc(fn, { p_tenant_id: ctx.tenantId, p_owner_user_id: ctx.userId, p_expected: tok.expected });
   if (error) {
     const msg = String((error as { message?: string }).message ?? "");
-    if (error.code === "P0002" || /ASTRO_DELETE_NOT_FOUND/.test(msg)) return fail(404, "PROFILE_NOT_FOUND", "Seçili profillerden biri bulunamadı veya zaten silinmiş. Hiçbir kayıt silinmedi.");
-    if (error.code === "40001" || /ASTRO_DELETE_STALE/.test(msg)) {
+    const code =
+      error.code === "P0002" || /ASTRO_DELETE_NOT_FOUND/.test(msg)
+        ? "PROFILE_NOT_FOUND"
+        : error.code === "40001" || /ASTRO_DELETE_STALE/.test(msg)
+          ? "DELETE_STALE"
+          : error.code === "22023" || /ASTRO_DELETE_INVALID/.test(msg)
+            ? "INVALID_SELECTION"
+            : "DB_ERROR";
+    await audit("failed", { errorCode: code }).catch((e) => console.error(JSON.stringify({ event: "astro.delete.audit_failed", phase: "failed", code: (e as { code?: string }).code ?? "unknown" })));
+    if (code === "PROFILE_NOT_FOUND") return fail(404, "PROFILE_NOT_FOUND", "Seçili profillerden biri bulunamadı veya zaten silinmiş. Hiçbir kayıt silinmedi.");
+    if (code === "DELETE_STALE") {
       return fail(409, "DELETE_STALE", "Onaydan sonra kayıtlar değişti (yeni analiz, revizyon vb.). Hiçbir kayıt silinmedi; işlemi baştan başlatın.");
     }
-    if (error.code === "22023" || /ASTRO_DELETE_INVALID/.test(msg)) return fail(400, "INVALID_SELECTION", "Geçersiz silme isteği. Hiçbir kayıt silinmedi.");
+    if (code === "INVALID_SELECTION") return fail(400, "INVALID_SELECTION", "Geçersiz silme isteği. Hiçbir kayıt silinmedi.");
     return dbFail(s.scope === "analyses" ? "profiles.deleteAnalyses" : "profiles.delete", error);
   }
   const r = data as { deleted_profiles?: number; deleted_analyses?: number; preserved_shared_analyses?: number } | null;
+  await audit("succeeded", {
+    deletedProfiles: Number(r?.deleted_profiles ?? 0),
+    deletedAnalyses: Number(r?.deleted_analyses ?? 0),
+    preservedSharedAnalyses: Number(r?.preserved_shared_analyses ?? 0),
+  }).catch((e) => console.error(JSON.stringify({ event: "astro.delete.audit_failed", phase: "succeeded", code: (e as { code?: string }).code ?? "unknown", profileIds: s.ids })));
   // Denetim izi: yalnız kimlikler ve SAYILAR (ad, doğum bilgisi vb. kişisel veri LOGLANMAZ).
   console.info(
     JSON.stringify({
