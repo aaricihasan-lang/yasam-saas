@@ -161,9 +161,12 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
 
       {show("aspects") && (
       <Section title={`Açılar (${t.aspects.length})`}>
-        <div className="overflow-x-auto">
+        {/* 2026-10-12 (UAT 2. tur, madde I): uzun ad sütunu satıra geçer (tablo gereksiz genişlemez); kalan yatay
+            kaydırma + dikey kaydırma AYNI kapta, başlık yapışkan → yatay kaydırma çubuğu 41 satırın sonunda kalmaz,
+            ekranda görünür kalır. */}
+        <div className="max-h-[min(70vh,640px)] overflow-auto overscroll-contain" data-testid="astro-aspects-scroll">
         <table className="min-w-full">
-          <thead>
+          <thead className="sticky top-0 z-[1] bg-white shadow-[0_1px_0_rgb(241,245,249)]">
             <tr>
               <th className={th}>Açı</th>
               <th className={th}>Tür</th>
@@ -176,9 +179,11 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
           <tbody className="divide-y divide-slate-100">
             {t.aspects.map((a, i) => (
               <tr key={`${a.a}-${a.b}-${a.type}-${i}`}>
-                <td className={`${td} whitespace-nowrap`}>
-                  {BODY_GLYPHS[a.a]} <span className="mx-1 text-slate-500">{ASPECT_GLYPHS[a.type]}</span> {BODY_GLYPHS[a.b]}
-                  <span className="ml-2 text-xs text-slate-500">
+                <td className={`${td} min-w-[9.5rem]`}>
+                  <span className="whitespace-nowrap">
+                    {BODY_GLYPHS[a.a]} <span className="mx-1 text-slate-500">{ASPECT_GLYPHS[a.type]}</span> {BODY_GLYPHS[a.b]}
+                  </span>
+                  <span className="block text-xs leading-snug text-slate-500">
                     {BODY_LABELS[a.a]} – {BODY_LABELS[a.b]}
                   </span>
                 </td>

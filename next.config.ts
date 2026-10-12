@@ -74,6 +74,8 @@ const nextConfig: NextConfig = {
     // Astroloji Word/PDF raporu: PDF fontu + çark PNG'si (resvg) aynı Geist TTF'yi fs ile okur.
     "/api/admin/astroloji/analyses/[id]/report": ["./public/fonts/Geist-Regular.ttf"],
     "/api/astroloji/analyses/[id]/report": ["./public/fonts/Geist-Regular.ttf"],
+    "/api/admin/astroloji/analyses/report": ["./public/fonts/Geist-Regular.ttf"],
+    "/api/astroloji/analyses/report": ["./public/fonts/Geist-Regular.ttf"],
   },
 
   experimental: {

@@ -83,7 +83,10 @@ async function wheelStats(page, testId) {
 
   // ── U1: sonuç masası (natal + transit önbellekte → 0 yeni istek)
   const pickClient = async (pid, q) => {
-    await page.goto(`${BASE}#yeni-analiz`, { waitUntil: "load", timeout: 120000 });
+    // UAT 2. tur (madde G): modüle yeni girişte ana ekran açılır (görünüm hash'i yeniden açılmaz) → ana ekrandan girilir.
+    await page.goto(BASE, { waitUntil: "load", timeout: 120000 });
+    await page.waitForSelector("[data-portal=new]", { timeout: 90000 });
+    await page.locator("[data-portal=new]").first().click();
     await page.waitForSelector("[data-testid=atlas-new-client]", { timeout: 90000 });
     await page.waitForTimeout(1200);
     await page.locator("[data-testid=atlas-client-trigger]").first().click();
@@ -124,7 +127,9 @@ async function wheelStats(page, testId) {
   await page.waitForSelector("[data-testid=astro-result-view]", { timeout: 90000 });
   await page.waitForTimeout(2000);
   ok("U2 natal yokken çift halka ÇİZİLMEZ", (await page.locator("[data-testid=astro-roxy-transit-wheel]").count()) === 0);
-  ok("U2 açık neden gösterilir", /kayıtlı natal sonucu gerekiyor/.test(await page.locator("[data-testid=astro-wheel-gap]").first().innerText().catch(() => "")));
+  // UAT 2. tur (madde E): owner'ın metni + Natal'ı hesaplama düğmesi (plan/onay; kendiliğinden hesap YOK).
+  ok("U2 açık neden gösterilir", /Transit çift halkalı haritası için uyumlu Natal \(Doğum\) analizi gerekiyor/.test(await page.locator("[data-testid=astro-wheel-gap]").first().innerText().catch(() => "")));
+  ok("U2 'Natal'ı hesapla (önce plan gösterilir)' düğmesi var, kendiliğinden hesap yok", (await page.locator("[data-testid=astro-wheel-gap-natal]").count()) > 0 && (await page.locator("[data-testid=atlas-add-technique]").count()) === 0);
   if (LOG) ok("U2 natal İSTENMEZ (en çok 1 transit isteği; önbellekteyse 0)", natalHits() === n1 && hits() - h1 <= 1, `toplam +${hits() - h1}, natal +${natalHits() - n1}`);
 
   // ── U3: arşivden kayıtlı transit + sinastri

@@ -75,7 +75,7 @@ function RoxyElement({
     );
   return (
     <div
-      className="roxy-host flex h-full w-full min-w-0 items-center justify-center [--roxy-space-lg:0.25rem]"
+      className="roxy-host flex h-full w-full min-w-0 items-center justify-center [--roxy-space-lg:0.25rem] [container-type:size]"
       data-testid={testId}
       data-ready={ready ? "1" : "0"}
     >
@@ -86,7 +86,9 @@ function RoxyElement({
           lang: "tr",
           "hide-readings": "",
           "hide-sections": HIDE,
-          class: "block w-full max-w-full",
+          class: "block",
+          // Kare çark kabın KISA kenarına sığar (geniş kartta dikey taşma / kırpma yok).
+          style: { width: "min(100cqw, 100cqh)" },
         },
       )}
       {!ready && <p className="text-sm text-slate-400">Harita yükleniyor…</p>}
@@ -126,7 +128,7 @@ export function transitWheelGap(
   if (t.natalFrame) return null;
   if (timeUnknownMasked)
     return "Doğum saati bilinmediği için natal evler/Yükselen yok; çift halka çizilmez (açı tablosu Teknik ayrıntı'da).";
-  return "Çift halka için bu doğum bilgisinin kayıtlı natal sonucu gerekiyor (aynı düğüm türüyle). Natal hesaplanmadığı ya da bu kayıt eski olduğu için harita çizilmedi; yeni ücretli istek yapılmaz. Natal'ı hesaplayıp transiti yeniden açtığınızda harita gösterilir.";
+  return "Transit çift halkalı haritası için uyumlu Natal (Doğum) analizi gerekiyor (aynı doğum bilgisi revizyonu ve aynı düğüm türü). Natal analizi hesaplandığında Transit haritası da görüntülenebilir. Natal kendiliğinden hesaplanmaz; yeni ücretli istek gerekiyorsa önce plan gösterilir.";
 }
 
 /** Çark altı künye (Türkçe; bileşenin kendi göstergesi gizlidir). */

@@ -250,7 +250,7 @@ export default function AddTechniqueDialog<T>({
           const isOpen = openTechniques.includes(id);
           const st = on ? statusOf(id) : null;
           return (
-            <li key={id} className={`flex items-stretch overflow-hidden rounded-lg border transition ${on ? "border-[#D9B56F]/60 bg-[linear-gradient(180deg,rgba(52,49,108,0.9),rgba(20,28,64,0.95))]" : "border-white/[0.06] hover:border-white/15"}`}>
+            <li key={id} className={`flex shrink-0 items-stretch overflow-hidden rounded-lg border transition ${on ? "border-[#D9B56F]/60 bg-[linear-gradient(180deg,rgba(52,49,108,0.9),rgba(20,28,64,0.95))]" : "border-white/[0.06] hover:border-white/15"}`}>
               <button
                 type="button"
                 role="checkbox"

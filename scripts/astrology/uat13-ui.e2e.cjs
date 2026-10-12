@@ -94,7 +94,10 @@ async function overflowOffenders(page, rootSel) {
 
   // ── 1) Yeni Analiz: profil seç → 5 teknik → başlat
   await page.goto("http://localhost:3931/admin", { waitUntil: "load", timeout: 120000 }).catch(() => undefined);
-  await page.goto(`${BASE}#yeni-analiz`, { waitUntil: "load", timeout: 120000 });
+  // UAT 2. tur (madde G): modüle yeni girişte ana ekran açılır (görünüm hash'i yeniden açılmaz) → ana ekrandan girilir.
+  await page.goto(BASE, { waitUntil: "load", timeout: 120000 });
+  await page.waitForSelector("[data-portal=new]", { timeout: 90000 });
+  await page.locator("[data-portal=new]").first().click();
   await page.waitForSelector("[data-testid=atlas-new-client]", { timeout: 90000 });
   await page.waitForTimeout(1500);
   await page.locator("[data-testid=atlas-client-trigger]").first().click();
@@ -182,16 +185,17 @@ async function overflowOffenders(page, rootSel) {
   ok("DB: 4 kayıt (biri yanıtı kaybolmuş ama kaydedilmiş)", mid === 4, `${mid}`);
   await page.locator("[data-testid=atlas-save-batch-confirm]").click(); // Başarısızları yeniden dene
   await page.waitForTimeout(500);
-  await page.waitForFunction(() => /2 analiz başarıyla kaydedildi/.test(document.querySelector("[data-testid=atlas-save-batch-summary]")?.textContent ?? ""), null, { timeout: 60000 });
-  ok("yeniden deneme: '2 analiz başarıyla kaydedildi'", true);
-  ok("yeniden denemede 'zaten kayıtlıydı (mükerrer yok)' satırı", (await page.locator("text=Zaten kayıtlıydı").count()) === 1);
+  // UAT 2. tur (madde C): TAM başarıda pencere kendiliğinden kapanır; ekranın üstündeki yeşil bildirim sunucu doğrulamalı sayıyı verir.
+  await page.waitForFunction(() => /2 analiz başarıyla kaydedildi/.test(document.querySelector("[data-testid=astro-saved-notice]")?.textContent ?? ""), null, { timeout: 60000 });
+  ok("yeniden deneme: yeşil bildirim '2 analiz başarıyla kaydedildi'", true);
+  ok("tam başarıda kayıt penceresi kapandı", (await page.locator("[data-testid=atlas-save-batch-summary]").count()) === 0);
   const after = (await rest(`astro_analyses?select=id,technique&profile_id=eq.${pid}`));
   ok("DB: tam 5 ayrı analiz, mükerrer yok", after.length - rowsBefore === 5 && new Set(after.map((x) => x.technique)).size === after.length, `${after.length - rowsBefore} kayıt`);
   if (LOG) ok("kayıt sırasında 0 Roxy isteği", hits() === h1, `${h1} → ${hits()}`);
   await page.unroute("**/api/admin/astroloji/analyses");
-  await page.getByRole("button", { name: "Kapat" }).last().click();
   await page.waitForTimeout(600);
-  ok("yeşil bildirim görünür", /analiz başarıyla kaydedildi/.test(await page.locator("[data-testid=astro-saved-notice]").innerText()));
+  ok("yeşil bildirim görünür (sabit, ekranın üstünde)", /analiz başarıyla kaydedildi/.test(await page.locator("[data-testid=astro-saved-notice]").innerText()) && ((await page.locator("[data-testid=astro-saved-notice]").boundingBox())?.y ?? 999) < 160);
+  ok("kalıcı 'kaydedildi' göstergesi", await page.locator("[data-testid=astro-all-saved]").first().isVisible());
   ok("kayıttan sonra ikinci kayıt formu yok; 'Kayıtlı analizi aç' var", (await page.locator("[data-testid=astro-open-saved]").count()) > 0 && (await page.locator("[data-testid=astro-desk-save]").count()) === 0);
 
   // ── 5) Teknik Ekle: çoklu seçim + ayarları kapatıp listeye dönme
@@ -233,6 +237,10 @@ async function overflowOffenders(page, rootSel) {
   await page.goBack();
   await page.waitForTimeout(800);
   ok("geri (sonuç → Yeni Analiz) uyarısız; sonuçlar kaybolmaz", !(await dlg.isVisible()) && page.url().includes("#yeni-analiz"));
+  // UAT 2. tur (madde G): modüle ana ekrandan girildi → geri önce Gökyüzü Atlası ana ekranına (modül içi, uyarısız).
+  await page.goBack();
+  await page.waitForTimeout(1000);
+  ok("geri (Yeni Analiz → modül ana ekranı) uyarısız", !(await dlg.isVisible()) && (await page.locator("[data-testid=atlas-hero]").isVisible()));
   await page.goBack();
   await page.waitForTimeout(1000);
   ok("geri (modülden çıkış) → uyarı", await dlg.isVisible());
@@ -248,14 +256,19 @@ async function overflowOffenders(page, rootSel) {
   const h3 = hits();
   const before2 = (await rest(`astro_analyses?select=id&profile_id=eq.${pid}`)).length;
   await page.locator("[data-testid=atlas-unsaved-save-leave]").click();
-  await page.waitForTimeout(4000);
+  // Kayıt (sunucu doğrulamalı geri okuma) bitince çıkılır — süre makineye göre değişir.
+  await page.waitForURL((u) => !u.href.startsWith(BASE), { timeout: 30000 }).catch(() => undefined);
+  await page.waitForTimeout(800);
   const after2 = (await rest(`astro_analyses?select=id&profile_id=eq.${pid}`)).length;
   ok("Kaydet ve Çık: 4 analiz kaydedildi ve modülden çıkıldı", after2 - before2 === 4 && !page.url().startsWith(BASE), `+${after2 - before2} · ${page.url()}`);
   if (LOG) ok("Kaydet ve Çık 0 Roxy isteği", hits() === h3);
   ok("tarayıcı yerel onay penceresi (beforeunload) açılmadı", dialogs === 0, `${dialogs}`);
 
   // ── 7) Kaydedilmemiş iş yokken geri → uyarısız çıkış
-  await page.goto(`${BASE}#analiz-arsivi`, { waitUntil: "load" });
+  // UAT 2. tur (madde G): modüle yeni girişte ana ekran açılır (görünüm hash'i yeniden açılmaz) → ana ekrandan girilir.
+  await page.goto(BASE, { waitUntil: "load" });
+  await page.waitForSelector("[data-portal=archive]", { timeout: 90000 });
+  await page.locator("[data-portal=archive]").first().click();
   await page.waitForTimeout(2500);
   await page.goBack();
   await page.waitForTimeout(1200);
@@ -302,7 +315,10 @@ async function overflowOffenders(page, rootSel) {
   if (LOG) ok("progression kaydını açmak 0 Roxy isteği", hits() === h5);
 
   // ── 9) Elle doğum tarihi + form çıkış koruması
-  await page.goto(`${BASE}#yeni-analiz`, { waitUntil: "load" });
+  // UAT 2. tur (madde G): modüle yeni girişte ana ekran açılır (görünüm hash'i yeniden açılmaz) → ana ekrandan girilir.
+  await page.goto(BASE, { waitUntil: "load" });
+  await page.waitForSelector("[data-portal=new]", { timeout: 90000 });
+  await page.locator("[data-portal=new]").first().click();
   await page.waitForSelector("[data-testid=atlas-new-client]", { timeout: 60000 });
   await page.waitForTimeout(1200);
   await page.locator("[data-testid=atlas-new-client]").click();
@@ -367,7 +383,10 @@ async function overflowOffenders(page, rootSel) {
   const tmp = await api("/profiles", { label: `UAT13 Silinecek ${stamp}`, birthDate: "1991-01-01", birthTime: "10:00", timeKnown: true, timeAccuracy: "exact_record", locationId: "tr-34-istanbul" });
   const tmpId = tmp.json.profile.id;
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.goto(`${BASE}#yeni-analiz`, { waitUntil: "load" });
+  // Aynı belgede #yeni-analiz bağlantısı (modül içi gezinme; belge yenilenmez).
+  await page.evaluate(() => {
+    window.location.hash = "yeni-analiz";
+  });
   await page.waitForTimeout(1200);
   ok("Bilgi Bankası taslağı varken başka ekrana geçiş → uyarı", await dlg.isVisible().catch(() => false));
   if (await dlg.isVisible().catch(() => false)) await page.locator("[data-testid=atlas-unsaved-discard]").click();

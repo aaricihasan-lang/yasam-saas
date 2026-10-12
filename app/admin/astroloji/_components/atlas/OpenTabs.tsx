@@ -18,6 +18,15 @@ import { Plus, RefreshCw, RotateCcw, X } from "lucide-react";
 export type OpenTab = { key: string; label: string; title?: string; partial?: boolean; /** Kaydedilmemiş not / KB taslağı var. */ dirty?: boolean; /** Analiz Arşivi'ne kaydedildi. */ saved?: boolean };
 export type FailedTab = { key: string; technique: string; label: string; error: string; code: string; attempts: number; lastAt: number; note: string | null; options: string; /** Kilidin kalktığı an (ms; sunucunun bildirdiği GERÇEK kalan süreden). */ retryAt?: number | null };
 
+/** Pasif mobil kutucuk tonları (yumuşak pastel; WCAG metin kontrastı slate-800 ile korunur). */
+const PASTEL = [
+  "border-violet-200 bg-violet-50",
+  "border-sky-200 bg-sky-50",
+  "border-teal-200 bg-teal-50",
+  "border-amber-200 bg-amber-50",
+  "border-rose-200 bg-rose-50",
+  "border-lime-200 bg-lime-50",
+];
 const IN_PROGRESS_NOTE =
   "Çift ücretli istek önleme kilidi: önceki istek sürüyor ya da başarısız olmuş olabilir. Kilit süresi dolmadan yeni istek gönderilmez. “Durumu kontrol et” ücretsizdir (yalnız kayıtlı sonuca bakar).";
 const hhmmss = (ms: number) => new Date(ms).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -97,23 +106,32 @@ export default function OpenTabs({
         {tabs.length === 0 && <span className={`col-span-2 py-1.5 text-xs ${L ? "text-slate-500" : "text-[#F6F2EA]/50"}`}>Açık analiz yok.</span>}
         {mobileTabs.map((t) => {
           const on = t.key === active;
+          // 2026-10-12 (UAT 2. tur, madde D): pasif kutucuklar artık soluk beyaz değil — sekme sırasına göre yumuşak pastel
+          // ton + belirgin metin; sol şerit kayıt durumunu söyler (amber = kaydedilmedi, yeşil = kaydedildi). Etkin = koyu.
+          const tint = PASTEL[tabs.indexOf(t) % PASTEL.length];
+          const stripe = t.saved ? "border-l-emerald-500" : "border-l-amber-400";
           return (
             <span
               key={t.key}
-              className={`flex min-h-[48px] min-w-0 items-stretch rounded-xl border text-[13px] ${
-                L ? (on ? "border-[#0B1430] bg-[#0B1430] text-white" : "border-slate-300 bg-white text-slate-700") : on ? "border-[#D9B56F]/60 bg-[#232a6a] text-[#F6F2EA]" : "border-white/10 bg-white/[0.04] text-[#F6F2EA]/80"
+              className={`flex min-h-[48px] min-w-0 items-stretch rounded-xl border border-l-4 text-[13px] ${stripe} ${
+                L ? (on ? "border-[#0B1430] bg-[#0B1430] text-white shadow-sm" : `${tint} text-slate-800`) : on ? "border-[#D9B56F]/60 bg-[#232a6a] text-[#F6F2EA]" : "border-white/15 bg-white/[0.08] text-[#F6F2EA]/90"
               }`}
+              data-tab-state={on ? "active" : t.saved ? "saved" : "unsaved"}
             >
               <button type="button" role="tab" aria-selected={on} onClick={() => onSelect(t.key)} title={t.title} className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pl-2.5 pr-1 text-left leading-tight" data-tab-key-m={t.key}>
                 <span className="line-clamp-2 min-w-0 break-words">{t.label}{t.partial ? " · kısmi" : ""}</span>
-                {t.saved && <span className="shrink-0 text-[11px] text-emerald-500" aria-label="kaydedildi">✓</span>}
-                {t.dirty && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" aria-label="kaydedilmemiş not" />}
+                {t.saved ? (
+                  <span className={`shrink-0 text-[11px] font-semibold ${on ? "text-emerald-300" : "text-emerald-600"}`} aria-label="kaydedildi">✓</span>
+                ) : (
+                  <span className="sr-only">kaydedilmedi</span>
+                )}
+                {t.dirty && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" aria-label="kaydedilmemiş not" />}
               </button>
               <button
                 type="button"
                 onClick={() => onClose(t.key)}
                 aria-label={`${t.label} sekmesini kapat (kayıt silinmez)`}
-                className={`ml-0.5 flex w-10 shrink-0 items-center justify-center rounded-r-xl border-l ${L ? (on ? "border-white/20 text-white/70" : "border-slate-200 text-slate-400") : "border-white/10 text-[#F6F2EA]/50"}`}
+                className={`ml-0.5 flex w-10 shrink-0 items-center justify-center rounded-r-xl border-l ${L ? (on ? "border-white/20 text-white/70" : "border-black/10 text-slate-500") : "border-white/10 text-[#F6F2EA]/60"}`}
                 data-tab-close-m={t.key}
               >
                 <X className="h-4 w-4" />

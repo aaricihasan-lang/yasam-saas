@@ -304,7 +304,7 @@ async function main() {
     assert.ok(lines.length <= 3 && lines.every((l) => allowedLines.some((r) => r.test(l))), `beklenmeyen DY farkı:\n${lines.join("\n")}`);
   });
 
-  await t("8: next.config.ts farkı YALNIZ iki Astroloji rapor route'unun font izleme satırı (+ açıklama)", () => {
+  await t("8: next.config.ts farkı YALNIZ Astroloji rapor route'larının (tekli + toplu) font izleme satırları (+ açıklama)", () => {
     let base = "";
     try {
       base = execSync("git merge-base HEAD origin/main", { cwd: ROOT, encoding: "utf8" }).trim();
@@ -318,8 +318,11 @@ async function main() {
       /^\+\s*\/\/ Astroloji Word\/PDF raporu: PDF fontu \+ çark PNG'si \(resvg\) aynı Geist TTF'yi fs ile okur\.$/,
       /^\+\s*"\/api\/admin\/astroloji\/analyses\/\[id\]\/report": \["\.\/public\/fonts\/Geist-Regular\.ttf"\],$/,
       /^\+\s*"\/api\/astroloji\/analyses\/\[id\]\/report": \["\.\/public\/fonts\/Geist-Regular\.ttf"\],$/,
+      // UAT 2. tur (madde L): seçili / tüm analizler toplu rapor ucu (admin + uzman aynası).
+      /^\+\s*"\/api\/admin\/astroloji\/analyses\/report": \["\.\/public\/fonts\/Geist-Regular\.ttf"\],$/,
+      /^\+\s*"\/api\/astroloji\/analyses\/report": \["\.\/public\/fonts\/Geist-Regular\.ttf"\],$/,
     ];
-    assert.ok(lines.length <= 3 && lines.every((l) => allowedLines.some((r) => r.test(l))), `beklenmeyen next.config farkı:\n${lines.join("\n")}`);
+    assert.ok(lines.length <= 5 && lines.every((l) => allowedLines.some((r) => r.test(l))), `beklenmeyen next.config farkı:\n${lines.join("\n")}`);
   });
 
   await t("7C: DY durum rozeti yalnız durum ucunu çağırır (owner → admin ucu, uzman → uzman ucu), iç modül içe aktarmaz, içerik göstermez", () => {

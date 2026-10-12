@@ -93,6 +93,11 @@ export default function SaveBatchDialog({
     const failed = out.length - ok;
     setSummary({ ok, failed });
     if (ok > 0) onSucceeded(ok);
+    // Tam başarı: pencere kapanır, ekranın üstündeki yeşil bildirim kalır. Kısmi başarısızlıkta pencere AÇIK kalır.
+    if (failed === 0 && ok > 0) {
+      onClose();
+      return;
+    }
     // Başarısızlar seçili kalır → "Başarısızları yeniden dene" tek dokunuş.
     setPicked(Object.fromEntries(out.filter((r) => !r.ok).map((r) => [r.key, true])));
   }

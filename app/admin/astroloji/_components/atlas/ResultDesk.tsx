@@ -16,7 +16,7 @@
  * değiştirmez; hangi bölümlerin var olduğuna çağıran karar verir. Panel/menü/odak durumu hiçbir kaydı etkilemez.
  */
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ComponentType, type KeyboardEvent, type ReactNode } from "react";
-import { BookOpen, CircleDot, House, Maximize2, Orbit, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PenLine, Save, Sparkles, Sun, Table2, Triangle, X } from "lucide-react";
+import { BookOpen, CircleDot, House, Maximize2, Orbit, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PenLine, Save, Sparkles, Sun, Table2, Triangle, X, Home } from "lucide-react";
 import { atlasDisplay, atlasText } from "./fonts";
 import ChartViewport from "./ChartViewport";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -317,6 +317,33 @@ const DeskToneCtx = createContext<"night" | "light">("night");
 
 type DeskProps = Parameters<typeof NightDesk>[0];
 
+/**
+ * 2026-10-12 (UAT 2. tur, madde G): iç ekranlarda (sonuç masası, kayıtlı analiz, Yeni Analiz) "Gökyüzü Atlası Ana
+ * Sayfa" kontrolü. Geri oku = bir önceki ekran; ev simgesi = MODÜLÜN başlangıç ekranı (Yaşam Sistemi dashboard'u DEĞİL).
+ * Sayfa bağlamla sağlar (prop zinciri yok); sağlanmadıysa düğme görünmez.
+ */
+export const AtlasHomeContext = createContext<(() => void) | null>(null);
+export function AtlasHomeButton({ tone = "light" }: { tone?: "light" | "dark" }) {
+  const onHome = useContext(AtlasHomeContext);
+  if (!onHome) return null;
+  return (
+    <button
+      type="button"
+      onClick={onHome}
+      aria-label="Gökyüzü Atlası ana sayfası"
+      title="Gökyüzü Atlası ana sayfası"
+      data-testid="atlas-home-btn"
+      className={
+        tone === "light"
+          ? "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-slate-400 hover:text-slate-900"
+          : "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-[#F6F2EA]/80 transition hover:border-[#D9B56F]/60 hover:text-[#D9B56F]"
+      }
+    >
+      <Home className="h-4 w-4" />
+    </button>
+  );
+}
+
 export default function ResultDesk({ variant = "night", ...props }: DeskProps & { variant?: "night" | "light" }) {
   return <DeskToneCtx.Provider value={variant}>{variant === "light" ? <LightDesk {...props} /> : <NightDesk {...props} />}</DeskToneCtx.Provider>;
 }
@@ -469,6 +496,7 @@ function NightDesk({
           >
             ←
           </button>
+          <AtlasHomeButton tone="dark" />
           <div className="min-w-0">
             <p className="text-[10.5px] font-semibold tracking-[0.16em] text-[#E6CF9F]/90">{eyebrow}</p>
             <h2 className="min-w-0 break-words text-lg font-light tracking-[0.01em] text-[#F6F2EA] [font-family:var(--font-atlas-display)] [overflow-wrap:anywhere] sm:text-xl xl:truncate" title={title}>{title}</h2>
@@ -932,6 +960,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
         >
           ←
         </button>
+        <AtlasHomeButton tone="light" />
         <div className="min-w-0 flex-1">
           {/* 2026-10-12 (Android UAT ek madde): telefonda uzun ad / teknik / tarih KESİLMEZ, satıra geçer; tek satır
               kısaltma yalnız geniş masaüstünde (tam metin title ile). */}
@@ -989,7 +1018,10 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
               data-testid="atlas-chart-card"
             >
               {hasChart ? (
-                <div className="relative" style={{ width: side, height: side }} data-testid="atlas-chart-frame">
+                // 2026-10-12 (UAT 2. tur, madde J): yakınlaştırma kırpması eskiden haritanın KARE çerçevesinde
+                // (side × side) yapılıyordu → kart genişken büyütülen harita görünmez karede kesiliyordu. Görüntüleyici
+                // artık kartın TAMAMINI kullanır; harita SVG viewBox oranıyla (kare, ortalı) aynı boyutta başlar.
+                <div className="relative h-full w-full" data-testid="atlas-chart-frame" data-side={side}>
                   {chartNode(false)}
                 </div>
               ) : (

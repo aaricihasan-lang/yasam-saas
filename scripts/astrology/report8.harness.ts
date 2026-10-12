@@ -319,11 +319,15 @@ async function main() {
     });
   }
 
-  await t("model: harita görseli yalnız sistemin kendi çarkı olan tekniklerde (natal, return, composite, relocation); diğerleri görselsiz", async () => {
-    const withChart = new Set(["western.natal", "western.solar_return", "western.lunar_return", "western.composite", "western.relocation"]);
+  // 2026-10-12 (UAT 2. tur, madde L): Progression (tam burç evli tek halka), Transit (natal çerçeve varsa çift halka) ve
+  // Sinastri (çift halka) da kayıtlı veriden çizilir; çerçevesi olmayan transit ve KP/Vedik görselsiz kalır.
+  await t("model: harita görseli natal, return, composite, relocation, progression, sinastri ve (natal çerçeveli) transitte; diğerleri görselsiz", async () => {
+    const withChart = new Set(["western.natal", "western.solar_return", "western.lunar_return", "western.composite", "western.relocation", "western.progression", "western.synastry"]);
     for (const tech of TECHNIQUES) {
-      const r = buildAstroReport(await full(saved.get(tech)!));
-      assert.equal(r.hasChart, withChart.has(tech), tech);
+      const a = await full(saved.get(tech)!);
+      const r = buildAstroReport(a);
+      const expect = tech === "western.transit" ? !!(a.technical as J | null)?.natalFrame : withChart.has(tech);
+      assert.equal(r.hasChart, expect, tech);
     }
     const r = buildAstroReport(await full(saved.get("western.natal")!));
     const ch = r.blocks.find((b) => b.kind === "chart") as J;
@@ -405,9 +409,11 @@ async function main() {
     assert.ok(f.pdf.pages >= 3, `forecast PDF ${f.pdf.pages} sayfa`);
   });
 
-  await t("harita görseli: natal/return/composite/relocation Word'de PNG gömülü + PDF'te görsel; KP/Vedik/transit görselsiz çalışır", async () => {
-    for (const tech of ["western.natal", "western.solar_return", "western.composite", "western.relocation"]) assert.equal(docs.get(tech)!.docx.media.length, 1, tech);
-    for (const tech of ["kp.chart", "vedic.d1", "western.transit"]) assert.equal(docs.get(tech)!.docx.media.length, 0, tech);
+  await t("harita görseli: natal/return/composite/relocation/progression/sinastri (+ natal çerçeveli transit) Word'de PNG gömülü + PDF'te görsel; KP/Vedik görselsiz çalışır", async () => {
+    for (const tech of ["western.natal", "western.solar_return", "western.composite", "western.relocation", "western.progression", "western.synastry"]) assert.equal(docs.get(tech)!.docx.media.length, 1, tech);
+    for (const tech of ["kp.chart", "vedic.d1"]) assert.equal(docs.get(tech)!.docx.media.length, 0, tech);
+    const trFrame = !!((await full(saved.get("western.transit")!)).technical as J | null)?.natalFrame;
+    assert.equal(docs.get("western.transit")!.docx.media.length, trFrame ? 1 : 0, "western.transit (natal çerçeve → çift halka)");
     const png = await (await JSZip.loadAsync((await get("expert", saved.get("western.natal")!, "exAI", "docx")).buf)).file(docs.get("western.natal")!.docx.media[0])!.async("nodebuffer");
     assert.equal(png.readUInt32BE(16), png.readUInt32BE(20), "çark PNG kare olmalı (oran korunur)");
     const ext = /<wp:extent cx="(\d+)" cy="(\d+)"/.exec(docs.get("western.natal")!.docx.xml)!;
