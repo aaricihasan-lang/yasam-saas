@@ -11,6 +11,7 @@ import type { InterpretationVisibility } from "../access/entitlements";
 import type { NatalInterpretation, NatalTechnical } from "../model/western";
 import type {
   CompositeTechnical,
+  ForecastInterpretation,
   ForecastTechnical,
   ProgressionTechnical,
   SolarArcInterpretation,
@@ -162,6 +163,11 @@ function maskInterpretation(technique: string, content: unknown, masked: boolean
     const c = content as TransitInterpretation;
     return { ...c, aspects: c.aspects.filter((a) => !isAngle(a.natal)) };
   }
+  if (technique === "western.forecast") {
+    // Gizlenen (natal Yükselen/MC hedefli) olayların sağlayıcı cümlesi de gönderilmez.
+    const c = content as ForecastInterpretation;
+    return { ...c, events: c.events.filter((e) => !(e.targetBody && isAngle(e.targetBody))) };
+  }
   if (technique === "western.solar_arc") {
     const c = content as SolarArcInterpretation;
     return { ...c, directed: c.directed.filter((d) => !isAngle(d.id)) };
@@ -186,6 +192,8 @@ export function buildTechniqueView(args: {
   /** Satır başına yorum (yalnız görünür olacaksa okunur; tek parçalı tekniklerde 1 öğe). */
   interpretations: ({ provider: string; lang: string; content: Record<string, unknown> } | null)[] | null;
   missingParts?: number;
+  /** Çok parçalı tekniğin (forecast) parça yorumlarını birleştirir; yoksa yorum yalnız tek parçada gösterilir. */
+  combineInterpretation?: (parts: Record<string, unknown>[]) => Record<string, unknown>;
 }): TechniqueView {
   const first = args.rows[0];
   const m = maskTechnical(args.technique, args.combined, args.timeKnowledge);
@@ -195,12 +203,13 @@ export function buildTechniqueView(args: {
   if (!args.visibility.visible) {
     interpretation = { visible: false, reason: args.visibility.reason };
   } else {
-    // Servis yorumu yalnız tek (veya zorunlu) birimden verir; çok parçalı (forecast) → yorum katmanı yok.
+    // Servis yorumu tek (veya zorunlu) birimden verir; çok parçalı teknikte (forecast) yalnız TÜM parçaların yorumu varsa birleştirilir.
     const list = args.interpretations ?? [];
-    if (list.length !== 1 || list[0] === null || (m.masked && TIME_ONLY_TECHNIQUES.has(args.technique))) {
+    const combinable = list.length > 1 && !!args.combineInterpretation && list.every((x) => x !== null);
+    if ((list.length !== 1 && !combinable) || list[0] === null || (m.masked && TIME_ONLY_TECHNIQUES.has(args.technique))) {
       interpretation = { visible: false, reason: "unavailable" };
     } else {
-      const it = list[0]!;
+      const it = combinable ? { ...list[0]!, content: args.combineInterpretation!(list.map((x) => x!.content)) } : list[0]!;
       const content = maskInterpretation(args.technique, it.content, m.masked);
       // Maske tüm anlatıyı kaldırdıysa (saat bilinmiyor) boş katman gösterilmez.
       interpretation = content === null ? { visible: false, reason: "unavailable" } : { visible: true, provider: it.provider, lang: it.lang, content, notice: PROVIDER_INTERP_NOTICE };

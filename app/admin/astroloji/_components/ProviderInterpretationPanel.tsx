@@ -9,6 +9,7 @@
 import type { ReactNode } from "react";
 import type { NatalInterpretation } from "@/lib/astrology/model/western";
 import type {
+  ForecastInterpretation,
   CompositeInterpretation,
   PointId,
   ProgressionInterpretation,
@@ -167,6 +168,29 @@ function Content({ content }: { content: unknown }) {
             </Item>
           ))}
         </Block>
+      );
+    }
+    case "astro.western.forecast.interp.v1": {
+      // Transit takvimi: Roxy olay başına TEK cümle verir (ayrı anlatı / özet yorumu yok). Metin aynen, ay ay.
+      const c = content as ForecastInterpretation;
+      const months = new Map<string, ForecastInterpretation["events"]>();
+      for (const e of c.events) months.set(e.datetime.slice(0, 7), [...(months.get(e.datetime.slice(0, 7)) ?? []), e]);
+      return (
+        <>
+          <p className="mb-2 text-xs text-slate-500">Roxy bu teknikte ayrı bir genel yorum üretmez; her olay için verdiği açıklama cümlesi aşağıda değiştirilmeden listelenir ({c.events.length} olay).</p>
+          {[...months.entries()].map(([m, list]) => (
+            <Block key={m} title={`${m.slice(5, 7)}.${m.slice(0, 4)} (${list.length})`}>
+              {list.map((e, i) => (
+                <Item key={`${e.datetime}-${i}`}>
+                  <div className="text-xs tabular-nums text-slate-500">
+                    {e.datetime.slice(8, 10)}.{e.datetime.slice(5, 7)}.{e.datetime.slice(0, 4)} {e.datetime.slice(11, 16)} UTC
+                  </div>
+                  <P text={e.text} />
+                </Item>
+              ))}
+            </Block>
+          ))}
+        </>
       );
     }
     case "astro.western.progression.interp.v1":

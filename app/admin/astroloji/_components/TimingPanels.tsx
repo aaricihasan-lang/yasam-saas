@@ -8,6 +8,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import type { AspectType, BodyId, NatalAspect, NatalHouse, NatalTechnical, SignId } from "@/lib/astrology/model/western";
+import { SIGN_IDS } from "@/lib/astrology/model/western";
 import type {
   CompositeTechnical,
   ForecastEvent,
@@ -211,7 +212,26 @@ export function TransitPanel({ t }: { t: TransitTechnical }) {
         )}
       </p>
       <Section title={`Transit → natal açılar (${list.length}/${t.aspects.length})`} right={<MajorToggle only={only} set={setOnly} />}>
-        <table className="min-w-full">
+        {/* Telefon (<640 px): her açı bir bilgi kartı — hiçbir sütun kesilmez / gizlenmez (2026-10-12 UAT madde 9). */}
+        <ul className="divide-y divide-slate-100 sm:hidden" data-testid="astro-transit-cards">
+          {list.map((a, i) => (
+            <li key={`${a.transit}-${a.type}-${a.natal}-${i}`} className="px-3 py-2 text-sm text-slate-800">
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                <Point id={a.transit} />
+                <span className="text-slate-600">
+                  {ASPECT_GLYPHS[a.type]} {ASPECT_LABELS[a.type]}
+                </span>
+                <Point id={a.natal} prefix="natal" />
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
+                <span className="tabular-nums">orb {formatDegree(a.orb)}</span>
+                <span>{a.applying ? "yaklaşıyor" : "ayrılıyor"}</span>
+                <NatureBadge n={a.nature} />
+              </div>
+            </li>
+          ))}
+        </ul>
+        <table className="hidden min-w-full sm:table">
           <thead>
             <tr>
               <th className={th}>Transit</th>
@@ -320,7 +340,20 @@ export function ForecastPanel({ t }: { t: ForecastTechnical }) {
       ) : (
         byMonth.map(([month, list]) => (
           <Section key={month} title={`${month.slice(5, 7)}.${month.slice(0, 4)} (${list.length})`}>
-            <table className="min-w-full">
+            {/* Telefon: olay kartı (tarih/saat üstte, metin satıra geçer; orb ayrı satırda) — veri kesilmez. */}
+            <ul className="divide-y divide-slate-100 sm:hidden" data-testid="astro-forecast-cards">
+              {list.map((e, i) => (
+                <li key={`${e.datetime}-${i}`} className="px-3 py-2 text-sm text-slate-800">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
+                    <span className="tabular-nums">{fmtUtc(e.datetime)}</span>
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600">{EVENT_LABELS[e.type]}</span>
+                    {e.orb !== null && <span className="tabular-nums">orb {formatDegree(e.orb)}</span>}
+                  </div>
+                  <p className="mt-0.5 break-words">{eventText(e)}</p>
+                </li>
+              ))}
+            </ul>
+            <table className="hidden min-w-full sm:table">
               <tbody className="divide-y divide-slate-100">
                 {list.map((e, i) => (
                   <tr key={`${e.datetime}-${i}`}>
@@ -484,6 +517,22 @@ export function wheelForTechnique(technique: string, technical: unknown): { whee
     return t.chart ? { wheel: returnWheel(t), label: t.kind === "solar" ? "Solar return çarkı" : "Lunar return çarkı" } : null;
   }
   if (technique === "western.composite") return { wheel: technical as CompositeTechnical, label: "Composite çarkı" };
+  // 2026-10-12 (UAT madde 8): Secondary progression — ilerletilmiş gezegen boylamları + ilerletilmiş ASC/MC sağlayıcı
+  // yanıtında VAR; haritası mevcut veriden çizilir (yeni çağrı yok). Evler sağlayıcının yöntemiyle: ilerletilmiş
+  // Yükselen'in burcundan TAM BURÇ evleri (houseMethod). Saat bilinmiyorsa açılar maskeli → çark çizilmez (tablo kalır).
+  if (technique === "western.progression") {
+    const t = technical as ProgressionTechnical;
+    if (!t.angles) return null;
+    const first = Math.floor(t.angles.ascendant.longitude / 30) * 30;
+    const houses = Array.from({ length: 12 }, (_, i) => {
+      const lon = (first + i * 30) % 360;
+      return { number: i + 1, longitude: lon, sign: SIGN_IDS[Math.floor(lon / 30)], degreeInSign: 0 };
+    });
+    return {
+      wheel: { bodies: t.bodies.map((b) => ({ id: b.id, longitude: b.longitude, sign: b.sign, degreeInSign: b.degreeInSign, retrograde: b.retrograde })), houses, angles: t.angles, aspects: [] },
+      label: "İlerletilmiş (secondary progression) harita çarkı · tam burç evleri",
+    };
+  }
   return null;
 }
 

@@ -513,7 +513,7 @@ export async function buildSelectionView(
     }
   }
   const combined = def.combineTechnical ? def.combineTechnical(rows.map((r) => r.technical), options) : rows[0].technical;
-  return buildTechniqueView({ technique, rows, combined, options, timeKnowledge, visibility, interpretations: interps, missingParts });
+  return buildTechniqueView({ technique, rows, combined, options, timeKnowledge, visibility, interpretations: interps, missingParts, combineInterpretation: def.combineInterpretation });
 }
 
 /** Geriye dönük uyum: tek satırlık sonuç görünümü (natal vb.). */

@@ -76,6 +76,17 @@ export type ForecastTechnical = {
   window: { start: string; end: string };
   events: ForecastEvent[];
 };
+/**
+ * 2026-10-12 (UAT madde 13): Roxy'nin olay başına açıklama cümlesi (`events[].description`) — AYNEN, ayrı yorum
+ * katmanında (yetki kapısı arkasında). Roxy bu teknikte ayrı bir anlatı/özet yorumu SAĞLAMAZ; cümlelerin çoğu olayın
+ * olgusal ifadesidir (ör. "Transit Mars, natal Mars ile Kare açısı yapıyor"), istasyon / burç girişi / Ay evresi
+ * cümleleri kısa kalıp anlam içerir. Uydurma / özetleme yok.
+ */
+export const FORECAST_INTERP_SCHEMA = "astro.western.forecast.interp.v1" as const;
+export type ForecastInterpretation = {
+  schema: typeof FORECAST_INTERP_SCHEMA;
+  events: { datetime: string; type: ForecastEventType; body: BodyId | null; targetBody: PointId | null; text: string }[];
+};
 
 // ─── Secondary progression ───────────────────────────────────────────────────
 export const PROGRESSION_TECHNICAL_SCHEMA = "astro.western.progression.v1" as const;
