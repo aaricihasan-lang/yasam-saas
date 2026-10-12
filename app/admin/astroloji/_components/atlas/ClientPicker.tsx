@@ -48,7 +48,11 @@ export default function ClientPicker({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [qDebounced, setQDebounced] = useState("");
-  const [archived, setArchived] = useState(false);
+  // 2026-10-12 (Android UAT madde 5): "Etkin / Arşivli" düğmesi KALDIRILDI — uzman danışanını iki sekme arasında
+  // aramak zorunda kalmıyor. Tek liste: önce etkin profiller, altında ayrı başlıkla arşivlenmiş profiller (durum korunur,
+  // "Arşiv" rozeti); ikisi de aynı arama / sıralamayla sunucudan okunur.
+  const [archItems, setArchItems] = useState<ClientListItem[] | null>(null);
+  const [archMeta, setArchMeta] = useState({ total: 0, hasMore: false });
   const [sort, setSort] = useState<"recent" | "name">("recent");
   const [items, setItems] = useState<ClientListItem[] | null>(null);
   const [meta, setMeta] = useState({ total: 0, hasMore: false });
@@ -83,7 +87,7 @@ export default function ClientPicker({
     return () => clearTimeout(t);
   }, [q]);
 
-  const query = (offset: number) => {
+  const query = (offset: number, archived = false) => {
     const sp = new URLSearchParams({ limit: String(PAGE), offset: String(offset), sort });
     if (qDebounced.trim()) sp.set("q", qDebounced.trim());
     if (archived) sp.set("archived", "1");
@@ -93,15 +97,18 @@ export default function ClientPicker({
   useEffect(() => {
     if (!open) return;
     const my = ++seq.current;
-    void astroFetch<Page>(`/api/admin/astroloji/profiles?${query(0)}`).then((r) => {
+    void Promise.all([astroFetch<Page>(`/api/admin/astroloji/profiles?${query(0)}`), astroFetch<Page>(`/api/admin/astroloji/profiles?${query(0, true)}`)]).then(([r, ra]) => {
       if (my !== seq.current) return;
       setItems(r.ok ? r.data.profiles : []);
       setMeta(r.ok ? { total: r.data.total, hasMore: r.data.hasMore } : { total: 0, hasMore: false });
-      setError(r.ok ? null : r.error);
+      setArchItems(ra.ok ? ra.data.profiles : []);
+      setArchMeta(ra.ok ? { total: ra.data.total, hasMore: ra.data.hasMore } : { total: 0, hasMore: false });
+      setError(r.ok ? (ra.ok ? null : ra.error) : r.error);
       if (r.ok) onItemsRef.current?.(r.data.profiles);
+      if (ra.ok) onItemsRef.current?.(ra.data.profiles);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, qDebounced, archived, sort, reloadKey]);
+  }, [open, qDebounced, sort, reloadKey]);
 
   // Dışarı tıklama / Esc → kapat; açılınca arama alanına odak.
   useEffect(() => {
@@ -124,17 +131,57 @@ export default function ClientPicker({
     };
   }, [open]);
 
-  async function loadMore() {
-    if (!items) return;
+  async function loadMore(archived = false) {
+    const cur = archived ? archItems : items;
+    if (!cur) return;
     const my = seq.current;
     setLoadingMore(true);
-    const r = await astroFetch<Page>(`/api/admin/astroloji/profiles?${query(items.length)}`);
+    const r = await astroFetch<Page>(`/api/admin/astroloji/profiles?${query(cur.length, archived)}`);
     setLoadingMore(false);
     if (my !== seq.current || !r.ok) return;
-    setItems([...items, ...r.data.profiles.filter((p) => !items.some((x) => x.id === p.id))]);
-    setMeta({ total: r.data.total, hasMore: r.data.hasMore });
+    const next = [...cur, ...r.data.profiles.filter((p) => !cur.some((x) => x.id === p.id))];
+    if (archived) {
+      setArchItems(next);
+      setArchMeta({ total: r.data.total, hasMore: r.data.hasMore });
+    } else {
+      setItems(next);
+      setMeta({ total: r.data.total, hasMore: r.data.hasMore });
+    }
     onItemsRef.current?.(r.data.profiles);
   }
+
+  const row = (p: ClientListItem) => {
+    const on = p.id === selectedId;
+    return (
+      <li key={p.id}>
+        <button
+          type="button"
+          aria-current={on ? "true" : undefined}
+          onClick={() => {
+            onSelect(p);
+            setOpen(false);
+          }}
+          className={`flex w-full items-start gap-3 rounded-xl border px-3 py-2 text-left transition ${on ? "border-[#D9B56F]/50 bg-[#D9B56F]/10" : "border-transparent hover:border-white/10 hover:bg-white/[0.04]"}`}
+          data-client-option={p.id}
+        >
+          <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${on ? "bg-[#D9B56F] text-[#0B1430]" : "bg-white/[0.06] text-[#F6E7C3]/80 ring-1 ring-white/10"}`}>{initials(p.label)}</span>
+          <span className="min-w-0 flex-1">
+            <span className="flex items-start justify-between gap-2">
+              <span className="min-w-0 break-words text-sm font-medium">{p.label}</span>
+              {p.archivedAt && <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-[#F6F2EA]/70">Arşiv</span>}
+            </span>
+            {p.clientName && <span className="block text-xs text-emerald-200/80">Danışan: {p.clientName}</span>}
+            {p.current && (
+              <span className="block text-xs text-[#F6F2EA]/55">
+                {fmtDay(p.current.birthDate)} · {p.current.timeKnown ? p.current.birthTime?.slice(0, 5) : "saat bilinmiyor"} · {p.current.locationLabel}
+              </span>
+            )}
+            <span className="block text-[11px] text-[#F6F2EA]/45">{p.analysisCount > 0 ? `${p.analysisCount} kayıtlı analiz · son: ${fmtDay(p.lastAnalysisAt)}` : "Kayıtlı analiz yok"}</span>
+          </span>
+        </button>
+      </li>
+    );
+  };
 
   return (
     <div ref={rootRef} className="relative min-w-0" data-testid="atlas-client-picker">
@@ -200,22 +247,7 @@ export default function ClientPicker({
               </button>
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex flex-1 rounded-lg border border-white/10 bg-black/20 p-0.5 text-xs" role="group" aria-label="Kayıt durumu">
-                {([
-                  [false, "Etkin"],
-                  [true, "Arşivli"],
-                ] as const).map(([v, l]) => (
-                  <button
-                    key={l}
-                    type="button"
-                    aria-pressed={archived === v}
-                    onClick={() => setArchived(v)}
-                    className={`flex-1 rounded-md px-2 py-1 transition ${archived === v ? "bg-[#D9B56F]/20 text-[#F6E7C3] shadow-[inset_0_0_0_1px_rgba(217,181,111,0.4)]" : "text-[#F6F2EA]/60 hover:text-[#F6F2EA]"}`}
-                  >
-                    {l}
-                  </button>
-                ))}
-              </div>
+              <span className="flex-1 text-[11px] text-[#F6F2EA]/50">Etkin ve arşivlenmiş danışanlar birlikte listelenir.</span>
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value as "recent" | "name")}
@@ -232,52 +264,39 @@ export default function ClientPicker({
             {error && <p className="px-2 py-1 text-sm text-rose-300">{error}</p>}
             {items === null ? (
               <p className="px-2 py-3 text-sm text-[#F6F2EA]/50">Yükleniyor…</p>
-            ) : items.length === 0 ? (
-              <p className="px-2 py-3 text-sm text-[#F6F2EA]/60">{archived ? "Arşivde kayıt yok." : qDebounced.trim() ? "Aramaya uyan danışan yok." : "Henüz profil yok."}</p>
+            ) : items.length === 0 && (archItems?.length ?? 0) === 0 ? (
+              <p className="px-2 py-3 text-sm text-[#F6F2EA]/60">{qDebounced.trim() ? "Aramaya uyan danışan yok." : "Henüz profil yok."}</p>
             ) : (
-              <ul className="flex flex-col gap-1" aria-label="Danışanlar">
-                {items.map((p) => {
-                  const on = p.id === selectedId;
-                  return (
-                    <li key={p.id}>
-                      <button
-                        type="button"
-                        aria-current={on ? "true" : undefined}
-                        onClick={() => {
-                          onSelect(p);
-                          setOpen(false);
-                        }}
-                        className={`flex w-full items-start gap-3 rounded-xl border px-3 py-2 text-left transition ${on ? "border-[#D9B56F]/50 bg-[#D9B56F]/10" : "border-transparent hover:border-white/10 hover:bg-white/[0.04]"}`}
-                      >
-                        <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${on ? "bg-[#D9B56F] text-[#0B1430]" : "bg-white/[0.06] text-[#F6E7C3]/80 ring-1 ring-white/10"}`}>{initials(p.label)}</span>
-                        <span className="min-w-0 flex-1">
-                          <span className="flex items-start justify-between gap-2">
-                            <span className="min-w-0 break-words text-sm font-medium">{p.label}</span>
-                            {p.archivedAt && <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-[#F6F2EA]/70">Arşiv</span>}
-                          </span>
-                          {p.clientName && <span className="block text-xs text-emerald-200/80">Danışan: {p.clientName}</span>}
-                          {p.current && (
-                            <span className="block text-xs text-[#F6F2EA]/55">
-                              {fmtDay(p.current.birthDate)} · {p.current.timeKnown ? p.current.birthTime?.slice(0, 5) : "saat bilinmiyor"} · {p.current.locationLabel}
-                            </span>
-                          )}
-                          <span className="block text-[11px] text-[#F6F2EA]/45">{p.analysisCount > 0 ? `${p.analysisCount} kayıtlı analiz · son: ${fmtDay(p.lastAnalysisAt)}` : "Kayıtlı analiz yok"}</span>
-                        </span>
+              <>
+                {items.length > 0 && (
+                  <ul className="flex flex-col gap-1" aria-label="Danışanlar">
+                    {items.map(row)}
+                  </ul>
+                )}
+                {meta.hasMore && (
+                  <button type="button" disabled={loadingMore} onClick={() => void loadMore()} className="mt-1 w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs text-[#F6F2EA]/75 hover:border-[#D9B56F]/50 disabled:opacity-60">
+                    {loadingMore ? "Yükleniyor…" : `Daha fazla göster (${items.length} / ${meta.total})`}
+                  </button>
+                )}
+                {archItems && archItems.length > 0 && (
+                  <div className="mt-2 border-t border-white/[0.07] pt-2" data-testid="atlas-client-archived">
+                    <p className="px-2 pb-1 text-[10.5px] font-semibold tracking-[0.14em] text-[#E6CF9F]/60">ARŞİVLENMİŞ DANIŞANLAR · {archMeta.total}</p>
+                    <ul className="flex flex-col gap-1" aria-label="Arşivlenmiş danışanlar">
+                      {archItems.map(row)}
+                    </ul>
+                    {archMeta.hasMore && (
+                      <button type="button" disabled={loadingMore} onClick={() => void loadMore(true)} className="mt-1 w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs text-[#F6F2EA]/75 hover:border-[#D9B56F]/50 disabled:opacity-60">
+                        {loadingMore ? "Yükleniyor…" : `Daha fazla göster (${archItems.length} / ${archMeta.total})`}
                       </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-            {items && meta.hasMore && (
-              <button type="button" disabled={loadingMore} onClick={() => void loadMore()} className="mt-1 w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs text-[#F6F2EA]/75 hover:border-[#D9B56F]/50 disabled:opacity-60">
-                {loadingMore ? "Yükleniyor…" : `Daha fazla göster (${items.length} / ${meta.total})`}
-              </button>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
           <div className="flex items-center justify-between gap-2 border-t border-white/[0.07] p-3">
-            <span className="text-[11px] text-[#F6F2EA]/45">{items ? `${meta.total} kayıt` : ""}</span>
+            <span className="text-[11px] text-[#F6F2EA]/45">{items ? `${meta.total + archMeta.total} kayıt` : ""}</span>
             <button
               type="button"
               onClick={() => {

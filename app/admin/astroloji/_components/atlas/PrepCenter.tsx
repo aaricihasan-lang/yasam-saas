@@ -685,11 +685,11 @@ export default function PrepCenter({
       <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0" data-testid="atlas-client-identity">
           <p className={EYEBROW}>GÖKSEL ANALİZ · DANIŞAN</p>
-          <h2 className="truncate text-lg font-light leading-tight text-[#F6F2EA] [font-family:var(--font-atlas-display)] sm:text-xl" data-testid="atlas-client-name">
+          <h2 className="break-words text-lg font-light leading-tight text-[#F6F2EA] [font-family:var(--font-atlas-display)] [overflow-wrap:anywhere] sm:truncate sm:text-xl" data-testid="atlas-client-name">
             {profile ? profile.label : "Danışan seçilmedi"}
           </h2>
           {profile && rev ? (
-            <p className="mt-0.5 truncate text-[13px] tabular-nums text-[#F6F2EA]/75" data-testid="atlas-birth-summary">
+            <p className="mt-0.5 break-words text-[13px] tabular-nums text-[#F6F2EA]/75 sm:truncate" data-testid="atlas-birth-summary">
               {fmtDate(rev.birthDate)} · {rev.timeKnown ? rev.birthTime?.slice(0, 5) : "saat bilinmiyor"} · {rev.locationLabel}
             </p>
           ) : (

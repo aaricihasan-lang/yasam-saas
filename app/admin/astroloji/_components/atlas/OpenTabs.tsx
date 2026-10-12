@@ -3,7 +3,10 @@
 /**
  * Gökyüzü Atlası — "Açık Analizler" sekme şeridi (Aşama D4).
  *
- * • Tek satır; çok sekmede yatay kaydırma (çok satıra yayılmaz). Etkin sekme belirgin.
+ * • Masaüstü (≥640 px): tek satır; çok sekmede yatay kaydırma. Etkin sekme belirgin.
+ * • Telefon (<640 px, 2026-10-12 Android UAT madde 4): yatay kayan şerit yerine İKİ SÜTUNLU kutucuklar (Danışan
+ *   Listesi'ndeki gibi) — adlar satıra geçer, kapatma (×) ayrı ve geniş dokunma alanında; 4'ten fazla açık analizde
+ *   liste kısaltılır ("Tümünü göster (N)") → ekran gereksiz uzamaz, bütün açık analizler tek dokunuşla görünür.
  * • × YALNIZ çalışma sekmesini kapatır: kayıtlı analiz, danışan, doğum profili ve sağlayıcı sonucu SİLİNMEZ; istek
  *   oluşturmaz; onay sorulmaz (silme değildir). Kapatılan sonuç bu oturumda bellekte kalır; "+ Teknik Ekle" ile
  *   yeniden açılınca önbellekten (0 yeni istek) gelir.
@@ -12,7 +15,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Plus, RefreshCw, RotateCcw, X } from "lucide-react";
 
-export type OpenTab = { key: string; label: string; title?: string; partial?: boolean; /** Kaydedilmemiş not / KB taslağı var. */ dirty?: boolean };
+export type OpenTab = { key: string; label: string; title?: string; partial?: boolean; /** Kaydedilmemiş not / KB taslağı var. */ dirty?: boolean; /** Analiz Arşivi'ne kaydedildi. */ saved?: boolean };
 export type FailedTab = { key: string; technique: string; label: string; error: string; code: string; attempts: number; lastAt: number; note: string | null; options: string; /** Kilidin kalktığı an (ms; sunucunun bildirdiği GERÇEK kalan süreden). */ retryAt?: number | null };
 
 const IN_PROGRESS_NOTE =
@@ -45,6 +48,14 @@ export default function OpenTabs({
   const L = tone === "light";
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [failOpen, setFailOpen] = useState(false);
+  const [mobileAll, setMobileAll] = useState(false);
+  const MOBILE_MAX = 4;
+  // Telefonda kısaltılmış görünüm: etkin sekme HER ZAMAN görünür, kalan yer sıradaki sekmelerle dolar.
+  const mobileTabs = mobileAll || tabs.length <= MOBILE_MAX ? tabs : (() => {
+    const act = tabs.find((t) => t.key === active);
+    const rest = tabs.filter((t) => t.key !== active).slice(0, MOBILE_MAX - (act ? 1 : 0));
+    return tabs.filter((t) => t === act || rest.includes(t));
+  })();
   const failRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (active) refs.current[active]?.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -77,9 +88,46 @@ export default function OpenTabs({
   };
 
   return (
-    <div className="flex min-w-0 items-center gap-2" data-testid="astro-result-tabs">
-      <span className={`hidden shrink-0 text-[10.5px] font-semibold tracking-[0.16em] sm:inline ${L ? "text-slate-500" : "text-[#E6CF9F]/80"}`}>AÇIK ANALİZLER</span>
-      <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-color:rgba(217,181,111,0.35)_transparent] [scrollbar-width:thin]" role="tablist" aria-label="Açık analizler">
+    <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap" data-testid="astro-result-tabs">
+      <span className={`shrink-0 text-[10.5px] font-semibold tracking-[0.16em] ${L ? "text-slate-500" : "text-[#E6CF9F]/80"}`}>
+        AÇIK ANALİZLER<span className="sm:hidden"> ({tabs.length})</span>
+      </span>
+      {/* Telefon: iki sütunlu kutucuklar */}
+      <div className="order-last grid w-full grid-cols-2 gap-1.5 sm:hidden" role="tablist" aria-label="Açık analizler" data-testid="astro-result-tabs-mobile">
+        {tabs.length === 0 && <span className={`col-span-2 py-1.5 text-xs ${L ? "text-slate-500" : "text-[#F6F2EA]/50"}`}>Açık analiz yok.</span>}
+        {mobileTabs.map((t) => {
+          const on = t.key === active;
+          return (
+            <span
+              key={t.key}
+              className={`flex min-h-[48px] min-w-0 items-stretch rounded-xl border text-[13px] ${
+                L ? (on ? "border-[#0B1430] bg-[#0B1430] text-white" : "border-slate-300 bg-white text-slate-700") : on ? "border-[#D9B56F]/60 bg-[#232a6a] text-[#F6F2EA]" : "border-white/10 bg-white/[0.04] text-[#F6F2EA]/80"
+              }`}
+            >
+              <button type="button" role="tab" aria-selected={on} onClick={() => onSelect(t.key)} title={t.title} className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pl-2.5 pr-1 text-left leading-tight" data-tab-key-m={t.key}>
+                <span className="line-clamp-2 min-w-0 break-words">{t.label}{t.partial ? " · kısmi" : ""}</span>
+                {t.saved && <span className="shrink-0 text-[11px] text-emerald-500" aria-label="kaydedildi">✓</span>}
+                {t.dirty && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" aria-label="kaydedilmemiş not" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => onClose(t.key)}
+                aria-label={`${t.label} sekmesini kapat (kayıt silinmez)`}
+                className={`ml-0.5 flex w-10 shrink-0 items-center justify-center rounded-r-xl border-l ${L ? (on ? "border-white/20 text-white/70" : "border-slate-200 text-slate-400") : "border-white/10 text-[#F6F2EA]/50"}`}
+                data-tab-close-m={t.key}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </span>
+          );
+        })}
+        {tabs.length > MOBILE_MAX && (
+          <button type="button" onClick={() => setMobileAll((v) => !v)} className={`col-span-2 rounded-xl border border-dashed px-3 py-2 text-[12.5px] ${L ? "border-slate-300 text-slate-600" : "border-white/15 text-[#F6F2EA]/70"}`} aria-expanded={mobileAll} data-testid="astro-result-tabs-more">
+            {mobileAll ? "Daha az göster" : `Tümünü göster (${tabs.length} açık analiz)`}
+          </button>
+        )}
+      </div>
+      <div className="hidden min-w-0 flex-1 flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 sm:flex [scrollbar-color:rgba(217,181,111,0.35)_transparent] [scrollbar-width:thin]" role="tablist" aria-label="Açık analizler">
         {tabs.length === 0 && <span className={`py-1.5 text-xs ${L ? "text-slate-500" : "text-[#F6F2EA]/50"}`}>Açık analiz yok.</span>}
         {tabs.map((t, i) => {
           const on = t.key === active;
@@ -114,6 +162,7 @@ export default function OpenTabs({
                 {on && <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#D9B56F] align-middle shadow-[0_0_8px_rgba(217,181,111,0.8)]" aria-hidden="true" />}
                 {t.label}
                 {t.partial ? " · kısmi" : ""}
+                {t.saved && <span className={`ml-1.5 text-[11px] ${on && L ? "text-emerald-300" : "text-emerald-600"}`} aria-label="kaydedildi">✓</span>}
                 {t.dirty && (
                   <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-300 align-middle" title="Kaydedilmemiş not" aria-label="kaydedilmemiş not" />
                 )}
@@ -125,7 +174,7 @@ export default function OpenTabs({
           );
         })}
       </div>
-      <button type="button" onClick={onAdd} className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[13px] font-medium ${L ? "border-slate-300 bg-white text-slate-800 hover:border-slate-500" : "border-[#E6C887]/55 bg-[#D9B56F]/10 text-[#F6E7C3] hover:bg-[#D9B56F]/20"}`} data-testid="atlas-add-technique-btn">
+      <button type="button" onClick={onAdd} className={`ml-auto inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[13px] font-medium sm:ml-0 sm:min-h-0 ${L ? "border-slate-300 bg-white text-slate-800 hover:border-slate-500" : "border-[#E6C887]/55 bg-[#D9B56F]/10 text-[#F6E7C3] hover:bg-[#D9B56F]/20"}`} data-testid="atlas-add-technique-btn">
         <Plus className="h-3.5 w-3.5" /> <span className="whitespace-nowrap">Teknik Ekle</span>
       </button>
       {fails.length > 0 && (
