@@ -317,9 +317,10 @@ async function main() {
 
   // 10 (kısmen statik): UI etiketleri
   await t("P3: kaydetme özeti ham kimlik (whole_sign / true / roxy) yerine Türkçe etiket gösterir; kayıtlı görünüm 'güncel' Bilgi Bankası der", () => {
-    const w = read("app/admin/astroloji/_components/AnalysisWorkspace.tsx");
-    assert.ok(w.includes("houseSystemLabel(shownSummary.s.houseSystem, HOUSE_SYSTEM_LABELS)") && w.includes("NODE_TYPE_LABELS[shownSummary.s.nodeType]") && w.includes('"RoxyAPI"'));
-    assert.ok(!/düğüm: \{shownSummary\.s\.nodeType/.test(w));
+    // 2026-10-12: özet toplu kayıt penceresinde; ev sistemi / düğüm Türkçe etiketle (ham kimlik yok).
+    const w = read("app/admin/astroloji/page.tsx");
+    assert.ok(w.includes("houseSystemLabel(x.view.method.houseSystem, HOUSE_SYSTEM_LABELS)") && w.includes("NODE_TYPE_LABELS[x.view.method.nodeType]"));
+    assert.ok(!/düğüm: \{x\.view\.method\.nodeType/.test(w));
     const s = read("app/admin/astroloji/_components/SavedAnalyses.tsx");
     assert.ok(s.includes("Bilgi Bankam (güncel)") && !s.includes("Bilgi Bankam (kayıt anındaki hali)"));
   });

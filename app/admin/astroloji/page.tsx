@@ -17,11 +17,12 @@
  * Çalışma alanı seçimi formdan değil, GÖSTERİLEN sonucun kendi normalize seçeneklerinden kurulur.
  */
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import type { TechniqueView } from "@/lib/astrology/view/techniqueView";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
-import { astroFetch, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
+import { astroFetch, isAdminSurface, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
 import type { DashaDrillResult } from "./_components/VedicPanels";
 import type { VedicDashaTechnical } from "@/lib/astrology/model/vedic";
 import { buildSelections, defaultParams, describeOptions, houseSystemLabel, techniqueLabel, zodiacLabel, TECHNIQUE_META, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
@@ -34,6 +35,7 @@ import PrepCenter from "./_components/atlas/PrepCenter";
 import ClientPicker from "./_components/atlas/ClientPicker";
 import OpenTabs from "./_components/atlas/OpenTabs";
 import AddTechniqueDialog, { type AddRunResult } from "./_components/atlas/AddTechniqueDialog";
+import SaveBatchDialog, { type SaveItemResult } from "./_components/atlas/SaveBatchDialog";
 import { TechniqueTechnical, wheelForTechnique } from "./_components/TimingPanels";
 import { SavedAnalysesList, SavedAnalysisView } from "./_components/SavedAnalyses";
 import ArchiveList from "./_components/atlas/ArchiveList";
@@ -42,12 +44,12 @@ import ClientLinkPanel from "./_components/ClientLinkPanel";
 import ModuleAccessDenied from "@/components/auth/ModuleAccessDenied";
 import AtlasHero from "./_components/atlas/AtlasHero";
 import { atlasDisplay, atlasText } from "./_components/atlas/fonts";
-import ResultDesk, { DeskChip, deskPrimary, type DeskTab } from "./_components/atlas/ResultDesk";
+import ResultDesk, { DeskChip, deskGhostLight, deskPrimary, type DeskTab } from "./_components/atlas/ResultDesk";
 import NatalWheel from "./_components/NatalWheel";
 import NatalTechnicalPanel from "./_components/NatalTechnicalPanel";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
 import { AtlasHeader, AtlasViewTitle, atlasDangerBtn, atlasGhostBtn, atlasNightBg, atlasPanel, atlasSecondaryBtn, type AtlasView } from "./_components/AtlasShell";
-import { ArrowLeft, CheckCircle2, Settings2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, Save, Settings2, X } from "lucide-react";
 
 type PublicRevision = {
   revision: number;
@@ -107,6 +109,7 @@ type ResultItem = { technique: string; ok: true; partial: boolean; reused: boole
 type BenchItem = Extract<ResultItem, { ok: true }> & { key: string };
 /** Hata kaydı: aynı teknik+seçenek tekrar başarısız olursa deneme sayısı artar (geçmiş kaybolmaz). */
 type BenchFail = { key: string; technique: string; code: string; error: string; options: Record<string, unknown> | null; attempts: number; lastAt: number; retryAfterSec?: number; note?: string };
+type Bench = { key: string; seq: number; items: BenchItem[]; fails: BenchFail[]; open: string[]; active: string | null; executed: RunResponse["executed"] };
 
 type RunResponse = {
   plan: PlanSummary;
@@ -131,6 +134,27 @@ function RevisionLine({ r }: { r: PublicRevision }) {
 
 /** Olay işleyicilerinde zaman damgası (render dışı). */
 const nowMs = () => Date.now();
+
+/**
+ * Modül içi geçmiş kaydı. Her kayıt Next.js'in kendi durumunu (__NA + ağaç) KORUR (yoksa Next geri dönüşte sayfayı tam
+ * yeniler) ve bir derinlik taşır: modüle girilen kayıt 0, modülün eklediği her kayıt +1. Geri tuşu derinlik 0'a
+ * düşerse kullanıcı modülden çıkmak üzeredir (kaydedilmemiş iş varsa uyarı).
+ */
+function atlasDepthOf(st: unknown): number {
+  const d = (st as { atlasDepth?: unknown } | null)?.atlasDepth;
+  return typeof d === "number" && Number.isFinite(d) ? d : 0;
+}
+function pushAtlasEntry(view: AtlasView, url: string) {
+  const cur = (window.history.state ?? {}) as Record<string, unknown>;
+  window.history.pushState({ ...cur, atlasView: view, atlasDepth: atlasDepthOf(cur) + 1 }, "", url);
+}
+function replaceAtlasEntry(view: AtlasView, url: string) {
+  const cur = (window.history.state ?? {}) as Record<string, unknown>;
+  window.history.replaceState({ ...cur, atlasView: view }, "", url);
+}
+
+const LEAVE_MESSAGE = "Kaydedilmemiş değişiklikleriniz var. Kaydetmeden çıkmak istiyor musunuz?";
+const DRAFT_LOSS = "Kaydedilmemiş “Kendi Yorumum” / Bilgi Bankası taslağı";
 
 const VIEW_HASH: Record<AtlasView, string> = { home: "", new: "yeni-analiz", archive: "analiz-arsivi", client: "danisan", result: "analiz-sonucu", kb: "bilgi-bankasi", audit: "alan-denetimi" };
 /** Danışan Dosyası adresi: #danisan/<profil-kimliği> (yenileme, geri/ileri ve doğrudan bağlantı için). */
@@ -175,7 +199,19 @@ export default function AstrologyWorkspacePage() {
   const runSeq = useRef(0);
   // D4 çalışma masası: bu danışan+revizyon için oturumda hesaplanan/açılan sonuçlar BİRİKİR (yeni çalıştırma öncekileri
   // silmez). open = açık sekmeler (× yalnız sekmeyi kapatır; sonuç bellekte kalır, kayıt/sonuç silinmez); fails = hatalar.
-  const [runState, setRunState] = useState<{ key: string; seq: number; items: BenchItem[]; fails: BenchFail[]; open: string[]; active: string | null; executed: RunResponse["executed"] } | null>(null);
+  // 2026-10-12: masa DANIŞAN+REVİZYON başına ayrı tutulur (çalışma grubu). Başka danışana geçmek / yeni danışan için
+  // hesaplamak önceki danışanın kaydedilmemiş sonuçlarını SİLMEZ (eskiden tek masa vardı → yeni bağlamda sıfırlanıyordu).
+  const [benches, setBenches] = useState<Record<string, Bench>>({});
+  const setBench = useCallback((key: string, fn: (prev: Bench | null) => Bench | null) => {
+    setBenches((m) => {
+      const next = fn(m[key] ?? null);
+      if (next === (m[key] ?? null)) return m;
+      const out = { ...m };
+      if (next) out[key] = next;
+      else delete out[key];
+      return out;
+    });
+  }, []);
   const [runErrorState, setRunErrorState] = useState<{ key: string; message: string } | null>(null);
   const [profilesReload, setProfilesReload] = useState(0);
   const [detailReload, setDetailReload] = useState(0);
@@ -219,8 +255,18 @@ export default function AstrologyWorkspacePage() {
   }, [view, access]);
   // FINAL: kaydedilmemiş not / Bilgi Bankası taslağı olan sekmeler (sessiz veri kaybı yok: kapatma/ayrılma uyarısı).
   const [dirtyTabs, setDirtyTabs] = useState<Record<string, boolean>>({});
-  const [pendingLeave, setPendingLeave] = useState<{ message: string; action: () => void } | null>(null);
+  /**
+   * 2026-10-12 (Android UAT madde 2): KAYDEDİLMEMİŞ ÇALIŞMA KORUMASI — tek kaynak. Uyarı yalnız gerçekten kaybolacak bir
+   * şey varken çıkar; hangi işlemin neyi kaybettirdiği ayrı ayrı hesaplanır (sekme / görünüm değiştirmek masadaki
+   * sonuçları KAYBETTİRMEZ; yalnız modülden ayrılmak, danışan / doğum bilgisi değiştirmek ve açık taslağı kapatmak).
+   * Uyarı yeni Roxy hesabı BAŞLATMAZ; "Kaydet ve Çık" mevcut toplu kayıt yolunu (sağlayıcısız) kullanır.
+   */
+  const [pendingLeave, setPendingLeave] = useState<{ message: string; details: string[]; action: () => void; saveKeys?: string[]; onStay?: () => void } | null>(null);
+  const [leaveSaving, setLeaveSaving] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
   const anyDirty = Object.values(dirtyTabs).some(Boolean);
+  const [kbDirty, setKbDirty] = useState(false);
+  const [formDirty, setFormDirty] = useState(false);
+  const [addDirty, setAddDirty] = useState(false);
   const dirtyRef = useRef(false);
   useEffect(() => {
     dirtyRef.current = anyDirty;
@@ -229,11 +275,13 @@ export default function AstrologyWorkspacePage() {
     viewRef.current = view;
   }, [view]);
   const [resultMode, setResultMode] = useState<"run" | "saved">("run");
-  // Kayıt kapsamı sekme bazında: yalnız kaydedilen tekniğin sekmesi "Kaydedildi" gösterir (anahtar profil|sekme).
+  // Kayıt durumu SONUÇ bazında (anahtar profil|revizyon|teknik|seçenekler → analiz kimliği). Revizyon anahtarda: aynı
+  // tekniğin başka doğum revizyonundaki sonucu "kaydedildi" görünmez.
   const [savedIds, setSavedIds] = useState<Record<string, string>>({});
-  // Başlıktaki altın kaydet düğmesi → çalışma alanına adım sinyali (özet → kaydet) ve geri bildirilen aşama/hata.
-  const [saveSignals, setSaveSignals] = useState<Record<string, number>>({});
-  const [saveStates, setSaveStates] = useState<Record<string, { stage: "idle" | "summary" | "busy"; error: string | null }>>({});
+  // Toplu kayıt: her sonucun KARARLI kayıt isteği kimliği (yeniden deneme mükerrer kayıt üretmez — sunucu "reused").
+  const saveReqIds = useRef<Record<string, string>>({});
+  const [saveDialog, setSaveDialog] = useState(false);
+  const [saveToast, setSaveToast] = useState<{ n: number; at: number } | null>(null);
   const [addOpen, setAddOpen] = useState<{ initial: UiTechniqueId | null } | null>(null);
   // FINAL: tüm seçili teknikler başarısız olduğunda sonuç ekranı AÇILMAZ; özet Yeni Analiz'de gösterilir.
   const [lastFailures, setLastFailures] = useState<{ key: string; at: number; items: { technique: string; code: string; error: string; retryAfterSec?: number }[] } | null>(null);
@@ -252,8 +300,8 @@ export default function AstrologyWorkspacePage() {
       const mode = opts.history ?? "push";
       const hash = v === "client" ? `danisan/${opts.profileId ?? selectedIdRef.current ?? ""}` : VIEW_HASH[v];
       const url = `${window.location.pathname}${window.location.search}${hash ? `#${hash}` : ""}`;
-      if (mode === "push" && window.location.hash.replace(/^#/, "") !== hash) window.history.pushState({ atlasView: v }, "", url);
-      else if (mode === "replace") window.history.replaceState({ atlasView: v }, "", url);
+      if (mode === "push" && window.location.hash.replace(/^#/, "") !== hash) pushAtlasEntry(v, url);
+      else if (mode === "replace") replaceAtlasEntry(v, url);
       const y = v === "archive" ? archiveScrollRef.current : 0;
       requestAnimationFrame(() => window.scrollTo({ top: y }));
     }
@@ -262,28 +310,108 @@ export default function AstrologyWorkspacePage() {
   const selectedIdRef = useRef<string | null>(null);
   // Sonuç görünümü yalnız bellekte bir sonuç/kayıt açıkken anlamlıdır (ref: popstate dinleyicisi güncel değeri okur).
   const hasResultRef = useRef(false);
+  /**
+   * Geri tuşu (Android / tarayıcı) + uygulama içi geri: her görünüm adres çubuğunda ayrı kayıttır (#yeni-analiz …).
+   * Modüle girilen kaydın ÜSTÜNE bir taban kaydı (derinlik 1) eklenir: geri tuşu modülden çıkmak üzereyken önce giriş
+   * kaydına (derinlik 0) düşer → kaydedilmemiş çalışma varsa uyarı gösterilir (yoksa kullanıcı fark etmeden bir adım daha
+   * geri gidilir). Açık pencere
+   * (form / Teknik Ekle / kayıt) varken geri tuşu önce pencereyi kapatır. Tarayıcı yenileme ve harici siteye çıkışta
+   * yalnız tarayıcının izin verdiği standart uyarı (beforeunload) gösterilebilir.
+   */
+  const baseReadyRef = useRef(false);
+  const pathRef = useRef<string | null>(null);
+  const leavingRef = useRef(false);
+  const guardRef = useRef<{ onPop: () => boolean; moduleLoss: () => string[]; ask: (p: NonNullable<typeof pendingLeave>) => void; leaveModule: (href?: string) => void }>({
+    onPop: () => false,
+    moduleLoss: () => [],
+    ask: () => undefined,
+    leaveModule: () => undefined,
+  });
+  const currentViewUrl = () => {
+    const v = viewRef.current;
+    const hash = v === "client" ? `danisan/${selectedIdRef.current ?? ""}` : VIEW_HASH[v];
+    return `${window.location.pathname}${window.location.search}${hash ? `#${hash}` : ""}`;
+  };
   useEffect(() => {
-    const restore = () => {
+    pathRef.current = window.location.pathname;
+    // Next.js kendi geçmiş durumunu (__NA) ilk işlemede sayfa efektlerinden SONRA yazar → taban kaydı o hazır olunca
+    // eklenir (Next durumu kopyalanır). Yeniden yükleme / yeniden bağlanmada taban zaten varsa (derinlik ≥ 1) eklenmez.
+    let cancelled = false;
+    let tries = 0;
+    const setup = () => {
+      if (cancelled) return;
+      const st = window.history.state as Record<string, unknown> | null;
+      if (!st?.__NA) {
+        if (tries++ < 300) window.setTimeout(setup, 20);
+        return; // Next durumu yoksa taban eklenmez (tam yenileme riskine girilmez); diğer korumalar sürer
+      }
+      if (atlasDepthOf(st) === 0) pushAtlasEntry(viewFromHash(window.location.hash), window.location.href);
+      baseReadyRef.current = true;
+    };
+    setup();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  useEffect(() => {
+    const restore = (fromPop: boolean) => {
+      if (fromPop) {
+        // Sayfadan çıkılıyor (başka rota) ya da onaylanmış çıkış sürüyor → müdahale yok.
+        if (leavingRef.current || window.location.pathname !== pathRef.current) return;
+        // Durumsuz kayıt (#… bağlantısı / adres çubuğuna yazılan hash) modül içi gezinmedir; Next bu kayıtlara dokunmaz.
+        if (baseReadyRef.current && window.history.state && atlasDepthOf(window.history.state) === 0) {
+          // Modüle girilen kayda dönüldü: bir adım daha geri = modülden çıkış.
+          const loss = guardRef.current.moduleLoss();
+          if (loss.length === 0) {
+            leavingRef.current = true;
+            window.history.back();
+            return;
+          }
+          pushAtlasEntry(viewRef.current, currentViewUrl());
+          guardRef.current.ask({ message: LEAVE_MESSAGE, details: loss, action: () => guardRef.current.leaveModule() });
+          return;
+        }
+        // Açık pencere / form → geri tuşu önce onu kapatır (görünüm değişmez).
+        if (guardRef.current.onPop()) {
+          pushAtlasEntry(viewRef.current, currentViewUrl());
+          return;
+        }
+      }
       let v = viewFromHash(window.location.hash);
-      // FINAL: tarayıcı geri/ileri ile sonuç ekranından ayrılırken kaydedilmemiş taslak varsa önce uyar.
-      if (viewRef.current === "result" && v !== "result" && dirtyRef.current) {
-        const target = v;
-        window.history.pushState({ atlasView: "result" }, "", `${window.location.pathname}${window.location.search}#${VIEW_HASH.result}`);
-        setPendingLeave({ message: "Açık sekmelerde kaydedilmemiş not veya Bilgi Bankası taslağı var. Ekrandan ayrılırsanız bu değişiklikler kaybolur.", action: () => go(target) });
-        return;
+      if (fromPop) {
+        const loss = viewLossRef.current(viewRef.current, v);
+        if (loss.length > 0) {
+          const target = v;
+          const cid = target === "client" ? clientIdFromHash(window.location.hash) : null;
+          pushAtlasEntry(viewRef.current, currentViewUrl());
+          guardRef.current.ask({
+            message: LEAVE_MESSAGE,
+            details: loss,
+            action: () => {
+              if (cid) selectProfileRef.current(cid);
+              go(target, { profileId: cid });
+            },
+          });
+          return;
+        }
       }
       if (v === "result" && !hasResultRef.current) v = "new";
       if (v === "audit" && !(access !== null && access !== "denied" && access.isOwner)) v = "home";
       const cid = v === "client" ? clientIdFromHash(window.location.hash) : null;
       if (cid) selectProfileRef.current(cid);
+      if (fromPop) closeFormsRef.current();
       go(v, { history: "none", profileId: cid });
     };
-    restore();
-    window.addEventListener("popstate", restore);
-    return () => window.removeEventListener("popstate", restore);
+    restore(false);
+    const onPop = () => restore(true);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
     // Yalnız ilk yüklemede + erişim bilgisi gelince (alan denetimi owner'a özel).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [access === null]);
+  // Görünüm değişince neyin kaybolacağı (ref: popstate dinleyicisi güncel durumu okur).
+  const viewLossRef = useRef<(from: AtlasView, to: AtlasView) => string[]>(() => []);
+  const closeFormsRef = useRef<() => void>(() => undefined);
   const [openAnalysis, setOpenAnalysis] = useState<{ profileId: string; id: string } | null>(null);
   const [analysesReload, setAnalysesReload] = useState(0);
   // Aşama 5: etkin sonucun çalışma alanı KB eşleşmeleri (Vedik ayrıntı paneli için; ek istek yok).
@@ -425,7 +553,7 @@ export default function AstrologyWorkspacePage() {
     return params.partnerProfileId ? all : all.filter((s) => !TECHNIQUE_META[s.technique].needsPartner);
   }, [checked, params, method]);
 
-  const runs = runState && runState.key === ctxKey ? runState : null;
+  const runs = ctxKey ? (benches[ctxKey] ?? null) : null;
   const runError = runErrorState && runErrorState.key === ctxKey ? runErrorState.message : null;
   const activeItem = runs && runs.active && runs.open.includes(runs.active) ? (runs.items.find((x) => x.key === runs.active) ?? null) : null;
   useEffect(() => {
@@ -464,6 +592,7 @@ export default function AstrologyWorkspacePage() {
     setRunning(true);
     setRunErrorState(null);
     setLastFailures(null);
+    setLastRunSig(JSON.stringify(selections));
     const r = await astroFetch<RunResponse>(`/api/admin/astroloji/engine/run${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
       method: "POST",
       body: { profileId: shownDetail.id, revision, selections: sels, confirmNewRequests: plan.newRequestCount },
@@ -501,8 +630,8 @@ export default function AstrologyWorkspacePage() {
    * açılır). Başarısız seçimler sekme değil hata listesidir; aynı teknik sonradan başarılı olursa listeden düşer.
    */
   function mergeRun(key: string, results: ResultItem[], sels: { technique: string; options: Record<string, unknown> | null }[], executed: RunResponse["executed"]) {
-    setRunState((prev) => {
-      const base = prev && prev.key === key ? prev : { key, seq: 0, items: [] as BenchItem[], fails: [] as BenchFail[], open: [] as string[], active: null as string | null, executed };
+    setBench(key, (prev) => {
+      const base: Bench = prev ?? { key, seq: 0, items: [], fails: [], open: [], active: null, executed };
       const items = [...base.items];
       let fails = [...base.fails];
       const open = [...base.open];
@@ -529,27 +658,198 @@ export default function AstrologyWorkspacePage() {
     });
   }
 
-  /** FINAL: kaydedilmemiş içerik varsa önce uyar (silme onayı değil; yalnız kaydedilmemiş not uyarısı). */
+  /** Sekme kapatma sonucu SİLMEZ (bellekte kalır); yalnız o sekmenin kaydedilmemiş not taslağı kaybolacaksa uyarır. */
   function requestCloseTab(k: string) {
     if (dirtyTabs[k]) {
-      setPendingLeave({ message: "Bu sekmede kaydedilmemiş not veya Bilgi Bankası taslağı var. Sekmeyi kapatırsanız bu değişiklikler kaybolur. Kayıtlı analizler etkilenmez.", action: () => closeTab(k) });
+      setPendingLeave({
+        message: LEAVE_MESSAGE,
+        details: ["Bu sekmenin “Kendi Yorumum” / Bilgi Bankası taslağı (analiz sonucu silinmez, sekme yeniden açılabilir)"],
+        action: () => closeTab(k),
+      });
       return;
     }
     closeTab(k);
   }
+
+  // ── Kaydedilmemiş çalışma envanteri ──
+  const unsavedOf = (b: Bench) => b.items.filter((i) => !savedIds[`${b.key}|${i.key}`]);
+  const unsavedTotal = Object.values(benches).reduce((n, b) => n + unsavedOf(b).length, 0);
+  // Yeni Analiz: seçilmiş ama son hesaplamadan SONRA değişmiş teknik seçimi (hesaplanmış seçim tekrar uyarı üretmez).
+  const [lastRunSig, setLastRunSig] = useState<string | null>(null);
+  const selSig = selections.length > 0 ? JSON.stringify(selections) : null;
+  const prepDirty = selSig !== null && selSig !== lastRunSig;
+  const formLoss = form ? (form.mode === "create" ? "Doldurulmuş ama kaydedilmemiş Yeni Danışan formu" : "Kaydedilmemiş doğum bilgisi düzenlemesi") : "";
+  function moduleLoss(): string[] {
+    const out: string[] = [];
+    if (unsavedTotal > 0) out.push(`${unsavedTotal} hesaplanmış ama Analiz Arşivi'ne kaydedilmemiş analiz`);
+    if (anyDirty) out.push(DRAFT_LOSS);
+    if (kbDirty && view === "kb") out.push("Bilgi Bankası'nda kaydedilmemiş kayıt");
+    if (form && formDirty) out.push(formLoss);
+    if (addOpen && addDirty) out.push("Teknik Ekle'de seçilmiş ama hesaplanmamış teknikler");
+    if (prepDirty) out.push("Yeni Analiz'de seçilmiş ama henüz hesaplanmamış teknikler");
+    return out;
+  }
+  /** Yalnız GÖRÜNÜM değişince kaybolanlar (masadaki sonuçlar görünüm değişince KAYBOLMAZ). */
+  function viewLoss(from: AtlasView, to: AtlasView): string[] {
+    if (from === to) return [];
+    const out: string[] = [];
+    if (from === "result" && anyDirty) out.push(DRAFT_LOSS);
+    if (from === "kb" && kbDirty) out.push("Bilgi Bankası'nda kaydedilmemiş kayıt");
+    if (form && formDirty) out.push(formLoss);
+    return out;
+  }
+  const router = useRouter();
+  const leaveTimer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
+    },
+    [],
+  );
+  function leaveModule(href?: string) {
+    leavingRef.current = true;
+    if (href) {
+      router.push(href);
+      return;
+    }
+    // Kök kaydın altına (modüle girilen sayfaya) dön. Modül doğrudan açıldıysa geride sayfa yoktur → ana sayfaya.
+    window.history.go(-2);
+    leaveTimer.current = window.setTimeout(() => {
+      if (window.location.pathname === pathRef.current) router.push(isAdminSurface() ? "/admin" : "/dashboard");
+    }, 700);
+  }
+  function askLeave(p: NonNullable<typeof pendingLeave>) {
+    setLeaveSaving({ busy: false, error: null });
+    // "Kaydet ve Çık" yalnız kaybolacak tek şey kaydedilmemiş analiz sonuçlarıysa sunulur (taslak/form otomatik kaydedilmez).
+    const onlyBench = p.details.length > 0 && p.details.every((d) => d.includes("Analiz Arşivi'ne kaydedilmemiş"));
+    setPendingLeave(onlyBench && !p.saveKeys ? { ...p, saveKeys: Object.values(benches).flatMap((b) => unsavedOf(b).map((i) => `${b.key}|${i.key}`)) } : p);
+  }
   useEffect(() => {
-    if (!anyDirty) return;
+    guardRef.current = {
+      moduleLoss,
+      ask: askLeave,
+      leaveModule,
+      onPop: () => {
+        if (pendingLeave) {
+          setPendingLeave(null);
+          return true;
+        }
+        if (saveDialog) {
+          setSaveDialog(false);
+          return true;
+        }
+        if (archiveDelete) {
+          setArchiveDelete(null);
+          return true;
+        }
+        if (addOpen) {
+          if (addDirty) askLeave({ message: LEAVE_MESSAGE, details: ["Teknik Ekle'de seçilmiş ama hesaplanmamış teknikler"], action: () => setAddOpen(null) });
+          else setAddOpen(null);
+          return true;
+        }
+        if (form) {
+          if (formDirty) askLeave({ message: LEAVE_MESSAGE, details: [formLoss], action: () => setForm(null) });
+          else setForm(null);
+          return true;
+        }
+        return false;
+      },
+    };
+    viewLossRef.current = viewLoss;
+    closeFormsRef.current = () => setForm(null);
+  });
+  // Tarayıcı yenileme / sekme kapatma / harici siteye çıkış: yalnız tarayıcının standart uyarısı gösterilebilir.
+  const leaveRisk = unsavedTotal > 0 || anyDirty || (kbDirty && view === "kb") || (!!form && formDirty) || (!!addOpen && addDirty) || prepDirty;
+  useEffect(() => {
+    if (!leaveRisk) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (leavingRef.current) return;
       e.preventDefault();
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [anyDirty]);
-  /** Sonuç ekranından ayrılma: kaydedilmemiş taslak varsa önce uyar. */
+    // Modül dışına giden uygulama bağlantıları (üst menü vb.): tıklama yakalanır, onaydan sonra gidilir.
+    const onClick = (e: MouseEvent) => {
+      if (leavingRef.current || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!a || (a.target && a.target !== "_self") || a.hasAttribute("download")) return;
+      const url = new URL(a.href, window.location.href);
+      if (url.origin !== window.location.origin || url.pathname === pathRef.current) return;
+      const loss = guardRef.current.moduleLoss();
+      if (loss.length === 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      guardRef.current.ask({ message: LEAVE_MESSAGE, details: loss, action: () => guardRef.current.leaveModule(`${url.pathname}${url.search}${url.hash}`) });
+    };
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      document.removeEventListener("click", onClick, true);
+    };
+  }, [leaveRisk]);
+  /** Uygulama içi görünüm değişimi: yalnız gerçekten kaybolacak taslak varsa uyarır. */
+  function guardGo(v: AtlasView, then?: () => void) {
+    const run = () => {
+      setForm(null);
+      then?.();
+      go(v);
+    };
+    const loss = viewLoss(view, v);
+    if (loss.length > 0) askLeave({ message: LEAVE_MESSAGE, details: loss, action: run });
+    else run();
+  }
+  /** Form kapatma (✕ / Vazgeç / geri): doldurulmuş form uyarısız kaybolmaz. */
+  function closeForm() {
+    if (form && formDirty) askLeave({ message: LEAVE_MESSAGE, details: [formLoss], action: () => setForm(null) });
+    else setForm(null);
+  }
   function guardLeave(action: () => void) {
-    if (anyDirty) setPendingLeave({ message: "Açık sekmelerde kaydedilmemiş not veya Bilgi Bankası taslağı var. Ekrandan ayrılırsanız bu değişiklikler kaybolur.", action });
+    const loss = viewLoss(view, "new");
+    if (loss.length > 0) askLeave({ message: LEAVE_MESSAGE, details: loss, action });
     else action();
+  }
+
+  /**
+   * TOPLU KAYIT — seçilen sonuçları SIRAYLA mevcut kayıt ucuna gönderir (her teknik ayrı değişmez analiz). Kararlı
+   * saveRequestId → yeniden deneme mükerrer kayıt üretmez. Başarı yalnız sunucudan geri okunursa. Sağlayıcı çağrılmaz.
+   * Anahtar: "profil|revizyon|teknik|seçenekler".
+   */
+  async function saveBenchKeys(fullKeys: string[], titles: Record<string, string>, onItem?: (r: SaveItemResult) => void): Promise<SaveItemResult[]> {
+    const out: SaveItemResult[] = [];
+    for (const fk of fullKeys) {
+      const [pid, revRaw] = fk.split("|");
+      const bench = benches[`${pid}|${revRaw}`];
+      const itemKey = fk.slice(pid.length + revRaw.length + 2);
+      const it = bench?.items.find((x) => x.key === itemKey);
+      let res: SaveItemResult;
+      if (!bench || !it) res = { key: itemKey, ok: false, error: "Sonuç çalışma masasında bulunamadı." };
+      else {
+        saveReqIds.current[fk] ??= crypto.randomUUID();
+        const title = titles[itemKey]?.trim();
+        const r = await astroFetch<{ analysisId: string; reused: boolean }>("/api/admin/astroloji/analyses", {
+          method: "POST",
+          body: { profileId: pid, revision: Number(revRaw), technique: it.technique, options: it.view.options, title: title || undefined, saveRequestId: saveReqIds.current[fk] },
+        });
+        if (!r.ok) res = { key: itemKey, ok: false, error: r.error };
+        else {
+          const check = await astroFetch<{ analysis: { id: string } }>(`/api/admin/astroloji/analyses/${encodeURIComponent(r.data.analysisId)}`);
+          res = check.ok
+            ? { key: itemKey, ok: true, analysisId: r.data.analysisId, reused: r.data.reused }
+            : { key: itemKey, ok: false, error: `Kayıt doğrulanamadı (${check.error}). Yeniden denediğinizde aynı kayıt yinelenmez.` };
+        }
+        if (res.ok) {
+          const id = res.analysisId;
+          setSavedIds((m) => ({ ...m, [fk]: id }));
+        }
+      }
+      onItem?.(res);
+      out.push(res);
+    }
+    if (out.some((r) => r.ok)) {
+      setAnalysesReload((n) => n + 1);
+      setProfilesReload((n) => n + 1);
+    }
+    return out;
   }
 
   /**
@@ -570,15 +870,16 @@ export default function AstrologyWorkspacePage() {
       mergeRun(key, [it], [{ technique: f.technique, options: f.options }], runs.executed);
       return;
     }
-    setRunState((prev) =>
-      prev && prev.key === key
+    setBench(key, (prev) =>
+      prev
         ? { ...prev, fails: prev.fails.map((x) => (x.key === fk ? { ...x, note: `Kontrol ${new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}: kayıtlı sonuç yok — hesaplama tamamlanmamış veya başarısız olmuş.` } : x)) }
         : prev,
     );
   }
 
   function closeTab(k: string) {
-    setRunState((prev) => {
+    if (!ctxKey) return;
+    setBench(ctxKey, (prev) => {
       if (!prev) return prev;
       const idx = prev.open.indexOf(k);
       const open = prev.open.filter((x) => x !== k);
@@ -633,8 +934,8 @@ export default function AstrologyWorkspacePage() {
       },
     });
     if (!r.ok) return;
-    setRunState((prev) => {
-      if (!prev || prev.key !== key || prev.seq !== seq) return prev;
+    setBench(key, (prev) => {
+      if (!prev || prev.seq !== seq) return prev;
       const items = [...prev.items];
       okIdx.forEach((i, j) => {
         const v = r.data.results[j];
@@ -659,7 +960,7 @@ export default function AstrologyWorkspacePage() {
     <main ref={mainRef} className={`${atlasDisplay.variable} ${atlasText.variable} min-h-screen w-full overflow-x-hidden data-[atlas-light=1]:bg-none data-[atlas-light=1]:bg-[#f2f1ed] ${view === "home" ? "bg-[#0B1430]" : atlasNightBg}`}>
       {view === "result" || view === "new" ? null : view === "home" ? (
         <AtlasHero
-          onNavigate={(v) => go(v)}
+          onNavigate={(v) => guardGo(v)}
           onRecent={() => {
             setArchiveSortReq((r) => ({ sort: "last_desc", n: (r?.n ?? 0) + 1 }));
             go("archive");
@@ -674,7 +975,7 @@ export default function AstrologyWorkspacePage() {
         view={view}
         bare={view === "archive" || view === "client"}
         resultFrom={resultMode === "saved" ? "archive" : "new"}
-        onNavigate={(v) => go(v)}
+        onNavigate={(v) => guardGo(v)}
         ownerTools={
           isOwnerView ? (
             <details className="relative">
@@ -704,7 +1005,7 @@ export default function AstrologyWorkspacePage() {
         {view === "kb" && (
           <>
             <AtlasViewTitle eyebrow="Çalışma alanı" title="Bilgi Bankası" sub="Kendi yorumlarınız ve kaynak notlarınız; analizlerde ilgili konuyla otomatik eşleşir." />
-            <KnowledgeBankPanel />
+            <KnowledgeBankPanel onDirtyChange={setKbDirty} />
           </>
         )}
         {view === "audit" && isOwnerView && <UnmappedAuditPanel />}
@@ -723,6 +1024,13 @@ export default function AstrologyWorkspacePage() {
               setArchiveReload((n) => n + 1);
               setAnalysesReload((n) => n + 1);
               setParams((p) => ({ ...p, partnerProfileId: deletedIds.includes(p.partnerProfileId) ? "" : p.partnerProfileId }));
+              // Kalıcı silinen profilin bellekteki sonuçları artık kaydedilemez → masa ve etiket önbelleğinden düşer
+              // (Danışan Seç / karşı taraf listesinde eski ad kalmaz).
+              if (deletedIds.length > 0) {
+                setBenches((m) => Object.fromEntries(Object.entries(m).filter(([k]) => !deletedIds.includes(k.split("|")[0]))));
+                setKnownLabels((m) => Object.fromEntries(Object.entries(m).filter(([k]) => !deletedIds.includes(k))));
+                setPartnerOptions((o) => o.filter((x) => !deletedIds.includes(x.id)));
+              }
             }}
             onClose={() => {
               const deleted = archiveDelete.deleted ?? [];
@@ -795,14 +1103,15 @@ export default function AstrologyWorkspacePage() {
           <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-[#050816]/80 p-3 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={form.mode === "create" ? "Yeni Danışan" : "Doğum Bilgilerini Düzenle"} data-testid="atlas-profile-dialog">
             <div className="w-full max-w-2xl rounded-[1.4rem] border border-[#D9B56F]/40 bg-[linear-gradient(180deg,#E6C887,#C9A158)] p-[3px] shadow-[0_40px_90px_-30px_rgba(0,0,0,0.95)]">
               <div className="relative max-h-[88svh] overflow-y-auto rounded-[1.25rem] bg-white">
-                <button type="button" onClick={() => setForm(null)} aria-label="Kapat" className="absolute right-3 top-3 z-10 rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100">
+                <button type="button" onClick={closeForm} aria-label="Kapat" className="absolute right-3 top-3 z-10 rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100">
                   ✕
                 </button>
                 {form.mode === "create" ? (
                   <ProfileForm
                     mode="create"
                     heading="Yeni Danışan"
-                    onCancel={() => setForm(null)}
+                    onCancel={closeForm}
+                    onDirtyChange={setFormDirty}
                     onDone={(id) => {
                       setProfilesReload((n) => n + 1);
                       selectProfile(id);
@@ -813,7 +1122,8 @@ export default function AstrologyWorkspacePage() {
                     mode="revise"
                     heading="Doğum Bilgilerini Düzenle"
                     initial={form.initial}
-                    onCancel={() => setForm(null)}
+                    onCancel={closeForm}
+                    onDirtyChange={setFormDirty}
                     onDone={(id) => {
                       setForm(null);
                       setProfilesReload((n) => n + 1);
@@ -849,7 +1159,8 @@ export default function AstrologyWorkspacePage() {
               <div className={`${atlasPanel} overflow-hidden lg:col-span-2`}>
                 <ProfileForm
                   mode="create"
-                  onCancel={() => setForm(null)}
+                  onCancel={closeForm}
+                    onDirtyChange={setFormDirty}
                   onDone={(id) => {
                     setProfilesReload((n) => n + 1);
                     openClientFile(id);
@@ -862,7 +1173,8 @@ export default function AstrologyWorkspacePage() {
                 <ProfileForm
                   mode="revise"
                   initial={form.initial}
-                  onCancel={() => setForm(null)}
+                  onCancel={closeForm}
+                    onDirtyChange={setFormDirty}
                   onDone={(id) => {
                     setForm(null);
                     setProfilesReload((n) => n + 1);
@@ -1043,22 +1355,30 @@ export default function AstrologyWorkspacePage() {
           ) : resultMode === "run" && runs && (runs.items.length > 0 || runs.fails.length > 0) && shownDetail && revision !== null ? (
             (() => {
               const item = activeItem;
-              const savedId = item ? (savedIds[`${shownDetail.id}|${item.key}`] ?? null) : null;
+              const savedId = item ? (savedIds[`${runs.key}|${item.key}`] ?? null) : null;
               const saved = !!savedId;
+              const unsavedHere = runs.items.filter((x) => !savedIds[`${runs.key}|${x.key}`]);
+              const saveAllBtn =
+                unsavedHere.length > 0 ? (
+                  <button type="button" className={deskPrimary} onClick={() => setSaveDialog(true)} data-testid="astro-desk-save" title="Bu danışan için hesaplanmış ve henüz kaydedilmemiş bütün analizleri kaydeder; isterseniz tek tek seçebilirsiniz.">
+                    <Save className="h-4 w-4" />
+                    {unsavedHere.length === 1 ? "Analizi Kaydet" : `Tümünü Kaydet (${unsavedHere.length})`}
+                  </button>
+                ) : null;
               const openTabs = runs.open
                 .map((k) => runs.items.find((x) => x.key === k))
                 .filter((x): x is BenchItem => !!x)
                 .map((x) => {
                   const o = describeOptions(x.technique, x.view.options, labelOf);
                   const dup = runs.open.filter((k) => k.startsWith(`${x.technique}|`)).length > 1;
-                  return { key: x.key, label: `${techniqueLabel(x.technique)}${dup && o ? ` · ${o}` : ""}`, title: `${techniqueLabel(x.technique)}${o ? ` · ${o}` : ""}`, partial: x.partial, dirty: !!dirtyTabs[x.key] };
+                  return { key: x.key, label: `${techniqueLabel(x.technique)}${dup && o ? ` · ${o}` : ""}`, title: `${techniqueLabel(x.technique)}${o ? ` · ${o}` : ""}`, partial: x.partial, dirty: !!dirtyTabs[x.key], saved: !!savedIds[`${runs.key}|${x.key}`] };
                 });
               const switcher = (
                 <OpenTabs
                   tone="light"
                   tabs={openTabs}
                   active={item?.key ?? null}
-                  onSelect={(k) => setRunState((prev) => (prev ? { ...prev, active: k } : prev))}
+                  onSelect={(k) => setBench(runs.key, (prev) => (prev ? { ...prev, active: k } : prev))}
                   onClose={requestCloseTab}
                   onAdd={() => setAddOpen({ initial: null })}
                   fails={runs.fails.map((f) => ({ key: f.key, technique: f.technique, label: techniqueLabel(f.technique), error: f.error, code: f.code, attempts: f.attempts, lastAt: f.lastAt, note: f.note ?? null, options: f.options ? describeOptions(f.technique, f.options, labelOf) : "", retryAt: f.retryAfterSec ? f.lastAt + f.retryAfterSec * 1000 : null }))}
@@ -1078,6 +1398,7 @@ export default function AstrologyWorkspacePage() {
                         <h2 className="text-lg font-light [font-family:var(--font-atlas-display)]">{shownDetail.label}</h2>
                       </div>
                     </div>
+                    {saveAllBtn && <div>{saveAllBtn}</div>}
                     {switcher}
                     {runError && runs.fails.length === 0 && <p className="rounded-xl border border-rose-300/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-100">{runError}</p>}
                     <p className="rounded-xl border border-white/[0.07] bg-black/20 px-4 py-6 text-center text-sm text-[#F6F2EA]/70" data-testid="atlas-no-open-tabs">
@@ -1109,10 +1430,9 @@ export default function AstrologyWorkspacePage() {
                       ...(interpVisible ? ([{ id: "yorum", label: interpretationTitle(item.view.interpretation), tone: "gold", ownHeading: true }] as DeskTab[]) : []),
                       { id: "bilgi", label: "Bilgi Bankam", tone: "gold", badge: kbCount || null, ownHeading: true },
                       { id: "not", label: "Kendi Yorumum", tone: "turquoise", ownHeading: true },
-                      { id: "kaydet", label: saved ? "Kaydedildi" : "Kaydet", tone: "slate", ownHeading: true },
                     ];
               const tab = tabs.some((t) => t.id === deskTab) ? deskTab : (tabs[0]?.id ?? "durum");
-              const wsSection = tab === "bilgi" ? "kb" : tab === "not" ? "notes" : tab === "kaydet" ? "save" : null;
+              const wsSection = tab === "bilgi" ? "kb" : tab === "not" ? "notes" : null;
               const opts = item && item.ok ? describeOptions(item.technique, item.view.options, labelOf) : "";
               return (
                 <ResultDesk
@@ -1142,39 +1462,25 @@ export default function AstrologyWorkspacePage() {
                   }
                   chips={<DeskChip tone={saved ? "saved" : "muted"}>{saved ? "✓ Bu analiz kaydedildi" : "Bu analiz kaydedilmedi"}</DeskChip>}
                   actions={
-                    saved ? (
-                      <button
-                        type="button"
-                        className={deskPrimary}
-                        onClick={() =>
-                          guardLeave(() => {
-                            setOpenAnalysis({ profileId: shownDetail.id, id: savedId! });
-                            setResultMode("saved");
-                          })
-                        }
-                      >
-                        Kayıtlı analizi aç
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className={deskPrimary}
-                        disabled={saveStates[item.key]?.stage === "busy"}
-                        onClick={() => {
-                          setDeskTab("kaydet");
-                          setSaveSignals((m) => ({ ...m, [item.key]: (m[item.key] ?? 0) + 1 }));
-                        }}
-                        data-testid="astro-desk-save"
-                        data-stage={saveStates[item.key]?.stage ?? "idle"}
-                        title={`Yalnız “${techniqueLabel(item.technique)}” ayrı bir analiz kaydı olarak saklanır; diğer açık sekmeler etkilenmez.`}
-                      >
-                        {saveStates[item.key]?.stage === "busy"
-                          ? "Kaydediliyor…"
-                          : saveStates[item.key]?.stage === "summary"
-                            ? `Kaydı Onayla · ${techniqueLabel(item.technique)}`
-                            : `${techniqueLabel(item.technique)} Analizini Kaydet`}
-                      </button>
-                    )
+                    <>
+                      {saveAllBtn}
+                      {saved && (
+                        <button
+                          type="button"
+                          className={deskGhostLight}
+                          onClick={() =>
+                            guardLeave(() => {
+                              setOpenAnalysis({ profileId: shownDetail.id, id: savedId! });
+                              setResultMode("saved");
+                            })
+                          }
+                          data-testid="astro-open-saved"
+                          title="Kayıtlı (değişmez) analizi açar; Word/PDF kayıtlı analizden üretilir."
+                        >
+                          Kayıtlı analizi aç
+                        </button>
+                      )}
+                    </>
                   }
                   notices={
                     <>
@@ -1183,16 +1489,16 @@ export default function AstrologyWorkspacePage() {
                         {runs.executed.providerAttempts} sağlayıcı isteği
                       </p>
                       {runError && runs.fails.length === 0 && <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">{runError}</p>}
-                      {!saved && saveStates[item.key]?.error && (
-                        <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800" role="alert" data-testid="astro-desk-save-error">
-                          {saveStates[item.key]?.error}
-                        </p>
-                      )}
-                      {saved && (
-                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900" role="status" data-testid="astro-saved-notice">
+                      {saveToast && (
+                        <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900 shadow-sm" role="status" aria-live="polite" data-testid="astro-saved-notice">
                           <span className="flex items-center gap-2">
-                            <CheckCircle2 className="h-5 w-5 text-emerald-600" /> “{techniqueLabel(item.technique)}” ayrı bir analiz kaydı olarak saklandı. Diğer açık sekmeler bu kayda dahil değildir; Word/PDF kayıtlı analizden üretilir.
+                            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+                            {saveToast.n === 1 ? "Analiz başarıyla kaydedildi." : `${saveToast.n} analiz başarıyla kaydedildi.`}
+                            <span className="font-normal text-emerald-800">Danışan Dosyası&apos;nda ve Analiz Arşivi&apos;nde listelenir.</span>
                           </span>
+                          <button type="button" onClick={() => setSaveToast(null)} aria-label="Bildirimi kapat" className="rounded-md p-1 text-emerald-700 hover:bg-emerald-100">
+                            <X className="h-4 w-4" />
+                          </button>
                         </div>
                       )}
                     </>
@@ -1282,25 +1588,11 @@ export default function AstrologyWorkspacePage() {
                               profileId={shownDetail.id}
                               revision={revision}
                               selection={{ technique: bi.technique, options: bi.view.options }}
-                              interpVisible={bi.view.interpretation.visible}
-                              previewNoInterp={previewNoInterp}
                               refreshKey={workRefresh}
                               section={wsSection ?? "kb"}
                               profileLabel={shownDetail.label}
                               techniqueLabel={`${techniqueLabel(bi.technique)}${bopts ? ` · ${bopts}` : ""}`}
                               onDirtyChange={(d) => setDirtyTabs((m) => (!!m[bi.key] === d ? m : { ...m, [bi.key]: d }))}
-                              saveSignal={saveSignals[bi.key] ?? 0}
-                              onSaveState={(st) =>
-                                setSaveStates((m) => {
-                                  const cur = m[bi.key];
-                                  return cur && cur.stage === st.stage && cur.error === st.error ? m : { ...m, [bi.key]: st };
-                                })
-                              }
-                              onSaved={(id) => {
-                                setAnalysesReload((n) => n + 1);
-                                setProfilesReload((n) => n + 1);
-                                setSavedIds((m) => ({ ...m, [`${shownDetail.id}|${bi.key}`]: id }));
-                              }}
                               onData={(d) => setKbMap((m) => ({ ...m, [kbKey]: d.kbMatches.map((e) => ({ topicKey: e.topicKey, topicLabel: e.topicLabel, title: e.title, body: e.body })) }))}
                             />
                           </div>
@@ -1323,7 +1615,11 @@ export default function AstrologyWorkspacePage() {
           <AddTechniqueDialog<ResultItem>
             open
             initial={addOpen.initial}
-            onClose={() => setAddOpen(null)}
+            onClose={() => {
+              if (addDirty) askLeave({ message: LEAVE_MESSAGE, details: ["Teknik Ekle'de seçilmiş ama hesaplanmamış teknikler"], action: () => setAddOpen(null) });
+              else setAddOpen(null);
+            }}
+            onDirtyChange={setAddDirty}
             profileId={shownDetail.id}
             revision={revision}
             profileLabel={shownDetail.label}
@@ -1352,26 +1648,93 @@ export default function AstrologyWorkspacePage() {
             }}
           />
         )}
+        {saveDialog && runs && shownDetail && (
+          <SaveBatchDialog
+            key={runs.key}
+            items={runs.items
+              .filter((x) => !savedIds[`${runs.key}|${x.key}`])
+              .map((x) => {
+                const o = describeOptions(x.technique, x.view.options, labelOf);
+                // Yöntem satırı SUNUCUNUN normalize sonucundan (zodyak / ev sistemi / düğüm) — ham kimlik gösterilmez.
+                const zod = x.view.method.zodiac === "sidereal" ? (x.technique.startsWith("kp.") ? "Sidereal (KP)" : "Sidereal (nirayana)") : "Tropikal";
+                const hs = x.view.method.houseSystem ? houseSystemLabel(x.view.method.houseSystem, HOUSE_SYSTEM_LABELS) : null;
+                const nt = x.view.method.nodeType === "true" || x.view.method.nodeType === "mean" ? NODE_TYPE_LABELS[x.view.method.nodeType] : null;
+                return { key: x.key, label: techniqueLabel(x.technique), detail: [o, zod, hs, nt, `doğum rev ${revision}`, x.partial ? "kısmi sonuç" : ""].filter(Boolean).join(" · "), closed: !runs.open.includes(x.key), draft: !!dirtyTabs[x.key] };
+              })}
+            interpNote={access.providerInterp && !previewNoInterp ? "Roxy'nin bu analizler için ürettiği sistem yorumu, varsa, kayda ayrı katman olarak otomatik eklenir (sizin yorumunuzla karışmaz)." : null}
+            onSave={(keys, titles, onItem) => saveBenchKeys(keys.map((k) => `${runs.key}|${k}`), titles, onItem)}
+            onSucceeded={(n) => setSaveToast({ n, at: nowMs() })}
+            onClose={() => setSaveDialog(false)}
+          />
+        )}
         {pendingLeave && (
-          <div className="fixed inset-0 z-[85] flex items-center justify-center bg-[#050816]/80 p-4 backdrop-blur-sm" role="alertdialog" aria-modal="true" aria-label="Kaydedilmemiş değişiklik" data-testid="atlas-unsaved-dialog">
+          <div className="fixed inset-0 z-[85] flex items-end justify-center bg-[#050816]/80 p-3 backdrop-blur-sm sm:items-center sm:p-4" role="alertdialog" aria-modal="true" aria-label="Kaydedilmemiş değişiklik" data-testid="atlas-unsaved-dialog">
             <div className="w-full max-w-md rounded-2xl border border-[#D9B56F]/40 bg-[linear-gradient(180deg,#151d4c,#0a1130)] p-5 text-[#F6F2EA] shadow-[0_40px_90px_-30px_rgba(0,0,0,0.95)]">
               <p className="text-[10.5px] font-semibold tracking-[0.18em] text-[#E6CF9F]/80">KAYDEDİLMEMİŞ DEĞİŞİKLİK</p>
-              <p className="mt-2 text-sm leading-relaxed text-[#F6F2EA]/85">{pendingLeave.message}</p>
-              <div className="mt-4 flex flex-wrap justify-end gap-2">
-                <button type="button" autoFocus onClick={() => setPendingLeave(null)} className="rounded-lg border border-[#D9B56F]/60 bg-[#D9B56F]/15 px-3 py-2 text-sm font-medium text-[#F6E7C3]" data-testid="atlas-unsaved-stay">
-                  Geri dön ve kaydet
-                </button>
+              <p className="mt-2 text-[15px] leading-relaxed text-[#F6F2EA]" data-testid="atlas-unsaved-message">{pendingLeave.message}</p>
+              {pendingLeave.details.length > 0 && (
+                <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm text-[#F6F2EA]/75" data-testid="atlas-unsaved-details">
+                  {pendingLeave.details.map((d) => (
+                    <li key={d}>{d}</li>
+                  ))}
+                </ul>
+              )}
+              {leaveSaving.error && (
+                <p className="mt-3 rounded-lg border border-rose-300/40 bg-rose-500/15 px-3 py-2 text-sm text-rose-100" role="alert">
+                  {leaveSaving.error}
+                </p>
+              )}
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
                 <button
                   type="button"
+                  autoFocus
+                  disabled={leaveSaving.busy}
+                  onClick={() => {
+                    pendingLeave.onStay?.();
+                    setPendingLeave(null);
+                  }}
+                  className="rounded-lg border border-[#D9B56F]/60 bg-[#D9B56F]/15 px-3 py-2.5 text-sm font-medium text-[#F6E7C3] disabled:opacity-50"
+                  data-testid="atlas-unsaved-stay"
+                >
+                  Çalışmaya Devam Et
+                </button>
+                {pendingLeave.saveKeys && pendingLeave.saveKeys.length > 0 && (
+                  <button
+                    type="button"
+                    disabled={leaveSaving.busy}
+                    onClick={async () => {
+                      const p = pendingLeave;
+                      setLeaveSaving({ busy: true, error: null });
+                      const res = await saveBenchKeys(p.saveKeys ?? [], {});
+                      const failed = res.filter((r) => !r.ok).length;
+                      if (failed > 0) {
+                        setLeaveSaving({ busy: false, error: `${res.length - failed} analiz kaydedildi, ${failed} analiz kaydedilemedi. Çıkış yapılmadı; kaydedilenler tekrar oluşturulmaz.` });
+                        return;
+                      }
+                      setLeaveSaving({ busy: false, error: null });
+                      setSaveToast({ n: res.length, at: nowMs() });
+                      setPendingLeave(null);
+                      p.action();
+                    }}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300/60 bg-emerald-400/15 px-3 py-2.5 text-sm font-medium text-emerald-100 disabled:opacity-50"
+                    data-testid="atlas-unsaved-save-leave"
+                  >
+                    {leaveSaving.busy && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {leaveSaving.busy ? "Kaydediliyor…" : `Kaydet ve Çık (${pendingLeave.saveKeys.length})`}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={leaveSaving.busy}
                   onClick={() => {
                     const a = pendingLeave.action;
                     setPendingLeave(null);
                     a();
                   }}
-                  className="rounded-lg border border-white/15 px-3 py-2 text-sm text-[#F6F2EA]/75 hover:border-rose-300/60"
+                  className="rounded-lg border border-white/15 px-3 py-2.5 text-sm text-[#F6F2EA]/75 hover:border-rose-300/60 disabled:opacity-50"
                   data-testid="atlas-unsaved-discard"
                 >
-                  Değişiklikleri bırak
+                  Kaydetmeden Çık
                 </button>
               </div>
             </div>

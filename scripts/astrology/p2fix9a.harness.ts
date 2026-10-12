@@ -205,9 +205,11 @@ async function main() {
   });
 
   await t("P2-01: UI kaydetme özeti sabit 'Tropikal' yazmaz; sunucunun zodyağını gösterir", () => {
-    const s = read("app/admin/astroloji/_components/AnalysisWorkspace.tsx");
-    assert.ok(!/>\s*Tropikal · \{shownSummary/.test(s) && !/^\s*Tropikal · \{/m.test(s), "sabit Tropikal kaldı");
-    assert.match(s, /shownSummary\.s\.zodiac === "sidereal" \? \(shownSummary\.s\.technique\.startsWith\("kp\."\) \? "Sidereal \(KP\)" : "Sidereal \(nirayana\)"\) : "Tropikal"/);
+    // 2026-10-12: kayıt özeti artık toplu kayıt penceresinde (page.tsx → SaveBatchDialog); zodyak SUNUCUNUN normalize
+    // sonucundan (view.method.zodiac) okunur, sabit "Tropikal" yazılmaz.
+    const s = read("app/admin/astroloji/page.tsx");
+    assert.ok(!/"Tropikal" · /.test(s), "sabit Tropikal kaldı");
+    assert.match(s, /x\.view\.method\.zodiac === "sidereal" \? \(x\.technique\.startsWith\("kp\."\) \? "Sidereal \(KP\)" : "Sidereal \(nirayana\)"\) : "Tropikal"/);
     assert.ok(!/zodiac: "tropical",/.test(read("lib/astrology/analyses/service.ts")), "önizlemede sabit zodiac");
   });
 

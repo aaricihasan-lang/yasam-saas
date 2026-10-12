@@ -555,7 +555,8 @@ async function main() {
     assert.ok(block.includes('"no-android hidden md:inline-flex'));
     assert.ok(block.includes('data-testid="astro-report-docx"') && block.includes('data-testid="astro-report-pdf"'));
     // Gökyüzü Atlası (Aşama D): koyu başlıkta görünüm için isteğe bağlı `dark` prop'u; Android/telefon kuralları aynı.
-    assert.ok(/<ReportButtons id=\{a\.id\} previewNoInterp=\{previewNoInterp\}( dark)? \/>/.test(src));
+    // 2026-10-12: yorum "gizle" seçiliyken Word/PDF de yorumsuz üretilir (aynı önizleme bayrağı; veri silinmez).
+    assert.ok(/<ReportButtons id=\{a\.id\} previewNoInterp=\{previewNoInterp \|\| \(interp\.visible && interpHidden\)\}( dark)? \/>/.test(src));
   });
 
   // ── Snapshot değişmezliği + sıfır Roxy ───────────────────────────────────────────────────────────
@@ -661,22 +662,25 @@ async function main() {
     assert.equal(last, 429);
   });
 
-  await t("2026-10 KAYIT AKIŞI: başlıktaki altın 'Analizini Kaydet' artık kaydeder (özet → onay → POST → geri okuma); hata görünür", () => {
+  await t("2026-10-12 TOPLU KAYIT: tek kayıt işlemi bütün kaydedilmemiş analizleri kapsar; teknik başına ayrı kayıt + kararlı istek kimliği + geri okuma", () => {
     const page = readFileSync(join(ROOT, "app/admin/astroloji/page.tsx"), "utf8");
     const ws = readFileSync(join(ROOT, "app/admin/astroloji/_components/AnalysisWorkspace.tsx"), "utf8");
-    // Kök neden: düğme yalnız setDeskTab("kaydet") çağırıyordu → hiçbir kayıt isteği gitmiyordu.
-    const btn = page.slice(page.indexOf('data-testid="astro-desk-save"') - 600, page.indexOf('data-testid="astro-desk-save"'));
-    assert.match(btn, /setSaveSignals\(\(m\) => \(\{ \.\.\.m, \[item\.key\]: \(m\[item\.key\] \?\? 0\) \+ 1 \}\)\)/, "düğme çalışma alanına adım sinyali gönderir");
-    assert.match(page, /Kaydı Onayla · \$\{techniqueLabel\(item\.technique\)\}/);
-    assert.match(page, /saveSignal=\{saveSignals\[bi\.key\] \?\? 0\}/, "sinyal doğru sekmenin çalışma alanına bağlı");
-    assert.match(page, /data-testid="astro-desk-save-error"/, "kayıt hatası başlıkta görünür");
-    assert.match(ws, /if \(shownSummary\) void save\(\);\r?\n\s+else void prepare\(\);/);
-    // Başarı yalnız sunucudan geri okunursa; aksi hâlde açık hata ve aynı saveRequestId (mükerrer yok).
-    const save = ws.slice(ws.indexOf("async function save()"), ws.indexOf("// Başlıktaki altın düğme sinyali"));
-    assert.ok(save.indexOf("/api/admin/astroloji/analyses/${encodeURIComponent(r.data.analysisId)}") > 0, "kayıt sonrası doğrulama okuması");
-    assert.ok(save.indexOf("onSaved(r.data.analysisId)") > save.indexOf("if (!check.ok)"), "onSaved yalnız doğrulamadan sonra");
-    assert.match(save, /Analiz KAYDEDİLMEDİ: \$\{r\.error\}/);
-    assert.ok(save.indexOf("setSummary(null)") > save.indexOf("if (!check.ok)"), "doğrulanamazsa özet (saveRequestId) korunur");
+    const dlg = readFileSync(join(ROOT, "app/admin/astroloji/_components/atlas/SaveBatchDialog.tsx"), "utf8");
+    // Eski kök neden (yalnız aktif sekme kaydediliyordu) + ikinci kayıt formu + "yorumu dahil et" kutusu KALDIRILDI.
+    assert.ok(!/setSaveSignals|saveSignal=|includeProviderInterp|Sistem yorumunu analize ayrı katman/.test(page + ws), "eski tekli kayıt akışı kalmamalı");
+    assert.ok(!/id: "kaydet"/.test(page), "ikinci 'Kaydet' sekmesi kalmamalı");
+    // Başlıktaki tek düğme kaydedilmemiş BÜTÜN sonuçları sayar ve toplu kayıt penceresini açar.
+    assert.match(page, /const unsavedHere = runs\.items\.filter\(\(x\) => !savedIds\[`\$\{runs\.key\}\|\$\{x\.key\}`\]\);/);
+    assert.match(page, /`Tümünü Kaydet \(\$\{unsavedHere\.length\}\)`/);
+    // Her teknik mevcut POST /analyses ile AYRI kayıt; kararlı saveRequestId; başarı yalnız geri okumayla.
+    const fn = page.slice(page.indexOf("async function saveBenchKeys"), page.indexOf("async function saveBenchKeys") + 2600);
+    assert.match(fn, /saveReqIds\.current\[fk\] \?\?= crypto\.randomUUID\(\);/);
+    assert.ok(fn.indexOf('"/api/admin/astroloji/analyses"') > 0 && fn.indexOf("/api/admin/astroloji/analyses/${encodeURIComponent(r.data.analysisId)}") > fn.indexOf('"/api/admin/astroloji/analyses"'), "kayıt sonrası doğrulama okuması");
+    assert.ok(fn.indexOf("setSavedIds") > fn.indexOf("check.ok"), "kaydedildi işareti yalnız doğrulamadan sonra");
+    // Pencere: kısmi başarısızlık sayıları + başarısızları yeniden dene + "N analizden M'i kaydedilecek".
+    assert.match(dlg, /analiz kaydedildi, \$\{summary\.failed\} analiz kaydedilemedi/);
+    assert.match(dlg, /analizden \$\{chosen\.length\}'\$\{accSuffix\(chosen\.length\)\} kaydedilecek/);
+    assert.match(dlg, /Başarısız \$\{chosen\.length\} analizi yeniden dene/);
   });
 
   await t("2026-10 PROFİL SİLME: analizi olmayan profil Yeni Analiz'den silinebilir (ortak A/B akışı; A yalnız analiz varsa)", () => {

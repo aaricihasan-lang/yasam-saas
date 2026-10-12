@@ -4,41 +4,20 @@
  * Çalışma alanı (tüm teknikler) — teknik sonucun ALTINDA, Roxy yorumundan AYRI:
  *   1) "Bilgi Bankam"  — haritanın kanonik konularıyla eşleşen KENDİ mesleki notlarım (Roxy değil)
  *   2) "Danışana Özel Yorumum" — bu profile özel çalışma notları (Bilgi Bankası'nı DEĞİŞTİRMEZ)
- *   3) "Analizi Kaydet" — özet → bilinçli onay → DEĞİŞMEZ snapshot (idempotent istek kimliği)
+ * Kayıt (2026-10-12): ayrı bir "Analizi Kaydet" formu YOK — çalışma masasının tek kayıt işlemi (toplu kayıt penceresi,
+ * SaveBatchDialog) bütün kaydedilmemiş analizleri kaydeder. Bu panel yalnız Bilgi Bankası ve not taslaklarını yönetir.
  * Bu panel sağlayıcıyı ÇAĞIRMAZ. Bağlam = (profil, revizyon, teknik, normalize seçenekler); notlar
  * (profil, teknik, karşı taraf) bağlamındadır — transit notu natal'e, Y sinastrisi Z'ye karışmaz.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroFetch } from "../_lib/api";
-import { houseSystemLabel } from "../_lib/techniques";
 import { KbEditor, KbEntryCard, type KbEntry } from "./KnowledgeBankPanel";
 
 type Topic = { key: string; kind: string; label: string };
 type Note = { id: string; sectionKey: string; sectionLabel: string; body: string; revision: number; updatedAt: string };
 type Workspace = { technique: string; contextKey: string; contextLocationId?: string | null; noteContext?: string | null; knowledgeBankEnabled: boolean; topics: Topic[]; kbMatches: KbEntry[]; notes: Note[] };
 export type WorkspaceSelection = { technique: string; options: Record<string, unknown> };
-type Summary = {
-  title: string;
-  client: string | null;
-  profileLabel: string;
-  partnerLabel: string | null;
-  partnerRevision: number | null;
-  technique: string;
-  techniqueLabel: string;
-  partCount: number;
-  revision: number;
-  zodiac: "tropical" | "sidereal";
-  houseSystem: string | null;
-  nodeType: string | null;
-  provider: string;
-  topicCount: number;
-  kbMatchCount: number;
-  noteCount: number;
-  providerInterpIncluded: boolean;
-  timeUnknownMasked: boolean;
-};
 
 function NoteEditor({
   profileId,
@@ -122,38 +101,23 @@ export default function AnalysisWorkspace({
   profileId,
   revision,
   selection,
-  interpVisible,
-  previewNoInterp,
   refreshKey = 0,
-  onSaved,
   onData,
   section = "all",
   profileLabel,
   techniqueLabel,
   onDirtyChange,
-  saveSignal = 0,
-  onSaveState,
 }: {
-  /**
-   * Üst başlıktaki altın "… Analizini Kaydet" düğmesi: her artış bir adım ilerletir — özet yoksa özeti hazırlar
-   * (sunucu önizlemesi), özet görünüyorsa KAYDEDER. (Önceden düğme yalnız sekmeyi açıyordu → kayıt hiç yapılmıyordu.)
-   */
-  saveSignal?: number;
-  /** Kaydetme aşaması + görünür hata (başlıktaki düğme etiketi ve uyarı için). */
-  onSaveState?: (s: { stage: "idle" | "summary" | "busy"; error: string | null }) => void;
   /** FINAL: bu çalışma alanında kaydedilmemiş not / Bilgi Bankası taslağı var mı (sessiz veri kaybını önlemek için). */
   onDirtyChange?: (dirty: boolean) => void;
   profileId: string;
   revision: number;
   selection: WorkspaceSelection;
-  interpVisible: boolean;
-  previewNoInterp: boolean;
   refreshKey?: number;
-  onSaved: (analysisId: string) => void;
   /** Çalışma alanı yüklendiğinde (konu + KB eşleşmeleri) üst bileşene bildirilir — ek istek yok. */
   onData?: (data: { kbMatches: KbEntry[] }) => void;
   /** Sonuç çalışma masası sekmesi: tek örnek bölümler arasında geçer (durum korunur). Varsayılan "all" = önceki görünüm. */
-  section?: "all" | "kb" | "notes" | "save";
+  section?: "all" | "kb" | "notes";
   /** Kendi Yorumum başlığında hangi danışan / analiz için yazıldığını göstermek için (yalnız görüntü). */
   profileLabel?: string;
   techniqueLabel?: string;
@@ -179,14 +143,6 @@ export default function AnalysisWorkspace({
   const [reload, setReload] = useState(0);
   const [addTopic, setAddTopic] = useState<string | null>(null);
   const [kbCreate, setKbCreate] = useState<string | null>(null);
-  const [includeInterp, setIncludeInterp] = useState(false);
-  const [title, setTitle] = useState("");
-  const [summary, setSummary] = useState<{ key: string; s: Summary; requestId: string } | null>(null);
-  const [saveMsg, setSaveMsg] = useState<string | null>(null);
-  const [saveErr, setSaveErr] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const summaryRef = useRef<HTMLDivElement | null>(null);
-  const confirmRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -215,87 +171,6 @@ export default function AnalysisWorkspace({
   const unmatchedTopics = (data?.topics ?? []).filter((t) => !matchesByTopic.has(t.key));
   const notesByKey = new Map((data?.notes ?? []).map((n) => [n.sectionKey, n]));
   const noteSections = [...new Set([...(data?.notes ?? []).map((n) => n.sectionKey).filter((k) => k !== "overall"), ...(addTopic ? [addTopic] : [])])];
-  const effectiveInclude = includeInterp && interpVisible && !previewNoInterp;
-  const shownSummary = summary && summary.key === `${key}|${effectiveInclude}|${title}` ? summary : null;
-
-  async function prepare() {
-    setBusy(true);
-    setSaveMsg(null);
-    setSaveErr(false);
-    const r = await astroFetch<{ summary: Summary }>(`/api/admin/astroloji/analyses/preview${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
-      method: "POST",
-      body: { profileId, revision, ...selection, includeProviderInterp: effectiveInclude, title: title.trim() || undefined },
-    });
-    setBusy(false);
-    if (r.ok) setSummary({ key: `${key}|${effectiveInclude}|${title}`, s: r.data.summary, requestId: crypto.randomUUID() });
-    else {
-      setSaveErr(true);
-      setSaveMsg(r.error);
-    }
-  }
-
-  async function save() {
-    if (!shownSummary) return;
-    setBusy(true);
-    setSaveMsg(null);
-    setSaveErr(false);
-    // Aynı özet = aynı saveRequestId → yeniden deneme / çift tıklama MÜKERRER kayıt üretmez (DB UNIQUE + reused).
-    const r = await astroFetch<{ analysisId: string; reused: boolean }>(`/api/admin/astroloji/analyses${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
-      method: "POST",
-      body: { profileId, revision, ...selection, includeProviderInterp: effectiveInclude, title: shownSummary.s.title, saveRequestId: shownSummary.requestId },
-    });
-    if (!r.ok) {
-      setBusy(false);
-      setSaveErr(true);
-      setSaveMsg(`Analiz KAYDEDİLMEDİ: ${r.error}`);
-      return;
-    }
-    // Başarı yalnız kayıt sunucudan GERİ OKUNABİLİRSE gösterilir (yanıt kaybı / sahte başarı yok).
-    const check = await astroFetch<{ analysis: { id: string } }>(`/api/admin/astroloji/analyses/${encodeURIComponent(r.data.analysisId)}`);
-    setBusy(false);
-    if (!check.ok) {
-      setSaveErr(true);
-      setSaveMsg(`Kayıt doğrulanamadı (${check.error}). Tekrar "Analizi kaydet"e basabilirsiniz; aynı kayıt yinelenmez.`);
-      return;
-    }
-    setSummary(null);
-    setSaveMsg(r.data.reused ? "Bu analiz zaten kaydedilmişti." : "Analiz kaydedildi (değişmez kayıt).");
-    onSaved(r.data.analysisId);
-  }
-
-  // Başlıktaki altın düğme sinyali: özet yoksa hazırla, varsa kaydet (en güncel işlevler ref'te).
-  const stepRef = useRef<() => void>(() => {});
-  useEffect(() => {
-    stepRef.current = () => {
-      if (busy) return;
-      if (shownSummary) void save();
-      else void prepare();
-    };
-  });
-  const lastSignal = useRef(saveSignal);
-  useEffect(() => {
-    if (saveSignal === lastSignal.current) return;
-    lastSignal.current = saveSignal;
-    stepRef.current();
-  }, [saveSignal]);
-  // Özet hazır olunca onay düğmesi görünür alana getirilir ve odaklanır (panelin altında kalmasın).
-  const summaryShown = !!shownSummary;
-  useEffect(() => {
-    if (!summaryShown) return;
-    // Önce özetin başı, sonra onay düğmesi görünür alana (anında; yumuşak kaydırma ölçümde/küçük ekranda geride kalıyordu).
-    summaryRef.current?.scrollIntoView({ block: "nearest" });
-    confirmRef.current?.scrollIntoView({ block: "nearest" });
-    confirmRef.current?.focus({ preventScroll: true });
-  }, [summaryShown]);
-  const onSaveStateRef = useRef(onSaveState);
-  useEffect(() => {
-    onSaveStateRef.current = onSaveState;
-  });
-  const stage: "idle" | "summary" | "busy" = busy ? "busy" : summaryShown ? "summary" : "idle";
-  const visibleError = saveErr ? saveMsg : null;
-  useEffect(() => {
-    onSaveStateRef.current?.({ stage, error: visibleError });
-  }, [stage, visibleError]);
 
   if (!data) return <p className="text-sm text-slate-400">Çalışma alanı yükleniyor…</p>;
 
@@ -404,79 +279,6 @@ export default function AnalysisWorkspace({
         </div>
       </section>
 
-      {/* 3) Analizi Kaydet */}
-      <section hidden={!(section === "all" || section === "save")} className="rounded-2xl border border-slate-300 bg-white p-5" aria-label="Analizi Kaydet">
-        <h3 className="mb-2 text-base font-semibold text-slate-900">Analizi Kaydet</h3>
-        <p className="mb-2 text-xs text-slate-500">
-          Kayıt; doğum profili revizyonu, yöntem, teknik sonuç, eşleşen Bilgi Bankası notları ve danışan yorumunuzun o anki halini DEĞİŞMEZ olarak saklar.
-        </p>
-        <div className="flex flex-col gap-2">
-          <input className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm" placeholder="Başlık (boş bırakılırsa otomatik)" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
-          <label className={`flex items-center gap-2 text-sm ${interpVisible && !previewNoInterp ? "text-slate-700" : "text-slate-400"}`}>
-            <input type="checkbox" disabled={!interpVisible || previewNoInterp} checked={effectiveInclude} onChange={(e) => setIncludeInterp(e.target.checked)} />
-            Sistem yorumunu analize ayrı katman olarak dahil et
-            {(!interpVisible || previewNoInterp) && <span className="text-xs">(bu görünümde kapalı)</span>}
-          </label>
-          {!shownSummary ? (
-            <button type="button" disabled={busy} onClick={() => void prepare()} className="self-start rounded-lg border border-slate-400 px-4 py-1.5 text-sm text-slate-800 disabled:opacity-60">
-              {busy ? "Hazırlanıyor…" : "Kaydetmeden önce özeti gör"}
-            </button>
-          ) : (
-            <div ref={summaryRef} className="scroll-mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm" data-testid="astro-save-summary">
-              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-                <dt className="text-slate-500">Başlık</dt>
-                <dd>{shownSummary.s.title}</dd>
-                <dt className="text-slate-500">Danışan</dt>
-                <dd>{shownSummary.s.client ?? "— (bağımsız profil)"}</dd>
-                <dt className="text-slate-500">Analiz türü</dt>
-                <dd>
-                  {shownSummary.s.techniqueLabel}
-                  {shownSummary.s.partCount > 1 ? ` · ${shownSummary.s.partCount} parça` : ""}
-                </dd>
-                {shownSummary.s.partnerLabel && (
-                  <>
-                    <dt className="text-slate-500">Karşı taraf</dt>
-                    <dd>
-                      {shownSummary.s.partnerLabel} · rev {shownSummary.s.partnerRevision}
-                    </dd>
-                  </>
-                )}
-                <dt className="text-slate-500">Doğum profili</dt>
-                <dd>
-                  {shownSummary.s.profileLabel} · rev {shownSummary.s.revision}
-                  {shownSummary.s.timeUnknownMasked ? " · saat bilinmiyor" : ""}
-                </dd>
-                <dt className="text-slate-500">Yöntem</dt>
-                <dd>
-                  {shownSummary.s.zodiac === "sidereal" ? (shownSummary.s.technique.startsWith("kp.") ? "Sidereal (KP)" : "Sidereal (nirayana)") : "Tropikal"} · {houseSystemLabel(shownSummary.s.houseSystem, HOUSE_SYSTEM_LABELS)}
-                  {shownSummary.s.nodeType === "true" || shownSummary.s.nodeType === "mean" ? ` · ${NODE_TYPE_LABELS[shownSummary.s.nodeType]}` : ""} · hesap motoru: {shownSummary.s.provider === "roxy" ? "RoxyAPI" : shownSummary.s.provider}
-                </dd>
-                <dt className="text-slate-500">Bilgi Bankası</dt>
-                <dd>
-                  {shownSummary.s.kbMatchCount} eşleşen not ({shownSummary.s.topicCount} konu)
-                </dd>
-                <dt className="text-slate-500">Danışan yorumu</dt>
-                <dd>{shownSummary.s.noteCount} not bölümü</dd>
-                <dt className="text-slate-500">Sistem yorumu</dt>
-                <dd>{shownSummary.s.providerInterpIncluded ? "Dahil (ayrı katman)" : "Dahil değil"}</dd>
-              </dl>
-              <div className="mt-3 flex gap-2">
-                <button ref={confirmRef} type="button" disabled={busy} onClick={() => void save()} data-testid="astro-save-confirm" className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0b1430] font-semibold text-white transition hover:bg-[#1a2b5c] disabled:cursor-not-allowed disabled:opacity-50 px-4 py-1.5 text-sm disabled:opacity-60">
-                  {busy ? "Kaydediliyor…" : "Analizi kaydet"}
-                </button>
-                <button type="button" onClick={() => setSummary(null)} className="rounded-lg border border-slate-300 px-4 py-1.5 text-sm">
-                  Vazgeç
-                </button>
-              </div>
-            </div>
-          )}
-          {saveMsg && (
-            <p className={saveErr ? "rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800" : "text-sm text-emerald-800"} role={saveErr ? "alert" : "status"} data-testid="astro-save-msg">
-              {saveMsg}
-            </p>
-          )}
-        </div>
-      </section>
     </div>
   );
 }
