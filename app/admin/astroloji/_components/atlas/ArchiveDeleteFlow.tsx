@@ -33,7 +33,7 @@ type Preview = {
   profiles: { id: string; label: string; archived: boolean; ownAnalyses: number; sharedPreserved: number }[];
   confirmToken: string;
 };
-type Result = { deletedProfiles: number; deletedAnalyses: number; preservedSharedAnalyses: number };
+type Result = { deletedProfiles: number; deletedAnalyses: number; preservedSharedAnalyses: number; verified?: boolean; remaining?: { profiles: number; ownAnalyses: number } };
 const scopeOf = (k: Kind | null): Preview["scope"] => (k === "A" ? "analyses" : "profile");
 
 const OPTION_A =
@@ -123,6 +123,14 @@ export default function ArchiveDeleteFlow({
     setBusy(false);
     if (!r.ok) {
       setErr(r.error);
+      return;
+    }
+    // Başarı YALNIZ sunucu silinen kayıtları geri okuyup doğruladıysa gösterilir (2026-10-12).
+    if (r.data.verified !== true) {
+      onDeleted(r.data, pv.scope === "profile" ? ids : []);
+      setErr(
+        `Silme isteği işlendi ancak sunucudan doğrulanamadı${r.data.remaining ? ` (kalan profil: ${r.data.remaining.profiles}, kalan analiz: ${r.data.remaining.ownAnalyses})` : ""}. Listeyi yenileyip kontrol edin; gerekirse işlemi tekrarlayın.`,
+      );
       return;
     }
     setDone(r.data);

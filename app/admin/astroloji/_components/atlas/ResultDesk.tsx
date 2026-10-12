@@ -471,12 +471,12 @@ function NightDesk({
           </button>
           <div className="min-w-0">
             <p className="text-[10.5px] font-semibold tracking-[0.16em] text-[#E6CF9F]/90">{eyebrow}</p>
-            <h2 className="truncate text-lg font-light tracking-[0.01em] text-[#F6F2EA] [font-family:var(--font-atlas-display)] sm:text-xl">{title}</h2>
+            <h2 className="min-w-0 break-words text-lg font-light tracking-[0.01em] text-[#F6F2EA] [font-family:var(--font-atlas-display)] [overflow-wrap:anywhere] sm:text-xl xl:truncate" title={title}>{title}</h2>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#F6F2EA]/70 xl:flex-nowrap">
-              {subtitle && <span className="shrink-0">{subtitle}</span>}
-              {details && <span className="min-w-0 text-[#F6F2EA]/55 xl:truncate">{details}</span>}
+              {subtitle && <span className="min-w-0 break-words [overflow-wrap:anywhere] xl:shrink-0">{subtitle}</span>}
+              {details && <span className="min-w-0 break-words text-[#F6F2EA]/55 [overflow-wrap:anywhere] xl:truncate">{details}</span>}
               {metaList.length > 0 && (
-                <ul className="flex shrink-0 flex-wrap gap-1 xl:flex-nowrap" aria-label="Harita künyesi" data-testid="atlas-chart-meta">
+                <ul className="flex min-w-0 flex-wrap gap-1 xl:shrink-0 xl:flex-nowrap" aria-label="Harita künyesi" data-testid="atlas-chart-meta">
                   {metaList.map((m) => (
                     <li key={m} className="rounded-full border border-[#D9B56F]/30 bg-[#D9B56F]/[0.07] px-2 py-0.5 text-[10.5px] tracking-[0.02em] text-[#F6E7C3]/90">
                       {m}
@@ -933,15 +933,19 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
           ←
         </button>
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-baseline gap-2">
+          {/* 2026-10-12 (Android UAT ek madde): telefonda uzun ad / teknik / tarih KESİLMEZ, satıra geçer; tek satır
+              kısaltma yalnız geniş masaüstünde (tam metin title ile). */}
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
             <p className="shrink-0 text-[10px] font-semibold tracking-[0.14em] text-slate-500">{eyebrow}</p>
-            <h2 className="truncate text-[17px] font-semibold tracking-[0.005em] text-slate-900">{title}</h2>
+            <h2 className="min-w-0 break-words text-[17px] font-semibold tracking-[0.005em] text-slate-900 [overflow-wrap:anywhere] xl:truncate" title={title}>
+              {title}
+            </h2>
           </div>
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600 xl:flex-nowrap">
-            {subtitle && <span className="shrink-0">{subtitle}</span>}
-            {details && <span className="min-w-0 text-slate-500 xl:truncate">{details}</span>}
+            {subtitle && <span className="min-w-0 break-words [overflow-wrap:anywhere] xl:shrink-0">{subtitle}</span>}
+            {details && <span className="min-w-0 break-words text-slate-500 [overflow-wrap:anywhere] xl:truncate">{details}</span>}
             {metaList.length > 0 && (
-              <ul className="flex shrink-0 flex-wrap gap-1 xl:flex-nowrap" aria-label="Harita künyesi" data-testid="atlas-chart-meta">
+              <ul className="flex min-w-0 flex-wrap gap-1 xl:shrink-0 xl:flex-nowrap" aria-label="Harita künyesi" data-testid="atlas-chart-meta">
                 {metaList.map((m) => (
                   <li key={m} className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10.5px] text-slate-600">
                     {m}
@@ -951,11 +955,13 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
             )}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 xl:shrink-0 xl:flex-nowrap">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto xl:shrink-0 xl:flex-nowrap">
           {/* Görünüm: haritanın üstüne binmesin diye başlıkta */}
-          <span className="flex items-center gap-1.5 border-r border-slate-200 pr-2" role="group" aria-label="Görünüm">
-            {focusBtn}
-          </span>
+          {focusBtn && (
+            <span className="flex items-center gap-1.5 border-r border-slate-200 pr-2" role="group" aria-label="Görünüm">
+              {focusBtn}
+            </span>
+          )}
           {chips}
           {actions}
         </div>

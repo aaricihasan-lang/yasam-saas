@@ -4,14 +4,15 @@
 // Her adaptör endpoint bazında BEYAZ LİSTE uygular:
 //   TEKNİK  → kanonik kimlik + sayı (sağlayıcı serbest metni YOK)
 //   YORUM   → ayrı projeksiyon (ayrı tablo, ayrı yetki)
-//   YOK SAYILAN → *Localized, forecast `description` (yerelleştirilmiş olgusal cümle; etiketler Yaşam
-//                 sözlüğünden üretilir), synastry `meaning.name/nature` (yerelleştirilmiş yorum tesisatı)
+//   YOK SAYILAN → *Localized, synastry `meaning.name/nature` (yerelleştirilmiş yorum tesisatı)
+//   (2026-10-12: forecast `description` artık YORUM katmanında aynen saklanır — eskiden yok sayılıyordu; UAT madde 13.)
 //   BİLİNMEYEN → hiçbir projeksiyona girmez (fail-closed); yalnız YOL `unmapped_fields`'a yazılır.
 
 import { BODY_IDS, HOUSE_SYSTEMS, NODE_TYPES, type AspectType, type HouseSystem, type NodeType } from "../../model/western";
 import {
   COMPOSITE_INTERP_SCHEMA,
   COMPOSITE_TECHNICAL_SCHEMA,
+  FORECAST_INTERP_SCHEMA,
   FORECAST_TECHNICAL_SCHEMA,
   PROGRESSION_INTERP_SCHEMA,
   PROGRESSION_TECHNICAL_SCHEMA,
@@ -27,6 +28,7 @@ import {
   type CompositeInterpretation,
   type CompositeTechnical,
   type ForecastEvent,
+  type ForecastInterpretation,
   type ForecastTechnical,
   type PointId,
   type ProgressionInterpretation,
@@ -181,7 +183,7 @@ const EVENT_TYPE: Record<string, ForecastEvent["type"]> = {
   "lunar-phase": "lunar_phase",
 };
 
-export function projectRoxyForecast(raw: unknown): AdapterResult<ForecastTechnical, never> {
+export function projectRoxyForecast(raw: unknown): AdapterResult<ForecastTechnical, ForecastInterpretation> {
   const errors: string[] = [];
   const dropped: string[] = [];
   const r = obj(raw);
@@ -190,6 +192,7 @@ export function projectRoxyForecast(raw: unknown): AdapterResult<ForecastTechnic
   const end = isoDate(r.endDate);
   if (!start || !end) errors.push("startDate/endDate");
   const events: ForecastEvent[] = [];
+  const iEvents: ForecastInterpretation["events"] = [];
   for (const e of arr(r.events) ?? []) {
     const o = obj(e);
     if (!o) continue;
@@ -235,9 +238,37 @@ export function projectRoxyForecast(raw: unknown): AdapterResult<ForecastTechnic
       ev.targetSign = mapSign(o.target);
     }
     events.push(ev);
+    const t = text(o.description);
+    if (t) iEvents.push({ datetime: ev.datetime, type: ev.type, body: ev.body, targetBody: ev.targetBody, text: t });
+  }
+  const byTime = <X extends { datetime: string }>(a: X, b: X) => (a.datetime < b.datetime ? -1 : a.datetime > b.datetime ? 1 : 0);
+  events.sort(byTime);
+  iEvents.sort(byTime);
+  return done(
+    errors,
+    dropped,
+    () => ({ schema: FORECAST_TECHNICAL_SCHEMA, window: { start: start!, end: end! }, events }),
+    () => (iEvents.length > 0 ? { schema: FORECAST_INTERP_SCHEMA, events: iEvents } : null),
+    raw,
+    FORECAST_KNOWN,
+    new Set(),
+  );
+}
+
+/** Parçalı forecast YORUMU birleştirme (sıralı, tekrarsız; parça sınırındaki aynı olay bir kez). */
+export function mergeForecastInterpretation(parts: ForecastInterpretation[]): ForecastInterpretation {
+  const seen = new Set<string>();
+  const events: ForecastInterpretation["events"] = [];
+  for (const p of parts) {
+    for (const e of p.events) {
+      const k = `${e.type}|${e.datetime}|${e.body}|${e.targetBody}|${e.text}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      events.push(e);
+    }
   }
   events.sort((a, b) => (a.datetime < b.datetime ? -1 : a.datetime > b.datetime ? 1 : 0));
-  return done(errors, dropped, () => ({ schema: FORECAST_TECHNICAL_SCHEMA, window: { start: start!, end: end! }, events }), () => null, raw, FORECAST_KNOWN, new Set());
+  return { schema: FORECAST_INTERP_SCHEMA, events };
 }
 
 /** Parçalı forecast birleştirme (sıralı, tekrarsız). */

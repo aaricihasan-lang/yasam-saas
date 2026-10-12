@@ -111,13 +111,16 @@ export function eclipticPoint(o: Record<string, unknown> | null, lonKey = "longi
   return { longitude, sign, degreeInSign };
 }
 
-const MAX_TEXT = 4000;
+// 2026-10-12 (UAT madde 11): sağlayıcı metni SESSİZCE kesilmez. Sınır 20 000 karakter (gerçek yanıtlarda en uzun metin
+// ~1 350 karakter; DB yorum satırı ≤ 1 MB). Aşılırsa metnin sonuna AÇIK not eklenir; tam yanıt ham kayıtta durur.
+const MAX_TEXT = 20000;
+const TRUNCATED_NOTE = " […] (Sağlayıcı metni 20 000 karakterden uzun olduğu için burada kısaltıldı; tam yanıt ham kayıtta saklıdır.)";
 const MAX_KEYWORDS = 30;
 export function text(v: unknown): string | null {
   if (typeof v !== "string") return null;
   const t = v.trim();
   if (!t) return null;
-  return t.length > MAX_TEXT ? t.slice(0, MAX_TEXT) : t;
+  return t.length > MAX_TEXT ? `${t.slice(0, MAX_TEXT)}${TRUNCATED_NOTE}` : t;
 }
 export function texts(v: unknown): string[] {
   return (arr(v) ?? []).map(text).filter((x): x is string => x !== null).slice(0, MAX_KEYWORDS);

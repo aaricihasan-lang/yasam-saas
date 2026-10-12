@@ -894,7 +894,11 @@ async function main() {
       const a = JSON.stringify(((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis);
       assert.equal(calls.length, n, `${sels[i].technique}: kayıtlı analiz Roxy çağırdı`);
       for (const k of expect[i]) assert.ok(a.includes(k), `${sels[i].technique}: ${k}`);
-      assert.ok(!/raw_response|k-test-6i|houseThemes/.test(a), `${sels[i].technique}: ham yanıt / anahtar / yorum sızıntısı`);
+      assert.ok(!/raw_response|k-test-6i/.test(a), `${sels[i].technique}: ham yanıt / anahtar sızıntısı`);
+      // 2026-10-12: yetkili kullanıcıda sağlayıcı yorumu HER kayıtta saklanır — ama yalnız ayrı yorum katmanında
+      // (teknik / profil / yöntem snapshot'ına karışmaz).
+      const { interpretation: _interp, ...rest } = JSON.parse(a) as Record<string, unknown>;
+      assert.ok(!/houseThemes/.test(JSON.stringify(rest)), `${sels[i].technique}: yorum teknik katmana sızdı`);
       assert.equal((await getAnalysis(ctxOf(store, { tenantId: TENANT_B, userId: USER_B }), (sv.body as J).analysisId, false)).status, 404);
     }
     assert.equal(calls.length, 5, "kaydetme + açma yeni istek üretmedi");

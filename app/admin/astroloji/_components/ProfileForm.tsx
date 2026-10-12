@@ -6,7 +6,8 @@
  * DST belirsizliğinde sunucu iki seçenek döner; uzman açıkça seçer (sessiz tahmin yok).
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import BirthDateInput from "./BirthDateInput";
 import ClientCandidateSearch, { type ClientCandidate } from "./ClientCandidateSearch";
 import { TIME_ACCURACY_LABELS, TIME_ACCURACY_VALUES, type TimeAccuracy } from "@/lib/astrology/birth/profileInput";
 import LocationPicker, { type PickedLocation } from "./LocationPicker";
@@ -36,7 +37,10 @@ export default function ProfileForm({
   onDone,
   onCancel,
   heading,
+  onDirtyChange,
 }: {
+  /** Kaydedilmemiş giriş var mı (çıkış koruması; 2026-10-12). */
+  onDirtyChange?: (dirty: boolean) => void;
   mode: "create" | "revise";
   /** İsteğe bağlı görünür başlık (D3.1: Hazırlık Merkezi "Yeni Danışan" / "Doğum Bilgilerini Düzenle"); veri modeli aynı. */
   heading?: string;
@@ -57,11 +61,28 @@ export default function ProfileForm({
   const [dstChoice, setDstChoice] = useState<"auto" | "earlier" | "later">("auto");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dirty =
+    mode === "create"
+      ? !!(label.trim() || client || birthDate || birthTime || location || !timeKnown)
+      : birthDate !== (initial?.birthDate ?? "") ||
+        timeKnown !== (initial?.timeKnown ?? true) ||
+        birthTime !== (initial?.birthTime?.slice(0, 8) ?? "") ||
+        accuracy !== ((initial?.timeAccuracy as TimeAccuracy) ?? "exact_record") ||
+        (location?.id ?? null) !== (initial?.location?.id ?? null) ||
+        note.trim() !== "";
+  const onDirtyRef = useRef(onDirtyChange);
+  useEffect(() => {
+    onDirtyRef.current = onDirtyChange;
+  });
+  useEffect(() => {
+    onDirtyRef.current?.(dirty);
+  }, [dirty]);
+  useEffect(() => () => onDirtyRef.current?.(false), []);
 
   async function submit() {
     setError(null);
     if (mode === "create" && !label.trim()) return setError("Profil adı gerekli.");
-    if (!birthDate) return setError("Doğum tarihi gerekli.");
+    if (!birthDate) return setError("Doğum tarihi gerekli (GG.AA.YYYY biçiminde eksiksiz ve geçerli olmalı).");
     if (timeKnown && !birthTime) return setError("Doğum saati gerekli (bilinmiyorsa kutuyu işaretleyin).");
     if (!location) return setError("Doğum yeri listeden seçilmelidir.");
     setBusy(true);
@@ -85,6 +106,7 @@ export default function ProfileForm({
           });
     setBusy(false);
     if (res.ok) {
+      onDirtyRef.current?.(false);
       onDone(res.data.profile.id);
       return;
     }
@@ -140,10 +162,7 @@ export default function ProfileForm({
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-slate-700">Doğum tarihi</span>
-          <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2" />
-        </label>
+        <BirthDateInput value={birthDate} onChange={setBirthDate} />
         <div className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-slate-700">Doğum saati (yerel)</span>
           <input

@@ -9,7 +9,7 @@
 
 import { BODY_LABELS, ASPECT_LABELS, DIGNITY_LABELS, ELEMENT_LABELS, HOUSE_SYSTEM_LABELS, MODALITY_LABELS, NATURE_LABELS, NODE_TYPE_LABELS, PATTERN_LABELS, SIGN_LABELS, formatDegree } from "../labels/tr";
 import { SIGN_IDS, type SignId } from "../model/western";
-import { GRAHA_LABELS, KARANA_LABELS, NAKSHATRA_LABELS } from "../topics/vedic";
+import { GRAHA_LABELS, KARANA_LABELS, NAKSHATRA_LABELS, VEDIC_YOGA_NAMES } from "../topics/vedic";
 import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, type KpNodeSigMethodId } from "../model/kp";
 import { WHEEL_LEGEND } from "./wheelSvg";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
@@ -795,6 +795,11 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
         b.p(kw(x.keywords), "muted");
       }
       return;
+    case "astro.western.forecast.interp.v1":
+      // Roxy olay başına tek cümle (ayrı genel yorum yok) — aynen, tarih sırasıyla.
+      b.p("Roxy bu teknikte ayrı bir genel yorum üretmez; her olay için verdiği açıklama cümlesi değiştirilmeden aktarılmıştır.", "muted");
+      for (const x of arr(c.events)) para(typeof x.datetime === "string" ? `${localTr(x.datetime)} UTC` : null, x.text);
+      return;
     case "astro.western.progression.interp.v1":
     case "astro.western.solar_arc.interp.v1":
     case "astro.western.local_space.interp.v1":
@@ -830,11 +835,16 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       para("Özet", c.summary);
       return;
     case "astro.vedic.d1.interp.v1":
+      // 2026-10-12 (UAT madde 13 G): graha (rashi / nakshatra) yorumları ekranda vardı ama Word/PDF'e AKTARILMIYORDU.
+      for (const x of arr(c.grahas)) para(`${grahaL(x.id)} (rashi / nakshatra)`, [x.rashi, x.nakshatra].filter((y) => typeof y === "string" && y.trim()).join("\n\n"));
       for (const x of arr(c.houses)) {
         para(houseL(x.number), x.description);
         if (arr(x.themes).length) b.p(`Temalar: ${list(x.themes)}`, "muted");
       }
-      for (const x of arr(c.yogas)) para(`Yoga: ${s(x.id)}`, [x.description, x.result].filter((y) => typeof y === "string" && y.trim()).join("\n\n"));
+      for (const x of arr(c.yogas)) {
+        const name = typeof x.id === "string" && VEDIC_YOGA_NAMES[x.id] ? `${VEDIC_YOGA_NAMES[x.id]} Yoga` : s(x.id);
+        para(`Yoga: ${name}`, [x.description, x.result].filter((y) => typeof y === "string" && y.trim()).join("\n\n"));
+      }
       return;
     case "astro.vedic.varga.interp.v1":
       para("Bölümün anlamı", c.significance);
@@ -860,6 +870,8 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       para("Karana", c.karana);
       return;
     case "astro.vedic.transit.interp.v1":
+      // Sağlayıcı bu metni Türkçe istek olmasına rağmen İngilizce döndürür; aynen korunur (çevrilmez), ekrandaki gibi belirtilir.
+      if (arr(c.keyTransits).length) b.p("Not: Roxy bu bölüm için metni yalnız İngilizce sağlıyor; metin değiştirilmeden aktarılmıştır.", "muted");
       for (const x of arr(c.keyTransits)) para(grahaL(x.id), x.text);
       return;
     case "astro.kp.chart.interp.v1":

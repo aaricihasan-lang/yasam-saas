@@ -214,7 +214,7 @@ async function main() {
     let aAI = "";
     let rAI = "";
     let aAIBody = "";
-    await t("exA (yorum yetkisi YOK): hesap teknik sonucu tam; Roxy anlatısı yanıtta YOK; yorumlu kaydetme 403; kendi notu + KB çalışır", async () => {
+    await t("exA (yorum yetkisi YOK): hesap teknik sonucu tam; Roxy anlatısı yanıtta YOK; yorum alanı yok sayılır (kayıtta yorum YOK); kendi notu + KB çalışır", async () => {
       pA = await mk("exA", "Sentetik A — natal", CLIENT_A);
       const run = await call(X.run.POST(req("expert", "/engine/run", "exA", "POST", { profileId: pA, selections: [NATAL] })));
       assert.equal(run.status, 200, run.text.slice(0, 200));
@@ -226,8 +226,10 @@ async function main() {
       assert.equal(n.status, 201, n.text);
       const k = await call(X.kb.POST(req("expert", "/kb", "exA", "POST", { tradition: "western", topicKey: "planet_in_house:saturn:7", title: "exA KB", body: "exA mesleki notu" })));
       assert.equal(k.status, 201, k.text);
+      // 2026-10-12: istemcinin includeProviderInterp alanı yok sayılır; yetkisiz uzmanın kaydına yorum YAZILMAZ (403 yerine).
       const bad = await call(X.analyses.POST(req("expert", "/analyses", "exA", "POST", { profileId: pA, revision: 1, ...NATAL, includeProviderInterp: true, saveRequestId: randomUUID() })));
-      assert.equal(bad.status, 403);
+      assert.equal(bad.status, 201);
+      assert.ok(!JSON.stringify(bad.json).match(/interpret|summary|content/i), "yanıt yorum taşımamalı");
       const ok = await call(X.analyses.POST(req("expert", "/analyses", "exA", "POST", { profileId: pA, revision: 1, ...NATAL, includeProviderInterp: false, saveRequestId: randomUUID() })));
       assert.equal(ok.status, 201, ok.text);
       const open = await call(X.analysis.GET(req("expert", `/analyses/${ok.json.analysisId}`, "exA"), ctxP(ok.json.analysisId as string)));
@@ -336,7 +338,8 @@ async function main() {
       assert.equal(sv.status, 201);
       const sA = await call(X.status.GET(req("expert", `/client-status?clientId=${CLIENT_A}`, "exA")));
       assert.equal(sA.json.status, "has_analyses", "exA (yorum yetkisi yok) rozeti görmeli");
-      assert.equal(sA.json.analysisCount, 2);
+      // 3 = önceki testte yorum alanı "true" gönderilen kayıt da artık (yorumsuz) kaydedilir (2026-10-12; eskiden 403).
+      assert.equal(sA.json.analysisCount, 3);
       const sAI = await call(X.status.GET(req("expert", `/client-status?clientId=${CLIENT_A}`, "exAI")));
       assert.deepEqual([sAI.json.status, sAI.json.analysisCount], ["not_linked", 0], "başka uzmanın analiz sayısı sızdı");
       const sB = await call(X.status.GET(req("expert", `/client-status?clientId=${CLIENT_A}`, "exB")));

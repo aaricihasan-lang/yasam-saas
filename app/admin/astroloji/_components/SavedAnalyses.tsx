@@ -186,7 +186,7 @@ export function SavedAnalysesList({
                   <span className={`h-2 w-2 shrink-0 rounded-full ${dot(a.technique)}`} aria-hidden="true" />
                   {techniqueLabel(a.technique)}
                 </span>
-                <span className="min-w-0 max-w-full truncate pl-4 text-xs text-slate-600 sm:pl-0" title={a.title}>
+                <span className="min-w-0 max-w-full break-words pl-4 text-xs text-slate-600 [overflow-wrap:anywhere] sm:truncate sm:pl-0" title={a.title}>
                   {/* 2026-10-12: uzmanın kayıtta verdiği başlık listede görünür (otomatik başlık "… · Teknik · GG.AA.YYYY" gösterilmez). */}
                   {isCustomTitle(a.title, profileLabel) && (
                     <span className="mr-1.5 font-medium text-slate-800" data-testid="astro-saved-title">
@@ -233,6 +233,24 @@ export function SavedAnalysisView({
 }) {
   const key = `${id}|${previewNoInterp}`;
   const [deskTab, setDeskTab] = useState("harita");
+  // 2026-10-12 (UAT madde 11): kayıtlı sistem yorumu yalnız GÖRÜNÜMDE gizlenir (veri silinmez, kayıt değişmez);
+  // gizliyken Word/PDF de yorumsuz üretilir. Tercih bu tarayıcıda hatırlanır.
+  const [interpHidden, setInterpHidden] = useState(() => {
+    try {
+      return typeof window !== "undefined" && window.localStorage.getItem("atlas.savedInterpHidden") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const toggleInterp = () =>
+    setInterpHidden((v) => {
+      try {
+        window.localStorage.setItem("atlas.savedInterpHidden", v ? "0" : "1");
+      } catch {
+        /* tercih kaydedilemezse yalnız bu oturumda geçerli */
+      }
+      return !v;
+    });
   const [state, setState] = useState<{ key: string; a: Analysis | null; error: string | null } | null>(null);
   useEffect(() => {
     let alive = true;
@@ -287,7 +305,7 @@ export function SavedAnalysisView({
       : []),
     ...(otherWheel ? ([{ id: "teknik", label: "Teknik ayrıntı", tone: "blue", hint: "Dönüş anı, konum, açılar ve tablolar" }] as DeskTab[]) : []),
     // Yorum sekmesi yalnız içerik gerçekten görünürken (yetki kapalı / dahil değil → sekme yok, içerik yanıtta da yok).
-    ...(interp.visible ? ([{ id: "yorum", label: interpretationTitle(interp), tone: "gold", ownHeading: true }] as DeskTab[]) : []),
+    ...(interp.visible && !interpHidden ? ([{ id: "yorum", label: interpretationTitle(interp), tone: "gold", ownHeading: true }] as DeskTab[]) : []),
     { id: "bilgi", label: "Bilgi Bankam", tone: "gold", badge: a.knowledgeBank.length || null, ownHeading: true },
     { id: "not", label: "Kendi Yorumum", tone: "turquoise", badge: a.notes.length || null, ownHeading: true },
   ];
@@ -326,7 +344,12 @@ export function SavedAnalysisView({
         }
         actions={
           <>
-            <ReportButtons id={a.id} previewNoInterp={previewNoInterp} />
+            {interp.visible && (
+              <button type="button" onClick={toggleInterp} className={deskGhostLight} aria-pressed={!interpHidden} data-testid="astro-saved-interp-toggle" title="Yalnız görünümü değiştirir; kayıtlı yorum silinmez.">
+                {interpHidden ? "Sistem yorumunu göster" : "Sistem yorumunu gizle"}
+              </button>
+            )}
+            <ReportButtons id={a.id} previewNoInterp={previewNoInterp || (interp.visible && interpHidden)} />
             {onAddTechnique && (
               <button type="button" onClick={onAddTechnique} className={deskGhostLight} title="Bu kayıt değişmez; yeni teknik aynı danışanın çalışma masasında ayrı sekmede açılır." data-testid="atlas-saved-add-technique">
                 + Teknik Ekle
@@ -352,7 +375,7 @@ export function SavedAnalysisView({
         {(tab === "gezegenler" || tab === "evler" || tab === "acilar") && natal && (
           <NatalTechnicalPanel technical={natal} timeUnknown={a.method.timeUnknownMasked} part={tab === "gezegenler" ? "planets" : tab === "evler" ? "houses" : "aspects"} />
         )}
-        {tab === "yorum" && interp.visible && <ProviderInterpretationPanel interpretation={interp} />}
+        {tab === "yorum" && interp.visible && !interpHidden && <ProviderInterpretationPanel interpretation={interp} />}
         {tab === "bilgi" && (
           <section className="rounded-2xl border border-[#ead9b0] bg-[#FFF8E8] p-5" aria-label="Kayıtlı Bilgi Bankası">
             <h4 className="mb-3 text-base font-semibold text-[#5b4416]">Bilgi Bankam (güncel)</h4>

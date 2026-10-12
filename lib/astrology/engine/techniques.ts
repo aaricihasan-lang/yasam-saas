@@ -22,6 +22,7 @@ import { HOUSE_SYSTEMS, NATAL_INTERP_SCHEMA, NATAL_TECHNICAL_SCHEMA, NODE_TYPES,
 import {
   COMPOSITE_INTERP_SCHEMA,
   COMPOSITE_TECHNICAL_SCHEMA,
+  FORECAST_INTERP_SCHEMA,
   FORECAST_TECHNICAL_SCHEMA,
   PROGRESSION_INTERP_SCHEMA,
   PROGRESSION_TECHNICAL_SCHEMA,
@@ -33,6 +34,7 @@ import {
   SYNASTRY_TECHNICAL_SCHEMA,
   TRANSIT_INTERP_SCHEMA,
   TRANSIT_TECHNICAL_SCHEMA,
+  type ForecastInterpretation,
   type ForecastTechnical,
 } from "../model/westernTiming";
 import {
@@ -48,6 +50,7 @@ import {
 } from "../providers/roxy/requests";
 import {
   mergeForecast,
+  mergeForecastInterpretation,
   projectRoxyComposite,
   projectRoxyForecast,
   projectRoxyProgression,
@@ -210,6 +213,8 @@ export type TechniqueDefinition = {
   project: (unit: CalcUnit, raw: unknown, options: Record<string, unknown>) => TechniqueProjection;
   /** Çok parçalı sonuçları birleştir (yoksa tek parça). */
   combineTechnical?: (parts: unknown[], options: Record<string, unknown>) => unknown;
+  /** Çok parçalı tekniğin sağlayıcı yorumlarını birleştir (yoksa yorum yalnız tek parçalı sonuçta gösterilir). */
+  combineInterpretation?: (parts: Record<string, unknown>[]) => Record<string, unknown>;
   /** Plan önizlemesine teknik özel bilgi (ör. ayın lunar return'leri). Doğum verisi/gövde İÇERMEZ. */
   planInfo?: (ctx: UnitContext, options: Record<string, unknown>) => Record<string, unknown> | null;
   /**
@@ -370,11 +375,13 @@ const westernForecast: TechniqueDefinition = {
     forecastChunks(String(opt.startDate), Number(opt.days)).map((c, i) =>
       unit("western.forecast", ROXY_FORECAST, forecastBody(ctx.birth, c.start, c.end), { timeDependent: true, part: i }),
     ),
-  project: (_u, raw) => fromAdapter(projectRoxyForecast(raw), FORECAST_TECHNICAL_SCHEMA, null, ROXY_FORECAST.projection),
+  project: (_u, raw) => fromAdapter(projectRoxyForecast(raw), FORECAST_TECHNICAL_SCHEMA, FORECAST_INTERP_SCHEMA, ROXY_FORECAST.projection),
   combineTechnical: (parts, opt) => {
     const chunks = forecastChunks(String(opt.startDate), Number(opt.days));
     return mergeForecast(parts as ForecastTechnical[], { start: chunks[0].start, end: chunks[chunks.length - 1].end });
   },
+  // 90 günlük parçaların yorumları da birleşir (yalnız HER parçanın yorumu varsa; eksik parça → katman gösterilmez).
+  combineInterpretation: (parts) => mergeForecastInterpretation(parts as ForecastInterpretation[]),
 };
 
 const targetDateTechnique = (id: "western.progression" | "western.solar_arc", label: string, meta: typeof ROXY_PROGRESSION | typeof ROXY_SOLAR_ARC): TechniqueDefinition => ({

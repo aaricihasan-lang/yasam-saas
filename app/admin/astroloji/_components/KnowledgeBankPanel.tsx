@@ -151,7 +151,11 @@ export function KbEntryCard({ entry, onEdit, onDeleted }: { entry: KbEntry; onEd
   );
 }
 
-export default function KnowledgeBankPanel() {
+/**
+ * Bilgi Bankası çalışma alanı. 2026-10-12: kaydedilmemiş taslak varken başka kayda geçmek / yeni kayıt açmak / Vazgeç
+ * taslağı UYARISIZ silmez ("Çalışmaya Devam Et" / "Kaydetmeden Çık"); taslak durumu üst bileşene bildirilir (çıkış koruması).
+ */
+export default function KnowledgeBankPanel({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void } = {}) {
   const [entries, setEntries] = useState<KbEntry[] | null>(null);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
@@ -161,6 +165,23 @@ export default function KnowledgeBankPanel() {
   const [reload, setReload] = useState(0);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [draftDirty, setDraftDirty] = useState(false);
+  const [confirmSwitch, setConfirmSwitch] = useState<{ next: Editing | null } | null>(null);
+  const onDirtyRef = useRef(onDirtyChange);
+  useEffect(() => {
+    onDirtyRef.current = onDirtyChange;
+  });
+  useEffect(() => {
+    onDirtyRef.current?.(!!editing && draftDirty);
+  }, [editing, draftDirty]);
+  useEffect(() => () => onDirtyRef.current?.(false), []);
+  const switchEditing = (next: Editing | null) => {
+    if (editing && draftDirty) setConfirmSwitch({ next });
+    else {
+      setDraftDirty(false);
+      setEditing(next);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -189,6 +210,7 @@ export default function KnowledgeBankPanel() {
   }, [q, kind, tag, reload]);
 
   const done = () => {
+    setDraftDirty(false);
     setEditing(null);
     setReload((n) => n + 1);
   };
@@ -203,7 +225,7 @@ export default function KnowledgeBankPanel() {
             <p className="mt-1 text-3xl font-light tabular-nums [font-family:var(--font-atlas-display)]">{total}</p>
             <p className="text-xs text-[#F6F2EA]/55">kendi notunuz</p>
           </div>
-          <button type="button" className={atlasPrimaryBtn} onClick={() => setEditing({ mode: "create" })}>
+          <button type="button" className={atlasPrimaryBtn} onClick={() => switchEditing({ mode: "create" })}>
             <Plus className="h-4 w-4" /> Yeni bilgi
           </button>
         </div>
@@ -282,7 +304,29 @@ export default function KnowledgeBankPanel() {
 
       {/* Sağ: düzenleyici + kayıtlar (kâğıt kartlar) */}
       <div className="flex min-w-0 flex-col gap-3">
-        {editing && <KbEditor key={editing.mode === "edit" ? editing.entry.id : "new"} editing={editing} onDone={done} onCancel={() => setEditing(null)} />}
+        {confirmSwitch && (
+          <div className="flex flex-col gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between" role="alertdialog" aria-label="Kaydedilmemiş değişiklik" data-testid="astro-kb-unsaved">
+            <p>Kaydedilmemiş değişiklikleriniz var. Kaydetmeden çıkmak istiyor musunuz?</p>
+            <div className="flex shrink-0 gap-2">
+              <button type="button" autoFocus className="rounded-lg border border-amber-400 bg-white px-3 py-1.5 font-medium" onClick={() => setConfirmSwitch(null)}>
+                Çalışmaya Devam Et
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-slate-700"
+                onClick={() => {
+                  const next = confirmSwitch.next;
+                  setConfirmSwitch(null);
+                  setDraftDirty(false);
+                  setEditing(next);
+                }}
+              >
+                Kaydetmeden Çık
+              </button>
+            </div>
+          </div>
+        )}
+        {editing && <KbEditor key={editing.mode === "edit" ? editing.entry.id : "new"} editing={editing} onDone={done} onCancel={() => switchEditing(null)} onDirtyChange={setDraftDirty} />}
 
         {error && <p className="rounded-xl border border-rose-300/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-100">{error}</p>}
         {entries === null ? (
@@ -298,7 +342,7 @@ export default function KnowledgeBankPanel() {
               {total === 0 ? "İlk notunuzu ekleyin; analizlerde ilgili konu çıktığında otomatik karşınıza gelir." : "Aramayı veya filtreleri değiştirmeyi deneyin."}
             </p>
             {total === 0 && (
-              <button type="button" className={`${atlasPrimaryBtn} mt-2`} onClick={() => setEditing({ mode: "create" })}>
+              <button type="button" className={`${atlasPrimaryBtn} mt-2`} onClick={() => switchEditing({ mode: "create" })}>
                 <Plus className="h-4 w-4" /> Yeni bilgi
               </button>
             )}
@@ -310,7 +354,7 @@ export default function KnowledgeBankPanel() {
             </p>
             <ul className="grid items-start gap-3 xl:grid-cols-2">
               {entries.map((e) => (
-                <KbEntryCard key={`${e.id}-${e.revision}`} entry={e} onEdit={() => setEditing({ mode: "edit", entry: e })} onDeleted={done} />
+                <KbEntryCard key={`${e.id}-${e.revision}`} entry={e} onEdit={() => switchEditing({ mode: "edit", entry: e })} onDeleted={done} />
               ))}
             </ul>
           </>

@@ -278,13 +278,15 @@ async function main() {
       assert.deepEqual(leaks(JSON.stringify(pre), narr), [], `${id}: önizlemede anlatı sızdı`);
       assert.deepEqual(hid.view.interpretation, { visible: false, reason: "not_entitled" }, id);
       assert.deepEqual(pre.view.interpretation, { visible: false, reason: "owner_preview_hidden" }, id);
+      // 2026-10-12 (UAT madde 13): forecast `description` artık yorum katmanında (yalnız yetkiliye, teknik katmana karışmaz).
+      assert.equal(vis.view.interpretation.visible, true, `${id} yetkiliyken yorum görünmeli`);
+      assert.ok(leaks(JSON.stringify(vis.view.interpretation), narr).length > 0, `${id}: yorum içeriği boş`);
+      assert.deepEqual(leaks(JSON.stringify(vis.view.technical), narr), [], `${id}: teknikte anlatı`);
       if (id === "western.forecast") {
-        assert.deepEqual(vis.view.interpretation, { visible: false, reason: "unavailable" }, "forecast yorum katmanı yok");
-        assert.deepEqual(leaks(JSON.stringify(vis), narr), [], "forecast description istemciye gitmemeli");
-      } else {
-        assert.equal(vis.view.interpretation.visible, true, `${id} yetkiliyken yorum görünmeli`);
-        assert.ok(leaks(JSON.stringify(vis.view.interpretation), narr).length > 0, `${id}: yorum içeriği boş`);
-        assert.deepEqual(leaks(JSON.stringify(vis.view.technical), narr), [], `${id}: teknikte anlatı`);
+        const descs = (G[FIXTURE_OF[id]].response as { events: { description?: string; domain?: string }[] }).events.filter((e) => (e.domain ?? "western") === "western" && typeof e.description === "string");
+        const ev = (vis.view.interpretation.content as { events: { text: string }[] }).events;
+        assert.equal(ev.length, descs.length, "forecast: her olayın Roxy cümlesi eksiksiz");
+        assert.deepEqual(ev.map((e) => e.text).sort(), descs.map((e) => e.description!).sort(), "forecast: metin AYNEN (kırpma/değişiklik yok)");
       }
     }
     for (const json of [visibleJson, JSON.stringify(hidden.body), JSON.stringify(previewR.body)]) {
@@ -737,16 +739,23 @@ async function main() {
     assert.equal(list.find((x: J) => x.technique === "western.transit").params.atUtc, "2026-10-07T09:00");
   });
 
-  await t("kaydet: önizleme modunda yorum dahil edilemez; forecast için yorum katmanı yok → 409; v2 idempotent", async () => {
+  await t("kaydet (2026-10-12): yorum HER kayıtta (önizleme yalnız görünürlük); yorum katmanı olmayan teknik engellenmez, uydurulmaz; v2 idempotent", async () => {
     const store = seed();
     const ctx = ctxOf(store);
     const pa = await profile(ctx, "A");
     const rx = roxy();
     await run(ctx, pa, [goldenSelection("western.transit"), goldenSelection("western.forecast")], rx.deps);
     const pv = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...goldenSelection("western.transit"), includeProviderInterp: true, saveRequestId: randomUUID() }, true);
-    assert.equal(pv.status, 403);
+    assert.equal(pv.status, 201);
+    assert.equal(store.tables.astro_analyses.find((x) => x.id === (pv.body as J).analysisId)!.provider_interp_included, true);
+    // Forecast: Roxy olay cümleleri yorum katmanı olarak kayda girer (2026-10-12); yorum katmanı OLMAYAN teknik kaydı
+    // engellenmez ve yorum uydurulmaz.
     const fc = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...goldenSelection("western.forecast"), includeProviderInterp: true, saveRequestId: randomUUID() }, false);
-    assert.equal(fc.status, 409);
+    assert.equal(fc.status, 201);
+    const fcRow = store.tables.astro_analyses.find((x) => x.id === (fc.body as J).analysisId)!;
+    assert.equal(fcRow.provider_interp_included, true);
+    assert.equal((fcRow.provider_interp_snapshot as { content: { schema: string } }).content.schema, "astro.western.forecast.interp.v1");
+    store.tables.astro_analyses.length = 0;
     const req = randomUUID();
     const a = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...goldenSelection("western.transit"), saveRequestId: req }, false);
     const b = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...goldenSelection("western.transit"), saveRequestId: req }, false);
