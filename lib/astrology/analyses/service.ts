@@ -341,18 +341,21 @@ async function buildSnapshot(ctx: EngineCtx, raw: unknown, ownerPreviewHideInter
   if (!ctx.entitlements.engine) return { ok: false, r: fail(403, "ENGINE_NOT_ENTITLED", "Hesap Motoru yetkisi yok.") };
   const o = obj(raw);
   if (!o) return { ok: false, r: fail(400, "INVALID_BODY", "İstek gövdesi nesne olmalı.") };
-  const includeInterp = o.includeProviderInterp === true;
-  const l = await loadContext(ctx, o, ownerPreviewHideInterp);
+  // 2026-10-12 (owner kararı, Android UAT madde 11): "Sistem yorumunu dahil et" sorusu KALDIRILDI. Yorum yetkisi olan
+  // uzmanda Roxy'nin bu sonuç için ürettiği yorum katmanı HER kayıtta saklanır (istemcinin includeProviderInterp alanı
+  // yok sayılır → unutulan onay kutusu yüzünden yorum kaybolmaz). Karar GÜNCEL yetkiden verilir: owner önizlemesi
+  // ("yorumu kapalı uzman görünümü") yalnız GÖRÜNÜRLÜĞÜ etkiler, saklamayı değil. Yetkisiz uzmanda yorum ne okunur ne
+  // saklanır. Yorum yalnız kayıtlı sonuç satırlarından okunur → sağlayıcı ÇAĞRILMAZ.
+  const store = ctx.entitlements.providerInterpretations;
+  const l = await loadContext(ctx, o, store ? false : ownerPreviewHideInterp);
   if (!l.ok) return l;
   const { view, revision, partnerRevision, technique } = l.v;
 
   let interpSnapshot: Record<string, unknown> | null = null;
-  if (includeInterp) {
-    const vis = resolveInterpretationVisibility(ctx.entitlements, ownerPreviewHideInterp);
-    if (!vis.visible) return { ok: false, r: fail(403, "PROVIDER_INTERP_NOT_ENTITLED", "Roxy otomatik yorumu bu görünümde kapalı; analize dahil edilemez.") };
-    if (!view.interpretation.visible) return { ok: false, r: fail(409, "PROVIDER_INTERP_UNAVAILABLE", "Bu sonuç için sağlayıcı yorum katmanı yok.") };
+  if (store && view.interpretation.visible) {
     interpSnapshot = { provider: view.interpretation.provider, lang: view.interpretation.lang, notice: view.interpretation.notice, content: view.interpretation.content };
   }
+  const includeInterp = interpSnapshot !== null;
 
   const topics = topicsForTechnique(technique, view.technical);
   const kb = await matchKbEntries(ctx, traditionOfTechnique(technique), topics.map((t) => t.key));
@@ -461,7 +464,8 @@ export async function previewAnalysis(ctx: EngineCtx, raw: unknown, ownerPreview
         topicCount: v.topicCount,
         kbMatchCount: v.kbMatchCount,
         noteCount: v.notes.length,
-        providerInterpIncluded: v.includeInterp,
+        // Önizleme / yetkisiz görünümde kayıtta yorum bulunup bulunmadığı bile söylenmez (varlık sızıntısı yok).
+        providerInterpIncluded: resolveInterpretationVisibility(ctx.entitlements, ownerPreviewHideInterp).visible ? v.includeInterp : false,
         timeUnknownMasked: v.methodSnapshot.timeUnknownMasked,
       },
     },

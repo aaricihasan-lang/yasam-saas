@@ -213,7 +213,7 @@ async function main() {
       const h = roxyHits;
       const r = await D("u1", { mode: "single", profileIds: [ahmet], confirmToken: tok, confirmations: 2 });
       assert.equal(r.status, 200, r.text);
-      assert.deepEqual(r.json, { ok: true, deletedProfiles: 1, deletedAnalyses: 2, preservedSharedAnalyses: 4 });
+      assert.deepEqual(r.json, { ok: true, deletedProfiles: 1, deletedAnalyses: 2, preservedSharedAnalyses: 4, verified: true, remaining: { profiles: 0, ownAnalyses: 0 } });
       const after = { syn: await openA(aSyn), comp: await openA(aComp), can: await openA(cComp) };
       assert.deepEqual(after, before, "korunan ortak analizlerin açılan içeriği değişti");
       assert.ok(after.syn.includes("Ahmet — natal") && after.syn.includes("1980-04-04") && after.syn.includes("partnerBodies") && after.syn.includes("sinastri yorumu"), "Ahmet'in hesap verisi / yorum korunmadı");
@@ -277,7 +277,7 @@ async function main() {
       const [r1, r2] = await Promise.all([D("u1", body), D("u1", body)]);
       assert.deepEqual([r1.status, r2.status].sort(), [200, 404]);
       const ok = r1.status === 200 ? r1 : r2;
-      assert.deepEqual(ok.json, { ok: true, deletedProfiles: 3, deletedAnalyses: 1, preservedSharedAnalyses: 1 });
+      assert.deepEqual(ok.json, { ok: true, deletedProfiles: 3, deletedAnalyses: 1, preservedSharedAnalyses: 1, verified: true, remaining: { profiles: 0, ownAnalyses: 0 } });
       assert.ok(!exists(x) && !exists(y) && !exists(z));
       assert.equal(await openA(aY), beforeY);
       assert.ok(!store.tables.astro_analyses.some((a) => a.title === "X & Y"));
@@ -324,7 +324,7 @@ async function main() {
       const a = (await P("u1", { mode: "single", scope: "analyses", profileIds: [deniz] })).json.confirmToken;
       const d = await D("u1", { mode: "single", scope: "analyses", profileIds: [deniz], confirmToken: a, confirmations: 2 });
       assert.equal(d.status, 200, d.text);
-      assert.deepEqual(d.json, { ok: true, scope: "analyses", deletedProfiles: 0, deletedAnalyses: 2, preservedSharedAnalyses: 1 });
+      assert.deepEqual(d.json, { ok: true, scope: "analyses", deletedProfiles: 0, deletedAnalyses: 2, preservedSharedAnalyses: 1, verified: true, remaining: { profiles: 1, ownAnalyses: 0 } });
       assert.equal(denizCount(), 0);
       assert.equal(JSON.stringify(store.tables.astro_birth_profiles.find((p) => p.id === deniz)), denizProfileBefore);
       assert.ok(store.tables.astro_expert_notes.some((n) => n.profile_id === deniz && n.body === "Deniz çalışma notu"));

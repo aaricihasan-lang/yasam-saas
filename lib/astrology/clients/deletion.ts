@@ -225,8 +225,35 @@ export async function deleteProfiles(ctx: EngineCtx, raw: unknown): Promise<Serv
       at: new Date().toISOString(),
     }),
   );
+  // 2026-10-12 (Android UAT madde 5): SUNUCUDAN GERİ OKUMA — arayüz başarıyı yalnız silinen kayıtlar gerçekten
+  // okunamıyorsa gösterir. B: profiller artık yok; A: profiller DURUYOR ama kendi analizleri yok.
+  const verify = await verifyDeletion(ctx, s.scope, s.ids);
+  if (!verify.ok) logAstroDbError("profiles.deleteVerify", verify.error);
   return {
     status: 200,
-    body: { ok: true, ...(s.scope === "analyses" ? { scope: s.scope } : {}), deletedProfiles: Number(r?.deleted_profiles ?? 0), deletedAnalyses: Number(r?.deleted_analyses ?? 0), preservedSharedAnalyses: Number(r?.preserved_shared_analyses ?? 0) },
+    body: {
+      ok: true,
+      ...(s.scope === "analyses" ? { scope: s.scope } : {}),
+      deletedProfiles: Number(r?.deleted_profiles ?? 0),
+      deletedAnalyses: Number(r?.deleted_analyses ?? 0),
+      preservedSharedAnalyses: Number(r?.preserved_shared_analyses ?? 0),
+      verified: verify.ok ? verify.verified : false,
+      ...(verify.ok ? { remaining: verify.remaining } : {}),
+    },
   };
+}
+
+async function verifyDeletion(
+  ctx: EngineCtx,
+  scope: "profile" | "analyses",
+  ids: string[],
+): Promise<{ ok: true; verified: boolean; remaining: { profiles: number; ownAnalyses: number } } | { ok: false; error: { code?: string } | null }> {
+  const prof = await ctx.db.from("astro_birth_profiles").select("id").eq("tenant_id", ctx.tenantId).eq("owner_user_id", ctx.userId).in("id", ids);
+  if (prof.error) return { ok: false, error: prof.error };
+  const an = await ctx.db.from("astro_analyses").select("id").eq("tenant_id", ctx.tenantId).eq("owner_user_id", ctx.userId).in("profile_id", ids).limit(1);
+  if (an.error) return { ok: false, error: an.error };
+  const profiles = ((prof.data as unknown[] | null) ?? []).length;
+  const ownAnalyses = ((an.data as unknown[] | null) ?? []).length;
+  const verified = scope === "profile" ? profiles === 0 && ownAnalyses === 0 : profiles === ids.length && ownAnalyses === 0;
+  return { ok: true, verified, remaining: { profiles, ownAnalyses } };
 }

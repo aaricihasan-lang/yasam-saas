@@ -331,14 +331,30 @@ async function main() {
       assert.ok(json.includes("KB notu") && json.includes("yorumum"), `${label}: uzman verisi kayboldu`);
       assert.ok(json.includes(goldenTech.bodies[0].longitude.toString()), `${label}: teknik veri eksik`);
     }
-    // Yorumu dahil etmek: önizleme/yetkisizken → 403; dahil değilse snapshot null.
-    assert.equal((await saveAnalysis(ctx, { profileId: pid, revision: 1, resultId: rid, includeProviderInterp: true, saveRequestId: randomUUID() }, true)).status, 403);
-    assert.equal((await saveAnalysis(ctxOf(store, { entitlements: NO_INTERP }), { profileId: pid, revision: 1, resultId: rid, includeProviderInterp: true, saveRequestId: randomUUID() }, false)).status, 403);
-    const s3 = await saveAnalysis(ctxOf(store, { entitlements: NO_INTERP }), { profileId: pid, revision: 1, resultId: rid, includeProviderInterp: false, saveRequestId: randomUUID() }, false);
-    assert.equal(s3.status, 201);
-    const row = store.tables.astro_analyses.find((x) => x.id === (s3.body as { analysisId: string }).analysisId)!;
-    assert.equal(row.provider_interp_snapshot, null);
-    assert.ok(!JSON.stringify(row).includes(goldenNarr[0]), "dahil değilken yorum kaydedildi");
+    // 2026-10-12 (UAT madde 11/12): "dahil et" onayı KALDIRILDI — istemci alanı yok sayılır, karar GÜNCEL yetkiden:
+    //   • yetkili (owner) → yorum HER kayıtta saklanır (alan false/eksik olsa da); önizleme yalnız görünürlüğü etkiler
+    //     ve kayıt/özet yanıtı yorum içeriği taşımaz;
+    //   • yetkisiz uzman → alan true gönderse bile yorum ne okunur ne saklanır (403 yerine sessizce yok; sızıntı yok).
+    const rowOf = (r: { body: unknown }) => store.tables.astro_analyses.find((x) => x.id === (r.body as { analysisId: string }).analysisId)!;
+    for (const flag of [false, undefined] as const) {
+      const sv = await saveAnalysis(ctx, { profileId: pid, revision: 1, resultId: rid, ...(flag === undefined ? {} : { includeProviderInterp: flag }), saveRequestId: randomUUID() }, false);
+      assert.equal(sv.status, 201);
+      assert.equal(rowOf(sv).provider_interp_included, true, `yetkili kayıtta yorum saklanmadı (alan=${String(flag)})`);
+      assert.ok(JSON.stringify(rowOf(sv).provider_interp_snapshot).includes(goldenNarr[0]));
+    }
+    const sp = await saveAnalysis(ctx, { profileId: pid, revision: 1, resultId: rid, saveRequestId: randomUUID() }, true);
+    assert.equal(sp.status, 201);
+    assert.ok(!JSON.stringify(sp.body).includes(goldenNarr[0]), "önizleme kayıt yanıtı yorumu sızdırdı");
+    assert.equal(rowOf(sp).provider_interp_included, true, "önizleme modunda yorum saklanmadı (görünürlük ≠ saklama)");
+    for (const flag of [true, false]) {
+      const s3 = await saveAnalysis(ctxOf(store, { entitlements: NO_INTERP }), { profileId: pid, revision: 1, resultId: rid, includeProviderInterp: flag, saveRequestId: randomUUID() }, false);
+      assert.equal(s3.status, 201);
+      const row = rowOf(s3);
+      assert.equal(row.provider_interp_snapshot, null);
+      assert.equal(row.provider_interp_included, false);
+      assert.ok(!JSON.stringify(row).includes(goldenNarr[0]), "yetkisiz uzmanın kaydına yorum yazıldı");
+      assert.ok(!JSON.stringify(s3.body).includes(goldenNarr[0]));
+    }
   });
 
   await t("cache: kayıtlı analizi AÇ / LİSTELE = 0 sağlayıcı isteği; sonuç satırı silinse bile analiz açılır", async () => {
