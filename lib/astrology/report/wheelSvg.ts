@@ -18,6 +18,9 @@ const R_HOUSE_NUM = 136;
 const R_ASPECT = 122;
 /** Açı etiketlerine (ASC/MC) yer: tuval her yönde genişletilir. */
 const PAD = 26;
+/** Çift halkada (Transit / Sinastri) dış halkanın kalınlığı. */
+const RING2 = 54;
+const OUTER_INK = "#6d28d9";
 
 const ELEMENT_COLOR: Record<string, string> = { fire: "#dc2626", earth: "#15803d", air: "#ca8a04", water: "#2563eb" };
 const SIGN_ELEMENT = ["fire", "earth", "air", "water", "fire", "earth", "air", "water", "fire", "earth", "air", "water"];
@@ -49,19 +52,50 @@ const norm = (deg: number) => ((deg % 360) + 360) % 360;
 const f = (n: number) => n.toFixed(2);
 const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+/** Glif itmesi (uygulamadaki çarkla aynı algoritma): yakın gövdelerin etiketleri en az 7,5° aralıkla dağıtılır. */
+function spread(bodies: { id: string; longitude: number }[]): Map<string, number> {
+  const sorted = [...bodies].sort((a, b) => a.longitude - b.longitude);
+  const disp = new Map(sorted.map((b) => [b.id, b.longitude]));
+  const MIN_SEP = 7.5;
+  for (let iter = 0; iter < 60; iter++) {
+    let moved = false;
+    const order = [...sorted].sort((a, b) => norm(disp.get(a.id)!) - norm(disp.get(b.id)!));
+    for (let i = 0; i < order.length; i++) {
+      const a = order[i];
+      const b = order[(i + 1) % order.length];
+      if (a.id === b.id) continue;
+      const la = disp.get(a.id)!;
+      const lb = disp.get(b.id)!;
+      const gap = norm(lb - la);
+      if (gap < MIN_SEP) {
+        const push = (MIN_SEP - gap) / 2 + 0.05;
+        disp.set(a.id, la - push);
+        disp.set(b.id, lb + push);
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  return disp;
+}
+
 export function buildWheelSvg(w: WheelInput, fontFamily = "Geist"): string {
   const ascLon = w.angles?.ascendant.longitude ?? 0;
+  const outerBodies = w.outer?.bodies?.length ? w.outer.bodies : null;
+  const EXTRA = outerBodies ? RING2 : 0;
+  const O = C + PAD + EXTRA;
   const pt = (r: number, lon: number) => {
     const a = ((180 + (lon - ascLon)) * Math.PI) / 180;
-    return { x: C + PAD + r * Math.cos(a), y: C + PAD - r * Math.sin(a) };
+    return { x: O + r * Math.cos(a), y: O - r * Math.sin(a) };
   };
   const out: string[] = [];
-  const W = SIZE + PAD * 2;
+  const W = SIZE + (PAD + EXTRA) * 2;
   out.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${W}" width="${W}" height="${W}" font-family="${esc(fontFamily)}">`);
   out.push(`<rect x="0" y="0" width="${W}" height="${W}" fill="#ffffff"/>`);
-  out.push(`<circle cx="${C + PAD}" cy="${C + PAD}" r="${R_OUT}" fill="#fffdf7" stroke="#334155" stroke-width="1.5"/>`);
-  out.push(`<circle cx="${C + PAD}" cy="${C + PAD}" r="${R_SIGN_IN}" fill="#ffffff" stroke="#334155" stroke-width="1"/>`);
-  out.push(`<circle cx="${C + PAD}" cy="${C + PAD}" r="${R_ASPECT}" fill="#f8fafc" stroke="#94a3b8" stroke-width="0.8"/>`);
+  if (outerBodies) out.push(`<circle cx="${O}" cy="${O}" r="${R_OUT + RING2}" fill="#faf5ff" stroke="${OUTER_INK}" stroke-width="1.2"/>`);
+  out.push(`<circle cx="${O}" cy="${O}" r="${R_OUT}" fill="#fffdf7" stroke="#334155" stroke-width="1.5"/>`);
+  out.push(`<circle cx="${O}" cy="${O}" r="${R_SIGN_IN}" fill="#ffffff" stroke="#334155" stroke-width="1"/>`);
+  out.push(`<circle cx="${O}" cy="${O}" r="${R_ASPECT}" fill="#f8fafc" stroke="#94a3b8" stroke-width="0.8"/>`);
 
   SIGN_IDS.forEach((_, i) => {
     const start = i * 30;
@@ -96,7 +130,7 @@ export function buildWheelSvg(w: WheelInput, fontFamily = "Geist"): string {
       { lon: w.angles.midheaven.longitude, t: "MC" },
       { lon: w.angles.midheaven.longitude + 180, t: "IC" },
     ]) {
-      const q = pt(R_OUT + 16, a.lon);
+      const q = pt(R_OUT + EXTRA + 16, a.lon);
       out.push(`<text x="${f(q.x)}" y="${f(q.y + 3.5)}" text-anchor="middle" font-size="10" font-weight="700" fill="#0f172a">${a.t}</text>`);
     }
   }
@@ -114,29 +148,7 @@ export function buildWheelSvg(w: WheelInput, fontFamily = "Geist"): string {
     );
   }
 
-  // Glif itmesi (uygulamadaki çarkla aynı algoritma).
-  const sorted = [...w.bodies].sort((a, b) => a.longitude - b.longitude);
-  const disp = new Map(sorted.map((b) => [b.id, b.longitude]));
-  const MIN_SEP = 7.5;
-  for (let iter = 0; iter < 60; iter++) {
-    let moved = false;
-    const order = [...sorted].sort((a, b) => norm(disp.get(a.id)!) - norm(disp.get(b.id)!));
-    for (let i = 0; i < order.length; i++) {
-      const a = order[i];
-      const b = order[(i + 1) % order.length];
-      if (a.id === b.id) continue;
-      const la = disp.get(a.id)!;
-      const lb = disp.get(b.id)!;
-      const gap = norm(lb - la);
-      if (gap < MIN_SEP) {
-        const push = (MIN_SEP - gap) / 2 + 0.05;
-        disp.set(a.id, la - push);
-        disp.set(b.id, lb + push);
-        moved = true;
-      }
-    }
-    if (!moved) break;
-  }
+  const disp = spread(w.bodies);
   for (const b of w.bodies) {
     const d = disp.get(b.id) ?? b.longitude;
     const t1 = pt(R_SIGN_IN, b.longitude);
@@ -149,6 +161,20 @@ export function buildWheelSvg(w: WheelInput, fontFamily = "Geist"): string {
     out.push(`<circle cx="${f(dot.x)}" cy="${f(dot.y)}" r="1.8" fill="#0f172a"/>`);
     out.push(`<text x="${f(g.x)}" y="${f(g.y + 5)}" text-anchor="middle" font-size="14" font-weight="700" fill="#0f172a">${esc(WHEEL_BODY_ABBR[b.id] ?? b.id.slice(0, 2))}</text>`);
     out.push(`<text x="${f(dg.x)}" y="${f(dg.y + 3)}" text-anchor="middle" font-size="9" fill="#475569">${Math.floor(b.degreeInSign)}°${b.retrograde ? "R" : ""}</text>`);
+  }
+  // Dış halka (Transit gezegenleri / Sinastri 1. kişi): R_OUT dışında, mor; gerçek derece çentiği R_OUT çizgisinde.
+  if (outerBodies) {
+    const od = spread(outerBodies);
+    for (const b of outerBodies) {
+      const d = od.get(b.id) ?? b.longitude;
+      const t1 = pt(R_OUT, b.longitude);
+      const t2 = pt(R_OUT + 7, b.longitude);
+      const g = pt(R_OUT + 22, d);
+      const dg = pt(R_OUT + 41, d);
+      out.push(`<line x1="${f(t1.x)}" y1="${f(t1.y)}" x2="${f(t2.x)}" y2="${f(t2.y)}" stroke="${OUTER_INK}" stroke-width="1.4"/>`);
+      out.push(`<text x="${f(g.x)}" y="${f(g.y + 5)}" text-anchor="middle" font-size="13" font-weight="700" fill="${OUTER_INK}">${esc(WHEEL_BODY_ABBR[b.id] ?? b.id.slice(0, 2))}</text>`);
+      out.push(`<text x="${f(dg.x)}" y="${f(dg.y + 3)}" text-anchor="middle" font-size="9" fill="${OUTER_INK}">${Math.floor(b.degreeInSign)}°${b.retrograde ? "R" : ""}</text>`);
+    }
   }
   out.push("</svg>");
   return out.join("");

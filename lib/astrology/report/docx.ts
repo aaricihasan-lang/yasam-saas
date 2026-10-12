@@ -14,6 +14,7 @@ import {
   buildPremiumCover,
   embedImageParagraph,
   h1,
+  h2,
   h3,
   muted,
   sanitizeXmlText,
@@ -87,12 +88,19 @@ function dataTable(tb: ReportTable): Table {
   });
 }
 
-export function buildAstroReportDocument(r: AstroReport, chartPng: Buffer | null): Document {
+/**
+ * `chartPng`: tekli raporda tek görsel; toplu raporda (UAT 2. tur, madde L) rapordaki "chart" bloklarıyla AYNI sırada
+ * görsel dizisi (çizilemeyen için null).
+ */
+export function buildAstroReportDocument(r: AstroReport, chartPng: Buffer | null | (Buffer | null)[]): Document {
+  const charts = Array.isArray(chartPng) ? chartPng : [chartPng];
+  let chartIdx = 0;
+  let breakNext = false;
   const cover: ReportChild[] = buildPremiumCover({
     title1: "YAŞAM SİSTEMİ",
     title2: "ASTROLOJİ ANALİZ RAPORU",
     subtitle: t(r.cover.technique),
-    date: `Analiz tarihi: ${r.cover.analysisDate}`,
+    date: `${r.cover.dateLabel ?? "Analiz tarihi"}: ${r.cover.analysisDate}`,
     stats: [
       { label: "Danışan", value: t(r.cover.client) },
       { label: "Gelenek", value: t(r.cover.tradition) },
@@ -111,7 +119,11 @@ export function buildAstroReportDocument(r: AstroReport, chartPng: Buffer | null
   for (const b of r.blocks) {
     switch (b.kind) {
       case "heading":
-        body.push(b.level === 1 ? h1(t(b.text)) : h3(t(b.text), { keepNext: true }));
+        body.push(b.level === 1 ? h1(t(b.text), breakNext) : b.level === 2 ? h2(t(b.text), { keepNext: true }) : h3(t(b.text), { keepNext: true }));
+        breakNext = false;
+        break;
+      case "pagebreak":
+        breakNext = true;
         break;
       case "para":
         body.push(...paragraphs(b.text, b.tone));
@@ -126,14 +138,16 @@ export function buildAstroReportDocument(r: AstroReport, chartPng: Buffer | null
       case "bullets":
         body.push(...b.items.map((i) => bulletItem(t(i))));
         break;
-      case "chart":
-        if (chartPng) {
+      case "chart": {
+        const png = charts[chartIdx++] ?? null;
+        if (png) {
           // Kare çark: genişlik 430 px (~11,4 cm) — oran korunur, sayfaya sığar.
-          body.push(embedImageParagraph(chartPng, 430, 430), new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: t(b.caption), italics: true, size: 18, font: REPORT_FONT, color: C_LIGHT })] }));
+          body.push(embedImageParagraph(png, 430, 430), new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: t(b.caption), italics: true, size: 18, font: REPORT_FONT, color: C_LIGHT })] }));
         } else {
           body.push(muted("Harita görseli bu raporda oluşturulamadı; teknik tablolar aşağıdadır."));
         }
         break;
+      }
     }
   }
   body.push(...paragraphs("Rapor Yaşam Sistemi Astroloji modülünde, kayıtlı analizden oluşturulmuştur.", "muted"));
@@ -156,6 +170,6 @@ export function buildAstroReportDocument(r: AstroReport, chartPng: Buffer | null
   });
 }
 
-export async function renderAstroReportDocx(r: AstroReport, chartPng: Buffer | null): Promise<Buffer> {
+export async function renderAstroReportDocx(r: AstroReport, chartPng: Buffer | null | (Buffer | null)[]): Promise<Buffer> {
   return Packer.toBuffer(buildAstroReportDocument(r, chartPng));
 }

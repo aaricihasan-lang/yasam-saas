@@ -172,7 +172,7 @@ function cover(w: W, r: AstroReport) {
   center(r.cover.technique, 11, LIGHT, 14);
   w.doc.setLineWidth(0.3);
   w.doc.line(MX + 30, w.y - 6, PAGE_W - MX - 30, w.y - 6);
-  center(`Analiz tarihi: ${r.cover.analysisDate}`, 10, LIGHT, 8);
+  center(`${r.cover.dateLabel ?? "Analiz tarihi"}: ${r.cover.analysisDate}`, 10, LIGHT, 8);
   for (const [k, v] of [
     ["Danışan", r.cover.client],
     ["Gelenek", r.cover.tradition],
@@ -181,7 +181,16 @@ function cover(w: W, r: AstroReport) {
   ]) if (v !== "—") center(`${k}: ${v}`, 10, MID, 2);
 }
 
-export function buildAstroReportPdf(r: AstroReport, chart: { png: Buffer; width: number; height: number } | null, fontBase64: string): Uint8Array {
+type ChartImg = { png: Buffer; width: number; height: number };
+
+/**
+ * `chartIn`: tekli raporda tek görsel; toplu raporda (UAT 2. tur, madde L) "chart" bloklarıyla AYNI sırada görsel dizisi.
+ * Toplu raporda her analiz yeni sayfada başlar ve PDF yer imi (bookmark) olarak eklenir.
+ */
+export function buildAstroReportPdf(r: AstroReport, chartIn: ChartImg | null | (ChartImg | null)[], fontBase64: string): Uint8Array {
+  const charts = Array.isArray(chartIn) ? chartIn : [chartIn];
+  let chartIdx = 0;
+  let sectionStart = false;
   const w = new W(fontBase64);
   w.doc.setProperties({ title: r.title, subject: "Astroloji analiz raporu", creator: "Yaşam Sistemi" });
   cover(w, r);
@@ -190,7 +199,15 @@ export function buildAstroReportPdf(r: AstroReport, chart: { png: Buffer; width:
   r.blocks.forEach((b, i) => {
     switch (b.kind) {
       case "heading":
+        if (sectionStart && b.level === 1) {
+          w.doc.outline.add(null, b.text, { pageNumber: w.doc.getNumberOfPages() });
+          sectionStart = false;
+        }
         heading(w, b.level, b.text, r.blocks[i + 1]);
+        break;
+      case "pagebreak":
+        if (w.y > TOP) w.newPage();
+        sectionStart = true;
         break;
       case "para":
         if (b.tone === "warn") {
@@ -223,6 +240,7 @@ export function buildAstroReportPdf(r: AstroReport, chart: { png: Buffer; width:
         w.y += 1.5;
         break;
       case "chart": {
+        const chart = charts[chartIdx++] ?? null;
         if (!chart) {
           w.para("Harita görseli bu raporda oluşturulamadı; teknik tablolar aşağıdadır.", 8, LIGHT);
           break;

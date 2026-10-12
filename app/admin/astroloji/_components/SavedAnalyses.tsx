@@ -39,6 +39,8 @@ type KbSnap = { entryId: string; topicKey: string; topicLabel: string; title: st
 
 type Analysis = {
   id: string;
+  /** Transit çift halkasının natal çerçevesi: kayıttan ("snapshot") ya da sonradan önbellekten ("cache"; kayıt değişmez). */
+  natalFrameSource?: "snapshot" | "cache";
   title: string;
   analysisAt: string;
   technique: string;
@@ -85,9 +87,12 @@ export function SavedAnalysesList({
   openId,
   currentRevision = null,
   profileLabel = "",
+  previewNoInterp = false,
 }: {
   profileId: string;
   reloadKey: number;
+  /** Owner önizlemesi (yorum gizli) — toplu raporda da aynen uygulanır. */
+  previewNoInterp?: boolean;
   onOpen: (id: string) => void;
   openId: string | null;
   /** Güncel doğum revizyonu (eski revizyonla kaydedilenler işaretlenir). */
@@ -102,6 +107,11 @@ export function SavedAnalysesList({
   const key = `${baseKey}|${tradition ?? ""}|${technique ?? ""}`;
   const [state, setState] = useState<{ key: string; page: ListPage | null; items: ListItem[]; error: string | null } | null>(null);
   const [more, setMore] = useState(false);
+  // UAT 2. tur (madde L): toplu Word/PDF için seçim — profil değişince sıfırlanır.
+  const [picked, setPicked] = useState<{ pid: string; ids: string[] }>({ pid: profileId, ids: [] });
+  const pickedIds = picked.pid === profileId ? picked.ids : [];
+  const togglePick = (id: string, on: boolean) =>
+    setPicked({ pid: profileId, ids: on ? [...pickedIds.filter((x) => x !== id), id] : pickedIds.filter((x) => x !== id) });
 
   const url = (offset: number) => {
     const sp = new URLSearchParams({ profileId, offset: String(offset), limit: "30" });
@@ -142,8 +152,13 @@ export function SavedAnalysesList({
   /** Gelenek renk işareti (ana sayfa kart tonlarıyla aynı aile). */
   const dot = (t: string) => (t.startsWith("vedic.") ? "bg-[#d9a65a]" : t.startsWith("kp.") ? "bg-[#46b3a3]" : "bg-[#9c86e8]");
 
+  // Seçim listedeki sırayla gönderilir (rapordaki bölüm sırası = listedeki sıra).
+  const pickedInOrder = cur.items.filter((a) => pickedIds.includes(a.id)).map((a) => a.id);
+  const allVisiblePicked = cur.items.length > 0 && cur.items.every((a) => pickedIds.includes(a.id));
+
   return (
     <div className="flex flex-col gap-2" data-testid="astro-saved-analyses">
+      <BulkReportBar profileId={profileId} total={page.total} selectedIds={pickedInOrder} previewNoInterp={previewNoInterp} onClear={() => setPicked({ pid: profileId, ids: [] })} />
       <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Analiz grubu">
         <button type="button" role="tab" aria-selected={!tradition} className={chip(!tradition)} onClick={() => setSel({ key: baseKey, tradition: null, technique: null })}>
           Tümü ({page.total})
@@ -167,19 +182,43 @@ export function SavedAnalysesList({
         </div>
       )}
       <div className="overflow-hidden rounded-xl border border-[#e7dcc3] bg-white/70">
-      <div className="hidden grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto_auto] gap-x-3 border-b border-[#efe6d2] bg-[#f6efe0]/70 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8a6d33] sm:grid" aria-hidden="true">
+      <div className="flex items-center border-b border-[#efe6d2] bg-[#f6efe0]/70">
+      <label className="no-android hidden shrink-0 items-center pl-3 md:flex" title="Listede görünen bütün analizleri seç / bırak">
+        <input
+          type="checkbox"
+          className="h-4 w-4 accent-[#0B1430]"
+          checked={allVisiblePicked}
+          onChange={(e) => setPicked({ pid: profileId, ids: e.target.checked ? [...new Set([...pickedIds, ...cur.items.map((a) => a.id)])] : pickedIds.filter((x) => !cur.items.some((a) => a.id === x)) })}
+          aria-label="Görünen bütün analizleri seç"
+          data-testid="astro-pick-all"
+        />
+      </label>
+      <div className="hidden min-w-0 flex-1 grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto_auto] gap-x-3 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8a6d33] sm:grid" aria-hidden="true">
         <span>Teknik</span>
         <span>Ayrıntı</span>
         <span>Kayıt</span>
         <span>Doğum</span>
       </div>
+      </div>
       <ul className="flex flex-col divide-y divide-[#efe6d2]">
         {cur.items.map((a) => (
-          <li key={a.id}>
+          <li key={a.id} className="flex items-stretch">
+            {/* Seçim kutusu satırın AÇ düğmesinden ayrı: işaretlemek analizi açmaz. */}
+            <label className={`no-android hidden shrink-0 cursor-pointer items-center pl-3 md:flex ${openId === a.id ? "bg-[#f3e7c9]/70" : ""}`}>
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-[#0B1430]"
+                checked={pickedIds.includes(a.id)}
+                onChange={(e) => togglePick(a.id, e.target.checked)}
+                aria-label={`${techniqueLabel(a.technique)} analizini rapor için seç`}
+                data-testid="astro-pick"
+                data-pick-id={a.id}
+              />
+            </label>
             <button
               type="button"
               onClick={() => onOpen(a.id)}
-              className={`w-full px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#c9a54e] ${openId === a.id ? "bg-[#f3e7c9]/70" : "hover:bg-[#fbf3e1]"}`}
+              className={`min-w-0 flex-1 px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#c9a54e] ${openId === a.id ? "bg-[#f3e7c9]/70" : "hover:bg-[#fbf3e1]"}`}
             >
               {/* Ayrı alanlar: teknik · ayrıntı (hedef tarih / yıl / karşı taraf…) · kayıt tarihi · doğum revizyonu —
                   aynı teknikten farklı tarihli kayıtlar ve eski revizyonla kaydedilenler karışmaz. */}
@@ -223,6 +262,7 @@ export function SavedAnalysisView({
   previewNoInterp,
   onClose,
   onAddTechnique,
+  onComputeNatal,
   currentRevision = null,
 }: {
   id: string;
@@ -230,6 +270,8 @@ export function SavedAnalysisView({
   onClose: () => void;
   /** D4: aynı danışan için yeni teknik (kayıt değişmez; yeni sonuç çalışma masasında açılır). */
   onAddTechnique?: () => void;
+  /** Transit kaydında uyumlu natal yoksa: Teknik Ekle'yi Natal seçili açar (plan + onay; otomatik hesap YOK). */
+  onComputeNatal?: () => void;
   /** Profilin güncel doğum revizyonu — kayıt daha eski revizyonla yapıldıysa bu AÇIKÇA belirtilir (sonuç yeniden yorumlanmaz). */
   currentRevision?: number | null;
 }) {
@@ -376,11 +418,23 @@ export function SavedAnalysisView({
         stage={natal ? null : technicalView(!!otherWheel || !!roxyChart)}
         notices={
           wheelGap ? (
-            <p className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-900" data-testid="astro-wheel-gap">
-              {wheelGap}
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-900" data-testid="astro-wheel-gap">
+              <span className="min-w-0 flex-1">{wheelGap}</span>
+              {onComputeNatal && !a.method.timeUnknownMasked && (
+                <button type="button" className={deskGhostLight} onClick={onComputeNatal} data-testid="astro-wheel-gap-natal">
+                  Natal&apos;ı hesapla (önce plan gösterilir)
+                </button>
+              )}
+            </div>
           ) : roxyChart && a.technique === "western.transit" ? (
-            <TransitWheelCaption technical={a.technical as TransitTechnical} natalName={a.profile.label} />
+            <div className="flex flex-col gap-1">
+              <TransitWheelCaption technical={a.technical as TransitTechnical} natalName={a.profile.label} />
+              {a.natalFrameSource === "cache" && (
+                <p className="text-center text-[11px] text-slate-500" data-testid="astro-natal-frame-cache">
+                  İç halka (natal) bu kayıttan sonra hesaplanan uyumlu Natal analizinden gösteriliyor; kayıtlı analiz değiştirilmedi.
+                </p>
+              )}
+            </div>
           ) : roxyChart && a.technique === "western.synastry" ? (
             <SynastryWheelCaption names={[a.profile.label, partner?.label ?? "2. kişi"]} />
           ) : undefined
@@ -471,5 +525,66 @@ function ReportButtons({ id, previewNoInterp, dark = false }: { id: string; prev
         </span>
       )}
     </>
+  );
+}
+
+/**
+ * UAT 2. tur (madde L) — toplu rapor: SEÇİLİ analizler ya da TÜM analizler TEK Word / TEK PDF. Dosya sunucuda yalnız
+ * kayıtlı analizlerden üretilir (0 Roxy isteği). Tekli rapor düğmeleriyle aynı mobil kuralı: Android'de hiç yok,
+ * telefon genişliğinde gizli; sunucu da Android isteğini 403 ile reddeder.
+ */
+function BulkReportBar({ profileId, total, selectedIds, previewNoInterp, onClear }: { profileId: string; total: number; selectedIds: string[]; previewNoInterp: boolean; onClear: () => void }) {
+  const isAndroid = useIsAndroid();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  if (isAndroid || total === 0) return null;
+  async function run(scope: "selected" | "all", format: "docx" | "pdf") {
+    setBusy(`${scope}-${format}`);
+    setErr(null);
+    const q = new URLSearchParams({ profileId, format });
+    if (scope === "all") q.set("all", "1");
+    else q.set("ids", selectedIds.join(","));
+    if (previewNoInterp) q.set("previewNoInterp", "1");
+    const r = await astroDownload(`/api/admin/astroloji/analyses/report?${q.toString()}`, `Astroloji-Analizler.${format}`);
+    setBusy(null);
+    if (!r.ok) setErr(r.error);
+  }
+  const n = selectedIds.length;
+  const btn = "inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50";
+  const word = `${btn} border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100`;
+  const pdf = `${btn} border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100`;
+  return (
+    <div className="no-android hidden flex-col gap-1.5 rounded-xl border border-[#e7dcc3] bg-[#fbf6ea] px-3 py-2 md:flex" data-testid="astro-bulk-report">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold text-slate-700">Rapor indir:</span>
+        <span className="text-xs text-slate-600" data-testid="astro-bulk-count">
+          {n ? `${n} analiz seçili` : "Seçili analiz yok — listeden kutucukları işaretleyin"}
+        </span>
+        <button type="button" className={word} disabled={!n || busy !== null} onClick={() => void run("selected", "docx")} data-testid="astro-bulk-selected-docx">
+          {busy === "selected-docx" ? "Hazırlanıyor…" : "Seçilenleri Word İndir"}
+        </button>
+        <button type="button" className={pdf} disabled={!n || busy !== null} onClick={() => void run("selected", "pdf")} data-testid="astro-bulk-selected-pdf">
+          {busy === "selected-pdf" ? "Hazırlanıyor…" : "Seçilenleri PDF İndir"}
+        </button>
+        {n > 0 && (
+          <button type="button" className="text-xs text-slate-500 underline-offset-2 hover:underline" onClick={onClear} data-testid="astro-bulk-clear">
+            Seçimi temizle
+          </button>
+        )}
+        <span className="mx-1 hidden h-4 w-px bg-[#e7dcc3] lg:inline-block" aria-hidden="true" />
+        <button type="button" className={word} disabled={busy !== null} onClick={() => void run("all", "docx")} data-testid="astro-bulk-all-docx">
+          {busy === "all-docx" ? "Hazırlanıyor…" : `Tüm Analizleri Word İndir (${total})`}
+        </button>
+        <button type="button" className={pdf} disabled={busy !== null} onClick={() => void run("all", "pdf")} data-testid="astro-bulk-all-pdf">
+          {busy === "all-pdf" ? "Hazırlanıyor…" : `Tüm Analizleri PDF İndir (${total})`}
+        </button>
+      </div>
+      <p className="text-[11px] text-slate-500">Tek dosya; her analiz ayrı bölümde, kayıtlı veriden (yeni hesap ve Roxy isteği yok). Tek analiz için analizi açıp Word / PDF düğmelerini kullanın.</p>
+      {err && (
+        <p role="alert" className="text-xs text-rose-700" data-testid="astro-bulk-error">
+          {err}
+        </p>
+      )}
+    </div>
   );
 }

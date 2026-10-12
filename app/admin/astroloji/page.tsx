@@ -44,7 +44,7 @@ import ClientLinkPanel from "./_components/ClientLinkPanel";
 import ModuleAccessDenied from "@/components/auth/ModuleAccessDenied";
 import AtlasHero from "./_components/atlas/AtlasHero";
 import { atlasDisplay, atlasText } from "./_components/atlas/fonts";
-import ResultDesk, { DeskChip, deskGhostLight, deskPrimary, type DeskTab } from "./_components/atlas/ResultDesk";
+import ResultDesk, { AtlasHomeContext, DeskChip, deskGhostLight, deskPrimary, type DeskTab } from "./_components/atlas/ResultDesk";
 import NatalWheel from "./_components/NatalWheel";
 import { SynastryWheelCaption, TransitWheelCaption, roxyChartFor, transitWheelGap } from "./_components/RoxyWheels";
 import type { TransitTechnical } from "@/lib/astrology/model/westernTiming";
@@ -284,6 +284,11 @@ export default function AstrologyWorkspacePage() {
   const saveReqIds = useRef<Record<string, string>>({});
   const [saveDialog, setSaveDialog] = useState(false);
   const [saveToast, setSaveToast] = useState<{ n: number; at: number } | null>(null);
+  useEffect(() => {
+    if (!saveToast) return;
+    const t = window.setTimeout(() => setSaveToast(null), 8000);
+    return () => window.clearTimeout(t);
+  }, [saveToast]);
   const [addOpen, setAddOpen] = useState<{ initial: UiTechniqueId | null } | null>(null);
   // FINAL: tüm seçili teknikler başarısız olduğunda sonuç ekranı AÇILMAZ; özet Yeni Analiz'de gösterilir.
   const [lastFailures, setLastFailures] = useState<{ key: string; at: number; items: { technique: string; code: string; error: string; retryAfterSec?: number }[] } | null>(null);
@@ -404,6 +409,21 @@ export default function AstrologyWorkspacePage() {
       if (fromPop) closeFormsRef.current();
       go(v, { history: "none", profileId: cid });
     };
+    // 2026-10-12 (UAT 2. tur, madde G): modüle DIŞARIDAN her yeni girişte (dashboard kartı, üst menü, bağlantı) Gökyüzü
+    // Atlası'nın ana ekranı açılır; adres çubuğunda kalmış #analiz-arsivi / #analiz-sonucu vb. yeniden açılmaz. Görünüm
+    // hash'i yalnız sayfa YENİLEME ve tarayıcı geri/ileri ile belge geri yüklenince korunur. Danışan Dosyası derin
+    // bağlantısı (#danisan/<id>) açık hedef olduğu için korunur. Karar belge başına bir kez verilir.
+    if (initialEntryRef.current === null) {
+      const w = window as unknown as { __atlasDocMounted?: boolean };
+      const firstInDoc = !w.__atlasDocMounted;
+      w.__atlasDocMounted = true;
+      const nav = (performance.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined)?.type;
+      const restoreHash = clientIdFromHash(window.location.hash) !== null || (firstInDoc && (nav === "reload" || nav === "back_forward"));
+      initialEntryRef.current = restoreHash ? "hash" : "home";
+      if (!restoreHash && window.location.hash) {
+        window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
+      }
+    }
     restore(false);
     const onPop = () => restore(true);
     window.addEventListener("popstate", onPop);
@@ -413,6 +433,7 @@ export default function AstrologyWorkspacePage() {
   }, [access === null]);
   // Görünüm değişince neyin kaybolacağı (ref: popstate dinleyicisi güncel durumu okur).
   const viewLossRef = useRef<(from: AtlasView, to: AtlasView) => string[]>(() => []);
+  const initialEntryRef = useRef<"hash" | "home" | null>(null);
   const closeFormsRef = useRef<() => void>(() => undefined);
   const [openAnalysis, setOpenAnalysis] = useState<{ profileId: string; id: string } | null>(null);
   const [analysesReload, setAnalysesReload] = useState(0);
@@ -476,8 +497,22 @@ export default function AstrologyWorkspacePage() {
     selectProfileRef.current = selectProfile;
   });
 
+  /**
+   * 2026-10-12 (UAT 2. tur, madde K): listede bir satıra ÇİFT tıklanınca ilk tıklama ekranı değiştiriyor, ikinci tıklama
+   * yeni açılan içeriğe düşüp tarayıcıda ~1000 karakterlik blok SEÇİYORDU (mavi vurgu). Yalnız bu geçişte kısa süre
+   * çoklu tıklamanın seçim başlatması engellenir; normal metin seçme / kopyalama ETKİLENMEZ (genel user-select yok).
+   */
+  function suppressMultiClickSelection() {
+    const block = (e: MouseEvent) => {
+      if (e.detail > 1) e.preventDefault();
+    };
+    document.addEventListener("mousedown", block, true);
+    window.setTimeout(() => document.removeEventListener("mousedown", block, true), 700);
+  }
+
   /** Danışan Dosyası'nı aç (ayrı adres). */
   function openClientFile(id: string) {
+    suppressMultiClickSelection();
     selectProfile(id);
     go("client", { profileId: id });
   }
@@ -805,6 +840,22 @@ export default function AstrologyWorkspacePage() {
     if (form && formDirty) askLeave({ message: LEAVE_MESSAGE, details: [formLoss], action: () => setForm(null) });
     else setForm(null);
   }
+  /**
+   * Doğum bilgisi düzeltmesi YENİ revizyon açar; bu revizyonun masasındaki kaydedilmemiş sonuçlar ekrandan kalkar (bellekte
+   * eski revizyona bağlı kalır). Önce açıkça uyarılır.
+   */
+  function guardRevision(action: () => void) {
+    const pending = runs ? runs.items.filter((x) => !savedIds[`${runs.key}|${x.key}`]).length : 0;
+    if (pending > 0) {
+      askLeave({
+        message: LEAVE_MESSAGE,
+        details: [`${pending} hesaplanmış ama Analiz Arşivi'ne kaydedilmemiş analiz — doğum bilgisi değişince bu sonuçlar eski revizyonda kalır, ekrandan kalkar`],
+        action,
+      });
+      return;
+    }
+    action();
+  }
   function guardLeave(action: () => void) {
     const loss = viewLoss(view, "new");
     if (loss.length > 0) askLeave({ message: LEAVE_MESSAGE, details: loss, action });
@@ -959,6 +1010,7 @@ export default function AstrologyWorkspacePage() {
   }
 
   return (
+    <AtlasHomeContext.Provider value={() => guardGo("home")}>
     <main ref={mainRef} className={`${atlasDisplay.variable} ${atlasText.variable} min-h-screen w-full overflow-x-hidden data-[atlas-light=1]:bg-none data-[atlas-light=1]:bg-[#f2f1ed] ${view === "home" ? "bg-[#0B1430]" : atlasNightBg}`}>
       {view === "result" || view === "new" ? null : view === "home" ? (
         <AtlasHero
@@ -1046,6 +1098,21 @@ export default function AstrologyWorkspacePage() {
           />
         )}
         {/* Aşama D3: Yeni Analiz = Göksel Analiz Hazırlık Merkezi (yalnız yerleşim; plan/çalıştırma mantığı aşağıdaki run() ile aynı). */}
+        {view === "new" && runs && runs.items.some((x) => !savedIds[`${runs.key}|${x.key}`]) && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-300/60 bg-amber-100/95 px-4 py-2.5 text-sm text-amber-950" role="status" data-testid="atlas-unsaved-banner">
+            <span className="min-w-0 flex-1">
+              Bu danışan için <strong>{runs.items.filter((x) => !savedIds[`${runs.key}|${x.key}`]).length} kaydedilmemiş analiz</strong> sonuç masasında bekliyor (kaybolmadı).
+            </span>
+            <span className="flex gap-2">
+              <button type="button" className="rounded-lg border border-amber-500/60 bg-white px-3 py-1.5 font-medium" onClick={() => { setResultMode("run"); go("result"); }} data-testid="atlas-unsaved-banner-open">
+                Sonuçlara dön
+              </button>
+              <button type="button" className="rounded-lg bg-[#0b1430] px-3 py-1.5 font-medium text-white" onClick={() => { setResultMode("run"); go("result"); setSaveDialog(true); }} data-testid="atlas-unsaved-banner-save">
+                Tümünü Kaydet
+              </button>
+            </span>
+          </div>
+        )}
         {view === "new" && (
           <PrepCenter
             profile={shownDetail}
@@ -1065,7 +1132,7 @@ export default function AstrologyWorkspacePage() {
             onEditBirth={
               shownDetail && currentRev
                 ? () =>
-                    setForm({
+                    guardRevision(() => setForm({
                       mode: "revise",
                       initial: {
                         profileId: shownDetail.id,
@@ -1076,7 +1143,7 @@ export default function AstrologyWorkspacePage() {
                         timeAccuracy: currentRev.timeAccuracy,
                         location: currentRev.locationId ? { id: currentRev.locationId, label: currentRev.locationLabel } : null,
                       },
-                    })
+                    }))
                 : null
             }
             onDeleteProfile={shownDetail ? () => setArchiveDelete({ scope: "single", ids: [shownDetail.id] }) : null}
@@ -1210,18 +1277,20 @@ export default function AstrologyWorkspacePage() {
                       type="button"
                       className={atlasSecondaryBtn}
                       onClick={() =>
-                        setForm({
-                          mode: "revise",
-                          initial: {
-                            profileId: shownDetail.id,
-                            expectedRevision: shownDetail.currentRevision,
-                            birthDate: currentRev.birthDate,
-                            birthTime: currentRev.birthTime,
-                            timeKnown: currentRev.timeKnown,
-                            timeAccuracy: currentRev.timeAccuracy,
-                            location: currentRev.locationId ? { id: currentRev.locationId, label: currentRev.locationLabel } : null,
-                          },
-                        })
+                        guardRevision(() =>
+                          setForm({
+                            mode: "revise",
+                            initial: {
+                              profileId: shownDetail.id,
+                              expectedRevision: shownDetail.currentRevision,
+                              birthDate: currentRev.birthDate,
+                              birthTime: currentRev.birthTime,
+                              timeKnown: currentRev.timeKnown,
+                              timeAccuracy: currentRev.timeAccuracy,
+                              location: currentRev.locationId ? { id: currentRev.locationId, label: currentRev.locationLabel } : null,
+                            },
+                          }),
+                        )
                       }
                     >
                       Doğum bilgisini düzelt
@@ -1334,10 +1403,12 @@ export default function AstrologyWorkspacePage() {
                   reloadKey={analysesReload}
                   openId={openAnalysis && openAnalysis.profileId === shownDetail.id ? openAnalysis.id : null}
                   onOpen={(id) => {
+                    suppressMultiClickSelection();
                     setOpenAnalysis({ profileId: shownDetail.id, id });
                     setResultMode("saved");
                     go("result");
                   }}
+                  previewNoInterp={previewNoInterp}
                 />
               </div>
             )}
@@ -1353,6 +1424,7 @@ export default function AstrologyWorkspacePage() {
               currentRevision={shownDetail.currentRevision}
               onClose={() => go("client", { profileId: shownDetail.id })}
               onAddTechnique={() => setAddOpen({ initial: null })}
+              onComputeNatal={() => setAddOpen({ initial: "western.natal" })}
             />
           ) : resultMode === "run" && runs && (runs.items.length > 0 || runs.fails.length > 0) && shownDetail && revision !== null ? (
             (() => {
@@ -1497,21 +1569,19 @@ export default function AstrologyWorkspacePage() {
                       {roxyChart && item.technique === "western.transit" && <TransitWheelCaption technical={item.view.technical as TransitTechnical} natalName={shownDetail.label} />}
                       {roxyChart && item.technique === "western.synastry" && <SynastryWheelCaption names={[shownDetail.label, partnerLabelOf(item.view)]} />}
                       {wheelGap && (
-                        <p className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-900" data-testid="astro-wheel-gap">
-                          {wheelGap}
-                        </p>
-                      )}
-                      {saveToast && (
-                        <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900 shadow-sm" role="status" aria-live="polite" data-testid="astro-saved-notice">
-                          <span className="flex items-center gap-2">
-                            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
-                            {saveToast.n === 1 ? "Analiz başarıyla kaydedildi." : `${saveToast.n} analiz başarıyla kaydedildi.`}
-                            <span className="font-normal text-emerald-800">Danışan Dosyası&apos;nda ve Analiz Arşivi&apos;nde listelenir.</span>
-                          </span>
-                          <button type="button" onClick={() => setSaveToast(null)} aria-label="Bildirimi kapat" className="rounded-md p-1 text-emerald-700 hover:bg-emerald-100">
-                            <X className="h-4 w-4" />
-                          </button>
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-900" data-testid="astro-wheel-gap">
+                          <span className="min-w-0 flex-1">{wheelGap}</span>
+                          {!item.view.timeUnknownMasked && (
+                            <button type="button" className={deskGhostLight} onClick={() => setAddOpen({ initial: "western.natal" })} data-testid="astro-wheel-gap-natal" title="Teknik Ekle açılır; hazır sonuç varsa 0 istek, yoksa yeni istek sayısı onaydan önce gösterilir.">
+                              Natal&apos;ı hesapla (önce plan gösterilir)
+                            </button>
+                          )}
                         </div>
+                      )}
+                      {unsavedHere.length === 0 && runs.items.length > 0 && (
+                        <p className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-2 text-sm text-emerald-900" data-testid="astro-all-saved">
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" /> Bu danışanın masadaki bütün analizleri kaydedildi.
+                        </p>
                       )}
                     </>
                   }
@@ -1679,80 +1749,102 @@ export default function AstrologyWorkspacePage() {
             onClose={() => setSaveDialog(false)}
           />
         )}
-        {pendingLeave && (
-          <div className="fixed inset-0 z-[85] flex items-end justify-center bg-[#050816]/80 p-3 backdrop-blur-sm sm:items-center sm:p-4" role="alertdialog" aria-modal="true" aria-label="Kaydedilmemiş değişiklik" data-testid="atlas-unsaved-dialog">
-            <div className="w-full max-w-md rounded-2xl border border-[#D9B56F]/40 bg-[linear-gradient(180deg,#151d4c,#0a1130)] p-5 text-[#F6F2EA] shadow-[0_40px_90px_-30px_rgba(0,0,0,0.95)]">
-              <p className="text-[10.5px] font-semibold tracking-[0.18em] text-[#E6CF9F]/80">KAYDEDİLMEMİŞ DEĞİŞİKLİK</p>
-              <p className="mt-2 text-[15px] leading-relaxed text-[#F6F2EA]" data-testid="atlas-unsaved-message">{pendingLeave.message}</p>
-              {pendingLeave.details.length > 0 && (
-                <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm text-[#F6F2EA]/75" data-testid="atlas-unsaved-details">
-                  {pendingLeave.details.map((d) => (
-                    <li key={d}>{d}</li>
-                  ))}
-                </ul>
-              )}
-              {leaveSaving.error && (
-                <p className="mt-3 rounded-lg border border-rose-300/40 bg-rose-500/15 px-3 py-2 text-sm text-rose-100" role="alert">
-                  {leaveSaving.error}
-                </p>
-              )}
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-                <button
-                  type="button"
-                  autoFocus
-                  disabled={leaveSaving.busy}
-                  onClick={() => {
-                    pendingLeave.onStay?.();
-                    setPendingLeave(null);
-                  }}
-                  className="rounded-lg border border-[#D9B56F]/60 bg-[#D9B56F]/15 px-3 py-2.5 text-sm font-medium text-[#F6E7C3] disabled:opacity-50"
-                  data-testid="atlas-unsaved-stay"
-                >
-                  Çalışmaya Devam Et
-                </button>
-                {pendingLeave.saveKeys && pendingLeave.saveKeys.length > 0 && (
-                  <button
-                    type="button"
-                    disabled={leaveSaving.busy}
-                    onClick={async () => {
-                      const p = pendingLeave;
-                      setLeaveSaving({ busy: true, error: null });
-                      const res = await saveBenchKeys(p.saveKeys ?? [], {});
-                      const failed = res.filter((r) => !r.ok).length;
-                      if (failed > 0) {
-                        setLeaveSaving({ busy: false, error: `${res.length - failed} analiz kaydedildi, ${failed} analiz kaydedilemedi. Çıkış yapılmadı; kaydedilenler tekrar oluşturulmaz.` });
-                        return;
-                      }
-                      setLeaveSaving({ busy: false, error: null });
-                      setSaveToast({ n: res.length, at: nowMs() });
-                      setPendingLeave(null);
-                      p.action();
-                    }}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300/60 bg-emerald-400/15 px-3 py-2.5 text-sm font-medium text-emerald-100 disabled:opacity-50"
-                    data-testid="atlas-unsaved-save-leave"
-                  >
-                    {leaveSaving.busy && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {leaveSaving.busy ? "Kaydediliyor…" : `Kaydet ve Çık (${pendingLeave.saveKeys.length})`}
-                  </button>
-                )}
+      </div>
+      {/* UAT 2. tur: genel katmanlar (kayıt bildirimi + çıkış uyarısı) ana ekranda da görünür — ana ekranda gizlenen
+          görünüm kabının DIŞINDA. Eskiden ana ekrandayken geri tuşu uyarıyı DOM'a koyuyor ama gizli kalıyordu. */}
+      {saveToast && (
+        <div className="pointer-events-none fixed inset-x-0 top-[calc(var(--logo-h,44px)+8px)] z-[95] flex justify-center px-3" data-testid="astro-saved-toast-wrap">
+          <div
+            className="pointer-events-auto flex max-w-xl items-start gap-3 rounded-2xl border border-emerald-400 bg-emerald-600 px-4 py-3 text-white shadow-[0_18px_40px_-16px_rgba(5,150,105,0.75)]"
+            role="status"
+            aria-live="polite"
+            data-testid="astro-saved-notice"
+          >
+            <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[15px] font-semibold">{saveToast.n === 1 ? "Analiz başarıyla kaydedildi." : `${saveToast.n} analiz başarıyla kaydedildi.`}</p>
+              <p className="text-[13px] text-emerald-50">Sunucuda doğrulandı · Danışan Dosyası&apos;nda ve Analiz Arşivi&apos;nde listelenir.</p>
+            </div>
+            <button type="button" onClick={() => setSaveToast(null)} aria-label="Bildirimi kapat" className="rounded-md p-1 text-emerald-50 hover:bg-white/15">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+      {pendingLeave && (
+        <div className="fixed inset-0 z-[85] flex items-end justify-center bg-[#050816]/80 p-3 backdrop-blur-sm sm:items-center sm:p-4" role="alertdialog" aria-modal="true" aria-label="Kaydedilmemiş değişiklik" data-testid="atlas-unsaved-dialog">
+          <div className="w-full max-w-md rounded-2xl border border-[#D9B56F]/40 bg-[linear-gradient(180deg,#151d4c,#0a1130)] p-5 text-[#F6F2EA] shadow-[0_40px_90px_-30px_rgba(0,0,0,0.95)]">
+            <p className="text-[10.5px] font-semibold tracking-[0.18em] text-[#E6CF9F]/80">KAYDEDİLMEMİŞ DEĞİŞİKLİK</p>
+            <p className="mt-2 text-[15px] leading-relaxed text-[#F6F2EA]" data-testid="atlas-unsaved-message">{pendingLeave.message}</p>
+            {pendingLeave.details.length > 0 && (
+              <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm text-[#F6F2EA]/75" data-testid="atlas-unsaved-details">
+                {pendingLeave.details.map((d) => (
+                  <li key={d}>{d}</li>
+                ))}
+              </ul>
+            )}
+            {leaveSaving.error && (
+              <p className="mt-3 rounded-lg border border-rose-300/40 bg-rose-500/15 px-3 py-2 text-sm text-rose-100" role="alert">
+                {leaveSaving.error}
+              </p>
+            )}
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+              <button
+                type="button"
+                autoFocus
+                disabled={leaveSaving.busy}
+                onClick={() => {
+                  pendingLeave.onStay?.();
+                  setPendingLeave(null);
+                }}
+                className="rounded-lg border border-[#D9B56F]/60 bg-[#D9B56F]/15 px-3 py-2.5 text-sm font-medium text-[#F6E7C3] disabled:opacity-50"
+                data-testid="atlas-unsaved-stay"
+              >
+                Çalışmaya Devam Et
+              </button>
+              {pendingLeave.saveKeys && pendingLeave.saveKeys.length > 0 && (
                 <button
                   type="button"
                   disabled={leaveSaving.busy}
-                  onClick={() => {
-                    const a = pendingLeave.action;
+                  onClick={async () => {
+                    const p = pendingLeave;
+                    setLeaveSaving({ busy: true, error: null });
+                    const res = await saveBenchKeys(p.saveKeys ?? [], {});
+                    const failed = res.filter((r) => !r.ok).length;
+                    if (failed > 0) {
+                      setLeaveSaving({ busy: false, error: `${res.length - failed} analiz kaydedildi, ${failed} analiz kaydedilemedi. Çıkış yapılmadı; kaydedilenler tekrar oluşturulmaz.` });
+                      return;
+                    }
+                    setLeaveSaving({ busy: false, error: null });
+                    setSaveToast({ n: res.length, at: nowMs() });
                     setPendingLeave(null);
-                    a();
+                    p.action();
                   }}
-                  className="rounded-lg border border-white/15 px-3 py-2.5 text-sm text-[#F6F2EA]/75 hover:border-rose-300/60 disabled:opacity-50"
-                  data-testid="atlas-unsaved-discard"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300/60 bg-emerald-400/15 px-3 py-2.5 text-sm font-medium text-emerald-100 disabled:opacity-50"
+                  data-testid="atlas-unsaved-save-leave"
                 >
-                  Kaydetmeden Çık
+                  {leaveSaving.busy && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {leaveSaving.busy ? "Kaydediliyor…" : `Kaydet ve Çık (${pendingLeave.saveKeys.length})`}
                 </button>
-              </div>
+              )}
+              <button
+                type="button"
+                disabled={leaveSaving.busy}
+                onClick={() => {
+                  const a = pendingLeave.action;
+                  setPendingLeave(null);
+                  a();
+                }}
+                className="rounded-lg border border-white/15 px-3 py-2.5 text-sm text-[#F6F2EA]/75 hover:border-rose-300/60 disabled:opacity-50"
+                data-testid="atlas-unsaved-discard"
+              >
+                Kaydetmeden Çık
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </main>
+    </AtlasHomeContext.Provider>
   );
 }

@@ -23,7 +23,9 @@ export type ReportBlock =
   | { kind: "kv"; rows: [string, string][] }
   | { kind: "table"; table: ReportTable; caption?: string }
   | { kind: "bullets"; items: string[] }
-  | { kind: "chart"; chart: WheelInput; caption: string };
+  | { kind: "chart"; chart: WheelInput; caption: string }
+  /** Toplu raporda her analiz yeni sayfada başlar (tekli raporda kullanılmaz). */
+  | { kind: "pagebreak" };
 
 /** Natal çark çizimi için yalnız kayıtlı teknik veriden alınan en küçük biçim. */
 export type WheelInput = {
@@ -31,12 +33,17 @@ export type WheelInput = {
   houses: { number: number; longitude: number; sign: SignId; degreeInSign: number }[];
   angles: { ascendant: { longitude: number }; midheaven: { longitude: number } } | null;
   aspects: { a: string; b: string; type: string; nature: string | null }[];
+  /**
+   * 2026-10-12 (UAT 2. tur, madde L): çift halka (Transit: dış halka transit; Sinastri: dış halka 1. kişi). Yalnız
+   * kayıtlı veriden; yoksa tek halka çizilir.
+   */
+  outer?: { bodies: { id: string; longitude: number; sign: SignId; degreeInSign: number; retrograde: boolean }[] } | null;
 };
 
 export type AstroReport = {
   title: string;
   /** Kapak alt satırları */
-  cover: { client: string; analysisDate: string; tradition: string; technique: string; options: string };
+  cover: { client: string; analysisDate: string; tradition: string; technique: string; options: string; /** Kapak tarih etiketi (varsayılan "Analiz tarihi"; toplu raporda "Rapor tarihi"). */ dateLabel?: string };
   blocks: ReportBlock[];
   /** Dosya adı kökü (uzantısız, ASCII güvenli) */
   fileBase: string;
@@ -224,6 +231,49 @@ function wheelOf(t: O, aspects = true): WheelInput | null {
     angles: a ? { ascendant: { longitude: (a.ascendant as O).longitude as number }, midheaven: { longitude: (a.midheaven as O).longitude as number } } : null,
     aspects: aspects ? arr(t.aspects).map((x) => ({ a: String(x.a), b: String(x.b), type: String(x.type), nature: typeof x.nature === "string" ? x.nature : null })) : [],
   };
+}
+
+const wheelBodies = (v: unknown) =>
+  arr(v)
+    .filter((x) => typeof x.sign === "string" && num(x.longitude) !== null)
+    .map((x) => ({ id: String(x.id), longitude: x.longitude as number, sign: x.sign as SignId, degreeInSign: num(x.degreeInSign) ?? 0, retrograde: x.retrograde === true }));
+
+/** İlerletilmiş çark: ilerletilmiş ASC/MC + sağlayıcının yöntemiyle ilerletilmiş Yükselen burcundan TAM BURÇ evleri (uygulamadaki çarkla aynı). */
+function progressionWheel(t: O): WheelInput | null {
+  const w = wheelOf(t, false);
+  if (!w || !w.angles) return null;
+  const first = Math.floor(w.angles.ascendant.longitude / 30) * 30;
+  w.houses = Array.from({ length: 12 }, (_, i) => {
+    const lon = (first + i * 30) % 360;
+    return { number: i + 1, longitude: lon, sign: SIGN_IDS[Math.floor(lon / 30)], degreeInSign: 0 };
+  });
+  return w;
+}
+
+/** Transit çift halka: iç halka kayıtlı (veya aynı revizyonun önbellekteki) natal çerçeve, dış halka transit gezegenleri. Çerçeve yoksa çizilmez. */
+function transitWheel(t: O): WheelInput | null {
+  if (!isObj(t.natalFrame)) return null;
+  const inner = wheelOf(t.natalFrame, false);
+  const outer = wheelBodies(t.bodies);
+  if (!inner || !inner.angles || !outer.length) return null;
+  return { ...inner, outer: { bodies: outer } };
+}
+
+/** Sinastri çift halka: iç halka 2. kişi, dış halka 1. kişi; sağlayıcı sinastride ev vermez → yalnız burç bölümleri, Koç 0° solda. */
+function synastryWheel(t: O): WheelInput | null {
+  const p1 = isObj(t.person1) ? t.person1 : null;
+  const p2 = isObj(t.person2) ? t.person2 : null;
+  const a = p1 ? wheelBodies(p1.bodies) : [];
+  const bb = p2 ? wheelBodies(p2.bodies) : [];
+  if (!a.length || !bb.length) return null;
+  return { bodies: bb, houses: [], angles: null, aspects: [], outer: { bodies: a } };
+}
+
+function wheelCaption(technique: string, techLabel: string, people: { a: string; b: string }): string {
+  if (technique === "western.transit") return "Transit çift halka — iç halka: natal (kayıtlı doğum bilgisi revizyonu), dış halka (mor): transit gezegenleri. Kayıtlı analiz verisinden çizilmiştir.";
+  if (technique === "western.synastry") return `Sinastri çift halka — dış halka (mor): ${people.a}, iç halka: ${people.b}. Bölümler burç sınırlarıdır (sağlayıcı sinastride ev vermez); Koç 0° solda. Kayıtlı analiz verisinden çizilmiştir.`;
+  if (technique === "western.progression") return "İlerletilmiş (secondary progression) çark — ilerletilmiş Yükselen'den tam burç evleri. Kayıtlı analiz verisinden çizilmiştir.";
+  return `${techLabel} çarkı — kayıtlı analiz verisinden çizilmiştir.`;
 }
 
 function westernNatal(b: B, t: O) {
@@ -974,10 +1024,13 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     if (technique === "western.natal" || technique === "western.composite") chart = wheelOf(tech);
     else if (technique === "western.relocation") chart = wheelOf(tech, false);
     else if (technique === "western.solar_return" || technique === "western.lunar_return") chart = isObj(tech.chart) ? wheelOf(tech.chart) : null;
+    else if (technique === "western.progression") chart = progressionWheel(tech);
+    else if (technique === "western.transit") chart = transitWheel(tech);
+    else if (technique === "western.synastry") chart = synastryWheel(tech);
   }
   if (chart) {
     b.h(1, "Harita");
-    b.blocks.push({ kind: "chart", chart, caption: `${techLabel} çarkı — kayıtlı analiz verisinden çizilmiştir.` });
+    b.blocks.push({ kind: "chart", chart, caption: wheelCaption(technique, techLabel, people) });
     b.p(WHEEL_LEGEND, "muted");
   }
 
@@ -1052,7 +1105,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
 
 /** Rapor metnindeki her dizgeyi sırayla verir (test + sızıntı denetimi için). */
 export function reportTexts(r: AstroReport): string[] {
-  const out = [r.title, ...Object.values(r.cover)];
+  const out = [r.title, ...Object.values(r.cover).filter((x): x is string => typeof x === "string")];
   for (const bl of r.blocks) {
     if (bl.kind === "heading" || bl.kind === "para") out.push(bl.text);
     else if (bl.kind === "kv") bl.rows.forEach(([k, v]) => out.push(k, v));
@@ -1061,4 +1114,61 @@ export function reportTexts(r: AstroReport): string[] {
     else if (bl.kind === "chart") out.push(bl.caption);
   }
   return out;
+}
+
+// ─── 2026-10-12 (UAT 2. tur, madde L): seçili / tüm analizler tek dosyada ───────────────────────────────
+
+export type CombinedSection = { report: AstroReport; analysisId: string; technique: string; revision: string; analysisDate: string };
+export type CombinedAstroReport = AstroReport & { sections: CombinedSection[] };
+
+/**
+ * Birden çok kayıtlı analizi TEK rapora dizer. Her analiz kendi bölümünde (yeni sayfa) ve kendi kayıtlı verisiyle yer
+ * alır: başlıklar bir kademe içeri alınır, bölüm başında teknik + revizyon + analiz tarihi künyesi verilir. Yeni hesap YOK.
+ * Çağıran tarafın tüm analizlerin AYNI doğum profiline ait olduğunu doğrulamış olması gerekir.
+ */
+export function buildCombinedAstroReport(items: ReportAnalysisInput[], scope: "selected" | "all", today: string): CombinedAstroReport {
+  const sections: CombinedSection[] = items.map((a) => {
+    const report = buildAstroReport(a);
+    const profile = isObj(a.profile) ? a.profile : null;
+    const rv = profile && isObj(profile.revision) ? profile.revision : null;
+    return { report, analysisId: a.id, technique: report.cover.technique, revision: rv && num(rv.revision) !== null ? String(rv.revision) : DASH, analysisDate: report.cover.analysisDate };
+  });
+  const client = sections[0]?.report.cover.client ?? DASH;
+  const n = sections.length;
+  const blocks: ReportBlock[] = [];
+  blocks.push({ kind: "heading", level: 1, text: "İçindekiler" });
+  blocks.push({
+    kind: "table",
+    table: { columns: ["#", "Analiz türü", "Analiz başlığı", "Analiz tarihi", "Revizyon"], rows: sections.map((x, i) => [String(i + 1), x.technique, x.report.title, x.analysisDate, x.revision]), widths: [0.5, 2.4, 3.2, 1.4, 1] },
+  });
+  blocks.push({
+    kind: "para",
+    tone: "muted",
+    text: "Her analiz kendi bölümünde, kaydedildiği andaki değişmez kayıtlı veriden yer alır; doğum bilgisi revizyonu her bölümde ayrıca belirtilir. Rapor oluşturulurken yeni hesaplama ve sağlayıcı (Roxy) isteği yapılmaz.",
+  });
+  sections.forEach((x, i) => {
+    blocks.push({ kind: "pagebreak" });
+    blocks.push({ kind: "heading", level: 1, text: `${i + 1}. ${x.technique}` });
+    blocks.push({
+      kind: "kv",
+      rows: [
+        ["Analiz başlığı", x.report.title],
+        ["Analiz tarihi", x.analysisDate],
+        ["Doğum bilgisi revizyonu", x.revision],
+        ["Gelenek", x.report.cover.tradition],
+        ...(x.report.cover.options !== DASH ? ([["Seçenekler", x.report.cover.options]] as [string, string][]) : []),
+      ],
+    });
+    for (const bl of x.report.blocks) blocks.push(bl.kind === "heading" ? { ...bl, level: bl.level === 1 ? 2 : 3 } : bl);
+  });
+  const label = scope === "all" ? `Tüm kayıtlı analizler (${n})` : `Seçili analizler (${n})`;
+  return {
+    title: `${client} — ${label}`,
+    cover: { client, analysisDate: today, dateLabel: "Rapor tarihi", tradition: [...new Set(sections.map((x) => x.report.cover.tradition))].join(", "), technique: label, options: DASH },
+    blocks,
+    fileBase: `Astroloji-${asciiSlug(client, 40)}-${scope === "all" ? "Tum-Analizler" : "Secili-Analizler"}-${n}`,
+    hasInterpretation: sections.some((x) => x.report.hasInterpretation),
+    hasChart: sections.some((x) => x.report.hasChart),
+    sections,
+  };
 }

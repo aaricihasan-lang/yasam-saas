@@ -359,7 +359,7 @@ function Content({ content }: { content: unknown }) {
           )}
           {c.yogas.length > 0 && (
             <details className="rounded-lg bg-white px-3 py-2">
-              <summary className="cursor-pointer font-semibold text-sky-900">Yoga açıklamaları ({c.yogas.length}) — oluşan yogalar teknik bölümde</summary>
+              <summary className="cursor-pointer font-semibold text-sky-900">Yoga ansiklopedisi ({c.yogas.length}) — Roxy&apos;nin genel yoga açıklamaları; çoğu bu haritada OLUŞMAMIŞTIR (oluşanlar teknik bölümde işaretli)</summary>
               <ul className="mt-2 flex flex-col gap-2">
                 {c.yogas.map((y) => (
                   <li key={y.id}>
@@ -492,9 +492,12 @@ export function stripSystemKeys<T>(v: T): T {
 const TECHNICAL_DESCRIPTION_SCHEMAS = new Set(["astro.kp.chart.interp.v1", "astro.kp.extra.interp.v1", "astro.vedic.shadbala.interp.v1", "astro.vedic.panchanga.interp.v1", "astro.vedic.varga.interp.v1"]);
 
 /** Sekme / panel başlığı: anlatı içeriyorsa "Otomatik Yorum", yalnız teknik açıklamaysa "Teknik Açıklama". */
-export function interpretationTitle(interpretation: InterpretationLayer): "Otomatik Yorum" | "Teknik Açıklama" {
+export function interpretationTitle(interpretation: InterpretationLayer): "Otomatik Yorum" | "Teknik Açıklama" | "Roxy Olay Açıklamaları" {
   if (!interpretation.visible) return "Otomatik Yorum";
   const schema = (interpretation.content as { schema?: string } | null)?.schema ?? "";
+  // 2026-10-12 (UAT 2. tur, madde N): Transit Takvimi'nde Roxy yalnız olay başına teknik cümle verir; "Otomatik Yorum"
+  // (kişiye özel yorum) izlenimi vermesin.
+  if (schema === "astro.western.forecast.interp.v1") return "Roxy Olay Açıklamaları";
   return TECHNICAL_DESCRIPTION_SCHEMAS.has(schema) ? "Teknik Açıklama" : "Otomatik Yorum";
 }
 

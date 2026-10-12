@@ -248,7 +248,9 @@ export function projectRoxyVedicD1(raw: unknown, opts: { ayanamsa: VedicAyanamsa
       family: (typeof o.family === "string" ? o.family : "").slice(0, 40),
       quality: q === "positive" || q === "negative" || q === "both" ? q : null,
       present: o.present,
-      evidence: text(o.evidence)?.slice(0, 400) ?? null,
+      // 2026-10-12: 400 karakter sessiz kesme kaldırıldı (golden'da 436–437 karakterlik kanıt kesiliyordu); text() sınırı
+      // aşılırsa açık not ekler.
+      evidence: text(o.evidence),
     });
     iYogas.push({ id, description: text(o.description), result: text(o.result) });
   }

@@ -23,8 +23,8 @@ import { resolveAstroLocation } from "../birth/location";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { resolveInterpretationVisibility } from "../access/entitlements";
 import { getTechnique, parseNoteContext, type TechniqueId } from "../engine/techniques";
-import { ASTRO_NOT_READY, buildSelectionView, loadProfileRevision, planSelections, type EngineCtx, type ServiceResponse } from "../engine/service";
-import { findTenantClient, getProfile, getResultById, isSchemaMissing, isUuid, logAstroDbError, recordCapOf, recordCapResponse, type ResultRow, type RevisionRow } from "../persistence/repo";
+import { ASTRO_NOT_READY, buildSelectionView, loadProfileRevision, planSelections, revisionToBirth, type EngineCtx, type ServiceResponse } from "../engine/service";
+import { findResultsByHashes, findTenantClient, getProfile, getResultById, getRevision, isSchemaMissing, isUuid, logAstroDbError, recordCapOf, recordCapResponse, type ResultRow, type RevisionRow } from "../persistence/repo";
 import { matchKbEntries, publicKbEntry } from "../kb/service";
 import { isSectionKeyForTechnique, topicLabelAny, topicsForTechnique, traditionOfTechnique } from "../topics/index";
 import { TRADITIONS, type Tradition } from "../topics/western";
@@ -656,6 +656,22 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
   const kbLive = await matchKbEntries(ctx, traditionOfTechnique(a.technique), topics.map((t) => t.key));
   if (kbLive.error) return dbFail("analysis.kb", kbLive.error);
 
+  // 2026-10-12 (UAT 2. tur, madde E): natal çerçevesi OLMAYAN eski transit kaydı → kayıt DEĞİŞTİRİLMEDEN, yalnız bu
+  // yanıtta, AYNI revizyonun doğum verisi + AYNI düğüm türüyle önbellekteki natal sonuçtan çerçeve eklenir (sağlayıcı
+  // çağrılmaz; eşleşme yoksa eklenmez). Saat bilinmiyorsa / revizyon artık yoksa eklenmez.
+  let technical: Record<string, unknown> = a.technical_snapshot;
+  let natalFrameSource: "snapshot" | "cache" | null = null;
+  if (a.technique === "western.transit" && technical && typeof technical === "object") {
+    if ((technical as { natalFrame?: unknown }).natalFrame) natalFrameSource = "snapshot";
+    else if (!(a.method_snapshot as { timeUnknownMasked?: boolean } | null)?.timeUnknownMasked) {
+      const live = await liveTransitFrame(ctx, a.profile_id, a.profile_revision, technical, a.technique_params ?? {});
+      if (live) {
+        technical = live;
+        natalFrameSource = "cache";
+      }
+    }
+  }
+
   let interpretation: Record<string, unknown>;
   // Aşama 7C: GÜNCEL yetki ÖNCE. Yetkisiz uzmana kayıtta yorum olup olmadığı bile söylenmez
   // ("not_included" / "not_entitled" ayrımı varlık sızdırırdı); snapshot kolonu zaten okunmadı.
@@ -680,6 +696,7 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
       ok: true,
       analysis: {
         id: a.id,
+        profileId: a.profile_id,
         title: a.title,
         technique: a.technique,
         techniqueLabel: techniqueLabel(a.technique),
@@ -689,7 +706,8 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
         clientId: a.client_id,
         profile: a.profile_snapshot,
         method: a.method_snapshot,
-        technical: a.technical_snapshot,
+        technical,
+        ...(natalFrameSource ? { natalFrameSource } : {}),
         topics,
         knowledgeBank: kbLive.rows.map(publicKbEntry).map(kbSnapshotEntry),
         knowledgeBankSource: "live",
@@ -703,4 +721,19 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
       },
     },
   };
+}
+
+/** Önbellekteki uyumlu natal ile transit çift halka çerçevesi (yalnız okuma; bkz. getAnalysis). */
+async function liveTransitFrame(ctx: EngineCtx, profileId: string, revisionNo: number, technical: Record<string, unknown>, params: Record<string, unknown>): Promise<Record<string, unknown> | null> {
+  const def = getTechnique("western.transit");
+  if (!def?.contextUnits || !def.attachContext) return null;
+  const rv = await getRevision(ctx.db, ctx.tenantId, ctx.userId, profileId, revisionNo);
+  if (rv.error || !rv.row || rv.row.time_known !== true) return null;
+  const options = { ...params, nodeType: (technical as { nodeType?: unknown }).nodeType ?? params.nodeType };
+  const units = def.contextUnits({ birth: revisionToBirth(rv.row), birthUtc: rv.row.birth_utc, partner: null }, options);
+  const found = await findResultsByHashes(ctx.db, ctx.tenantId, ctx.userId, units.map((u) => u.inputHash));
+  if (found.error) return null;
+  const byHash = new Map(found.rows.map((r) => [r.input_hash, r]));
+  const out = def.attachContext(technical, units.map((u) => byHash.get(u.inputHash)?.technical ?? null), options) as Record<string, unknown>;
+  return out && (out as { natalFrame?: unknown }).natalFrame ? out : null;
 }
