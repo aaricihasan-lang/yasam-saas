@@ -36,6 +36,7 @@ import {
   TRANSIT_TECHNICAL_SCHEMA,
   type ForecastInterpretation,
   type ForecastTechnical,
+  type TransitTechnical,
 } from "../model/westernTiming";
 import {
   forecastBody,
@@ -215,6 +216,14 @@ export type TechniqueDefinition = {
   combineTechnical?: (parts: unknown[], options: Record<string, unknown>) => unknown;
   /** Çok parçalı tekniğin sağlayıcı yorumlarını birleştir (yoksa yorum yalnız tek parçalı sonuçta gösterilir). */
   combineInterpretation?: (parts: Record<string, unknown>[]) => Record<string, unknown>;
+  /**
+   * YALNIZ-ÖNBELLEK bağlam birimleri: plana GİRMEZ (istek sayısına, onaya, kayıt zorunluluğuna etkisi yok), ASLA
+   * sağlayıcıya gönderilmez; yalnız önbellekte varsa `attachContext`e verilir (ör. transit çift halkası için aynı doğum
+   * verisinin natal sonucu). Sıra önceliktir: ilk bulunan kullanılır.
+   */
+  contextUnits?: (ctx: UnitContext, options: Record<string, unknown>) => CalcUnit[];
+  /** Bağlam birimlerinin teknik katmanlarını (bulunamayan = null) birleşik teknik veriye ekler. Saf. */
+  attachContext?: (technical: unknown, context: (unknown | null)[], options: Record<string, unknown>) => unknown;
   /** Plan önizlemesine teknik özel bilgi (ör. ayın lunar return'leri). Doğum verisi/gövde İÇERMEZ. */
   planInfo?: (ctx: UnitContext, options: Record<string, unknown>) => Record<string, unknown> | null;
   /**
@@ -356,7 +365,29 @@ const westernTransit: TechniqueDefinition = {
     return [unit("western.transit", ROXY_TRANSIT, transitBody(ctx.birth, { date: at.slice(0, 10), time: `${at.slice(11, 16)}:00` }, opt.nodeType as NodeType), { timeDependent: true })];
   },
   project: (_u, raw, opt) => fromAdapter(projectRoxyTransit(raw, { nodeType: opt.nodeType as NodeType, atUtc: `${opt.atUtc}Z` }), TRANSIT_TECHNICAL_SCHEMA, TRANSIT_INTERP_SCHEMA, ROXY_TRANSIT.projection),
+  // Çift halka natal çerçevesi: AYNI doğum verisi + AYNI düğüm türüyle önbellekteki natal (ev sistemi önceliği
+  // Placidus → Tam burç → Eşit → Koch). Gövde doğum verisinden kurulduğu için başka revizyonun natali eşleşemez.
+  contextUnits: (ctx, opt) =>
+    TRANSIT_FRAME_HOUSE_SYSTEMS.map((hs) =>
+      unit("western.natal", { endpoint: ROXY_NATAL_ENDPOINT, adapter: ROXY_NATAL_ADAPTER_VERSION }, buildNatalRequestBody(ctx.birth, { houseSystem: hs, nodeType: opt.nodeType as NodeType })),
+    ),
+  attachContext: (technical, context, opt) => {
+    const t = technical as TransitTechnical;
+    const natal = context.find((c): c is NatalTechnical => !!c && (c as { schema?: string }).schema === NATAL_TECHNICAL_SCHEMA) ?? null;
+    if (!natal || !natal.angles || natal.houses.length !== 12 || natal.nodeType !== opt.nodeType) return { ...t, natalFrame: null };
+    return {
+      ...t,
+      natalFrame: {
+        houseSystem: natal.houseSystem,
+        nodeType: natal.nodeType,
+        bodies: natal.bodies.map((b) => ({ id: b.id, longitude: b.longitude, sign: b.sign, degreeInSign: b.degreeInSign, latitude: b.latitude, speed: b.speed, retrograde: b.retrograde, house: b.house })),
+        houses: natal.houses,
+        angles: natal.angles,
+      },
+    };
+  },
 };
+const TRANSIT_FRAME_HOUSE_SYSTEMS: HouseSystem[] = ["placidus", "whole-sign", "equal", "koch"];
 
 const westernForecast: TechniqueDefinition = {
   id: "western.forecast",

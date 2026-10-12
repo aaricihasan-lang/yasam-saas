@@ -36,6 +36,7 @@ import { lunarReturnsInMonth, natalMoonLongitude } from "@/lib/astrology/engine/
 import { projectRoxyNatal } from "@/lib/astrology/providers/roxy/natal";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 import type { TransitTechnical } from "@/lib/astrology/model/westernTiming";
+import { toSynastryWheelData, toTransitWheelData } from "@/app/admin/astroloji/_lib/roxyWheelData";
 
 // Harness gövdeleri JSON yanıtlarını gezer; tip daraltması test okunurluğunu düşürür.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1193,6 +1194,149 @@ async function main() {
     ]);
     assert.deepEqual(b.codes, ["HOUSE_SYSTEM_POLAR", "HOUSE_SYSTEM_POLAR", null, null, "HOUSE_SYSTEM_POLAR", "HOUSE_SYSTEM_POLAR", null]);
     assert.equal(b.n, 4, `ücretli yalnız: Whole Sign relocation (taşınmış + natal karşılaştırma = 2) + Local Space + Whole Sign sinastri (n=${b.n})`);
+  });
+
+  // ═══ W) ÇİFT HALKA (2026-10-12): Roxy bileşenine giden veri = Roxy'nin GERÇEK yanıtı; bağlam yalnız önbellekten ═══
+  const rawNames = (list: J[]) => new Map(list.map((p: J) => [String(p.name), p]));
+  await t("W1 transit çift halka verisi: natal + transit boylam/burç/derece, natal cusp'lar ve ASC gerçek Roxy yanıtıyla BİREBİR", () => {
+    const natal = projectRoxyNatal(NATAL_GOLDEN, { houseSystem: "placidus", nodeType: "true" });
+    assert.ok(natal.ok);
+    const def = getTechnique("western.transit")!;
+    const opts = def.parseOptions(goldenSelection("western.transit").options, new Date())!;
+    const u = def.units({ birth: SYNTH_A, birthUtc: SYNTH_A.utc, partner: null }, opts)[0];
+    const p = def.project(u, G.transit.response, opts);
+    assert.ok(p.ok);
+    const tech = def.attachContext!(p.technical, [natal.value.technical], opts) as TransitTechnical;
+    const d = toTransitWheelData(tech)!;
+    assert.ok(d, "natal çerçeve eklenmeli");
+    const rn = rawNames(NATAL_GOLDEN.planets as J[]);
+    assert.equal(d.natalPlanets.length, natal.value.technical.bodies.length);
+    for (const b of d.natalPlanets) {
+      const r = rn.get(b.name)!;
+      assert.ok(r, `natal ${b.name} Roxy yanıtında yok`);
+      assert.equal(b.longitude, r.longitude, `natal ${b.name} boylam`);
+      assert.equal(b.sign, r.sign, `natal ${b.name} burç`);
+      assert.ok(Math.abs(b.degree - Number(r.degree)) < 1e-9, `natal ${b.name} derece`);
+    }
+    const rt = rawNames(G.transit.response.transitPlanets as J[]);
+    assert.equal(d.transitPlanets.length, (G.transit.response.transitPlanets as J[]).length);
+    for (const b of d.transitPlanets) {
+      const r = rt.get(b.name)!;
+      assert.ok(r, `transit ${b.name} Roxy yanıtında yok`);
+      assert.equal(b.longitude, r.longitude, `transit ${b.name} boylam`);
+      assert.equal(b.sign, r.sign, `transit ${b.name} burç`);
+      assert.equal(b.isRetrograde, r.isRetrograde, `transit ${b.name} retro`);
+    }
+    const rh = NATAL_GOLDEN.houses as J[];
+    assert.equal(d.houses.length, 12);
+    d.houses.forEach((h, i) => assert.ok(Math.abs(h.longitude - Number(rh[i].longitude ?? rh[i].cusp)) < 1e-9, `ev ${h.number} cusp`));
+    assert.equal(d.ascendant.longitude, NATAL_GOLDEN.ascendant.longitude);
+    // Açı çizgileri: Roxy'nin transit açı listesi (ASC/MC hedefli olanlar çizilmez — bileşende natal noktası yok).
+    const rawAspects = (G.transit.response.transitAspects as J[]).filter((a) => !/ascendant|midheaven/i.test(String(a.natalPlanet ?? a.planet2 ?? "")));
+    assert.equal(d.aspects.length, tech.aspects.filter((a) => a.natal !== "ascendant" && a.natal !== "midheaven").length);
+    assert.ok(d.aspects.length > 0 && d.aspects.length <= rawAspects.length + 0, `açı sayısı ${d.aspects.length} / Roxy ${rawAspects.length}`);
+    // Yorum metni bileşene GİTMEZ.
+    assert.ok(!/interpretation|summary|guidance|keywords/.test(JSON.stringify(d.aspects)));
+  });
+
+  await t("W2 bağlam YALNIZ önbellek: natal yokken transit planı 1 istek (natal sayılmaz), sağlayıcıya natal GİTMEZ, çark verisi yok", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profile(ctx, "A");
+    const rx = roxy();
+    const pl = await planAstrology(ctx, { profileId: pa, selections: [goldenSelection("western.transit")] });
+    assert.equal(((pl.body as J).plan as J).newRequestCount, 1);
+    const r = await run(ctx, pa, [goldenSelection("western.transit")], rx.deps);
+    assert.deepEqual(rx.calls.map((c) => c.endpoint), ["/astrology/transits"]);
+    assert.equal(((r.body as J).results[0].view.technical as TransitTechnical).natalFrame, null);
+  });
+
+  await t("W3 natal önbellekteyse transit çark verisi eklenir (0 yeni istek); aynı çalıştırmada natal+transit de eklenir", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profile(ctx, "A");
+    const rx = roxy();
+    const both = await run(ctx, pa, [goldenSelection("western.natal"), goldenSelection("western.transit")], rx.deps);
+    const fr = ((both.body as J).results[1].view.technical as TransitTechnical).natalFrame!;
+    assert.ok(fr && fr.houses.length === 12 && fr.houseSystem === "placidus");
+    const n = rx.calls.length;
+    const again = await run(ctx, pa, [goldenSelection("western.transit")], rx.deps);
+    assert.equal(rx.calls.length, n, "yeniden açmak sağlayıcı çağırmamalı");
+    assert.deepEqual(((again.body as J).results[0].view.technical as TransitTechnical).natalFrame, fr);
+    const natalView = (both.body as J).results[0].view.technical;
+    assert.deepEqual(fr.angles, natalView.angles);
+    assert.deepEqual(fr.bodies.map((b) => [b.id, b.longitude]), natalView.bodies.map((b: J) => [b.id, b.longitude]));
+  });
+
+  await t("W4 yanlış birleştirme yok: farklı doğum revizyonu / farklı düğüm türü / saat bilinmiyor → çark verisi YOK", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profile(ctx, "A");
+    const rx = roxy();
+    await run(ctx, pa, [goldenSelection("western.natal")], rx.deps);
+    // Düğüm: natal "true" önbellekte, transit "mean" → eşleşmez.
+    const mean = await run(ctx, pa, [{ technique: "western.transit", options: { atUtc: "2026-10-07T09:00", nodeType: "mean" } }], rx.deps);
+    assert.equal(((mean.body as J).results[0].view.technical as TransitTechnical).natalFrame, null);
+    // Revizyon 2 (saat 14:45): rev 1'in natali kullanılmaz.
+    const rev = await appendAstroRevision(ctx, pa, { expectedRevision: 1, birthDate: "1990-07-15", birthTime: "14:45", timeKnown: true, timeAccuracy: "rectified", locationId: ISTANBUL.id }, resolveLoc);
+    assert.ok(rev.status === 200 || rev.status === 201, JSON.stringify(rev.body));
+    const r2 = await run(ctx, pa, [goldenSelection("western.transit")], rx.deps, { revision: 2 });
+    assert.equal(((r2.body as J).results[0].view.technical as TransitTechnical).natalFrame, null, "başka revizyonun natali birleştirildi");
+    const r1 = await run(ctx, pa, [goldenSelection("western.transit")], rx.deps, { revision: 1 });
+    assert.ok(((r1.body as J).results[0].view.technical as TransitTechnical).natalFrame, "rev 1 natali rev 1 transitinde kullanılmalı");
+    // Saat bilinmiyor: maske natal çerçeveyi kaldırır.
+    const pu = await profile(ctx, "A", { label: "Saatsiz", birthTime: null, timeKnown: false, timeAccuracy: "unknown" });
+    await run(ctx, pu, [goldenSelection("western.natal")], rx.deps);
+    const ru = await run(ctx, pu, [goldenSelection("western.transit")], rx.deps);
+    assert.equal(((ru.body as J).results[0].view.technical as TransitTechnical).natalFrame, null);
+  });
+
+  await t("W5 kayıt + arşivden açma: natal çerçeve kayıtta saklanır, açılış 0 Roxy isteği, çark verisi aynı", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profile(ctx, "A");
+    const rx = roxy();
+    const r = await run(ctx, pa, [goldenSelection("western.natal"), goldenSelection("western.transit")], rx.deps);
+    const live = (r.body as J).results[1].view.technical as TransitTechnical;
+    const sv = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...goldenSelection("western.transit"), saveRequestId: randomUUID() }, false);
+    assert.equal(sv.status, 201, JSON.stringify(sv.body));
+    const n = rx.calls.length;
+    const a = await getAnalysis(ctx, (sv.body as J).analysisId, false);
+    assert.equal(rx.calls.length, n);
+    const saved = (a.body as J).analysis.technical as TransitTechnical;
+    assert.deepEqual(toTransitWheelData(saved), toTransitWheelData(live));
+  });
+
+  await t("W6 sinastri çift halka: dış halka = profil sahibi (person1), iç = karşı taraf; boylam/burç/ASC Roxy yanıtıyla BİREBİR; ev çizgisi yok", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profile(ctx, "A");
+    const pb = await profile(ctx, "B");
+    const rx = roxy();
+    const r = await run(ctx, pa, [goldenSelection("western.synastry", pb)], rx.deps);
+    const body = rx.calls.find((c) => c.endpoint === "/astrology/synastry")!.body as J;
+    assert.equal(body.person1.date, "1990-07-15", "person1 = analizin sahibi (A)");
+    assert.equal(body.person2.date, "1988-03-21", "person2 = karşı taraf (B)");
+    const d = toSynastryWheelData((r.body as J).results[0].view.technical)!;
+    const raw = G.synastry.response;
+    for (const [k, list] of [["person1", d.person1.planets], ["person2", d.person2.planets]] as const) {
+      const rn = rawNames(raw[k].planets as J[]);
+      assert.equal(list.length, (raw[k].planets as J[]).length, `${k} gezegen sayısı`);
+      for (const b of list) {
+        const x = rn.get(b.name)!;
+        assert.ok(x, `${k} ${b.name}`);
+        assert.equal(b.longitude, x.longitude, `${k} ${b.name} boylam`);
+        assert.equal(b.sign, x.sign, `${k} ${b.name} burç`);
+      }
+      assert.equal(d[k].ascendant!.sign, raw[k].ascendant.sign);
+      assert.ok(Math.abs(d[k].ascendant!.degree - raw[k].ascendant.degree) < 1e-9);
+    }
+    assert.ok(!("houses" in d.person1) && !("houses" in d.person2), "sahte ev verisi üretilmemeli");
+    // B'nin dosyasından açılırsa yön tersine döner (person1 = B).
+    const rb = roxy();
+    await run(ctx, pb, [goldenSelection("western.synastry", pa)], rb.deps);
+    const bb = rb.calls.find((c) => c.endpoint === "/astrology/synastry")!.body as J;
+    assert.deepEqual([bb.person1.date, bb.person2.date], ["1988-03-21", "1990-07-15"]);
   });
 
   console.log(`\nastrology phase3 harness: ${pass} PASS / ${fail} FAIL`);

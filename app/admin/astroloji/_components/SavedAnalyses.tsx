@@ -13,6 +13,8 @@ import { astroDownload, astroFetch } from "../_lib/api";
 import { describeOptions, houseSystemLabel, techniqueLabel, zodiacLabel } from "../_lib/techniques";
 import { TechniqueTechnical, wheelForTechnique } from "./TimingPanels";
 import ProviderInterpretationPanel, { interpretationTitle, type InterpretationLayer } from "./ProviderInterpretationPanel";
+import { SynastryWheelCaption, TransitWheelCaption, roxyChartFor, transitWheelGap } from "./RoxyWheels";
+import type { TransitTechnical } from "@/lib/astrology/model/westernTiming";
 import ResultDesk, { DeskChip, deskGhostLight, type DeskTab } from "./atlas/ResultDesk";
 import NatalWheel from "./NatalWheel";
 import NatalTechnicalPanel from "./NatalTechnicalPanel";
@@ -277,6 +279,9 @@ export function SavedAnalysisView({
   const housesAvailable = !!natal && !a.method.timeUnknownMasked && natal.houses.length > 0;
   // D3.1: Solar/Lunar Return, Composite çarkı harita istasyonunda; ayrıntılar sağ panelde ("Teknik ayrıntı").
   const otherWheel = natal ? null : wheelForTechnique(a.technique, a.technical);
+  // Transit / Sinastri çift halkası — kayıtlı snapshot'tan (0 Roxy isteği). Eski transit kaydında natal çerçeve yoksa çizilmez.
+  const roxyChart = natal || otherWheel ? null : roxyChartFor(a.technique, a.technical);
+  const wheelGap = a.technique === "western.transit" && a.technical ? transitWheelGap(a.technical as TransitTechnical, a.method.timeUnknownMasked) : null;
   const technicalView = (hideWheel: boolean) => (
     <TechniqueTechnical
       technique={a.technique}
@@ -303,7 +308,7 @@ export function SavedAnalysisView({
           { id: "acilar", label: "Açılar", tone: "peach", badge: natal.aspects.length },
         ] as DeskTab[])
       : []),
-    ...(otherWheel ? ([{ id: "teknik", label: "Teknik ayrıntı", tone: "blue", hint: "Dönüş anı, konum, açılar ve tablolar" }] as DeskTab[]) : []),
+    ...(otherWheel || roxyChart ? ([{ id: "teknik", label: "Teknik ayrıntı", tone: "blue", hint: "Konumlar, açılar ve tablolar" }] as DeskTab[]) : []),
     // Yorum sekmesi yalnız içerik gerçekten görünürken (yetki kapalı / dahil değil → sekme yok, içerik yanıtta da yok).
     ...(interp.visible && !interpHidden ? ([{ id: "yorum", label: interpretationTitle(interp), tone: "gold", ownHeading: true }] as DeskTab[]) : []),
     { id: "bilgi", label: "Bilgi Bankam", tone: "gold", badge: a.knowledgeBank.length || null, ownHeading: true },
@@ -366,11 +371,22 @@ export function SavedAnalysisView({
             ? (cls: string) => <NatalWheel technical={natal} sizeClassName={cls} tinted />
             : otherWheel
               ? (cls: string) => <NatalWheel technical={otherWheel.wheel} label={otherWheel.label} sizeClassName={cls} tinted />
-              : null
+              : roxyChart
         }
-        stage={natal ? null : technicalView(!!otherWheel)}
+        stage={natal ? null : technicalView(!!otherWheel || !!roxyChart)}
+        notices={
+          wheelGap ? (
+            <p className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-900" data-testid="astro-wheel-gap">
+              {wheelGap}
+            </p>
+          ) : roxyChart && a.technique === "western.transit" ? (
+            <TransitWheelCaption technical={a.technical as TransitTechnical} natalName={a.profile.label} />
+          ) : roxyChart && a.technique === "western.synastry" ? (
+            <SynastryWheelCaption names={[a.profile.label, partner?.label ?? "2. kişi"]} />
+          ) : undefined
+        }
       >
-        {tab === "teknik" && otherWheel && technicalView(true)}
+        {tab === "teknik" && (otherWheel || roxyChart) && technicalView(true)}
         {tab === "harita" && natal && <NatalTechnicalPanel technical={natal} timeUnknown={a.method.timeUnknownMasked} part="overview" />}
         {(tab === "gezegenler" || tab === "evler" || tab === "acilar") && natal && (
           <NatalTechnicalPanel technical={natal} timeUnknown={a.method.timeUnknownMasked} part={tab === "gezegenler" ? "planets" : tab === "evler" ? "houses" : "aspects"} />

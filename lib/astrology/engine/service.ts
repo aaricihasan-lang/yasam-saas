@@ -272,7 +272,14 @@ export async function resolveSelectionContexts(
   return { ok: true, v: out };
 }
 
-type Loaded = { revision: RevisionRow; selections: SelectionContext[]; plan: ExecutionPlan; cachedRows: Map<string, ResultRow> };
+type Loaded = {
+  revision: RevisionRow;
+  selections: SelectionContext[];
+  plan: ExecutionPlan;
+  cachedRows: Map<string, ResultRow>;
+  /** Seçim başına YALNIZ-ÖNBELLEK bağlam birimlerinin hash'leri (plana girmez; bkz. TechniqueDefinition.contextUnits). */
+  contextHashes: string[][];
+};
 
 export async function loadProfileRevision(
   ctx: EngineCtx,
@@ -315,7 +322,12 @@ export async function planSelections(
   const sc = await resolveSelectionContexts(ctx, revision, sel.selections);
   if (!sc.ok) return sc;
   const draft = buildPlan(sc.v, () => false);
-  const cached = await findResultsByHashes(ctx.db, ctx.tenantId, ctx.userId, draft.units.map((u) => u.inputHash));
+  // Bağlam birimleri yalnız ÖNBELLEK sorgusuna eklenir — planda / istek sayısında / onayda YOKTUR.
+  const contextHashes = sc.v.map((s) => {
+    const def = getTechnique(s.technique);
+    return !s.blocked && s.ctx && def?.contextUnits ? def.contextUnits(s.ctx, s.options).map((u) => u.inputHash) : [];
+  });
+  const cached = await findResultsByHashes(ctx.db, ctx.tenantId, ctx.userId, [...new Set([...draft.units.map((u) => u.inputHash), ...contextHashes.flat()])]);
   if (cached.error) {
     if (isSchemaMissing(cached.error)) return { ok: false, r: ASTRO_NOT_READY };
     logAstroDbError("engine.cache", cached.error);
@@ -323,7 +335,7 @@ export async function planSelections(
   }
   const cachedRows = new Map(cached.rows.map((r) => [r.input_hash, r]));
   const plan = buildPlan(sc.v, (h) => cachedRows.has(h));
-  return { ok: true, v: { selections: sc.v, plan, cachedRows } };
+  return { ok: true, v: { selections: sc.v, plan, cachedRows, contextHashes } };
 }
 
 async function loadAndPlan(ctx: EngineCtx, rawBody: unknown, now: Date): Promise<{ ok: true; v: Loaded } | { ok: false; r: ServiceResponse }> {
@@ -497,6 +509,8 @@ export async function buildSelectionView(
   timeKnowledge: { primary: boolean; partner: boolean | null },
   ownerPreviewHideInterp: boolean,
   missingParts = 0,
+  /** YALNIZ-ÖNBELLEK bağlam satırları (contextUnits sırasıyla; bulunamayan null). */
+  contextRows: (ResultRow | null)[] = [],
 ): Promise<TechniqueView> {
   const def = getTechnique(technique)!;
   const visibility = resolveInterpretationVisibility(ctx.entitlements, ownerPreviewHideInterp);
@@ -512,7 +526,8 @@ export async function buildSelectionView(
       interps.push(it.row);
     }
   }
-  const combined = def.combineTechnical ? def.combineTechnical(rows.map((r) => r.technical), options) : rows[0].technical;
+  const base = def.combineTechnical ? def.combineTechnical(rows.map((r) => r.technical), options) : rows[0].technical;
+  const combined = def.attachContext ? def.attachContext(base, contextRows.map((r) => r?.technical ?? null), options) : base;
   return buildTechniqueView({ technique, rows, combined, options, timeKnowledge, visibility, interpretations: interps, missingParts, combineInterpretation: def.combineInterpretation });
 }
 
@@ -635,6 +650,11 @@ export async function runAstrology(
       results.push({ selectionIndex: i, technique: s.technique, ok: false, code: f?.code ?? "FAILED", error: f?.error ?? "Hesaplanamadı.", retryAfterSec: f?.retryAfterSec });
       continue;
     }
+    // Bağlam: önbellek ya da AYNI çalıştırmada yeni hesaplanan birim (ör. natal + transit birlikte seçildiyse).
+    const contextRows = (l.v.contextHashes[i] ?? []).map((h) => {
+      const o = outcomes.get(h);
+      return cachedRows.get(h) ?? (o && o.ok ? o.row : null);
+    });
     const view = await buildSelectionView(
       ctx,
       s.technique,
@@ -643,6 +663,7 @@ export async function runAstrology(
       { primary: revision.time_known === true, partner: s.partnerRevision ? s.partnerRevision.time_known === true : null },
       opts.ownerPreviewHideInterp,
       outs.length - okRows.length,
+      contextRows,
     );
     results.push({ selectionIndex: i, technique: s.technique, ok: true, partial: okRows.length < outs.length, reused: outs.every((o) => o.ok && o.reused), view });
   }
@@ -700,6 +721,7 @@ export async function viewCachedSelections(ctx: EngineCtx, rawBody: unknown, opt
       { primary: revision.time_known === true, partner: s.partnerRevision ? s.partnerRevision.time_known === true : null },
       opts.ownerPreviewHideInterp,
       hashes.length - rows.length,
+      (l.v.contextHashes[i] ?? []).map((h) => cachedRows.get(h) ?? null),
     );
     results.push({ selectionIndex: i, technique: s.technique, ok: true, partial: rows.length < hashes.length, reused: true, view });
   }

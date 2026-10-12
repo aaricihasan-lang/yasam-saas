@@ -44,6 +44,19 @@ export type TransitTechnical = {
   bodies: TransitBody[];
   aspects: TransitAspect[];
   summary: { harmonious: number | null; challenging: number | null; neutral: number | null };
+  /**
+   * 2026-10-12: çift halka (natal + transit) için natal çerçeve. Roxy transit yanıtı natal konum VERMEZ; çerçeve
+   * AYNI doğum verisinin (= aynı revizyon girdisi) ÖNBELLEKTEKİ natal sonucundan, yalnız okunarak eklenir — yeni
+   * sağlayıcı isteği YOK. Natal önbellekte yoksa / saat bilinmiyorsa null (harita çizilmez, nedeni gösterilir).
+   */
+  natalFrame?: TransitNatalFrame | null;
+};
+export type TransitNatalFrame = {
+  houseSystem: HouseSystem;
+  nodeType: NodeType;
+  bodies: (EclipticPoint & { id: BodyId; latitude: number; speed: number; retrograde: boolean; house: number | null })[];
+  houses: NatalHouse[];
+  angles: { ascendant: EclipticPoint; midheaven: EclipticPoint };
 };
 export const TRANSIT_INTERP_SCHEMA = "astro.western.transit.interp.v1" as const;
 export type TransitInterpretation = {
