@@ -46,6 +46,8 @@ import AtlasHero from "./_components/atlas/AtlasHero";
 import { atlasDisplay, atlasText } from "./_components/atlas/fonts";
 import ResultDesk, { DeskChip, deskGhostLight, deskPrimary, type DeskTab } from "./_components/atlas/ResultDesk";
 import NatalWheel from "./_components/NatalWheel";
+import { SynastryWheelCaption, TransitWheelCaption, roxyChartFor, transitWheelGap } from "./_components/RoxyWheels";
+import type { TransitTechnical } from "@/lib/astrology/model/westernTiming";
 import NatalTechnicalPanel from "./_components/NatalTechnicalPanel";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
 import { AtlasHeader, AtlasViewTitle, atlasDangerBtn, atlasGhostBtn, atlasNightBg, atlasPanel, atlasSecondaryBtn, type AtlasView } from "./_components/AtlasShell";
@@ -1412,6 +1414,9 @@ export default function AstrologyWorkspacePage() {
               const housesAvailable = !!natalTech && !!item && item.ok && !item.view.timeUnknownMasked && natalTech.houses.length > 0;
               // D3.1: çark üreten diğer teknikler (Solar/Lunar Return, Composite) → çark harita istasyonunda, ayrıntılar sağ panelde.
               const otherWheel = item && item.ok && !isNatal ? wheelForTechnique(item.technique, item.view.technical) : null;
+              // Transit / Sinastri çift halkası: Roxy'nin bileşeni, KAYITLI teknik veriyle (yeni istek yok).
+              const roxyChart = item && item.ok && !isNatal && !otherWheel ? roxyChartFor(item.technique, item.view.technical) : null;
+              const wheelGap = item && item.ok && item.technique === "western.transit" && item.view.technical ? transitWheelGap(item.view.technical as TransitTechnical, item.view.timeUnknownMasked) : null;
               const interpVisible = !!item && item.ok && item.view.interpretation.visible;
               const kbCount =
                 item ? (kbMap[`${shownDetail.id}|${revision}|${item.technique}|${JSON.stringify(item.view.options)}`]?.length ?? null) : null;
@@ -1426,7 +1431,7 @@ export default function AstrologyWorkspacePage() {
                             { id: "acilar", label: "Açılar", tone: "peach", badge: natalTech?.aspects.length ?? null },
                           ] as DeskTab[])
                         : []),
-                      ...(otherWheel ? ([{ id: "teknik", label: "Teknik ayrıntı", tone: "blue", hint: "Dönüş anı, konum, açılar ve tablolar" }] as DeskTab[]) : []),
+                      ...(otherWheel || roxyChart ? ([{ id: "teknik", label: "Teknik ayrıntı", tone: "blue", hint: "Konumlar, açılar ve tablolar" }] as DeskTab[]) : []),
                       ...(interpVisible ? ([{ id: "yorum", label: interpretationTitle(item.view.interpretation), tone: "gold", ownHeading: true }] as DeskTab[]) : []),
                       { id: "bilgi", label: "Bilgi Bankam", tone: "gold", badge: kbCount || null, ownHeading: true },
                       { id: "not", label: "Kendi Yorumum", tone: "turquoise", ownHeading: true },
@@ -1489,6 +1494,13 @@ export default function AstrologyWorkspacePage() {
                         {runs.executed.providerAttempts} sağlayıcı isteği
                       </p>
                       {runError && runs.fails.length === 0 && <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">{runError}</p>}
+                      {roxyChart && item.technique === "western.transit" && <TransitWheelCaption technical={item.view.technical as TransitTechnical} natalName={shownDetail.label} />}
+                      {roxyChart && item.technique === "western.synastry" && <SynastryWheelCaption names={[shownDetail.label, partnerLabelOf(item.view)]} />}
+                      {wheelGap && (
+                        <p className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-900" data-testid="astro-wheel-gap">
+                          {wheelGap}
+                        </p>
+                      )}
                       {saveToast && (
                         <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900 shadow-sm" role="status" aria-live="polite" data-testid="astro-saved-notice">
                           <span className="flex items-center gap-2">
@@ -1513,12 +1525,12 @@ export default function AstrologyWorkspacePage() {
                       ? (cls: string) => <NatalWheel technical={natalTech} sizeClassName={cls} tinted />
                       : otherWheel
                         ? (cls: string) => <NatalWheel technical={otherWheel.wheel} label={otherWheel.label} sizeClassName={cls} tinted />
-                        : null
+                        : roxyChart
                   }
                   stage={
                     item && item.ok && !natalTech ? (
                       <TechniqueTechnical
-                        hideWheel={!!otherWheel}
+                        hideWheel={!!otherWheel || !!roxyChart}
                         technique={item.technique}
                         technical={item.view.technical}
                         timeUnknownMasked={item.view.timeUnknownMasked}
@@ -1557,7 +1569,7 @@ export default function AstrologyWorkspacePage() {
                       {(tab === "gezegenler" || tab === "evler" || tab === "acilar") && natalTech && (
                         <NatalTechnicalPanel technical={natalTech} timeUnknown={item.view.timeUnknownMasked} part={tab === "gezegenler" ? "planets" : tab === "evler" ? "houses" : "aspects"} />
                       )}
-                      {tab === "teknik" && otherWheel && (
+                      {tab === "teknik" && (otherWheel || roxyChart) && (
                         <TechniqueTechnical
                           technique={item.technique}
                           technical={item.view.technical}

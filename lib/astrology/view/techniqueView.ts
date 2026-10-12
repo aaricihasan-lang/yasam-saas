@@ -88,7 +88,8 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
       // (aksi hâlde gizlenen açılar sayılarda görünür kalırdı). Transit gezegen verisi saatten bağımsızdır, korunur.
       const count = (n: string) => aspects.filter((a) => a.nature === n).length;
       return {
-        technical: { ...t, aspects, summary: { harmonious: count("harmonious"), challenging: count("challenging"), neutral: count("neutral") } },
+        // Saat bilinmiyorsa natal ev/ASC yok, Ay yaklaşık → çift halka natal çerçevesi gösterilmez.
+        technical: { ...t, aspects, natalFrame: null, summary: { harmonious: count("harmonious"), challenging: count("challenging"), neutral: count("neutral") } },
         masked: true,
         warnings: [MOON_WARN, "Natal Yükselen/MC hedefli transitler gösterilmez."],
       };

@@ -120,6 +120,7 @@ async function loadContext(ctx: EngineCtx, raw: Record<string, unknown>, ownerPr
     { primary: pr.revision.time_known === true, partner: s.partnerRevision ? s.partnerRevision.time_known === true : null },
     ownerPreviewHideInterp,
     all.length - rows.length,
+    (p.v.contextHashes[0] ?? []).map((h) => p.v.cachedRows.get(h) ?? null),
   );
   return {
     ok: true,
