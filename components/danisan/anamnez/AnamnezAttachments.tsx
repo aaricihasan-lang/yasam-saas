@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { MOBILE_HIDDEN_INLINE_FLEX } from "@/components/platform/mobileHidden";
 import { useTranslations } from "next-intl";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -93,9 +92,9 @@ export function AnamnezAttachments({
     if (r === "blocked") fail(t("attachments.popupBlocked"));
   }
 
-  async function download(id: string) {
+  async function download(id: string, fileName?: string) {
     const url = await signedUrl(id, "download");
-    if (url) triggerUrlDownload(url);
+    if (url) triggerUrlDownload(url, fileName);
   }
 
   async function remove(a: AnamnezAttachment) {
@@ -139,7 +138,7 @@ export function AnamnezAttachments({
               disabled={busy || full}
               onClick={() => inputRef.current?.click()}
               data-testid="anamnez-pdf-upload"
-              className={`btn-secondary min-h-[42px] shrink-0 disabled:opacity-60 ${MOBILE_HIDDEN_INLINE_FLEX}`}
+              className="btn-secondary min-h-[42px] shrink-0 disabled:opacity-60"
             >
               {busy ? t("attachments.uploading") : t("attachments.upload")}
             </button>
@@ -161,7 +160,7 @@ export function AnamnezAttachments({
               </div>
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => void view(a.id)} className={aGhostBtn}>{t("attachments.view")}</button>
-                <button type="button" onClick={() => void download(a.id)} className={aGhostBtn}>{t("attachments.download")}</button>
+                <button type="button" onClick={() => void download(a.id, a.original_name)} className={aGhostBtn}>{t("attachments.download")}</button>
                 {canUpload ? (
                   <button
                     type="button"

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { readAllPaged } from "@/lib/db/readAllPaged";
 import { trackUsage } from "@/lib/usage/trackUsage";
@@ -93,9 +92,6 @@ function parseStones(raw: unknown): string[] {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  // Android Word politikası (defense-in-depth): Android cihazlarda .docx üretilmez.
-  const androidBlocked = androidWordGuard(req);
-  if (androidBlocked) return androidBlocked;
 
   // NUM-001: kimlik + tenant SUNUCUDA oturumdan çözülür (x-user-id + x-session-token
   // binding + numerology modül izni). Body'den tenantId/userId ARTIK OKUNMAZ →

@@ -248,7 +248,9 @@ async function runCase(label: string, m: MineralRow) {
 
 function routeSourceChecks() {
   const src = fs.readFileSync(path.join(ROOT, "app/api/dogaltas/minerals/[id]/word-report/route.ts"), "utf8");
-  check("route: androidWordGuard kapısı", /androidWordGuard\(req\)/.test(src) && src.includes("if (androidBlocked) return androidBlocked;"));
+  // 2026-10-14 owner kararı: Word Android dahil tüm cihazlarda açık (HD + Astroloji hariç) →
+  // kapsam içi Word route'larında androidWordGuard YOK (bkz. scripts/final-hardening/output-visibility.harness.ts §F).
+  check("route: Android Word engeli yok (2026-10-14 kararı)", !/androidWordGuard|isAndroidUserAgent/.test(src));
   check("route: UUID doğrulaması", src.includes("if (!isUuid(mineralId))"));
   check("route: requireDogaltasReportAccess", src.includes("requireDogaltasReportAccess(req)") && src.includes("if (!auth.ok) return auth.response;"));
   check("route: tenant filtresi", src.includes('.eq("tenant_id", tenantId)'));

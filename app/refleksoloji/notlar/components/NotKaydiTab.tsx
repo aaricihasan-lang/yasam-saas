@@ -18,6 +18,8 @@ type NotKaydiTabProps = {
   onUpdate: () => void;
   onDelete: () => void;
   onAddFileClick: () => void;
+  /** Kamera ile çekilen fotoğraflar (galeri/dosya ile aynı doğrulama yolu). */
+  onCameraFiles?: (files: File[]) => void;
   onRenameAttachment: () => void;
   onWordImportClick: () => void;
   onRemoveAttachment: (id: string) => void;
@@ -36,6 +38,7 @@ export function NotKaydiTab({
   onUpdate,
   onDelete,
   onAddFileClick,
+  onCameraFiles,
   onRenameAttachment,
   onWordImportClick,
   onRemoveAttachment,
@@ -157,6 +160,7 @@ export function NotKaydiTab({
         onSelect={onSelectAttachment}
         onRemove={onRemoveAttachment}
         onAddClick={onAddFileClick}
+        onCameraFiles={onCameraFiles}
       />
 
     </div>

@@ -15,8 +15,6 @@ import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
 import { supportedYears, SUPPORT_START_YEAR, SUPPORT_END_YEAR } from "@/lib/cosmic/dateRange";
 import { HIJRI_METHOD_NOTE } from "@/lib/cosmic/hijri";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
-import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
 
@@ -277,10 +275,9 @@ export default function HacamatPage() {
   }, []);
   const [isGenerating,    setIsGenerating]    = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const isAndroid = useIsAndroid();
-  // Android uygulama WebView'inde blob indirme / blob önizleme çalışmaz → "Word" (rapor)
-  // sekmesi, PDF Oluştur ve Raporu Aç gizli (plan §4.6). Android Chrome/iOS'ta görünür.
-  const isAndroidApp = useIsAndroidApp();
+  // 2026-10-14: Android uygulaması blob indirmeyi kaydeder → "Word" (rapor) sekmesi, PDF
+  // Oluştur ve Word Oluştur her cihazda görünür. Yalnız "Raporu Aç" (blob önizleme sayfası)
+  // uygulamada gizli kalır (.no-android-app; önizleme WebView'de çalışmaz).
 
   // Word rapor ayarları
   const [wordTitle,      setWordTitle]      = useState("HACAMAT TAKVİMİ");
@@ -581,11 +578,11 @@ export default function HacamatPage() {
 
         {/* ── Sekmeler ── */}
         <div className="mb-4 flex flex-wrap gap-1.5 rounded-[18px] border border-white/80 bg-white/70 p-2 shadow-sm backdrop-blur-md">
-          {TABS.filter(tab => !(isAndroidApp && tab.key === "word")).map(tab => (
+          {TABS.map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`${tab.key === "word" ? "no-android-app " : ""}flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold transition-all ${
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold transition-all ${
                 activeTab === tab.key
                   ? "bg-teal-600 text-white shadow-sm"
                   : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
@@ -861,8 +858,8 @@ export default function HacamatPage() {
         )}
 
         {/* ════════ Word Sekmesi ════════ */}
-        {activeTab === "word" && !isAndroidApp && (
-          <section className="no-android-app space-y-4">
+        {activeTab === "word" && (
+          <section className="space-y-4">
 
             {/* Rapor Ayı */}
             <div className="rounded-[18px] border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-md sm:p-4">
@@ -1019,26 +1016,24 @@ export default function HacamatPage() {
               </Link>
             </div>
 
-            {/* ── Tablet+: blob POST download — md ve üzerinde görünür ── */}
-            <div className="hidden gap-2 md:flex md:justify-end">
+            {/* ── Blob POST download — tüm genişliklerde ve Android uygulamasında görünür ── */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap md:justify-end">
               <button
                 onClick={() => void handlePdfReport()}
                 disabled={isGeneratingPdf || isGenerating}
-                className="no-android-app flex items-center gap-2 rounded-xl border border-teal-200 bg-white px-4 py-2.5 text-[12px] font-black text-teal-700 shadow-sm transition hover:bg-teal-50 disabled:opacity-50"
+                className="flex items-center justify-center gap-2 rounded-xl border border-teal-200 bg-white px-4 py-2.5 text-[12px] font-black text-teal-700 shadow-sm transition hover:bg-teal-50 disabled:opacity-50"
               >
                 {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                 {isGeneratingPdf ? "Hazırlanıyor…" : `${MONTH_NAMES_TR[wordMonth]} ${wordYear} — PDF Oluştur`}
               </button>
-              {!isAndroid && (
                 <button
                   onClick={() => void handleWordReport()}
                   disabled={isGenerating || isGeneratingPdf}
-                  className="no-android flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-2.5 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-2.5 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 disabled:opacity-50"
                 >
                   {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                   {isGenerating ? "Hazırlanıyor…" : `${MONTH_NAMES_TR[wordMonth]} ${wordYear} — Word Oluştur`}
                 </button>
-              )}
             </div>
           </section>
         )}

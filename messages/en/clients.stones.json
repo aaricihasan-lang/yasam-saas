@@ -28,10 +28,11 @@
       },
       "photoPicker": {
         "title": "Photos",
-        "select": "Choose Photo from Computer",
+        "select": "Choose from Gallery / Files",
         "clear": "Clear Selection",
-        "hint": "You can select multiple photos from your computer before saving the stone.",
-        "previewAlt": "Selected photo {n}"
+        "hint": "You can select multiple photos or take one with the camera before saving the stone.",
+        "previewAlt": "Selected photo {n}",
+        "camera": "📷 Take Photo"
       },
       "gallery": {
         "title": "📷 Stone Photos",
@@ -134,7 +135,9 @@
         "uploadFailed": "Photo upload failed",
         "photoInsertFailed": "Photo record could not be saved",
         "photoDeleted": "Photo deleted.",
-        "photoDeleteFailed": "Photo record could not be deleted"
+        "photoDeleteFailed": "Photo record could not be deleted",
+        "photoTooLarge": "{name}: the photo could not be fitted under 10 MB while keeping quality.",
+        "photoHeic": "{name}: HEIC/HEIF could not be converted on this device. Please share the photo as JPEG."
       },
       "error": {
         "loadStones": "Stone records could not be loaded",

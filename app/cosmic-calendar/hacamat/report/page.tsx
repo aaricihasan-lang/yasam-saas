@@ -4,7 +4,6 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Download, FileText } from "lucide-react";
 import { MONTH_NAMES_TR } from "@/lib/cosmic/hacamat";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
 import { isAndroidAppClient } from "@/lib/platform/outputSupport";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
@@ -34,10 +33,10 @@ function reportErrorMessage(status: number): string {
 
 function ReportView() {
   const params   = useSearchParams();
-  const isAndroid = useIsAndroid();
-  // Android uygulama WebView'inde blob: önizleme (<object>), window.open(blob) ve blob
-  // indirme çalışmaz → PDF Aç/İndir + önizleme yerine kısa bilgi notu (plan §4.6).
-  // Android Chrome / iOS / masaüstünde mevcut davranış aynen korunur.
+  // Android uygulama WebView'inde blob: önizleme (<object>) ve window.open(blob) çalışmaz →
+  // önizleme ve "PDF Aç" gizli. Blob İNDİRME uygulamada çalışır (2026-10-14) → PDF/Word İndir
+  // düğmeleri gösterilir. Android Chrome / iOS / masaüstünde mevcut davranış aynen korunur;
+  // Word Android dahil her cihazda açıktır.
   const isAndroidApp = useIsAndroidApp();
   const rawMonth = parseInt(params.get("month") ?? "", 10);
   const rawYear  = parseInt(params.get("year")  ?? "", 10);
@@ -133,11 +132,33 @@ function ReportView() {
           </p>
         )}
 
-        {/* Android uygulaması: bu çıktılar desteklenmez → yalnız bilgi notu */}
+        {/* Android uygulaması: önizleme yok, indirme var (dosya cihazın görüntüleyicisinde açılır) */}
         {isAndroidApp && (
-          <p className="mb-4 rounded-[12px] border border-slate-200 bg-white/80 px-3 py-3 text-[12px] font-semibold leading-relaxed text-slate-700" role="note">
-            Bu çıktı uygulamada desteklenmiyor; tarayıcıdan veya bilgisayardan açın.
-          </p>
+          <div className="mb-4 rounded-[12px] border border-slate-200 bg-white/80 px-3 py-3" data-testid="hacamat-report-app-downloads">
+            <p className="text-[12px] font-semibold leading-relaxed text-slate-700" role="note">
+              Uygulamada PDF önizlemesi gösterilemiyor. Raporu indirip cihazınızın görüntüleyicisiyle açabilirsiniz.
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => void download("pdf")}
+                disabled={busy !== null}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-teal-300 bg-teal-50 px-4 py-3 text-[12px] font-black text-teal-800 shadow-sm transition hover:bg-teal-100 active:scale-[0.98] disabled:opacity-60 sm:w-auto sm:py-2.5"
+              >
+                <Download className="h-4 w-4" />
+                {busy === "pdf" ? "Hazırlanıyor…" : "PDF İndir"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void download("word")}
+                disabled={busy !== null}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-3 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 active:scale-[0.98] disabled:opacity-60 sm:w-auto sm:py-2.5"
+              >
+                <FileText className="h-4 w-4" />
+                {busy === "word" ? "Hazırlanıyor…" : "Word İndir"}
+              </button>
+            </div>
+          </div>
         )}
 
         {/* İndirme / Açma butonları — md ve üzerinde görünür */}
@@ -165,18 +186,16 @@ function ReportView() {
             {busy === "pdf" ? "Hazırlanıyor…" : "PDF İndir"}
           </button>
 
-          {/* Word indir */}
-          {!isAndroid && (
+          {/* Word indir — Android dahil her cihazda */}
             <button
               type="button"
               onClick={() => void download("word")}
               disabled={busy !== null}
-              className="no-android flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-3 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 active:scale-[0.98] disabled:opacity-60 sm:w-auto sm:py-2.5"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-700 px-5 py-3 text-[12px] font-black text-white shadow-lg shadow-teal-300/30 transition hover:from-teal-700 hover:to-emerald-800 active:scale-[0.98] disabled:opacity-60 sm:w-auto sm:py-2.5"
             >
               <FileText className="h-4 w-4" />
               {busy === "word" ? "Hazırlanıyor…" : "Word İndir"}
             </button>
-          )}
         </div>
         )}
 

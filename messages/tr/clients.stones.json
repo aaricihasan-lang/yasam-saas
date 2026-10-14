@@ -28,10 +28,11 @@
       },
       "photoPicker": {
         "title": "Fotoğraflar",
-        "select": "Bilgisayardan Foto Seç",
+        "select": "Galeriden / Dosyadan Seç",
         "clear": "Seçimi Temizle",
-        "hint": "Taşı kaydetmeden önce bilgisayardan birden fazla fotoğraf seçebilirsin.",
-        "previewAlt": "Seçilen fotoğraf {n}"
+        "hint": "Taşı kaydetmeden önce birden fazla fotoğraf seçebilir veya kamerayla çekebilirsin.",
+        "previewAlt": "Seçilen fotoğraf {n}",
+        "camera": "📷 Fotoğraf Çek"
       },
       "gallery": {
         "title": "📷 Taş Fotoğrafları",
@@ -134,7 +135,9 @@
         "uploadFailed": "Foto yüklenemedi",
         "photoInsertFailed": "Foto kaydı yazılamadı",
         "photoDeleted": "Fotoğraf silindi.",
-        "photoDeleteFailed": "Foto kaydı silinemedi"
+        "photoDeleteFailed": "Foto kaydı silinemedi",
+        "photoTooLarge": "{name}: fotoğraf kalite korunarak 10 MB sınırına sığdırılamadı.",
+        "photoHeic": "{name}: HEIC/HEIF biçimi bu cihazda dönüştürülemedi. Fotoğrafı JPEG olarak paylaşın."
       },
       "error": {
         "loadStones": "Taş kayıtları yüklenemedi",

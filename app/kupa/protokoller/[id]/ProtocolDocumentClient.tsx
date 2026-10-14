@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { KupaShell, kupaBtnGhost, kupaBtnDanger, kupaBtnPrimary } from "@/app/kupa/components/KupaShell";
 import { deleteProtocol, downloadProtocolWord } from "@/app/kupa/lib/api";
 import { useProtocolDocument } from "../hooks/useProtocolDocument";
@@ -42,7 +41,6 @@ function ProtocolDocumentInner({ id }: { id: string }) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const doc = useProtocolDocument(id);
-  const isAndroid = useIsAndroid();
   const [editingBasic, setEditingBasic] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
 
@@ -133,11 +131,9 @@ function ProtocolDocumentInner({ id }: { id: string }) {
       fullBleedBelowLg
       actions={
         <>
-          {!isAndroid ? (
-            <button type="button" className={`no-android ${kupaBtnPrimary}`} onClick={handleWordDownload} disabled={wordBusy}>
-              {wordBusy ? "Hazırlanıyor…" : "Word İndir"}
-            </button>
-          ) : null}
+          <button type="button" className={kupaBtnPrimary} onClick={handleWordDownload} disabled={wordBusy}>
+            {wordBusy ? "Hazırlanıyor…" : "Word İndir"}
+          </button>
           <button type="button" className={kupaBtnGhost} onClick={() => setEditingBasic(true)}>
             Temel Bilgiyi Düzenle
           </button>

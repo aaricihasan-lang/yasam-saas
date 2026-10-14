@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { AromaterapiEmptyState } from "@/app/aromaterapi/_components/AromaterapiEmptyState";
 import { messageForCode } from "@/lib/aromaterapi/readClient";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import type { ReadListSelection } from "@/app/aromaterapi/_components/read/useReadListSelection";
 import {
   ReadError,
@@ -65,7 +64,6 @@ export function ReadListScreen<T extends { id: string }>({
   /** Additive çoklu-seçim + Word export (useReadListSelection). Verilmezse seçim yok. */
   selection?: ReadListSelection;
 }) {
-  const isAndroid = useIsAndroid();
   const pageIds = rows.map((r) => r.id);
   return (
     <div className="space-y-4">
@@ -76,7 +74,7 @@ export function ReadListScreen<T extends { id: string }>({
         count={<ReadResultCount total={total} loading={loading} />}
       />
 
-      {selection && !loading && rows.length > 0 && !isAndroid ? (
+      {selection && !loading && rows.length > 0 ? (
         <BulkExportBar
           compact
           selectedCount={selection.selectedIds.size}
@@ -111,14 +109,14 @@ export function ReadListScreen<T extends { id: string }>({
         <>
           <div className={gridClassName}>
             {rows.map((row) =>
-              selection && !isAndroid ? (
+              selection ? (
                 <div key={row.id} className="relative">
                   <input
                     type="checkbox"
                     checked={selection.selectedIds.has(row.id)}
                     onChange={() => selection.toggle(row.id)}
                     aria-label="Kaydı Word export için seç"
-                    className="no-android absolute right-2.5 top-2.5 z-10 h-4 w-4 rounded accent-amber-600"
+                    className="absolute right-2.5 top-2.5 z-10 h-4 w-4 rounded accent-amber-600"
                   />
                   {renderItem(row)}
                 </div>

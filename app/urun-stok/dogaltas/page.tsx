@@ -4,6 +4,8 @@ import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
+import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
+import { dataUrlsByteSize } from "@/lib/urun-stok/photoValidation";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { composeOtherValue } from "@/lib/urun-stok/selectOther";
 import { SelectWithOther } from "../SelectWithOther";
@@ -1017,6 +1019,20 @@ export default function DogaltasUrunStokPage() {
                     }}
                   />
                 </label>
+                <CameraCaptureButton
+                  className={`${btnSecondary} inline-flex`}
+                  onFiles={async (files) => {
+                    // Kamera: çekilen fotoğraf mevcut seçime EKLENİR (adet + toplam boyut sınırı korunur).
+                    const { urls, error } = await filesToDataUrls(files, {
+                      existingCount: pendingPhotos.length,
+                      existingBytes: dataUrlsByteSize(pendingPhotos),
+                    });
+                    if (error) setStockMsg(error);
+                    else setPendingPhotos((prev) => [...prev, ...urls]);
+                  }}
+                >
+                  📷 Çek
+                </CameraCaptureButton>
                 <button type="button" className={btnPrimary} onClick={() => void handleAddStock()} disabled={saveLock.pending} aria-busy={saveLock.pending}>
                   Ekle
                 </button>
@@ -1201,6 +1217,20 @@ export default function DogaltasUrunStokPage() {
                   }}
                 />
               </label>
+              <CameraCaptureButton
+                className={`${btnSecondary} inline-flex`}
+                onFiles={async (files) => {
+                  // Kamera: çekilen fotoğraf mevcut seçime EKLENİR (adet + toplam boyut sınırı korunur).
+                  const { urls, error } = await filesToDataUrls(files, {
+                    existingCount: productPhotos.length,
+                    existingBytes: dataUrlsByteSize(productPhotos),
+                  });
+                  if (error) setPricingMsg(error);
+                  else setProductPhotos((prev) => [...prev, ...urls]);
+                }}
+              >
+                📷 Çek
+              </CameraCaptureButton>
 
               <div className="rounded-xl border-2 border-sky-200/90 bg-gradient-to-br from-sky-50 via-white to-violet-50/80 p-3">
                 <p className="text-xs font-black uppercase tracking-wide text-violet-800">

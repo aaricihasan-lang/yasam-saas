@@ -6,8 +6,6 @@ import { useEffect, useRef, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken, isAdminUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
-import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import {
   DIGITAL_CONTENT_DEMO_BANNER,
@@ -152,9 +150,8 @@ function authHeaders(): Record<string, string> {
 export default function BelgeCeviriPage() {
   const { showToast } = useToast();
   const isDemo = readYasamUser()?.is_demo_account === true;
-  const isAndroid = useIsAndroid();
-  // Android uygulama WebView'inde blob: indirme çalışmaz → TXT İndir gizli (plan §4.6).
-  const isAndroidApp = useIsAndroidApp();
+  // Android dahil tüm cihazlarda Word indirme açık (2026-10-14 owner kararı); HD ve Astroloji kendi
+  // kurallarını korur. Uygulama WebView blob indirmelerini (Word + TXT) kaydeder.
 
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -498,12 +495,7 @@ export default function BelgeCeviriPage() {
 
         {/* kartlar — lg+ 3 sütun, sm 2 sütun, mobil tek sütun */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {CARDS.filter(
-            // Android: Word (.docx) çıktısı üreten kartlar HİÇ gösterilmez (ürün kararı) —
-            // sonu Word indirmeye çıkan işlem başlatılamaz. OCR (metni oku, TXT) korunur;
-            // OCR'ın kendi "Word İndir" alt-butonları zaten Android'de gizli.
-            (card) => !(isAndroid && (card.id === "pdf-to-word" || card.id === "pdf-to-turkce-word")),
-          )
+          {CARDS
             // AI kartları (OCR, PDF → Türkçe Word) yalnız yöneticiye.
             .filter((card) => isAdmin || !AI_CARD_IDS.has(card.id))
             .map((card) => {
@@ -512,7 +504,7 @@ export default function BelgeCeviriPage() {
             return (
               <div
                 key={card.id}
-                className={`${card.id === "pdf-to-word" || card.id === "pdf-to-turkce-word" ? "no-android " : ""}flex flex-col rounded-xl border bg-gradient-to-br p-2.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.gradient} ${card.border}`}
+                className={`flex flex-col rounded-xl border bg-gradient-to-br p-2.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.gradient} ${card.border}`}
               >
                 {/* ikon + badge */}
                 <div className="flex items-start justify-between gap-2">
@@ -681,7 +673,7 @@ export default function BelgeCeviriPage() {
                     />
 
                     {/* Orijinal metin butonları */}
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => {
@@ -693,22 +685,19 @@ export default function BelgeCeviriPage() {
                         <Copy className="h-3.5 w-3.5" strokeWidth={2.25} />
                         Kopyala
                       </button>
-                      {!isAndroidApp && (
                       <button
                         type="button"
                         onClick={() => downloadTxt(ocrResult.text)}
-                        className="no-android-app flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
                       >
                         <FileDown className="h-3.5 w-3.5" strokeWidth={2.25} />
                         TXT İndir
                       </button>
-                      )}
-                      {!isAndroid && (
                       <button
                         type="button"
                         onClick={() => void handleOcrWordDownload(ocrResult.text, "original")}
                         disabled={downloadingWord === "original"}
-                        className="no-android flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2 text-xs font-bold text-white transition hover:bg-amber-600 disabled:opacity-50"
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2 text-xs font-bold text-white transition hover:bg-amber-600 disabled:opacity-50"
                       >
                         {downloadingWord === "original" ? (
                           <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
@@ -717,7 +706,6 @@ export default function BelgeCeviriPage() {
                         )}
                         Word İndir
                       </button>
-                      )}
                     </div>
 
                     {/* Dil durumu ve çeviri */}
@@ -736,7 +724,7 @@ export default function BelgeCeviriPage() {
                           className="w-full resize-y rounded-xl border border-amber-200 bg-white px-3 py-2.5 text-sm font-medium leading-relaxed text-slate-700 focus:outline-none"
                         />
 
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
                             onClick={() => {
@@ -748,22 +736,19 @@ export default function BelgeCeviriPage() {
                             <Copy className="h-3.5 w-3.5" strokeWidth={2.25} />
                             Çeviriyi Kopyala
                           </button>
-                          {!isAndroidApp && (
                           <button
                             type="button"
                             onClick={() => downloadTxt(ocrResult.translation ?? "", "ocr-ceviri.txt")}
-                            className="no-android-app flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
                           >
                             <FileDown className="h-3.5 w-3.5" strokeWidth={2.25} />
                             TXT İndir
                           </button>
-                          )}
-                          {!isAndroid && (
                           <button
                             type="button"
                             onClick={() => void handleOcrWordDownload(ocrResult.translation ?? "", "translation", "ocr-ceviri.docx")}
                             disabled={downloadingWord === "translation"}
-                            className="no-android flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2 text-xs font-bold text-white transition hover:bg-amber-600 disabled:opacity-50"
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2 text-xs font-bold text-white transition hover:bg-amber-600 disabled:opacity-50"
                           >
                             {downloadingWord === "translation" ? (
                               <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
@@ -772,7 +757,6 @@ export default function BelgeCeviriPage() {
                             )}
                             Word İndir
                           </button>
-                          )}
                         </div>
                       </div>
                     ) : (
@@ -835,11 +819,11 @@ export default function BelgeCeviriPage() {
                       </button>
                     </div>
 
-                    {!isAndroid && activeJob.status === "completed" && activeJob.downloadUrl && (
+                    {activeJob.status === "completed" && activeJob.downloadUrl && (
                       <a
                         href={activeJob.downloadUrl}
                         download
-                        className="no-android mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-bold text-white transition hover:bg-emerald-700"
+                        className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-bold text-white transition hover:bg-emerald-700"
                       >
                         <Download className="h-4 w-4" strokeWidth={2.25} />
                         DOCX İndir
@@ -1102,11 +1086,11 @@ export default function BelgeCeviriPage() {
                           </p>
                         )}
 
-                        {!isAndroid && isCompleted && job.downloadUrl && (
+                        {isCompleted && job.downloadUrl && (
                           <a
                             href={job.downloadUrl}
                             download
-                            className="no-android inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 text-xs font-bold text-white transition hover:bg-emerald-700 sm:w-auto sm:px-5"
+                            className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 text-xs font-bold text-white transition hover:bg-emerald-700 sm:w-auto sm:px-5"
                           >
                             <Download className="h-3.5 w-3.5" strokeWidth={2.25} />
                             DOCX İndir

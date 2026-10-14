@@ -5,21 +5,16 @@
 //   1) formatPortionLabel: "su bardağı" ithal ölçü → gram fallback (null); doğal porsiyon
 //      normalizasyonu (2 × 1 dilim → "2 dilim"); duplicate/NaN/null savunması.
 //      Web compact ve Word "—" davranışı aynı SAF çekirdekten türetilir (drift yok).
-//   2) isExportVisibleForInput: karar CİHAZ YETENEĞİYLE (hover+pointer), viewport GENİŞLİĞİYLE
-//      DEĞİL. Masaüstü (hover+fine) her genişlikte görünür; dokunmatik (coarse/no-hover) gizli.
-//      Width tek başına görünürlük kararı vermez. CSS sınıfı ile media query drift guard'ı
-//      globals.css'in aynı koşulu (EXPORT_DESKTOP_MEDIA_QUERY) kodladığını doğrular.
+//   2) Export (Word) görünürlüğü — 2026-10-14 owner kararı: TÜM cihazlarda görünür (masaüstü,
+//      mobil web, Android Chrome, Android uygulaması, iPhone, tablet). Eski "yalnız masaüstü"
+//      CSS kuralı globals.css'ten ve sarmalayıcı sınıfı PlanTools'tan kaldırılmış olmalı.
 //
 // Çalıştır:  npx tsx scripts/beslenme-word/portionDisplayHarness.mjs
 // FAIL → exit 1.
 // ============================================================
 import { readFileSync } from "node:fs";
 import { formatPortionLabel } from "../../lib/beslenme/portionDisplay.ts";
-import {
-  isExportVisibleForInput,
-  EXPORT_DESKTOP_ONLY_CLASS,
-  EXPORT_DESKTOP_MEDIA_QUERY,
-} from "../../lib/beslenme/exportVisibility.ts";
+import { isExportVisibleForInput } from "../../lib/beslenme/exportVisibility.ts";
 
 let pass = 0,
   fail = 0;
@@ -85,44 +80,22 @@ eq("J case-insensitive cup", formatPortionLabel({ quantity: 1, portionLabel: "1 
 eq("K plain-label q1", formatPortionLabel({ quantity: 1, portionLabel: "orta boy" }), "orta boy");
 eq("K plain-label q2 → null", formatPortionLabel({ quantity: 2, portionLabel: "orta boy" }), null);
 
-console.log("\n── isExportVisibleForInput (CİHAZ YETENEĞİ · genişlik karar vermez) ──");
+console.log("\n── Word export görünürlüğü (2026-10-14: TÜM cihazlar) ──");
 const desktop = (widthPx) => ({ hover: "hover", pointer: "fine", widthPx });
-const phone = (widthPx) => ({ hover: "none", pointer: "coarse", widthPx });
-const tablet = (widthPx) => ({ hover: "none", pointer: "coarse", widthPx });
+const touch = (widthPx) => ({ hover: "none", pointer: "coarse", widthPx });
+for (const w of [1024, 1280, 1600]) eq(`desktop ${w} visible`, isExportVisibleForInput(desktop(w)), true);
+for (const w of [375, 390, 430]) eq(`phone ${w} visible`, isExportVisibleForInput(touch(w)), true);
+for (const w of [768, 1024]) eq(`tablet ${w} visible`, isExportVisibleForInput(touch(w)), true);
+eq("android-webview visible", isExportVisibleForInput({ hover: "none", pointer: "coarse", widthPx: 390 }), true);
+eq("stylus no-hover visible", isExportVisibleForInput({ hover: "none", pointer: "fine", widthPx: 1366 }), true);
 
-// Masaüstü (fare/trackpad): genişlik NE OLURSA OLSUN görünür — 1280 altı dahil.
-eq("desktop 1024 visible", isExportVisibleForInput(desktop(1024)), true);
-eq("desktop 1100 visible", isExportVisibleForInput(desktop(1100)), true);
-eq("desktop 1200 visible", isExportVisibleForInput(desktop(1200)), true);
-eq("desktop 1280 visible", isExportVisibleForInput(desktop(1280)), true);
-eq("desktop 1600 visible", isExportVisibleForInput(desktop(1600)), true);
-// Telefon (dokunmatik): gizli.
-eq("phone 375 hidden", isExportVisibleForInput(phone(375)), false);
-eq("phone 390 hidden", isExportVisibleForInput(phone(390)), false);
-// Tablet (dokunmatik): 1024 geniş olsa da gizli.
-eq("tablet 768 hidden", isExportVisibleForInput(tablet(768)), false);
-eq("tablet 1024 hidden", isExportVisibleForInput(tablet(1024)), false);
-// Android WebView / touch (hover:none + pointer:coarse) → gizli.
-eq("android-webview hidden", isExportVisibleForInput({ hover: "none", pointer: "coarse", widthPx: 1280 }), false);
-// Hibrit dokunmatik-öncelikli (hover yok ama fine pen) → gizli (hover ŞART).
-eq("stylus no-hover hidden", isExportVisibleForInput({ hover: "none", pointer: "fine", widthPx: 1366 }), false);
-// KRİTİK: WIDTH TEK BAŞINA KARAR VERMEZ — aynı 1024'te capability sonucu belirler.
-eq("width-only removed (1024 desktop≠tablet)",
-  isExportVisibleForInput(desktop(1024)) !== isExportVisibleForInput(tablet(1024)), true);
-// Aynı masaüstü capability, farklı genişlik → AYNI sonuç (genişlik etkisiz).
-eq("width-independent (desktop 1024==1600)",
-  isExportVisibleForInput(desktop(1024)) === isExportVisibleForInput(desktop(1600)), true);
-
-console.log("\n── CSS ↔ predicate drift guard (globals.css tek kaynak) ──");
+console.log("\n── Kaynak: gizleme kuralı kaldırıldı (globals.css + PlanTools) ──");
 const globalsCss = readFileSync(new URL("../../app/globals.css", import.meta.url), "utf8");
-eq("class = beslenme-export-desktop-only", EXPORT_DESKTOP_ONLY_CLASS, "beslenme-export-desktop-only");
-eq("class NOT width-based (no xl:)", /(^|\s)xl:/.test(EXPORT_DESKTOP_ONLY_CLASS), false);
-eq("globals defines class", globalsCss.includes(`.${EXPORT_DESKTOP_ONLY_CLASS}`), true);
-eq("globals hides class by default",
-  new RegExp(`\\.${EXPORT_DESKTOP_ONLY_CLASS}\\s*\\{\\s*display:\\s*none`).test(globalsCss), true);
-eq("globals encodes capability media query", globalsCss.includes(`@media ${EXPORT_DESKTOP_MEDIA_QUERY}`), true);
-eq("globals has NO width breakpoint for export",
-  /beslenme-export-desktop-only[\s\S]*?@media[^{]*min-width/.test(globalsCss), false);
+const planTools = readFileSync(new URL("../../app/beslenme/planlar/_components/PlanTools.tsx", import.meta.url), "utf8");
+eq("globals: beslenme-export-desktop-only YOK", globalsCss.includes("beslenme-export-desktop-only"), false);
+eq("PlanTools: masaüstü sarmalayıcı sınıfı YOK", /EXPORT_DESKTOP_ONLY_CLASS|beslenme-export-desktop-only/.test(planTools), false);
+eq("PlanTools: Word İndir butonu var", /Word İndir/.test(planTools) && /downloadPlanWord\(planId\)/.test(planTools), true);
+eq("PlanTools: Android engeli yok", /useIsAndroid|no-android/.test(planTools), false);
 
 console.log(`\n${fail === 0 ? "✅" : "❌"} portion+export harness: ${pass} pass, ${fail} fail`);
 if (fail > 0) {

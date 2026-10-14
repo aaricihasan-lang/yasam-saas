@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { readYasamUser, readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
 import {
   TR_ALPHABET,
@@ -35,7 +34,6 @@ import { buildNameListLines } from "@/lib/ui/deleteConfirmMessage";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { BULK_WORD_MAX_CLIENTS, resolveBulkWordScope } from "@/lib/danisan/bulkWord";
-import { NO_ANDROID_CLASS } from "@/lib/platform/outputSupport";
 import { activityStatus, relativeDayInfo } from "@/lib/danisan/clientDisplay";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -363,7 +361,6 @@ export default function DanisanListePage() {
   const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
   const [selectingAll, setSelectingAll] = useState(false);
-  const isAndroid = useIsAndroid();
 
   const tenantId = sessionUser?.tenant_id?.trim() || null;
   const tenantMissing = sessionChecked && (!sessionUser || !tenantId);
@@ -1122,7 +1119,7 @@ export default function DanisanListePage() {
                 selectAllLabel={selectingAll ? t("bulkWord.loadingAll") : hasActiveFilter ? t("bulkWord.selectAllFiltered") : t("bulkWord.selectAll")}
                 selectAllCount={hasActiveFilter && fullLoaded ? filteredClients.length : (total ?? clients.length)}
                 onClearSelection={clearClientSelection}
-                onExportSelected={isAndroid ? undefined : () => void exportClientsWord()}
+                onExportSelected={() => void exportClientsWord()}
                 exportSelectedLabel={wordScope.isAll ? t("bulkWord.wordAll") : t("bulkWord.wordSelected")}
                 isExporting={wordBusy || selectingAll}
                 onDeleteSelected={
@@ -1131,12 +1128,10 @@ export default function DanisanListePage() {
                     : () => void handleBulkDeleteClients()
                 }
                 isDeleting={deleteLoading}
-                hideWordOnMobile
               />
-              {/* Kapsam açıklaması yalnız Word butonunun göründüğü yerde (md+, Android değil) — politika gereği
-                  Word gizliyken "Word…" metni yanıltmasın; seçim sayacı çubukta her yerde görünür. */}
-              {!isAndroid && (
-              <p data-testid="bulk-word-scope" className={`${NO_ANDROID_CLASS} mt-1.5 hidden px-1 text-[12px] font-semibold text-slate-500 md:block`}>
+              {/* Kapsam açıklaması Word butonuyla birlikte her cihazda görünür (Android dahil tüm cihazlarda Word
+                  indirme açık — 2026-10-14 owner kararı; HD ve Astroloji kendi kurallarını korur). */}
+              <p data-testid="bulk-word-scope" className="mt-1.5 px-1 text-[12px] font-semibold text-slate-500">
                 {visibleSelectedIds.length === 0
                   ? t("bulkWord.scopeNone")
                   : hasActiveFilter
@@ -1145,7 +1140,6 @@ export default function DanisanListePage() {
                       ? t("bulkWord.scopeAll", { total: total ?? clients.length })
                       : t("bulkWord.scopeSelected", { selected: visibleSelectedIds.length, total: total ?? clients.length })}
               </p>
-              )}
             </div>
           )}
 

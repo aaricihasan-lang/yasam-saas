@@ -197,7 +197,10 @@
         "storageClearFailed": "Depolama temizlenemedi. Lütfen tekrar deneyin.",
         "deleteConfirmTitle": "Fotoğrafı sil",
         "deleteConfirmMessage": "\"{name}\" fotoğrafını silmek istiyor musunuz? Bu işlem geri alınamaz.",
-        "deleteConfirmSecond": "\"{name}\" fotoğrafı kalıcı olarak silinecek. Emin misiniz?"
+        "deleteConfirmSecond": "\"{name}\" fotoğrafı kalıcı olarak silinecek. Emin misiniz?",
+        "takePhoto": "📷 Fotoğraf Çek",
+        "photoTooLarge": "{name}: fotoğraf kalite korunarak 10 MB sınırına sığdırılamadı.",
+        "photoHeic": "{name}: HEIC/HEIF biçimi bu cihazda dönüştürülemedi. Fotoğrafı JPEG olarak paylaşın."
       },
       "deleteConfirm": {
         "title": "Taşı Sil",

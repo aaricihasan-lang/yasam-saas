@@ -6,6 +6,7 @@
  */
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
+import { isAndroidAppClient } from "@/lib/platform/outputSupport";
 import { ANAMNEZ_BUCKET } from "./storage";
 
 export function anamnezAuthHeaders(json = false): Record<string, string> {
@@ -61,6 +62,20 @@ export async function uploadToSignedPath(path: string, token: string, file: File
  * sekmede açılır. Cihaz tespitiyle hiçbir özellik kapatılmaz (K8).
  */
 export async function openSignedUrl(fetchUrl: () => Promise<string | null>): Promise<"ok" | "blocked" | "error"> {
+  // Android uygulaması (WebView) çoklu pencere desteklemez: window.open("about:blank") mevcut
+  // sayfanın YERİNE yüklenip uygulama ekranını boşaltabilir. Uygulamada pencere açılmaz; signed
+  // URL doğrudan istenir → uygulama Supabase adresini dış tarayıcıda/PDF görüntüleyicide açar,
+  // uygulama sayfası yerinde kalır. Diğer tüm ortamlarda davranış aynen korunur.
+  if (isAndroidAppClient()) {
+    const url = await fetchUrl();
+    if (!url) return "error";
+    try {
+      window.location.assign(url);
+      return "ok";
+    } catch {
+      return "blocked";
+    }
+  }
   let win: Window | null = null;
   try {
     win = window.open("about:blank", "_blank");
@@ -90,10 +105,13 @@ export async function openSignedUrl(fetchUrl: () => Promise<string | null>): Pro
 }
 
 /** İndirme: signed URL `download` seçeneğiyle Content-Disposition: attachment döner. */
-export function triggerUrlDownload(url: string): void {
+export function triggerUrlDownload(url: string, fileName?: string): void {
   const a = document.createElement("a");
   a.href = url;
   a.rel = "noopener";
+  // `download` işareti: Android uygulaması indirmeyi uygulama içinde (İndirilenler) yapar.
+  // Masaüstü tarayıcılar farklı kökenli adreste bu adı yok sayar → Content-Disposition geçerli kalır.
+  a.download = fileName ?? "";
   document.body.appendChild(a);
   a.click();
   a.remove();
