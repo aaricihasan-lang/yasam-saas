@@ -142,12 +142,12 @@ function main() {
   });
 
   t("görünüm seçicisi (VS15/VS16) çıktıya girmez; ardışık parçalar doğru bölünür", () => {
-    const runs = fontRuns(`${BODY_GLYPHS.sun} Güneş ⚹ Altmışlık`);
+    const runs = fontRuns(`${BODY_GLYPHS.sun} Güneş ⚹ Sekstil (60°)`);
     assert.deepEqual(runs, [
       { font: "A", text: "☉" },
       { font: "base", text: " Güneş " },
       { font: "B", text: "⚹" },
-      { font: "base", text: " Altmışlık" },
+      { font: "base", text: " Sekstil (60°)" },
     ]);
   });
 
@@ -164,7 +164,7 @@ function main() {
       cover: { client: "Test", analysisDate: "14.10.2026", tradition: "Batı", technique: "Natal", options: "—" },
       blocks: [
         { kind: "heading", level: 3, text: "Regulus ☌ Kavuşum ☉ Güneş" },
-        { kind: "table", table: { columns: ["Gezegen", "Burç", "Açı"], rows: [["☉ Güneş", "♌ Aslan 29°41′", "⚹ Altmışlık"], ["♇ Plüton", "γ Pegasi (Gamma Pegasi)", "℞ Retro"]] } },
+        { kind: "table", table: { columns: ["Gezegen", "Burç", "Açı"], rows: [["☉ Güneş", "♌ Aslan 29°41′", "⚹ Sekstil (60°)"], ["♇ Plüton", "γ Pegasi (Gamma Pegasi)", "℞ Retro"]] } },
         { kind: "para", text: "Sembolsüz uzun Türkçe paragraf: ğüşıöç İĞŞÜÖÇ ".repeat(12) },
       ],
       fileBase: "x",

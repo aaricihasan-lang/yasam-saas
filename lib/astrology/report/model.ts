@@ -40,6 +40,12 @@ export type WheelInput = {
    * kayıtlı veriden; yoksa tek halka çizilir.
    */
   outer?: { bodies: { id: string; longitude: number; sign: SignId; degreeInSign: number; retrograde: boolean }[] } | null;
+  /**
+   * 2026-10-15: çift halkada iki halka ARASI açılar (Transit: transit → natal; Sinastri: 1. kişi → 2. kişi). Uygulamadaki
+   * Roxy çift halka bileşenleriyle aynı veri: kayıtlı teknik katmanın açı listesi (yeni hesap YOK). outer = dış halka gövdesi,
+   * inner = iç halka gövdesi. Natal ASC/MC hedefli transit açıları çizilmez (uygulamayla aynı; tabloda kalır).
+   */
+  crossAspects?: { outer: string; inner: string; type: string; nature: string | null }[];
 };
 
 export type AstroReport = {
@@ -265,7 +271,10 @@ function transitWheel(t: O): WheelInput | null {
   const inner = wheelOf(t.natalFrame, false);
   const outer = wheelBodies(t.bodies);
   if (!inner || !inner.angles || !outer.length) return null;
-  return { ...inner, outer: { bodies: outer } };
+  const crossAspects = arr(t.aspects)
+    .filter((x) => typeof x.transit === "string" && typeof x.natal === "string" && x.natal !== "ascendant" && x.natal !== "midheaven")
+    .map((x) => ({ outer: String(x.transit), inner: String(x.natal), type: String(x.type), nature: typeof x.nature === "string" ? x.nature : null }));
+  return { ...inner, outer: { bodies: outer }, crossAspects };
 }
 
 /** Sinastri çift halka: iç halka 2. kişi, dış halka 1. kişi; sağlayıcı sinastride ev vermez → yalnız burç bölümleri, Koç 0° solda. */
@@ -275,12 +284,15 @@ function synastryWheel(t: O): WheelInput | null {
   const a = p1 ? wheelBodies(p1.bodies) : [];
   const bb = p2 ? wheelBodies(p2.bodies) : [];
   if (!a.length || !bb.length) return null;
-  return { bodies: bb, houses: [], angles: null, aspects: [], outer: { bodies: a } };
+  const crossAspects = arr(t.aspects)
+    .filter((x) => typeof x.a === "string" && typeof x.b === "string")
+    .map((x) => ({ outer: String(x.a), inner: String(x.b), type: String(x.type), nature: typeof x.nature === "string" ? x.nature : null }));
+  return { bodies: bb, houses: [], angles: null, aspects: [], outer: { bodies: a }, crossAspects };
 }
 
 function wheelCaption(technique: string, techLabel: string, people: { a: string; b: string }): string {
-  if (technique === "western.transit") return "Transit çift halka — iç halka: natal (kayıtlı doğum bilgisi revizyonu), dış halka (mor): transit gezegenleri. Kayıtlı analiz verisinden çizilmiştir.";
-  if (technique === "western.synastry") return `Sinastri çift halka — dış halka (mor): ${people.a}, iç halka: ${people.b}. Bölümler burç sınırlarıdır (sağlayıcı sinastride ev vermez); Koç 0° solda. Kayıtlı analiz verisinden çizilmiştir.`;
+  if (technique === "western.transit") return "Transit çift halka — iç halka: natal (kayıtlı doğum bilgisi revizyonu), dış halka (mor): transit gezegenleri. Ortadaki çizgiler transit → natal açılarıdır (mor nokta transit gezegeni; natal Yükselen/MC hedefli açılar yalnız tabloda). Kayıtlı analiz verisinden çizilmiştir.";
+  if (technique === "western.synastry") return `Sinastri çift halka — dış halka (mor): ${people.a}, iç halka: ${people.b}. Bölümler burç sınırlarıdır (sağlayıcı sinastride ev vermez); Koç 0° solda. Ortadaki çizgiler iki kişi arasındaki açılardır (mor nokta dış halka). Kayıtlı analiz verisinden çizilmiştir.`;
   if (technique === "western.progression") return "İlerletilmiş (secondary progression) çark — ilerletilmiş Yükselen'den tam burç evleri. Kayıtlı analiz verisinden çizilmiştir.";
   return `${techLabel} çarkı — kayıtlı analiz verisinden çizilmiştir.`;
 }

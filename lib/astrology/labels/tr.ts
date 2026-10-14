@@ -89,8 +89,9 @@ export const ASPECT_LABELS: Record<AspectType, string> = {
   opposition: "Karşıt",
   trine: "Üçgen",
   square: "Kare",
-  sextile: "Altmışlık",
-  semi_sextile: "Yarım altmışlık",
+  // 2026-10-15 owner terminoloji kararı: profesyonel gösterim "⚹ Sekstil (60°)" (eski "Altmışlık"); yalnız gösterim.
+  sextile: "Sekstil (60°)",
+  semi_sextile: "Yarım sekstil (30°)",
   semi_square: "Yarım kare",
   sesquiquadrate: "Bir buçuk kare",
   quincunx: "Quincunx (150°)",

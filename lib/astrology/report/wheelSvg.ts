@@ -154,6 +154,28 @@ export function buildWheelSvg(w: WheelInput, fontFamily = WHEEL_FONT_STACK): str
     );
   }
 
+  // 2026-10-15: çift halka ARASI açılar (uygulamadaki Roxy transit / sinastri çarkıyla aynı veri). Uçlar iki gövdenin
+  // GERÇEK boylamında açı dairesi üzerindedir; renk/çizgi natal açılarla aynı kural (majör düz, minör kesik).
+  if (outerBodies && w.crossAspects?.length) {
+    const outerById = new Map(outerBodies.map((b) => [b.id, b]));
+    for (const a of w.crossAspects) {
+      const po = outerById.get(a.outer);
+      const pi = posById.get(a.inner);
+      if (!po || !pi) continue;
+      const p1 = pt(R_ASPECT, po.longitude);
+      const p2 = pt(R_ASPECT, pi.longitude);
+      const major = MAJOR.has(a.type);
+      out.push(
+        `<line x1="${f(p1.x)}" y1="${f(p1.y)}" x2="${f(p2.x)}" y2="${f(p2.y)}" stroke="${NATURE_COLOR[a.nature ?? "neutral"] ?? "#64748b"}" stroke-width="${major ? 1.1 : 0.7}"${major ? "" : ' stroke-dasharray="3 3"'} opacity="0.75" data-cross="1"/>`,
+      );
+    }
+    // Dış halka gövdesinin açı dairesindeki ucu (mor nokta) — çizginin hangi halkaya ait olduğu okunur.
+    for (const b of outerBodies) {
+      const dot = pt(R_ASPECT, b.longitude);
+      out.push(`<circle cx="${f(dot.x)}" cy="${f(dot.y)}" r="1.8" fill="${OUTER_INK}"/>`);
+    }
+  }
+
   const disp = spread(w.bodies);
   for (const b of w.bodies) {
     const d = disp.get(b.id) ?? b.longitude;

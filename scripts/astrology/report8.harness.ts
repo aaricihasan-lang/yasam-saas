@@ -23,7 +23,13 @@ import { createKb } from "@/lib/astrology/kb/service";
 import { getAnalysis, saveAnalysis, saveExpertNote } from "@/lib/astrology/analyses/service";
 import { previewProfileDeletion, deleteProfiles } from "@/lib/astrology/clients/deletion";
 import { buildAstroReport, reportTexts, asciiSlug, type ReportAnalysisInput } from "@/lib/astrology/report/model";
-import { buildWheelSvg } from "@/lib/astrology/report/wheelSvg";
+import { buildWheelSvg, WHEEL_BODY_ABBR, WHEEL_FONT_STACK } from "@/lib/astrology/report/wheelSvg";
+import { fontKeyOf } from "@/lib/astrology/report/symbolFonts";
+import { Resvg } from "@resvg/resvg-js";
+import { renderWheelPng } from "@/lib/astrology/report/chartPng";
+import { renderAstroReportDocx } from "@/lib/astrology/report/docx";
+import { buildAstroReportPdf } from "@/lib/astrology/report/pdf";
+import { symbolFontBuffers, symbolFontsBase64 } from "@/lib/astrology/report/symbolFontData";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 import { __resetRateLimitStore } from "@/lib/rateLimit";
 
@@ -755,6 +761,110 @@ async function main() {
     assert.equal(isCustomTitle(`${P} & TEST2 · İzmir saat bilinmiyor · Sinastri · 12.10.2026`, P), false, "ilişki otomatik başlığı");
     assert.equal(isCustomTitle("  ", P), false);
     assert.match(readFileSync(join(ROOT, "app/admin/astroloji/page.tsx"), "utf8"), /profileLabel=\{shownDetail\.label\}/);
+  });
+
+  // ── 2026-10-15 HARİTA AKTARIM REGRESYONU: her harita türü uygulama verisinden → SVG → PNG → Word + PDF EKSİKSİZ ────────
+  // Yalnız "dosyada bir resim var" yetmez: doğru harita, doğru öğeler, kırpılmadan, okunur çözünürlükte, Word = PDF = PNG.
+  const CHART_TECHS = ["western.natal", "western.solar_return", "western.lunar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "western.transit"] as const;
+  const FONT_DIR = join(ROOT, "public", "fonts");
+  const GEIST = join(FONT_DIR, "Geist-Regular.ttf");
+  const SYM = [join(FONT_DIR, "YasamAstroSymbolsA.ttf"), join(FONT_DIR, "YasamAstroSymbolsB.ttf")];
+  const raster = (svg: string, fontFiles: string[]) => {
+    const r = new Resvg(svg, { background: "white", fitTo: { mode: "width", value: 1200 }, font: { loadSystemFonts: false, fontFiles, defaultFontFamily: "Geist" } }).render();
+    const px = r.pixels;
+    let dark = 0;
+    let minX = r.width, minY = r.height, maxX = 0, maxY = 0;
+    for (let y = 0; y < r.height; y++)
+      for (let x = 0; x < r.width; x++) {
+        const i = (y * r.width + x) * 4;
+        if (px[i] < 200 || px[i + 1] < 200 || px[i + 2] < 200) {
+          dark++;
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        }
+      }
+    return { width: r.width, height: r.height, dark, bbox: { minX, minY, maxX, maxY } };
+  };
+  const pngDims = (b: Buffer) => ({ w: b.readUInt32BE(16), h: b.readUInt32BE(20) });
+  const fontB64 = readFileSync(GEIST).toString("base64");
+  for (const tech of CHART_TECHS) {
+    await t(`harita aktarımı ${tech}: öğeler eksiksiz · PNG kırpılmamış/okunur · Word = PDF = PNG (aynı görsel, oran korunur)`, async () => {
+      const a = await full(saved.get(tech)!);
+      const r = buildAstroReport(a);
+      const ch = r.blocks.find((b) => b.kind === "chart") as J;
+      if (tech === "western.transit" && !(a.technical as J)?.natalFrame) {
+        assert.equal(ch, undefined, "natal çerçevesi yokken transit çarkı çizilmemeli");
+        return;
+      }
+      assert.ok(ch, "harita bloğu yok");
+      const w = ch.chart as J;
+      const svg = buildWheelSvg(w);
+      // 1) Öğeler: her gövde için glif + derece; 12 burç glifi; ev numaraları; ASC/DSC/MC/IC; ℞; açı çizgileri.
+      const glyphCount = (g: string) => svg.split(`>${g}<`).length - 1;
+      const inner: J[] = w.bodies;
+      const outer: J[] = w.outer?.bodies ?? [];
+      for (const s of ["♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓"]) assert.equal(glyphCount(s), 1, `burç glifi ${s}`);
+      const degTexts = (svg.match(/>\d{1,2}°℞?</g) ?? []).length;
+      assert.equal(degTexts, inner.length + outer.length, "her gövde için derece etiketi");
+      assert.equal((svg.match(/℞</g) ?? []).length, [...inner, ...outer].filter((b) => b.retrograde).length, "retro işareti sayısı");
+      if (w.houses.length) for (let i = 1; i <= 12; i++) assert.ok(svg.includes(`>${i}</text>`), `ev numarası ${i}`);
+      if (w.angles) for (const lbl of ["ASC", "DSC", "MC", "IC"]) assert.ok(svg.includes(`>${lbl}<`), lbl);
+      const lines = (svg.match(/<line [^>]*opacity="0\.75"/g) ?? []).length;
+      const crossDrawable = (w.crossAspects ?? []).filter((x: J) => outer.some((b) => b.id === x.outer) && inner.some((b) => b.id === x.inner)).length;
+      const natalDrawable = (w.aspects ?? []).filter((x: J) => inner.some((b) => b.id === x.a) && inner.some((b) => b.id === x.b)).length;
+      assert.equal(lines, natalDrawable + crossDrawable, "açı çizgisi sayısı = verideki çizilebilir açı sayısı");
+      if (tech === "western.synastry" || tech === "western.transit") assert.ok(crossDrawable > 0, "çift halkada halkalar arası açı çizgisi yok");
+      if (tech === "western.natal") assert.ok(natalDrawable > 0, "natal açı çizgisi yok");
+      // 2) PNG: kare, okunur çözünürlük, kenara taşma/kırpılma yok, boş değil; sembol fontları gerçekten glif çiziyor.
+      const ras = raster(svg, [GEIST, ...SYM]);
+      assert.equal(ras.width, 1200);
+      assert.equal(ras.height, 1200, "çark kare olmalı");
+      // Açısız çarklar (relocation, progression) daha seyrektir; ölçülen en düşük ≈%1,6 → eşik %1.
+      assert.ok(ras.dark > 1200 * 1200 * 0.01, `harita neredeyse boş (${ras.dark} koyu piksel)`);
+      assert.ok(ras.bbox.minX >= 2 && ras.bbox.minY >= 2 && ras.bbox.maxX <= 1197 && ras.bbox.maxY <= 1197, `içerik kenara değiyor (kırpılma): ${JSON.stringify(ras.bbox)}`);
+      // Sembol glifleri GERÇEKTEN sembol fontundan çizilir: çarktaki her glif, font listesiyle ve sembol fontu AÇIKÇA
+      // seçilerek PİKSEL-PİKSEL aynı; yalnız Geist ile (glif yok → .notdef kutusu) farklı.
+      for (const g of [...new Set([...inner, ...outer].map((b) => WHEEL_BODY_ABBR[b.id]).concat(["♈", "♓", "℞"]))]) {
+        const probe = (fam: string, files: string[]) =>
+          Buffer.from(new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="120" height="60" font-family="${fam}"><rect width="120" height="60" fill="#fff"/><text x="10" y="45" font-size="36">${g}</text></svg>`, { background: "white", font: { loadSystemFonts: false, fontFiles: files, defaultFontFamily: "Geist" } }).render().pixels);
+        const viaStack = probe(WHEEL_FONT_STACK, [GEIST, ...SYM]);
+        const famOf = fontKeyOf(g) === "B" ? "'Yasam Astro Symbols B'" : "'Yasam Astro Symbols A'";
+        assert.ok(viaStack.equals(probe(famOf, [GEIST, ...SYM])), `${g}: çarkta sembol fontuyla çizilmiyor`);
+        assert.ok(!viaStack.equals(probe("Geist", [GEIST])), `${g}: Geist ile aynı (sembol fontu devrede değil)`);
+      }
+      // 3) Word ve PDF: AYNI görsel, oran korunur, sayfaya sığar.
+      const png = renderWheelPng(w);
+      assert.ok(png, "PNG üretilemedi");
+      if (!png) return;
+      assert.deepEqual(pngDims(png.png), { w: 1200, h: 1200 });
+      const docx = await renderAstroReportDocx(r, png.png, symbolFontBuffers());
+      const zip = await JSZip.loadAsync(docx);
+      const media = Object.keys(zip.files).filter((n) => n.startsWith("word/media/") && !zip.files[n].dir);
+      const imgs = await Promise.all(media.map((n) => zip.file(n)!.async("nodebuffer")));
+      assert.ok(imgs.some((b) => b.equals(png.png)), "Word'deki harita, üretilen PNG ile birebir aynı değil");
+      const docXml = await zip.file("word/document.xml")!.async("string");
+      const ext = [...docXml.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/g)].map((m) => [Number(m[1]), Number(m[2])]);
+      assert.ok(ext.some(([cx, cy]) => cx === cy && cx > 0 && cx <= 6_000_000), `Word görsel boyutu kare/sayfaya sığmalı: ${JSON.stringify(ext)}`);
+      const pdf = Buffer.from(buildAstroReportPdf(r, png, fontB64, symbolFontsBase64())).toString("latin1");
+      assert.ok(/\/Subtype \/Image[\s\S]{0,200}?\/Width 1200[\s\S]{0,60}?\/Height 1200|\/Width 1200[\s\S]{0,200}?\/Height 1200[\s\S]{0,200}?\/Subtype \/Image/.test(pdf), "PDF'te 1200×1200 harita görseli yok");
+    });
+  }
+  await t("harita aktarımı: görsel üretilemezse rapor boş/yanlış yer tutucu yerine açık not verir (Word + PDF)", async () => {
+    const r = buildAstroReport(await full(saved.get("western.natal")!));
+    const docx = await renderAstroReportDocx(r, null, symbolFontBuffers());
+    const zip = await JSZip.loadAsync(docx);
+    assert.equal(Object.keys(zip.files).filter((n) => n.startsWith("word/media/") && !n.endsWith("/")).length, 0, "görsel yokken Word'e resim girmemeli");
+    assert.ok((await zip.file("word/document.xml")!.async("string")).includes("Harita görseli bu raporda oluşturulamadı"));
+    const pdfTxt = await pdfText(Buffer.from(buildAstroReportPdf(r, null, fontB64, symbolFontsBase64())));
+    assert.ok(norm(pdfTxt.text).includes("Harita görseli bu raporda oluşturulamadı"));
+  });
+  await t("harita aktarımı: sembolsüz/haritasız teknikler (Vedik/KP/konum/sabit yıldız) rapora HARİTA BLOĞU koymaz (yanlış harita yok)", async () => {
+    for (const tech of TECHNIQUES.filter((x) => !(CHART_TECHS as readonly string[]).includes(x))) {
+      const r = buildAstroReport(await full(saved.get(tech)!));
+      assert.ok(!r.blocks.some((b) => b.kind === "chart"), `${tech}: beklenmeyen harita`);
+    }
   });
 
   restore();
