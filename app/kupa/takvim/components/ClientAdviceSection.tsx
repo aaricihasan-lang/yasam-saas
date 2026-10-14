@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import ClientPicker, { type PickerClient } from "@/components/danisan/ClientPicker";
@@ -13,6 +13,7 @@ import {
   type CuppingAdviceTemplate,
   type CuppingClientAdvice,
 } from "@/app/kupa/lib/api";
+import { openFormDirty } from "@/app/kupa/lib/formDirty";
 
 /**
  * FAZ 5 / AŞAMA 3 — "Danışana Özel Hazırla" (ENTEGRE, katlanır alt bölüm; ana modül DEĞİL).
@@ -24,10 +25,23 @@ import {
  * SNAPSHOT BAĞIMSIZLIĞI (KRİTİK): Danışan kopyası ana şablondan BAĞIMSIZDIR. source_template_id
  *   yalnız provenance'tır; canlı miras/senkron YOK. client_id / source_template_id düzenlenebilir
  *   alan DEĞİLDİR (yalnızca metin düzenlenir).
+ *
+ * FINAL-A1 — açık düzenleme formunda GERÇEK değişiklik varsa: üst bileşene bildirilir (sayfa geneli
+ *   çıkış koruması) ve Vazgeç / başka kayıt / başka danışan seçimi önce onay ister. Değişiklik yoksa sorulmaz.
  */
 type EditState = { id: string; title: string; before_text: string; after_text: string; general_note: string };
 
-export function ClientAdviceSection({ templates }: { templates: CuppingAdviceTemplate[] }) {
+function editFromAdvice(a: CuppingClientAdvice): EditState {
+  return { id: a.id, title: a.title, before_text: a.before_text ?? "", after_text: a.after_text ?? "", general_note: a.general_note ?? "" };
+}
+
+export function ClientAdviceSection({
+  templates,
+  onFormDirtyChange,
+}: {
+  templates: CuppingAdviceTemplate[];
+  onFormDirtyChange?: (dirty: boolean) => void;
+}) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const [open, setOpen] = useState(false);
@@ -38,6 +52,32 @@ export function ClientAdviceSection({ templates }: { templates: CuppingAdviceTem
   const [sourceTemplateId, setSourceTemplateId] = useState("");
   const [creating, setCreating] = useState(false);
   const [edit, setEdit] = useState<EditState | null>(null);
+  // Düzenleme formunun açıldığı andaki değerler (kirli karşılaştırma tabanı).
+  const [editBase, setEditBase] = useState<EditState | null>(null);
+  const editDirty = openFormDirty(edit, editBase);
+
+  useEffect(() => {
+    onFormDirtyChange?.(editDirty);
+  }, [editDirty, onFormDirtyChange]);
+  useEffect(() => () => onFormDirtyChange?.(false), [onFormDirtyChange]);
+
+  /** Açık formda gerçek değişiklik varsa atmadan önce sor (yoksa doğrudan true). */
+  async function confirmDropEdit(): Promise<boolean> {
+    if (!editDirty) return true;
+    return confirm({
+      title: "Kaydedilmemiş Değişiklikler",
+      message: "Danışan bilgilendirmesinde kaydedilmemiş değişiklikleriniz var.\nKaydetmeden devam etmek istiyor musunuz?",
+      confirmText: "Kaydetmeden Devam Et",
+      cancelText: "Vazgeç",
+      tone: "danger",
+    });
+  }
+
+  async function openEdit(next: EditState | null) {
+    if (!(await confirmDropEdit())) return;
+    setEdit(next);
+    setEditBase(next);
+  }
 
   const activeTemplates = templates.filter((t) => t.is_active !== false);
   // Yarış koruması: hızlı danışan değiştirmede ESKİ danışanın yanıtı yenisinin başlığı altında
@@ -46,10 +86,12 @@ export function ClientAdviceSection({ templates }: { templates: CuppingAdviceTem
   const clientIdRef = useRef<string | null>(null);
 
   async function selectClient(c: PickerClient) {
+    if (c.id !== clientIdRef.current && !(await confirmDropEdit())) return;
     const seq = ++reqSeqRef.current;
     clientIdRef.current = c.id;
     setClient(c);
     setEdit(null);
+    setEditBase(null);
     setAdvice([]);
     setLoading(true);
     setError(null);
@@ -118,6 +160,7 @@ export function ClientAdviceSection({ templates }: { templates: CuppingAdviceTem
       });
       await refresh();
       setEdit(null);
+      setEditBase(null);
       showToast({ message: "Bilgilendirme güncellendi.", type: "success" });
     } catch (e) {
       showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
@@ -136,6 +179,11 @@ export function ClientAdviceSection({ templates }: { templates: CuppingAdviceTem
     try {
       await deleteClientAdvice(a.id);
       await refresh();
+      // Silinen kayıt düzenleniyorsa form kapanır (olmayan kayda kaydetme denemesi yok).
+      if (edit?.id === a.id) {
+        setEdit(null);
+        setEditBase(null);
+      }
       showToast({ message: "Bilgilendirme silindi.", type: "success" });
     } catch (e) {
       showToast({ message: e instanceof Error ? e.message : "Silinemedi.", type: "error" });
@@ -204,7 +252,7 @@ export function ClientAdviceSection({ templates }: { templates: CuppingAdviceTem
                           <textarea className={`${kupaInput} min-h-[60px]`} value={edit.after_text} onChange={(e) => setEdit({ ...edit, after_text: e.target.value })} placeholder="Hacamat Sonrası" />
                           <textarea className={`${kupaInput} min-h-[48px]`} value={edit.general_note} onChange={(e) => setEdit({ ...edit, general_note: e.target.value })} placeholder="Genel / Ek Not" />
                           <div className="flex justify-end gap-2">
-                            <button type="button" className={`${kupaBtnGhost} min-h-[36px]`} onClick={() => setEdit(null)}>Vazgeç</button>
+                            <button type="button" className={`${kupaBtnGhost} min-h-[36px]`} onClick={() => void openEdit(null)}>Vazgeç</button>
                             <button type="button" className={`${kupaBtnSuccess} min-h-[36px]`} onClick={saveEdit}>Kaydet</button>
                           </div>
                         </div>
@@ -218,7 +266,7 @@ export function ClientAdviceSection({ templates }: { templates: CuppingAdviceTem
                             ) : null}
                           </div>
                           <span className={kupaRowActions}>
-                            <button type="button" className={`${kupaBtnGhost} min-h-[40px] px-3 py-1 text-xs lg:min-h-[32px]`} onClick={() => setEdit({ id: a.id, title: a.title, before_text: a.before_text ?? "", after_text: a.after_text ?? "", general_note: a.general_note ?? "" })}>Düzenle</button>
+                            <button type="button" className={`${kupaBtnGhost} min-h-[40px] px-3 py-1 text-xs lg:min-h-[32px]`} onClick={() => void openEdit(editFromAdvice(a))}>Düzenle</button>
                             <button type="button" className={kupaRowActionDanger} onClick={() => remove(a)}>Sil</button>
                           </span>
                         </div>

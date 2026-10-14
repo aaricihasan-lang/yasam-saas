@@ -11,8 +11,8 @@ import {
   MessageSquare,
   RefreshCw,
 } from "lucide-react";
-import { clearYasamUser, isAdminUser, readYasamUser, readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
-import { useRouter } from "next/navigation";
+import { isAdminUser, readYasamUser, readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
+import { useConfirmedLogout } from "@/hooks/useConfirmedLogout";
 import { useToast } from "@/components/ui/ToastProvider";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -199,7 +199,6 @@ function adminHeaders(adminId: string | undefined, json = false): Record<string,
 
 export default function AdminSupportPage() {
   useBfcacheRefresh();
-  const router = useRouter();
   const [user,     setUser]     = useState<YasamUser | null>(null);
   const [checked,  setChecked]  = useState(false);
   const [messages, setMessages] = useState<SupportMsg[]>([]);
@@ -233,10 +232,8 @@ export default function AdminSupportPage() {
     }
   }, [checked, user, fetchMessages]);
 
-  function handleLogout() {
-    clearYasamUser();
-    router.push("/");
-  }
+  // Final-A1: tek tıkla çıkış yok — ana paneldeki ortak onay penceresi.
+  const handleLogout = useConfirmedLogout();
 
   if (!checked) {
     return (

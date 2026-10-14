@@ -5,11 +5,18 @@ import { kupaBtnDanger, kupaBtnGhost, kupaBtnPrimary, kupaBtnSuccess, kupaCard, 
 import { KupaConfirmDialog } from "./ConfirmDialog";
 import { normalizeNullableNumber, normalizeSortOrder } from "@/lib/cupping/normalize";
 import { trIncludes } from "@/app/kupa/lib/trFold";
+import { openFormDirty } from "@/app/kupa/lib/formDirty";
+import { KupaUnsavedGuardScope } from "@/app/kupa/lib/UnsavedGuardScope";
+import { useAnyProtocolDirty, useConfirmLeave, useReportDirty } from "@/app/kupa/protokoller/hooks/protocolDirty";
 
 /**
  * KUPA & HACAMAT — generic içerik CRUD yöneticisi (liste + form). Nokta/teknik/bilgi/
  * güvenlik sayfaları bunu kullanır (tek tasarım dili, tekrar yok). Tüm yazma server
  * route'larına gider (service-role + tenant-forced); demo hesapta persist=0.
+ *
+ * FINAL-A1 — sayfa geneli kaydedilmemiş-değişiklik koruması: form (ve renderExtra içindeki atıf
+ * formu) GERÇEK değişiklik içeriyorsa link / geri / yenileme ve kayıt değiştirme / Yeni / Vazgeç
+ * önce onay ister. Değişiklik yoksa hiçbir uyarı çıkmaz.
  */
 
 export type FieldType = "text" | "textarea" | "number" | "select" | "tags" | "boolean";
@@ -97,7 +104,15 @@ function fromFormValue(raw: string | boolean, type: FieldType, key: string): unk
   return String(raw);
 }
 
-export function CrudManager<T extends Rec>({
+export function CrudManager<T extends Rec>(props: CrudManagerProps<T>) {
+  return (
+    <KupaUnsavedGuardScope>
+      <CrudManagerInner<T> {...props} />
+    </KupaUnsavedGuardScope>
+  );
+}
+
+function CrudManagerInner<T extends Rec>({
   titleKey,
   subtitleKey,
   fields,
@@ -117,6 +132,8 @@ export function CrudManager<T extends Rec>({
   const [items, setItems] = useState<T[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string | boolean>>({});
+  // Formun açıldığı / son kaydedildiği andaki değerler (kirli karşılaştırma tabanı).
+  const [baseline, setBaseline] = useState<Record<string, string | boolean>>({});
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -126,6 +143,13 @@ export function CrudManager<T extends Rec>({
   const [impactLoading, setImpactLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+
+  const formDirty = (creating || selectedId != null) && openFormDirty(form, baseline);
+  useReportDirty("crud-form", formDirty);
+  // Sayfa geneli kirli (form + renderExtra içindeki atıf formu): kayıt değişiminde ikisi de sökülür.
+  const pageDirty = useAnyProtocolDirty();
+  const confirmLeave = useConfirmLeave();
+  const confirmDropIfDirty = async () => !pageDirty || (await confirmLeave());
 
   const hasControls = (searchKeys?.length ?? 0) > 0 || (filters?.length ?? 0) > 0;
   const activeFilters = filters?.some((f) => (filterValues[f.key] ?? "") !== "") ?? false;
@@ -172,23 +196,35 @@ export function CrudManager<T extends Rec>({
     };
   }, [load]);
 
-  const openNew = () => {
+  const openNew = async () => {
+    if (!(await confirmDropIfDirty())) return;
     setCreating(true);
     setSelectedId(null);
     const blank: Record<string, string | boolean> = {};
     for (const f of fields) blank[f.key] = f.type === "boolean" ? true : (f.defaultValue ?? "");
     setForm(blank);
+    setBaseline(blank);
   };
 
-  const openEdit = (item: T) => {
+  const openEdit = async (item: T) => {
     // Kayıt/silme sürerken başka kayda geçilmez: yavaş bir "oluştur" yanıtı geldiğinde formdaki
     //   BAŞKA kaydın değerleri yeni kaydın üstüne yazılamaz.
     if (busy) return;
+    if (!(await confirmDropIfDirty())) return;
     setCreating(false);
     setSelectedId(item.id);
     const next: Record<string, string | boolean> = {};
     for (const f of fields) next[f.key] = toFormValue(item[f.key], f.type);
     setForm(next);
+    setBaseline(next);
+  };
+
+  const cancelForm = async () => {
+    if (!(await confirmDropIfDirty())) return;
+    setCreating(false);
+    setSelectedId(null);
+    setForm({});
+    setBaseline({});
   };
 
   const setField = (key: string, value: string | boolean) =>
@@ -204,15 +240,19 @@ export function CrudManager<T extends Rec>({
       return;
     }
     setBusy(true);
+    // Kayıt anındaki form = yeni kirli tabanı (kayıt sonrası "kaydedilmemiş" uyarısı çıkmaz).
+    const savedSnapshot = form;
     try {
       if (creating) {
         const created = await create(body as Partial<T>);
         setItems((cur) => [...cur, created]);
         setSelectedId(created.id);
         setCreating(false);
+        setBaseline(savedSnapshot);
       } else if (selectedId) {
         const updated = await update(selectedId, body as Partial<T>);
         setItems((cur) => cur.map((i) => (i.id === selectedId ? updated : i)));
+        setBaseline(savedSnapshot);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Kaydedilemedi.");
@@ -233,6 +273,7 @@ export function CrudManager<T extends Rec>({
         setItems((cur) => cur.filter((i) => i.id !== id));
         setSelectedId(null);
         setForm({});
+        setBaseline({});
         setConfirmOpen(false);
       } else {
         // Server hiçbir satır silmedi (kayıt yok / bu hesaba ait değil / demo no-op). Optimistic
@@ -246,6 +287,7 @@ export function CrudManager<T extends Rec>({
           if (!list.some((i) => i.id === id)) {
             setSelectedId(null);
             setForm({});
+            setBaseline({});
           }
         } catch {
           /* yükleme hatası sessiz — mevcut liste korunur */
@@ -300,7 +342,7 @@ export function CrudManager<T extends Rec>({
         <div className={kupaCard}>
           <div className="mb-3 flex items-center justify-between gap-2">
             <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Kayıtlar</h3>
-            <button type="button" onClick={openNew} className={kupaBtnPrimary}>
+            <button type="button" onClick={() => void openNew()} className={kupaBtnPrimary}>
               + {addLabel}
             </button>
           </div>
@@ -368,7 +410,7 @@ export function CrudManager<T extends Rec>({
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => openEdit(item)}
+                  onClick={() => void openEdit(item)}
                   className={`block w-full rounded-xl border px-3 py-2 text-left transition ${
                     selectedId === item.id
                       ? "border-amber-300 bg-amber-50 shadow-sm"
@@ -454,11 +496,7 @@ export function CrudManager<T extends Rec>({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setCreating(false);
-                    setSelectedId(null);
-                    setForm({});
-                  }}
+                  onClick={() => void cancelForm()}
                   className={kupaBtnGhost}
                 >
                   Vazgeç

@@ -229,7 +229,7 @@ async function main() {
       const clean = tabs.map((x) => x.trim());
       const iR = clean.findIndex((x) => /Randevu/.test(x));
       const iB = clean.findIndex((x) => /Beslenme/.test(x));
-      ok(iR > iB && iB >= 0 && iR === clean.length - 1, `Randevular Beslenme'den SONRA (${clean.join(" | ")})`);
+      ok(iB >= 0 && iR === iB + 1 && iR === clean.length - 1, `Randevular Beslenme'nin HEMEN ardından ve son (${clean.join(" | ")})`);
       ok(clean.slice(0, 3).join("|").includes("Genel") && clean.some((x) => /Analiz/.test(x)), "diğer sekmeler korunuyor");
       await page.getByRole("tab", { name: /Randevu/ }).click();
       ok(await page.locator("#tabpanel-randevular").waitFor({ state: "visible", timeout: 15_000 }).then(() => true, () => false) && (await page.getByRole("tab", { name: /Randevu/ }).getAttribute("aria-selected")) === "true", "Randevular → doğru bölüm açıldı");

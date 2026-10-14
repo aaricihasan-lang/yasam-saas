@@ -36,16 +36,17 @@ export const CLIENT_DETAIL_TAB_DEFS = [
   { id: "ucretlendirme", labelKey: "ucretlendirme", color: "#0d9488" },
   { id: "odevler", labelKey: "odevler", color: "#dc2626" },
   { id: "analizler", labelKey: "analizler", color: "#9333ea" },
+  // AŞAMA 3C: danışana bağlı Human Design analiz geçmişi (özet + "Analizi Aç"). Yalnız human_design
+  // izni olan kullanıcıya görünür; veri HD'de kalır (kopyalanmaz). Analiz sekmelerinin yanında durur:
+  // Beslenme → Randevular bitişikliği (owner kararı 2026-10-07) bozulmasın diye araya GİRMEZ.
+  { id: "humandesign", labelKey: "humandesign", color: "#4338ca", requiresModule: "human_design" },
   { id: "yolculuk", labelKey: "yolculuk", color: "#4f46e5" },
   // DEMO-03: Yaşam Hafızası sekmesi yalnız `yasam_hafizasi` izni olan kullanıcıya görünür
   // (merkezî hasModulePermission; admin geçer). İzinsiz uzman sekmeyi görmez → 403 ekranı yok.
   { id: "hafiza", labelKey: "hafiza", color: "#7c3aed", requiresModule: "yasam_hafizasi" },
   { id: "beslenme", labelKey: "beslenme", color: "#059669" },
-  // AŞAMA 3C: danışana bağlı Human Design analiz geçmişi (özet + "Analizi Aç"). Yalnız human_design
-  // izni olan kullanıcıya görünür; veri HD'de kalır (kopyalanmaz).
-  { id: "humandesign", labelKey: "humandesign", color: "#4338ca", requiresModule: "human_design" },
   // Owner kararı 2026-10-07: uzman önce değerlendirir (analiz/seans/ödev/taş/beslenme), randevuyu SONRA
-  // planlar → Randevular Beslenme'den sonra. Yalnız SIRA değişti; id/?tab=/içerik aynı.
+  // planlar → Randevular Beslenme'nin HEMEN ardından (ve son sekme). Yalnız SIRA değişti; id/?tab=/içerik aynı.
   { id: "randevular", labelKey: "randevular", color: "#db2777" },
 ] as const satisfies readonly ClientDetailTabDef[];
 

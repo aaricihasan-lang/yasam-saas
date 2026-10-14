@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { kupaBtnGhost, kupaBtnSuccess, kupaInput, kupaRowActionDanger } from "@/app/kupa/components/KupaShell";
@@ -9,8 +9,8 @@ import {
   updateAdviceTemplate,
   deleteAdviceTemplate,
   type CuppingAdviceTemplate,
-  type CuppingCalendarPlan,
 } from "@/app/kupa/lib/api";
+import { openFormDirty } from "@/app/kupa/lib/formDirty";
 
 /**
  * FAZ 5 / AŞAMA 3 — "Çıktı Bilgilendirme Notları" (takvim altında ENTEGRE bölüm).
@@ -19,6 +19,11 @@ import {
  * üretmez — içeriği uzman yazar. "Varsayılan" = uzmanın tercih ettiği BİLGİLENDİRME
  * şablonu (tıbbi tavsiye DEĞİL). Tek-aktif-varsayılan invariantı SUNUCUDA (RPC) korunur;
  * client concurrency logic YOK. Gösterim sırası: Öncesi → Sonrası → Genel/Ek Not.
+ *
+ * FINAL-A1 — "Bu Takvimin Bilgilendirme Şablonu" seçimi ARTIK ANINDA YAZMAZ: seçim yalnız takvim
+ * taslağına gider (onSelectTemplate); kalıcı kayıt takvimin "Değişiklikleri Kaydet"i ile olur.
+ * Görüntüleme modunda (readOnly) seçim kilitlidir. Açık şablon formunun kirli durumu üst bileşene
+ * bildirilir (sayfa geneli kaydedilmemiş-değişiklik koruması).
  */
 type FormState = {
   id: string | null; // null = yeni
@@ -31,49 +36,87 @@ type FormState = {
 
 const EMPTY: FormState = { id: null, title: "", before_text: "", after_text: "", general_note: "", makeDefault: false };
 
+/** Şablon kaydı → form başlangıç durumu (düzenleme formu + kirli karşılaştırma tabanı). */
+function formFromTemplate(t: CuppingAdviceTemplate): FormState {
+  return {
+    id: t.id,
+    title: t.title,
+    before_text: t.before_text ?? "",
+    after_text: t.after_text ?? "",
+    general_note: t.general_note ?? "",
+    makeDefault: !!t.is_default,
+  };
+}
+
+/** Form kirli mi? (yeni → boş forma göre; düzenleme → açıldığı şablon değerlerine göre) */
+function adviceFormDirty(form: FormState | null, baseline: FormState | null): boolean {
+  return openFormDirty(form, baseline ?? EMPTY);
+}
+
 export function OutputAdviceSection({
-  plan,
   templates,
+  selectedTemplateId,
+  templatePending,
+  readOnly,
   onTemplatesChanged,
-  onAttach,
+  onSelectTemplate,
+  onTemplateDeleted,
+  onFormDirtyChange,
 }: {
-  plan: CuppingCalendarPlan;
   templates: CuppingAdviceTemplate[];
+  /** Takvim taslağındaki şablon seçimi (kaydedilmemiş olabilir). */
+  selectedTemplateId: string | null;
+  /** Seçim kayıtlı değerden farklı mı (kaydedilmemiş)? */
+  templatePending: boolean;
+  /** Görüntüleme modu / kayıt sürüyor → seçim kilitli (yazma yolu YOK). */
+  readOnly: boolean;
   onTemplatesChanged: () => Promise<void> | void;
-  onAttach: (templateId: string | null) => Promise<void>;
+  /** Yalnız taslağı değiştirir; DB'ye yazmaz. */
+  onSelectTemplate: (templateId: string | null) => void;
+  /** Şablon silindi (sunucu bağlı planlarda bağlantıyı zaten NULL'ladı). */
+  onTemplateDeleted: (templateId: string) => void;
+  onFormDirtyChange?: (dirty: boolean) => void;
 }) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const [form, setForm] = useState<FormState | null>(null);
+  const [baseline, setBaseline] = useState<FormState | null>(null);
   const [busy, setBusy] = useState(false);
 
   const activeTemplates = useMemo(() => templates.filter((t) => t.is_active !== false), [templates]);
   const attached = useMemo(
-    () => templates.find((t) => t.id === plan.advice_template_id) ?? null,
-    [templates, plan.advice_template_id],
+    () => templates.find((t) => t.id === selectedTemplateId) ?? null,
+    [templates, selectedTemplateId],
   );
+  const formDirty = adviceFormDirty(form, baseline);
 
-  async function handleAttach(value: string) {
-    try {
-      await onAttach(value || null);
-      showToast({ message: value ? "Şablon bu takvime bağlandı." : "Şablon bağlantısı kaldırıldı.", type: "success" });
-    } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "İşlem başarısız.", type: "error" });
-    }
+  // Kirli durumu üst bileşene bildir; bölüm sökülünce (plan değişimi) temizle.
+  useEffect(() => {
+    onFormDirtyChange?.(formDirty);
+  }, [formDirty, onFormDirtyChange]);
+  useEffect(() => () => onFormDirtyChange?.(false), [onFormDirtyChange]);
+
+  const confirmDiscardForm = () =>
+    confirm({
+      title: "Kaydedilmemiş Değişiklikler",
+      message: "Şablon formunda kaydedilmemiş değişiklikleriniz var.\nKaydetmeden devam etmek istiyor musunuz?",
+      confirmText: "Kaydetmeden Devam Et",
+      cancelText: "Vazgeç",
+      tone: "danger",
+    });
+
+  /** Formu yeni durumla aç/kapat; açık formda gerçek değişiklik varsa önce sorulur. */
+  async function replaceForm(next: FormState | null) {
+    if (formDirty && !(await confirmDiscardForm())) return;
+    setForm(next);
+    setBaseline(next);
   }
 
   function startNew() {
-    setForm({ ...EMPTY });
+    void replaceForm({ ...EMPTY });
   }
   function startEdit(t: CuppingAdviceTemplate) {
-    setForm({
-      id: t.id,
-      title: t.title,
-      before_text: t.before_text ?? "",
-      after_text: t.after_text ?? "",
-      general_note: t.general_note ?? "",
-      makeDefault: !!t.is_default,
-    });
+    void replaceForm(formFromTemplate(t));
   }
 
   async function save() {
@@ -103,6 +146,7 @@ export function OutputAdviceSection({
       }
       await onTemplatesChanged();
       setForm(null);
+      setBaseline(null);
       showToast({ message: "Şablon kaydedildi.", type: "success" });
     } catch (e) {
       showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
@@ -133,8 +177,9 @@ export function OutputAdviceSection({
     try {
       await deleteAdviceTemplate(t.id);
       await onTemplatesChanged();
-      // Bağlı şablon silindiyse plan.advice_template_id sunucuda NULL olur → planı tazele.
-      if (plan.advice_template_id === t.id) await onAttach(null).catch(() => {});
+      // Bağlı şablon silindiyse plan.advice_template_id sunucuda NULL olur (FK SET NULL) → yalnız
+      //   yerel durum aynalanır; ek PATCH/yazma YOK.
+      onTemplateDeleted(t.id);
       showToast({ message: "Şablon silindi.", type: "success" });
     } catch (e) {
       showToast({ message: e instanceof Error ? e.message : "Silinemedi.", type: "error" });
@@ -162,9 +207,13 @@ export function OutputAdviceSection({
         </label>
         <select
           id="advice-attach"
+          data-testid="kupa-advice-attach"
           className={kupaInput}
-          value={plan.advice_template_id ?? ""}
-          onChange={(e) => handleAttach(e.target.value)}
+          value={selectedTemplateId ?? ""}
+          onChange={(e) => {
+            if (!readOnly) onSelectTemplate(e.target.value || null);
+          }}
+          disabled={readOnly}
         >
           <option value="">— Şablon seçilmedi —</option>
           {activeTemplates.map((t) => (
@@ -174,6 +223,15 @@ export function OutputAdviceSection({
             </option>
           ))}
         </select>
+        {readOnly ? (
+          <p className="text-[11px] text-slate-400" data-testid="kupa-advice-attach-hint">
+            Değiştirmek için <strong>Bu Ayı Düzenle</strong>&apos;ye basın.
+          </p>
+        ) : templatePending ? (
+          <p className="text-[11px] font-medium text-amber-700" data-testid="kupa-advice-attach-hint">
+            Kaydedilmedi — kalıcı olması için <strong>Değişiklikleri Kaydet</strong>&apos;e basın.
+          </p>
+        ) : null}
       </div>
 
       {/* Bağlı şablon önizleme: Öncesi → Sonrası → Genel */}
@@ -249,7 +307,7 @@ export function OutputAdviceSection({
               Varsayılan şablon yap
             </label>
             <div className="flex justify-end gap-2">
-              <button type="button" className={`${kupaBtnGhost} min-h-[40px]`} onClick={() => setForm(null)} disabled={busy}>
+              <button type="button" className={`${kupaBtnGhost} min-h-[40px]`} onClick={() => void replaceForm(null)} disabled={busy}>
                 Vazgeç
               </button>
               <button type="button" className={`${kupaBtnSuccess} min-h-[40px]`} onClick={save} disabled={busy}>

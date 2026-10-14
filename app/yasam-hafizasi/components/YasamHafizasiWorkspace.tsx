@@ -77,11 +77,13 @@ function ProfessionalMemoryPanel() {
   const idleVariant =
     healthState === "index-empty"
       ? "index-empty"
-      : healthState === "out-of-scope"
-        ? "out-of-scope"
-        : healthState === "disabled"
-          ? "disabled"
-          : "cold-start";
+      : healthState === "index-ready-empty"
+        ? "index-ready-empty"
+          : healthState === "out-of-scope"
+            ? "out-of-scope"
+            : healthState === "disabled"
+              ? "disabled"
+              : "cold-start";
 
   const runSearch = useCallback(async (query: string) => {
     const trimmed = query.trim();
@@ -162,7 +164,15 @@ function ProfessionalMemoryPanel() {
       {status === "done" && response ? (
         response.results.length === 0 ? (
           <WorkspaceEmpty
-            variant={healthState === "index-empty" ? "index-empty" : healthState === "out-of-scope" ? "out-of-scope" : "no-results"}
+            variant={
+              healthState === "index-empty"
+                ? "index-empty"
+                : healthState === "index-ready-empty"
+                  ? "index-ready-empty"
+                  : healthState === "out-of-scope"
+                    ? "out-of-scope"
+                    : "no-results"
+            }
           />
         ) : (
           <>

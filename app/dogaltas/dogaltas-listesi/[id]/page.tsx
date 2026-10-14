@@ -576,6 +576,8 @@ function StoneDetailPage() {
   const listBackHref = (() => {
     const p = new URLSearchParams();
     if (highlightQuery) p.set("q", highlightQuery);
+    // Final-A1: İçerik araması modu listeye geri taşınır.
+    if (highlightQuery && searchParams.get("mode") === "content") p.set("mode", "content");
     if (astroFilter) p.set("astro", astroFilter);
     if (chakraFilter) p.set("chakra", chakraFilter);
     if (mineralFilter) p.set("mineral", mineralFilter);
