@@ -13,6 +13,8 @@ import { MONTHS_TR } from "./MonthCalendar";
  * Seçilen yıl için zaten takvim varsa YENİ takvim oluşturulmaz: mevcut takvim açılır ve o ayın
  * kayıtlı günleri (renk, kısa açıklama, not) üzerinde çalışılır (duplicate YOK). Yoksa yıl için
  * tek takvim oluşturulur. Karar ve yazma çağıranda (CalendarWorkspace.openMonthForEditing).
+ * FINAL-A1: davranış "her zaman yeni kayıt" OLMADIĞI için başlık/etiket "Takvim Oluştur / Aç"
+ * (yanıltıcı "Yeni Takvim" kaldırıldı); alttaki bilgi metni seçilen yıl için hangisinin olacağını söyler.
  */
 export function NewCalendarDialog({
   plans,
@@ -62,8 +64,11 @@ export function NewCalendarDialog({
         className="flex w-full flex-col gap-4 rounded-t-2xl border border-amber-100 bg-white p-4 pb-[calc(1rem_+_env(safe-area-inset-bottom))] shadow-xl sm:max-w-md sm:rounded-2xl sm:p-5"
       >
         <div>
-          <h3 id="kupa-new-cal-title" className="text-base font-black text-slate-900">Yeni Takvim</h3>
-          <p className="mt-0.5 text-xs text-slate-500">Yılı ve ayı seçin; doğrudan o ayın düzenleme ekranı açılır.</p>
+          <h3 id="kupa-new-cal-title" className="text-base font-black text-slate-900">Takvim Oluştur / Aç</h3>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Yılı ve ayı seçin. O yıl için takviminiz varsa mevcut takvim açılır (yenisi oluşturulmaz); yoksa
+            oluşturulur. Ardından o ayın düzenleme ekranı açılır.
+          </p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <label className="flex flex-col gap-1">
@@ -108,7 +113,7 @@ export function NewCalendarDialog({
             Vazgeç
           </button>
           <button type="submit" className={`${kupaBtnPrimary} min-h-[44px]`} disabled={busy}>
-            {busy ? "Açılıyor…" : `${MONTHS_TR[month - 1]} ${year} Ayını Düzenle`}
+            {busy ? "Açılıyor…" : `${existing ? "" : "Oluştur · "}${MONTHS_TR[month - 1]} ${year} Ayını Düzenle`}
           </button>
         </div>
       </form>

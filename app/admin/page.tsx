@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -24,12 +23,12 @@ import {
   Sprout,
 } from "lucide-react";
 import {
-  clearYasamUser,
   isAdminUser,
   readYasamUser,
   readSessionToken,
   type YasamUser,
 } from "@/lib/auth/yasamUser";
+import { useConfirmedLogout } from "@/hooks/useConfirmedLogout";
 
 const navBtn =
   "inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl border-2 px-4 sm:px-5 text-sm font-bold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md";
@@ -438,7 +437,6 @@ function adminHeaders(adminId: string | undefined, json = false): Record<string,
 
 export default function AdminPage() {
   useBfcacheRefresh();
-  const router = useRouter();
   const [user, setUser] = useState<YasamUser | null>(null);
   const [checked, setChecked] = useState(false);
   const [adminMetrics, setAdminMetrics] = useState<AdminMetrics | null>(null);
@@ -492,10 +490,8 @@ export default function AdminPage() {
     }
   }, [checked, user, fetchMetrics]);
 
-  function handleLogout() {
-    clearYasamUser();
-    router.push("/");
-  }
+  // Final-A1: tek tıkla çıkış yok — ana paneldeki ortak onay penceresi.
+  const handleLogout = useConfirmedLogout();
 
   const allowed = isAdminUser(user);
 

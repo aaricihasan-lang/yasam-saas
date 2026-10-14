@@ -114,6 +114,57 @@ function stripUrlSearchQuery() {
   window.history.replaceState({}, "", cleanUrl);
 }
 
+// Final-A1: "İçerik" araması detaydan geri dönünce "Taş İsmi"ne düşüyordu (searchMode yalnız state'teydi).
+// Mod artık q ile birlikte URL'de (`mode=content`; varsayılan "name" URL'e yazılmaz → eski linkler aynı).
+const SEARCH_MODE_URL_PARAM = "mode";
+const LIST_SCROLL_KEY = "yasam-dogaltas-list-scroll";
+
+function readUrlSearchMode(): SearchMode {
+  if (typeof window === "undefined") return "name";
+  return new URLSearchParams(window.location.search).get(SEARCH_MODE_URL_PARAM) === "content" ? "content" : "name";
+}
+
+type ListScrollMark = { qs: string; y: number; id: string; top: number | null };
+
+function stoneLinkEl(stoneId: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(`a[href^="/dogaltas/dogaltas-listesi/${CSS.escape(stoneId)}"]`);
+}
+
+/**
+ * Detaya giderken liste konumu (aynı arama bağlamı için) — geri dönünce sonuçlar gelince geri yüklenir.
+ * Açılan taşın ekrandaki yeri de saklanır: üstteki alanların yüksekliği değişse bile (ör. "Kontrol
+ * edildi" etiketi) kart aynı yerde görünür; kart yoksa mutlak konuma dönülür.
+ */
+function saveListScroll(queryString: string, stoneId: string) {
+  try {
+    const top = stoneLinkEl(stoneId)?.getBoundingClientRect().top ?? null;
+    const mark: ListScrollMark = { qs: queryString, y: window.scrollY, id: stoneId, top };
+    sessionStorage.setItem(LIST_SCROLL_KEY, JSON.stringify(mark));
+  } catch {}
+}
+
+function takeListScroll(queryString: string): ListScrollMark | null {
+  try {
+    const raw = sessionStorage.getItem(LIST_SCROLL_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as Partial<ListScrollMark>;
+    if (v.qs !== queryString || typeof v.y !== "number" || typeof v.id !== "string") return null;
+    sessionStorage.removeItem(LIST_SCROLL_KEY);
+    return { qs: v.qs, y: v.y, id: v.id, top: typeof v.top === "number" ? v.top : null };
+  } catch {
+    return null;
+  }
+}
+
+function restoreListScroll(mark: ListScrollMark) {
+  const el = stoneLinkEl(mark.id);
+  if (el && mark.top !== null) {
+    window.scrollBy({ top: el.getBoundingClientRect().top - mark.top });
+    return;
+  }
+  window.scrollTo({ top: mark.y });
+}
+
 function readLastViewedStoneId(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(LAST_VIEWED_STONE_KEY);
@@ -661,7 +712,9 @@ function DogaltasListesiPageContent() {
     runInEffect(() => setViewedStoneIds(readCheckedIds(browserSessionStorage(), searchCheckedContext)));
   }, [searchCheckedContext]);
 
+  const filterQueryStringRef = useRef("");
   const handleStoneNavigate = useCallback((stoneId: string) => {
+    if (filterQueryStringRef.current) saveListScroll(filterQueryStringRef.current, stoneId);
     const ctx = searchCheckedContextRef.current;
     if (ctx) setViewedStoneIds(markChecked(browserSessionStorage(), ctx, stoneId));
     saveLastViewedStoneId(stoneId);
@@ -768,6 +821,7 @@ function DogaltasListesiPageContent() {
     const mineral = params.get("mineral")?.trim() ?? "";
     const warn = params.get("warn") === "1";
     if (q) setSearchTerm(q);
+    if (q && readUrlSearchMode() === "content") setSearchMode("content");
     if (astro || chakra || mineral || warn) {
       setDetailFilters((f) => ({
         ...f,
@@ -797,18 +851,20 @@ function DogaltasListesiPageContent() {
   const filterQueryString = useMemo(() => {
     const params = new URLSearchParams();
     if (debouncedSearch) params.set("q", debouncedSearch);
+    if (debouncedSearch && searchMode === "content") params.set(SEARCH_MODE_URL_PARAM, "content");
     if (detailFilters.zodiac) params.set("astro", detailFilters.zodiac);
     if (detailFilters.chakra) params.set("chakra", detailFilters.chakra);
     if (detailFilters.mineral) params.set("mineral", detailFilters.mineral);
     if (detailFilters.warningOnly) params.set("warn", "1");
     return params.toString();
-  }, [debouncedSearch, detailFilters]);
+  }, [debouncedSearch, searchMode, detailFilters]);
 
   useEffect(() => {
     const newUrl = filterQueryString
       ? `${window.location.pathname}?${filterQueryString}`
       : window.location.pathname;
     window.history.replaceState({}, "", newUrl);
+    filterQueryStringRef.current = filterQueryString;
   }, [filterQueryString]);
 
   // Görüntülenen taşlar. Metin araması → server list (mode=list); detay/koşul filtreleri
@@ -820,6 +876,13 @@ function DogaltasListesiPageContent() {
     if (excludedStoneIds.size === 0) return base;
     return base.filter((s) => !excludedStoneIds.has(s.id));
   }, [stones, detailData, needsFullLoad, excludedStoneIds]);
+
+  // Geri dönüş: aynı arama bağlamının sonuçları yüklenince kaydedilen konuma bir kez dön.
+  useEffect(() => {
+    if (listLoading || !filterQueryString || filteredStones.length === 0) return;
+    const mark = takeListScroll(filterQueryString);
+    if (mark) window.requestAnimationFrame(() => restoreListScroll(mark));
+  }, [listLoading, filterQueryString, filteredStones.length]);
 
   // Arama/filtre (kapsam) değişince seçim TEMİZLENİR — önceki kapsamdan gizli seçili kayıt kalmaz.
   // ("Daha fazla yükle" kapsamı değiştirmez → "Tümünü Seç" ile yapılan seçim korunur.)

@@ -9,6 +9,8 @@ import {
   type CuppingDayColorKey,
 } from "@/lib/cupping/calendarTypes";
 import { CUPPING_DAY_COLORS, CUPPING_DAY_COLOR_ORDER } from "../lib/cellState";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { openFormDirty } from "@/app/kupa/lib/formDirty";
 
 /**
  * FAZ 5 / AŞAMA 5 — GÜN DÜZENLEME / EKLEME PANELİ (premium, sade, hızlı).
@@ -24,6 +26,8 @@ import { CUPPING_DAY_COLORS, CUPPING_DAY_COLOR_ORDER } from "../lib/cellState";
  *   nihai DB kaydı ana "Değişiklikleri Kaydet" ile olur (tek kalıcılık yolu). Panel bu farkı
  *   açıkça belirtir. Metin GÜVENLİ düz metindir (HTML render YOK).
  * MOBİL: masaüstünde küçük merkezî modal; mobilde ekranı taşırmayan alt-panel.
+ * KAPATMA (FINAL-A1): arka plan / × / Esc / Vazgeç — panelde GERÇEK değişiklik varsa önce onay
+ *   sorulur (sessiz kayıp YOK); değişiklik yoksa doğrudan kapanır.
  */
 
 /** Unicode kod-noktası sayısı (surrogate-güvenli sayaç; sunucu doğrulamasıyla aynı ölçü). */
@@ -36,6 +40,14 @@ export type DayStyleDraft = {
   label: string;
   note: string;
 };
+
+/** Paneldeki stil açılış değerinden farklı mı? (baş/son boşluk değişiklik sayılmaz — uygulamada kırpılır) */
+export function dayStyleDirty(current: DayStyleDraft, initial: DayStyleDraft): boolean {
+  return openFormDirty(
+    { colorKey: current.colorKey ?? "", label: current.label, note: current.note },
+    { colorKey: initial.colorKey ?? "", label: initial.label, note: initial.note },
+  );
+}
 
 export function DayEditPanel({
   gregText,
@@ -62,17 +74,43 @@ export function DayEditPanel({
   const [note, setNote] = useState(initial.note);
   const [error, setError] = useState<string | null>(null);
   const labelRef = useRef<HTMLInputElement>(null);
+  const { confirm } = useConfirm();
+  const dirty = dayStyleDirty({ colorKey, label, note }, initial);
 
-  // Esc ile kapat + ilk alana odak (a11y). onClose ref'te tutulur: ebeveyn yeniden render
+  // Kapatma isteği: gerçek değişiklik varsa açık onay (Vazgeç → panelde kal). Onay açıkken
+  //   ikinci istek (ör. Esc tekrarı) yok sayılır.
+  const askingRef = useRef(false);
+  async function requestClose() {
+    if (askingRef.current) return;
+    if (dirty) {
+      askingRef.current = true;
+      let ok = false;
+      try {
+        ok = await confirm({
+          title: "Kaydedilmemiş Değişiklikler",
+          message: "Bu günde yaptığınız değişiklikler taslağa uygulanmadı.\nUygulamadan kapatmak istiyor musunuz?",
+          confirmText: "Uygulamadan Kapat",
+          cancelText: "Vazgeç",
+          tone: "danger",
+        });
+      } finally {
+        askingRef.current = false;
+      }
+      if (!ok) return;
+    }
+    onClose();
+  }
+
+  // Esc ile kapat + ilk alana odak (a11y). Kapatma isteği ref'te tutulur: ebeveyn yeniden render
   //   olduğunda (ör. toast) efekt TEKRAR çalışıp odağı açıklama alanına sıçratmaz.
-  const onCloseRef = useRef(onClose);
+  const requestCloseRef = useRef(requestClose);
   useEffect(() => {
-    onCloseRef.current = onClose;
+    requestCloseRef.current = requestClose;
   });
   useEffect(() => {
     labelRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCloseRef.current();
+      if (e.key === "Escape" && !askingRef.current) void requestCloseRef.current();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -109,7 +147,7 @@ export function DayEditPanel({
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-      onClick={onClose}
+      onClick={() => void requestClose()}
       role="presentation"
     >
       <div
@@ -130,7 +168,7 @@ export function DayEditPanel({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => void requestClose()}
             aria-label="Kapat"
             className="shrink-0 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
           >
@@ -240,7 +278,7 @@ export function DayEditPanel({
             <span aria-hidden />
           )}
           <div className="flex justify-end gap-2">
-            <button type="button" className={`${kupaBtnGhost} min-h-[40px]`} onClick={onClose}>
+            <button type="button" className={`${kupaBtnGhost} min-h-[40px]`} onClick={() => void requestClose()}>
               Vazgeç
             </button>
             <button

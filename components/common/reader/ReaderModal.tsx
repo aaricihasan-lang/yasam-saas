@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, type ReactNode } from "react";
+import { useCallback, useRef, type ReactNode } from "react";
 import { useOverlay } from "@/lib/dogaltas/useOverlay";
 import { useFontSizeStore } from "@/lib/dogaltas/useFontSizeStore";
 import type { FontSizeStore } from "@/lib/dogaltas/createFontSizeStore";
@@ -39,8 +39,17 @@ export type ReaderModalProps = {
    * (ör. Doğaltaş formatStoneContent) bunu KAPALI bırakır → mevcut görünümleri değişmez.
    */
   contentSurface?: boolean;
+  /**
+   * Mobilde alttan açılan sayfa yerine ORTALANMIŞ yüzen kart: üstte VE altta karartılmış alan kalır,
+   * arka plana gerçek dokunma kapatır; içerikte başlayan sürükleme/kaydırma kapatmaz (StoneDetailDrawer
+   * ile aynı kural). Varsayılan KAPALI → diğer kullanıcıların (HD) görünümü/davranışı değişmez.
+   */
+  floatingOnMobile?: boolean;
   onClose: () => void;
 };
+
+/** Arka plan dokunmasında parmağın kayabileceği tolerans (px). */
+const BACKDROP_TAP_SLOP_PX = 10;
 
 export function ReaderModal({
   open,
@@ -54,6 +63,7 @@ export function ReaderModal({
   fontStore = hdReaderFontStore,
   scrollClassName = "reader-modal-scroll",
   contentSurface = false,
+  floatingOnMobile = false,
   onClose,
 }: ReaderModalProps) {
   const { fontSizePx, decrease, reset, increase, canDecrease, canIncrease, isDefault } =
@@ -63,15 +73,45 @@ export function ReaderModal({
 
   const body = useCallback(() => renderBody(fontSizePx), [renderBody, fontSizePx]);
 
+  // floatingOnMobile: yalnız arka planda BAŞLAYIP orada biten kısa dokunma kapatır.
+  const backdropDown = useRef<{ x: number; y: number } | null>(null);
+
   if (!open) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4 md:p-6"
+      className={
+        floatingOnMobile
+          ? "fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-3 py-14 sm:p-4 md:p-6"
+          : "fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 p-0 sm:items-center sm:p-4 md:p-6"
+      }
       role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+      data-testid="reader-modal-backdrop"
+      onMouseDown={
+        floatingOnMobile
+          ? undefined
+          : (event) => {
+              if (event.target === event.currentTarget) onClose();
+            }
+      }
+      onPointerDown={
+        floatingOnMobile
+          ? (event) => {
+              backdropDown.current = event.target === event.currentTarget ? { x: event.clientX, y: event.clientY } : null;
+            }
+          : undefined
+      }
+      onClick={
+        floatingOnMobile
+          ? (event) => {
+              const down = backdropDown.current;
+              backdropDown.current = null;
+              if (!down || event.target !== event.currentTarget) return;
+              if (Math.abs(event.clientX - down.x) > BACKDROP_TAP_SLOP_PX || Math.abs(event.clientY - down.y) > BACKDROP_TAP_SLOP_PX) return;
+              onClose();
+            }
+          : undefined
+      }
     >
       <div
         ref={containerRef}
@@ -79,7 +119,12 @@ export function ReaderModal({
         aria-modal="true"
         aria-labelledby="reader-modal-title"
         tabIndex={-1}
-        className="flex h-[min(90vh,940px)] w-full max-w-[1200px] flex-col overflow-hidden rounded-t-[28px] border border-violet-200/60 bg-gradient-to-b from-white via-violet-50/25 to-cyan-50/20 shadow-2xl ring-1 ring-white/90 sm:rounded-[28px]"
+        data-testid="reader-modal-panel"
+        className={
+          floatingOnMobile
+            ? "flex max-h-full w-full max-w-[1200px] flex-col overflow-hidden rounded-[28px] border border-violet-200/60 bg-gradient-to-b from-white via-violet-50/25 to-cyan-50/20 shadow-2xl ring-1 ring-white/90 sm:h-[min(90vh,940px)] sm:max-h-none"
+            : "flex h-[min(90vh,940px)] w-full max-w-[1200px] flex-col overflow-hidden rounded-t-[28px] border border-violet-200/60 bg-gradient-to-b from-white via-violet-50/25 to-cyan-50/20 shadow-2xl ring-1 ring-white/90 sm:rounded-[28px]"
+        }
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="sticky top-0 z-10 shrink-0 border-b border-violet-100/90 bg-white/95 px-4 py-4 backdrop-blur-md sm:px-7 sm:py-5">

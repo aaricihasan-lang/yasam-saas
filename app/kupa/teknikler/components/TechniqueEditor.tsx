@@ -7,6 +7,7 @@ import { KupaConfirmDialog } from "../../components/ConfirmDialog";
 import { normalizeMasterName } from "../../protokoller/components/QuickCreateMasterForm";
 import { createTechnique, updateTechnique, type CuppingTechnique } from "../../lib/api";
 import { MOVEMENT_OPTIONS, TYPE_OPTIONS } from "../lib/labels";
+import { useReportDirty } from "../../protokoller/hooks/protocolDirty";
 
 /**
  * Teknik oluşturma/düzenleme formu (FAZ 4 / 2B) — /yeni ve reader edit modu paylaşır.
@@ -55,6 +56,8 @@ export function TechniqueEditor({
     safetyNote !== (initial?.safety_note ?? "") ||
     practitionerNote !== (initial?.practitioner_note ?? "") ||
     isActive !== (initial?.is_active ?? true);
+  // FINAL-A1: sayfa geneli çıkış koruması (KupaUnsavedGuardScope; link / geri / yenileme).
+  useReportDirty("technique-editor", dirty);
 
   const normName = normalizeMasterName(name);
   const duplicate = useMemo(
