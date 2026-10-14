@@ -11,10 +11,14 @@
 import { useMemo, useState } from "react";
 import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, isKpNode, type KpBody, type KpChartTechnical, type KpCusp, type KpHoraryTechnical, type KpLevel, type KpNodeSigMethodId, type KpPoint, type KpRulingTechnical, type KpSignificators, type KpTransitTechnical } from "@/lib/astrology/model/kp";
 import type { VedicGrahaId } from "@/lib/astrology/model/vedic";
-import { SIGN_IDS, type SignId } from "@/lib/astrology/model/western";
+import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
 import { GRAHA_LABELS, NAKSHATRA_LABELS } from "@/lib/astrology/topics/vedic";
 import { GRAHA_TR, SIGN_TR_ABBR, grahaTrName } from "../_lib/kundliLocalize";
+// 2026-10-15: saf KP harita yardımcıları _lib/kpChart'a taşındı (rapor sunucusu da kullanır); eski içe aktarımlar için yeniden dışa açılır.
+import { SOUTH_CELLS, gs, kpChartItems, posLabel, type KpSel } from "../_lib/kpChart";
+export { fmtDms, kpChartItems, type KpSel } from "../_lib/kpChart";
+import { fmtDms } from "../_lib/kpChart";
 import type { KbLookup } from "./VedicPanels";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
@@ -24,17 +28,8 @@ const LEVELS: KpLevel[] = [1, 2, 3, 4];
 const LEVEL_LABEL: Record<KpLevel, string> = { 1: "L1 · yıldızı sakinde", 2: "L2 · sakin", 3: "L3 · yıldızı sahipte", 4: "L4 · sahip" };
 const AY: Record<string, string> = { "kp-newcomb": "KP-Newcomb", "kp-old": "KP (eski tablo)" };
 
-/** Derece/dakika/saniye (KESİLİR, yuvarlanmaz: 29°59′59″ asla 30° olmaz). */
-export function fmtDms(deg: number): string {
-  const total = Math.floor(deg * 3600 + 1e-7);
-  const d = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  return `${d}°${String(m).padStart(2, "0")}′${String(s).padStart(2, "0")}″`;
-}
-const posLabel = (p: KpPoint) => `${SIGN_LABELS[p.rashi]} ${fmtDms(p.degreeInRashi)}`;
 const g = (id: VedicGrahaId | null) => (id ? GRAHA_LABELS[id] : "—");
-const gs = (id: VedicGrahaId | null) => (id ? GRAHA_TR[id].tr : "—");
+
 
 function KbBox({ kb, empty }: { kb: ReturnType<KbLookup> | null; empty: string }) {
   return (
@@ -57,29 +52,6 @@ function KbBox({ kb, empty }: { kb: ReturnType<KbLookup> | null; empty: string }
       )}
     </div>
   );
-}
-
-// ─── Güney Hindistan burç-sabit KP haritası ───────────────────────────────────
-/** 4×4 ızgarada burç konumları (satır, sütun): Balık sol üst, saat yönünde. Ortadaki 2×2 başlık. */
-const SOUTH_CELLS: Record<SignId, [number, number]> = {
-  pisces: [1, 1], aries: [1, 2], taurus: [1, 3], gemini: [1, 4],
-  aquarius: [2, 1], cancer: [2, 4],
-  capricorn: [3, 1], leo: [3, 4],
-  sagittarius: [4, 1], scorpio: [4, 2], libra: [4, 3], virgo: [4, 4],
-};
-export type KpSel = { kind: "cusp"; house: number } | { kind: "body"; id: VedicGrahaId };
-type ChartItem = { key: string; lon: number; sel: KpSel; label: string; title: string; cusp: boolean; strong?: boolean };
-
-export function kpChartItems(cusps: KpCusp[], bodies: (KpPoint & { id: VedicGrahaId; retrograde?: boolean | null; house?: number })[]): Record<SignId, ChartItem[]> {
-  const out = Object.fromEntries(SIGN_IDS.map((s) => [s, [] as ChartItem[]])) as Record<SignId, ChartItem[]>;
-  for (const c of cusps) {
-    out[c.rashi].push({ key: `c${c.house}`, lon: c.longitude, sel: { kind: "cusp", house: c.house }, cusp: true, strong: c.house === 1, label: `${c.house}. ev ${Math.floor(c.degreeInRashi)}°${String(Math.floor((c.degreeInRashi % 1) * 60)).padStart(2, "0")}′`, title: `${c.house}. ev başlangıcı (Placidus cusp) · ${posLabel(c)} · sub lord ${gs(c.subLord)}` });
-  }
-  for (const b of bodies) {
-    out[b.rashi].push({ key: b.id, lon: b.longitude, sel: { kind: "body", id: b.id }, cusp: false, label: `${GRAHA_TR[b.id].abbr} ${Math.floor(b.degreeInRashi)}°${String(Math.floor((b.degreeInRashi % 1) * 60)).padStart(2, "0")}′${b.retrograde ? "ʳ" : ""}`, title: `${grahaTrName(b.id)} · ${posLabel(b)}${b.house ? ` · ${b.house}. ev (Placidus)` : ""} · star ${gs(b.starLord)} · sub ${gs(b.subLord)}${b.retrograde ? " · vakri" : ""}` });
-  }
-  for (const s of SIGN_IDS) out[s].sort((a, b) => a.lon - b.lon || (a.cusp ? -1 : 1));
-  return out;
 }
 
 export function KpSouthChart({ cusps, bodies, center, sel, onSel }: { cusps: KpCusp[]; bodies: (KpPoint & { id: VedicGrahaId; retrograde?: boolean | null; house?: number })[]; center: React.ReactNode; sel: KpSel | null; onSel: (s: KpSel) => void }) {

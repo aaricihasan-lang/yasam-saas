@@ -15,6 +15,11 @@ import { WHEEL_LEGEND } from "./wheelSvg";
 import { bayerBoth, FIXED_STAR_CATALOG, FIXED_STAR_FAR_LAT, fixedStarName, fixedStarNatureLabel, starKeywordTr } from "../labels/fixedStars";
 import { FIXED_STAR_ORB_QUERY, fixedStarOrbOf } from "../model/westernFixedStars";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
+import { VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, type VedicD1Technical, type VedicGrahaId, type VedicVargaTechnical } from "../model/vedic";
+import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpTransitTechnical } from "../model/kp";
+import { kundliTitles, toKundliData, toVargaChartData } from "@/app/admin/astroloji/_lib/kundliData";
+import { kundliLegend } from "@/app/admin/astroloji/_lib/kundliLocalize";
+import { figureTitle, type ReportFigure } from "./figures";
 
 // ─── Blok modeli ─────────────────────────────────────────────────────────────
 
@@ -26,6 +31,8 @@ export type ReportBlock =
   | { kind: "table"; table: ReportTable; caption?: string }
   | { kind: "bullets"; items: string[] }
   | { kind: "chart"; chart: WheelInput; caption: string }
+  /** 2026-10-15: Vedik D1 / Varga / KP haritası (ekrandaki çizimle aynı kaynak; bkz. figures.ts). Word ve PDF aynı PNG'yi alır. */
+  | { kind: "chart"; figure: ReportFigure; caption: string }
   /** Toplu raporda her analiz yeni sayfada başlar (tekli raporda kullanılmaz). */
   | { kind: "pagebreak" };
 
@@ -1076,6 +1083,55 @@ function personBlock(b: B, label: string, p: O | null) {
   ]);
 }
 
+// ─── Vedik / KP harita figürü (2026-10-15) ────────────────────────────────────────────────────────────
+
+const VEDIC_GRAHA_ORDER: VedicGrahaId[] = ["sun", "moon", "mars", "mercury", "jupiter", "venus", "saturn", "rahu", "ketu"];
+const KP_AY: Record<string, string> = { "kp-newcomb": "KP-Newcomb", "kp-old": "KP (eski tablo)" };
+const FIGURE_MISSING = "Harita bu kayıtta eksik teknik veri nedeniyle çizilemedi; teknik tablolar aşağıdadır.";
+const KUNDLI_LEGEND = `${kundliLegend(VEDIC_GRAHA_ORDER)} · ʳ vakri · ᶜ yanık (asta) · ʷ graha yuddha. Kuzey düzeninde 3+ grahalı hücrede derece haritada gösterilmez (tabloda).`;
+const KP_LEGEND = "Burç kutuları sabit (Güney Hindistan). Çerçeveli etiket = Placidus ev başlangıcı (cusp); gri = graha. KP evleri burç kutusu değildir — bir burçta iki cusp olabilir, bir ev iki burca yayılabilir. ʳ vakri.";
+const KUNDLI_NOTE = "Kuzey Hindistan düzeni (uygulamadaki varsayılan görünüm; Lagna üst ortadaki 1. ev). Kayıtlı analiz verisinden, uygulamadaki harita bileşeniyle çizilmiştir.";
+const KP_NOTE = "Güney Hindistan burç düzeni; uygulamadaki KP haritasıyla aynı yerleşim. Kayıtlı analiz verisinden çizilmiştir.";
+
+const hasPts = (v: unknown) => Array.isArray(v) && v.length > 0 && v.every((x) => isObj(x) && typeof x.rashi === "string" && num(x.longitude) !== null);
+
+/**
+ * Teknik → harita figürü. Teknik adı VE kayıttaki şema eşleşmeli (yanlış haritanın yanlış rapora girmesi engellenir).
+ * Harita çizilmeyen teknik → null; veri eksik → { missing } (rapor açık not verir, görsel uydurulmaz).
+ */
+function vedicKpFigure(technique: string, t: O): { figure: ReportFigure; caption: string; legend: string } | { missing: string } | null {
+  try {
+    if (technique === "vedic.d1") {
+      if (t.schema !== VEDIC_D1_TECHNICAL_SCHEMA || !hasPts(t.grahas) || !isObj(t.lagna) || !isObj(t.frame)) return { missing: FIGURE_MISSING };
+      const d = t as unknown as VedicD1Technical;
+      const figure: ReportFigure = { type: "kundli", component: "kundli", style: "north", data: toKundliData(d), titles: kundliTitles(d.grahas, undefined, (d.combustion ?? []).map((c) => c.id)), grahaCount: d.grahas.length, centreLabel: "D1 Rashi" };
+      return { figure, caption: `${figureTitle(technique)} — ${KUNDLI_NOTE}`, legend: KUNDLI_LEGEND };
+    }
+    if (technique === "vedic.varga") {
+      if (t.schema !== VEDIC_VARGA_TECHNICAL_SCHEMA || !hasPts(t.grahas) || !isObj(t.lagna) || !isObj(t.division) || num(t.division.number) === null || typeof t.division.name !== "string") return { missing: FIGURE_MISSING };
+      const d = t as unknown as VedicVargaTechnical;
+      const figure: ReportFigure = { type: "kundli", component: "divisional", style: "north", data: toVargaChartData(d), titles: kundliTitles(d.grahas, d.division.number), grahaCount: d.grahas.length, centreLabel: `D${d.division.number} ${d.division.name}` };
+      return { figure, caption: `${figureTitle(technique, d.division)} — ${KUNDLI_NOTE}`, legend: KUNDLI_LEGEND };
+    }
+    if (technique === "kp.chart" || technique === "kp.horary") {
+      const schema = technique === "kp.chart" ? KP_CHART_TECHNICAL_SCHEMA : KP_HORARY_TECHNICAL_SCHEMA;
+      if (t.schema !== schema || !hasPts(t.cusps) || !hasPts(t.bodies) || !isObj(t.ascendant) || !isObj(t.frame)) return { missing: FIGURE_MISSING };
+      const d = t as unknown as KpChartTechnical | KpHoraryTechnical;
+      const lagna = `Lagna ${SIGN_LABELS[d.ascendant.rashi]}`;
+      const center = technique === "kp.chart" ? { title: "KP · Placidus", lines: [KP_AY[d.frame.ayanamsa] ?? String(d.frame.ayanamsa), lagna] } : { title: `Horary ${(d as KpHoraryTechnical).horaryNumber}`, lines: ["KP · Placidus", lagna] };
+      return { figure: { type: "kp", cusps: d.cusps, bodies: d.bodies, center }, caption: `${figureTitle(technique)} — ${KP_NOTE}`, legend: KP_LEGEND };
+    }
+    if (technique === "kp.transit") {
+      if (t.schema !== KP_TRANSIT_TECHNICAL_SCHEMA || !hasPts(t.bodies) || !isObj(t.frame)) return { missing: FIGURE_MISSING };
+      const d = t as unknown as KpTransitTechnical;
+      return { figure: { type: "kp", cusps: [], bodies: d.bodies, center: { title: "KP transit", lines: ["gökyüzü (an)", KP_AY[d.frame.ayanamsa] ?? String(d.frame.ayanamsa)] } }, caption: `${figureTitle(technique)} — ${KP_NOTE}`, legend: KP_LEGEND };
+    }
+  } catch {
+    return { missing: FIGURE_MISSING };
+  }
+  return null;
+}
+
 export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   const b = new B();
   const technique = a.technique;
@@ -1123,6 +1179,16 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     b.h(1, "Harita");
     b.blocks.push({ kind: "chart", chart, caption: wheelCaption(technique, techLabel, people) });
     b.p(WHEEL_LEGEND, "muted");
+  }
+  // 5b. Vedik D1 / Varga / KP haritası (2026-10-15): ekranda çizilen haritanın aynısı, kayıtlı teknik veriden.
+  const fig = tech ? vedicKpFigure(technique, tech) : null;
+  if (fig) {
+    b.h(1, "Harita");
+    if ("missing" in fig) b.p(fig.missing, "warn");
+    else {
+      b.blocks.push({ kind: "chart", figure: fig.figure, caption: fig.caption });
+      b.p(fig.legend, "muted");
+    }
   }
 
   // 6–7. Teknik sonuçlar
@@ -1198,7 +1264,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     blocks: b.blocks,
     fileBase: `Astroloji-${asciiSlug(clientName, 40)}-${asciiSlug(techLabel, 40)}-${instantDayKeyTr(a.analysisAt) ?? "tarihsiz"}`,
     hasInterpretation: interpVisible,
-    hasChart: !!chart,
+    hasChart: !!chart || (!!fig && !("missing" in fig)),
   };
 }
 

@@ -10,8 +10,9 @@ import { anamnezPdfFontBase64 } from "@/lib/danisan/anamnez/pdfFont";
 import { getAnalysis, listAnalyses } from "../analyses/service";
 import type { EngineCtx } from "../engine/service";
 import { renderWheelPng } from "./chartPng";
+import { renderFigurePng } from "./figurePng";
 import { DOCX_MIME, renderAstroReportDocx } from "./docx";
-import { buildAstroReport, buildCombinedAstroReport, type AstroReport, type ReportAnalysisInput } from "./model";
+import { buildAstroReport, buildCombinedAstroReport, type AstroReport, type ReportAnalysisInput, type ReportBlock } from "./model";
 import { buildAstroReportPdf } from "./pdf";
 import { symbolFontBuffers, symbolFontsBase64 } from "./symbolFontData";
 
@@ -24,13 +25,34 @@ export type ReportResult =
   | { ok: true; bytes: Uint8Array; filename: string; contentType: string; hasInterpretation: boolean; hasChart: boolean }
   | { ok: false; status: number; body: Record<string, unknown> };
 
+type ChartImg = { png: Buffer; width: number; height: number };
+
+/**
+ * Bir "chart" bloğunun PNG'si: batı çarkı (wheelSvg) ya da Vedik/KP figürü (figurePng). Üretilemezse null → Word/PDF
+ * harita yerinde açık not gösterir (başka analizin görseli ASLA kullanılmaz) ve hata sunucu günlüğüne yazılır
+ * (yalnız teknik + kısa neden; kişisel veri yok).
+ */
+async function renderChartBlock(block: Extract<ReportBlock, { kind: "chart" }>, widthPx: number, technique: string): Promise<ChartImg | null> {
+  if ("chart" in block) {
+    const png = renderWheelPng(block.chart, widthPx);
+    if (!png) console.error(`[astro-report] harita görseli üretilemedi (${technique}, çark)`);
+    return png;
+  }
+  const r = await renderFigurePng(block.figure, widthPx);
+  if ("error" in r) {
+    console.error(`[astro-report] harita görseli üretilemedi (${technique}, ${block.figure.type}): ${r.error}`);
+    return null;
+  }
+  return r;
+}
+
 export async function buildAnalysisReport(ctx: EngineCtx, id: string, format: ReportFormat, ownerPreviewHideInterp: boolean): Promise<ReportResult> {
   const r = await getAnalysis(ctx, id, ownerPreviewHideInterp);
   if (r.status !== 200) return { ok: false, status: r.status, body: r.body as Record<string, unknown> };
   const analysis = (r.body as { analysis: ReportAnalysisInput }).analysis;
   const report = buildAstroReport(analysis);
   const chartBlock = report.blocks.find((b) => b.kind === "chart");
-  const chart = chartBlock && chartBlock.kind === "chart" ? renderWheelPng(chartBlock.chart) : null;
+  const chart = chartBlock && chartBlock.kind === "chart" ? await renderChartBlock(chartBlock, 1200, analysis.technique) : null;
   if (format === "docx") {
     const buf = await renderAstroReportDocx(report, chart?.png ?? null, symbolFontBuffers());
     return { ok: true, bytes: new Uint8Array(buf), filename: `${report.fileBase}.docx`, contentType: DOCX_MIME, hasInterpretation: report.hasInterpretation, hasChart: !!chart };
@@ -47,8 +69,11 @@ export const COMBINED_REPORT_MAX = 30;
 const isUuidLike = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 const err = (status: number, code: string, error: string): ReportResult => ({ ok: false, status, body: { ok: false, code, error } });
 
-function chartImages(report: AstroReport, widthPx: number) {
-  return report.blocks.filter((b) => b.kind === "chart").map((b) => (b.kind === "chart" ? renderWheelPng(b.chart, widthPx) : null));
+/** Toplu rapor: "chart" bloklarıyla AYNI sırada görseller (her blok kendi analizinin kayıtlı verisinden). */
+async function chartImages(report: AstroReport, widthPx: number): Promise<(ChartImg | null)[]> {
+  const out: (ChartImg | null)[] = [];
+  for (const b of report.blocks) if (b.kind === "chart") out.push(await renderChartBlock(b, widthPx, "toplu rapor"));
+  return out;
 }
 
 /**
@@ -95,7 +120,7 @@ export async function buildCombinedAnalysisReport(
   items.sort((x, y) => String(x.analysisAt).localeCompare(String(y.analysisAt)));
   const today = new Intl.DateTimeFormat("tr-TR", { timeZone: "Europe/Istanbul", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date());
   const report = buildCombinedAstroReport(items, scope, today);
-  const charts = chartImages(report, 1000);
+  const charts = await chartImages(report, 1000);
   const hasChart = charts.some(Boolean);
   if (format === "docx") {
     const buf = await renderAstroReportDocx(report, charts.map((c) => c?.png ?? null), symbolFontBuffers());
