@@ -198,7 +198,7 @@ async function main() {
         ok(G("C-salt-okunur"), "görüntüleme dokunuşlarında YAZMA isteği YOK", writes.length === wView, JSON.stringify(writes.slice(wView)));
 
         // Mevcut aya YENİDEN giriş (Yeni Takvim → 2026 Şubat)
-        await page.getByRole("button", { name: "+ Yeni Takvim" }).click();
+        await page.getByRole("button", { name: "+ Takvim Oluştur / Aç" }).click();
         await page.getByTestId("kupa-new-calendar-year").selectOption("2026");
         await page.getByTestId("kupa-new-calendar-month").selectOption("2");
         ok(G("B-yeniden-giris"), "dolu yıl: 'mevcut işaretli günleriyle açılır' bilgisi", /zaten var/.test(await page.getByTestId("kupa-new-calendar-hint").innerText()));
@@ -237,7 +237,7 @@ async function main() {
         ok(G("D-tarih"), "31 Aralık kaymasız kaydedildi", (await su.query(`select count(*)::int n from cupping_calendar_plan_days d join cupping_calendar_plans p on p.id=d.plan_id where p.tenant_id=$1 and gregorian_date='2026-12-31'`, [u.tenant])).rows[0].n === 1);
         await page.getByRole("button", { name: "Düzenlemeyi Bitir" }).click();
         // Artık yıl: 2028 Şubat → yeni yıl planı + 29 gün
-        await page.getByRole("button", { name: "+ Yeni Takvim" }).click();
+        await page.getByRole("button", { name: "+ Takvim Oluştur / Aç" }).click();
         await page.getByTestId("kupa-new-calendar-year").selectOption("2028");
         await page.getByTestId("kupa-new-calendar-month").selectOption("2");
         await page.getByTestId("kupa-new-calendar").getByRole("button", { name: /Ayını Düzenle/ }).click();

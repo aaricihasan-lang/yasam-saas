@@ -67,12 +67,12 @@ import {
   type SessionLimitField,
 } from "@/lib/admin/licenseLimits";
 import {
-  clearYasamUser,
   isAdminUser,
   readYasamUser,
   readSessionToken,
   type YasamUser,
 } from "@/lib/auth/yasamUser";
+import { useConfirmedLogout } from "@/hooks/useConfirmedLogout";
 import { deriveBaseExpertAccess, approverForPreservedDate } from "@/lib/admin/membershipActions";
 import {
   AccountBadge,
@@ -828,10 +828,8 @@ export default function AdminUserDetailPage() {
     };
   }, [sessionChecked, allowed, currentAdminId, userId, applyUserDetail]);
 
-  function handleLogout() {
-    clearYasamUser();
-    router.push("/");
-  }
+  // Final-A1: tek tıkla çıkış yok — ana paneldeki ortak onay penceresi.
+  const handleLogout = useConfirmedLogout();
 
   const canDeleteAsOwner = viewerIsMainAdmin;
 

@@ -38,6 +38,7 @@ import { DayEditPanel, type DayStyleDraft } from "./DayEditPanel";
 import { DayInfoPanel } from "./DayInfoPanel";
 import { NewCalendarDialog } from "./NewCalendarDialog";
 import { pickPlanForYear } from "@/lib/cupping/calendarPlanResolve";
+import { anyDirty, templateSelectionDirty } from "@/app/kupa/lib/formDirty";
 
 /** useSyncExternalStore için değişmeyen abonelik (yalnız istemci/SSR ayrımı). */
 const subscribeNoop = () => () => {};
@@ -115,6 +116,8 @@ type PendingFailures = {
   styles: Set<string>;
   removals: Set<string>;
   styleSnap: Map<string, DayStyleDraft>;
+  /** Bağlı şablon değişikliği kaydedilemediyse taslaktaki seçim (sunucu durumunun üstüne geri yazılır). */
+  template?: { id: string | null };
 };
 
 /**
@@ -133,6 +136,11 @@ type PendingFailures = {
  *   - DÜZENLEME modu yalnız açık iki yoldan açılır: "Bu Ayı Düzenle" veya "+ Yeni Takvim → yıl/ay".
  *     Yeni Takvim, yıl için zaten takvim varsa YENİSİNİ ÜRETMEZ (duplicate yok): mevcut takvim o ayda,
  *     işaretli günleri/renkleri/notlarıyla açılır. "Düzenlemeyi Bitir" kaydedilmemiş değişiklik varsa sorar.
+ *
+ * FINAL-A1 — BAĞLI BİLGİLENDİRME ŞABLONU da gün taslağıyla AYNI kalıcılık yolundadır: seçim yalnız
+ *   taslağı (templateDraft) değiştirir, DB'ye yalnız "Değişiklikleri Kaydet" ile yazılır. Görüntüleme
+ *   modunda seçim KİLİTLİDİR (yazma isteği gitmez); Düzenlemeyi Bitir / Vazgeç → taslak kayıtlıya döner.
+ *   Açık şablon / danışan-notu formları da sayfa geneli kaydedilmemiş-değişiklik korumasına katılır.
  */
 export function CalendarWorkspace() {
   const { showToast } = useToast();
@@ -148,6 +156,11 @@ export function CalendarWorkspace() {
   const [draft, setDraft] = useState<Set<string>>(new Set());
   // Taslak stili (renk + kısa açıklama + detay notu) — seçili günler için; kayıttan türetilir.
   const [draftStyle, setDraftStyle] = useState<Map<string, DayStyleDraft>>(new Map());
+  // Bağlı bilgilendirme şablonu TASLAĞI (null = şablon yok). Kalıcı değer: plan.advice_template_id.
+  const [templateDraft, setTemplateDraft] = useState<string | null>(null);
+  // Alt bölümlerdeki açık şablon / danışan-notu formlarının kirli durumu (yalnız çıkış koruması).
+  const [adviceFormDirty, setAdviceFormDirty] = useState(false);
+  const [clientFormDirty, setClientFormDirty] = useState(false);
   const [month, setMonth] = useState(1);
   const [view, setView] = useState<CalendarView>("monthly");
   const [editYmd, setEditYmd] = useState<string | null>(null);
@@ -190,7 +203,10 @@ export function CalendarWorkspace() {
       }),
     [draft, savedDays, draftStyle],
   );
-  const dirty = additions.length > 0 || removals.length > 0 || styleChanges.length > 0;
+  const templateChanged = !!plan && templateSelectionDirty(templateDraft, plan.advice_template_id);
+  const dirty = additions.length > 0 || removals.length > 0 || styleChanges.length > 0 || templateChanged;
+  // Sayfa geneli çıkış koruması: takvim taslağı + açık (kaydedilmemiş) şablon/danışan formları.
+  const pageDirty = anyDirty(dirty, adviceFormDirty, clientFormDirty);
 
   // Aylık + Yıllık görünüme geçirilen stil erişimcisi (taslak = tek doğruluk).
   const styleOf = useCallback(
@@ -242,6 +258,7 @@ export function CalendarWorkspace() {
       setSavedDays(saved);
       setDraft(nextDraft);
       setDraftStyle(styles);
+      setTemplateDraft(f?.template ? f.template.id : (p.advice_template_id ?? null));
       setEditYmd(null);
       if (!opts.keepMonth) {
         // Plan yılı bu yıla eşitse mevcut ayı aç; değilse Ocak.
@@ -286,6 +303,7 @@ export function CalendarWorkspace() {
     setSavedDays(new Map());
     setDraft(new Set());
     setDraftStyle(new Map());
+    setTemplateDraft(null);
     setEditYmd(null);
   }, []);
 
@@ -371,7 +389,7 @@ export function CalendarWorkspace() {
     () =>
       confirm({
         title: "Kaydedilmemiş Değişiklikler",
-        message: "Kaydedilmemiş gün seçimleriniz var. Devam ederseniz bu değişiklikler kaybolur.",
+        message: "Kaydedilmemiş değişiklikleriniz var. Devam ederseniz bu değişiklikler kaybolur.",
         confirmText: "Kaydetmeden Devam Et",
         cancelText: "Vazgeç",
         tone: "danger",
@@ -379,14 +397,15 @@ export function CalendarWorkspace() {
     [confirm],
   );
 
+  // Plan değişimi/silme/yeni takvim alt formları da söker → açık formlar dâhil (pageDirty).
   async function confirmDiscardIfDirty(): Promise<boolean> {
     if (savingRef.current) return false;
-    if (!dirty) return true;
+    if (!pageDirty) return true;
     return confirmDiscard();
   }
 
   // Uygulama içi gezinme (breadcrumb/menü linki) + geri tuşu + yenileme koruması.
-  useUnsavedChangesGuard(dirty, confirmDiscard);
+  useUnsavedChangesGuard(pageDirty, confirmDiscard);
 
   // Gün düzenleme paneli kayıt sürerken açılmaz (kayıt anındaki taslak sabit kalır).
   const openDayEditor = useCallback((ymd: string) => {
@@ -407,6 +426,7 @@ export function CalendarWorkspace() {
       for (const [ymd, d] of savedDays) m.set(ymd, { colorKey: d.colorKey, label: d.label ?? "", note: d.note ?? "" });
       return m;
     });
+    setTemplateDraft(planRef.current?.advice_template_id ?? null);
     setEditYmd(null);
   }, [savedDays]);
 
@@ -439,8 +459,10 @@ export function CalendarWorkspace() {
     openingRef.current = true;
     setOpening(true);
     try {
-      if (!(await confirmDiscardIfDirty())) return;
       const existing = pickPlanForYear(plans, year, activeIdRef.current);
+      // Aynı açık takvim → alt formlar sökülmez; yalnız takvim taslağı (gün/şablon) atılacağı için o sorulur.
+      const sameOpen = !!existing && existing.id === activeIdRef.current;
+      if (sameOpen ? dirty && !(await confirmDiscard()) : !(await confirmDiscardIfDirty())) return;
       if (existing) {
         if (existing.id !== activeIdRef.current) {
           await loadPlanInto(existing.id);
@@ -553,9 +575,19 @@ export function CalendarWorkspace() {
       const delRes = await runPool(removeTargets, 4, (t) => deleteCalendarDay(t.id));
       for (const t of delRes.failed) failures.removals.add(t.ymd);
       if (delRes.failed.length) lastError = delRes.lastError;
+      // 4) Bağlı bilgilendirme şablonu — YALNIZ değiştiyse ve YALNIZ bu açık kayıtla yazılır.
+      if (templateChanged) {
+        const nextTemplate = templateDraft || null;
+        try {
+          await updateCalendarPlan(planId, { advice_template_id: nextTemplate });
+        } catch (e) {
+          lastError = e;
+          failures.template = { id: nextTemplate };
+        }
+      }
 
-      const failCount = failures.adds.size + failures.styles.size + failures.removals.size;
-      // 4) Otoriter durumu SESSİZCE yeniden yükle (ay + alt formlar korunur); kaydedilemeyen
+      const failCount = failures.adds.size + failures.styles.size + failures.removals.size + (failures.template ? 1 : 0);
+      // 5) Otoriter durumu SESSİZCE yeniden yükle (ay + alt formlar korunur); kaydedilemeyen
       //    öğeler taslakta KALIR. Yeniden yükleme başarısızsa taslağa HİÇ dokunulmaz (tekrar
       //    kaydetmek idempotenttir: eklemeler çakışmada atlanır, silinmiş gün tekrar silinmez).
       let reloaded = false;
@@ -660,11 +692,29 @@ export function CalendarWorkspace() {
     showToast({ message: "Takvim silindi.", type: "success" });
   }
 
-  async function handleAttachTemplate(templateId: string | null) {
-    if (!plan) return;
-    const updated = await updateCalendarPlan(plan.id, { advice_template_id: templateId });
-    setPlan(updated);
-  }
+  // Şablon seçimi YALNIZ taslağı değiştirir (YAZMA YOK); görüntüleme modunda / kayıt sürerken yok sayılır.
+  const selectTemplateDraft = useCallback(
+    (templateId: string | null) => {
+      if (!editing || savingRef.current) return;
+      setTemplateDraft(templateId || null);
+    },
+    [editing],
+  );
+
+  // Şablon silindi: sunucu bağlı planlarda advice_template_id'yi NULL'lar (FK ON DELETE SET NULL) →
+  //   yerel plan aynalanır (ek yazma YOK); taslak silinen şablonu gösteriyorsa kayıtlı değere döner.
+  const handleTemplateDeleted = useCallback((templateId: string) => {
+    const cur = planRef.current;
+    let savedNow = cur?.advice_template_id ?? null;
+    if (cur && cur.advice_template_id === templateId) {
+      const next = { ...cur, advice_template_id: null };
+      planRef.current = next;
+      setPlan(next);
+      savedNow = null;
+    }
+    setPlans((prev) => prev.map((x) => (x.advice_template_id === templateId ? { ...x, advice_template_id: null } : x)));
+    setTemplateDraft((d) => (d === templateId ? savedNow : d));
+  }, []);
 
   // WT6: gün bilgisi paneli — YALNIZ KAYITLI durum (taslak değil) gösterilir.
   const infoContext = useMemo(() => {
@@ -714,6 +764,7 @@ export function CalendarWorkspace() {
                   additions.length > 0 ? `${additions.length} kaydedilecek` : "",
                   styleChanges.length > 0 ? `${styleChanges.length} güncellenecek` : "",
                   removals.length > 0 ? `${removals.length} kaldırılacak` : "",
+                  templateChanged ? "bilgilendirme şablonu değişecek" : "",
                 ]
                   .filter(Boolean)
                   .join(" · ")}
@@ -782,7 +833,7 @@ export function CalendarWorkspace() {
         <p className="mt-1 text-xs leading-relaxed text-slate-400">
           Yaşam Sistemi takvime hazır uygulama günü eklemez. Aşağıdaki takvim kayıtlı takviminizi
           gösterir (salt okunur; güne dokunmak bilgisini açar). Günleri değiştirmek için
-          <strong> Bu Ayı Düzenle</strong> veya <strong>+ Yeni Takvim</strong> (yıl/ay) kullanın.
+          <strong> Bu Ayı Düzenle</strong> veya <strong>+ Takvim Oluştur / Aç</strong> (yıl/ay) kullanın.
         </p>
       </div>
 
@@ -917,15 +968,19 @@ export function CalendarWorkspace() {
               {/* Çıktı bilgilendirme notları */}
               <div className={`${edgeCard}`}>
                 <OutputAdviceSection
-                  plan={plan}
                   templates={templates}
+                  selectedTemplateId={templateDraft}
+                  templatePending={templateChanged}
+                  readOnly={!editing || saving}
                   onTemplatesChanged={refreshTemplates}
-                  onAttach={handleAttachTemplate}
+                  onSelectTemplate={selectTemplateDraft}
+                  onTemplateDeleted={handleTemplateDeleted}
+                  onFormDirtyChange={setAdviceFormDirty}
                 />
               </div>
 
               {/* Danışana özel (opsiyonel, katlanır, lazy) */}
-              <ClientAdviceSection templates={templates} />
+              <ClientAdviceSection templates={templates} onFormDirtyChange={setClientFormDirty} />
           </div>
           {view === "annual" ? (
             /* Yıllık Özet — AYNI plan/taslak; 12 minik ay; ay tıklaması Aylık'ı açar */

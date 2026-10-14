@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
   AlertOctagon,
@@ -16,11 +15,11 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
-  clearYasamUser,
   isAdminUser,
   readYasamUser,
   readSessionToken,
 } from "@/lib/auth/yasamUser";
+import { useConfirmedLogout } from "@/hooks/useConfirmedLogout";
 
 const LEGACY_TENANT_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -669,7 +668,6 @@ function adminHeaders(adminId: string | undefined, json = false): Record<string,
 
 export default function TenantKontrolPage() {
   useBfcacheRefresh();
-  const router = useRouter();
   const { showToast } = useToast();
   const [sessionChecked, setSessionChecked] = useState(false);
   const [allowed, setAllowed] = useState(false);
@@ -720,10 +718,8 @@ export default function TenantKontrolPage() {
     void runAudit();
   }, [sessionChecked, allowed, runAudit]);
 
-  function handleLogout() {
-    clearYasamUser();
-    router.push("/");
-  }
+  // Final-A1: tek tıkla çıkış yok — ana paneldeki ortak onay penceresi.
+  const handleLogout = useConfirmedLogout();
 
   const audits = snapshot?.audits ?? [];
   const safeCount = audits.filter((a) => a.risk === "Güvenli").length;

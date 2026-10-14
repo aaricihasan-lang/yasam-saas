@@ -8,6 +8,7 @@ import { KupaShell, kupaBtnPrimary, kupaInput } from "@/app/kupa/components/Kupa
 import { deleteProtocol, type CuppingProtocol } from "@/app/kupa/lib/api";
 import { useProtocolList } from "./hooks/useProtocolList";
 import { ProtocolListCard } from "./components/ProtocolListCard";
+import { protocolMatchesQuery } from "@/app/kupa/lib/protocolSearch";
 
 export default function ProtokollerPage() {
   const { protocols, loading, error, refresh } = useProtocolList();
@@ -22,17 +23,13 @@ export default function ProtokollerPage() {
     [protocols],
   );
 
+  // Arama: başlık + kategori + etiketler (Türkçe katlamalı; saf eşleşme: lib/protocolSearch).
   const filtered = useMemo(() => {
-    const needle = q.trim().toLocaleLowerCase("tr");
     return protocols.filter((p) => {
       if (category && p.category !== category) return false;
       if (status === "active" && p.is_active === false) return false;
       if (status === "passive" && p.is_active !== false) return false;
-      if (!needle) return true;
-      return (
-        p.title.toLocaleLowerCase("tr").includes(needle) ||
-        (p.category ? p.category.toLocaleLowerCase("tr").includes(needle) : false)
-      );
+      return protocolMatchesQuery(p, q);
     });
   }, [protocols, q, category, status]);
 

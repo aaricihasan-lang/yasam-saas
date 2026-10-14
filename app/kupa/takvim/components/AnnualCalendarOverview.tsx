@@ -78,7 +78,7 @@ export function AnnualCalendarOverview({
       {!hasSelection ? (
         <p className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-500">
           Bu yıl için henüz uygulama günü işaretlenmedi. Günleri işaretlemek için <strong>Bu Ayı Düzenle</strong>
-          veya <strong>+ Yeni Takvim</strong> (yıl/ay) kullanın.
+          veya <strong>+ Takvim Oluştur / Aç</strong> (yıl/ay) kullanın.
         </p>
       ) : null}
 
@@ -179,7 +179,7 @@ export function AnnualCalendarOverview({
       <p className="text-xs leading-relaxed text-slate-400">
         Bu yıllık görünüm kayıtlı takviminizi gösterir ve salt okunurdur: bir güne dokunduğunuzda
         yalnız o günün bilgisi açılır. Günleri değiştirmek için <strong>Bu Ayı Düzenle</strong> veya
-        <strong> + Yeni Takvim</strong> (yıl/ay) kullanın.
+        <strong> + Takvim Oluştur / Aç</strong> (yıl/ay) kullanın.
       </p>
     </div>
   );

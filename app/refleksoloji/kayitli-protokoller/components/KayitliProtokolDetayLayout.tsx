@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { ProtocolFootMap } from "@/app/refleksoloji/protokol-haritasi/components/ProtocolFootMap";
+import { isHandView } from "@/app/refleksoloji/bolge-haritasi/components/HandSideLabels";
 import { resolveProtocolViews } from "@/app/refleksoloji/protokol-haritasi/lib/resolveDisplayRegions";
 import type { AtlasBackgroundGroup, OrganResolved } from "@/lib/refleksoloji/atlasRegionsCore";
 import {
@@ -538,9 +539,15 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
           </div>
 
           {hasAtlasMapping ? (
-            <section className={footMapPanelLargeClass} aria-label="Ayak haritası önizleme">
+            <section
+              className={footMapPanelLargeClass}
+              aria-label={isHandView(effectiveFootView) ? "El haritası önizleme" : "Ayak haritası önizleme"}
+            >
               <div className="shrink-0 border-b border-violet-200/70 px-4 py-3">
-                <h2 className="text-sm font-bold text-violet-950">Ayak Haritası Önizleme</h2>
+                {/* Protokol Haritası (ProtocolFootMap) ile aynı kural: el görünümünde "El", ayakta "Ayak". */}
+                <h2 className="text-sm font-bold text-violet-950">
+                  {isHandView(effectiveFootView) ? "El Haritası Önizleme" : "Ayak Haritası Önizleme"}
+                </h2>
                 <p className="mt-0.5 text-xs font-medium text-violet-800/80">
                   Protokole bağlı organ bölgeleri atlas üzerinde vurgulanır
                 </p>

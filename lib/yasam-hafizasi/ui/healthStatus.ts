@@ -9,7 +9,12 @@
  *   2. Flag'ler kapalı (yh_enabled && yh_hizli değil) → "coming_soon" ("Yakında")
  *   3. Sentetik tenant (ADMIN_LIBRARY)   → "out_of_scope" (mesleki indeks kapsamı dışında — hata DEĞİL)
  *   4. tenantRows > 0                    → "ready" ("N kayıt hazır")
- *   5. tenantRows = 0                    → "preparing" ("Hazırlanıyor")
+ *   5. tenantRows = 0 + bekleyen aktarım (tenantPending > 0) → "preparing" ("Hazırlanıyor")
+ *   6. tenantRows = 0 + bekleyen aktarım YOK (veya bilinmiyor) → "empty" (hazır, henüz kayıt yok)
+ *
+ * Final-A1: önceden tenantRows=0 her zaman "Hazırlanıyor" idi → yeni/boş uzman hesabında kart
+ * kalıcı olarak "Hazırlanıyor" kalıyordu. "Hazırlanıyor" artık YALNIZ gerçekten işlenmeyi bekleyen
+ * olay varken gösterilir; sinyal yoksa işlem iddia edilmez.
  */
 
 export type YhHealthPayload = {
@@ -17,12 +22,14 @@ export type YhHealthPayload = {
   demo?: boolean;
   accessible?: boolean;
   tenantRows?: number;
+  /** Bu tenant'ın işlenmeyi bekleyen (pending/processing) aktarım olayı sayısı; yalnız tenantRows=0 iken. */
+  tenantPending?: number;
   syntheticTenant?: boolean;
   flags?: Partial<Record<"yh_enabled" | "yh_hizli" | string, boolean>>;
   code?: string;
 };
 
-export type YhStatusKind = "loading" | "unavailable" | "coming_soon" | "out_of_scope" | "ready" | "preparing";
+export type YhStatusKind = "loading" | "unavailable" | "coming_soon" | "out_of_scope" | "ready" | "preparing" | "empty";
 
 export type YhCardStatus = {
   kind: YhStatusKind;
@@ -33,6 +40,7 @@ export type YhCardStatus = {
 };
 
 export const YH_OUT_OF_SCOPE_TEXT = "Bu hesap mesleki indeks kapsamı dışında";
+export const YH_EMPTY_READY_TEXT = "Hafıza hazır — henüz kayıt yok";
 
 function formatCount(n: number): string {
   try {
@@ -57,18 +65,22 @@ export function deriveYhCardStatus(payload: YhHealthPayload | null | undefined):
   if (payload.accessible === false) return { kind: "unavailable", text: "—", rows: null };
   const rows = typeof payload.tenantRows === "number" && Number.isFinite(payload.tenantRows) ? payload.tenantRows : 0;
   if (rows > 0) return { kind: "ready", text: `${formatCount(rows)} kayıt hazır`, rows };
-  return { kind: "preparing", text: "Hazırlanıyor", rows: 0 };
+  const pending =
+    typeof payload.tenantPending === "number" && Number.isFinite(payload.tenantPending) ? payload.tenantPending : 0;
+  if (pending > 0) return { kind: "preparing", text: "Hazırlanıyor", rows: 0 };
+  return { kind: "empty", text: YH_EMPTY_READY_TEXT, rows: 0 };
 }
 
 /**
  * Mesleki Hafıza çalışma alanı başlangıç durumu:
- *   - "index-empty"  → tenant indeksinde henüz kayıt yok ("Mesleki hafızanız hazırlanıyor…")
+ *   - "index-empty"  → indekste kayıt yok, aktarım SÜRÜYOR ("Mesleki hafızanız hazırlanıyor…")
+ *   - "index-ready-empty" → indeks hazır, aktarılacak kayıt yok (hazırlanıyor iddiası YOK)
  *   - "out-of-scope" → sentetik tenant (kapsam dışı mesajı; hata değil)
  *   - "disabled"     → flag'ler kapalı (mevcut "henüz aktif değil" kartı)
  *   - "ready"        → arama normal
  *   - "unknown"      → health okunamadı/yükleniyor (arama yine denenebilir; mevcut davranış)
  */
-export type YhWorkspaceHealthState = "unknown" | "disabled" | "out-of-scope" | "index-empty" | "ready";
+export type YhWorkspaceHealthState = "unknown" | "disabled" | "out-of-scope" | "index-empty" | "index-ready-empty" | "ready";
 
 export function deriveYhWorkspaceState(payload: YhHealthPayload | null | undefined): YhWorkspaceHealthState {
   const card = deriveYhCardStatus(payload);
@@ -79,6 +91,8 @@ export function deriveYhWorkspaceState(payload: YhHealthPayload | null | undefin
       return "out-of-scope";
     case "preparing":
       return "index-empty";
+    case "empty":
+      return "index-ready-empty";
     case "ready":
       return "ready";
     default:

@@ -638,8 +638,11 @@ ok(txt.includes("RAPORU HAZIRLAYAN") && txt.includes("Ayşe Uzman") && txt.inclu
     ok(deriveYhCardStatus({ ok: true, demo: true, tenantRows: 0, flags: {} }).text === "Yakında", "demo (flag default kapalı) → Yakında");
     ok(deriveYhCardStatus({ ok: true, tenantRows: 0, syntheticTenant: true, flags: on }).text === YH_OUT_OF_SCOPE_TEXT, "sentetik tenant → kapsam dışı (hata değil)");
     ok(deriveYhCardStatus({ ok: true, accessible: true, tenantRows: 1234, flags: on }).text === "1.234 kayıt hazır", "tenantRows>0 → 'N kayıt hazır'");
-    ok(deriveYhCardStatus({ ok: true, accessible: true, tenantRows: 0, flags: on }).text === "Hazırlanıyor", "tenantRows=0 → Hazırlanıyor");
-    ok(deriveYhWorkspaceState({ ok: true, tenantRows: 0, flags: on }) === "index-empty" &&
+    // Final-A1: tenantRows=0 TEK BAŞINA "Hazırlanıyor" DEĞİL (yeni/boş hesapta kalıcı yanlış durumdu).
+    ok(deriveYhCardStatus({ ok: true, accessible: true, tenantRows: 0, flags: on }).kind === "empty", "tenantRows=0 + bekleyen yok → boş-hazır (Hazırlanıyor DEĞİL)");
+    ok(deriveYhCardStatus({ ok: true, accessible: true, tenantRows: 0, tenantPending: 4, flags: on }).text === "Hazırlanıyor", "tenantRows=0 + bekleyen aktarım → Hazırlanıyor");
+    ok(deriveYhWorkspaceState({ ok: true, tenantRows: 0, tenantPending: 2, flags: on }) === "index-empty" &&
+      deriveYhWorkspaceState({ ok: true, tenantRows: 0, flags: on }) === "index-ready-empty" &&
       deriveYhWorkspaceState({ ok: true, tenantRows: 0, syntheticTenant: true, flags: on }) === "out-of-scope" &&
       deriveYhWorkspaceState({ ok: true, tenantRows: 3, flags: on }) === "ready" &&
       deriveYhWorkspaceState(null) === "unknown", "çalışma alanı durum eşlemesi");

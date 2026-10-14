@@ -23,6 +23,7 @@ export type EmptyVariant =
   | "filtered"
   | "disabled"
   | "index-empty"
+  | "index-ready-empty"
   | "out-of-scope"
   | "error";
 
@@ -54,6 +55,13 @@ const VARIANT: Record<EmptyVariant, { icon: string; title: string; message: stri
     title: "Mesleki hafızanız hazırlanıyor…",
     message:
       "Kayıtlarınız mesleki hafızaya aktarılıyor. Bu süre içinde arama sonuç vermeyebilir; aktarım tamamlandığında kayıtlarınız burada aranabilir olacak.",
+  },
+  // Health: indeks hazır, aktarım bekleyen kayıt YOK (Final-A1; "hazırlanıyor" iddiası yok).
+  "index-ready-empty": {
+    icon: "🧠",
+    title: "Mesleki hafızanız hazır",
+    message:
+      "Henüz aranabilir kayıt yok. Modüllerde kayıt oluşturdukça içerikleriniz burada aranabilir olacak.",
   },
   // Health: sentetik (ADMIN_LIBRARY) tenant — bilinçli olarak mesleki indeks dışında. Hata DEĞİL.
   "out-of-scope": {

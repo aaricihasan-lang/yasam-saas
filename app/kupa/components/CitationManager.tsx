@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   createCitation,
+  createSource,
   deleteCitation,
   listCitations,
   listSources,
@@ -13,13 +14,22 @@ import {
 } from "../lib/api";
 import { kupaBtnGhost, kupaBtnPrimary, kupaInput, kupaRowAction, kupaRowActionDanger, kupaRowActions } from "./KupaShell";
 import { KupaConfirmDialog } from "./ConfirmDialog";
+import { SourceNameField } from "../protokoller/components/SourceNameField";
+import { useConfirmLeave, useReportDirty } from "../protokoller/hooks/protocolDirty";
+import { findReusableSourceByName } from "@/lib/cupping/ownSources";
+import { openFormDirty } from "@/app/kupa/lib/formDirty";
 
 /**
  * KUPA & HACAMAT — PAYLAŞILAN kaynak-atıf (citation) paneli.
  *
  * DB tarafı 6 TİPLİ junction'dır (referential integrity), ama UI TEK bu bileşenle yönetilir
- * (point/topic/point-topic/technique/knowledge/safety). Kaynak KATALOĞU değiştirmez; yalnız
- * mevcut kaynakları içeriğe bağlar (locator + evidence_class + note).
+ * (point/topic/point-topic/technique/knowledge/safety). Atıf = kaynak + locator + evidence_class + note.
+ *
+ * FINAL-A1 — hazır kaynak KATALOĞU açılır listesi ("— kaynak seç —") KALDIRILDI (ürün kararı: ortak
+ * yönlendirici katalog yok). Protokol "Kaynak" alanıyla AYNI desen: kaynak SERBEST yazılır; öneri yalnız
+ * uzmanın KENDİ daha önce yazdığı kaynak adlarıdır (SourceNameField / lib/cupping/ownSources —
+ * aktarılmış/sistem kaynakları önerilmez). Kayıtta aynı adlı mevcut kaynak yeniden kullanılır, yoksa
+ * yeni kaynak oluşturulur; veri modeli (source_id) DEĞİŞMEZ. Kaydedilmemiş form sayfa koruması bildirir.
  */
 
 const EVIDENCE_OPTIONS: { value: string; label: string }[] = [
@@ -34,8 +44,8 @@ const EVIDENCE_LABEL: Record<string, string> = Object.fromEntries(
   EVIDENCE_OPTIONS.map((o) => [o.value, o.label]),
 );
 
-type FormState = { source_id: string; locator: string; evidence_class: string; note: string };
-const EMPTY: FormState = { source_id: "", locator: "", evidence_class: "", note: "" };
+type FormState = { source_text: string; locator: string; evidence_class: string; note: string };
+const EMPTY: FormState = { source_text: "", locator: "", evidence_class: "", note: "" };
 
 export function CuppingCitationManager({
   entity,
@@ -47,7 +57,12 @@ export function CuppingCitationManager({
   const [sources, setSources] = useState<CuppingSource[]>([]);
   const [citations, setCitations] = useState<CuppingCitation[]>([]);
   const [form, setForm] = useState<FormState>(EMPTY);
+  // Formun açıldığı andaki değerler (kirli karşılaştırma tabanı): yeni → boş, düzenleme → atıf değerleri.
+  const [baseline, setBaseline] = useState<FormState>(EMPTY);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const confirmLeave = useConfirmLeave();
+  const dirty = openFormDirty(form, baseline);
+  useReportDirty(`citation-${entity}`, dirty);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,13 +96,31 @@ export function CuppingCitationManager({
 
   const reset = () => {
     setForm(EMPTY);
+    setBaseline(EMPTY);
     setEditingId(null);
+  };
+
+  // Vazgeç / başka atıfı düzenle: gerçek değişiklik varsa önce sorulur (değişiklik yoksa doğrudan).
+  const cancelEdit = async () => {
+    if (dirty && !(await confirmLeave())) return;
+    reset();
+  };
+
+  /** Serbest kaynak adı → source_id (aynı adlı mevcut kaynak yeniden kullanılır; yoksa oluşturulur). */
+  const resolveSourceId = async (text: string): Promise<string | null> => {
+    const existing = findReusableSourceByName(sources, text);
+    if (existing) return existing.id;
+    const created = await createSource({ source_name: text });
+    if (!created || !created.id) return null; // demo hesabı (persist=0)
+    setSources((cur) => [...cur, created]);
+    return created.id;
   };
 
   const handleSave = async () => {
     setError(null);
-    if (!editingId && !form.source_id) {
-      setError("Önce bir kaynak seçin.");
+    const sourceText = form.source_text.trim();
+    if (!editingId && !sourceText) {
+      setError("Kaynak adını yazın (ör. Ahmet Hoca Eğitim Notu).");
       return;
     }
     setBusy(true);
@@ -100,8 +133,13 @@ export function CuppingCitationManager({
         });
         setCitations((cur) => cur.map((c) => (c.id === editingId ? updated : c)));
       } else {
+        const sourceId = await resolveSourceId(sourceText);
+        if (!sourceId) {
+          setError("Demo hesabında kayıt oluşturulmaz.");
+          return;
+        }
         const created = await createCitation(entity, {
-          source_id: form.source_id,
+          source_id: sourceId,
           entityId, // sunucu bunu ilgili tablonun gerçek FK kolonuna map eder
           locator: form.locator,
           evidence_class: form.evidence_class || null,
@@ -117,14 +155,17 @@ export function CuppingCitationManager({
     }
   };
 
-  const handleEdit = (c: CuppingCitation) => {
-    setEditingId(c.id);
-    setForm({
-      source_id: c.source_id,
+  const handleEdit = async (c: CuppingCitation) => {
+    if (dirty && !(await confirmLeave())) return;
+    const next: FormState = {
+      source_text: sourceName(c.source_id),
       locator: (c.locator as string) ?? "",
       evidence_class: (c.evidence_class as string) ?? "",
       note: (c.note as string) ?? "",
-    });
+    };
+    setEditingId(c.id);
+    setForm(next);
+    setBaseline(next);
   };
 
   // HAC-UX-6: citation "kaldır" = junction/ilişki satırını siler (kaynak KATALOĞUNU değil).
@@ -196,7 +237,7 @@ export function CuppingCitationManager({
               <div className={kupaRowActions}>
                 <button
                   type="button"
-                  onClick={() => handleEdit(c)}
+                  onClick={() => void handleEdit(c)}
                   className={kupaRowAction}
                 >
                   Düzenle
@@ -217,20 +258,19 @@ export function CuppingCitationManager({
 
       {/* Ekle / düzenle formu */}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <select
-          value={form.source_id}
-          onChange={(e) => setForm((f) => ({ ...f, source_id: e.target.value }))}
-          disabled={!!editingId}
-          aria-label="Kaynak seç"
-          className={kupaInput}
-        >
-          <option value="">— kaynak seç —</option>
-          {sources.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.source_name}
-            </option>
-          ))}
-        </select>
+        {/* Hazır katalog YOK — serbest yazı; öneri yalnız uzmanın kendi geçmiş kaynakları. Düzenlemede
+            kaynak değişmez (yalnız sayfa/kanıt/not) → alan kilitli. */}
+        <div className="sm:col-span-2">
+          <SourceNameField
+            label="Kaynak (kimden / nereden öğrendim)"
+            placeholder="Örn. Ahmet Hoca Eğitim Notu, kendi eğitim notlarım, X Kitabı…"
+            value={form.source_text}
+            onChange={(v) => setForm((f) => ({ ...f, source_text: v }))}
+            sources={sources}
+            disabled={!!editingId}
+            testId="kupa-citation-source-name"
+          />
+        </div>
         <select
           value={form.evidence_class}
           onChange={(e) => setForm((f) => ({ ...f, evidence_class: e.target.value }))}
@@ -263,8 +303,8 @@ export function CuppingCitationManager({
         <button type="button" onClick={handleSave} disabled={busy} className={kupaBtnPrimary}>
           {editingId ? "Kaynağı Güncelle" : "Kaynak Bağla"}
         </button>
-        {editingId ? (
-          <button type="button" onClick={reset} className={kupaBtnGhost}>
+        {editingId || dirty ? (
+          <button type="button" onClick={() => void cancelEdit()} className={kupaBtnGhost}>
             Vazgeç
           </button>
         ) : null}
