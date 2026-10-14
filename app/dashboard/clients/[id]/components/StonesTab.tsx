@@ -1,8 +1,9 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
-import { MOBILE_HIDDEN_BLOCK } from "@/components/platform/mobileHidden";
-import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
+import { looksLikeImageFile, optimizeImageFile } from "@/lib/media/imageOptimize";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { formatDateAbsolute } from "@/lib/i18n/format";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -17,7 +18,7 @@ import {
 } from "@/lib/stones/stoneWarningService";
 import StoneWarningModal from "./StoneWarningModal";
 import ClientCombinationsSection from "./ClientCombinationsSection";
-import { applySignedPhotoUrls, shouldRefreshSignedUrls } from "@/lib/clients/stonePhotoStorage";
+import { STONE_PHOTO_MAX_BYTES, applySignedPhotoUrls, shouldRefreshSignedUrls } from "@/lib/clients/stonePhotoStorage";
 import { todayInZone } from "@/lib/time/reportTime";
 const STONE_PHOTO_BUCKET = "stone-photos";
 // DYA-07: signed READ URL yenileme aralığı (TTL 3600 sn'nin altında → sayfa uzun süre
@@ -352,7 +353,7 @@ function FormFields({ data, onChange }: FormFieldsProps) {
 type CreatePhotoPickerProps = {
   selectedFiles: File[];
   selectedPreviews: string[];
-  onSelect: (event: ChangeEvent<HTMLInputElement>) => void;
+  onSelect: (files: File[]) => void;
   onClear: () => void;
   onRemove: (index: number) => void;
 };
@@ -365,23 +366,35 @@ function CreatePhotoPicker({
   onRemove,
 }: CreatePhotoPickerProps) {
   const t = useTranslations("clients.stones");
-  // Mobilde (Android + telefon genişliği) bilgisayardan dosya seçimi yok → kutu gizli; web'de aynen.
+  // Tüm cihazlarda görünür (2026-10-14): galeri/dosya seçimi + destekleyen cihazlarda kamera.
   return (
-    <div className={`mt-3 ${boxClass("rose")} ${MOBILE_HIDDEN_BLOCK}`} data-testid="stone-create-photo-picker">
+    <div className={`mt-3 ${boxClass("rose")}`} data-testid="stone-create-photo-picker">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <SectionLabel icon="📷" title={t("photoPicker.title")} tone="rose" />
 
         <div className="flex flex-wrap gap-2">
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-rose-200 bg-white px-2 py-1 text-xs font-black text-rose-700 shadow-sm transition hover:bg-rose-50">
+          <label className="inline-flex min-h-[36px] cursor-pointer items-center gap-2 rounded-2xl border border-rose-200 bg-white px-2 py-1 text-xs font-black text-rose-700 shadow-sm transition hover:bg-rose-50">
             {t("photoPicker.select")}
             <input
               type="file"
               multiple
               accept="image/*"
               className="hidden"
-              onChange={onSelect}
+              onChange={(event) => {
+                const files = Array.from(event.target.files || []);
+                event.target.value = "";
+                onSelect(files);
+              }}
             />
           </label>
+
+          <CameraCaptureButton
+            onFiles={onSelect}
+            testId="stone-create-photo-camera"
+            className="inline-flex min-h-[36px] items-center gap-2 rounded-2xl border border-rose-200 bg-white px-2 py-1 text-xs font-black text-rose-700 shadow-sm transition hover:bg-rose-50"
+          >
+            {t("photoPicker.camera")}
+          </CameraCaptureButton>
 
           {selectedFiles.length > 0 && (
             <button
@@ -436,7 +449,7 @@ type PhotoGalleryProps = {
   stonePhotos: StonePhoto[];
   uploadingStoneId: string | null;
   deletingPhotoId: string | null;
-  onUpload: (stoneId: string, event: ChangeEvent<HTMLInputElement>) => void;
+  onUpload: (stoneId: string, files: File[]) => void;
   onDeletePhoto: (photo: StonePhoto) => void;
   onSelectPhoto: (photo: StonePhoto) => void;
 };
@@ -463,17 +476,30 @@ function PhotoGallery({
           </div>
         </div>
 
-        <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-2xl border border-violet-200 bg-white px-2 py-1 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100">
-          {uploadingStoneId === stone.id ? t("gallery.uploading") : t("gallery.add")}
-          <input
-            type="file"
-            multiple
-            accept="image/*"
-            className="hidden"
+        <div className="flex flex-wrap gap-2">
+          <label className="inline-flex min-h-[36px] w-fit cursor-pointer items-center gap-2 rounded-2xl border border-violet-200 bg-white px-2 py-1 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100">
+            {uploadingStoneId === stone.id ? t("gallery.uploading") : t("gallery.add")}
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              className="hidden"
+              disabled={uploadingStoneId === stone.id}
+              onChange={(event) => {
+                const files = Array.from(event.target.files || []);
+                event.target.value = "";
+                onUpload(stone.id, files);
+              }}
+            />
+          </label>
+          <CameraCaptureButton
+            onFiles={(files) => onUpload(stone.id, files)}
             disabled={uploadingStoneId === stone.id}
-            onChange={(event) => onUpload(stone.id, event)}
-          />
-        </label>
+            className="inline-flex min-h-[36px] w-fit items-center gap-2 rounded-2xl border border-violet-200 bg-white px-2 py-1 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100 disabled:opacity-50"
+          >
+            {t("photoPicker.camera")}
+          </CameraCaptureButton>
+        </div>
       </div>
 
       {stonePhotos.length === 0 ? (
@@ -608,13 +634,12 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     setSelectedPreviews([]);
   }
 
-  function handleCreatePhotoSelection(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files || []);
-    event.target.value = "";
-
+  // Galeri ve kamera aynı yoldan gelir; yeni seçimler mevcut seçime EKLENİR (kamera ile
+  // art arda çekim / galeri + kamera karışımı mümkün). Boş MIME'lı Android dosyaları uzantıdan tanınır.
+  function handleCreatePhotoSelection(files: File[]) {
     if (files.length === 0) return;
 
-    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+    const imageFiles = files.filter(looksLikeImageFile);
 
     if (imageFiles.length !== files.length) {
       showToast({
@@ -624,10 +649,9 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       });
     }
 
-    selectedPreviews.forEach((url) => URL.revokeObjectURL(url));
-
-    setSelectedFiles(imageFiles);
-    setSelectedPreviews(imageFiles.map((file) => URL.createObjectURL(file)));
+    if (imageFiles.length === 0) return;
+    setSelectedFiles((prev) => [...prev, ...imageFiles]);
+    setSelectedPreviews((prev) => [...prev, ...imageFiles.map((file) => URL.createObjectURL(file))]);
   }
 
   function removeSelectedFile(index: number) {
@@ -839,7 +863,19 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     //   1) prepare → { path, token }  (ownership + MIME + boyut sunucuda doğrulanır)
     //   2) uploadToSignedUrl(path, token, file)
     //   3) POST /stone-photos → obje varlığı sunucuda doğrulanır + DB satırı yazılır
-    for (const file of files) {
+    // Yüklemeden önce kalite koruyan optimizasyon (lib/media/imageOptimize): animasyon/PNG
+    // korunur, EXIF yönü uygulanır; 10 MB'a sığmayan dosya sessizce gönderilmez.
+    for (const original of files) {
+      const optimized = await optimizeImageFile(original, { profile: "photo", maxBytes: STONE_PHOTO_MAX_BYTES });
+      if (optimized.reason === "heic-undecodable" || optimized.tooLarge) {
+        showToast({
+          title: t("toast.failTitle"),
+          message: t(optimized.tooLarge ? "toast.photoTooLarge" : "toast.photoHeic", { name: original.name }),
+          type: "error",
+        });
+        continue;
+      }
+      const file = optimized.file;
       const userId = readYasamUser()?.id;
       const sessionToken = readSessionToken();
       const authHeaders = {
@@ -1103,13 +1139,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     });
   }
 
-  async function uploadStonePhotos(
-    stoneId: string,
-    event: ChangeEvent<HTMLInputElement>
-  ) {
-    const files = Array.from(event.target.files || []);
-    event.target.value = "";
-
+  async function uploadStonePhotos(stoneId: string, files: File[]) {
     if (files.length === 0) return;
 
     setUploadingStoneId(stoneId);
@@ -1417,11 +1447,20 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                                   accept="image/*"
                                   className="hidden"
                                   disabled={uploadingStoneId === stone.id}
-                                  onChange={(event) =>
-                                    uploadStonePhotos(stone.id, event)
-                                  }
+                                  onChange={(event) => {
+                                    const files = Array.from(event.target.files || []);
+                                    event.target.value = "";
+                                    uploadStonePhotos(stone.id, files);
+                                  }}
                                 />
                               </label>
+                              <CameraCaptureButton
+                                onFiles={(files) => uploadStonePhotos(stone.id, files)}
+                                disabled={uploadingStoneId === stone.id}
+                                className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100 disabled:opacity-50"
+                              >
+                                {t("photoPicker.camera")}
+                              </CameraCaptureButton>
 
                               <button
                                 onClick={() => startEdit(stone)}

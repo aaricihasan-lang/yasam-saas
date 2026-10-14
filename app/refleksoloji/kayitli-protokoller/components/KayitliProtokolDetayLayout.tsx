@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { ProtocolFootMap } from "@/app/refleksoloji/protokol-haritasi/components/ProtocolFootMap";
+import { isHandView } from "@/app/refleksoloji/bolge-haritasi/components/HandSideLabels";
 import { resolveProtocolViews } from "@/app/refleksoloji/protokol-haritasi/lib/resolveDisplayRegions";
 import type { AtlasBackgroundGroup, OrganResolved } from "@/lib/refleksoloji/atlasRegionsCore";
 import {
@@ -33,7 +34,6 @@ import { ClinicalProtocolStepsCard } from "./ClinicalProtocolStepsCard";
 import MemoryPicker from "@/components/yasam-hafizasi/MemoryPicker";
 import { RefleksolojiDetailLoading } from "@/app/refleksoloji/components/RefleksolojiSkeleton";
 import { ReflexologyDisclaimer } from "@/app/refleksoloji/components/ReflexologyDisclaimer";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 
 type KayitliProtokolDetayLayoutProps = {
   protocolId: string;
@@ -183,7 +183,6 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   const [protocol, setProtocol] = useState<ReflexologyProtocolRecord | null>(null);
   const [footView, setFootView] = useState<AtlasBackgroundGroup>("taban");
   const [wordBusy, setWordBusy] = useState(false);
-  const isAndroid = useIsAndroid();
   // BF-14 P2: danışana özel Yaşam Hafızası teslim eki (protocol target). Yoksa çıktı değişmez.
   const [yhPickerOpen, setYhPickerOpen] = useState(false);
   const [yhSelection, setYhSelection] = useState<{ selectionGroupId: string; clientId: string; total: number } | null>(null);
@@ -416,12 +415,12 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
                 🧠 Yaşam Hafızası{yhSelection ? ` (${yhSelection.total})` : ""}
               </button>
             )}
-            {protocol && !isDemo && !isAndroid && (
+            {protocol && !isDemo && (
               <button
                 type="button"
                 onClick={() => void downloadWord()}
                 disabled={wordBusy}
-                className="no-android inline-flex h-8 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-[12px] font-semibold text-blue-800 transition hover:bg-blue-100 disabled:opacity-60"
+                className="inline-flex h-8 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-[12px] font-semibold text-blue-800 transition hover:bg-blue-100 disabled:opacity-60"
               >
                 {wordBusy ? "Hazırlanıyor..." : "Word Raporu"}
               </button>
@@ -540,9 +539,15 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
           </div>
 
           {hasAtlasMapping ? (
-            <section className={footMapPanelLargeClass} aria-label="Ayak haritası önizleme">
+            <section
+              className={footMapPanelLargeClass}
+              aria-label={isHandView(effectiveFootView) ? "El haritası önizleme" : "Ayak haritası önizleme"}
+            >
               <div className="shrink-0 border-b border-violet-200/70 px-4 py-3">
-                <h2 className="text-sm font-bold text-violet-950">Ayak Haritası Önizleme</h2>
+                {/* Protokol Haritası (ProtocolFootMap) ile aynı kural: el görünümünde "El", ayakta "Ayak". */}
+                <h2 className="text-sm font-bold text-violet-950">
+                  {isHandView(effectiveFootView) ? "El Haritası Önizleme" : "Ayak Haritası Önizleme"}
+                </h2>
                 <p className="mt-0.5 text-xs font-medium text-violet-800/80">
                   Protokole bağlı organ bölgeleri atlas üzerinde vurgulanır
                 </p>

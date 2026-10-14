@@ -124,7 +124,8 @@ export function PlanPicker({
         </label>
         <div className="flex gap-2">
           <button type="button" className={`${kupaBtnPrimary} min-h-[40px]`} onClick={onNewCalendar} disabled={disabled}>
-            + Yeni Takvim
+            {/* FINAL-A1: yıl için takvim varsa YENİSİ oluşturulmaz, mevcut açılır → etiket bunu söyler. */}
+            + Takvim Oluştur / Aç
           </button>
           {active ? (
             <>

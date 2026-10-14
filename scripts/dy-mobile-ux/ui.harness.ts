@@ -132,7 +132,6 @@ async function main() {
       const ctx = await newContext(browser, seed, d);
       const page = await ctx.newPage();
       page.on("pageerror", (e) => pageErrors.push(`${d.name}: ${e.message}`));
-      const isDesk = !d.mobile;
 
       // ── A) Anamnez ──────────────────────────────────────────────────────────
       section(`A. Anamnez — ${d.name}`);
@@ -143,12 +142,14 @@ async function main() {
       await page.getByText("Belgeler (PDF)").first().waitFor({ timeout: 30_000 });
       const pdfBtn = page.getByTestId("anamnez-pdf-upload");
       ok((await pdfBtn.count()) === 1, "PDF Ekle DOM'da (web özelliği kaldırılmadı)");
-      ok((await pdfBtn.isVisible()) === isDesk, `PDF Ekle ${isDesk ? "GÖRÜNÜR" : "GİZLİ"}`);
-      if (isDesk) {
+      // 2026-10-14 owner kararı: PDF Ekle TÜM cihazlarda görünür ve çalışır.
+      ok(await pdfBtn.isVisible(), "PDF Ekle GÖRÜNÜR (her cihaz)");
+      {
+        const pdfName = `zz-belge-${d === DESKTOP ? "masaustu" : d === ANDROID_CHROME ? "chrome" : "uygulama"}.pdf`;
         const [chooser] = await Promise.all([page.waitForEvent("filechooser", { timeout: 10_000 }), pdfBtn.click()]);
-        ok(!!chooser && (await chooser.element().getAttribute("accept"))?.includes("pdf") === true, "web: PDF Ekle dosya seçiciyi açıyor (accept=pdf)");
-        await chooser.setFiles({ name: "zz-belge.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n%zz\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n") });
-        ok(await page.getByText("📄 zz-belge.pdf").waitFor({ timeout: 30_000 }).then(() => true, () => false), "web: PDF gerçekten yüklendi (ek listesinde)");
+        ok(!!chooser && (await chooser.element().getAttribute("accept"))?.includes("pdf") === true, "PDF Ekle dosya seçiciyi açıyor (accept=pdf)");
+        await chooser.setFiles({ name: pdfName, mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n%zz\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n") });
+        ok(await page.getByText(`📄 ${pdfName}`).waitFor({ timeout: 30_000 }).then(() => true, () => false), "PDF gerçekten yüklendi (ek listesinde)");
       }
       const reason = page.locator("#anamnez-i-A-reason");
       if (!(await reason.isVisible())) await page.getByRole("button", { name: /Görüşme ve Başvuru/ }).click();
@@ -181,15 +182,16 @@ async function main() {
       await page.goto(`${APP}/dashboard/clients/${a1}?tab=taslar`);
       await page.getByRole("button", { name: "+ Yeni Taş Ekle" }).click({ timeout: 60_000 });
       const picker = page.getByTestId("stone-create-photo-picker");
-      ok((await picker.count()) === 1, "Bilgisayardan Foto Seç DOM'da (web özelliği kaldırılmadı)");
-      ok((await picker.isVisible()) === isDesk, `Bilgisayardan Foto Seç ${isDesk ? "GÖRÜNÜR" : "GİZLİ"}`);
-      if (isDesk) {
-        const label = page.getByText("Bilgisayardan Foto Seç", { exact: true });
+      ok((await picker.count()) === 1, "foto seçici DOM'da");
+      // 2026-10-14 owner kararı: galeri/dosya seçimi TÜM cihazlarda görünür ve çalışır.
+      ok(await picker.isVisible(), "Galeriden / Dosyadan Seç GÖRÜNÜR (her cihaz)");
+      {
+        const label = page.getByText("Galeriden / Dosyadan Seç", { exact: true });
         const [chooser] = await Promise.all([page.waitForEvent("filechooser", { timeout: 10_000 }), label.click()]);
-        ok(!!chooser && chooser.isMultiple(), "web: Bilgisayardan Foto Seç çoklu dosya seçiciyi açıyor");
+        ok(!!chooser && chooser.isMultiple(), "çoklu dosya seçiciyi açıyor");
         const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
         await chooser.setFiles([{ name: "zz1.png", mimeType: "image/png", buffer: png }, { name: "zz2.png", mimeType: "image/png", buffer: png }]);
-        ok(await picker.locator("img").count() === 2, "web: 2 foto seçildi, önizlemeler görünüyor");
+        ok(await picker.locator("img").count() === 2, "2 foto seçildi, önizlemeler görünüyor");
       }
 
       // ── C) KVKK ─────────────────────────────────────────────────────────────
@@ -229,7 +231,7 @@ async function main() {
       const clean = tabs.map((x) => x.trim());
       const iR = clean.findIndex((x) => /Randevu/.test(x));
       const iB = clean.findIndex((x) => /Beslenme/.test(x));
-      ok(iR > iB && iB >= 0 && iR === clean.length - 1, `Randevular Beslenme'den SONRA (${clean.join(" | ")})`);
+      ok(iB >= 0 && iR === iB + 1 && iR === clean.length - 1, `Randevular Beslenme'nin HEMEN ardından ve son (${clean.join(" | ")})`);
       ok(clean.slice(0, 3).join("|").includes("Genel") && clean.some((x) => /Analiz/.test(x)), "diğer sekmeler korunuyor");
       await page.getByRole("tab", { name: /Randevu/ }).click();
       ok(await page.locator("#tabpanel-randevular").waitFor({ state: "visible", timeout: 15_000 }).then(() => true, () => false) && (await page.getByRole("tab", { name: /Randevu/ }).getAttribute("aria-selected")) === "true", "Randevular → doğru bölüm açıldı");

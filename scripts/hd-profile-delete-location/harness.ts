@@ -13,6 +13,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { BODYGRAPH, FIXTURE, HD_BUCKET, TA, TB, callRoute, mkUser, startHdFlowEnv, type Auth, type Json } from "../hd-analysis-word-flow/env";
+import { boundBodygraphDataUrl, consistentRoxyResponse } from "../hd-roxy/consistentFixture";
 import type { TestEnv } from "../anamnez/testEnv";
 
 let passed = 0;
@@ -49,7 +50,7 @@ async function main() {
     if (/^https?:\/\/(127\.0\.0\.1|localhost)/.test(u)) return realFetch(input, init);
     if (/roxyapi\.com\/.*human-design\/bodygraph/.test(u)) {
       roxy.bodygraph++;
-      return new Response(FIXTURE, { status: 200, headers: { "content-type": "application/json" } });
+      return new Response(consistentRoxyResponse(FIXTURE, init?.body), { status: 200, headers: { "content-type": "application/json" } });
     }
     const m = /roxyapi\.com\/.*\/location\/search\?q=([^&]*)/.exec(u);
     if (m) {
@@ -182,7 +183,7 @@ async function main() {
     const cP1 = await comp(U.A, P.hd);
     await su.query(`update public.human_design_clients set birth_time='07:15' where id=$1`, [P.hd]);
     const cP2 = await comp(U.A, P.hd);
-    const wP = await call(routes.professional.POST, "POST", U.A, { chartId: String(cP1.json.id), requestId: randomUUID(), commentary: "both", bodygraphPng: BODYGRAPH });
+    const wP = await call(routes.professional.POST, "POST", U.A, { chartId: String(cP1.json.id), requestId: randomUUID(), commentary: "both", bodygraphPng: boundBodygraphDataUrl(BODYGRAPH, String(cP1.json.id), FIXTURE) });
     const repP = String(wP.json.id);
     const snapP = (await su.query(`select snapshot->'chartImage'->>'storagePath' p from public.human_design_reports where id=$1`, [repP])).rows[0]?.p as string;
     // Eski manuel analiz + eski (legacy) rapor + analizine bağlı sahipsiz rapor.
@@ -194,7 +195,7 @@ async function main() {
     // Aynı isimli BAŞKA danışan (farklı merkezî danışan) + analizi + Word'ü.
     const Q = await mkJourney("Elif", "Şahin", "1985-03-03", "trd-42-selcuklu");
     const cQ = await comp(U.A, Q.hd);
-    const wQ = await call(routes.professional.POST, "POST", U.A, { chartId: String(cQ.json.id), requestId: randomUUID(), commentary: "expert", bodygraphPng: BODYGRAPH });
+    const wQ = await call(routes.professional.POST, "POST", U.A, { chartId: String(cQ.json.id), requestId: randomUUID(), commentary: "expert", bodygraphPng: boundBodygraphDataUrl(BODYGRAPH, String(cQ.json.id), FIXTURE) });
     const snapQ = (await su.query(`select snapshot->'chartImage'->>'storagePath' p from public.human_design_reports where id=$1`, [String(wQ.json.id)])).rows[0]?.p as string;
     // Bağımsız analiz + ilişkisiz rapor + başka tenant.
     const freeChart = (await su.query(`insert into public.human_design_charts(tenant_id, client_id, client_name, source) values ($1,null,'Elif Şahin','manual') returning id`, [TA])).rows[0].id;
@@ -268,7 +269,7 @@ async function main() {
     section("B5. Yarıda kalan silme (DB hatası) → profil korunur, tekrar 'Sil' tamamlar");
     const F = await mkJourney("ZZ Silme", "Hatası", "1992-02-02", "trd-42-selcuklu");
     const cF = await comp(U.A, F.hd);
-    const wF = await call(routes.professional.POST, "POST", U.A, { chartId: String(cF.json.id), requestId: randomUUID(), commentary: "expert", bodygraphPng: BODYGRAPH });
+    const wF = await call(routes.professional.POST, "POST", U.A, { chartId: String(cF.json.id), requestId: randomUUID(), commentary: "expert", bodygraphPng: boundBodygraphDataUrl(BODYGRAPH, String(cF.json.id), FIXTURE) });
     await su.query(`create function public.zz_fail_chart_delete() returns trigger language plpgsql as $$ begin
       if old.client_name = 'ZZ Silme Hatası' then raise exception 'zz simulated delete failure'; end if; return old; end $$;
       create trigger zz_fail_chart_delete before delete on public.human_design_charts for each row execute function public.zz_fail_chart_delete();`);
@@ -283,7 +284,7 @@ async function main() {
     section("B6. Storage hatası → DB silme tamam, uyarı döner (yanlış başarı mesajı yok)");
     const S = await mkJourney("Depo", "Hata", "1993-03-03", "trd-42-selcuklu");
     const cS = await comp(U.A, S.hd);
-    await call(routes.professional.POST, "POST", U.A, { chartId: String(cS.json.id), requestId: randomUUID(), commentary: "expert", bodygraphPng: BODYGRAPH });
+    await call(routes.professional.POST, "POST", U.A, { chartId: String(cS.json.id), requestId: randomUUID(), commentary: "expert", bodygraphPng: boundBodygraphDataUrl(BODYGRAPH, String(cS.json.id), FIXTURE) });
     const prevS = await call(routes.clients.GET, "GET", U.A, undefined, `?id=${S.hd}&delete_preview=1`);
     env.storage.failRemove = true;
     const sDel = await del(U.A, S.hd, Number(prevS.json.analyses), Number(prevS.json.reports));
@@ -306,7 +307,7 @@ async function main() {
     const HOUR = 60 * 60 * 1000;
     const O = await mkJourney("Yetim", "Görsel", "1995-05-05", "trd-42-selcuklu");
     const cO = await comp(U.A, O.hd);
-    const wO = await call(routes.professional.POST, "POST", U.A, { chartId: String(cO.json.id), requestId: randomUUID(), commentary: "expert", bodygraphPng: BODYGRAPH });
+    const wO = await call(routes.professional.POST, "POST", U.A, { chartId: String(cO.json.id), requestId: randomUUID(), commentary: "expert", bodygraphPng: boundBodygraphDataUrl(BODYGRAPH, String(cO.json.id), FIXTURE) });
     const snapO = (await su.query(`select snapshot->'chartImage'->>'storagePath' p from public.human_design_reports where id=$1`, [String(wO.json.id)])).rows[0]?.p as string;
     // Profil klasörü: kendi görseli + BAŞKA kayıtların da kullandığı (ortak/eski) iki görsel.
     put(`${TA}/${O.hd}/own.png`, 2 * HOUR);

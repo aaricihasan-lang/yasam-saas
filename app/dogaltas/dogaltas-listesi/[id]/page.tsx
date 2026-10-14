@@ -13,6 +13,9 @@ import {
   useState,
 } from "react";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
+import { looksLikeImageFile, optimizeImageFile } from "@/lib/media/imageOptimize";
+import { STONE_PHOTO_MAX_BYTES } from "@/lib/dogaltas/stonePhoto";
 import {
   getSessionTenantId,
   getSyncedTenantId,
@@ -22,7 +25,6 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { StoneReaderModal } from "@/app/dogaltas/components/StoneReaderModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { getDemoReferenceStoneId } from "@/lib/dogaltas/stonesListFetch";
 import { getStone, updateStone, deleteStone as apiDeleteStone } from "@/lib/dogaltas/dogaltasApi";
 import {
@@ -576,6 +578,8 @@ function StoneDetailPage() {
   const listBackHref = (() => {
     const p = new URLSearchParams();
     if (highlightQuery) p.set("q", highlightQuery);
+    // Final-A1: İçerik araması modu listeye geri taşınır.
+    if (highlightQuery && searchParams.get("mode") === "content") p.set("mode", "content");
     if (astroFilter) p.set("astro", astroFilter);
     if (chakraFilter) p.set("chakra", chakraFilter);
     if (mineralFilter) p.set("mineral", mineralFilter);
@@ -717,7 +721,6 @@ function StoneDetailPage() {
     setSuccessMessage("Kaynak silindi.");
   }
 
-  const isAndroid = useIsAndroid();
   const [isDemoReference, setIsDemoReference] = useState(false);
   const { isDemo } = useDemoGuard();
   const isContentProtected = isDemo && !isDemoReference;
@@ -1167,16 +1170,37 @@ function StoneDetailPage() {
   }
 
   async function handlePhotoUpload(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files || []).filter((file) =>
-      file.type.startsWith("image/")
-    );
+    const selected = Array.from(event.target.files || []);
     event.target.value = "";
+    await handlePhotoFiles(selected);
+  }
+
+  // Galeri ve kamera aynı yoldan yüklenir. Boş MIME'lı Android dosyaları uzantıdan tanınır;
+  // yüklemeden önce kalite koruyan optimizasyon (Yeni Kayıt ile aynı ortak yardımcı).
+  async function handlePhotoFiles(selected: File[]) {
     const currentStone = stoneRef.current;
-    if (!currentStone || files.length === 0) return;
+    const candidates = selected.filter(looksLikeImageFile);
+    if (!currentStone || candidates.length === 0) return;
 
     setImageBusy(true);
     setErrorMessage("");
     setSuccessMessage("");
+
+    const files: File[] = [];
+    for (const original of candidates) {
+      const optimized = await optimizeImageFile(original, { profile: "photo", maxBytes: STONE_PHOTO_MAX_BYTES });
+      if (optimized.reason === "heic-undecodable" || optimized.tooLarge) {
+        setErrorMessage(
+          t(optimized.tooLarge ? "image.photoTooLarge" : "image.photoHeic", { name: original.name }),
+        );
+        continue;
+      }
+      files.push(optimized.file);
+    }
+    if (files.length === 0) {
+      setImageBusy(false);
+      return;
+    }
 
     const userId = readYasamUser()?.id;
     const sessionToken = readSessionToken();
@@ -1532,12 +1556,12 @@ function StoneDetailPage() {
               </button>
             )}
 
-            {!isDemo && !isAndroid && (
+            {!isDemo && (
               <button
                 type="button"
                 onClick={() => void downloadWordReport()}
                 disabled={wordBusy}
-                className="no-android btn-soft"
+                className="btn-soft"
               >
                 {wordBusy ? t("wordBusy") : t("wordButton")}
               </button>
@@ -1636,7 +1660,7 @@ function StoneDetailPage() {
                           event.stopPropagation();
                           void handleDeleteImage(imagesWithUrl[0]);
                         }}
-                        className="btn-danger absolute right-2 top-2 z-10 !px-2.5 !py-1 !text-[10px] !rounded-lg hidden md:inline-flex"
+                        className="btn-danger absolute right-2 top-2 z-10 !px-2.5 !py-1 !text-[10px] !rounded-lg inline-flex"
                       >
                         {t("delete")}
                       </button>
@@ -1674,7 +1698,7 @@ function StoneDetailPage() {
                                 event.stopPropagation();
                                 void handleDeleteImage(img);
                               }}
-                              className="btn-danger absolute -right-1 -top-1 z-10 !px-1.5 !py-0.5 !text-[9px] !rounded-md hidden md:inline-flex"
+                              className="btn-danger absolute -right-1 -top-1 z-10 !px-1.5 !py-0.5 !text-[9px] !rounded-md inline-flex"
                             >
                               {t("delete")}
                             </button>
@@ -1721,7 +1745,7 @@ function StoneDetailPage() {
                             event.stopPropagation();
                             void handleDeleteImage(image);
                           }}
-                          className="btn-danger mt-2 shrink-0 !px-2 !py-1 !text-[10px] !rounded-lg hidden md:inline-flex"
+                          className="btn-danger mt-2 shrink-0 !px-2 !py-1 !text-[10px] !rounded-lg inline-flex"
                         >
                           {t("delete")}
                         </button>
@@ -1732,7 +1756,7 @@ function StoneDetailPage() {
               )}
 
               {editEnabled && (
-                <div className="mt-4 hidden md:block">
+                <div className="mt-4 flex flex-col gap-2">
                   <input
                     ref={photoInputRef}
                     type="file"
@@ -1754,6 +1778,13 @@ function StoneDetailPage() {
                   >
                     {t("image.add")}
                   </button>
+                  <CameraCaptureButton
+                    onFiles={(files) => void handlePhotoFiles(files)}
+                    disabled={imageBusy}
+                    className="btn-secondary w-full"
+                  >
+                    {t("image.takePhoto")}
+                  </CameraCaptureButton>
                 </div>
               )}
             </div>

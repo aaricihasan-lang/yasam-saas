@@ -3,7 +3,6 @@ import { extractText } from "unpdf";
 import { Document, Packer, Paragraph, TextRun } from "docx";
 import { requireDigitalContentUser } from "@/lib/auth/requireUser";
 import { trackUsage } from "@/lib/usage/trackUsage";
-import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 
 export const runtime = "nodejs";
 
@@ -46,8 +45,6 @@ function normalizeTurkishText(text: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  const androidBlocked = androidWordGuard(request);
-  if (androidBlocked) return androidBlocked;
   const auth = await requireDigitalContentUser(request, "belge_ceviri");
   if (!auth.ok) return auth.response;
   try {

@@ -7,6 +7,11 @@
  *   • tek dosya ≤ 1 MB, en fazla 5 fotoğraf, toplam ham ≤ 3 MB
  * İhlalde tüm parti reddedilir ve kullanıcı dostu Türkçe mesaj döner.
  *
+ * 2026-10-14: Sınır kontrolünden ÖNCE kalite koruyan optimizasyon (lib/media/imageOptimize):
+ * telefon fotoğrafları yüksek kaliteli WebP'ye (uzun kenar ≤ 2048 px, q ≥ 0.80) indirilir;
+ * PNG/animasyon korunur. Optimizasyon sonrası hâlâ sınır aşılırsa AÇIK hata döner (sessiz değil).
+ * Tarayıcı dışında (Node testleri) optimizasyon devre dışıdır → dosyalar aynen doğrulanır.
+ *
  * Tarayıcı + Node (test) uyumlu: FileReader yerine Blob.arrayBuffer kullanır.
  */
 
@@ -57,10 +62,12 @@ function toBase64(bytes: Uint8Array): string {
 /**
  * Seçilen dosyaları doğrular ve data URL listesine çevirir.
  * @param opts.existingCount  formda halihazırda bulunan fotoğraf sayısı (ekleme senaryosu)
+ * @param opts.existingBytes  formdaki mevcut fotoğrafların ham bayt toplamı (ekleme senaryosunda
+ *                            toplam ~3 MB sınırı korunur; bkz. dataUrlsByteSize)
  */
 export async function filesToValidatedDataUrls(
   files: FileList | File[],
-  opts?: { existingCount?: number },
+  opts?: { existingCount?: number; existingBytes?: number },
 ): Promise<PhotoValidationResult> {
   const list = Array.from(files);
   if (list.length === 0) return { urls: [], error: null };
@@ -73,13 +80,40 @@ export async function filesToValidatedDataUrls(
     };
   }
 
-  let totalBytes = 0;
+  // Önce optimize et, sonra boyut/tür kontrolü (sıra bilinçli: 1 MB sınırı telefon fotoğrafları için).
+  // Tarayıcıda dinamik yüklenir: Node testleri (düz `node`, yol takma adı yok) bu modülü hiç yüklemez.
+  const optimizeImageFile =
+    typeof document === "undefined"
+      ? null
+      : (await import("@/lib/media/imageOptimize")).optimizeImageFile;
+  const prepared: File[] = [];
+  for (const original of list) {
+    if (!optimizeImageFile) {
+      prepared.push(original);
+      continue;
+    }
+    const result = await optimizeImageFile(original, {
+      profile: "photo",
+      maxBytes: PHOTO_LIMITS.maxFileBytes,
+      maxDimension: 2048,
+      minDimension: 1280,
+    });
+    if (result.reason === "heic-undecodable") {
+      return {
+        urls: [],
+        error: `HEIC/HEIF biçimi bu cihazda dönüştürülemedi: ${original.name || "dosya"}. Fotoğrafı JPEG olarak paylaşın.`,
+      };
+    }
+    prepared.push(result.file);
+  }
+
+  let totalBytes = Math.max(0, opts?.existingBytes ?? 0);
   const urls: string[] = [];
-  for (const file of list) {
+  for (const file of prepared) {
     if (file.size > PHOTO_LIMITS.maxFileBytes) {
       return {
         urls: [],
-        error: `Fotoğraf boyutu en fazla ${Math.round(PHOTO_LIMITS.maxFileBytes / MB)} MB olabilir: ${file.name || "dosya"}.`,
+        error: `Fotoğraf kalite korunarak ${Math.round(PHOTO_LIMITS.maxFileBytes / MB)} MB sınırına sığdırılamadı: ${file.name || "dosya"}. Daha küçük bir fotoğraf seçin.`,
       };
     }
     totalBytes += file.size;
@@ -102,4 +136,15 @@ export async function filesToValidatedDataUrls(
   }
 
   return { urls, error: null };
+}
+
+/** Data URL listesinin yaklaşık ham bayt toplamı (base64 → 3/4). Ekleme senaryosunda kullanılır. */
+export function dataUrlsByteSize(urls: readonly string[]): number {
+  let total = 0;
+  for (const u of urls) {
+    const comma = u.indexOf(",");
+    const b64 = comma >= 0 ? u.slice(comma + 1) : u;
+    total += Math.floor((b64.length * 3) / 4);
+  }
+  return total;
 }

@@ -4,8 +4,8 @@ import { runInEffect } from "@/lib/runInEffect";
 import { useParams, useRouter } from "next/navigation";
 import { useBackNavigationGuard } from "@/hooks/useBackNavigationGuard";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import {
@@ -438,7 +438,6 @@ export default function SifaRehberiDetailPage() {
   const deleteConfirm = useDeleteConfirm();
   const { confirm } = useConfirm();
   const { run: runImageRemove, pending: imageRemoving, isLocked: isImageRemoveLocked } = useSubmitLock();
-  const isAndroid = useIsAndroid();
   // BF-14 P2: danışana özel teslim eki (guide target). Yoksa çıktı değişmez.
   const [yhPickerOpen, setYhPickerOpen] = useState(false);
   const [yhSelection, setYhSelection] = useState<{ selectionGroupId: string; clientId: string; total: number } | null>(null);
@@ -707,6 +706,11 @@ export default function SifaRehberiDetailPage() {
     const section = uploadTargetSection;
     e.target.value = "";
     setUploadTargetSection(null);
+    await uploadGuideImageFor(file, section);
+  }
+
+  // Galeri ve kamera aynı yoldan yükler (uploadSifaPhoto içinde kalite koruyan optimizasyon).
+  async function uploadGuideImageFor(file: File | undefined, section: DetailTabId | null) {
     if (!file || !section || !draft || !id) return;
 
     if (!queryTenantId) {
@@ -1184,16 +1188,14 @@ export default function SifaRehberiDetailPage() {
               >
                 🧠 Yaşam Hafızası&apos;ndan Seç{yhSelection ? ` (${yhSelection.total})` : ""}
               </button>
-              {!isAndroid && (
               <button
                 type="button"
                 onClick={() => void downloadWord()}
                 disabled={wordBusy || !record}
-                className={`no-android ${detailToolbarBtn} border border-emerald-200/90 bg-emerald-50/95 text-emerald-800 shadow-sm hover:bg-emerald-100`}
+                className={`${detailToolbarBtn} border border-emerald-200/90 bg-emerald-50/95 text-emerald-800 shadow-sm hover:bg-emerald-100`}
               >
                 {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
               </button>
-              )}
               <button
                 type="button"
                 onClick={toggleEditOrSave}
@@ -1437,6 +1439,13 @@ export default function SifaRehberiDetailPage() {
                     <span aria-hidden>📷</span>
                     {uploadingImage ? "Yükleniyor…" : "Görsel Ekle"}
                   </button>
+                  <CameraCaptureButton
+                    onFiles={(files) => void uploadGuideImageFor(files[0], tab)}
+                    disabled={uploadingImage}
+                    className="ml-2 inline-flex items-center gap-2 rounded-2xl border border-emerald-200/80 bg-white px-4 py-2 text-[12px] font-black text-emerald-900 shadow-sm ring-1 ring-emerald-100/80 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <span aria-hidden>📸</span> Fotoğraf Çek
+                  </CameraCaptureButton>
                 </div>
               ) : null}
 

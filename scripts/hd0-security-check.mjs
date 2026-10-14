@@ -84,8 +84,9 @@ check("legacy http URL img src olarak YÜKLENMEZ", !/src=\{[^}]*http/.test(comp)
 console.log("── PAYLAŞIMLI PATH PREDICATE ──");
 const helper = read("lib/human-design/api/chartImagePath.ts");
 check("isOwnedChartImagePath export edilir", /export function isOwnedChartImagePath/.test(helper));
-check("http(s) legacy → sahiplenilmez (predicate içinde)", /isHttpUrl\(p\)\)?\s*return false/.test(helper) || /if \(isHttpUrl\(p\)\) return false/.test(helper));
-check("prefix tam eşleşme ({tenant}/{client}/)", /startsWith\(`\$\{tenantId\}\/\$\{clientId\}\/`\)/.test(helper));
+check("http(s) legacy → sahiplenilmez (predicate içinde)", /isHttpUrl\(p\)\)?\s*return false/.test(helper) || /if \(isHttpUrl\(p(ath)?\)\) return false/.test(helper));
+// HD-01 (2026-10-15): önek karşılaştırması yerine segment bazlı TAM eşleşme + traversal'sız güvenli yol.
+check("prefix tam eşleşme ({tenant}/{client}/)", /segs\[0\] === tenantId && segs\[1\] === clientId/.test(helper) && /isSafeStoragePath\(path\)/.test(helper));
 check("silme + signed-url route'ları paylaşımlı predicate'i kullanır (upload AŞAMA 3C'de kapalı)", /isOwnedChartImagePath/.test(del) && /isOwnedChartImagePath/.test(signed));
 
 console.log("── MIGRATION A (tablo kilidi) ──");

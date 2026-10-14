@@ -8,6 +8,7 @@ import {
   updateSource,
   deleteSource,
 } from "@/lib/human-design/api/knowledgeSourcePersistence";
+import { invalidIdResponse, isUuid } from "@/lib/human-design/api/requestIds";
 
 export const runtime = "nodejs";
 
@@ -153,8 +154,9 @@ export async function DELETE(req: NextRequest): Promise<Response> {
       { status: 400, headers: NO_STORE },
     );
   }
-  const { ok, error } = await deleteSource(guard.db, guard.tenantId, id);
-  if (!ok) return NextResponse.json({ ok: false, error: error ?? "Silinemedi." }, { status: 400, headers: NO_STORE });
+  if (!isUuid(id)) return invalidIdResponse("id");
+  const { ok, error, status: delStatus } = await deleteSource(guard.db, guard.tenantId, id);
+  if (!ok) return NextResponse.json({ ok: false, error: error ?? "Silinemedi." }, { status: delStatus === 404 ? 404 : 400, headers: NO_STORE });
   await trackUsage(guard, req, { module: "human_design", action: "record_deleted", subEntity: "source", resourceId: id });
   return NextResponse.json({ ok: true, deletedId: id }, { status: 200, headers: NO_STORE });
 }

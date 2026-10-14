@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { KupaShell, kupaEdgeCard } from "../../components/KupaShell";
 import { TechniqueEditor } from "../components/TechniqueEditor";
 import { listTechniques } from "../../lib/api";
+import { KupaUnsavedGuardScope } from "../../lib/UnsavedGuardScope";
 
 /**
  * YENİ TEKNİK — /kupa/teknikler/yeni
@@ -37,13 +38,16 @@ export default function YeniTeknikPage() {
         { label: "Yeni Teknik" },
       ]}
     >
-      <div className={kupaEdgeCard}>
-        <TechniqueEditor
-          existing={existing}
-          onSaved={(t) => router.push(`/kupa/teknikler/${t.id}`)}
-          onCancel={() => router.push("/kupa/teknikler")}
-        />
-      </div>
+      {/* FINAL-A1: kaydedilmemiş form → link / geri / yenileme önce onay ister. */}
+      <KupaUnsavedGuardScope>
+        <div className={kupaEdgeCard}>
+          <TechniqueEditor
+            existing={existing}
+            onSaved={(t) => router.push(`/kupa/teknikler/${t.id}`)}
+            onCancel={() => router.push("/kupa/teknikler")}
+          />
+        </div>
+      </KupaUnsavedGuardScope>
     </KupaShell>
   );
 }

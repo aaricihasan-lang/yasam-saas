@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
-import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
@@ -29,19 +28,24 @@ import {
   type TransferSectionOutcome,
 } from "@/lib/admin/veriPaylasimiTransfer";
 import {
-  clearYasamUser,
   isAdminUser,
   readYasamUser,
   readSessionToken,
   syncYasamUserFromDb,
 } from "@/lib/auth/yasamUser";
+import { useConfirmedLogout } from "@/hooks/useConfirmedLogout";
+import {
+  mapTransferExpertRows,
+  mergeTransferExpertPages,
+  remainingTransferExperts,
+  transferExpertListUrl,
+  type TransferExpertOption,
+} from "@/lib/admin/transferExpertList";
 
-type ExpertOption = {
-  id: string;
-  fullName: string;
-  email: string;
-  tenantId: string | null;
-};
+type ExpertOption = TransferExpertOption;
+
+/** Uzman araması (ad / e-posta) sunucuya gitmeden önceki bekleme. */
+const EXPERT_SEARCH_DEBOUNCE_MS = 300;
 
 /** Granular (kayıt-seçmeli) grup anahtarları — registry'den türetilir (drift yok). */
 const GRANULAR_KEYS = GRANULAR_GROUP_KEYS;
@@ -191,7 +195,6 @@ function adminHeaders(adminId: string | undefined, json = false): Record<string,
 
 export default function VeriPaylasimiPage() {
   useBfcacheRefresh();
-  const router = useRouter();
   const { confirm } = useConfirm();
   const { showToast } = useToast();
 
@@ -201,6 +204,15 @@ export default function VeriPaylasimiPage() {
   const [experts, setExperts] = useState<ExpertOption[]>([]);
   const [expertsLoading, setExpertsLoading] = useState(false);
   const [selectedExpertId, setSelectedExpertId] = useState<string | null>(null);
+  // Final-A1: ad/e-posta araması + sayfalama (sunucu toplamı; 50+ uzman sessizce kaybolmaz).
+  const [expertQuery, setExpertQuery] = useState("");
+  const [debouncedExpertQuery, setDebouncedExpertQuery] = useState("");
+  const [expertTotal, setExpertTotal] = useState(0);
+  const [expertPage, setExpertPage] = useState(1);
+  const [expertsLoadingMore, setExpertsLoadingMore] = useState(false);
+  // Seçili uzman, aramayla listeden düşse de hedef olarak KORUNUR (aktarım yanlışlıkla boşalmaz).
+  const [selectedExpertRow, setSelectedExpertRow] = useState<ExpertOption | null>(null);
+  const expertRequestSeq = useRef(0);
 
   const [subChecked, setSubChecked] = useState<Record<string, boolean>>({});
   const [transferring, setTransferring] = useState(false);
@@ -231,8 +243,10 @@ export default function VeriPaylasimiPage() {
   );
 
   const selectedExpert = useMemo(
-    () => experts.find((e) => e.id === selectedExpertId) ?? null,
-    [experts, selectedExpertId],
+    () =>
+      experts.find((e) => e.id === selectedExpertId) ??
+      (selectedExpertRow && selectedExpertRow.id === selectedExpertId ? selectedExpertRow : null),
+    [experts, selectedExpertId, selectedExpertRow],
   );
 
   const activeTransferGroups = useMemo(
@@ -316,57 +330,58 @@ export default function VeriPaylasimiPage() {
     };
   }, []);
 
-  const loadExperts = useCallback(async () => {
-    setExpertsLoading(true);
-    const adminId = readYasamUser()?.id;
-    // /api/admin/users sayfalıdır (varsayılan 20, en yeni önce) — filtresiz ilk sayfa
-    // test/yönetici kayıtlarıyla dolup aktif uzmanları dışarıda bırakıyordu.
-    const res = await fetch("/api/admin/users?role=expert&active=active&pageSize=50", {
-      headers: adminHeaders(adminId),
-    });
+  // /api/admin/users sayfalıdır (en fazla 50/sayfa) — filtresiz ilk sayfa test/yönetici kayıtlarıyla
+  // dolup aktif uzmanları dışarıda bırakıyordu; filtre sunucuda. Final-A1: arama (q) + sayfa + toplam.
+  const loadExperts = useCallback(
+    async (query: string, page: number) => {
+      const seq = ++expertRequestSeq.current;
+      if (page === 1) setExpertsLoading(true);
+      else setExpertsLoadingMore(true);
+      const adminId = readYasamUser()?.id;
+      const res = await fetch(transferExpertListUrl(query, page), {
+        headers: adminHeaders(adminId),
+      }).catch(() => null);
+      // Daha yeni bir arama başladıysa eski yanıt listeyi ezmez.
+      if (seq !== expertRequestSeq.current) return;
+      setExpertsLoading(false);
+      setExpertsLoadingMore(false);
 
-    setExpertsLoading(false);
+      if (!res || !res.ok) {
+        const j = (await res?.json().catch(() => ({}))) as { error?: string } | undefined;
+        console.error("Uzman listesi hatası:", j?.error);
+        showToast({
+          title: "İşlem başarısız",
+          message: j?.error ?? (res ? `HTTP ${res.status}` : "Ağ hatası"),
+          type: "error",
+        });
+        if (page === 1) {
+          setExperts([]);
+          setExpertTotal(0);
+        }
+        return;
+      }
 
-    if (!res.ok) {
-      const j = (await res.json().catch(() => ({}))) as { error?: string };
-      console.error("Uzman listesi hatası:", j.error);
-      showToast({
-        title: "İşlem başarısız",
-        message: j.error ?? `HTTP ${res.status}`,
-        type: "error",
-      });
-      setExperts([]);
-      return;
-    }
+      const json = (await res.json().catch(() => ({}))) as { users?: unknown; total?: unknown };
+      const mapped = mapTransferExpertRows(json.users);
+      const total = Math.max(0, Math.trunc(Number(json.total) || 0));
+      setExperts((prev) => (page === 1 ? mapped : mergeTransferExpertPages(prev, mapped)));
+      setExpertTotal(total);
+      setExpertPage(page);
+    },
+    [showToast],
+  );
 
-    const json = (await res.json().catch(() => ({}))) as { users?: Record<string, unknown>[] };
-    const data = (json.users ?? [])
-      .filter((u) => (u as { role?: string }).role === "expert")
-      .sort((a, b) =>
-        String((a as { full_name?: string }).full_name ?? "")
-          .localeCompare(String((b as { full_name?: string }).full_name ?? ""), "tr-TR"),
-      );
-
-    const mapped: ExpertOption[] = data.map((row) => {
-      const r = row as Record<string, unknown>;
-      const fullName = String(r.full_name ?? r.name ?? "").trim();
-      const email = String(r.email ?? "").trim();
-      return {
-        id: String(r.id ?? ""),
-        fullName: fullName || email || "İsimsiz uzman",
-        email,
-        tenantId:
-          r.tenant_id != null ? String(r.tenant_id).trim() || null : null,
-      };
-    });
-
-    setExperts(mapped.filter((e) => e.id));
-  }, [showToast]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedExpertQuery(expertQuery.trim()), EXPERT_SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [expertQuery]);
 
   useEffect(() => {
     if (!sessionChecked || !allowed) return;
-    void loadExperts();
-  }, [sessionChecked, allowed, loadExperts]);
+    void loadExperts(debouncedExpertQuery, 1);
+  }, [sessionChecked, allowed, loadExperts, debouncedExpertQuery]);
+
+  const expertsRemaining = remainingTransferExperts(experts.length, expertTotal);
 
   const loadGroupRecords = useCallback(
     async (key: GranularKey) => {
@@ -536,10 +551,8 @@ export default function VeriPaylasimiPage() {
     setSelectedIds((p) => ({ ...p, [key]: new Set() }));
   }
 
-  function handleLogout() {
-    clearYasamUser();
-    router.push("/");
-  }
+  // Final-A1: tek tıkla çıkış yok — ana paneldeki ortak onay penceresi.
+  const handleLogout = useConfirmedLogout();
 
   async function handleTransfer() {
     if (!selectedExpert?.tenantId) {
@@ -720,15 +733,46 @@ export default function VeriPaylasimiPage() {
             Aktarım hedefi: <span className="font-bold">role=expert</span> kullanıcılar
           </p>
 
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <label className="relative block w-full sm:max-w-md">
+              <span className="sr-only">Uzman ara (ad veya e-posta)</span>
+              <input
+                type="search"
+                value={expertQuery}
+                onChange={(e) => setExpertQuery(e.target.value)}
+                placeholder="Ad veya e-posta ile ara…"
+                maxLength={120}
+                autoComplete="off"
+                data-testid="transfer-expert-search"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-300 focus:ring-2 focus:ring-violet-100"
+              />
+            </label>
+            {!expertsLoading && expertTotal > 0 ? (
+              <p className="text-xs font-bold text-slate-500" data-testid="transfer-expert-count" aria-live="polite">
+                {experts.length} / {expertTotal} uzman gösteriliyor
+              </p>
+            ) : null}
+          </div>
+
+          {selectedExpert && !experts.some((e) => e.id === selectedExpert.id) ? (
+            <p className="mt-3 text-xs font-bold text-violet-800" data-testid="transfer-expert-selected-hidden">
+              Seçili uzman: {selectedExpert.fullName}
+              {selectedExpert.email ? ` (${selectedExpert.email})` : ""} — arama sonucunda görünmüyor, seçim korunuyor.
+            </p>
+          ) : null}
+
           {expertsLoading ? (
             <div className="mt-6 flex justify-center py-10">
               <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
             </div>
           ) : experts.length === 0 ? (
-            <p className="mt-6 text-sm font-semibold text-slate-500">
-              Kayıtlı uzman bulunamadı.
+            <p className="mt-6 text-sm font-semibold text-slate-500" data-testid="transfer-expert-empty">
+              {debouncedExpertQuery
+                ? `“${debouncedExpertQuery}” ile eşleşen uzman bulunamadı.`
+                : "Kayıtlı uzman bulunamadı."}
             </p>
           ) : (
+            <>
             <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {experts.map((expert) => {
                 const selected = selectedExpertId === expert.id;
@@ -737,7 +781,10 @@ export default function VeriPaylasimiPage() {
                   <button
                     key={expert.id}
                     type="button"
-                    onClick={() => setSelectedExpertId(expert.id)}
+                    onClick={() => {
+                      setSelectedExpertId(expert.id);
+                      setSelectedExpertRow(expert);
+                    }}
                     className={`rounded-2xl border-2 p-4 text-left transition-all duration-200 ${
                       selected
                         ? "border-violet-400 bg-gradient-to-br from-violet-50 to-indigo-50 shadow-md ring-2 ring-violet-200"
@@ -769,6 +816,20 @@ export default function VeriPaylasimiPage() {
                 );
               })}
             </div>
+            {expertsRemaining > 0 ? (
+              <div className="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => void loadExperts(debouncedExpertQuery, expertPage + 1)}
+                  disabled={expertsLoadingMore}
+                  data-testid="transfer-expert-load-more"
+                  className="btn-soft !px-5 !py-2.5 disabled:opacity-60"
+                >
+                  {expertsLoadingMore ? "Yükleniyor…" : `Daha fazla uzman yükle (${expertsRemaining} kaldı)`}
+                </button>
+              </div>
+            ) : null}
+            </>
           )}
         </section>
 

@@ -2,6 +2,7 @@
 
 import type { NoteAttachment } from "../types";
 import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
+import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
 import { isSafeOpenMime, openDataUrlInNewTab } from "../lib/openDataUrl";
 
 type AttachmentsPanelProps = {
@@ -10,6 +11,8 @@ type AttachmentsPanelProps = {
   onSelect: (id: string | null) => void;
   onRemove: (id: string) => void;
   onAddClick: () => void;
+  /** Kamera ile çekilen fotoğraf(lar) — galeri/dosya akışıyla aynı doğrulama yolundan eklenir. */
+  onCameraFiles?: (files: File[]) => void;
 };
 
 function formatFileSize(bytes: number): string {
@@ -24,6 +27,7 @@ export function AttachmentsPanel({
   onSelect,
   onRemove,
   onAddClick,
+  onCameraFiles,
 }: AttachmentsPanelProps) {
   // Android uygulama WebView'inde window.open(blob) çalışmaz → görselde "Aç" yerine
   // "İndir" (kullanıcı dosyası erişimi korunur; plan §4.6 kategori B).
@@ -32,13 +36,21 @@ export function AttachmentsPanel({
     <section className="rounded-[28px] border border-purple-100 bg-white/80 p-5 shadow-sm ring-1 ring-violet-100/60">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-bold text-violet-900">Ek Dosyalar</h2>
-        <button
-          type="button"
-          onClick={onAddClick}
-          className="rounded-xl border border-sky-300/80 bg-sky-100 px-4 py-2.5 text-sm font-bold text-sky-950 transition hover:bg-sky-200/90"
-        >
-          Dosya Ekle
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onAddClick}
+            className="rounded-xl border border-sky-300/80 bg-sky-100 px-4 py-2.5 text-sm font-bold text-sky-950 transition hover:bg-sky-200/90"
+          >
+            Dosya Ekle
+          </button>
+          {onCameraFiles ? (
+            <CameraCaptureButton
+              onFiles={onCameraFiles}
+              className="rounded-xl border border-sky-300/80 bg-white px-4 py-2.5 text-sm font-bold text-sky-950 transition hover:bg-sky-50"
+            />
+          ) : null}
+        </div>
       </div>
 
       {attachments.length === 0 ? (

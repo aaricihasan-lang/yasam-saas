@@ -15,6 +15,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   MODALITIES,
@@ -285,12 +286,9 @@ export function SectionEditor({
     fileInputRef.current?.click();
   }, []);
 
-  const onPhotoFileChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      const key = uploadTargetKey;
-      e.target.value = "";
-      setUploadTargetKey(null);
+  // Galeri ve kamera aynı yoldan yükler (uploadSifaPhoto içinde kalite koruyan optimizasyon).
+  const uploadPhotoForKey = useCallback(
+    async (key: string | null, file: File | undefined) => {
       if (!file || !key || !onUploadImage) return;
       const target = value.find((s) => s.key === key);
       if (!target) return;
@@ -313,7 +311,18 @@ export function SectionEditor({
         setUploadingKey(null);
       }
     },
-    [uploadTargetKey, onUploadImage, value, update, showToast],
+    [onUploadImage, value, update, showToast],
+  );
+
+  const onPhotoFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      const key = uploadTargetKey;
+      e.target.value = "";
+      setUploadTargetKey(null);
+      await uploadPhotoForKey(key, file);
+    },
+    [uploadTargetKey, uploadPhotoForKey],
   );
 
   const removePhoto = useCallback(
@@ -563,15 +572,24 @@ export function SectionEditor({
               <div className="mt-3 rounded-xl border border-emerald-100/80 bg-emerald-50/30 p-3">
                 <div className="flex items-center justify-between gap-2">
                   <label className={labelBase}>Fotoğraflar (bu nota ait)</label>
-                  <button
-                    type="button"
-                    disabled={disabled || uploadingKey === s.key}
-                    onClick={() => triggerPhotoPick(s.key)}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 text-[12px] font-bold text-emerald-800 shadow-sm transition hover:bg-emerald-50 disabled:opacity-60"
-                  >
-                    <span aria-hidden>📷</span>
-                    {uploadingKey === s.key ? "Yükleniyor…" : "Foto Ekle"}
-                  </button>
+                  <div className="flex flex-wrap justify-end gap-1.5">
+                    <button
+                      type="button"
+                      disabled={disabled || uploadingKey === s.key}
+                      onClick={() => triggerPhotoPick(s.key)}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 text-[12px] font-bold text-emerald-800 shadow-sm transition hover:bg-emerald-50 disabled:opacity-60"
+                    >
+                      <span aria-hidden>📷</span>
+                      {uploadingKey === s.key ? "Yükleniyor…" : "Foto Ekle"}
+                    </button>
+                    <CameraCaptureButton
+                      onFiles={(files) => void uploadPhotoForKey(s.key, files[0])}
+                      disabled={disabled || uploadingKey === s.key}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 text-[12px] font-bold text-emerald-800 shadow-sm transition hover:bg-emerald-50 disabled:opacity-60"
+                    >
+                      📸 Çek
+                    </CameraCaptureButton>
+                  </div>
                 </div>
                 {imgs.length > 0 ? (
                   <div className="mt-2.5 flex flex-wrap gap-2">

@@ -11,10 +11,11 @@ import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
 import { trackUsage } from "@/lib/usage/trackUsage";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import { createReportSnapshotV2FromChart } from "@/lib/human-design/reporting/reportSnapshotV2Service";
 import { parseCommentarySelection, sanitizePreparedBy, type HdCommentarySelection } from "@/lib/human-design/reporting/reportSnapshotV2";
 import { decodePngBase64, validateBodygraphPng } from "@/lib/human-design/reporting/bodygraphPng";
+import { bodygraphBindingText, bodygraphFingerprint, verifyBodygraphBinding } from "@/lib/human-design/reporting/bodygraphBinding";
 import { saveCanonicalReport, findReportBrief } from "@/lib/human-design/api/reportPersistence";
 import { hdReportTitle } from "@/lib/human-design/reporting/wordReport";
 
@@ -64,11 +65,12 @@ export async function POST(req: NextRequest): Promise<Response> {
     );
   }
 
-  const rl = checkRateLimit(`hd-word:${guard.tenantId}`, 10, 60_000);
+  // HD-28 (GUV-04): instance-bağımsız DB limiti (önceki bellek-içi sayaç instance-yereldi).
+  const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-word", guard.tenantId), 10, 60);
   if (!rl.allowed) {
     return NextResponse.json(
       { ok: false, error: "Çok fazla rapor isteği. Lütfen biraz sonra tekrar deneyin." },
-      { status: 429, headers: { ...NO_STORE, "Retry-After": String(rl.retryAfterSeconds) } },
+      { status: 429, headers: { ...NO_STORE, "Retry-After": String(rl.retryAfterSec || 60) } },
     );
   }
 
@@ -89,6 +91,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   const chartId = typeof raw.chartId === "string" ? raw.chartId.trim() : "";
   if (!chartId) {
     return NextResponse.json({ ok: false, error: "chartId gerekli." }, { status: 400, headers: NO_STORE });
+  }
+  if (!isUuid(chartId)) {
+    return NextResponse.json({ ok: false, code: "INVALID_ID", error: "Geçersiz chartId." }, { status: 400, headers: NO_STORE });
   }
 
   // Yetki SUNUCUDA: hd_system_reading (admin her zaman). İstemci seçimi yalnız TERCİHTİR.
@@ -159,6 +164,21 @@ export async function POST(req: NextRequest): Promise<Response> {
       { ok: false, code: "BODYGRAPH_NOT_APPLICABLE", error: "BodyGraph görseli yalnız otomatik hesaplanmış haritalarda kabul edilir." },
       { status: 400, headers: NO_STORE },
     );
+  }
+  // HD-25: PNG bu analize bağlı olmalı — beklenen değer KAYITLI haritadan (donmuş snapshot)
+  // sunucuda üretilir; başka haritaya ait / etiketsiz / değiştirilmiş etiketli görsel reddedilir.
+  if (png) {
+    const expected = bodygraphBindingText(
+      built.snapshot.chart.chartId,
+      bodygraphFingerprint(
+        built.snapshot.gates.map((g) => g.gate),
+        built.snapshot.centers.filter((c) => c.defined).length,
+      ),
+    );
+    const bind = verifyBodygraphBinding(png.buf, expected);
+    if (!bind.ok) {
+      return NextResponse.json({ ok: false, code: bind.code, error: bind.error }, { status: 422, headers: NO_STORE });
+    }
   }
 
   // BodyGraph: (1) doğrulanmış renderer PNG'si → (2) danışanın yüklenmiş görseli (owned kopya)

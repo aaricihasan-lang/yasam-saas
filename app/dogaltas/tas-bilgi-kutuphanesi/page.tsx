@@ -21,7 +21,6 @@ import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { useIsMobileOrPwa } from "@/hooks/useIsMobileOrPwa";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -337,7 +336,6 @@ export default function TasBilgiKutuphanesiPage() {
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
   const isMobile = useIsMobileOrPwa();
-  const isAndroid = useIsAndroid();
   const { isDemo } = useDemoGuard();
 
   // ─── Dinamik katConfig (categoryList'e göre) ──────────────────────────────
@@ -940,11 +938,11 @@ export default function TasBilgiKutuphanesiPage() {
             </div>
 
             {/* Word raporu butonu */}
-            {!isDemo && !isAndroid && (
+            {!isDemo && (
               <button
                 type="button"
                 onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
-                className="no-android btn-soft"
+                className="btn-soft"
               >
                 {t("actions.wordReport")}
               </button>

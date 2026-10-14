@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
-import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { Packer } from "docx";
@@ -75,8 +74,6 @@ function docxStreamResponse(buffer: Buffer, filename: string, clientCount: numbe
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const androidBlocked = androidWordGuard(req);
-  if (androidBlocked) return androidBlocked;
 
   // Kanonik oturum + modül kapısı: x-user-id + x-session-token + token↔user binding.
   // tenant_id SUNUCUDA guard'dan gelir; body'deki tenantId/userId'ye ASLA güvenilmez.

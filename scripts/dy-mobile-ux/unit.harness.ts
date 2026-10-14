@@ -4,7 +4,7 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { CLIENT_DETAIL_TAB_DEFS, CLIENT_DETAIL_TABS } from "../../lib/danisan/clientDetailTabs";
+import { CLIENT_DETAIL_TAB_DEFS, CLIENT_DETAIL_TABS, visibleClientDetailTabs } from "../../lib/danisan/clientDetailTabs";
 import {
   getDanisanListCache,
   removeClientFromDanisanListCache,
@@ -24,7 +24,14 @@ const read = (p: string) => readFileSync(path.join(process.cwd(), p), "utf8");
 
 console.log("[1] Sekme sırası");
 const ids = CLIENT_DETAIL_TAB_DEFS.map((t) => t.id as string);
-ok(ids.indexOf("randevular") > ids.indexOf("beslenme"), "Randevular Beslenme'den SONRA");
+// Final-A1: gevşek "sonra" yetmez → Randevular Beslenme'nin HEMEN ardından (10-08 HD sekmesi araya girmişti).
+ok(ids.indexOf("beslenme") >= 0 && ids.indexOf("randevular") === ids.indexOf("beslenme") + 1, "Randevular Beslenme'nin HEMEN ardından (index+1)");
+// Görünür sekme kümesi izne göre değişir (hafiza/humandesign) → her kombinasyonda bitişiklik korunmalı.
+for (const perms of [[], ["yasam_hafizasi"], ["human_design"], ["yasam_hafizasi", "human_design"]] as string[][]) {
+  const vis = visibleClientDetailTabs((k) => perms.includes(k)).map((t) => t.id as string);
+  ok(vis.indexOf("randevular") === vis.indexOf("beslenme") + 1 && vis[vis.length - 1] === "randevular",
+    `izin [${perms.join(",") || "yok"}]: Beslenme → Randevular bitişik ve son (${vis.join(" | ")})`);
+}
 ok(ids[ids.length - 1] === "randevular", "Randevular son sekme");
 ok(
   JSON.stringify([...ids].sort()) ===
@@ -32,8 +39,8 @@ ok(
   "sekme kümesi aynı (hiçbir sekme kaybolmadı)",
 );
 ok((CLIENT_DETAIL_TABS as readonly string[]).includes("randevular") && (CLIENT_DETAIL_TABS as readonly string[]).includes("odevler"), "?tab= allowlist randevular + odevler");
-ok(JSON.stringify(ids.filter((x) => x !== "randevular")) === JSON.stringify(["genel", "anamnez", "notlar", "taslar", "seanslar", "ucretlendirme", "odevler", "analizler", "yolculuk", "hafiza", "beslenme", "humandesign"]),
-  "diğer sekmelerin göreli sırası korunuyor");
+ok(JSON.stringify(ids) === JSON.stringify(["genel", "anamnez", "notlar", "taslar", "seanslar", "ucretlendirme", "odevler", "analizler", "humandesign", "yolculuk", "hafiza", "beslenme", "randevular"]),
+  "tam sekme sırası (HD Analizler'in yanında; Beslenme → Randevular)");
 
 console.log("\n[2] Liste önbelleği — silme sonrası Aktif Uyarı");
 const T = "tenant-x";
@@ -56,10 +63,11 @@ const fi = read("components/danisan/anamnez/AnamnezFieldInput.tsx");
 ok((fi.match(/freeTextFieldProps\(/g) ?? []).length >= 4, "metin/textarea/ynd/satır alanları metadata'lı");
 ok(read("app/page.tsx").includes("current-password") || read("components/ui/PasswordInput.tsx").includes("autoComplete"), "giriş ekranı parola davranışına dokunulmadı");
 
-console.log("\n[4] Mobilde gizli / web'de görünür");
-ok(MOBILE_HIDDEN_INLINE_FLEX === "no-android hidden md:inline-flex" && MOBILE_HIDDEN_BLOCK === "no-android hidden md:block", "ortak sınıflar (Android SSR + telefon genişliği)");
-ok(read("components/danisan/anamnez/AnamnezAttachments.tsx").includes("MOBILE_HIDDEN_INLINE_FLEX"), "PDF Ekle mobilde gizli");
-ok(read("app/dashboard/clients/[id]/components/StonesTab.tsx").includes("MOBILE_HIDDEN_BLOCK"), "Bilgisayardan Foto Seç mobilde gizli");
+console.log("\n[4] Dosya seçimi her cihazda görünür (2026-10-14 owner kararı)");
+ok(MOBILE_HIDDEN_INLINE_FLEX === "no-android hidden md:inline-flex" && MOBILE_HIDDEN_BLOCK === "no-android hidden md:block", "ortak sınıflar değişmedi (başka ekranlar kullanabilir)");
+ok(!read("components/danisan/anamnez/AnamnezAttachments.tsx").includes("MOBILE_HIDDEN"), "PDF Ekle mobilde/Android'de görünür");
+ok(!read("app/dashboard/clients/[id]/components/StonesTab.tsx").includes("MOBILE_HIDDEN"), "Galeriden/Dosyadan Foto Seç mobilde/Android'de görünür");
+ok(read("app/dashboard/clients/[id]/components/StonesTab.tsx").includes("<CameraCaptureButton"), "Taş fotoğrafı: ayrı kamera girişi");
 ok(read("app/globals.css").includes("html[data-android] .no-android"), "SSR .no-android kuralı mevcut");
 
 console.log("\n[5] KVKK kompakt");

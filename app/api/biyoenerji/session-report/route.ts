@@ -3,7 +3,6 @@ import { Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { readBioReportRows } from "@/lib/biyoenerji/reportRead";
 import { trackUsage } from "@/lib/usage/trackUsage";
-import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import {
   reportRateLimit,
   MAX_EXPORT_RECORDS,
@@ -30,9 +29,6 @@ type SessionRow = BioSessionRow;
 export async function POST(request: NextRequest): Promise<Response> {
   // GÜVENLİK: kimlik yalnızca sunucu tarafında x-user-id + x-session-token
   // (requireModuleAccess) ile belirlenir. Body'deki tenantId/userId GÜVEN KAYNAĞI DEĞİLDİR.
-  // Android: Word (.docx) indirme kapalı (ürün kararı) — defense-in-depth.
-  const androidBlocked = androidWordGuard(request);
-  if (androidBlocked) return androidBlocked;
 
   const guard = await requireModuleAccess(request, "energy_body");
   if (!guard.ok) return guard.response;
@@ -104,7 +100,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   });
 
   const buffer = await Packer.toBuffer(doc);
-  // USAGE360: rapor YALNIZ docx başarıyla üretildikten sonra sayılır (Android guard 403'ü olay değildir).
+  // USAGE360: rapor YALNIZ docx başarıyla üretildikten sonra sayılır (hata yanıtları olay değildir).
   await trackUsage(guard, request, {
     module: "energy_body",
     action: "report_generated",

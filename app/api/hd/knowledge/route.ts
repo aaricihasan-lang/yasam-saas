@@ -12,6 +12,7 @@ import {
   deleteKnowledge,
   deleteKnowledgeBulk,
 } from "@/lib/human-design/api/knowledgePersistence";
+import { invalidIdResponse, isUuid } from "@/lib/human-design/api/requestIds";
 
 export const runtime = "nodejs";
 
@@ -170,13 +171,14 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     if (exceedsBulkDeleteLimit(ids)) {
       return NextResponse.json({ ok: false, error: BULK_DELETE_LIMIT_ERROR }, { status: 400, headers: NO_STORE });
     }
-    const { ok, error } = await deleteKnowledgeBulk(guard.db, guard.tenantId, ids);
+    if (!ids.every(isUuid)) return invalidIdResponse("ids");
+    const { ok, error, deletedCount } = await deleteKnowledgeBulk(guard.db, guard.tenantId, ids);
     if (!ok) return NextResponse.json({ ok: false, error: error ?? "Silinemedi." }, { status: 400, headers: NO_STORE });
-    // USAGE360: toplu silme → TEK olay + itemCount.
-    if (ids.length > 0) {
-      await trackUsage(guard, req, { module: "human_design", action: "record_deleted", subEntity: "knowledge", itemCount: ids.length });
+    // USAGE360: toplu silme → TEK olay + GERÇEKTEN silinen sayı (HD-27).
+    if (deletedCount > 0) {
+      await trackUsage(guard, req, { module: "human_design", action: "record_deleted", subEntity: "knowledge", itemCount: deletedCount });
     }
-    return NextResponse.json({ ok: true, deletedCount: ids.length }, { status: 200, headers: NO_STORE });
+    return NextResponse.json({ ok: true, deletedCount, requestedCount: ids.length }, { status: 200, headers: NO_STORE });
   }
 
   const id = url.searchParams.get("id");
@@ -186,8 +188,9 @@ export async function DELETE(req: NextRequest): Promise<Response> {
       { status: 400, headers: NO_STORE },
     );
   }
-  const { ok, error } = await deleteKnowledge(guard.db, guard.tenantId, id);
-  if (!ok) return NextResponse.json({ ok: false, error: error ?? "Silinemedi." }, { status: 400, headers: NO_STORE });
+  if (!isUuid(id)) return invalidIdResponse("id");
+  const { ok, error, status: delStatus } = await deleteKnowledge(guard.db, guard.tenantId, id);
+  if (!ok) return NextResponse.json({ ok: false, error: error ?? "Silinemedi." }, { status: delStatus === 404 ? 404 : 400, headers: NO_STORE });
   await trackUsage(guard, req, { module: "human_design", action: "record_deleted", subEntity: "knowledge", resourceId: id });
   return NextResponse.json({ ok: true, deletedId: id }, { status: 200, headers: NO_STORE });
 }

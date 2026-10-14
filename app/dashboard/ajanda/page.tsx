@@ -16,7 +16,6 @@ import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { visibleSelection } from "@/lib/ui/selection";
 import { reportFileDate, todayInZone, zonedDayKey } from "@/lib/time/reportTime";
@@ -170,7 +169,6 @@ function AjandaPageInner() {
   const [selectedApptIds, setSelectedApptIds] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
   const [singleWordBusy, setSingleWordBusy] = useState(false);
-  const isAndroid = useIsAndroid();
 
   useEffect(() => {
     void getSyncedTenantId().then(setTenantId);
@@ -948,7 +946,7 @@ function AjandaPageInner() {
         </div>
 
         {/* Word export çubuğu */}
-        {!isAndroid && appointments.length > 0 && (
+        {appointments.length > 0 && (
           <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/80 px-3 py-2 shadow-sm">
             <span className="shrink-0 rounded-full border border-blue-200 bg-white px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-blue-800 shadow-sm">
               {selectedApptIds.size > 0 ? `✓ ${selectedApptIds.size} seçili` : "Ajanda Word"}
@@ -1260,16 +1258,14 @@ function AjandaPageInner() {
                 </div>
 
                 {/* Tek randevu Word butonu */}
-                {!isAndroid && (
-                  <button
-                    type="button"
-                    disabled={singleWordBusy}
-                    onClick={() => void exportSingleAppointmentWord(selectedAppointment.id)}
-                    className="w-full rounded-xl border border-blue-200 bg-blue-50 p-2.5 text-xs font-black text-blue-800 transition hover:bg-blue-100 disabled:opacity-60"
-                  >
-                    {singleWordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  disabled={singleWordBusy}
+                  onClick={() => void exportSingleAppointmentWord(selectedAppointment.id)}
+                  className="w-full rounded-xl border border-blue-200 bg-blue-50 p-2.5 text-xs font-black text-blue-800 transition hover:bg-blue-100 disabled:opacity-60"
+                >
+                  {singleWordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+                </button>
               </div>
 
               <div className="shrink-0 space-y-2 border-t border-slate-100 bg-white p-3 sm:p-4">

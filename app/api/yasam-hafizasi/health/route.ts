@@ -9,6 +9,9 @@ import { isSyntheticTenantId } from "@/lib/tenancy/syntheticTenants";
 
 export const runtime = "nodejs";
 
+/** Kanonik aktarım kuyruğu (supabase/migrations/20260815000000_yasam_hafizasi_outbox.sql). */
+const YH_OUTBOX_TABLE = "yasam_hafizasi_outbox";
+
 /**
  * GET /api/yasam-hafizasi/health — indeks erişilebilirliği + BU TENANT'A AİT özet sayaçlar.
  *
@@ -61,11 +64,26 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const accessible = !tenantQ.error;
   const flags = await getTenantFlags(tenantId, db);
+  const tenantRows = tenantQ.count ?? 0;
+
+  // Final-A1: indeks boşken "Hazırlanıyor" yalnız GERÇEKTEN işlenmeyi bekleyen aktarım olayı varsa
+  // gösterilir. Yalnız bu tenant'ın pending/processing olay SAYISI (head:true; içerik dönmez).
+  // Hata → alan gönderilmez (UI işlem iddia etmez).
+  let tenantPending: number | undefined;
+  if (accessible && tenantRows === 0) {
+    const pendingQ = await db
+      .from(YH_OUTBOX_TABLE)
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .in("status", ["pending", "processing"]);
+    if (!pendingQ.error) tenantPending = pendingQ.count ?? 0;
+  }
 
   return NextResponse.json({
     ok: true,
     accessible,
-    tenantRows: tenantQ.count ?? 0,
+    tenantRows,
+    ...(tenantPending === undefined ? {} : { tenantPending }),
     syntheticTenant: isSyntheticTenantId(tenantId),
     flags,
   });

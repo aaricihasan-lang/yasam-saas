@@ -3,6 +3,7 @@
 import { useCallback, useState, type ReactNode } from "react";
 import { TechniqueList } from "./TechniqueList";
 import { TechniqueListRefreshContext } from "../lib/listRefresh";
+import { KupaUnsavedGuardScope } from "../../lib/UnsavedGuardScope";
 
 /**
  * Reader-first çalışma alanı iskeleti (FAZ 4 / 2B + 2C).
@@ -15,6 +16,9 @@ import { TechniqueListRefreshContext } from "../lib/listRefresh";
  * 2C: workspace bir liste-versiyon nonce'u tutar ve TechniqueListRefreshContext ile
  * children (reader) slotuna verir. Reader standalone düzenleme kaydedince refresh çağırır
  * → sol liste anında tazelenir (stale ad/tür kalmaz; hard reload YOK).
+ *
+ * FINAL-A1: sayfa geneli kaydedilmemiş-değişiklik koruması (teknik editörü + kaynak atıf formu
+ * kirliyken sol listedeki başka tekniğe / menüye geçiş, geri, yenileme önce onay ister).
  */
 export function TechniqueWorkspace({
   selectedId,
@@ -28,16 +32,18 @@ export function TechniqueWorkspace({
   const refreshList = useCallback(() => setListVersion((v) => v + 1), []);
   return (
     <TechniqueListRefreshContext.Provider value={refreshList}>
-      <div className="lg:flex lg:gap-4">
-        <aside
-          className={`lg:w-[340px] lg:shrink-0 ${hasSelection ? "hidden lg:block" : "block"}`}
-        >
-          <TechniqueList selectedId={selectedId} version={listVersion} />
-        </aside>
-        <section className={`min-w-0 flex-1 ${hasSelection ? "block" : "hidden lg:block"}`}>
-          {children}
-        </section>
-      </div>
+      <KupaUnsavedGuardScope>
+        <div className="lg:flex lg:gap-4">
+          <aside
+            className={`lg:w-[340px] lg:shrink-0 ${hasSelection ? "hidden lg:block" : "block"}`}
+          >
+            <TechniqueList selectedId={selectedId} version={listVersion} />
+          </aside>
+          <section className={`min-w-0 flex-1 ${hasSelection ? "block" : "hidden lg:block"}`}>
+            {children}
+          </section>
+        </div>
+      </KupaUnsavedGuardScope>
     </TechniqueListRefreshContext.Provider>
   );
 }

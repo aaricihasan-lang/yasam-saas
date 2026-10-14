@@ -21,8 +21,6 @@ import {
 import { applySnapshotRefresh, previewSnapshotRefresh, type SnapshotRefreshPreview } from "@/lib/beslenme/planClient";
 import { TEMPLATE_TYPE_LABELS, type TemplateType } from "@/lib/beslenme/templateContracts";
 import { NUTRIENT_LABELS } from "@/lib/beslenme/planContracts";
-import { EXPORT_DESKTOP_ONLY_CLASS } from "@/lib/beslenme/exportVisibility";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { Modal } from "./planUi";
 import { formatDateShort, formatDateTr, friendlyPlanError } from "./planFormat";
 import { GhostButton, PrimaryButton, StatusMessage, TextInput, InlineSpinner, EmptyState } from "../../_components/primitives";
@@ -103,7 +101,6 @@ export function PlanTools({
   const [refreshOpen, setRefreshOpen] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
   const [msg, setMsg] = useState<{ type: "error" | "success"; text: string } | null>(null);
-  const isAndroid = useIsAndroid();
 
   const selectedDay = days.find((d) => d.id === selectedDayId) ?? null;
   const isDraft = planStatus === "draft";
@@ -131,17 +128,12 @@ export function PlanTools({
       <GhostButton icon={<BarChart3 className="h-4 w-4" />} onClick={() => setAnalyticsOpen(true)}>
         Analiz
       </GhostButton>
-      {/* Word export CTA yalnız gerçek masaüstü input'unda (hover+fine pointer); mobil/tablet
-          gizli. Karar CİHAZ YETENEĞİYLE verilir, viewport genişliğiyle DEĞİL — pencere 1280
-          altına inse de masaüstünde kaybolmaz. Sarmalayıcı span görünürlüğü taşır (buton
-          display'i bozulmaz). Backend endpoint değişmez. */}
-      {!isAndroid && (
-        <span className={EXPORT_DESKTOP_ONLY_CLASS}>
-          <GhostButton icon={<FileText className="h-4 w-4" />} loading={wordBusy} onClick={() => void doWord()}>
-            Word İndir
-          </GhostButton>
-        </span>
-      )}
+      {/* Word export CTA TÜM cihazlarda görünür (2026-10-14 owner kararı: masaüstü, mobil web,
+          Android Chrome, Android uygulaması, iPhone, tablet). Önceki "yalnız masaüstü" kuralı
+          kaldırıldı. Word oluşturma mantığı ve backend endpoint'i değişmez. */}
+      <GhostButton icon={<FileText className="h-4 w-4" />} loading={wordBusy} onClick={() => void doWord()}>
+        Word İndir
+      </GhostButton>
       {!archived ? (
         <>
           <GhostButton

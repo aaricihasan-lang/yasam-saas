@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { composeOtherValue, splitOtherValue } from "@/lib/urun-stok/selectOther";
+import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
+import { dataUrlsByteSize } from "@/lib/urun-stok/photoValidation";
 import { SelectWithOther } from "../SelectWithOther";
 import {
   findSaveTarget,
@@ -942,6 +944,20 @@ export default function DigerUrunStokPage() {
                     }}
                   />
                 </label>
+                <CameraCaptureButton
+                  className={btnSecondary}
+                  onFiles={async (files) => {
+                    // Kamera: çekilen fotoğraf mevcut seçime EKLENİR (adet + toplam boyut sınırı korunur).
+                    const { urls, error } = await filesToDataUrls(files, {
+                      existingCount: photos.length,
+                      existingBytes: dataUrlsByteSize(photos),
+                    });
+                    if (error) setMsg(error);
+                    else setPhotos((prev) => [...prev, ...urls]);
+                  }}
+                >
+                  📷 Çek
+                </CameraCaptureButton>
                 <button type="button" className={btnPrimary} onClick={() => void handleSaveStock()} disabled={saveLock.pending} aria-busy={saveLock.pending}>
                   {editId ? "Güncelle" : "Ekle"}
                 </button>

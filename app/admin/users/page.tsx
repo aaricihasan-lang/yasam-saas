@@ -67,7 +67,8 @@ import {
 } from "@/components/admin/members/MemberBadges";
 import { ModuleCheckboxGrid } from "@/components/admin/members/ModuleCheckboxGrid";
 import { ExpertPurgeDialog, type PurgeResult, type PurgeTarget } from "@/components/admin/members/ExpertPurgeDialog";
-import { clearYasamUser, isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import { useConfirmedLogout } from "@/hooks/useConfirmedLogout";
 
 // ── Filtre seçenekleri (MEM-018: ham enum gösterilmez) ─────────────────────────
 const APPROVAL_OPTIONS: { key: MemberListQuery["approval"]; label: string }[] = [
@@ -801,10 +802,8 @@ function AdminUsersContent() {
     setReloadTick((n) => n + 1);
   }
 
-  function handleLogout() {
-    clearYasamUser();
-    router.push("/");
-  }
+  // Final-A1: tek tıkla çıkış yok — ana paneldeki ortak onay penceresi.
+  const handleLogout = useConfirmedLogout();
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
+import { describeOptimizeProblem, optimizeImageFile } from "@/lib/media/imageOptimize";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { categoriesApi, storePhotoPublicUrl } from "@/app/admin/magaza/magazaAdminApi";
@@ -23,6 +25,8 @@ const emptyDraft: Draft = {
 
 const IMG_ACCEPT = "image/jpeg,image/png,image/webp";
 const IMG_MAX_BYTES = 5 * 1024 * 1024;
+/** Optimizasyon hedefi: platform istek gövdesi ≈4.5 MB → güvenli pay (5 MB sunucu sınırı korunur). */
+const IMG_OPTIMIZE_TARGET_BYTES = 4 * 1024 * 1024;
 
 export default function CategoriesPanel() {
   const { showToast } = useToast();
@@ -91,9 +95,17 @@ export default function CategoriesPanel() {
     }
   }
 
-  async function onPickImage(files: FileList | null) {
+  async function onPickImage(files: FileList | File[] | null) {
     if (!draft?.id || !files || files.length === 0) return;
-    const file = files[0];
+    // Kalite koruyan optimizasyon (PNG/animasyon korunur; sınıra sığmazsa açık uyarı).
+    const optimized = await optimizeImageFile(files[0], { profile: "photo", maxBytes: IMG_OPTIMIZE_TARGET_BYTES });
+    const problem = describeOptimizeProblem(optimized, IMG_OPTIMIZE_TARGET_BYTES);
+    if (problem) {
+      showToast({ type: "warning", message: problem });
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    const file = optimized.file;
     if (!IMG_ACCEPT.split(",").includes(file.type)) {
       showToast({ type: "warning", message: "Yalnız JPEG/PNG/WEBP görseli yüklenebilir." });
       if (fileRef.current) fileRef.current.value = "";
@@ -241,6 +253,11 @@ export default function CategoriesPanel() {
                   >
                     {imgBusy ? "Yükleniyor…" : draft.image_path ? "Görseli Değiştir" : "Görsel Yükle"}
                   </button>
+                  <CameraCaptureButton
+                    onFiles={(files) => void onPickImage(files)}
+                    disabled={imgBusy}
+                    className="btn-soft"
+                  />
                   {draft.image_path ? (
                     <button
                       type="button"

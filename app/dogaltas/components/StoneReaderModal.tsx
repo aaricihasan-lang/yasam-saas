@@ -65,6 +65,7 @@ export function StoneReaderModal({
       blurredNote={<p className="mt-6 text-center text-sm font-black text-amber-600">{t("demoProtected")}</p>}
       fontStore={dogaltasModalFontStore}
       scrollClassName="stone-reader-scroll"
+      floatingOnMobile
       renderBody={(fontSizePx) => <div ref={bodyRef}>{formatStoneContent(text, { renderSegment, fontSizePx })}</div>}
       onClose={onClose}
     />

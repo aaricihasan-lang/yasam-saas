@@ -123,7 +123,7 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
                 {row.client.birth_place ? ` · ${row.client.birth_place}` : ""}
               </p>
             )}
-            {row.client?.external_chart_url && (
+            {row.client?.external_chart_url && /^https?:\/\//i.test(row.client.external_chart_url) && (
               <a
                 href={row.client.external_chart_url}
                 target="_blank"

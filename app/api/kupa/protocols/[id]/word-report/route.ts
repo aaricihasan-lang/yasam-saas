@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
-import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { CUPPING_TABLES } from "@/lib/cupping/fields";
 import { cuppingError, getEntity, listEntity } from "@/lib/cupping/api";
 import {
@@ -21,7 +20,7 @@ export const runtime = "nodejs";
  * AKTİF protokolün KAYDEDİLMİŞ verisinden gerçek .docx üretir (SADECE OKUMA; DB'ye YAZMAZ).
  *
  * GÜVENLİK (calendarWord route deseniyle aynı):
- *   - androidWordGuard → Android'de Word yok (mevcut ürün politikası; yeni karar YOK).
+ *   - Android dahil tüm cihazlarda Word indirme açık (2026-10-14 owner kararı); HD ve Astroloji kendi kurallarını korur.
  *   - requireModuleAccess("cupping") → gate + tenant SERVER-derived.
  *   - Protokol + tüm ilişkileri YALNIZ guard.tenantId ile okunur (getEntity/listEntity .eq tenant_id) →
  *     başka tenant'ın protokolü indirilemez (getEntity 404 → IDOR engeli); cross-tenant sızıntı YOK.
@@ -83,8 +82,6 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const androidBlocked = androidWordGuard(req);
-  if (androidBlocked) return androidBlocked;
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;

@@ -560,11 +560,21 @@ const later = (iso: string, ms = 5) => new Date(Date.parse(iso) + ms).toISOStrin
     const file = Buffer.alloc(HD_FILE_PART_BYTES + 99, 3);
     const sha = createHash("sha256").update(file).digest("hex");
     const path = `${T1}/${C1}/rest.png`;
+    // HD-02: dosyalar tablo satırlarından SONRA geri yüklenir (lib/backup/client.ts) → yol, geri
+    // yüklenmiş DB satırlarının referans verdiği yollardan biri olmalı. Gerçek akışı simüle et.
+    db.tables.human_design_clients = [
+      { id: C1, tenant_id: T1, chart_image_url: path },
+      { id: "c-bad", tenant_id: T1, chart_image_url: `${T1}/${C1}/bad.png` },
+    ];
     const plan = await planHdFileRestore(asDb(db), ctxOk, [
       { bucket: "hd-chart-images", path, size: file.length, sha256: sha },
       { bucket: "hd-chart-images", path: `${T2}/${C1}/x.png`, size: 1, sha256: sha },
+      { bucket: "hd-chart-images", path: `${T1}/${C1}/referanssiz.png`, size: 1, sha256: sha },
     ]);
     assert(plan[0].action === "upload" && plan[1].action === "skip" && plan[1].reason === "foreign_tenant", JSON.stringify(plan));
+    assert(plan[2].action === "skip" && plan[2].reason === "unreferenced", "HD-02: referanssız yol plana alındı");
+    const unrefPart = await storeHdRestorePart(asDb(db), ctxOk, { path: `${T1}/${C1}/referanssiz.png`, upload_id: randomUUID(), index: 0, data_base64: "eA==" });
+    assert(!unrefPart.ok && unrefPart.status === 400, "HD-02: referanssız yola parça yazıldı");
     const b64 = file.toString("base64");
     const up = randomUUID();
     const chunks = [b64.slice(0, HD_FILE_PART_CHARS), b64.slice(HD_FILE_PART_CHARS)];

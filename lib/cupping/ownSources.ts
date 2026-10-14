@@ -61,3 +61,22 @@ export function findOwnSourceByName<T extends SourceLike>(sources: readonly T[],
   if (!key) return null;
   return sources.find((s) => isOwnSource(s) && normalizeSourceName(s.source_name) === key) ?? null;
 }
+
+/** Ad karşılaştırma anahtarı (yeniden kullanım için; protokol "Kaynak" akışıyla aynı ölçü: NFKC + boşluk + tr küçük harf). */
+function reuseKey(v: string): string {
+  return v.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase("tr-TR");
+}
+
+/**
+ * Serbest yazılan kaynak adı → yeniden kullanılacak MEVCUT kaynak kaydı (yoksa null → yeni oluşturulur).
+ * Protokol "Kaynak" akışıyla (SourcesSection.add) AYNI kural: önce uzmanın KENDİ aynı adlı kaynağı;
+ * o yoksa aynı tenant'ta birebir aynı adlı başka kayıt (mükerrer master üretilmez). Öneri listesi
+ * bundan bağımsızdır: öneride yalnız kendi kaynakları görünür (ownSourceSuggestions).
+ */
+export function findReusableSourceByName<T extends SourceLike>(sources: readonly T[], name: string): T | null {
+  if (!reuseKey(name)) return null;
+  const own = findOwnSourceByName(sources, name);
+  if (own) return own;
+  const key = reuseKey(name);
+  return sources.find((s) => reuseKey(s.source_name) === key) ?? null;
+}

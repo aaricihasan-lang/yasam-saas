@@ -13,6 +13,8 @@ import {
   deleteManualChartsByClient,
 } from "@/lib/human-design/api/chartPersistence";
 import { validateManualChartCodes } from "@/lib/human-design/manualChartConsistency";
+import { invalidIdResponse, isOptionalUuid, isUuid } from "@/lib/human-design/api/requestIds";
+import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 
 export const runtime = "nodejs";
 
@@ -110,6 +112,27 @@ export async function POST(req: NextRequest): Promise<Response> {
   // input alanı ya da düz gövde; computed_result gönderilse bile YOK SAYILIR.
   const input = isObj(raw.input) ? raw.input : raw;
 
+  // HD-28 (#7) girdi sınırları + HD-27 kimlik biçimi.
+  const clientIdIn = strOrNull(raw.client_id);
+  if (clientIdIn && !isUuid(clientIdIn)) return invalidIdResponse("client_id");
+  const tooLong = ([["client_name", 120], ["birth_place", 200], ["notes", 5000], ["location_id", 200]] as const)
+    .find(([k, max]) => (strOrNull(raw[k]) ?? "").length > max);
+  if (tooLong) {
+    return NextResponse.json(
+      { ok: false, code: "FIELD_TOO_LONG", error: `${tooLong[0]} en fazla ${tooLong[1]} karakter olabilir.` },
+      { status: 400, headers: NO_STORE },
+    );
+  }
+
+  // HD-28 (GUV-04): kayıt oluşturan uç için kullanıcı başına instance-bağımsız sınır.
+  const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-chart-save-user", guard.userId), 30, 60 * 60);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { ok: false, code: "RATE_LIMITED", error: "Kısa sürede çok fazla kayıt yapıldı. Lütfen daha sonra tekrar deneyin." },
+      { status: 429, headers: { ...NO_STORE, "Retry-After": String(rl.retryAfterSec || 60) } },
+    );
+  }
+
   const res = await saveComputedChart(guard.db, guard.tenantId, guard.userId, {
     date: str(input.date),
     time: str(input.time),
@@ -143,6 +166,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   // ── Manuel/legacy harita akışı (source null|'manual') — computed'dan izole ──
   if (url.searchParams.get("scope") === "manual") {
     const clientId = url.searchParams.get("client_id");
+    if (!isOptionalUuid(clientId)) return invalidIdResponse("client_id");
     if (clientId) {
       const { row, error } = await getManualChartByClient(guard.db, guard.tenantId, clientId);
       if (error) return NextResponse.json({ ok: false, error }, { status: 500, headers: NO_STORE });
@@ -154,6 +178,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   }
 
   const id = url.searchParams.get("id");
+  if (!isOptionalUuid(id)) return invalidIdResponse("id");
 
   if (id) {
     const { row, error } = await getComputedChart(guard.db, guard.tenantId, id);
@@ -170,6 +195,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   }
 
   const clientId = url.searchParams.get("client_id") ?? undefined;
+  if (!isOptionalUuid(clientId)) return invalidIdResponse("client_id");
   const { rows, error } = await listComputedCharts(guard.db, guard.tenantId, { clientId });
   if (error) {
     return NextResponse.json({ ok: false, code: "DB_ERROR", error }, { status: 500, headers: NO_STORE });
@@ -202,6 +228,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
       { status: 400, headers: NO_STORE },
     );
   }
+  if (!isUuid(id)) return invalidIdResponse("id");
   const codes = validateManualChartCodes(parsed.body);
   if (!codes.ok) {
     return NextResponse.json({ ok: false, code: "INVALID_CHART_CODE", error: codes.error }, { status: 400, headers: NO_STORE });
@@ -230,6 +257,8 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   if (url.searchParams.get("scope") === "manual") {
     const mid = url.searchParams.get("id");
     const clientId = url.searchParams.get("clientId");
+    if (!isOptionalUuid(mid)) return invalidIdResponse("id");
+    if (!isOptionalUuid(clientId)) return invalidIdResponse("clientId");
     if (mid) {
       const { ok, error } = await deleteManualChart(guard.db, guard.tenantId, mid);
       if (!ok) return NextResponse.json({ ok: false, error: error ?? "Silinemedi." }, { status: 400, headers: NO_STORE });
@@ -255,6 +284,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
       { status: 400, headers: NO_STORE },
     );
   }
+  if (!isUuid(id)) return invalidIdResponse("id");
 
   const { ok, error } = await deleteComputedChart(guard.db, guard.tenantId, id);
   if (!ok) {

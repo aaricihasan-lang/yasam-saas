@@ -9,7 +9,6 @@ import { BlendRecetePrint, type PrintableBlend } from "./_components/BlendRecete
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
 import { downloadWord } from "@/lib/aromaterapi/wordExport";
 import { reportUsageExport } from "@/lib/usage/usageBeaconClient";
@@ -151,8 +150,8 @@ export default function KarisimOlusturucuPage() {
   const isBlendDirty = isBlendFormDirty(currentSnapshot, baseline);
   useAromaterapiDirtyGuard(isBlendDirty);
 
-  // FAZ Word — karışım export (tek / tümü). Çift-tık kilidi.
-  const isAndroid = useIsAndroid();
+  // FAZ Word — karışım export (tek / tümü). Çift-tık kilidi. Android dahil tüm cihazlarda Word indirme
+  // açık (2026-10-14 owner kararı); HD ve Astroloji kendi kurallarını korur.
   // Android uygulama WebView'inde window.print çalışmaz → Yazdır CTA'ları gizli (plan §4.6).
   const isAndroidApp = useIsAndroidApp();
   const [blendExporting, setBlendExporting] = useState(false);
@@ -720,11 +719,11 @@ export default function KarisimOlusturucuPage() {
 
         {/* KAYDEDİLEN KARIŞIMLAR */}
         <section className={panel}>
-          <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-[13px] font-black text-slate-900">Kaydedilen Karışımlar ({saved.length})</h2>
-            {saved.length > 0 && !isAndroid ? (
+            {saved.length > 0 ? (
               <button type="button" onClick={() => void exportBlendWord("/api/aromaterapi/blends/word-report", { mode: "all" })} disabled={blendExporting}
-                className="no-android inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-700 transition hover:bg-blue-100 disabled:opacity-60"
+                className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-700 transition hover:bg-blue-100 disabled:opacity-60"
                 title="Tüm karışımları Word'e aktar">
                 📄 {blendExporting ? "…" : "Tümünü Word'e Aktar"}
               </button>
@@ -765,9 +764,7 @@ export default function KarisimOlusturucuPage() {
                     {!isAndroidApp && (
                     <button type="button" onClick={() => printSavedBlend(b)} className="no-android-app flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-black text-slate-600 transition hover:bg-slate-50">🖨 Yazdır</button>
                     )}
-                    {!isAndroid && (
-                    <button type="button" onClick={() => void exportBlendWord(`/api/aromaterapi/blends/${b.id}/word-report`)} disabled={blendExporting} className="no-android flex-1 rounded-lg border border-blue-200 bg-white px-2 py-1 text-[11px] font-black text-blue-700 transition hover:bg-blue-50 disabled:opacity-60" title="Bu karışımı Word'e aktar">📄 Word</button>
-                    )}
+                    <button type="button" onClick={() => void exportBlendWord(`/api/aromaterapi/blends/${b.id}/word-report`)} disabled={blendExporting} className="flex-1 rounded-lg border border-blue-200 bg-white px-2 py-1 text-[11px] font-black text-blue-700 transition hover:bg-blue-50 disabled:opacity-60" title="Bu karışımı Word'e aktar">📄 Word</button>
                   </div>
                 </div>
               ))}

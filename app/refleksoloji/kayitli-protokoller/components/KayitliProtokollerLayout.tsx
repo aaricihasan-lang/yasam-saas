@@ -16,7 +16,6 @@ import {
 import { useProtocolList } from "../hooks/useProtocolList";
 import { ProtocolListCard } from "./ProtocolListCard";
 import { RefleksolojiListLoading } from "@/app/refleksoloji/components/RefleksolojiSkeleton";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { LegacyQuarantineBanner } from "@/app/refleksoloji/components/LegacyQuarantineBanner";
@@ -41,7 +40,6 @@ export function KayitliProtokollerLayout() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const isAndroid = useIsAndroid();
 
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -232,8 +230,8 @@ export function KayitliProtokollerLayout() {
         ) : !loadErrorMessage ? (
           <>
             {/* BulkExportBar sadece gerçek hesaplarda gösterilir */}
-            {!isDemo && !isAndroid && (
-              <div className="no-android mt-3 mb-3">
+            {!isDemo && (
+              <div className="mt-3 mb-3">
                 <BulkExportBar
                   selectedCount={selectedIds.size}
                   totalCount={protocols.length}
