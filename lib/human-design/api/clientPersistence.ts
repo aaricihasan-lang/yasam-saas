@@ -223,7 +223,17 @@ export async function updateHdClient(
   input: Record<string, unknown>,
   opts: { expectedUpdatedAt?: string } = {},
 ): Promise<{ ok: boolean; error: string | null; status?: number; code?: string; updatedAt?: string | null }> {
-  const v = validateHdClientFields(pick(input), "update");
+  // HD-28 (#7) geriye uyum: detay formu her kayıtta TÜM alanları gönderir. Kural öncesi yazılmış
+  // (ör. şemasız dış bağlantı, uzun eski not) DEĞİŞMEMİŞ bir değer, başka bir alanın güncellenmesini
+  // engellememeli → yalnız DEĞİŞEN alanlar doğrulanır ve yazılır; değişen her alan kurallara uymalı.
+  const requested = pick(input);
+  const { row: current, error: readErr } = await getHdClient(db, tenantId, id);
+  if (readErr) return { ok: false, error: readErr };
+  const norm = (val: unknown) => (val === undefined || val === null || (typeof val === "string" && val.trim() === "") ? null : typeof val === "string" ? val.trim() : val);
+  const changed = current
+    ? Object.fromEntries(Object.entries(requested).filter(([k, val]) => norm(val) !== norm((current as Record<string, unknown>)[k])))
+    : requested;
+  const v = validateHdClientFields(changed, "update");
   if (!v.ok) return { ok: false, error: v.error, status: 400 };
   const loc = resolveClientLocationFields(input);
   if (loc.error) return { ok: false, error: loc.error, status: 400 };
