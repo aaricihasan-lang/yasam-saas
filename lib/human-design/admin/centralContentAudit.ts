@@ -17,6 +17,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { HdContentAuditInsert } from "./centralContentTypes";
 import { isHdAuditAction, isHdAuditResourceKind, isUuid } from "./centralContentValidation";
+import { hdSafeDbError } from "@/lib/human-design/api/safeError";
 
 export type HdAuditErrorCode =
   | "invalid_action"
@@ -119,7 +120,7 @@ export async function writeHdContentAudit(
     .maybeSingle();
 
   if (error) {
-    throw new HdContentAuditError("db_error", `hd audit insert başarısız: ${error.message}`);
+    throw new HdContentAuditError("db_error", `hd audit insert başarısız: ${hdSafeDbError("hdAudit.insert", error)}`);
   }
   const insertedId = (data as { id?: unknown } | null)?.id;
   if (insertedId == null) {

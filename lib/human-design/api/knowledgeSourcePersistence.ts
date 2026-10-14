@@ -167,8 +167,12 @@ export async function deleteSource(
   db: SupabaseClient,
   tenantId: string,
   id: string,
-): Promise<{ ok: boolean; error: string | null }> {
-  const { error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteSource")
-    .eq("id", id);
-  return { ok: !error, error: error ? hdSafeDbError("deleteSource", error) : null };
+): Promise<{ ok: boolean; error: string | null; status?: number }> {
+  const { data, error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteSource")
+    .eq("id", id)
+    .select("id");
+  if (error) return { ok: false, error: hdSafeDbError("deleteSource", error) };
+  // HD-27 (GUV-05): silinen satır yoksa başarı DÖNÜLMEZ.
+  if (!data || data.length === 0) return { ok: false, error: "Kaynak bulunamadı veya bu hesaba ait değil.", status: 404 };
+  return { ok: true, error: null };
 }

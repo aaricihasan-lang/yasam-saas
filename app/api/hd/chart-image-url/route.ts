@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { isOwnedChartImagePath } from "@/lib/human-design/api/chartImagePath";
+import { invalidIdResponse, isUuid } from "@/lib/human-design/api/requestIds";
 
 export const runtime = "nodejs";
 
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!clientId) {
     return fail(400, "clientId gerekli.");
   }
+  if (!isUuid(clientId)) return invalidIdResponse("clientId");
 
   const { data: client, error: clientErr } = await guard.db
     .from("human_design_clients")

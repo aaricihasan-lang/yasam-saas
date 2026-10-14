@@ -25,12 +25,14 @@ const TABLE = "human_design_clients";
 // Client'tan kabul edilecek alanlar (geri kalan her şey — tenant_id/user_id/id/created_at — yok sayılır).
 export type HdClientEditable = Partial<Omit<HumanDesignClientInsert, "tenant_id" | "user_id">>;
 
+// HD-01: `chart_image_url` istemciden YAZILAMAZ. Storage yolu yalnız sunucunun ürettiği
+// değerlerdir (yükleme kapalı/410; temizleme yalnız /api/hd/delete-chart-image ile). İstemcinin
+// gönderdiği değer sessizce yok sayılır (eski istemciler kırılmaz).
 const EDITABLE_KEYS: (keyof HumanDesignClient)[] = [
   "name",
   "birth_date",
   "birth_time",
   "birth_place",
-  "chart_image_url",
   "external_chart_url",
   "notes",
 ];
@@ -39,6 +41,94 @@ function pick(input: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const k of EDITABLE_KEYS) if (k in input) out[k] = input[k];
   return out;
+}
+
+/** HD-28 (#7) alan üst sınırları — Word/ekran düzenini ve depolamayı koruyan makul değerler. */
+export const HD_CLIENT_FIELD_LIMITS = Object.freeze({
+  name: 120,
+  birth_place: 200,
+  notes: 5000,
+  external_chart_url: 2048,
+});
+
+const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+
+function istanbulTodayIso(now: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
+
+/** Gerçek takvim günü mü (29 Şubat artık yıl kuralı dahil)? */
+function isCalendarDate(v: string): boolean {
+  const m = DATE_RE.exec(v);
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+}
+
+/**
+ * Dış harita bağlantısı yalnız http(s) olabilir (HD-28 #1: `javascript:`, `data:`, göreli yol
+ * vb. reddedilir). Boş/null → temizleme.
+ */
+export function isSafeExternalChartUrl(v: unknown): boolean {
+  if (typeof v !== "string") return false;
+  const t = v.trim();
+  if (!t || t.length > HD_CLIENT_FIELD_LIMITS.external_chart_url || /[\s<>"'`]/.test(t)) return false;
+  try {
+    const u = new URL(t);
+    return (u.protocol === "https:" || u.protocol === "http:") && !!u.hostname;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * HD-28 (#7) + girdi sınırları: istemciden gelen HD danışan alanlarını doğrular ve normalize
+ * eder. Yalnız GÖNDERİLEN alanlar denetlenir (kısmi PATCH). Hata → Türkçe mesaj (400).
+ */
+export function validateHdClientFields(
+  fields: Record<string, unknown>,
+  mode: "insert" | "update",
+  now: Date = new Date(),
+): { ok: true; fields: Record<string, unknown> } | { ok: false; error: string } {
+  const out: Record<string, unknown> = { ...fields };
+  const str = (k: string) => (typeof out[k] === "string" ? (out[k] as string).trim() : out[k]);
+
+  if ("name" in out || mode === "insert") {
+    const name = str("name");
+    if (typeof name !== "string" || !name) return { ok: false, error: "İsim alanı zorunludur." };
+    if (name.length > HD_CLIENT_FIELD_LIMITS.name) return { ok: false, error: `İsim en fazla ${HD_CLIENT_FIELD_LIMITS.name} karakter olabilir.` };
+    out.name = name;
+  }
+  if ("birth_date" in out) {
+    const v = str("birth_date");
+    if (v === null || v === "") out.birth_date = null;
+    else if (typeof v !== "string" || !isCalendarDate(v)) return { ok: false, error: "Doğum tarihi geçersiz (YYYY-AA-GG)." };
+    else if (Number(v.slice(0, 4)) < 1800 || v > istanbulTodayIso(now)) return { ok: false, error: "Doğum tarihi 1800 ile bugün arasında olmalıdır." };
+    else out.birth_date = v;
+  }
+  if ("birth_time" in out) {
+    const v = str("birth_time");
+    if (v === null || v === "") out.birth_time = null;
+    else if (typeof v !== "string" || !TIME_RE.test(v)) return { ok: false, error: "Doğum saati geçersiz (SS:DD)." };
+    else out.birth_time = v;
+  }
+  for (const k of ["birth_place", "notes"] as const) {
+    if (!(k in out)) continue;
+    const v = str(k);
+    if (v === null || v === "") out[k] = null;
+    else if (typeof v !== "string") return { ok: false, error: "Geçersiz alan değeri." };
+    else if (v.length > HD_CLIENT_FIELD_LIMITS[k]) return { ok: false, error: `${k === "notes" ? "Not" : "Doğum yeri"} en fazla ${HD_CLIENT_FIELD_LIMITS[k]} karakter olabilir.` };
+    else out[k] = v;
+  }
+  if ("external_chart_url" in out) {
+    const v = str("external_chart_url");
+    if (v === null || v === "") out.external_chart_url = null;
+    else if (!isSafeExternalChartUrl(v)) return { ok: false, error: "Harita bağlantısı geçerli bir http(s) adresi olmalıdır." };
+    else out.external_chart_url = v;
+  }
+  return { ok: true, fields: out };
 }
 
 // ── Yapılandırılmış doğum yeri (migration 20271008000000) ──────────────────────
@@ -105,14 +195,13 @@ export async function insertHdClient(
   userId: string,
   input: Record<string, unknown>,
 ): Promise<{ id: string | null; error: string | null }> {
-  const name = String(input.name ?? "").trim();
-  if (!name) return { id: null, error: "İsim alanı zorunludur." };
+  const v = validateHdClientFields(pick(input), "insert");
+  if (!v.ok) return { id: null, error: v.error };
 
   const loc = resolveClientLocationFields(input);
   if (loc.error) return { id: null, error: loc.error };
   const base = {
-    ...pick(input),
-    name,
+    ...v.fields,
     user_id: userId,
     updated_at: new Date().toISOString(),
   };
@@ -134,9 +223,11 @@ export async function updateHdClient(
   input: Record<string, unknown>,
   opts: { expectedUpdatedAt?: string } = {},
 ): Promise<{ ok: boolean; error: string | null; status?: number; code?: string; updatedAt?: string | null }> {
+  const v = validateHdClientFields(pick(input), "update");
+  if (!v.ok) return { ok: false, error: v.error, status: 400 };
   const loc = resolveClientLocationFields(input);
   if (loc.error) return { ok: false, error: loc.error, status: 400 };
-  const base = { ...pick(input), updated_at: new Date().toISOString() };
+  const base = { ...v.fields, updated_at: new Date().toISOString() };
 
   // P2-9: beklenen sürüm verildiyse koşullu (atomik) güncelleme — başka oturum ezilmez.
   const run = (fields: Record<string, unknown>) => {

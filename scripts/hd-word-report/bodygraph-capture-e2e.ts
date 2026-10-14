@@ -20,6 +20,7 @@ import { buildSync } from "esbuild";
 import { chromium } from "playwright";
 import { buildRoxyRenderPayload } from "../../lib/human-design/providers/roxy/render";
 import { HD_BODYGRAPH_ASPECT, validateBodygraphPng } from "../../lib/human-design/reporting/bodygraphPng";
+import { HD_BODYGRAPH_BIND_KEYWORD, bodygraphBindingText, fingerprintFromRoxyRender, readPngTextChunks, verifyBodygraphBinding } from "../../lib/human-design/reporting/bodygraphBinding";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = process.argv[2] || join(ROOT, ".hd-word-e2e");
@@ -85,8 +86,8 @@ async function main() {
 
     console.log("\n—— CAP. Gerçek renderer → PNG");
     const result = (await page.evaluate(async (data) => {
-      const w = window as unknown as { __hdCapture: (d: unknown, l: () => Promise<void>) => Promise<Record<string, unknown>>; __load: () => Promise<void> };
-      return w.__hdCapture(data, w.__load);
+      const w = window as unknown as { __hdCapture: (d: unknown, l: () => Promise<void>, c: string) => Promise<Record<string, unknown>>; __load: () => Promise<void> };
+      return w.__hdCapture(data, w.__load, "c4a00000-0000-4000-8000-0000000000a1");
     }, renderData)) as { ok: boolean; dataUrl?: string; width?: number; height?: number; bytes?: number; error?: string };
     ok("yakalama başarılı", result.ok === true, result.error);
     if (!result.ok || !result.dataUrl) return;
@@ -97,6 +98,9 @@ async function main() {
     ok("yükseklik ≥ 1800 px", (result.height ?? 0) >= 1800, String(result.height));
     ok("oran korunur (432:612)", Math.abs((result.width! / result.height!) - HD_BODYGRAPH_ASPECT) < 0.01, `${result.width}x${result.height}`);
     ok("boyut makul (< 2,5 MB)", png.length < 2.5 * 1024 * 1024, `${png.length} bytes`);
+    // HD-25: tarayıcı PNG'yi analize bağlar; etiket sunucunun kayıtlı veriden üreteceğiyle aynı olmalı.
+    const expectedBind = bodygraphBindingText("c4a00000-0000-4000-8000-0000000000a1", fingerprintFromRoxyRender(renderData as Record<string, unknown>));
+    ok("HD-25: PNG'de analiz-bağlama etiketi var ve beklenenle aynı", verifyBodygraphBinding(png, expectedBind).ok, JSON.stringify(readPngTextChunks(png).get(HD_BODYGRAPH_BIND_KEYWORD) ?? []));
     console.log(`    PNG: ${result.width}×${result.height}, ${png.length} bytes`);
 
     console.log("\n—— VIS. Canlı renderer ↔ yakalanan PNG piksel karşılaştırması");
@@ -123,11 +127,11 @@ async function main() {
 
     console.log("\n—— VER. Bozuk veri → yakalama reddeder (eksik çizim Word'e gitmez)");
     const broken = await page.evaluate(async (data) => {
-      const w = window as unknown as { __hdCapture: (d: unknown, l: () => Promise<void>) => Promise<Record<string, unknown>>; __load: () => Promise<void> };
+      const w = window as unknown as { __hdCapture: (d: unknown, l: () => Promise<void>, c: string) => Promise<Record<string, unknown>>; __load: () => Promise<void> };
       const d = JSON.parse(JSON.stringify(data));
       d.gates.push({ planet: "Sun", side: "design", gate: 64, line: 1, gateName: "x" }); // çizimde olmayacak sahte kapı → sayım uyuşmaz
       d.gates = d.gates.filter((g: { gate: number }) => g.gate !== 64).concat([{ planet: "Sun", side: "design", gate: 999, line: 1 }]);
-      return w.__hdCapture(d, w.__load);
+      return w.__hdCapture(d, w.__load, "c4a00000-0000-4000-8000-0000000000a1");
     }, renderData) as { ok: boolean; error?: string };
     ok("kayıtlı veriyle uyuşmayan çizim reddedilir", broken.ok === false, broken.error);
 

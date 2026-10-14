@@ -15,7 +15,7 @@
 //  12) Roxy çağrısı → runtime şema doğrulama → normalizasyon → iç tutarlılık
 //  13) TEK INSERT (yarım/bozuk sonuç yazılmaz); eşzamanlı ikinci INSERT PK ile reddedilir (23505)
 
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { withTenant, tenantInsertPayload } from "./tenantScope";
 import { deterministicUuid, isUniqueViolation, isUuid } from "./deterministicId";
@@ -34,6 +34,7 @@ import {
 import type { RoxyBodygraphRequest, RoxyCallResult } from "../providers/roxy/client";
 import { validateRoxyBodygraph } from "../providers/roxy/schema";
 import { normalizeRoxyBodygraph } from "../providers/roxy/normalize";
+import { checkDesignInstantConsistency } from "../providers/roxy/timeConsistency";
 
 const TABLE = "human_design_charts";
 export const ROXY_CONTRACT_VERSION = "roxy-1";
@@ -47,6 +48,8 @@ export type RoxyServiceDeps = {
   sleep?: (ms: number) => Promise<void>;
   policy?: RoxyPolicy;
   log?: (msg: string, detail?: unknown) => void;
+  /** GUV-07: harita kimliği/hash anahtarı (test enjeksiyonu). Verilmezse env'den okunur. */
+  chartIdSecret?: string | null;
 };
 
 export type RoxyServiceCtx = {
@@ -115,6 +118,26 @@ export function roxyChartIdFor(tenantId: string, inputHash: string): string {
   return deterministicUuid("roxy-chart", tenantId, inputHash);
 }
 
+/**
+ * HD-28 (GUV-07): ANAHTARLI girdi hash'i. Tuzsuz SHA-256 + deterministik id, kimlik sızarsa doğum
+ * verisinin çevrimdışı tahmin edilip doğrulanmasına izin veriyordu. Yeni kayıtlar sunucu sırrıyla
+ * (HMAC, alan ayrımlı) türetilir; id/hash tek başına doğum verisi hakkında bilgi vermez.
+ * Eski (tuzsuz) kayıtlar SİLİNMEZ/DEĞİŞMEZ ve yeniden kullanılmaya devam eder (findEquivalentChart).
+ */
+export function roxyKeyedInputHash(i: RoxyInputIdentity, secret: string): string {
+  return createHmac("sha256", `hd-chart-id:v1:${secret}`).update(roxyInputHash(i), "utf8").digest("hex");
+}
+
+export function roxyKeyedChartIdFor(tenantId: string, keyedHash: string): string {
+  return deterministicUuid("roxy-chart-k1", tenantId, keyedHash);
+}
+
+/** Anahtar: özel HD_CHART_ID_SECRET, yoksa sunucu service_role anahtarı (yalnız server env). */
+export function readChartIdSecret(env: NodeJS.ProcessEnv = process.env): string | null {
+  const s = (env.HD_CHART_ID_SECRET || env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+  return s ? s : null;
+}
+
 type ClientRow = { id: string; name: string; birth_date: string | null; birth_time: string | null };
 
 async function findExisting(
@@ -130,6 +153,49 @@ async function findExisting(
     return { found: false, error: fail(500, "DB_ERROR", hdSafeDbError("roxy.findExisting", error)) };
   }
   return { found: !!data, error: null };
+}
+
+/**
+ * Aynı danışan + AYNI hesap girdisiyle (tarih, saat, tz, koordinat, düğüm, dil, adaptör sürümü)
+ * daha önce kaydedilmiş Roxy haritası var mı? Hash'ten BAĞIMSIZ (kayıtlı girdi alanları) →
+ * eski tuzsuz-kimlikli kayıtlar ve ileride sır değişse bile yeniden kullanılır; mükerrer ücretli
+ * çağrı yapılmaz.
+ */
+async function findEquivalentChart(
+  db: SupabaseClient,
+  tenantId: string,
+  i: RoxyInputIdentity,
+): Promise<{ id: string | null; error: RoxyServiceResponse | null }> {
+  const { data, error } = await withTenant(
+    db.from(TABLE).select("id, input, engine_version, created_at"),
+    tenantId,
+    "roxy.findEquivalent",
+  )
+    .eq("client_id", i.clientId)
+    .eq("provider", ROXY_PROVIDER_ID)
+    .eq("birth_date", i.date)
+    .eq("birth_time", i.time)
+    .eq("timezone", i.timezone)
+    .order("created_at", { ascending: true })
+    .limit(20);
+  if (error) {
+    if (isMissingColumn(error)) return { id: null, error: MIGRATION_PENDING };
+    return { id: null, error: fail(500, "DB_ERROR", hdSafeDbError("roxy.findEquivalent", error)) };
+  }
+  const same = (a: unknown, b: number) => typeof a === "number" && a.toFixed(6) === b.toFixed(6);
+  for (const r of (data ?? []) as { id: string; input: Record<string, unknown> | null; engine_version: string | null }[]) {
+    const inp = r.input ?? {};
+    if (
+      r.engine_version === ROXY_ENGINE_VERSION &&
+      same(inp.latitude, i.latitude) &&
+      same(inp.longitude, i.longitude) &&
+      inp.nodeType === i.nodeType &&
+      inp.lang === i.lang
+    ) {
+      return { id: r.id, error: null };
+    }
+  }
+  return { id: null, error: null };
 }
 
 /** Danışanda kalıcı, SUNUCUNUN çözüp yazdığı yapılandırılmış doğum yeri (tenant-scoped). */
@@ -289,13 +355,18 @@ export async function computeRoxyChart(
     nodeType: policy.nodeType,
     lang: policy.lang,
   };
-  const inputHash = roxyInputHash(identity);
-  const id = roxyChartIdFor(ctx.tenantId, inputHash);
+  // GUV-07: yeni kayıtların kimliği/hash'i sunucu sırrıyla anahtarlanır (sır yoksa eski biçim).
+  const idSecret = deps.chartIdSecret !== undefined ? deps.chartIdSecret : readChartIdSecret();
+  const inputHash = idSecret ? roxyKeyedInputHash(identity, idSecret) : roxyInputHash(identity);
+  const id = idSecret ? roxyKeyedChartIdFor(ctx.tenantId, inputHash) : roxyChartIdFor(ctx.tenantId, inputHash);
 
-  // 8) Kayıtlı sonuç → Roxy ÇAĞRILMAZ.
+  // 8) Kayıtlı sonuç → Roxy ÇAĞRILMAZ (önce kimlikle, sonra kayıtlı girdi alanlarıyla).
   const existing = await findExisting(ctx.db, ctx.tenantId, id);
   if (existing.error) return existing.error;
   if (existing.found) return { status: 200, body: { ok: true, id, reused: true } };
+  const equivalent = await findEquivalentChart(ctx.db, ctx.tenantId, identity);
+  if (equivalent.error) return equivalent.error;
+  if (equivalent.id) return { status: 200, body: { ok: true, id: equivalent.id, reused: true } };
 
   // 9) Yapılandırma.
   if (!deps.config) {
@@ -363,6 +434,20 @@ export async function computeRoxyChart(
     log("[hd-roxy] normalization failed", { errors: n.errors.slice(0, 10) });
     return fail(502, "PROVIDER_INVALID_RESPONSE", "Hesaplama sonucu doğrulanamadı (tutarsız veri). Sonuç kaydedilmedi.");
   }
+
+  // 12b) HD-15 — Roxy'nin kullandığı doğum anı ↔ sunucunun çözdüğü an (Design anı üzerinden,
+  //      bağımsız efemerisle). Anlamlı uyuşmazlıkta yanlış harita KAYDEDİLMEZ. Kendi hesabımız
+  //      yapılamazsa (unverifiable) kayıt engellenmez, yalnız loglanır. Doğum verisi loglanmaz.
+  const tc = checkDesignInstantConsistency(t.utcIso, v.value.designInstantUtc);
+  if (tc.status === "mismatch") {
+    log("[hd-roxy] birth instant mismatch", { deltaMinutes: tc.deltaMinutes });
+    return fail(
+      502,
+      "PROVIDER_TIME_MISMATCH",
+      "Hesaplama servisinin kullandığı doğum anı, doğum yeri ve saat dilimine göre beklenen anla uyuşmuyor. Yanlış sonuç kaydedilmedi; lütfen yöneticiye bildirin.",
+    );
+  }
+  if (tc.status === "unverifiable") log("[hd-roxy] birth instant unverifiable", { reason: tc.reason });
 
   // 13) Tek INSERT — tam sonuç ya da hiç.
   const payload = tenantInsertPayload(ctx.tenantId, {

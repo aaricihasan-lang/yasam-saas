@@ -19,7 +19,8 @@ import { randomUUID } from "node:crypto";
 import JSZip from "jszip";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { SERVICE_KEY, type TestEnv } from "../anamnez/testEnv";
-import { BODYGRAPH, TA, callRoute, installFakeRoxy, mkUser, startHdFlowEnv, type Auth, type Json } from "./env";
+import { BODYGRAPH, FIXTURE, TA, callRoute, installFakeRoxy, mkUser, startHdFlowEnv, type Auth, type Json } from "./env";
+import { boundBodygraphDataUrl } from "../hd-roxy/consistentFixture";
 
 const OUT = process.argv.includes("--out") ? process.argv[process.argv.indexOf("--out") + 1] : path.join(os.tmpdir(), "hd-analysis-flow-browser");
 const PORT = 3987;
@@ -112,7 +113,7 @@ async function main() {
     const cNew = await callRoute(routes.roxy.POST, "POST", U, { client_id: hd, location_id: "client" });
     const chartReady = String(cReady.json.id);
     const chartNew = String(cNew.json.id);
-    const w0 = await callRoute(routes.professional.POST, "POST", U, { chartId: chartReady, requestId: randomUUID(), commentary: "both", bodygraphPng: BODYGRAPH });
+    const w0 = await callRoute(routes.professional.POST, "POST", U, { chartId: chartReady, requestId: randomUUID(), commentary: "both", bodygraphPng: boundBodygraphDataUrl(BODYGRAPH, chartReady, FIXTURE) });
     const repReady = String(w0.json.id);
     ok(created.status === 200 && cReady.json.ok === true && cNew.json.ok === true && w0.json.ok === true && roxy.state.calls === 2,
       "tohum: danışan + 2 kayıtlı analiz + 1 hazır Word (sahte Roxy 2 çağrı)", { c: created.json, a: cReady.json, b: cNew.json, w: w0.json });

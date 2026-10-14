@@ -37,6 +37,7 @@ import type {
   HdSourceRow,
 } from "./centralContentTypes";
 import { writeHdContentAudit } from "./centralContentAudit";
+import { hdSafeDbError } from "@/lib/human-design/api/safeError";
 
 // ── SHA-256 (server-side; birebir UTF-8 byte) ───────────────────────────────
 export function sha256Hex(text: string): string {
@@ -57,7 +58,7 @@ function mapError(error: PgErr): HdPersistResult<never> {
   if (code === "23514") {
     return { ok: false, error: { code: "validation", message: "Kayıt kısıt (CHECK) doğrulamasını geçmedi." } };
   }
-  return { ok: false, error: { code: "db_error", message: error?.message ?? "Bilinmeyen DB hatası." } };
+  return { ok: false, error: { code: "db_error", message: hdSafeDbError("centralContent", error ?? "unknown") } };
 }
 
 // ── Audit yardımcı (mutation sonrası; fail-closed) ──────────────────────────

@@ -22,7 +22,7 @@
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decideTable, type RestoreContext } from "./engine";
-import { isSafeStoragePath, HD_REPORT_SNAPSHOT_DIR } from "@/lib/human-design/api/chartImagePath";
+import { isTenantHdImagePath, storagePathExtension, HD_REPORT_SNAPSHOT_DIR } from "@/lib/human-design/api/chartImagePath";
 
 export const HD_FILES_BUCKET = "hd-chart-images";
 /** 3'ün katı → her parçanın base64'ü ayrı kodlanıp birleştirilebilir (dolgu yalnız sonda). */
@@ -36,16 +36,16 @@ const MIME_BY_EXT: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jp
 export type HdBackupFileRef = { bucket: string; path: string; content_type: string };
 
 function extOf(path: string): string {
-  return (path.split(".").pop() ?? "").toLowerCase();
+  return storagePathExtension(path);
 }
 
-/** Bu tenant'ın dosya yolu mu? (önek + güvenli yol + izinli uzantı; geçici klasör hariç) */
+/**
+ * Bu tenant'ın dosya yolu mu? HD-01/HD-02: merkezî sıkı doğrulayıcı (traversal, yüzde-kodlama,
+ * alt klasör, beklenmeyen uzantı yok); yalnız `{t}/{uuid}/{dosya}.{ext}` ya da
+ * `{t}/report-snapshots/{uuid}.{ext}`. Geçici geri yükleme klasörü zaten biçim dışıdır.
+ */
 export function isTenantHdFilePath(path: unknown, tenantId: string): path is string {
-  if (typeof path !== "string" || !tenantId) return false;
-  const p = path.trim();
-  if (p !== path || !p.startsWith(`${tenantId}/`) || !isSafeStoragePath(p)) return false;
-  if (p.split("/")[1] === RESTORE_TMP_DIR) return false;
-  return !!MIME_BY_EXT[extOf(p)];
+  return isTenantHdImagePath(path, tenantId) && !!MIME_BY_EXT[extOf(path)];
 }
 
 /** Tenant'ın DB satırlarının referans verdiği HD dosyaları (danışan görseli + rapor snapshot'ı). */
@@ -127,7 +127,7 @@ export type HdFilePlanInput = { bucket?: unknown; path?: unknown; size?: unknown
 export type HdFilePlanDecision = {
   path: string;
   action: "upload" | "exists" | "skip";
-  reason?: "unlicensed" | "invalid_path" | "foreign_tenant" | "too_large" | "invalid_meta";
+  reason?: "unlicensed" | "invalid_path" | "foreign_tenant" | "too_large" | "invalid_meta" | "unreferenced";
 };
 
 async function objectExists(db: SupabaseClient, path: string): Promise<boolean> {
@@ -137,6 +137,18 @@ async function objectExists(db: SupabaseClient, path: string): Promise<boolean> 
   return (data ?? []).some((o) => o.name === name);
 }
 
+/**
+ * HD-02: geri yüklenebilecek yollar İSTEMCİDEN değil SUNUCUDAN türetilir — yalnız bu tenant'ın
+ * (az önce geri yüklenmiş ya da zaten var olan) DB satırlarının referans verdiği yollar
+ * (danışan `chart_image_url`, rapor snapshot görseli). Dosyalar tablo satırlarından SONRA
+ * geri yüklenir (lib/backup/client.ts), bu yüzden meşru yedeklerde küme eksiksizdir.
+ */
+async function referencedRestorePaths(db: SupabaseClient, tenantId: string): Promise<Set<string> | null> {
+  const list = await listHdBackupFiles(db, tenantId);
+  if (list.error) return null;
+  return new Set(list.files.map((f) => f.path));
+}
+
 export async function planHdFileRestore(
   db: SupabaseClient,
   ctx: RestoreContext,
@@ -144,12 +156,14 @@ export async function planHdFileRestore(
 ): Promise<HdFilePlanDecision[]> {
   const licensed = decideTable("human_design_clients", ctx).action === "restore";
   const out: HdFilePlanDecision[] = [];
+  const referenced = licensed ? await referencedRestorePaths(db, ctx.tenantId) : new Set<string>();
   for (const f of files.slice(0, 500)) {
     const path = typeof f.path === "string" ? f.path : "";
     if (!licensed) { out.push({ path, action: "skip", reason: "unlicensed" }); continue; }
     if (f.bucket !== HD_FILES_BUCKET || !path) { out.push({ path, action: "skip", reason: "invalid_path" }); continue; }
     if (!path.startsWith(`${ctx.tenantId}/`)) { out.push({ path, action: "skip", reason: "foreign_tenant" }); continue; }
     if (!isTenantHdFilePath(path, ctx.tenantId)) { out.push({ path, action: "skip", reason: "invalid_path" }); continue; }
+    if (!referenced || !referenced.has(path)) { out.push({ path, action: "skip", reason: "unreferenced" }); continue; }
     if (typeof f.size !== "number" || f.size <= 0 || typeof f.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(f.sha256)) {
       out.push({ path, action: "skip", reason: "invalid_meta" });
       continue;
@@ -175,6 +189,9 @@ export async function storeHdRestorePart(
   if (decideTable("human_design_clients", ctx).action !== "restore") return { ok: false, status: 403, error: "Modül lisansı yok." };
   const path = body.path;
   if (!isTenantHdFilePath(path, ctx.tenantId)) return { ok: false, status: 400, error: "Geçersiz dosya yolu." };
+  const referenced = await referencedRestorePaths(db, ctx.tenantId);
+  if (!referenced) return { ok: false, status: 500, error: "Dosya listesi okunamadı." };
+  if (!referenced.has(path)) return { ok: false, status: 400, error: "Bu dosya geri yüklenen kayıtlarda yer almıyor." };
   const uploadId = typeof body.upload_id === "string" ? body.upload_id : "";
   const index = typeof body.index === "number" ? body.index : -1;
   const data = typeof body.data_base64 === "string" ? body.data_base64 : "";
@@ -201,6 +218,9 @@ export async function commitHdRestoreFile(
   if (decideTable("human_design_clients", ctx).action !== "restore") return { ok: false, status: 403, error: "Modül lisansı yok." };
   const path = body.path;
   if (!isTenantHdFilePath(path, ctx.tenantId)) return { ok: false, status: 400, error: "Geçersiz dosya yolu." };
+  const referenced = await referencedRestorePaths(db, ctx.tenantId);
+  if (!referenced) return { ok: false, status: 500, error: "Dosya listesi okunamadı." };
+  if (!referenced.has(path)) return { ok: false, status: 400, error: "Bu dosya geri yüklenen kayıtlarda yer almıyor." };
   const uploadId = typeof body.upload_id === "string" ? body.upload_id : "";
   const parts = typeof body.parts === "number" ? body.parts : 0;
   if (!UPLOAD_ID_RE.test(uploadId) || !Number.isInteger(parts) || parts < 1 || parts > 17) {

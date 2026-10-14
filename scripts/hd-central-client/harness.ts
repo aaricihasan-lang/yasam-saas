@@ -16,6 +16,7 @@ import { execSync } from "node:child_process";
 import { NextRequest } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SERVICE_KEY, ANON_KEY, startAnamnezTestEnv, type TestEnv } from "../anamnez/testEnv";
+import { consistentRoxyResponse } from "../hd-roxy/consistentFixture";
 
 const ROOT = process.cwd();
 
@@ -356,7 +357,7 @@ async function main() {
       config: { apiKey: "zz-not-a-real-key", baseUrl: "https://roxyapi.com/api/v2" },
       callRoxy: async (_c: unknown, body: unknown) => {
         calls.push(body);
-        return { ok: true as const, raw: JSON.parse(JSON.stringify(FIXTURE)) };
+        return { ok: true as const, raw: JSON.parse(consistentRoxyResponse(JSON.stringify(FIXTURE), JSON.stringify(body))) };
       },
       rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
       sleep: async () => undefined,
