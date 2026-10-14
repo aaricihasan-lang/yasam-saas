@@ -3,7 +3,8 @@ import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
 import { trackUsage } from "@/lib/usage/trackUsage";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
+import { isUuid } from "@/lib/human-design/api/requestIds";
 import { getCanonicalReportForDownload } from "@/lib/human-design/api/reportPersistence";
 import { hdReportFilename, renderHdReportBuffer } from "@/lib/human-design/reporting/wordReport";
 import { isOwnedChartImagePath, isOwnedReportSnapshotPath } from "@/lib/human-design/api/chartImagePath";
@@ -45,11 +46,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
 
-  const rl = checkRateLimit(`hd-word-dl:${guard.tenantId}`, 20, 60_000);
+  // HD-28 (GUV-04): instance-bağımsız DB limiti.
+  const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-word-dl", guard.tenantId), 20, 60);
   if (!rl.allowed) {
     return NextResponse.json(
       { ok: false, error: "Çok fazla indirme isteği. Lütfen biraz sonra tekrar deneyin." },
-      { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": String(rl.retryAfterSeconds) } },
+      { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": String(rl.retryAfterSec || 60) } },
     );
   }
 
@@ -62,6 +64,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   const reportId = String((raw as Record<string, unknown> | null)?.reportId ?? "").trim();
   if (!reportId) {
     return NextResponse.json({ ok: false, error: "reportId gerekli." }, { status: 400, headers: { "Cache-Control": "no-store" } });
+  }
+  // HD-27: geçersiz biçimli kimlik DB'ye gitmez (önceden 500 + sahte action_failed).
+  if (!isUuid(reportId)) {
+    return NextResponse.json({ ok: false, code: "INVALID_ID", error: "Geçersiz reportId." }, { status: 400, headers: { "Cache-Control": "no-store" } });
   }
 
   const read = await getCanonicalReportForDownload(guard.db, guard.tenantId, reportId);

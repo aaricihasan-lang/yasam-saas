@@ -19,7 +19,8 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { SERVICE_KEY, type TestEnv } from "../anamnez/testEnv";
-import { BODYGRAPH, HD_BUCKET, TA, callRoute, installFakeRoxy, mkUser, startHdFlowEnv, type Auth, type Json } from "../hd-analysis-word-flow/env";
+import { BODYGRAPH, FIXTURE, HD_BUCKET, TA, callRoute, installFakeRoxy, mkUser, startHdFlowEnv, type Auth, type Json } from "../hd-analysis-word-flow/env";
+import { boundBodygraphDataUrl } from "../hd-roxy/consistentFixture";
 
 const OUT = process.argv.includes("--out") ? process.argv[process.argv.indexOf("--out") + 1] : path.join(os.tmpdir(), "hd-profile-delete-location-browser");
 const PORT = 3988;
@@ -98,7 +99,7 @@ async function main() {
       const c = await callRoute(routes.journey.POST, "POST", U, { action: "create_new", ad, soyad, dogum, birth_time: "10:30", birth_location_ref: "trd-42-selcuklu", request_id: randomUUID() });
       const hd = String(c.json.hd_client_id);
       const ch = await callRoute(routes.roxy.POST, "POST", U, { client_id: hd, location_id: "client" });
-      const w = await callRoute(routes.professional.POST, "POST", U, { chartId: String(ch.json.id), requestId: randomUUID(), commentary: "expert", bodygraphPng: BODYGRAPH });
+      const w = await callRoute(routes.professional.POST, "POST", U, { chartId: String(ch.json.id), requestId: randomUUID(), commentary: "expert", bodygraphPng: boundBodygraphDataUrl(BODYGRAPH, String(ch.json.id), FIXTURE) });
       return { hd, journey: String(c.json.journey_client_id), chart: String(ch.json.id), report: String(w.json.id), ok: c.status === 200 && ch.json.ok === true && w.json.ok === true };
     };
     const victims: Record<string, Awaited<ReturnType<typeof seedProfile>>> = {};

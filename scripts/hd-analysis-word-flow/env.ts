@@ -10,6 +10,7 @@ import { randomUUID } from "node:crypto";
 import { deflateSync } from "node:zlib";
 import { NextRequest } from "next/server";
 import { SERVICE_KEY, ANON_KEY, startAnamnezTestEnv, type TestEnv } from "../anamnez/testEnv";
+import { consistentRoxyResponse } from "../hd-roxy/consistentFixture";
 
 const ROOT = process.cwd();
 {
@@ -168,7 +169,7 @@ export function installFakeRoxy() {
       if (!key.includes("zz-harness-fake-roxy-key")) state.external.push(`GERÇEK ANAHTAR?! ${u}`);
       state.calls++;
       if (state.fail === "network") throw new TypeError("fetch failed");
-      return new Response(FIXTURE, { status: 200, headers: { "content-type": "application/json" } });
+      return new Response(consistentRoxyResponse(FIXTURE, init?.body), { status: 200, headers: { "content-type": "application/json" } });
     }
     state.external.push(u);
     throw new Error("harness: dış ağ çağrısı yasak");

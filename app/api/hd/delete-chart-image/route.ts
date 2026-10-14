@@ -3,6 +3,7 @@ import { reportReferencedImagePaths } from "@/lib/human-design/api/hdStorage";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { isOwnedChartImagePath } from "@/lib/human-design/api/chartImagePath";
+import { invalidIdResponse, isUuid } from "@/lib/human-design/api/requestIds";
 
 export const runtime = "nodejs";
 
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!clientId) {
     return fail(400, "clientId gerekli.");
   }
+  if (!isUuid(clientId)) return invalidIdResponse("clientId");
 
   // Danışan sahipliği + mevcut path server-side okunur (istemciden path alınmaz).
   const { data: client, error: clientErr } = await guard.db

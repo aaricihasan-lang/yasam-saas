@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
 import { getChartSystemReading } from "@/lib/human-design/api/systemReadingService";
+import { invalidIdResponse, isUuid } from "@/lib/human-design/api/requestIds";
 
 export const runtime = "nodejs";
 
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   }
 
   const id = new URL(req.url).searchParams.get("id");
+  if (!isUuid(id)) return invalidIdResponse("id");
   const result = await getChartSystemReading(guard.db, guard.tenantId, id);
   return NextResponse.json(result.body, { status: result.status, headers: NO_STORE });
 }

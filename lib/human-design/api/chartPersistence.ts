@@ -130,6 +130,8 @@ export async function getComputedChart(
   // (yorum metni yok; yeni Roxy çağrısı yok). Ham yanıtın kendisi istemciye gitmez.
   if (row.provider === "roxyapi") row.roxy_render = buildRoxyRenderPayload(row.provider_raw);
   delete row.provider_raw;
+  // HD-28 (GUV-07): girdi hash'i (eski kayıtlarda tuzsuz doğum verisi özeti) istemciye GİTMEZ.
+  delete row.input_hash;
   return { row, error: null };
 }
 

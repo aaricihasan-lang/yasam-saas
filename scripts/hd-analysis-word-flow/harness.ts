@@ -17,6 +17,7 @@ import {
   BODYGRAPH, FIXTURE, LEGACY_CLIENT, LEGACY_MANUAL_CHART, LEGACY_REPORT, LEGACY_V1_REPORT, TA, TB,
   callRoute, mkUser, src, startHdFlowEnv, type Auth, type Handler, type Json,
 } from "./env";
+import { boundBodygraphDataUrl, consistentRoxyResponse } from "../hd-roxy/consistentFixture";
 import type { TestEnv } from "../anamnez/testEnv";
 
 let passed = 0;
@@ -46,7 +47,7 @@ async function main() {
       if (!key.includes("zz-harness-fake-roxy-key")) external.push(`GERÇEK ANAHTAR?! ${u}`);
       roxyCalls++;
       if (roxyFail === "network") throw new TypeError("fetch failed");
-      return new Response(FIXTURE, { status: 200, headers: { "content-type": "application/json" } });
+      return new Response(consistentRoxyResponse(FIXTURE, init?.body), { status: 200, headers: { "content-type": "application/json" } });
     }
     external.push(u);
     throw new Error("harness: dış ağ çağrısı yasak");
@@ -160,10 +161,10 @@ async function main() {
     ok((await call(routes.reports.GET, "GET", U.A, undefined, `?brief=1&chartId=not-a-uuid`)).status === 400, "8b bozuk analiz kimliği reddedilir");
     const reqId = randomUUID();
     const rocBefore = roxyCalls;
-    const w1 = await call(routes.professional.POST, "POST", U.A, { chartId: chartA, requestId: reqId, commentary: "both", bodygraphPng: BODYGRAPH });
+    const w1 = await call(routes.professional.POST, "POST", U.A, { chartId: chartA, requestId: reqId, commentary: "both", bodygraphPng: boundBodygraphDataUrl(BODYGRAPH, chartA, FIXTURE) });
     ok(w1.status === 200 && w1.json.ok === true && w1.json.bodygraph === "roxy_render" && w1.json.systemReading === "included" && Number(w1.json.expertEntries) >= 1, "9a Word v2 raporu oluşturuldu (BodyGraph + Sistem Yorumu + uzman bilgisi)", w1.json);
     const rep1 = String(w1.json.id);
-    const w1b = await call(routes.professional.POST, "POST", U.A, { chartId: chartA, requestId: reqId, commentary: "both", bodygraphPng: BODYGRAPH });
+    const w1b = await call(routes.professional.POST, "POST", U.A, { chartId: chartA, requestId: reqId, commentary: "both", bodygraphPng: boundBodygraphDataUrl(BODYGRAPH, chartA, FIXTURE) });
     ok(w1b.json.id === rep1 && (await count(`select count(*) n from public.human_design_reports where chart_id=$1`, [chartA])) === 1, "20b Word çift tıklama / ağ tekrarı → tek rapor satırı");
     ok(roxyCalls === rocBefore, "9b Word üretimi Roxy çağırmaz");
     const brief1 = await call(routes.reports.GET, "GET", U.A, undefined, `?brief=1&chartId=${chartA}`);
@@ -186,7 +187,7 @@ async function main() {
     const textA2 = (await (await JSZip.loadAsync(dlA2.buf!)).file("word/document.xml")!.async("string")).replace(/<[^>]+>/g, " ");
     ok(dlA2.status === 200 && dlA2.headers.get("x-hd-report-redacted") === "system-reading", "13b Sistem Yorumu yetkisi olmayan uzman indirince bölüm çıkarılır (yetki indirme anında)", { st: dlA2.status, h: dlA2.headers.get("x-hd-report-redacted") });
     ok(textA2.includes("ZZ uzman bilgi bankası metni"), "13c yetkisiz indirmede uzman bilgileri korunur");
-    const wNo = await call(routes.professional.POST, "POST", U.A2, { chartId: chartA2, requestId: randomUUID(), commentary: "system", bodygraphPng: BODYGRAPH });
+    const wNo = await call(routes.professional.POST, "POST", U.A2, { chartId: chartA2, requestId: randomUUID(), commentary: "system", bodygraphPng: boundBodygraphDataUrl(BODYGRAPH, chartA2, FIXTURE) });
     ok(wNo.status === 200 && wNo.json.systemReading === "not_permitted", "13d yetkisiz uzman 'Sistem Yorumu' seçse de rapora girmez (sunucu kararı)", wNo.json);
 
     // ── 18) ESKİ RAPORLAR + 17) ESKİ MANUEL ANALİZ ────────────────────────────
@@ -214,7 +215,7 @@ async function main() {
     section("16. Tenant izolasyonu");
     ok((await call(routes.charts.GET, "GET", U.B, undefined, `?id=${chartA}`)).status === 404, "16a başka tenant analizi açamaz (404)");
     ok(((await call(routes.reports.GET, "GET", U.B, undefined, `?brief=1&chartId=${chartA}`)).json.rows as Json[]).length === 0, "16b başka tenant hazır Word raporunu göremez");
-    ok((await call(routes.professional.POST, "POST", U.B, { chartId: chartA, requestId: randomUUID(), bodygraphPng: BODYGRAPH })).status === 404, "16c başka tenant'ın analizi için Word oluşturulamaz");
+    ok((await call(routes.professional.POST, "POST", U.B, { chartId: chartA, requestId: randomUUID(), bodygraphPng: boundBodygraphDataUrl(BODYGRAPH, chartA, FIXTURE) })).status === 404, "16c başka tenant'ın analizi için Word oluşturulamaz");
     const dlB = await call(routes.download.POST, "POST", U.B, { reportId: rep1 });
     ok(dlB.status === 404 || dlB.status === 403, "16d başka tenant raporu indiremez", dlB.status);
     ok((await compute(U.B, hdA, "client")).status === 404, "16e başka tenant'ın danışanı için hesap yapılamaz");

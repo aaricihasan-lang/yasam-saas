@@ -10,7 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { hdSafeDbError } from "./safeError";
 import { withTenant, tenantInsertPayload } from "./tenantScope";
 import { HD_CONFLICT_CODE, HD_CONFLICT_MESSAGE } from "./optimistic";
-import { isUniqueViolation } from "./deterministicId";
+import { isUniqueViolation, isUuid } from "./deterministicId";
 import { removeReportSnapshotImage } from "./hdStorage";
 import type { HumanDesignReport, HumanDesignClient } from "@/lib/human-design/types";
 import {
@@ -49,12 +49,19 @@ async function clientInTenant(db: SupabaseClient, clientId: string, tenantId: st
   return !error && !!data;
 }
 
-async function chartInTenant(db: SupabaseClient, chartId: string, tenantId: string): Promise<boolean> {
-  const { data, error } = await withTenant(db.from("human_design_charts").select("id"), tenantId, "chartInTenant")
+/**
+ * HD-27 (RAP-14): harita yalnız aynı tenant'ta olmakla kalmamalı, raporun bağlandığı
+ * DANIŞANA ait olmalı — aksi hâlde A danışanının raporuna B'nin haritası bağlanabilirdi.
+ */
+async function chartBelongsToClient(db: SupabaseClient, chartId: string, clientId: string, tenantId: string): Promise<boolean> {
+  const { data, error } = await withTenant(db.from("human_design_charts").select("id, client_id"), tenantId, "chartBelongsToClient")
     .eq("id", chartId)
     .maybeSingle();
-  return !error && !!data;
+  return !error && !!data && (data as { client_id: string | null }).client_id === clientId;
 }
+
+/** HD-28 (#7) eski (legacy) rapor metin alanları üst sınırları. */
+const LEGACY_REPORT_LIMITS = Object.freeze({ title: 200, content: 200_000, codes: 500 });
 
 export async function listReportsWithClients(
   db: SupabaseClient,
@@ -108,12 +115,25 @@ export async function saveReport(
 ): Promise<{ id: string | null; error: string | null }> {
   const clientId = String(input.clientId ?? "").trim();
   if (!clientId) return { id: null, error: "client_id gerekli." };
+  if (!isUuid(clientId)) return { id: null, error: "Geçersiz client_id." };
   if (!(await clientInTenant(db, clientId, tenantId))) {
     return { id: null, error: "Danışan bu hesaba ait değil." };
   }
-  const chartId = input.chartId ? String(input.chartId) : null;
-  if (chartId && !(await chartInTenant(db, chartId, tenantId))) {
-    return { id: null, error: "Harita bu hesaba ait değil." };
+  const chartId = input.chartId ? String(input.chartId).trim() : null;
+  if (chartId && !isUuid(chartId)) return { id: null, error: "Geçersiz chart_id." };
+  if (chartId && !(await chartBelongsToClient(db, chartId, clientId, tenantId))) {
+    return { id: null, error: "Harita bu danışana ait değil." };
+  }
+  const title = String(input.title ?? "");
+  const generated = String(input.generatedContent ?? "");
+  const edited = String(input.editedContent ?? "");
+  const codes = Array.isArray(input.selectedCodes) ? input.selectedCodes : [];
+  if (title.length > LEGACY_REPORT_LIMITS.title) return { id: null, error: `Başlık en fazla ${LEGACY_REPORT_LIMITS.title} karakter olabilir.` };
+  if (generated.length > LEGACY_REPORT_LIMITS.content || edited.length > LEGACY_REPORT_LIMITS.content) {
+    return { id: null, error: "Rapor metni çok uzun." };
+  }
+  if (codes.length > LEGACY_REPORT_LIMITS.codes || !codes.every((c) => typeof c === "string" && c.length <= 100)) {
+    return { id: null, error: "Geçersiz kod listesi." };
   }
 
   const { data, error } = await db
@@ -122,10 +142,10 @@ export async function saveReport(
       user_id: userId,
       client_id: clientId,
       chart_id: chartId,
-      title: String(input.title ?? ""),
-      selected_codes: Array.isArray(input.selectedCodes) ? input.selectedCodes : [],
-      generated_content: String(input.generatedContent ?? ""),
-      edited_content: String(input.editedContent ?? ""),
+      title,
+      selected_codes: codes,
+      generated_content: generated,
+      edited_content: edited,
       updated_at: new Date().toISOString(),
     }))
     .select("id")
@@ -163,10 +183,15 @@ export async function updateReport(
     return { ok: false, error: "Profesyonel (canonical) rapor değiştirilemez; içeriği sabittir." };
   }
 
+  const title = String(input.title ?? "");
+  const edited = String(input.editedContent ?? "");
+  if (title.length > LEGACY_REPORT_LIMITS.title) return { ok: false, error: `Başlık en fazla ${LEGACY_REPORT_LIMITS.title} karakter olabilir.`, status: 400 };
+  if (edited.length > LEGACY_REPORT_LIMITS.content) return { ok: false, error: "Rapor metni çok uzun.", status: 400 };
+
   // P2-9: beklenen sürüm verildiyse UPDATE koşullu (atomik) — başka oturumun kaydı ezilmez.
   let q = withTenant(db.from(TABLE).update({
-      title: String(input.title ?? ""),
-      edited_content: String(input.editedContent ?? ""),
+      title,
+      edited_content: edited,
       updated_at: new Date().toISOString(),
     }), tenantId, "updateReport")
     .eq("id", id);
@@ -185,15 +210,17 @@ export async function deleteReport(
   db: SupabaseClient,
   tenantId: string,
   id: string,
-): Promise<{ ok: boolean; error: string | null }> {
+): Promise<{ ok: boolean; error: string | null; status?: number }> {
   // P2-1: raporun DONMUŞ görsel kopyası (varsa) rapor silinince temizlenir. Yol silmeden
   // ÖNCE okunur; yalnız bu tenant'ın report-snapshots klasöründeki yol silinir (danışanın
   // canlı görseli asla bu yoldan silinmez).
   const { data: imgRow } = await withTenant(
     db.from(TABLE).select("snapshot->chartImage->>storagePath"), tenantId, "deleteReport.image",
   ).eq("id", id).maybeSingle();
-  const { error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteReport").eq("id", id);
+  const { data: deleted, error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteReport").eq("id", id).select("id");
   if (error) return { ok: false, error: hdSafeDbError("deleteReport", error) };
+  // HD-27 (GUV-05): hiçbir satır silinmediyse başarı DÖNÜLMEZ (yok/başka tenant → 404).
+  if (!deleted || deleted.length === 0) return { ok: false, error: "Rapor bulunamadı veya bu hesaba ait değil.", status: 404 };
   const imgPath = (imgRow as { storagePath?: string | null } | null)?.storagePath ?? null;
   await removeReportSnapshotImage(db, tenantId, imgPath);
   return { ok: true, error: null };
@@ -252,9 +279,16 @@ export async function saveCanonicalReport(
   userId: string,
   input: SaveCanonicalReportInput,
 ): Promise<{ id: string | null; error: string | null; duplicate?: boolean }> {
-  // IDOR: chart bu tenant'a ait olmalı; client_id verildiyse o da tenant'a ait olmalı.
-  if (!(await chartInTenant(db, input.chartId, tenantId))) {
+  // IDOR: chart bu tenant'a ait olmalı ve raporun danışanı haritanın danışanıyla AYNI olmalı
+  // (HD-27; clientId sunucuda haritadan türetilir — burada savunma derinliği olarak zorunlu).
+  const { data: chartRow, error: chartErr } = await withTenant(
+    db.from("human_design_charts").select("id, client_id"), tenantId, "saveCanonicalReport.chart",
+  ).eq("id", input.chartId).maybeSingle();
+  if (chartErr || !chartRow) {
     return { id: null, error: "Harita bu hesaba ait değil." };
+  }
+  if (((chartRow as { client_id: string | null }).client_id ?? null) !== (input.clientId ?? null)) {
+    return { id: null, error: "Rapor danışanı ile harita danışanı uyuşmuyor." };
   }
   if (input.clientId && !(await clientInTenant(db, input.clientId, tenantId))) {
     return { id: null, error: "Danışan bu hesaba ait değil." };

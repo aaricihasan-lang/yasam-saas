@@ -12,6 +12,7 @@ import {
   assemblePersonalKnowledge,
   buildPersonalKnowledgeStructure,
 } from "@/lib/human-design/knowledge/personalKnowledge";
+import { invalidIdResponse, isUuid } from "@/lib/human-design/api/requestIds";
 
 export const runtime = "nodejs";
 
@@ -83,6 +84,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     if (!chartId) {
       return NextResponse.json({ ok: false, error: "chart_id gerekli." }, { status: 400, headers: NO_STORE });
     }
+    if (!isUuid(chartId)) return invalidIdResponse("chart_id");
     const chartRes = await getChartKnowledgeSource(guard.db, guard.tenantId, chartId);
     if (chartRes.error) {
       return NextResponse.json({ ok: false, error: chartRes.error }, { status: 500, headers: NO_STORE });

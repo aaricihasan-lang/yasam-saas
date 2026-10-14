@@ -11,14 +11,32 @@
  * Fallback (dürüst): RPC yoksa/hata verirse (ör. migration henüz uygulanmadı) bellek-içi best-effort
  * sayaca düşülür ve sonuç `mode: "memory"` ile işaretlenir — bu mod global koruma DEĞİLDİR.
  */
-import { createHmac } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { checkRateLimit } from "@/lib/security/rateLimit";
 
 export type DbRateLimitResult = { allowed: boolean; retryAfterSec: number; mode: "db" | "memory" };
 
+/**
+ * HD-28 (GUV-08): SABİT yedek sır YOK. Env tanımlıyken davranış birebir aynıdır (kova anahtarları
+ * değişmez, mevcut sayaçlar korunur). İkisi de yoksa (yanlış yapılandırma) tahmin edilebilir sabit
+ * dize yerine süreç başına RASTGELE sır kullanılır ve bir kez uyarı loglanır — kovalar tahmin
+ * edilemez kalır (yalnız instance'lar arası paylaşım kaybolur; Supabase de zaten çalışmaz).
+ */
+let ephemeralSecret: string | null = null;
+
+export function rateLimitSecret(env: NodeJS.ProcessEnv = process.env): string {
+  const configured = env.RATE_LIMIT_SECRET || env.SUPABASE_SERVICE_ROLE_KEY;
+  if (configured) return configured;
+  if (!ephemeralSecret) {
+    ephemeralSecret = randomBytes(32).toString("hex");
+    console.warn("[rate-limit] RATE_LIMIT_SECRET/SUPABASE_SERVICE_ROLE_KEY tanımsız — geçici süreç sırrı kullanılıyor.");
+  }
+  return ephemeralSecret;
+}
+
 function secret(): string {
-  return process.env.RATE_LIMIT_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || "yasam-rate-limit";
+  return rateLimitSecret();
 }
 
 /** Kova anahtarı: ham değer saklanmaz (HMAC, 40 hex). */

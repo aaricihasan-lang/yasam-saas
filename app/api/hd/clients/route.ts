@@ -10,6 +10,7 @@ import {
   previewHdClientDelete,
 } from "@/lib/human-design/api/clientPersistence";
 import { getHdJourneyInfo } from "@/lib/human-design/api/journeyLink";
+import { invalidIdResponse, isOptionalUuid, isUuid } from "@/lib/human-design/api/requestIds";
 
 export const runtime = "nodejs";
 
@@ -46,6 +47,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const url = new URL(req.url);
   const id = url.searchParams.get("id");
+  if (!isOptionalUuid(id)) return invalidIdResponse("id");
 
   // Silme onayı öncesi KESİN kapsam (salt okunur): silinecek analiz + Word raporu sayısı.
   if (id && url.searchParams.get("delete_preview") === "1") {
@@ -125,6 +127,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
       { status: 400, headers: NO_STORE },
     );
   }
+  if (!isUuid(id)) return invalidIdResponse("id");
 
   // P2-9: yüklenen sürüm gönderildiyse koşullu güncelleme (başka oturum ezilmez → 409).
   const { ok, error, status: upStatus, code, updatedAt } = await updateHdClient(
@@ -159,6 +162,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
       { status: 400, headers: NO_STORE },
     );
   }
+  if (!isUuid(id)) return invalidIdResponse("id");
 
   // Onay penceresinde gösterilen sayılar: şimdi DAHA FAZLA kayıt varsa silme yapılmaz (409).
   const expA = Number(url.searchParams.get("expect_analyses"));

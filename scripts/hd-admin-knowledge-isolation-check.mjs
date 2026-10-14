@@ -65,7 +65,7 @@ const service = strip(read("lib/human-design/reporting/reportSnapshotService.ts"
 const snapshotSrc = strip(read("lib/human-design/reporting/reportSnapshot.ts"));
 ok("C1 create requireModuleAccess(req, \"human_design\") (uzman+admin; admin-only DEĞİL) + demo 403 + rate limit",
   /requireModuleAccess\(\s*req\s*,\s*"human_design"\s*\)/.test(create) && !/requireAdminUserRequest\(/.test(create) &&
-  /is_demo_account[\s\S]{0,200}403/.test(create) && /checkRateLimit\(/.test(create));
+  /is_demo_account[\s\S]{0,200}403/.test(create) && /hitDbRateLimit\(/.test(create)); // HD-28: DB tabanlı limit
 ok("C2 download requireModuleAccess(req, \"human_design\") + tenant-scoped donmuş snapshot + owned görsel",
   /requireModuleAccess\(\s*req\s*,\s*"human_design"\s*\)/.test(download) && !/requireAdminUserRequest\(/.test(download) &&
   /getCanonicalReportForDownload\(\s*guard\.db\s*,\s*guard\.tenantId/.test(download) && /isOwnedChartImagePath/.test(download) &&
