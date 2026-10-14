@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { authHeaders, bioFetch } from "@/lib/biyoenerji/secureApi";
@@ -11,7 +12,7 @@ import { browserSessionStorage, markChecked, readCheckedIds, searchContextKey } 
 import { SearchCheckedBadge, SEARCH_CHECKED_CARD_ACCENT } from "@/components/search/SearchCheckedBadge";
 import {
   BIO_SEARCH_GUARD_MARK,
-  bioDetailHrefWithQuery,
+  bioHitHrefWithQuery,
   isBioSearchGuardState,
   readBioSearchCache,
   urlWithQuery,
@@ -49,7 +50,11 @@ function readUrlQuery(): string {
  *   - Arama sonuçlarındayken bir kez daha GERİ ⇒ "Arama sonuçlarından çıkmak istiyor musunuz?"
  *     [Aramada Kal] → arama kaydı geri eklenir; [Çık] → arama temizlenir, Biyoenerji ana ekranı.
  *     Her geri basışta en fazla bir soru; Çık'tan sonra geçmiş normal akar (sonsuz döngü yok).
- *   - Detaya `?q=` taşınır → kayıttaki tüm geçişler sarı (BiyoenerjiSearchHighlight).
+ *   - Detaya `?q=` taşınır → kayıttaki tüm geçişler sarı (BiyoenerjiSearchHighlight). Detay rotası
+ *     olmayan bölümlerde (Enerji Bedenleri, Seanslar) terim `?hq=`, kayıt `?rid=` ile taşınır (FINAL-A2).
+ *   - FINAL-A2: Sonuçlar ekrandayken uygulama içi bir bağlantıya (bölüm kartı, menü, logo, geri
+ *     bağlantısı) dokunulursa AYNI soru sorulur: [Aramada Kal] → sayfada kalınır; [Çık] → arama
+ *     kapanır ve seçilen sayfaya gidilir. Sonuç kartları (aynı arama bağlamı) soru SORMAZ.
  */
 export default function BiyoenerjiGlobalSearch() {
   const [q, setQ] = useState("");
@@ -57,6 +62,10 @@ export default function BiyoenerjiGlobalSearch() {
   const [checked, setChecked] = useState<Set<string>>(() => new Set());
   /** Çıkış sorusu açıkken sorulan arama terimi; kapalıyken null. */
   const [exitAsk, setExitAsk] = useState<string | null>(null);
+  /** FINAL-A2: çıkış sorusu bir uygulama-içi bağlantıdan geldiyse hedef adres (geri tuşunda null). */
+  const [exitTarget, setExitTarget] = useState<string | null>(null);
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const router = useRouter();
   /** Bu arama oturumunda sonuç gösterildi mi (elle silme → arama kaydını kapatma için). */
   const hadResultsRef = useRef(false);
   const reqSeq = useRef(0);
@@ -93,7 +102,9 @@ export default function BiyoenerjiGlobalSearch() {
     if (normalizeTr(term).length < BIO_GLOBAL_SEARCH_MIN) {
       restoredTerm.current = null;
       queueMicrotask(() => {
-        if (seq === reqSeq.current) setState({ kind: "idle" });
+        // FINAL-A2: aynı turda önbellekten geri yükleme yapıldıysa (effect'in ikinci çalışması —
+        // React StrictMode/yeniden bağlama) boş "idle" geri yüklenen sonuçları EZMEZ.
+        if (seq === reqSeq.current && restoredTerm.current === null) setState({ kind: "idle" });
       });
       return;
     }
@@ -181,14 +192,49 @@ export default function BiyoenerjiGlobalSearch() {
         leavingRef.current = false;
         return;
       }
-      if (!isBioSearchGuardState(window.history.state) && activeQueryRef.current) setExitAsk(activeQueryRef.current);
+      if (!isBioSearchGuardState(window.history.state) && activeQueryRef.current) {
+        setExitTarget(null); // geri tuşu sorusu: bağlantı hedefi yok
+        setExitAsk(activeQueryRef.current);
+      }
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
+  // FINAL-A2: sonuçlar ekrandayken uygulama içi bağlantı ile çıkış → aynı soru (capture: Next
+  // <Link> onClick'inden ÖNCE; Kupa useUnsavedChangesGuard ile aynı yöntem). Sonuç kartları (arama
+  // bölümü içi) ve aynı adres serbest; yeni sekme/indirme/dış bağlantı ve değiştirici tuşlar karışmaz.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (!activeQueryRef.current) return;
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!a || (a.target && a.target !== "_self") || a.hasAttribute("download")) return;
+      if (sectionRef.current?.contains(a)) return;
+      let url: URL;
+      try {
+        url = new URL(a.href, window.location.href);
+      } catch {
+        return;
+      }
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setExitTarget(url.pathname + url.search + url.hash);
+      setExitAsk(activeQueryRef.current);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
+
   const stayInSearch = () => {
     setExitAsk(null);
+    if (exitTarget !== null) {
+      // Bağlantıdan gelen soru: geçmiş değişmedi → yalnız kapat, sonuçlar yerinde.
+      setExitTarget(null);
+      return;
+    }
     const query = activeQueryRef.current;
     if (query) window.history.pushState({ [BIO_SEARCH_GUARD_MARK]: true }, "", urlWithQuery(window.location.href, query));
   };
@@ -197,6 +243,16 @@ export default function BiyoenerjiGlobalSearch() {
     activeQueryRef.current = "";
     hadResultsRef.current = false;
     writeBioSearchCache(browserSessionStorage(), null);
+    if (exitTarget !== null) {
+      const target = exitTarget;
+      setExitTarget(null);
+      // Arama kaydı sade ana kayda çevrilir (hedeften GERİ → arama yeniden açılmaz, soru yok).
+      if (isBioSearchGuardState(window.history.state) || readUrlQuery()) {
+        window.history.replaceState({}, "", urlWithQuery(window.location.href, ""));
+      }
+      router.push(target);
+      return;
+    }
     setQ("");
     if (readUrlQuery()) window.history.replaceState(window.history.state, "", urlWithQuery(window.location.href, ""));
     window.scrollTo(0, 0);
@@ -211,6 +267,7 @@ export default function BiyoenerjiGlobalSearch() {
 
   return (
     <section
+      ref={sectionRef}
       aria-label="Biyoenerji içinde ara"
       className="mb-4 rounded-2xl border border-white/80 bg-white/85 p-3 shadow-md sm:p-4"
     >
@@ -271,7 +328,7 @@ export default function BiyoenerjiGlobalSearch() {
                       return (
                         <li key={hitKey(h)}>
                           <Link
-                            href={bioDetailHrefWithQuery(h.href, state.query)}
+                            href={bioHitHrefWithQuery(h, state.query)}
                             onClick={() => onHitOpen(h)}
                             data-testid="bio-global-hit"
                             className={`block rounded-xl border bg-white px-3 py-2 shadow-sm transition hover:border-violet-300 hover:bg-violet-50/40 ${
@@ -315,7 +372,9 @@ export default function BiyoenerjiGlobalSearch() {
           >
             <h2 id="bio-exit-title" className="text-[15px] font-black text-slate-950">Arama sonuçlarından çıkmak istiyor musunuz?</h2>
             <p className="mt-1 text-[12.5px] font-medium text-slate-500">
-              “{exitAsk}” araması kapanır ve Biyoenerji ana ekranına dönülür.
+              {exitTarget !== null
+                ? `“${exitAsk}” araması kapanır ve seçtiğiniz sayfaya gidilir.`
+                : `“${exitAsk}” araması kapanır ve Biyoenerji ana ekranına dönülür.`}
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button type="button" autoFocus onClick={stayInSearch} className="btn-primary w-full">

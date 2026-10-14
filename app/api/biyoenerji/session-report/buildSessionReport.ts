@@ -9,11 +9,8 @@ import {
   buildFooter,
   buildPremiumCover,
   buildStatsPage,
-  buildTOCPage,
   buildWellnessNoteSection,
   divider,
-  h1Colored,
-  h2,
   h3,
   muted,
   profileLabel,
@@ -21,6 +18,7 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { StaticTocCollector } from "@/lib/docx/premiumToc";
 import { formatInstantDateTime, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 
 const C_SEANS = "ea580c"; // biyoenerji turuncu
@@ -88,11 +86,14 @@ export function buildBioSessionReportDoc(input: {
     ["Kapsam",        exportLabel],
   ]));
 
-  all.push(...buildTOCPage());
+  // İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde
+  // başlıklarından toplanır, gövde bittikten sonra bu konuma yerleştirilir; başlık yoksa sayfa yok).
+  const toc = new StaticTocCollector("bses");
+  const tocAt = all.length;
 
   if (input.truncatedNote) all.push(muted(input.truncatedNote));
 
-  all.push(h1Colored("1. Seans Listesi", C_SEANS, true));
+  all.push(toc.h1Colored("1. Seans Listesi", C_SEANS, true));
   all.push(muted(`${sessions.length} seans kaydı`));
   all.push(spacer());
 
@@ -102,7 +103,7 @@ export function buildBioSessionReportDoc(input: {
     if (i > 0) all.push(divider());
 
     all.push(profileLabel(`SEANS #${String(i + 1).padStart(3, "0")}`, C_SEANS));
-    all.push(h2(title));
+    all.push(toc.h2(title));
 
     all.push(twoColTable([
       ["Tarih",     formatInstantDateTime(session.created_at, { fallback: session.created_at })],
@@ -124,7 +125,10 @@ export function buildBioSessionReportDoc(input: {
   // FA-16: sade bilgilendirme notu + Hazırlayan (rapor sonu).
   all.push(...buildWellnessNoteSection("biyoenerji", input.expertName));
 
+  all.splice(tocAt, 0, ...toc.page());
+
   const doc = new Document({
+    ...toc.documentOptions(),
     sections: [{
       properties: {},
       footers: { default: buildFooter("Biyoenerji Seans Raporu · Yaşam Sistemi", { note: "biyoenerji" }) },

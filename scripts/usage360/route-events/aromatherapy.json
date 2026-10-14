@@ -94,6 +94,21 @@
       "note": "409 çakışma dalında action_failed errorClass=conflict; ≥500 → server (CLAIM_ERROR_HTTP)"
     },
     {
+      "route": "aromaterapi/claims/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntities": [
+            "claim"
+          ]
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/aromaterapi/service/contentDeleteRoute.ts",
+      "note": "AROMA-4 (f8f19bf5) owner-only kalıcı silme; ortak gövde handleContentDelete(req, id, \"claim\") — subEntity fabrikada `kind` (dinamik), route literal'i harness'te doğrulanır; 409 referanslı/stale → action_failed conflict, ≥500 → server"
+    },
+    {
       "route": "aromaterapi/glossary",
       "method": "POST",
       "events": [
@@ -222,6 +237,21 @@
       "note": "noop → olay yok; 409 çakışma dalında action_failed errorClass=conflict; ≥500 → server"
     },
     {
+      "route": "aromaterapi/plant-taxa/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntities": [
+            "plant_taxon"
+          ]
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/aromaterapi/service/contentDeleteRoute.ts",
+      "note": "AROMA-4 (f8f19bf5) owner-only kalıcı silme; ortak gövde handleContentDelete(req, id, \"plant_taxon\") — subEntity fabrikada `kind` (dinamik), route literal'i harness'te doğrulanır; 409 referanslı/stale → action_failed conflict, ≥500 → server"
+    },
+    {
       "route": "aromaterapi/preparations",
       "method": "POST",
       "events": [
@@ -244,6 +274,21 @@
       ],
       "failure": "server",
       "note": "noop → olay yok; 409 çakışma dalında action_failed errorClass=conflict; ≥500 → server"
+    },
+    {
+      "route": "aromaterapi/preparations/[id]",
+      "method": "DELETE",
+      "events": [
+        {
+          "action": "record_deleted",
+          "subEntities": [
+            "preparation"
+          ]
+        }
+      ],
+      "failure": "server",
+      "implFile": "lib/aromaterapi/service/contentDeleteRoute.ts",
+      "note": "AROMA-4 (f8f19bf5) owner-only kalıcı silme; ortak gövde handleContentDelete(req, id, \"preparation\") — subEntity fabrikada `kind` (dinamik), route literal'i harness'te doğrulanır; 409 referanslı/stale → action_failed conflict, ≥500 → server"
     },
     {
       "route": "aromaterapi/preparations/[id]/methods",

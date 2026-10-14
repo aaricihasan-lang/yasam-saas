@@ -293,7 +293,7 @@
       },
       "refleksoloji": {
         "title": "Reflexology",
-        "desc": "Work with a foot reflexology atlas, protocols, saved maps, practitioner notes and session records in one workspace."
+        "desc": "Work with a foot and hand reflexology atlas, protocols, saved maps and practitioner notes in one workspace."
       },
       "aromaterapi": {
         "title": "Aromatherapy",
@@ -325,7 +325,7 @@
       "kisiselArsiv": ["Audio & Video", "Documents & Images", "Personal Notes", "Search System", "File Tracking", "Secure Archive"],
       "danisanYonetimi": ["Client Records", "Client Profiles", "Appointment Tracking", "Schedule Management", "Meeting History", "Follow-up Workflow"],
       "sifaRehberi": ["Condition References", "Saved Healing Guide", "Symptoms & Causes", "Applications & Methods", "Stones & Minerals", "Aromatherapy"],
-      "refleksoloji": ["Zone Map", "Saved Atlas", "Protocol Map", "Saved Protocols", "Practitioner Notes", "Session Tracking"],
+      "refleksoloji": ["Zone Map", "Saved Atlas", "Protocol Map", "Saved Protocols", "Practitioner Notes", "Hand Map"],
       "urunStok": ["All Products List", "Natural Stone Products/Stock", "Soap / Cream Products", "Prayer Beads / Jewelry / Accessories", "Sales & Pricing", "Sales History"],
       "kupaHacamat": ["Hijama Protocols", "Hijama Calendar", "Hijama Points", "Cupping Techniques", "Safety & Contraindications", "Word Protocol Export"],
       "beslenme": ["Food Library", "Nutrition Guide", "Nutrition by Temperament", "Nutrition by Blood Type", "Nutrition Plans", "Plan Templates"],
@@ -442,10 +442,10 @@
         "aria": "Reflexology module preview",
         "badge": "Reflexology Module",
         "title": "Reflexology — Real Product Screens",
-        "subtitle": "A professional reflexology workspace with an atlas, protocols, practitioner notes and session tracking.",
+        "subtitle": "A professional reflexology workspace with an atlas, protocols, practitioner notes and a zone map.",
         "altPrefix": "Reflexology — ",
         "panelTitle": "A Professional Reflexology Workspace",
-        "panelDesc": "Manage reflexology maps, saved atlases, protocols, practitioner notes and session tracking in one workspace."
+        "panelDesc": "Manage foot and hand reflexology maps, saved atlases, protocols and practitioner notes in one workspace."
       },
       "biyoenerji": {
         "aria": "Bioenergy module preview",

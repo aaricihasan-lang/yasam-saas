@@ -228,7 +228,7 @@ const LONG = ("Uzun ŞİFA metni çğıöşü ÇĞİÖŞÜ \"tırnak\" & <açı>
     H.ok(r.status === 200 && txt.includes("KAYNAK: KRİSTAL ŞİFA KİTABI") && txt.includes("Ek Kaynak 1: Ahmet Hoca Eğitim Notları"), "K: tekli Word — KAYNAK başlıkları ayrı", r.status);
     H.ok(txt.includes("Ahmet: mide kramplarında rahatlatır.") && txt.includes("Ahmet: ruhsal denge") && txt.includes("Genel: mide ve sindirim."), "K: her kaynağın metni kendi bölümünde");
     H.ok(txt.includes("SON_KESILMEDI") && txt.includes("Işık & Şifa Atölyesi"), "K: uzun metin kesilmeden + Türkçe ad");
-    H.ok(txt.indexOf("Genel: mide ve sindirim.") < txt.indexOf("Ek Kaynak 1:"), "K: birincil kaynak önce, ek kaynaklar sonra");
+    H.ok(txt.indexOf("Genel: mide ve sindirim.") < txt.lastIndexOf("Ek Kaynak 1:"), "K: birincil kaynak önce, ek kaynaklar sonra");
     r = await bulkR.POST(req(`/api/dogaltas/word-report`, "POST", A, { sections: { stones: true }, selectedStoneIds: [legacy, onlyExtra] }));
     txt = r.status === 200 ? await docText(r) : "";
     H.ok(r.status === 200 && (txt.match(/KAYNAK: Ahmet Hoca Eğitim Notları/g) ?? []).length === 2 && txt.includes("MİDE ekşimesinde kullanılır."), "K: toplu Word — her taşın ek kaynakları ayrı başlıkla", { status: r.status, sample: txt.slice(0, 300) });

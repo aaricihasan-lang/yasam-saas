@@ -22,10 +22,7 @@ import {
   buildFooter,
   buildPremiumCover,
   buildStatsPage,
-  buildTOCPage,
   divider,
-  h1Colored,
-  h2,
   h3,
   muted,
   profileLabel,
@@ -33,6 +30,7 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { StaticTocCollector } from "@/lib/docx/premiumToc";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 
@@ -245,10 +243,13 @@ export async function POST(request: NextRequest): Promise<Response> {
     ...(expertName ? [["Hazırlayan", expertName] as [string, string]] : []),
   ]));
 
-  all.push(...buildTOCPage());
+  // İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde
+  // başlıklarından toplanır, gövde bittikten sonra bu konuma yerleştirilir; başlık yoksa sayfa yok).
+  const toc = new StaticTocCollector("stok");
+  const tocAt = all.length;
 
   // ── Bölüm 1: Stok Özeti ──
-  all.push(h1Colored("1. Stok Özeti", C_STOK, true));
+  all.push(toc.h1Colored("1. Stok Özeti", C_STOK, true));
   all.push(twoColTable([
     ["Toplam Ürün Çeşidi", String(rows.length)],
     ["Kategori Sayısı", String(perCategoryCount.size)],
@@ -262,7 +263,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   // ── Bölüm 2: Kritik / Tükenmiş (all modda da göster) ──
   if (criticalAll.length > 0 && exportMode !== "critical") {
-    all.push(h1Colored("2. Kritik & Tükenmiş Stok Uyarısı", C_CRIT));
+    all.push(toc.h1Colored("2. Kritik & Tükenmiş Stok Uyarısı", C_CRIT));
     all.push(muted(`${criticalAll.length} ürün kritik seviyede veya tükenmiş`));
     all.push(spacer());
     all.push(twoColTable(
@@ -275,7 +276,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   // ── Bölüm 3 (veya 2 kritik modda): Kategori bazlı ürün listesi ──
   const listSectionN = exportMode === "critical" ? 2 : (criticalAll.length > 0 ? 3 : 2);
-  all.push(h1Colored(`${listSectionN}. Ürün Listesi`, C_STOK, true));
+  all.push(toc.h1Colored(`${listSectionN}. Ürün Listesi`, C_STOK, true));
   all.push(muted(`${reportRows.length} ürün · kategoriye göre gruplu`));
   all.push(spacer());
 
@@ -286,7 +287,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (!catRows.length) continue;
     if (sectionShown > 0) all.push(divider());
     sectionShown++;
-    all.push(h2(CATEGORY_LABELS[cat]));
+    all.push(toc.h2(CATEGORY_LABELS[cat]));
     all.push(muted(`${catRows.length} ürün`));
 
     for (const row of catRows) {
@@ -306,7 +307,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
   }
 
+  all.splice(tocAt, 0, ...toc.page());
+
   const doc = new Document({
+    ...toc.documentOptions(),
     sections: [{
       properties: {},
       footers: { default: buildFooter(`Ürün & Stok Raporu · ${exportLabel}`) },

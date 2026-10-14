@@ -19,7 +19,6 @@ import {
   buildPremiumCover,
   buildSectionDivider,
   buildStatsPage,
-  buildTOCPage,
   C_DARK,
   C_LIGHT,
   C_MID,
@@ -28,8 +27,6 @@ import {
   extractFirstImageRef,
   fetchStorageImageBuffer,
   fieldInline,
-  h1Colored,
-  h2,
   h3,
   inlineRuns,
   muted,
@@ -40,6 +37,7 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { PLAIN_HEADINGS, StaticTocCollector, type TocHeadingFns } from "@/lib/docx/premiumToc";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 import { loadExtraSourcesForStones } from "@/lib/dogaltas/stoneSourcesServer";
@@ -168,14 +166,14 @@ function parseKnowledgeContent(content: string): ReportChild[] {
 
 // ─── Section builders ─────────────────────────────────────────────────────────
 
-function buildSummary(counts: Record<string, number>): ReportChild[] {
+function buildSummary(counts: Record<string, number>, hd: TocHeadingFns = PLAIN_HEADINGS): ReportChild[] {
   const rows: [string, string][] = [];
   if (counts.stones != null)       rows.push(["Doğaltaş Kayıtları", `${counts.stones} kayıt`]);
   if (counts.minerals != null)     rows.push(["Mineral Bankası",     `${counts.minerals} kayıt`]);
   if (counts.combinations != null) rows.push(["Kombinasyonlar",       `${counts.combinations} kayıt`]);
   if (counts.knowledge != null)    rows.push(["Taş Bilgi Kütüphanesi", `${counts.knowledge} makale`]);
   return [
-    h1Colored("1. Genel Özet", SECTION_COLORS.summary, true),
+    hd.h1Colored("1. Genel Özet", SECTION_COLORS.summary, true),
     muted("Seçilen bölümlere ait Supabase verilerinden oluşturulmuştur."),
     ...(rows.length > 0 ? [twoColTable(rows), spacer()] : []),
   ];
@@ -205,11 +203,12 @@ function buildStonesSection(
   n: number,
   imageBuffers: (Buffer | null)[],
   extraSources: ReadonlyMap<string, readonly Record<string, unknown>[]> = new Map(),
+  hd: TocHeadingFns = PLAIN_HEADINGS,
 ): ReportChild[] {
   const color = SECTION_COLORS.stones;
   const result: ReportChild[] = [
     ...buildSectionDivider("DOĞALTAŞ KAYITLARI", `${stones.length} Taş Kaydı`, color),
-    h1Colored(`${n}. Doğaltaş Kayıtları`, color, true),
+    hd.h1Colored(`${n}. Doğaltaş Kayıtları`, color, true),
     muted(`Toplam ${stones.length} taş kaydı`),
   ];
 
@@ -220,7 +219,7 @@ function buildStonesSection(
 
     // Profile header
     result.push(profileLabel(`DOĞALTAŞ #${String(i + 1).padStart(3, "0")}`, color));
-    result.push(h2(s.stone_name || "İsimsiz Taş"));
+    result.push(hd.h2(s.stone_name || "İsimsiz Taş"));
 
     // Image (if available)
     if (imgBuf) result.push(embedImageParagraph(imgBuf, 400));
@@ -266,11 +265,11 @@ function buildStonesSection(
   return result;
 }
 
-function buildMineralsSection(minerals: MineralRow[], n: number): ReportChild[] {
+function buildMineralsSection(minerals: MineralRow[], n: number, hd: TocHeadingFns = PLAIN_HEADINGS): ReportChild[] {
   const color = SECTION_COLORS.minerals;
   const result: ReportChild[] = [
     ...buildSectionDivider("MİNERAL BANKASI", `${minerals.length} Mineral Kaydı`, color),
-    h1Colored(`${n}. Mineral Bankası`, color, true),
+    hd.h1Colored(`${n}. Mineral Bankası`, color, true),
     muted(`Toplam ${minerals.length} mineral kaydı`),
   ];
 
@@ -278,7 +277,7 @@ function buildMineralsSection(minerals: MineralRow[], n: number): ReportChild[] 
     const m = minerals[i]!;
     if (i > 0) result.push(divider());
     result.push(profileLabel(`MİNERAL #${String(i + 1).padStart(3, "0")}`, color));
-    result.push(h2(m.name || "İsimsiz Mineral"));
+    result.push(hd.h2(m.name || "İsimsiz Mineral"));
     if (m.kategori?.trim()) result.push(fieldInline("Kategori", m.kategori.trim()));
     if (m.aciklama?.trim()) { result.push(h3("Açıklama")); result.push(bodyText(m.aciklama.trim())); }
     result.push(...arraySection("Fiziksel Etkiler",     m.fiziksel));
@@ -294,11 +293,11 @@ function buildMineralsSection(minerals: MineralRow[], n: number): ReportChild[] 
   return result;
 }
 
-function buildCombinationsSection(combos: CombinationRow[], n: number): ReportChild[] {
+function buildCombinationsSection(combos: CombinationRow[], n: number, hd: TocHeadingFns = PLAIN_HEADINGS): ReportChild[] {
   const color = SECTION_COLORS.combinations;
   const result: ReportChild[] = [
     ...buildSectionDivider("KOMBİNASYONLAR", `${combos.length} Kombinasyon Kaydı`, color),
-    h1Colored(`${n}. Kombinasyonlar`, color, true),
+    hd.h1Colored(`${n}. Kombinasyonlar`, color, true),
     muted(`Toplam ${combos.length} kombinasyon kaydı`),
   ];
 
@@ -306,7 +305,7 @@ function buildCombinationsSection(combos: CombinationRow[], n: number): ReportCh
     const c = combos[i]!;
     if (i > 0) result.push(divider());
     result.push(profileLabel(`KOMBİNASYON #${String(i + 1).padStart(3, "0")}`, color));
-    result.push(h2(c.issue || "İsimsiz Kombinasyon"));
+    result.push(hd.h2(c.issue || "İsimsiz Kombinasyon"));
     if (c.description?.trim())  result.push(fieldInline("Amaç / Kategori", c.description.trim()));
     if (c.stones_text?.trim())  { result.push(h3("Taşlar"));           result.push(bodyText(c.stones_text.trim())); }
     if (c.notes_text?.trim())   { result.push(h3("Kullanım Önerisi")); result.push(bodyText(c.notes_text.trim())); }
@@ -317,11 +316,11 @@ function buildCombinationsSection(combos: CombinationRow[], n: number): ReportCh
   return result;
 }
 
-function buildKnowledgeSection(articles: KnowledgeRow[], n: number): ReportChild[] {
+function buildKnowledgeSection(articles: KnowledgeRow[], n: number, hd: TocHeadingFns = PLAIN_HEADINGS): ReportChild[] {
   const color = SECTION_COLORS.knowledge;
   const result: ReportChild[] = [
     ...buildSectionDivider("TAŞ BİLGİ KÜTÜPHANESİ", `${articles.length} Makale`, color),
-    h1Colored(`${n}. Taş Bilgi Kütüphanesi`, color, true),
+    hd.h1Colored(`${n}. Taş Bilgi Kütüphanesi`, color, true),
     muted(`Toplam ${articles.length} makale`),
   ];
 
@@ -338,7 +337,7 @@ function buildKnowledgeSection(articles: KnowledgeRow[], n: number): ReportChild
     firstCat = false;
     result.push(h3(`— ${category} —`));
     for (const a of catArticles) {
-      result.push(h2(a.title || "Başlıksız Makale"));
+      result.push(hd.h2(a.title || "Başlıksız Makale"));
       if (a.sub_category?.trim())     result.push(fieldInline("Alt Kategori", a.sub_category.trim()));
       if (a.source?.trim())           result.push(fieldInline("Kaynak", a.source.trim()));
       // F-011: tags/related_* legacy satırlarında non-array olabilir → guard'lı okuma.
@@ -352,7 +351,7 @@ function buildKnowledgeSection(articles: KnowledgeRow[], n: number): ReportChild
   return result;
 }
 
-function buildAnalyticsSection(counts: Record<string, number>, n: number): ReportChild[] {
+function buildAnalyticsSection(counts: Record<string, number>, n: number, hd: TocHeadingFns = PLAIN_HEADINGS): ReportChild[] {
   const color = SECTION_COLORS.analytics;
   const rows: [string, string][] = [
     ["Rapor Tarihi", reportGeneratedLabel()],
@@ -364,7 +363,7 @@ function buildAnalyticsSection(counts: Record<string, number>, n: number): Repor
   ];
   return [
     ...buildSectionDivider("ANALİZ ÖZETİ", "Stok & Sistem İstatistikleri", color),
-    h1Colored(`${n}. Stok / Analiz Özeti`, color, true),
+    hd.h1Colored(`${n}. Stok / Analiz Özeti`, color, true),
     muted("Seçilen bölümlerin istatistikleri"),
     twoColTable(rows),
   ];
@@ -560,23 +559,29 @@ export async function POST(req: NextRequest): Promise<Response> {
         return [(labels[k] ?? k), `${v} kayıt`] as [string, string];
       })
     ),
-    // 3. TOC
-    ...buildTOCPage(),
-    // 4. Genel Özet
-    ...buildSummary(counts),
   ];
 
+  // 3. İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde
+  // başlıklarından toplanır, gövde bittikten sonra bu konuma yerleştirilir; başlık yoksa sayfa yok).
+  const toc = new StaticTocCollector("dtas");
+  const tocAt = allChildren.length;
+  // 4. Genel Özet
+  allChildren.push(...buildSummary(counts, toc));
+
   let sec = 2;
-  if (sections.stones)       allChildren.push(...buildStonesSection(stonesRows, sec++, stoneImageBuffers, stoneExtraSources));
-  if (sections.minerals)     allChildren.push(...buildMineralsSection(mineralRows, sec++));
-  if (sections.combinations) allChildren.push(...buildCombinationsSection(comboRows, sec++));
-  if (sections.knowledge)    allChildren.push(...buildKnowledgeSection(knowledgeRows, sec++));
-  if (sections.analytics)    allChildren.push(...buildAnalyticsSection(counts, sec));
+  if (sections.stones)       allChildren.push(...buildStonesSection(stonesRows, sec++, stoneImageBuffers, stoneExtraSources, toc));
+  if (sections.minerals)     allChildren.push(...buildMineralsSection(mineralRows, sec++, toc));
+  if (sections.combinations) allChildren.push(...buildCombinationsSection(comboRows, sec++, toc));
+  if (sections.knowledge)    allChildren.push(...buildKnowledgeSection(knowledgeRows, sec++, toc));
+  if (sections.analytics)    allChildren.push(...buildAnalyticsSection(counts, sec, toc));
 
   // FA-16: sade bilgilendirme notu + Hazırlayan (rapor sonu).
   allChildren.push(...buildWellnessNoteSection("dogaltas", expertDisplayName(auth.profile)));
 
+  allChildren.splice(tocAt, 0, ...toc.page());
+
   const doc = new Document({
+    ...toc.documentOptions(),
     sections: [{
       properties: {},
       footers: { default: buildFooter("Yaşam Sistemi Doğaltaş Ansiklopedisi", { note: "dogaltas" }) },

@@ -72,7 +72,8 @@ ok(read("app/globals.css").includes("html[data-android] .no-android"), "SSR .no-
 console.log("\n[5] KVKK kompakt");
 const page = read("app/dashboard/clients/[id]/page.tsx");
 ok(/source="dy_detay"\s+collapsible/.test(page), "danışan detayında collapsible");
-ok(!read("app/danisan-yolculugu/kayit/page.tsx").includes("collapsible"), "kayıt ekranı davranışı değişmedi");
+// Final-A2: kayıt sonrası panel de aynı kompakt davranışta (owner kararı; önceki "değişmedi" beklentisi geçersiz).
+ok(/source="dy_kayit"\s+collapsible/.test(read("app/danisan-yolculugu/kayit/page.tsx")), "kayıt sonrası KVKK paneli collapsible");
 const panel = read("components/kvkk/ClientConsentPanel.tsx");
 ok(panel.includes("useState(false)") && panel.includes("aria-expanded={open}") && panel.includes("border-rose-200"), "varsayılan kapalı + aria-expanded + kırmızı ton");
 

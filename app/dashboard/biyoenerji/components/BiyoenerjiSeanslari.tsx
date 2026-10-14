@@ -40,6 +40,8 @@ import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
 import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
 import { LongTextareaField } from "./LargeTextModal";
+import BiyoenerjiSearchHighlight from "./BiyoenerjiSearchHighlight";
+import { BIO_SEARCH_RECORD_PARAM, BIO_SEARCH_TERM_PARAM, readBioUrlParam } from "@/lib/biyoenerji/searchSession";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 
@@ -115,8 +117,11 @@ export default function BiyoenerjiSeanslari() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   // WT5: Biyoenerji genel aramasından gelindiyse (?q=) bölüm araması o terimle açılır.
+  // FINAL-A2: `?rid=` → liste yüklenince o kayıt seçilir (aranan terim `?hq=` ile detayda sarı).
+  const pendingOpenIdRef = useRef<string | null>(null);
   useEffect(() => {
     const initialQ = new URLSearchParams(window.location.search).get("q")?.trim();
+    pendingOpenIdRef.current = readBioUrlParam(window.location.search, BIO_SEARCH_RECORD_PARAM) || null;
     if (initialQ) runInEffect(() => setSearchTerm(initialQ.slice(0, 100)));
   }, []);
   const [categories, setCategories] = useState<string[]>([]);
@@ -294,6 +299,15 @@ export default function BiyoenerjiSeanslari() {
     [rows, selectedId],
   );
 
+  // FINAL-A2: genel aramadan açılan kayıt (rid) listede belirince bir kez seçilir.
+  useEffect(() => {
+    const want = pendingOpenIdRef.current;
+    if (!want || loading) return;
+    if (!rows.some((r) => r.id === want)) return;
+    pendingOpenIdRef.current = null;
+    runInEffect(() => setSelectedId(want));
+  }, [rows, loading]);
+
   const moduleStats = {
     total: totalInDb,
     cats: categories.length,
@@ -349,6 +363,7 @@ export default function BiyoenerjiSeanslari() {
   }
 
   function selectRow(row: BioenergySession) {
+    pendingOpenIdRef.current = null;
     setSelectedId(row.id);
     setFormModalOpen(false);
     setInfoError("");
@@ -771,6 +786,8 @@ export default function BiyoenerjiSeanslari() {
           className={`${formGlassPanelClass} order-2 scroll-mt-20 xl:order-none`}
           aria-live="polite"
         >
+          {/* FINAL-A2: genel aramadan gelindiyse (?hq=) seçili kayıtta terim sarı + ilk eşleşmeye kaydırma. */}
+          <BiyoenerjiSearchHighlight recordKey="seanslar" termParam={BIO_SEARCH_TERM_PARAM} className="flex min-w-0 flex-1 flex-col">
           {selectedRow ? (
             <>
               <div className="mb-1 inline-flex rounded-full bg-violet-50/90 px-2.5 py-1 text-[9px] font-black tracking-[0.14em] text-violet-800 ring-1 ring-violet-200/45">
@@ -849,6 +866,7 @@ export default function BiyoenerjiSeanslari() {
               </p>
             </div>
           )}
+          </BiyoenerjiSearchHighlight>
         </div>
       </div>
 

@@ -37,6 +37,8 @@ import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
 import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
 import { LongTextareaField } from "./LargeTextModal";
 import { useDirtySnapshot } from "@/lib/biyoenerji/useDirtyGuard";
+import { BIO_SEARCH_RECORD_PARAM, BIO_SEARCH_TERM_PARAM, readBioUrlParam } from "@/lib/biyoenerji/searchSession";
+import BiyoenerjiSearchHighlight from "./BiyoenerjiSearchHighlight";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
@@ -220,8 +222,11 @@ export default function EnerjiBedenleri() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   // WT5: Biyoenerji genel aramasından gelindiyse (?q=) bölüm araması o terimle açılır.
+  // FINAL-A2: `?rid=` → liste yüklenince o kayıt seçilir (aranan terim `?hq=` ile detayda sarı).
+  const pendingOpenIdRef = useRef<string | null>(null);
   useEffect(() => {
     const initialQ = new URLSearchParams(window.location.search).get("q")?.trim();
+    pendingOpenIdRef.current = readBioUrlParam(window.location.search, BIO_SEARCH_RECORD_PARAM) || null;
     if (initialQ) runInEffect(() => setSearchQuery(initialQ.slice(0, 100)));
   }, []);
   const [totalInDb, setTotalInDb] = useState(0);
@@ -399,6 +404,15 @@ export default function EnerjiBedenleri() {
     [rows, selectedId],
   );
 
+  // FINAL-A2: genel aramadan açılan kayıt (rid) listede belirince bir kez seçilir.
+  useEffect(() => {
+    const want = pendingOpenIdRef.current;
+    if (!want || loading) return;
+    if (!rows.some((r) => r.id === want)) return;
+    pendingOpenIdRef.current = null;
+    runInEffect(() => setSelectedId(want));
+  }, [rows, loading]);
+
   const moduleStats = {
     total: totalInDb,
     uids: totalInDb,
@@ -419,6 +433,7 @@ export default function EnerjiBedenleri() {
   }
 
   function selectRow(row: BioenergyEnergyBodyRecord) {
+    pendingOpenIdRef.current = null;
     setSelectedId(row.id);
     setFormModalOpen(false);
     setInfoError("");
@@ -830,6 +845,8 @@ export default function EnerjiBedenleri() {
         </div>
 
         <div ref={detailPanelRef} className={`${detailPanelClass} scroll-mt-20`} aria-live="polite">
+          {/* FINAL-A2: genel aramadan gelindiyse (?hq=) seçili kayıtta terim sarı + ilk eşleşmeye kaydırma. */}
+          <BiyoenerjiSearchHighlight recordKey="enerji-bedenleri" termParam={BIO_SEARCH_TERM_PARAM} className="flex min-w-0 flex-1 flex-col">
           {selectedRow ? (
             <>
               <div className="flex flex-col gap-3 border-b border-cyan-100/60 pb-3 sm:flex-row sm:items-start sm:justify-between">
@@ -919,6 +936,7 @@ export default function EnerjiBedenleri() {
               </p>
             </div>
           )}
+          </BiyoenerjiSearchHighlight>
         </div>
       </div>
 
