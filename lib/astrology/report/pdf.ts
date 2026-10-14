@@ -8,6 +8,10 @@
 
 import { jsPDF } from "jspdf";
 import type { AstroReport, ReportBlock, ReportTable } from "./model";
+import { fontRuns, hasSymbolChars, type FontKey } from "./symbolFonts";
+
+/** Sembol yedek yazı tipleri (base64). Verilmezse (eski çağrılar) metin yalnız Geist ile çizilir. */
+export type SymbolFontsB64 = { A: string; B: string } | null;
 
 type Rgb = [number, number, number];
 const PAGE_W = 210;
@@ -29,10 +33,43 @@ const LH = 0.42; // satır yüksekliği = punto × LH (mm)
 class W {
   doc: jsPDF;
   y = TOP;
-  constructor(fontBase64: string) {
+  private sym: boolean;
+  constructor(fontBase64: string, sym: SymbolFontsB64 = null) {
     this.doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
     this.doc.addFileToVFS("Geist-Regular.ttf", fontBase64);
     this.doc.addFont("Geist-Regular.ttf", "Geist", "normal");
+    this.sym = !!sym;
+    if (sym) {
+      this.doc.addFileToVFS("YasamAstroSymbolsA.ttf", sym.A);
+      this.doc.addFont("YasamAstroSymbolsA.ttf", "YasamSymA", "normal");
+      this.doc.addFileToVFS("YasamAstroSymbolsB.ttf", sym.B);
+      this.doc.addFont("YasamAstroSymbolsB.ttf", "YasamSymB", "normal");
+    }
+    this.doc.setFont("Geist", "normal");
+  }
+  private fam(k: FontKey): string {
+    if (!this.sym || k === "base") return "Geist";
+    return k === "A" ? "YasamSymA" : "YasamSymB";
+  }
+  /** Karışık yazı tipli metnin genişliği (mm; geçerli punto). */
+  width(s: string): number {
+    let w = 0;
+    for (const r of fontRuns(s)) {
+      this.doc.setFont(this.fam(r.font), "normal");
+      w += this.doc.getTextWidth(r.text);
+    }
+    this.doc.setFont("Geist", "normal");
+    return w;
+  }
+  /** Tek satır çizimi: sembol karakterleri yedek yazı tipiyle, gerisi Geist ile (hizalama karışık genişlikle). */
+  text(s: string, x: number, y: number, align?: "center" | "right") {
+    const total = align ? this.width(s) : 0;
+    let cx = align === "center" ? x - total / 2 : align === "right" ? x - total : x;
+    for (const r of fontRuns(s)) {
+      this.doc.setFont(this.fam(r.font), "normal");
+      this.doc.text(r.text, cx, y);
+      cx += this.doc.getTextWidth(r.text);
+    }
     this.doc.setFont("Geist", "normal");
   }
   get room() {
@@ -48,7 +85,29 @@ class W {
   }
   lines(text: string, size: number, width: number): string[] {
     this.doc.setFontSize(size);
-    return this.doc.splitTextToSize(text, width) as string[];
+    // Sembolsüz metin: eski davranış birebir (mevcut raporların düzeni değişmez).
+    if (!this.sym || !hasSymbolChars(text)) return this.doc.splitTextToSize(text, width) as string[];
+    // Sembollü metin: karışık genişlikle açgözlü sözcük kaydırma; tek başına sığmayan sözcük karakterle bölünür.
+    const out: string[] = [];
+    let cur = "";
+    for (const tok of text.split(/(\s+)/)) {
+      if (!tok) continue;
+      if (this.width(cur + tok) <= width) {
+        cur += tok;
+        continue;
+      }
+      if (cur.trim()) out.push(cur.trimEnd());
+      cur = /^\s+$/.test(tok) ? "" : tok;
+      while (Array.from(cur).length > 1 && this.width(cur) > width) {
+        const chars = Array.from(cur);
+        let k = chars.length - 1;
+        while (k > 1 && this.width(chars.slice(0, k).join("")) > width) k--;
+        out.push(chars.slice(0, k).join(""));
+        cur = chars.slice(k).join("");
+      }
+    }
+    if (cur.trim() || out.length === 0) out.push(cur.trimEnd() || " ");
+    return out;
   }
   /** Paragraf: sığarsa bütün, sığmazsa satır satır akar. */
   para(text: string, size: number, color: Rgb, x = MX, width = CW, after = 2) {
@@ -60,7 +119,7 @@ class W {
         this.ensure(lh);
         this.doc.setFontSize(size);
         this.doc.setTextColor(...color);
-        this.doc.text(l, x, this.y + lh * 0.8);
+        this.text(l, x, this.y + lh * 0.8);
         this.y += lh;
       }
     }
@@ -78,7 +137,7 @@ function heading(w: W, level: 1 | 2 | 3, text: string, next: ReportBlock | undef
   w.doc.setFontSize(size);
   w.doc.setTextColor(...(level === 1 ? ACCENT : INK));
   for (const l of ls) {
-    w.doc.text(l, MX, w.y + size * LH * 0.8);
+    w.text(l, MX, w.y + size * LH * 0.8);
     w.y += size * LH;
   }
   if (level === 1) {
@@ -110,7 +169,7 @@ function table(w: W, tb: ReportTable) {
       } else w.doc.rect(x, w.y, cw[i], h);
       w.doc.setFontSize(size);
       w.doc.setTextColor(...(header ? INK : MID));
-      c.forEach((l, j) => w.doc.text(l, x + pad, w.y + pad + lh * (j + 0.8)));
+      c.forEach((l, j) => w.text(l, x + pad, w.y + pad + lh * (j + 0.8)));
       x += cw[i];
     });
     w.y += h;
@@ -142,9 +201,9 @@ function kv(w: W, rows: [string, string][]) {
     w.ensure(h);
     w.doc.setFontSize(size);
     w.doc.setTextColor(...INK);
-    kl.forEach((l, i) => w.doc.text(l, MX + 1, w.y + 1 + lh * (i + 0.8)));
+    kl.forEach((l, i) => w.text(l, MX + 1, w.y + 1 + lh * (i + 0.8)));
     w.doc.setTextColor(...MID);
-    vl.forEach((l, i) => w.doc.text(l, MX + k, w.y + 1 + lh * (i + 0.8)));
+    vl.forEach((l, i) => w.text(l, MX + k, w.y + 1 + lh * (i + 0.8)));
     w.doc.setDrawColor(...LINE);
     w.doc.setLineWidth(0.15);
     w.doc.line(MX, w.y + h, MX + CW, w.y + h);
@@ -158,7 +217,7 @@ function cover(w: W, r: AstroReport) {
     for (const l of w.lines(text, size, CW - 20)) {
       w.doc.setFontSize(size);
       w.doc.setTextColor(...color);
-      w.doc.text(l, PAGE_W / 2, w.y, { align: "center" });
+      w.text(l, PAGE_W / 2, w.y, "center");
       w.y += size * LH;
     }
     w.y += gap;
@@ -187,11 +246,11 @@ type ChartImg = { png: Buffer; width: number; height: number };
  * `chartIn`: tekli raporda tek görsel; toplu raporda (UAT 2. tur, madde L) "chart" bloklarıyla AYNI sırada görsel dizisi.
  * Toplu raporda her analiz yeni sayfada başlar ve PDF yer imi (bookmark) olarak eklenir.
  */
-export function buildAstroReportPdf(r: AstroReport, chartIn: ChartImg | null | (ChartImg | null)[], fontBase64: string): Uint8Array {
+export function buildAstroReportPdf(r: AstroReport, chartIn: ChartImg | null | (ChartImg | null)[], fontBase64: string, symbolFonts: SymbolFontsB64 = null): Uint8Array {
   const charts = Array.isArray(chartIn) ? chartIn : [chartIn];
   let chartIdx = 0;
   let sectionStart = false;
-  const w = new W(fontBase64);
+  const w = new W(fontBase64, symbolFonts);
   w.doc.setProperties({ title: r.title, subject: "Astroloji analiz raporu", creator: "Yaşam Sistemi" });
   cover(w, r);
   w.newPage();
@@ -218,7 +277,7 @@ export function buildAstroReportPdf(r: AstroReport, chartIn: ChartImg | null | (
           w.doc.rect(MX, w.y, CW, h, "F");
           w.doc.setFontSize(8.6);
           w.doc.setTextColor(...WARN_INK);
-          ls.forEach((l, j) => w.doc.text(l, MX + 3, w.y + 1.5 + 8.6 * LH * (j + 0.8)));
+          ls.forEach((l, j) => w.text(l, MX + 3, w.y + 1.5 + 8.6 * LH * (j + 0.8)));
           w.y += h + 2;
         } else w.para(b.text, b.tone === "muted" ? 8 : 9.4, b.tone === "muted" ? LIGHT : MID, MX + (b.tone === "muted" ? 0 : 2), CW - (b.tone === "muted" ? 0 : 2), 2.4);
         break;

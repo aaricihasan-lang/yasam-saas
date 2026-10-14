@@ -22,6 +22,8 @@ import { ASPECT_GLYPHS, ASPECT_LABELS, BODY_GLYPHS, BODY_LABELS, PATTERN_LABELS 
 import type { AstrocartographyInterpretation, LocalSpaceInterpretation, RelocationInterpretation } from "@/lib/astrology/model/westernLocation";
 import type { VedicD1Interpretation, VedicDashaInterpretation, VedicPanchangaInterpretation, VedicShadbalaInterpretation, VedicTransitInterpretation, VedicVargaInterpretation } from "@/lib/astrology/model/vedic";
 import { GRAHA_LABELS, VEDIC_YOGA_NAMES } from "@/lib/astrology/topics/vedic";
+import type { FixedStarsInterpretation } from "@/lib/astrology/model/westernFixedStars";
+import { fixedStarName, starKeywordTr } from "@/lib/astrology/labels/fixedStars";
 
 export type InterpretationLayer =
   | { visible: true; provider: string; lang: string; content: unknown; notice: string }
@@ -158,7 +160,7 @@ function Content({ content }: { content: unknown }) {
           {c.aspects.map((a, i) => (
             <Item key={`${a.transit}-${a.type}-${a.natal}-${i}`}>
               <div className="font-medium">
-                Transit {BODY_LABELS[a.transit]} {ASPECT_LABELS[a.type]} natal {pointLabel(a.natal)}
+                Transit {BODY_GLYPHS[a.transit]} {BODY_LABELS[a.transit]} {ASPECT_GLYPHS[a.type]} {ASPECT_LABELS[a.type]} natal {pointLabel(a.natal)}
               </div>
               <P text={a.summary} />
               {a.timing && <p className="mt-0.5 text-xs text-slate-500">Zamanlama: {a.timing}</p>}
@@ -231,7 +233,7 @@ function Content({ content }: { content: unknown }) {
             {c.aspects.map((a, i) => (
               <Item key={`${a.a}-${a.type}-${a.b}-${i}`}>
                 <div className="font-medium">
-                  {BODY_LABELS[a.a]} (1) {ASPECT_LABELS[a.type]} {BODY_LABELS[a.b]} (2)
+                  {BODY_GLYPHS[a.a]} {BODY_LABELS[a.a]} (1) {ASPECT_GLYPHS[a.type]} {ASPECT_LABELS[a.type]} {BODY_GLYPHS[a.b]} {BODY_LABELS[a.b]} (2)
                 </div>
                 <P text={a.short} />
                 {a.long && (
@@ -328,6 +330,42 @@ function Content({ content }: { content: unknown }) {
               </Item>
             ))}
           </Block>
+        </>
+      );
+    }
+    case "astro.western.fixed_stars.interp.v1": {
+      const c = content as FixedStarsInterpretation;
+      const used = new Set(c.contacts.map((x) => x.star));
+      return (
+        <>
+          <p className="text-xs text-slate-500">Kavuşum metinleri Roxy şablon yorumlarıdır ve sağlayıcı sorgusundaki (3°) tüm temasları kapsar. Anahtar kelimeler Roxy&apos;de İngilizce gelir; Yaşam sözlüğüyle Türkçeleştirilmiştir.</p>
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2">{c.summary}</p>}
+          <Block title="Sabit yıldız kavuşumları">
+            {c.contacts.map((x) => (
+              <Item key={`${x.star}|${x.point}`}>
+                <div className="font-medium">
+                  {fixedStarName(x.star)} {ASPECT_GLYPHS.conjunction} {ASPECT_LABELS.conjunction} {(x.point as string) in BODY_GLYPHS ? BODY_GLYPHS[x.point as keyof typeof BODY_GLYPHS] : ""} {pointLabel(x.point as PointId)}
+                </div>
+                <P text={x.text} />
+                <Chips items={(c.stars.find((s) => s.id === x.star)?.keywords ?? []).map(starKeywordTr)} />
+              </Item>
+            ))}
+          </Block>
+          {c.stars.some((s) => !used.has(s.id) && s.keywords.length > 0) && (
+            <details className="mt-1">
+              <summary className="cursor-pointer text-xs text-sky-700">Kavuşumu olmayan yıldızların anahtar kelimeleri</summary>
+              <Block title="Diğer yıldızlar">
+                {c.stars
+                  .filter((s) => !used.has(s.id))
+                  .map((s) => (
+                    <Item key={s.id}>
+                      <div className="font-medium">{fixedStarName(s.id)}</div>
+                      <Chips items={s.keywords.map(starKeywordTr)} />
+                    </Item>
+                  ))}
+              </Block>
+            </details>
+          )}
         </>
       );
     }

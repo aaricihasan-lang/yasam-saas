@@ -339,6 +339,7 @@ export function SavedAnalysisView({
       }
       kbLookup={(keys) => a.knowledgeBank.filter((e) => keys.includes(e.topicKey))}
       hideWheel={hideWheel}
+      interpretation={interp.visible && !interpHidden ? interp.content : null}
     />
   );
   const tabs: DeskTab[] = [

@@ -178,14 +178,16 @@ const canon = (v: unknown): string =>
           .sort()
           .map((k) => `${JSON.stringify(k)}:${canon((v as Record<string, unknown>)[k])}`)
           .join(",")}}`;
-const ALL_GOLDEN: { endpoint: string; body: string; response: Record<string, unknown>; file: string }[] = readdirSync(GOLDEN_DIR)
+const ALL_GOLDEN: { endpoint: string; body: string; query: Record<string, string> | null; response: Record<string, unknown>; file: string }[] = readdirSync(GOLDEN_DIR)
   .filter((x) => x.endsWith(".json"))
   .map((f) => {
     const g = JSON.parse(readFileSync(join(GOLDEN_DIR, f), "utf8"));
-    return { endpoint: g.endpoint, body: canon(g.body), response: g.response, file: f };
+    return { endpoint: g.endpoint, body: canon(g.body), query: g.query ?? null, response: g.response, file: f };
   });
-function strictMatch(path: string, body: Record<string, unknown>): { raw: Record<string, unknown>; source: string } | null {
-  const exact = ALL_GOLDEN.find((g) => g.endpoint === path && g.body === canon(body));
+/** Sorgulu golden (ör. fixed-stars orb=3 / orb=1) yalnız AYNI sorgu değerleriyle eşleşir. */
+const queryOk = (g: { query: Record<string, string> | null }, params: URLSearchParams | null) => !g.query || Object.entries(g.query).every(([k, v]) => params?.get(k) === v);
+function strictMatch(path: string, body: Record<string, unknown>, params: URLSearchParams | null = null): { raw: Record<string, unknown>; source: string } | null {
+  const exact = ALL_GOLDEN.find((g) => g.endpoint === path && g.body === canon(body) && queryOk(g, params));
   if (exact) return { raw: structuredClone(exact.response), source: `golden ${exact.file}` };
   if (path === "/astrology/natal-chart") {
     const bd = (FIXTURE as { birthDetails: Record<string, unknown>; houseSystem?: unknown }).birthDetails;
@@ -221,7 +223,7 @@ function startFakeRoxy() {
       let raw: Record<string, unknown> | undefined;
       const kpReq = path.startsWith("/vedic-astrology/kp/") || body.significators === true;
       if (STRICT) {
-        const hit = strictMatch(path, body);
+        const hit = strictMatch(path, body, new URL(req.url ?? "/", "https://x").searchParams);
         if (!hit) {
           console.log(`fake roxy SENTETİK 501 ${path}: bu istek için golden fixture yok — gerçek sağlayıcı doğrulaması bekliyor`);
           res.writeHead(501, { "Content-Type": "application/json" });

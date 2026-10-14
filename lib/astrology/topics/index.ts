@@ -26,10 +26,12 @@ import {
   topicsFromTransit,
   topicsFromAstrocartography,
   topicsFromLocalSpace,
+  topicsFromFixedStars,
   topicsFromRelocation,
   type TopicContext,
 } from "./contextual";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "../model/westernLocation";
+import type { FixedStarsTechnical } from "../model/westernFixedStars";
 import type { VedicD1Technical, VedicDashaTechnical, VedicDrishtiTechnical, VedicPanchangaTechnical, VedicShadbalaTechnical, VedicTransitTechnical, VedicVargaTechnical } from "../model/vedic";
 import { KP_CONTEXT_LABELS, KP_KINDS, topicsFromKpChart, topicsFromKpDasha, topicsFromKpHorary, topicsFromKpRuling, topicsFromKpTransit, type KpContext } from "./vedic";
 import type { KpChartTechnical, KpHoraryTechnical, KpRulingTechnical, KpTransitTechnical } from "../model/kp";
@@ -132,7 +134,11 @@ function kindLabel(kind: string): string {
                 ? "açısal gezegen"
                 : kind.endsWith("_direction")
                   ? "yön hattı"
-                  : kind;
+                  : kind === "fixed_star_contact"
+                    ? "kavuşum"
+                    : kind === "fixed_star"
+                      ? "yıldız (genel)"
+                      : kind;
   return `${ctx} · ${tail}`;
 }
 
@@ -166,6 +172,8 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromRelocation(technical as RelocationTechnical) : [];
     case "western.local_space":
       return technical ? topicsFromLocalSpace(technical as LocalSpaceTechnical) : [];
+    case "western.fixed_stars":
+      return technical ? topicsFromFixedStars(technical as FixedStarsTechnical) : [];
     case "vedic.d1":
       return technical ? topicsFromVedicD1(technical as VedicD1Technical) : [];
     case "vedic.varga":
@@ -228,6 +236,7 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   "western.astrocartography": "astrocartography",
   "western.relocation": "relocation",
   "western.local_space": "local_space",
+  "western.fixed_stars": "fixed_stars",
 };
 
 /** Not bölüm anahtarı bu teknik için geçerli mi ("overall" her teknikte geçerli). */

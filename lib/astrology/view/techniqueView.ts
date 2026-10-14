@@ -22,6 +22,7 @@ import type {
   TransitTechnical,
 } from "../model/westernTiming";
 import { maskTimeDependent, PROVIDER_INTERP_NOTICE } from "./natalView";
+import type { FixedStarsInterpretation, FixedStarsTechnical } from "../model/westernFixedStars";
 
 export type ResultRowLike = {
   id: string;
@@ -134,6 +135,16 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
         warnings: ["Kişilerden en az birinin doğum saati bilinmiyor: composite evleri ve Yükselen/MC gösterilmez.", MOON_WARN],
       };
     }
+    case "western.fixed_stars": {
+      // Yıldız konumları saatten bağımsızdır (presesyon gün içinde ihmal edilir) ve korunur. ASC/MC tamamen saate
+      // bağlıdır; Ay gün içinde ~13° yol alır → 1–3°'lik kavuşumda Ay teması anlamsızdır → gösterilmez.
+      const t = technical as FixedStarsTechnical;
+      return {
+        technical: { ...t, contacts: t.contacts.filter((c) => !FIXED_STAR_TIME_POINTS.has(c.point)) },
+        masked: true,
+        warnings: [FIXED_STAR_TIME_WARN],
+      };
+    }
     case "western.astrocartography":
     case "western.relocation":
     case "western.local_space":
@@ -149,6 +160,9 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
   }
 }
 
+const FIXED_STAR_TIME_POINTS = new Set<string>(["ascendant", "midheaven", "moon"]);
+const FIXED_STAR_TIME_WARN =
+  "Doğum saati bilinmiyor: Yükselen, MC ve Ay ile sabit yıldız kavuşumları gösterilmez (Ay gün içinde ~13° yol alır). Hızlı gezegenlerde (Merkür, Venüs, Güneş) gün içi kayma ~1–2°'ye ulaşabilir; bu temaslar yaklaşık kabul edilmelidir.";
 const LOCATION_TIME_WARN = "Doğum saati bilinmiyor: bu konum tekniği tamamen saate bağlıdır; sonuç gösterilmez.";
 const TIME_ONLY = new Set(["western.astrocartography", "western.relocation", "western.local_space"]);
 /** KP: horary ve transit (efemeris) doğum verisi KULLANMAZ → saat bilinmese de gösterilir. */
@@ -176,6 +190,11 @@ function maskInterpretation(technique: string, content: unknown, masked: boolean
   // Saat bilinmiyorsa: ilerletilmiş ve composite anlatıları ev/açı (ASC-MC) ve saate duyarlı Ay konumuna dayanır →
   // teknik katmanda gizlenen bilgiyi anlatıda göstermemek için sağlayıcı yorumu gösterilmez.
   if (technique === "western.progression" || technique === "western.composite") return null;
+  if (technique === "western.fixed_stars") {
+    // Gizlenen temasların anlatısı da gönderilmez; sağlayıcı özeti tüm temasları saydığı için gösterilmez.
+    const c = content as FixedStarsInterpretation;
+    return { ...c, contacts: c.contacts.filter((x) => !FIXED_STAR_TIME_POINTS.has(x.point)), summary: null };
+  }
   if (technique === "western.synastry") {
     const c = content as SynastryInterpretation;
     return { ...c, aspects: c.aspects.filter((a) => !isAngle(a.a) && !isAngle(a.b)) };

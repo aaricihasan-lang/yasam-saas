@@ -218,7 +218,15 @@ async function main() {
   });
   await t("istek gövdesi: IANA değil ondalık ofset; saat bilinmiyorsa 12:00:00", () => {
     const b = buildNatalRequestBody({ birthDate: "1990-07-15", birthTime: null, utcOffsetSeconds: 7016, latitude: 41.00821234, longitude: 28.9784 }, { houseSystem: "koch", nodeType: "mean" });
-    assert.deepEqual(b, { date: "1990-07-15", time: "12:00:00", latitude: 41.008212, longitude: 28.9784, timezone: 1.948889, nodeType: "mean", houseSystem: "koch" });
+    // 2026-10-14 LMT dengelemesi: Roxy ofseti hesapta dakikaya yuvarlar (gerçek çağrıyla ölçüldü) → 1:56:56 yerine 1:57:00
+    // gönderilir ve yerel saat 4 sn ileri alınır; UTC an birebir aynı (12:00:00 − 1:56:56 = 12:00:04 − 1:57:00).
+    assert.deepEqual(b, { date: "1990-07-15", time: "12:00:04", latitude: 41.008212, longitude: 28.9784, timezone: 1.95, nodeType: "mean", houseSystem: "koch" });
+    // Tam dakikalık ofset (pratikte tüm modern doğumlar): gövde ESKİSİYLE birebir (önbellek anahtarı değişmez).
+    const m = buildNatalRequestBody({ birthDate: "1990-07-15", birthTime: "14:30:00", utcOffsetSeconds: 10800, latitude: 41.0082, longitude: 28.9784 }, { houseSystem: "placidus", nodeType: "true" });
+    assert.deepEqual(m, { date: "1990-07-15", time: "14:30:00", latitude: 41.0082, longitude: 28.9784, timezone: 3, nodeType: "true", houseSystem: "placidus" });
+    // Gün sınırı: dengeleme tarihi de doğru kaydırır (23:59:58, −0:44:30 → −0:44:00 → +30 sn → ertesi gün 00:00:28).
+    const d = buildNatalRequestBody({ birthDate: "1965-06-01", birthTime: "23:59:58", utcOffsetSeconds: -2670, latitude: 6.3, longitude: -10.8 }, { houseSystem: "placidus", nodeType: "true" });
+    assert.equal(`${d.date} ${d.time} ${d.timezone}`, "1965-06-02 00:00:28 -0.733333");
   });
 
   // ─── D) Beyaz liste projeksiyon ────────────────────────────────────────────

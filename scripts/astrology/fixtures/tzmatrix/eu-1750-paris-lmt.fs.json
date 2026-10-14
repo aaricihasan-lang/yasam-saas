@@ -1,0 +1,825 @@
+{
+ "case": {
+  "id": "eu-1750-paris-lmt",
+  "group": "EU",
+  "date": "1750-03-21",
+  "time": "12:00",
+  "locationId": "fr-paris",
+  "expectOffset": 0.15583333333333332,
+  "note": "Paris yerel ortalama zamanı (LMT +0:09:21); presesyon ~3 yüzyıl",
+  "fixedStars": true
+ },
+ "product": {
+  "tz": "Europe/Paris",
+  "utcIso": "1750-03-21T11:50:39.000Z",
+  "locLabel": "Paris, Île-de-France, France"
+ },
+ "endpoint": "/astrology/fixed-stars",
+ "query": {
+  "orb": "3"
+ },
+ "body": {
+  "date": "1750-03-21",
+  "time": "12:00:00",
+  "latitude": 48.8566,
+  "longitude": 2.3522,
+  "timezone": 0.155833,
+  "nodeType": "true"
+ },
+ "response": {
+  "birthDetails": {
+   "date": "1750-03-21",
+   "time": "12:00:00",
+   "latitude": 48.8566,
+   "longitude": 2.3522,
+   "timezone": 0.155833,
+   "nodeType": "true"
+  },
+  "orb": 3,
+  "stars": [
+   {
+    "id": "algenib",
+    "name": "Algenib",
+    "longitude": 5.6752,
+    "sign": "Aries",
+    "degree": 5.6752,
+    "magnitude": 2.84,
+    "nature": "Mars and Mercury",
+    "keywords": [
+     "ambition",
+     "notoriety",
+     "misfortune",
+     "determination"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "alpheratz",
+    "name": "Alpheratz",
+    "longitude": 10.8308,
+    "sign": "Aries",
+    "degree": 10.8308,
+    "magnitude": 2.06,
+    "nature": "Jupiter and Venus",
+    "keywords": [
+     "independence",
+     "honor",
+     "riches",
+     "intellect"
+    ],
+    "conjunctions": [
+     {
+      "point": "Jupiter",
+      "pointLocalized": "Jüpiter",
+      "pointLongitude": 8.9556,
+      "orb": 1.8752
+     }
+    ]
+   },
+   {
+    "id": "mirach",
+    "name": "Mirach",
+    "longitude": 26.9216,
+    "sign": "Aries",
+    "degree": 26.9216,
+    "magnitude": 2.05,
+    "nature": "Venus",
+    "keywords": [
+     "beauty",
+     "devotion",
+     "love",
+     "kindness",
+     "brilliance"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "achernar",
+    "name": "Achernar",
+    "longitude": 341.7593,
+    "sign": "Pisces",
+    "degree": 11.7593,
+    "magnitude": 0.46,
+    "nature": "Jupiter",
+    "keywords": [
+     "beneficence",
+     "religion",
+     "public office",
+     "success"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "hamal",
+    "name": "Hamal",
+    "longitude": 34.1707,
+    "sign": "Taurus",
+    "degree": 4.1707,
+    "magnitude": 2.01,
+    "nature": "Mars and Saturn",
+    "keywords": [
+     "independence",
+     "force",
+     "leadership",
+     "defiance"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "polaris",
+    "name": "Polaris",
+    "longitude": 85.0768,
+    "sign": "Gemini",
+    "degree": 25.0768,
+    "magnitude": 2.02,
+    "nature": "Saturn and Venus",
+    "keywords": [
+     "guidance",
+     "direction",
+     "inheritance",
+     "caution"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "menkar",
+    "name": "Menkar",
+    "longitude": 40.8308,
+    "sign": "Taurus",
+    "degree": 10.8308,
+    "magnitude": 2.53,
+    "nature": "Saturn",
+    "keywords": [
+     "disgrace",
+     "loss",
+     "endurance",
+     "adversity"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "algol",
+    "name": "Algol",
+    "longitude": 52.6879,
+    "sign": "Taurus",
+    "degree": 22.6879,
+    "magnitude": 2.12,
+    "nature": "Saturn and Jupiter",
+    "keywords": [
+     "intensity",
+     "misfortune",
+     "crisis",
+     "transformation"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "mirfak",
+    "name": "Mirfak",
+    "longitude": 58.6014,
+    "sign": "Taurus",
+    "degree": 28.6014,
+    "magnitude": 1.79,
+    "nature": "Jupiter and Saturn",
+    "keywords": [
+     "boldness",
+     "strength",
+     "adventure",
+     "intelligence"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "alcyone",
+    "name": "Alcyone",
+    "longitude": 56.5072,
+    "sign": "Taurus",
+    "degree": 26.5072,
+    "magnitude": 2.87,
+    "nature": "Moon and Mars",
+    "keywords": [
+     "ambition",
+     "vision",
+     "eminence",
+     "sorrow"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "aldebaran",
+    "name": "Aldebaran",
+    "longitude": 66.3012,
+    "sign": "Gemini",
+    "degree": 6.3012,
+    "magnitude": 0.86,
+    "nature": "Mars",
+    "keywords": [
+     "honor",
+     "courage",
+     "eloquence",
+     "integrity",
+     "riches"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "rigel",
+    "name": "Rigel",
+    "longitude": 73.3422,
+    "sign": "Gemini",
+    "degree": 13.3422,
+    "magnitude": 0.13,
+    "nature": "Jupiter and Saturn",
+    "keywords": [
+     "honor",
+     "riches",
+     "ambition",
+     "knowledge",
+     "success"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "capella",
+    "name": "Capella",
+    "longitude": 78.3721,
+    "sign": "Gemini",
+    "degree": 18.3721,
+    "magnitude": 0.08,
+    "nature": "Mars and Mercury",
+    "keywords": [
+     "curiosity",
+     "learning",
+     "honor",
+     "renown"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "bellatrix",
+    "name": "Bellatrix",
+    "longitude": 77.4627,
+    "sign": "Gemini",
+    "degree": 17.4627,
+    "magnitude": 1.64,
+    "nature": "Mars and Mercury",
+    "keywords": [
+     "honor",
+     "eloquence",
+     "strategy",
+     "ambition"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "betelgeuse",
+    "name": "Betelgeuse",
+    "longitude": 85.2703,
+    "sign": "Gemini",
+    "degree": 25.2703,
+    "magnitude": 0.42,
+    "nature": "Mars and Mercury",
+    "keywords": [
+     "honor",
+     "success",
+     "wealth",
+     "fame",
+     "preferment"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "canopus",
+    "name": "Canopus",
+    "longitude": 101.5217,
+    "sign": "Cancer",
+    "degree": 11.5217,
+    "magnitude": -0.74,
+    "nature": "Saturn and Jupiter",
+    "keywords": [
+     "piety",
+     "knowledge",
+     "voyages",
+     "transformation"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "sirius",
+    "name": "Sirius",
+    "longitude": 100.6469,
+    "sign": "Cancer",
+    "degree": 10.6469,
+    "magnitude": -1.46,
+    "nature": "Jupiter and Mars",
+    "keywords": [
+     "honor",
+     "renown",
+     "fame",
+     "ambition",
+     "devotion"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "castor",
+    "name": "Castor",
+    "longitude": 106.7687,
+    "sign": "Cancer",
+    "degree": 16.7687,
+    "magnitude": 1.58,
+    "nature": "Mercury",
+    "keywords": [
+     "intellect",
+     "distinction",
+     "writing",
+     "travel",
+     "fame"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "procyon",
+    "name": "Procyon",
+    "longitude": 112.3478,
+    "sign": "Cancer",
+    "degree": 22.3478,
+    "magnitude": 0.37,
+    "nature": "Mercury and Mars",
+    "keywords": [
+     "activity",
+     "sudden success",
+     "pride",
+     "fortune"
+    ],
+    "conjunctions": [
+     {
+      "point": "Neptune",
+      "pointLocalized": "Neptün",
+      "pointLongitude": 114.9083,
+      "orb": 2.5605
+     },
+     {
+      "point": "ASC",
+      "pointLocalized": "ASC",
+      "pointLongitude": 113.7231,
+      "orb": 1.3753
+     }
+    ]
+   },
+   {
+    "id": "pollux",
+    "name": "Pollux",
+    "longitude": 109.7759,
+    "sign": "Cancer",
+    "degree": 19.7759,
+    "magnitude": 1.14,
+    "nature": "Mars",
+    "keywords": [
+     "courage",
+     "audacity",
+     "competition",
+     "forcefulness"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "alphard",
+    "name": "Alphard",
+    "longitude": 143.8156,
+    "sign": "Leo",
+    "degree": 23.8156,
+    "magnitude": 1.97,
+    "nature": "Saturn and Venus",
+    "keywords": [
+     "wisdom",
+     "passion",
+     "artistry",
+     "intensity"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "regulus",
+    "name": "Regulus",
+    "longitude": 146.3676,
+    "sign": "Leo",
+    "degree": 26.3676,
+    "magnitude": 1.4,
+    "nature": "Mars and Jupiter",
+    "keywords": [
+     "royalty",
+     "honor",
+     "power",
+     "ambition",
+     "downfall"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "denebola",
+    "name": "Denebola",
+    "longitude": 168.1627,
+    "sign": "Virgo",
+    "degree": 18.1627,
+    "magnitude": 2.13,
+    "nature": "Saturn and Venus",
+    "keywords": [
+     "judgment",
+     "nobility",
+     "self-control",
+     "misfortune"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "acrux",
+    "name": "Acrux",
+    "longitude": 218.4266,
+    "sign": "Scorpio",
+    "degree": 8.4266,
+    "magnitude": 0.76,
+    "nature": "Jupiter",
+    "keywords": [
+     "religion",
+     "justice",
+     "ceremony",
+     "mysticism"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "algorab",
+    "name": "Algorab",
+    "longitude": 189.9914,
+    "sign": "Libra",
+    "degree": 9.9914,
+    "magnitude": 2.94,
+    "nature": "Mars and Saturn",
+    "keywords": [
+     "deceit",
+     "malevolence",
+     "cunning",
+     "adversity"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "vindemiatrix",
+    "name": "Vindemiatrix",
+    "longitude": 186.4733,
+    "sign": "Libra",
+    "degree": 6.4733,
+    "magnitude": 2.79,
+    "nature": "Saturn and Mercury",
+    "keywords": [
+     "disgrace",
+     "folly",
+     "melancholy",
+     "falsity"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "spica",
+    "name": "Spica",
+    "longitude": 200.3673,
+    "sign": "Libra",
+    "degree": 20.3673,
+    "magnitude": 0.97,
+    "nature": "Venus and Mars",
+    "keywords": [
+     "success",
+     "riches",
+     "art",
+     "talent",
+     "renown"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "arcturus",
+    "name": "Arcturus",
+    "longitude": 200.7598,
+    "sign": "Libra",
+    "degree": 20.7598,
+    "magnitude": -0.05,
+    "nature": "Mars and Jupiter",
+    "keywords": [
+     "prosperity",
+     "honors",
+     "voyages",
+     "success"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "hadar",
+    "name": "Hadar",
+    "longitude": 230.3333,
+    "sign": "Scorpio",
+    "degree": 20.3333,
+    "magnitude": 0.58,
+    "nature": "Venus and Jupiter",
+    "keywords": [
+     "honor",
+     "friendship",
+     "refinement",
+     "success"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "toliman",
+    "name": "Toliman",
+    "longitude": 236.3471,
+    "sign": "Scorpio",
+    "degree": 26.3471,
+    "magnitude": 0.01,
+    "nature": "Venus and Jupiter",
+    "keywords": [
+     "beneficence",
+     "refinement",
+     "honor",
+     "friendship"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "zuben-elgenubi",
+    "name": "Zuben Elgenubi",
+    "longitude": 221.61,
+    "sign": "Scorpio",
+    "degree": 11.61,
+    "magnitude": 2.75,
+    "nature": "Saturn and Mars",
+    "keywords": [
+     "obstruction",
+     "loss",
+     "caution",
+     "adversity"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "zuben-eschamali",
+    "name": "Zuben Eschamali",
+    "longitude": 225.8967,
+    "sign": "Scorpio",
+    "degree": 15.8967,
+    "magnitude": 2.62,
+    "nature": "Jupiter and Mercury",
+    "keywords": [
+     "good fortune",
+     "honor",
+     "ambition",
+     "riches"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "alphecca",
+    "name": "Alphecca",
+    "longitude": 218.7841,
+    "sign": "Scorpio",
+    "degree": 8.7841,
+    "magnitude": 2.24,
+    "nature": "Venus and Mercury",
+    "keywords": [
+     "honor",
+     "dignity",
+     "artistry",
+     "poetry",
+     "beauty"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "antares",
+    "name": "Antares",
+    "longitude": 246.2835,
+    "sign": "Sagittarius",
+    "degree": 6.2835,
+    "magnitude": 0.91,
+    "nature": "Mars and Jupiter",
+    "keywords": [
+     "courage",
+     "intensity",
+     "rashness",
+     "obstinacy"
+    ],
+    "conjunctions": [
+     {
+      "point": "Pluto",
+      "pointLocalized": "Plüton",
+      "pointLongitude": 244.2534,
+      "orb": 2.0301
+     }
+    ]
+   },
+   {
+    "id": "sabik",
+    "name": "Sabik",
+    "longitude": 254.486,
+    "sign": "Sagittarius",
+    "degree": 14.486,
+    "magnitude": 2.42,
+    "nature": "Saturn and Venus",
+    "keywords": [
+     "recovery",
+     "excess",
+     "wastefulness",
+     "caution"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "rasalhague",
+    "name": "Rasalhague",
+    "longitude": 258.9561,
+    "sign": "Sagittarius",
+    "degree": 18.9561,
+    "magnitude": 2.07,
+    "nature": "Saturn and Venus",
+    "keywords": [
+     "philosophy",
+     "humanitarianism",
+     "healing",
+     "caution"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "vega",
+    "name": "Vega",
+    "longitude": 281.8174,
+    "sign": "Capricorn",
+    "degree": 11.8174,
+    "magnitude": 0.03,
+    "nature": "Venus and Mercury",
+    "keywords": [
+     "refinement",
+     "idealism",
+     "artistry",
+     "charisma"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "altair",
+    "name": "Altair",
+    "longitude": 298.2537,
+    "sign": "Capricorn",
+    "degree": 28.2537,
+    "magnitude": 0.76,
+    "nature": "Mars and Jupiter",
+    "keywords": [
+     "boldness",
+     "ambition",
+     "command",
+     "courage"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "deneb",
+    "name": "Deneb",
+    "longitude": 331.8893,
+    "sign": "Pisces",
+    "degree": 1.8893,
+    "magnitude": 1.25,
+    "nature": "Venus and Mercury",
+    "keywords": [
+     "ingenuity",
+     "intellect",
+     "learning",
+     "leadership"
+    ],
+    "conjunctions": [
+     {
+      "point": "Mercury",
+      "pointLocalized": "Merkür",
+      "pointLongitude": 334.2433,
+      "orb": 2.354
+     }
+    ]
+   },
+   {
+    "id": "deneb-algedi",
+    "name": "Deneb Algedi",
+    "longitude": 320.0443,
+    "sign": "Aquarius",
+    "degree": 20.0443,
+    "magnitude": 2.83,
+    "nature": "Saturn and Jupiter",
+    "keywords": [
+     "justice",
+     "law",
+     "beneficence",
+     "wisdom"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "fomalhaut",
+    "name": "Fomalhaut",
+    "longitude": 330.3436,
+    "sign": "Pisces",
+    "degree": 0.3436,
+    "magnitude": 1.16,
+    "nature": "Venus and Mercury",
+    "keywords": [
+     "idealism",
+     "fame",
+     "fortune",
+     "spirituality"
+    ],
+    "conjunctions": []
+   },
+   {
+    "id": "scheat",
+    "name": "Scheat",
+    "longitude": 355.8862,
+    "sign": "Pisces",
+    "degree": 25.8862,
+    "magnitude": 2.42,
+    "nature": "Mars and Mercury",
+    "keywords": [
+     "misfortune",
+     "ruin",
+     "adversity",
+     "caution"
+    ],
+    "conjunctions": [
+     {
+      "point": "MC",
+      "pointLocalized": "MC",
+      "pointLongitude": 358.8758,
+      "orb": 2.9895
+     }
+    ]
+   },
+   {
+    "id": "markab",
+    "name": "Markab",
+    "longitude": 350.0059,
+    "sign": "Pisces",
+    "degree": 20.0059,
+    "magnitude": 2.48,
+    "nature": "Mars and Mercury",
+    "keywords": [
+     "honor",
+     "riches",
+     "fortune",
+     "danger"
+    ],
+    "conjunctions": []
+   }
+  ],
+  "conjunctions": [
+   {
+    "star": "Procyon",
+    "point": "ASC",
+    "pointLocalized": "ASC",
+    "orb": 1.3753,
+    "interpretation": "Sabit yıldız Procyon, ASC konumunuzun 1,4° yakınında yer alır; klasik astrolojide Merkür ve Mars yapıda bir yıldızdır. Bir harita noktasına bu denli yakın bir yıldız, o noktanın kendini ifade ediş biçimini geleneksel anlamıyla renklendirir."
+   },
+   {
+    "star": "Alpheratz",
+    "point": "Jupiter",
+    "pointLocalized": "Jüpiter",
+    "orb": 1.8752,
+    "interpretation": "Sabit yıldız Alpheratz, Jüpiter konumunuzun 1,9° yakınında yer alır; klasik astrolojide Jüpiter ve Venüs yapıda bir yıldızdır. Bir harita noktasına bu denli yakın bir yıldız, o noktanın kendini ifade ediş biçimini geleneksel anlamıyla renklendirir."
+   },
+   {
+    "star": "Antares",
+    "point": "Pluto",
+    "pointLocalized": "Plüton",
+    "orb": 2.0301,
+    "interpretation": "Sabit yıldız Antares, Plüton konumunuzun 2,1° yakınında yer alır; klasik astrolojide Mars ve Jüpiter yapıda bir yıldızdır. Bir harita noktasına bu denli yakın bir yıldız, o noktanın kendini ifade ediş biçimini geleneksel anlamıyla renklendirir."
+   },
+   {
+    "star": "Deneb",
+    "point": "Mercury",
+    "pointLocalized": "Merkür",
+    "orb": 2.354,
+    "interpretation": "Sabit yıldız Deneb, Merkür konumunuzun 2,4° yakınında yer alır; klasik astrolojide Venüs ve Merkür yapıda bir yıldızdır. Bir harita noktasına bu denli yakın bir yıldız, o noktanın kendini ifade ediş biçimini geleneksel anlamıyla renklendirir."
+   },
+   {
+    "star": "Procyon",
+    "point": "Neptune",
+    "pointLocalized": "Neptün",
+    "orb": 2.5605,
+    "interpretation": "Sabit yıldız Procyon, Neptün konumunuzun 2,6° yakınında yer alır; klasik astrolojide Merkür ve Mars yapıda bir yıldızdır. Bir harita noktasına bu denli yakın bir yıldız, o noktanın kendini ifade ediş biçimini geleneksel anlamıyla renklendirir."
+   },
+   {
+    "star": "Scheat",
+    "point": "MC",
+    "pointLocalized": "MC",
+    "orb": 2.9895,
+    "interpretation": "Sabit yıldız Scheat, MC konumunuzun 3° yakınında yer alır; klasik astrolojide Mars ve Merkür yapıda bir yıldızdır. Bir harita noktasına bu denli yakın bir yıldız, o noktanın kendini ifade ediş biçimini geleneksel anlamıyla renklendirir."
+   }
+  ],
+  "summary": "21 Mart 1750 12:00 için sabit yıldız konumları; Regulus, Spica ve Algol gibi başlıca adlı yıldızlar genelinde 3° içinde 6 kavuşum içerir."
+ }
+}

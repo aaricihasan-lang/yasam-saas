@@ -9,7 +9,7 @@
  * Çalıştırma: npx tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/report8.harness.ts
  */
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import JSZip from "jszip";
@@ -42,7 +42,7 @@ process.env.RATE_LIMIT_SECRET = "fake-rl-secret";
 const ROOT = join(__dirname, "..", "..");
 const DIR = join(__dirname, "fixtures", "golden");
 const NATAL = JSON.parse(readFileSync(join(__dirname, "fixtures", "roxy-natal-golden-2026-10-07.json"), "utf8"));
-const GOLDEN: { name: string; endpoint: string; body: J; response: J }[] = readdirSync(DIR)
+const GOLDEN: { name: string; endpoint: string; body: J; query?: Record<string, string> | null; response: J }[] = readdirSync(DIR)
   .filter((f) => f.endsWith(".json"))
   .map((f) => ({ name: f.replace(/\.json$/, ""), ...JSON.parse(readFileSync(join(DIR, f), "utf8")) }));
 
@@ -111,10 +111,11 @@ const providerCalls: { endpoint: string; body: J }[] = [];
 const score = (a: J, b: J) => Object.keys(b ?? {}).filter((k) => JSON.stringify(a?.[k]) === JSON.stringify(b[k])).length;
 const deps: EngineDeps = {
   config: { apiKey: "k-test-8", baseUrl: ROXY_BASE },
-  callProvider: async (_c, endpoint, body) => {
+  callProvider: async (_c, endpoint, body, o) => {
     providerCalls.push({ endpoint, body });
     if (endpoint === "/astrology/natal-chart") return { ok: true, raw: structuredClone(NATAL), attempts: 1 };
-    const cands = GOLDEN.filter((g) => g.endpoint === endpoint);
+    // Sorgu parametresi olan golden'lar (ör. fixed-stars orb=3 / orb=1) yalnız AYNI sorguyla eşleşir.
+    const cands = GOLDEN.filter((g) => g.endpoint === endpoint && (!g.query || JSON.stringify(g.query) === JSON.stringify(o?.query ?? null)));
     if (!cands.length) return { ok: false, kind: "bad_request", status: 400, attempts: 1 };
     const best = cands.sort((x, y) => score(body, y.body) - score(body, x.body))[0];
     const r = structuredClone(best.response);
@@ -173,6 +174,8 @@ function selection(id: string, partner?: string): { technique: string; options: 
       return { technique: id, options: { targetLocationId: "us-ny-new-york", houseSystem: "placidus" } };
     case "western.local_space":
       return { technique: id, options: { referenceLocationId: null } };
+    case "western.fixed_stars":
+      return { technique: id, options: { nodeType: "true", orb: 1, reportCatalog: true } };
     case "vedic.varga":
       return { technique: id, options: { division: 9 } };
     case "vedic.transit":
@@ -194,7 +197,7 @@ function selection(id: string, partner?: string): { technique: string; options: 
 
 const TECHNIQUES = [
   "western.natal", "western.transit", "western.forecast", "western.progression", "western.solar_arc", "western.solar_return", "western.lunar_return",
-  "western.synastry", "western.composite", "western.astrocartography", "western.relocation", "western.local_space",
+  "western.synastry", "western.composite", "western.astrocartography", "western.relocation", "western.local_space", "western.fixed_stars",
   "vedic.d1", "vedic.varga", "vedic.dasha", "vedic.drishti", "vedic.ashtakavarga", "vedic.shadbala", "vedic.panchanga", "vedic.transit",
   "kp.chart", "kp.dasha", "kp.ruling", "kp.transit", "kp.horary",
 ] as const;
@@ -289,6 +292,7 @@ async function main() {
     "western.astrocartography": ["Gezegen hatları", "MC hattı boylamı"],
     "western.relocation": ["Gezegenler: doğum yeri ↔ hedef", "Hedefte ev"],
     "western.local_space": ["Local space yönleri", "Azimut"],
+    "western.fixed_stars": ["Önemli sabit yıldız kavuşumları", "Ekliptik boylam kavuşumu (paran değildir)", "Ek: Sabit yıldız kataloğu", "Zuben Elgenubi", "Deneb Algedi"],
     "vedic.d1": ["Graha yerleşimleri (D1 / Rashi)", "Nakshatra", "Vedik / Jyotish", "Yogalar"],
     "vedic.varga": ["Varga yerleşimleri", "Vargottama"],
     "vedic.dasha": ["Dönemler", "Vimshottari"],
@@ -332,8 +336,11 @@ async function main() {
     const r = buildAstroReport(await full(saved.get("western.natal")!));
     const ch = r.blocks.find((b) => b.kind === "chart") as J;
     const svg = buildWheelSvg(ch.chart);
-    assert.ok(svg.startsWith("<svg") && svg.includes(">Gü<") && svg.includes(">Koç<") && svg.includes(">ASC<"));
-    assert.ok(!/[☉☽♈♉]/.test(svg), "glif (fontta yok) kullanılmamalı");
+    // 2026-10-14 owner kararı: çarkta GERÇEK glifler (sembol yedek yazı tipleri resvg'ye yüklenir); Türkçe karşılık açıklamada.
+    assert.ok(svg.startsWith("<svg") && svg.includes(">☉<") && svg.includes(">♋<") && svg.includes(">ASC<"), "çarkta gezegen/burç glifi yok");
+    assert.ok(svg.includes("Yasam Astro Symbols A") && svg.includes("Yasam Astro Symbols B"), "çark yazı tipi listesinde sembol yedek fontları yok");
+    assert.ok(!/>(Gü|Koç)</.test(svg), "eski Türkçe kısaltma kalmamalı");
+    assert.ok(r.blocks.some((b) => b.kind === "para" && b.text.includes("☉ Güneş") && b.text.includes("♈ Koç")), "çark açıklaması sembol + Türkçe olmalı");
   });
 
   await t("model: uzman notu + Bilgi Bankası snapshot'ı rapora girer; dosya adı ASCII", async () => {
@@ -381,6 +388,11 @@ async function main() {
       assert.equal(p.status, 200);
       assert.equal(p.headers.get("content-type"), "application/pdf");
       assert.equal(p.buf.subarray(0, 5).toString(), "%PDF-");
+      // İsteğe bağlı görsel denetim: ASTRO_REPORT_DUMP=<klasör> verilirse üretilen dosyalar diske yazılır (test sonucu değişmez).
+      if (process.env.ASTRO_REPORT_DUMP) {
+        writeFileSync(join(process.env.ASTRO_REPORT_DUMP, `${tech}.docx`), d.buf);
+        writeFileSync(join(process.env.ASTRO_REPORT_DUMP, `${tech}.pdf`), p.buf);
+      }
       const px = await pdfText(p.buf);
       assert.ok(px.pages >= 2, "kapak + içerik");
       assert.ok(norm(px.text).includes("Şükrü Çağrı Işıkgöz"), "PDF Türkçe ad");

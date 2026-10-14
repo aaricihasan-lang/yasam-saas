@@ -13,6 +13,7 @@ import { renderWheelPng } from "./chartPng";
 import { DOCX_MIME, renderAstroReportDocx } from "./docx";
 import { buildAstroReport, buildCombinedAstroReport, type AstroReport, type ReportAnalysisInput } from "./model";
 import { buildAstroReportPdf } from "./pdf";
+import { symbolFontBuffers, symbolFontsBase64 } from "./symbolFontData";
 
 assertServerOnly("lib/astrology/report/service");
 
@@ -31,10 +32,10 @@ export async function buildAnalysisReport(ctx: EngineCtx, id: string, format: Re
   const chartBlock = report.blocks.find((b) => b.kind === "chart");
   const chart = chartBlock && chartBlock.kind === "chart" ? renderWheelPng(chartBlock.chart) : null;
   if (format === "docx") {
-    const buf = await renderAstroReportDocx(report, chart?.png ?? null);
+    const buf = await renderAstroReportDocx(report, chart?.png ?? null, symbolFontBuffers());
     return { ok: true, bytes: new Uint8Array(buf), filename: `${report.fileBase}.docx`, contentType: DOCX_MIME, hasInterpretation: report.hasInterpretation, hasChart: !!chart };
   }
-  const bytes = buildAstroReportPdf(report, chart, anamnezPdfFontBase64());
+  const bytes = buildAstroReportPdf(report, chart, anamnezPdfFontBase64(), symbolFontsBase64());
   return { ok: true, bytes, filename: `${report.fileBase}.pdf`, contentType: PDF_MIME, hasInterpretation: report.hasInterpretation, hasChart: !!chart };
 }
 
@@ -97,9 +98,9 @@ export async function buildCombinedAnalysisReport(
   const charts = chartImages(report, 1000);
   const hasChart = charts.some(Boolean);
   if (format === "docx") {
-    const buf = await renderAstroReportDocx(report, charts.map((c) => c?.png ?? null));
+    const buf = await renderAstroReportDocx(report, charts.map((c) => c?.png ?? null), symbolFontBuffers());
     return { ok: true, bytes: new Uint8Array(buf), filename: `${report.fileBase}.docx`, contentType: DOCX_MIME, hasInterpretation: report.hasInterpretation, hasChart };
   }
-  const bytes = buildAstroReportPdf(report, charts, anamnezPdfFontBase64());
+  const bytes = buildAstroReportPdf(report, charts, anamnezPdfFontBase64(), symbolFontsBase64());
   return { ok: true, bytes, filename: `${report.fileBase}.pdf`, contentType: PDF_MIME, hasInterpretation: report.hasInterpretation, hasChart };
 }

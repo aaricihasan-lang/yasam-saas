@@ -7,11 +7,13 @@
 //   • eksik alanı "—" ile gösterir; "undefined"/"null"/"[object Object]"/ham JSON asla çıkmaz,
 //   • Roxy yorum bölümünü yalnız `interpretation.visible === true` ise kurar.
 
-import { BODY_LABELS, ASPECT_LABELS, DIGNITY_LABELS, ELEMENT_LABELS, HOUSE_SYSTEM_LABELS, MODALITY_LABELS, NATURE_LABELS, NODE_TYPE_LABELS, PATTERN_LABELS, SIGN_LABELS, formatDegree } from "../labels/tr";
+import { ASPECT_GLYPHS, BODY_GLYPHS, SIGN_GLYPHS, BODY_LABELS, ASPECT_LABELS, DIGNITY_LABELS, ELEMENT_LABELS, HOUSE_SYSTEM_LABELS, MODALITY_LABELS, NATURE_LABELS, NODE_TYPE_LABELS, PATTERN_LABELS, SIGN_LABELS, formatDegree } from "../labels/tr";
 import { SIGN_IDS, type SignId } from "../model/western";
 import { GRAHA_LABELS, KARANA_LABELS, NAKSHATRA_LABELS, VEDIC_YOGA_NAMES } from "../topics/vedic";
 import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, type KpNodeSigMethodId } from "../model/kp";
 import { WHEEL_LEGEND } from "./wheelSvg";
+import { bayerBoth, FIXED_STAR_CATALOG, FIXED_STAR_FAR_LAT, fixedStarName, fixedStarNatureLabel, starKeywordTr } from "../labels/fixedStars";
+import { FIXED_STAR_ORB_QUERY, fixedStarOrbOf } from "../model/westernFixedStars";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
 
 // ─── Blok modeli ─────────────────────────────────────────────────────────────
@@ -74,7 +76,12 @@ const deg = (v: unknown) => {
   const n = num(v);
   return n === null ? DASH : formatDegree(n);
 };
-const signL = (v: unknown) => (typeof v === "string" && v in SIGN_LABELS ? SIGN_LABELS[v as SignId] : s(v));
+// 2026-10-14 owner kararı: sembol + Türkçe karşılık BİRLİKTE ("☉ Güneş", "♌ Aslan", "☌ Kavuşum"). Görünüm seçicisi (VS15)
+// rapora yazılmaz; glifler PDF'te sembol yedek yazı tipiyle, Word'de gömülü yazı tipiyle çizilir (symbolFonts.ts).
+const noVs = (x: string) => x.replace(/[\uFE0E\uFE0F]/g, "");
+const signG = (id: string) => ((SIGN_GLYPHS as Record<string, string>)[id] ? `${noVs((SIGN_GLYPHS as Record<string, string>)[id])} ` : "");
+const bodyG = (id: string) => ((BODY_GLYPHS as Record<string, string>)[id] ? `${noVs((BODY_GLYPHS as Record<string, string>)[id])} ` : "");
+const signL = (v: unknown) => (typeof v === "string" && v in SIGN_LABELS ? `${signG(v)}${SIGN_LABELS[v as SignId]}` : s(v));
 /** Burç + burç içi derece */
 const pos = (sign: unknown, d: unknown) => (typeof sign === "string" && num(d) !== null ? `${signL(sign)} ${formatDegree(num(d)!)}` : DASH);
 /** Mutlak ekliptik boylam → "Burç 12°34′" */
@@ -82,12 +89,14 @@ const lonPos = (v: unknown) => {
   const n = num(v);
   if (n === null) return DASH;
   const l = ((n % 360) + 360) % 360;
-  return `${SIGN_LABELS[SIGN_IDS[Math.floor(l / 30) % 12]]} ${formatDegree(l % 30)}`;
+  return `${signL(SIGN_IDS[Math.floor(l / 30) % 12])} ${formatDegree(l % 30)}`;
 };
 const ANGLE_LABELS: Record<string, string> = { ascendant: "Yükselen (ASC)", midheaven: "Tepe Noktası (MC)" };
-const bodyL = (v: unknown) => (typeof v === "string" ? ((BODY_LABELS as Record<string, string>)[v] ?? ANGLE_LABELS[v] ?? v) : DASH);
-const grahaL = (v: unknown) => (typeof v === "string" ? (v === "lagna" ? "Lagna" : (GRAHA_LABELS[v] ?? v)) : DASH);
-const aspectL = (v: unknown) => (typeof v === "string" ? ((ASPECT_LABELS as Record<string, string>)[v] ?? v) : DASH);
+const bodyL = (v: unknown) => (typeof v === "string" ? ((BODY_LABELS as Record<string, string>)[v] ? `${bodyG(v)}${(BODY_LABELS as Record<string, string>)[v]}` : (ANGLE_LABELS[v] ?? v)) : DASH);
+/** Vedik graha: aynı gezegen glifi + Vedik ad (Rahu ☊ / Ketu ☋). */
+const GRAHA_GLYPH_ID: Record<string, string> = { rahu: "north_node", ketu: "south_node" };
+const grahaL = (v: unknown) => (typeof v === "string" ? (v === "lagna" ? "Lagna" : `${bodyG(GRAHA_GLYPH_ID[v] ?? v)}${GRAHA_LABELS[v] ?? v}`) : DASH);
+const aspectL = (v: unknown) => (typeof v === "string" ? ((ASPECT_LABELS as Record<string, string>)[v] ? `${(ASPECT_GLYPHS as Record<string, string>)[v] ?? ""} ${(ASPECT_LABELS as Record<string, string>)[v]}`.trim() : v) : DASH);
 const natureL = (v: unknown) => (typeof v === "string" ? ((NATURE_LABELS as Record<string, string>)[v] ?? v) : DASH);
 const nakL = (v: unknown) => (typeof v === "string" ? (NAKSHATRA_LABELS[v] ?? v) : DASH);
 const houseL = (v: unknown) => (num(v) === null ? DASH : `${num(v)}. ev`);
@@ -181,7 +190,7 @@ function bodyTable(b: B, title: string, bodies: unknown, opts: { dignity?: boole
   const rows = arr(bodies).map((x) => {
     const r = [bodyL(x.id), pos(x.sign, x.degreeInSign), houseL(x.house)];
     if (opts.houseInOther) r.push(houseL(x.houseInOther));
-    r.push(x.retrograde === true ? "R" : "");
+    r.push(x.retrograde === true ? "℞ Retro" : "");
     if (opts.dignity) r.push(typeof x.dignity === "string" ? ((DIGNITY_LABELS as Record<string, string>)[x.dignity] ?? x.dignity) : "");
     return r;
   });
@@ -506,6 +515,64 @@ function westernLocation(b: B, technique: string, t: O, opts: O) {
       b.table(["Gezegen", "Azimut", "Yükseklik", "Yön", "Ufuk"], rows, { empty: "Kayıtta yön verisi yok." });
       return;
     }
+  }
+}
+
+// ─── Sabit yıldızlar ─────────────────────────────────────────────────────────
+
+const CONJ = `${ASPECT_GLYPHS.conjunction} Kavuşum`;
+const orbTr = (v: unknown) => (num(v) === null ? DASH : `${num(v)!.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}°`);
+const latTr = (lat: number | undefined) => (lat === undefined ? DASH : `${lat > 0 ? "+" : ""}${lat.toLocaleString("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}°`);
+const magTr = (v: unknown) => (num(v) === null ? DASH : num(v)!.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+
+export const FIXED_STARS_METHOD_TEXT =
+  "Yöntem: ekliptik boylam kavuşumu. Yıldızın doğum anındaki görünür tropikal boylamı (presesyon, nütasyon ve yıllık aberasyon uygulanmış) ile natal nokta boylamı arasındaki fark, seçilen orb içindeyse kavuşum sayılır. Bu yöntem paran (yıldız ile gezegenin aynı anda ufuk veya meridyen üzerinde olması) DEĞİLDİR; paran ve heliakal doğuş bu raporda yer almaz. Yıldız konumları ve kavuşumlar RoxyAPI'den alınmıştır; Yaşam Sistemi konumları Swiss Ephemeris yıldız kataloğu (SIMBAD ICRS J2000 + öz hareket) ile bağımsız olarak doğrulamıştır.";
+
+function westernFixedStars(b: B, t: O, opts: O) {
+  const orb = fixedStarOrbOf(opts.orb);
+  const stars = arr(t.stars);
+  const byId = new Map(stars.map((x) => [String(x.id), x]));
+  const all = arr(t.contacts);
+  const inOrb = all.filter((c) => (num(c.orb) ?? 99) <= orb + 1e-9);
+  b.kv([
+    ["Yöntem", "Ekliptik boylam kavuşumu (paran değildir)"],
+    ["Zodyak", "Tropikal"],
+    ["Rapor orbu", orbTr(orb)],
+    ["Sağlayıcı sorgu orbu", orbTr(num(t.orbQueried) ?? FIXED_STAR_ORB_QUERY)],
+    ["Ay düğümü", typeof t.nodeType === "string" ? ((NODE_TYPE_LABELS as Record<string, string>)[t.nodeType] ?? t.nodeType) : DASH],
+    ["Yıldız sayısı", String(stars.length)],
+    ["Orb içindeki kavuşum", String(inOrb.length)],
+  ]);
+  b.p(FIXED_STARS_METHOD_TEXT, "muted");
+  b.h(3, `Önemli sabit yıldız kavuşumları (orb ≤ ${orbTr(orb)})`);
+  const rows = inOrb.map((c) => {
+    const st = byId.get(String(c.star));
+    const cat = FIXED_STAR_CATALOG[String(c.star)];
+    const far = cat && Math.abs(cat.latJ2000) > FIXED_STAR_FAR_LAT;
+    return [fixedStarName(String(c.star)), bodyL(c.point), orbTr(c.orb), st ? pos(st.sign, st.degreeInSign) : DASH, magTr(st?.magnitude), fixedStarNatureLabel(arr<string>(st?.nature)), `${latTr(cat?.latJ2000)}${far ? " *" : ""}`];
+  });
+  b.table(["Yıldız", "Natal nokta", "Orb", "Yıldız konumu", "Kadir", "Geleneksel doğa", "Ekliptik enlem"], rows, {
+    widths: [16, 14, 9, 17, 8, 20, 12],
+    compact: true,
+    empty: `Seçilen orb (${orbTr(orb)}) içinde sabit yıldız kavuşumu yok.`,
+  });
+  if (inOrb.some((c) => Math.abs(FIXED_STAR_CATALOG[String(c.star)]?.latJ2000 ?? 0) > FIXED_STAR_FAR_LAT)) {
+    b.p(`* Ekliptik enlemi ±${FIXED_STAR_FAR_LAT}°'yi aşan yıldız: boylam kavuşumu bir izdüşümdür; yıldız gökyüzünde natal noktadan uzaktadır. Bu yıldızlar için paran yöntemi daha anlamlı kabul edilir (bu raporda yoktur).`, "warn");
+  }
+  const wider = all.length - inOrb.length;
+  if (wider > 0) b.p(`Rapor orbu ile ${orbTr(num(t.orbQueried) ?? FIXED_STAR_ORB_QUERY)} arasında ${wider} temas daha vardır; uygulamadaki sabit yıldız ekranında orb ayarıyla görüntülenebilir.`, "muted");
+  if (opts.reportCatalog === true) {
+    b.h(3, `Ek: Sabit yıldız kataloğu (${stars.length} yıldız; doğum tarihine göre konumlar)`);
+    const contactCount = (id: string) => all.filter((c) => String(c.star) === id && (num(c.orb) ?? 99) <= orb + 1e-9).length;
+    const cRows = [...stars]
+      .sort((x, y) => (num(x.longitude) ?? 0) - (num(y.longitude) ?? 0))
+      .map((x) => {
+        const id = String(x.id);
+        const cat = FIXED_STAR_CATALOG[id];
+        return [fixedStarName(id), cat ? bayerBoth(cat.bayer) : DASH, pos(x.sign, x.degreeInSign), magTr(x.magnitude), fixedStarNatureLabel(arr<string>(x.nature)), latTr(cat?.latJ2000), contactCount(id) ? String(contactCount(id)) : DASH];
+      });
+    b.table(["Yıldız", "Bayer", "Konum", "Kadir", "Geleneksel doğa", "Enlem", "Kavuşum"], cRows, { widths: [17, 17, 17, 8, 21, 10, 10], compact: true });
+    b.p("Ekliptik enlem: J2000, SIMBAD ICRS konumundan Yaşam Sistemi hesaplaması (sağlayıcı enlem vermez). Kadir: küçük değer daha parlak yıldız demektir.", "muted");
   }
 }
 
@@ -856,6 +923,18 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       for (const x of [...arr(c.bodies), ...arr(c.directed)]) para(bodyL(x.id), x.text);
       para("Genel", c.overall ?? c.summary);
       return;
+    case "astro.western.fixed_stars.interp.v1": {
+      // Kavuşum anlatıları (Roxy, lang=tr) aynen; anahtar kelimeler Roxy'de İngilizce gelir → Yaşam sözlüğüyle Türkçe (özgün).
+      b.p("Kavuşum metinleri RoxyAPI'nin şablon yorumlarıdır (yalnız rapor orbu içindeki temaslar); anahtar kelimeler Roxy'nin İngilizce verisinin Yaşam sözlüğüyle Türkçe karşılığıdır (özgün sözcük parantez içinde).", "muted");
+      for (const x of arr(c.contacts)) para(`${fixedStarName(String(x.star))} ${CONJ} ${bodyL(x.point)}`, x.text);
+      const used = new Set(arr(c.contacts).map((x) => String(x.star)));
+      for (const st of arr(c.stars).filter((x) => used.has(String(x.id)))) {
+        const k = arr<unknown>(st.keywords).filter((y): y is string => typeof y === "string");
+        if (k.length) b.p(`${fixedStarName(String(st.id))} — anahtar kelimeler: ${k.map((y) => `${starKeywordTr(y)}${starKeywordTr(y) !== y ? ` (${y})` : ""}`).join(", ")}`, "muted");
+      }
+      para("Sağlayıcı özeti (3° sorgu)", c.summary);
+      return;
+    }
     case "astro.western.return.interp.v1":
       para("Özet", c.summary);
       para("Amaç", c.purpose);
@@ -1044,6 +1123,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     westernTiming(b, technique, tech, people, { birthTz: rv && typeof rv.timezone === "string" ? rv.timezone : null, relocated: typeof opts.returnLocationId === "string" && opts.returnLocationId !== "" });
   }
   else if (["western.astrocartography", "western.relocation", "western.local_space"].includes(technique)) westernLocation(b, technique, tech, opts);
+  else if (technique === "western.fixed_stars") westernFixedStars(b, tech, opts);
   else if (technique.startsWith("vedic.") || technique === "kp.dasha") vedic(b, technique, tech);
   else if (technique.startsWith("kp.")) {
     const rv = profile && isObj(profile.revision) ? profile.revision : null;
@@ -1077,7 +1157,14 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   if (interpVisible) {
     b.h(1, "Roxy otomatik yorumu");
     if (typeof it!.notice === "string") b.p(it!.notice, "muted");
-    interpBlocks(b, technique, it!.content as O, people);
+    let content = it!.content as O;
+    if (technique === "western.fixed_stars" && tech) {
+      // Rapor orbu dışındaki temasların anlatısı rapora girmez (teknik tabloyla tutarlı).
+      const orb = fixedStarOrbOf(opts.orb);
+      const ok = new Set(arr(tech.contacts).filter((c) => (num(c.orb) ?? 99) <= orb + 1e-9).map((c) => `${String(c.star)}|${String(c.point)}`));
+      content = { ...content, contacts: arr(content.contacts).filter((x) => ok.has(`${String(x.star)}|${String(x.point)}`)) };
+    }
+    interpBlocks(b, technique, content, people);
   }
 
   // Sürüm bilgisi

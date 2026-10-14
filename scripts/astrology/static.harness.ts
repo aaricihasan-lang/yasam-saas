@@ -239,6 +239,12 @@ async function main() {
       // Analiz Arşivi "A — yalnızca analizleri sil" fonksiyonu.
       /^supabase\/migrations\/20271101000800_astrology_analysis_delete\.sql$/,
       /^app\/admin\/layout\.tsx$/,
+      // 2026-10-14: rapor sembol yedek yazı tipleri (Yunanca + astroloji glifleri; DejaVu/Noto alt kümeleri + lisansları).
+      /^public\/fonts\/YasamAstroSymbols(A|B)\.ttf$/,
+      /^public\/fonts\/YasamAstroSymbolsA-LICENSE\.txt$/,
+      /^public\/fonts\/YasamAstroSymbolsB-OFL\.txt$/,
+      // next.config.ts: yalnız astroloji rapor route'larının font izleme satırları ("8" testi satır satır denetler).
+      /^next\.config\.ts$/,
       /^lib\/backup\/ownerPilotTables\.ts$/,
       /^lib\/backup\/schema\.generated\.ts$/,
       /^scripts\/final-hardening\/backup\.harness\.ts$/,
@@ -313,6 +319,22 @@ async function main() {
     }
     const diff = execSync(`git diff -U0 ${base} -- next.config.ts`, { cwd: ROOT, encoding: "utf8" });
     const lines = diff.split(/\r?\n/).filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---) /.test(l));
+    // 2026-10-14: astroloji rapor satırlarının yeni biçimi (Geist + sembol yedek fontları). Eski Geist-yalnız satırın
+    // yerini alması YALNIZ bu dört route (+ açıklama) için kabul edilir; başka her silme/değişiklik FAIL.
+    const ROUTES = ["/api/admin/astroloji/analyses/[id]/report", "/api/astroloji/analyses/[id]/report", "/api/admin/astroloji/analyses/report", "/api/astroloji/analyses/report"];
+    const FONT_OLD = '["./public/fonts/Geist-Regular.ttf"],';
+    const FONT_NEW = '["./public/fonts/Geist-Regular.ttf", "./public/fonts/YasamAstroSymbolsA.ttf", "./public/fonts/YasamAstroSymbolsB.ttf"],';
+    const isRoute = (l: string, sign: "-" | "+", fonts: string) => ROUTES.some((r) => l.replace(/^[+-]\s*/, "") === `"${r}": ${fonts}` && l.startsWith(sign));
+    const COMMENT_OLD = "// Astroloji Word/PDF raporu: PDF fontu + çark PNG'si (resvg) aynı Geist TTF'yi fs ile okur.";
+    const COMMENT_NEW = "// Astroloji Word/PDF raporu: PDF fontu + sembol yedek fontları (Yunanca + astroloji glifleri; 2026-10-14) + çark PNG'si (resvg) aynı Geist TTF'yi fs ile okur.";
+    const removed = lines.filter((l) => l.startsWith("-"));
+    if (removed.length > 0) {
+      assert.ok(removed.every((l) => l.replace(/^-\s*/, "") === COMMENT_OLD || isRoute(l, "-", FONT_OLD)), `next.config.ts beklenmeyen satır silindi/değişti:\n${removed.join("\n")}`);
+      const added = lines.filter((l) => l.startsWith("+"));
+      assert.ok(added.every((l) => l.replace(/^\+\s*/, "") === COMMENT_NEW || isRoute(l, "+", FONT_NEW)), `next.config.ts beklenmeyen eklenen satır:\n${added.join("\n")}`);
+      assert.equal(added.length, removed.length, "satır sayısı korunmalı (yalnız 4 route + açıklama güncellendi)");
+      return;
+    }
     assert.ok(lines.every((l) => l.startsWith("+")), "next.config.ts satır silindi/değişti");
     const allowedLines = [
       /^\+\s*\/\/ Astroloji Word\/PDF raporu: PDF fontu \+ çark PNG'si \(resvg\) aynı Geist TTF'yi fs ile okur\.$/,
