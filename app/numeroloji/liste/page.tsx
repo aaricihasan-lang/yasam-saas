@@ -5,7 +5,6 @@ import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
@@ -34,7 +33,6 @@ export default function NumerolojiListePage() {
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
   const { isDemo } = useDemoGuard();
-  const isAndroid = useIsAndroid();
   const [rows, setRows] = useState<NumerolojiListeSatir[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -280,16 +278,15 @@ export default function NumerolojiListePage() {
             {!isDemo && (
               <BulkExportBar
                 compact
-                hideWordOnMobile
                 selectedCount={selectedIds.size}
                 totalCount={rows.length}
                 filteredCount={filteredRows.length}
                 hasActiveFilter={hasActiveFilter}
                 onSelectAll={selectAllFiltered}
                 onClearSelection={clearSelection}
-                onExportSelected={isAndroid ? undefined : () => setWordPicker({ mode: "selected" })}
-                onExportAll={isAndroid ? undefined : () => setWordPicker({ mode: "all" })}
-                onExportFiltered={!isAndroid && hasActiveFilter ? () => setWordPicker({ mode: "filtered" }) : undefined}
+                onExportSelected={() => setWordPicker({ mode: "selected" })}
+                onExportAll={() => setWordPicker({ mode: "all" })}
+                onExportFiltered={hasActiveFilter ? () => setWordPicker({ mode: "filtered" }) : undefined}
                 isExporting={wordBusy}
                 onDeleteSelected={() => void handleBulkDelete()}
                 isDeleting={deleteLoading}

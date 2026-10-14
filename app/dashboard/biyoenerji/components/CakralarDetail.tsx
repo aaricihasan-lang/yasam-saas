@@ -57,7 +57,6 @@ import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { LongTextareaField } from "./LargeTextModal";
 import { useDirtySnapshot } from "@/lib/biyoenerji/useDirtyGuard";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { fetchAllStonesExtended } from "@/lib/dogaltas/stonesListFetch";
 import {
   buildChakraStoneView,
@@ -294,7 +293,6 @@ export default function CakralarDetail({ id }: { id: string }) {
     notes: "",
   });
   const [formModalOpen, setFormModalOpen] = useState(false);
-  const isAndroid = useIsAndroid();
   // BIO-004/015 — form modalı için kaydedilmemiş değişiklik takibi.
   const { isDirty: formIsDirty } = useDirtySnapshot(formModalOpen, form);
   const [infoSuccess, setInfoSuccess] = useState("");
@@ -871,8 +869,8 @@ export default function CakralarDetail({ id }: { id: string }) {
                 <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden />
                 Sil
               </button>
-              {record && !isAndroid && (
-                <button type="button" onClick={() => void downloadWord()} disabled={wordBusy} className={`no-android ${tbBtn}`}>
+              {record && (
+                <button type="button" onClick={() => void downloadWord()} disabled={wordBusy} className={tbBtn}>
                   <FileText className="h-4 w-4" strokeWidth={2} aria-hidden />
                   {wordBusy ? "Hazırlanıyor…" : "Word"}
                 </button>

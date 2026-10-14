@@ -4,6 +4,8 @@ import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { composeOtherValue, splitOtherValue } from "@/lib/urun-stok/selectOther";
+import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
+import { dataUrlsByteSize } from "@/lib/urun-stok/photoValidation";
 import { SelectWithOther } from "../SelectWithOther";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -885,6 +887,20 @@ export default function SabunKremUrunStokPage() {
                     }}
                   />
                 </label>
+                <CameraCaptureButton
+                  className={btnSecondary}
+                  onFiles={async (files) => {
+                    // Kamera: çekilen fotoğraf mevcut seçime EKLENİR (adet + toplam boyut sınırı korunur).
+                    const { urls, error } = await filesToDataUrls(files, {
+                      existingCount: photos.length,
+                      existingBytes: dataUrlsByteSize(photos),
+                    });
+                    if (error) setMsg(error);
+                    else setPhotos((prev) => [...prev, ...urls]);
+                  }}
+                >
+                  📷 Çek
+                </CameraCaptureButton>
                 <button type="button" className={btnPrimary} onClick={() => void handleSaveStock()} disabled={saveLock.pending} aria-busy={saveLock.pending}>
                   {editId ? "Güncelle" : "Ekle"}
                 </button>

@@ -56,10 +56,11 @@ const fi = read("components/danisan/anamnez/AnamnezFieldInput.tsx");
 ok((fi.match(/freeTextFieldProps\(/g) ?? []).length >= 4, "metin/textarea/ynd/satır alanları metadata'lı");
 ok(read("app/page.tsx").includes("current-password") || read("components/ui/PasswordInput.tsx").includes("autoComplete"), "giriş ekranı parola davranışına dokunulmadı");
 
-console.log("\n[4] Mobilde gizli / web'de görünür");
-ok(MOBILE_HIDDEN_INLINE_FLEX === "no-android hidden md:inline-flex" && MOBILE_HIDDEN_BLOCK === "no-android hidden md:block", "ortak sınıflar (Android SSR + telefon genişliği)");
-ok(read("components/danisan/anamnez/AnamnezAttachments.tsx").includes("MOBILE_HIDDEN_INLINE_FLEX"), "PDF Ekle mobilde gizli");
-ok(read("app/dashboard/clients/[id]/components/StonesTab.tsx").includes("MOBILE_HIDDEN_BLOCK"), "Bilgisayardan Foto Seç mobilde gizli");
+console.log("\n[4] Dosya seçimi her cihazda görünür (2026-10-14 owner kararı)");
+ok(MOBILE_HIDDEN_INLINE_FLEX === "no-android hidden md:inline-flex" && MOBILE_HIDDEN_BLOCK === "no-android hidden md:block", "ortak sınıflar değişmedi (başka ekranlar kullanabilir)");
+ok(!read("components/danisan/anamnez/AnamnezAttachments.tsx").includes("MOBILE_HIDDEN"), "PDF Ekle mobilde/Android'de görünür");
+ok(!read("app/dashboard/clients/[id]/components/StonesTab.tsx").includes("MOBILE_HIDDEN"), "Galeriden/Dosyadan Foto Seç mobilde/Android'de görünür");
+ok(read("app/dashboard/clients/[id]/components/StonesTab.tsx").includes("<CameraCaptureButton"), "Taş fotoğrafı: ayrı kamera girişi");
 ok(read("app/globals.css").includes("html[data-android] .no-android"), "SSR .no-android kuralı mevcut");
 
 console.log("\n[5] KVKK kompakt");

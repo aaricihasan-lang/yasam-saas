@@ -19,7 +19,6 @@ import { STONES_WORKSPACE_UNAVAILABLE } from "@/lib/dogaltas/sessionError";
 import { updateCombination } from "@/lib/dogaltas/dogaltasApi";
 import { fetchInventoryRows } from "@/lib/urun-stok/dogaltasInventoryApi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { LongTextField } from "@/app/dogaltas/components/LongTextField";
@@ -1256,7 +1255,6 @@ function KombinasyonDetayPageContent() {
   const [stockLoading, setStockLoading] = useState(true);
   const [wordBusy, setWordBusy] = useState(false);
   const { isDemo } = useDemoGuard();
-  const isAndroid = useIsAndroid();
   const router = useRouter();
   const t = useTranslations("stones.combinations.detail");
   const tc = useTranslations("stones.common");
@@ -1500,12 +1498,12 @@ function KombinasyonDetayPageContent() {
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center gap-2">
-            {!isDemo && !isAndroid && !loading && rows.length > 0 && (
+            {!isDemo && !loading && rows.length > 0 && (
               <button
                 type="button"
                 onClick={() => void downloadWord()}
                 disabled={wordBusy}
-                className="no-android rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 shadow-sm hover:bg-blue-100 disabled:opacity-60"
+                className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 shadow-sm hover:bg-blue-100 disabled:opacity-60"
               >
                 {wordBusy ? t("wordBusy") : t("word")}
               </button>

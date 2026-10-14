@@ -5,6 +5,8 @@ import {
   checkNoteAttachmentsTotal,
 } from "@/lib/refleksoloji/notesValidation";
 import type { NoteAttachment } from "../types";
+import { optimizeImageFile } from "@/lib/media/imageOptimize";
+import { NOTE_ATTACHMENTS_TOTAL_MAX_BYTES } from "@/lib/refleksoloji/notesValidation";
 
 /** Sunucu doğrulamasıyla PAYLAŞILAN sınır (bkz. lib/refleksoloji/notesValidation). */
 export const MAX_ATTACHMENT_BYTES = NOTE_ATTACHMENT_MAX_BYTES;
@@ -36,7 +38,17 @@ export async function readNoteAttachments(
   const added: NoteAttachment[] = [];
   const errors: string[] = [];
   let total = existingBytes;
-  for (const file of files) {
+  for (const original of files) {
+    // 2026-10-14: görseller sınır kontrolünden ÖNCE kalite koruyarak optimize edilir (telefon
+    // fotoğrafları 3 MB'a sığar). PDF ve diğer belgelere dokunulmaz; PNG/animasyon korunur;
+    // HEIC çözülemezse orijinal kalır (sunucu HEIC'i kabul eder). Hedef: kalan not bütçesi.
+    const remaining = Math.max(0, NOTE_ATTACHMENTS_TOTAL_MAX_BYTES - total);
+    const file = original.type === "application/pdf" || /\.pdf$/i.test(original.name)
+      ? original
+      : (await optimizeImageFile(original, {
+          profile: "photo",
+          maxBytes: Math.min(NOTE_ATTACHMENT_MAX_BYTES, remaining || NOTE_ATTACHMENT_MAX_BYTES),
+        })).file;
     const check = checkNoteAttachmentFile({ name: file.name, type: file.type, size: file.size });
     if (!check.ok) {
       errors.push(check.message);

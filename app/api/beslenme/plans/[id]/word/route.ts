@@ -5,7 +5,6 @@ import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { isUuid } from "@/lib/beslenme/planContracts";
 import { buildPlanDocxBuffer } from "@/lib/beslenme/word/planDocx";
 import { rateLimit } from "@/lib/rateLimit";
-import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 
 export const runtime = "nodejs";
@@ -25,8 +24,6 @@ type RouteCtx = { params: Promise<{ id: string }> };
  *  - Uzak görsel/fetch YOK (SSRF-güvenli): planDocx yalnız snapshot verisinden metin/tablo üretir.
  */
 export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
-  const androidBlocked = androidWordGuard(req);
-  if (androidBlocked) return androidBlocked;
   const guard = await requireBeslenmePlanAccess(req, (await ctx.params).id);
   if (!guard.ok) return guard.response;
   // DEMO VİTRİN: plan Word'ü salt-okunur çıktı (snapshot okuması; DB yazımı/uzak fetch/ücretli

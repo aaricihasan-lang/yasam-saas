@@ -134,7 +134,9 @@
         "saveFailedTitle": "Save failed",
         "savedTitle": "Saved",
         "savedMessage": "Stone record created successfully.",
-        "formCleared": "Form cleared."
+        "formCleared": "Form cleared.",
+        "photoTooLarge": "{name}: the photo could not be fitted under 10 MB while keeping quality.",
+        "photoHeic": "{name}: HEIC/HEIF could not be converted on this device. Please share the photo as JPEG."
       },
       "common": {
         "save": "Save",

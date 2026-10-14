@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
@@ -81,7 +80,6 @@ function kayitTuruLabel(tur: KayitTuru) {
 export function BilgiKayitListesi() {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
-  const isAndroid = useIsAndroid();
   const [kayitTuruFiltre, setKayitTuruFiltre] = useState("");
   const [analizTuruFiltre, setAnalizTuruFiltre] = useState("");
   const [arama, setArama] = useState("");
@@ -413,24 +411,22 @@ export function BilgiKayitListesi() {
                     ? `Seçilileri Sil (${seciliSayisi})`
                     : "Seçilileri Sil"}
               </button>
-              {/* NUM-MOB-1: Word butonları mobilde tamamen gizli (yer kaplamaz), md+ değişmez. */}
-              {/* Android: Word (.docx) indirme butonları hiç render edilmez (ürün kararı). */}
-              {!isAndroid && (
-                <button
-                  type="button"
-                  disabled={wordBusy || yukleniyor || tumSatirlar.length === 0}
-                  onClick={() => setWordPicker({ mode: "all" })}
-                  className="no-android hidden min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-blue-300/80 bg-blue-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 md:inline-flex"
-                >
-                  {wordBusy ? "⏳ Hazırlanıyor…" : "📄 Tümünü Word"}
-                </button>
-              )}
-              {!isAndroid && (kayitTuruFiltre || analizTuruFiltre || arama) && (
+              {/* Word butonları Android dahil tüm cihazlarda ve telefon genişliğinde görünür (2026-10-14 owner kararı;
+                  HD ve Astroloji kendi kurallarını korur). */}
+              <button
+                type="button"
+                disabled={wordBusy || yukleniyor || tumSatirlar.length === 0}
+                onClick={() => setWordPicker({ mode: "all" })}
+                className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-blue-300/80 bg-blue-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {wordBusy ? "⏳ Hazırlanıyor…" : "📄 Tümünü Word"}
+              </button>
+              {(kayitTuruFiltre || analizTuruFiltre || arama) && (
                 <button
                   type="button"
                   disabled={wordBusy || filtrelenmis.length === 0}
                   onClick={() => setWordPicker({ mode: "filtered" })}
-                  className="no-android hidden min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-violet-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 md:inline-flex"
+                  className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-violet-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {wordBusy ? "⏳…" : `📄 Filtrelenmiş Word (${filtrelenmis.length})`}
                 </button>

@@ -305,7 +305,7 @@ export function appendOtherSales(records: OtherSaleRecord[]): void {
 
 export async function filesToDataUrls(
   files: FileList | File[],
-  opts?: { existingCount?: number },
+  opts?: { existingCount?: number; existingBytes?: number },
 ): Promise<{ urls: string[]; error: string | null }> {
   // USM-010: MIME allowlist + magic byte + boyut/adet limitleri (merkezî doğrulama).
   return filesToValidatedDataUrls(files, opts);

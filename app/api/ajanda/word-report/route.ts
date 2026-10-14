@@ -2,7 +2,6 @@ import { NextRequest } from "next/server";
 import { Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
-import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { isDemoTenantId } from "@/lib/auth/demoServerGuard";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import {
@@ -19,8 +18,6 @@ type AppointmentRow = AjandaAppointmentRow;
 type ClientRow = { id: string; ad: string | null; soyad: string | null };
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const androidBlocked = androidWordGuard(req);
-  if (androidBlocked) return androidBlocked;
   // P0-4 KAPANIŞI: AUTH ÖNCE. Kimlik + oturum token doğrulanır, modül erişimi
   // (appointments) ve tenant SUNUCUDA çözülür. Sıra: authenticate → authorize →
   // resolve tenant → validate → query. Client-supplied tenantId bir GÜVENLİK

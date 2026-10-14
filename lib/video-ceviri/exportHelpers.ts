@@ -1,6 +1,7 @@
 "use client";
 
 import jsPDF from "jspdf";
+import { triggerBlobDownload } from "@/lib/http/downloadResponse";
 
 export type ExportMode = "original" | "turkish" | "comparison";
 
@@ -112,7 +113,10 @@ export async function downloadTranscriptAsPdf(
       remaining -= pageH;
     }
 
-    pdf.save(filename);
+    // jsPDF.save() indirmeyi sayfaya eklenmemiş bir bağlantıya dispatchEvent ile yaptırır; bu yol
+    // Android uygulamasında güvenilir değildir. Blob + ortak indirme yardımcısı her ortamda aynı
+    // davranır (masaüstü, mobil tarayıcı, Android uygulaması → İndirilenler).
+    triggerBlobDownload(pdf.output("blob"), filename);
   } finally {
     document.body.removeChild(container);
   }

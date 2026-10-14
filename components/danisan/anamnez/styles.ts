@@ -1,4 +1,3 @@
-import { outputHideClass } from "@/lib/platform/outputSupport";
 /** Anamnez arayüzü ortak sınıfları — Danışan Detayı input dilinin aynısı (mobilde 16px: iOS zoom yok). */
 export const aInput =
   "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[16px] text-slate-800 outline-none transition-all focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-600 sm:text-[14px]";
@@ -42,10 +41,11 @@ export const aGhostBtn =
   "inline-flex min-h-[40px] items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60";
 
 /**
- * Anamnez PDF CTA'ları (Boş Form / Kayıtlı Form) — owner kararı 2026-10-04: mobil PDF indirme bu
- * aşamada desteklenmiyor → Android'de (uygulama + tarayıcı; SSR sınıfı) ve telefon genişliğinde
- * (<768px) GİZLİ; masaüstü/tablet (md+) aynen görünür. PDF üretim davranışı DEĞİŞMEZ.
+ * Anamnez PDF CTA'ları (Boş Form / Kayıtlı Form) — 2026-10-14 owner kararı: Android uygulaması blob
+ * PDF indirmeyi kaydedebildiği için TÜM cihazlarda (Android uygulama/tarayıcı ve telefon genişliği
+ * dahil) GÖRÜNÜR (önceki 2026-10-04 kararı mobilde gizliyordu). PDF üretim davranışı DEĞİŞMEZ.
+ * Sabit adları çağıranlar değişmesin diye korunur.
  */
-export const ANAMNEZ_PDF_CTA_HIDE = `${outputHideClass("anamnez-pdf")} hidden md:inline-flex`;
-/** "Önce kaydedin" ipucu yalnız bu CTA'ya ait → aynı koşulda gizli. */
-export const ANAMNEZ_PDF_HINT_HIDE = `${outputHideClass("anamnez-pdf")} hidden md:block`;
+export const ANAMNEZ_PDF_CTA_HIDE = "inline-flex";
+/** "Önce kaydedin" ipucu CTA ile aynı koşulda (her yerde) görünür. */
+export const ANAMNEZ_PDF_HINT_HIDE = "block";

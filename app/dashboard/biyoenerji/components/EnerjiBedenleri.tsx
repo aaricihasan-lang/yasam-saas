@@ -37,7 +37,6 @@ import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
 import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
 import { LongTextareaField } from "./LargeTextModal";
 import { useDirtySnapshot } from "@/lib/biyoenerji/useDirtyGuard";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
@@ -244,7 +243,6 @@ export default function EnerjiBedenleri() {
   const editOriginalRef = useRef<typeof form | null>(null);
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [formModalMode, setFormModalMode] = useState<"create" | "edit">("create");
-  const isAndroid = useIsAndroid();
   // BIO-004/015 — form modalı için kaydedilmemiş değişiklik takibi.
   const { isDirty: formIsDirty } = useDirtySnapshot(formModalOpen, form);
   const [infoSuccess, setInfoSuccess] = useState("");
@@ -899,16 +897,14 @@ export default function EnerjiBedenleri() {
                   >
                     Sil
                   </button>
-                  {!isAndroid && (
-                    <button
-                      type="button"
-                      disabled={wordBusy}
-                      onClick={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "single", selectedRow.id, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
-                      className="no-android rounded-xl border border-violet-200/70 bg-violet-50/90 px-4 py-2 text-[12px] font-black text-violet-950 shadow-sm transition hover:bg-violet-100/90 disabled:opacity-45"
-                    >
-                      {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    disabled={wordBusy}
+                    onClick={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "single", selectedRow.id, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
+                    className="rounded-xl border border-violet-200/70 bg-violet-50/90 px-4 py-2 text-[12px] font-black text-violet-950 shadow-sm transition hover:bg-violet-100/90 disabled:opacity-45"
+                  >
+                    {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+                  </button>
                 </div>
               )}
             </>

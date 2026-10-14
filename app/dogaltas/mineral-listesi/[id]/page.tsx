@@ -20,7 +20,6 @@ import { ensureMineralStringArray, getDemoReferenceMineralId } from "@/lib/dogal
 import type { MineralContentTypography } from "@/lib/dogaltas/mineralDetailFontSize";
 import { useMineralDetailFontSize } from "@/lib/dogaltas/useMineralDetailFontSize";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { getMineral, updateMineral } from "@/lib/dogaltas/dogaltasApi";
 import {
@@ -402,7 +401,6 @@ function MineralDetailPageContent() {
   const [wordBusy, setWordBusy] = useState(false);
   const [isDemoReference, setIsDemoReference] = useState(false);
   const { isDemo } = useDemoGuard();
-  const isAndroid = useIsAndroid();
   const isContentProtected = isDemo && !isDemoReference;
 
   // ─── Düzenleme durumu (yalnız kendi tenant kaydı; mineraller her zaman tenant-only) ──
@@ -719,12 +717,12 @@ function MineralDetailPageContent() {
                   canIncrease={canIncreaseFontSize}
                   isDefault={isDefaultFontSize}
                 />
-                {!isDemo && !isAndroid && (
+                {!isDemo && (
                   <button
                     type="button"
                     onClick={() => void downloadWordReport()}
                     disabled={wordBusy}
-                    className="no-android btn-soft"
+                    className="btn-soft"
                   >
                     {wordBusy ? t("wordBusy") : t("wordButton")}
                   </button>

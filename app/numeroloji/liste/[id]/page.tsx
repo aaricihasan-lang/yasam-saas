@@ -5,7 +5,6 @@ import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { LEGACY_METHOD_NOTE, resolveRecordMotor } from "../../utils/analysisJson";
 import {
   getNumerologyAnalysisById,
@@ -34,7 +33,6 @@ export default function NumerolojiKayitDetayPage() {
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : "";
   const { isDemo } = useDemoGuard();
-  const isAndroid = useIsAndroid();
 
   const [row, setRow] = useState<NumerologyRecordRow | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -160,13 +158,13 @@ export default function NumerolojiKayitDetayPage() {
           <Link href="/numeroloji" className={detayNavSecondaryClass}>
             Modül seçimi
           </Link>
-          {/* Word raporu: demo modda kilitli kayıtlarda ve Android'de gösterilmez */}
-          {row && !loading && !gateActive && !isAndroid && (
+          {/* Word raporu: demo modda kilitli kayıtlarda gösterilmez; Android dahil tüm cihazlarda açık (2026-10-14 owner kararı) */}
+          {row && !loading && !gateActive && (
             <button
               type="button"
               onClick={() => setWordPicker(true)}
               disabled={wordBusy}
-              className="no-android hidden shrink-0 items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 backdrop-blur-sm transition-all duration-200 hover:bg-blue-100 disabled:opacity-60 md:inline-flex"
+              className="inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 backdrop-blur-sm transition-all duration-200 hover:bg-blue-100 disabled:opacity-60"
             >
               {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
             </button>

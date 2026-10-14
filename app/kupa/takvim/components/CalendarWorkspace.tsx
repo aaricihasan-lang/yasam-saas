@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
@@ -163,7 +162,6 @@ export function CalendarWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
-  const isAndroid = useIsAndroid();
   const today = useMemo(() => todayYmd(), []);
   // Yarış korumaları: en son plan yüklemesi kazanır (eski yanıt yeni planın üstüne yazılmaz);
   //   kayıt sürerken ikinci kayıt/taslak düzenlemesi başlatılmaz (çift tık + yarım durum yok).
@@ -847,31 +845,29 @@ export function CalendarWorkspace() {
               {editing ? <span /> : <CalendarViewToggle view={view} onChange={setView} />}
               {/* Word İndir — kapsam AÇIK: Yıllık (12 ay) veya yalnız SEÇİLİ AY. Yalnız aktif plan;
                   kaydedilmemiş taslakta uyarır (üretmez). Yıllık indirme istemeden aylığa dönüşmez. */}
-              {!isAndroid && (
-                <div className="no-android flex flex-col items-stretch gap-1.5 sm:flex-row sm:items-center">
-                  <span className="text-xs font-medium text-slate-400 sm:mr-1">Word indir:</span>
-                  <button
-                    type="button"
-                    className={`${kupaBtnGhost} min-h-[44px]`}
-                    onClick={() => handleWordDownload()}
-                    disabled={wordBusy || planLoading}
-                    title={dirty ? "Önce değişikliklerinizi kaydedin." : "Yıllık takvimi (12 ay) Word olarak indir"}
-                  >
-                    <span aria-hidden>⤓</span>
-                    {wordBusy ? "Hazırlanıyor…" : "Yıllık (12 ay)"}
-                  </button>
-                  <button
-                    type="button"
-                    className={`${kupaBtnGhost} min-h-[44px]`}
-                    onClick={() => handleWordDownload(month)}
-                    disabled={wordBusy || planLoading}
-                    title={dirty ? "Önce değişikliklerinizi kaydedin." : `Yalnız ${MONTHS_TR[month - 1]} ${plan.year} Word olarak indir`}
-                  >
-                    <span aria-hidden>⤓</span>
-                    {wordBusy ? "Hazırlanıyor…" : `${MONTHS_TR[month - 1]} ayı`}
-                  </button>
-                </div>
-              )}
+              <div className="flex flex-col items-stretch gap-1.5 sm:flex-row sm:items-center">
+                <span className="text-xs font-medium text-slate-400 sm:mr-1">Word indir:</span>
+                <button
+                  type="button"
+                  className={`${kupaBtnGhost} min-h-[44px]`}
+                  onClick={() => handleWordDownload()}
+                  disabled={wordBusy || planLoading}
+                  title={dirty ? "Önce değişikliklerinizi kaydedin." : "Yıllık takvimi (12 ay) Word olarak indir"}
+                >
+                  <span aria-hidden>⤓</span>
+                  {wordBusy ? "Hazırlanıyor…" : "Yıllık (12 ay)"}
+                </button>
+                <button
+                  type="button"
+                  className={`${kupaBtnGhost} min-h-[44px]`}
+                  onClick={() => handleWordDownload(month)}
+                  disabled={wordBusy || planLoading}
+                  title={dirty ? "Önce değişikliklerinizi kaydedin." : `Yalnız ${MONTHS_TR[month - 1]} ${plan.year} Word olarak indir`}
+                >
+                  <span aria-hidden>⤓</span>
+                  {wordBusy ? "Hazırlanıyor…" : `${MONTHS_TR[month - 1]} ayı`}
+                </button>
+              </div>
             </div>
             {/* Kaydet/durum barı — MASAÜSTÜ (lg): kart içinde. MOBİL/TABLET: aşağıdaki PORTAL. */}
             {editing ? <div className="hidden lg:block">{saveBar("inline")}</div> : null}

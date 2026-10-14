@@ -41,7 +41,6 @@ import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
 import { LongTextareaField } from "./LargeTextModal";
 import { useDirtySnapshot } from "@/lib/biyoenerji/useDirtyGuard";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 
@@ -151,7 +150,6 @@ export default function SembolDiliDetail({ id }: { id: string }) {
   // A3 — düzenleme formunun açılış anındaki değeri (değişen alan karşılaştırması).
   const editOriginalRef = useRef<typeof form | null>(null);
   const [formModalOpen, setFormModalOpen] = useState(false);
-  const isAndroid = useIsAndroid();
   // BIO-004/015 — form modalı için kaydedilmemiş değişiklik takibi.
   const { isDirty: formIsDirty } = useDirtySnapshot(formModalOpen, form);
   const [infoSuccess, setInfoSuccess] = useState("");
@@ -453,12 +451,10 @@ export default function SembolDiliDetail({ id }: { id: string }) {
                 <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden />
                 Sil
               </button>
-              {!isAndroid && (
-                <button type="button" disabled={wordBusy} onClick={() => void downloadWord()} className={`no-android ${tbBtn}`}>
-                  <FileText className="h-4 w-4" strokeWidth={2} aria-hidden />
-                  {wordBusy ? "Hazırlanıyor…" : "Word"}
-                </button>
-              )}
+              <button type="button" disabled={wordBusy} onClick={() => void downloadWord()} className={tbBtn}>
+                <FileText className="h-4 w-4" strokeWidth={2} aria-hidden />
+                {wordBusy ? "Hazırlanıyor…" : "Word"}
+              </button>
             </>
           )}
         </div>

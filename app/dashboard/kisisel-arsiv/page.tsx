@@ -17,6 +17,8 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { supabase } from "@/lib/supabase";
 import ArchiveMemoryToggle from "@/components/yasam-hafizasi/ArchiveMemoryToggle";
+import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
+import { useIsAndroid } from "@/hooks/useIsAndroid";
 
 /** Güvenli kişisel arşiv API çağrıları için header — x-user-id + (varsa) x-session-token */
 function userHeaders(json = false): Record<string, string> {
@@ -423,6 +425,9 @@ function DetailArchiveFileCard({
   userId: string | null;
 }) {
   const [imgBroken, setImgBroken] = useState(false);
+  // Android (uygulama WebView + Chrome) <iframe> içinde PDF gösteremez (boş alan) → önizleme
+  // yerine bilgi + mevcut "Yeni Sekme / İndir" düğmeleri kullanılır.
+  const isAndroid = useIsAndroid();
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [signedUrlError, setSignedUrlError] = useState(false);
 
@@ -570,10 +575,16 @@ function DetailArchiveFileCard({
             </div>
           ) : null}
 
-          {kind === "pdf" ? (
+          {kind === "pdf" && !isAndroid ? (
             <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-slate-100 shadow-inner">
               <iframe title={fileName} src={signedUrl ?? undefined} className="h-[420px] w-full bg-white" />
             </div>
+          ) : null}
+          {kind === "pdf" && isAndroid ? (
+            <p className="rounded-2xl border border-slate-200/90 bg-slate-50 px-4 py-3 text-[13px] font-semibold text-slate-600">
+              📄 Bu cihaz PDF önizlemesini sayfa içinde gösteremiyor. Aşağıdaki düğmelerle
+              PDF görüntüleyicide açabilir veya indirebilirsiniz.
+            </p>
           ) : null}
         </div>
       )}
@@ -1447,13 +1458,21 @@ export default function KisiselArsivPage() {
                       <p className="text-[13px] font-semibold text-slate-800">
                         Birden fazla dosya ekleyebilirsiniz.
                       </p>
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="mt-4 inline-flex items-center justify-center rounded-3xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 px-6 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-lg shadow-violet-500/35 transition hover:brightness-110"
-                      >
-                        Dosyaları seç
-                      </button>
+                      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="inline-flex items-center justify-center rounded-3xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 px-6 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-lg shadow-violet-500/35 transition hover:brightness-110"
+                        >
+                          Dosyaları seç
+                        </button>
+                        {/* Kamera: çekilen fotoğraf seçime EKLENİR; Kişisel Arşiv'de orijinal dosya korunur
+                            (optimizasyon uygulanmaz). */}
+                        <CameraCaptureButton
+                          onFiles={(files) => setSelectedFiles((prev) => [...prev, ...files])}
+                          className="inline-flex items-center justify-center rounded-3xl border-2 border-violet-300 bg-white px-6 py-3 text-[13px] font-black uppercase tracking-wide text-violet-700 shadow-sm transition hover:bg-violet-50"
+                        />
+                      </div>
                       <p className="mt-3 text-[12px] font-bold text-slate-600">
                         {selectedFiles.length === 0
                           ? "Henüz dosya seçilmedi."
@@ -1734,6 +1753,11 @@ export default function KisiselArsivPage() {
                     >
                       Dosya seç
                     </button>
+                    <CameraCaptureButton
+                      onFiles={(files) => setDetailExtraFiles((prev) => [...prev, ...files])}
+                      disabled={savingDetail}
+                      className="ml-2 inline-flex items-center justify-center rounded-3xl border-2 border-violet-300 bg-white px-6 py-3 text-[13px] font-black uppercase tracking-wide text-violet-700 shadow-sm transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
                     <p className="mt-3 text-[12px] font-bold text-slate-600">
                       {detailExtraFiles.length === 0
                         ? "Henüz yeni dosya seçilmedi."

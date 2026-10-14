@@ -33,7 +33,6 @@ import { ClinicalProtocolStepsCard } from "./ClinicalProtocolStepsCard";
 import MemoryPicker from "@/components/yasam-hafizasi/MemoryPicker";
 import { RefleksolojiDetailLoading } from "@/app/refleksoloji/components/RefleksolojiSkeleton";
 import { ReflexologyDisclaimer } from "@/app/refleksoloji/components/ReflexologyDisclaimer";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 
 type KayitliProtokolDetayLayoutProps = {
   protocolId: string;
@@ -183,7 +182,6 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   const [protocol, setProtocol] = useState<ReflexologyProtocolRecord | null>(null);
   const [footView, setFootView] = useState<AtlasBackgroundGroup>("taban");
   const [wordBusy, setWordBusy] = useState(false);
-  const isAndroid = useIsAndroid();
   // BF-14 P2: danışana özel Yaşam Hafızası teslim eki (protocol target). Yoksa çıktı değişmez.
   const [yhPickerOpen, setYhPickerOpen] = useState(false);
   const [yhSelection, setYhSelection] = useState<{ selectionGroupId: string; clientId: string; total: number } | null>(null);
@@ -416,12 +414,12 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
                 🧠 Yaşam Hafızası{yhSelection ? ` (${yhSelection.total})` : ""}
               </button>
             )}
-            {protocol && !isDemo && !isAndroid && (
+            {protocol && !isDemo && (
               <button
                 type="button"
                 onClick={() => void downloadWord()}
                 disabled={wordBusy}
-                className="no-android inline-flex h-8 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-[12px] font-semibold text-blue-800 transition hover:bg-blue-100 disabled:opacity-60"
+                className="inline-flex h-8 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-[12px] font-semibold text-blue-800 transition hover:bg-blue-100 disabled:opacity-60"
               >
                 {wordBusy ? "Hazırlanıyor..." : "Word Raporu"}
               </button>

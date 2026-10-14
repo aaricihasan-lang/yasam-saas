@@ -10,7 +10,8 @@
  */
 import { supabase } from "@/lib/supabase";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { STONE_PHOTOS_BUCKET } from "@/lib/sifa-rehberi/stonePhotoStorage";
+import { MAX_UPLOAD_BYTES, STONE_PHOTOS_BUCKET } from "@/lib/sifa-rehberi/stonePhotoStorage";
+import { describeOptimizeProblem, optimizeImageFile } from "@/lib/media/imageOptimize";
 
 export type PreparedPhoto = {
   id: string;
@@ -43,7 +44,14 @@ export async function uploadSifaPhoto(params: {
   guideId?: string;
   section?: string;
 }): Promise<PreparedPhoto> {
-  const { file, guideId, section } = params;
+  const { guideId, section } = params;
+
+  // 0) Kalite koruyan optimizasyon (EXIF yönü, PNG/animasyon korunur; 10 MB'a sığmazsa açık hata).
+  //    Boş MIME'lı Android dosyalarında tür gerçek baytlardan doldurulur (prepare allow-list'i için).
+  const optimized = await optimizeImageFile(params.file, { profile: "photo", maxBytes: MAX_UPLOAD_BYTES });
+  const problem = describeOptimizeProblem(optimized, MAX_UPLOAD_BYTES);
+  if (problem) throw new Error(problem);
+  const file = optimized.file;
 
   // 1) PREPARE — server signed upload capability (path SUNUCUDAN üretilir).
   const prepRes = await fetch("/api/sifa-rehberi/photos/prepare", {

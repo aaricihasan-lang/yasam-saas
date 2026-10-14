@@ -5,9 +5,13 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { imagesApi, storePhotoPublicUrl } from "@/app/admin/magaza/magazaAdminApi";
 import type { StoreProductImage } from "@/lib/store/types";
+import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
+import { describeOptimizeProblem, optimizeImageFile } from "@/lib/media/imageOptimize";
 
 const ACCEPT = "image/jpeg,image/png,image/webp";
 const MAX_BYTES = 5 * 1024 * 1024;
+/** Optimizasyon hedefi: platform istek gövdesi ≈4.5 MB → güvenli pay (5 MB sunucu sınırı korunur). */
+const OPTIMIZE_TARGET_BYTES = 4 * 1024 * 1024;
 
 export default function ImageManager({
   productId,
@@ -22,10 +26,18 @@ export default function ImageManager({
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  async function onFiles(files: FileList | null) {
+  async function onFiles(files: FileList | File[] | null) {
     if (!files || files.length === 0) return;
     setBusy(true);
-    for (const file of Array.from(files)) {
+    for (const original of Array.from(files)) {
+      // Kalite koruyan optimizasyon (vitrin görseli: yüksek kaliteli WebP; PNG/animasyon korunur).
+      const optimized = await optimizeImageFile(original, { profile: "photo", maxBytes: OPTIMIZE_TARGET_BYTES });
+      const problem = describeOptimizeProblem(optimized, OPTIMIZE_TARGET_BYTES);
+      if (problem) {
+        showToast({ type: "warning", message: problem });
+        continue;
+      }
+      const file = optimized.file;
       if (!ACCEPT.split(",").includes(file.type)) {
         showToast({ type: "warning", message: `${file.name}: yalnız JPEG/PNG/WEBP.` });
         continue;
@@ -106,6 +118,13 @@ export default function ImageManager({
         className="hidden"
         onChange={(e) => onFiles(e.target.files)}
       />
+      <div className="flex justify-center">
+        <CameraCaptureButton
+          onFiles={(files) => void onFiles(files)}
+          disabled={busy}
+          className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-50 disabled:opacity-60"
+        />
+      </div>
 
       {/* Galeri */}
       {images.length > 0 ? (
@@ -131,7 +150,7 @@ export default function ImageManager({
                     Ana görsel
                   </span>
                 ) : null}
-                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-gradient-to-t from-black/60 to-transparent p-2 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100">
                   {!img.is_primary ? (
                     <button
                       type="button"

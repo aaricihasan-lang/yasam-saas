@@ -196,12 +196,18 @@ export function KlinikNotlarLayout() {
   };
 
   const handleFilesSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files?.length) return;
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    await addAttachmentFiles(files);
+  };
+
+  // Galeri/dosya ve kamera aynı yoldan eklenir (görseller önce kalite korunarak optimize edilir).
+  const addAttachmentFiles = async (files: File[]) => {
+    if (!files.length) return;
 
     // FA-03: izinli tür (görsel/PDF) + boyut ön kontrolü; uygunsuz dosya eklenmez.
     const existingBytes = draft.attachments.reduce((sum, a) => sum + (a.size || 0), 0);
-    const { added, errors } = await readNoteAttachments(Array.from(files), newAttachmentId, existingBytes);
+    const { added, errors } = await readNoteAttachments(files, newAttachmentId, existingBytes);
     for (const message of errors) {
       showToast({ type: "warning", message });
     }
@@ -212,8 +218,6 @@ export function KlinikNotlarLayout() {
         attachments: [...prev.attachments, ...added],
       }));
     }
-
-    event.target.value = "";
   };
 
   const handleWordSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -415,6 +419,7 @@ export function KlinikNotlarLayout() {
                 onUpdate={handleUpdate}
                 onDelete={() => void handleDeleteCurrent()}
                 onAddFileClick={() => fileInputRef.current?.click()}
+                onCameraFiles={(files) => void addAttachmentFiles(files)}
                 onRenameAttachment={handleRenameAttachment}
                 onWordImportClick={() => wordInputRef.current?.click()}
                 onRemoveAttachment={handleRemoveAttachment}
