@@ -301,10 +301,12 @@ async function main() {
     section("C2. 46 Word route'u — Android engel mesajı (çalışma anı)");
     {
       const GUARD_MSG = /Word indirme bu cihazda kullanılamıyor/;
-      const changed = execSync("git diff --name-only HEAD -- app/api", { encoding: "utf8" }).split(/\r?\n/).filter((f) => f.endsWith("route.ts"));
-      const headSrc = (f: string) => { try { return execSync(`git show "HEAD:${f}"`, { encoding: "utf8" }); } catch { return ""; } };
+      // Taban: main ile ortak ata (commit sonrası da doğru çalışır). İstenirse MF_BASE ile verilir.
+      const BASE = process.env.MF_BASE || execSync("git merge-base origin/main HEAD", { encoding: "utf8" }).trim();
+      const changed = execSync(`git diff --name-only ${BASE} HEAD -- app/api`, { encoding: "utf8" }).split(/\r?\n/).filter((f) => f.endsWith("route.ts"));
+      const headSrc = (f: string) => { try { return execSync(`git show "${BASE}:${f}"`, { encoding: "utf8" }); } catch { return ""; } };
       const guardRoutes = changed.filter((f) => /androidWordGuard/.test(headSrc(f)));
-      ok(guardRoutes.length === 46, `HEAD'de androidWordGuard taşıyan ve değişen route sayısı = 46 (${guardRoutes.length})`);
+      ok(guardRoutes.length === 46, `Tabanda androidWordGuard taşıyan ve değişen route sayısı = 46 (${guardRoutes.length})`);
       let checked = 0;
       const stillBlocked: string[] = [];
       for (const f of guardRoutes) {
