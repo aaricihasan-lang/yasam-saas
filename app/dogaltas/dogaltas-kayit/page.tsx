@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
+import { looksLikeImageFile, optimizeImageFile } from "@/lib/media/imageOptimize";
+import { STONE_PHOTO_MAX_BYTES } from "@/lib/dogaltas/stonePhoto";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
@@ -150,80 +153,9 @@ const uiPanel =
 const uiBtn =
   "inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-black transition";
 
-function safeFileName(fileName: string) {
-  return fileName
-    .replaceAll("ı", "i")
-    .replaceAll("İ", "I")
-    .replaceAll("ğ", "g")
-    .replaceAll("Ğ", "G")
-    .replaceAll("ü", "u")
-    .replaceAll("Ü", "U")
-    .replaceAll("ş", "s")
-    .replaceAll("Ş", "S")
-    .replaceAll("ö", "o")
-    .replaceAll("Ö", "O")
-    .replaceAll("ç", "c")
-    .replaceAll("Ç", "C")
-    .replace(/[^a-zA-Z0-9._-]/g, "-");
-}
-
-const IMAGE_EXTENSION_RE = /\.(jpe?g|png|webp|gif|heic|heif)$/i;
-
-/**
- * FAZ-2C: Kabul edilebilir görsel dosyası mı?
- * - MIME tipi varsa `image/` ile başlamalı.
- * - MIME tipi BOŞSA (bazı Android picker'ları geçerli görsel için boş `type` döner)
- *   dosya uzantısına bakılır → geçerli görseller sessizce elenmez.
- * - MIME ve uzantı ikisi de görsel değilse reddedilir.
- */
-function isAcceptableImageFile(file: File): boolean {
-  if (file.type) return file.type.startsWith("image/");
-  return IMAGE_EXTENSION_RE.test(file.name);
-}
-
-const COMPRESS_MAX_W = 1200;
-const COMPRESS_MAX_H = 1200;
-const COMPRESS_WEBP_QUALITY = 0.75;
-
-async function compressImageFileToWebp(file: File): Promise<File> {
-  const objectUrl = URL.createObjectURL(file);
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => resolve(image);
-      image.onerror = () => reject(new Error("decode"));
-      image.src = objectUrl;
-    });
-
-    let w = img.naturalWidth;
-    let h = img.naturalHeight;
-    if (w === 0 || h === 0) return file;
-
-    const scale = Math.min(1, COMPRESS_MAX_W / w, COMPRESS_MAX_H / h);
-    w = Math.round(w * scale);
-    h = Math.round(h * scale);
-
-    const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return file;
-    ctx.drawImage(img, 0, 0, w, h);
-
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob((b) => resolve(b), "image/webp", COMPRESS_WEBP_QUALITY);
-    });
-    if (!blob) return file;
-
-    const base = file.name.replace(/\.[^/.]+$/, "") || "image";
-    const webpName = `${safeFileName(base)}.webp`;
-    return new File([blob], webpName, { type: "image/webp" });
-  } catch {
-    return file;
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-}
+// Görsel seçimi + kalite koruyan optimizasyon ortak yardımcıdan gelir (lib/media/imageOptimize):
+// boş MIME'lı Android dosyaları uzantıdan tanınır; animasyon/PNG korunur; EXIF yönü uygulanır.
+// (Önceki yerel compressImageFileToWebp 1200px/q0.75 ile kaliteyi düşürüyor, GIF'i tek kareye indiriyordu.)
 
 export default function DogaltasKayitPage() {
   const t = useTranslations("stones.records");
@@ -415,29 +347,30 @@ export default function DogaltasKayitPage() {
     setSelectedWarnings((prev) => toggleTaxonomyOption("warning", prev, warning));
   }
 
-  async function handleImageUpload(event: ChangeEvent<HTMLInputElement>) {
-    // FAZ-2C: input referansı async işlemlerden ÖNCE yerel değişkene alınır ve hemen
-    // sıfırlanır (aynı dosya tekrar seçilebilsin; event güvenli kullanılsın).
-    const input = event.target;
-    const selected = Array.from(input.files || []);
-    input.value = "";
+  // Galeri ve kamera aynı yoldan yüklenir. FAZ-2C: input değeri çağıran tarafta hemen sıfırlanır.
+  async function handleImageUpload(selected: File[]) {
     // Boş MIME'li (Android) geçerli görseller elenmesin; görsel olmayanlar reddedilsin.
-    const files = selected.filter(isAcceptableImageFile);
+    const files = selected.filter(looksLikeImageFile);
     if (files.length === 0) {
       if (selected.length > 0) showError(t("toasts.onlyImages"));
       return;
     }
 
     const uploaded: UploadedImage[] = [];
+    let failed = false;
     const userId = readYasamUser()?.id;
     const sessionToken = readSessionToken();
 
     for (const file of files) {
       // F-016: yükleme SUNUCU-YETKİLİ route üzerinden — client-direct storage bypass yok.
       // Path + tip/boyut doğrulaması server'da; tenant oturumdan türetilir.
-      const compressed = await compressImageFileToWebp(file);
+      const optimized = await optimizeImageFile(file, { profile: "photo", maxBytes: STONE_PHOTO_MAX_BYTES });
+      if (optimized.reason === "heic-undecodable" || optimized.tooLarge) {
+        showError(t(optimized.tooLarge ? "toasts.photoTooLarge" : "toasts.photoHeic", { name: file.name }));
+        continue;
+      }
       const fd = new FormData();
-      fd.append("file", compressed);
+      fd.append("file", optimized.file);
       fd.append("name", file.name);
 
       const res = await fetch("/api/dogaltas/stones/photos", {
@@ -459,7 +392,9 @@ export default function DogaltasKayitPage() {
         // FAZ-2B: Ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
         console.error("[dogaltas-kayit] görsel yükleme hatası:", `HTTP ${res.status}`);
         showError(t("toasts.imageUploadFailed"));
-        return;
+        // Bu dosyadan ÖNCE başarıyla yüklenenler kayda eklenir (aksi hâlde storage'da yetim kalırdı).
+        failed = true;
+        break;
       }
 
       // F-016: DB source-of-truth = file_path. `url` yalnız OTURUM önizlemesi (kısa ömürlü
@@ -472,8 +407,9 @@ export default function DogaltasKayitPage() {
       });
     }
 
-    setImages((prev) => [...prev, ...uploaded]);
-    showMessage(t("toasts.imagesUploaded", { count: uploaded.length }));
+    if (uploaded.length > 0) setImages((prev) => [...prev, ...uploaded]);
+    // Başarı mesajı yalnız gerçekten yüklenen görsel varsa ve hata olmadıysa gösterilir.
+    if (uploaded.length > 0 && !failed) showMessage(t("toasts.imagesUploaded", { count: uploaded.length }));
   }
 
   async function removeImage(id: string) {
@@ -784,10 +720,9 @@ export default function DogaltasKayitPage() {
                       {t("image.hint")}
                     </p>
 
-                    {/* FAZ-5B: explicit ref.click() ile galeri seçimi (multiple). Owner kararı 2026-10-07:
-                        "Fotoğraf Çek" KALDIRILDI (gerçek kamera açmıyordu, galeriyle aynı davranıyordu). */}
-                    {/* Bakım kararı: mobilde (<768px) fotoğraf ekleme/çekme gizli; masaüstünde korunur. */}
-                    <div className="hidden md:contents">
+                    {/* FAZ-5B: explicit ref.click() ile galeri seçimi (multiple). 2026-10-14: tüm cihazlarda
+                        görünür. "Fotoğraf Çek" ayrı kamera girişidir (capture); kamera akışı olmayan ortamda
+                        (masaüstü, native kamera desteği bildirmeyen Android uygulaması) render edilmez. */}
                     <div className="mt-3 flex w-full max-w-[320px] flex-col gap-2 sm:flex-row">
                       <button
                         type="button"
@@ -796,17 +731,27 @@ export default function DogaltasKayitPage() {
                       >
                         {t("image.pickFromGallery")}
                       </button>
+                      <CameraCaptureButton
+                        onFiles={(files) => void handleImageUpload(files)}
+                        testId="dogaltas-kayit-camera"
+                        className={`${uiBtn} min-h-[44px] flex-1 cursor-pointer border border-emerald-300 bg-white text-emerald-800 shadow-sm hover:bg-emerald-50`}
+                      >
+                        {t("image.takePhoto")}
+                      </CameraCaptureButton>
                     </div>
                     <input
                       ref={galleryInputRef}
                       type="file"
                       accept="image/*"
                       multiple
-                      onChange={handleImageUpload}
+                      onChange={(event) => {
+                        const selected = Array.from(event.target.files || []);
+                        event.target.value = "";
+                        void handleImageUpload(selected);
+                      }}
                       aria-label={t("image.pickFromGalleryAria")}
                       className="sr-only"
                     />
-                    </div>
                   </div>
 
                   {images.length > 0 && (
@@ -822,7 +767,7 @@ export default function DogaltasKayitPage() {
                             onClick={() => void removeImage(image.id)}
                             disabled={removingImageId === image.id}
                             aria-label={t("image.removePhotoAria")}
-                            className="absolute right-1.5 top-1.5 hidden h-11 w-11 items-center justify-center rounded-full bg-slate-950/80 text-sm font-black text-white transition disabled:opacity-60 sm:h-9 sm:w-9 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100 md:flex"
+                            className="absolute right-1.5 top-1.5 flex h-11 w-11 items-center justify-center rounded-full bg-slate-950/80 text-sm font-black text-white transition disabled:opacity-60 sm:h-9 sm:w-9 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
                           >
                             {removingImageId === image.id ? "⋯" : "×"}
                           </button>

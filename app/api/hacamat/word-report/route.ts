@@ -16,7 +16,6 @@ import {
 } from "docx";
 import type { NextRequest } from "next/server";
 import { buildWellnessNoteSection, type ReportChild } from "@/lib/docx/reportHelpers";
-import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import {
   getHacamatMonthData,
   MONTH_NAMES_TR,
@@ -448,8 +447,6 @@ const WORD_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordpro
 // ─── GET — mobil için doğrudan indirme ───────────────────────────────────────
 
 export async function GET(request: Request): Promise<Response> {
-  const androidBlocked = androidWordGuard(request);
-  if (androidBlocked) return androidBlocked;
   // FAZ1 FINAL HARDENING (AUTH): GET de POST ile AYNI kimlik + modül kapısı + rate limit.
   const guard = await requireModuleAccess(request as unknown as NextRequest, "cosmic_calendar");
   if (!guard.ok) return guard.response;
@@ -482,8 +479,6 @@ export async function GET(request: Request): Promise<Response> {
 // ─── POST — tam özelleştirilmiş rapor ────────────────────────────────────────
 
 export async function POST(request: Request): Promise<Response> {
-  const androidBlocked = androidWordGuard(request);
-  if (androidBlocked) return androidBlocked;
 
   // §7/§8: kimlik + modül kapısı (anon/pending/rejected → 401/403). verifyUserRequest
   // yalnız header okur → düz Request ile uyumlu.

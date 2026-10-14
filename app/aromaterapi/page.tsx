@@ -6,7 +6,6 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { fetchOilCounts } from "@/lib/aromaterapi/aromatherapyData";
 import { downloadWord } from "@/lib/aromaterapi/wordExport";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -72,7 +71,6 @@ export default function AromaTerapiHubPage() {
   useBfcacheRefresh();
 
   const { showToast } = useToast();
-  const isAndroid = useIsAndroid();
   const [exportingGeneral, setExportingGeneral] = useState(false);
   async function exportGeneralWord() {
     if (exportingGeneral) return;
@@ -104,12 +102,12 @@ export default function AromaTerapiHubPage() {
       }
       actions={
         <div className="flex flex-col gap-2">
-          {!isDemo && !isAndroid && (
+          {!isDemo && (
             <button
               type="button"
               onClick={() => void exportGeneralWord()}
               disabled={exportingGeneral}
-              className="no-android inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-3.5 text-[12px] font-black text-white shadow-sm ring-1 ring-white/25 transition hover:brightness-105 disabled:opacity-60"
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-3.5 text-[12px] font-black text-white shadow-sm ring-1 ring-white/25 transition hover:brightness-105 disabled:opacity-60"
               title="Tüm Aromaterapi kaynaklarını tek profesyonel Word dosyasında indir"
             >
               <span aria-hidden>📄</span>

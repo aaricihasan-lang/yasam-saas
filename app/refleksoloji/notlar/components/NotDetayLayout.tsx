@@ -14,6 +14,7 @@ import type { ClinicalNoteFormDraft, NoteAttachment } from "../types";
 import { ImageLightbox } from "./ImageLightbox";
 import { NoteDetayAttachmentCard } from "./NoteDetayAttachmentCard";
 import { PdfPreviewModal } from "./PdfPreviewModal";
+import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
 import { RefleksolojiDetailLoading } from "@/app/refleksoloji/components/RefleksolojiSkeleton";
 
 type NotDetayLayoutProps = {
@@ -147,12 +148,18 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
   };
 
   const handleFilesSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files?.length || !draft) return;
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    await addAttachmentFiles(files);
+  };
+
+  // Galeri/dosya ve kamera aynı yoldan eklenir (görseller önce kalite korunarak optimize edilir).
+  const addAttachmentFiles = async (files: File[]) => {
+    if (!files.length || !draft) return;
 
     // FA-03: izinli tür (görsel/PDF) + boyut ön kontrolü; uygunsuz dosya eklenmez.
     const existingBytes = draft.attachments.reduce((sum, a) => sum + (a.size || 0), 0);
-    const { added, errors } = await readNoteAttachments(Array.from(files), newAttachmentId, existingBytes);
+    const { added, errors } = await readNoteAttachments(files, newAttachmentId, existingBytes);
     for (const message of errors) {
       showToast({ type: "warning", message });
     }
@@ -160,8 +167,6 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
     if (added.length > 0) {
       patchDraft({ attachments: [...draft.attachments, ...added] });
     }
-
-    event.target.value = "";
   };
 
   const handleRenameAttachment = async (file: NoteAttachment) => {
@@ -355,6 +360,10 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
                   >
                     Dosya Ekle
                   </button>
+                  <CameraCaptureButton
+                    onFiles={(files) => void addAttachmentFiles(files)}
+                    className="rounded-lg border border-sky-300/80 bg-white px-3 py-1.5 text-xs font-semibold text-sky-950 transition hover:bg-sky-50"
+                  />
                 </>
               ) : null}
             </div>

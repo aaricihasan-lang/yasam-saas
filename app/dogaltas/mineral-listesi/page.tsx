@@ -30,7 +30,6 @@ import { DemoBlur } from "@/components/demo/DemoBlur";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { bulkDeleteMinerals } from "@/lib/dogaltas/dogaltasApi";
 import {
@@ -142,7 +141,6 @@ function MineralListesiPageContent() {
 
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useToast();
-  const isAndroid = useIsAndroid();
   const { isDemo } = useDemoGuard();
 
   const applySearchUrl = useCallback(
@@ -565,11 +563,11 @@ function MineralListesiPageContent() {
                   </option>
                 ))}
               </select>
-              {!isDemo && !isAndroid && (
+              {!isDemo && (
                 <button
                   type="button"
                   onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
-                  className="no-android btn-soft"
+                  className="btn-soft"
                 >
                   {t("wordReportButton")}
                 </button>

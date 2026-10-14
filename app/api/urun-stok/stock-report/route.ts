@@ -17,7 +17,6 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { NextRequest, NextResponse } from "next/server";
 import { Document, Packer } from "docx";
-import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import {
   buildFooter,
   buildPremiumCover,
@@ -96,8 +95,6 @@ function fmtStock(row: UnifiedRow): string {
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
-  const androidBlocked = androidWordGuard(request);
-  if (androidBlocked) return androidBlocked;
 
   // ── USM-002: token-bound auth; tenant oturumdan.
   const guard = await requireModuleAccess(request, "stok");

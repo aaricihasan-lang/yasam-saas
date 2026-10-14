@@ -43,7 +43,6 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { downloadWord } from "@/lib/aromaterapi/wordExport";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -765,7 +764,6 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [bulkError, setBulkError] = useState("");
   const [exporting, setExporting] = useState(false);
-  const isAndroid = useIsAndroid();
 
   // FAZ Word — .docx export (seçili / tümü / typed). Çift-tık kilidi (exporting).
   async function runOilExport(body: Record<string, unknown>) {
@@ -1055,8 +1053,8 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
             isDeleting={deleteLoading}
             isExporting={exporting}
             exportSelectedLabel={selectedIds.size === 1 ? "Seçili Kaydı Word'e Aktar" : "Seçili Kayıtları Word'e Aktar"}
-            onExportSelected={!isAndroid && selectedIds.size > 0 ? () => void runOilExport({ mode: "selected", ids: [...selectedIds] }) : undefined}
-            onExportAll={!isAndroid ? () => void runOilExport(exportAllBody()) : undefined}
+            onExportSelected={selectedIds.size > 0 ? () => void runOilExport({ mode: "selected", ids: [...selectedIds] }) : undefined}
+            onExportAll={() => void runOilExport(exportAllBody())}
           />
         ) : null}
 

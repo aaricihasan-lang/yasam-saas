@@ -8,7 +8,6 @@ import { formatDateAbsolute, formatDateTimeAbsolute } from "@/lib/i18n/format";
 // dynamic import edilir → sekmenin ilk açılış yükünden çıkarılır. Davranış/çıktı aynıdır.
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
@@ -166,7 +165,6 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   // (eski analizin yanlışlıkla üzerine yazılmasını engeller). Yeni analizde false.
   const [readOnly, setReadOnly] = useState(false);
   const savingRef = useRef(false);
-  const isAndroid = useIsAndroid();
 
   // PERSIST için canonical TR etiket (analysis_data.title kararlı kalır — locale'e bağlı DEĞİL).
   const activeTitle = analysisTypeLabel(activeAnalysis);
@@ -688,12 +686,10 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                   {creatingPdf ? t("modal.pdfPreparing") : t("modal.pdf")}
                 </button>
               )}
-              {!isAndroid && (
               <button type="button" onClick={exportWord} disabled={exportingWord}
-                className={`${toolbarBtnBase} !hidden md:!inline-flex bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60`}>
+                className={`${toolbarBtnBase} bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60`}>
                 {exportingWord ? t("modal.wordPreparing") : t("modal.word")}
               </button>
-              )}
               {readOnly ? (
                 <button type="button" onClick={() => setReadOnly(false)} data-testid="analysis-edit"
                   className={`${toolbarBtnBase} bg-indigo-600 text-white hover:bg-indigo-700`}>

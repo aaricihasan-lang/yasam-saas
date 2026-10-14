@@ -2,7 +2,6 @@ import type { NextRequest } from "next/server";
 import { requireDogaltasReportAccess } from "@/lib/dogaltas/reportAuth";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
-import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { sanitizeMineralRowsForReport } from "@/lib/dogaltas/reportSafe";
 import { fetchAllRows, fetchAllRowsByIds } from "@/lib/dogaltas/fetchAllRows";
 import { badSelectionResponse, missingSelectionResponse, parseReportIds, sortByTrField } from "@/lib/dogaltas/reportIds";
@@ -23,8 +22,6 @@ type MineralRow = MineralReportRow;
 // ─── POST handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const androidBlocked = androidWordGuard(req);
-  if (androidBlocked) return androidBlocked;
   // F-018: doğrulanmış oturum kapısı — tenantId/userId SUNUCUDAN (body'den DEĞİL).
   const auth = await requireDogaltasReportAccess(req);
   if (!auth.ok) return auth.response;

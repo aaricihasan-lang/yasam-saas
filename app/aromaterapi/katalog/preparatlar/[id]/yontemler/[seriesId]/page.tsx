@@ -5,7 +5,6 @@ import { useParams } from "next/navigation";
 import { AromaterapiSectionShell } from "@/app/aromaterapi/_components/AromaterapiSectionShell";
 import { MethodSeriesDetail } from "@/app/aromaterapi/katalog/_components/MethodSeriesDetail";
 import { DetailWordButton } from "@/app/aromaterapi/_components/read/DetailScreen";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 
 /** C3D-B2B — Üretim yöntemi serisi detayı + revizyon geçmişi + durum aksiyonları. */
@@ -14,7 +13,6 @@ export default function YontemDetayPage() {
   const preparationId = typeof params?.id === "string" ? params.id : "";
   const seriesId = typeof params?.seriesId === "string" ? params.seriesId : "";
   const isDemo = readYasamUser()?.is_demo_account === true;
-  const isAndroid = useIsAndroid();
 
   return (
     <AromaterapiSectionShell
@@ -24,7 +22,7 @@ export default function YontemDetayPage() {
       breadcrumbLeaf="Yöntem"
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          {seriesId && !isAndroid ? (
+          {seriesId ? (
             <DetailWordButton url={`/api/aromaterapi/methods/${seriesId}/word-report`} />
           ) : null}
           <Link

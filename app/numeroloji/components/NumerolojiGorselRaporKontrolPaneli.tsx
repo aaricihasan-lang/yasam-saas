@@ -1,7 +1,6 @@
 "use client";
 
 import { GORSEL_TEMA_LIST, type GorselTemaId } from "./NumerolojiGorselRaporInfografik";
-import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
 
 export type GorselRaporKontrolYanPanelProps = {
   gorselTaslariGoster: boolean;
@@ -115,8 +114,6 @@ export function GorselRaporKontrolCubugu({
   gorselTamEkran,
   setGorselTamEkran,
 }: GorselRaporKontrolCubuguProps) {
-  // Android uygulama WebView'inde data: PNG indirme çalışmaz → PNG İndir gizli (plan §4.6).
-  const isAndroidApp = useIsAndroidApp();
   return (
     <div className="absolute right-0 top-0 z-20 flex max-w-[min(100%,28rem)] flex-col items-stretch gap-2 sm:right-0 sm:top-0 sm:max-w-none sm:flex-row sm:items-start sm:justify-end">
       <div
@@ -139,17 +136,16 @@ export function GorselRaporKontrolCubugu({
           </button>
         ))}
       </div>
-      {/* NUM-MOB-1: PNG İndir mobilde gizli (yer kaplamaz); md+ değişmez. */}
-      {!isAndroidApp && (
+      {/* 2026-10-14: PNG İndir telefon genişliğinde ve Android uygulamasında da görünür
+          (uygulama data:/blob indirmeyi kaydeder). */}
       <button
         type="button"
         onClick={onGorselPngIndir}
         disabled={gorselIndirmeKilitli}
-        className="no-android-app hidden shrink-0 self-end rounded-full border-2 border-amber-400/80 bg-zinc-950 px-3 py-2 text-[10px] font-black uppercase leading-tight tracking-[0.08em] text-amber-100 shadow-[0_0_20px_rgba(251,191,36,0.30)] backdrop-blur-md transition hover:border-amber-300 hover:bg-amber-400 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 sm:text-xs sm:tracking-[0.1em] md:block"
+        className="block shrink-0 self-end rounded-full border-2 border-amber-400/80 bg-zinc-950 px-3 py-2 text-[10px] font-black uppercase leading-tight tracking-[0.08em] text-amber-100 shadow-[0_0_20px_rgba(251,191,36,0.30)] backdrop-blur-md transition hover:border-amber-300 hover:bg-amber-400 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 sm:text-xs sm:tracking-[0.1em]"
       >
         {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "⤓ PNG İndir"}
       </button>
-      )}
       {!gorselTamEkran ? (
         <button
           type="button"
@@ -178,8 +174,6 @@ export function GorselRaporTamEkranKontrolCubugu({
   gorselIndirmeKilitli,
   gorselPngHazirlaniyor,
 }: GorselRaporTamEkranKontrolCubuguProps) {
-  // Android uygulama WebView'inde data: PNG indirme çalışmaz → PNG İndir gizli (plan §4.6).
-  const isAndroidApp = useIsAndroidApp();
   return (
     // NUM-MOB-2-FIX2: mobil/masaüstü görünürlük artık çağıran taraftaki resolveViewerControls
     // kararıyla yönetilir (mobilde hiç render edilmez).
@@ -204,17 +198,15 @@ export function GorselRaporTamEkranKontrolCubugu({
           </button>
         ))}
       </div>
-      {/* NUM-MOB-1: tam ekran PNG İndir de mobilde gizli. */}
-      {!isAndroidApp && (
+      {/* Tam ekran PNG İndir (bu çubuk mobilde zaten render edilmez). */}
       <button
         type="button"
         onClick={onGorselPngIndir}
         disabled={gorselIndirmeKilitli}
-        className="no-android-app hidden rounded-full border-2 border-amber-400/80 bg-zinc-950/95 px-3 py-2 text-center text-[9px] font-black uppercase leading-tight tracking-[0.06em] text-amber-100 shadow-[0_4px_28px_rgba(0,0,0,0.85)] backdrop-blur-md transition hover:border-amber-300 hover:bg-amber-400 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60 sm:text-[10px] sm:tracking-[0.1em] md:block"
+        className="block rounded-full border-2 border-amber-400/80 bg-zinc-950/95 px-3 py-2 text-center text-[9px] font-black uppercase leading-tight tracking-[0.06em] text-amber-100 shadow-[0_4px_28px_rgba(0,0,0,0.85)] backdrop-blur-md transition hover:border-amber-300 hover:bg-amber-400 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60 sm:text-[10px] sm:tracking-[0.1em]"
       >
         {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "⤓ PNG İndir"}
       </button>
-      )}
     </div>
   );
 }

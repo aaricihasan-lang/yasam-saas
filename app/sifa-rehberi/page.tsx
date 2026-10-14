@@ -4,7 +4,6 @@ import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import {
   Suspense,
   useCallback,
@@ -15,6 +14,7 @@ import {
   type ChangeEvent,
   type ReactNode,
 } from "react";
+import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import {
@@ -371,7 +371,6 @@ function SifaRehberiContent() {
   const [successMessage, setSuccessMessage] = useState("");
   const [selectedForExport, setSelectedForExport] = useState<Set<string>>(() => new Set());
   const [wordBusy, setWordBusy] = useState(false);
-  const isAndroid = useIsAndroid();
   const [pageView, setPageView] = useState<PageView>(() => {
     return pageViewFromQueryParam(searchParams.get("view")) ?? "menu";
   });
@@ -704,10 +703,14 @@ function SifaRehberiContent() {
   }
 
   async function handleGuideImageFileChange(e: ChangeEvent<HTMLInputElement>) {
-    if (isDemo) { e.target.value = ""; return; }
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file) return;
+    if (file) await uploadGuideImageFile(file);
+  }
+
+  // Galeri ve kamera aynı yoldan yükler (uploadSifaPhoto içinde kalite koruyan optimizasyon).
+  async function uploadGuideImageFile(file: File) {
+    if (isDemo) return;
 
     if (!queryTenantId) {
       setErrorMessage(MISSING_SESSION_TENANT_MESSAGE);
@@ -951,6 +954,13 @@ function SifaRehberiContent() {
           <span aria-hidden>📷</span>
           {uploadingImage ? "Yükleniyor…" : "Görsel Ekle"}
         </button>
+        <CameraCaptureButton
+          onFiles={(files) => void uploadGuideImageFile(files[0])}
+          disabled={uploadingImage}
+          className="ml-2 inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-100 bg-white px-3 text-[12px] font-bold text-emerald-800 shadow-sm hover:bg-emerald-50 disabled:opacity-60"
+        >
+          <span aria-hidden>📸</span> Fotoğraf Çek
+        </CameraCaptureButton>
         {formImages.length > 0 ? (
           <div className="mt-3 flex flex-wrap gap-2">
             {formImages.map((img) => (
@@ -1524,9 +1534,9 @@ function SifaRehberiContent() {
               hasActiveFilter={hasActiveFilter}
               onSelectAll={() => setSelectedForExport(new Set(filteredRows.map((r) => r.id)))}
               onClearSelection={() => setSelectedForExport(new Set())}
-              onExportSelected={isAndroid ? undefined : () => void exportWord("selected")}
-              onExportAll={isAndroid ? undefined : () => void exportWord("all")}
-              onExportFiltered={!isAndroid && hasActiveFilter ? () => void exportWord("filtered") : undefined}
+              onExportSelected={() => void exportWord("selected")}
+              onExportAll={() => void exportWord("all")}
+              onExportFiltered={hasActiveFilter ? () => void exportWord("filtered") : undefined}
               isExporting={wordBusy}
               onDeleteSelected={() => void handleBulkDeleteGuides()}
               isDeleting={deleteLoading}

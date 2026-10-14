@@ -4,7 +4,6 @@ import { serverErrorResponse } from "@/lib/http/apiError";
 import { fetchAllRows, fetchAllRowsByIds } from "@/lib/dogaltas/fetchAllRows";
 import { badSelectionResponse, missingSelectionResponse, parseReportIds, sortByTrField } from "@/lib/dogaltas/reportIds";
 import { trackUsage } from "@/lib/usage/trackUsage";
-import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { safeJoin, safeLen } from "@/lib/dogaltas/reportSafe";
 import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
 import { Document, Packer, Paragraph, TextRun } from "docx";
@@ -170,8 +169,6 @@ function buildDocument(articles: ArticleRow[], exportLabel: string, toc: StaticT
 // ─── POST handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const androidBlocked = androidWordGuard(req);
-  if (androidBlocked) return androidBlocked;
   // F-018: doğrulanmış oturum kapısı — tenantId/userId SUNUCUDAN (body'den DEĞİL).
   const auth = await requireDogaltasReportAccess(req);
   if (!auth.ok) return auth.response;

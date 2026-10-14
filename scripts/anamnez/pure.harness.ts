@@ -309,7 +309,9 @@ ok(routes.includes("app/api/clients/[id]/anamnez/[anamnesisId]/pdf/route.ts"), "
 ok(routes.every((r) => /requireModuleAccess\(req, "clients"\)/.test(read(r))), "her route requireModuleAccess(req, \"clients\") çağırıyor");
 ok(routes.every((r) => !/body\.tenant|body\.tenantId|tenant_id:\s*body|searchParams\.get\("tenant/.test(read(r))), "hiçbir route istemciden tenant almıyor");
 ok(routes.every((r) => !/androidWordGuard|isAndroid/i.test(read(r))), "route'larda Android engeli YOK (K8)");
-ok(uiFiles.concat(["lib/danisan/anamnez/client.ts"]).every((f) => !/useIsAndroid|isAndroid|androidWordGuard/.test(read(f))), "UI'da cihaz tespitiyle PDF gizleme YOK (K8)");
+ok(uiFiles.every((f) => !/useIsAndroid|isAndroid|androidWordGuard/.test(read(f))), "UI'da cihaz tespitiyle PDF gizleme YOK (K8)");
+// 2026-10-14: client.ts yalnız "Görüntüle" davranışını uygulamaya uyarlar (pencere açmaz); gizleme yapmaz.
+ok(!/useIsAndroid|androidWordGuard|no-android/.test(read("lib/danisan/anamnez/client.ts")) && /if \(isAndroidAppClient\(\)\)/.test(read("lib/danisan/anamnez/client.ts")), "client.ts: Android tespiti yalnız Görüntüle davranışı için (gizleme yok)");
 ok(!/\bconfirm\(\s*["'`]/.test(uiFiles.map(read).join("\n")) && !/window\.confirm/.test(uiFiles.map(read).join("\n")), "tarayıcı confirm() kullanılmıyor");
 ok(/ANAMNEZ_SIGNED_URL_TTL_SECONDS = 60/.test(read("lib/danisan/anamnez/storage.ts")), "signed URL TTL 60 sn");
 const cascade = read("app/api/clients/[id]/cascade-delete/route.ts");

@@ -3,7 +3,6 @@ import { extractText } from "unpdf";
 import { createClient } from "@supabase/supabase-js";
 import { inngest } from "@/lib/inngest/client";
 import { requireDigitalContentUser } from "@/lib/auth/requireUser";
-import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -37,9 +36,6 @@ function getDb() {
 export async function POST(request: NextRequest) {
   console.log("[pdf-to-turkce-word] istek alındı");
 
-  // Android'de Word (.docx) üretimi kapalı (ürün kararı) — pdf-to-word ile aynı guard.
-  const androidBlocked = androidWordGuard(request);
-  if (androidBlocked) return androidBlocked;
 
   // Güvenlik: kimlik + demo engeli. tenant_id artık SUNUCUDAN (oturumdan) alınır;
   // body'deki tenantId'ye güvenilmez (spoof edilemez) — [[project-digital-content-qa-final]].

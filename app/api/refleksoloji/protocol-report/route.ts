@@ -2,7 +2,6 @@ import { NextRequest } from "next/server";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
-import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import type { ReportChild } from "@/lib/docx/reportHelpers";
 import { readSnapshotsForDelivery } from "@/lib/yasam-hafizasi/client/snapshotStore";
 import { resolveYhModuleScope } from "@/lib/yasam-hafizasi/moduleScope";
@@ -96,8 +95,6 @@ function protocolOrganLabels(proto: ProtocolRow): string[] {
 const EMPTY_ATLAS: AtlasDocument = { _meta: { version: "1", updated_at: "1970-01-01T00:00:00.000Z" } };
 
 export async function POST(request: NextRequest): Promise<Response> {
-  const androidBlocked = androidWordGuard(request);
-  if (androidBlocked) return androidBlocked;
   // GÜVENLİK: kimlik yalnız sunucu tarafında (requireModuleAccess). Body'deki
   // tenantId/userId GÜVEN KAYNAĞI DEĞİLDİR.
   const guard = await requireModuleAccess(request, "reflexology");
@@ -235,7 +232,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   });
 
   const buffer = await Packer.toBuffer(doc);
-  // USAGE360: rapor YALNIZ docx başarıyla üretildikten sonra (Android Word guard 403'ü olay değildir).
+  // USAGE360: rapor YALNIZ docx başarıyla üretildikten sonra (hata yanıtları olay değildir).
   await trackUsage(guard, request, {
     module: "reflexology",
     action: "report_generated",

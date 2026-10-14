@@ -197,7 +197,10 @@
         "storageClearFailed": "Couldn't clear storage. Please try again.",
         "deleteConfirmTitle": "Delete photo",
         "deleteConfirmMessage": "Delete the \"{name}\" photo? This action cannot be undone.",
-        "deleteConfirmSecond": "The \"{name}\" photo will be permanently deleted. Are you sure?"
+        "deleteConfirmSecond": "The \"{name}\" photo will be permanently deleted. Are you sure?",
+        "takePhoto": "📷 Take Photo",
+        "photoTooLarge": "{name}: the photo could not be fitted under 10 MB while keeping quality.",
+        "photoHeic": "{name}: HEIC/HEIF could not be converted on this device. Please share the photo as JPEG."
       },
       "deleteConfirm": {
         "title": "Delete Stone",

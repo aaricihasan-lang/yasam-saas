@@ -1,22 +1,29 @@
 /**
  * FINAL HARDENING — §4.6 MOBİL ÇIKTI (YETENEK BAZLI) — saf + statik harness.
  *
- * Kural (owner kararı 10): yalnız ÇALIŞMAYAN CTA gizlenir; "dokunmatik = gizle" YOK.
- *   (1) Tüm Android → Word gizli (.no-android; sunucu androidWordGuard 403).
- *   (2) Android uygulama WebView (YasamSistemiAndroid/ veya `; wv)`) → blob/data:/print/
- *       window.open(blob) çıktıları gizli (.no-android-app). İSTİSNA: Anamnez PDF (K8).
- *   (3) iOS / Android Chrome / masaüstü → PDF/PNG/indir/yazdır görünür.
+ * GÜNCEL SÖZLEŞME (owner kararı 2026-10-14 — "mobil dosya işlevleri"):
+ *   (1) Word (.docx): HD ve Astroloji DIŞINDAKİ tüm modüllerde Android dahil HER cihazda açık
+ *       (istemci gizlemesi yok, sunucu androidWordGuard yok). HD + Astroloji kendi kurallarını
+ *       AYNEN korur (.no-android + useIsAndroid + androidWordGuard).
+ *   (2) Android uygulaması blob:/data: İNDİRMEYİ kaydeder → istemci blob/PNG/PDF/TXT/JSON
+ *       indirmeleri uygulamada görünür. window.print ve window.open(blob)/<object>/<iframe> PDF
+ *       önizlemesi uygulamada ÇALIŞMAZ → bunlar .no-android-app ile gizli kalır.
+ *   (3) Anamnez boş/dolu PDF + PDF Ekle her cihazda görünür; uygulamada "Görüntüle" pencere açmaz.
+ *   (4) Görsel yüklemeleri ortak kalite koruyan optimizasyondan geçer; kamera ayrı girişle
+ *       (CameraCaptureButton, capture="environment") ve yalnız destekleyen ortamda sunulur.
+ *   (Önceki kurallar: owner kararı 10 + 2026-10-04 — bu dosyanın git geçmişinde.)
  *
  * Kontroller:
- *   A. outputVisibility karar tablosu (5 UA × 6 tür) + platformFlags
- *   B. clientContext.ts ile tespit tutarlılığı (aynı desenler)
- *   C. globals.css kuralı (@layer dışı, !important, sabitlerle aynı ad)
- *   D. Word CTA dosyalarında .no-android (useIsAndroid guard'ı KORUNMUŞ)
- *   E. Android-app çıktı CTA dosyalarında .no-android-app (+ useIsAndroidApp)
- *   F. Word API route'larında androidWordGuard (46 + 2) + belge-ceviri downloadUrl
- *   G. K8: Anamnez UI/route'larında Android tespiti / gizleme sınıfı YOK
- *   H. "Dokunmatik = gizle" kuralı EKLENMEDİ (yeni dosyalarda pointer/hover medya sorgusu yok)
- *   I. Refleks not ekleri: data: URL üst-çerçeve navigasyonu yok; blob açıcı güvenli türlerle sınırlı
+ *   A. outputVisibility karar tablosu (lib değişmedi — yardımcı davranışı sabit)
+ *   B. clientContext.ts ile tespit tutarlılığı
+ *   C. globals.css kuralı (@layer dışı, !important)
+ *   D. Word: kapsam içi CTA'larda Android gizlemesi YOK; HD/Astroloji gizlemesi KORUNUR
+ *   E. Uygulama çıktıları: blob indirmeleri görünür; print + blob-open gizli kalır
+ *   F. Word API route'ları: kapsam içinde androidWordGuard YOK; HD/Astroloji'de VAR
+ *   G. Anamnez: PDF CTA'ları + PDF Ekle görünür; uygulamada pencere açılmaz
+ *   H. "Dokunmatik = gizle" kuralı EKLENMEDİ
+ *   I. Refleks not ekleri: data: üst-çerçeve yok, blob güvenli; Android'de PDF iframe yerine İndir
+ *   J. Görsel yükleme ekranları: optimizasyon + kamera bağlantısı; capture yalnız ortak bileşende
  *
  * Çalıştır: npx tsx scripts/final-hardening/output-visibility.harness.ts
  */
@@ -114,18 +121,25 @@ ok(ruleRe.test(css), "html[data-android] .no-android, html[data-android-app] .no
 }
 
 // ── D. Word CTA dosyaları ────────────────────────────────────────────────────
-section("D. Word CTA'larında .no-android (+ useIsAndroid korunur)");
+section("D. Word: kapsam içinde Android gizlemesi YOK; HD/Astroloji korunur");
 const NO_ANDROID_RE = /\bno-android\b(?!-app)|NO_ANDROID_CLASS/;
-// Doğrudan Word CTA'sı render eden (sahiplikteki) dosyalar.
+// Word CTA'sı render eden kapsam içi dosyalar (2026-10-14: Android dahil her cihazda görünür).
 const WORD_CTA_FILES = [
   "components/common/BulkExportBar.tsx",
   "app/aromaterapi/_components/read/DetailScreen.tsx",
   "app/aromaterapi/_components/read/ReadListScreen.tsx",
+  "app/aromaterapi/_components/OilsPage.tsx",
   "app/aromaterapi/karisim-olusturucu/page.tsx",
   "app/aromaterapi/page.tsx",
   "app/aromaterapi/yaglar/[id]/page.tsx",
+  "app/aromaterapi/katalog/preparatlar/[id]/yontemler/[seriesId]/page.tsx",
   "app/belge-ceviri/page.tsx",
+  "app/beslenme/planlar/_components/PlanTools.tsx",
   "app/ders-notu/page.tsx",
+  "app/danisan-yolculugu/liste/page.tsx",
+  "app/dashboard/ajanda/page.tsx",
+  "app/dashboard/clients/[id]/page.tsx",
+  "app/dashboard/clients/[id]/components/AnalizlerTab.tsx",
   "app/dashboard/biyoenerji/components/BilincaltiSebepleriDetail.tsx",
   "app/dashboard/biyoenerji/components/BiyoenerjiSeanslari.tsx",
   "app/dashboard/biyoenerji/components/CakralarDetail.tsx",
@@ -140,164 +154,126 @@ const WORD_CTA_FILES = [
   "app/dogaltas/mineral-listesi/[id]/page.tsx",
   "app/dogaltas/page.tsx",
   "app/dogaltas/tas-bilgi-kutuphanesi/page.tsx",
-  "app/human-design/kayitli-haritalar/components/HdProfessionalReportButton.tsx",
-  "app/human-design/kayitli-raporlar/components/HdRaporListesi.tsx",
-  "app/human-design/rapor-olustur/components/HdRaporContent.tsx",
   "app/kupa/protokoller/[id]/ProtocolDocumentClient.tsx",
   "app/kupa/takvim/components/CalendarWorkspace.tsx",
   "app/numeroloji/bilgi-bankasi/components/BilgiKayitListesi.tsx",
   "app/numeroloji/liste/[id]/page.tsx",
+  "app/numeroloji/liste/page.tsx",
   "app/refleksoloji/kayitli-protokoller/components/KayitliProtokolDetayLayout.tsx",
   "app/refleksoloji/kayitli-protokoller/components/KayitliProtokollerLayout.tsx",
   "app/settings/BackupSections.tsx",
   "app/sifa-rehberi/[id]/page.tsx",
+  "app/sifa-rehberi/page.tsx",
   "app/urun-stok/canli-stok/page.tsx",
   "app/video-ceviri/page.tsx",
 ];
 for (const f of WORD_CTA_FILES) {
   const src = read(f);
-  ok(NO_ANDROID_RE.test(src) && /useIsAndroid\(\)/.test(src), `${f}: .no-android + useIsAndroid`);
-}
-// Word'ü YALNIZ BulkExportBar / ReadListScreen / DetailScreen üzerinden sunan dosyalar.
-const VIA_SHARED = [
-  "app/aromaterapi/_components/OilsPage.tsx",
-  "app/aromaterapi/katalog/_components/KatalogView.tsx",
-  "app/aromaterapi/kaynaklar/_components/KaynaklarView.tsx",
-  "app/aromaterapi/bilgi-kayitlari/_components/BilgiKayitlariView.tsx",
-  "app/aromaterapi/bilgi-bankasi/sozluk/_components/SozlukView.tsx",
-  "app/aromaterapi/bilgi-kayitlari/[id]/page.tsx",
-  "app/aromaterapi/katalog/bitkiler/[id]/page.tsx",
-  "app/aromaterapi/katalog/preparatlar/[id]/page.tsx",
-  "app/aromaterapi/katalog/preparatlar/[id]/yontemler/[seriesId]/page.tsx",
-  "app/aromaterapi/kaynaklar/[id]/page.tsx",
-  "app/dashboard/biyoenerji/components/BilincaltiSebepleri.tsx",
-  "app/dashboard/biyoenerji/components/Cakralar.tsx",
-  "app/dashboard/biyoenerji/components/Imajinasyonlar.tsx",
-  "app/dashboard/biyoenerji/components/SembolDili.tsx",
-  "app/dogaltas/dogaltas-listesi/page.tsx",
-  "app/dogaltas/kombinasyonlar/page.tsx",
-  "app/numeroloji/liste/page.tsx",
-  "app/sifa-rehberi/page.tsx",
-];
-for (const f of VIA_SHARED) {
-  ok(/BulkExportBar|ReadListScreen|DetailScreen|DetailWordButton/.test(read(f)), `${f}: Word paylaşılan bileşenden (.no-android taşır)`);
+  ok(!NO_ANDROID_RE.test(src) && !/useIsAndroid\(\)/.test(src) && !/hideWordOnMobile/.test(src), `${f}: Word için Android/telefon gizlemesi yok`);
 }
 {
   const bar = read("components/common/BulkExportBar.tsx");
-  ok(/const wordHideCls = ` \$\{NO_ANDROID_CLASS\}/.test(bar) && /const wordDividerCls = `\$\{NO_ANDROID_CLASS\}/.test(bar), "BulkExportBar: Word butonları + ayraç .no-android");
-  ok(/const hasExport = !isAndroid &&/.test(bar), "BulkExportBar: useIsAndroid guard'ı korunur");
-  ok(/no-android[^"]*"[^>]*>\s*📄|className="no-android inline-flex min-h-\[44px\]/.test(read("app/aromaterapi/_components/read/DetailScreen.tsx")), "DetailWordButton .no-android");
+  ok(/const hasExport = Boolean\(onExportSelected \|\| onExportAll\);/.test(bar), "BulkExportBar: hasExport Android'e bağlı değil");
+  const pt = read("app/beslenme/planlar/_components/PlanTools.tsx");
+  ok(!/EXPORT_DESKTOP_ONLY_CLASS|beslenme-export-desktop-only/.test(pt) && !css.includes("beslenme-export-desktop-only"), "Beslenme: Word tüm cihazlarda görünür (2026-10-14; yalnız-masaüstü kuralı kaldırıldı)");
 }
-// Kalıcı kural: sahiplikteki her `!isAndroid && (` JSX guard'ının ardındaki 8 satırda sınıf var.
-{
-  const misses: string[] = [];
-  for (const f of WORD_CTA_FILES) {
-    const lines = read(f).split(/\r?\n/);
-    lines.forEach((l, i) => {
-      if (/\{[^}]*!isAndroid\b[^}]*(&&|\?)\s*\($/.test(l.trim()) || /\{[^}]*!isAndroid\b[^}]*\?\s*\(\s*$/.test(l)) {
-        const win = lines.slice(i, i + 9).join("\n");
-        if (!/\bno-android\b(?!-app)|NO_ANDROID_CLASS|BulkExportBar|DetailWordButton/.test(win)) misses.push(`${f}:${i + 1}`);
-      }
-    });
-  }
-  ok(misses.length === 0, "her !isAndroid JSX guard'ı .no-android sınıfı da taşıyor", misses.join(", "));
+// HD + Astroloji: eski kural AYNEN (bu dosyalar bu çalışmada değişmedi).
+const HD_ASTRO_WORD_FILES = [
+  "app/human-design/kayitli-haritalar/components/HdProfessionalReportButton.tsx",
+  "app/human-design/kayitli-raporlar/components/HdRaporListesi.tsx",
+  "app/human-design/rapor-olustur/components/HdRaporContent.tsx",
+  "app/admin/astroloji/_components/SavedAnalyses.tsx",
+];
+for (const f of HD_ASTRO_WORD_FILES) {
+  const src = read(f);
+  ok(NO_ANDROID_RE.test(src) && /useIsAndroid\(\)/.test(src), `${f}: HD/Astroloji Android Word gizlemesi KORUNUR`);
 }
 
 // ── E. Android uygulaması çıktıları ──────────────────────────────────────────
-section("E. Android-app CTA'larında .no-android-app (+ useIsAndroidApp)");
-const APP_CTA: Array<[string, RegExp]> = [
-  ["app/aromaterapi/karisim-olusturucu/page.tsx", /🖨 Reçete \/ Yazdır/],
+section("E. Uygulama: blob indirmeleri görünür; print + blob-open gizli");
+const BLOB_DOWNLOAD_VISIBLE: Array<[string, RegExp]> = [
   ["app/belge-ceviri/page.tsx", /TXT İndir/],
   ["app/ders-notu/page.tsx", /TXT İndir/],
   ["app/numeroloji/components/NumerolojiGorselRaporKontrolPaneli.tsx", /PNG İndir/],
   ["app/numeroloji/components/NumerolojiKayitDetayPanel.tsx", /PNG İndir/],
-  ["app/cosmic-calendar/hacamat/page.tsx", /PDF Oluştur/],
-  ["app/cosmic-calendar/hacamat/report/page.tsx", /PDF Aç/],
   ["app/settings/BackupSections.tsx", /Sistem Yedeği İndir/],
   ["app/video-ceviri/page.tsx", /Orijinal PDF/],
-  ["app/refleksoloji/notlar/components/NoteDetayAttachmentCard.tsx", /Yeni Sekme/],
 ];
-for (const [f, marker] of APP_CTA) {
+for (const [f, marker] of BLOB_DOWNLOAD_VISIBLE) {
   const src = read(f);
-  ok(marker.test(src) && /\bno-android-app\b/.test(src) && /useIsAndroidApp\(\)/.test(src), `${f}: .no-android-app + useIsAndroidApp`);
+  ok(marker.test(src) && !/\bno-android-app\b/.test(src) && !/useIsAndroidApp\(\)/.test(src), `${f}: blob indirme uygulamada görünür`);
 }
 {
-  const src = read("app/aromaterapi/karisim-olusturucu/page.tsx");
-  ok((src.match(/className="no-android-app/g) ?? []).length === 2, "aromaterapi: 2 Yazdır CTA'sı (aktif + kayıtlı)");
-  const bc = read("app/belge-ceviri/page.tsx");
-  ok((bc.match(/className="no-android-app/g) ?? []).length === 2, "belge-ceviri: 2 TXT İndir");
+  const kar = read("app/aromaterapi/karisim-olusturucu/page.tsx");
+  ok((kar.match(/className="no-android-app/g) ?? []).length === 2 && /useIsAndroidApp\(\)/.test(kar), "aromaterapi: 2 Yazdır CTA'sı (window.print) uygulamada GİZLİ kalır");
+  const card = read("app/refleksoloji/notlar/components/NoteDetayAttachmentCard.tsx");
+  ok(/Yeni Sekme/.test(card) && /\bno-android-app\b/.test(card), "refleks ek: 'Yeni Sekme' (window.open blob) uygulamada GİZLİ kalır");
   const hac = read("app/cosmic-calendar/hacamat/page.tsx");
-  ok(/TABS\.filter\(tab => !\(isAndroidApp && tab\.key === "word"\)\)/.test(hac), "hacamat: 'word' sekmesi app'te listelenmez");
-  ok(/tab\.key === "word" \? "no-android-app "/.test(hac), "hacamat: 'word' sekme butonu .no-android-app");
-  ok(/activeTab === "word" && !isAndroidApp/.test(hac), "hacamat: word sekmesi içeriği app'te render edilmez");
-  ok(/className="no-android-app flex w-full[^"]*"\s*>\s*<ExternalLink/.test(hac), "hacamat: Raporu Aç .no-android-app");
+  ok(/\{TABS\.map\(tab => \(/.test(hac) && !/isAndroidApp/.test(hac), "hacamat: 'Word' sekmesi her cihazda listelenir");
+  ok(/activeTab === "word" && \(/.test(hac), "hacamat: Word sekmesi içeriği her cihazda render edilir");
+  ok(/PDF Oluştur/.test(hac) && /Word Oluştur/.test(hac) && !/hidden gap-2 md:flex/.test(hac), "hacamat: PDF/Word Oluştur telefon genişliğinde de görünür");
+  ok(/className="no-android-app flex w-full[^"]*"\s*>\s*<ExternalLink/.test(hac), "hacamat: 'Raporu Aç' (blob önizleme sayfası) uygulamada gizli");
   const rep = read("app/cosmic-calendar/hacamat/report/page.tsx");
-  ok(rep.includes("Bu çıktı uygulamada desteklenmiyor; tarayıcıdan veya bilgisayardan açın."), "hacamat rapor: app bilgi notu");
-  ok(/if \(isAndroidAppClient\(\)\) return;/.test(rep), "hacamat rapor: app'te PDF önizleme hiç çekilmez");
-  ok((rep.match(/no-android-app/g) ?? []).length >= 2, "hacamat rapor: buton bloğu + önizleme .no-android-app");
-  const vid = read("app/video-ceviri/page.tsx");
-  ok(/if \(isAndroidApp\) return null;/.test(vid) && /className="no-android-app relative"/.test(vid), "video-ceviri: app'te İndir tetikleyicisi gizli");
-  ok(/<div className="no-android">\s*<div className="px-3 pb-1 pt-3">/.test(vid), "video-ceviri: Word grubu .no-android");
+  ok(/data-testid="hacamat-report-app-downloads"/.test(rep) && /download\("pdf"\)/.test(rep) && /download\("word"\)/.test(rep), "hacamat rapor: uygulamada PDF + Word İndir");
+  ok(/if \(isAndroidAppClient\(\)\) return;/.test(rep), "hacamat rapor: uygulamada PDF önizleme hiç çekilmez");
+  ok((rep.match(/no-android-app/g) ?? []).length >= 2, "hacamat rapor: PDF Aç + <object> önizleme uygulamada gizli");
+  const vh = read("lib/video-ceviri/exportHelpers.ts");
+  ok(!/pdf\.save\(/.test(vh) && /triggerBlobDownload\(pdf\.output\("blob"\)/.test(vh), "video PDF: jsPDF.save yerine blob indirme (uygulamada güvenilir)");
 }
 
 // ── F. Word API route'ları ───────────────────────────────────────────────────
-section("F. Word API route'larında androidWordGuard");
-const GUARDED_46 = [
+section("F. Word API route'ları: kapsam içinde guard yok; HD/Astroloji'de var");
+const UNGUARDED_46 = [
   "ajanda/word-report", "aromaterapi/blends/[id]/word-report", "aromaterapi/blends/word-report",
   "aromaterapi/claims/[id]/word-report", "aromaterapi/claims/word-report", "aromaterapi/glossary/word-report",
   "aromaterapi/methods/[seriesId]/word-report", "aromaterapi/methods/word-report", "aromaterapi/oils/[id]/word-report",
   "aromaterapi/oils/word-report", "aromaterapi/plant-taxa/[id]/word-report", "aromaterapi/plant-taxa/word-report",
   "aromaterapi/preparations/[id]/word-report", "aromaterapi/preparations/word-report", "aromaterapi/sources/[id]/word-report",
   "aromaterapi/sources/word-report", "aromaterapi/word-report", "belge-ceviri/ocr-to-word", "belge-ceviri/pdf-to-word",
-  "beslenme/plans/[id]/word", "biyoenerji/chakra-report", "biyoenerji/energy-body-report", "biyoenerji/imagination-report",
-  "biyoenerji/session-report", "biyoenerji/subconscious-report", "biyoenerji/symbol-report", "clients/[id]/word-report",
-  "clients/word-report-bulk", "ders-notu/to-word", "dogaltas/combinations/word-report", "dogaltas/knowledge-report",
-  "dogaltas/mineral-report", "dogaltas/minerals/[id]/word-report", "dogaltas/stones/[id]/word-report", "dogaltas/word-report",
-  "hacamat/word-report", "hd/reports/professional/download", "kupa/calendar/plans/[id]/word-report",
+  "belge-ceviri/pdf-to-turkce-word", "beslenme/plans/[id]/word", "biyoenerji/chakra-report", "biyoenerji/energy-body-report",
+  "biyoenerji/imagination-report", "biyoenerji/session-report", "biyoenerji/subconscious-report", "biyoenerji/symbol-report",
+  "clients/[id]/word-report", "clients/word-report-bulk", "ders-notu/to-word", "dogaltas/combinations/word-report",
+  "dogaltas/knowledge-report", "dogaltas/mineral-report", "dogaltas/minerals/[id]/word-report",
+  "dogaltas/stones/[id]/word-report", "dogaltas/word-report", "hacamat/word-report", "kupa/calendar/plans/[id]/word-report",
   "kupa/protocols/[id]/word-report", "numeroloji/knowledge-report", "numeroloji/word-report", "refleksoloji/protocol-report",
   "settings/export", "sifa-rehberi/word-report", "urun-stok/stock-report", "video-ceviri/export-word",
 ];
-ok(GUARDED_46.length === 46, `46 mevcut Word route'u listelendi (${GUARDED_46.length})`);
-const NEW_GUARDED = ["belge-ceviri/pdf-to-turkce-word", "hd/reports/professional"];
-for (const r of [...GUARDED_46, ...NEW_GUARDED]) {
+ok(UNGUARDED_46.length === 46, `46 kapsam içi Word route'u listelendi (${UNGUARDED_46.length})`);
+for (const r of UNGUARDED_46) {
   const f = `app/api/${r}/route.ts`;
-  const src = existsSync(join(ROOT, f)) ? read(f) : "";
-  ok(/androidWordGuard\((req|request)\)/.test(src) && /if \(androidBlocked\) return androidBlocked;/.test(src), `${f}: androidWordGuard`);
+  const src = existsSync(join(ROOT, f)) ? read(f) : "MISSING";
+  ok(src !== "MISSING" && !/androidWordGuard|isAndroidUserAgent/.test(src), `${f}: Android engeli yok`);
 }
-{
-  const t = read("app/api/belge-ceviri/pdf-to-turkce-word/route.ts");
-  ok(t.indexOf("androidWordGuard(request)") < t.indexOf("requireDigitalContentUser("), "pdf-to-turkce-word: guard kimlik/kotadan ÖNCE (job/AI maliyeti yok)");
-  const h = read("app/api/hd/reports/professional/route.ts");
-  ok(h.indexOf("androidWordGuard(req)") < h.indexOf("checkRateLimit("), "hd professional POST: guard snapshot/rate-limit'ten ÖNCE");
+for (const f of [
+  "app/api/hd/reports/professional/route.ts",
+  "app/api/hd/reports/professional/download/route.ts",
+  "app/api/admin/astroloji/analyses/report/route.ts",
+  "app/api/admin/astroloji/analyses/[id]/report/route.ts",
+]) {
+  ok(/androidWordGuard\((req|request)\)/.test(read(f)), `${f}: HD/Astroloji guard'ı KORUNUR`);
 }
 for (const f of ["app/api/belge-ceviri/job-status/[id]/route.ts", "app/api/belge-ceviri/history/route.ts"]) {
   const src = read(f);
-  ok(/const wordBlocked = isAndroidUserAgent\(request\.headers\.get\("user-agent"\)\);/.test(src)
-    && /if \(!wordBlocked && job\.status === "completed" && job\.result_path\)/.test(src), `${f}: Android'de downloadUrl null`);
+  ok(!/wordBlocked|isAndroidUserAgent/.test(src), `${f}: Android'e de downloadUrl verilir`);
 }
 
-// ── G. Anamnez PDF CTA'ları mobilde gizli (owner 2026-10-04) ────────────────
-section("G. Anamnez: PDF CTA'ları Android + telefon genişliğinde gizli; ekler ve PDF backend'i değişmedi");
+// ── G. Anamnez ───────────────────────────────────────────────────────────────
+section("G. Anamnez: PDF CTA'ları + PDF Ekle her cihazda; uygulamada pencere açılmaz");
 {
   const st = read("components/danisan/anamnez/styles.ts");
-  const CTA = "${ANAMNEZ_PDF_CTA_HIDE}";
-  ok(st.includes('ANAMNEZ_PDF_CTA_HIDE = `${outputHideClass("anamnez-pdf")} hidden md:inline-flex`'), "CTA sınıfı: no-android + <768px gizli, md+ görünür");
-  ok(st.includes('ANAMNEZ_PDF_HINT_HIDE = `${outputHideClass("anamnez-pdf")} hidden md:block`'), "'önce kaydedin' ipucu aynı koşulda gizli");
-  const ed = read("components/danisan/anamnez/AnamnezEditor.tsx");
-  const tab = read("app/dashboard/clients/[id]/components/AnamnezTab.tsx");
-  const count = (src: string) => src.split(CTA).length - 1;
-  const after = (src: string, anchor: string, n: number) => { const i = src.indexOf(anchor); return i >= 0 && src.slice(i, i + n).includes(CTA); };
-  ok(count(ed) === 2 && after(ed, "void downloadBlank()", 200) && after(ed, "void downloadFilled()", 400), "editör: Boş Form + Kayıtlı Form CTA'ları gizlenebilir (tam 2)");
-  ok(count(tab) === 2 && after(tab, "void downloadBlank()", 200) && after(tab, "onClick={onPdf}", 200), "danışan detayı sekmesi: Boş Form + Kayıtlı Form CTA'ları gizlenebilir (tam 2)");
-  ok(ed.includes("${ANAMNEZ_PDF_HINT_HIDE}"), "editör: 'önce kaydedin' ipucu da gizlenebilir");
-  ok(!/useIsAndroid|androidWordGuard/.test(ed + tab), "UI'da JS tabanlı Android tespiti yok (SSR sınıfı + CSS)");
-  for (const f of ["components/danisan/anamnez/AnamnezAttachments.tsx", "lib/danisan/anamnez/client.ts"]) {
-    if (!existsSync(join(ROOT, f))) { ok(true, `${f}: (yok — atlandı)`); continue; }
-    ok(!/useIsAndroid|isAndroid|androidWordGuard|no-android|ANAMNEZ_PDF_CTA_HIDE/.test(read(f)), `${f}: değişmedi (ekler/kullanıcı dosyası her yerde görünür)`);
-  }
+  ok(st.includes('export const ANAMNEZ_PDF_CTA_HIDE = "inline-flex";') && st.includes('export const ANAMNEZ_PDF_HINT_HIDE = "block";'), "CTA + ipucu sınıfları gizleme içermez");
+  ok(!/outputHideClass|no-android|hidden md:/.test(st), "styles.ts: Android/telefon gizlemesi yok");
+  const att = read("components/danisan/anamnez/AnamnezAttachments.tsx");
+  ok(!/MOBILE_HIDDEN|no-android|hidden md:/.test(att) && /accept="application\/pdf,\.pdf"/.test(att), "PDF Ekle her cihazda görünür (yalnız PDF kabul)");
+  ok(/triggerUrlDownload\(url, fileName\)/.test(att), "Ek İndir: dosya adı uygulama indirmesine aktarılır");
+  const cl = read("lib/danisan/anamnez/client.ts");
+  const i = cl.indexOf("export async function openSignedUrl");
+  const body = cl.slice(i, i + 1400);
+  ok(body.indexOf("if (isAndroidAppClient())") >= 0 && body.indexOf("if (isAndroidAppClient())") < body.indexOf('win = window.open("about:blank"'), "Görüntüle: uygulamada window.open(about:blank) çağrılmaz");
+  ok(/a\.download = fileName \?\? "";/.test(cl), "triggerUrlDownload: download işareti (uygulama içi indirme)");
   for (const f of ["app/api/clients/[id]/anamnez/blank-form/route.ts", "app/api/clients/[id]/anamnez/[anamnesisId]/pdf/route.ts"]) {
     if (!existsSync(join(ROOT, f))) { ok(true, `${f}: (yok — atlandı)`); continue; }
-    ok(!/androidWordGuard|isAndroidUserAgent/.test(read(f)), `${f}: PDF backend'ine dokunulmadı (Android engeli yok)`);
+    ok(!/androidWordGuard|isAndroidUserAgent/.test(read(f)), `${f}: PDF backend'inde Android engeli yok`);
   }
 }
 
@@ -328,6 +304,58 @@ ok(!isSafeOpenMime("image/svg+xml") && !isSafeOpenMime("text/html") && !isSafeOp
   ok(dataUrlToSafeBlob("data:text/html,<script>1</script>", "text/html") === null, "HTML → null");
   ok(dataUrlToSafeBlob("data:text/html;base64,PGI+", "application/pdf")?.type === "application/pdf", "doğrulanmış MIME override → PDF olarak açılır (içerik çalıştırılmaz)");
   ok(dataUrlToSafeBlob("https://x/y.pdf") === null && dataUrlToSafeBlob("data:application/pdf;base64,@@@") === null, "data: olmayan / bozuk base64 → null");
+}
+
+{
+  const pm = read("app/refleksoloji/notlar/components/PdfPreviewModal.tsx");
+  ok(/isAndroid \? \(/.test(pm) && /download=\{downloadName\}/.test(pm) && /<iframe title=\{title\}/.test(pm), "PdfPreviewModal: Android'de iframe yerine İndir; diğerlerinde iframe korunur");
+  const arsiv = read("app/dashboard/kisisel-arsiv/page.tsx");
+  ok(/kind === "pdf" && !isAndroid \?/.test(arsiv) && /kind === "pdf" && isAndroid \?/.test(arsiv), "Kişisel Arşiv: Android'de boş PDF iframe yerine bilgi + mevcut Aç/İndir");
+}
+
+// ── J. Görsel yükleme ekranları ──────────────────────────────────────────────
+section("J. Görsel yükleme: optimizasyon + kamera bağlantısı");
+{
+  const UPLOAD_SCREENS: Array<[string, RegExp]> = [
+    ["app/dashboard/clients/[id]/components/StonesTab.tsx", /optimizeImageFile\(/],
+    ["app/dogaltas/dogaltas-kayit/page.tsx", /optimizeImageFile\(/],
+    ["app/dogaltas/dogaltas-listesi/[id]/page.tsx", /optimizeImageFile\(/],
+    ["lib/sifa-rehberi/stonePhotoClient.ts", /optimizeImageFile\(/],
+    ["app/refleksoloji/notlar/lib/readAttachmentFile.ts", /optimizeImageFile\(/],
+    ["lib/urun-stok/photoValidation.ts", /optimizeImageFile\(/],
+    ["app/admin/magaza/components/ImageManager.tsx", /optimizeImageFile\(/],
+    ["app/admin/magaza/components/CategoriesPanel.tsx", /optimizeImageFile\(/],
+  ];
+  for (const [f, re] of UPLOAD_SCREENS) ok(re.test(read(f)), `${f}: yükleme öncesi kalite koruyan optimizasyon`);
+  const CAMERA_SCREENS = [
+    "app/dashboard/clients/[id]/components/StonesTab.tsx",
+    "app/dogaltas/dogaltas-kayit/page.tsx",
+    "app/dogaltas/dogaltas-listesi/[id]/page.tsx",
+    "app/sifa-rehberi/page.tsx",
+    "app/sifa-rehberi/[id]/page.tsx",
+    "components/sifa-rehberi/SectionEditor.tsx",
+    "app/refleksoloji/notlar/components/AttachmentsPanel.tsx",
+    "app/refleksoloji/notlar/components/NotDetayLayout.tsx",
+    "app/urun-stok/yag/page.tsx",
+    "app/urun-stok/sabun-krem/page.tsx",
+    "app/urun-stok/aksesuar/page.tsx",
+    "app/urun-stok/diger/page.tsx",
+    "app/urun-stok/dogaltas/page.tsx",
+    "app/admin/magaza/components/ImageManager.tsx",
+    "app/admin/magaza/components/CategoriesPanel.tsx",
+    "app/dashboard/kisisel-arsiv/page.tsx",
+  ];
+  for (const f of CAMERA_SCREENS) ok(/<CameraCaptureButton/.test(read(f)), `${f}: ayrı kamera girişi`);
+  ok(!/optimizeImageFile/.test(read("app/dashboard/kisisel-arsiv/page.tsx")), "Kişisel Arşiv: orijinal dosya korunur (optimizasyon yok)");
+  const cam = read("components/media/CameraCaptureButton.tsx");
+  ok(/capture="environment"/.test(cam) && /accept="image\/\*"/.test(cam) && /if \(!supported\) return null;/.test(cam), "CameraCaptureButton: capture=environment, yalnız destekte render");
+  const kayit = read("app/dogaltas/dogaltas-kayit/page.tsx");
+  ok(!/async function compressImageFileToWebp|className="hidden md:contents"/.test(kayit), "Doğaltaş Yeni Kayıt: eski q0.75 sıkıştırıcı ve mobil gizleme yok");
+  ok(/failed = true;\s*break;/.test(kayit), "Doğaltaş Yeni Kayıt: ara hatada önceki yüklenenler kayda eklenir (yetim yok)");
+  const stones = read("app/dashboard/clients/[id]/components/StonesTab.tsx");
+  ok(!/MOBILE_HIDDEN/.test(stones), "Danışan Taşları: fotoğraf seçimi her cihazda görünür");
+  const det = read("app/dogaltas/dogaltas-listesi/[id]/page.tsx");
+  ok(!/hidden md:inline-flex|hidden md:block/.test(det), "Doğaltaş detay: foto ekle/sil telefon genişliğinde görünür");
 }
 
 // ── Özet ─────────────────────────────────────────────────────────────────────

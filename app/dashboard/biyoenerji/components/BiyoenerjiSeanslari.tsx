@@ -36,7 +36,6 @@ import {
 } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { useDirtySnapshot } from "@/lib/biyoenerji/useDirtyGuard";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
 import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
 import { LongTextareaField } from "./LargeTextModal";
@@ -146,7 +145,6 @@ export default function BiyoenerjiSeanslari() {
   const editOriginalRef = useRef<typeof form | null>(null);
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [formModalMode, setFormModalMode] = useState<"create" | "edit">("create");
-  const isAndroid = useIsAndroid();
   // BIO-004/015 — form modalı için kaydedilmemiş değişiklik takibi.
   const { isDirty: formIsDirty } = useDirtySnapshot(formModalOpen, form);
   const [infoSuccess, setInfoSuccess] = useState("");
@@ -831,16 +829,14 @@ export default function BiyoenerjiSeanslari() {
               </DemoBlur>
               {!isDemo && (
                 <div className="mt-6 flex flex-wrap gap-2 border-t border-white/55 pt-5">
-                  {!isAndroid && (
-                    <button
-                      type="button"
-                      disabled={wordBusy}
-                      onClick={() => void exportSessionsWord("single", selectedRow.id)}
-                      className="no-android rounded-xl border border-blue-200/70 bg-blue-50/90 px-4 py-2.5 text-[12px] font-black text-blue-800 transition hover:bg-blue-100/90 disabled:opacity-50"
-                    >
-                      {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    disabled={wordBusy}
+                    onClick={() => void exportSessionsWord("single", selectedRow.id)}
+                    className="rounded-xl border border-blue-200/70 bg-blue-50/90 px-4 py-2.5 text-[12px] font-black text-blue-800 transition hover:bg-blue-100/90 disabled:opacity-50"
+                  >
+                    {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+                  </button>
                   <button
                     type="button"
                     onClick={openEditModal}

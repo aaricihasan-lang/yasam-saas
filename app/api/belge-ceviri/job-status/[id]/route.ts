@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
-import { isAndroidUserAgent } from "@/lib/platform/android";
 
 export const runtime = "nodejs";
 
@@ -45,11 +44,10 @@ export async function GET(
       return NextResponse.json({ error: "Job bulunamadı." }, { status: 404 });
     }
 
-    // Çıktı Word (.docx): Android'de imzalı indirme URL'i hiç üretilmez (ürün kararı;
-    // UI zaten gizler — defense-in-depth). Durum/ilerleme bilgisi aynen döner.
-    const wordBlocked = isAndroidUserAgent(request.headers.get("user-agent"));
+    // Çıktı Word (.docx): Android dahil tüm cihazlarda Word indirme açık (2026-10-14 owner kararı);
+    // HD ve Astroloji kendi kurallarını korur. Durum/ilerleme bilgisi aynen döner.
     let downloadUrl: string | null = null;
-    if (!wordBlocked && job.status === "completed" && job.result_path) {
+    if (job.status === "completed" && job.result_path) {
       const { data: signed } = await db.storage
         .from(STORAGE_BUCKET)
         .createSignedUrl(job.result_path as string, 3600);
