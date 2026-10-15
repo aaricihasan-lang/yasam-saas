@@ -18,8 +18,24 @@ export type BirthPoint = {
 const r6 = (v: number) => Math.round(v * 1e6) / 1e6;
 const tzHours = (sec: number) => r6(sec / 3600);
 
+/**
+ * 2026-10-14 — LMT DENGELEMESİ (gerçek çağrıyla ölçüldü: tzmatrix 1905 İstanbul −4 sn, 1750 Paris +21 sn).
+ * Roxy ondalık timezone'u hesapta EN YAKIN DAKİKAYA yuvarlar (yanıtta tam değeri yankılasa da). Saniyeli ofsetlerde
+ * (yerel ortalama zaman: İstanbul 1910 öncesi +1:56:56, Amsterdam 1937'ye kadar +0:19:32, Monrovia 1972'ye kadar
+ * −0:44:30 …) doğum anı ≤30 sn kayıyordu (ASC'de ~8′'e kadar). Çözüm: ofset dakikaya yuvarlanarak gönderilir ve YEREL
+ * saat aradaki fark kadar kaydırılır → UTC an BİREBİR korunur. Ofset tam dakikaysa (pratikte tüm modern doğumlar)
+ * gövde ESKİSİYLE BYTE-BYTE AYNIDIR → önbellek anahtarları ve kayıtlı analizler etkilenmez.
+ */
+export function roxyLocalTime(date: string, time: string, offsetSeconds: number): { date: string; time: string; offsetSeconds: number } {
+  const rounded = Math.round(offsetSeconds / 60) * 60;
+  if (rounded === offsetSeconds) return { date, time, offsetSeconds };
+  const iso = new Date(Date.parse(`${date}T${time.length === 5 ? `${time}:00` : time}Z`) + (rounded - offsetSeconds) * 1000).toISOString();
+  return { date: iso.slice(0, 10), time: iso.slice(11, 19), offsetSeconds: rounded };
+}
+
 export function birthBody(b: BirthPoint) {
-  return { date: b.birthDate, time: b.birthTime ?? "12:00:00", latitude: r6(b.latitude), longitude: r6(b.longitude), timezone: tzHours(b.utcOffsetSeconds) };
+  const l = roxyLocalTime(b.birthDate, b.birthTime ?? "12:00:00", b.utcOffsetSeconds);
+  return { date: l.date, time: l.time, latitude: r6(b.latitude), longitude: r6(b.longitude), timezone: tzHours(l.offsetSeconds) };
 }
 
 /** /astrology/transits — transit anı UTC olarak (timezone 0). */
@@ -182,7 +198,8 @@ export function kpPlanetsAtBody(atUtcMinute: string, place: GeoPoint, ayanamsa: 
  * hep "sidereal" (tropikal sonucu Vedik diye etiketlememek için "tropical" ASLA gönderilmez).
  */
 export function vedicTransitLocal(b: BirthPoint, atUtcMinute: string): { date: string; time: string } {
-  const ms = Date.parse(`${atUtcMinute}:00Z`) + b.utcOffsetSeconds * 1000;
+  // Tek timezone alanı doğum saatiyle ORTAK → an, doğum gövdesinin ETKİN (dakikaya yuvarlanmış) ofsetiyle çevrilir.
+  const ms = Date.parse(`${atUtcMinute}:00Z`) + Math.round(b.utcOffsetSeconds / 60) * 60 * 1000;
   const iso = new Date(ms).toISOString();
   return { date: iso.slice(0, 10), time: iso.slice(11, 19) };
 }
@@ -190,4 +207,9 @@ export function vedicTransitBody(b: BirthPoint, atUtcMinute: string) {
   const bb = birthBody(b);
   const t = vedicTransitLocal(b, atUtcMinute);
   return { birthDate: bb.date, birthTime: bb.time, transitDate: t.date, transitTime: t.time, latitude: bb.latitude, longitude: bb.longitude, timezone: bb.timezone, coordinateSystem: "sidereal" };
+}
+
+/** /astrology/fixed-stars — doğum gövdesi + düğüm türü (orb SORGU parametresidir; gövdeye girmez). */
+export function fixedStarsBody(b: BirthPoint, nodeType: NodeType) {
+  return { ...birthBody(b), nodeType };
 }

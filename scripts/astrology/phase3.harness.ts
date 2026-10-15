@@ -24,8 +24,8 @@ import { appendAstroRevision, createAstroProfile } from "@/lib/astrology/profile
 import { getAstrologyResult, planAstrology, runAstrology, type EngineCtx, type EngineDeps } from "@/lib/astrology/engine/service";
 import { getTechnique, TECHNIQUE_IDS as ALL_TECHNIQUE_IDS, type TechniqueId } from "@/lib/astrology/engine/techniques";
 
-/** Aşama 3 kapsamı (natal + 8 teknik). Aşama 4 konum teknikleri phase4 harness'indedir. */
-const TECHNIQUE_IDS = ALL_TECHNIQUE_IDS.filter((x) => x.startsWith("western.") && !["western.astrocartography", "western.relocation", "western.local_space"].includes(x));
+/** Aşama 3 kapsamı (natal + 8 teknik). Aşama 4 konum teknikleri phase4, sabit yıldızlar fixedstars harness'indedir. */
+const TECHNIQUE_IDS = ALL_TECHNIQUE_IDS.filter((x) => x.startsWith("western.") && !["western.astrocartography", "western.relocation", "western.local_space", "western.fixed_stars"].includes(x));
 import { buildPlan, parseSelections } from "@/lib/astrology/engine/planner";
 import { createKb } from "@/lib/astrology/kb/service";
 import { getAnalysis, getWorkspace, listAnalyses, previewAnalysis, saveAnalysis, saveExpertNote } from "@/lib/astrology/analyses/service";

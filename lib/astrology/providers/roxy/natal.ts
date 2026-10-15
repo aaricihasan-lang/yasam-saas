@@ -26,6 +26,7 @@
 //   BİLİNMEYEN alanlar: hiçbir projeksiyona GİRMEZ (fail-closed); yalnız yol adı
 //   `unmapped_fields` listesine yazılır (değer DEĞİL) → sonraki adaptör sürümünde sınıflandırılır.
 
+import { roxyLocalTime } from "./requests";
 import {
   ASPECT_NATURES,
   BODY_IDS,
@@ -87,14 +88,16 @@ export type NatalBirthInput = {
 
 /** Sağlayıcıya giden NORMALİZE gövde (önbellek anahtarı da bundan türetilir). */
 export function buildNatalRequestBody(b: NatalBirthInput, opts: NatalMethodOptions): Record<string, unknown> {
+  // 2026-10-14: LMT dengelemesi (requests.ts roxyLocalTime) — tam dakikalık ofsette gövde birebir eskisi gibi.
+  const local = roxyLocalTime(b.birthDate, b.birthTime ?? "12:00:00", b.utcOffsetSeconds);
   return {
-    date: b.birthDate,
-    time: b.birthTime ?? "12:00:00",
+    date: local.date,
+    time: local.time,
     latitude: Math.round(b.latitude * 1e6) / 1e6,
     longitude: Math.round(b.longitude * 1e6) / 1e6,
     // IANA yerine ondalık saat: DST belirsizliği bizim tarafımızda (dst_choice) çözüldü;
-    // sağlayıcının kendi IANA çözümüne (sessiz seçim) bırakılmaz. LMT kesirleri korunur.
-    timezone: Math.round((b.utcOffsetSeconds / 3600) * 1e6) / 1e6,
+    // sağlayıcının kendi IANA çözümüne (sessiz seçim) bırakılmaz. LMT saniyeleri yerel saate aktarılır (UTC birebir).
+    timezone: Math.round((local.offsetSeconds / 3600) * 1e6) / 1e6,
     nodeType: opts.nodeType,
     houseSystem: opts.houseSystem,
   };

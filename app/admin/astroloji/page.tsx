@@ -1601,6 +1601,7 @@ export default function AstrologyWorkspacePage() {
                     item && item.ok && !natalTech ? (
                       <TechniqueTechnical
                         hideWheel={!!otherWheel || !!roxyChart}
+                        interpretation={item.view.interpretation.visible ? item.view.interpretation.content : null}
                         technique={item.technique}
                         technical={item.view.technical}
                         timeUnknownMasked={item.view.timeUnknownMasked}

@@ -2,7 +2,9 @@
 //
 // Geometri ve yerleşim uygulamadaki çarkla AYNIDIR (app/admin/astroloji/_components/NatalWheel.tsx:
 // aynı yarıçaplar, Yükselen solda, boylam saat yönü tersine, 7,5° glif itmesi). Fark yalnız etikettedir:
-// rapor fontunda (Geist) astroloji glifleri yok → gezegen/burç glifleri yerine Türkçe kısaltmalar yazılır.
+// 2026-10-14: gezegen/burç etiketleri GERÇEK astroloji glifleridir (☉ ☽ … ♈ …). Geist'te bu glifler yok; resvg'ye sembol
+// yedek yazı tipleri (Yasam Astro Symbols A/B) yüklenir ve font-family listesine eklenir. Glif ↔ Türkçe ad eşlemesi çark
+// altındaki açıklamada (WHEEL_LEGEND) verilir — sembol ve Türkçe karşılık birlikte.
 // Yeni hesap YOK: yalnız kayıtlı teknik veri (boylam, ev, açı) çizilir.
 
 import { SIGN_IDS } from "../model/western";
@@ -27,26 +29,30 @@ const SIGN_ELEMENT = ["fire", "earth", "air", "water", "fire", "earth", "air", "
 const NATURE_COLOR: Record<string, string> = { harmonious: "#2563eb", challenging: "#dc2626", neutral: "#64748b" };
 const MAJOR = new Set(["conjunction", "opposition", "trine", "square", "sextile"]);
 
+/** Çark etiketleri: gerçek glifler (metin biçimi; görünüm seçicisiz). */
 export const WHEEL_BODY_ABBR: Record<string, string> = {
-  sun: "Gü",
-  moon: "Ay",
-  mercury: "Me",
-  venus: "Ve",
-  mars: "Ma",
-  jupiter: "Jü",
-  saturn: "Sa",
-  uranus: "Ur",
-  neptune: "Ne",
-  pluto: "Pl",
-  north_node: "KD",
-  south_node: "GD",
-  chiron: "Ki",
-  lilith: "Li",
+  sun: "☉",
+  moon: "☽",
+  mercury: "☿",
+  venus: "♀",
+  mars: "♂",
+  jupiter: "♃",
+  saturn: "♄",
+  uranus: "♅",
+  neptune: "♆",
+  pluto: "♇",
+  north_node: "☊",
+  south_node: "☋",
+  chiron: "⚷",
+  lilith: "⚸",
 };
-export const WHEEL_SIGN_ABBR = ["Koç", "Boğ", "İki", "Yen", "Asl", "Baş", "Ter", "Akr", "Yay", "Oğl", "Kov", "Bal"];
-/** Çark altı açıklama (rapor metninde gösterilir). */
+export const WHEEL_SIGN_ABBR = ["♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓"];
+/** Çark altı açıklama (rapor metninde gösterilir): her glif Türkçe karşılığıyla. */
 export const WHEEL_LEGEND =
-  "Kısaltmalar: Gü Güneş · Ay · Me Merkür · Ve Venüs · Ma Mars · Jü Jüpiter · Sa Satürn · Ur Uranüs · Ne Neptün · Pl Plüton · KD/GD Kuzey/Güney Ay Düğümü · Ki Kiron · Li Lilith · R retro. Açı çizgileri: mavi uyumlu, kırmızı zorlayıcı, gri nötr; kesikli çizgi minör açı.";
+  "Semboller: ☉ Güneş · ☽ Ay · ☿ Merkür · ♀ Venüs · ♂ Mars · ♃ Jüpiter · ♄ Satürn · ♅ Uranüs · ♆ Neptün · ♇ Plüton · ☊ Kuzey Ay Düğümü · ☋ Güney Ay Düğümü · ⚷ Kiron · ⚸ Kara Ay Lilith · ℞ retro. Burçlar: ♈ Koç · ♉ Boğa · ♊ İkizler · ♋ Yengeç · ♌ Aslan · ♍ Başak · ♎ Terazi · ♏ Akrep · ♐ Yay · ♑ Oğlak · ♒ Kova · ♓ Balık. Açı çizgileri: mavi uyumlu, kırmızı zorlayıcı, gri nötr; kesikli çizgi minör açı.";
+
+/** Sembol yedek yazı tipleri dahil font-family listesi (resvg harf bazında yedeğe geçer). */
+export const WHEEL_FONT_STACK = "Geist, 'Yasam Astro Symbols A', 'Yasam Astro Symbols B'";
 
 const norm = (deg: number) => ((deg % 360) + 360) % 360;
 const f = (n: number) => n.toFixed(2);
@@ -79,7 +85,7 @@ function spread(bodies: { id: string; longitude: number }[]): Map<string, number
   return disp;
 }
 
-export function buildWheelSvg(w: WheelInput, fontFamily = "Geist"): string {
+export function buildWheelSvg(w: WheelInput, fontFamily = WHEEL_FONT_STACK): string {
   const ascLon = w.angles?.ascendant.longitude ?? 0;
   const outerBodies = w.outer?.bodies?.length ? w.outer.bodies : null;
   const EXTRA = outerBodies ? RING2 : 0;
@@ -148,6 +154,28 @@ export function buildWheelSvg(w: WheelInput, fontFamily = "Geist"): string {
     );
   }
 
+  // 2026-10-15: çift halka ARASI açılar (uygulamadaki Roxy transit / sinastri çarkıyla aynı veri). Uçlar iki gövdenin
+  // GERÇEK boylamında açı dairesi üzerindedir; renk/çizgi natal açılarla aynı kural (majör düz, minör kesik).
+  if (outerBodies && w.crossAspects?.length) {
+    const outerById = new Map(outerBodies.map((b) => [b.id, b]));
+    for (const a of w.crossAspects) {
+      const po = outerById.get(a.outer);
+      const pi = posById.get(a.inner);
+      if (!po || !pi) continue;
+      const p1 = pt(R_ASPECT, po.longitude);
+      const p2 = pt(R_ASPECT, pi.longitude);
+      const major = MAJOR.has(a.type);
+      out.push(
+        `<line x1="${f(p1.x)}" y1="${f(p1.y)}" x2="${f(p2.x)}" y2="${f(p2.y)}" stroke="${NATURE_COLOR[a.nature ?? "neutral"] ?? "#64748b"}" stroke-width="${major ? 1.1 : 0.7}"${major ? "" : ' stroke-dasharray="3 3"'} opacity="0.75" data-cross="1"/>`,
+      );
+    }
+    // Dış halka gövdesinin açı dairesindeki ucu (mor nokta) — çizginin hangi halkaya ait olduğu okunur.
+    for (const b of outerBodies) {
+      const dot = pt(R_ASPECT, b.longitude);
+      out.push(`<circle cx="${f(dot.x)}" cy="${f(dot.y)}" r="1.8" fill="${OUTER_INK}"/>`);
+    }
+  }
+
   const disp = spread(w.bodies);
   for (const b of w.bodies) {
     const d = disp.get(b.id) ?? b.longitude;
@@ -160,7 +188,7 @@ export function buildWheelSvg(w: WheelInput, fontFamily = "Geist"): string {
     out.push(`<line x1="${f(t2.x)}" y1="${f(t2.y)}" x2="${f(g.x)}" y2="${f(g.y)}" stroke="#cbd5e1" stroke-width="0.6"/>`);
     out.push(`<circle cx="${f(dot.x)}" cy="${f(dot.y)}" r="1.8" fill="#0f172a"/>`);
     out.push(`<text x="${f(g.x)}" y="${f(g.y + 5)}" text-anchor="middle" font-size="14" font-weight="700" fill="#0f172a">${esc(WHEEL_BODY_ABBR[b.id] ?? b.id.slice(0, 2))}</text>`);
-    out.push(`<text x="${f(dg.x)}" y="${f(dg.y + 3)}" text-anchor="middle" font-size="9" fill="#475569">${Math.floor(b.degreeInSign)}°${b.retrograde ? "R" : ""}</text>`);
+    out.push(`<text x="${f(dg.x)}" y="${f(dg.y + 3)}" text-anchor="middle" font-size="9" fill="#475569">${Math.floor(b.degreeInSign)}°${b.retrograde ? "℞" : ""}</text>`);
   }
   // Dış halka (Transit gezegenleri / Sinastri 1. kişi): R_OUT dışında, mor; gerçek derece çentiği R_OUT çizgisinde.
   if (outerBodies) {
@@ -173,7 +201,7 @@ export function buildWheelSvg(w: WheelInput, fontFamily = "Geist"): string {
       const dg = pt(R_OUT + 41, d);
       out.push(`<line x1="${f(t1.x)}" y1="${f(t1.y)}" x2="${f(t2.x)}" y2="${f(t2.y)}" stroke="${OUTER_INK}" stroke-width="1.4"/>`);
       out.push(`<text x="${f(g.x)}" y="${f(g.y + 5)}" text-anchor="middle" font-size="13" font-weight="700" fill="${OUTER_INK}">${esc(WHEEL_BODY_ABBR[b.id] ?? b.id.slice(0, 2))}</text>`);
-      out.push(`<text x="${f(dg.x)}" y="${f(dg.y + 3)}" text-anchor="middle" font-size="9" fill="${OUTER_INK}">${Math.floor(b.degreeInSign)}°${b.retrograde ? "R" : ""}</text>`);
+      out.push(`<text x="${f(dg.x)}" y="${f(dg.y + 3)}" text-anchor="middle" font-size="9" fill="${OUTER_INK}">${Math.floor(b.degreeInSign)}°${b.retrograde ? "℞" : ""}</text>`);
     }
   }
   out.push("</svg>");

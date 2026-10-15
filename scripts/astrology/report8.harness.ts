@@ -9,7 +9,7 @@
  * Çalıştırma: npx tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/report8.harness.ts
  */
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import JSZip from "jszip";
@@ -23,7 +23,16 @@ import { createKb } from "@/lib/astrology/kb/service";
 import { getAnalysis, saveAnalysis, saveExpertNote } from "@/lib/astrology/analyses/service";
 import { previewProfileDeletion, deleteProfiles } from "@/lib/astrology/clients/deletion";
 import { buildAstroReport, reportTexts, asciiSlug, type ReportAnalysisInput } from "@/lib/astrology/report/model";
-import { buildWheelSvg } from "@/lib/astrology/report/wheelSvg";
+import { buildWheelSvg, WHEEL_BODY_ABBR, WHEEL_FONT_STACK } from "@/lib/astrology/report/wheelSvg";
+import { fontKeyOf, isRenderable } from "@/lib/astrology/report/symbolFonts";
+import { kundliMarkup, renderFigurePng, renderFigureSvg } from "@/lib/astrology/report/figurePng";
+import { kundliLocalizedTree } from "@/lib/astrology/report/figures";
+import { SIGN_IDS as SIGN_ORDER } from "@/lib/astrology/model/western";
+import { Resvg } from "@resvg/resvg-js";
+import { renderWheelPng } from "@/lib/astrology/report/chartPng";
+import { renderAstroReportDocx } from "@/lib/astrology/report/docx";
+import { buildAstroReportPdf } from "@/lib/astrology/report/pdf";
+import { symbolFontBuffers, symbolFontsBase64 } from "@/lib/astrology/report/symbolFontData";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 import { __resetRateLimitStore } from "@/lib/rateLimit";
 
@@ -42,7 +51,7 @@ process.env.RATE_LIMIT_SECRET = "fake-rl-secret";
 const ROOT = join(__dirname, "..", "..");
 const DIR = join(__dirname, "fixtures", "golden");
 const NATAL = JSON.parse(readFileSync(join(__dirname, "fixtures", "roxy-natal-golden-2026-10-07.json"), "utf8"));
-const GOLDEN: { name: string; endpoint: string; body: J; response: J }[] = readdirSync(DIR)
+const GOLDEN: { name: string; endpoint: string; body: J; query?: Record<string, string> | null; response: J }[] = readdirSync(DIR)
   .filter((f) => f.endsWith(".json"))
   .map((f) => ({ name: f.replace(/\.json$/, ""), ...JSON.parse(readFileSync(join(DIR, f), "utf8")) }));
 
@@ -111,10 +120,11 @@ const providerCalls: { endpoint: string; body: J }[] = [];
 const score = (a: J, b: J) => Object.keys(b ?? {}).filter((k) => JSON.stringify(a?.[k]) === JSON.stringify(b[k])).length;
 const deps: EngineDeps = {
   config: { apiKey: "k-test-8", baseUrl: ROXY_BASE },
-  callProvider: async (_c, endpoint, body) => {
+  callProvider: async (_c, endpoint, body, o) => {
     providerCalls.push({ endpoint, body });
     if (endpoint === "/astrology/natal-chart") return { ok: true, raw: structuredClone(NATAL), attempts: 1 };
-    const cands = GOLDEN.filter((g) => g.endpoint === endpoint);
+    // Sorgu parametresi olan golden'lar (ör. fixed-stars orb=3 / orb=1) yalnız AYNI sorguyla eşleşir.
+    const cands = GOLDEN.filter((g) => g.endpoint === endpoint && (!g.query || JSON.stringify(g.query) === JSON.stringify(o?.query ?? null)));
     if (!cands.length) return { ok: false, kind: "bad_request", status: 400, attempts: 1 };
     const best = cands.sort((x, y) => score(body, y.body) - score(body, x.body))[0];
     const r = structuredClone(best.response);
@@ -173,6 +183,8 @@ function selection(id: string, partner?: string): { technique: string; options: 
       return { technique: id, options: { targetLocationId: "us-ny-new-york", houseSystem: "placidus" } };
     case "western.local_space":
       return { technique: id, options: { referenceLocationId: null } };
+    case "western.fixed_stars":
+      return { technique: id, options: { nodeType: "true", orb: 1, reportCatalog: true } };
     case "vedic.varga":
       return { technique: id, options: { division: 9 } };
     case "vedic.transit":
@@ -194,7 +206,7 @@ function selection(id: string, partner?: string): { technique: string; options: 
 
 const TECHNIQUES = [
   "western.natal", "western.transit", "western.forecast", "western.progression", "western.solar_arc", "western.solar_return", "western.lunar_return",
-  "western.synastry", "western.composite", "western.astrocartography", "western.relocation", "western.local_space",
+  "western.synastry", "western.composite", "western.astrocartography", "western.relocation", "western.local_space", "western.fixed_stars",
   "vedic.d1", "vedic.varga", "vedic.dasha", "vedic.drishti", "vedic.ashtakavarga", "vedic.shadbala", "vedic.panchanga", "vedic.transit",
   "kp.chart", "kp.dasha", "kp.ruling", "kp.transit", "kp.horary",
 ] as const;
@@ -289,6 +301,7 @@ async function main() {
     "western.astrocartography": ["Gezegen hatları", "MC hattı boylamı"],
     "western.relocation": ["Gezegenler: doğum yeri ↔ hedef", "Hedefte ev"],
     "western.local_space": ["Local space yönleri", "Azimut"],
+    "western.fixed_stars": ["Önemli sabit yıldız kavuşumları", "Ekliptik boylam kavuşumu (paran değildir)", "Ek: Sabit yıldız kataloğu", "Zuben Elgenubi", "Deneb Algedi"],
     "vedic.d1": ["Graha yerleşimleri (D1 / Rashi)", "Nakshatra", "Vedik / Jyotish", "Yogalar"],
     "vedic.varga": ["Varga yerleşimleri", "Vargottama"],
     "vedic.dasha": ["Dönemler", "Vimshottari"],
@@ -320,9 +333,10 @@ async function main() {
   }
 
   // 2026-10-12 (UAT 2. tur, madde L): Progression (tam burç evli tek halka), Transit (natal çerçeve varsa çift halka) ve
-  // Sinastri (çift halka) da kayıtlı veriden çizilir; çerçevesi olmayan transit ve KP/Vedik görselsiz kalır.
-  await t("model: harita görseli natal, return, composite, relocation, progression, sinastri ve (natal çerçeveli) transitte; diğerleri görselsiz", async () => {
-    const withChart = new Set(["western.natal", "western.solar_return", "western.lunar_return", "western.composite", "western.relocation", "western.progression", "western.synastry"]);
+  // Sinastri (çift halka) da kayıtlı veriden çizilir; çerçevesi olmayan transit görselsiz kalır.
+  // 2026-10-15 (owner onayı): Vedik D1 / Varga ve KP chart / horary / transit haritaları da rapora girer.
+  await t("model: harita görseli natal, return, composite, relocation, progression, sinastri, (natal çerçeveli) transit, Vedik D1/Varga ve KP chart/horary/transitte; diğerleri görselsiz", async () => {
+    const withChart = new Set(["western.natal", "western.solar_return", "western.lunar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit"]);
     for (const tech of TECHNIQUES) {
       const a = await full(saved.get(tech)!);
       const r = buildAstroReport(a);
@@ -332,8 +346,11 @@ async function main() {
     const r = buildAstroReport(await full(saved.get("western.natal")!));
     const ch = r.blocks.find((b) => b.kind === "chart") as J;
     const svg = buildWheelSvg(ch.chart);
-    assert.ok(svg.startsWith("<svg") && svg.includes(">Gü<") && svg.includes(">Koç<") && svg.includes(">ASC<"));
-    assert.ok(!/[☉☽♈♉]/.test(svg), "glif (fontta yok) kullanılmamalı");
+    // 2026-10-14 owner kararı: çarkta GERÇEK glifler (sembol yedek yazı tipleri resvg'ye yüklenir); Türkçe karşılık açıklamada.
+    assert.ok(svg.startsWith("<svg") && svg.includes(">☉<") && svg.includes(">♋<") && svg.includes(">ASC<"), "çarkta gezegen/burç glifi yok");
+    assert.ok(svg.includes("Yasam Astro Symbols A") && svg.includes("Yasam Astro Symbols B"), "çark yazı tipi listesinde sembol yedek fontları yok");
+    assert.ok(!/>(Gü|Koç)</.test(svg), "eski Türkçe kısaltma kalmamalı");
+    assert.ok(r.blocks.some((b) => b.kind === "para" && b.text.includes("☉ Güneş") && b.text.includes("♈ Koç")), "çark açıklaması sembol + Türkçe olmalı");
   });
 
   await t("model: uzman notu + Bilgi Bankası snapshot'ı rapora girer; dosya adı ASCII", async () => {
@@ -381,6 +398,11 @@ async function main() {
       assert.equal(p.status, 200);
       assert.equal(p.headers.get("content-type"), "application/pdf");
       assert.equal(p.buf.subarray(0, 5).toString(), "%PDF-");
+      // İsteğe bağlı görsel denetim: ASTRO_REPORT_DUMP=<klasör> verilirse üretilen dosyalar diske yazılır (test sonucu değişmez).
+      if (process.env.ASTRO_REPORT_DUMP) {
+        writeFileSync(join(process.env.ASTRO_REPORT_DUMP, `${tech}.docx`), d.buf);
+        writeFileSync(join(process.env.ASTRO_REPORT_DUMP, `${tech}.pdf`), p.buf);
+      }
       const px = await pdfText(p.buf);
       assert.ok(px.pages >= 2, "kapak + içerik");
       assert.ok(norm(px.text).includes("Şükrü Çağrı Işıkgöz"), "PDF Türkçe ad");
@@ -409,9 +431,9 @@ async function main() {
     assert.ok(f.pdf.pages >= 3, `forecast PDF ${f.pdf.pages} sayfa`);
   });
 
-  await t("harita görseli: natal/return/composite/relocation/progression/sinastri (+ natal çerçeveli transit) Word'de PNG gömülü + PDF'te görsel; KP/Vedik görselsiz çalışır", async () => {
-    for (const tech of ["western.natal", "western.solar_return", "western.composite", "western.relocation", "western.progression", "western.synastry"]) assert.equal(docs.get(tech)!.docx.media.length, 1, tech);
-    for (const tech of ["kp.chart", "vedic.d1"]) assert.equal(docs.get(tech)!.docx.media.length, 0, tech);
+  await t("harita görseli: natal/return/composite/relocation/progression/sinastri (+ natal çerçeveli transit) + Vedik D1/Varga + KP Word'de PNG gömülü + PDF'te görsel; haritasız Vedik/KP teknikleri görselsiz", async () => {
+    for (const tech of ["western.natal", "western.solar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit"]) assert.equal(docs.get(tech)!.docx.media.length, 1, tech);
+    for (const tech of ["kp.dasha", "kp.ruling", "vedic.dasha", "vedic.panchanga"]) assert.equal(docs.get(tech)!.docx.media.length, 0, tech);
     const trFrame = !!((await full(saved.get("western.transit")!)).technical as J | null)?.natalFrame;
     assert.equal(docs.get("western.transit")!.docx.media.length, trFrame ? 1 : 0, "western.transit (natal çerçeve → çift halka)");
     const png = await (await JSZip.loadAsync((await get("expert", saved.get("western.natal")!, "exAI", "docx")).buf)).file(docs.get("western.natal")!.docx.media[0])!.async("nodebuffer");
@@ -745,6 +767,284 @@ async function main() {
     assert.match(readFileSync(join(ROOT, "app/admin/astroloji/page.tsx"), "utf8"), /profileLabel=\{shownDetail\.label\}/);
   });
 
+  // ── 2026-10-15 HARİTA AKTARIM REGRESYONU: her harita türü uygulama verisinden → SVG → PNG → Word + PDF EKSİKSİZ ────────
+  // Yalnız "dosyada bir resim var" yetmez: doğru harita, doğru öğeler, kırpılmadan, okunur çözünürlükte, Word = PDF = PNG.
+  const CHART_TECHS = ["western.natal", "western.solar_return", "western.lunar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "western.transit"] as const;
+  const FONT_DIR = join(ROOT, "public", "fonts");
+  const GEIST = join(FONT_DIR, "Geist-Regular.ttf");
+  const SYM = [join(FONT_DIR, "YasamAstroSymbolsA.ttf"), join(FONT_DIR, "YasamAstroSymbolsB.ttf")];
+  const raster = (svg: string, fontFiles: string[]) => {
+    const r = new Resvg(svg, { background: "white", fitTo: { mode: "width", value: 1200 }, font: { loadSystemFonts: false, fontFiles, defaultFontFamily: "Geist" } }).render();
+    const px = r.pixels;
+    let dark = 0;
+    let minX = r.width, minY = r.height, maxX = 0, maxY = 0;
+    for (let y = 0; y < r.height; y++)
+      for (let x = 0; x < r.width; x++) {
+        const i = (y * r.width + x) * 4;
+        if (px[i] < 200 || px[i + 1] < 200 || px[i + 2] < 200) {
+          dark++;
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        }
+      }
+    return { width: r.width, height: r.height, dark, bbox: { minX, minY, maxX, maxY } };
+  };
+  const pngDims = (b: Buffer) => ({ w: b.readUInt32BE(16), h: b.readUInt32BE(20) });
+  const fontB64 = readFileSync(GEIST).toString("base64");
+  for (const tech of CHART_TECHS) {
+    await t(`harita aktarımı ${tech}: öğeler eksiksiz · PNG kırpılmamış/okunur · Word = PDF = PNG (aynı görsel, oran korunur)`, async () => {
+      const a = await full(saved.get(tech)!);
+      const r = buildAstroReport(a);
+      const ch = r.blocks.find((b) => b.kind === "chart") as J;
+      if (tech === "western.transit" && !(a.technical as J)?.natalFrame) {
+        assert.equal(ch, undefined, "natal çerçevesi yokken transit çarkı çizilmemeli");
+        return;
+      }
+      assert.ok(ch, "harita bloğu yok");
+      const w = ch.chart as J;
+      const svg = buildWheelSvg(w);
+      // 1) Öğeler: her gövde için glif + derece; 12 burç glifi; ev numaraları; ASC/DSC/MC/IC; ℞; açı çizgileri.
+      const glyphCount = (g: string) => svg.split(`>${g}<`).length - 1;
+      const inner: J[] = w.bodies;
+      const outer: J[] = w.outer?.bodies ?? [];
+      for (const s of ["♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓"]) assert.equal(glyphCount(s), 1, `burç glifi ${s}`);
+      const degTexts = (svg.match(/>\d{1,2}°℞?</g) ?? []).length;
+      assert.equal(degTexts, inner.length + outer.length, "her gövde için derece etiketi");
+      assert.equal((svg.match(/℞</g) ?? []).length, [...inner, ...outer].filter((b) => b.retrograde).length, "retro işareti sayısı");
+      if (w.houses.length) for (let i = 1; i <= 12; i++) assert.ok(svg.includes(`>${i}</text>`), `ev numarası ${i}`);
+      if (w.angles) for (const lbl of ["ASC", "DSC", "MC", "IC"]) assert.ok(svg.includes(`>${lbl}<`), lbl);
+      const lines = (svg.match(/<line [^>]*opacity="0\.75"/g) ?? []).length;
+      const crossDrawable = (w.crossAspects ?? []).filter((x: J) => outer.some((b) => b.id === x.outer) && inner.some((b) => b.id === x.inner)).length;
+      const natalDrawable = (w.aspects ?? []).filter((x: J) => inner.some((b) => b.id === x.a) && inner.some((b) => b.id === x.b)).length;
+      assert.equal(lines, natalDrawable + crossDrawable, "açı çizgisi sayısı = verideki çizilebilir açı sayısı");
+      if (tech === "western.synastry" || tech === "western.transit") assert.ok(crossDrawable > 0, "çift halkada halkalar arası açı çizgisi yok");
+      if (tech === "western.natal") assert.ok(natalDrawable > 0, "natal açı çizgisi yok");
+      // 2) PNG: kare, okunur çözünürlük, kenara taşma/kırpılma yok, boş değil; sembol fontları gerçekten glif çiziyor.
+      const ras = raster(svg, [GEIST, ...SYM]);
+      assert.equal(ras.width, 1200);
+      assert.equal(ras.height, 1200, "çark kare olmalı");
+      // Açısız çarklar (relocation, progression) daha seyrektir; ölçülen en düşük ≈%1,6 → eşik %1.
+      assert.ok(ras.dark > 1200 * 1200 * 0.01, `harita neredeyse boş (${ras.dark} koyu piksel)`);
+      assert.ok(ras.bbox.minX >= 2 && ras.bbox.minY >= 2 && ras.bbox.maxX <= 1197 && ras.bbox.maxY <= 1197, `içerik kenara değiyor (kırpılma): ${JSON.stringify(ras.bbox)}`);
+      // Sembol glifleri GERÇEKTEN sembol fontundan çizilir: çarktaki her glif, font listesiyle ve sembol fontu AÇIKÇA
+      // seçilerek PİKSEL-PİKSEL aynı; yalnız Geist ile (glif yok → .notdef kutusu) farklı.
+      for (const g of [...new Set([...inner, ...outer].map((b) => WHEEL_BODY_ABBR[b.id]).concat(["♈", "♓", "℞"]))]) {
+        const probe = (fam: string, files: string[]) =>
+          Buffer.from(new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="120" height="60" font-family="${fam}"><rect width="120" height="60" fill="#fff"/><text x="10" y="45" font-size="36">${g}</text></svg>`, { background: "white", font: { loadSystemFonts: false, fontFiles: files, defaultFontFamily: "Geist" } }).render().pixels);
+        const viaStack = probe(WHEEL_FONT_STACK, [GEIST, ...SYM]);
+        const famOf = fontKeyOf(g) === "B" ? "'Yasam Astro Symbols B'" : "'Yasam Astro Symbols A'";
+        assert.ok(viaStack.equals(probe(famOf, [GEIST, ...SYM])), `${g}: çarkta sembol fontuyla çizilmiyor`);
+        assert.ok(!viaStack.equals(probe("Geist", [GEIST])), `${g}: Geist ile aynı (sembol fontu devrede değil)`);
+      }
+      // 3) Word ve PDF: AYNI görsel, oran korunur, sayfaya sığar.
+      const png = renderWheelPng(w);
+      assert.ok(png, "PNG üretilemedi");
+      if (!png) return;
+      assert.deepEqual(pngDims(png.png), { w: 1200, h: 1200 });
+      const docx = await renderAstroReportDocx(r, png.png, symbolFontBuffers());
+      const zip = await JSZip.loadAsync(docx);
+      const media = Object.keys(zip.files).filter((n) => n.startsWith("word/media/") && !zip.files[n].dir);
+      const imgs = await Promise.all(media.map((n) => zip.file(n)!.async("nodebuffer")));
+      assert.ok(imgs.some((b) => b.equals(png.png)), "Word'deki harita, üretilen PNG ile birebir aynı değil");
+      const docXml = await zip.file("word/document.xml")!.async("string");
+      const ext = [...docXml.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/g)].map((m) => [Number(m[1]), Number(m[2])]);
+      assert.ok(ext.some(([cx, cy]) => cx === cy && cx > 0 && cx <= 6_000_000), `Word görsel boyutu kare/sayfaya sığmalı: ${JSON.stringify(ext)}`);
+      const pdf = Buffer.from(buildAstroReportPdf(r, png, fontB64, symbolFontsBase64())).toString("latin1");
+      assert.ok(/\/Subtype \/Image[\s\S]{0,200}?\/Width 1200[\s\S]{0,60}?\/Height 1200|\/Width 1200[\s\S]{0,200}?\/Height 1200[\s\S]{0,200}?\/Subtype \/Image/.test(pdf), "PDF'te 1200×1200 harita görseli yok");
+    });
+  }
+  await t("harita aktarımı: görsel üretilemezse rapor boş/yanlış yer tutucu yerine açık not verir (Word + PDF)", async () => {
+    const r = buildAstroReport(await full(saved.get("western.natal")!));
+    const docx = await renderAstroReportDocx(r, null, symbolFontBuffers());
+    const zip = await JSZip.loadAsync(docx);
+    assert.equal(Object.keys(zip.files).filter((n) => n.startsWith("word/media/") && !n.endsWith("/")).length, 0, "görsel yokken Word'e resim girmemeli");
+    assert.ok((await zip.file("word/document.xml")!.async("string")).includes("Harita görseli bu raporda oluşturulamadı"));
+    const pdfTxt = await pdfText(Buffer.from(buildAstroReportPdf(r, null, fontB64, symbolFontsBase64())));
+    assert.ok(norm(pdfTxt.text).includes("Harita görseli bu raporda oluşturulamadı"));
+  });
+  await t("harita aktarımı: uygulamada haritası olmayan teknikler (dasha/drishti/panchanga/ruling/konum/sabit yıldız…) rapora HARİTA BLOĞU koymaz (yanlış harita yok)", async () => {
+    const FIG = ["vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit"];
+    for (const tech of TECHNIQUES.filter((x) => !(CHART_TECHS as readonly string[]).includes(x) && !FIG.includes(x))) {
+      const r = buildAstroReport(await full(saved.get(tech)!));
+      assert.ok(!r.blocks.some((b) => b.kind === "chart"), `${tech}: beklenmeyen harita`);
+    }
+  });
+
+  // ── 2026-10-15 VEDİK D1 / VARGA / KP HARİTASI RAPORDA (owner onayı) ──────────────────────────────────────────────
+  // Ekrandaki harita bileşeninin kendi çıktısı (Kundli/Varga) veya ekrandaki KP ızgarasının aynı verisi → PNG → Word + PDF.
+  // Ekran ↔ rapor öğe öğe eşdeğerliği: scripts/astrology/vedic-charts-ui.e2e.mts (tarayıcı).
+  const FIG_TECHS = ["vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit"] as const;
+  const FIG_TITLE: Record<string, RegExp> = { "vedic.d1": /^Vedik D1 \(Rashi\) haritası — /, "vedic.varga": /^Vedik D9 \(Navamsa\) haritası — /, "kp.chart": /^KP haritası — /, "kp.horary": /^KP horary haritası — /, "kp.transit": /^KP transit haritası — / };
+  const figOf = (r: ReturnType<typeof buildAstroReport>) => (r.blocks.find((b) => b.kind === "chart" && "figure" in b) as J | undefined) ?? null;
+  const mediaOf = async (buf: Buffer) => {
+    const zip = await JSZip.loadAsync(buf);
+    return Promise.all(Object.keys(zip.files).filter((n) => n.startsWith("word/media/") && !zip.files[n].dir).map((n) => zip.file(n)!.async("nodebuffer")));
+  };
+  const figPng: Record<string, Buffer> = {};
+  for (const tech of FIG_TECHS) {
+    await t(`Vedik/KP harita ${tech}: doğru türde harita · doğru ad · PNG kare/kırpılmamış · Word = PDF = bu kaydın PNG'si`, async () => {
+      const a = await full(saved.get(tech)!);
+      const r = buildAstroReport(a);
+      const ch = figOf(r);
+      assert.ok(ch, "harita bloğu yok");
+      assert.match(ch.caption, FIG_TITLE[tech], "harita başlığı yanlış ad");
+      assert.equal(ch.figure.type, tech.startsWith("kp.") ? "kp" : "kundli");
+      if (tech === "vedic.d1") assert.equal(ch.figure.centreLabel, "D1 Rashi");
+      if (tech === "vedic.varga") assert.equal(ch.figure.centreLabel, "D9 Navamsa");
+      assert.ok(r.hasChart);
+      // Harita teknik tabloların ÖNÜNDE
+      const iChart = r.blocks.indexOf(ch);
+      const iTech = r.blocks.findIndex((b) => b.kind === "heading" && b.text === "Teknik hesaplama sonuçları");
+      assert.ok(iChart > 0 && iChart < iTech, "harita teknik sonuçlardan önce olmalı");
+      const svg = await renderFigureSvg(ch.figure);
+      if (ch.figure.type === "kundli") {
+        // Ekrandaki bileşen çıktısı: her graha + Lagna + merkez etiketi; Türkçe kısaltma; İngilizce kalmadı
+        const tree = kundliLocalizedTree(await kundliMarkup(ch.figure), ch.figure);
+        const planets = tree.querySelectorAll("text.planet-text").map((x) => x.childNodes.map((c) => (c.nodeType === 3 ? c.data : "")).join("").trim());
+        const grahas = (a.technical as J).grahas as J[];
+        assert.equal(planets.length, grahas.length, "her graha haritada");
+        assert.ok(planets.every((p) => /^(Gü|Ay|Ma|Me|Jü|Ve|Sa|Ra|Ke)( \d{1,2}°)?[ʳᶜʷ]*$/.test(p)), `Türkçe graha etiketi: ${planets.join(",")}`);
+        assert.equal(planets.filter((p) => p.includes("ʳ")).length, grahas.filter((g) => g.retrograde).length, "vakri işareti sayısı");
+        assert.ok(svg.includes(">Lagna<"), "Lagna işareti");
+        assert.ok(!/>(Su|Mo|Ju|ASC)</.test(svg), "İngilizce kısaltma kalmamalı");
+        assert.equal((svg.match(/<polygon /g) ?? []).length, 1, "Kuzey düzeni iç baklava çizgisi");
+        assert.equal((svg.match(/<line /g) ?? []).length, 2, "Kuzey düzeni köşegenleri");
+      } else {
+        const tc = a.technical as J;
+        const items = [...svg.matchAll(/data-kp-item="([^"]+)"/g)].map((m) => m[1]);
+        assert.equal(items.filter((k) => /^c\d+$/.test(k)).length, (tc.cusps ?? []).length, "her cusp haritada");
+        assert.equal(items.filter((k) => !/^c\d+$/.test(k)).length, tc.bodies.length, "her graha haritada");
+        assert.equal((svg.match(/data-kp-sign=/g) ?? []).length, 12, "12 burç kutusu");
+      }
+      // Her karakter rapor yazı tiplerinde çizilebilir (kutu/boş glif yok)
+      const txt = [...svg.matchAll(/>([^<]+)</g)].map((m) => m[1]).join("");
+      const missing = [...new Set(Array.from(txt))].filter((c) => !isRenderable(c));
+      assert.deepEqual(missing, [], "rapor yazı tiplerinde olmayan karakter");
+      const ras = raster(svg, [GEIST, ...SYM]);
+      assert.equal(ras.width, 1200);
+      assert.equal(ras.height, 1200, "kare");
+      // Kundli çizgileri ekrandaki gibi açık gri (#d4d4d8, eşik dışı) → eşik metin + çerçeveye göre: ≥ %0,5 koyu piksel.
+      assert.ok(ras.dark > 1200 * 1200 * 0.005, `harita boş (${ras.dark})`);
+      assert.ok(ras.bbox.minX >= 0 && ras.bbox.maxX <= 1199 && ras.bbox.maxY <= 1199, "kırpılma");
+      const png = await renderFigurePng(ch.figure);
+      assert.ok(!("error" in png), "PNG üretilemedi");
+      if ("error" in png) return;
+      assert.deepEqual(pngDims(png.png), { w: 1200, h: 1200 });
+      figPng[tech] = png.png;
+      // Gerçek rota (uzman yüzeyi): Word'deki tek görsel = bu kaydın PNG'si; PDF'te 1200×1200
+      const d = await get("expert", saved.get(tech)!, "exAI", "docx");
+      assert.equal(d.status, 200);
+      const media = await mediaOf(d.buf);
+      assert.equal(media.length, 1, "Word'de tek harita görseli");
+      assert.ok(media[0].equals(png.png), "Word'deki harita bu kaydın PNG'si değil");
+      const xml = await (await JSZip.loadAsync(d.buf)).file("word/document.xml")!.async("string");
+      const ext = [...xml.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/g)].map((m) => [Number(m[1]), Number(m[2])]);
+      assert.ok(ext.length === 1 && ext[0][0] === ext[0][1] && ext[0][0] <= 6_000_000, "Word görseli kare ve sayfaya sığar");
+      const p = await get("expert", saved.get(tech)!, "exAI", "pdf");
+      assert.equal(p.status, 200);
+      assert.ok(/\/Width 1200[\s\S]{0,200}?\/Height 1200/.test(p.buf.toString("latin1")), "PDF'te 1200×1200 görsel yok");
+      const pt = norm((await pdfText(p.buf)).text);
+      assert.ok(pt.includes(norm(ch.caption.split(" — ")[0])), "PDF'te harita başlığı");
+    });
+  }
+  await t("Vedik/KP: harita türleri birbirinden farklı görsel (D1 ≠ D9 ≠ KP …) — yanlış harita yanlış rapora girmez", () => {
+    const k = Object.keys(figPng);
+    assert.equal(k.length, FIG_TECHS.length);
+    for (let i = 0; i < k.length; i++) for (let j = i + 1; j < k.length; j++) assert.ok(!figPng[k[i]].equals(figPng[k[j]]), `${k[i]} = ${k[j]}`);
+  });
+  await t("Vedik/KP: farklı danışan verisi → farklı harita; her rapor yalnız KENDİ kaydının haritasını taşır (karışma yok)", async () => {
+    for (const tech of ["vedic.d1", "kp.chart"] as const) {
+      const a = await full(saved.get(tech)!);
+      const b = structuredClone(a) as J;
+      // İkinci danışan: grahalar bir burç ileride (sentetik; yalnız rapor katmanı)
+      const shift = (x: J) => ({ ...x, rashi: SIGN_ORDER[(SIGN_ORDER.indexOf(x.rashi) + 1) % 12], longitude: (x.longitude + 30) % 360 });
+      b.technical = { ...b.technical, ...(tech === "vedic.d1" ? { grahas: b.technical.grahas.map(shift) } : { bodies: b.technical.bodies.map(shift) }) };
+      const fa = figOf(buildAstroReport(a))!.figure;
+      const fb = figOf(buildAstroReport(b))!.figure;
+      const pa = await renderFigurePng(fa);
+      const pb = await renderFigurePng(fb);
+      assert.ok(!("error" in pa) && !("error" in pb));
+      if ("error" in pa || "error" in pb) return;
+      assert.ok(!pa.png.equals(pb.png), `${tech}: iki danışanın haritası aynı çıktı`);
+      const db = await mediaOf(await renderAstroReportDocx(buildAstroReport(b), pb.png, symbolFontBuffers()));
+      assert.ok(db[0].equals(pb.png) && !db[0].equals(pa.png), `${tech}: B raporunda A'nın haritası`);
+      assert.ok(figPng[tech].equals(pa.png), `${tech}: A'nın kayıtlı raporu kendi haritası`);
+    }
+  });
+  await t("Vedik/KP: eksik veri / yanlış şema → harita bölümünde AÇIK not, görsel YOK (uydurma veya başka analizden harita yok)", async () => {
+    for (const tech of FIG_TECHS) {
+      const a = (await full(saved.get(tech)!)) as J;
+      const cases: [string, J][] = [
+        ["eksik graha", { ...a, technical: { ...a.technical, grahas: [], bodies: [] } }],
+        ["yanlış şema", { ...a, technical: { ...a.technical, schema: tech === "vedic.d1" ? "astro.vedic.varga.v1" : "astro.vedic.d1.v1" } }],
+      ];
+      for (const [name, x] of cases) {
+        const r = buildAstroReport(x as ReportAnalysisInput);
+        assert.ok(!r.blocks.some((b) => b.kind === "chart"), `${tech} ${name}: harita bloğu olmamalı`);
+        assert.ok(!r.hasChart, `${tech} ${name}: hasChart`);
+        assert.ok(r.blocks.some((b) => b.kind === "para" && b.tone === "warn" && b.text.startsWith("Harita bu kayıtta eksik teknik veri nedeniyle çizilemedi")), `${tech} ${name}: açık not yok`);
+        assert.ok(r.blocks.some((b) => b.kind === "heading" && b.text === "Teknik hesaplama sonuçları"), `${tech} ${name}: teknik tablolar korunur`);
+      }
+    }
+  });
+  await t("Vedik/KP: harita ÇİZİLEMEZSE (bileşen/veri hatası) yanlış harita basılmaz; Word + PDF açık not verir", async () => {
+    const a = await full(saved.get("vedic.d1")!);
+    const r = buildAstroReport(a);
+    const ch = figOf(r)!;
+    // Kayıttaki graha sayısı haritayla tutmuyor → çizim reddedilir
+    const bad = await renderFigurePng({ ...ch.figure, grahaCount: ch.figure.grahaCount + 1 });
+    assert.ok("error" in bad && /graha/.test(bad.error), "bozuk figür reddedilmeli");
+    // D1 verisi D9 adıyla basılamaz (merkez etiketi bileşen çıktısıyla karşılaştırılır)
+    const wrongCentre = await renderFigurePng({ ...ch.figure, centreLabel: "D9 Navamsa" });
+    assert.ok("error" in wrongCentre && /Merkez etiketi/.test(wrongCentre.error), "D1 verisi D9 adıyla basılmamalı");
+    const empty = await renderFigurePng({ ...ch.figure, data: { meta: {} } });
+    assert.ok("error" in empty, "boş veride harita çizilmemeli");
+    const docx = await renderAstroReportDocx(r, null, symbolFontBuffers());
+    assert.equal((await mediaOf(docx)).length, 0);
+    assert.ok((await (await JSZip.loadAsync(docx)).file("word/document.xml")!.async("string")).includes("Harita görseli bu raporda oluşturulamadı"));
+    assert.ok(norm((await pdfText(Buffer.from(buildAstroReportPdf(r, null, fontB64, symbolFontsBase64())))).text).includes("Harita görseli bu raporda oluşturulamadı"));
+  });
+  // 2026-10-15 bağımsız inceleme (PR #396) düzeltmeleri
+  await t("Word sayfalama: Vedik/KP'de 'Harita' başlığı + görsel + alt yazı bölünmez tek blok (sayfa sonunda yalnız başlık kalmaz); batı çarkı düzeni aynen", () => {
+    const harita = (xml: string) => {
+      const i = xml.indexOf(">Harita<");
+      const ts = xml.lastIndexOf("<w:tbl>", i);
+      const te = ts < 0 ? -1 : xml.indexOf("</w:tbl>", ts);
+      return { i, tbl: ts >= 0 && te > i && xml.lastIndexOf("</w:tbl>", i) < ts ? xml.slice(ts, te) : null };
+    };
+    for (const tech of FIG_TECHS) {
+      const { i, tbl } = harita(docs.get(tech)!.docx.xml);
+      assert.ok(i > 0, `${tech}: Harita başlığı yok`);
+      assert.ok(tbl, `${tech}: Harita başlığı bölünmez blokta değil`);
+      assert.ok(tbl!.includes("<w:cantSplit/>") && tbl!.includes("<w:drawing>") && tbl!.includes('w:val="Heading1"'), `${tech}: blokta başlık + görsel + cantSplit birlikte değil`);
+    }
+    for (const tech of ["western.natal", "western.synastry", "western.transit"]) {
+      const { i, tbl } = harita(docs.get(tech)!.docx.xml);
+      assert.ok(i > 0 && tbl === null, `${tech}: batı çarkı düzeni değişmemeli`);
+    }
+  });
+  await t("KP transit açıklaması cusp/Placidus anlatmaz (haritada cusp yok); KP doğum + horary açıklaması korunur", () => {
+    const tr = docs.get("kp.transit")!;
+    for (const x of [tr.docx.text, norm(tr.pdf.text)]) {
+      assert.ok(!x.includes("Çerçeveli etiket") && !x.includes("Placidus ev başlangıcı"), "kp.transit: olmayan cusp etiketleri anlatılıyor");
+      assert.ok(x.includes("ev başlangıcı (cusp) çizilmez"), "kp.transit: doğru açıklama yok");
+    }
+    for (const tech of ["kp.chart", "kp.horary"]) {
+      const d = docs.get(tech)!;
+      for (const x of [d.docx.text, norm(d.pdf.text)]) assert.ok(x.includes("Çerçeveli etiket = Placidus ev başlangıcı (cusp)"), `${tech}: cusp açıklaması korunmalı`);
+    }
+  });
+  await t("Sinastri uyum puanı Türkçe iki ondalık (57,28); kayıtlı ham değer değişmez", async () => {
+    const raw = ((await full(saved.get("western.synastry")!)) as J).technical.compatibilityScore as number;
+    assert.equal(raw, 57.28004017277183, "kayıtlı ham değer");
+    const d = docs.get("western.synastry")!;
+    for (const x of [d.docx.text, norm(d.pdf.text)]) {
+      assert.ok(x.includes("57,28"), "uyum puanı Türkçe iki ondalık değil");
+      assert.ok(!x.includes("57.28004017277183") && !x.includes("57,28004"), "ham uzun ondalık raporda");
+    }
+  });
   restore();
   console.log(`\nastrology report8 harness: ${pass} PASS / ${fail} FAIL`);
   if (fail > 0) process.exit(1);

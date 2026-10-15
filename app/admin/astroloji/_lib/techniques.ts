@@ -17,6 +17,7 @@ export const UI_TECHNIQUES = [
   "western.astrocartography",
   "western.relocation",
   "western.local_space",
+  "western.fixed_stars",
   "vedic.d1",
   "vedic.varga",
   "vedic.dasha",
@@ -46,6 +47,7 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "western.astrocartography": { label: "Astrocartography", hint: "Gezegen MC/IC/AC/DC hatları — dünya haritası", needsPartner: false, needsTime: true },
   "western.relocation": { label: "Relocation", hint: "Aynı doğum anı, yeni konum: ASC/MC/evler", needsPartner: false, needsTime: true },
   "western.local_space": { label: "Local Space", hint: "Doğum anında ufuk yönleri (pusula + harita)", needsPartner: false, needsTime: true },
+  "western.fixed_stars": { label: "Sabit yıldızlar", hint: "43 sabit yıldızın doğum anındaki konumu + natal noktalarla ekliptik boylam kavuşumları", needsPartner: false, needsTime: false },
   "vedic.d1": { label: "Vedik D1 (Rashi)", hint: "Sidereal kundli: Lagna, graha, nakshatra/pada, yogalar", needsPartner: false, needsTime: true },
   "vedic.drishti": { label: "Graha Drishti", hint: "Parashari bütün-burç graha drishti (Roxy) — yalnız Lahiri", needsPartner: false, needsTime: true },
   "vedic.ashtakavarga": { label: "Ashtakavarga", hint: "Bhinna/Sarva bindu ızgarası, Shodhana, Shodhya Pinda", needsPartner: false, needsTime: true },
@@ -155,6 +157,10 @@ export type TechniqueParams = {
   kpPlaceMode: "unset" | "birth" | "other";
   /** Local space referansı; null = doğum yeri. */
   localSpaceReference: { id: string; label: string } | null;
+  /** Sabit yıldızlar: gösterim/rapor orbu (yalnız filtre; sağlayıcıdan her zaman 3° istenir → yeni istek yok). */
+  fixedStarsOrb: number;
+  /** Sabit yıldızlar: Word/PDF'e 43 yıldızlık katalog eki. */
+  fixedStarsCatalog: boolean;
 };
 
 export const FORECAST_CHUNK_DAYS = 90;
@@ -206,6 +212,8 @@ export function defaultParams(today: Date): TechniqueParams {
     horaryNumber: 1,
     kpPlace: null,
     kpPlaceMode: "unset",
+    fixedStarsOrb: 1,
+    fixedStarsCatalog: false,
   };
 }
 
@@ -253,6 +261,9 @@ export function buildSelections(
         break;
       case "western.local_space":
         out.push({ technique: id, options: { referenceLocationId: p.localSpaceReference?.id ?? null } });
+        break;
+      case "western.fixed_stars":
+        out.push({ technique: id, options: { nodeType: method.nodeType, orb: p.fixedStarsOrb, reportCatalog: p.fixedStarsCatalog } });
         break;
       case "vedic.d1":
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa } });
@@ -381,6 +392,8 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
       return `D${Number(o.division ?? 9)} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
     case "vedic.d1":
       return `ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+    case "western.fixed_stars":
+      return `orb ${Number(o.orb ?? 1).toLocaleString("tr-TR")}° · ekliptik boylam kavuşumu${o.reportCatalog === true ? " · raporda katalog" : ""}`;
     case "western.local_space": {
       const r = o.reference as { label?: string } | undefined;
       return `merkez: ${r?.label ?? (o.referenceLocationId ? String(o.referenceLocationId) : "doğum yeri")}`;

@@ -38,8 +38,11 @@ const scopeOf = (k: Kind | null): Preview["scope"] => (k === "A" ? "analyses" : 
 
 const OPTION_A =
   "Seçtiğiniz danışanın/danışanların kayıtlı astroloji analizleri silinecek. Adı, doğum tarihi, saati, yeri ve diğer doğum profili bilgileri korunacaktır.";
-const OPTION_B =
-  "Seçtiğiniz astroloji doğum profili ve bu profile bağlı bütün astroloji analizleri kalıcı olarak silinecektir. Diğer modüllerdeki danışan kayıtları silinmeyecektir.";
+// 2026-10-14 owner kararı: güçlü uyarı. Metin gerçek davranışla ÇELİŞMEZ: astro_profile_delete profil + revizyonlar +
+// kendi analizleri + notları + sonuç önbelleği + sağlayıcı yorumlarını siler; Danışan Yolculuğu (clients) kaydı silinmez.
+const DELETE_WARNING_B =
+  "DİKKAT! Bu danışanı silerseniz danışana ait astroloji doğum profili, kayıtlı analizler, analiz notları ve ilişkili hesaplama bilgileri de silinecektir. Bu işlem geri alınamaz.";
+const OPTION_B = `${DELETE_WARNING_B} Danışan Yolculuğu'ndaki danışan kaydı ve diğer modüllerdeki kayıtlar bu işlemle silinmez.`;
 const MAX = 100;
 
 export default function ArchiveDeleteFlow({
@@ -231,7 +234,7 @@ export default function ArchiveDeleteFlow({
                         </>
                       ) : (
                         <>
-                          <strong>{pv.profileCount}</strong> danışan profili ve <strong>{pv.totals.ownAnalyses}</strong> kayıtlı analiz kalıcı olarak silinecek.
+                          <strong>DİKKAT!</strong> <strong>{pv.profileCount}</strong> danışanın astroloji doğum profili, <strong>{pv.totals.ownAnalyses}</strong> kayıtlı analizi, analiz notları ve ilişkili hesaplama bilgileri kalıcı olarak silinecek. Bu işlem geri alınamaz.
                         </>
                       )}
                       {pv.totals.sharedPreserved > 0 ? ` Başka profillerin ${pv.totals.sharedPreserved} ortak analizi korunacak.` : ""} Danışan Yolculuğu kayıtları silinmez.
@@ -257,7 +260,7 @@ export default function ArchiveDeleteFlow({
                       </>
                     ) : (
                       <>
-                        <strong>“{singleLabel}”</strong> doğum profili ve {pv.totals.ownAnalyses} kayıtlı analizi kalıcı olarak silinecek. Bu işlem geri alınamaz. Danışan Yolculuğu kaydı silinmez.
+                        <strong>DİKKAT!</strong> <strong>“{singleLabel}”</strong> danışanına ait astroloji doğum profili, {pv.totals.ownAnalyses} kayıtlı analiz, analiz notları ve ilişkili hesaplama bilgileri kalıcı olarak silinecek. Bu işlem geri alınamaz. Danışan Yolculuğu kaydı bu işlemle silinmez.
                       </>
                     )}
                   </span>

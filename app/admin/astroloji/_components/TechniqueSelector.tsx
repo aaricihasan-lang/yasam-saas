@@ -10,6 +10,7 @@
 
 import { HOUSE_SYSTEMS, NODE_TYPES, type HouseSystem, type NodeType } from "@/lib/astrology/model/western";
 import LocationPicker from "./LocationPicker";
+import { FIXED_STAR_ORB_DEFAULT, FIXED_STAR_ORB_OPTIONS } from "@/lib/astrology/model/westernFixedStars";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { FORECAST_MAX_DAYS, DASHA_LORD_OPTIONS, KP_AYANAMSA_OPTIONS, VEDIC_AYANAMSA_OPTIONS, VEDIC_VARGA_OPTIONS, fmtUtcMinute, forecastPartCount, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
 
@@ -421,6 +422,25 @@ export function TechniqueParamFields({
               <input type="radio" checked={params.localSpaceReference !== null} onChange={() => undefined} disabled={params.localSpaceReference === null} /> Merkez: başka konum
             </label>
             <LocationPicker value={params.localSpaceReference} onChange={(v) => set("localSpaceReference", v)} />
+          </div>
+        );
+      case "western.fixed_stars":
+        return (
+          <div className="flex flex-col gap-1.5 text-xs" data-testid="astro-fixed-stars-params">
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Kavuşum orbu
+              <select className={inp} value={String(params.fixedStarsOrb)} onChange={(e) => set("fixedStarsOrb", Number(e.target.value))} aria-label="Sabit yıldız orbu">
+                {FIXED_STAR_ORB_OPTIONS.map((o) => (
+                  <option key={o} value={String(o)}>
+                    {o.toLocaleString("tr-TR")}°{o === FIXED_STAR_ORB_DEFAULT ? " (varsayılan)" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span className="text-slate-500">Orb yalnız filtredir: veri sağlayıcıdan 3° ile bir kez alınır; orbu değiştirmek yeni istek oluşturmaz.</span>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={params.fixedStarsCatalog} onChange={(e) => set("fixedStarsCatalog", e.target.checked)} /> Word/PDF raporuna 43 yıldızlık katalog ekini ekle
+            </label>
           </div>
         );
       default:
