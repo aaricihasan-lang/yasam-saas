@@ -128,17 +128,20 @@ async function main() {
     ok("A5 Profil: yapısal numara + açıklama + 2 keynote", g("profile")!.value === FIXTURE.profile && g("profile")!.details.map((d) => d.text).join("|") === [FIXTURE.profileDescription, pk.personality, pk.design].join("|"));
     const xc = FIXTURE.incarnationCross as Record<string, unknown>;
     ok("A6 Haç: ad + açı + açıklama", g("cross")!.value === xc.name && g("cross")!.details.some((d) => d.text === xc.description) && g("cross")!.details.some((d) => d.label === "Açı"));
-    ok("A7 İmza / Benlik-dışı: yalnız etiket, uzun açıklama UYDURULMAZ", g("signature")!.value === FIXTURE.signature && g("signature")!.details.length === 0 && g("notSelf")!.details.length === 0);
-    ok("A8 9 merkez (tema / benlik-dışı sorusu / biyoloji + tanımlı durumu)", en.centers.length === 9 && en.centers.every((c) => c.theme && c.notSelfQuestion && c.biology && typeof c.defined === "boolean"));
+    // AŞAMA 2 (HD-23): İmza / Kendilik Dışı Tema değeri uygulama sözlüğünden (tipten); başlık merkezî terim.
+    ok("A7 İmza / Kendilik Dışı Tema: uygulama etiketi, uzun açıklama UYDURULMAZ", g("signature")!.value === "Tatmin" && g("signature")!.title === "İmza" && g("signature")!.details.length === 0 && g("notSelf")!.title === "Kendilik Dışı Tema" && g("notSelf")!.value === "Hayal kırıklığı (Frustration)" && g("notSelf")!.details.length === 0);
+    // AŞAMA 2 (HD-06): kendilik dışı sorusu YALNIZ açık merkezde (sağlayıcı her merkez için açık-merkez dili verir).
+    ok("A8 9 merkez (tema / biyoloji + tanımlı durumu); kendilik dışı sorusu yalnız AÇIK merkezde", en.centers.length === 9 && en.centers.every((c) => c.theme && c.biology && typeof c.defined === "boolean" && (c.defined ? c.notSelfQuestion === null : !!c.notSelfQuestion)) && en.centers.some((c) => !c.defined) && en.centers.some((c) => c.defined));
     ok("A9 kanallar: yapısal kimlik + açıklama + devre açıklaması", en.channels.length === (FIXTURE.channels as unknown[]).length && en.channels.every((c) => /^\d+-\d+$/.test(c.id ?? "") && c.description && c.circuitDescription));
     ok("A10 26 aktivasyon, Design/Personality ayrımı korunur", en.activations.length === 26 && en.activations.filter((a) => a.side === "design").length === 13 && en.activations.filter((a) => a.side === "personality").length === 13);
     ok("A11 aktivasyon: kapı/çizgi/kapı açıklaması/çizgi anlamı/gezegen açıklaması", en.activations.every((a) => a.gate >= 1 && a.gate <= 64 && a.line >= 1 && a.line <= 6 && a.gateDescription && a.lineMeaning && a.planetDescription));
 
     const tr = extractSystemReading(trShaped())!;
     const t = (k: string) => tr.general.find((x) => x.key === k)!;
-    ok("A12 Türkçe *Localized TERCİH edilir", t("type").value === "Jeneratör" && t("strategy").value === "Yanıt vermeyi bekle" && t("authority").value === "Sakral" && t("definition").value === "Bölünmüş" && t("signature").value === "Tatmin" && t("notSelf").value === "Hayal kırıklığı");
-    ok("A13 Localized merkez/kanal/devre/gezegen/kapı adı", tr.centers[0].name === "Tepe" && tr.channels[0].name === "Mantık" && tr.channels[0].circuit === "Kolektif" && tr.activations[0].planet === "Güneş" && tr.activations[0].gateName === "Uyarım");
-    ok("A14 Localized yoksa ham enum'a güvenli geri dönüş", tr.centers[1].name === (FIXTURE.centers as Record<string, unknown>[])[1].name && tr.activations[1].planet === (FIXTURE.gates as Record<string, unknown>[])[1].planet);
+    // AŞAMA 2 (HD-23): genel değerler ekran/Word ile AYNI uygulama etiketleri ("Jeneratör" → "Generator").
+    ok("A12 Genel değerler uygulama sözlüğünden (sağlayıcı çevirisi yerine)", t("type").value === "Generator" && t("strategy").value === "Yanıt vermek için beklemek" && t("authority").value === "Sacral Otorite" && t("definition").value === "İkili Tanım (Split)" && t("signature").value === "Tatmin" && t("notSelf").value === "Hayal kırıklığı (Frustration)");
+    ok("A13 Merkez/kanal adı uygulama sözlüğünden; devre/gezegen/kapı adı Localized", tr.centers[0].name === "Head / Baş Merkezi" && tr.channels[0].name === "Mantık Kanalı" && tr.channels[0].circuit === "Kolektif" && tr.activations[0].planet === "Güneş" && tr.activations[0].gateName === "Uyarım");
+    ok("A14 Localized yoksa: merkez uygulama adı, gezegen ham enum'a güvenli geri dönüş", tr.centers[1].name === "Ajna Merkezi" && tr.activations[1].planet === (FIXTURE.gates as Record<string, unknown>[])[1].planet);
     ok("A15 haç açısı localized", t("cross").details.some((d) => d.label === "Açı" && d.text === "Sağ Açı"));
 
     // Dayanıklılık

@@ -25,7 +25,7 @@
 
 import { createHash } from "node:crypto";
 import {
-  hdAuthorityLabelFromCode,
+  hdAuthorityDisplayLabel,
   hdCenterLabelFromCode,
   hdChannelLabelFromCode,
   hdDefinitionLabelFromCode,
@@ -36,11 +36,12 @@ import {
 import { HUMAN_DESIGN_CENTERS } from "@/lib/human-design/constants";
 import { GATE_TECHNICAL_DATA } from "@/lib/human-design/gateTechnicalData";
 import { HD_PLANET_ORDER, PLANET_LABEL_TR } from "@/lib/human-design/bodygraph/planetGlyphs";
-import { hdCrossAngleLabel } from "@/lib/human-design/normalize/hdDisplayLabels";
+import { hdCrossAngleLabel, hdTypeKeynotes } from "@/lib/human-design/normalize/hdDisplayLabels";
 import type { HdAppChartCodes } from "@/lib/human-design/normalize/hdAppCodes";
 import type { PlanetName } from "@/lib/human-design/engine/types";
 import type { SystemReadingDto } from "@/lib/human-design/providers/roxy/systemReading";
 import { isHdReportSnapshot, type HdReportSnapshot } from "./reportSnapshot";
+import { hdXmlSafeLine, hdXmlSafeMultiline } from "./xmlSafeText";
 import type { HdCommentarySelection } from "./reportV2Shared";
 
 export const HD_REPORT_V2_SCHEMA_VERSION = "hd-report-2" as const;
@@ -101,8 +102,13 @@ export type FrozenGate = {
   gate: number;
   label: string;
   center: string | null;
-  /** Bu kapıyı tamamlanmış bir kanala bağlayan kanal kodu (yoksa null). */
+  /**
+   * ESKİ alan: bu kapının ait olduğu İLK tanımlı kanal (geri uyum; eski snapshot'larda tek kaynak).
+   * Yeni kod `channels` dizisini okur (HD-03: bir kapı birden çok tanımlı kanala ait olabilir).
+   */
   channel: string | null;
+  /** HD-03: kapının ait olduğu TÜM tanımlı kanallar (kayıtlı kanal listesindeki sırayla). Eski snapshot'ta yok. */
+  channels?: string[];
   activations: FrozenGateActivation[];
 };
 
@@ -138,6 +144,13 @@ export type HdReportSnapshotV2 = {
     authority: string | null;
     definition: string | null;
     cross: FrozenCross | null;
+    /**
+     * HD-04: tipten deterministik Strateji / İmza / Kendilik Dışı Tema (uygulama sözlüğü). Eski
+     * snapshot'larda yok → Word tipten türetir; tip bilinmiyorsa satır yazılmaz (uydurma yok).
+     */
+    strategy?: string | null;
+    signature?: string | null;
+    notSelf?: string | null;
   };
   activations: FrozenActivations;
   centers: FrozenCenter[];
@@ -269,13 +282,14 @@ function freezeExpert(records: BuildSnapshotV2Input["expertRecords"]): FrozenExp
   const entries: FrozenExpertEntry[] = [];
   for (const r of records) {
     if (r.is_active === false) continue;
-    const content = typeof r.content === "string" ? r.content.trim() : "";
-    const title = str(r.title);
+    // HD-09: yeni donan rapor XML 1.0'da geçersiz karakter taşımaz (Word'ün açamadığı dosya oluşmaz).
+    const content = typeof r.content === "string" ? hdXmlSafeMultiline(r.content).trim() : "";
+    const title = str(typeof r.title === "string" ? hdXmlSafeLine(r.title) : r.title);
     const code = str(r.code);
     if (!content || !title || !code) continue; // boş kayıt atlanır (uydurma yok)
     // BEYAZ LİSTE: yalnız kategori/başlık/kod/metin. expert_notes (Özel Çalışma Notları), etiket,
     // anahtar kelime vb. rapora ASLA taşınmaz — kaynak satırda bulunsa bile.
-    entries.push({ category: str(r.category) ?? "Genel Notlar", title, code, content });
+    entries.push({ category: str(typeof r.category === "string" ? hdXmlSafeLine(r.category) : r.category) ?? "Genel Notlar", title, code, content });
   }
   const rank = (c: string) => {
     const i = (HD_EXPERT_CATEGORY_ORDER as readonly string[]).indexOf(c);
@@ -318,13 +332,20 @@ export function buildReportSnapshotV2(input: BuildSnapshotV2Input): HdReportSnap
       }
     }
   }
-  const gates: FrozenGate[] = codes.gates.map((gate) => ({
-    gate,
-    label: hdGateLabelFromCode(gate),
-    center: GATE_TECHNICAL_DATA[gate]?.merkez ?? null,
-    channel: channels.find((c) => c.gates.includes(gate))?.code ?? null,
-    activations: gateActs.get(gate) ?? [],
-  }));
+  // HD-03: yalnız haritanın TANIMLI kanalları (codes.channels) kullanılır; kapının olası (potansiyel)
+  // kanalları ya da danışanda tamamlanmamış kanal ASLA eklenmez.
+  const gates: FrozenGate[] = codes.gates.map((gate) => {
+    const own = channels.filter((c) => c.gates.includes(gate)).map((c) => c.code);
+    return {
+      gate,
+      label: hdGateLabelFromCode(gate),
+      center: GATE_TECHNICAL_DATA[gate]?.merkez ?? null,
+      channel: own[0] ?? null,
+      channels: own,
+      activations: gateActs.get(gate) ?? [],
+    };
+  });
+  const keynotes = hdTypeKeynotes(codes.type_code);
 
   const wantsExpert = input.requested === "expert" || input.requested === "both";
   const wantsSystem = input.requested === "system" || input.requested === "both";
@@ -340,10 +361,10 @@ export function buildReportSnapshotV2(input: BuildSnapshotV2Input): HdReportSnap
     schemaVersion: HD_REPORT_V2_SCHEMA_VERSION,
     generatedAt: input.generatedAt,
     client: {
-      name: input.client.name.trim() || "Danışan",
+      name: hdXmlSafeLine(input.client.name).trim() || "Danışan",
       birthDate: input.client.birthDate,
       birthTime: localTimeHm(input.client.birthTime),
-      birthPlace: input.client.birthPlace,
+      birthPlace: input.client.birthPlace ? hdXmlSafeLine(input.client.birthPlace) : input.client.birthPlace,
       timezone: input.client.timezone,
     },
     chart: {
@@ -354,9 +375,12 @@ export function buildReportSnapshotV2(input: BuildSnapshotV2Input): HdReportSnap
     identity: {
       type: codes.type_code ? hdTypeLabelFromCode(codes.type_code) : null,
       profile: codes.profile_code ? hdProfileLabelFromCode(codes.profile_code) : null,
-      authority: codes.authority_code ? hdAuthorityLabelFromCode(codes.authority_code) : null,
+      authority: codes.authority_code ? hdAuthorityDisplayLabel(codes.authority_code, codes.type_code) : null,
       definition: codes.definition_code ? hdDefinitionLabelFromCode(codes.definition_code) : null,
       cross: input.source === "computed" ? freezeCross(input.computed) : null,
+      strategy: keynotes?.strategy ?? null,
+      signature: keynotes?.signature ?? null,
+      notSelf: keynotes?.notSelf ?? null,
     },
     activations,
     centers,

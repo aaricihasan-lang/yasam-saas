@@ -36,17 +36,16 @@ import {
   buildFooter,
   buildHeader,
   buildWellnessNoteSection,
-  bodyText,
+  bodyText as baseBodyText,
   calloutBox,
   divider,
   embedImageParagraph,
   getImgDimensions,
-  h1,
-  h2,
-  h3,
-  muted,
-  sanitizeXmlText,
-  twoColTable,
+  h1 as baseH1,
+  h2 as baseH2,
+  h3 as baseH3,
+  muted as baseMuted,
+  twoColTable as baseTwoColTable,
   REPORT_FONT,
   C_DARK,
   C_LIGHT,
@@ -60,9 +59,17 @@ import {
   type FrozenExpertEntry,
   type HdReportSnapshotV2,
 } from "./reportSnapshotV2";
-import type { SystemReadingDetail, SystemReadingDto } from "@/lib/human-design/providers/roxy/systemReading";
+import {
+  harmonizeSystemReading,
+  type SystemReadingDetail,
+  type SystemReadingDto,
+  type SystemReadingLabels,
+} from "@/lib/human-design/providers/roxy/systemReading";
+import { HD_TERM, hdTypeKeynotes } from "@/lib/human-design/normalize/hdDisplayLabels";
+import { toAppTypeCode } from "@/lib/human-design/normalize/hdAppCodes";
+import { hdXmlSafeLine, hdXmlSafeMultiline } from "./xmlSafeText";
 import { toPlanetName } from "@/lib/human-design/providers/roxy/normalize";
-import { HUMAN_DESIGN_GATES } from "@/lib/human-design/constants";
+import { HUMAN_DESIGN_GATES, HUMAN_DESIGN_TYPES } from "@/lib/human-design/constants";
 import { GATE_TECHNICAL_DATA } from "@/lib/human-design/gateTechnicalData";
 import { crossThemeNames } from "@/lib/human-design/reporting/crossThemeTr";
 
@@ -88,10 +95,65 @@ export type WordReportV2Options = {
   systemReadingRedacted?: boolean;
 };
 
+// ── HD-09: XML 1.0 güvenli başlık/metin yardımcıları ─────────────────────────────
+// Ortak reportHelpers başlıkları metni temizlemez; HD raporundaki HER metin buradan geçer
+// (Bilgi Bankası başlığı, kategori, danışan adı, belge başlığı…). Eski donmuş snapshot'lar da
+// render anında temizlenir → daha önce bozuk kaydedilmiş bir rapor bile açılabilir iner.
+type HeadingOpts = Parameters<typeof baseH2>[1];
+const h1 = (text: string, pageBreak = false) => baseH1(hdXmlSafeLine(text), pageBreak);
+const h2 = (text: string, o?: HeadingOpts) => baseH2(hdXmlSafeLine(text), o);
+const h3 = (text: string, o?: HeadingOpts) => baseH3(hdXmlSafeLine(text), o);
+const muted = (text: string) => baseMuted(hdXmlSafeLine(text));
+const bodyText = (text: string) => baseBodyText(hdXmlSafeLine(text));
+const twoColTable = (rows: [string, string][]) => baseTwoColTable(rows.map(([a, b]) => [hdXmlSafeLine(a), hdXmlSafeLine(b)]));
+
+/** HD-03: kapının ait olduğu TÜM tanımlı kanallar. Eski snapshot'ta (yalnız `channel`) donmuş kanal listesinden türetilir. */
+export function gateChannelCodes(s: HdReportSnapshotV2, g: HdReportSnapshotV2["gates"][number]): string[] {
+  if (Array.isArray(g.channels)) return g.channels;
+  return s.channels.filter((c) => c.gates.includes(g.gate)).map((c) => c.code);
+}
+
+/**
+ * Donmuş tip ETİKETİ → tip kodu. Eski raporlar İngilizce ("Projector"), yenileri Türkçe + parantez
+ * ("Projektör (Projector)") etiket taşır; ikisi de aynı koda iner.
+ */
+function typeCodeFromLabel(label: string | null | undefined): string | null {
+  if (!label) return null;
+  const exact = HUMAN_DESIGN_TYPES.find((t) => t.label === label)?.code;
+  if (exact) return exact;
+  const inParens = /\(([^()]+)\)\s*$/.exec(label)?.[1];
+  return toAppTypeCode(label) ?? (inParens ? toAppTypeCode(inParens) : null);
+}
+
+/** HD-04: Strateji / İmza / Kendilik Dışı Tema — snapshot'ta donmuşsa o, yoksa (eski rapor) tipten. */
+export function identityKeynotes(s: HdReportSnapshotV2): { strategy: string | null; signature: string | null; notSelf: string | null } {
+  const derived = hdTypeKeynotes(typeCodeFromLabel(s.identity.type));
+  return {
+    strategy: s.identity.strategy ?? derived?.strategy ?? null,
+    signature: s.identity.signature ?? derived?.signature ?? null,
+    notSelf: s.identity.notSelf ?? derived?.notSelf ?? null,
+  };
+}
+
+/** Sistem Yorumu Word'e basılırken rapordaki etiketlerle aynı adlar kullanılır (HD-05/06/23). */
+function harmonizedReading(s: HdReportSnapshotV2, reading: SystemReadingDto | null): SystemReadingDto | null {
+  if (!reading) return null;
+  const k = identityKeynotes(s);
+  const labels: SystemReadingLabels = {
+    type: s.identity.type,
+    authority: s.identity.authority,
+    definition: s.identity.definition,
+    strategy: k.strategy,
+    signature: k.signature,
+    notSelf: k.notSelf,
+  };
+  return harmonizeSystemReading(reading, labels);
+}
+
 // ── Küçük yardımcılar ────────────────────────────────────────────────────────────
 function run(text: string, o: { size?: number; bold?: boolean; color?: string; italics?: boolean; allCaps?: boolean } = {}): TextRun {
   return new TextRun({
-    text: sanitizeXmlText(text),
+    text: hdXmlSafeLine(text),
     font: REPORT_FONT,
     size: o.size ?? 22,
     bold: o.bold,
@@ -123,7 +185,7 @@ function labelLine(label: string): Paragraph {
  * whitespace-pre-wrap görünümüyle aynı).
  */
 function plainParagraphs(text: string): Paragraph[] {
-  return text
+  return hdXmlSafeMultiline(text)
     .replace(/\r\n?/g, "\n")
     .split(/\n[ \t]*\n+/)
     .map((p) => p.trim())
@@ -135,7 +197,7 @@ function plainParagraphs(text: string): Paragraph[] {
           widowControl: true,
           children: p.split("\n").map(
             (line, i) =>
-              new TextRun({ text: sanitizeXmlText(line), break: i > 0 ? 1 : undefined, font: REPORT_FONT, size: 22, color: C_MID }),
+              new TextRun({ text: line, break: i > 0 ? 1 : undefined, font: REPORT_FONT, size: 22, color: C_MID }),
           ),
         }),
     );
@@ -312,7 +374,7 @@ function buildGates(s: HdReportSnapshotV2): ReportChild[] {
     g.activations.length
       ? g.activations.map((a) => `${SIDE_TR[a.side]} · ${planetLabelTr(a.planet)} · ${g.gate}.${a.line}`)
       : ["—"],
-    g.channel ?? "—",
+    gateChannelCodes(s, g).length ? gateChannelCodes(s, g) : ["—"],
   ]);
   return [h1("Kapılar"), muted(`${s.gates.length} aktif kapı`), dataTable(["Kapı", "Merkez", "Aktivasyon", "Kanal"], [34, 18, 34, 14], rows)];
 }
@@ -382,7 +444,7 @@ function buildSystem(reading: SystemReadingDto | null, o: { proCross?: boolean; 
         ...detailBlocks(
           [
             c.theme ? { label: "Tema", text: c.theme } : null,
-            c.notSelfQuestion ? { label: "Benlik-dışı soru", text: c.notSelfQuestion } : null,
+            c.notSelfQuestion ? { label: HD_TERM.notSelfQuestion, text: c.notSelfQuestion } : null,
             c.biology ? { label: "Biyoloji", text: c.biology } : null,
           ].filter((d): d is SystemReadingDetail => d !== null),
         ),
@@ -464,7 +526,7 @@ function buildClosing(s: HdReportSnapshotV2, genDate: string, opts: WordReportV2
 export function buildHdReportV2Children(s: HdReportSnapshotV2, opts: WordReportV2Options = {}): { cover: ReportChild[]; body: ReportChild[] } {
   if (s.layout === "pro-1") return buildHdReportV2ProChildren(s, opts);
   const genDate = formatInstantDate(s.generatedAt, { style: "long", fallback: "—" });
-  const reading = opts.systemReadingRedacted ? null : s.commentary.system.status === "included" ? s.commentary.system.reading : null;
+  const reading = harmonizedReading(s, opts.systemReadingRedacted ? null : s.commentary.system.status === "included" ? s.commentary.system.reading : null);
   return {
     cover: buildCover(s, genDate, opts.logo ?? null),
     body: [
@@ -514,7 +576,7 @@ const THIN = (color: string = PAL.line) => ({ style: BorderStyle.SINGLE, size: 4
 type PRun = { text: string; size?: number; bold?: boolean; color?: string; italics?: boolean; allCaps?: boolean };
 function pr(o: PRun): TextRun {
   return new TextRun({
-    text: sanitizeXmlText(o.text),
+    text: hdXmlSafeLine(o.text),
     font: REPORT_FONT,
     size: o.size ?? 20,
     bold: o.bold,
@@ -622,10 +684,14 @@ function proIdentity(s: HdReportSnapshotV2, genDate: string): ReportChild[] {
   if (s.client.birthPlace) birth.push(kv("Doğum Yeri", s.client.birthPlace));
   if (s.client.timezone) birth.push(kv("Saat Dilimi", s.client.timezone));
   const hd: Paragraph[] = [capsLabel("Human Design Özeti")];
-  if (s.identity.type) hd.push(kv("Tip", s.identity.type));
-  if (s.identity.profile) hd.push(kv("Profil", s.identity.profile));
-  if (s.identity.authority) hd.push(kv("İç Otorite", s.identity.authority));
-  if (s.identity.definition) hd.push(kv("Tanım", s.identity.definition));
+  const keynotes = identityKeynotes(s);
+  if (s.identity.type) hd.push(kv(HD_TERM.type, s.identity.type));
+  if (keynotes.strategy) hd.push(kv(HD_TERM.strategy, keynotes.strategy));
+  if (s.identity.profile) hd.push(kv(HD_TERM.profile, s.identity.profile));
+  if (s.identity.authority) hd.push(kv(HD_TERM.authority, s.identity.authority));
+  if (s.identity.definition) hd.push(kv(HD_TERM.definition, s.identity.definition));
+  if (keynotes.signature) hd.push(kv(HD_TERM.signature, keynotes.signature));
+  if (keynotes.notSelf) hd.push(kv(HD_TERM.notSelf, keynotes.notSelf));
   const gap = 240;
   const half = Math.floor((W - gap) / 2);
   out.push(
@@ -915,7 +981,9 @@ function proGates(s: HdReportSnapshotV2): ReportChild[] {
           cardCell([pp([{ text: gateCenterLabel(g.center), size: 19, color: PAL.ink }], { after: 0 })], widths[1], { fill, borders: border, pad: 100, vAlign: "center" }),
           cardCell(acts, widths[2], { fill, borders: border, pad: 100, vAlign: "center" }),
           cardCell(
-            [pp([{ text: g.channel ? g.channel.replace("-", "–") : "—", size: 20, bold: !!g.channel, color: g.channel ? PAL.accent : PAL.faint }], { after: 0 })],
+            gateChannelCodes(s, g).length
+              ? gateChannelCodes(s, g).map((code) => pp([{ text: code.replace("-", "–"), size: 20, bold: true, color: PAL.accent }], { after: 20 }))
+              : [pp([{ text: "—", size: 20, color: PAL.faint }], { after: 0 })],
             widths[3],
             { fill, borders: border, pad: 100, vAlign: "center" },
           ),
@@ -925,7 +993,7 @@ function proGates(s: HdReportSnapshotV2): ReportChild[] {
   });
   return [
     h1("Kapılar", true),
-    muted(`${s.gates.length} aktif kapı · Design aktivasyonları kırmızı, Personality aktivasyonları siyah. Kanal sütunu, kapının tamamladığı tanımlı kanalı gösterir.`),
+    muted(`${s.gates.length} aktif kapı · Design aktivasyonları kırmızı, Personality aktivasyonları siyah. Kanal sütunu, kapının ait olduğu tanımlı kanalların tamamını gösterir.`),
     fixedTable(widths, rows),
   ];
 }
@@ -1011,7 +1079,7 @@ function proSignature(preparedBy: string | null, genDate: string): ReportChild[]
 
 function buildHdReportV2ProChildren(s: HdReportSnapshotV2, opts: WordReportV2Options): { cover: ReportChild[]; body: ReportChild[] } {
   const genDate = formatInstantDate(s.generatedAt, { style: "long", fallback: "—" });
-  const reading = opts.systemReadingRedacted ? null : s.commentary.system.status === "included" ? s.commentary.system.reading : null;
+  const reading = harmonizedReading(s, opts.systemReadingRedacted ? null : s.commentary.system.status === "included" ? s.commentary.system.reading : null);
   const expertPart = proExpert(s);
   return {
     cover: buildCover(s, genDate, opts.logo ?? null),
@@ -1035,7 +1103,7 @@ export function buildHdReportV2Document(s: HdReportSnapshotV2, opts: WordReportV
   const page = { size: A4, margin: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN } };
   return new Document({
     creator: "Yaşam Sistemi",
-    title: `Human Design Profesyonel Analiz Raporu — ${s.client.name}`,
+    title: hdXmlSafeLine(`Human Design Profesyonel Analiz Raporu — ${s.client.name}`),
     styles: { default: { document: { run: { font: REPORT_FONT } } } },
     sections: [
       // Kapak: üst/alt bilgi YOK (sade kurumsal kapak).

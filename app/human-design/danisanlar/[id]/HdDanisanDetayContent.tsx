@@ -13,6 +13,13 @@ import { HdAnalysisHistory } from "../components/HdAnalysisHistory";
 import { HdBirthLocationPicker, type HdPickedLocation } from "../../components/HdBirthLocationPicker";
 import { HumanDesignShell } from "../../components/HumanDesignShell";
 import { runInEffect } from "@/lib/runInEffect";
+import { birthLocalTimeIssue } from "@/lib/human-design/api/birthTimeResolution";
+
+/** Sunucu kuralıyla aynı tarih aralığı (1800 – bugün, İstanbul). */
+const HD_BIRTH_DATE_MIN = "1800-01-01";
+function istanbulTodayIso(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
 
 const fieldBase =
   "w-full rounded-xl border border-indigo-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400";
@@ -119,10 +126,43 @@ export function HdDanisanDetayContent({ clientId }: Props) {
       setForm((p) => (p ? { ...p, [field]: e.target.value } : p));
   }
 
+  // Formdaki (görünen) doğum yerine karşılık gelen konum: bu oturumda seçilen ya da kayıtlı olan.
+  const effectiveLocation =
+    form && pickedLocation && pickedLocation.label === form.birth_place
+      ? pickedLocation
+      : form && storedLocation && storedLocation.label === form.birth_place
+        ? storedLocation
+        : null;
+  // HD-14 / HD-29: yaz saati boşluğu (hiç yaşanmamış saat) ve çakışması — sunucuyla aynı kural.
+  const dstIssue =
+    form && effectiveLocation && form.birth_date && form.birth_time
+      ? birthLocalTimeIssue(form.birth_date, form.birth_time, effectiveLocation.tz)
+      : null;
+
   async function handleSave() {
-    if (!form) return;
+    if (!form || !row) return;
     if (!form.name.trim()) {
       showToast({ message: "Ad Soyad zorunludur.", type: "warning" });
+      return;
+    }
+    // HD-08: hesap için zorunlu tarih/saat kayıtlıyken boşaltılamaz (sunucu da reddeder).
+    if (row.birth_date && !form.birth_date) {
+      showToast({ message: "Doğum tarihi boş ya da eksik. Tarihi tam girip yeniden kaydedin.", type: "warning" });
+      return;
+    }
+    if (row.birth_time && !form.birth_time) {
+      showToast({ message: "Doğum saati boş bırakılamaz.", type: "warning" });
+      return;
+    }
+    // HD-07: listeden seçilmeden değiştirilen doğum yeri kaydedilmez (eski konum sessizce kalmasın).
+    const placeText = form.birth_place.trim();
+    const placeChanged = placeText !== (row.birth_place ?? "").trim();
+    if (placeChanged && placeText && !(pickedLocation && pickedLocation.label === placeText)) {
+      showToast({ message: "Doğum yeri listeden seçilmedi. Yeni yeri yazıp açılan listeden seçin.", type: "warning" });
+      return;
+    }
+    if (dstIssue?.kind === "gap") {
+      showToast({ message: dstIssue.message, type: "warning" });
       return;
     }
     setSaving(true);
@@ -270,6 +310,8 @@ export function HdDanisanDetayContent({ clientId }: Props) {
                   <label className={labelCls}>Doğum Tarihi</label>
                   <input
                     type="date"
+                    min={HD_BIRTH_DATE_MIN}
+                    max={istanbulTodayIso()}
                     value={form.birth_date}
                     onChange={set("birth_date")}
                     className={`h-9 ${fieldBase}`}
@@ -295,14 +337,31 @@ export function HdDanisanDetayContent({ clientId }: Props) {
                     setPickedLocation(loc);
                     if (loc) setForm((p) => (p ? { ...p, birth_place: loc.label } : p));
                   }}
+                  // HD-07: görünen metin = formdaki doğum yeri. Seçilmeden değişirse form "değişmiş"
+                  // sayılır (hesap kilitlenir) ve önceki konum artık geçerli değildir.
+                  onTextChange={(text) => {
+                    setPickedLocation(null);
+                    setForm((p) => (p ? { ...p, birth_place: text } : p));
+                  }}
                 />
                 <p className="mt-1 text-[11px] text-slate-500">
-                  {pickedLocation || (storedLocation && storedLocation.label === form.birth_place)
-                    ? `Saat dilimi: ${(pickedLocation ?? storedLocation)!.tz}`
-                    : form.birth_place
+                  {effectiveLocation
+                    ? `Saat dilimi: ${effectiveLocation.tz}`
+                    : form.birth_place && form.birth_place === (row.birth_place ?? "")
                       ? `Kayıtlı: ${form.birth_place}`
                       : "İl, ilçe veya şehir yazıp listeden seçin."}
                 </p>
+                {dstIssue ? (
+                  <p
+                    role={dstIssue.kind === "gap" ? "alert" : undefined}
+                    data-hd-dst-issue={dstIssue.kind}
+                    className={`mt-2 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold ${
+                      dstIssue.kind === "gap" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-amber-200 bg-amber-50 text-amber-800"
+                    }`}
+                  >
+                    {dstIssue.message}
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>

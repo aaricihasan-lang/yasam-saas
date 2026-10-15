@@ -37,6 +37,7 @@ export function HdBirthLocationPicker({
   id,
   value,
   onChange,
+  onTextChange,
   disabled,
   initialText,
   placeholder = "İl, ilçe veya şehir… (ör. Selçuklu, Berlin)",
@@ -44,6 +45,11 @@ export function HdBirthLocationPicker({
   id?: string;
   value: HdPickedLocation | null;
   onChange: (loc: HdPickedLocation | null) => void;
+  /**
+   * HD-07: kullanıcının yazdığı HAM metin (her tuşta). Üst form bunu görünen doğum yeri olarak
+   * tutar → seçilmeden yazılan yer formu "değişmiş" yapar ve önceki seçim geçerli sayılmaz.
+   */
+  onTextChange?: (text: string) => void;
   disabled?: boolean;
   /** Seçim yokken ilk görünen metin (ör. kayıtlı serbest metin doğum yeri; seçim SAYILMAZ). */
   initialText?: string;
@@ -199,6 +205,7 @@ export function HdBirthLocationPicker({
           setRemote(null);
           setRemoteMsg(null);
           if (value) onChange(null); // metin değişti → önceki seçim geçersiz
+          onTextChange?.(e.target.value);
         }}
         onFocus={() => setOpen(true)}
         onBlur={(e) => {

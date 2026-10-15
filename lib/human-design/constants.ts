@@ -1,19 +1,19 @@
 export const HUMAN_DESIGN_TYPES = [
-  { code: "generator",             label: "Generator" },
-  { code: "manifesting_generator", label: "Manifesting Generator" },
-  { code: "projector",             label: "Projector" },
-  { code: "manifestor",            label: "Manifestor" },
-  { code: "reflector",             label: "Reflector" },
+  { code: "generator",             label: "Jeneratör (Generator)" },
+  { code: "manifesting_generator", label: "Manifesting Jeneratör (Manifesting Generator)" },
+  { code: "projector",             label: "Projektör (Projector)" },
+  { code: "manifestor",            label: "Manifestör (Manifestor)" },
+  { code: "reflector",             label: "Reflektör (Reflector)" },
 ] as const;
 
 export const HUMAN_DESIGN_AUTHORITIES = [
-  { code: "sacral",               label: "Sacral Otorite" },
-  { code: "emotional",            label: "Emotional / Solar Plexus" },
-  { code: "splenic",              label: "Splenic (Dalak)" },
-  { code: "ego_heart",            label: "Ego / Heart" },
-  { code: "self_projected",       label: "Self-Projected" },
-  { code: "mental_environmental", label: "Mental / Environmental" },
-  { code: "lunar",                label: "Lunar (Ay)" },
+  { code: "sacral",               label: "Sakral Otorite (Sacral Authority)" },
+  { code: "emotional",            label: "Duygusal Otorite / Solar Pleksus (Emotional Authority)" },
+  { code: "splenic",              label: "Dalak Otoritesi (Splenic Authority)" },
+  { code: "ego_heart",            label: "Ego / Kalp Otoritesi (Ego Authority)" },
+  { code: "self_projected",       label: "Kendine Yansıtılmış Otorite (Self-Projected Authority)" },
+  { code: "mental_environmental", label: "Mental / Çevresel Otorite (Mental / Environmental Authority)" },
+  { code: "lunar",                label: "Ay Otoritesi (Lunar Authority)" },
 ] as const;
 
 // Profil çizgi adları: 3 = "Deneyimleyen (Martyr)", 5 = "Çözüm Getiren (Heretic)".
@@ -34,22 +34,22 @@ export const HUMAN_DESIGN_PROFILES = [
 ] as const;
 
 export const HUMAN_DESIGN_DEFINITIONS = [
-  { code: "single",          label: "Tekli Tanım" },
+  { code: "single",          label: "Tekli Tanım (Single Definition)" },
   { code: "split",           label: "İkili Tanım (Split)" },
   { code: "triple_split",    label: "Üçlü Tanım (Triple Split)" },
   { code: "quadruple_split", label: "Dörtlü Tanım (Quadruple Split)" },
 ] as const;
 
 export const HUMAN_DESIGN_CENTERS = [
-  { code: "head",        label: "Head / Baş Merkezi" },
-  { code: "ajna",        label: "Ajna Merkezi" },
-  { code: "throat",      label: "Throat / Boğaz Merkezi" },
-  { code: "g_identity",  label: "G / Kimlik Merkezi" },
-  { code: "heart_ego",   label: "Heart / Ego Merkezi" },
-  { code: "solar_plexus",label: "Solar Plexus Merkezi" },
-  { code: "sacral",      label: "Sacral Merkezi" },
-  { code: "spleen",      label: "Spleen / Dalak Merkezi" },
-  { code: "root",        label: "Root / Kök Merkezi" },
+  { code: "head",        label: "Baş Merkezi (Head)" },
+  { code: "ajna",        label: "Ajna Merkezi (Ajna)" },
+  { code: "throat",      label: "Boğaz Merkezi (Throat)" },
+  { code: "g_identity",  label: "G / Kimlik Merkezi (G Center)" },
+  { code: "heart_ego",   label: "Kalp / Ego Merkezi (Heart)" },
+  { code: "solar_plexus",label: "Solar Pleksus Merkezi (Solar Plexus)" },
+  { code: "sacral",      label: "Sakral Merkez (Sacral)" },
+  { code: "spleen",      label: "Dalak Merkezi (Spleen)" },
+  { code: "root",        label: "Kök Merkezi (Root)" },
 ] as const;
 
 export const HUMAN_DESIGN_GATES: { code: number; label: string }[] = [
@@ -62,7 +62,7 @@ export const HUMAN_DESIGN_GATES: { code: number; label: string }[] = [
   { code:  7, label:  "7 — Liderlik kapısı" },
   { code:  8, label:  "8 — Katkı kapısı" },
   { code:  9, label:  "9 — Odaklanma kapısı" },
-  { code: 10, label: "10 — Benlik sevgisi" },
+  { code: 10, label: "10 — Benlik sevgisi kapısı" },
   { code: 11, label: "11 — Fikirler kapısı" },
   { code: 12, label: "12 — İhtiyat kapısı" },
   { code: 13, label: "13 — Dinleyici kapısı" },
@@ -98,7 +98,7 @@ export const HUMAN_DESIGN_GATES: { code: number; label: string }[] = [
   { code: 43, label: "43 — İç görü kapısı" },
   { code: 44, label: "44 — Karşılayıcı-enerji kapısı" },
   { code: 45, label: "45 — Kral ya da kraliçe kapısı" },
-  { code: 46, label: "46 — Beden sevgisi" },
+  { code: 46, label: "46 — Beden sevgisi kapısı" },
   { code: 47, label: "47 — Kavrayış kapısı" },
   { code: 48, label: "48 — Derinlik kapısı" },
   { code: 49, label: "49 — Devrim kapısı" },
@@ -116,20 +116,20 @@ export const HUMAN_DESIGN_GATES: { code: number; label: string }[] = [
   { code: 61, label: "61 — Gizem kapısı" },
   { code: 62, label: "62 — Ayrıntılar kapısı" },
   { code: 63, label: "63 — Kuşku-şüphe kapısı" },
-  { code: 64, label: "64 — Şüphe kapısı" },
+  { code: 64, label: "64 — Kafa karışıklığı kapısı" },
 ];
 
 export const HUMAN_DESIGN_CHANNELS = [
   { code: "1-8",   label: "1-8 İlham Kanalı" },
-  { code: "2-14",  label: "2-14 Ritim Kanalı" },
+  { code: "2-14",  label: "2-14 Vuruş Kanalı (The Beat)" },
   { code: "3-60",  label: "3-60 Mutasyon Kanalı" },
   { code: "4-63",  label: "4-63 Mantık Kanalı" },
-  { code: "5-15",  label: "5-15 Ritim Kanalı" },
+  { code: "5-15",  label: "5-15 Ritim Kanalı (Rhythm)" },
   { code: "6-59",  label: "6-59 Yakınlık Kanalı" },
   { code: "7-31",  label: "7-31 Alfa Kanalı" },
   { code: "9-52",  label: "9-52 Konsantrasyon Kanalı" },
   { code: "10-20", label: "10-20 Uyanış Kanalı" },
-  { code: "10-34", label: "10-34 Keşif Kanalı" },
+  { code: "10-34", label: "10-34 Kendini Keşfetme Kanalı (Exploration)" },
   { code: "10-57", label: "10-57 Mükemmel Form Kanalı" },
   { code: "11-56", label: "11-56 Merak Kanalı" },
   { code: "12-22", label: "12-22 Açıklık Kanalı" },
@@ -147,7 +147,7 @@ export const HUMAN_DESIGN_CHANNELS = [
   { code: "26-44", label: "26-44 Teslimiyet Kanalı" },
   { code: "27-50", label: "27-50 Koruma Kanalı" },
   { code: "28-38", label: "28-38 Mücadele Kanalı" },
-  { code: "29-46", label: "29-46 Keşif Kanalı" },
+  { code: "29-46", label: "29-46 Keşif Kanalı (Discovery)" },
   { code: "30-41", label: "30-41 Tanıma Kanalı" },
   { code: "32-54", label: "32-54 Dönüşüm Kanalı" },
   { code: "34-57", label: "34-57 Güç Kanalı" },

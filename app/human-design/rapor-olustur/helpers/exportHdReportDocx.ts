@@ -9,6 +9,7 @@ import {
 } from "docx";
 import { reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 import { wellnessNote } from "@/lib/docx/reportDisclaimer";
+import { hdXmlSafeLine, hdXmlSafeMultiline } from "@/lib/human-design/reporting/xmlSafeText";
 
 function toSafeFilename(name: string): string {
   return name
@@ -122,7 +123,10 @@ export async function exportHdReportDocx(params: {
   clientName: string;
   reportText: string;
 }): Promise<void> {
-  const { reportTitle, clientName, reportText } = params;
+  // HD-09: bu (eski) istemci hattında da hiçbir metin XML 1.0'da geçersiz karakter taşımaz.
+  const reportTitle = hdXmlSafeLine(params.reportTitle);
+  const clientName = hdXmlSafeLine(params.clientName);
+  const reportText = hdXmlSafeMultiline(params.reportText);
 
   // FA-02: tarih + dosya adı Europe/Istanbul günü (UTC dilimi 00:00–03:00 arası "dün" üretmez).
   const now = new Date();

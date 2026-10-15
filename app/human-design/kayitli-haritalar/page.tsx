@@ -14,7 +14,7 @@ import {
 } from "@/lib/human-design/constants";
 import {
   hdTypeLabelFromCode,
-  hdAuthorityLabelFromCode,
+  hdAuthorityDisplayLabel,
   hdProfileLabelFromCode,
   hdDefinitionLabelFromCode,
 } from "@/lib/human-design/codeHelpers";
@@ -34,7 +34,7 @@ function computedLabels(row: ComputedChartListRow): { type: string; authority: s
   const c = toAppChartCodes(row);
   return {
     type: c.type_code ? hdTypeLabelFromCode(c.type_code) : row.type_code || "—",
-    authority: c.authority_code ? hdAuthorityLabelFromCode(c.authority_code) : row.authority_code || "—",
+    authority: c.authority_code ? hdAuthorityDisplayLabel(c.authority_code, c.type_code) : row.authority_code || "—",
     profile: c.profile_code ? hdProfileLabelFromCode(c.profile_code).split(" — ")[0] : row.profile_code || "—",
   };
 }
@@ -308,7 +308,7 @@ export default function HdKayitliHaritalarPage() {
                           </span>
                         </td>
                         <td className="hidden px-4 py-3 text-xs text-slate-700 md:table-cell">
-                          {hdAuthorityLabelFromCode(row.authority_code)}
+                          {hdAuthorityDisplayLabel(row.authority_code, row.type_code)}
                         </td>
                         <td className="hidden px-4 py-3 text-xs text-slate-700 lg:table-cell">
                           {hdProfileLabelFromCode(row.profile_code)}

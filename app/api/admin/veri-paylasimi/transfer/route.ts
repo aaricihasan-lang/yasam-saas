@@ -545,7 +545,7 @@ const HD_CANONICAL_TEXT_FIELDS: readonly [string, string | null][] = [
   ["general_description", null],
   ["strategy_text", "Strateji"],
   ["signature_text", "İmza"],
-  ["not_self_text", "Benlik Dışı"],
+  ["not_self_text", "Kendilik Dışı Tema"],
   ["decision_mechanism", "Karar Mekanizması"],
   ["application_text", "Uygulama"],
   ["caution_notes", "Dikkat Notları"],

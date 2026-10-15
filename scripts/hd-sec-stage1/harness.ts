@@ -554,13 +554,15 @@ async function main() {
     const oldNote = "eski not ".repeat(700); // > 5000
     legacy.tables.human_design_clients = [{ id: C1, tenant_id: T1, name: "N".repeat(130), birth_date: "1976-02-10", birth_time: "13.45", birth_place: "Ankara", external_chart_url: "www.eski-site.com/harita", notes: oldNote, updated_at: "x" }];
     currentGuard = guardFor(legacy);
-    const keep = await call(clientsRoute.PATCH, "PATCH", "http://l/api/hd/clients", { id: C1, name: "N".repeat(130), birth_date: "1976-02-10", birth_time: "13.45", birth_place: "Ankara Merkez", external_chart_url: "www.eski-site.com/harita", notes: oldNote });
+    // AŞAMA 2 (HD-07): doğum yeri METNİ artık yalnız listeden seçilen konumla değişir; bu yüzden
+    // değişen alan olarak saat düzeltmesi kullanılır (testin amacı aynı: eski değerler engellemez).
+    const keep = await call(clientsRoute.PATCH, "PATCH", "http://l/api/hd/clients", { id: C1, name: "N".repeat(130), birth_date: "1976-02-10", birth_time: "13:45", birth_place: "Ankara", external_chart_url: "www.eski-site.com/harita", notes: oldNote });
     const lrow = legacy.tables.human_design_clients[0];
-    ok("#7b eski geçersiz ama DEĞİŞMEMİŞ değerler kaydı engellemez; yalnız değişen alan yazılır", keep.status === 200 && lrow.birth_place === "Ankara Merkez" && legacy.updates.length === 1 && !("notes" in legacy.updates[0].payload) && !("external_chart_url" in legacy.updates[0].payload) && !("name" in legacy.updates[0].payload), JSON.stringify({ s: keep.status, j: keep.json, u: legacy.updates.map((u) => Object.keys(u.payload)) }));
+    ok("#7b eski geçersiz ama DEĞİŞMEMİŞ değerler kaydı engellemez; yalnız değişen alan yazılır", keep.status === 200 && lrow.birth_time === "13:45" && lrow.birth_place === "Ankara" && legacy.updates.length === 1 && !("notes" in legacy.updates[0].payload) && !("external_chart_url" in legacy.updates[0].payload) && !("name" in legacy.updates[0].payload), JSON.stringify({ s: keep.status, j: keep.json, u: legacy.updates.map((u) => Object.keys(u.payload)) }));
     const change = await call(clientsRoute.PATCH, "PATCH", "http://l/api/hd/clients", { id: C1, external_chart_url: "javascript:alert(1)" });
     ok("#7b DEĞİŞTİRİLEN alan yine sıkı doğrulanır (javascript: → 400)", change.status === 400 && lrow.external_chart_url === "www.eski-site.com/harita");
     const badTime = await call(clientsRoute.PATCH, "PATCH", "http://l/api/hd/clients", { id: C1, birth_time: "abc" });
-    ok("#7b eski saat '13.45' iken yeni geçersiz saat → 400", badTime.status === 400 && lrow.birth_time === "13.45");
+    ok("#7b kayıtlı saat varken yeni geçersiz saat → 400, saat değişmez", badTime.status === 400 && lrow.birth_time === "13:45");
     currentGuard = guardFor(db);
     const charts = req("../../app/api/hd/charts/route.ts") as Record<string, (r: unknown) => Promise<Response>>;
     const longName = await call(charts.POST, "POST", "http://l/api/hd/charts", { client_name: "x".repeat(121), date: "1990-01-01", time: "10:00", timezone: "Europe/Istanbul" });

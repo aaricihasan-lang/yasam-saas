@@ -73,7 +73,7 @@ export const GATE_TECHNICAL_DATA: Record<number, GateTechnicalInfo> = {
   61: { kapi_no: 61, merkez: "Taç",           merkez_tipi: "Baskı Merkezi",                   kisa_bilgi: "Gizem kapısı",               burc: "Oğlak",          burc_detay: "20°45′00″ – 26°22′30″ Oğlak",                        antisya: "Yay",           antisya_detay: "Oğlak→Yay" },
   62: { kapi_no: 62, merkez: "Boğaz",         merkez_tipi: "İfade/Manifestasyon Merkezi",     kisa_bilgi: "Ayrıntılar kapısı",          burc: "Yengeç",         burc_detay: "20°45′00″ – 26°22′30″ Yengeç",                       antisya: "İkizler",       antisya_detay: "Yengeç→İkizler" },
   63: { kapi_no: 63, merkez: "Taç",           merkez_tipi: "Baskı Merkezi",                   kisa_bilgi: "Kuşku-şüphe kapısı",         burc: "Balık",          burc_detay: "11°22′30″ – 17°00′00″ Balık",                        antisya: "Terazi",        antisya_detay: "Balık→Terazi" },
-  64: { kapi_no: 64, merkez: "Taç",           merkez_tipi: "Baskı Merkezi",                   kisa_bilgi: "Şüphe kapısı",               burc: "Başak",          burc_detay: "11°22′30″ – 17°00′00″ Başak",                        antisya: "Koç",           antisya_detay: "Başak→Koç" },
+  64: { kapi_no: 64, merkez: "Taç",           merkez_tipi: "Baskı Merkezi",                   kisa_bilgi: "Kafa karışıklığı kapısı",      burc: "Başak",          burc_detay: "11°22′30″ – 17°00′00″ Başak",                        antisya: "Koç",           antisya_detay: "Başak→Koç" },
 };
 
 export function getGatesFromChannels(channels: string[]): number[] {

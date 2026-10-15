@@ -14,6 +14,7 @@ import type {
 } from "@/lib/human-design/types";
 import { withTenant, tenantInsertPayload } from "./tenantScope";
 import { hdSafeDbError } from "./safeError";
+import { hdXmlSafeLine, hdXmlSafeMultiline } from "@/lib/human-design/reporting/xmlSafeText";
 
 const TABLE = "human_design_knowledge_records";
 
@@ -37,9 +38,21 @@ const EDITABLE_KEYS: (keyof HumanDesignKnowledgeRecord)[] = [
   "expert_notes",
 ];
 
+// HD-09: Word'e girebilen metin alanlarında XML 1.0'da geçersiz kontrol karakterleri kayda
+// girmez (Word'den yapıştırılan Shift+Enter = U+000B vb.). Başlık/kategori tek satır; içerik ve
+// özel notlarda satır benzeri ayırıcılar normal satır sonuna dönüşür. Güvenli metin değişmez.
+const SINGLE_LINE_TEXT_KEYS = new Set(["category", "title"]);
+const MULTILINE_TEXT_KEYS = new Set(["content", "expert_notes"]);
+
 function pick(input: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const k of EDITABLE_KEYS) if (k in input) out[k] = input[k];
+  for (const k of EDITABLE_KEYS) {
+    if (!(k in input)) continue;
+    const v = input[k];
+    if (typeof v === "string" && SINGLE_LINE_TEXT_KEYS.has(k)) out[k] = hdXmlSafeLine(v);
+    else if (typeof v === "string" && MULTILINE_TEXT_KEYS.has(k)) out[k] = hdXmlSafeMultiline(v);
+    else out[k] = v;
+  }
   return out;
 }
 

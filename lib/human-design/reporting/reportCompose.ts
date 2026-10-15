@@ -24,7 +24,7 @@ export const FIELD_LABELS: ReadonlyArray<readonly [ContentFieldKey, string]> = [
   ["report_text", "Kaynaklandırılmış Ana Metin"],
   ["strategy_text", "Strateji"],
   ["signature_text", "İmza"],
-  ["not_self_text", "Kendinden-Olmayan Tema"],
+  ["not_self_text", "Kendilik Dışı Tema"],
   ["decision_mechanism", "Karar Mekanizması"],
   ["application_text", "Uygulama"],
   ["caution_notes", "Dikkat Notları"],
@@ -37,7 +37,7 @@ export const FIELD_LABEL_MAP: Readonly<Record<ContentFieldKey, string>> = {
   report_text: "Kaynaklandırılmış Ana Metin",
   strategy_text: "Strateji",
   signature_text: "İmza",
-  not_self_text: "Kendinden-Olmayan Tema",
+  not_self_text: "Kendilik Dışı Tema",
   decision_mechanism: "Karar Mekanizması",
   application_text: "Uygulama",
   caution_notes: "Dikkat Notları",
@@ -47,7 +47,7 @@ export const FIELD_LABEL_MAP: Readonly<Record<ContentFieldKey, string>> = {
 };
 
 // ── Per-kind alan sırası (Word bölüm sözleşmesi §23–§26) ──────────────────────
-/** Tip: Genel Açıklama, Ana Metin, Strateji, İmza, Kendinden-Olmayan Tema (§23). */
+/** Tip: Genel Açıklama, Ana Metin, Strateji, İmza, Kendilik Dışı Tema (§23). */
 export const TYPE_FIELD_ORDER: readonly ContentFieldKey[] = [
   "general_description",
   "report_text",

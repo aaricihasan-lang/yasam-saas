@@ -94,7 +94,7 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
     // HD-P2-D: silmeden önce ortak (erişilebilir) onay dialog'u — veri kaybını önler.
     const confirmed = await confirm({
       title: "Haritayı sil",
-      message: `${row?.client_name || "Bu kişisel kayıt"} için hesaplanmış harita kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+      message: `${displayName || "Bu kişisel kayıt"} için hesaplanmış harita kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
       confirmText: "Sil",
       cancelText: "Vazgeç",
       tone: "danger",
@@ -109,6 +109,11 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
   }
 
   const result = row?.computed_result ?? null;
+  // HD-24: ekranda ve yeni Word'de GÜNCEL danışan adı. Analiz anındaki ad farklıysa açıkça belirtilir
+  // (önceden oluşturulmuş Word, oluşturulduğu andaki adı taşır — kayıt değiştirilmez).
+  const displayName = row?.current_client_name || row?.client_name || null;
+  const renamedFrom =
+    row?.current_client_name && row.client_name && row.client_name.trim() !== row.current_client_name.trim() ? row.client_name : null;
   // Danışan bilgi bloğu: YALNIZ kayıtlı satırdan (yeni hesap / sağlayıcı çağrısı yok). UTC anı hesap
   // anında sunucuda (DST-güvenli) üretilip computed_result.timing'e kaydedilmiş değerdir.
   const input = (row?.input ?? null) as { latitude?: unknown; longitude?: unknown } | null;
@@ -116,7 +121,7 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
     row && result
       ? buildChartSubjectInfo(
           {
-            clientName: row.client_name,
+            clientName: displayName,
             birthDate: row.birth_date,
             birthTime: row.birth_time,
             birthPlace: row.birth_place,
@@ -153,8 +158,13 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
           <div className="min-w-0">
             <h2 id="hd-computed-detay-title" className="truncate text-base font-black leading-tight text-slate-900">
               <span className="mr-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">Human Design</span>
-              {row?.client_name || "Kişisel Kayıt"}
+              {displayName || "Kişisel Kayıt"}
             </h2>
+            {renamedFrom ? (
+              <p className="truncate text-[11px] font-semibold text-amber-700" data-hd-renamed>
+                Analizdeki ad: {renamedFrom}. Yeni Word güncel adı kullanır; daha önce oluşturulmuş Word eski adı içerir.
+              </p>
+            ) : null}
             <p className="truncate text-xs text-slate-500">
               {formatDate(row?.birth_date)}
               {row?.birth_time ? ` • ${row.birth_time.slice(0, 5)}` : ""}

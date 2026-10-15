@@ -495,7 +495,8 @@ async function main() {
   const both = results.both.text;
   ok("K3 her ikisi: iki AYRI bölüm, kaynak etiketleri açık", both.includes("Bu bölümdeki açıklamalar, raporu hazırlayan uzmanın") && both.includes("Kaynak: Harita hesaplanırken") && both.includes("Tip Yorumum") && both.includes(ROXY_DESC_MARK));
   ok("K4 sıra: Uzman Bilgilerim → Sistem Yorumu → Kaynak Bilgisi", both.indexOf("Bu bölümdeki açıklamalar, raporu hazırlayan") >= 0 && both.indexOf("Bu bölümdeki açıklamalar, raporu hazırlayan") < both.indexOf("Kaynak: Harita hesaplanırken") && both.indexOf("Kaynak: Harita hesaplanırken") < both.lastIndexOf("Kaynak Bilgisi"));
-  ok("K5 Sistem Yorumu Türkçe yerelleştirilmiş etiketleri kullanır", both.includes("Tip: Jeneratör") && both.includes("Strateji: Yanıt vermeyi bekle"));
+  // AŞAMA 2 (HD-23): Sistem Yorumu raporun kendi etiketleriyle aynı adları kullanır.
+  ok("K5 Sistem Yorumu rapordaki uygulama etiketlerini kullanır (Jeneratör/Tepe yok)", both.includes("Tip: Generator") && both.includes("Strateji: Yanıt vermek için beklemek") && !both.includes("Jeneratör") && !both.includes("Tepe —"));
   {
     const r = await createAs(sysDb, { tenantId: T1, system: true }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", bodygraphPng: dataUrl(pngForTests) });
     const k6 = reportRow(sysDb, r.body.id)?.snapshot.commentary;
@@ -771,7 +772,7 @@ async function main() {
     // 2026-10-10 premium teknik bölümler (teknik veri korunur)
     ok("Q5e Merkezler: özet sayaçlar + her merkezde aktif kapılar (kayıtlı kapı verisinden)", text.includes("Tanımlı merkez") && text.includes("Açık merkez") && (text.match(/Aktif kapılar/g) ?? []).length === 9);
     ok("Q5f Kanallar: kod rozeti + ad + merkez yolu + kapılar", text.includes("Kapı 3 · Kapı 60") || /Kapı \d+ · Kapı \d+/.test(text));
-    ok("Q5g Kapılar: tekrar eden başlık bandı + kanal açıklaması", /<w:tblHeader\/>/.test(xml) && text.includes("Kanal sütunu, kapının tamamladığı tanımlı kanalı gösterir."));
+    ok("Q5g Kapılar: tekrar eden başlık bandı + kanal açıklaması", /<w:tblHeader\/>/.test(xml) && text.includes("Kanal sütunu, kapının ait olduğu tanımlı kanalların tamamını gösterir."));
     const paraOf = (needle: string) => [...xml.matchAll(/<w:p[ >][\s\S]*?<\/w:p>/g)].map((m) => m[0]).find((p) => p.includes(needle)) ?? "";
     ok("Q5d BodyGraph kimlikle AYNI sayfada (sayfa sonu yok); Enkarnasyon yeni sayfa başı", paraOf("BodyGraph ve Aktivasyonlar") !== "" && paraOf("Merkezler<") !== "" && !paraOf("BodyGraph ve Aktivasyonlar").includes("pageBreakBefore") && paraOf("ENKARNASYON TEMASI").includes("pageBreakBefore") && !paraOf("Merkezler<").includes("pageBreakBefore"));
     ok("Q6 UTC doğum anı görünür raporda YOK", !text.includes("UTC") && !text.includes("16:00"));

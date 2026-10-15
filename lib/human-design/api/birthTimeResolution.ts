@@ -96,3 +96,85 @@ export function resolveBirthLocalTime(date: string, time: string, timeZone: stri
   }
   return { kind: "ok", utcIso: new Date(valid[0].utcMs).toISOString(), offsetSeconds: valid[0].offset / 1000 };
 }
+
+// ── HD-14 / HD-29: yaz saati boşluğu ve çakışması — TEK kaynak mesaj + tespit ──────────────────
+// Hem kayıt (oluşturma/düzenleme: boşluk REDDEDİLİR) hem hesap (boşluk ve çakışma REDDEDİLİR) bu
+// fonksiyonu kullanır; ikinci bir doğrulama sistemi yoktur. Çakışmada iki olası UTC anından biri
+// ASLA sessizce seçilmez (owner kararı 2026-10-15: güvenli ret korunur).
+
+export type BirthLocalTimeIssue = {
+  kind: "gap" | "ambiguous";
+  code: "BIRTH_TIME_NONEXISTENT" | "BIRTH_TIME_AMBIGUOUS";
+  message: string;
+};
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const hmOfMs = (ms: number) => {
+  const d = new Date(ms);
+  return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
+};
+function utcOffsetLabel(seconds: number): string {
+  const sign = seconds < 0 ? "−" : "+";
+  const abs = Math.abs(seconds);
+  const h = Math.floor(abs / 3600);
+  const m = Math.floor((abs % 3600) / 60);
+  return `UTC${sign}${pad2(h)}:${pad2(m)}`;
+}
+
+/** Geçiş anındaki yerel saatler (ör. 03:00 → 04:00). Bulunamazsa null. */
+function transitionWallTimes(naiveMs: number, timeZone: string): { from: string; to: string } | null {
+  // Tüm noktalar TAM SANİYE: wallClockMs saniye çözünürlüklüdür (ms kayması ofseti bozmasın).
+  const SEC = 1000;
+  let lo = Math.floor((naiveMs - 30 * 3_600_000) / SEC) * SEC;
+  let hi = Math.floor((naiveMs + 30 * 3_600_000) / SEC) * SEC;
+  const offAt = (t: number) => wallClockMs(t, timeZone) - t;
+  const offLo = offAt(lo);
+  if (offAt(hi) === offLo) return null;
+  while (hi - lo > SEC) {
+    const mid = Math.floor((lo + hi) / 2 / SEC) * SEC;
+    if (offAt(mid) === offLo) lo = mid;
+    else hi = mid;
+  }
+  const offHi = offAt(hi);
+  // Geçişten hemen önceki ve sonraki duvar saati (saniye yuvarlaması: geçişler tam dakikadadır).
+  const before = Math.round((hi + offLo) / 60_000) * 60_000;
+  const after = Math.round((hi + offHi) / 60_000) * 60_000;
+  return { from: hmOfMs(before), to: hmOfMs(after) };
+}
+
+function trDate(date: string): string {
+  const m = DATE_RE.exec(date);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : date;
+}
+
+/**
+ * Yerel doğum saati o saat diliminde hiç yaşanmamışsa (boşluk) ya da iki kez yaşanmışsa (çakışma)
+ * uzmanın anlayacağı Türkçe açıklama döner; aksi halde null (geçerli saat / girdi eksik-geçersiz).
+ */
+export function birthLocalTimeIssue(date: string, time: string, timeZone: string): BirthLocalTimeIssue | null {
+  const r = resolveBirthLocalTime(date, time, timeZone);
+  if (r.kind !== "gap" && r.kind !== "ambiguous") return null;
+  const hms = toHms(time) ?? time;
+  const dm = DATE_RE.exec(date)!;
+  const naive = new Date(0);
+  naive.setUTCFullYear(Number(dm[1]), Number(dm[2]) - 1, Number(dm[3]));
+  const [h, mi, s] = hms.split(":").map(Number);
+  naive.setUTCHours(h, mi, s, 0);
+  const tr = transitionWallTimes(naive.getTime(), timeZone);
+  const when = `${trDate(date)} ${hms.slice(0, 5)}`;
+  if (r.kind === "gap") {
+    const jump = tr ? ` O gün yaz saati uygulaması nedeniyle saatler ${tr.from} → ${tr.to} olarak ileri alındı.` : "";
+    return {
+      kind: "gap",
+      code: "BIRTH_TIME_NONEXISTENT",
+      message: `${when} yerel saati ${timeZone} saat diliminde hiç yaşanmamıştır.${jump} Doğum belgesindeki saati kontrol edin; bu saatle kayıt ve hesaplama yapılamaz.`,
+    };
+  }
+  const back = tr ? ` O gün saatler ${tr.from} → ${tr.to} olarak geri alındı;` : " Saatler geri alındı;";
+  const offs = r.offsetsSeconds.map(utcOffsetLabel).join(" ve ");
+  return {
+    kind: "ambiguous",
+    code: "BIRTH_TIME_AMBIGUOUS",
+    message: `${when} yerel saati ${timeZone} saat diliminde iki kez yaşanmıştır.${back} bu saat iki farklı anda (${offs}) yaşandı. Hangi anın kastedildiği kesin bilinmediğinden sistem tahmin yapmaz ve otomatik hesaplama yapılmaz.`,
+  };
+}

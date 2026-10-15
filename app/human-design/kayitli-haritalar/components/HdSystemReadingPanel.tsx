@@ -11,7 +11,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { getChartSystemReading, type SystemReadingFetchResult } from "@/lib/human-design/api/chartsClient";
-import { HD_CROSS_SECTION_TITLE } from "@/lib/human-design/normalize/hdDisplayLabels";
+import { HD_CROSS_SECTION_TITLE, HD_TERM } from "@/lib/human-design/normalize/hdDisplayLabels";
 import type {
   SystemReadingActivation,
   SystemReadingCenter,
@@ -84,7 +84,7 @@ function CenterItem({ c }: { c: SystemReadingCenter }) {
       }
     >
       <Para label="Tema" text={c.theme} />
-      <Para label="Benlik-dışı sorusu" text={c.notSelfQuestion} />
+      <Para label={HD_TERM.notSelfQuestion} text={c.notSelfQuestion} />
       <Para label="Biyoloji" text={c.biology} />
     </Fold>
   );

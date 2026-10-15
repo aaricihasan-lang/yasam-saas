@@ -14,7 +14,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { withTenant, tenantInsertPayload } from "./tenantScope";
 import { hdSafeDbError } from "./safeError";
-import { resolveClientLocationFields } from "./clientPersistence";
+import { isValidHdBirthDate, resolveClientLocationFields } from "./clientPersistence";
+import { birthLocalTimeIssue } from "./birthTimeResolution";
 import { HD_CHART_IMAGE_BUCKET } from "./hdStorage";
 import { isOwnedChartImagePath, isOwnedReportSnapshotPath } from "./chartImagePath";
 import { validateClientWrite } from "@/lib/danisan/clientValidation";
@@ -167,6 +168,14 @@ function validateHdBirth(input: Record<string, unknown>): { ok: true; v: HdBirth
   return { ok: true, v: { birth_time: time.slice(0, 5), locFields: loc.fields, place: String(loc.fields.birth_location_label ?? "") } };
 }
 
+/** HD-29: yaz saati boşluğundaki (hiç yaşanmamış) yerel saat profil OLUŞTURULURKEN reddedilir. */
+function birthGapFail(birthDate: string, birth: HdBirthInput): JourneyFail | null {
+  const tz = birth.locFields.birth_timezone;
+  if (typeof tz !== "string" || !tz) return null;
+  const issue = birthLocalTimeIssue(birthDate, birth.birth_time, tz);
+  return issue?.kind === "gap" ? fail(400, issue.code, issue.message) : null;
+}
+
 async function insertLinkedHdProfile(
   db: SupabaseClient,
   tenantId: string,
@@ -204,6 +213,8 @@ export async function createJourneyClientWithHdProfile(
   if (!dogum) return fail(400, "BIRTH_DATE_REQUIRED", "Doğum tarihi zorunludur.");
   const birth = validateHdBirth(input);
   if (!birth.ok) return birth;
+  const gap = birthGapFail(dogum, birth.v);
+  if (gap) return gap;
 
   const fields: Record<string, unknown> = { ...verdict.fields, burc: computeBurc(dogum) };
   const result = await createClientIdempotent(db, tenantId, fields, resolveCreateRequestId(input));
@@ -250,9 +261,13 @@ export async function createHdProfileForJourneyClient(
   let birthDate = journey.dogum;
   if (!birthDate) {
     const d = typeof input.birth_date === "string" ? input.birth_date.trim() : "";
-    if (!ISO_DATE_RE.test(d) || d > istanbulToday()) return fail(400, "BIRTH_DATE_REQUIRED", "Doğum tarihi zorunludur.");
+    if (!d) return fail(400, "BIRTH_DATE_REQUIRED", "Doğum tarihi zorunludur.");
+    // GIR-06 / HD-08: düzenleme akışıyla AYNI kural (gerçek takvim günü, 1800 – bugün).
+    if (!isValidHdBirthDate(d)) return fail(400, "BIRTH_DATE_INVALID", "Doğum tarihi geçersiz; 1800 ile bugün arasında gerçek bir tarih girin.");
     birthDate = d;
   }
+  const gap = birthGapFail(birthDate, birth.v);
+  if (gap) return gap;
 
   const existing = await hdProfileForJourney(db, tenantId, journey.id);
   if (existing.error) return fail(500, "DB_ERROR", existing.error);
