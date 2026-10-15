@@ -5,20 +5,18 @@ import { useRef, useSyncExternalStore, type ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useSearchHighlight } from "@/lib/search/useSearchHighlight";
 import { BIO_GLOBAL_SEARCH_MAX } from "@/lib/biyoenerji/globalSearch";
+import { readBioUrlParam } from "@/lib/biyoenerji/searchSession";
 
 const noopSubscribe = () => () => {};
 
-/** Detay URL'indeki `?q=` (yalnız istemci; SSR/ilk render'da ""). Uzunluk sınırlı, yalnız görüntüleme. */
-function useUrlSearchQuery(): string {
+/**
+ * Detay URL'indeki arama terimi (varsayılan `?q=`; liste bölümlerinde `?hq=`). Yalnız istemci;
+ * SSR/ilk render'da "". Uzunluk sınırlı, yalnız görüntüleme.
+ */
+function useUrlSearchQuery(param: string): string {
   return useSyncExternalStore(
     noopSubscribe,
-    () => {
-      try {
-        return (new URLSearchParams(window.location.search).get("q") ?? "").trim().slice(0, BIO_GLOBAL_SEARCH_MAX);
-      } catch {
-        return "";
-      }
-    },
+    () => readBioUrlParam(window.location.search, param, BIO_GLOBAL_SEARCH_MAX),
     () => "",
   );
 }
@@ -27,17 +25,31 @@ function useUrlSearchQuery(): string {
  * WT8 — Biyoenerji genel aramadan açılan kayıt detayı: arama terimi (`?q=`) kaydın içindeki TÜM
  * geçişlerde sarı vurgulanır, ilk eşleşmeye bir kez kaydırılır, "Arama sonuçlarına dön" sunulur.
  *
+ * FINAL-A2: Detay rotası olmayan liste bölümleri (Enerji Bedenleri, Seanslar) `termParam="hq"` ile
+ * yalnız seçili kayıt panelini sarar (`?q=` orada liste süzgecidir, vurgu terimi değildir).
+ *
  * Güvenlik: `q` yalnız istemcide metin vurgusu için okunur; hiçbir sorguya/isteğe girmez → kayıt
  * erişimi ve tenant izolasyonu (detay API'si, session tenant) DEĞİŞMEZ.
  */
-export default function BiyoenerjiSearchHighlight({ recordKey, children }: { recordKey: string; children: ReactNode }) {
+export default function BiyoenerjiSearchHighlight({
+  recordKey,
+  children,
+  termParam = "q",
+  className = "min-w-0",
+}: {
+  recordKey: string;
+  children: ReactNode;
+  /** Terimin okunacağı URL parametresi (detay: "q", liste bölümü: "hq"). */
+  termParam?: string;
+  className?: string;
+}) {
   const router = useRouter();
-  const query = useUrlSearchQuery();
+  const query = useUrlSearchQuery(termParam);
   const ref = useRef<HTMLDivElement | null>(null);
   const count = useSearchHighlight(ref, [query], { enabled: Boolean(query), resetKey: recordKey });
 
   return (
-    <div ref={ref} className="min-w-0">
+    <div ref={ref} className={className}>
       {query ? (
         <div
           data-no-search-highlight

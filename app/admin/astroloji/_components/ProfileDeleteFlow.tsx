@@ -3,14 +3,19 @@
 /**
  * Kalıcı profil silme onay akışı.
  *   • Tekli: 2 ayrı "Evet" (1: kimlik + analiz sayıları · 2: geri alınamaz uyarısı).
- *   • Toplu: 3 ayrı "Evet"; her adımda seçili profil sayısı; son adım açıkça geri alınamaz kalıcı silme.
- *   • İsim yazdırma / metin girme YOK. Seçim değişirse akış baştan başlar (bileşen seçime anahtarlıdır).
+ *   • Toplu (1–2 profil): 3 ayrı "Evet"; her adımda seçili profil sayısı; son adım açıkça geri alınamaz kalıcı silme.
+ *   • Toplu (3+ profil): sistem geneli toplu silme standardı (lib/ui/bulkDeleteGuard) — 1) uyarı + etkilenecek
+ *     kayıtlar → 2) "N KAYDI SİL" ifadesini elle yazma (eşleşmeden ilerlenmez) → 3) son geri alınamaz onay.
+ *     Katman planı: _lib/profileDeletePlan. Tekli / 1–2 profilde metin girme YOK.
+ *   • Seçim değişirse akış baştan başlar (bileşen seçime anahtarlıdır).
  *   • Sunucu da aynı onay sayısını ve onaylanan durumu zorlar; çift tık / tekrar güvenlidir (busy + sunucu kilidi).
  *   • Bu işlem KVKK kapsamlı silme değildir; kişinin diğer modüllerdeki kayıtları silinmez.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { astroFetch } from "../_lib/api";
+import { canProceedProfileDelete, profileDeleteAction, profileDeletePlan } from "../_lib/profileDeletePlan";
+import { BULK_PHRASE_HINT } from "@/lib/ui/bulkDeleteGuard";
 
 type Preview = {
   mode: "single" | "bulk";
@@ -39,6 +44,7 @@ export default function ProfileDeleteFlow({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
+  const [typed, setTyped] = useState("");
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -48,6 +54,7 @@ export default function ProfileDeleteFlow({
       setPreview(r.ok ? r.data : null);
       setError(r.ok ? null : r.error);
       setStep(1);
+      setTyped("");
     });
     return () => {
       alive = false;
@@ -78,9 +85,20 @@ export default function ProfileDeleteFlow({
     setPreview(null);
   }
 
-  const required = preview?.requiredConfirmations ?? (mode === "single" ? 2 : 3);
   const n = preview?.profileCount ?? profileIds.length;
+  // Sunucu onay sayısı asla düşürülmez; 3+ toplu silmede yazarak doğrulama katmanı eklenir (ortak standart).
+  const plan = profileDeletePlan(mode, n, preview?.requiredConfirmations);
+  const required = plan.required;
   const last = step === required;
+  const phraseStep = plan.phraseStep !== null && step === plan.phraseStep;
+  const canProceed = canProceedProfileDelete(plan, step, typed);
+
+  function onYes() {
+    const action = profileDeleteAction(plan, step, typed);
+    if (action === "blocked") return;
+    if (action === "delete") void finalDelete();
+    else setStep((s) => s + 1);
+  }
   const single = mode === "single";
   const p0 = preview?.profiles[0];
 
@@ -142,9 +160,28 @@ export default function ProfileDeleteFlow({
               </p>
             </div>
           ) : !last ? (
-            <p>
-              <strong>{n}</strong> profil ve bunlara ait <strong>{preview.totals.ownAnalyses}</strong> kayıtlı analiz silinecek; <strong>{preview.totals.sharedPreserved}</strong> ortak analiz korunacak. Devam etmek istediğinizden emin misiniz?
-            </p>
+            <div className="flex flex-col gap-2">
+              <p>
+                <strong>{n}</strong> profil ve bunlara ait <strong>{preview.totals.ownAnalyses}</strong> kayıtlı analiz silinecek; <strong>{preview.totals.sharedPreserved}</strong> ortak analiz korunacak. Devam etmek istediğinizden emin misiniz?
+              </p>
+              {phraseStep && plan.phrase && (
+                <div className="flex flex-col gap-1.5" data-testid="astro-delete-typed">
+                  <p>
+                    Yanlışlıkla toplu silmeyi önlemek için aşağıdaki ifadeyi yazın: <strong className="font-mono">{plan.phrase}</strong>
+                  </p>
+                  <input
+                    value={typed}
+                    onChange={(e) => setTyped(e.target.value)}
+                    aria-label="Onay ifadesi"
+                    autoComplete="off"
+                    className="rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm"
+                    data-testid="astro-delete-phrase"
+                  />
+                  <p className="text-xs text-slate-500">{BULK_PHRASE_HINT}</p>
+                  {typed && !canProceed && <p className="text-xs text-rose-700">İfade eşleşmiyor; silme başlatılmaz.</p>}
+                </div>
+              )}
+            </div>
           ) : (
             <div className="flex flex-col gap-2">
               <p className="font-semibold text-rose-800">
@@ -165,8 +202,8 @@ export default function ProfileDeleteFlow({
           {preview && (
             <button
               type="button"
-              disabled={busy}
-              onClick={() => (last ? void finalDelete() : setStep((s) => s + 1))}
+              disabled={busy || !canProceed}
+              onClick={onYes}
               className={`rounded-lg px-3 py-1.5 text-sm text-white disabled:opacity-60 ${last ? "bg-rose-700" : "bg-slate-800"}`}
               data-testid="astro-delete-yes"
             >

@@ -1691,10 +1691,15 @@ export default function Home() {
               <>
               <section className="relative mb-0 overflow-hidden rounded-[22px] border border-white/90 bg-gradient-to-br from-violet-200 via-sky-100 to-pink-200 px-5 py-5 shadow-[0_20px_60px_rgba(124,58,237,0.18),0_8px_24px_rgba(236,72,153,0.10)] backdrop-blur-xl sm:px-7 sm:py-6">
 
-                {/* Dev blur ışıklar — nefes alan derinlik */}
-                <div className="pointer-events-none absolute -left-16 -top-16 h-[400px] w-[400px] rounded-full bg-violet-400/25 blur-[120px]" aria-hidden />
-                <div className="pointer-events-none absolute -right-16 -top-16 h-[400px] w-[400px] rounded-full bg-pink-400/25 blur-[120px]" aria-hidden />
-                <div className="pointer-events-none absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-300/20 blur-[120px]" aria-hidden />
+                {/* Dev blur ışıklar — nefes alan derinlik. Final-A2: ışıklar bölümle AYNI boyutta (inset-0),
+                    odaklanabilir içeriği olmayan ayrı bir katmanda kırpılır. Önceden bölümün kendisini ~64px
+                    taşırıyordu → overflow-hidden bölüm programatik odak/scrollIntoView ile yatay kayıp başlığı
+                    kesebiliyordu. Görünüm aynı. */}
+                <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[22px]" aria-hidden data-testid="home-hero-glow">
+                  <div className="absolute -left-16 -top-16 h-[400px] w-[400px] rounded-full bg-violet-400/25 blur-[120px]" />
+                  <div className="absolute -right-16 -top-16 h-[400px] w-[400px] rounded-full bg-pink-400/25 blur-[120px]" />
+                  <div className="absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-300/20 blur-[120px]" />
+                </div>
 
                 {/* İçerik */}
                 <div className="relative">

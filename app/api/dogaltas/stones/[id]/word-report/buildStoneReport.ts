@@ -14,18 +14,16 @@ import {
   buildFooter,
   buildPremiumCover,
   buildStatsPage,
-  buildTOCPage,
   buildWellnessNoteSection,
   divider,
   embedImageParagraph,
-  h1Colored,
-  h2,
   h3,
   muted,
   profileLabel,
   ReportChild,
   spacer,
 } from "@/lib/docx/reportHelpers";
+import { StaticTocCollector, type TocHeadingFns } from "@/lib/docx/premiumToc";
 import { formatInstantDate, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 import { SOURCE_FIELD_LABELS, SOURCE_TEXT_FIELDS, sourceDisplayName, type SourceFields } from "@/lib/dogaltas/stoneSources";
 
@@ -60,18 +58,18 @@ export type StoneReportRow = {
 };
 
 /** WT9: tek bir ek kaynağın bölümü — her dolu alan kendi başlığıyla, metin AYNEN (kısaltma yok). */
-function buildExtraSourceSection(src: StoneReportExtraSource, index: number): ReportChild[] {
+function buildExtraSourceSection(src: StoneReportExtraSource, index: number, hd: TocHeadingFns): ReportChild[] {
   const out: ReportChild[] = [];
   const name = sourceDisplayName(src.name);
   out.push(divider());
   out.push(profileLabel(`KAYNAK: ${name.toLocaleUpperCase("tr-TR")}`, C_STONE));
-  out.push(h1Colored(`Ek Kaynak ${index + 1}: ${name}`, C_STONE));
+  out.push(hd.h1Colored(`Ek Kaynak ${index + 1}: ${name}`, C_STONE));
   let filled = 0;
   for (const f of SOURCE_TEXT_FIELDS) {
     const v = src.fields[f];
     if (!v?.trim()) continue;
     filled++;
-    out.push(h2(SOURCE_FIELD_LABELS[f]));
+    out.push(hd.h2(SOURCE_FIELD_LABELS[f]));
     out.push(bodyText(v.trim()));
   }
   const chakras = asStringArray(src.fields.chakras);
@@ -183,8 +181,10 @@ export function buildStoneReportDoc(input: {
       : []),
   ]));
 
-  // ── İçindekiler
-  all.push(...buildTOCPage());
+  // ── İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde
+  // başlıklarından toplanır, gövde bittikten sonra bu konuma yerleştirilir; başlık yoksa sayfa yok).
+  const toc = new StaticTocCollector("dstn");
+  const tocAt = all.length;
 
   // ── Görsel (varsa)
   if (imageBuf) {
@@ -199,18 +199,18 @@ export function buildStoneReportDoc(input: {
 
   // ── Bölüm 1: Genel Bilgiler
   all.push(profileLabel("BÖLÜM 1", C_STONE));
-  all.push(h1Colored("1. Genel Bilgiler", C_STONE, true));
+  all.push(toc.h1Colored("1. Genel Bilgiler", C_STONE, true));
 
   if (stone.short_description?.trim()) {
-    all.push(h2("Kısa Açıklama"));
+    all.push(toc.h2("Kısa Açıklama"));
     all.push(bodyText(stone.short_description.trim()));
   }
   if (stone.general_info?.trim()) {
-    all.push(h2("Genel Taş Açıklaması"));
+    all.push(toc.h2("Genel Taş Açıklaması"));
     all.push(bodyText(stone.general_info.trim()));
   }
   if (stone.source_note?.trim()) {
-    all.push(h2("Kaynak Notu"));
+    all.push(toc.h2("Kaynak Notu"));
     all.push(bodyText(stone.source_note.trim()));
   }
   if (!stone.short_description?.trim() && !stone.general_info?.trim() && !stone.source_note?.trim()) {
@@ -220,12 +220,12 @@ export function buildStoneReportDoc(input: {
   // ── Bölüm 2: Etkiler
   all.push(divider());
   all.push(profileLabel("BÖLÜM 2", C_STONE));
-  all.push(h1Colored("2. Etkiler", C_STONE));
+  all.push(toc.h1Colored("2. Etkiler", C_STONE));
 
-  if (stone.physical_effects?.trim()) { all.push(h2("Fiziksel Etkiler"));  all.push(bodyText(stone.physical_effects.trim())); }
-  if (stone.spiritual_effects?.trim()) { all.push(h2("Ruhsal Etkiler"));   all.push(bodyText(stone.spiritual_effects.trim())); }
-  if (stone.other_effects?.trim()) { all.push(h2("Diğer Etkiler"));        all.push(bodyText(stone.other_effects.trim())); }
-  if (stone.warning_text?.trim()) { all.push(h2("Uyarılar ve Hassasiyetler")); all.push(bodyText(stone.warning_text.trim())); }
+  if (stone.physical_effects?.trim()) { all.push(toc.h2("Fiziksel Etkiler"));  all.push(bodyText(stone.physical_effects.trim())); }
+  if (stone.spiritual_effects?.trim()) { all.push(toc.h2("Ruhsal Etkiler"));   all.push(bodyText(stone.spiritual_effects.trim())); }
+  if (stone.other_effects?.trim()) { all.push(toc.h2("Diğer Etkiler"));        all.push(bodyText(stone.other_effects.trim())); }
+  if (stone.warning_text?.trim()) { all.push(toc.h2("Uyarılar ve Hassasiyetler")); all.push(bodyText(stone.warning_text.trim())); }
   all.push(...arraySection("Uyarı Etiketleri", asStringArray(stone.warning_tags)));
 
   if (!stone.physical_effects?.trim() && !stone.spiritual_effects?.trim() &&
@@ -236,12 +236,12 @@ export function buildStoneReportDoc(input: {
   // ── Bölüm 3: Kullanım Alanları
   all.push(divider());
   all.push(profileLabel("BÖLÜM 3", C_STONE));
-  all.push(h1Colored("3. Kullanım Alanları", C_STONE));
+  all.push(toc.h1Colored("3. Kullanım Alanları", C_STONE));
 
-  if (stone.feng_shui?.trim())    { all.push(h2("Feng Shui")); all.push(bodyText(stone.feng_shui.trim())); }
-  if (stone.meditation?.trim())   { all.push(h2("Meditasyon")); all.push(bodyText(stone.meditation.trim())); }
-  if (stone.care?.trim())         { all.push(h2("Bakım")); all.push(bodyText(stone.care.trim())); }
-  if (stone.application?.trim())  { all.push(h2("Uygulama")); all.push(bodyText(stone.application.trim())); }
+  if (stone.feng_shui?.trim())    { all.push(toc.h2("Feng Shui")); all.push(bodyText(stone.feng_shui.trim())); }
+  if (stone.meditation?.trim())   { all.push(toc.h2("Meditasyon")); all.push(bodyText(stone.meditation.trim())); }
+  if (stone.care?.trim())         { all.push(toc.h2("Bakım")); all.push(bodyText(stone.care.trim())); }
+  if (stone.application?.trim())  { all.push(toc.h2("Uygulama")); all.push(bodyText(stone.application.trim())); }
 
   if (!stone.feng_shui?.trim() && !stone.meditation?.trim() && !stone.care?.trim() && !stone.application?.trim()) {
     all.push(muted("Bu bölümde henüz bilgi girilmemiş."));
@@ -250,7 +250,7 @@ export function buildStoneReportDoc(input: {
   // ── Bölüm 4: Çakralar ve Atamalar
   all.push(divider());
   all.push(profileLabel("BÖLÜM 4", C_STONE));
-  all.push(h1Colored("4. Çakralar ve Atamalar", C_STONE));
+  all.push(toc.h1Colored("4. Çakralar ve Atamalar", C_STONE));
 
   all.push(...arraySection("Çakralar", asStringArray(stone.chakras)));
   all.push(...buildAssignmentSections(stone.assignments));
@@ -261,7 +261,7 @@ export function buildStoneReportDoc(input: {
   }
 
   // ── WT9: ek kaynaklar — her biri kendi "KAYNAK:" başlığıyla, karışmadan.
-  extraSources.forEach((src, i) => all.push(...buildExtraSourceSection(src, i)));
+  extraSources.forEach((src, i) => all.push(...buildExtraSourceSection(src, i, toc)));
 
   // ── Ek görsel referansı
   if (imageCount > 1) {
@@ -273,7 +273,10 @@ export function buildStoneReportDoc(input: {
   // ── FA-16: sade bilgilendirme notu + Hazırlayan
   all.push(...buildWellnessNoteSection("dogaltas", input.expertName));
 
+  all.splice(tocAt, 0, ...toc.page());
+
   const doc = new Document({
+    ...toc.documentOptions(),
     sections: [{
       properties: {},
       footers: { default: buildFooter(`Doğaltaş Raporu · ${stoneName}`, { note: "dogaltas" }) },

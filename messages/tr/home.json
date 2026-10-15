@@ -293,7 +293,7 @@
       },
       "refleksoloji": {
         "title": "Refleksoloji",
-        "desc": "Ayak refleksoloji atlası, protokoller, kayıtlı atlaslar, klinik notlar ve seans çalışma alanı."
+        "desc": "Ayak ve el refleksoloji atlası, protokoller, kayıtlı atlaslar ve klinik notlar tek çalışma alanında."
       },
       "aromaterapi": {
         "title": "Aromaterapi",
@@ -325,7 +325,7 @@
       "kisiselArsiv": ["Ses & Video", "Belge & Resim", "Kişisel Notlar", "Arama Sistemi", "Dosya Takibi", "Güvenli Arşiv"],
       "danisanYonetimi": ["Danışan Kayıtları", "Danışan Detayları", "Randevu Takibi", "Ajanda Yönetimi", "Görüşme Geçmişi", "Takip Süreci"],
       "sifaRehberi": ["Yeni Rahatsızlık Kaydı", "Kayıtlı Şifa Rehberi", "Belirtiler / Sebepler", "Uygulamalar / Yöntemler", "Doğaltaş & Mineral", "Aromaterapi"],
-      "refleksoloji": ["Bölge Haritası", "Kayıtlı Atlas", "Protokol Haritası", "Kayıtlı Protokoller", "Klinik Notlar", "Seans Takibi"],
+      "refleksoloji": ["Bölge Haritası", "Kayıtlı Atlas", "Protokol Haritası", "Kayıtlı Protokoller", "Klinik Notlar", "El Haritası"],
       "urunStok": ["Tüm Ürünler Listesi", "Doğaltaş Ürün/Stok", "Sabun / Krem Ürünleri", "Tespih / Takı / Aksesuar", "Satış & Fiyatlandırma", "Satış Geçmişi"],
       "kupaHacamat": ["Hacamat Protokolleri", "Hacamat Takvimi", "Hacamat Noktaları", "Kupa Teknikleri", "Güvenlik & Kontrendikasyonlar", "Word Protokol Çıktısı"],
       "beslenme": ["Besin Kütüphanesi", "Beslenme Rehberi", "Mizaca Göre Beslenme", "Kan Grubuna Göre Beslenme", "Beslenme Planları", "Plan Şablonları"],
@@ -442,10 +442,10 @@
         "aria": "Refleksoloji modülü ön izlemesi",
         "badge": "Refleksoloji Modülü",
         "title": "Refleksoloji — Gerçek Ürün Ekranları",
-        "subtitle": "Atlas, protokol, klinik notlar ve bölge haritasından oluşan profesyonel seans sistemi.",
+        "subtitle": "Atlas, protokol, klinik notlar ve bölge haritasından oluşan profesyonel refleksoloji çalışma alanı.",
         "altPrefix": "Refleksoloji — ",
-        "panelTitle": "Refleksoloji Modülü ile Profesyonel Seans Sistemi",
-        "panelDesc": "Bölge haritası, kayıtlı atlas, protokol yönetimi, klinik notlar ve seans takibiyle eksiksiz bir refleksoloji çalışma ortamı sunar."
+        "panelTitle": "Refleksoloji Modülü ile Profesyonel Çalışma Alanı",
+        "panelDesc": "Ayak ve el bölge haritası, kayıtlı atlas, protokol yönetimi ve klinik notlarla eksiksiz bir refleksoloji çalışma ortamı sunar."
       },
       "biyoenerji": {
         "aria": "Biyoenerji modülü ön izlemesi",

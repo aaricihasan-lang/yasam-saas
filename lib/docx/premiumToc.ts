@@ -11,6 +11,9 @@
  * Başlıklar gerçek Heading stilleridir (Word Gezinti Bölmesi görür).
  *
  * Paylaşılan `reportHelpers` DEĞİŞTİRİLMEZ (diğer modüllerin raporları etkilenmez).
+ *
+ * 2026-10-15 (final-a2): `buildTOCPage()` kullanan diğer raporlar için `StaticTocCollector` +
+ * `buildStaticTocPage` — aynı sayfa düzeni, ama İçindekiler DOLU/TIKLANABİLİR; başlık yoksa sayfa yok.
  */
 import {
   AlignmentType,
@@ -19,6 +22,7 @@ import {
   BookmarkStart,
   BorderStyle,
   Header,
+  HeadingLevel,
   InternalHyperlink,
   LeaderType,
   PageReference,
@@ -32,7 +36,7 @@ import {
   TextRun,
   WidthType,
 } from "docx";
-import { C_DARK, C_LIGHT, C_MID, REPORT_FONT } from "./reportHelpers";
+import { C_DARK, C_LIGHT, C_MID, h1Colored, h2, REPORT_FONT, type HeadingOptions } from "./reportHelpers";
 /** A4 içerik genişliği (11906 − 2×1440 kenar boşluğu) ≈ 9026 twip. */
 const CONTENT_WIDTH = 9026;
 
@@ -126,25 +130,135 @@ export function buildStaticToc(entries: TocEntry[], opts: { title?: string } = {
       spacing: { after: 120 },
     }),
   ];
-  for (const e of entries) {
-    const lvl1 = (e.level ?? 2) === 1;
-    out.push(new Paragraph({
-      tabStops: [{ type: TabStopType.RIGHT, position: CONTENT_WIDTH, leader: LeaderType.DOT }],
-      indent: { left: lvl1 ? 0 : 240 },
-      spacing: { before: lvl1 ? 120 : 0, after: 30 },
-      keepNext: lvl1,
-      children: [
-        new InternalHyperlink({
-          anchor: e.id,
-          children: [new TextRun({ text: e.title, size: lvl1 ? 21 : 19, bold: lvl1, font: REPORT_FONT, color: C_DARK })],
-        }),
-        ...(e.meta ? [new TextRun({ text: `  · ${e.meta}`, size: 16, font: REPORT_FONT, color: C_LIGHT })] : []),
-        new TextRun({ children: [new Tab()], size: 19, font: REPORT_FONT }),
-        new PageReference(e.id, { hyperlink: true }),
-      ],
-    }));
-  }
+  for (const e of entries) out.push(tocEntryParagraph(e));
   return out;
+}
+
+/** Tek İçindekiler satırı: başlık (yer imine iç bağlantı) · noktalı sekme · PAGEREF sayfa no. */
+function tocEntryParagraph(e: TocEntry): Paragraph {
+  const lvl1 = (e.level ?? 2) === 1;
+  return new Paragraph({
+    tabStops: [{ type: TabStopType.RIGHT, position: CONTENT_WIDTH, leader: LeaderType.DOT }],
+    indent: { left: lvl1 ? 0 : 240 },
+    spacing: { before: lvl1 ? 120 : 0, after: 30 },
+    keepNext: lvl1,
+    children: [
+      new InternalHyperlink({
+        anchor: e.id,
+        children: [new TextRun({ text: e.title, size: lvl1 ? 21 : 19, bold: lvl1, font: REPORT_FONT, color: C_DARK })],
+      }),
+      ...(e.meta ? [new TextRun({ text: `  · ${e.meta}`, size: 16, font: REPORT_FONT, color: C_LIGHT })] : []),
+      new TextRun({ children: [new Tab()], size: 19, font: REPORT_FONT }),
+      new PageReference(e.id, { hyperlink: true }),
+    ],
+  });
+}
+
+// ─── Eski `buildTOCPage()` yerine: başlık toplayan STATİK İçindekiler sayfası (2026-10-15) ───
+
+/**
+ * `buildTOCPage()` ile AYNI sayfa düzeni (ortalı büyük "İÇİNDEKİLER" başlığı, `pageBreakBefore`,
+ * alt not) — ama boş Word TOC alanı yerine STATİK + TIKLANABİLİR + PAGEREF girişler.
+ * Giriş yoksa HİÇBİR ŞEY döndürmez (anlamsız boş İçindekiler sayfası + sayfa sonu üretilmez).
+ */
+export function buildStaticTocPage(entries: TocEntry[]): Paragraph[] {
+  if (!entries.length) return [];
+  return [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: "İÇİNDEKİLER", bold: true, size: 40, font: REPORT_FONT, color: C_DARK })],
+      pageBreakBefore: true,
+      spacing: { before: 800, after: 600 },
+    }),
+    ...entries.map(tocEntryParagraph),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({
+        text: "Başlığa tıklayarak ilgili bölüme gidebilirsiniz. Sayfa numaralarını Word, belge açılırken günceller.",
+        size: 18, font: REPORT_FONT, color: C_LIGHT, italics: true,
+      })],
+      spacing: { before: 320, after: 0 },
+    }),
+  ];
+}
+
+/** `h1Colored` / `h2` ile aynı imzalı başlık üreticileri (düz ya da İçindekiler'e kayıtlı). */
+export type TocHeadingFns = {
+  h1Colored: (text: string, color: string, pageBreak?: boolean) => Paragraph;
+  h2: (text: string, opts?: HeadingOptions) => Paragraph;
+};
+
+/** İçindekiler'e KAYIT ETMEYEN düz başlıklar (reportHelpers'takiyle birebir). */
+export const PLAIN_HEADINGS: TocHeadingFns = { h1Colored, h2 };
+
+/**
+ * Rapor başına TEK örnek: `h1Colored` / `h2` ile birebir aynı görünümde başlık üretir, başlık
+ * metnini benzersiz yer imiyle sarar ve İçindekiler girişini (aynı sırada) kaydeder.
+ * (Eski Word TOC alanı `headingStyleRange: "1-2"` → H1 + H2 başlıkları; H3 TOC'a girmez.)
+ * Boş başlık metni kaydedilmez (düz başlık döner).
+ *
+ * Kullanım: `const toc = new StaticTocCollector("ajd");` → gövdede `toc.h1Colored(…)`, `toc.h2(…)`;
+ * İçindekiler konumu `const at = all.length;` ile işaretlenir, gövde bitince
+ * `all.splice(at, 0, ...toc.page())`; Document'e `...toc.documentOptions()` eklenir.
+ */
+export class StaticTocCollector implements TocHeadingFns {
+  readonly entries: TocEntry[] = [];
+  constructor(private readonly prefix: string) {}
+
+  private register(text: string, level: 1 | 2): string | null {
+    const title = text.trim();
+    if (!title) return null;
+    const id = tocBookmarkId(this.prefix, this.entries.length);
+    this.entries.push({ id, title, level });
+    return id;
+  }
+
+  h1Colored = (text: string, color: string, pageBreak = false): Paragraph => {
+    const id = this.register(text, 1);
+    if (!id) return h1Colored(text, color, pageBreak);
+    return new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      spacing: { before: 480, after: 300 },
+      pageBreakBefore: pageBreak,
+      keepNext: true,
+      keepLines: true,
+      children: [bookmarkedRun(id, { text, bold: true, size: 32, font: REPORT_FONT, color })],
+    });
+  };
+
+  h2 = (text: string, opts?: HeadingOptions): Paragraph => {
+    const id = this.register(text, 2);
+    if (!id) return h2(text, opts);
+    return new Paragraph({
+      heading: HeadingLevel.HEADING_2,
+      spacing: { before: 360, after: 200 },
+      ...(opts?.pageBreakBefore ? { pageBreakBefore: true } : {}),
+      ...(opts?.keepNext ? { keepNext: true } : {}),
+      ...(opts?.keepLines ? { keepLines: true } : {}),
+      children: [bookmarkedRun(id, { text, font: REPORT_FONT })],
+    });
+  };
+
+  /** İçindekiler sayfası (giriş yoksa boş dizi → sayfa/sayfa sonu yok). */
+  page(): Paragraph[] {
+    return buildStaticTocPage(this.entries);
+  }
+
+  /** PAGEREF sayfa numaraları Word açılışında güncellensin (yalnız İçindekiler varsa). */
+  documentOptions(): { features?: { updateFields: true } } {
+    return this.entries.length ? { features: { updateFields: true } } : {};
+  }
+}
+
+/** `bookmarkedText` gibi, ama run biçimi (kalın/boyut/renk) korunur; benzersiz w:id. */
+function bookmarkedRun(id: string, run: { text: string; bold?: boolean; size?: number; font?: string; color?: string }): Bookmark {
+  const bm = new Bookmark({ id, children: [new TextRun(run)] });
+  const n = Number(/_(\d+)$/.exec(id)?.[1] ?? NaN);
+  if (Number.isFinite(n) && n > 0) {
+    (bm as unknown as { start: BookmarkStart }).start = new BookmarkStart(id, n);
+    (bm as unknown as { end: BookmarkEnd }).end = new BookmarkEnd(n);
+  }
+  return bm;
 }
 
 /**

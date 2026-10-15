@@ -69,10 +69,42 @@ export function urlWithQuery(href: string, query: string): string {
 
 /**
  * Sonuçtan açılan kayıt detayına arama terimini taşır (yalnız istemci tarafı vurgu için).
- * Detay rotası olmayan bölümler zaten `?q=<kayıt adı>` ile listeye gider → aynen kalır.
+ * Detay rotası olmayan bölümler zaten `?q=<kayıt adı>` ile listeye gider → aynen kalır
+ * (bu bölümlerde terim `bioHitHrefWithQuery` ile ayrı parametrede taşınır).
  */
 export function bioDetailHrefWithQuery(href: string, query: string): string {
   const term = query.trim();
   if (!term || href.includes("?")) return href;
   return `${href}?q=${encodeURIComponent(term)}`;
+}
+
+/**
+ * FINAL-A2 — Detay rotası olmayan (liste) bölümlerde (Enerji Bedenleri, Seanslar) `?q=` bölüm
+ * LİSTE SÜZGECİDİR (kayıt adı) ve aynen kalır. Aranan terim ayrı parametreyle taşınır (vurgu),
+ * açılacak kayıt da ayrı parametreyle (liste yüklenince o kayıt seçilir → detay paneli açılır).
+ */
+export const BIO_SEARCH_TERM_PARAM = "hq";
+export const BIO_SEARCH_RECORD_PARAM = "rid";
+
+/**
+ * Genel arama sonucunun bağlantısı: detay rotalarında `?q=<terim>` (bioDetailHrefWithQuery, değişmez);
+ * liste bölümlerinde mevcut `?q=<kayıt adı>` korunur + `hq=<terim>` + `rid=<kayıt id>` eklenir.
+ * Yalnız istemci tarafı vurgu/seçim içindir; hiçbir API isteğine girmez.
+ */
+export function bioHitHrefWithQuery(hit: { href: string; id: string }, query: string): string {
+  const term = query.trim();
+  if (!hit.href.includes("?")) return bioDetailHrefWithQuery(hit.href, term);
+  const url = new URL(hit.href, "http://local.invalid");
+  if (term) url.searchParams.set(BIO_SEARCH_TERM_PARAM, term.slice(0, 100));
+  if (hit.id) url.searchParams.set(BIO_SEARCH_RECORD_PARAM, hit.id);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+/** URL'deki tek bir arama parametresi (yalnız istemci; uzunluk sınırlı). */
+export function readBioUrlParam(search: string, name: string, max = 100): string {
+  try {
+    return (new URLSearchParams(search).get(name) ?? "").trim().slice(0, max);
+  } catch {
+    return "";
+  }
 }

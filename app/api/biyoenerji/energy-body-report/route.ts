@@ -15,10 +15,7 @@ import {
   buildWellnessNoteSection,
   buildPremiumCover,
   buildStatsPage,
-  buildTOCPage,
   divider,
-  h1Colored,
-  h2,
   h3,
   muted,
   profileLabel,
@@ -26,6 +23,7 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { StaticTocCollector } from "@/lib/docx/premiumToc";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { sanitizeBioenergyRow, sanitizeBioenergyXmlText } from "@/lib/biyoenerji/xmlSafeText";
 
@@ -163,13 +161,16 @@ export async function POST(request: NextRequest): Promise<Response> {
     ["Kapsam",       exportLabel],
   ]));
 
-  all.push(...buildTOCPage());
+  // İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde
+  // başlıklarından toplanır, gövde bittikten sonra bu konuma yerleştirilir; başlık yoksa sayfa yok).
+  const toc = new StaticTocCollector("benj");
+  const tocAt = all.length;
 
   if (truncatedRead) {
     all.push(muted(EXPORT_TRUNCATED_NOTE(MAX_EXPORT_RECORDS)));
   }
 
-  all.push(h1Colored("1. Enerji Bedenleri", C_ENERJI, true));
+  all.push(toc.h1Colored("1. Enerji Bedenleri", C_ENERJI, true));
   all.push(muted(`${rows.length} kayıt`));
   all.push(spacer());
 
@@ -179,7 +180,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (i > 0) all.push(divider());
 
     all.push(profileLabel(`KAYIT #${String(i + 1).padStart(3, "0")}`, C_ENERJI));
-    all.push(h2(title));
+    all.push(toc.h2(title));
 
     all.push(twoColTable([
       ["Kayıt Tarihi", formatDateTR(row.created_at)],
@@ -195,7 +196,10 @@ export async function POST(request: NextRequest): Promise<Response> {
   // FA-16: sade bilgilendirme notu + Hazırlayan (rapor sonu).
   all.push(...buildWellnessNoteSection("biyoenerji", safeExpertName(guard.profile)));
 
+  all.splice(tocAt, 0, ...toc.page());
+
   const doc = new Document({
+    ...toc.documentOptions(),
     sections: [{
       properties: {},
       footers: { default: buildFooter("Enerji Bedenleri Raporu · Yaşam Sistemi", { note: "biyoenerji" }) },

@@ -438,6 +438,18 @@
       "exempt": "bakım: yetim (kayda bağlanmamış) yükleme temizliği; kullanıcı kaydı silinmez"
     },
     {
+      "route": "clients/[id]/anamnez/[anamnesisId]/pdf",
+      "method": "GET",
+      "events": [
+        {
+          "action": "report_generated",
+          "subEntity": "anamnesis"
+        }
+      ],
+      "failure": "server",
+      "note": "kayıtlı (dolu) anamnez formu PDF'i (3998f474); danışan adı / cevaplar telemetriye girmez; build hatası → serverErrorResponse usage"
+    },
+    {
       "route": "clients/[id]/anamnez/blank-form",
       "method": "GET",
       "events": [

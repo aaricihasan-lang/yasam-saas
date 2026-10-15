@@ -230,6 +230,8 @@ for (const rel of routeFiles) {
     if (h.exempt) {
       ok(h.exempt.trim().length >= 8, `${key}: muafiyet gerekçeli`);
       ok(tracks.length === 0, `${key}: muaf handler'da trackUsage YOK`);
+      // "kapalı uç" muafiyeti yalnız handler gerçekten 410 döndürüyorsa geçerli (yeniden açılırsa yakalanır).
+      if (/^kapalı uç/.test(h.exempt)) ok(/status:\s*410\b/.test(node.getText()), `${key}: 'kapalı uç' muafiyeti → handler 410 döndürür`);
       counts.exempt++; perModule[mod].exempt++;
       report.push(`${mod}\t${method}\t${rk}\tMUAF: ${h.exempt}`);
       continue;
@@ -246,6 +248,10 @@ for (const rel of routeFiles) {
       ok(!!spec, `${key}: '${t.action}' manifestte beyan edilmiş`);
       if (t.subEntity === "*dynamic*") {
         ok(!!spec?.subEntities?.length, `${key}: dinamik subEntity için manifest subEntities listesi var`);
+        // Fabrika + tek alt varlık: route handler'ı fabrikaya o alt varlığı literal olarak geçmeli.
+        if (h.implFile && spec?.subEntities?.length === 1) {
+          ok(node.getText().includes(`"${spec.subEntities[0]}"`), `${key}: route fabrikaya subEntity '${spec.subEntities[0]}' literal'ini geçirir`);
+        }
         for (const s of spec?.subEntities ?? []) ok(USAGE_SUB_ENTITIES[mod as keyof typeof USAGE_SUB_ENTITIES].includes(s), `${key}: dinamik subEntity '${s}' allowlist'te`);
       } else if (t.subEntity != null) {
         ok(USAGE_SUB_ENTITIES[mod as keyof typeof USAGE_SUB_ENTITIES].includes(t.subEntity), `${key}: subEntity '${t.subEntity}' ${mod} allowlist'inde`);

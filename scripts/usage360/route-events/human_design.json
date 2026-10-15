@@ -1,12 +1,15 @@
 {
   "module": "human_design",
   "handlers": [
-    { "route": "hd/charts", "method": "POST", "events": [{ "action": "record_created", "subEntity": "chart" }, { "action": "record_updated", "subEntity": "chart" }], "failure": "server", "note": "computed: recompute-on-save insert → record_created (res.status>=500 → server); ?scope=manual: danışan başına upsert, yol route'ta bilinmiyor → record_updated (hatalar 400 → olay yok)" },
+    { "route": "hd/charts", "method": "POST", "events": [{ "action": "record_created", "subEntity": "chart" }], "failure": "server", "note": "computed: recompute-on-save insert → record_created (res.status>=500 → server). ?scope=manual AŞAMA 3C (3692fb3e) ile KAPALI → 410 MANUAL_CHART_CLOSED, iş verisi değişmez → olay yok (eski record_updated dalı kaldırıldı)" },
+    { "route": "hd/charts/roxy", "method": "POST", "events": [{ "action": "analysis_run", "subEntity": "chart" }], "failure": "server", "note": "RoxyAPI otomatik hesap (73b1f842): yalnız YENİ hesapta analysis_run; kayıtlı sonuç (reused) → olay yok (Roxy çağrılmaz); status>=500 → action_failed server" },
     { "route": "hd/charts", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "chart" }], "note": "manuel harita; persistence hataları 400 döner (500 dalı yok)" },
     { "route": "hd/charts", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "chart" }], "note": "manuel id / manuel clientId / computed id — her yol tek olay; hatalar 400" },
-    { "route": "hd/clients", "method": "POST", "events": [{ "action": "record_created", "subEntity": "client" }], "note": "hatalar 400 (500 dalı yok)" },
+    { "route": "hd/clients", "method": "POST", "exempt": "kapalı uç: AŞAMA 3C (3692fb3e) bağımsız HD danışanı oluşturma 410 NEW_CLIENT_FLOW_REQUIRED döner; iş verisi değişmez (yeni profil hd/clients/journey create_* ile)" },
     { "route": "hd/clients", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "client" }] },
     { "route": "hd/clients", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "client" }], "note": "tenant-scoped cascade (raporlar → haritalar → danışan) tek kullanıcı eylemi → tek olay" },
+    { "route": "hd/clients/journey", "method": "POST", "events": [{ "action": "record_created", "subEntity": "client" }, { "action": "record_updated", "subEntity": "client" }], "note": "3692fb3e merkezî danışan bağı: create_new (yalnız yeni oluşturulduysa) / create_for_existing → record_created; link_existing / link_new → record_updated; hatalar failRes (4xx/409) → olay yok" },
+    { "route": "hd/clients/storage-cleanup", "method": "POST", "exempt": "bakım: profil silme sonrası yetim HD görsellerinin yeniden temizliği (4cb9792c); kullanıcı kaydı oluşturmaz/silmez" },
     { "route": "hd/compute", "method": "POST", "events": [{ "action": "analysis_run", "subEntity": "chart" }], "failure": "server", "note": "yalnız status 200; motor 500 → server; stateless (resourceId yok, doğum verisi telemetriye girmez); motor değişmedi" },
     { "route": "hd/knowledge", "method": "POST", "events": [{ "action": "record_created", "subEntity": "knowledge" }] },
     { "route": "hd/knowledge", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "knowledge" }] },
@@ -20,7 +23,9 @@
     { "route": "hd/reports", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "report" }] },
     { "route": "hd/reports/professional", "method": "POST", "events": [{ "action": "record_created", "subEntity": "report" }], "failure": "server", "note": "donmuş snapshot kaydı oluşturma (Word üretimi DEĞİL); snapshot 500 → server" },
     { "route": "hd/reports/professional/download", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "report" }], "failure": "server", "note": "sunucu docx üretildikten sonra; Android Word guard 403 olay değildir; professional POST'tan ayrı kullanıcı eylemi" },
-    { "route": "hd/upload-chart-image", "method": "POST", "events": [{ "action": "file_uploaded", "subEntity": "image" }], "failure": "server", "note": "storage upload + DB kaydı sonrası; resourceId = sunucu üretimli nesne uuid" },
+    { "route": "hd/reports/professional/knowledge-match", "method": "GET", "exempt": "okuma: Word öncesi eşleşen aktif açıklama SAYISI (dosya üretimi yok, 6d7e013e)" },
+    { "route": "hd/reports/professional/summary", "method": "GET", "exempt": "okuma: Android güvenli rapor özeti — başlık + sayılar (dosya üretimi yok, aa0e124d P2-3)" },
+    { "route": "hd/upload-chart-image", "method": "POST", "exempt": "kapalı uç: AŞAMA 3C (3692fb3e) yeni manuel harita görseli yükleme 410 MANUAL_IMAGE_CLOSED döner; dosya yüklenmez" },
     { "route": "hd/delete-chart-image", "method": "POST", "events": [{ "action": "record_deleted", "subEntity": "image" }], "failure": "server", "note": "yalnız mevcut görsel varsa" }
   ]
 }

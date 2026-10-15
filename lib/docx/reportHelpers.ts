@@ -631,6 +631,10 @@ export function buildSectionDivider(title: string, subtitle: string, color: stri
  * Real Word TOC field (depth 1-2: H1 sections + H2 items).
  * H3 field headings appear only in Navigation Panel.
  * User must run: Başvurular → İçindekileri Güncelle for page numbers.
+ *
+ * @deprecated BOŞ alan üretir: Word alanları güncellenene kadar (LibreOffice/mobilde hiç)
+ * İçindekiler BOŞ görünür. Yeni/yenilenen raporlar `StaticTocCollector` (lib/docx/premiumToc)
+ * kullanmalı — aynı sayfa düzeni, dolu + tıklanabilir girişler.
  */
 export function buildTOCPage(): ReportChild[] {
   return [

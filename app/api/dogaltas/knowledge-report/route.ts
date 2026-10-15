@@ -14,12 +14,9 @@ import {
   buildPremiumCover,
   buildSectionDivider,
   buildStatsPage,
-  buildTOCPage,
   C_DARK,
   divider,
   fieldInline,
-  h1Colored,
-  h2,
   h3,
   inlineRuns,
   muted,
@@ -29,6 +26,7 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { StaticTocCollector } from "@/lib/docx/premiumToc";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { formatInstantDate, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 
@@ -87,7 +85,7 @@ function parseContent(content: string): ReportChild[] {
 
 // ─── Document builder ─────────────────────────────────────────────────────────
 
-function buildDocument(articles: ArticleRow[], exportLabel: string): ReportChild[] {
+function buildDocument(articles: ArticleRow[], exportLabel: string, toc: StaticTocCollector): ReportChild[] {
   const date = reportGeneratedLabel();
   const color = SECTION_COLORS.knowledge;
 
@@ -123,12 +121,13 @@ function buildDocument(articles: ArticleRow[], exportLabel: string): ReportChild
     [...groups.entries()].map(([cat, arts]) => `${cat}: ${arts.length} makale`)
   ));
 
-  // TOC
-  out.push(...buildTOCPage());
+  // İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde
+  // başlıklarından toplanır, gövde bittikten sonra bu konuma yerleştirilir; başlık yoksa sayfa yok).
+  const tocAt = out.length;
 
   // Genel Özet
   out.push(
-    h1Colored("1. Genel Özet", color, true),
+    toc.h1Colored("1. Genel Özet", color, true),
     muted(`${groups.size} kategori · ${articles.length} makale`),
     twoColTable(categoryRows),
   );
@@ -138,7 +137,7 @@ function buildDocument(articles: ArticleRow[], exportLabel: string): ReportChild
   for (const [category, catArticles] of groups) {
     out.push(
       ...buildSectionDivider(category.toLocaleUpperCase("tr-TR"), `${catArticles.length} Makale`, color),
-      h1Colored(`${catIndex}. ${category}`, color, true),
+      toc.h1Colored(`${catIndex}. ${category}`, color, true),
       muted(`${catArticles.length} makale`),
     );
     catIndex++;
@@ -147,7 +146,7 @@ function buildDocument(articles: ArticleRow[], exportLabel: string): ReportChild
       const a = catArticles[i]!;
       if (i > 0) out.push(divider());
 
-      out.push(h2(a.title || "Başlıksız Makale"));
+      out.push(toc.h2(a.title || "Başlıksız Makale"));
 
       if (a.sub_category?.trim())   out.push(fieldInline("Alt Kategori", a.sub_category.trim()));
       if (a.created_at)             out.push(fieldInline("Tarih", formatInstantDate(a.created_at)));
@@ -163,6 +162,7 @@ function buildDocument(articles: ArticleRow[], exportLabel: string): ReportChild
     }
   }
 
+  out.splice(tocAt, 0, ...toc.page());
   return out;
 }
 
@@ -218,11 +218,14 @@ export async function POST(req: NextRequest): Promise<Response> {
   const articles = sanitizeXmlDeep((data ?? []) as ArticleRow[]); // RPT-XML
   if (!articles.length) return Response.json({ ok: false, error: "Bu seçim için makale bulunamadı." }, { status: 404 });
 
+  const toc = new StaticTocCollector("tbk");
+  const docBody = buildDocument(articles, exportLabel, toc);
   const doc = new Document({
+    ...toc.documentOptions(),
     sections: [{
       properties: {},
       footers: { default: buildFooter("Yaşam Sistemi — Taş Bilgi Kütüphanesi", { note: "dogaltas" }) },
-      children: [...buildDocument(articles, exportLabel), ...buildWellnessNoteSection("dogaltas", expertDisplayName(auth.profile))],
+      children: [...docBody, ...buildWellnessNoteSection("dogaltas", expertDisplayName(auth.profile))],
     }],
   });
 
