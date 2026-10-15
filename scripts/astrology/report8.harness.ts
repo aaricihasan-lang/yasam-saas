@@ -336,7 +336,7 @@ async function main() {
   // Sinastri (çift halka) da kayıtlı veriden çizilir; çerçevesi olmayan transit görselsiz kalır.
   // 2026-10-15 (owner onayı): Vedik D1 / Varga ve KP chart / horary / transit haritaları da rapora girer.
   await t("model: harita görseli natal, return, composite, relocation, progression, sinastri, (natal çerçeveli) transit, Vedik D1/Varga, KP chart/horary/transit + (2026-10-15) Dasha çizelgesi ve Shadbala grafiği; diğerleri görselsiz", async () => {
-    const withChart = new Set(["western.natal", "western.solar_return", "western.lunar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit", "vedic.dasha", "kp.dasha", "vedic.shadbala"]);
+    const withChart = new Set(["western.natal", "western.solar_return", "western.lunar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit", "vedic.dasha", "kp.dasha", "vedic.shadbala", "western.astrocartography", "western.local_space"]);
     for (const tech of TECHNIQUES) {
       const a = await full(saved.get(tech)!);
       const r = buildAstroReport(a);
@@ -432,7 +432,7 @@ async function main() {
   });
 
   await t("harita görseli: natal/return/composite/relocation/progression/sinastri (+ natal çerçeveli transit) + Vedik D1/Varga + KP Word'de PNG gömülü + PDF'te görsel; haritasız Vedik/KP teknikleri görselsiz", async () => {
-    for (const tech of ["western.natal", "western.solar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit", "vedic.dasha", "kp.dasha", "vedic.shadbala"]) assert.equal(docs.get(tech)!.docx.media.length, 1, tech);
+    for (const tech of ["western.natal", "western.solar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit", "vedic.dasha", "kp.dasha", "vedic.shadbala", "western.astrocartography", "western.local_space"]) assert.equal(docs.get(tech)!.docx.media.length, 1, tech);
     for (const tech of ["kp.ruling", "vedic.panchanga", "vedic.drishti", "vedic.ashtakavarga"]) assert.equal(docs.get(tech)!.docx.media.length, 0, tech);
     const trFrame = !!((await full(saved.get("western.transit")!)).technical as J | null)?.natalFrame;
     assert.equal(docs.get("western.transit")!.docx.media.length, trFrame ? 1 : 0, "western.transit (natal çerçeve → çift halka)");
@@ -447,7 +447,7 @@ async function main() {
   // ── Roxy yorum güvenliği ─────────────────────────────────────────────────────────────────────────
   await t("yorum yetkisi AÇIK: kayıtlı Roxy yorumu Word ve PDF'te var", () => {
     const n = docs.get("western.natal")!;
-    assert.ok(n.docx.text.includes("Roxy otomatik yorumu"));
+    assert.ok(n.docx.text.includes("Otomatik Yorum"));
     assert.ok(n.docx.text.includes(NATAL_NARR.slice(0, 40)), "docx yorum metni");
     assert.ok(norm(n.pdf.text).includes(norm(NATAL_NARR.slice(0, 30))), "pdf yorum metni");
   });
@@ -460,7 +460,7 @@ async function main() {
         const r = await get(surface, saved.get(tech)!, who, fmt, extra);
         assert.equal(r.status, 200, `${tech} ${fmt} ${r.status}`);
         const text = fmt === "docx" ? (await docxText(r.buf)).text : norm((await pdfText(r.buf)).text);
-        assert.ok(!text.includes("Roxy otomatik yorumu"), `${tech} ${fmt}: yorum başlığı sızdı`);
+        assert.ok(!text.includes("Otomatik Yorum"), `${tech} ${fmt}: yorum başlığı sızdı`);
         for (const s of narr) assert.ok(!text.includes(fmt === "pdf" ? norm(s) : s), `${tech} ${fmt}: yorum metni sızdı: ${s}`);
         assert.ok(!/interp|Roxy yorumu dahil/i.test(text), `${tech} ${fmt}: yorum izi`);
       }
@@ -504,7 +504,7 @@ async function main() {
         for (const fmt of ["docx", "pdf"]) {
           const r = await get("expert", saved.get(tech)!, "exAI", fmt);
           const text = fmt === "docx" ? (await docxText(r.buf)).text : norm((await pdfText(r.buf)).text);
-          assert.ok(!text.includes("Roxy otomatik yorumu") && !text.includes("Güçlü yan") && !text.includes("Zorluk:"), `${tech} ${fmt}`);
+          assert.ok(!text.includes("Otomatik Yorum") && !text.includes("Güçlü yan") && !text.includes("Zorluk:"), `${tech} ${fmt}`);
         }
       }
     } finally {
@@ -515,12 +515,12 @@ async function main() {
   await t("doğrudan API + önbellek: aynı analiz yorumlu indirildikten HEMEN sonra yetki kalkınca yorumsuz (önbellek yok, no-store)", async () => {
     const id = saved.get("western.natal")!;
     const a = await get("expert", id, "exAI", "docx");
-    assert.ok((await docxText(a.buf)).text.includes("Roxy otomatik yorumu"));
+    assert.ok((await docxText(a.buf)).text.includes("Otomatik Yorum"));
     assert.equal(a.headers.get("cache-control"), "no-store, private");
     setPerms(U.exAI, { astrology: true });
     try {
       const b = await get("expert", id, "exAI", "docx");
-      assert.ok(!(await docxText(b.buf)).text.includes("Roxy otomatik yorumu"));
+      assert.ok(!(await docxText(b.buf)).text.includes("Otomatik Yorum"));
     } finally {
       setPerms(U.exAI, { astrology: true, astrology_provider_interp: true });
     }
@@ -673,9 +673,9 @@ async function main() {
     const id = (sv.body as J).analysisId;
     const a = await get("admin", id, "owner", "docx");
     assert.equal(a.status, 200);
-    assert.ok((await docxText(a.buf)).text.includes("Roxy otomatik yorumu"));
+    assert.ok((await docxText(a.buf)).text.includes("Otomatik Yorum"));
     const b = await get("admin", id, "owner", "pdf", "&previewNoInterp=1");
-    assert.ok(!norm((await pdfText(b.buf)).text).includes("Roxy otomatik yorumu"));
+    assert.ok(!norm((await pdfText(b.buf)).text).includes("Otomatik Yorum"));
     assert.equal((await get("expert", id, "exAI", "docx")).status, 404, "uzman owner'ın analizini alamaz");
   });
 
@@ -869,7 +869,7 @@ async function main() {
     assert.ok(norm(pdfTxt.text).includes("Harita görseli bu raporda oluşturulamadı"));
   });
   await t("harita aktarımı: uygulamada haritası olmayan teknikler (drishti/ashtakavarga/panchanga/ruling/konum/sabit yıldız…) rapora HARİTA BLOĞU koymaz (yanlış harita yok)", async () => {
-    const FIG = ["vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit", "vedic.dasha", "kp.dasha", "vedic.shadbala"];
+    const FIG = ["vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit", "vedic.dasha", "kp.dasha", "vedic.shadbala", "western.astrocartography", "western.local_space"];
     for (const tech of TECHNIQUES.filter((x) => !(CHART_TECHS as readonly string[]).includes(x) && !FIG.includes(x))) {
       const r = buildAstroReport(await full(saved.get(tech)!));
       assert.ok(!r.blocks.some((b) => b.kind === "chart"), `${tech}: beklenmeyen harita`);
@@ -1109,7 +1109,7 @@ async function main() {
       }
     }
   });
-  await t("yorum üretmeyen teknikler (Drishti / Ashtakavarga / KP transit): motor kaydıyla uyumlu; Word + PDF 'Roxy bu teknikte yorum üretmez' der, sızma başlığı yok; diğer tekniklerde not YOK", async () => {
+  await t("yorum üretmeyen teknikler (Drishti / Ashtakavarga / KP transit): motor kaydıyla uyumlu; Word + PDF 'otomatik yorum bulunmuyor' der, sızma başlığı yok; diğer tekniklerde not YOK", async () => {
     const { NO_PROVIDER_INTERPRETATION, NO_PROVIDER_INTERPRETATION_NOTE } = await import("@/lib/astrology/noProviderInterp");
     for (const tech of TECHNIQUES) {
       const a = await full(saved.get(tech)!);
@@ -1119,17 +1119,179 @@ async function main() {
       const d = docs.get(tech)!;
       for (const x of [d.docx.text, norm(d.pdf.text)]) {
         assert.equal(x.includes(norm(NO_PROVIDER_INTERPRETATION_NOTE).slice(0, 60)), none, `${tech}: not`);
-        if (none) assert.ok(!x.includes("Roxy otomatik yorumu"), `${tech}: yorum başlığı olmamalı`);
+        if (none) assert.ok(!x.includes("Otomatik Yorum"), `${tech}: yorum başlığı olmamalı`);
       }
     }
   });
   await t("yorum türü satırı Word/PDF'te ekrandaki sekmeyle aynı (Otomatik Yorum / Teknik Açıklama / Olay Açıklamaları)", () => {
-    const want: Record<string, string> = { "western.natal": "Bu bölüm: Otomatik Yorum", "kp.chart": "Bu bölüm: Teknik Açıklama", "vedic.shadbala": "Bu bölüm: Teknik Açıklama", "western.forecast": "Bu bölüm: Roxy Olay Açıklamaları", "vedic.dasha": "Bu bölüm: Otomatik Yorum" };
+    const want: Record<string, string> = { "western.natal": "Bu bölüm: Otomatik Yorum", "kp.chart": "Bu bölüm: Teknik Açıklama", "vedic.shadbala": "Bu bölüm: Teknik Açıklama", "western.forecast": "Bu bölüm: Olay Açıklamaları", "vedic.dasha": "Bu bölüm: Otomatik Yorum" };
     for (const [tech, s2] of Object.entries(want)) {
       const d = docs.get(tech)!;
       assert.ok(d.docx.text.includes(s2) && norm(d.pdf.text).includes(s2), `${tech}: ${s2}`);
     }
   });
+  // ── 2026-10-15 SATIŞ ÖNCESİ (son 3 iş — 1): Astrocartography + Local Space DÜNYA HARİTASI Word/PDF'te ───────────────
+  {
+    const Astronomy = await import("astronomy-engine");
+    const LM = await import("@/app/admin/astroloji/_lib/locationMaps");
+    const GEO = await import("@/app/admin/astroloji/_lib/geo");
+    const norm360 = (x: number) => ((x % 360) + 360) % 360;
+    const angDiff = (a: number, b2: number) => Math.abs(((a - b2 + 540) % 360) - 180);
+    // Golden yanıtların doğum anı (istek gövdesi): 1990-07-15 14:30 UTC+3 → 11:30 UTC.
+    const gmst = Astronomy.SiderealTime(Astronomy.MakeTime(new Date("1990-07-15T11:30:00Z"))) * 15;
+    const acgA = await full(saved.get("western.astrocartography")!);
+    const lsA = await full(saved.get("western.local_space")!);
+
+    await t("ACG haritası: rapordaki hatlar EKRANDAKİ fonksiyonların aynısı (klasik 10 cisim × 4 açı; yol/renk/çizgi tipi birebir) + MC etiketleri + doğum işareti", async () => {
+      const r = buildAstroReport(acgA);
+      const ch = figOf(r)!;
+      assert.equal(ch.figure.type, "acgMap");
+      const tt = acgA.technical as J;
+      const bodies = new Set((tt.bodies as J[]).map((x) => x.id).filter((id: string) => LM.CLASSICAL.has(id as never)));
+      const screen = LM.acgMapLines(tt, bodies as never, new Set(LM.ACG_ANGLES));
+      assert.deepEqual(ch.figure.lines, screen, "ekran hatlarıyla birebir");
+      assert.equal(screen.length, bodies.size * 4, "10 cisim × 4 açı");
+      assert.deepEqual(ch.figure.labels, LM.acgMcLabels(tt, bodies as never, new Set(LM.ACG_ANGLES)));
+      const rv = (acgA.profile as J).revision;
+      assert.deepEqual(ch.figure.markers, [{ key: "birth", lat: rv.latitude, lon: rv.longitude, label: `Doğum: ${rv.locationLabel}` }]);
+      const svg = await renderFigureSvg(ch.figure);
+      for (const l of screen) assert.ok(svg.includes(`d="${l.d}"`) && svg.includes(`data-map-line="${l.key}"`), `SVG'de hat yok: ${l.key}`);
+      for (const id of bodies) assert.ok(svg.includes(`data-legend-body="${id}"`), `lejant: ${id}`);
+      for (const a of LM.ACG_ANGLES) assert.ok(svg.includes(`data-legend-angle="${a}"`), `lejant açı: ${a}`);
+      assert.ok(!/[︎️]/.test(svg), "görünüm seçicisi glif değildir (kutu olur)");
+      assert.ok(r.blocks.some((b) => b.kind === "heading" && b.text === "Dünya haritası"));
+    });
+
+    await t("ACG doğruluk (bağımsız astronomi): her MC boylamı = RA − GMST (astronomy-engine); IC = MC+180°; haritada MC hattının x konumu bu boylam", () => {
+      const tt = acgA.technical as J;
+      for (const b of tt.bodies as J[]) {
+        const want = GEO.normLon(b.rightAscension - gmst);
+        assert.ok(angDiff(b.mcLongitude, want) < 0.05, `${b.id}: MC ${b.mcLongitude} ≠ ${want.toFixed(3)}`);
+        assert.ok(angDiff(b.icLongitude, b.mcLongitude + 180) < 0.05, `${b.id}: IC karşıt değil`);
+        const x = GEO.project(0, GEO.normLon(b.mcLongitude))[0];
+        assert.ok(Math.abs(x - ((GEO.normLon(b.mcLongitude) + 180) / 360) * 1000) < 0.01, "eşdikdörtgen x");
+        assert.ok(LM.acgMapLines(tt, new Set([b.id]), new Set(["mc"])).every((l) => l.d.startsWith(`M${x},`)), `${b.id}: MC hattı kendi boylamında`);
+      }
+    });
+
+    await t("ACG doğruluk: AC/DC eğrisinin HER noktasında cisim ufukta (yükseklik ≈ 0°); AC'de doğuyor (doğu yarı), DC'de batıyor (batı yarı)", () => {
+      const tt = acgA.technical as J;
+      const rad = Math.PI / 180;
+      let n = 0;
+      for (const b of tt.bodies as J[]) {
+        for (const [key, rising] of [["asc", true], ["dsc", false]] as const) {
+          for (const [lat, lon] of b[key].points as [number, number][]) {
+            const H = norm360(gmst + lon - b.rightAscension); // yerel saat açısı
+            const sinAlt = Math.sin(lat * rad) * Math.sin(b.declination * rad) + Math.cos(lat * rad) * Math.cos(b.declination * rad) * Math.cos(H * rad);
+            const alt = Math.asin(sinAlt) / rad;
+            assert.ok(Math.abs(alt) < 0.6, `${b.id} ${key} (${lat}, ${lon}): yükseklik ${alt.toFixed(2)}°`);
+            assert.equal(H > 180, rising, `${b.id} ${key} (${lat}, ${lon}): saat açısı ${H.toFixed(1)} (doğuş/batış tarafı)`);
+            n++;
+          }
+        }
+      }
+      assert.ok(n > 500, `yeterli örnek nokta (${n})`);
+    });
+
+    await t("Local space haritası: hatlar ekrandakiyle birebir; her hat MERKEZDEN çıkar ve ilk yönü = azimut (büyük çember kerterizi); pusulada K üst / D sağ / G alt / B sol, çizgi açısı = azimut", async () => {
+      const r = buildAstroReport(lsA);
+      const ch = figOf(r)!;
+      assert.equal(ch.figure.type, "localSpaceMap");
+      const tt = lsA.technical as J;
+      const bodies = new Set((tt.bodies as J[]).map((x) => x.id).filter((id: string) => LM.CLASSICAL.has(id as never)));
+      assert.deepEqual(ch.figure.lines, LM.localSpaceMapLines(tt, bodies as never), "ekran hatlarıyla birebir");
+      assert.equal(ch.figure.reference.lat, tt.reference.latitude);
+      assert.equal(ch.figure.reference.lon, tt.reference.longitude);
+      for (const b of tt.bodies as J[]) {
+        const [p0, p1] = b.line as [number, number][];
+        assert.ok(Math.abs(p0[0] - tt.reference.latitude) < 0.01 && angDiff(p0[1], tt.reference.longitude) < 0.01, `${b.id}: hat merkezden başlamıyor`);
+        const brg = GEO.initialBearing(p0[0], p0[1], p1[0], p1[1]);
+        assert.ok(angDiff(brg, b.azimuth) < 1, `${b.id}: kerteriz ${brg.toFixed(2)} ≠ azimut ${b.azimuth}`);
+      }
+      const svg = await renderFigureSvg(ch.figure);
+      const m = /<circle cx="([\d.]+)" cy="([\d.]+)" r="140"/.exec(svg)!;
+      const cx = Number(m[1]);
+      const cy = Number(m[2]);
+      const dir = (az: number) => [...svg.matchAll(new RegExp(`<text x="([\\d.]+)" y="([\\d.]+)"[^>]*data-compass="${az}"`, "g"))].map((x) => [Number(x[1]), Number(x[2])])[0];
+      assert.ok(dir(0)[1] < cy && Math.abs(dir(0)[0] - cx) < 1, "K üstte");
+      assert.ok(dir(90)[0] > cx && Math.abs(dir(90)[1] - cy) < 1, "D sağda");
+      assert.ok(dir(180)[1] > cy, "G altta");
+      assert.ok(dir(270)[0] < cx, "B solda");
+      assert.ok(/>K</.test(svg) && />D</.test(svg) && />G</.test(svg) && />B</.test(svg));
+      for (const b of (tt.bodies as J[]).filter((x) => bodies.has(x.id))) {
+        const ln = new RegExp(`<line x1="${cx}" y1="${cy}" x2="([\\d.-]+)" y2="([\\d.-]+)"[^>]*data-ls-body="${b.id}"`).exec(svg)!;
+        const az = norm360(Math.atan2(Number(ln[1]) - cx, cy - Number(ln[2])) / (Math.PI / 180));
+        assert.ok(angDiff(az, b.azimuth) < 0.2, `${b.id}: pusula açısı ${az.toFixed(2)} ≠ ${b.azimuth}`);
+        assert.equal(/stroke-dasharray/.test(ln[0]), !b.aboveHorizon, `${b.id}: ufuk altı kesikli`);
+      }
+    });
+
+    await t("farklı doğum yeri / merkez + antimeridyen: haritalar değişir, işaretler yeni yerde; ±180° geçen hat bölünür (sahte yatay çizgi yok)", async () => {
+      const a = structuredClone(acgA) as J;
+      a.profile.revision = { ...a.profile.revision, latitude: -33.87, longitude: 151.21, locationLabel: "Sidney, Avustralya" };
+      a.technical.bodies = a.technical.bodies.map((b: J) => ({ ...b, mcLongitude: GEO.normLon(b.mcLongitude + 150), icLongitude: GEO.normLon(b.icLongitude + 150), asc: { ...b.asc, points: b.asc.points.map(([la, lo]: number[]) => [la, GEO.normLon(lo + 150)]) }, dsc: { ...b.dsc, points: b.dsc.points.map(([la, lo]: number[]) => [la, GEO.normLon(lo + 150)]) } }));
+      const fa = figOf(buildAstroReport(acgA))!.figure;
+      const fb = figOf(buildAstroReport(a))!.figure;
+      assert.deepEqual(fb.markers[0], { key: "birth", lat: -33.87, lon: 151.21, label: "Doğum: Sidney, Avustralya" });
+      const pa = await renderFigurePng(fa);
+      const pb = await renderFigurePng(fb);
+      assert.ok(!("error" in pa) && !("error" in pb) && !pa.png.equals(pb.png), "farklı veri → farklı harita");
+      assert.ok((fb.lines as J[]).some((l) => (l.d.match(/M/g) ?? []).length > 1), "±180° geçen eğri bölündü");
+      for (const l of fb.lines as J[]) for (const seg of l.d.split("M").slice(1)) {
+        const xs = seg.split("L").map((p2: string) => Number(p2.split(",")[0]));
+        for (let i = 1; i < xs.length; i++) assert.ok(Math.abs(xs[i] - xs[i - 1]) < 500, `${l.key}: harita boyunca sahte yatay çizgi`);
+      }
+      const l2 = structuredClone(lsA) as J;
+      l2.params = { ...(l2.params ?? {}), reference: { label: "New York, ABD" } };
+      const f2 = figOf(buildAstroReport(l2))!.figure;
+      assert.equal(f2.reference.label, "New York, ABD");
+    });
+
+    await t("ACG / Local space: eksik / bozuk veri → harita YOK, AÇIK not (yanlış yerleştirilmiş harita basılmaz)", () => {
+      for (const a of [acgA, lsA]) {
+        const x = a as J;
+        const bad = [
+          { ...x, technical: { ...x.technical, bodies: [] } },
+          { ...x, technical: { ...x.technical, schema: "astro.western.natal.v1" } },
+          { ...x, technical: { ...x.technical, bodies: x.technical.bodies.map((b: J, i: number) => (i === 0 ? { ...b, ...(x.technique === "western.local_space" ? { azimuth: Number.NaN } : { mcLongitude: "x" }) } : b)) } },
+          { ...x, technical: { ...x.technical, bodies: x.technical.bodies.map((b: J, i: number) => (i === 0 ? { ...b, ...(x.technique === "western.local_space" ? { line: [[95, 10]] } : { asc: { ...b.asc, points: [[120, 10]] } }) } : b)) } },
+        ];
+        for (const y of bad) {
+          const r = buildAstroReport(y as ReportAnalysisInput);
+          assert.ok(!r.blocks.some((b) => b.kind === "chart"), `${x.technique}: bozuk veride harita olmamalı`);
+          assert.ok(r.blocks.some((b) => b.kind === "para" && b.tone === "warn" && b.text.startsWith("Harita bu kayıtta eksik teknik veri")), `${x.technique}: açık not`);
+        }
+      }
+    });
+
+    await t("ACG / Local space Word + PDF: aynı PNG, sayfa genişliğinde; PDF'te başlık ve harita aynı sayfada; yeniden indirmede bayt bayt aynı görsel", async () => {
+      for (const tech of ["western.astrocartography", "western.local_space"]) {
+        const a = await full(saved.get(tech)!);
+        const png = await renderFigurePng(figOf(buildAstroReport(a))!.figure);
+        assert.ok(!("error" in png));
+        if ("error" in png) return;
+        const d1 = await get("expert", saved.get(tech)!, "exAI", "docx");
+        const d2 = await get("expert", saved.get(tech)!, "exAI", "docx");
+        const m1 = await mediaOf(d1.buf);
+        assert.ok(m1.length === 1 && m1[0].equals(png.png) && (await mediaOf(d2.buf))[0].equals(png.png), `${tech}: Word görseli bu kaydın haritası ve yeniden indirmede aynı`);
+        const ext = [...(await (await JSZip.loadAsync(d1.buf)).file("word/document.xml")!.async("string")).matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/g)].map((x) => [Number(x[1]), Number(x[2])]);
+        assert.ok(ext.length === 1 && ext[0][0] > 5_500_000 && ext[0][0] <= 6_096_000, `${tech}: Word'de sayfa genişliğinde ${JSON.stringify(ext)}`);
+        const p = await get("expert", saved.get(tech)!, "exAI", "pdf");
+        const doc = await getDocumentProxy(new Uint8Array(p.buf));
+        let headPage = -1;
+        let imgPage = -1;
+        for (let i = 1; i <= doc.numPages; i++) {
+          const pg = await doc.getPage(i);
+          const tc = await pg.getTextContent();
+          if (headPage < 0 && tc.items.some((it) => "str" in it && it.str === "Dünya haritası")) headPage = i;
+          const ops = await pg.getOperatorList();
+          if (imgPage < 0 && ops.fnArray.some((f) => f === 85 || f === 86)) imgPage = i; // paintImageXObject
+        }
+        assert.ok(headPage > 0 && headPage === imgPage, `${tech}: PDF başlık s.${headPage} / harita s.${imgPage}`);
+      }
+    });
+  }
+
   restore();
   console.log(`\nastrology report8 harness: ${pass} PASS / ${fail} FAIL`);
   if (fail > 0) process.exit(1);

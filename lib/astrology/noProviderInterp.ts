@@ -7,7 +7,7 @@
 export const NO_PROVIDER_INTERPRETATION: ReadonlySet<string> = new Set(["vedic.drishti", "vedic.ashtakavarga", "kp.transit"]);
 
 export const NO_PROVIDER_INTERPRETATION_NOTE =
-  "Bu teknik için Roxy otomatik yorum metni üretmez; sonuç yalnız teknik veridir. Danışana özel değerlendirme için “Kendi Yorumum” bölümünü kullanabilirsiniz.";
+  "Bu analiz türünde otomatik yorum bulunmuyor; yalnızca teknik hesaplama sonuçları sunuluyor. Danışana özel değerlendirme için “Kendi Yorumum” bölümünü kullanabilirsiniz.";
 
 export function hasNoProviderInterpretation(technique: string): boolean {
   return NO_PROVIDER_INTERPRETATION.has(technique);

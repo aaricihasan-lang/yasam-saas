@@ -120,7 +120,7 @@ function StarDetail({ star, contacts, orb, interp }: { star: FixedStar; contacts
       )}
       {kws.length > 0 && (
         <p className="min-w-0 break-words">
-          <span className="text-slate-500">Anahtar kelimeler (Roxy): </span>
+          <span className="text-slate-500">Anahtar kelimeler: </span>
           {kws.map((k) => starKeywordTr(k)).join(", ")}
         </p>
       )}

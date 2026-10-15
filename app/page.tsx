@@ -241,6 +241,12 @@ type ModuleCard = {
    * Global permission alias semantiği DEĞİŞTİRİLMEZ (aroma izni ≠ şifa izni).
    */
   anyPermissionKeys?: string[];
+  /**
+   * 2026-10-15: kartın İÇİNDE barındırdığı ek modüller (ör. Yaşam Analiz Merkezi → Gökyüzü Atlası). permissionKey
+   * davranışı AYNEN korunur; bu anahtarlardan biri (hasModulePermission) açık olan uzman da kartı görür ve kilitsiz açar.
+   * Alt modülün kendisi kendi sayfasında / API'sinde ayrıca korunur (yalnız kart görünürlüğüdür).
+   */
+  extraPermissionKeys?: ModulePermissionKey[];
   emoji: string;
   featured?: boolean;
   /** Bu modülün i18n `.stat` sayaç metni var mı (n interpolasyonlu). */
@@ -515,6 +521,8 @@ const dashboardModules: ModuleCard[] = [
   {
     href: "/life-analysis",
     permissionKey: "numerology",
+    // 2026-10-15 (owner kararı): Gökyüzü Atlası artık Yaşam Analiz Merkezi'nin içinde (ana panelde ayrı kart yok).
+    extraPermissionKeys: ["astrology"],
     emoji: "🧠",
     hasStat: true,
     Icon: Brain,
@@ -535,19 +543,9 @@ const dashboardModules: ModuleCard[] = [
       border: "border-indigo-200/70",
     },
   },
-  // Astroloji (Aşama 7C): yalnız module_permissions.astrology açık uzmana görünür (admin uzman bazında
-  // açar; varsayılan kapalı). Erişim ayrıca route kuralı + API'de requireAstrologyAccess ile korunur.
-  {
-    href: "/astroloji",
-    permissionKey: "astrology",
-    emoji: "✨",
-    Icon: Sparkles,
-    theme: {
-      iconWrap: "from-violet-600 to-indigo-700",
-      cardBg: "from-violet-100/90 via-indigo-50/95 to-white",
-      border: "border-violet-200/70",
-    },
-  },
+  // Astroloji (Gökyüzü Atlası): 2026-10-15'ten beri ana panelde ayrı kart YOK — Yaşam Analiz Merkezi içinde
+  // (app/life-analysis; yalnız Astroloji erişimi doğrulanan kullanıcıya görünür). /astroloji adresi aynen çalışır;
+  // erişim route kuralı + API'de requireAstrologyAccess ile korunur.
 ];
 
 /** Admin paneldeki Türkçe/ek anahtarlar → ana panel kartı */
@@ -610,6 +608,9 @@ function isExpertDashboardModuleVisible(
   if (item.anyPermissionKeys) {
     return hasAnyModulePermissionFlag(user, item.anyPermissionKeys);
   }
+
+  // Kartın içindeki ek modül (ör. Analiz Merkezi → Gökyüzü Atlası) yetkisi kartı da görünür kılar.
+  if (item.extraPermissionKeys?.some((k) => hasModulePermission(user, k))) return true;
 
   const key = item.permissionKey;
 
@@ -1861,9 +1862,11 @@ export default function Home() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
                   {visibleDashboardModules.map((item) => {
                     const hasHref = item.href !== "#";
-                    const lockReason = item.anyPermissionKeys
+                    const baseLock = item.anyPermissionKeys
                       ? getAnyPermissionLockReason(user, item.anyPermissionKeys, hasHref, panelAccess)
                       : getModuleLockReason(user, item.permissionKey, hasHref, panelAccess);
+                    // Ek modül yetkisi (ör. yalnız Gökyüzü Atlası) kartın izin kilidini kaldırır; abonelik kilidi aynen.
+                    const lockReason = baseLock === "permission" && item.extraPermissionKeys?.some((k) => hasModulePermission(user, k)) ? null : baseLock;
                     const isLocked = lockReason !== null;
                     const isOpen = hasHref && !isLocked;
                     const { Icon, theme } = item;

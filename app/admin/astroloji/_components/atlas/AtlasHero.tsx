@@ -6,6 +6,8 @@
  * Sahne dekoratiftir; işlevler sahne yüklenmese de (WebGL yok / hata / yavaş ağ) aynen çalışır.
  */
 import dynamic from "next/dynamic";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 import { StaticSky } from "./CelestialScene";
 import { atlasDisplay, atlasText } from "./fonts";
@@ -163,6 +165,14 @@ export default function AtlasHero({
           {/* okunabilirlik: metin tarafında yumuşak karartma */}
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(8,15,36,0)_30%,rgba(8,15,36,0.85)_100%)] sm:bg-[linear-gradient(90deg,rgba(8,15,36,0.85)_0%,rgba(8,15,36,0.45)_34%,rgba(8,15,36,0)_58%)]" />
 
+          {/* 2026-10-15: Atlas, Yaşam Analiz Merkezi'nin içinde → modülden çıkış oraya döner. */}
+          <Link
+            href="/life-analysis"
+            className="absolute left-3 top-3 z-10 inline-flex min-h-[40px] items-center gap-1 rounded-full border border-white/15 bg-[#0A1230]/70 px-3 py-1.5 text-[12.5px] font-medium text-[#F6F2EA]/90 backdrop-blur transition hover:border-[#D9B56F]/60 hover:text-[#F6E7C3] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#D9B56F] sm:left-5 sm:top-4"
+            data-testid="atlas-back-to-center"
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Yaşam Analiz Merkezi
+          </Link>
           <div className="relative flex h-full flex-col justify-end px-4 pb-5 sm:max-w-[62%] sm:justify-center sm:px-8 sm:pb-0 lg:max-w-[50%] lg:px-12">
             <p className="flex items-center gap-3 text-[11px] font-semibold tracking-[0.18em] text-[#E6CF9F] sm:text-[13px]">
               <span className="h-px w-8 bg-gradient-to-r from-transparent via-[#D9B56F]/70 to-[#D9B56F] sm:w-10" />

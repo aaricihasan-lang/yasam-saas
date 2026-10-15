@@ -22,6 +22,9 @@ import { kundliLegend } from "@/app/admin/astroloji/_lib/kundliLocalize";
 import { interpretationKindNote, interpretationKindOfSchema } from "../interpretationKind";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "../noProviderInterp";
 import { figureTitle, type ReportFigure } from "./figures";
+import { ACG_ANGLES, BODY_COLORS, CLASSICAL, acgMapLines, acgMcLabels, localSpaceMapLines } from "@/app/admin/astroloji/_lib/locationMaps";
+import { ACG_TECHNICAL_SCHEMA, LOCAL_SPACE_TECHNICAL_SCHEMA, type AstrocartographyTechnical, type LocalSpaceTechnical } from "../model/westernLocation";
+import type { BodyId } from "../model/western";
 
 // ─── Blok modeli ─────────────────────────────────────────────────────────────
 
@@ -499,7 +502,7 @@ const COMPASS: Record<string, string> = {
 function westernLocation(b: B, technique: string, t: O, opts: O) {
   switch (technique) {
     case "western.astrocartography": {
-      b.p("Astrocartography çizgileri dünya haritası üzerinde uygulamada görüntülenir; raporda her gezegenin meridyen (MC/IC) boylamları ve gök koordinatları listelenir. Yükselen/Alçalan eğrilerinin nokta listesi rapora dökülmez.", "muted");
+      b.p("Hatlar yukarıdaki dünya haritasında çizilidir; aşağıda her gezegenin meridyen (MC/IC) boylamları ve gök koordinatları listelenir. Yükselen/Alçalan eğrilerinin nokta listesi tabloya dökülmez (haritada çizilidir).", "muted");
       const rows = arr(t.bodies).map((x) => [bodyL(x.id), coord(0, x.mcLongitude).split(", ")[1] ?? DASH, coord(0, x.icLongitude).split(", ")[1] ?? DASH, deg(x.rightAscension), fix(x.declination, 2) === DASH ? DASH : `${fix(x.declination, 2)}°`]);
       b.h(3, "Gezegen hatları");
       b.table(["Gezegen", "MC hattı boylamı", "IC hattı boylamı", "Sağ açıklık", "Dik açıklık"], rows, { empty: "Kayıtta hat verisi yok." });
@@ -547,7 +550,7 @@ const latTr = (lat: number | undefined) => (lat === undefined ? DASH : `${lat > 
 const magTr = (v: unknown) => (num(v) === null ? DASH : num(v)!.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
 export const FIXED_STARS_METHOD_TEXT =
-  "Yöntem: ekliptik boylam kavuşumu. Yıldızın doğum anındaki görünür tropikal boylamı (presesyon, nütasyon ve yıllık aberasyon uygulanmış) ile natal nokta boylamı arasındaki fark, seçilen orb içindeyse kavuşum sayılır. Bu yöntem paran (yıldız ile gezegenin aynı anda ufuk veya meridyen üzerinde olması) DEĞİLDİR; paran ve heliakal doğuş bu raporda yer almaz. Yıldız konumları ve kavuşumlar RoxyAPI'den alınmıştır; Yaşam Sistemi konumları Swiss Ephemeris yıldız kataloğu (SIMBAD ICRS J2000 + öz hareket) ile bağımsız olarak doğrulamıştır.";
+  "Yöntem: ekliptik boylam kavuşumu. Yıldızın doğum anındaki görünür tropikal boylamı (presesyon, nütasyon ve yıllık aberasyon uygulanmış) ile natal nokta boylamı arasındaki fark, seçilen orb içindeyse kavuşum sayılır. Bu yöntem paran (yıldız ile gezegenin aynı anda ufuk veya meridyen üzerinde olması) DEĞİLDİR; paran ve heliakal doğuş bu raporda yer almaz. Yıldız konumları ve kavuşumlar teknik hesaplama sonuçlarıdır; Yaşam Sistemi konumları Swiss Ephemeris yıldız kataloğu (SIMBAD ICRS J2000 + öz hareket) ile bağımsız olarak doğrulamıştır.";
 
 function westernFixedStars(b: B, t: O, opts: O) {
   const orb = fixedStarOrbOf(opts.orb);
@@ -935,7 +938,7 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       return;
     case "astro.western.forecast.interp.v1":
       // Roxy olay başına tek cümle (ayrı genel yorum yok) — aynen, tarih sırasıyla.
-      b.p("Roxy bu teknikte ayrı bir genel yorum üretmez; her olay için verdiği açıklama cümlesi değiştirilmeden aktarılmıştır.", "muted");
+      b.p("Bu teknikte ayrı bir genel otomatik yorum bulunmuyor; her olayın otomatik açıklama cümlesi değiştirilmeden aktarılmıştır.", "muted");
       for (const x of arr(c.events)) para(typeof x.datetime === "string" ? `${localTr(x.datetime)} UTC` : null, x.text);
       return;
     case "astro.western.progression.interp.v1":
@@ -946,7 +949,7 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       return;
     case "astro.western.fixed_stars.interp.v1": {
       // Kavuşum anlatıları (Roxy, lang=tr) aynen; anahtar kelimeler Roxy'de İngilizce gelir → Yaşam sözlüğüyle Türkçe (özgün).
-      b.p("Kavuşum metinleri RoxyAPI'nin şablon yorumlarıdır (yalnız rapor orbu içindeki temaslar); anahtar kelimeler Roxy'nin İngilizce verisinin Yaşam sözlüğüyle Türkçe karşılığıdır (özgün sözcük parantez içinde).", "muted");
+      b.p("Kavuşum metinleri otomatik yorum metinleridir (yalnız rapor orbu içindeki temaslar); anahtar kelimeler İngilizce kaynak verinin Yaşam sözlüğüyle Türkçe karşılığıdır (özgün sözcük parantez içinde).", "muted");
       for (const x of arr(c.contacts)) para(`${fixedStarName(String(x.star))} ${CONJ} ${bodyL(x.point)}`, x.text);
       const used = new Set(arr(c.contacts).map((x) => String(x.star)));
       for (const st of arr(c.stars).filter((x) => used.has(String(x.id)))) {
@@ -1021,7 +1024,7 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       return;
     case "astro.vedic.transit.interp.v1":
       // Sağlayıcı bu metni Türkçe istek olmasına rağmen İngilizce döndürür; aynen korunur (çevrilmez), ekrandaki gibi belirtilir.
-      if (arr(c.keyTransits).length) b.p("Not: Roxy bu bölüm için metni yalnız İngilizce sağlıyor; metin değiştirilmeden aktarılmıştır.", "muted");
+      if (arr(c.keyTransits).length) b.p("Not: Bu bölümün otomatik metni yalnız İngilizce mevcuttur; metin değiştirilmeden aktarılmıştır.", "muted");
       for (const x of arr(c.keyTransits)) para(grahaL(x.id), x.text);
       return;
     case "astro.kp.chart.interp.v1":
@@ -1109,8 +1112,57 @@ const LOCAL_DT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 const DASHA_LEGEND = "Kesim genişliği dönemin süresiyle orantılıdır (uygulamadaki çizelgeyle aynı ölçek); payı %5'ten küçük ya da adı sığmayan dönemde ad yazılmaz (tarihler aşağıdaki tabloda). Ekrandaki “bugün” işareti rapora konmaz: rapor değişmez kayıttan üretilir.";
 const SHADBALA_LEGEND = "Çubuk = güç oranı (toplam rupa / BPHS asgari rupa). Koyu dikey çizgi 1,00 asgari düzeyidir; yeşil asgarinin üstü, pembe altı. Sıra 1 = en güçlü (uygulamadaki grafikle aynı ölçek).";
 
-function vedicKpFigure(technique: string, t: O): { figure: ReportFigure; caption: string; legend: string; heading?: string } | { missing: string; heading?: string } | null {
+const finite = (v: unknown, lo: number, hi: number) => typeof v === "number" && Number.isFinite(v) && v >= lo && v <= hi;
+const isBody = (v: unknown): v is BodyId => typeof v === "string" && v in BODY_COLORS;
+const validPts = (v: unknown, min: number) => Array.isArray(v) && v.length >= min && v.every((q) => Array.isArray(q) && q.length >= 2 && finite(q[0], -90, 90) && finite(q[1], -540, 540));
+const ACG_MAP_LEGEND = "MC (düz) ve IC (uzun kesikli) hatları sabit boylamlı dikey meridyenlerdir; AC (düz) ve DC (noktalı) hatları enleme göre eğrilen doğuş/batış hatlarıdır. Hat rengi gök cismini gösterir (lejant). Uygulamadaki varsayılan görünüm çizilir: klasik 10 gök cismi (Güneş…Plüton), dört açı. Eşdikdörtgen projeksiyon; altlık Natural Earth 1:110m (kamu malı).";
+const LS_MAP_LEGEND = "Hatlar merkezden her gök cisminin doğum anındaki azimut yönünde çizilen büyük çember yollarıdır (eşdikdörtgen projeksiyonda eğri görünür). Pusula aynı azimutları gösterir: K üstte, D sağda. Kesikli = cisim ufkun altında. Uygulamadaki varsayılan görünüm: klasik 10 gök cismi. Altlık Natural Earth 1:110m (kamu malı).";
+
+type FigureCtx = { birth: { lat: number; lon: number; label: string } | null; referenceLabel: string | null };
+
+function vedicKpFigure(technique: string, t: O, ctx: FigureCtx = { birth: null, referenceLabel: null }): { figure: ReportFigure; caption: string; legend: string; heading?: string } | { missing: string; heading?: string } | null {
   try {
+    if (technique === "western.astrocartography") {
+      const heading = "Dünya haritası";
+      const bs = arr(t.bodies);
+      const sm = isObj(t.sampling) ? t.sampling : {};
+      const valid =
+        bs.length > 0 &&
+        finite(sm.latitudeMin, -90, 90) &&
+        finite(sm.latitudeMax, -90, 90) &&
+        bs.every((x) => isBody(x.id) && finite(x.mcLongitude, -360, 360) && finite(x.icLongitude, -360, 360) && finite(x.rightAscension, -360, 360) && finite(x.declination, -90, 90) && isObj(x.asc) && isObj(x.dsc) && validPts((x.asc as O).points, 0) && validPts((x.dsc as O).points, 0));
+      if (t.schema !== ACG_TECHNICAL_SCHEMA || !valid) return { missing: FIGURE_MISSING, heading };
+      const d = t as unknown as AstrocartographyTechnical;
+      const bodies = new Set(d.bodies.map((x) => x.id).filter((id) => CLASSICAL.has(id)));
+      const angles = new Set(ACG_ANGLES);
+      const lines = acgMapLines(d, bodies, angles);
+      if (!lines.length) return { missing: FIGURE_MISSING, heading };
+      const markers = ctx.birth ? [{ key: "birth", lat: ctx.birth.lat, lon: ctx.birth.lon, label: `Doğum: ${ctx.birth.label}` }] : [];
+      return {
+        figure: { type: "acgMap", lines, labels: acgMcLabels(d, bodies, angles), markers, bodies: d.bodies.map((x) => x.id).filter((id) => bodies.has(id)), angles: [...ACG_ANGLES], sampling: d.sampling },
+        caption: `${figureTitle(technique)} — doğum anının gezegen hatları; kayıtlı analiz verisinden, uygulamadaki haritayla aynı projeksiyon ve hatlarla çizilmiştir.`,
+        legend: ACG_MAP_LEGEND,
+        heading,
+      };
+    }
+    if (technique === "western.local_space") {
+      const heading = "Dünya haritası";
+      const bs = arr(t.bodies);
+      const ref = isObj(t.reference) ? t.reference : {};
+      const valid = finite(ref.latitude, -90, 90) && finite(ref.longitude, -180, 180) && bs.length > 0 && bs.every((x) => isBody(x.id) && finite(x.azimuth, 0, 360) && typeof x.aboveHorizon === "boolean" && typeof x.compass === "string" && finite(x.altitude, -90, 90) && validPts(x.line, 2));
+      if (t.schema !== LOCAL_SPACE_TECHNICAL_SCHEMA || !valid) return { missing: FIGURE_MISSING, heading };
+      const d = t as unknown as LocalSpaceTechnical;
+      const bodies = new Set(d.bodies.map((x) => x.id).filter((id) => CLASSICAL.has(id)));
+      const lines = localSpaceMapLines(d, bodies);
+      if (!lines.length) return { missing: FIGURE_MISSING, heading };
+      const label = ctx.referenceLabel ?? "doğum yeri";
+      return {
+        figure: { type: "localSpaceMap", lines, reference: { key: "ref", lat: d.reference.latitude, lon: d.reference.longitude, label }, compass: d.bodies.filter((x) => bodies.has(x.id)).map((x) => ({ id: x.id, azimuth: x.azimuth, aboveHorizon: x.aboveHorizon })) },
+        caption: `${figureTitle(technique)} — merkez: ${label}; kayıtlı analiz verisinden, uygulamadaki harita ve pusulayla aynı hatlarla çizilmiştir.`,
+        legend: LS_MAP_LEGEND,
+        heading,
+      };
+    }
     if (technique === "vedic.dasha" || technique === "kp.dasha") {
       const heading = "Dönem çizelgesi";
       const schema = technique === "kp.dasha" ? KP_DASHA_TECHNICAL_SCHEMA : VEDIC_DASHA_TECHNICAL_SCHEMA;
@@ -1208,7 +1260,10 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     b.p(WHEEL_LEGEND, "muted");
   }
   // 5b. Vedik D1 / Varga / KP haritası (2026-10-15): ekranda çizilen haritanın aynısı, kayıtlı teknik veriden.
-  const fig = tech ? vedicKpFigure(technique, tech) : null;
+  const rv0 = profile && isObj(profile.revision) ? profile.revision : null;
+  const birth = rv0 && num(rv0.latitude) !== null && num(rv0.longitude) !== null ? { lat: num(rv0.latitude)!, lon: num(rv0.longitude)!, label: typeof rv0.locationLabel === "string" ? rv0.locationLabel : "doğum yeri" } : null;
+  const refOpt = isObj(opts.reference) ? opts.reference : null;
+  const fig = tech ? vedicKpFigure(technique, tech, { birth, referenceLabel: refOpt && typeof refOpt.label === "string" ? refOpt.label : null }) : null;
   if (fig) {
     b.h(1, fig.heading ?? "Harita");
     if ("missing" in fig) b.p(fig.missing, "warn");
@@ -1265,7 +1320,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     b.p(NO_PROVIDER_INTERPRETATION_NOTE, "muted");
   }
   if (interpVisible) {
-    b.h(1, "Roxy otomatik yorumu");
+    b.h(1, "Otomatik Yorum");
     // 2026-10-15: ekrandaki sekme adıyla aynı tür ayrımı (Otomatik Yorum / Teknik Açıklama / Olay Açıklamaları).
     b.p(interpretationKindNote(interpretationKindOfSchema(typeof (it!.content as O).schema === "string" ? String((it!.content as O).schema) : "")), "muted");
     if (typeof it!.notice === "string") b.p(it!.notice, "muted");
@@ -1286,7 +1341,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     ["Analiz kimliği", a.id],
     ["Kayıt tarihi", instantTr(a.analysisAt)],
     ["Hesap tarihi", instantTr(v.resultComputedAt)],
-    ["Hesap motoru", typeof v.provider === "string" ? (v.provider === "roxy" ? "RoxyAPI" : v.provider) : DASH],
+    ["Hesaplama sağlayıcısı", typeof v.provider === "string" ? "Harici hizmet" : DASH],
     ["Snapshot şeması", s(v.snapshotSchema)],
   ]);
   b.p("Harita ve teknik sonuçlar kaydedildiği andaki değişmez analiz kaydından, uzman notları kayıt anındaki hâlinden, Bilgi Bankası açıklamaları uzmanın güncel kayıtlarından alınmıştır; rapor oluşturulurken yeni hesaplama yapılmaz.", "muted");
@@ -1343,7 +1398,7 @@ export function buildCombinedAstroReport(items: ReportAnalysisInput[], scope: "s
   blocks.push({
     kind: "para",
     tone: "muted",
-    text: "Her analiz kendi bölümünde, kaydedildiği andaki değişmez kayıtlı veriden yer alır; doğum bilgisi revizyonu her bölümde ayrıca belirtilir. Rapor oluşturulurken yeni hesaplama ve sağlayıcı (Roxy) isteği yapılmaz.",
+    text: "Her analiz kendi bölümünde, kaydedildiği andaki değişmez kayıtlı veriden yer alır; doğum bilgisi revizyonu her bölümde ayrıca belirtilir. Rapor oluşturulurken yeni hesaplama yapılmaz.",
   });
   sections.forEach((x, i) => {
     blocks.push({ kind: "pagebreak" });

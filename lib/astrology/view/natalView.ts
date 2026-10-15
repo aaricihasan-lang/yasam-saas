@@ -92,7 +92,7 @@ export type NatalView = {
 };
 
 export const PROVIDER_INTERP_NOTICE =
-  "Bu bölüm hesaplama sağlayıcısının (Roxy) otomatik ürettiği genel metindir; uzman yorumu değildir.";
+  "Bu bölüm otomatik oluşturulmuş genel metindir; uzman yorumu değildir.";
 
 export function buildNatalView(
   result: ResultLike,

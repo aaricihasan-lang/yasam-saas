@@ -262,7 +262,7 @@ export function VedicD1Panel({ t, kbLookup }: { t: VedicD1Technical; kbLookup?: 
               · {nak.janma.nakshatra.pada}. pada · yönetici {GRAHA_LABELS[nak.janma.nakshatra.lord]} · katedilen %{Math.round(nak.janma.nakshatra.ratio * 100)}, kalan{" "}
               {formatDegree(nak.janma.nakshatra.remaining)}
             </div>
-            <p className="text-xs text-slate-500">Vimshottari dasha bu nakshatranın yöneticisiyle ve kalan oranla başlar (dasha değerleri ayrıca Roxy&apos;den alınır).</p>
+            <p className="text-xs text-slate-500">Vimshottari dasha bu nakshatranın yöneticisiyle ve kalan oranla başlar (dasha değerleri ayrıca hesaplama sonucundan alınır).</p>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full" data-testid="astro-vedic-nakshatra-table">
@@ -334,7 +334,7 @@ export function VedicD1Panel({ t, kbLookup }: { t: VedicD1Technical; kbLookup?: 
                 <span className="font-medium">{y.name}</span>{" "}
                 <span className="text-xs text-slate-500">
                   {y.family}
-                  {y.quality ? ` · Roxy sınıfı: ${y.quality === "positive" ? "olumlu" : y.quality === "negative" ? "olumsuz" : "karma"}` : ""}
+                  {y.quality ? ` · sınıf: ${y.quality === "positive" ? "olumlu" : y.quality === "negative" ? "olumsuz" : "karma"}` : ""}
                 </span>
                 {y.evidence && <div className="text-xs text-slate-600">Oluşum: {y.evidence}</div>}
               </li>
@@ -391,8 +391,8 @@ function VargaVerification({ t }: { t: VedicVargaTechnical }) {
   if (c.status === "mismatch") {
     return (
       <div className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs text-rose-900" data-testid="astro-vedic-varga-check" data-varga-check="mismatch">
-        <strong>Doğrulanmadı:</strong> {dn} için {c.mismatches.length}/{c.checked} noktada Roxy rashisi {c.method} kuralından farklı (
-        {c.mismatches.map((m) => `${m.id === "lagna" ? "Lagna" : GRAHA_LABELS[m.id]}: Roxy ${SIGN_LABELS[m.got]}, kural ${SIGN_LABELS[m.expected]}`).join("; ")}). Yöntem/ekol farkı olabilir;
+        <strong>Doğrulanmadı:</strong> {dn} için {c.mismatches.length}/{c.checked} noktada hesaplanan rashi {c.method} kuralından farklı (
+        {c.mismatches.map((m) => `${m.id === "lagna" ? "Lagna" : GRAHA_LABELS[m.id]}: hesaplanan ${SIGN_LABELS[m.got]}, kural ${SIGN_LABELS[m.expected]}`).join("; ")}). Yöntem/ekol farkı olabilir;
         bu harita doğrulanmış sayılmaz.
       </div>
     );
@@ -407,7 +407,7 @@ function VargaVerification({ t }: { t: VedicVargaTechnical }) {
   return (
     <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-900" data-testid="astro-vedic-varga-check" data-varga-check="match">
       <strong>Bağımsız denetim:</strong> {c.checked}/{c.checked} nokta (Lagna + 9 graha) {c.method} kuralıyla aynı — {rule?.rule}
-      {c.goldenConfirmed ? " Yöntem gerçek Roxy golden yanıtıyla da teyit edildi." : " (Bu bölüm için ayrıca golden teyidi yok; denetim bu haritanın kendi verisiyle yapıldı.)"}
+      {c.goldenConfirmed ? " Yöntem gerçek bir hesaplama örneğiyle de teyit edildi." : " (Bu bölüm için ayrıca golden teyidi yok; denetim bu haritanın kendi verisiyle yapıldı.)"}
     </p>
   );
 }
@@ -819,7 +819,7 @@ export function VedicDashaPanel({
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-vedic-dasha-panel" data-level={t.level}>
       {t.periods.some((x) => !!x.kp) && (
         <p className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs text-indigo-900" data-testid="astro-kp-dasha-method">
-          <strong>Olay tahmini değildir.</strong> Tarihler Vimshottari (KP ayanamsa); dönem lordlarının KP significator&apos;ları Roxy&apos;den. Roxy KP olay
+          <strong>Olay tahmini değildir.</strong> Tarihler Vimshottari (KP ayanamsa); dönem lordlarının KP significator&apos;ları hesaplama sonucundan. Bu teknik KP olay
           zamanlaması (ev grubu → dönem eşleştirmesi) sunmaz, Yaşam Sistemi de üretmez; dönemleri yorumlamak uzmana aittir.
         </p>
       )}

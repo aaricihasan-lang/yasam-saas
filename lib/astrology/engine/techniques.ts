@@ -788,7 +788,7 @@ function lahiriFixedBody(ctx: UnitContext): Record<string, unknown> {
   const b = vedicBirthBody(ctx.birth, "lahiri");
   return { date: b.date, time: b.time, latitude: b.latitude, longitude: b.longitude, timezone: b.timezone };
 }
-const LAHIRI_ONLY = "Roxy bu hesabı yalnız Lahiri ayanamsa ile yapar (uç ayanamsa almaz); Lahiri seçin.";
+const LAHIRI_ONLY = "Bu hesap yalnız Lahiri ayanamsa ile yapılabilir (başka ayanamsa desteklenmez); Lahiri seçin.";
 
 /** Ayanamsa seçenekli basit Vedik doğum tekniği (tek birim). */
 function vedicBirthTechnique(

@@ -67,7 +67,7 @@ const P = ({ text }: { text: string | null | undefined }) => (text ? <p classNam
 /** 6: Roxy houseThemes (ev anahtar kelimeleri; sağlayıcı anlatısı). */
 function HouseThemes({ themes }: { themes: { house: number; keywords: string[] }[] }) {
   return (
-    <Block title="Ev anahtar kelimeleri (Roxy)">
+    <Block title="Ev anahtar kelimeleri">
       {themes.map((t) => (
         <Item key={t.house}>
           <span className="font-medium">{t.house}. ev:</span> {t.keywords.join(", ")}
@@ -180,7 +180,7 @@ function Content({ content }: { content: unknown }) {
       for (const e of c.events) months.set(e.datetime.slice(0, 7), [...(months.get(e.datetime.slice(0, 7)) ?? []), e]);
       return (
         <>
-          <p className="mb-2 text-xs text-slate-500">Roxy bu teknikte ayrı bir genel yorum üretmez; her olay için verdiği açıklama cümlesi aşağıda değiştirilmeden listelenir ({c.events.length} olay).</p>
+          <p className="mb-2 text-xs text-slate-500">Bu teknikte ayrı bir genel otomatik yorum bulunmuyor; her olayın otomatik açıklama cümlesi aşağıda değiştirilmeden listelenir ({c.events.length} olay).</p>
           {[...months.entries()].map(([m, list]) => (
             <Block key={m} title={`${m.slice(5, 7)}.${m.slice(0, 4)} (${list.length})`}>
               {list.map((e, i) => (
@@ -339,7 +339,7 @@ function Content({ content }: { content: unknown }) {
       const used = new Set(c.contacts.map((x) => x.star));
       return (
         <>
-          <p className="text-xs text-slate-500">Kavuşum metinleri Roxy şablon yorumlarıdır ve sağlayıcı sorgusundaki (3°) tüm temasları kapsar. Anahtar kelimeler Roxy&apos;de İngilizce gelir; Yaşam sözlüğüyle Türkçeleştirilmiştir.</p>
+          <p className="text-xs text-slate-500">Kavuşum metinleri otomatik yorum metinleridir ve sağlayıcı sorgusundaki (3°) tüm temasları kapsar. Anahtar kelimeler kaynak veride İngilizce gelir; Yaşam sözlüğüyle Türkçeleştirilmiştir.</p>
           {c.summary && <p className="rounded-lg bg-white px-3 py-2">{c.summary}</p>}
           <Block title="Sabit yıldız kavuşumları">
             {c.contacts.map((x) => (
@@ -398,7 +398,7 @@ function Content({ content }: { content: unknown }) {
           )}
           {c.yogas.length > 0 && (
             <details className="rounded-lg bg-white px-3 py-2">
-              <summary className="cursor-pointer font-semibold text-sky-900">Yoga ansiklopedisi ({c.yogas.length}) — Roxy&apos;nin genel yoga açıklamaları; çoğu bu haritada OLUŞMAMIŞTIR (oluşanlar teknik bölümde işaretli)</summary>
+              <summary className="cursor-pointer font-semibold text-sky-900">Yoga ansiklopedisi ({c.yogas.length}) — genel otomatik yoga açıklamaları; çoğu bu haritada OLUŞMAMIŞTIR (oluşanlar teknik bölümde işaretli)</summary>
               <ul className="mt-2 flex flex-col gap-2">
                 {c.yogas.map((y) => (
                   <li key={y.id}>
@@ -429,7 +429,7 @@ function Content({ content }: { content: unknown }) {
             ))}
           </Block>
           {c.kpStrength && c.kpStrength.length > 0 && (
-            <Block title="Roxy KP dönem gücü — lordun gösterdiği evlere bağ derecesi; olay olasılığı veya olumluluk DEĞİLDİR (sağlayıcı yorumu)">
+            <Block title="KP dönem gücü — lordun gösterdiği evlere bağ derecesi; olay olasılığı veya olumluluk DEĞİLDİR (otomatik değerlendirme)">
               {c.kpStrength.map((k) => (
                 <Item key={`kp-${k.lord}-${k.start}`}>
                   <span className="font-medium">{GRAHA_LABELS[k.lord]}</span> · {k.start.slice(0, 10)} · puan {k.score} · derece {k.grade} · {KP_STRENGTH_TR[k.label] ?? k.label}
@@ -544,8 +544,8 @@ export default function ProviderInterpretationPanel({ interpretation }: { interp
           <span className="h-2 w-2 rounded-full bg-[#c9a54e]" aria-hidden="true" />
           {title}
         </h3>
-        <span className="text-[11px] text-slate-500" title={interpretation.visible ? interpretation.notice : "Otomatik katman, hesaplama sağlayıcısı RoxyAPI tarafından üretilir."}>
-          Kaynak: RoxyAPI · uzman yorumu değildir
+        <span className="text-[11px] text-slate-500" title={interpretation.visible ? interpretation.notice : "Bu bölüm otomatik oluşturulmuştur; uzman yorumu değildir."}>
+          Otomatik oluşturulmuştur · uzman yorumu değildir
         </span>
       </div>
       {!interpretation.visible ? (

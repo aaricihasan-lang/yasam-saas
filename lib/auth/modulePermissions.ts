@@ -90,7 +90,7 @@ export const MODULE_PERMISSION_LABELS: Record<ModulePermissionKey, string> = {
   hd_system_reading: "Human Design — Sistem Yorumu",
   numerology_future_years: "Numeroloji — Gelecek Yılları Göster",
   astrology: "Astroloji",
-  astrology_provider_interp: "Astroloji — Roxy Otomatik Yorum",
+  astrology_provider_interp: "Astroloji — Otomatik Yorum",
 };
 
 export const DEFAULT_MODULE_PERMISSIONS: ModulePermissions = {
