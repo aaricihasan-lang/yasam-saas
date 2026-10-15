@@ -176,7 +176,17 @@ async function main() {
     if (prem) assert.ok(prem.astrology !== true && prem.astrology_provider_interp !== true, "Premium payload Astroloji açmaz (admin uzman bazında açar)");
     assert.ok(!(mp.PREMIUM_HOME_MODULE_KEYS as string[]).includes("astrology"));
     assert.match(read("lib/auth/routeModuleAccess.ts"), /\{ prefix: "\/astroloji", keys: \["astrology"\] \}/);
-    assert.match(read("app/page.tsx"), /href: "\/astroloji",\s*\n\s*permissionKey: "astrology",/);
+    // 2026-10-15 (owner kararı): Gökyüzü Atlası ana panelde ayrı kart DEĞİL; Yaşam Analiz Merkezi'nin içinde. Merkez kartı
+    // Atlas yetkili uzmana da görünür; içerideki Atlas kartı yalnız sunucu erişim yoklamasıyla (fail-closed) çizilir.
+    const home = read("app/page.tsx");
+    assert.ok(!/href: "\/astroloji"/.test(home), "ana panelde ayrı Gökyüzü Atlası kartı olmamalı");
+    assert.match(home, /href: "\/life-analysis",\s*\n\s*permissionKey: "numerology",[\s\S]{0,200}extraPermissionKeys: \["astrology"\]/);
+    assert.match(home, /item\.extraPermissionKeys\?\.some\(\(k\) => hasModulePermission\(user, k\)\)\) return true;/);
+    const la = read("app/life-analysis/page.tsx");
+    assert.ok(la.includes("<AtlasCenterCard />"), "Analiz Merkezi Atlas kartını içerir");
+    const card = read("app/life-analysis/AtlasCenterCard.tsx");
+    assert.ok(/astroFetch<[^>]*>\("\/api\/admin\/astroloji\/access"\)/.test(card) && /if \(!allowed\) return null;/.test(card) && /href="\/astroloji"/.test(card), "kart yalnız erişim yoklaması 200 iken, /astroloji adresine");
+    assert.ok(read("app/admin/astroloji/_components/atlas/AtlasHero.tsx").includes('href="/life-analysis"'), "Atlas ana ekranından Analiz Merkezi'ne dönüş");
   });
 
   await t("7C: paylaşılan sistem dosyalarındaki fark YALNIZ Astroloji satırları (başka modül davranışı değişmez)", () => {
@@ -188,7 +198,7 @@ async function main() {
     }
     const SHARED = [
       "lib/auth/modulePermissions.ts", "lib/auth/moduleAccessCore.ts", "lib/admin/userManagement.ts", "lib/auth/moduleRouteRegistry.ts",
-      "lib/auth/routeModuleAccess.ts", "lib/admin/stats/moduleUsageRegistry.ts", "lib/usage/usageTaxonomy.ts", "app/page.tsx",
+      "lib/auth/routeModuleAccess.ts", "lib/admin/stats/moduleUsageRegistry.ts", "lib/usage/usageTaxonomy.ts",
       "messages/tr/home.json", "messages/en/home.json",
     ];
     for (const f of SHARED) {
@@ -293,10 +303,36 @@ async function main() {
       // HD'den ayırır (HD kuralı aynen korunur; bu iki dosyada yalnız test beklentisi değişir).
       /^scripts\/final-hardening\/output-visibility\.harness\.ts$/,
       /^scripts\/mobile-files\/ui\.harness\.ts$/,
+      // 2026-10-15 menü taşıma: Yaşam Analiz Merkezi'ne Gökyüzü Atlası kartı (Numeroloji / HD kartları değişmez).
+      /^app\/life-analysis\/AtlasCenterCard\.tsx$/,
+      /^app\/life-analysis\/page\.tsx$/,
     ];
     const outside = all.filter((p) => !allowed.some((r) => r.test(p)));
     assert.deepEqual(outside, [], `kapsam dışı değişiklik: ${outside.join(", ")}`);
     assert.ok(!all.some((p) => /^lib\/human-design\/|^app\/api\/hd\/|^app\/human-design\//.test(p)), "HD dosyası değişti");
+  });
+
+  await t("2026-10-15 menü taşıma: app/page.tsx farkı YALNIZ Atlas kartının kaldırılması + merkez kartının ek yetkisi (başka kart değişmez)", () => {
+    let base = "";
+    try {
+      base = execSync("git merge-base HEAD origin/main", { cwd: ROOT, encoding: "utf8" }).trim();
+    } catch {
+      return;
+    }
+    const diff = execSync(`git diff -U0 ${base} -- app/page.tsx`, { cwd: ROOT, encoding: "utf8" });
+    const minus = diff.split(/\r?\n/).filter((l) => l.startsWith("-") && !l.startsWith("---")).map((l) => l.slice(1).trim());
+    const plus = diff.split(/\r?\n/).filter((l) => l.startsWith("+") && !l.startsWith("+++")).map((l) => l.slice(1).trim());
+    const removedCard = new Set([
+      "// Astroloji (Aşama 7C): yalnız module_permissions.astrology açık uzmana görünür (admin uzman bazında",
+      "// açar; varsayılan kapalı). Erişim ayrıca route kuralı + API'de requireAstrologyAccess ile korunur.",
+      "{", 'href: "/astroloji",', 'permissionKey: "astrology",', 'emoji: "✨",', "Icon: Sparkles,", "theme: {",
+      'iconWrap: "from-violet-600 to-indigo-700",', 'cardBg: "from-violet-100/90 via-indigo-50/95 to-white",', 'border: "border-violet-200/70",', "},",
+      "const lockReason = item.anyPermissionKeys",
+    ]);
+    for (const m of minus) assert.ok(removedCard.has(m), `beklenmeyen silinen satır: ${m}`);
+    for (const p of plus) {
+      assert.ok(p === "" || /^(\/\/|\/\*\*|\*)|extraPermissionKeys|^const baseLock = item\.anyPermissionKeys$|^const lockReason = baseLock === "permission"/.test(p), `beklenmeyen eklenen satır: ${p}`);
+    }
   });
 
   await t("7B: Danışan Yolculuğu detay sayfasındaki fark YALNIZ Astroloji durum rozeti (dynamic import + tek JSX satırı)", () => {
