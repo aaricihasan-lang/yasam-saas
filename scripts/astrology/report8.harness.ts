@@ -335,8 +335,8 @@ async function main() {
   // 2026-10-12 (UAT 2. tur, madde L): Progression (tam burç evli tek halka), Transit (natal çerçeve varsa çift halka) ve
   // Sinastri (çift halka) da kayıtlı veriden çizilir; çerçevesi olmayan transit görselsiz kalır.
   // 2026-10-15 (owner onayı): Vedik D1 / Varga ve KP chart / horary / transit haritaları da rapora girer.
-  await t("model: harita görseli natal, return, composite, relocation, progression, sinastri, (natal çerçeveli) transit, Vedik D1/Varga ve KP chart/horary/transitte; diğerleri görselsiz", async () => {
-    const withChart = new Set(["western.natal", "western.solar_return", "western.lunar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit"]);
+  await t("model: harita görseli natal, return, composite, relocation, progression, sinastri, (natal çerçeveli) transit, Vedik D1/Varga, KP chart/horary/transit + (2026-10-15) Dasha çizelgesi ve Shadbala grafiği; diğerleri görselsiz", async () => {
+    const withChart = new Set(["western.natal", "western.solar_return", "western.lunar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit", "vedic.dasha", "kp.dasha", "vedic.shadbala"]);
     for (const tech of TECHNIQUES) {
       const a = await full(saved.get(tech)!);
       const r = buildAstroReport(a);
@@ -432,8 +432,8 @@ async function main() {
   });
 
   await t("harita görseli: natal/return/composite/relocation/progression/sinastri (+ natal çerçeveli transit) + Vedik D1/Varga + KP Word'de PNG gömülü + PDF'te görsel; haritasız Vedik/KP teknikleri görselsiz", async () => {
-    for (const tech of ["western.natal", "western.solar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit"]) assert.equal(docs.get(tech)!.docx.media.length, 1, tech);
-    for (const tech of ["kp.dasha", "kp.ruling", "vedic.dasha", "vedic.panchanga"]) assert.equal(docs.get(tech)!.docx.media.length, 0, tech);
+    for (const tech of ["western.natal", "western.solar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit", "vedic.dasha", "kp.dasha", "vedic.shadbala"]) assert.equal(docs.get(tech)!.docx.media.length, 1, tech);
+    for (const tech of ["kp.ruling", "vedic.panchanga", "vedic.drishti", "vedic.ashtakavarga"]) assert.equal(docs.get(tech)!.docx.media.length, 0, tech);
     const trFrame = !!((await full(saved.get("western.transit")!)).technical as J | null)?.natalFrame;
     assert.equal(docs.get("western.transit")!.docx.media.length, trFrame ? 1 : 0, "western.transit (natal çerçeve → çift halka)");
     const png = await (await JSZip.loadAsync((await get("expert", saved.get("western.natal")!, "exAI", "docx")).buf)).file(docs.get("western.natal")!.docx.media[0])!.async("nodebuffer");
@@ -562,25 +562,29 @@ async function main() {
   const ANDROID = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36";
   const WEBVIEW = "Mozilla/5.0 (Linux; Android 14; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0 Mobile Safari/537.36 YasamSistemiAndroid/1.0";
   const IOS = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
-  await t("mobil: Android tarayıcı + Android uygulama WebView'i → Word ve PDF 403 (dosya üretilmez); yetkisiz Android → 404 (varlık sızmaz); iOS/masaüstü 200", async () => {
+  // 2026-10-15 (owner kararı, satış öncesi): Astroloji Word/PDF Android tarayıcı + uygulama + tablet dahil her cihazda.
+  await t("mobil: Android tarayıcı + Android uygulama WebView'i + iOS → Word ve PDF 200 (gerçek dosya, aynı başlıklar); yetkisiz Android → 404 (varlık sızmaz)", async () => {
     const id = saved.get("western.natal")!;
-    for (const ua of [ANDROID, WEBVIEW]) {
+    for (const ua of [ANDROID, WEBVIEW, IOS]) {
       for (const fmt of ["docx", "pdf"]) {
         const r = await get("expert", id, "exAI", fmt, "", ua);
-        assert.equal(r.status, 403, `${fmt} ${ua.slice(0, 30)}`);
-        assert.match(r.json().error, /bu cihazda kullanılamıyor/);
+        assert.equal(r.status, 200, `${fmt} ${ua.slice(0, 30)}`);
+        assert.equal(r.headers.get("content-type"), fmt === "docx" ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document" : "application/pdf");
+        assert.match(r.headers.get("content-disposition") ?? "", /^attachment; filename="[ -~]+"; filename\*=UTF-8''/);
+        assert.equal(r.headers.get("cache-control"), "no-store, private");
+        assert.equal(r.buf.subarray(0, fmt === "docx" ? 2 : 5).toString(), fmt === "docx" ? "PK" : "%PDF-");
         assert.equal((await get("expert", id, "exNone", fmt, "", ua)).status, 404);
         assert.equal((await get("expert", id, "anon", fmt, "", ua)).status, 404);
       }
     }
-    assert.equal((await get("expert", id, "exAI", "pdf", "", IOS)).status, 200);
   });
 
-  await t("mobil UI: düğmeler Android'de render edilmez + SSR no-android + telefon genişliğinde gizli; masaüstünde görünür", () => {
+  await t("mobil UI (2026-10-15): tekli + toplu Word/PDF düğmeleri ve seçim kutucukları her ekranda (telefon, tablet, Android) görünür; masaüstü aynı", () => {
     const src = readFileSync(join(ROOT, "app/admin/astroloji/_components/SavedAnalyses.tsx"), "utf8");
     const block = src.slice(src.indexOf("function ReportButtons"));
-    assert.ok(block.includes("const isAndroid = useIsAndroid();") && block.includes("if (isAndroid) return null;"));
-    assert.ok(block.includes('"no-android hidden md:inline-flex'));
+    assert.ok(!/useIsAndroid|isAndroid|no-android/.test(src), "Android gizlemesi kalmamalı");
+    assert.ok(!/hidden md:(inline-flex|flex|block)/.test(block), "telefon genişliği gizlemesi kalmamalı (rapor düğmeleri / toplu çubuk)");
+    assert.ok(!/no-android hidden/.test(src.slice(0, src.indexOf("function ReportButtons"))), "seçim kutucukları telefonda görünmeli");
     assert.ok(block.includes('data-testid="astro-report-docx"') && block.includes('data-testid="astro-report-pdf"'));
     // Gökyüzü Atlası (Aşama D): koyu başlıkta görünüm için isteğe bağlı `dark` prop'u; Android/telefon kuralları aynı.
     // 2026-10-12: yorum "gizle" seçiliyken Word/PDF de yorumsuz üretilir (aynı önizleme bayrağı; veri silinmez).
@@ -864,8 +868,8 @@ async function main() {
     const pdfTxt = await pdfText(Buffer.from(buildAstroReportPdf(r, null, fontB64, symbolFontsBase64())));
     assert.ok(norm(pdfTxt.text).includes("Harita görseli bu raporda oluşturulamadı"));
   });
-  await t("harita aktarımı: uygulamada haritası olmayan teknikler (dasha/drishti/panchanga/ruling/konum/sabit yıldız…) rapora HARİTA BLOĞU koymaz (yanlış harita yok)", async () => {
-    const FIG = ["vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit"];
+  await t("harita aktarımı: uygulamada haritası olmayan teknikler (drishti/ashtakavarga/panchanga/ruling/konum/sabit yıldız…) rapora HARİTA BLOĞU koymaz (yanlış harita yok)", async () => {
+    const FIG = ["vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit", "vedic.dasha", "kp.dasha", "vedic.shadbala"];
     for (const tech of TECHNIQUES.filter((x) => !(CHART_TECHS as readonly string[]).includes(x) && !FIG.includes(x))) {
       const r = buildAstroReport(await full(saved.get(tech)!));
       assert.ok(!r.blocks.some((b) => b.kind === "chart"), `${tech}: beklenmeyen harita`);
@@ -1043,6 +1047,87 @@ async function main() {
     for (const x of [d.docx.text, norm(d.pdf.text)]) {
       assert.ok(x.includes("57,28"), "uyum puanı Türkçe iki ondalık değil");
       assert.ok(!x.includes("57.28004017277183") && !x.includes("57,28004"), "ham uzun ondalık raporda");
+    }
+  });
+  // ── 2026-10-15 SATIŞ ÖNCESİ: Dasha çizelgesi + Shadbala grafiği raporda; yorum üretmeyen teknik notu ──────────────
+  const DASHA_HEX: Record<string, string> = { sun: "#fcd34d", moon: "#e2e8f0", mars: "#fda4af", mercury: "#6ee7b7", jupiter: "#fef08a", venus: "#fbcfe8", saturn: "#a5b4fc", rahu: "#a1a1aa", ketu: "#d6d3d1" };
+  for (const tech of ["vedic.dasha", "kp.dasha"] as const) {
+    await t(`${tech}: rapordaki zaman çizelgesi ekrandakiyle AYNI veri/ölçek/renk (dönem başına kesim, süreyle orantılı); 'bugün' işareti YOK; Word + PDF tam genişlik`, async () => {
+      const a = await full(saved.get(tech)!);
+      const r = buildAstroReport(a);
+      const ch = figOf(r)!;
+      assert.equal(ch.figure.type, "dashaTimeline");
+      const periods = (a.technical as J).periods as J[];
+      assert.deepEqual(ch.figure.periods, periods.map((p) => ({ lord: p.lord, start: p.start, end: p.end, durationYears: p.durationYears })), "kayıttaki dönemler birebir");
+      assert.ok(r.blocks.some((b) => b.kind === "heading" && b.text === "Dönem çizelgesi"));
+      const svg = await renderFigureSvg(ch.figure);
+      const segs = [...svg.matchAll(/<rect x="([\d.]+)" y="\d+" width="([\d.]+)" height="\d+" fill="(#[0-9a-f]{6})" fill-opacity="0\.9" data-dasha-seg="(\w+)"/g)];
+      assert.equal(segs.length, periods.length, "dönem başına bir kesim");
+      const total = periods.reduce((s2, p) => s2 + p.durationYears, 0);
+      segs.forEach((m, i) => {
+        assert.equal(m[4], periods[i].lord);
+        assert.equal(m[3], DASHA_HEX[periods[i].lord], `${periods[i].lord} rengi ekranla aynı`);
+        assert.ok(Math.abs(Number(m[2]) - (periods[i].durationYears / total) * 998) < 0.02, "genişlik süreyle orantılı");
+      });
+      assert.ok(svg.includes(`${periods[0].start.slice(8, 10)}.${periods[0].start.slice(5, 7)}.${periods[0].start.slice(0, 4)}`), "başlangıç tarihi");
+      assert.ok(!/bugün/i.test(svg), "tarihe bağlı işaret rapora girmez");
+      const png = await renderFigurePng(ch.figure);
+      assert.ok(!("error" in png) && png.width === 1200 && png.height < png.width / 5, "yatay PNG");
+      const xml = docs.get(tech)!.docx.xml;
+      const ext = [...xml.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/g)].map((m) => [Number(m[1]), Number(m[2])]);
+      assert.ok(ext.length === 1 && ext[0][0] > 5_500_000 && ext[0][0] <= 6_096_000 && ext[0][1] < ext[0][0] / 5, `Word: sayfa genişliğinde yatay görsel ${JSON.stringify(ext)}`);
+      assert.ok(docs.get(tech)!.docx.text.includes("Dönem çizelgesi") && norm(docs.get(tech)!.pdf.text).includes("Dönem çizelgesi"));
+    });
+  }
+  await t("vedic.shadbala: rapordaki güç grafiği ekrandakiyle AYNI (sıra, oran ölçeği, 1,00 çizgisi, yeşil/pembe); Word + PDF tam genişlik", async () => {
+    const a = await full(saved.get("vedic.shadbala")!);
+    const r = buildAstroReport(a);
+    const ch = figOf(r)!;
+    assert.equal(ch.figure.type, "shadbalaBars");
+    assert.ok(r.blocks.some((b) => b.kind === "heading" && b.text === "Güç grafiği"));
+    const planets = [...((a.technical as J).planets as J[])].sort((x, y) => x.rank - y.rank);
+    const svg = await renderFigureSvg(ch.figure);
+    const bars = [...svg.matchAll(/width="([\d.]+)" height="18" rx="5" fill="(#[0-9a-f]{6})" data-shadbala="(\w+)"/g)];
+    assert.deepEqual(bars.map((m) => m[3]), planets.filter((p) => p.strengthRatio > 0).map((p) => p.id), "sıra = rank");
+    const maxRatio = Math.max(...planets.map((p) => p.strengthRatio), 1.2);
+    for (const m of bars) {
+      const p = planets.find((x) => x.id === m[3])!;
+      assert.equal(m[2], p.strengthRatio >= 1 ? "#34d399" : "#fda4af", `${p.id} rengi`);
+      assert.ok(Math.abs(Number(m[1]) - (p.strengthRatio / maxRatio) * 646) < 0.02, `${p.id} uzunluğu oranla`);
+      assert.ok(svg.includes(`>${p.strengthRatio.toFixed(2).replace(".", ",")}<`), `${p.id} değer (Türkçe ondalık)`);
+    }
+    const ext = [...docs.get("vedic.shadbala")!.docx.xml.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/g)].map((m) => [Number(m[1]), Number(m[2])]);
+    assert.ok(ext.length === 1 && ext[0][0] > 5_500_000 && ext[0][0] <= 6_096_000 && ext[0][1] < ext[0][0], `Word görsel ${JSON.stringify(ext)}`);
+  });
+  await t("Dasha / Shadbala: eksik veri / yanlış şema → AÇIK not, görsel YOK (uydurma yok)", async () => {
+    for (const [tech, field] of [["vedic.dasha", "periods"], ["kp.dasha", "periods"], ["vedic.shadbala", "planets"]] as const) {
+      const a = (await full(saved.get(tech)!)) as J;
+      for (const x of [{ ...a, technical: { ...a.technical, [field]: [] } }, { ...a, technical: { ...a.technical, schema: "astro.vedic.d1.v1" } }]) {
+        const r = buildAstroReport(x as ReportAnalysisInput);
+        assert.ok(!r.blocks.some((b) => b.kind === "chart"), `${tech}: grafik olmamalı`);
+        assert.ok(r.blocks.some((b) => b.kind === "para" && b.tone === "warn" && b.text.startsWith("Harita bu kayıtta eksik teknik veri")), `${tech}: açık not`);
+      }
+    }
+  });
+  await t("yorum üretmeyen teknikler (Drishti / Ashtakavarga / KP transit): motor kaydıyla uyumlu; Word + PDF 'Roxy bu teknikte yorum üretmez' der, sızma başlığı yok; diğer tekniklerde not YOK", async () => {
+    const { NO_PROVIDER_INTERPRETATION, NO_PROVIDER_INTERPRETATION_NOTE } = await import("@/lib/astrology/noProviderInterp");
+    for (const tech of TECHNIQUES) {
+      const a = await full(saved.get(tech)!);
+      const none = NO_PROVIDER_INTERPRETATION.has(tech);
+      // Motor gerçeği: bu tekniklerde kayıtlı yorum katmanı yoktur; diğerlerinde (yetkili kayıt) vardır.
+      assert.equal(a.interpretation.visible === true, !none, `${tech}: yorum katmanı ${none ? "olmamalı" : "olmalı"}`);
+      const d = docs.get(tech)!;
+      for (const x of [d.docx.text, norm(d.pdf.text)]) {
+        assert.equal(x.includes(norm(NO_PROVIDER_INTERPRETATION_NOTE).slice(0, 60)), none, `${tech}: not`);
+        if (none) assert.ok(!x.includes("Roxy otomatik yorumu"), `${tech}: yorum başlığı olmamalı`);
+      }
+    }
+  });
+  await t("yorum türü satırı Word/PDF'te ekrandaki sekmeyle aynı (Otomatik Yorum / Teknik Açıklama / Olay Açıklamaları)", () => {
+    const want: Record<string, string> = { "western.natal": "Bu bölüm: Otomatik Yorum", "kp.chart": "Bu bölüm: Teknik Açıklama", "vedic.shadbala": "Bu bölüm: Teknik Açıklama", "western.forecast": "Bu bölüm: Roxy Olay Açıklamaları", "vedic.dasha": "Bu bölüm: Otomatik Yorum" };
+    for (const [tech, s2] of Object.entries(want)) {
+      const d = docs.get(tech)!;
+      assert.ok(d.docx.text.includes(s2) && norm(d.pdf.text).includes(s2), `${tech}: ${s2}`);
     }
   });
   restore();

@@ -8,7 +8,7 @@ import "server-only";
 import { Resvg } from "@resvg/resvg-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { REPORT_FONT_PATH, SYMBOL_FONT_PATHS } from "./chartPng";
-import { kpReportSvg, kundliReportSvg, litToString, type ReportFigure } from "./figures";
+import { dashaTimelineSvg, kpReportSvg, kundliReportSvg, litToString, shadbalaBarsSvg, type ReportFigure } from "./figures";
 import { WHEEL_FONT_STACK } from "./wheelSvg";
 
 assertServerOnly("lib/astrology/report/figurePng");
@@ -35,12 +35,14 @@ export async function kundliMarkup(fig: Extract<ReportFigure, { type: "kundli" }
 /** Figürün bağımsız SVG'si (testler ve PNG için). Hata → fırlatır (çağıran yakalar ve kaydeder). */
 export async function renderFigureSvg(fig: ReportFigure): Promise<string> {
   if (fig.type === "kp") return kpReportSvg(fig, WHEEL_FONT_STACK);
+  if (fig.type === "dashaTimeline") return dashaTimelineSvg(fig, WHEEL_FONT_STACK);
+  if (fig.type === "shadbalaBars") return shadbalaBarsSvg(fig, WHEEL_FONT_STACK);
   return kundliReportSvg(await kundliMarkup(fig), fig, WHEEL_FONT_STACK);
 }
 
 export type FigurePng = { png: Buffer; width: number; height: number };
 
-/** Kare harita PNG'si (oran 1:1). Hata → { error } (rapor açık notla devam eder; asla başka haritayla değil). */
+/** Harita / grafik PNG'si (Vedik-KP harita 1:1; Dasha çizelgesi ve Shadbala çubukları yatay). Hata → { error } (rapor açık notla devam eder; asla başka haritayla değil). */
 export async function renderFigurePng(fig: ReportFigure, widthPx = 1200): Promise<FigurePng | { error: string }> {
   try {
     const r = new Resvg(await renderFigureSvg(fig), {

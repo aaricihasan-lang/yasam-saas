@@ -17,7 +17,7 @@
  *   B. Anamnez: Boş Form PDF her cihazda görünür + indirilir (%PDF); "Görüntüle" uygulamada window.open
  *      ÇAĞIRMAZ (sayfa yerinde kalır), masaüstünde mevcut davranış (window.open) korunur
  *   C. Sunucu: kapsam içi Word route'u Android UA ile 403 VERMEZ (masaüstü ile aynı durum);
- *      HD + Astroloji route'ları Android UA ile 403 VERMEYE DEVAM EDER
+ *      HD route'ları Android UA ile 403 VERMEYE DEVAM EDER (Astroloji 2026-10-15'ten beri her cihazda indirir)
  */
 import { execSync, spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -282,12 +282,12 @@ async function main() {
     ] as const) {
       const r = await call(url, ANDROID_UA, init as RequestInit);
       const t = await r.text();
-      ok(r.status === 403 && /bu cihazda kullanılamıyor|cihazda/i.test(t), `${label}: Android UA hâlâ 403 (HD/Astroloji kuralı KORUNDU)`, { status: r.status, t: t.slice(0, 120) });
+      ok(r.status === 403 && /bu cihazda kullanılamıyor|cihazda/i.test(t), `${label}: Android UA hâlâ 403 (HD kuralı KORUNDU)`, { status: r.status, t: t.slice(0, 120) });
     }
 
-    // Astroloji: yetki kapısı Android engelinden ÖNCE çalışır (yetkisiz → her cihazda tek tip 404). Bu
-    // test kullanıcısında Astroloji yetkisi yok → Android ve masaüstü AYNI yanıtı almalı (davranış değişmedi).
-    // Android 403'ünün kendisi scripts/astrology/report8.harness.ts (yetkili kullanıcı) ile doğrulanır.
+    // Astroloji: yetkisiz → her cihazda tek tip 404. Bu test kullanıcısında Astroloji yetkisi yok → Android ve
+    // masaüstü AYNI yanıtı almalı. 2026-10-15'ten beri yetkili Android'e de dosya verilir (Android 403 kaldırıldı;
+    // scripts/astrology/report8.harness.ts yetkili kullanıcıyla 200 + gerçek dosya doğrular).
     for (const url of ["/api/admin/astroloji/analyses/00000000-0000-0000-0000-000000000000/report?format=docx", "/api/admin/astroloji/analyses/report?format=pdf&profileId=x&all=1"]) {
       const ra = await call(url, ANDROID_UA);
       const rd = await call(url, DESK_UA);

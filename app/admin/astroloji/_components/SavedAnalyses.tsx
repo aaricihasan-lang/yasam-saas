@@ -8,7 +8,6 @@
 
 import { useEffect, useState } from "react";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
-import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { astroDownload, astroFetch } from "../_lib/api";
 import { describeOptions, houseSystemLabel, techniqueLabel, zodiacLabel } from "../_lib/techniques";
 import { TechniqueTechnical, wheelForTechnique } from "./TimingPanels";
@@ -18,6 +17,7 @@ import type { TransitTechnical } from "@/lib/astrology/model/westernTiming";
 import ResultDesk, { DeskChip, deskGhostLight, type DeskTab } from "./atlas/ResultDesk";
 import NatalWheel from "./NatalWheel";
 import NatalTechnicalPanel from "./NatalTechnicalPanel";
+import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "@/lib/astrology/noProviderInterp";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
 
 type ListItem = {
@@ -183,7 +183,7 @@ export function SavedAnalysesList({
       )}
       <div className="overflow-hidden rounded-xl border border-[#e7dcc3] bg-white/70">
       <div className="flex items-center border-b border-[#efe6d2] bg-[#f6efe0]/70">
-      <label className="no-android hidden shrink-0 items-center pl-3 md:flex" title="Listede görünen bütün analizleri seç / bırak">
+      <label className="flex shrink-0 items-center pl-3" title="Listede görünen bütün analizleri seç / bırak">
         <input
           type="checkbox"
           className="h-4 w-4 accent-[#0B1430]"
@@ -204,7 +204,7 @@ export function SavedAnalysesList({
         {cur.items.map((a) => (
           <li key={a.id} className="flex items-stretch">
             {/* Seçim kutusu satırın AÇ düğmesinden ayrı: işaretlemek analizi açmaz. */}
-            <label className={`no-android hidden shrink-0 cursor-pointer items-center pl-3 md:flex ${openId === a.id ? "bg-[#f3e7c9]/70" : ""}`}>
+            <label className={`flex min-w-[40px] shrink-0 cursor-pointer items-center justify-center pl-2 sm:min-w-0 sm:justify-start sm:pl-3 ${openId === a.id ? "bg-[#f3e7c9]/70" : ""}`}>
               <input
                 type="checkbox"
                 className="h-4 w-4 accent-[#0B1430]"
@@ -387,7 +387,14 @@ export function SavedAnalysisView({
                 Doğum bilgisi rev {a.profile.revision.revision} ile kaydedildi · güncel profil rev {currentRevision}
               </DeskChip>
             )}
-            {!interp.visible && interp.reason === "not_included" && <DeskChip tone="muted">Sistem yorumu dahil edilmedi</DeskChip>}
+            {/* 2026-10-15: Roxy'nin yorum üretmediği teknikte "dahil edilmedi" yanıltıcıdır → sağlayıcı kapsamı açıkça söylenir. */}
+            {hasNoProviderInterpretation(a.technique) ? (
+              <span title={NO_PROVIDER_INTERPRETATION_NOTE} data-testid="astro-no-provider-interp">
+                <DeskChip tone="muted">Roxy bu teknikte yorum üretmez · yalnız teknik veri</DeskChip>
+              </span>
+            ) : (
+              !interp.visible && interp.reason === "not_included" && <DeskChip tone="muted">Sistem yorumu dahil edilmedi</DeskChip>
+            )}
           </>
         }
         actions={
@@ -493,15 +500,13 @@ export function SavedAnalysisView({
 
 /**
  * Aşama 8 — Word / PDF raporu. Dosya SUNUCUDA, yalnız kayıtlı snapshot'tan üretilir (0 Roxy isteği).
- * Mobil (ürün kuralı, DY Word + Anamnez PDF ile aynı): Android'de hiç render edilmez (`useIsAndroid`)
- * ve SSR'da `.no-android` ile gizlidir; telefon genişliğinde (<768px) `hidden md:inline-flex` ile gizlidir.
- * Sunucu da Android isteğini 403 ile reddeder. Masaüstü davranışı etkilenmez.
+ * 2026-10-15 (owner kararı, satış öncesi): telefon, tablet, Android tarayıcı ve Android uygulaması dahil HER ekranda
+ * görünür. İndirme ortak `downloadFileResponse` (blob + a[download]) ile; Android uygulaması bunu kendi güvenli
+ * indirme köprüsüyle İndirilenler'e kaydeder (WebView güvenliği değişmedi).
  */
 function ReportButtons({ id, previewNoInterp, dark = false }: { id: string; previewNoInterp: boolean; dark?: boolean }) {
-  const isAndroid = useIsAndroid();
   const [busy, setBusy] = useState<"docx" | "pdf" | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  if (isAndroid) return null;
   async function run(format: "docx" | "pdf") {
     setBusy(format);
     setErr(null);
@@ -511,7 +516,7 @@ function ReportButtons({ id, previewNoInterp, dark = false }: { id: string; prev
     setBusy(null);
     if (!r.ok) setErr(r.error);
   }
-  const cls = "no-android hidden md:inline-flex items-center gap-1 rounded-lg border px-3 py-1 text-sm font-medium disabled:opacity-60";
+  const cls = "inline-flex min-h-[40px] items-center gap-1 rounded-lg border px-3 py-1 text-sm font-medium disabled:opacity-60 md:min-h-0";
   return (
     <>
       <button type="button" data-testid="astro-report-docx" disabled={busy !== null} onClick={() => void run("docx")} className={`${cls} ${dark ? "border-white/25 bg-white/10 text-[#F6F2EA] hover:border-[#D9B56F]/70" : "border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100"}`}>
@@ -521,7 +526,7 @@ function ReportButtons({ id, previewNoInterp, dark = false }: { id: string; prev
         {busy === "pdf" ? "Hazırlanıyor…" : "PDF"}
       </button>
       {err && (
-        <span role="alert" className={`hidden w-full text-xs md:block ${dark ? "text-rose-200" : "text-rose-700"}`} data-testid="astro-report-error">
+        <span role="alert" className={`block w-full text-xs ${dark ? "text-rose-200" : "text-rose-700"}`} data-testid="astro-report-error">
           {err}
         </span>
       )}
@@ -531,14 +536,13 @@ function ReportButtons({ id, previewNoInterp, dark = false }: { id: string; prev
 
 /**
  * UAT 2. tur (madde L) — toplu rapor: SEÇİLİ analizler ya da TÜM analizler TEK Word / TEK PDF. Dosya sunucuda yalnız
- * kayıtlı analizlerden üretilir (0 Roxy isteği). Tekli rapor düğmeleriyle aynı mobil kuralı: Android'de hiç yok,
- * telefon genişliğinde gizli; sunucu da Android isteğini 403 ile reddeder.
+ * kayıtlı analizlerden üretilir (0 Roxy isteği). Tekli rapor düğmeleriyle aynı kural: 2026-10-15'ten beri telefon,
+ * tablet ve Android dahil her ekranda görünür.
  */
 function BulkReportBar({ profileId, total, selectedIds, previewNoInterp, onClear }: { profileId: string; total: number; selectedIds: string[]; previewNoInterp: boolean; onClear: () => void }) {
-  const isAndroid = useIsAndroid();
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  if (isAndroid || total === 0) return null;
+  if (total === 0) return null;
   async function run(scope: "selected" | "all", format: "docx" | "pdf") {
     setBusy(`${scope}-${format}`);
     setErr(null);
@@ -551,11 +555,11 @@ function BulkReportBar({ profileId, total, selectedIds, previewNoInterp, onClear
     if (!r.ok) setErr(r.error);
   }
   const n = selectedIds.length;
-  const btn = "inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50";
+  const btn = "inline-flex min-h-[40px] items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50 md:min-h-0";
   const word = `${btn} border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100`;
   const pdf = `${btn} border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100`;
   return (
-    <div className="no-android hidden flex-col gap-1.5 rounded-xl border border-[#e7dcc3] bg-[#fbf6ea] px-3 py-2 md:flex" data-testid="astro-bulk-report">
+    <div className="flex flex-col gap-1.5 rounded-xl border border-[#e7dcc3] bg-[#fbf6ea] px-3 py-2" data-testid="astro-bulk-report">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-semibold text-slate-700">Rapor indir:</span>
         <span className="text-xs text-slate-600" data-testid="astro-bulk-count">

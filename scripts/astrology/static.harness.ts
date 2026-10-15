@@ -286,6 +286,10 @@ async function main() {
       // Aşama 7B: DY durum rozeti — bileşen Astroloji'ye ait; DY sayfasındaki fark ayrıca satır satır denetlenir.
       /^components\/astrology\//,
       /^app\/dashboard\/clients\/\[id\]\/page\.tsx$/,
+      // 2026-10-15 (owner kararı): Astroloji Word/PDF her cihazda — ortak mobil/çıktı testleri Astroloji beklentisini
+      // HD'den ayırır (HD kuralı aynen korunur; bu iki dosyada yalnız test beklentisi değişir).
+      /^scripts\/final-hardening\/output-visibility\.harness\.ts$/,
+      /^scripts\/mobile-files\/ui\.harness\.ts$/,
     ];
     const outside = all.filter((p) => !allowed.some((r) => r.test(p)));
     assert.deepEqual(outside, [], `kapsam dışı değişiklik: ${outside.join(", ")}`);

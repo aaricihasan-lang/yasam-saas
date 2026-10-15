@@ -177,16 +177,21 @@ for (const f of WORD_CTA_FILES) {
   const pt = read("app/beslenme/planlar/_components/PlanTools.tsx");
   ok(!/EXPORT_DESKTOP_ONLY_CLASS|beslenme-export-desktop-only/.test(pt) && !css.includes("beslenme-export-desktop-only"), "Beslenme: Word tüm cihazlarda görünür (2026-10-14; yalnız-masaüstü kuralı kaldırıldı)");
 }
-// HD + Astroloji: eski kural AYNEN (bu dosyalar bu çalışmada değişmedi).
-const HD_ASTRO_WORD_FILES = [
+// HD: eski kural AYNEN (bu dosyalar bu çalışmada değişmedi).
+const HD_WORD_FILES = [
   "app/human-design/kayitli-haritalar/components/HdProfessionalReportButton.tsx",
   "app/human-design/kayitli-raporlar/components/HdRaporListesi.tsx",
   "app/human-design/rapor-olustur/components/HdRaporContent.tsx",
-  "app/admin/astroloji/_components/SavedAnalyses.tsx",
 ];
-for (const f of HD_ASTRO_WORD_FILES) {
+for (const f of HD_WORD_FILES) {
   const src = read(f);
-  ok(NO_ANDROID_RE.test(src) && /useIsAndroid\(\)/.test(src), `${f}: HD/Astroloji Android Word gizlemesi KORUNUR`);
+  ok(NO_ANDROID_RE.test(src) && /useIsAndroid\(\)/.test(src), `${f}: HD Android Word gizlemesi KORUNUR`);
+}
+// Astroloji: 2026-10-15 owner kararıyla Word/PDF her cihazda (Android tarayıcı + uygulama + tablet + telefon).
+{
+  const f = "app/admin/astroloji/_components/SavedAnalyses.tsx";
+  const src = read(f);
+  ok(!NO_ANDROID_RE.test(src) && !/useIsAndroid\(\)/.test(src), `${f}: Astroloji Word/PDF Android'de görünür (2026-10-15)`);
 }
 
 // ── E. Android uygulaması çıktıları ──────────────────────────────────────────
@@ -244,13 +249,11 @@ for (const r of UNGUARDED_46) {
   const src = existsSync(join(ROOT, f)) ? read(f) : "MISSING";
   ok(src !== "MISSING" && !/androidWordGuard|isAndroidUserAgent/.test(src), `${f}: Android engeli yok`);
 }
-for (const f of [
-  "app/api/hd/reports/professional/route.ts",
-  "app/api/hd/reports/professional/download/route.ts",
-  "app/api/admin/astroloji/analyses/report/route.ts",
-  "app/api/admin/astroloji/analyses/[id]/report/route.ts",
-]) {
-  ok(/androidWordGuard\((req|request)\)/.test(read(f)), `${f}: HD/Astroloji guard'ı KORUNUR`);
+for (const f of ["app/api/hd/reports/professional/route.ts", "app/api/hd/reports/professional/download/route.ts"]) {
+  ok(/androidWordGuard\((req|request)\)/.test(read(f)), `${f}: HD guard'ı KORUNUR`);
+}
+for (const f of ["app/api/admin/astroloji/analyses/report/route.ts", "app/api/admin/astroloji/analyses/[id]/report/route.ts"]) {
+  ok(!/androidWordGuard|isAndroidUserAgent/.test(read(f)), `${f}: Astroloji Android engeli kaldırıldı (2026-10-15)`);
 }
 for (const f of ["app/api/belge-ceviri/job-status/[id]/route.ts", "app/api/belge-ceviri/history/route.ts"]) {
   const src = read(f);
