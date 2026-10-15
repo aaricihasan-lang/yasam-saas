@@ -3,7 +3,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getServerDb } from "@/lib/supabase-server";
-import { ADMIN_SESSION_COOKIE, resolveAdminShellUserId } from "@/lib/auth/adminShellSession";
+import {
+  ADMIN_SESSION_COOKIE,
+  resolveAdminShellSession,
+  type AdminShellResolution,
+} from "@/lib/auth/adminShellSession";
+import ModuleAccessPending from "@/components/auth/ModuleAccessPending";
 import { isAstrologyShellOwner } from "@/lib/astrology/access/ownerGate";
 
 /**
@@ -17,13 +22,17 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const cookieStore = await cookies();
   const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
 
-  let adminId: string | null = null;
+  // Final-A3: geçici DB/RPC hatası "yetkisiz" sayılıp "/"'a atılmaz; kabuk yine render edilmez
+  // (fail-closed) ve "doğrulanamadı / tekrar dene" gösterilir. Açık red → eskisi gibi redirect("/").
+  let shell: AdminShellResolution;
   try {
-    adminId = await resolveAdminShellUserId(getServerDb(), token);
+    shell = await resolveAdminShellSession(getServerDb(), token);
   } catch {
-    adminId = null;
+    shell = { status: "unavailable" };
   }
-  if (!adminId) redirect("/");
+  if (shell.status === "unavailable") return <ModuleAccessPending failed />;
+  if (shell.status !== "admin") redirect("/");
+  const adminId = shell.adminId;
 
   // Astroloji (satış sonrası, OWNER-ONLY pilot): bağlantı yalnız kill switch açık + katı owner ise
   // SUNUCUDA render edilir; diğer adminlerin HTML'inde hiç bulunmaz. Kill switch kapalıysa DB'ye gidilmez.
