@@ -33,6 +33,13 @@ const oilFields = read("lib/aromaterapi/oilFields.ts");
 const dataLib = read("lib/aromaterapi/aromatherapyData.ts");
 const clientTransfer = read("lib/admin/veriPaylasimiTransfer.ts");
 const adminUi = read("app/admin/veri-paylasimi/page.tsx");
+// b2aca710: bölüm/grup tanımları sayfadan merkezî registry'ye taşındı (UI ⇄ server drift guard).
+const transferRegistry = read("lib/admin/transferRegistry.ts");
+/** Registry'de bölümün aktif + granular tanımı (key/label/transferKeys birebir). */
+const registrySectionActive = (key, label) =>
+  new RegExp(
+    `key: "${key}",\\s*label: "${label}",\\s*transferKeys: \\["${key}"\\],\\s*active: true,\\s*granular: true`,
+  ).test(transferRegistry);
 const oilsPage = read("app/aromaterapi/_components/OilsPage.tsx");
 const detailPage = read("app/aromaterapi/yaglar/[id]/page.tsx");
 const migration = read(
@@ -72,7 +79,12 @@ check("B copyFields OIL_COPY_FIELDS", transfer.includes("copyFields: OIL_COPY_FI
 check("B requireField name", transfer.includes('requireField: "name"'));
 check("B activeOnly true (soft-inactive kopyalanmaz)", transfer.includes("activeOnly: true"));
 check("B cloneGroup canonical_null → .is(tenant_id,null)", transfer.includes('.is("tenant_id", null)'));
-check("B matchColumn eq uygulanıyor", transfer.includes("readQ.eq(cfg.matchColumn, cfg.matchValue)"));
+// b2aca710: okuma sorgusu buildReadQuery'e taşındı (değişken adı readQ → q); filtre koşullu ve hem
+// kaynak okumada hem grup-scoped geri almada (paylaşılan aromatherapy_oils → oil_type ile daraltma) uygulanır.
+check("B matchColumn eq uygulanıyor (kaynak okuma)",
+  /if \(cfg\.matchColumn && cfg\.matchValue != null\) q = q\.eq\(cfg\.matchColumn, cfg\.matchValue\);/.test(transfer));
+check("B matchColumn eq uygulanıyor (grup-scoped rollback)",
+  /if \(cfg\.matchColumn && cfg\.matchValue != null\) \{\s*del = del\.eq\(cfg\.matchColumn, cfg\.matchValue\);/.test(transfer));
 
 // ── C) Duplicate / no-upsert — yalnız INSERT ─────────────────────────────────
 check("C upsert YOK", !transfer.includes(".upsert("));
@@ -91,7 +103,10 @@ for (const forbidden of ["tenant_id", "created_at", "updated_at", "origin_type",
   check(`D copy alanları "${forbidden}" içermez`, !fieldDefsRegion.includes(`"${forbidden}"`));
 }
 // Provenance damgalama transfer route'ta
-check("D provenance origin_type=admin_transfer", transfer.includes('copy.origin_type = "admin_transfer"'));
+// b2aca710 BAĞLAYICI ÜRÜN KURALI: uzmana görünür admin köken etiketi YOK → route görünür
+// origin_type / origin_label YAZMAZ; yalnız iç rollback/audit alanları (aşağıdaki D kontrolleri) damgalanır.
+check("D görünür provenance (origin_type/origin_label) YAZILMAZ",
+  !/copy\.origin_type\s*=/.test(transfer) && !/copy\.origin_label\s*=/.test(transfer));
 check("D provenance origin_source_id kaynak id", transfer.includes("copy.origin_source_id ="));
 check("D provenance batch_id damgalanır", transfer.includes("copy.origin_transfer_batch_id = batchId"));
 check("D copy.tenant_id = targetTenantId", transfer.includes("copy.tenant_id = targetTenantId"));
@@ -103,7 +118,14 @@ check("E admin oils tip allowlist", adminOils.includes("VALID_TYPES"));
 check("E admin oils salt-okuma (insert/update/delete yok)",
   !adminOils.includes(".insert(") && !adminOils.includes(".update(") && !adminOils.includes(".delete("));
 check("E transfer hedef yalnız expert", transfer.includes('!== "expert"'));
-check("E transfer ham DB mesajı sızmaz (genel hata)", transfer.includes("Aktarım tamamlanamadı"));
+// b2aca710: tek genel 500 ("Aktarım tamamlanamadı") yerine bölüm-bazında sonuç; hata yalnız SABİT kod.
+check("E transfer ham DB mesajı sızmaz (bölüm hatası yalnız sabit kod)",
+  transfer.includes('errorCode: err instanceof TransferError ? `${err.stage}_failed` : "unknown_error"') &&
+  transfer.includes("super(`transfer_${stage}_failed:${group}`)"));
+check("E transfer yanıtlarına ham .message konmaz (yalnız isMissingTableError sınıflandırması)",
+  (transfer.match(/\.message\b/g) ?? []).length === 1 &&
+  /function isMissingTableError[\s\S]{0,200}String\(e\?\.message/.test(transfer) &&
+  !/jsonError\([^)]*\.message/.test(transfer));
 check("E dinamik tablo adı yok (isGroupKey allowlist)", transfer.includes("isGroupKey"));
 
 // ── F) P4 regression — 11 orijinal grup korunur ──────────────────────────────
@@ -149,7 +171,13 @@ check("I detay isSharedContent kaldırıldı", !detailPage.includes("isSharedCon
 check("I detay copy-on-write handleCopy kaldırıldı", !detailPage.includes("handleCopy"));
 
 // ── J) Admin UI — aromaterapi granular seçim aktif ───────────────────────────
-check("J admin UI aromaterapi aktif (Uçucu)", adminUi.includes('key: "aromatherapy_oils_essential"'));
+check("J admin UI aromaterapi aktif (Uçucu) — merkezî registry", registrySectionActive("aromatherapy_oils_essential", "Uçucu Yağlar"));
+check("J admin UI aromaterapi aktif (Sabit/Maserasyon) — merkezî registry",
+  registrySectionActive("aromatherapy_oils_carrier", "Sabit Yağlar") &&
+  registrySectionActive("aromatherapy_oils_maceration", "Maserasyon Yağları"));
+check("J admin UI bölümleri registry'den render eder",
+  /import \{[\s\S]*?TRANSFER_MODULES[\s\S]*?\} from "@\/lib\/admin\/transferRegistry";/.test(adminUi) &&
+  adminUi.includes("TRANSFER_MODULES.map("));
 check("J admin UI 'Yakında' placeholder kaldırıldı (oils active)",
   !adminUi.includes('Projede Supabase tablosu henüz bağlı değil'));
 check("J admin UI granular anahtar seti genişledi",
@@ -189,7 +217,7 @@ check("L13 admin knowledge salt-okuma", !adminKnowledge.includes(".insert(") && 
 check("L14 TransferGroupKey stone_knowledge_articles", clientTransfer.includes("stone_knowledge_articles"));
 check("L15 Taş bilgi başarı satırı", clientTransfer.includes("Taş bilgi"));
 // Admin UI
-check("L16 admin UI stone_knowledge_articles aktif", adminUi.includes('key: "stone_knowledge_articles"'));
+check("L16 admin UI stone_knowledge_articles aktif — merkezî registry", registrySectionActive("stone_knowledge_articles", "Taş Bilgi Kütüphanesi"));
 check("L17 admin UI granular knowledge anahtarı", adminUi.includes('key === "stone_knowledge_articles"'));
 check("L18 admin UI 'Henüz tenant tablosu' placeholder kaldırıldı",
   !adminUi.includes("Henüz tenant tablosu tanımlı değil"));

@@ -4,6 +4,7 @@
     { "route": "beslenme/plans", "method": "POST", "events": [{ "action": "record_created", "subEntity": "plan" }], "failure": "server" },
     { "route": "beslenme/plans/[id]", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "plan" }], "failure": "server", "note": "PLAN_STALE 409 → conflict" },
     { "route": "beslenme/plans/[id]", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "plan" }], "failure": "server", "note": "gerçek revizyon silme (arşiv yok)" },
+    { "route": "beslenme/plans/[id]/delete/challenge", "method": "POST", "exempt": "onay/challenge: Planı Sil aşama-3 kodu + kapsam önizlemesi üretir, hiçbir kayıt silinmez (f8f19bf5 BES-2)" },
     { "route": "beslenme/plans/[id]/copy", "method": "POST", "events": [{ "action": "record_created", "subEntity": "plan" }], "failure": "server", "note": "kopya YENİ aile üretir" },
     { "route": "beslenme/plans/[id]/revise", "method": "POST", "events": [{ "action": "record_created", "subEntity": "plan" }], "failure": "server", "note": "revizyon YENİ plan satırı (aynı aile, revision+1)" },
     { "route": "beslenme/plans/[id]/range", "method": "POST", "events": [{ "action": "record_updated", "subEntity": "plan" }], "failure": "server" },

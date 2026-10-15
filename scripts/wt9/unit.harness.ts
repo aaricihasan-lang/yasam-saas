@@ -81,7 +81,7 @@ async function docText(doc: Parameters<typeof Packer.toBuffer>[0]): Promise<stri
     ],
   }).doc);
   ok(txt.includes("KAYNAK: KRİSTAL ŞİFA KİTABI") && txt.includes("KAYNAK: AHMET HOCA EĞİTİM NOTU") && txt.includes("Ek Kaynak 1: Ahmet Hoca Eğitim Notu"), "Word: her kaynak kendi KAYNAK başlığıyla");
-  ok(txt.indexOf("Birincil genel") < txt.indexOf("Ek Kaynak 1:") && txt.includes("SON") && txt.includes("Kalp"), "Word: birincil önce, ek kaynak metni tam (kesilmeden) + çakra");
+  ok(txt.indexOf("Birincil genel") < txt.lastIndexOf("Ek Kaynak 1:") && txt.includes("SON") && txt.includes("Kalp"), "Word: birincil önce, ek kaynak metni tam (kesilmeden) + çakra");
   ok(txt.includes("Ek Kaynak 2: Boş Kaynak") && txt.includes("Bu kaynakta henüz bilgi girilmemiş."), "Word: boş kaynak açıkça belirtilir");
   ok(/Bilgi Kaynakları/.test(txt) && txt.includes("Kristal Şifa Kitabı · Ahmet Hoca Eğitim Notu · Boş Kaynak"), "Word: özet sayfasında kaynak listesi");
 

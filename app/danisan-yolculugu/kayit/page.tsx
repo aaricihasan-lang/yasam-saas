@@ -637,11 +637,13 @@ export default function DanisanKayitPage() {
             </Link>
           </div>
 
-          {/* KVKK: kayıt sonrası isteğe bağlı onam kaydı; "Sonra tamamla" → listeye dön. */}
+          {/* KVKK: kayıt sonrası isteğe bağlı onam kaydı; "Sonra tamamla" → listeye dön.
+              Final-A2: danışan detayıyla aynı kompakt (varsayılan kapalı) panel — uzun metin ekranı uzatmaz. */}
           {createdClientId && (
             <ClientConsentPanel
               clientId={createdClientId}
               source="dy_kayit"
+              collapsible
               className="mt-6"
               onDefer={() => router.push("/danisan-yolculugu/liste")}
             />
