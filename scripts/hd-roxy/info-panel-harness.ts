@@ -180,7 +180,8 @@ async function main() {
   ok("C6 Yaş", /\|8\|/.test(field("age")));
   ok("C7 Tip (Türkçe uygulama etiketi)", field("type").includes("Generator"));
   ok("C8 UAT: solda yalnız teknik künye (10 alan, sıra sabit)", [...info.matchAll(/data-hd-info-field="([a-z]+)"/g)].map((m) => m[1]).join(",") === "name,local,place,coords,age,type,profile,definition,cross,authority");
-  ok("C9 İç Otorite", field("authority").includes("Sacral Otorite"));
+  // AŞAMA 2 (2026-10-15 owner terminolojisi): görünen etiketler Türkçe + (İngilizce); kodlar aynı.
+  ok("C9 İç Otorite", field("authority").includes("Sakral Otorite (Sacral Authority)"));
   ok("C10 Profil", field("profile").includes("2/4 — Münzevi / Fırsatçı"), field("profile"));
   ok("C11 Tanım", field("definition").includes("İkili Tanım (Split)"), field("definition"));
   ok("C12 Enkarnasyon Teması (Yaşam Amacı) + kapılar", field("cross").includes("Right Angle Cross of Laws 2") && field("cross").includes(`${ref2.incarnationCross.gates[0]}/${ref2.incarnationCross.gates[1]} | ${ref2.incarnationCross.gates[2]}/${ref2.incarnationCross.gates[3]}`));

@@ -139,9 +139,9 @@ async function main() {
     const tr = extractSystemReading(trShaped())!;
     const t = (k: string) => tr.general.find((x) => x.key === k)!;
     // AŞAMA 2 (HD-23): genel değerler ekran/Word ile AYNI uygulama etiketleri ("Jeneratör" → "Generator").
-    ok("A12 Genel değerler uygulama sözlüğünden (sağlayıcı çevirisi yerine)", t("type").value === "Generator" && t("strategy").value === "Yanıt vermek için beklemek" && t("authority").value === "Sacral Otorite" && t("definition").value === "İkili Tanım (Split)" && t("signature").value === "Tatmin" && t("notSelf").value === "Hayal kırıklığı (Frustration)");
-    ok("A13 Merkez/kanal adı uygulama sözlüğünden; devre/gezegen/kapı adı Localized", tr.centers[0].name === "Head / Baş Merkezi" && tr.channels[0].name === "Mantık Kanalı" && tr.channels[0].circuit === "Kolektif" && tr.activations[0].planet === "Güneş" && tr.activations[0].gateName === "Uyarım");
-    ok("A14 Localized yoksa: merkez uygulama adı, gezegen ham enum'a güvenli geri dönüş", tr.centers[1].name === "Ajna Merkezi" && tr.activations[1].planet === (FIXTURE.gates as Record<string, unknown>[])[1].planet);
+    ok("A12 Genel değerler uygulama sözlüğünden (sağlayıcı çevirisi yerine)", t("type").value === "Jeneratör (Generator)" && t("strategy").value === "Yanıt vermek için beklemek" && t("authority").value === "Sakral Otorite (Sacral Authority)" && t("definition").value === "İkili Tanım (Split)" && t("signature").value === "Tatmin" && t("notSelf").value === "Hayal kırıklığı (Frustration)");
+    ok("A13 Merkez/kanal adı uygulama sözlüğünden; devre/gezegen/kapı adı Localized", tr.centers[0].name === "Baş Merkezi (Head)" && tr.channels[0].name === "Mantık Kanalı" && tr.channels[0].circuit === "Kolektif" && tr.activations[0].planet === "Güneş" && tr.activations[0].gateName === "Uyarım");
+    ok("A14 Localized yoksa: merkez uygulama adı, gezegen ham enum'a güvenli geri dönüş", tr.centers[1].name === "Ajna Merkezi (Ajna)" && tr.activations[1].planet === (FIXTURE.gates as Record<string, unknown>[])[1].planet);
     ok("A15 haç açısı localized", t("cross").details.some((d) => d.label === "Açı" && d.text === "Sağ Açı"));
 
     // Dayanıklılık

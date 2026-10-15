@@ -564,7 +564,8 @@ async function main(): Promise<void> {
       html = "ERR " + String(e);
     }
     ok("R2 eski kayıt yeni görünümde render olur", html.includes('data-hd-computed-view="engine"') && (html.match(/<polygon/g) ?? []).length === 9, html.slice(0, 200));
-    ok("R3 eski kayıt Türkçe etiketler (RAW → kod)", html.includes("Sacral Otorite") && html.includes("2/4"));
+    // AŞAMA 2 (2026-10-15 owner terminolojisi): görünen etiketler Türkçe + (İngilizce); kodlar aynı.
+    ok("R3 eski kayıt Türkçe etiketler (RAW → kod)", html.includes("Sakral Otorite (Sacral Authority)") && html.includes("2/4"));
     const { deps, calls } = makeDeps();
     const r = await computeRoxyChart(ctxA(f.db), { client_id: C_A, location_id: "tr-42-konya" }, deps);
     ok("R4 Roxy kaydı eski kaydı bozmaz", r.body.ok && calls.length === 1 && f.tables.human_design_charts.find((x) => x.id === "legacy-1")?.computed_result === legacy);
@@ -612,7 +613,7 @@ async function main(): Promise<void> {
     ok("U görünüm: lg'de üç sütun sırası / mobilde BodyGraph order-1", /order-1[^"]*lg:order-2/.test(view));
     // PR #348 UAT: sol bilgi alanı yalnız teknik kimlik (Strateji / İmza / Benlik-dışı tema yorum niteliğinde → çıkarıldı).
     ok("U görünüm: Tip/Profil/Tanım/Enkarnasyon Teması/İç Otorite", ["Tip", "Otorite", "Profil", "Tanım", "Enkarnasyon Teması (Yaşam Amacı)"].every((l) => view.includes(l)) && !view.includes("Haç") && !["Strateji", "İmza", "Benlik-dışı"].some((l) => view.includes(l)));
-    ok("U görünüm: Türkçe değerler", view.includes("Generator") && view.includes("Sacral Otorite") && view.includes("Right Angle Cross of Laws 2"));
+    ok("U görünüm: Türkçe değerler", view.includes("Jeneratör (Generator)") && view.includes("Sakral Otorite (Sacral Authority)") && view.includes("Right Angle Cross of Laws 2"));
     ok("U görünüm: 9 merkez durumu", (view.match(/data-hd-center="/g) ?? []).length === 9 && view.includes('data-hd-center="g_identity:open"') && view.includes('data-hd-center="sacral:defined"'));
     ok("U görünüm: 4 kanal + aktif kapılar", (view.match(/data-hd-channel="/g) ?? []).length === 4 && (view.match(/data-hd-gate="/g) ?? []).length === n.codes.gates.length);
     ok("U görünüm: Roxy açıklama metni YOK", !view.includes("enveloping") && !view.includes("storyteller"));
