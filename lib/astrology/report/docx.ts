@@ -107,9 +107,9 @@ const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" } as const
  * sayfaya geçer — başlık sayfa sonunda yalnız kalmaz. Görsel üretilemezse aynı açık not (görsel uydurulmaz).
  */
 function figureBlock(heading: Paragraph, png: Buffer | null, caption: string, wide = false): Table {
-  // Kare harita 430 px (~11,4 cm); yatay grafik (Dasha çizelgesi / Shadbala) içerik genişliği ~640 px — oran korunur.
+  // Kare harita 430 px (~11,4 cm); geniş figür (Dasha / Shadbala / dünya haritası) içerik genişliği ~640 px (en çok 640 px yükseklik, sayfaya sığar) — oran korunur.
   const children: Paragraph[] = png
-    ? [heading, wide ? embedImageParagraph(png, 640, 420) : embedImageParagraph(png, 430, 430), new Paragraph({ alignment: AlignmentType.CENTER, children: runs(caption, { italics: true, size: 18, color: C_LIGHT }) })]
+    ? [heading, wide ? embedImageParagraph(png, 640, 640) : embedImageParagraph(png, 430, 430), new Paragraph({ alignment: AlignmentType.CENTER, children: runs(caption, { italics: true, size: 18, color: C_LIGHT }) })]
     : [heading, mutedX("Harita görseli bu raporda oluşturulamadı; teknik tablolar aşağıdadır.")];
   const borders = { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER, insideHorizontal: NO_BORDER, insideVertical: NO_BORDER };
   return new Table({

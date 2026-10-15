@@ -13,6 +13,7 @@ import type { KpCusp, KpPoint } from "../model/kp";
 import type { VedicGrahaId } from "../model/vedic";
 import { SIGN_IDS, type SignId } from "../model/western";
 import { GRAHA_LABELS } from "../topics/vedic";
+import type { AcgMapFigure, LocalSpaceMapFigure } from "./mapFigures";
 import { SIGN_GLYPHS } from "../labels/tr";
 import { localizeKundliDom, type ChartStyle } from "@/app/admin/astroloji/_lib/kundliData";
 import { SIGN_TR_ABBR } from "@/app/admin/astroloji/_lib/kundliLocalize";
@@ -50,11 +51,14 @@ export type ReportFigure =
       /** 2026-10-15: ekrandaki Shadbala güç çubuklarının statik karşılığı (oran = rupa / BPHS asgari). */
       type: "shadbalaBars";
       planets: { id: VedicGrahaId; rank: number; ratio: number }[];
-    };
+    }
+  /** 2026-10-15: Astrocartography / Local Space dünya haritası (ekrandaki WorldMap ile aynı altlık ve hatlar; mapFigures.ts). */
+  | AcgMapFigure
+  | LocalSpaceMapFigure;
 
 /** Geniş (yatay) figür: Word/PDF'te kare harita boyutu yerine sayfa genişliğinde yerleşir. */
 export function isWideFigure(fig: ReportFigure): boolean {
-  return fig.type === "dashaTimeline" || fig.type === "shadbalaBars";
+  return fig.type === "dashaTimeline" || fig.type === "shadbalaBars" || fig.type === "acgMap" || fig.type === "localSpaceMap";
 }
 
 // ─── Lit şablonu → dizgi (yalnız statik çıktı; olay/özellik bağları atılır) ────────────────────────────
@@ -464,6 +468,8 @@ export function figureTitle(technique: string, division?: { number: number; name
   if (technique === "vedic.dasha") return "Vimshottari Dasha zaman çizelgesi";
   if (technique === "kp.dasha") return "KP Dasha zaman çizelgesi";
   if (technique === "vedic.shadbala") return "Shadbala güç grafiği";
+  if (technique === "western.astrocartography") return "Astrocartography dünya haritası";
+  if (technique === "western.local_space") return "Local space haritası";
   return "Harita";
 }
 

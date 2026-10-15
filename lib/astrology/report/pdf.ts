@@ -128,11 +128,27 @@ class W {
   }
 }
 
-function heading(w: W, level: 1 | 2 | 3, text: string, next: ReportBlock | undefined) {
+/** Görselin sayfadaki boyutu (mm): oran korunur; genişliğe ve sayfa yüksekliğine sığdırılır. Başlık + görsel yerleşimi aynı hesabı kullanır. */
+function chartBox(chart: { width: number; height: number }, b: ReportBlock): { iw: number; ih: number } {
+  const maxW = b.kind === "chart" && "figure" in b && isWideFigure(b.figure) ? CW : Math.min(CW, 125);
+  const ratio = chart.height / chart.width;
+  let iw = maxW;
+  let ih = iw * ratio;
+  const maxH = PAGE_H - TOP - BOTTOM - 12;
+  if (ih > maxH) {
+    ih = maxH;
+    iw = ih / ratio;
+  }
+  return { iw, ih };
+}
+
+function heading(w: W, level: 1 | 2 | 3, text: string, next: ReportBlock | undefined, nextChartH?: number) {
   const size = level === 1 ? 14 : 11;
   // Başlık + bir sonraki bloğun en az ilk satırları aynı sayfada kalsın.
   // Yatay grafik (Dasha çizelgesi / Shadbala) kare haritadan kısa: yalnız kendi yüksekliği kadar yer ayrılır.
-  const nextNeed = !next ? 0 : next.kind === "table" ? 16 : next.kind === "chart" ? ("figure" in next && isWideFigure(next.figure) ? 60 : 120) : 10;
+  // 2026-10-15: başlığın ardından görsel geliyorsa GERÇEK görsel yüksekliği kadar yer aranır (uzun harita başlığı sayfa
+  // sonunda yalnız bırakmasın; Word'deki bölünmez figür bloğunun PDF karşılığı).
+  const nextNeed = !next ? 0 : next.kind === "table" ? 16 : next.kind === "chart" ? (nextChartH !== undefined ? nextChartH + 8 : 120) : 10;
   w.ensure(size * LH * 2 + (level === 1 ? 6 : 3) + nextNeed);
   w.y += level === 1 ? 4 : 2;
   const ls = w.lines(text, size, CW);
@@ -264,7 +280,11 @@ export function buildAstroReportPdf(r: AstroReport, chartIn: ChartImg | null | (
           w.doc.outline.add(null, b.text, { pageNumber: w.doc.getNumberOfPages() });
           sectionStart = false;
         }
-        heading(w, b.level, b.text, r.blocks[i + 1]);
+        {
+          const nx = r.blocks[i + 1];
+          const nc = nx && nx.kind === "chart" ? (charts[chartIdx] ?? null) : null;
+          heading(w, b.level, b.text, nx, nc && nx ? chartBox(nc, nx).ih : undefined);
+        }
         break;
       case "pagebreak":
         if (w.y > TOP) w.newPage();
@@ -306,16 +326,8 @@ export function buildAstroReportPdf(r: AstroReport, chartIn: ChartImg | null | (
           w.para("Harita görseli bu raporda oluşturulamadı; teknik tablolar aşağıdadır.", 8, LIGHT);
           break;
         }
-        // Oran korunur: genişliğe ve kalan sayfa yüksekliğine sığdırılır (kare çark ~120 mm; yatay grafik tam genişlik).
-        const maxW = "figure" in b && isWideFigure(b.figure) ? CW : Math.min(CW, 125);
-        const ratio = chart.height / chart.width;
-        let iw = maxW;
-        let ih = iw * ratio;
-        const maxH = PAGE_H - TOP - BOTTOM - 12;
-        if (ih > maxH) {
-          ih = maxH;
-          iw = ih / ratio;
-        }
+        // Oran korunur: genişliğe ve kalan sayfa yüksekliğine sığdırılır (kare çark ~120 mm; yatay grafik / dünya haritası tam genişlik).
+        const { iw, ih } = chartBox(chart, b);
         w.ensure(ih + 8);
         w.doc.addImage(chart.png, "PNG", (PAGE_W - iw) / 2, w.y, iw, ih, undefined, "FAST");
         w.y += ih + 2;
