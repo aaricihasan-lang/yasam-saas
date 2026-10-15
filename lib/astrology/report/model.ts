@@ -462,7 +462,7 @@ function westernTiming(b: B, technique: string, t: O, people: { a: string; b: st
       const sm = isObj(t.summary) ? t.summary : {};
       b.kv([
         ["Ev sistemi", hsL(t.houseSystem)],
-        ["Uyum puanı (sağlayıcı)", num(t.compatibilityScore) !== null ? String(t.compatibilityScore) : DASH],
+        ["Uyum puanı (sağlayıcı)", num(t.compatibilityScore) !== null ? num(t.compatibilityScore)!.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : DASH],
         ["Açı sayısı", `Toplam ${s(sm.total)} · Uyumlu ${s(sm.harmonious)} · Zorlayıcı ${s(sm.challenging)} · Nötr ${s(sm.neutral)}`],
       ]);
       for (const [key, label, other] of [
@@ -1090,6 +1090,8 @@ const KP_AY: Record<string, string> = { "kp-newcomb": "KP-Newcomb", "kp-old": "K
 const FIGURE_MISSING = "Harita bu kayıtta eksik teknik veri nedeniyle çizilemedi; teknik tablolar aşağıdadır.";
 const KUNDLI_LEGEND = `${kundliLegend(VEDIC_GRAHA_ORDER)} · ʳ vakri · ᶜ yanık (asta) · ʷ graha yuddha. Kuzey düzeninde 3+ grahalı hücrede derece haritada gösterilmez (tabloda).`;
 const KP_LEGEND = "Burç kutuları sabit (Güney Hindistan). Çerçeveli etiket = Placidus ev başlangıcı (cusp); gri = graha. KP evleri burç kutusu değildir — bir burçta iki cusp olabilir, bir ev iki burca yayılabilir. ʳ vakri.";
+/** KP transit: figürde cusp YOK (cusps: []) → Placidus/cusp anlatımı bu haritaya uymaz (2026-10-15 UAT). */
+const KP_TRANSIT_LEGEND = "Burç kutuları sabit (Güney Hindistan). Gri etiket = graha (transit anındaki gökyüzü konumu). Bu haritada ev başlangıcı (cusp) çizilmez: KP transit tek an için gökyüzüdür. ʳ vakri.";
 const KUNDLI_NOTE = "Kuzey Hindistan düzeni (uygulamadaki varsayılan görünüm; Lagna üst ortadaki 1. ev). Kayıtlı analiz verisinden, uygulamadaki harita bileşeniyle çizilmiştir.";
 const KP_NOTE = "Güney Hindistan burç düzeni; uygulamadaki KP haritasıyla aynı yerleşim. Kayıtlı analiz verisinden çizilmiştir.";
 
@@ -1124,7 +1126,7 @@ function vedicKpFigure(technique: string, t: O): { figure: ReportFigure; caption
     if (technique === "kp.transit") {
       if (t.schema !== KP_TRANSIT_TECHNICAL_SCHEMA || !hasPts(t.bodies) || !isObj(t.frame)) return { missing: FIGURE_MISSING };
       const d = t as unknown as KpTransitTechnical;
-      return { figure: { type: "kp", cusps: [], bodies: d.bodies, center: { title: "KP transit", lines: ["gökyüzü (an)", KP_AY[d.frame.ayanamsa] ?? String(d.frame.ayanamsa)] } }, caption: `${figureTitle(technique)} — ${KP_NOTE}`, legend: KP_LEGEND };
+      return { figure: { type: "kp", cusps: [], bodies: d.bodies, center: { title: "KP transit", lines: ["gökyüzü (an)", KP_AY[d.frame.ayanamsa] ?? String(d.frame.ayanamsa)] } }, caption: `${figureTitle(technique)} — ${KP_NOTE}`, legend: KP_TRANSIT_LEGEND };
     }
   } catch {
     return { missing: FIGURE_MISSING };

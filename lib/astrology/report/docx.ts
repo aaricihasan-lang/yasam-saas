@@ -2,7 +2,7 @@
 // kapak, başlık stilleri (Heading 1–3 → gezinme bölmesi), üst/alt bilgi (Sayfa X / Y), görsel gömme.
 // Girdi yalnız SAF rapor modelidir (buildAstroReport); burada veri okunmaz, hesap yapılmaz.
 
-import { AlignmentType, Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableLayoutType, TableRow, TextRun, WidthType, type IRunOptions } from "docx";
+import { AlignmentType, BorderStyle, Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableLayoutType, TableRow, TextRun, WidthType, type IRunOptions } from "docx";
 import {
   C_DARK,
   C_LIGHT,
@@ -100,6 +100,30 @@ function paragraphs(text: string, tone?: "muted" | "warn"): Paragraph[] {
     });
 }
 
+const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" } as const;
+/**
+ * Başlık + harita görseli + alt yazı: kenarlıksız, bölünmeyen (cantSplit) tek hücre. Sığmazsa üçü birlikte sonraki
+ * sayfaya geçer — başlık sayfa sonunda yalnız kalmaz. Görsel üretilemezse aynı açık not (görsel uydurulmaz).
+ */
+function figureBlock(heading: Paragraph, png: Buffer | null, caption: string): Table {
+  const children: Paragraph[] = png
+    ? [heading, embedImageParagraph(png, 430, 430), new Paragraph({ alignment: AlignmentType.CENTER, children: runs(caption, { italics: true, size: 18, color: C_LIGHT }) })]
+    : [heading, mutedX("Harita görseli bu raporda oluşturulamadı; teknik tablolar aşağıdadır.")];
+  const borders = { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER, insideHorizontal: NO_BORDER, insideVertical: NO_BORDER };
+  return new Table({
+    width: { size: CONTENT_DXA, type: WidthType.DXA },
+    columnWidths: [CONTENT_DXA],
+    layout: TableLayoutType.FIXED,
+    borders,
+    rows: [
+      new TableRow({
+        cantSplit: true,
+        children: [new TableCell({ width: { size: CONTENT_DXA, type: WidthType.DXA }, margins: { top: 0, bottom: 0, left: 0, right: 0 }, borders: { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER }, children })],
+      }),
+    ],
+  });
+}
+
 /** Başlığı tekrar eden, satırı bölünmeyen tablo; geniş tablolarda küçük punto. */
 function dataTable(tb: ReportTable): Table {
   const n = tb.columns.length;
@@ -161,12 +185,24 @@ export function buildAstroReportDocument(r: AstroReport, chartPng: Buffer | null
       children: runs(t(r.title), { bold: true, size: 32, color: C_DARK }),
     }),
   ];
-  for (const b of r.blocks) {
+  for (let i = 0; i < r.blocks.length; i++) {
+    const b = r.blocks[i];
     switch (b.kind) {
-      case "heading":
+      case "heading": {
+        const next = r.blocks[i + 1];
+        // Vedik/KP figürü: başlık + görsel + alt yazı bölünmez tek blok (2026-10-15 UAT). keepNext tek başına
+        // her görüntüleyicide (LibreOffice) yetmedi → "Harita" sayfa sonunda yalnız kalıyordu. Batı çarkı aynen.
+        if (next && next.kind === "chart" && "figure" in next) {
+          const png = charts[chartIdx++] ?? null;
+          body.push(figureBlock(hx(b.level, t(b.text), breakNext), png, t(next.caption)));
+          breakNext = false;
+          i++;
+          break;
+        }
         body.push(hx(b.level, t(b.text), breakNext));
         breakNext = false;
         break;
+      }
       case "pagebreak":
         breakNext = true;
         break;

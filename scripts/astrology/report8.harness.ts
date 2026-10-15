@@ -1006,6 +1006,45 @@ async function main() {
     assert.ok((await (await JSZip.loadAsync(docx)).file("word/document.xml")!.async("string")).includes("Harita görseli bu raporda oluşturulamadı"));
     assert.ok(norm((await pdfText(Buffer.from(buildAstroReportPdf(r, null, fontB64, symbolFontsBase64())))).text).includes("Harita görseli bu raporda oluşturulamadı"));
   });
+  // 2026-10-15 bağımsız inceleme (PR #396) düzeltmeleri
+  await t("Word sayfalama: Vedik/KP'de 'Harita' başlığı + görsel + alt yazı bölünmez tek blok (sayfa sonunda yalnız başlık kalmaz); batı çarkı düzeni aynen", () => {
+    const harita = (xml: string) => {
+      const i = xml.indexOf(">Harita<");
+      const ts = xml.lastIndexOf("<w:tbl>", i);
+      const te = ts < 0 ? -1 : xml.indexOf("</w:tbl>", ts);
+      return { i, tbl: ts >= 0 && te > i && xml.lastIndexOf("</w:tbl>", i) < ts ? xml.slice(ts, te) : null };
+    };
+    for (const tech of FIG_TECHS) {
+      const { i, tbl } = harita(docs.get(tech)!.docx.xml);
+      assert.ok(i > 0, `${tech}: Harita başlığı yok`);
+      assert.ok(tbl, `${tech}: Harita başlığı bölünmez blokta değil`);
+      assert.ok(tbl!.includes("<w:cantSplit/>") && tbl!.includes("<w:drawing>") && tbl!.includes('w:val="Heading1"'), `${tech}: blokta başlık + görsel + cantSplit birlikte değil`);
+    }
+    for (const tech of ["western.natal", "western.synastry", "western.transit"]) {
+      const { i, tbl } = harita(docs.get(tech)!.docx.xml);
+      assert.ok(i > 0 && tbl === null, `${tech}: batı çarkı düzeni değişmemeli`);
+    }
+  });
+  await t("KP transit açıklaması cusp/Placidus anlatmaz (haritada cusp yok); KP doğum + horary açıklaması korunur", () => {
+    const tr = docs.get("kp.transit")!;
+    for (const x of [tr.docx.text, norm(tr.pdf.text)]) {
+      assert.ok(!x.includes("Çerçeveli etiket") && !x.includes("Placidus ev başlangıcı"), "kp.transit: olmayan cusp etiketleri anlatılıyor");
+      assert.ok(x.includes("ev başlangıcı (cusp) çizilmez"), "kp.transit: doğru açıklama yok");
+    }
+    for (const tech of ["kp.chart", "kp.horary"]) {
+      const d = docs.get(tech)!;
+      for (const x of [d.docx.text, norm(d.pdf.text)]) assert.ok(x.includes("Çerçeveli etiket = Placidus ev başlangıcı (cusp)"), `${tech}: cusp açıklaması korunmalı`);
+    }
+  });
+  await t("Sinastri uyum puanı Türkçe iki ondalık (57,28); kayıtlı ham değer değişmez", async () => {
+    const raw = ((await full(saved.get("western.synastry")!)) as J).technical.compatibilityScore as number;
+    assert.equal(raw, 57.28004017277183, "kayıtlı ham değer");
+    const d = docs.get("western.synastry")!;
+    for (const x of [d.docx.text, norm(d.pdf.text)]) {
+      assert.ok(x.includes("57,28"), "uyum puanı Türkçe iki ondalık değil");
+      assert.ok(!x.includes("57.28004017277183") && !x.includes("57,28004"), "ham uzun ondalık raporda");
+    }
+  });
   restore();
   console.log(`\nastrology report8 harness: ${pass} PASS / ${fail} FAIL`);
   if (fail > 0) process.exit(1);
