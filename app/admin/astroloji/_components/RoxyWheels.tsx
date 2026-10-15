@@ -150,7 +150,7 @@ export function TransitWheelCaption({
       {f.houseSystem === "whole-sign" ? "tam burç" : f.houseSystem} evler) · Dış
       halka: transit · Yükselen solda · kesik çizgiler ev sınırları, düz
       çizgiler burç sınırları · kaydırılmış sembolün ince çizgisi gerçek
-      dereceyi gösterir · çizim: RoxyAPI bileşeni
+      dereceyi gösterir
     </p>
   );
 }
@@ -161,8 +161,8 @@ export function SynastryWheelCaption({ names }: { names: [string, string] }) {
       data-testid="astro-roxy-synastry-caption"
     >
       Dış halka (¹): {names[0]} · İç halka (²): {names[1]} · Koç 0° solda ·
-      bölümler BURÇ sınırlarıdır, ev değildir (Roxy sinastride ev cusp&apos;ı
-      vermez) · ASC1/ASC2 yükselenler · çizim: RoxyAPI bileşeni
+      bölümler BURÇ sınırlarıdır, ev değildir (sinastri hesabında ev cusp&apos;ı
+      vermez) · ASC1/ASC2 yükselenler
     </p>
   );
 }

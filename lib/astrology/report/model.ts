@@ -550,7 +550,7 @@ const latTr = (lat: number | undefined) => (lat === undefined ? DASH : `${lat > 
 const magTr = (v: unknown) => (num(v) === null ? DASH : num(v)!.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
 export const FIXED_STARS_METHOD_TEXT =
-  "Yöntem: ekliptik boylam kavuşumu. Yıldızın doğum anındaki görünür tropikal boylamı (presesyon, nütasyon ve yıllık aberasyon uygulanmış) ile natal nokta boylamı arasındaki fark, seçilen orb içindeyse kavuşum sayılır. Bu yöntem paran (yıldız ile gezegenin aynı anda ufuk veya meridyen üzerinde olması) DEĞİLDİR; paran ve heliakal doğuş bu raporda yer almaz. Yıldız konumları ve kavuşumlar RoxyAPI'den alınmıştır; Yaşam Sistemi konumları Swiss Ephemeris yıldız kataloğu (SIMBAD ICRS J2000 + öz hareket) ile bağımsız olarak doğrulamıştır.";
+  "Yöntem: ekliptik boylam kavuşumu. Yıldızın doğum anındaki görünür tropikal boylamı (presesyon, nütasyon ve yıllık aberasyon uygulanmış) ile natal nokta boylamı arasındaki fark, seçilen orb içindeyse kavuşum sayılır. Bu yöntem paran (yıldız ile gezegenin aynı anda ufuk veya meridyen üzerinde olması) DEĞİLDİR; paran ve heliakal doğuş bu raporda yer almaz. Yıldız konumları ve kavuşumlar teknik hesaplama sonuçlarıdır; Yaşam Sistemi konumları Swiss Ephemeris yıldız kataloğu (SIMBAD ICRS J2000 + öz hareket) ile bağımsız olarak doğrulamıştır.";
 
 function westernFixedStars(b: B, t: O, opts: O) {
   const orb = fixedStarOrbOf(opts.orb);
@@ -938,7 +938,7 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       return;
     case "astro.western.forecast.interp.v1":
       // Roxy olay başına tek cümle (ayrı genel yorum yok) — aynen, tarih sırasıyla.
-      b.p("Roxy bu teknikte ayrı bir genel yorum üretmez; her olay için verdiği açıklama cümlesi değiştirilmeden aktarılmıştır.", "muted");
+      b.p("Bu teknikte ayrı bir genel otomatik yorum bulunmuyor; her olayın otomatik açıklama cümlesi değiştirilmeden aktarılmıştır.", "muted");
       for (const x of arr(c.events)) para(typeof x.datetime === "string" ? `${localTr(x.datetime)} UTC` : null, x.text);
       return;
     case "astro.western.progression.interp.v1":
@@ -949,7 +949,7 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       return;
     case "astro.western.fixed_stars.interp.v1": {
       // Kavuşum anlatıları (Roxy, lang=tr) aynen; anahtar kelimeler Roxy'de İngilizce gelir → Yaşam sözlüğüyle Türkçe (özgün).
-      b.p("Kavuşum metinleri RoxyAPI'nin şablon yorumlarıdır (yalnız rapor orbu içindeki temaslar); anahtar kelimeler Roxy'nin İngilizce verisinin Yaşam sözlüğüyle Türkçe karşılığıdır (özgün sözcük parantez içinde).", "muted");
+      b.p("Kavuşum metinleri otomatik yorum metinleridir (yalnız rapor orbu içindeki temaslar); anahtar kelimeler İngilizce kaynak verinin Yaşam sözlüğüyle Türkçe karşılığıdır (özgün sözcük parantez içinde).", "muted");
       for (const x of arr(c.contacts)) para(`${fixedStarName(String(x.star))} ${CONJ} ${bodyL(x.point)}`, x.text);
       const used = new Set(arr(c.contacts).map((x) => String(x.star)));
       for (const st of arr(c.stars).filter((x) => used.has(String(x.id)))) {
@@ -1024,7 +1024,7 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       return;
     case "astro.vedic.transit.interp.v1":
       // Sağlayıcı bu metni Türkçe istek olmasına rağmen İngilizce döndürür; aynen korunur (çevrilmez), ekrandaki gibi belirtilir.
-      if (arr(c.keyTransits).length) b.p("Not: Roxy bu bölüm için metni yalnız İngilizce sağlıyor; metin değiştirilmeden aktarılmıştır.", "muted");
+      if (arr(c.keyTransits).length) b.p("Not: Bu bölümün otomatik metni yalnız İngilizce mevcuttur; metin değiştirilmeden aktarılmıştır.", "muted");
       for (const x of arr(c.keyTransits)) para(grahaL(x.id), x.text);
       return;
     case "astro.kp.chart.interp.v1":
@@ -1320,7 +1320,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     b.p(NO_PROVIDER_INTERPRETATION_NOTE, "muted");
   }
   if (interpVisible) {
-    b.h(1, "Roxy otomatik yorumu");
+    b.h(1, "Otomatik Yorum");
     // 2026-10-15: ekrandaki sekme adıyla aynı tür ayrımı (Otomatik Yorum / Teknik Açıklama / Olay Açıklamaları).
     b.p(interpretationKindNote(interpretationKindOfSchema(typeof (it!.content as O).schema === "string" ? String((it!.content as O).schema) : "")), "muted");
     if (typeof it!.notice === "string") b.p(it!.notice, "muted");
@@ -1341,7 +1341,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     ["Analiz kimliği", a.id],
     ["Kayıt tarihi", instantTr(a.analysisAt)],
     ["Hesap tarihi", instantTr(v.resultComputedAt)],
-    ["Hesap motoru", typeof v.provider === "string" ? (v.provider === "roxy" ? "RoxyAPI" : v.provider) : DASH],
+    ["Hesaplama sağlayıcısı", typeof v.provider === "string" ? "Harici hizmet" : DASH],
     ["Snapshot şeması", s(v.snapshotSchema)],
   ]);
   b.p("Harita ve teknik sonuçlar kaydedildiği andaki değişmez analiz kaydından, uzman notları kayıt anındaki hâlinden, Bilgi Bankası açıklamaları uzmanın güncel kayıtlarından alınmıştır; rapor oluşturulurken yeni hesaplama yapılmaz.", "muted");
@@ -1398,7 +1398,7 @@ export function buildCombinedAstroReport(items: ReportAnalysisInput[], scope: "s
   blocks.push({
     kind: "para",
     tone: "muted",
-    text: "Her analiz kendi bölümünde, kaydedildiği andaki değişmez kayıtlı veriden yer alır; doğum bilgisi revizyonu her bölümde ayrıca belirtilir. Rapor oluşturulurken yeni hesaplama ve sağlayıcı (Roxy) isteği yapılmaz.",
+    text: "Her analiz kendi bölümünde, kaydedildiği andaki değişmez kayıtlı veriden yer alır; doğum bilgisi revizyonu her bölümde ayrıca belirtilir. Rapor oluşturulurken yeni hesaplama yapılmaz.",
   });
   sections.forEach((x, i) => {
     blocks.push({ kind: "pagebreak" });

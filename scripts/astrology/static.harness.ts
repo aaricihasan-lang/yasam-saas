@@ -197,7 +197,10 @@ async function main() {
       const plus = diff.split(/\r?\n/).filter((l) => l.startsWith("+") && !l.startsWith("+++")).map((l) => l.slice(1).trim());
       // Usage360 tip daraltması (Astroloji kullanım kapsamı dışı): ModuleGateKey → UsageTrackedModuleKey eşdeğer sayılır.
       const strip = (x: string) => x.replace(/[,;]\s*$/, "").replace(/UsageTrackedModuleKey/g, "ModuleGateKey").replace(/, type ModuleGateKey \}/, " }").replace("isUsageModuleKey(module) && ", "");
-      for (const m of minus) assert.ok(plus.some((p) => strip(p) === strip(m)), `${f}: silinen/değişen satır: ${m}`);
+      // 2026-10-15: Astroloji'nin KENDİ satırı (anahtarı astrology_*) metin olarak güncellenebilir (ör. yetki etiketinden sağlayıcı
+      // adı kaldırıldı); anahtar aynı kalmalı. Başka modül satırı hâlâ değiştirilemez.
+      const astroKey = (x: string) => /^(astrology\w*)\s*:/.exec(x)?.[1] ?? null;
+      for (const m of minus) assert.ok(plus.some((p) => strip(p) === strip(m) || (astroKey(m) !== null && astroKey(p) === astroKey(m))), `${f}: silinen/değişen satır: ${m}`);
       for (const p of plus) {
         const ok = minus.some((m) => strip(m) === strip(p)) || /^export type UsageTrackedModuleKey = Exclude<ModuleGateKey, "astrology">;$|^return isUsageModuleKey\(module\) && USAGE_SUB_ENTITIES\[module\]\.includes\(sub\);$|astrolog|astroloji|Astroloji|Astrology|Roxy|owner kuralı|^\/\/|^\*|^\/\*\*$|^\}|^\{|^\],?$|^\),?$|^[a-z_]+: \[\],?$|^(label|key|hasDurableTrace|recordSources|note|href|permissionKey|emoji|Icon|theme|iconWrap|cardBg|border):/.test(p) || p === "";
         assert.ok(ok, `${f}: Astroloji dışı eklenen satır: ${p}`);

@@ -122,7 +122,7 @@ export const KP_NODE_SIG_METHODS: Readonly<Record<KpNodeSigMethodId, { short: st
     short: "sade kural",
     label: "Sade 4 düzey (düğüm ajanlığı uygulanmaz)",
     detail:
-      "Düğüm sıradan graha gibi okunur: L1 yıldız lordunun evi, L2 kendi evi, L3 yıldız lordunun sahip olduğu evler; düğüm burç sahibi olmadığından L4 boştur. Roxy bu uçta düğümleri 'burç lordunun ajanı' diye tanımlar ama tabloya ajan evlerini eklemez.",
+      "Düğüm sıradan graha gibi okunur: L1 yıldız lordunun evi, L2 kendi evi, L3 yıldız lordunun sahip olduğu evler; düğüm burç sahibi olmadığından L4 boştur. Bu hesaplamada düğümler 'burç lordunun ajanı' diye tanımlanır ama tabloya ajan evleri eklenmez.",
     status: "Bağımsız olarak doğrulandı (golden; natal + horary).",
   },
   agent: {
@@ -136,7 +136,7 @@ export const KP_NODE_SIG_METHODS: Readonly<Record<KpNodeSigMethodId, { short: st
     short: "ajan evleri",
     label: "Ajan evleri: düğüm ve ajanlarının bulunduğu + sahip olduğu evler (düzeysiz; yıldız düzeyleri yok)",
     detail:
-      "Bu uçta düğümün listesi, ajan ekli kuralın yalnız L2 (bulunduğu evler) ve L4 (sahip olduğu evler) kısmıdır. Yıldız lordundan gelen L1/L3 evleri eklenmez. Sıra: önce düğümün kendi evi, sonra kavuşan / 7. burçtaki ajanlar, en son burç lordu. Görünür grahalarda ise bu uç tam 4 düzeyi verir. Roxy belgesi bu uç için yalnız '4 düzey KP hiyerarşisi' der; düğümdeki farkı yazmaz.",
+      "Bu uçta düğümün listesi, ajan ekli kuralın yalnız L2 (bulunduğu evler) ve L4 (sahip olduğu evler) kısmıdır. Yıldız lordundan gelen L1/L3 evleri eklenmez. Sıra: önce düğümün kendi evi, sonra kavuşan / 7. burçtaki ajanlar, en son burç lordu. Görünür grahalarda ise bu uç tam 4 düzeyi verir. Hesaplama belgesi bu teknik için yalnız '4 düzey KP hiyerarşisi' der; düğümdeki farkı yazmaz.",
     status: "Bağımsız olarak doğrulandı (golden; 2 doğum, 3 liste, sıra dahil). Belgelenmemiş sağlayıcı davranışı.",
   },
 };

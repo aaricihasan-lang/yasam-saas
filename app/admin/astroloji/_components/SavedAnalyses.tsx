@@ -390,7 +390,7 @@ export function SavedAnalysisView({
             {/* 2026-10-15: Roxy'nin yorum üretmediği teknikte "dahil edilmedi" yanıltıcıdır → sağlayıcı kapsamı açıkça söylenir. */}
             {hasNoProviderInterpretation(a.technique) ? (
               <span title={NO_PROVIDER_INTERPRETATION_NOTE} data-testid="astro-no-provider-interp">
-                <DeskChip tone="muted">Roxy bu teknikte yorum üretmez · yalnız teknik veri</DeskChip>
+                <DeskChip tone="muted">Otomatik yorum yok · yalnız teknik hesaplama sonuçları</DeskChip>
               </span>
             ) : (
               !interp.visible && interp.reason === "not_included" && <DeskChip tone="muted">Sistem yorumu dahil edilmedi</DeskChip>
@@ -584,7 +584,7 @@ function BulkReportBar({ profileId, total, selectedIds, previewNoInterp, onClear
           {busy === "all-pdf" ? "Hazırlanıyor…" : `Tüm Analizleri PDF İndir (${total})`}
         </button>
       </div>
-      <p className="text-[11px] text-slate-500">Tek dosya; her analiz ayrı bölümde, kayıtlı veriden (yeni hesap ve Roxy isteği yok). Tek analiz için analizi açıp Word / PDF düğmelerini kullanın.</p>
+      <p className="text-[11px] text-slate-500">Tek dosya; her analiz ayrı bölümde, kayıtlı veriden (yeni hesaplama yapılmaz). Tek analiz için analizi açıp Word / PDF düğmelerini kullanın.</p>
       {err && (
         <p role="alert" className="text-xs text-rose-700" data-testid="astro-bulk-error">
           {err}

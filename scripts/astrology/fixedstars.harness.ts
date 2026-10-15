@@ -479,7 +479,7 @@ async function main() {
     assert.ok(s1.includes("Zuben Elgenubi") && s1.includes("Pollux"));
     assert.ok(!s1.includes("Vega"), "orb dışı (2,28°) Vega–Neptün rapora girmemeli");
     assert.ok(!s1.includes("Ek: Sabit yıldız kataloğu"), "katalog varsayılan olarak eklenmemeli");
-    assert.ok(s1.includes("Roxy otomatik yorumu"));
+    assert.ok(s1.includes("Otomatik Yorum"));
     assert.ok(s1.includes("cesaret (courage)") && s1.includes("engel (obstruction)"), "anahtar kelime Türkçe karşılığı + özgün sözcük");
     assert.ok(!s1.includes("yazı (writing)") || s1.includes("Castor"), "orb dışı yıldızın anahtar kelimesi");
     const r3 = buildAstroReport(await mk({ orb: 3, reportCatalog: true }));
@@ -495,7 +495,7 @@ async function main() {
     }
     // Yetkisiz uzman raporu: yorum bölümü yok.
     const hiddenA = ((await getAnalysis(ctxOf(store, { entitlements: NO_INTERP }), ((await saveAnalysis(ctx, { profileId: pa, revision: 1, ...FS(), saveRequestId: randomUUID() }, false)).body as J).analysisId, false)).body as J).analysis;
-    assert.ok(!flat(buildAstroReport(hiddenA)).includes("Roxy otomatik yorumu"));
+    assert.ok(!flat(buildAstroReport(hiddenA)).includes("Otomatik Yorum"));
   });
 
   // ═══ F) GÖRÜNÜM ═══════════════════════════════════════════════════════════════

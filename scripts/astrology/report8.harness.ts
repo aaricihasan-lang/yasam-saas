@@ -447,7 +447,7 @@ async function main() {
   // ── Roxy yorum güvenliği ─────────────────────────────────────────────────────────────────────────
   await t("yorum yetkisi AÇIK: kayıtlı Roxy yorumu Word ve PDF'te var", () => {
     const n = docs.get("western.natal")!;
-    assert.ok(n.docx.text.includes("Roxy otomatik yorumu"));
+    assert.ok(n.docx.text.includes("Otomatik Yorum"));
     assert.ok(n.docx.text.includes(NATAL_NARR.slice(0, 40)), "docx yorum metni");
     assert.ok(norm(n.pdf.text).includes(norm(NATAL_NARR.slice(0, 30))), "pdf yorum metni");
   });
@@ -460,7 +460,7 @@ async function main() {
         const r = await get(surface, saved.get(tech)!, who, fmt, extra);
         assert.equal(r.status, 200, `${tech} ${fmt} ${r.status}`);
         const text = fmt === "docx" ? (await docxText(r.buf)).text : norm((await pdfText(r.buf)).text);
-        assert.ok(!text.includes("Roxy otomatik yorumu"), `${tech} ${fmt}: yorum başlığı sızdı`);
+        assert.ok(!text.includes("Otomatik Yorum"), `${tech} ${fmt}: yorum başlığı sızdı`);
         for (const s of narr) assert.ok(!text.includes(fmt === "pdf" ? norm(s) : s), `${tech} ${fmt}: yorum metni sızdı: ${s}`);
         assert.ok(!/interp|Roxy yorumu dahil/i.test(text), `${tech} ${fmt}: yorum izi`);
       }
@@ -504,7 +504,7 @@ async function main() {
         for (const fmt of ["docx", "pdf"]) {
           const r = await get("expert", saved.get(tech)!, "exAI", fmt);
           const text = fmt === "docx" ? (await docxText(r.buf)).text : norm((await pdfText(r.buf)).text);
-          assert.ok(!text.includes("Roxy otomatik yorumu") && !text.includes("Güçlü yan") && !text.includes("Zorluk:"), `${tech} ${fmt}`);
+          assert.ok(!text.includes("Otomatik Yorum") && !text.includes("Güçlü yan") && !text.includes("Zorluk:"), `${tech} ${fmt}`);
         }
       }
     } finally {
@@ -515,12 +515,12 @@ async function main() {
   await t("doğrudan API + önbellek: aynı analiz yorumlu indirildikten HEMEN sonra yetki kalkınca yorumsuz (önbellek yok, no-store)", async () => {
     const id = saved.get("western.natal")!;
     const a = await get("expert", id, "exAI", "docx");
-    assert.ok((await docxText(a.buf)).text.includes("Roxy otomatik yorumu"));
+    assert.ok((await docxText(a.buf)).text.includes("Otomatik Yorum"));
     assert.equal(a.headers.get("cache-control"), "no-store, private");
     setPerms(U.exAI, { astrology: true });
     try {
       const b = await get("expert", id, "exAI", "docx");
-      assert.ok(!(await docxText(b.buf)).text.includes("Roxy otomatik yorumu"));
+      assert.ok(!(await docxText(b.buf)).text.includes("Otomatik Yorum"));
     } finally {
       setPerms(U.exAI, { astrology: true, astrology_provider_interp: true });
     }
@@ -673,9 +673,9 @@ async function main() {
     const id = (sv.body as J).analysisId;
     const a = await get("admin", id, "owner", "docx");
     assert.equal(a.status, 200);
-    assert.ok((await docxText(a.buf)).text.includes("Roxy otomatik yorumu"));
+    assert.ok((await docxText(a.buf)).text.includes("Otomatik Yorum"));
     const b = await get("admin", id, "owner", "pdf", "&previewNoInterp=1");
-    assert.ok(!norm((await pdfText(b.buf)).text).includes("Roxy otomatik yorumu"));
+    assert.ok(!norm((await pdfText(b.buf)).text).includes("Otomatik Yorum"));
     assert.equal((await get("expert", id, "exAI", "docx")).status, 404, "uzman owner'ın analizini alamaz");
   });
 
@@ -1109,7 +1109,7 @@ async function main() {
       }
     }
   });
-  await t("yorum üretmeyen teknikler (Drishti / Ashtakavarga / KP transit): motor kaydıyla uyumlu; Word + PDF 'Roxy bu teknikte yorum üretmez' der, sızma başlığı yok; diğer tekniklerde not YOK", async () => {
+  await t("yorum üretmeyen teknikler (Drishti / Ashtakavarga / KP transit): motor kaydıyla uyumlu; Word + PDF 'otomatik yorum bulunmuyor' der, sızma başlığı yok; diğer tekniklerde not YOK", async () => {
     const { NO_PROVIDER_INTERPRETATION, NO_PROVIDER_INTERPRETATION_NOTE } = await import("@/lib/astrology/noProviderInterp");
     for (const tech of TECHNIQUES) {
       const a = await full(saved.get(tech)!);
@@ -1119,12 +1119,12 @@ async function main() {
       const d = docs.get(tech)!;
       for (const x of [d.docx.text, norm(d.pdf.text)]) {
         assert.equal(x.includes(norm(NO_PROVIDER_INTERPRETATION_NOTE).slice(0, 60)), none, `${tech}: not`);
-        if (none) assert.ok(!x.includes("Roxy otomatik yorumu"), `${tech}: yorum başlığı olmamalı`);
+        if (none) assert.ok(!x.includes("Otomatik Yorum"), `${tech}: yorum başlığı olmamalı`);
       }
     }
   });
   await t("yorum türü satırı Word/PDF'te ekrandaki sekmeyle aynı (Otomatik Yorum / Teknik Açıklama / Olay Açıklamaları)", () => {
-    const want: Record<string, string> = { "western.natal": "Bu bölüm: Otomatik Yorum", "kp.chart": "Bu bölüm: Teknik Açıklama", "vedic.shadbala": "Bu bölüm: Teknik Açıklama", "western.forecast": "Bu bölüm: Roxy Olay Açıklamaları", "vedic.dasha": "Bu bölüm: Otomatik Yorum" };
+    const want: Record<string, string> = { "western.natal": "Bu bölüm: Otomatik Yorum", "kp.chart": "Bu bölüm: Teknik Açıklama", "vedic.shadbala": "Bu bölüm: Teknik Açıklama", "western.forecast": "Bu bölüm: Olay Açıklamaları", "vedic.dasha": "Bu bölüm: Otomatik Yorum" };
     for (const [tech, s2] of Object.entries(want)) {
       const d = docs.get(tech)!;
       assert.ok(d.docx.text.includes(s2) && norm(d.pdf.text).includes(s2), `${tech}: ${s2}`);

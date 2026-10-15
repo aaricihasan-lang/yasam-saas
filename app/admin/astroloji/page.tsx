@@ -1553,7 +1553,7 @@ export default function AstrologyWorkspacePage() {
                       <DeskChip tone={saved ? "saved" : "muted"}>{saved ? "✓ Bu analiz kaydedildi" : "Bu analiz kaydedilmedi"}</DeskChip>
                       {item && hasNoProviderInterpretation(item.technique) && (
                         <span title={NO_PROVIDER_INTERPRETATION_NOTE} data-testid="astro-no-provider-interp">
-                          <DeskChip tone="muted">Roxy bu teknikte yorum üretmez · yalnız teknik veri</DeskChip>
+                          <DeskChip tone="muted">Otomatik yorum yok · yalnız teknik hesaplama sonuçları</DeskChip>
                         </span>
                       )}
                     </>
@@ -1764,7 +1764,7 @@ export default function AstrologyWorkspacePage() {
                 const nt = x.view.method.nodeType === "true" || x.view.method.nodeType === "mean" ? NODE_TYPE_LABELS[x.view.method.nodeType] : null;
                 return { key: x.key, label: techniqueLabel(x.technique), detail: [o, zod, hs, nt, `doğum rev ${revision}`, x.partial ? "kısmi sonuç" : ""].filter(Boolean).join(" · "), closed: !runs.open.includes(x.key), draft: !!dirtyTabs[x.key] };
               })}
-            interpNote={access.providerInterp && !previewNoInterp ? "Roxy'nin bu analizler için ürettiği sistem yorumu, varsa, kayda ayrı katman olarak otomatik eklenir (sizin yorumunuzla karışmaz)." : null}
+            interpNote={access.providerInterp && !previewNoInterp ? "Bu analizlerin otomatik sistem yorumu, varsa, kayda ayrı katman olarak eklenir (sizin yorumunuzla karışmaz)." : null}
             onSave={(keys, titles, onItem) => saveBenchKeys(keys.map((k) => `${runs.key}|${k}`), titles, onItem)}
             onSucceeded={(n) => setSaveToast({ n, at: nowMs() })}
             onClose={() => setSaveDialog(false)}

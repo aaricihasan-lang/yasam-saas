@@ -798,7 +798,7 @@ export default function PrepCenter({
       </ul>
       <p className="mt-2 text-[12px] leading-snug text-[#F6F2EA]/70" data-testid="atlas-run-failures-next">
         {runFailures.items.some((f) => f.code === "LOCAL_FIXTURE_MISSING")
-          ? "Yerel önizlemede yalnız test verisi bulunan girdiler hesaplanır (ör. “Ali Örnek — natal”). Bu danışan için gerçek hesaplama, gerçek Roxy bağlantılı ortamda yapılır. "
+          ? "Yerel önizlemede yalnız test verisi bulunan girdiler hesaplanır (ör. “Ali Örnek — natal”). Bu danışan için gerçek hesaplama, gerçek hesaplama hizmetine bağlı ortamda yapılır. "
           : ""}
         {runFailures.items.some((f) => f.code === "IN_PROGRESS")
           ? `Çift ücretli istek önleme kilidi nedeniyle yeni istek gönderilmedi; en erken ${hhmmss(runFailures.at + Math.max(...runFailures.items.map((f) => f.retryAfterSec ?? 0)) * 1000)} itibarıyla yeniden deneyebilirsiniz. `

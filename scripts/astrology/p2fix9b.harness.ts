@@ -200,13 +200,13 @@ async function main() {
   await t("5) Roxy yorumları korunuyor (kayıtta); yetki kapalıyken getAnalysis + Word + PDF + sinastri iç içe yorumu SIZDIRMIYOR", async () => {
     assert.ok(row(natalId).provider_interp_snapshot && row(synId).provider_interp_snapshot, "yorum snapshot'ı silinmemeli");
     const on = await report(natalId, "ex1", "docx");
-    assert.ok(on.text.includes("Roxy otomatik yorumu"));
+    assert.ok(on.text.includes("Otomatik Yorum"));
     setPerms(U.ex1, { astrology: true });
     try {
       for (const id of [natalId, synId]) {
         const a = JSON.stringify(((await getAnalysis({ ...c1, entitlements: resolveAstrologyEntitlements({ isOwner: false, role: "expert", flags: { astrology: true } }) }, id, false)).body as J).analysis);
-        assert.ok(!a.includes("Roxy otomatik") && !/"visible":true/.test(a));
-        for (const fmt of ["docx", "pdf"] as const) assert.ok(!(await report(id, "ex1", fmt)).text.includes("Roxy otomatik yorumu"), `${id} ${fmt}`);
+        assert.ok(!a.includes("Otomatik Yorum") && !/"visible":true/.test(a));
+        for (const fmt of ["docx", "pdf"] as const) assert.ok(!(await report(id, "ex1", fmt)).text.includes("Otomatik Yorum"), `${id} ${fmt}`);
       }
     } finally {
       setPerms(U.ex1, ALL);
