@@ -28,6 +28,7 @@ import {
   toAppTypeCode,
 } from "../../lib/human-design/normalize/hdAppCodes";
 import { computeRoxyChart, roxyChartIdFor, roxyInputHash, type RoxyServiceDeps } from "../../lib/human-design/api/roxyChartService";
+import { expectedDesignInstantUtc } from "../../lib/human-design/providers/roxy/timeConsistency";
 import { resolveBirthLocalTime } from "../../lib/human-design/api/birthTimeResolution";
 import { resolveHdBirthLocation } from "../../lib/human-design/api/hdBirthLocation";
 import {
@@ -420,8 +421,24 @@ async function main(): Promise<void> {
     ok("N9 Roxy'ye giden istek: tz/koordinat sunucudan, nodeType politikadan", JSON.stringify(calls[0]) === JSON.stringify({ date: "2018-07-20", time: "19:00:00", timezone: "Europe/Istanbul", latitude: konya!.latitude, longitude: konya!.longitude, nodeType: "true" }));
     // Doğum saati değişince yeni hesap
     f.tables.human_design_clients[0].birth_time = "19:30";
-    const changed = await computeRoxyChart(ctxA(f.db), body, deps);
-    ok("N10 doğum bilgisi değişince yeni hesap + yeni kayıt (eski korunur)", changed.body.ok && changed.body.reused === false && calls.length === 2 && f.tables.human_design_charts.length === 2);
+    // HD-15: gerçek Roxy değişen doğum anına göre YENİ Design anı döndürür; sahte sağlayıcı da öyle
+    // davranmalı. (Değişmemiş/bayat Design anı artık tutarlılık kapısında reddedilir → N11.)
+    const stale = await computeRoxyChart(ctxA(f.db), body, deps);
+    ok("N11 bayat Design anı (doğum anıyla tutarsız) → 502 PROVIDER_TIME_MISMATCH, kayıt YOK",
+      !stale.body.ok && stale.body.code === "PROVIDER_TIME_MISMATCH" && stale.status === 502 && f.tables.human_design_charts.length === 1);
+    const consistentRaw = { ...(clone(FIXTURE) as Record<string, unknown>), designInstantUtc: expectedDesignInstantUtc("2018-07-20T16:30:00.000Z") };
+    // Başarısız deneme aynı girdinin 20 sn'lik eşzamanlılık kilidini aldı; sahte sayaç süre
+    // dolumunu modellemediği için yeniden deneme (kilit süresi dolduktan sonra) taze sayaçla yapılır.
+    const afterLockWindow = makeDeps();
+    const changed = await computeRoxyChart(ctxA(f.db), body, {
+      ...deps,
+      rateLimit: afterLockWindow.deps.rateLimit,
+      callRoxy: async (_cfg, b) => {
+        calls.push(b);
+        return { ok: true, raw: clone(consistentRaw) };
+      },
+    });
+    ok("N10 doğum bilgisi değişince yeni hesap + yeni kayıt (eski korunur)", changed.body.ok && changed.body.reused === false && calls.length === 3 && f.tables.human_design_charts.length === 2);
   }
 
   // ── O) Sağlayıcı hataları ──

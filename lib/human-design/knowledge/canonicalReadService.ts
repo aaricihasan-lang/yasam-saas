@@ -42,6 +42,7 @@ import {
   freezeContent,
   type FrozenCanonicalRecord,
 } from "@/lib/human-design/reporting/reportSnapshot";
+import { hdSafeDbError } from "@/lib/human-design/api/safeError";
 
 const PUBLISHED = "published";
 const VERIFIED = "verified";
@@ -104,7 +105,7 @@ export async function listPublishedGroup(
     .select("entity_id")
     .eq("entity_kind", kind)
     .eq("status", PUBLISHED);
-  if (cErr) return { ok: false, error: { code: "db_error", message: cErr.message } };
+  if (cErr) return { ok: false, error: { code: "db_error", message: hdSafeDbError("canonicalRead.c", cErr) } };
 
   const ids = Array.from(
     new Set((contentRows ?? []).map((r) => String((r as { entity_id: unknown }).entity_id)).filter(Boolean)),
@@ -117,7 +118,7 @@ export async function listPublishedGroup(
     .select("id, entity_kind, canonical_key, name_tr, name_original")
     .in("id", ids)
     .order("canonical_key", { ascending: true });
-  if (eErr) return { ok: false, error: { code: "db_error", message: eErr.message } };
+  if (eErr) return { ok: false, error: { code: "db_error", message: hdSafeDbError("canonicalRead.e", eErr) } };
 
   const items = (entRows ?? []).map((r) => toGroupItem(r as unknown as EntityRow));
   return { ok: true, data: items };
@@ -275,7 +276,7 @@ export async function getPublishedContentByKeys(
     .select("*")
     .in("canonical_key", keys)
     .eq("status", PUBLISHED);
-  if (error) return { ok: false, error: { code: "db_error", message: error.message } };
+  if (error) return { ok: false, error: { code: "db_error", message: hdSafeDbError("canonicalRead", error) } };
 
   for (const row of data ?? []) {
     const r = row as HdCanonicalContentRow;
@@ -306,7 +307,7 @@ export async function getPublishedRecordsByKeys(
     .select("*")
     .in("canonical_key", keys)
     .eq("status", PUBLISHED);
-  if (error) return { ok: false, error: { code: "db_error", message: error.message } };
+  if (error) return { ok: false, error: { code: "db_error", message: hdSafeDbError("canonicalRead", error) } };
 
   for (const row of data ?? []) {
     const r = row as HdCanonicalContentRow;

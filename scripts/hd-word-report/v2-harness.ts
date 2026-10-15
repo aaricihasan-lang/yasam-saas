@@ -24,6 +24,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import JSZip from "jszip";
 import type { HdReportSnapshotV2 } from "../../lib/human-design/reporting/reportSnapshotV2";
+import { HD_BODYGRAPH_BIND_KEYWORD, bodygraphBindingText, bodygraphFingerprint, insertPngTextChunk } from "../../lib/human-design/reporting/bodygraphBinding";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..", "..");
@@ -230,7 +231,11 @@ async function main() {
   const { buildPersonalKnowledgeStructure } = await import("../../lib/human-design/knowledge/personalKnowledge");
   const { buildExpertKnowledgeCodes } = await import("../../lib/human-design/normalize/hdAppCodes");
   const { saveCanonicalReport } = await import("../../lib/human-design/api/reportPersistence");
-  const { __resetRateLimitStore } = await import("../../lib/rateLimit");
+  const { __resetRateLimitStore: __resetLegacyRl } = await import("../../lib/rateLimit");
+  // HD-28 (GUV-04): uçlar DB tabanlı limiter kullanır; sahte DB'de RPC olmadığı için limiter
+  // lib/security/rateLimit bellek yedeğine düşer → her senaryo öncesi ikisi de sıfırlanır.
+  const secRl = req("../../lib/security/rateLimit.ts") as { __resetRateLimitForTest: () => void };
+  const __resetRateLimitStore = () => { __resetLegacyRl(); secRl.__resetRateLimitForTest(); };
   const create = req("../../app/api/hd/reports/professional/route.ts") as { POST: (r: unknown) => Promise<Response> };
   const download = req("../../app/api/hd/reports/professional/download/route.ts") as { POST: (r: unknown) => Promise<Response> };
   const summary = req("../../app/api/hd/reports/professional/summary/route.ts") as { GET: (r: unknown) => Promise<Response> };
@@ -295,16 +300,16 @@ async function main() {
     ];
     db.objects.set(`hd-chart-images/${T1}/c-2/chart.png`, makePng(800, 1100));
     db.tables.human_design_charts = [
-      roxyRow("ch-roxy", T1, "c-1"),
-      { id: "ch-man", tenant_id: T1, source: "manual", provider: null, computed_result: null, type_code: "generator", authority_code: "sacral",
+      roxyRow("c4a00000-0000-4000-8000-0000000000a1", T1, "c-1"),
+      { id: "c4a00000-0000-4000-8000-0000000000e5", tenant_id: T1, source: "manual", provider: null, computed_result: null, type_code: "generator", authority_code: "sacral",
         profile_code: "3_5", definition_code: "single", active_centers: ["sacral", "spleen", "heart_ego"], open_centers: null,
         gates: [26, 44, 5], channels: ["26-44"], client_id: "c-2", client_name: null, birth_date: null, birth_time: null, birth_place: null, timezone: null },
-      { id: "ch-man-noimg", tenant_id: T1, source: "manual", provider: null, computed_result: null, type_code: "projector", authority_code: "splenic",
+      { id: "c4a00000-0000-4000-8000-0000000000e6", tenant_id: T1, source: "manual", provider: null, computed_result: null, type_code: "projector", authority_code: "splenic",
         profile_code: null, definition_code: null, active_centers: [], open_centers: null, gates: [5], channels: [], client_id: "c-1", client_name: null },
-      roxyRow("ch-roxy-t2", T2, null),
-      roxyRow("ch-roxy-t3", T3, null),
-      roxyRow("ch-roxy-admin", TA, null),
-      { ...roxyRow("ch-roxy-badacts", T1, "c-1"), computed_result: { ...structuredClone(n.chart), activations: n.chart.activations.slice(0, 25) } },
+      roxyRow("c4a00000-0000-4000-8000-0000000000f2", T2, null),
+      roxyRow("c4a00000-0000-4000-8000-0000000000f3", T3, null),
+      roxyRow("c4a00000-0000-4000-8000-0000000000a4", TA, null),
+      { ...roxyRow("c4a00000-0000-4000-8000-0000000000b7", T1, "c-1"), computed_result: { ...structuredClone(n.chart), activations: n.chart.activations.slice(0, 25) } },
     ];
     db.tables.human_design_knowledge_records = [
       kb(T1, typeCode, "Tip Yorumum", LONG_EXPERT),
@@ -320,9 +325,21 @@ async function main() {
     db.tables.human_design_reports = [];
     return db;
   };
+  // HD-25: tarayıcı yakalaması PNG'ye analiz kimliği + parmak izi etiketi ekler. Harness'te geçerli
+  // test PNG'si gönderildiğinde aynı etiket eklenir (bozuk/etiketsiz PNG testleri DEĞİŞMEZ).
+  const bindFor = (png: Buffer, chartId: string) =>
+    Buffer.from(insertPngTextChunk(png, HD_BODYGRAPH_BIND_KEYWORD, bodygraphBindingText(chartId, bodygraphFingerprint(n.codes.gates, n.codes.active_centers.length))));
   const createAs = async (db: FakeDb, g: Parameters<typeof guardFor>[1], body: Row, headers: Record<string, string> = {}) => {
     __resetRateLimitStore();
     currentGuard = guardFor(db, g);
+    if (body.bodygraphPng === dataUrl(pngForTests) && typeof body.chartId === "string" && !body.__rawPng) {
+      body = { ...body, bodygraphPng: dataUrl(bindFor(pngForTests, body.chartId)) };
+    }
+    if (body.__rawPng) {
+      const { __rawPng: _omit, ...rest } = body;
+      void _omit;
+      body = rest;
+    }
     const res = await create.POST(jsonReq(URL_C, body, headers));
     return { res, body: (await res.json()) as Row };
   };
@@ -343,8 +360,8 @@ async function main() {
     const s = buildPersonalKnowledgeStructure({ type_code: "generator", authority_code: "sacral", gates: [5], channels: [] } as never);
     const rec = new Map<string, unknown>();
     for (const k of s.allKeys) rec.set(k, { meta: { contentId: "c", entityId: "e", entityKind: k.startsWith("tip_") ? "tip" : k.startsWith("otorite_") ? "otorite" : "kapi", canonicalKey: k, version: 1 }, content: { general_description: `V1::${k}`, report_text: "rt", strategy_text: null, signature_text: null, not_self_text: null, decision_mechanism: null, application_text: null, caution_notes: null, general_theme: null, full_channel_text: null, hanging_gate_context: null } });
-    const v1 = buildReportSnapshot({ generatedAt: "2026-08-23T10:00:00.000Z", readAt: "2026-08-23T10:00:00.000Z", client: { name: "Eski Rapor" }, chart: { chartId: "ch-man", source: "manual" }, structure: s, recordByKey: rec as never });
-    const saved = await saveCanonicalReport(db as never, T1, "u", { id: randomUUID(), chartId: "ch-man", clientId: "c-2", title: "Eski", snapshot: v1, provenance: {} });
+    const v1 = buildReportSnapshot({ generatedAt: "2026-08-23T10:00:00.000Z", readAt: "2026-08-23T10:00:00.000Z", client: { name: "Eski Rapor" }, chart: { chartId: "c4a00000-0000-4000-8000-0000000000e5", source: "manual" }, structure: s, recordByKey: rec as never });
+    const saved = await saveCanonicalReport(db as never, T1, "u", { id: randomUUID(), chartId: "c4a00000-0000-4000-8000-0000000000e5", clientId: "c-2", title: "Eski", snapshot: v1, provenance: {} });
     const row = reportRow(db, saved.id);
     ok("A1 v1 snapshot kaydı schema_version=hd-report-1, report_version=1", row?.schema_version === "hd-report-1" && row?.report_version === 1);
     ok("A2 isAnyHdReportSnapshot(v1) && !isHdReportSnapshotV2(v1)", V2.isAnyHdReportSnapshot(v1) && !V2.isHdReportSnapshotV2(v1));
@@ -360,7 +377,7 @@ async function main() {
 
   // ── B–F) Saf v2 snapshot ─────────────────────────────────────────────────
   const pure = V2.buildReportSnapshotV2({
-    generatedAt: "2026-10-08T09:00:00.000Z", chartId: "ch-roxy", source: "computed", provider: "roxyapi",
+    generatedAt: "2026-10-08T09:00:00.000Z", chartId: "c4a00000-0000-4000-8000-0000000000a1", source: "computed", provider: "roxyapi",
     client: { name: "Elif Şahin Öztürk", birthDate: "2018-07-20", birthTime: "19:00:00", birthPlace: "Konya, Türkiye", timezone: "Europe/Istanbul" },
     codes: n.codes, computed: n.chart, requested: "both", systemReadingPermitted: true, systemReading: extractSystemReading(rawTr),
     // Servisle aynı: yalnız bu tenant + haritanın kodları (listKnowledgeByCodes eşdeğeri).
@@ -422,11 +439,33 @@ async function main() {
   ok("F3 kanal uçları: her kanalın iki kapısı aktif kapılarda ve kapı→kanal bağı doğru", pure.channels.every((c) => c.gates.every((g) => pure.gates.some((x) => x.gate === g && x.channel === c.code))));
   ok("F4 her kapının aktivasyon listesi computed ile tutarlı", pure.gates.every((g) => g.activations.length === n.chart.activations.filter((x) => x.gate === g.gate).length));
 
+  // ── HD-25: BodyGraph PNG ↔ analiz bağlaması ─────────────────────────────
+  section("HD-25. BodyGraph görseli yalnız KENDİ analizine bağlıysa kabul edilir");
+  {
+    const CH = "c4a00000-0000-4000-8000-0000000000a1";
+    const OTHER = "c4a00000-0000-4000-8000-0000000000f2";
+    const db = makeDb();
+    const unbound = await createAs(db, { tenantId: T1 }, { chartId: CH, bodygraphPng: dataUrl(pngForTests), __rawPng: true });
+    ok("BG-B1 etiketsiz PNG → 422 BODYGRAPH_UNBOUND, rapor YOK", unbound.res.status === 422 && unbound.body.code === "BODYGRAPH_UNBOUND" && (db.tables.human_design_reports ?? []).length === 0, JSON.stringify(unbound.body));
+    const other = await createAs(db, { tenantId: T1 }, { chartId: CH, bodygraphPng: dataUrl(bindFor(pngForTests, OTHER)), __rawPng: true });
+    ok("BG-B2 başka analize bağlı PNG → 422 BODYGRAPH_MISMATCH", other.res.status === 422 && other.body.code === "BODYGRAPH_MISMATCH", JSON.stringify(other.body));
+    const forgedFp = Buffer.from(insertPngTextChunk(pngForTests, HD_BODYGRAPH_BIND_KEYWORD, bodygraphBindingText(CH, bodygraphFingerprint([1, 2, 3], 9))));
+    const forged = await createAs(db, { tenantId: T1 }, { chartId: CH, bodygraphPng: dataUrl(forgedFp), __rawPng: true });
+    ok("BG-B3 doğru kimlik + farklı çizim parmak izi → 422 BODYGRAPH_MISMATCH", forged.res.status === 422 && forged.body.code === "BODYGRAPH_MISMATCH", JSON.stringify(forged.body));
+    const twice = Buffer.from(insertPngTextChunk(bindFor(pngForTests, CH), HD_BODYGRAPH_BIND_KEYWORD, bodygraphBindingText(OTHER, "g:|c:0")));
+    const dbl = await createAs(db, { tenantId: T1 }, { chartId: CH, bodygraphPng: dataUrl(twice), __rawPng: true });
+    ok("BG-B4 birden fazla bağlama etiketi → 422 (belirsiz görsel kabul edilmez)", dbl.res.status === 422 && dbl.body.code === "BODYGRAPH_UNBOUND", JSON.stringify(dbl.body));
+    const good = await createAs(db, { tenantId: T1 }, { chartId: CH, bodygraphPng: dataUrl(pngForTests) });
+    ok("BG-B5 doğru bağlanmış PNG → 200, görsel rapora girer", good.res.status === 200 && good.body.bodygraph === "roxy_render", JSON.stringify(good.body));
+    const bad = await createAs(db, { tenantId: T1 }, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests), __rawPng: true });
+    ok("BG-B6 (HD-27) geçersiz biçimli chartId → 400 INVALID_ID", bad.res.status === 400 && bad.body.code === "INVALID_ID", JSON.stringify(bad.body));
+  }
+
   // ── Route akışları ────────────────────────────────────────────────────────
   section("J. Sistem Yorumu yetkisi KAPALI");
   {
     const db = makeDb();
-    const r = await createAs(db, { tenantId: T1 }, { chartId: "ch-roxy", commentary: "system", bodygraphPng: dataUrl(pngForTests) });
+    const r = await createAs(db, { tenantId: T1 }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", commentary: "system", bodygraphPng: dataUrl(pngForTests) });
     ok("J1 rapor oluşur (200)", r.res.status === 200 && r.body.ok === true, JSON.stringify(r.body));
     const row = reportRow(db, r.body.id);
     ok("J2 seçim 'system' + yetki yok: system=not_permitted; Bilgi Bankası seçilmediği için EKLENMEZ", row?.snapshot.commentary.system.status === "not_permitted" && row.snapshot.commentary.expert.included === false && row.snapshot.commentary.system.reading === null);
@@ -437,7 +476,7 @@ async function main() {
     ok("J5 DOCX: Bilgi Bankası açıklaması YOK (seçilmedi), Sistem Yorumu bölümü YOK", !text.includes("Uzman Bilgilerim") && !text.includes("Tip Yorumum") && !text.includes("Kaynak: Harita hesaplanırken") && !text.includes(ROXY_DESC_MARK));
     ok("J6 DOCX: admin içeriği / başka uzman / pasif / eşleşmeyen kayıt YOK", !text.includes("ADMIN-CANONICAL") && !text.includes("BASKA-TENANT") && !text.includes("PASİF-İÇERİK") && !text.includes("ESLESMEYEN-ICERIK"));
     // Bilgi Bankası boş tenant → teknik rapor yine oluşur, yorum uydurulmaz.
-    const r3 = await createAs(db, { tenantId: T3 }, { chartId: "ch-roxy-t3", commentary: "expert", bodygraphPng: dataUrl(pngForTests) });
+    const r3 = await createAs(db, { tenantId: T3 }, { chartId: "c4a00000-0000-4000-8000-0000000000f3", commentary: "expert", bodygraphPng: dataUrl(pngForTests) });
     const d3 = await downloadAs(db, { tenantId: T3 }, r3.body.id);
     const t3 = (await unzip(await d3.arrayBuffer())).text;
     ok("J7 boş Bilgi Bankası (açıklama seçili): rapor oluşur; Uzman Açıklamaları bölümü ve danışana teknik 'eşleşme yok' notu YOK", r3.res.status === 200 && !t3.includes("Uzman Açıklamaları") && !t3.includes("eşleşen kayıt bulunmadığından") && r3.body.expertEntries === 0);
@@ -447,7 +486,7 @@ async function main() {
   const sysDb = makeDb();
   const results: Record<string, { id: unknown; text: string; row: Row & { snapshot: HdReportSnapshotV2 } }> = {};
   for (const sel of ["expert", "system", "both"] as const) {
-    const r = await createAs(sysDb, { tenantId: T1, system: true }, { chartId: "ch-roxy", commentary: sel, bodygraphPng: dataUrl(pngForTests) });
+    const r = await createAs(sysDb, { tenantId: T1, system: true }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", commentary: sel, bodygraphPng: dataUrl(pngForTests) });
     const d = await downloadAs(sysDb, { tenantId: T1, system: true }, r.body.id);
     results[sel] = { id: r.body.id, text: (await unzip(await d.arrayBuffer())).text, row: reportRow(sysDb, r.body.id) };
   }
@@ -458,10 +497,10 @@ async function main() {
   ok("K4 sıra: Uzman Bilgilerim → Sistem Yorumu → Kaynak Bilgisi", both.indexOf("Bu bölümdeki açıklamalar, raporu hazırlayan") >= 0 && both.indexOf("Bu bölümdeki açıklamalar, raporu hazırlayan") < both.indexOf("Kaynak: Harita hesaplanırken") && both.indexOf("Kaynak: Harita hesaplanırken") < both.lastIndexOf("Kaynak Bilgisi"));
   ok("K5 Sistem Yorumu Türkçe yerelleştirilmiş etiketleri kullanır", both.includes("Tip: Jeneratör") && both.includes("Strateji: Yanıt vermeyi bekle"));
   {
-    const r = await createAs(sysDb, { tenantId: T1, system: true }, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests) });
+    const r = await createAs(sysDb, { tenantId: T1, system: true }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", bodygraphPng: dataUrl(pngForTests) });
     const k6 = reportRow(sysDb, r.body.id)?.snapshot.commentary;
     ok("K6 seçim gönderilmezse varsayılan: HİÇBİRİ (yalnız teknik içerik)", k6?.requested === "none" && k6.system.status === "not_selected" && k6.expert.included === false && k6.expert.entries.length === 0);
-    const bad = await createAs(sysDb, { tenantId: T1, system: true }, { chartId: "ch-roxy", commentary: "admin" });
+    const bad = await createAs(sysDb, { tenantId: T1, system: true }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", commentary: "admin" });
     ok("K7 geçersiz seçim → 400", bad.res.status === 400 && bad.body.code === "INVALID_COMMENTARY");
   }
 
@@ -470,7 +509,7 @@ async function main() {
     const pdb = makeDb();
     const NOTE = "ÖZEL-NOT-SIZMAMALI";
     const run = async (g: Parameters<typeof guardFor>[1], body: Row) => {
-      const r = await createAs(pdb, g, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests), ...body });
+      const r = await createAs(pdb, g, { chartId: "c4a00000-0000-4000-8000-0000000000a1", bodygraphPng: dataUrl(pngForTests), ...body });
       const d = r.res.status === 200 ? await downloadAs(pdb, g, r.body.id) : null;
       const text = d ? (await unzip(await d.arrayBuffer())).text : "";
       return { r, text, row: r.res.status === 200 ? reportRow(pdb, r.body.id) : null };
@@ -494,7 +533,7 @@ async function main() {
     const forged = await run(sys, { commentary: "expert", includeExpertNotes: true, expert_notes: NOTE, includePrivateNotes: true, notes: NOTE, expertNotes: NOTE });
     ok("P6 manipüle istek (includeExpertNotes / expert_notes gövdede): not rapora GİRMEZ", forged.r.res.status === 200 && !forged.text.includes(NOTE) && !JSON.stringify(forged.row?.snapshot ?? {}).includes(NOTE));
     for (const c of ["notes", "private", "expert_notes", "all", "", 1, true, ["expert"], { knowledge: true }]) {
-      const bad = await createAs(pdb, sys, { chartId: "ch-roxy", commentary: c, bodygraphPng: dataUrl(pngForTests) });
+      const bad = await createAs(pdb, sys, { chartId: "c4a00000-0000-4000-8000-0000000000a1", commentary: c, bodygraphPng: dataUrl(pngForTests) });
       ok(`P6b geçersiz seçim ${JSON.stringify(c)} → 400 (sessizce genişletilmez)`, bad.res.status === 400 && bad.body.code === "INVALID_COMMENTARY");
     }
     const noPerm = await run({ tenantId: T1 }, { commentary: "both" });
@@ -533,7 +572,7 @@ async function main() {
     const id = results.both.id;
     const first = (await unzip(await (await downloadAs(sysDb, { tenantId: T1, system: true }, id)).arrayBuffer())).xml;
     for (const r of sysDb.tables.human_design_knowledge_records) r.content = "DEĞİŞTİRİLMİŞ-BİLGİ";
-    const ch = sysDb.tables.human_design_charts.find((c) => c.id === "ch-roxy")!;
+    const ch = sysDb.tables.human_design_charts.find((c) => c.id === "c4a00000-0000-4000-8000-0000000000a1")!;
     (ch.computed_result as Row).activations = [];
     (ch.provider_raw as Row).typeDescription = "DEĞİŞTİRİLMİŞ-SİSTEM";
     ch.gates = [1];
@@ -544,8 +583,8 @@ async function main() {
   section("N. Tenant izolasyonu");
   {
     const db = makeDb();
-    const own = await createAs(db, { tenantId: T1, system: true }, { chartId: "ch-roxy", commentary: "expert", bodygraphPng: dataUrl(pngForTests) });
-    const x = await createAs(db, { tenantId: T2, system: true }, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests) });
+    const own = await createAs(db, { tenantId: T1, system: true }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", commentary: "expert", bodygraphPng: dataUrl(pngForTests) });
+    const x = await createAs(db, { tenantId: T2, system: true }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", bodygraphPng: dataUrl(pngForTests) });
     ok("N1 başka tenant'ın haritası → 404", x.res.status === 404);
     const d = await downloadAs(db, { tenantId: T2, system: true }, own.body.id);
     ok("N2 başka tenant'ın raporu indirme → 404", d.status === 404);
@@ -553,15 +592,15 @@ async function main() {
     const { NextRequest } = req("next/server");
     const s = await summary.GET(new NextRequest(`http://localhost/x?id=${own.body.id}`));
     ok("N3 başka tenant'ın rapor özeti → 404", s.status === 404);
-    const t2 = await createAs(db, { tenantId: T2 }, { chartId: "ch-roxy-t2", commentary: "expert", bodygraphPng: dataUrl(pngForTests) });
+    const t2 = await createAs(db, { tenantId: T2 }, { chartId: "c4a00000-0000-4000-8000-0000000000f2", commentary: "expert", bodygraphPng: dataUrl(pngForTests) });
     const tt = (await unzip(await (await downloadAs(db, { tenantId: T2 }, t2.body.id)).arrayBuffer())).text;
     ok("N4 T2 raporunda yalnız T2 uzman bilgisi (T1 kayıtları yok)", tt.includes("BASKA-TENANT-ICERIGI") && !tt.includes("Tip Yorumum"));
     const ownText = (await unzip(await (await downloadAs(db, { tenantId: T1, system: true }, own.body.id)).arrayBuffer())).text;
     ok("N6 uzman raporunda admin'in kişisel kaydı ve tenant'sız (NULL) kayıt YOK", !ownText.includes("ADMIN-KISISEL-KAYIT") && !ownText.includes("TENANTSIZ-KAYIT") && ownText.includes("Tip Yorumum"));
-    const adm = await createAs(db, { tenantId: TA, role: "admin" }, { chartId: "ch-roxy-admin", commentary: "expert", bodygraphPng: dataUrl(pngForTests) });
+    const adm = await createAs(db, { tenantId: TA, role: "admin" }, { chartId: "c4a00000-0000-4000-8000-0000000000a4", commentary: "expert", bodygraphPng: dataUrl(pngForTests) });
     const admText = (await unzip(await (await downloadAs(db, { tenantId: TA, role: "admin" }, adm.body.id)).arrayBuffer())).text;
     ok("N7 admin raporu YALNIZ admin'in kendi kayıtları (başka uzman kaydı yok)", adm.res.status === 200 && admText.includes("ADMIN-KISISEL-KAYIT") && !admText.includes("Tip Yorumum") && !admText.includes("BASKA-TENANT-ICERIGI"));
-    const admX = await createAs(db, { tenantId: TA, role: "admin" }, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests) });
+    const admX = await createAs(db, { tenantId: TA, role: "admin" }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", bodygraphPng: dataUrl(pngForTests) });
     ok("N8 admin rolü başka uzmanın haritasından rapor üretemez (404, tenant = oturum)", admX.res.status === 404);
     const img = reportRow(db, own.body.id)?.snapshot.chartImage?.storagePath as string;
     ok("N5 BodyGraph yolu tenant'ın rapor klasöründe ({tenant}/report-snapshots/{id}.png)", img === `${T1}/report-snapshots/${own.body.id}.png` && db.objects.has(`hd-chart-images/${img}`));
@@ -570,16 +609,16 @@ async function main() {
   section("O. Demo / Android / kimlik");
   {
     const db = makeDb();
-    const demo = await createAs(db, { tenantId: T1, demo: true }, { chartId: "ch-roxy" });
+    const demo = await createAs(db, { tenantId: T1, demo: true }, { chartId: "c4a00000-0000-4000-8000-0000000000a1" });
     ok("O1 demo hesap → 403", demo.res.status === 403 && demo.body.code === "DEMO_READONLY");
-    const android = await createAs(db, { tenantId: T1 }, { chartId: "ch-roxy" }, { "user-agent": "Mozilla/5.0 (Linux; Android 14) wv" });
+    const android = await createAs(db, { tenantId: T1 }, { chartId: "c4a00000-0000-4000-8000-0000000000a1" }, { "user-agent": "Mozilla/5.0 (Linux; Android 14) wv" });
     ok("O2 Android oluşturma → 403", android.res.status === 403);
-    const own = await createAs(db, { tenantId: T1 }, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests) });
+    const own = await createAs(db, { tenantId: T1 }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", bodygraphPng: dataUrl(pngForTests) });
     const ad = await downloadAs(db, { tenantId: T1 }, own.body.id, { "user-agent": "Mozilla/5.0 (Linux; Android 14) wv" });
     ok("O3 Android indirme → 403", ad.status === 403);
     currentGuard = null;
     __resetRateLimitStore();
-    const un = await create.POST(jsonReq(URL_C, { chartId: "ch-roxy" }));
+    const un = await create.POST(jsonReq(URL_C, { chartId: "c4a00000-0000-4000-8000-0000000000a1" }));
     const und = await download.POST(jsonReq(URL_D, { reportId: own.body.id }));
     ok("O4 oturumsuz → 401 (oluştur + indir)", un.status === 401 && und.status === 401);
     ok("O5 demo/Android/401 hiçbir rapor satırı yazmadı", db.tables.human_design_reports.length === 1);
@@ -588,34 +627,35 @@ async function main() {
   section("H/U. BodyGraph — yüksek çözünürlük + politika");
   {
     const db = makeDb();
-    const r = await createAs(db, { tenantId: T1, system: true }, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests) });
+    const r = await createAs(db, { tenantId: T1, system: true }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", bodygraphPng: dataUrl(pngForTests) });
     const row = reportRow(db, r.body.id);
     ok("H1 status=roxy_render + ölçü/sha256 snapshot'ta", row.snapshot.bodygraph.status === "roxy_render" && (row.snapshot.bodygraph.height ?? 0) >= 1800 && /^[0-9a-f]{64}$/.test(row.snapshot.bodygraph.sha256 ?? ""));
     const d = await downloadAs(db, { tenantId: T1, system: true }, r.body.id);
     const { zip, xml } = await unzip(await d.arrayBuffer());
     const media = Object.keys(zip.files).filter((f) => f.startsWith("word/media/") && !zip.files[f].dir);
     const bufs = await Promise.all(media.map((m) => zip.file(m)!.async("nodebuffer")));
-    ok("H2 DOCX'e gömülü BodyGraph bayt-bayt yüklenen PNG ile AYNI (yeniden örnekleme yok → net)", bufs.some((b) => b.equals(pngForTests)));
+    // HD-25: yüklenen PNG analiz-bağlama etiketli hâlidir (piksel verisi aynı); Word onu bayt-bayt gömer.
+    ok("H2 DOCX'e gömülü BodyGraph bayt-bayt yüklenen PNG ile AYNI (yeniden örnekleme yok → net)", bufs.some((b) => b.equals(bindFor(pngForTests, "c4a00000-0000-4000-8000-0000000000a1"))));
     const extents = [...xml.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/g)].map((m) => [Number(m[1]) / 9525, Number(m[2]) / 9525]);
     const big = extents.find(([, h]) => h > 500);
     ok("H3 BodyGraph büyük ve A4'e sığar (≤600×800 px @96dpi), oran korunur", !!big && big[0] <= HD_BODYGRAPH_DOC_MAX.width && big[1] <= HD_BODYGRAPH_DOC_MAX.height && Math.abs(big[0] / big[1] - 432 / 612) < 0.01, JSON.stringify(extents));
-    const none = await createAs(db, { tenantId: T1 }, { chartId: "ch-roxy" });
+    const none = await createAs(db, { tenantId: T1 }, { chartId: "c4a00000-0000-4000-8000-0000000000a1" });
     ok("U1 Roxy haritası + görsel yok + onay yok → 422 BODYGRAPH_REQUIRED (sessiz eksik rapor YOK)", none.res.status === 422 && none.body.code === "BODYGRAPH_REQUIRED");
-    const allow = await createAs(db, { tenantId: T1 }, { chartId: "ch-roxy", allowMissingBodygraph: true });
+    const allow = await createAs(db, { tenantId: T1 }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", allowMissingBodygraph: true });
     const at = (await unzip(await (await downloadAs(db, { tenantId: T1 }, allow.body.id)).arrayBuffer())).text;
     ok("U2 açık onayla oluşur; status=missing, belgede açık uyarı", allow.body.bodygraph === "missing" && at.includes("BodyGraph görseli bu rapora eklenemedi") && at.includes("Teknik harita verileri bu ve sonraki sayfalarda"));
-    const man = await createAs(db, { tenantId: T1 }, { chartId: "ch-man" });
+    const man = await createAs(db, { tenantId: T1 }, { chartId: "c4a00000-0000-4000-8000-0000000000e5" });
     ok("U3 manuel harita: danışanın yüklenmiş görseli (owned kopya) → uploaded_image", man.res.status === 200 && man.body.bodygraph === "uploaded_image" && db.objects.has(`hd-chart-images/${T1}/report-snapshots/${man.body.id}.png`));
-    const manNo = await createAs(db, { tenantId: T1 }, { chartId: "ch-man-noimg" });
+    const manNo = await createAs(db, { tenantId: T1 }, { chartId: "c4a00000-0000-4000-8000-0000000000e6" });
     ok("U4 manuel harita görselsiz → oluşur (onay gerekmez), status=missing", manNo.res.status === 200 && manNo.body.bodygraph === "missing");
-    const pngOnManual = await createAs(db, { tenantId: T1 }, { chartId: "ch-man", bodygraphPng: dataUrl(BG) });
+    const pngOnManual = await createAs(db, { tenantId: T1 }, { chartId: "c4a00000-0000-4000-8000-0000000000e5", bodygraphPng: dataUrl(BG) });
     ok("U5 manuel haritaya PNG → 400 BODYGRAPH_NOT_APPLICABLE", pngOnManual.res.status === 400 && pngOnManual.body.code === "BODYGRAPH_NOT_APPLICABLE");
     const rows0 = db.tables.human_design_reports.length;
     const objs0 = db.objects.size;
-    const fake = await createAs(db, { tenantId: T1 }, { chartId: "ch-roxy", bodygraphPng: `data:image/png;base64,${Buffer.from("<svg onload=alert(1)>").toString("base64")}` });
+    const fake = await createAs(db, { tenantId: T1 }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", bodygraphPng: `data:image/png;base64,${Buffer.from("<svg onload=alert(1)>").toString("base64")}` });
     ok("U6 sahte PNG → 422 BODYGRAPH_INVALID; satır/obje yazılmadı", fake.res.status === 422 && fake.body.code === "BODYGRAPH_INVALID" && db.tables.human_design_reports.length === rows0 && db.objects.size === objs0);
     db.failUpload = true;
-    const upFail = await createAs(db, { tenantId: T1 }, { chartId: "ch-roxy", bodygraphPng: dataUrl(BG) });
+    const upFail = await createAs(db, { tenantId: T1 }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", bodygraphPng: dataUrl(BG) });
     db.failUpload = false;
     ok("U7 depolama hatası → 503, rapor satırı yok", upFail.res.status === 503 && db.tables.human_design_reports.length === rows0);
   }
@@ -643,20 +683,20 @@ async function main() {
     const big = Buffer.alloc(HD_BODYGRAPH_PNG_MAX_BYTES + 10); BG.copy(big);
     ok("I17 bayt limiti aşımı → TOO_LARGE", t(big, "TOO_LARGE"));
     ok("I18 data:image/svg+xml data URL'i çözülmez", decodePngBase64("data:image/svg+xml;base64,PHN2Zz4=") === null);
-    const r = await createAs(makeDb(), { tenantId: T1 }, { chartId: "ch-roxy", bodygraphPng: dataUrl(makePng(800, 1133)) });
+    const r = await createAs(makeDb(), { tenantId: T1 }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", bodygraphPng: dataUrl(makePng(800, 1133)) });
     ok("I19 route: küçük PNG → 422 (mesaj Türkçe)", r.res.status === 422 && String(r.body.error).includes("1800"));
   }
 
   section("V. Sistem Yorumu verisi YOK (manuel/legacy)");
   {
     const db = makeDb();
-    const only = await createAs(db, { tenantId: T1, system: true }, { chartId: "ch-man", commentary: "system" });
+    const only = await createAs(db, { tenantId: T1, system: true }, { chartId: "c4a00000-0000-4000-8000-0000000000e5", commentary: "system" });
     ok("V1 yalnız Sistem istendi, veri yok → 422 SYSTEM_READING_UNAVAILABLE (anlaşılır)", only.res.status === 422 && only.body.code === "SYSTEM_READING_UNAVAILABLE");
-    const bothM = await createAs(db, { tenantId: T1, system: true }, { chartId: "ch-man", commentary: "both" });
+    const bothM = await createAs(db, { tenantId: T1, system: true }, { chartId: "c4a00000-0000-4000-8000-0000000000e5", commentary: "both" });
     ok("V2 her ikisi → rapor oluşur, system=unavailable (engellenmez, uydurulmaz)", bothM.res.status === 200 && bothM.body.systemReading === "unavailable");
     const tm = (await unzip(await (await downloadAs(db, { tenantId: T1, system: true }, bothM.body.id)).arrayBuffer())).text;
     ok("V3 manuel rapor: aktivasyon sütunları yok, kimlik + kanal/kapı var; danışana teknik sistem notu YOK", !tm.includes("13 aktivasyon") && tm.includes("Danışan ve Harita Kimliği") && tm.includes("Kanallar") && !tm.includes("kayıtlı sistem açıklaması bulunmadığından"));
-    const bad = await createAs(db, { tenantId: T1, system: true }, { chartId: "ch-roxy-badacts", bodygraphPng: dataUrl(pngForTests) });
+    const bad = await createAs(db, { tenantId: T1, system: true }, { chartId: "c4a00000-0000-4000-8000-0000000000b7", bodygraphPng: dataUrl(pngForTests) });
     const tb = (await unzip(await (await downloadAs(db, { tenantId: T1, system: true }, bad.body.id)).arrayBuffer())).text;
     ok("V4 bozuk kayıtlı aktivasyon → sütunlar yerine açık not (uydurma yok)", tb.includes("doğrulanamadığı için aktivasyonlar gösterilmiyor") && !tb.includes("13 aktivasyon"));
   }
@@ -670,12 +710,14 @@ async function main() {
     const r2 = await create.POST(jsonReq(URL_C, [1, 2]));
     const r3 = await create.POST(jsonReq(URL_C, { chartId: 42 }));
     const r4 = await create.POST(jsonReq(URL_C, {}));
-    const r5 = await create.POST(jsonReq(URL_C, { chartId: "ch-roxy", bodygraphPng: 12345 }));
+    const r5 = await create.POST(jsonReq(URL_C, { chartId: "c4a00000-0000-4000-8000-0000000000a1", bodygraphPng: 12345 }));
     ok("W1 bozuk JSON / dizi / sayı chartId / eksik chartId → 400", [r1, r2, r3, r4].every((r) => r.status === 400));
     ok("W2 bodygraphPng tip hatası → 422", r5.status === 422);
     const d1 = await download.POST(jsonReq(URL_D, {}));
-    const d2 = await download.POST(jsonReq(URL_D, { reportId: "yok" }));
+    const d2 = await download.POST(jsonReq(URL_D, { reportId: "00000000-0000-4000-8000-00000000dead" }));
+    const d3 = await download.POST(jsonReq(URL_D, { reportId: "yok" }));
     ok("W3 indirme: reportId eksik → 400, bilinmeyen → 404", d1.status === 400 && d2.status === 404);
+    ok("W3b (HD-27) indirme: geçersiz biçimli reportId → 400 INVALID_ID (500 değil)", d3.status === 400);
     ok("W4 hiçbir satır yazılmadı", db.tables.human_design_reports.length === 0);
   }
 
@@ -684,15 +726,15 @@ async function main() {
     const db = makeDb();
     const requestId = randomUUID();
     const [a, b] = await Promise.all([
-      createAs(db, { tenantId: T1, system: true }, { chartId: "ch-roxy", requestId, bodygraphPng: dataUrl(pngForTests) }),
-      createAs(db, { tenantId: T1, system: true }, { chartId: "ch-roxy", requestId, bodygraphPng: dataUrl(pngForTests) }),
+      createAs(db, { tenantId: T1, system: true }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", requestId, bodygraphPng: dataUrl(pngForTests) }),
+      createAs(db, { tenantId: T1, system: true }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", requestId, bodygraphPng: dataUrl(pngForTests) }),
     ]);
     ok("T1 eşzamanlı çift tıklama → aynı id, TEK satır", a.body.id === b.body.id && db.tables.human_design_reports.length === 1);
-    const again = await createAs(db, { tenantId: T1, system: true }, { chartId: "ch-roxy", requestId, bodygraphPng: dataUrl(pngForTests) });
+    const again = await createAs(db, { tenantId: T1, system: true }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", requestId, bodygraphPng: dataUrl(pngForTests) });
     ok("T2 ağ tekrarı → reused, yeni satır yok", again.body.reused === true && db.tables.human_design_reports.length === 1);
-    const other = await createAs(db, { tenantId: T1, system: true }, { chartId: "ch-man", requestId });
+    const other = await createAs(db, { tenantId: T1, system: true }, { chartId: "c4a00000-0000-4000-8000-0000000000e5", requestId });
     ok("T3 aynı requestId başka harita → 409", other.res.status === 409);
-    const nv = await createAs(db, { tenantId: T1, system: true }, { chartId: "ch-roxy", requestId: randomUUID(), bodygraphPng: dataUrl(pngForTests) });
+    const nv = await createAs(db, { tenantId: T1, system: true }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", requestId: randomUUID(), bodygraphPng: dataUrl(pngForTests) });
     ok("T4 bilinçli yeni sürüm (yeni requestId) → yeni satır", nv.body.id !== a.body.id && db.tables.human_design_reports.length === 2);
     const x1 = await (await downloadAs(db, { tenantId: T1, system: true }, a.body.id)).arrayBuffer();
     const x2 = await (await downloadAs(db, { tenantId: T1, system: true }, a.body.id)).arrayBuffer();
@@ -753,7 +795,7 @@ async function main() {
     const db = makeDb();
     const sys = { tenantId: T1, system: true };
     const mk = async (body: Row) => {
-      const r = await createAs(db, sys, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests), ...body });
+      const r = await createAs(db, sys, { chartId: "c4a00000-0000-4000-8000-0000000000a1", bodygraphPng: dataUrl(pngForTests), ...body });
       const d = r.res.status === 200 ? await downloadAs(db, sys, r.body.id) : null;
       return { r, text: d ? (await unzip(await d.arrayBuffer())).text : "", row: r.res.status === 200 ? reportRow(db, r.body.id) : null };
     };
@@ -770,7 +812,7 @@ async function main() {
     const dirty = await mk({ commentary: "none", preparedBy: `Hasan\nHoca\u0007 ${"x".repeat(300)}` });
     ok("W4 kontrol karakteri / satır sonu temizlenir, 120 karakterle sınırlı", typeof dirty.row?.snapshot.preparedBy === "string" && Array.from(String(dirty.row?.snapshot.preparedBy)).length <= 120 && String(dirty.row?.snapshot.preparedBy).startsWith("Hasan Hoca ") && !/[\u0000-\u001f]/.test(String(dirty.row?.snapshot.preparedBy)));
     for (const bad of [123, ["Hasan"], { ad: "Hasan" }, true]) {
-      const b = await createAs(db, sys, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests), preparedBy: bad });
+      const b = await createAs(db, sys, { chartId: "c4a00000-0000-4000-8000-0000000000a1", bodygraphPng: dataUrl(pngForTests), preparedBy: bad });
       ok(`W5 geçersiz hazırlayan ${JSON.stringify(bad)} → 400`, b.res.status === 400 && b.body.code === "INVALID_PREPARED_BY");
     }
     // Eksiksizlik (kayıtlı computed ile birebir)
@@ -848,7 +890,7 @@ async function main() {
       const res = await km.GET(new NextRequest(`http://localhost/x?chartId=${chartId}`));
       return { status: res.status, body: (await res.json()) as Row };
     };
-    const roxyUuid = db.tables.human_design_charts.find((c) => c.id === "ch-roxy");
+    const roxyUuid = db.tables.human_design_charts.find((c) => c.id === "c4a00000-0000-4000-8000-0000000000a1");
     if (roxyUuid) roxyUuid.id = "00000000-0000-4000-8000-0000000000aa";
     const own = await ask(sys, "00000000-0000-4000-8000-0000000000aa");
     ok("W12 eşleşme sayısı = Word'e girecek aktif açıklama sayısı (yalnız sayı döner)", own.status === 200 && own.body.count === 2 && Object.keys(own.body).sort().join() === "count,ok", JSON.stringify(own.body));
@@ -856,13 +898,13 @@ async function main() {
     ok("W12c geçersiz kimlik 400", (await ask(sys, "ch-roxy")).status === 400);
     const empty3 = await ask({ tenantId: T3 }, "00000000-0000-4000-8000-0000000000aa");
     ok("W12d Bilgi Bankası boş tenant (analiz başkasının) → 404", empty3.status === 404);
-    if (roxyUuid) roxyUuid.id = "ch-roxy";
+    if (roxyUuid) roxyUuid.id = "c4a00000-0000-4000-8000-0000000000a1";
   }
 
   section("X. Özet / sızıntı");
   {
     const db = makeDb();
-    const r = await createAs(db, { tenantId: T1, system: true }, { chartId: "ch-roxy", bodygraphPng: dataUrl(pngForTests) });
+    const r = await createAs(db, { tenantId: T1, system: true }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", bodygraphPng: dataUrl(pngForTests) });
     ok("X1 oluşturma yanıtında provider_raw / yorum metni / anahtar YOK", !JSON.stringify(r.body).includes(ROXY_DESC_MARK) && !JSON.stringify(r.body).includes("provider_raw") && !JSON.stringify(r.body).includes("Tip Yorumum"));
     currentGuard = guardFor(db, { tenantId: T1, system: true });
     const { NextRequest } = req("next/server");

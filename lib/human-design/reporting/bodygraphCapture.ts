@@ -12,6 +12,16 @@
 //
 // Yeni Roxy çağrısı YOK (renderer kontrollü modda kendi isteğini yapmaz). Sunucu PNG'yi ayrıca
 // doğrular (bodygraphPng.ts); bu modül yalnız üretir.
+//
+// HD-25: PNG'ye analiz kimliği + çizim parmak izi `tEXt` parçası olarak eklenir
+// (bodygraphBinding.ts); sunucu kayıtlı haritadan aynı değeri üretip birebir eşleşme ister.
+
+import {
+  HD_BODYGRAPH_BIND_KEYWORD,
+  bodygraphBindingText,
+  fingerprintFromRoxyRender,
+  insertPngTextChunk,
+} from "./bodygraphBinding";
 
 const TARGET_HEIGHTS = [2400, 2000, 1800] as const;
 const MAX_PNG_BYTES = Math.floor(2.4 * 1024 * 1024);
@@ -101,13 +111,11 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const fr = new FileReader();
-    fr.onload = () => resolve(String(fr.result));
-    fr.onerror = () => reject(new Error("read failed"));
-    fr.readAsDataURL(blob);
-  });
+function bytesToPngDataUrl(bytes: Uint8Array): string {
+  let bin = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  return `data:image/png;base64,${btoa(bin)}`;
 }
 
 async function rasterize(svgMarkup: string, vbW: number, vbH: number, height: number): Promise<{ blob: Blob; width: number; height: number } | null> {
@@ -138,6 +146,8 @@ async function rasterize(svgMarkup: string, vbW: number, vbH: number, height: nu
 export async function captureRoxyBodygraphPng(
   data: Record<string, unknown>,
   loadRenderer: () => Promise<void>,
+  /** HD-25: görselin bağlanacağı analiz (kayıtlı harita) kimliği. */
+  chartId: string,
 ): Promise<BodygraphCaptureResult> {
   if (typeof window === "undefined" || typeof document === "undefined") return { ok: false, error: "Tarayıcı ortamı gerekli." };
   try {
@@ -188,11 +198,13 @@ export async function captureRoxyBodygraphPng(
     clone.removeAttribute("aria-label");
     const markup = new XMLSerializer().serializeToString(clone);
 
+    const binding = bodygraphBindingText(chartId, fingerprintFromRoxyRender(data));
     for (const h of TARGET_HEIGHTS) {
       const out = await rasterize(markup, vb.width, vb.height, h);
       if (!out) continue;
-      if (out.blob.size > MAX_PNG_BYTES) continue;
-      return { ok: true, dataUrl: await blobToDataUrl(out.blob), width: out.width, height: out.height, bytes: out.blob.size };
+      const bound = insertPngTextChunk(new Uint8Array(await out.blob.arrayBuffer()), HD_BODYGRAPH_BIND_KEYWORD, binding);
+      if (bound.length > MAX_PNG_BYTES) continue;
+      return { ok: true, dataUrl: bytesToPngDataUrl(bound), width: out.width, height: out.height, bytes: bound.length };
     }
     return { ok: false, error: "BodyGraph görseli üretilemedi." };
   } catch {

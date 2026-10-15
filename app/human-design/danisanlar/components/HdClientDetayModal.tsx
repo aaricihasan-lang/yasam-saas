@@ -215,7 +215,7 @@ export function HdClientDetayModal({ row, onClose, onSaved }: Props) {
                     placeholder="https://..."
                     className={`h-9 ${fieldBase}`}
                   />
-                  {form.external_chart_url.trim() && (
+                  {/^https?:\/\//i.test(form.external_chart_url.trim()) && (
                     <a
                       href={form.external_chart_url.trim()}
                       target="_blank"

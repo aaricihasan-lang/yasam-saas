@@ -21,12 +21,12 @@ import { GATE_ANCHORS } from "../../lib/human-design/bodygraph/layout";
 import { BodyGraph } from "../../app/human-design/harita/components/BodyGraph";
 import { HdComputedChartView } from "../../app/human-design/kayitli-haritalar/components/HdComputedChartView";
 import { createFakeDb } from "./fakeDb";
+import { consistentRoxyResponse } from "./consistentFixture";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..", "..");
 const FIXTURE = JSON.parse(readFileSync(join(HERE, "fixtures", "roxy-bodygraph-2018-07-20.json"), "utf8"));
 const src = (p: string) => readFileSync(join(ROOT, p), "utf8");
-const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
 let passed = 0;
 let failed = 0;
@@ -58,7 +58,7 @@ function deps(calls: unknown[]): RoxyServiceDeps {
     config: { apiKey: "k", baseUrl: "https://roxyapi.com/api/v2" },
     callRoxy: async (_c, body) => {
       calls.push(body);
-      return { ok: true, raw: clone(FIXTURE) };
+      return { ok: true, raw: JSON.parse(consistentRoxyResponse(JSON.stringify(FIXTURE), JSON.stringify(body))) };
     },
     rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
     sleep: async () => undefined,

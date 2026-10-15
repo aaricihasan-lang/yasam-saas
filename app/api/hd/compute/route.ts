@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { handleCompute } from "@/lib/human-design/api/handleCompute";
+import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 
 export const runtime = "nodejs";
 
@@ -29,6 +30,15 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // guard.tenantId sunucudan gelir; stateless compute'ta veri-izolasyonu için
   // kullanılmaz (persist/read yok). Auth yine de zorunlu (açık endpoint olmasın).
+
+  // HD-28 (GUV-04): CPU-yoğun hesap için kullanıcı başına instance-bağımsız sınır.
+  const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-compute-user", guard.userId), 60, 60 * 60);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { ok: false, code: "RATE_LIMITED", error: "Kısa sürede çok fazla hesaplama yapıldı. Lütfen daha sonra tekrar deneyin." },
+      { status: 429, headers: { ...NO_STORE, "Retry-After": String(rl.retryAfterSec || 60) } },
+    );
+  }
 
   let raw: unknown;
   try {

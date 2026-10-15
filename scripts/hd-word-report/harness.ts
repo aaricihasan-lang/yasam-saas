@@ -494,7 +494,8 @@ async function main() {
     // açık (requireModuleAccess "human_design"); canonical metin yalnız donmuş snapshot→DOCX.
     ok("SEC create requireModuleAccess human_design (uzman+admin)", /requireModuleAccess\(\s*req\s*,\s*"human_design"\s*\)/.test(create) && !/requireAdminUserRequest\(/.test(create));
     ok("SEC create demo bloklu", /is_demo_account/.test(create) && /403/.test(create));
-    ok("SEC create rate limit", /checkRateLimit/.test(create));
+    // HD-28 (GUV-04): bellek-içi checkRateLimit → instance-bağımsız DB limiti (daha sıkı).
+    ok("SEC create rate limit (DB tabanlı)", /hitDbRateLimit\(/.test(create) && !/checkRateLimit\(/.test(create));
     ok("SEC create tenantId guard'dan (body'den değil)", /guard\.tenantId/.test(create) && !/raw\.tenantId|body\.tenantId|\.tenant_id\s*=/.test(create));
     ok("SEC download requireModuleAccess human_design (uzman+admin)", /requireModuleAccess\(\s*req\s*,\s*"human_design"\s*\)/.test(download) && !/requireAdminUserRequest\(/.test(download));
     ok("SEC download no-store", /no-store/.test(download));

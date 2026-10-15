@@ -183,19 +183,26 @@ export async function deleteKnowledge(
   db: SupabaseClient,
   tenantId: string,
   id: string,
-): Promise<{ ok: boolean; error: string | null }> {
-  const { error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteKnowledge")
-    .eq("id", id);
-  return { ok: !error, error: error ? hdSafeDbError("deleteKnowledge", error) : null };
+): Promise<{ ok: boolean; error: string | null; status?: number }> {
+  const { data, error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteKnowledge")
+    .eq("id", id)
+    .select("id");
+  if (error) return { ok: false, error: hdSafeDbError("deleteKnowledge", error) };
+  // HD-27 (GUV-05): silinen satır yoksa başarı DÖNÜLMEZ.
+  if (!data || data.length === 0) return { ok: false, error: "Kayıt bulunamadı veya bu hesaba ait değil.", status: 404 };
+  return { ok: true, error: null };
 }
 
 export async function deleteKnowledgeBulk(
   db: SupabaseClient,
   tenantId: string,
   ids: string[],
-): Promise<{ ok: boolean; error: string | null }> {
-  if (ids.length === 0) return { ok: true, error: null };
-  const { error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteKnowledgeBulk")
-    .in("id", ids);
-  return { ok: !error, error: error ? hdSafeDbError("deleteKnowledgeBulk", error) : null };
+): Promise<{ ok: boolean; error: string | null; deletedCount: number }> {
+  if (ids.length === 0) return { ok: true, error: null, deletedCount: 0 };
+  const { data, error } = await withTenant(db.from(TABLE).delete(), tenantId, "deleteKnowledgeBulk")
+    .in("id", ids)
+    .select("id");
+  if (error) return { ok: false, error: hdSafeDbError("deleteKnowledgeBulk", error), deletedCount: 0 };
+  // HD-27 (GUV-05): gerçekten silinen satır sayısı (istenen sayı değil) döner.
+  return { ok: true, error: null, deletedCount: (data ?? []).length };
 }

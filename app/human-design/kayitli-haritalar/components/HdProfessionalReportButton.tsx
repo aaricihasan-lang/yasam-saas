@@ -146,7 +146,7 @@ export function HdProfessionalReportButton({
       let bodygraphPng: string | undefined;
       if (roxyRender && !opts.allowMissingBodygraph) {
         setPhase("capturing");
-        const cap = await captureRoxyBodygraphPng(roxyRender, loadRoxyBodygraph);
+        const cap = await captureRoxyBodygraphPng(roxyRender, loadRoxyBodygraph, chartId);
         if (!cap.ok) {
           setPhase("bodygraph_failed");
           setMessage(`${cap.error} Tekrar deneyebilir ya da raporu BodyGraph görseli olmadan oluşturabilirsiniz.`);

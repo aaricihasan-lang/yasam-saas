@@ -33,6 +33,7 @@ import { computeRoxyChart, type RoxyServiceDeps } from "../../../lib/human-desig
 import { resolveAutoCalcState, type AutoCalcRow } from "../../../lib/human-design/chart/autoCalcState";
 import { buildChartSubjectInfo } from "../../../lib/human-design/chart/chartSubjectInfo";
 import { createFakeDb } from "../../hd-roxy/fakeDb";
+import { consistentRoxyResponse } from "../../hd-roxy/consistentFixture";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..", "..", "..");
@@ -204,7 +205,7 @@ async function main(): Promise<void> {
     let roxyCalls = 0;
     const deps: RoxyServiceDeps = {
       config: { apiKey: "harness-key", baseUrl: "https://roxy.invalid/api/v2" },
-      callRoxy: async () => { roxyCalls++; return { ok: true, raw: JSON.parse(JSON.stringify(FIXTURE)) }; },
+      callRoxy: async (_cfg, body) => { roxyCalls++; return { ok: true, raw: JSON.parse(consistentRoxyResponse(JSON.stringify(FIXTURE), JSON.stringify(body))) }; },
       rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
       sleep: async () => undefined,
       log: () => undefined,

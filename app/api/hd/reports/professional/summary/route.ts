@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { getCanonicalReportForDownload } from "@/lib/human-design/api/reportPersistence";
 import { buildProfessionalReportSummary } from "@/lib/human-design/reporting/reportSummary";
+import { invalidIdResponse, isUuid } from "@/lib/human-design/api/requestIds";
 
 /**
  * GET /api/hd/reports/professional/summary?id=<reportId>
@@ -24,6 +25,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!id) {
     return NextResponse.json({ ok: false, error: "id gerekli." }, { status: 400, headers: NO_STORE });
   }
+  if (!isUuid(id)) return invalidIdResponse("id");
   const read = await getCanonicalReportForDownload(guard.db, guard.tenantId, id);
   if (!read.data) {
     return NextResponse.json({ ok: false, error: read.error }, { status: read.status, headers: NO_STORE });

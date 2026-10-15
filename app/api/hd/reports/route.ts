@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readExpectedVersion } from "@/lib/human-design/api/optimistic";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
-import { isUuid } from "@/lib/human-design/api/deterministicId";
+import { invalidIdResponse, isOptionalUuid, isUuid } from "@/lib/human-design/api/requestIds";
 import {
   listReportsWithClients,
   getReportById,
@@ -41,7 +41,9 @@ export async function GET(req: NextRequest): Promise<Response> {
   const id = url.searchParams.get("id");
   const countForClient = url.searchParams.get("countForClient");
 
+  if (!isOptionalUuid(id)) return invalidIdResponse("id");
   if (countForClient !== null) {
+    if (!isUuid(countForClient)) return invalidIdResponse("countForClient");
     const { count, error } = await getClientReportCount(guard.db, guard.tenantId, countForClient);
     if (error) return NextResponse.json({ ok: false, error }, { status: 500, headers: NO_STORE });
     return NextResponse.json({ ok: true, count }, { status: 200, headers: NO_STORE });
@@ -141,6 +143,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
       { status: 400, headers: NO_STORE },
     );
   }
+  if (!isUuid(id)) return invalidIdResponse("id");
 
   // P2-9: istemci yüklediği sürümü gönderirse koşullu güncelleme (başka oturum ezilmez → 409).
   const { ok, error, status: upStatus, code, updatedAt } = await updateReport(
@@ -174,9 +177,10 @@ export async function DELETE(req: NextRequest): Promise<Response> {
       { status: 400, headers: NO_STORE },
     );
   }
-  const { ok, error } = await deleteReport(guard.db, guard.tenantId, id);
+  if (!isUuid(id)) return invalidIdResponse("id");
+  const { ok, error, status: delStatus } = await deleteReport(guard.db, guard.tenantId, id);
   if (!ok) {
-    return NextResponse.json({ ok: false, error: error ?? "Silinemedi." }, { status: 400, headers: NO_STORE });
+    return NextResponse.json({ ok: false, error: error ?? "Silinemedi." }, { status: delStatus === 404 ? 404 : 400, headers: NO_STORE });
   }
   await trackUsage(guard, req, { module: "human_design", action: "record_deleted", subEntity: "report", resourceId: id });
   return NextResponse.json({ ok: true, deletedId: id }, { status: 200, headers: NO_STORE });
