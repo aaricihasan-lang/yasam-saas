@@ -15,10 +15,7 @@ import {
   buildWellnessNoteSection,
   buildPremiumCover,
   buildStatsPage,
-  buildTOCPage,
   divider,
-  h1Colored,
-  h2,
   h3,
   muted,
   profileLabel,
@@ -26,6 +23,7 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { StaticTocCollector } from "@/lib/docx/premiumToc";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { sanitizeBioenergyXmlText } from "@/lib/biyoenerji/xmlSafeText";
 
@@ -191,13 +189,16 @@ export async function POST(request: NextRequest): Promise<Response> {
     ["Kapsam",             exportLabel],
   ]));
 
-  all.push(...buildTOCPage());
+  // İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde
+  // başlıklarından toplanır, gövde bittikten sonra bu konuma yerleştirilir; başlık yoksa sayfa yok).
+  const toc = new StaticTocCollector("bckr");
+  const tocAt = all.length;
 
   if (read.truncated) {
     all.push(muted(EXPORT_TRUNCATED_NOTE(MAX_EXPORT_RECORDS)));
   }
 
-  all.push(h1Colored("1. Çakra Kütüphanesi", C_CAKRA, true));
+  all.push(toc.h1Colored("1. Çakra Kütüphanesi", C_CAKRA, true));
   all.push(muted(`${chakras.length} kayıt`));
   all.push(spacer());
 
@@ -207,7 +208,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (i > 0) all.push(divider());
 
     all.push(profileLabel(`ÇAKRA #${String(i + 1).padStart(3, "0")}`, C_CAKRA));
-    all.push(h2(name));
+    all.push(toc.h2(name));
 
     // Quick-fact tablosu (canonical block modeliyle uyumlu; legacy Renk fallback korunur)
     // Hızlı bilgiler: yalnız dolu alanlar (Sanskritçe ad / element / konum / bija mantra).
@@ -272,7 +273,10 @@ export async function POST(request: NextRequest): Promise<Response> {
   // FA-16: sade bilgilendirme notu + Hazırlayan (rapor sonu).
   all.push(...buildWellnessNoteSection("biyoenerji", safeExpertName(guard.profile)));
 
+  all.splice(tocAt, 0, ...toc.page());
+
   const doc = new Document({
+    ...toc.documentOptions(),
     sections: [{
       properties: {},
       footers: { default: buildFooter("Çakra Kütüphanesi Raporu · Yaşam Sistemi", { note: "biyoenerji" }) },

@@ -12,10 +12,7 @@ import {
   buildFooter,
   buildPremiumCover,
   buildStatsPage,
-  buildTOCPage,
   fieldInline,
-  h1Colored,
-  h2,
   h3,
   muted,
   profileLabel,
@@ -23,6 +20,7 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { StaticTocCollector } from "@/lib/docx/premiumToc";
 import {
   formatDateLoose,
   formatInstantDate,
@@ -138,16 +136,19 @@ export function buildAjandaReportDoc(input: AjandaReportInput): { doc: Document;
     ...(expertName ? [["Hazırlayan", expertName] as [string, string]] : []),
   ]));
 
-  all.push(...buildTOCPage());
+  // İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde
+  // başlıklarından toplanır, gövde bittikten sonra bu konuma yerleştirilir).
+  const toc = new StaticTocCollector("ajd");
+  const tocAt = all.length;
 
-  all.push(h1Colored("1. Randevu Listesi", C_AJANDA, true));
+  all.push(toc.h1Colored("1. Randevu Listesi", C_AJANDA, true));
   all.push(muted(`${total} randevu · ${sortedDays.length} gün`));
   all.push(spacer());
 
   let globalN = 0;
   sortedDays.forEach(([, dayApts], dayIdx) => {
     if (dayIdx > 0) all.push(spacer());
-    all.push(h2(formatInstantDate(dayApts[0]!.appointment_date, { ...tzOpts, style: "weekdayLong" })
+    all.push(toc.h2(formatInstantDate(dayApts[0]!.appointment_date, { ...tzOpts, style: "weekdayLong" })
       || formatDateLoose(dayApts[0]!.appointment_date, tzOpts)));
 
     dayApts.forEach((apt) => {
@@ -167,7 +168,10 @@ export function buildAjandaReportDoc(input: AjandaReportInput): { doc: Document;
     });
   });
 
+  all.splice(tocAt, 0, ...toc.page());
+
   const doc = new Document({
+    ...toc.documentOptions(),
     sections: [{
       properties: {},
       footers: { default: buildFooter(`Ajanda Raporu · ${exportLabel}`) },

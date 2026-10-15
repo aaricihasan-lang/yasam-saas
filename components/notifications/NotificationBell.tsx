@@ -24,7 +24,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { useToast } from "@/components/ui/ToastProvider";
 import { shouldSkipAppointmentNotifications } from "@/shared/DashboardNotifications";
@@ -116,6 +116,7 @@ export default function NotificationBell({ className, compact = false }: Notific
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [box, setBox] = useState<PanelBox | null>(null);
   const panelId = useId();
+  const panelTitleId = `${panelId}-title`;
 
   useEffect(() => {
     if (!active) return;
@@ -195,6 +196,33 @@ export default function NotificationBell({ className, compact = false }: Notific
     };
   }, [open]);
 
+  // Final-A2 erişilebilirlik: panel konumlanınca odak panele taşınır (başlık okunur; Tab ile içerik).
+  // preventScroll → ata kapsayıcı (ana sayfa hero) programatik odakla kaymaz.
+  const panelReady = open && box !== null;
+  useEffect(() => {
+    if (panelReady) panelRef.current?.focus({ preventScroll: true });
+  }, [panelReady]);
+
+  /** Panel portalda (body sonunda): Tab sırası panelin içinde kalır; uçlardan çıkış zile döner. */
+  const onPanelKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Tab" || !panelRef.current) return;
+    const focusables = Array.from(
+      panelRef.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'),
+    );
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const activeEl = document.activeElement;
+    if (e.shiftKey && (activeEl === first || activeEl === panelRef.current)) {
+      e.preventDefault();
+      buttonRef.current?.focus();
+    } else if (!e.shiftKey && activeEl === last) {
+      e.preventDefault();
+      setOpenAt(null);
+      buttonRef.current?.focus();
+    }
+  };
+
   const act = useCallback(
     async (item: FeedItem, state: NotificationStateValue) => {
       const key = itemKey(item);
@@ -241,8 +269,7 @@ export default function NotificationBell({ className, compact = false }: Notific
         ref={buttonRef}
         type="button"
         onClick={toggle}
-        aria-label="Bildirimler"
-        aria-haspopup="true"
+        aria-label={unread > 0 ? `Bildirimler, ${unread} okunmamış` : "Bildirimler"}
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         title="Bildirimler"
@@ -252,26 +279,34 @@ export default function NotificationBell({ className, compact = false }: Notific
         {unread > 0 && (
           <span
             aria-hidden
+            data-testid="notification-badge"
             className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-rose-500 px-1 text-[10px] font-black leading-none text-white"
           >
             {unread > 9 ? "9+" : unread}
           </span>
         )}
       </button>
+      {/* Ekran okuyucu: okunmamış sayısı değişince kibarca duyurulur (rozet görsel; aria-hidden). */}
+      <span className="sr-only" aria-live="polite" data-testid="notification-live">
+        {unread > 0 ? `${unread} okunmamış bildirim` : ""}
+      </span>
 
       {open && box && typeof document !== "undefined" && createPortal(
         <div
           ref={panelRef}
           id={panelId}
-          role="region"
-          aria-label="Bugünkü randevu bildirimleri"
+          role="dialog"
+          aria-modal="false"
+          aria-labelledby={panelTitleId}
+          tabIndex={-1}
+          onKeyDown={onPanelKeyDown}
           data-testid="notification-panel"
           style={{ top: box.top, left: box.left, width: box.width, maxHeight: box.maxHeight }}
-          className="fixed z-[90] flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_18px_36px_rgba(15,23,42,0.22)]"
+          className="fixed z-[90] flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_18px_36px_rgba(15,23,42,0.22)] focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
         >
           <div className="shrink-0 bg-gradient-to-r from-slate-900 via-indigo-700 to-fuchsia-600 px-3.5 py-2.5 text-white">
             <div className="text-[11px] font-bold opacity-80">Bildirimler</div>
-            <div className="text-sm font-black">Bugünkü randevular</div>
+            <div id={panelTitleId} className="text-sm font-black">Bugünkü randevular</div>
           </div>
 
           <div data-testid="notification-panel-list" className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">

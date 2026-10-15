@@ -10,11 +10,8 @@ import {
   buildWellnessNoteSection,
   buildPremiumCover,
   buildStatsPage,
-  buildTOCPage,
   divider,
   fieldInline,
-  h1Colored,
-  h2,
   h3,
   muted,
   profileLabel,
@@ -22,6 +19,7 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
+import { StaticTocCollector } from "@/lib/docx/premiumToc";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { formatInstantDateTime, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 import { isKulvarAnalysisType } from "@/app/numeroloji/bilgi-bankasi/helpers/knowledgeSections";
@@ -272,10 +270,13 @@ export async function POST(req: NextRequest): Promise<Response> {
     ["Analiz Türü",     String(groupKeys.size)],
   ]));
 
-  all.push(...buildTOCPage());
+  // İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde
+  // başlıklarından toplanır, gövde bittikten sonra bu konuma yerleştirilir; başlık yoksa sayfa yok).
+  const toc = new StaticTocCollector("nkb");
+  const tocAt = all.length;
 
   // Genel özet
-  all.push(h1Colored("1. Genel Özet", C_KNOWLEDGE, true));
+  all.push(toc.h1Colored("1. Genel Özet", C_KNOWLEDGE, true));
   all.push(twoColTable([
     ["Açıklama Kaydı",  `${knowledgeRows.length} kayıt`],
     ["Doğaltaş Atama",  `${stoneRows.length} kayıt`],
@@ -308,7 +309,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const showStones = sections.stones && sRows.length > 0;
     if (!showDesc && !showStones) continue; // boş grup başlığı basılmaz
 
-    all.push(h1Colored(`${sectionN}. ${label}`, C_KNOWLEDGE, true));
+    all.push(toc.h1Colored(`${sectionN}. ${label}`, C_KNOWLEDGE, true));
     all.push(muted(`${kRows.length} açıklama · ${sRows.length} taş atama`));
     all.push(spacer());
 
@@ -316,7 +317,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     // Açıklama kayıtları
     if (showDesc) {
-      all.push(h2("Açıklama Kayıtları"));
+      all.push(toc.h2("Açıklama Kayıtları"));
       for (const k of kRows) {
         itemN++;
         all.push(profileLabel(`KAYIT #${String(itemN).padStart(3, "0")}`, C_KNOWLEDGE));
@@ -361,7 +362,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     // Doğaltaş atamaları
     if (showStones) {
       if (showDesc) all.push(spacer());
-      all.push(h2("Doğaltaş Atamaları"));
+      all.push(toc.h2("Doğaltaş Atamaları"));
       let sItemN = 0;
       for (const s of sRows) {
         sItemN++;
@@ -386,7 +387,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     ? buildBibliography(recordSources, Array.from(sourcesById.values()))
     : [];
   if (bibliography.length > 0) {
-    all.push(h1Colored(`${sectionN}. Kaynakça`, C_KNOWLEDGE, true));
+    all.push(toc.h1Colored(`${sectionN}. Kaynakça`, C_KNOWLEDGE, true));
     all.push(muted(`${bibliography.length} kaynak`));
     all.push(spacer());
     for (const s of bibliography) {
@@ -399,7 +400,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   // FA-16: sade bilgilendirme notu + Hazırlayan (rapor sonu).
   all.push(...buildWellnessNoteSection("numeroloji", expertDisplayName(guard.profile)));
 
+  all.splice(tocAt, 0, ...toc.page());
+
   const doc = new Document({
+    ...toc.documentOptions(),
     sections: [{
       properties: {},
       footers: { default: buildFooter("Numeroloji Bilgi Bankası · Yaşam Sistemi", { note: "numeroloji" }) },

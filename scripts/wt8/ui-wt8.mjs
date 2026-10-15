@@ -703,7 +703,7 @@ async function testBell() {
           const bell = page.getByRole("button", { name: "Bildirimler" }).first();
           await bell.waitFor({ timeout: 20000 });
           await page.waitForFunction(() => {
-            const b = document.querySelector('button[aria-label="Bildirimler"] span');
+            const b = document.querySelector('button[aria-label^="Bildirimler"] span');
             return Boolean(b && /\d/.test(b.textContent ?? ""));
           }, null, { timeout: 15000 }).catch(() => {});
           const badgeBefore = await bell.locator("span").count();
@@ -761,7 +761,7 @@ async function testBellUnread() {
       return (await s.count()) ? Number((await s.first().innerText()).trim()) : 0;
     };
     const waitBadge = async (n) => page.waitForFunction((want) => {
-      const s = document.querySelector('button[aria-label="Bildirimler"] span');
+      const s = document.querySelector('button[aria-label^="Bildirimler"] span');
       return (s ? Number((s.textContent ?? "").trim()) : 0) === want;
     }, n, { timeout: 10000 }).then(() => true).catch(() => false);
     const panel = () => page.getByTestId("notification-panel");
