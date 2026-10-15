@@ -12,6 +12,7 @@
 import type { KpCusp, KpPoint } from "../model/kp";
 import type { VedicGrahaId } from "../model/vedic";
 import { SIGN_IDS, type SignId } from "../model/western";
+import { GRAHA_LABELS } from "../topics/vedic";
 import { SIGN_GLYPHS } from "../labels/tr";
 import { localizeKundliDom, type ChartStyle } from "@/app/admin/astroloji/_lib/kundliData";
 import { SIGN_TR_ABBR } from "@/app/admin/astroloji/_lib/kundliLocalize";
@@ -39,7 +40,22 @@ export type ReportFigure =
       bodies: (KpPoint & { id: VedicGrahaId; retrograde?: boolean | null; house?: number })[];
       /** Ortadaki başlık + satırlar (ekrandaki Center ile aynı metin). */
       center: { title: string; lines: string[] };
+    }
+  | {
+      /** 2026-10-15: ekrandaki Vimshottari / KP Dasha zaman çizelgesinin (DashaTimeline) statik karşılığı. */
+      type: "dashaTimeline";
+      periods: { lord: VedicGrahaId; start: string; end: string; durationYears: number }[];
+    }
+  | {
+      /** 2026-10-15: ekrandaki Shadbala güç çubuklarının statik karşılığı (oran = rupa / BPHS asgari). */
+      type: "shadbalaBars";
+      planets: { id: VedicGrahaId; rank: number; ratio: number }[];
     };
+
+/** Geniş (yatay) figür: Word/PDF'te kare harita boyutu yerine sayfa genişliğinde yerleşir. */
+export function isWideFigure(fig: ReportFigure): boolean {
+  return fig.type === "dashaTimeline" || fig.type === "shadbalaBars";
+}
 
 // ─── Lit şablonu → dizgi (yalnız statik çıktı; olay/özellik bağları atılır) ────────────────────────────
 
@@ -355,6 +371,89 @@ export function kpReportSvg(fig: Extract<ReportFigure, { type: "kp" }>, fontFami
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${KP_SIZE} ${KP_SIZE}" width="${KP_SIZE}" height="${KP_SIZE}" font-family="${escAttr(fontFamily)}">${parts.join("")}</svg>`;
 }
 
+// ─── Dasha zaman çizelgesi + Shadbala çubukları (2026-10-15) ──────────────────────────────────────────────
+// Ekrandaki çizimlerin (VedicPanels DashaTimeline, VedicExtraPanels Shadbala) AYNI veri, ölçek, renk ve etiket kuralıyla
+// statik SVG karşılığı. Ekrandaki "bugün" çizgisi ve seçim vurgusu etkileşimli/tarihe bağlıdır → raporda YOK (rapor
+// değişmez kayıttan üretilir; oluşturma tarihine göre değişen işaret basılmaz).
+
+/** Ekrandaki LORD_TONE (Tailwind 3.4) renklerinin hex karşılığı. */
+const DASHA_TONE: Record<VedicGrahaId, string> = {
+  sun: "#fcd34d",
+  moon: "#e2e8f0",
+  mars: "#fda4af",
+  mercury: "#6ee7b7",
+  jupiter: "#fef08a",
+  venus: "#fbcfe8",
+  saturn: "#a5b4fc",
+  rahu: "#a1a1aa",
+  ketu: "#d6d3d1",
+};
+const svgText = (x: number, y: number, s: string, at: Record<string, string | number>) =>
+  `<text x="${fmt(x)}" y="${fmt(y)}" dominant-baseline="central"${Object.entries(at)
+    .map(([k, v]) => ` ${k}="${escAttr(String(v))}"`)
+    .join("")}>${escText(s)}</text>`;
+const dmy = (s: string) => `${s.slice(8, 10)}.${s.slice(5, 7)}.${s.slice(0, 4)}`;
+
+export function dashaTimelineSvg(fig: Extract<ReportFigure, { type: "dashaTimeline" }>, fontFamily: string): string {
+  const ps = fig.periods;
+  if (!ps.length) throw new Error("Dasha dönemi yok");
+  const W = 1000;
+  const barY = 6;
+  const barH = 56;
+  const H = barY + barH + 30;
+  const total = ps.reduce((a, p) => a + p.durationYears, 0) || 1;
+  const parts: string[] = [];
+  parts.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>`);
+  parts.push(`<clipPath id="dasha-bar"><rect x="1" y="${barY}" width="${W - 2}" height="${barH}" rx="8"/></clipPath>`);
+  parts.push(`<g clip-path="url(#dasha-bar)">`);
+  let x = 1;
+  const inner = W - 2;
+  ps.forEach((p, i) => {
+    const share = p.durationYears / total;
+    const w = share * inner;
+    const tone = DASHA_TONE[p.lord];
+    if (!tone) throw new Error(`Bilinmeyen dasha lordu: ${String(p.lord)}`);
+    parts.push(`<rect x="${fmt(x)}" y="${barY}" width="${fmt(w)}" height="${barH}" fill="${tone}" fill-opacity="0.9" data-dasha-seg="${escAttr(p.lord)}"/>`);
+    if (i < ps.length - 1) parts.push(`<rect x="${fmt(x + w - 1)}" y="${barY}" width="1" height="${barH}" fill="#ffffff" fill-opacity="0.7"/>`);
+    // Ekran kuralı: pay > %5 ise kısa ad; ayrıca raporda sığmayan ad basılmaz (kırpma yerine).
+    const name = (GRAHA_LABELS[p.lord] ?? p.lord).split(" ")[0];
+    const fs = 15;
+    if (share * 100 > 5 && name.length * fs * CHAR_EM + 6 <= w) parts.push(svgText(x + w / 2, barY + barH / 2, name, { fill: "#1e293b", "font-size": fs, "font-weight": 600, "text-anchor": "middle" }));
+    x += w;
+  });
+  parts.push(`</g>`);
+  parts.push(`<rect x="1" y="${barY}" width="${W - 2}" height="${barH}" rx="8" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>`);
+  parts.push(svgText(2, barY + barH + 16, dmy(ps[0].start), { fill: "#64748b", "font-size": 14 }));
+  parts.push(svgText(W - 2, barY + barH + 16, dmy(ps[ps.length - 1].end), { fill: "#64748b", "font-size": 14, "text-anchor": "end" }));
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="${escAttr(fontFamily)}">${parts.join("")}</svg>`;
+}
+
+export function shadbalaBarsSvg(fig: Extract<ReportFigure, { type: "shadbalaBars" }>, fontFamily: string): string {
+  const ps = [...fig.planets].sort((a, b) => a.rank - b.rank);
+  if (!ps.length) throw new Error("Shadbala gezegeni yok");
+  const W = 1000;
+  const rowH = 40;
+  const pad = 8;
+  const H = pad * 2 + ps.length * rowH;
+  const labelW = 250;
+  const valueW = 80;
+  const x0 = labelW + 12;
+  const barW = W - x0 - valueW - 12;
+  const barH = 18;
+  const maxRatio = Math.max(...ps.map((p) => p.ratio), 1.2);
+  const parts: string[] = [`<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>`];
+  ps.forEach((p, i) => {
+    const cy = pad + i * rowH + rowH / 2;
+    parts.push(svgText(4, cy, `${p.rank}. ${GRAHA_LABELS[p.id] ?? p.id}`, { fill: "#0f172a", "font-size": 18, "font-weight": 500 }));
+    parts.push(`<rect x="${x0}" y="${fmt(cy - barH / 2)}" width="${barW}" height="${barH}" rx="5" fill="#f1f5f9"/>`);
+    const w = (Math.max(0, p.ratio) / maxRatio) * barW;
+    if (w > 0) parts.push(`<rect x="${x0}" y="${fmt(cy - barH / 2)}" width="${fmt(w)}" height="${barH}" rx="5" fill="${p.ratio >= 1 ? "#34d399" : "#fda4af"}" data-shadbala="${escAttr(p.id)}"/>`);
+    parts.push(`<rect x="${fmt(x0 + (1 / maxRatio) * barW - 1.5)}" y="${fmt(cy - barH / 2)}" width="3" height="${barH}" fill="#334155"/>`);
+    parts.push(svgText(W - 4, cy, p.ratio.toFixed(2).replace(".", ","), { fill: "#0f172a", "font-size": 18, "text-anchor": "end" }));
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="${escAttr(fontFamily)}">${parts.join("")}</svg>`;
+}
+
 /** Rapor metni için harita türü adı (yanlış adlandırma YOK: bölüm numarası + kayıttaki ad). */
 export function figureTitle(technique: string, division?: { number: number; name: string }): string {
   if (technique === "vedic.d1") return "Vedik D1 (Rashi) haritası";
@@ -362,6 +461,9 @@ export function figureTitle(technique: string, division?: { number: number; name
   if (technique === "kp.chart") return "KP haritası";
   if (technique === "kp.horary") return "KP horary haritası";
   if (technique === "kp.transit") return "KP transit haritası";
+  if (technique === "vedic.dasha") return "Vimshottari Dasha zaman çizelgesi";
+  if (technique === "kp.dasha") return "KP Dasha zaman çizelgesi";
+  if (technique === "vedic.shadbala") return "Shadbala güç grafiği";
   return "Harita";
 }
 

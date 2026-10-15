@@ -3,7 +3,8 @@
 /**
  * Gökyüzü Atlası — "Açık Analizler" sekme şeridi (Aşama D4).
  *
- * • Masaüstü (≥640 px): tek satır; çok sekmede yatay kaydırma. Etkin sekme belirgin.
+ * • Masaüstü (≥640 px): tek satır; çok sekmede yatay kaydırma + ‹ › ok düğmeleri ve fare tekerleği (ScrollStrip). Etkin
+ *   sekme belirgin ve görünür alana getirilir.
  * • Telefon (<640 px, 2026-10-12 Android UAT madde 4): yatay kayan şerit yerine İKİ SÜTUNLU kutucuklar (Danışan
  *   Listesi'ndeki gibi) — adlar satıra geçer, kapatma (×) ayrı ve geniş dokunma alanında; 4'ten fazla açık analizde
  *   liste kısaltılır ("Tümünü göster (N)") → ekran gereksiz uzamaz, bütün açık analizler tek dokunuşla görünür.
@@ -14,6 +15,7 @@
  */
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Plus, RefreshCw, RotateCcw, X } from "lucide-react";
+import ScrollStrip from "./ScrollStrip";
 
 export type OpenTab = { key: string; label: string; title?: string; partial?: boolean; /** Kaydedilmemiş not / KB taslağı var. */ dirty?: boolean; /** Analiz Arşivi'ne kaydedildi. */ saved?: boolean };
 export type FailedTab = { key: string; technique: string; label: string; error: string; code: string; attempts: number; lastAt: number; note: string | null; options: string; /** Kilidin kalktığı an (ms; sunucunun bildirdiği GERÇEK kalan süreden). */ retryAt?: number | null };
@@ -66,9 +68,6 @@ export default function OpenTabs({
     return tabs.filter((t) => t === act || rest.includes(t));
   })();
   const failRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (active) refs.current[active]?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [active]);
   useEffect(() => {
     if (!failOpen) return;
     const onDown = (e: MouseEvent) => failRef.current && !failRef.current.contains(e.target as Node) && setFailOpen(false);
@@ -145,13 +144,15 @@ export default function OpenTabs({
           </button>
         )}
       </div>
-      <div className="hidden min-w-0 flex-1 flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 sm:flex [scrollbar-color:rgba(217,181,111,0.35)_transparent] [scrollbar-width:thin]" role="tablist" aria-label="Açık analizler">
+      {/* 2026-10-15: çok sekmede fareyle de sağa/sola geçiş — ok düğmeleri + tekerlek (ScrollStrip). */}
+      <ScrollStrip ariaLabel="Açık analizler" activeKey={active} tone={L ? "light" : "dark"} className="hidden flex-1 sm:flex" testId="astro-result-tabs-strip">
         {tabs.length === 0 && <span className={`py-1.5 text-xs ${L ? "text-slate-500" : "text-[#F6F2EA]/50"}`}>Açık analiz yok.</span>}
         {tabs.map((t, i) => {
           const on = t.key === active;
           return (
             <span
               key={t.key}
+              data-strip-key={t.key}
               className={`inline-flex shrink-0 items-center rounded-xl border text-[13px] transition ${
                 L
                   ? on
@@ -191,7 +192,7 @@ export default function OpenTabs({
             </span>
           );
         })}
-      </div>
+      </ScrollStrip>
       <button type="button" onClick={onAdd} className={`ml-auto inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[13px] font-medium sm:ml-0 sm:min-h-0 ${L ? "border-slate-300 bg-white text-slate-800 hover:border-slate-500" : "border-[#E6C887]/55 bg-[#D9B56F]/10 text-[#F6E7C3] hover:bg-[#D9B56F]/20"}`} data-testid="atlas-add-technique-btn">
         <Plus className="h-3.5 w-3.5" /> <span className="whitespace-nowrap">Teknik Ekle</span>
       </button>

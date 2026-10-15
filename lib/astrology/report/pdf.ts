@@ -8,6 +8,7 @@
 
 import { jsPDF } from "jspdf";
 import type { AstroReport, ReportBlock, ReportTable } from "./model";
+import { isWideFigure } from "./figures";
 import { fontRuns, hasSymbolChars, type FontKey } from "./symbolFonts";
 
 /** Sembol yedek yazı tipleri (base64). Verilmezse (eski çağrılar) metin yalnız Geist ile çizilir. */
@@ -130,7 +131,8 @@ class W {
 function heading(w: W, level: 1 | 2 | 3, text: string, next: ReportBlock | undefined) {
   const size = level === 1 ? 14 : 11;
   // Başlık + bir sonraki bloğun en az ilk satırları aynı sayfada kalsın.
-  const nextNeed = !next ? 0 : next.kind === "table" ? 16 : next.kind === "chart" ? 120 : 10;
+  // Yatay grafik (Dasha çizelgesi / Shadbala) kare haritadan kısa: yalnız kendi yüksekliği kadar yer ayrılır.
+  const nextNeed = !next ? 0 : next.kind === "table" ? 16 : next.kind === "chart" ? ("figure" in next && isWideFigure(next.figure) ? 60 : 120) : 10;
   w.ensure(size * LH * 2 + (level === 1 ? 6 : 3) + nextNeed);
   w.y += level === 1 ? 4 : 2;
   const ls = w.lines(text, size, CW);
@@ -304,8 +306,8 @@ export function buildAstroReportPdf(r: AstroReport, chartIn: ChartImg | null | (
           w.para("Harita görseli bu raporda oluşturulamadı; teknik tablolar aşağıdadır.", 8, LIGHT);
           break;
         }
-        // Oran korunur: genişliğe ve kalan sayfa yüksekliğine sığdırılır (kare çark ~120 mm).
-        const maxW = Math.min(CW, 125);
+        // Oran korunur: genişliğe ve kalan sayfa yüksekliğine sığdırılır (kare çark ~120 mm; yatay grafik tam genişlik).
+        const maxW = "figure" in b && isWideFigure(b.figure) ? CW : Math.min(CW, 125);
         const ratio = chart.height / chart.width;
         let iw = maxW;
         let ih = iw * ratio;

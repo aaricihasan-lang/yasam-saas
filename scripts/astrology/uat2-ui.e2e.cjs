@@ -171,9 +171,9 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
   await page.waitForSelector("[data-saved-item]", { timeout: 60000 });
   await page.waitForTimeout(800);
   const bar = page.locator("[data-testid=astro-bulk-report]");
-  if (mobile || android) {
-    ok("L1 telefon/Android: toplu Word/PDF çubuğu ve seçim kutuları görünmez", !(await bar.isVisible().catch(() => false)) && !(await page.locator("[data-testid=astro-pick]").first().isVisible().catch(() => false)));
-  } else {
+  // 2026-10-15 (owner kararı): toplu Word/PDF çubuğu ve seçim kutuları telefon + Android dahil her ekranda görünür.
+  ok("L1 toplu Word/PDF çubuğu ve seçim kutuları bu ekranda görünür", (await bar.isVisible()) && (await page.locator("[data-testid=astro-pick]").first().isVisible()));
+  {
     ok("L1 masaüstü: toplu rapor çubuğu görünür", await bar.isVisible());
     ok("L2 seçim yokken 'Seçilenleri …' pasif", await page.locator("[data-testid=astro-bulk-selected-docx]").isDisabled());
     await page.locator(`[data-pick-id='${saved["western.natal"]}']`).check();

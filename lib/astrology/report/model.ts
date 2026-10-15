@@ -15,10 +15,12 @@ import { WHEEL_LEGEND } from "./wheelSvg";
 import { bayerBoth, FIXED_STAR_CATALOG, FIXED_STAR_FAR_LAT, fixedStarName, fixedStarNatureLabel, starKeywordTr } from "../labels/fixedStars";
 import { FIXED_STAR_ORB_QUERY, fixedStarOrbOf } from "../model/westernFixedStars";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
-import { VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, type VedicD1Technical, type VedicGrahaId, type VedicVargaTechnical } from "../model/vedic";
+import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicVargaTechnical } from "../model/vedic";
 import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpTransitTechnical } from "../model/kp";
 import { kundliTitles, toKundliData, toVargaChartData } from "@/app/admin/astroloji/_lib/kundliData";
 import { kundliLegend } from "@/app/admin/astroloji/_lib/kundliLocalize";
+import { interpretationKindNote, interpretationKindOfSchema } from "../interpretationKind";
+import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "../noProviderInterp";
 import { figureTitle, type ReportFigure } from "./figures";
 
 // ─── Blok modeli ─────────────────────────────────────────────────────────────
@@ -1101,8 +1103,31 @@ const hasPts = (v: unknown) => Array.isArray(v) && v.length > 0 && v.every((x) =
  * Teknik → harita figürü. Teknik adı VE kayıttaki şema eşleşmeli (yanlış haritanın yanlış rapora girmesi engellenir).
  * Harita çizilmeyen teknik → null; veri eksik → { missing } (rapor açık not verir, görsel uydurulmaz).
  */
-function vedicKpFigure(technique: string, t: O): { figure: ReportFigure; caption: string; legend: string } | { missing: string } | null {
+const DASHA_LEVEL_TR: Record<string, string> = { mahadasha: "Mahadasha", antardasha: "Antardasha (bhukti)", pratyantardasha: "Pratyantardasha" };
+const isGraha = (v: unknown): v is VedicGrahaId => typeof v === "string" && v in VIMSHOTTARI_YEARS;
+const LOCAL_DT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+const DASHA_LEGEND = "Kesim genişliği dönemin süresiyle orantılıdır (uygulamadaki çizelgeyle aynı ölçek); payı %5'ten küçük ya da adı sığmayan dönemde ad yazılmaz (tarihler aşağıdaki tabloda). Ekrandaki “bugün” işareti rapora konmaz: rapor değişmez kayıttan üretilir.";
+const SHADBALA_LEGEND = "Çubuk = güç oranı (toplam rupa / BPHS asgari rupa). Koyu dikey çizgi 1,00 asgari düzeyidir; yeşil asgarinin üstü, pembe altı. Sıra 1 = en güçlü (uygulamadaki grafikle aynı ölçek).";
+
+function vedicKpFigure(technique: string, t: O): { figure: ReportFigure; caption: string; legend: string; heading?: string } | { missing: string; heading?: string } | null {
   try {
+    if (technique === "vedic.dasha" || technique === "kp.dasha") {
+      const heading = "Dönem çizelgesi";
+      const schema = technique === "kp.dasha" ? KP_DASHA_TECHNICAL_SCHEMA : VEDIC_DASHA_TECHNICAL_SCHEMA;
+      const ps = arr(t.periods);
+      const valid = ps.length > 0 && ps.every((p) => isGraha(p.lord) && typeof p.start === "string" && LOCAL_DT.test(p.start) && typeof p.end === "string" && LOCAL_DT.test(p.end) && (num(p.durationYears) ?? -1) >= 0);
+      if (t.schema !== schema || !valid) return { missing: FIGURE_MISSING, heading };
+      const periods = ps.map((p) => ({ lord: p.lord as VedicGrahaId, start: String(p.start), end: String(p.end), durationYears: num(p.durationYears)! }));
+      const level = DASHA_LEVEL_TR[String(t.level)] ?? "Dasha";
+      return { figure: { type: "dashaTimeline", periods }, caption: `${figureTitle(technique)} — ${level} dönemleri; kayıtlı analiz verisinden çizilmiştir.`, legend: DASHA_LEGEND, heading };
+    }
+    if (technique === "vedic.shadbala") {
+      const heading = "Güç grafiği";
+      const ps = arr(t.planets);
+      const valid = ps.length > 0 && ps.every((p) => isGraha(p.id) && num(p.rank) !== null && num(p.strengthRatio) !== null);
+      if (t.schema !== VEDIC_SHADBALA_TECHNICAL_SCHEMA || !valid) return { missing: FIGURE_MISSING, heading };
+      return { figure: { type: "shadbalaBars", planets: ps.map((p) => ({ id: p.id as VedicGrahaId, rank: num(p.rank)!, ratio: num(p.strengthRatio)! })) }, caption: `${figureTitle(technique)} — kayıtlı analiz verisinden çizilmiştir.`, legend: SHADBALA_LEGEND, heading };
+    }
     if (technique === "vedic.d1") {
       if (t.schema !== VEDIC_D1_TECHNICAL_SCHEMA || !hasPts(t.grahas) || !isObj(t.lagna) || !isObj(t.frame)) return { missing: FIGURE_MISSING };
       const d = t as unknown as VedicD1Technical;
@@ -1185,7 +1210,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   // 5b. Vedik D1 / Varga / KP haritası (2026-10-15): ekranda çizilen haritanın aynısı, kayıtlı teknik veriden.
   const fig = tech ? vedicKpFigure(technique, tech) : null;
   if (fig) {
-    b.h(1, "Harita");
+    b.h(1, fig.heading ?? "Harita");
     if ("missing" in fig) b.p(fig.missing, "warn");
     else {
       b.blocks.push({ kind: "chart", figure: fig.figure, caption: fig.caption });
@@ -1234,8 +1259,15 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   // 10. Roxy otomatik yorumu — YALNIZ görünür (yetkili + kayıtta var) ise.
   const it = isObj(a.interpretation) ? a.interpretation : null;
   const interpVisible = !!it && it.visible === true && isObj(it.content);
+  if (!interpVisible && hasNoProviderInterpretation(technique)) {
+    // 2026-10-15: Roxy bu teknikte yorum üretmez — boşluk yetki/kayıt eksikliği sanılmasın (yorum UYDURULMAZ).
+    b.h(1, "Sistem yorumu");
+    b.p(NO_PROVIDER_INTERPRETATION_NOTE, "muted");
+  }
   if (interpVisible) {
     b.h(1, "Roxy otomatik yorumu");
+    // 2026-10-15: ekrandaki sekme adıyla aynı tür ayrımı (Otomatik Yorum / Teknik Açıklama / Olay Açıklamaları).
+    b.p(interpretationKindNote(interpretationKindOfSchema(typeof (it!.content as O).schema === "string" ? String((it!.content as O).schema) : "")), "muted");
     if (typeof it!.notice === "string") b.p(it!.notice, "muted");
     let content = it!.content as O;
     if (technique === "western.fixed_stars" && tech) {

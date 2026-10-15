@@ -6,6 +6,7 @@
  * Uzmanın kendi yorumu ile KARIŞTIRILMAZ. Tüm teknikler (natal + Aşama 3) şemaya göre çizilir.
  */
 
+import { interpretationKindOfSchema, type InterpretationKind } from "@/lib/astrology/interpretationKind";
 import type { ReactNode } from "react";
 import type { NatalInterpretation } from "@/lib/astrology/model/western";
 import type {
@@ -527,16 +528,11 @@ export function stripSystemKeys<T>(v: T): T {
 }
 
 /** Sağlayıcı katmanında anlatı değil, teknik bileşen / terim açıklaması taşıyan şemalar (KP, Shadbala, Panchanga, Varga). */
-const TECHNICAL_DESCRIPTION_SCHEMAS = new Set(["astro.kp.chart.interp.v1", "astro.kp.extra.interp.v1", "astro.vedic.shadbala.interp.v1", "astro.vedic.panchanga.interp.v1", "astro.vedic.varga.interp.v1"]);
-
-/** Sekme / panel başlığı: anlatı içeriyorsa "Otomatik Yorum", yalnız teknik açıklamaysa "Teknik Açıklama". */
-export function interpretationTitle(interpretation: InterpretationLayer): "Otomatik Yorum" | "Teknik Açıklama" | "Roxy Olay Açıklamaları" {
+/** Sekme / panel başlığı: anlatı içeriyorsa "Otomatik Yorum", yalnız teknik açıklamaysa "Teknik Açıklama" (karar
+ * lib/astrology/interpretationKind.ts'te — Word/PDF aynı kaynağı kullanır). */
+export function interpretationTitle(interpretation: InterpretationLayer): InterpretationKind {
   if (!interpretation.visible) return "Otomatik Yorum";
-  const schema = (interpretation.content as { schema?: string } | null)?.schema ?? "";
-  // 2026-10-12 (UAT 2. tur, madde N): Transit Takvimi'nde Roxy yalnız olay başına teknik cümle verir; "Otomatik Yorum"
-  // (kişiye özel yorum) izlenimi vermesin.
-  if (schema === "astro.western.forecast.interp.v1") return "Roxy Olay Açıklamaları";
-  return TECHNICAL_DESCRIPTION_SCHEMAS.has(schema) ? "Teknik Açıklama" : "Otomatik Yorum";
+  return interpretationKindOfSchema((interpretation.content as { schema?: string } | null)?.schema ?? "");
 }
 
 export default function ProviderInterpretationPanel({ interpretation }: { interpretation: InterpretationLayer }) {

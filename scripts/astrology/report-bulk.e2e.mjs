@@ -5,7 +5,7 @@
 //   R2 tekli Word + PDF (Transit)                       → 200, 0 Roxy isteği
 //   R3 seçili 3 analiz Word + PDF (Natal+Transit+Sinastri) → 200, 0 Roxy isteği
 //   R4 tüm analizler Word + PDF (5)                     → 200, 0 Roxy isteği
-//   R5 başka profilin analizi seçime karışırsa 400 (dosya yok); boş seçim 400; Android 403; yetkisiz 404
+//   R5 başka profilin analizi seçime karışırsa 400 (dosya yok); boş seçim 400; Android 200 (2026-10-15'ten beri her cihaz); yetkisiz 404
 // Dosyalar OUT klasörüne yazılır; içerik denetimi: scripts/astrology/report-bulk-inspect.py
 // Çalıştırma: node scripts/astrology/report-bulk.e2e.mjs [http://localhost:3931] [fake-backend.log] [out-dir]
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -104,9 +104,9 @@ r = await dl(`/api/admin/astroloji/analyses/report?${new URLSearchParams({ profi
 t("R5 geçersiz biçim 400", r.status === 400, `HTTP ${r.status}`);
 const android = { ...OWNER, "user-agent": "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36; wv" };
 r = await dl(qa("docx"), null, android);
-t("R5 Android Word 403", r.status === 403, `HTTP ${r.status}`);
+t("R5 Android Word 200 (2026-10-15: her cihazda)", r.status === 200, `HTTP ${r.status}`);
 r = await dl(qa("pdf"), null, android);
-t("R5 Android PDF 403", r.status === 403, `HTTP ${r.status}`);
+t("R5 Android PDF 200 (2026-10-15: her cihazda)", r.status === 200, `HTTP ${r.status}`);
 r = await dl(qa("docx"), null, ADMIN2);
 t("R5 owner olmayan admin 404", r.status === 404, `HTTP ${r.status}`);
 r = await dl(`/api/admin/astroloji/analyses/report?${new URLSearchParams({ profileId: A.id, format: "docx", ids: "99999999-9999-4999-8999-999999999999" })}`, null);

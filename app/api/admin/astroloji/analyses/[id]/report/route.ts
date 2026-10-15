@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { ASTRO_NO_STORE, requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
 import { parseOwnerPreviewHideInterp } from "@/lib/astrology/access/entitlements";
 import { buildAnalysisReport, type ReportFormat } from "@/lib/astrology/report/service";
-import { androidWordGuard } from "@/lib/platform/androidWordGuard";
-import { isAndroidUserAgent } from "@/lib/platform/android";
 import { checkRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
@@ -16,21 +14,13 @@ type RouteContext = { params: Promise<{ id: string }> };
  * Yalnız kayıtlı snapshot okunur (getAnalysis): 0 sağlayıcı isteği, yeni hesap yok, snapshot'a yazım yok.
  * Yetki/izolasyon getAnalysis ile AYNI: tenant + uzman sahipliği; Roxy yorumu yalnız GÜNCEL yorum
  * yetkisi varsa (yoksa yorum kolonu okunmaz). Kapı ÖNCE çalışır: yetkisiz istek (Android dahil) modülün
- * varlığını öğrenmez — tek tip 404. Android: Word ve PDF indirme desteklenmez (ürün kuralı:
- * Word tüm Android'de kapalı; sunucu PDF'i Anamnez kuralıyla tüm Android'de kapalı) → 403.
+ * varlığını öğrenmez — tek tip 404. 2026-10-15 (owner kararı, satış öncesi): Android tarayıcı / uygulama /
+ * tablet dahil her cihazda Word ve PDF indirilir (eski Android 403 kaldırıldı; HD kuralı ayrı ve değişmedi).
  */
 export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response> {
   const gate = await requireAstrologyAccess(req);
   if (!gate.ok) return gate.response;
   const fmt = req.nextUrl.searchParams.get("format");
-  if (fmt === "docx") {
-    const blocked = androidWordGuard(req);
-    if (blocked) return blocked;
-  } else if (fmt === "pdf") {
-    if (isAndroidUserAgent(req.headers.get("user-agent"))) {
-      return NextResponse.json({ ok: false, error: "PDF indirme bu cihazda kullanılamıyor. Lütfen bilgisayardan deneyin." }, { status: 403, headers: ASTRO_NO_STORE });
-    }
-  }
   if (fmt !== "docx" && fmt !== "pdf") {
     return NextResponse.json({ ok: false, code: "INVALID_FORMAT", error: "Rapor biçimi docx veya pdf olmalı." }, { status: 400, headers: ASTRO_NO_STORE });
   }

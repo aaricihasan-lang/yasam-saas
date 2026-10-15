@@ -22,6 +22,7 @@ import {
   type ReportChild,
 } from "@/lib/docx/reportHelpers";
 import type { AstroReport, ReportTable } from "./model";
+import { isWideFigure } from "./figures";
 import { fontRuns, hasSymbolChars, SYMBOL_FONT_A, SYMBOL_FONT_B } from "./symbolFonts";
 
 // ─── Sembol yazı tipi (2026-10-14) ───────────────────────────────────────────
@@ -105,9 +106,10 @@ const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" } as const
  * Başlık + harita görseli + alt yazı: kenarlıksız, bölünmeyen (cantSplit) tek hücre. Sığmazsa üçü birlikte sonraki
  * sayfaya geçer — başlık sayfa sonunda yalnız kalmaz. Görsel üretilemezse aynı açık not (görsel uydurulmaz).
  */
-function figureBlock(heading: Paragraph, png: Buffer | null, caption: string): Table {
+function figureBlock(heading: Paragraph, png: Buffer | null, caption: string, wide = false): Table {
+  // Kare harita 430 px (~11,4 cm); yatay grafik (Dasha çizelgesi / Shadbala) içerik genişliği ~640 px — oran korunur.
   const children: Paragraph[] = png
-    ? [heading, embedImageParagraph(png, 430, 430), new Paragraph({ alignment: AlignmentType.CENTER, children: runs(caption, { italics: true, size: 18, color: C_LIGHT }) })]
+    ? [heading, wide ? embedImageParagraph(png, 640, 420) : embedImageParagraph(png, 430, 430), new Paragraph({ alignment: AlignmentType.CENTER, children: runs(caption, { italics: true, size: 18, color: C_LIGHT }) })]
     : [heading, mutedX("Harita görseli bu raporda oluşturulamadı; teknik tablolar aşağıdadır.")];
   const borders = { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER, insideHorizontal: NO_BORDER, insideVertical: NO_BORDER };
   return new Table({
@@ -194,7 +196,7 @@ export function buildAstroReportDocument(r: AstroReport, chartPng: Buffer | null
         // her görüntüleyicide (LibreOffice) yetmedi → "Harita" sayfa sonunda yalnız kalıyordu. Batı çarkı aynen.
         if (next && next.kind === "chart" && "figure" in next) {
           const png = charts[chartIdx++] ?? null;
-          body.push(figureBlock(hx(b.level, t(b.text), breakNext), png, t(next.caption)));
+          body.push(figureBlock(hx(b.level, t(b.text), breakNext), png, t(next.caption), isWideFigure(next.figure)));
           breakNext = false;
           i++;
           break;
