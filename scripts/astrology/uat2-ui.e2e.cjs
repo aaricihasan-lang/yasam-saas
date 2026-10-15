@@ -69,25 +69,27 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
   const hero = page.locator("[data-testid=atlas-hero]");
   const selLen = () => page.evaluate(() => String(window.getSelection() ?? "").length);
 
-  // ── G: dashboard kartından her giriş modül ANA EKRANI (arşiv / dosya değil)
-  await page.goto("http://localhost:3931/", { waitUntil: "load", timeout: 120000 });
-  await page.waitForTimeout(1500);
-  const card = page.locator("a[href='/astroloji'], a[href='/admin/astroloji']").first();
-  const hasCard = (await card.count()) > 0;
-  if (hasCard) {
-    await card.click();
+  // ── G: Analiz Merkezi kartından her giriş modül ANA EKRANI (arşiv / dosya değil). 2026-10-15: Gökyüzü Atlası ana
+  // panelde ayrı kart değil, Yaşam Analiz Merkezi'nin içinde (ana panel → Analiz Merkezi → Gökyüzü Atlası).
+  const centerCard = page.locator("[data-testid=life-analysis-atlas-card]");
+  await page.goto("http://localhost:3931/life-analysis", { waitUntil: "load", timeout: 120000 });
+  await centerCard.waitFor({ timeout: 60000 }).catch(() => undefined);
+  if ((await centerCard.count()) > 0) {
+    await centerCard.click();
     await hero.waitFor({ timeout: 90000 });
-    ok("G1 dashboard kartı → Gökyüzü Atlası ana ekranı", await hero.isVisible(), page.url());
+    ok("G1 Analiz Merkezi kartı → Gökyüzü Atlası ana ekranı", await hero.isVisible(), page.url());
     await page.locator("[data-portal=archive]").first().click();
     await page.waitForTimeout(1500);
     ok("G2 arşive geçildi (adres #analiz-arsivi)", page.url().includes("#analiz-arsivi"));
     await page.locator("a[href='/']").first().click();
     await page.waitForURL((u) => u.pathname === "/", { timeout: 30000 }).catch(() => undefined);
     await page.waitForTimeout(1200);
-    await page.locator("a[href='/astroloji'], a[href='/admin/astroloji']").first().click();
+    await page.locator("a[href='/life-analysis']").first().click();
+    await centerCard.waitFor({ timeout: 60000 }).catch(() => undefined);
+    await centerCard.click();
     await hero.waitFor({ timeout: 90000 }).catch(() => undefined);
-    ok("G3 arşivden dashboard'a dönüp karta yeniden basınca YİNE ana ekran (arşiv değil)", (await hero.isVisible()) && !page.url().includes("#analiz-arsivi"), page.url());
-  } else ok("G1 dashboard'da Gökyüzü Atlası kartı var", false, "kart bulunamadı");
+    ok("G3 arşivden ana panele dönüp Analiz Merkezi → Atlas'a yeniden girince YİNE ana ekran (arşiv değil)", (await hero.isVisible()) && !page.url().includes("#analiz-arsivi"), page.url());
+  } else ok("G1 Analiz Merkezi'nde Gökyüzü Atlası kartı var", false, "kart bulunamadı");
   // Eski hash ile doğrudan yeni giriş (ör. uygulamanın son adresi geri yüklemesi) → ana ekran
   await page.goto("http://localhost:3931/admin", { waitUntil: "load" }).catch(() => undefined);
   await page.goto(`${BASE}#analiz-sonucu`, { waitUntil: "load" });
