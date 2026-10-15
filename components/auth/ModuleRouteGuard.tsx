@@ -20,10 +20,9 @@ function isGuardedPath(path: string): boolean {
   return findRouteModuleRule(path) !== null || isAdminOnlyRoutePath(path);
 }
 import {
-  backgroundSyncYasamUserFromDb,
   clearYasamUser,
   readYasamUser,
-  syncYasamUserFromDb,
+  syncYasamUserFromDbOutcome,
 } from "@/lib/auth/yasamUser";
 import { useStoredSessionGuard } from "@/hooks/useSessionGuard";
 import { leaveAfterSessionEnd } from "@/lib/auth/sessionExit";
@@ -48,6 +47,10 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
   // kapısı). Böylece hem soğuk açılış/direct-URL hem SPA navigasyonunda ilk paint'te
   // korumalı içerik "flash" edip sonra deny'a dönmez (izinsiz uzmana içerik sızıntısı yok).
   const [decidedPath, setDecidedPath] = useState<string | null>(null);
+  // Final-A3: önbellek reddederken sunucu doğrulaması GEÇİCİ hata verdiyse (ağ / 5xx / bozuk yanıt)
+  // bayat red kesinleştirilmez ve erişim de verilmez → "doğrulanamadı / tekrar dene".
+  const [unverified, setUnverified] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   // WEB P1: modül ve /admin sayfalarında oturum sunucuda sona erdiyse (süre dolumu / iptal)
   // kullanıcı 401'lerle sayfada takılmaz — durum temizlenir, neden taşınır ve ana sayfadaki
@@ -86,6 +89,7 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
     let cancelled = false;
 
     const path = pathname ?? "/";
+    setUnverified(false);
 
     if (!isGuardedPath(path)) {
       setDecision("skip");
@@ -115,16 +119,18 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
       return;
     }
 
-    backgroundSyncYasamUserFromDb(cached);
-
-    void syncYasamUserFromDb(cached).then((fresh) => {
+    void syncYasamUserFromDbOutcome(cached).then((outcome) => {
       if (cancelled) return;
-      if (fresh) {
-        const next = evaluateRouteModuleGuard(path, fresh);
+      if (outcome.kind === "fresh") {
+        const next = evaluateRouteModuleGuard(path, outcome.user);
         setDecision(next);
         setDenyReason(next === "deny_membership" ? "membership" : "permission");
+      } else if (outcome.kind === "unavailable" && initial !== "allow" && initial !== "skip") {
+        // Final-A3: red yalnız ÖNBELLEKTEN geliyordu ve sunucu şu an yanıt veremiyor →
+        // "Üyeliğiniz Aktif Değil" / "Yetkiniz Bulunmuyor" kesinleştirilmez; içerik de açılmaz.
+        setUnverified(true);
       }
-      // Sync başarılı da olsa (fresh null da olsa) yetki artık kesinleşti.
+      // rejected (401/403): önbellek kararı korunur; oturum sonu useStoredSessionGuard'da.
       setResolved(true);
       setDecidedPath(path);
     });
@@ -132,7 +138,7 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
     return () => {
       cancelled = true;
     };
-  }, [pathname]);
+  }, [pathname, attempt]);
 
   const path = pathname ?? "/";
   const hasRule = isGuardedPath(path);
@@ -146,6 +152,9 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
   // Gate'siz (rule'suz) route'lar ETKİLENMEZ → children anında.
   if (hasRule && (decidedPath !== path || !resolved)) {
     return <ModuleAccessPending />;
+  }
+  if (hasRule && unverified) {
+    return <ModuleAccessPending failed onRetry={() => setAttempt((n) => n + 1)} />;
   }
   if (isDeny) {
     return <ModuleAccessDenied reason={denyReason} />;
