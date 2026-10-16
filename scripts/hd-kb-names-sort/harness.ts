@@ -326,7 +326,7 @@ async function main() {
   const sysRoute = src("app/api/hd/charts/system-reading/route.ts");
   ok("10f Roxy yorumu kayıtlı veriden okunur; RoxyAPI çağrılmaz", /RoxyAPI ÇAĞRILMAZ/.test(sysRoute));
   const page = src("app/human-design/bilgi-bankasi/page.tsx");
-  ok("10g Admin Bilgi Bankası: Roxy kaynağı düzenlenebilir kütüphane DEĞİL (haritaya yönlendirir)", /adminSource === "system"[\s\S]{0,900}kayitli-haritalar/.test(page) && /Düzenlenebilir bir kütüphane değildir/.test(page));
+  ok("10g Admin Bilgi Bankası: Roxy kaynağı düzenlenebilir kütüphane DEĞİL (haritaya yönlendirir)", /adminSource === "system"[\s\S]{0,900}(kayitli-haritalar|\/human-design\/danisanlar)/.test(page) && /Düzenlenebilir bir kütüphane değildir/.test(page));
   ok("10h Uzman Bilgi Bankası sayfası değişmedi (!isAdmin → HdKnowledgeWorkspace)", /\{!isAdmin \? \(\s*<HdKnowledgeWorkspace isDemo=\{isDemo\} \/>/.test(page));
   const wordBtn = src("app/human-design/kayitli-haritalar/components/HdProfessionalReportButton.tsx");
   ok("10i Word seçimi aynı: içerik varsayılan KAPALI; admin yalnız etiket görür; merkezî içerik Word'e eklenmez notu", /useState\(false\);\s*\n\s*const \[addSystem/.test(wordBtn) && /bu Word raporuna eklenmez/.test(wordBtn) && !/isAdminUser\(/.test(wordBtn));

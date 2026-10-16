@@ -10,8 +10,8 @@
 //
 // Satış öncesi sadeleştirme: "Kayıtlı Human Design Analizleri" — hesaplanan her analiz OTOMATİK
 // kaydedilir; burada açılır ve Word olarak indirilir (ayrı rapor sayfasında arama gerekmez).
-//   • HUMAN DESIGN DANIŞAN RAPORU: "Danışan Raporunu İndir" (hazır Word v2 varsa AYNISI, içerik değişmeden) /
-//     "Danışan Raporunu Hazırla" (yoksa analiz açılır;
+//   • HUMAN DESIGN DANIŞAN RAPORU: "Raporu İndir" (hazır Word v2 varsa AYNISI, içerik değişmeden) /
+//     "Raporu Hazırla" (yoksa analiz açılır;
 //     içerik seçimi — varsayılan kapalı — ile) ayrı etiketlerdir. Yeni Word için analiz açılır ve
 //     Word akışı (PR #359 Word v2) bir kez başlar. Roxy çağrısı YOK. Android'de gizli (kural).
 //   • Aynı sayfada yeni hesap kaydedilince (HD_CHART_SAVED_EVENT) liste anında yenilenir ve yeni
@@ -256,9 +256,10 @@ export function HdAnalysisHistory({
                         disabled={wordBusy !== null}
                         aria-busy={wordBusy === it.id}
                         data-hd-history-word={it.id}
-                        className="h-9 rounded-xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-bold text-emerald-800 hover:bg-emerald-100 disabled:opacity-60"
+                        title={hasWord ? "Human Design Danışan Raporunu İndir (Word)" : "Human Design Danışan Raporunu Hazırla (Word)"}
+                        className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:border-emerald-300 hover:bg-emerald-50/60 disabled:opacity-60"
                       >
-                        {wordBusy === it.id ? "İndiriliyor…" : hasWord ? "Danışan Raporunu İndir" : "Danışan Raporunu Hazırla"}
+                        {wordBusy === it.id ? "İndiriliyor…" : hasWord ? "Raporu İndir" : "Raporu Hazırla"}
                       </button>
                     ) : null}
                     {it.kind === "manual" ? (

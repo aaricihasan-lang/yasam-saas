@@ -1,39 +1,42 @@
 "use client";
 
-// "HUMAN DESIGN KAYDINI TAMAMEN SİL" — üç aşamalı onay (owner kararı 2026-10-16).
-//   1) Kapsam: hangi danışan, neler silinir / neler KORUNUR (Danışan Yolculuğu + diğer modüller).
-//   2) Kesin sayılar (sunucu önizlemesi: analiz + Word raporu) ve kalıcılık uyarısı.
-//   3) Danışan adını YAZARAK son onay (Türkçe büyük/küçük harf ve boşluk duyarsız).
-// Silme isteği yalnız 3. adımda, tek kez gönderilir (çift tıklama kilidi); sunucu onaydaki sayılardan
+// HUMAN DESIGN "SİL" — TEK silme işlemi, İKİ normal onay (owner kararı 2026-10-17).
+//   • Profil bağlamı (target.kind "profile"): seçilen danışanın bu hesaptaki BÜTÜN Human Design kayıtları
+//     (profil, tüm analizler, Word raporları ve görselleri). Danışan Yolculuğu ana kaydı ve diğer modüller korunur.
+//   • Profilsiz eski analiz (target.kind "analysis"): o analiz + ona ait Word raporları (başka HD kaydı yoktur).
+//   1) Kapsam + kesin sayılar (sunucu önizlemesi) → Vazgeç / Devam Et
+//   2) Son onay ("Bu işlem geri alınamaz") → Vazgeç / Evet, Sil
+// Silme isteği yalnız 2. adımda, tek kez gönderilir (çift tıklama kilidi); sunucu önizlemedeki sayılardan
 // fazla kayıt bulursa hiçbir şey silmez (409). ESC / dışarı tıklama / Android geri = VAZGEÇ (asla silme).
 // "Silindi" yalnız sunucudan gerçek başarı gelince gösterilir.
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { deleteHdClient, previewHdClientDelete, type HdClientDeleteScope } from "../helpers/hdClients";
-import { notifyHdProfileDeleted } from "@/lib/human-design/api/chartsClient";
-import { normalizeHdPersonName } from "@/lib/human-design/api/hdIdentity";
+import { deleteHdClient, previewHdClientDelete } from "../helpers/hdClients";
+import { deleteComputedChart, notifyHdProfileDeleted, previewHdAnalysisDelete } from "@/lib/human-design/api/chartsClient";
 import { useHdModalA11y } from "../../components/useHdModalA11y";
 import { useHdBodyScrollLock } from "../../components/useHdBodyScrollLock";
 
 export type HdFullDeleteResult = { deletedAnalyses: number; deletedReports: number; storageWarning: boolean };
+export type HdDeleteTarget = { kind: "profile"; hdClientId: string } | { kind: "analysis"; chartId: string };
+
+type Scope = { analyses: number; reports: number; journeyLinked: boolean };
 
 export function HdFullDeleteDialog({
-  hdClientId,
+  target,
   name,
   onDeleted,
   onCancel,
 }: {
-  hdClientId: string;
+  target: HdDeleteTarget;
   name: string;
   onDeleted: (r: HdFullDeleteResult) => void;
   onCancel: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [scope, setScope] = useState<HdClientDeleteScope | null>(null);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [scope, setScope] = useState<Scope | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
   const sending = useRef(false);
   const cancel = () => {
@@ -56,41 +59,68 @@ export function HdFullDeleteDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function toStep2() {
-    setBusy(true);
-    setError(null);
-    const r = await previewHdClientDelete(hdClientId);
-    setBusy(false);
-    if (!r.scope) {
-      setError(`Silinecek kayıtlar belirlenemedi; hiçbir şey silinmedi. ${r.error ?? ""}`.trim());
-      return;
-    }
-    setScope(r.scope);
-    setStep(2);
-  }
-
-  const nameOk = normalizeHdPersonName(typed) !== "" && normalizeHdPersonName(typed) === normalizeHdPersonName(name);
+  // Kesin kapsam açılışta sunucudan okunur (salt okuma) — iki adımda da gösterilir.
+  const targetKey = target.kind === "profile" ? target.hdClientId : target.chartId;
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      if (target.kind === "profile") {
+        const r = await previewHdClientDelete(target.hdClientId);
+        if (!alive) return;
+        if (r.scope) setScope(r.scope);
+        else setError(`Silinecek kayıtlar belirlenemedi; hiçbir şey silinmedi. ${r.error ?? ""}`.trim());
+      } else {
+        const r = await previewHdAnalysisDelete(target.chartId);
+        if (!alive) return;
+        if (r.scope) setScope({ analyses: 1, reports: r.scope.reports, journeyLinked: false });
+        else setError(`Silinecek kayıtlar belirlenemedi; hiçbir şey silinmedi. ${r.error ?? ""}`.trim());
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetKey]);
 
   async function confirmDelete() {
-    if (!scope || !nameOk || sending.current) return;
+    if (!scope || sending.current) return;
     sending.current = true;
     setBusy(true);
     setError(null);
-    const res = await deleteHdClient(hdClientId, { analyses: scope.analyses, reports: scope.reports });
-    sending.current = false;
-    setBusy(false);
-    // Sonuç ne olursa olsun listeler sunucudan yenilensin (kısmi silme / ağ hatası görünür kalsın).
-    notifyHdProfileDeleted(hdClientId);
-    if (res.error) {
-      setError(`Silinemedi: ${res.error}`);
+    if (target.kind === "profile") {
+      const res = await deleteHdClient(target.hdClientId, { analyses: scope.analyses, reports: scope.reports });
+      sending.current = false;
+      setBusy(false);
+      // Sonuç ne olursa olsun listeler sunucudan yenilensin (kısmi silme / ağ hatası görünür kalsın).
+      notifyHdProfileDeleted(target.hdClientId);
+      if (res.error) {
+        setError(`Silinemedi: ${res.error}`);
+        return;
+      }
+      onDeleted({
+        deletedAnalyses: res.deletedAnalyses ?? 0,
+        deletedReports: res.deletedReports ?? 0,
+        storageWarning: !!res.warnings?.includes("storage_cleanup_failed"),
+      });
       return;
     }
-    onDeleted({
-      deletedAnalyses: res.deletedAnalyses ?? 0,
-      deletedReports: res.deletedReports ?? 0,
-      storageWarning: !!res.warnings?.includes("storage_cleanup_failed"),
-    });
+    const res = await deleteComputedChart(target.chartId, scope.reports);
+    sending.current = false;
+    setBusy(false);
+    if (!res.ok) {
+      setError(`Silinemedi: ${res.error ?? ""}`.trim());
+      return;
+    }
+    onDeleted({ deletedAnalyses: 1, deletedReports: res.deletedReports ?? 0, storageWarning: !!res.warnings?.includes("storage_cleanup_failed") });
   }
+
+  const counts = scope ? (
+    <p className="m-0 text-slate-700" data-hd-full-delete-counts>
+      Silinecek: <strong>{scope.analyses} Human Design analizi</strong> ve <strong>{scope.reports} Word raporu</strong>.
+    </p>
+  ) : !error ? (
+    <p className="m-0 text-slate-500">Silinecek kayıtlar kontrol ediliyor…</p>
+  ) : null;
 
   if (typeof document === "undefined") return null;
   return createPortal(
@@ -105,49 +135,21 @@ export function HdFullDeleteDialog({
         data-hd-full-delete={step}
       >
         <div className="border-b border-rose-100 bg-rose-50/70 px-5 py-4">
-          <p className="m-0 text-[11px] font-black uppercase tracking-widest text-rose-600">Adım {step} / 3</p>
-          <h2 id="hd-full-del-title" className="m-0 mt-1 text-base font-black text-slate-900">Human Design kaydını tamamen sil</h2>
+          <p className="m-0 text-[11px] font-black uppercase tracking-widest text-rose-600">{step === 1 ? "Onay 1 / 2" : "Son onay"}</p>
+          <h2 id="hd-full-del-title" className="m-0 mt-1 text-base font-black text-slate-900">Human Design kayıtlarını sil</h2>
           <p className="m-0 mt-1 break-words text-sm font-bold text-slate-800">{name}</p>
         </div>
         <div className="space-y-3 px-5 py-4 text-sm leading-relaxed text-slate-700">
           {step === 1 ? (
-            <>
-              <p className="m-0">Bu danışanın bu hesaptaki <strong>bütün Human Design kayıtları</strong> silinecek:</p>
-              <ul className="m-0 list-disc space-y-0.5 pl-5">
-                <li>Human Design profili ve doğum bilgileri</li>
-                <li>Tüm Human Design analizleri ve kayıtlı profesyonel haritalar</li>
-                <li>Bu analizlere ait Word raporları ve rapor görselleri</li>
-              </ul>
-              <p className="m-0 rounded-xl bg-emerald-50 px-3 py-2 text-emerald-800">
-                <strong>Korunur:</strong> Danışan Yolculuğu&apos;ndaki danışan kaydı, diğer modüllerdeki (Numeroloji, Gökyüzü Atlası, Refleksoloji vb.) veriler ve başka danışanlar.
-              </p>
-            </>
-          ) : step === 2 && scope ? (
-            <>
-              <p className="m-0" data-hd-full-delete-counts>
-                Kalıcı olarak silinecek: <strong>{scope.analyses} Human Design analizi</strong> ve <strong>{scope.reports} Word raporu</strong>.
-              </p>
-              {scope.journeyLinked ? (
-                <p className="m-0 text-emerald-800">Danışan Yolculuğu kaydı silinmez; yalnız Human Design bağlantısı kalkar.</p>
-              ) : null}
-              <p className="m-0 font-bold text-rose-700">Bu işlem geri alınamaz. Silinen Human Design bilgileri daha sonra yeni analizde geri gelmez.</p>
-            </>
+            <p className="m-0">
+              Bu danışana ait bütün Human Design analizleri, haritaları ve raporları kalıcı olarak silinecek. Danışan Yolculuğu&apos;ndaki ana kayıt korunacaktır. Devam etmek istiyor musunuz?
+            </p>
           ) : (
-            <>
-              <label htmlFor="hd-full-del-name" className="block font-bold text-slate-800">
-                Onaylamak için danışanın adını yazın: <span className="font-black">{name}</span>
-              </label>
-              <input
-                id="hd-full-del-name"
-                type="text"
-                autoComplete="off"
-                value={typed}
-                onChange={(e) => setTyped(e.target.value)}
-                className="h-10 w-full rounded-xl border border-rose-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
-                data-hd-full-delete-name
-              />
-            </>
+            <p className="m-0 font-bold text-rose-700">
+              {name} için tüm Human Design kayıtları kalıcı olarak silinecek. Bu işlem geri alınamaz. Emin misiniz?
+            </p>
           )}
+          {counts}
           {error ? (
             <p role="alert" className="m-0 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>
           ) : null}
@@ -157,22 +159,18 @@ export function HdFullDeleteDialog({
             Vazgeç
           </button>
           {step === 1 ? (
-            <button type="button" onClick={() => void toStep2()} disabled={busy} className="h-9 rounded-xl border border-rose-300 bg-white px-4 text-sm font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-60" data-hd-full-delete-next>
-              {busy ? "Kontrol ediliyor…" : "Devam et"}
-            </button>
-          ) : step === 2 ? (
-            <button type="button" onClick={() => setStep(3)} className="h-9 rounded-xl border border-rose-300 bg-white px-4 text-sm font-bold text-rose-700 hover:bg-rose-50" data-hd-full-delete-next>
-              Anladım, devam et
+            <button type="button" onClick={() => setStep(2)} disabled={!scope} className="h-9 rounded-xl border border-rose-300 bg-white px-4 text-sm font-bold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50" data-hd-full-delete-next>
+              Devam Et
             </button>
           ) : (
             <button
               type="button"
               onClick={() => void confirmDelete()}
-              disabled={!nameOk || busy}
+              disabled={!scope || busy}
               className="h-9 rounded-xl bg-rose-600 px-4 text-sm font-black text-white shadow-sm hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
               data-hd-full-delete-confirm
             >
-              {busy ? "Siliniyor…" : "Kalıcı olarak sil"}
+              {busy ? "Siliniyor…" : "Evet, Sil"}
             </button>
           )}
         </div>

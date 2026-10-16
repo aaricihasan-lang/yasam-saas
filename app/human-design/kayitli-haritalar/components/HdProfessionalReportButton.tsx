@@ -61,7 +61,7 @@ function successMessage(created: Extract<CreateResult, { ok: true }>, redacted: 
   if (wantedKnowledge && created.expertEntries === 0) notes.push("Bilgi Bankanızda bu analizle eşleşen aktif açıklama bulunmadığından açıklama eklenmedi.");
   if (!wantedKnowledge && !wantedSystem) notes.push("Rapor teknik harita bilgileriyle oluşturuldu (açıklama / sistem yorumu seçilmedi).");
   if (redacted) notes.push(HD_REPORT_REDACTED_MESSAGE);
-  notes.push("Bu analizde “Danışan Raporunu İndir” ile veya Kayıtlı Raporlar'dan tekrar indirebilirsiniz.");
+  notes.push("Bu analizde “Raporu İndir” ile veya Kayıtlı Raporlar'dan tekrar indirebilirsiniz.");
   return notes.join(" ");
 }
 
@@ -223,8 +223,14 @@ export function HdProfessionalReportButton({
         disabled={busy || lookupPending}
         aria-busy={busy || lookupPending}
         data-hd-word-download
-        className="flex h-9 items-center rounded-xl border border-emerald-300/80 bg-gradient-to-r from-emerald-600 to-teal-600 px-5 text-sm font-black uppercase tracking-wide text-white no-underline shadow-sm transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+        title={createdReportId ? "Human Design Danışan Raporunu İndir (Word)" : "Human Design Danışan Raporunu Hazırla (Word)"}
+        // Küçük, nötr işlem düğmesi (owner kararı 2026-10-17): harita baskın kalır; parlak geniş alan yok.
+        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 no-underline transition hover:border-emerald-300 hover:bg-emerald-50/60 disabled:cursor-not-allowed disabled:opacity-60"
       >
+        <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3.5 w-3.5 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M9.5 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5L9.5 1.5Z" strokeLinejoin="round" />
+          <path d="M9.5 1.5V5H13M5.5 8.5h5M5.5 11h3.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
         {phase === "capturing"
           ? "BodyGraph hazırlanıyor…"
           : phase === "creating"
@@ -232,17 +238,17 @@ export function HdProfessionalReportButton({
             : phase === "downloading"
               ? "İndiriliyor…"
               : createdReportId
-                ? "Danışan Raporunu İndir"
-                : label ?? "Danışan Raporunu Hazırla"}
+                ? "Raporu İndir"
+                : label ?? "Raporu Hazırla"}
       </button>
       {createdReportId && !busy ? (
         <button
           type="button"
           onClick={() => start("newVersion")}
           data-hd-word-new
-          className="self-start text-[11px] font-bold text-emerald-700 underline-offset-2 hover:underline"
+          className="self-start text-[11px] font-semibold text-slate-500 underline-offset-2 hover:text-emerald-700 hover:underline"
         >
-          Yeni Rapor Hazırla (içerik seçerek)
+          Yeni rapor hazırla (içerik seçerek)
         </button>
       ) : null}
       {phase === "bodygraph_failed" ? (

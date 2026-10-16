@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import { useToast } from "@/components/ui/ToastProvider";
-import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
@@ -21,7 +20,6 @@ import {
 import { HumanDesignShell } from "../components/HumanDesignShell";
 import {
   listChartsWithClients,
-  deleteHdChart,
   type HdChartWithClient,
 } from "./helpers/hdKayitliHaritalar";
 import { HdComputedChartModal } from "./components/HdComputedChartModal";
@@ -54,7 +52,6 @@ function formatDate(val: string | null | undefined): string {
 
 export default function HdKayitliHaritalarPage() {
   const { showToast } = useToast();
-  const { confirm } = useConfirm();
   const isDemo = readYasamUser()?.is_demo_account === true;
 
   const [rows, setRows] = useState<HdChartWithClient[]>([]);
@@ -63,7 +60,6 @@ export default function HdKayitliHaritalarPage() {
   const [typeFilter, setTypeFilter] = useState("");
   const [authorityFilter, setAuthorityFilter] = useState("");
   const [profileFilter, setProfileFilter] = useState("");
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // FAZ 9D — kaynak sekmesi + hesaplanmış (computed) liste (9B GET)
   const [tab, setTab] = useState<"manual" | "computed">("manual");
@@ -121,41 +117,11 @@ export default function HdKayitliHaritalarPage() {
                             >
                               Detay
                             </Link>
-                            {/* AŞAMA 3C: manuel "Düzenle" (harita-kaydi) ve eski "Rapor" (rapor-olustur) bağlantıları kaldırıldı — eski kayıt salt-okunur açılır. */}
-                            <button
-                              type="button"
-                              disabled={deletingId === row.id}
-                              onClick={() => handleDelete(row)}
-                              className={`${btn} rounded-lg border border-rose-200 bg-white text-xs font-bold text-rose-600 transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50`}
-                            >
-                              {deletingId === row.id ? "..." : "Sil"}
-                            </button>
+                            {/* AŞAMA 3C: manuel "Düzenle" (harita-kaydi) ve eski "Rapor" (rapor-olustur) bağlantıları kaldırıldı — eski kayıt salt-okunur açılır.
+                                Owner kararı 2026-10-17: ayrı satır "Sil" YOK — Human Design kayıtları yalnız Human Design Analizlerim'de
+                                analiz penceresindeki TEK "Sil" (iki onay) ile silinir. */}
                                 </>
     );
-  }
-
-  async function handleDelete(row: HdChartWithClient) {
-    if (isDemo) { showToast({ message: "Demo hesabında harita silinemez.", type: "info" }); return; }
-    const clientName = row.client?.name ?? row.client_name ?? "Bu danışan";
-    const ok = await confirm({
-      title: "Haritayı sil",
-      message: `"${clientName}" danışanına ait Human Design haritası kalıcı olarak silinecek. Emin misiniz?`,
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
-      tone: "danger",
-    });
-    if (!ok) return;
-
-    setDeletingId(row.id);
-    const { error } = await deleteHdChart(row.id);
-    setDeletingId(null);
-
-    if (error) {
-      showToast({ message: `Silinemedi: ${error}`, type: "error" });
-    } else {
-      showToast({ message: "Harita silindi.", type: "success" });
-      setRows((prev) => prev.filter((r) => r.id !== row.id));
-    }
   }
 
   const filtered = useMemo(() => {

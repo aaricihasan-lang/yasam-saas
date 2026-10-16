@@ -168,8 +168,8 @@ async function main() {
       ok(/\.docx$/.test(dl.suggestedFilename()) && text.includes("Elif Şahin") && Object.keys(zip.files).some((f) => f.startsWith("word/media/")),
         `${d.name}: hazır Word indi (DOCX, danışan adı, BodyGraph görseli)`, dl.suggestedFilename());
       await itemReady.getByText(/Önceden hazırlanmış Human Design Danışan Raporu indirildi/).waitFor();
-      ok(await itemReady.locator(`[data-hd-history-word="${chartReady}"]`).getByText("Danışan Raporunu İndir").isVisible() && await itemNew.locator(`[data-hd-history-word="${chartNew}"]`).getByText("Danışan Raporunu Hazırla").isVisible(),
-        `${d.name}: 'Danışan Raporunu İndir' ile 'Danışan Raporunu Hazırla' ayrı etiketler`);
+      ok(await itemReady.locator(`[data-hd-history-word="${chartReady}"]`).getByText("Raporu İndir").isVisible() && await itemNew.locator(`[data-hd-history-word="${chartNew}"]`).getByText("Raporu Hazırla").isVisible(),
+        `${d.name}: 'Raporu İndir' ile 'Raporu Hazırla' ayrı etiketler`);
       ok(w.create.length === 0, `${d.name}: hazır raporda yeni oluşturma isteği YOK`, w.create);
 
       // 2) Hazır raporu olmayan analiz → modal açılır, akış bir kez başlar, rapor oluşturulur ve iner.
@@ -237,7 +237,7 @@ async function main() {
       await tab.locator(`[data-hd-journey-analysis="${chartReady}"]`).getByRole("link", { name: /Analizi Aç/ }).click();
       await page.waitForURL(new RegExp(`/human-design/danisanlar/${hd}\\?chart=${chartReady}`), { timeout: 60_000 });
       const chartModal = page.locator('[role="dialog"][aria-labelledby="hd-computed-detay-title"]');
-      const opened = await chartModal.getByRole("button", { name: "Danışan Raporunu İndir", exact: true }).waitFor({ timeout: 60_000 }).then(() => true, () => false);
+      const opened = await chartModal.getByRole("button", { name: "Raporu İndir", exact: true }).waitFor({ timeout: 60_000 }).then(() => true, () => false);
       const sub = opened ? (await chartModal.locator("p").first().textContent()) ?? "" : "";
       ok(opened && sub.includes("19:00") && !sub.includes("07:15"), `${d.name}: DY'den ?chart= ile AYNI analiz penceresi açıldı (Word İndir hazır)`);
       ok(await noHScroll(page, d.viewport.width), `${d.name}: DY→HD sayfası yatay kaydırma yok`);

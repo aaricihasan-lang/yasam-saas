@@ -10,7 +10,7 @@ import { HdChartImageUpload } from "../components/HdChartImageUpload";
 import { HdAutoCalcPanel } from "../components/HdAutoCalcPanel";
 import { HdJourneyPanel } from "../components/HdJourneyPanel";
 import { HdAnalysisHistory } from "../components/HdAnalysisHistory";
-import { HdFullDeleteDialog } from "../components/HdFullDeleteDialog";
+import { HD_PROFILE_DELETED_EVENT, type HdProfileDeletedDetail } from "@/lib/human-design/api/chartsClient";
 import { HdBirthDateInput } from "../../components/HdBirthDateInput";
 import { HdBirthTimeInput } from "../../components/HdBirthTimeInput";
 import { useRouter } from "next/navigation";
@@ -27,8 +27,8 @@ const sectionCls = "mb-3 text-xs font-black uppercase tracking-widest text-indig
 // NOT: chart_image_url bu formda TUTULMAZ/kaydedilmez — eski görsel yalnız salt-okunur gösterilir
 // (AŞAMA 3C: yeni manuel görsel yükleme kapalı). "Güncelle" görselin storage path'ini asla ezmez.
 //
-// AŞAMA 3C — danışan çalışma sayfası: merkezî danışan bağlantısı (HdJourneyPanel) + doğum bilgileri +
-// Hesapla / Profesyonel harita (HdAutoCalcPanel, DEĞİŞMEDİ) + Geçmiş Human Design Analizleri.
+// AŞAMA 3C — danışan çalışma sayfası (listeden "Yeni Analiz" / "Analiz Yap"): merkezî danışan bağlantısı
+// (HdJourneyPanel) + doğum bilgileri + Hesapla / Profesyonel harita (HdAutoCalcPanel) + Geçmiş Analizler.
 // Manuel harita oluşturma ve Rapor Oluştur bağlantıları kaldırıldı (eski kayıtlar geçmişte açılır).
 type FormState = {
   name: string;
@@ -58,7 +58,6 @@ export function HdDanisanDetayContent({ clientId }: Props) {
 
   const [row, setRow] = useState<HdClientRow | null>(null);
   const router = useRouter();
-  const [fullDelete, setFullDelete] = useState(false);
   const [journey, setJourney] = useState<HdJourneyRef | null>(null);
   const [suggestions, setSuggestions] = useState<HdJourneyRef[]>([]);
   // ?chart=<id> (ör. Danışan Yolculuğu "Analizi Aç") → ilgili analiz doğrudan açılır.
@@ -120,6 +119,19 @@ export function HdDanisanDetayContent({ clientId }: Props) {
   useEffect(() => {
     runInEffect(loadClient);
   }, [loadClient]);
+
+  // Analiz penceresindeki TEK "Sil" bu danışanın tüm HD kayıtlarını sildiyse (sunucuda profil artık yok)
+  // boş çalışma sayfasında kalınmaz → tek listeye dönülür. Silme başarısızsa profil durur, sayfa kalır.
+  useEffect(() => {
+    const onDeleted = (e: Event) => {
+      if ((e as CustomEvent<HdProfileDeletedDetail>).detail?.clientId !== clientId) return;
+      void getHdClient(clientId).then(({ row: still }) => {
+        if (!still) router.replace("/human-design/danisanlar");
+      });
+    };
+    window.addEventListener(HD_PROFILE_DELETED_EVENT, onDeleted);
+    return () => window.removeEventListener(HD_PROFILE_DELETED_EVENT, onDeleted);
+  }, [clientId, router]);
 
   function set(field: keyof FormState) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -285,32 +297,8 @@ export function HdDanisanDetayContent({ clientId }: Props) {
 
           <HdAnalysisHistory clientId={clientId} initialChartId={initialChartId} />
 
-          {/* Tehlikeli işlem: bu danışanın TÜM Human Design kayıtları (üç aşamalı onay). */}
-          <section className="rounded-2xl border border-rose-200 bg-rose-50/40 p-4" data-hd-danger-zone>
-            <p className="m-0 text-xs font-black uppercase tracking-widest text-rose-700">Human Design kaydını tamamen sil</p>
-            <p className="m-0 mt-1 text-xs leading-relaxed text-slate-600">
-              Profil, tüm Human Design analizleri ve bunlara ait Word raporları kalıcı olarak silinir. Danışan Yolculuğu kaydı ve diğer modüllerin verileri korunur.
-            </p>
-            <button
-              type="button"
-              onClick={() => setFullDelete(true)}
-              className="mt-2 h-9 rounded-xl border border-rose-300 bg-white px-4 text-sm font-bold text-rose-700 hover:bg-rose-50"
-              data-hd-full-delete-open
-            >
-              Human Design Kaydını Tamamen Sil
-            </button>
-          </section>
-          {fullDelete ? (
-            <HdFullDeleteDialog
-              hdClientId={clientId}
-              name={row.name}
-              onCancel={() => setFullDelete(false)}
-              onDeleted={() => {
-                setFullDelete(false);
-                router.push("/human-design/danisanlar");
-              }}
-            />
-          ) : null}
+          {/* Silme bu sayfada YOK (owner kararı 2026-10-17): kayıtlı analiz açılınca penceredeki TEK "Sil"
+              (iki onay) danışanın tüm HD kayıtlarını siler. Analizi olmayan profilde silme düğmesi gösterilmez. */}
         </div>
 
         {/* Sağ: Kişisel Bilgiler + Kaydet */}

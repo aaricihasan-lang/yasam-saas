@@ -9,12 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import {
-  getComputedChart,
-  deleteComputedChart,
-  type ComputedChartDetail,
-} from "@/lib/human-design/api/chartsClient";
-import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { getComputedChart, type ComputedChartDetail } from "@/lib/human-design/api/chartsClient";
 import { useHdModalA11y } from "../../components/useHdModalA11y";
 import { useHdBodyScrollLock } from "../../components/useHdBodyScrollLock";
 import { HdPersonalKnowledgePanel } from "./HdPersonalKnowledgePanel";
@@ -27,19 +22,23 @@ import { computedChartAppCodes } from "@/lib/human-design/chart/computedChart";
 import { buildChartSubjectInfo, todayCalendarDate } from "@/lib/human-design/chart/chartSubjectInfo";
 import { latestWordReportId } from "@/lib/human-design/reporting/wordReportPick";
 import { listReportBriefs } from "../../kayitli-raporlar/helpers/hdKayitliRaporlar";
-import { listComputedCharts, previewHdAnalysisDelete } from "@/lib/human-design/api/chartsClient";
-import { HdFullDeleteDialog, type HdFullDeleteResult } from "../../danisanlar/components/HdFullDeleteDialog";
+import { listComputedCharts } from "@/lib/human-design/api/chartsClient";
+import { HdFullDeleteDialog, type HdDeleteTarget, type HdFullDeleteResult } from "../../danisanlar/components/HdFullDeleteDialog";
 
 type Props = {
   id: string;
   onClose: () => void;
   onDeleted: (id: string) => void;
   /**
-   * Danışan (HD profili) bağlamı — ana listeden "Detayı Aç" ile açıldığında verilir. Verilirse:
-   * danışanın kayıtlı analizleri arasında geçiş (yeni hesap YOK) + "Human Design Kaydını Tamamen Sil".
+   * Danışan (HD profili) bağlamı — ana listeden "Detayı Aç" ile açıldığında verilir: danışanın kayıtlı
+   * analizleri arasında geçiş (yeni hesap YOK) ve ilk analiz tarihi. Verilmezse profil, analizin kayıtlı
+   * client_id'sinden belirlenir.
    */
-  profile?: { hdClientId: string; name: string; firstAnalysisAt?: string | null; showFirstAnalysis?: boolean };
-  /** Tüm HD kaydı silindi (liste yenilensin / pencere kapansın). */
+  profile?: { hdClientId: string; name: string; firstAnalysisAt?: string | null };
+  /**
+   * "Sil" tamamlandı (owner kararı 2026-10-17: TEK silme = danışanın TÜM Human Design kayıtları). Verilmezse
+   * onDeleted çağrılır.
+   */
   onProfileDeleted?: (r: HdFullDeleteResult) => void;
   /** Listeden "Word İndir" ile açıldı → Word akışı açılışta bir kez başlar. */
   autoWord?: boolean;
@@ -60,7 +59,6 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
   const [id, setId] = useState(initialId);
   const [siblings, setSiblings] = useState<Array<{ id: string; created_at: string; birth_time: string | null }>>([]);
   const [fullDelete, setFullDelete] = useState(false);
-  const { confirm } = useConfirm();
   const dialogRef = useRef<HTMLDivElement>(null);
   useHdModalA11y(dialogRef, onClose);
   // Arka sayfa kaydırması kilitli → tek dikey scroll (içerik alanı). Kapanınca/unmount'ta geri gelir.
@@ -68,8 +66,6 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
   const [row, setRow] = useState<ComputedChartDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState("");
   // Yaş için görüntüleyenin takvim günü (modal açılışında bir kez).
   const [today] = useState(todayCalendarDate);
   // AŞAMA 2B: "Sistem Yorumu" sekmesi yalnız human_design + hd_system_reading yetkili uzmana görünür
@@ -125,44 +121,17 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
     };
   }, [id]);
 
-  // "ANALİZİ SİL": yalnız bu analiz + ona ait Word raporları. Önce sunucudan KESİN kapsam; onayda analiz
-  // tarihi/saati ve rapor sayısı gösterilir; sunucu onaydan fazla rapor bulursa hiçbir şey silmez (409).
-  async function handleDelete() {
-    if (deleting) return;
-    setDeleting(true);
-    setDeleteError("");
-    const { scope, error: scopeErr } = await previewHdAnalysisDelete(id);
-    if (!scope) {
-      setDeleting(false);
-      setDeleteError(`Silinecek kayıtlar belirlenemedi; hiçbir şey silinmedi. ${scopeErr ?? ""}`.trim());
-      return;
-    }
-    const when = `${formatDate(scope.createdAt)} tarihli analiz (${formatDate(scope.birthDate)}${scope.birthTime ? ` • ${scope.birthTime.slice(0, 5)}` : ""} doğum bilgileriyle)`;
-    const confirmed = await confirm({
-      title: "Analizi sil",
-      message: [
-        `${displayName || "Bu danışan"} — ${when} kalıcı olarak silinecek.`,
-        `Bu analize ait ${scope.reports} Word raporu da silinir.`,
-        "Danışanın diğer analizleri, Human Design profili, Danışan Yolculuğu kaydı ve diğer modüllerdeki verileri KORUNUR. Bu işlem geri alınamaz.",
-      ].join("\n\n"),
-      confirmText: "Analizi Sil",
-      cancelText: "Vazgeç",
-      tone: "danger",
-    });
-    if (!confirmed) {
-      setDeleting(false);
-      return;
-    }
-    const { ok, error } = await deleteComputedChart(id, scope.reports);
-    setDeleting(false);
-    if (ok) onDeleted(id);
-    else setDeleteError(error ?? "Silinemedi.");
-  }
-
   const result = row?.computed_result ?? null;
   // HD-24: ekranda ve yeni Word'de GÜNCEL danışan adı. Analiz anındaki ad farklıysa açıkça belirtilir
   // (önceden oluşturulmuş Word, oluşturulduğu andaki adı taşır — kayıt değiştirilmez).
   const displayName = row?.current_client_name || row?.client_name || null;
+  // TEK "Sil": analizin bağlı olduğu HD profili varsa danışanın TÜM HD kayıtları; profilsiz eski analizde yalnız o analiz.
+  const deleteProfileId = profile?.hdClientId ?? row?.client_id ?? null;
+  const deleteTarget: HdDeleteTarget | null = deleteProfileId
+    ? { kind: "profile", hdClientId: deleteProfileId }
+    : row
+      ? { kind: "analysis", chartId: id }
+      : null;
   const renamedFrom =
     row?.current_client_name && row.client_name && row.client_name.trim() !== row.current_client_name.trim() ? row.client_name : null;
   // Danışan bilgi bloğu: YALNIZ kayıtlı satırdan (yeni hesap / sağlayıcı çağrısı yok). UTC anı hesap
@@ -222,7 +191,7 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
               {row?.birth_place ? ` • ${row.birth_place}` : ""}
               {row?.timezone ? ` (${row.timezone})` : ""}
             </p>
-            {profile?.showFirstAnalysis && profile.firstAnalysisAt ? (
+            {profile?.firstAnalysisAt ? (
               <p className="truncate text-[11px] text-slate-500" data-hd-first-analysis>İlk analiz: {formatDate(profile.firstAnalysisAt)}</p>
             ) : null}
             {siblings.length > 1 ? (
@@ -245,12 +214,8 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
               </label>
             ) : null}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {deleteError ? (
-              <span role="alert" className="text-xs font-semibold text-rose-600">
-                {deleteError}
-              </span>
-            ) : null}
+          {/* Küçük, dengeli işlem çubuğu (owner kararı 2026-10-17): rapor + tek Sil + Kapat aynı ölçekte. */}
+          <div className="flex flex-wrap items-center gap-1.5" data-hd-actions>
             {/* FAZ 2.1: mevcut Profesyonel Word butonu REUSE (chartId = kayıtlı computed row.id). */}
             {!loading && !loadError && row ? (
               <HdProfessionalReportButton
@@ -261,31 +226,24 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
                 autoStart={autoWord}
               />
             ) : null}
-            <button
-              type="button"
-              onClick={() => void handleDelete()}
-              disabled={deleting}
-              className="h-9 rounded-xl border border-rose-200 bg-white px-4 text-sm font-black uppercase tracking-wide text-rose-600 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50"
-            >
-              {deleting ? "Siliniyor..." : "Analizi Sil"}
-            </button>
-            {profile ? (
+            {deleteTarget ? (
               <button
                 type="button"
                 onClick={() => setFullDelete(true)}
-                className="h-9 rounded-xl border border-rose-300 bg-rose-50 px-3 text-xs font-black text-rose-700 shadow-sm transition hover:bg-rose-100"
-                data-hd-full-delete-open
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 text-xs font-semibold text-rose-600 transition hover:border-rose-300 hover:bg-rose-50"
+                data-hd-delete-open
               >
-                Human Design Kaydını Tamamen Sil
+                <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                Sil
               </button>
             ) : null}
             <button
               type="button"
               onClick={onClose}
               aria-label="Kapat"
-              className="h-9 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black uppercase tracking-wide text-slate-700 shadow-sm transition hover:bg-slate-50"
+              className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-              Kapat ✕
+              Kapat <span aria-hidden="true">✕</span>
             </button>
           </div>
         </div>
@@ -340,14 +298,15 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
           </div>
         </div>
       </div>
-      {fullDelete && profile ? (
+      {fullDelete && deleteTarget ? (
         <HdFullDeleteDialog
-          hdClientId={profile.hdClientId}
-          name={profile.name}
+          target={deleteTarget}
+          name={profile?.name || displayName || "Bu danışan"}
           onCancel={() => setFullDelete(false)}
           onDeleted={(r) => {
             setFullDelete(false);
-            onProfileDeleted?.(r);
+            if (onProfileDeleted) onProfileDeleted(r);
+            else onDeleted(id);
           }}
         />
       ) : null}

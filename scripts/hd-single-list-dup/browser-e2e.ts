@@ -134,7 +134,7 @@ async function main() {
       await detail.locator("[data-hd-knowledge-tabs]").waitFor({ timeout: 60_000 });
       await detail.locator("[data-hd-word-download]").waitFor({ timeout: 60_000 });
       // Word yalnız ANDROID'de gizlidir (mevcut kural); iPhone tarayıcısı ve masaüstünde görünür.
-      ok(await detail.locator("[data-hd-word-download]").getByText("Danışan Raporunu Hazırla").isVisible(), `${d.name}: UX-09 açılan analizde 'Danışan Raporunu Hazırla'`);
+      ok(await detail.locator("[data-hd-word-download]").getByText("Raporu Hazırla").isVisible(), `${d.name}: UX-09 açılan analizde 'Danışan Raporunu Hazırla'`);
       ok((await detail.locator("[data-hd-word-download]").count()) === 1, `${d.name}: rapor eylemi açılan analize bağlı (UX-10)`);
       await detail.getByRole("button", { name: "Kapat" }).click();
       await page.goto(`${APP}/human-design/danisanlar`);
@@ -180,8 +180,16 @@ async function main() {
       await page.locator("[data-hd-new-client-save]").click();
       await dlg.waitFor();
       await dlg.locator("[data-hd-duplicate-proceed]").click();
-      await page.waitForURL(/\/human-design\/danisanlar\/[0-9a-f-]{36}$/, { timeout: 30_000 });
-      ok((await hdCount()) === n0 + 1 && !page.url().includes(PA) && !page.url().includes(PB), "DUP-08 'Farklı Kişi, Yine de Devam Et' bilinçli onayla yeni kayıt oluşturur");
+      // 2026-10-17: "Danışanı Oluştur ve Analiz Et" — kayıt + AYNI eylemde hesap. Bu test sunucusunda Roxy anahtarı
+      // yok → hesap 503; sahte başarı yok, danışan korunur, "Analizi Tekrar Dene" sunulur, ara sayfaya gidilmez.
+      // Aynı kişi + aynı doğum girdisi başka profilde analizli → sunucu Roxy'ye GİTMEDEN mükerrer analiz uyarısı verir.
+      const chartDlg = page.locator('[data-hd-duplicate-dialog="chart"]');
+      await chartDlg.waitFor({ timeout: 60_000 });
+      ok(true, "aynı eylemdeki hesap: Roxy öncesi mükerrer analiz uyarısı (ücretli çağrı yok)");
+      await chartDlg.locator("[data-hd-duplicate-cancel]").click();
+      await page.locator("[data-hd-new-compute-error]").waitFor({ timeout: 60_000 });
+      ok((await hdCount()) === n0 + 1 && /\/human-design\/danisanlar$/.test(new URL(page.url()).pathname), "DUP-08 'Farklı Kişi, Yine de Devam Et' bilinçli onayla yeni kayıt oluşturur (ara sayfa yok)");
+      ok(await page.getByRole("button", { name: "Analizi Tekrar Dene" }).isVisible() && (await page.locator("#hd-new-ad").inputValue()).trim() === "HASAN", "hesap başarısız → açık hata, bilgiler kaybolmaz, güvenli yeniden deneme");
       await page.context().close();
     }
 
@@ -213,7 +221,7 @@ async function main() {
       await modal.locator("[data-hd-knowledge-tabs]").waitFor({ timeout: 60_000 });
       const pbCharts = Number((await su.query(`select count(*)::int n from public.human_design_charts where client_id=$1`, [PB])).rows[0].n);
       ok((await modal.innerText()).includes("Hasan Arıcı") && pbCharts === 0, `${d.name}: 'Mevcut Analizi Aç' mevcut analizi açar; bu profile bağlanmaz (DUP-12)`);
-      ok(await modal.locator("[data-hd-word-download]").getByText(/Danışan Raporunu (İndir|Hazırla)/).isVisible(), `${d.name}: analiz detayında 'Danışan Raporu' eylemi`);
+      ok(await modal.locator("[data-hd-word-download]").getByText(/Raporu (İndir|Hazırla)/).isVisible(), `${d.name}: analiz detayında 'Danışan Raporu' eylemi`);
       await modal.getByRole("button", { name: "Kapat" }).click();
       await calcBtn.click();
       await dlg.waitFor();
