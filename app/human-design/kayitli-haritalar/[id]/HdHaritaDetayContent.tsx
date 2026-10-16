@@ -11,14 +11,17 @@ import Link from "next/link";
 import { HumanDesignShell } from "../../components/HumanDesignShell";
 import {
   hdTypeLabelFromCode, hdAuthorityLabelFromCode, hdProfileLabelFromCode,
-  hdDefinitionLabelFromCode, hdCenterLabelFromCode, hdChannelLabelFromCode,
+  hdDefinitionLabelFromCode, hdCenterLabelFromCode,
 } from "@/lib/human-design/codeHelpers";
-import { HUMAN_DESIGN_GATES } from "@/lib/human-design/constants";
 import { GateTechnicalInfo } from "../../components/GateTechnicalInfo";
 import { listChartsWithClients } from "../helpers/hdKayitliHaritalar";
 import type { HdChartWithClient } from "../helpers/hdKayitliHaritalar";
 import { HdPersonalKnowledgePanel } from "../components/HdPersonalKnowledgePanel";
 import { HdProfessionalReportButton } from "../components/HdProfessionalReportButton";
+import { hdChannelDisplayLabel, hdGateDisplayLabel } from "@/lib/human-design/knowledge/hdNames";
+import { useHdNameOverrides } from "@/app/human-design/bilgi-bankasi/helpers/useHdNameOverrides";
+import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
+import { HD_ADMIN_SOURCE_LABELS } from "../components/HdChartKnowledgeTabs";
 
 type State =
   | { phase: "loading" }
@@ -88,8 +91,14 @@ function Detail({ row, tab, setTab, chartId }: { row: HdChartWithClient; tab: "s
   const clientName = row.client?.name ?? row.client_name ?? "—";
   const activeCenters = (row.active_centers ?? []).map((c) => hdCenterLabelFromCode(c));
   const openCenters = (row.open_centers ?? []).map((c) => hdCenterLabelFromCode(c));
-  const channels = (row.channels ?? []).map((c) => hdChannelLabelFromCode(c));
-  const gates = (row.gates ?? []).map((g) => (HUMAN_DESIGN_GATES.find((x) => x.code === g)?.label as string) ?? `Kapı ${g}`);
+  // Hesabın kişisel görünen adları (yoksa hazır ad); eşleşme teknik numaradan.
+  const nameOv = useHdNameOverrides();
+  // Admin: merkezî içerik sekmesi kaynağıyla adlandırılır (uzmanın etiketi değişmez).
+  const [centralTabLabel] = useState(() =>
+    isAdminUser(readYasamUser()) ? HD_ADMIN_SOURCE_LABELS.central : "Kişinin Human Design Bilgileri",
+  );
+  const channels = (row.channels ?? []).map((c) => hdChannelDisplayLabel(c, nameOv));
+  const gates = (row.gates ?? []).map((g) => hdGateDisplayLabel(g, nameOv));
 
   return (
     <div>
@@ -113,7 +122,7 @@ function Detail({ row, tab, setTab, chartId }: { row: HdChartWithClient; tab: "s
 
       {/* Tabs */}
       <div className="mt-5 flex gap-1.5 border-b border-indigo-100/80">
-        {([["summary", "Özet"], ["knowledge", "Kişinin Human Design Bilgileri"]] as const).map(([id, label]) => (
+        {([["summary", "Özet"], ["knowledge", centralTabLabel]] as const).map(([id, label]) => (
           <button key={id} type="button" onClick={() => setTab(id)}
             className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-black uppercase tracking-wide transition ${tab === id ? "border-indigo-600 text-indigo-700" : "border-transparent text-slate-400 hover:text-slate-600"}`}>
             {/* "Human Design" İngilizce özel ad: uppercase + lang=tr "DESİGN" üretmesin (lang="en"). */}

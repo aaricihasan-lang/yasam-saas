@@ -37,7 +37,7 @@ import {
   type CreateResult,
 } from "../../kayitli-raporlar/helpers/hdProfessionalReport";
 import { HD_PREPARED_BY_MAX } from "@/lib/human-design/reporting/reportV2Shared";
-import { canUseHdSystemReading } from "./HdChartKnowledgeTabs";
+import { HD_ADMIN_SOURCE_LABELS, canUseHdSystemReading, isHdAdminSourceView } from "./HdChartKnowledgeTabs";
 import { loadRoxyBodygraph } from "./HdRoxyBodygraph";
 
 type Phase = "idle" | "choosing" | "capturing" | "creating" | "downloading" | "done" | "error" | "bodygraph_failed";
@@ -92,6 +92,8 @@ export function HdProfessionalReportButton({
   const [message, setMessage] = useState<string>("");
   // Görünürlük için istemci kapısı; asıl karar sunucuda (hd_system_reading).
   const [canSystem] = useState(canUseHdSystemReading);
+  // Yalnız admin: seçenekler kaynak adlarıyla gösterilir (yalnız ETİKET; seçim/izin mantığı AYNI, buton herkese açık).
+  const [isAdmin] = useState(isHdAdminSourceView);
   // İçerik seçimi: pencere her açıldığında İKİSİ DE KAPALI başlar (önceki seçim hatırlanmaz).
   const [addKnowledge, setAddKnowledge] = useState(false);
   const [addSystem, setAddSystem] = useState(false);
@@ -313,7 +315,9 @@ export function HdProfessionalReportButton({
                   className="mt-1"
                 />
                 <span>
-                  <span className="block text-sm font-bold text-slate-800">Bilgi Bankamdaki Açıklamaları Ekle</span>
+                  <span className="block text-sm font-bold text-slate-800">
+                    {isAdmin ? `${HD_ADMIN_SOURCE_LABELS.expert} Açıklamalarını Ekle` : "Bilgi Bankamdaki Açıklamaları Ekle"}
+                  </span>
                   <span className="block text-xs text-slate-500">
                     İlgili Human Design özellikleri için Bilgi Bankası&apos;na yazdığınız açıklamalar Word raporuna eklenir.
                   </span>
@@ -343,7 +347,7 @@ export function HdProfessionalReportButton({
                     className="mt-1"
                   />
                   <span>
-                    <span className="block text-sm font-bold text-slate-800">Sistem Yorumunu Ekle</span>
+                    <span className="block text-sm font-bold text-slate-800">{isAdmin ? `${HD_ADMIN_SOURCE_LABELS.system}nu Ekle` : "Sistem Yorumunu Ekle"}</span>
                     <span className="block text-xs text-slate-500">
                       Bu analiz için mevcut ve kullanılabilir sistem yorumları Word raporuna eklenir.
                     </span>
@@ -354,6 +358,11 @@ export function HdProfessionalReportButton({
                     ) : null}
                   </span>
                 </label>
+              ) : null}
+              {isAdmin ? (
+                <p className="px-1 text-[11px] leading-relaxed text-slate-500" data-hd-word-central-note>
+                  {HD_ADMIN_SOURCE_LABELS.central} bu Word raporuna eklenmez.
+                </p>
               ) : null}
             </fieldset>
             <label className="mt-3 block" htmlFor={`hd-word-prepared-by-${chartId}`}>

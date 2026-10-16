@@ -19,6 +19,7 @@ import { HD_REPORT_SNAPSHOT_DIR, isOwnedChartImagePath, isOwnedReportSnapshotPat
 import { cleanupOrphanHdImages, listClientImageObjects, removeHdStorageObjects, reportReferencedImagePaths } from "./hdStorage";
 
 import { resolveHdBirthLocation } from "./hdBirthLocation";
+import { birthLocalTimeIssue } from "./birthTimeResolution";
 
 const TABLE = "human_design_clients";
 
@@ -56,6 +57,14 @@ const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 
 function istanbulTodayIso(now: Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
+
+/**
+ * HD doğum tarihi kuralı (tek kaynak): gerçek takvim günü, 1800 ile bugün (İstanbul) arası.
+ * Danışan oluşturma, düzenleme ve mevcut danışana profil açma aynı kuralı kullanır.
+ */
+export function isValidHdBirthDate(v: string, now: Date = new Date()): boolean {
+  return isCalendarDate(v) && Number(v.slice(0, 4)) >= 1800 && v <= istanbulTodayIso(now);
 }
 
 /** Gerçek takvim günü mü (29 Şubat artık yıl kuralı dahil)? */
@@ -105,7 +114,7 @@ export function validateHdClientFields(
     const v = str("birth_date");
     if (v === null || v === "") out.birth_date = null;
     else if (typeof v !== "string" || !isCalendarDate(v)) return { ok: false, error: "Doğum tarihi geçersiz (YYYY-AA-GG)." };
-    else if (Number(v.slice(0, 4)) < 1800 || v > istanbulTodayIso(now)) return { ok: false, error: "Doğum tarihi 1800 ile bugün arasında olmalıdır." };
+    else if (!isValidHdBirthDate(v, now)) return { ok: false, error: "Doğum tarihi 1800 ile bugün arasında olmalıdır." };
     else out.birth_date = v;
   }
   if ("birth_time" in out) {
@@ -161,6 +170,13 @@ export function resolveClientLocationFields(
   };
 }
 
+/** Yalnız yaz saati BOŞLUĞU (hiç yaşanmamış saat) kayıt engelidir; çakışma kaydedilir, hesapta reddedilir. */
+function birthTimeGapIssue(date: unknown, time: unknown, tz: unknown) {
+  if (typeof date !== "string" || typeof time !== "string" || typeof tz !== "string" || !date || !time || !tz) return null;
+  const issue = birthLocalTimeIssue(date.slice(0, 10), time, tz);
+  return issue?.kind === "gap" ? issue : null;
+}
+
 /** Migration henüz uygulanmadıysa (kolon yok) konum alanları atlanıp kayıt yine yapılır. */
 function isMissingColumn(err: { code?: string; message?: string } | null | undefined): boolean {
   if (!err) return false;
@@ -200,6 +216,10 @@ export async function insertHdClient(
 
   const loc = resolveClientLocationFields(input);
   if (loc.error) return { id: null, error: loc.error };
+  // HD-07: listeden seçilen konum varsa görünen doğum yeri DAİMA o konumun etiketidir.
+  if (loc.fields?.birth_location_label) v.fields.birth_place = loc.fields.birth_location_label;
+  const issue = birthTimeGapIssue(v.fields.birth_date, v.fields.birth_time, loc.fields?.birth_timezone);
+  if (issue) return { id: null, error: issue.message };
   const base = {
     ...v.fields,
     user_id: userId,
@@ -237,6 +257,45 @@ export async function updateHdClient(
   if (!v.ok) return { ok: false, error: v.error, status: 400 };
   const loc = resolveClientLocationFields(input);
   if (loc.error) return { ok: false, error: loc.error, status: 400 };
+  const cur = (current ?? {}) as Partial<Record<string, unknown>>;
+
+  // HD-08: hesap için zorunlu doğum tarihi/saati, kayıtlı bir değer varken boşaltılamaz
+  // (ör. tarih alanının yılı silinince sessizce null yazılıyordu).
+  for (const [k, label] of [["birth_date", "Doğum tarihi"], ["birth_time", "Doğum saati"]] as const) {
+    if (k in v.fields && v.fields[k] === null && norm(cur[k]) !== null) {
+      return { ok: false, error: `${label} boş bırakılamaz. Değeri düzeltip yeniden kaydedin.`, status: 400, code: "BIRTH_DATA_REQUIRED" };
+    }
+  }
+
+  // HD-07: doğum yeri METNİ yalnız listeden seçilen konumla değişir. Seçilmeden yazılan metin kabul
+  // edilmez (aksi halde görünen yer ile hesapta kullanılan koordinat/saat dilimi ayrışır). Konum
+  // seçildiyse görünen yer DAİMA o konumun etiketidir. Metni silmek konum kolonlarını da temizler.
+  const pickedLabel = loc.fields?.birth_location_label;
+  if (typeof pickedLabel === "string" && pickedLabel) {
+    v.fields.birth_place = pickedLabel;
+  } else if ("birth_place" in v.fields) {
+    // Konum seçilmeden (ya da konum açıkça temizlenirken) YENİ bir yer metni yazılamaz.
+    if (v.fields.birth_place !== null) {
+      return {
+        ok: false,
+        error: "Doğum yeri listeden seçilmedi. Yeni yeri yazıp açılan listeden seçin; seçilmeyen metin kaydedilmez.",
+        status: 400,
+        code: "BIRTH_PLACE_NOT_SELECTED",
+      };
+    }
+    if (!loc.fields) loc.fields = resolveClientLocationFields({ birth_location_ref: null }).fields;
+  }
+
+  // HD-29: değişen doğum tarihi/saati/yeri, o saat diliminde hiç yaşanmamış bir yerel saate denk
+  // geliyorsa kayıt yapılmaz (hesapta aynı kural 422 verir; artık en erken noktada yakalanır).
+  // Değişmeyen eski kayıt başka alan güncellenirken engellenmez.
+  const touchesBirth = "birth_date" in v.fields || "birth_time" in v.fields || !!loc.fields;
+  if (touchesBirth) {
+    const pickV = (k: string) => (k in v.fields ? v.fields[k] : cur[k]);
+    const tz = loc.fields ? loc.fields.birth_timezone : cur.birth_timezone;
+    const issue = birthTimeGapIssue(pickV("birth_date"), pickV("birth_time"), tz);
+    if (issue) return { ok: false, error: issue.message, status: 400, code: issue.code };
+  }
   const base = { ...v.fields, updated_at: new Date().toISOString() };
 
   // P2-9: beklenen sürüm verildiyse koşullu (atomik) güncelleme — başka oturum ezilmez.

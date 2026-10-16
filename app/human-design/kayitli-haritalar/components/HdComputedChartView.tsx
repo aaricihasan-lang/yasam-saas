@@ -16,20 +16,25 @@ import { HdPlanetColumn } from "./HdPlanetColumn";
 import { HdChartInfoPanel } from "./HdChartInfoPanel";
 import type { HdChartSubjectInfo } from "@/lib/human-design/chart/chartSubjectInfo";
 import { computedChartAppCodes, type HdComputedChart } from "@/lib/human-design/chart/computedChart";
-import { hdCenterLabelFromCode, hdChannelLabelFromCode } from "@/lib/human-design/codeHelpers";
+import { hdCenterLabelFromCode } from "@/lib/human-design/codeHelpers";
 import { HUMAN_DESIGN_CENTERS } from "@/lib/human-design/constants";
+import { hdChannelDisplayLabel, type HdNameOverrides } from "@/lib/human-design/knowledge/hdNames";
 
 export function HdComputedChartView({
   result,
   roxyRender = null,
   subject = null,
+  nameOverrides = null,
 }: {
   result: HdComputedChart;
   /** RoxyAPI kaydı: resmi renderer için KAYITLI yanıttan yapısal yük (sunucu üretir). */
   roxyRender?: Record<string, unknown> | null;
   /** Danışan bilgi bloğu (kayıt satırından; buildChartSubjectInfo). Yoksa yalnız HD bilgileri. */
   subject?: HdChartSubjectInfo | null;
+  /** Hesabın kapı/kanal görünen adları (üst bileşen okur; bu bileşen fetch yapmaz). Yoksa hazır adlar. */
+  nameOverrides?: HdNameOverrides | null;
 }) {
+  const nameOv = nameOverrides;
   const codes = computedChartAppCodes(result);
   const isProvider = result.provider?.id === "roxyapi";
   const definedSet = new Set(codes.active_centers);
@@ -105,7 +110,7 @@ export function HdComputedChartView({
               <ul className="m-0 list-none space-y-1 p-0">
                 {codes.channels.map((ch) => (
                   <li key={ch} data-hd-channel={ch} className="text-xs text-slate-800">
-                    {hdChannelLabelFromCode(ch)}
+                    {hdChannelDisplayLabel(ch, nameOv)}
                   </li>
                 ))}
               </ul>

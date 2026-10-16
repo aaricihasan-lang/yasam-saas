@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { computeRoxyChart, listComputedCharts, type ComputedChartListRow } from "@/lib/human-design/api/chartsClient";
 import { resolveAutoCalcState, isRoxyRow, type AutoCalcLocation } from "@/lib/human-design/chart/autoCalcState";
@@ -45,6 +46,7 @@ export function HdAutoCalcPanel({
   formDirty: boolean;
 }) {
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const isDemo = readYasamUser()?.is_demo_account === true;
   const [rows, setRows] = useState<ComputedChartListRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,10 +85,37 @@ export function HdAutoCalcPanel({
 
   async function compute() {
     if (busyRef.current || !state.location || formDirty || isDemo) return;
-    busyRef.current = true; // çift tıklama koruması (sunucu ayrıca idempotent)
+    busyRef.current = true; // çift tıklama koruması (onay penceresi açıkken de ikinci istek yok)
+    const location = state.location;
+    // HD-13: önceki analiz VAR ve doğum bilgisi farklı → bu bir YENİ hesaptır (1 Roxy hakkı). Kayıtlı
+    // analizi açmak ("Profesyonel Haritayı Aç") kredi harcamaz ve onay sormaz. İlk hesapta da onay
+    // sorulmaz (danışan için tek, beklenen işlem). İptal → hiçbir istek gönderilmez.
+    if (state.kind === "changed") {
+      const prev = rows.find((r) => r.id === state.previousId);
+      const prevText = prev
+        ? `${fmtDate(prev.birth_date)} • ${(prev.birth_time ?? "").slice(0, 5)} • ${prev.birth_place ?? "—"}`
+        : "önceki doğum bilgileri";
+      const ok = await confirm({
+        title: "Yeni hesaplama yapılsın mı?",
+        message: [
+          `Kayıtlı analiz: ${prevText}`,
+          `Yeni hesaplama: ${fmtDate(birthDate)} • ${birthTime ? birthTime.slice(0, 5) : "—"} • ${location.label}`,
+          "",
+          "Doğum bilgileri kayıtlı analizden farklı olduğu için yeni bir hesaplama yapılacak ve 1 Human Design hesaplama hakkı (RoxyAPI) kullanılacak.",
+          "Önceki analiz ve ona ait Word raporları silinmez; “Önceki haritayı aç” ile erişmeye devam edebilirsiniz.",
+        ].join("\n"),
+        confirmText: "Yeni Hesaplama Yap",
+        cancelText: "Vazgeç",
+        tone: "info",
+      });
+      if (!ok) {
+        busyRef.current = false;
+        return;
+      }
+    }
     setBusy(true);
     setError(null);
-    const r = await computeRoxyChart(clientId, state.location.id);
+    const r = await computeRoxyChart(clientId, location.id);
     busyRef.current = false;
     setBusy(false);
     if (!r.ok) {

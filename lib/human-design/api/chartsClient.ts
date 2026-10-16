@@ -83,7 +83,10 @@ export type ComputedChartListRow = {
 export type ComputedChartDetail = {
   id: string;
   client_id?: string | null;
+  /** Analiz (hesap) anındaki danışan adı. */
   client_name: string | null;
+  /** HD-24: danışan kaydındaki GÜNCEL ad (danışana bağlı analizde; yoksa alan gelmez). */
+  current_client_name?: string | null;
   birth_date: string | null;
   birth_time: string | null;
   birth_place: string | null;

@@ -34,7 +34,7 @@ const TYPED: Record<HdEntityKind, HdFieldMeta[]> = {
   tip: [
     { key: "strategy_text", label: "Strateji", long: true },
     { key: "signature_text", label: "Doğru İşleyiş Teması", helper: "Signature", long: false },
-    { key: "not_self_text", label: "Yanlış-Benlik Teması", helper: "Not-Self Theme", long: false },
+    { key: "not_self_text", label: "Kendilik Dışı Tema", helper: "Not-Self Theme", long: false },
   ],
   otorite: [
     { key: "decision_mechanism", label: "Karar Mekanizması", long: true },

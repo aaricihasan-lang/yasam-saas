@@ -24,6 +24,20 @@ export function hdAuthorityLabelFromCode(code: string | null | undefined): strin
   return HUMAN_DESIGN_AUTHORITIES.find((a) => a.code === code)?.label ?? code;
 }
 
+/**
+ * HD-23 — Otorite görünen adı, Ego ayrımıyla. Ego otoritesi tipten kesin çıkar: Manifestor'da Kalp
+ * Boğaza bağlıdır (Ego Manifested), Projector'da G Merkezine (Ego Projected); başka tipte Ego
+ * otoritesi olmaz. Kayıtlı kod (`ego_heart`) DEĞİŞMEZ — yalnız görünen ad ayrışır.
+ */
+export function hdAuthorityDisplayLabel(code: string | null | undefined, typeCode: string | null | undefined): string {
+  const base = hdAuthorityLabelFromCode(code);
+  if (code !== "ego_heart") return base;
+  // "Ego / Kalp Otoritesi (Ego Authority)" → "Ego / Kalp Otoritesi (Ego Manifested | Ego Projected)"
+  if (typeCode === "manifestor") return base.replace(/\(Ego Authority\)$/, "(Ego Manifested)");
+  if (typeCode === "projector") return base.replace(/\(Ego Authority\)$/, "(Ego Projected)");
+  return base;
+}
+
 export function hdProfileLabelFromCode(code: string | null | undefined): string {
   if (!code) return "—";
   return HUMAN_DESIGN_PROFILES.find((p) => p.code === code)?.label ?? code;

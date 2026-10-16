@@ -12,7 +12,8 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getChartForReportV2 } from "@/lib/human-design/api/chartPersistence";
-import { listKnowledgeForReport } from "@/lib/human-design/api/knowledgePersistence";
+import { listKnowledgeForReport, listKnowledgeNames } from "@/lib/human-design/api/knowledgePersistence";
+import { buildHdNameOverrides } from "@/lib/human-design/knowledge/hdNames";
 import { buildExpertKnowledgeCodes, toAppChartCodes } from "@/lib/human-design/normalize/hdAppCodes";
 import { extractSystemReading, type SystemReadingDto } from "@/lib/human-design/providers/roxy/systemReading";
 import { ROXY_PROVIDER_ID } from "@/lib/human-design/providers/roxy/config";
@@ -93,6 +94,10 @@ export async function createReportSnapshotV2FromChart(
     if (kb.error) return { ok: false, status: 500, code: "KNOWLEDGE_READ_FAILED", error: "Bilgi Bankası okunamadı." };
     expertRecords = kb.rows;
   }
+  // Hesabın kapı/kanal GÖRÜNEN adları (yalnız başlık; içerik/özel not okunmaz). Açıklama seçiminden
+  // bağımsızdır (ad yorum değildir). Okunamazsa hazır adlarla devam edilir — rapor engellenmez.
+  const names = await listKnowledgeNames(db, tenantId);
+  const nameOverrides = names.error ? null : buildHdNameOverrides(names.rows);
 
   const clientName = (chart.client?.name || chart.client_name || "Danışan").trim();
   // Hesaplanmış haritada doğum verisi = hesabın GİRDİSİ (BodyGraph ile tutarlı); manuel haritada
@@ -117,6 +122,7 @@ export async function createReportSnapshotV2FromChart(
     systemReadingPermitted: opts.systemReadingPermitted,
     systemReading,
     expertRecords,
+    nameOverrides,
     preparedBy: opts.preparedBy ?? null,
     // Görsel kararı route'ta (PNG doğrulama / yüklenen görsel kopyası) verilir.
     bodygraph: { status: "missing" },

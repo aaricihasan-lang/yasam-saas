@@ -6,8 +6,23 @@
 //   • Metinler düz metindir: tip/uzunluk kontrollü, kontrol karakterleri temizlenir. HTML
 //     YORUMLANMAZ (istemci yalnız metin düğümü olarak basar; dangerouslySetInnerHTML yok).
 //   • Etiketlerde Türkçe *Localized değeri tercih edilir; yoksa sağlayıcının ham değeri.
-//   • Sağlayıcının VERMEDİĞİ hiçbir açıklama üretilmez (ör. İmza/Benlik-dışı için uzun metin yok).
+//   • Sağlayıcının VERMEDİĞİ hiçbir açıklama üretilmez (ör. İmza/Kendilik dışı tema için uzun metin yok).
 //   • Uzmanın Bilgi Bankası ile İLGİSİZDİR: hiçbir tabloya yazmaz, hiçbir içerikle birleşmez.
+
+import { HUMAN_DESIGN_CHANNELS } from "@/lib/human-design/constants";
+import {
+  hdAuthorityDisplayLabel,
+  hdCenterLabelFromCode,
+  hdDefinitionLabelFromCode,
+  hdTypeLabelFromCode,
+} from "@/lib/human-design/codeHelpers";
+import {
+  toAppAuthorityCode,
+  toAppCenterCode,
+  toAppDefinitionCode,
+  toAppTypeCode,
+} from "@/lib/human-design/normalize/hdAppCodes";
+import { HD_CROSS_SECTION_TITLE, HD_TERM, hdTypeKeynotes, normalizeProviderTrText } from "@/lib/human-design/normalize/hdDisplayLabels";
 
 export const SYSTEM_READING_LIMITS = Object.freeze({
   label: 120,
@@ -131,9 +146,9 @@ function general(r: Obj): SystemReadingGeneralItem[] {
         ["Açıklama", text(xc.description)],
       ]),
     },
-    // İmza / Benlik-dışı: sağlayıcı uzun açıklama VERMİYOR → yalnız etiket (uydurma yok).
+    // İmza / Kendilik dışı tema: sağlayıcı uzun açıklama VERMİYOR → yalnız etiket (uydurma yok).
     { key: "signature", title: "İmza", value: localized(r, "signature"), details: [] },
-    { key: "notSelf", title: "Benlik-Dışı Tema", value: localized(r, "notSelf"), details: [] },
+    { key: "notSelf", title: HD_TERM.notSelf, value: localized(r, "notSelf"), details: [] },
   ];
   return items.filter((i) => i.value !== null || i.details.length > 0);
 }
@@ -200,15 +215,107 @@ function activations(r: Obj): SystemReadingActivation[] {
   return out;
 }
 
+// ── HD-05 / HD-06 / HD-23: görünen terim uyumu ──────────────────────────────────────────────
+// Sağlayıcı (Roxy lang=tr) kendi çevirisini kullanır ("Jeneratör", "Tepe", "Şehit/Kâfir"…). Rapor ve
+// ekranın geri kalanı uygulama sözlüğünü kullandığı için aynı kavram iki farklı adla görünüyordu.
+// Uyum yalnız GÖRÜNEN DTO'da yapılır: provider_raw, hesap verisi ve teknik anahtarlar DEĞİŞMEZ.
+
+/** Uygulama sözlüğünden gelen etiketler (bilinmeyen → sağlayıcı değeri kalır; uydurma yok). */
+export type SystemReadingLabels = Partial<Record<"type" | "strategy" | "authority" | "definition" | "signature" | "notSelf", string | null>>;
+
+const GENERAL_TITLE: Readonly<Partial<Record<SystemReadingGeneralKey, string>>> = {
+  type: HD_TERM.type,
+  strategy: HD_TERM.strategy,
+  authority: HD_TERM.authority,
+  profile: HD_TERM.profile,
+  definition: HD_TERM.definition,
+  cross: HD_CROSS_SECTION_TITLE,
+  signature: HD_TERM.signature,
+  notSelf: HD_TERM.notSelf,
+};
+
+const fixText = (t: string | null) => normalizeProviderTrText(t);
+
+/**
+ * SAF + idempotent. Hem yeni çıkarımda hem de DONMUŞ (eski) rapor snapshot'ı Word'e basılırken
+ * uygulanır; snapshot kaydı değişmez.
+ *   • Genel değerler: uygulama etiketi (verildiyse) — "Jeneratör" → "Generator".
+ *   • Merkez adları: uygulama merkez adı — "Tepe" → "Head / Baş Merkezi".
+ *   • "Kendilik dışı sorusu" sağlayıcıda HER merkez için açık-merkez diliyle gelir → YALNIZ açık
+ *     (defined === false) merkezde tutulur; tanımlı ya da durumu bilinmeyen merkezde gösterilmez.
+ *   • Tüm metinlerde "Şehit/Kâfir/Sapkın" → "Deneyimleyen/Çözüm Getiren".
+ */
+export function harmonizeSystemReading(dto: SystemReadingDto, labels: SystemReadingLabels = {}): SystemReadingDto {
+  return {
+    general: dto.general.map((g) => {
+      const appValue = g.key in labels ? labels[g.key as keyof SystemReadingLabels] : null;
+      return {
+        ...g,
+        title: GENERAL_TITLE[g.key] ?? g.title,
+        value: appValue ?? fixText(g.value),
+        details: g.details.map((d) => ({ label: d.label, text: fixText(d.text) ?? d.text })),
+      };
+    }),
+    centers: dto.centers.map((c) => {
+      const code = toAppCenterCode(c.id);
+      return {
+        ...c,
+        name: code ? hdCenterLabelFromCode(code) : fixText(c.name) ?? c.name,
+        theme: fixText(c.theme),
+        notSelfQuestion: c.defined === false ? fixText(c.notSelfQuestion) : null,
+        biology: fixText(c.biology),
+      };
+    }),
+    channels: dto.channels.map((c) => {
+      const appLabel = c.id ? HUMAN_DESIGN_CHANNELS.find((x) => x.code === c.id)?.label : undefined;
+      const appName = appLabel ? appLabel.replace(/^\s*\d+-\d+\s*/, "").trim() : null;
+      return {
+        ...c,
+        name: appName || fixText(c.name),
+        circuit: fixText(c.circuit),
+        description: fixText(c.description),
+        circuitDescription: fixText(c.circuitDescription),
+      };
+    }),
+    activations: dto.activations.map((a) => ({
+      ...a,
+      gateName: fixText(a.gateName),
+      gateDescription: fixText(a.gateDescription),
+      lineMeaning: fixText(a.lineMeaning),
+      planetDescription: fixText(a.planetDescription),
+    })),
+  };
+}
+
+/** Ham sağlayıcı yanıtının İngilizce anahtar değerlerinden uygulama etiketleri (yalnız tanınanlar). */
+export function systemReadingLabelsFromRaw(raw: unknown): SystemReadingLabels {
+  if (!isObj(raw)) return {};
+  const typeCode = toAppTypeCode(raw.type);
+  const authorityCode = toAppAuthorityCode(raw.authority);
+  const definitionCode = toAppDefinitionCode(raw.definition);
+  const keynotes = hdTypeKeynotes(typeCode);
+  return {
+    type: typeCode ? hdTypeLabelFromCode(typeCode) : null,
+    authority: authorityCode ? hdAuthorityDisplayLabel(authorityCode, typeCode) : null,
+    definition: definitionCode ? hdDefinitionLabelFromCode(definitionCode) : null,
+    strategy: keynotes?.strategy ?? null,
+    signature: keynotes?.signature ?? null,
+    notSelf: keynotes?.notSelf ?? null,
+  };
+}
+
 /** provider_raw → güvenli DTO. Kullanılabilir içerik yoksa null (sistem yorumu "yok"). */
 export function extractSystemReading(raw: unknown): SystemReadingDto | null {
   if (!isObj(raw)) return null;
-  const dto: SystemReadingDto = {
-    general: general(raw),
-    centers: centers(raw),
-    channels: channels(raw),
-    activations: activations(raw),
-  };
+  const dto: SystemReadingDto = harmonizeSystemReading(
+    {
+      general: general(raw),
+      centers: centers(raw),
+      channels: channels(raw),
+      activations: activations(raw),
+    },
+    systemReadingLabelsFromRaw(raw),
+  );
   const hasText =
     dto.general.some((g) => g.details.some((d) => d.label !== "Açı")) ||
     dto.centers.some((c) => c.theme || c.notSelfQuestion || c.biology) ||
