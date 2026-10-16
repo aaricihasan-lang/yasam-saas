@@ -17,7 +17,7 @@ import type { HdComputedChart } from "@/lib/human-design/chart/computedChart";
 import type { HdAppChartCodes } from "@/lib/human-design/normalize/hdAppCodes";
 import type { HdChartSubjectInfo } from "@/lib/human-design/chart/chartSubjectInfo";
 import {
-  hdAuthorityLabelFromCode,
+  hdAuthorityDisplayLabel,
   hdDefinitionLabelFromCode,
   hdProfileLabelFromCode,
   hdTypeLabelFromCode,
@@ -107,7 +107,7 @@ export function HdChartInfoPanel({
   const [pSun, pEarth, dSun, dEarth] = cross.gates;
   const showRaw = (raw: string | undefined, label: string) => (raw && raw !== label ? raw : null);
   const typeLabel = hdTypeLabelFromCode(codes.type_code);
-  const authorityLabel = hdAuthorityLabelFromCode(codes.authority_code);
+  const authorityLabel = hdAuthorityDisplayLabel(codes.authority_code, codes.type_code);
   const profileLabel = hdProfileLabelFromCode(codes.profile_code);
   const definitionLabel = hdDefinitionLabelFromCode(codes.definition_code);
   const crossGates = `${pSun}/${pEarth} | ${dSun}/${dEarth}`;

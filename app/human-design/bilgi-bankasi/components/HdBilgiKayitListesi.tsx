@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
 import { HD_KNOWLEDGE_CATEGORIES } from "@/lib/human-design/constants";
+import { sortHdKnowledgeRecords } from "@/lib/human-design/knowledge/hdKnowledgeSort";
 import {
   listHdKnowledgeRecords,
   deleteHdKnowledgeRecord,
@@ -60,21 +61,37 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
   const [bulkBusy, setBulkBusy] = useState(false);
   const bulkRef = useRef(false);
 
+  // Liste sonucunu uygular (otomatik kararlı sıra: kategori → kapı numarası / kanal çifti /
+  // sabit seçenek / TR alfabetik).
+  const applyRows = useCallback(
+    ({ rows: data, error }: Awaited<ReturnType<typeof listHdKnowledgeRecords>>) => {
+      setLoading(false);
+      if (error) {
+        showToast({ message: `Yüklenemedi: ${error}`, type: "error" });
+      } else {
+        setRows(sortHdKnowledgeRecords(data));
+        setSelected(new Set());
+      }
+    },
+    [showToast],
+  );
+
+  // Silme vb. sonrası yeniden yükleme (yükleniyor durumu gösterilir).
   const loadRows = useCallback(async () => {
     setLoading(true);
-    const { rows: data, error } = await listHdKnowledgeRecords();
-    setLoading(false);
-    if (error) {
-      showToast({ message: `Yüklenemedi: ${error}`, type: "error" });
-    } else {
-      setRows(data);
-      setSelected(new Set());
-    }
-  }, [showToast]);
+    applyRows(await listHdKnowledgeRecords());
+  }, [applyRows]);
 
+  // İlk yükleme: loading zaten true başlar; sonuç async geri çağrıda uygulanır.
   useEffect(() => {
-    loadRows();
-  }, [loadRows]);
+    let alive = true;
+    listHdKnowledgeRecords().then((r) => {
+      if (alive) applyRows(r);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [applyRows]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("tr-TR");
@@ -115,7 +132,8 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
   function toggleOne(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }

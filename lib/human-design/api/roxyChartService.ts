@@ -20,7 +20,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { withTenant, tenantInsertPayload } from "./tenantScope";
 import { deterministicUuid, isUniqueViolation, isUuid } from "./deterministicId";
 import { hdSafeDbError } from "./safeError";
-import { isValidIanaTimeZone, resolveBirthLocalTime, toHms } from "./birthTimeResolution";
+import { birthLocalTimeIssue, isValidIanaTimeZone, resolveBirthLocalTime, toHms } from "./birthTimeResolution";
 import { resolveHdBirthLocation, type HdBirthLocation } from "./hdBirthLocation";
 import {
   ROXY_ADAPTER_VERSION,
@@ -325,20 +325,14 @@ export async function computeRoxyChart(
     return fail(422, "LOCATION_REQUIRED", "Doğum yeri listeden seçilmelidir. Saat dilimi bilinmeden hesaplama yapılmaz.");
   }
 
-  // 6) DST — sessiz tahmin yok.
+  // 6) DST — sessiz tahmin yok (HD-14 owner kararı: boşluk ve çakışma güvenli ret).
   const t = resolveBirthLocalTime(date, hms, location.timezone);
-  if (t.kind === "gap") {
+  if (t.kind === "gap" || t.kind === "ambiguous") {
+    const issue = birthLocalTimeIssue(date, hms, location.timezone);
     return fail(
       422,
-      "BIRTH_TIME_NONEXISTENT",
-      `${date} ${hms.slice(0, 5)} saati ${location.timezone} saat diliminde yaz saati geçişi nedeniyle hiç yaşanmamıştır. Lütfen doğum saatini kontrol edin.`,
-    );
-  }
-  if (t.kind === "ambiguous") {
-    return fail(
-      422,
-      "BIRTH_TIME_AMBIGUOUS",
-      `${date} ${hms.slice(0, 5)} saati ${location.timezone} saat diliminde yaz saatinden kışa geçişte iki kez yaşanmıştır; hangi anın kastedildiği belirsiz olduğundan otomatik hesap yapılmadı.`,
+      t.kind === "gap" ? "BIRTH_TIME_NONEXISTENT" : "BIRTH_TIME_AMBIGUOUS",
+      issue?.message ?? "Doğum saati yaz/kış saati geçişine denk geliyor; otomatik hesap yapılmadı.",
     );
   }
   if (t.kind === "invalid") return fail(422, "INVALID_BIRTH_DATA", "Doğum tarihi/saati geçersiz.");

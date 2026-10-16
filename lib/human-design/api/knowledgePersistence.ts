@@ -14,6 +14,8 @@ import type {
 } from "@/lib/human-design/types";
 import { withTenant, tenantInsertPayload } from "./tenantScope";
 import { hdSafeDbError } from "./safeError";
+import { hdXmlSafeLine, hdXmlSafeMultiline } from "@/lib/human-design/reporting/xmlSafeText";
+import { HD_CHANNEL_CATEGORY, HD_GATE_CATEGORY, normalizeHdStructuredTitle } from "@/lib/human-design/knowledge/hdNames";
 
 const TABLE = "human_design_knowledge_records";
 
@@ -37,9 +39,21 @@ const EDITABLE_KEYS: (keyof HumanDesignKnowledgeRecord)[] = [
   "expert_notes",
 ];
 
+// HD-09: Word'e girebilen metin alanlarında XML 1.0'da geçersiz kontrol karakterleri kayda
+// girmez (Word'den yapıştırılan Shift+Enter = U+000B vb.). Başlık/kategori tek satır; içerik ve
+// özel notlarda satır benzeri ayırıcılar normal satır sonuna dönüşür. Güvenli metin değişmez.
+const SINGLE_LINE_TEXT_KEYS = new Set(["category", "title"]);
+const MULTILINE_TEXT_KEYS = new Set(["content", "expert_notes"]);
+
 function pick(input: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const k of EDITABLE_KEYS) if (k in input) out[k] = input[k];
+  for (const k of EDITABLE_KEYS) {
+    if (!(k in input)) continue;
+    const v = input[k];
+    if (typeof v === "string" && SINGLE_LINE_TEXT_KEYS.has(k)) out[k] = hdXmlSafeLine(v);
+    else if (typeof v === "string" && MULTILINE_TEXT_KEYS.has(k)) out[k] = hdXmlSafeMultiline(v);
+    else out[k] = v;
+  }
   return out;
 }
 
@@ -52,15 +66,53 @@ function isBlank(v: unknown): boolean {
   return typeof v !== "string" || v.trim() === "";
 }
 
+export const IDENTITY_LOCKED_CODE = "HD_IDENTITY_LOCKED";
+const IDENTITY_LOCKED_ERROR =
+  "Kapı/kanal kaydının kategorisi ve numarası değiştirilemez; yalnız görünen ad ve açıklama düzenlenebilir.";
+
+const DUPLICATE_CODE_ERROR = "Bu kapı/kanal/başlık için Bilgi Bankanızda zaten bir kayıt var. Mevcut kaydı düzenleyin.";
+
+/**
+ * Kapılar/Kanallar: kod resmi kapı/kanal olmalı; başlık koddaki numarayla yeniden kurulur
+ * (görünen ad kişiselleştirmesi — numara/çift değiştirilemez, boş ad → hazır ad). Diğer
+ * kategorilerde dokunmaz. `picked` yerinde güncellenir.
+ */
+function applyStructuredTitle(
+  picked: Record<string, unknown>,
+  effective: { category: unknown; code: unknown; title: unknown },
+): string | null {
+  if (effective.category !== HD_GATE_CATEGORY && effective.category !== HD_CHANNEL_CATEGORY) return null;
+  const r = normalizeHdStructuredTitle(effective.category, effective.code, effective.title);
+  if (!r.ok) return r.error;
+  picked.title = r.title;
+  return null;
+}
+
+/** Sunucu kayıt sırası: manuel sort_order ARTIK sırayı belirlemez (istemci/Word hdKnowledgeSort ile
+ *  doğal sıralar). Burada yalnız kararlı bir okuma sırası verilir. */
 export async function listKnowledge(
   db: SupabaseClient,
   tenantId: string,
 ): Promise<{ rows: HumanDesignKnowledgeRecord[]; error: string | null }> {
   const { data, error } = await withTenant(db.from(TABLE).select("*"), tenantId, "listKnowledge")
-    .order("sort_order", { ascending: true })
-    .order("updated_at", { ascending: false });
+    .order("category", { ascending: true })
+    .order("code", { ascending: true });
   if (error) return { rows: [], error: hdSafeDbError("listKnowledge", error) };
   return { rows: (data ?? []) as HumanDesignKnowledgeRecord[], error: null };
+}
+
+/**
+ * Kapı/kanal GÖRÜNEN AD okuması — YALNIZ category/code/title (içerik ve Özel Çalışma Notları
+ * OKUNMAZ). Aktif/pasif fark etmez (ad, açıklamadan bağımsız). Tenant-scoped.
+ */
+export async function listKnowledgeNames(
+  db: SupabaseClient,
+  tenantId: string,
+): Promise<{ rows: Array<{ category: string; code: string; title: string }>; error: string | null }> {
+  const { data, error } = await withTenant(db.from(TABLE).select("category, code, title"), tenantId, "listKnowledgeNames")
+    .in("category", [HD_GATE_CATEGORY, HD_CHANNEL_CATEGORY]);
+  if (error) return { rows: [], error: hdSafeDbError("listKnowledgeNames", error) };
+  return { rows: (data ?? []) as Array<{ category: string; code: string; title: string }>, error: null };
 }
 
 export async function getKnowledgeById(
@@ -119,12 +171,21 @@ export async function insertKnowledge(
   tenantId: string,
   userId: string,
   input: Record<string, unknown>,
-): Promise<{ id: string | null; error: string | null }> {
+): Promise<{ id: string | null; error: string | null; existingId?: string }> {
   const picked = pick(input);
   // is_active verilmezse DB default TRUE → aktif kabul edilir.
   const activeEffective = picked.is_active === undefined ? true : picked.is_active === true;
   if (activeEffective && isBlank(picked.content)) {
     return { id: null, error: ACTIVE_CONTENT_ERROR };
+  }
+  const structErr = applyStructuredTitle(picked, { category: picked.category, code: picked.code, title: picked.title });
+  if (structErr) return { id: null, error: structErr };
+  // Mükerrer kod (UNIQUE(tenant_id, code)) → anlaşılır red + mevcut kaydın id'si.
+  if (typeof picked.code === "string" && picked.code) {
+    const { data: dup } = await withTenant(db.from(TABLE).select("id"), tenantId, "insertKnowledge.dup")
+      .eq("code", picked.code)
+      .maybeSingle();
+    if (dup) return { id: null, error: DUPLICATE_CODE_ERROR, existingId: (dup as { id: string }).id };
   }
   const payload = tenantInsertPayload(tenantId, {
     ...picked,
@@ -163,9 +224,47 @@ export async function updateKnowledge(
     return { ok: false, error: ACTIVE_CONTENT_ERROR };
   }
 
+  // Kapı/kanal TEKNİK KİMLİK KİLİDİ (sunucu garantisi; arayüzdeki disabled'a güvenilmez):
+  // kimlik alanlarından biri istekte varsa kayıtlı category/code/title VERİTABANINDAN okunur.
+  // Kayıt Kapılar/Kanallar ise category ve code DEĞİŞTİRİLEMEZ — yalnız görünen ad (title)
+  // ve diğer izinli alanlar. Farklı kimlik gelirse hiçbir şey yazılmadan reddedilir.
+  let lockedIdentity: { category: string; code: string } | null = null;
+  if (picked.category !== undefined || picked.code !== undefined || picked.title !== undefined) {
+    type Identity = { category?: unknown; code?: unknown; title?: unknown };
+    const { data: existing } = await withTenant(db.from(TABLE).select("category, code, title"), tenantId, "updateKnowledge.identity")
+      .eq("id", id)
+      .maybeSingle();
+    const ex = (existing ?? null) as Identity | null;
+    if (ex && (ex.category === HD_GATE_CATEGORY || ex.category === HD_CHANNEL_CATEGORY)) {
+      const categoryChanged = picked.category !== undefined && picked.category !== ex.category;
+      const codeChanged = picked.code !== undefined && picked.code !== ex.code;
+      if (categoryChanged || codeChanged) {
+        return { ok: false, error: IDENTITY_LOCKED_ERROR, status: 400, code: IDENTITY_LOCKED_CODE };
+      }
+      lockedIdentity = { category: String(ex.category), code: String(ex.code) };
+    }
+    const structErr = applyStructuredTitle(picked, {
+      category: picked.category !== undefined ? picked.category : ex?.category,
+      code: picked.code !== undefined ? picked.code : ex?.code,
+      title: picked.title !== undefined ? picked.title : ex?.title,
+    });
+    if (structErr) return { ok: false, error: structErr };
+    // Kod değişiyorsa (kilitsiz kategoriler) aynı tenant'ta o kod başka kayıtta olamaz.
+    if (typeof picked.code === "string" && ex && picked.code !== ex.code) {
+      const { data: dup } = await withTenant(db.from(TABLE).select("id"), tenantId, "updateKnowledge.dup")
+        .eq("code", picked.code)
+        .maybeSingle();
+      if (dup && (dup as { id: string }).id !== id) {
+        return { ok: false, error: DUPLICATE_CODE_ERROR, status: 409, code: "DUPLICATE_CODE" };
+      }
+    }
+  }
+
   const fields = { ...picked, updated_at: new Date().toISOString() };
   // P2-9: beklenen sürüm verildiyse koşullu (atomik) güncelleme — başka oturum ezilmez.
   let q = withTenant(db.from(TABLE).update(fields), tenantId, "updateKnowledge").eq("id", id);
+  // Kilitli kimlik: güncelleme yalnız kayıtlı category/code hâlâ aynıysa uygulanır (atomik).
+  if (lockedIdentity) q = q.eq("category", lockedIdentity.category).eq("code", lockedIdentity.code);
   if (opts.expectedUpdatedAt) q = q.eq("updated_at", opts.expectedUpdatedAt);
   const { data, error } = await q.select("id, updated_at");
   if (error) return { ok: false, error: hdSafeDbError("updateKnowledge", error) };

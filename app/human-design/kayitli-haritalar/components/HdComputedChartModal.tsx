@@ -20,7 +20,8 @@ import { HdPersonalKnowledgePanel } from "./HdPersonalKnowledgePanel";
 import { HdProfessionalReportButton } from "./HdProfessionalReportButton";
 import { HdComputedChartView } from "./HdComputedChartView";
 import { HdExpertKnowledgePanel } from "./HdExpertKnowledgePanel";
-import { HdChartKnowledgeTabs, canUseHdSystemReading } from "./HdChartKnowledgeTabs";
+import { HdChartKnowledgeTabs, HD_ADMIN_SOURCE_LABELS, canUseHdSystemReading } from "./HdChartKnowledgeTabs";
+import { useHdNameOverrides } from "../../bilgi-bankasi/helpers/useHdNameOverrides";
 import { computedChartAppCodes } from "@/lib/human-design/chart/computedChart";
 import { buildChartSubjectInfo, todayCalendarDate } from "@/lib/human-design/chart/chartSubjectInfo";
 import { latestWordReportId } from "@/lib/human-design/reporting/wordReportPick";
@@ -57,6 +58,8 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
   // AŞAMA 2B: "Sistem Yorumu" sekmesi yalnız human_design + hd_system_reading yetkili uzmana görünür
   // (erişim ayrıca sunucuda zorlanır).
   const [canSystemReading] = useState(canUseHdSystemReading);
+  // Hesabın kapı/kanal görünen adları (yalnız sunum; teknik veri/eşleşme etkilenmez).
+  const nameOverrides = useHdNameOverrides();
   // "Word İndir": bu analizin hazır Word v2 raporu (varsa aynısı indirilir; yeni kopya YOK).
   // undefined = arama sürüyor. Arama başarısızsa null → ilk tıklamada rapor oluşturulur.
   const [wordReportId, setWordReportId] = useState<string | null | undefined>(undefined);
@@ -94,7 +97,7 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
     // HD-P2-D: silmeden önce ortak (erişilebilir) onay dialog'u — veri kaybını önler.
     const confirmed = await confirm({
       title: "Haritayı sil",
-      message: `${row?.client_name || "Bu kişisel kayıt"} için hesaplanmış harita kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+      message: `${displayName || "Bu kişisel kayıt"} için hesaplanmış harita kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
       confirmText: "Sil",
       cancelText: "Vazgeç",
       tone: "danger",
@@ -109,6 +112,11 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
   }
 
   const result = row?.computed_result ?? null;
+  // HD-24: ekranda ve yeni Word'de GÜNCEL danışan adı. Analiz anındaki ad farklıysa açıkça belirtilir
+  // (önceden oluşturulmuş Word, oluşturulduğu andaki adı taşır — kayıt değiştirilmez).
+  const displayName = row?.current_client_name || row?.client_name || null;
+  const renamedFrom =
+    row?.current_client_name && row.client_name && row.client_name.trim() !== row.current_client_name.trim() ? row.client_name : null;
   // Danışan bilgi bloğu: YALNIZ kayıtlı satırdan (yeni hesap / sağlayıcı çağrısı yok). UTC anı hesap
   // anında sunucuda (DST-güvenli) üretilip computed_result.timing'e kaydedilmiş değerdir.
   const input = (row?.input ?? null) as { latitude?: unknown; longitude?: unknown } | null;
@@ -116,7 +124,7 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
     row && result
       ? buildChartSubjectInfo(
           {
-            clientName: row.client_name,
+            clientName: displayName,
             birthDate: row.birth_date,
             birthTime: row.birth_time,
             birthPlace: row.birth_place,
@@ -153,8 +161,13 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
           <div className="min-w-0">
             <h2 id="hd-computed-detay-title" className="truncate text-base font-black leading-tight text-slate-900">
               <span className="mr-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">Human Design</span>
-              {row?.client_name || "Kişisel Kayıt"}
+              {displayName || "Kişisel Kayıt"}
             </h2>
+            {renamedFrom ? (
+              <p className="truncate text-[11px] font-semibold text-amber-700" data-hd-renamed>
+                Analizdeki ad: {renamedFrom}. Yeni Word güncel adı kullanır; daha önce oluşturulmuş Word eski adı içerir.
+              </p>
+            ) : null}
             <p className="truncate text-xs text-slate-500">
               {formatDate(row?.birth_date)}
               {row?.birth_time ? ` • ${row.birth_time.slice(0, 5)}` : ""}
@@ -213,8 +226,25 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
                     result={result}
                     roxyRender={(row?.roxy_render as Record<string, unknown> | null | undefined) ?? null}
                     subject={subject}
+                    nameOverrides={nameOverrides}
                   />
-                  <HdChartKnowledgeTabs chartId={id} allowed={canSystemReading}>
+                  <HdChartKnowledgeTabs
+                    chartId={id}
+                    allowed={canSystemReading}
+                    adminSources={{
+                      expert: (
+                        <div className="mx-auto max-w-[1552px] border-t border-emerald-100 pt-5">
+                          <HdExpertKnowledgePanel chart={computedChartAppCodes(result)} />
+                        </div>
+                      ),
+                      central: (
+                        <div className="mx-auto max-w-[1552px] border-t border-indigo-100/80 pt-5">
+                          <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-700">{HD_ADMIN_SOURCE_LABELS.central}</p>
+                          <HdPersonalKnowledgePanel chartId={id} />
+                        </div>
+                      ),
+                    }}
+                  >
                     <div className="mx-auto max-w-[1552px] border-t border-emerald-100 pt-5">
                       <HdExpertKnowledgePanel chart={computedChartAppCodes(result)} />
                     </div>

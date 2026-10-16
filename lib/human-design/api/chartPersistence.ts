@@ -132,6 +132,15 @@ export async function getComputedChart(
   delete row.provider_raw;
   // HD-28 (GUV-07): girdi hash'i (eski kayıtlarda tuzsuz doğum verisi özeti) istemciye GİTMEZ.
   delete row.input_hash;
+  // HD-24: analiz satırındaki `client_name` hesap anındaki addır. Ekran ve yeni Word GÜNCEL danışan
+  // adını kullanır → aynı tenant'taki danışan kaydından yalnız ad okunur (yoksa alan eklenmez).
+  if (typeof row.client_id === "string" && row.client_id) {
+    const { data: cli } = await withTenant(db.from("human_design_clients").select("name"), tenantId, "getComputedChart.client")
+      .eq("id", row.client_id)
+      .maybeSingle();
+    const name = (cli as { name?: unknown } | null)?.name;
+    if (typeof name === "string" && name.trim()) row.current_client_name = name.trim();
+  }
   return { row, error: null };
 }
 

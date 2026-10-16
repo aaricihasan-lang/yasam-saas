@@ -139,7 +139,7 @@ function renderIdentity(
 
 // ── Tip özel sunumu (editoryal tekrar konsolidasyonu) ────────────────────────────
 // Genel Açıklama + Kaynaklandırılmış Ana Metin TAM prose; Strateji / İmza /
-// Kendinden-Olmayan Tema ise AYRI üç uzun bölüm yerine tek "Temel Göstergeler"
+// Kendilik Dışı Tema ise AYRI üç uzun bölüm yerine tek "Temel Göstergeler"
 // başlığı altında etiketli toplanır. Canonical metin TAM korunur (kısaltma/AI/silme
 // YOK) — yalnız SUNUM konsolide edilir → aynı konunun "ikinci kez uzun bölüm" hissi
 // kalkar. (5-Tip audit: strategy/signature/not_self, general_description+report_text

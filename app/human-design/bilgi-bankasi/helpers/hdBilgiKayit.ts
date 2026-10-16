@@ -58,9 +58,28 @@ export async function getHdKnowledgeRecord(
   return { row: null, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
+/** Kapı/kanal görünen adları için YALNIZ category/code/title (içerik/özel not gelmez). */
+export async function listHdKnowledgeNames(): Promise<{
+  rows: Array<{ category: string; code: string; title: string }>;
+  error: string | null;
+}> {
+  let res: Response;
+  try {
+    res = await fetch("/api/hd/knowledge?names=1", { method: "GET", headers: authHeaders(), cache: "no-store" });
+  } catch {
+    return { rows: [], error: "Ağ hatası. Bağlantını kontrol et." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.ok === true && Array.isArray(j.rows)) {
+    return { rows: j.rows as Array<{ category: string; code: string; title: string }>, error: null };
+  }
+  return { rows: [], error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
+}
+
 export async function insertHdKnowledgeRecord(
-  input: Omit<HumanDesignKnowledgeRecordInsert, "tenant_id" | "user_id">,
-): Promise<{ id: string | null; error: string | null }> {
+  // sort_order artık kullanıcıdan alınmaz (otomatik sıralama); verilmezse DB varsayılanı.
+  input: Omit<HumanDesignKnowledgeRecordInsert, "tenant_id" | "user_id" | "sort_order"> & { sort_order?: number },
+): Promise<{ id: string | null; error: string | null; existingId?: string }> {
   let res: Response;
   try {
     res = await fetch("/api/hd/knowledge", {
@@ -75,7 +94,11 @@ export async function insertHdKnowledgeRecord(
   if (res.ok && j.ok === true && typeof j.id === "string") {
     return { id: j.id, error: null };
   }
-  return { id: null, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
+  return {
+    id: null,
+    error: typeof j.error === "string" ? j.error : `HTTP ${res.status}`,
+    ...(typeof j.existing_id === "string" ? { existingId: j.existing_id } : {}),
+  };
 }
 
 export async function updateHdKnowledgeRecord(
