@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
 import { HD_KNOWLEDGE_CATEGORIES } from "@/lib/human-design/constants";
+import { sortHdKnowledgeRecords } from "@/lib/human-design/knowledge/hdKnowledgeSort";
 import {
   listHdKnowledgeRecords,
   deleteHdKnowledgeRecord,
@@ -67,7 +68,8 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
     if (error) {
       showToast({ message: `Yüklenemedi: ${error}`, type: "error" });
     } else {
-      setRows(data);
+      // Otomatik kararlı sıra: kategori → kapı numarası / kanal çifti / sabit seçenek / TR alfabetik.
+      setRows(sortHdKnowledgeRecords(data));
       setSelected(new Set());
     }
   }, [showToast]);

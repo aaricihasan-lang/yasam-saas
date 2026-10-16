@@ -15,6 +15,7 @@ import type {
 import { withTenant, tenantInsertPayload } from "./tenantScope";
 import { hdSafeDbError } from "./safeError";
 import { hdXmlSafeLine, hdXmlSafeMultiline } from "@/lib/human-design/reporting/xmlSafeText";
+import { HD_CHANNEL_CATEGORY, HD_GATE_CATEGORY, normalizeHdStructuredTitle } from "@/lib/human-design/knowledge/hdNames";
 
 const TABLE = "human_design_knowledge_records";
 
@@ -65,15 +66,49 @@ function isBlank(v: unknown): boolean {
   return typeof v !== "string" || v.trim() === "";
 }
 
+const DUPLICATE_CODE_ERROR = "Bu kapı/kanal/başlık için Bilgi Bankanızda zaten bir kayıt var. Mevcut kaydı düzenleyin.";
+
+/**
+ * Kapılar/Kanallar: kod resmi kapı/kanal olmalı; başlık koddaki numarayla yeniden kurulur
+ * (görünen ad kişiselleştirmesi — numara/çift değiştirilemez, boş ad → hazır ad). Diğer
+ * kategorilerde dokunmaz. `picked` yerinde güncellenir.
+ */
+function applyStructuredTitle(
+  picked: Record<string, unknown>,
+  effective: { category: unknown; code: unknown; title: unknown },
+): string | null {
+  if (effective.category !== HD_GATE_CATEGORY && effective.category !== HD_CHANNEL_CATEGORY) return null;
+  const r = normalizeHdStructuredTitle(effective.category, effective.code, effective.title);
+  if (!r.ok) return r.error;
+  picked.title = r.title;
+  return null;
+}
+
+/** Sunucu kayıt sırası: manuel sort_order ARTIK sırayı belirlemez (istemci/Word hdKnowledgeSort ile
+ *  doğal sıralar). Burada yalnız kararlı bir okuma sırası verilir. */
 export async function listKnowledge(
   db: SupabaseClient,
   tenantId: string,
 ): Promise<{ rows: HumanDesignKnowledgeRecord[]; error: string | null }> {
   const { data, error } = await withTenant(db.from(TABLE).select("*"), tenantId, "listKnowledge")
-    .order("sort_order", { ascending: true })
-    .order("updated_at", { ascending: false });
+    .order("category", { ascending: true })
+    .order("code", { ascending: true });
   if (error) return { rows: [], error: hdSafeDbError("listKnowledge", error) };
   return { rows: (data ?? []) as HumanDesignKnowledgeRecord[], error: null };
+}
+
+/**
+ * Kapı/kanal GÖRÜNEN AD okuması — YALNIZ category/code/title (içerik ve Özel Çalışma Notları
+ * OKUNMAZ). Aktif/pasif fark etmez (ad, açıklamadan bağımsız). Tenant-scoped.
+ */
+export async function listKnowledgeNames(
+  db: SupabaseClient,
+  tenantId: string,
+): Promise<{ rows: Array<{ category: string; code: string; title: string }>; error: string | null }> {
+  const { data, error } = await withTenant(db.from(TABLE).select("category, code, title"), tenantId, "listKnowledgeNames")
+    .in("category", [HD_GATE_CATEGORY, HD_CHANNEL_CATEGORY]);
+  if (error) return { rows: [], error: hdSafeDbError("listKnowledgeNames", error) };
+  return { rows: (data ?? []) as Array<{ category: string; code: string; title: string }>, error: null };
 }
 
 export async function getKnowledgeById(
@@ -132,12 +167,21 @@ export async function insertKnowledge(
   tenantId: string,
   userId: string,
   input: Record<string, unknown>,
-): Promise<{ id: string | null; error: string | null }> {
+): Promise<{ id: string | null; error: string | null; existingId?: string }> {
   const picked = pick(input);
   // is_active verilmezse DB default TRUE → aktif kabul edilir.
   const activeEffective = picked.is_active === undefined ? true : picked.is_active === true;
   if (activeEffective && isBlank(picked.content)) {
     return { id: null, error: ACTIVE_CONTENT_ERROR };
+  }
+  const structErr = applyStructuredTitle(picked, { category: picked.category, code: picked.code, title: picked.title });
+  if (structErr) return { id: null, error: structErr };
+  // Mükerrer kod (UNIQUE(tenant_id, code)) → anlaşılır red + mevcut kaydın id'si.
+  if (typeof picked.code === "string" && picked.code) {
+    const { data: dup } = await withTenant(db.from(TABLE).select("id"), tenantId, "insertKnowledge.dup")
+      .eq("code", picked.code)
+      .maybeSingle();
+    if (dup) return { id: null, error: DUPLICATE_CODE_ERROR, existingId: (dup as { id: string }).id };
   }
   const payload = tenantInsertPayload(tenantId, {
     ...picked,
@@ -174,6 +218,24 @@ export async function updateKnowledge(
   }
   if (activeEffective && isBlank(contentEffective)) {
     return { ok: false, error: ACTIVE_CONTENT_ERROR };
+  }
+
+  // Kapı/kanal kimliği: kategori/kod/başlıktan biri değişiyorsa eksikler mevcut kayıttan alınır.
+  if (picked.category !== undefined || picked.code !== undefined || picked.title !== undefined) {
+    type Identity = { category?: unknown; code?: unknown; title?: unknown };
+    let ex: Identity | null = null;
+    if (picked.category === undefined || picked.code === undefined || picked.title === undefined) {
+      const { data: existing } = await withTenant(db.from(TABLE).select("category, code, title"), tenantId, "updateKnowledge.identity")
+        .eq("id", id)
+        .maybeSingle();
+      ex = (existing ?? null) as Identity | null;
+    }
+    const structErr = applyStructuredTitle(picked, {
+      category: picked.category !== undefined ? picked.category : ex?.category,
+      code: picked.code !== undefined ? picked.code : ex?.code,
+      title: picked.title !== undefined ? picked.title : ex?.title,
+    });
+    if (structErr) return { ok: false, error: structErr };
   }
 
   const fields = { ...picked, updated_at: new Date().toISOString() };

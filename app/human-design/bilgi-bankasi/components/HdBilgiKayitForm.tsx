@@ -14,6 +14,12 @@ import {
   type StructuredOption,
 } from "@/lib/human-design/codeHelpers";
 import { insertHdKnowledgeRecord } from "../helpers/hdBilgiKayit";
+import {
+  HdGateChannelNameField,
+  hdComposeTitleFor,
+  hdDefaultNameFor,
+  isHdGateChannelCategory,
+} from "./HdGateChannelNameField";
 
 const fieldBase =
   "w-full rounded-xl border border-indigo-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400";
@@ -26,7 +32,8 @@ const empty = {
   category: "" as HdKnowledgeCategory | "",
   title: "",
   structuredValue: "",
-  sort_order: 0,
+  /** Kapılar/Kanallar: kişisel görünen ad (numarasız). */
+  displayName: "",
 };
 
 function computeCode(category: string, title: string, structuredValue: string): string {
@@ -49,18 +56,23 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
       showToast({ message: "Kategori seçin.", type: "warning" });
       return;
     }
-    if (!form.title.trim()) {
+    const gateChannel = isHdGateChannelCategory(form.category);
+    if (gateChannel ? !form.structuredValue : !form.title.trim()) {
       const isStructured = !!getStructuredCategoryOptions(form.category);
       showToast({ message: isStructured ? "Değer seçin." : "Başlık girin.", type: "warning" });
       return;
     }
-    const code = computeCode(form.category, form.title, form.structuredValue);
+    // Kapı/kanal: başlık = numara + görünen ad (boş ad → hazır ad). Kod numaradan.
+    const title = gateChannel
+      ? hdComposeTitleFor(form.category, form.structuredValue, form.displayName)
+      : form.title.trim();
+    const code = computeCode(form.category, title, form.structuredValue);
     setSaving(true);
     // İlk oluşturmada yalnız temel kayıt; içerik/notlar/ilişki/kaynaklar tam sayfa
     // editörde girilir. Boş varsayılanlar DB sözleşmesini karşılar (content NOT NULL).
-    const { id, error } = await insertHdKnowledgeRecord({
+    const { id, error, existingId } = await insertHdKnowledgeRecord({
       category: form.category,
-      title: form.title.trim(),
+      title,
       code,
       content: "",
       keywords: [],
@@ -68,13 +80,19 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
       related_centers: [],
       related_channels: [],
       related_gates: [],
-      sort_order: form.sort_order,
       // Taslak: yeni kayıt daima pasif oluşturulur. "Bilgi ve Açıklamalar" tamamlanınca
       // düzenleme sayfasından aktif edilir ("Ya doğru bilgi ya hiç").
       is_active: false,
       expert_notes: null,
     });
     setSaving(false);
+    if (existingId) {
+      // Aynı kod için ikinci kayıt açılmaz → mevcut kayda git (ad/açıklama orada düzenlenir).
+      showToast({ message: "Bu seçim için zaten kaydınız var. Mevcut kayıt açılıyor...", type: "info" });
+      onSuccess?.();
+      router.push(`/human-design/bilgi-bankasi/${existingId}`);
+      return;
+    }
     if (error || !id) {
       showToast({ message: `Hata: ${error ?? "Kayıt oluşturulamadı."}`, type: "error" });
       return;
@@ -100,6 +118,7 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
                   category: e.target.value as HdKnowledgeCategory,
                   title: "",
                   structuredValue: "",
+                  displayName: "",
                 }))
               }
               className={`h-9 ${fieldBase}`}
@@ -113,6 +132,19 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
             </select>
           </div>
 
+          {isHdGateChannelCategory(form.category) ? (
+            <HdGateChannelNameField
+              category={form.category}
+              structuredValue={form.structuredValue}
+              name={form.displayName}
+              onPick={(v) =>
+                setForm((p) => ({ ...p, structuredValue: v, displayName: hdDefaultNameFor(p.category, v) }))
+              }
+              onName={(n) => setForm((p) => ({ ...p, displayName: n }))}
+              fieldBase={fieldBase}
+              labelCls={labelCls}
+            />
+          ) : (
           <div>
             <label className={labelCls}>Başlık *</label>
             {(() => {
@@ -149,6 +181,7 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
               );
             })()}
           </div>
+          )}
 
           <div>
             <label className={labelCls}>Kod (otomatik)</label>
@@ -160,19 +193,8 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
             />
           </div>
 
-          <div>
-            <label className={labelCls}>Sıralama</label>
-            <input
-              type="number"
-              min={0}
-              value={form.sort_order}
-              onChange={(e) => setForm((p) => ({ ...p, sort_order: Number(e.target.value) }))}
-              className={`h-9 ${fieldBase}`}
-            />
-          </div>
-
           <div className="sm:col-span-2 rounded-xl border border-amber-200/80 bg-amber-50/60 px-3 py-2.5 text-xs leading-relaxed text-amber-800">
-            Kayıt <span className="font-bold">taslak</span> olarak oluşturulur. Bilgi ve Açıklamalar tamamlandıktan sonra düzenleme sayfasından aktif edebilirsiniz. <span className="font-bold">Bilgi ve Açıklamalar, Özel Çalışma Notları, Kaynaklar ve İlişkiler</span> açılan tam sayfa editörde girilir.
+            Kayıtlar otomatik sıralanır (kapılar numaraya, kanallar kapı çiftine göre). Kayıt <span className="font-bold">taslak</span> olarak oluşturulur. Bilgi ve Açıklamalar tamamlandıktan sonra düzenleme sayfasından aktif edebilirsiniz. <span className="font-bold">Bilgi ve Açıklamalar, Özel Çalışma Notları, Kaynaklar ve İlişkiler</span> açılan tam sayfa editörde girilir.
           </div>
         </div>
       </section>

@@ -952,7 +952,8 @@ function proGates(s: HdReportSnapshotV2): ReportChild[] {
   s.gates.forEach((g, i) => {
     const fill = i % 2 === 0 ? "ffffff" : PAL.card;
     const border = { ...NO_BORDERS, bottom: THIN() };
-    const name = gateName(g.gate);
+    // Yeni snapshot: rapor anında donmuş görünen ad (kişisel/hazır). Eski snapshot: hazır sözlük.
+    const name = g.name !== undefined ? g.name : gateName(g.gate);
     const acts = g.activations.length
       ? g.activations.map((a) => {
           const color = a.side === "design" ? PAL.design : PAL.personality;

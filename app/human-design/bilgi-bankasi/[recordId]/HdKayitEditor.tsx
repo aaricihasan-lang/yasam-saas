@@ -28,10 +28,22 @@ import {
 } from "../helpers/hdBilgiKayit";
 import { listHdSources, type HdSourceRow } from "../helpers/hdKaynaklar";
 import { HdKaynakEditor, rightsStatusLabel } from "../components/HdKaynakEditor";
+import {
+  HdGateChannelNameField,
+  hdComposeTitleFor,
+  hdDefaultNameFor,
+  isHdGateChannelCategory,
+} from "../components/HdGateChannelNameField";
+import {
+  buildHdNameOverrides,
+  parseHdChannelKnowledgeCode,
+  parseHdGateKnowledgeCode,
+} from "@/lib/human-design/knowledge/hdNames";
 import { useHdLeaveGuard } from "../../hooks/useHdLeaveGuard";
 import { HdUnsavedChangesDialog } from "../../rapor-olustur/components/HdUnsavedChangesDialog";
 
-const LIST_HREF = "/human-design/bilgi-bankasi";
+// ?kaynak=uzman: admin kişisel kayıt listesine (Uzman Bilgilerim) döner; uzman ekranında etkisiz.
+const LIST_HREF = "/human-design/bilgi-bankasi?kaynak=uzman";
 
 // İstemci-tarafı kaynak taslağı için sentinel kimlik. Bu kimlikli kaynak DB'ye
 // yazılmamıştır; yalnız "Kaynağı Kaydet" ile POST edilince kalıcı olur.
@@ -87,9 +99,22 @@ type FormState = {
   related_centers: string[];
   related_channels: string[];
   related_gates: number[];
-  sort_order: number;
+  /** Kapılar/Kanallar: kişisel görünen ad (numarasız). Diğer kategorilerde kullanılmaz. */
+  displayName: string;
   is_active: boolean;
 };
+
+/** Kaydın başlığındaki kişisel ad; yoksa (hazır/eski hazır ad) güncel hazır ad. */
+function displayNameFromRow(row: HdKnowledgeRow): string {
+  const sv = deriveStructuredValue(row.category, row.code);
+  if (!isHdGateChannelCategory(row.category) || !sv) return "";
+  const ov = buildHdNameOverrides([row]);
+  const g = parseHdGateKnowledgeCode(row.code);
+  if (g !== null) return ov.gates[g] ?? hdDefaultNameFor(row.category, sv);
+  const c = parseHdChannelKnowledgeCode(row.code);
+  if (c !== null) return ov.channels[c] ?? hdDefaultNameFor(row.category, sv);
+  return "";
+}
 
 function computeCode(category: string, title: string, structuredValue: string): string {
   if (!category) return "";
@@ -112,7 +137,7 @@ function rowToForm(row: HdKnowledgeRow): FormState {
     related_centers: row.related_centers ?? [],
     related_channels: row.related_channels ?? [],
     related_gates: row.related_gates ?? [],
-    sort_order: row.sort_order,
+    displayName: displayNameFromRow(row),
     is_active: row.is_active,
   };
 }
@@ -134,6 +159,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [form, setForm] = useState<FormState | null>(null);
+  const [identityLocked, setIdentityLocked] = useState(false);
   const [snapshot, setSnapshot] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [section, setSection] = useState<SectionId>("content");
@@ -183,6 +209,8 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
         return;
       }
       const f = rowToForm(row);
+      // Mevcut kapı/kanal kaydında kimlik (kategori + numara) kilitlidir; yalnız ad/açıklama düzenlenir.
+      setIdentityLocked(isHdGateChannelCategory(f.category) && !!f.structuredValue);
       setForm(f);
       setSnapshot(JSON.stringify(f));
       recordVersionRef.current = row.updated_at ?? null;
@@ -304,8 +332,9 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
       setSection("content");
       return;
     }
-    if (!form.title.trim()) {
-      showToast({ message: "Başlık girin.", type: "warning" });
+    const gateChannel = isHdGateChannelCategory(form.category);
+    if (gateChannel ? !form.structuredValue : !form.title.trim()) {
+      showToast({ message: gateChannel ? "Kapı/kanal seçin." : "Başlık girin.", type: "warning" });
       setSection("content");
       return;
     }
@@ -320,10 +349,14 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
       return;
     }
     setSaving(true);
-    const code = computeCode(form.category, form.title, form.structuredValue);
+    // Kapı/kanal: başlık = sabit numara + görünen ad (boş ad → hazır ad). Kod numaradan.
+    const title = gateChannel
+      ? hdComposeTitleFor(form.category, form.structuredValue, form.displayName)
+      : form.title.trim();
+    const code = computeCode(form.category, title, form.structuredValue);
     const { error, conflict, updatedAt } = await updateHdKnowledgeRecord(recordId, {
       category: form.category,
-      title: form.title.trim(),
+      title,
       code,
       content: form.content.trim(),
       expert_notes: form.expertNotes.trim() || null,
@@ -332,7 +365,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
       related_centers: form.related_centers,
       related_channels: form.related_channels,
       related_gates: form.related_gates,
-      sort_order: form.sort_order,
+      // sort_order GÖNDERİLMEZ: sıralama otomatik; eski değer DB'de dokunulmadan kalır.
       is_active: form.is_active,
     }, recordVersionRef.current);
     setSaving(false);
@@ -584,10 +617,11 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                 <label className={labelCls}>Kategori *</label>
                 <select
                   value={form.category}
+                  disabled={identityLocked}
                   onChange={(e) =>
-                    patch({ category: e.target.value, title: "", structuredValue: "" })
+                    patch({ category: e.target.value, title: "", structuredValue: "", displayName: "" })
                   }
-                  className={`h-9 ${fieldBase}`}
+                  className={`h-9 ${fieldBase} ${identityLocked ? "cursor-not-allowed bg-slate-50/80 text-slate-500" : ""}`}
                 >
                   <option value="">Seçin...</option>
                   {HD_KNOWLEDGE_CATEGORIES.map((cat) => (
@@ -595,6 +629,18 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                   ))}
                 </select>
               </div>
+              {isHdGateChannelCategory(form.category) ? (
+                <HdGateChannelNameField
+                  category={form.category}
+                  structuredValue={form.structuredValue}
+                  name={form.displayName}
+                  onPick={(v) => patch({ structuredValue: v, displayName: hdDefaultNameFor(form.category, v) })}
+                  onName={(n) => patch({ displayName: n })}
+                  fieldBase={fieldBase}
+                  labelCls={labelCls}
+                  lockIdentity={identityLocked}
+                />
+              ) : (
               <div>
                 <label className={labelCls}>Başlık *</label>
                 {(() => {
@@ -627,6 +673,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                   );
                 })()}
               </div>
+              )}
               <div>
                 <label className={labelCls}>Kod (otomatik)</label>
                 <input
@@ -634,16 +681,6 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                   value={computeCode(form.category, form.title, form.structuredValue)}
                   readOnly
                   className={`h-9 ${fieldBase} cursor-not-allowed bg-slate-50/80 text-slate-400`}
-                />
-              </div>
-              <div>
-                <label className={labelCls}>Sıralama</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={form.sort_order}
-                  onChange={(e) => patch({ sort_order: Number(e.target.value) })}
-                  className={`h-9 ${fieldBase}`}
                 />
               </div>
               <div className="flex items-center gap-2.5 sm:col-span-2">
@@ -659,7 +696,9 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                 </label>
               </div>
               <div className="sm:col-span-2 rounded-xl border border-sky-200/80 bg-sky-50/60 px-3 py-2.5 text-xs leading-relaxed text-sky-800">
-                {isStructured ? (
+                {isHdGateChannelCategory(form.category) ? (
+                  <>Kayıtlar otomatik sıralanır: kapılar numaraya, kanallar kapı çiftine göre.</>
+                ) : isStructured ? (
                   <><span className="font-bold">Yapısal kategori: </span>Kod dropdown seçiminden otomatik üretilir ve rapor kod eşleşmesinde kullanılır. Başlığı elle yazmayın.</>
                 ) : form.category ? (
                   <><span className="font-bold">Serbest kategori: </span>Başlık serbest; kod başlıktan türetilir. Harita kodlarıyla eşleşmediği için Word raporuna eklenmez.</>

@@ -1,5 +1,6 @@
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type { HumanDesignChart, HumanDesignKnowledgeRecord } from "@/lib/human-design/types";
+import { sortHdKnowledgeRecords } from "@/lib/human-design/knowledge/hdKnowledgeSort";
 
 // Sprint-3/4: human_design_charts + knowledge_records + reports okuma/yazma tamamen
 // server route'ları (/api/hd/charts, /api/hd/knowledge, /api/hd/reports — service_role)
@@ -118,7 +119,8 @@ export async function loadKnowledgeForCodes(codes: string[]): Promise<{
     };
   }
 
-  const records = j.rows as HumanDesignKnowledgeRecord[];
+  // Otomatik sıra (kapı numarası / kanal çifti / sabit seçenek / TR alfabetik) — sort_order değil.
+  const records = sortHdKnowledgeRecords(j.rows as HumanDesignKnowledgeRecord[], CATEGORY_ORDER);
   const matchedCodes = records.map((r) => r.code);
 
   // Kategoriye göre grupla, belirlenen sıraya göre

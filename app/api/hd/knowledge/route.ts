@@ -6,6 +6,7 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   listKnowledge,
   listKnowledgeByCodes,
+  listKnowledgeNames,
   getKnowledgeById,
   insertKnowledge,
   updateKnowledge,
@@ -54,6 +55,13 @@ export async function GET(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: true, row }, { status: 200, headers: NO_STORE });
   }
 
+  // Kapı/kanal görünen adları (yalnız category/code/title; içerik/özel not YOK).
+  if (url.searchParams.get("names") === "1") {
+    const { rows, error } = await listKnowledgeNames(guard.db, guard.tenantId);
+    if (error) return NextResponse.json({ ok: false, error }, { status: 500, headers: NO_STORE });
+    return NextResponse.json({ ok: true, rows }, { status: 200, headers: NO_STORE });
+  }
+
   const codesRaw = url.searchParams.get("codes");
 
   if (codesRaw !== null) {
@@ -94,7 +102,14 @@ export async function POST(req: NextRequest): Promise<Response> {
     );
   }
 
-  const { id, error } = await insertKnowledge(guard.db, guard.tenantId, guard.userId, raw);
+  const { id, error, existingId } = await insertKnowledge(guard.db, guard.tenantId, guard.userId, raw);
+  if (existingId) {
+    // Aynı kod için ikinci kayıt üretilmez → mevcut kayda yönlendirilebilsin.
+    return NextResponse.json(
+      { ok: false, code: "DUPLICATE_CODE", error, existing_id: existingId },
+      { status: 409, headers: NO_STORE },
+    );
+  }
   if (error || !id) {
     return NextResponse.json(
       { ok: false, error: error ?? "Kayıt oluşturulamadı." },
