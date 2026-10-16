@@ -7,8 +7,9 @@
  * sızmaz, yanıp sönme yok). Sayfa ve API ayrıca kendi kapılarıyla korunur; bu yalnız görünürlüktür.
  * Adres değişmedi: /astroloji (eski bağlantılar ve yer imleri çalışır).
  *
- * 2026-10-16 görünüm (owner referans görseli): koyu kozmik şerit, satırın tamamı; dekor tamamen satır içi SVG
- * (görsel dosyası / dış kaynak yok). Burç simgeleri unicode DEĞİL çizgi — Android'de renkli emojiye dönmesin.
+ * 2026-10-16 görünüm (owner referans görseli): koyu kozmik zemin, altın başlık, yıldızlar ve burç çarkı; dekor tamamen
+ * satır içi SVG (görsel dosyası / dış kaynak yok). Burç simgeleri unicode DEĞİL çizgi — Android'de renkli emojiye dönmesin.
+ * 2026-10-17 owner kararı: kart diğer modül kartlarıyla AYNI genişlikte (ızgarada tek hücre; tam satır YOK).
  */
 import Link from "next/link";
 import { useEffect, useId, useState } from "react";
@@ -91,56 +92,38 @@ export default function AtlasCenterCard() {
   return (
     <Link
       href="/astroloji"
-      className="group relative isolate flex min-h-[176px] overflow-hidden rounded-[22px] bg-[#0B1030] shadow-[0_18px_40px_-22px_rgba(30,20,90,0.65)] ring-1 ring-white/10 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_-22px_rgba(60,40,160,0.75)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9B56F] sm:col-span-2 sm:min-h-[210px]"
+      className="group relative isolate flex min-h-[184px] overflow-hidden rounded-[18px] sm:min-h-[188px] bg-[#0B1030] shadow-[0_14px_32px_-20px_rgba(30,20,90,0.7)] ring-1 ring-white/10 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-20px_rgba(60,40,160,0.8)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9B56F]"
       data-testid="life-analysis-atlas-card"
     >
       {/* Kozmik arka plan: lacivert taban + mor bulutsu ışımaları */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_60%_80%_at_75%_40%,rgba(99,62,190,0.45),transparent_70%),radial-gradient(ellipse_45%_60%_at_8%_10%,rgba(76,52,160,0.35),transparent_70%),radial-gradient(ellipse_50%_50%_at_45%_110%,rgba(120,80,200,0.35),transparent_70%),linear-gradient(120deg,#0A0E2C_0%,#141a4a_55%,#1d1450_100%)]"
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_70%_90%_at_85%_45%,rgba(99,62,190,0.5),transparent_70%),radial-gradient(ellipse_55%_60%_at_5%_5%,rgba(76,52,160,0.35),transparent_70%),linear-gradient(125deg,#0A0E2C_0%,#141a4a_60%,#1d1450_100%)]"
       />
       {/* Yıldız alanı */}
       <svg aria-hidden="true" focusable="false" className="pointer-events-none absolute inset-0 -z-10 h-full w-full" preserveAspectRatio="none">
-        {STARS.filter(([x, y]) => !(x < 76 && y > 8 && y < 86)).map(([x, y, r, bright], i) => (
+        {STARS.filter(([x, y]) => !(x < 72 && y > 8 && y < 90)).map(([x, y, r, bright], i) => (
           <circle key={i} cx={`${x}%`} cy={`${y}%`} r={r} fill={bright ? "#FCE7B8" : "#FFFFFF"} opacity={bright ? 0.95 : 0.55} />
         ))}
       </svg>
-      {/* Takımyıldız (yalnız geniş ekranda) */}
-      <svg aria-hidden="true" focusable="false" viewBox="0 0 160 70" className="pointer-events-none absolute left-[38%] top-[8%] -z-10 hidden w-36 opacity-80 md:block">
-        <polyline points="4,62 40,30 84,22 118,8 150,4" fill="none" stroke="#E7C383" strokeOpacity="0.55" strokeWidth="0.8" />
-        <polyline points="40,30 70,44 84,22" fill="none" stroke="#E7C383" strokeOpacity="0.4" strokeWidth="0.8" />
-        {[[4, 62], [40, 30], [84, 22], [118, 8], [150, 4], [70, 44]].map(([x, y]) => (
-          <circle key={`${x}-${y}`} cx={x} cy={y} r="1.8" fill="#FCE7B8" />
-        ))}
-      </svg>
-      {/* Gezegen yayı (alt orta) */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute -bottom-[330px] left-[52%] -z-10 hidden aspect-square w-[400px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_40%_12%,#7a68c4_0%,#43358a_30%,#221a55_60%,#130f36_80%)] opacity-90 shadow-[0_-8px_40px_-6px_rgba(245,208,138,0.35)] ring-1 ring-[#F5D08A]/30 md:block"
-      />
-      <span aria-hidden="true" className="pointer-events-none absolute bottom-6 left-[66%] -z-10 hidden h-7 w-7 rounded-full bg-[radial-gradient(circle_at_35%_35%,#9a93c8,#3e3878_65%,#1c1a45)] opacity-80 lg:block" />
-      {/* Burç çarkı: mobilde metnin arkasında silik, geniş ekranda sağda belirgin */}
+      {/* Burç çarkı: küçük kartın sağında, kenardan taşarak (kırpılma kasıtlı, metnin altına girmez) */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-20 top-1/2 -z-10 h-[230px] w-[230px] -translate-y-1/2 opacity-25 transition-transform duration-700 group-hover:rotate-[8deg] sm:right-16 sm:h-[260px] sm:w-[260px] sm:opacity-90 lg:right-24"
+        className="pointer-events-none absolute -right-16 top-1/2 -z-10 h-[190px] w-[190px] -translate-y-1/2 opacity-40 transition-transform duration-700 group-hover:rotate-[8deg] sm:-right-14 sm:h-[200px] sm:w-[200px] sm:opacity-80"
       >
         <ZodiacWheel gid={gid} />
       </div>
-      {/* Küçük ay (sağ üst) */}
-      <span aria-hidden="true" className="pointer-events-none absolute right-5 top-4 -z-10 hidden h-12 w-12 rounded-full bg-[radial-gradient(circle_at_35%_35%,#8a83b8,#3a3570_60%,#1c1a45)] opacity-80 sm:block" />
 
-      <div className="relative flex w-full flex-col justify-center gap-2 px-5 py-6 pr-20 sm:max-w-[56%] sm:px-8 sm:pr-8">
-        <h2 className="text-2xl font-bold tracking-tight text-[#F3D7A0] sm:text-[2rem] sm:leading-tight">Gökyüzü Atlası</h2>
-        <p className="max-w-md text-sm leading-6 text-slate-100/90 sm:text-[0.95rem]">
-          Tüm astroloji analizleri, danışan arşivi ve haritalı Word / PDF raporları.
-        </p>
+      <div className="relative flex w-full flex-col justify-center gap-1.5 py-5 pl-5 pr-[5.5rem] sm:pr-[10.5rem]">
+        <h2 className="text-xl font-bold tracking-tight text-[#F3D7A0] sm:text-2xl">Gökyüzü Atlası</h2>
+        <p className="text-sm leading-6 text-white">Tüm astroloji analizleri, danışan arşivi ve haritalı Word / PDF raporları.</p>
       </div>
 
       <span
         aria-hidden="true"
-        className="absolute bottom-4 right-4 flex h-11 w-11 items-center justify-center rounded-full border border-[#E7C383]/80 bg-[#0B1030]/80 text-[#F3D7A0] shadow-[0_0_18px_-4px_rgba(245,208,138,0.55)] backdrop-blur-sm transition duration-200 group-hover:translate-x-0.5 group-hover:border-[#F5D08A] group-hover:shadow-[0_0_24px_-2px_rgba(245,208,138,0.7)] sm:bottom-5 sm:right-5 sm:h-12 sm:w-12"
+        className="absolute bottom-4 right-4 flex h-10 w-10 items-center justify-center rounded-full border border-[#E7C383]/80 bg-[#0B1030]/80 text-[#F3D7A0] shadow-[0_0_16px_-4px_rgba(245,208,138,0.55)] backdrop-blur-sm transition duration-200 group-hover:translate-x-0.5 group-hover:border-[#F5D08A] group-hover:shadow-[0_0_22px_-2px_rgba(245,208,138,0.7)]"
       >
-        <ArrowRight className="h-5 w-5" strokeWidth={1.75} />
+        <ArrowRight className="h-[18px] w-[18px]" strokeWidth={1.75} />
       </span>
     </Link>
   );
