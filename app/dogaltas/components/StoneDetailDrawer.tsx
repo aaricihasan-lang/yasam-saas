@@ -7,7 +7,15 @@ import { type StoneListItemExtended } from "@/lib/dogaltas/stonesListFetch";
 import { useOverlay } from "@/lib/dogaltas/useOverlay";
 import { findMatchRanges, useSearchHighlight } from "@/lib/search/useSearchHighlight";
 import { StoneSourcesBar } from "@/app/dogaltas/components/StoneSourcesBar";
-import { PRIMARY_SOURCE_ID, sourceSearchText, type StoneSourceView } from "@/lib/dogaltas/stoneSources";
+import { SourceChakraList, SourceEntriesList } from "@/app/dogaltas/components/SourceFieldEntries";
+import {
+  chakraEntriesBySource,
+  fieldEntriesBySource,
+  isMultiSource,
+  sourceSearchText,
+  type SourceFieldEntry,
+  type StoneSourceView,
+} from "@/lib/dogaltas/stoneSources";
 import { fetchStoneSources } from "@/lib/dogaltas/stoneSourcesApi";
 import {
   useSignedStoneImageUrls,
@@ -85,18 +93,31 @@ function Section({
   );
 }
 
-/** Salt-okunur metin bloğu; boşsa render etmez. */
+/**
+ * Salt-okunur metin bloğu; boşsa render etmez. Madde 14: `entries` verilirse (çok kaynaklı taş)
+ * her kaynağın metni kendi adının altında AYRI blok olarak gösterilir.
+ */
 function TextSection({
   title,
   badge,
   tone,
   text,
+  entries,
 }: {
   title: string;
   badge: string;
   tone: "cyan" | "violet" | "emerald" | "rose" | "amber" | "slate";
   text: string | null | undefined;
+  entries?: SourceFieldEntry[] | null;
 }) {
+  if (entries) {
+    if (entries.length === 0) return null;
+    return (
+      <Section title={title} badge={badge} tone={tone}>
+        <SourceEntriesList entries={entries} clamp={false} />
+      </Section>
+    );
+  }
   if (!text || !text.trim()) return null;
   return (
     <Section title={title} badge={badge} tone={tone}>
@@ -122,27 +143,23 @@ export function StoneDetailDrawer({
   const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
 
   // WT9: çoklu kaynak — panel açılınca taşın kaynakları okunur (yalnız kendi tenant'ı; API).
-  // Seçili kaynağın metin alanları + çakraları gösterilir; ad/görsel/atama/uyarı etiketi taşa ortak.
-  // Taş seçimi / kombinasyona ekleme mantığı DEĞİŞMEZ (listStone üzerinden).
+  // Madde 14: çok kaynaklı taşta her bölüm kaynakların metinlerini kendi adlarıyla AYRI gösterir;
+  // ad/görsel/atama/uyarı etiketi taşa ortak. Taş seçimi / kombinasyona ekleme mantığı DEĞİŞMEZ.
   const [sources, setSources] = useState<{ stoneId: string; list: StoneSourceView[] } | null>(null);
-  const [activeSourceId, setActiveSourceId] = useState<string>(PRIMARY_SOURCE_ID);
   const listStoneId = listStone?.id ?? null;
   useEffect(() => {
     if (!open || !listStoneId) return;
     let alive = true;
-    queueMicrotask(() => { if (alive) setActiveSourceId(PRIMARY_SOURCE_ID); });
     void fetchStoneSources(listStoneId).then((r) => {
       if (alive && r.ok && Array.isArray(r.sources)) setSources({ stoneId: listStoneId, list: r.sources });
     });
     return () => { alive = false; };
   }, [open, listStoneId]);
   const sourceList = sources && sources.stoneId === listStoneId ? sources.list : null;
-  const activeExtra = sourceList?.find((s) => !s.isPrimary && s.id === activeSourceId) ?? null;
-  const stone = useMemo(() => {
-    if (!listStone || !activeExtra) return listStone;
-    const f = activeExtra.fields;
-    return { ...listStone, ...f, chakras: f.chakras ?? [] } as StoneListItemExtended;
-  }, [listStone, activeExtra]);
+  const stone = listStone;
+  const multiSources = sourceList && isMultiSource(sourceList) ? sourceList : null;
+  const entriesOf = (field: Parameters<typeof fieldEntriesBySource>[1]) =>
+    multiSources ? fieldEntriesBySource(multiSources, field) : null;
   const termsKey = highlightTerms.join("\u0001");
   const sourceMatchCounts = useMemo<Record<string, number>>(() => {
     const terms = termsKey ? termsKey.split("\u0001") : [];
@@ -151,18 +168,6 @@ export function StoneDetailDrawer({
     for (const s of sourceList) out[s.id] = findMatchRanges(sourceSearchText({ name: null, fields: s.fields }), terms).length;
     return out;
   }, [sourceList, termsKey]);
-  // Arama koşulu yalnız bir ek kaynakta eşleşiyorsa o kaynak açılır (bir kez / taş başına).
-  const autoPickedFor = useRef<string | null>(null);
-  useEffect(() => {
-    if (!sourceList || !listStoneId || autoPickedFor.current === listStoneId) return;
-    autoPickedFor.current = listStoneId;
-    if ((sourceMatchCounts[PRIMARY_SOURCE_ID] ?? 0) > 0) return;
-    const first = sourceList.find((s) => !s.isPrimary && (sourceMatchCounts[s.id] ?? 0) > 0);
-    if (first) queueMicrotask(() => setActiveSourceId(first.id));
-  }, [sourceList, sourceMatchCounts, listStoneId]);
-  useEffect(() => {
-    if (!open) autoPickedFor.current = null;
-  }, [open]);
   const showSources = Boolean(sourceList && (sourceList.length > 1 || sourceList[0]?.name));
 
   // ESC kapatma + body scroll kilidi + focus tuzağı (P0-4).
@@ -215,7 +220,7 @@ export function StoneDetailDrawer({
 
   // WT8: arama eşleşmeleri — panel içindeki TÜM geçişler sarı; açılışta ilk eşleşmeye bir kez kaydırır.
   const contentRef = useRef<HTMLDivElement | null>(null);
-  useSearchHighlight(contentRef, highlightTerms, { enabled: open && Boolean(stone), resetKey: `${stone?.id ?? ""}:${activeSourceId}` });
+  useSearchHighlight(contentRef, highlightTerms, { enabled: open && Boolean(stone), resetKey: `${stone?.id ?? ""}:${sourceList?.length ?? 0}` });
 
   // WT8: arka plana gerçek DOKUNMA kapatır; içerikte başlayıp dışarıda biten sürükleme / kaydırma kapatmaz.
   const backdropDown = useRef<{ x: number; y: number } | null>(null);
@@ -238,6 +243,16 @@ export function StoneDetailDrawer({
     [t("usageCare"), stone.care],
     [t("usageApplication"), stone.application],
   ].filter(([, text]) => Boolean(text && String(text).trim())) as [string, string][];
+  // Madde 14: çok kaynaklı taşta kullanım alanları kaynak başına (dolu olan alanlar).
+  const usageMulti = multiSources
+    ? ([
+        [t("usageFengShui"), fieldEntriesBySource(multiSources, "feng_shui")],
+        [t("usageMeditation"), fieldEntriesBySource(multiSources, "meditation")],
+        [t("usageCare"), fieldEntriesBySource(multiSources, "care")],
+        [t("usageApplication"), fieldEntriesBySource(multiSources, "application")],
+      ] as [string, SourceFieldEntry[]][]).filter(([, e]) => e.length > 0)
+    : null;
+  const warningEntries = entriesOf("warning_text");
 
   if (typeof document === "undefined") return null;
 
@@ -307,8 +322,6 @@ export function StoneDetailDrawer({
             <div data-testid="drawer-sources" data-no-search-highlight>
               <StoneSourcesBar
                 sources={sourceList}
-                activeId={activeSourceId}
-                onSelect={setActiveSourceId}
                 editable={false}
                 matchCounts={sourceMatchCounts}
                 onAdd={async () => null}
@@ -382,12 +395,14 @@ export function StoneDetailDrawer({
             badge={t("shortBadge")}
             tone="cyan"
             text={stone.short_description}
+            entries={entriesOf("short_description")}
           />
           <TextSection
             title={t("generalTitle")}
             badge={t("generalBadge")}
             tone="cyan"
             text={stone.general_info}
+            entries={entriesOf("general_info")}
           />
 
           {/* Mineral içeriği + atamalar (Mineraller / Burçlar / Etkili Organlar ...) */}
@@ -414,7 +429,20 @@ export function StoneDetailDrawer({
           )}
 
           {/* Çakralar */}
-          {chakras.length > 0 && (
+          {multiSources ? (
+            chakraEntriesBySource(multiSources).length > 0 && (
+              <Section title={t("chakrasTitle")} badge={t("chakrasBadge")} tone="violet">
+                <SourceChakraList
+                  entries={chakraEntriesBySource(multiSources)}
+                  renderChip={(c) => (
+                    <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-black text-violet-700">
+                      {facet(c)}
+                    </span>
+                  )}
+                />
+              </Section>
+            )
+          ) : chakras.length > 0 && (
             <Section title={t("chakrasTitle")} badge={t("chakrasBadge")} tone="violet">
               <div className="flex flex-wrap gap-1.5">
                 {chakras.map((c) => (
@@ -435,28 +463,45 @@ export function StoneDetailDrawer({
             badge={t("physicalBadge")}
             tone="emerald"
             text={stone.physical_effects}
+            entries={entriesOf("physical_effects")}
           />
           <TextSection
             title={t("spiritualTitle")}
             badge={t("spiritualBadge")}
             tone="violet"
             text={stone.spiritual_effects}
+            entries={entriesOf("spiritual_effects")}
           />
           <TextSection
             title={t("otherTitle")}
             badge={t("otherBadge")}
             tone="amber"
             text={stone.other_effects}
+            entries={entriesOf("other_effects")}
           />
           <TextSection
             title={t("sourceTitle")}
             badge={t("sourceBadge")}
             tone="slate"
             text={stone.source_note}
+            entries={entriesOf("source_note")}
           />
 
           {/* Kullanım */}
-          {usage.length > 0 && (
+          {usageMulti ? (
+            usageMulti.length > 0 && (
+              <Section title={t("usageTitle")} badge={t("usageBadge")} tone="cyan">
+                <div className="space-y-2">
+                  {usageMulti.map(([title, entries]) => (
+                    <div key={title} className="rounded-lg border border-slate-200 bg-slate-50/80 p-2 shadow-inner">
+                      <p className="text-xs font-black text-slate-950">{title}</p>
+                      <SourceEntriesList entries={entries} clamp={false} textClassName="text-xs leading-5 text-slate-600" />
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            )
+          ) : usage.length > 0 && (
             <Section title={t("usageTitle")} badge={t("usageBadge")} tone="cyan">
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {usage.map(([title, text]) => (
@@ -475,9 +520,11 @@ export function StoneDetailDrawer({
           )}
 
           {/* Uyarılar */}
-          {(stone.warning_text?.trim() || warningTags.length > 0) && (
+          {((warningEntries ? warningEntries.length > 0 : stone.warning_text?.trim()) || warningTags.length > 0) && (
             <Section title={t("warningsTitle")} badge={t("warningsBadge")} tone="rose">
-              {stone.warning_text?.trim() && (
+              {warningEntries ? (
+                <SourceEntriesList entries={warningEntries} clamp={false} textClassName="text-sm leading-6 text-amber-700" prefix="⚠️ " />
+              ) : stone.warning_text?.trim() && (
                 <p className="whitespace-pre-wrap text-sm leading-6 text-amber-700">
                   ⚠️ {stone.warning_text}
                 </p>

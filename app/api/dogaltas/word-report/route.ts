@@ -40,7 +40,8 @@ import { PLAIN_HEADINGS, StaticTocCollector, type TocHeadingFns } from "@/lib/do
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 import { loadExtraSourcesForStones } from "@/lib/dogaltas/stoneSourcesServer";
-import { pickSourceFields, SOURCE_FIELD_LABELS, SOURCE_TEXT_FIELDS, sourceDisplayName } from "@/lib/dogaltas/stoneSources";
+import { pickSourceFields, sourceDisplayName, type SourceTextField } from "@/lib/dogaltas/stoneSources";
+import { bulletParagraphs, reportChakraEntries, reportFieldEntries, sourceAttribution, type ReportSource } from "@/lib/dogaltas/stoneSourceReport";
 
 export const runtime = "nodejs";
 
@@ -178,22 +179,49 @@ function buildSummary(counts: Record<string, number>, hd: TocHeadingFns = PLAIN_
   ];
 }
 
-/** WT9: bir taşın EK kaynakları — "KAYNAK: <ad>" başlığı + dolu alanlar (metin aynen). */
-function buildStoneExtraSources(extras: readonly Record<string, unknown>[]): ReportChild[] {
+/**
+ * Madde 14: çok kaynaklı taşın içerik alanları — her alan kendi başlığıyla, altında kaynak kaynak
+ * ("Kaynak: <ad>" + o kaynağın metni; aynen). Tek kaynaklı taş bu yolu KULLANMAZ (eski düzen).
+ */
+function buildMultiSourceStoneFields(s: StoneRow, extras: readonly Record<string, unknown>[], color: string): ReportChild[] {
+  const sources: ReportSource[] = [
+    { name: (s.primary_source_name ?? "").trim() || null, fields: pickSourceFields(s as unknown as Record<string, unknown>) },
+    ...extras.map((row) => ({ name: typeof row.source_name === "string" ? row.source_name : null, fields: pickSourceFields(row) })),
+  ];
   const out: ReportChild[] = [];
-  for (const row of extras) {
-    const fields = pickSourceFields(row);
-    out.push(h3(`KAYNAK: ${sourceDisplayName(typeof row.source_name === "string" ? row.source_name : null)}`));
-    let filled = 0;
-    for (const f of SOURCE_TEXT_FIELDS) {
-      const v = fields[f];
-      if (!v?.trim()) continue;
-      filled++;
-      out.push(fieldInline(SOURCE_FIELD_LABELS[f], v.trim()));
+  const field = (label: string, f: SourceTextField) => {
+    const entries = reportFieldEntries(sources, f);
+    if (entries.length === 0) return;
+    out.push(h3(label));
+    for (const e of entries) {
+      out.push(sourceAttribution(e.name, color));
+      out.push(bodyText(e.text));
     }
-    if (fields.chakras?.length) { filled++; out.push(fieldInline("Çakralar", fields.chakras.join(", "))); }
-    if (filled === 0) out.push(muted("Bu kaynakta henüz bilgi girilmemiş."));
+  };
+  field("Kısa Açıklama", "short_description");
+  field("Genel Bilgi", "general_info");
+  field("Kaynak Notu", "source_note");
+  field("Fiziksel Etkiler", "physical_effects");
+  field("Ruhsal Etkiler", "spiritual_effects");
+  field("Diğer Etkiler", "other_effects");
+  field("Feng Shui", "feng_shui");
+  field("Meditasyon", "meditation");
+  field("Bakım", "care");
+  field("Kullanım", "application");
+  const chakras = reportChakraEntries(sources);
+  if (chakras.length) {
+    out.push(h3("Çakralar"));
+    for (const e of chakras) {
+      out.push(sourceAttribution(e.name, color));
+      out.push(...bulletParagraphs(e.chakras));
+    }
   }
+  const asgn = fmtAssignments(s.assignments);
+  if (asgn) {
+    out.push(h3("Atamalar / Burçlar"));
+    out.push(bodyText(asgn));
+  }
+  field("Uyarılar", "warning_text");
   return out;
 }
 
@@ -223,9 +251,16 @@ function buildStonesSection(
     // Image (if available)
     if (imgBuf) result.push(embedImageParagraph(imgBuf, 400));
 
-    // WT9: kaynak bilgisi varsa birincil kaynak açıkça etiketlenir (aşağıdaki metinler ona aittir).
+    // WT9: tek kaynaklı taşta kaynak bilgisi varsa birincil kaynak etiketlenir (metinler ona aittir).
+    // Madde 14: çok kaynaklı taşta tüm kaynak adları listelenir; her metin kendi kaynağıyla basılır.
     const extras = extraSources.get(s.id) ?? [];
-    if ((s.primary_source_name ?? "").trim() || extras.length > 0) {
+    if (extras.length > 0) {
+      result.push(fieldInline("KAYNAKLAR", [s.primary_source_name ?? null, ...extras.map((r) => (typeof r.source_name === "string" ? r.source_name : null))].map(sourceDisplayName).join(" · ")));
+      if (safeLen(s.warning_tags)) result.push(fieldInline("Uyarı Etiketleri", safeJoin(s.warning_tags)));
+      result.push(...buildMultiSourceStoneFields(s, extras, color));
+      continue;
+    }
+    if ((s.primary_source_name ?? "").trim()) {
       result.push(fieldInline("KAYNAK", sourceDisplayName(s.primary_source_name)));
     }
 
@@ -259,7 +294,6 @@ function buildStonesSection(
       result.push(h3("Uyarılar"));
       result.push(bodyText(s.warning_text.trim()));
     }
-    result.push(...buildStoneExtraSources(extras));
   }
   return result;
 }

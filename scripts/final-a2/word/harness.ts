@@ -315,7 +315,21 @@ async function main() {
       const extra = [{ name: "Ek Kaynak Ü", fields: { general_info: "Ek genel", physical_effects: "Ek fiziksel", chakras: ["Taç"] } }];
       const mk = (m: typeof NEW, stone: StoneRow, ex: typeof extra) =>
         m.buildStoneReportDoc({ stone, imageBuf: null, isLibrary: false, expertName: "ZZ_Uzman", now: NOW, extraSources: ex as never }).doc;
-      await verify("Doğaltaş · tek taş (dolu + ek kaynak)", await docBuf(mk(NEW, full, extra)), await docBuf(mk(OLD as typeof NEW, full, extra)), { expectToc: true });
+      // Tek kaynaklı (adlı birincil) taş: yeni kurucu ESKİ düzenle birebir.
+      await verify("Doğaltaş · tek taş (dolu, tek kaynak)", await docBuf(mk(NEW, full, [])), await docBuf(mk(OLD as typeof NEW, full, [])), { expectToc: true });
+      // Manuel test Madde 14: çok kaynaklı taşta düzen BİLİNÇLİ değişti (kaynak başına bölüm → alan içinde
+      // "Kaynak: <ad>" blokları) → eskiyle başlık eşitliği beklenmez; yapı kontrolleri + İÇERİK KAYBI YOK.
+      const multiBuf = await docBuf(mk(NEW, full, extra));
+      await verify("Doğaltaş · tek taş (dolu + ek kaynak)", multiBuf, null, { expectToc: true });
+      {
+        const txt = paragraphs((await parse(multiBuf)).doc).map(pText).join("\n");
+        const must = ["Kısa", "Genel", "Kaynak notu", "Fiziksel", "Ruhsal", "Diğer", "Uyarı", "Hamilelik", "Feng", "Medit", "Bakım", "Uygulama",
+          "Kalp Çakrası", "Koç", "Ek genel", "Ek fiziksel", "Taç", "Kaynak: Birincil Kaynak", "Kaynak: Ek Kaynak Ü"];
+        const missing = must.filter((m) => !txt.includes(m));
+        check("Doğaltaş · tek taş (dolu + ek kaynak): veri kaybı yok (tüm kaynak metinleri + kaynak etiketleri var)", missing.length === 0, JSON.stringify(missing));
+        const iP = txt.indexOf("Kaynak: Birincil Kaynak\nFiziksel"), iE = txt.indexOf("Kaynak: Ek Kaynak Ü\nEk fiziksel");
+        check("Doğaltaş · tek taş (dolu + ek kaynak): Fiziksel Etkiler altında iki kaynak ayrı ve sıralı", iP >= 0 && iE > iP, JSON.stringify({ iP, iE }));
+      }
       const empty: StoneRow = { ...full, short_description: null, general_info: null, source_note: null, physical_effects: null, spiritual_effects: null,
         other_effects: null, warning_text: null, warning_tags: null, feng_shui: null, meditation: null, care: null, application: null,
         chakras: null, assignments: null, primary_source_name: null };

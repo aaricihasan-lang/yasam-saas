@@ -52,6 +52,35 @@ export const CLIENT_DETAIL_TAB_DEFS = [
 
 export type ClientDetailTab = (typeof CLIENT_DETAIL_TAB_DEFS)[number]["id"];
 
+/**
+ * Manuel test Madde 20: GÖRSEL olarak da yan yana kalması gereken sekme çiftleri. Sekme çubuğu
+ * `flex-wrap`'tir; satır sonu bir çiftin arasına düşerse (ör. "… Beslenme" / alt satır "Randevular")
+ * DOM sırası doğru olsa da owner'ın kabul kriteri bozulur. Çift tek kırılmaz grup olarak render edilir
+ * → gerekirse BİRLİKTE alt satıra geçer. Diğer sekmelerin sarma davranışı değişmez.
+ */
+export const CLIENT_DETAIL_TAB_KEEP_TOGETHER: readonly (readonly [ClientDetailTab, ClientDetailTab])[] = [
+  ["beslenme", "randevular"],
+];
+
+/**
+ * Görünür sekmeleri render gruplarına böler (sıra korunur). Bir KEEP_TOGETHER çifti görünür listede
+ * ARDIŞIKSA tek grup olur; aksi halde her sekme kendi grubudur.
+ */
+export function groupClientDetailTabs<T extends { readonly id: string }>(tabs: readonly T[]): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < tabs.length; i++) {
+    const cur = tabs[i]!;
+    const next = tabs[i + 1];
+    if (next && CLIENT_DETAIL_TAB_KEEP_TOGETHER.some(([a, b]) => a === cur.id && b === next.id)) {
+      out.push([cur, next]);
+      i++;
+    } else {
+      out.push([cur]);
+    }
+  }
+  return out;
+}
+
 /** Geriye uyumlu: tüm sekme id'leri (kayıt sırası). */
 export const CLIENT_DETAIL_TABS: readonly ClientDetailTab[] = CLIENT_DETAIL_TAB_DEFS.map((t) => t.id);
 

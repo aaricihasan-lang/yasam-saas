@@ -23,9 +23,10 @@ import {
   ReportChild,
   spacer,
 } from "@/lib/docx/reportHelpers";
-import { StaticTocCollector, type TocHeadingFns } from "@/lib/docx/premiumToc";
+import { StaticTocCollector } from "@/lib/docx/premiumToc";
 import { formatInstantDate, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
-import { SOURCE_FIELD_LABELS, SOURCE_TEXT_FIELDS, sourceDisplayName, type SourceFields } from "@/lib/dogaltas/stoneSources";
+import { pickSourceFields, sourceDisplayName, type SourceFields, type SourceTextField } from "@/lib/dogaltas/stoneSources";
+import { bulletParagraphs, reportChakraEntries, reportFieldEntries, sourceAttribution, type ReportSource } from "@/lib/dogaltas/stoneSourceReport";
 
 /** WT9: rapora girecek EK kaynak (birincil kaynak taş satırıdır). */
 export type StoneReportExtraSource = { name: string | null; fields: SourceFields };
@@ -57,27 +58,6 @@ export type StoneReportRow = {
   primary_source_name?: string | null;
 };
 
-/** WT9: tek bir ek kaynağın bölümü — her dolu alan kendi başlığıyla, metin AYNEN (kısaltma yok). */
-function buildExtraSourceSection(src: StoneReportExtraSource, index: number, hd: TocHeadingFns): ReportChild[] {
-  const out: ReportChild[] = [];
-  const name = sourceDisplayName(src.name);
-  out.push(divider());
-  out.push(profileLabel(`KAYNAK: ${name.toLocaleUpperCase("tr-TR")}`, C_STONE));
-  out.push(hd.h1Colored(`Ek Kaynak ${index + 1}: ${name}`, C_STONE));
-  let filled = 0;
-  for (const f of SOURCE_TEXT_FIELDS) {
-    const v = src.fields[f];
-    if (!v?.trim()) continue;
-    filled++;
-    out.push(hd.h2(SOURCE_FIELD_LABELS[f]));
-    out.push(bodyText(v.trim()));
-  }
-  const chakras = asStringArray(src.fields.chakras);
-  if (chakras.length) { filled++; out.push(...arraySection("Çakralar", chakras)); }
-  if (filled === 0) out.push(muted("Bu kaynakta henüz bilgi girilmemiş."));
-  return out;
-}
-
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -91,13 +71,16 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, "");
 }
 
-function countFilledSections(stone: StoneReportRow): number {
-  const fields = [
-    stone.short_description, stone.general_info, stone.source_note,
-    stone.physical_effects, stone.spiritual_effects, stone.other_effects,
-    stone.warning_text, stone.feng_shui, stone.meditation, stone.care, stone.application,
-  ];
-  const arrays = [stone.chakras, stone.warning_tags];
+const COUNTED_FIELDS: readonly SourceTextField[] = [
+  "short_description", "general_info", "source_note",
+  "physical_effects", "spiritual_effects", "other_effects",
+  "warning_text", "feng_shui", "meditation", "care", "application",
+];
+
+/** Dolu bölüm sayısı — çok kaynaklı taşta bir alan HERHANGİ bir kaynakta doluysa sayılır. */
+function countFilledSections(stone: StoneReportRow, sources: readonly ReportSource[]): number {
+  const fields = COUNTED_FIELDS.map((f) => (sources.some((s) => s.fields[f]?.trim()) ? "x" : null));
+  const arrays = [sources.length > 1 ? sources.flatMap((s) => asStringArray(s.fields.chakras)) : stone.chakras, stone.warning_tags];
   const hasAssignments = stone.assignments && typeof stone.assignments === "object" &&
     !Array.isArray(stone.assignments) && Object.keys(stone.assignments).length > 0;
   return fields.filter((f) => f?.trim()).length +
@@ -137,17 +120,28 @@ export function buildStoneReportDoc(input: {
   const primaryName = (stone.primary_source_name ?? "").trim();
   // Kaynak etiketi yalnız kaynak bilgisi varsa basılır (eski kayıt raporu değişmez).
   const showSources = Boolean(primaryName) || extraSources.length > 0;
+  // Madde 14: çok kaynaklı taşta HER ALAN kendi başlığı altında kaynak kaynak basılır
+  // ("Kaynak: <ad>" + o kaynağın metni). Tek kaynakta eski düzen birebir.
+  const multi = extraSources.length > 0;
+  const sources: ReportSource[] = [
+    { name: primaryName || null, fields: pickSourceFields(stone as unknown as Record<string, unknown>) },
+    ...extraSources,
+  ];
   const now = input.now ?? new Date();
   const stoneName = stone.stone_name || "İsimsiz Taş";
   const today = reportGeneratedLabel(undefined, now);
   const dateSlug = reportFileDate(undefined, now);
   const nameSlug = slugify(stoneName);
 
-  const filledSections = countFilledSections(stone);
+  const filledSections = countFilledSections(stone, multi ? sources : sources.slice(0, 1));
   const imageCount = Array.isArray(stone.images)
     ? stone.images.filter((img) => (img.file_path || img.url)?.trim()).length
     : 0;
-  const chakraCount = asStringArray(stone.chakras).length; // F-011 guard
+  // F-011 guard; çok kaynaklıda kaynakların çakra birleşimi (tekil).
+  const allChakras = multi
+    ? [...new Set(sources.flatMap((s) => asStringArray(s.fields.chakras)))]
+    : asStringArray(stone.chakras);
+  const chakraCount = allChakras.length;
 
   const all: ReportChild[] = [];
 
@@ -174,7 +168,7 @@ export function buildStoneReportDoc(input: {
     ["Taş Adı",       stoneName],
     ["Dolu Bölüm",    `${filledSections} bölüm`],
     ["Görsel Sayısı", `${imageCount} görsel`],
-    ["Çakra",         chakraCount > 0 ? safeJoin(stone.chakras) : "Belirtilmemiş"],
+    ["Çakra",         chakraCount > 0 ? safeJoin(allChakras) : "Belirtilmemiş"],
     ["Kayıt Tarihi",  formatInstantDate(stone.created_at, { fallback: "-" })],
     ...(showSources
       ? [["Bilgi Kaynakları", [sourceDisplayName(primaryName), ...extraSources.map((s) => sourceDisplayName(s.name))].join(" · ")] as [string, string]]
@@ -192,28 +186,41 @@ export function buildStoneReportDoc(input: {
     all.push(spacer());
   }
 
-  // ── WT9: birincil kaynak etiketi — Bölüm 1–4'teki metinler bu kaynağa aittir.
-  if (showSources) {
+  // ── WT9: tek kaynaklı taşta birincil kaynak etiketi — Bölüm 1–4'teki metinler bu kaynağa aittir.
+  // Madde 14: çok kaynaklıda etiket her metnin üstünde (alan içi), genel etiket basılmaz.
+  if (showSources && !multi) {
     all.push(profileLabel(`KAYNAK: ${sourceDisplayName(primaryName).toLocaleUpperCase("tr-TR")}`, C_STONE));
   }
+
+  /** Bir alanı basar; dolu ise true. Tek kaynak: başlık + metin (eski). Çok kaynak: başlık + kaynak blokları. */
+  const field = (label: string, f: SourceTextField): boolean => {
+    if (!multi) {
+      const v = (stone[f] as string | null | undefined)?.trim();
+      if (!v) return false;
+      all.push(toc.h2(label));
+      all.push(bodyText(v));
+      return true;
+    }
+    const entries = reportFieldEntries(sources, f);
+    if (entries.length === 0) return false;
+    all.push(toc.h2(label));
+    for (const e of entries) {
+      all.push(sourceAttribution(e.name, C_STONE));
+      all.push(bodyText(e.text));
+    }
+    return true;
+  };
 
   // ── Bölüm 1: Genel Bilgiler
   all.push(profileLabel("BÖLÜM 1", C_STONE));
   all.push(toc.h1Colored("1. Genel Bilgiler", C_STONE, true));
 
-  if (stone.short_description?.trim()) {
-    all.push(toc.h2("Kısa Açıklama"));
-    all.push(bodyText(stone.short_description.trim()));
-  }
-  if (stone.general_info?.trim()) {
-    all.push(toc.h2("Genel Taş Açıklaması"));
-    all.push(bodyText(stone.general_info.trim()));
-  }
-  if (stone.source_note?.trim()) {
-    all.push(toc.h2("Kaynak Notu"));
-    all.push(bodyText(stone.source_note.trim()));
-  }
-  if (!stone.short_description?.trim() && !stone.general_info?.trim() && !stone.source_note?.trim()) {
+  const b1 = [
+    field("Kısa Açıklama", "short_description"),
+    field("Genel Taş Açıklaması", "general_info"),
+    field("Kaynak Notu", "source_note"),
+  ];
+  if (!b1.some(Boolean)) {
     all.push(muted("Bu bölümde henüz bilgi girilmemiş."));
   }
 
@@ -222,14 +229,15 @@ export function buildStoneReportDoc(input: {
   all.push(profileLabel("BÖLÜM 2", C_STONE));
   all.push(toc.h1Colored("2. Etkiler", C_STONE));
 
-  if (stone.physical_effects?.trim()) { all.push(toc.h2("Fiziksel Etkiler"));  all.push(bodyText(stone.physical_effects.trim())); }
-  if (stone.spiritual_effects?.trim()) { all.push(toc.h2("Ruhsal Etkiler"));   all.push(bodyText(stone.spiritual_effects.trim())); }
-  if (stone.other_effects?.trim()) { all.push(toc.h2("Diğer Etkiler"));        all.push(bodyText(stone.other_effects.trim())); }
-  if (stone.warning_text?.trim()) { all.push(toc.h2("Uyarılar ve Hassasiyetler")); all.push(bodyText(stone.warning_text.trim())); }
+  const b2 = [
+    field("Fiziksel Etkiler", "physical_effects"),
+    field("Ruhsal Etkiler", "spiritual_effects"),
+    field("Diğer Etkiler", "other_effects"),
+    field("Uyarılar ve Hassasiyetler", "warning_text"),
+  ];
   all.push(...arraySection("Uyarı Etiketleri", asStringArray(stone.warning_tags)));
 
-  if (!stone.physical_effects?.trim() && !stone.spiritual_effects?.trim() &&
-      !stone.other_effects?.trim() && !stone.warning_text?.trim() && !safeLen(stone.warning_tags)) {
+  if (!b2.some(Boolean) && !safeLen(stone.warning_tags)) {
     all.push(muted("Bu bölümde henüz bilgi girilmemiş."));
   }
 
@@ -238,12 +246,13 @@ export function buildStoneReportDoc(input: {
   all.push(profileLabel("BÖLÜM 3", C_STONE));
   all.push(toc.h1Colored("3. Kullanım Alanları", C_STONE));
 
-  if (stone.feng_shui?.trim())    { all.push(toc.h2("Feng Shui")); all.push(bodyText(stone.feng_shui.trim())); }
-  if (stone.meditation?.trim())   { all.push(toc.h2("Meditasyon")); all.push(bodyText(stone.meditation.trim())); }
-  if (stone.care?.trim())         { all.push(toc.h2("Bakım")); all.push(bodyText(stone.care.trim())); }
-  if (stone.application?.trim())  { all.push(toc.h2("Uygulama")); all.push(bodyText(stone.application.trim())); }
-
-  if (!stone.feng_shui?.trim() && !stone.meditation?.trim() && !stone.care?.trim() && !stone.application?.trim()) {
+  const b3 = [
+    field("Feng Shui", "feng_shui"),
+    field("Meditasyon", "meditation"),
+    field("Bakım", "care"),
+    field("Uygulama", "application"),
+  ];
+  if (!b3.some(Boolean)) {
     all.push(muted("Bu bölümde henüz bilgi girilmemiş."));
   }
 
@@ -252,16 +261,24 @@ export function buildStoneReportDoc(input: {
   all.push(profileLabel("BÖLÜM 4", C_STONE));
   all.push(toc.h1Colored("4. Çakralar ve Atamalar", C_STONE));
 
-  all.push(...arraySection("Çakralar", asStringArray(stone.chakras)));
+  if (multi) {
+    const chakraEntries = reportChakraEntries(sources);
+    if (chakraEntries.length) {
+      all.push(h3("Çakralar"));
+      for (const e of chakraEntries) {
+        all.push(sourceAttribution(e.name, C_STONE));
+        all.push(...bulletParagraphs(e.chakras));
+      }
+    }
+  } else {
+    all.push(...arraySection("Çakralar", asStringArray(stone.chakras)));
+  }
   all.push(...buildAssignmentSections(stone.assignments));
 
-  if (!safeLen(stone.chakras) && (!stone.assignments || typeof stone.assignments !== "object" ||
+  if (!(multi ? chakraCount : safeLen(stone.chakras)) && (!stone.assignments || typeof stone.assignments !== "object" ||
       Array.isArray(stone.assignments) || Object.keys(stone.assignments).length === 0)) {
     all.push(muted("Bu bölümde henüz bilgi girilmemiş."));
   }
-
-  // ── WT9: ek kaynaklar — her biri kendi "KAYNAK:" başlığıyla, karışmadan.
-  extraSources.forEach((src, i) => all.push(...buildExtraSourceSection(src, i, toc)));
 
   // ── Ek görsel referansı
   if (imageCount > 1) {

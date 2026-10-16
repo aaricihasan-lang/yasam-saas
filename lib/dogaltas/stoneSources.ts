@@ -136,6 +136,40 @@ export function buildStoneSourcesView(
   return [primary, ...extras];
 }
 
+/** Bir bilgi alanında tek kaynağın içeriği — "bunu kim söyledi?" sorusunun cevabı. */
+export type SourceFieldEntry = { sourceId: string; name: string | null; isPrimary: boolean; text: string };
+export type SourceChakraEntry = { sourceId: string; name: string | null; isPrimary: boolean; chakras: string[] };
+
+/** Taşta birden çok kaynak var mı — alan içi kaynak blokları yalnız o zaman gösterilir (tek kaynakta eski görünüm). */
+export function isMultiSource(sources: readonly StoneSourceView[]): boolean {
+  return sources.length > 1;
+}
+
+/**
+ * Bir alanın KAYNAK BAŞINA içerikleri (kaynak sırası korunur; boş kaynak atlanır). Metin AYNEN
+ * (kırpma/birleştirme YOK) — her kaynak kendi içeriğinin sahibidir.
+ */
+export function fieldEntriesBySource(sources: readonly StoneSourceView[], field: SourceTextField): SourceFieldEntry[] {
+  const out: SourceFieldEntry[] = [];
+  for (const s of sources) {
+    const text = s.fields[field];
+    if (!text?.trim()) continue;
+    out.push({ sourceId: s.id, name: s.name, isPrimary: s.isPrimary, text });
+  }
+  return out;
+}
+
+/** Çakraların kaynak başına listesi (boş kaynak atlanır). */
+export function chakraEntriesBySource(sources: readonly StoneSourceView[]): SourceChakraEntry[] {
+  const out: SourceChakraEntry[] = [];
+  for (const s of sources) {
+    const chakras = (s.fields.chakras ?? []).filter((c) => c.trim());
+    if (chakras.length === 0) continue;
+    out.push({ sourceId: s.id, name: s.name, isPrimary: s.isPrimary, chakras });
+  }
+  return out;
+}
+
 /** Bu kaynakta hiç içerik var mı (boş alan dolu sayılmaz). */
 export function sourceHasContent(fields: SourceFields): boolean {
   return SOURCE_TEXT_FIELDS.some((f) => Boolean(fields[f]?.trim())) || (fields.chakras?.length ?? 0) > 0;
