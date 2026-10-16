@@ -7,7 +7,9 @@
 //     Yeni Roxy çağrısı YOK — açma / sekme değiştirme / yenileme = 0 sağlayıcı çağrısı.
 //   • Uzmanın Bilgi Bankası ile KARIŞMAZ: ayrı uç, ayrı bileşen; birbirinin yedeği değildir.
 //   • Metinler düz metin olarak basılır (React metin düğümü; HTML yorumlanmaz).
-//   • Uzun içerik: Genel açık; Merkezler / Kanallar / Aktivasyonlar katlanır (<details>).
+//   • Uzun içerik: Genel açık; Merkezler / Kanallar / Kapılar / Aktivasyonlar katlanır (<details>).
+//   • Kapılar: aktif her kapı BİR KEZ (1→64), kapı düzeyindeki Roxy açıklamasıyla; çizgi ve gezegen
+//     yorumları Aktivasyonlar'da kalır (karıştırılmaz).
 
 import { useEffect, useState, type ReactNode } from "react";
 import { getChartSystemReading, type SystemReadingFetchResult } from "@/lib/human-design/api/chartsClient";
@@ -19,6 +21,11 @@ import type {
   SystemReadingDto,
   SystemReadingGeneralItem,
 } from "@/lib/human-design/providers/roxy/systemReading";
+import {
+  groupSystemReadingGates,
+  SYSTEM_READING_GATE_EMPTY,
+  type SystemReadingGate,
+} from "@/lib/human-design/providers/roxy/systemReadingGates";
 
 export const SYSTEM_READING_SOURCE_NOTE =
   "Bu bölüm, Human Design hesaplaması sırasında sistem tarafından sağlanan açıklamaları içerir.";
@@ -129,10 +136,38 @@ function ActivationItem({ a }: { a: SystemReadingActivation }) {
   );
 }
 
+function GateItem({ g }: { g: SystemReadingGate }) {
+  return (
+    <Fold
+      level={2}
+      summary={
+        <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5" data-hd-sr-gate={g.gate}>
+          <span className="text-sm font-bold tabular-nums text-indigo-700">{g.gate}. Kapı</span>
+          {g.name ? <span className="text-sm font-semibold text-slate-800">— {g.name}</span> : null}
+          <span className="text-[11px] font-semibold text-slate-400 group-open:hidden">Açıklamayı göster</span>
+        </span>
+      }
+    >
+      {g.descriptions.length > 0 ? (
+        g.descriptions.map((d, i) => <Para key={i} label="Kapı açıklaması" text={d} />)
+      ) : (
+        <p className="text-sm text-slate-500" data-hd-sr-gate-empty>{SYSTEM_READING_GATE_EMPTY}</p>
+      )}
+      <p className="text-[11px] leading-relaxed text-slate-500" data-hd-sr-gate-acts>
+        <span className="font-semibold">Aktivasyonlar: </span>
+        {g.activations
+          .map((a) => `${a.side === "design" ? "Design" : "Personality"}${a.planet ? ` · ${a.planet}` : ""} ${g.gate}.${a.line}`)
+          .join(" — ")}
+      </p>
+    </Fold>
+  );
+}
+
 /** Saf sunum (fetch yok) — test edilebilir. */
 export function HdSystemReadingView({ data }: { data: SystemReadingDto }) {
   const design = data.activations.filter((a) => a.side === "design");
   const personality = data.activations.filter((a) => a.side === "personality");
+  const gates = groupSystemReadingGates(data.activations);
   return (
     <div className="space-y-3" data-hd-system-reading>
       {data.general.length > 0 ? (
@@ -158,6 +193,15 @@ export function HdSystemReadingView({ data }: { data: SystemReadingDto }) {
           <div className="space-y-2">
             {data.channels.map((c, i) => (
               <ChannelItem key={c.id ?? `ch-${i}`} c={c} />
+            ))}
+          </div>
+        </Fold>
+      ) : null}
+      {gates.length > 0 ? (
+        <Fold summary={<span className="text-sm font-black uppercase tracking-widest text-indigo-700">Kapılar ({gates.length})</span>}>
+          <div className="space-y-2" data-hd-sr-gates>
+            {gates.map((g) => (
+              <GateItem key={g.gate} g={g} />
             ))}
           </div>
         </Fold>
