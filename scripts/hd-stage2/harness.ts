@@ -678,8 +678,10 @@ async function main() {
     const calc = src("app/human-design/danisanlar/components/HdAutoCalcPanel.tsx");
     const iBusy = calc.indexOf("busyRef.current = true;");
     const iConfirm = calc.indexOf("await confirm({");
-    const iCompute = calc.indexOf("await computeRoxyChart(clientId, location.id)");
-    ok("13c Onay yalnız 'changed' durumunda; onaydan ÖNCE çift tıklama kilidi", /if \(state\.kind === "changed"\) \{/.test(calc) && iBusy > 0 && iBusy < iConfirm && iConfirm < iCompute);
+    // Mükerrer uyarısı (tek liste PR'ı): onaylı tekrar isteği aday anahtarlarını 3. parametreyle taşır;
+    // "changed" onayı ilk denemede bir kez sorulur (onaylı tekrar aynı onayı yeniden sormaz).
+    const iCompute = calc.indexOf("await computeRoxyChart(clientId, location.id");
+    ok("13c Onay yalnız 'changed' durumunda; onaydan ÖNCE çift tıklama kilidi", /if \(state\.kind === "changed"( && acknowledged\.length === 0)?\) \{/.test(calc) && iBusy > 0 && iBusy < iConfirm && iConfirm < iCompute);
     ok("13d İptal → kilit açılır ve HİÇBİR istek gönderilmez", /if \(!ok\) \{\s*busyRef\.current = false;\s*return;\s*\}/.test(calc));
     ok("13e Onay metni: eski analiz + yeni hesap + 1 hesaplama hakkı + eski Word silinmez", calc.includes("Kayıtlı analiz:") && calc.includes("Yeni hesaplama:") && calc.includes("1 Human Design hesaplama hakkı (RoxyAPI)") && calc.includes("Word raporları silinmez"));
     ok("13f 'Profesyonel Haritayı Aç' hesap çağırmaz (yalnız açar)", /onClick=\{\(\) => setOpenId\(state\.chartId\)\}/.test(calc));

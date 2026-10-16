@@ -224,7 +224,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
             href="/human-design/danisanlar"
             className="text-sm font-bold text-indigo-600 hover:underline"
           >
-            ← Human Design Hesaplama
+            ← Human Design Analizlerim
           </Link>
         </div>
       </HumanDesignShell>
@@ -236,9 +236,9 @@ export function HdDanisanDetayContent({ clientId }: Props) {
       {/* Sayfa başlığı */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-widest text-indigo-500">
-            Human Design Hesaplama
-          </p>
+          <Link href="/human-design/danisanlar" className="text-xs font-black uppercase tracking-widest text-indigo-500 no-underline hover:underline">
+            Human Design Analizlerim
+          </Link>
           <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
             {row.name}
           </h1>

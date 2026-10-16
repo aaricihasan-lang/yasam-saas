@@ -98,7 +98,10 @@ async function main() {
   const changed = execSync("git diff --name-only origin/main", { cwd: ROOT }).toString().trim().split(/\r?\n/).filter(Boolean);
   const untracked = execSync("git ls-files --others --exclude-standard", { cwd: ROOT }).toString().trim().split(/\r?\n/).filter(Boolean);
   const all = [...changed, ...untracked];
-  ok("5a Sunucu/yetki/Word/snapshot/hesap dosyaları değişmedi", !all.some((f) => /^app\/api\/|systemReading\.ts$|reportSnapshot|wordReport|\/engine\/|modulePermissions|userGuard|roxyChartService/.test(f)), all.join(", "));
+  // Kapılar bölümü SAF istemci türetmesidir: sistem yorumu DTO'su/ucu, Word/snapshot, motor ve yetki
+  // dosyaları bu özellik için değişmemeli (dal kapsamından bağımsız, yalnız bu dosyalar).
+  const gateScope = all.filter((f) => /providers\/roxy\/systemReading\.ts$|app\/api\/hd\/charts\/system-reading\/|reportSnapshot|wordReport|\/engine\/|modulePermissions|userGuard/.test(f));
+  ok("5a Sistem yorumu DTO/ucu, Word/snapshot, motor ve yetki dosyaları değişmedi", gateScope.length === 0, gateScope.join(", "));
   const panel = src("app/human-design/kayitli-haritalar/components/HdSystemReadingPanel.tsx");
   ok("5b Panel yalnız kayıtlı-yorum ucunu çağırır (Roxy adresi yok)", /getChartSystemReading\(chartId\)/.test(panel) && !/roxyapi\.com|callRoxy/i.test(panel + src("lib/human-design/providers/roxy/systemReadingGates.ts")));
   ok("5c Kapılar türetmesi saf (fetch yok)", !/fetch\(/.test(src("lib/human-design/providers/roxy/systemReadingGates.ts")));
@@ -135,9 +138,10 @@ async function main() {
   ok("6h Kilit, modal bileşeninde koşulsuz ve erken dönüşten ÖNCE çağrılır (hook kuralı)", hookIdx > 0 && earlyReturnIdx > hookIdx);
   ok("6i Tek scroll alanı: araç çubuğu flex-none, içerik min-h-0 flex-1 overflow-y-auto", /flex h-\[100dvh\] w-full flex-col/.test(modal) && /data-hd-toolbar/.test(modal) && /flex-none[^"]*border-b[^"]*bg-white[^"]*data-hd-toolbar|flex flex-none[^>]*data-hd-toolbar/.test(modal) && /min-h-0 flex-1 overflow-y-auto/.test(modal));
   ok("6j ESC/odak kancası değişmedi (useHdModalA11y aynen)", execSync("git diff --name-only origin/main -- app/human-design/components/useHdModalA11y.ts", { cwd: ROOT }).toString().trim() === "");
-  const otherModals = all.filter((f) => /Modal|Dialog/.test(f) && !/HdComputedChartModal\.tsx$/.test(f));
-  ok("6k Başka modal/diyalog dosyası değişmedi", otherModals.length === 0, otherModals.join(","));
-  ok("6l Global CSS'e dokunulmadı", !all.some((f) => /\.css$/.test(f)));
+  // Mevcut (main'de izlenen) başka modal/diyalog dosyası değişmedi; yeni eklenen bileşenler hariç.
+  const otherModals = changed.filter((f) => /Modal|Dialog/.test(f) && !/HdComputedChartModal\.tsx$/.test(f));
+  ok("6k Mevcut başka modal/diyalog dosyası değişmedi", otherModals.length === 0, otherModals.join(","));
+  ok("6l Global CSS'e dokunulmadı", !changed.some((f) => /\.css$/.test(f)) && !untracked.some((f) => /^app\/.*\.css$|^styles\//.test(f)));
 
   ok("Z Harness boyunca dış ağ çağrısı 0", netCalls.length === 0, netCalls.join(","));
   console.log(`\nHD KAPILAR + SCROLL: ${pass} PASS / ${fail} FAIL`);

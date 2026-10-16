@@ -52,7 +52,7 @@ function newRequestId(): string {
 }
 
 function successMessage(created: Extract<CreateResult, { ok: true }>, redacted: boolean, requested: HdCommentarySelection): string {
-  const notes: string[] = ["Yeni Word raporu oluşturuldu ve indirildi."];
+  const notes: string[] = ["Human Design Danışan Raporu hazırlandı ve indirildi (Word)."];
   if (created.bodygraph === "missing") notes.push("Bu rapor BodyGraph görseli OLMADAN oluşturuldu.");
   else if (created.bodygraph === "uploaded_image") notes.push("BodyGraph yerine danışan profilindeki harita görseli kullanıldı.");
   const wantedKnowledge = requested === "expert" || requested === "both";
@@ -61,12 +61,12 @@ function successMessage(created: Extract<CreateResult, { ok: true }>, redacted: 
   if (wantedKnowledge && created.expertEntries === 0) notes.push("Bilgi Bankanızda bu analizle eşleşen aktif açıklama bulunmadığından açıklama eklenmedi.");
   if (!wantedKnowledge && !wantedSystem) notes.push("Rapor teknik harita bilgileriyle oluşturuldu (açıklama / sistem yorumu seçilmedi).");
   if (redacted) notes.push(HD_REPORT_REDACTED_MESSAGE);
-  notes.push("Bu analizde “Kayıtlı Word'ü İndir” ile veya Kayıtlı Raporlar'dan tekrar indirebilirsiniz.");
+  notes.push("Bu analizde “Danışan Raporunu İndir” ile veya Kayıtlı Raporlar'dan tekrar indirebilirsiniz.");
   return notes.join(" ");
 }
 
 /** Önceden oluşturulmuş kayıtlı raporun indirildiğini açıkça söyler. */
-export const HD_SAVED_WORD_MESSAGE = "Önceden oluşturulmuş kayıtlı Word raporu indirildi; içeriği değiştirilmedi.";
+export const HD_SAVED_WORD_MESSAGE = "Önceden hazırlanmış Human Design Danışan Raporu indirildi (Word); içeriği değiştirilmedi.";
 
 export function HdProfessionalReportButton({
   chartId,
@@ -232,8 +232,8 @@ export function HdProfessionalReportButton({
             : phase === "downloading"
               ? "İndiriliyor…"
               : createdReportId
-                ? "Kayıtlı Word'ü İndir"
-                : label ?? "Yeni Word Oluştur"}
+                ? "Danışan Raporunu İndir"
+                : label ?? "Danışan Raporunu Hazırla"}
       </button>
       {createdReportId && !busy ? (
         <button
@@ -242,7 +242,7 @@ export function HdProfessionalReportButton({
           data-hd-word-new
           className="self-start text-[11px] font-bold text-emerald-700 underline-offset-2 hover:underline"
         >
-          Yeni Word oluştur (içerik seçerek)
+          Yeni Rapor Hazırla (içerik seçerek)
         </button>
       ) : null}
       {phase === "bodygraph_failed" ? (
@@ -293,7 +293,7 @@ export function HdProfessionalReportButton({
             className="w-full max-w-md rounded-t-2xl bg-white p-4 shadow-xl sm:rounded-2xl sm:p-5"
           >
             <h3 id="hd-word-commentary-title" className="text-base font-black text-slate-900">
-              Word raporuna neler eklensin?
+              Human Design Danışan Raporu&apos;na neler eklensin?
             </h3>
             <p className="mt-1 text-xs leading-relaxed text-slate-600">
               Teknik harita bilgileri her raporda yer alır. Aşağıdakiler yalnız siz işaretlerseniz eklenir.
@@ -394,7 +394,7 @@ export function HdProfessionalReportButton({
                 onClick={confirmChoice}
                 className="h-10 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 text-sm font-black text-white shadow-sm hover:brightness-105"
               >
-                Word&apos;ü oluştur
+                Raporu Hazırla
               </button>
             </div>
           </div>

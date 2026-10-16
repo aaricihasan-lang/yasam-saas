@@ -1,6 +1,7 @@
 "use client";
 
-// AŞAMA 3C — "Geçmiş Human Design Analizleri" (eski Kayıtlı Haritalar / Kayıtlı Raporlar ana kartlarının
+// Danışan DETAYI — bu profilin tüm analizleri + Human Design Danışan Raporu (ana liste artık
+// HdAnalysisGroupList; bu bileşen ana sayfada kullanılmaz). Eski not: AŞAMA 3C — "Geçmiş Human Design Analizleri" (eski Kayıtlı Haritalar / Kayıtlı Raporlar ana kartlarının
 // yerine). Mevcut liste yardımcıları ve mevcut profesyonel harita penceresi YENİDEN kullanılır:
 //   • Otomatik (Roxy) + eski motor analizleri  → listComputedCharts  → HdComputedChartModal
 //   • Manuel (eski, salt-okunur) kayıtlar      → listChartsWithClients → /kayitli-haritalar/[id]
@@ -9,7 +10,8 @@
 //
 // Satış öncesi sadeleştirme: "Kayıtlı Human Design Analizleri" — hesaplanan her analiz OTOMATİK
 // kaydedilir; burada açılır ve Word olarak indirilir (ayrı rapor sayfasında arama gerekmez).
-//   • "Kayıtlı Word'ü İndir" (hazır Word v2 varsa AYNISI, içerik değişmeden) / "Word Oluştur" (yoksa analiz açılır;
+//   • HUMAN DESIGN DANIŞAN RAPORU: "Danışan Raporunu İndir" (hazır Word v2 varsa AYNISI, içerik değişmeden) /
+//     "Danışan Raporunu Hazırla" (yoksa analiz açılır;
 //     içerik seçimi — varsayılan kapalı — ile) ayrı etiketlerdir. Yeni Word için analiz açılır ve
 //     Word akışı (PR #359 Word v2) bir kez başlar. Roxy çağrısı YOK. Android'de gizli (kural).
 //   • Aynı sayfada yeni hesap kaydedilince (HD_CHART_SAVED_EVENT) liste anında yenilenir ve yeni
@@ -191,7 +193,7 @@ export function HdAnalysisHistory({
     setWordMsg(
       dl.ok
         ? { id: it.id, tone: "ok", text: dl.systemReadingRedacted ? `${HD_SAVED_WORD_MESSAGE} ${HD_REPORT_REDACTED_MESSAGE}` : HD_SAVED_WORD_MESSAGE }
-        : { id: it.id, tone: "err", text: `Word indirilemedi: ${dl.error}` },
+        : { id: it.id, tone: "err", text: `Danışan raporu indirilemedi: ${dl.error}` },
     );
   }
 
@@ -203,7 +205,7 @@ export function HdAnalysisHistory({
         <div className="min-w-0">
           <h2 className="m-0 text-xs font-black uppercase tracking-widest text-indigo-700">Kayıtlı Human Design Analizleri</h2>
           <p className="m-0 mt-1 text-[11px] leading-relaxed text-slate-500">
-            Hesaplanan her analiz otomatik kaydedilir. Buradan açabilir ve Word olarak indirebilirsiniz.
+            Hesaplanan her analiz otomatik kaydedilir. Her analizin Human Design Danışan Raporu (Word) o analiz için hazırlanır ve indirilir.
           </p>
         </div>
         <Link href="/human-design/kayitli-raporlar" className="text-xs font-bold text-indigo-600 hover:underline">
@@ -240,7 +242,7 @@ export function HdAnalysisHistory({
                           ✓ Kaydedildi
                         </span>
                       ) : null}
-                      {hasWord ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Word hazır</span> : null}
+                      {hasWord ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Rapor hazır</span> : null}
                     </p>
                     <p className="m-0 mt-0.5 break-words text-xs text-slate-600">
                       {[`${formatIsoDateTr(it.birthDate)}${it.birthTime ? ` ${it.birthTime}` : ""} verileriyle`, it.summary, `Analiz: ${formatIsoDateTr(it.createdAt)}`].filter(Boolean).join(" · ")}
@@ -256,7 +258,7 @@ export function HdAnalysisHistory({
                         data-hd-history-word={it.id}
                         className="h-9 rounded-xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-bold text-emerald-800 hover:bg-emerald-100 disabled:opacity-60"
                       >
-                        {wordBusy === it.id ? "İndiriliyor…" : hasWord ? "Kayıtlı Word'ü İndir" : "Word Oluştur"}
+                        {wordBusy === it.id ? "İndiriliyor…" : hasWord ? "Danışan Raporunu İndir" : "Danışan Raporunu Hazırla"}
                       </button>
                     ) : null}
                     {it.kind === "manual" ? (
@@ -294,7 +296,7 @@ export function HdAnalysisHistory({
           onClose={() => {
             setOpenId(null);
             setAutoWord(false);
-            void load(); // pencerede oluşturulan Word raporu "Word hazır" olarak görünsün
+            void load(); // pencerede hazırlanan rapor "Rapor hazır" olarak görünsün
           }}
           onDeleted={() => {
             setOpenId(null);

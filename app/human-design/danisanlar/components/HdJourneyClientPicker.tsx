@@ -11,6 +11,8 @@ import { readYasamUser } from "@/lib/auth/yasamUser";
 import { formatIsoDateTr, journeyAction, searchJourneyClients, type JourneyClientOption } from "@/lib/human-design/api/journeyClient";
 import { HdBirthLocationPicker, type HdPickedLocation } from "../../components/HdBirthLocationPicker";
 import { hdFieldBase, hdLabelCls } from "./HdClientForm";
+import type { HdDuplicateCandidate } from "@/lib/human-design/api/hdIdentity";
+import { HdDuplicateDialog } from "./HdDuplicateDialog";
 
 export function HdJourneyClientPicker() {
   const router = useRouter();
@@ -24,6 +26,7 @@ export function HdJourneyClientPicker() {
   const [birthTime, setBirthTime] = useState("");
   const [birthLoc, setBirthLoc] = useState<HdPickedLocation | null>(null);
   const [saving, setSaving] = useState(false);
+  const [dup, setDup] = useState<HdDuplicateCandidate[] | null>(null);
   const seq = useRef(0);
 
   useEffect(() => {
@@ -51,7 +54,7 @@ export function HdJourneyClientPicker() {
     setBirthLoc(null);
   }
 
-  async function createProfile() {
+  async function createProfile(acknowledged: string[] = []) {
     if (!selected || saving) return;
     if (readYasamUser()?.is_demo_account === true) {
       showToast({ message: "Demo hesabında danışan işlemi yapılamaz.", type: "info" });
@@ -68,8 +71,14 @@ export function HdJourneyClientPicker() {
       birth_time: birthTime,
       birth_location_ref: birthLoc!.id,
       ...(selected.dogum ? {} : { birth_date: birthDate }),
+      ...(acknowledged.length ? { acknowledged_duplicate_keys: acknowledged } : {}),
     });
     setSaving(false);
+    if (!r.ok && r.code === "POSSIBLE_DUPLICATE_CLIENT" && r.candidates && r.candidates.length > 0) {
+      setDup(r.candidates); // profil OLUŞMADI; uzman karar verir
+      return;
+    }
+    setDup(null);
     if (r.ok && r.hdClientId) {
       router.push(`/human-design/danisanlar/${r.hdClientId}`);
       return;
@@ -121,12 +130,31 @@ export function HdJourneyClientPicker() {
           <button
             type="button"
             onClick={() => void createProfile()}
+            data-hd-picker-save
             disabled={saving}
             className="h-10 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-6 text-sm font-black uppercase tracking-wide text-white shadow-sm transition hover:brightness-105 disabled:opacity-60"
           >
             {saving ? "Kaydediliyor..." : "Devam Et"}
           </button>
         </div>
+        {dup ? (
+          <HdDuplicateDialog
+            mode="client"
+            candidates={dup}
+            busy={saving}
+            onOpen={(c) => {
+              setDup(null);
+              if (c.hdClientId) router.push(`/human-design/danisanlar/${c.hdClientId}${c.chartId ? `?chart=${encodeURIComponent(c.chartId)}` : ""}`);
+              else if (c.chartId) router.push(`/human-design/kayitli-haritalar/${c.chartId}`); // profilsiz eski analiz: yalnız açılır
+              else if (c.journeyClientId) {
+                // Başka bir merkezî danışan (HD profili yok): seçimi o danışana çevir; kayıt OLUŞTURULMAZ.
+                setSelected({ id: c.journeyClientId, ad: c.name, soyad: "", dogum: c.birthDate, hd_client_id: null } as JourneyClientOption);
+              }
+            }}
+            onProceed={() => void createProfile(dup.map((c) => c.key))}
+            onCancel={() => setDup(null)}
+          />
+        ) : null}
       </div>
     );
   }
