@@ -41,7 +41,8 @@ import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 import { loadExtraSourcesForStones } from "@/lib/dogaltas/stoneSourcesServer";
 import { pickSourceFields, sourceDisplayName, type SourceTextField } from "@/lib/dogaltas/stoneSources";
-import { bulletParagraphs, reportChakraEntries, reportFieldEntries, sourceAttribution, type ReportSource } from "@/lib/dogaltas/stoneSourceReport";
+import { bulletParagraphs, entryParagraphs, reportChakraEntries, reportEntriesByField, reportSourceNames, sourceAttribution, type ReportSource } from "@/lib/dogaltas/stoneSourceReport";
+import { loadEntriesForStones } from "@/lib/dogaltas/stoneEntriesServer";
 
 export const runtime = "nodejs";
 
@@ -183,20 +184,22 @@ function buildSummary(counts: Record<string, number>, hd: TocHeadingFns = PLAIN_
  * Madde 14: çok kaynaklı taşın içerik alanları — her alan kendi başlığıyla, altında kaynak kaynak
  * ("Kaynak: <ad>" + o kaynağın metni; aynen). Tek kaynaklı taş bu yolu KULLANMAZ (eski düzen).
  */
-function buildMultiSourceStoneFields(s: StoneRow, extras: readonly Record<string, unknown>[], color: string): ReportChild[] {
-  const sources: ReportSource[] = [
+function multiSourceList(s: StoneRow, extras: readonly Record<string, unknown>[]): ReportSource[] {
+  return [
     { name: (s.primary_source_name ?? "").trim() || null, fields: pickSourceFields(s as unknown as Record<string, unknown>) },
     ...extras.map((row) => ({ name: typeof row.source_name === "string" ? row.source_name : null, fields: pickSourceFields(row) })),
   ];
+}
+
+function buildMultiSourceStoneFields(s: StoneRow, extras: readonly Record<string, unknown>[], entryRows: readonly Record<string, unknown>[], color: string): ReportChild[] {
+  const sources = multiSourceList(s, extras);
+  const byField = reportEntriesByField(sources, entryRows);
   const out: ReportChild[] = [];
   const field = (label: string, f: SourceTextField) => {
-    const entries = reportFieldEntries(sources, f);
+    const entries = byField[f];
     if (entries.length === 0) return;
     out.push(h3(label));
-    for (const e of entries) {
-      out.push(sourceAttribution(e.name, color));
-      out.push(bodyText(e.text));
-    }
+    for (const e of entries) out.push(...entryParagraphs(e.content, e.sourceName, color));
   };
   field("Kısa Açıklama", "short_description");
   field("Genel Bilgi", "general_info");
@@ -231,6 +234,7 @@ function buildStonesSection(
   imageBuffers: (Buffer | null)[],
   extraSources: ReadonlyMap<string, readonly Record<string, unknown>[]> = new Map(),
   hd: TocHeadingFns = PLAIN_HEADINGS,
+  stoneEntries: ReadonlyMap<string, readonly Record<string, unknown>[]> = new Map(),
 ): ReportChild[] {
   const color = SECTION_COLORS.stones;
   const result: ReportChild[] = [
@@ -254,10 +258,12 @@ function buildStonesSection(
     // WT9: tek kaynaklı taşta kaynak bilgisi varsa birincil kaynak etiketlenir (metinler ona aittir).
     // Madde 14: çok kaynaklı taşta tüm kaynak adları listelenir; her metin kendi kaynağıyla basılır.
     const extras = extraSources.get(s.id) ?? [];
-    if (extras.length > 0) {
-      result.push(fieldInline("KAYNAKLAR", [s.primary_source_name ?? null, ...extras.map((r) => (typeof r.source_name === "string" ? r.source_name : null))].map(sourceDisplayName).join(" · ")));
+    const entryRows = stoneEntries.get(s.id) ?? [];
+    if (extras.length > 0 || entryRows.length > 0) {
+      const names = reportSourceNames(reportEntriesByField(multiSourceList(s, extras), entryRows));
+      if (names.length) result.push(fieldInline("KAYNAKLAR", names.join(" · ")));
       if (safeLen(s.warning_tags)) result.push(fieldInline("Uyarı Etiketleri", safeJoin(s.warning_tags)));
-      result.push(...buildMultiSourceStoneFields(s, extras, color));
+      result.push(...buildMultiSourceStoneFields(s, extras, entryRows, color));
       continue;
     }
     if ((s.primary_source_name ?? "").trim()) {
@@ -525,10 +531,13 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // WT9: seçilen taşların ek kaynakları (yalnız bu tenant; migration yoksa boş → eski düzen).
   let stoneExtraSources = new Map<string, Record<string, unknown>[]>();
+  let stoneEntries = new Map<string, Record<string, unknown>[]>();
   if (sections.stones && stonesRows.length > 0) {
     try {
       const loaded = await loadExtraSourcesForStones(db, tenantId, stonesRows.map((s) => s.id));
       stoneExtraSources = new Map([...loaded].map(([k, v]) => [k, sanitizeXmlDeep(v)]));
+      const entries = await loadEntriesForStones(db, tenantId, stonesRows.map((s) => s.id));
+      stoneEntries = new Map([...entries].map(([k, v]) => [k, sanitizeXmlDeep(v)]));
     } catch (e) {
       return serverErrorResponse({ route: "dogaltas/word-report", action: "POST:stone_sources", tenantId, cause: e, usage: { guard: { ...auth, is_demo_account: false }, req, module: "stones", failedAction: "report_generated", subEntity: null } });
     }
@@ -600,7 +609,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   allChildren.push(...buildSummary(counts, toc));
 
   let sec = 2;
-  if (sections.stones)       allChildren.push(...buildStonesSection(stonesRows, sec++, stoneImageBuffers, stoneExtraSources, toc));
+  if (sections.stones)       allChildren.push(...buildStonesSection(stonesRows, sec++, stoneImageBuffers, stoneExtraSources, toc, stoneEntries));
   if (sections.minerals)     allChildren.push(...buildMineralsSection(mineralRows, sec++, toc));
   if (sections.combinations) allChildren.push(...buildCombinationsSection(comboRows, sec++, toc));
   if (sections.knowledge)    allChildren.push(...buildKnowledgeSection(knowledgeRows, sec++, toc));

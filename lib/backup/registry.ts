@@ -132,6 +132,8 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   entry("stones", "stones", "backup", "Taşlar", { storageRefs: [st("images", "catalog_tenant")] }),
   // WT9: taşın ek bilgi kaynakları (birincil kaynak stones satırıdır). Taştan SONRA geri yüklenir.
   entry("stone_sources", "stones", "backup", "Taş Ek Kaynakları", { fkParents: [fk("stone_id", "stones")] }),
+  // Bilgi kayıtları (her kaydın kendi kaynağı + sırası). Taştan SONRA geri yüklenir.
+  entry("stone_entries", "stones", "backup", "Taş Bilgi Kayıtları", { fkParents: [fk("stone_id", "stones")] }),
   entry("minerals", "stones", "backup", "Mineraller"),
   entry("combinations", "stones", "backup", "Kombinasyonlar"),
   entry("combination_stones", "stones", "backup", "Kombinasyon Taşları", {

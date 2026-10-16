@@ -83,10 +83,11 @@ async function docText(doc: Parameters<typeof Packer.toBuffer>[0]): Promise<stri
   // Madde 14: çok kaynaklı taşta her ALAN kendi başlığında, her metnin üstünde "Kaynak: <ad>".
   ok(txt.includes("Kaynak: Kristal Şifa Kitabı") && txt.includes("Kaynak: Ahmet Hoca Eğitim Notu") && !txt.includes("Ek Kaynak 1:") && !txt.includes("KAYNAK: KRİSTAL ŞİFA KİTABI"),
     "Word: her metin kendi kaynak etiketiyle (alan içi; ayrı 'Ek Kaynak' bölümü yok)");
-  ok(txt.indexOf("Kaynak: Kristal Şifa Kitabı") < txt.indexOf("Birincil genel") && txt.indexOf("Kaynak: Ahmet Hoca Eğitim Notu") < txt.indexOf("Ahmet fiziksel") && txt.includes("SON") && txt.includes("Kalp"),
-    "Word: kaynak etiketi metnin hemen üstünde, ek kaynak metni tam (kesilmeden) + çakra");
+  // Bilgi kaydı modeli: her bilgi "•  metin" ve HEMEN ALTINDA "Kaynak: <ad>".
+  ok(txt.includes("•  Birincil genel\nKaynak: Kristal Şifa Kitabı") && txt.indexOf("Kaynak: Ahmet Hoca Eğitim Notu") > txt.indexOf("•  Ahmet fiziksel") && txt.includes("SON") && txt.includes("Kalp"),
+    "Word: kaynak etiketi bilginin hemen altında, ek kaynak metni tam (kesilmeden) + çakra");
   ok(!txt.includes("Kaynak: Boş Kaynak"), "Word: içeriği olmayan kaynak alan içinde boş blok üretmez");
-  ok(/Bilgi Kaynakları/.test(txt) && txt.includes("Kristal Şifa Kitabı · Ahmet Hoca Eğitim Notu · Boş Kaynak"), "Word: özet sayfasında kaynak listesi");
+  ok(/Bilgi Kaynakları/.test(txt) && txt.includes("Kristal Şifa Kitabı · Ahmet Hoca Eğitim Notu") && !txt.includes("· Boş Kaynak"), "Word: özet sayfasında kaynak listesi (yalnız bilgi taşıyan kaynaklar)");
 
   console.log(`\nWT9 unit: ${pass} PASS / ${fail} FAIL`);
   process.exit(fail ? 1 : 0);

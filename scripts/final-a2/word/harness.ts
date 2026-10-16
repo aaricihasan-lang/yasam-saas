@@ -327,7 +327,7 @@ async function main() {
           "Kalp Çakrası", "Koç", "Ek genel", "Ek fiziksel", "Taç", "Kaynak: Birincil Kaynak", "Kaynak: Ek Kaynak Ü"];
         const missing = must.filter((m) => !txt.includes(m));
         check("Doğaltaş · tek taş (dolu + ek kaynak): veri kaybı yok (tüm kaynak metinleri + kaynak etiketleri var)", missing.length === 0, JSON.stringify(missing));
-        const iP = txt.indexOf("Kaynak: Birincil Kaynak\nFiziksel"), iE = txt.indexOf("Kaynak: Ek Kaynak Ü\nEk fiziksel");
+        const iP = txt.indexOf("•  Fiziksel\nKaynak: Birincil Kaynak"), iE = txt.indexOf("•  Ek fiziksel\nKaynak: Ek Kaynak Ü");
         check("Doğaltaş · tek taş (dolu + ek kaynak): Fiziksel Etkiler altında iki kaynak ayrı ve sıralı", iP >= 0 && iE > iP, JSON.stringify({ iP, iE }));
       }
       const empty: StoneRow = { ...full, short_description: null, general_info: null, source_note: null, physical_effects: null, spiritual_effects: null,

@@ -422,6 +422,9 @@ export const YH_INDEX_SOURCES = [
       // ek kaynak değişince tetikleyici stones satırını günceller → mevcut outbox yeniden indeksler.
       "primary_source_name",
       "extra_sources_text",
+      // Bilgi kaydı modeli: her kayıt "Alan / Kaynak: ad / metin" (stone_entries → stones.entries_text
+      // tetikleyicisi). Taş başına TEK belge; kayıt değişince stones satırı güncellenir → outbox.
+      "entries_text",
     ],
     snippetColumns: ["short_description", "warning_text"],
     topicTagsColumns: ["chakras", "warning_tags"],

@@ -102,12 +102,21 @@ export const CONTENT_SEARCH_COLUMNS = [
   // stones.extra_sources_text tetikleyicisi). "mide" farklı kaynaklarda geçse de taş bulunur.
   "primary_source_name",
   "extra_sources_text",
+  // Bilgi kaydı modeli: stone_entries'in türetilmiş metni (alan + "Kaynak: ad" + metin) — yalnız ikinci
+  // bilgi kaydında geçen kelime de taşı bulur.
+  "entries_text",
 ] as const;
 
 /** WT9 migration'ı öncesi şema (yeni kolonlar yok) için içerik arama kolonları — geri uyum. */
 export const LEGACY_CONTENT_SEARCH_COLUMNS = CONTENT_SEARCH_COLUMNS.filter(
-  (c) => c !== "primary_source_name" && c !== "extra_sources_text",
+  (c) => c !== "primary_source_name" && c !== "extra_sources_text" && c !== "entries_text",
 );
+
+/** Bilgi kaydı migration'ı öncesi (WT9 var, entries_text yok) içerik arama kolonları — geri uyum. */
+export const WT9_CONTENT_SEARCH_COLUMNS = CONTENT_SEARCH_COLUMNS.filter((c) => c !== "entries_text");
+
+/** İçerik araması şema kademesi: 0 = güncel, 1 = entries_text yok (WT9), 2 = WT9 öncesi. */
+export type ContentSchemaLevel = 0 | 1 | 2;
 
 export type SearchMode = "name" | "content";
 
@@ -171,7 +180,7 @@ export function buildTurkishInsensitiveRegex(safeTerm: string): string | null {
 export function buildStonesListSearchOrFilter(
   term: string,
   mode: SearchMode = "name",
-  opts: { legacySchema?: boolean } = {},
+  opts: { legacySchema?: boolean; schemaLevel?: ContentSchemaLevel } = {},
 ): string | null {
   const safeTerm = sanitizeOrSearchTerm(term);
   if (!safeTerm) return null;
@@ -180,7 +189,9 @@ export function buildStonesListSearchOrFilter(
 
   const columns =
     mode === "content"
-      ? (opts.legacySchema ? LEGACY_CONTENT_SEARCH_COLUMNS : CONTENT_SEARCH_COLUMNS)
+      ? ((opts.schemaLevel ?? (opts.legacySchema ? 2 : 0)) === 2
+          ? LEGACY_CONTENT_SEARCH_COLUMNS
+          : (opts.schemaLevel ?? 0) === 1 ? WT9_CONTENT_SEARCH_COLUMNS : CONTENT_SEARCH_COLUMNS)
       : NAME_SEARCH_COLUMNS;
   return columns.map((col) => `${col}.imatch."${regex}"`).join(",");
 }

@@ -44,7 +44,7 @@
         "source_note": "Oluşum / Kaynak Notu",
         "primarySource": "Bilgi Kaynağı",
         "primarySourcePlaceholder": "Ör. Kristal Şifa Kitabı",
-        "primarySourceHint": "Bu kayıttaki metinler hangi kaynaktan? Başka kaynakları taş detayında “Yeni Kaynak” ile ayrı ayrı ekleyebilirsiniz."
+        "primarySourceHint": "Bu formda yazdığınız ilk bilgiler hangi kaynaktan? Sonra taş detayında her alana farklı kaynaklı ayrı bilgi kayıtları ekleyebilirsiniz."
       },
       "effects": {
         "physical_effects": {

@@ -44,7 +44,7 @@
         "source_note": "Formation / Source Note",
         "primarySource": "Information Source",
         "primarySourcePlaceholder": "e.g. Crystal Healing Book",
-        "primarySourceHint": "Which source are these texts from? You can add other sources separately on the stone detail page with “New Source”."
+        "primarySourceHint": "Which source is the information in this form from? Later, on the stone detail page, you can add separate information entries with different sources to each field."
       },
       "effects": {
         "physical_effects": {

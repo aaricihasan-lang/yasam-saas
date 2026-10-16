@@ -14,6 +14,7 @@ import {
   STONES_LIST_ORDER_COLUMN,
   STONES_LIST_ORDER_OPTIONS,
   buildStonesListSearchOrFilter,
+  type ContentSchemaLevel,
 } from "@/lib/dogaltas/stonesListFetch";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -146,16 +147,17 @@ export async function GET(req: NextRequest): Promise<Response> {
     mark("exclusions", performance.now() - tExcl);
 
     if (mode === "count") {
-      const buildCount = (legacySchema: boolean) => {
+      const buildCount = (schemaLevel: ContentSchemaLevel) => {
         let query = db.from("stones").select("id", { count: "exact", head: true }).in("tenant_id", ids);
         if (excluded.length) query = query.not("id", "in", `(${excluded.join(",")})`);
-        if (q) { const or = buildStonesListSearchOrFilter(q, searchMode, { legacySchema }); if (or) query = query.or(or); }
+        if (q) { const or = buildStonesListSearchOrFilter(q, searchMode, { schemaLevel }); if (or) query = query.or(or); }
         return query;
       };
       const tC = performance.now();
-      let { count, error } = await buildCount(false);
-      // WT9 geri uyum: çoklu kaynak migration'ı henüz yoksa içerik araması eski kolonlarla yapılır.
-      if (error && q && searchMode === "content" && isSourcesSchemaMissing(error)) ({ count, error } = await buildCount(true));
+      let { count, error } = await buildCount(0);
+      // Geri uyum: bilgi kaydı / WT9 migration'ı henüz yoksa içerik araması bir önceki şemanın kolonlarıyla.
+      if (error && q && searchMode === "content" && isSourcesSchemaMissing(error)) ({ count, error } = await buildCount(1));
+      if (error && q && searchMode === "content" && isSourcesSchemaMissing(error)) ({ count, error } = await buildCount(2));
       mark("count", performance.now() - tC);
       if (error) return send(serverErrorResponse({ route: "dogaltas/stones", action: "GET:count", tenantId, cause: error }));
       const tR = performance.now();
@@ -176,7 +178,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     // aynı; ama wave-4'teki 2 paralel PostgREST çağrısı 1'e iner (round-trip azaltımı).
     const withCount = sp.get("withCount") === "1";
 
-    const buildList = (legacySchema: boolean) => {
+    const buildList = (schemaLevel: ContentSchemaLevel) => {
       let query = db
         .from("stones")
         .select(STONES_LIST_SELECT, withCount ? { count: "exact" as const } : undefined)
@@ -186,14 +188,15 @@ export async function GET(req: NextRequest): Promise<Response> {
         .order("id", { ascending: true })
         .range(offset, offset + limit - 1);
       if (excluded.length) query = query.not("id", "in", `(${excluded.join(",")})`);
-      if (q) { const or = buildStonesListSearchOrFilter(q, searchMode, { legacySchema }); if (or) query = query.or(or); }
+      if (q) { const or = buildStonesListSearchOrFilter(q, searchMode, { schemaLevel }); if (or) query = query.or(or); }
       return query;
     };
 
     // stones_count: liste + (withCount ise) toplam sayı TEK sorguda (Content-Range).
     const tSC = performance.now();
-    let listRes = await buildList(false);
-    if (listRes.error && q && searchMode === "content" && isSourcesSchemaMissing(listRes.error)) listRes = await buildList(true);
+    let listRes = await buildList(0);
+    if (listRes.error && q && searchMode === "content" && isSourcesSchemaMissing(listRes.error)) listRes = await buildList(1);
+    if (listRes.error && q && searchMode === "content" && isSourcesSchemaMissing(listRes.error)) listRes = await buildList(2);
     mark("stones_count", performance.now() - tSC);
     if (listRes.error) return send(serverErrorResponse({ route: "dogaltas/stones", action: "GET:list", tenantId, cause: listRes.error }));
     const tR = performance.now();

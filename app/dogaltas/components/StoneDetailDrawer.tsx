@@ -5,18 +5,18 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { type StoneListItemExtended } from "@/lib/dogaltas/stonesListFetch";
 import { useOverlay } from "@/lib/dogaltas/useOverlay";
-import { findMatchRanges, useSearchHighlight } from "@/lib/search/useSearchHighlight";
-import { StoneSourcesBar } from "@/app/dogaltas/components/StoneSourcesBar";
-import { SourceChakraList, SourceEntriesList } from "@/app/dogaltas/components/SourceFieldEntries";
+import { useSearchHighlight } from "@/lib/search/useSearchHighlight";
+import { SourceChakraList } from "@/app/dogaltas/components/SourceFieldEntries";
+import { StoneEntryList, StoneEntrySourcesSummary } from "@/app/dogaltas/components/StoneFieldEntries";
 import {
+  buildStoneSourcesView,
   chakraEntriesBySource,
-  fieldEntriesBySource,
   isMultiSource,
-  sourceSearchText,
-  type SourceFieldEntry,
   type StoneSourceView,
 } from "@/lib/dogaltas/stoneSources";
+import { buildAllFieldEntries, entrySourceSummary, type EntryField, type StoneEntryView } from "@/lib/dogaltas/stoneEntries";
 import { fetchStoneSources } from "@/lib/dogaltas/stoneSourcesApi";
+import { fetchStoneEntryRows } from "@/lib/dogaltas/stoneEntriesApi";
 import {
   useSignedStoneImageUrls,
   imageFilePath,
@@ -94,8 +94,8 @@ function Section({
 }
 
 /**
- * Salt-okunur metin bloğu; boşsa render etmez. Madde 14: `entries` verilirse (çok kaynaklı taş)
- * her kaynağın metni kendi adının altında AYRI blok olarak gösterilir.
+ * Salt-okunur metin bloğu; boşsa render etmez. Bilgi kaydı modeli: `entries` verilirse her bilgi
+ * kaydı ayrı satır olarak, KENDİ kaynağıyla gösterilir.
  */
 function TextSection({
   title,
@@ -108,13 +108,13 @@ function TextSection({
   badge: string;
   tone: "cyan" | "violet" | "emerald" | "rose" | "amber" | "slate";
   text: string | null | undefined;
-  entries?: SourceFieldEntry[] | null;
+  entries?: StoneEntryView[] | null;
 }) {
   if (entries) {
     if (entries.length === 0) return null;
     return (
       <Section title={title} badge={badge} tone={tone}>
-        <SourceEntriesList entries={entries} clamp={false} />
+        <StoneEntryList entries={entries} clamp={false} />
       </Section>
     );
   }
@@ -146,6 +146,7 @@ export function StoneDetailDrawer({
   // Madde 14: çok kaynaklı taşta her bölüm kaynakların metinlerini kendi adlarıyla AYRI gösterir;
   // ad/görsel/atama/uyarı etiketi taşa ortak. Taş seçimi / kombinasyona ekleme mantığı DEĞİŞMEZ.
   const [sources, setSources] = useState<{ stoneId: string; list: StoneSourceView[] } | null>(null);
+  const [entryRows, setEntryRows] = useState<{ stoneId: string; rows: Record<string, unknown>[] } | null>(null);
   const listStoneId = listStone?.id ?? null;
   useEffect(() => {
     if (!open || !listStoneId) return;
@@ -153,22 +154,26 @@ export function StoneDetailDrawer({
     void fetchStoneSources(listStoneId).then((r) => {
       if (alive && r.ok && Array.isArray(r.sources)) setSources({ stoneId: listStoneId, list: r.sources });
     });
+    void fetchStoneEntryRows(listStoneId).then((r) => {
+      if (alive && r.ok && Array.isArray(r.rows)) setEntryRows({ stoneId: listStoneId, rows: r.rows });
+    });
     return () => { alive = false; };
   }, [open, listStoneId]);
   const sourceList = sources && sources.stoneId === listStoneId ? sources.list : null;
   const stone = listStone;
   const multiSources = sourceList && isMultiSource(sourceList) ? sourceList : null;
-  const entriesOf = (field: Parameters<typeof fieldEntriesBySource>[1]) =>
-    multiSources ? fieldEntriesBySource(multiSources, field) : null;
-  const termsKey = highlightTerms.join("\u0001");
-  const sourceMatchCounts = useMemo<Record<string, number>>(() => {
-    const terms = termsKey ? termsKey.split("\u0001") : [];
-    if (!sourceList || terms.length === 0) return {};
-    const out: Record<string, number> = {};
-    for (const s of sourceList) out[s.id] = findMatchRanges(sourceSearchText({ name: null, fields: s.fields }), terms).length;
-    return out;
-  }, [sourceList, termsKey]);
-  const showSources = Boolean(sourceList && (sourceList.length > 1 || sourceList[0]?.name));
+  // Bilgi kaydı modeli: her alan = kayıtlar (eski metinler + yeni kayıtlar), her biri kendi kaynağıyla.
+  // Kaynaklar yüklenene kadar listedeki taş satırının metinleri eski kayıt olarak gösterilir.
+  const entriesByField = useMemo(
+    () => buildAllFieldEntries(
+      sourceList ?? (listStone ? buildStoneSourcesView(listStone as unknown as Record<string, unknown>, []) : []),
+      entryRows && entryRows.stoneId === listStoneId ? entryRows.rows : [],
+    ),
+    [sourceList, listStone, entryRows, listStoneId],
+  );
+  const entriesOf = (field: EntryField) => entriesByField[field];
+  const entrySources = useMemo(() => entrySourceSummary(entriesByField), [entriesByField]);
+  const showSources = entrySources.length > 0 && (entrySources.length > 1 || Boolean(entrySources[0]?.name));
 
   // ESC kapatma + body scroll kilidi + focus tuzağı (P0-4).
   // Esc önce açık görseli kapatır, sonra drawer'ı.
@@ -244,14 +249,12 @@ export function StoneDetailDrawer({
     [t("usageApplication"), stone.application],
   ].filter(([, text]) => Boolean(text && String(text).trim())) as [string, string][];
   // Madde 14: çok kaynaklı taşta kullanım alanları kaynak başına (dolu olan alanlar).
-  const usageMulti = multiSources
-    ? ([
-        [t("usageFengShui"), fieldEntriesBySource(multiSources, "feng_shui")],
-        [t("usageMeditation"), fieldEntriesBySource(multiSources, "meditation")],
-        [t("usageCare"), fieldEntriesBySource(multiSources, "care")],
-        [t("usageApplication"), fieldEntriesBySource(multiSources, "application")],
-      ] as [string, SourceFieldEntry[]][]).filter(([, e]) => e.length > 0)
-    : null;
+  const usageMulti = ([
+    [t("usageFengShui"), entriesOf("feng_shui")],
+    [t("usageMeditation"), entriesOf("meditation")],
+    [t("usageCare"), entriesOf("care")],
+    [t("usageApplication"), entriesOf("application")],
+  ] as [string, StoneEntryView[]][]).filter(([, e]) => e.length > 0);
   const warningEntries = entriesOf("warning_text");
 
   if (typeof document === "undefined") return null;
@@ -318,16 +321,9 @@ export function StoneDetailDrawer({
         {/* İçerik */}
         <div ref={contentRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
           {/* WT9: bilgi kaynağı sekmeleri (salt-okunur; düzenleme taş detayında). */}
-          {showSources && sourceList ? (
+          {showSources ? (
             <div data-testid="drawer-sources" data-no-search-highlight>
-              <StoneSourcesBar
-                sources={sourceList}
-                editable={false}
-                matchCounts={sourceMatchCounts}
-                onAdd={async () => null}
-                onRename={async () => null}
-                onDelete={() => {}}
-              />
+              <StoneEntrySourcesSummary sources={entrySources} />
             </div>
           ) : null}
           {/* Görseller */}
@@ -495,7 +491,7 @@ export function StoneDetailDrawer({
                   {usageMulti.map(([title, entries]) => (
                     <div key={title} className="rounded-lg border border-slate-200 bg-slate-50/80 p-2 shadow-inner">
                       <p className="text-xs font-black text-slate-950">{title}</p>
-                      <SourceEntriesList entries={entries} clamp={false} textClassName="text-xs leading-5 text-slate-600" />
+                      <StoneEntryList entries={entries} clamp={false} textClassName="text-xs leading-5 text-slate-600" />
                     </div>
                   ))}
                 </div>
@@ -523,7 +519,7 @@ export function StoneDetailDrawer({
           {((warningEntries ? warningEntries.length > 0 : stone.warning_text?.trim()) || warningTags.length > 0) && (
             <Section title={t("warningsTitle")} badge={t("warningsBadge")} tone="rose">
               {warningEntries ? (
-                <SourceEntriesList entries={warningEntries} clamp={false} textClassName="text-sm leading-6 text-amber-700" prefix="⚠️ " />
+                <StoneEntryList entries={warningEntries} clamp={false} textClassName="text-sm leading-6 text-amber-700" prefix="⚠️ " />
               ) : stone.warning_text?.trim() && (
                 <p className="whitespace-pre-wrap text-sm leading-6 text-amber-700">
                   ⚠️ {stone.warning_text}
