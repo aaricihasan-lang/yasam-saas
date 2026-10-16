@@ -252,7 +252,8 @@ async function main() {
     const g1 = hasanRows.find((r) => r.hdClientId === P1);
     ok(L.status === 200 && g1?.analysisCount === 2, "UX-03 aynı profilin iki analizi tek satırda (analiz sayısı 2)", g1);
     const noAnalysis = String(c3.json.hd_client_id);
-    ok(!hasanRows.some((r) => r.hdClientId === noAnalysis) && !(await byName("zeynep kaya")).some((r) => r.hdClientId === legacyId), "UX-02 analizi olmayan profiller listede yok");
+    const noRow = hasanRows.find((r) => r.hdClientId === noAnalysis);
+    ok(!!noRow && noRow.analysisCount === 0 && noRow.latestChartId === null && (await byName("zeynep kaya")).some((r) => r.hdClientId === legacyId), "UX-02 (2026-10-16 kararı) analizsiz profiller AYNI tek listede, 'analiz yok' durumuyla", noRow);
     const sameName = hasanRows.filter((r) => r.name === "Hasan Arıcı");
     ok(sameName.length >= 3 && new Set(sameName.map((r) => r.hdClientId)).size === sameName.length, "UX-04 aynı ad-soyadlı farklı profiller AYRI satır (otomatik birleştirme yok)", sameName.map((r) => r.hdClientId));
     ok(g1?.linkedToJourney === true, "UX-06 Danışan Yolculuğu'na bağlı profil → bağlı");
@@ -309,8 +310,8 @@ async function main() {
     ok(/Human Design Analizlerim/.test(page) && /<HdAnalysisGroupList \/>/.test(page) && !/<HdAnalysisHistory|<HdClientListesi/.test(page), "UX-01 ana sayfada tek liste (eski analiz listesi + profil tablosu yok)");
     ok(!/HdJourneyClientPicker \/>\s*\}\s*<\/div>\s*<\/section>\s*\n\s*<HdAnalysisGroupList/.test(page) && /newOpen \?/.test(page), "UX-01 danışan seçimi yalnız 'Yeni Human Design Analizi' açılınca görünür");
     const code = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    ok(!/Word|wordDownload|HdProfessionalReportButton|kayitli-raporlar/.test(code(groups)) && !/Word|kayitli-raporlar/.test(code(page)), "UX-08 ana listede Word butonu / Word listesi yönlendirmesi yok (yorumlar hariç kod)");
-    ok(/profiller/.test(page) && /HdClientListesi/.test(src("app/human-design/danisanlar/profiller/page.tsx")), "analizi olmayan profillere erişim korunur (Tüm Human Design profilleri ekranı)");
+    ok(!/wordDownload|HdProfessionalReportButton|kayitli-raporlar|Danışan Raporunu|Word Oluştur|Word'ü İndir/.test(code(groups)) && !/Word|kayitli-raporlar/.test(code(page)), "UX-08 ana listede Word butonu / Word listesi yönlendirmesi yok (yorumlar hariç kod)");
+    ok(/redirect\("\/human-design\/danisanlar"\)/.test(src("app/human-design/danisanlar/profiller/page.tsx")) && !/HdClientListesi|HdJourneyClientPicker/.test(code(page)), "eski profiller ekranı tek listeye yönlenir; ayrı profil/seçici listesi yok");
     const hist = src("app/human-design/danisanlar/components/HdAnalysisHistory.tsx");
     const btn = src("app/human-design/kayitli-haritalar/components/HdProfessionalReportButton.tsx");
     ok(/Danışan Raporunu İndir/.test(hist) && /Danışan Raporunu Hazırla/.test(hist) && /Danışan Raporunu İndir/.test(btn) && /Danışan Raporunu Hazırla/.test(btn) && /Yeni Rapor Hazırla/.test(btn), "UX-09 detayda 'Human Design Danışan Raporu' eylemleri");

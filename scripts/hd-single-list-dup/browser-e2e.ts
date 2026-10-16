@@ -114,29 +114,33 @@ async function main() {
       ok((await page.getByRole("button", { name: /Word|Rapor/ }).count()) === 0 && (await page.getByRole("link", { name: /Word/ }).count()) === 0, `${d.name}: UX-08 ana sayfada Word / rapor butonu yok`);
       ok((await groups.locator("[data-hd-group]").count()) === 20 && (await groups.locator("[data-hd-analysis-more]").isVisible()), `${d.name}: ilk sayfa 20 satır + 'Daha fazla göster'`);
       const total = Number(await groups.locator("[data-hd-analysis-total]").getAttribute("data-hd-analysis-total"));
-      const dbTotal = Number((await su.query(`select count(distinct client_id)::int n from public.human_design_charts where tenant_id=$1`, [TA])).rows[0].n);
+      // 2026-10-16 kararı: TEK liste = tüm HD profilleri (analizli + analizsiz) + profilsiz eski analizler.
+      const dbTotal = Number((await su.query(`select (select count(*) from public.human_design_clients where tenant_id=$1) + (select count(*) from public.human_design_charts where tenant_id=$1 and client_id is null) as n`, [TA])).rows[0].n);
       await groups.locator("[data-hd-analysis-more]").click();
       await page.waitForFunction(() => document.querySelectorAll("[data-hd-group]").length > 20, null, { timeout: 15_000 });
-      ok(total === dbTotal && (await groups.locator("[data-hd-group]").count()) === total && (await groups.locator("[data-hd-analysis-more]").count()) === 0, `${d.name}: 'Daha fazla göster' tüm analizli danışanları getirir (${dbTotal} = DB'deki analizli profil sayısı)`, { total, dbTotal });
-      ok((await groups.getByText("Analizsiz Kişi").count()) === 0, `${d.name}: UX-02 analizsiz profil listede yok`);
+      ok(total === dbTotal && (await groups.locator("[data-hd-group]").count()) === total && (await groups.locator("[data-hd-analysis-more]").count()) === 0, `${d.name}: 'Daha fazla göster' tüm danışanları getirir (${dbTotal} = DB'deki HD profili + profilsiz analiz)`, { total, dbTotal });
+      ok((await groups.locator("[data-hd-group]").filter({ hasText: "Analizsiz Kişi" }).locator('[data-hd-group-status="empty"]').count()) === 1, `${d.name}: UX-02 (yeni karar) analizsiz profil AYNI listede 'henüz analiz yok' durumuyla`);
       await page.locator("[data-hd-analysis-search]").fill("ARICI hasan");
-      await page.waitForFunction(() => document.querySelectorAll("[data-hd-group]").length === 1, null, { timeout: 15_000 });
-      const row = groups.locator("[data-hd-group]").first();
+      // Aynı ad-soyadlı iki AYRI profil (biri analizsiz) — isimle birleştirme yok (UX-04).
+      await page.waitForFunction(() => document.querySelectorAll("[data-hd-group]").length === 2, null, { timeout: 15_000 });
+      ok((await groups.locator(`[data-hd-group="hd:${PB}"] [data-hd-group-status="empty"]`).count()) === 1, `${d.name}: aynı adlı ikinci profil ayrı satır ('analiz yok')`);
+      const row = groups.locator(`[data-hd-group="hd:${PA}"]`);
       ok((await row.innerText()).includes("Hasan Arıcı") && (await row.locator("[data-hd-group-linked]").innerText()).includes("Danışan Yolculuğu'na bağlı"), `${d.name}: arama (ad+soyad, büyük harf) + yeşil bağlantı yazısı`);
       ok(await page.evaluate((w) => document.documentElement.scrollWidth <= w + 1, d.viewport.width), `${d.name}: yatay taşma yok`);
       await page.screenshot({ path: path.join(OUT, `liste-${d.name}.png`), fullPage: true });
+      // 2026-10-16 kararı: "Detayı Aç" kayıtlı profesyonel haritayı DOĞRUDAN açar (pencere).
       await row.locator(`[data-hd-group-open="${PA}"]`).click();
-      await page.waitForURL(new RegExp(`/human-design/danisanlar/${PA}`), { timeout: 30_000 });
-      const hist = page.locator("[data-hd-analysis-history]");
-      await hist.locator(`[data-hd-history-item$=":${chartA}"]`).waitFor({ timeout: 60_000 });
+      const detail = page.locator('[role="dialog"][aria-labelledby="hd-computed-detay-title"]');
+      await detail.locator("[data-hd-knowledge-tabs]").waitFor({ timeout: 60_000 });
+      await detail.locator("[data-hd-word-download]").waitFor({ timeout: 60_000 });
       // Word yalnız ANDROID'de gizlidir (mevcut kural); iPhone tarayıcısı ve masaüstünde görünür.
-      ok(await hist.locator(`[data-hd-history-word="${chartA}"]`).getByText("Danışan Raporunu Hazırla").isVisible(), `${d.name}: UX-09 detayda 'Danışan Raporunu Hazırla' (doğru analiz satırında)`);
-      ok((await hist.locator(`[data-hd-history-word="${chartA}"]`).count()) === 1 && (await hist.locator("[data-hd-history-word]").count()) === 1, `${d.name}: rapor eylemi analiz kimliğine bağlı (UX-10)`);
+      ok(await detail.locator("[data-hd-word-download]").getByText("Danışan Raporunu Hazırla").isVisible(), `${d.name}: UX-09 açılan analizde 'Danışan Raporunu Hazırla'`);
+      ok((await detail.locator("[data-hd-word-download]").count()) === 1, `${d.name}: rapor eylemi açılan analize bağlı (UX-10)`);
+      await detail.getByRole("button", { name: "Kapat" }).click();
       await page.goto(`${APP}/human-design/danisanlar`);
-      await page.locator("[data-hd-profiles-link]").click();
-      await page.waitForURL(/\/human-design\/danisanlar\/profiller/, { timeout: 30_000 });
-      await page.getByText("Analizsiz Kişi").first().waitFor({ timeout: 60_000 });
-      ok(true, `${d.name}: analizsiz profil 'Tüm Human Design profilleri' ekranında erişilebilir`);
+      await page.goto(`${APP}/human-design/danisanlar/profiller`);
+      await page.waitForURL(/\/human-design\/danisanlar$/, { timeout: 30_000 });
+      ok(true, `${d.name}: eski 'Tüm Human Design profilleri' adresi tek listeye yönlenir`);
       await page.context().close();
     }
 
@@ -145,12 +149,11 @@ async function main() {
       const page = await newPage(DEVICES[0]!);
       await page.goto(`${APP}/human-design/danisanlar`);
       await page.locator("[data-hd-new-analysis]").click();
-      await page.getByRole("tab", { name: "Yeni Danışan" }).click();
       const fill = async () => {
         await page.locator("#hd-new-ad").fill("HASAN ");
         await page.locator("#hd-new-soyad").fill("  ARICI");
-        await page.locator("#hd-new-dogum").fill("1990-05-01");
-        await page.locator("#hd-new-saat").fill("10:00");
+        await page.locator("#hd-new-dogum").fill("01051990");
+        await page.locator("#hd-new-saat").fill("1000");
         await page.locator("#hd-new-client-birth-place").fill("Selçuklu");
         await page.getByRole("option", { name: /Selçuklu/ }).first().click();
       };
@@ -173,7 +176,6 @@ async function main() {
       ok((await hdCount()) === n0, "DUP-07 'Mevcut Danışanı Aç' doğru kaydı açar, yeni kayıt yok");
       await page.goto(`${APP}/human-design/danisanlar`);
       await page.locator("[data-hd-new-analysis]").click();
-      await page.getByRole("tab", { name: "Yeni Danışan" }).click();
       await fill();
       await page.locator("[data-hd-new-client-save]").click();
       await dlg.waitFor();

@@ -150,76 +150,84 @@ async function main() {
       ok(w.hdLocation === 0 && w.roxyCompute === 0, `${d.name}: yazarken Roxy konum araması / hesaplama YOK`, w);
 
       section(`Profil silme — ${d.name}`);
+      // 2026-10-16 owner kararı: tek liste → "Detayı Aç" → "Human Design Kaydını Tamamen Sil" (3 adım + ad yazma).
       await page.goto(`${APP}/human-design/danisanlar`);
-      const history = page.locator("[data-hd-analysis-history]");
-      await history.locator(`[data-hd-history-item$=":${v.chart}"]`).waitFor({ timeout: 90_000 });
-      await page.locator("[data-hd-profiles] summary").click();
-      // Aynı isimli iki profil var (375px kurbanı ile korunacak profil) → satır KİMLİKLE bulunur:
-      // "Aç" bağlantısı profil kimliğini taşır.
-      const target = page.locator("[data-hd-profiles] tr").filter({ has: page.locator(`a[href="/human-design/danisanlar/${v.hd}"]`) });
-      await target.first().waitFor({ timeout: 30_000 });
-      ok((await target.count()) === 1, `${d.name}: silinecek profil satırı (kimlikle) bulundu`);
+      const row = (id: string) => page.locator(`[data-hd-group="hd:${id}"]`);
+      await row(v.hd).waitFor({ timeout: 90_000 });
+      ok((await row(v.hd).count()) === 1, `${d.name}: silinecek profil satırı (kimlikle) bulundu`);
       const snap = async () => [await count(`select count(*) n from public.human_design_clients`), await count(`select count(*) n from public.human_design_charts`), await count(`select count(*) n from public.human_design_reports`)].join("/");
       const s0 = await snap();
+      const modal = page.locator('[role="dialog"][aria-labelledby="hd-computed-detay-title"]');
+      const dlg = page.locator("[data-hd-full-delete]");
+      const openFull = async () => {
+        if (!(await modal.isVisible())) {
+          await row(v.hd).locator(`[data-hd-group-open="${v.hd}"]`).click();
+          await modal.locator("[data-hd-knowledge-tabs]").waitFor({ timeout: 60_000 });
+        }
+        await modal.locator("[data-hd-full-delete-open]").click();
+        await dlg.waitFor({ timeout: 20_000 });
+      };
 
-      // 1. aşamada Vazgeç
-      await target.getByRole("button", { name: "Sil" }).click();
-      const dlg = page.getByRole("alertdialog");
-      await dlg.waitFor({ timeout: 20_000 });
-      const msg1 = (await dlg.textContent()) ?? "";
-      ok(msg1.includes("Bu Human Design profiliyle birlikte ona bağlı tüm Human Design analizleri ve Word raporları kalıcı olarak silinecektir. Bu işlem geri alınamaz.") && msg1.includes("1 Human Design analizi ve 1 Word raporu"),
-        `${d.name}: 1. onay — owner metni + kesin sayılar`, msg1.slice(0, 300));
-      ok(msg1.includes("Danışan Yolculuğu'ndaki danışan kaydı ve diğer modüllerin verileri silinmez"), `${d.name}: 1. onay — DY korunur bilgisi`);
+      // 1. adımda Vazgeç
+      await openFull();
+      const msg1 = (await dlg.innerText()) ?? "";
+      ok(msg1.includes("Tüm Human Design analizleri ve kayıtlı profesyonel haritalar") && msg1.includes("Word raporları"), `${d.name}: 1. adım — silinecek kapsam`, msg1.slice(0, 300));
+      ok(msg1.includes("Danışan Yolculuğu"), `${d.name}: 1. adım — DY korunur bilgisi`);
       const box = await dlg.boundingBox();
       ok(!!box && box.x >= 0 && box.x + box.width <= d.viewport.width + 0.5 && box.y + box.height <= d.viewport.height + 0.5, `${d.name}: onay penceresi ekrana sığıyor`, box);
       await page.screenshot({ path: path.join(OUT, `delete-confirm1-${d.name}.png`) });
-      await dlg.getByRole("button", { name: "Vazgeç" }).click();
-      await dlg.waitFor({ state: "hidden" });
-      ok((await snap()) === s0, `${d.name}: 1. aşamada Vazgeç → hiçbir şey silinmedi`);
+      await dlg.locator("[data-hd-full-delete-cancel]").click();
+      await dlg.waitFor({ state: "detached" });
+      ok((await snap()) === s0, `${d.name}: 1. adımda Vazgeç → hiçbir şey silinmedi`);
 
-      // 2. aşamada Vazgeç
-      await target.getByRole("button", { name: "Sil" }).click();
-      await dlg.getByRole("button", { name: "Evet, devam et" }).click();
-      await dlg.getByText("Son onay").waitFor({ timeout: 20_000 });
+      // 2. adımda Vazgeç (kesin sayılar)
+      await openFull();
+      await dlg.locator("[data-hd-full-delete-next]").click();
+      await dlg.locator("[data-hd-full-delete-counts]").waitFor({ timeout: 20_000 });
+      ok(/1 Human Design analizi/.test(await dlg.locator("[data-hd-full-delete-counts]").innerText()) && /1 Word raporu/.test(await dlg.locator("[data-hd-full-delete-counts]").innerText()), `${d.name}: 2. adım — kesin sayılar (1 analiz, 1 Word)`);
       await page.screenshot({ path: path.join(OUT, `delete-confirm2-${d.name}.png`) });
-      await dlg.getByRole("button", { name: "Vazgeç" }).click();
-      await dlg.waitFor({ state: "hidden" });
-      ok((await snap()) === s0, `${d.name}: 2. aşamada Vazgeç → hiçbir şey silinmedi`);
+      await dlg.locator("[data-hd-full-delete-cancel]").click();
+      await dlg.waitFor({ state: "detached" });
+      ok((await snap()) === s0, `${d.name}: 2. adımda Vazgeç → hiçbir şey silinmedi`);
 
-      // İki Evet → silme (390px: storage hatası simüle edilir → yeniden temizleme akışı)
+      // 3. adım: ad yazarak kesin onay (390px: storage hatası simüle edilir → yeniden temizleme akışı)
       const failStorage = d.name === "390px";
       const snapPath = (await su.query(`select snapshot->'chartImage'->>'storagePath' p from public.human_design_reports where id=$1`, [v.report])).rows[0]?.p as string;
-      await target.getByRole("button", { name: "Sil" }).click();
-      await dlg.getByRole("button", { name: "Evet, devam et" }).click();
+      await openFull();
+      await dlg.locator("[data-hd-full-delete-next]").click();
+      await dlg.locator("[data-hd-full-delete-counts]").waitFor({ timeout: 20_000 });
+      await dlg.locator("[data-hd-full-delete-next]").click();
+      const vName = `Silinecek Kişi${DEVICES.findIndex((x) => x.name === d.name) + 1}`;
+      await dlg.locator("[data-hd-full-delete-name]").fill("Silinecek");
+      ok(await dlg.locator("[data-hd-full-delete-confirm]").isDisabled(), `${d.name}: 3. adım — eksik ad → kesin onay kapalı`);
+      await dlg.locator("[data-hd-full-delete-name]").fill(vName);
+      ok((await snap()) === s0, `${d.name}: ad yazılana kadar hiçbir şey silinmedi`);
       if (failStorage) env.storage.failRemove = true;
-      await dlg.getByRole("button", { name: "Evet, kalıcı olarak sil" }).click();
-      await page.getByText(/Profil silindi: 1 analiz ve 1 Word raporu kaldırıldı/).waitFor({ timeout: 30_000 });
+      await dlg.locator("[data-hd-full-delete-confirm]").click();
+      const notice = page.locator("[data-hd-list-notice]");
+      await notice.filter({ hasText: /tamamen silindi: 1 analiz ve 1 Word raporu/ }).waitFor({ timeout: 30_000 });
       env.storage.failRemove = false;
       ok(true, `${d.name}: başarı mesajı yalnız işlem tamamlanınca`);
       if (failStorage) {
-        const banner = page.locator("[data-hd-image-cleanup]");
-        await banner.waitFor({ timeout: 10_000 });
-        ok(objects().has(snapPath), `${d.name}: storage hatası → BodyGraph dosyası kaldı + 'Kalan görselleri temizle' uyarısı göründü`);
-        const bb = await banner.boundingBox();
+        ok(objects().has(snapPath) && (await notice.getByRole("button", { name: "Kalan görselleri temizle" }).count()) === 1, `${d.name}: storage hatası → BodyGraph dosyası kaldı + 'Kalan görselleri temizle' uyarısı göründü`);
+        const bb = await notice.boundingBox();
         ok(!!bb && bb.x >= 0 && bb.x + bb.width <= d.viewport.width + 0.5, `${d.name}: uyarı ekrana sığıyor`, bb);
         await page.screenshot({ path: path.join(OUT, `image-cleanup-${d.name}.png`) });
         objects().get(snapPath)!.createdAt = Date.now() - 2 * 60 * 60 * 1000; // kalan dosya artık eski
-        await banner.getByRole("button", { name: "Kalan görselleri temizle" }).click();
-        await page.getByText(/Kalan 1 görsel temizlendi/).waitFor({ timeout: 20_000 });
-        await banner.waitFor({ state: "detached", timeout: 10_000 });
+        await notice.getByRole("button", { name: "Kalan görselleri temizle" }).click();
+        await notice.filter({ hasText: /Kalan görseller temizlendi \(1\)/ }).waitFor({ timeout: 20_000 });
         ok(!objects().has(snapPath) && objects().has((await su.query(`select snapshot->'chartImage'->>'storagePath' p from public.human_design_reports where id=$1`, [keeper.report])).rows[0].p),
           `${d.name}: yeniden temizleme kalan dosyayı sildi; korunan profilin Word görseli duruyor`);
       }
-      await page.locator(`a[href="/human-design/danisanlar/${v.hd}"]`).waitFor({ state: "detached", timeout: 20_000 });
-      await history.locator(`[data-hd-history-item$=":${v.chart}"]`).waitFor({ state: "detached", timeout: 20_000 });
-      ok(true, `${d.name}: profil listesi + Kayıtlı analizler listesi sayfa yenilemeden güncellendi`);
+      await row(v.hd).waitFor({ state: "detached", timeout: 20_000 });
+      ok(true, `${d.name}: tek liste sayfa yenilemeden güncellendi`);
       ok((await count(`select count(*) n from public.human_design_clients where id=$1`, [v.hd])) === 0
         && (await count(`select count(*) n from public.human_design_charts where id=$1`, [v.chart])) === 0
         && (await count(`select count(*) n from public.human_design_reports where id=$1`, [v.report])) === 0, `${d.name}: DB'de profil + analiz + Word silindi`);
       ok((await count(`select count(*) n from public.clients where id=$1`, [v.journey])) === 1, `${d.name}: merkezî danışan (DY) korundu`);
       ok((await count(`select count(*) n from public.human_design_clients where id=$1`, [keeper.hd])) === 1 && (await count(`select count(*) n from public.human_design_reports where id=$1`, [keeper.report])) === 1
-        && (await history.locator(`[data-hd-history-item$=":${keeper.chart}"]`).count()) === 1, `${d.name}: aynı isimli profil + analizi + Word'ü korundu ve listede`);
-      ok(await noHScroll(page, d.viewport.width), `${d.name}: profil yönetimi açıkken yatay kaydırma yok`);
+        && (await row(keeper.hd).count()) === 1, `${d.name}: aynı isimli profil + analizi + Word'ü korundu ve listede`);
+      ok(await noHScroll(page, d.viewport.width), `${d.name}: silme sonrası listede yatay kaydırma yok`);
       await page.screenshot({ path: path.join(OUT, `after-delete-${d.name}.png`), fullPage: true });
       allErrors.push(...w.errors);
       allExternal.push(...w.external);

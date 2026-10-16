@@ -253,17 +253,17 @@ async function main() {
     const f4 = await compute(U.A, hdFail, "client");
     ok(f4.json.reused === true && f4.json.id === f3.json.id, "21e yanıt kaybolup tekrar denenirse kayıtlı analiz döner (mükerrer kayıt yok)");
 
-    // ── Analiz silinirse Word raporları korunur ────────────────────────────────
+    // ── "Analizi Sil" (owner kararı 2026-10-16): analiz + YALNIZ ona ait Word raporları silinir ─────
     section("Ek. Silme güvenliği");
     const delReq = new NextRequest(`http://localhost/api/test?id=${chartA2}`, { method: "DELETE", headers: { "x-user-id": U.A.id!, "x-session-token": U.A.token! } });
     const del = await (routes.charts.DELETE as unknown as Handler)(delReq, { params: Promise.resolve({}) });
     const repOfA2 = (await su.query(`select chart_id from public.human_design_reports where id=$1`, [String(wNo.json.id)])).rows[0];
-    ok(del.status === 200 && !!repOfA2 && repOfA2.chart_id === null, "analiz silinince Word raporu silinmez (Kayıtlı Raporlar'da kalır)", { st: del.status, repOfA2 });
+    ok(del.status === 200 && !repOfA2, "Analizi Sil: bu analize ait Word raporu da silinir (yetim rapor kalmaz)", { st: del.status, repOfA2 });
     ok((await count(`select count(*) n from public.human_design_charts where id=$1`, [chartA2])) === 0, "Ek-b silinen yalnız hedef analiz");
     const afterDel = await call(routes.reports.GET, "GET", U.A);
-    ok(((afterDel.json.rows as Json[]) ?? []).some((r) => r.id === String(wNo.json.id)), "Ek-c silinen analizin Word raporu Kayıtlı Raporlar listesinde görünür");
+    ok(!((afterDel.json.rows as Json[]) ?? []).some((r) => r.id === String(wNo.json.id)), "Ek-c silinen analizin Word raporu Kayıtlı Raporlar listesinde artık YOK");
     const dlOrphan = await call(routes.download.POST, "POST", U.A, { reportId: String(wNo.json.id) });
-    ok(dlOrphan.status === 200 && !!dlOrphan.buf && dlOrphan.buf.length > 5000, "Ek-d silinen analizin Word raporu hâlâ indirilebilir (snapshot'tan)", { st: dlOrphan.status, j: dlOrphan.json });
+    ok(dlOrphan.status === 404, "Ek-d silinen analizin Word raporu artık indirilemez (404, yanlış başarı yok)", { st: dlOrphan.status, j: dlOrphan.json });
     if (dlOrphan.buf && dlOrphan.status === 200) {
       const oz = await JSZip.loadAsync(dlOrphan.buf);
       ok(Object.keys(oz.files).some((f) => f.startsWith("word/media/")), "Ek-e silinen analizin raporunda BodyGraph görseli korunur");

@@ -175,16 +175,54 @@ export async function getChartSystemReading(id: string): Promise<SystemReadingFe
   return { status: "error", error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
 }
 
-export async function deleteComputedChart(id: string): Promise<{ ok: boolean; error: string | null }> {
+/**
+ * "Analizi Sil": YALNIZ bu analiz + ona bağlı Word raporları (profil ve diğer analizler korunur).
+ * `expectReports`: onay penceresinde gösterilen rapor sayısı — sonradan artmışsa sunucu hiçbir şey silmez (409).
+ */
+export async function deleteComputedChart(
+  id: string,
+  expectReports?: number,
+): Promise<{ ok: boolean; error: string | null; deletedReports?: number; warnings?: string[] }> {
   let res: Response;
+  const qs = new URLSearchParams({ id, ...(typeof expectReports === "number" ? { expect_reports: String(expectReports) } : {}) });
   try {
-    res = await fetch(`/api/hd/charts?id=${encodeURIComponent(id)}`, { method: "DELETE", headers: authHeaders() });
+    res = await fetch(`/api/hd/charts?${qs.toString()}`, { method: "DELETE", headers: authHeaders() });
   } catch {
     return { ok: false, error: "Ağ hatası. Bağlantını kontrol et." };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (res.ok && j.ok === true) return { ok: true, error: null };
+  if (res.ok && j.ok === true) {
+    return {
+      ok: true,
+      error: null,
+      deletedReports: typeof j.deletedReports === "number" ? j.deletedReports : 0,
+      warnings: Array.isArray(j.warnings) ? (j.warnings as string[]) : [],
+    };
+  }
   return { ok: false, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
+}
+
+export type HdAnalysisDeleteScopeDto = {
+  chartId: string;
+  hdClientId: string | null;
+  kind: "computed" | "manual";
+  birthDate: string | null;
+  birthTime: string | null;
+  createdAt: string;
+  reports: number;
+  keptForeignReports: number;
+};
+
+/** "Analizi Sil" onayı için KESİN kapsam (salt okunur). */
+export async function previewHdAnalysisDelete(id: string): Promise<{ scope: HdAnalysisDeleteScopeDto | null; error: string | null }> {
+  try {
+    const res = await fetch(`/api/hd/charts?delete_preview=${encodeURIComponent(id)}`, { headers: authHeaders(), cache: "no-store" });
+    const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (res.ok && j.ok === true && j.scope && typeof j.scope === "object") return { scope: j.scope as HdAnalysisDeleteScopeDto, error: null };
+    return { scope: null, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
+  } catch {
+    return { scope: null, error: "Ağ hatası. Bağlantını kontrol et." };
+  }
 }
 
 // -------------------------------------------------------

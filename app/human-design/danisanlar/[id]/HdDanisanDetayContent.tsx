@@ -10,16 +10,14 @@ import { HdChartImageUpload } from "../components/HdChartImageUpload";
 import { HdAutoCalcPanel } from "../components/HdAutoCalcPanel";
 import { HdJourneyPanel } from "../components/HdJourneyPanel";
 import { HdAnalysisHistory } from "../components/HdAnalysisHistory";
+import { HdFullDeleteDialog } from "../components/HdFullDeleteDialog";
+import { HdBirthDateInput } from "../../components/HdBirthDateInput";
+import { HdBirthTimeInput } from "../../components/HdBirthTimeInput";
+import { useRouter } from "next/navigation";
 import { HdBirthLocationPicker, type HdPickedLocation } from "../../components/HdBirthLocationPicker";
 import { HumanDesignShell } from "../../components/HumanDesignShell";
 import { runInEffect } from "@/lib/runInEffect";
 import { birthLocalTimeIssue } from "@/lib/human-design/api/birthTimeResolution";
-
-/** Sunucu kuralıyla aynı tarih aralığı (1800 – bugün, İstanbul). */
-const HD_BIRTH_DATE_MIN = "1800-01-01";
-function istanbulTodayIso(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-}
 
 const fieldBase =
   "w-full rounded-xl border border-indigo-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400";
@@ -59,6 +57,8 @@ export function HdDanisanDetayContent({ clientId }: Props) {
   const { confirm } = useConfirm();
 
   const [row, setRow] = useState<HdClientRow | null>(null);
+  const router = useRouter();
+  const [fullDelete, setFullDelete] = useState(false);
   const [journey, setJourney] = useState<HdJourneyRef | null>(null);
   const [suggestions, setSuggestions] = useState<HdJourneyRef[]>([]);
   // ?chart=<id> (ör. Danışan Yolculuğu "Analizi Aç") → ilgili analiz doğrudan açılır.
@@ -284,6 +284,33 @@ export function HdDanisanDetayContent({ clientId }: Props) {
           ) : null}
 
           <HdAnalysisHistory clientId={clientId} initialChartId={initialChartId} />
+
+          {/* Tehlikeli işlem: bu danışanın TÜM Human Design kayıtları (üç aşamalı onay). */}
+          <section className="rounded-2xl border border-rose-200 bg-rose-50/40 p-4" data-hd-danger-zone>
+            <p className="m-0 text-xs font-black uppercase tracking-widest text-rose-700">Human Design kaydını tamamen sil</p>
+            <p className="m-0 mt-1 text-xs leading-relaxed text-slate-600">
+              Profil, tüm Human Design analizleri ve bunlara ait Word raporları kalıcı olarak silinir. Danışan Yolculuğu kaydı ve diğer modüllerin verileri korunur.
+            </p>
+            <button
+              type="button"
+              onClick={() => setFullDelete(true)}
+              className="mt-2 h-9 rounded-xl border border-rose-300 bg-white px-4 text-sm font-bold text-rose-700 hover:bg-rose-50"
+              data-hd-full-delete-open
+            >
+              Human Design Kaydını Tamamen Sil
+            </button>
+          </section>
+          {fullDelete ? (
+            <HdFullDeleteDialog
+              hdClientId={clientId}
+              name={row.name}
+              onCancel={() => setFullDelete(false)}
+              onDeleted={() => {
+                setFullDelete(false);
+                router.push("/human-design/danisanlar");
+              }}
+            />
+          ) : null}
         </div>
 
         {/* Sağ: Kişisel Bilgiler + Kaydet */}
@@ -308,21 +335,17 @@ export function HdDanisanDetayContent({ clientId }: Props) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Doğum Tarihi</label>
-                  <input
-                    type="date"
-                    min={HD_BIRTH_DATE_MIN}
-                    max={istanbulTodayIso()}
+                  <HdBirthDateInput
                     value={form.birth_date}
-                    onChange={set("birth_date")}
+                    onChange={(v) => setForm((p) => (p ? { ...p, birth_date: v } : p))}
                     className={`h-9 ${fieldBase}`}
                   />
                 </div>
                 <div>
                   <label className={labelCls}>Doğum Saati</label>
-                  <input
-                    type="time"
+                  <HdBirthTimeInput
                     value={form.birth_time}
-                    onChange={set("birth_time")}
+                    onChange={(v) => setForm((p) => (p ? { ...p, birth_time: v } : p))}
                     className={`h-9 ${fieldBase}`}
                   />
                 </div>

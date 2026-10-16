@@ -486,7 +486,7 @@ async function main() {
     const live = [
       "app/human-design/danisanlar/page.tsx",
       "app/human-design/danisanlar/[id]/HdDanisanDetayContent.tsx",
-      "app/human-design/danisanlar/components/HdClientListesi.tsx",
+      "app/human-design/danisanlar/components/HdAnalysisGroupList.tsx",
       "app/human-design/danisanlar/components/HdAnalysisHistory.tsx",
       "app/human-design/kayitli-haritalar/page.tsx",
       "app/human-design/kayitli-haritalar/[id]/HdHaritaDetayContent.tsx",
@@ -516,7 +516,7 @@ async function main() {
     const trJ = JSON.parse(src("messages/tr/clients.detail.json")).clients.detail;
     const enJ = JSON.parse(src("messages/en/clients.detail.json")).clients.detail;
     ok(Object.keys(trJ.hd).sort().join() === Object.keys(enJ.hd).sort().join() && !!trJ.tab.humandesign && !!enJ.tab.humandesign && ["hdProfiles", "hdCharts", "hdReports"].every((k) => trJ.deletePreview.table[k] && enJ.deletePreview.table[k]), "L6 TR/EN metin anahtarları eşit");
-    const clientFiles = ["lib/human-design/api/journeyClient.ts", "app/dashboard/clients/[id]/components/HumanDesignTab.tsx", "app/human-design/danisanlar/components/HdJourneyPanel.tsx", "app/human-design/danisanlar/components/HdJourneyClientPicker.tsx", "app/human-design/danisanlar/components/HdClientForm.tsx", "app/human-design/danisanlar/components/HdAnalysisHistory.tsx"].map(src).join("\n");
+    const clientFiles = ["lib/human-design/api/journeyClient.ts", "app/dashboard/clients/[id]/components/HumanDesignTab.tsx", "app/human-design/danisanlar/components/HdJourneyPanel.tsx", "app/human-design/danisanlar/components/HdJourneyProfileStart.tsx", "app/human-design/danisanlar/components/HdClientForm.tsx", "app/human-design/danisanlar/components/HdAnalysisHistory.tsx"].map(src).join("\n");
     ok(!clientFiles.includes("ROXY_API_KEY") && !clientFiles.includes("provider_raw") && !clientFiles.includes("SUPABASE_SERVICE_ROLE"), "L7 istemci dosyalarında anahtar / provider_raw yok");
     ok(!/numerolog|astrolog/i.test(execSync("git diff --name-only origin/main", { cwd: ROOT }).toString()), "L8 Numeroloji/Astroloji dosyası değişmedi");
   } finally {
