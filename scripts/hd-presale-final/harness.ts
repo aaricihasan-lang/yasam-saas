@@ -681,7 +681,7 @@ const later = (iso: string, ms = 5) => new Date(Date.parse(iso) + ms).toISOStrin
   await t("P2-4: mobilde satır aksiyonları ad altında (Kayıtlı Haritalar + Bilgi Bankası)", () => {
     assert(/mt-2 flex flex-wrap gap-2 sm:hidden">\{renderActions\(row, clientId, true\)\}/.test(src("app/human-design/kayitli-haritalar/page.tsx")), "kayıtlı haritalar");
     assert(/mt-2 flex flex-wrap gap-2 sm:hidden/.test(src("app/human-design/bilgi-bankasi/components/HdBilgiKayitListesi.tsx")), "bilgi bankası");
-    assert(/\[overflow-wrap:anywhere\]/.test(src("app/human-design/danisanlar/components/HdClientListesi.tsx")), "uzun isim kırılmıyor");
+    assert(/\[overflow-wrap:anywhere\]/.test(src("app/human-design/danisanlar/components/HdAnalysisGroupList.tsx")), "uzun isim kırılmıyor (tek liste)");
   });
   await t("P2-5: Bilgi Bankası editör çubuğu mobilde kompakt (açıklama gizli, tek satır)", () => {
     const e = src("app/human-design/bilgi-bankasi/[recordId]/HdKayitEditor.tsx");
@@ -691,11 +691,11 @@ const later = (iso: string, ms = 5) => new Date(Date.parse(iso) + ms).toISOStrin
     const f = src("app/human-design/danisanlar/components/HdClientForm.tsx");
     assert(!/<label className=\{labelCls\}>Harita Görseli URL<\/label>/.test(f) && !/set\("chart_image_url"\)/.test(f), "alan duruyor");
   });
-  await t("Profil silme onayı gerçek etkiyi söyler + iki ayrı Evet onayı (owner kararı)", () => {
-    const l = src("app/human-design/danisanlar/components/HdClientListesi.tsx");
-    assert(l.includes("Bu Human Design profiliyle birlikte ona bağlı tüm Human Design analizleri ve Word raporları kalıcı olarak silinecektir. Bu işlem geri alınamaz."), "onay metni");
-    assert((l.match(/await confirm\(/g) ?? []).length === 2 && /Evet, kalıcı olarak sil/.test(l), "iki aşamalı onay yok");
-    assert(/previewHdClientDelete/.test(l) && /notifyHdProfileDeleted/.test(l), "kesin kapsam / liste yenileme yok");
+  await t("Human Design Kaydını Tamamen Sil: gerçek etki + ÜÇ aşamalı onay (ad yazarak) (owner kararı 2026-10-16)", () => {
+    const l = src("app/human-design/danisanlar/components/HdFullDeleteDialog.tsx");
+    assert(l.includes("Tüm Human Design analizleri ve kayıtlı profesyonel haritalar") && l.includes("Danışan Yolculuğu"), "kapsam / korunanlar metni");
+    assert(/Adım \{step\} \/ 3/.test(l) && /nameOk/.test(l) && /disabled=\{!nameOk \|\| busy\}/.test(l), "üç aşama / ad doğrulaması yok");
+    assert(/previewHdClientDelete/.test(l) && /notifyHdProfileDeleted/.test(l) && /analyses: scope\.analyses, reports: scope\.reports/.test(l), "kesin kapsam / liste yenileme / onaydaki sayılar yok");
   });
   await t("P2-2: buton bir eylem = bir istek kimliği; başarıdan sonra aynı rapor yeniden indirilir", () => {
     const b = src("app/human-design/kayitli-haritalar/components/HdProfessionalReportButton.tsx");

@@ -96,14 +96,17 @@ export function formatIsoDateTr(v: string | null | undefined): string {
 
 export type HdAnalysisGroupOption = {
   key: string;
+  kind: "hd" | "orphan" | "journey";
   hdClientId: string | null;
-  latestChartId: string;
-  latestKind: "computed" | "manual";
+  journeyClientId: string | null;
+  latestChartId: string | null;
+  latestKind: "computed" | "manual" | null;
   name: string;
   birthDate: string | null;
   typeCode: string | null;
   profileCode: string | null;
-  lastAnalysisAt: string;
+  lastAnalysisAt: string | null;
+  firstAnalysisAt: string | null;
   analysisCount: number;
   linkedToJourney: boolean;
 };

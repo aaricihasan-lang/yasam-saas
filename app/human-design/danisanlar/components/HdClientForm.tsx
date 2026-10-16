@@ -14,6 +14,8 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { journeyAction } from "@/lib/human-design/api/journeyClient";
 import { HdBirthLocationPicker, type HdPickedLocation } from "../../components/HdBirthLocationPicker";
+import { HdBirthDateInput } from "../../components/HdBirthDateInput";
+import { HdBirthTimeInput } from "../../components/HdBirthTimeInput";
 import type { HdDuplicateCandidate } from "@/lib/human-design/api/hdIdentity";
 import { HdDuplicateDialog } from "./HdDuplicateDialog";
 
@@ -68,8 +70,8 @@ export function HdClientForm() {
     const missing = [
       !form.ad.trim() && "Ad",
       !form.soyad.trim() && "Soyad",
-      !form.dogum && "Doğum Tarihi",
-      !form.birth_time && "Doğum Saati",
+      !form.dogum && "Doğum Tarihi (GG.AA.YYYY)",
+      !form.birth_time && "Doğum Saati (SS:DD)",
       !birthLoc && "Doğum Yeri (listeden seçin)",
     ].filter(Boolean);
     if (missing.length > 0) {
@@ -157,11 +159,11 @@ export function HdClientForm() {
         </div>
         <div>
           <label htmlFor="hd-new-dogum" className={hdLabelCls}>Doğum Tarihi *</label>
-          <input id="hd-new-dogum" type="date" value={form.dogum} onChange={set("dogum")} className={`h-10 ${hdFieldBase}`} />
+          <HdBirthDateInput id="hd-new-dogum" value={form.dogum} onChange={(v) => { requestIdRef.current = ""; setForm((p) => ({ ...p, dogum: v })); }} className={`h-10 ${hdFieldBase}`} />
         </div>
         <div>
           <label htmlFor="hd-new-saat" className={hdLabelCls}>Doğum Saati *</label>
-          <input id="hd-new-saat" type="time" value={form.birth_time} onChange={set("birth_time")} className={`h-10 ${hdFieldBase}`} />
+          <HdBirthTimeInput id="hd-new-saat" value={form.birth_time} onChange={(v) => { requestIdRef.current = ""; setForm((p) => ({ ...p, birth_time: v })); }} className={`h-10 ${hdFieldBase}`} />
         </div>
         <div className="sm:col-span-2">
           <label htmlFor="hd-new-client-birth-place" className={hdLabelCls}>Doğum Yeri *</label>

@@ -592,7 +592,14 @@ async function main() {
     const noTime = await JL.createHdProfileForJourneyClient(jdb as never, T1, "u", { journey_client_id: J, birth_date: "1990-07-15", birth_time: "", birth_location_ref: "tr-34-istanbul" });
     ok("8i HD-16 Profil oluşturma: saat yok → 400 BIRTH_TIME_REQUIRED", !noTime.ok && (noTime as { code: string }).code === "BIRTH_TIME_REQUIRED");
     const detail = src("app/human-design/danisanlar/[id]/HdDanisanDetayContent.tsx");
-    ok("8j Arayüz tarih alanı sunucu aralığıyla aynı (min 1800-01-01, max bugün)", detail.includes('HD_BIRTH_DATE_MIN = "1800-01-01"') && /min=\{HD_BIRTH_DATE_MIN\}/.test(detail) && /max=\{istanbulTodayIso\(\)\}/.test(detail));
+    // MOB-01: yerel tarih seçicisi yerine elle yazılabilen HdBirthDateInput — aralık sunucuyla aynı (1800 – bugün).
+    const HDI = await import("../../app/human-design/components/HdBirthDateInput");
+    const today = "2026-10-16";
+    ok("8j Arayüz tarih alanı sunucu aralığıyla aynı (1800-01-01 kabul, 1799 ve yarın ret, 29.02.2023 ret)",
+      /<HdBirthDateInput/.test(detail) &&
+      HDI.hdParseDateDigits("01011800", today) === "1800-01-01" && HDI.hdParseDateDigits("31121799", today) === null &&
+      HDI.hdParseDateDigits("16102026", today) === "2026-10-16" && HDI.hdParseDateDigits("17102026", today) === null &&
+      HDI.hdParseDateDigits("29022023", today) === null && HDI.hdParseDateDigits("29022024", today) === "2024-02-29");
     ok("8k Tek doğrulama kaynağı: isValidHdBirthDate hem düzenleme hem profil oluşturmada", /isValidHdBirthDate\(v, now\)/.test(src("lib/human-design/api/clientPersistence.ts")) && /isValidHdBirthDate\(d\)/.test(src("lib/human-design/api/journeyLink.ts")));
     // Hesap: saatsiz danışan → 422, Roxy 0
     const cdb = new FakeDb();

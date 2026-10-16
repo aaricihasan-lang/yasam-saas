@@ -1,14 +1,18 @@
-// HD — "HUMAN DESIGN ANALİZLERİM" tek listesi (YALNIZ SUNUCU, service_role).
+// HD — TEK DANIŞAN LİSTESİ ("HUMAN DESIGN ANALİZLERİM") (YALNIZ SUNUCU, service_role).
 //
+//   • Tek liste, tek arama: (1) analizli HD profilleri, (2) henüz analizi olmayan HD profilleri,
+//     (3) ARAMADA ayrıca Human Design kaydı OLMAYAN Danışan Yolculuğu danışanları ("Human Design Başlat").
+//     Başka danışan listesi / profil tablosu yoktur.
 //   • Grup kimliği: HD profil kimliği (human_design_charts.client_id). Aynı AD-SOYAD farklı profiller
 //     AYRI satırdır (isimle birleştirme YOK). Profilsiz eski analiz (client_id boş) kendi satırıdır.
-//   • Yalnız EN AZ BİR analizi olan profiller listelenir (analizsiz profiller ayrı profil ekranında).
 //   • "Danışan Yolculuğu'na bağlı" yalnız doğrulanmış kayıt bağına (journey_client_id) dayanır.
-//   • Arama SUNUCUDA, tenant'ın TÜM kayıtları üzerinde (ilk N kayıtla sınırlı değil); Türkçe küçük
-//     harf + çok kelime (ad + soyad birlikte). DB collation'ına güvenilmez (İ/ı tuzağı) → normalize JS.
+//   • Arama SUNUCUDA, tenant'ın TÜM kayıtları üzerinde (sayfalı okuma; ilk N kayıtla sınırlı değil);
+//     Türkçe küçük harf + çok kelime. DB collation'ına güvenilmez (İ/ı tuzağı) → normalize JS.
 //   • Tarayıcıya yalnız istenen SAYFA döner (varsayılan 20, en çok 50). Okuma hatası kısmi liste
 //     olarak gösterilmez → hata döner.
-//   • Sıra: son analiz tarihi yeni → eski; eşitlikte grup anahtarı (kararlı).
+//   • Sıra: son analiz yeni → eski; sonra analizsiz profiller (yeni → eski); sonra yalnız Danışan
+//     Yolculuğu'ndaki danışanlar (ad). Eşitlikte grup anahtarı (kararlı).
+//   • İlk analiz tarihi = o profilin EN ESKİ analiz kaydının created_at değeri (sunucu verisi; uydurma yok).
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { withTenant } from "./tenantScope";
@@ -20,21 +24,25 @@ const MAX_ROWS = 50_000;
 
 export type HdAnalysisGroupRow = {
   key: string;
+  /** "hd" = HD profili, "orphan" = profilsiz eski analiz, "journey" = HD kaydı olmayan Danışan Yolculuğu danışanı. */
+  kind: "hd" | "orphan" | "journey";
   hdClientId: string | null;
-  /** Profilsiz eski analiz satırı için o analiz; aksi hâlde en son analiz. */
-  latestChartId: string;
-  latestKind: "computed" | "manual";
+  journeyClientId: string | null;
+  /** En son analiz (yoksa null). Profilsiz satırda o analizin kendisi. */
+  latestChartId: string | null;
+  latestKind: "computed" | "manual" | null;
   name: string;
   birthDate: string | null;
   typeCode: string | null;
   profileCode: string | null;
-  lastAnalysisAt: string;
+  lastAnalysisAt: string | null;
+  firstAnalysisAt: string | null;
   analysisCount: number;
   linkedToJourney: boolean;
 };
 
 export type HdAnalysisListResult =
-  | { ok: true; rows: HdAnalysisGroupRow[]; total: number; offset: number; limit: number; scanned: { charts: number; profiles: number } }
+  | { ok: true; rows: HdAnalysisGroupRow[]; total: number; offset: number; limit: number; scanned: { charts: number; profiles: number; journey: number } }
   | { ok: false; error: string };
 
 type ChartLite = {
@@ -47,7 +55,8 @@ type ChartLite = {
   type_code: string | null;
   profile_code: string | null;
 };
-type ProfileLite = { id: string; name: string | null; birth_date: string | null; journey_client_id: string | null };
+type ProfileLite = { id: string; name: string | null; birth_date: string | null; journey_client_id: string | null; created_at: string };
+type JourneyLite = { id: string; ad: string | null; soyad: string | null; dogum: string | null };
 
 async function readAll<T>(
   page: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: unknown }>,
@@ -71,6 +80,11 @@ export function hdSearchTokens(q: string): string[] {
     .slice(0, 6);
 }
 
+function isMissingColumn(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | null;
+  return !!e && (e.code === "42703" || e.code === "PGRST204" || /column .* does not exist|Could not find the .* column/i.test(e.message ?? ""));
+}
+
 export async function listHdAnalysisGroups(
   db: SupabaseClient,
   tenantId: string,
@@ -78,6 +92,7 @@ export async function listHdAnalysisGroups(
 ): Promise<HdAnalysisListResult> {
   const limit = Math.max(1, Math.min(50, Math.floor(opts.limit ?? 20)));
   const offset = Math.max(0, Math.floor(opts.offset ?? 0));
+  const tokens = hdSearchTokens(opts.q ?? "");
 
   // Yalnız gruplama/özet için gereken DAR kolonlar (hesap sonucu / ham sağlayıcı verisi okunmaz).
   const charts = await readAll<ChartLite>(
@@ -91,7 +106,7 @@ export async function listHdAnalysisGroups(
   if (charts.error) return { ok: false, error: charts.error };
   const profiles = await readAll<ProfileLite>(
     (from, to) =>
-      withTenant(db.from("human_design_clients").select("id, name, birth_date, journey_client_id"), tenantId, "hdList.profiles")
+      withTenant(db.from("human_design_clients").select("id, name, birth_date, journey_client_id, created_at"), tenantId, "hdList.profiles")
         .order("id", { ascending: true })
         .range(from, to),
     "hdList.profiles",
@@ -107,11 +122,14 @@ export async function listHdAnalysisGroups(
     const g = groups.get(key);
     if (g) {
       g.analysisCount += 1;
-      continue; // charts created_at DESC → ilk görülen en günceldir
+      g.firstAnalysisAt = c.created_at; // created_at DESC → son görülen en eskidir
+      continue; // ilk görülen en günceldir
     }
     groups.set(key, {
       key,
+      kind: prof ? "hd" : "orphan",
       hdClientId: prof?.id ?? null,
+      journeyClientId: prof?.journey_client_id ?? null,
       latestChartId: c.id,
       latestKind: c.source === "computed" ? "computed" : "manual",
       name: (prof?.name ?? c.client_name ?? "").trim() || "—",
@@ -119,12 +137,67 @@ export async function listHdAnalysisGroups(
       typeCode: c.type_code,
       profileCode: c.profile_code,
       lastAnalysisAt: c.created_at,
+      firstAnalysisAt: c.created_at,
       analysisCount: 1,
       linkedToJourney: !!prof?.journey_client_id,
     });
   }
+  // Henüz analizi olmayan HD profilleri de AYNI listede (ayrı profil tablosu yok).
+  for (const p of profiles.rows) {
+    const key = `hd:${p.id}`;
+    if (groups.has(key)) continue;
+    groups.set(key, {
+      key,
+      kind: "hd",
+      hdClientId: p.id,
+      journeyClientId: p.journey_client_id ?? null,
+      latestChartId: null,
+      latestKind: null,
+      name: (p.name ?? "").trim() || "—",
+      birthDate: p.birth_date?.slice(0, 10) ?? null,
+      typeCode: null,
+      profileCode: null,
+      lastAnalysisAt: null,
+      firstAnalysisAt: null,
+      analysisCount: 0,
+      linkedToJourney: !!p.journey_client_id,
+    });
+  }
+  const profileCreated = new Map(profiles.rows.map((p) => [`hd:${p.id}`, p.created_at]));
 
-  const tokens = hdSearchTokens(opts.q ?? "");
+  // ARAMADA: Human Design kaydı OLMAYAN Danışan Yolculuğu danışanları ("Human Design Başlat").
+  let journeyScanned = 0;
+  if (tokens.length > 0) {
+    const journey = await readAll<JourneyLite>(
+      (from, to) => withTenant(db.from("clients").select("id, ad, soyad, dogum"), tenantId, "hdList.journey").order("id", { ascending: true }).range(from, to),
+      "hdList.journey",
+    );
+    if (journey.error && !isMissingColumn(journey.error)) return { ok: false, error: journey.error };
+    journeyScanned = journey.rows.length;
+    const linked = new Set(profiles.rows.map((p) => p.journey_client_id).filter((x): x is string => !!x));
+    for (const j of journey.rows) {
+      if (linked.has(j.id)) continue;
+      const name = `${j.ad ?? ""} ${j.soyad ?? ""}`.replace(/\s+/g, " ").trim();
+      if (!name) continue;
+      groups.set(`journey:${j.id}`, {
+        key: `journey:${j.id}`,
+        kind: "journey",
+        hdClientId: null,
+        journeyClientId: j.id,
+        latestChartId: null,
+        latestKind: null,
+        name,
+        birthDate: j.dogum?.slice(0, 10) ?? null,
+        typeCode: null,
+        profileCode: null,
+        lastAnalysisAt: null,
+        firstAnalysisAt: null,
+        analysisCount: 0,
+        linkedToJourney: true,
+      });
+    }
+  }
+
   let rows = [...groups.values()];
   if (tokens.length > 0) {
     rows = rows.filter((r) => {
@@ -132,13 +205,25 @@ export async function listHdAnalysisGroups(
       return tokens.every((t) => n.includes(t));
     });
   }
-  rows.sort((a, b) => (a.lastAnalysisAt < b.lastAnalysisAt ? 1 : a.lastAnalysisAt > b.lastAnalysisAt ? -1 : a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  const rank = (r: HdAnalysisGroupRow) => (r.lastAnalysisAt ? 0 : r.kind === "journey" ? 2 : 1);
+  rows.sort((a, b) => {
+    const d = rank(a) - rank(b);
+    if (d !== 0) return d;
+    if (a.lastAnalysisAt && b.lastAnalysisAt && a.lastAnalysisAt !== b.lastAnalysisAt) return a.lastAnalysisAt < b.lastAnalysisAt ? 1 : -1;
+    if (rank(a) === 1) {
+      const ca = profileCreated.get(a.key) ?? "";
+      const cb = profileCreated.get(b.key) ?? "";
+      if (ca !== cb) return ca < cb ? 1 : -1;
+    }
+    if (rank(a) === 2 && a.name !== b.name) return a.name.localeCompare(b.name, "tr");
+    return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+  });
   return {
     ok: true,
     rows: rows.slice(offset, offset + limit),
     total: rows.length,
     offset,
     limit,
-    scanned: { charts: charts.rows.length, profiles: profiles.rows.length },
+    scanned: { charts: charts.rows.length, profiles: profiles.rows.length, journey: journeyScanned },
   };
 }

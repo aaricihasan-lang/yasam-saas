@@ -27,11 +27,20 @@ import { computedChartAppCodes } from "@/lib/human-design/chart/computedChart";
 import { buildChartSubjectInfo, todayCalendarDate } from "@/lib/human-design/chart/chartSubjectInfo";
 import { latestWordReportId } from "@/lib/human-design/reporting/wordReportPick";
 import { listReportBriefs } from "../../kayitli-raporlar/helpers/hdKayitliRaporlar";
+import { listComputedCharts, previewHdAnalysisDelete } from "@/lib/human-design/api/chartsClient";
+import { HdFullDeleteDialog, type HdFullDeleteResult } from "../../danisanlar/components/HdFullDeleteDialog";
 
 type Props = {
   id: string;
   onClose: () => void;
   onDeleted: (id: string) => void;
+  /**
+   * Danışan (HD profili) bağlamı — ana listeden "Detayı Aç" ile açıldığında verilir. Verilirse:
+   * danışanın kayıtlı analizleri arasında geçiş (yeni hesap YOK) + "Human Design Kaydını Tamamen Sil".
+   */
+  profile?: { hdClientId: string; name: string; firstAnalysisAt?: string | null; showFirstAnalysis?: boolean };
+  /** Tüm HD kaydı silindi (liste yenilensin / pencere kapansın). */
+  onProfileDeleted?: (r: HdFullDeleteResult) => void;
   /** Listeden "Word İndir" ile açıldı → Word akışı açılışta bir kez başlar. */
   autoWord?: boolean;
 };
@@ -45,7 +54,12 @@ function formatDate(val: string | null | undefined): string {
   }
 }
 
-export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false }: Props) {
+export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWord = false, profile, onProfileDeleted }: Props) {
+  // Gösterilen analiz: açılışta verilen; profil bağlamında danışanın DİĞER kayıtlı analizleri seçilebilir
+  // (yalnız kayıtlı satır okunur — Roxy çağrısı / yeni hesap YOK).
+  const [id, setId] = useState(initialId);
+  const [siblings, setSiblings] = useState<Array<{ id: string; created_at: string; birth_time: string | null }>>([]);
+  const [fullDelete, setFullDelete] = useState(false);
   const { confirm } = useConfirm();
   const dialogRef = useRef<HTMLDivElement>(null);
   useHdModalA11y(dialogRef, onClose);
@@ -80,6 +94,22 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
   }, [id]);
 
   useEffect(() => {
+    if (!profile?.hdClientId) return;
+    let alive = true;
+    void listComputedCharts({ clientId: profile.hdClientId }).then(({ rows }) => {
+      if (!alive) return;
+      setSiblings(
+        [...rows]
+          .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+          .map((r) => ({ id: r.id, created_at: r.created_at, birth_time: r.birth_time ?? null })),
+      );
+    });
+    return () => {
+      alive = false;
+    };
+  }, [profile?.hdClientId, id]);
+
+  useEffect(() => {
     let alive = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- id başına yeniden yükleme (mevcut davranış korunur)
     setLoading(true);
@@ -95,20 +125,35 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
     };
   }, [id]);
 
+  // "ANALİZİ SİL": yalnız bu analiz + ona ait Word raporları. Önce sunucudan KESİN kapsam; onayda analiz
+  // tarihi/saati ve rapor sayısı gösterilir; sunucu onaydan fazla rapor bulursa hiçbir şey silmez (409).
   async function handleDelete() {
     if (deleting) return;
-    // HD-P2-D: silmeden önce ortak (erişilebilir) onay dialog'u — veri kaybını önler.
+    setDeleting(true);
+    setDeleteError("");
+    const { scope, error: scopeErr } = await previewHdAnalysisDelete(id);
+    if (!scope) {
+      setDeleting(false);
+      setDeleteError(`Silinecek kayıtlar belirlenemedi; hiçbir şey silinmedi. ${scopeErr ?? ""}`.trim());
+      return;
+    }
+    const when = `${formatDate(scope.createdAt)} tarihli analiz (${formatDate(scope.birthDate)}${scope.birthTime ? ` • ${scope.birthTime.slice(0, 5)}` : ""} doğum bilgileriyle)`;
     const confirmed = await confirm({
-      title: "Haritayı sil",
-      message: `${displayName || "Bu kişisel kayıt"} için hesaplanmış harita kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
-      confirmText: "Sil",
+      title: "Analizi sil",
+      message: [
+        `${displayName || "Bu danışan"} — ${when} kalıcı olarak silinecek.`,
+        `Bu analize ait ${scope.reports} Word raporu da silinir.`,
+        "Danışanın diğer analizleri, Human Design profili, Danışan Yolculuğu kaydı ve diğer modüllerdeki verileri KORUNUR. Bu işlem geri alınamaz.",
+      ].join("\n\n"),
+      confirmText: "Analizi Sil",
       cancelText: "Vazgeç",
       tone: "danger",
     });
-    if (!confirmed) return;
-    setDeleting(true);
-    setDeleteError("");
-    const { ok, error } = await deleteComputedChart(id);
+    if (!confirmed) {
+      setDeleting(false);
+      return;
+    }
+    const { ok, error } = await deleteComputedChart(id, scope.reports);
     setDeleting(false);
     if (ok) onDeleted(id);
     else setDeleteError(error ?? "Silinemedi.");
@@ -177,6 +222,28 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
               {row?.birth_place ? ` • ${row.birth_place}` : ""}
               {row?.timezone ? ` (${row.timezone})` : ""}
             </p>
+            {profile?.showFirstAnalysis && profile.firstAnalysisAt ? (
+              <p className="truncate text-[11px] text-slate-500" data-hd-first-analysis>İlk analiz: {formatDate(profile.firstAnalysisAt)}</p>
+            ) : null}
+            {siblings.length > 1 ? (
+              <label className="mt-1 flex items-center gap-2 text-[11px] font-semibold text-slate-600">
+                <span>Analiz:</span>
+                <select
+                  value={id}
+                  onChange={(e) => setId(e.target.value)}
+                  className="h-8 max-w-[16rem] rounded-lg border border-indigo-200 bg-white px-2 text-xs font-semibold text-slate-800"
+                  data-hd-analysis-switch
+                >
+                  {siblings.map((sb, i) => (
+                    <option key={sb.id} value={sb.id}>
+                      {formatDate(sb.created_at)}
+                      {sb.birth_time ? ` • ${sb.birth_time.slice(0, 5)}` : ""}
+                      {i === 0 ? " (en güncel)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {deleteError ? (
@@ -200,8 +267,18 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
               disabled={deleting}
               className="h-9 rounded-xl border border-rose-200 bg-white px-4 text-sm font-black uppercase tracking-wide text-rose-600 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50"
             >
-              {deleting ? "Siliniyor..." : "Sil"}
+              {deleting ? "Siliniyor..." : "Analizi Sil"}
             </button>
+            {profile ? (
+              <button
+                type="button"
+                onClick={() => setFullDelete(true)}
+                className="h-9 rounded-xl border border-rose-300 bg-rose-50 px-3 text-xs font-black text-rose-700 shadow-sm transition hover:bg-rose-100"
+                data-hd-full-delete-open
+              >
+                Human Design Kaydını Tamamen Sil
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={onClose}
@@ -263,6 +340,17 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
           </div>
         </div>
       </div>
+      {fullDelete && profile ? (
+        <HdFullDeleteDialog
+          hdClientId={profile.hdClientId}
+          name={profile.name}
+          onCancel={() => setFullDelete(false)}
+          onDeleted={(r) => {
+            setFullDelete(false);
+            onProfileDeleted?.(r);
+          }}
+        />
+      ) : null}
     </div>,
     document.body,
   );

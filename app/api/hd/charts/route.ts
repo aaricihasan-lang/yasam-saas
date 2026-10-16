@@ -5,15 +5,14 @@ import {
   saveComputedChart,
   listComputedCharts,
   getComputedChart,
-  deleteComputedChart,
   listManualChartsWithClients,
   getManualChartByClient,
   updateManualChartById,
-  deleteManualChart,
   deleteManualChartsByClient,
 } from "@/lib/human-design/api/chartPersistence";
 import { validateManualChartCodes } from "@/lib/human-design/manualChartConsistency";
 import { invalidIdResponse, isOptionalUuid, isUuid } from "@/lib/human-design/api/requestIds";
+import { deleteHdAnalysis, previewHdAnalysisDelete } from "@/lib/human-design/api/hdAnalysisDelete";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 
 export const runtime = "nodejs";
@@ -163,6 +162,17 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const url = new URL(req.url);
 
+  // ── "Analizi Sil" onay penceresi: KESİN kapsam (salt okunur; hesaplanmış + manuel) ──
+  const deletePreview = url.searchParams.get("delete_preview");
+  if (deletePreview !== null) {
+    if (!isUuid(deletePreview)) return invalidIdResponse("delete_preview");
+    const p = await previewHdAnalysisDelete(guard.db, guard.tenantId, deletePreview);
+    if (!p.ok) return NextResponse.json({ ok: false, code: p.code, error: p.error }, { status: p.status, headers: NO_STORE });
+    const { ok: _ok, ...scope } = p;
+    void _ok;
+    return NextResponse.json({ ok: true, scope }, { status: 200, headers: NO_STORE });
+  }
+
   // ── Manuel/legacy harita akışı (source null|'manual') — computed'dan izole ──
   if (url.searchParams.get("scope") === "manual") {
     const clientId = url.searchParams.get("client_id");
@@ -260,10 +270,11 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     if (!isOptionalUuid(mid)) return invalidIdResponse("id");
     if (!isOptionalUuid(clientId)) return invalidIdResponse("clientId");
     if (mid) {
-      const { ok, error } = await deleteManualChart(guard.db, guard.tenantId, mid);
-      if (!ok) return NextResponse.json({ ok: false, error: error ?? "Silinemedi." }, { status: 400, headers: NO_STORE });
+      // "Analizi Sil": yalnız bu manuel analiz + ona bağlı raporlar (profil ve diğer analizler korunur).
+      const r = await deleteHdAnalysis(guard.db, guard.tenantId, mid, { source: "manual", expectReports: readExpectReports(url) });
+      if (!r.ok) return NextResponse.json({ ok: false, code: r.code, error: r.error }, { status: r.status, headers: NO_STORE });
       await trackUsage(guard, req, { module: "human_design", action: "record_deleted", subEntity: "chart", resourceId: mid });
-      return NextResponse.json({ ok: true, deletedId: mid }, { status: 200, headers: NO_STORE });
+      return NextResponse.json({ ok: true, deletedId: mid, deletedReports: r.deletedReports, warnings: r.warnings }, { status: 200, headers: NO_STORE });
     }
     if (clientId) {
       const { ok, error } = await deleteManualChartsByClient(guard.db, guard.tenantId, clientId);
@@ -286,13 +297,19 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   }
   if (!isUuid(id)) return invalidIdResponse("id");
 
-  const { ok, error } = await deleteComputedChart(guard.db, guard.tenantId, id);
-  if (!ok) {
-    return NextResponse.json(
-      { ok: false, code: "DELETE_FAILED", error: error ?? "Silinemedi." },
-      { status: 400, headers: NO_STORE },
-    );
+  // "Analizi Sil": yalnız bu hesaplanmış analiz + ona bağlı raporlar (profil ve diğer analizler korunur).
+  const r = await deleteHdAnalysis(guard.db, guard.tenantId, id, { source: "computed", expectReports: readExpectReports(url) });
+  if (!r.ok) {
+    return NextResponse.json({ ok: false, code: r.code === "NOT_FOUND" ? "DELETE_FAILED" : r.code, error: r.error }, { status: r.status === 404 ? 400 : r.status, headers: NO_STORE });
   }
   await trackUsage(guard, req, { module: "human_design", action: "record_deleted", subEntity: "chart", resourceId: id });
-  return NextResponse.json({ ok: true, deletedId: id }, { status: 200, headers: NO_STORE });
+  return NextResponse.json({ ok: true, deletedId: id, deletedReports: r.deletedReports, warnings: r.warnings }, { status: 200, headers: NO_STORE });
+}
+
+/** Onay penceresinde gösterilen rapor sayısı (verildiyse) — sonradan artmışsa silme 409 ile durur. */
+function readExpectReports(url: URL): number | undefined {
+  const v = url.searchParams.get("expect_reports");
+  if (v === null || v.trim() === "") return undefined;
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 0 ? n : undefined;
 }
