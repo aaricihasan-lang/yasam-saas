@@ -225,14 +225,14 @@ const LONG = ("Uzun ŞİFA metni çğıöşü ÇĞİÖŞÜ \"tırnak\" & <açı>
     // ── K) Word ──
     r = await wordR.POST(req(`/api/dogaltas/stones/${legacy}/word-report`, "POST", A, {}), ctx(legacy));
     txt = r.status === 200 ? await docText(r) : "";
-    H.ok(r.status === 200 && txt.includes("KAYNAK: KRİSTAL ŞİFA KİTABI") && txt.includes("Ek Kaynak 1: Ahmet Hoca Eğitim Notları"), "K: tekli Word — KAYNAK başlıkları ayrı", r.status);
+    H.ok(r.status === 200 && txt.includes("Kaynak: Kristal Şifa Kitabı") && txt.includes("Kaynak: Ahmet Hoca Eğitim Notları") && !txt.includes("Ek Kaynak 1:"), "K: tekli Word — alan içinde kaynak etiketleri ayrı (Madde 14)", r.status);
     H.ok(txt.includes("Ahmet: mide kramplarında rahatlatır.") && txt.includes("Ahmet: ruhsal denge") && txt.includes("Genel: mide ve sindirim."), "K: her kaynağın metni kendi bölümünde");
     H.ok(txt.includes("SON_KESILMEDI") && txt.includes("Işık & Şifa Atölyesi"), "K: uzun metin kesilmeden + Türkçe ad");
-    H.ok(txt.indexOf("Genel: mide ve sindirim.") < txt.lastIndexOf("Ek Kaynak 1:"), "K: birincil kaynak önce, ek kaynaklar sonra");
+    H.ok(txt.indexOf("Kaynak: Ahmet Hoca Eğitim Notları") < txt.indexOf("Ahmet: mide kramplarında rahatlatır.") && txt.indexOf("Kaynak: Kristal Şifa Kitabı") < txt.indexOf("Genel: mide ve sindirim."), "K: her metnin üstünde kendi kaynağı");
     r = await bulkR.POST(req(`/api/dogaltas/word-report`, "POST", A, { sections: { stones: true }, selectedStoneIds: [legacy, onlyExtra] }));
     txt = r.status === 200 ? await docText(r) : "";
-    H.ok(r.status === 200 && (txt.match(/KAYNAK: Ahmet Hoca Eğitim Notları/g) ?? []).length === 2 && txt.includes("MİDE ekşimesinde kullanılır."), "K: toplu Word — her taşın ek kaynakları ayrı başlıkla", { status: r.status, sample: txt.slice(0, 300) });
-    H.ok(/KAYNAK\s*:?\s*Kristal Şifa Kitabı/.test(txt), "K: toplu Word — birincil kaynak etiketi");
+    H.ok(r.status === 200 && (txt.match(/Kaynak: Ahmet Hoca Eğitim Notları/g) ?? []).length >= 2 && txt.indexOf("Kaynak: Ahmet Hoca Eğitim Notları", txt.indexOf("ZZ Sodalit", txt.indexOf("Doğaltaş Kayıtları") + 1)) < txt.lastIndexOf("MİDE ekşimesinde kullanılır."), "K: toplu Word — her taşta ek kaynak metni kendi etiketiyle", { status: r.status, sample: txt.slice(0, 300) });
+    H.ok(/KAYNAKLAR: Kristal Şifa Kitabı · Ahmet Hoca Eğitim Notları/.test(txt), "K: toplu Word — taşın kaynak listesi");
 
     // ── L) Yaşam Hafızası ──
     const outbox = (await su.query(`select operation, event_version from yasam_hafizasi_outbox where source_table='stones' and source_id=$1::uuid`, [onlyExtra])).rows;

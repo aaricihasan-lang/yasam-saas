@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useTranslations } from "next-intl";
 import { formatDateTimeAbsolute } from "@/lib/i18n/format";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { resolveClientDetailTab, visibleClientDetailTabs } from "@/lib/danisan/clientDetailTabs";
+import { groupClientDetailTabs, resolveClientDetailTab, visibleClientDetailTabs } from "@/lib/danisan/clientDetailTabs";
 import { hasModulePermission } from "@/lib/auth/modulePermissions";
 import { installDemoReadOnlyFetchGuard, DEMO_READONLY_MESSAGE } from "@/lib/demo/demoReadOnlyFetchGuard";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
@@ -918,9 +918,19 @@ function ClientDetailPageInner() {
             {/* Sekmeler TEK KAYNAKTAN (lib/danisan/clientDetailTabs): yeni sekme kayda eklenince hem gerçek
                 uzman hem demo vitrin ekranında otomatik görünür; izin-bağımlı sekme (Yaşam Hafızası) yalnız
                 izinli kullanıcıya render edilir. */}
-            {visibleTabs.map((tab) => (
-              <Tab key={tab.id} label={t(`tab.${tab.labelKey}`)} id={tab.id} activeTab={activeTab} setActiveTab={setActiveTab} color={tab.color} />
-            ))}
+            {/* Madde 20: Beslenme + Randevular kırılmaz tek grup → satır sonu aralarına düşmez, gerekirse
+                birlikte alt satıra geçer (DOM sırası/role=tab aynı). */}
+            {groupClientDetailTabs(visibleTabs).map((group) =>
+              group.length === 1 ? (
+                <Tab key={group[0]!.id} label={t(`tab.${group[0]!.labelKey}`)} id={group[0]!.id} activeTab={activeTab} setActiveTab={setActiveTab} color={group[0]!.color} />
+              ) : (
+                <div key={group.map((g) => g.id).join("+")} role="none" data-tab-group={group.map((g) => g.id).join("+")} className="inline-flex flex-nowrap items-center gap-1.5">
+                  {group.map((tab) => (
+                    <Tab key={tab.id} label={t(`tab.${tab.labelKey}`)} id={tab.id} activeTab={activeTab} setActiveTab={setActiveTab} color={tab.color} />
+                  ))}
+                </div>
+              ),
+            )}
             {/* "Yaşam Hafızası'ndan Seç" aksiyonu UAT sonrası UI'dan kaldırıldı
                 (işlev tamamlanınca ayrı fazda geri değerlendirilecek). MemoryPicker
                 plumbing (state + mount) dormant korunuyor; Yaşam Hafızası sekmesi

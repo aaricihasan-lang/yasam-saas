@@ -11,16 +11,16 @@ import {
 } from "@/lib/dogaltas/stoneSources";
 
 /**
- * Doğaltaş taş detayı — BİLGİ KAYNAĞI seçici (WT9).
+ * Doğaltaş taş detayı — BİLGİ KAYNAKLARI çubuğu (WT9; manuel test Madde 14).
  *
- * Her kaynak bir sekme: hangi metnin hangi kaynağa ait olduğu açıkça görünür. Düzenleme modunda
- * "Yeni Kaynak" (yalnız ad sorulur; alanlar sonra mevcut editörlerle doldurulur), ad düzenleme ve
- * silme. Ad önerileri YALNIZ uzmanın kendi daha önce girdiği kaynaklardır (başka uzmanınki yok).
+ * Taşın kaynaklarını listeler (her kaynak bir çip). İçerik artık kaynak SEKMESİYLE değişmez: her
+ * bilgi bölümünde (Fiziksel Etkiler vb.) kaynakların metinleri kendi adlarının altında AYRI gösterilir
+ * (bkz. SourceFieldEntries). Düzenleme modunda "Yeni Kaynak" (yalnız ad sorulur; alanlar sonra ilgili
+ * bölümde o kaynağın satırından doldurulur), ad düzenleme ve silme. Ad önerileri YALNIZ uzmanın kendi
+ * daha önce girdiği kaynaklardır (başka uzmanınki yok).
  */
 export type StoneSourcesBarProps = {
   sources: readonly StoneSourceView[];
-  activeId: string;
-  onSelect: (id: string) => void;
   editable: boolean;
   busy?: boolean;
   /** Aramada her kaynaktaki eşleşme sayısı (id → adet). */
@@ -36,8 +36,6 @@ type NameDialog = { mode: "add" } | { mode: "rename"; id: string; current: strin
 
 export function StoneSourcesBar({
   sources,
-  activeId,
-  onSelect,
   editable,
   busy = false,
   matchCounts = {},
@@ -47,8 +45,8 @@ export function StoneSourcesBar({
   onDelete,
 }: StoneSourcesBarProps) {
   const [dialog, setDialog] = useState<NameDialog | null>(null);
-  const active = sources.find((s) => s.id === activeId) ?? sources[0];
   const multi = sources.length > 1;
+  const only = sources[0];
 
   return (
     <section
@@ -57,40 +55,62 @@ export function StoneSourcesBar({
       className="rounded-xl border border-cyan-200 bg-white/90 px-3 py-2.5 shadow-sm"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-700">Bilgi Kaynağı</span>
-        <div role="tablist" aria-label="Bilgi kaynakları" className="flex min-w-0 flex-wrap gap-1.5">
+        <span className="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-700">
+          {multi ? `Bilgi Kaynakları (${sources.length})` : "Bilgi Kaynağı"}
+        </span>
+        <ul aria-label="Bilgi kaynakları" className="flex min-w-0 flex-wrap gap-1.5">
           {sources.map((s) => {
-            const selected = s.id === active?.id;
             const hits = matchCounts[s.id] ?? 0;
             return (
-              <button
+              <li
                 key={s.id}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                data-testid="stone-source-tab"
+                data-testid="stone-source-chip"
                 data-source-id={s.id}
-                onClick={() => onSelect(s.id)}
-                className={`inline-flex min-h-[36px] max-w-full items-center gap-1.5 rounded-full border px-3 py-1 text-left text-[12px] font-black transition ${
-                  selected
-                    ? "border-cyan-500 bg-cyan-600 text-white shadow-sm"
-                    : "border-cyan-200 bg-white text-cyan-900 hover:bg-cyan-50"
-                }`}
+                className="inline-flex min-h-[36px] max-w-full items-center gap-1 rounded-full border border-cyan-200 bg-cyan-50/70 py-1 pl-3 pr-1.5 text-[12px] font-black text-cyan-900"
               >
+                <span aria-hidden>📖</span>
                 <span className={`break-words ${s.name ? "" : "italic"}`}>{sourceDisplayName(s.name)}</span>
                 {hits > 0 ? (
                   <span
                     data-testid="stone-source-hits"
-                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${selected ? "bg-yellow-200 text-slate-900" : "bg-yellow-100 text-yellow-900"}`}
+                    className="rounded-full bg-yellow-100 px-1.5 py-0.5 text-[10px] font-black text-yellow-900"
                     title={`${hits} eşleşme`}
                   >
                     🔍 {hits}
                   </span>
                 ) : null}
-              </button>
+                {editable ? (
+                  <>
+                    <button
+                      type="button"
+                      data-testid="stone-source-rename"
+                      data-source-id={s.id}
+                      disabled={busy}
+                      aria-label={`${sourceDisplayName(s.name)} kaynak adını düzenle`}
+                      title={s.name ? "Kaynak adını düzenle" : "Kaynak adı ver"}
+                      onClick={() => setDialog({ mode: "rename", id: s.id, current: s.name ?? "" })}
+                      className="ml-0.5 inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-white px-1.5 text-[11px] text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      ✎
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="stone-source-delete"
+                      data-source-id={s.id}
+                      disabled={busy || !multi}
+                      aria-label={`${sourceDisplayName(s.name)} kaynağını sil`}
+                      title={multi ? "Bu kaynağı sil" : "Taşın tek kaynağı silinemez."}
+                      onClick={() => onDelete(s.id)}
+                      className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-white px-1.5 text-[11px] text-red-700 ring-1 ring-red-200 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      ✕
+                    </button>
+                  </>
+                ) : null}
+              </li>
             );
           })}
-        </div>
+        </ul>
         {editable ? (
           <button
             type="button"
@@ -104,38 +124,16 @@ export function StoneSourcesBar({
         ) : null}
       </div>
 
-      {active ? (
+      {only ? (
         <p data-testid="stone-source-hint" className="mt-1.5 text-[11.5px] font-medium leading-snug text-slate-600">
-          Aşağıdaki metinler <b className="font-black text-slate-900">{sourceDisplayName(active.name)}</b> kaynağına aittir.
-          {multi ? " Kaynaklar arasında geçmek için yukarıdaki sekmeleri kullanın." : ""} Görseller, mineral/burç/organ atamaları ve uyarı etiketleri tüm kaynaklarda ortaktır.
+          {multi ? (
+            <>Her bölümde metinler <b className="font-black text-slate-900">kaynak adıyla ayrı ayrı</b> gösterilir; bir kaynağın metni diğerini değiştirmez.</>
+          ) : (
+            <>Bu taşın metinleri <b className="font-black text-slate-900">{sourceDisplayName(only.name)}</b> kaynağına aittir.</>
+          )}{" "}
+          Görseller, mineral/burç/organ atamaları ve uyarı etiketleri tüm kaynaklarda ortaktır.
+          {editable && !multi ? " Taşın tek kaynağı silinemez." : ""}
         </p>
-      ) : null}
-
-      {editable && active ? (
-        <div className="mt-2 flex flex-wrap gap-2">
-          <button
-            type="button"
-            data-testid="stone-source-rename"
-            disabled={busy}
-            onClick={() => setDialog({ mode: "rename", id: active.id, current: active.name ?? "" })}
-            className="inline-flex min-h-[34px] items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11.5px] font-black text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            {active.name ? "Kaynak adını düzenle" : "Kaynak adı ver"}
-          </button>
-          <button
-            type="button"
-            data-testid="stone-source-delete"
-            disabled={busy || !multi}
-            title={multi ? undefined : "Taşın tek kaynağı silinemez."}
-            onClick={() => onDelete(active.id)}
-            className="inline-flex min-h-[34px] items-center rounded-lg border border-red-200 bg-white px-2.5 py-1 text-[11.5px] font-black text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Bu kaynağı sil
-          </button>
-          {!multi ? (
-            <span className="self-center text-[11px] font-semibold text-slate-500">Taşın tek kaynağı silinemez.</span>
-          ) : null}
-        </div>
       ) : null}
 
       {dialog ? (
@@ -192,7 +190,7 @@ function SourceNameDialog({
     const key = sourceNameKey(name);
     const selfId = dialog.mode === "rename" ? dialog.id : null;
     if (existing.some((s) => s.id !== selfId && s.name && sourceNameKey(s.name) === key)) {
-      setError("Bu kaynak adı bu taşta zaten var. Mevcut kaynağı seçip düzenleyin.");
+      setError("Bu kaynak adı bu taşta zaten var. Mevcut kaynağın satırından düzenleyin.");
       return;
     }
     setSaving(true);
@@ -218,7 +216,7 @@ function SourceNameDialog({
         <h2 className="text-[15px] font-black text-slate-950">{dialog.mode === "add" ? "Yeni Kaynak Ekle" : "Kaynak Adı"}</h2>
         <p className="mt-1 text-[12px] font-medium text-slate-500">
           {dialog.mode === "add"
-            ? "Kaynağın adını yazın (ör. kitap, eğitim notu). Ekledikten sonra bu kaynağa ait alanları doldurabilirsiniz; diğer kaynakların içeriği değişmez."
+            ? "Kaynağın adını yazın (ör. kitap, eğitim notu). Ekledikten sonra her bölümde bu kaynağın satırından içeriğini girebilirsiniz; diğer kaynakların içeriği değişmez."
             : "Kaynak adını düzenleyin. İçerik değişmez."}
         </p>
         <input

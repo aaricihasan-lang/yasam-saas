@@ -51,13 +51,19 @@ import { reportFileDate } from "@/lib/time/reportTime";
 import { reportErrorKind } from "@/lib/dogaltas/reportErrorKind";
 import { useToast } from "@/components/ui/ToastProvider";
 import { StoneSourcesBar } from "@/app/dogaltas/components/StoneSourcesBar";
+import { SourceChakraList, SourceEditRows, SourceEntriesList } from "@/app/dogaltas/components/SourceFieldEntries";
 import {
   PRIMARY_SOURCE_ID,
   SOURCE_FIELDS,
   buildStoneSourcesView,
+  chakraEntriesBySource,
+  fieldEntriesBySource,
+  isMultiSource,
   sourceDisplayName,
   sourceSearchText,
   type SourceField,
+  type SourceFieldEntry,
+  type SourceTextField,
   type StoneSourceView,
 } from "@/lib/dogaltas/stoneSources";
 import {
@@ -146,6 +152,8 @@ type ActiveEditor =
       badge: string;
       value: string;
       multiline: boolean;
+      /** Madde 14: yazılacak kaynak (yok/"primary" = taş satırı; aksi halde stone_sources.id). */
+      sourceId?: string;
     }
   | {
       mode: "checkbox";
@@ -156,6 +164,8 @@ type ActiveEditor =
       options: readonly string[];
       /** P1-01: kanonik listede karşılığı olmayan kayıtlı eski değerler (editör açılışında sabitlenir). */
       legacy: string[];
+      /** Madde 14: çakralar kaynağa özgü — yazılacak kaynak (yok/"primary" = taş satırı). */
+      sourceId?: string;
     }
   | {
       mode: "assignments";
@@ -439,6 +449,14 @@ function editorSnapshot(editor: ActiveEditor): string {
   return JSON.stringify(editor.values);
 }
 
+type SourceBlocks = {
+  entries: SourceFieldEntry[];
+  sources: readonly { id: string; name: string | null }[];
+  previewOf: (sourceId: string) => string;
+  onEditSource: (sourceId: string) => void;
+  onReadSource: (entry: SourceFieldEntry) => void;
+};
+
 function TextBlock({
   title,
   badge,
@@ -450,6 +468,7 @@ function TextBlock({
   onOpenEdit,
   onOpenRead,
   isContentProtected = false,
+  sourceBlocks,
 }: {
   title: string;
   badge: string;
@@ -461,10 +480,41 @@ function TextBlock({
   onOpenEdit: () => void;
   onOpenRead: () => void;
   isContentProtected?: boolean;
+  /** Madde 14: taşta birden çok kaynak varsa bu alanın kaynak başına içerikleri (ayrı bloklar). */
+  sourceBlocks?: SourceBlocks;
 }) {
   const t = useTranslations("stones.detail");
   const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
   const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
+
+  if (sourceBlocks && !isContentProtected) {
+    return (
+      <div data-testid="source-text-block" className={cardClass}>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={toneClass(tone)}>{badge}</span>
+          <h2 className="text-sm font-black text-slate-950">{title}</h2>
+          {showMatchBadge ? <SearchMatchBadge /> : null}
+        </div>
+        {editEnabled ? (
+          <SourceEditRows
+            sources={sourceBlocks.sources}
+            preview={sourceBlocks.previewOf}
+            onEdit={sourceBlocks.onEditSource}
+            editLabel={t("edit")}
+            addLabel="+ Ekle"
+            emptyLabel={t("noInfoYet")}
+          />
+        ) : (
+          <SourceEntriesList
+            entries={sourceBlocks.entries}
+            highlightQuery={highlightQuery}
+            emptyText={t("noInfoYet")}
+            onOpen={sourceBlocks.onReadSource}
+          />
+        )}
+      </div>
+    );
+  }
 
   if (isContentProtected) {
     return (
@@ -618,27 +668,18 @@ function StoneDetailPage() {
   const [wordBusy, setWordBusy] = useState(false);
   // WT9 çoklu kaynak: ek kaynaklar (birincil = stones satırı), seçili kaynak, ad önerileri.
   const [extraSources, setExtraSources] = useState<StoneSourceView[]>([]);
-  const [activeSourceId, setActiveSourceId] = useState<string>(PRIMARY_SOURCE_ID);
   const [sourceNames, setSourceNames] = useState<string[]>([]);
   const [sourcesBusy, setSourcesBusy] = useState(false);
-  const autoSourcePickedRef = useRef(false);
 
-  // WT9: kaynak listesi = [birincil (taş satırı), ...ek kaynaklar]; görünen kayıt = seçili kaynağın
-  // alanlarıyla taş (taşa özgü alanlar — ad, görseller, atamalar, uyarı etiketleri — ortak).
+  // WT9: kaynak listesi = [birincil (taş satırı), ...ek kaynaklar]. Madde 14: içerik artık sekmeyle
+  // DEĞİŞMEZ — çok kaynaklı taşta her bölüm, kaynakların metinlerini kendi adlarıyla AYRI gösterir.
+  // Taşa özgü alanlar (ad, görseller, atamalar, uyarı etiketleri) ortaktır.
   const allSources = useMemo<StoneSourceView[]>(
     () => (stone ? buildStoneSourcesView(stone as unknown as Record<string, unknown>, []).slice(0, 1).concat(extraSources) : []),
     [stone, extraSources],
   );
-  const activeExtra = useMemo(
-    () => (activeSourceId === PRIMARY_SOURCE_ID ? null : extraSources.find((s) => s.id === activeSourceId) ?? null),
-    [activeSourceId, extraSources],
-  );
-  const displayRecord = useMemo<StoneRecord | null>(() => {
-    if (!stone) return null;
-    if (!activeExtra) return stone;
-    return { ...stone, ...activeExtra.fields, chakras: activeExtra.fields.chakras ?? [] };
-  }, [stone, activeExtra]);
-  // Aramada her kaynaktaki eşleşme sayısı (sekme rozeti) — mevcut aramayla aynı Türkçe katlama.
+  const multiSource = isMultiSource(allSources);
+  // Aramada her kaynaktaki eşleşme sayısı (çip rozeti) — mevcut aramayla aynı Türkçe katlama.
   const sourceMatchCounts = useMemo<Record<string, number>>(() => {
     const q = highlightQuery.trim();
     if (!q) return {};
@@ -646,14 +687,9 @@ function StoneDetailPage() {
     for (const s of allSources) out[s.id] = findMatchRanges(sourceSearchText({ name: null, fields: s.fields }), [q]).length;
     return out;
   }, [allSources, highlightQuery]);
-  // Aramayla gelindiyse ve birincil kaynakta eşleşme yoksa, ilk eşleşen kaynağı aç (bir kez).
-  useEffect(() => {
-    if (autoSourcePickedRef.current || !highlightQuery.trim() || extraSources.length === 0) return;
-    autoSourcePickedRef.current = true;
-    if ((sourceMatchCounts[PRIMARY_SOURCE_ID] ?? 0) > 0) return;
-    const first = extraSources.find((s) => (sourceMatchCounts[s.id] ?? 0) > 0);
-    if (first) runInEffect(() => setActiveSourceId(first.id));
-  }, [extraSources, sourceMatchCounts, highlightQuery]);
+  function sourceById(sourceId: string | undefined): StoneSourceView | null {
+    return allSources.find((s) => s.id === (sourceId ?? PRIMARY_SOURCE_ID)) ?? null;
+  }
 
   async function handleAddSource(name: string): Promise<string | null> {
     if (!stone) return "Taş yüklenmedi.";
@@ -664,13 +700,10 @@ function StoneDetailPage() {
     if (!r.ok) return r.error ?? "Kaynak eklenemedi.";
     if (r.row) {
       const created = buildStoneSourcesView(stone as unknown as Record<string, unknown>, [r.row])[1];
-      if (created) {
-        setExtraSources((prev) => [...prev, created]);
-        setActiveSourceId(created.id);
-      }
+      if (created) setExtraSources((prev) => [...prev, created]);
     }
     setSourceNames((prev) => (prev.includes(name) ? prev : [...prev, name]));
-    setSuccessMessage(`"${name}" kaynağı eklendi. Bu kaynağa ait alanları şimdi doldurabilirsiniz.`);
+    setSuccessMessage(`"${name}" kaynağı eklendi. Her bölümde "${name}" satırından bu kaynağın içeriğini girebilirsiniz.`);
     return null;
   }
 
@@ -712,7 +745,6 @@ function StoneDetailPage() {
       setErrorMessage(r.error ?? "Kaynak silinemedi.");
       return;
     }
-    setActiveSourceId(PRIMARY_SOURCE_ID);
     if (isPrimary) {
       await loadStone();
     } else {
@@ -854,12 +886,10 @@ function StoneDetailPage() {
     });
   }, [id]);
 
-  // WT9: başka taşa geçilince kaynak seçimi sıfırlanır (önceki taşın kaynağı taşınmaz).
+  // WT9: başka taşa geçilince önceki taşın kaynakları taşınmaz.
   useEffect(() => {
-    autoSourcePickedRef.current = false;
     runInEffect(() => {
       setExtraSources([]);
-      setActiveSourceId(PRIMARY_SOURCE_ID);
     });
   }, [id]);
 
@@ -891,21 +921,26 @@ function StoneDetailPage() {
     field: EditableTextField,
     title: string,
     badge: string,
-    multiline = true
+    multiline = true,
+    sourceId: string = PRIMARY_SOURCE_ID,
   ) {
     if (!stone || !editEnabled) return;
 
     setErrorMessage("");
     setSuccessMessage("");
-    // WT9: kaynak alanı → SEÇİLİ kaynağın değeri; taş adı → taş.
-    const base = (field !== "stone_name" && displayRecord) ? displayRecord : stone;
+    // Madde 14: kaynak alanı → YALNIZ hedef kaynağın değeri (diğer kaynaklar okunmaz/yazılmaz);
+    // taş adı → taş. Çok kaynaklı taşta başlık hangi kaynağın düzenlendiğini söyler.
+    const src = field !== "stone_name" && sourceId !== PRIMARY_SOURCE_ID ? sourceById(sourceId) : null;
+    if (field !== "stone_name" && sourceId !== PRIMARY_SOURCE_ID && !src) return;
+    const value = src ? src.fields[field as SourceTextField] : stone[field];
     openEditor({
       mode: "text",
       field,
-      title,
+      title: field !== "stone_name" && multiSource ? `${title} · ${sourceDisplayName(sourceById(sourceId)?.name)}` : title,
       badge,
-      value: String(base[field] || ""),
+      value: String(value || ""),
       multiline,
+      sourceId: src ? src.id : undefined,
     });
   }
 
@@ -919,21 +954,25 @@ function StoneDetailPage() {
     field: "chakras" | "warning_tags",
     title: string,
     badge: string,
-    options: readonly string[]
+    options: readonly string[],
+    sourceId: string = PRIMARY_SOURCE_ID,
   ) {
     if (!stone || !editEnabled) return;
 
     setErrorMessage("");
     setSuccessMessage("");
-    // WT9: çakralar kaynağa özgü (seçili kaynak); uyarı etiketleri taşa özgü.
-    const selected = [...(((field === "chakras" && displayRecord) ? displayRecord : stone)[field]) || []];
+    // WT9/Madde 14: çakralar kaynağa özgü (hedef kaynak); uyarı etiketleri taşa özgü.
+    const src = field === "chakras" && sourceId !== PRIMARY_SOURCE_ID ? sourceById(sourceId) : null;
+    if (field === "chakras" && sourceId !== PRIMARY_SOURCE_ID && !src) return;
+    const selected = [...((src ? src.fields.chakras : stone[field]) || [])];
     openEditor({
       mode: "checkbox",
       field,
-      title,
+      title: field === "chakras" && multiSource ? `${title} · ${sourceDisplayName(sourceById(sourceId)?.name)}` : title,
       badge,
       selected,
       options,
+      sourceId: src ? src.id : undefined,
       // P1-01: listede olmayan kayıtlı değerler görünür + kaldırılabilir (sessiz kayıp yok).
       legacy: legacyTaxonomyValues(field === "chakras" ? "chakra" : "warning", selected),
     });
@@ -1020,9 +1059,16 @@ function StoneDetailPage() {
       payload.assignments = check.value;
     }
 
-    // WT9: ek kaynak seçiliyken kaynak alanları (metinler + çakralar) O KAYNAĞA yazılır; taşın
-    // kendisi ve diğer kaynaklar değişmez. Taşa özgü alanlar (ad, atamalar, uyarı etiketleri) taşa.
+    // WT9/Madde 14: editör bir ek kaynak için açıldıysa kaynak alanları (metinler + çakralar) YALNIZ
+    // O KAYNAĞA yazılır; taşın kendisi ve diğer kaynaklar değişmez. Taşa özgü alanlar taşa.
     const sourceKeys = Object.keys(payload).filter((k) => (SOURCE_FIELDS as readonly string[]).includes(k));
+    const editorSourceId = activeEditor.mode === "assignments" ? undefined : activeEditor.sourceId;
+    const activeExtra = editorSourceId ? extraSources.find((s) => s.id === editorSourceId) ?? null : null;
+    if (editorSourceId && !activeExtra) {
+      setSaving(false);
+      setErrorMessage(t("editor.updateFailed", { error: "Kaynak bulunamadı; sayfayı yenileyin." }));
+      return;
+    }
     if (activeExtra && sourceKeys.length > 0) {
       const patch: Partial<Record<SourceField, string | string[] | null>> = {};
       for (const k of sourceKeys) patch[k as SourceField] = payload[k] as string | string[] | null;
@@ -1339,9 +1385,13 @@ function StoneDetailPage() {
   }
 
   const safeStone = useMemo(
-    () => (displayRecord ? toSafeStone(displayRecord as unknown as Record<string, unknown>) : null),
-    [displayRecord],
+    () => (stone ? toSafeStone(stone as unknown as Record<string, unknown>) : null),
+    [stone],
   );
+  // Madde 14: arama eşleşmesi çok kaynaklı taşta TÜM kaynakların metninde aranır.
+  const fieldSearchText = (field: SourceTextField): string | null =>
+    multiSource ? allSources.map((s) => s.fields[field] ?? "").filter((v) => v.trim()).join("\n") : safeStone?.[field] ?? null;
+  const allChakras = multiSource ? allSources.flatMap((s) => s.fields.chakras ?? []) : null;
 
   const sectionMatches = useMemo(() => {
     const q = highlightQuery.trim();
@@ -1361,30 +1411,43 @@ function StoneDetailPage() {
 
     return {
       stoneName: matchesText(safeStone.stone_name),
-      shortDescription: matchesText(safeStone.short_description),
-      generalInfo: matchesText(safeStone.general_info),
-      sourceNote: matchesText(safeStone.source_note),
-      physicalEffects: matchesText(safeStone.physical_effects),
-      spiritualEffects: matchesText(safeStone.spiritual_effects),
-      otherEffects: matchesText(safeStone.other_effects),
-      warningText: matchesText(safeStone.warning_text),
-      fengShui: matchesText(safeStone.feng_shui),
-      meditation: matchesText(safeStone.meditation),
-      care: matchesText(safeStone.care),
-      application: matchesText(safeStone.application),
-      chakras: matchesList(chakras),
+      shortDescription: matchesText(fieldSearchText("short_description")),
+      generalInfo: matchesText(fieldSearchText("general_info")),
+      sourceNote: matchesText(fieldSearchText("source_note")),
+      physicalEffects: matchesText(fieldSearchText("physical_effects")),
+      spiritualEffects: matchesText(fieldSearchText("spiritual_effects")),
+      otherEffects: matchesText(fieldSearchText("other_effects")),
+      warningText: matchesText(fieldSearchText("warning_text")),
+      fengShui: matchesText(fieldSearchText("feng_shui")),
+      meditation: matchesText(fieldSearchText("meditation")),
+      care: matchesText(fieldSearchText("care")),
+      application: matchesText(fieldSearchText("application")),
+      chakras: matchesList(allChakras ?? chakras),
       warningTags: matchesList(warningTags),
       assignments: textMatchesQuery(assignmentsSearchText(assignments), q),
     };
-  }, [highlightQuery, safeStone]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fieldSearchText allSources/safeStone'dan türer
+  }, [highlightQuery, safeStone, allSources]);
 
   // WT8: sayfadaki TÜM görünür eşleşmeler (atamalar, çakralar, kullanım, uyarılar dahil) sarı; ilk
   // eşleşmeye bir kez kaydırılır — sonra kullanıcı serbestçe gezinir.
   const pageContentRef = useRef<HTMLDivElement | null>(null);
   const pageMatchCount = useSearchHighlight(pageContentRef, [highlightQuery], {
     enabled: Boolean(safeStone) && Boolean(highlightQuery.trim()),
-    resetKey: `${safeStone?.id ?? ""}:${activeSourceId}`,
+    resetKey: `${safeStone?.id ?? ""}:${allSources.length}`,
   });
+
+  // Madde 14: çok kaynaklı taşta bir alanın kaynak blokları (tek kaynakta undefined → eski görünüm).
+  function sourceBlocksFor(field: SourceTextField, title: string, badge: string): SourceBlocks | undefined {
+    if (!multiSource) return undefined;
+    return {
+      entries: fieldEntriesBySource(allSources, field),
+      sources: allSources,
+      previewOf: (sid) => shortPreview(sourceById(sid)?.fields[field], 80),
+      onEditSource: (sid) => openTextEditor(field, title, badge, true, sid),
+      onReadSource: (e) => openReader(`${title} · ${sourceDisplayName(e.name)}`, badge, e.text),
+    };
+  }
 
   const readerHasMatch = useMemo(
     () =>
@@ -1601,11 +1664,9 @@ function StoneDetailPage() {
           </div>
         )}
 
-        {/* WT9: bilgi kaynağı seçici — metinlerin hangi kaynağa ait olduğu açıkça görünür. */}
+        {/* WT9/Madde 14: bilgi kaynakları — her bölümde metinler kaynak adıyla ayrı gösterilir. */}
         <StoneSourcesBar
           sources={allSources}
-          activeId={activeSourceId}
-          onSelect={(sid) => { if (!activeEditor) setActiveSourceId(sid); }}
           editable={editEnabled && !isDemo}
           busy={sourcesBusy || saving}
           matchCounts={sourceMatchCounts}
@@ -1790,6 +1851,29 @@ function StoneDetailPage() {
             </div>
 
             <div className="space-y-3">
+            {multiSource && !isContentProtected ? (
+              <div data-testid="source-chakra-block" className={mergeMatchCardClass(uiInfoCard, Boolean(sectionMatches?.chakras))}>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <h3 className="text-sm font-black text-slate-950">{t("sections.chakras")}</h3>
+                  {sectionMatches?.chakras ? <SearchMatchBadge /> : null}
+                </div>
+                {editEnabled ? (
+                  <SourceEditRows
+                    sources={allSources}
+                    preview={(sid) => (sourceById(sid)?.fields.chakras ?? []).map(facet).join(", ")}
+                    onEdit={(sid) => openCheckboxEditor("chakras", t("sections.chakras"), t("badges.chakra"), CHAKRA_OPTIONS, sid)}
+                    editLabel={t("select")}
+                    addLabel={t("select")}
+                    emptyLabel="-"
+                  />
+                ) : (
+                  <SourceChakraList
+                    entries={chakraEntriesBySource(allSources)}
+                    renderChip={(chakra) => <span className={toneClass("violet")}>{facet(chakra)}</span>}
+                  />
+                )}
+              </div>
+            ) : (
             <button
               type="button"
               onClick={() => openCheckboxEditor("chakras", t("sections.chakras"), t("badges.chakra"), CHAKRA_OPTIONS)}
@@ -1831,6 +1915,7 @@ function StoneDetailPage() {
                 </div>
               )}
             </button>
+            )}
 
             <button
               type="button"
@@ -1960,6 +2045,7 @@ function StoneDetailPage() {
               editEnabled={editEnabled}
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.shortDescription}
+              sourceBlocks={sourceBlocksFor("short_description", t("sections.shortDesc"), t("badges.generalInfo"))}
               onOpenEdit={() => openTextEditor("short_description", t("sections.shortDesc"), t("badges.generalInfo"))}
               onOpenRead={() => openReader(t("sections.shortDesc"), t("badges.generalInfo"), safeStone.short_description)}
             />
@@ -1973,6 +2059,7 @@ function StoneDetailPage() {
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.generalInfo}
               isContentProtected={isContentProtected}
+              sourceBlocks={sourceBlocksFor("general_info", t("sections.generalInfo"), t("badges.detailedInfo"))}
               onOpenEdit={() => openTextEditor("general_info", t("sections.generalInfo"), t("badges.detailedInfo"))}
               onOpenRead={() => openReader(t("sections.generalInfo"), t("badges.detailedInfo"), safeStone.general_info)}
             />
@@ -1986,6 +2073,7 @@ function StoneDetailPage() {
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.sourceNote}
               isContentProtected={isContentProtected}
+              sourceBlocks={sourceBlocksFor("source_note", t("sections.sourceNote"), t("badges.source"))}
               onOpenEdit={() => openTextEditor("source_note", t("sections.sourceNote"), t("badges.source"))}
               onOpenRead={() => openReader(t("sections.sourceNote"), t("badges.source"), safeStone.source_note)}
             />
@@ -1999,6 +2087,7 @@ function StoneDetailPage() {
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.physicalEffects}
               isContentProtected={isContentProtected}
+              sourceBlocks={sourceBlocksFor("physical_effects", t("sections.physicalEffects"), t("badges.physical"))}
               onOpenEdit={() => openTextEditor("physical_effects", t("sections.physicalEffects"), t("badges.physical"))}
               onOpenRead={() => openReader(t("sections.physicalEffects"), t("badges.physical"), safeStone.physical_effects)}
             />
@@ -2012,6 +2101,7 @@ function StoneDetailPage() {
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.spiritualEffects}
               isContentProtected={isContentProtected}
+              sourceBlocks={sourceBlocksFor("spiritual_effects", t("sections.spiritualEffects"), t("badges.spiritual"))}
               onOpenEdit={() => openTextEditor("spiritual_effects", t("sections.spiritualEffects"), t("badges.spiritual"))}
               onOpenRead={() => openReader(t("sections.spiritualEffects"), t("badges.spiritual"), safeStone.spiritual_effects)}
             />
@@ -2025,6 +2115,7 @@ function StoneDetailPage() {
               highlightQuery={highlightQuery}
               hasSearchMatch={sectionMatches?.otherEffects}
               isContentProtected={isContentProtected}
+              sourceBlocks={sourceBlocksFor("other_effects", t("sections.otherEffects"), t("badges.complementary"))}
               onOpenEdit={() => openTextEditor("other_effects", t("sections.otherEffects"), t("badges.complementary"))}
               onOpenRead={() => openReader(t("sections.otherEffects"), t("badges.complementary"), safeStone.other_effects)}
             />
@@ -2039,6 +2130,7 @@ function StoneDetailPage() {
                 highlightQuery={highlightQuery}
                 hasSearchMatch={sectionMatches?.warningText}
                 isContentProtected={isContentProtected}
+                sourceBlocks={sourceBlocksFor("warning_text", t("sections.warnings"), t("badges.clinical"))}
                 onOpenEdit={() => openTextEditor("warning_text", t("sections.warnings"), t("badges.clinical"))}
                 onOpenRead={() =>
                   openReader(t("sections.warnings"), t("badges.clinical"), safeStone.warning_text)
@@ -2070,6 +2162,45 @@ function StoneDetailPage() {
                   const usageHasMatch = Boolean(
                     sectionMatches?.[usageMatchKey as keyof typeof sectionMatches],
                   );
+                  // Madde 14: çok kaynaklı taşta kart, kaynakların metinlerini ayrı bloklarla gösterir.
+                  const usageBlocks = isContentProtected
+                    ? undefined
+                    : sourceBlocksFor(key as SourceTextField, String(title), t("badges.usageArea"));
+                  if (usageBlocks) {
+                    return (
+                      <div
+                        key={title}
+                        data-testid="source-text-block"
+                        className={mergeMatchCardClass(
+                          "rounded-lg border border-slate-200 bg-slate-50/80 p-2.5 text-left shadow-inner",
+                          usageHasMatch,
+                        )}
+                      >
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h3 className="text-xs font-black text-slate-950">{title}</h3>
+                          {usageHasMatch ? <SearchMatchBadge /> : null}
+                        </div>
+                        {editEnabled ? (
+                          <SourceEditRows
+                            sources={usageBlocks.sources}
+                            preview={usageBlocks.previewOf}
+                            onEdit={usageBlocks.onEditSource}
+                            editLabel={t("edit")}
+                            addLabel="+ Ekle"
+                            emptyLabel={t("noInfoYet")}
+                          />
+                        ) : (
+                          <SourceEntriesList
+                            entries={usageBlocks.entries}
+                            highlightQuery={highlightQuery}
+                            emptyText={t("noInfoYet")}
+                            onOpen={usageBlocks.onReadSource}
+                            textClassName="text-xs leading-5 text-slate-600"
+                          />
+                        )}
+                      </div>
+                    );
+                  }
 
                   return (
                   <button
