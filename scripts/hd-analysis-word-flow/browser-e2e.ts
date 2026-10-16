@@ -151,8 +151,8 @@ async function main() {
       ok((await itemReady.count()) === 1 && (await itemNew.count()) === 1, `${d.name}: iki kayıtlı analiz listede`);
       ok((await itemReady.textContent())!.includes("20.07.2018 19:00") && (await itemNew.textContent())!.includes("20.07.2018 07:15"),
         `${d.name}: aynı tarihli analizler doğum saatiyle ayırt edilir`);
-      ok(await itemReady.getByText("Word hazır").isVisible(), `${d.name}: hazır Word rozeti doğru analizde`);
-      ok((await itemNew.getByText("Word hazır").count()) === 0, `${d.name}: Word'ü olmayan analizde rozet yok`);
+      ok(await itemReady.getByText("Rapor hazır").isVisible(), `${d.name}: hazır Word rozeti doğru analizde`);
+      ok((await itemNew.getByText("Rapor hazır").count()) === 0, `${d.name}: Word'ü olmayan analizde rozet yok`);
       ok(await noHScroll(page, d.viewport.width), `${d.name}: liste yatay kaydırma yapmıyor`);
       const btnBox = await itemReady.locator(`[data-hd-history-word="${chartReady}"]`).boundingBox();
       ok(!!btnBox && btnBox.x >= 0 && btnBox.x + btnBox.width <= d.viewport.width + 0.5 && btnBox.height >= 36, `${d.name}: Word İndir düğmesi ekranda ve dokunulabilir`, btnBox);
@@ -167,14 +167,14 @@ async function main() {
       const text = (await zip.file("word/document.xml")!.async("string")).replace(/<[^>]+>/g, " ");
       ok(/\.docx$/.test(dl.suggestedFilename()) && text.includes("Elif Şahin") && Object.keys(zip.files).some((f) => f.startsWith("word/media/")),
         `${d.name}: hazır Word indi (DOCX, danışan adı, BodyGraph görseli)`, dl.suggestedFilename());
-      await itemReady.getByText(/Önceden oluşturulmuş kayıtlı Word raporu indirildi/).waitFor();
-      ok(await itemReady.locator(`[data-hd-history-word="${chartReady}"]`).getByText("Kayıtlı Word'ü İndir").isVisible() && await itemNew.locator(`[data-hd-history-word="${chartNew}"]`).getByText("Word Oluştur").isVisible(),
-        `${d.name}: 'Kayıtlı Word'ü İndir' ile 'Word Oluştur' ayrı etiketler`);
+      await itemReady.getByText(/Önceden hazırlanmış Human Design Danışan Raporu indirildi/).waitFor();
+      ok(await itemReady.locator(`[data-hd-history-word="${chartReady}"]`).getByText("Danışan Raporunu İndir").isVisible() && await itemNew.locator(`[data-hd-history-word="${chartNew}"]`).getByText("Danışan Raporunu Hazırla").isVisible(),
+        `${d.name}: 'Danışan Raporunu İndir' ile 'Danışan Raporunu Hazırla' ayrı etiketler`);
       ok(w.create.length === 0, `${d.name}: hazır raporda yeni oluşturma isteği YOK`, w.create);
 
       // 2) Hazır raporu olmayan analiz → modal açılır, akış bir kez başlar, rapor oluşturulur ve iner.
       await itemNew.locator(`[data-hd-history-word="${chartNew}"]`).click();
-      const choose = page.getByRole("dialog", { name: "Word raporuna neler eklensin?" });
+      const choose = page.getByRole("dialog", { name: "Human Design Danışan Raporu'na neler eklensin?" });
       await choose.waitFor({ timeout: 60_000 });
       ok(!(await choose.getByRole("checkbox", { name: /Bilgi Bankamdaki Açıklamaları Ekle/ }).isChecked()) && !(await choose.getByRole("checkbox", { name: /Sistem Yorumunu Ekle/ }).isChecked()),
         `${d.name}: içerik seçimi açıldı (iki seçenek de VARSAYILAN KAPALI)`);
@@ -184,7 +184,7 @@ async function main() {
       ok(!!cb && cb.x >= 0 && cb.x + cb.width <= d.viewport.width + 0.5 && cb.y + cb.height <= d.viewport.height + 0.5, `${d.name}: seçim penceresi ekrana sığıyor`, cb);
       await page.screenshot({ path: path.join(OUT, `choose-${d.name}.png`) });
       const dl2P = page.waitForEvent("download", { timeout: 90_000 });
-      await choose.getByRole("button", { name: "Word'ü oluştur" }).click();
+      await choose.getByRole("button", { name: "Raporu Hazırla" }).click();
       const dl2 = await dl2P;
       const z2 = await JSZip.loadAsync(readFileSync((await dl2.path())!));
       const t2 = (await z2.file("word/document.xml")!.async("string")).replace(/<[^>]+>/g, " ");
@@ -195,10 +195,10 @@ async function main() {
       ok(await noHScroll(page, d.viewport.width), `${d.name}: analiz penceresi açıkken yatay kaydırma yok`);
       await page.screenshot({ path: path.join(OUT, `modal-${d.name}.png`) });
 
-      // 3) Pencere kapanınca liste "Word hazır" gösterir; ikinci tıklama aynı raporu indirir.
+      // 3) Pencere kapanınca liste "Rapor hazır" gösterir; ikinci tıklama aynı raporu indirir.
       await page.getByRole("button", { name: "Kapat" }).first().click();
-      await itemNew.getByText("Word hazır").waitFor({ timeout: 20_000 });
-      ok(true, `${d.name}: kapatınca yeni rapor listede 'Word hazır'`);
+      await itemNew.getByText("Rapor hazır").waitFor({ timeout: 20_000 });
+      ok(true, `${d.name}: kapatınca yeni rapor listede 'Rapor hazır'`);
       const dl3P = page.waitForEvent("download");
       await itemNew.locator(`[data-hd-history-word="${chartNew}"]`).click();
       await dl3P;
@@ -237,7 +237,7 @@ async function main() {
       await tab.locator(`[data-hd-journey-analysis="${chartReady}"]`).getByRole("link", { name: /Analizi Aç/ }).click();
       await page.waitForURL(new RegExp(`/human-design/danisanlar/${hd}\\?chart=${chartReady}`), { timeout: 60_000 });
       const chartModal = page.locator('[role="dialog"][aria-labelledby="hd-computed-detay-title"]');
-      const opened = await chartModal.getByRole("button", { name: "Kayıtlı Word'ü İndir", exact: true }).waitFor({ timeout: 60_000 }).then(() => true, () => false);
+      const opened = await chartModal.getByRole("button", { name: "Danışan Raporunu İndir", exact: true }).waitFor({ timeout: 60_000 }).then(() => true, () => false);
       const sub = opened ? (await chartModal.locator("p").first().textContent()) ?? "" : "";
       ok(opened && sub.includes("19:00") && !sub.includes("07:15"), `${d.name}: DY'den ?chart= ile AYNI analiz penceresi açıldı (Word İndir hazır)`);
       ok(await noHScroll(page, d.viewport.width), `${d.name}: DY→HD sayfası yatay kaydırma yok`);

@@ -14,6 +14,8 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { journeyAction } from "@/lib/human-design/api/journeyClient";
 import { HdBirthLocationPicker, type HdPickedLocation } from "../../components/HdBirthLocationPicker";
+import type { HdDuplicateCandidate } from "@/lib/human-design/api/hdIdentity";
+import { HdDuplicateDialog } from "./HdDuplicateDialog";
 
 export const hdFieldBase =
   "w-full rounded-xl border border-indigo-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400";
@@ -33,6 +35,8 @@ export function HdClientForm() {
   const [birthLoc, setBirthLoc] = useState<HdPickedLocation | null>(null);
   const [saving, setSaving] = useState(false);
   const requestIdRef = useRef<string>("");
+  // Olası mükerrer uyarısı (sunucu 409 POSSIBLE_DUPLICATE_CLIENT) — karar uzmanda.
+  const [dup, setDup] = useState<HdDuplicateCandidate[] | null>(null);
 
   const dirty = Object.values(form).some((v) => v.trim() !== "") || !!birthLoc;
   const confirmLeave = useCallback(
@@ -55,7 +59,7 @@ export function HdClientForm() {
     };
   }
 
-  async function handleSave() {
+  async function handleSave(acknowledged: string[] = []) {
     if (saving) return;
     if (readYasamUser()?.is_demo_account === true) {
       showToast({ message: "Demo hesabında danışan eklenemez.", type: "info" });
@@ -81,8 +85,14 @@ export function HdClientForm() {
       birth_time: form.birth_time,
       birth_location_ref: birthLoc!.id,
       ...(requestIdRef.current ? { request_id: requestIdRef.current } : {}),
+      ...(acknowledged.length ? { acknowledged_duplicate_keys: acknowledged } : {}),
     });
     setSaving(false);
+    if (!r.ok && r.code === "POSSIBLE_DUPLICATE_CLIENT" && r.candidates && r.candidates.length > 0) {
+      setDup(r.candidates); // kayıt OLUŞMADI; uzman karar verir
+      return;
+    }
+    setDup(null);
     if (!r.ok || !r.hdClientId) {
       showToast({ message: r.ok ? "Danışan oluşturulamadı." : r.error, type: "error" });
       return;
@@ -92,6 +102,46 @@ export function HdClientForm() {
     setBirthLoc(null);
     requestIdRef.current = "";
     router.push(`/human-design/danisanlar/${r.hdClientId}`);
+  }
+
+  /** "Mevcut Danışanı Aç / Seç": yeni kayıt OLUŞTURMAZ (Danışan Yolculuğu-yalnız aday: o danışana profil açar). */
+  async function openExisting(c: HdDuplicateCandidate) {
+    if (c.hdClientId) {
+      setDup(null);
+      router.push(`/human-design/danisanlar/${c.hdClientId}${c.chartId ? `?chart=${encodeURIComponent(c.chartId)}` : ""}`);
+      return;
+    }
+    if (!c.hdClientId && c.chartId) {
+      // Profilsiz eski (manuel) analiz: yalnız açılır, hiçbir kayda bağlanmaz.
+      setDup(null);
+      router.push(`/human-design/kayitli-haritalar/${c.chartId}`);
+      return;
+    }
+    if (c.kind === "journey_client" && c.journeyClientId && birthLoc) {
+      setSaving(true);
+      const r = await journeyAction("create_for_existing", {
+        journey_client_id: c.journeyClientId,
+        birth_time: form.birth_time,
+        birth_location_ref: birthLoc.id,
+        birth_date: form.dogum,
+      });
+      setSaving(false);
+      if (r.ok && r.hdClientId) {
+        setDup(null);
+        router.push(`/human-design/danisanlar/${r.hdClientId}`);
+        return;
+      }
+      if (!r.ok && r.code === "HD_PROFILE_EXISTS" && r.hdClientId) {
+        setDup(null);
+        router.push(`/human-design/danisanlar/${r.hdClientId}`);
+        return;
+      }
+      if (!r.ok && r.code === "POSSIBLE_DUPLICATE_CLIENT" && r.candidates?.length) {
+        setDup(r.candidates);
+        return;
+      }
+      showToast({ message: r.ok ? "Human Design profili oluşturulamadı." : r.error, type: "error" });
+    }
   }
 
   return (
@@ -133,12 +183,23 @@ export function HdClientForm() {
         <button
           type="button"
           onClick={() => void handleSave()}
+          data-hd-new-client-save
           disabled={saving}
           className="h-10 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-6 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {saving ? "Oluşturuluyor..." : "Danışanı Oluştur ve Devam Et"}
         </button>
       </div>
+      {dup ? (
+        <HdDuplicateDialog
+          mode="client"
+          candidates={dup}
+          busy={saving}
+          onOpen={(c) => void openExisting(c)}
+          onProceed={() => void handleSave(dup.map((c) => c.key))}
+          onCancel={() => setDup(null)}
+        />
+      ) : null}
     </div>
   );
 }

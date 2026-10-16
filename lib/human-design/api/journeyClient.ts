@@ -3,6 +3,7 @@
 // oturumdan türetir. Roxy ile ilgisi yoktur.
 
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import type { HdDuplicateCandidate } from "./hdIdentity";
 
 export type JourneyClientOption = { id: string; ad: string; soyad: string; dogum: string | null; hd_client_id: string | null };
 export type JourneyClientInfo = { id: string; ad: string; soyad: string; dogum: string | null };
@@ -24,7 +25,9 @@ function authHeaders(): Record<string, string> {
   return { "Content-Type": "application/json", "x-user-id": u?.id ?? "", ...(t ? { "x-session-token": t } : {}) };
 }
 
-type ActionResult = { ok: true; hdClientId: string | null; journeyClientId: string | null; birthDate?: string | null } | { ok: false; status: number; code?: string; error: string; hdClientId?: string | null };
+type ActionResult =
+  | { ok: true; hdClientId: string | null; journeyClientId: string | null; birthDate?: string | null }
+  | { ok: false; status: number; code?: string; error: string; hdClientId?: string | null; candidates?: HdDuplicateCandidate[] };
 
 async function readJson(res: Response): Promise<Record<string, unknown>> {
   return (await res.json().catch(() => ({}))) as Record<string, unknown>;
@@ -59,6 +62,7 @@ export async function journeyAction(action: string, body: Record<string, unknown
       code: typeof j.code === "string" ? j.code : undefined,
       error: typeof j.error === "string" ? j.error : `HTTP ${res.status}`,
       hdClientId: typeof j.hd_client_id === "string" ? j.hd_client_id : null,
+      ...(Array.isArray(j.candidates) ? { candidates: j.candidates as HdDuplicateCandidate[] } : {}),
     };
   } catch {
     return { ok: false, status: 0, error: "Ağ hatası. Bağlantını kontrol et." };
@@ -88,4 +92,37 @@ export async function getJourneyHdSummary(
 export function formatIsoDateTr(v: string | null | undefined): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v ?? "");
   return m ? `${m[3]}.${m[2]}.${m[1]}` : "—";
+}
+
+export type HdAnalysisGroupOption = {
+  key: string;
+  hdClientId: string | null;
+  latestChartId: string;
+  latestKind: "computed" | "manual";
+  name: string;
+  birthDate: string | null;
+  typeCode: string | null;
+  profileCode: string | null;
+  lastAnalysisAt: string;
+  analysisCount: number;
+  linkedToJourney: boolean;
+};
+
+/** "Human Design Analizlerim" — sunucu taraflı arama + sayfalama (yalnız istenen sayfa gelir). */
+export async function fetchHdAnalysisGroups(
+  q: string,
+  offset: number,
+  limit = 20,
+): Promise<{ rows: HdAnalysisGroupOption[]; total: number; error: string | null }> {
+  try {
+    const qs = new URLSearchParams({ q, offset: String(offset), limit: String(limit) });
+    const res = await fetch(`/api/hd/analyses?${qs.toString()}`, { headers: authHeaders(), cache: "no-store" });
+    const j = await readJson(res);
+    if (res.ok && j.ok === true && Array.isArray(j.rows)) {
+      return { rows: j.rows as HdAnalysisGroupOption[], total: typeof j.total === "number" ? j.total : 0, error: null };
+    }
+    return { rows: [], total: 0, error: typeof j.error === "string" ? j.error : `HTTP ${res.status}` };
+  } catch {
+    return { rows: [], total: 0, error: "Ağ hatası. Bağlantını kontrol et." };
+  }
 }

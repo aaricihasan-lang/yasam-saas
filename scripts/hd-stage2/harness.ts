@@ -80,6 +80,8 @@ class FakeQuery {
   or() { return this; }
   order() { return this; }
   limit() { return this; }
+  private rng: [number, number] | null = null;
+  range(from: number, to: number) { this.rng = [from, to]; return this; }
   maybeSingle() { this.mode = "maybe"; return this; }
   single() { this.mode = "single"; return this; }
   private exec(): { data: unknown; error: unknown } {
@@ -104,7 +106,7 @@ class FakeQuery {
     if (this.op !== "select" && !this.wantRows) return { data: null, error: null };
     if (this.mode === "maybe") return { data: data[0] ?? null, error: null };
     if (this.mode === "single") return data[0] ? { data: data[0], error: null } : { data: null, error: { message: "no rows" } };
-    return { data, error: null };
+    return { data: this.rng ? data.slice(this.rng[0], this.rng[1] + 1) : data, error: null };
   }
   then<T>(res: (v: { data: unknown; error: unknown }) => T, rej?: (e: unknown) => T) {
     return Promise.resolve().then(() => this.exec()).then(res, rej);
@@ -678,8 +680,10 @@ async function main() {
     const calc = src("app/human-design/danisanlar/components/HdAutoCalcPanel.tsx");
     const iBusy = calc.indexOf("busyRef.current = true;");
     const iConfirm = calc.indexOf("await confirm({");
-    const iCompute = calc.indexOf("await computeRoxyChart(clientId, location.id)");
-    ok("13c Onay yalnız 'changed' durumunda; onaydan ÖNCE çift tıklama kilidi", /if \(state\.kind === "changed"\) \{/.test(calc) && iBusy > 0 && iBusy < iConfirm && iConfirm < iCompute);
+    // Mükerrer uyarısı (tek liste PR'ı): onaylı tekrar isteği aday anahtarlarını 3. parametreyle taşır;
+    // "changed" onayı ilk denemede bir kez sorulur (onaylı tekrar aynı onayı yeniden sormaz).
+    const iCompute = calc.indexOf("await computeRoxyChart(clientId, location.id");
+    ok("13c Onay yalnız 'changed' durumunda; onaydan ÖNCE çift tıklama kilidi", /if \(state\.kind === "changed"( && acknowledged\.length === 0)?\) \{/.test(calc) && iBusy > 0 && iBusy < iConfirm && iConfirm < iCompute);
     ok("13d İptal → kilit açılır ve HİÇBİR istek gönderilmez", /if \(!ok\) \{\s*busyRef\.current = false;\s*return;\s*\}/.test(calc));
     ok("13e Onay metni: eski analiz + yeni hesap + 1 hesaplama hakkı + eski Word silinmez", calc.includes("Kayıtlı analiz:") && calc.includes("Yeni hesaplama:") && calc.includes("1 Human Design hesaplama hakkı (RoxyAPI)") && calc.includes("Word raporları silinmez"));
     ok("13f 'Profesyonel Haritayı Aç' hesap çağırmaz (yalnız açar)", /onClick=\{\(\) => setOpenId\(state\.chartId\)\}/.test(calc));

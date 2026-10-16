@@ -100,6 +100,7 @@ export function createFakeDb(seed: Record<string, Row[]> = {}, opts: FakeDbOptio
       return { data: found, error: null };
     }
 
+    let rng: [number, number] | null = null;
     const b = {
       select(cols?: string) {
         if (!op) op = "select";
@@ -138,6 +139,11 @@ export function createFakeDb(seed: Record<string, Row[]> = {}, opts: FakeDbOptio
       limit() {
         return b;
       },
+      // PostgREST .range(from, to): sonuç DİLİMİ (sayfalı okuma; gerçek istemciyle aynı davranış).
+      range(from: number, to: number) {
+        rng = [from, to];
+        return b;
+      },
       maybeSingle() {
         mode = "maybe";
         return b;
@@ -148,7 +154,8 @@ export function createFakeDb(seed: Record<string, Row[]> = {}, opts: FakeDbOptio
       },
       then<T>(res: (v: { data: unknown; error: Err }) => T, rej?: (e: unknown) => T) {
         try {
-          return Promise.resolve(exec()).then(res, rej);
+          const sliced = (r: { data: unknown; error: Err }) => (rng && Array.isArray(r.data) ? { ...r, data: r.data.slice(rng[0], rng[1] + 1) } : r);
+          return Promise.resolve(exec()).then(sliced).then(res, rej);
         } catch (e) {
           return rej ? Promise.resolve(rej(e)) : Promise.reject(e);
         }

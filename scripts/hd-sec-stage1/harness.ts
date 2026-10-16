@@ -89,6 +89,8 @@ class FakeQuery {
   is() { return this; }
   order() { return this; }
   limit() { return this; }
+  private rng: [number, number] | null = null;
+  range(from: number, to: number) { this.rng = [from, to]; return this; }
   maybeSingle() { this.mode = "maybe"; return this; }
   single() { this.mode = "single"; return this; }
   private exec(): { data: unknown; error: unknown } {
@@ -114,7 +116,7 @@ class FakeQuery {
     if (this.op !== "select" && !this.wantRows) return { data: null, error: null };
     if (this.mode === "maybe") return { data: data[0] ?? null, error: null };
     if (this.mode === "single") return data[0] ? { data: data[0], error: null } : { data: null, error: { message: "no rows" } };
-    return { data, error: null };
+    return { data: this.rng ? data.slice(this.rng[0], this.rng[1] + 1) : data, error: null };
   }
   then<T>(res: (v: { data: unknown; error: unknown }) => T, rej?: (e: unknown) => T) {
     return Promise.resolve().then(() => this.exec()).then(res, rej);
