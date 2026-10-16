@@ -16,6 +16,7 @@ import {
 } from "@/lib/human-design/api/chartsClient";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useHdModalA11y } from "../../components/useHdModalA11y";
+import { useHdBodyScrollLock } from "../../components/useHdBodyScrollLock";
 import { HdPersonalKnowledgePanel } from "./HdPersonalKnowledgePanel";
 import { HdProfessionalReportButton } from "./HdProfessionalReportButton";
 import { HdComputedChartView } from "./HdComputedChartView";
@@ -48,6 +49,8 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
   const { confirm } = useConfirm();
   const dialogRef = useRef<HTMLDivElement>(null);
   useHdModalA11y(dialogRef, onClose);
+  // Arka sayfa kaydırması kilitli → tek dikey scroll (içerik alanı). Kapanınca/unmount'ta geri gelir.
+  useHdBodyScrollLock();
   const [row, setRow] = useState<ComputedChartDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
