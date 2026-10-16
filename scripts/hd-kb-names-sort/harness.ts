@@ -358,6 +358,113 @@ async function main() {
   ok("13d Hiç kaydı olmayan kapı için yorum uydurulmaz", !snapNew.commentary.expert.entries.some((e) => e.code === "kapi_29" || e.code === "kapi_46"));
   ok("13e Harness boyunca dış ağ çağrısı 0", netCalls.length === 0, netCalls.join(","));
 
+  // ══ GÜVENLİK A–L (merge öncesi) ═══════════════════════════════════════════════
+  section("A — Mevcut kapi_21 adı değişir, kod aynı kalır");
+  asExpert();
+  const before = () => structuredClone(r21());
+  let res = await call(route.PATCH, "PATCH", U, { id: gateId, category: "Kapılar", code: "kapi_21", title: "21 — Sevgi Kapısı" });
+  ok("A1 Tam yük (aynı kategori/kod) + yeni ad → 200; kod kapi_21", res.status === 200 && r21().code === "kapi_21" && r21().title === "21 — Sevgi Kapısı", JSON.stringify(res));
+
+  section("B — Doğrudan API ile kapi_21 → kapi_22 reddedilir; veri değişmez");
+  let snap = before();
+  res = await call(route.PATCH, "PATCH", U, { id: gateId, category: "Kapılar", code: "kapi_22", title: "22 — Başka Kapı", content: "DEĞİŞMEMELİ" });
+  ok("B1 Tam yükle kod değişimi → 400 HD_IDENTITY_LOCKED", res.status === 400 && res.json.code === "HD_IDENTITY_LOCKED", JSON.stringify(res));
+  ok("B2 Kayıt birebir aynı (kod, başlık, içerik, updated_at)", JSON.stringify(r21()) === JSON.stringify(snap));
+  res = await call(route.PATCH, "PATCH", U, { id: gateId, code: "kapi_22" });
+  ok("B3 Yalnız kod içeren kısmi istek de reddedilir; veri aynı", res.status === 400 && res.json.code === "HD_IDENTITY_LOCKED" && JSON.stringify(r21()) === JSON.stringify(snap));
+  ok("B4 kapi_22 kaydı oluşmadı", !KB().some((r) => r.tenant_id === T_EXPERT && r.code === "kapi_22"));
+
+  section("C — kanal_29_46 başka kanal koduna çevrilemez");
+  const chBefore = structuredClone(KB().find((r) => r.id === chId));
+  res = await call(route.PATCH, "PATCH", U, { id: chId, category: "Kanallar", code: "kanal_10_20", title: "10-20 Başka" });
+  ok("C1 kanal_29_46 → kanal_10_20 → 400; kayıt değişmedi", res.status === 400 && res.json.code === "HD_IDENTITY_LOCKED" && JSON.stringify(KB().find((r) => r.id === chId)) === JSON.stringify(chBefore), JSON.stringify(res));
+  res = await call(route.PATCH, "PATCH", U, { id: chId, code: "kanal_46_29" });
+  ok("C2 Ters çift (kanal_46_29) de reddedilir", res.status === 400 && KB().find((r) => r.id === chId)?.code === "kanal_29_46");
+
+  section("D — Kapılar kaydı başka kategoriye dönüştürülemez");
+  snap = before();
+  res = await call(route.PATCH, "PATCH", U, { id: gateId, category: "Genel Notlar", code: "not_kapi_21", title: "Not" });
+  ok("D1 Kapılar → Genel Notlar → 400; veri aynı", res.status === 400 && res.json.code === "HD_IDENTITY_LOCKED" && JSON.stringify(r21()) === JSON.stringify(snap), JSON.stringify(res));
+  res = await call(route.PATCH, "PATCH", U, { id: gateId, category: "Kanallar" });
+  ok("D2 Yalnız kategori içeren kısmi istek de reddedilir", res.status === 400 && r21().category === "Kapılar");
+  res = await call(route.PATCH, "PATCH", U, { id: chId, category: "Kapılar", code: "kapi_29" });
+  ok("D3 Kanallar → Kapılar reddedilir", res.status === 400 && KB().find((r) => r.id === chId)?.category === "Kanallar");
+
+  section("E — Başka tenant'ın kapı/kanal kaydı okunamaz/değiştirilemez");
+  asAdmin();
+  snap = before();
+  res = await call(route.GET, "GET", `${U}?id=${gateId}`);
+  ok("E1 Başka tenant GET ?id= → 404 (varlık sızdırılmaz)", res.status === 404 && !JSON.stringify(res.json).includes("Sevgi"));
+  res = await call(route.PATCH, "PATCH", U, { id: gateId, category: "Kapılar", code: "kapi_21", title: "21 — Ele Geçirme" });
+  ok("E2 Başka tenant PATCH → 404; veri aynı", res.status === 404 && JSON.stringify(r21()) === JSON.stringify(snap));
+  res = await call(route.DELETE, "DELETE", `${U}?id=${gateId}`);
+  ok("E3 Başka tenant DELETE → 404; kayıt duruyor", res.status === 404 && KB().some((r) => r.id === gateId));
+  res = await call(route.GET, "GET", `${U}?codes=kapi_21,kanal_29_46`);
+  ok("E4 Kod eşleşme okuması yalnız kendi tenant'ı", res.status === 200 && (res.json.rows as Row[]).every((r) => r.tenant_id === T_ADMIN));
+  asExpert();
+  res = await call(route.PATCH, "PATCH", U, { id: gateId, title: "21 — Sevgi Kapısı", tenant_id: T_ADMIN, user_id: "u-saldiri" });
+  ok("E5 Gövdedeki tenant_id/user_id yok sayılır (sahiplik değişmez)", res.status === 200 && r21().tenant_id === T_EXPERT && r21().user_id === `u-${T_EXPERT.slice(0, 4)}`, JSON.stringify({ t: r21().tenant_id, u: r21().user_id }));
+
+  section("F — Yalnız ad; açıklama boş kalabilir; taslak/aktif kuralları korunur");
+  const f = await call(route.POST, "POST", U, { category: "Kapılar", title: "51 — Cesaret Kapısı", code: "kapi_51", content: "", is_active: false });
+  const fId = String(f.json.id ?? "");
+  const fRow = () => KB().find((r) => r.id === fId) ?? {};
+  ok("F1 Açıklamasız taslak kayıt + ad kaydedilir", f.status === 200 && fRow().title === "51 — Cesaret Kapısı");
+  res = await call(route.PATCH, "PATCH", U, { id: fId, title: "Yürek Kapısı" });
+  ok("F2 Yalnız ad güncellemesi (açıklama boş) → 200", res.status === 200 && fRow().title === "51 — Yürek Kapısı");
+  res = await call(route.PATCH, "PATCH", U, { id: fId, is_active: true });
+  ok("F3 Boş açıklamayla aktif etme hâlâ reddedilir (mevcut kural)", res.status === 400 && fRow().is_active === false);
+  const ver = String(fRow().updated_at ?? "");
+  res = await call(route.PATCH, "PATCH", U, { id: fId, title: "51 — Eski Sürüm", expected_updated_at: "1999-01-01T00:00:00.000Z" });
+  ok("F4 Optimistic locking korunur: bayat sürüm → 409, ad değişmez", res.status === 409 && fRow().title === "51 — Yürek Kapısı", JSON.stringify(res));
+  res = await call(route.PATCH, "PATCH", U, { id: fId, title: "51 — Güncel Sürüm", expected_updated_at: ver });
+  ok("F5 Güncel sürümle kimlik-kilitli güncelleme çalışır", res.status === 200 && fRow().title === "51 — Güncel Sürüm", JSON.stringify(res));
+
+  section("G — Ad değişince önceki açıklamalar kaybolmaz");
+  await call(route.PATCH, "PATCH", U, { id: gateId, content: "Kalıcı açıklama 21.", is_active: true, expert_notes: "Kalıcı özel not." });
+  res = await call(route.PATCH, "PATCH", U, { id: gateId, title: "21 — Yeni Ad" });
+  ok("G1 Yalnız ad değişti; açıklama/özel not/aktiflik korundu", res.status === 200 && r21().title === "21 — Yeni Ad" && r21().content === "Kalıcı açıklama 21." && r21().expert_notes === "Kalıcı özel not." && r21().is_active === true);
+  res = await call(route.PATCH, "PATCH", U, { id: chId, category: "Kanallar", code: "kanal_29_46", title: "29-46 Yeni Kanal Adı" });
+  ok("G2 Kanal adı değişti; kanal açıklaması korundu", res.status === 200 && KB().find((r) => r.id === chId)?.content === "Uzmanın kanal açıklaması.");
+  await call(route.PATCH, "PATCH", U, { id: gateId, title: "21 — Aşk Kapısı" });
+  await call(route.PATCH, "PATCH", U, { id: chId, title: "29-46 Aşk Kanalı" });
+
+  section("H — 21. Kapı ve 29–46 yeni Word'de kişisel adla; eski snapshot değişmez");
+  const ovH = N.buildHdNameOverrides(KB().filter((r) => r.tenant_id === T_EXPERT));
+  const repH = await KP.listKnowledgeForReport(db as never, T_EXPERT, codes);
+  const snapH = SV2.buildReportSnapshotV2(mkInput({ nameOverrides: ovH, expertRecords: repH.rows }) as never);
+  const txtH = await docxText(await WV2.renderHdReportV2Buffer(snapH, {}));
+  ok("H1 Word: 21. Kapı 'Aşk Kapısı', 29–46 'Aşk Kanalı'; hazır adlar yok", txtH.includes("Aşk Kapısı") && txtH.includes("Aşk Kanalı") && !txtH.includes("Haznedar kapısı") && !txtH.includes("Keşif Kanalı"));
+  const frozen = JSON.stringify(snapNew);
+  await call(route.PATCH, "PATCH", U, { id: gateId, title: "21 — Sonradan Ad" });
+  ok("H2 Sonradan ad değişimi önceden üretilmiş snapshot'ı değiştirmez", JSON.stringify(snapNew) === frozen && snapNew.gates.find((g) => g.gate === 21)?.name === "Aşk Kapısı");
+  await call(route.PATCH, "PATCH", U, { id: gateId, title: "21 — Aşk Kapısı" });
+
+  section("I — Sıralama teknik numaraya göre; ad değişimi sırayı etkilemez");
+  const renamed = gateRows.map((r) => (r.code === "kapi_60" ? { ...r, title: "60 — AAAA" } : r.code === "kapi_1" ? { ...r, title: "1 — ZZZZ" } : r));
+  const sortedRen = S.sortHdKnowledgeRecords(renamed).map((r) => r.code);
+  ok("I1 Ad 'AAAA'/'ZZZZ' olsa da sıra 1,51,52,54,58,60", sortedRen.join(",") === "kapi_1,kapi_51,kapi_52,kapi_54,kapi_58,kapi_60", sortedRen.join(","));
+  const listed = (await call(route.GET, "GET", U)).json.rows as Row[];
+  const listedGates = S.sortHdKnowledgeRecords(listed.filter((r) => r.category === "Kapılar")).map((r) => r.code);
+  ok("I2 Gerçek API listesi + otomatik sıra: kapi_21 → kapi_51", listedGates.join(",") === "kapi_21,kapi_51", listedGates.join(","));
+
+  section("J — Admin üç kaynak ayrı; uzman akışı değişmedi (bkz. TEST 10)");
+  ok("J1 TEST 10 kontrollerinin tamamı geçti", !fails.some((x) => x.startsWith("10")));
+
+  section("K — Kayıtlı Roxy yorumunu açmak yeni ücretli çağrı oluşturmaz");
+  const sysPanel = src("app/human-design/kayitli-haritalar/components/HdSystemReadingPanel.tsx");
+  ok("K1 Panel yalnız kayıtlı-yorum ucunu çağırır (Roxy adresi yok)", /\/api\/hd\/charts\/system-reading/.test(sysPanel) && !/roxyapi\.com|callRoxy|ROXY_API/i.test(sysPanel));
+  ok("K2 Kayıtlı-yorum ucu Roxy istemcisini çağırmaz", !/callRoxy|fetchRoxy|roxyapi\.com/i.test(sysRoute));
+  ok("K3 Bu çalışmanın dosyalarında Roxy çağrısı yok", !/callRoxy|roxyapi\.com/i.test(src("app/human-design/kayitli-haritalar/components/HdChartKnowledgeTabs.tsx") + src("app/human-design/bilgi-bankasi/page.tsx") + src("lib/human-design/reporting/reportSnapshotV2Service.ts")));
+
+  section("L — Aynı kod için mükerrer kayıt oluşturulamaz");
+  res = await call(route.POST, "POST", U, { category: "Kanallar", title: "29-46 İkinci", code: "kanal_29_46", content: "", is_active: false });
+  ok("L1 İkinci kanal_29_46 → 409 + mevcut id", res.status === 409 && res.json.existing_id === chId);
+  const note = await call(route.POST, "POST", U, { category: "Genel Notlar", title: "Bir not", code: "not_bir_not", content: "", is_active: false });
+  res = await call(route.PATCH, "PATCH", U, { id: String(note.json.id), category: "Kapılar", code: "kapi_21", title: "21 — Kopya" });
+  ok("L2 Başka kaydı mevcut koda (kapi_21) çevirmek → 409; kapi_21 tek", res.status === 409 && KB().filter((r) => r.tenant_id === T_EXPERT && r.code === "kapi_21").length === 1, JSON.stringify(res));
+  ok("L3 Ağ çağrısı hâlâ 0", netCalls.length === 0);
+
   console.log(`\nHD BİLGİ BANKASI AD/SIRA/KAYNAK: ${pass} PASS / ${fail} FAIL`);
   if (fail) { for (const f of fails) console.log(` - ${f}`); process.exit(1); }
 }

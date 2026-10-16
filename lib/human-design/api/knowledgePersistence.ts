@@ -66,6 +66,10 @@ function isBlank(v: unknown): boolean {
   return typeof v !== "string" || v.trim() === "";
 }
 
+export const IDENTITY_LOCKED_CODE = "HD_IDENTITY_LOCKED";
+const IDENTITY_LOCKED_ERROR =
+  "Kapı/kanal kaydının kategorisi ve numarası değiştirilemez; yalnız görünen ad ve açıklama düzenlenebilir.";
+
 const DUPLICATE_CODE_ERROR = "Bu kapı/kanal/başlık için Bilgi Bankanızda zaten bir kayıt var. Mevcut kaydı düzenleyin.";
 
 /**
@@ -220,15 +224,24 @@ export async function updateKnowledge(
     return { ok: false, error: ACTIVE_CONTENT_ERROR };
   }
 
-  // Kapı/kanal kimliği: kategori/kod/başlıktan biri değişiyorsa eksikler mevcut kayıttan alınır.
+  // Kapı/kanal TEKNİK KİMLİK KİLİDİ (sunucu garantisi; arayüzdeki disabled'a güvenilmez):
+  // kimlik alanlarından biri istekte varsa kayıtlı category/code/title VERİTABANINDAN okunur.
+  // Kayıt Kapılar/Kanallar ise category ve code DEĞİŞTİRİLEMEZ — yalnız görünen ad (title)
+  // ve diğer izinli alanlar. Farklı kimlik gelirse hiçbir şey yazılmadan reddedilir.
+  let lockedIdentity: { category: string; code: string } | null = null;
   if (picked.category !== undefined || picked.code !== undefined || picked.title !== undefined) {
     type Identity = { category?: unknown; code?: unknown; title?: unknown };
-    let ex: Identity | null = null;
-    if (picked.category === undefined || picked.code === undefined || picked.title === undefined) {
-      const { data: existing } = await withTenant(db.from(TABLE).select("category, code, title"), tenantId, "updateKnowledge.identity")
-        .eq("id", id)
-        .maybeSingle();
-      ex = (existing ?? null) as Identity | null;
+    const { data: existing } = await withTenant(db.from(TABLE).select("category, code, title"), tenantId, "updateKnowledge.identity")
+      .eq("id", id)
+      .maybeSingle();
+    const ex = (existing ?? null) as Identity | null;
+    if (ex && (ex.category === HD_GATE_CATEGORY || ex.category === HD_CHANNEL_CATEGORY)) {
+      const categoryChanged = picked.category !== undefined && picked.category !== ex.category;
+      const codeChanged = picked.code !== undefined && picked.code !== ex.code;
+      if (categoryChanged || codeChanged) {
+        return { ok: false, error: IDENTITY_LOCKED_ERROR, status: 400, code: IDENTITY_LOCKED_CODE };
+      }
+      lockedIdentity = { category: String(ex.category), code: String(ex.code) };
     }
     const structErr = applyStructuredTitle(picked, {
       category: picked.category !== undefined ? picked.category : ex?.category,
@@ -236,11 +249,22 @@ export async function updateKnowledge(
       title: picked.title !== undefined ? picked.title : ex?.title,
     });
     if (structErr) return { ok: false, error: structErr };
+    // Kod değişiyorsa (kilitsiz kategoriler) aynı tenant'ta o kod başka kayıtta olamaz.
+    if (typeof picked.code === "string" && ex && picked.code !== ex.code) {
+      const { data: dup } = await withTenant(db.from(TABLE).select("id"), tenantId, "updateKnowledge.dup")
+        .eq("code", picked.code)
+        .maybeSingle();
+      if (dup && (dup as { id: string }).id !== id) {
+        return { ok: false, error: DUPLICATE_CODE_ERROR, status: 409, code: "DUPLICATE_CODE" };
+      }
+    }
   }
 
   const fields = { ...picked, updated_at: new Date().toISOString() };
   // P2-9: beklenen sürüm verildiyse koşullu (atomik) güncelleme — başka oturum ezilmez.
   let q = withTenant(db.from(TABLE).update(fields), tenantId, "updateKnowledge").eq("id", id);
+  // Kilitli kimlik: güncelleme yalnız kayıtlı category/code hâlâ aynıysa uygulanır (atomik).
+  if (lockedIdentity) q = q.eq("category", lockedIdentity.category).eq("code", lockedIdentity.code);
   if (opts.expectedUpdatedAt) q = q.eq("updated_at", opts.expectedUpdatedAt);
   const { data, error } = await q.select("id, updated_at");
   if (error) return { ok: false, error: hdSafeDbError("updateKnowledge", error) };
