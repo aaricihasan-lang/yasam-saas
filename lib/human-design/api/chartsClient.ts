@@ -8,6 +8,7 @@
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type { HdComputedChart } from "../chart/computedChart";
 import type { SystemReadingDto } from "../providers/roxy/systemReading";
+import type { HdDuplicateCandidate } from "./hdIdentity";
 
 export type SaveChartInput = { date: string; time: string; timezone: string };
 
@@ -211,15 +212,24 @@ export function notifyHdProfileDeleted(clientId: string): void {
 
 export type RoxyComputeResult =
   | { ok: true; id: string; reused: boolean }
-  | { ok: false; status: number; code?: string; error: string };
+  | { ok: false; status: number; code?: string; error: string; candidates?: HdDuplicateCandidate[] };
 
-export async function computeRoxyChart(clientId: string, locationId: string): Promise<RoxyComputeResult> {
+/**
+ * `acknowledgedDuplicateKeys`: kullanıcı uyarıda gösterilen analizlerin FARKLI kişiye ait olduğunu
+ * bilinçli onayladıysa o adayların anahtarları. Sunucu yalnız bu adayları kapsar; aynı profil
+ * idempotency'si, kilit ve limitler her durumda geçerlidir.
+ */
+export async function computeRoxyChart(clientId: string, locationId: string, acknowledgedDuplicateKeys: string[] = []): Promise<RoxyComputeResult> {
   let res: Response;
   try {
     res = await fetch("/api/hd/charts/roxy", {
       method: "POST",
       headers: authHeaders(),
-      body: JSON.stringify({ client_id: clientId, location_id: locationId }),
+      body: JSON.stringify({
+        client_id: clientId,
+        location_id: locationId,
+        ...(acknowledgedDuplicateKeys.length ? { acknowledged_duplicate_keys: acknowledgedDuplicateKeys } : {}),
+      }),
     });
   } catch {
     return { ok: false, status: 0, error: "Ağ hatası. Bağlantınızı kontrol edin." };
@@ -236,5 +246,6 @@ export async function computeRoxyChart(clientId: string, locationId: string): Pr
     status: res.status,
     code: typeof j.code === "string" ? j.code : undefined,
     error: typeof j.error === "string" ? j.error : `Hesaplama yapılamadı (HTTP ${res.status}).`,
+    ...(Array.isArray(j.candidates) ? { candidates: j.candidates as HdDuplicateCandidate[] } : {}),
   };
 }

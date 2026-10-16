@@ -22,13 +22,23 @@ import { validateClientWrite } from "@/lib/danisan/clientValidation";
 import { createClientIdempotent, isUuid, resolveCreateRequestId } from "@/lib/danisan/clientCreate";
 import { computeBurc } from "@/lib/danisan/burc";
 import { istanbulToday } from "@/lib/danisan/istanbulTime";
+import { findHdProfileDuplicates } from "./hdDuplicates";
+import { hdDuplicatesAcknowledged, readHdAckKeys, type HdDuplicateCandidate } from "./hdIdentity";
 
 const HD = "human_design_clients";
 
 export type JourneyClientDto = { id: string; ad: string; soyad: string; dogum: string | null };
 export type JourneySearchRow = JourneyClientDto & { hd_client_id: string | null };
 
-export type JourneyFail = { ok: false; status: 400 | 404 | 409 | 500; code: string; error: string; hdClientId?: string };
+export type JourneyFail = {
+  ok: false;
+  status: 400 | 404 | 409 | 500 | 503;
+  code: string;
+  error: string;
+  hdClientId?: string;
+  /** POSSIBLE_DUPLICATE_CLIENT: uyarıda gösterilecek adaylar (yalnız karşılaştırılan alanlar). */
+  candidates?: HdDuplicateCandidate[];
+};
 type Ok<T> = { ok: true } & T;
 
 const fail = (status: JourneyFail["status"], code: string, error: string, extra: Partial<JourneyFail> = {}): JourneyFail => ({
@@ -168,6 +178,36 @@ function validateHdBirth(input: Record<string, unknown>): { ok: true; v: HdBirth
   return { ok: true, v: { birth_time: time.slice(0, 5), locFields: loc.fields, place: String(loc.fields.birth_location_label ?? "") } };
 }
 
+export const HD_DUPLICATE_CLIENT_MESSAGE =
+  "Daha önce aynı doğum bilgileriyle kaydedilmiş bir Human Design danışanı bulundu. Bu kişi aynı danışan olabilir. Mevcut kaydı açarak gereksiz yeni kayıt ve hesaplama oluşturulmasını önleyebilirsiniz.";
+
+/**
+ * Kayıttan ÖNCE olası mükerrer kontrolü (owner kuralı: otomatik engel/birleştirme YOK; UYAR).
+ * Adaylar varsa ve istek onları BİLİNÇLİ onaylamadıysa 409 döner. Kontrol hatası → 503 (kayıt yapılmaz).
+ */
+async function duplicateGate(
+  db: SupabaseClient,
+  tenantId: string,
+  input: Record<string, unknown>,
+  identity: { name: string; birthDate: string; birthTime: string; locationId: string | null },
+  excludeJourneyId: string | null,
+): Promise<JourneyFail | null> {
+  const r = await findHdProfileDuplicates(db, tenantId, identity, { excludeJourneyId });
+  if (r.error) return fail(503, "DUPLICATE_CHECK_FAILED", "Mevcut kayıtlar kontrol edilemedi; yeni kayıt oluşturulmadı. Lütfen tekrar deneyin.");
+  if (hdDuplicatesAcknowledged(r.candidates, readHdAckKeys(input.acknowledged_duplicate_keys))) return null;
+  return fail(409, "POSSIBLE_DUPLICATE_CLIENT", HD_DUPLICATE_CLIENT_MESSAGE, { candidates: r.candidates });
+}
+
+/** Bu istek kimliğiyle daha önce merkezî danışan oluşturulmuş mu (ağ tekrarı / çift tık)? */
+async function isCreateReplay(db: SupabaseClient, tenantId: string, requestId: string | null): Promise<boolean> {
+  if (!requestId) return false;
+  const { data, error } = await withTenant(db.from("clients").select("id"), tenantId, "journey.replayCheck")
+    .eq("create_request_id", requestId)
+    .maybeSingle();
+  if (error) return false; // kolon yoksa / hata → tekrar sayılmaz; mükerrer kontrolü yine çalışır (güvenli taraf)
+  return !!data;
+}
+
 /** HD-29: yaz saati boşluğundaki (hiç yaşanmamış) yerel saat profil OLUŞTURULURKEN reddedilir. */
 function birthGapFail(birthDate: string, birth: HdBirthInput): JourneyFail | null {
   const tz = birth.locFields.birth_timezone;
@@ -216,8 +256,28 @@ export async function createJourneyClientWithHdProfile(
   const gap = birthGapFail(dogum, birth.v);
   if (gap) return gap;
 
+  const requestId = resolveCreateRequestId(input);
+  if (!(await isCreateReplay(db, tenantId, requestId))) {
+    let gate = await duplicateGate(
+      db,
+      tenantId,
+      input,
+      {
+        name: `${String(verdict.fields.ad ?? "")} ${String(verdict.fields.soyad ?? "")}`,
+        birthDate: dogum,
+        birthTime: birth.v.birth_time,
+        locationId: typeof birth.v.locFields.birth_location_id === "string" ? birth.v.locFields.birth_location_id : null,
+      },
+      null,
+    );
+    // Eşzamanlı aynı istek (çift tık / ağ tekrarı): aday, BU isteğin az önce oluşturduğu kayıt olabilir →
+    // yeniden kontrol; tekrar ise uyarı yerine mevcut replay yolu (aynı bağlı profil döner).
+    if (gate && gate.code === "POSSIBLE_DUPLICATE_CLIENT" && (await isCreateReplay(db, tenantId, requestId))) gate = null;
+    if (gate) return gate;
+  }
+
   const fields: Record<string, unknown> = { ...verdict.fields, burc: computeBurc(dogum) };
-  const result = await createClientIdempotent(db, tenantId, fields, resolveCreateRequestId(input));
+  const result = await createClientIdempotent(db, tenantId, fields, requestId);
   if (result.kind === "error") return fail(500, "JOURNEY_CREATE_FAILED", "Danışan oluşturulamadı.");
   const journey = toDto(result.client);
 
@@ -274,6 +334,21 @@ export async function createHdProfileForJourneyClient(
   if (existing.id) {
     return fail(409, "HD_PROFILE_EXISTS", "Bu danışanın zaten bir Human Design profili var.", { hdClientId: existing.id });
   }
+  // Seçilen merkezî danışanın KENDİSİ aday sayılmaz; aynı kişi olabilecek BAŞKA (ör. bağlantısız eski)
+  // HD profilleri / analizleri için uyarı.
+  const gate = await duplicateGate(
+    db,
+    tenantId,
+    input,
+    {
+      name: journeyFullName(journey),
+      birthDate,
+      birthTime: birth.v.birth_time,
+      locationId: typeof birth.v.locFields.birth_location_id === "string" ? birth.v.locFields.birth_location_id : null,
+    },
+    journey.id,
+  );
+  if (gate) return gate;
   const ins = await insertLinkedHdProfile(db, tenantId, userId, journey, birthDate, birth.v);
   if (!ins.id) {
     if (ins.unique) {

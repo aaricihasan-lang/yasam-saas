@@ -2,13 +2,16 @@
 //
 // Akış (sıra, maliyet ve güvenlik için bilinçli):
 //   1) demo hesap → RED (ücretli çağrı yok)
-//   2) gövde doğrulama (yalnız client_id + location_id kabul edilir)
+//   2) gövde doğrulama (yalnız client_id + location_id [+ acknowledged_duplicate_keys] kabul edilir)
 //   3) danışan TENANT doğrulaması (withTenant) — başka tenant'ın danışanı → 404
 //   4) doğum tarihi + KESİN doğum saati zorunlu (danışan kaydından; istemciden alınmaz)
 //   5) konum kimliği → IANA tz + enlem/boylam (sunucuda, lib/location)
 //   6) DST boşluk/çakışma → anlaşılır doğrulama hatası (tahmin YOK)
 //   7) idempotency anahtarı (tenant+danışan+girdi+politika+sürüm) → deterministik satır id
 //   8) aynı girdi daha önce hesaplandıysa KAYITLI sonuç döner — Roxy ÇAĞRILMAZ
+//  8b) başka HD profilinde aynı kişi + aynı girdi → 409 POSSIBLE_DUPLICATE_CHART (bilinçli onay ister;
+//      kontrol hatası → 503, ücretli çağrı YOK)
+//  10a) profilden bağımsız kişi+girdi kilidi (farklı profillerde eşzamanlı aynı kişi → tek ücretli çağrı)
 //   9) yapılandırma (ROXY_API_KEY) yoksa 503 — manuel HD etkilenmez
 //  10) eşzamanlı aynı girdi kilidi (çift tık/retry/çoklu instance) → bekle/kayıtlıyı döndür
 //  11) kullanıcı + tenant rate limit (yalnız gerçek çağrılar)
@@ -35,6 +38,8 @@ import type { RoxyBodygraphRequest, RoxyCallResult } from "../providers/roxy/cli
 import { validateRoxyBodygraph } from "../providers/roxy/schema";
 import { normalizeRoxyBodygraph } from "../providers/roxy/normalize";
 import { checkDesignInstantConsistency } from "../providers/roxy/timeConsistency";
+import { findCrossProfileRoxyDuplicates } from "./hdDuplicates";
+import { hdDuplicatesAcknowledged, normalizeHdPersonName, readHdAckKeys, type HdDuplicateCandidate } from "./hdIdentity";
 
 const TABLE = "human_design_charts";
 export const ROXY_CONTRACT_VERSION = "roxy-1";
@@ -63,10 +68,10 @@ export type RoxyServiceResponse = {
   status: number;
   body:
     | { ok: true; id: string; reused: boolean }
-    | { ok: false; code: string; error: string; retryAfterSec?: number };
+    | { ok: false; code: string; error: string; retryAfterSec?: number; candidates?: HdDuplicateCandidate[] };
 };
 
-const fail = (status: number, code: string, error: string, extra: { retryAfterSec?: number } = {}): RoxyServiceResponse => ({
+const fail = (status: number, code: string, error: string, extra: { retryAfterSec?: number; candidates?: HdDuplicateCandidate[] } = {}): RoxyServiceResponse => ({
   status,
   body: { ok: false, code, error, ...extra },
 });
@@ -362,9 +367,88 @@ export async function computeRoxyChart(
   if (equivalent.error) return equivalent.error;
   if (equivalent.id) return { status: 200, body: { ok: true, id: equivalent.id, reused: true } };
 
+  // 8b) ÜCRETLİ çağrıdan ÖNCE sunucu kontrolü: aynı tenant'ta BAŞKA HD profili altında aynı kişi +
+  //     birebir aynı hesap girdisi. Otomatik bağlama/yeniden kullanım YOK → kullanıcıya sorulur.
+  //     Onay YALNIZ gösterilen analizleri kapsar (yeni çıkan aday tekrar sorulur); aynı profil
+  //     idempotency'si (adım 8) ve kilit/limitler (10–11) onaydan bağımsız çalışmaya devam eder.
+  //     Kontrol HATASI "mükerrer yok" sayılmaz → ücretli çağrı yapılmaz (fail-closed).
+  const dup = await findCrossProfileRoxyDuplicates(
+    ctx.db,
+    ctx.tenantId,
+    { clientId, name: client.name, date, time: hms, timezone: location.timezone, latitude: location.latitude, longitude: location.longitude, nodeType: policy.nodeType, lang: policy.lang },
+    ROXY_PROVIDER_ID,
+  );
+  if (dup.error) {
+    log("[hd-roxy] mükerrer kontrolü başarısız; ücretli çağrı yapılmadı", dup.error);
+    return fail(503, "DUPLICATE_CHECK_FAILED", "Önceki analizler kontrol edilemedi; ücretli hesaplama yapılmadı. Lütfen birkaç saniye sonra tekrar deneyin.");
+  }
+  const ack = readHdAckKeys(body.acknowledged_duplicate_keys);
+  if (!hdDuplicatesAcknowledged(dup.candidates, ack)) {
+    return fail(
+      409,
+      "POSSIBLE_DUPLICATE_CHART",
+      "Bu bilgilerle daha önce hazırlanmış bir Human Design analizi bulundu. Yeni hesaplama yapmak Roxy API hakkınızı kullanabilir. Önce mevcut analizi inceleyebilirsiniz.",
+      { candidates: dup.candidates },
+    );
+  }
+
   // 9) Yapılandırma.
   if (!deps.config) {
     return fail(503, "AUTO_CALC_NOT_CONFIGURED", "Otomatik hesaplama şu anda yapılandırılmamış. Manuel harita kaydını kullanabilirsiniz.");
+  }
+
+  // 10a) Profilden BAĞIMSIZ kişi + girdi kilidi (profil kilidinden ÖNCE: uyarı alan istek profil
+  //      kilidini almadan döner → hemen ardından gelen bilinçli onaylı istek bekletilmez): iki FARKLI HD profilinde aynı kişi (normalize ad) +
+  //      birebir aynı hesap girdisiyle EŞZAMANLI istek → yalnız biri ücretli çağrıya gider. Kilidi
+  //      alamayan istek bekler ve oluşan analizi aday olarak yeniden değerlendirir: onaylanmamış aday →
+  //      409 uyarı; gösterilen adayların hepsi bilinçli onaylı (farklı kişi) → devam; belirsiz → IN_PROGRESS.
+  //      Anahtar tenant'ı içerir (kiracılar karışmaz); otomatik birleştirme/sahiplenme YOK.
+  const identityKey = JSON.stringify([
+    ctx.tenantId,
+    normalizeHdPersonName(client.name),
+    date,
+    hms,
+    location.timezone,
+    location.latitude.toFixed(6),
+    location.longitude.toFixed(6),
+    policy.nodeType,
+    policy.lang,
+  ]);
+  const idClaim = await deps.rateLimit("hd-roxy-identity-inflight", identityKey, ROXY_RATE_LIMITS.inFlight.limit, ROXY_RATE_LIMITS.inFlight.windowSeconds);
+  if (!idClaim.allowed) {
+    let cleared = false;
+    for (let i = 0; i < 9 && !cleared; i++) {
+      if (i > 0) await sleep(1500);
+      const own = await findExisting(ctx.db, ctx.tenantId, id);
+      if (own.error) return own.error;
+      if (own.found) return { status: 200, body: { ok: true, id, reused: true } };
+      const again = await findCrossProfileRoxyDuplicates(
+        ctx.db,
+        ctx.tenantId,
+        { clientId, name: client.name, date, time: hms, timezone: location.timezone, latitude: location.latitude, longitude: location.longitude, nodeType: policy.nodeType, lang: policy.lang },
+        ROXY_PROVIDER_ID,
+      );
+      if (again.error) {
+        log("[hd-roxy] eşzamanlı mükerrer kontrolü başarısız; ücretli çağrı yapılmadı", again.error);
+        return fail(503, "DUPLICATE_CHECK_FAILED", "Önceki analizler kontrol edilemedi; ücretli hesaplama yapılmadı. Lütfen birkaç saniye sonra tekrar deneyin.");
+      }
+      if (again.candidates.length > 0) {
+        if (!hdDuplicatesAcknowledged(again.candidates, ack)) {
+          return fail(
+            409,
+            "POSSIBLE_DUPLICATE_CHART",
+            "Bu bilgilerle daha önce hazırlanmış bir Human Design analizi bulundu. Yeni hesaplama yapmak Roxy API hakkınızı kullanabilir. Önce mevcut analizi inceleyebilirsiniz.",
+            { candidates: again.candidates },
+          );
+        }
+        cleared = true; // gösterilen tüm adaylar bilinçli "farklı kişi" onaylı
+      }
+    }
+    if (!cleared) {
+      return fail(409, "IN_PROGRESS", "Aynı kişi için bir hesaplama şu anda sürüyor. Birkaç saniye sonra tekrar deneyin.", {
+        retryAfterSec: idClaim.retryAfterSec || 10,
+      });
+    }
   }
 
   // 10) Aynı girdi için eşzamanlı çağrı kilidi.

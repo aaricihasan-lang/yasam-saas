@@ -24,9 +24,10 @@ export const runtime = "nodejs";
  * POST /api/hd/clients/journey — HD profili ↔ merkezî Danışan Yolculuğu danışanı eylemleri.
  *
  * Gövde: { action, ... }
- *   create_new        { ad, soyad, dogum, birth_time, birth_location_ref, request_id? }
+ *   create_new        { ad, soyad, dogum, birth_time, birth_location_ref, request_id?, acknowledged_duplicate_keys? }
+ *                       (olası mükerrer adaylar onaylanmadıysa 409 POSSIBLE_DUPLICATE_CLIENT + candidates)
  *                     → merkezî danışan + bağlı HD profili (aynı doğrulama/idempotency DY ile)
- *   create_for_existing { journey_client_id, birth_time, birth_location_ref, birth_date? }
+ *   create_for_existing { journey_client_id, birth_time, birth_location_ref, birth_date?, acknowledged_duplicate_keys? }
  *   link_existing     { hd_client_id, journey_client_id }      (uzman onayı; otomatik değil)
  *   link_new          { hd_client_id, ad, soyad, request_id? } (eski profil için yeni merkezî danışan)
  *   unlink            { hd_client_id }                          (HD verisi SİLİNMEZ)
@@ -43,7 +44,7 @@ const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
 function failRes(f: JourneyFail): Response {
   return NextResponse.json(
-    { ok: false, code: f.code, error: f.error, ...(f.hdClientId ? { hd_client_id: f.hdClientId } : {}) },
+    { ok: false, code: f.code, error: f.error, ...(f.hdClientId ? { hd_client_id: f.hdClientId } : {}), ...(f.candidates ? { candidates: f.candidates } : {}) },
     { status: f.status, headers: NO_STORE },
   );
 }

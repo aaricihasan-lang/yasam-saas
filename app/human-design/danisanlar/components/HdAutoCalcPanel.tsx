@@ -15,6 +15,8 @@ import { readYasamUser } from "@/lib/auth/yasamUser";
 import { computeRoxyChart, listComputedCharts, type ComputedChartListRow } from "@/lib/human-design/api/chartsClient";
 import { resolveAutoCalcState, isRoxyRow, type AutoCalcLocation } from "@/lib/human-design/chart/autoCalcState";
 import { HdComputedChartModal } from "../../kayitli-haritalar/components/HdComputedChartModal";
+import type { HdDuplicateCandidate } from "@/lib/human-design/api/hdIdentity";
+import { HdDuplicateDialog } from "./HdDuplicateDialog";
 import { labelOf } from "../../components/HdBirthLocationPicker";
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { WORLD_LOCATIONS } from "@/lib/location/world";
@@ -54,6 +56,8 @@ export function HdAutoCalcPanel({
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const busyRef = useRef(false);
+  // Başka HD profilinde aynı kişi + aynı girdiyle kayıtlı Roxy analizi (sunucu 409) — ücretli çağrı yapılmadı.
+  const [dupCharts, setDupCharts] = useState<HdDuplicateCandidate[] | null>(null);
 
   const loadRows = useCallback(async () => {
     const { rows: data } = await listComputedCharts({ clientId });
@@ -83,14 +87,14 @@ export function HdAutoCalcPanel({
   );
   const history = rows.filter(isRoxyRow);
 
-  async function compute() {
+  async function compute(acknowledged: string[] = []) {
     if (busyRef.current || !state.location || formDirty || isDemo) return;
     busyRef.current = true; // çift tıklama koruması (onay penceresi açıkken de ikinci istek yok)
     const location = state.location;
     // HD-13: önceki analiz VAR ve doğum bilgisi farklı → bu bir YENİ hesaptır (1 Roxy hakkı). Kayıtlı
     // analizi açmak ("Profesyonel Haritayı Aç") kredi harcamaz ve onay sormaz. İlk hesapta da onay
     // sorulmaz (danışan için tek, beklenen işlem). İptal → hiçbir istek gönderilmez.
-    if (state.kind === "changed") {
+    if (state.kind === "changed" && acknowledged.length === 0) {
       const prev = rows.find((r) => r.id === state.previousId);
       const prevText = prev
         ? `${fmtDate(prev.birth_date)} • ${(prev.birth_time ?? "").slice(0, 5)} • ${prev.birth_place ?? "—"}`
@@ -115,9 +119,14 @@ export function HdAutoCalcPanel({
     }
     setBusy(true);
     setError(null);
-    const r = await computeRoxyChart(clientId, location.id);
+    const r = await computeRoxyChart(clientId, location.id, acknowledged);
     busyRef.current = false;
     setBusy(false);
+    if (!r.ok && r.code === "POSSIBLE_DUPLICATE_CHART" && r.candidates && r.candidates.length > 0) {
+      setDupCharts(r.candidates);
+      return;
+    }
+    setDupCharts(null);
     if (!r.ok) {
       setError(r.error);
       return;
@@ -218,6 +227,21 @@ export function HdAutoCalcPanel({
             ))}
           </ul>
         </details>
+      ) : null}
+
+      {dupCharts ? (
+        <HdDuplicateDialog
+          mode="chart"
+          candidates={dupCharts}
+          busy={busy}
+          onOpen={(c) => {
+            // Başka profilin analizi YALNIZ açılır (salt-okuma); bu profile bağlanmaz, kopyalanmaz.
+            setDupCharts(null);
+            if (c.chartId) setOpenId(c.chartId);
+          }}
+          onProceed={() => void compute(dupCharts.map((c) => c.key))}
+          onCancel={() => setDupCharts(null)}
+        />
       ) : null}
 
       {openId ? (
