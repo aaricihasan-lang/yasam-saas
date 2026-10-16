@@ -1183,6 +1183,12 @@ export default function AstrologyWorkspacePage() {
                     mode="create"
                     heading="Yeni Danışan"
                     onCancel={closeForm}
+                    onDiscard={() => setForm(null)}
+                    onOpenExisting={(id) => {
+                      setFormDirty(false);
+                      setForm(null);
+                      openClientFile(id);
+                    }}
                     onDirtyChange={setFormDirty}
                     onDone={(id) => {
                       setProfilesReload((n) => n + 1);
@@ -1195,6 +1201,12 @@ export default function AstrologyWorkspacePage() {
                     heading="Doğum Bilgilerini Düzenle"
                     initial={form.initial}
                     onCancel={closeForm}
+                    onDiscard={() => setForm(null)}
+                    onOpenExisting={(id) => {
+                      setFormDirty(false);
+                      setForm(null);
+                      openClientFile(id);
+                    }}
                     onDirtyChange={setFormDirty}
                     onDone={(id) => {
                       setForm(null);
@@ -1232,6 +1244,12 @@ export default function AstrologyWorkspacePage() {
                 <ProfileForm
                   mode="create"
                   onCancel={closeForm}
+                  onDiscard={() => setForm(null)}
+                  onOpenExisting={(id) => {
+                    setFormDirty(false);
+                    setForm(null);
+                    openClientFile(id);
+                  }}
                     onDirtyChange={setFormDirty}
                   onDone={(id) => {
                     setProfilesReload((n) => n + 1);
@@ -1246,6 +1264,12 @@ export default function AstrologyWorkspacePage() {
                   mode="revise"
                   initial={form.initial}
                   onCancel={closeForm}
+                  onDiscard={() => setForm(null)}
+                  onOpenExisting={(id) => {
+                    setFormDirty(false);
+                    setForm(null);
+                    openClientFile(id);
+                  }}
                     onDirtyChange={setFormDirty}
                   onDone={(id) => {
                     setForm(null);
