@@ -34,6 +34,8 @@ import UnmappedAuditPanel from "./_components/UnmappedAuditPanel";
 import PrepCenter from "./_components/atlas/PrepCenter";
 import ClientPicker from "./_components/atlas/ClientPicker";
 import OpenTabs from "./_components/atlas/OpenTabs";
+import SavedAnalysisTabs from "./_components/atlas/SavedAnalysisTabs";
+import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "@/lib/astrology/noProviderInterp";
 import AddTechniqueDialog, { type AddRunResult } from "./_components/atlas/AddTechniqueDialog";
 import SaveBatchDialog, { type SaveItemResult } from "./_components/atlas/SaveBatchDialog";
 import { TechniqueTechnical, wheelForTechnique } from "./_components/TimingPanels";
@@ -50,6 +52,7 @@ import { SynastryWheelCaption, TransitWheelCaption, roxyChartFor, transitWheelGa
 import type { TransitTechnical } from "@/lib/astrology/model/westernTiming";
 import NatalTechnicalPanel from "./_components/NatalTechnicalPanel";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
+import { localSpaceCenter } from "@/lib/astrology/localSpaceCenter";
 import { AtlasHeader, AtlasViewTitle, atlasDangerBtn, atlasGhostBtn, atlasNightBg, atlasPanel, atlasSecondaryBtn, type AtlasView } from "./_components/AtlasShell";
 import { ArrowLeft, CheckCircle2, Loader2, Save, Settings2, X } from "lucide-react";
 
@@ -1180,6 +1183,12 @@ export default function AstrologyWorkspacePage() {
                     mode="create"
                     heading="Yeni Danışan"
                     onCancel={closeForm}
+                    onDiscard={() => setForm(null)}
+                    onOpenExisting={(id) => {
+                      setFormDirty(false);
+                      setForm(null);
+                      openClientFile(id);
+                    }}
                     onDirtyChange={setFormDirty}
                     onDone={(id) => {
                       setProfilesReload((n) => n + 1);
@@ -1192,6 +1201,12 @@ export default function AstrologyWorkspacePage() {
                     heading="Doğum Bilgilerini Düzenle"
                     initial={form.initial}
                     onCancel={closeForm}
+                    onDiscard={() => setForm(null)}
+                    onOpenExisting={(id) => {
+                      setFormDirty(false);
+                      setForm(null);
+                      openClientFile(id);
+                    }}
                     onDirtyChange={setFormDirty}
                     onDone={(id) => {
                       setForm(null);
@@ -1229,6 +1244,12 @@ export default function AstrologyWorkspacePage() {
                 <ProfileForm
                   mode="create"
                   onCancel={closeForm}
+                  onDiscard={() => setForm(null)}
+                  onOpenExisting={(id) => {
+                    setFormDirty(false);
+                    setForm(null);
+                    openClientFile(id);
+                  }}
                     onDirtyChange={setFormDirty}
                   onDone={(id) => {
                     setProfilesReload((n) => n + 1);
@@ -1243,6 +1264,12 @@ export default function AstrologyWorkspacePage() {
                   mode="revise"
                   initial={form.initial}
                   onCancel={closeForm}
+                  onDiscard={() => setForm(null)}
+                  onOpenExisting={(id) => {
+                    setFormDirty(false);
+                    setForm(null);
+                    openClientFile(id);
+                  }}
                     onDirtyChange={setFormDirty}
                   onDone={(id) => {
                     setForm(null);
@@ -1417,15 +1444,24 @@ export default function AstrologyWorkspacePage() {
 
         {view === "result" &&
           (resultMode === "saved" && openAnalysis && shownDetail && openAnalysis.profileId === shownDetail.id ? (
-            <SavedAnalysisView
-              key={openAnalysis.id}
-              id={openAnalysis.id}
-              previewNoInterp={previewNoInterp}
-              currentRevision={shownDetail.currentRevision}
-              onClose={() => go("client", { profileId: shownDetail.id })}
-              onAddTechnique={() => setAddOpen({ initial: null })}
-              onComputeNatal={() => setAddOpen({ initial: "western.natal" })}
-            />
+            <div className="flex min-w-0 flex-col gap-3">
+              {/* 2026-10-15: aynı danışanın diğer kayıtlı analizleri — arşive dönmeden geçiş (yalnız snapshot okunur, Roxy YOK). */}
+              <SavedAnalysisTabs
+                profileId={shownDetail.id}
+                activeId={openAnalysis.id}
+                reloadKey={analysesReload}
+                onSelect={(id) => setOpenAnalysis({ profileId: shownDetail.id, id })}
+              />
+              <SavedAnalysisView
+                key={openAnalysis.id}
+                id={openAnalysis.id}
+                previewNoInterp={previewNoInterp}
+                currentRevision={shownDetail.currentRevision}
+                onClose={() => go("client", { profileId: shownDetail.id })}
+                onAddTechnique={() => setAddOpen({ initial: null })}
+                onComputeNatal={() => setAddOpen({ initial: "western.natal" })}
+              />
+            </div>
           ) : resultMode === "run" && runs && (runs.items.length > 0 || runs.fails.length > 0) && shownDetail && revision !== null ? (
             (() => {
               const item = activeItem;
@@ -1537,7 +1573,16 @@ export default function AstrologyWorkspacePage() {
                         ]
                       : undefined
                   }
-                  chips={<DeskChip tone={saved ? "saved" : "muted"}>{saved ? "✓ Bu analiz kaydedildi" : "Bu analiz kaydedilmedi"}</DeskChip>}
+                  chips={
+                    <>
+                      <DeskChip tone={saved ? "saved" : "muted"}>{saved ? "✓ Bu analiz kaydedildi" : "Bu analiz kaydedilmedi"}</DeskChip>
+                      {item && hasNoProviderInterpretation(item.technique) && (
+                        <span title={NO_PROVIDER_INTERPRETATION_NOTE} data-testid="astro-no-provider-interp">
+                          <DeskChip tone="muted">Otomatik yorum yok · yalnız teknik hesaplama sonuçları</DeskChip>
+                        </span>
+                      )}
+                    </>
+                  }
                   actions={
                     <>
                       {saveAllBtn}
@@ -1601,6 +1646,7 @@ export default function AstrologyWorkspacePage() {
                     item && item.ok && !natalTech ? (
                       <TechniqueTechnical
                         hideWheel={!!otherWheel || !!roxyChart}
+                        interpretation={item.view.interpretation.visible ? item.view.interpretation.content : null}
                         technique={item.technique}
                         technical={item.view.technical}
                         timeUnknownMasked={item.view.timeUnknownMasked}
@@ -1651,7 +1697,12 @@ export default function AstrologyWorkspacePage() {
                           hideWheel
                         />
                       )}
-                      {tab === "yorum" && interpVisible && <ProviderInterpretationPanel interpretation={item.view.interpretation} />}
+                      {tab === "yorum" && interpVisible && (
+                        <ProviderInterpretationPanel
+                          interpretation={item.view.interpretation}
+                          localSpace={item.technique === "western.local_space" ? localSpaceCenter(item.view.technical, item.view.options, birthplace) : null}
+                        />
+                      )}
                     </div>
                   )}
                       {/* FINAL: Bilgi Bankam / Kendi Yorumum / Kaydet — her AÇIK sekmenin çalışma alanı bağlı kalır (yalnız etkin olan
@@ -1743,7 +1794,7 @@ export default function AstrologyWorkspacePage() {
                 const nt = x.view.method.nodeType === "true" || x.view.method.nodeType === "mean" ? NODE_TYPE_LABELS[x.view.method.nodeType] : null;
                 return { key: x.key, label: techniqueLabel(x.technique), detail: [o, zod, hs, nt, `doğum rev ${revision}`, x.partial ? "kısmi sonuç" : ""].filter(Boolean).join(" · "), closed: !runs.open.includes(x.key), draft: !!dirtyTabs[x.key] };
               })}
-            interpNote={access.providerInterp && !previewNoInterp ? "Roxy'nin bu analizler için ürettiği sistem yorumu, varsa, kayda ayrı katman olarak otomatik eklenir (sizin yorumunuzla karışmaz)." : null}
+            interpNote={access.providerInterp && !previewNoInterp ? "Bu analizlerin otomatik sistem yorumu, varsa, kayda ayrı katman olarak eklenir (sizin yorumunuzla karışmaz)." : null}
             onSave={(keys, titles, onItem) => saveBenchKeys(keys.map((k) => `${runs.key}|${k}`), titles, onItem)}
             onSucceeded={(n) => setSaveToast({ n, at: nowMs() })}
             onClose={() => setSaveDialog(false)}

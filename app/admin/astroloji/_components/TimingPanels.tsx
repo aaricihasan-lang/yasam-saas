@@ -50,6 +50,8 @@ import { KpChartPanel, KpHoraryPanel, KpRulingPanel, KpTransitPanel } from "./Kp
 import type { KpChartTechnical, KpHoraryTechnical, KpRulingTechnical, KpTransitTechnical } from "@/lib/astrology/model/kp";
 import { VedicAshtakavargaPanel, VedicDrishtiPanel, VedicPanchangaPanel, VedicShadbalaPanel, VedicTransitPanel } from "./VedicExtraPanels";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "@/lib/astrology/model/westernLocation";
+import type { FixedStarsInterpretation, FixedStarsTechnical } from "@/lib/astrology/model/westernFixedStars";
+import { FixedStarsPanel } from "./FixedStarsPanel";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -134,7 +136,7 @@ function ChartAspects({ aspects }: { aspects: NatalAspect[] }) {
               <td className={td}>
                 {BODY_GLYPHS[a.a]} {ASPECT_GLYPHS[a.type]} {BODY_GLYPHS[a.b]}{" "}
                 <span className="text-xs text-slate-500">
-                  {BODY_LABELS[a.a]} {ASPECT_LABELS[a.type]} {BODY_LABELS[a.b]}
+                  {BODY_LABELS[a.a]} {ASPECT_GLYPHS[a.type]} {ASPECT_LABELS[a.type]} {BODY_LABELS[a.b]}
                 </span>
               </td>
               <td className={`${td} tabular-nums`}>{formatDegree(a.orb)}</td>
@@ -282,18 +284,19 @@ const EVENT_LABELS: Record<ForecastEvent["type"], string> = {
 const ECLIPSE_LABELS: Record<string, string> = { penumbral: "yarıgölge", partial: "parçalı", annular: "halkalı", total: "tam" };
 
 function eventText(e: ForecastEvent): string {
-  const body = e.body ? BODY_LABELS[e.body] : "";
+  // 2026-10-14: sembol + Türkçe karşılık birlikte (profesyonel + öğrenen kullanıcı).
+  const body = e.body ? `${BODY_GLYPHS[e.body]} ${BODY_LABELS[e.body]}` : "";
   switch (e.type) {
     case "transit_aspect":
-      return `${body} ${e.aspect ? ASPECT_LABELS[e.aspect] : ""} natal ${e.targetBody ? pointLabel(e.targetBody) : ""}`;
+      return `${body} ${e.aspect ? `${ASPECT_GLYPHS[e.aspect]} ${ASPECT_LABELS[e.aspect]}` : ""} natal ${e.targetBody ? `${pointGlyph(e.targetBody)} ${pointLabel(e.targetBody)}` : ""}`;
     case "sign_ingress":
-      return `${body} ${e.targetSign ? SIGN_LABELS[e.targetSign] : ""} burcuna girer`;
+      return `${body} ${e.targetSign ? `${SIGN_GLYPHS[e.targetSign]} ${SIGN_LABELS[e.targetSign]}` : ""} burcuna girer`;
     case "retrograde_station":
       return `${body} ${e.station === "retrograde" ? "retro" : "direkt"} istasyonu`;
     case "eclipse":
       return `${e.body === "moon" ? "Ay" : "Güneş"} tutulması${e.eclipseKind ? ` (${ECLIPSE_LABELS[e.eclipseKind]})` : ""}${e.obscuration !== null ? ` · örtme %${Math.round(e.obscuration * 100)}` : ""}`;
     case "lunar_phase":
-      return `${e.phase === "new_moon" ? "Yeni Ay" : "Dolunay"}${e.targetSign ? ` — ${SIGN_LABELS[e.targetSign]}` : ""}`;
+      return `${e.phase === "new_moon" ? "Yeni Ay" : "Dolunay"}${e.targetSign ? ` — ${SIGN_GLYPHS[e.targetSign]} ${SIGN_LABELS[e.targetSign]}` : ""}`;
   }
 }
 
@@ -729,6 +732,7 @@ export function TechniqueTechnical({
   dashaDrill,
   onDashaLevel,
   hideWheel = false,
+  interpretation = null,
 }: {
   technique: string;
   technical: unknown;
@@ -745,6 +749,11 @@ export function TechniqueTechnical({
   onDashaLevel?: (o: { mahadasha: VedicGrahaId | null; antardasha: VedicGrahaId | null }) => void;
   /** D3.1: çark harita istasyonunda gösteriliyorsa ayrıntı panelinde tekrar çizilmez (veri ve tablolar aynı). */
   hideWheel?: boolean;
+  /**
+   * 2026-10-14: GÖRÜNÜR sağlayıcı yorum içeriği (sunucu yetki + görünürlük kapısından geçmiş; yoksa null). Yalnız sabit
+   * yıldızlar kavuşum kartında kısa yorumu gösterir; diğer teknikler bu dosyada sağlayıcı metni göstermez.
+   */
+  interpretation?: unknown;
 }) {
   const placeLabel = (k: "target" | "reference") => (options[k] as { label?: string } | undefined)?.label ?? null;
   const body = (() => {
@@ -804,6 +813,8 @@ export function TechniqueTechnical({
         return <KpHoraryPanel t={technical as KpHoraryTechnical} kbLookup={kbLookup} placeLabel={(options.place as { label?: string } | undefined)?.label ?? null} />;
       case "vedic.dasha":
         return <VedicDashaPanel t={technical as VedicDashaTechnical} kbLookup={kbLookup} drill={dashaDrill} onOpenLevel={onDashaLevel} />;
+      case "western.fixed_stars":
+        return <FixedStarsPanel t={technical as FixedStarsTechnical} options={options} interpretation={(interpretation as FixedStarsInterpretation | null) ?? null} />;
       case "western.local_space":
         return <LocalSpacePanel t={technical as LocalSpaceTechnical} referenceLabel={placeLabel("reference") ?? "doğum yeri"} />;
       default:

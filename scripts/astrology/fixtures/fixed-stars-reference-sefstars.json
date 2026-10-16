@@ -1,0 +1,392 @@
+{
+ "source": "Swiss Ephemeris ephe/sefstars.txt (aloistr/swisseph, SIMBAD ICRS J2000 verileri; 2026-10-14 indirildi). Alanlar: raDeg/decDeg ICRS J2000 (derece), pmRa = 0.001\"/yıl × cos(dec0), pmDec = 0.001\"/yıl, mag V. Yalnız TEST referansıdır (bağımsız doğrulama); ürün kodu kullanmaz.",
+ "stars": {
+  "algenib": {
+   "sefName": "Algenib",
+   "bayer": "gaPeg",
+   "raDeg": 3.30896346,
+   "decDeg": 15.18359356,
+   "pmRa": 1.98,
+   "pmDec": -9.28,
+   "mag": 2.84
+  },
+  "alpheratz": {
+   "sefName": "Alpheratz",
+   "bayer": "alAnd",
+   "raDeg": 2.09691617,
+   "decDeg": 29.09043111,
+   "pmRa": 137.46,
+   "pmDec": -163.44,
+   "mag": 2.06
+  },
+  "mirach": {
+   "sefName": "Mirach",
+   "bayer": "beAnd",
+   "raDeg": 17.43301617,
+   "decDeg": 35.62055764,
+   "pmRa": 175.9,
+   "pmDec": -112.2,
+   "mag": 2.05
+  },
+  "achernar": {
+   "sefName": "Achernar",
+   "bayer": "alEri",
+   "raDeg": 24.42852283,
+   "decDeg": -57.23675281,
+   "pmRa": 87,
+   "pmDec": -38.24,
+   "mag": 0.46
+  },
+  "hamal": {
+   "sefName": "Hamal",
+   "bayer": "alAri",
+   "raDeg": 31.79335708,
+   "decDeg": 23.46241756,
+   "pmRa": 188.55,
+   "pmDec": -148.08,
+   "mag": 2.01
+  },
+  "polaris": {
+   "sefName": "Polaris",
+   "bayer": "alUMi",
+   "raDeg": 37.95456067,
+   "decDeg": 89.26410897,
+   "pmRa": 44.48,
+   "pmDec": -11.85,
+   "mag": 2.02
+  },
+  "menkar": {
+   "sefName": "Menkar",
+   "bayer": "alCet",
+   "raDeg": 45.56988779,
+   "decDeg": 4.08973878,
+   "pmRa": -10.41,
+   "pmDec": -76.85,
+   "mag": 2.53
+  },
+  "algol": {
+   "sefName": "Algol",
+   "bayer": "bePer",
+   "raDeg": 47.04221854,
+   "decDeg": 40.95564667,
+   "pmRa": 2.99,
+   "pmDec": -1.66,
+   "mag": 2.12
+  },
+  "mirfak": {
+   "sefName": "Mirfak",
+   "bayer": "alPer",
+   "raDeg": 51.08070871,
+   "decDeg": 49.86117931,
+   "pmRa": 23.75,
+   "pmDec": -26.23,
+   "mag": 1.79
+  },
+  "alcyone": {
+   "sefName": "Alcyone",
+   "bayer": "etTau",
+   "raDeg": 56.87115229,
+   "decDeg": 24.10513564,
+   "pmRa": 19.34,
+   "pmDec": -43.67,
+   "mag": 2.87
+  },
+  "aldebaran": {
+   "sefName": "Aldebaran",
+   "bayer": "alTau",
+   "raDeg": 68.98016279,
+   "decDeg": 16.50930236,
+   "pmRa": 63.45,
+   "pmDec": -188.94,
+   "mag": 0.86
+  },
+  "rigel": {
+   "sefName": "Rigel",
+   "bayer": "beOri",
+   "raDeg": 78.63446708,
+   "decDeg": -8.20163836,
+   "pmRa": 1.31,
+   "pmDec": 0.5,
+   "mag": 0.13
+  },
+  "capella": {
+   "sefName": "Capella",
+   "bayer": "alAur",
+   "raDeg": 79.17232796,
+   "decDeg": 45.99799147,
+   "pmRa": 75.25,
+   "pmDec": -426.89,
+   "mag": 0.08
+  },
+  "bellatrix": {
+   "sefName": "Bellatrix",
+   "bayer": "gaOri",
+   "raDeg": 81.28276354,
+   "decDeg": 6.34970328,
+   "pmRa": -8.11,
+   "pmDec": -12.88,
+   "mag": 1.64
+  },
+  "betelgeuse": {
+   "sefName": "Betelgeuse",
+   "bayer": "alOri",
+   "raDeg": 88.792939,
+   "decDeg": 7.407064,
+   "pmRa": 27.54,
+   "pmDec": 11.3,
+   "mag": 0.42
+  },
+  "canopus": {
+   "sefName": "Canopus",
+   "bayer": "alCar",
+   "raDeg": 95.98795783,
+   "decDeg": -52.69566139,
+   "pmRa": 19.93,
+   "pmDec": 23.24,
+   "mag": -0.74
+  },
+  "sirius": {
+   "sefName": "Sirius",
+   "bayer": "alCMa",
+   "raDeg": 101.28715533,
+   "decDeg": -16.71611586,
+   "pmRa": -546.01,
+   "pmDec": -1223.07,
+   "mag": -1.46
+  },
+  "castor": {
+   "sefName": "Castor",
+   "bayer": "alGem",
+   "raDeg": 113.64947163,
+   "decDeg": 31.88828222,
+   "pmRa": -191.45,
+   "pmDec": -145.19,
+   "mag": 1.58
+  },
+  "procyon": {
+   "sefName": "Procyon",
+   "bayer": "alCMi",
+   "raDeg": 114.82549792,
+   "decDeg": 5.22498756,
+   "pmRa": -714.59,
+   "pmDec": -1036.8,
+   "mag": 0.37
+  },
+  "pollux": {
+   "sefName": "Pollux",
+   "bayer": "beGem",
+   "raDeg": 116.32895779,
+   "decDeg": 28.02619889,
+   "pmRa": -626.55,
+   "pmDec": -45.8,
+   "mag": 1.14
+  },
+  "alphard": {
+   "sefName": "Alphard",
+   "bayer": "alHya",
+   "raDeg": 141.89684458,
+   "decDeg": -8.65859953,
+   "pmRa": -15.23,
+   "pmDec": 34.37,
+   "mag": 1.97
+  },
+  "regulus": {
+   "sefName": "Regulus",
+   "bayer": "alLeo",
+   "raDeg": 152.09296246,
+   "decDeg": 11.96720878,
+   "pmRa": -248.73,
+   "pmDec": 5.59,
+   "mag": 1.4
+  },
+  "denebola": {
+   "sefName": "Denebola",
+   "bayer": "beLeo",
+   "raDeg": 177.26490975,
+   "decDeg": 14.57205806,
+   "pmRa": -497.68,
+   "pmDec": -114.67,
+   "mag": 2.13
+  },
+  "acrux": {
+   "sefName": "Acrux",
+   "bayer": "alCru",
+   "raDeg": 186.64956342,
+   "decDeg": -63.09909286,
+   "pmRa": -35.83,
+   "pmDec": -14.86,
+   "mag": 0.81
+  },
+  "algorab": {
+   "sefName": "Algorab",
+   "bayer": "deCrv",
+   "raDeg": 187.46606321,
+   "decDeg": -16.51543125,
+   "pmRa": -210.49,
+   "pmDec": -138.74,
+   "mag": 2.94
+  },
+  "vindemiatrix": {
+   "sefName": "Vindemiatrix",
+   "bayer": "epVir",
+   "raDeg": 195.54415771,
+   "decDeg": 10.95915042,
+   "pmRa": -273.8,
+   "pmDec": 19.96,
+   "mag": 2.79
+  },
+  "spica": {
+   "sefName": "Spica",
+   "bayer": "alVir",
+   "raDeg": 201.29824737,
+   "decDeg": -11.16131947,
+   "pmRa": -42.35,
+   "pmDec": -30.67,
+   "mag": 0.97
+  },
+  "arcturus": {
+   "sefName": "Arcturus",
+   "bayer": "alBoo",
+   "raDeg": 213.91530029,
+   "decDeg": 19.18240917,
+   "pmRa": -1093.39,
+   "pmDec": -2000.06,
+   "mag": -0.05
+  },
+  "hadar": {
+   "sefName": "Hadar",
+   "bayer": "beCen",
+   "raDeg": 210.95585563,
+   "decDeg": -60.37303517,
+   "pmRa": -33.27,
+   "pmDec": -23.16,
+   "mag": 0.6
+  },
+  "toliman": {
+   "sefName": "Toliman",
+   "bayer": "alCen",
+   "raDeg": 219.90085,
+   "decDeg": -60.83561944,
+   "pmRa": -3608,
+   "pmDec": 686,
+   "mag": -0.1
+  },
+  "zuben-elgenubi": {
+   "sefName": "Zuben Elgenubi",
+   "bayer": "al-2Lib",
+   "raDeg": 222.71963787,
+   "decDeg": -16.04177653,
+   "pmRa": -105.68,
+   "pmDec": -68.4,
+   "mag": 2.75
+  },
+  "zuben-eschamali": {
+   "sefName": "Zuben Eschamali",
+   "bayer": "beLib",
+   "raDeg": 229.25172425,
+   "decDeg": -9.38291442,
+   "pmRa": -98.1,
+   "pmDec": -19.65,
+   "mag": 2.62
+  },
+  "alphecca": {
+   "sefName": "Alphecca",
+   "bayer": "alCrB",
+   "raDeg": 233.67195,
+   "decDeg": 26.71469278,
+   "pmRa": 120.27,
+   "pmDec": -89.58,
+   "mag": 2.24
+  },
+  "antares": {
+   "sefName": "Antares",
+   "bayer": "alSco",
+   "raDeg": 247.35191542,
+   "decDeg": -26.43200261,
+   "pmRa": -12.11,
+   "pmDec": -23.3,
+   "mag": 0.91
+  },
+  "sabik": {
+   "sefName": "Sabik",
+   "bayer": "etOph",
+   "raDeg": 257.59452871,
+   "decDeg": -15.72490664,
+   "pmRa": 40.13,
+   "pmDec": 99.17,
+   "mag": 2.42
+  },
+  "rasalhague": {
+   "sefName": "Rasalhague",
+   "bayer": "alOph",
+   "raDeg": 263.73362271,
+   "decDeg": 12.56003739,
+   "pmRa": 108.07,
+   "pmDec": -221.57,
+   "mag": 2.07
+  },
+  "vega": {
+   "sefName": "Vega",
+   "bayer": "alLyr",
+   "raDeg": 279.23473479,
+   "decDeg": 38.78368894,
+   "pmRa": 200.94,
+   "pmDec": 286.23,
+   "mag": 0.03
+  },
+  "altair": {
+   "sefName": "Altair",
+   "bayer": "alAql",
+   "raDeg": 297.69582729,
+   "decDeg": 8.86832119,
+   "pmRa": 536.23,
+   "pmDec": 385.29,
+   "mag": 0.76
+  },
+  "deneb": {
+   "sefName": "Deneb",
+   "bayer": "alCyg",
+   "raDeg": 310.35797975,
+   "decDeg": 45.28033881,
+   "pmRa": 2.01,
+   "pmDec": 1.85,
+   "mag": 1.25
+  },
+  "deneb-algedi": {
+   "sefName": "Deneb Algedi",
+   "bayer": "deCap",
+   "raDeg": 326.76018433,
+   "decDeg": -16.12728708,
+   "pmRa": 261.7,
+   "pmDec": -296.7,
+   "mag": 2.83
+  },
+  "fomalhaut": {
+   "sefName": "Fomalhaut",
+   "bayer": "alPsA",
+   "raDeg": 344.41269271,
+   "decDeg": -29.62223703,
+   "pmRa": 328.95,
+   "pmDec": -164.67,
+   "mag": 1.16
+  },
+  "scheat": {
+   "sefName": "Scheat",
+   "bayer": "bePeg",
+   "raDeg": 345.94357275,
+   "decDeg": 28.08278711,
+   "pmRa": 187.65,
+   "pmDec": 136.93,
+   "mag": 2.42
+  },
+  "markab": {
+   "sefName": "Markab",
+   "bayer": "alPeg",
+   "raDeg": 346.19022271,
+   "decDeg": 15.20526714,
+   "pmRa": 60.4,
+   "pmDec": -41.3,
+   "mag": 2.48
+  }
+ }
+}

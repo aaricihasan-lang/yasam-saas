@@ -119,6 +119,9 @@ import {
 } from "../model/vedic";
 import { VEDIC_D1_INTERP_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_INTERP_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_VARGA_DIVISIONS, type VedicGrahaId, VEDIC_VARGA_INTERP_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, type VedicVargaDivision } from "../model/vedic";
 import { calcInputHash } from "./inputHash";
+import { fixedStarsBody } from "../providers/roxy/requests";
+import { projectRoxyFixedStars, ROXY_FIXED_STARS } from "../providers/roxy/fixedStars";
+import { FIXED_STAR_ORB_QUERY, FIXED_STARS_INTERP_SCHEMA, FIXED_STARS_TECHNICAL_SCHEMA, fixedStarOrbOf, FIXED_STAR_ORB_OPTIONS } from "../model/westernFixedStars";
 
 export type TechniqueProjection =
   | {
@@ -146,6 +149,7 @@ export const TECHNIQUE_IDS = [
   "western.astrocartography",
   "western.relocation",
   "western.local_space",
+  "western.fixed_stars",
   "vedic.d1",
   "vedic.varga",
   "vedic.dasha",
@@ -641,6 +645,44 @@ const westernLocalSpace: TechniqueDefinition = {
     ),
 };
 
+// ─── Sabit yıldızlar (2026-10-14) ────────────────────────────────────────────
+// Ekliptik boylam kavuşumu (paran DEĞİL). Sağlayıcıdan HER ZAMAN orb=3 (Roxy üst sınırı) istenir; uzmanın orbu
+// (0,5–3°) yalnız gösterim/rapor filtresidir → seçenekte durur ama gövdeye/sorguya GİRMEZ → orb değişince önbellek
+// anahtarı aynı kalır (0 yeni istek). Saat bilinmiyorsa ASC/MC/Ay temasları görünümde maskelenir.
+const westernFixedStars: TechniqueDefinition = {
+  id: "western.fixed_stars",
+  label: "Sabit yıldızlar",
+  family: "western",
+  requiresPartner: false,
+  requiresKnownTime: false,
+  timeDependent: false,
+  parseOptions: (raw) => {
+    const r = o(raw);
+    const nodeType = nodeTypeOf(r.nodeType);
+    if (!nodeType) return null;
+    if (r.orb !== undefined && r.orb !== null && !(FIXED_STAR_ORB_OPTIONS as readonly number[]).includes(Number(r.orb))) return null;
+    if (r.reportCatalog !== undefined && typeof r.reportCatalog !== "boolean") return null;
+    // orb ve reportCatalog yalnız gösterim/rapor tercihidir: gövdeye ve sorguya GİRMEZ → önbellek anahtarı değişmez.
+    return { nodeType, orb: fixedStarOrbOf(r.orb), reportCatalog: r.reportCatalog === true };
+  },
+  units: (ctx, opt) => [unit("western.fixed_stars", ROXY_FIXED_STARS, fixedStarsBody(ctx.birth, opt.nodeType as NodeType), { query: { orb: String(FIXED_STAR_ORB_QUERY) } })],
+  project: (u, raw, opt) =>
+    fromAdapter(
+      projectRoxyFixedStars(raw, {
+        date: String(u.body.date),
+        time: String(u.body.time),
+        latitude: Number(u.body.latitude),
+        longitude: Number(u.body.longitude),
+        timezone: Number(u.body.timezone),
+        nodeType: opt.nodeType as NodeType,
+        orbQueried: FIXED_STAR_ORB_QUERY,
+      }),
+      FIXED_STARS_TECHNICAL_SCHEMA,
+      FIXED_STARS_INTERP_SCHEMA,
+      ROXY_FIXED_STARS.projection,
+    ),
+};
+
 // ─── Aşama 5: Vedik / Jyotish (hesap motoru Roxy; doğum saati ZORUNLU) ──────────
 // Roxy belgesi: saat Lagna, ev, pada ve varga için kritik; Dasha tarihleri Ay boylamından → saat bilinmezse
 // güvenilir kısım kalmaz → TIME_REQUIRED. Ayanamsa gövdenin (önbellek anahtarının) parçasıdır.
@@ -746,7 +788,7 @@ function lahiriFixedBody(ctx: UnitContext): Record<string, unknown> {
   const b = vedicBirthBody(ctx.birth, "lahiri");
   return { date: b.date, time: b.time, latitude: b.latitude, longitude: b.longitude, timezone: b.timezone };
 }
-const LAHIRI_ONLY = "Roxy bu hesabı yalnız Lahiri ayanamsa ile yapar (uç ayanamsa almaz); Lahiri seçin.";
+const LAHIRI_ONLY = "Bu hesap yalnız Lahiri ayanamsa ile yapılabilir (başka ayanamsa desteklenmez); Lahiri seçin.";
 
 /** Ayanamsa seçenekli basit Vedik doğum tekniği (tek birim). */
 function vedicBirthTechnique(
@@ -1049,6 +1091,7 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "western.astrocartography": westernAstrocartography,
   "western.relocation": westernRelocation,
   "western.local_space": westernLocalSpace,
+  "western.fixed_stars": westernFixedStars,
   "vedic.d1": vedicD1,
   "vedic.varga": vedicVarga,
   "vedic.dasha": vedicDasha,

@@ -14,10 +14,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowLeft, Loader2, Lock } from "lucide-react";
-import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
+import { ArrowLeft, Loader2, Lock, RefreshCw } from "lucide-react";
+import { probeBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
 
-export type GuardState = "loading" | "ok" | "denied";
+/**
+ * "unavailable" (Final-A3): erişim probe'u geçici hata verdi (ağ / 5xx / bozuk yanıt). İçerik
+ * AÇILMAZ (fail-closed) ama kullanıcı yetkisizmiş gibi "/"'a da yönlendirilmez → tekrar dene.
+ */
+export type GuardState = "loading" | "ok" | "denied" | "unavailable";
 
 export function useBeslenmeModuleGuard(): GuardState {
   const router = useRouter();
@@ -26,18 +30,20 @@ export function useBeslenmeModuleGuard(): GuardState {
   useEffect(() => {
     let alive = true;
     void (async () => {
-      let ok = false;
+      let result: "ok" | "denied" | "unavailable" = "unavailable";
       try {
-        ok = await checkBeslenmeAccess();
+        result = await probeBeslenmeAccess();
       } catch {
-        ok = false;
+        result = "unavailable";
       }
       if (!alive) return;
-      if (ok) {
+      if (result === "ok") {
         setState("ok");
-      } else {
+      } else if (result === "denied") {
         setState("denied");
         router.replace("/");
+      } else {
+        setState("unavailable");
       }
     })();
     return () => {
@@ -88,6 +94,21 @@ export function BeslenmeGate({ state }: { state: GuardState }) {
               </span>
               <p className="text-[13px] font-bold text-slate-500">Yönlendiriliyorsunuz…</p>
             </>
+          ) : state === "unavailable" ? (
+            <div data-testid="access-unverified" className="flex flex-col items-center gap-3">
+              <p className="text-[13px] font-bold text-slate-600" role="status" aria-live="polite">
+                Erişim şu an doğrulanamadı. Oturumunuz açık; lütfen tekrar deneyin.
+              </p>
+              <button
+                type="button"
+                data-testid="access-retry"
+                onClick={() => window.location.reload()}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-emerald-200 bg-white/90 px-4 text-[13px] font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
+              >
+                <RefreshCw className="h-4 w-4" aria-hidden />
+                Tekrar Dene
+              </button>
+            </div>
           ) : (
             <>
               <Loader2 className="h-6 w-6 animate-spin text-emerald-500" aria-hidden />

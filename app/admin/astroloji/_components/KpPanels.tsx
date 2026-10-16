@@ -11,10 +11,14 @@
 import { useMemo, useState } from "react";
 import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, isKpNode, type KpBody, type KpChartTechnical, type KpCusp, type KpHoraryTechnical, type KpLevel, type KpNodeSigMethodId, type KpPoint, type KpRulingTechnical, type KpSignificators, type KpTransitTechnical } from "@/lib/astrology/model/kp";
 import type { VedicGrahaId } from "@/lib/astrology/model/vedic";
-import { SIGN_IDS, type SignId } from "@/lib/astrology/model/western";
+import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
 import { GRAHA_LABELS, NAKSHATRA_LABELS } from "@/lib/astrology/topics/vedic";
 import { GRAHA_TR, SIGN_TR_ABBR, grahaTrName } from "../_lib/kundliLocalize";
+// 2026-10-15: saf KP harita yardımcıları _lib/kpChart'a taşındı (rapor sunucusu da kullanır); eski içe aktarımlar için yeniden dışa açılır.
+import { SOUTH_CELLS, gs, kpChartItems, posLabel, type KpSel } from "../_lib/kpChart";
+export { fmtDms, kpChartItems, type KpSel } from "../_lib/kpChart";
+import { fmtDms } from "../_lib/kpChart";
 import type { KbLookup } from "./VedicPanels";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
@@ -24,17 +28,8 @@ const LEVELS: KpLevel[] = [1, 2, 3, 4];
 const LEVEL_LABEL: Record<KpLevel, string> = { 1: "L1 · yıldızı sakinde", 2: "L2 · sakin", 3: "L3 · yıldızı sahipte", 4: "L4 · sahip" };
 const AY: Record<string, string> = { "kp-newcomb": "KP-Newcomb", "kp-old": "KP (eski tablo)" };
 
-/** Derece/dakika/saniye (KESİLİR, yuvarlanmaz: 29°59′59″ asla 30° olmaz). */
-export function fmtDms(deg: number): string {
-  const total = Math.floor(deg * 3600 + 1e-7);
-  const d = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  return `${d}°${String(m).padStart(2, "0")}′${String(s).padStart(2, "0")}″`;
-}
-const posLabel = (p: KpPoint) => `${SIGN_LABELS[p.rashi]} ${fmtDms(p.degreeInRashi)}`;
 const g = (id: VedicGrahaId | null) => (id ? GRAHA_LABELS[id] : "—");
-const gs = (id: VedicGrahaId | null) => (id ? GRAHA_TR[id].tr : "—");
+
 
 function KbBox({ kb, empty }: { kb: ReturnType<KbLookup> | null; empty: string }) {
   return (
@@ -57,29 +52,6 @@ function KbBox({ kb, empty }: { kb: ReturnType<KbLookup> | null; empty: string }
       )}
     </div>
   );
-}
-
-// ─── Güney Hindistan burç-sabit KP haritası ───────────────────────────────────
-/** 4×4 ızgarada burç konumları (satır, sütun): Balık sol üst, saat yönünde. Ortadaki 2×2 başlık. */
-const SOUTH_CELLS: Record<SignId, [number, number]> = {
-  pisces: [1, 1], aries: [1, 2], taurus: [1, 3], gemini: [1, 4],
-  aquarius: [2, 1], cancer: [2, 4],
-  capricorn: [3, 1], leo: [3, 4],
-  sagittarius: [4, 1], scorpio: [4, 2], libra: [4, 3], virgo: [4, 4],
-};
-export type KpSel = { kind: "cusp"; house: number } | { kind: "body"; id: VedicGrahaId };
-type ChartItem = { key: string; lon: number; sel: KpSel; label: string; title: string; cusp: boolean; strong?: boolean };
-
-export function kpChartItems(cusps: KpCusp[], bodies: (KpPoint & { id: VedicGrahaId; retrograde?: boolean | null; house?: number })[]): Record<SignId, ChartItem[]> {
-  const out = Object.fromEntries(SIGN_IDS.map((s) => [s, [] as ChartItem[]])) as Record<SignId, ChartItem[]>;
-  for (const c of cusps) {
-    out[c.rashi].push({ key: `c${c.house}`, lon: c.longitude, sel: { kind: "cusp", house: c.house }, cusp: true, strong: c.house === 1, label: `${c.house}. ev ${Math.floor(c.degreeInRashi)}°${String(Math.floor((c.degreeInRashi % 1) * 60)).padStart(2, "0")}′`, title: `${c.house}. ev başlangıcı (Placidus cusp) · ${posLabel(c)} · sub lord ${gs(c.subLord)}` });
-  }
-  for (const b of bodies) {
-    out[b.rashi].push({ key: b.id, lon: b.longitude, sel: { kind: "body", id: b.id }, cusp: false, label: `${GRAHA_TR[b.id].abbr} ${Math.floor(b.degreeInRashi)}°${String(Math.floor((b.degreeInRashi % 1) * 60)).padStart(2, "0")}′${b.retrograde ? "ʳ" : ""}`, title: `${grahaTrName(b.id)} · ${posLabel(b)}${b.house ? ` · ${b.house}. ev (Placidus)` : ""} · star ${gs(b.starLord)} · sub ${gs(b.subLord)}${b.retrograde ? " · vakri" : ""}` });
-  }
-  for (const s of SIGN_IDS) out[s].sort((a, b) => a.lon - b.lon || (a.cusp ? -1 : 1));
-  return out;
 }
 
 export function KpSouthChart({ cusps, bodies, center, sel, onSel }: { cusps: KpCusp[]; bodies: (KpPoint & { id: VedicGrahaId; retrograde?: boolean | null; house?: number })[]; center: React.ReactNode; sel: KpSel | null; onSel: (s: KpSel) => void }) {
@@ -239,7 +211,7 @@ export function KpNodeMethodLegend({ methods, context }: { methods: KpNodeSigMet
           <KpNodeMethodTag method={id} /> <strong>{KP_NODE_SIG_METHODS[id].label}.</strong> {KP_NODE_SIG_METHODS[id].detail} <em>{KP_NODE_SIG_METHODS[id].status}</em>
         </p>
       ))}
-      <p className="mt-1 text-slate-500">Roxy uçları düğümler için farklı kurallar kullanır; bu yüzden aynı düğümün ev listesi harita, dasha ve ruling ekranlarında farklı olabilir. Listeler birbirine dönüştürülmez.</p>
+      <p className="mt-1 text-slate-500">Harita, dasha ve ruling hesapları düğümler için farklı kurallar kullanır; bu yüzden aynı düğümün ev listesi harita, dasha ve ruling ekranlarında farklı olabilir. Listeler birbirine dönüştürülmez.</p>
     </div>
   );
 }
@@ -249,7 +221,7 @@ export function KpSignificatorTables({ s, note, nodeMethod, agentMethod, context
   return (
     <div className="flex min-w-0 flex-col gap-2" data-testid="astro-kp-significators">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-sm font-semibold text-slate-700">Significator (KP 4 düzey; Roxy)</h4>
+        <h4 className="text-sm font-semibold text-slate-700">Significator (KP 4 düzey)</h4>
         <div className="flex gap-1" role="tablist" aria-label="Significator görünümü">
           {(["planet", "house"] as const).map((v) => (
             <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)} className={`min-h-[32px] rounded-lg border px-2 py-1 text-xs ${view === v ? "border-amber-600 bg-amber-50 text-amber-900" : "border-slate-200 text-slate-600"}`}>
@@ -283,7 +255,7 @@ export function KpSignificatorTables({ s, note, nodeMethod, agentMethod, context
                       <td key={l} className={`${td} tabular-nums text-xs`}>
                         {p.levels[l].join(", ") || "—"}
                         {p.agent && p.agent.levels[l].some((h) => !p.levels[l].includes(h)) ? (
-                          <span className="ml-1 text-indigo-700" title={`${KP_NODE_SIG_METHODS[agentMethod ?? "agent"].label} — Roxy ajan eki`}>+{p.agent.levels[l].filter((h) => !p.levels[l].includes(h)).join(",")}</span>
+                          <span className="ml-1 text-indigo-700" title={`${KP_NODE_SIG_METHODS[agentMethod ?? "agent"].label} — ajan ekli liste`}>+{p.agent.levels[l].filter((h) => !p.levels[l].includes(h)).join(",")}</span>
                         ) : null}
                       </td>
                     ))}
@@ -398,7 +370,7 @@ export function KpChartPanel({ t, kbLookup }: { t: KpChartTechnical; kbLookup?: 
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-kp-chart-panel">
       <p className="text-sm text-slate-700">
-        <strong>KP doğum haritası</strong> · sidereal, {AY[t.frame.ayanamsa]} {fmtDms(t.frame.ayanamsaDegrees)} · ev sistemi <strong>Placidus</strong> (Roxy KP&apos;de tek seçenek) ·
+        <strong>KP doğum haritası</strong> · sidereal, {AY[t.frame.ayanamsa]} {fmtDms(t.frame.ayanamsaDegrees)} · ev sistemi <strong>Placidus</strong> (KP hesaplamasında tek seçenek) ·
         düğüm {t.nodeType === "mean" ? "ortalama" : "gerçek"} · Lagna {posLabel(t.ascendant)}
       </p>
       <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -438,7 +410,7 @@ export function KpRulingPanel({ t, kbLookup, placeLabel, birthplace }: { t: KpRu
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-kp-ruling-panel">
       <p className="text-sm text-slate-700">
         <strong>KP ruling planets</strong> · {t.at.utc.slice(8, 10)}.{t.at.utc.slice(5, 7)}.{t.at.utc.slice(0, 4)} {t.at.utc.slice(11, 16)} UTC (doğum ofsetinde {local}) · gözlem yeri{" "}
-        {placeLabel ? `${placeLabel} (${t.place.latitude.toFixed(4)}, ${t.place.longitude.toFixed(4)})` : `${t.place.latitude.toFixed(4)}, ${t.place.longitude.toFixed(4)}`} · KP-Newcomb (Roxy dahili)
+        {placeLabel ? `${placeLabel} (${t.place.latitude.toFixed(4)}, ${t.place.longitude.toFixed(4)})` : `${t.place.latitude.toFixed(4)}, ${t.place.longitude.toFixed(4)}`} · KP-Newcomb (hesaplamada sabit)
       </p>
       <div className="flex flex-wrap gap-2" data-testid="astro-kp-ruling-list">
         {t.rulingPlanets.map((r, i) => (
@@ -448,7 +420,7 @@ export function KpRulingPanel({ t, kbLookup, placeLabel, birthplace }: { t: KpRu
         ))}
       </div>
       <p className="text-xs text-slate-500">
-        Roxy sırası (güçlüden zayıfa). Küme klasik 5 öğeden kurulur: gün lordu (gün doğumu esaslı vara), Ay burç + yıldız lordu, Lagna burç + yıldız lordu. Sub lordlar aşağıda
+        Hesaplama sırası (güçlüden zayıfa). Küme klasik 5 öğeden kurulur: gün lordu (gün doğumu esaslı vara), Ay burç + yıldız lordu, Lagna burç + yıldız lordu. Sub lordlar aşağıda
         gösterilir ama kümeye katılmaz.
       </p>
       <div className={`${card} overflow-x-auto`}>
@@ -488,7 +460,7 @@ export function KpRulingPanel({ t, kbLookup, placeLabel, birthplace }: { t: KpRu
       )}
       {t.significators.length > 0 && (
       <div className={`${card} overflow-x-auto`}>
-        <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Ruling planet&apos;lerin natal significator&apos;ları (Roxy, güç sırası)</h4>
+        <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Ruling planet&apos;lerin natal significator&apos;ları (güç sırası)</h4>
         <table className="min-w-full" data-testid="astro-kp-ruling-sig">
           <tbody className="divide-y divide-slate-100">
             {t.significators.map((s) => (
@@ -523,8 +495,8 @@ export function KpTransitPanel({ t, kbLookup }: { t: KpTransitTechnical; kbLooku
         <strong>KP transit</strong> · {t.at.utc.slice(8, 10)}.{t.at.utc.slice(5, 7)}.{t.at.utc.slice(0, 4)} {t.at.utc.slice(11, 16)} UTC · {AY[t.frame.ayanamsa]} {fmtDms(t.frame.ayanamsaDegrees)}
       </p>
       <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs text-amber-900" data-testid="astro-kp-transit-partial">
-        <strong>Kısmi destek:</strong> Roxy bu an için KP hiyerarşili gökyüzünü (star / sub / sub-sub lord) verir; natal cusp&apos;lara göre ev yerleşimi ve transit–natal ilişki
-        analizi Roxy&apos;de YOKTUR ve Yaşam Sistemi bunu hesaplamaz. Batı transiti ve Vedik Gochara ayrı tekniklerdir.
+        <strong>Kısmi destek:</strong> Bu teknik o an için KP hiyerarşili gökyüzünü (star / sub / sub-sub lord) verir; natal cusp&apos;lara göre ev yerleşimi ve transit–natal ilişki
+        analizi bu teknikte YOKTUR ve Yaşam Sistemi bunu hesaplamaz. Batı transiti ve Vedik Gochara ayrı tekniklerdir.
       </p>
       <KpSouthChart cusps={[]} bodies={t.bodies} sel={sel} onSel={setSel} center={<Center title="KP transit" lines={["gökyüzü (an)", AY[t.frame.ayanamsa]]} />} />
       <KpBodyTable bodies={t.bodies} sel={sel} onSel={setSel} title="Transit gezegenler (KP)" testId="astro-kp-transit-table" />
@@ -555,7 +527,7 @@ export function KpHoraryPanel({ t, kbLookup, placeLabel }: { t: KpHoraryTechnica
       </p>
       <p className="text-xs text-slate-500" data-testid="astro-kp-horary-method">
         Doğum verisi KULLANILMAZ. Sayı (1–249) KP alt bölümünü seçer: Lagna = dilimin orta noktası ({fmtDms(t.span.from % 30)}–{fmtDms(t.span.to % 30)} {SIGN_LABELS[t.ascendant.rashi]} →{" "}
-        {posLabel(t.ascendant)}); diğer 11 cusp bu Lagna&apos;dan değerlendirme yerinin enleminde, gezegenler soru anının gökyüzünden (Roxy). Ruling planets soru anının
+        {posLabel(t.ascendant)}); diğer 11 cusp bu Lagna&apos;dan değerlendirme yerinin enleminde, gezegenler soru anının gökyüzünden. Ruling planets soru anının
         ZAMAN Lagna&apos;sından okunur (sayıdan değil).
       </p>
       <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -569,7 +541,7 @@ export function KpHoraryPanel({ t, kbLookup, placeLabel }: { t: KpHoraryTechnica
       <KpBodyTable bodies={t.bodies} sel={sel} onSel={setSel} testId="astro-kp-horary-bodies" />
       <KpSignificatorTables
         s={t.significators}
-        note={`${SIG_NOTE} Horary'de düğümler için tablo sade kuralı gösterir; mavi '+' ile işaretli evler Roxy'nin aynı yanıtta verdiği ajan ekli listeden gelir.`}
+        note={`${SIG_NOTE} Horary'de düğümler için tablo sade kuralı gösterir; mavi '+' ile işaretli evler aynı hesaplama sonucundaki ajan ekli listeden gelir.`}
         nodeMethod={KP_NODE_SIG_SOURCE.horaryLevels}
         agentMethod={KP_NODE_SIG_SOURCE.horaryAgent}
         context="KP horary (kp/horary ucu)"

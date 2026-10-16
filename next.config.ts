@@ -71,11 +71,11 @@ const nextConfig: NextConfig = {
     "/api/clients/[id]/anamnez/[anamnesisId]/pdf": ["./public/fonts/Geist-Regular.ttf"],
     // Human Design profesyonel Word (v2) kapak logosu fs ile okunur.
     "/api/hd/reports/professional/download": ["./public/assets/yasam-sistemi-chart-logo.png"],
-    // Astroloji Word/PDF raporu: PDF fontu + çark PNG'si (resvg) aynı Geist TTF'yi fs ile okur.
-    "/api/admin/astroloji/analyses/[id]/report": ["./public/fonts/Geist-Regular.ttf"],
-    "/api/astroloji/analyses/[id]/report": ["./public/fonts/Geist-Regular.ttf"],
-    "/api/admin/astroloji/analyses/report": ["./public/fonts/Geist-Regular.ttf"],
-    "/api/astroloji/analyses/report": ["./public/fonts/Geist-Regular.ttf"],
+    // Astroloji Word/PDF raporu: PDF fontu + sembol yedek fontları (Yunanca + astroloji glifleri; 2026-10-14) + çark PNG'si (resvg) aynı Geist TTF'yi fs ile okur.
+    "/api/admin/astroloji/analyses/[id]/report": ["./public/fonts/Geist-Regular.ttf", "./public/fonts/YasamAstroSymbolsA.ttf", "./public/fonts/YasamAstroSymbolsB.ttf"],
+    "/api/astroloji/analyses/[id]/report": ["./public/fonts/Geist-Regular.ttf", "./public/fonts/YasamAstroSymbolsA.ttf", "./public/fonts/YasamAstroSymbolsB.ttf"],
+    "/api/admin/astroloji/analyses/report": ["./public/fonts/Geist-Regular.ttf", "./public/fonts/YasamAstroSymbolsA.ttf", "./public/fonts/YasamAstroSymbolsB.ttf"],
+    "/api/astroloji/analyses/report": ["./public/fonts/Geist-Regular.ttf", "./public/fonts/YasamAstroSymbolsA.ttf", "./public/fonts/YasamAstroSymbolsB.ttf"],
   },
 
   experimental: {

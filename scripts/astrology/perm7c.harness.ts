@@ -205,7 +205,12 @@ async function main() {
 
     // ─── exA (yorum yok) ve exAI (yorum var) kendi verisini oluşturur ───────────
     const mk = async (who: "exA" | "exAI" | "exB", label: string, clientId: string | null = null) => {
-      const r = await call(X.profiles.POST(req("expert", "/profiles", who, "POST", { label, clientId, ...birth })));
+      let r = await call(X.profiles.POST(req("expert", "/profiles", who, "POST", { label, clientId, ...birth })));
+      // 2026-10-16: aynı uzmanda aynı kişi tekrar → açık "Farklı kişi olarak devam et" onayı (sentetik kurgu).
+      if (r.status === 409 && r.json.code === "DUPLICATE_PROFILE") {
+        const ids = (r.json.duplicates as { profileId: string }[]).map((d) => d.profileId);
+        r = await call(X.profiles.POST(req("expert", "/profiles", who, "POST", { label, clientId, ...birth, confirmDifferentPerson: ids })));
+      }
       assert.equal(r.status, 201, r.text);
       return (r.json.profile as { id: string }).id;
     };

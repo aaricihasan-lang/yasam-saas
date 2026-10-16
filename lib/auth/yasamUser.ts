@@ -67,7 +67,7 @@ let lastUserSyncAt = 0;
 // veya id) anahtar değişir ve cache otomatik geçersiz olur (eski profil dönmez).
 let lastSyncKey = "";
 let inFlightKey = "";
-let syncInFlight: Promise<YasamUser | null> | null = null;
+let syncInFlight: Promise<YasamUserSyncOutcome> | null = null;
 
 export function invalidateYasamUserSyncCache(): void {
   lastUserSyncAt = 0;
@@ -521,7 +521,24 @@ export function isExpertUser(user: YasamUser | null | undefined): boolean {
 export async function refreshYasamUserFromDb(
   user: YasamUser,
 ): Promise<YasamUser | null> {
-  if (!user.id) return null;
+  const outcome = await refreshYasamUserOutcome(user);
+  return outcome.kind === "fresh" ? outcome.user : null;
+}
+
+/**
+ * Final-A3: profil senkronunun ÜÇ DEĞERLİ sonucu.
+ *  - fresh: sunucu güncel kaydı döndü (authoritative — üyelik/modül kararı buna göre verilir).
+ *  - rejected: sunucu isteği açıkça reddetti (401/403/404 veya geçersiz kayıt).
+ *  - unavailable: ağ hatası / 5xx / bozuk yanıt — karar VERİLEMEZ. Erişim verilmez ama bayat
+ *    önbellekten "Üyeliğiniz Aktif Değil" / "Yetkiniz Bulunmuyor" da kesinleştirilmez.
+ */
+export type YasamUserSyncOutcome =
+  | { kind: "fresh"; user: YasamUser }
+  | { kind: "rejected" }
+  | { kind: "unavailable" };
+
+async function refreshYasamUserOutcome(user: YasamUser): Promise<YasamUserSyncOutcome> {
+  if (!user.id) return { kind: "rejected" };
 
   const token = readSessionToken();
   // Oturum kimlik bilgisi yoksa (ör. login anında, session oluşturulmadan önce; Android'de token
@@ -529,7 +546,7 @@ export async function refreshYasamUserFromDb(
   // cookie ile doğrulanır (hasSessionCredential).
   // HTTPONLY H6a FIX: kimlik kararı eşitlenen kullanıcının kendi id'siyle (taze login'de
   // yasam_user henüz localStorage'da yok). Kimlik/tenant doğrulaması yine sunucuda (/api/auth/profile).
-  if (!hasSessionCredential(token, user.id)) return user;
+  if (!hasSessionCredential(token, user.id)) return { kind: "fresh", user };
 
   // HTTPONLY H6a: cookie taşımasında saklı token'ın cookie'si henüz yoksa bir kez yazdırılır.
   await ensureWebCookieSession();
@@ -542,23 +559,26 @@ export async function refreshYasamUserFromDb(
 
     if (!res.ok) {
       console.error("Kullanıcı kaydı yenilenemedi:", res.status);
-      return null;
+      return res.status === 401 || res.status === 403 || res.status === 404
+        ? { kind: "rejected" }
+        : { kind: "unavailable" };
     }
 
     const json = (await res.json().catch(() => ({}))) as {
       profile?: Record<string, unknown> | null;
     };
-    if (!json.profile) return null;
+    if (!json.profile) return { kind: "unavailable" };
 
     const row = json.profile;
-    return parseLoginUserRecord({
+    const parsed = parseLoginUserRecord({
       ...row,
       module_permissions:
         row.module_permissions ?? user.module_permissions ?? undefined,
     });
+    return parsed ? { kind: "fresh", user: parsed } : { kind: "rejected" };
   } catch (err) {
     console.error("Kullanıcı kaydı yenileme hatası:", err);
-    return null;
+    return { kind: "unavailable" };
   }
 }
 
@@ -575,8 +595,20 @@ export async function syncYasamUserFromDb(
   seed?: YasamUser | null,
   options?: SyncYasamUserOptions,
 ): Promise<YasamUser | null> {
+  const outcome = await syncYasamUserFromDbOutcome(seed, options);
+  return outcome.kind === "fresh" ? outcome.user : null;
+}
+
+/**
+ * syncYasamUserFromDb ile aynı (TTL + dedupe + localStorage yazımı) ama sonucu üç değerli döner
+ * (Final-A3). Route guard geçici hatayı açık red ile karıştırmamak için bunu kullanır.
+ */
+export async function syncYasamUserFromDbOutcome(
+  seed?: YasamUser | null,
+  options?: SyncYasamUserOptions,
+): Promise<YasamUserSyncOutcome> {
   const current = seed ?? readYasamUser();
-  if (!current?.id) return null;
+  if (!current?.id) return { kind: "rejected" };
 
   const force = options?.force === true;
   const now = Date.now();
@@ -585,7 +617,7 @@ export async function syncYasamUserFromDb(
 
   // TTL yalnız aynı kimlik+oturum için geçerli.
   if (!force && key === lastSyncKey && now - lastUserSyncAt < USER_SYNC_TTL_MS) {
-    return readYasamUser() ?? current;
+    return { kind: "fresh", user: readYasamUser() ?? current };
   }
 
   // In-flight dedupe yalnız aynı kimlik+oturum isteği için.
@@ -593,15 +625,15 @@ export async function syncYasamUserFromDb(
     return syncInFlight;
   }
 
-  const run = async (): Promise<YasamUser | null> => {
-    const fresh = await refreshYasamUserFromDb(current);
-    // 401/403 veya boş sonuç (fresh=null) → TTL/anahtar güncellenmez; bir sonraki
+  const run = async (): Promise<YasamUserSyncOutcome> => {
+    const outcome = await refreshYasamUserOutcome(current);
+    // 401/403, geçici hata veya boş sonuç → TTL/anahtar güncellenmez; bir sonraki
     // çağrı yeniden dener, hatalı/oturumsuz durum cache'lenmez.
-    if (!fresh) return null;
-    saveYasamUser(fresh);
+    if (outcome.kind !== "fresh") return outcome;
+    saveYasamUser(outcome.user);
     lastUserSyncAt = Date.now();
     lastSyncKey = key;
-    return fresh;
+    return outcome;
   };
 
   inFlightKey = key;

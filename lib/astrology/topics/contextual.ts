@@ -19,8 +19,10 @@ import { ASPECT_TYPES, BODY_IDS, SIGN_IDS, type AspectType, type BodyId } from "
 import { ANGLE_POINT_IDS, type CompositeTechnical, type ForecastTechnical, type PointId, type ProgressionTechnical, type ReturnTechnical, type SolarArcTechnical, type SynastryTechnical, type TransitTechnical } from "../model/westernTiming";
 import { ASPECT_LABELS, BODY_LABELS, SIGN_LABELS } from "../labels/tr";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "../model/westernLocation";
+import type { FixedStarsTechnical } from "../model/westernFixedStars";
+import { FIXED_STAR_CATALOG, fixedStarName } from "../labels/fixedStars";
 
-export type ArgType = "body" | "point" | "sign" | "house" | "aspect" | "angle" | "station" | "angle4" | "compass";
+export type ArgType = "body" | "point" | "sign" | "house" | "aspect" | "angle" | "station" | "angle4" | "compass" | "star";
 type Spec = { args: ArgType[]; ordered?: boolean; context: TopicContext; label: (p: string[]) => string };
 
 export const TOPIC_CONTEXTS = [
@@ -35,6 +37,7 @@ export const TOPIC_CONTEXTS = [
   "astrocartography",
   "relocation",
   "local_space",
+  "fixed_stars",
 ] as const;
 export type TopicContext = (typeof TOPIC_CONTEXTS)[number];
 export const TOPIC_CONTEXT_LABELS: Record<TopicContext, string> = {
@@ -49,6 +52,7 @@ export const TOPIC_CONTEXT_LABELS: Record<TopicContext, string> = {
   astrocartography: "Astrocartography",
   relocation: "Relocation",
   local_space: "Local Space",
+  fixed_stars: "Sabit yıldızlar",
 };
 
 /** Dört açı (ACG hattı / relocation açısal yerleşim). */
@@ -89,6 +93,9 @@ export const CONTEXT_SPECS: Record<string, Spec> = {
   relocated_in_house: { args: ["body", "house"], context: "relocation", label: (p) => `Relocation: ${pointLabel(p[0])} ${p[1]}. evde` },
   relocated_angle_in_sign: { args: ["angle", "sign"], context: "relocation", label: (p) => `Relocation: ${ANGLE_LABEL[p[0]]} ${sign(p[1])} burcunda` },
   relocated_angular: { args: ["body", "angle4"], context: "relocation", label: (p) => `Relocation: ${pointLabel(p[0])} açısal (${ANGLE4_LABEL[p[1]]})` },
+  // 2026-10-14 — sabit yıldızlar (ekliptik boylam kavuşumu; kendi bağlamında).
+  fixed_star_contact: { args: ["star", "point"], context: "fixed_stars", label: (p) => `Sabit yıldız: ${fixedStarName(p[0])} ☌ ${pointLabel(p[1])}` },
+  fixed_star: { args: ["star"], context: "fixed_stars", label: (p) => `Sabit yıldız: ${fixedStarName(p[0])} (genel)` },
   local_space_direction: { args: ["body", "compass"], context: "local_space", label: (p) => `Local Space: ${pointLabel(p[0])} hattı ${COMPASS_LABEL[p[1]]} (${p[1].toUpperCase()}) yönünde` },
 };
 export const CONTEXT_KINDS = Object.keys(CONTEXT_SPECS);
@@ -113,6 +120,8 @@ function valid(t: ArgType, v: string): boolean {
       return (ANGLE4_IDS as readonly string[]).includes(v);
     case "compass":
       return Object.prototype.hasOwnProperty.call(COMPASS_LABEL, v);
+    case "star":
+      return Object.prototype.hasOwnProperty.call(FIXED_STAR_CATALOG, v);
   }
 }
 
@@ -228,4 +237,12 @@ export function topicsFromRelocation(t: RelocationTechnical): ContextTopic[] {
 
 export function topicsFromLocalSpace(t: LocalSpaceTechnical): ContextTopic[] {
   return collect(t.bodies.map((b) => ["local_space_direction", [b.id, b.compass]] as [string, string[]]));
+}
+
+/** Sabit yıldız temasları + temas eden yıldızların genel konusu (kataloğu bilinmeyen yıldız konu üretmez). */
+export function topicsFromFixedStars(t: FixedStarsTechnical): ContextTopic[] {
+  return collect([
+    ...t.contacts.map((c) => ["fixed_star_contact", [c.star, c.point]] as [string, string[]]),
+    ...t.contacts.map((c) => ["fixed_star", [c.star]] as [string, string[]]),
+  ]);
 }

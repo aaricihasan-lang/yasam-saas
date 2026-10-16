@@ -119,7 +119,8 @@ console.log("\n[MEM-015] Admin kabuğu");
 const layout = read("app/admin/layout.tsx");
 const proxy = read("proxy.ts");
 const sess = read("app/api/auth/admin-session/route.ts");
-ok(/resolveAdminShellUserId\(getServerDb\(\), token\)/.test(layout) && !/yasam_admin_id/.test(layout), "layout token'ı API kuralıyla doğrular (UUID cookie'ye güvenmez)");
+// Final-A3: layout aynı kuralı üç değerli resolveAdminShellSession ile uygular (geçici hata → redirect yok).
+ok(/resolveAdminShellSession\(getServerDb\(\), token\)/.test(layout) && !/yasam_admin_id/.test(layout), "layout token'ı API kuralıyla doğrular (UUID cookie'ye güvenmez)");
 ok(/yasam_admin_session/.test(proxy) && !/get\("yasam_admin_id"\)/.test(proxy), "proxy yeni oturum cookie'sine bakar");
 ok(/set\(ADMIN_SESSION_COOKIE, sessionToken/.test(sess) && /LEGACY_ADMIN_ID_COOKIE, ""/.test(sess), "admin-session: token cookie + eski UUID cookie temizliği");
 const shell = read("lib/auth/adminShellSession.ts");

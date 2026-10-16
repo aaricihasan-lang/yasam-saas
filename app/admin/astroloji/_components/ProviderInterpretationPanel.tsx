@@ -6,6 +6,8 @@
  * Uzmanın kendi yorumu ile KARIŞTIRILMAZ. Tüm teknikler (natal + Aşama 3) şemaya göre çizilir.
  */
 
+import { interpretationKindOfSchema, type InterpretationKind } from "@/lib/astrology/interpretationKind";
+import { localSpaceCenterNote, localSpaceText, type LocalSpaceCenter } from "@/lib/astrology/localSpaceCenter";
 import type { ReactNode } from "react";
 import type { NatalInterpretation } from "@/lib/astrology/model/western";
 import type {
@@ -22,6 +24,8 @@ import { ASPECT_GLYPHS, ASPECT_LABELS, BODY_GLYPHS, BODY_LABELS, PATTERN_LABELS 
 import type { AstrocartographyInterpretation, LocalSpaceInterpretation, RelocationInterpretation } from "@/lib/astrology/model/westernLocation";
 import type { VedicD1Interpretation, VedicDashaInterpretation, VedicPanchangaInterpretation, VedicShadbalaInterpretation, VedicTransitInterpretation, VedicVargaInterpretation } from "@/lib/astrology/model/vedic";
 import { GRAHA_LABELS, VEDIC_YOGA_NAMES } from "@/lib/astrology/topics/vedic";
+import type { FixedStarsInterpretation } from "@/lib/astrology/model/westernFixedStars";
+import { fixedStarName, starKeywordTr } from "@/lib/astrology/labels/fixedStars";
 
 export type InterpretationLayer =
   | { visible: true; provider: string; lang: string; content: unknown; notice: string }
@@ -64,7 +68,7 @@ const P = ({ text }: { text: string | null | undefined }) => (text ? <p classNam
 /** 6: Roxy houseThemes (ev anahtar kelimeleri; sağlayıcı anlatısı). */
 function HouseThemes({ themes }: { themes: { house: number; keywords: string[] }[] }) {
   return (
-    <Block title="Ev anahtar kelimeleri (Roxy)">
+    <Block title="Ev anahtar kelimeleri">
       {themes.map((t) => (
         <Item key={t.house}>
           <span className="font-medium">{t.house}. ev:</span> {t.keywords.join(", ")}
@@ -158,7 +162,7 @@ function Content({ content }: { content: unknown }) {
           {c.aspects.map((a, i) => (
             <Item key={`${a.transit}-${a.type}-${a.natal}-${i}`}>
               <div className="font-medium">
-                Transit {BODY_LABELS[a.transit]} {ASPECT_LABELS[a.type]} natal {pointLabel(a.natal)}
+                Transit {BODY_GLYPHS[a.transit]} {BODY_LABELS[a.transit]} {ASPECT_GLYPHS[a.type]} {ASPECT_LABELS[a.type]} natal {pointLabel(a.natal)}
               </div>
               <P text={a.summary} />
               {a.timing && <p className="mt-0.5 text-xs text-slate-500">Zamanlama: {a.timing}</p>}
@@ -177,7 +181,7 @@ function Content({ content }: { content: unknown }) {
       for (const e of c.events) months.set(e.datetime.slice(0, 7), [...(months.get(e.datetime.slice(0, 7)) ?? []), e]);
       return (
         <>
-          <p className="mb-2 text-xs text-slate-500">Roxy bu teknikte ayrı bir genel yorum üretmez; her olay için verdiği açıklama cümlesi aşağıda değiştirilmeden listelenir ({c.events.length} olay).</p>
+          <p className="mb-2 text-xs text-slate-500">Bu teknikte ayrı bir genel otomatik yorum bulunmuyor; her olayın otomatik açıklama cümlesi aşağıda değiştirilmeden listelenir ({c.events.length} olay).</p>
           {[...months.entries()].map(([m, list]) => (
             <Block key={m} title={`${m.slice(5, 7)}.${m.slice(0, 4)} (${list.length})`}>
               {list.map((e, i) => (
@@ -231,7 +235,7 @@ function Content({ content }: { content: unknown }) {
             {c.aspects.map((a, i) => (
               <Item key={`${a.a}-${a.type}-${a.b}-${i}`}>
                 <div className="font-medium">
-                  {BODY_LABELS[a.a]} (1) {ASPECT_LABELS[a.type]} {BODY_LABELS[a.b]} (2)
+                  {BODY_GLYPHS[a.a]} {BODY_LABELS[a.a]} (1) {ASPECT_GLYPHS[a.type]} {ASPECT_LABELS[a.type]} {BODY_GLYPHS[a.b]} {BODY_LABELS[a.b]} (2)
                 </div>
                 <P text={a.short} />
                 {a.long && (
@@ -331,6 +335,42 @@ function Content({ content }: { content: unknown }) {
         </>
       );
     }
+    case "astro.western.fixed_stars.interp.v1": {
+      const c = content as FixedStarsInterpretation;
+      const used = new Set(c.contacts.map((x) => x.star));
+      return (
+        <>
+          <p className="text-xs text-slate-500">Kavuşum metinleri otomatik yorum metinleridir ve sağlayıcı sorgusundaki (3°) tüm temasları kapsar. Anahtar kelimeler kaynak veride İngilizce gelir; Yaşam sözlüğüyle Türkçeleştirilmiştir.</p>
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2">{c.summary}</p>}
+          <Block title="Sabit yıldız kavuşumları">
+            {c.contacts.map((x) => (
+              <Item key={`${x.star}|${x.point}`}>
+                <div className="font-medium">
+                  {fixedStarName(x.star)} {ASPECT_GLYPHS.conjunction} {ASPECT_LABELS.conjunction} {(x.point as string) in BODY_GLYPHS ? BODY_GLYPHS[x.point as keyof typeof BODY_GLYPHS] : ""} {pointLabel(x.point as PointId)}
+                </div>
+                <P text={x.text} />
+                <Chips items={(c.stars.find((s) => s.id === x.star)?.keywords ?? []).map(starKeywordTr)} />
+              </Item>
+            ))}
+          </Block>
+          {c.stars.some((s) => !used.has(s.id) && s.keywords.length > 0) && (
+            <details className="mt-1">
+              <summary className="cursor-pointer text-xs text-sky-700">Kavuşumu olmayan yıldızların anahtar kelimeleri</summary>
+              <Block title="Diğer yıldızlar">
+                {c.stars
+                  .filter((s) => !used.has(s.id))
+                  .map((s) => (
+                    <Item key={s.id}>
+                      <div className="font-medium">{fixedStarName(s.id)}</div>
+                      <Chips items={s.keywords.map(starKeywordTr)} />
+                    </Item>
+                  ))}
+              </Block>
+            </details>
+          )}
+        </>
+      );
+    }
     case "astro.vedic.d1.interp.v1": {
       const c = content as VedicD1Interpretation;
       return (
@@ -359,7 +399,7 @@ function Content({ content }: { content: unknown }) {
           )}
           {c.yogas.length > 0 && (
             <details className="rounded-lg bg-white px-3 py-2">
-              <summary className="cursor-pointer font-semibold text-sky-900">Yoga ansiklopedisi ({c.yogas.length}) — Roxy&apos;nin genel yoga açıklamaları; çoğu bu haritada OLUŞMAMIŞTIR (oluşanlar teknik bölümde işaretli)</summary>
+              <summary className="cursor-pointer font-semibold text-sky-900">Yoga ansiklopedisi ({c.yogas.length}) — genel otomatik yoga açıklamaları; çoğu bu haritada OLUŞMAMIŞTIR (oluşanlar teknik bölümde işaretli)</summary>
               <ul className="mt-2 flex flex-col gap-2">
                 {c.yogas.map((y) => (
                   <li key={y.id}>
@@ -390,7 +430,7 @@ function Content({ content }: { content: unknown }) {
             ))}
           </Block>
           {c.kpStrength && c.kpStrength.length > 0 && (
-            <Block title="Roxy KP dönem gücü — lordun gösterdiği evlere bağ derecesi; olay olasılığı veya olumluluk DEĞİLDİR (sağlayıcı yorumu)">
+            <Block title="KP dönem gücü — lordun gösterdiği evlere bağ derecesi; olay olasılığı veya olumluluk DEĞİLDİR (otomatik değerlendirme)">
               {c.kpStrength.map((k) => (
                 <Item key={`kp-${k.lord}-${k.start}`}>
                   <span className="font-medium">{GRAHA_LABELS[k.lord]}</span> · {k.start.slice(0, 10)} · puan {k.score} · derece {k.grade} · {KP_STRENGTH_TR[k.label] ?? k.label}
@@ -489,20 +529,24 @@ export function stripSystemKeys<T>(v: T): T {
 }
 
 /** Sağlayıcı katmanında anlatı değil, teknik bileşen / terim açıklaması taşıyan şemalar (KP, Shadbala, Panchanga, Varga). */
-const TECHNICAL_DESCRIPTION_SCHEMAS = new Set(["astro.kp.chart.interp.v1", "astro.kp.extra.interp.v1", "astro.vedic.shadbala.interp.v1", "astro.vedic.panchanga.interp.v1", "astro.vedic.varga.interp.v1"]);
-
-/** Sekme / panel başlığı: anlatı içeriyorsa "Otomatik Yorum", yalnız teknik açıklamaysa "Teknik Açıklama". */
-export function interpretationTitle(interpretation: InterpretationLayer): "Otomatik Yorum" | "Teknik Açıklama" | "Roxy Olay Açıklamaları" {
+/** Sekme / panel başlığı: anlatı içeriyorsa "Otomatik Yorum", yalnız teknik açıklamaysa "Teknik Açıklama" (karar
+ * lib/astrology/interpretationKind.ts'te — Word/PDF aynı kaynağı kullanır). */
+export function interpretationTitle(interpretation: InterpretationLayer): InterpretationKind {
   if (!interpretation.visible) return "Otomatik Yorum";
-  const schema = (interpretation.content as { schema?: string } | null)?.schema ?? "";
-  // 2026-10-12 (UAT 2. tur, madde N): Transit Takvimi'nde Roxy yalnız olay başına teknik cümle verir; "Otomatik Yorum"
-  // (kişiye özel yorum) izlenimi vermesin.
-  if (schema === "astro.western.forecast.interp.v1") return "Roxy Olay Açıklamaları";
-  return TECHNICAL_DESCRIPTION_SCHEMAS.has(schema) ? "Teknik Açıklama" : "Otomatik Yorum";
+  return interpretationKindOfSchema((interpretation.content as { schema?: string } | null)?.schema ?? "");
 }
 
-export default function ProviderInterpretationPanel({ interpretation }: { interpretation: InterpretationLayer }) {
+/** 2026-10-16: Local Space merkezi doğum yerinden farklıysa kalıptaki yer atfı seçilen merkeze bağlanır (rapordakiyle aynı). */
+function withLocalSpaceCenter(content: unknown, center: LocalSpaceCenter | null | undefined): { content: unknown; note: string | null } {
+  const c = content as { schema?: unknown; bodies?: unknown; summary?: unknown } | null;
+  if (!center || !c || c.schema !== "astro.western.local_space.interp.v1") return { content, note: null };
+  const bodies = Array.isArray(c.bodies) ? (c.bodies as { text?: unknown }[]).map((b) => (typeof b?.text === "string" ? { ...b, text: localSpaceText(b.text, center) } : b)) : c.bodies;
+  return { content: { ...c, bodies, ...(typeof c.summary === "string" ? { summary: localSpaceText(c.summary, center) } : {}) }, note: localSpaceCenterNote(center) };
+}
+
+export default function ProviderInterpretationPanel({ interpretation, localSpace }: { interpretation: InterpretationLayer; localSpace?: LocalSpaceCenter | null }) {
   const title = interpretationTitle(interpretation);
+  const ls = interpretation.visible ? withLocalSpaceCenter(stripSystemKeys(interpretation.content), localSpace) : null;
   return (
     <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]" aria-label={title}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-slate-100 pb-2.5">
@@ -510,15 +554,20 @@ export default function ProviderInterpretationPanel({ interpretation }: { interp
           <span className="h-2 w-2 rounded-full bg-[#c9a54e]" aria-hidden="true" />
           {title}
         </h3>
-        <span className="text-[11px] text-slate-500" title={interpretation.visible ? interpretation.notice : "Otomatik katman, hesaplama sağlayıcısı RoxyAPI tarafından üretilir."}>
-          Kaynak: RoxyAPI · uzman yorumu değildir
+        <span className="text-[11px] text-slate-500" title={interpretation.visible ? interpretation.notice : "Bu bölüm otomatik oluşturulmuştur; uzman yorumu değildir."}>
+          Otomatik oluşturulmuştur · uzman yorumu değildir
         </span>
       </div>
       {!interpretation.visible ? (
         <p className="text-sm text-slate-600">{HIDDEN_TEXT[interpretation.reason] ?? HIDDEN_TEXT.unavailable}</p>
       ) : (
         <div className="flex flex-col gap-4 text-sm text-slate-800">
-          <Content content={stripSystemKeys(interpretation.content)} />
+          {ls?.note && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="astro-ls-center-note">
+              {ls.note}
+            </p>
+          )}
+          <Content content={ls ? ls.content : stripSystemKeys(interpretation.content)} />
         </div>
       )}
     </section>
