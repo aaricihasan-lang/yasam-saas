@@ -178,29 +178,93 @@ async function main() {
     await su.query(`grant select on public.human_design_charts to service_role`);
     await su.query(`notify pgrst, 'reload schema'`);
 
+    // ══ 500+ aday: eksik tarama "mükerrer yok" sayılmamalı ════════════════════
+    section("500+ kayıtlı aynı doğum tarihi (sayfalı tam tarama)");
+    const D = "1977-07-07";
+    const ref = (await su.query(`select input, timezone from public.human_design_charts where id=$1`, [chart1])).rows[0] as { input: Json; timezone: string };
+    await su.query(
+      `insert into public.human_design_clients(tenant_id, name, birth_date, birth_time, birth_location_id)
+       select $1, 'ZZ Dolgu Profil ' || g, $2::date, '09:00', 'trd-42-selcuklu' from generate_series(1, 620) g`, [TA, D]);
+    await su.query(`insert into public.clients(tenant_id, ad, soyad, dogum) select $1, 'ZZ Dolgu', 'Danışan ' || g, $2::date from generate_series(1, 620) g`, [TA, D]);
+    await su.query(
+      `insert into public.human_design_charts(tenant_id, client_id, client_name, birth_date, birth_time, timezone, source, provider, input)
+       select $1, null, 'ZZ Dolgu Analiz ' || g, $2::date, '09:00:00', $3, 'computed', 'roxyapi', $4::jsonb from generate_series(1, 620) g`,
+      [TA, D, ref.timezone, JSON.stringify(ref.input)]);
+    const LATE_PROFILE = "ffffffff-ffff-4fff-8fff-ffffffffff01";
+    const LATE_JOURNEY = "ffffffff-ffff-4fff-8fff-ffffffffff02";
+    const LATE_CHART = "ffffffff-ffff-4fff-8fff-ffffffffff03";
+    const LATE_OWNER = "ffffffff-ffff-4fff-8fff-ffffffffff04";
+    await su.query(`insert into public.human_design_clients(id, tenant_id, name, birth_date, birth_time, birth_location_id) values ($1,$2,'Büyük Tarih',$3,'09:00','trd-42-selcuklu')`, [LATE_PROFILE, TA, D]);
+    await su.query(`insert into public.clients(id, tenant_id, ad, soyad, dogum) values ($1,$2,'Uzak','Danışan',$3)`, [LATE_JOURNEY, TA, D]);
+    await su.query(`insert into public.human_design_clients(id, tenant_id, name, birth_date, birth_time, birth_location_id) values ($1,$2,'Roxy Uzak',$3,'09:00','trd-42-selcuklu')`, [LATE_OWNER, TA, D]);
+    await su.query(
+      `insert into public.human_design_charts(id, tenant_id, client_id, client_name, birth_date, birth_time, timezone, source, provider, input)
+       values ($1,$2,$3,'Roxy Uzak',$4,'09:00:00',$5,'computed','roxyapi',$6::jsonb)`, [LATE_CHART, TA, LATE_OWNER, D, ref.timezone, JSON.stringify(ref.input)]);
+    const sameDate = Number((await su.query(`select count(*)::int n from public.human_design_clients where tenant_id=$1 and birth_date=$2`, [TA, D])).rows[0].n);
+    const lp = await journey(UA, newClient({ ad: "Büyük", soyad: "Tarih", dogum: D, birth_time: "09:00" }));
+    ok(sameDate > 501 && lp.status === 409 && ((lp.json.candidates ?? []) as Json[]).some((c) => c.hdClientId === LATE_PROFILE), `profil oluşturma: aynı tarihte ${sameDate} profil; sıralamada SONDAKİ aday bulunur`, lp.json);
+    const lj = await journey(UA, newClient({ ad: "Uzak", soyad: "Danışan", dogum: D, birth_time: "09:00" }));
+    ok(lj.status === 409 && ((lj.json.candidates ?? []) as Json[]).some((c) => c.journeyClientId === LATE_JOURNEY), "profil oluşturma: 620+ merkezî danışan arasında sondaki aday bulunur", lj.json);
+    const rxCreate = await journey(UA, newClient({ ad: "Roxy", soyad: "Uzak", dogum: D, birth_time: "09:00" }));
+    const PX = String((await journey(UA, newClient({ ad: "Roxy", soyad: "Uzak", dogum: D, birth_time: "09:00", acknowledged_duplicate_keys: ((rxCreate.json.candidates ?? []) as Json[]).map((c) => c.key) }))).json.hd_client_id);
+    const callsLate = roxy.state.calls;
+    const lr = await compute(UA, { client_id: PX, location_id: "client" });
+    ok(lr.status === 409 && ((lr.json.candidates ?? []) as Json[]).some((c) => c.chartId === LATE_CHART) && roxy.state.calls === callsLate, "Roxy öncesi: 620+ aynı girdili analiz arasında sondaki aday bulunur, çağrı YOK", { status: lr.status, n: ((lr.json.candidates ?? []) as Json[]).length });
+
+    // ══ Farklı profillerde eşzamanlı aynı kişi ═════════════════════════════════
+    section("Farklı HD profillerinde eşzamanlı aynı kişi + aynı girdi");
+    const q1 = await journey(UA, newClient({ ad: "Eş", soyad: "Zaman", dogum: "1966-06-06", birth_time: "07:00" }));
+    const q2pre = await journey(UA, newClient({ ad: "Eş", soyad: "Zaman", dogum: "1966-06-06", birth_time: "07:00" }));
+    const q2 = await journey(UA, newClient({ ad: "Eş", soyad: "Zaman", dogum: "1966-06-06", birth_time: "07:00", acknowledged_duplicate_keys: ((q2pre.json.candidates ?? []) as Json[]).map((c) => c.key) }));
+    const Q1 = String(q1.json.hd_client_id);
+    const Q2 = String(q2.json.hd_client_id);
+    const callsQ = roxy.state.calls;
+    const [rq1, rq2] = await Promise.all([compute(UA, { client_id: Q1, location_id: "client" }), compute(UA, { client_id: Q2, location_id: "client" })]);
+    const okOne = [rq1, rq2].filter((r) => r.status === 200 && r.json.reused === false);
+    const warned = [rq1, rq2].filter((r) => r.status === 409 && (r.json.code === "POSSIBLE_DUPLICATE_CHART" || r.json.code === "IN_PROGRESS"));
+    ok(roxy.state.calls === callsQ + 1 && okOne.length === 1 && warned.length === 1, "DUP-17 iki farklı profil eşzamanlı → TEK ücretli çağrı; diğeri uyarı alır (otomatik birleştirme yok)", { calls: roxy.state.calls - callsQ, r: [rq1, rq2].map((r) => [r.status, r.json.code ?? r.json.reused]) });
+    const loser = rq1.status === 200 ? Q2 : Q1;
+    const retry = await compute(UA, { client_id: loser, location_id: "client" });
+    const rc = (retry.json.candidates ?? []) as Json[];
+    ok(retry.status === 409 && retry.json.code === "POSSIBLE_DUPLICATE_CHART" && rc.length === 1, "uyarı alan profil tekrar denediğinde diğer profilin YENİ analizi aday olarak gösterilir", retry.json);
+    const acked = await compute(UA, { client_id: loser, location_id: "client", acknowledged_duplicate_keys: rc.map((c) => c.key) });
+    ok(acked.status === 200 && acked.json.reused === false && roxy.state.calls === callsQ + 2, "bilinçli 'Farklı Kişi' onayı (kilit penceresi içinde bile) hesaplamaya izin verir", acked.json);
+    const loserCharts = Number((await su.query(`select count(*)::int n from public.human_design_charts where client_id=$1`, [loser])).rows[0].n);
+    ok(loserCharts === 1, "her profilin analizi kendine ait (başka profilin analizi sahiplenilmedi)");
+    // Tenant'lar arası kilit karışmaz
+    const ta = await journey(UA, newClient({ ad: "Kiracı", soyad: "Ayrı", dogum: "1955-05-05", birth_time: "06:00" }));
+    const tb = await journey(UB, newClient({ ad: "Kiracı", soyad: "Ayrı", dogum: "1955-05-05", birth_time: "06:00" }));
+    const callsT = roxy.state.calls;
+    const [cta, ctb] = await Promise.all([compute(UA, { client_id: String(ta.json.hd_client_id), location_id: "client" }), compute(UB, { client_id: String(tb.json.hd_client_id), location_id: "client" })]);
+    ok(cta.status === 200 && ctb.status === 200 && roxy.state.calls === callsT + 2, "farklı tenant'larda aynı kimlik eşzamanlı → kilitler ayrı (iki tenant da hesaplar)", [cta.json, ctb.json]);
+
     // ══ Tek liste ════════════════════════════════════════════════════════════
     section("Tek analiz listesi (sunucu)");
     // P1'e ikinci analiz (manuel) + profilsiz eski analiz
     await su.query(`insert into public.human_design_charts(tenant_id, client_id, client_name, source, type_code, profile_code, created_at) values ($1,$2,'Hasan Arıcı','manual','projector','2/4', now() + interval '1 second')`, [TA, P1]);
     const orphan = randomUUID();
     await su.query(`insert into public.human_design_charts(id, tenant_id, client_id, client_name, source, type_code, created_at) values ($1,$2,null,'ZZ Profilsiz Eski','manual','generator', now() - interval '400 days')`, [orphan, TA]);
+    // Hedef kayıtlar sunucu aramasıyla bulunur (tenant'ta 600+ dolgu analizi var; ilk sayfaya güvenilmez).
+    const byName = async (q: string) => ((await list(UA, q, 0, 50)).json.rows ?? []) as Json[];
     const L = await list(UA, "", 0, 50);
     const rows = (L.json.rows ?? []) as Json[];
-    const g1 = rows.find((r) => r.hdClientId === P1);
+    const hasanRows = await byName("hasan arıcı");
+    const g1 = hasanRows.find((r) => r.hdClientId === P1);
     ok(L.status === 200 && g1?.analysisCount === 2, "UX-03 aynı profilin iki analizi tek satırda (analiz sayısı 2)", g1);
     const noAnalysis = String(c3.json.hd_client_id);
-    ok(!rows.some((r) => r.hdClientId === noAnalysis) && !rows.some((r) => r.hdClientId === legacyId), "UX-02 analizi olmayan profiller listede yok");
-    const sameName = rows.filter((r) => r.name === "Hasan Arıcı");
+    ok(!hasanRows.some((r) => r.hdClientId === noAnalysis) && !(await byName("zeynep kaya")).some((r) => r.hdClientId === legacyId), "UX-02 analizi olmayan profiller listede yok");
+    const sameName = hasanRows.filter((r) => r.name === "Hasan Arıcı");
     ok(sameName.length >= 3 && new Set(sameName.map((r) => r.hdClientId)).size === sameName.length, "UX-04 aynı ad-soyadlı farklı profiller AYRI satır (otomatik birleştirme yok)", sameName.map((r) => r.hdClientId));
     ok(g1?.linkedToJourney === true, "UX-06 Danışan Yolculuğu'na bağlı profil → bağlı");
-    const legacyRow = rows.find((r) => r.hdClientId === LEGACY_CLIENT);
+    const legacyRow = (await byName("zz eski manuel")).find((r) => r.hdClientId === LEGACY_CLIENT);
     ok(!!legacyRow && legacyRow.linkedToJourney === false, "UX-07 bağlantısız eski profil bağlı gösterilmez (ve listede kalır)", legacyRow);
-    const orphanRow = rows.find((r) => r.latestChartId === orphan);
+    const orphanRow = (await byName("profilsiz eski")).find((r) => r.latestChartId === orphan);
     ok(!!orphanRow && orphanRow.hdClientId === null && orphanRow.linkedToJourney === false, "profilsiz eski analiz kaybolmaz (kendi satırı)", orphanRow);
     ok(rows.every((r, i) => i === 0 || String(rows[i - 1]!.lastAnalysisAt) >= String(r.lastAnalysisAt)), "sıra: son analiz yeni → eski");
     ok(!JSON.stringify(rows).match(/birth_time|birthTime|birthPlace|notes|computed_result|provider_raw/), "liste yanıtında doğum saati/yeri/not/hesap verisi yok");
     const LB = await list(UB);
-    ok(LB.status === 200 && ((LB.json.rows ?? []) as Json[]).every((r) => r.name === "Hasan Arıcı") && (LB.json.total as number) === 1, "tenant izolasyonu: B yalnız kendi analizini görür", LB.json);
+    const bNames = ((LB.json.rows ?? []) as Json[]).map((r) => String(r.name)).sort();
+    ok(LB.status === 200 && JSON.stringify(bNames) === JSON.stringify(["Hasan Arıcı", "Kiracı Ayrı"]), "tenant izolasyonu: B yalnız kendi 2 analizini görür (A'nın 600+ kaydı yok)", bNames);
     const anon = await callRoute(routes.analyses.GET, "GET", {}, undefined, "?q=");
     ok(anon.status === 401 || anon.status === 403, "oturumsuz liste isteği reddedilir", anon.status);
     const qs1 = await list(UA, "ARICI hasan");

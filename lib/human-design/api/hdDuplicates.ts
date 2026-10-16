@@ -1,8 +1,8 @@
 // HD — olası mükerrer danışan / analiz ADAYLARI (YALNIZ SUNUCU, service_role).
 //
 //   • Her sorgu withTenant (tenant SUNUCUDAN). Başka tenant'ın adı bile dönmez.
-//   • Daraltma: aynı doğum TARİHİ (gerçek tarih eşitliği) → tenant'ın tamamı taranır (ilk 10/50 kayıtla
-//     sınırlı istemci listesi değil). Karşılaştırma kuralları hdIdentity.ts (otomatik karar YOK).
+//   • Daraltma: aynı doğum TARİHİ (gerçek tarih eşitliği) → o tarihteki TÜM satırlar SAYFALI okunur (sabit
+//     500 vb. kesme YOK; üst güvenlik sınırı aşılırsa hata → fail-closed). Karşılaştırma: hdIdentity.ts.
 //   • Sorgu hatası "aday yok" SAYILMAZ: { error } döner → çağıran FAIL-CLOSED davranır (kayıt/ücretli
 //     çağrı yapılmaz).
 //   • Dönen alanlar yalnız uyarıda gösterilenler (ad, tarih, saat, yer, bağlantı durumu).
@@ -19,8 +19,34 @@ import {
   type HdIdentityInput,
 } from "./hdIdentity";
 
-const SCAN_LIMIT = 500;
+// Tarama SAYFALIDIR (id sırasıyla, kararlı): aynı doğum tarihindeki TÜM aday satırlar okunur.
+// Üst güvenlik sınırına ulaşılırsa sonuç "aday yok" SAYILMAZ → hata (çağıran fail-closed).
+const PAGE = 500;
+const MAX_SCAN = 20_000;
+const ID_CHUNK = 200;
 const MAX_CANDIDATES = 10;
+
+type DbErr = { code?: string; message?: string };
+type Page = PromiseLike<{ data: unknown[] | null; error: DbErr | null }>;
+
+/** Tenant-scoped sorguyu sayfa sayfa okur (sorgu kurucusu her sayfada yeniden çağrılır). */
+async function pagedRows<T>(build: (from: number, to: number) => Page, ctx: string): Promise<{ rows: T[]; error: DbErr | null }> {
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    if (from >= MAX_SCAN) return { rows: [], error: { code: "SCAN_LIMIT", message: `${ctx}: aday taraması üst sınırı aşıldı` } };
+    const { data, error } = await build(from, from + PAGE - 1);
+    if (error) return { rows: [], error };
+    const rows = (data ?? []) as T[];
+    out.push(...rows);
+    if (rows.length < PAGE) return { rows: out, error: null };
+  }
+}
+
+function chunks<T>(list: T[], n: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < list.length; i += n) out.push(list.slice(i, i + n));
+  return out;
+}
 
 type ProfileRow = {
   id: string;
@@ -53,31 +79,37 @@ function isMissingColumn(err: { code?: string; message?: string } | null | undef
 
 async function profilesByDate(db: SupabaseClient, tenantId: string, date: string): Promise<{ rows: ProfileRow[]; error: string | null }> {
   const cols = "id, name, birth_date, birth_time, birth_place, birth_location_id, journey_client_id";
-  const first = await withTenant(db.from("human_design_clients").select(cols), tenantId, "dup.profiles").eq("birth_date", date).limit(SCAN_LIMIT);
-  let data: unknown[] | null = first.data;
-  let error = first.error;
-  if (error && isMissingColumn(error)) {
-    const legacy = await withTenant(
-      db.from("human_design_clients").select("id, name, birth_date, birth_time, birth_place, journey_client_id"),
-      tenantId,
+  let r = await pagedRows<ProfileRow>(
+    (from, to) => withTenant(db.from("human_design_clients").select(cols), tenantId, "dup.profiles").eq("birth_date", date).order("id", { ascending: true }).range(from, to),
+    "dup.profiles",
+  );
+  if (r.error && isMissingColumn(r.error)) {
+    r = await pagedRows<ProfileRow>(
+      (from, to) =>
+        withTenant(db.from("human_design_clients").select("id, name, birth_date, birth_time, birth_place, journey_client_id"), tenantId, "dup.profiles.legacy")
+          .eq("birth_date", date)
+          .order("id", { ascending: true })
+          .range(from, to),
       "dup.profiles.legacy",
-    ).eq("birth_date", date).limit(SCAN_LIMIT);
-    data = legacy.data;
-    error = legacy.error;
+    );
   }
-  if (error) return { rows: [], error: hdSafeDbError("dup.profiles", error) };
-  return { rows: (data ?? []) as ProfileRow[], error: null };
+  if (r.error) return { rows: [], error: hdSafeDbError("dup.profiles", r.error) };
+  return { rows: r.rows, error: null };
 }
 
 async function profilesByIds(db: SupabaseClient, tenantId: string, ids: string[]): Promise<{ rows: ProfileRow[]; error: string | null }> {
-  if (ids.length === 0) return { rows: [], error: null };
-  const { data, error } = await withTenant(
-    db.from("human_design_clients").select("id, name, birth_date, birth_time, birth_place, journey_client_id"),
-    tenantId,
-    "dup.profilesById",
-  ).in("id", ids.slice(0, SCAN_LIMIT));
-  if (error) return { rows: [], error: hdSafeDbError("dup.profilesById", error) };
-  return { rows: (data ?? []) as ProfileRow[], error: null };
+  const out: ProfileRow[] = [];
+  // Kimlik listesi parça parça (her parça en çok ID_CHUNK satır döndürür; kimlikler benzersiz) → kesilme yok.
+  for (const part of chunks([...new Set(ids)], ID_CHUNK)) {
+    const { data, error } = await withTenant(
+      db.from("human_design_clients").select("id, name, birth_date, birth_time, birth_place, journey_client_id"),
+      tenantId,
+      "dup.profilesById",
+    ).in("id", part);
+    if (error) return { rows: [], error: hdSafeDbError("dup.profilesById", error) };
+    out.push(...((data ?? []) as ProfileRow[]));
+  }
+  return { rows: out, error: null };
 }
 
 function profileCandidate(p: ProfileRow, match: HdDuplicateCandidate["match"]): HdDuplicateCandidate {
@@ -127,13 +159,16 @@ export async function findHdProfileDuplicates(
   }
 
   // Kayıtlı analizler (profil doğum bilgisi sonradan değişmiş olabilir).
-  const { data: charts, error: chErr } = await withTenant(
-    db.from("human_design_charts").select("id, client_id, client_name, birth_date, birth_time, birth_place, location_id"),
-    tenantId,
+  const ch = await pagedRows<ChartRow>(
+    (from, to) =>
+      withTenant(db.from("human_design_charts").select("id, client_id, client_name, birth_date, birth_time, birth_place, location_id"), tenantId, "dup.charts")
+        .eq("birth_date", date)
+        .order("id", { ascending: true })
+        .range(from, to),
     "dup.charts",
-  ).eq("birth_date", date).limit(SCAN_LIMIT);
-  if (chErr && !isMissingColumn(chErr)) return { candidates: [], error: hdSafeDbError("dup.charts", chErr) };
-  const chartRows = (chErr ? [] : (charts ?? [])) as ChartRow[];
+  );
+  if (ch.error && !isMissingColumn(ch.error)) return { candidates: [], error: hdSafeDbError("dup.charts", ch.error) };
+  const chartRows = ch.error ? [] : ch.rows;
   const missingProfiles = [...new Set(chartRows.map((c) => c.client_id).filter((x): x is string => !!x && !profileIdsSeen.has(x)))];
   const extra = await profilesByIds(db, tenantId, missingProfiles);
   if (extra.error) return { candidates: [], error: extra.error };
@@ -162,21 +197,27 @@ export async function findHdProfileDuplicates(
   }
 
   // Danışan Yolculuğu (merkezî) danışanları: ad + soyad + doğum tarihi. Saat/yer orada yok → en çok "possible".
-  const { data: jRows, error: jErr } = await withTenant(db.from("clients").select("id, ad, soyad, dogum"), tenantId, "dup.journey")
-    .eq("dogum", date)
-    .limit(SCAN_LIMIT);
-  if (jErr) return { candidates: [], error: hdSafeDbError("dup.journey", jErr) };
-  const jMatches = ((jRows ?? []) as { id: string; ad: string | null; soyad: string | null; dogum: string | null }[]).filter(
+  const jr = await pagedRows<{ id: string; ad: string | null; soyad: string | null; dogum: string | null }>(
+    (from, to) =>
+      withTenant(db.from("clients").select("id, ad, soyad, dogum"), tenantId, "dup.journey").eq("dogum", date).order("id", { ascending: true }).range(from, to),
+    "dup.journey",
+  );
+  if (jr.error) return { candidates: [], error: hdSafeDbError("dup.journey", jr.error) };
+  const jMatches = jr.rows.filter(
     (j) => j.id !== opts.excludeJourneyId && compareHdIdentity(input, { name: `${j.ad ?? ""} ${j.soyad ?? ""}`, birthDate: j.dogum, birthTime: null, locationId: null }) !== null,
   );
   if (jMatches.length > 0) {
     // Bu danışanın HD profili zaten var mı? Varsa profil (daha ayrıntılı alanlarla) karar verir.
-    const { data: links, error: lErr } = await withTenant(db.from("human_design_clients").select("id, journey_client_id"), tenantId, "dup.journeyLinks").in(
-      "journey_client_id",
-      jMatches.map((j) => j.id),
-    );
-    if (lErr && !isMissingColumn(lErr)) return { candidates: [], error: hdSafeDbError("dup.journeyLinks", lErr) };
-    const withProfile = new Set(((lErr ? [] : links) ?? []).map((l) => String((l as { journey_client_id: string }).journey_client_id)));
+    const withProfile = new Set<string>();
+    for (const part of chunks(jMatches.map((j) => j.id), ID_CHUNK)) {
+      const { data: links, error: lErr } = await withTenant(db.from("human_design_clients").select("id, journey_client_id"), tenantId, "dup.journeyLinks").in(
+        "journey_client_id",
+        part,
+      );
+      if (lErr && isMissingColumn(lErr)) break; // bağlantı kolonu yok → bağlı profil olamaz
+      if (lErr) return { candidates: [], error: hdSafeDbError("dup.journeyLinks", lErr) };
+      for (const l of (links ?? []) as { journey_client_id: string | null }[]) if (l.journey_client_id) withProfile.add(String(l.journey_client_id));
+    }
     for (const j of jMatches) {
       if (withProfile.has(j.id)) continue;
       out.set(`journey:${j.id}`, {
@@ -222,19 +263,20 @@ export async function findCrossProfileRoxyDuplicates(
   providerId: string,
 ): Promise<Result> {
   if (!normalizeHdPersonName(i.name)) return { candidates: [], error: null };
-  const { data, error } = await withTenant(
-    db.from("human_design_charts").select("id, client_id, client_name, birth_date, birth_time, birth_place, input, provider"),
-    tenantId,
+  const rc = await pagedRows<ChartRow>(
+    (from, to) =>
+      withTenant(db.from("human_design_charts").select("id, client_id, client_name, birth_date, birth_time, birth_place, input, provider"), tenantId, "dup.roxyCharts")
+        .eq("provider", providerId)
+        .eq("birth_date", i.date)
+        .eq("birth_time", i.time)
+        .eq("timezone", i.timezone)
+        .order("id", { ascending: true })
+        .range(from, to),
     "dup.roxyCharts",
-  )
-    .eq("provider", providerId)
-    .eq("birth_date", i.date)
-    .eq("birth_time", i.time)
-    .eq("timezone", i.timezone)
-    .limit(SCAN_LIMIT);
-  if (error) return { candidates: [], error: hdSafeDbError("dup.roxyCharts", error) };
+  );
+  if (rc.error) return { candidates: [], error: hdSafeDbError("dup.roxyCharts", rc.error) };
   const same = (a: unknown, b: number) => typeof a === "number" && a.toFixed(6) === b.toFixed(6);
-  const rows = ((data ?? []) as ChartRow[]).filter((r) => {
+  const rows = rc.rows.filter((r) => {
     if (r.client_id === i.clientId) return false;
     const inp = r.input ?? {};
     return same(inp.latitude, i.latitude) && same(inp.longitude, i.longitude) && inp.nodeType === i.nodeType && inp.lang === i.lang;

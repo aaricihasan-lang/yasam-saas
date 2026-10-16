@@ -139,7 +139,8 @@ async function main() {
   ok("6i Tek scroll alanı: araç çubuğu flex-none, içerik min-h-0 flex-1 overflow-y-auto", /flex h-\[100dvh\] w-full flex-col/.test(modal) && /data-hd-toolbar/.test(modal) && /flex-none[^"]*border-b[^"]*bg-white[^"]*data-hd-toolbar|flex flex-none[^>]*data-hd-toolbar/.test(modal) && /min-h-0 flex-1 overflow-y-auto/.test(modal));
   ok("6j ESC/odak kancası değişmedi (useHdModalA11y aynen)", execSync("git diff --name-only origin/main -- app/human-design/components/useHdModalA11y.ts", { cwd: ROOT }).toString().trim() === "");
   // Mevcut (main'de izlenen) başka modal/diyalog dosyası değişmedi; yeni eklenen bileşenler hariç.
-  const otherModals = changed.filter((f) => /Modal|Dialog/.test(f) && !/HdComputedChartModal\.tsx$/.test(f));
+  const modifiedExisting = execSync("git diff --name-only --diff-filter=M origin/main", { cwd: ROOT }).toString().trim().split(/\r?\n/).filter(Boolean);
+  const otherModals = modifiedExisting.filter((f) => /Modal|Dialog/.test(f) && !/HdComputedChartModal\.tsx$/.test(f));
   ok("6k Mevcut başka modal/diyalog dosyası değişmedi", otherModals.length === 0, otherModals.join(","));
   ok("6l Global CSS'e dokunulmadı", !changed.some((f) => /\.css$/.test(f)) && !untracked.some((f) => /^app\/.*\.css$|^styles\//.test(f)));
 
