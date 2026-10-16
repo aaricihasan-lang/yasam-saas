@@ -5,17 +5,21 @@
  *
  * Sayfa yalnız variant + başlık + açıklama + adres verir; görünüm tek kaynaktan gelir:
  *   renk/zemin/gölge  → analysisModuleThemes.ts
- *   ölçü/3D/hareket   → AnalysisModuleCard.module.css
- *   ikon + dekor SVG  → moduleArtwork.tsx
+ *   hareket ayarları  → analysisModuleMotion.ts (aç/kapa, hız, eğim, parallax, ışıma, hover)
+ *   ölçü/3D/keyframes → AnalysisModuleCard.module.css
+ *   ikon + dekor      → moduleArtwork.tsx (katmanlar + variant'a özgü animasyon atamaları)
  * Kartın tamamı tek bağlantıdır (ayrı CTA / rozet yok). Dekor tamamen satır içi SVG (görsel dosyası yok) ve
  * ekran okuyucudan gizli; erişilebilir ad = başlık + açıklama.
  *
- * 3D hover: imleç konumu CSS değişkenlerine yazılır (React yeniden çizimi yok, rAF ile en çok kare başına bir kez).
- * Yalnız fare/kalem imlecinde çalışır; dokunmatikte ve "hareketi azalt" açıkken eğim uygulanmaz (CSS de ayrıca kapatır).
+ * 3D hover: imleç konumu CSS değişkenlerine yazılır (React yeniden çizimi yok, rAF ile en çok kare başına bir kez);
+ * dekor katmanları bu değerle farklı derinliklerde kayar. Yalnız fare/kalem imlecinde; dokunmatikte ve "hareketi
+ * azalt" açıkken eğim uygulanmaz (CSS de ayrıca kapatır). Sürekli dekor animasyonları yalnız CSS'tir (JS döngüsü
+ * yok) ve kart ekranda değilken IntersectionObserver ile duraklatılır.
  */
 import Link from "next/link";
 import { Playfair_Display } from "next/font/google";
-import { useCallback, useId, useRef, type CSSProperties, type PointerEvent } from "react";
+import { useCallback, useEffect, useId, useRef, type CSSProperties, type PointerEvent } from "react";
+import { ANALYSIS_CARD_MOTION as MOTION, motionCssVars } from "./analysisModuleMotion";
 import { ANALYSIS_MODULE_THEMES, themeCssVars, type AnalysisModuleVariant } from "./analysisModuleThemes";
 import { MODULE_ARTWORK } from "./moduleArtwork";
 import styles from "./AnalysisModuleCard.module.css";
@@ -27,9 +31,6 @@ const serif = Playfair_Display({
   display: "swap",
 });
 
-/** En fazla eğim (derece) — hafif tutulur. */
-const MAX_TILT_X = 3.5;
-const MAX_TILT_Y = 4.5;
 const TILT_PROPS = ["--amc-rx", "--amc-ry", "--amc-px", "--amc-py", "--amc-gx", "--amc-gy"] as const;
 
 export interface AnalysisModuleCardProps {
@@ -63,8 +64,23 @@ export default function AnalysisModuleCard({
   const ref = useRef<HTMLAnchorElement>(null);
   const frame = useRef<number | null>(null);
 
+  // Ekran dışındaki kartın sürekli animasyonları duraklar (CSS: data-inview≠"true" → paused).
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      el.dataset.inview = "true";
+      return;
+    }
+    const io = new IntersectionObserver(([entry]) => {
+      el.dataset.inview = entry.isIntersecting ? "true" : "false";
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   const handleMove = useCallback((e: PointerEvent<HTMLAnchorElement>) => {
-    if (e.pointerType === "touch") return;
+    if (!MOTION.tilt || e.pointerType === "touch") return;
     const el = ref.current;
     if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const { clientX, clientY } = e;
@@ -78,8 +94,8 @@ export default function AnalysisModuleCard({
       const px = Math.min(Math.max(x / r.width - 0.5, -0.5), 0.5);
       const py = Math.min(Math.max(y / r.height - 0.5, -0.5), 0.5);
       el.dataset.tilting = "true";
-      el.style.setProperty("--amc-rx", `${(-py * 2 * MAX_TILT_X).toFixed(2)}deg`);
-      el.style.setProperty("--amc-ry", `${(px * 2 * MAX_TILT_Y).toFixed(2)}deg`);
+      el.style.setProperty("--amc-rx", `${(-py * 2 * MOTION.tiltMaxX).toFixed(2)}deg`);
+      el.style.setProperty("--amc-ry", `${(px * 2 * MOTION.tiltMaxY).toFixed(2)}deg`);
       el.style.setProperty("--amc-px", px.toFixed(3));
       el.style.setProperty("--amc-py", py.toFixed(3));
       el.style.setProperty("--amc-gx", `${x.toFixed(0)}px`);
@@ -105,14 +121,15 @@ export default function AnalysisModuleCard({
       ref={ref}
       href={href}
       className={`${styles.card} ${serif.variable}`}
-      style={themeCssVars(theme) as CSSProperties}
+      style={{ ...themeCssVars(theme), ...motionCssVars(MOTION) } as CSSProperties}
       onPointerMove={handleMove}
       onPointerLeave={handleLeave}
       data-variant={variant}
+      data-ambient={MOTION.ambient ? "on" : "off"}
       data-testid={testId}
     >
       <span className={styles.art} aria-hidden="true">
-        <Art gid={gid} spinClassName={styles.spin} />
+        <Art gid={gid} />
       </span>
       <span className={styles.scrim} aria-hidden="true" />
       <span className={styles.glare} aria-hidden="true" />
