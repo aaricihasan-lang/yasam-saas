@@ -1,0 +1,263 @@
+/*
+ * Yaşam Analiz Merkezi modül kartı — ORTAK yapı (tüm variant'lar).
+ * Renkler burada YOK: analysisModuleThemes.ts → --amc-* değişkenleri. Burada yalnız ölçü, katman, 3D hover ve
+ * hareket azaltma kuralları. Kart genişliğine göre uyum @container ile (ızgara hücresi daralınca dekor geri çekilir).
+ */
+
+.card {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  min-height: 232px;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid var(--amc-border);
+  background: var(--amc-surface);
+  box-shadow: var(--amc-shadow);
+  color: inherit;
+  text-decoration: none;
+  container-type: inline-size;
+  transform: perspective(1100px) rotateX(var(--amc-rx, 0deg)) rotateY(var(--amc-ry, 0deg))
+    translate3d(0, var(--amc-lift, 0px), 0);
+  transition:
+    transform 520ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    box-shadow 520ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* İmleç hareket ederken açı imleci kısa gecikmeyle izler; ayrılınca yavaşça yerine oturur. */
+.card[data-tilting="true"] {
+  transition:
+    transform 140ms linear,
+    box-shadow 520ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Cam kenar: üst kenarda ince ışık çizgisi. */
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 var(--amc-edge), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--amc-focus);
+  outline-offset: 3px;
+}
+
+/* ── Katmanlar ───────────────────────────────────────────────────────────── */
+
+.art {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  width: 56%;
+  /* Geniş tek sütun kartta (tablet) motif yüksekliğe göre ölçeklensin, üstten kırpılmasın. */
+  max-width: 330px;
+  pointer-events: none;
+  transform: translate3d(calc(var(--amc-px, 0) * 10px), calc(var(--amc-py, 0) * 8px), 0);
+  transition: transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.art > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--amc-scrim);
+  pointer-events: none;
+}
+
+.glare {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: radial-gradient(
+    380px circle at var(--amc-gx, 70%) var(--amc-gy, 40%),
+    var(--amc-glare),
+    transparent 62%
+  );
+  opacity: 0;
+  transition: opacity 450ms ease;
+  pointer-events: none;
+}
+
+/* Dekor içindeki dönen öğe (ör. burç çarkı) — hover'da birkaç derece. */
+.spin {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 1200ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* ── İçerik ──────────────────────────────────────────────────────────────── */
+
+.content {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  max-width: 60%;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  padding: 28px 0 28px 30px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.icon {
+  display: flex;
+  height: 48px;
+  width: 48px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 15px;
+  border: 1px solid var(--amc-icon-border);
+  background: var(--amc-icon-surface);
+  box-shadow: var(--amc-icon-shadow);
+  color: var(--amc-icon-color);
+}
+
+.icon > svg {
+  height: 24px;
+  width: 24px;
+}
+
+.eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--amc-eyebrow);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--amc-serif), Georgia, "Times New Roman", serif;
+  font-size: clamp(1.6rem, 6.4cqi, 2.45rem);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: var(--amc-title);
+}
+
+.accent {
+  background: var(--amc-title-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.body {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--amc-body);
+}
+
+/* ── Kart genişliği (ızgara hücresi) uyumu ───────────────────────────────── */
+
+@container (max-width: 520px) {
+  .content {
+    max-width: 68%;
+    gap: 12px;
+    padding: 24px 0 24px 22px;
+  }
+  .art {
+    right: -16%;
+    width: 66%;
+    opacity: 0.62;
+  }
+  .icon {
+    height: 42px;
+    width: 42px;
+    border-radius: 13px;
+  }
+  .icon > svg {
+    height: 21px;
+    width: 21px;
+  }
+  .body {
+    font-size: 0.84rem;
+    line-height: 1.55;
+  }
+}
+
+@container (max-width: 380px) {
+  .content {
+    max-width: 76%;
+    padding: 22px 0 22px 18px;
+  }
+  .art {
+    right: -26%;
+    width: 72%;
+    opacity: 0.5;
+  }
+}
+
+/* ── Hover (yalnız gerçek imleç; dokunmatik cihazda yapışık hover oluşmaz) ── */
+
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    --amc-lift: -4px;
+    box-shadow: var(--amc-shadow-hover);
+  }
+  .card:hover .glare {
+    opacity: 1;
+  }
+  .card:hover .spin {
+    transform: rotate(6deg);
+  }
+}
+
+/* Hareket azaltma: eğim / kayma / dönüş yok; yalnız gölge ve ışık (anlık) değişir. */
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .card[data-tilting="true"] {
+    transform: none;
+    transition: box-shadow 1ms;
+  }
+  .art,
+  .spin,
+  .card:hover .spin {
+    transform: none;
+    transition: none;
+  }
+  .glare {
+    transition: none;
+  }
+}
+
+/* Windows Yüksek Kontrast: dekor gizlenir, metin sistem renginde okunur. */
+@media (forced-colors: active) {
+  .art,
+  .scrim,
+  .glare {
+    display: none;
+  }
+  .card {
+    border: 1px solid CanvasText;
+  }
+  .accent {
+    color: inherit;
+    -webkit-text-fill-color: currentColor;
+    background: none;
+  }
+}

@@ -1,33 +1,23 @@
-import Link from "next/link";
-import { ArrowRight, Brain, ChartColumn, Compass } from "lucide-react";
+import { Brain } from "lucide-react";
 import AtlasCenterCard from "./AtlasCenterCard";
+import AnalysisModuleCard from "./_components/AnalysisModuleCard";
+import type { AnalysisModuleVariant } from "./_components/analysisModuleThemes";
 
-const subModules = [
+// 2026-10-16: kart görünümü merkezî (_components): burada yalnız variant + metin + adres.
+const subModules: { variant: AnalysisModuleVariant; title: string; desc: string; href: string }[] = [
   {
+    variant: "numerology",
     title: "Numeroloji",
     desc: "Doğum tarihinden kişisel sayıları hesapla, çakra analizini görüntüle, PDF raporu oluştur.",
     href: "/numeroloji",
-    Icon: ChartColumn,
-    badge: "Aktif",
-    badgeStyle: "bg-emerald-100 text-emerald-800 ring-emerald-200/80",
-    iconGradient: "from-violet-500 to-indigo-600",
-    cardGradient: "from-violet-100/90 via-indigo-50/95 to-white",
-    border: "border-violet-200/70",
-    comingSoon: false,
   },
   {
+    variant: "humanDesign",
     title: "Human Design",
     desc: "Bilgi bankasına yüklediğiniz içeriklerle danışanlara kişiye özel Human Design raporları oluşturun.",
     href: "/human-design",
-    Icon: Compass,
-    badge: "Aktif",
-    badgeStyle: "bg-emerald-100 text-emerald-800 ring-emerald-200/80",
-    iconGradient: "from-purple-600 to-indigo-700",
-    cardGradient: "from-purple-50/90 via-indigo-50/95 to-white",
-    border: "border-purple-200/70",
-    comingSoon: false,
   },
-] as const;
+];
 
 export default function LifeAnalysisPage() {
   return (
@@ -63,47 +53,11 @@ export default function LifeAnalysisPage() {
           <div className="mt-3 h-px w-full bg-gradient-to-r from-violet-200/80 via-purple-200/60 to-transparent" />
         </div>
 
-        {/* Modül kartları */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:gap-4">
-          {subModules.map((mod) => {
-            const { Icon } = mod;
-            return (
-              <Link
-                key={mod.href}
-                href={mod.href}
-                className={`group flex flex-col rounded-[18px] border bg-gradient-to-br p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${mod.cardGradient} ${mod.border} ${mod.comingSoon ? "opacity-80" : ""}`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm transition-all duration-200 group-hover:scale-105 ${mod.iconGradient}`}
-                  >
-                    <Icon className="h-5 w-5" strokeWidth={2.25} />
-                  </div>
-                  <span
-                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-bold ring-1 ${mod.badgeStyle}`}
-                  >
-                    {mod.badge}
-                  </span>
-                </div>
-
-                <h2 className="mt-2 text-sm font-black text-slate-900 sm:text-base">
-                  {mod.title}
-                </h2>
-                <p className="mt-0.5 flex-1 text-xs leading-5 text-slate-600">
-                  {mod.desc}
-                </p>
-
-                <div className="mt-3 flex items-center justify-end">
-                  <span
-                    className={`flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition group-hover:scale-105 ${mod.comingSoon ? "opacity-40" : ""}`}
-                    aria-hidden
-                  >
-                    <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
+        {/* Modül kartları — kart tasarımı AnalysisModuleCard + analysisModuleThemes'ta (tek kaynak). */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:gap-5">
+          {subModules.map((mod) => (
+            <AnalysisModuleCard key={mod.href} variant={mod.variant} title={mod.title} description={mod.desc} href={mod.href} />
+          ))}
           {/* 2026-10-15: Gökyüzü Atlası — yalnız erişimi doğrulanan kullanıcıya görünür (AtlasCenterCard). */}
           <AtlasCenterCard />
         </div>
