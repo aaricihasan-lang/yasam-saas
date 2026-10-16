@@ -19,6 +19,7 @@ import NatalWheel from "./NatalWheel";
 import NatalTechnicalPanel from "./NatalTechnicalPanel";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "@/lib/astrology/noProviderInterp";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
+import { localSpaceCenter } from "@/lib/astrology/localSpaceCenter";
 
 type ListItem = {
   id: string;
@@ -453,7 +454,20 @@ export function SavedAnalysisView({
         {(tab === "gezegenler" || tab === "evler" || tab === "acilar") && natal && (
           <NatalTechnicalPanel technical={natal} timeUnknown={a.method.timeUnknownMasked} part={tab === "gezegenler" ? "planets" : tab === "evler" ? "houses" : "aspects"} />
         )}
-        {tab === "yorum" && interp.visible && !interpHidden && <ProviderInterpretationPanel interpretation={interp} />}
+        {tab === "yorum" && interp.visible && !interpHidden && (
+          <ProviderInterpretationPanel
+            interpretation={interp}
+            localSpace={
+              a.technique === "western.local_space"
+                ? localSpaceCenter(
+                    a.technical,
+                    a.params,
+                    a.profile.revision.latitude !== undefined && a.profile.revision.longitude !== undefined ? { lat: a.profile.revision.latitude, lon: a.profile.revision.longitude } : null,
+                  )
+                : null
+            }
+          />
+        )}
         {tab === "bilgi" && (
           <section className="rounded-2xl border border-[#ead9b0] bg-[#FFF8E8] p-5" aria-label="Kayıtlı Bilgi Bankası">
             <h4 className="mb-3 text-base font-semibold text-[#5b4416]">Bilgi Bankam (güncel)</h4>

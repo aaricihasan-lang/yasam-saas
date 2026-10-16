@@ -7,6 +7,7 @@
  */
 
 import { interpretationKindOfSchema, type InterpretationKind } from "@/lib/astrology/interpretationKind";
+import { localSpaceCenterNote, localSpaceText, type LocalSpaceCenter } from "@/lib/astrology/localSpaceCenter";
 import type { ReactNode } from "react";
 import type { NatalInterpretation } from "@/lib/astrology/model/western";
 import type {
@@ -535,8 +536,17 @@ export function interpretationTitle(interpretation: InterpretationLayer): Interp
   return interpretationKindOfSchema((interpretation.content as { schema?: string } | null)?.schema ?? "");
 }
 
-export default function ProviderInterpretationPanel({ interpretation }: { interpretation: InterpretationLayer }) {
+/** 2026-10-16: Local Space merkezi doğum yerinden farklıysa kalıptaki yer atfı seçilen merkeze bağlanır (rapordakiyle aynı). */
+function withLocalSpaceCenter(content: unknown, center: LocalSpaceCenter | null | undefined): { content: unknown; note: string | null } {
+  const c = content as { schema?: unknown; bodies?: unknown; summary?: unknown } | null;
+  if (!center || !c || c.schema !== "astro.western.local_space.interp.v1") return { content, note: null };
+  const bodies = Array.isArray(c.bodies) ? (c.bodies as { text?: unknown }[]).map((b) => (typeof b?.text === "string" ? { ...b, text: localSpaceText(b.text, center) } : b)) : c.bodies;
+  return { content: { ...c, bodies, ...(typeof c.summary === "string" ? { summary: localSpaceText(c.summary, center) } : {}) }, note: localSpaceCenterNote(center) };
+}
+
+export default function ProviderInterpretationPanel({ interpretation, localSpace }: { interpretation: InterpretationLayer; localSpace?: LocalSpaceCenter | null }) {
   const title = interpretationTitle(interpretation);
+  const ls = interpretation.visible ? withLocalSpaceCenter(stripSystemKeys(interpretation.content), localSpace) : null;
   return (
     <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]" aria-label={title}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-slate-100 pb-2.5">
@@ -552,7 +562,12 @@ export default function ProviderInterpretationPanel({ interpretation }: { interp
         <p className="text-sm text-slate-600">{HIDDEN_TEXT[interpretation.reason] ?? HIDDEN_TEXT.unavailable}</p>
       ) : (
         <div className="flex flex-col gap-4 text-sm text-slate-800">
-          <Content content={stripSystemKeys(interpretation.content)} />
+          {ls?.note && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="astro-ls-center-note">
+              {ls.note}
+            </p>
+          )}
+          <Content content={ls ? ls.content : stripSystemKeys(interpretation.content)} />
         </div>
       )}
     </section>
