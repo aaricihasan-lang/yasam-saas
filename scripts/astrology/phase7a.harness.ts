@@ -120,7 +120,12 @@ async function main() {
   const NATAL = { technique: "western.natal", options: { houseSystem: "placidus", nodeType: "true" } };
   const birth = { birthDate: "1991-02-03", birthTime: "10:00", timeKnown: true, timeAccuracy: "exact_record", locationId: "tr-34-istanbul" };
   const createProfile = async (who: Who, label: string, clientId: string | null) => {
-    const r = await call(who, profiles.POST(req("/api/admin/astroloji/profiles", who, "POST", { label, clientId, ...birth })));
+    let r = await call(who, profiles.POST(req("/api/admin/astroloji/profiles", who, "POST", { label, clientId, ...birth })));
+    // 2026-10-16: aynı kimlikli danışanlar bilerek ayrı profil alır → açık "Farklı kişi olarak devam et" onayı.
+    if (r.status === 409 && r.json.code === "DUPLICATE_PROFILE") {
+      const ids = (r.json.duplicates as { profileId: string }[]).map((d) => d.profileId);
+      r = await call(who, profiles.POST(req("/api/admin/astroloji/profiles", who, "POST", { label, clientId, ...birth, confirmDifferentPerson: ids })));
+    }
     assert.equal(r.status, 201, r.text.slice(0, 300));
     return (r.json.profile as { id: string }).id;
   };

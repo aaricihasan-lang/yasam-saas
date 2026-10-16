@@ -25,6 +25,8 @@ import { publicRevision } from "../view/natalView";
 import { listArchivePage, listProfilePage } from "../clients/service";
 import type { EngineCtx, ServiceResponse } from "../engine/service";
 import { ASTRO_NOT_READY } from "../engine/service";
+import { findBirthDuplicates } from "./duplicates";
+import { parseDuplicateAck } from "./duplicateMatch";
 
 assertServerOnly("lib/astrology/profiles/service");
 
@@ -41,6 +43,25 @@ const dbFail = (ctx: string, err: { code?: string } | null | undefined): Service
 
 function obj(raw: unknown): Record<string, unknown> | null {
   return raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
+}
+
+/**
+ * 2026-10-16 — mükerrer profil hatırlatması. Aynı kişi (kesin eşleşme, yalnız bu uzmanın kayıtları) bulunursa yazma
+ * YAPILMAZ ve eşleşmeler döner (409 DUPLICATE_PROFILE). Uzman "Farklı kişi olarak devam et" derse istemci gördüğü eşleşme
+ * kimliklerini confirmDifferentPerson ile geri gönderir; yalnız bunların TAMAMI onaylanmışsa yazılır → arada oluşan yeni
+ * eşleşme (ör. çift tıklamayla ilk isteğin oluşturduğu profil) yeniden uyarı üretir.
+ */
+async function duplicateGate(
+  ctx: EngineCtx,
+  body: Record<string, unknown>,
+  input: Parameters<typeof findBirthDuplicates>[1],
+): Promise<ServiceResponse | null> {
+  const d = await findBirthDuplicates(ctx, input);
+  if (d.error) return dbFail("profiles.duplicates", d.error);
+  if (d.rows.length === 0) return null;
+  const ack = new Set(parseDuplicateAck(body.confirmDifferentPerson));
+  if (d.rows.every((r) => ack.has(r.profileId.toLowerCase()))) return null;
+  return fail(409, "DUPLICATE_PROFILE", "Bu doğum bilgileriyle kayıtlı bir danışan bulundu.", { duplicates: d.rows });
 }
 
 function clientName(c: { ad: string | null; soyad: string | null } | undefined): string | null {
@@ -102,12 +123,14 @@ export async function createAstroProfile(ctx: EngineCtx, rawBody: unknown, resol
   if (!label) return fail(400, "INVALID_LABEL", "Profil adı 1–120 karakter olmalıdır.");
 
   let clientId: string | null = null;
+  let linkedName: string | null = null;
   if (body.clientId !== undefined && body.clientId !== null && body.clientId !== "") {
     if (!isUuid(body.clientId)) return fail(400, "INVALID_CLIENT", "Geçersiz danışan.");
     const c = await findTenantClient(ctx.db, ctx.tenantId, body.clientId);
     if (c.error) return dbFail("profiles.create.client", c.error);
     if (!c.row) return fail(404, "CLIENT_NOT_FOUND", "Danışan bulunamadı veya bu hesaba ait değil.");
     clientId = c.row.id;
+    linkedName = clientName(c.row);
   }
 
   const birth = parseBirthData(body, resolveLocation);
@@ -115,6 +138,8 @@ export async function createAstroProfile(ctx: EngineCtx, rawBody: unknown, resol
     const { status, code, error, dstOptions } = birth.err;
     return fail(status, code, error, dstOptions ? { dstOptions } : {});
   }
+  const dup = await duplicateGate(ctx, body, { names: [label, linkedName], birth: birth.value });
+  if (dup) return dup;
 
   const r = await createProfileRpc(ctx.db, ctx.tenantId, ctx.userId, clientId, label, birth.value);
   if (r.error) {
@@ -151,6 +176,15 @@ export async function appendAstroRevision(
   if (body.changeNote !== undefined && body.changeNote !== null && body.changeNote !== "" && note === null) {
     return fail(400, "INVALID_NOTE", "Değişiklik notu en fazla 500 karakter olabilir.");
   }
+  // Düzenleme kendi profilini mükerrer saymaz; başka bir profille tam eşleşme oluşturacaksa uyarır.
+  let ownLinked: string | null = null;
+  if (p.row.client_id) {
+    const c = await findTenantClient(ctx.db, ctx.tenantId, p.row.client_id);
+    if (c.error) return dbFail("profiles.append.client", c.error);
+    ownLinked = clientName(c.row ?? undefined);
+  }
+  const dup = await duplicateGate(ctx, body, { names: [p.row.label, ownLinked], birth: birth.value, excludeProfileId: p.row.id });
+  if (dup) return dup;
 
   const r = await appendRevisionRpc(ctx.db, ctx.tenantId, ctx.userId, profileId, expected, birth.value, note);
   if (r.error) {

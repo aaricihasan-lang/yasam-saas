@@ -19,6 +19,7 @@ import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHN
 import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpTransitTechnical } from "../model/kp";
 import { kundliTitles, toKundliData, toVargaChartData } from "@/app/admin/astroloji/_lib/kundliData";
 import { kundliLegend } from "@/app/admin/astroloji/_lib/kundliLocalize";
+import { localSpaceCenter, localSpaceCenterNote, localSpaceText } from "../localSpaceCenter";
 import { interpretationKindNote, interpretationKindOfSchema } from "../interpretationKind";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "../noProviderInterp";
 import { figureTitle, type ReportFigure } from "./figures";
@@ -1330,6 +1331,14 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
       const orb = fixedStarOrbOf(opts.orb);
       const ok = new Set(arr(tech.contacts).filter((c) => (num(c.orb) ?? 99) <= orb + 1e-9).map((c) => `${String(c.star)}|${String(c.point)}`));
       content = { ...content, contacts: arr(content.contacts).filter((x) => ok.has(`${String(x.star)}|${String(x.point)}`)) };
+    }
+    if (technique === "western.local_space") {
+      // 2026-10-16: merkez doğum yerinden farklıysa kalıptaki "doğum yerinizden" atfı seçilen merkeze bağlanır (snapshot aynen).
+      const ls = localSpaceCenter(tech, opts, birth);
+      const note = localSpaceCenterNote(ls);
+      if (note) b.p(note, "muted");
+      const fix = (x: O) => (typeof x.text === "string" ? { ...x, text: localSpaceText(x.text, ls) } : x);
+      content = { ...content, bodies: arr(content.bodies).map(fix), ...(typeof content.summary === "string" ? { summary: localSpaceText(content.summary, ls) } : {}) };
     }
     interpBlocks(b, technique, content, people);
   }
