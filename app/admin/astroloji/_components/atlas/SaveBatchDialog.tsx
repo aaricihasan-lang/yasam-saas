@@ -133,7 +133,7 @@ export default function SaveBatchDialog({
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 sm:px-5">
           <p className="mb-2 text-xs leading-relaxed text-slate-600">
             Her teknik <strong>ayrı ve değişmez</strong> bir analiz kaydı olur; doğum profili revizyonu, teknik ayarları, harita verisi ve kaydedilmiş
-            &quot;Kendi Yorumum&quot; notları saklanır. Kayıt sırasında <strong>yeni Roxy hesaplaması yapılmaz</strong>.
+            &quot;Kendi Yorumum&quot; notları saklanır. Kayıt sırasında <strong>yeni hesaplama yapılmaz</strong>.
             {interpNote ? ` ${interpNote}` : ""}
           </p>
           {total > 1 && !busy && (

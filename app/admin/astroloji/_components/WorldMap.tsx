@@ -10,9 +10,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { MAP_H, MAP_W, packedToPath, project } from "../_lib/geo";
 
-export type MapLine = { key: string; d: string; color: string; dash?: string; width?: number; label: string; detail: string[] };
-export type MapMarker = { key: string; lat: number; lon: number; label: string; color?: string };
-export type MapLabel = { key: string; x: number; y: number; text: string; color: string };
+import type { MapLabel, MapLine, MapMarker } from "../_lib/locationMaps";
+export type { MapLabel, MapLine, MapMarker } from "../_lib/locationMaps";
 
 type Base = { land: string[]; borders: string[] };
 

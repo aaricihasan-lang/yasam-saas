@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { ASTRO_NO_STORE, requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
 import { parseOwnerPreviewHideInterp } from "@/lib/astrology/access/entitlements";
 import { buildCombinedAnalysisReport, type ReportFormat } from "@/lib/astrology/report/service";
-import { androidWordGuard } from "@/lib/platform/androidWordGuard";
-import { isAndroidUserAgent } from "@/lib/platform/android";
 import { checkRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
@@ -12,7 +10,8 @@ export const runtime = "nodejs";
  * GET ?profileId=&format=docx|pdf&(ids=<id,id,…> | all=1) — 2026-10-12 (UAT 2. tur, madde L): bir danışanın SEÇİLİ
  * ya da TÜM kayıtlı analizleri TEK Word / TEK PDF dosyasında.
  *
- * Tekli rapor rotasıyla AYNI kurallar: kapı önce (yetkisiz → tek tip 404), Android'de Word/PDF 403, oran sınırı.
+ * Tekli rapor rotasıyla AYNI kurallar: kapı önce (yetkisiz → tek tip 404), oran sınırı. 2026-10-15: Android dahil
+ * her cihazda indirilir (eski Android 403 kaldırıldı).
  * Yalnız kayıtlı snapshot okunur (getAnalysis): 0 sağlayıcı isteği, yeni hesap yok, kayda yazım yok. Bütün analizler
  * aynı profile ait olmalı (aksi 400); en çok COMBINED_REPORT_MAX analiz.
  */
@@ -21,14 +20,6 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!gate.ok) return gate.response;
   const sp = req.nextUrl.searchParams;
   const fmt = sp.get("format");
-  if (fmt === "docx") {
-    const blocked = androidWordGuard(req);
-    if (blocked) return blocked;
-  } else if (fmt === "pdf") {
-    if (isAndroidUserAgent(req.headers.get("user-agent"))) {
-      return NextResponse.json({ ok: false, error: "PDF indirme bu cihazda kullanılamıyor. Lütfen bilgisayardan deneyin." }, { status: 403, headers: ASTRO_NO_STORE });
-    }
-  }
   if (fmt !== "docx" && fmt !== "pdf") {
     return NextResponse.json({ ok: false, code: "INVALID_FORMAT", error: "Rapor biçimi docx veya pdf olmalı." }, { status: 400, headers: ASTRO_NO_STORE });
   }

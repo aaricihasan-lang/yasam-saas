@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Brain, ChartColumn, Compass } from "lucide-react";
+import AtlasCenterCard from "./AtlasCenterCard";
 
 const subModules = [
   {
@@ -103,6 +104,8 @@ export default function LifeAnalysisPage() {
               </Link>
             );
           })}
+          {/* 2026-10-15: Gökyüzü Atlası — yalnız erişimi doğrulanan kullanıcıya görünür (AtlasCenterCard). */}
+          <AtlasCenterCard />
         </div>
       </div>
     </main>

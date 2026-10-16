@@ -55,8 +55,20 @@ async function req<T>(path: string, init?: RequestInit): Promise<{ ok: boolean; 
 
 /** Beslenme MODÜL erişim probe'u (server-authoritative) — 200 ise erişim var (admin veya beslenme izinli uzman). */
 export async function checkBeslenmeAccess(): Promise<boolean> {
+  return (await probeBeslenmeAccess()) === "ok";
+}
+
+/**
+ * Final-A3: üç değerli erişim probe'u. "denied" yalnız sunucunun AÇIK reddi (401/403 veya
+ * access=false); ağ hatası / 5xx / bozuk yanıt "unavailable" — erişim verilmez ama kullanıcı
+ * yetkisizmiş gibi ana sayfaya da atılmaz.
+ */
+export async function probeBeslenmeAccess(): Promise<"ok" | "denied" | "unavailable"> {
   const r = await req<{ access?: boolean }>("/api/beslenme/access", { headers: authHeaders() });
-  return r.ok && r.data?.access === true;
+  if (r.ok && r.data?.access === true) return "ok";
+  if (r.status === 401 || r.status === 403) return "denied";
+  if (r.status >= 200 && r.status < 300 && r.data?.access === false) return "denied";
+  return "unavailable";
 }
 
 /**

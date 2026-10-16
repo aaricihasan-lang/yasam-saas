@@ -154,7 +154,7 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
   cupping: "Kupa & Hacamat",
   beslenme: "Beslenme",
   astrology: "Astroloji",
-  astrology_provider_interp: "Astroloji — Roxy Otomatik Yorum",
+  astrology_provider_interp: "Astroloji — Otomatik Yorum",
 };
 
 export const ADMIN_MODULE_UI_DESCRIPTIONS: Partial<Record<AdminModuleUiKey, string>> = {

@@ -1,0 +1,1448 @@
+{
+ "case": {
+  "id": "am-2005-indianapolis",
+  "group": "AM",
+  "date": "2005-07-01",
+  "time": "12:00",
+  "locationId": "gn-4259418",
+  "expectOffset": -5,
+  "note": "Indiana 2006 öncesi yaz saati yok"
+ },
+ "product": {
+  "tz": "America/Indiana/Indianapolis",
+  "utcIso": "2005-07-01T17:00:00.000Z",
+  "locLabel": "Indianapolis, Indiana, United States"
+ },
+ "endpoint": "/astrology/natal-chart",
+ "query": null,
+ "body": {
+  "date": "2005-07-01",
+  "time": "12:00:00",
+  "latitude": 39.7684,
+  "longitude": -86.158,
+  "timezone": -5,
+  "nodeType": "true",
+  "houseSystem": "placidus"
+ },
+ "response": {
+  "birthDetails": {
+   "date": "2005-07-01",
+   "time": "12:00:00",
+   "latitude": 39.7684,
+   "longitude": -86.158,
+   "timezone": -5,
+   "nodeType": "true"
+  },
+  "planets": [
+   {
+    "name": "Sun",
+    "longitude": 99.94221382299992,
+    "latitude": 0.00006625492836736648,
+    "sign": "Cancer",
+    "degree": 9.942213822999918,
+    "speed": 0.953631281133994,
+    "isRetrograde": false,
+    "house": 10,
+    "nameLocalized": "Güneş",
+    "signLocalized": "Yengeç",
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Yengeç burcundaki Güneş için Onuncu Ev yerleşimi, kariyer ve meslek alanında öz farkındalık ve ego temalarını sezgisel ve duygusal enerjisiyle ifade etme biçiminizi gösterir.",
+     "detailed": "Güneş, öz farkındalık ve ego alanını temsil eder. Yengeç burcunda bu enerji, sezgisel, besleyici, koruyucu biçimini alır. Onuncu Ev yerleşimiyle bu Yengeç Güneş enerjisini kariyer ve meslek ve topluma katkı doğrultusunda yönlendirirsiniz. Bu, onuncu ev ile ilgili konularda öz farkındalık ve ego alanının doğal olarak sezgisel, duygusal, zeki yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+     "keywords": [
+      "aktif",
+      "farkındalık",
+      "parlak",
+      "güven",
+      "bilinç",
+      "sezgisel",
+      "duygusal",
+      "zeki",
+      "tutkulu"
+     ]
+    }
+   },
+   {
+    "name": "Moon",
+    "longitude": 45.64189170935761,
+    "latitude": 2.2273932815130912,
+    "sign": "Taurus",
+    "degree": 15.641891709357608,
+    "speed": 12.69099057000524,
+    "isRetrograde": false,
+    "house": 8,
+    "nameLocalized": "Ay",
+    "signLocalized": "Boğa",
+    "dignity": "exaltation",
+    "interpretation": {
+     "summary": "Boğa burcundaki Ay için Sekizinci Ev yerleşimi, dönüşüm ve kriz alanında iç duygusal yaşam temalarını güvenilir ve müzikal enerjisiyle ifade etme biçiminizi gösterir.",
+     "detailed": "Ay, iç duygusal yaşam alanını temsil eder. Boğa burcunda bu enerji, güvenilir, müzikal, pratik biçimini alır. Sekizinci Ev yerleşimiyle bu Boğa Ay enerjisini dönüşüm ve kriz ve kriz ve değişime karşı tutumumuz doğrultusunda yönlendirirsiniz. Bu, sekizinci ev ile ilgili konularda iç duygusal yaşam alanının doğal olarak güvenilir, müzikal, pratik yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+     "keywords": [
+      "bakıcı",
+      "rahatlık",
+      "duygu",
+      "his",
+      "dişilik",
+      "güvenilir",
+      "müzikal",
+      "pratik"
+     ]
+    }
+   },
+   {
+    "name": "Mercury",
+    "longitude": 124.87000546825631,
+    "latitude": 0.9952009799363253,
+    "sign": "Leo",
+    "degree": 4.870005468256309,
+    "speed": 1.3009233001291989,
+    "isRetrograde": false,
+    "house": 11,
+    "nameLocalized": "Merkür",
+    "signLocalized": "Aslan",
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Aslan burcundaki Merkür için On Birinci Ev yerleşimi, tanıdıklar ve arkadaşlar alanında iletişim temalarını gururlu ve cesur enerjisiyle ifade etme biçiminizi gösterir.",
+     "detailed": "Merkür, iletişim alanını temsil eder. Aslan burcunda bu enerji, gururlu, cesur, hırslı biçimini alır. On Birinci Ev yerleşimiyle bu Aslan Merkür enerjisini tanıdıklar ve arkadaşlar ve gruplar doğrultusunda yönlendirirsiniz. Bu, on birinci ev ile ilgili konularda iletişim alanının doğal olarak gururlu, cesur, hırslı yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+     "keywords": [
+      "analiz",
+      "çocukluk",
+      "iletişim",
+      "merak",
+      "eğitim",
+      "gururlu",
+      "cesur",
+      "hırslı"
+     ]
+    }
+   },
+   {
+    "name": "Venus",
+    "longitude": 124.2050861622766,
+    "latitude": 1.6028795406896115,
+    "sign": "Leo",
+    "degree": 4.205086162276601,
+    "speed": 1.2137016147527504,
+    "isRetrograde": false,
+    "house": 11,
+    "nameLocalized": "Venüs",
+    "signLocalized": "Aslan",
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Aslan burcundaki Venüs için On Birinci Ev yerleşimi, tanıdıklar ve arkadaşlar alanında aşk, güzellik ve para temalarını gururlu ve cesur enerjisiyle ifade etme biçiminizi gösterir.",
+     "detailed": "Venüs, aşk, güzellik ve para alanını temsil eder. Aslan burcunda bu enerji, gururlu, cesur, hırslı biçimini alır. On Birinci Ev yerleşimiyle bu Aslan Venüs enerjisini tanıdıklar ve arkadaşlar ve gruplar doğrultusunda yönlendirirsiniz. Bu, on birinci ev ile ilgili konularda aşk, güzellik ve para alanının doğal olarak gururlu, cesur, hırslı yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+     "keywords": [
+      "çekicilik",
+      "güzellik",
+      "kültür",
+      "eros",
+      "fantezi",
+      "gururlu",
+      "cesur",
+      "hırslı"
+     ]
+    }
+   },
+   {
+    "name": "Mars",
+    "longitude": 13.358262879384739,
+    "latitude": -2.5416752611014495,
+    "sign": "Aries",
+    "degree": 13.358262879384739,
+    "speed": 0.6637205198469758,
+    "isRetrograde": false,
+    "house": 7,
+    "nameLocalized": "Mars",
+    "signLocalized": "Koç",
+    "dignity": "domicile",
+    "interpretation": {
+     "summary": "Koç burcundaki Mars için Yedinci Ev yerleşimi, yoldaşlık alanında atılganlık ve saldırganlık temalarını hırslı ve bağımsız enerjisiyle ifade etme biçiminizi gösterir.",
+     "detailed": "Mars, atılganlık ve saldırganlık alanını temsil eder. Koç burcunda bu enerji, hırslı, bağımsız, sabırsız biçimini alır. Yedinci Ev yerleşimiyle bu Koç Mars enerjisini yoldaşlık ve alter ego doğrultusunda yönlendirirsiniz. Bu, yedinci ev ile ilgili konularda atılganlık ve saldırganlık alanının doğal olarak hırslı, bağımsız, sabırsız yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+     "keywords": [
+      "eylem",
+      "maceraperest",
+      "atletik",
+      "cesur",
+      "cesaret",
+      "hırslı",
+      "bağımsız",
+      "sabırsız"
+     ]
+    }
+   },
+   {
+    "name": "Jupiter",
+    "longitude": 189.94853225645008,
+    "latitude": 1.3062658409201702,
+    "sign": "Libra",
+    "degree": 9.948532256450079,
+    "speed": 0.0751633755457135,
+    "isRetrograde": false,
+    "house": 1,
+    "nameLocalized": "Jüpiter",
+    "signLocalized": "Terazi",
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Terazi burcundaki Jüpiter için Birinci Ev yerleşimi, benlik imajı alanında şans ve fırsat temalarını diplomatik ve sanatsal enerjisiyle ifade etme biçiminizi gösterir.",
+     "detailed": "Jüpiter, şans ve fırsat alanını temsil eder. Terazi burcunda bu enerji, diplomatik, sanatsal, zeki biçimini alır. Birinci Ev yerleşimiyle bu Terazi Jüpiter enerjisini benlik imajı ve başkalarına yansıttığımız görüntü doğrultusunda yönlendirirsiniz. Bu, birinci ev ile ilgili konularda şans ve fırsat alanının doğal olarak diplomatik, sanatsal, zeki yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+     "keywords": [
+      "bolluk",
+      "üniversite",
+      "kültür",
+      "merak",
+      "çeşitlilik",
+      "diplomatik",
+      "sanatsal",
+      "zeki"
+     ]
+    }
+   },
+   {
+    "name": "Saturn",
+    "longitude": 118.11440397248433,
+    "latitude": 0.25216285711531794,
+    "sign": "Cancer",
+    "degree": 28.114403972484325,
+    "speed": 0.1251014475591603,
+    "isRetrograde": false,
+    "house": 10,
+    "nameLocalized": "Satürn",
+    "signLocalized": "Yengeç",
+    "dignity": "detriment",
+    "interpretation": {
+     "summary": "Yengeç burcundaki Satürn için Onuncu Ev yerleşimi, kariyer ve meslek alanında sorumluluk, zaman ve rutin temalarını sezgisel ve duygusal enerjisiyle ifade etme biçiminizi gösterir.",
+     "detailed": "Satürn, sorumluluk, zaman ve rutin alanını temsil eder. Yengeç burcunda bu enerji, sezgisel, besleyici, koruyucu biçimini alır. Onuncu Ev yerleşimiyle bu Yengeç Satürn enerjisini kariyer ve meslek ve topluma katkı doğrultusunda yönlendirirsiniz. Bu, onuncu ev ile ilgili konularda sorumluluk, zaman ve rutin alanının doğal olarak sezgisel, duygusal, zeki yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+     "keywords": [
+      "hırs",
+      "sınırlar",
+      "kararlılık",
+      "disiplin",
+      "deneyim",
+      "sezgisel",
+      "duygusal",
+      "zeki",
+      "tutkulu"
+     ]
+    }
+   },
+   {
+    "name": "Uranus",
+    "longitude": 340.65374915701625,
+    "latitude": -0.7883275738660682,
+    "sign": "Pisces",
+    "degree": 10.65374915701625,
+    "speed": -0.013116242715256021,
+    "isRetrograde": true,
+    "house": 6,
+    "nameLocalized": "Uranüs",
+    "signLocalized": "Balık",
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Balık burcundaki Uranüs için Altıncı Ev yerleşimi, iş ve meslek alanında bireysellik ve devrim temalarını yaratıcı ve hassas enerjisiyle ifade etme biçiminizi gösterir.",
+     "detailed": "Uranüs, bireysellik ve devrim alanını temsil eder. Balık (Balıklar) burcunda bu enerji, yaratıcı, hassas, sanatsal biçimini alır. Altıncı Ev yerleşimiyle bu Balık Uranüs enerjisini iş ve meslek ve teknikler ve yöntemler doğrultusunda yönlendirirsiniz. Bu, altıncı ev ile ilgili konularda bireysellik ve devrim alanının doğal olarak yaratıcı, hassas, sanatsal yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+     "keywords": [
+      "avangard",
+      "değişim",
+      "komik",
+      "kararlı",
+      "deneysel",
+      "yaratıcı",
+      "hassas",
+      "sanatsal"
+     ]
+    }
+   },
+   {
+    "name": "Neptune",
+    "longitude": 317.1454756491018,
+    "latitude": -0.13097231322167235,
+    "sign": "Aquarius",
+    "degree": 17.145475649101797,
+    "speed": -0.020133332276969895,
+    "isRetrograde": true,
+    "house": 5,
+    "nameLocalized": "Neptün",
+    "signLocalized": "Kova",
+    "dignity": "fall",
+    "interpretation": {
+     "summary": "Kova burcundaki Neptün için Beşinci Ev yerleşimi, yaratıcı öz ifade alanında rüyalar, şifa ve sezgi temalarını hayalperest ve idealist enerjisiyle ifade etme biçiminizi gösterir.",
+     "detailed": "Neptün, rüyalar, şifa ve sezgi alanını temsil eder. Kova (Su Taşıyıcı) burcunda bu enerji, hayalperest, idealist, sezgisel biçimini alır. Beşinci Ev yerleşimiyle bu Kova Neptün enerjisini yaratıcı öz ifade ve eğlence doğrultusunda yönlendirirsiniz. Bu, beşinci ev ile ilgili konularda rüyalar, şifa ve sezgi alanının doğal olarak hayalperest, idealist, sezgisel yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+     "keywords": [
+      "sanatsal",
+      "sakin",
+      "merhametli",
+      "derin",
+      "rüyalar",
+      "hayalperest",
+      "idealist",
+      "sezgisel"
+     ]
+    }
+   },
+   {
+    "name": "Pluto",
+    "longitude": 262.72443413651376,
+    "latitude": 8.251689911530725,
+    "sign": "Sagittarius",
+    "degree": 22.724434136513764,
+    "speed": -0.02485801780608199,
+    "isRetrograde": true,
+    "house": 3,
+    "nameLocalized": "Plüton",
+    "signLocalized": "Yay",
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Yay burcundaki Plüton için Üçüncü Ev yerleşimi, alt zihin alanında cinsellik, ölüm ve dönüşüm temalarını maceraperest ve yaratıcı enerjisiyle ifade etme biçiminizi gösterir.",
+     "detailed": "Plüton, cinsellik, ölüm ve dönüşüm alanını temsil eder. Yay (Okçu) burcunda bu enerji, maceraperest, iyimser, bağımsız biçimini alır. Üçüncü Ev yerleşimiyle bu Yay Plüton enerjisini alt zihin ve iletişim doğrultusunda yönlendirirsiniz. Bu, üçüncü ev ile ilgili konularda cinsellik, ölüm ve dönüşüm alanının doğal olarak maceraperest, yaratıcı, güçlü iradeli yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+     "keywords": [
+      "simya",
+      "cesur",
+      "karizmatik",
+      "karmaşık",
+      "yürekli",
+      "maceraperest",
+      "yaratıcı",
+      "güçlü iradeli"
+     ]
+    }
+   },
+   {
+    "name": "North Node",
+    "longitude": 19.416467583628137,
+    "latitude": 0,
+    "sign": "Aries",
+    "degree": 19.416467583628137,
+    "speed": -0.05734273446836369,
+    "isRetrograde": true,
+    "house": 7,
+    "nameLocalized": "Kuzey Düğümü",
+    "signLocalized": "Koç",
+    "interpretation": {
+     "summary": "Koç burcundaki Kuzey Düğümü için Yedinci Ev yerleşimi, yoldaşlık alanında yaşam amacı ve kader temalarını hırslı ve bağımsız enerjisiyle ifade etme biçiminizi gösterir.",
+     "detailed": "Kuzey Düğümü, yaşam amacı ve kader alanını temsil eder. Koç burcunda bu enerji, hırslı, bağımsız, sabırsız biçimini alır. Yedinci Ev yerleşimiyle bu Koç Kuzey Düğümü enerjisini yoldaşlık ve alter ego doğrultusunda yönlendirirsiniz. Bu, yedinci ev ile ilgili konularda yaşam amacı ve kader alanının doğal olarak hırslı, bağımsız, sabırsız yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+     "keywords": [
+      "kader",
+      "yaşam amacı",
+      "ruhsal büyüme",
+      "gelecek yönü",
+      "karmik ödül",
+      "hırslı",
+      "bağımsız",
+      "sabırsız"
+     ]
+    }
+   },
+   {
+    "name": "South Node",
+    "longitude": 199.41646758362813,
+    "latitude": 0,
+    "sign": "Libra",
+    "degree": 19.416467583628133,
+    "speed": -0.05734273446836369,
+    "isRetrograde": true,
+    "house": 1,
+    "nameLocalized": "Güney Düğümü",
+    "signLocalized": "Terazi",
+    "interpretation": {
+     "summary": "Terazi burcundaki Güney Düğümü için Birinci Ev yerleşimi, benlik imajı alanında geçmiş yaşam yetenekleri ve konfor alanı temalarını diplomatik ve sanatsal enerjisiyle ifade etme biçiminizi gösterir.",
+     "detailed": "Güney Düğümü, geçmiş yaşam yetenekleri ve konfor alanı alanını temsil eder. Terazi burcunda bu enerji, diplomatik, sanatsal, zeki biçimini alır. Birinci Ev yerleşimiyle bu Terazi Güney Düğümü enerjisini benlik imajı ve başkalarına yansıttığımız görüntü doğrultusunda yönlendirirsiniz. Bu, birinci ev ile ilgili konularda geçmiş yaşam yetenekleri ve konfor alanı alanının doğal olarak diplomatik, sanatsal, zeki yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+     "keywords": [
+      "doğuştan yetenekler",
+      "geçmiş yaşam bilgeliği",
+      "doğal yetenekler",
+      "konfor alanı",
+      "ustalaşılmış beceriler",
+      "diplomatik",
+      "sanatsal",
+      "zeki"
+     ]
+    }
+   },
+   {
+    "name": "Chiron",
+    "longitude": 301.7186300871135,
+    "latitude": 7.454193707209519,
+    "sign": "Aquarius",
+    "degree": 1.7186300871135245,
+    "speed": -0.052258975557521126,
+    "isRetrograde": true,
+    "house": 4,
+    "nameLocalized": "Chiron",
+    "signLocalized": "Kova",
+    "interpretation": {
+     "summary": "Kova burcundaki Chiron için Dördüncü Ev yerleşimi, psikolojik temeller ve kökler alanında şifa ve iç yaralar temalarını hayalperest ve idealist enerjisiyle ifade etme biçiminizi gösterir.",
+     "detailed": "Chiron, şifa ve iç yaralar alanını temsil eder. Kova (Su Taşıyıcı) burcunda bu enerji, hayalperest, idealist, sezgisel biçimini alır. Dördüncü Ev yerleşimiyle bu Kova Chiron enerjisini psikolojik temeller ve kökler ve aile doğrultusunda yönlendirirsiniz. Bu, dördüncü ev ile ilgili konularda şifa ve iç yaralar alanının doğal olarak hayalperest, idealist, sezgisel yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+     "keywords": [
+      "şifa",
+      "bilgelik",
+      "mentorluk",
+      "öğretme",
+      "empati",
+      "hayalperest",
+      "idealist",
+      "sezgisel"
+     ]
+    }
+   },
+   {
+    "name": "Black Moon Lilith",
+    "longitude": 127.14266544738149,
+    "latitude": 4.882093256274704,
+    "sign": "Leo",
+    "degree": 7.142665447381489,
+    "speed": 0.11194783482554271,
+    "isRetrograde": false,
+    "house": 11,
+    "nameLocalized": "Kara Ay Lilith",
+    "signLocalized": "Aslan",
+    "interpretation": {
+     "summary": "Aslan burcundaki Kara Ay Lilith için On Birinci Ev yerleşimi, tanıdıklar ve arkadaşlar alanında ilkel içgüdü ve geri kazanılan benlik temalarını gururlu ve cesur enerjisiyle ifade etme biçiminizi gösterir.",
+     "detailed": "Kara Ay Lilith, ilkel içgüdü ve geri kazanılan benlik alanını temsil eder. Aslan burcunda bu enerji, gururlu, cesur, hırslı biçimini alır. On Birinci Ev yerleşimiyle bu Aslan Kara Ay Lilith enerjisini tanıdıklar ve arkadaşlar ve gruplar doğrultusunda yönlendirirsiniz. Bu, on birinci ev ile ilgili konularda ilkel içgüdü ve geri kazanılan benlik alanının doğal olarak gururlu, cesur, hırslı yaklaşımlarıyla kendini gösterdiği özgün bir ifade yaratır.",
+     "keywords": [
+      "özgünlük",
+      "özerklik",
+      "içgüdü",
+      "ham güç",
+      "kendine hakimiyet",
+      "gururlu",
+      "cesur",
+      "hırslı"
+     ]
+    }
+   }
+  ],
+  "houses": [
+   {
+    "number": 1,
+    "longitude": 178.9459714101074,
+    "sign": "Virgo",
+    "degree": 28.945971410107404,
+    "signLocalized": "Başak"
+   },
+   {
+    "number": 2,
+    "longitude": 205.07076950764585,
+    "sign": "Libra",
+    "degree": 25.07076950764585,
+    "signLocalized": "Terazi"
+   },
+   {
+    "number": 3,
+    "longitude": 235.4327212057355,
+    "sign": "Scorpio",
+    "degree": 25.432721205735504,
+    "signLocalized": "Akrep"
+   },
+   {
+    "number": 4,
+    "longitude": 268.79257264875923,
+    "sign": "Sagittarius",
+    "degree": 28.792572648759233,
+    "signLocalized": "Yay"
+   },
+   {
+    "number": 5,
+    "longitude": 302.1895253437178,
+    "sign": "Aquarius",
+    "degree": 2.1895253437177757,
+    "signLocalized": "Kova"
+   },
+   {
+    "number": 6,
+    "longitude": 332.65354664689835,
+    "sign": "Pisces",
+    "degree": 2.6535466468983486,
+    "signLocalized": "Balık"
+   },
+   {
+    "number": 7,
+    "longitude": 358.9459714101074,
+    "sign": "Pisces",
+    "degree": 28.945971410107404,
+    "signLocalized": "Balık"
+   },
+   {
+    "number": 8,
+    "longitude": 25.070769507645878,
+    "sign": "Aries",
+    "degree": 25.070769507645878,
+    "signLocalized": "Koç"
+   },
+   {
+    "number": 9,
+    "longitude": 55.432721205735504,
+    "sign": "Taurus",
+    "degree": 25.432721205735504,
+    "signLocalized": "Boğa"
+   },
+   {
+    "number": 10,
+    "longitude": 88.79257264875925,
+    "sign": "Gemini",
+    "degree": 28.792572648759247,
+    "signLocalized": "İkizler"
+   },
+   {
+    "number": 11,
+    "longitude": 122.18952534371778,
+    "sign": "Leo",
+    "degree": 2.1895253437177757,
+    "signLocalized": "Aslan"
+   },
+   {
+    "number": 12,
+    "longitude": 152.65354664689832,
+    "sign": "Virgo",
+    "degree": 2.65354664689832,
+    "signLocalized": "Başak"
+   }
+  ],
+  "houseSystem": "placidus",
+  "aspects": [
+   {
+    "planet1": "North Node",
+    "planet2": "South Node",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 0,
+    "isApplying": false,
+    "strength": 100,
+    "interpretation": "challenging",
+    "planet1Localized": "Kuzey Düğümü",
+    "planet2Localized": "Güney Düğümü",
+    "typeLocalized": "Karşıtlık",
+    "aspectInterpretation": {
+     "summary": "Kuzey Düğümü, Güney Düğümü ile uzaklaşan (zayıflıyor) biçimde 180 açısında çok güçlü bir karşıtlık açısı oluşturuyor. Bu zorlayıcı açının öne çıkan temaları kabul, kabullenici ve denge olarak sıralanır.",
+     "keywords": [
+      "kabul",
+      "kabullenici",
+      "denge",
+      "meydan okuma",
+      "rehavet",
+      "kolay",
+      "büyüme",
+      "engel",
+      "ilişki",
+      "mücadele",
+      "yetenek",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Jupiter",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 0.006318433450161365,
+    "isApplying": true,
+    "strength": 99.9097366649977,
+    "interpretation": "challenging",
+    "planet1Localized": "Güneş",
+    "planet2Localized": "Jüpiter",
+    "typeLocalized": "Kare",
+    "aspectInterpretation": {
+     "summary": "Güneş, Jüpiter ile yaklaşan (güçleniyor) biçimde 90 açısında çok güçlü bir kare açısı oluşturuyor. Bu zorlayıcı açının öne çıkan temaları zorluk, engel ve stres olarak sıralanır.",
+     "keywords": [
+      "zorluk",
+      "engel",
+      "stres",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Mercury",
+    "planet2": "Venus",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 0.6649193059797085,
+    "isApplying": false,
+    "strength": 91.68850867525364,
+    "interpretation": "neutral",
+    "planet1Localized": "Merkür",
+    "planet2Localized": "Venüs",
+    "typeLocalized": "Kavuşum",
+    "aspectInterpretation": {
+     "summary": "Merkür, Venüs ile uzaklaşan (zayıflıyor) biçimde 0 açısında çok güçlü bir kavuşum açısı oluşturuyor. Bu nötr açının öne çıkan temaları kaynaşma, zorluk ve birleşme olarak sıralanır.",
+     "keywords": [
+      "kaynaşma",
+      "zorluk",
+      "birleşme",
+      "bütünlük"
+     ]
+    }
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Uranus",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 0.7115353340163324,
+    "isApplying": true,
+    "strength": 91.10580832479585,
+    "interpretation": "harmonious",
+    "planet1Localized": "Güneş",
+    "planet2Localized": "Uranüs",
+    "typeLocalized": "Üçgen",
+    "aspectInterpretation": {
+     "summary": "Güneş, Uranüs ile yaklaşan (güçleniyor) biçimde 120 açısında çok güçlü bir üçgen açısı oluşturuyor. Bu uyumlu açının öne çıkan temaları kabul, kabullenici ve zorluk olarak sıralanır.",
+     "keywords": [
+      "kabul",
+      "kabullenici",
+      "zorluk",
+      "doğal",
+      "destek",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Moon",
+    "planet2": "Neptune",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 1.5035839397442032,
+    "isApplying": true,
+    "strength": 78.52022943222568,
+    "interpretation": "challenging",
+    "planet1Localized": "Ay",
+    "planet2Localized": "Neptün",
+    "typeLocalized": "Kare",
+    "aspectInterpretation": {
+     "summary": "Ay, Neptün ile yaklaşan (güçleniyor) biçimde 90 açısında güçlü bir kare açısı oluşturuyor. Bu zorlayıcı açının öne çıkan temaları zorluk, engel ve stres olarak sıralanır.",
+     "keywords": [
+      "zorluk",
+      "engel",
+      "stres",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Jupiter",
+    "planet2": "Uranus",
+    "type": "QUINCUNX",
+    "angle": 150,
+    "orb": 0.705216900566171,
+    "isApplying": true,
+    "strength": 76.49276998112762,
+    "interpretation": "challenging",
+    "planet1Localized": "Jüpiter",
+    "planet2Localized": "Uranüs",
+    "typeLocalized": "Kuinkuks",
+    "aspectInterpretation": {
+     "summary": "Jüpiter, Uranüs ile yaklaşan (güçleniyor) biçimde 150 açısında güçlü bir kuinkuks açısı oluşturuyor. Bu zorlayıcı açının öne çıkan temaları ayarlama, gerilim ve uyum olarak sıralanır.",
+     "keywords": [
+      "ayarlama",
+      "gerilim",
+      "uyum",
+      "yön değiştirme"
+     ]
+    }
+   },
+   {
+    "planet1": "Neptune",
+    "planet2": "South Node",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 2.270991934526336,
+    "isApplying": true,
+    "strength": 71.6126008184208,
+    "interpretation": "harmonious",
+    "planet1Localized": "Neptün",
+    "planet2Localized": "Güney Düğümü",
+    "typeLocalized": "Üçgen",
+    "aspectInterpretation": {
+     "summary": "Neptün, Güney Düğümü ile yaklaşan (güçleniyor) biçimde 120 açısında güçlü bir üçgen açısı oluşturuyor. Bu uyumlu açının öne çıkan temaları kabul, kabullenici ve zorluk olarak sıralanır.",
+     "keywords": [
+      "kabul",
+      "kabullenici",
+      "zorluk",
+      "doğal",
+      "destek",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Mercury",
+    "planet2": "Black Moon Lilith",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 2.27265997912518,
+    "isApplying": true,
+    "strength": 71.59175026093524,
+    "interpretation": "neutral",
+    "planet1Localized": "Merkür",
+    "planet2Localized": "Kara Ay Lilith",
+    "typeLocalized": "Kavuşum",
+    "aspectInterpretation": {
+     "summary": "Merkür, Kara Ay Lilith ile yaklaşan (güçleniyor) biçimde 0 açısında güçlü bir kavuşum açısı oluşturuyor. Bu nötr açının öne çıkan temaları kaynaşma, zorluk ve birleşme olarak sıralanır.",
+     "keywords": [
+      "kaynaşma",
+      "zorluk",
+      "birleşme",
+      "bütünlük"
+     ]
+    }
+   },
+   {
+    "planet1": "Pluto",
+    "planet2": "Black Moon Lilith",
+    "type": "SESQUIQUADRATE",
+    "angle": 135,
+    "orb": 0.5817686891322751,
+    "isApplying": true,
+    "strength": 70.91156554338625,
+    "interpretation": "challenging",
+    "planet1Localized": "Plüton",
+    "planet2Localized": "Kara Ay Lilith",
+    "typeLocalized": "Seskikare",
+    "aspectInterpretation": {
+     "summary": "Plüton, Kara Ay Lilith ile yaklaşan (güçleniyor) biçimde 135 açısında güçlü bir seskikare açısı oluşturuyor. Bu zorlayıcı açının öne çıkan temaları hayal kırıklığı, ayarlama ve dışsal gerilim olarak sıralanır.",
+     "keywords": [
+      "hayal kırıklığı",
+      "ayarlama",
+      "dışsal gerilim",
+      "yön değiştirme"
+     ]
+    }
+   },
+   {
+    "planet1": "Venus",
+    "planet2": "Chiron",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 2.486456075163062,
+    "isApplying": false,
+    "strength": 68.91929906046173,
+    "interpretation": "challenging",
+    "planet1Localized": "Venüs",
+    "planet2Localized": "Chiron",
+    "typeLocalized": "Karşıtlık",
+    "aspectInterpretation": {
+     "summary": "Venüs, Chiron ile uzaklaşan (zayıflıyor) biçimde 180 açısında güçlü bir karşıtlık açısı oluşturuyor. Bu zorlayıcı açının öne çıkan temaları kabul, kabullenici ve denge olarak sıralanır.",
+     "keywords": [
+      "kabul",
+      "kabullenici",
+      "denge",
+      "meydan okuma",
+      "rehavet",
+      "kolay",
+      "büyüme",
+      "engel",
+      "ilişki",
+      "mücadele",
+      "yetenek",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Venus",
+    "planet2": "Black Moon Lilith",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 2.9375792851048885,
+    "isApplying": true,
+    "strength": 63.28025893618889,
+    "interpretation": "neutral",
+    "planet1Localized": "Venüs",
+    "planet2Localized": "Kara Ay Lilith",
+    "typeLocalized": "Kavuşum",
+    "aspectInterpretation": {
+     "summary": "Venüs, Kara Ay Lilith ile yaklaşan (güçleniyor) biçimde 0 açısında güçlü bir kavuşum açısı oluşturuyor. Bu nötr açının öne çıkan temaları kaynaşma, zorluk ve birleşme olarak sıralanır.",
+     "keywords": [
+      "kaynaşma",
+      "zorluk",
+      "birleşme",
+      "bütünlük"
+     ]
+    }
+   },
+   {
+    "planet1": "Neptune",
+    "planet2": "North Node",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 2.2709919345263643,
+    "isApplying": true,
+    "strength": 62.15013442456059,
+    "interpretation": "harmonious",
+    "planet1Localized": "Neptün",
+    "planet2Localized": "Kuzey Düğümü",
+    "typeLocalized": "Sekstil",
+    "aspectInterpretation": {
+     "summary": "Neptün, Kuzey Düğümü ile yaklaşan (güçleniyor) biçimde 60 açısında güçlü bir sekstil açısı oluşturuyor. Bu uyumlu açının öne çıkan temaları kolaylık, doğal ve ilişki olarak sıralanır.",
+     "keywords": [
+      "kolaylık",
+      "doğal",
+      "ilişki",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Mercury",
+    "planet2": "Chiron",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 3.1513753811427705,
+    "isApplying": false,
+    "strength": 60.60780773571537,
+    "interpretation": "challenging",
+    "planet1Localized": "Merkür",
+    "planet2Localized": "Chiron",
+    "typeLocalized": "Karşıtlık",
+    "aspectInterpretation": {
+     "summary": "Merkür, Chiron ile uzaklaşan (zayıflıyor) biçimde 180 açısında güçlü bir karşıtlık açısı oluşturuyor. Bu zorlayıcı açının öne çıkan temaları kabul, kabullenici ve denge olarak sıralanır.",
+     "keywords": [
+      "kabul",
+      "kabullenici",
+      "denge",
+      "meydan okuma",
+      "rehavet",
+      "kolay",
+      "büyüme",
+      "engel",
+      "ilişki",
+      "mücadele",
+      "yetenek",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Pluto",
+    "planet2": "North Node",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 3.307966552885631,
+    "isApplying": false,
+    "strength": 58.65041808892961,
+    "interpretation": "harmonious",
+    "planet1Localized": "Plüton",
+    "planet2Localized": "Kuzey Düğümü",
+    "typeLocalized": "Üçgen",
+    "aspectInterpretation": {
+     "summary": "Plüton, Kuzey Düğümü ile uzaklaşan (zayıflıyor) biçimde 120 açısında orta bir üçgen açısı oluşturuyor. Bu uyumlu açının öne çıkan temaları kabul, kabullenici ve zorluk olarak sıralanır.",
+     "keywords": [
+      "kabul",
+      "kabullenici",
+      "zorluk",
+      "doğal",
+      "destek",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Mars",
+    "planet2": "Jupiter",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 3.40973062293466,
+    "isApplying": false,
+    "strength": 57.37836721331675,
+    "interpretation": "challenging",
+    "planet1Localized": "Mars",
+    "planet2Localized": "Jüpiter",
+    "typeLocalized": "Karşıtlık",
+    "aspectInterpretation": {
+     "summary": "Mars, Jüpiter ile uzaklaşan (zayıflıyor) biçimde 180 açısında orta bir karşıtlık açısı oluşturuyor. Bu zorlayıcı açının öne çıkan temaları kabul, kabullenici ve denge olarak sıralanır.",
+     "keywords": [
+      "kabul",
+      "kabullenici",
+      "denge",
+      "meydan okuma",
+      "rehavet",
+      "kolay",
+      "büyüme",
+      "engel",
+      "ilişki",
+      "mücadele",
+      "yetenek",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Saturn",
+    "planet2": "Chiron",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 3.604226114629199,
+    "isApplying": true,
+    "strength": 54.94717356713501,
+    "interpretation": "challenging",
+    "planet1Localized": "Satürn",
+    "planet2Localized": "Chiron",
+    "typeLocalized": "Karşıtlık",
+    "aspectInterpretation": {
+     "summary": "Satürn, Chiron ile yaklaşan (güçleniyor) biçimde 180 açısında orta bir karşıtlık açısı oluşturuyor. Bu zorlayıcı açının öne çıkan temaları kabul, kabullenici ve denge olarak sıralanır.",
+     "keywords": [
+      "kabul",
+      "kabullenici",
+      "denge",
+      "meydan okuma",
+      "rehavet",
+      "kolay",
+      "büyüme",
+      "engel",
+      "ilişki",
+      "mücadele",
+      "yetenek",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Jupiter",
+    "planet2": "Black Moon Lilith",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 2.80586680906859,
+    "isApplying": true,
+    "strength": 53.23555318219017,
+    "interpretation": "harmonious",
+    "planet1Localized": "Jüpiter",
+    "planet2Localized": "Kara Ay Lilith",
+    "typeLocalized": "Sekstil",
+    "aspectInterpretation": {
+     "summary": "Jüpiter, Kara Ay Lilith ile yaklaşan (güçleniyor) biçimde 60 açısında orta bir sekstil açısı oluşturuyor. Bu uyumlu açının öne çıkan temaları kolaylık, doğal ve ilişki olarak sıralanır.",
+     "keywords": [
+      "kolaylık",
+      "doğal",
+      "ilişki",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Mars",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 3.4160490563848214,
+    "isApplying": true,
+    "strength": 51.199299194502544,
+    "interpretation": "challenging",
+    "planet1Localized": "Güneş",
+    "planet2Localized": "Mars",
+    "typeLocalized": "Kare",
+    "aspectInterpretation": {
+     "summary": "Güneş, Mars ile yaklaşan (güçleniyor) biçimde 90 açısında orta bir kare açısı oluşturuyor. Bu zorlayıcı açının öne çıkan temaları zorluk, engel ve stres olarak sıralanır.",
+     "keywords": [
+      "zorluk",
+      "engel",
+      "stres",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Pluto",
+    "planet2": "South Node",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 3.307966552885631,
+    "isApplying": false,
+    "strength": 44.867224118572814,
+    "interpretation": "harmonious",
+    "planet1Localized": "Plüton",
+    "planet2Localized": "Güney Düğümü",
+    "typeLocalized": "Sekstil",
+    "aspectInterpretation": {
+     "summary": "Plüton, Güney Düğümü ile uzaklaşan (zayıflıyor) biçimde 60 açısında orta bir sekstil açısı oluşturuyor. Bu uyumlu açının öne çıkan temaları kolaylık, doğal ve ilişki olarak sıralanır.",
+     "keywords": [
+      "kolaylık",
+      "doğal",
+      "ilişki",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Mars",
+    "planet2": "Neptune",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 3.78721276971703,
+    "isApplying": true,
+    "strength": 36.87978717138284,
+    "interpretation": "harmonious",
+    "planet1Localized": "Mars",
+    "planet2Localized": "Neptün",
+    "typeLocalized": "Sekstil",
+    "aspectInterpretation": {
+     "summary": "Mars, Neptün ile yaklaşan (güçleniyor) biçimde 60 açısında zayıf bir sekstil açısı oluşturuyor. Bu uyumlu açının öne çıkan temaları kolaylık, doğal ve ilişki olarak sıralanır.",
+     "keywords": [
+      "kolaylık",
+      "doğal",
+      "ilişki",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Chiron",
+    "planet2": "Black Moon Lilith",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 5.424035360267965,
+    "isApplying": false,
+    "strength": 32.19955799665044,
+    "interpretation": "challenging",
+    "planet1Localized": "Chiron",
+    "planet2Localized": "Kara Ay Lilith",
+    "typeLocalized": "Karşıtlık",
+    "aspectInterpretation": {
+     "summary": "Chiron, Kara Ay Lilith ile uzaklaşan (zayıflıyor) biçimde 180 açısında zayıf bir karşıtlık açısı oluşturuyor. Bu zorlayıcı açının öne çıkan temaları kabul, kabullenici ve denge olarak sıralanır.",
+     "keywords": [
+      "kabul",
+      "kabullenici",
+      "denge",
+      "meydan okuma",
+      "rehavet",
+      "kolay",
+      "büyüme",
+      "engel",
+      "ilişki",
+      "mücadele",
+      "yetenek",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Mars",
+    "planet2": "South Node",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 6.058204704243394,
+    "isApplying": true,
+    "strength": 24.272441196957573,
+    "interpretation": "challenging",
+    "planet1Localized": "Mars",
+    "planet2Localized": "Güney Düğümü",
+    "typeLocalized": "Karşıtlık",
+    "aspectInterpretation": {
+     "summary": "Mars, Güney Düğümü ile yaklaşan (güçleniyor) biçimde 180 açısında zayıf bir karşıtlık açısı oluşturuyor. Bu zorlayıcı açının öne çıkan temaları kabul, kabullenici ve denge olarak sıralanır.",
+     "keywords": [
+      "kabul",
+      "kabullenici",
+      "denge",
+      "meydan okuma",
+      "rehavet",
+      "kolay",
+      "büyüme",
+      "engel",
+      "ilişki",
+      "mücadele",
+      "yetenek",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Mars",
+    "planet2": "North Node",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 6.058204704243398,
+    "isApplying": true,
+    "strength": 24.27244119695753,
+    "interpretation": "neutral",
+    "planet1Localized": "Mars",
+    "planet2Localized": "Kuzey Düğümü",
+    "typeLocalized": "Kavuşum",
+    "aspectInterpretation": {
+     "summary": "Mars, Kuzey Düğümü ile yaklaşan (güçleniyor) biçimde 0 açısında zayıf bir kavuşum açısı oluşturuyor. Bu nötr açının öne çıkan temaları kaynaşma, zorluk ve birleşme olarak sıralanır.",
+     "keywords": [
+      "kaynaşma",
+      "zorluk",
+      "birleşme",
+      "bütünlük"
+     ]
+    }
+   },
+   {
+    "planet1": "Moon",
+    "planet2": "Mars",
+    "type": "SEMI_SEXTILE",
+    "angle": 30,
+    "orb": 2.2836288299728693,
+    "isApplying": false,
+    "strength": 23.879039000904356,
+    "interpretation": "neutral",
+    "planet1Localized": "Ay",
+    "planet2Localized": "Mars",
+    "typeLocalized": "Yarı Sekstil",
+    "aspectInterpretation": {
+     "summary": "Ay, Mars ile uzaklaşan (zayıflıyor) biçimde 30 açısında zayıf bir yarı sekstil açısı oluşturuyor. Bu nötr açının öne çıkan temaları büyüme, incelik ve ayarlama olarak sıralanır.",
+     "keywords": [
+      "büyüme",
+      "incelik",
+      "ayarlama",
+      "farkındalık"
+     ]
+    }
+   },
+   {
+    "planet1": "Venus",
+    "planet2": "Saturn",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 6.090682189792275,
+    "isApplying": false,
+    "strength": 23.866472627596558,
+    "interpretation": "neutral",
+    "planet1Localized": "Venüs",
+    "planet2Localized": "Satürn",
+    "typeLocalized": "Kavuşum",
+    "aspectInterpretation": {
+     "summary": "Venüs, Satürn ile uzaklaşan (zayıflıyor) biçimde 0 açısında zayıf bir kavuşum açısı oluşturuyor. Bu nötr açının öne çıkan temaları kaynaşma, zorluk ve birleşme olarak sıralanır.",
+     "keywords": [
+      "kaynaşma",
+      "zorluk",
+      "birleşme",
+      "bütünlük"
+     ]
+    }
+   },
+   {
+    "planet1": "Mars",
+    "planet2": "Black Moon Lilith",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 6.21559743200325,
+    "isApplying": false,
+    "strength": 22.305032099959377,
+    "interpretation": "harmonious",
+    "planet1Localized": "Mars",
+    "planet2Localized": "Kara Ay Lilith",
+    "typeLocalized": "Üçgen",
+    "aspectInterpretation": {
+     "summary": "Mars, Kara Ay Lilith ile uzaklaşan (zayıflıyor) biçimde 120 açısında zayıf bir üçgen açısı oluşturuyor. Bu uyumlu açının öne çıkan temaları kabul, kabullenici ve zorluk olarak sıralanır.",
+     "keywords": [
+      "kabul",
+      "kabullenici",
+      "zorluk",
+      "doğal",
+      "destek",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Moon",
+    "planet2": "Uranus",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 4.988142552341344,
+    "isApplying": false,
+    "strength": 16.864290794310932,
+    "interpretation": "harmonious",
+    "planet1Localized": "Ay",
+    "planet2Localized": "Uranüs",
+    "typeLocalized": "Sekstil",
+    "aspectInterpretation": {
+     "summary": "Ay, Uranüs ile uzaklaşan (zayıflıyor) biçimde 60 açısında zayıf bir sekstil açısı oluşturuyor. Bu uyumlu açının öne çıkan temaları kolaylık, doğal ve ilişki olarak sıralanır.",
+     "keywords": [
+      "kolaylık",
+      "doğal",
+      "ilişki",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Mercury",
+    "planet2": "Saturn",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 6.755601495771984,
+    "isApplying": false,
+    "strength": 15.554981302850202,
+    "interpretation": "neutral",
+    "planet1Localized": "Merkür",
+    "planet2Localized": "Satürn",
+    "typeLocalized": "Kavuşum",
+    "aspectInterpretation": {
+     "summary": "Merkür, Satürn ile uzaklaşan (zayıflıyor) biçimde 0 açısında zayıf bir kavuşum açısı oluşturuyor. Bu nötr açının öne çıkan temaları kaynaşma, zorluk ve birleşme olarak sıralanır.",
+     "keywords": [
+      "kaynaşma",
+      "zorluk",
+      "birleşme",
+      "bütünlük"
+     ]
+    }
+   },
+   {
+    "planet1": "Mercury",
+    "planet2": "Jupiter",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 5.07852678819377,
+    "isApplying": true,
+    "strength": 15.357886863437164,
+    "interpretation": "harmonious",
+    "planet1Localized": "Merkür",
+    "planet2Localized": "Jüpiter",
+    "typeLocalized": "Sekstil",
+    "aspectInterpretation": {
+     "summary": "Merkür, Jüpiter ile yaklaşan (güçleniyor) biçimde 60 açısında zayıf bir sekstil açısı oluşturuyor. Bu uyumlu açının öne çıkan temaları kolaylık, doğal ve ilişki olarak sıralanır.",
+     "keywords": [
+      "kolaylık",
+      "doğal",
+      "ilişki",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Jupiter",
+    "planet2": "Neptune",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 7.196943392651718,
+    "isApplying": true,
+    "strength": 10.03820759185352,
+    "interpretation": "harmonious",
+    "planet1Localized": "Jüpiter",
+    "planet2Localized": "Neptün",
+    "typeLocalized": "Üçgen",
+    "aspectInterpretation": {
+     "summary": "Jüpiter, Neptün ile yaklaşan (güçleniyor) biçimde 120 açısında zayıf bir üçgen açısı oluşturuyor. Bu uyumlu açının öne çıkan temaları kabul, kabullenici ve zorluk olarak sıralanır.",
+     "keywords": [
+      "kabul",
+      "kabullenici",
+      "zorluk",
+      "doğal",
+      "destek",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Mars",
+    "planet2": "Uranus",
+    "type": "SEMI_SEXTILE",
+    "angle": 30,
+    "orb": 2.7045137223684605,
+    "isApplying": false,
+    "strength": 9.849542587717986,
+    "interpretation": "neutral",
+    "planet1Localized": "Mars",
+    "planet2Localized": "Uranüs",
+    "typeLocalized": "Yarı Sekstil",
+    "aspectInterpretation": {
+     "summary": "Mars, Uranüs ile uzaklaşan (zayıflıyor) biçimde 30 açısında zayıf bir yarı sekstil açısı oluşturuyor. Bu nötr açının öne çıkan temaları büyüme, incelik ve ayarlama olarak sıralanır.",
+     "keywords": [
+      "büyüme",
+      "incelik",
+      "ayarlama",
+      "farkındalık"
+     ]
+    }
+   },
+   {
+    "planet1": "Neptune",
+    "planet2": "Pluto",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 5.578958487411967,
+    "isApplying": true,
+    "strength": 7.01735854313389,
+    "interpretation": "harmonious",
+    "planet1Localized": "Neptün",
+    "planet2Localized": "Plüton",
+    "typeLocalized": "Sekstil",
+    "aspectInterpretation": {
+     "summary": "Neptün, Plüton ile yaklaşan (güçleniyor) biçimde 60 açısında zayıf bir sekstil açısı oluşturuyor. Bu uyumlu açının öne çıkan temaları kolaylık, doğal ve ilişki olarak sıralanır.",
+     "keywords": [
+      "kolaylık",
+      "doğal",
+      "ilişki",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Black Moon Lilith",
+    "type": "SEMI_SEXTILE",
+    "angle": 30,
+    "orb": 2.7995483756184285,
+    "isApplying": false,
+    "strength": 6.68172081271905,
+    "interpretation": "neutral",
+    "planet1Localized": "Güneş",
+    "planet2Localized": "Kara Ay Lilith",
+    "typeLocalized": "Yarı Sekstil",
+    "aspectInterpretation": {
+     "summary": "Güneş, Kara Ay Lilith ile uzaklaşan (zayıflıyor) biçimde 30 açısında zayıf bir yarı sekstil açısı oluşturuyor. Bu nötr açının öne çıkan temaları büyüme, incelik ve ayarlama olarak sıralanır.",
+     "keywords": [
+      "büyüme",
+      "incelik",
+      "ayarlama",
+      "farkındalık"
+     ]
+    }
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Moon",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 5.699677886357691,
+    "isApplying": false,
+    "strength": 5.0053685607051595,
+    "interpretation": "harmonious",
+    "planet1Localized": "Güneş",
+    "planet2Localized": "Ay",
+    "typeLocalized": "Sekstil",
+    "aspectInterpretation": {
+     "summary": "Güneş, Ay ile uzaklaşan (zayıflıyor) biçimde 60 açısında zayıf bir sekstil açısı oluşturuyor. Bu uyumlu açının öne çıkan temaları kolaylık, doğal ve ilişki olarak sıralanır.",
+     "keywords": [
+      "kolaylık",
+      "doğal",
+      "ilişki",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Venus",
+    "planet2": "Jupiter",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 5.743446094173478,
+    "isApplying": true,
+    "strength": 4.275898430442027,
+    "interpretation": "harmonious",
+    "planet1Localized": "Venüs",
+    "planet2Localized": "Jüpiter",
+    "typeLocalized": "Sekstil",
+    "aspectInterpretation": {
+     "summary": "Venüs, Jüpiter ile yaklaşan (güçleniyor) biçimde 60 açısında zayıf bir sekstil açısı oluşturuyor. Bu uyumlu açının öne çıkan temaları kolaylık, doğal ve ilişki olarak sıralanır.",
+     "keywords": [
+      "kolaylık",
+      "doğal",
+      "ilişki",
+      "yetenek"
+     ]
+    }
+   }
+  ],
+  "ascendant": {
+   "longitude": 178.9459714101074,
+   "sign": "Virgo",
+   "degree": 28.945971410107404,
+   "signLocalized": "Başak"
+  },
+  "midheaven": {
+   "longitude": 88.79257264875925,
+   "sign": "Gemini",
+   "degree": 28.792572648759247,
+   "signLocalized": "İkizler"
+  },
+  "partOfFortune": {
+   "sign": "Leo",
+   "degree": 4.645649296465081,
+   "longitude": 124.64564929646508,
+   "sect": "day",
+   "house": 11,
+   "signLocalized": "Aslan"
+  },
+  "vertex": {
+   "longitude": 357.0068826022568,
+   "sign": "Pisces",
+   "degree": 27.00688260225678,
+   "house": 6,
+   "signLocalized": "Balık"
+  },
+  "patterns": [
+   {
+    "kind": "T_SQUARE",
+    "name": "T-Square",
+    "planets": [
+     "Sun",
+     "Mars",
+     "Jupiter"
+    ],
+    "apex": "Sun",
+    "modality": "cardinal",
+    "dissociate": false,
+    "tightness": 73,
+    "interpretationKey": "aspectPattern.tSquare",
+    "interpretationVars": {
+     "apex": "Güneş",
+     "apexSign": "Yengeç",
+     "end1": "Mars",
+     "end2": "Jüpiter"
+    },
+    "interpretation": "Yengeç burcundaki Güneş üzerine odaklanan T-Kare, Mars ile Jüpiter arasındaki gerilim, haritanın başlıca gelişim motoru olan tepe noktasında çözüm talep eder."
+   },
+   {
+    "kind": "STELLIUM",
+    "name": "Stellium",
+    "planets": [
+     "Saturn",
+     "Venus",
+     "Mercury"
+    ],
+    "tightness": 100,
+    "interpretationKey": "aspectPattern.stelliumSpan",
+    "interpretationVars": {
+     "count": "3",
+     "spanDeg": "10",
+     "sign": "Yengeç",
+     "planets": "Satürn, Venüs, ve Merkür"
+    },
+    "interpretation": "Yengeç yakınında 10 derece içinde 3 gezegenlik Stelyum, Satürn, Venüs, ve Merkür üzerinden yoğunlaşan enerji bu zodyak bölgesini güçlendirir."
+   }
+  ],
+  "aspectsInterpretation": {
+   "summary": "Haritanızda 35 açı bulunuyor: 14 uyumlu, 12 zorlayıcı ve 9 nötr. Dengeli açı yapısı, hem doğal yetenekleri hem de gelişim fırsatlarını barındıran çok yönlü bir haritaya işaret eder.",
+   "dominant": "balanced",
+   "harmonious": 14,
+   "challenging": 12,
+   "neutral": 9
+  },
+  "summary": {
+   "dominantElement": "Fire",
+   "dominantModality": "Cardinal",
+   "retrogradePlanets": [
+    "Uranus",
+    "Neptune",
+    "Pluto",
+    "North Node",
+    "South Node",
+    "Chiron"
+   ],
+   "dominantElementLocalized": "Ateş",
+   "dominantModalityLocalized": "Öncü",
+   "retrogradePlanetsLocalized": [
+    "Uranüs",
+    "Neptün",
+    "Plüton",
+    "Kuzey Düğümü",
+    "Güney Düğümü",
+    "Chiron"
+   ],
+   "elementDistribution": {
+    "Fire": 4,
+    "Earth": 1,
+    "Air": 2,
+    "Water": 3
+   },
+   "modalityDistribution": {
+    "Cardinal": 4,
+    "Fixed": 4,
+    "Mutable": 2
+   }
+  }
+ }
+}

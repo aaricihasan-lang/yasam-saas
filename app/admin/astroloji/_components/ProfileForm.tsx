@@ -11,6 +11,7 @@ import BirthDateInput from "./BirthDateInput";
 import ClientCandidateSearch, { type ClientCandidate } from "./ClientCandidateSearch";
 import { TIME_ACCURACY_LABELS, TIME_ACCURACY_VALUES, type TimeAccuracy } from "@/lib/astrology/birth/profileInput";
 import LocationPicker, { type PickedLocation } from "./LocationPicker";
+import DuplicateProfileDialog, { type DuplicateProfile } from "./DuplicateProfileDialog";
 import { astroFetch } from "../_lib/api";
 
 export type ProfileFormInitial = {
@@ -38,7 +39,13 @@ export default function ProfileForm({
   onCancel,
   heading,
   onDirtyChange,
+  onOpenExisting,
+  onDiscard,
 }: {
+  /** Mükerrer uyarısında "Mevcut danışana geç" (yeni profil oluşturulmaz). Verilmezse seçenek gösterilmez. */
+  onOpenExisting?: (profileId: string) => void;
+  /** Mükerrer uyarısında "İptal et": girişi çıkış onayı sormadan kapatır (verilmezse onCancel). */
+  onDiscard?: () => void;
   /** Kaydedilmemiş giriş var mı (çıkış koruması; 2026-10-12). */
   onDirtyChange?: (dirty: boolean) => void;
   mode: "create" | "revise";
@@ -61,6 +68,9 @@ export default function ProfileForm({
   const [dstChoice, setDstChoice] = useState<"auto" | "earlier" | "later">("auto");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 2026-10-16: mükerrer profil uyarısı + çift tıklama koruması (setState gecikmesinden bağımsız).
+  const [dups, setDups] = useState<DuplicateProfile[] | null>(null);
+  const inFlight = useRef(false);
   const dirty =
     mode === "create"
       ? !!(label.trim() || client || birthDate || birthTime || location || !timeKnown)
@@ -79,13 +89,16 @@ export default function ProfileForm({
   }, [dirty]);
   useEffect(() => () => onDirtyRef.current?.(false), []);
 
-  async function submit() {
+  async function submit(confirmDifferentPerson?: string[]) {
+    if (inFlight.current) return;
     setError(null);
     if (mode === "create" && !label.trim()) return setError("Profil adı gerekli.");
     if (!birthDate) return setError("Doğum tarihi gerekli (GG.AA.YYYY biçiminde eksiksiz ve geçerli olmalı).");
     if (timeKnown && !birthTime) return setError("Doğum saati gerekli (bilinmiyorsa kutuyu işaretleyin).");
     if (!location) return setError("Doğum yeri listeden seçilmelidir.");
+    inFlight.current = true;
     setBusy(true);
+    const ack = confirmDifferentPerson ? { confirmDifferentPerson } : {};
     const birth = {
       birthDate,
       timeKnown,
@@ -98,18 +111,26 @@ export default function ProfileForm({
       mode === "create"
         ? await astroFetch<{ profile: { id: string } }>("/api/admin/astroloji/profiles", {
             method: "POST",
-            body: { label: label.trim(), clientId: client?.id ?? null, ...birth },
+            body: { label: label.trim(), clientId: client?.id ?? null, ...birth, ...ack },
           })
         : await astroFetch<{ profile: { id: string } }>(`/api/admin/astroloji/profiles/${initial!.profileId}/revisions`, {
             method: "POST",
-            body: { expectedRevision: initial!.expectedRevision, changeNote: note.trim() || null, ...birth },
+            body: { expectedRevision: initial!.expectedRevision, changeNote: note.trim() || null, ...birth, ...ack },
           });
+    inFlight.current = false;
     setBusy(false);
     if (res.ok) {
+      setDups(null);
       onDirtyRef.current?.(false);
       onDone(res.data.profile.id);
       return;
     }
+    if (res.code === "DUPLICATE_PROFILE" && Array.isArray(res.data?.duplicates)) {
+      // Profil YAZILMADI; uzman seçer (mevcuda geç / farklı kişi / iptal).
+      setDups(res.data!.duplicates as DuplicateProfile[]);
+      return;
+    }
+    setDups(null);
     if (res.code === "BIRTH_TIME_AMBIGUOUS" && Array.isArray(res.data?.dstOptions)) {
       setDstOptions(res.data!.dstOptions as DstOption[]);
     }
@@ -118,6 +139,28 @@ export default function ProfileForm({
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+      {dups && (
+        <DuplicateProfileDialog
+          mode={mode}
+          items={dups}
+          busy={busy}
+          onOpen={
+            onOpenExisting
+              ? (id) => {
+                  setDups(null);
+                  onDirtyRef.current?.(false);
+                  onOpenExisting(id);
+                }
+              : null
+          }
+          onContinue={() => void submit(dups.map((d) => d.profileId))}
+          onCancel={() => {
+            setDups(null);
+            onDirtyRef.current?.(false);
+            (onDiscard ?? onCancel)();
+          }}
+        />
+      )}
       <h3 className="text-base font-semibold text-slate-800">{heading ?? (mode === "create" ? "Yeni doğum profili" : "Doğum bilgisini düzelt (yeni revizyon)")}</h3>
       {mode === "revise" && (
         <p className="text-xs text-slate-500">
@@ -232,7 +275,7 @@ export default function ProfileForm({
       {error && <p className="text-sm text-rose-700">{error}</p>}
 
       <div className="flex gap-2">
-        <button type="button" disabled={busy} onClick={submit} className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0b1430] font-semibold text-white transition hover:bg-[#1a2b5c] disabled:cursor-not-allowed disabled:opacity-50 px-4 py-2 text-sm disabled:opacity-60">
+        <button type="button" disabled={busy} onClick={() => void submit()} className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0b1430] font-semibold text-white transition hover:bg-[#1a2b5c] disabled:cursor-not-allowed disabled:opacity-50 px-4 py-2 text-sm disabled:opacity-60">
           {busy ? "Kaydediliyor…" : mode === "create" ? "Danışanı Oluştur" : "Yeni revizyonu kaydet"}
         </button>
         <button type="button" onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700">

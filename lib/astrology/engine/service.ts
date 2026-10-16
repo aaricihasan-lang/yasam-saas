@@ -427,7 +427,7 @@ async function executeUnit(
     // FINAL: YALNIZ yerel geliştirme — sağlayıcı adresi yerel makine ve ortam production DEĞİLSE, sahte Roxy'nin "golden
     // fixture yok" (501) yanıtı gerçek servis hatası gibi gösterilmez. Production'da bu dal hiç çalışmaz.
     if (call.status === 501 && isLocalFakeProvider(deps.config)) {
-      return { ok: false, status: 502, code: "LOCAL_FIXTURE_MISSING", error: "Bu danışan ve teknik için yerel test verisi bulunmuyor. Gerçek Roxy hesaplaması yapılmadı.", providerAttempts: call.attempts };
+      return { ok: false, status: 502, code: "LOCAL_FIXTURE_MISSING", error: "Bu danışan ve teknik için yerel test verisi bulunmuyor. Gerçek hesaplama yapılmadı.", providerAttempts: call.attempts };
     }
     const e = PROVIDER_ERRORS[call.kind] ?? PROVIDER_ERRORS.server_error;
     return { ok: false, ...e, providerAttempts: call.attempts };

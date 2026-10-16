@@ -60,11 +60,11 @@ export function VedicDrishtiPanel({ t, kbLookup }: { t: VedicDrishtiTechnical; k
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-vedic-drishti-panel">
       <p className="text-sm text-slate-700" data-testid="astro-vedic-drishti-method">
-        <strong>Graha Drishti</strong> · Lahiri (sabit) · Roxy yöntemi: <strong>Parashari bütün-burç graha drishti</strong> — tam bakış herkes 7. burca; özel bakışlar Mars 4./8.,
+        <strong>Graha Drishti</strong> · Lahiri (sabit) · Yöntem: <strong>Parashari bütün-burç graha drishti</strong> — tam bakış herkes 7. burca; özel bakışlar Mars 4./8.,
         Jüpiter 5./9., Satürn 3./10.; Rahu/Ketu bakış atmaz. Bakış burç sayımıyla belirlenir, derece uzaklığına bakılmaz (her bakış tam, %100).
       </p>
       <p className="text-xs text-slate-500">
-        Kapsam dışı: kısmi (¼, ½, ¾) graha bakışları, Rahu/Ketu bakışı (bazı ekoller 5./9. verir) ve Jaimini rashi drishti — Roxy bu uçta bunları sunmaz; Yaşam Sistemi ayrı
+        Kapsam dışı: kısmi (¼, ½, ¾) graha bakışları, Rahu/Ketu bakışı (bazı ekoller 5./9. verir) ve Jaimini rashi drishti — bu teknikte sunulmaz; Yaşam Sistemi ayrı
         hesaplamaz. “Burç-içi fark”, iki grahanın burç içindeki derece farkıdır (bakışın ne kadar “tam denk” olduğu); bakış koşulu değildir.
       </p>
       <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
@@ -210,7 +210,7 @@ export function VedicTransitPanel({ t, kbLookup }: { t: VedicTransitTechnical; k
               <dd>
                 {x.drishti.length === 0
                   ? x.id === "rahu" || x.id === "ketu"
-                    ? "Rahu/Ketu drishti atmaz (Roxy)."
+                    ? "Rahu/Ketu drishti atmaz (bu yöntemde)."
                     : "Bakılan burçlarda natal graha yok."
                   : x.drishti.map((d) => `${drishtiLabel(d.type)} bakış → natal ${GRAHA_LABELS[d.to]} (burç-içi fark ${d.orb.toFixed(2)}°)`).join("; ")}
               </dd>

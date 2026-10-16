@@ -176,7 +176,17 @@ async function main() {
     if (prem) assert.ok(prem.astrology !== true && prem.astrology_provider_interp !== true, "Premium payload Astroloji açmaz (admin uzman bazında açar)");
     assert.ok(!(mp.PREMIUM_HOME_MODULE_KEYS as string[]).includes("astrology"));
     assert.match(read("lib/auth/routeModuleAccess.ts"), /\{ prefix: "\/astroloji", keys: \["astrology"\] \}/);
-    assert.match(read("app/page.tsx"), /href: "\/astroloji",\s*\n\s*permissionKey: "astrology",/);
+    // 2026-10-15 (owner kararı): Gökyüzü Atlası ana panelde ayrı kart DEĞİL; Yaşam Analiz Merkezi'nin içinde. Merkez kartı
+    // Atlas yetkili uzmana da görünür; içerideki Atlas kartı yalnız sunucu erişim yoklamasıyla (fail-closed) çizilir.
+    const home = read("app/page.tsx");
+    assert.ok(!/href: "\/astroloji"/.test(home), "ana panelde ayrı Gökyüzü Atlası kartı olmamalı");
+    assert.match(home, /href: "\/life-analysis",\s*\n\s*permissionKey: "numerology",[\s\S]{0,200}extraPermissionKeys: \["astrology"\]/);
+    assert.match(home, /item\.extraPermissionKeys\?\.some\(\(k\) => hasModulePermission\(user, k\)\)\) return true;/);
+    const la = read("app/life-analysis/page.tsx");
+    assert.ok(la.includes("<AtlasCenterCard />"), "Analiz Merkezi Atlas kartını içerir");
+    const card = read("app/life-analysis/AtlasCenterCard.tsx");
+    assert.ok(/astroFetch<[^>]*>\("\/api\/admin\/astroloji\/access"\)/.test(card) && /if \(!allowed\) return null;/.test(card) && /href="\/astroloji"/.test(card), "kart yalnız erişim yoklaması 200 iken, /astroloji adresine");
+    assert.ok(read("app/admin/astroloji/_components/atlas/AtlasHero.tsx").includes('href="/life-analysis"'), "Atlas ana ekranından Analiz Merkezi'ne dönüş");
   });
 
   await t("7C: paylaşılan sistem dosyalarındaki fark YALNIZ Astroloji satırları (başka modül davranışı değişmez)", () => {
@@ -188,7 +198,7 @@ async function main() {
     }
     const SHARED = [
       "lib/auth/modulePermissions.ts", "lib/auth/moduleAccessCore.ts", "lib/admin/userManagement.ts", "lib/auth/moduleRouteRegistry.ts",
-      "lib/auth/routeModuleAccess.ts", "lib/admin/stats/moduleUsageRegistry.ts", "lib/usage/usageTaxonomy.ts", "app/page.tsx",
+      "lib/auth/routeModuleAccess.ts", "lib/admin/stats/moduleUsageRegistry.ts", "lib/usage/usageTaxonomy.ts",
       "messages/tr/home.json", "messages/en/home.json",
     ];
     for (const f of SHARED) {
@@ -197,7 +207,10 @@ async function main() {
       const plus = diff.split(/\r?\n/).filter((l) => l.startsWith("+") && !l.startsWith("+++")).map((l) => l.slice(1).trim());
       // Usage360 tip daraltması (Astroloji kullanım kapsamı dışı): ModuleGateKey → UsageTrackedModuleKey eşdeğer sayılır.
       const strip = (x: string) => x.replace(/[,;]\s*$/, "").replace(/UsageTrackedModuleKey/g, "ModuleGateKey").replace(/, type ModuleGateKey \}/, " }").replace("isUsageModuleKey(module) && ", "");
-      for (const m of minus) assert.ok(plus.some((p) => strip(p) === strip(m)), `${f}: silinen/değişen satır: ${m}`);
+      // 2026-10-15: Astroloji'nin KENDİ satırı (anahtarı astrology_*) metin olarak güncellenebilir (ör. yetki etiketinden sağlayıcı
+      // adı kaldırıldı); anahtar aynı kalmalı. Başka modül satırı hâlâ değiştirilemez.
+      const astroKey = (x: string) => /^(astrology\w*)\s*:/.exec(x)?.[1] ?? null;
+      for (const m of minus) assert.ok(plus.some((p) => strip(p) === strip(m) || (astroKey(m) !== null && astroKey(p) === astroKey(m))), `${f}: silinen/değişen satır: ${m}`);
       for (const p of plus) {
         const ok = minus.some((m) => strip(m) === strip(p)) || /^export type UsageTrackedModuleKey = Exclude<ModuleGateKey, "astrology">;$|^return isUsageModuleKey\(module\) && USAGE_SUB_ENTITIES\[module\]\.includes\(sub\);$|astrolog|astroloji|Astroloji|Astrology|Roxy|owner kuralı|^\/\/|^\*|^\/\*\*$|^\}|^\{|^\],?$|^\),?$|^[a-z_]+: \[\],?$|^(label|key|hasDurableTrace|recordSources|note|href|permissionKey|emoji|Icon|theme|iconWrap|cardBg|border):/.test(p) || p === "";
         assert.ok(ok, `${f}: Astroloji dışı eklenen satır: ${p}`);
@@ -239,6 +252,12 @@ async function main() {
       // Analiz Arşivi "A — yalnızca analizleri sil" fonksiyonu.
       /^supabase\/migrations\/20271101000800_astrology_analysis_delete\.sql$/,
       /^app\/admin\/layout\.tsx$/,
+      // 2026-10-14: rapor sembol yedek yazı tipleri (Yunanca + astroloji glifleri; DejaVu/Noto alt kümeleri + lisansları).
+      /^public\/fonts\/YasamAstroSymbols(A|B)\.ttf$/,
+      /^public\/fonts\/YasamAstroSymbolsA-LICENSE\.txt$/,
+      /^public\/fonts\/YasamAstroSymbolsB-OFL\.txt$/,
+      // next.config.ts: yalnız astroloji rapor route'larının font izleme satırları ("8" testi satır satır denetler).
+      /^next\.config\.ts$/,
       /^lib\/backup\/ownerPilotTables\.ts$/,
       /^lib\/backup\/schema\.generated\.ts$/,
       /^scripts\/final-hardening\/backup\.harness\.ts$/,
@@ -280,10 +299,40 @@ async function main() {
       // Aşama 7B: DY durum rozeti — bileşen Astroloji'ye ait; DY sayfasındaki fark ayrıca satır satır denetlenir.
       /^components\/astrology\//,
       /^app\/dashboard\/clients\/\[id\]\/page\.tsx$/,
+      // 2026-10-15 (owner kararı): Astroloji Word/PDF her cihazda — ortak mobil/çıktı testleri Astroloji beklentisini
+      // HD'den ayırır (HD kuralı aynen korunur; bu iki dosyada yalnız test beklentisi değişir).
+      /^scripts\/final-hardening\/output-visibility\.harness\.ts$/,
+      /^scripts\/mobile-files\/ui\.harness\.ts$/,
+      // 2026-10-15 menü taşıma: Yaşam Analiz Merkezi'ne Gökyüzü Atlası kartı (Numeroloji / HD kartları değişmez).
+      /^app\/life-analysis\/AtlasCenterCard\.tsx$/,
+      /^app\/life-analysis\/page\.tsx$/,
     ];
     const outside = all.filter((p) => !allowed.some((r) => r.test(p)));
     assert.deepEqual(outside, [], `kapsam dışı değişiklik: ${outside.join(", ")}`);
     assert.ok(!all.some((p) => /^lib\/human-design\/|^app\/api\/hd\/|^app\/human-design\//.test(p)), "HD dosyası değişti");
+  });
+
+  await t("2026-10-15 menü taşıma: app/page.tsx farkı YALNIZ Atlas kartının kaldırılması + merkez kartının ek yetkisi (başka kart değişmez)", () => {
+    let base = "";
+    try {
+      base = execSync("git merge-base HEAD origin/main", { cwd: ROOT, encoding: "utf8" }).trim();
+    } catch {
+      return;
+    }
+    const diff = execSync(`git diff -U0 ${base} -- app/page.tsx`, { cwd: ROOT, encoding: "utf8" });
+    const minus = diff.split(/\r?\n/).filter((l) => l.startsWith("-") && !l.startsWith("---")).map((l) => l.slice(1).trim());
+    const plus = diff.split(/\r?\n/).filter((l) => l.startsWith("+") && !l.startsWith("+++")).map((l) => l.slice(1).trim());
+    const removedCard = new Set([
+      "// Astroloji (Aşama 7C): yalnız module_permissions.astrology açık uzmana görünür (admin uzman bazında",
+      "// açar; varsayılan kapalı). Erişim ayrıca route kuralı + API'de requireAstrologyAccess ile korunur.",
+      "{", 'href: "/astroloji",', 'permissionKey: "astrology",', 'emoji: "✨",', "Icon: Sparkles,", "theme: {",
+      'iconWrap: "from-violet-600 to-indigo-700",', 'cardBg: "from-violet-100/90 via-indigo-50/95 to-white",', 'border: "border-violet-200/70",', "},",
+      "const lockReason = item.anyPermissionKeys",
+    ]);
+    for (const m of minus) assert.ok(removedCard.has(m), `beklenmeyen silinen satır: ${m}`);
+    for (const p of plus) {
+      assert.ok(p === "" || /^(\/\/|\/\*\*|\*)|extraPermissionKeys|^const baseLock = item\.anyPermissionKeys$|^const lockReason = baseLock === "permission"/.test(p), `beklenmeyen eklenen satır: ${p}`);
+    }
   });
 
   await t("7B: Danışan Yolculuğu detay sayfasındaki fark YALNIZ Astroloji durum rozeti (dynamic import + tek JSX satırı)", () => {
@@ -313,6 +362,22 @@ async function main() {
     }
     const diff = execSync(`git diff -U0 ${base} -- next.config.ts`, { cwd: ROOT, encoding: "utf8" });
     const lines = diff.split(/\r?\n/).filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---) /.test(l));
+    // 2026-10-14: astroloji rapor satırlarının yeni biçimi (Geist + sembol yedek fontları). Eski Geist-yalnız satırın
+    // yerini alması YALNIZ bu dört route (+ açıklama) için kabul edilir; başka her silme/değişiklik FAIL.
+    const ROUTES = ["/api/admin/astroloji/analyses/[id]/report", "/api/astroloji/analyses/[id]/report", "/api/admin/astroloji/analyses/report", "/api/astroloji/analyses/report"];
+    const FONT_OLD = '["./public/fonts/Geist-Regular.ttf"],';
+    const FONT_NEW = '["./public/fonts/Geist-Regular.ttf", "./public/fonts/YasamAstroSymbolsA.ttf", "./public/fonts/YasamAstroSymbolsB.ttf"],';
+    const isRoute = (l: string, sign: "-" | "+", fonts: string) => ROUTES.some((r) => l.replace(/^[+-]\s*/, "") === `"${r}": ${fonts}` && l.startsWith(sign));
+    const COMMENT_OLD = "// Astroloji Word/PDF raporu: PDF fontu + çark PNG'si (resvg) aynı Geist TTF'yi fs ile okur.";
+    const COMMENT_NEW = "// Astroloji Word/PDF raporu: PDF fontu + sembol yedek fontları (Yunanca + astroloji glifleri; 2026-10-14) + çark PNG'si (resvg) aynı Geist TTF'yi fs ile okur.";
+    const removed = lines.filter((l) => l.startsWith("-"));
+    if (removed.length > 0) {
+      assert.ok(removed.every((l) => l.replace(/^-\s*/, "") === COMMENT_OLD || isRoute(l, "-", FONT_OLD)), `next.config.ts beklenmeyen satır silindi/değişti:\n${removed.join("\n")}`);
+      const added = lines.filter((l) => l.startsWith("+"));
+      assert.ok(added.every((l) => l.replace(/^\+\s*/, "") === COMMENT_NEW || isRoute(l, "+", FONT_NEW)), `next.config.ts beklenmeyen eklenen satır:\n${added.join("\n")}`);
+      assert.equal(added.length, removed.length, "satır sayısı korunmalı (yalnız 4 route + açıklama güncellendi)");
+      return;
+    }
     assert.ok(lines.every((l) => l.startsWith("+")), "next.config.ts satır silindi/değişti");
     const allowedLines = [
       /^\+\s*\/\/ Astroloji Word\/PDF raporu: PDF fontu \+ çark PNG'si \(resvg\) aynı Geist TTF'yi fs ile okur\.$/,

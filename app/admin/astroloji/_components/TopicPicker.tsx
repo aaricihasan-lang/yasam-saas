@@ -24,6 +24,7 @@ import {
   type WesternTopicKind,
 } from "@/lib/astrology/topics/western";
 import { ANGLE4_IDS, ANGLE4_LABEL, COMPASS_LABEL, CONTEXT_SPECS, contextTopicKey, parseContextTopicKey, type ArgType } from "@/lib/astrology/topics/contextual";
+import { FIXED_STAR_CATALOG } from "@/lib/astrology/labels/fixedStars";
 import { ALL_TOPIC_KINDS, TOPIC_CONTEXT_LABELS, TOPIC_CONTEXTS, type TopicContext } from "@/lib/astrology/topics/index";
 import {
   KP_CONTEXTS,
@@ -72,6 +73,8 @@ function defaultParts(kind: string): string[] {
         return "mc";
       case "compass":
         return "n";
+      case "star":
+        return "regulus";
     }
   });
 }
@@ -115,6 +118,10 @@ function ArgSelect({ type, value, onChange }: { type: ArgType; value: string; on
         return ANGLE4_IDS.map((a): [string, string] => [a, ANGLE4_LABEL[a]]);
       case "compass":
         return Object.entries(COMPASS_LABEL).map(([k, v]): [string, string] => [k, `${k.toUpperCase()} (${v})`]);
+      case "star":
+        return Object.entries(FIXED_STAR_CATALOG)
+          .map(([k, v]): [string, string] => [k, `${v.name} (${v.bayer})`])
+          .sort((a, b) => a[1].localeCompare(b[1], "tr"));
     }
   })();
   return (
@@ -306,7 +313,7 @@ export default function TopicPicker({ value, onChange }: { value: string | null;
               className={sel}
               value={s.kind}
               aria-label="Konu türü"
-              onChange={(e) => update({ context: s.context, kind: e.target.value, parts: defaultParts(e.target.value) })}
+              onChange={(e) => update({ context: s.context, kind: e.target.value, parts: defaultParts(e.target.value) } as State)}
             >
               {ALL_TOPIC_KINDS.filter((k) => k.context === s.context).map((k) => (
                 <option key={k.kind} value={k.kind}>
