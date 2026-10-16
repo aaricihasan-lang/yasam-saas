@@ -9,9 +9,7 @@ import {
   hdProfileLabelFromCode,
   hdDefinitionLabelFromCode,
   hdCenterLabelFromCode,
-  hdChannelLabelFromCode,
 } from "@/lib/human-design/codeHelpers";
-import { HUMAN_DESIGN_GATES } from "@/lib/human-design/constants";
 import { GateTechnicalInfo } from "../../components/GateTechnicalInfo";
 import { GateKnowledgeNotes } from "../../components/GateKnowledgeNotes";
 import {
@@ -21,6 +19,10 @@ import {
 } from "../../rapor-olustur/helpers/hdRapor";
 import type { HdChartWithClient } from "../helpers/hdKayitliHaritalar";
 import { HdPersonalKnowledgePanel } from "./HdPersonalKnowledgePanel";
+import { hdChannelDisplayLabel, hdGateDisplayLabel } from "@/lib/human-design/knowledge/hdNames";
+import { useHdNameOverrides } from "@/app/human-design/bilgi-bankasi/helpers/useHdNameOverrides";
+import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
+import { HD_ADMIN_SOURCE_LABELS } from "./HdChartKnowledgeTabs";
 
 type Props = {
   row: HdChartWithClient;
@@ -88,11 +90,17 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
 
   const activeCenterLabels = (row.active_centers ?? []).map((c) => hdCenterLabelFromCode(c));
   const openCenterLabels = (row.open_centers ?? []).map((c) => hdCenterLabelFromCode(c));
-  const channelLabels = (row.channels ?? []).map((c) => hdChannelLabelFromCode(c));
+  // Hesabın kişisel görünen adları (yoksa hazır ad); sıralama/eşleşme teknik numaradan.
+  const nameOv = useHdNameOverrides();
+  // Admin: merkezî içerik sekmesi kaynağıyla adlandırılır (uzmanın etiketi değişmez).
+  const [centralTabLabel] = useState(() =>
+    isAdminUser(readYasamUser()) ? HD_ADMIN_SOURCE_LABELS.central : "Kişinin HD Bilgileri",
+  );
+  const channelLabels = (row.channels ?? []).map((c) => hdChannelDisplayLabel(c, nameOv));
 
   const gateLabels = (row.gates ?? [])
     .sort((a, b) => a - b)
-    .map((g) => HUMAN_DESIGN_GATES.find((gate) => gate.code === g)?.label ?? `${g}. Kapı`);
+    .map((g) => hdGateDisplayLabel(g, nameOv));
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6">
@@ -147,7 +155,7 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
 
         {/* Sekmeler */}
         <div className="flex gap-1.5 border-b border-indigo-100/80 px-6 pt-3">
-          {([["summary", "Özet"], ["knowledge", "Kişinin HD Bilgileri"]] as const).map(([id, label]) => (
+          {([["summary", "Özet"], ["knowledge", centralTabLabel]] as const).map(([id, label]) => (
             <button
               key={id}
               type="button"

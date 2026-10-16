@@ -43,6 +43,12 @@ import type { SystemReadingDto } from "@/lib/human-design/providers/roxy/systemR
 import { isHdReportSnapshot, type HdReportSnapshot } from "./reportSnapshot";
 import { hdXmlSafeLine, hdXmlSafeMultiline } from "./xmlSafeText";
 import type { HdCommentarySelection } from "./reportV2Shared";
+import { sortHdKnowledgeRecords } from "@/lib/human-design/knowledge/hdKnowledgeSort";
+import {
+  hdChannelDisplayLabel,
+  hdGateDisplayName,
+  type HdNameOverrides,
+} from "@/lib/human-design/knowledge/hdNames";
 
 export const HD_REPORT_V2_SCHEMA_VERSION = "hd-report-2" as const;
 export const HD_REPORT_V2_VERSION = 2 as const;
@@ -109,6 +115,11 @@ export type FrozenGate = {
   channel: string | null;
   /** HD-03: kapının ait olduğu TÜM tanımlı kanallar (kayıtlı kanal listesindeki sırayla). Eski snapshot'ta yok. */
   channels?: string[];
+  /**
+   * Kapının GÖRÜNEN adı (numarasız) — hesabın kişisel adı, yoksa hazır ad; rapor anında DONAR.
+   * Eski snapshot'larda yok → Word hazır sözlükten okur (eski davranış).
+   */
+  name?: string | null;
   activations: FrozenGateActivation[];
 };
 
@@ -212,6 +223,8 @@ export type BuildSnapshotV2Input = {
   /** Seçim+yetki uygunsa sunucunun çıkardığı DTO; kayıtlı veri yoksa null. */
   systemReading: SystemReadingDto | null;
   expertRecords: ReadonlyArray<{ category?: unknown; title?: unknown; code?: unknown; content?: unknown; is_active?: unknown }>;
+  /** Hesabın kapı/kanal görünen ad kişiselleştirmeleri (teknik kod/eşleşmeyi ETKİLEMEZ). */
+  nameOverrides?: HdNameOverrides | null;
   /** "Raporu Hazırlayan" (sanitize edilmiş; yoksa null). */
   preparedBy?: string | null;
   bodygraph: HdReportSnapshotV2["bodygraph"];
@@ -291,15 +304,9 @@ function freezeExpert(records: BuildSnapshotV2Input["expertRecords"]): FrozenExp
     // anahtar kelime vb. rapora ASLA taşınmaz — kaynak satırda bulunsa bile.
     entries.push({ category: str(typeof r.category === "string" ? hdXmlSafeLine(r.category) : r.category) ?? "Genel Notlar", title, code, content });
   }
-  const rank = (c: string) => {
-    const i = (HD_EXPERT_CATEGORY_ORDER as readonly string[]).indexOf(c);
-    return i === -1 ? HD_EXPERT_CATEGORY_ORDER.length : i;
-  };
-  // Kararlı sıralama: kategori sırası; kategori içinde sunucunun verdiği sıra (sort_order) korunur.
-  return entries
-    .map((e, i) => ({ e, i }))
-    .sort((a, b) => rank(a.e.category) - rank(b.e.category) || a.i - b.i)
-    .map((x) => x.e);
+  // Kategori sırası HD_EXPERT_CATEGORY_ORDER; kategori içinde OTOMATİK doğal sıra (kapı numarası,
+  // kanal çifti, sabit seçenek, TR alfabetik) — manuel sort_order KULLANILMAZ.
+  return sortHdKnowledgeRecords(entries, HD_EXPERT_CATEGORY_ORDER);
 }
 
 /** SAF: kayıtlı harita + doğrulanmış yetki/seçim → donmuş v2 snapshot. */
@@ -319,7 +326,8 @@ export function buildReportSnapshotV2(input: BuildSnapshotV2Input): HdReportSnap
   for (const code of codes.channels) {
     const [a, b] = code.split("-").map(Number);
     if (!Number.isInteger(a) || !Number.isInteger(b)) continue;
-    channels.push({ code, label: hdChannelLabelFromCode(code), gates: [a, b] });
+    // Hesabın kişisel kanal adı (yoksa hazır ad) rapor anında DONAR; eski raporlar değişmez.
+    channels.push({ code, label: input.nameOverrides ? hdChannelDisplayLabel(code, input.nameOverrides) : hdChannelLabelFromCode(code), gates: [a, b] });
   }
 
   const gateActs = new Map<number, FrozenGateActivation[]>();
@@ -339,6 +347,7 @@ export function buildReportSnapshotV2(input: BuildSnapshotV2Input): HdReportSnap
     return {
       gate,
       label: hdGateLabelFromCode(gate),
+      name: hdGateDisplayName(gate, input.nameOverrides),
       center: GATE_TECHNICAL_DATA[gate]?.merkez ?? null,
       channel: own[0] ?? null,
       channels: own,

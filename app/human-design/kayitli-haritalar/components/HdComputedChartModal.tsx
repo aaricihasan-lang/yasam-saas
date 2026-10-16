@@ -20,7 +20,8 @@ import { HdPersonalKnowledgePanel } from "./HdPersonalKnowledgePanel";
 import { HdProfessionalReportButton } from "./HdProfessionalReportButton";
 import { HdComputedChartView } from "./HdComputedChartView";
 import { HdExpertKnowledgePanel } from "./HdExpertKnowledgePanel";
-import { HdChartKnowledgeTabs, canUseHdSystemReading } from "./HdChartKnowledgeTabs";
+import { HdChartKnowledgeTabs, HD_ADMIN_SOURCE_LABELS, canUseHdSystemReading } from "./HdChartKnowledgeTabs";
+import { useHdNameOverrides } from "../../bilgi-bankasi/helpers/useHdNameOverrides";
 import { computedChartAppCodes } from "@/lib/human-design/chart/computedChart";
 import { buildChartSubjectInfo, todayCalendarDate } from "@/lib/human-design/chart/chartSubjectInfo";
 import { latestWordReportId } from "@/lib/human-design/reporting/wordReportPick";
@@ -57,6 +58,8 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
   // AŞAMA 2B: "Sistem Yorumu" sekmesi yalnız human_design + hd_system_reading yetkili uzmana görünür
   // (erişim ayrıca sunucuda zorlanır).
   const [canSystemReading] = useState(canUseHdSystemReading);
+  // Hesabın kapı/kanal görünen adları (yalnız sunum; teknik veri/eşleşme etkilenmez).
+  const nameOverrides = useHdNameOverrides();
   // "Word İndir": bu analizin hazır Word v2 raporu (varsa aynısı indirilir; yeni kopya YOK).
   // undefined = arama sürüyor. Arama başarısızsa null → ilk tıklamada rapor oluşturulur.
   const [wordReportId, setWordReportId] = useState<string | null | undefined>(undefined);
@@ -223,8 +226,25 @@ export function HdComputedChartModal({ id, onClose, onDeleted, autoWord = false 
                     result={result}
                     roxyRender={(row?.roxy_render as Record<string, unknown> | null | undefined) ?? null}
                     subject={subject}
+                    nameOverrides={nameOverrides}
                   />
-                  <HdChartKnowledgeTabs chartId={id} allowed={canSystemReading}>
+                  <HdChartKnowledgeTabs
+                    chartId={id}
+                    allowed={canSystemReading}
+                    adminSources={{
+                      expert: (
+                        <div className="mx-auto max-w-[1552px] border-t border-emerald-100 pt-5">
+                          <HdExpertKnowledgePanel chart={computedChartAppCodes(result)} />
+                        </div>
+                      ),
+                      central: (
+                        <div className="mx-auto max-w-[1552px] border-t border-indigo-100/80 pt-5">
+                          <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-700">{HD_ADMIN_SOURCE_LABELS.central}</p>
+                          <HdPersonalKnowledgePanel chartId={id} />
+                        </div>
+                      ),
+                    }}
+                  >
                     <div className="mx-auto max-w-[1552px] border-t border-emerald-100 pt-5">
                       <HdExpertKnowledgePanel chart={computedChartAppCodes(result)} />
                     </div>
