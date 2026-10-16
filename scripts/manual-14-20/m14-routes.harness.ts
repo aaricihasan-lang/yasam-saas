@@ -195,8 +195,9 @@ const KITAP = "KİTAP — Kristal Şifa Kitabı: kas gerginliği.";
     r = await wordR.POST(req(`/api/dogaltas/stones/${stone}/word-report`, "POST", A, {}), ctx(stone));
     txt = r.status === 200 ? await resText(r) : "";
     const physSec = sectionAfter(txt, "Fiziksel Etkiler", ["Ruhsal Etkiler", "Diğer Etkiler", "Uyarılar ve Hassasiyetler", "BÖLÜM 3"]);
-    const iA = physSec.indexOf("Kaynak: Ahmet Eğitmen"), iAt = physSec.indexOf("AAA — Ahmet"), iB = physSec.indexOf("Kaynak: Mehmet Eğitmen"), iBt = physSec.indexOf("BBB2 — Mehmet"), iK = physSec.indexOf("Kaynak: Kristal Şifa Kitabı");
-    H.ok(r.status === 200 && iA >= 0 && iA < iAt && iAt < iB && iB < iBt && iBt < iK && physSec.includes(KITAP), "G: tekli Word — Fiziksel Etkiler altında Ahmet→AAA, Mehmet→BBB2, Kitap ayrı ve sıralı", physSec.slice(0, 400));
+    // Bilgi kaydı modeli: "•  metin" + hemen altında "Kaynak: ad".
+    const iAt = physSec.indexOf("•  AAA — Ahmet"), iA = physSec.indexOf("Kaynak: Ahmet Eğitmen"), iBt = physSec.indexOf("•  BBB2 — Mehmet"), iB = physSec.indexOf("Kaynak: Mehmet Eğitmen"), iKt = physSec.indexOf("•  " + KITAP), iK = physSec.indexOf("Kaynak: Kristal Şifa Kitabı");
+    H.ok(r.status === 200 && iAt >= 0 && iAt < iA && iA < iBt && iBt < iB && iB < iKt && iKt < iK, "G: tekli Word — Fiziksel Etkiler altında AAA→Ahmet, BBB2→Mehmet, Kitap ayrı ve sıralı", physSec.slice(0, 400));
     H.ok(!txt.includes("Ek Kaynak 1:") && (txt.match(/^Fiziksel Etkiler$/gm) ?? []).length === 2, "G: alan başlığı bir kez (+İçindekiler), ayrı 'Ek Kaynak' bölümü yok", (txt.match(/^Fiziksel Etkiler$/gm) ?? []).length);
     const spirSec = sectionAfter(txt, "Ruhsal Etkiler", ["Diğer Etkiler", "Uyarılar ve Hassasiyetler", "BÖLÜM 3"]);
     H.ok(spirSec.includes("Kaynak: Ahmet Eğitmen") && spirSec.includes("A-ruh güncel.") && spirSec.includes("Kaynak: Mehmet Eğitmen") && !spirSec.includes("Kaynak: Kristal Şifa Kitabı"),
@@ -209,7 +210,7 @@ const KITAP = "KİTAP — Kristal Şifa Kitabı: kas gerginliği.";
     txt = r.status === 200 ? await resText(r) : "";
     const bulkStone = txt.slice(txt.lastIndexOf("ZZ Çok Kaynak Akik"));
     const bPhys = sectionAfter(bulkStone, "Fiziksel Etkiler", ["Ruhsal Etkiler", "Diğer Etkiler", "Feng Shui", "Bakım", "Çakralar"]);
-    H.ok(r.status === 200 && bPhys.indexOf("Kaynak: Ahmet Eğitmen") < bPhys.indexOf("AAA — Ahmet") && bPhys.indexOf("Kaynak: Mehmet Eğitmen") < bPhys.indexOf("BBB2 — Mehmet") && bPhys.indexOf("AAA — Ahmet") < bPhys.indexOf("Kaynak: Mehmet Eğitmen"),
+    H.ok(r.status === 200 && bPhys.indexOf("•  AAA — Ahmet") < bPhys.indexOf("Kaynak: Ahmet Eğitmen") && bPhys.indexOf("Kaynak: Ahmet Eğitmen") < bPhys.indexOf("•  BBB2 — Mehmet") && bPhys.indexOf("•  BBB2 — Mehmet") < bPhys.indexOf("Kaynak: Mehmet Eğitmen"),
       "G: toplu Word — aynı alan altında kaynak kaynak ayrı", { status: r.status, bPhys: bPhys.slice(0, 300) });
     const bulkLegacy = txt.slice(txt.lastIndexOf("ZZ Eski Ametist"), txt.lastIndexOf("ZZ Çok Kaynak Akik") > txt.lastIndexOf("ZZ Eski Ametist") ? txt.lastIndexOf("ZZ Çok Kaynak Akik") : undefined);
     H.ok(bulkLegacy.includes("Eski fiziksel.") && !/Kaynak: /.test(bulkLegacy), "G: toplu Word — eski tek kaynaklı taş şişmedi (kaynak etiketi yok)", bulkLegacy.slice(0, 300));

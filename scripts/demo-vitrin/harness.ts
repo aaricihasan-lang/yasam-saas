@@ -196,7 +196,8 @@ async function main(): Promise<void> {
 
   section("A5 Danışan detay sekme kaydı (tek kaynak) + YH izni + ?tab=ucretlendirme");
   const page = src("app/dashboard/clients/[id]/page.tsx");
-  ok(page.includes("visibleTabs.map((tab) =>") && !/<Tab label=\{t\("tab\./.test(page), "sekme çubuğu kayıttan render edilir (hard-coded <Tab> yok)");
+  // Madde 20 (#408): sekmeler kayıttan gruplanarak render edilir (Beslenme + Randevular kırılmaz grup).
+  ok((page.includes("visibleTabs.map((tab) =>") || page.includes("groupClientDetailTabs(visibleTabs).map(")) && !/<Tab label=\{t\("tab\./.test(page), "sekme çubuğu kayıttan render edilir (hard-coded <Tab> yok)");
   for (const t of tabs.CLIENT_DETAIL_TABS) ok(page.includes(`openedTabs.has("${t}")`), `sekme paneli mevcut: ${t}`);
   ok(tabs.resolveClientDetailTab("ucretlendirme") === "ucretlendirme", "DEMO-07 ?tab=ucretlendirme → Ücretlendirme");
   const withYh = tabs.visibleClientDetailTabs((k) => perms.hasModulePermission(demoU, k)).map((t) => t.id);

@@ -178,7 +178,33 @@ async function testTabSwitch() {
   } catch (e) { ok(g, "senaryo çalıştı", false, e); } finally { await ctx.close(); }
 }
 
-const ALL = { testDesktop, testOwnerReproduction, testMobile, testTabSwitch };
+async function testStoneTabLabel() {
+  // Son UX: "Taşlar" → "Doğaltaş Önerileri" — YALNIZ görünen ad; id / ?tab= / panel / izin aynı.
+  for (const w of [1366, 390]) {
+    const g = `Taş-sekmesi-etiketi-${w}`;
+    const { ctx, page, errors } = await openClient(w, ALL_PERMS);
+    try {
+      const tab = page.locator("#tab-taslar");
+      ok(g, "sekme görünen adı 'Doğaltaş Önerileri'", (await tab.innerText()).trim() === "Doğaltaş Önerileri");
+      ok(g, "'Taşlar' adlı sekme kalmadı", (await page.getByRole("tab", { name: "Taşlar", exact: true }).count()) === 0);
+      ok(g, "sekme kimliği/paneli aynı (tab-taslar → tabpanel-taslar)", (await tab.getAttribute("aria-controls")) === "tabpanel-taslar");
+      await tab.click();
+      await sleep(500);
+      ok(g, "tıklanınca seçili + panel açılır", (await tab.getAttribute("aria-selected")) === "true" && (await page.locator("#tabpanel-taslar").isVisible()));
+      await page.goto(`${BASE}/dashboard/clients/${CLIENT_ID}?tab=taslar`, { waitUntil: "load" });
+      await page.locator("#tab-taslar").waitFor({ timeout: 20000 });
+      await sleep(600);
+      ok(g, "?tab=taslar route'u aynı sekmeyi açar", (await page.locator("#tab-taslar").getAttribute("aria-selected")) === "true");
+      const m = await measure(page);
+      const p = pairCheck(m);
+      ok(g, "uzun etiketle de Beslenme + Randevular yan yana, taşma yok", p.sameRow && p.rightOf && !m.docOverflow && !m.listOverflow);
+      ok(g, "JS hata yok", realErrors(errors).length === 0, errors.join(" ; "));
+    } catch (e) { ok(g, "senaryo çalıştı", false, e); } finally { await ctx.close(); }
+  }
+  // izin: clients izni olmayan kullanıcı için davranış değişmedi → sekme kaydında izin alanı yok (birim testte).
+}
+
+const ALL = { testDesktop, testOwnerReproduction, testMobile, testTabSwitch, testStoneTabLabel };
 const only = process.env.ONLY ? process.env.ONLY.split(",") : Object.keys(ALL);
 try {
   for (const k of only) await ALL[k]();

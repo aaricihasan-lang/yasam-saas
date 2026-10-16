@@ -109,13 +109,20 @@ async function extraSourceData(
     }
   }
   if (opts.text) {
-    const res = await fetchAllRows<{ id: unknown; primary_source_name: unknown; extra_sources_text: unknown }>((from, to) =>
-      db.from("stones").select("id, primary_source_name, extra_sources_text").in("tenant_id", [...tenantIds])
+    let res = await fetchAllRows<{ id: unknown; primary_source_name: unknown; extra_sources_text: unknown; entries_text?: unknown }>((from, to) =>
+      db.from("stones").select("id, primary_source_name, extra_sources_text, entries_text").in("tenant_id", [...tenantIds])
         .order("id", { ascending: true }).range(from, to),
     );
+    // Bilgi kaydı migration'ı öncesi şema (entries_text yok) → WT9 kolonlarıyla tekrar (geri uyum).
+    if (!res.ok && missing(res.error)) {
+      res = await fetchAllRows<{ id: unknown; primary_source_name: unknown; extra_sources_text: unknown; entries_text?: unknown }>((from, to) =>
+        db.from("stones").select("id, primary_source_name, extra_sources_text").in("tenant_id", [...tenantIds])
+          .order("id", { ascending: true }).range(from, to),
+      );
+    }
     if (!res.ok && !missing(res.error)) throw res.error;
     for (const r of res.ok ? res.rows : []) {
-      const parts = [r.primary_source_name, r.extra_sources_text].filter((v): v is string => typeof v === "string" && v.length > 0);
+      const parts = [r.primary_source_name, r.extra_sources_text, r.entries_text].filter((v): v is string => typeof v === "string" && v.length > 0);
       if (parts.length) text.set(String(r.id), parts.join(" "));
     }
   }

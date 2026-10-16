@@ -719,6 +719,61 @@ async function cloneStoneSources(
   return payloads.length;
 }
 
+const STONE_ENTRY_COPY_FIELDS = ["field_key", "content", "source_name", "sort_order", "legacy_origin"] as const;
+
+/**
+ * Doğaltaş BİLGİ KAYITLARI (stone_entries) aktarımı — cloneStoneSources ile aynı desen: bu batch'in taş
+ * kimlik haritası → KAYNAK tenant'ın o taşlara ait kayıtları → HEDEF tenant + HEDEF taş ile YENİ satır.
+ * Her kaydın metni + KENDİ kaynağı + sırası birebir taşınır (tek metinde birleştirme YOK).
+ * Hata → çağıran grup-rollback'i taşları siler; kayıtlar ON DELETE CASCADE ile gider.
+ * Migration öncesi şema (tablo yok) → 0 kayıt (eski davranış), hata değil.
+ */
+async function cloneStoneEntries(
+  db: SupabaseClient,
+  sourceTenantId: string,
+  targetTenantId: string,
+  batchId: string,
+): Promise<number> {
+  const mapRes = await readAllPaged<{ id: unknown; origin_source_id: unknown }>((from, to) =>
+    db.from("stones").select("id, origin_source_id", { count: "exact" })
+      .eq("tenant_id", targetTenantId).eq("origin_transfer_batch_id", batchId)
+      .order("id", { ascending: true }).range(from, to),
+  );
+  if (mapRes.error) throw new TransferError("read", "stones");
+  const idMap = new Map<string, string>();
+  for (const r of mapRes.rows) {
+    if (typeof r.id === "string" && typeof r.origin_source_id === "string") idMap.set(r.origin_source_id, r.id);
+  }
+  if (idMap.size === 0) return 0;
+
+  const payloads: Record<string, unknown>[] = [];
+  for (const chunk of chunkIds([...idMap.keys()])) {
+    const res = await readAllPaged<Record<string, unknown>>((from, to) =>
+      db.from("stone_entries").select(`stone_id, ${STONE_ENTRY_COPY_FIELDS.join(", ")}`, { count: "exact" })
+        .eq("tenant_id", sourceTenantId).in("stone_id", chunk)
+        .order("stone_id", { ascending: true }).order("sort_order", { ascending: true }).order("id", { ascending: true })
+        .range(from, to),
+    );
+    if (res.error) {
+      const code = String((res.error as { code?: string }).code ?? "");
+      if (code === "42P01" || code === "PGRST205") return 0; // bilgi kaydı migration'ı yok → kayıt yok
+      throw new TransferError("read", "stones");
+    }
+    for (const row of res.rows) {
+      const newStoneId = idMap.get(String(row.stone_id));
+      if (!newStoneId) continue;
+      const copy: Record<string, unknown> = { tenant_id: targetTenantId, stone_id: newStoneId };
+      for (const k of STONE_ENTRY_COPY_FIELDS) copy[k] = row[k] ?? null;
+      payloads.push(copy);
+    }
+  }
+  for (let off = 0; off < payloads.length; off += INSERT_BATCH) {
+    const { error } = await db.from("stone_entries").insert(payloads.slice(off, off + INSERT_BATCH));
+    if (error) throw new TransferError("insert", "stones");
+  }
+  return payloads.length;
+}
+
 /** Düz (flat) grubu kopyalar: SELECT kaynak → payload → batch INSERT. */
 async function cloneFlatGroup(
   db: SupabaseClient,
@@ -751,6 +806,8 @@ async function cloneFlatGroup(
   // WT9: taşların ek bilgi kaynakları da aynı batch'te (hata → grup rollback'i, CASCADE).
   if (group === "stones" && inserted > 0) {
     await cloneStoneSources(db, sourceTenantId, targetTenantId, batchId);
+    // Bilgi kayıtları (her biri kendi kaynağıyla + sırasıyla) aynı batch'te.
+    await cloneStoneEntries(db, sourceTenantId, targetTenantId, batchId);
   }
 
   return { requested: rows.length, inserted };

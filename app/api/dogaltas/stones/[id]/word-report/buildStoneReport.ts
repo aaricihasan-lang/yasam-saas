@@ -26,7 +26,7 @@ import {
 import { StaticTocCollector } from "@/lib/docx/premiumToc";
 import { formatInstantDate, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 import { pickSourceFields, sourceDisplayName, type SourceFields, type SourceTextField } from "@/lib/dogaltas/stoneSources";
-import { bulletParagraphs, reportChakraEntries, reportFieldEntries, sourceAttribution, type ReportSource } from "@/lib/dogaltas/stoneSourceReport";
+import { bulletParagraphs, entryParagraphs, reportChakraEntries, reportEntriesByField, reportSourceNames, sourceAttribution, type ReportSource } from "@/lib/dogaltas/stoneSourceReport";
 
 /** WT9: rapora girecek EK kaynak (birincil kaynak taş satırıdır). */
 export type StoneReportExtraSource = { name: string | null; fields: SourceFields };
@@ -114,26 +114,34 @@ export function buildStoneReportDoc(input: {
   now?: Date;
   /** WT9: taşın EK kaynakları (sıralı). Yoksa rapor eski tek-kaynak düzeniyle AYNI. */
   extraSources?: readonly StoneReportExtraSource[];
+  /** Bilgi kaydı modeli: stone_entries satırları (her kaydın kendi kaynağı). Yoksa eski düzen. */
+  entries?: readonly Record<string, unknown>[];
 }): { doc: Document; filename: string } {
   const { stone, imageBuf, isLibrary } = input;
   const extraSources = input.extraSources ?? [];
   const primaryName = (stone.primary_source_name ?? "").trim();
   // Kaynak etiketi yalnız kaynak bilgisi varsa basılır (eski kayıt raporu değişmez).
-  const showSources = Boolean(primaryName) || extraSources.length > 0;
-  // Madde 14: çok kaynaklı taşta HER ALAN kendi başlığı altında kaynak kaynak basılır
-  // ("Kaynak: <ad>" + o kaynağın metni). Tek kaynakta eski düzen birebir.
-  const multi = extraSources.length > 0;
+  const entryRows = input.entries ?? [];
+  // Bilgi kaydı modeli: ek kaynak ya da ayrı bilgi kaydı varsa HER ALAN kendi başlığı altında kayıt
+  // kayıt basılır ("•  metin" + "Kaynak: <ad>"). İkisi de yoksa eski tek-kaynak düzeni BİREBİR.
+  const multi = extraSources.length > 0 || entryRows.length > 0;
   const sources: ReportSource[] = [
     { name: primaryName || null, fields: pickSourceFields(stone as unknown as Record<string, unknown>) },
     ...extraSources,
   ];
+  const byField = reportEntriesByField(sources, entryRows);
+  const sourceNames = reportSourceNames(byField);
+  const showSources = Boolean(primaryName) || multi;
   const now = input.now ?? new Date();
   const stoneName = stone.stone_name || "İsimsiz Taş";
   const today = reportGeneratedLabel(undefined, now);
   const dateSlug = reportFileDate(undefined, now);
   const nameSlug = slugify(stoneName);
 
-  const filledSections = countFilledSections(stone, multi ? sources : sources.slice(0, 1));
+  const filledSections = multi
+    ? countFilledSections(stone, sources) - COUNTED_FIELDS.filter((f) => sources.some((s) => s.fields[f]?.trim())).length
+      + COUNTED_FIELDS.filter((f) => byField[f].length > 0).length
+    : countFilledSections(stone, sources.slice(0, 1));
   const imageCount = Array.isArray(stone.images)
     ? stone.images.filter((img) => (img.file_path || img.url)?.trim()).length
     : 0;
@@ -159,7 +167,7 @@ export function buildStoneReportDoc(input: {
       { label: "Görsel Sayısı", value: String(imageCount) },
       { label: "Çakra Sayısı",  value: String(chakraCount) },
       ...(isLibrary ? [{ label: "Kaynak", value: "Kütüphane" }] : []),
-      ...(showSources ? [{ label: "Bilgi Kaynağı", value: String(1 + extraSources.length) }] : []),
+      ...(showSources ? [{ label: "Bilgi Kaynağı", value: String(multi ? sourceNames.length : 1 + extraSources.length) }] : []),
     ].filter((s) => s.value.trim().length > 0),
   }));
 
@@ -171,7 +179,7 @@ export function buildStoneReportDoc(input: {
     ["Çakra",         chakraCount > 0 ? safeJoin(allChakras) : "Belirtilmemiş"],
     ["Kayıt Tarihi",  formatInstantDate(stone.created_at, { fallback: "-" })],
     ...(showSources
-      ? [["Bilgi Kaynakları", [sourceDisplayName(primaryName), ...extraSources.map((s) => sourceDisplayName(s.name))].join(" · ")] as [string, string]]
+      ? [["Bilgi Kaynakları", (multi ? sourceNames : [sourceDisplayName(primaryName), ...extraSources.map((s) => sourceDisplayName(s.name))]).join(" · ")] as [string, string]]
       : []),
   ]));
 
@@ -201,13 +209,10 @@ export function buildStoneReportDoc(input: {
       all.push(bodyText(v));
       return true;
     }
-    const entries = reportFieldEntries(sources, f);
+    const entries = byField[f];
     if (entries.length === 0) return false;
     all.push(toc.h2(label));
-    for (const e of entries) {
-      all.push(sourceAttribution(e.name, C_STONE));
-      all.push(bodyText(e.text));
-    }
+    for (const e of entries) all.push(...entryParagraphs(e.content, e.sourceName, C_STONE));
     return true;
   };
 

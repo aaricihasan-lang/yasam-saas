@@ -107,13 +107,14 @@ for (const [text, q, exp] of SPECIAL) ok(`ÖZEL: "${text}" ← ${JSON.stringify(
     const values = or ? [...or.matchAll(/\.imatch\."([^"]*)"/g)].map((m) => m[1]) : [];
     const cols = or ? or.split(/,(?=[a-z_]+\.imatch\.")/).length : 0;
     ok(`GÜVENLİK: ${JSON.stringify(q).slice(0, 16)} → değerde " \\ , ( ) yok`, values.every((v) => !/["\\,()]/.test(v)));
-    // WT9: içerik modu 14 kolon (+ birincil kaynak adı + ek kaynak türetilmiş metni).
-    ok(`GÜVENLİK: ${JSON.stringify(q).slice(0, 16)} → yalnız izinli kolonlar`, !or || cols === 14);
+    // WT9: içerik modu 14 kolon (+ birincil kaynak adı + ek kaynak türetilmiş metni) + bilgi kaydı modeli entries_text = 15.
+    ok(`GÜVENLİK: ${JSON.stringify(q).slice(0, 16)} → yalnız izinli kolonlar`, !or || cols === 15);
   }
   const long = buildTurkishInsensitiveRegex("x".repeat(1000)) ?? "";
   ok("GÜVENLİK: terim üst sınırı", long.length === STONES_LIST_SEARCH_MAX_LENGTH);
   ok("Boş/yalnız kaldırılan karakter → filtre yok (mevcut davranış)", buildStonesListSearchOrFilter("%", "name") === null && buildStonesListSearchOrFilter("   ", "name") === null);
-  ok("İçerik modu 14 kolon (WT9: + primary_source_name + extra_sources_text), ad modu 1 kolon", (buildStonesListSearchOrFilter("inci", "content") ?? "").split(",").length === 14 && (buildStonesListSearchOrFilter("inci", "name") ?? "").split(",").length === 1);
+  ok("İçerik modu 15 kolon (WT9: + primary_source_name + extra_sources_text; + entries_text), ad modu 1 kolon", (buildStonesListSearchOrFilter("inci", "content") ?? "").split(",").length === 15 && (buildStonesListSearchOrFilter("inci", "name") ?? "").split(",").length === 1);
+  ok("Bilgi kaydı geri uyum: entries_text yokken WT9'un 14 kolonu (ek kaynak metni korunur)", (buildStonesListSearchOrFilter("inci", "content", { schemaLevel: 1 }) ?? "").split(",").length === 14 && /extra_sources_text/.test(buildStonesListSearchOrFilter("inci", "content", { schemaLevel: 1 }) ?? "") && !/entries_text/.test(buildStonesListSearchOrFilter("inci", "content", { schemaLevel: 1 }) ?? ""));
   const legacyOr = buildStonesListSearchOrFilter("inci", "content", { legacySchema: true }) ?? "";
   ok("WT9 geri uyum: migration öncesi şemada içerik araması eski 12 kolon (yeni kolon yok)", legacyOr.split(",").length === 12 && !/primary_source_name|extra_sources_text/.test(legacyOr));
   ok("Paylaşılan sanitizeOrSearchTerm davranışı değişmedi (Biyoenerji/mineral tüketicileri)", sanitizeOrSearchTerm(" a,(b)%'c ") === "a b c");
@@ -124,7 +125,7 @@ for (const [text, q, exp] of SPECIAL) ok(`ÖZEL: "${text}" ← ${JSON.stringify(
   const route = readFileSync(resolve(ROOT, "app/api/dogaltas/stones/route.ts"), "utf8");
   ok("TENANT: liste sorgusu .in(tenant_id, ids) korunur", /\.select\(STONES_LIST_SELECT[\s\S]*?\.in\("tenant_id", ids\)/.test(route));
   ok("TENANT: sayaç sorgusu .in(tenant_id, ids) korunur", route.includes('.select("id", { count: "exact", head: true }).in("tenant_id", ids)'));
-  ok("TENANT: arama filtresi tenant sorgusuna AND olarak eklenir (.or ayrı çağrı)", (route.match(/buildStonesListSearchOrFilter\(q, searchMode, \{ legacySchema \}\); if \(or\) query = query\.or\(or\);/g) || []).length === 2);
+  ok("TENANT: arama filtresi tenant sorgusuna AND olarak eklenir (.or ayrı çağrı)", (route.match(/buildStonesListSearchOrFilter\(q, searchMode, \{ schemaLevel \}\); if \(or\) query = query\.or\(or\);/g) || []).length === 2);
   ok("Sayfalama/sıralama korunur", route.includes(".range(offset, offset + limit - 1)") && route.includes('.order("id", { ascending: true })'));
 }
 
