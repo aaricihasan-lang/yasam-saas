@@ -466,6 +466,7 @@ export function SavedAnalysisView({
                   )
                 : null
             }
+            displayTz={typeof (a.params as { displayTz?: unknown }).displayTz === "string" ? ((a.params as { displayTz?: string }).displayTz ?? null) : null}
           />
         )}
         {tab === "bilgi" && (

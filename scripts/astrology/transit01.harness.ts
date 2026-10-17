@@ -311,6 +311,22 @@ async function main() {
       assert.ok(!txt.includes("undefined") && !txt.includes("NaN"));
     }
   });
+  await t("C7b Takvim 'Olay Açıklamaları' (yorum açık): Word + PDF'te yerel saat (GMT+3) + UTC birlikte; displayTz yoksa eski UTC biçimi", async () => {
+    const sv = await saveAnalysis(ctx, { profileId: pa, revision: 1, technique: "western.forecast", options: { ...CAL, displayTz: "Europe/Istanbul" }, includeProviderInterp: true, saveRequestId: randomUUID() }, false);
+    assert.equal(sv.status, 201, JSON.stringify(sv.body).slice(0, 200));
+    const id = (sv.body as J).analysisId;
+    const ev0 = (G.forecast.response.events as J[])[0];
+    const local = formatInZone(ev0.datetime, "Europe/Istanbul")!;
+    for (const fmt of ["docx", "pdf"] as const) {
+      const r = await buildAnalysisReport(ctx, id, fmt, false);
+      assert.ok(r.ok);
+      if (!r.ok) return;
+      const txt = fmt === "docx" ? await docxText(r.bytes) : await pdfText(r.bytes);
+      assert.ok(txt.includes(`${local.text} ${local.zone} · ${String(ev0.datetime).slice(11, 16)} UTC`), `${fmt}: yorum bölümünde yerel saat yok`);
+    }
+    const old = buildAstroReport({ technique: "western.forecast", params: CAL, technical: fcTech, method: {}, profile: { label: "X" }, interpretation: { visible: true, schema: "astro.western.forecast.interp.v1", content: { schema: "astro.western.forecast.interp.v1", events: [{ datetime: ev0.datetime, type: "transit_aspect", body: "mars", targetBody: "mars", text: "x" }] } } } as never);
+    assert.ok(JSON.stringify(old.blocks).includes("01.10.2026 09:53 UTC"), "eski kayıt biçimi");
+  });
   await t("C8 ESKİ biçimli transit kaydı (displayTz/calendar yok) raporu üretir: UTC an, kesinleşme notu, yeni sütunlar güvenli", () => {
     const rep = buildAstroReport({ technique: "western.transit", params: { atUtc: "2026-10-07T09:00", nodeType: "true" }, technical: trTech, method: {}, profile: { label: "X" } } as never);
     const txt = JSON.stringify(rep.blocks);

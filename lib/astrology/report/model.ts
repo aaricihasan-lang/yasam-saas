@@ -1024,7 +1024,7 @@ function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: n
 
 // ─── Roxy yorum katmanı (yalnız görünürse) ───────────────────────────────────
 
-function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: string }) {
+function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: string }, opts: O = {}) {
   const para = (label: string | null, text: unknown) => {
     if (typeof text === "string" && text.trim()) {
       if (label) b.h(3, label);
@@ -1056,7 +1056,11 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
     case "astro.western.forecast.interp.v1":
       // Roxy olay başına tek cümle (ayrı genel yorum yok) — aynen, tarih sırasıyla.
       b.p("Bu teknikte ayrı bir genel otomatik yorum bulunmuyor; her olayın otomatik açıklama cümlesi değiştirilmeden aktarılmıştır.", "muted");
-      for (const x of arr(c.events)) para(typeof x.datetime === "string" ? `${localTr(x.datetime)} UTC` : null, x.text);
+      {
+        // TRANSİT-01: analizin gösterim saat dilimi varsa yerel saat + UTC (ekrandaki "Olay Açıklamaları" ile aynı).
+        const tz = zoneOpt(opts.displayTz);
+        for (const x of arr(c.events)) para(typeof x.datetime === "string" ? (tz ? `${atZone(x.datetime, tz)} · ${x.datetime.slice(11, 16)} UTC` : `${localTr(x.datetime)} UTC`) : null, x.text);
+      }
       return;
     case "astro.western.progression.interp.v1":
     case "astro.western.solar_arc.interp.v1":
@@ -1456,7 +1460,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
       const fix = (x: O) => (typeof x.text === "string" ? { ...x, text: localSpaceText(x.text, ls) } : x);
       content = { ...content, bodies: arr(content.bodies).map(fix), ...(typeof content.summary === "string" ? { summary: localSpaceText(content.summary, ls) } : {}) };
     }
-    interpBlocks(b, technique, content, people);
+    interpBlocks(b, technique, content, people, opts);
   }
 
   // Sürüm bilgisi

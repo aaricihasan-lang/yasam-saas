@@ -8,6 +8,7 @@
 
 import { interpretationKindOfSchema, type InterpretationKind } from "@/lib/astrology/interpretationKind";
 import { localSpaceCenterNote, localSpaceText, type LocalSpaceCenter } from "@/lib/astrology/localSpaceCenter";
+import { dayKeyInZone, formatInZone, isIanaZone } from "@/lib/astrology/transitDetail";
 import type { ReactNode } from "react";
 import type { NatalInterpretation } from "@/lib/astrology/model/western";
 import type {
@@ -99,7 +100,7 @@ function StrengthsChallenges({ strengths, challenges }: { strengths: string[]; c
   );
 }
 
-function Content({ content }: { content: unknown }) {
+function Content({ content, displayTz = null }: { content: unknown; displayTz?: string | null }) {
   const schema = (content as { schema?: string }).schema;
   switch (schema) {
     case "astro.western.natal.interp.v1": {
@@ -178,7 +179,10 @@ function Content({ content }: { content: unknown }) {
       // Transit takvimi: Roxy olay başına TEK cümle verir (ayrı anlatı / özet yorumu yok). Metin aynen, ay ay.
       const c = content as ForecastInterpretation;
       const months = new Map<string, ForecastInterpretation["events"]>();
-      for (const e of c.events) months.set(e.datetime.slice(0, 7), [...(months.get(e.datetime.slice(0, 7)) ?? []), e]);
+      // TRANSİT-01: gösterim saat dilimi seçiliyse (takvim seçeneği) yerel saat + UTC; ay gruplaması da o bölgeye göre.
+      const tz = displayTz && displayTz !== "UTC" && isIanaZone(displayTz) ? displayTz : null;
+      const monthOf = (dt: string) => (tz ? (dayKeyInZone(dt, tz) ?? dt).slice(0, 7) : dt.slice(0, 7));
+      for (const e of c.events) months.set(monthOf(e.datetime), [...(months.get(monthOf(e.datetime)) ?? []), e]);
       return (
         <>
           <p className="mb-2 text-xs text-slate-500">Bu teknikte ayrı bir genel otomatik yorum bulunmuyor; her olayın otomatik açıklama cümlesi aşağıda değiştirilmeden listelenir ({c.events.length} olay).</p>
@@ -187,7 +191,18 @@ function Content({ content }: { content: unknown }) {
               {list.map((e, i) => (
                 <Item key={`${e.datetime}-${i}`}>
                   <div className="text-xs tabular-nums text-slate-500">
-                    {e.datetime.slice(8, 10)}.{e.datetime.slice(5, 7)}.{e.datetime.slice(0, 4)} {e.datetime.slice(11, 16)} UTC
+                    {tz && formatInZone(e.datetime, tz) ? (
+                      <>
+                        <span className="font-medium text-slate-700" data-testid="astro-forecast-interp-local">
+                          {formatInZone(e.datetime, tz)!.text} {formatInZone(e.datetime, tz)!.zone}
+                        </span>{" "}
+                        · {e.datetime.slice(11, 16)} UTC
+                      </>
+                    ) : (
+                      <>
+                        {e.datetime.slice(8, 10)}.{e.datetime.slice(5, 7)}.{e.datetime.slice(0, 4)} {e.datetime.slice(11, 16)} UTC
+                      </>
+                    )}
                   </div>
                   <P text={e.text} />
                 </Item>
@@ -544,7 +559,16 @@ function withLocalSpaceCenter(content: unknown, center: LocalSpaceCenter | null 
   return { content: { ...c, bodies, ...(typeof c.summary === "string" ? { summary: localSpaceText(c.summary, center) } : {}) }, note: localSpaceCenterNote(center) };
 }
 
-export default function ProviderInterpretationPanel({ interpretation, localSpace }: { interpretation: InterpretationLayer; localSpace?: LocalSpaceCenter | null }) {
+export default function ProviderInterpretationPanel({
+  interpretation,
+  localSpace,
+  displayTz = null,
+}: {
+  interpretation: InterpretationLayer;
+  localSpace?: LocalSpaceCenter | null;
+  /** TRANSİT-01: analiz seçeneğindeki gösterim saat dilimi (Transit Takvimi olay açıklamalarında yerel saat). */
+  displayTz?: string | null;
+}) {
   const title = interpretationTitle(interpretation);
   const ls = interpretation.visible ? withLocalSpaceCenter(stripSystemKeys(interpretation.content), localSpace) : null;
   return (
@@ -567,7 +591,7 @@ export default function ProviderInterpretationPanel({ interpretation, localSpace
               {ls.note}
             </p>
           )}
-          <Content content={ls ? ls.content : stripSystemKeys(interpretation.content)} />
+          <Content content={ls ? ls.content : stripSystemKeys(interpretation.content)} displayTz={displayTz} />
         </div>
       )}
     </section>

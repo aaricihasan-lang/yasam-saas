@@ -213,6 +213,17 @@ async function overflowOffenders(page, rootSel) {
   await page.waitForTimeout(300);
   const sigs = await page.locator("[data-significance]").evaluateAll((els) => els.map((e) => Number(e.getAttribute("data-significance"))));
   ok("Önem ≥ 70 filtresi", sigs.length > 0 && sigs.every((v) => v >= 70), sigs.slice(0, 8).join(","));
+  // Olay Açıklamaları (yorum sekmesi): yerel saat + UTC birlikte (gösterim saat dilimi seçeneğinden).
+  const interpTab = page.getByRole("tab", { name: /Olay Açıklamaları/ }).first();
+  if (await interpTab.count()) {
+    await interpTab.click();
+    await page.waitForTimeout(500);
+    const lt = await page.locator("[data-testid=astro-forecast-interp-local]").first().textContent().catch(() => "");
+    const row = await page.locator("[data-testid=astro-forecast-interp-local]").first().locator("xpath=..").textContent().catch(() => "");
+    ok("Olay Açıklamaları: yerel saat (GMT+3) + UTC birlikte", /GMT\+3/.test(lt ?? "") && /UTC/.test(row ?? ""), (row ?? "").slice(0, 60));
+    const tk = page.getByRole("tab", { name: /Teknik ayrıntı/ }).first();
+    if (await tk.count()) await tk.click().catch(() => undefined);
+  } else ok("Olay Açıklamaları sekmesi (yorum görünürlüğü)", false, "sekme yok");
   await page.locator("[data-testid=astro-forecast-min-sig]").selectOption("0");
   await page.waitForTimeout(300);
   const hDay = hits();

@@ -1744,6 +1744,7 @@ export default function AstrologyWorkspacePage() {
                         <ProviderInterpretationPanel
                           interpretation={item.view.interpretation}
                           localSpace={item.technique === "western.local_space" ? localSpaceCenter(item.view.technical, item.view.options, birthplace) : null}
+                          displayTz={typeof item.view.options.displayTz === "string" ? item.view.options.displayTz : null}
                         />
                       )}
                     </div>
