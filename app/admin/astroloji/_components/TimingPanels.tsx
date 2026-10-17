@@ -6,12 +6,11 @@
  * Sağlayıcı metni bu dosyada GÖRÜNMEZ (yorum ayrı panelde).
  */
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { AspectType, BodyId, NatalAspect, NatalHouse, NatalTechnical, SignId } from "@/lib/astrology/model/western";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import type {
   CompositeTechnical,
-  ForecastEvent,
   ForecastTechnical,
   PointId,
   ProgressionTechnical,
@@ -33,6 +32,7 @@ import {
 } from "@/lib/astrology/labels/tr";
 import NatalWheel, { type WheelChart } from "./NatalWheel";
 import NatalTechnicalPanel from "./NatalTechnicalPanel";
+import { ForecastPanel, TransitPanel, type CalendarTransitApi } from "./TransitPanels";
 import { AstrocartographyPanel, LocalSpacePanel, RelocationPanel, type Place } from "./LocationPanels";
 import { VedicD1Panel, VedicDashaPanel, VedicVargaPanel, type DashaDrill, type KbLookup } from "./VedicPanels";
 import type {
@@ -196,186 +196,10 @@ function Cusps({ houses }: { houses: NatalHouse[] }) {
   );
 }
 
-const fmtUtc = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)} ${iso.slice(11, 16)} UTC`;
 const fmtDay = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 
-// ─── Transit ────────────────────────────────────────────────────────────────
-export function TransitPanel({ t }: { t: TransitTechnical }) {
-  const [only, setOnly] = useState(true);
-  const list = [...t.aspects].filter((a) => !only || MAJOR.has(a.type)).sort((a, b) => a.orb - b.orb);
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-sm text-slate-600">
-        Transit anı: <strong>{fmtUtc(t.atUtc)}</strong>
-        {t.summary.harmonious !== null && (
-          <span className="ml-2 text-xs text-slate-500">
-            uyumlu {t.summary.harmonious} · zorlayıcı {t.summary.challenging} · nötr {t.summary.neutral}
-          </span>
-        )}
-      </p>
-      <Section title={`Transit → natal açılar (${list.length}/${t.aspects.length})`} right={<MajorToggle only={only} set={setOnly} />}>
-        {/* Telefon (<640 px): her açı bir bilgi kartı — hiçbir sütun kesilmez / gizlenmez (2026-10-12 UAT madde 9). */}
-        <ul className="divide-y divide-slate-100 sm:hidden" data-testid="astro-transit-cards">
-          {list.map((a, i) => (
-            <li key={`${a.transit}-${a.type}-${a.natal}-${i}`} className="px-3 py-2 text-sm text-slate-800">
-              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                <Point id={a.transit} />
-                <span className="text-slate-600">
-                  {ASPECT_GLYPHS[a.type]} {ASPECT_LABELS[a.type]}
-                </span>
-                <Point id={a.natal} prefix="natal" />
-              </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
-                <span className="tabular-nums">orb {formatDegree(a.orb)}</span>
-                <span>{a.applying ? "yaklaşıyor" : "ayrılıyor"}</span>
-                <NatureBadge n={a.nature} />
-              </div>
-            </li>
-          ))}
-        </ul>
-        <table className="hidden min-w-full sm:table">
-          <thead>
-            <tr>
-              <th className={th}>Transit</th>
-              <th className={th}>Açı</th>
-              <th className={th}>Natal</th>
-              <th className={th}>Orb</th>
-              <th className={th}>Seyir</th>
-              <th className={th}>Nitelik</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {list.map((a, i) => (
-              <tr key={`${a.transit}-${a.type}-${a.natal}-${i}`}>
-                <td className={td}>
-                  <Point id={a.transit} />
-                </td>
-                <td className={td}>
-                  {ASPECT_GLYPHS[a.type]} {ASPECT_LABELS[a.type]}
-                </td>
-                <td className={td}>
-                  <Point id={a.natal} prefix="natal" />
-                </td>
-                <td className={`${td} tabular-nums`}>{formatDegree(a.orb)}</td>
-                <td className={td}>{a.applying ? "yaklaşıyor" : "ayrılıyor"}</td>
-                <td className={td}>
-                  <NatureBadge n={a.nature} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Section>
-      <Section title="Transit gök cisimleri">
-        <BodiesTable bodies={t.bodies.map((b) => ({ ...b, house: null }))} showHouse={false} />
-      </Section>
-    </div>
-  );
-}
-
-// ─── Forecast ───────────────────────────────────────────────────────────────
-const EVENT_LABELS: Record<ForecastEvent["type"], string> = {
-  transit_aspect: "Transit açı",
-  sign_ingress: "Burç girişi",
-  retrograde_station: "İstasyon",
-  eclipse: "Tutulma",
-  lunar_phase: "Ay evresi",
-};
-const ECLIPSE_LABELS: Record<string, string> = { penumbral: "yarıgölge", partial: "parçalı", annular: "halkalı", total: "tam" };
-
-function eventText(e: ForecastEvent): string {
-  // 2026-10-14: sembol + Türkçe karşılık birlikte (profesyonel + öğrenen kullanıcı).
-  const body = e.body ? `${BODY_GLYPHS[e.body]} ${BODY_LABELS[e.body]}` : "";
-  switch (e.type) {
-    case "transit_aspect":
-      return `${body} ${e.aspect ? `${ASPECT_GLYPHS[e.aspect]} ${ASPECT_LABELS[e.aspect]}` : ""} natal ${e.targetBody ? `${pointGlyph(e.targetBody)} ${pointLabel(e.targetBody)}` : ""}`;
-    case "sign_ingress":
-      return `${body} ${e.targetSign ? `${SIGN_GLYPHS[e.targetSign]} ${SIGN_LABELS[e.targetSign]}` : ""} burcuna girer`;
-    case "retrograde_station":
-      return `${body} ${e.station === "retrograde" ? "retro" : "direkt"} istasyonu`;
-    case "eclipse":
-      return `${e.body === "moon" ? "Ay" : "Güneş"} tutulması${e.eclipseKind ? ` (${ECLIPSE_LABELS[e.eclipseKind]})` : ""}${e.obscuration !== null ? ` · örtme %${Math.round(e.obscuration * 100)}` : ""}`;
-    case "lunar_phase":
-      return `${e.phase === "new_moon" ? "Yeni Ay" : "Dolunay"}${e.targetSign ? ` — ${SIGN_GLYPHS[e.targetSign]} ${SIGN_LABELS[e.targetSign]}` : ""}`;
-  }
-}
-
-export function ForecastPanel({ t }: { t: ForecastTechnical }) {
-  const [types, setTypes] = useState<Set<ForecastEvent["type"]>>(() => new Set(["transit_aspect", "sign_ingress", "retrograde_station", "eclipse", "lunar_phase"]));
-  const counts = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const e of t.events) m.set(e.type, (m.get(e.type) ?? 0) + 1);
-    return m;
-  }, [t.events]);
-  const byMonth = useMemo(() => {
-    const m = new Map<string, ForecastEvent[]>();
-    for (const e of t.events) {
-      if (!types.has(e.type)) continue;
-      const k = e.date.slice(0, 7);
-      m.set(k, [...(m.get(k) ?? []), e]);
-    }
-    return [...m.entries()];
-  }, [t.events, types]);
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-sm text-slate-600">
-        Dönem: <strong>{fmtDay(t.window.start)}</strong> – <strong>{fmtDay(t.window.end)}</strong> · {t.events.length} olay
-      </p>
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Olay türü filtresi">
-        {(Object.keys(EVENT_LABELS) as ForecastEvent["type"][]).map((k) => (
-          <label key={k} className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${types.has(k) ? "border-sky-300 bg-sky-50 text-sky-900" : "border-slate-200 text-slate-500"}`}>
-            <input
-              type="checkbox"
-              checked={types.has(k)}
-              onChange={(e) => {
-                const n = new Set(types);
-                if (e.target.checked) n.add(k);
-                else n.delete(k);
-                setTypes(n);
-              }}
-            />
-            {EVENT_LABELS[k]} ({counts.get(k) ?? 0})
-          </label>
-        ))}
-      </div>
-      {byMonth.length === 0 ? (
-        <p className="text-sm text-slate-500">Seçili türde olay yok.</p>
-      ) : (
-        byMonth.map(([month, list]) => (
-          <Section key={month} title={`${month.slice(5, 7)}.${month.slice(0, 4)} (${list.length})`}>
-            {/* Telefon: olay kartı (tarih/saat üstte, metin satıra geçer; orb ayrı satırda) — veri kesilmez. */}
-            <ul className="divide-y divide-slate-100 sm:hidden" data-testid="astro-forecast-cards">
-              {list.map((e, i) => (
-                <li key={`${e.datetime}-${i}`} className="px-3 py-2 text-sm text-slate-800">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
-                    <span className="tabular-nums">{fmtUtc(e.datetime)}</span>
-                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600">{EVENT_LABELS[e.type]}</span>
-                    {e.orb !== null && <span className="tabular-nums">orb {formatDegree(e.orb)}</span>}
-                  </div>
-                  <p className="mt-0.5 break-words">{eventText(e)}</p>
-                </li>
-              ))}
-            </ul>
-            <table className="hidden min-w-full sm:table">
-              <tbody className="divide-y divide-slate-100">
-                {list.map((e, i) => (
-                  <tr key={`${e.datetime}-${i}`}>
-                    <td className={`${td} whitespace-nowrap tabular-nums text-slate-500`}>{fmtUtc(e.datetime)}</td>
-                    <td className={td}>
-                      <span className="mr-2 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600">{EVENT_LABELS[e.type]}</span>
-                      {eventText(e)}
-                    </td>
-                    <td className={`${td} tabular-nums text-xs text-slate-500`}>{e.orb !== null ? `orb ${formatDegree(e.orb)}` : ""}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Section>
-        ))
-      )}
-    </div>
-  );
-}
+// ─── Transit + Transit Takvimi: TRANSİT-01 profesyonel görünümleri ./TransitPanels.tsx içinde ──────────────
+export { TransitPanel, ForecastPanel, type CalendarTransitApi } from "./TransitPanels";
 
 // ─── Secondary progression ──────────────────────────────────────────────────
 export function ProgressionPanel({ t }: { t: ProgressionTechnical }) {
@@ -733,6 +557,7 @@ export function TechniqueTechnical({
   onDashaLevel,
   hideWheel = false,
   interpretation = null,
+  calendarTransit = null,
 }: {
   technique: string;
   technical: unknown;
@@ -754,6 +579,8 @@ export function TechniqueTechnical({
    * yıldızlar kavuşum kartında kısa yorumu gösterir; diğer teknikler bu dosyada sağlayıcı metni göstermez.
    */
   interpretation?: unknown;
+  /** TRANSİT-01: takvim gününden transit haritası (yalnız çalışma masasında; kayıtlı analizde verilmez). */
+  calendarTransit?: CalendarTransitApi | null;
 }) {
   const placeLabel = (k: "target" | "reference") => (options[k] as { label?: string } | undefined)?.label ?? null;
   const body = (() => {
@@ -769,9 +596,9 @@ export function TechniqueTechnical({
         );
       }
       case "western.transit":
-        return <TransitPanel t={technical as TransitTechnical} />;
+        return <TransitPanel t={technical as TransitTechnical} options={options} />;
       case "western.forecast":
-        return <ForecastPanel t={technical as ForecastTechnical} />;
+        return <ForecastPanel t={technical as ForecastTechnical} options={options} calendarTransit={calendarTransit} />;
       case "western.progression":
         return <ProgressionPanel t={technical as ProgressionTechnical} />;
       case "western.solar_arc":

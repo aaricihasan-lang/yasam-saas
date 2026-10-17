@@ -26,6 +26,22 @@ import { figureTitle, type ReportFigure } from "./figures";
 import { ACG_ANGLES, BODY_COLORS, CLASSICAL, acgMapLines, acgMcLabels, localSpaceMapLines } from "@/app/admin/astroloji/_lib/locationMaps";
 import { ACG_TECHNICAL_SCHEMA, LOCAL_SPACE_TECHNICAL_SCHEMA, type AstrocartographyTechnical, type LocalSpaceTechnical } from "../model/westernLocation";
 import type { BodyId } from "../model/western";
+import type { TransitAspect, TransitCalendarExact } from "../model/westernTiming";
+import {
+  CALENDAR_UNMATCHED_NOTE,
+  NATAL_HOUSE_NOTE,
+  SIGNIFICANCE_BAND_LABELS,
+  SIGNIFICANCE_NOTE,
+  aspectTypeCounts,
+  exactTimesOf,
+  formatInZone,
+  groupEventsByDay,
+  isIanaZone,
+  relativeTo,
+  significanceBand,
+  strongestTransits,
+  transitNatalHouses,
+} from "../transitDetail";
 
 // ─── Blok modeli ─────────────────────────────────────────────────────────────
 
@@ -367,6 +383,119 @@ function forecastDetail(e: O): string {
   }
 }
 
+// ─── TRANSİT-01: Batı Transit + Transit Takvimi raporu (ekrandaki bölümlerle aynı veri; yeni hesap YOK) ─────────
+
+const zoneOpt = (v: unknown): string | null => (isIanaZone(v) && v !== "UTC" ? v : null);
+/** UTC anı → seçilen saat diliminde "GG.AA.YYYY SS:DD GMT+3"; dilim yoksa UTC. */
+const atZone = (utcIso: unknown, tz: string | null) => {
+  if (typeof utcIso !== "string") return DASH;
+  if (!tz) return utcTr(utcIso);
+  const z = formatInZone(utcIso, tz);
+  return z ? `${z.text} ${z.zone}` : utcTr(utcIso);
+};
+/** Yalnız saat kısmı ("SS:DD GMT+3" / "SS:DD UTC"). */
+const timeZoneOnly = (utcIso: unknown, tz: string | null) => {
+  const full = atZone(utcIso, tz);
+  return full === DASH ? DASH : full.slice(11);
+};
+const strengthL = (v: unknown) => (num(v) === null ? DASH : `%${Math.round(num(v)!)}`);
+const applyingL = (v: unknown) => (v === true ? "Yaklaşan" : v === false ? "Ayrılan" : DASH);
+
+function transitReport(b: B, t: O, opts: O) {
+  const tz = zoneOpt(opts.displayTz);
+  const at = typeof t.atUtc === "string" ? t.atUtc.replace(/Z$/, "") : null;
+  const cal = isObj(opts.calendar) ? opts.calendar : null;
+  b.kv([
+    ["Transit anı (yerel)", at && tz ? `${atZone(at, tz)} (${tz})` : DASH],
+    ["Saat dilimi", tz ?? "UTC (gösterim saat dilimi kaydedilmemiş)"],
+    ["Transit anı (UTC)", utcTr(t.atUtc)],
+    ["Zodyak", "Tropikal"],
+    ["Ay düğümü", typeof t.nodeType === "string" ? ((NODE_TYPE_LABELS as Record<string, string>)[t.nodeType] ?? t.nodeType) : DASH],
+    ["Kaynak takvim", cal && typeof cal.startDate === "string" ? `${dateTr(cal.startDate)} + ${s(cal.days)} gün` : DASH],
+  ]);
+  const aspects = arr(t.aspects).filter((x) => typeof x.transit === "string" && typeof x.natal === "string");
+  const ce = isObj(t.calendarExact) ? (t.calendarExact as unknown as TransitCalendarExact) : null;
+  const exactL = (x: O) => {
+    const xs = exactTimesOf(ce, { transit: x.transit as never, natal: x.natal as never, type: x.type as never });
+    return xs.length ? xs.map((e) => `${atZone(e, tz)}${at ? ` (${relativeTo(at, e)})` : ""}`).join("; ") : DASH;
+  };
+  const sm = isObj(t.summary) ? t.summary : null;
+  const byType = aspectTypeCounts(aspects as unknown as Pick<TransitAspect, "type">[]);
+  b.h(3, "Özet");
+  b.kv([
+    ["Toplam açı", String(aspects.length)],
+    ["Açı dengesi", sm ? `Uyumlu ${s(sm.harmonious)} · Zorlayıcı ${s(sm.challenging)} · Nötr ${s(sm.neutral)}` : DASH],
+    ["Açı türleri", byType.length ? byType.map(([k, n]) => `${aspectL(k)} ${n}`).join(" · ") : DASH],
+  ]);
+  const top = strongestTransits(aspects.filter((x) => num(x.strength) !== null && num(x.orb) !== null) as unknown as (TransitAspect & O)[], 5);
+  b.h(3, "En güçlü transitler");
+  b.table(
+    ["Transit", "Açı", "Natal", "Güç", "Orb", "Durum", ...(ce ? ["Kesinleşme"] : [])],
+    top.map((x) => [bodyL(x.transit), aspectL(x.type), bodyL(x.natal), strengthL(x.strength), deg(x.orb), applyingL(x.applying), ...(ce ? [exactL(x as unknown as O)] : [])]),
+    { widths: ce ? [1.4, 1.4, 1.4, 0.8, 0.9, 1, 2.6] : [1.6, 1.6, 1.6, 0.9, 1, 1.1], empty: "Bu anda natal haritaya transit açısı yok." },
+  );
+  b.p("Sıralama: sağlayıcının açı gücü (orb darlığı; %100 = tam açı), eşitlikte daha dar orb.", "muted");
+  const sorted = [...aspects].sort((x, y) => (num(x.orb) ?? 99) - (num(y.orb) ?? 99));
+  b.h(3, "Transit → natal açılar (teknik tablo)");
+  b.table(
+    ["Transit", "Açı", "Natal", "Orb", "Güç", "Durum", "Nitelik", ...(ce ? ["Kesinleşme"] : [])],
+    sorted.map((x) => [bodyL(x.transit), aspectL(x.type), bodyL(x.natal), deg(x.orb), strengthL(x.strength), applyingL(x.applying), natureL(x.nature), ...(ce ? [exactL(x)] : [])]),
+    { widths: ce ? [1.3, 1.3, 1.3, 0.8, 0.7, 0.9, 0.9, 2.4] : [1.5, 1.5, 1.5, 0.9, 0.8, 1, 1], compact: true, empty: "Kayıtta açı yok." },
+  );
+  if (ce) {
+    b.p(
+      `Kesinleşme anları kaynak takvimin olaylarından alınmıştır (takvim penceresi ${dateTr(ce.window.start)} – ${dateTr(ce.window.end)}${ce.complete ? "" : "; takvimin bazı parçaları kayıtlı değildi, liste eksik olabilir"}). Takvim yalnız majör açıların kesinleşmesini verir; “—” bu pencerede kesinleşme olmadığı veya eşleşme yapılamadığı anlamına gelir. ${CALENDAR_UNMATCHED_NOTE}`,
+      "muted",
+    );
+  } else {
+    b.p("Bu transit analizi tek bir anı hesaplar; kesinleşme anları yalnız Transit Takvimi gününden açılan transitlerde, takvim olaylarından gösterilir.", "muted");
+  }
+  const houses = transitNatalHouses({ bodies: arr(t.bodies) as never, natalFrame: (isObj(t.natalFrame) ? t.natalFrame : null) as never });
+  const tb = arr(t.bodies).map((x) => {
+    const h = houses.get(x.id as BodyId);
+    return [bodyL(x.id), pos(x.sign, x.degreeInSign), x.retrograde === true ? "℞ Retro" : "", num(x.speed) !== null ? (num(x.speed) as number).toFixed(3).replace(".", ",") : DASH, ...(houses.size ? [h ? `${h}. ev` : DASH] : [])];
+  });
+  b.h(3, "Transit gezegenleri");
+  b.table(["Gezegen", "Burç ve derece", "Retro", "Hız (°/gün)", ...(houses.size ? ["Natal ev"] : [])], tb, { widths: houses.size ? [2, 3, 1, 1.2, 1.1] : [2, 3, 1, 1.2], empty: "Kayıtta transit gezegen verisi yok." });
+  if (houses.size) b.p(NATAL_HOUSE_NOTE, "muted");
+}
+
+function forecastReport(b: B, t: O, opts: O) {
+  const tz = zoneOpt(opts.displayTz);
+  const w = isObj(t.window) ? t.window : {};
+  const events = arr(t.events);
+  const personal = events.filter((e) => e.type === "transit_aspect").length;
+  const hasSig = events.some((e) => num(e.significance) !== null);
+  b.kv([
+    ["Dönem", `${dateTr(w.start)} – ${dateTr(w.end)}`],
+    ["Saat dilimi", tz ?? "UTC"],
+    ["Olay sayısı", `${events.length} (natal haritaya açı: ${personal} · genel gökyüzü: ${events.length - personal})`],
+  ]);
+  if (hasSig) b.p(SIGNIFICANCE_NOTE, "muted");
+  const sigL = (v: unknown) => {
+    const n = num(v);
+    const band = significanceBand(n);
+    return n === null || !band ? DASH : `${Math.round(n)} · ${SIGNIFICANCE_BAND_LABELS[band]}`;
+  };
+  const top = [...events].filter((e) => num(e.significance) !== null).sort((x, y) => (num(y.significance) ?? 0) - (num(x.significance) ?? 0)).slice(0, 10);
+  if (top.length) {
+    b.h(3, "Önem puanı en yüksek olaylar");
+    b.table([`Tarih (${tz ?? "UTC"})`, "Olay", "Ayrıntı", "Önem"], top.map((e) => [atZone(e.datetime ?? e.date, tz), typeof e.type === "string" ? (FORECAST_EVENT[e.type] ?? e.type) : DASH, forecastDetail(e), sigL(e.significance)]), { widths: [1.7, 1.2, 3.6, 1] });
+  }
+  const dated = events.filter((e): e is O & { datetime: string } => typeof e.datetime === "string");
+  const groups = groupEventsByDay(dated, tz ?? "UTC");
+  b.h(3, "Takvim (gün gün)");
+  if (!groups.length) b.p("Bu dönemde kayıtlı olay yok.", "muted");
+  for (const [day, list] of groups) {
+    b.table(
+      [`${dateTr(day)} · saat (${tz ?? "UTC"})`, "Olay", "Ayrıntı", ...(hasSig ? ["Önem"] : [])],
+      list.map((e) => [timeZoneOnly(e.datetime, tz), typeof e.type === "string" ? (FORECAST_EVENT[e.type] ?? e.type) : DASH, `${e.type === "transit_aspect" ? "" : "[genel] "}${forecastDetail(e)}`, ...(hasSig ? [sigL(e.significance)] : [])]),
+      { widths: hasSig ? [1.5, 1.2, 4, 1.1] : [1.5, 1.3, 4.4], compact: true },
+    );
+  }
+  b.p("[genel] = kişiye özel olmayan gökyüzü olayı (burç girişi, istasyon, tutulma, Ay evresi). Takvimden açılan gün haritaları ayrı Transit analizleri olarak kaydedilir ve toplu raporda bu takvimle birlikte basılabilir.", "muted");
+}
+
 /**
  * Dönüş anı: Roxy yerel saati DOĞUM ofsetiyle verir (ör. 1988 Türkiye UTC+2). Dönüş tarihindeki gerçek yerel saat farklı
  * olabilir (2026 Türkiye UTC+3) → rapor UTC anını ve (doğum yerinde hesaplanan dönüşte) IANA saat dilimiyle gerçek yerel
@@ -392,27 +521,14 @@ export function returnTimes(t: O, birthTz: string | null, relocated: boolean): {
   }
 }
 
-function westernTiming(b: B, technique: string, t: O, people: { a: string; b: string }, ret: { birthTz: string | null; relocated: boolean } = { birthTz: null, relocated: false }) {
+function westernTiming(b: B, technique: string, t: O, people: { a: string; b: string }, ret: { birthTz: string | null; relocated: boolean } = { birthTz: null, relocated: false }, opts: O = {}) {
   switch (technique) {
     case "western.transit": {
-      b.kv([["Transit anı", utcTr(t.atUtc)]]);
-      const tb = arr(t.bodies).map((x) => [bodyL(x.id), pos(x.sign, x.degreeInSign), x.retrograde === true ? "R" : ""]);
-      b.h(3, "Transit gezegenleri");
-      b.table(["Gezegen", "Burç ve derece", "Retro"], tb, { widths: [2, 3, 1], empty: "Kayıtta transit gezegen verisi yok." });
-      aspectTable(b, t.aspects, "Transit", "Natal", ["transit", "natal"], "Transit → natal açılar");
-      const sm = isObj(t.summary) ? t.summary : null;
-      if (sm) b.kv([["Açı dengesi", `Uyumlu ${s(sm.harmonious)} · Zorlayıcı ${s(sm.challenging)} · Nötr ${s(sm.neutral)}`]]);
+      transitReport(b, t, opts);
       return;
     }
     case "western.forecast": {
-      const w = isObj(t.window) ? t.window : {};
-      b.kv([
-        ["Dönem", `${dateTr(w.start)} – ${dateTr(w.end)}`],
-        ["Olay sayısı", String(arr(t.events).length)],
-      ]);
-      const rows = arr(t.events).map((e) => [localTr(typeof e.datetime === "string" ? e.datetime : e.date), typeof e.type === "string" ? (FORECAST_EVENT[e.type] ?? e.type) : DASH, forecastDetail(e)]);
-      b.h(3, "Takvim");
-      b.table(["Tarih (UTC)", "Olay", "Ayrıntı"], rows, { widths: [1.6, 1.4, 4], empty: "Bu dönemde kayıtlı olay yok." });
+      forecastReport(b, t, opts);
       return;
     }
     case "western.progression": {
@@ -908,7 +1024,7 @@ function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: n
 
 // ─── Roxy yorum katmanı (yalnız görünürse) ───────────────────────────────────
 
-function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: string }) {
+function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: string }, opts: O = {}) {
   const para = (label: string | null, text: unknown) => {
     if (typeof text === "string" && text.trim()) {
       if (label) b.h(3, label);
@@ -940,7 +1056,11 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
     case "astro.western.forecast.interp.v1":
       // Roxy olay başına tek cümle (ayrı genel yorum yok) — aynen, tarih sırasıyla.
       b.p("Bu teknikte ayrı bir genel otomatik yorum bulunmuyor; her olayın otomatik açıklama cümlesi değiştirilmeden aktarılmıştır.", "muted");
-      for (const x of arr(c.events)) para(typeof x.datetime === "string" ? `${localTr(x.datetime)} UTC` : null, x.text);
+      {
+        // TRANSİT-01: analizin gösterim saat dilimi varsa yerel saat + UTC (ekrandaki "Olay Açıklamaları" ile aynı).
+        const tz = zoneOpt(opts.displayTz);
+        for (const x of arr(c.events)) para(typeof x.datetime === "string" ? (tz ? `${atZone(x.datetime, tz)} · ${x.datetime.slice(11, 16)} UTC` : `${localTr(x.datetime)} UTC`) : null, x.text);
+      }
       return;
     case "astro.western.progression.interp.v1":
     case "astro.western.solar_arc.interp.v1":
@@ -1281,7 +1401,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   } else if (technique === "western.natal") westernNatal(b, tech);
   else if (["western.transit", "western.forecast", "western.progression", "western.solar_arc", "western.solar_return", "western.lunar_return", "western.synastry", "western.composite"].includes(technique)) {
     const rv = profile && isObj(profile.revision) ? profile.revision : null;
-    westernTiming(b, technique, tech, people, { birthTz: rv && typeof rv.timezone === "string" ? rv.timezone : null, relocated: typeof opts.returnLocationId === "string" && opts.returnLocationId !== "" });
+    westernTiming(b, technique, tech, people, { birthTz: rv && typeof rv.timezone === "string" ? rv.timezone : null, relocated: typeof opts.returnLocationId === "string" && opts.returnLocationId !== "" }, opts);
   }
   else if (["western.astrocartography", "western.relocation", "western.local_space"].includes(technique)) westernLocation(b, technique, tech, opts);
   else if (technique === "western.fixed_stars") westernFixedStars(b, tech, opts);
@@ -1340,7 +1460,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
       const fix = (x: O) => (typeof x.text === "string" ? { ...x, text: localSpaceText(x.text, ls) } : x);
       content = { ...content, bodies: arr(content.bodies).map(fix), ...(typeof content.summary === "string" ? { summary: localSpaceText(content.summary, ls) } : {}) };
     }
-    interpBlocks(b, technique, content, people);
+    interpBlocks(b, technique, content, people, opts);
   }
 
   // Sürüm bilgisi

@@ -38,7 +38,7 @@ import SavedAnalysisTabs from "./_components/atlas/SavedAnalysisTabs";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "@/lib/astrology/noProviderInterp";
 import AddTechniqueDialog, { type AddRunResult } from "./_components/atlas/AddTechniqueDialog";
 import SaveBatchDialog, { type SaveItemResult } from "./_components/atlas/SaveBatchDialog";
-import { TechniqueTechnical, wheelForTechnique } from "./_components/TimingPanels";
+import { TechniqueTechnical, wheelForTechnique, type CalendarTransitApi } from "./_components/TimingPanels";
 import { SavedAnalysesList, SavedAnalysisView } from "./_components/SavedAnalyses";
 import ArchiveList from "./_components/atlas/ArchiveList";
 import ArchiveDeleteFlow from "./_components/atlas/ArchiveDeleteFlow";
@@ -970,6 +970,48 @@ export default function AstrologyWorkspacePage() {
     return { ok: true, technical: it.view.technical as VedicDashaTechnical, kb: ws.ok ? ws.data.kbMatches : [] };
   }
 
+  /**
+   * TRANSİT-01: Transit Takvimi gününden transit haritası. Önce ÜCRETSİZ plan (sağlayıcı çağrılmaz; kayıtlı sonuç varsa
+   * 0 istek), uzman onayından sonra aynı çalıştırma ucu (planlayıcı + önbellek + kilit + saatlik sınır + yorum kapısı).
+   * Seçenek takvim penceresini taşır → çalışma motoru takvimin ÖNBELLEKTEKİ olaylarından kesinleşme anlarını ekler
+   * (yeni istek yok). Takvim analizi değişmez; transit yeni sekmede açılır ve ayrıca kaydedilir.
+   */
+  function calendarTransitFor(it: BenchItem): CalendarTransitApi | null {
+    if (it.technique !== "western.forecast" || !shownDetail || revision === null || !ctxKey) return null;
+    const o = it.view.options as { startDate?: unknown; days?: unknown; displayTz?: unknown };
+    if (typeof o.startDate !== "string" || typeof o.days !== "number") return null;
+    const profileId = shownDetail.id;
+    const rev = revision;
+    const key = ctxKey;
+    const sel = (atUtc: string) => ({
+      technique: "western.transit",
+      options: { atUtc, nodeType: method.nodeType, calendar: { startDate: o.startDate, days: o.days }, ...(typeof o.displayTz === "string" ? { displayTz: o.displayTz } : {}) },
+    });
+    return {
+      plan: async (atUtc) => {
+        const r = await astroFetch<{ plan: PlanSummary }>("/api/admin/astroloji/engine/plan", { method: "POST", body: { profileId, revision: rev, selections: [sel(atUtc)] } });
+        if (!r.ok) return { ok: false, error: r.error };
+        const s0 = r.data.plan.selections[0];
+        if (!s0) return { ok: false, error: "Plan alınamadı." };
+        if (s0.blocked) return { ok: false, error: s0.blocked.error };
+        return { ok: true, newRequests: r.data.plan.newRequestCount };
+      },
+      open: async (atUtc, confirmNewRequests) => {
+        const sels = [sel(atUtc)];
+        const r = await astroFetch<RunResponse>(`/api/admin/astroloji/engine/run${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
+          method: "POST",
+          body: { profileId, revision: rev, selections: sels, confirmNewRequests },
+        });
+        setPlanNonce((n) => n + 1);
+        const items = r.ok ? r.data.results : ((r.data?.results as ResultItem[] | undefined) ?? null);
+        if (items) mergeRun(key, items, sels, r.ok ? r.data.executed : ((r.data?.executed as RunResponse["executed"]) ?? { newResults: 0, cachedResults: 0, providerAttempts: 0 }));
+        if (!r.ok) return { ok: false, error: r.error };
+        const it0 = r.data.results[0];
+        return it0 && it0.ok ? { ok: true } : { ok: false, error: it0 && !it0.ok ? it0.error : "Transit hesaplanamadı." };
+      },
+    };
+  }
+
   async function togglePreview(next: boolean) {
     writePreviewFlag(next);
     if (!runs || !shownDetail || revision === null || !ctxKey) return;
@@ -1660,6 +1702,7 @@ export default function AstrologyWorkspacePage() {
                             : null
                         }
                         dashaDrill={item.technique === "vedic.dasha" || item.technique === "kp.dasha" ? (o) => drillDasha(o, item.view.options) : undefined}
+                        calendarTransit={calendarTransitFor(item)}
                         onDashaLevel={
                           item.technique === "vedic.dasha"
                             ? (o) => {
@@ -1701,6 +1744,7 @@ export default function AstrologyWorkspacePage() {
                         <ProviderInterpretationPanel
                           interpretation={item.view.interpretation}
                           localSpace={item.technique === "western.local_space" ? localSpaceCenter(item.view.technical, item.view.options, birthplace) : null}
+                          displayTz={typeof item.view.options.displayTz === "string" ? item.view.options.displayTz : null}
                         />
                       )}
                     </div>
