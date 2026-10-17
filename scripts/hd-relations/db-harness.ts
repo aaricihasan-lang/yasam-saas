@@ -225,12 +225,76 @@ async function main() {
     } catch { ckBlocked = true; }
     ok(ckBlocked, "6h tür ↔ kişi sayısı CHECK (Penta 2 kişi olamaz)");
 
+    section("8. DB güvenlik kapanışı: service_role ile doğrudan SQL (tenant + sahiplik tetikleyicisi)");
+    // Her deneme ayrı transaction + SET LOCAL ROLE service_role (uygulamanın kullandığı rol; BYPASSRLS).
+    const asService = async (sql: string, p: unknown[] = []): Promise<{ ok: boolean; code?: string; msg?: string }> => {
+      await su.query("begin");
+      try {
+        await su.query("set local role service_role");
+        await su.query(sql, p);
+        await su.query("commit");
+        return { ok: true };
+      } catch (e) {
+        await su.query("rollback");
+        const err = e as { code?: string; message?: string };
+        return { ok: false, code: err.code, msg: err.message };
+      }
+    };
+    const trg = await count(`select count(*) n from pg_trigger where tgname='trg_hd_relation_participant_integrity' and not tgisinternal`);
+    ok(trg === 1, "8a katılımcı bütünlük tetikleyicisi kurulu");
+    const execPriv = (await su.query(`select has_function_privilege('anon','public.hd_relation_participant_integrity()','EXECUTE') a, has_function_privilege('authenticated','public.hd_relation_participant_integrity()','EXECUTE') b`)).rows[0];
+    ok(!execPriv.a && !execPriv.b, "8b tetikleyici fonksiyonu anon/authenticated için çalıştırılamaz", execPriv);
+    // Taze A analizi (gerçek route ile) — tüm denemeler bunun üzerinde.
+    const secId = String((await call(routes.list.POST, "POST", U.A, { body: P(1, 3) })).json.id);
+    ok((await count(`select count(*) n from public.human_design_relation_participants where analysis_id=$1`, [secId])) === 2, "8c geçerli aynı-tenant ilişki route ile yazılır (tetikleyiciden geçer)");
+    const ins = (client: string | null, chart: string | null, pos = 4) =>
+      asService(`insert into public.human_design_relation_participants(analysis_id, tenant_id, position, client_id, client_name, source_chart_id) values ($1,$2,$3,$4,'zz',$5)`, [secId, TA, pos, client, chart]);
+    const r1 = await ins(cid(0, "d"), null);
+    ok(!r1.ok && r1.code === "23514", "8d INSERT: başka tenant'ın client_id'si → RED (service_role)", r1);
+    const r2 = await ins(null, hid(0, "d"));
+    ok(!r2.ok && r2.code === "23514", "8e INSERT: başka tenant'ın source_chart_id'si → RED", r2);
+    const r3 = await ins(cid(0, "d"), hid(0, "d"));
+    ok(!r3.ok && r3.code === "23514", "8f INSERT: başka tenant'ın danışan + haritası birlikte → RED", r3);
+    const r4 = await ins(cid(0), hid(2));
+    ok(!r4.ok && r4.code === "23514", "8g INSERT: aynı tenant ama harita başka danışanın → RED", r4);
+    const r5 = await ins("ffffffff-0000-4000-8000-00000000ffff", null);
+    ok(!r5.ok && (r5.code === "23503" || r5.code === "23514"), "8h INSERT: var olmayan danışan → RED", r5);
+    const r6 = await ins(cid(0), hid(0));
+    ok(r6.ok, "8i INSERT: aynı tenant + haritası kendi danışanının → KABUL", r6);
+    await su.query(`delete from public.human_design_relation_participants where analysis_id=$1 and position=4`, [secId]);
+    const upd = (set: string, p: unknown[]) => asService(`update public.human_design_relation_participants set ${set} where analysis_id=$1 and position=0`, [secId, ...p]);
+    const u1 = await upd("client_id=$2, source_chart_id=null", [cid(0, "d")]);
+    ok(!u1.ok && u1.code === "23514", "8j UPDATE: client_id → başka tenant danışanı → RED", u1);
+    const u2 = await upd("source_chart_id=$2", [hid(0, "d")]);
+    ok(!u2.ok && u2.code === "23514", "8k UPDATE: source_chart_id → başka tenant haritası → RED", u2);
+    const u3 = await upd("source_chart_id=$2", [hid(4)]);
+    ok(!u3.ok && u3.code === "23514", "8l UPDATE: source_chart_id → aynı tenant başka danışanın haritası → RED", u3);
+    const u4 = await upd("tenant_id=$2", [TB]);
+    ok(!u4.ok, "8m UPDATE: katılımcı tenant_id → başka tenant → RED", u4);
+    const u5 = await upd("client_name=$2", ["Ad güncelleme (bağlar aynı)"]);
+    ok(u5.ok, "8n UPDATE: bağ kolonları dışındaki alan (ad) → KABUL", u5);
+    const stillOk = (await su.query(`select client_id, source_chart_id from public.human_design_relation_participants where analysis_id=$1 order by position`, [secId])).rows;
+    ok(stillOk[0].client_id === cid(1) && stillOk[0].source_chart_id === hid(1) && stillOk[1].client_id === cid(3), "8o reddedilen yazımlar hiçbir bağı değiştirmedi", stillOk);
+    // ON DELETE SET NULL tarihsel davranış korunur (tetikleyici FK eylemini engellemez).
+    await su.query(`delete from public.human_design_charts where id=$1`, [hid(3)]);
+    const afterChart = (await su.query(`select client_id, source_chart_id from public.human_design_relation_participants where analysis_id=$1 and position=1`, [secId])).rows[0];
+    ok(afterChart.source_chart_id === null && afterChart.client_id === cid(3), "8p bireysel harita silinince source_chart_id NULL olur, analiz kalır", afterChart);
+    const gs = await call(routes.one.GET, "GET", U.A, { params: { id: secId } });
+    ok(gs.status === 200 && ((gs.json.analysis as Json).participants as Json[])[1].status === "source_chart_deleted", "8q kaynak harita silinmiş katılımcı tarihsel işaretlenir");
+    await su.query(`delete from public.human_design_clients where id=$1`, [cid(3)]);
+    const afterClient = (await su.query(`select client_id, source_chart_id from public.human_design_relation_participants where analysis_id=$1 and position=1`, [secId])).rows[0];
+    ok(afterClient.client_id === null, "8r danışan silinince client_id NULL olur (ON DELETE SET NULL)", afterClient);
+    const t2 = (await su.query(`select client_id, source_chart_id from public.human_design_relation_participants where analysis_id=$1 and position=0`, [secId])).rows[0];
+    await su.query(`delete from public.human_design_clients where id=$1`, [cid(1)]);
+    const t3 = (await su.query(`select client_id, source_chart_id from public.human_design_relation_participants where analysis_id=$1 and position=0`, [secId])).rows[0];
+    ok(t2.source_chart_id === hid(1) && t3.client_id === null && t3.source_chart_id === hid(1), "8s danışan silinip harita kalınca (harita bağı NULL olur) katılımcı silme eylemi tetikleyiciye takılmaz", { t2, t3 });
+
     section("7. Demo hesap + migration uygulanmamış senaryosu");
     await su.query(`update public.users set is_demo_account=true where id=$1`, [U.A2.id]);
     ok((await call(routes.list.POST, "POST", U.A2, { body: P(0, 2) })).status === 403, "7a demo hesap yeni analiz oluşturamaz");
     await su.query(`drop table public.human_design_relation_participants; drop table public.human_design_relation_analyses;`);
     const beforeM = roxy.connection;
-    const mp = await call(routes.list.POST, "POST", U.A, { body: P(0, 3) });
+    const mp = await call(routes.list.POST, "POST", U.A, { body: P(0, 2) });
     ok(mp.status === 503 && mp.json.code === "RELATIONS_UNAVAILABLE" && roxy.connection === beforeM, "7b tablolar yokken → 503, Roxy ÇAĞRILMAZ", mp.json);
     const ml = await call(routes.list.GET, "GET", U.A);
     ok(ml.status === 503, "7c liste → 503 (mevcut HD akışı etkilenmez)");

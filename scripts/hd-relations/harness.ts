@@ -364,6 +364,35 @@ async function main() {
   ok("G4 BodyGraph istemcisi / servisi DEĞİŞMEDİ (yeni uçlar ayrı dosyada)", !read("lib/human-design/providers/roxy/client.ts").includes("connection") && !read("lib/human-design/api/roxyChartService.ts").includes("relation"));
   ok("G5 Connection ve Penta ayrı doğrulayıcı (Penta Connection sonucunu kullanmaz)", !read("lib/human-design/relations/penta.ts").includes("connection"));
 
+  // central-client L5 ("Roxy/engine/Word/profesyonel harita/AutoCalc dosyaları DEĞİŞMEDİ") bu PR'da BİLİNÇLİ
+  // olarak FAIL verir. Bu kontrol, L5'in koruduğu alandaki farkı TAM olarak sabitler: yalnız config.ts'ye
+  // ekleme + yeni relationClient.ts. Başka bir dosya değişirse ya da config.ts'den satır silinir/değişirse
+  // (yeni güvenlik regresyonu) burada FAIL olur — L5'in bilinen FAIL'i bunu GİZLEYEMEZ.
+  {
+    const { execSync } = await import("node:child_process");
+    const L5 = "lib/human-design/providers lib/human-design/api/roxyChartService.ts lib/human-design/engine app/human-design/kayitli-haritalar/components/HdComputedChartView.tsx app/human-design/danisanlar/components/HdAutoCalcPanel.tsx";
+    let names = "";
+    let cfg = "";
+    try {
+      names = execSync(`git diff --name-status origin/main -- ${L5}`, { encoding: "utf8" }).trim();
+      cfg = execSync("git diff -U0 origin/main -- lib/human-design/providers/roxy/config.ts", { encoding: "utf8" });
+    } catch { names = "GIT_ERROR"; }
+    const status = names.split(/\r?\n/).filter(Boolean).map((l) => l.replace(/\s+/g, " ")).sort().join(" | ");
+    ok("G6 L5 korumalı alanda YALNIZ: config.ts (değişti) + relationClient.ts (yeni) — başka dosya değişmedi", status === "A lib/human-design/providers/roxy/relationClient.ts | M lib/human-design/providers/roxy/config.ts", status);
+    const removed = cfg.split(/\r?\n/).filter((l) => l.startsWith("-") && !l.startsWith("---"));
+    const added = cfg.split(/\r?\n/).filter((l) => l.startsWith("+") && !l.startsWith("+++")).map((l) => l.slice(1).trim()).filter(Boolean);
+    const allowed = [
+      /^\/\/ İlişki ve Grup Analizleri/,
+      /^\/\*\* .* \*\/$/,
+      /^export const ROXY_CONNECTION_ENDPOINT = "\/human-design\/connection";$/,
+      /^export const ROXY_PENTA_ENDPOINT = "\/human-design\/penta";$/,
+      /^export const ROXY_CONNECTION_ADAPTER_VERSION = "roxy-connection-1";$/,
+      /^export const ROXY_PENTA_ADAPTER_VERSION = "roxy-penta-1";$/,
+    ];
+    ok("G7 config.ts farkı YALNIZ ekleme (silinen/değişen satır yok: BodyGraph uç, politika, limit, anahtar okuma aynen)", removed.length === 0, removed);
+    ok("G8 config.ts'ye eklenen satırlar yalnız iki uç + iki adaptör sürümü (+ açıklama)", added.length > 0 && added.every((l) => allowed.some((r) => r.test(l))), added);
+  }
+
   ok("Z ağ çağrısı (gerçek Roxy dahil) 0", netCalls === 0, netCalls);
   globalThis.fetch = realFetch;
   console.log(`\nHD İLİŞKİ VE GRUP ANALİZLERİ: ${pass} PASS / ${fail} FAIL`);
