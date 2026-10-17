@@ -16,11 +16,13 @@ import { bayerBoth, FIXED_STAR_CATALOG, FIXED_STAR_FAR_LAT, fixedStarName, fixed
 import { FIXED_STAR_ORB_QUERY, fixedStarOrbOf } from "../model/westernFixedStars";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
 import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicVargaTechnical } from "../model/vedic";
-import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TIMING_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpTransitTechnical } from "../model/kp";
+import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpTransitTechnical } from "../model/kp";
 import { kundliTitles, toKundliData, toVargaChartData } from "@/app/admin/astroloji/_lib/kundliData";
 import { kundliLegend } from "@/app/admin/astroloji/_lib/kundliLocalize";
 import { localSpaceCenter, localSpaceCenterNote, localSpaceText } from "../localSpaceCenter";
 import { interpretationKindNote, interpretationKindOfSchema } from "../interpretationKind";
+// TRANSİT-03: KP zaman aralığı şeması (ayrı satır: TRANSİT-01/02 import değişiklikleriyle birleştirme çakışması olmasın).
+import { KP_TIMING_TECHNICAL_SCHEMA } from "../model/kp";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "../noProviderInterp";
 import { figureTitle, type ReportFigure } from "./figures";
 import { ACG_ANGLES, BODY_COLORS, CLASSICAL, acgMapLines, acgMcLabels, localSpaceMapLines } from "@/app/admin/astroloji/_lib/locationMaps";
