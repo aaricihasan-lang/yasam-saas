@@ -71,6 +71,10 @@ import { useTranslations, useLocale, useMessages } from "next-intl";
 import { localeTag } from "@/lib/i18n/format";
 import type { ActiveLocale } from "@/lib/i18n/locales";
 import LanguageSelector from "@/components/i18n/LanguageSelector";
+
+// Public ana sayfa dil seçimi geçici olarak gizli (owner kararı); yeniden göstermek için true yapın.
+// i18n altyapısı ve panel içi LanguageSelector etkilenmez.
+const SHOW_LANDING_LANGUAGE_SELECTOR = false;
 import NotificationBell from "@/components/notifications/NotificationBell";
 import CookiePreferencesButton from "@/components/analytics/CookiePreferencesButton";
 import { GOOGLE_PLAY_APP_URL } from "@/lib/platform/stores";
@@ -823,7 +827,6 @@ export default function Home() {
   const [authModalView, setAuthModalView] = useState<
     "login" | "support" | "membership" | "membershipOptions"
   >("login");
-  const [scrolled, setScrolled] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
   const [moduleStats, setModuleStats] = useState<Partial<Record<ModulePermissionKey, number | null>>>({});
   // Yaşam Hafızası kartı: /api/yasam-hafizasi/health'ten DÜRÜST durum (undefined = yükleniyor).
@@ -1262,13 +1265,6 @@ export default function Home() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.tenant_id, t]);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 16);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -2079,19 +2075,19 @@ export default function Home() {
 
       <div className="relative z-10 w-full max-w-none px-4 py-4 md:px-8 xl:px-14 2xl:px-18">
         {/* — Nav — */}
-        <header className={`sticky top-3 z-50 flex flex-wrap items-center justify-between gap-2 rounded-[20px] border px-3 py-2.5 sm:gap-3 sm:px-6 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 ${scrolled ? "border-slate-200/50 bg-white/80 shadow-[0_4px_20px_rgba(15,23,42,0.08)] backdrop-blur-xl" : "border-white/70 bg-white/85 shadow-sm backdrop-blur-md"}`}>
-          <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5">
+        {/* Panelsiz üst satır: logo + marka solda, Giriş Yap sağda — doğrudan sayfa arka planı üzerinde. */}
+        <header className="relative z-50 flex items-center justify-between gap-3 py-1 sm:px-2">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-base text-white shadow-sm shadow-violet-300/30">
               ✨
             </div>
-            {/* Çok dar ekranda (<380px) marka metni yalnız ekran okuyucuya — tek satır kalsın, taşma olmasın. */}
-            <p className="text-sm font-black tracking-wide text-slate-950 max-[379px]:sr-only">
+            <p className="truncate text-sm font-black tracking-wide text-slate-950">
               {t("brand")}
             </p>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <LanguageSelector compact />
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            {SHOW_LANDING_LANGUAGE_SELECTOR && <LanguageSelector compact />}
             <button
               type="button"
               onClick={() => {
@@ -2107,7 +2103,7 @@ export default function Home() {
         </header>
 
         {/* — Hero — */}
-        <section className="mx-auto mt-10 flex w-full max-w-5xl flex-col items-center text-center xl:mt-12 xl:max-w-[1200px]">
+        <section className="mx-auto mt-6 flex w-full max-w-5xl flex-col items-center text-center xl:mt-7 xl:max-w-[1200px]">
           {/* <640px: sarmalayıcılar display:contents → başlık, test kartı, alt başlık, CTA sırası (order).
               ≥lg: 3 sütun — sol bilgi kartları · orta hero · sağ test hesabı erişimi */}
           <div className="relative flex w-full items-center justify-center max-sm:contents lg:grid lg:grid-cols-[204px_minmax(0,1fr)_220px] lg:gap-4 xl:grid-cols-[236px_minmax(0,1fr)_236px] xl:gap-7">
