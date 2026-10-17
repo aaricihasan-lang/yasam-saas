@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import PasswordInput from "@/components/ui/PasswordInput";
 import { passwordPolicyError, REGISTER_HONEYPOT_FIELD } from "@/lib/auth/registerValidation";
@@ -132,6 +132,10 @@ export default function RegisterPage() {
             <h1 className="mt-4 text-3xl font-black text-slate-950 md:text-4xl">{t("title")}</h1>
             <p className="mt-2 text-base leading-7 text-slate-500 md:text-lg">
               {t("subtitle")}
+            </p>
+            <p className="mt-3 flex items-start gap-2 rounded-2xl border border-violet-200/70 bg-gradient-to-r from-violet-50 to-fuchsia-50/70 px-3.5 py-2.5 text-sm font-semibold leading-snug text-violet-800">
+              <Sparkles className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+              {t("trialNote")}
             </p>
 
             <form onSubmit={handleSubmit} className="mt-6 space-y-4">

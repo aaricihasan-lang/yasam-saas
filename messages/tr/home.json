@@ -193,6 +193,18 @@
       "cta": "Test Hesabıyla Giriş Yap",
       "note": "Bu hesap tanıtım ve inceleme amaçlıdır."
     },
+    "freeTrial": {
+      "eyebrow": "3 Gün Ücretsiz Keşif",
+      "title": "Yaşam Sistemi’ni Yakından Tanımaya Ne Dersiniz?",
+      "highlight": "3 Gün Boyunca Ücretsiz Keşfedin!",
+      "body1": "Kendi analizlerinizi oluşturun, uzmanlık modülleri arasında gezinin, danışan yönetiminin sunduğu kolaylıkları keşfedin.",
+      "body2": "Numeroloji, astroloji, Human Design, doğaltaş, refleksoloji, biyoenerji ve diğer uzmanlık araçlarıyla Yaşam Sistemi’nin profesyonel çalışma hayatınıza neler katabileceğini deneyimleyin.",
+      "closing": "Mesleki çalışmalarınıza yeni bir boyut kazandıracak bu deneyimi şimdi yaşayın.",
+      "daysLabel": "Gün",
+      "daysSub": "Ücretsiz keşif",
+      "cta": "Hemen Üyeliğinizi Oluşturun",
+      "note": "3 günlük ücretsiz kullanım, üyeliğiniz yönetici tarafından onaylandığında başlar."
+    },
     "hero": {
       "cardModules": "10+ Modül",
       "cardModulesSub": "Uzmanlık araçları",
@@ -485,6 +497,7 @@
       "submitting": "Kaydediliyor…",
       "haveAccount": "Zaten hesabınız var mı?",
       "signIn": "Giriş yapın",
+      "trialNote": "3 günlük ücretsiz keşif, üyeliğiniz yönetici tarafından onaylandığında başlar.",
       "toast": {
         "errorTitle": "İşlem başarısız",
         "successTitle": "Başarılı",
