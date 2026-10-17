@@ -41,6 +41,8 @@ function Item({
   wide = false,
   subInStrip = true,
   help = null,
+  wideMode = "show",
+  helpOverlay = false,
 }: {
   label: string;
   value: string | null;
@@ -52,6 +54,10 @@ function Item({
   subInStrip?: boolean;
   /** Kavram açıklaması: varsayılan KAPALI; "ⓘ" düğmesiyle açılır (dar kolonda sürekli yer kaplamaz; mobilde dokunulabilir). */
   help?: { text: string; label: string } | null;
+  /** Geniş masaüstünde (hdwide) gizle — o düzende alan sağdaki tamamlayıcı kartta gösterilir. */
+  wideMode?: "show" | "hide";
+  /** true → açıklama yerleşimi BÜYÜTMEZ: kartın (relative) sınırları içinde üstte açılır (dar sağ kart). */
+  helpOverlay?: boolean;
 }) {
   const text = value ?? "—";
   const [helpOpen, setHelpOpen] = useState(false);
@@ -60,7 +66,7 @@ function Item({
   return (
     // lg şerit: "ETİKET değer" satır-içi akış (kesilme yok, sarar) · hdwide/mobil: etiket üstte, değer altta.
     <div
-      className={`min-w-0 lg:flex lg:max-w-full lg:flex-wrap lg:items-baseline lg:gap-x-1.5 hdwide:block ${wide ? "col-span-full" : ""}`}
+      className={`min-w-0 lg:flex lg:max-w-full lg:flex-wrap lg:items-baseline lg:gap-x-1.5 ${wideMode === "hide" ? "hdwide:hidden" : "hdwide:block"} ${wide ? "col-span-full" : ""}`}
       data-hd-info-field={field}
       title={title || undefined}
     >
@@ -86,7 +92,17 @@ function Item({
       </dd>
       {sub ? <dd className={`m-0 min-w-0 break-words text-[10.5px] font-normal leading-tight text-slate-500 hdwide:text-[11px] ${subInStrip ? "" : "lg:hidden hdwide:block"}`}>{sub}</dd> : null}
       {help && helpOpen ? (
-        <dd id={helpId} className="m-0 mt-1 min-w-0 break-words rounded-lg bg-indigo-50/70 px-2 py-1.5 text-[11px] font-normal leading-snug text-slate-600 lg:basis-full" data-hd-signature-help>
+        <dd
+          id={helpId}
+          // Katman: kartın ÜST kısmında açılır (kendi "i" düğmesini örtmez); tıklanınca kapanır.
+          onClick={helpOverlay ? () => setHelpOpen(false) : undefined}
+          className={
+            helpOverlay
+              ? "absolute inset-x-1.5 top-1.5 z-10 m-0 cursor-pointer break-words rounded-lg border border-indigo-100 bg-white px-2.5 py-2 text-[11px] font-normal leading-snug text-slate-600 shadow-lg"
+              : "m-0 mt-1 min-w-0 break-words rounded-lg bg-indigo-50/70 px-2 py-1.5 text-[11px] font-normal leading-snug text-slate-600 lg:basis-full"
+          }
+          data-hd-signature-help
+        >
           {help.text}
         </dd>
       ) : null}
@@ -127,33 +143,55 @@ function Brand() {
   );
 }
 
-export function HdChartInfoPanel({
-  result,
-  codes,
-  subject,
-}: {
+type HdInfoProps = {
   result: HdComputedChart;
   codes: HdAppChartCodes;
   subject: HdChartSubjectInfo | null;
-}) {
+};
+
+/** Ortak görünen değerler (tek kaynak: sol panel + sağ tamamlayıcı kart aynı hesaplamayı kullanır). */
+function useInfoValues({ result, codes }: Omit<HdInfoProps, "subject">) {
   const cross = result.incarnationCross;
   const [pSun, pEarth, dSun, dEarth] = cross.gates;
-  const showRaw = (raw: string | undefined, label: string) => (raw && raw !== label ? raw : null);
-  const typeLabel = hdTypeLabelFromCode(codes.type_code);
-  const authorityLabel = hdAuthorityDisplayLabel(codes.authority_code, codes.type_code);
-  const profileLabel = hdProfileBilingual(codes.profile_code) ?? hdProfileLabelFromCode(codes.profile_code);
-  const definitionLabel = hdDefinitionLabelFromCode(codes.definition_code);
   const crossGates = `${pSun}/${pEarth} | ${dSun}/${dEarth}`;
-  const keynotes = hdTypeKeynotes(codes.type_code, { canonical: { strategy: result.strategy, signature: result.signature, notSelf: result.notSelf } });
+  const definitionLabel = hdDefinitionLabelFromCode(codes.definition_code);
   // Haç değeri: bilinen temada "Türkçe tema (İngilizce kanonik ad)"; bilinmeyende yalnız kanonik ad (uydurma yok).
   const crossTheme = cross.name ? crossThemeNames(cross.name, cross.angle ?? null) : null;
-  const crossValue = cross.name ? (crossTheme?.themeKnown ? `${crossTheme.tr} (${crossTheme.en})` : cross.name) : `${hdCrossAngleLabel(cross.angle)} (yalnız kapılar)`;
+  return {
+    typeLabel: hdTypeLabelFromCode(codes.type_code),
+    authorityLabel: hdAuthorityDisplayLabel(codes.authority_code, codes.type_code),
+    profileLabel: hdProfileBilingual(codes.profile_code) ?? hdProfileLabelFromCode(codes.profile_code),
+    definitionLabel,
+    definitionSource: result.definition.kind && result.definition.kind !== definitionLabel ? result.definition.kind : null,
+    crossValue: cross.name ? (crossTheme?.themeKnown ? `${crossTheme.tr} (${crossTheme.en})` : cross.name) : `${hdCrossAngleLabel(cross.angle)} (yalnız kapılar)`,
+    crossSub: `${crossGates}${cross.angle ? ` · ${hdCrossAngleLabel(cross.angle)}` : ""}`,
+    keynotes: hdTypeKeynotes(codes.type_code, { canonical: { strategy: result.strategy, signature: result.signature, notSelf: result.notSelf } }),
+  };
+}
+
+/** Tamamlayıcı alanlar (Tanım · Enkarnasyon Teması · İmza · Kendilik Dışı Tema) — sol panelde (mobil / lg şerit)
+ *  ve geniş masaüstünde sağdaki tamamlayıcı kartta AYNI bileşenle. */
+function ExtraItems({ v, wide, helpOverlay = false }: { v: ReturnType<typeof useInfoValues>; wide: "show" | "hide"; helpOverlay?: boolean }) {
+  return (
+    <>
+      <Item field="definition" label={HD_TERM_BI.definition} value={v.definitionLabel} source={v.definitionSource} wide={false} wideMode={wide} />
+      <Item field="cross" label={HD_TERM_BI.cross} value={v.crossValue} sub={v.crossSub} source={v.crossSub} subInStrip={false} wideMode={wide} />
+      {v.keynotes ? (
+        <Item field="signature" label={HD_TERM_BI.signature} value={v.keynotes.signature} help={{ text: HD_SIGNATURE_HELP, label: `${HD_TERM_BI.signature} nedir?` }} wideMode={wide} helpOverlay={helpOverlay} />
+      ) : null}
+      {v.keynotes ? <Item field="notSelf" label={HD_TERM_BI.notSelf} value={v.keynotes.notSelf} wideMode={wide} /> : null}
+    </>
+  );
+}
+
+export function HdChartInfoPanel({ result, codes, subject }: HdInfoProps) {
+  const v = useInfoValues({ result, codes });
 
   return (
     <section
       aria-label="Danışan ve harita bilgileri"
       data-hd-info
-      className="rounded-2xl border border-indigo-200/70 bg-white p-3 shadow-sm lg:flex-none lg:px-4 lg:py-2 hdwide:flex hdwide:w-[280px] hdwide:shrink-0 hdwide:flex-col hdwide:rounded-none hdwide:border-0 hdwide:border-r hdwide:border-indigo-100 hdwide:bg-transparent hdwide:py-4 hdwide:pl-5 hdwide:pr-4 hdwide:shadow-none"
+      className="rounded-2xl border border-indigo-200/70 bg-white p-3 shadow-sm lg:flex-none lg:px-4 lg:py-2 hdwide:flex hdwide:w-[272px] hdwide:shrink-0 hdwide:flex-col hdwide:rounded-none hdwide:border-0 hdwide:border-r hdwide:border-indigo-100 hdwide:bg-transparent hdwide:py-4 hdwide:pl-5 hdwide:pr-4 hdwide:shadow-none"
     >
       <div className="space-y-3 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-x-4 lg:gap-y-1 lg:space-y-0 hdwide:flex hdwide:min-h-0 hdwide:flex-1 hdwide:flex-col hdwide:gap-4 hdwide:space-y-0">
         {subject ? (
@@ -175,26 +213,38 @@ export function HdChartInfoPanel({
             <span lang="en">Human Design</span>
           </GroupTitle>
           <dl className="m-0 grid grid-cols-1 gap-x-3 gap-y-1.5 min-[420px]:grid-cols-2 lg:flex lg:min-w-0 lg:flex-1 lg:flex-wrap lg:gap-x-4 lg:gap-y-0.5 hdwide:grid hdwide:grid-cols-1 hdwide:gap-y-[clamp(5px,0.8vh,9px)]">
-            <Item field="type" label={HD_TERM_BI.type} value={typeLabel} />
-            {keynotes ? <Item field="strategy" label={HD_TERM_BI.strategy} value={keynotes.strategy} /> : null}
-            <Item field="profile" label={HD_TERM_BI.profile} value={profileLabel} />
-            <Item field="definition" label={HD_TERM_BI.definition} value={definitionLabel} source={showRaw(result.definition.kind, definitionLabel)} />
-            <Item
-              field="cross"
-              label={HD_TERM_BI.cross}
-              value={crossValue}
-              sub={`${crossGates}${cross.angle ? ` · ${hdCrossAngleLabel(cross.angle)}` : ""}`}
-              source={`${crossGates}${cross.angle ? ` · ${hdCrossAngleLabel(cross.angle)}` : ""}`}
-              subInStrip={false}
-            />
-            <Item field="authority" label={HD_TERM_BI.authority} value={authorityLabel} />
-            {keynotes ? <Item field="signature" label={HD_TERM_BI.signature} value={keynotes.signature} help={{ text: HD_SIGNATURE_HELP, label: `${HD_TERM_BI.signature} nedir?` }} /> : null}
-            {keynotes ? <Item field="notSelf" label={HD_TERM_BI.notSelf} value={keynotes.notSelf} /> : null}
+            <Item field="type" label={HD_TERM_BI.type} value={v.typeLabel} />
+            {v.keynotes ? <Item field="strategy" label={HD_TERM_BI.strategy} value={v.keynotes.strategy} /> : null}
+            <Item field="profile" label={HD_TERM_BI.profile} value={v.profileLabel} />
+            <Item field="authority" label={HD_TERM_BI.authority} value={v.authorityLabel} />
+            {/* Mobil + lg şerit: tamamlayıcı alanlar burada; geniş masaüstünde sağdaki kartta (hdwide:hidden). */}
+            <ExtraItems v={v} wide="hide" />
           </dl>
         </div>
 
         <Brand />
       </div>
+    </section>
+  );
+}
+
+/**
+ * Geniş masaüstü (hdwide) TAMAMLAYICI BİLGİLER kartı — Personality sütununun altında (owner 2026-10-17: ilk ekran
+ * dengesi). Sol panel yalnız kimlik + çekirdek HD'yi taşır → kısalır, logo ilk ekranda kalır. Mobil ve lg şeritte
+ * gizli (orada aynı alanlar sol/üst paneldedir).
+ */
+export function HdChartInfoExtra({ result, codes }: Omit<HdInfoProps, "subject">) {
+  const v = useInfoValues({ result, codes });
+  return (
+    <section
+      aria-label="Tamamlayıcı Human Design bilgileri"
+      data-hd-info-extra
+      className="relative hidden rounded-xl border border-indigo-100 bg-white/90 px-3 py-2 hdwide:order-last hdwide:block"
+    >
+      <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Tamamlayıcı Bilgiler</p>
+      <dl className="m-0 grid grid-cols-1 gap-y-[clamp(3px,0.6vh,8px)]">
+        <ExtraItems v={v} wide="show" helpOverlay />
+      </dl>
     </section>
   );
 }

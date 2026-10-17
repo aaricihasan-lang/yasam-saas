@@ -62,6 +62,7 @@ type Measure = {
   vw: number; vh: number; wide: boolean;
   modalScroller: R | null; onelook: R | null; info: R | null; stage: R | null; bodygraph: R | null; brand: R | null; logo: R | null;
   centersCard: R | null; nextCard: R | null; colDesign: R | null; colPersonality: R | null;
+  extra: R | null; extraVisible: boolean; extraFields: Array<{ f: string; r: R; clipped: boolean }>;
   fields: Array<{ f: string; r: R; clipped: boolean }>;
   signatureHelp: { r: R | null; visible: boolean; inPanel: boolean };
   centerRows: Array<{ code: string; row: R; parts: Array<{ k: string; r: R; clipped: boolean }> }>;
@@ -80,7 +81,7 @@ async function measure(page: Page): Promise<Measure> {
     const info = q("[data-hd-info]");
     const onelook = q("[data-hd-onelook]");
     const centersCard = q("[data-hd-centers-card]") ?? (q('[data-hd-center]')?.closest("div.rounded-xl") ?? null);
-    const help = q("[data-hd-signature-help]");
+    const help = [...dlg.querySelectorAll("[data-hd-signature-help]")].find((e) => (e as HTMLElement).offsetParent !== null) ?? null;
     const helpR = rr(help);
     const helpVisible = !!help && getComputedStyle(help).display !== "none" && getComputedStyle(help).visibility !== "hidden" && (helpR?.h ?? 0) > 0;
     const infoR = rr(info);
@@ -99,12 +100,24 @@ async function measure(page: Page): Promise<Measure> {
       nextCard: rr(onelook?.nextElementSibling ?? null),
       colDesign: rr(q('[data-hd-stage] [data-hd-side="design"]')?.parentElement ?? null),
       colPersonality: rr(q('[data-hd-stage] [data-hd-side="personality"]')?.parentElement ?? null),
-      fields: [...dlg.querySelectorAll("[data-hd-info-field]")].map((e) => ({
+      extra: rr(q("[data-hd-info-extra]")),
+      extraVisible: !!q("[data-hd-info-extra]") && getComputedStyle(q("[data-hd-info-extra]")!).display !== "none",
+      extraFields: [...dlg.querySelectorAll("[data-hd-info-extra] [data-hd-info-field]")].filter((e) => (e as HTMLElement).offsetParent !== null).map((e) => ({
         f: e.getAttribute("data-hd-info-field") ?? "",
         r: rr(e)!,
         clipped: [...e.querySelectorAll("dt,dd")].some((d) => (d as HTMLElement).scrollWidth > (d as HTMLElement).clientWidth + 1 || (d as HTMLElement).scrollHeight > (d as HTMLElement).clientHeight + 1),
       })),
-      signatureHelp: { r: helpR, visible: helpVisible, inPanel: !!helpR && !!infoR && helpR.x >= infoR.x - 1 && helpR.r <= infoR.r + 1 && helpR.y >= infoR.y - 1 && helpR.b <= infoR.b + 1 },
+      // Yalnız GÖRÜNÜR sol panel alanları (geniş ekranda sağ karta taşınan kopyalar display:none).
+      fields: [...dlg.querySelectorAll("[data-hd-info] [data-hd-info-field]")].filter((e) => (e as HTMLElement).offsetParent !== null).map((e) => ({
+        f: e.getAttribute("data-hd-info-field") ?? "",
+        r: rr(e)!,
+        clipped: [...e.querySelectorAll("dt,dd")].some((d) => (d as HTMLElement).scrollWidth > (d as HTMLElement).clientWidth + 1 || (d as HTMLElement).scrollHeight > (d as HTMLElement).clientHeight + 1),
+      })),
+      signatureHelp: (() => {
+        const host = help?.closest("[data-hd-info-extra], [data-hd-info]") ?? null;
+        const hr = rr(host);
+        return { r: helpR, visible: helpVisible, inPanel: !!helpR && !!hr && helpR.x >= hr.x - 1 && helpR.r <= hr.r + 1 && helpR.y >= hr.y - 1 && helpR.b <= hr.b + 1 };
+      })(),
       centerRows: [...dlg.querySelectorAll("[data-hd-center]")].map((li) => ({
         code: li.getAttribute("data-hd-center") ?? "",
         row: rr(li)!,
@@ -225,6 +238,18 @@ async function main() {
         ok(inside(M.colDesign, M.stage) && inside(M.colPersonality, M.stage), `${tag}: Design/Personality sütunları sahne içinde (dikey taşma yok)`, { d: M.colDesign, p: M.colPersonality, stage: M.stage });
         ok(!!M.info && !!M.colDesign && !!M.colPersonality && !overlap(M.info, M.colDesign) && !overlap(M.info, M.colPersonality), `${tag}: sütunlar bilgi paneline binmiyor`, { info: M.info, d: M.colDesign });
         ok(!M.bodygraph || inside(M.bodygraph, M.stage), `${tag}: BodyGraph sahne içinde`, { bg: M.bodygraph, stage: M.stage });
+        // 3c) İlk ekran dengesi (owner 2026-10-17): geniş masaüstünde sol panel yalnız kimlik + çekirdek HD; tamamlayıcı
+        //     bilgiler Personality sütununun altındaki kartta; LOGO ilk ekranda tamamen görünür.
+        if (M.wide) {
+          ok(M.fields.map((f) => f.f).join(",") === "name,local,place,coords,age,type,strategy,profile,authority", `${tag}: sol panel = kimlik + Tip/Strateji/Profil/İç Otorite`, M.fields.map((f) => f.f));
+          ok(M.extraVisible && M.extraFields.map((f) => f.f).join(",") === (key === "OLD" ? "definition,cross,signature,notSelf" : "definition,cross,signature,notSelf"), `${tag}: sağ kart = Tanım / Enkarnasyon Teması / İmza / Kendilik Dışı Tema`, M.extraFields.map((f) => f.f));
+          ok(inside(M.extra, M.stage) && !!M.extra && !!M.colPersonality && !overlap(M.extra, M.colPersonality) && M.extra.y >= M.colPersonality.b, `${tag}: tamamlayıcı kart Personality sütununun altında, sahne içinde, binmiyor`, { extra: M.extra, colP: M.colPersonality, stage: M.stage });
+          ok(M.extraFields.every((f) => inside(f.r, M.extra) && !f.clipped), `${tag}: tamamlayıcı alanlar kart içinde, kesilmiyor`, M.extraFields.filter((f) => !inside(f.r, M.extra) || f.clipped).map((f) => f.f));
+          ok(!!M.logo && M.logo.b <= M.vh && M.logo.y >= 0, `${tag}: logo İLK EKRANDA tamamen görünür`, { logo: M.logo, vh: M.vh });
+        } else {
+          ok(!M.extraVisible, `${tag}: (mobil / lg şerit) sağ kart gizli; tüm alanlar üst panelde`, M.fields.length);
+          ok(M.fields.length === 13 || (key === "OLD" && M.fields.length >= 11), `${tag}: üst panelde tüm alanlar`, M.fields.map((f) => f.f));
+        }
         // 4) Merkezler kartı harita kompozisyonundan SONRA başlar (çakışma yok).
         ok(!!M.onelook && !!M.nextCard && M.nextCard.y >= M.onelook.b, `${tag}: Merkezler kartı harita kartının altından başlıyor`, { onelookBottom: M.onelook?.b, centersTop: M.nextCard?.y });
         // 5) Merkez satırları: ad / nitelik / durum ayrı, binmez, kesilmez; 9 merkez eksiksiz.
@@ -237,14 +262,14 @@ async function main() {
         ok(!M.signatureHelp.visible || M.signatureHelp.inPanel, `${tag}: İmza açıklaması (görünürse) panel sınırları içinde`, M.signatureHelp);
         ok(!M.docOverflowX, `${tag}: yatay taşma yok`);
         // 6b) İmza açıklaması varsayılan kapalı; "i" ile açılır, panel + kart içinde kalır, Merkezler kartına binmez.
-        const tog = m0.locator("[data-hd-signature-help-toggle]");
+        const tog = m0.locator("[data-hd-signature-help-toggle]:visible");
         if (await tog.count()) {
           ok(!M.signatureHelp.visible, `${tag}: İmza açıklaması dar kolonda sürekli açık DEĞİL (kapalı başlar)`);
           await tog.click();
-          await m0.locator("[data-hd-signature-help]").waitFor();
+          await m0.locator("[data-hd-signature-help]:visible").waitFor();
           await page.waitForTimeout(150);
           const M2 = await measure(page);
-          ok(M2.signatureHelp.visible && M2.signatureHelp.inPanel && inside(M2.info, M2.onelook) && !!M2.nextCard && !!M2.onelook && M2.nextCard.y >= M2.onelook.b,
+          ok(M2.signatureHelp.visible && M2.signatureHelp.inPanel && inside(M2.info, M2.onelook) && (!M2.extraVisible || (inside(M2.extra, M2.stage) && !!M2.colPersonality && !!M2.extra && M2.extra.y >= M2.colPersonality.b)) && !!M2.nextCard && !!M2.onelook && M2.nextCard.y >= M2.onelook.b,
             `${tag}: İmza açıklaması açılınca panel içinde; kart uzar, Merkezler kartına binmez`, { help: M2.signatureHelp, info: M2.info, onelook: M2.onelook, next: M2.nextCard });
           ok((await tog.getAttribute("aria-expanded")) === "true", `${tag}: bilgi düğmesi erişilebilir (aria-expanded)`);
           await tog.click();

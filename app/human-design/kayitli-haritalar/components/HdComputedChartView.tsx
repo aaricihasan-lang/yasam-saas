@@ -14,7 +14,7 @@
 import { BodyGraph } from "../../harita/components/BodyGraph";
 import { HdRoxyBodygraph, ROXY_BODYGRAPH_ASPECT } from "./HdRoxyBodygraph";
 import { HdPlanetColumn } from "./HdPlanetColumn";
-import { HdChartInfoPanel } from "./HdChartInfoPanel";
+import { HdChartInfoExtra, HdChartInfoPanel } from "./HdChartInfoPanel";
 import type { HdChartSubjectInfo } from "@/lib/human-design/chart/chartSubjectInfo";
 import { computedChartAppCodes, type HdComputedChart } from "@/lib/human-design/chart/computedChart";
 import { hdCenterLabelFromCode } from "@/lib/human-design/codeHelpers";
@@ -68,7 +68,7 @@ export function HdComputedChartView({
           yüksekliği — kısa ekranda sütunlar sahneden taşıp bilgi şeridine binmesin); hdwide = ekran − üst bar (en az 520px). */}
       <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-b from-white to-indigo-50/40 p-3 shadow-sm lg:h-[max(580px,calc(100dvh-12.5rem))] lg:flex-none lg:px-4 lg:py-2 hdwide:h-[max(520px,calc(100dvh-5.25rem))] hdwide:min-w-0 hdwide:flex-1 hdwide:rounded-none hdwide:border-0 hdwide:bg-none hdwide:shadow-none" data-hd-stage>
         <div className="flex flex-wrap items-start justify-center gap-x-3 gap-y-4 lg:h-full lg:flex-nowrap lg:items-center lg:justify-center lg:gap-x-[clamp(20px,3vw,64px)] hdwide:gap-x-[clamp(16px,2vw,40px)]">
-          <div className="order-2 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-rose-100 bg-white/90 p-2 lg:order-1 lg:w-[clamp(190px,17vw,280px)] lg:max-w-none lg:shrink-0 lg:p-3">
+          <div className="order-2 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-rose-100 bg-white/90 p-2 lg:order-1 lg:w-[clamp(190px,17vw,280px)] lg:max-w-none lg:shrink-0 lg:p-3 hdwide:[@media(max-height:860px)]:p-2">
             <HdPlanetColumn activations={result.activations} side="design" />
           </div>
           {/* Orta: yükseklik-öncelikli BodyGraph (SVG viewBox 340×600 korunur; yalnız ölçek). */}
@@ -86,8 +86,13 @@ export function HdComputedChartView({
               </div>
             )}
           </div>
-          <div className="order-3 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-slate-200 bg-white/90 p-2 lg:w-[clamp(190px,17vw,280px)] lg:max-w-none lg:shrink-0 lg:p-3">
-            <HdPlanetColumn activations={result.activations} side="personality" />
+          {/* Sağ yığın: Personality sütunu + (yalnız geniş masaüstü) Tamamlayıcı Bilgiler kartı. Diğer düzenlerde
+              "contents" → Personality sütunu eskisi gibi doğrudan satırın öğesidir (mobil/lg şerit değişmez). */}
+          <div className="contents hdwide:order-3 hdwide:flex hdwide:w-[clamp(190px,17vw,280px)] hdwide:shrink-0 hdwide:flex-col hdwide:gap-1.5" data-hd-right-stack>
+            <div className="order-3 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-slate-200 bg-white/90 p-2 lg:w-[clamp(190px,17vw,280px)] lg:max-w-none lg:shrink-0 lg:p-3 hdwide:order-none hdwide:w-full hdwide:[@media(max-height:860px)]:p-2">
+              <HdPlanetColumn activations={result.activations} side="personality" />
+            </div>
+            <HdChartInfoExtra result={result} codes={codes} />
           </div>
         </div>
       </div>
