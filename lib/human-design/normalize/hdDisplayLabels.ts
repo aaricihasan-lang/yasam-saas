@@ -116,7 +116,8 @@ export const HD_TERM_BI = Object.freeze({
   definition: `${HD_TERM.definition} (${HD_TERM_EN.definition})`,
   signature: `${HD_TERM.signature} (${HD_TERM_EN.signature})`,
   notSelf: `${HD_TERM.notSelf} (${HD_TERM_EN.notSelf})`,
-  cross: `Enkarnasyon Haçı (${HD_TERM_EN.cross})`,
+  // 2026-10-10 owner kararı korunur: görünen Türkçe başlıkta "Haç" YOK; İngilizce kanonik terim korunur.
+  cross: `Enkarnasyon Teması (${HD_TERM_EN.cross})`,
 });
 
 /** "İmza (Signature)" kavramının kısa açıklaması (uygulama sözlüğü; sağlayıcı metni değildir). */

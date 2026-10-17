@@ -4,7 +4,7 @@
 //
 // Kayıtlı veriden (computed_result + kayıt satırı) render edilir; hesap / fetch / sağlayıcı çağrısı YOK.
 // Teknik kimlik: Danışan (ad, yerel/UTC doğum, tz, yer, koordinat, yaş) + HD (Tip, Strateji, Profil, Tanım,
-// Enkarnasyon Haçı, İç Otorite, İmza, Kendilik Dışı Tema). Strateji/İmza/Kendilik dışı tema KISA etiketlerdir
+// Enkarnasyon Teması, İç Otorite, İmza, Kendilik Dışı Tema). Strateji/İmza/Kendilik dışı tema KISA etiketlerdir
 // (uygulama sözlüğü, tipten; owner kararı 2026-10-17 — ana panelde erişilebilir). Uzun sağlayıcı açıklamaları
 // (tip/otorite/tanım/aura …) BURADA YOK: yetkili uzmanda "Sistem Yorumu" sekmesindedir.
 // 2026-10-17 owner: kavram başlıkları ve değerleri Türkçe + (İngilizce) — Türkçe uygulama sözlüğünden,

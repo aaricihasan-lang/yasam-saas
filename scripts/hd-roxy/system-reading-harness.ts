@@ -172,9 +172,9 @@ async function main() {
     ok("A21 kontrol / yön karakterleri temizlenir; metin DÜZ METİN kalır", !ht.includes("\u0000") && !ht.includes("‮") && ht.startsWith("<script>"));
     const markup = renderToStaticMarkup(createElement(HdSystemReadingView, { data: hd }));
     ok("A22 render: HTML YORUMLANMAZ (escape edilir)", !markup.includes("<script>") && !markup.includes("<img") && markup.includes("&lt;script&gt;"));
-    // 2026-10-17 owner (terminoloji): başlık Türkçe + (İngilizce) — "Enkarnasyon Haçı (Incarnation Cross)" (10-10 "Haç yok" kararının yerine).
+    // 2026-10-17 owner (terminoloji): başlık Türkçe + (İngilizce); 10-10 kararı korunur — Türkçe başlıkta "Haç" YOK.
     const lm = renderToStaticMarkup(createElement(HdSystemReadingView, { data: hd }));
-    ok("A22b Sistem Yorumu ekranı: \"Enkarnasyon Haçı (Incarnation Cross)\" + \"Tip (Type)\" başlıkları", lm.includes("Enkarnasyon Haçı (Incarnation Cross)") && lm.includes("Tip (Type)") && hd.general.find((x) => x.key === "cross")!.title === "Enkarnasyon Haçı (Incarnation Cross)");
+    ok("A22b Sistem Yorumu ekranı: \"Enkarnasyon Teması (Incarnation Cross)\" + \"Tip (Type)\" başlıkları, \"Haç\" görünmez", lm.includes("Enkarnasyon Teması (Incarnation Cross)") && lm.includes("Tip (Type)") && !lm.includes("Haç") && hd.general.find((x) => x.key === "cross")!.title === "Enkarnasyon Teması (Incarnation Cross)");
     const extra = clone(FIXTURE) as Record<string, unknown>;
     Object.assign(extra, { secretField: "S3CR3T", providerMeta: { key: "K" }, designInstantUtc: "2018-04-20T00:33:14.578Z" });
     ((extra.centers as Record<string, unknown>[])[0]).internal = "X1";

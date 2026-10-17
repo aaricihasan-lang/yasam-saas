@@ -303,7 +303,7 @@ async function main() {
 
   // ══ T — Türkçe + (İngilizce) terminoloji (owner 2026-10-17) ═════════════════
   section("T — Türkçe + (İngilizce) terimler");
-  ok(JSON.stringify(Object.values(HD_TERM_BI)) === JSON.stringify(["Tip (Type)", "Strateji (Strategy)", "İç Otorite (Inner Authority)", "Profil (Profile)", "Tanım (Definition)", "İmza (Signature)", "Kendilik Dışı Tema (Not-Self Theme)", "Enkarnasyon Haçı (Incarnation Cross)"]), "T1 owner'ın 8 başlığı birebir (Türkçe + İngilizce)", HD_TERM_BI);
+  ok(JSON.stringify(Object.values(HD_TERM_BI)) === JSON.stringify(["Tip (Type)", "Strateji (Strategy)", "İç Otorite (Inner Authority)", "Profil (Profile)", "Tanım (Definition)", "İmza (Signature)", "Kendilik Dışı Tema (Not-Self Theme)", "Enkarnasyon Teması (Incarnation Cross)"]), "T1 owner'ın 8 başlığı birebir (Türkçe + İngilizce)", HD_TERM_BI);
   ok(hdBilingual("Hayal kırıklığı (Frustration)", "Frustration") === "Hayal kırıklığı (Frustration)" && hdBilingual("Generator", "generator") === "Generator" && hdBilingual("Tatmin", "") === "Tatmin" && hdBilingual("Tatmin", null) === "Tatmin", "T2 aynı İngilizce iki kez gösterilmez; İngilizce yoksa yalnız Türkçe");
   const kRaw = hdTypeKeynotes("generator", { canonical: { strategy: "Wait to respond", signature: "Satisfaction", notSelf: "Frustration" } })!;
   ok(kRaw.strategy === "Yanıt vermek için beklemek (Wait to respond)" && kRaw.signature === "Tatmin (Satisfaction)" && kRaw.notSelf === "Hayal kırıklığı (Frustration)", "T3 İngilizce: kaydın Roxy KANONİK değeri (gerçek veri öncelikli)", kRaw);
@@ -327,6 +327,7 @@ async function main() {
   const infoVals = ["strategy", "signature", "notSelf"].map((k) => gen(k).value!);
   ok(infoVals.every((v) => MV.includes(v) && WT.includes(v)), "T10 Strateji/İmza/Kendilik dışı: harita = Sistem Yorumu = Word (aynı değer)", infoVals);
   ok(["Tip (Type)", "Strateji (Strategy)", "İç Otorite (Inner Authority)", "Profil (Profile)", "Tanım (Definition)", "İmza (Signature)", "Kendilik Dışı Tema (Not-Self Theme)"].every((l) => WT.includes(`${l}:`) || WT.includes(l)), "T11 yeni Word kimlik bölümünde iki dilli başlıklar");
+  ok(!WT.includes("Haç") && WT.includes("Enkarnasyon Teması (Yaşam Amacı)") && !SR.includes("Haç") && !MV.includes("Haç") && MV.includes("Enkarnasyon Teması (Incarnation Cross)"), "T15 10-10 kararı: Türkçe görünen başlıkta 'Haç' YOK (harita, Sistem Yorumu, yeni Word); Word özel bölüm başlığı korunur");
   ok(snap.termSet === "tr-en" && snap.identity.signature === `Tatmin (${BASE.signature})`, "T12 yeni snapshot terim setini dondurur (tr-en)");
   const oldTerms = { ...snap, termSet: undefined, identity: { ...snap.identity, strategy: "Yanıt vermek için beklemek", signature: "Tatmin", notSelf: "Hayal kırıklığı (Frustration)", profile: "2/4 — Münzevi / Fırsatçı" } };
   const WOT = await docText(await renderHdReportV2Buffer(oldTerms, {}));

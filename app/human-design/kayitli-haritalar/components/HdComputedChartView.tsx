@@ -4,7 +4,7 @@
 //
 // Kayıtlı `computed_result`'tan (RECOMPUTE YOK) render edilir:
 //   • bilgi bloğu (HdChartInfoPanel): Danışan (ad, yerel/UTC doğum, yer, koordinat, yaş) +
-//     Tip / Strateji / Profil / Tanım / Enkarnasyon Haçı / İç Otorite / İmza / Benlik-dışı tema
+//     Tip / Strateji / Profil / Tanım / Enkarnasyon Teması / İç Otorite / İmza / Benlik-dışı tema
 //   • Design | BodyGraph | Personality (tek DOM; mobilde BodyGraph üstte, altında iki sütun)
 //   • 9 merkez (tanımlı/açık + RoxyAPI kaydında sağlayıcının motor/farkındalık işareti), tanımlı kanallar,
 //     aktif kapılar
