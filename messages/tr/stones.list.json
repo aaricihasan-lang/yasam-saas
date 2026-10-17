@@ -141,6 +141,7 @@
       "backToSearchShort": "Aramaya Dön",
       "backToListShort": "Taş Listesine Dön",
       "save": "Kaydet",
+      "cancelEdit": "Vazgeç",
       "edit": "Düzenle",
       "delete": "Sil",
       "select": "Seç",
@@ -155,6 +156,7 @@
       "readMode": "Oku",
       "noInfoYet": "Henüz bilgi girilmedi.",
       "readerSubtitle": "{name} · detaylı okuma",
+      "readerEntryCount": "{n} bilgi kaydı",
       "sections": {
         "stoneName": "Taş Adı",
         "shortDesc": "Kısa Açıklama",

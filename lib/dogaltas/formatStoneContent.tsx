@@ -29,6 +29,11 @@ export type FormatStoneContentOptions = {
   renderSegment?: (text: string, key: string) => ReactNode;
   /** Madde işareti hizası için; gövde yazı boyutu üst kapsayıcıdan gelir */
   fontSizePx?: number;
+  /**
+   * Bloklar kendi kart çerçevesi olmadan basılır (çağıran kendi kutusunu çizer — ör. bilgi kaydı + kaynak
+   * tek kutu). Varsayılan false → mevcut görünüm birebir.
+   */
+  bare?: boolean;
 };
 
 function defaultRender(text: string): ReactNode {
@@ -142,9 +147,12 @@ function renderBlock(
   blockIndex: number,
   renderSegment: (text: string, key: string) => ReactNode,
   fontSizePx: number,
+  bare = false,
 ): ReactNode {
   const key = `block-${blockIndex}`;
-  const cardPad = "p-4 shadow-sm sm:p-5 md:p-6";
+  const cardPad = bare ? "" : "p-4 shadow-sm sm:p-5 md:p-6";
+  /** bare: kart görünümü (çerçeve/zemin/köşe) kaldırılır, yapı aynı kalır. */
+  const card = (cls: string) => (bare ? "" : cls);
 
   if (isListBlock(block)) {
     const items = block
@@ -159,7 +167,7 @@ function renderBlock(
     return (
       <article
         key={key}
-        className={`rounded-2xl border border-violet-100/90 bg-gradient-to-br from-white via-violet-50/40 to-cyan-50/30 ${cardPad}`}
+        className={`${card("rounded-2xl border border-violet-100/90 bg-gradient-to-br from-white via-violet-50/40 to-cyan-50/30")} ${cardPad}`}
       >
         {renderListItems(items, `${key}-ul`, renderSegment, fontSizePx)}
       </article>
@@ -190,7 +198,7 @@ function renderBlock(
       return (
         <article
           key={key}
-          className={`rounded-2xl border border-violet-100/90 bg-gradient-to-br from-white via-violet-50/40 to-cyan-50/30 ${cardPad}`}
+          className={`${card("rounded-2xl border border-violet-100/90 bg-gradient-to-br from-white via-violet-50/40 to-cyan-50/30")} ${cardPad}`}
         >
           {renderListItems(items, `${key}-sc`, renderSegment, fontSizePx)}
         </article>
@@ -200,7 +208,7 @@ function renderBlock(
     return (
       <article
         key={key}
-        className={`rounded-2xl border border-slate-200/80 bg-white/90 ${cardPad}`}
+        className={`${card("rounded-2xl border border-slate-200/80 bg-white/90")} ${cardPad}`}
       >
         {renderInlineSegment(line, `${key}-p`, renderSegment)}
       </article>
@@ -250,7 +258,7 @@ function renderBlock(
   return (
     <article
       key={key}
-      className={`space-y-4 rounded-2xl border border-slate-200/80 bg-white/90 sm:space-y-5 ${cardPad}`}
+      className={`space-y-4 sm:space-y-5 ${card("rounded-2xl border border-slate-200/80 bg-white/90")} ${cardPad}`}
     >
       {nodes}
     </article>
@@ -277,7 +285,7 @@ export function formatStoneContent(
 
   return (
     <div className="space-y-5 sm:space-y-6 md:space-y-7">
-      {blocks.map((block, index) => renderBlock(block, index, renderSegment, fontSizePx))}
+      {blocks.map((block, index) => renderBlock(block, index, renderSegment, fontSizePx, options?.bare === true))}
     </div>
   );
 }

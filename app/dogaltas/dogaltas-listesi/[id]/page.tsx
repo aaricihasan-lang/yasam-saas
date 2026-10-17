@@ -23,7 +23,7 @@ import {
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
-import { StoneReaderModal } from "@/app/dogaltas/components/StoneReaderModal";
+import { StoneReaderModal, type StoneReaderEntry } from "@/app/dogaltas/components/StoneReaderModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { getDemoReferenceStoneId } from "@/lib/dogaltas/stonesListFetch";
 import { getStone, updateStone, deleteStone as apiDeleteStone } from "@/lib/dogaltas/dogaltasApi";
@@ -181,8 +181,8 @@ type ActiveReader = {
   title: string;
   badge: string;
   text: string;
-  /** Bilgi kaydı modeli: okunan kaydın kaynağı (alt başlıkta açıkça gösterilir). */
-  source?: string;
+  /** Bilgi kaydı modeli: alanın TÜM kayıtları (sırayla) — her kayıt kendi kaynağıyla tek pencerede. */
+  entries?: StoneReaderEntry[];
 };
 
 type StoneImageItem = {
@@ -769,6 +769,18 @@ function StoneDetailPage() {
     setSuccessMessage("");
   }
 
+  /** Vazgeç: istek ATILMAZ. Açık düzenleyicide kaydedilmemiş taslak varsa mevcut "atılsın mı?" onayı gösterilir. */
+  function handleCancelEditMode() {
+    if (saving || entryBusy) return;
+    if (activeEditor && needsDiscardConfirm(editorSnapshotRef.current, editorSnapshot(activeEditor))) {
+      setDiscardPrompt(true);
+      return;
+    }
+    setEntriesEditor(null);
+    setEntryError("");
+    handleExitEditMode();
+  }
+
   function commitStoneRecord(raw: Record<string, unknown> | null | undefined) {
     const safe = toSafeStone(raw);
     setStone(safe);
@@ -933,14 +945,24 @@ function StoneDetailPage() {
     return () => { alive = false; };
   }, [editEnabled, isDemo]);
 
-  function openReader(title: string, badge: string, text: string | null | undefined, source?: string) {
+  function openReader(title: string, badge: string, text: string | null | undefined) {
     if (editEnabled) return;
 
     setActiveReader({
       title,
       badge,
       text: text && text.trim() ? text : t("noInfoYet"),
-      ...(source ? { source } : {}),
+    });
+  }
+
+  /** Bir alanın TÜM bilgi kayıtlarını tek okuyucuda açar (kayıt başına ayrı pencere YOK). */
+  function openEntriesReader(title: string, badge: string, list: readonly StoneEntryView[]) {
+    if (editEnabled || list.length === 0) return;
+    setActiveReader({
+      title,
+      badge,
+      text: list.map((e) => e.content).join("\n\n"),
+      entries: list.map((e) => ({ id: e.id, content: e.content, sourceName: e.sourceName })),
     });
   }
 
@@ -1469,12 +1491,9 @@ function StoneDetailPage() {
     return {
       entries: entriesByField[field],
       onEdit: () => openEntriesEditor(field, title, badge),
-      onRead: (e) => openReader(title, badge, e.content, sourceDisplayName(e.sourceName)),
-      onReadAll: () => {
-        const list = entriesByField[field];
-        if (list.length === 1) { openReader(title, badge, list[0]!.content, sourceDisplayName(list[0]!.sourceName)); return; }
-        openReader(title, badge, list.map((e) => `${e.content.trim()}\n— Kaynak: ${sourceDisplayName(e.sourceName)}`).join("\n\n"));
-      },
+      // Owner manuel testi: kayda da "Tam okumak" ipucuna da tıklanınca alanın TÜM kayıtları TEK okuyucuda.
+      onRead: () => openEntriesReader(title, badge, entriesByField[field]),
+      onReadAll: () => openEntriesReader(title, badge, entriesByField[field]),
     };
   }
   const entrySources = useMemo(() => {
@@ -1636,6 +1655,19 @@ function StoneDetailPage() {
             >
               {hasFilterContext ? t("backToSearch") : t("backToList")}
             </Link>
+
+            {/* Vazgeç: düzenleme modundan HİÇBİR ŞEY yazmadan çıkar (kartlar kendi pencerelerinde ayrı kaydedilir;
+                sayfa düzeyinde bekleyen değişiklik yoktur). Açık + değişmiş bir düzenleyici varsa mevcut taslak onayı. */}
+            {editEnabled && !isLibraryStone && !isDemo && (
+              <button
+                type="button"
+                data-testid="stone-edit-cancel"
+                onClick={handleCancelEditMode}
+                className="btn-soft"
+              >
+                {t("cancelEdit")}
+              </button>
+            )}
 
             {!isLibraryStone && !isDemo && (
               <button
@@ -2301,8 +2333,9 @@ function StoneDetailPage() {
         open={Boolean(activeReader)}
         title={activeReader?.title ?? ""}
         badge={activeReader?.badge ?? ""}
-        subtitle={`${t("readerSubtitle", { name: safeStone.stone_name })}${activeReader?.source ? ` · Kaynak: ${activeReader.source}` : ""}`}
+        subtitle={`${t("readerSubtitle", { name: safeStone.stone_name })}${(activeReader?.entries?.length ?? 0) > 1 ? ` · ${t("readerEntryCount", { n: activeReader!.entries!.length })}` : ""}`}
         text={activeReader?.text ?? ""}
+        entries={activeReader?.entries}
         highlightQuery={highlightQuery}
         renderHighlight={(segment, key) => (
           <Fragment key={key}>{renderHighlightedText(segment, highlightQuery)}</Fragment>
