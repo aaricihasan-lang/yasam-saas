@@ -28,26 +28,26 @@ export type ClientDetailTabDef = {
 };
 
 export const CLIENT_DETAIL_TAB_DEFS = [
+  // Owner kesin sırası (2026-10-17): Genel → Anamnez → Notlar → Seanslar → Ödevler → Çakra Analizleri →
+  // Human Design → Doğaltaş Önerileri → Beslenme → Yaşam Hafızası → Randevular → Danışan Yolculuğu →
+  // Ücretlendirme (→ Word Raporu butonu en sonda). Yalnız SIRA; id / ?tab= / renk / izin / içerik AYNI.
   { id: "genel", labelKey: "genel", color: "#2563eb" },
   { id: "anamnez", labelKey: "anamnez", color: "#0f766e" },
   { id: "notlar", labelKey: "notlar", color: "#7c3aed" },
-  { id: "taslar", labelKey: "taslar", color: "#0891b2" },
   { id: "seanslar", labelKey: "seanslar", color: "#16a34a" },
-  { id: "ucretlendirme", labelKey: "ucretlendirme", color: "#0d9488" },
   { id: "odevler", labelKey: "odevler", color: "#dc2626" },
+  // Görünen ad "Çakra Analizleri" (Human Design ile karışmasın); id/?tab=analizler aynı.
   { id: "analizler", labelKey: "analizler", color: "#9333ea" },
-  // AŞAMA 3C: danışana bağlı Human Design analiz geçmişi (özet + "Analizi Aç"). Yalnız human_design
-  // izni olan kullanıcıya görünür; veri HD'de kalır (kopyalanmaz). Analiz sekmelerinin yanında durur:
-  // Beslenme → Randevular bitişikliği (owner kararı 2026-10-07) bozulmasın diye araya GİRMEZ.
+  // AŞAMA 3C: danışana bağlı Human Design analiz geçmişi. Yalnız human_design izni olana görünür.
   { id: "humandesign", labelKey: "humandesign", color: "#4338ca", requiresModule: "human_design" },
-  { id: "yolculuk", labelKey: "yolculuk", color: "#4f46e5" },
+  { id: "taslar", labelKey: "taslar", color: "#0891b2" },
+  { id: "beslenme", labelKey: "beslenme", color: "#059669" },
   // DEMO-03: Yaşam Hafızası sekmesi yalnız `yasam_hafizasi` izni olan kullanıcıya görünür
   // (merkezî hasModulePermission; admin geçer). İzinsiz uzman sekmeyi görmez → 403 ekranı yok.
   { id: "hafiza", labelKey: "hafiza", color: "#7c3aed", requiresModule: "yasam_hafizasi" },
-  { id: "beslenme", labelKey: "beslenme", color: "#059669" },
-  // Owner kararı 2026-10-07: uzman önce değerlendirir (analiz/seans/ödev/taş/beslenme), randevuyu SONRA
-  // planlar → Randevular Beslenme'nin HEMEN ardından (ve son sekme). Yalnız SIRA değişti; id/?tab=/içerik aynı.
   { id: "randevular", labelKey: "randevular", color: "#db2777" },
+  { id: "yolculuk", labelKey: "yolculuk", color: "#4f46e5" },
+  { id: "ucretlendirme", labelKey: "ucretlendirme", color: "#0d9488" },
 ] as const satisfies readonly ClientDetailTabDef[];
 
 export type ClientDetailTab = (typeof CLIENT_DETAIL_TAB_DEFS)[number]["id"];
@@ -59,7 +59,8 @@ export type ClientDetailTab = (typeof CLIENT_DETAIL_TAB_DEFS)[number]["id"];
  * → gerekirse BİRLİKTE alt satıra geçer. Diğer sekmelerin sarma davranışı değişmez.
  */
 export const CLIENT_DETAIL_TAB_KEEP_TOGETHER: readonly (readonly [ClientDetailTab, ClientDetailTab])[] = [
-  ["beslenme", "randevular"],
+  // Owner kesin sırası (2026-10-17) Beslenme ile Randevular'ı ayırdı (arada Yaşam Hafızası) → Madde 20
+  // çifti kaldırıldı; sekmeler doğal sarılır, görsel sıra = kayıt sırası.
 ];
 
 /**
