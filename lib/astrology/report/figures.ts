@@ -48,6 +48,11 @@ export type ReportFigure =
       periods: { lord: VedicGrahaId; start: string; end: string; durationYears: number }[];
     }
   | {
+      /** TRANSİT-02 (2026-10-17): ekrandaki Gochara ev şeridinin (Janma Rashi'den 12 ev) statik karşılığı. */
+      type: "gocharaStrip";
+      cells: { house: number; rashi: SignId; grahas: { id: VedicGrahaId; slow: boolean }[] }[];
+    }
+  | {
       /** 2026-10-15: ekrandaki Shadbala güç çubuklarının statik karşılığı (oran = rupa / BPHS asgari). */
       type: "shadbalaBars";
       planets: { id: VedicGrahaId; rank: number; ratio: number }[];
@@ -58,7 +63,7 @@ export type ReportFigure =
 
 /** Geniş (yatay) figür: Word/PDF'te kare harita boyutu yerine sayfa genişliğinde yerleşir. */
 export function isWideFigure(fig: ReportFigure): boolean {
-  return fig.type === "dashaTimeline" || fig.type === "shadbalaBars" || fig.type === "acgMap" || fig.type === "localSpaceMap";
+  return fig.type === "dashaTimeline" || fig.type === "shadbalaBars" || fig.type === "gocharaStrip" || fig.type === "acgMap" || fig.type === "localSpaceMap";
 }
 
 // ─── Lit şablonu → dizgi (yalnız statik çıktı; olay/özellik bağları atılır) ────────────────────────────
@@ -458,6 +463,37 @@ export function shadbalaBarsSvg(fig: Extract<ReportFigure, { type: "shadbalaBars
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="${escAttr(fontFamily)}">${parts.join("")}</svg>`;
 }
 
+/** TRANSİT-02: Gochara ev şeridi — 12 kutu (Janma Rashi = 1, vurgulu), her kutuda o burçtaki transit grahalar. */
+export function gocharaStripSvg(fig: Extract<ReportFigure, { type: "gocharaStrip" }>, fontFamily: string): string {
+  if (fig.cells.length !== 12) throw new Error("Gochara şeridi 12 kutu değil");
+  // Raporda okunurluk: 2 satır × 6 kutu (ekrandaki tek satırlık şeridin aynı sırası: 1–6 üstte, 7–12 altta).
+  const W = 1200;
+  const cols = 6;
+  const gap = 10;
+  const boxW = (W - gap * (cols - 1)) / cols;
+  const maxN = Math.max(1, ...fig.cells.map((c) => c.grahas.length));
+  const head = 70;
+  const lineH = 30;
+  const boxH = head + maxN * lineH + 12;
+  const H = boxH * 2 + gap + 2;
+  const parts: string[] = [`<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>`];
+  fig.cells.forEach((c, i) => {
+    const x = (i % cols) * (boxW + gap);
+    const y0 = Math.floor(i / cols) * (boxH + gap) + 1;
+    const janma = c.house === 1;
+    parts.push(`<rect x="${fmt(x + 1)}" y="${y0}" width="${fmt(boxW - 2)}" height="${boxH - 1}" rx="10" fill="${janma ? "#fffbeb" : "#ffffff"}" stroke="${janma ? "#f59e0b" : "#cbd5e1"}" stroke-width="${janma ? 3 : 1.5}" data-gochara-house="${c.house}"/>`);
+    parts.push(svgText(x + 16, y0 + 24, `${c.house}. ev`, { fill: "#64748b", "font-size": 20, "font-weight": 700 }));
+    parts.push(svgText(x + boxW - 14, y0 + 24, `${noVsG(SIGN_GLYPHS[c.rashi])} ${SIGN_TR_ABBR[c.rashi]}`, { fill: "#475569", "font-size": 20, "text-anchor": "end" }));
+    if (janma) parts.push(svgText(x + 16, y0 + 50, "Janma Rashi", { fill: "#b45309", "font-size": 17, "font-weight": 600 }));
+    c.grahas.forEach((g, j) => {
+      const name = (GRAHA_LABELS[g.id] ?? g.id).split(" ")[0];
+      parts.push(svgText(x + boxW / 2, y0 + head + 12 + j * lineH, name, { fill: "#312e81", "font-size": 22, "font-weight": 600, "text-anchor": "middle", ...(g.slow ? { "text-decoration": "underline" } : {}) }));
+    });
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="${escAttr(fontFamily)}">${parts.join("")}</svg>`;
+}
+const noVsG = (x: string) => x.replace(/[︎️]/g, "");
+
 /** Rapor metni için harita türü adı (yanlış adlandırma YOK: bölüm numarası + kayıttaki ad). */
 export function figureTitle(technique: string, division?: { number: number; name: string }): string {
   if (technique === "vedic.d1") return "Vedik D1 (Rashi) haritası";
@@ -468,6 +504,7 @@ export function figureTitle(technique: string, division?: { number: number; name
   if (technique === "vedic.dasha") return "Vimshottari Dasha zaman çizelgesi";
   if (technique === "kp.dasha") return "KP Dasha zaman çizelgesi";
   if (technique === "vedic.shadbala") return "Shadbala güç grafiği";
+  if (technique === "vedic.transit") return "Gochara ev şeridi (Janma Rashi'den)";
   if (technique === "western.astrocartography") return "Astrocartography dünya haritası";
   if (technique === "western.local_space") return "Local space haritası";
   return "Harita";

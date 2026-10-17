@@ -336,7 +336,7 @@ async function main() {
   // Sinastri (çift halka) da kayıtlı veriden çizilir; çerçevesi olmayan transit görselsiz kalır.
   // 2026-10-15 (owner onayı): Vedik D1 / Varga ve KP chart / horary / transit haritaları da rapora girer.
   await t("model: harita görseli natal, return, composite, relocation, progression, sinastri, (natal çerçeveli) transit, Vedik D1/Varga, KP chart/horary/transit + (2026-10-15) Dasha çizelgesi ve Shadbala grafiği; diğerleri görselsiz", async () => {
-    const withChart = new Set(["western.natal", "western.solar_return", "western.lunar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit", "vedic.dasha", "kp.dasha", "vedic.shadbala", "western.astrocartography", "western.local_space"]);
+    const withChart = new Set(["western.natal", "western.solar_return", "western.lunar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit", "vedic.dasha", "kp.dasha", "vedic.shadbala", "vedic.transit", "western.astrocartography", "western.local_space"]);
     for (const tech of TECHNIQUES) {
       const a = await full(saved.get(tech)!);
       const r = buildAstroReport(a);
@@ -432,7 +432,7 @@ async function main() {
   });
 
   await t("harita görseli: natal/return/composite/relocation/progression/sinastri (+ natal çerçeveli transit) + Vedik D1/Varga + KP Word'de PNG gömülü + PDF'te görsel; haritasız Vedik/KP teknikleri görselsiz", async () => {
-    for (const tech of ["western.natal", "western.solar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit", "vedic.dasha", "kp.dasha", "vedic.shadbala", "western.astrocartography", "western.local_space"]) assert.equal(docs.get(tech)!.docx.media.length, 1, tech);
+    for (const tech of ["western.natal", "western.solar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit", "vedic.dasha", "kp.dasha", "vedic.shadbala", "vedic.transit", "western.astrocartography", "western.local_space"]) assert.equal(docs.get(tech)!.docx.media.length, 1, tech);
     for (const tech of ["kp.ruling", "vedic.panchanga", "vedic.drishti", "vedic.ashtakavarga"]) assert.equal(docs.get(tech)!.docx.media.length, 0, tech);
     const trFrame = !!((await full(saved.get("western.transit")!)).technical as J | null)?.natalFrame;
     assert.equal(docs.get("western.transit")!.docx.media.length, trFrame ? 1 : 0, "western.transit (natal çerçeve → çift halka)");
@@ -869,7 +869,8 @@ async function main() {
     assert.ok(norm(pdfTxt.text).includes("Harita görseli bu raporda oluşturulamadı"));
   });
   await t("harita aktarımı: uygulamada haritası olmayan teknikler (drishti/ashtakavarga/panchanga/ruling/konum/sabit yıldız…) rapora HARİTA BLOĞU koymaz (yanlış harita yok)", async () => {
-    const FIG = ["vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit", "vedic.dasha", "kp.dasha", "vedic.shadbala", "western.astrocartography", "western.local_space"];
+    // TRANSİT-02 (2026-10-17): Gochara ev şeridi raporda (owner onaylı talimat).
+    const FIG = ["vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit", "vedic.dasha", "kp.dasha", "vedic.shadbala", "vedic.transit", "western.astrocartography", "western.local_space"];
     for (const tech of TECHNIQUES.filter((x) => !(CHART_TECHS as readonly string[]).includes(x) && !FIG.includes(x))) {
       const r = buildAstroReport(await full(saved.get(tech)!));
       assert.ok(!r.blocks.some((b) => b.kind === "chart"), `${tech}: beklenmeyen harita`);
