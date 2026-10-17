@@ -12,7 +12,7 @@ import { HOUSE_SYSTEMS, NODE_TYPES, type HouseSystem, type NodeType } from "@/li
 import LocationPicker from "./LocationPicker";
 import { FIXED_STAR_ORB_DEFAULT, FIXED_STAR_ORB_OPTIONS } from "@/lib/astrology/model/westernFixedStars";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
-import { FORECAST_MAX_DAYS, DASHA_LORD_OPTIONS, KP_AYANAMSA_OPTIONS, VEDIC_AYANAMSA_OPTIONS, VEDIC_VARGA_OPTIONS, fmtUtcMinute, forecastPartCount, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
+import { KP_POSITIONS_INTERVALS, KP_POSITIONS_MAX_DAYS, KP_TIMING_MAX_DAYS, kpRangeRequestCount, FORECAST_MAX_DAYS, DASHA_LORD_OPTIONS, KP_AYANAMSA_OPTIONS, VEDIC_AYANAMSA_OPTIONS, VEDIC_VARGA_OPTIONS, fmtUtcMinute, forecastPartCount, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
 
 // max-w-full: uzun seçenek metni (ör. "Lahiri (Chitrapaksha) — varsayılan") 390 px'te kartı taşırmasın.
 const inp = "max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm";
@@ -24,6 +24,95 @@ export type PartnerOption = { id: string; label: string };
 export const USES_HOUSE_SYSTEM: readonly UiTechniqueId[] = ["western.natal", "western.solar_return", "western.lunar_return", "western.relocation", "western.synastry", "western.composite"];
 /** Ay düğümü türü kullanan Batı teknikleri (ortak seçim). */
 export const USES_NODE_TYPE: readonly UiTechniqueId[] = ["western.natal", "western.transit", "western.progression", "western.solar_arc", "western.synastry", "western.composite"];
+
+const KP_PLANET_OPTIONS: [string, string][] = [
+  ["sun", "Güneş"],
+  ["moon", "Ay"],
+  ["mars", "Mars"],
+  ["mercury", "Merkür"],
+  ["jupiter", "Jüpiter"],
+  ["venus", "Venüs"],
+  ["saturn", "Satürn"],
+];
+const KP_KIND_OPTIONS: [string, string][] = [
+  ["sublord", "Sub-Lord değişimleri"],
+  ["rasi", "Rasi (burç) geçişleri"],
+  ["positions", "KP konum tablosu (≤ 7 gün)"],
+];
+/** TRANSİT-03: KP Transit zaman aralığı ayarları + istek sayısı ön izlemesi (kesin sayı sunucu planında). */
+function KpRangeFields({ params, onParams }: { params: TechniqueParams; onParams: (next: TechniqueParams) => void }) {
+  const set = <K extends keyof TechniqueParams>(k: K, v: TechniqueParams[K]) => onParams({ ...params, [k]: v });
+  const toggle = (k: "kpRangePlanets" | "kpRangeKinds", v: string) => {
+    const cur = params[k] ?? [];
+    set(k, cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v]);
+  };
+  const planets = params.kpRangePlanets ?? [];
+  const kinds = params.kpRangeKinds ?? [];
+  const n = kpRangeRequestCount(params);
+  const posTooLong = kinds.includes("positions") && params.kpRangeDays > KP_POSITIONS_MAX_DAYS;
+  return (
+    <fieldset className="flex min-w-0 flex-col gap-2 rounded-lg border border-slate-300/80 bg-white/50 px-2.5 py-2" data-testid="astro-kp-range">
+      <legend className="px-1 text-[11px] font-semibold text-slate-700">KP zaman aralığı</legend>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-1">
+          Başlangıç (UTC günü)
+          <input type="date" className={inp} min="1600-01-01" max="2600-12-31" value={params.kpRangeStart} onChange={(e) => set("kpRangeStart", e.target.value)} aria-label="KP aralık başlangıcı" />
+        </label>
+        <label className="flex items-center gap-1">
+          Süre
+          <select className={inp} value={params.kpRangeDays} onChange={(e) => set("kpRangeDays", Number(e.target.value))} aria-label="KP aralık süresi">
+            {[1, 3, 7, 14, 30, 60, KP_TIMING_MAX_DAYS].map((d) => (
+              <option key={d} value={d}>
+                {d} gün
+              </option>
+            ))}
+          </select>
+        </label>
+        <select className={inp} value={params.kpRangeTz ?? "Europe/Istanbul"} onChange={(e) => set("kpRangeTz", e.target.value)} aria-label="KP aralık gösterim saat dilimi">
+          {[...new Set([params.kpRangeTz ?? "Europe/Istanbul", ...TZ_OPTIONS])].map((z) => (
+            <option key={z} value={z}>
+              {z} (gösterim)
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="KP aralık türleri">
+        {KP_KIND_OPTIONS.map(([v, l]) => (
+          <label key={v} className={`flex items-center gap-1 rounded-full border px-2 py-0.5 ${kinds.includes(v) ? "border-indigo-300 bg-indigo-50 text-indigo-900" : "border-slate-200 text-slate-600"}`}>
+            <input type="checkbox" checked={kinds.includes(v)} onChange={() => toggle("kpRangeKinds", v)} data-kp-kind={v} /> {l}
+          </label>
+        ))}
+      </div>
+      {(kinds.includes("sublord") || kinds.includes("rasi")) && (
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="KP aralık gezegenleri">
+          {KP_PLANET_OPTIONS.map(([v, l]) => (
+            <label key={v} className={`flex items-center gap-1 rounded-full border px-2 py-0.5 ${planets.includes(v) ? "border-indigo-300 bg-indigo-50 text-indigo-900" : "border-slate-200 text-slate-600"}`}>
+              <input type="checkbox" checked={planets.includes(v)} onChange={() => toggle("kpRangePlanets", v)} data-kp-planet={v} /> {l}
+            </label>
+          ))}
+          <span className="self-center text-[11px] text-slate-500">Rahu/Ketu bu uçlarda yok.</span>
+        </div>
+      )}
+      {kinds.includes("positions") && (
+        <label className="flex items-center gap-1">
+          Konum aralığı
+          <select className={inp} value={params.kpRangeInterval} onChange={(e) => set("kpRangeInterval", Number(e.target.value))} aria-label="KP konum aralığı">
+            {KP_POSITIONS_INTERVALS.map((m) => (
+              <option key={m} value={m}>
+                {m < 60 ? `${m} dk` : m === 1440 ? "günlük" : `${m / 60} saat`}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <p className={`text-[11px] leading-snug ${posTooLong ? "text-rose-700" : "text-slate-600"}`} data-testid="astro-kp-range-note">
+        {posTooLong
+          ? `Konum tablosu en çok ${KP_POSITIONS_MAX_DAYS} gün olabilir; süreyi kısaltın veya konum tablosunu kaldırın.`
+          : `Tahmini ${n} sağlayıcı isteği (gezegen × tür başına 1; konum tablosu 1). Kayıtlı parçalar yeniden istenmez; kesin sayı plan önizlemesindedir. En çok ${KP_TIMING_MAX_DAYS} gün; Ay günde ~9 Sub-Lord değiştirir.`}
+      </p>
+    </fieldset>
+  );
+}
 
 /** Tek bir tekniğin kendi parametreleri (yoksa null). */
 export function TechniqueParamFields({
@@ -276,11 +365,22 @@ export function TechniqueParamFields({
                 />
               </label>
             )}
-            {(id === "kp.ruling" || id === "kp.transit" || id === "kp.horary") && moment}
+            {id === "kp.transit" && (
+              <div className="flex flex-wrap items-center gap-3" role="radiogroup" aria-label="KP transit kipi" data-testid="astro-kp-transit-mode">
+                <label className="flex items-center gap-1">
+                  <input type="radio" checked={params.kpTransitMode !== "range"} onChange={() => set("kpTransitMode", "moment")} data-kp-mode="moment" /> Tek an (KP gökyüzü)
+                </label>
+                <label className="flex items-center gap-1">
+                  <input type="radio" checked={params.kpTransitMode === "range"} onChange={() => set("kpTransitMode", "range")} data-kp-mode="range" /> Zaman aralığı (Sub-Lord · Rasi geçişleri)
+                </label>
+              </div>
+            )}
+            {id === "kp.transit" && params.kpTransitMode === "range" && <KpRangeFields params={params} onParams={onParams} />}
+            {(id === "kp.ruling" || id === "kp.horary" || (id === "kp.transit" && params.kpTransitMode !== "range")) && moment}
             {(id === "kp.ruling" || id === "kp.horary") && place}
             {kpCommon}
             {id === "kp.ruling" && <p className="text-slate-500">Ruling planets hesabı ayanamsa seçeneği almaz (KP-Newcomb dahili).</p>}
-            {id === "kp.transit" && <p className="text-amber-800">Kısmi: sağlayıcı natal cusp&apos;lara göre transit analizi vermez; yalnız anın KP gökyüzü.</p>}
+            {id === "kp.transit" && params.kpTransitMode !== "range" && <p className="text-amber-800">Tek an: sağlayıcı natal cusp&apos;lara göre transit analizi vermez; anın KP gökyüzü. Geçiş zamanları için “Zaman aralığı”.</p>}
           </div>
         );
       }
