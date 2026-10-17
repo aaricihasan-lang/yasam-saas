@@ -193,6 +193,18 @@
       "cta": "Sign In with the Test Account",
       "note": "This account is for demonstration and review purposes."
     },
+    "freeTrial": {
+      "eyebrow": "3-Day Free Discovery",
+      "title": "How About Getting to Know Yaşam Sistemi Up Close?",
+      "highlight": "Explore It Free for 3 Days!",
+      "body1": "Create your own analyses, move between the professional modules and discover how much easier client management can be.",
+      "body2": "With numerology, astrology, Human Design, natural stones, reflexology, bioenergy and other professional tools, experience what Yaşam Sistemi can add to your professional practice.",
+      "closing": "Bring a new dimension to your professional work — start this experience now.",
+      "daysLabel": "Days",
+      "daysSub": "Free discovery",
+      "cta": "Create Your Membership Now",
+      "note": "The 3-day free period starts once your membership is approved by an administrator."
+    },
     "hero": {
       "cardModules": "10+ Modules",
       "cardModulesSub": "Professional tools",
@@ -485,6 +497,7 @@
       "submitting": "Creating account…",
       "haveAccount": "Already have an account?",
       "signIn": "Sign In",
+      "trialNote": "Your 3-day free discovery starts once your membership is approved by an administrator.",
       "toast": {
         "errorTitle": "Something went wrong",
         "successTitle": "Success",

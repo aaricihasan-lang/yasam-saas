@@ -56,6 +56,7 @@ import {
 } from "@/lib/contact/info";
 import SupportRequestForm from "@/components/auth/SupportRequestForm";
 import DemoIntroModal from "@/components/demo/DemoIntroModal";
+import FreeTrialInvite from "@/components/landing/FreeTrialInvite";
 import DemoAccessCard, {
   DEMO_ACCOUNT_EMAIL,
   DEMO_ACCOUNT_PASSWORD,
@@ -2176,6 +2177,11 @@ export default function Home() {
           {/* Test / demo hesabı tanıtımı — <lg geniş kart; ≥lg sağ sütundaki kompakt varyant */}
           <div className="mt-7 w-full max-sm:order-2 max-sm:mt-5 lg:hidden">
             <DemoAccessCard onTryDemo={openDemoLogin} />
+          </div>
+
+          {/* 3 günlük ücretsiz keşif daveti — mevcut /register akışına gider; mobilde hero öğelerinden sonra */}
+          <div className="mt-8 w-full max-sm:order-6 max-sm:mt-6 xl:mt-10">
+            <FreeTrialInvite />
           </div>
         </section>
 
