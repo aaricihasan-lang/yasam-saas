@@ -71,10 +71,22 @@ function scan(planet: string, startDate: string, endDate: string, key: (lon: num
 export function syntheticSublordChanges(body: { planet: string; startDate: string; endDate: string }) {
   const planet = Object.entries(NAME).find(([, n]) => n === body.planet)![0];
   const tbl = kpTable();
-  const changes = scan(planet, body.startDate, body.endDate, kpOf).map((c) => {
-    const f = tbl[(c.from as number) - 1];
-    const t = tbl[(c.to as number) - 1];
-    return { date: iso(c.ms).slice(0, 10), time: iso(c.ms).slice(11, 16), datetime: iso(c.ms), fromKp: c.from, toKp: c.to, fromSublord: NAME[f.sub], toSublord: NAME[t.sub], fromNakshatraLord: NAME[f.star], toNakshatraLord: NAME[t.star] };
+  // Gerçek sağlayıcı anlamı (17.10.2026 golden): olay = yıldız/sub lord DEĞİŞİMİ (burç sınırındaki aynı-sub numara bölünmesi
+  // olay değildir); fromKp = önceki sub döneminin İLK KP numarası; saat dakikaya KESİLİR ("shown to the minute it falls in").
+  const subKey = (lon: number) => {
+    const r = tbl[kpOf(lon) - 1];
+    return `${r.star}|${r.sub}`;
+  };
+  const s0 = Date.parse(`${body.startDate}T00:00:00Z`);
+  let segKp = kpOf(siderealLon(planet, s0));
+  const changes = scan(planet, body.startDate, body.endDate, subKey).map((c) => {
+    const toKp = kpOf(siderealLon(planet, c.ms + 1000));
+    const f = tbl[segKp - 1];
+    const t = tbl[toKp - 1];
+    const minute = iso(Math.floor(c.ms / 60_000) * 60_000);
+    const row = { date: minute.slice(0, 10), time: minute.slice(11, 16), datetime: minute, fromKp: segKp, toKp, fromSublord: NAME[f.sub], toSublord: NAME[t.sub], fromNakshatraLord: NAME[f.star], toNakshatraLord: NAME[t.star] };
+    segKp = toKp;
+    return row;
   });
   return { planet: body.planet, startDate: body.startDate, endDate: body.endDate, totalChanges: changes.length, changes };
 }
@@ -82,9 +94,9 @@ export function syntheticSublordChanges(body: { planet: string; startDate: strin
 export function syntheticRasiChanges(body: { planet: string; startDate: string; endDate: string }) {
   const planet = Object.entries(NAME).find(([, n]) => n === body.planet)![0];
   const changes = scan(planet, body.startDate, body.endDate, signOf).map((c) => ({
-    date: iso(c.ms).slice(0, 10),
-    time: iso(c.ms).slice(11, 16),
-    datetime: iso(c.ms),
+    date: iso(Math.floor(c.ms / 60_000) * 60_000).slice(0, 10),
+    time: iso(Math.floor(c.ms / 60_000) * 60_000).slice(11, 16),
+    datetime: iso(Math.floor(c.ms / 60_000) * 60_000),
     fromSign: SIGN_NAME[c.from as string],
     fromSignLord: NAME[SIGN_LORDS[c.from as keyof typeof SIGN_LORDS]],
     toSign: SIGN_NAME[c.to as string],

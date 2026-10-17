@@ -103,7 +103,23 @@ export const KP_TIMING_PLANETS = ["sun", "moon", "mars", "mercury", "jupiter", "
 export type KpTimingPlanet = (typeof KP_TIMING_PLANETS)[number];
 export const KP_TIMING_KINDS = ["sublord", "rasi", "positions"] as const;
 export type KpTimingKind = (typeof KP_TIMING_KINDS)[number];
-export type KpSublordChange = { atUtc: string; fromKp: number; toKp: number; fromSub: VedicGrahaId; toSub: VedicGrahaId; fromStar: VedicGrahaId; toStar: VedicGrahaId };
+export type KpSublordChange = {
+  atUtc: string;
+  fromKp: number;
+  toKp: number;
+  fromSub: VedicGrahaId;
+  toSub: VedicGrahaId;
+  fromStar: VedicGrahaId;
+  toStar: VedicGrahaId;
+  /**
+   * Gerçek yanıtta (17.10.2026, 92 gün Ay) saptanan sağlayıcı kusuru: Krittika / Ardra başlangıcında satır "46→46" gibi ESKİ
+   * KP no + sub-lord ile gelir (yeni yıldız lordu doğru). Değer, sağlayıcının kendi sonraki kaydı + bağımsız KP tablosu
+   * tutarlıysa düzeltilir ve bu alanla İŞARETLENİR (ekranda / raporda görünür; sessiz değişiklik yok).
+   */
+  corrected?: { providerToKp: number; providerToSub: VedicGrahaId };
+};
+export const KP_PROVIDER_CORRECTION_NOTE =
+  "* Sağlayıcı bu geçişte yeni KP numarasını ve sub-lord'u önceki değerle bildirdi (yeni yıldız lordu doğruydu). Değer, sağlayıcının bir sonraki kaydı ve bağımsız KP tablosuyla tutarlı olarak düzeltildi; geçiş anı sağlayıcınındır.";
 export type KpRasiChange = { atUtc: string; fromRashi: SignId; toRashi: SignId; fromLord: VedicGrahaId; toLord: VedicGrahaId };
 export type KpPositionRow = { atUtc: string; bodies: (KpPoint & { id: VedicGrahaId; retrograde: boolean })[] };
 /** Tek sağlayıcı yanıtının (parçanın) teknik katmanı; birleşik teknik bunlardan kurulur. */

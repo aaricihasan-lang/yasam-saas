@@ -129,6 +129,23 @@ const api = async (path, body) => {
     const p = await api(`/analyses/${sv.json.analysisId}/report?format=pdf`);
     ok("Word (PK) + PDF (%PDF-) indirilir", d.status === 200 && d.buf.slice(0, 2).toString() === "PK" && p.status === 200 && p.buf.slice(0, 5).toString() === "%PDF-");
   }
+  // GERÇEK 92 gün Ay sub-lord (golden; sahte arka uç birebir gövdeyle gerçek yanıtı verir): düzeltilen satır işareti görünür.
+  const real = { range: { startDate: "2026-10-01", days: 92, planets: ["moon"], kinds: ["sublord"] }, ayanamsa: "kp-newcomb", nodeType: "mean", displayTz: "Europe/Istanbul" };
+  const rp = await api("/engine/plan", { profileId: pid, revision: 1, selections: [{ technique: "kp.transit", options: real }] });
+  const rr = await api("/engine/run", { profileId: pid, revision: 1, selections: [{ technique: "kp.transit", options: rp.json.plan.selections[0].options }], confirmNewRequests: rp.json.plan.newRequestCount });
+  const rok = rr.status === 200 && rr.json.results[0].ok;
+  ok("gerçek 92 gün Ay sub-lord yanıtı işlendi (824 geçiş)", rok && rr.json.results[0].view.technical.sublord[0].changes.length === 824, String(rr.status));
+  if (rok) {
+    const rs = await api("/analyses", { profileId: pid, revision: 1, technique: "kp.transit", options: rr.json.results[0].view.options, saveRequestId: randomUUID() });
+    await page.goto(`${BASE}#danisan/${pid}`, { waitUntil: "load", timeout: 180000 });
+    await page.waitForSelector(`[data-saved-item="${rs.json.analysisId}"]`, { timeout: 120000 });
+    await page.locator(`[data-saved-item="${rs.json.analysisId}"]`).click();
+    await page.waitForSelector("[data-testid=astro-kp-timing-panel]", { timeout: 60000 });
+    await page.waitForTimeout(600);
+    ok("kayıtlı analizde düzeltme açıklaması görünür", await page.locator("[data-testid=astro-kp-corrected-note]").isVisible());
+    if (!mobile) ok("düzeltilen satırda '* sağlayıcı verisi düzeltildi' işareti", (await page.locator("[data-kp-corrected]").count()) >= 1);
+    else ok("mobil kartta '*' işareti", /→ KP \d+ \([^)]*\) \*/.test((await page.locator("[data-testid=astro-kp-sublord] li").allInnerTexts()).join("\n")));
+  }
   ok("konsol hatası yok", errors.length === 0, errors.join(" | "));
   await browser.close();
   console.log(`\ntransit03-ui [${tag}]: ${pass} PASS / ${fail} FAIL`);

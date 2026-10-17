@@ -32,7 +32,7 @@ import { buildAstroReport } from "@/lib/astrology/report/model";
 import { KP_TIMING_MAX_ROWS, projectRoxyKpPlanetsRange, projectRoxyKpRasiChanges, projectRoxyKpSublordChanges } from "@/lib/astrology/providers/roxy/kp";
 import { kpTable } from "@/lib/astrology/verify/kpSub";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
-import type { KpTimingTechnical } from "@/lib/astrology/model/kp";
+import type { KpTimingPlanet, KpTimingTechnical } from "@/lib/astrology/model/kp";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 import { KP_POSITIONS_INTERVALS as C_IV, KP_POSITIONS_MAX_DAYS as C_PMAX, KP_TIMING_MAX_DAYS as C_MAX, describeOptions, kpRangeRequestCount, kpRangeOptions, defaultParams } from "@/app/admin/astroloji/_lib/techniques";
 
@@ -76,6 +76,30 @@ async function pdfInfo(buf: Uint8Array): Promise<{ text: string; pages: number }
   const doc = await getDocumentProxy(new Uint8Array(buf));
   const { text, totalPages } = await extractText(doc, { mergePages: true });
   return { text: String(text).replace(/\s+/g, " "), pages: totalPages };
+}
+
+/**
+ * Bağımsız sınır denetimi (hızdan bağımsız): sağlayıcı anı dakikaya KESER → gerçek an [m, m+60 sn). Bu aralıkta gezegenin
+ * sidereal boylamı (astronomy-engine − KP-Newcomb) ilgili sınırı (yeni sub'ın / burcun başlangıcı; geri harekette bitişi)
+ * ±0,01° toleransla kapsamalı. Tolerans: ayanamsa yaklaşımı + efemeris farkı (golden konumlarda ≤0,0052° ölçüldü).
+ */
+function boundaryHit(planet: string, kind: "sub" | "rasi", c: J): boolean {
+  const m = Date.parse(`${c.datetime}Z`);
+  const l0 = siderealLon(planet, m);
+  const l1 = siderealLon(planet, m + 60_000);
+  const rel = (x: number) => ((x - l0 + 540) % 360) - 180;
+  const fwd = rel(l1) >= 0;
+  let b: number;
+  if (kind === "sub") {
+    const row = kpTable()[Number(c.toKp) - 1];
+    b = fwd ? row.start : row.end;
+  } else {
+    const to = SIGN_IDS.indexOf(String(c.toSign).toLowerCase() as never);
+    b = fwd ? to * 30 : ((to + 1) * 30) % 360;
+  }
+  const lo = Math.min(0, rel(l1)) - 0.01;
+  const hi = Math.max(0, rel(l1)) + 0.01;
+  return rel(b) >= lo && rel(b) <= hi;
 }
 
 async function main() {
@@ -182,6 +206,29 @@ async function main() {
     const h = projectRoxyKpSublordChanges(huge, ex);
     assert.ok(!h.ok && h.errors.some((e) => /satır sınırı/.test(e)), "satır sınırı mesajı");
   });
+  await t("B2b sağlayıcı kusuru (nakshatra başında 'aynı KP + aynı sub, yeni yıldız'): YALNIZ sonraki kayıt + KP tablosu tutarlıysa düzeltilir ve İŞARETLENİR; tutarsızsa RED", () => {
+    // 2026-10-07 Ay: 92→93 Ketu→Venüs nakshatra geçişi (sentetik). Gerçek kusuru taklit et: toKp/toSublord eski değerde.
+    const i = (sub.changes as J[]).findIndex((c) => c.fromNakshatraLord !== c.toNakshatraLord);
+    assert.ok(i > 0 && i < sub.changes.length - 1, "örnek nakshatra geçişi");
+    const bug = mutate((r) => {
+      r.changes[i].toKp = r.changes[i].fromKp;
+      r.changes[i].toSublord = r.changes[i].fromSublord;
+    });
+    const ok = projectRoxyKpSublordChanges(bug, ex);
+    assert.ok(ok.ok, ok.ok ? "" : ok.errors.join("; "));
+    if (ok.ok) {
+      const c = ok.part.changes[i];
+      assert.deepEqual(c.corrected, { providerToKp: sub.changes[i].fromKp, providerToSub: String(sub.changes[i].fromSublord).toLowerCase() });
+      assert.equal(c.toKp, sub.changes[i].toKp);
+      assert.equal(ok.part.changes.filter((x) => x.corrected).length, 1, "yalnız kusurlu satır işaretli");
+    }
+    const bug2 = mutate((r) => {
+      r.changes[i].toKp = r.changes[i].fromKp;
+      r.changes[i].toSublord = r.changes[i].fromSublord;
+      r.changes[i + 1].fromKp = (r.changes[i + 1].fromKp % 249) + 1;
+    });
+    assert.equal(projectRoxyKpSublordChanges(bug2, ex).ok, false, "sonraki kayıt tutmuyorsa düzeltilmez");
+  });
   await t("B3 rasi REDDİ: komşu olmayan burç, yanlış burç yöneticisi, zincir", () => {
     const exR = { planet: "moon" as const, startDate: "2026-10-01", endDate: "2026-10-31" };
     for (const [name, raw] of [
@@ -219,18 +266,9 @@ async function main() {
     }
     assert.ok(Math.abs(kpNewcombApprox(Date.parse("2026-10-07T09:00:00Z")) - KPG.response.ayanamsaValue) < 1e-9);
   });
-  await t("C2 sentetik geçiş anları: anın 30 sn öncesi önceki KP / burç, 30 sn sonrası yeni KP / burç (bağımsız tablo)", () => {
-    const tbl = kpTable();
-    const kpAt = (ms: number) => tbl.find((r) => siderealLon("moon", ms) >= r.start && siderealLon("moon", ms) < r.end)!.kp;
-    for (const c of sub.changes as J[]) {
-      const ms = Date.parse(`${c.datetime}Z`);
-      assert.equal(kpAt(ms - 30_000), c.fromKp);
-      assert.equal(kpAt(ms + 30_000), c.toKp);
-    }
-    for (const c of ras.changes as J[]) {
-      const ms = Date.parse(`${c.datetime}Z`);
-      assert.equal(SIGN_IDS[Math.floor(siderealLon("moon", ms + 30_000) / 30)], String(c.toSign).toLowerCase());
-    }
+  await t("C2 sentetik geçiş anları: raporlanan dakikada gezegen yıldız/sub sınırını (veya burç sınırını) kesiyor (bağımsız tablo)", () => {
+    for (const c of sub.changes as J[]) assert.ok(boundaryHit("moon", "sub", c), `${c.datetime} ${c.fromKp}→${c.toKp}`);
+    for (const c of ras.changes as J[]) assert.ok(boundaryHit("moon", "rasi", c), `${c.datetime} ${c.fromSign}→${c.toSign}`);
   });
 
   // ═══ D) Uçtan uca ══════════════════════════════════════════════════════════════
@@ -325,7 +363,7 @@ async function main() {
     console.log(`     (92 gün Ay: ${r.part.changes.length} geçiş, ${Math.round(bytes / 1024)} KB)`);
   });
 
-  // ═══ G) GERÇEK golden (owner onaylı 3 çağrı) — varsa doğrula, yoksa AÇIKÇA ATLA ═════════════════════════════
+  // ═══ G) GERÇEK golden (owner onaylı ≤10 çağrı) — varsa doğrula, yoksa AÇIKÇA ATLA ═════════════════════════
   const G = (n: string) => {
     const p = join(__dirname, "fixtures", "golden", `${n}.json`);
     try {
@@ -334,38 +372,119 @@ async function main() {
       return null;
     }
   };
-  const gs = G("kp-sublord-moon");
-  const gr = G("kp-rasi-moon");
-  const gp = G("kp-planets-range");
+  const REAL: { name: string; kind: "sublord" | "rasi" | "positions"; planet?: KpTimingPlanet; required: boolean }[] = [
+    { name: "kp-sublord-moon", kind: "sublord", planet: "moon", required: true },
+    { name: "kp-rasi-moon", kind: "rasi", planet: "moon", required: true },
+    { name: "kp-planets-range", kind: "positions", required: true },
+    { name: "kp-sublord-venus-retro", kind: "sublord", planet: "venus", required: false },
+    { name: "kp-rasi-mercury-92d", kind: "rasi", planet: "mercury", required: false },
+    { name: "kp-planets-7d-kpold", kind: "positions", required: false },
+    { name: "kp-sublord-moon-92d", kind: "sublord", planet: "moon", required: false },
+  ];
+  const gb = G("kp-rasi-moon-berlin-dst");
+  const gu = G("kp-rasi-moon");
+  if (gb && gu)
+    await t("G DST (gerçek): sağlayıcı IANA bölgede aralık başının ofsetini (+2) 25.10.2026 saat geri alımından SONRA da uygular → yerel saat 1 sa kayar; ürünün UTC + an-başına çeviri tasarımı doğru (GMT+1)", () => {
+      let after = 0;
+      for (const c of gb.response.changes as J[]) {
+        const x = (gu.response.changes as J[]).find((y) => y.toSign === c.toSign && y.date >= "2026-10-19");
+        assert.ok(x, `UTC eşleşmesi yok: ${c.datetime}`);
+        assert.equal((Date.parse(`${c.datetime}Z`) - Date.parse(`${x.datetime}Z`)) / 3600e3, 2, "sağlayıcı tek ofset (+2)");
+        const real = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Berlin", timeZoneName: "shortOffset" }).formatToParts(new Date(`${x.datetime}Z`)).find((p) => p.type === "timeZoneName")!.value;
+        if (x.datetime >= "2026-10-25T01:00") {
+          after += 1;
+          assert.equal(real, "GMT+1", "geri alımdan sonra gerçek ofset +1");
+        }
+      }
+      assert.ok(after >= 3, `geri alım sonrası örnek: ${after}`);
+    });
+  const g92 = G("kp-sublord-moon-92d");
+  if (g92)
+    await t("G uçtan uca (GERÇEK 92 gün Ay): ürün gövdesi = gerçek gövde; çalıştır → kaydet → Word + PDF; düzeltilen satırlar '*' + açıklama; boyut < 1 MB", async () => {
+      const store2 = createStore({ clients: [{ id: CLIENT_X, tenant_id: TENANT_A, ad: "Sentetik", soyad: "A" }] });
+      const c2 = ctxOf(store2);
+      const p2 = await createAstroProfile(c2, { label: "Sentetik A", clientId: CLIENT_X, birthDate: "1990-07-15", birthTime: "14:30", timeKnown: true, timeAccuracy: "exact_record", locationId: ISTANBUL.id }, (id) => (id === ISTANBUL.id ? ISTANBUL : null));
+      const pid2 = (p2.body as J).profile.id;
+      const sel = { technique: "kp.transit", options: { range: { startDate: "2026-10-01", days: 92, planets: ["moon"], kinds: ["sublord"] }, ...base, displayTz: "Europe/Istanbul" } };
+      const sent: J[] = [];
+      const d2: EngineDeps = {
+        ...deps,
+        callProvider: async (_c, endpoint, body) => {
+          sent.push(body);
+          return endpoint === g92.endpoint && JSON.stringify(body) === JSON.stringify(g92.body) ? { ok: true, raw: structuredClone(g92.response), attempts: 1 } : { ok: false, kind: "bad_request", status: 400, attempts: 1 };
+        },
+      };
+      const r = await runAstrology(c2, { profileId: pid2, selections: [sel] }, d2, { ownerPreviewHideInterp: false });
+      assert.equal(r.status, 200, JSON.stringify(r.body).slice(0, 300));
+      assert.equal(sent.length, 1);
+      assert.deepEqual(sent[0], g92.body, "ürün gövdesi gerçek golden gövdesiyle birebir");
+      const tech = (r.body as J).results[0].view.technical as KpTimingTechnical;
+      assert.equal(tech.sublord[0].changes.length, 824);
+      assert.equal(tech.sublord[0].changes.filter((c) => c.corrected).length, 7);
+      assert.ok(Buffer.byteLength(JSON.stringify(tech)) < 1_000_000);
+      const sv = await saveAnalysis(c2, { profileId: pid2, revision: 1, ...sel, saveRequestId: randomUUID() }, false);
+      assert.equal(sv.status, 201, JSON.stringify(sv.body).slice(0, 200));
+      const id = (sv.body as J).analysisId;
+      const dx = await buildAnalysisReport(c2, id, "docx", false);
+      const px = await buildAnalysisReport(c2, id, "pdf", false);
+      assert.ok(dx.ok && px.ok);
+      if (!dx.ok || !px.ok) return;
+      const d = await docxText(dx.bytes);
+      const p = await pdfInfo(px.bytes);
+      for (const [label, txt] of [["docx", d], ["pdf", p.text]] as const) {
+        assert.ok(txt.includes("Sub-Lord değişimleri (824)"), `${label}: başlık`);
+        assert.ok(txt.includes("Sağlayıcı bu geçişte yeni KP numarasını"), `${label}: düzeltme açıklaması`);
+        assert.ok(!txt.includes("undefined") && !txt.includes("NaN"));
+      }
+      console.log(`     (gerçek 92 gün raporu: PDF ${p.pages} sayfa, ${Math.round(px.bytes.length / 1024)} KB; Word ${Math.round(dx.bytes.length / 1024)} KB)`);
+      assert.equal(sent.length, 1, "kayıt + rapor sağlayıcı çağırmadı");
+    });
   let skip = 0;
-  if (!gs || !gr || !gp) {
-    skip = 3;
-    console.log("SKIP G1–G3 gerçek sağlayıcı golden'ı yok (kp-sublord-moon / kp-rasi-moon / kp-planets-range) — owner onaylı 3 çağrı bekleniyor; bu üç uç GERÇEK yanıtla doğrulanmadı.");
-  } else {
-    await t("G1 gerçek sub-lord yanıtı adaptörden geçer; her geçiş bağımsız astronomiyle ±120 sn ve aynı KP numaraları", () => {
-      const r = projectRoxyKpSublordChanges(gs.response, { planet: "moon", startDate: String(gs.body.startDate), endDate: String(gs.body.endDate) });
-      assert.ok(r.ok, r.ok ? "" : r.errors.join("; "));
-      if (!r.ok) return;
-      const syn = syntheticSublordChanges(gs.body as J).changes as J[];
-      assert.equal(r.part.changes.length, syn.length, "geçiş sayısı");
-      r.part.changes.forEach((c, i) => {
-        assert.equal(c.toKp, syn[i].toKp);
-        assert.ok(Math.abs(Date.parse(c.atUtc) - Date.parse(`${syn[i].datetime}Z`)) <= 120_000, `${c.atUtc} vs ${syn[i].datetime}`);
+  for (const g of REAL) {
+    const f = G(g.name);
+    if (!f) {
+      if (g.required) {
+        skip += 1;
+        console.log(`SKIP G ${g.name}: gerçek sağlayıcı golden'ı yok — bu uç GERÇEK yanıtla doğrulanmadı.`);
+      }
+      continue;
+    }
+    if (g.kind === "positions") {
+      await t(`G ${g.name}: gerçek konum aralığı adaptörden geçer; her graha bağımsız astronomiyle (tropikal − yanıttaki ayanamsa) ≤0,01°, KP lordları bağımsız tabloyla`, () => {
+        const ay = f.body.ayanamsa as "kp-newcomb" | "kp-old";
+        const r = projectRoxyKpPlanetsRange(f.response, { startUtc: String(f.body.startDatetime), endUtc: String(f.body.endDatetime), intervalMinutes: Number(f.body.intervalMinutes), ayanamsa: ay });
+        assert.ok(r.ok, r.ok ? "" : r.errors.join("; "));
+        if (!r.ok) return;
+        const ayDeg = Number(f.response.ayanamsaValue);
+        let worst = 0;
+        for (const row of r.part.rows) {
+          const ms = Date.parse(row.atUtc);
+          for (const b of row.bodies) {
+            const trop = siderealLon(b.id, ms) + kpNewcombApprox(ms);
+            const d = Math.abs(((b.longitude - (trop - ayDeg) + 540) % 360) - 180);
+            worst = Math.max(worst, d);
+            assert.ok(d <= 0.01, `${b.id} @ ${row.atUtc}: ${d.toFixed(4)}°`);
+          }
+        }
+        console.log(`     (${g.name}: ${r.part.rows.length} an × 9 graha, en büyük sapma ${worst.toFixed(4)}°, ayanamsa ${ay} ${ayDeg})`);
       });
-    });
-    await t("G2 gerçek rasi yanıtı adaptörden geçer; geçişler bağımsız astronomiyle ±120 sn", () => {
-      const r = projectRoxyKpRasiChanges(gr.response, { planet: "moon", startDate: String(gr.body.startDate), endDate: String(gr.body.endDate) });
+      continue;
+    }
+    await t(`G ${g.name}: gerçek ${g.kind === "sublord" ? "sub-lord" : "rasi"} yanıtı adaptörden geçer; her geçişte raporlanan dakikada gezegen sınırı bağımsız astronomiyle kesiyor; sentetik referansla aynı geçiş dizisi`, () => {
+      const ex = { planet: g.planet!, startDate: String(f.body.startDate), endDate: String(f.body.endDate) };
+      const r = g.kind === "sublord" ? projectRoxyKpSublordChanges(f.response, ex) : projectRoxyKpRasiChanges(f.response, ex);
       assert.ok(r.ok, r.ok ? "" : r.errors.join("; "));
       if (!r.ok) return;
-      const syn = syntheticRasiChanges(gr.body as J).changes as J[];
-      assert.equal(r.part.changes.length, syn.length);
-      r.part.changes.forEach((c, i) => assert.ok(Math.abs(Date.parse(c.atUtc) - Date.parse(`${syn[i].datetime}Z`)) <= 120_000, `${c.atUtc} vs ${syn[i].datetime}`));
-    });
-    await t("G3 gerçek konum aralığı adaptörden geçer; 9 graha × 4 an bağımsız astronomiyle ≤0,01°", () => {
-      const r = projectRoxyKpPlanetsRange(gp.response, { startUtc: String(gp.body.startDatetime), endUtc: String(gp.body.endDatetime), intervalMinutes: Number(gp.body.intervalMinutes), ayanamsa: "kp-newcomb" });
-      assert.ok(r.ok, r.ok ? "" : r.errors.join("; "));
-      if (!r.ok) return;
-      for (const row of r.part.rows) for (const b of row.bodies) assert.ok(Math.abs(((b.longitude - siderealLon(b.id, Date.parse(row.atUtc)) + 540) % 360) - 180) <= 0.01, `${b.id} @ ${row.atUtc}`);
+      // Adaptör çıktısı (sağlayıcı kusuru düzeltilmiş ve işaretli) bağımsız referansla karşılaştırılır.
+      const rows = (r.part.changes as J[]).map((c) => ({ ...c, datetime: String(c.atUtc).slice(0, 19), toSign: c.toRashi }));
+      for (const c of rows) assert.ok(boundaryHit(g.planet!, g.kind === "sublord" ? "sub" : "rasi", c), `${c.datetime}: sınır bu dakikada kesilmiyor`);
+      const syn = (g.kind === "sublord" ? syntheticSublordChanges(f.body as J) : syntheticRasiChanges(f.body as J)).changes as J[];
+      const realSeq = rows.map((c) => (g.kind === "sublord" ? `${c.fromKp}>${c.toKp}` : `${c.fromRashi}>${c.toRashi}`));
+      const synSeq = syn.map((c) => (g.kind === "sublord" ? `${c.fromKp}>${c.toKp}` : `${String(c.fromSign).toLowerCase()}>${String(c.toSign).toLowerCase()}`));
+      assert.deepEqual(realSeq, synSeq, "geçiş dizisi");
+      const dts = rows.map((c, i) => Math.abs(Date.parse(`${c.datetime}Z`) - Date.parse(`${syn[i].datetime}Z`)) / 1000);
+      const fixedN = rows.filter((c) => c.corrected).length;
+      console.log(`     (${g.name}: ${realSeq.length} geçiş · sentetik referansla en büyük zaman farkı ${Math.max(0, ...dts)} sn${fixedN ? ` · sağlayıcı kusuru düzeltilen ${fixedN} satır (işaretli)` : ""})`);
     });
   }
 

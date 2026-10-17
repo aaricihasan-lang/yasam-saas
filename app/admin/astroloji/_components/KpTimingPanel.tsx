@@ -8,7 +8,7 @@
  */
 
 import { useMemo, useState } from "react";
-import type { KpTimingPlanet, KpTimingTechnical } from "@/lib/astrology/model/kp";
+import { KP_PROVIDER_CORRECTION_NOTE, type KpTimingPlanet, type KpTimingTechnical } from "@/lib/astrology/model/kp";
 import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import { GRAHA_LABELS } from "@/lib/astrology/topics/vedic";
 
@@ -126,7 +126,7 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
                   <li key={`${c.planet}-${c.atUtc}-${i}`} className="px-3 py-2 text-sm">
                     <div className="text-xs tabular-nums text-slate-500">{kpAt(c.atUtc, tz)}</div>
                     <div>
-                      <strong>{short(c.planet)}</strong> · KP {c.fromKp} ({short(c.fromStar)}/{short(c.fromSub)}) → KP {c.toKp} ({short(c.toStar)}/{short(c.toSub)})
+                      <strong>{short(c.planet)}</strong> · KP {c.fromKp} ({short(c.fromStar)}/{short(c.fromSub)}) → KP {c.toKp} ({short(c.toStar)}/{short(c.toSub)}){c.corrected ? " *" : ""}
                     </div>
                   </li>
                 ))}
@@ -153,6 +153,11 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
                         <td className={`${td} whitespace-nowrap font-medium`}>
                           {c.toKp} · {short(c.toStar)} / {short(c.toSub)}
                           {c.fromStar !== c.toStar && <span className="ml-1 rounded bg-indigo-100 px-1 text-[10px] text-indigo-800">yıldız değişti</span>}
+                          {c.corrected && (
+                            <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-900" title={KP_PROVIDER_CORRECTION_NOTE} data-kp-corrected>
+                              * sağlayıcı verisi düzeltildi
+                            </span>
+                          )}
                         </td>
                         <td className={`${td} whitespace-nowrap text-xs tabular-nums text-slate-500`}>{kpAt(c.atUtc, "UTC").slice(11)}</td>
                       </tr>
@@ -161,6 +166,7 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
                 </table>
               </div>
               <Pager shown={Math.min(nSub, subRows.length)} total={subRows.length} onMore={() => setNSub((n) => n + PAGE)} />
+              {subRows.some((c) => c.corrected) && <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-snug text-amber-900" data-testid="astro-kp-corrected-note">{KP_PROVIDER_CORRECTION_NOTE}</p>}
             </>
           )}
         </section>

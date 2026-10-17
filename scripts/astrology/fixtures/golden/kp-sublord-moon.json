@@ -1,0 +1,230 @@
+{
+  "endpoint": "/vedic-astrology/kp/sublord-changes",
+  "query": null,
+  "body": {
+    "planet": "Moon",
+    "startDate": "2026-10-07",
+    "endDate": "2026-10-08",
+    "timezone": 0,
+    "ayanamsa": "kp-newcomb",
+    "nodeType": "mean"
+  },
+  "response": {
+    "planet": "Moon",
+    "startDate": "2026-10-07",
+    "endDate": "2026-10-08",
+    "totalChanges": 19,
+    "changes": [
+      {
+        "date": "2026-10-07",
+        "time": "00:59",
+        "datetime": "2026-10-07T00:59:00",
+        "fromKp": 87,
+        "toKp": 88,
+        "fromSublord": "Moon",
+        "toSublord": "Mars",
+        "fromNakshatraLord": "Ketu",
+        "toNakshatraLord": "Ketu"
+      },
+      {
+        "date": "2026-10-07",
+        "time": "02:20",
+        "datetime": "2026-10-07T02:20:00",
+        "fromKp": 88,
+        "toKp": 89,
+        "fromSublord": "Mars",
+        "toSublord": "Rahu",
+        "fromNakshatraLord": "Ketu",
+        "toNakshatraLord": "Ketu"
+      },
+      {
+        "date": "2026-10-07",
+        "time": "05:51",
+        "datetime": "2026-10-07T05:51:00",
+        "fromKp": 89,
+        "toKp": 90,
+        "fromSublord": "Rahu",
+        "toSublord": "Jupiter",
+        "fromNakshatraLord": "Ketu",
+        "toNakshatraLord": "Ketu"
+      },
+      {
+        "date": "2026-10-07",
+        "time": "08:58",
+        "datetime": "2026-10-07T08:58:00",
+        "fromKp": 90,
+        "toKp": 91,
+        "fromSublord": "Jupiter",
+        "toSublord": "Saturn",
+        "fromNakshatraLord": "Ketu",
+        "toNakshatraLord": "Ketu"
+      },
+      {
+        "date": "2026-10-07",
+        "time": "12:41",
+        "datetime": "2026-10-07T12:41:00",
+        "fromKp": 91,
+        "toKp": 92,
+        "fromSublord": "Saturn",
+        "toSublord": "Mercury",
+        "fromNakshatraLord": "Ketu",
+        "toNakshatraLord": "Ketu"
+      },
+      {
+        "date": "2026-10-07",
+        "time": "16:00",
+        "datetime": "2026-10-07T16:00:00",
+        "fromKp": 92,
+        "toKp": 93,
+        "fromSublord": "Mercury",
+        "toSublord": "Venus",
+        "fromNakshatraLord": "Ketu",
+        "toNakshatraLord": "Venus"
+      },
+      {
+        "date": "2026-10-07",
+        "time": "19:56",
+        "datetime": "2026-10-07T19:56:00",
+        "fromKp": 93,
+        "toKp": 94,
+        "fromSublord": "Venus",
+        "toSublord": "Sun",
+        "fromNakshatraLord": "Venus",
+        "toNakshatraLord": "Venus"
+      },
+      {
+        "date": "2026-10-07",
+        "time": "21:07",
+        "datetime": "2026-10-07T21:07:00",
+        "fromKp": 94,
+        "toKp": 95,
+        "fromSublord": "Sun",
+        "toSublord": "Moon",
+        "fromNakshatraLord": "Venus",
+        "toNakshatraLord": "Venus"
+      },
+      {
+        "date": "2026-10-07",
+        "time": "23:04",
+        "datetime": "2026-10-07T23:04:00",
+        "fromKp": 95,
+        "toKp": 96,
+        "fromSublord": "Moon",
+        "toSublord": "Mars",
+        "fromNakshatraLord": "Venus",
+        "toNakshatraLord": "Venus"
+      },
+      {
+        "date": "2026-10-08",
+        "time": "00:27",
+        "datetime": "2026-10-08T00:27:00",
+        "fromKp": 96,
+        "toKp": 97,
+        "fromSublord": "Mars",
+        "toSublord": "Rahu",
+        "fromNakshatraLord": "Venus",
+        "toNakshatraLord": "Venus"
+      },
+      {
+        "date": "2026-10-08",
+        "time": "04:00",
+        "datetime": "2026-10-08T04:00:00",
+        "fromKp": 97,
+        "toKp": 98,
+        "fromSublord": "Rahu",
+        "toSublord": "Jupiter",
+        "fromNakshatraLord": "Venus",
+        "toNakshatraLord": "Venus"
+      },
+      {
+        "date": "2026-10-08",
+        "time": "07:09",
+        "datetime": "2026-10-08T07:09:00",
+        "fromKp": 98,
+        "toKp": 99,
+        "fromSublord": "Jupiter",
+        "toSublord": "Saturn",
+        "fromNakshatraLord": "Venus",
+        "toNakshatraLord": "Venus"
+      },
+      {
+        "date": "2026-10-08",
+        "time": "10:55",
+        "datetime": "2026-10-08T10:55:00",
+        "fromKp": 99,
+        "toKp": 100,
+        "fromSublord": "Saturn",
+        "toSublord": "Mercury",
+        "fromNakshatraLord": "Venus",
+        "toNakshatraLord": "Venus"
+      },
+      {
+        "date": "2026-10-08",
+        "time": "14:17",
+        "datetime": "2026-10-08T14:17:00",
+        "fromKp": 100,
+        "toKp": 101,
+        "fromSublord": "Mercury",
+        "toSublord": "Ketu",
+        "fromNakshatraLord": "Venus",
+        "toNakshatraLord": "Venus"
+      },
+      {
+        "date": "2026-10-08",
+        "time": "15:40",
+        "datetime": "2026-10-08T15:40:00",
+        "fromKp": 101,
+        "toKp": 102,
+        "fromSublord": "Ketu",
+        "toSublord": "Sun",
+        "fromNakshatraLord": "Venus",
+        "toNakshatraLord": "Sun"
+      },
+      {
+        "date": "2026-10-08",
+        "time": "16:52",
+        "datetime": "2026-10-08T16:52:00",
+        "fromKp": 102,
+        "toKp": 103,
+        "fromSublord": "Sun",
+        "toSublord": "Moon",
+        "fromNakshatraLord": "Sun",
+        "toNakshatraLord": "Sun"
+      },
+      {
+        "date": "2026-10-08",
+        "time": "18:51",
+        "datetime": "2026-10-08T18:51:00",
+        "fromKp": 103,
+        "toKp": 104,
+        "fromSublord": "Moon",
+        "toSublord": "Mars",
+        "fromNakshatraLord": "Sun",
+        "toNakshatraLord": "Sun"
+      },
+      {
+        "date": "2026-10-08",
+        "time": "20:14",
+        "datetime": "2026-10-08T20:14:00",
+        "fromKp": 104,
+        "toKp": 105,
+        "fromSublord": "Mars",
+        "toSublord": "Rahu",
+        "fromNakshatraLord": "Sun",
+        "toNakshatraLord": "Sun"
+      },
+      {
+        "date": "2026-10-08",
+        "time": "23:49",
+        "datetime": "2026-10-08T23:49:00",
+        "fromKp": 105,
+        "toKp": 107,
+        "fromSublord": "Rahu",
+        "toSublord": "Jupiter",
+        "fromNakshatraLord": "Sun",
+        "toNakshatraLord": "Sun"
+      }
+    ]
+  },
+  "note": "zorunlu 1: Ay sub-lord, 2 gün"
+}

@@ -567,7 +567,24 @@ function changeInstant(o: Record<string, unknown> | null, ctx: string, errors: s
   }
   return iso;
 }
-const kpAdjacent = (a: number, b: number) => (((b - a) % 249) + 249) % 249 === 1 || (((a - b) % 249) + 249) % 249 === 1;
+/**
+ * Sub-lord geçişi KP numarası kuralı. GERÇEK yanıtla (17.10.2026, kp-sublord-moon) saptandı: sağlayıcı yalnız sub-lord'un
+ * GERÇEKTEN değiştiği anı raporlar; bir sub burç sınırında iki KP numarasına bölündüğünde (aynı yıldız + sub lord) ara
+ * numarayı ayrı olay saymaz ve fromKp olarak dönemin İLK numarasını verir (ör. 105→107; 106 = 105'in Başak parçası).
+ * Kabul: from→to arası (kısa yönde) en çok 2 adım ve atlanan numara(lar) from ile AYNI yıldız + sub lord'a sahip.
+ */
+function kpTransitionOk(a: number, b: number, table: ReturnType<typeof kpTable>): boolean {
+  const fwd = (((b - a) % 249) + 249) % 249;
+  const bwd = (((a - b) % 249) + 249) % 249;
+  const dir = fwd <= bwd ? 1 : -1;
+  const steps = Math.min(fwd, bwd);
+  if (steps < 1 || steps > 2) return false;
+  for (let k = 1; k < steps; k++) {
+    const mid = table[(((a - 1 + dir * k) % 249) + 249) % 249];
+    if (mid.sub !== table[a - 1].sub || mid.star !== table[a - 1].star) return false;
+  }
+  return true;
+}
 const signAdjacent = (a: SignId, b: SignId) => {
   const d = (SIGN_IDS.indexOf(b) - SIGN_IDS.indexOf(a) + 12) % 12;
   return d === 1 || d === 11;
@@ -611,20 +628,37 @@ export function projectRoxyKpSublordChanges(raw: unknown, ex: KpChangesExpect): 
     const ctx = `changes[${i}]`;
     const atUtc = changeInstant(o, ctx, errors);
     const fromKp = int(o?.fromKp, 1, 249);
-    const toKp = int(o?.toKp, 1, 249);
+    let toKp = int(o?.toKp, 1, 249);
     const fromSub = mapGraha(o?.fromSublord);
-    const toSub = mapGraha(o?.toSublord);
+    let toSub = mapGraha(o?.toSublord);
     const fromStar = mapGraha(o?.fromNakshatraLord);
     const toStar = mapGraha(o?.toNakshatraLord);
     if (!atUtc || fromKp === null || toKp === null || !fromSub || !toSub || !fromStar || !toStar) {
       errors.push(`${ctx}: alan`);
       return;
     }
-    if (!kpAdjacent(fromKp, toKp)) errors.push(`${ctx}: KP numaraları komşu değil (${fromKp}→${toKp})`);
+    // Bilinen sağlayıcı kusuru (gerçek 92 gün Ay yanıtı, 17.10.2026): nakshatra başlangıcında satır ESKİ KP no + sub ile gelir
+    // ("46→46", sub Ay→Ay) ama yeni yıldız lordu doğrudur. Düzeltme YALNIZ: aynı KP + aynı sub + değişen yıldız; komşu numara
+    // tek ve o numaranın yıldızı = yeni yıldız (nakshatranın ilk sub'ı); sağlayıcının SONRAKİ kaydı (varsa) o numarayla
+    // başlıyor. Düzeltilen satır `corrected` ile işaretlenir (ekran + rapor gösterir).
+    let corrected: KpSublordChange["corrected"];
+    if (fromKp === toKp && fromSub === toSub && fromStar !== toStar) {
+      const cands = [(fromKp % 249) + 1, ((fromKp + 247) % 249) + 1].filter((k) => table[k - 1].star === toStar && table[k - 1].sub === toStar);
+      const next = obj(list[i + 1]);
+      const nextFrom = next ? int(next.fromKp, 1, 249) : null;
+      const ok = cands.length === 1 && (next === null || (nextFrom === cands[0] && mapGraha(next.fromSublord) === table[cands[0] - 1].sub));
+      if (ok) {
+        corrected = { providerToKp: toKp, providerToSub: toSub };
+        toKp = cands[0];
+        toSub = table[cands[0] - 1].sub;
+      }
+    }
+    if (!kpTransitionOk(fromKp, toKp, table)) errors.push(`${ctx}: KP numaraları komşu değil (${fromKp}→${toKp})`);
+    if (fromSub === toSub && fromStar === toStar) errors.push(`${ctx}: sub-lord değişmiyor`);
     if (table[fromKp - 1].sub !== fromSub || table[fromKp - 1].star !== fromStar) errors.push(`${ctx}: önceki KP ${fromKp} lordları tabloyla uyuşmuyor`);
     if (table[toKp - 1].sub !== toSub || table[toKp - 1].star !== toStar) errors.push(`${ctx}: yeni KP ${toKp} lordları tabloyla uyuşmuyor`);
     if (changes.length > 0 && changes[changes.length - 1].toKp !== fromKp) errors.push(`${ctx}: zincir kopuk (önceki yeni KP ≠ bu önceki KP)`);
-    changes.push({ atUtc, fromKp, toKp, fromSub, toSub, fromStar, toStar });
+    changes.push({ atUtc, fromKp, toKp, fromSub, toSub, fromStar, toStar, ...(corrected ? { corrected } : {}) });
   });
   inWindowSorted(changes, ex, errors);
   if (errors.length) return { ok: false, errors: errors.slice(0, 25) };
