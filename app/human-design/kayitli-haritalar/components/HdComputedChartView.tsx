@@ -6,7 +6,7 @@
 //   • bilgi bloğu (HdChartInfoPanel): Danışan (ad, yerel/UTC doğum, yer, koordinat, yaş) +
 //     Tip / Strateji / Profil / Tanım / Enkarnasyon Teması / İç Otorite / İmza / Benlik-dışı tema
 //   • Design | BodyGraph | Personality (tek DOM; mobilde BodyGraph üstte, altında iki sütun)
-//   • 9 merkez (tanımlı/açık + RoxyAPI kaydında sağlayıcının motor/farkındalık işareti), tanımlı kanallar,
+//   • 9 merkez (Tanımlı/Tanımsız/Açık — chart/centerStates + RoxyAPI kaydında sağlayıcının motor/farkındalık işareti), tanımlı kanallar,
 //     aktif kapılar
 // Etiketler uygulama sözlüğünden (Türkçe); sağlayıcı değeri yalnız küçük "kaynak değeri" olarak.
 // Sağlayıcı açıklama metinleri (typeDescription vb.) burada GÖSTERİLMEZ.
@@ -21,7 +21,15 @@ import { computedChartAppCodes, type HdComputedChart } from "@/lib/human-design/
 import { hdCenterLabelFromCode } from "@/lib/human-design/codeHelpers";
 import { toAppCenterCode } from "@/lib/human-design/normalize/hdAppCodes";
 import { HUMAN_DESIGN_CENTERS } from "@/lib/human-design/constants";
+import { classifyComputedChartCenters, HD_CENTER_STATE_EN, HD_CENTER_STATE_LABEL, type HdCenterState } from "@/lib/human-design/chart/centerStates";
 import { hdChannelDisplayLabel, type HdNameOverrides } from "@/lib/human-design/knowledge/hdNames";
+
+const CENTER_STATE_CLS: Readonly<Record<HdCenterState, string>> = {
+  defined: "bg-emerald-100 text-emerald-800",
+  undefined: "bg-violet-50 text-violet-700 ring-1 ring-violet-200/70",
+  open: "bg-slate-100 text-slate-500",
+  unverified: "bg-amber-50 text-amber-800 ring-1 ring-amber-300/70",
+};
 
 export function HdComputedChartView({
   result,
@@ -40,7 +48,10 @@ export function HdComputedChartView({
   const nameOv = nameOverrides;
   const codes = computedChartAppCodes(result);
   const isProvider = result.provider?.id === "roxyapi";
-  const definedSet = new Set(codes.active_centers);
+  // HD-UZMAN-01: Tanımlı / Tanımsız / Açık — kayıtlı 26 aktivasyondan kanıtlı (yeni hesap/çağrı yok);
+  // kanıtlanamayan merkez "Doğrulanamadı" (Açık TAHMİN EDİLMEZ). BodyGraph çizimi bundan etkilenmez.
+  // Harita, Bilgi Bankası eşleşmesi ve Word AYNI kanıttan (kayıtlı computed_result) beslenir → tutarlı.
+  const centerStates = classifyComputedChartCenters(result).states;
   // Sağlayıcının (kayıtlı yanıt) merkez nitelikleri — yalnız RoxyAPI kayıtlarında; eski kayıtta işaret yok (uydurma yok).
   const centerKind = new Map<string, { motor: boolean; awareness: boolean }>();
   if (roxyRender && Array.isArray(roxyRender.centers)) {
@@ -99,15 +110,15 @@ export function HdComputedChartView({
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="rounded-xl border border-indigo-100 bg-white px-4 py-3" data-hd-centers-card>
           <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-indigo-600">Merkezler</p>
-          {/* Satır: [ad] ······ [Motor/Farkındalık] [Tanımlı/Açık] — ayrı alanlar; ad KESİLMEZ. Sütun sayısı KARTIN
+          {/* Satır: [ad] ······ [Motor/Farkındalık] [Tanımlı/Tanımsız/Açık] — ayrı alanlar; ad KESİLMEZ. Sütun sayısı KARTIN
               genişliğine göre (auto-fill, sütun ≥ 28rem): dar/orta kartta düzenli tek sütun, çok genişte iki sütun.
               Yalnız çok dar mobilde etiketler adın altına iner. */}
           <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(min(100%,28rem),1fr))] gap-x-6 gap-y-1.5 p-0">
             {HUMAN_DESIGN_CENTERS.map((c) => {
-              const on = definedSet.has(c.code);
+              const state: HdCenterState = centerStates[c.code].state;
               const kind = centerKind.get(c.code);
               return (
-                <li key={c.code} data-hd-center={`${c.code}:${on ? "defined" : "open"}`} className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs">
+                <li key={c.code} data-hd-center={`${c.code}:${state}`} className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs">
                   <span className="min-w-0 break-words text-slate-700" data-hd-center-part="name">
                     {hdCenterLabelFromCode(c.code)}
                   </span>
@@ -123,10 +134,12 @@ export function HdComputedChartView({
                       </span>
                     ) : null}
                     <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-black ${on ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-black ${CENTER_STATE_CLS[state]}`}
+                      title={HD_CENTER_STATE_EN[state] ?? "Kayıtlı veriden kesin durum kanıtlanamadı"}
                       data-hd-center-part="status"
+                      data-hd-center-state={state}
                     >
-                      {on ? "Tanımlı" : "Açık"}
+                      {HD_CENTER_STATE_LABEL[state]}
                     </span>
                   </span>
                 </li>

@@ -13,6 +13,7 @@
 //   • BodyGraph 1. API tamamlama: taraf (Personality/Design) açıklamaları, merkez motor/farkındalık/aktif
 //     kapıları, kanal merkezleri, I Ching heksagramı, kaynak dili notu (alan yoksa satır gösterilmez).
 
+import { HD_CENTER_STATE_LABEL } from "@/lib/human-design/chart/centerStates";
 import { useEffect, useState, type ReactNode } from "react";
 import { getChartSystemReading, type SystemReadingFetchResult } from "@/lib/human-design/api/chartsClient";
 import { HD_SIGNATURE_HELP, HD_TERM } from "@/lib/human-design/normalize/hdDisplayLabels";
@@ -110,8 +111,8 @@ function CenterItem({ c }: { c: SystemReadingCenter }) {
         <span className="flex flex-wrap items-center gap-2" data-hd-sr-center={c.id}>
           <span className="text-sm font-semibold text-slate-800">{c.name}</span>
           {c.defined !== null ? (
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${c.defined ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}>
-              {c.defined ? "Tanımlı" : "Açık"}
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${c.defined ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`} data-hd-sr-center-state={c.state ?? ""}>
+              {c.state ? HD_CENTER_STATE_LABEL[c.state] : c.defined ? "Tanımlı" : "Tanımlı değil"}
             </span>
           ) : null}
           {c.motor ? <Tag field="motor">Motor merkez</Tag> : null}

@@ -1,5 +1,6 @@
 "use client";
 
+import { HD_LEGACY_CENTER_NOTE, hdKnowledgeDisplayTitle, isLegacyCenterKnowledgeCode } from "@/lib/human-design/knowledge/centerKnowledge";
 import type { KnowledgeGroup } from "../rapor-olustur/helpers/hdRapor";
 
 type Props = {
@@ -30,7 +31,10 @@ export function GateKnowledgeNotes({ groups, loading }: Props) {
                 <p className="mb-1 text-[10px] font-black uppercase tracking-wide text-indigo-500">
                   {category}
                 </p>
-                <p className="mb-0.5 text-xs font-bold text-slate-800">{r.title}</p>
+                <p className="mb-0.5 text-xs font-bold text-slate-800">{hdKnowledgeDisplayTitle(r.code, r.title)}</p>
+                {isLegacyCenterKnowledgeCode(r.code) ? (
+                  <p className="mb-0.5 text-[10px] font-semibold text-amber-700" data-hd-kb-legacy-center>{HD_LEGACY_CENTER_NOTE}</p>
+                ) : null}
                 <p className="text-xs leading-relaxed text-slate-700 whitespace-pre-wrap">
                   {r.content}
                 </p>

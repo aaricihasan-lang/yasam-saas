@@ -25,6 +25,7 @@ import {
 import type { HdCenterCode, HdChannelCode } from "../../types";
 import { ROXY_ADAPTER_VERSION, ROXY_BODYGRAPH_ENDPOINT, ROXY_PROVIDER_ID } from "./config";
 import type { RoxyBodygraph } from "./schema";
+import { hdGateCenterCode } from "../../chart/centerStates";
 
 /** Roxy gezegen adı → uygulama PlanetName (BodyGraph/glif sözlüğü). */
 const ROXY_PLANET: Readonly<Record<string, PlanetName>> = {
@@ -145,6 +146,18 @@ export function normalizeRoxyBodygraph(r: RoxyBodygraph, input: RoxyNormalizeInp
   const definedEngineNames = defined.map((c) => APP_CENTER_TO_ENGINE_CENTER[c]);
   if (!sameSet(derivedCenters, definedEngineNames)) {
     errors.push(`merkez tutarsızlığı: Roxy [${definedEngineNames.join(",")}] ≠ kanallardan [${derivedCenters.join(",")}]`);
+  }
+  // HD-UZMAN-01: merkez başına aktif kapılar (Tanımsız/Açık ayrımının kaynağı) aktivasyonlardan
+  // türetilenle BİREBİR aynı olmalı; eksik kapı listesi boş liste SAYILMAZ.
+  for (const c of r.centers) {
+    const code = toAppCenterCode(c.id) ?? toAppCenterCode(c.name);
+    if (!code) continue;
+    const derived = activeGates.filter((g) => hdGateCenterCode(g) === code);
+    if (c.gates === null) {
+      errors.push(`merkez kapıları eksik: ${c.id}`);
+    } else if ([...new Set(c.gates)].sort((a, b) => a - b).join(",") !== derived.join(",")) {
+      errors.push(`merkez kapı tutarsızlığı (${c.id}): Roxy [${c.gates.join(",")}] ≠ aktivasyonlardan [${derived.join(",")}]`);
+    }
   }
   const pick = (side: "personality" | "design", body: PlanetName) =>
     activations.find((a) => a.side === side && a.body === body);

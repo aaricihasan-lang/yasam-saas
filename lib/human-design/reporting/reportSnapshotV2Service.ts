@@ -15,6 +15,7 @@ import { getChartForReportV2 } from "@/lib/human-design/api/chartPersistence";
 import { listKnowledgeForReport, listKnowledgeNames } from "@/lib/human-design/api/knowledgePersistence";
 import { buildHdNameOverrides } from "@/lib/human-design/knowledge/hdNames";
 import { buildExpertKnowledgeCodes, toAppChartCodes } from "@/lib/human-design/normalize/hdAppCodes";
+import { centerStateMap, classifyChartRowCenters } from "@/lib/human-design/chart/centerStates";
 import { extractSystemReading, type SystemReadingDto } from "@/lib/human-design/providers/roxy/systemReading";
 import { ROXY_PROVIDER_ID } from "@/lib/human-design/providers/roxy/config";
 import { countUniqueChartGates, HD_REPORT_MAX_UNIQUE_GATES } from "./reportSnapshotService";
@@ -87,10 +88,12 @@ export async function createReportSnapshotV2FromChart(
   }
 
   const codes = toAppChartCodes(chart);
+  // HD-UZMAN-01: merkez durumları kayıtlı haritadan (yeni hesap/çağrı yok) — Word ve Bilgi Bankası aynı kaynak.
+  const centerStates = centerStateMap(classifyChartRowCenters(chart));
   let expertRecords: Awaited<ReturnType<typeof listKnowledgeForReport>>["rows"] = [];
   if (expertIncluded) {
     // Özel Çalışma Notları (expert_notes) bu sorguda OKUNMAZ (yalnız rapora uygun kolonlar).
-    const kb = await listKnowledgeForReport(db, tenantId, buildExpertKnowledgeCodes(codes));
+    const kb = await listKnowledgeForReport(db, tenantId, buildExpertKnowledgeCodes(codes, centerStates));
     if (kb.error) return { ok: false, status: 500, code: "KNOWLEDGE_READ_FAILED", error: "Bilgi Bankası okunamadı." };
     expertRecords = kb.rows;
   }
@@ -127,6 +130,7 @@ export async function createReportSnapshotV2FromChart(
     // Görsel kararı route'ta (PNG doğrulama / yüklenen görsel kopyası) verilir.
     bodygraph: { status: "missing" },
     chartImage: null,
+    centerStates,
   });
 
   return {

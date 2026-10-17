@@ -28,6 +28,9 @@ import {
   toAppDefinitionCode,
   toAppTypeCode,
 } from "@/lib/human-design/normalize/hdAppCodes";
+import { classifyHdCenters, type HdCenterState } from "@/lib/human-design/chart/centerStates";
+import type { HdCenterCode } from "@/lib/human-design/types";
+import { toPlanetName } from "./normalize";
 import { HD_CROSS_SECTION_TITLE, HD_TERM, HD_TERM_BI, hdCrossAngleLabel, hdTypeKeynotes, normalizeProviderTrText } from "@/lib/human-design/normalize/hdDisplayLabels";
 
 export const SYSTEM_READING_LIMITS = Object.freeze({
@@ -68,8 +71,10 @@ export type SystemReadingCenter = {
   motor?: boolean | null;
   /** Farkındalık merkezi mi — sağlayıcı alanı (eski snapshot'ta yok). */
   awareness?: boolean | null;
-  /** Bu merkezdeki aktif kapılar (sağlayıcı; eski snapshot'ta yok). */
+  /** Bu merkezdeki aktif kapılar (sağlayıcı; eski snapshot'ta yok; kayıtta eksik/bozuksa yok). */
   gates?: number[];
+  /** HD-UZMAN-01 kanıtlı durum (Tanımlı/Tanımsız/Açık/Doğrulanamadı); eski snapshot'ta yok. */
+  state?: HdCenterState;
 };
 
 export type SystemReadingChannel = {
@@ -204,14 +209,39 @@ function general(r: Obj): SystemReadingGeneralItem[] {
 }
 
 /** 1–64 aralığındaki benzersiz kapılar (artan); geçersiz değerler atlanır. */
-function gateList(v: unknown): number[] {
-  if (!Array.isArray(v)) return [];
+/** Merkez kapıları. Alan yok / null / bozuk → undefined (eksik veri "aktif kapı yok" diye GÖSTERİLMEZ). */
+function gateList(v: unknown): number[] | undefined {
+  if (!Array.isArray(v) || v.length > 64) return undefined;
   const out = new Set<number>();
-  for (const g of v.slice(0, 64)) {
+  for (const g of v) {
     const n = int(g, 1, 64);
-    if (n !== null) out.add(n);
+    if (n === null) return undefined;
+    out.add(n);
   }
   return [...out].sort((a, b) => a - b);
+}
+
+/**
+ * HD-UZMAN-01: kayıtlı ham yanıttan merkez durumu (Tanımlı/Tanımsız/Açık/Doğrulanamadı). Kaynak: yanıtın
+ * kendi 26 aktivasyonu + merkez defined/gates çapraz denetimi (chart/centerStates — tek kural).
+ */
+function rawCenterStates(r: Obj): Map<HdCenterCode, HdCenterState> {
+  const out = new Map<HdCenterCode, HdCenterState>();
+  if (!Array.isArray(r.centers) || !Array.isArray(r.gates)) return out;
+  const defined: string[] = [];
+  const open: string[] = [];
+  for (const c of r.centers) {
+    if (!isObj(c) || typeof c.defined !== "boolean") return out;
+    (c.defined ? defined : open).push(String(c.id));
+  }
+  const acts = r.gates.map((a) =>
+    isObj(a) && typeof a.planet === "string"
+      ? { body: toPlanetName(a.planet), side: a.side, gate: a.gate, line: a.line }
+      : null,
+  );
+  const cls = classifyHdCenters({ definedCenters: defined, openCenters: open, activations: acts, providerCenters: r.centers });
+  for (const [code, e] of Object.entries(cls.states) as Array<[HdCenterCode, { state: HdCenterState }]>) out.set(code, e.state);
+  return out;
 }
 
 /** Sağlayıcı merkez kimliği → uygulama merkez adı (bilinmeyen → null). */
@@ -223,6 +253,7 @@ function centerName(v: unknown): string | null {
 
 function centers(r: Obj): SystemReadingCenter[] {
   if (!Array.isArray(r.centers)) return [];
+  const states = rawCenterStates(r);
   const out: SystemReadingCenter[] = [];
   for (const c of r.centers.slice(0, SYSTEM_READING_LIMITS.centers)) {
     if (!isObj(c)) continue;
@@ -239,6 +270,10 @@ function centers(r: Obj): SystemReadingCenter[] {
       motor: typeof c.motor === "boolean" ? c.motor : null,
       awareness: typeof c.awareness === "boolean" ? c.awareness : null,
       gates: gateList(c.gates),
+      state: (() => {
+        const code = toAppCenterCode(id);
+        return code ? states.get(code) ?? "unverified" : "unverified";
+      })(),
     });
   }
   return out;

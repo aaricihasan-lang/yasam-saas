@@ -247,19 +247,48 @@ export function toAppChartCodes(chart: StoredChartScalars): HdAppChartCodes {
 }
 
 /**
+ * HD-UZMAN-01 — Merkez Bilgi Bankası kodları (üçlü durum + eski genel kayıt uyumluluğu):
+ *   Tanımlı   → merkez_tanimli_{c}
+ *   Tanımsız  → merkez_tanimsiz_{c}  + merkez_acik_{c} (eski GENEL kayıt; kesin kayıt varsa sunucu eler)
+ *   Açık      → merkez_tam_acik_{c}  + merkez_acik_{c} (aynı kural)
+ *   Doğrulanamadı → yalnız kayıtlı listeye göre: tanımlı ise merkez_tanimli_{c}, değilse yalnız eski
+ *                   genel merkez_acik_{c} (kesin Tanımsız/Açık yorumu ASLA getirilmez).
+ * centerStates verilmezse eski davranış (yalnız tanimli_/acik_) — geriye uyum.
+ * Tanımsız merkez hiçbir zaman tam_acik_ ile, Açık merkez hiçbir zaman tanimsiz_ ile eşleşmez.
+ */
+export function centerKnowledgeCodes(
+  activeCenters: readonly HdCenterCode[],
+  openCenters: readonly HdCenterCode[],
+  centerStates?: Partial<Record<HdCenterCode, "defined" | "undefined" | "open" | "unverified">> | null,
+): string[] {
+  const out: string[] = [];
+  for (const c of activeCenters) out.push(`merkez_tanimli_${c}`);
+  for (const c of openCenters) {
+    if (activeCenters.includes(c)) continue;
+    const st = centerStates?.[c];
+    if (st === "undefined") out.push(`merkez_tanimsiz_${c}`);
+    else if (st === "open") out.push(`merkez_tam_acik_${c}`);
+    out.push(`merkez_acik_${c}`);
+  }
+  return out;
+}
+
+/**
  * Uzman Bilgi Bankası kodları (human_design_knowledge_records.code) —
  * rapor-olustur/helpers/hdRapor.ts buildCodesFromChart ile BİREBİR aynı biçim:
  *   tip_{code} otorite_{code} profil_{code} tanim_{code}
  *   merkez_tanimli_{code} merkez_acik_{code} kanal_{a_b} kapi_{n}
  */
-export function buildExpertKnowledgeCodes(codes: HdAppChartCodes): string[] {
+export function buildExpertKnowledgeCodes(
+  codes: HdAppChartCodes,
+  centerStates?: Partial<Record<HdCenterCode, "defined" | "undefined" | "open" | "unverified">> | null,
+): string[] {
   const out: string[] = [];
   if (codes.type_code) out.push(`tip_${codes.type_code}`);
   if (codes.authority_code) out.push(`otorite_${codes.authority_code}`);
   if (codes.profile_code) out.push(`profil_${codes.profile_code}`);
   if (codes.definition_code) out.push(`tanim_${codes.definition_code}`);
-  for (const c of codes.active_centers) out.push(`merkez_tanimli_${c}`);
-  for (const c of codes.open_centers) out.push(`merkez_acik_${c}`);
+  out.push(...centerKnowledgeCodes(codes.active_centers, codes.open_centers, centerStates));
   for (const ch of codes.channels) out.push(`kanal_${ch.replace(/-/g, "_")}`);
   for (const g of codes.gates) out.push(`kapi_${g}`);
   return [...new Set(out)];
