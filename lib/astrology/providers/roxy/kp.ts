@@ -32,8 +32,13 @@ import {
   type KpHoraryTechnical,
   type KpRulingTechnical,
   type KpTransitTechnical,
+  type KpPositionRow,
+  type KpRasiChange,
+  type KpSublordChange,
+  type KpTimingPart,
+  type KpTimingPlanet,
 } from "../../model/kp";
-import { kpLordCandidates, kpSpan } from "../../verify/kpSub";
+import { kpLordCandidates, kpSpan, kpTable } from "../../verify/kpSub";
 import { mapGraha, mapRashi } from "./vedic";
 import { arr, findUnmapped, int, keywords, num, obj, paths } from "./shared";
 import type { AdapterResult } from "./timing";
@@ -532,3 +537,203 @@ export function projectRoxyKpHorary(
 }
 
 export type { SignId };
+
+// ═══ TRANSİT-03 · KP zaman aralığı (sublord-changes / rasi-changes / planets-interval aralık) ═══════════════
+// Şema OpenAPI 2.0.0'dan (17.10.2026). Gerçek yanıt örneği henüz YOK (owner onaylı golden çağrı bekleniyor) → doğrulama
+// biçimden bağımsız ve SIKI: yankılar (gezegen, tarih aralığı, ayanamsa), sayım = liste uzunluğu, kronolojik sıra, pencere
+// içi; KP numarası komşuluğu (±1, 249↔1 sarması) ve her numaranın sub/yıldız lordu bağımsız KP tablosuyla (verify/kpSub)
+// birebir; rasi komşuluğu + burç yöneticileri. Herhangi biri tutmazsa sonuç KAYDEDİLMEZ (fail-closed).
+export const ROXY_KP_SUBLORD = { endpoint: "/vedic-astrology/kp/sublord-changes", adapter: "astro-roxy-kp-sublord-1", projection: "kp-timing-proj-1" } as const;
+export const ROXY_KP_RASI = { endpoint: "/vedic-astrology/kp/rasi-changes", adapter: "astro-roxy-kp-rasi-1", projection: "kp-timing-proj-1" } as const;
+export const ROXY_KP_PLANETS_RANGE = { endpoint: "/vedic-astrology/kp/planets-interval", adapter: "astro-roxy-kp-planets-range-1", projection: "kp-timing-proj-1" } as const;
+/** Tek parçada kabul edilen en çok satır (Ay ≈ 9 sub-lord geçişi/gün; 92 gün ≈ 830). Aşılırsa sonuç kaydedilmez — kırpılmaz. */
+export const KP_TIMING_MAX_ROWS = 2000;
+
+const CHANGE_DT = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(:\d{2}(\.\d+)?)?(Z|[+-]00:?00)?$/;
+/** Sağlayıcı anı (timezone 0) → ISO UTC "YYYY-MM-DDTHH:MM:SSZ"; tarih/saat alanlarıyla tutarlılık. */
+function changeInstant(o: Record<string, unknown> | null, ctx: string, errors: string[]): string | null {
+  const dt = typeof o?.datetime === "string" ? o.datetime.trim() : "";
+  const m = CHANGE_DT.exec(dt);
+  if (!m) {
+    errors.push(`${ctx}: datetime biçimi`);
+    return null;
+  }
+  if (o?.date !== undefined && o.date !== m[1]) errors.push(`${ctx}: date ↔ datetime`);
+  if (o?.time !== undefined && o.time !== m[2]) errors.push(`${ctx}: time ↔ datetime`);
+  const iso = `${m[1]}T${m[2]}${m[3] ? m[3].slice(0, 3) : ":00"}Z`;
+  if (!Number.isFinite(Date.parse(iso))) {
+    errors.push(`${ctx}: geçersiz an`);
+    return null;
+  }
+  return iso;
+}
+/**
+ * Sub-lord geçişi KP numarası kuralı. GERÇEK yanıtla (17.10.2026, kp-sublord-moon) saptandı: sağlayıcı yalnız sub-lord'un
+ * GERÇEKTEN değiştiği anı raporlar; bir sub burç sınırında iki KP numarasına bölündüğünde (aynı yıldız + sub lord) ara
+ * numarayı ayrı olay saymaz ve fromKp olarak dönemin İLK numarasını verir (ör. 105→107; 106 = 105'in Başak parçası).
+ * Kabul: from→to arası (kısa yönde) en çok 2 adım ve atlanan numara(lar) from ile AYNI yıldız + sub lord'a sahip.
+ */
+function kpTransitionOk(a: number, b: number, table: ReturnType<typeof kpTable>): boolean {
+  const fwd = (((b - a) % 249) + 249) % 249;
+  const bwd = (((a - b) % 249) + 249) % 249;
+  const dir = fwd <= bwd ? 1 : -1;
+  const steps = Math.min(fwd, bwd);
+  if (steps < 1 || steps > 2) return false;
+  for (let k = 1; k < steps; k++) {
+    const mid = table[(((a - 1 + dir * k) % 249) + 249) % 249];
+    if (mid.sub !== table[a - 1].sub || mid.star !== table[a - 1].star) return false;
+  }
+  return true;
+}
+const signAdjacent = (a: SignId, b: SignId) => {
+  const d = (SIGN_IDS.indexOf(b) - SIGN_IDS.indexOf(a) + 12) % 12;
+  return d === 1 || d === 11;
+};
+
+export type KpChangesExpect = { planet: KpTimingPlanet; startDate: string; endDate: string };
+
+function changesHeader(r: Record<string, unknown>, ex: KpChangesExpect, errors: string[]): unknown[] {
+  if (mapGraha(r.planet) !== ex.planet) errors.push("planet yankısı");
+  if (r.startDate !== ex.startDate || r.endDate !== ex.endDate) errors.push("tarih aralığı yankısı");
+  const list = arr(r.changes);
+  if (!list) {
+    errors.push("changes");
+    return [];
+  }
+  if (int(r.totalChanges, 0, 1_000_000) !== list.length) errors.push("totalChanges ≠ liste");
+  if (list.length > KP_TIMING_MAX_ROWS) errors.push(`satır sınırı aşıldı (${list.length} > ${KP_TIMING_MAX_ROWS}) — daha kısa bir aralık seçin`);
+  return list;
+}
+function inWindowSorted<T extends { atUtc: string }>(rows: T[], ex: KpChangesExpect, errors: string[]) {
+  for (let i = 0; i < rows.length; i++) {
+    const d = rows[i].atUtc.slice(0, 10);
+    if (d < ex.startDate || d > ex.endDate) errors.push(`changes[${i}]: pencere dışı`);
+    if (i > 0 && rows[i].atUtc < rows[i - 1].atUtc) errors.push("changes: kronolojik değil");
+  }
+}
+
+type PartOf<K extends KpTimingPart["kind"]> = Extract<KpTimingPart, { kind: K }>;
+export type KpTimingAdapterResult<K extends KpTimingPart["kind"]> = { ok: true; part: PartOf<K>; unmappedFields: string[] } | { ok: false; errors: string[] };
+
+const SUBLORD_KNOWN = new Set<string>(["planet", "startDate", "endDate", "totalChanges", "changes", ...paths("changes[]", ["date", "time", "datetime", "fromKp", "toKp", "fromSublord", "toSublord", "fromNakshatraLord", "toNakshatraLord"])]);
+export function projectRoxyKpSublordChanges(raw: unknown, ex: KpChangesExpect): KpTimingAdapterResult<"sublord"> {
+  const errors: string[] = [];
+  const r = obj(raw);
+  if (!r) return { ok: false, errors: ["root"] };
+  const list = changesHeader(r, ex, errors);
+  const table = kpTable();
+  const changes: KpSublordChange[] = [];
+  list.forEach((c, i) => {
+    const o = obj(c);
+    const ctx = `changes[${i}]`;
+    const atUtc = changeInstant(o, ctx, errors);
+    const fromKp = int(o?.fromKp, 1, 249);
+    let toKp = int(o?.toKp, 1, 249);
+    const fromSub = mapGraha(o?.fromSublord);
+    let toSub = mapGraha(o?.toSublord);
+    const fromStar = mapGraha(o?.fromNakshatraLord);
+    const toStar = mapGraha(o?.toNakshatraLord);
+    if (!atUtc || fromKp === null || toKp === null || !fromSub || !toSub || !fromStar || !toStar) {
+      errors.push(`${ctx}: alan`);
+      return;
+    }
+    // Bilinen sağlayıcı kusuru (gerçek 92 gün Ay yanıtı, 17.10.2026): nakshatra başlangıcında satır ESKİ KP no + sub ile gelir
+    // ("46→46", sub Ay→Ay) ama yeni yıldız lordu doğrudur. Düzeltme YALNIZ: aynı KP + aynı sub + değişen yıldız; komşu numara
+    // tek ve o numaranın yıldızı = yeni yıldız (nakshatranın ilk sub'ı) [kanıt 1: bağımsız KP tablosu]; sağlayıcının SONRAKİ
+    // kaydı o numara + o sub ile başlıyor [kanıt 2]. İki kanıt da ŞART: sonraki kayıt yoksa (aralığın son satırı) düzeltme
+    // YAPILMAZ → satır tablo denetiminden düşer, sonuç reddedilir. Düzeltilen satır `corrected` ile işaretlenir (ekran + rapor).
+    let corrected: KpSublordChange["corrected"];
+    if (fromKp === toKp && fromSub === toSub && fromStar !== toStar) {
+      const cands = [(fromKp % 249) + 1, ((fromKp + 247) % 249) + 1].filter((k) => table[k - 1].star === toStar && table[k - 1].sub === toStar);
+      const next = obj(list[i + 1]);
+      const nextFrom = next ? int(next.fromKp, 1, 249) : null;
+      const ok = cands.length === 1 && next !== null && nextFrom === cands[0] && mapGraha(next.fromSublord) === table[cands[0] - 1].sub;
+      if (ok) {
+        corrected = { providerToKp: toKp, providerToSub: toSub };
+        toKp = cands[0];
+        toSub = table[cands[0] - 1].sub;
+      }
+    }
+    if (!kpTransitionOk(fromKp, toKp, table)) errors.push(`${ctx}: KP numaraları komşu değil (${fromKp}→${toKp})`);
+    if (fromSub === toSub && fromStar === toStar) errors.push(`${ctx}: sub-lord değişmiyor`);
+    if (table[fromKp - 1].sub !== fromSub || table[fromKp - 1].star !== fromStar) errors.push(`${ctx}: önceki KP ${fromKp} lordları tabloyla uyuşmuyor`);
+    if (table[toKp - 1].sub !== toSub || table[toKp - 1].star !== toStar) errors.push(`${ctx}: yeni KP ${toKp} lordları tabloyla uyuşmuyor`);
+    if (changes.length > 0 && changes[changes.length - 1].toKp !== fromKp) errors.push(`${ctx}: zincir kopuk (önceki yeni KP ≠ bu önceki KP)`);
+    changes.push({ atUtc, fromKp, toKp, fromSub, toSub, fromStar, toStar, ...(corrected ? { corrected } : {}) });
+  });
+  inWindowSorted(changes, ex, errors);
+  if (errors.length) return { ok: false, errors: errors.slice(0, 25) };
+  return { ok: true, part: { kind: "sublord", planet: ex.planet, window: { startDate: ex.startDate, endDate: ex.endDate }, changes }, unmappedFields: findUnmapped(raw, SUBLORD_KNOWN, new Set()) };
+}
+
+const RASI_KNOWN = new Set<string>(["planet", "startDate", "endDate", "totalChanges", "changes", ...paths("changes[]", ["date", "time", "datetime", "fromSign", "fromSignLord", "toSign", "toSignLord"])]);
+export function projectRoxyKpRasiChanges(raw: unknown, ex: KpChangesExpect): KpTimingAdapterResult<"rasi"> {
+  const errors: string[] = [];
+  const r = obj(raw);
+  if (!r) return { ok: false, errors: ["root"] };
+  const list = changesHeader(r, ex, errors);
+  const changes: KpRasiChange[] = [];
+  list.forEach((c, i) => {
+    const o = obj(c);
+    const ctx = `changes[${i}]`;
+    const atUtc = changeInstant(o, ctx, errors);
+    const fromRashi = mapRashi(o?.fromSign);
+    const toRashi = mapRashi(o?.toSign);
+    const fromLord = mapGraha(o?.fromSignLord);
+    const toLord = mapGraha(o?.toSignLord);
+    if (!atUtc || !fromRashi || !toRashi || !fromLord || !toLord) {
+      errors.push(`${ctx}: alan`);
+      return;
+    }
+    if (!signAdjacent(fromRashi, toRashi)) errors.push(`${ctx}: burçlar komşu değil`);
+    if (SIGN_LORDS[fromRashi] !== fromLord || SIGN_LORDS[toRashi] !== toLord) errors.push(`${ctx}: burç yöneticisi`);
+    if (changes.length > 0 && changes[changes.length - 1].toRashi !== fromRashi) errors.push(`${ctx}: zincir kopuk`);
+    changes.push({ atUtc, fromRashi, toRashi, fromLord, toLord });
+  });
+  inWindowSorted(changes, ex, errors);
+  if (errors.length) return { ok: false, errors: errors.slice(0, 25) };
+  return { ok: true, part: { kind: "rasi", planet: ex.planet, window: { startDate: ex.startDate, endDate: ex.endDate }, changes }, unmappedFields: findUnmapped(raw, RASI_KNOWN, new Set()) };
+}
+
+/** planets-interval aralık: her nokta tek-an adaptörüyle AYNI KP nokta denetiminden geçer (lord ↔ boylam, Ketu = Rahu + 180°). */
+export function projectRoxyKpPlanetsRange(raw: unknown, ex: { startUtc: string; endUtc: string; intervalMinutes: number; ayanamsa: KpAyanamsaId }): KpTimingAdapterResult<"positions"> {
+  const errors: string[] = [];
+  const dropped: string[] = [];
+  const r = obj(raw);
+  if (!r) return { ok: false, errors: ["root"] };
+  if (r.ayanamsa !== ex.ayanamsa) errors.push("ayanamsa yankısı");
+  if (int(r.intervalMinutes, 15, 1440) !== ex.intervalMinutes) errors.push("intervalMinutes yankısı");
+  const ayDeg = num(r.ayanamsaValue, 0, 40);
+  if (ayDeg === null) errors.push("ayanamsaValue");
+  const list = arr(r.intervals) ?? [];
+  if (int(r.totalIntervals, 0, 100_000) !== list.length) errors.push("totalIntervals ≠ liste");
+  const expectN = Math.round((Date.parse(`${ex.endUtc}Z`) - Date.parse(`${ex.startUtc}Z`)) / (ex.intervalMinutes * 60_000)) + 1;
+  if (list.length !== expectN) errors.push(`nokta sayısı ${list.length} ≠ beklenen ${expectN}`);
+  if (list.length > KP_TIMING_MAX_ROWS) errors.push("satır sınırı aşıldı");
+  const rows: KpPositionRow[] = [];
+  list.forEach((it, i) => {
+    const o = obj(it);
+    const want = new Date(Date.parse(`${ex.startUtc}Z`) + i * ex.intervalMinutes * 60_000).toISOString().slice(0, 19);
+    if (o?.datetime !== want) errors.push(`intervals[${i}]: an ${String(o?.datetime)} ≠ ${want}`);
+    const pl = obj(o?.planets);
+    const bodies: KpPositionRow["bodies"] = [];
+    for (const name of PI_NAMES) {
+      const q = obj(pl?.[name]);
+      const id = mapGraha(name)!;
+      const mapped = q ? { longitude: q.longitude, sign: q.sign, signLord: q.signLord, nakshatra: q.nakshatra, starLord: q.nakshatraLord, subLord: q.sublord, subSubLord: q.subSublord, kpNumber: q.kpNumber } : null;
+      const p = projectKpPoint(mapped, `intervals[${i}].${name}`, errors, dropped, { requirePada: false, requireSign: true });
+      if (!p || typeof q?.isRetrograde !== "boolean") {
+        if (p) errors.push(`intervals[${i}].${name}: retro`);
+        continue;
+      }
+      bodies.push({ ...p, id, retrograde: q.isRetrograde });
+    }
+    if (bodies.length !== 9) errors.push(`intervals[${i}]: 9 graha yok`);
+    const ra = bodies.find((x) => x.id === "rahu");
+    const ke = bodies.find((x) => x.id === "ketu");
+    if (ra && ke && sep(ke.longitude, norm360(ra.longitude + 180)) > 1e-3) errors.push(`intervals[${i}]: Ketu = Rahu + 180° değil`);
+    rows.push({ atUtc: `${want}Z`, bodies });
+  });
+  if (errors.length) return { ok: false, errors: errors.slice(0, 25) };
+  return { ok: true, part: { kind: "positions", window: { startUtc: ex.startUtc, endUtc: ex.endUtc }, intervalMinutes: ex.intervalMinutes, ayanamsaDegrees: ayDeg!, rows }, unmappedFields: findUnmapped(raw, KP_PI_KNOWN, new Set()) };
+}

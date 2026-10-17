@@ -264,7 +264,8 @@ async function main() {
   const transitT = project("kp.transit", { atUtc: AT }, load("kp-planets-at").response);
 
   await t("6.1C KP transit: seçici + sekme etiketi 'kısmi'; panel (çalışma alanı = kayıtlı analiz bileşeni) KISMİ uyarısı; natal cusp / Placidus ev sütunu / ev konumu YOK", () => {
-    assert.match(techniqueLabel("kp.transit"), /kısmi/);
+    // TRANSİT-03 (2026-10-17): teknik iki kipli (tek an / zaman aralığı) → etiket kip-bağımsız "KP transit"; tek-an panelinin KISMİ uyarısı aynen.
+    assert.equal(techniqueLabel("kp.transit"), "KP transit");
     assert.match(TECHNIQUE_META["kp.transit"].hint, /natal ev analizi yok/);
     const h = asSaved("kp.transit", transitT);
     assert.ok(h.includes("Kısmi destek:") && /natal cusp.*YOKTUR/.test(h) && h.includes("hesaplamaz"));

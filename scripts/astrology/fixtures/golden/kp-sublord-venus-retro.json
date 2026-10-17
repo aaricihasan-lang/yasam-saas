@@ -1,0 +1,153 @@
+{
+  "endpoint": "/vedic-astrology/kp/sublord-changes",
+  "query": null,
+  "body": {
+    "planet": "Venus",
+    "startDate": "2026-10-01",
+    "endDate": "2026-11-30",
+    "timezone": 0,
+    "ayanamsa": "kp-newcomb",
+    "nodeType": "mean"
+  },
+  "response": {
+    "planet": "Venus",
+    "startDate": "2026-10-01",
+    "endDate": "2026-11-30",
+    "totalChanges": 12,
+    "changes": [
+      {
+        "date": "2026-10-12",
+        "time": "20:43",
+        "datetime": "2026-10-12T20:43:00",
+        "fromKp": 133,
+        "toKp": 132,
+        "fromSublord": "Mercury",
+        "toSublord": "Saturn",
+        "fromNakshatraLord": "Rahu",
+        "toNakshatraLord": "Rahu"
+      },
+      {
+        "date": "2026-10-17",
+        "time": "13:14",
+        "datetime": "2026-10-17T13:14:00",
+        "fromKp": 132,
+        "toKp": 131,
+        "fromSublord": "Saturn",
+        "toSublord": "Jupiter",
+        "fromNakshatraLord": "Rahu",
+        "toNakshatraLord": "Rahu"
+      },
+      {
+        "date": "2026-10-20",
+        "time": "18:01",
+        "datetime": "2026-10-20T18:01:00",
+        "fromKp": 131,
+        "toKp": 130,
+        "fromSublord": "Jupiter",
+        "toSublord": "Rahu",
+        "fromNakshatraLord": "Rahu",
+        "toNakshatraLord": "Rahu"
+      },
+      {
+        "date": "2026-10-24",
+        "time": "01:39",
+        "datetime": "2026-10-24T01:39:00",
+        "fromKp": 130,
+        "toKp": 129,
+        "fromSublord": "Rahu",
+        "toSublord": "Moon",
+        "fromNakshatraLord": "Rahu",
+        "toNakshatraLord": "Mars"
+      },
+      {
+        "date": "2026-10-25",
+        "time": "21:15",
+        "datetime": "2026-10-25T21:15:00",
+        "fromKp": 129,
+        "toKp": 128,
+        "fromSublord": "Moon",
+        "toSublord": "Sun",
+        "fromNakshatraLord": "Mars",
+        "toNakshatraLord": "Mars"
+      },
+      {
+        "date": "2026-10-26",
+        "time": "23:46",
+        "datetime": "2026-10-26T23:46:00",
+        "fromKp": 128,
+        "toKp": 127,
+        "fromSublord": "Sun",
+        "toSublord": "Venus",
+        "fromNakshatraLord": "Mars",
+        "toNakshatraLord": "Mars"
+      },
+      {
+        "date": "2026-10-30",
+        "time": "21:51",
+        "datetime": "2026-10-30T21:51:00",
+        "fromKp": 127,
+        "toKp": 126,
+        "fromSublord": "Venus",
+        "toSublord": "Ketu",
+        "fromNakshatraLord": "Mars",
+        "toNakshatraLord": "Mars"
+      },
+      {
+        "date": "2026-11-01",
+        "time": "10:48",
+        "datetime": "2026-11-01T10:48:00",
+        "fromKp": 126,
+        "toKp": 125,
+        "fromSublord": "Ketu",
+        "toSublord": "Mercury",
+        "fromNakshatraLord": "Mars",
+        "toNakshatraLord": "Mars"
+      },
+      {
+        "date": "2026-11-06",
+        "time": "02:40",
+        "datetime": "2026-11-06T02:40:00",
+        "fromKp": 125,
+        "toKp": 124,
+        "fromSublord": "Mercury",
+        "toSublord": "Saturn",
+        "fromNakshatraLord": "Mars",
+        "toNakshatraLord": "Mars"
+      },
+      {
+        "date": "2026-11-22",
+        "time": "04:20",
+        "datetime": "2026-11-22T04:20:00",
+        "fromKp": 124,
+        "toKp": 125,
+        "fromSublord": "Saturn",
+        "toSublord": "Mercury",
+        "fromNakshatraLord": "Mars",
+        "toNakshatraLord": "Mars"
+      },
+      {
+        "date": "2026-11-27",
+        "time": "03:05",
+        "datetime": "2026-11-27T03:05:00",
+        "fromKp": 125,
+        "toKp": 126,
+        "fromSublord": "Mercury",
+        "toSublord": "Ketu",
+        "fromNakshatraLord": "Mars",
+        "toNakshatraLord": "Mars"
+      },
+      {
+        "date": "2026-11-28",
+        "time": "18:02",
+        "datetime": "2026-11-28T18:02:00",
+        "fromKp": 126,
+        "toKp": 127,
+        "fromSublord": "Ketu",
+        "toSublord": "Venus",
+        "fromNakshatraLord": "Mars",
+        "toNakshatraLord": "Mars"
+      }
+    ]
+  },
+  "note": "Ay dışı + geri hareket (Venüs retro istasyonu dahil) — ters yönlü KP geçişleri"
+}

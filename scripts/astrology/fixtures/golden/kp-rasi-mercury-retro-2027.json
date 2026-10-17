@@ -1,0 +1,48 @@
+{
+  "endpoint": "/vedic-astrology/kp/rasi-changes",
+  "query": null,
+  "body": {
+    "planet": "Mercury",
+    "startDate": "2027-01-15",
+    "endDate": "2027-03-31",
+    "timezone": 0,
+    "ayanamsa": "kp-newcomb",
+    "nodeType": "mean"
+  },
+  "response": {
+    "planet": "Mercury",
+    "startDate": "2027-01-15",
+    "endDate": "2027-03-31",
+    "totalChanges": 3,
+    "changes": [
+      {
+        "date": "2027-01-27",
+        "time": "20:32",
+        "datetime": "2027-01-27T20:32:00",
+        "fromSign": "Capricorn",
+        "fromSignLord": "Saturn",
+        "toSign": "Aquarius",
+        "toSignLord": "Saturn"
+      },
+      {
+        "date": "2027-02-24",
+        "time": "01:51",
+        "datetime": "2027-02-24T01:51:00",
+        "fromSign": "Aquarius",
+        "fromSignLord": "Saturn",
+        "toSign": "Capricorn",
+        "toSignLord": "Saturn"
+      },
+      {
+        "date": "2027-03-11",
+        "time": "20:23",
+        "datetime": "2027-03-11T20:23:00",
+        "fromSign": "Capricorn",
+        "fromSignLord": "Saturn",
+        "toSign": "Aquarius",
+        "toSignLord": "Saturn"
+      }
+    ]
+  },
+  "note": "Merkür retro burç geri dönüşü: Oğlak→Kova 27.01, retro Kova→Oğlak 24.02, ileri Oğlak→Kova 11.03.2027 (bağımsız tarama)"
+}

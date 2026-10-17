@@ -32,7 +32,7 @@ import {
   type VedicVargaTechnical,
 } from "../model/vedic";
 import { SIGN_LABELS } from "../labels/tr";
-import type { KpChartTechnical, KpHoraryTechnical, KpRulingTechnical, KpTransitTechnical } from "../model/kp";
+import type { KpChartTechnical, KpHoraryTechnical, KpRulingTechnical, KpTimingTechnical, KpTransitTechnical } from "../model/kp";
 
 export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha", "vedic_drishti", "vedic_strength", "vedic_panchanga", "vedic_gochara"] as const;
 export type VedicContext = (typeof VEDIC_CONTEXTS)[number];
@@ -367,6 +367,10 @@ export function topicsFromKpRuling(t: KpRulingTechnical): VedicTopic[] {
 }
 export function topicsFromKpTransit(t: KpTransitTechnical): VedicTopic[] {
   return vedicCollect(t.bodies.flatMap((b): [string, string[]][] => [["kp_transit_starlord", [b.id, b.starLord]], ["kp_transit_sublord", [b.id, b.subLord]]]));
+}
+/** TRANSİT-03: zaman aralığı — geçilen yıldız / sub-lord konuları (mevcut KP transit konu türleri; yeni tür yok). */
+export function topicsFromKpTiming(t: KpTimingTechnical): VedicTopic[] {
+  return vedicCollect(t.sublord.flatMap((x) => x.changes.flatMap((c): [string, string[]][] => [["kp_transit_starlord", [x.planet, c.toStar]], ["kp_transit_sublord", [x.planet, c.toSub]]])));
 }
 export function topicsFromKpHorary(t: KpHoraryTechnical): VedicTopic[] {
   return vedicCollect([["kp_horary_number", [String(t.horaryNumber)]], ...t.cusps.map((c): [string, string[]] => ["kp_horary_cusp_sublord", [String(c.house), c.subLord]])]);

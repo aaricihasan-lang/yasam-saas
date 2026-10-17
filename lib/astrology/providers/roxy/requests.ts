@@ -192,6 +192,24 @@ export function kpPlanetsAtBody(atUtcMinute: string, place: GeoPoint, ayanamsa: 
 }
 
 /**
+ * TRANSİT-03 — KP zaman aralığı gövdeleri. Saat dilimi HER ZAMAN 0 (UTC): sağlayıcı aralık için tek ofset kullanır
+ * (yaz saati aralık içinde uygulanmaz) → UTC gün sınırları + UTC anlar; gösterim istemcide seçilen bölgeye çevrilir.
+ * Gezegen adı sağlayıcı enum yazımıyla (Sun…Saturn; Rahu/Ketu bu uçlarda YOK).
+ */
+export const KP_TIMING_PLANET_NAME: Record<string, string> = { sun: "Sun", moon: "Moon", mars: "Mars", mercury: "Mercury", jupiter: "Jupiter", venus: "Venus", saturn: "Saturn" };
+export function kpChangesBody(planet: string, startDate: string, endDate: string, ayanamsa: KpAyanamsa, nodeType: KpNodeType) {
+  return { planet: KP_TIMING_PLANET_NAME[planet], startDate, endDate, timezone: 0, ayanamsa, nodeType };
+}
+/**
+ * /kp/planets-interval aralık (≤7 gün): başlangıç gününün 00:00 UTC'sinden itibaren `days` günü kapsayan noktalar — son nokta
+ * pencerenin bitişinden BİR ARALIK önce (7 gün sınırına dokunmaz; ör. 7 gün / 6 sa → son nokta 7. günün 18:00'i).
+ */
+export function kpPlanetsRangeBody(startDate: string, days: number, intervalMinutes: number, place: GeoPoint, ayanamsa: KpAyanamsa, nodeType: KpNodeType) {
+  const end = new Date(Date.parse(`${startDate}T00:00:00Z`) + days * 86_400_000 - intervalMinutes * 60_000).toISOString().slice(0, 19);
+  return { startDatetime: `${startDate}T00:00:00`, endDatetime: end, intervalMinutes, latitude: r6(place.latitude), longitude: r6(place.longitude), timezone: 0, ayanamsa, nodeType };
+}
+
+/**
  * Aşama 5.1A — /vedic-astrology/transit (Gochar). Uç TEK bir timezone alanı alır ve hem doğum hem transit
  * saatini o ofsetle yorumlar → transit ANI (UTC) doğum ofsetinde yerel saate çevrilerek gönderilir
  * (ör. 09:00 UTC, doğum +3 → 12:00:00). Ayanamsa alanı YOK (sidereal = Lahiri sabit); coordinateSystem
