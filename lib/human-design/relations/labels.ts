@@ -72,7 +72,7 @@ export const PENTA_POSITION_DEFINITION = {
   upper: "G Merkezi'nden Boğaz'a uzanır; liderlik ve grubun kendini dışa sunma rolleri.",
   lower: "G Merkezi'nden Sakral'a uzanır; yönetilen, üretken ve kaynak rolleri.",
 } as const;
-export const PENTA_CORE_NOTE = "2/14 Ritim (The Beat) kanalı Penta'nın maddi çekirdeğidir: 2. kapı kaynakların yönü, 14. kapı kaynakların kendisi.";
+export const PENTA_CORE_NOTE = "2/14 Vuruş (The Beat) kanalı Penta'nın maddi çekirdeğidir: 2. kapı kaynakların yönü, 14. kapı kaynakların kendisi.";
 export const PENTA_GAP_NOTE = "Hiçbir üyenin taşımadığı kapı, grubun telafi etmeye çalıştığı eksik bir işlevi (rol boşluğu) gösterir.";
 
 export const RELATION_DISCLAIMER =
