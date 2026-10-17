@@ -15,7 +15,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { getChartSystemReading, type SystemReadingFetchResult } from "@/lib/human-design/api/chartsClient";
-import { HD_CROSS_SECTION_TITLE, HD_TERM } from "@/lib/human-design/normalize/hdDisplayLabels";
+import { HD_SIGNATURE_HELP, HD_TERM } from "@/lib/human-design/normalize/hdDisplayLabels";
 import {
   SYSTEM_READING_ICHING_NOTE,
   type SystemReadingActivation,
@@ -66,9 +66,14 @@ function Fold({ summary, children, open = false, level = 1 }: { summary: ReactNo
 function GeneralItem({ item }: { item: SystemReadingGeneralItem }) {
   return (
     <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3" data-hd-sr-general={item.key}>
-      {/* Kayıtlı eski okumalarda başlık "Enkarnasyon Haçı" olabilir → anahtara göre güncel başlık. */}
-      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-indigo-600">{item.key === "cross" ? HD_CROSS_SECTION_TITLE : item.title}</p>
+      {/* Başlık DTO'dan (sunucu: Türkçe + (İngilizce), owner 2026-10-17). */}
+      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-indigo-600">{item.title}</p>
       {item.value ? <p className="mt-0.5 break-words text-[15px] font-semibold text-slate-900">{item.value}</p> : null}
+      {item.key === "signature" ? (
+        <p className="mt-1 text-[11px] leading-relaxed text-slate-500" data-hd-sr-signature-help>
+          {HD_SIGNATURE_HELP}
+        </p>
+      ) : null}
       {item.details.length > 0 ? (
         <div className="mt-2 space-y-2">
           {item.details.map((d) => (

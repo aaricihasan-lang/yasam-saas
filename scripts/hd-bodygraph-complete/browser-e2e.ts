@@ -116,7 +116,14 @@ async function main() {
         const box = await el.boundingBox();
         ok((await el.count()) === 1 && !!box && box.x >= 0 && box.x + box.width <= d.viewport.width + 0.5 && box.width > 20, `${d.name}: bilgi bloğunda '${f}' görünür ve ekrana sığıyor`, box);
       }
-      ok((await m.locator('[data-hd-info-field="strategy"]').innerText()).includes("Yanıt vermek için beklemek"), `${d.name}: Strateji değeri (uygulama sözlüğü)`);
+      ok(((await m.locator('[data-hd-info-field="strategy"]').textContent()) ?? "").includes("Yanıt vermek için beklemek (Wait to respond)"), `${d.name}: Strateji değeri Türkçe + (Roxy kanonik İngilizce)`);
+      const labels = await m.locator("[data-hd-info-group=chart] dt").allTextContents();
+      ok(["Tip (Type)", "Strateji (Strategy)", "Profil (Profile)", "Tanım (Definition)", "Enkarnasyon Haçı (Incarnation Cross)", "İç Otorite (Inner Authority)", "İmza (Signature)", "Kendilik Dışı Tema (Not-Self Theme)"].every((l) => labels.includes(l)), `${d.name}: bilgi bloğu başlıkları Türkçe + (İngilizce)`, labels);
+      ok(((await m.locator('[data-hd-info-field="signature"]').textContent()) ?? "").includes("Tatmin (Satisfaction)") && ((await m.locator('[data-hd-info-field="signature"]').getAttribute("title")) ?? "").includes("olumlu durum"), `${d.name}: İmza (Signature) değeri + kısa açıklama`);
+      for (const f of ["type", "strategy", "profile", "definition", "cross", "authority", "signature", "notSelf"]) {
+        const b = await m.locator(`[data-hd-info-field="${f}"]`).boundingBox();
+        if (!b || b.x < 0 || b.x + b.width > d.viewport.width + 0.5) ok(false, `${d.name}: '${f}' alanı ekrana sığmıyor`, b);
+      }
       ok((await m.locator("[data-hd-center-motor]").count()) === 4 && (await m.locator("[data-hd-center-awareness]").count()) === 3, `${d.name}: Merkezler listesinde 4 motor + 3 farkındalık işareti`);
       ok(await scrollerFits(page), `${d.name}: harita görünümü yatay taşmıyor`);
       await page.screenshot({ path: path.join(OUT, `harita-${d.name}.png`) });

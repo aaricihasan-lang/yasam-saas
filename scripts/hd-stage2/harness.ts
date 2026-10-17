@@ -307,11 +307,12 @@ async function main() {
   section("HD-04 Strateji / İmza / Kendilik Dışı Tema (tipten, uygulama sözlüğü; uydurma yok)");
   {
     const expect: Record<string, [string, string, string]> = {
-      generator: ["Yanıt vermek için beklemek", "Tatmin", "Hayal kırıklığı (Frustration)"],
-      manifesting_generator: ["Yanıt vermek için beklemek, sonra bilgilendirmek", "Tatmin", "Hayal kırıklığı (Frustration)"],
-      manifestor: ["Harekete geçmeden önce bilgilendirmek", "Huzur", "Öfke"],
-      projector: ["Davet beklemek", "Başarı", "Kırgınlık (Bitterness)"],
-      reflector: ["Bir ay döngüsünü (~28 gün) beklemek", "Hayret", "Düş kırıklığı (Disappointment)"],
+      // 2026-10-17 owner: Türkçe + (İngilizce). Bu kayıtta sağlayıcı kanonik değeri yok → standart HD terimi.
+      generator: ["Yanıt vermek için beklemek (Wait to Respond)", "Tatmin (Satisfaction)", "Hayal kırıklığı (Frustration)"],
+      manifesting_generator: ["Yanıt vermek için beklemek, sonra bilgilendirmek (Wait to Respond, then Inform)", "Tatmin (Satisfaction)", "Hayal kırıklığı (Frustration)"],
+      manifestor: ["Harekete geçmeden önce bilgilendirmek (Inform)", "Huzur (Peace)", "Öfke (Anger)"],
+      projector: ["Davet beklemek (Wait for the Invitation)", "Başarı (Success)", "Kırgınlık (Bitterness)"],
+      reflector: ["Bir ay döngüsünü (~28 gün) beklemek (Wait a Lunar Cycle)", "Hayret (Surprise)", "Düş kırıklığı (Disappointment)"],
     };
     for (const [type, [st, sg, ns]] of Object.entries(expect)) {
       const s = SV2.buildReportSnapshotV2(baseInput(mkCodes({ type_code: type as never })));
@@ -431,7 +432,7 @@ async function main() {
     const dto = SR.extractSystemReading({ ...structuredClone(FIXTURE), typeLocalized: "Jeneratör", authorityLocalized: "Sakral", definitionLocalized: "Bölünmüş" })!;
     const gv = (k: string) => dto.general.find((g) => g.key === k)!;
     ok("23i Sistem Yorumu değerleri uygulama ile aynı (Generator / Sacral Otorite / İkili Tanım (Split))", gv("type").value === CH.hdTypeLabelFromCode("generator") && gv("authority").value === CH.hdAuthorityLabelFromCode("sacral") && gv("definition").value === CH.hdDefinitionLabelFromCode("split"));
-    ok("23j Sistem Yorumu başlıkları merkezî (Tip/Strateji/İç Otorite/…/Kendilik Dışı Tema)", gv("type").title === "Tip" && gv("authority").title === "İç Otorite" && gv("notSelf").title === "Kendilik Dışı Tema");
+    ok("23j Sistem Yorumu başlıkları merkezî (Tip/Strateji/İç Otorite/…/Kendilik Dışı Tema)", gv("type").title === "Tip (Type)" && gv("authority").title === "İç Otorite (Inner Authority)" && gv("notSelf").title === "Kendilik Dışı Tema (Not-Self Theme)");
     // 2026-10-15 owner terminoloji kararları (görünen Türkçe + parantez içinde İngilizce; kodlar aynı)
     const chl = (c: string) => K.HUMAN_DESIGN_CHANNELS.find((x) => x.code === c)!.label;
     ok("23l Kanal adları: 2-14 Vuruş (The Beat), 5-15 Ritim (Rhythm), 10-34 Kendini Keşfetme (Exploration), 29-46 Keşif (Discovery)", chl("2-14") === "2-14 Vuruş Kanalı (The Beat)" && chl("5-15") === "5-15 Ritim Kanalı (Rhythm)" && chl("10-34") === "10-34 Kendini Keşfetme Kanalı (Exploration)" && chl("29-46") === "29-46 Keşif Kanalı (Discovery)");
@@ -442,7 +443,7 @@ async function main() {
     ok("23p Otorite etiketleri Türkçe + (İngilizce): Sakral Otorite (Sacral Authority), Dalak Otoritesi (Splenic Authority)…", CH.hdAuthorityLabelFromCode("sacral") === "Sakral Otorite (Sacral Authority)" && CH.hdAuthorityLabelFromCode("splenic") === "Dalak Otoritesi (Splenic Authority)" && K.HUMAN_DESIGN_AUTHORITIES.every((a) => /\(.+Authority\)$/.test(a.label)));
     ok("23q Merkez etiketleri Türkçe + (İngilizce)", K.HUMAN_DESIGN_CENTERS.every((c) => /^[^()]+ \([A-Za-z ]+\)$/.test(c.label)) && CH.hdCenterLabelFromCode("head") === "Baş Merkezi (Head)");
     ok("23r Kodlar / enum değerleri değişmedi (generator, sacral, ego_heart …)", K.HUMAN_DESIGN_TYPES.map((t) => t.code).join(",") === "generator,manifesting_generator,projector,manifestor,reflector" && K.HUMAN_DESIGN_AUTHORITIES.map((a) => a.code).join(",") === "sacral,emotional,splenic,ego_heart,self_projected,mental_environmental,lunar" && AC.toAppTypeCode("Generator") === "generator" && AC.toAppTypeCode("Manifesting Generator") === "manifesting_generator");
-    ok("23s Manifesting Generator: temel Kendilik Dışı Tema 'Hayal kırıklığı' (Roxy teknik değeri Frustration ile aynı)", DL.HD_NOT_SELF_TR.manifesting_generator === "Hayal kırıklığı (Frustration)");
+    ok("23s Manifesting Generator: temel Kendilik Dışı Tema 'Hayal kırıklığı' (Roxy teknik değeri Frustration ile aynı)", DL.HD_NOT_SELF_TR.manifesting_generator === "Hayal kırıklığı" && DL.HD_NOT_SELF_EN.manifesting_generator === "Frustration" && DL.hdTypeKeynotes("manifesting_generator")!.notSelf === "Hayal kırıklığı (Frustration)");
     ok("23k Teknik anahtarlar değişmedi (key: type/strategy/…/notSelf)", dto.general.map((g) => g.key).join(",") === "type,strategy,authority,profile,definition,cross,signature,notSelf");
   }
 

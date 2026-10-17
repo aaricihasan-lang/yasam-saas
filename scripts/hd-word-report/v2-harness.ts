@@ -496,7 +496,7 @@ async function main() {
   ok("K3 her ikisi: iki AYRI bölüm, kaynak etiketleri açık", both.includes("Bu bölümdeki açıklamalar, raporu hazırlayan uzmanın") && both.includes("Kaynak: Harita hesaplanırken") && both.includes("Tip Yorumum") && both.includes(ROXY_DESC_MARK));
   ok("K4 sıra: Uzman Bilgilerim → Sistem Yorumu → Kaynak Bilgisi", both.indexOf("Bu bölümdeki açıklamalar, raporu hazırlayan") >= 0 && both.indexOf("Bu bölümdeki açıklamalar, raporu hazırlayan") < both.indexOf("Kaynak: Harita hesaplanırken") && both.indexOf("Kaynak: Harita hesaplanırken") < both.lastIndexOf("Kaynak Bilgisi"));
   // AŞAMA 2 (HD-23): Sistem Yorumu raporun kendi etiketleriyle aynı adları kullanır.
-  ok("K5 Sistem Yorumu rapordaki uygulama etiketlerini kullanır (Jeneratör/Tepe yok)", both.includes("Tip: Jeneratör (Generator)") && both.includes("Strateji: Yanıt vermek için beklemek") && !both.includes("Tanım: Bölünmüş") && !both.includes("İç Otorite: Sakral\n") && !both.includes("Tepe —"));
+  ok("K5 Sistem Yorumu rapordaki uygulama etiketlerini kullanır (Jeneratör/Tepe yok)", both.includes("Tip (Type): Jeneratör (Generator)") && both.includes("Strateji (Strategy): Yanıt vermek için beklemek") && !both.includes("Tanım: Bölünmüş") && !both.includes("İç Otorite: Sakral\n") && !both.includes("Tepe —"));
   {
     const r = await createAs(sysDb, { tenantId: T1, system: true }, { chartId: "c4a00000-0000-4000-8000-0000000000a1", bodygraphPng: dataUrl(pngForTests) });
     const k6 = reportRow(sysDb, r.body.id)?.snapshot.commentary;

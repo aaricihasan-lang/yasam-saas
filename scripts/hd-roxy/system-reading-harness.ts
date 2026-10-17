@@ -131,7 +131,8 @@ async function main() {
     const xc = FIXTURE.incarnationCross as Record<string, unknown>;
     ok("A6 Haç: ad + açı + açıklama", g("cross")!.value === xc.name && g("cross")!.details.some((d) => d.text === xc.description) && g("cross")!.details.some((d) => d.label === "Açı"));
     // AŞAMA 2 (HD-23): İmza / Kendilik Dışı Tema değeri uygulama sözlüğünden (tipten); başlık merkezî terim.
-    ok("A7 İmza / Kendilik Dışı Tema: uygulama etiketi, uzun açıklama UYDURULMAZ", g("signature")!.value === "Tatmin" && g("signature")!.title === "İmza" && g("signature")!.details.length === 0 && g("notSelf")!.title === "Kendilik Dışı Tema" && g("notSelf")!.value === "Hayal kırıklığı (Frustration)" && g("notSelf")!.details.length === 0);
+    // 2026-10-17: Türkçe uygulama değeri + (Roxy kanonik İngilizce); başlık Türkçe + (İngilizce).
+    ok("A7 İmza / Kendilik Dışı Tema: uygulama etiketi + kanonik İngilizce, uzun açıklama UYDURULMAZ", g("signature")!.value === "Tatmin (Satisfaction)" && g("signature")!.title === "İmza (Signature)" && g("signature")!.details.length === 0 && g("notSelf")!.title === "Kendilik Dışı Tema (Not-Self Theme)" && g("notSelf")!.value === "Hayal kırıklığı (Frustration)" && g("notSelf")!.details.length === 0);
     // AŞAMA 2 (HD-06): kendilik dışı sorusu YALNIZ açık merkezde (sağlayıcı her merkez için açık-merkez dili verir).
     ok("A8 9 merkez (tema / biyoloji + tanımlı durumu); kendilik dışı sorusu yalnız AÇIK merkezde", en.centers.length === 9 && en.centers.every((c) => c.theme && c.biology && typeof c.defined === "boolean" && (c.defined ? c.notSelfQuestion === null : !!c.notSelfQuestion)) && en.centers.some((c) => !c.defined) && en.centers.some((c) => c.defined));
     ok("A9 kanallar: yapısal kimlik + açıklama + devre açıklaması", en.channels.length === (FIXTURE.channels as unknown[]).length && en.channels.every((c) => /^\d+-\d+$/.test(c.id ?? "") && c.description && c.circuitDescription));
@@ -141,7 +142,7 @@ async function main() {
     const tr = extractSystemReading(trShaped())!;
     const t = (k: string) => tr.general.find((x) => x.key === k)!;
     // AŞAMA 2 (HD-23): genel değerler ekran/Word ile AYNI uygulama etiketleri ("Jeneratör" → "Generator").
-    ok("A12 Genel değerler uygulama sözlüğünden (sağlayıcı çevirisi yerine)", t("type").value === "Jeneratör (Generator)" && t("strategy").value === "Yanıt vermek için beklemek" && t("authority").value === "Sakral Otorite (Sacral Authority)" && t("definition").value === "İkili Tanım (Split)" && t("signature").value === "Tatmin" && t("notSelf").value === "Hayal kırıklığı (Frustration)");
+    ok("A12 Genel değerler uygulama sözlüğünden (sağlayıcı çevirisi yerine)", t("type").value === "Jeneratör (Generator)" && t("strategy").value === "Yanıt vermek için beklemek (Wait to respond)" && t("authority").value === "Sakral Otorite (Sacral Authority)" && t("definition").value === "İkili Tanım (Split)" && t("signature").value === "Tatmin (Satisfaction)" && t("notSelf").value === "Hayal kırıklığı (Frustration)", [t("strategy").value, t("signature").value]);
     ok("A13 Merkez/kanal adı uygulama sözlüğünden; devre/gezegen/kapı adı Localized", tr.centers[0].name === "Baş Merkezi (Head)" && tr.channels[0].name === "Mantık Kanalı" && tr.channels[0].circuit === "Kolektif" && tr.activations[0].planet === "Güneş" && tr.activations[0].gateName === "Uyarım");
     ok("A14 Localized yoksa: merkez uygulama adı, gezegen ham enum'a güvenli geri dönüş", tr.centers[1].name === "Ajna Merkezi (Ajna)" && tr.activations[1].planet === (FIXTURE.gates as Record<string, unknown>[])[1].planet);
     // 2026-10-17: açı uygulamanın onaylı terimiyle (Sağ Açı (Right Angle)) + sağlayıcı açı kodu.
@@ -171,10 +172,9 @@ async function main() {
     ok("A21 kontrol / yön karakterleri temizlenir; metin DÜZ METİN kalır", !ht.includes("\u0000") && !ht.includes("‮") && ht.startsWith("<script>"));
     const markup = renderToStaticMarkup(createElement(HdSystemReadingView, { data: hd }));
     ok("A22 render: HTML YORUMLANMAZ (escape edilir)", !markup.includes("<script>") && !markup.includes("<img") && markup.includes("&lt;script&gt;"));
-    // 2026-10-10 owner: görünen başlık "Enkarnasyon Teması (Yaşam Amacı)"; kayıtlı eski okumada "Enkarnasyon Haçı" olsa bile.
-    const legacy = { ...hd, general: hd.general.map((x) => (x.key === "cross" ? { ...x, title: "Enkarnasyon Haçı" } : x)) };
-    const lm = renderToStaticMarkup(createElement(HdSystemReadingView, { data: legacy }));
-    ok("A22b Sistem Yorumu ekranı: \"Enkarnasyon Teması (Yaşam Amacı)\" (eski kayıtlı başlık dahil), \"Haç\" görünmez", lm.includes("Enkarnasyon Teması (Yaşam Amacı)") && !lm.includes("Haç"));
+    // 2026-10-17 owner (terminoloji): başlık Türkçe + (İngilizce) — "Enkarnasyon Haçı (Incarnation Cross)" (10-10 "Haç yok" kararının yerine).
+    const lm = renderToStaticMarkup(createElement(HdSystemReadingView, { data: hd }));
+    ok("A22b Sistem Yorumu ekranı: \"Enkarnasyon Haçı (Incarnation Cross)\" + \"Tip (Type)\" başlıkları", lm.includes("Enkarnasyon Haçı (Incarnation Cross)") && lm.includes("Tip (Type)") && hd.general.find((x) => x.key === "cross")!.title === "Enkarnasyon Haçı (Incarnation Cross)");
     const extra = clone(FIXTURE) as Record<string, unknown>;
     Object.assign(extra, { secretField: "S3CR3T", providerMeta: { key: "K" }, designInstantUtc: "2018-04-20T00:33:14.578Z" });
     ((extra.centers as Record<string, unknown>[])[0]).internal = "X1";

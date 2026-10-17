@@ -28,7 +28,7 @@ import {
   toAppDefinitionCode,
   toAppTypeCode,
 } from "@/lib/human-design/normalize/hdAppCodes";
-import { HD_CROSS_SECTION_TITLE, HD_TERM, hdCrossAngleLabel, hdTypeKeynotes, normalizeProviderTrText } from "@/lib/human-design/normalize/hdDisplayLabels";
+import { HD_CROSS_SECTION_TITLE, HD_TERM, HD_TERM_BI, hdCrossAngleLabel, hdTypeKeynotes, normalizeProviderTrText } from "@/lib/human-design/normalize/hdDisplayLabels";
 
 export const SYSTEM_READING_LIMITS = Object.freeze({
   label: 120,
@@ -332,7 +332,8 @@ function languageNoteOf(dto: SystemReadingDto): string | null {
 /** Uygulama sözlüğünden gelen etiketler (bilinmeyen → sağlayıcı değeri kalır; uydurma yok). */
 export type SystemReadingLabels = Partial<Record<"type" | "strategy" | "authority" | "definition" | "signature" | "notSelf", string | null>>;
 
-const GENERAL_TITLE: Readonly<Partial<Record<SystemReadingGeneralKey, string>>> = {
+/** Eski (tek dilli) başlıklar — tamlama öncesi rapor snapshot'ları Word'de bunlarla basılır. */
+const GENERAL_TITLE_TR: Readonly<Partial<Record<SystemReadingGeneralKey, string>>> = {
   type: HD_TERM.type,
   strategy: HD_TERM.strategy,
   authority: HD_TERM.authority,
@@ -342,6 +343,8 @@ const GENERAL_TITLE: Readonly<Partial<Record<SystemReadingGeneralKey, string>>> 
   signature: HD_TERM.signature,
   notSelf: HD_TERM.notSelf,
 };
+/** 2026-10-17 owner: Türkçe + (İngilizce) başlıklar — ekran ve YENİ Word raporları. */
+const GENERAL_TITLE_BI: Readonly<Partial<Record<SystemReadingGeneralKey, string>>> = { ...HD_TERM_BI };
 
 const fixText = (t: string | null) => normalizeProviderTrText(t);
 
@@ -354,13 +357,14 @@ const fixText = (t: string | null) => normalizeProviderTrText(t);
  *     (defined === false) merkezde tutulur; tanımlı ya da durumu bilinmeyen merkezde gösterilmez.
  *   • Tüm metinlerde "Şehit/Kâfir/Sapkın" → "Deneyimleyen/Çözüm Getiren".
  */
-export function harmonizeSystemReading(dto: SystemReadingDto, labels: SystemReadingLabels = {}): SystemReadingDto {
+export function harmonizeSystemReading(dto: SystemReadingDto, labels: SystemReadingLabels = {}, opts: { bilingual?: boolean } = {}): SystemReadingDto {
+  const titles = opts.bilingual === false ? GENERAL_TITLE_TR : GENERAL_TITLE_BI;
   return {
     general: dto.general.map((g) => {
       const appValue = g.key in labels ? labels[g.key as keyof SystemReadingLabels] : null;
       return {
         ...g,
-        title: GENERAL_TITLE[g.key] ?? g.title,
+        title: titles[g.key] ?? g.title,
         value: appValue ?? fixText(g.value),
         details: g.details.map((d) => ({ label: d.label, text: fixText(d.text) ?? d.text })),
       };
@@ -401,13 +405,16 @@ export function harmonizeSystemReading(dto: SystemReadingDto, labels: SystemRead
   };
 }
 
-/** Ham sağlayıcı yanıtının İngilizce anahtar değerlerinden uygulama etiketleri (yalnız tanınanlar). */
+/**
+ * Ham sağlayıcı yanıtının İngilizce anahtar değerlerinden uygulama etiketleri (yalnız tanınanlar).
+ * Strateji / İmza / Kendilik Dışı Tema: "Türkçe (sağlayıcı KANONİK İngilizce)" — ekrandaki bilgi bloğuyla aynı.
+ */
 export function systemReadingLabelsFromRaw(raw: unknown): SystemReadingLabels {
   if (!isObj(raw)) return {};
   const typeCode = toAppTypeCode(raw.type);
   const authorityCode = toAppAuthorityCode(raw.authority);
   const definitionCode = toAppDefinitionCode(raw.definition);
-  const keynotes = hdTypeKeynotes(typeCode);
+  const keynotes = hdTypeKeynotes(typeCode, { canonical: { strategy: raw.strategy, signature: raw.signature, notSelf: raw.notSelf } });
   return {
     type: typeCode ? hdTypeLabelFromCode(typeCode) : null,
     authority: authorityCode ? hdAuthorityDisplayLabel(authorityCode, typeCode) : null,

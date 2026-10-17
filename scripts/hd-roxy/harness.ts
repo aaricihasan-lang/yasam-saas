@@ -611,8 +611,8 @@ async function main(): Promise<void> {
     const view = renderToStaticMarkup(createElement(HdComputedChartView, { result: chart }));
     ok("U görünüm: Design → BodyGraph → Personality DOM sırası (mobilde order ile BodyGraph üstte)", view.indexOf('data-hd-side="design"') < view.indexOf("<svg") && view.indexOf("<svg") < view.indexOf('data-hd-side="personality"'));
     ok("U görünüm: lg'de üç sütun sırası / mobilde BodyGraph order-1", /order-1[^"]*lg:order-2/.test(view));
-    // 2026-10-17 owner (BodyGraph 1. API tamamlama): Strateji / İmza / Kendilik Dışı Tema ana panelde kısa etiket olarak.
-    ok("U görünüm: Tip/Strateji/Profil/Tanım/Enkarnasyon Teması/İç Otorite/İmza/Kendilik Dışı Tema", ["Tip", "Strateji", "Otorite", "Profil", "Tanım", "Enkarnasyon Teması (Yaşam Amacı)", "İmza", "Kendilik Dışı Tema"].every((l) => view.includes(l)) && !view.includes("Haç") && !view.includes("Benlik-dışı"));
+    // 2026-10-17 owner: Strateji / İmza / Kendilik Dışı Tema ana panelde; başlıklar Türkçe + (İngilizce).
+    ok("U görünüm: Tip/Strateji/Profil/Tanım/Enkarnasyon Haçı/İç Otorite/İmza/Kendilik Dışı Tema (Türkçe + İngilizce)", ["Tip (Type)", "Strateji (Strategy)", "İç Otorite (Inner Authority)", "Profil (Profile)", "Tanım (Definition)", "Enkarnasyon Haçı (Incarnation Cross)", "İmza (Signature)", "Kendilik Dışı Tema (Not-Self Theme)"].every((l) => view.includes(l)) && !view.includes("Benlik-dışı"));
     ok("U görünüm: Türkçe değerler", view.includes("Jeneratör (Generator)") && view.includes("Sakral Otorite (Sacral Authority)") && view.includes("Right Angle Cross of Laws 2"));
     ok("U görünüm: 9 merkez durumu", (view.match(/data-hd-center="/g) ?? []).length === 9 && view.includes('data-hd-center="g_identity:open"') && view.includes('data-hd-center="sacral:defined"'));
     ok("U görünüm: 4 kanal + aktif kapılar", (view.match(/data-hd-channel="/g) ?? []).length === 4 && (view.match(/data-hd-gate="/g) ?? []).length === n.codes.gates.length);

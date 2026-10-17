@@ -27,6 +27,7 @@ import { buildRoxyRenderPayload } from "../../lib/human-design/providers/roxy/re
 import { HdSystemReadingView } from "../../app/human-design/kayitli-haritalar/components/HdSystemReadingPanel";
 import { HdComputedChartView } from "../../app/human-design/kayitli-haritalar/components/HdComputedChartView";
 import { buildReportSnapshotV2 } from "../../lib/human-design/reporting/reportSnapshotV2";
+import { HD_SIGNATURE_HELP, HD_TERM_BI, hdBilingual, hdProfileBilingual, hdTypeKeynotes } from "../../lib/human-design/normalize/hdDisplayLabels";
 import { renderHdReportV2Buffer } from "../../lib/human-design/reporting/wordReportV2";
 
 let pass = 0;
@@ -225,21 +226,21 @@ async function main() {
   const unknownType = extractSystemReading({ ...FULL, type: "ZZ-Bilinmeyen" })!;
 
   const PROBES: Record<string, () => boolean> = {
-    type: () => MV.includes(">Tip<") && MV.includes("Jeneratör (Generator)") && gen("type").value === "Jeneratör (Generator)" && WT.includes("Jeneratör"),
+    type: () => MV.includes(">Tip (Type)<") && MV.includes("Jeneratör (Generator)") && gen("type").value === "Jeneratör (Generator)" && WT.includes("Tip (Type)") && WT.includes("Jeneratör (Generator)"),
     typeLocalized: () => unknownType.general.find((g) => g.key === "type")!.value === "ZZTİPYEREL",
     typeDescription: () => det("type", "Açıklama") === BASE.typeDescription && inSR(String(BASE.typeDescription)) && inW(String(BASE.typeDescription)),
     aura: () => det("type", "Aura") === BASE.aura && inSR(String(BASE.aura)) && inW(String(BASE.aura)),
-    strategy: () => MV.includes(">Strateji<") && MV.includes("Yanıt vermek için beklemek") && gen("strategy").value === "Yanıt vermek için beklemek" && WT.includes("Yanıt vermek için beklemek"),
+    strategy: () => MV.includes(">Strateji (Strategy)<") && MV.includes(`Yanıt vermek için beklemek (${BASE.strategy})`) && gen("strategy").value === `Yanıt vermek için beklemek (${BASE.strategy})` && WT.includes(`Yanıt vermek için beklemek (${BASE.strategy})`),
     strategyLocalized: () => unknownType.general.find((g) => g.key === "strategy")!.value === "ZZSTRATEJİYEREL",
     strategyDescription: () => det("strategy", "Açıklama") === BASE.strategyDescription && inW(String(BASE.strategyDescription)),
     authority: () => MV.includes("Sakral Otorite (Sacral Authority)") && gen("authority").value === "Sakral Otorite (Sacral Authority)" && WT.includes("Sakral Otorite"),
     authorityLocalized: () => extractSystemReading({ ...FULL, authority: "ZZ" })!.general.find((g) => g.key === "authority")!.value === "ZZOTORİTEYEREL",
     authorityDescription: () => det("authority", "Açıklama") === BASE.authorityDescription && inW(String(BASE.authorityDescription)),
-    signature: () => MV.includes(">İmza<") && MV.includes("Tatmin") && gen("signature").value === "Tatmin" && WT.includes("Tatmin"),
+    signature: () => MV.includes(">İmza (Signature)<") && MV.includes(`Tatmin (${BASE.signature})`) && gen("signature").value === `Tatmin (${BASE.signature})` && WT.includes(`Tatmin (${BASE.signature})`),
     signatureLocalized: () => unknownType.general.find((g) => g.key === "signature")!.value === "ZZİMZAYEREL",
-    notSelf: () => MV.includes(">Kendilik Dışı Tema<") && MV.includes("Hayal kırıklığı (Frustration)") && WT.includes("Hayal kırıklığı"),
+    notSelf: () => MV.includes(">Kendilik Dışı Tema (Not-Self Theme)<") && MV.includes(`Hayal kırıklığı (${BASE.notSelf})`) && gen("notSelf").value === `Hayal kırıklığı (${BASE.notSelf})` && WT.includes(`Hayal kırıklığı (${BASE.notSelf})`),
     notSelfLocalized: () => unknownType.general.find((g) => g.key === "notSelf")!.value === "ZZKENDİLİKYEREL",
-    profile: () => MV.includes(">Profil<") && gen("profile").value === "2/4" && WT.includes("2/4"),
+    profile: () => MV.includes(">Profil (Profile)<") && MV.includes("2/4 — Münzevi / Fırsatçı (Hermit / Opportunist)") && gen("profile").value === "2/4" && WT.includes("2/4 — Münzevi / Fırsatçı (Hermit / Opportunist)"),
     "profileKeynotes.personalityLine": () => !!det("profile", "Personality (bilinçli) — 2. çizgi") && SR.includes("Personality (bilinçli) — 2. çizgi") && WT.includes("Personality (bilinçli) — 2. çizgi"),
     "profileKeynotes.designLine": () => !!det("profile", "Design (bilinçdışı) — 4. çizgi") && WT.includes("Design (bilinçdışı) — 4. çizgi"),
     "profileKeynotes.personality": () => det("profile", /^Personality/) === pk.personality && inW(String(pk.personality)),
@@ -299,6 +300,39 @@ async function main() {
   ok(SR.includes("data-hd-sr-language-note") === true && !!D.languageNote, "P-dil: İngilizce gelen metinler AÇIKÇA belirtilir (otomatik çeviri yok)");
   ok(WT.includes("kaynak dilinde (İngilizce)"), "P-dil: Word'de de kaynak dili notu");
   ok(!MV.includes(String(BASE.typeDescription).slice(0, 40)) && !MV.includes(String(centersRaw[0].theme).slice(0, 40)), "P-yetki: ana harita (yetkisiz uzman da görür) uzun sağlayıcı açıklaması İÇERMEZ — açıklamalar Sistem Yorumu yetkisinde");
+
+  // ══ T — Türkçe + (İngilizce) terminoloji (owner 2026-10-17) ═════════════════
+  section("T — Türkçe + (İngilizce) terimler");
+  ok(JSON.stringify(Object.values(HD_TERM_BI)) === JSON.stringify(["Tip (Type)", "Strateji (Strategy)", "İç Otorite (Inner Authority)", "Profil (Profile)", "Tanım (Definition)", "İmza (Signature)", "Kendilik Dışı Tema (Not-Self Theme)", "Enkarnasyon Haçı (Incarnation Cross)"]), "T1 owner'ın 8 başlığı birebir (Türkçe + İngilizce)", HD_TERM_BI);
+  ok(hdBilingual("Hayal kırıklığı (Frustration)", "Frustration") === "Hayal kırıklığı (Frustration)" && hdBilingual("Generator", "generator") === "Generator" && hdBilingual("Tatmin", "") === "Tatmin" && hdBilingual("Tatmin", null) === "Tatmin", "T2 aynı İngilizce iki kez gösterilmez; İngilizce yoksa yalnız Türkçe");
+  const kRaw = hdTypeKeynotes("generator", { canonical: { strategy: "Wait to respond", signature: "Satisfaction", notSelf: "Frustration" } })!;
+  ok(kRaw.strategy === "Yanıt vermek için beklemek (Wait to respond)" && kRaw.signature === "Tatmin (Satisfaction)" && kRaw.notSelf === "Hayal kırıklığı (Frustration)", "T3 İngilizce: kaydın Roxy KANONİK değeri (gerçek veri öncelikli)", kRaw);
+  const EXP: Record<string, [string, string, string]> = {
+    generator: ["Yanıt vermek için beklemek (Wait to Respond)", "Tatmin (Satisfaction)", "Hayal kırıklığı (Frustration)"],
+    manifesting_generator: ["Yanıt vermek için beklemek, sonra bilgilendirmek (Wait to Respond, then Inform)", "Tatmin (Satisfaction)", "Hayal kırıklığı (Frustration)"],
+    manifestor: ["Harekete geçmeden önce bilgilendirmek (Inform)", "Huzur (Peace)", "Öfke (Anger)"],
+    projector: ["Davet beklemek (Wait for the Invitation)", "Başarı (Success)", "Kırgınlık (Bitterness)"],
+    reflector: ["Bir ay döngüsünü (~28 gün) beklemek (Wait a Lunar Cycle)", "Hayret (Surprise)", "Düş kırıklığı (Disappointment)"],
+  };
+  for (const [tc, [st, sg, ns]] of Object.entries(EXP)) {
+    const k = hdTypeKeynotes(tc)!;
+    ok(k.strategy === st && k.signature === sg && k.notSelf === ns, `T4 ${tc}: kanonik değer yoksa standart HD terimi (eski motor kaydı)`, k);
+  }
+  ok(hdTypeKeynotes("zz-bilinmeyen") === null && hdTypeKeynotes(null) === null, "T5 bilinmeyen tip → değer uydurulmaz (null)");
+  const kOld = hdTypeKeynotes("projector", { bilingual: false })!;
+  ok(kOld.strategy === "Davet beklemek" && kOld.signature === "Başarı" && kOld.notSelf === "Kırgınlık (Bitterness)", "T6 eski rapor modu: önceki tek dilli değerler birebir", kOld);
+  ok(hdProfileBilingual("2_4") === "2/4 — Münzevi / Fırsatçı (Hermit / Opportunist)" && hdProfileBilingual("5_1") === "5/1 — Çözüm Getiren / Araştırmacı (Heretic / Investigator)" && hdProfileBilingual("x") === null, "T7 profil Türkçe + İngilizce çizgi adları");
+  ok(MV.includes(HD_SIGNATURE_HELP) && SR.includes(HD_SIGNATURE_HELP) && WT.includes(HD_SIGNATURE_HELP), "T8 'İmza (Signature)' kısa açıklaması: bilgi bloğu + Sistem Yorumu + yeni Word");
+  ok(["type", "strategy", "authority", "definition", "signature", "notSelf"].every((k) => D.general.find((g) => g.key === k)!.title === HD_TERM_BI[k as keyof typeof HD_TERM_BI]) && D.general.find((g) => g.key === "cross")!.title === HD_TERM_BI.cross, "T9 Sistem Yorumu başlıkları bilgi bloğuyla aynı sözlük");
+  const infoVals = ["strategy", "signature", "notSelf"].map((k) => gen(k).value!);
+  ok(infoVals.every((v) => MV.includes(v) && WT.includes(v)), "T10 Strateji/İmza/Kendilik dışı: harita = Sistem Yorumu = Word (aynı değer)", infoVals);
+  ok(["Tip (Type)", "Strateji (Strategy)", "İç Otorite (Inner Authority)", "Profil (Profile)", "Tanım (Definition)", "İmza (Signature)", "Kendilik Dışı Tema (Not-Self Theme)"].every((l) => WT.includes(`${l}:`) || WT.includes(l)), "T11 yeni Word kimlik bölümünde iki dilli başlıklar");
+  ok(snap.termSet === "tr-en" && snap.identity.signature === `Tatmin (${BASE.signature})`, "T12 yeni snapshot terim setini dondurur (tr-en)");
+  const oldTerms = { ...snap, termSet: undefined, identity: { ...snap.identity, strategy: "Yanıt vermek için beklemek", signature: "Tatmin", notSelf: "Hayal kırıklığı (Frustration)", profile: "2/4 — Münzevi / Fırsatçı" } };
+  const WOT = await docText(await renderHdReportV2Buffer(oldTerms, {}));
+  ok(!WOT.includes("(Type)") && !WOT.includes("(Strategy)") && !WOT.includes("(Signature)") && !WOT.includes(HD_SIGNATURE_HELP) && WOT.includes("Tatmin") && !WOT.includes("Tatmin (Satisfaction)"), "T13 ESKİ rapor (terim seti yok) eski tek dilli başlık/değerlerle basılır — sessiz değişiklik yok");
+  const legacyMV = renderToStaticMarkup(createElement(HdComputedChartView, { result: { ...n.chart, strategy: undefined, signature: undefined, notSelf: undefined } }));
+  ok(legacyMV.includes("Yanıt vermek için beklemek (Wait to Respond)") && legacyMV.includes("Tatmin (Satisfaction)"), "T14 eski (sağlayıcı değeri olmayan) kayıt: standart İngilizce terim, çökme yok");
 
   // ══ K — Kenar durumlar ═══════════════════════════════════════════════════════
   section("K — Eksik / kısmi / bozuk / eski yanıt, XSS");
