@@ -141,6 +141,7 @@
       "backToSearchShort": "Back to Search",
       "backToListShort": "Back to Stone Records",
       "save": "Save",
+      "cancelEdit": "Cancel",
       "edit": "Edit",
       "delete": "Delete",
       "select": "Select",
@@ -155,6 +156,7 @@
       "readMode": "Read",
       "noInfoYet": "No information added yet.",
       "readerSubtitle": "{name} · detailed reading",
+      "readerEntryCount": "{n} information entries",
       "sections": {
         "stoneName": "Stone Name",
         "shortDesc": "Short Description",

@@ -191,7 +191,7 @@ async function testSourcesView() {
       await items(fz).nth(2).locator("button").click();
       await sleep(400);
       const body = await page.locator("body").innerText();
-      ok(g, "kayda tıklayınca okuyucu: o bilginin metni + kaynağı", /Kaynak: Mehmet Hoca/.test(body) && body.includes("aktif ENDOKRİN bezlerini"));
+      ok(g, "kayda tıklayınca TEK okuyucu: alanın tüm kayıtları + her birinin kaynağı", (await page.getByTestId("reader-entry").count()) === 3 && (await page.getByTestId("reader-entry-source").allTextContents()).some((t) => /Kaynak:\s*Mehmet Hoca/.test(t)) && body.includes("aktif ENDOKRİN bezlerini") && body.includes("Birincil fiziksel etkiler."), JSON.stringify({ n: await page.getByTestId("reader-entry").count(), b: body.slice(0, 300) }));
       await page.keyboard.press("Escape");
       await sleep(300);
       ok(g, "düzenleme modu dışında düzenle/sil/ekle yok", (await page.getByTestId("stone-entry-edit").count()) === 0 && (await page.getByTestId("stone-entry-add").count()) === 0);
@@ -433,7 +433,130 @@ async function testBuilderDrawer() {
   }
 }
 
-const ALL = { testSourcesView, testSourcesSearch, testSourcesEdit, testSingleSource, testCreateForm, testBuilderDrawer };
+
+// ── R) Owner manuel testi: Vazgeç + alanın TÜM kayıtları tek detaylı okuma penceresinde ───────────
+const panelHeaderText = (page) => page.getByTestId("reader-modal-panel").evaluate((el) => {
+  const c = el.cloneNode(true);
+  c.querySelectorAll('[data-testid="reader-entries"]').forEach((n) => n.remove());
+  return c.innerText;
+});
+async function testReaderAndCancel() {
+  const AHMEY = { id: "e0000000-0000-4000-8000-0000000000b1", field_key: "physical_effects", content: "İkinci bilgi: aktif endokrin bezlerini destekler.", source_name: "Ahmey Hoca", sort_order: 0 };
+  const many = Array.from({ length: 6 }, (_, i) => ({ id: `e0000000-0000-4000-8000-0000000000c${i}`, field_key: "spiritual_effects",
+    content: `Ruhsal kayıt ${i + 1}: ` + "uzun açıklama metni. ".repeat(18), source_name: i % 2 ? "Mehmet Hoca" : "Ahmet Hoca", sort_order: i }));
+  for (const vp of VIEWPORTS) {
+    const g = `R-okuyucu-vazgec-${vp.tag}`;
+    const api = sourcesApi({ withExtra: false, entries: [AHMEY, ...many] });
+    const { page, ctx, pageErrors } = await newPage({ viewport: vp, routes: api.routes });
+    try {
+      await page.goto(`${BASE}/dogaltas/dogaltas-listesi/${STONE_ID}`, { waitUntil: "load" });
+      await page.getByTestId("source-text-block").first().waitFor({ timeout: 15000 });
+      await sleep(800);
+      // 1) Vazgeç — hiçbir değişiklik yokken onaysız çıkış, yazma yok
+      await page.getByRole("button", { name: "Düzenle", exact: true }).first().click();
+      await sleep(300);
+      ok(g, "1: düzenleme modunda üstte [Vazgeç] [Kaydet]", (await page.getByTestId("stone-edit-cancel").isVisible()) && (await page.getByRole("button", { name: "Kaydet", exact: true }).count()) >= 1);
+      const order = await page.locator("header button").evaluateAll((els) => els.map((e) => e.textContent.trim()));
+      ok(g, "1: Vazgeç, Kaydet'in hemen solunda", order.indexOf("Vazgeç") >= 0 && order.indexOf("Vazgeç") + 1 === order.indexOf("Kaydet"), order.join("|"));
+      await page.getByTestId("stone-edit-cancel").click();
+      await sleep(400);
+      ok(g, "1: Vazgeç → salt-okunur görünüm (Düzenle geri, ipucu yok, onay sorulmadı)", (await page.getByRole("button", { name: "Düzenle", exact: true }).count()) >= 1 && (await page.getByTestId("stone-edit-cancel").count()) === 0 && !(await page.locator("main").innerText()).includes("Düzenleme modu:") && (await page.getByTestId("confirm-ok").count()) === 0);
+      ok(g, "1: DB write YOK", api.writes.length === 0, JSON.stringify(api.writes));
+      // 2) Açık + değişmiş düzenleyici → mevcut taslak onayı; yazma yok, mod korunur
+      await page.getByRole("button", { name: "Düzenle", exact: true }).first().click();
+      await sleep(300);
+      await page.locator("header button").filter({ hasText: "ZZ Akik" }).first().click();
+      const inp = page.locator("input").filter({ hasNot: page.locator("[type=file]") }).first();
+      await page.waitForTimeout(400);
+      await page.keyboard.press("End");
+      await page.keyboard.type(" DEĞİŞTİ");
+      await page.getByTestId("stone-edit-cancel").evaluate((el) => el.click());
+      await sleep(400);
+      const txt2 = await page.locator("body").innerText();
+      ok(g, "2: kaydedilmemiş taslakla Vazgeç → mevcut 'atılsın mı?' onayı, moddan ÇIKMAZ", (await page.locator("[data-discard-prompt]").count()) === 1 && (await page.getByTestId("stone-edit-cancel").count()) === 1, txt2.slice(0, 200));
+      ok(g, "2: yazma YOK", api.writes.length === 0, JSON.stringify(api.writes));
+      void inp;
+      await page.locator("[data-discard-prompt] button").nth(1).click();
+      await sleep(300);
+      if (await page.getByTestId("stone-edit-cancel").count()) { await page.getByTestId("stone-edit-cancel").click(); await sleep(300); }
+      ok(g, "2: taslak atılınca Vazgeç ile salt-okunura dönüş, hâlâ yazma YOK", (await page.getByTestId("stone-edit-cancel").count()) === 0 && api.writes.length === 0, JSON.stringify(api.writes));
+      // 3/4) Fiziksel Etkiler: 2 kayıt + 2 kaynak → TEK okuyucu
+      const fz = block(page, "Fiziksel Etkiler");
+      await fz.getByRole("button", { name: /Tam okumak/ }).click();
+      await page.getByTestId("reader-modal-panel").waitFor({ timeout: 5000 });
+      await sleep(400);
+      ok(g, "3: TEK okuyucu açıldı", (await page.getByTestId("reader-modal-panel").count()) === 1);
+      const re = page.getByTestId("reader-entry");
+      ok(g, "3: iki kayıt aynı pencerede alt alta (sırayla)", (await re.count()) === 2 && (await re.nth(0).innerText()).includes("Birincil fiziksel etkiler.") && (await re.nth(1).innerText()).includes("İkinci bilgi"));
+      const srcs = (await page.getByTestId("reader-entry-source").allTextContents()).map((t) => t.replace(/^📖\s*Kaynak:\s*/, "").trim());
+      ok(g, "4: her kaydın kaynağı KENDİ kutusunda (Kristal Şifa Kitabı / Ahmey Hoca)", JSON.stringify(srcs) === JSON.stringify(["Kristal Şifa Kitabı", "Ahmey Hoca"]) && (await re.nth(0).getByTestId("reader-entry-source").count()) === 1 && (await re.nth(1).getByTestId("reader-entry-source").count()) === 1, JSON.stringify(srcs));
+      const head = await panelHeaderText(page);
+      ok(g, "4: başlıkta tek 'Kaynak:' YOK; başlık alan adı + 'detaylı okuma'", !/Kaynak:/.test(head) && head.includes("Fiziksel Etkiler") && /detaylı okuma/.test(head), head.slice(0, 200));
+      // 5) kaynak fontu ana metinden küçük ama okunabilir
+      const fs = await re.nth(0).evaluate((li) => {
+        const src = li.querySelector('[data-testid="reader-entry-source"]');
+        const body = li.querySelector("p:not([data-testid])") ?? li.firstElementChild;
+        return { src: parseFloat(getComputedStyle(src).fontSize), body: parseFloat(getComputedStyle(body).fontSize) };
+      });
+      ok(g, "5: kaynak fontu metinden küçük, ≥12px", fs.src < fs.body && fs.src >= 12, JSON.stringify(fs));
+      // A+/A- korunur, kaynak da ölçeklenir
+      const plus = page.getByRole("button", { name: /A\+/ }).first();
+      if (await plus.count()) {
+        await plus.click(); await sleep(200);
+        const fs2 = await re.nth(0).evaluate((li) => parseFloat(getComputedStyle(li.querySelector('[data-testid="reader-entry-source"]')).fontSize));
+        ok(g, "A+ kontrolü çalışır, kaynak fontu da büyür", fs2 > fs.src, JSON.stringify({ before: fs.src, after: fs2 }));
+        const minus = page.getByRole("button", { name: /A-|A−/ }).first();
+        if (await minus.count()) { await minus.click(); await sleep(150); }
+      }
+      // 9) kapat → veri değişmez
+      await page.keyboard.press("Escape");
+      await sleep(300);
+      ok(g, "9: okuyucu kapandı, yazma YOK", (await page.getByTestId("reader-modal-panel").count()) === 0 && api.writes.length === 0);
+      // kayda tıklamak da aynı tek okuyucuyu açar
+      await items(fz).nth(1).locator("button").click();
+      await page.getByTestId("reader-modal-panel").waitFor({ timeout: 5000 });
+      ok(g, "kayda tıklamak da kayıt başına değil, alanın TÜM kayıtlarını açar", (await page.getByTestId("reader-entry").count()) === 2);
+      await page.keyboard.press("Escape");
+      await sleep(300);
+      // 6) 6 kayıt → modal içi dikey scroll; 7) taşma yok
+      await block(page, "Ruhsal Etkiler").getByRole("button", { name: /Tam okumak/ }).click();
+      await page.getByTestId("reader-modal-panel").waitFor({ timeout: 5000 });
+      await sleep(400);
+      const sc = await page.evaluate(() => {
+        const el = document.querySelector(".stone-reader-scroll");
+        if (!el) return null;
+        const before = el.scrollTop; el.scrollTop = 400; const after = el.scrollTop;
+        return { h: el.scrollHeight, c: el.clientHeight, moved: after > before };
+      });
+      ok(g, "6: 7 kayıt (eski + 6 yeni) tek pencerede + modal içi dikey scroll çalışır", (await page.getByTestId("reader-entry").count()) === 7 && sc && sc.h > sc.c && sc.moved, JSON.stringify(sc));
+      const sub = await panelHeaderText(page);
+      ok(g, "çok kayıtta alt başlıkta kayıt sayısı (kaynak değil)", /7 bilgi kaydı/.test(sub) && !/Kaynak:/.test(sub), sub.slice(0, 160));
+      const pb = await page.getByTestId("reader-modal-panel").boundingBox();
+      ok(g, "7: okuyucu ekrana sığar, yatay taşma yok", pb.x >= -1 && pb.x + pb.width <= vp.width + 1 && (await noHScroll(page)), JSON.stringify(pb));
+      if (process.env.SHOT_DIR) await page.screenshot({ path: `${process.env.SHOT_DIR}/reader-cok-kayit-${vp.tag}.png` });
+      await page.keyboard.press("Escape");
+      await sleep(300);
+      // 8) tek kayıtlı alan
+      await block(page, "Bakım").getByRole("button").first().click();
+      await page.getByTestId("reader-modal-panel").waitFor({ timeout: 5000 });
+      await sleep(300);
+      const one = page.getByTestId("reader-entry");
+      ok(g, "8: tek kayıtlı alan aynı okuyucuda düzgün açılır (metin + kaynak)", (await one.count()) === 1 && (await one.first().innerText()).includes("Birincil bakım") && /Kristal Şifa Kitabı/.test(await one.first().getByTestId("reader-entry-source").textContent()));
+      if (process.env.SHOT_DIR) {
+        await page.keyboard.press("Escape"); await sleep(300);
+        await block(page, "Fiziksel Etkiler").getByRole("button", { name: /Tam okumak/ }).click();
+        await page.getByTestId("reader-modal-panel").waitFor({ timeout: 5000 }); await sleep(400);
+        await page.screenshot({ path: `${process.env.SHOT_DIR}/reader-iki-kayit-${vp.tag}.png` });
+      }
+      await page.keyboard.press("Escape");
+      await sleep(300);
+      ok(g, "toplam: hiçbir okuma/Vazgeç adımı yazma üretmedi", api.writes.length === 0, JSON.stringify(api.writes));
+      ok(g, "JS hata yok", realErrors(pageErrors).length === 0, pageErrors.join(" ; "));
+    } catch (e) { ok(g, "senaryo çalıştı", false, e); } finally { await ctx.close(); }
+  }
+}
+
+const ALL = { testSourcesView, testSourcesSearch, testSourcesEdit, testSingleSource, testCreateForm, testBuilderDrawer, testReaderAndCancel };
 const only = process.env.ONLY ? process.env.ONLY.split(",") : Object.keys(ALL);
 try {
   for (const k of only) await ALL[k]();
