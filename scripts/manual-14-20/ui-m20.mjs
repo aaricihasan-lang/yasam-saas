@@ -18,7 +18,7 @@ const CLIENT = {
   burc: "Boğa", kan: "A Rh+", mizac: "Sıcak", created_at: "2026-09-01T09:00:00.000Z",
 };
 const DESKTOP = [1920, 1536, 1440, 1366, 1280, 1024];
-const MOBILE = [375, 390, 768];
+const MOBILE = [768, 390, 375];
 
 let browser;
 let pass = 0, fail = 0;
@@ -87,76 +87,107 @@ async function measure(page, { ungroup = false } = {}) {
 function pairCheck(m) {
   const b = m.tabs.find((t) => t.id === "beslenme"), r = m.tabs.find((t) => t.id === "randevular");
   const sameRow = Math.abs(b.cy - r.cy) <= 2 && Math.abs(b.y - r.y) <= 2;
-  const rightOf = r.x >= b.x + b.w - 0.5;
-  const adjacent = r.x - (b.x + b.w) <= 12; // gap-1.5 = 6px
-  return { b, r, sameRow, rightOf, adjacent };
+  return { b, r, sameRow, rightOf: r.x >= b.x + b.w - 0.5, adjacent: r.x - (b.x + b.w) <= 12 };
+}
+
+// Owner kesin sırası (2026-10-17) — sekmeler + en sonda Word Raporu butonu.
+const OWNER_ORDER = ["genel", "anamnez", "notlar", "seanslar", "odevler", "analizler", "humandesign", "taslar", "beslenme", "hafiza", "randevular", "yolculuk", "ucretlendirme"];
+const OWNER_LABELS = ["Genel Bilgiler", "Anamnez", "Notlar", "Seanslar", "Ödevler", "Çakra Analizleri", "🧬 Human Design", "Doğaltaş Önerileri", "🥗 Beslenme", "🧠 Yaşam Hafızası", "Randevular", "✦ Danışan Yolculuğu", "Ücretlendirme"];
+/** Görsel sıra: satırlara göre (Y), satır içinde soldan sağa (X) — wrap olsa da okuma sırası. */
+function visualOrder(m) {
+  const items = [...m.tabs.map((t) => ({ id: t.id, x: t.x, y: t.y })), ...(m.word ? [{ id: "word", x: m.word.x, y: m.word.y }] : [])];
+  return items.sort((p, q) => (Math.abs(p.y - q.y) > 4 ? p.y - q.y : p.x - q.x)).map((t) => t.id);
+}
+
+async function checkOrder(g, w, perms) {
+  const { ctx, page, errors } = await openClient(w, perms);
+  try {
+    const m = await measure(page);
+    if (process.env.SHOT_DIR && perms.length === ALL_PERMS.length) await page.locator('[role="tablist"]').screenshot({ path: `${process.env.SHOT_DIR}/tabs-${w}.png` });
+    const expected = OWNER_ORDER.filter((id) => m.tabs.some((t) => t.id === id));
+    const dom = m.tabs.map((t) => t.id);
+    ok(g, "DOM sırası = owner kesin sırası", JSON.stringify(dom) === JSON.stringify(expected), dom.join(","));
+    ok(g, "GÖRSEL sıra (wrap dahil) = owner sırası + Word Raporu en sonda", JSON.stringify(visualOrder(m)) === JSON.stringify([...expected, "word"]), visualOrder(m).join(","));
+    ok(g, "yatay taşma yok (sayfa + sekme çubuğu)", !m.docOverflow && !m.listOverflow);
+    ok(g, "tüm sekmeler ekranda", m.tabs.every((t) => t.x >= 0 && t.x + t.w <= m.vw + 1));
+    ok(g, "sekmeler aşırı küçülmedi (≥40px yükseklik)", m.tabs.every((t) => t.h >= 40));
+    if (perms.length === ALL_PERMS.length) {
+      const labels = await page.locator('[role="tab"]').allInnerTexts();
+      ok(g, "görünen adlar owner sırasında", JSON.stringify(labels.map((l) => l.trim())) === JSON.stringify(OWNER_LABELS), labels.join(" | "));
+    }
+    ok(g, "JS hata yok", realErrors(errors).length === 0, errors.join(" ; "));
+    return m;
+  } catch (e) { ok(g, "senaryo çalıştı", false, e); } finally { await ctx.close(); }
 }
 
 async function testDesktop() {
   for (const perms of [ALL_PERMS, ["clients", "appointments", "stones"]]) {
     const tag = perms.length === ALL_PERMS.length ? "13-sekme" : "11-sekme";
-    for (const w of DESKTOP) {
-      const g = `M20-masaüstü-${w}-${tag}`;
-      const { ctx, page, errors } = await openClient(w, perms);
-      try {
-        const m = await measure(page);
-        const p = pairCheck(m);
-        ok(g, "Beslenme ve Randevular kırılmaz grupta", m.grouped);
-        ok(g, "Beslenme + Randevular AYNI satır / Y bandı", p.sameRow, JSON.stringify({ b: p.b, r: p.r }));
-        ok(g, "Randevular Beslenme'nin HEMEN sağında", p.rightOf && p.adjacent, JSON.stringify({ bEnd: p.b.x + p.b.w, rX: p.r.x }));
-        const ids = m.tabs.map((t) => t.id);
-        ok(g, "DOM sırası: Randevular = Beslenme + 1 (son sekme)", ids.indexOf("randevular") === ids.indexOf("beslenme") + 1 && ids.at(-1) === "randevular", ids.join(","));
-        ok(g, "yatay taşma yok (sayfa + sekme çubuğu)", !m.docOverflow && !m.listOverflow);
-        ok(g, "tüm sekmeler ekranda", m.tabs.every((t) => t.x >= 0 && t.x + t.w <= m.vw + 1));
-        ok(g, "Word Raporu butonu duruyor", Boolean(m.word));
-        ok(g, "JS hata yok", realErrors(errors).length === 0, errors.join(" ; "));
-        if (w === 1366 || w === 1536) {
-          // Kanıt: eski davranış (grupsuz) bu genişlikte çifti bölüyor muydu? (yalnız bilgi + kök neden ispatı)
-          const old = pairCheck(await measure(page, { ungroup: true }));
-          console.log(`   ℹ️ [${g}] grupsuz (eski) düzen: aynı satır=${old.sameRow}`);
-        }
-      } catch (e) { ok(g, "senaryo çalıştı", false, e); } finally { await ctx.close(); }
-    }
+    for (const w of DESKTOP) await checkOrder(`Sıra-masaüstü-${w}-${tag}`, w, perms);
   }
 }
 
 async function testOwnerReproduction() {
-  // Owner'ın gördüğü kırılma: satır sonu tam Beslenme | Randevular arasına düşen genişliği BUL (eski düzenle),
-  // sonra aynı genişlikte yeni düzenin çifti birlikte tuttuğunu doğrula.
-  const g = "M20-owner-reprodüksiyon";
-  let found = null;
-  for (let w = 1024; w <= 1920 && !found; w += 8) {
-    const { ctx, page } = await openClient(w, ALL_PERMS);
-    try {
-      const old = pairCheck(await measure(page, { ungroup: true }));
-      if (!old.sameRow) found = w;
-    } finally { await ctx.close(); }
-  }
-  ok(g, "eski (grupsuz) düzende çiftin bölündüğü masaüstü genişliği bulundu (owner bulgusu yeniden üretildi)", found !== null, "bulunamadı");
-  if (found !== null) {
-    const { ctx, page, errors } = await openClient(found, ALL_PERMS);
-    try {
-      const m = await measure(page);
-      const p = pairCheck(m);
-      ok(g, `${found}px: yeni düzende Beslenme + Randevular aynı satırda yan yana`, p.sameRow && p.rightOf && p.adjacent, JSON.stringify({ b: p.b, r: p.r }));
-      ok(g, `${found}px: yatay taşma yok`, !m.docOverflow && !m.listOverflow);
-      ok(g, "JS hata yok", realErrors(errors).length === 0, errors.join(" ; "));
-    } finally { await ctx.close(); }
-  }
+  // Önceki Madde 20 kuralı (Beslenme+Randevular bitişik) owner'ın yeni sırasıyla kalktı: kırılmaz grup YOK.
+  const g = "Sıra-gruplama-kaldırıldı";
+  const { ctx, page } = await openClient(1366, ALL_PERMS);
+  try {
+    const m = await measure(page);
+    ok(g, "kırılmaz sekme grubu yok (her sekme doğal sarılır)", !(await page.locator("[data-tab-group]").count()) && !m.grouped);
+    const ids = m.tabs.map((t) => t.id);
+    ok(g, "Human Design Çakra Analizleri'nden HEMEN sonra, Doğaltaş Önerileri Human Design'den HEMEN sonra", ids.indexOf("humandesign") === ids.indexOf("analizler") + 1 && ids.indexOf("taslar") === ids.indexOf("humandesign") + 1);
+    ok(g, "sona yakın grup: Yaşam Hafızası → Randevular → Danışan Yolculuğu → Ücretlendirme → Word", JSON.stringify(visualOrder(m).slice(-5)) === JSON.stringify(["hafiza", "randevular", "yolculuk", "ucretlendirme", "word"]));
+  } finally { await ctx.close(); }
 }
 
 async function testMobile() {
   for (const w of MOBILE) {
-    const g = `M20-mobil-${w}`;
+    const g = `Sıra-mobil-${w}`;
+    const m = await checkOrder(g, w, ALL_PERMS);
+    if (m) ok(g, "mobilde doğal sarma (çok satır, tek satıra sıkıştırma YOK)", m.rows >= 2, m.rows);
+  }
+}
+
+async function testChakraLabelAndTabs() {
+  for (const w of [1366, 390]) {
+    const g = `Çakra-Analizleri-ve-sekmeler-${w}`;
     const { ctx, page, errors } = await openClient(w, ALL_PERMS);
     try {
-      const m = await measure(page);
-      const p = pairCheck(m);
-      ok(g, "mevcut responsive davranış: sekmeler çok satıra sarılıyor (tek satıra sıkıştırma YOK)", m.rows >= 2, m.rows);
-      ok(g, "Beslenme + Randevular yan yana (sığdığı için)", p.sameRow && p.rightOf);
-      ok(g, "yatay taşma yok", !m.docOverflow && !m.listOverflow);
-      ok(g, "tüm sekmeler ekranda", m.tabs.every((t) => t.x >= 0 && t.x + t.w <= m.vw + 1));
-      ok(g, "dokunma hedefi ≥ 40px", m.tabs.every((t) => t.h >= 40));
+      const tab = page.locator("#tab-analizler");
+      ok(g, "'Analizler' sekmesinin görünen adı 'Çakra Analizleri'", (await tab.innerText()).trim() === "Çakra Analizleri");
+      ok(g, "tek başına 'Analizler' adlı sekme kalmadı", (await page.getByRole("tab", { name: "Analizler", exact: true }).count()) === 0);
+      ok(g, "tab id / panel aynı (tab-analizler → tabpanel-analizler)", (await tab.getAttribute("aria-controls")) === "tabpanel-analizler");
+      ok(g, "Human Design ayrı sekme olarak duruyor", (await page.locator("#tab-humandesign").count()) === 1 && (await page.locator("#tab-humandesign").innerText()).trim() === "🧬 Human Design");
+      ok(g, "'Doğaltaş Önerileri' adı aynı", (await page.locator("#tab-taslar").innerText()).trim() === "Doğaltaş Önerileri");
+      // tüm sekmeler açılıyor, aktif sekme state'i doğru
+      for (const id of OWNER_ORDER) {
+        await page.locator(`#tab-${id}`).click();
+        await sleep(350);
+        const sel = await page.locator('[role="tab"][aria-selected="true"]').evaluateAll((els) => els.map((e) => e.id));
+        const panelVisible = await page.locator(`#tabpanel-${id}`).isVisible().catch(() => false);
+        ok(g, `${id}: tıklanınca tek aktif sekme + kendi paneli görünür`, sel.length === 1 && sel[0] === `tab-${id}` && panelVisible, JSON.stringify({ sel, panelVisible }));
+      }
+      // ?tab= deep-link + yenileme
+      await page.goto(`${BASE}/dashboard/clients/${CLIENT_ID}?tab=analizler`, { waitUntil: "load" });
+      await page.locator("#tab-analizler").waitFor({ timeout: 20000 });
+      await sleep(600);
+      ok(g, "?tab=analizler deep-link Çakra Analizleri'ni açar", (await page.locator("#tab-analizler").getAttribute("aria-selected")) === "true" && (await page.locator("#tabpanel-analizler").isVisible()));
+      await page.reload({ waitUntil: "load" });
+      await page.locator("#tab-analizler").waitFor({ timeout: 20000 });
+      await sleep(600);
+      ok(g, "yenileme sonrası ?tab= sekmesi korunur", (await page.locator("#tab-analizler").getAttribute("aria-selected")) === "true");
+      for (const id of ["humandesign", "taslar", "hafiza", "yolculuk", "ucretlendirme"]) {
+        await page.goto(`${BASE}/dashboard/clients/${CLIENT_ID}?tab=${id}`, { waitUntil: "load" });
+        await page.locator(`#tab-${id}`).waitFor({ timeout: 20000 });
+        await sleep(500);
+        ok(g, `?tab=${id} deep-link korunur`, (await page.locator(`#tab-${id}`).getAttribute("aria-selected")) === "true");
+      }
+      // Word Raporu butonu en sonda ve tıklanabilir (istek atılır)
+      const word = page.locator('[role="tablist"] button:not([role])');
+      const wordReq = page.waitForRequest((r) => /\/api\/clients\/[^/]+\/word-report/.test(r.url()), { timeout: 8000 }).then(() => true, () => false);
+      await word.click();
+      ok(g, "Word Raporu butonu çalışır (rapor isteği gönderilir)", await wordReq);
+      ok(g, "yatay taşma yok", await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
       ok(g, "JS hata yok", realErrors(errors).length === 0, errors.join(" ; "));
     } catch (e) { ok(g, "senaryo çalıştı", false, e); } finally { await ctx.close(); }
   }
@@ -197,14 +228,15 @@ async function testStoneTabLabel() {
       ok(g, "?tab=taslar route'u aynı sekmeyi açar", (await page.locator("#tab-taslar").getAttribute("aria-selected")) === "true");
       const m = await measure(page);
       const p = pairCheck(m);
-      ok(g, "uzun etiketle de Beslenme + Randevular yan yana, taşma yok", p.sameRow && p.rightOf && !m.docOverflow && !m.listOverflow);
+      void p;
+      ok(g, "uzun etiketle taşma yok", !m.docOverflow && !m.listOverflow);
       ok(g, "JS hata yok", realErrors(errors).length === 0, errors.join(" ; "));
     } catch (e) { ok(g, "senaryo çalıştı", false, e); } finally { await ctx.close(); }
   }
   // izin: clients izni olmayan kullanıcı için davranış değişmedi → sekme kaydında izin alanı yok (birim testte).
 }
 
-const ALL = { testDesktop, testOwnerReproduction, testMobile, testTabSwitch, testStoneTabLabel };
+const ALL = { testDesktop, testOwnerReproduction, testMobile, testTabSwitch, testStoneTabLabel, testChakraLabelAndTabs };
 const only = process.env.ONLY ? process.env.ONLY.split(",") : Object.keys(ALL);
 try {
   for (const k of only) await ALL[k]();

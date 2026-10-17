@@ -43,13 +43,13 @@ ok(reportChakraEntries(rs).length === 2, "14: Word çakra girdileri kaynak baş�
 const allIds = CLIENT_DETAIL_TAB_DEFS.map((t) => t.id);
 const g = groupClientDetailTabs(CLIENT_DETAIL_TAB_DEFS);
 ok(JSON.stringify(g.flat().map((t) => t.id)) === JSON.stringify(allIds), "20: gruplama DOM/sekme sırasını DEĞİŞTİRMEZ");
-const pair = g.find((x) => x.length === 2);
-ok(pair && pair[0]!.id === "beslenme" && pair[1]!.id === "randevular" && g.filter((x) => x.length === 2).length === 1, "20: Beslenme + Randevular tek kırılmaz grup", g.map((x) => x.map((t) => t.id)));
+// Owner kesin sırası (2026-10-17) Beslenme ile Randevular'ı ayırdı → kırılmaz çift YOK; her sekme tek başına.
+ok(g.every((x) => x.length === 1), "sekme sırası güncellemesi: gruplanan çift yok (doğal sarma)", g.map((x) => x.map((t) => t.id)));
 for (const perms of [null, () => true, (k: string) => k !== "yasam_hafizasi", (k: string) => k !== "human_design"] as const) {
   const vis = visibleClientDetailTabs(perms as never);
   const gv = groupClientDetailTabs(vis);
-  ok(gv.some((x) => x.map((t) => t.id).join("+") === "beslenme+randevular") && JSON.stringify(gv.flat()) === JSON.stringify(vis),
-    `20: izin varyantında da çift birlikte (${vis.length} sekme)`);
+  ok(gv.every((x) => x.length === 1) && JSON.stringify(gv.flat()) === JSON.stringify(vis),
+    `izin varyantında sıra aynen, gruplama yok (${vis.length} sekme)`);
 }
 ok(groupClientDetailTabs([{ id: "randevular" }, { id: "beslenme" }]).every((x) => x.length === 1), "20: ters sıra / bitişik değilse gruplama yok (sessiz yeniden sıralama yok)");
 ok(groupClientDetailTabs([]).length === 0, "20: boş liste güvenli");
