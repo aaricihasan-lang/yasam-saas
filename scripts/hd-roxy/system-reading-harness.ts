@@ -104,6 +104,8 @@ const ALLOWED_DTO_KEYS = new Set([
   "id", "name", "defined", "theme", "notSelfQuestion", "biology",
   "circuit", "description", "circuitDescription",
   "side", "planet", "gate", "line", "gateName", "gateDescription", "lineMeaning", "planetDescription",
+  // BodyGraph 1. API tamamlama (2026-10-17): şemadaki anlamlı alanlar (whitelist hâlâ KAPALI liste).
+  "motor", "awareness", "gates", "iching", "number", "sides", "personality", "design", "designUtc", "languageNote",
 ]);
 function dtoKeys(v: unknown, acc = new Set<string>()): Set<string> {
   if (Array.isArray(v)) v.forEach((x) => dtoKeys(x, acc));
@@ -142,7 +144,8 @@ async function main() {
     ok("A12 Genel değerler uygulama sözlüğünden (sağlayıcı çevirisi yerine)", t("type").value === "Jeneratör (Generator)" && t("strategy").value === "Yanıt vermek için beklemek" && t("authority").value === "Sakral Otorite (Sacral Authority)" && t("definition").value === "İkili Tanım (Split)" && t("signature").value === "Tatmin" && t("notSelf").value === "Hayal kırıklığı (Frustration)");
     ok("A13 Merkez/kanal adı uygulama sözlüğünden; devre/gezegen/kapı adı Localized", tr.centers[0].name === "Baş Merkezi (Head)" && tr.channels[0].name === "Mantık Kanalı" && tr.channels[0].circuit === "Kolektif" && tr.activations[0].planet === "Güneş" && tr.activations[0].gateName === "Uyarım");
     ok("A14 Localized yoksa: merkez uygulama adı, gezegen ham enum'a güvenli geri dönüş", tr.centers[1].name === "Ajna Merkezi (Ajna)" && tr.activations[1].planet === (FIXTURE.gates as Record<string, unknown>[])[1].planet);
-    ok("A15 haç açısı localized", t("cross").details.some((d) => d.label === "Açı" && d.text === "Sağ Açı"));
+    // 2026-10-17: açı uygulamanın onaylı terimiyle (Sağ Açı (Right Angle)) + sağlayıcı açı kodu.
+    ok("A15 haç açısı Türkçe (uygulama terimi) + kod", t("cross").details.some((d) => d.label === "Açı" && d.text === "Sağ Açı (Right Angle) (RAX)"), t("cross").details);
 
     // Dayanıklılık
     ok("A16 null / dizi / sayı / string → null", [null, undefined, [], 5, "x", true].every((v) => extractSystemReading(v) === null));

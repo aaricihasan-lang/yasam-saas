@@ -3,9 +3,10 @@
 // Hesaplanmış Human Design haritası — profesyonel DANIŞAN + HARİTA bilgi bloğu (SAF SUNUM).
 //
 // Kayıtlı veriden (computed_result + kayıt satırı) render edilir; hesap / fetch / sağlayıcı çağrısı YOK.
-// YALNIZ teknik kimlik: Danışan (ad, yerel/UTC doğum, tz, yer, koordinat, yaş) + HD (Tip, Profil, Tanım,
-// Enkarnasyon Haçı, İç Otorite). Yorum niteliğindeki / aşağıda tekrar gösterilen bilgiler (Strateji, İmza,
-// Benlik-dışı tema, kanallar, merkezler, kapılar, Bilgi Bankası) BURADA YOK.
+// Teknik kimlik: Danışan (ad, yerel/UTC doğum, tz, yer, koordinat, yaş) + HD (Tip, Strateji, Profil, Tanım,
+// Enkarnasyon Haçı, İç Otorite, İmza, Kendilik Dışı Tema). Strateji/İmza/Kendilik dışı tema KISA etiketlerdir
+// (uygulama sözlüğü, tipten; owner kararı 2026-10-17 — ana panelde erişilebilir). Uzun sağlayıcı açıklamaları
+// (tip/otorite/tanım/aura …) BURADA YOK: yetkili uzmanda "Sistem Yorumu" sekmesindedir.
 // Yerleşim (tek DOM, yalnız CSS):
 //   • mobil (< lg): BodyGraph'ın üstünde kart; alanlar 1–2 sütun, metin kesilmez, logo en altta
 //   • lg şerit: sahnenin üstünde ince şerit (Danışan | Human Design | logo)
@@ -22,7 +23,7 @@ import {
   hdProfileLabelFromCode,
   hdTypeLabelFromCode,
 } from "@/lib/human-design/codeHelpers";
-import { HD_CROSS_SECTION_TITLE, hdCrossAngleLabel } from "@/lib/human-design/normalize/hdDisplayLabels";
+import { HD_CROSS_SECTION_TITLE, HD_TERM, hdCrossAngleLabel, hdTypeKeynotes } from "@/lib/human-design/normalize/hdDisplayLabels";
 
 export const HD_CHART_LOGO_SRC = "/assets/yasam-sistemi-chart-logo.png";
 
@@ -111,6 +112,7 @@ export function HdChartInfoPanel({
   const profileLabel = hdProfileLabelFromCode(codes.profile_code);
   const definitionLabel = hdDefinitionLabelFromCode(codes.definition_code);
   const crossGates = `${pSun}/${pEarth} | ${dSun}/${dEarth}`;
+  const keynotes = hdTypeKeynotes(codes.type_code);
 
   return (
     <section
@@ -139,6 +141,7 @@ export function HdChartInfoPanel({
           </GroupTitle>
           <dl className="m-0 grid grid-cols-1 gap-x-3 gap-y-1.5 min-[420px]:grid-cols-2 lg:flex lg:min-w-0 lg:flex-1 lg:flex-wrap lg:gap-x-4 lg:gap-y-0.5 hdwide:grid hdwide:grid-cols-1 hdwide:gap-y-[clamp(5px,0.8vh,9px)]">
             <Item field="type" label="Tip" value={typeLabel} source={showRaw(result.type, typeLabel)} />
+            {keynotes ? <Item field="strategy" label={HD_TERM.strategy} value={keynotes.strategy} source={showRaw(result.strategy, keynotes.strategy)} /> : null}
             <Item field="profile" label="Profil" value={profileLabel} />
             <Item field="definition" label="Tanım" value={definitionLabel} source={showRaw(result.definition.kind, definitionLabel)} />
             <Item
@@ -150,6 +153,8 @@ export function HdChartInfoPanel({
               subInStrip={false}
             />
             <Item field="authority" label="İç Otorite" value={authorityLabel} source={showRaw(result.authority, authorityLabel)} />
+            {keynotes ? <Item field="signature" label={HD_TERM.signature} value={keynotes.signature} source={showRaw(result.signature, keynotes.signature)} /> : null}
+            {keynotes ? <Item field="notSelf" label={HD_TERM.notSelf} value={keynotes.notSelf} source={showRaw(result.notSelf, keynotes.notSelf)} /> : null}
           </dl>
         </div>
 

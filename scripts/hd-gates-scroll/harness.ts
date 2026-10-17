@@ -100,7 +100,10 @@ async function main() {
   const all = [...changed, ...untracked];
   // Kapılar bölümü SAF istemci türetmesidir: sistem yorumu DTO'su/ucu, Word/snapshot, motor ve yetki
   // dosyaları bu özellik için değişmemeli (dal kapsamından bağımsız, yalnız bu dosyalar).
-  const gateScope = all.filter((f) => /providers\/roxy\/systemReading\.ts$|app\/api\/hd\/charts\/system-reading\/|reportSnapshot|wordReport|\/engine\/|modulePermissions|userGuard/.test(f));
+  // İstisna (owner kararı 2026-10-17, BodyGraph 1. API tamamlama): systemReading.ts ve wordReportV2.ts bilinçli
+  // genişletildi; doğruluğu hd:bodygraph-complete harness'i ayrıca test eder. Uç, snapshot, motor, yetki hâlâ korunur.
+  const BODYGRAPH_COMPLETE = /providers\/roxy\/systemReading\.ts$|reporting\/wordReportV2\.ts$/;
+  const gateScope = all.filter((f) => /providers\/roxy\/systemReading\.ts$|app\/api\/hd\/charts\/system-reading\/|reportSnapshot|wordReport|\/engine\/|modulePermissions|userGuard/.test(f) && !BODYGRAPH_COMPLETE.test(f));
   ok("5a Sistem yorumu DTO/ucu, Word/snapshot, motor ve yetki dosyaları değişmedi", gateScope.length === 0, gateScope.join(", "));
   const panel = src("app/human-design/kayitli-haritalar/components/HdSystemReadingPanel.tsx");
   ok("5b Panel yalnız kayıtlı-yorum ucunu çağırır (Roxy adresi yok)", /getChartSystemReading\(chartId\)/.test(panel) && !/roxyapi\.com|callRoxy/i.test(panel + src("lib/human-design/providers/roxy/systemReadingGates.ts")));

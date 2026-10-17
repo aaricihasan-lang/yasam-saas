@@ -419,6 +419,8 @@ function buildSystem(reading: SystemReadingDto | null, o: { proCross?: boolean; 
       "Kaynak: Harita hesaplanırken hesaplama servisinden alınıp kaydedilmiş sistem açıklamaları. Bu bölüm uzman yorumu değildir; raporu hazırlayan uzmanın bilgileri ayrı bölümdedir.",
     ),
   ];
+  // BodyGraph 1. API tamamlama: yeni alanlar OPSİYONEL — eski snapshot'larda yoktur, eski çıktı aynen kalır.
+  if (reading.languageNote) out.push(muted(reading.languageNote));
 
   const general = reading.general.filter((g) => g.value || g.details.length);
   if (general.length) {
@@ -434,18 +436,38 @@ function buildSystem(reading: SystemReadingDto | null, o: { proCross?: boolean; 
     }
   }
 
+  if (reading.sides && (reading.sides.personality || reading.sides.design || reading.sides.designUtc)) {
+    out.push(h2("Personality ve Design Tarafları", { keepNext: true }));
+    out.push(
+      ...detailBlocks(
+        [
+          reading.sides.personality ? { label: "Personality · Bilinçli", text: reading.sides.personality } : null,
+          reading.sides.design ? { label: "Design · Bilinçdışı", text: reading.sides.design } : null,
+          // Rapor kuralı (Q6): görünür raporda UTC anı yazılmaz → yalnız Design GÜNÜ (evrensel saate göre).
+          reading.sides.designUtc ? { label: "Design tarihi", text: `${reading.sides.designUtc.slice(0, 10)} — Güneş'in doğumdan 88° önceki konumunun günü (evrensel saate göre)` } : null,
+        ].filter((d): d is SystemReadingDetail => d !== null),
+      ),
+    );
+  }
+
   const centers = reading.centers.filter((c) => c.theme || c.notSelfQuestion || c.biology);
   if (centers.length) {
     out.push(h2("Merkez Açıklamaları", { keepNext: true }));
+    // Yalnız tamamlanmış (yeni) içerik modelinde — eski snapshot çıktısı birebir kalır.
+    if (centers.some((c) => c.motor !== undefined)) {
+      out.push(muted("Biyoloji ve farkındalık açıklamaları Human Design sistemindeki karşılıklardır; tıbbi teşhis veya tedavi önerisi değildir."));
+    }
     for (const c of centers) {
       const state = c.defined === null ? "" : c.defined ? " — Tanımlı" : " — Açık";
-      out.push(h3(`${c.name}${state}`, { keepNext: true }));
+      const kind = [c.motor ? "Motor merkez" : null, c.awareness ? "Farkındalık merkezi" : null].filter(Boolean).join(", ");
+      out.push(h3(`${c.name}${state}${kind ? ` (${kind})` : ""}`, { keepNext: true }));
       out.push(
         ...detailBlocks(
           [
             c.theme ? { label: "Tema", text: c.theme } : null,
             c.notSelfQuestion ? { label: HD_TERM.notSelfQuestion, text: c.notSelfQuestion } : null,
             c.biology ? { label: "Biyoloji", text: c.biology } : null,
+            c.gates ? { label: "Merkezdeki aktif kapılar", text: c.gates.length ? c.gates.join(", ") : "Bu merkezde aktif kapı yok" } : null,
           ].filter((d): d is SystemReadingDetail => d !== null),
         ),
       );
@@ -462,6 +484,7 @@ function buildSystem(reading: SystemReadingDto | null, o: { proCross?: boolean; 
         ...detailBlocks(
           [
             c.circuit ? { label: "Devre", text: c.circuit } : null,
+            c.centers && c.centers.length === 2 ? { label: "Bağladığı merkezler", text: `${c.centers[0]} ↔ ${c.centers[1]}` } : null,
             c.description ? { label: "Açıklama", text: c.description } : null,
             c.circuitDescription ? { label: "Devre açıklaması", text: c.circuitDescription } : null,
           ].filter((d): d is SystemReadingDetail => d !== null),
@@ -482,6 +505,7 @@ function buildSystem(reading: SystemReadingDto | null, o: { proCross?: boolean; 
             a.gateDescription ? { label: "Kapı", text: a.gateDescription } : null,
             a.lineMeaning ? { label: "Çizgi", text: a.lineMeaning } : null,
             a.planetDescription ? { label: "Gezegen", text: a.planetDescription } : null,
+            a.iching ? { label: "I Ching", text: `${a.iching.number}. heksagram — ${a.iching.name} (İngilizce kaynak adı)` } : null,
           ].filter((d): d is SystemReadingDetail => d !== null),
         ),
       );
