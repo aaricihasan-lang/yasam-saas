@@ -55,13 +55,18 @@ export function HdComputedChartView({
           (üst bar ~3.5rem + kenar boşluğu düşülür). BodyGraph yükseklik-öncelikli büyür; küçültülmez.
           lg: bilgi bloğu sahnenin üstünde ince şerit · hdwide (geniş+yatay): solda dar kolon
           [Bilgi] [Design] [BodyGraph] [Personality] — üst şerit kalkar, BodyGraph dikeyde büyür.
-          hdwide'da kart yüzeyi dış kapsayıcıdadır: bilgi kolonu + sahne TEK harita kompozisyonu. */}
-      <div className="space-y-3 lg:flex lg:h-[calc(100dvh-5.25rem)] lg:min-h-[520px] lg:flex-col lg:gap-2 lg:space-y-0 hdwide:flex-row hdwide:gap-0 hdwide:rounded-2xl hdwide:border hdwide:border-indigo-200/70 hdwide:bg-gradient-to-b hdwide:from-white hdwide:to-indigo-50/40 hdwide:shadow-sm" data-hd-onelook>
+          hdwide'da kart yüzeyi dış kapsayıcıdadır: bilgi kolonu + sahne TEK harita kompozisyonu.
+          2026-10-17 düzeltme (canlı görsel FAIL): yükseklik YALNIZ sahneye verilir (BodyGraph boyutu bilgi
+          bloğundan bağımsız, önceki ölçüde); kapsayıcı sabit yükseklik TAŞIMAZ → bilgi kolonu sahneden uzunsa
+          kart doğal biçimde aşağı uzar, içerik hiçbir zaman alttaki Merkezler kartının üzerine taşmaz. */}
+      <div className="space-y-3 lg:flex lg:flex-col lg:gap-2 lg:space-y-0 hdwide:flex-row hdwide:items-stretch hdwide:gap-0 hdwide:rounded-2xl hdwide:border hdwide:border-indigo-200/70 hdwide:bg-gradient-to-b hdwide:from-white hdwide:to-indigo-50/40 hdwide:shadow-sm" data-hd-onelook>
       <HdChartInfoPanel result={result} codes={codes} subject={subject} />
 
       {/* Design | BodyGraph | Personality — masaüstünde tek bakış: BodyGraph yüksekliği ekrana göre
           ölçeklenir (Head→Root dikey kaydırmasız); mobilde BodyGraph üstte, altında iki sütun. */}
-      <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-b from-white to-indigo-50/40 p-3 shadow-sm lg:min-h-0 lg:flex-1 lg:px-4 lg:py-2 hdwide:min-w-0 hdwide:rounded-none hdwide:border-0 hdwide:bg-none hdwide:shadow-none" data-hd-stage>
+      {/* Sahne yüksekliği: lg şerit = ekran − üst bar − şerit payı, en az 580px (Design/Personality sütunlarının doğal
+          yüksekliği — kısa ekranda sütunlar sahneden taşıp bilgi şeridine binmesin); hdwide = ekran − üst bar (en az 520px). */}
+      <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-b from-white to-indigo-50/40 p-3 shadow-sm lg:h-[max(580px,calc(100dvh-12.5rem))] lg:flex-none lg:px-4 lg:py-2 hdwide:h-[max(520px,calc(100dvh-5.25rem))] hdwide:min-w-0 hdwide:flex-1 hdwide:rounded-none hdwide:border-0 hdwide:bg-none hdwide:shadow-none" data-hd-stage>
         <div className="flex flex-wrap items-start justify-center gap-x-3 gap-y-4 lg:h-full lg:flex-nowrap lg:items-center lg:justify-center lg:gap-x-[clamp(20px,3vw,64px)] hdwide:gap-x-[clamp(16px,2vw,40px)]">
           <div className="order-2 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-rose-100 bg-white/90 p-2 lg:order-1 lg:w-[clamp(190px,17vw,280px)] lg:max-w-none lg:shrink-0 lg:p-3">
             <HdPlanetColumn activations={result.activations} side="design" />
@@ -91,24 +96,37 @@ export function HdComputedChartView({
 
       {/* Merkezler / Kanallar / Kapılar */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <div className="rounded-xl border border-indigo-100 bg-white px-4 py-3">
+        <div className="rounded-xl border border-indigo-100 bg-white px-4 py-3" data-hd-centers-card>
           <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-indigo-600">Merkezler</p>
-          <ul className="m-0 grid list-none grid-cols-1 gap-1 p-0 min-[420px]:grid-cols-2">
+          {/* Satır: [ad] ······ [Motor/Farkındalık] [Tanımlı/Açık] — ayrı alanlar; ad KESİLMEZ. Sütun sayısı KARTIN
+              genişliğine göre (auto-fill, sütun ≥ 28rem): dar/orta kartta düzenli tek sütun, çok genişte iki sütun.
+              Yalnız çok dar mobilde etiketler adın altına iner. */}
+          <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(min(100%,28rem),1fr))] gap-x-6 gap-y-1.5 p-0">
             {HUMAN_DESIGN_CENTERS.map((c) => {
               const on = definedSet.has(c.code);
+              const kind = centerKind.get(c.code);
               return (
-                <li key={c.code} data-hd-center={`${c.code}:${on ? "defined" : "open"}`} className="flex items-center justify-between gap-2 text-xs">
-                  <span className="min-w-0 truncate text-slate-700">
+                <li key={c.code} data-hd-center={`${c.code}:${on ? "defined" : "open"}`} className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs">
+                  <span className="min-w-0 break-words text-slate-700" data-hd-center-part="name">
                     {hdCenterLabelFromCode(c.code)}
-                    {centerKind.get(c.code)?.motor ? <span className="ml-1 text-[10px] font-semibold text-amber-700" title="Motor (enerji kaynağı) merkez" data-hd-center-motor>· Motor</span> : null}
-                    {centerKind.get(c.code)?.awareness ? <span className="ml-1 text-[10px] font-semibold text-sky-700" title="Farkındalık merkezi" data-hd-center-awareness>· Farkındalık</span> : null}
                   </span>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${
-                      on ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
-                    }`}
-                  >
-                    {on ? "Tanımlı" : "Açık"}
+                  <span className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1">
+                    {kind?.motor ? (
+                      <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200/70" title="Motor (enerji kaynağı) merkez" data-hd-center-motor data-hd-center-part="motor">
+                        Motor
+                      </span>
+                    ) : null}
+                    {kind?.awareness ? (
+                      <span className="rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-200/70" title="Farkındalık merkezi" data-hd-center-awareness data-hd-center-part="awareness">
+                        Farkındalık
+                      </span>
+                    ) : null}
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-black ${on ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}
+                      data-hd-center-part="status"
+                    >
+                      {on ? "Tanımlı" : "Açık"}
+                    </span>
                   </span>
                 </li>
               );

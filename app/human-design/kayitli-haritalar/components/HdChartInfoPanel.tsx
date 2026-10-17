@@ -9,14 +9,15 @@
 // (tip/otorite/tanım/aura …) BURADA YOK: yetkili uzmanda "Sistem Yorumu" sekmesindedir.
 // 2026-10-17 owner: kavram başlıkları ve değerleri Türkçe + (İngilizce) — Türkçe uygulama sözlüğünden,
 // İngilizce kaydın sağlayıcı KANONİK değerinden (Roxy strategy/signature/notSelf; yoksa standart HD terimi).
-// "İmza (Signature)" kısa açıklaması alt satırda (lg şeritte title olarak).
+// "İmza (Signature)" kısa açıklaması varsayılan KAPALI; "i" düğmesiyle açılır (dar kolonda sürekli yer kaplamaz).
+// Yerleşim (2026-10-17 düzeltme): panel sabit yükseklikte DEĞİL — içerik uzarsa kart aşağı uzar (taşma yok).
 // Yerleşim (tek DOM, yalnız CSS):
 //   • mobil (< lg): BodyGraph'ın üstünde kart; alanlar 1–2 sütun, metin kesilmez, logo en altta
 //   • lg şerit: sahnenin üstünde ince şerit (Danışan | Human Design | logo)
 //   • hdwide (≥1280px ve en-boy ≥ 16:10): harita kartının İÇİNDE sol kolon (ayrı kart / iç kaydırma YOK)
 // Sağlayıcının ham değeri görünür metni kalabalıklaştırmaz; title (üzerine gelince) olarak verilir.
 
-import type { ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import type { HdComputedChart } from "@/lib/human-design/chart/computedChart";
 import type { HdAppChartCodes } from "@/lib/human-design/normalize/hdAppCodes";
 import type { HdChartSubjectInfo } from "@/lib/human-design/chart/chartSubjectInfo";
@@ -39,6 +40,7 @@ function Item({
   field,
   wide = false,
   subInStrip = true,
+  help = null,
 }: {
   label: string;
   value: string | null;
@@ -48,21 +50,46 @@ function Item({
   wide?: boolean;
   /** false → alt satır lg şeritte gizlenir (bilgi title'da kalır), mobil/geniş kolonda görünür. */
   subInStrip?: boolean;
+  /** Kavram açıklaması: varsayılan KAPALI; "ⓘ" düğmesiyle açılır (dar kolonda sürekli yer kaplamaz; mobilde dokunulabilir). */
+  help?: { text: string; label: string } | null;
 }) {
   const text = value ?? "—";
+  const [helpOpen, setHelpOpen] = useState(false);
+  const helpId = useId();
   const title = [source ? `Kaynak değeri: ${source}` : null, sub && !subInStrip ? sub : null].filter(Boolean).join(" · ");
   return (
     // lg şerit: "ETİKET değer" satır-içi akış (kesilme yok, sarar) · hdwide/mobil: etiket üstte, değer altta.
     <div
-      className={`min-w-0 lg:flex lg:max-w-full lg:items-baseline lg:gap-1.5 hdwide:block ${wide ? "col-span-full" : ""}`}
+      className={`min-w-0 lg:flex lg:max-w-full lg:flex-wrap lg:items-baseline lg:gap-x-1.5 hdwide:block ${wide ? "col-span-full" : ""}`}
       data-hd-info-field={field}
       title={title || undefined}
     >
-      <dt className="text-[9.5px] font-semibold uppercase leading-tight tracking-[0.08em] text-slate-400 lg:shrink-0 lg:whitespace-nowrap hdwide:whitespace-normal hdwide:text-[10px]">{label}</dt>
+      <dt className="text-[9.5px] font-semibold uppercase leading-tight tracking-[0.08em] text-slate-400 lg:shrink-0 lg:whitespace-nowrap hdwide:whitespace-normal hdwide:text-[10px]">
+        {label}
+        {help ? (
+          <button
+            type="button"
+            onClick={() => setHelpOpen((v) => !v)}
+            aria-expanded={helpOpen}
+            aria-controls={helpId}
+            aria-label={help.label}
+            title={help.label}
+            className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 align-[-2px] text-[9px] font-bold normal-case leading-none text-slate-500 hover:border-indigo-300 hover:text-indigo-600"
+            data-hd-signature-help-toggle
+          >
+            i
+          </button>
+        ) : null}
+      </dt>
       <dd className="m-0 min-w-0 break-words text-[13px] font-medium leading-snug text-slate-800 lg:text-[12px] hdwide:text-[clamp(13px,1.35vh,14px)]">
         {text}
       </dd>
       {sub ? <dd className={`m-0 min-w-0 break-words text-[10.5px] font-normal leading-tight text-slate-500 hdwide:text-[11px] ${subInStrip ? "" : "lg:hidden hdwide:block"}`}>{sub}</dd> : null}
+      {help && helpOpen ? (
+        <dd id={helpId} className="m-0 mt-1 min-w-0 break-words rounded-lg bg-indigo-50/70 px-2 py-1.5 text-[11px] font-normal leading-snug text-slate-600 lg:basis-full" data-hd-signature-help>
+          {help.text}
+        </dd>
+      ) : null}
     </div>
   );
 }
@@ -126,7 +153,7 @@ export function HdChartInfoPanel({
     <section
       aria-label="Danışan ve harita bilgileri"
       data-hd-info
-      className="rounded-2xl border border-indigo-200/70 bg-white p-3 shadow-sm lg:flex-none lg:px-4 lg:py-2 hdwide:flex hdwide:w-[252px] hdwide:shrink-0 hdwide:flex-col hdwide:rounded-none hdwide:border-0 hdwide:border-r hdwide:border-indigo-100 hdwide:bg-transparent hdwide:py-4 hdwide:pl-5 hdwide:pr-4 hdwide:shadow-none"
+      className="rounded-2xl border border-indigo-200/70 bg-white p-3 shadow-sm lg:flex-none lg:px-4 lg:py-2 hdwide:flex hdwide:w-[280px] hdwide:shrink-0 hdwide:flex-col hdwide:rounded-none hdwide:border-0 hdwide:border-r hdwide:border-indigo-100 hdwide:bg-transparent hdwide:py-4 hdwide:pl-5 hdwide:pr-4 hdwide:shadow-none"
     >
       <div className="space-y-3 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-x-4 lg:gap-y-1 lg:space-y-0 hdwide:flex hdwide:min-h-0 hdwide:flex-1 hdwide:flex-col hdwide:gap-4 hdwide:space-y-0">
         {subject ? (
@@ -161,7 +188,7 @@ export function HdChartInfoPanel({
               subInStrip={false}
             />
             <Item field="authority" label={HD_TERM_BI.authority} value={authorityLabel} />
-            {keynotes ? <Item field="signature" label={HD_TERM_BI.signature} value={keynotes.signature} sub={HD_SIGNATURE_HELP} subInStrip={false} /> : null}
+            {keynotes ? <Item field="signature" label={HD_TERM_BI.signature} value={keynotes.signature} help={{ text: HD_SIGNATURE_HELP, label: `${HD_TERM_BI.signature} nedir?` }} /> : null}
             {keynotes ? <Item field="notSelf" label={HD_TERM_BI.notSelf} value={keynotes.notSelf} /> : null}
           </dl>
         </div>

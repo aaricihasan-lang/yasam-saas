@@ -322,7 +322,8 @@ async function main() {
   const kOld = hdTypeKeynotes("projector", { bilingual: false })!;
   ok(kOld.strategy === "Davet beklemek" && kOld.signature === "Başarı" && kOld.notSelf === "Kırgınlık (Bitterness)", "T6 eski rapor modu: önceki tek dilli değerler birebir", kOld);
   ok(hdProfileBilingual("2_4") === "2/4 — Münzevi / Fırsatçı (Hermit / Opportunist)" && hdProfileBilingual("5_1") === "5/1 — Çözüm Getiren / Araştırmacı (Heretic / Investigator)" && hdProfileBilingual("x") === null, "T7 profil Türkçe + İngilizce çizgi adları");
-  ok(MV.includes(HD_SIGNATURE_HELP) && SR.includes(HD_SIGNATURE_HELP) && WT.includes(HD_SIGNATURE_HELP), "T8 'İmza (Signature)' kısa açıklaması: bilgi bloğu + Sistem Yorumu + yeni Word");
+  // Bilgi bloğunda açıklama varsayılan KAPALI; erişilebilir "i" düğmesiyle açılır (canlı görsel düzeltme 2026-10-17).
+  ok(MV.includes("data-hd-signature-help-toggle") && MV.includes('aria-expanded="false"') && MV.includes("İmza (Signature) nedir?") && SR.includes(HD_SIGNATURE_HELP) && WT.includes(HD_SIGNATURE_HELP), "T8 'İmza (Signature)' kısa açıklaması: bilgi bloğunda 'i' düğmesi + Sistem Yorumu + yeni Word");
   ok(["type", "strategy", "authority", "definition", "signature", "notSelf"].every((k) => D.general.find((g) => g.key === k)!.title === HD_TERM_BI[k as keyof typeof HD_TERM_BI]) && D.general.find((g) => g.key === "cross")!.title === HD_TERM_BI.cross, "T9 Sistem Yorumu başlıkları bilgi bloğuyla aynı sözlük");
   const infoVals = ["strategy", "signature", "notSelf"].map((k) => gen(k).value!);
   ok(infoVals.every((v) => MV.includes(v) && WT.includes(v)), "T10 Strateji/İmza/Kendilik dışı: harita = Sistem Yorumu = Word (aynı değer)", infoVals);
