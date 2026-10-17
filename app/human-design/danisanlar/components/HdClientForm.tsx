@@ -3,10 +3,20 @@
 // AŞAMA 3C — Yeni danışan: merkezî Danışan Yolculuğu danışanı + bağlı Human Design profili.
 // Ad ve soyad ayrı ve ZORUNLU (merkezî kayıttan gelir); doğum tarihi/saati/yeri zorunlu. Yer yalnız
 // listeden (Location Search) seçilir — saat dilimi/koordinat kullanıcıya gösterilmez, sunucu çözer.
-// Oluşturma sonrası danışan çalışma alanına (Hesapla) geçilir. Çift tık/ağ tekrarı aynı request_id ile
-// aynı kaydı döndürür (çift danışan yok).
+// Çift tık/ağ tekrarı aynı request_id ile aynı kaydı döndürür (çift danışan yok).
+//
+// Owner kararı 2026-10-17 — "Danışanı Oluştur ve Analiz Et" TEK kullanıcı eylemidir:
+//   doğrula → (mükerrer kontrolü) danışanı oluştur → MEVCUT Roxy hesaplama hattı (POST /api/hd/charts/roxy,
+//   kayıtlı doğum yeri "client") → profesyonel harita doğrudan açılır (onAnalyzed). Ara sayfa / ikinci
+//   "Haritayı Hesapla" düğmesi YOK. Bu düğmeye basmak yeni BodyGraph hesabının açık onayıdır; formu açmak,
+//   alan doldurmak hiçbir API/kredi çağrısı yapmaz.
+//   • Çift tıklama: tek istek (busyRef). Sunucu ayrıca girdi-özeti idempotency + kimlik kilidi uygular.
+//   • Hesap başarısız → sahte başarı yok; danışan kaydı korunur, bilgiler kaybolmaz; "Analizi Tekrar Dene"
+//     YALNIZ hesabı yeniden ister (danışan tekrar oluşturulmaz). Sunucu "sürüyor" (IN_PROGRESS) derse
+//     kör ikinci ücretli istek yerine kısa aralıkla sonucu sorar (tamamlanan hesap yeniden kullanılır).
 
 import { useCallback, useRef, useState } from "react";
+import { computeRoxyChartSettled } from "@/lib/human-design/api/chartsClient";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useHdLeaveGuard } from "../../hooks/useHdLeaveGuard";
@@ -29,18 +39,27 @@ function newRequestId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : "";
 }
 
-export function HdClientForm() {
+export type HdAnalyzedResult = { chartId: string; hdClientId: string | null; name: string };
+
+export function HdClientForm({ onAnalyzed }: { onAnalyzed: (r: HdAnalyzedResult) => void }) {
   const router = useRouter();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const [form, setForm] = useState(empty);
   const [birthLoc, setBirthLoc] = useState<HdPickedLocation | null>(null);
   const [saving, setSaving] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "creating" | "computing">("idle");
+  const busyRef = useRef(false);
   const requestIdRef = useRef<string>("");
   // Olası mükerrer uyarısı (sunucu 409 POSSIBLE_DUPLICATE_CLIENT) — karar uzmanda.
   const [dup, setDup] = useState<HdDuplicateCandidate[] | null>(null);
+  // Danışan oluşturuldu ama analiz tamamlanamadı → yeniden deneme YALNIZ hesabı ister.
+  const [created, setCreated] = useState<{ hdClientId: string; name: string } | null>(null);
+  const [computeError, setComputeError] = useState<string | null>(null);
+  // Başka profilde aynı kişi + aynı girdiyle kayıtlı analiz (sunucu 409; ücretli çağrı yapılmadı).
+  const [dupCharts, setDupCharts] = useState<HdDuplicateCandidate[] | null>(null);
 
-  const dirty = Object.values(form).some((v) => v.trim() !== "") || !!birthLoc;
+  const dirty = !created && (Object.values(form).some((v) => v.trim() !== "") || !!birthLoc);
   const confirmLeave = useCallback(
     () =>
       confirm({
@@ -61,8 +80,45 @@ export function HdClientForm() {
     };
   }
 
+  /** Kayıtlı profil için MEVCUT Roxy hattı (yalnız bu kullanıcı eylemiyle). Başarıda harita açılır. */
+  async function analyze(target: { hdClientId: string; name: string }, acknowledged: string[] = []) {
+    setPhase("computing");
+    setComputeError(null);
+    const r = await computeRoxyChartSettled(target.hdClientId, acknowledged);
+    setPhase("idle");
+    if (!r.ok && r.code === "POSSIBLE_DUPLICATE_CHART" && r.candidates && r.candidates.length > 0) {
+      setCreated(target);
+      setDupCharts(r.candidates);
+      return;
+    }
+    setDupCharts(null);
+    if (!r.ok) {
+      setCreated(target);
+      setComputeError(`Danışan kaydedildi ancak Human Design analizi oluşturulamadı: ${r.error}`);
+      return;
+    }
+    setCreated(null);
+    setForm(empty);
+    setBirthLoc(null);
+    requestIdRef.current = "";
+    onAnalyzed({ chartId: r.id, hdClientId: target.hdClientId, name: target.name });
+  }
+
+  async function retryAnalyze(acknowledged: string[] = []) {
+    if (!created || busyRef.current) return;
+    busyRef.current = true;
+    setSaving(true);
+    try {
+      await analyze(created, acknowledged);
+    } finally {
+      busyRef.current = false;
+      setSaving(false);
+    }
+  }
+
   async function handleSave(acknowledged: string[] = []) {
-    if (saving) return;
+    if (created) return retryAnalyze();
+    if (busyRef.current) return;
     if (readYasamUser()?.is_demo_account === true) {
       showToast({ message: "Demo hesabında danışan eklenemez.", type: "info" });
       return;
@@ -79,7 +135,18 @@ export function HdClientForm() {
       return;
     }
     if (!requestIdRef.current) requestIdRef.current = newRequestId();
+    busyRef.current = true;
     setSaving(true);
+    try {
+      await createAndAnalyze(acknowledged);
+    } finally {
+      busyRef.current = false;
+      setSaving(false);
+    }
+  }
+
+  async function createAndAnalyze(acknowledged: string[]) {
+    setPhase("creating");
     const r = await journeyAction("create_new", {
       ad: form.ad.trim(),
       soyad: form.soyad.trim(),
@@ -89,28 +156,31 @@ export function HdClientForm() {
       ...(requestIdRef.current ? { request_id: requestIdRef.current } : {}),
       ...(acknowledged.length ? { acknowledged_duplicate_keys: acknowledged } : {}),
     });
-    setSaving(false);
     if (!r.ok && r.code === "POSSIBLE_DUPLICATE_CLIENT" && r.candidates && r.candidates.length > 0) {
+      setPhase("idle");
       setDup(r.candidates); // kayıt OLUŞMADI; uzman karar verir
       return;
     }
     setDup(null);
     if (!r.ok || !r.hdClientId) {
+      setPhase("idle");
       showToast({ message: r.ok ? "Danışan oluşturulamadı." : r.error, type: "error" });
       return;
     }
-    showToast({ message: "Danışan oluşturuldu. Haritayı hesaplayabilirsiniz.", type: "success" });
-    setForm(empty);
-    setBirthLoc(null);
-    requestIdRef.current = "";
-    router.push(`/human-design/danisanlar/${r.hdClientId}`);
+    await analyze({ hdClientId: r.hdClientId, name: `${form.ad.trim()} ${form.soyad.trim()}` });
   }
 
   /** "Mevcut Danışanı Aç / Seç": yeni kayıt OLUŞTURMAZ (Danışan Yolculuğu-yalnız aday: o danışana profil açar). */
   async function openExisting(c: HdDuplicateCandidate) {
+    if (c.hdClientId && c.chartId) {
+      // Kayıtlı analiz DOĞRUDAN açılır (Roxy çağrısı yok).
+      setDup(null);
+      onAnalyzed({ chartId: c.chartId, hdClientId: c.hdClientId, name: c.name ?? "" });
+      return;
+    }
     if (c.hdClientId) {
       setDup(null);
-      router.push(`/human-design/danisanlar/${c.hdClientId}${c.chartId ? `?chart=${encodeURIComponent(c.chartId)}` : ""}`);
+      router.push(`/human-design/danisanlar/${c.hdClientId}`);
       return;
     }
     if (!c.hdClientId && c.chartId) {
@@ -120,19 +190,30 @@ export function HdClientForm() {
       return;
     }
     if (c.kind === "journey_client" && c.journeyClientId && birthLoc) {
+      if (busyRef.current) return;
+      busyRef.current = true;
       setSaving(true);
+      setPhase("creating");
       const r = await journeyAction("create_for_existing", {
         journey_client_id: c.journeyClientId,
         birth_time: form.birth_time,
         birth_location_ref: birthLoc.id,
         birth_date: form.dogum,
       });
-      setSaving(false);
       if (r.ok && r.hdClientId) {
         setDup(null);
-        router.push(`/human-design/danisanlar/${r.hdClientId}`);
+        try {
+          // Danışan Yolculuğu kaydına HD profili açıldı → aynı eylemle analiz.
+          await analyze({ hdClientId: r.hdClientId, name: c.name ?? `${form.ad.trim()} ${form.soyad.trim()}` });
+        } finally {
+          busyRef.current = false;
+          setSaving(false);
+        }
         return;
       }
+      busyRef.current = false;
+      setSaving(false);
+      setPhase("idle");
       if (!r.ok && r.code === "HD_PROFILE_EXISTS" && r.hdClientId) {
         setDup(null);
         router.push(`/human-design/danisanlar/${r.hdClientId}`);
@@ -151,24 +232,25 @@ export function HdClientForm() {
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="hd-new-ad" className={hdLabelCls}>Ad *</label>
-          <input id="hd-new-ad" type="text" autoComplete="off" value={form.ad} onChange={set("ad")} placeholder="Ali Kaan" className={`h-10 ${hdFieldBase}`} />
+          <input id="hd-new-ad" type="text" autoComplete="off" disabled={!!created || saving} value={form.ad} onChange={set("ad")} placeholder="Ali Kaan" className={`h-10 ${hdFieldBase}`} />
         </div>
         <div>
           <label htmlFor="hd-new-soyad" className={hdLabelCls}>Soyad *</label>
-          <input id="hd-new-soyad" type="text" autoComplete="off" value={form.soyad} onChange={set("soyad")} placeholder="Arıcı" className={`h-10 ${hdFieldBase}`} />
+          <input id="hd-new-soyad" type="text" autoComplete="off" disabled={!!created || saving} value={form.soyad} onChange={set("soyad")} placeholder="Arıcı" className={`h-10 ${hdFieldBase}`} />
         </div>
         <div>
           <label htmlFor="hd-new-dogum" className={hdLabelCls}>Doğum Tarihi *</label>
-          <HdBirthDateInput id="hd-new-dogum" value={form.dogum} onChange={(v) => { requestIdRef.current = ""; setForm((p) => ({ ...p, dogum: v })); }} className={`h-10 ${hdFieldBase}`} />
+          <HdBirthDateInput id="hd-new-dogum" disabled={!!created || saving} value={form.dogum} onChange={(v) => { requestIdRef.current = ""; setForm((p) => ({ ...p, dogum: v })); }} className={`h-10 ${hdFieldBase}`} />
         </div>
         <div>
           <label htmlFor="hd-new-saat" className={hdLabelCls}>Doğum Saati *</label>
-          <HdBirthTimeInput id="hd-new-saat" value={form.birth_time} onChange={(v) => { requestIdRef.current = ""; setForm((p) => ({ ...p, birth_time: v })); }} className={`h-10 ${hdFieldBase}`} />
+          <HdBirthTimeInput id="hd-new-saat" disabled={!!created || saving} value={form.birth_time} onChange={(v) => { requestIdRef.current = ""; setForm((p) => ({ ...p, birth_time: v })); }} className={`h-10 ${hdFieldBase}`} />
         </div>
         <div className="sm:col-span-2">
           <label htmlFor="hd-new-client-birth-place" className={hdLabelCls}>Doğum Yeri *</label>
           <HdBirthLocationPicker
             id="hd-new-client-birth-place"
+            disabled={!!created || saving}
             value={birthLoc}
             onChange={(loc) => {
               requestIdRef.current = "";
@@ -181,15 +263,37 @@ export function HdClientForm() {
       <p className="text-[11px] leading-relaxed text-slate-500">
         Danışan, Danışan Yolculuğu&apos;nda da oluşturulur; Human Design analizleri bu danışanın geçmişinde görünür.
       </p>
+      {phase === "computing" ? (
+        <p role="status" className="m-0 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800" data-hd-new-computing>
+          Human Design haritası hesaplanıyor… Lütfen bekleyin; sayfayı kapatmayın.
+        </p>
+      ) : null}
+      {computeError ? (
+        <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700" data-hd-new-compute-error>
+          <p className="m-0">{computeError}</p>
+          {created ? (
+            <p className="m-0 mt-1 font-normal text-rose-700/90">
+              Bilgiler kaydedildi. “Analizi Tekrar Dene” yalnız hesaplamayı yeniden ister; danışan tekrar oluşturulmaz.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <div className="flex justify-end border-t border-indigo-100/80 pt-4">
         <button
           type="button"
           onClick={() => void handleSave()}
           data-hd-new-client-save
           disabled={saving}
-          className="h-10 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-6 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+          aria-busy={saving}
+          className="h-10 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-6 text-sm font-bold tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {saving ? "Oluşturuluyor..." : "Danışanı Oluştur ve Devam Et"}
+          {phase === "creating"
+            ? "Danışan oluşturuluyor…"
+            : phase === "computing"
+              ? "Harita hesaplanıyor…"
+              : created
+                ? "Analizi Tekrar Dene"
+                : "Danışanı Oluştur ve Analiz Et"}
         </button>
       </div>
       {dup ? (
@@ -200,6 +304,27 @@ export function HdClientForm() {
           onOpen={(c) => void openExisting(c)}
           onProceed={() => void handleSave(dup.map((c) => c.key))}
           onCancel={() => setDup(null)}
+        />
+      ) : null}
+      {dupCharts && created ? (
+        <HdDuplicateDialog
+          mode="chart"
+          candidates={dupCharts}
+          busy={saving}
+          onOpen={(c) => {
+            // Başka profilin analizi YALNIZ açılır (salt okuma); bu profile bağlanmaz, kopyalanmaz.
+            setDupCharts(null);
+            if (c.chartId) onAnalyzed({ chartId: c.chartId, hdClientId: c.hdClientId ?? null, name: c.name ?? "" });
+          }}
+          onProceed={() => {
+            const keys = dupCharts.map((c) => c.key);
+            setDupCharts(null);
+            void retryAnalyze(keys);
+          }}
+          onCancel={() => {
+            setDupCharts(null);
+            setComputeError("Danışan kaydedildi; analiz başlatılmadı. İsterseniz “Analizi Tekrar Dene” ile devam edebilirsiniz.");
+          }}
         />
       ) : null}
     </div>

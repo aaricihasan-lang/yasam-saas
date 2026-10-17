@@ -184,8 +184,8 @@ export default function HdCanonicalBilgiBankasiPage() {
             Bu yorum, bir haritanın Roxy API ile hesaplanması sırasında kaydedilir ve yalnız o haritanın ekranında görüntülenir.
             Düzenlenebilir bir kütüphane değildir; görüntülemek yeni bir Roxy isteği oluşturmaz. Kayıtlı yorum olmayan haritalarda gösterilmez.
           </p>
-          <Link href="/human-design/kayitli-haritalar" className="mt-3 inline-flex text-sm font-bold text-indigo-600 underline-offset-2 hover:underline">
-            Kayıtlı Analizler&apos;e git →
+          <Link href="/human-design/danisanlar" className="mt-3 inline-flex text-sm font-bold text-indigo-600 underline-offset-2 hover:underline">
+            Human Design Analizlerim&apos;e git →
           </Link>
         </div>
       ) : (

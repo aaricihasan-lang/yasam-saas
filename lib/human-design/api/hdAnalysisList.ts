@@ -10,8 +10,8 @@
 //     Türkçe küçük harf + çok kelime. DB collation'ına güvenilmez (İ/ı tuzağı) → normalize JS.
 //   • Tarayıcıya yalnız istenen SAYFA döner (varsayılan 20, en çok 50). Okuma hatası kısmi liste
 //     olarak gösterilmez → hata döner.
-//   • Sıra: son analiz yeni → eski; sonra analizsiz profiller (yeni → eski); sonra yalnız Danışan
-//     Yolculuğu'ndaki danışanlar (ad). Eşitlikte grup anahtarı (kararlı).
+//   • Sıra (owner kararı 2026-10-17): TÜM sonuç kümesi Türkçe alfabetik ad-soyad; eşitlikte doğum tarihi,
+//     sonra grup anahtarı (kararlı). Sayfalama sıralamadan SONRA uygulanır.
 //   • İlk analiz tarihi = o profilin EN ESKİ analiz kaydının created_at değeri (sunucu verisi; uydurma yok).
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -56,6 +56,12 @@ type ChartLite = {
   profile_code: string | null;
 };
 type ProfileLite = { id: string; name: string | null; birth_date: string | null; journey_client_id: string | null; created_at: string };
+
+/** Türkçe alfabetik karşılaştırma (Ç, Ğ, I/ı, İ/i, Ö, Ş, Ü); büyük/küçük harf ve aksan sırayı bozmaz. */
+const HD_NAME_COLLATOR = new Intl.Collator("tr", { sensitivity: "base", numeric: true });
+function collateName(name: string): string {
+  return name.trim().replace(/\s+/g, " ");
+}
 type JourneyLite = { id: string; ad: string | null; soyad: string | null; dogum: string | null };
 
 async function readAll<T>(
@@ -163,7 +169,6 @@ export async function listHdAnalysisGroups(
       linkedToJourney: !!p.journey_client_id,
     });
   }
-  const profileCreated = new Map(profiles.rows.map((p) => [`hd:${p.id}`, p.created_at]));
 
   // ARAMADA: Human Design kaydı OLMAYAN Danışan Yolculuğu danışanları ("Human Design Başlat").
   let journeyScanned = 0;
@@ -205,17 +210,14 @@ export async function listHdAnalysisGroups(
       return tokens.every((t) => n.includes(t));
     });
   }
-  const rank = (r: HdAnalysisGroupRow) => (r.lastAnalysisAt ? 0 : r.kind === "journey" ? 2 : 1);
+  // Owner kararı 2026-10-17: liste HER ZAMAN Türkçe alfabetik ad-soyad sırasında (yeni analiz satırı
+  // yukarı taşımaz). Önce TÜM sonuç kümesi sıralanır, sonra sayfalanır. Aynı ad = ayrı kayıtlar (birleştirilmez):
+  // doğum tarihi, sonra kimlik ile kararlı sıra.
   rows.sort((a, b) => {
-    const d = rank(a) - rank(b);
+    const d = HD_NAME_COLLATOR.compare(collateName(a.name), collateName(b.name));
     if (d !== 0) return d;
-    if (a.lastAnalysisAt && b.lastAnalysisAt && a.lastAnalysisAt !== b.lastAnalysisAt) return a.lastAnalysisAt < b.lastAnalysisAt ? 1 : -1;
-    if (rank(a) === 1) {
-      const ca = profileCreated.get(a.key) ?? "";
-      const cb = profileCreated.get(b.key) ?? "";
-      if (ca !== cb) return ca < cb ? 1 : -1;
-    }
-    if (rank(a) === 2 && a.name !== b.name) return a.name.localeCompare(b.name, "tr");
+    const bd = (a.birthDate ?? "").localeCompare(b.birthDate ?? "");
+    if (bd !== 0) return bd;
     return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
   });
   return {

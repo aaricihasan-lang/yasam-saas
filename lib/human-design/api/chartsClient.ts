@@ -287,3 +287,23 @@ export async function computeRoxyChart(clientId: string, locationId: string, ack
     ...(Array.isArray(j.candidates) ? { candidates: j.candidates as HdDuplicateCandidate[] } : {}),
   };
 }
+
+/**
+ * Kullanıcının AÇIK "Oluştur ve Analiz Et" eylemi için hesap: MEVCUT computeRoxyChart (kayıtlı doğum yeri
+ * "client"). Sunucu "aynı hesap sürüyor" (409 IN_PROGRESS) derse kör ikinci ücretli istek yerine kısa
+ * aralıkla sonucu sorar — sunucunun girdi-özeti idempotency'si tamamlanan hesabı yeniden kullanır (Roxy yok).
+ */
+export async function computeRoxyChartSettled(
+  clientId: string,
+  acknowledgedDuplicateKeys: string[] = [],
+  opts: { polls?: number; waitMs?: number } = {},
+): Promise<RoxyComputeResult> {
+  const polls = opts.polls ?? 6;
+  const waitMs = opts.waitMs ?? 3000;
+  let r = await computeRoxyChart(clientId, "client", acknowledgedDuplicateKeys);
+  for (let i = 0; !r.ok && r.code === "IN_PROGRESS" && i < polls; i++) {
+    await new Promise((res) => setTimeout(res, waitMs));
+    r = await computeRoxyChart(clientId, "client", acknowledgedDuplicateKeys);
+  }
+  return r;
+}

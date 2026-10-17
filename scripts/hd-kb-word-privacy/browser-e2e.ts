@@ -12,7 +12,7 @@
  *     kategoriye göre "Bu kapı" / "Bu kanal" (yanlış bağlam yok); eski içerik ve not korunur.
  *   • Word: içerik seçimi her açılışta KAPALI; seçim → DOCX içeriği (gerçek sunucu + DB):
  *     özel not / pasif / başka tenant / ilgisiz kayıt HİÇBİR seçimde yok; açıklama metni AYNEN;
- *     kayıtlı Word "Danışan Raporunu İndir" ile değişmeden iner.
+ *     kayıtlı Word "Raporu İndir" ile değişmeden iner.
  */
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { mkdirSync, readFileSync } from "node:fs";
@@ -169,7 +169,7 @@ async function main() {
         throw e;
       }
       const btn = item.locator(`[data-hd-history-word="${chartId}"]`);
-      ok((await btn.textContent())?.trim() === "Danışan Raporunu Hazırla", `${d.name}: kayıtlı Word yokken düğme "Danışan Raporunu Hazırla"`);
+      ok((await btn.textContent())?.trim() === "Raporu Hazırla", `${d.name}: kayıtlı Word yokken düğme "Raporu Hazırla"`);
       await btn.click();
       const dlg = page.getByRole("dialog", { name: "Human Design Danışan Raporu'na neler eklensin?" });
       await dlg.waitFor({ timeout: 60_000 });
@@ -207,7 +207,7 @@ async function main() {
 
       // Kayıtlı Word: AYNI dosya değişmeden iner + açık bildirim; yeni Word seçimleri tekrar kapalı.
       await page.screenshot({ path: path.join(OUT, `after-create-${d.name}.png`) });
-      const modalBtn = page.locator('[role="dialog"][aria-labelledby="hd-computed-detay-title"]').getByRole("button", { name: "Danışan Raporunu İndir", exact: true });
+      const modalBtn = page.locator('[role="dialog"][aria-labelledby="hd-computed-detay-title"]').getByRole("button", { name: "Raporu İndir", exact: true });
       await modalBtn.waitFor({ timeout: 20_000 });
       const notCovered = await modalBtn.evaluate((el) => {
         const r = el.getBoundingClientRect();
@@ -219,8 +219,8 @@ async function main() {
       await modalBtn.click();
       const text2 = await docxText((await (await dl2P).path())!);
       await page.getByText(/Önceden hazırlanmış Human Design Danışan Raporu indirildi \(Word\); içeriği değiştirilmedi/).waitFor({ timeout: 20_000 });
-      ok(text2 === text, `${d.name}: "Danışan Raporunu İndir" aynı içeriği indirdi + önceden oluşturulduğu söylendi`);
-      await page.getByRole("button", { name: "Yeni Rapor Hazırla (içerik seçerek)" }).click();
+      ok(text2 === text, `${d.name}: "Raporu İndir" aynı içeriği indirdi + önceden oluşturulduğu söylendi`);
+      await page.getByRole("button", { name: "Yeni rapor hazırla (içerik seçerek)" }).click();
       const dlg2 = page.getByRole("dialog", { name: "Human Design Danışan Raporu'na neler eklensin?" });
       await dlg2.waitFor();
       ok(!(await dlg2.getByRole("checkbox", { name: /Bilgi Bankamdaki/ }).isChecked()) && !(await dlg2.getByRole("checkbox", { name: /Sistem Yorumunu/ }).isChecked()), `${d.name}: yeni Word'de seçimler yeniden KAPALI (önceki seçim hatırlanmaz)`);

@@ -691,10 +691,11 @@ const later = (iso: string, ms = 5) => new Date(Date.parse(iso) + ms).toISOStrin
     const f = src("app/human-design/danisanlar/components/HdClientForm.tsx");
     assert(!/<label className=\{labelCls\}>Harita Görseli URL<\/label>/.test(f) && !/set\("chart_image_url"\)/.test(f), "alan duruyor");
   });
-  await t("Human Design Kaydını Tamamen Sil: gerçek etki + ÜÇ aşamalı onay (ad yazarak) (owner kararı 2026-10-16)", () => {
+  await t("TEK 'Sil': gerçek etki + İKİ normal onay, ad yazdırma YOK (owner kararı 2026-10-17)", () => {
     const l = src("app/human-design/danisanlar/components/HdFullDeleteDialog.tsx");
-    assert(l.includes("Tüm Human Design analizleri ve kayıtlı profesyonel haritalar") && l.includes("Danışan Yolculuğu"), "kapsam / korunanlar metni");
-    assert(/Adım \{step\} \/ 3/.test(l) && /nameOk/.test(l) && /disabled=\{!nameOk \|\| busy\}/.test(l), "üç aşama / ad doğrulaması yok");
+    assert(l.includes("Bu danışana ait bütün Human Design analizleri, haritaları ve raporları kalıcı olarak silinecek.") && l.includes("Danışan Yolculuğu&apos;ndaki ana kayıt korunacaktır."), "1. onay metni / korunanlar");
+    assert(l.includes("için tüm Human Design kayıtları kalıcı olarak silinecek. Bu işlem geri alınamaz. Emin misiniz?") && /Evet, Sil/.test(l) && /Devam Et/.test(l), "2. onay metni / düğmeler");
+    assert(/useState<1 \| 2>/.test(l) && !/nameOk|data-hd-full-delete-name|Adım \{step\} \/ 3/.test(l), "iki aşama değil / ad yazdırma kaldı");
     assert(/previewHdClientDelete/.test(l) && /notifyHdProfileDeleted/.test(l) && /analyses: scope\.analyses, reports: scope\.reports/.test(l), "kesin kapsam / liste yenileme / onaydaki sayılar yok");
   });
   await t("P2-2: buton bir eylem = bir istek kimliği; başarıdan sonra aynı rapor yeniden indirilir", () => {

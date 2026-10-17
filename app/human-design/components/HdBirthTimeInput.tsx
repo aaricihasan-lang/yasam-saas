@@ -31,11 +31,13 @@ export function HdBirthTimeInput({
   value,
   onChange,
   className,
+  disabled,
 }: {
   id?: string;
   value: string;
   onChange: (hhmm: string) => void;
   className?: string;
+  disabled?: boolean;
 }) {
   const [display, setDisplay] = useState(() => toDisplay(value));
   const [invalid, setInvalid] = useState(false);
@@ -53,6 +55,7 @@ export function HdBirthTimeInput({
     <>
       <input
         id={id}
+        disabled={disabled}
         type="text"
         inputMode="numeric"
         autoComplete="off"

@@ -5,10 +5,11 @@
 //     kaydı olmayan Danışan Yolculuğu danışanı. Aynı ad-soyad farklı profiller ayrı satırdır.
 //   • Arama + sayfalama SUNUCUDA (/api/hd/analyses) → 1500+ danışanda tüm kayıtlar aranır, tarayıcıya
 //     yalnız gösterilen sayfa gelir. Okuma hatası kısmi liste olarak gösterilmez.
+//   • Sıra: Türkçe alfabetik ad-soyad (sunucu tüm sonuç kümesini sıralar, sonra sayfalar).
 //   • "Detayı Aç": KAYITLI son profesyonel harita DOĞRUDAN açılır (ara ekran yok, yeni hesap / Roxy YOK);
-//     danışanın diğer analizleri, "Analizi Sil" ve "Human Design Kaydını Tamamen Sil" aynı pencerede.
-//   • Yeni analiz ayrı ve bilinçli eylemdir ("Yeni analiz" / "Analiz Yap" → danışan çalışma sayfası).
-//   • İlk analiz tarihi: sunucunun en eski analiz kaydı; uzman göster/gizle tercihini kendi cihazında saklar.
+//     danışanın diğer analizleri ve TEK "Sil" (iki onay, tüm HD kayıtları) aynı pencerede.
+//   • Yeni analiz ayrı ve bilinçli eylemdir ("Yeni Analiz" / "Analiz Yap" → danışan çalışma sayfası).
+//   • İlk analiz / son analiz tarihi ve analiz sayısı kayıt varsa HER ZAMAN gösterilir (göster/gizle yok).
 //   • Word işlemleri BURADA YOK — analiz penceresinde ("Human Design Danışan Raporu").
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,7 +19,6 @@ import { HD_CHART_SAVED_EVENT, HD_PROFILE_DELETED_EVENT } from "@/lib/human-desi
 import { toAppChartCodes } from "@/lib/human-design/normalize/hdAppCodes";
 import { hdProfileLabelFromCode, hdTypeLabelFromCode } from "@/lib/human-design/codeHelpers";
 import { readYasamUser } from "@/lib/auth/yasamUser";
-import { safeLocalStorageSetItem } from "@/lib/safeStorage";
 import { HdComputedChartModal } from "../../kayitli-haritalar/components/HdComputedChartModal";
 import { retryHdImageCleanup } from "../helpers/hdClients";
 import { HdJourneyProfileStart } from "./HdJourneyProfileStart";
@@ -32,15 +32,12 @@ function summaryOf(r: HdAnalysisGroupOption): string {
   return [type, profile].filter(Boolean).join(" · ");
 }
 
-/** "İlk analiz tarihini göster" tercihi — uzmana (kullanıcı kimliğine) özel; veritabanı tarihini DEĞİŞTİRMEZ. */
-export function hdFirstAnalysisPrefKey(userId: string | null | undefined): string {
-  return `yasam:hd:show-first-analysis:${userId ?? "anon"}`;
-}
-function readFirstAnalysisPref(): boolean {
+/** Kaldırılan "İlk analiz tarihini göster" tercihinin (2026-10-16) eski tarayıcı anahtarı — yalnız temizlik için. */
+function clearLegacyFirstAnalysisPref(): void {
   try {
-    return window.localStorage.getItem(hdFirstAnalysisPrefKey(readYasamUser()?.id)) !== "0";
+    window.localStorage.removeItem(`yasam:hd:show-first-analysis:${readYasamUser()?.id ?? "anon"}`);
   } catch {
-    return true;
+    /* depolama kapalı — önemsiz */
   }
 }
 
@@ -56,12 +53,10 @@ export function HdAnalysisGroupList() {
   const [startFor, setStartFor] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ text: string; cleanup: boolean } | null>(null);
   const [cleaning, setCleaning] = useState(false);
-  const [showFirst, setShowFirst] = useState(true);
   const seq = useRef(0);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- tarayıcı tercihi (SSR'da okunamaz)
-    setShowFirst(readFirstAnalysisPref());
+    clearLegacyFirstAnalysisPref();
   }, []);
 
   const load = useCallback(async (q: string, offset: number) => {
@@ -96,11 +91,6 @@ export function HdAnalysisGroupList() {
     };
   }, [load, query]);
 
-  function toggleFirst(v: boolean) {
-    setShowFirst(v);
-    safeLocalStorageSetItem(hdFirstAnalysisPrefKey(readYasamUser()?.id), v ? "1" : "0");
-  }
-
   async function runCleanup() {
     setCleaning(true);
     const r = await retryHdImageCleanup();
@@ -121,10 +111,6 @@ export function HdAnalysisGroupList() {
         className="h-11 w-full rounded-xl border border-indigo-200/90 bg-white px-4 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50"
         data-hd-analysis-search
       />
-      <label className="mt-2 inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-600">
-        <input type="checkbox" checked={showFirst} onChange={(e) => toggleFirst(e.target.checked)} className="h-4 w-4 accent-indigo-600" data-hd-first-analysis-toggle />
-        İlk analiz tarihini göster
-      </label>
       {notice ? (
         <div role="status" className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800" data-hd-list-notice>
           <span className="min-w-0">{notice.text}</span>
@@ -162,8 +148,8 @@ export function HdAnalysisGroupList() {
                       <p className="m-0 mt-0.5 text-xs text-slate-500">
                         {r.analysisCount > 0 ? (
                           <>
-                            Son analiz: {formatIsoDateTr(r.lastAnalysisAt)} · <span data-hd-group-count={r.analysisCount}>{r.analysisCount} analiz</span>
-                            {showFirst && r.firstAnalysisAt ? <span data-hd-group-first> · İlk analiz: {formatIsoDateTr(r.firstAnalysisAt)}</span> : null}
+                            {r.firstAnalysisAt ? <span data-hd-group-first>İlk analiz: {formatIsoDateTr(r.firstAnalysisAt)} · </span> : null}
+                            <span data-hd-group-last>Son analiz: {formatIsoDateTr(r.lastAnalysisAt)}</span> · <span data-hd-group-count={r.analysisCount}>{r.analysisCount} analiz</span>
                           </>
                         ) : r.kind === "journey" ? (
                           <span data-hd-group-status="none">Human Design kaydı yok</span>
@@ -200,7 +186,7 @@ export function HdAnalysisGroupList() {
                             </Link>
                           )}
                           <Link href={`/human-design/danisanlar/${r.hdClientId}`} className="text-xs font-bold text-indigo-600 hover:underline" data-hd-group-new={r.hdClientId}>
-                            Yeni analiz
+                            Yeni Analiz
                           </Link>
                         </>
                       ) : r.kind === "hd" && r.hdClientId ? (
@@ -233,7 +219,17 @@ export function HdAnalysisGroupList() {
                       ) : null}
                     </div>
                     {r.kind === "journey" && r.journeyClientId && startFor === r.journeyClientId ? (
-                      <HdJourneyProfileStart journeyClientId={r.journeyClientId} name={r.name} birthDate={r.birthDate} onCancel={() => setStartFor(null)} />
+                      <HdJourneyProfileStart
+                        journeyClientId={r.journeyClientId}
+                        name={r.name}
+                        birthDate={r.birthDate}
+                        onCancel={() => setStartFor(null)}
+                        onAnalyzed={({ chartId, hdClientId }) => {
+                          setStartFor(null);
+                          setOpen({ chartId, row: { ...r, kind: "hd", hdClientId, latestChartId: chartId, latestKind: "computed", analysisCount: 1 } });
+                          void load(query.trim(), 0);
+                        }}
+                      />
                     ) : null}
                   </li>
                 );
@@ -261,19 +257,19 @@ export function HdAnalysisGroupList() {
           id={open.chartId}
           profile={
             open.row.hdClientId
-              ? { hdClientId: open.row.hdClientId, name: open.row.name, firstAnalysisAt: open.row.firstAnalysisAt, showFirstAnalysis: showFirst }
+              ? { hdClientId: open.row.hdClientId, name: open.row.name, firstAnalysisAt: open.row.firstAnalysisAt }
               : undefined
           }
           onClose={() => setOpen(null)}
           onDeleted={() => {
             setOpen(null);
-            setNotice({ text: "Analiz silindi. Danışanın diğer analizleri ve Human Design profili korundu.", cleanup: false });
+            setNotice({ text: "Analiz silindi.", cleanup: false });
             void load(query.trim(), 0);
           }}
           onProfileDeleted={(res) => {
             setOpen(null);
             setNotice({
-              text: `Human Design kaydı tamamen silindi: ${res.deletedAnalyses} analiz ve ${res.deletedReports} Word raporu kaldırıldı. Danışan Yolculuğu kaydı korundu.${res.storageWarning ? " Bazı görsel dosyaları temizlenemedi." : ""}`,
+              text: `Human Design kayıtları silindi: ${res.deletedAnalyses} analiz ve ${res.deletedReports} Word raporu kaldırıldı. Danışan Yolculuğu ana kaydı korundu.${res.storageWarning ? " Bazı görsel dosyaları temizlenemedi." : ""}`,
               cleanup: res.storageWarning,
             });
             void load(query.trim(), 0);

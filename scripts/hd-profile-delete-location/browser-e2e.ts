@@ -150,7 +150,7 @@ async function main() {
       ok(w.hdLocation === 0 && w.roxyCompute === 0, `${d.name}: yazarken Roxy konum araması / hesaplama YOK`, w);
 
       section(`Profil silme — ${d.name}`);
-      // 2026-10-16 owner kararı: tek liste → "Detayı Aç" → "Human Design Kaydını Tamamen Sil" (3 adım + ad yazma).
+      // 2026-10-17 owner kararı: tek liste → "Detayı Aç" → TEK "Sil" (iki normal onay; ad yazdırma yok).
       await page.goto(`${APP}/human-design/danisanlar`);
       const row = (id: string) => page.locator(`[data-hd-group="hd:${id}"]`);
       await row(v.hd).waitFor({ timeout: 90_000 });
@@ -159,53 +159,49 @@ async function main() {
       const s0 = await snap();
       const modal = page.locator('[role="dialog"][aria-labelledby="hd-computed-detay-title"]');
       const dlg = page.locator("[data-hd-full-delete]");
-      const openFull = async () => {
+      const openDelete = async () => {
         if (!(await modal.isVisible())) {
           await row(v.hd).locator(`[data-hd-group-open="${v.hd}"]`).click();
           await modal.locator("[data-hd-knowledge-tabs]").waitFor({ timeout: 60_000 });
         }
-        await modal.locator("[data-hd-full-delete-open]").click();
+        await modal.locator("[data-hd-delete-open]").click();
         await dlg.waitFor({ timeout: 20_000 });
+        await dlg.locator("[data-hd-full-delete-counts]").waitFor({ timeout: 20_000 });
       };
 
-      // 1. adımda Vazgeç
-      await openFull();
+      // 1. onayda Vazgeç
+      await openDelete();
       const msg1 = (await dlg.innerText()) ?? "";
-      ok(msg1.includes("Tüm Human Design analizleri ve kayıtlı profesyonel haritalar") && msg1.includes("Word raporları"), `${d.name}: 1. adım — silinecek kapsam`, msg1.slice(0, 300));
-      ok(msg1.includes("Danışan Yolculuğu"), `${d.name}: 1. adım — DY korunur bilgisi`);
+      ok(msg1.includes("Bu danışana ait bütün Human Design analizleri, haritaları ve raporları kalıcı olarak silinecek.") && /1 Human Design analizi/.test(msg1) && /1 Word raporu/.test(msg1), `${d.name}: 1. onay — kapsam + kesin sayılar`, msg1.slice(0, 300));
+      ok(msg1.includes("Danışan Yolculuğu"), `${d.name}: 1. onay — DY ana kaydı korunur bilgisi`);
       const box = await dlg.boundingBox();
       ok(!!box && box.x >= 0 && box.x + box.width <= d.viewport.width + 0.5 && box.y + box.height <= d.viewport.height + 0.5, `${d.name}: onay penceresi ekrana sığıyor`, box);
       await page.screenshot({ path: path.join(OUT, `delete-confirm1-${d.name}.png`) });
       await dlg.locator("[data-hd-full-delete-cancel]").click();
       await dlg.waitFor({ state: "detached" });
-      ok((await snap()) === s0, `${d.name}: 1. adımda Vazgeç → hiçbir şey silinmedi`);
+      ok((await snap()) === s0, `${d.name}: 1. onayda Vazgeç → hiçbir şey silinmedi`);
 
-      // 2. adımda Vazgeç (kesin sayılar)
-      await openFull();
+      // 2. (son) onayda Vazgeç
+      await openDelete();
       await dlg.locator("[data-hd-full-delete-next]").click();
-      await dlg.locator("[data-hd-full-delete-counts]").waitFor({ timeout: 20_000 });
-      ok(/1 Human Design analizi/.test(await dlg.locator("[data-hd-full-delete-counts]").innerText()) && /1 Word raporu/.test(await dlg.locator("[data-hd-full-delete-counts]").innerText()), `${d.name}: 2. adım — kesin sayılar (1 analiz, 1 Word)`);
+      const vName = `Silinecek Kişi${DEVICES.findIndex((x) => x.name === d.name) + 1}`;
+      ok((await dlg.innerText()).includes(`${vName} için tüm Human Design kayıtları kalıcı olarak silinecek. Bu işlem geri alınamaz.`), `${d.name}: son onay — doğru danışan adı + geri alınamaz uyarısı`);
+      ok((await dlg.locator("input").count()) === 0, `${d.name}: ad / 'SİL' yazdırma yok`);
       await page.screenshot({ path: path.join(OUT, `delete-confirm2-${d.name}.png`) });
       await dlg.locator("[data-hd-full-delete-cancel]").click();
       await dlg.waitFor({ state: "detached" });
-      ok((await snap()) === s0, `${d.name}: 2. adımda Vazgeç → hiçbir şey silinmedi`);
+      ok((await snap()) === s0, `${d.name}: son onayda Vazgeç → hiçbir şey silinmedi`);
 
-      // 3. adım: ad yazarak kesin onay (390px: storage hatası simüle edilir → yeniden temizleme akışı)
+      // İki onay → silme (390px: storage hatası simüle edilir → yeniden temizleme akışı)
       const failStorage = d.name === "390px";
       const snapPath = (await su.query(`select snapshot->'chartImage'->>'storagePath' p from public.human_design_reports where id=$1`, [v.report])).rows[0]?.p as string;
-      await openFull();
+      await openDelete();
       await dlg.locator("[data-hd-full-delete-next]").click();
-      await dlg.locator("[data-hd-full-delete-counts]").waitFor({ timeout: 20_000 });
-      await dlg.locator("[data-hd-full-delete-next]").click();
-      const vName = `Silinecek Kişi${DEVICES.findIndex((x) => x.name === d.name) + 1}`;
-      await dlg.locator("[data-hd-full-delete-name]").fill("Silinecek");
-      ok(await dlg.locator("[data-hd-full-delete-confirm]").isDisabled(), `${d.name}: 3. adım — eksik ad → kesin onay kapalı`);
-      await dlg.locator("[data-hd-full-delete-name]").fill(vName);
-      ok((await snap()) === s0, `${d.name}: ad yazılana kadar hiçbir şey silinmedi`);
+      ok((await snap()) === s0, `${d.name}: 'Devam Et' (1. onay) hiçbir şey silmez`);
       if (failStorage) env.storage.failRemove = true;
       await dlg.locator("[data-hd-full-delete-confirm]").click();
       const notice = page.locator("[data-hd-list-notice]");
-      await notice.filter({ hasText: /tamamen silindi: 1 analiz ve 1 Word raporu/ }).waitFor({ timeout: 30_000 });
+      await notice.filter({ hasText: /kayıtları silindi: 1 analiz ve 1 Word raporu/ }).waitFor({ timeout: 30_000 });
       env.storage.failRemove = false;
       ok(true, `${d.name}: başarı mesajı yalnız işlem tamamlanınca`);
       if (failStorage) {

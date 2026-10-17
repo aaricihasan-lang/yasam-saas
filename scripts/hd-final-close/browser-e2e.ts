@@ -1,6 +1,6 @@
 /**
- * HD SATIŞ ÖNCESİ NİHAİ KAPANIŞ — GERÇEK TARAYICI (Chromium): tek liste, Detayı Aç, iki silme, ilk analiz
- * tarihi tercihi, mobil elle tarih/saat, 320 px.
+ * HD SATIŞ ÖNCESİ NİHAİ KAPANIŞ — GERÇEK TARAYICI (Chromium): tek liste, Detayı Aç, TEK "Sil" (iki onay —
+ * 2026-10-17), ilk analiz tarihi her zaman görünür, mobil elle tarih/saat, 320 px.
  *
  * Ön koşul (gizli değer YOK — test shim'ine işaret eden YEREL build):
  *   NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54523 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=zz-anamnez-test-anon-not-a-secret \
@@ -115,6 +115,7 @@ async function main() {
       await page.locator("#hd-new-saat").fill("2560");
       ok(await page.getByText("Saati SS:DD biçiminde girin").isVisible(), `${d.name}: geçersiz saat (25:60) açık uyarı`);
       await page.locator("[data-hd-new-analysis]").click();
+      await groupRow(page, P).waitFor({ timeout: 60_000 }); // form kapanınca tek liste yeniden yüklenir
       ok(await page.evaluate((w) => document.documentElement.scrollWidth <= w + 1, d.viewport.width), `${d.name}: yatay taşma yok`);
       const firstTxt = await groupRow(page, P).locator("[data-hd-group-first]").count();
       ok(firstTxt === 1, `${d.name}: D01 ilk analiz tarihi görünür`);
@@ -143,51 +144,43 @@ async function main() {
       await page.reload();
       await groupRow(page, P).waitFor({ timeout: 60_000 });
       ok(roxyReq === roxyBefore, "C05 sayfa yenileme Roxy isteği üretmez");
-      // Analizi Sil
+      // 2026-10-17 owner kararı: pencerede TEK "Sil" — "Analizi Sil" / "Tamamen Sil" ayrımı YOK.
       await groupRow(page, P).locator(`[data-hd-group-open="${P}"]`).click();
       await modal.locator("[data-hd-knowledge-tabs]").waitFor({ timeout: 60_000 });
-      await modal.locator("[data-hd-analysis-switch]").selectOption(A1);
-      await modal.locator("p").filter({ hasText: "08:30" }).first().waitFor({ timeout: 30_000 });
-      await modal.getByRole("button", { name: "Analizi Sil", exact: true }).click();
-      const conf = page.getByRole("alertdialog");
-      await conf.waitFor({ timeout: 30_000 });
-      const ctext = await conf.innerText();
-      ok(/08:30/.test(ctext) && /0 Word raporu/.test(ctext) && /diğer analizleri/.test(ctext), "Analizi Sil onayı: seçilen analiz (08:30), rapor sayısı ve korunanlar açık", ctext.slice(0, 300));
-      await page.screenshot({ path: path.join(OUT, "analizi-sil-onay.png") });
-      await conf.getByRole("button", { name: "Analizi Sil" }).click();
-      await page.locator("[data-hd-list-notice]").waitFor({ timeout: 30_000 });
-      const left = (await su.query(`select id from public.human_design_charts where client_id=$1`, [P])).rows.map((r) => String(r.id));
-      ok(left.length === 1 && left[0] === A2, "B01/B02 yalnız seçilen analiz silindi; diğer analiz ve profil duruyor", left);
+      ok((await modal.locator("[data-hd-delete-open]").count()) === 1 && (await modal.getByRole("button", { name: /Analizi Sil|Tamamen Sil/ }).count()) === 0, "pencerede yalnız TEK 'Sil' (analiz/profil seçimi yok)");
       await page.context().close();
     }
 
-    section("Human Design kaydını tamamen sil — üç aşama + geri tuşu (mobil Android)");
+    section("TEK 'Sil' — iki onay + geri tuşu (mobil Android)");
     {
       const page = await newPage({ ...MOBILE, ua: ANDROID, name: "Android 390" });
       await page.goto(`${APP}/human-design/danisanlar`);
       await groupRow(page, P).locator(`[data-hd-group-open="${P}"]`).click();
       const modal = page.locator('[role="dialog"][aria-labelledby="hd-computed-detay-title"]');
       await modal.locator("[data-hd-knowledge-tabs]").waitFor({ timeout: 60_000 });
-      await modal.locator("[data-hd-full-delete-open]").click();
+      await modal.locator("[data-hd-delete-open]").click();
       const dlg = page.locator("[data-hd-full-delete]");
       await dlg.waitFor();
-      ok((await dlg.getAttribute("data-hd-full-delete")) === "1" && (await dlg.innerText()).includes("Danışan Yolculuğu"), "adım 1: kapsam + korunanlar (Danışan Yolculuğu, diğer modüller)");
+      await dlg.locator("[data-hd-full-delete-counts]").waitFor();
+      ok((await dlg.getAttribute("data-hd-full-delete")) === "1" && (await dlg.innerText()).includes("Danışan Yolculuğu'ndaki ana kayıt korunacaktır") && /2 Human Design analizi/.test(await dlg.innerText()), "1. onay: kapsam (2 analiz) + Danışan Yolculuğu korunur");
       await page.goBack();
       await page.waitForTimeout(400);
       ok((await dlg.count()) === 0 && (await modal.count()) === 1 && (await page.evaluate(() => location.pathname)) === "/human-design/danisanlar", "B13 Android geri hareketi onayı ATLAMAZ: yalnız pencere kapanır, silme yok, sayfa aynı");
       ok((await su.query(`select 1 from public.human_design_clients where id=$1`, [P])).rowCount === 1, "geri hareketi sonrası hiçbir şey silinmedi");
-      await modal.locator("[data-hd-full-delete-open]").click();
-      await dlg.locator("[data-hd-full-delete-next]").click();
+      await modal.locator("[data-hd-delete-open]").click();
       await dlg.locator("[data-hd-full-delete-counts]").waitFor();
-      ok(/1 Human Design analizi/.test(await dlg.locator("[data-hd-full-delete-counts]").innerText()), "adım 2: kesin sayılar (1 analiz) + kalıcılık uyarısı");
       await dlg.locator("[data-hd-full-delete-next]").click();
-      await dlg.locator("[data-hd-full-delete-name]").fill("Aylin Kar");
-      ok(await dlg.locator("[data-hd-full-delete-confirm]").isDisabled(), "adım 3: yanlış ad → kesin onay düğmesi kapalı");
-      await dlg.locator("[data-hd-full-delete-name]").fill("  AYLİN   KARA ");
-      ok(!(await dlg.locator("[data-hd-full-delete-confirm]").isDisabled()), "adım 3: ad (büyük harf/boşluk duyarsız) doğru → onay açılır");
-      await page.screenshot({ path: path.join(OUT, "tamamen-sil-adim3.png") });
+      ok((await dlg.getAttribute("data-hd-full-delete")) === "2" && (await dlg.innerText()).includes("Aylin Kara için tüm Human Design kayıtları kalıcı olarak silinecek. Bu işlem geri alınamaz. Emin misiniz?"), "son onay: danışan adı + geri alınamaz");
+      ok((await dlg.locator("input").count()) === 0 && (await su.query(`select 1 from public.human_design_clients where id=$1`, [P])).rowCount === 1, "ad yazdırma yok; 1. onay veri silmedi");
+      await page.goBack();
+      await page.waitForTimeout(400);
+      ok((await dlg.count()) === 0 && (await su.query(`select 1 from public.human_design_clients where id=$1`, [P])).rowCount === 1, "son onayda Android geri → vazgeç, silme yok");
+      await modal.locator("[data-hd-delete-open]").click();
+      await dlg.locator("[data-hd-full-delete-counts]").waitFor();
+      await dlg.locator("[data-hd-full-delete-next]").click();
+      await page.screenshot({ path: path.join(OUT, "sil-son-onay.png") });
       await dlg.locator("[data-hd-full-delete-confirm]").click();
-      await page.locator("[data-hd-list-notice]").filter({ hasText: "tamamen silindi" }).waitFor({ timeout: 30_000 });
+      await page.locator("[data-hd-list-notice]").filter({ hasText: "kayıtları silindi" }).waitFor({ timeout: 30_000 });
       ok((await su.query(`select 1 from public.human_design_clients where id=$1`, [P])).rowCount === 0 && (await su.query(`select 1 from public.human_design_charts where client_id=$1`, [P])).rowCount === 0, "B03 HD kaydı tamamen silindi");
       ok((await su.query(`select 1 from public.clients where id=$1`, [J])).rowCount === 1, "B06 Danışan Yolculuğu kaydı korundu");
       ok((await su.query(`select 1 from public.human_design_clients where id=$1`, [D])).rowCount === 1, "başka danışan korundu");
@@ -201,25 +194,14 @@ async function main() {
       await page.context().close();
     }
 
-    section("İlk analiz tarihi tercihi");
+    section("İlk analiz tarihi — her zaman görünür (göster/gizle yok)");
     {
       const page = await newPage(DESKTOP);
       await page.goto(`${APP}/human-design/danisanlar`);
       await groupRow(page, D).waitFor({ timeout: 60_000 });
-      ok((await groupRow(page, D).locator("[data-hd-group-first]").count()) === 1, "D01 ilk analiz tarihi görünür (varsayılan)");
-      await page.locator("[data-hd-first-analysis-toggle]").uncheck();
-      ok((await groupRow(page, D).locator("[data-hd-group-first]").count()) === 0, "D03 uzman ilk analiz tarihini gizleyebilir");
-      await page.reload();
-      await groupRow(page, D).waitFor({ timeout: 60_000 });
-      ok((await groupRow(page, D).locator("[data-hd-group-first]").count()) === 0 && !(await page.locator("[data-hd-first-analysis-toggle]").isChecked()), "D04 tercih sayfa yenilemede korunur");
-      const created = (await su.query(`select created_at from public.human_design_charts where client_id=$1`, [D])).rows[0];
-      ok(!!created, "D06 gizlemek veritabanındaki analiz tarihini değiştirmez/silmez");
+      ok((await groupRow(page, D).locator("[data-hd-group-first]").count()) === 1 && (await groupRow(page, D).locator("[data-hd-group-last]").count()) === 1 && (await groupRow(page, D).locator("[data-hd-group-count]").count()) === 1, "ilk analiz + son analiz + analiz sayısı görünür");
+      ok((await page.locator("[data-hd-first-analysis-toggle]").count()) === 0 && (await page.getByText("İlk analiz tarihini göster").count()) === 0, "'İlk analiz tarihini göster' kutusu yok");
       await page.context().close();
-      const pb = await newPage(DESKTOP, UB, TB, "ZZ_FCBB");
-      await pb.goto(`${APP}/human-design/danisanlar`);
-      await pb.locator("[data-hd-group]").first().waitFor({ timeout: 60_000 });
-      ok(await pb.locator("[data-hd-first-analysis-toggle]").isChecked(), "D05 başka uzmanın tercihi etkilenmez (kendi varsayılanı: göster)");
-      await pb.context().close();
     }
 
     section("Genel");
