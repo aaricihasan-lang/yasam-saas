@@ -1,8 +1,10 @@
-// İlişki (Connection) ve Grup (Penta) analizleri — profesyonel Word (.docx) raporu (SAF; ağ/DB YOK).
+// İlişki (Connection) ve Grup (Penta) — profesyonel Word (.docx) raporu (SAF; ağ/DB YOK).
 //
-//   • Kaynak YALNIZ kayıtlı analiz görünümü (getRelationAnalysis) → yeni Roxy çağrısı YOK.
-//   • Ham sağlayıcı yanıtı (provider_raw) rapora girmez; API anahtarı hiçbir koşulda yok.
-//   • Başlık Connection / Penta ayrımını taşır; katılımcılar etiket (A/B ya da 1–5) + adla eşleşir.
+//   • Kaynak YALNIZ kayıtlı rapor snapshot'ı (DONMUŞ içerik) → yeni Roxy çağrısı YOK; kayıtlı rapor
+//     tekrar indirilince içerik değişmez. Görsel snapshot'taki kayıtlı veriden aynı sahneyle çizilir.
+//   • Her durumda: katılımcılar (etiket A/B ya da 1–5 + ad) + teknik sonuçlar. İsteğe bağlı (yalnız
+//     raporda seçildiyse): Analiz Açıklamaları · Bilgi Bankası kayıtları (özel çalışma notu YOK) · Uzman Yorumu.
+//   • Sağlayıcı adı / uç / adaptör / nodeType RAPORDA YOK.
 //   • Mevcut tek kişilik BodyGraph Word raporu DEĞİŞTİRİLMEDİ; ortak docx yardımcıları kullanılır.
 
 import { AlignmentType, Document, Packer, Paragraph, TextRun, type Table } from "docx";
@@ -10,8 +12,10 @@ import {
   bodyText,
   buildFooter,
   buildHeader,
+  embedImageParagraph,
   h1,
   h2,
+  h3,
   muted,
   repeatingHeaderTable,
   twoColTable,
@@ -20,12 +24,14 @@ import {
   C_MID,
   type ReportChild,
 } from "@/lib/docx/reportHelpers";
-import { hdXmlSafeLine } from "../reporting/xmlSafeText";
+import { hdXmlSafeLine, hdXmlSafeMultiline } from "../reporting/xmlSafeText";
 import { hdCenterLabelFromCode } from "../codeHelpers";
 import { hdGateDefaultName } from "../knowledge/hdNames";
 import { channelCenterCodes, type HdConnectionResult } from "./connection";
 import type { HdPentaResult } from "./penta";
 import type { RelationAnalysisView } from "./relationService";
+import type { RelationReportSnapshot } from "./relationExtras";
+import { ANALYSIS_EXPLANATION_DISCLAIMER, ANALYSIS_EXPLANATION_SOURCE } from "./explanations";
 import {
   circuitLabel,
   combinedDefinitionLabel,
@@ -67,10 +73,21 @@ function participantsTable(a: RelationAnalysisView): Table[] {
   );
 }
 
+const LEGEND_CONNECTION = [
+  "Renk kişiyi gösterir: mavi = A, turuncu = B; iki renkli (çizgili / yarım daire) = iki kişide ortak kapı.",
+  "Kalın kanal = birleşik haritada tanımlı. İnce kesikli yarım kanal = yalnız bir kapısı aktif (tanımlı değil).",
+  "Kanal ortasındaki şekil bağlantı türünü gösterir: ◆ Elektromanyetik · ▲ Baskınlık · ■ Uzlaşma · ● Arkadaşlık / Eşlik.",
+  "Dolgulu merkez = birleşik haritada tanımlı; merkezdeki A / B / A+B = merkezi kendi haritasında tanımlayan kişi.",
+];
+const LEGEND_PENTA = [
+  "Düz mor çizgi = grupta tanımlı Penta kanalı (güçlü yön); pembe kalın = 2/14 çekirdek; kesikli gri = boşluk var.",
+  "Kapının yanındaki numaralar o kapıyı taşıyan üyeleri gösterir; 'boşluk' = hiçbir üye taşımıyor.",
+];
+
 function connectionBody(a: RelationAnalysisView, r: HdConnectionResult): ReportChild[] {
   const nameOf = (tag: "A" | "B") => safe(a.participants[tag === "A" ? 0 : 1]?.name ?? tag);
   const out: ReportChild[] = [];
-  out.push(h1("Bağlantı Özeti"));
+  out.push(h1("Bağlantı Özeti", true));
   out.push(
     twoColTable([
       ["Bağlı kanal sayısı", String(r.totalChannels)],
@@ -80,7 +97,6 @@ function connectionBody(a: RelationAnalysisView, r: HdConnectionResult): ReportC
   );
   out.push(h2("Bağlantı Türleri"));
   for (const d of DYNAMIC_ORDER) out.push(bodyText(`${DYNAMIC_LABEL[d]}: ${DYNAMIC_DEFINITION[d]}`, 20));
-
   out.push(h1("Kanal Bağlantıları", true));
   if (r.channels.length === 0) out.push(muted("İki kişi birlikte hiçbir kanalı tamamlamıyor."));
   for (const d of DYNAMIC_ORDER) {
@@ -101,9 +117,8 @@ function connectionBody(a: RelationAnalysisView, r: HdConnectionResult): ReportC
       ),
     );
   }
-
   out.push(h1("Birleşik Merkezler", true));
-  out.push(muted("Birleşik haritada bir kanal, iki kişi birlikte iki kapısını da taşıdığında tanımlı sayılır. Sütun, merkezi KENDİ haritasında kimin tanımladığını gösterir."));
+  out.push(muted("Birleşik haritada bir kanal, iki kişi birlikte iki kapısını da taşıdığında tanımlı sayılır. Son sütun merkezi KENDİ haritasında kimin tanımladığını gösterir."));
   out.push(
     ...repeatingHeaderTable(
       ["Merkez", "Birleşik Haritada", "Kendi Haritasında Tanımlayan"],
@@ -121,7 +136,7 @@ function connectionBody(a: RelationAnalysisView, r: HdConnectionResult): ReportC
 function pentaBody(a: RelationAnalysisView, r: HdPentaResult): ReportChild[] {
   const who = (idx: number[]) => (idx.length ? idx.map((i) => `${i + 1}. ${safe(a.participants[i]?.name ?? "?")}`).join(", ") : "—");
   const out: ReportChild[] = [];
-  out.push(h1("Grup Özeti"));
+  out.push(h1("Grup Özeti", true));
   out.push(
     twoColTable([
       ["Üye sayısı", String(r.memberCount)],
@@ -133,49 +148,37 @@ function pentaBody(a: RelationAnalysisView, r: HdPentaResult): ReportChild[] {
   );
   out.push(bodyText(PENTA_CORE_NOTE, 20));
   out.push(bodyText(PENTA_GAP_NOTE, 20));
-
   for (const pos of ["upper", "lower"] as const) {
-    out.push(h1(PENTA_POSITION_LABEL[pos], pos === "upper"));
+    out.push(h2(PENTA_POSITION_LABEL[pos], { keepNext: true }));
     out.push(muted(PENTA_POSITION_DEFINITION[pos]));
     out.push(
       ...repeatingHeaderTable(
         ["Kanal", "Durum", "Kapı A — taşıyan", "Kapı B — taşıyan"],
         [28, 16, 28, 28],
-        r.channels
-          .filter((c) => c.position === pos)
-          .map((c) => [
-            safe(relationChannelLabel(c.id, c.name)) + (c.isCore ? " · çekirdek" : ""),
-            c.defined ? "Güçlü yön (tanımlı)" : "Boşluk var",
-            `${c.gateA}: ${who(c.gateAHeldBy)}`,
-            `${c.gateB}: ${who(c.gateBHeldBy)}`,
-          ]),
+        r.channels.filter((c) => c.position === pos).map((c) => [
+          safe(relationChannelLabel(c.id, c.name)) + (c.isCore ? " · çekirdek" : ""),
+          c.defined ? "Güçlü yön (tanımlı)" : "Boşluk var",
+          `${c.gateA}: ${who(c.gateAHeldBy)}`,
+          `${c.gateB}: ${who(c.gateBHeldBy)}`,
+        ]),
       ),
     );
   }
-
   out.push(h1("Penta Kapıları ve Katkılar", true));
   out.push(
     ...repeatingHeaderTable(
       ["Kapı", "Rol (kapı adı)", "Durum", "Taşıyan üye(ler)"],
       [10, 34, 16, 40],
-      r.gates.map((g) => [
-        String(g.gate),
-        safe(hdGateDefaultName(g.gate) ?? g.gateNameLocalized ?? g.gateName),
-        g.filled ? "Dolu" : "Boşluk",
-        who(g.heldBy),
-      ]),
+      r.gates.map((g) => [String(g.gate), safe(hdGateDefaultName(g.gate) ?? g.gateNameLocalized ?? g.gateName), g.filled ? "Dolu" : "Boşluk", who(g.heldBy)]),
     ),
   );
-  out.push(h2("Üye Katkıları", { keepNext: true }));
-  for (const p of a.participants) {
-    const gates = r.gates.filter((g) => g.heldBy.includes(p.position)).map((g) => g.gate);
-    out.push(bodyText(`${p.position + 1}. ${safe(p.name)}: ${gates.length ? `Penta kapıları ${gates.join(", ")}` : "Penta kapısı taşımıyor"}`, 20));
-  }
   return out;
 }
 
-export function buildRelationReportDocument(a: RelationAnalysisView, opts: { logo?: Buffer | null } = {}): Document {
-  void opts;
+export type RelationReportOptions = { image: Buffer | null; logo?: Buffer | null };
+
+export function buildRelationReportDocument(s: RelationReportSnapshot, opts: RelationReportOptions): Document {
+  const a = s.analysis;
   const title = a.kind === "connection" ? "Human Design İlişki Analizi (Connection)" : "Human Design Grup Analizi (Penta)";
   const names = a.participants.map((p) => safe(p.name)).join(a.kind === "connection" ? " & " : ", ");
   const cover: ReportChild[] = [
@@ -185,8 +188,9 @@ export function buildRelationReportDocument(a: RelationAnalysisView, opts: { log
       ["Analiz türü", RELATION_KIND_LABEL[a.kind]],
       ...(a.relationType ? ([["İlişki bağlamı (yalnız bilgi)", RELATION_TYPE_LABEL[a.relationType]]] as [string, string][]) : []),
       ["Analiz tarihi", dmy(a.createdAt)],
+      ["Rapor tarihi", dmy(s.generatedAt)],
       ["Kişi sayısı", String(a.memberCount)],
-      ["Hesaplama kaynağı", `RoxyAPI ${a.provider.endpoint} · nodeType: ${a.provider.nodeType} · ${a.provider.adapterVersion}`],
+      ...(s.preparedBy ? ([["Raporu Hazırlayan", safe(s.preparedBy)]] as [string, string][]) : []),
     ]),
     muted(RELATION_DISCLAIMER),
   ];
@@ -195,8 +199,45 @@ export function buildRelationReportDocument(a: RelationAnalysisView, opts: { log
     const note = STATUS_NOTE[p.status];
     if (note) body.push(muted(`${participantTag(a.kind, p.position)} — ${safe(p.name)}: ${note}`));
   }
+  // Görsel (ana grafik)
+  body.push(h1(a.kind === "connection" ? "Birleşik İlişki BodyGraph'ı" : "Penta Şeması", true));
+  if (opts.image) {
+    body.push(embedImageParagraph(opts.image, 470, 620));
+    for (const l of a.kind === "connection" ? LEGEND_CONNECTION : LEGEND_PENTA) body.push(muted(l));
+  } else {
+    body.push(muted(s.image.reason ?? "Görsel bu raporda oluşturulamadı."));
+  }
   body.push(...(a.kind === "connection" ? connectionBody(a, a.result as HdConnectionResult) : pentaBody(a, a.result as HdPentaResult)));
+
+  if (s.sections.analysis) {
+    body.push(h1("Analiz Açıklamaları", true));
+    body.push(muted(ANALYSIS_EXPLANATION_SOURCE));
+    for (const sec of s.sections.analysis) {
+      body.push(h2(safe(sec.title), { keepNext: true }));
+      for (const it of sec.items) {
+        body.push(h3(safe(it.title), { keepNext: true }));
+        body.push(bodyText(hdXmlSafeMultiline(it.text), 21));
+      }
+    }
+    body.push(muted(ANALYSIS_EXPLANATION_DISCLAIMER));
+  }
+  if (s.sections.knowledge && s.sections.knowledge.length) {
+    body.push(h1("Bilgi Bankamdaki Açıklamalar", true));
+    body.push(muted("Uzmanın kendi Bilgi Bankası kayıtları. Kişiye ait bireysel kayıtlar kişinin adıyla belirtilmiştir; genel kanal/kapı kayıtları ilişki/grup yorumu değildir."));
+    for (const g of s.sections.knowledge) {
+      body.push(h2(safe(g.title), { keepNext: true }));
+      for (const e of g.entries) {
+        body.push(h3(safe(e.title), { keepNext: true }));
+        body.push(bodyText(e.content, 21));
+      }
+    }
+  }
+  if (s.sections.expertComment) {
+    body.push(h1("Uzman Yorumu", true));
+    for (const para of s.sections.expertComment.split(/\n{2,}/)) body.push(bodyText(para, 22));
+  }
   body.push(muted(RELATION_DISCLAIMER));
+  void opts.logo;
   return new Document({
     creator: "Yaşam Sistemi",
     title: safe(`${title} — ${names}`),
@@ -208,11 +249,11 @@ export function buildRelationReportDocument(a: RelationAnalysisView, opts: { log
   });
 }
 
-export async function renderRelationReportBuffer(a: RelationAnalysisView): Promise<Buffer> {
-  return Packer.toBuffer(buildRelationReportDocument(a));
+export async function renderRelationReportBuffer(s: RelationReportSnapshot, opts: RelationReportOptions): Promise<Buffer> {
+  return Packer.toBuffer(buildRelationReportDocument(s, opts));
 }
 
-export function relationReportFilename(a: RelationAnalysisView): string {
+export function relationReportFilename(a: RelationAnalysisView, generatedAt: string): string {
   const slug = a.participants
     .map((p) => p.name)
     .join("-")
@@ -222,5 +263,5 @@ export function relationReportFilename(a: RelationAnalysisView): string {
     .replace(/[^A-Za-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60) || "analiz";
-  return `${a.kind === "connection" ? "HD-Iliski" : "HD-Grup-Penta"}-${slug}-${(a.createdAt ?? "").slice(0, 10)}.docx`;
+  return `${a.kind === "connection" ? "HD-Iliski" : "HD-Grup-Penta"}-${slug}-${(generatedAt ?? "").slice(0, 10)}.docx`;
 }

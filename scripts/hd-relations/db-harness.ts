@@ -43,9 +43,16 @@ create table public.human_design_charts (
   created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
 insert into public.tenants(id, name) values ('${TA}', 'ZZ_REL_A'), ('${TB}', 'ZZ_REL_B');
-grant select, insert, update, delete on public.human_design_clients, public.human_design_charts to service_role;
+create table public.human_design_knowledge_records (
+  id uuid primary key default gen_random_uuid(), tenant_id uuid, user_id uuid, category text, title text, code text, content text,
+  keywords jsonb default '[]', related_gates jsonb default '[]', related_channels jsonb default '[]', related_centers jsonb default '[]', tags jsonb default '[]',
+  sort_order int default 0, is_active boolean default true, created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
+  expert_notes text
+);
+grant select, insert, update, delete on public.human_design_clients, public.human_design_charts, public.human_design_knowledge_records to service_role;
 `;
 const MIGRATION = src("supabase/migrations/20271102000000_hd_relation_analyses.sql");
+const MIGRATION2 = src("supabase/migrations/20271103000000_hd_relation_comments_reports.sql");
 
 type RouteFn = (req: NextRequest, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
 async function call(handler: unknown, method: string, auth: Auth, opts: { body?: unknown; query?: string; params?: Record<string, string>; ua?: string } = {}) {
@@ -83,7 +90,7 @@ async function main() {
     throw new Error("harness: dış ağ çağrısı yasak");
   }) as typeof fetch;
 
-  const env: TestEnv = await startAnamnezTestEnv({ port: 54412, dirName: "hd-relations-pgdata", extraSql: [HD_DDL, MIGRATION] });
+  const env: TestEnv = await startAnamnezTestEnv({ port: 54412, dirName: "hd-relations-pgdata", extraSql: [HD_DDL, MIGRATION, MIGRATION2] });
   const su = env.su;
   process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;
   process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_KEY;
@@ -101,6 +108,15 @@ async function main() {
     for (let i = 0; i < 6; i++) await seedClient(TA, cid(i), hid(i), NAMES[i], PEOPLE[i]);
     await seedClient(TB, cid(0, "d"), hid(0, "d"), "B Uzman Danışanı", PEOPLE[0]);
 
+    const { toAppTypeCode } = await import("../../lib/human-design/normalize/hdAppCodes");
+    const typeOf = (i: number) => String(toAppTypeCode(engineChart(PEOPLE[i]).type));
+    await su.query(
+      `insert into public.human_design_knowledge_records(tenant_id, category, title, code, content, expert_notes, is_active) values
+        ($1,'Tipler','Tip kaydı','tip_' || $3,'ZZ_TIP_ICERIK','ZZ_GIZLI_NOT_TIP',true),
+        ($1,'Kanallar','Kanal kaydı','kanal_' || $4,'ZZ_KANAL_ICERIK','ZZ_GIZLI_NOT_KANAL',true),
+        ($2,'Kanallar','B kanal','kanal_' || $4,'ZZ_B_SIZMAMALI',null,true)`,
+      [TA, TB, typeOf(0), "1_8"],
+    );
     const U = {
       A: await mkUser(su, "RELA", TA, { human_design: true, clients: true }),
       A2: await mkUser(su, "RELA2", TA, { human_design: true }),
@@ -111,7 +127,10 @@ async function main() {
       list: await import("../../app/api/hd/relations/route"),
       one: await import("../../app/api/hd/relations/[id]/route"),
       cand: await import("../../app/api/hd/relations/candidates/route"),
-      report: await import("../../app/api/hd/relations/[id]/report/route"),
+      reports: await import("../../app/api/hd/relations/[id]/reports/route"),
+      comment: await import("../../app/api/hd/relations/[id]/comment/route"),
+      knowledge: await import("../../app/api/hd/relations/[id]/knowledge/route"),
+      download: await import("../../app/api/hd/relations/reports/[reportId]/download/route"),
     };
     const P = (...i: number[]) => ({ participants: i.map((n) => ({ client_id: cid(n), chart_id: hid(n) })) });
     const count = async (sql: string, p: unknown[] = []) => Number((await su.query(sql, p)).rows[0].n);
@@ -179,14 +198,66 @@ async function main() {
     ok((candB.json.rows as Json[]).length === 1 && (candB.json.rows as Json[])[0].name === "B Uzman Danışanı", "4e B yalnız kendi danışanını görür");
     ok(roxy.connection + roxy.penta === callsBefore, "4f açma/liste/aday: Roxy 0");
 
-    section("5. Word raporu (Roxy 0) + Android kısıtı");
-    const w = await call(routes.report.POST, "POST", U.A, { params: { id: aid } });
-    const xml = w.buf ? await (await JSZip.loadAsync(w.buf)).file("word/document.xml")!.async("string") : "";
-    ok(w.status === 200 && xml.includes("İlişki Analizi (Connection)") && xml.includes(NAMES[0]) && !xml.includes("zz-harness-fake-roxy-key"), "5a Word: Connection başlığı + adlar; anahtar yok");
-    const wa = await call(routes.report.POST, "POST", U.A, { params: { id: aid }, ua: "Mozilla/5.0 (Linux; Android 14; Pixel) Chrome/130 Mobile" });
-    ok(wa.status === 403, "5b Android → 403 (mevcut Word kuralı)");
-    ok((await call(routes.report.POST, "POST", U.B, { params: { id: aid } })).status === 404, "5c başka tenant raporu → 404");
-    ok(roxy.connection + roxy.penta === callsBefore, "5d rapor: Roxy 0");
+    section("5. Uzman Yorumu + Raporu Hazırla + Word (Roxy 0) + Android kısıtı");
+    const m2 = (await su.query(`select has_table_privilege('anon','public.human_design_relation_reports','SELECT') a, has_table_privilege('authenticated','public.human_design_relation_reports','SELECT') b, (select relrowsecurity from pg_class where relname='human_design_relation_reports') r`)).rows[0];
+    ok(!m2.a && !m2.b && m2.r === true, "5a migration 2: rapor tablosu anon/auth kilitli + RLS", m2);
+    const c0 = await call(routes.comment.GET, "GET", U.A, { params: { id: aid } });
+    ok(c0.status === 200 && (c0.json.comment as Json).available === true && (c0.json.comment as Json).text === null, "5b yorum başlangıçta boş");
+    const cs = await call(routes.comment.PATCH, "PATCH", U.A, { params: { id: aid }, body: { text: "Uzman yorumu: ilk sürüm\n\nİkinci paragraf", expected_updated_at: null } });
+    const v1 = String((cs.json.comment as Json).updatedAt);
+    ok(cs.status === 200 && (cs.json.comment as Json).text === "Uzman yorumu: ilk sürüm\n\nİkinci paragraf", "5c yorum kaydedildi", cs.json);
+    const stale = await call(routes.comment.PATCH, "PATCH", U.A2, { params: { id: aid }, body: { text: "eski sürüme dayalı", expected_updated_at: null } });
+    ok(stale.status === 409, "5d eşzamanlı düzenleme (eski sürüm) → 409, üzerine yazılmaz", stale.json);
+    ok((await call(routes.comment.GET, "GET", U.B, { params: { id: aid } })).status === 404 && (await call(routes.comment.PATCH, "PATCH", U.B, { params: { id: aid }, body: { text: "x", expected_updated_at: null } })).status === 404, "5e başka tenant yorumu okuyamaz / yazamaz → 404");
+    const clr = await call(routes.comment.PATCH, "PATCH", U.A, { params: { id: aid }, body: { text: "   ", expected_updated_at: v1 } });
+    ok(clr.status === 422 && clr.json.code === "CLEAR_NOT_CONFIRMED", "5f kayıtlı yorum onaysız boşaltılamaz");
+    const big = await call(routes.comment.PATCH, "PATCH", U.A, { params: { id: aid }, body: { text: "x".repeat(10001), expected_updated_at: v1 } });
+    ok(big.status === 422, "5g 10.000 karakter sınırı");
+    let ckLen = false;
+    try { await su.query(`update public.human_design_relation_analyses set expert_comment=repeat('x', 10001) where id=$1`, [aid]); } catch { ckLen = true; }
+    ok(ckLen, "5h DB CHECK: 10.000 üstü yorum reddedilir");
+    // Rapor 1: yalnız teknik (varsayılan kapalı seçimler)
+    const rep1 = await call(routes.reports.POST, "POST", U.A, { params: { id: aid }, body: {} });
+    ok(rep1.status === 200 && (rep1.json.sections as Json).expertComment === false && (rep1.json.sections as Json).analysis === false && (rep1.json.image as Json).status === "ok", "5i varsayılan rapor: seçimler KAPALI, görsel hazır", rep1.json);
+    // Rapor 2: tüm içerik + hazırlayan
+    const rep2 = await call(routes.reports.POST, "POST", U.A, { params: { id: aid }, body: { sections: { analysis: true, knowledge: true, expert_comment: true }, prepared_by: "Uzm. Test" } });
+    ok(rep2.status === 200 && (rep2.json.sections as Json).expertComment === true, "5j tam içerikli rapor hazırlandı", rep2.json);
+    const dl = async (rid: string, auth = U.A, ua?: string) => call(routes.download.POST, "POST", auth, { params: { reportId: rid }, ua });
+    const docOf = async (buf: Buffer | null) => {
+      const z = await JSZip.loadAsync(buf!);
+      const xml = await z.file("word/document.xml")!.async("string");
+      return { xml, text: xml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " "), media: Object.keys(z.files).filter((f) => /^word\/media\/.+\.png$/.test(f)) };
+    };
+    const dlr1 = await dl(String(rep1.json.id));
+    const doc1 = await docOf(dlr1.buf);
+    ok(dlr1.status === 200 && doc1.text.includes("İlişki Analizi (Connection)") && doc1.text.includes(NAMES[0]) && !doc1.text.includes("Uzman yorumu: ilk sürüm") && !doc1.text.includes("Analiz Açıklamaları"), "5k teknik rapor: uzman yorumu / açıklama YOK (seçilmedi)");
+    ok(doc1.media.length === 1, "5l Word'de birleşik harita görseli (PNG) var", doc1.media);
+    const dlr2 = await dl(String(rep2.json.id));
+    const doc2 = await docOf(dlr2.buf);
+    ok(doc2.text.includes("Uzman Yorumu") && doc2.text.includes("Uzman yorumu: ilk sürüm") && doc2.text.includes("İkinci paragraf") && doc2.text.includes("Analiz Açıklamaları") && doc2.text.includes("Uzm. Test"), "5m seçilen içerik + Raporu Hazırlayan Word'de");
+    ok(![doc1.xml, doc2.xml].some((x) => /roxy|\/human-design\/|nodeType|adapter|zz-harness-fake-roxy-key/i.test(x)), "5n Word'de sağlayıcı adı / uç / nodeType / anahtar YOK");
+    ok(doc2.text.includes("ZZ_KANAL_ICERIK") && doc2.text.includes("ZZ_TIP_ICERIK") && doc2.text.includes(`${NAMES[0]} — bireysel kayıtlarınız`), "5n2 Bilgi Bankası: genel kanal kaydı + kişi adıyla bireysel tip kaydı Word'de");
+    ok(!/ZZ_GIZLI_NOT|ZZ_B_SIZMAMALI/.test(doc2.text) && !doc1.text.includes("ZZ_KANAL_ICERIK"), "5n3 özel çalışma notu ve başka tenant kaydı Word'e GİRMEZ; seçilmeyen raporda Bilgi Bankası yok");
+    const src = await call(routes.knowledge.GET, "GET", U.A, { params: { id: aid } });
+    const srcStr = JSON.stringify(src.json);
+    ok(src.status === 200 && srcStr.includes("ZZ_GIZLI_NOT_KANAL") && !srcStr.includes("ZZ_B_SIZMAMALI") && src.json.central === null && src.json.systemReading === null && (src.json.analysis as unknown[]).length > 0, "5n4 ekran kaynakları: özel not yalnız ekranda; B kaydı yok; normal uzmanda merkezî kaynak null; Sistem Yorumu yok");
+    // Yorum sonradan değişir → kayıtlı rapor DEĞİŞMEZ; yeni rapor yeni yorumu alır
+    const cur = await call(routes.comment.GET, "GET", U.A, { params: { id: aid } });
+    await call(routes.comment.PATCH, "PATCH", U.A, { params: { id: aid }, body: { text: "Uzman yorumu: ikinci sürüm", expected_updated_at: (cur.json.comment as Json).updatedAt } });
+    const doc2b = await docOf((await dl(String(rep2.json.id))).buf);
+    ok(doc2b.text.includes("Uzman yorumu: ilk sürüm") && !doc2b.text.includes("ikinci sürüm"), "5o kayıtlı rapor tekrar indirilince değişmez (eski yorum)");
+    const rep3 = await call(routes.reports.POST, "POST", U.A, { params: { id: aid }, body: { sections: { expert_comment: true } } });
+    const doc3 = await docOf((await dl(String(rep3.json.id))).buf);
+    ok(doc3.text.includes("ikinci sürüm") && !doc3.text.includes("ilk sürüm"), "5p yeni rapor yeni yorumu içerir");
+    const list = await call(routes.reports.GET, "GET", U.A, { params: { id: aid } });
+    ok(list.status === 200 && (list.json.rows as Json[]).length === 3, "5q rapor listesi: 3 kayıt");
+    ok((await call(routes.reports.GET, "GET", U.B, { params: { id: aid } })).status === 200 && ((await call(routes.reports.GET, "GET", U.B, { params: { id: aid } })).json.rows as Json[]).length === 0 && (await dl(String(rep1.json.id), U.B)).status === 404, "5r başka tenant raporları göremez / indiremez");
+    const AND = "Mozilla/5.0 (Linux; Android 14; Pixel) Chrome/130 Mobile";
+    ok((await dl(String(rep1.json.id), U.A, AND)).status === 403 && (await call(routes.reports.POST, "POST", U.A, { params: { id: aid }, body: {}, ua: AND })).status === 403, "5s Android: rapor hazırlama + indirme → 403 (mevcut Word kuralı)");
+    let fkRep = false;
+    try { await su.query(`insert into public.human_design_relation_reports(id, tenant_id, analysis_id, snapshot) values (gen_random_uuid(), $1, $2, '{}')`, [TB, aid]); } catch { fkRep = true; }
+    ok(fkRep, "5t rapor başka tenant ile analize bağlanamaz (bileşik FK)");
+    ok(roxy.connection + roxy.penta === callsBefore, "5u yorum + rapor + indirme: Roxy 0");
 
     section("6. Silme güvenliği + DB bütünlüğü");
     const clientsBefore = await count(`select count(*) n from public.human_design_clients`);
@@ -292,7 +363,7 @@ async function main() {
     section("7. Demo hesap + migration uygulanmamış senaryosu");
     await su.query(`update public.users set is_demo_account=true where id=$1`, [U.A2.id]);
     ok((await call(routes.list.POST, "POST", U.A2, { body: P(0, 2) })).status === 403, "7a demo hesap yeni analiz oluşturamaz");
-    await su.query(`drop table public.human_design_relation_participants; drop table public.human_design_relation_analyses;`);
+    await su.query(`drop table public.human_design_relation_reports; drop table public.human_design_relation_participants; drop table public.human_design_relation_analyses;`);
     const beforeM = roxy.connection;
     const mp = await call(routes.list.POST, "POST", U.A, { body: P(0, 2) });
     ok(mp.status === 503 && mp.json.code === "RELATIONS_UNAVAILABLE" && roxy.connection === beforeM, "7b tablolar yokken → 503, Roxy ÇAĞRILMAZ", mp.json);

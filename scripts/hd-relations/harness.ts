@@ -34,6 +34,7 @@ import {
   type RelationServiceDeps,
 } from "../../lib/human-design/relations/relationService";
 import { renderRelationReportBuffer, relationReportFilename } from "../../lib/human-design/relations/relationReport";
+import { createRelationReport, getRelationReportSnapshot } from "../../lib/human-design/relations/relationExtras";
 import { callRoxyConnection, callRoxyPenta } from "../../lib/human-design/providers/roxy/relationClient";
 import type { RoxyCallResult } from "../../lib/human-design/providers/roxy/client";
 import { readFileSync } from "node:fs";
@@ -329,15 +330,24 @@ async function main() {
     const xml = await z.file("word/document.xml")!.async("string");
     return { xml, text: xml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ") };
   };
-  const dc = await docText(await renderRelationReportBuffer(vC.body.analysis));
+  const snap = async (id: string, opts: Record<string, unknown> = {}) => {
+    const c = await createRelationReport(ctxOf(s8.db), id, opts);
+    if (!c.body.ok) throw new Error("rapor oluşturulamadı " + JSON.stringify(c.body));
+    const g = await getRelationReportSnapshot(ctxOf(s8.db), c.body.id);
+    if (!g.body.ok) throw new Error("snapshot yok");
+    return g.body.snapshot;
+  };
+  const sC = await snap(vC.body.analysis.id);
+  const sP = await snap(vP.body.analysis.id);
+  const dc = await docText(await renderRelationReportBuffer(sC, { image: null }));
   ok("E1 Connection raporu: başlık 'İlişki Analizi (Connection)' + iki ad + A/B eşleşmesi", dc.text.includes("Human Design İlişki Analizi (Connection)") && dc.text.includes(NAMES[0]) && dc.text.includes(NAMES[1]) && dc.text.includes(`A: ${NAMES[0]}`) && dc.text.includes(`B: ${NAMES[1]}`));
   ok("E2 Connection raporu: dört bağlantı türü + birleşik merkezler + birleşik tanım", ["Elektromanyetik (Electromagnetic)", "Baskınlık (Dominance)", "Uzlaşma (Compromise)", "Arkadaşlık / Eşlik (Companionship)", "Birleşik Merkezler", "Birleşik Tanım (Combined Definition)"].every((x) => dc.text.includes(x)));
   ok("E3 bağlam yalnız bilgi olarak: 'Anne – Çocuk'; puan/yüzde/garanti YOK", dc.text.includes("Anne – Çocuk") && !/%|uyum puanı|başarılı olacak/i.test(dc.text.replace(/bilimsel olarak doğrulanmış bir ilişki tahmini, uyum puanı veya başarı garantisi değildir/g, "")));
-  const dpx = await docText(await renderRelationReportBuffer(vP.body.analysis));
-  ok("E4 Penta raporu: başlık 'Grup Analizi (Penta)' + dört üye + üst/alt Penta + kapılar + katkılar", dpx.text.includes("Human Design Grup Analizi (Penta)") && [2, 3, 4, 5].every((i) => dpx.text.includes(NAMES[i])) && dpx.text.includes("Üst Penta (G → Boğaz)") && dpx.text.includes("Alt Penta (G → Sakral)") && dpx.text.includes("Penta Kapıları ve Katkılar") && dpx.text.includes("Üye Katkıları"));
-  ok("E5 raporda API anahtarı / ham yanıt alanı YOK", ![dc.xml, dpx.xml].some((x) => x.includes("zz-harness-fake-roxy-key") || x.includes("provider_raw") || x.includes("dynamicLocalized")));
+  const dpx = await docText(await renderRelationReportBuffer(sP, { image: null }));
+  ok("E4 Penta raporu: başlık 'Grup Analizi (Penta)' + dört üye + üst/alt Penta + kapılar + katkılar", dpx.text.includes("Human Design Grup Analizi (Penta)") && [2, 3, 4, 5].every((i) => dpx.text.includes(NAMES[i])) && dpx.text.includes("Üst Penta (G → Boğaz)") && dpx.text.includes("Alt Penta (G → Sakral)") && dpx.text.includes("Penta Kapıları ve Katkılar"));
+  ok("E5 raporda API anahtarı / ham yanıt / sağlayıcı adı / uç / nodeType YOK", ![dc.xml, dpx.xml].some((x) => /zz-harness-fake-roxy-key|provider_raw|dynamicLocalized|roxy|\/human-design\/|nodeType|adapter/i.test(x)));
   ok("E6 rapor üretimi Roxy çağrısı YAPMAZ", k8.connection + k8.penta === callsBeforeWord);
-  ok("E7 dosya adı Connection/Penta ayrımı + ASCII", /^HD-Iliski-Ayse-Yilmaz-Mehmet-Kaya-\d{4}-\d{2}-\d{2}\.docx$/.test(relationReportFilename(vC.body.analysis)) && relationReportFilename(vP.body.analysis).startsWith("HD-Grup-Penta-"));
+  ok("E7 dosya adı Connection/Penta ayrımı + ASCII", /^HD-Iliski-Ayse-Yilmaz-Mehmet-Kaya-\d{4}-\d{2}-\d{2}\.docx$/.test(relationReportFilename(vC.body.analysis, sC.generatedAt)) && relationReportFilename(vP.body.analysis, sP.generatedAt).startsWith("HD-Grup-Penta-"));
 
   // ─────────────────────────────────────────────────────────────────────────
   section("F — HTTP istemcisi (anahtar yalnız başlıkta; hata gövdesi aktarılmaz)");
@@ -360,37 +370,20 @@ async function main() {
   ok("G1 servis: tüm sorgular withTenant; provider_raw okuma ucu yok", (svc.match(/withTenant\(/g) ?? []).length >= 10 && !/select\([^)]*provider_raw/.test(svc));
   const ui = read("app/human-design/iliski-grup/components/HdRelationsContent.tsx") + read("app/human-design/iliski-grup/helpers/relationsClient.ts") + read("app/human-design/iliski-grup/components/RelationResultViews.tsx");
   ok("G2 istemci kodunda anahtar / provider_raw / doğrudan Roxy URL'si YOK", !/ROXY_API_KEY|provider_raw|roxyapi\.com/.test(ui));
-  ok("G3 Word düğmesi Android'de gizli (no-android) + sunucu androidWordGuard", ui.includes('className="no-android"') && read("app/api/hd/relations/[id]/report/route.ts").includes("androidWordGuard(req)"));
+  ok("G3 Word düğmesi Android'de gizli (no-android) + sunucu androidWordGuard", ui.includes('className="no-android"') && read("app/api/hd/relations/[id]/reports/route.ts").includes("androidWordGuard(req)") && read("app/api/hd/relations/reports/[reportId]/download/route.ts").includes("androidWordGuard(req)"));
   ok("G4 BodyGraph istemcisi / servisi DEĞİŞMEDİ (yeni uçlar ayrı dosyada)", !read("lib/human-design/providers/roxy/client.ts").includes("connection") && !read("lib/human-design/api/roxyChartService.ts").includes("relation"));
   ok("G5 Connection ve Penta ayrı doğrulayıcı (Penta Connection sonucunu kullanmaz)", !read("lib/human-design/relations/penta.ts").includes("connection"));
 
-  // central-client L5 ("Roxy/engine/Word/profesyonel harita/AutoCalc dosyaları DEĞİŞMEDİ") bu PR'da BİLİNÇLİ
-  // olarak FAIL verir. Bu kontrol, L5'in koruduğu alandaki farkı TAM olarak sabitler: yalnız config.ts'ye
-  // ekleme + yeni relationClient.ts. Başka bir dosya değişirse ya da config.ts'den satır silinir/değişirse
-  // (yeni güvenlik regresyonu) burada FAIL olur — L5'in bilinen FAIL'i bunu GİZLEYEMEZ.
+  // central-client L5 ("Roxy/engine/Word/profesyonel harita/AutoCalc dosyaları DEĞİŞMEDİ"): PR #427 merge edildi;
+  // bu PR'da L5'in koruduğu alanda HİÇBİR değişiklik olmamalı (BodyGraph sağlayıcı/motor/harita dosyaları).
   {
     const { execSync } = await import("node:child_process");
     const L5 = "lib/human-design/providers lib/human-design/api/roxyChartService.ts lib/human-design/engine app/human-design/kayitli-haritalar/components/HdComputedChartView.tsx app/human-design/danisanlar/components/HdAutoCalcPanel.tsx";
-    let names = "";
-    let cfg = "";
+    let names = "GIT_ERROR";
     try {
       names = execSync(`git diff --name-status origin/main -- ${L5}`, { encoding: "utf8" }).trim();
-      cfg = execSync("git diff -U0 origin/main -- lib/human-design/providers/roxy/config.ts", { encoding: "utf8" });
-    } catch { names = "GIT_ERROR"; }
-    const status = names.split(/\r?\n/).filter(Boolean).map((l) => l.replace(/\s+/g, " ")).sort().join(" | ");
-    ok("G6 L5 korumalı alanda YALNIZ: config.ts (değişti) + relationClient.ts (yeni) — başka dosya değişmedi", status === "A lib/human-design/providers/roxy/relationClient.ts | M lib/human-design/providers/roxy/config.ts", status);
-    const removed = cfg.split(/\r?\n/).filter((l) => l.startsWith("-") && !l.startsWith("---"));
-    const added = cfg.split(/\r?\n/).filter((l) => l.startsWith("+") && !l.startsWith("+++")).map((l) => l.slice(1).trim()).filter(Boolean);
-    const allowed = [
-      /^\/\/ İlişki ve Grup Analizleri/,
-      /^\/\*\* .* \*\/$/,
-      /^export const ROXY_CONNECTION_ENDPOINT = "\/human-design\/connection";$/,
-      /^export const ROXY_PENTA_ENDPOINT = "\/human-design\/penta";$/,
-      /^export const ROXY_CONNECTION_ADAPTER_VERSION = "roxy-connection-1";$/,
-      /^export const ROXY_PENTA_ADAPTER_VERSION = "roxy-penta-1";$/,
-    ];
-    ok("G7 config.ts farkı YALNIZ ekleme (silinen/değişen satır yok: BodyGraph uç, politika, limit, anahtar okuma aynen)", removed.length === 0, removed);
-    ok("G8 config.ts'ye eklenen satırlar yalnız iki uç + iki adaptör sürümü (+ açıklama)", added.length > 0 && added.every((l) => allowed.some((r) => r.test(l))), added);
+    } catch { /* GIT_ERROR */ }
+    ok("G6 L5 korumalı alan (Roxy sağlayıcı / motor / bireysel harita) bu PR'da DEĞİŞMEDİ", names === "", names);
   }
 
   ok("Z ağ çağrısı (gerçek Roxy dahil) 0", netCalls === 0, netCalls);

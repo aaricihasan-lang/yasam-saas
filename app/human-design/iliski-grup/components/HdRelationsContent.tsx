@@ -21,7 +21,8 @@ import {
   RELATION_KIND_LABEL,
   RELATION_TYPE_LABEL,
 } from "@/lib/human-design/relations/labels";
-import { createRelation, deleteRelation, downloadRelationReport, fetchRelationAnalysis, fetchRelationCandidates, fetchRelationList } from "../helpers/relationsClient";
+import { createRelation, deleteRelation, fetchRelationAnalysis, fetchRelationCandidates, fetchRelationList } from "../helpers/relationsClient";
+import { ExpertCommentEditor, RelationReportPanel, RelationSourcesPanel } from "./RelationWorkspace";
 import { ConnectionResultView, PentaResultView } from "./RelationResultViews";
 
 const COUNTS = [2, 3, 4, 5] as const;
@@ -299,7 +300,7 @@ function RelationDetail({ id, onDeleted }: { id: string; onDeleted: () => void }
   const { showToast } = useToast();
   const [state, setState] = useState<{ loading: boolean; a: RelationAnalysisView | null; error: string | null }>({ loading: true, a: null, error: null });
   const [confirmDel, setConfirmDel] = useState(false);
-  const [working, setWorking] = useState<"" | "delete" | "word">("");
+  const [working, setWorking] = useState<"" | "delete">("");
 
   useEffect(() => {
     let alive = true;
@@ -325,13 +326,6 @@ function RelationDetail({ id, onDeleted }: { id: string; onDeleted: () => void }
       onDeleted();
     } else showToast({ message: r.error, type: "error" });
   };
-  const doWord = async () => {
-    if (working) return;
-    setWorking("word");
-    const r = await downloadRelationReport(a.id);
-    setWorking("");
-    if (!r.ok) showToast({ message: r.error, type: "error" });
-  };
 
   return (
     <div className="space-y-4" data-hd-rel-detail={a.kind}>
@@ -346,9 +340,9 @@ function RelationDetail({ id, onDeleted }: { id: string; onDeleted: () => void }
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="no-android">
-              <button type="button" onClick={doWord} disabled={!!working} data-hd-rel-word className="min-h-[40px] rounded-xl border border-emerald-200 bg-white px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">
-                {working === "word" ? "Hazırlanıyor…" : "Word Raporu İndir"}
-              </button>
+              <a href="#hd-rel-reports" className="inline-flex min-h-[40px] items-center rounded-xl border border-emerald-200 bg-white px-3 py-1.5 text-xs font-bold text-emerald-700 no-underline hover:bg-emerald-50" data-hd-rel-word>
+                Raporu Hazırla
+              </a>
             </div>
             {confirmDel ? (
               <span className="flex flex-wrap items-center gap-1.5" data-hd-rel-confirm-delete>
@@ -384,9 +378,12 @@ function RelationDetail({ id, onDeleted }: { id: string; onDeleted: () => void }
         </ul>
       </section>
       {a.kind === "connection" ? <ConnectionResultView a={a} /> : <PentaResultView a={a} />}
-      <p className="text-[11px] leading-relaxed text-slate-500">
-        {RELATION_DISCLAIMER} Hesaplama kaynağı: RoxyAPI ({a.provider.endpoint}, nodeType: {a.provider.nodeType}). Kayıtlı sonuç gösterilmektedir.
-      </p>
+      <RelationSourcesPanel id={a.id} />
+      <ExpertCommentEditor id={a.id} />
+      <div id="hd-rel-reports" className="scroll-mt-20">
+        <RelationReportPanel id={a.id} />
+      </div>
+      <p className="text-[11px] leading-relaxed text-slate-500">{RELATION_DISCLAIMER} Kayıtlı sonuç gösterilmektedir; görüntülemede yeniden hesap yapılmaz.</p>
     </div>
   );
 }

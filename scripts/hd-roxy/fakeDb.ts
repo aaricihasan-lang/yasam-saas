@@ -133,6 +133,11 @@ export function createFakeDb(seed: Record<string, Row[]> = {}, opts: FakeDbOptio
         ins.push([c, vs]);
         return b;
       },
+      // PostgREST .is(col, null) — yalnız NULL eşleşmesi (eksik alan da NULL sayılır).
+      is(c: string, v: null) {
+        ors.push([(r: Row) => (v === null ? r[c] === null || r[c] === undefined : r[c] === v)]);
+        return b;
+      },
       order() {
         return b;
       },

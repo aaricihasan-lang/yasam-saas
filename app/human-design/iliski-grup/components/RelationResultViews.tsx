@@ -10,6 +10,12 @@ import { channelCenterCodes, type ConnectionDynamic, type HdConnectionResult } f
 import type { HdPentaResult } from "@/lib/human-design/relations/penta";
 import type { RelationAnalysisView } from "@/lib/human-design/relations/relationService";
 import type { HdCenterCode } from "@/lib/human-design/types";
+import { useMemo, useState } from "react";
+import { buildCompositeModel } from "@/lib/human-design/relations/compositeModel";
+import { buildCompositeScene, DYNAMIC_SHAPE, PERSON_COLOR } from "@/lib/human-design/relations/compositeScene";
+import { COMPOSITE_ROUTES, COMPOSITE_VIEW } from "@/lib/human-design/relations/compositeLayout";
+import { buildPentaScene, pentaChannelLines, PENTA_VIEW } from "@/lib/human-design/relations/pentaScene";
+import { SceneSvg } from "./SceneSvg";
 import {
   circuitLabel,
   combinedDefinitionLabel,
@@ -90,6 +96,109 @@ function ConnectionDiagram({ r }: { r: HdConnectionResult }) {
   );
 }
 
+
+const SHAPE_GLYPH: Record<"diamond" | "triangle" | "square" | "circle", string> = { diamond: "◆", triangle: "▲", square: "■", circle: "●" };
+
+/** Birleşik BodyGraph + lejant + seçili kanal bilgisi. Kaynak veri yok/tutarsız → güvenli yedek özet şema. */
+function CompositePanel({ a, r }: { a: RelationAnalysisView; r: HdConnectionResult }) {
+  const build = useMemo(() => buildCompositeModel(a.participants[0]?.gates ?? null, a.participants[1]?.gates ?? null, r), [a, r]);
+  const scene = useMemo(() => (build.ok ? buildCompositeScene(build.model) : null), [build]);
+  const [sel, setSel] = useState<string | null>(null);
+  const [wide, setWide] = useState(false);
+  const nameA = a.participants[0]?.name ?? "A";
+  const nameB = a.participants[1]?.name ?? "B";
+  if (!build.ok || !scene) {
+    return (
+      <div data-hd-composite="fallback">
+        <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
+          Birleşik harita çizilemedi: kaynak bireysel analiz verisi artık mevcut değil. Kayıtlı sonuçtan özet şema gösteriliyor.
+        </p>
+        <ConnectionDiagram r={r} />
+      </div>
+    );
+  }
+  const m = build.model;
+  const st = sel ? m.channels[sel] : null;
+  const who = (h: "A" | "B" | "both" | null) => (h === "both" ? `${nameA} ve ${nameB} (ortak)` : h === "A" ? nameA : h === "B" ? nameB : "kimse");
+  const route = sel ? COMPOSITE_ROUTES.find((x) => x.id === sel) : null;
+  return (
+    <div data-hd-composite="ok" data-hd-composite-defined={m.definedChannelIds.join(",")}>
+      <div className="mb-1 flex justify-end sm:hidden">
+        <button type="button" onClick={() => setWide((w) => !w)} className="min-h-[36px] rounded-lg border border-indigo-200 px-2.5 text-[11px] font-bold text-indigo-700" data-hd-composite-zoom aria-pressed={wide}>
+          {wide ? "Haritayı küçült" : "Haritayı büyüt"}
+        </button>
+      </div>
+      <div className={wide ? "-mx-2 overflow-x-auto overscroll-x-contain" : ""} data-hd-composite-scroll>
+      <SceneSvg
+        wide={wide}
+        prims={scene}
+        view={COMPOSITE_VIEW}
+        label={`Birleşik İlişki BodyGraph'ı: ${nameA} ve ${nameB}`}
+        hitRoutes={COMPOSITE_ROUTES.map((x) => ({ id: x.id, points: x.points }))}
+        selected={sel}
+        onSelect={setSel}
+        channelLabel={(id) => relationChannelLabel(id, id)}
+        testId="composite"
+      />
+      </div>
+      <div className="mt-2 min-h-[64px] rounded-xl border border-indigo-100 bg-indigo-50/40 px-3 py-2 text-xs" aria-live="polite" data-hd-composite-info={sel ?? ""}>
+        {!st || !route ? (
+          <p className="text-slate-500">Bir kanalın üzerine gelin ya da dokunun: kanal adı, kapılar ve bağlantı türü burada görünür.</p>
+        ) : st.state === "defined" ? (
+          <>
+            <p className="font-bold text-slate-900">{relationChannelLabel(st.id, st.id)} <span className="font-semibold text-indigo-700">· {DYNAMIC_LABEL[st.dynamic]}</span></p>
+            <p className="mt-0.5 text-slate-700">{route.gateA}. kapı: {who(st.holderA)} · {route.gateB}. kapı: {who(st.holderB)}</p>
+            <p className="mt-0.5 text-slate-500">{DYNAMIC_DEFINITION[st.dynamic]}</p>
+          </>
+        ) : st.state === "half" ? (
+          <>
+            <p className="font-bold text-slate-900">{relationChannelLabel(st.id, st.id)} <span className="font-semibold text-amber-700">· Yarım kanal (tanımlı değil)</span></p>
+            <p className="mt-0.5 text-slate-700">{route.gateA}. kapı: {who(st.holderA)} · {route.gateB}. kapı: {who(st.holderB)}</p>
+            <p className="mt-0.5 text-slate-500">Birlikte kanalın yalnız bir kapısı aktif; birleşik haritada tanımlı değildir.</p>
+          </>
+        ) : (
+          <p className="text-slate-700"><b>{relationChannelLabel(st.id, st.id)}</b> — iki haritada da aktif kapısı yok.</p>
+        )}
+      </div>
+      <ul className="mt-2 grid gap-1 text-[11px] text-slate-600 sm:grid-cols-2" data-hd-composite-legend>
+        <li><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: PERSON_COLOR.A }} />A · {nameA}</li>
+        <li><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: PERSON_COLOR.B }} />B · {nameB}</li>
+        <li>İki renkli kapı / çizgili kanal yarısı: ortak kapı</li>
+        <li>Kalın kanal: tanımlı · ince kesikli: yarım kanal</li>
+        {DYNAMIC_ORDER.map((d) => (<li key={d}>{SHAPE_GLYPH[DYNAMIC_SHAPE[d]]} {DYNAMIC_LABEL[d]}</li>))}
+        <li>Dolgulu merkez: birleşik haritada tanımlı · A/B: kendi haritasında tanımlayan</li>
+      </ul>
+      <details className="mt-2">
+        <summary className="cursor-pointer text-[11px] font-semibold text-indigo-700">Özet bağlantı şeması (ikincil)</summary>
+        <ConnectionDiagram r={r} />
+      </details>
+    </div>
+  );
+}
+
+function PentaPanel({ a, r }: { a: RelationAnalysisView; r: HdPentaResult }) {
+  const scene = useMemo(() => buildPentaScene(r), [r]);
+  const [sel, setSel] = useState<string | null>(null);
+  const c = sel ? r.channels.find((x) => x.id === sel) ?? null : null;
+  const who = (idx: number[]) => (idx.length ? idx.map((i) => `${i + 1}. ${a.participants[i]?.name ?? "?"}`).join(", ") : "kimse");
+  return (
+    <div data-hd-penta-diagram>
+      <SceneSvg prims={scene} view={PENTA_VIEW} label="Penta şeması: üst ve alt Penta kanalları" hitRoutes={pentaChannelLines()} selected={sel} onSelect={setSel} channelLabel={(id) => relationChannelLabel(id, id)} testId="penta" />
+      <div className="mt-2 min-h-[56px] rounded-xl border border-indigo-100 bg-indigo-50/40 px-3 py-2 text-xs" aria-live="polite" data-hd-penta-info={sel ?? ""}>
+        {!c ? (
+          <p className="text-slate-500">Bir Penta kanalına dokunun: kapılar ve taşıyan üyeler burada görünür.</p>
+        ) : (
+          <>
+            <p className="font-bold text-slate-900">{relationChannelLabel(c.id, c.name)}{c.isCore ? " · çekirdek" : ""} <span className={c.defined ? "text-emerald-700" : "text-amber-700"}>· {c.defined ? "Güçlü yön" : "Boşluk var"}</span></p>
+            <p className="mt-0.5 text-slate-700">{c.gateA}. kapı: {who(c.gateAHeldBy)} · {c.gateB}. kapı: {who(c.gateBHeldBy)}</p>
+          </>
+        )}
+      </div>
+      <p className="mt-2 text-[11px] leading-relaxed text-slate-500">Mor çizgi: grupta tanımlı kanal (güçlü yön). Pembe kalın: 2/14 çekirdek. Kesikli gri: boşluk. Kapı yanındaki numaralar taşıyan üyeler; “boşluk” hiçbir üyenin taşımadığı kapı.</p>
+    </div>
+  );
+}
+
 export function ConnectionResultView({ a }: { a: RelationAnalysisView }) {
   const r = a.result as HdConnectionResult;
   const name = (t: "A" | "B") => a.participants[t === "A" ? 0 : 1]?.name ?? t;
@@ -108,13 +217,10 @@ export function ConnectionResultView({ a }: { a: RelationAnalysisView }) {
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
-        <Card title="İlişki Haritası" attr="diagram">
-          <ConnectionDiagram r={r} />
-          <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-            Dolu daire: birleşik haritada tanımlı merkez. Harfler: merkezi kendi haritasında tanımlayan kişi (A / B). Çizgi rengi bağlantı türünü gösterir.
-          </p>
-          <p className="mt-1 text-xs font-semibold text-slate-700" data-hd-rel-definition>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,480px)_minmax(0,1fr)]">
+        <Card title="Birleşik İlişki BodyGraph'ı" attr="diagram">
+          <CompositePanel a={a} r={r} />
+          <p className="mt-2 text-xs font-semibold text-slate-700" data-hd-rel-definition>
             Birleşik Tanım (Combined Definition): {combinedDefinitionLabel(r.combinedDefinition)}
           </p>
         </Card>
@@ -176,37 +282,6 @@ export function ConnectionResultView({ a }: { a: RelationAnalysisView }) {
 
 // ─── Penta ────────────────────────────────────────────────────────────────
 
-function PentaDiagram({ r }: { r: HdPentaResult }) {
-  // Boğaz (üst) — G (orta) — Sakral (alt); her bölümde 3 kanal yan yana.
-  const xs = [80, 150, 220];
-  const up = r.channels.filter((c) => c.position === "upper");
-  const low = r.channels.filter((c) => c.position === "lower");
-  const seg = (c: HdPentaResult["channels"][number], x: number, y1: number, y2: number) => (
-    <g key={c.id} data-hd-penta-line={`${c.id}:${c.defined ? "defined" : "gap"}`}>
-      <line x1={x} y1={y1} x2={x} y2={y2} stroke={c.defined ? (c.isCore ? "#be185d" : "#4f46e5") : "#cbd5e1"} strokeWidth={c.isCore ? 7 : 5} strokeDasharray={c.defined ? undefined : "6 5"} strokeLinecap="round" />
-      <text x={x - 8} y={y1 + 16} textAnchor="end" fontSize={10} fontWeight={800} fill="#334155">{c.gateA}</text>
-      <text x={x - 8} y={y2 - 6} textAnchor="end" fontSize={10} fontWeight={800} fill="#334155">{c.gateB}</text>
-      <text x={x + 6} y={(y1 + y2) / 2} fontSize={8} fill="#64748b">{c.name}</text>
-    </g>
-  );
-  // gateA/gateB yönü sağlayıcıdan: üst kanallarda G kapısı ↔ Boğaz kapısı; sırayı yönden bağımsız göstermek için etiketleri merkezlere göre yerleştir.
-  const orient = (c: HdPentaResult["channels"][number], topGates: number[]) => (topGates.includes(c.gateA) ? c : { ...c, gateA: c.gateB, gateB: c.gateA });
-  const THROAT_GATES = [31, 8, 33];
-  const G_GATES = [7, 1, 13, 15, 2, 46];
-  return (
-    <svg viewBox="0 0 300 330" role="img" aria-label="Penta şeması: üst ve alt Penta kanalları" className="mx-auto h-auto w-full max-w-[320px]" data-hd-rel-diagram="penta">
-      {up.map((c, i) => seg(orient(c, THROAT_GATES), xs[i], 40, 150))}
-      {low.map((c, i) => seg(orient(c, G_GATES), xs[i], 180, 290))}
-      {([["Boğaz", 22], ["G Merkezi", 166], ["Sakral", 312]] as const).map(([l, y]) => (
-        <g key={l}>
-          <rect x={30} y={y - 12} width={240} height={22} rx={8} fill="#eef2ff" stroke="#6366f1" />
-          <text x={150} y={y + 3} textAnchor="middle" fontSize={11} fontWeight={800} fill="#3730a3">{l}</text>
-        </g>
-      ))}
-    </svg>
-  );
-}
-
 export function PentaResultView({ a }: { a: RelationAnalysisView }) {
   const r = a.result as HdPentaResult;
   const who = (idx: number[]) => (idx.length ? idx.map((i) => `${i + 1}. ${a.participants[i]?.name ?? "?"}`).join(", ") : "—");
@@ -226,9 +301,9 @@ export function PentaResultView({ a }: { a: RelationAnalysisView }) {
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
         <Card title="Penta Haritası" attr="diagram">
-          <PentaDiagram r={r} />
+          <PentaPanel a={a} r={r} />
           <p className="mt-2 text-[11px] leading-relaxed text-slate-500">Düz çizgi: grupta tanımlı (güçlü yön) kanal. Kesikli: boşluk var. Pembe kalın çizgi: 2/14 çekirdek.</p>
           <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{PENTA_CORE_NOTE}</p>
         </Card>
