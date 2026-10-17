@@ -950,7 +950,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
       data-variant="light"
     >
       {/* ── Tek satır başlık: geri · ad + künye · durum + işlemler ── */}
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.05)] xl:flex-nowrap [&_strong]:!text-slate-900">
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.05)] xl:flex-nowrap [&_strong]:!text-slate-900 max-sm:rounded-none max-sm:border-x-0">
         <button
           type="button"
           onClick={onBack}
@@ -997,7 +997,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
       </header>
 
       {notices}
-      {switcher && <div className="rounded-xl border border-slate-200 bg-white px-2 py-1 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">{switcher}</div>}
+      {switcher && <div className="rounded-xl border border-slate-200 bg-white px-2 py-1 shadow-[0_1px_2px_rgba(15,23,42,0.04)] max-sm:rounded-none max-sm:border-x-0">{switcher}</div>}
 
       {isDesk ? (
         <div
@@ -1089,15 +1089,15 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
         /* ── TABLET / MOBİL: harita üstte tam genişlik, altında sekmeler ve içerik (doğal kaydırma) ── */
         <div className="flex flex-col gap-2.5" data-testid="atlas-desk-mobile">
           {hasChart ? (
-            <div className="relative mx-auto aspect-square w-full max-w-[min(100%,82svh)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-testid="atlas-mobile-chart">
+            <div className="relative mx-auto aspect-square w-full max-w-[min(100%,82svh)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm max-sm:rounded-none max-sm:border-x-0" data-testid="atlas-mobile-chart">
               {chartNode(true)}
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white p-3 text-slate-800 shadow-sm" data-testid="atlas-mobile-stage">
+            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white p-3 text-slate-800 shadow-sm max-sm:rounded-none max-sm:border-x-0" data-testid="atlas-mobile-stage">
               {stage}
             </div>
           )}
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm max-sm:rounded-none max-sm:border-x-0">
             <LightTabs items={tabs} active={active} onPick={pick} idBase="atlas-result-m" />
             <div className="overflow-x-auto bg-[#fbfaf7] p-3">{panel}</div>
           </div>

@@ -1100,7 +1100,7 @@ export default function AstrologyWorkspacePage() {
       />
       )}
 
-      <div className={`mx-auto w-full max-w-[1600px] flex-col gap-5 px-4 sm:px-6 lg:px-8 ${view === "result" || view === "new" ? "py-3" : "py-6"} ${view === "home" ? "hidden" : "flex"}`}>
+      <div className={`mx-auto w-full max-w-[1600px] flex-col gap-5 pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] sm:px-6 lg:px-8 ${view === "result" || view === "new" ? "py-3" : "py-6"} ${view === "home" ? "hidden" : "flex"}`}>
         {view === "kb" && (
           <>
             <AtlasViewTitle eyebrow="Çalışma alanı" title="Bilgi Bankası" sub="Kendi yorumlarınız ve kaynak notlarınız; analizlerde ilgili konuyla otomatik eşleşir." />
@@ -1270,7 +1270,7 @@ export default function AstrologyWorkspacePage() {
           </div>
           <section className={`min-w-0 flex-col gap-5 ${view === "client" ? "flex lg:grid lg:grid-cols-[minmax(340px,420px)_minmax(0,1fr)] lg:items-start" : "hidden"}`} data-testid={view === "client" ? "astro-client-file" : undefined}>
             {view === "client" && (
-              <div className="flex flex-wrap items-center justify-between gap-2 lg:col-span-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 max-sm:px-3 lg:col-span-2">
                 <button type="button" onClick={() => go("archive")} className={atlasGhostBtn} data-testid="astro-client-file-back">
                   <ArrowLeft className="h-4 w-4" /> Analiz Arşivi&apos;ne Dön
                 </button>
@@ -1323,7 +1323,7 @@ export default function AstrologyWorkspacePage() {
             )}
 
             {view === "client" && shownDetail && !form && (
-              <div className={`${atlasPanel} flex flex-col gap-4 p-5 sm:p-6 lg:sticky lg:top-4`} data-testid="astro-client-card">
+              <div className={`${atlasPanel} flex flex-col gap-4 p-5 max-sm:px-3 sm:p-6 lg:sticky lg:top-4`} data-testid="astro-client-card">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   {/* Danışan kimliği: monogram + ad + durum rozetleri */}
                   <div className="flex min-w-0 items-center gap-4">
@@ -1386,7 +1386,7 @@ export default function AstrologyWorkspacePage() {
 
                 {/* Doğum kartı: harita künyesi gibi etiketli veri döşemeleri (yalnız mevcut alanlar). */}
                 {currentRev && (
-                  <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[#e7dcc3] bg-[#e7dcc3] sm:grid-cols-3 lg:grid-cols-2" data-testid="astro-birth-card">
+                  <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[#e7dcc3] bg-[#e7dcc3] sm:grid-cols-3 lg:grid-cols-2 max-sm:-mx-3 max-sm:rounded-none max-sm:border-x-0" data-testid="astro-birth-card">
                     {(
                       [
                         ["Doğum tarihi", currentRev.birthDate.split("-").reverse().join(".")],
@@ -1457,7 +1457,7 @@ export default function AstrologyWorkspacePage() {
             )}
 
             {shownDetail && !form && view === "client" && (
-              <div className={`${atlasPanel} flex flex-col gap-3 p-5`} data-testid="astro-client-file-analyses">
+              <div className={`${atlasPanel} flex flex-col gap-3 p-5 max-sm:px-3`} data-testid="astro-client-file-analyses">
                 <div className="flex flex-wrap items-end justify-between gap-2">
                   <div>
                     <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[#a8843e]">Çalışmalar</p>

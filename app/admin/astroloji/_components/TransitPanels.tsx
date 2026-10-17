@@ -42,7 +42,7 @@ const inp = "max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2
 
 function Section({ title, right, children, testId }: { title: string; right?: ReactNode; children: ReactNode; testId?: string }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white" data-testid={testId}>
+    <section className="rounded-xl border border-slate-200 bg-white max-sm:-mx-3 max-sm:rounded-none max-sm:border-x-0" data-testid={testId}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
         <h4 className="text-sm font-semibold text-slate-700">{title}</h4>
         {right}
@@ -480,7 +480,7 @@ function DayDetail({ day, events, tz, api, onClose }: { day: string; events: For
   );
 
   return (
-    <section className="rounded-xl border-2 border-indigo-200 bg-indigo-50/40" data-testid="astro-day-detail" aria-label="Seçilen günün transit ayrıntısı">
+    <section className="rounded-xl border-2 border-indigo-200 bg-indigo-50/40 max-sm:-mx-3 max-sm:rounded-none max-sm:border-x-0" data-testid="astro-day-detail" aria-label="Seçilen günün transit ayrıntısı">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 px-3 py-2">
         <h4 className="text-sm font-semibold text-indigo-950">
           Seçilen Günün Transit Ayrıntısı · {day.split("-").reverse().join(".")} <span className="font-normal text-indigo-900/70">({tz})</span>

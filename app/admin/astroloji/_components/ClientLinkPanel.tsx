@@ -72,7 +72,7 @@ export default function ClientLinkPanel({ profileId, profileLabel, birthDate, cl
   }
 
   return (
-    <section className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" aria-label="Danışan eşleştirmesi" data-testid="astro-client-link">
+    <section className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm max-sm:-mx-3 max-sm:rounded-none max-sm:border-x-0" aria-label="Danışan eşleştirmesi" data-testid="astro-client-link">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Danışan Yolculuğu eşleştirmesi</span>
