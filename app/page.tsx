@@ -2103,7 +2103,7 @@ export default function Home() {
         </header>
 
         {/* — Hero — */}
-        <section className="mx-auto mt-6 flex w-full max-w-5xl flex-col items-center text-center xl:mt-7 xl:max-w-[1200px]">
+        <section className="mx-auto mt-3 flex w-full max-w-5xl flex-col items-center text-center xl:mt-4 xl:max-w-[1200px]">
           {/* <640px: sarmalayıcılar display:contents → başlık, test kartı, alt başlık, CTA sırası (order).
               ≥lg: 3 sütun — sol bilgi kartları · orta hero · sağ test hesabı erişimi */}
           <div className="relative flex w-full items-center justify-center max-sm:contents lg:grid lg:grid-cols-[204px_minmax(0,1fr)_220px] lg:gap-4 xl:grid-cols-[236px_minmax(0,1fr)_236px] xl:gap-7">
@@ -2138,11 +2138,11 @@ export default function Home() {
                 {t("hero.titlePart2")}
               </h1>
 
-              <p className="mt-5 max-w-[500px] text-[0.9375rem] leading-[1.75] text-slate-500 max-sm:order-3">
+              <p className="mt-4 max-w-[500px] text-[0.9375rem] leading-[1.75] text-slate-500 max-sm:order-3">
                 {t("hero.subtitle")}
               </p>
 
-              <div className="mt-7 flex justify-center max-sm:order-4">
+              <div className="mt-5 flex justify-center max-sm:order-4 xl:mt-6">
                 <button
                   type="button"
                   onClick={() => {
@@ -2171,12 +2171,12 @@ export default function Home() {
           </div>
 
           {/* Test / demo hesabı tanıtımı — <lg geniş kart; ≥lg sağ sütundaki kompakt varyant */}
-          <div className="mt-7 w-full max-sm:order-2 max-sm:mt-5 lg:hidden">
+          <div className="mt-6 w-full max-sm:order-2 max-sm:mt-5 lg:hidden">
             <DemoAccessCard onTryDemo={openDemoLogin} />
           </div>
 
           {/* 3 günlük ücretsiz keşif daveti — mevcut /register akışına gider; mobilde hero öğelerinden sonra */}
-          <div className="mt-8 w-full max-sm:order-6 max-sm:mt-6 xl:mt-10">
+          <div className="mt-6 w-full max-sm:order-6 max-sm:mt-5 xl:mt-7">
             <FreeTrialInvite />
           </div>
         </section>
