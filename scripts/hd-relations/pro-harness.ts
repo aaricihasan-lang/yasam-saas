@@ -27,7 +27,7 @@ import { validateRoxyPenta } from "../../lib/human-design/relations/penta";
 import { buildCompositeModel } from "../../lib/human-design/relations/compositeModel";
 import { buildCompositeScene, DYNAMIC_SHAPE } from "../../lib/human-design/relations/compositeScene";
 import { COMPOSITE_ROUTES } from "../../lib/human-design/relations/compositeLayout";
-import { buildPentaScene, pentaChannelLines } from "../../lib/human-design/relations/pentaScene";
+import { buildPentaScene, pentaGatePositions, pentaChannelLines } from "../../lib/human-design/relations/pentaScene";
 import { connectionExplanations, pentaExplanations } from "../../lib/human-design/relations/explanations";
 import { parseReportOptions, sanitizeComment } from "../../lib/human-design/relations/relationExtras";
 import type { RelationAnalysisView } from "../../lib/human-design/relations/relationService";
@@ -108,12 +108,16 @@ async function main() {
     const s = buildPentaScene(v.value);
     const gateCircles = s.filter((p) => p.k === "circle" && typeof (p as { gate?: number }).gate === "number") as Array<{ gate: number }>;
     const lines = s.filter((p) => p.k === "polyline") as Array<{ ch: string; layer: string }>;
-    const defined = lines.filter((l) => l.layer === "defined").map((l) => l.ch).sort();
-    ok(`C1 ${n} kişi: 12 kapı + 6 kanal; tanımlı çizgiler = defined kanallar`, gateCircles.length === 12 && lines.length === 6 && defined.join() === v.value.channels.filter((c) => c.defined).map((c) => c.id).sort().join());
+    const chans = [...new Set(lines.map((l) => l.ch))];
+    const defined = [...new Set(lines.filter((l) => l.layer === "defined").map((l) => l.ch))].sort();
+    ok(`C1 ${n} kişi: 12 kapı + 6 kanal; tanımlı çizgiler = defined kanallar`, gateCircles.length === 12 && chans.length === 6 && defined.join() === v.value.channels.filter((c) => c.defined).map((c) => c.id).sort().join());
     const texts = s.filter((p) => p.k === "text") as Array<{ text: string; x: number; y: number }>;
+    const gp = pentaGatePositions();
+    // Üye rozetleri: kapının sağında aynı satırda numaralar (1-tabanlı); taşıyan yoksa "boşluk".
     const labelOk = v.value.gates.every((g) => {
-      const exp = g.heldBy.length ? g.heldBy.map((i) => String(i + 1)).join(" · ") : "boşluk";
-      return texts.some((t) => t.text === exp);
+      const p = gp[g.gate];
+      const row = texts.filter((t) => t.x > p.x + 10 && t.x < p.x + 110 && Math.abs(t.y - p.y) < 6).map((t) => t.text);
+      return g.heldBy.length ? row.join(",") === g.heldBy.map((i) => String(i + 1)).join(",") : row.join() === "boşluk";
     });
     ok(`C2 ${n} kişi: her kapının üye etiketi heldBy ile aynı (1-tabanlı)`, labelOk);
   }
@@ -158,9 +162,10 @@ async function main() {
   ok("F3 Penta şeması PNG üretilir", !!pngP && pngP.png.subarray(1, 4).toString() === "PNG");
 
   section("G — Kullanıcıya görünen sağlayıcı adı");
-  const files = ["app/human-design/iliski-grup/components/HdRelationsContent.tsx", "app/human-design/iliski-grup/components/RelationResultViews.tsx", "app/human-design/iliski-grup/components/RelationWorkspace.tsx", "lib/human-design/relations/relationReport.ts", "lib/human-design/relations/labels.ts", "lib/human-design/relations/explanations.ts"];
+  const files = ["app/human-design/iliski-grup/components/HdRelationsContent.tsx", "app/human-design/iliski-grup/components/RelationResultViews.tsx", "app/human-design/iliski-grup/components/RelationWorkspace.tsx", "lib/human-design/relations/relationReport.ts", "lib/human-design/relations/labels.ts", "lib/human-design/relations/explanations.ts", "lib/human-design/relations/pentaScene.ts"];
   // Yalnız kullanıcıya ulaşabilen kod (yorum satırları / blokları ayıklanır).
-  const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").split(/\r?\n/).filter((l) => !/^\s*\/\//.test(l)).join("\n");
+  // İç bileşen / modül adları (RoxyConnectionChart, relationGraphicCapture içe aktarımı) kullanıcıya görünmez → ayıklanır.
+  const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").split(/\r?\n/).filter((l) => !/^\s*\/\//.test(l) && !/^\s*import\s/.test(l)).join("\n").replace(/\bRoxyConnectionChart\b/g, "");
   const leaks = files.filter((f) => /roxy|\/human-design\/(connection|penta)|nodeType|adapterVersion/i.test(codeOnly(readFileSync(f, "utf8"))));
   ok("G1 ekran + Word kodunda sağlayıcı adı / uç / nodeType / adaptör YOK", leaks.length === 0, leaks);
 

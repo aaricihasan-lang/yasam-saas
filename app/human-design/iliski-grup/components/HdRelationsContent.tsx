@@ -44,7 +44,7 @@ export function HdRelationsContent() {
   const router = useRouter();
   const openId = sp.get("id");
   return (
-    <HumanDesignShell maxWidthClass="max-w-6xl">
+    <HumanDesignShell maxWidthClass="max-w-[1480px]">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-[11px] font-black uppercase tracking-widest text-indigo-600">Human Design</p>
@@ -381,7 +381,7 @@ function RelationDetail({ id, onDeleted }: { id: string; onDeleted: () => void }
       <RelationSourcesPanel id={a.id} />
       <ExpertCommentEditor id={a.id} />
       <div id="hd-rel-reports" className="scroll-mt-20">
-        <RelationReportPanel id={a.id} />
+        <RelationReportPanel id={a.id} analysis={a} />
       </div>
       <p className="text-[11px] leading-relaxed text-slate-500">{RELATION_DISCLAIMER} Kayıtlı sonuç gösterilmektedir; görüntülemede yeniden hesap yapılmaz.</p>
     </div>

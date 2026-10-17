@@ -2,7 +2,8 @@
 
 // İlişki (Connection) ve Grup (Penta) sonuç görünümleri — SAF SUNUM (fetch yok, hesap yok).
 // Kaynak: kayıtlı ve doğrulanmış sonuç. Roxy'nin vermediği yorum/puan/yüzde gösterilmez.
-// Diyagramlar Yaşam Sistemi'nin kendi şematik çizimidir; onaylı tek kişilik BodyGraph DEĞİŞMEDİ.
+// Connection birleşik BodyGraph'ı: Roxy'nin resmî silüetli grafiği (self-host, kontrollü mod, kayıtlı sonuçla
+// doğrulanır); çizilemezse Yaşam Sistemi şematik çizimi / özet şema. Penta: Yaşam Sistemi Türkçe şeması.
 
 import { hdCenterLabelFromCode } from "@/lib/human-design/codeHelpers";
 import { hdGateDefaultName } from "@/lib/human-design/knowledge/hdNames";
@@ -10,7 +11,9 @@ import { channelCenterCodes, type ConnectionDynamic, type HdConnectionResult } f
 import type { HdPentaResult } from "@/lib/human-design/relations/penta";
 import type { RelationAnalysisView } from "@/lib/human-design/relations/relationService";
 import type { HdCenterCode } from "@/lib/human-design/types";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { HD_CHART_LOGO_SRC } from "@/app/human-design/kayitli-haritalar/components/HdChartInfoPanel";
+import { RoxyConnectionChart } from "./RoxyConnectionChart";
 import { buildCompositeModel } from "@/lib/human-design/relations/compositeModel";
 import { buildCompositeScene, DYNAMIC_SHAPE, PERSON_COLOR } from "@/lib/human-design/relations/compositeScene";
 import { COMPOSITE_ROUTES, COMPOSITE_VIEW } from "@/lib/human-design/relations/compositeLayout";
@@ -99,8 +102,55 @@ function ConnectionDiagram({ r }: { r: HdConnectionResult }) {
 
 const SHAPE_GLYPH: Record<"diamond" | "triangle" | "square" | "circle", string> = { diamond: "◆", triangle: "▲", square: "■", circle: "●" };
 
-/** Birleşik BodyGraph + lejant + seçili kanal bilgisi. Kaynak veri yok/tutarsız → güvenli yedek özet şema. */
+/** Yaşam Sistemi marka imzası (mevcut logo; yeni tasarım yok). */
+export function RelationBrand({ className = "" }: { className?: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- statik, küçük, şeffaf marka görseli
+    <img src={HD_CHART_LOGO_SRC} alt="Yaşam Sistemi — yasamsistemi.com" width={520} height={390} className={`h-auto select-none object-contain ${className}`} draggable={false} data-hd-rel-brand />
+  );
+}
+
+/**
+ * Birleşik BodyGraph. Öncelik: Roxy'nin resmî silüetli grafiği (kayıtlı sonuçla doğrulanır).
+ * Roxy çizimi yüklenemez / doğrulanamazsa → Yaşam Sistemi şematik çizimi (kaynak veriyle doğrulanmışsa) →
+ * o da yoksa kayıtlı sonuçtan özet şema. Uydurma çizim yok.
+ */
 function CompositePanel({ a, r }: { a: RelationAnalysisView; r: HdConnectionResult }) {
+  const [std, setStd] = useState<"loading" | "ready" | "mismatch" | "error">("loading");
+  const [zoom, setZoom] = useState(false);
+  const onStd = useCallback((s: "ready" | "mismatch" | "error") => setStd(s), []);
+  const nameA = a.participants[0]?.name ?? "A";
+  const nameB = a.participants[1]?.name ?? "B";
+  const ids = r.channels.map((c) => c.id).sort().join(",");
+  if (std === "loading" || std === "ready") {
+    return (
+      <div data-hd-composite={std === "ready" ? "standard" : "loading"} data-hd-composite-defined={ids}>
+        <div className="mb-1 flex justify-end sm:hidden">
+          <button type="button" onClick={() => setZoom((w) => !w)} className="min-h-[36px] rounded-lg border border-indigo-200 px-2.5 text-[11px] font-bold text-indigo-700" data-hd-composite-zoom aria-pressed={zoom}>
+            {zoom ? "Haritayı küçült" : "Haritayı büyüt"}
+          </button>
+        </div>
+        {/* Telefonda büyütme: grafik sabit 640px çizilir, kap yatay kaydırır (sayfa taşmaz). */}
+        <div className={zoom ? "-mx-2 overflow-x-auto overscroll-x-contain" : ""} data-hd-composite-scroll>
+          <div className={zoom ? "w-[640px] max-w-none" : "w-full"}>
+            <RoxyConnectionChart r={r} nameA={nameA} nameB={nameB} onState={onStd} />
+          </div>
+        </div>
+        <ul className="mt-3 grid gap-x-4 gap-y-1 text-[11px] text-slate-600 sm:grid-cols-2" data-hd-composite-legend>
+          <li>İki renkli kanal: Elektromanyetik (biri bir kapıyı, diğeri öbür kapıyı taşır)</li>
+          <li>Tek renkli kanal: Baskınlık, Uzlaşma ya da Arkadaşlık — türü yandaki listede</li>
+          <li>İki renkli (yarım yarım) kapı: iki kişide de aktif</li>
+          <li>Renkli merkez: birleşik haritada tanımlı · beyaz: açık</li>
+        </ul>
+        <p className="mt-1.5 text-[11px] text-slate-500">Grafikte yalnız birlikte tamamlanan kanallar işaretlenir; yarım kanallar ve tüm aktif kapılar aşağıdaki listededir. Kapı üzerine gelince kişi ve kanal bilgisi görünür.</p>
+      </div>
+    );
+  }
+  return <CustomCompositePanel a={a} r={r} notice={std === "mismatch" ? "Standart BodyGraph çizimi kayıtlı sonuçla doğrulanamadı; Yaşam Sistemi şematik çizimi gösteriliyor." : "Standart BodyGraph çizimi yüklenemedi; Yaşam Sistemi şematik çizimi gösteriliyor."} />;
+}
+
+/** Yedek: Yaşam Sistemi şematik birleşik çizimi (kaynak bireysel veriyle doğrulanır); o da yoksa özet şema. */
+function CustomCompositePanel({ a, r, notice }: { a: RelationAnalysisView; r: HdConnectionResult; notice: string }) {
   const build = useMemo(() => buildCompositeModel(a.participants[0]?.gates ?? null, a.participants[1]?.gates ?? null, r), [a, r]);
   const scene = useMemo(() => (build.ok ? buildCompositeScene(build.model) : null), [build]);
   const [sel, setSel] = useState<string | null>(null);
@@ -123,6 +173,7 @@ function CompositePanel({ a, r }: { a: RelationAnalysisView; r: HdConnectionResu
   const route = sel ? COMPOSITE_ROUTES.find((x) => x.id === sel) : null;
   return (
     <div data-hd-composite="ok" data-hd-composite-defined={m.definedChannelIds.join(",")}>
+      <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200" data-hd-composite-notice>{notice}</p>
       <div className="mb-1 flex justify-end sm:hidden">
         <button type="button" onClick={() => setWide((w) => !w)} className="min-h-[36px] rounded-lg border border-indigo-200 px-2.5 text-[11px] font-bold text-indigo-700" data-hd-composite-zoom aria-pressed={wide}>
           {wide ? "Haritayı küçült" : "Haritayı büyüt"}
@@ -183,7 +234,7 @@ function PentaPanel({ a, r }: { a: RelationAnalysisView; r: HdPentaResult }) {
   const who = (idx: number[]) => (idx.length ? idx.map((i) => `${i + 1}. ${a.participants[i]?.name ?? "?"}`).join(", ") : "kimse");
   return (
     <div data-hd-penta-diagram>
-      <SceneSvg prims={scene} view={PENTA_VIEW} label="Penta şeması: üst ve alt Penta kanalları" hitRoutes={pentaChannelLines()} selected={sel} onSelect={setSel} channelLabel={(id) => relationChannelLabel(id, id)} testId="penta" />
+      <SceneSvg prims={scene} view={PENTA_VIEW} wide={false} large label="Penta şeması: üst ve alt Penta kanalları" hitRoutes={pentaChannelLines()} selected={sel} onSelect={setSel} channelLabel={(id) => relationChannelLabel(id, id)} testId="penta" />
       <div className="mt-2 min-h-[56px] rounded-xl border border-indigo-100 bg-indigo-50/40 px-3 py-2 text-xs" aria-live="polite" data-hd-penta-info={sel ?? ""}>
         {!c ? (
           <p className="text-slate-500">Bir Penta kanalına dokunun: kapılar ve taşıyan üyeler burada görünür.</p>
@@ -194,8 +245,76 @@ function PentaPanel({ a, r }: { a: RelationAnalysisView; r: HdPentaResult }) {
           </>
         )}
       </div>
-      <p className="mt-2 text-[11px] leading-relaxed text-slate-500">Mor çizgi: grupta tanımlı kanal (güçlü yön). Pembe kalın: 2/14 çekirdek. Kesikli gri: boşluk. Kapı yanındaki numaralar taşıyan üyeler; “boşluk” hiçbir üyenin taşımadığı kapı.</p>
+      <ul className="mt-2 grid gap-x-4 gap-y-1 text-[11px] text-slate-600 sm:grid-cols-2" data-hd-penta-legend>
+        <li><span className="mr-1.5 inline-block h-1.5 w-5 rounded-full bg-indigo-600 align-middle" />Kalın mor çizgi: grupta tanımlı kanal (güçlü yön)</li>
+        <li><span className="mr-1.5 inline-block h-1.5 w-5 rounded-full bg-pink-700 align-middle" />2/14 çekirdek tanımlı</li>
+        <li><span className="mr-1.5 inline-block w-5 border-t-2 border-dotted border-slate-300 align-middle" />Noktalı gri: boşluk var (kanal tamamlanmıyor)</li>
+        <li><span className="mr-1.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-indigo-600 align-middle text-[8px] font-black text-white">1</span>Kapıyı taşıyan üye (numara = üye sırası)</li>
+        <li><span className="mr-1.5 inline-block h-3.5 w-3.5 rounded-full border border-dashed border-slate-400 align-middle" />Kesikli kapı + “boşluk”: hiçbir üye taşımıyor</li>
+      </ul>
+      <ol className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] font-semibold text-slate-700" data-hd-penta-members-legend>
+        {a.participants.map((p) => (<li key={p.position}>{p.position + 1}. {p.name}</li>))}
+      </ol>
     </div>
+  );
+}
+
+/**
+ * Roxy grafiğinin göstermediği bilgi: yarım kanallar (birlikte tek kapısı aktif) ve her kişinin TÜM aktif
+ * kapıları. Kaynak: kayıtlı bireysel analizler (kayıtlı sonuçla doğrulanmış model). Kaynak yoksa açıkça söylenir.
+ */
+function ActiveGatesCard({ a, r }: { a: RelationAnalysisView; r: HdConnectionResult }) {
+  const build = useMemo(() => buildCompositeModel(a.participants[0]?.gates ?? null, a.participants[1]?.gates ?? null, r), [a, r]);
+  const nameA = a.participants[0]?.name ?? "A";
+  const nameB = a.participants[1]?.name ?? "B";
+  if (!build.ok) {
+    return (
+      <Card title="Yarım Kanallar ve Aktif Kapılar" attr="active-gates">
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200" data-hd-active-gates="unavailable">
+          Kaynak bireysel analiz verisi artık mevcut olmadığı için yarım kanallar ve kişilerin tüm aktif kapıları gösterilemiyor. Birlikte tamamlanan kanallar yukarıda kayıtlı sonuçtan listelenmiştir.
+        </p>
+      </Card>
+    );
+  }
+  const m = build.model;
+  const connected = new Set(r.channels.flatMap((c) => [c.gateA, c.gateB]));
+  const halves = Object.values(m.channels).filter((c): c is Extract<typeof c, { state: "half" }> => c.state === "half").sort((x, y) => Number(x.id.split("-")[0]) - Number(y.id.split("-")[0]));
+  const gatesOf = (p: "A" | "B") => Object.entries(m.gates).filter(([, h]) => h === p || h === "both").map(([g]) => Number(g)).sort((x, y) => x - y);
+  const who = (h: "A" | "B" | "both" | null) => (h === "both" ? `${nameA} ve ${nameB}` : h === "A" ? `A · ${nameA}` : h === "B" ? `B · ${nameB}` : "—");
+  return (
+    <Card title="Yarım Kanallar ve Aktif Kapılar" attr="active-gates">
+      <div className="grid gap-4 lg:grid-cols-2" data-hd-active-gates="ok">
+        <div>
+          <p className="text-xs font-bold text-slate-800">Yarım kanallar · {halves.length}</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">Birlikte kanalın yalnız bir kapısı aktif; birleşik haritada tanımlı değildir (grafikte çizilmez).</p>
+          <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
+            {halves.map((c) => {
+              const [lo, hi] = c.id.split("-").map(Number);
+              return (
+                <li key={c.id} className="rounded-lg border border-dashed border-amber-300 bg-amber-50/40 px-2.5 py-1.5 text-xs" data-hd-half-channel={c.id}>
+                  <p className="font-bold text-slate-800">{relationChannelLabel(c.id, c.id)}</p>
+                  <p className="text-slate-600">{lo}. kapı: {who(c.holderA)} · {hi}. kapı: {who(c.holderB)}</p>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+        <div>
+          <p className="text-xs font-bold text-slate-800">Kişilerin tüm aktif kapıları</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">Kalın: birlikte tamamlanan bir kanala ait kapı. Diğerleri kişinin kendi haritasındaki aktif kapılardır.</p>
+          {(["A", "B"] as const).map((p) => (
+            <div key={p} className="mt-2" data-hd-person-gates={p}>
+              <p className="text-[11px] font-semibold text-slate-700"><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: PERSON_COLOR[p] }} />{p} · {p === "A" ? nameA : nameB}</p>
+              <p className="mt-1 flex flex-wrap gap-1">
+                {gatesOf(p).map((g) => (
+                  <span key={g} className={`rounded-md px-1.5 py-0.5 text-[11px] tabular-nums ring-1 ${connected.has(g) ? "bg-indigo-50 font-black text-indigo-800 ring-indigo-200" : "bg-white text-slate-600 ring-slate-200"}`} title={hdGateDefaultName(g) ?? undefined}>{g}</span>
+                ))}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -217,13 +336,23 @@ export function ConnectionResultView({ a }: { a: RelationAnalysisView }) {
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,480px)_minmax(0,1fr)]">
-        <Card title="Birleşik İlişki BodyGraph'ı" attr="diagram">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,560px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,660px)_minmax(0,1fr)]">
+        <section className="rounded-2xl border border-indigo-100 bg-white px-4 py-4 shadow-sm sm:px-5" data-hd-rel-card="diagram">
+          <div className="mb-3 flex items-start justify-between gap-3 border-b border-slate-100 pb-3" data-hd-rel-chart-head>
+            <div className="min-w-0">
+              <h3 className="text-[11px] font-black uppercase tracking-widest text-indigo-700">Birleşik İlişki BodyGraph&apos;ı</h3>
+              <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs font-semibold text-slate-800">
+                <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: PERSON_COLOR.A }} />A · {name("A")}</span>
+                <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: PERSON_COLOR.B }} />B · {name("B")}</span>
+              </p>
+            </div>
+            <RelationBrand className="w-[92px] shrink-0 sm:w-[110px]" />
+          </div>
           <CompositePanel a={a} r={r} />
           <p className="mt-2 text-xs font-semibold text-slate-700" data-hd-rel-definition>
             Birleşik Tanım (Combined Definition): {combinedDefinitionLabel(r.combinedDefinition)}
           </p>
-        </Card>
+        </section>
 
         <Card title="Kanal Bağlantıları" attr="channels">
           {r.channels.length === 0 ? <p className="text-xs text-slate-500">İki kişi birlikte hiçbir kanalı tamamlamıyor.</p> : null}
@@ -258,6 +387,8 @@ export function ConnectionResultView({ a }: { a: RelationAnalysisView }) {
           </div>
         </Card>
       </div>
+
+      <ActiveGatesCard a={a} r={r} />
 
       <Card title="Birleşik Merkezler" attr="centers">
         <ul className="grid gap-1.5 sm:grid-cols-2">
@@ -301,12 +432,18 @@ export function PentaResultView({ a }: { a: RelationAnalysisView }) {
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
-        <Card title="Penta Haritası" attr="diagram">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,580px)_minmax(0,1fr)]">
+        <section className="rounded-2xl border border-indigo-100 bg-white px-4 py-4 shadow-sm sm:px-5" data-hd-rel-card="diagram">
+          <div className="mb-3 flex items-start justify-between gap-3 border-b border-slate-100 pb-3" data-hd-rel-chart-head>
+            <div className="min-w-0">
+              <h3 className="text-[11px] font-black uppercase tracking-widest text-indigo-700">Penta Haritası</h3>
+              <p className="mt-1 text-xs font-semibold text-slate-800">{a.participants.length} kişilik grup · üst ve alt Penta</p>
+            </div>
+            <RelationBrand className="w-[92px] shrink-0 sm:w-[110px]" />
+          </div>
           <PentaPanel a={a} r={r} />
-          <p className="mt-2 text-[11px] leading-relaxed text-slate-500">Düz çizgi: grupta tanımlı (güçlü yön) kanal. Kesikli: boşluk var. Pembe kalın çizgi: 2/14 çekirdek.</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{PENTA_CORE_NOTE}</p>
-        </Card>
+          <p className="mt-2 text-[11px] leading-relaxed text-slate-500">{PENTA_CORE_NOTE}</p>
+        </section>
         <div className="space-y-4">
           {(["upper", "lower"] as const).map((pos) => (
             <Card key={pos} title={PENTA_POSITION_LABEL[pos]} attr={`penta-${pos}`}>

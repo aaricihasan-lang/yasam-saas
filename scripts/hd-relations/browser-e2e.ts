@@ -9,11 +9,12 @@
  * Ekranlar: 1920, 1366, 390, 360, 320 (+ Android UA 360). Çalıştır: npx tsx scripts/hd-relations/browser-e2e.ts [--out <klasör>]
  */
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { NextRequest } from "next/server";
 import { chromium, type Browser } from "playwright";
+import JSZip from "jszip";
 import { mkUser, src, type Auth, type Json } from "../hd-analysis-word-flow/env";
 import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv, type TestEnv } from "../anamnez/testEnv";
 import { engineChart, fakeConnectionResponse, fakePentaResponse, PEOPLE, type Moment } from "./fakeRelationRoxy";
@@ -170,30 +171,46 @@ async function main() {
       ok(page.url().includes(CONN), `${d.name}: kayıtlı çift → mevcut analiz açıldı (yeni hesap YOK)`);
       ok(posts.length === 1, `${d.name}: çift tık tek istek gönderdi`, posts.length);
       await page.locator("[data-hd-rel-view='connection']").waitFor({ timeout: 30_000 });
-      // Birleşik İlişki BodyGraph'ı: çizimdeki TANIMLI kanallar = kayıtlı sonuç listesi (DB'den)
-      await page.locator("[data-hd-scene='composite']").waitFor({ timeout: 30_000 });
-      const stored = ((await su.query(`select result from public.human_design_relation_analyses where id=$1`, [CONN])).rows[0].result.channels as Array<{ id: string; dynamic: string }>);
+      // Birleşik İlişki BodyGraph'ı (standart, silüetli): çizilen kanallar/kapılar = kayıtlı sonuç (DB'den)
+      await page.locator("[data-hd-composite='standard']").waitFor({ timeout: 30_000 });
+      const storedRes = (await su.query(`select result from public.human_design_relation_analyses where id=$1`, [CONN])).rows[0].result as { channels: Array<{ id: string; gateA: number; gateB: number; personAGates: number[]; personBGates: number[] }> };
+      const stored = storedRes.channels;
       const storedIds = stored.map((c) => c.id).sort().join(",");
-      const drawnAttr = (await page.locator("[data-hd-composite='ok']").getAttribute("data-hd-composite-defined")) ?? "";
-      const drawnLines = await page.locator("[data-hd-scene-line$=':defined']").evaluateAll((els) => [...new Set(els.map((e) => (e.getAttribute("data-hd-scene-line") ?? "").split(":")[0]))].sort().join(","));
-      ok(drawnAttr.split(",").sort().join(",") === storedIds && drawnLines === storedIds, `${d.name}: birleşik haritada çizilen tanımlı kanallar = kayıtlı liste (${stored.length})`, { drawnAttr, drawnLines, storedIds });
-      ok((await page.locator("[data-hd-scene-marker]").count()) === stored.length && (await page.locator("[data-hd-scene-gate]").count()) === 64, `${d.name}: her tanımlı kanalda bağlantı türü işareti + 64 kapı`);
-      const pick = stored[0];
-      const hit = page.locator(`[data-hd-scene-hit="${pick.id}"]`);
-      if (d.ua) await hit.tap({ force: true }); else await hit.hover({ force: true });
-      await page.waitForTimeout(200);
-      const info = await page.locator("[data-hd-composite-info]").innerText();
-      ok((await page.locator("[data-hd-composite-info]").getAttribute("data-hd-composite-info")) === pick.id && info.includes(pick.id.split("-")[0]) && /Elektromanyetik|Baskınlık|Uzlaşma|Arkadaşlık/.test(info), `${d.name}: kanala ${d.ua ? "dokunma" : "fareyle gelme"} → kanal adı/kapılar/bağlantı türü`, info);
-      ok(await page.locator("[data-hd-composite-legend]").isVisible(), `${d.name}: lejant görünür`);
+      const drawnAttr = (await page.locator("[data-hd-composite='standard']").getAttribute("data-hd-composite-defined")) ?? "";
+      const expGates: Record<string, string> = {};
+      for (const c of stored) for (const g of [c.gateA, c.gateB]) expGates[g] = `${c.personAGates.includes(g) || expGates[g]?.includes("A") ? "A" : ""}${c.personBGates.includes(g) || expGates[g]?.includes("B") ? "B" : ""}`;
+      const shadow = await page.evaluate(() => {
+        const el = document.querySelector("roxy-hd-connection")!;
+        const svg = el.shadowRoot!.querySelector("svg.chart")!;
+        const gates: Record<string, string> = {};
+        for (const n of svg.querySelectorAll("g.bg-gate-node")) {
+          const t = n.querySelector("text.bg-gate");
+          if (!t || !/\bon\b/.test(t.getAttribute("class") ?? "")) continue;
+          const dots = [...n.querySelectorAll(".bg-gate-dot.on")].map((d) => d.getAttribute("class") ?? "");
+          gates[(t.textContent ?? "").trim()] = `${dots.some((c) => /src-left/.test(c)) ? "A" : ""}${dots.some((c) => /src-right/.test(c)) ? "B" : ""}`;
+        }
+        const hiddenOk = [...el.shadowRoot!.querySelectorAll(".wrap > *:not(svg.chart)")].every((e) => getComputedStyle(e).display === "none");
+        const titles = [...svg.querySelectorAll("title")].map((t) => t.textContent ?? "");
+        const r = svg.getBoundingClientRect();
+        return { gates, hiddenOk, trTitles: titles.some((t) => t.startsWith("Kapı ")) && !titles.some((t) => /^Gate \d|: Defined$|: Open$/.test(t)), body: !!svg.querySelector(".bg-body"), width: r.width, centers: [...svg.querySelectorAll(".bg-center-name")].map((e) => e.textContent).join("|") };
+      });
+      ok(drawnAttr.split(",").sort().join(",") === storedIds && JSON.stringify(Object.keys(shadow.gates).sort()) === JSON.stringify(Object.keys(expGates).sort()) && Object.entries(expGates).every(([g, w]) => shadow.gates[g] === w), `${d.name}: standart birleşik BodyGraph — çizilen kapılar (A/B) = kayıtlı sonuç (${stored.length} kanal)`, { shadow: shadow.gates, expGates });
+      ok(shadow.body && shadow.hiddenOk && shadow.trTitles && /BOĞAZ/.test(shadow.centers), `${d.name}: insan silüeti var; İngilizce metin bölümleri gizli; merkez adları ve başlıklar Türkçe`, shadow);
+      const vw = d.w;
+      ok(d.ua ? shadow.width <= vw && shadow.width >= vw - 90 : shadow.width >= 520, `${d.name}: grafik genişliği ${Math.round(shadow.width)}px (${d.ua ? "ekrana sığar" : "masaüstünde büyük"})`);
+      ok(await page.locator("[data-hd-composite-legend]").isVisible() && (await page.locator("[data-hd-rel-brand]").first().isVisible()), `${d.name}: Türkçe lejant + Yaşam Sistemi logosu görünür`);
       if (d.ua) {
         await page.locator("[data-hd-composite-zoom]").click();
-        await page.waitForTimeout(150);
-        const w = await page.locator("[data-hd-scene='composite']").evaluate((e) => e.getBoundingClientRect().width);
-        ok(w >= 600 && !(await overflowX()), `${d.name}: "Haritayı büyüt" → harita ${Math.round(w)}px, sayfa yatay taşmıyor (kaydırma kabı içinde)`);
+        await page.waitForTimeout(250);
+        const zw = await page.evaluate(() => document.querySelector("roxy-hd-connection")!.shadowRoot!.querySelector("svg.chart")!.getBoundingClientRect().width);
+        ok(zw >= 600 && !(await overflowX()), `${d.name}: "Haritayı büyüt" → grafik ${Math.round(zw)}px, sayfa yatay taşmıyor (kaydırma kabı içinde)`);
         await page.locator("[data-hd-composite-zoom]").click();
       } else {
-        ok(!(await page.locator("[data-hd-composite-zoom]").isVisible()), `${d.name}: masaüstünde büyütme düğmesi yok (görünüm değişmez)`);
+        ok(!(await page.locator("[data-hd-composite-zoom]").isVisible()), `${d.name}: masaüstünde büyütme düğmesi yok`);
       }
+      ok((await page.locator("[data-hd-rel-channel]").count()) === stored.length && (await page.locator("[data-hd-rel-dynamic]").count()) >= 1, `${d.name}: kanal listesi bağlantı türüne göre Türkçe (${stored.length})`);
+      const halfIds = await page.locator("[data-hd-half-channel]").evaluateAll((els) => els.map((e) => e.getAttribute("data-hd-half-channel") ?? ""));
+      ok(halfIds.length > 0 && halfIds.every((h) => !storedIds.split(",").includes(h)) && (await page.locator("[data-hd-person-gates]").count()) === 2, `${d.name}: yarım kanallar (${halfIds.length}) + iki kişinin tüm aktif kapıları listede`);
       ok((await page.locator("[data-hd-rel-summary]").count()) === 4 && (await page.locator("[data-hd-rel-center-row]").count()) === 9, `${d.name}: 4 bağlantı türü sayacı + 9 birleşik merkez`);
       ok((await page.locator("[data-hd-rel-participant='A']").innerText()).includes(NAMES[0]) && (await page.locator("[data-hd-rel-participant='B']").innerText()).includes(NAMES[1]), `${d.name}: A/B katılımcıları doğru adlarla`);
       ok(!(await overflowX()), `${d.name}: Connection detayında yatay taşma yok`);
@@ -229,6 +246,12 @@ async function main() {
           await page.locator("[data-hd-rel-report-create]").click();
           const file = await dl;
           ok(/^HD-Iliski-.*\.docx$/.test(file.suggestedFilename()), `${d.name}: rapor hazırlandı ve Word indirildi (${file.suggestedFilename()})`);
+          const docPath = path.join(OUT, `${d.name}-rapor.docx`);
+          await file.saveAs(docPath);
+          const z = await JSZip.loadAsync(readFileSync(docPath));
+          const docXml = await z.file("word/document.xml")!.async("string");
+          const media = Object.keys(z.files).filter((f) => /^word\/media\/.+\.png$/.test(f));
+          ok(docXml.includes("Standart Human Design birleşik BodyGraph") && media.length === 2 && docXml.includes("Yarım Kanallar ve Aktif Kapılar"), `${d.name}: Word'de standart birleşik BodyGraph (tarayıcıda doğrulanıp donduruldu) + logo + yarım kanallar`, media);
           await page.locator("[data-hd-rel-report-row]").first().waitFor({ timeout: 15_000 });
         } else {
           await page.keyboard.press("Escape");
@@ -242,6 +265,7 @@ async function main() {
 
       // Penta: 3 kişi seçimi, yeni üçlü → sunucuda Roxy yapılandırması yok → kontrollü hata, gezinme yok
       await page.locator("[data-hd-rel-count='3']").click();
+      await page.waitForFunction(() => document.querySelectorAll("[data-hd-rel-slot]").length === 3, null, { timeout: 5000 }).catch(() => undefined);
       ok((await page.locator("[data-hd-rel-slot]").count()) === 3 && (await page.locator("[data-hd-rel-create]").innerText()).includes("Grup Analizini Oluştur"), `${d.name}: 3 kişide 3 seçici + "Grup Analizini Oluştur"`);
       await page.locator("[data-hd-rel-select='0']").selectOption(cid(1));
       await page.locator("[data-hd-rel-select='1']").selectOption(cid(3));
@@ -256,8 +280,14 @@ async function main() {
       ok((await page.locator("[data-hd-penta-channel]").count()) === 6 && (await page.locator("[data-hd-penta-gate]").count()) === 12 && (await page.locator("[data-hd-penta-member]").count()) === 4, `${d.name}: Penta 6 kanal + 12 kapı + 4 üye katkısı`);
       ok(await page.locator("[data-hd-scene='penta']").isVisible(), `${d.name}: Penta şeması görünür`);
       const pHit = page.locator("[data-hd-scene-hit='2-14']");
+      const pentaSelected = () => page.waitForFunction(() => document.querySelector("[data-hd-penta-info]")?.getAttribute("data-hd-penta-info") === "2-14", null, { timeout: 3000 }).then(() => true, () => false);
+      await pHit.scrollIntoViewIfNeeded();
       if (d.ua) await pHit.tap({ force: true }); else await pHit.hover({ force: true });
-      await page.waitForTimeout(200);
+      if (!(await pentaSelected())) {
+        // Tek yeniden deneme (dokunma, kaydırma animasyonu bitmeden düşmüş olabilir).
+        if (d.ua) await pHit.tap({ force: true }); else await pHit.hover({ force: true });
+        await pentaSelected();
+      }
       ok((await page.locator("[data-hd-penta-info]").getAttribute("data-hd-penta-info")) === "2-14" && (await page.locator("[data-hd-penta-info]").innerText()).includes("14. kapı"), `${d.name}: Penta kanalına dokunma → kapılar ve taşıyan üyeler`);
       ok(!(await overflowX()), `${d.name}: Penta detayında yatay taşma yok`);
       await page.screenshot({ path: path.join(OUT, `${d.name}-penta.png`), fullPage: true });

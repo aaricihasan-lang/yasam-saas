@@ -18,6 +18,7 @@ export function SceneSvg({
   channelLabel,
   testId,
   wide = false,
+  large = false,
 }: {
   prims: ScenePrim[];
   view: { width: number; height: number };
@@ -30,10 +31,12 @@ export function SceneSvg({
   testId: string;
   /** Mobil büyütme: sabit geniş çizim (kapsayıcı yatay kaydırır). */
   wide?: boolean;
+  /** Daha büyük masaüstü çizimi (Penta). */
+  large?: boolean;
 }) {
   const dim = (ch?: string) => (selected && ch && ch !== selected ? 0.22 : 1);
   return (
-    <svg viewBox={`0 0 ${view.width} ${view.height}`} role="img" aria-label={label} className={`mx-auto block h-auto select-none ${wide ? "w-[680px] max-w-none" : "w-full max-w-[460px]"}`} data-hd-scene={testId}>
+    <svg viewBox={`0 0 ${view.width} ${view.height}`} role="img" aria-label={label} className={`mx-auto block h-auto select-none ${wide ? "w-[680px] max-w-none" : large ? "w-full max-w-[540px]" : "w-full max-w-[460px]"}`} data-hd-scene={testId}>
       <rect width={view.width} height={view.height} fill="#ffffff" />
       {prims.map((p, i) => {
         switch (p.k) {
@@ -57,9 +60,9 @@ export function SceneSvg({
             );
           }
           case "circle":
-            return <circle key={i} cx={p.x} cy={p.y} r={p.r} fill={p.fill} stroke={p.stroke} strokeWidth={p.sw} data-hd-scene-gate={p.gate} />;
+            return <circle key={i} cx={p.x} cy={p.y} r={p.r} fill={p.fill} stroke={p.stroke} strokeWidth={p.sw} strokeDasharray={p.dash} data-hd-scene-gate={p.gate} />;
           case "path":
-            return <path key={i} d={p.d} fill={p.fill} />;
+            return <path key={i} d={p.d} fill={p.fill} stroke={p.stroke} strokeWidth={p.sw} />;
           case "text":
             return (
               <text key={i} x={p.x} y={p.y} fontSize={p.size} fontWeight={p.weight} fill={p.fill} textAnchor={p.anchor ?? "start"} style={{ pointerEvents: "none" }}>

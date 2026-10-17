@@ -30,6 +30,7 @@ import { hdGateDefaultName } from "../knowledge/hdNames";
 import { channelCenterCodes, type HdConnectionResult } from "./connection";
 import type { HdPentaResult } from "./penta";
 import type { RelationAnalysisView } from "./relationService";
+import { buildCompositeModel } from "./compositeModel";
 import type { RelationReportSnapshot } from "./relationExtras";
 import { ANALYSIS_EXPLANATION_DISCLAIMER, ANALYSIS_EXPLANATION_SOURCE } from "./explanations";
 import {
@@ -73,6 +74,11 @@ function participantsTable(a: RelationAnalysisView): Table[] {
   );
 }
 
+const LEGEND_CONNECTION_STANDARD = [
+  "Standart Human Design birleşik BodyGraph'ı. Renk kişiyi gösterir: mavi = A, turuncu = B; iki renkli (yarım yarım) kapı = iki kişide de aktif.",
+  "Grafikte yalnız iki kişinin BİRLİKTE tamamladığı kanallar çizilir. İki renkli kanal = Elektromanyetik; tek renkli kanal = Baskınlık, Uzlaşma ya da Arkadaşlık (türü aşağıdaki tabloda).",
+  "Renkli merkez = birleşik haritada tanımlı; beyaz merkez = açık. Yarım kanallar ve kişilerin tüm aktif kapıları 'Yarım Kanallar ve Aktif Kapılar' bölümündedir.",
+];
 const LEGEND_CONNECTION = [
   "Renk kişiyi gösterir: mavi = A, turuncu = B; iki renkli (çizgili / yarım daire) = iki kişide ortak kapı.",
   "Kalın kanal = birleşik haritada tanımlı. İnce kesikli yarım kanal = yalnız bir kapısı aktif (tanımlı değil).",
@@ -80,8 +86,8 @@ const LEGEND_CONNECTION = [
   "Dolgulu merkez = birleşik haritada tanımlı; merkezdeki A / B / A+B = merkezi kendi haritasında tanımlayan kişi.",
 ];
 const LEGEND_PENTA = [
-  "Düz mor çizgi = grupta tanımlı Penta kanalı (güçlü yön); pembe kalın = 2/14 çekirdek; kesikli gri = boşluk var.",
-  "Kapının yanındaki numaralar o kapıyı taşıyan üyeleri gösterir; 'boşluk' = hiçbir üye taşımıyor.",
+  "Kalın mor çizgi = grupta tanımlı Penta kanalı (güçlü yön); pembe = 2/14 çekirdek tanımlı; noktalı gri = boşluk var (kanal tamamlanmıyor).",
+  "Kapının yanındaki numaralı rozetler o kapıyı taşıyan üyeleri gösterir (numara = üye sırası); kesikli kapı + 'boşluk' = hiçbir üye taşımıyor.",
 ];
 
 function connectionBody(a: RelationAnalysisView, r: HdConnectionResult): ReportChild[] {
@@ -117,6 +123,7 @@ function connectionBody(a: RelationAnalysisView, r: HdConnectionResult): ReportC
       ),
     );
   }
+  out.push(...activeGatesBody(a, r));
   out.push(h1("Birleşik Merkezler", true));
   out.push(muted("Birleşik haritada bir kanal, iki kişi birlikte iki kapısını da taşıdığında tanımlı sayılır. Son sütun merkezi KENDİ haritasında kimin tanımladığını gösterir."));
   out.push(
@@ -130,6 +137,40 @@ function connectionBody(a: RelationAnalysisView, r: HdConnectionResult): ReportC
       ]),
     ),
   );
+  return out;
+}
+
+/** Yarım kanallar + kişilerin tüm aktif kapıları (snapshot'taki kayıtlı bireysel veriden; yoksa açık not). */
+function activeGatesBody(a: RelationAnalysisView, r: HdConnectionResult): ReportChild[] {
+  const nameOf = (tag: "A" | "B") => safe(a.participants[tag === "A" ? 0 : 1]?.name ?? tag);
+  const out: ReportChild[] = [h1("Yarım Kanallar ve Aktif Kapılar", true)];
+  const m = buildCompositeModel(a.participants[0]?.gates ?? null, a.participants[1]?.gates ?? null, r);
+  if (!m.ok) {
+    out.push(muted("Kaynak bireysel analiz verisi bu raporda bulunmadığı için yarım kanallar ve kişilerin tüm aktif kapıları gösterilemiyor."));
+    return out;
+  }
+  const holder = (h: "A" | "B" | "both" | null) => (h === "both" ? `${nameOf("A")} ve ${nameOf("B")}` : h ? `${h}: ${nameOf(h)}` : "—");
+  const halves = Object.values(m.model.channels).filter((c): c is Extract<typeof c, { state: "half" }> => c.state === "half").sort((x, y) => Number(x.id.split("-")[0]) - Number(y.id.split("-")[0]));
+  out.push(muted("Yarım kanal: birlikte kanalın yalnız bir kapısı aktif; birleşik haritada tanımlı değildir."));
+  if (halves.length) {
+    out.push(
+      ...repeatingHeaderTable(
+        ["Yarım kanal", "Alt kapı — taşıyan", "Üst kapı — taşıyan"],
+        [40, 30, 30],
+        halves.map((c) => {
+          const [lo, hi] = c.id.split("-");
+          return [safe(relationChannelLabel(c.id, c.id)), `${lo}: ${holder(c.holderA)}`, `${hi}: ${holder(c.holderB)}`];
+        }),
+      ),
+    );
+  } else out.push(muted("Yarım kanal yok."));
+  const connected = new Set(r.channels.flatMap((c) => [c.gateA, c.gateB]));
+  out.push(h2("Kişilerin tüm aktif kapıları", { keepNext: true }));
+  for (const p of ["A", "B"] as const) {
+    const gates = Object.entries(m.model.gates).filter(([, h]) => h === p || h === "both").map(([g]) => Number(g)).sort((x, y) => x - y);
+    out.push(bodyText(`${p} — ${nameOf(p)}: ${gates.map((g) => (connected.has(g) ? `${g}*` : String(g))).join(", ") || "—"}`, 20));
+  }
+  out.push(muted("* Birlikte tamamlanan bir kanala ait kapı."));
   return out;
 }
 
@@ -182,7 +223,8 @@ export function buildRelationReportDocument(s: RelationReportSnapshot, opts: Rel
   const title = a.kind === "connection" ? "Human Design İlişki Analizi (Connection)" : "Human Design Grup Analizi (Penta)";
   const names = a.participants.map((p) => safe(p.name)).join(a.kind === "connection" ? " & " : ", ");
   const cover: ReportChild[] = [
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 1800, after: 200 }, children: [new TextRun({ text: title, bold: true, size: 40, font: REPORT_FONT, color: C_DARK })] }),
+    ...(opts.logo ? [embedImageParagraph(opts.logo, 180, 135)] : []),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: opts.logo ? 600 : 1800, after: 200 }, children: [new TextRun({ text: title, bold: true, size: 40, font: REPORT_FONT, color: C_DARK })] }),
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 400 }, children: [new TextRun({ text: names, size: 28, font: REPORT_FONT, color: C_MID })] }),
     twoColTable([
       ["Analiz türü", RELATION_KIND_LABEL[a.kind]],
@@ -202,8 +244,11 @@ export function buildRelationReportDocument(s: RelationReportSnapshot, opts: Rel
   // Görsel (ana grafik)
   body.push(h1(a.kind === "connection" ? "Birleşik İlişki BodyGraph'ı" : "Penta Şeması", true));
   if (opts.image) {
-    body.push(embedImageParagraph(opts.image, 470, 620));
-    for (const l of a.kind === "connection" ? LEGEND_CONNECTION : LEGEND_PENTA) body.push(muted(l));
+    body.push(embedImageParagraph(opts.image, a.kind === "connection" ? 440 : 400, 620));
+    const standard = a.kind === "connection" && s.image.source === "standard";
+    if (a.kind === "connection" && !standard) body.push(muted("Bu raporda Yaşam Sistemi şematik birleşik çizimi kullanılmıştır."));
+    for (const l of a.kind === "connection" ? (standard ? LEGEND_CONNECTION_STANDARD : LEGEND_CONNECTION) : LEGEND_PENTA) body.push(muted(l));
+    if (a.kind === "penta") body.push(muted(a.participants.map((p) => `${p.position + 1}. ${safe(p.name)}`).join(" · ")));
   } else {
     body.push(muted(s.image.reason ?? "Görsel bu raporda oluşturulamadı."));
   }
@@ -237,7 +282,6 @@ export function buildRelationReportDocument(s: RelationReportSnapshot, opts: Rel
     for (const para of s.sections.expertComment.split(/\n{2,}/)) body.push(bodyText(para, 22));
   }
   body.push(muted(RELATION_DISCLAIMER));
-  void opts.logo;
   return new Document({
     creator: "Yaşam Sistemi",
     title: safe(`${title} — ${names}`),

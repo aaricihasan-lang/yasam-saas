@@ -13,6 +13,9 @@ import { useHdModalA11y } from "../../components/useHdModalA11y";
 import { EXPERT_COMMENT_MAX } from "@/lib/human-design/relations/relationExtras.shared";
 import { ANALYSIS_EXPLANATION_DISCLAIMER, ANALYSIS_EXPLANATION_SOURCE } from "@/lib/human-design/relations/explanations";
 import type { RelationComment, RelationReportListRow } from "@/lib/human-design/relations/relationExtras";
+import type { RelationAnalysisView } from "@/lib/human-design/relations/relationService";
+import type { HdConnectionResult } from "@/lib/human-design/relations/connection";
+import { captureConnectionGraphic } from "../helpers/relationGraphicCapture";
 import {
   createRelationReport,
   downloadRelationReport,
@@ -230,7 +233,7 @@ export function ExpertCommentEditor({ id }: { id: string }) {
 
 // ─── Raporu Hazırla ──────────────────────────────────────────────────────────
 
-export function RelationReportPanel({ id }: { id: string }) {
+export function RelationReportPanel({ id, analysis }: { id: string; analysis?: RelationAnalysisView }) {
   const { showToast } = useToast();
   const [rows, setRows] = useState<RelationReportListRow[] | null>(null);
   const [available, setAvailable] = useState(true);
@@ -287,6 +290,7 @@ export function RelationReportPanel({ id }: { id: string }) {
       {open ? (
         <ReportDialog
           id={id}
+          analysis={analysis}
           onClose={() => setOpen(false)}
           onCreated={async (newId, image) => {
             setOpen(false);
@@ -300,7 +304,7 @@ export function RelationReportPanel({ id }: { id: string }) {
   );
 }
 
-function ReportDialog({ id, onClose, onCreated }: { id: string; onClose: () => void; onCreated: (id: string, image: { status: "ok" | "unavailable"; reason: string | null }) => void | Promise<void> }) {
+function ReportDialog({ id, analysis: a, onClose, onCreated }: { id: string; analysis?: RelationAnalysisView; onClose: () => void; onCreated: (id: string, image: { status: "ok" | "unavailable"; reason: string | null }) => void | Promise<void> }) {
   const ref = useRef<HTMLDivElement>(null);
   useHdModalA11y(ref, onClose);
   const { showToast } = useToast();
@@ -309,10 +313,22 @@ function ReportDialog({ id, onClose, onCreated }: { id: string; onClose: () => v
   const [comment, setComment] = useState(false);
   const [preparedBy, setPreparedBy] = useState("");
   const [busy, setBusy] = useState(false);
+  const [step, setStep] = useState("");
   const submit = async () => {
     if (busy) return;
     setBusy(true);
-    const r = await createRelationReport(id, { analysis, knowledge, expert_comment: comment }, preparedBy);
+    // Connection: standart birleşik BodyGraph tarayıcıda kayıtlı sonuçla çizilip PNG olarak rapora DONDURULUR.
+    // Yakalanamazsa rapor yine hazırlanır; Word'de Yaşam Sistemi şematik çizimi kullanılır (açıkça yazılır).
+    let graphic: string | null = null;
+    if (a && a.kind === "connection") {
+      setStep("Birleşik BodyGraph hazırlanıyor…");
+      const cap = await captureConnectionGraphic(a.id, a.result as HdConnectionResult, a.participants[0]?.name ?? "A", a.participants[1]?.name ?? "B");
+      if (cap.ok) graphic = cap.dataUrl;
+      else showToast({ message: `${cap.error} Raporda şematik çizim kullanılacak.`, type: "warning" });
+    }
+    setStep("Rapor hazırlanıyor…");
+    const r = await createRelationReport(id, { analysis, knowledge, expert_comment: comment }, preparedBy, graphic);
+    setStep("");
     setBusy(false);
     if (r.ok) await onCreated(r.id, r.image);
     else showToast({ message: r.error, type: "error" });
@@ -327,7 +343,7 @@ function ReportDialog({ id, onClose, onCreated }: { id: string; onClose: () => v
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-3 sm:items-center" role="presentation">
       <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="hd-rel-report-title" className="w-full max-w-md rounded-2xl bg-white p-4 shadow-xl" data-hd-rel-report-dialog>
         <h2 id="hd-rel-report-title" className="text-base font-black text-slate-900">Raporu Hazırla</h2>
-        <p className="mt-1 text-xs text-slate-600">Rapor her durumda katılımcıları, harita görselini ve teknik sonuçları içerir. Eklemek istediğiniz içerikleri seçin:</p>
+        <p className="mt-1 text-xs text-slate-600">Rapor her durumda katılımcıları, {a?.kind === "connection" ? "standart birleşik BodyGraph'ı" : "harita görselini"} ve teknik sonuçları içerir. Eklemek istediğiniz içerikleri seçin:</p>
         <div className="mt-3 space-y-2">
           {box(analysis, setAnalysis, "Analiz Açıklamalarını Ekle", "analysis")}
           {box(knowledge, setKnowledge, "Bilgi Bankamdaki Açıklamaları Ekle", "knowledge")}
@@ -341,7 +357,7 @@ function ReportDialog({ id, onClose, onCreated }: { id: string; onClose: () => v
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="min-h-[44px] rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-600">Vazgeç</button>
           <button type="button" onClick={() => void submit()} disabled={busy} className="min-h-[44px] rounded-xl bg-emerald-600 px-4 text-sm font-black text-white disabled:opacity-50" data-hd-rel-report-create>
-            {busy ? "Hazırlanıyor…" : "Raporu Hazırla ve İndir"}
+            {busy ? step || "Hazırlanıyor…" : "Raporu Hazırla ve İndir"}
           </button>
         </div>
       </div>

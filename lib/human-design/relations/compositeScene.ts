@@ -22,8 +22,8 @@ const CENTER_TR: Record<string, string> = {
 export type ScenePrim =
   | { k: "polygon"; points: Pt[]; fill: string; stroke: string; sw: number }
   | { k: "polyline"; points: Pt[]; stroke: string; sw: number; dash?: string; opacity?: number; ch?: string; layer: "base" | "half" | "defined" }
-  | { k: "circle"; x: number; y: number; r: number; fill: string; stroke: string; sw: number; gate?: number }
-  | { k: "path"; d: string; fill: string }
+  | { k: "circle"; x: number; y: number; r: number; fill: string; stroke: string; sw: number; gate?: number; dash?: string }
+  | { k: "path"; d: string; fill: string; stroke?: string; sw?: number }
   | { k: "text"; x: number; y: number; text: string; size: number; weight: number; fill: string; anchor?: "middle" | "start" | "end" }
   | { k: "marker"; shape: "diamond" | "triangle" | "square" | "circle"; x: number; y: number; ch: string };
 
@@ -113,8 +113,8 @@ export function sceneToSvg(prims: ScenePrim[], fontFamily: string, view: { width
     switch (p.k) {
       case "polygon": out.push(`<polygon points="${scenePointsAttr(p.points)}" fill="${p.fill}" stroke="${p.stroke}" stroke-width="${p.sw}" stroke-linejoin="round"/>`); break;
       case "polyline": out.push(`<polyline points="${scenePointsAttr(p.points)}" fill="none" stroke="${p.stroke}" stroke-width="${p.sw}" stroke-linecap="round" stroke-linejoin="round"${p.dash ? ` stroke-dasharray="${p.dash}"` : ""}${p.opacity !== undefined ? ` opacity="${p.opacity}"` : ""}/>`); break;
-      case "circle": out.push(`<circle cx="${p.x}" cy="${p.y}" r="${p.r}" fill="${p.fill}" stroke="${p.stroke}" stroke-width="${p.sw}"/>`); break;
-      case "path": out.push(`<path d="${p.d}" fill="${p.fill}"/>`); break;
+      case "circle": out.push(`<circle cx="${p.x}" cy="${p.y}" r="${p.r}" fill="${p.fill}" stroke="${p.stroke}" stroke-width="${p.sw}"${p.dash ? ` stroke-dasharray="${p.dash}"` : ""}/>`); break;
+      case "path": out.push(`<path d="${p.d}" fill="${p.fill}"${p.stroke ? ` stroke="${p.stroke}" stroke-width="${p.sw ?? 1}"` : ""}/>`); break;
       case "text": out.push(`<text x="${p.x}" y="${p.y}" font-size="${p.size}" font-weight="${p.weight}" fill="${p.fill}" text-anchor="${p.anchor ?? "start"}">${esc(p.text)}</text>`); break;
       case "marker": out.push(`<path d="${sceneMarkerPath(p)}" fill="#ffffff" stroke="#0f172a" stroke-width="1.6"/>`); break;
     }
