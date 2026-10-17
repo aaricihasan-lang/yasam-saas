@@ -8,8 +8,11 @@
 //     kendi isteğini YAPMAZ → yeni Bodygraph çağrısı / kredi YOK; API anahtarı tarayıcıda YOK.
 //   • Yalnız grafik: hide-readings + header/details/legend/themes/facts gizli.
 //   • Yüklenemezse eski Yaşam Sistemi renderer'ına DÜŞMEZ; anlaşılır mesaj gösterir.
+//   • Okunabilirlik: TANIMLI OLMAYAN kanalların tek renkli yarım parçaları kesikli çizilir (roxyHalfChannels);
+//     tanımlı kanallar, renkler ve yerleşim (PR #420) değişmez.
 
 import { createElement, useEffect, useRef, useState } from "react";
+import { HD_CHANNEL_PAIRS, definedChannelIdsFromRender, markRoxyHalfOnlyChannels } from "@/lib/human-design/bodygraph/roxyHalfChannels";
 
 export const ROXY_UI_VERSION = "0.48.0";
 const SCRIPT_SRC = `/vendor/roxy-ui/${ROXY_UI_VERSION}/bodygraph.js`;
@@ -56,15 +59,35 @@ export function HdRoxyBodygraph({ data }: { data: Record<string, unknown> }) {
 
   useEffect(() => {
     let alive = true;
+    let observer: MutationObserver | null = null;
+    let raf = 0;
     loadRoxyBodygraph()
-      .then(() => {
+      .then(async () => {
         if (!alive || !ref.current) return;
-        (ref.current as HTMLElement & { data?: unknown }).data = data;
+        const el = ref.current as HTMLElement & { data?: unknown; updateComplete?: Promise<unknown> };
+        el.data = data;
         setState("ready");
+        // Çizim bitince yarım kanalları işaretle; bileşen yeniden çizerse (MutationObserver) tekrar uygula.
+        const defined = definedChannelIdsFromRender(data);
+        const mark = () => {
+          if (alive) markRoxyHalfOnlyChannels(el.shadowRoot, defined, HD_CHANNEL_PAIRS);
+        };
+        if (el.updateComplete) await el.updateComplete.catch(() => undefined);
+        if (!alive) return;
+        mark();
+        if (el.shadowRoot && typeof MutationObserver !== "undefined") {
+          observer = new MutationObserver(() => {
+            cancelAnimationFrame(raf);
+            raf = requestAnimationFrame(mark);
+          });
+          observer.observe(el.shadowRoot, { childList: true, subtree: true });
+        }
       })
       .catch(() => alive && setState("error"));
     return () => {
       alive = false;
+      observer?.disconnect();
+      cancelAnimationFrame(raf);
     };
   }, [data]);
 
