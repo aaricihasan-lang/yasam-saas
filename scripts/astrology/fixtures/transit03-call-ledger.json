@@ -70,5 +70,23 @@
     "status": 200,
     "outcome": "OK — fixture kaydedildi",
     "attempts": 1
+  },
+  {
+    "n": 9,
+    "at": "2026-10-17T16:04:05.909Z",
+    "name": "kp-rasi-mercury-retro-2027",
+    "endpoint": "/vedic-astrology/kp/rasi-changes",
+    "status": 200,
+    "outcome": "OK — fixture kaydedildi",
+    "attempts": 1
+  },
+  {
+    "n": 10,
+    "at": "2026-10-17T16:04:06.451Z",
+    "name": "kp-planets-kpold-1950",
+    "endpoint": "/vedic-astrology/kp/planets-interval",
+    "status": 200,
+    "outcome": "OK — fixture kaydedildi",
+    "attempts": 1
   }
 ]

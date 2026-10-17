@@ -1,0 +1,255 @@
+{
+  "endpoint": "/vedic-astrology/kp/planets-interval",
+  "query": null,
+  "body": {
+    "startDatetime": "1950-01-01T00:00:00",
+    "endDatetime": "1950-01-01T12:00:00",
+    "intervalMinutes": 720,
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 0,
+    "ayanamsa": "kp-old",
+    "nodeType": "mean"
+  },
+  "response": {
+    "startDatetime": "1950-01-01T00:00:00",
+    "endDatetime": "1950-01-01T12:00:00",
+    "intervalMinutes": 720,
+    "totalIntervals": 2,
+    "ayanamsa": "kp-old",
+    "ayanamsaValue": 23.060733,
+    "intervals": [
+      {
+        "date": "1950-01-01",
+        "time": "00:00",
+        "datetime": "1950-01-01T00:00:00",
+        "planets": {
+          "Sun": {
+            "longitude": 256.9441,
+            "degreeInSign": 16.9441,
+            "sign": "Sagittarius",
+            "signLord": "Jupiter",
+            "nakshatra": "Purva Ashadha",
+            "nakshatraLord": "Venus",
+            "sublord": "Moon",
+            "subSublord": "Mercury",
+            "kpNumber": 178,
+            "isRetrograde": false
+          },
+          "Moon": {
+            "longitude": 38.3547,
+            "degreeInSign": 8.3547,
+            "sign": "Taurus",
+            "signLord": "Venus",
+            "nakshatra": "Krittika",
+            "nakshatraLord": "Sun",
+            "sublord": "Venus",
+            "subSublord": "Moon",
+            "kpNumber": 28,
+            "isRetrograde": false
+          },
+          "Mars": {
+            "longitude": 159.1505,
+            "degreeInSign": 9.1505,
+            "sign": "Virgo",
+            "signLord": "Mercury",
+            "nakshatra": "Uttara Phalguni",
+            "nakshatraLord": "Sun",
+            "sublord": "Venus",
+            "subSublord": "Jupiter",
+            "kpNumber": 111,
+            "isRetrograde": false
+          },
+          "Mercury": {
+            "longitude": 276.3865,
+            "degreeInSign": 6.3865,
+            "sign": "Capricorn",
+            "signLord": "Saturn",
+            "nakshatra": "Uttara Ashadha",
+            "nakshatraLord": "Sun",
+            "sublord": "Mercury",
+            "subSublord": "Rahu",
+            "kpNumber": 192,
+            "isRetrograde": false
+          },
+          "Jupiter": {
+            "longitude": 283.4446,
+            "degreeInSign": 13.4446,
+            "sign": "Capricorn",
+            "signLord": "Saturn",
+            "nakshatra": "Shravana",
+            "nakshatraLord": "Moon",
+            "sublord": "Rahu",
+            "subSublord": "Venus",
+            "kpNumber": 197,
+            "isRetrograde": false
+          },
+          "Venus": {
+            "longitude": 293.9188,
+            "degreeInSign": 23.9188,
+            "sign": "Capricorn",
+            "signLord": "Saturn",
+            "nakshatra": "Dhanishta",
+            "nakshatraLord": "Mars",
+            "sublord": "Mars",
+            "subSublord": "Venus",
+            "kpNumber": 204,
+            "isRetrograde": false
+          },
+          "Saturn": {
+            "longitude": 146.3767,
+            "degreeInSign": 26.3767,
+            "sign": "Leo",
+            "signLord": "Sun",
+            "nakshatra": "Purva Phalguni",
+            "nakshatraLord": "Venus",
+            "sublord": "Ketu",
+            "subSublord": "Jupiter",
+            "kpNumber": 101,
+            "isRetrograde": true
+          },
+          "Rahu": {
+            "longitude": 349.0515,
+            "degreeInSign": 19.0515,
+            "sign": "Pisces",
+            "signLord": "Jupiter",
+            "nakshatra": "Revati",
+            "nakshatraLord": "Mercury",
+            "sublord": "Ketu",
+            "subSublord": "Jupiter",
+            "kpNumber": 242,
+            "isRetrograde": true
+          },
+          "Ketu": {
+            "longitude": 169.0515,
+            "degreeInSign": 19.0515,
+            "sign": "Virgo",
+            "signLord": "Mercury",
+            "nakshatra": "Hasta",
+            "nakshatraLord": "Moon",
+            "sublord": "Mercury",
+            "subSublord": "Rahu",
+            "kpNumber": 117,
+            "isRetrograde": true
+          }
+        }
+      },
+      {
+        "date": "1950-01-01",
+        "time": "12:00",
+        "datetime": "1950-01-01T12:00:00",
+        "planets": {
+          "Sun": {
+            "longitude": 257.4536,
+            "degreeInSign": 17.4536,
+            "sign": "Sagittarius",
+            "signLord": "Jupiter",
+            "nakshatra": "Purva Ashadha",
+            "nakshatraLord": "Venus",
+            "sublord": "Mars",
+            "subSublord": "Rahu",
+            "kpNumber": 179,
+            "isRetrograde": false
+          },
+          "Moon": {
+            "longitude": 44.4838,
+            "degreeInSign": 14.4838,
+            "sign": "Taurus",
+            "signLord": "Venus",
+            "nakshatra": "Rohini",
+            "nakshatraLord": "Moon",
+            "sublord": "Jupiter",
+            "subSublord": "Mercury",
+            "kpNumber": 32,
+            "isRetrograde": false
+          },
+          "Mars": {
+            "longitude": 159.3337,
+            "degreeInSign": 9.3337,
+            "sign": "Virgo",
+            "signLord": "Mercury",
+            "nakshatra": "Uttara Phalguni",
+            "nakshatraLord": "Sun",
+            "sublord": "Venus",
+            "subSublord": "Saturn",
+            "kpNumber": 111,
+            "isRetrograde": false
+          },
+          "Mercury": {
+            "longitude": 276.9112,
+            "degreeInSign": 6.9112,
+            "sign": "Capricorn",
+            "signLord": "Saturn",
+            "nakshatra": "Uttara Ashadha",
+            "nakshatraLord": "Sun",
+            "sublord": "Mercury",
+            "subSublord": "Saturn",
+            "kpNumber": 192,
+            "isRetrograde": false
+          },
+          "Jupiter": {
+            "longitude": 283.5573,
+            "degreeInSign": 13.5573,
+            "sign": "Capricorn",
+            "signLord": "Saturn",
+            "nakshatra": "Shravana",
+            "nakshatraLord": "Moon",
+            "sublord": "Rahu",
+            "subSublord": "Sun",
+            "kpNumber": 197,
+            "isRetrograde": false
+          },
+          "Venus": {
+            "longitude": 294.0917,
+            "degreeInSign": 24.0917,
+            "sign": "Capricorn",
+            "signLord": "Saturn",
+            "nakshatra": "Dhanishta",
+            "nakshatraLord": "Mars",
+            "sublord": "Mars",
+            "subSublord": "Moon",
+            "kpNumber": 204,
+            "isRetrograde": false
+          },
+          "Saturn": {
+            "longitude": 146.3748,
+            "degreeInSign": 26.3748,
+            "sign": "Leo",
+            "signLord": "Sun",
+            "nakshatra": "Purva Phalguni",
+            "nakshatraLord": "Venus",
+            "sublord": "Ketu",
+            "subSublord": "Jupiter",
+            "kpNumber": 101,
+            "isRetrograde": true
+          },
+          "Rahu": {
+            "longitude": 349.025,
+            "degreeInSign": 19.025,
+            "sign": "Pisces",
+            "signLord": "Jupiter",
+            "nakshatra": "Revati",
+            "nakshatraLord": "Mercury",
+            "sublord": "Ketu",
+            "subSublord": "Jupiter",
+            "kpNumber": 242,
+            "isRetrograde": true
+          },
+          "Ketu": {
+            "longitude": 169.025,
+            "degreeInSign": 19.025,
+            "sign": "Virgo",
+            "signLord": "Mercury",
+            "nakshatra": "Hasta",
+            "nakshatraLord": "Moon",
+            "sublord": "Mercury",
+            "subSublord": "Rahu",
+            "kpNumber": 117,
+            "isRetrograde": true
+          }
+        }
+      }
+    ]
+  },
+  "note": "KP-Old ayanamsa tarih bağımlılığı: 1950 değeri, çağrı öncesi kaydedilen aday formül tahminleriyle kıyas"
+}

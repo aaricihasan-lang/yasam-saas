@@ -639,14 +639,15 @@ export function projectRoxyKpSublordChanges(raw: unknown, ex: KpChangesExpect): 
     }
     // Bilinen sağlayıcı kusuru (gerçek 92 gün Ay yanıtı, 17.10.2026): nakshatra başlangıcında satır ESKİ KP no + sub ile gelir
     // ("46→46", sub Ay→Ay) ama yeni yıldız lordu doğrudur. Düzeltme YALNIZ: aynı KP + aynı sub + değişen yıldız; komşu numara
-    // tek ve o numaranın yıldızı = yeni yıldız (nakshatranın ilk sub'ı); sağlayıcının SONRAKİ kaydı (varsa) o numarayla
-    // başlıyor. Düzeltilen satır `corrected` ile işaretlenir (ekran + rapor gösterir).
+    // tek ve o numaranın yıldızı = yeni yıldız (nakshatranın ilk sub'ı) [kanıt 1: bağımsız KP tablosu]; sağlayıcının SONRAKİ
+    // kaydı o numara + o sub ile başlıyor [kanıt 2]. İki kanıt da ŞART: sonraki kayıt yoksa (aralığın son satırı) düzeltme
+    // YAPILMAZ → satır tablo denetiminden düşer, sonuç reddedilir. Düzeltilen satır `corrected` ile işaretlenir (ekran + rapor).
     let corrected: KpSublordChange["corrected"];
     if (fromKp === toKp && fromSub === toSub && fromStar !== toStar) {
       const cands = [(fromKp % 249) + 1, ((fromKp + 247) % 249) + 1].filter((k) => table[k - 1].star === toStar && table[k - 1].sub === toStar);
       const next = obj(list[i + 1]);
       const nextFrom = next ? int(next.fromKp, 1, 249) : null;
-      const ok = cands.length === 1 && (next === null || (nextFrom === cands[0] && mapGraha(next.fromSublord) === table[cands[0] - 1].sub));
+      const ok = cands.length === 1 && next !== null && nextFrom === cands[0] && mapGraha(next.fromSublord) === table[cands[0] - 1].sub;
       if (ok) {
         corrected = { providerToKp: toKp, providerToSub: toSub };
         toKp = cands[0];

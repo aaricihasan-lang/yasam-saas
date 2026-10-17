@@ -33,6 +33,9 @@ export function transit03VerifyPlan(): Plan[] {
     { name: "kp-rasi-moon-berlin-dst", endpoint: "/vedic-astrology/kp/rasi-changes", body: { ...kpChangesBody("moon", "2026-10-20", "2026-10-31", "kp-newcomb", "mean"), timezone: "Europe/Berlin" }, why: "yaz/kış saati: 25.10.2026 Avrupa saat geri alma; sağlayıcının tek-ofset davranışını UTC golden'ıyla kıyas" },
     { name: "kp-planets-7d-kpold", endpoint: "/vedic-astrology/kp/planets-interval", body: kpPlanetsRangeBody("2026-10-07", 7, 1440, ISTANBUL, "kp-old", "mean"), why: "7 gün sınırı + günlük + KP-Old ayanamsa tutarlılığı" },
     { name: "kp-sublord-moon-92d", endpoint: "/vedic-astrology/kp/sublord-changes", body: kpChangesBody("moon", "2026-10-01", "2026-12-31", "kp-newcomb", "mean"), why: "uzun aralık: 92 gün Ay sub-lord (satır sayısı / boyut / süre)" },
+    // Owner son kontrolü (17.10.2026, kalan ≤2 hak): tarih/aday seçimi bağımsız Swiss Ephemeris taramasıyla ÖNCEDEN yapıldı.
+    { name: "kp-rasi-mercury-retro-2027", endpoint: "/vedic-astrology/kp/rasi-changes", body: kpChangesBody("mercury", "2027-01-15", "2027-03-31", "kp-newcomb", "mean"), why: "Merkür retro burç geri dönüşü: Oğlak→Kova 27.01, retro Kova→Oğlak 24.02, ileri Oğlak→Kova 11.03.2027 (bağımsız tarama)" },
+    { name: "kp-planets-kpold-1950", endpoint: "/vedic-astrology/kp/planets-interval", body: kpPlanetsRangeBody("1950-01-01", 1, 720, ISTANBUL, "kp-old", "mean"), why: "KP-Old ayanamsa tarih bağımlılığı: 1950 değeri, çağrı öncesi kaydedilen aday formül tahminleriyle kıyas" },
   ];
 }
 

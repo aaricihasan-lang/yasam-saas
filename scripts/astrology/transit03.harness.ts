@@ -229,6 +229,36 @@ async function main() {
     });
     assert.equal(projectRoxyKpSublordChanges(bug2, ex).ok, false, "sonraki kayıt tutmuyorsa düzeltilmez");
   });
+  await t("B2c düzeltme koruması: iki kanıttan biri eksik / tutarsızsa düzeltme YAPILMAZ ve sonuç RED (son satır, sonraki sub, yanlış yıldız, aynı yıldız)", () => {
+    const i = (sub.changes as J[]).findIndex((c) => c.fromNakshatraLord !== c.toNakshatraLord);
+    const stale = (r: J, k: number) => {
+      r.changes[k].toKp = r.changes[k].fromKp;
+      r.changes[k].toSublord = r.changes[k].fromSublord;
+    };
+    // a) Kusurlu satır aralığın SON satırı → sonraki kayıt (kanıt 2) yok → RED.
+    const last = mutate((r) => {
+      r.changes = r.changes.slice(0, i + 1);
+      r.totalChanges = r.changes.length;
+      stale(r, i);
+    });
+    assert.equal(projectRoxyKpSublordChanges(last, ex).ok, false, "son satır: tek kanıtla düzeltilmez");
+    // b) Sonraki kaydın KP numarası doğru, sub'ı farklı → RED.
+    const subX = mutate((r) => {
+      stale(r, i);
+      r.changes[i + 1].fromSublord = r.changes[i + 1].fromSublord === "Sun" ? "Moon" : "Sun";
+    });
+    assert.equal(projectRoxyKpSublordChanges(subX, ex).ok, false, "sonraki kayıt sub uyuşmazlığı");
+    // c) Yeni yıldız lordu, komşu KP numarasının yıldızı değil (tablo kanıtı tutmuyor) → RED.
+    const starX = mutate((r) => {
+      stale(r, i);
+      r.changes[i].toNakshatraLord = r.changes[i].toNakshatraLord === "Mars" ? "Rahu" : "Mars";
+    });
+    assert.equal(projectRoxyKpSublordChanges(starX, ex).ok, false, "yıldız tablo kanıtı tutmuyor");
+    // d) Nakshatra içi (yıldız aynı) satırda aynı KP + aynı sub → kusur kalıbı değil, düzeltilmez → RED.
+    const j = (sub.changes as J[]).findIndex((c, k) => k > 0 && k < sub.changes.length - 1 && c.fromNakshatraLord === c.toNakshatraLord);
+    const inStar = mutate((r) => stale(r, j));
+    assert.equal(projectRoxyKpSublordChanges(inStar, ex).ok, false, "yıldız değişmeyen satır düzeltilmez");
+  });
   await t("B3 rasi REDDİ: komşu olmayan burç, yanlış burç yöneticisi, zincir", () => {
     const exR = { planet: "moon" as const, startDate: "2026-10-01", endDate: "2026-10-31" };
     for (const [name, raw] of [
@@ -380,6 +410,8 @@ async function main() {
     { name: "kp-rasi-mercury-92d", kind: "rasi", planet: "mercury", required: false },
     { name: "kp-planets-7d-kpold", kind: "positions", required: false },
     { name: "kp-sublord-moon-92d", kind: "sublord", planet: "moon", required: false },
+    { name: "kp-rasi-mercury-retro-2027", kind: "rasi", planet: "mercury", required: false },
+    { name: "kp-planets-kpold-1950", kind: "positions", required: false },
   ];
   const gb = G("kp-rasi-moon-berlin-dst");
   const gu = G("kp-rasi-moon");
@@ -438,6 +470,56 @@ async function main() {
       }
       console.log(`     (gerçek 92 gün raporu: PDF ${p.pages} sayfa, ${Math.round(px.bytes.length / 1024)} KB; Word ${Math.round(dx.bytes.length / 1024)} KB)`);
       assert.equal(sent.length, 1, "kayıt + rapor sağlayıcı çağırmadı");
+    });
+  if (g92)
+    await t("G düzeltme koruması (GERÇEK 92 gün): 7 kusurlu satırın HER BİRİ için sağlayıcının sonraki kaydı bozulursa düzeltme yapılmaz, sonuç RED; kusurlu satır sonda kalırsa RED", () => {
+      const ex92 = { planet: "moon" as const, startDate: String(g92.body.startDate), endDate: String(g92.body.endDate) };
+      const raw = g92.response as J;
+      const bad = (raw.changes as J[]).map((c, k) => (c.fromKp === c.toKp ? k : -1)).filter((k) => k >= 0);
+      assert.equal(bad.length, 7, "gerçek yanıtta 7 kusurlu satır");
+      for (const k of bad) {
+        assert.ok(k < raw.changes.length - 1, "gerçek kusurlu satırların hepsinin sonraki kaydı var");
+        const m = structuredClone(raw) as J;
+        m.changes[k + 1].fromKp = (m.changes[k + 1].fromKp % 249) + 1;
+        assert.equal(projectRoxyKpSublordChanges(m, ex92).ok, false, `satır ${k}: sonraki kayıt bozuk → RED`);
+        const cut = structuredClone(raw) as J;
+        cut.changes = cut.changes.slice(0, k + 1);
+        cut.totalChanges = cut.changes.length;
+        assert.equal(projectRoxyKpSublordChanges(cut, ex92).ok, false, `satır ${k}: son satır → RED`);
+      }
+    });
+  const gm = G("kp-rasi-mercury-retro-2027");
+  if (gm)
+    await t("G Merkür retro burç geri dönüşü (GERÇEK, 2027): Oğlak→Kova, retro Kova→Oğlak, ileri Oğlak→Kova; dönüş anında hareket bağımsız astronomiyle GERİ", () => {
+      const r = projectRoxyKpRasiChanges(gm.response, { planet: "mercury", startDate: String(gm.body.startDate), endDate: String(gm.body.endDate) });
+      assert.ok(r.ok, r.ok ? "" : r.errors.join("; "));
+      if (!r.ok) return;
+      assert.deepEqual(r.part.changes.map((c) => `${c.fromRashi}>${c.toRashi}`), ["capricorn>aquarius", "aquarius>capricorn", "capricorn>aquarius"]);
+      const speed = (iso: string) => {
+        const ms = Date.parse(`${iso}Z`);
+        return ((siderealLon("mercury", ms + 3600e3) - siderealLon("mercury", ms - 3600e3) + 540) % 360) - 180;
+      };
+      const sp = r.part.changes.map((c) => speed(String(c.atUtc).slice(0, 19)));
+      assert.ok(sp[0] > 0 && sp[1] < 0 && sp[2] > 0, `hız işaretleri ${sp.map((x) => x.toFixed(4)).join(", ")}`);
+      // Bağımsız ikinci referans: Swiss Ephemeris 2.10.03 (Moshier, SE_SIDM_KRISHNAMURTI, kendi ayanamsası; Roxy değeri KULLANILMADI),
+      // 17.10.2026 çevrimdışı hesap: 2027-01-27T20:32:02, 2027-02-24T01:51:20, 2027-03-11T20:22:02 UTC.
+      const SE = ["2027-01-27T20:32:02", "2027-02-24T01:51:20", "2027-03-11T20:22:02"];
+      r.part.changes.forEach((c, k) => assert.ok(Math.abs(Date.parse(String(c.atUtc).slice(0, 19) + "Z") - Date.parse(`${SE[k]}Z`)) <= 120e3, `SE farkı ${k}`));
+    });
+  const ko26 = G("kp-planets-7d-kpold");
+  const ko50 = G("kp-planets-kpold-1950");
+  if (ko26 && ko50)
+    await t("G KP-Old ayanamsa tarih bağımlılığı (GERÇEK 1950 + 2026): değer zamanla presesyon hızında artar; bağımsız Swiss Ephemeris Krishnamurti ile ≤0,002°", () => {
+      const a26 = Number(ko26.response.ayanamsaValue);
+      const a50 = Number(ko50.response.ayanamsaValue);
+      const yrs = (Date.parse("2026-10-07T00:00:00Z") - Date.parse("1950-01-01T00:00:00Z")) / (365.25 * 86_400_000);
+      const rate = ((a26 - a50) / yrs) * 3600;
+      assert.ok(rate > 50.0 && rate < 50.8, `yıllık artış ${rate.toFixed(3)}″ (presesyon ≈50,3″)`);
+      // Bağımsız kaynak: Swiss Ephemeris 2.10.03 SE_SIDM_KRISHNAMURTI (J1900 22,363889°, Newcomb presesyonu; nütasyonlu),
+      // 17.10.2026 çevrimdışı hesap. Sağlayıcı formülü bununla BİREBİR değil (fark −0,0012° / −0,0002°) → açık risk notu.
+      const SE = { y2026: 24.136515, y1950: 23.060955 };
+      assert.ok(Math.abs(a26 - SE.y2026) <= 0.002 && Math.abs(a50 - SE.y1950) <= 0.002, `SE farkı ${(a26 - SE.y2026).toFixed(4)} / ${(a50 - SE.y1950).toFixed(4)}`);
+      console.log(`     (KP-Old: 1950 ${a50} · 2026 ${a26} · yıllık ${rate.toFixed(2)}″ · SE Krishnamurti farkı ${(a50 - SE.y1950).toFixed(4)}° / ${(a26 - SE.y2026).toFixed(4)}°)`);
     });
   let skip = 0;
   for (const g of REAL) {
