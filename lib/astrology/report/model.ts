@@ -748,69 +748,6 @@ function vedic(b: B, technique: string, t: O) {
 }
 
 
-// ─── TRANSİT-03: KP Transit zaman aralığı raporu (ekrandaki tablolarla aynı veri; yeni hesap YOK) ───────────────
-const kpTz = (v: unknown): string => {
-  if (typeof v !== "string" || !v) return "UTC";
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: v });
-    return v;
-  } catch {
-    return "UTC";
-  }
-};
-/** UTC anı → seçilen bölgede "GG.AA.YYYY SS:DD GMT+3" (UTC ise "… UTC"). */
-const kpAtZone = (utcIso: unknown, tz: string) => {
-  if (typeof utcIso !== "string" || !Number.isFinite(Date.parse(utcIso))) return DASH;
-  if (tz === "UTC") return utcTr(utcIso);
-  const p = Object.fromEntries(
-    new Intl.DateTimeFormat("en-GB", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "shortOffset" })
-      .formatToParts(new Date(Date.parse(utcIso)))
-      .map((x) => [x.type, x.value]),
-  );
-  return `${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute} ${p.timeZoneName}`;
-};
-const gShort = (v: unknown) => (typeof v === "string" ? (GRAHA_LABELS[v] ?? v).split(" ")[0] : DASH);
-
-function kpTimingReport(b: B, t: O, opts: O) {
-  const tz = kpTz(opts.displayTz);
-  const w = isObj(t.window) ? t.window : {};
-  b.kv([
-    ...kpFrame(t).filter(([k]) => k !== "Ev sistemi"),
-    ["Kip", "Zaman aralığı (Sub-Lord / Rasi geçişleri)"],
-    ["Aralık", `${dateTr(w.startDate)} – ${dateTr(w.endDate)} (UTC günleri, iki uç dahil)`],
-    ["Gösterim saat dilimi", tz],
-    ["Gezegenler", arr<unknown>(t.planets).length ? list(t.planets, grahaL) : DASH],
-  ]);
-  b.p("Anlar sağlayıcıdan UTC alınmış ve seçilen saat diliminde gösterilmiştir (yaz/kış saati her an için ayrı). KP yalnız KP numarası, yıldız (nakshatra) lordu, sub-lord ve rasi ile okunur; Batı açıları bu teknikte yoktur.", "muted");
-  const missing = arr<unknown>(t.missing).filter((x): x is string => typeof x === "string");
-  if (missing.length) b.p(`Hesaplanamayan parçalar: ${missing.join(", ")} — bu parçalar için liste eksiktir.`, "warn");
-  const kinds = arr<unknown>(t.kinds);
-  if (kinds.includes("sublord")) {
-    const rows = arr(t.sublord)
-      .flatMap((x) => arr(x.changes).map((c): O => ({ ...c, planet: x.planet })))
-      .sort((a, z) => String(a.atUtc).localeCompare(String(z.atUtc)))
-      .map((c) => [kpAtZone(c.atUtc, tz), grahaL(c.planet), `${s(c.fromKp)} · ${gShort(c.fromStar)} / ${gShort(c.fromSub)}`, `${s(c.toKp)} · ${gShort(c.toStar)} / ${gShort(c.toSub)}${c.fromStar !== c.toStar ? " (yıldız değişti)" : ""}`, utcTr(c.atUtc).slice(11)]);
-    b.h(3, `Sub-Lord değişimleri (${rows.length})`);
-    b.table([`An (${tz})`, "Gezegen", "Önceki KP · yıldız / sub", "Yeni KP · yıldız / sub", "UTC"], rows, { widths: [1.8, 1.3, 1.9, 2.2, 0.9], compact: true, empty: "Bu aralıkta Sub-Lord değişimi yok." });
-  }
-  if (kinds.includes("rasi")) {
-    const rows = arr(t.rasi)
-      .flatMap((x) => arr(x.changes).map((c): O => ({ ...c, planet: x.planet })))
-      .sort((a, z) => String(a.atUtc).localeCompare(String(z.atUtc)))
-      .map((c) => [kpAtZone(c.atUtc, tz), grahaL(c.planet), `${signL(c.fromRashi)} (${gShort(c.fromLord)})`, `${signL(c.toRashi)} (${gShort(c.toLord)})`, utcTr(c.atUtc).slice(11)]);
-    b.h(3, `Rasi (burç) geçişleri (${rows.length})`);
-    b.table([`An (${tz})`, "Gezegen", "Çıkılan burç (yönetici)", "Girilen burç (yönetici)", "UTC"], rows, { widths: [1.8, 1.3, 2, 2, 0.9], compact: true, empty: "Bu aralıkta rasi geçişi yok." });
-  }
-  const pos = isObj(t.positions) ? t.positions : null;
-  if (pos) {
-    // Geniş tablo sayfa taşmasın: her an için 9 graha ayrı satır (an · graha · rashi/derece · KP no · yıldız/sub · retro).
-    const rows = arr(pos.rows).flatMap((r) => arr(r.bodies).map((x, i) => [i === 0 ? kpAtZone(r.atUtc, tz) : "", grahaL(x.id), pos2(x), s(x.kpNumber), `${gShort(x.starLord)} / ${gShort(x.subLord)}`, x.retrograde === true && x.id !== "rahu" && x.id !== "ketu" ? "℞" : ""]));
-    b.h(3, `KP konum tablosu (${arr(pos.rows).length} an · ${num(pos.intervalMinutes) !== null && (num(pos.intervalMinutes) as number) >= 60 ? `${(num(pos.intervalMinutes) as number) / 60} saatte bir` : `${s(pos.intervalMinutes)} dk`})`);
-    b.table([`An (${tz})`, "Graha", "Rashi ve derece", "KP no", "Yıldız / sub", "Retro"], rows, { widths: [1.8, 1.4, 1.6, 0.7, 1.6, 0.5], compact: true });
-  }
-}
-const pos2 = (x: O) => (typeof x.rashi === "string" && num(x.degreeInRashi) !== null ? `${signL(x.rashi)} ${formatDegree(num(x.degreeInRashi)!)}` : DASH);
-
 const DASHA_LEVEL: Record<string, string> = { mahadasha: "Mahadasha", antardasha: "Antardasha (bhukti)", pratyantardasha: "Pratyantardasha" };
 
 function dasha(b: B, technique: string, t: O) {
@@ -899,6 +836,69 @@ function kpSignificators(b: B, sig: unknown, method: KpNodeSigMethodId) {
   }
   nodeNote(b, method, "bu tablo");
 }
+
+// ─── TRANSİT-03: KP Transit zaman aralığı raporu (ekrandaki tablolarla aynı veri; yeni hesap YOK) ───────────────
+const kpTz = (v: unknown): string => {
+  if (typeof v !== "string" || !v) return "UTC";
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: v });
+    return v;
+  } catch {
+    return "UTC";
+  }
+};
+/** UTC anı → seçilen bölgede "GG.AA.YYYY SS:DD GMT+3" (UTC ise "… UTC"). */
+const kpAtZone = (utcIso: unknown, tz: string) => {
+  if (typeof utcIso !== "string" || !Number.isFinite(Date.parse(utcIso))) return DASH;
+  if (tz === "UTC") return utcTr(utcIso);
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "shortOffset" })
+      .formatToParts(new Date(Date.parse(utcIso)))
+      .map((x) => [x.type, x.value]),
+  );
+  return `${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute} ${p.timeZoneName}`;
+};
+const gShort = (v: unknown) => (typeof v === "string" ? (GRAHA_LABELS[v] ?? v).split(" ")[0] : DASH);
+
+function kpTimingReport(b: B, t: O, opts: O) {
+  const tz = kpTz(opts.displayTz);
+  const w = isObj(t.window) ? t.window : {};
+  b.kv([
+    ...kpFrame(t).filter(([k]) => k !== "Ev sistemi"),
+    ["Kip", "Zaman aralığı (Sub-Lord / Rasi geçişleri)"],
+    ["Aralık", `${dateTr(w.startDate)} – ${dateTr(w.endDate)} (UTC günleri, iki uç dahil)`],
+    ["Gösterim saat dilimi", tz],
+    ["Gezegenler", arr<unknown>(t.planets).length ? list(t.planets, grahaL) : DASH],
+  ]);
+  b.p("Anlar sağlayıcıdan UTC alınmış ve seçilen saat diliminde gösterilmiştir (yaz/kış saati her an için ayrı). KP yalnız KP numarası, yıldız (nakshatra) lordu, sub-lord ve rasi ile okunur; Batı açıları bu teknikte yoktur.", "muted");
+  const missing = arr<unknown>(t.missing).filter((x): x is string => typeof x === "string");
+  if (missing.length) b.p(`Hesaplanamayan parçalar: ${missing.join(", ")} — bu parçalar için liste eksiktir.`, "warn");
+  const kinds = arr<unknown>(t.kinds);
+  if (kinds.includes("sublord")) {
+    const rows = arr(t.sublord)
+      .flatMap((x) => arr(x.changes).map((c): O => ({ ...c, planet: x.planet })))
+      .sort((a, z) => String(a.atUtc).localeCompare(String(z.atUtc)))
+      .map((c) => [kpAtZone(c.atUtc, tz), grahaL(c.planet), `${s(c.fromKp)} · ${gShort(c.fromStar)} / ${gShort(c.fromSub)}`, `${s(c.toKp)} · ${gShort(c.toStar)} / ${gShort(c.toSub)}${c.fromStar !== c.toStar ? " (yıldız değişti)" : ""}`, utcTr(c.atUtc).slice(11)]);
+    b.h(3, `Sub-Lord değişimleri (${rows.length})`);
+    b.table([`An (${tz})`, "Gezegen", "Önceki KP · yıldız / sub", "Yeni KP · yıldız / sub", "UTC"], rows, { widths: [1.8, 1.3, 1.9, 2.2, 0.9], compact: true, empty: "Bu aralıkta Sub-Lord değişimi yok." });
+  }
+  if (kinds.includes("rasi")) {
+    const rows = arr(t.rasi)
+      .flatMap((x) => arr(x.changes).map((c): O => ({ ...c, planet: x.planet })))
+      .sort((a, z) => String(a.atUtc).localeCompare(String(z.atUtc)))
+      .map((c) => [kpAtZone(c.atUtc, tz), grahaL(c.planet), `${signL(c.fromRashi)} (${gShort(c.fromLord)})`, `${signL(c.toRashi)} (${gShort(c.toLord)})`, utcTr(c.atUtc).slice(11)]);
+    b.h(3, `Rasi (burç) geçişleri (${rows.length})`);
+    b.table([`An (${tz})`, "Gezegen", "Çıkılan burç (yönetici)", "Girilen burç (yönetici)", "UTC"], rows, { widths: [1.8, 1.3, 2, 2, 0.9], compact: true, empty: "Bu aralıkta rasi geçişi yok." });
+  }
+  const pos = isObj(t.positions) ? t.positions : null;
+  if (pos) {
+    // Geniş tablo sayfa taşmasın: her an için 9 graha ayrı satır (an · graha · rashi/derece · KP no · yıldız/sub · retro).
+    const rows = arr(pos.rows).flatMap((r) => arr(r.bodies).map((x, i) => [i === 0 ? kpAtZone(r.atUtc, tz) : "", grahaL(x.id), pos2(x), s(x.kpNumber), `${gShort(x.starLord)} / ${gShort(x.subLord)}`, x.retrograde === true && x.id !== "rahu" && x.id !== "ketu" ? "℞" : ""]));
+    b.h(3, `KP konum tablosu (${arr(pos.rows).length} an · ${num(pos.intervalMinutes) !== null && (num(pos.intervalMinutes) as number) >= 60 ? `${(num(pos.intervalMinutes) as number) / 60} saatte bir` : `${s(pos.intervalMinutes)} dk`})`);
+    b.table([`An (${tz})`, "Graha", "Rashi ve derece", "KP no", "Yıldız / sub", "Retro"], rows, { widths: [1.8, 1.4, 1.6, 0.7, 1.6, 0.5], compact: true });
+  }
+}
+const pos2 = (x: O) => (typeof x.rashi === "string" && num(x.degreeInRashi) !== null ? `${signL(x.rashi)} ${formatDegree(num(x.degreeInRashi)!)}` : DASH);
 
 function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: number } | null) {
   const placeLabel = isObj(opts.place) && typeof opts.place.label === "string" ? opts.place.label : null;
