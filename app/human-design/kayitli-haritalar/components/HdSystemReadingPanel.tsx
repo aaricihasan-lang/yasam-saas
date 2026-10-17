@@ -10,16 +10,19 @@
 //   • Uzun içerik: Genel açık; Merkezler / Kanallar / Kapılar / Aktivasyonlar katlanır (<details>).
 //   • Kapılar: aktif her kapı BİR KEZ (1→64), kapı düzeyindeki Roxy açıklamasıyla; çizgi ve gezegen
 //     yorumları Aktivasyonlar'da kalır (karıştırılmaz).
+//   • BodyGraph 1. API tamamlama: taraf (Personality/Design) açıklamaları, merkez motor/farkındalık/aktif
+//     kapıları, kanal merkezleri, I Ching heksagramı, kaynak dili notu (alan yoksa satır gösterilmez).
 
 import { useEffect, useState, type ReactNode } from "react";
 import { getChartSystemReading, type SystemReadingFetchResult } from "@/lib/human-design/api/chartsClient";
-import { HD_CROSS_SECTION_TITLE, HD_TERM } from "@/lib/human-design/normalize/hdDisplayLabels";
-import type {
-  SystemReadingActivation,
-  SystemReadingCenter,
-  SystemReadingChannel,
-  SystemReadingDto,
-  SystemReadingGeneralItem,
+import { HD_SIGNATURE_HELP, HD_TERM } from "@/lib/human-design/normalize/hdDisplayLabels";
+import {
+  SYSTEM_READING_ICHING_NOTE,
+  type SystemReadingActivation,
+  type SystemReadingCenter,
+  type SystemReadingChannel,
+  type SystemReadingDto,
+  type SystemReadingGeneralItem,
 } from "@/lib/human-design/providers/roxy/systemReading";
 import {
   groupSystemReadingGates,
@@ -30,6 +33,8 @@ import {
 export const SYSTEM_READING_SOURCE_NOTE =
   "Bu bölüm, Human Design hesaplaması sırasında sistem tarafından sağlanan açıklamaları içerir.";
 export const SYSTEM_READING_UNAVAILABLE = "Bu kayıt için sistem yorumu bulunmuyor.";
+/** Merkez "Biyoloji" ve farkındalık metinleri Human Design kavramlarıdır — tıbbi teşhis gibi sunulmaz. */
+export const SYSTEM_READING_HEALTH_NOTE = "Biyoloji ve farkındalık açıklamaları Human Design sistemindeki karşılıklardır; tıbbi teşhis veya tedavi önerisi değildir.";
 
 function Para({ label, text }: { label: string; text: string | null }) {
   if (!text) return null;
@@ -61,9 +66,14 @@ function Fold({ summary, children, open = false, level = 1 }: { summary: ReactNo
 function GeneralItem({ item }: { item: SystemReadingGeneralItem }) {
   return (
     <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3" data-hd-sr-general={item.key}>
-      {/* Kayıtlı eski okumalarda başlık "Enkarnasyon Haçı" olabilir → anahtara göre güncel başlık. */}
-      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-indigo-600">{item.key === "cross" ? HD_CROSS_SECTION_TITLE : item.title}</p>
+      {/* Başlık DTO'dan (sunucu: Türkçe + (İngilizce), owner 2026-10-17). */}
+      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-indigo-600">{item.title}</p>
       {item.value ? <p className="mt-0.5 break-words text-[15px] font-semibold text-slate-900">{item.value}</p> : null}
+      {item.key === "signature" ? (
+        <p className="mt-1 text-[11px] leading-relaxed text-slate-500" data-hd-sr-signature-help>
+          {HD_SIGNATURE_HELP}
+        </p>
+      ) : null}
       {item.details.length > 0 ? (
         <div className="mt-2 space-y-2">
           {item.details.map((d) => (
@@ -72,6 +82,23 @@ function GeneralItem({ item }: { item: SystemReadingGeneralItem }) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function Tag({ children, field }: { children: ReactNode; field: string }) {
+  return (
+    <span className="rounded-full border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700" data-hd-sr-tag={field}>
+      {children}
+    </span>
+  );
+}
+
+function Line({ label, children, field }: { label: string; children: ReactNode; field: string }) {
+  return (
+    <p className="text-[12px] leading-relaxed text-slate-600" data-hd-sr-line={field}>
+      <span className="font-semibold text-slate-700">{label}: </span>
+      {children}
+    </p>
   );
 }
 
@@ -87,12 +114,24 @@ function CenterItem({ c }: { c: SystemReadingCenter }) {
               {c.defined ? "Tanımlı" : "Açık"}
             </span>
           ) : null}
+          {c.motor ? <Tag field="motor">Motor merkez</Tag> : null}
+          {c.awareness ? <Tag field="awareness">Farkındalık merkezi</Tag> : null}
         </span>
       }
     >
       <Para label="Tema" text={c.theme} />
       <Para label={HD_TERM.notSelfQuestion} text={c.notSelfQuestion} />
       <Para label="Biyoloji" text={c.biology} />
+      {c.motor !== undefined && c.motor !== null ? (
+        <Line label="Nitelik" field="center-kind">
+          {[c.motor ? "Motor (enerji kaynağı) merkez" : "Motor merkez değil", c.awareness ? "farkındalık merkezi" : "farkındalık merkezi değil"].join(" · ")}
+        </Line>
+      ) : null}
+      {c.gates ? (
+        <Line label="Aktif kapılar" field="center-gates">
+          {c.gates.length ? c.gates.join(", ") : "Bu merkezde aktif kapı yok"}
+        </Line>
+      ) : null}
     </Fold>
   );
 }
@@ -109,6 +148,11 @@ function ChannelItem({ c }: { c: SystemReadingChannel }) {
         </span>
       }
     >
+      {c.centers && c.centers.length === 2 ? (
+        <Line label="Bağladığı merkezler" field="channel-centers">
+          {c.centers[0]} ↔ {c.centers[1]}
+        </Line>
+      ) : null}
       <Para label="Açıklama" text={c.description} />
       <Para label={c.circuit ? `Devre — ${c.circuit}` : "Devre"} text={c.circuitDescription} />
     </Fold>
@@ -132,6 +176,11 @@ function ActivationItem({ a }: { a: SystemReadingActivation }) {
       <Para label={`Kapı ${a.gate}`} text={a.gateDescription} />
       <Para label={`Çizgi ${a.line}`} text={a.lineMeaning} />
       <Para label={a.planet ? `Gezegen — ${a.planet}` : "Gezegen"} text={a.planetDescription} />
+      {a.iching ? (
+        <Line label="I Ching" field="iching">
+          {a.iching.number}. heksagram — <span lang="en">{a.iching.name}</span> <span className="text-slate-400">({SYSTEM_READING_ICHING_NOTE})</span>
+        </Line>
+      ) : null}
     </Fold>
   );
 }
@@ -170,6 +219,11 @@ export function HdSystemReadingView({ data }: { data: SystemReadingDto }) {
   const gates = groupSystemReadingGates(data.activations);
   return (
     <div className="space-y-3" data-hd-system-reading>
+      {data.languageNote ? (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs leading-relaxed text-amber-800" data-hd-sr-language-note>
+          {data.languageNote}
+        </p>
+      ) : null}
       {data.general.length > 0 ? (
         <Fold open summary={<span className="text-sm font-black uppercase tracking-widest text-indigo-700">Genel</span>}>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -177,6 +231,19 @@ export function HdSystemReadingView({ data }: { data: SystemReadingDto }) {
               <GeneralItem key={g.key} item={g} />
             ))}
           </div>
+        </Fold>
+      ) : null}
+      {data.sides && (data.sides.personality || data.sides.design || data.sides.designUtc) ? (
+        <Fold summary={<span className="text-sm font-black uppercase tracking-widest text-indigo-700">Personality ve Design Tarafları</span>}>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2" data-hd-sr-sides>
+            <Para label="Personality · Bilinçli (siyah)" text={data.sides.personality} />
+            <Para label="Design · Bilinçdışı (kırmızı)" text={data.sides.design} />
+          </div>
+          {data.sides.designUtc ? (
+            <Line label="Design anı" field="design-utc">
+              {data.sides.designUtc} <span className="text-slate-400">(Güneş&apos;in doğumdan 88° önceki konumu; Design aktivasyonları bu ana göre)</span>
+            </Line>
+          ) : null}
         </Fold>
       ) : null}
       {data.centers.length > 0 ? (
@@ -245,6 +312,7 @@ export function HdSystemReadingPanel({ chartId }: { chartId: string }) {
   return (
     <section aria-label="Sistem Yorumu" className="space-y-3" data-hd-system-reading-panel>
       <p className="text-xs text-slate-500">{SYSTEM_READING_SOURCE_NOTE}</p>
+      <p className="text-[11px] text-slate-400" data-hd-sr-health-note>{SYSTEM_READING_HEALTH_NOTE}</p>
       {state === null ? (
         <p className="py-6 text-center text-sm text-slate-500">Yükleniyor...</p>
       ) : state.status === "error" ? (

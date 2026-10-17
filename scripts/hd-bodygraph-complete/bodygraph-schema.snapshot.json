@@ -1,0 +1,318 @@
+{
+  "source": "https://roxyapi.com/api/v2/openapi.json",
+  "endpoint": "POST /human-design/bodygraph",
+  "capturedAt": "2026-10-17",
+  "note": "200 yanıt şeması; $ref/allOf/anyOf açılmış yaprak alanlar.",
+  "fields": [
+    {
+      "path": "type",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "typeLocalized",
+      "type": "string",
+      "required": false
+    },
+    {
+      "path": "typeDescription",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "aura",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "strategy",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "strategyLocalized",
+      "type": "string",
+      "required": false
+    },
+    {
+      "path": "strategyDescription",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "authority",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "authorityLocalized",
+      "type": "string",
+      "required": false
+    },
+    {
+      "path": "authorityDescription",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "signature",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "signatureLocalized",
+      "type": "string",
+      "required": false
+    },
+    {
+      "path": "notSelf",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "notSelfLocalized",
+      "type": "string",
+      "required": false
+    },
+    {
+      "path": "profile",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "profileKeynotes.personalityLine",
+      "type": "number",
+      "required": true
+    },
+    {
+      "path": "profileKeynotes.designLine",
+      "type": "number",
+      "required": true
+    },
+    {
+      "path": "profileKeynotes.personality",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "profileKeynotes.design",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "profileDescription",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "definition",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "definitionLocalized",
+      "type": "string",
+      "required": false
+    },
+    {
+      "path": "definitionDescription",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "sides.{*}",
+      "type": "string",
+      "required": false
+    },
+    {
+      "path": "designInstantUtc",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "incarnationCross.gates[]",
+      "type": "number",
+      "required": true
+    },
+    {
+      "path": "incarnationCross.angle",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "incarnationCross.angleLocalized",
+      "type": "string",
+      "required": false
+    },
+    {
+      "path": "incarnationCross.angleCode",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "incarnationCross.name",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "incarnationCross.description",
+      "type": "string",
+      "required": false
+    },
+    {
+      "path": "centers[].id",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "centers[].name",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "centers[].nameLocalized",
+      "type": "string",
+      "required": false
+    },
+    {
+      "path": "centers[].defined",
+      "type": "boolean",
+      "required": true
+    },
+    {
+      "path": "centers[].motor",
+      "type": "boolean",
+      "required": true
+    },
+    {
+      "path": "centers[].awareness",
+      "type": "boolean",
+      "required": true
+    },
+    {
+      "path": "centers[].theme",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "centers[].notSelfQuestion",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "centers[].biology",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "centers[].gates[]",
+      "type": "number",
+      "required": true
+    },
+    {
+      "path": "channels[].gateA",
+      "type": "number",
+      "required": true
+    },
+    {
+      "path": "channels[].gateB",
+      "type": "number",
+      "required": true
+    },
+    {
+      "path": "channels[].name",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "channels[].nameLocalized",
+      "type": "string",
+      "required": false
+    },
+    {
+      "path": "channels[].circuit",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "channels[].circuitLocalized",
+      "type": "string",
+      "required": false
+    },
+    {
+      "path": "channels[].centers[]",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "channels[].description",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "channels[].circuitDescription",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "gates[].planet",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "gates[].planetLocalized",
+      "type": "string",
+      "required": false
+    },
+    {
+      "path": "gates[].side",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "gates[].gate",
+      "type": "number",
+      "required": true
+    },
+    {
+      "path": "gates[].line",
+      "type": "number",
+      "required": true
+    },
+    {
+      "path": "gates[].gateName",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "gates[].gateNameLocalized",
+      "type": "string",
+      "required": false
+    },
+    {
+      "path": "gates[].gateDescription",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "gates[].lineMeaning",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "gates[].planetDescription",
+      "type": "string",
+      "required": true
+    },
+    {
+      "path": "gates[].ichingHexagram.number",
+      "type": "number",
+      "required": true
+    },
+    {
+      "path": "gates[].ichingHexagram.english",
+      "type": "string",
+      "required": true
+    }
+  ]
+}

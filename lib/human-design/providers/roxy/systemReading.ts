@@ -8,6 +8,12 @@
 //   • Etiketlerde Türkçe *Localized değeri tercih edilir; yoksa sağlayıcının ham değeri.
 //   • Sağlayıcının VERMEDİĞİ hiçbir açıklama üretilmez (ör. İmza/Kendilik dışı tema için uzun metin yok).
 //   • Uzmanın Bilgi Bankası ile İLGİSİZDİR: hiçbir tabloya yazmaz, hiçbir içerikle birleşmez.
+//   • BodyGraph 1. API tamamlama (2026-10-17): şemadaki kullanıcıya anlamlı TÜM alanlar taşınır —
+//     profil çizgi numaraları, haç kapıları/açı kodu, taraf (Personality/Design) açıklamaları, merkez
+//     motor/farkındalık/aktif kapıları, kanal kapı/merkezleri, aktivasyon I Ching heksagramı. Yeni alanlar
+//     OPSİYONELDİR: eski rapor snapshot'larında yoktur ve eski çıktı aynen kalır.
+//   • lang=tr'de çevirisi olmayan metni sağlayıcı İngilizce döndürür → `languageNote` ile açıkça belirtilir
+//     (otomatik çeviri / anlam uydurma YOK).
 
 import { HUMAN_DESIGN_CHANNELS } from "@/lib/human-design/constants";
 import {
@@ -22,7 +28,7 @@ import {
   toAppDefinitionCode,
   toAppTypeCode,
 } from "@/lib/human-design/normalize/hdAppCodes";
-import { HD_CROSS_SECTION_TITLE, HD_TERM, hdTypeKeynotes, normalizeProviderTrText } from "@/lib/human-design/normalize/hdDisplayLabels";
+import { HD_CROSS_SECTION_TITLE, HD_TERM, HD_TERM_BI, hdCrossAngleLabel, hdTypeKeynotes, normalizeProviderTrText } from "@/lib/human-design/normalize/hdDisplayLabels";
 
 export const SYSTEM_READING_LIMITS = Object.freeze({
   label: 120,
@@ -58,6 +64,12 @@ export type SystemReadingCenter = {
   theme: string | null;
   notSelfQuestion: string | null;
   biology: string | null;
+  /** Motor (enerji kaynağı) merkez mi — sağlayıcı alanı (eski snapshot'ta yok). */
+  motor?: boolean | null;
+  /** Farkındalık merkezi mi — sağlayıcı alanı (eski snapshot'ta yok). */
+  awareness?: boolean | null;
+  /** Bu merkezdeki aktif kapılar (sağlayıcı; eski snapshot'ta yok). */
+  gates?: number[];
 };
 
 export type SystemReadingChannel = {
@@ -66,6 +78,8 @@ export type SystemReadingChannel = {
   circuit: string | null;
   description: string | null;
   circuitDescription: string | null;
+  /** Kanalın bağladığı iki merkez (uygulama adları; eski snapshot'ta yok). */
+  centers?: string[];
 };
 
 export type SystemReadingActivation = {
@@ -77,14 +91,39 @@ export type SystemReadingActivation = {
   gateDescription: string | null;
   lineMeaning: string | null;
   planetDescription: string | null;
+  /** Aynı numaralı I Ching heksagramı (sağlayıcı; numara kapıyla eşleşmezse null; eski snapshot'ta yok). */
+  iching?: { number: number; name: string } | null;
 };
+
+export type SystemReadingSides = {
+  personality: string | null;
+  design: string | null;
+  /** Design anı (Güneş'in doğumdan 88° önceki konumu) — "21.04.2018 03:12 UTC" biçiminde; yoksa null. */
+  designUtc?: string | null;
+};
+
+/** ISO UTC anı → "GG.AA.YYYY SS:DD UTC" (saat dilimi dönüşümü YOK; kayıtlı an aynen). */
+function designUtcLabel(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v);
+  return m && Number.isFinite(Date.parse(v)) ? `${m[3]}.${m[2]}.${m[1]} ${m[4]}:${m[5]} UTC` : null;
+}
 
 export type SystemReadingDto = {
   general: SystemReadingGeneralItem[];
   centers: SystemReadingCenter[];
   channels: SystemReadingChannel[];
   activations: SystemReadingActivation[];
+  /** Personality (bilinçli) / Design (bilinçdışı) taraf açıklamaları (eski snapshot'ta yok). */
+  sides?: SystemReadingSides | null;
+  /** Sağlayıcı bazı metinleri Türkçe vermediyse açık not (eski snapshot'ta yok). */
+  languageNote?: string | null;
 };
+
+/** I Ching heksagram adı yalnız sağlayıcının İngilizce adıdır (güvenilir Türkçe sözlük yok → çeviri uydurulmaz). */
+export const SYSTEM_READING_ICHING_NOTE = "İngilizce kaynak adı";
+export const SYSTEM_READING_LANGUAGE_NOTE =
+  "Bazı açıklamalar hesaplama servisi tarafından Türkçe sağlanmadığı için kaynak dilinde (İngilizce) gösterilmektedir; otomatik çeviri yapılmamıştır.";
 
 type Obj = Record<string, unknown>;
 
@@ -120,8 +159,18 @@ function general(r: Obj): SystemReadingGeneralItem[] {
   const pk = isObj(r.profileKeynotes) ? r.profileKeynotes : {};
   const xc = isObj(r.incarnationCross) ? r.incarnationCross : {};
   const profile = typeof r.profile === "string" && /^[1-6]\/[1-6]$/.test(r.profile.trim()) ? r.profile.trim() : null;
-  const angle = localized(xc, "angle");
+  const pLine = int(pk.personalityLine, 1, 6);
+  const dLine = int(pk.designLine, 1, 6);
+  // Açı: uygulamanın onaylı Türkçe etiketi (ör. "Sağ Açı (Right Angle)"); bilinmeyen → sağlayıcının yerel değeri.
+  const angleApp = typeof xc.angle === "string" ? hdCrossAngleLabel(xc.angle.trim()) : null;
+  const angle = angleApp && angleApp !== xc.angle ? angleApp : localized(xc, "angle");
+  const angleCode = typeof xc.angleCode === "string" && /^[A-Z]{2,5}$/.test(xc.angleCode.trim()) ? xc.angleCode.trim() : null;
   const crossName = label(xc.name);
+  const xg = Array.isArray(xc.gates) && xc.gates.length === 4 ? xc.gates.map((g) => int(g, 1, 64)) : null;
+  const crossGates =
+    xg && xg.every((g) => g !== null)
+      ? `Personality Güneş ${xg[0]} · Personality Dünya ${xg[1]} · Design Güneş ${xg[2]} · Design Dünya ${xg[3]}`
+      : null;
   const items: SystemReadingGeneralItem[] = [
     { key: "type", title: "Tip", value: localized(r, "type"), details: details([["Açıklama", text(r.typeDescription)], ["Aura", text(r.aura)]]) },
     { key: "strategy", title: "Strateji", value: localized(r, "strategy"), details: details([["Açıklama", text(r.strategyDescription)]]) },
@@ -132,8 +181,8 @@ function general(r: Obj): SystemReadingGeneralItem[] {
       value: profile,
       details: details([
         ["Açıklama", text(r.profileDescription)],
-        ["Personality (bilinçli)", text(pk.personality)],
-        ["Design (bilinçdışı)", text(pk.design)],
+        [pLine ? `Personality (bilinçli) — ${pLine}. çizgi` : "Personality (bilinçli)", text(pk.personality)],
+        [dLine ? `Design (bilinçdışı) — ${dLine}. çizgi` : "Design (bilinçdışı)", text(pk.design)],
       ]),
     },
     { key: "definition", title: "Tanım", value: localized(r, "definition"), details: details([["Açıklama", text(r.definitionDescription)]]) },
@@ -142,7 +191,8 @@ function general(r: Obj): SystemReadingGeneralItem[] {
       title: "Enkarnasyon Haçı",
       value: crossName ?? angle,
       details: details([
-        ["Açı", crossName ? angle : null],
+        ["Açı", crossName && angle ? `${angle}${angleCode ? ` (${angleCode})` : ""}` : null],
+        ["Kapılar", crossGates],
         ["Açıklama", text(xc.description)],
       ]),
     },
@@ -151,6 +201,24 @@ function general(r: Obj): SystemReadingGeneralItem[] {
     { key: "notSelf", title: HD_TERM.notSelf, value: localized(r, "notSelf"), details: [] },
   ];
   return items.filter((i) => i.value !== null || i.details.length > 0);
+}
+
+/** 1–64 aralığındaki benzersiz kapılar (artan); geçersiz değerler atlanır. */
+function gateList(v: unknown): number[] {
+  if (!Array.isArray(v)) return [];
+  const out = new Set<number>();
+  for (const g of v.slice(0, 64)) {
+    const n = int(g, 1, 64);
+    if (n !== null) out.add(n);
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
+/** Sağlayıcı merkez kimliği → uygulama merkez adı (bilinmeyen → null). */
+function centerName(v: unknown): string | null {
+  if (typeof v !== "string" || !/^[a-z_-]{1,32}$/.test(v)) return null;
+  const code = toAppCenterCode(v);
+  return code ? hdCenterLabelFromCode(code) : null;
 }
 
 function centers(r: Obj): SystemReadingCenter[] {
@@ -168,6 +236,9 @@ function centers(r: Obj): SystemReadingCenter[] {
       theme: text(c.theme),
       notSelfQuestion: text(c.notSelfQuestion),
       biology: text(c.biology),
+      motor: typeof c.motor === "boolean" ? c.motor : null,
+      awareness: typeof c.awareness === "boolean" ? c.awareness : null,
+      gates: gateList(c.gates),
     });
   }
   return out;
@@ -186,6 +257,7 @@ function channels(r: Obj): SystemReadingChannel[] {
       circuit: localized(c, "circuit"),
       description: text(c.description),
       circuitDescription: text(c.circuitDescription),
+      centers: Array.isArray(c.centers) ? c.centers.slice(0, 2).map(centerName).filter((x): x is string => x !== null) : [],
     };
     if (item.id || item.name || item.description) out.push(item);
   }
@@ -210,9 +282,46 @@ function activations(r: Obj): SystemReadingActivation[] {
       gateDescription: text(g.gateDescription),
       lineMeaning: text(g.lineMeaning),
       planetDescription: text(g.planetDescription),
+      iching: iching(g.ichingHexagram, gate),
     });
   }
   return out;
+}
+
+/** I Ching çapraz referansı: numara kapıyla BİREBİR eşleşmeli (şema sözleşmesi); değilse gösterilmez. */
+function iching(v: unknown, gate: number): { number: number; name: string } | null {
+  if (!isObj(v)) return null;
+  const n = int(v.number, 1, 64);
+  const name = label(v.english);
+  return n !== null && n === gate && name ? { number: n, name } : null;
+}
+
+function sides(r: Obj): SystemReadingSides | null {
+  const sd = isObj(r.sides) ? r.sides : {};
+  const s = { personality: text(sd.personality), design: text(sd.design), designUtc: designUtcLabel(r.designInstantUtc) };
+  return s.personality || s.design || s.designUtc ? s : null;
+}
+
+// ── Kaynak dili (lang=tr) ────────────────────────────────────────────────────────────────
+// Şema: "a field with no translation in the requested language returns English". Türkçe harf içermeyen
+// ve belirgin İngilizce işlev sözcükleri taşıyan uzun metin "İngilizce" sayılır. Metin DEĞİŞTİRİLMEZ.
+const TR_LETTERS = /[çğıöşüÇĞİÖŞÜ]/;
+const EN_WORDS = /\b(the|and|of|is|to|with|that|this|for|are|it)\b/gi;
+export function looksEnglishText(t: string | null | undefined): boolean {
+  if (!t || t.length < 40 || TR_LETTERS.test(t)) return false;
+  return (t.match(EN_WORDS) ?? []).length >= 3;
+}
+
+function languageNoteOf(dto: SystemReadingDto): string | null {
+  const texts: Array<string | null | undefined> = [
+    ...dto.general.flatMap((g) => g.details.map((d) => d.text)),
+    ...dto.centers.flatMap((c) => [c.theme, c.notSelfQuestion, c.biology]),
+    ...dto.channels.flatMap((c) => [c.description, c.circuitDescription]),
+    ...dto.activations.flatMap((a) => [a.gateDescription, a.lineMeaning, a.planetDescription]),
+    dto.sides?.personality,
+    dto.sides?.design,
+  ];
+  return texts.some(looksEnglishText) ? SYSTEM_READING_LANGUAGE_NOTE : null;
 }
 
 // ── HD-05 / HD-06 / HD-23: görünen terim uyumu ──────────────────────────────────────────────
@@ -223,7 +332,8 @@ function activations(r: Obj): SystemReadingActivation[] {
 /** Uygulama sözlüğünden gelen etiketler (bilinmeyen → sağlayıcı değeri kalır; uydurma yok). */
 export type SystemReadingLabels = Partial<Record<"type" | "strategy" | "authority" | "definition" | "signature" | "notSelf", string | null>>;
 
-const GENERAL_TITLE: Readonly<Partial<Record<SystemReadingGeneralKey, string>>> = {
+/** Eski (tek dilli) başlıklar — tamlama öncesi rapor snapshot'ları Word'de bunlarla basılır. */
+const GENERAL_TITLE_TR: Readonly<Partial<Record<SystemReadingGeneralKey, string>>> = {
   type: HD_TERM.type,
   strategy: HD_TERM.strategy,
   authority: HD_TERM.authority,
@@ -233,6 +343,8 @@ const GENERAL_TITLE: Readonly<Partial<Record<SystemReadingGeneralKey, string>>> 
   signature: HD_TERM.signature,
   notSelf: HD_TERM.notSelf,
 };
+/** 2026-10-17 owner: Türkçe + (İngilizce) başlıklar — ekran ve YENİ Word raporları. */
+const GENERAL_TITLE_BI: Readonly<Partial<Record<SystemReadingGeneralKey, string>>> = { ...HD_TERM_BI };
 
 const fixText = (t: string | null) => normalizeProviderTrText(t);
 
@@ -245,13 +357,14 @@ const fixText = (t: string | null) => normalizeProviderTrText(t);
  *     (defined === false) merkezde tutulur; tanımlı ya da durumu bilinmeyen merkezde gösterilmez.
  *   • Tüm metinlerde "Şehit/Kâfir/Sapkın" → "Deneyimleyen/Çözüm Getiren".
  */
-export function harmonizeSystemReading(dto: SystemReadingDto, labels: SystemReadingLabels = {}): SystemReadingDto {
+export function harmonizeSystemReading(dto: SystemReadingDto, labels: SystemReadingLabels = {}, opts: { bilingual?: boolean } = {}): SystemReadingDto {
+  const titles = opts.bilingual === false ? GENERAL_TITLE_TR : GENERAL_TITLE_BI;
   return {
     general: dto.general.map((g) => {
       const appValue = g.key in labels ? labels[g.key as keyof SystemReadingLabels] : null;
       return {
         ...g,
-        title: GENERAL_TITLE[g.key] ?? g.title,
+        title: titles[g.key] ?? g.title,
         value: appValue ?? fixText(g.value),
         details: g.details.map((d) => ({ label: d.label, text: fixText(d.text) ?? d.text })),
       };
@@ -284,16 +397,24 @@ export function harmonizeSystemReading(dto: SystemReadingDto, labels: SystemRead
       lineMeaning: fixText(a.lineMeaning),
       planetDescription: fixText(a.planetDescription),
     })),
+    // Eski snapshot'ta alan yok → eklenmez (eski çıktı birebir).
+    ...(dto.sides !== undefined
+      ? { sides: dto.sides ? { ...dto.sides, personality: fixText(dto.sides.personality), design: fixText(dto.sides.design) } : null }
+      : {}),
+    ...(dto.languageNote !== undefined ? { languageNote: dto.languageNote } : {}),
   };
 }
 
-/** Ham sağlayıcı yanıtının İngilizce anahtar değerlerinden uygulama etiketleri (yalnız tanınanlar). */
+/**
+ * Ham sağlayıcı yanıtının İngilizce anahtar değerlerinden uygulama etiketleri (yalnız tanınanlar).
+ * Strateji / İmza / Kendilik Dışı Tema: "Türkçe (sağlayıcı KANONİK İngilizce)" — ekrandaki bilgi bloğuyla aynı.
+ */
 export function systemReadingLabelsFromRaw(raw: unknown): SystemReadingLabels {
   if (!isObj(raw)) return {};
   const typeCode = toAppTypeCode(raw.type);
   const authorityCode = toAppAuthorityCode(raw.authority);
   const definitionCode = toAppDefinitionCode(raw.definition);
-  const keynotes = hdTypeKeynotes(typeCode);
+  const keynotes = hdTypeKeynotes(typeCode, { canonical: { strategy: raw.strategy, signature: raw.signature, notSelf: raw.notSelf } });
   return {
     type: typeCode ? hdTypeLabelFromCode(typeCode) : null,
     authority: authorityCode ? hdAuthorityDisplayLabel(authorityCode, typeCode) : null,
@@ -307,19 +428,19 @@ export function systemReadingLabelsFromRaw(raw: unknown): SystemReadingLabels {
 /** provider_raw → güvenli DTO. Kullanılabilir içerik yoksa null (sistem yorumu "yok"). */
 export function extractSystemReading(raw: unknown): SystemReadingDto | null {
   if (!isObj(raw)) return null;
-  const dto: SystemReadingDto = harmonizeSystemReading(
-    {
-      general: general(raw),
-      centers: centers(raw),
-      channels: channels(raw),
-      activations: activations(raw),
-    },
-    systemReadingLabelsFromRaw(raw),
-  );
+  const base: SystemReadingDto = {
+    general: general(raw),
+    centers: centers(raw),
+    channels: channels(raw),
+    activations: activations(raw),
+    sides: sides(raw),
+  };
+  const dto: SystemReadingDto = harmonizeSystemReading({ ...base, languageNote: languageNoteOf(base) }, systemReadingLabelsFromRaw(raw));
   const hasText =
     dto.general.some((g) => g.details.some((d) => d.label !== "Açı")) ||
     dto.centers.some((c) => c.theme || c.notSelfQuestion || c.biology) ||
     dto.channels.some((c) => c.description || c.circuitDescription) ||
-    dto.activations.some((a) => a.gateDescription || a.lineMeaning || a.planetDescription);
+    dto.activations.some((a) => a.gateDescription || a.lineMeaning || a.planetDescription) ||
+    !!(dto.sides?.personality || dto.sides?.design);
   return hasText ? dto : null;
 }

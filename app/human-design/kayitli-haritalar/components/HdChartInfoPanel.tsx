@@ -3,9 +3,13 @@
 // Hesaplanmış Human Design haritası — profesyonel DANIŞAN + HARİTA bilgi bloğu (SAF SUNUM).
 //
 // Kayıtlı veriden (computed_result + kayıt satırı) render edilir; hesap / fetch / sağlayıcı çağrısı YOK.
-// YALNIZ teknik kimlik: Danışan (ad, yerel/UTC doğum, tz, yer, koordinat, yaş) + HD (Tip, Profil, Tanım,
-// Enkarnasyon Haçı, İç Otorite). Yorum niteliğindeki / aşağıda tekrar gösterilen bilgiler (Strateji, İmza,
-// Benlik-dışı tema, kanallar, merkezler, kapılar, Bilgi Bankası) BURADA YOK.
+// Teknik kimlik: Danışan (ad, yerel/UTC doğum, tz, yer, koordinat, yaş) + HD (Tip, Strateji, Profil, Tanım,
+// Enkarnasyon Teması, İç Otorite, İmza, Kendilik Dışı Tema). Strateji/İmza/Kendilik dışı tema KISA etiketlerdir
+// (uygulama sözlüğü, tipten; owner kararı 2026-10-17 — ana panelde erişilebilir). Uzun sağlayıcı açıklamaları
+// (tip/otorite/tanım/aura …) BURADA YOK: yetkili uzmanda "Sistem Yorumu" sekmesindedir.
+// 2026-10-17 owner: kavram başlıkları ve değerleri Türkçe + (İngilizce) — Türkçe uygulama sözlüğünden,
+// İngilizce kaydın sağlayıcı KANONİK değerinden (Roxy strategy/signature/notSelf; yoksa standart HD terimi).
+// "İmza (Signature)" kısa açıklaması alt satırda (lg şeritte title olarak).
 // Yerleşim (tek DOM, yalnız CSS):
 //   • mobil (< lg): BodyGraph'ın üstünde kart; alanlar 1–2 sütun, metin kesilmez, logo en altta
 //   • lg şerit: sahnenin üstünde ince şerit (Danışan | Human Design | logo)
@@ -22,7 +26,8 @@ import {
   hdProfileLabelFromCode,
   hdTypeLabelFromCode,
 } from "@/lib/human-design/codeHelpers";
-import { HD_CROSS_SECTION_TITLE, hdCrossAngleLabel } from "@/lib/human-design/normalize/hdDisplayLabels";
+import { HD_SIGNATURE_HELP, HD_TERM_BI, hdCrossAngleLabel, hdProfileBilingual, hdTypeKeynotes } from "@/lib/human-design/normalize/hdDisplayLabels";
+import { crossThemeNames } from "@/lib/human-design/reporting/crossThemeTr";
 
 export const HD_CHART_LOGO_SRC = "/assets/yasam-sistemi-chart-logo.png";
 
@@ -45,12 +50,13 @@ function Item({
   subInStrip?: boolean;
 }) {
   const text = value ?? "—";
+  const title = [source ? `Kaynak değeri: ${source}` : null, sub && !subInStrip ? sub : null].filter(Boolean).join(" · ");
   return (
     // lg şerit: "ETİKET değer" satır-içi akış (kesilme yok, sarar) · hdwide/mobil: etiket üstte, değer altta.
     <div
       className={`min-w-0 lg:flex lg:max-w-full lg:items-baseline lg:gap-1.5 hdwide:block ${wide ? "col-span-full" : ""}`}
       data-hd-info-field={field}
-      title={source ? `Kaynak değeri: ${source}` : undefined}
+      title={title || undefined}
     >
       <dt className="text-[9.5px] font-semibold uppercase leading-tight tracking-[0.08em] text-slate-400 lg:shrink-0 lg:whitespace-nowrap hdwide:whitespace-normal hdwide:text-[10px]">{label}</dt>
       <dd className="m-0 min-w-0 break-words text-[13px] font-medium leading-snug text-slate-800 lg:text-[12px] hdwide:text-[clamp(13px,1.35vh,14px)]">
@@ -108,9 +114,13 @@ export function HdChartInfoPanel({
   const showRaw = (raw: string | undefined, label: string) => (raw && raw !== label ? raw : null);
   const typeLabel = hdTypeLabelFromCode(codes.type_code);
   const authorityLabel = hdAuthorityDisplayLabel(codes.authority_code, codes.type_code);
-  const profileLabel = hdProfileLabelFromCode(codes.profile_code);
+  const profileLabel = hdProfileBilingual(codes.profile_code) ?? hdProfileLabelFromCode(codes.profile_code);
   const definitionLabel = hdDefinitionLabelFromCode(codes.definition_code);
   const crossGates = `${pSun}/${pEarth} | ${dSun}/${dEarth}`;
+  const keynotes = hdTypeKeynotes(codes.type_code, { canonical: { strategy: result.strategy, signature: result.signature, notSelf: result.notSelf } });
+  // Haç değeri: bilinen temada "Türkçe tema (İngilizce kanonik ad)"; bilinmeyende yalnız kanonik ad (uydurma yok).
+  const crossTheme = cross.name ? crossThemeNames(cross.name, cross.angle ?? null) : null;
+  const crossValue = cross.name ? (crossTheme?.themeKnown ? `${crossTheme.tr} (${crossTheme.en})` : cross.name) : `${hdCrossAngleLabel(cross.angle)} (yalnız kapılar)`;
 
   return (
     <section
@@ -138,18 +148,21 @@ export function HdChartInfoPanel({
             <span lang="en">Human Design</span>
           </GroupTitle>
           <dl className="m-0 grid grid-cols-1 gap-x-3 gap-y-1.5 min-[420px]:grid-cols-2 lg:flex lg:min-w-0 lg:flex-1 lg:flex-wrap lg:gap-x-4 lg:gap-y-0.5 hdwide:grid hdwide:grid-cols-1 hdwide:gap-y-[clamp(5px,0.8vh,9px)]">
-            <Item field="type" label="Tip" value={typeLabel} source={showRaw(result.type, typeLabel)} />
-            <Item field="profile" label="Profil" value={profileLabel} />
-            <Item field="definition" label="Tanım" value={definitionLabel} source={showRaw(result.definition.kind, definitionLabel)} />
+            <Item field="type" label={HD_TERM_BI.type} value={typeLabel} />
+            {keynotes ? <Item field="strategy" label={HD_TERM_BI.strategy} value={keynotes.strategy} /> : null}
+            <Item field="profile" label={HD_TERM_BI.profile} value={profileLabel} />
+            <Item field="definition" label={HD_TERM_BI.definition} value={definitionLabel} source={showRaw(result.definition.kind, definitionLabel)} />
             <Item
               field="cross"
-              label={HD_CROSS_SECTION_TITLE}
-              value={cross.name ?? `${hdCrossAngleLabel(cross.angle)} (yalnız kapılar)`}
+              label={HD_TERM_BI.cross}
+              value={crossValue}
               sub={`${crossGates}${cross.angle ? ` · ${hdCrossAngleLabel(cross.angle)}` : ""}`}
               source={`${crossGates}${cross.angle ? ` · ${hdCrossAngleLabel(cross.angle)}` : ""}`}
               subInStrip={false}
             />
-            <Item field="authority" label="İç Otorite" value={authorityLabel} source={showRaw(result.authority, authorityLabel)} />
+            <Item field="authority" label={HD_TERM_BI.authority} value={authorityLabel} />
+            {keynotes ? <Item field="signature" label={HD_TERM_BI.signature} value={keynotes.signature} sub={HD_SIGNATURE_HELP} subInStrip={false} /> : null}
+            {keynotes ? <Item field="notSelf" label={HD_TERM_BI.notSelf} value={keynotes.notSelf} /> : null}
           </dl>
         </div>
 

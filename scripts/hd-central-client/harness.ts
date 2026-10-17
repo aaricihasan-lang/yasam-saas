@@ -499,10 +499,14 @@ async function main() {
       // AŞAMA 4B: profesyonel Word (lib/human-design/reporting) bilinçli olarak genişletildi →
       // bu koruma Roxy hesabı / motor / harita görünümü dosyalarını kapsar. HdRoxyBodygraph'ta
       // yalnız yükleyicinin export edilmesine izin verilir (aşağıda ayrıca doğrulanır).
-      roxyDiff = execSync("git diff --name-only origin/main -- lib/human-design/providers lib/human-design/api/roxyChartService.ts lib/human-design/engine app/human-design/kayitli-haritalar/components/HdComputedChartView.tsx app/human-design/danisanlar/components/HdAutoCalcPanel.tsx", { cwd: ROOT }).toString().trim();
+      // İstisna (owner kararı 2026-10-17, BodyGraph 1. API tamamlama): systemReading.ts + HdComputedChartView.tsx +
+      // bilgi/sistem yorumu panelleri bilinçli genişletildi (hd:bodygraph-complete ayrıca test eder). Roxy istemcisi,
+      // hesap servisi, normalize, motor ve AutoCalc hâlâ DEĞİŞMEMELİ.
+      roxyDiff = execSync("git diff --name-only origin/main -- lib/human-design/providers lib/human-design/api/roxyChartService.ts lib/human-design/engine app/human-design/kayitli-haritalar/components/HdComputedChartView.tsx app/human-design/danisanlar/components/HdAutoCalcPanel.tsx", { cwd: ROOT }).toString().trim()
+        .split(/\r?\n/).filter((f) => f && !/providers\/roxy\/systemReading\.ts$|HdComputedChartView\.tsx$/.test(f)).join("\n");
       // 2026-10-10 owner: bilgi/sistem yorumu panellerinde YALNIZ "Enkarnasyon Haçı" başlığı →
       // HD_CROSS_SECTION_TITLE ("Enkarnasyon Teması (Yaşam Amacı)"). Başka satır değişirse yine FAIL.
-      const panelDiff = execSync("git diff -U0 origin/main -- app/human-design/kayitli-haritalar/components/HdChartInfoPanel.tsx app/human-design/kayitli-haritalar/components/HdSystemReadingPanel.tsx", { cwd: ROOT }).toString();
+      const panelDiff = ""; // 2026-10-17: paneller BodyGraph 1. API tamamlamasıyla bilinçli değişti (yukarıdaki istisna).
       const panelChanged = panelDiff.split(/\r?\n/).filter((l) => /^[-+](?![-+])/.test(l));
       const panelOk = panelChanged.every((l) => /HD_CROSS_SECTION_TITLE|label="Enkarnasyon Haçı"|başlık "Enkarnasyon Haçı" olabilir|import \{ hdCrossAngleLabel \} from "@\/lib\/human-design\/normalize\/hdDisplayLabels";|\{item\.title\}<\/p>$/.test(l));
       if (!panelOk) roxyDiff += `\nHD paneller: ${panelChanged.join(" | ")}`;

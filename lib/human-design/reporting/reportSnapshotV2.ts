@@ -36,7 +36,7 @@ import {
 import { HUMAN_DESIGN_CENTERS } from "@/lib/human-design/constants";
 import { GATE_TECHNICAL_DATA } from "@/lib/human-design/gateTechnicalData";
 import { HD_PLANET_ORDER, PLANET_LABEL_TR } from "@/lib/human-design/bodygraph/planetGlyphs";
-import { hdCrossAngleLabel, hdTypeKeynotes } from "@/lib/human-design/normalize/hdDisplayLabels";
+import { hdCrossAngleLabel, hdProfileBilingual, hdTypeKeynotes } from "@/lib/human-design/normalize/hdDisplayLabels";
 import type { HdAppChartCodes } from "@/lib/human-design/normalize/hdAppCodes";
 import type { PlanetName } from "@/lib/human-design/engine/types";
 import type { SystemReadingDto } from "@/lib/human-design/providers/roxy/systemReading";
@@ -186,6 +186,11 @@ export type HdReportSnapshotV2 = {
    * eski düzen AYNEN (eski Word'ler değişmez).
    */
   layout?: typeof HD_REPORT_V2_LAYOUT;
+  /**
+   * Terim seti (owner 2026-10-17): "tr-en" → temel HD başlıkları/değerleri Türkçe + (İngilizce). Yoksa (eski
+   * snapshot) Word eski tek dilli başlıklarla basılır — kayıtlı rapor çıktısı sessizce değişmez.
+   */
+  termSet?: "tr-en";
   /**
    * Uzmanın bu rapor için yazdığı "Raporu Hazırlayan" (ad + unvan). YALNIZ bu rapora özgü,
    * donmuş. null/boş → "Hazırlayan" satırı hiç oluşturulmaz (profil adı otomatik yazılmaz).
@@ -354,7 +359,9 @@ export function buildReportSnapshotV2(input: BuildSnapshotV2Input): HdReportSnap
       activations: gateActs.get(gate) ?? [],
     };
   });
-  const keynotes = hdTypeKeynotes(codes.type_code);
+  // Strateji / İmza / Kendilik Dışı Tema: Türkçe uygulama sözlüğü + kayıttaki sağlayıcı KANONİK İngilizce değer.
+  const comp = isObj(input.computed) ? input.computed : {};
+  const keynotes = hdTypeKeynotes(codes.type_code, { canonical: { strategy: comp.strategy, signature: comp.signature, notSelf: comp.notSelf } });
 
   const wantsExpert = input.requested === "expert" || input.requested === "both";
   const wantsSystem = input.requested === "system" || input.requested === "both";
@@ -383,7 +390,7 @@ export function buildReportSnapshotV2(input: BuildSnapshotV2Input): HdReportSnap
     },
     identity: {
       type: codes.type_code ? hdTypeLabelFromCode(codes.type_code) : null,
-      profile: codes.profile_code ? hdProfileLabelFromCode(codes.profile_code) : null,
+      profile: codes.profile_code ? hdProfileBilingual(codes.profile_code) ?? hdProfileLabelFromCode(codes.profile_code) : null,
       authority: codes.authority_code ? hdAuthorityDisplayLabel(codes.authority_code, codes.type_code) : null,
       definition: codes.definition_code ? hdDefinitionLabelFromCode(codes.definition_code) : null,
       cross: input.source === "computed" ? freezeCross(input.computed) : null,
@@ -403,6 +410,7 @@ export function buildReportSnapshotV2(input: BuildSnapshotV2Input): HdReportSnap
     bodygraph: input.bodygraph,
     chartImage: input.chartImage,
     layout: HD_REPORT_V2_LAYOUT,
+    termSet: "tr-en",
     preparedBy: sanitizePreparedBy(input.preparedBy),
   };
 }

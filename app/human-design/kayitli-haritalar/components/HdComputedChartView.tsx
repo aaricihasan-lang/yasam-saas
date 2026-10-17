@@ -4,9 +4,10 @@
 //
 // Kayıtlı `computed_result`'tan (RECOMPUTE YOK) render edilir:
 //   • bilgi bloğu (HdChartInfoPanel): Danışan (ad, yerel/UTC doğum, yer, koordinat, yaş) +
-//     Tip / Strateji / Profil / Tanım / Enkarnasyon Haçı / İç Otorite / İmza / Benlik-dışı tema
+//     Tip / Strateji / Profil / Tanım / Enkarnasyon Teması / İç Otorite / İmza / Benlik-dışı tema
 //   • Design | BodyGraph | Personality (tek DOM; mobilde BodyGraph üstte, altında iki sütun)
-//   • 9 merkez (tanımlı/açık), tanımlı kanallar, aktif kapılar
+//   • 9 merkez (tanımlı/açık + RoxyAPI kaydında sağlayıcının motor/farkındalık işareti), tanımlı kanallar,
+//     aktif kapılar
 // Etiketler uygulama sözlüğünden (Türkçe); sağlayıcı değeri yalnız küçük "kaynak değeri" olarak.
 // Sağlayıcı açıklama metinleri (typeDescription vb.) burada GÖSTERİLMEZ.
 
@@ -17,6 +18,7 @@ import { HdChartInfoPanel } from "./HdChartInfoPanel";
 import type { HdChartSubjectInfo } from "@/lib/human-design/chart/chartSubjectInfo";
 import { computedChartAppCodes, type HdComputedChart } from "@/lib/human-design/chart/computedChart";
 import { hdCenterLabelFromCode } from "@/lib/human-design/codeHelpers";
+import { toAppCenterCode } from "@/lib/human-design/normalize/hdAppCodes";
 import { HUMAN_DESIGN_CENTERS } from "@/lib/human-design/constants";
 import { hdChannelDisplayLabel, type HdNameOverrides } from "@/lib/human-design/knowledge/hdNames";
 
@@ -38,6 +40,14 @@ export function HdComputedChartView({
   const codes = computedChartAppCodes(result);
   const isProvider = result.provider?.id === "roxyapi";
   const definedSet = new Set(codes.active_centers);
+  // Sağlayıcının (kayıtlı yanıt) merkez nitelikleri — yalnız RoxyAPI kayıtlarında; eski kayıtta işaret yok (uydurma yok).
+  const centerKind = new Map<string, { motor: boolean; awareness: boolean }>();
+  if (roxyRender && Array.isArray(roxyRender.centers)) {
+    for (const c of roxyRender.centers as Array<Record<string, unknown>>) {
+      const code = typeof c.id === "string" ? toAppCenterCode(c.id) : null;
+      if (code) centerKind.set(code, { motor: c.motor === true, awareness: c.awareness === true });
+    }
+  }
 
   return (
     <div className="space-y-5" data-hd-computed-view={isProvider ? "roxyapi" : "engine"}>
@@ -88,7 +98,11 @@ export function HdComputedChartView({
               const on = definedSet.has(c.code);
               return (
                 <li key={c.code} data-hd-center={`${c.code}:${on ? "defined" : "open"}`} className="flex items-center justify-between gap-2 text-xs">
-                  <span className="min-w-0 truncate text-slate-700">{hdCenterLabelFromCode(c.code)}</span>
+                  <span className="min-w-0 truncate text-slate-700">
+                    {hdCenterLabelFromCode(c.code)}
+                    {centerKind.get(c.code)?.motor ? <span className="ml-1 text-[10px] font-semibold text-amber-700" title="Motor (enerji kaynağı) merkez" data-hd-center-motor>· Motor</span> : null}
+                    {centerKind.get(c.code)?.awareness ? <span className="ml-1 text-[10px] font-semibold text-sky-700" title="Farkındalık merkezi" data-hd-center-awareness>· Farkındalık</span> : null}
+                  </span>
                   <span
                     className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${
                       on ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"

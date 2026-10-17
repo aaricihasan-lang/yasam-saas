@@ -179,13 +179,14 @@ async function main() {
   ok("C5 Koordinatlar", field("coords").includes("41,0225° K · 28,9408° D"));
   ok("C6 Yaş", /\|8\|/.test(field("age")));
   ok("C7 Tip (Türkçe uygulama etiketi)", field("type").includes("Generator"));
-  ok("C8 UAT: solda yalnız teknik künye (10 alan, sıra sabit)", [...info.matchAll(/data-hd-info-field="([a-z]+)"/g)].map((m) => m[1]).join(",") === "name,local,place,coords,age,type,profile,definition,cross,authority");
+  ok("C8 künye + temel HD (13 alan, sıra sabit; owner 2026-10-17: Strateji/İmza/Kendilik Dışı Tema eklendi)", [...info.matchAll(/data-hd-info-field="([A-Za-z]+)"/g)].map((m) => m[1]).join(",") === "name,local,place,coords,age,type,strategy,profile,definition,cross,authority,signature,notSelf");
   // AŞAMA 2 (2026-10-15 owner terminolojisi): görünen etiketler Türkçe + (İngilizce); kodlar aynı.
   ok("C9 İç Otorite", field("authority").includes("Sakral Otorite (Sacral Authority)"));
   ok("C10 Profil", field("profile").includes("2/4 — Münzevi / Fırsatçı"), field("profile"));
   ok("C11 Tanım", field("definition").includes("İkili Tanım (Split)"), field("definition"));
   ok("C12 Enkarnasyon Teması (Yaşam Amacı) + kapılar", field("cross").includes("Right Angle Cross of Laws 2") && field("cross").includes(`${ref2.incarnationCross.gates[0]}/${ref2.incarnationCross.gates[1]} | ${ref2.incarnationCross.gates[2]}/${ref2.incarnationCross.gates[3]}`));
-  ok("C13 UAT: Strateji / İmza / Benlik-dışı solda YOK", !/data-hd-info-field="(strategy|signature|notself)"/.test(info) && !info.includes("Strateji") && !info.includes("İmza") && !info.includes("Benlik-dışı") && !info.includes("Yanıt vermek için beklemek") && !info.includes("Tatmin"));
+  // 2026-10-17 owner: başlık ve değer Türkçe + (İngilizce); İngilizce kayıttaki Roxy kanonik değerinden.
+  ok("C13 Strateji / İmza / Kendilik Dışı Tema ana panelde, Türkçe + (İngilizce) (uzun sağlayıcı metni yok)", info.includes(">Strateji (Strategy)<") && info.includes(">İmza (Signature)<") && info.includes(">Kendilik Dışı Tema (Not-Self Theme)<") && info.includes("Yanıt vermek için beklemek (Wait to respond)") && info.includes("Tatmin (Satisfaction)") && info.includes("Hayal kırıklığı (Frustration)") && !info.includes("enveloping"));
   ok("C14 UAT: kanal / merkez / kapı / Bilgi Bankası solda YOK", !info.includes("Kanal") && !info.includes("Merkez") && !info.includes("Kapı") && !info.includes("data-hd-info-group=\"channels\"") && !info.includes("Bilgi Bankası"));
   const lower = html.slice(html.indexOf("data-hd-stage"));
   ok("C15 alt bölümler korunur: Tanımlı Kanallar (Türkçe ad) + Merkezler + Aktif Kapılar", n.codes.channels.every((c) => lower.includes(`data-hd-channel="${c}"`)) && lower.includes("Tanımlı Kanallar") && lower.includes("Merkezler") && lower.includes("Aktif Kapılar"));
@@ -195,7 +196,7 @@ async function main() {
   ok("C18 alt bölüm: kanallar/merkezler/kapılar korunur", count(html, /data-hd-channel=/g) === n.codes.channels.length && count(html, /data-hd-center=/g) === 9 && count(html, /data-hd-gate=/g) === n.codes.gates.length);
 
   // ── D) Yerleşim / tekrar / marka ──
-  ok("D1 HD alanları sayfada tek yerde (tekrar yok)", count(html, />Enkarnasyon Teması \(Yaşam Amacı\)</g) === 1 && !html.includes("Haç") && count(html, />Tip</g) === 1 && count(html, />Strateji</g) === 0);
+  ok("D1 HD alanları sayfada tek yerde (tekrar yok)", count(html, />Enkarnasyon Teması \(Incarnation Cross\)</g) === 1 && !html.includes("Haç") && count(html, />Tip \(Type\)</g) === 1 && count(html, />Strateji \(Strategy\)</g) === 1 && count(html, />İmza \(Signature\)</g) === 1);
   ok("D2 DOM sırası: bilgi → Design → BodyGraph → Personality (mobilde bilgi en üstte)", html.indexOf("data-hd-info") < html.indexOf('data-hd-side="design"') && html.indexOf('data-hd-side="design"') < html.indexOf("<roxy-bodygraph") && html.indexOf("<roxy-bodygraph") < html.indexOf('data-hd-side="personality"'));
   ok("D3 geniş masaüstü: [Bilgi][Design][BodyGraph][Personality] TEK kart (bilgi kartsız, iç kaydırma YOK)", html.includes("hdwide:flex-row") && html.includes("hdwide:w-[252px]") && html.includes("hdwide:border-0 hdwide:border-r") && html.includes("hdwide:bg-transparent") && !info.includes("overflow-y-auto") && !info.includes("overflow-auto") && !info.includes("sticky") && html.includes("hdwide:rounded-2xl hdwide:border hdwide:border-indigo-200/70") && html.includes("hdwide:bg-none hdwide:shadow-none"));
   ok("D4 BodyGraph yükseklik-öncelikli yerleşim korunur", html.includes("lg:h-[calc(100dvh-5.25rem)]") && html.includes('data-hd-renderer="roxy-official"') && html.includes("lg:h-full lg:w-auto"));

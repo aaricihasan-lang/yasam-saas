@@ -65,7 +65,7 @@ import {
   type SystemReadingDto,
   type SystemReadingLabels,
 } from "@/lib/human-design/providers/roxy/systemReading";
-import { HD_TERM, hdTypeKeynotes } from "@/lib/human-design/normalize/hdDisplayLabels";
+import { HD_SIGNATURE_HELP, HD_TERM, HD_TERM_BI, hdTypeKeynotes } from "@/lib/human-design/normalize/hdDisplayLabels";
 import { toAppTypeCode } from "@/lib/human-design/normalize/hdAppCodes";
 import { hdXmlSafeLine, hdXmlSafeMultiline } from "./xmlSafeText";
 import { toPlanetName } from "@/lib/human-design/providers/roxy/normalize";
@@ -125,9 +125,16 @@ function typeCodeFromLabel(label: string | null | undefined): string | null {
   return toAppTypeCode(label) ?? (inParens ? toAppTypeCode(inParens) : null);
 }
 
+/** 2026-10-17: Türkçe + (İngilizce) terim seti yalnız bu işareti taşıyan (yeni) snapshot'larda. */
+const isBilingual = (s: HdReportSnapshotV2) => s.termSet === "tr-en";
+/** Kavram başlıkları: yeni rapor → "Tip (Type)"; eski rapor → eski tek dilli başlıklar (çıktı birebir). */
+function termsOf(s: HdReportSnapshotV2): Record<keyof typeof HD_TERM_BI, string> {
+  return isBilingual(s) ? { ...HD_TERM_BI } : { ...HD_TERM, cross: "Enkarnasyon Haçı" };
+}
+
 /** HD-04: Strateji / İmza / Kendilik Dışı Tema — snapshot'ta donmuşsa o, yoksa (eski rapor) tipten. */
 export function identityKeynotes(s: HdReportSnapshotV2): { strategy: string | null; signature: string | null; notSelf: string | null } {
-  const derived = hdTypeKeynotes(typeCodeFromLabel(s.identity.type));
+  const derived = hdTypeKeynotes(typeCodeFromLabel(s.identity.type), { bilingual: isBilingual(s) });
   return {
     strategy: s.identity.strategy ?? derived?.strategy ?? null,
     signature: s.identity.signature ?? derived?.signature ?? null,
@@ -147,7 +154,7 @@ function harmonizedReading(s: HdReportSnapshotV2, reading: SystemReadingDto | nu
     signature: k.signature,
     notSelf: k.notSelf,
   };
-  return harmonizeSystemReading(reading, labels);
+  return harmonizeSystemReading(reading, labels, { bilingual: isBilingual(s) });
 }
 
 // ── Küçük yardımcılar ────────────────────────────────────────────────────────────
@@ -288,11 +295,12 @@ function buildIdentity(s: HdReportSnapshotV2, genDate: string): ReportChild[] {
   if (s.client.birthTime) rows.push(["Doğum Saati (yerel)", s.client.birthTime]);
   if (s.client.birthPlace) rows.push(["Doğum Yeri", s.client.birthPlace]);
   if (s.client.timezone) rows.push(["Saat Dilimi", s.client.timezone]);
-  if (s.identity.type) rows.push(["Tip", s.identity.type]);
-  if (s.identity.profile) rows.push(["Profil", s.identity.profile]);
-  if (s.identity.authority) rows.push(["İç Otorite", s.identity.authority]);
-  if (s.identity.definition) rows.push(["Tanım", s.identity.definition]);
-  if (s.identity.cross) rows.push(["Enkarnasyon Haçı", `${s.identity.cross.name} · ${s.identity.cross.gates}`]);
+  const T = termsOf(s);
+  if (s.identity.type) rows.push([T.type, s.identity.type]);
+  if (s.identity.profile) rows.push([T.profile, s.identity.profile]);
+  if (s.identity.authority) rows.push([T.authority, s.identity.authority]);
+  if (s.identity.definition) rows.push([T.definition, s.identity.definition]);
+  if (s.identity.cross) rows.push([T.cross, `${s.identity.cross.name} · ${s.identity.cross.gates}`]);
   rows.push(["Harita Kaynağı", s.chart.source === "computed" ? "Otomatik hesaplama" : "Manuel kayıt"]);
   rows.push(["Rapor Tarihi", genDate]);
   // Gövde ayrı bölümde (yeni sayfa) başlar → burada ek sayfa sonu YOK (boş sayfa oluşmaz).
@@ -419,6 +427,8 @@ function buildSystem(reading: SystemReadingDto | null, o: { proCross?: boolean; 
       "Kaynak: Harita hesaplanırken hesaplama servisinden alınıp kaydedilmiş sistem açıklamaları. Bu bölüm uzman yorumu değildir; raporu hazırlayan uzmanın bilgileri ayrı bölümdedir.",
     ),
   ];
+  // BodyGraph 1. API tamamlama: yeni alanlar OPSİYONEL — eski snapshot'larda yoktur, eski çıktı aynen kalır.
+  if (reading.languageNote) out.push(muted(reading.languageNote));
 
   const general = reading.general.filter((g) => g.value || g.details.length);
   if (general.length) {
@@ -434,18 +444,38 @@ function buildSystem(reading: SystemReadingDto | null, o: { proCross?: boolean; 
     }
   }
 
+  if (reading.sides && (reading.sides.personality || reading.sides.design || reading.sides.designUtc)) {
+    out.push(h2("Personality ve Design Tarafları", { keepNext: true }));
+    out.push(
+      ...detailBlocks(
+        [
+          reading.sides.personality ? { label: "Personality · Bilinçli", text: reading.sides.personality } : null,
+          reading.sides.design ? { label: "Design · Bilinçdışı", text: reading.sides.design } : null,
+          // Rapor kuralı (Q6): görünür raporda UTC anı yazılmaz → yalnız Design GÜNÜ (evrensel saate göre).
+          reading.sides.designUtc ? { label: "Design tarihi", text: `${reading.sides.designUtc.slice(0, 10)} — Güneş'in doğumdan 88° önceki konumunun günü (evrensel saate göre)` } : null,
+        ].filter((d): d is SystemReadingDetail => d !== null),
+      ),
+    );
+  }
+
   const centers = reading.centers.filter((c) => c.theme || c.notSelfQuestion || c.biology);
   if (centers.length) {
     out.push(h2("Merkez Açıklamaları", { keepNext: true }));
+    // Yalnız tamamlanmış (yeni) içerik modelinde — eski snapshot çıktısı birebir kalır.
+    if (centers.some((c) => c.motor !== undefined)) {
+      out.push(muted("Biyoloji ve farkındalık açıklamaları Human Design sistemindeki karşılıklardır; tıbbi teşhis veya tedavi önerisi değildir."));
+    }
     for (const c of centers) {
       const state = c.defined === null ? "" : c.defined ? " — Tanımlı" : " — Açık";
-      out.push(h3(`${c.name}${state}`, { keepNext: true }));
+      const kind = [c.motor ? "Motor merkez" : null, c.awareness ? "Farkındalık merkezi" : null].filter(Boolean).join(", ");
+      out.push(h3(`${c.name}${state}${kind ? ` (${kind})` : ""}`, { keepNext: true }));
       out.push(
         ...detailBlocks(
           [
             c.theme ? { label: "Tema", text: c.theme } : null,
             c.notSelfQuestion ? { label: HD_TERM.notSelfQuestion, text: c.notSelfQuestion } : null,
             c.biology ? { label: "Biyoloji", text: c.biology } : null,
+            c.gates ? { label: "Merkezdeki aktif kapılar", text: c.gates.length ? c.gates.join(", ") : "Bu merkezde aktif kapı yok" } : null,
           ].filter((d): d is SystemReadingDetail => d !== null),
         ),
       );
@@ -462,6 +492,7 @@ function buildSystem(reading: SystemReadingDto | null, o: { proCross?: boolean; 
         ...detailBlocks(
           [
             c.circuit ? { label: "Devre", text: c.circuit } : null,
+            c.centers && c.centers.length === 2 ? { label: "Bağladığı merkezler", text: `${c.centers[0]} ↔ ${c.centers[1]}` } : null,
             c.description ? { label: "Açıklama", text: c.description } : null,
             c.circuitDescription ? { label: "Devre açıklaması", text: c.circuitDescription } : null,
           ].filter((d): d is SystemReadingDetail => d !== null),
@@ -482,6 +513,7 @@ function buildSystem(reading: SystemReadingDto | null, o: { proCross?: boolean; 
             a.gateDescription ? { label: "Kapı", text: a.gateDescription } : null,
             a.lineMeaning ? { label: "Çizgi", text: a.lineMeaning } : null,
             a.planetDescription ? { label: "Gezegen", text: a.planetDescription } : null,
+            a.iching ? { label: "I Ching", text: `${a.iching.number}. heksagram — ${a.iching.name} (İngilizce kaynak adı)` } : null,
           ].filter((d): d is SystemReadingDetail => d !== null),
         ),
       );
@@ -685,13 +717,16 @@ function proIdentity(s: HdReportSnapshotV2, genDate: string): ReportChild[] {
   if (s.client.timezone) birth.push(kv("Saat Dilimi", s.client.timezone));
   const hd: Paragraph[] = [capsLabel("Human Design Özeti")];
   const keynotes = identityKeynotes(s);
-  if (s.identity.type) hd.push(kv(HD_TERM.type, s.identity.type));
-  if (keynotes.strategy) hd.push(kv(HD_TERM.strategy, keynotes.strategy));
-  if (s.identity.profile) hd.push(kv(HD_TERM.profile, s.identity.profile));
-  if (s.identity.authority) hd.push(kv(HD_TERM.authority, s.identity.authority));
-  if (s.identity.definition) hd.push(kv(HD_TERM.definition, s.identity.definition));
-  if (keynotes.signature) hd.push(kv(HD_TERM.signature, keynotes.signature));
-  if (keynotes.notSelf) hd.push(kv(HD_TERM.notSelf, keynotes.notSelf));
+  const T = termsOf(s);
+  if (s.identity.type) hd.push(kv(T.type, s.identity.type));
+  if (keynotes.strategy) hd.push(kv(T.strategy, keynotes.strategy));
+  if (s.identity.profile) hd.push(kv(T.profile, s.identity.profile));
+  if (s.identity.authority) hd.push(kv(T.authority, s.identity.authority));
+  if (s.identity.definition) hd.push(kv(T.definition, s.identity.definition));
+  if (keynotes.signature) hd.push(kv(T.signature, keynotes.signature));
+  // Yeni raporda "İmza (Signature)" kısa açıklaması (ıslak imza / belge imzası ile karışmasın).
+  if (keynotes.signature && isBilingual(s)) hd.push(muted(`${T.signature}: ${HD_SIGNATURE_HELP}`));
+  if (keynotes.notSelf) hd.push(kv(T.notSelf, keynotes.notSelf));
   const gap = 240;
   const half = Math.floor((W - gap) / 2);
   out.push(
