@@ -7,6 +7,7 @@
 //     (cusp) göre aritmetik yerleşim; ekranda ve raporda "natal ev başlangıçlarına göre" diye açıkça etiketlenir.
 //   • Zaman: sağlayıcı anları UTC'dir; gösterim seçilen IANA saat dilimine Intl ile çevrilir (yaz/kış saati dahil).
 
+import { isValidIsoDate, normalizeTime, resolveAstroBirthTime } from "./birth/timeResolution";
 import type { AspectType, BodyId, NatalHouse } from "./model/western";
 import type { ForecastEvent, ForecastTechnical, PointId, TransitAspect, TransitCalendarExact, TransitTechnical } from "./model/westernTiming";
 
@@ -164,53 +165,63 @@ export function groupEventsByDay<E extends Pick<ForecastEvent, "datetime">>(even
   return [...m.entries()];
 }
 
-/** Bir takvim gününün seçilen saat dilimindeki 12:00 anı → UTC dakika ("YYYY-MM-DDTHH:MM"). */
+/** Bir takvim gününün seçilen saat dilimindeki 12:00 anı → UTC dakika ("YYYY-MM-DDTHH:MM"). Geçersiz gün/bölge → null (istisna ATMAZ). */
 export function middayUtcOf(day: string, tz: string): string | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !isIanaZone(tz)) return null;
-  // Yerel 12:00 için ofset: o günün 12:00 UTC anındaki ofset (öğle saatinde yaz/kış saati geçişi olmaz).
-  const guess = Date.parse(`${day}T12:00:00Z`);
-  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(guess)).map((x) => [x.type, x.value]));
-  const localAsUtc = Date.parse(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:00Z`);
-  const offset = localAsUtc - guess;
-  return new Date(guess - offset).toISOString().slice(0, 16);
+  if (!isValidIsoDate(day) || !isIanaZone(tz)) return null;
+  const r = resolveAstroBirthTime(day, "12:00", tz, "earlier");
+  return r.kind === "ok" ? r.utcIso.slice(0, 16) : null;
 }
 
 /** "YYYY-MM-DD" + n gün (UTC takvim aritmetiği). Geçersizse null. */
 export function addDaysIso(iso: string, n: number): string | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso) || !Number.isInteger(n)) return null;
+  if (!isValidIsoDate(iso) || !Number.isInteger(n)) return null;
   const ms = Date.parse(`${iso}T00:00:00Z`);
   return Number.isFinite(ms) ? new Date(ms + n * 86_400_000).toISOString().slice(0, 10) : null;
 }
 /** İki gün arası gün sayısı, iki uç DAHİL (aynı gün = 1). */
 export function daysBetweenIso(start: string, end: string): number | null {
+  if (!isValidIsoDate(start) || !isValidIsoDate(end)) return null;
   const a = Date.parse(`${start}T00:00:00Z`);
   const b = Date.parse(`${end}T00:00:00Z`);
-  return Number.isFinite(a) && Number.isFinite(b) && /^\d{4}-\d{2}-\d{2}$/.test(end) ? Math.round((b - a) / 86_400_000) + 1 : null;
+  return Number.isFinite(a) && Number.isFinite(b) ? Math.round((b - a) / 86_400_000) + 1 : null;
 }
 
-/** Yerel duvar saati (o anki ofsetle) → UTC ms; DST geçişini iki adımda çözer. Yerel saat o gün yoksa (ileri alma boşluğu) null. */
-function localWallToUtcMs(date: string, time: string, tz: string): number | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time) || !isIanaZone(tz)) return null;
-  const wall = Date.parse(`${date}T${time}:00Z`);
-  if (!Number.isFinite(wall)) return null;
-  const offAt = (ms: number) => {
-    const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
-    return Date.parse(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:00Z`) - Math.floor(ms / 60_000) * 60_000;
-  };
-  // İlk yaşanan (earlier) eşleşme — sunucu `resolveAstroBirthTime(..., "earlier")` ile aynı tercih.
-  // Aday ofsetler (±14 sa çevresi); u = wall − ofset, u anı o ofsetle gerçekten aynı duvar saatini veriyorsa geçerli.
-  const offsets = [...new Set([offAt(wall - 14 * 3600_000), offAt(wall), offAt(wall + 14 * 3600_000)])];
-  const cands = offsets.map((o) => wall - o).filter((u) => offAt(u) === wall - u);
-  return cands.length ? Math.min(...cands) : null;
+/** Transit / takvim tarih alanlarının kabul aralığı (sunucu `yearOk` ile aynı). */
+export const ATLAS_YEAR_MIN = 1600;
+export const ATLAS_YEAR_MAX = 2600;
+
+/**
+ * Tarih alanı denetimi (YYYY-MM-DD). Tarayıcının tarih kutusu yazma sırasında EKSİK ara değerler üretir: boş dize
+ * (gün/ay/yıl tamamlanmadı) veya yıl rakam rakam yazılırken "0002-10-17", "0020-10-17", "0202-10-17". Bunlar hata DEĞİL,
+ * tamamlanmamış girişlerdir → açıklayıcı uyarı; hiçbiri UTC hesabına / plana / API'ye geçmez. Geçerliyse null.
+ */
+export function dateInputIssue(date: string): string | null {
+  if (!date) return "Tarih eksik — gün, ay ve yılı tamamlayın.";
+  if (!isValidIsoDate(date)) return "Tarih geçersiz — gün, ay ve 4 haneli yılı kontrol edin.";
+  const y = Number(date.slice(0, 4));
+  if (y < ATLAS_YEAR_MIN || y > ATLAS_YEAR_MAX) return `Tarih ${ATLAS_YEAR_MIN}–${ATLAS_YEAR_MAX} aralığında olmalı (yıl 4 haneli yazılmalı).`;
+  return null;
+}
+/** Saat alanı denetimi (SS:DD). Geçerliyse null. */
+export function timeInputIssue(time: string): string | null {
+  if (!time) return "Saat eksik — saat ve dakikayı tamamlayın.";
+  return /^\d{2}:\d{2}$/.test(time) && normalizeTime(time) ? null : "Saat geçersiz.";
 }
 
-/** Ekran ön izlemesi: "Hesaplanacak an: 17.10.2026 09:00 UTC". Sunucu aynı kuralla doğrular. */
+/**
+ * Ekran ön izlemesi: "Hesaplanacak an: 17.10.2026 09:00 UTC". Dönüşüm SUNUCUNUN kullandığı fonksiyonla aynıdır
+ * (`resolveAstroBirthTime`, belirsiz saatte ilk yaşanan an) → ön izleme ile hesaplanan an ayrışmaz. HİÇBİR girişte istisna atmaz.
+ */
 export function localToUtcPreview(date: string, time: string, tz: string): { ok: boolean; text: string } {
-  const ms = localWallToUtcMs(date, time, tz);
-  if (ms === null) return { ok: false, text: "Bu yerel saat bu tarihte yok (yaz saati geçişi) veya tarih geçersiz." };
-  const iso = new Date(ms).toISOString();
+  const issue = dateInputIssue(date) ?? timeInputIssue(time);
+  if (issue) return { ok: false, text: issue };
+  if (!isIanaZone(tz)) return { ok: false, text: "Saat dilimi geçersiz." };
+  const r = resolveAstroBirthTime(date, time, tz, "earlier");
+  if (r.kind === "gap") return { ok: false, text: "Bu yerel saat bu tarihte yok (yaz saati geçişi) — saati değiştirin." };
+  if (r.kind !== "ok") return { ok: false, text: "Tarih veya saat geçersiz." };
+  const iso = r.utcIso;
   const y = Number(iso.slice(0, 4));
-  if (y < 1600 || y > 2600) return { ok: false, text: "Tarih 1600–2600 aralığında olmalı." };
+  if (!(y >= ATLAS_YEAR_MIN && y <= ATLAS_YEAR_MAX)) return { ok: false, text: `Tarih ${ATLAS_YEAR_MIN}–${ATLAS_YEAR_MAX} aralığında olmalı.` };
   return { ok: true, text: `Hesaplanacak an: ${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)} ${iso.slice(11, 16)} UTC` };
 }
 

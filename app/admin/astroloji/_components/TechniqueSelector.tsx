@@ -8,7 +8,7 @@
  * durumdadır → bir teknikte değiştirmek aynı ortak alanı kullanan tüm teknikleri etkiler (etiketlerde belirtilir).
  */
 
-import { addDaysIso, daysBetweenIso, localToUtcPreview } from "@/lib/astrology/transitDetail";
+import { addDaysIso, dateInputIssue, daysBetweenIso, localToUtcPreview, timeInputIssue } from "@/lib/astrology/transitDetail";
 import { HOUSE_SYSTEMS, NODE_TYPES, type HouseSystem, type NodeType } from "@/lib/astrology/model/western";
 import LocationPicker from "./LocationPicker";
 import { FIXED_STAR_ORB_DEFAULT, FIXED_STAR_ORB_OPTIONS } from "@/lib/astrology/model/westernFixedStars";
@@ -54,6 +54,51 @@ function TzSelect({ value, onChange, label }: { value: string; onChange: (v: str
         </optgroup>
       )}
     </select>
+  );
+}
+
+/** Tarih/saat alanı uyarısı (eksik / geçersiz giriş). Yazma sırasında oluşan ara değerler hata değildir; yalnız açıklanır. */
+function FieldIssue({ text, testId }: { text: string | null; testId: string }) {
+  if (!text) return null;
+  return (
+    <span className="text-[11px] font-medium text-rose-700" role="alert" data-testid={testId}>
+      {text}
+    </span>
+  );
+}
+
+/**
+ * Takvim bitiş tarihi: değer başlangıç + gün sayısından türetilir. Kullanıcı yazarken (yıl rakam rakam) oluşan ara
+ * değerler TASLAKTA tutulur (parametre `forecastEndDraft`) — kontrollü değere geri dönüp girişi silmez; yalnız geçerli ve
+ * aralık içi tarih süreyi değiştirir. Taslak geçersizken takvim plana girmez (dateInputReason) → Başlat kapalı.
+ */
+function ForecastEndInput({ start, days, draft, onChange }: { start: string; days: number; draft: string | null; onChange: (next: { days?: number; draft: string | null }) => void }) {
+  const end = addDaysIso(start, days - 1);
+  const value = draft ?? end ?? "";
+  const d = draft === null ? null : daysBetweenIso(start, draft);
+  const issue =
+    draft === null
+      ? null
+      : (dateInputIssue(draft) ?? (d === null ? "Bitiş tarihi geçersiz." : d < 1 ? "Bitiş, başlangıçtan önce olamaz." : d > FORECAST_MAX_DAYS ? `En çok ${FORECAST_MAX_DAYS} gün seçilebilir.` : null));
+  return (
+    <>
+      <input
+        type="date"
+        className={inp}
+        min={dateInputIssue(start) ? undefined : start}
+        max={addDaysIso(start, FORECAST_MAX_DAYS - 1) ?? undefined}
+        value={value}
+        onChange={(e) => {
+          const v = e.target.value;
+          const n = daysBetweenIso(start, v);
+          if (!dateInputIssue(v) && n !== null && n >= 1 && n <= FORECAST_MAX_DAYS) onChange({ days: n, draft: null });
+          else onChange({ draft: v });
+        }}
+        aria-invalid={issue ? true : undefined}
+        aria-label="Takvim bitişi"
+      />
+      <FieldIssue text={issue ? `Bitiş: ${issue}` : null} testId="astro-forecast-end-issue" />
+    </>
   );
 }
 
@@ -125,9 +170,20 @@ export function TechniqueParamFields({
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {params.transitMode !== "now" && (
-                <input type="date" className={inp} min="1600-01-01" max="2600-12-31" value={params.transitDate} onChange={(e) => set("transitDate", e.target.value)} aria-label="Transit tarihi" />
+                <input
+                  type="date"
+                  className={inp}
+                  min="1600-01-01"
+                  max="2600-12-31"
+                  value={params.transitDate}
+                  onChange={(e) => set("transitDate", e.target.value)}
+                  aria-invalid={dateInputIssue(params.transitDate) ? true : undefined}
+                  aria-label="Transit tarihi"
+                />
               )}
-              {params.transitMode === "custom" && <input type="time" className={inp} value={params.transitTime} onChange={(e) => set("transitTime", e.target.value)} aria-label="Transit saati" />}
+              {params.transitMode === "custom" && (
+                <input type="time" className={inp} value={params.transitTime} onChange={(e) => set("transitTime", e.target.value)} aria-invalid={timeInputIssue(params.transitTime) ? true : undefined} aria-label="Transit saati" />
+              )}
               <TzSelect value={params.transitTz} onChange={(v) => set("transitTz", v)} label="Transit saat dilimi" />
             </div>
             <p className="text-[11px] leading-snug text-slate-500" data-testid="astro-transit-moment-note">
@@ -137,7 +193,7 @@ export function TechniqueParamFields({
                   ? "Seçilen gün: o günün yerel 12:00'si kullanılır (Ay günde ~13° ilerler; belirli bir an için saat seçin)."
                   : "Seçilen saat dakika hassasiyetiyle işlenir."}
               {preview && (
-                <span className={`ml-1 font-medium ${preview.ok ? "text-slate-700" : "text-rose-700"}`} data-testid="astro-transit-utc-preview">
+                <span className={`ml-1 font-medium ${preview.ok ? "text-slate-700" : "text-rose-700"}`} role={preview.ok ? undefined : "alert"} data-testid="astro-transit-utc-preview">
                   {preview.text}
                 </span>
               )}
@@ -146,30 +202,33 @@ export function TechniqueParamFields({
         );
       }
       case "western.forecast": {
-        const end = addDaysIso(params.forecastStart, params.forecastDays - 1);
+        const startIssue = dateInputIssue(params.forecastStart);
         return (
           <div className="flex flex-col gap-1.5" data-testid="astro-forecast-range">
             <div className="flex flex-wrap items-center gap-2">
               <label className="flex items-center gap-1 text-xs">
                 Başlangıç
-                <input type="date" className={inp} min="1600-01-01" max="2600-12-31" value={params.forecastStart} onChange={(e) => set("forecastStart", e.target.value)} aria-label="Takvim başlangıcı" />
-              </label>
-              <label className="flex items-center gap-1 text-xs">
-                Bitiş
                 <input
                   type="date"
                   className={inp}
-                  min={params.forecastStart}
-                  max={addDaysIso(params.forecastStart, FORECAST_MAX_DAYS - 1) ?? undefined}
-                  value={end ?? ""}
-                  onChange={(e) => {
-                    const d = daysBetweenIso(params.forecastStart, e.target.value);
-                    if (d !== null && d >= 1 && d <= FORECAST_MAX_DAYS) set("forecastDays", d);
-                  }}
-                  aria-label="Takvim bitişi"
+                  min="1600-01-01"
+                  max="2600-12-31"
+                  value={params.forecastStart}
+                  onChange={(e) => onParams({ ...params, forecastStart: e.target.value, forecastEndDraft: null })}
+                  aria-invalid={startIssue ? true : undefined}
+                  aria-label="Takvim başlangıcı"
                 />
               </label>
-              <select className={inp} value={[30, 90, 180, 365, FORECAST_MAX_DAYS].includes(params.forecastDays) ? params.forecastDays : ""} onChange={(e) => e.target.value && set("forecastDays", Number(e.target.value))} aria-label="Takvim süresi">
+              <label className="flex items-center gap-1 text-xs">
+                Bitiş
+                <ForecastEndInput
+                  start={params.forecastStart}
+                  days={params.forecastDays}
+                  draft={params.forecastEndDraft ?? null}
+                  onChange={(n) => onParams({ ...params, forecastDays: n.days ?? params.forecastDays, forecastEndDraft: n.draft })}
+                />
+              </label>
+              <select className={inp} value={[30, 90, 180, 365, FORECAST_MAX_DAYS].includes(params.forecastDays) ? params.forecastDays : ""} onChange={(e) => e.target.value && onParams({ ...params, forecastDays: Number(e.target.value), forecastEndDraft: null })} aria-label="Takvim süresi">
                 {![30, 90, 180, 365, FORECAST_MAX_DAYS].includes(params.forecastDays) && <option value="">{params.forecastDays} gün</option>}
                 {[30, 90, 180, 365, FORECAST_MAX_DAYS].map((d) => (
                   <option key={d} value={d}>
@@ -179,6 +238,7 @@ export function TechniqueParamFields({
               </select>
               <TzSelect value={params.forecastTz ?? "Europe/Istanbul"} onChange={(v) => set("forecastTz", v)} label="Takvim saat dilimi" />
             </div>
+            <FieldIssue text={startIssue ? `Başlangıç: ${startIssue}` : null} testId="astro-forecast-start-issue" />
             <span className="text-xs text-amber-800">
               {params.forecastDays} gün · {forecastPartCount(params.forecastDays)} parça (sağlayıcı sınırı 90 gün/istek; en çok {FORECAST_MAX_DAYS} gün). Gün ayrıntıları sonuç ekranında, istenirse ayrıca hesaplanır.
             </span>
@@ -190,7 +250,8 @@ export function TechniqueParamFields({
         return (
           <label className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
             Hedef tarih (progression + solar arc ortak)
-            <input type="date" className={inp} value={params.targetDate} onChange={(e) => set("targetDate", e.target.value)} aria-label="Hedef tarih" />
+            <input type="date" className={inp} value={params.targetDate} onChange={(e) => set("targetDate", e.target.value)} aria-invalid={dateInputIssue(params.targetDate) ? true : undefined} aria-label="Hedef tarih" />
+            <FieldIssue text={dateInputIssue(params.targetDate)} testId="astro-target-date-issue" />
           </label>
         );
       case "western.solar_return":
@@ -288,6 +349,7 @@ export function TechniqueParamFields({
               <>
                 <input type="date" className={inp} value={params.kpDate} onChange={(e) => set("kpDate", e.target.value)} aria-label="KP tarihi" />
                 <input type="time" className={inp} value={params.kpTime} onChange={(e) => set("kpTime", e.target.value)} aria-label="KP saati" />
+                <FieldIssue text={dateInputIssue(params.kpDate) ?? timeInputIssue(params.kpTime)} testId="astro-kp-date-issue" />
                 <select className={inp} value={params.kpTz} onChange={(e) => set("kpTz", e.target.value)} aria-label="KP saat dilimi">
                   {TZ_OPTIONS.map((z) => (
                     <option key={z} value={z}>
@@ -379,6 +441,7 @@ export function TechniqueParamFields({
                 <>
                   <input type="date" className={inp} value={params.vedicTransitDate} onChange={(e) => set("vedicTransitDate", e.target.value)} aria-label="Gochara tarihi" />
                   <input type="time" className={inp} value={params.vedicTransitTime} onChange={(e) => set("vedicTransitTime", e.target.value)} aria-label="Gochara saati" />
+                  <FieldIssue text={dateInputIssue(params.vedicTransitDate) ?? timeInputIssue(params.vedicTransitTime)} testId="astro-gochara-date-issue" />
                   <select className={inp} value={params.vedicTransitTz} onChange={(e) => set("vedicTransitTz", e.target.value)} aria-label="Gochara saat dilimi">
                     {TZ_OPTIONS.map((z) => (
                       <option key={z} value={z}>

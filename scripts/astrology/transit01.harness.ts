@@ -37,6 +37,7 @@ import {
   calendarExactFor,
   daysBetweenIso,
   addDaysIso,
+  dateInputIssue,
   exactTimesOf,
   formatInZone,
   groupEventsByDay,
@@ -46,9 +47,10 @@ import {
   natalHouseOf,
   relativeTo,
   strongestTransits,
+  timeInputIssue,
   transitNatalHouses,
 } from "@/lib/astrology/transitDetail";
-import { describeOptions } from "@/app/admin/astroloji/_lib/techniques";
+import { buildSelections, dateInputReason, defaultParams, describeOptions, missingReason } from "@/app/admin/astroloji/_lib/techniques";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -366,6 +368,107 @@ async function main() {
     assert.equal(relativeTo("2026-10-07T09:00", "2026-10-07T07:00:00Z"), "2 sa önce");
     assert.equal(daysBetweenIso("2026-10-01", "2026-12-29"), 90);
     assert.equal(addDaysIso("2026-10-01", 89), "2026-12-29");
+  });
+  // ═══ D4–D7) Tarih girişi (canlı P1, 17.10.2026): tarayıcı tarih kutusu yıl rakam rakam yazılırken "0002-10-17",
+  // "0020-10-17", "0202-10-17" ara değerlerini üretir; eski ön izleme bunlarda Intl.formatToParts(NaN) → RangeError ile
+  // sayfayı çökertiyordu. Kural: hiçbir girişte istisna yok; eksik/geçersiz → açıklayıcı uyarı; plana / API'ye girmez.
+  const PARTIAL = ["", "0002-10-17", "0020-10-17", "0202-10-17", "0000-10-17", "0001-01-01", "0099-12-31", "0999-06-15"];
+  const CAL_BAD = ["2026-02-29", "2026-02-30", "2026-04-31", "2026-13-01", "2026-00-10", "2026-10-00", "2026-10-32", "26-10-17", "2026-1-7", "abcd-ef-gh", "2026-10-17T00:00", " 2026-10-17"];
+  const RANGE_BAD = ["1599-12-31", "2601-01-01", "9999-12-31"];
+  const INVALID = [...CAL_BAD, ...RANGE_BAD];
+  const VALID = ["2026-10-17", "2028-02-29", "2024-02-29", "1600-01-01", "2600-12-31", "1979-02-12", "2099-12-31"];
+  const TIMES = ["12:00", "00:00", "23:59", "", "24:00", "12:60", "1:05", "12:5", "ab:cd"];
+  const ZONES = ["Europe/Istanbul", "UTC", "America/New_York", "Pacific/Kiritimati", "Australia/Lord_Howe", "", "Mars/Olympus"];
+  await t("D4 eksik / geçersiz tarih-saat-bölge: localToUtcPreview, middayUtcOf, addDaysIso, daysBetweenIso, formatInZone HİÇBİR girişte istisna atmaz; ok=false + açıklama, 'Invalid'/'NaN' yok", () => {
+    for (const d of [...PARTIAL, ...INVALID])
+      for (const tm of TIMES)
+        for (const tz of ZONES) {
+          const r = localToUtcPreview(d, tm, tz);
+          assert.equal(r.ok, false, `${JSON.stringify(d)} ${tm} ${tz} kabul edilmemeli`);
+          assert.ok(r.text.length > 5 && !/Invalid|NaN|undefined/.test(r.text), r.text);
+        }
+    for (const d of VALID) for (const tm of TIMES.slice(3)) assert.equal(localToUtcPreview(d, tm, "Europe/Istanbul").ok, false, `${d} saat ${tm}`);
+    for (const d of VALID) for (const tz of ZONES.slice(5)) assert.equal(localToUtcPreview(d, "12:00", tz).ok, false, `${d} bölge ${tz}`);
+    for (const d of [...PARTIAL, ...INVALID, ...VALID])
+      for (const tz of ZONES) {
+        middayUtcOf(d, tz);
+        addDaysIso(d, 89);
+        daysBetweenIso("2026-10-01", d);
+        daysBetweenIso(d, "2026-12-29");
+      }
+    // Takvim yardımcıları aralık denetlemez ("0002-10-17" takvimsel olarak geçerli bir gündür; aralık = dateInputIssue +
+    // seçim kapısı) — burada kural: istisna YOK, boş / takvimsel geçersiz gün → null.
+    for (const d of ["", ...CAL_BAD]) {
+      assert.equal(middayUtcOf(d, "Europe/Istanbul"), null, d);
+      assert.equal(addDaysIso(d, 1), null, d);
+      assert.equal(daysBetweenIso("2026-10-01", d), null, d);
+    }
+    assert.equal(formatInZone("not-a-date", "Europe/Istanbul"), null);
+  });
+  await t("D5 yıl rakam rakam yazma dizisi (gün → ay → yıl; silme; temizleme): ara değerler uyarı, tamamlanınca doğru UTC; sunucu ile aynı karar", () => {
+    const seq = ["2026-10-17", "", "0002-10-17", "0020-10-17", "0202-10-17", "2026-10-17", "0202-10-17", "0020-10-17", "", "2025-10-17", "2028-02-29"];
+    for (const d of seq) {
+      for (const [tm, tz] of [["12:00", "Europe/Istanbul"], ["23:30", "America/New_York"], ["00:10", "Pacific/Kiritimati"]] as const) {
+        const c = localToUtcPreview(d, tm, tz);
+        const srv = normalizeTransitMoment({ date: d, time: tm, timezone: tz }, NOW);
+        const y = srv ? Number(srv.slice(0, 4)) : 0;
+        if (srv === null || y < 1600 || y > 2600) assert.equal(c.ok, false, `${d} ${tm} ${tz}: istemci kabul etmemeli`);
+        else assert.equal(c.text, `Hesaplanacak an: ${srv.slice(8, 10)}.${srv.slice(5, 7)}.${srv.slice(0, 4)} ${srv.slice(11, 16)} UTC`, `${d} ${tm} ${tz}`);
+      }
+    }
+    assert.equal(localToUtcPreview("2026-10-17", "12:00", "Europe/Istanbul").text, "Hesaplanacak an: 17.10.2026 09:00 UTC");
+    assert.equal(localToUtcPreview("2028-02-29", "12:00", "Europe/Istanbul").text, "Hesaplanacak an: 29.02.2028 09:00 UTC");
+    assert.equal(localToUtcPreview("2026-10-17", "02:30", "Europe/Istanbul").ok, true);
+    assert.match(localToUtcPreview("2026-03-29", "02:30", "Europe/Berlin").text, /yaz saati/);
+    assert.match(dateInputIssue("")!, /eksik/);
+    assert.match(dateInputIssue("0202-10-17")!, /1600–2600/);
+    assert.match(dateInputIssue("2026-02-29")!, /geçersiz/);
+    assert.equal(dateInputIssue("2028-02-29"), null);
+    assert.match(timeInputIssue("")!, /eksik/);
+    assert.equal(timeInputIssue("23:59"), null);
+    assert.ok(timeInputIssue("24:00"));
+  });
+  await t("D6 eksik / geçersiz tarihli teknik plana ve API'ye GİRMEZ (buildSelections), nedeni gösterilir; tamamlanınca normal seçim; 'Şimdi' kipi tarihten etkilenmez", () => {
+    const method = { houseSystem: "placidus" as const, nodeType: "true" as const };
+    const base = defaultParams(new Date("2026-10-17T09:00:00Z"));
+    const sel = (p: typeof base, ids: string[]) => buildSelections(Object.fromEntries(ids.map((i) => [i, true])), p, method).map((s) => s.technique);
+    for (const mode of ["date", "custom"] as const)
+      for (const d of [...PARTIAL, ...INVALID]) {
+        const p = { ...base, transitMode: mode, transitDate: d };
+        assert.deepEqual(sel(p, ["western.natal", "western.transit"]), ["western.natal"], `${mode} ${d}`);
+        assert.equal(missingReason("western.transit", p), "transit tarihini / saatini tamamlayın");
+      }
+    assert.deepEqual(sel({ ...base, transitMode: "custom", transitDate: "2026-10-17", transitTime: "" }, ["western.transit"]), [], "saat eksik");
+    assert.deepEqual(sel({ ...base, transitMode: "date", transitDate: "2026-10-17", transitTime: "" }, ["western.transit"]), ["western.transit"], "seçilen gün kipinde saat kullanılmaz");
+    assert.deepEqual(sel({ ...base, transitMode: "now", transitDate: "0002-10-17" }, ["western.transit"]), ["western.transit"], "şimdi kipi");
+    const ok = buildSelections({ "western.transit": true }, { ...base, transitMode: "custom", transitDate: "2026-10-17", transitTime: "12:00" }, method);
+    assert.deepEqual(ok[0].options, { date: "2026-10-17", time: "12:00", timezone: "Europe/Istanbul", nodeType: "true" });
+    for (const d of [...PARTIAL, ...INVALID]) {
+      assert.deepEqual(sel({ ...base, forecastStart: d }, ["western.forecast"]), [], `takvim ${d}`);
+      assert.ok(dateInputReason("western.forecast", { ...base, forecastStart: d }));
+      assert.deepEqual(sel({ ...base, targetDate: d }, ["western.progression", "western.solar_arc"]), []);
+      assert.deepEqual(sel({ ...base, vedicTransitMode: "custom", vedicTransitDate: d }, ["vedic.transit"]), []);
+      assert.deepEqual(sel({ ...base, kpMomentMode: "custom", kpDate: d }, ["kp.transit"]), []);
+    }
+    // Varsayılan (bugün) değerlerle tüm tarihli teknikler seçime girer — mevcut davranış korunur.
+    for (const id of ["western.transit", "western.forecast", "western.progression", "western.solar_arc", "vedic.transit", "kp.transit"]) assert.deepEqual(sel(base, [id]), [id], id);
+  });
+  await t("D7 kapsamlı tarama: 1–4 haneli yıl önekleri × 12 ay × 4 gün × 5 bölge — istisna yok, yalnız 1600–2600 geçerli tarih kabul", () => {
+    let n = 0;
+    for (const yy of ["0", "00", "000", "0002", "0020", "0202", "1", "19", "197", "0019", "0197", "1979", "2", "20", "202", "2026", "2600", "2601", "1599", "9999"]) {
+      const y = yy.padStart(4, "0");
+      for (let m = 1; m <= 12; m++)
+        for (const dd of ["01", "15", "29", "31"])
+          for (const tz of ["Europe/Istanbul", "UTC", "America/New_York", "Asia/Kathmandu", "Pacific/Apia"]) {
+            const d = `${y}-${String(m).padStart(2, "0")}-${dd}`;
+            const r = localToUtcPreview(d, "12:00", tz);
+            const yn = Number(y);
+            if (r.ok) assert.ok(yn >= 1600 && yn <= 2600 && dateInputIssue(d) === null, d);
+            else assert.ok(!/Invalid|NaN/.test(r.text));
+            n++;
+          }
+    }
+    assert.ok(n > 4000);
   });
   await t("D3 gün gruplaması saat dilimine göre: 21:30 UTC olayı İstanbul'da ertesi güne düşer", () => {
     const g = groupEventsByDay([{ datetime: "2026-10-01T21:30:00Z" }, { datetime: "2026-10-01T10:00:00Z" }], "Europe/Istanbul");
