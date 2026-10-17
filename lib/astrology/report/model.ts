@@ -15,7 +15,7 @@ import { WHEEL_LEGEND } from "./wheelSvg";
 import { bayerBoth, FIXED_STAR_CATALOG, FIXED_STAR_FAR_LAT, fixedStarName, fixedStarNatureLabel, starKeywordTr } from "../labels/fixedStars";
 import { FIXED_STAR_ORB_QUERY, fixedStarOrbOf } from "../model/westernFixedStars";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
-import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicVargaTechnical } from "../model/vedic";
+import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_TRANSIT_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicTransitTechnical, type VedicVargaTechnical } from "../model/vedic";
 import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpTransitTechnical } from "../model/kp";
 import { kundliTitles, toKundliData, toVargaChartData } from "@/app/admin/astroloji/_lib/kundliData";
 import { kundliLegend } from "@/app/admin/astroloji/_lib/kundliLocalize";
@@ -23,6 +23,7 @@ import { localSpaceCenter, localSpaceCenterNote, localSpaceText } from "../local
 import { interpretationKindNote, interpretationKindOfSchema } from "../interpretationKind";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "../noProviderInterp";
 import { figureTitle, type ReportFigure } from "./figures";
+import { GOCHARA_STRIP_LEGEND, GOCHARA_SUMMARY_NOTE, GOCHARA_TERMS, gocharaSummary } from "../gocharaSummary";
 import { ACG_ANGLES, BODY_COLORS, CLASSICAL, acgMapLines, acgMcLabels, localSpaceMapLines } from "@/app/admin/astroloji/_lib/locationMaps";
 import { ACG_TECHNICAL_SCHEMA, LOCAL_SPACE_TECHNICAL_SCHEMA, type AstrocartographyTechnical, type LocalSpaceTechnical } from "../model/westernLocation";
 import type { BodyId } from "../model/western";
@@ -721,27 +722,50 @@ function vedic(b: B, technique: string, t: O) {
       return;
     }
     case "vedic.transit": {
+      // TRANSİT-02: Türkçe teknik başlıklar + Türkçe teknik özet (yorum değil) + natal referans + terimler.
       const at = isObj(t.at) ? t.at : {};
+      const fr = isObj(t.frame) ? t.frame : {};
       b.kv([
-        ["Zodyak", "Sidereal (Lahiri, sabit)"],
-        ["Transit anı", `${utcTr(at.utc)} · yerel ${localTr(at.local)}`],
+        ["Zodyak", "Sidereal (nirayana)"],
+        ["Ayanamsa", `${ayL(fr.ayanamsa ?? "lahiri")}${num(fr.ayanamsaDegrees) !== null ? ` · ${formatDegree(num(fr.ayanamsaDegrees)!)}` : ""} — bu teknikte sabit (sağlayıcı başka ayanamsa kabul etmez)`],
+        ["Transit anı (UTC)", utcTr(at.utc)],
+        ["Transit anı (doğum ofsetinde)", `${localTr(at.local)} (${offset(at.utcOffsetHours)})`],
         ["Lagna rashisi", signL(t.lagnaRashi)],
         ["Janma rashisi (natal Ay)", signL(t.janmaRashi)],
-        ["Yavaş graha vurguları", arr(t.slow).length ? list(t.slow, grahaL) : DASH],
+        ["Yavaş grahalar", arr(t.slow).length ? list(t.slow, grahaL) : DASH],
       ]);
+      b.p("Klasik Gochara evleri Janma Rashi'den (natal Ay burcu) sayılır; Lagna'dan bhava ayrıca verilir. Drishti Parashari bütün-burç kuralıdır (herkes 7.; Mars 4./8.; Jüpiter 5./9.; Satürn 3./10.; Rahu/Ketu bakış atmaz). Batı açıları (kare, üçgen vb.) bu teknikte kullanılmaz.", "muted");
       const rows = arr(t.transits).map((x) => {
         const k = isObj(x.kaksha) ? x.kaksha : null;
         return [
-          grahaL(x.id),
+          `${grahaL(x.id)}${arr<unknown>(t.slow).includes(x.id) ? " (yavaş)" : ""}`,
           pos(x.rashi, x.degreeInRashi),
-          houseL(x.natalHouse),
-          houseL(x.houseFromMoon),
-          arr(x.drishti).length ? arr(x.drishti).map((d) => `${grahaL(d.to)} (${d.type === 1 ? "aynı rashi" : `${s(d.type)}.`})`).join(", ") : DASH,
-          k ? `${s(k.number)}. · ${grahaL(k.lord)}${k.bindu === true ? " · bindu" : k.bindu === false ? " · bindu yok" : ""}` : DASH,
+          num(x.houseFromMoon) === null ? DASH : `${num(x.houseFromMoon)}.`,
+          num(x.natalHouse) === null ? DASH : `${num(x.natalHouse)}.`,
+          arr(x.drishti).length ? arr(x.drishti).map((d) => `${grahaL(d.to)} (${d.type === 1 ? "aynı rashi" : `${s(d.type)}. bakış`})`).join(", ") : x.id === "rahu" || x.id === "ketu" ? "bakış yok (Rahu/Ketu)" : DASH,
+          k ? `${s(k.number)}/8 · ${k.lord === "lagna" ? "Lagna" : grahaL(k.lord)}${k.bindu === true ? ` · bindu var (${s(k.binduCount)}/8)` : k.bindu === false ? ` · bindu yok (${s(k.binduCount)}/8)` : " · bindu uygulanmaz"}` : DASH,
         ];
       });
-      b.h(3, "Gochara");
-      b.table(["Graha", "Rashi ve derece", "Lagna'dan", "Ay'dan", "Natal bakışlar", "Kaksha"], rows, { widths: [1.5, 1.5, 0.9, 0.9, 2.6, 1.6], compact: true, empty: "Kayıtta transit verisi yok." });
+      b.h(3, "Gochara tablosu");
+      b.table(["Transit graha", "Rashi ve derece", "Janma Rashi'den ev", "Lagna'dan bhava", "Natal grahaya drishti", "Kaksha · yönetici · bindu"], rows, {
+        widths: [1.5, 1.5, 1, 1, 2.4, 2],
+        compact: true,
+        empty: "Kayıtta transit verisi yok.",
+      });
+      const tech = t as unknown as VedicTransitTechnical;
+      const summary = arr(t.transits).length ? gocharaSummary(tech) : [];
+      if (summary.length) {
+        b.h(3, "Türkçe teknik özet");
+        b.p(GOCHARA_SUMMARY_NOTE, "muted");
+        b.bullets(summary.map((x) => x.text));
+      }
+      const natal = arr(t.natal).map((n) => [grahaL(n.id), pos(n.rashi, num(n.longitude) !== null ? (num(n.longitude) as number) % 30 : null), num(n.house) === null ? DASH : `${num(n.house)}.`]);
+      if (natal.length) {
+        b.h(3, "Natal grahalar (Gochara referansı)");
+        b.table(["Natal graha", "Rashi ve derece", "Lagna'dan bhava"], natal, { widths: [2, 2.5, 1.5], compact: true });
+      }
+      b.h(3, "Terimler");
+      b.table(["Terim", "Açıklama"], GOCHARA_TERMS.map(([k, v]) => [k, v]), { widths: [1.4, 5], compact: true });
       return;
     }
   }
@@ -1173,6 +1197,20 @@ function vedicKpFigure(technique: string, t: O, ctx: FigureCtx = { birth: null, 
       const periods = ps.map((p) => ({ lord: p.lord as VedicGrahaId, start: String(p.start), end: String(p.end), durationYears: num(p.durationYears)! }));
       const level = DASHA_LEVEL_TR[String(t.level)] ?? "Dasha";
       return { figure: { type: "dashaTimeline", periods }, caption: `${figureTitle(technique)} — ${level} dönemleri; kayıtlı analiz verisinden çizilmiştir.`, legend: DASHA_LEGEND, heading };
+    }
+    if (technique === "vedic.transit") {
+      const heading = "Gochara ev şeridi";
+      const tr = arr(t.transits);
+      const valid = tr.length > 0 && typeof t.janmaRashi === "string" && SIGN_IDS.includes(t.janmaRashi as SignId) && tr.every((x) => isGraha(x.id) && num(x.houseFromMoon) !== null && (num(x.houseFromMoon) as number) >= 1 && (num(x.houseFromMoon) as number) <= 12);
+      if (t.schema !== VEDIC_TRANSIT_TECHNICAL_SCHEMA || !valid) return { missing: FIGURE_MISSING, heading };
+      const slow = arr<unknown>(t.slow).filter((x): x is string => typeof x === "string");
+      const j = SIGN_IDS.indexOf(t.janmaRashi as SignId);
+      const cells = Array.from({ length: 12 }, (_, i) => ({
+        house: i + 1,
+        rashi: SIGN_IDS[(j + i) % 12],
+        grahas: tr.filter((x) => num(x.houseFromMoon) === i + 1).map((x) => ({ id: x.id as VedicGrahaId, slow: slow.includes(String(x.id)) })),
+      }));
+      return { figure: { type: "gocharaStrip", cells }, caption: `${figureTitle(technique)} — kayıtlı analiz verisinden çizilmiştir.`, legend: GOCHARA_STRIP_LEGEND, heading };
     }
     if (technique === "vedic.shadbala") {
       const heading = "Güç grafiği";
