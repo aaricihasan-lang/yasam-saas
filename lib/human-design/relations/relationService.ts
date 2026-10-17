@@ -377,6 +377,11 @@ export type RelationParticipantView = {
   birthDate: string | null;
   birthTime: string | null;
   birthPlace: string | null;
+  /**
+   * Birleşik harita için katılımcının KAYITLI bireysel aktif kapıları (analizde kullanılan kaynak analiz
+   * hâlâ aynıysa: kimlik + girdi kimliği eşleşir). Kaynak silinmiş/değişmişse null → güvenli yedek şema.
+   */
+  gates: number[] | null;
 };
 
 export type RelationAnalysisView = {
@@ -385,7 +390,8 @@ export type RelationAnalysisView = {
   memberCount: number;
   relationType: RelationType | null;
   createdAt: string;
-  provider: { id: string; endpoint: string; adapterVersion: string; nodeType: string; lang: string };
+  // Sağlayıcı meta verisi (sağlayıcı adı / uç / adaptör / nodeType) bilerek GÖRÜNÜMDE YOK: kullanıcıya ve
+  // rapora gitmez; DB satırında denetim kaydı olarak kalır.
   participants: RelationParticipantView[];
   result: HdConnectionResult | HdPentaResult;
 };
@@ -438,7 +444,6 @@ export async function getRelationAnalysis(ctx: RelationCtx, id: string): Promise
         memberCount: a.member_count,
         relationType: a.relation_type,
         createdAt: a.created_at,
-        provider: { id: a.provider, endpoint: a.endpoint, adapterVersion: a.adapter_version, nodeType: a.node_type, lang: a.lang },
         participants,
         result: a.result as HdConnectionResult | HdPentaResult,
       },
@@ -456,7 +461,7 @@ async function participantViews(ctx: RelationCtx, ps: ParticipantRow[]): Promise
     for (const c of (data ?? []) as ClientRow[]) clients.set(c.id.toLowerCase(), c);
   }
   if (hIds.length) {
-    const { data } = await withTenant(ctx.db.from("human_design_charts").select("id, client_id, source, provider, input, input_hash, birth_place, created_at"), ctx.tenantId, "relation.view.charts").in("id", hIds);
+    const { data } = await withTenant(ctx.db.from("human_design_charts").select("id, client_id, source, provider, input, input_hash, computed_result, birth_place, created_at"), ctx.tenantId, "relation.view.charts").in("id", hIds);
     for (const c of (data ?? []) as ChartRow[]) charts.set(c.id.toLowerCase(), c);
   }
   return ps.map((p) => {
@@ -467,6 +472,9 @@ async function participantViews(ctx: RelationCtx, ps: ParticipantRow[]): Promise
     if (!c) status = "client_deleted";
     else if (!h || !m || (p.source_input_hash && h.input_hash !== p.source_input_hash)) status = "source_chart_deleted";
     else if (!chartMatchesClient(m, c)) status = "birth_data_changed";
+    // Kaynak analiz analizdeki ile AYNI ise (kimlik + girdi kimliği) kapılar kullanılabilir.
+    const sameSource = !!h && (!p.source_input_hash || h.input_hash === p.source_input_hash);
+    const facts = sameSource ? participantChartFacts(h!.computed_result) : null;
     return {
       position: p.position,
       clientId: p.client_id,
@@ -476,6 +484,7 @@ async function participantViews(ctx: RelationCtx, ps: ParticipantRow[]): Promise
       birthDate: m?.date ?? null,
       birthTime: m?.time ? m.time.slice(0, 5) : null,
       birthPlace: h?.birth_place ?? null,
+      gates: facts ? facts.gates : null,
     };
   });
 }

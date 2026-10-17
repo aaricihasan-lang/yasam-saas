@@ -68,7 +68,13 @@ create table public.human_design_charts (
   created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
 insert into public.tenants(id, name) values ('${TA}', 'ZZ_REL_BROWSER');
-grant select, insert, update, delete on public.human_design_clients, public.human_design_charts to service_role;
+create table public.human_design_knowledge_records (
+  id uuid primary key default gen_random_uuid(), tenant_id uuid, user_id uuid, category text, title text, code text, content text,
+  keywords jsonb default '[]', related_gates jsonb default '[]', related_channels jsonb default '[]', related_centers jsonb default '[]', tags jsonb default '[]',
+  sort_order int default 0, is_active boolean default true, created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
+  expert_notes text
+);
+grant select, insert, update, delete on public.human_design_clients, public.human_design_charts, public.human_design_knowledge_records to service_role;
 `;
 
 async function main() {
@@ -85,7 +91,7 @@ async function main() {
   }) as typeof fetch;
   process.env.ROXY_API_KEY = "zz-harness-fake-roxy-key";
 
-  const env: TestEnv = await startAnamnezTestEnv({ port: 54433, dirName: "hd-relations-browser-pgdata", httpPort: 54523, extraSql: [HD_DDL, src("supabase/migrations/20271102000000_hd_relation_analyses.sql")] });
+  const env: TestEnv = await startAnamnezTestEnv({ port: 54433, dirName: "hd-relations-browser-pgdata", httpPort: 54523, extraSql: [HD_DDL, src("supabase/migrations/20271102000000_hd_relation_analyses.sql"), src("supabase/migrations/20271103000000_hd_relation_comments_reports.sql")] });
   process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;
   process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_KEY;
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = ANON_KEY;
@@ -164,12 +170,70 @@ async function main() {
       ok(page.url().includes(CONN), `${d.name}: kayıtlı çift → mevcut analiz açıldı (yeni hesap YOK)`);
       ok(posts.length === 1, `${d.name}: çift tık tek istek gönderdi`, posts.length);
       await page.locator("[data-hd-rel-view='connection']").waitFor({ timeout: 30_000 });
-      ok(await page.locator("[data-hd-rel-diagram='connection']").isVisible(), `${d.name}: ilişki haritası diyagramı görünür`);
+      // Birleşik İlişki BodyGraph'ı: çizimdeki TANIMLI kanallar = kayıtlı sonuç listesi (DB'den)
+      await page.locator("[data-hd-scene='composite']").waitFor({ timeout: 30_000 });
+      const stored = ((await su.query(`select result from public.human_design_relation_analyses where id=$1`, [CONN])).rows[0].result.channels as Array<{ id: string; dynamic: string }>);
+      const storedIds = stored.map((c) => c.id).sort().join(",");
+      const drawnAttr = (await page.locator("[data-hd-composite='ok']").getAttribute("data-hd-composite-defined")) ?? "";
+      const drawnLines = await page.locator("[data-hd-scene-line$=':defined']").evaluateAll((els) => [...new Set(els.map((e) => (e.getAttribute("data-hd-scene-line") ?? "").split(":")[0]))].sort().join(","));
+      ok(drawnAttr.split(",").sort().join(",") === storedIds && drawnLines === storedIds, `${d.name}: birleşik haritada çizilen tanımlı kanallar = kayıtlı liste (${stored.length})`, { drawnAttr, drawnLines, storedIds });
+      ok((await page.locator("[data-hd-scene-marker]").count()) === stored.length && (await page.locator("[data-hd-scene-gate]").count()) === 64, `${d.name}: her tanımlı kanalda bağlantı türü işareti + 64 kapı`);
+      const pick = stored[0];
+      const hit = page.locator(`[data-hd-scene-hit="${pick.id}"]`);
+      if (d.ua) await hit.tap({ force: true }); else await hit.hover({ force: true });
+      await page.waitForTimeout(200);
+      const info = await page.locator("[data-hd-composite-info]").innerText();
+      ok((await page.locator("[data-hd-composite-info]").getAttribute("data-hd-composite-info")) === pick.id && info.includes(pick.id.split("-")[0]) && /Elektromanyetik|Baskınlık|Uzlaşma|Arkadaşlık/.test(info), `${d.name}: kanala ${d.ua ? "dokunma" : "fareyle gelme"} → kanal adı/kapılar/bağlantı türü`, info);
+      ok(await page.locator("[data-hd-composite-legend]").isVisible(), `${d.name}: lejant görünür`);
+      if (d.ua) {
+        await page.locator("[data-hd-composite-zoom]").click();
+        await page.waitForTimeout(150);
+        const w = await page.locator("[data-hd-scene='composite']").evaluate((e) => e.getBoundingClientRect().width);
+        ok(w >= 600 && !(await overflowX()), `${d.name}: "Haritayı büyüt" → harita ${Math.round(w)}px, sayfa yatay taşmıyor (kaydırma kabı içinde)`);
+        await page.locator("[data-hd-composite-zoom]").click();
+      } else {
+        ok(!(await page.locator("[data-hd-composite-zoom]").isVisible()), `${d.name}: masaüstünde büyütme düğmesi yok (görünüm değişmez)`);
+      }
       ok((await page.locator("[data-hd-rel-summary]").count()) === 4 && (await page.locator("[data-hd-rel-center-row]").count()) === 9, `${d.name}: 4 bağlantı türü sayacı + 9 birleşik merkez`);
       ok((await page.locator("[data-hd-rel-participant='A']").innerText()).includes(NAMES[0]) && (await page.locator("[data-hd-rel-participant='B']").innerText()).includes(NAMES[1]), `${d.name}: A/B katılımcıları doğru adlarla`);
       ok(!(await overflowX()), `${d.name}: Connection detayında yatay taşma yok`);
+      const bodyText = await page.locator("body").innerText();
+      ok(!/roxy|nodeType|\/human-design\/connection/i.test(bodyText), `${d.name}: ekranda sağlayıcı adı / uç / nodeType YOK`);
+      // Yorum kaynakları
+      await page.locator("[data-hd-rel-source='analysis']").waitFor({ timeout: 30_000 });
+      ok((await page.locator("[data-hd-rel-source-tab]").count()) === 2, `${d.name}: normal uzmanda 2 kaynak sekmesi (Analiz Açıklamaları + Bilgi Bankam; Sistem Yorumu / Merkezi yok)`);
+      await page.locator("[data-hd-rel-source-tab='expert']").click();
+      await page.locator("[data-hd-rel-source='expert']").waitFor({ timeout: 10_000 });
+      // Uzman Yorumu: yaz → kaydet → yeniden aç
+      await page.locator("[data-hd-rel-comment='ready']").waitFor({ timeout: 30_000 });
+      const note = `Uzman yorumu (${d.name})`;
+      await page.locator("[data-hd-rel-comment-input]").fill(note);
+      await page.locator("[data-hd-rel-comment-save]").click();
+      await page.waitForFunction(() => !document.querySelector("[data-hd-rel-comment-save]") || (document.querySelector("[data-hd-rel-comment-save]") as HTMLButtonElement).disabled, null, { timeout: 15_000 });
+      await page.reload();
+      await page.locator("[data-hd-rel-comment='ready']").waitFor({ timeout: 30_000 });
+      ok((await page.locator("[data-hd-rel-comment-input]").inputValue()) === note, `${d.name}: Uzman Yorumu kaydedildi ve yeniden açınca aynı`);
+      // Rapor: Android'de gizli; diğerlerinde seçimler varsayılan kapalı
+      const repVisible = await page.locator("[data-hd-rel-reports]").isVisible();
       const wordVisible = await page.locator("[data-hd-rel-word]").isVisible();
-      ok(d.name === "360-android" ? !wordVisible : wordVisible, `${d.name}: Word düğmesi ${d.name === "360-android" ? "Android'de gizli" : "görünür"}`);
+      ok(d.name === "360-android" ? !repVisible && !wordVisible : repVisible && wordVisible, `${d.name}: rapor bölümü ${d.name === "360-android" ? "Android'de gizli" : "görünür"}`);
+      if (repVisible) {
+        await page.locator("[data-hd-rel-report-open]").click();
+        await page.locator("[data-hd-rel-report-dialog]").waitFor();
+        const checks = await page.locator("[data-hd-rel-report-opt]").evaluateAll((els) => els.map((e) => (e as HTMLInputElement).checked));
+        ok(checks.length === 3 && checks.every((c) => !c), `${d.name}: Raporu Hazırla — 3 seçenek, hepsi varsayılan KAPALI`);
+        if (!d.ua) {
+          await page.locator("[data-hd-rel-report-opt='expert_comment']").check();
+          await page.locator("[data-hd-rel-report-prepared]").fill("Uzm. Tarayıcı");
+          const dl = page.waitForEvent("download", { timeout: 30_000 });
+          await page.locator("[data-hd-rel-report-create]").click();
+          const file = await dl;
+          ok(/^HD-Iliski-.*\.docx$/.test(file.suggestedFilename()), `${d.name}: rapor hazırlandı ve Word indirildi (${file.suggestedFilename()})`);
+          await page.locator("[data-hd-rel-report-row]").first().waitFor({ timeout: 15_000 });
+        } else {
+          await page.keyboard.press("Escape");
+        }
+      }
       await page.screenshot({ path: path.join(OUT, `${d.name}-connection.png`), fullPage: true });
       // Geri tuşu (Android/tarayıcı) → listeye döner
       await page.goBack();
@@ -190,7 +254,11 @@ async function main() {
       await page.goto(`${APP}/human-design/iliski-grup?id=${PENTA}`);
       await page.locator("[data-hd-rel-view='penta']").waitFor({ timeout: 30_000 });
       ok((await page.locator("[data-hd-penta-channel]").count()) === 6 && (await page.locator("[data-hd-penta-gate]").count()) === 12 && (await page.locator("[data-hd-penta-member]").count()) === 4, `${d.name}: Penta 6 kanal + 12 kapı + 4 üye katkısı`);
-      ok(await page.locator("[data-hd-rel-diagram='penta']").isVisible(), `${d.name}: Penta şeması görünür`);
+      ok(await page.locator("[data-hd-scene='penta']").isVisible(), `${d.name}: Penta şeması görünür`);
+      const pHit = page.locator("[data-hd-scene-hit='2-14']");
+      if (d.ua) await pHit.tap({ force: true }); else await pHit.hover({ force: true });
+      await page.waitForTimeout(200);
+      ok((await page.locator("[data-hd-penta-info]").getAttribute("data-hd-penta-info")) === "2-14" && (await page.locator("[data-hd-penta-info]").innerText()).includes("14. kapı"), `${d.name}: Penta kanalına dokunma → kapılar ve taşıyan üyeler`);
       ok(!(await overflowX()), `${d.name}: Penta detayında yatay taşma yok`);
       await page.screenshot({ path: path.join(OUT, `${d.name}-penta.png`), fullPage: true });
 

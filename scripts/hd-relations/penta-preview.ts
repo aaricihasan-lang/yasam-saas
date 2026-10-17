@@ -1,0 +1,11 @@
+import { writeFileSync } from "node:fs";
+import { Resvg } from "@resvg/resvg-js";
+import { fakePentaResponse, PEOPLE } from "./fakeRelationRoxy";
+import { validateRoxyPenta } from "../../lib/human-design/relations/penta";
+import { buildPentaScene, PENTA_VIEW } from "../../lib/human-design/relations/pentaScene";
+import { sceneToSvg } from "../../lib/human-design/relations/compositeScene";
+const n = Number(process.argv[2] ?? 4);
+const v = validateRoxyPenta(fakePentaResponse(PEOPLE.slice(0, n)), n);
+if (!v.ok) throw new Error(v.errors.join());
+const svg = sceneToSvg(buildPentaScene(v.value), "Geist", PENTA_VIEW);
+writeFileSync(process.argv[3], new Resvg(svg, { background: "white", fitTo: { mode: "width", value: 800 }, font: { loadSystemFonts: false, fontFiles: ["C:/yasam-hd-centers/public/fonts/Geist-Regular.ttf"], defaultFontFamily: "Geist" } }).render().asPng());

@@ -1,5 +1,7 @@
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type { RelationAnalysisView, RelationCandidate, RelationListRow, RelationType } from "@/lib/human-design/relations/relationService";
+import type { CentralEntry, KnowledgeGroup, RelationComment, RelationReportListRow } from "@/lib/human-design/relations/relationExtras";
+import type { ExplanationSection } from "@/lib/human-design/relations/explanations";
 
 // İlişki ve Grup Analizleri — tarayıcı yardımcıları. Tüm okuma/yazma sunucu route'larından
 // (/api/hd/relations*); Roxy anahtarı ya da ham sağlayıcı yanıtı tarayıcıya hiç gelmez.
@@ -81,10 +83,83 @@ export async function deleteRelation(id: string): Promise<{ ok: true } | Fail> {
   }
 }
 
-export async function downloadRelationReport(id: string): Promise<{ ok: true } | Fail> {
+// ─── Yorum kaynakları / Uzman Yorumu / kayıtlı raporlar ─────────────────────
+
+export type RelationSources = {
+  analysis: ExplanationSection[];
+  expert: KnowledgeGroup[];
+  /** Yalnız admin rolünde dolu; normal uzmanda null. */
+  central: CentralEntry[] | null;
+};
+
+export async function fetchRelationSources(id: string): Promise<{ ok: true; sources: RelationSources } | Fail> {
+  try {
+    const res = await fetch(`/api/hd/relations/${encodeURIComponent(id)}/knowledge`, { headers: authHeaders(), cache: "no-store" });
+    const j = await readJson(res);
+    return res.ok && j.ok === true
+      ? { ok: true, sources: { analysis: j.analysis as ExplanationSection[], expert: j.expert as KnowledgeGroup[], central: (j.central as CentralEntry[] | null) ?? null } }
+      : errOf(j, res);
+  } catch {
+    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
+  }
+}
+
+export async function fetchRelationComment(id: string): Promise<{ ok: true; comment: RelationComment } | Fail> {
+  try {
+    const res = await fetch(`/api/hd/relations/${encodeURIComponent(id)}/comment`, { headers: authHeaders(), cache: "no-store" });
+    const j = await readJson(res);
+    return res.ok && j.ok === true ? { ok: true, comment: j.comment as RelationComment } : errOf(j, res);
+  } catch {
+    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
+  }
+}
+
+export async function saveRelationComment(id: string, text: string, expectedUpdatedAt: string | null, confirmClear = false): Promise<{ ok: true; comment: RelationComment } | Fail> {
+  try {
+    const res = await fetch(`/api/hd/relations/${encodeURIComponent(id)}/comment`, {
+      method: "PATCH",
+      headers: authHeaders(),
+      body: JSON.stringify({ text, expected_updated_at: expectedUpdatedAt, confirm_clear: confirmClear }),
+    });
+    const j = await readJson(res);
+    return res.ok && j.ok === true ? { ok: true, comment: j.comment as RelationComment } : errOf(j, res);
+  } catch {
+    return { ok: false, error: "Ağ hatası. Yorum kaydedilemedi; metniniz ekranda duruyor, tekrar deneyin." };
+  }
+}
+
+export async function fetchRelationReports(id: string): Promise<{ ok: true; rows: RelationReportListRow[]; available: boolean } | Fail> {
+  try {
+    const res = await fetch(`/api/hd/relations/${encodeURIComponent(id)}/reports`, { headers: authHeaders(), cache: "no-store" });
+    const j = await readJson(res);
+    return res.ok && j.ok === true ? { ok: true, rows: j.rows as RelationReportListRow[], available: j.available !== false } : errOf(j, res);
+  } catch {
+    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
+  }
+}
+
+export async function createRelationReport(
+  id: string,
+  sections: { analysis: boolean; knowledge: boolean; expert_comment: boolean },
+  preparedBy: string,
+): Promise<{ ok: true; id: string; image: { status: "ok" | "unavailable"; reason: string | null } } | Fail> {
+  try {
+    const res = await fetch(`/api/hd/relations/${encodeURIComponent(id)}/reports`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ sections, prepared_by: preparedBy.trim() || null }),
+    });
+    const j = await readJson(res);
+    return res.ok && j.ok === true ? { ok: true, id: String(j.id), image: j.image as { status: "ok" | "unavailable"; reason: string | null } } : errOf(j, res);
+  } catch {
+    return { ok: false, error: "Ağ hatası. Rapor hazırlanamadı." };
+  }
+}
+
+export async function downloadRelationReport(reportId: string): Promise<{ ok: true } | Fail> {
   let res: Response;
   try {
-    res = await fetch(`/api/hd/relations/${encodeURIComponent(id)}/report`, { method: "POST", headers: authHeaders() });
+    res = await fetch(`/api/hd/relations/reports/${encodeURIComponent(reportId)}/download`, { method: "POST", headers: authHeaders() });
   } catch {
     return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
   }
