@@ -179,7 +179,11 @@ async function main() {
   ok("C5 Koordinatlar", field("coords").includes("41,0225° K · 28,9408° D"));
   ok("C6 Yaş", /\|8\|/.test(field("age")));
   ok("C7 Tip (Türkçe uygulama etiketi)", field("type").includes("Generator"));
-  ok("C8 künye + temel HD (13 alan, sıra sabit; owner 2026-10-17: Strateji/İmza/Kendilik Dışı Tema eklendi)", [...info.matchAll(/data-hd-info-field="([A-Za-z]+)"/g)].map((m) => m[1]).join(",") === "name,local,place,coords,age,type,strategy,profile,definition,cross,authority,signature,notSelf");
+  // 2026-10-17 ilk ekran dengesi: sol panel = kimlik + çekirdek HD (Tip/Strateji/Profil/İç Otorite); tamamlayıcı 4 alan
+  // mobil/lg şeritte aynı panelde, geniş masaüstünde (hdwide:hidden) Personality altındaki kartta.
+  ok("C8 sol panel alan sırası (kimlik + çekirdek HD + mobil/şerit için tamamlayıcı 4 alan)", [...info.matchAll(/data-hd-info-field="([A-Za-z]+)"/g)].map((m) => m[1]).join(",") === "name,local,place,coords,age,type,strategy,profile,authority,definition,cross,signature,notSelf");
+  const extraHtml = html.slice(html.indexOf("data-hd-info-extra"), html.indexOf("</section>", html.indexOf("data-hd-info-extra")));
+  ok("C8b geniş masaüstünde tamamlayıcı 4 alan sağ kartta; sol panelde aynı alanlar hdwide:hidden", [...extraHtml.matchAll(/data-hd-info-field="([A-Za-z]+)"/g)].map((m) => m[1]).join(",") === "definition,cross,signature,notSelf" && ["definition", "cross", "signature", "notSelf"].every((f) => new RegExp(`hdwide:hidden[^"]*" data-hd-info-field="${f}"|data-hd-info-field="${f}"[^>]*hdwide:hidden`).test(info) || new RegExp(`class="[^"]*hdwide:hidden[^"]*"[^>]*data-hd-info-field="${f}"`).test(info)) && /class="[^"]*hidden[^"]*hdwide:block[^"]*"[^>]*data-hd-info-extra|data-hd-info-extra[^>]*class="[^"]*hidden[^"]*hdwide:block/.test(html));
   // AŞAMA 2 (2026-10-15 owner terminolojisi): görünen etiketler Türkçe + (İngilizce); kodlar aynı.
   ok("C9 İç Otorite", field("authority").includes("Sakral Otorite (Sacral Authority)"));
   ok("C10 Profil", field("profile").includes("2/4 — Münzevi / Fırsatçı"), field("profile"));
@@ -196,9 +200,10 @@ async function main() {
   ok("C18 alt bölüm: kanallar/merkezler/kapılar korunur", count(html, /data-hd-channel=/g) === n.codes.channels.length && count(html, /data-hd-center=/g) === 9 && count(html, /data-hd-gate=/g) === n.codes.gates.length);
 
   // ── D) Yerleşim / tekrar / marka ──
-  ok("D1 HD alanları sayfada tek yerde (tekrar yok)", count(html, />Enkarnasyon Teması \(Incarnation Cross\)</g) === 1 && !html.includes("Haç") && count(html, />Tip \(Type\)</g) === 1 && count(html, />Strateji \(Strategy\)</g) === 1 && count(html, />İmza \(Signature\)</g) === 1);
+  // Tamamlayıcı alanlar her ekranda TEK yerde GÖRÜNÜR: DOM'da iki kopya, biri <hdwide (sol panel) diğeri hdwide (sağ kart).
+  ok("D1 HD alanları her ekranda tek yerde görünür (Tip/Strateji 1; tamamlayıcılar sol/sağ birer, ekran düzenine göre)", count(html, />Enkarnasyon Teması \(Incarnation Cross\)</g) === 2 && count(extraHtml, />Enkarnasyon Teması \(Incarnation Cross\)</g) === 1 && !html.includes("Haç") && count(html, />Tip \(Type\)</g) === 1 && count(html, />Strateji \(Strategy\)</g) === 1 && count(html, />İmza \(Signature\)</g) === 2 && count(extraHtml, />İmza \(Signature\)</g) === 1);
   ok("D2 DOM sırası: bilgi → Design → BodyGraph → Personality (mobilde bilgi en üstte)", html.indexOf("data-hd-info") < html.indexOf('data-hd-side="design"') && html.indexOf('data-hd-side="design"') < html.indexOf("<roxy-bodygraph") && html.indexOf("<roxy-bodygraph") < html.indexOf('data-hd-side="personality"'));
-  ok("D3 geniş masaüstü: [Bilgi][Design][BodyGraph][Personality] TEK kart (bilgi kartsız, iç kaydırma YOK)", html.includes("hdwide:flex-row") && html.includes("hdwide:w-[280px]") && html.includes("hdwide:border-0 hdwide:border-r") && html.includes("hdwide:bg-transparent") && !info.includes("overflow-y-auto") && !info.includes("overflow-auto") && !info.includes("sticky") && html.includes("hdwide:rounded-2xl hdwide:border hdwide:border-indigo-200/70") && html.includes("hdwide:bg-none hdwide:shadow-none"));
+  ok("D3 geniş masaüstü: [Bilgi][Design][BodyGraph][Personality] TEK kart (bilgi kartsız, iç kaydırma YOK)", html.includes("hdwide:flex-row") && html.includes("hdwide:w-[272px]") && html.includes("data-hd-right-stack") && html.indexOf('data-hd-side="personality"') < html.indexOf("data-hd-info-extra") && html.includes("hdwide:border-0 hdwide:border-r") && html.includes("hdwide:bg-transparent") && !info.includes("overflow-y-auto") && !info.includes("overflow-auto") && !info.includes("sticky") && html.includes("hdwide:rounded-2xl hdwide:border hdwide:border-indigo-200/70") && html.includes("hdwide:bg-none hdwide:shadow-none"));
   // 2026-10-17 düzeltme: yükseklik YALNIZ sahnede (BodyGraph boyutu bilgi bloğundan bağımsız); kapsayıcı sabit yükseklik
   // taşımaz → bilgi kolonu uzarsa kart aşağı uzar, alttaki Merkezler kartına taşmaz (gerçek ölçüm: hd:chart-layout:browser).
   const olAt = html.indexOf("data-hd-onelook");

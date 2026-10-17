@@ -112,21 +112,21 @@ async function main() {
       const m = modalOf(page);
       await m.locator("[data-hd-knowledge-tabs]").waitFor({ timeout: 90_000 });
       for (const f of ["strategy", "signature", "notSelf"]) {
-        const el = m.locator(`[data-hd-info-field="${f}"]`);
+        const el = m.locator(`[data-hd-info-field="${f}"]:visible`);
         const box = await el.boundingBox();
         ok((await el.count()) === 1 && !!box && box.x >= 0 && box.x + box.width <= d.viewport.width + 0.5 && box.width > 20, `${d.name}: bilgi bloğunda '${f}' görünür ve ekrana sığıyor`, box);
       }
-      ok(((await m.locator('[data-hd-info-field="strategy"]').textContent()) ?? "").includes("Yanıt vermek için beklemek (Wait to respond)"), `${d.name}: Strateji değeri Türkçe + (Roxy kanonik İngilizce)`);
+      ok(((await m.locator('[data-hd-info-field="strategy"]:visible').textContent()) ?? "").includes("Yanıt vermek için beklemek (Wait to respond)"), `${d.name}: Strateji değeri Türkçe + (Roxy kanonik İngilizce)`);
       // Başlık metni (İmza'daki "i" bilgi düğmesi hariç).
-      const labels = await m.locator("[data-hd-info-group=chart] dt").evaluateAll((els) => els.map((e) => [...e.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim()));
+      const labels = await m.locator("[data-hd-info-group=chart] dt:visible, [data-hd-info-extra] dt:visible").evaluateAll((els) => els.map((e) => [...e.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim()));
       ok(["Tip (Type)", "Strateji (Strategy)", "Profil (Profile)", "Tanım (Definition)", "Enkarnasyon Teması (Incarnation Cross)", "İç Otorite (Inner Authority)", "İmza (Signature)", "Kendilik Dışı Tema (Not-Self Theme)"].every((l) => labels.includes(l)), `${d.name}: bilgi bloğu başlıkları Türkçe + (İngilizce)`, labels);
-      const sig = m.locator('[data-hd-info-field="signature"]');
+      const sig = m.locator('[data-hd-info-field="signature"]:visible');
       ok(((await sig.textContent()) ?? "").includes("Tatmin (Satisfaction)") && (await sig.locator("[data-hd-signature-help]").count()) === 0, `${d.name}: İmza (Signature) değeri; açıklama varsayılan kapalı`);
       await sig.locator("[data-hd-signature-help-toggle]").click();
       ok(((await sig.locator("[data-hd-signature-help]").textContent()) ?? "").includes("olumlu durum"), `${d.name}: "i" düğmesiyle İmza açıklaması açılır`);
       await sig.locator("[data-hd-signature-help-toggle]").click();
       for (const f of ["type", "strategy", "profile", "definition", "cross", "authority", "signature", "notSelf"]) {
-        const b = await m.locator(`[data-hd-info-field="${f}"]`).boundingBox();
+        const b = await m.locator(`[data-hd-info-field="${f}"]:visible`).boundingBox();
         if (!b || b.x < 0 || b.x + b.width > d.viewport.width + 0.5) ok(false, `${d.name}: '${f}' alanı ekrana sığmıyor`, b);
       }
       ok((await m.locator("[data-hd-center-motor]").count()) === 4 && (await m.locator("[data-hd-center-awareness]").count()) === 3, `${d.name}: Merkezler listesinde 4 motor + 3 farkındalık işareti`);
@@ -160,9 +160,9 @@ async function main() {
       await page.locator(`[data-hd-group-open="${HN}"]`).click();
       const m = modalOf(page);
       await m.locator("#hd-computed-detay-title").waitFor({ timeout: 90_000 });
-      await m.locator('[data-hd-info-field="signature"]').waitFor({ timeout: 60_000 });
+      await m.locator('[data-hd-info-field="signature"]:visible').waitFor({ timeout: 60_000 });
       ok((await m.getByRole("tab", { name: "Sistem Yorumu" }).count()) === 0, `${d.name}: Sistem Yorumu sekmesi YOK (politika korunur)`);
-      ok((await m.locator('[data-hd-info-field="strategy"]').count()) === 1 && (await m.locator("[data-hd-center-motor]").count()) === 4, `${d.name}: temel kimlik (Strateji/İmza/Kendilik dışı) + motor işaretleri yetkisiz uzmanda da görünür`);
+      ok((await m.locator('[data-hd-info-field="strategy"]:visible').count()) === 1 && (await m.locator("[data-hd-center-motor]").count()) === 4, `${d.name}: temel kimlik (Strateji/İmza/Kendilik dışı) + motor işaretleri yetkisiz uzmanda da görünür`);
       const body = await m.innerText();
       ok(!body.includes("enveloping") && !body.includes("storyteller") && !body.includes("heksagram"), `${d.name}: yetki gerektiren uzun açıklamalar görünmez`);
       await page.context().close();
