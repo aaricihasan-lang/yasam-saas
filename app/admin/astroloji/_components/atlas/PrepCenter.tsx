@@ -61,8 +61,8 @@ const TECH_BY_SYSTEM: Record<SystemId, UiTechniqueId[]> = {
 /** Tekniğin ne gösterdiği (genel tanım; kişiye özgü içerik yok). */
 const ABOUT: Record<UiTechniqueId, string> = {
   "western.natal": "Doğum anındaki gökyüzü: gezegenlerin burç ve ev konumları, açısal noktalar ve gezegenler arası açılar.",
-  "western.transit": "Seçilen andaki gezegenlerin natal haritayla yaptığı açılar. Tek bir anın görüntüsüdür.",
-  "western.forecast": "Bir dönem boyunca transit açıları, burç girişleri, istasyonlar, tutulmalar ve Ay evreleri. Sağlayıcı isteği en çok 90 günlük parçalara bölünür.",
+  "western.transit": "Seçilen andaki gezegenlerin natal haritayla yaptığı açılar: güç, orb, yaklaşan/ayrılan, transit gezegenin geçtiği natal ev ve çift halka harita. Tek bir anın görüntüsüdür; kesinleşme anları Transit Takvimi gününden açıldığında takvimden gösterilir.",
+  "western.forecast": "Bir dönem boyunca natal haritaya transit açılarının kesinleşme anları ile burç girişleri, istasyonlar, tutulmalar ve Ay evreleri; sağlayıcı önem puanı. Gün seçilince o günün ayrıntısı açılır, günün transit haritası istenirse ayrıca hesaplanır. Sağlayıcı isteği en çok 90 günlük parçalara bölünür.",
   "western.progression": "İkincil ilerletme: doğumdan sonraki her gün yaşamın bir yılına karşılık gelir; hedef tarih için ilerletilmiş harita.",
   "western.solar_arc": "Tüm natal noktalar, ilerletilmiş Güneş'in kat ettiği yay kadar ileri taşınır.",
   "western.solar_return": "Güneş'in natal boylamına döndüğü anın haritası; seçilen yılın teması için kullanılır.",
@@ -91,8 +91,8 @@ const ABOUT: Record<UiTechniqueId, string> = {
 /** Gerekli / ayarlanabilir parametrelerin kısa özeti (dizinde görünür). */
 const PARAMS_NOTE: Record<UiTechniqueId, string> = {
   "western.natal": "ev sistemi · ay düğümü",
-  "western.transit": "an · ay düğümü",
-  "western.forecast": "başlangıç · süre",
+  "western.transit": "an (şimdi / gün / gün + saat) · saat dilimi · ay düğümü",
+  "western.forecast": "başlangıç · bitiş (en çok 366 gün) · saat dilimi",
   "western.progression": "hedef tarih · ay düğümü",
   "western.solar_arc": "hedef tarih · ay düğümü",
   "western.solar_return": "yıl · konum · ev sistemi",

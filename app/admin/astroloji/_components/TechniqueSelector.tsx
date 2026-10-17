@@ -8,6 +8,7 @@
  * durumdadır → bir teknikte değiştirmek aynı ortak alanı kullanan tüm teknikleri etkiler (etiketlerde belirtilir).
  */
 
+import { addDaysIso, daysBetweenIso, localToUtcPreview } from "@/lib/astrology/transitDetail";
 import { HOUSE_SYSTEMS, NODE_TYPES, type HouseSystem, type NodeType } from "@/lib/astrology/model/western";
 import LocationPicker from "./LocationPicker";
 import { FIXED_STAR_ORB_DEFAULT, FIXED_STAR_ORB_OPTIONS } from "@/lib/astrology/model/westernFixedStars";
@@ -17,6 +18,44 @@ import { FORECAST_MAX_DAYS, DASHA_LORD_OPTIONS, KP_AYANAMSA_OPTIONS, VEDIC_AYANA
 // max-w-full: uzun seçenek metni (ör. "Lahiri (Chitrapaksha) — varsayılan") 390 px'te kartı taşırmasın.
 const inp = "max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm";
 const TZ_OPTIONS = ["Europe/Istanbul", "UTC", "Europe/London", "Europe/Berlin", "America/New_York", "Asia/Dubai"];
+
+let ALL_TZ: string[] | null = null;
+function allTimeZones(): string[] {
+  if (ALL_TZ) return ALL_TZ;
+  try {
+    ALL_TZ = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.("timeZone") ?? [];
+  } catch {
+    ALL_TZ = [];
+  }
+  return ALL_TZ;
+}
+
+/** TRANSİT-01: sık kullanılan saat dilimleri + tarayıcının desteklediği tüm IANA bölgeleri (seçili değer listede yoksa eklenir). */
+function TzSelect({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+  const all = allTimeZones();
+  const rest = all.filter((z) => !TZ_OPTIONS.includes(z));
+  return (
+    <select className={inp} value={value} onChange={(e) => onChange(e.target.value)} aria-label={label}>
+      <optgroup label="Sık kullanılan">
+        {TZ_OPTIONS.map((z) => (
+          <option key={z} value={z}>
+            {z}
+          </option>
+        ))}
+        {!TZ_OPTIONS.includes(value) && !rest.includes(value) && <option value={value}>{value}</option>}
+      </optgroup>
+      {rest.length > 0 && (
+        <optgroup label="Tüm saat dilimleri">
+          {rest.map((z) => (
+            <option key={z} value={z}>
+              {z}
+            </option>
+          ))}
+        </optgroup>
+      )}
+    </select>
+  );
+}
 
 export type PartnerOption = { id: string; label: string };
 
@@ -64,46 +103,88 @@ export function TechniqueParamFields({
 
   const params_ = (id: UiTechniqueId) => {
     switch (id) {
-      case "western.transit":
+      case "western.transit": {
+        // TRANSİT-01: üç kip — şimdi (UTC saat başı, önbellek dostu), seçilen gün (yerel 12:00), seçilen gün + saat (dakika).
+        // Saat dilimi doğum haritasından AYRIDIR; hesaplanacak UTC anı seçimden önce açıkça gösterilir.
+        const preview =
+          params.transitMode === "now"
+            ? null
+            : localToUtcPreview(params.transitDate, params.transitMode === "date" ? "12:00" : params.transitTime, params.transitTz);
         return (
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="flex items-center gap-1 text-xs">
-              <input type="radio" checked={params.transitMode === "now"} onChange={() => set("transitMode", "now")} /> Şimdi (UTC saat başı)
-            </label>
-            <label className="flex items-center gap-1 text-xs">
-              <input type="radio" checked={params.transitMode === "custom"} onChange={() => set("transitMode", "custom")} /> Tarih/saat
-            </label>
-            {params.transitMode === "custom" && (
-              <>
-                <input type="date" className={inp} value={params.transitDate} onChange={(e) => set("transitDate", e.target.value)} aria-label="Transit tarihi" />
-                <input type="time" className={inp} value={params.transitTime} onChange={(e) => set("transitTime", e.target.value)} aria-label="Transit saati" />
-                <select className={inp} value={params.transitTz} onChange={(e) => set("transitTz", e.target.value)} aria-label="Transit saat dilimi">
-                  {TZ_OPTIONS.map((z) => (
-                    <option key={z} value={z}>
-                      {z}
-                    </option>
-                  ))}
-                </select>
-              </>
-            )}
+          <div className="flex flex-col gap-1.5" data-testid="astro-transit-moment">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1" role="radiogroup" aria-label="Transit anı">
+              <label className="flex items-center gap-1 text-xs">
+                <input type="radio" checked={params.transitMode === "now"} onChange={() => set("transitMode", "now")} data-transit-mode="now" /> Şimdi
+              </label>
+              <label className="flex items-center gap-1 text-xs">
+                <input type="radio" checked={params.transitMode === "date"} onChange={() => set("transitMode", "date")} data-transit-mode="date" /> Seçilen gün
+              </label>
+              <label className="flex items-center gap-1 text-xs">
+                <input type="radio" checked={params.transitMode === "custom"} onChange={() => set("transitMode", "custom")} data-transit-mode="custom" /> Seçilen gün ve saat
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {params.transitMode !== "now" && (
+                <input type="date" className={inp} min="1600-01-01" max="2600-12-31" value={params.transitDate} onChange={(e) => set("transitDate", e.target.value)} aria-label="Transit tarihi" />
+              )}
+              {params.transitMode === "custom" && <input type="time" className={inp} value={params.transitTime} onChange={(e) => set("transitTime", e.target.value)} aria-label="Transit saati" />}
+              <TzSelect value={params.transitTz} onChange={(v) => set("transitTz", v)} label="Transit saat dilimi" />
+            </div>
+            <p className="text-[11px] leading-snug text-slate-500" data-testid="astro-transit-moment-note">
+              {params.transitMode === "now"
+                ? "Şimdi: hesaplama anı UTC saat başına yuvarlanır (ör. 14:37 → 14:00 UTC); aynı saat içinde tekrar açmak yeni istek üretmez. Dakika hassasiyeti için “Seçilen gün ve saat” kullanın. Saat dilimi yalnız gösterim içindir."
+                : params.transitMode === "date"
+                  ? "Seçilen gün: o günün yerel 12:00'si kullanılır (Ay günde ~13° ilerler; belirli bir an için saat seçin)."
+                  : "Seçilen saat dakika hassasiyetiyle işlenir."}
+              {preview && (
+                <span className={`ml-1 font-medium ${preview.ok ? "text-slate-700" : "text-rose-700"}`} data-testid="astro-transit-utc-preview">
+                  {preview.text}
+                </span>
+              )}
+            </p>
           </div>
         );
-      case "western.forecast":
+      }
+      case "western.forecast": {
+        const end = addDaysIso(params.forecastStart, params.forecastDays - 1);
         return (
-          <div className="flex flex-wrap items-center gap-2">
-            <input type="date" className={inp} value={params.forecastStart} onChange={(e) => set("forecastStart", e.target.value)} aria-label="Takvim başlangıcı" />
-            <select className={inp} value={params.forecastDays} onChange={(e) => set("forecastDays", Number(e.target.value))} aria-label="Takvim süresi">
-              {[30, 90, 180, 365, FORECAST_MAX_DAYS].map((d) => (
-                <option key={d} value={d}>
-                  {d} gün
-                </option>
-              ))}
-            </select>
+          <div className="flex flex-col gap-1.5" data-testid="astro-forecast-range">
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-1 text-xs">
+                Başlangıç
+                <input type="date" className={inp} min="1600-01-01" max="2600-12-31" value={params.forecastStart} onChange={(e) => set("forecastStart", e.target.value)} aria-label="Takvim başlangıcı" />
+              </label>
+              <label className="flex items-center gap-1 text-xs">
+                Bitiş
+                <input
+                  type="date"
+                  className={inp}
+                  min={params.forecastStart}
+                  max={addDaysIso(params.forecastStart, FORECAST_MAX_DAYS - 1) ?? undefined}
+                  value={end ?? ""}
+                  onChange={(e) => {
+                    const d = daysBetweenIso(params.forecastStart, e.target.value);
+                    if (d !== null && d >= 1 && d <= FORECAST_MAX_DAYS) set("forecastDays", d);
+                  }}
+                  aria-label="Takvim bitişi"
+                />
+              </label>
+              <select className={inp} value={[30, 90, 180, 365, FORECAST_MAX_DAYS].includes(params.forecastDays) ? params.forecastDays : ""} onChange={(e) => e.target.value && set("forecastDays", Number(e.target.value))} aria-label="Takvim süresi">
+                {![30, 90, 180, 365, FORECAST_MAX_DAYS].includes(params.forecastDays) && <option value="">{params.forecastDays} gün</option>}
+                {[30, 90, 180, 365, FORECAST_MAX_DAYS].map((d) => (
+                  <option key={d} value={d}>
+                    {d} gün
+                  </option>
+                ))}
+              </select>
+              <TzSelect value={params.forecastTz ?? "Europe/Istanbul"} onChange={(v) => set("forecastTz", v)} label="Takvim saat dilimi" />
+            </div>
             <span className="text-xs text-amber-800">
-              {forecastPartCount(params.forecastDays)} parça (sağlayıcı sınırı 90 gün/istek)
+              {params.forecastDays} gün · {forecastPartCount(params.forecastDays)} parça (sağlayıcı sınırı 90 gün/istek; en çok {FORECAST_MAX_DAYS} gün). Gün ayrıntıları sonuç ekranında, istenirse ayrıca hesaplanır.
             </span>
           </div>
         );
+      }
       case "western.progression":
       case "western.solar_arc":
         return (

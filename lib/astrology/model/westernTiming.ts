@@ -50,6 +50,19 @@ export type TransitTechnical = {
    * sağlayıcı isteği YOK. Natal önbellekte yoksa / saat bilinmiyorsa null (harita çizilmez, nedeni gösterilir).
    */
   natalFrame?: TransitNatalFrame | null;
+  /**
+   * TRANSİT-01 (2026-10-17): transit bir Transit Takvimi gününden açıldıysa, AYNI doğum verisinin önbellekteki takvim
+   * sonucundan (forecast, `/forecast/transits` — olaylar sağlayıcıda kesinleşme anına inceltilmiştir) bu açıların
+   * kesinleşme anları. YALNIZ okunarak eklenir, yeni sağlayıcı isteği YOK; takvim açılmadıysa alan hiç yoktur.
+   */
+  calendarExact?: TransitCalendarExact | null;
+};
+/** Takvim kesinleşme eşleşmesi: aynı transit gezegen + aynı natal hedef + aynı açı türü (yalnız takvim penceresi içinde). */
+export type TransitCalendarExact = {
+  window: { start: string; end: string };
+  /** Takvimin tüm parçaları önbellekte bulundu mu (false → kesinleşme listesi eksik olabilir). */
+  complete: boolean;
+  hits: { transit: BodyId; natal: PointId; type: AspectType; exactUtc: string[] }[];
 };
 export type TransitNatalFrame = {
   houseSystem: HouseSystem;

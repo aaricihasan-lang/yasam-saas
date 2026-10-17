@@ -90,7 +90,14 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
       const count = (n: string) => aspects.filter((a) => a.nature === n).length;
       return {
         // Saat bilinmiyorsa natal ev/ASC yok, Ay yaklaşık → çift halka natal çerçevesi gösterilmez.
-        technical: { ...t, aspects, natalFrame: null, summary: { harmonious: count("harmonious"), challenging: count("challenging"), neutral: count("neutral") } },
+        technical: {
+          ...t,
+          aspects,
+          natalFrame: null,
+          summary: { harmonious: count("harmonious"), challenging: count("challenging"), neutral: count("neutral") },
+          // TRANSİT-01: gizlenen açısal hedeflerin takvim kesinleşme anları da gönderilmez.
+          ...(t.calendarExact ? { calendarExact: { ...t.calendarExact, hits: t.calendarExact.hits.filter((h) => !isAngle(h.natal)) } } : {}),
+        },
         masked: true,
         warnings: [MOON_WARN, "Natal Yükselen/MC hedefli transitler gösterilmez."],
       };

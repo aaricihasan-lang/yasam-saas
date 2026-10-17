@@ -2,6 +2,7 @@
 // Sunucudaki teknik tanımları (lib/astrology/engine/techniques) istemci paketine ALINMAZ; burada yalnız
 // etiket + hangi parametrenin sorulacağı tutulur. Seçenekler sunucuda yeniden doğrulanır/normalize edilir.
 
+import { addDaysIso, formatInZone } from "@/lib/astrology/transitDetail";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 
 export const UI_TECHNIQUES = [
@@ -107,12 +108,15 @@ export const VEDIC_AYANAMSA_OPTIONS: [string, string][] = [
 ];
 
 export type TechniqueParams = {
-  transitMode: "now" | "custom";
+  /** TRANSİT-01: şimdi (UTC saat başı) · seçilen gün (yerel 12:00) · seçilen gün + saat (dakika). */
+  transitMode: "now" | "date" | "custom";
   transitDate: string;
   transitTime: string;
   transitTz: string;
   forecastStart: string;
   forecastDays: number;
+  /** TRANSİT-01: takvim gösterim saat dilimi (gün gruplaması / yerel saat; istek gövdesine girmez). */
+  forecastTz: string;
   targetDate: string;
   returnYear: number;
   lunarMonth: string;
@@ -184,6 +188,7 @@ export function defaultParams(today: Date): TechniqueParams {
     transitTz: "Europe/Istanbul",
     forecastStart: iso,
     forecastDays: 90,
+    forecastTz: "Europe/Istanbul",
     targetDate: iso,
     returnYear: Number(iso.slice(0, 4)),
     lunarMonth: iso.slice(0, 7),
@@ -233,11 +238,15 @@ export function buildSelections(
       case "western.transit":
         out.push({
           technique: id,
-          options: p.transitMode === "now" ? { now: true, nodeType: method.nodeType } : { date: p.transitDate, time: p.transitTime, timezone: p.transitTz, nodeType: method.nodeType },
+          // TRANSİT-01: saat dilimi gösterim için seçenekte kalır (gövdeye girmez). "Seçilen gün" = o günün yerel 12:00'si.
+          options:
+            p.transitMode === "now"
+              ? { now: true, nodeType: method.nodeType, displayTz: p.transitTz }
+              : { date: p.transitDate, time: p.transitMode === "date" ? "12:00" : p.transitTime, timezone: p.transitTz, nodeType: method.nodeType },
         });
         break;
       case "western.forecast":
-        out.push({ technique: id, options: { startDate: p.forecastStart, days: p.forecastDays } });
+        out.push({ technique: id, options: { startDate: p.forecastStart, days: p.forecastDays, displayTz: p.forecastTz } });
         break;
       case "western.progression":
       case "western.solar_arc":
@@ -337,11 +346,22 @@ const fmtDate = (iso: string) => {
 export function describeOptions(technique: string, o: Record<string, unknown>, partnerLabel?: (id: string) => string | null): string {
   const partner = typeof o.partnerProfileId === "string" ? (partnerLabel?.(o.partnerProfileId) ?? "karşı taraf") : null;
   switch (technique) {
-    case "western.transit":
-      return typeof o.atUtc === "string" ? `${fmtDate(o.atUtc)} ${o.atUtc.slice(11, 16)} UTC` : "";
+    case "western.transit": {
+      if (typeof o.atUtc !== "string") return "";
+      // TRANSİT-01: gösterim saat dilimi varsa yerel an + UTC; yoksa (eski kayıtlar) yalnız UTC — eski metin aynen.
+      const utc = `${fmtDate(o.atUtc)} ${o.atUtc.slice(11, 16)} UTC`;
+      const tz = typeof o.displayTz === "string" && o.displayTz !== "UTC" ? o.displayTz : null;
+      const z = tz ? formatInZone(o.atUtc, tz) : null;
+      const cal = o.calendar as { startDate?: unknown; days?: unknown } | undefined;
+      const calTxt = cal && typeof cal.startDate === "string" ? ` · takvim ${fmtDate(cal.startDate)} + ${String(cal.days)} gün` : "";
+      return `${z ? `${z.text} ${z.zone} (${utc})` : utc}${calTxt}`;
+    }
     case "western.forecast": {
       const days = Number(o.days);
-      return typeof o.startDate === "string" ? `${fmtDate(o.startDate)} + ${days} gün (${forecastPartCount(days)} parça)` : "";
+      if (typeof o.startDate !== "string") return "";
+      const end = addDaysIso(o.startDate, days - 1);
+      const tz = typeof o.displayTz === "string" ? ` · ${o.displayTz}` : "";
+      return `${fmtDate(o.startDate)} + ${days} gün${end ? ` (→ ${fmtDate(end)})` : ""} (${forecastPartCount(days)} parça)${tz}`;
     }
     case "western.progression":
     case "western.solar_arc":
