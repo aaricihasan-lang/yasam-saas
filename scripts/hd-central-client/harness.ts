@@ -477,12 +477,12 @@ async function main() {
     section("L. Statik kontroller / kapsam kilidi");
     const hub = src("app/human-design/page.tsx");
     const cards = [...hub.matchAll(/title: "([^"]+)"/g)].map((m) => m[1]);
-    ok(cards.join("|") === "Human Design Hesaplama|Bilgi Bankası", "L1 hub yalnız iki çalışma alanı", cards);
+    ok(cards.join("|") === "Human Design Hesaplama|Bilgi Bankası|İlişki ve Grup Analizleri", "L1 hub: iki çalışma alanı + owner onaylı İlişki ve Grup Analizleri", cards);
     const strip = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
     const hubCode = strip(hub);
     const hubMods = strip(src("app/human-design/components/HdHubModules.tsx"));
     const hrefs = [...hubCode.matchAll(/href: "([^"]+)"/g)].map((m) => m[1]);
-    ok(hrefs.join("|") === "/human-design/danisanlar|/human-design/bilgi-bankasi" && !hubMods.includes("/human-design/kayitli-haritalar") && !hubMods.includes("adminOnly"), "L2 eski üst şerit / Rapor Oluştur / Kayıtlı Haritalar / Kayıtlı Raporlar kartları kaldırıldı", hrefs);
+    ok(hrefs.join("|") === "/human-design/danisanlar|/human-design/bilgi-bankasi|/human-design/iliski-grup" /* 2026-10-17 owner: İlişki ve Grup Analizleri tek ortak giriş */ && !hubMods.includes("/human-design/kayitli-haritalar") && !hubMods.includes("adminOnly"), "L2 eski üst şerit / Rapor Oluştur / Kayıtlı Haritalar / Kayıtlı Raporlar kartları kaldırıldı", hrefs);
     const live = [
       "app/human-design/danisanlar/page.tsx",
       "app/human-design/danisanlar/[id]/HdDanisanDetayContent.tsx",
