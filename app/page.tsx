@@ -516,7 +516,8 @@ const dashboardModules: ModuleCard[] = [
     permissionKey: "numerology",
     // 2026-10-15 (owner kararı): Gökyüzü Atlası artık Yaşam Analiz Merkezi'nin içinde (ana panelde ayrı kart yok).
     // 2026-10-17 (owner kararı): Yaşam Takvimi / Kozmik Ajanda da merkezin içinde (/cosmic-calendar adresi aynen).
-    extraPermissionKeys: ["astrology", "cosmic_calendar"],
+    // Human Design merkezin içindedir → yalnız human_design yetkili uzman da merkeze ulaşır.
+    extraPermissionKeys: ["astrology", "cosmic_calendar", "human_design"],
     emoji: "🧠",
     hasStat: true,
     Icon: Brain,

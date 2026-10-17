@@ -229,11 +229,17 @@ async function testHubsOwner() {
 async function testExperts() {
   const cases = [
     { tag: "yalniz-kozmik", keys: ["cosmic_calendar"], home: ["Yaşam Analiz Merkezi"], cosmicCard: true, stoneCard: null,
+      la: { "/numeroloji": false, "/human-design": false },
       allow: ["/cosmic-calendar"], deny: ["/dogaltas", "/dogal-destek", "/urun-stok"] },
     { tag: "yalniz-dogaltas", keys: ["stones"], home: ["Doğal Destek & Rehber"], cosmicCard: false, stoneCard: true,
       allow: ["/dogaltas", "/dogal-destek"], deny: ["/cosmic-calendar", "/urun-stok"] },
     { tag: "numeroloji-aroma", keys: ["numerology", "aromatherapy"], home: ["Doğal Destek & Rehber", "Yaşam Analiz Merkezi"],
       cosmicCard: false, stoneCard: false, allow: ["/numeroloji", "/aromaterapi"], deny: ["/cosmic-calendar", "/dogaltas"] },
+    // 2026-10-17: yalnız Human Design yetkili uzman Analiz Merkezi'ne ulaşır; yetkisiz alt kartlar görünmez.
+    { tag: "yalniz-human-design", keys: ["human_design"], home: ["Yaşam Analiz Merkezi"], cosmicCard: false, stoneCard: null,
+      la: { "/human-design": true, "/numeroloji": false }, allow: ["/human-design", "/life-analysis"], deny: ["/numeroloji", "/cosmic-calendar"] },
+    { tag: "yalniz-numeroloji", keys: ["numerology"], home: ["Yaşam Analiz Merkezi"], cosmicCard: false, stoneCard: null,
+      la: { "/numeroloji": true, "/human-design": false }, allow: ["/numeroloji"], deny: ["/human-design", "/cosmic-calendar"] },
     { tag: "biyoenerji-stok", keys: ["energy_body", "stok"], home: ["Ürün & Stok Merkezi", "Beden & Enerji Uygulamaları"],
       cosmicCard: false, stoneCard: null, allow: ["/urun-stok", "/enerji-beden"], deny: ["/cosmic-calendar", "/dogaltas", "/dogal-destek"] },
   ];
@@ -248,6 +254,9 @@ async function testExperts() {
     await page.goto(BASE + "/life-analysis", { waitUntil: "load" });
     await waitResolved(page);
     ok(g, `Analiz Merkezi Kozmik kartı ${c.cosmicCard ? "görünür" : "gizli"}`, (await page.getByTestId("life-analysis-cosmic-card").count() > 0) === c.cosmicCard);
+    for (const [href, vis] of Object.entries(c.la ?? {})) {
+      ok(g, `Analiz Merkezi ${href} kartı ${vis ? "görünür" : "gizli"}`, (await page.locator(`main a[href="${href}"]`).count() > 0) === vis);
+    }
     if (c.stoneCard !== null) {
       await page.goto(BASE + "/dogal-destek", { waitUntil: "load" });
       await waitResolved(page);
