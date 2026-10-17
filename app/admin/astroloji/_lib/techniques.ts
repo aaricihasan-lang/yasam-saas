@@ -2,7 +2,7 @@
 // Sunucudaki teknik tanımları (lib/astrology/engine/techniques) istemci paketine ALINMAZ; burada yalnız
 // etiket + hangi parametrenin sorulacağı tutulur. Seçenekler sunucuda yeniden doğrulanır/normalize edilir.
 
-import { addDaysIso, formatInZone } from "@/lib/astrology/transitDetail";
+import { addDaysIso, dateInputIssue, formatInZone, localToUtcPreview, timeInputIssue } from "@/lib/astrology/transitDetail";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 
 export const UI_TECHNIQUES = [
@@ -115,6 +115,8 @@ export type TechniqueParams = {
   transitTz: string;
   forecastStart: string;
   forecastDays: number;
+  /** Takvim bitiş kutusuna yazılan, henüz geçerli olmayan değer (yazma sırasında ara değer / başlangıçtan önce / sınır dışı). null = yok. */
+  forecastEndDraft: string | null;
   /** TRANSİT-01: takvim gösterim saat dilimi (gün gruplaması / yerel saat; istek gövdesine girmez). */
   forecastTz: string;
   targetDate: string;
@@ -188,6 +190,7 @@ export function defaultParams(today: Date): TechniqueParams {
     transitTz: "Europe/Istanbul",
     forecastStart: iso,
     forecastDays: 90,
+    forecastEndDraft: null,
     forecastTz: "Europe/Istanbul",
     targetDate: iso,
     returnYear: Number(iso.slice(0, 4)),
@@ -231,6 +234,8 @@ export function buildSelections(
   const out: { technique: UiTechniqueId; options: Record<string, unknown> }[] = [];
   for (const id of UI_TECHNIQUES) {
     if (!checked[id]) continue;
+    // Eksik / geçersiz tarih-saat (ör. yıl yazılırken "0002-10-17") plana ve API'ye GİRMEZ; neden missingReason'da.
+    if (dateInputReason(id, p)) continue;
     switch (id) {
       case "western.natal":
         out.push({ technique: id, options: { houseSystem: method.houseSystem, nodeType: method.nodeType } });
@@ -325,8 +330,39 @@ export function kpPlaceReady(p: TechniqueParams): boolean {
   return p.kpPlaceMode === "birth" || (p.kpPlaceMode === "other" && !!p.kpPlace);
 }
 
+/**
+ * Tarih/saat alanı tamamlanmamış veya geçersizse kısa neden (yoksa null). Tarayıcı tarih kutusu yazma sırasında boş
+ * dize ya da "0002-10-17" gibi ara değerler üretir; bunlarla hesap / plan / istek YAPILMAZ.
+ */
+export function dateInputReason(id: UiTechniqueId, p: TechniqueParams): string | null {
+  const bad = (date: string, time?: string) => !!(dateInputIssue(date) ?? (time === undefined ? null : timeInputIssue(time)));
+  switch (id) {
+    case "western.transit":
+      // Ekrandaki UTC ön izlemesiyle AYNI karar (sunucunun resolveAstroBirthTime + 1600–2600 UTC yıl sınırı): biçim, yaz saati
+      // boşluğu ve UTC'de sınır dışına düşen an da plana / API'ye girmez → ön izleme uyarısı ile Başlat her zaman tutarlı.
+      if (p.transitMode === "now") return null;
+      if (bad(p.transitDate, p.transitMode === "custom" ? p.transitTime : undefined)) return "transit tarihini / saatini tamamlayın";
+      return localToUtcPreview(p.transitDate, p.transitMode === "date" ? "12:00" : p.transitTime, p.transitTz).ok ? null : "transit anı geçersiz (ön izlemeye bakın)";
+    case "western.forecast":
+      return bad(p.forecastStart) ? "takvim başlangıç tarihini tamamlayın" : p.forecastEndDraft != null ? "takvim bitiş tarihini düzeltin" : null;
+    case "western.progression":
+    case "western.solar_arc":
+      return bad(p.targetDate) ? "hedef tarihi tamamlayın" : null;
+    case "vedic.transit":
+      return p.vedicTransitMode === "custom" && bad(p.vedicTransitDate, p.vedicTransitTime) ? "Gochara tarihini / saatini tamamlayın" : null;
+    case "kp.ruling":
+    case "kp.transit":
+    case "kp.horary":
+      return p.kpMomentMode === "custom" && bad(p.kpDate, p.kpTime) ? "KP tarihini / saatini tamamlayın" : null;
+    default:
+      return null;
+  }
+}
+
 /** Seçili ama eksik ayar yüzünden plana alınmayan tekniğin kısa nedeni (yoksa null). */
 export function missingReason(id: UiTechniqueId, p: TechniqueParams): string | null {
+  const dateWhy = dateInputReason(id, p);
+  if (dateWhy) return dateWhy;
   if (TECHNIQUE_META[id].needsPartner && !p.partnerProfileId) return "karşı taraf seçin";
   if (id === "western.relocation" && !p.relocationTarget) return "hedef konum seçin";
   if ((id === "kp.ruling" || id === "kp.horary") && !kpPlaceReady(p)) return id === "kp.horary" ? "değerlendirme yeri seçin" : "gözlem yeri seçin";

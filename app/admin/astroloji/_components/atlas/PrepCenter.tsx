@@ -22,7 +22,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExterna
 import { AlertTriangle, Check, ChevronDown, Loader2, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
-import { describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
+import { dateInputReason, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
 import { MethodFields, PartnerField, TechniqueParamFields, USES_HOUSE_SYSTEM, USES_NODE_TYPE, type PartnerOption } from "../TechniqueSelector";
 import { deskPrimary } from "./ResultDesk";
 import { atlasDisplay, atlasText } from "./fonts";
@@ -535,7 +535,9 @@ export default function PrepCenter({
   const newN = statuses.filter((s) => s.kind === "new").length;
   const blockedN = statuses.filter((s) => s.kind === "blocked").length;
   const missingN = statuses.filter((s) => s.kind === "missing").length;
-  const runDisabled = !profile || running || !plan || plan.selectedCount === plan.blockedCount;
+  // Tarih/saat alanı tamamlanmamış teknik varken başlatma kapalı (yarım tarihle diğerleri sessizce çalışmasın).
+  const dateIncomplete = chosen.some((id) => !!dateInputReason(id, params));
+  const runDisabled = !profile || running || !plan || plan.selectedCount === plan.blockedCount || dateIncomplete;
   const runLabel = running ? "Hesaplanıyor…" : plan?.requiresConfirmation ? `${plan.newRequestCount} yeni isteği onayla ve başlat` : "Analizi Başlat";
 
   const missingList = chosen.map((id) => ({ id, why: missingReason(id, params) })).filter((x): x is { id: UiTechniqueId; why: string } => !!x.why);
