@@ -61,7 +61,7 @@ export function KupaShell({
             /
           </span>
           <Link href="/enerji-beden" className="no-underline transition hover:text-amber-700">
-            Enerji &amp; Beden
+            Beden &amp; Enerji Uygulamaları
           </Link>
           <span aria-hidden className="text-slate-300">
             /
