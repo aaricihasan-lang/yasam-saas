@@ -182,7 +182,7 @@ export function SavedAnalysesList({
           ))}
         </div>
       )}
-      <div className="overflow-hidden rounded-xl border border-[#e7dcc3] bg-white/70">
+      <div className="overflow-hidden rounded-xl border border-[#e7dcc3] bg-white/70 max-sm:-mx-3 max-sm:rounded-none max-sm:border-x-0">
       <div className="flex items-center border-b border-[#efe6d2] bg-[#f6efe0]/70">
       <label className="flex shrink-0 items-center pl-3" title="Listede görünen bütün analizleri seç / bırak">
         <input
@@ -574,7 +574,7 @@ function BulkReportBar({ profileId, total, selectedIds, previewNoInterp, onClear
   const word = `${btn} border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100`;
   const pdf = `${btn} border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100`;
   return (
-    <div className="flex flex-col gap-1.5 rounded-xl border border-[#e7dcc3] bg-[#fbf6ea] px-3 py-2" data-testid="astro-bulk-report">
+    <div className="flex flex-col gap-1.5 rounded-xl border border-[#e7dcc3] bg-[#fbf6ea] px-3 py-2 max-sm:-mx-3 max-sm:rounded-none max-sm:border-x-0" data-testid="astro-bulk-report">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-semibold text-slate-700">Rapor indir:</span>
         <span className="text-xs text-slate-600" data-testid="astro-bulk-count">

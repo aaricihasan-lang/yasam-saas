@@ -64,7 +64,7 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
 }
 /** 6.1C: Roxy KP güç etiketleri (İngilizce) → Türkçe; "bağ derecesi", olay olasılığı değil. */
 export const KP_STRENGTH_TR: Record<string, string> = { "very-strong": "çok güçlü bağ", strong: "güçlü bağ", moderate: "orta bağ", weak: "zayıf bağ" };
-const Item = ({ children }: { children: ReactNode }) => <li className="rounded-lg bg-white px-3 py-2">{children}</li>;
+const Item = ({ children }: { children: ReactNode }) => <li className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{children}</li>;
 const P = ({ text }: { text: string | null | undefined }) => (text ? <p className="mt-0.5 whitespace-pre-line">{text}</p> : null);
 /** 6: Roxy houseThemes (ev anahtar kelimeleri; sağlayıcı anlatısı). */
 function HouseThemes({ themes }: { themes: { house: number; keywords: string[] }[] }) {
@@ -107,7 +107,7 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
       const c = content as NatalInterpretation;
       return (
         <>
-          {c.overall.aspectSummary && <p className="rounded-lg bg-white px-3 py-2">{c.overall.aspectSummary}</p>}
+          {c.overall.aspectSummary && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.overall.aspectSummary}</p>}
           {c.bodies.length > 0 && (
             <Block title="Gezegen yerleşimleri">
               {c.bodies.map((b) => (
@@ -218,7 +218,7 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
       const items: { id: PointId; text: string }[] = "bodies" in c ? c.bodies : c.directed;
       return (
         <>
-          {c.overall && <p className="rounded-lg bg-white px-3 py-2">{c.overall}</p>}
+          {c.overall && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.overall}</p>}
           <Block title="Noktalar">
             {items.map((x) => (
               <Item key={x.id}>
@@ -234,8 +234,8 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
       const c = content as ReturnInterpretation;
       return (
         <>
-          {c.summary && <p className="rounded-lg bg-white px-3 py-2">{c.summary}</p>}
-          {c.purpose && <p className="rounded-lg bg-white px-3 py-2">{c.purpose}</p>}
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.summary}</p>}
+          {c.purpose && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.purpose}</p>}
           <Chips items={c.keyThemes} />
         </>
       );
@@ -244,7 +244,7 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
       const c = content as SynastryInterpretation;
       return (
         <>
-          {c.overall.text && <p className="rounded-lg bg-white px-3 py-2">{c.overall.text}</p>}
+          {c.overall.text && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.overall.text}</p>}
           <StrengthsChallenges strengths={c.overall.strengths} challenges={c.overall.challenges} />
           <Block title="Kişiler arası açılar">
             {c.aspects.map((a, i) => (
@@ -271,7 +271,7 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
       const c = content as CompositeInterpretation;
       return (
         <>
-          {c.overall.summary && <p className="rounded-lg bg-white px-3 py-2">{c.overall.summary}</p>}
+          {c.overall.summary && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.overall.summary}</p>}
           <StrengthsChallenges strengths={c.overall.strengths} challenges={c.overall.challenges} />
           <Block title="Composite gezegenler">
             {c.bodies.map((b) => (
@@ -293,7 +293,7 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
       const ANG: Record<string, string> = { mc: "MC", ic: "IC", asc: "AC", dsc: "DC" };
       return (
         <>
-          {c.summary && <p className="rounded-lg bg-white px-3 py-2">{c.summary}</p>}
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.summary}</p>}
           <Block title="Hatlar">
             {c.lines.map((l) => (
               <Item key={`${l.id}-${l.angle}`}>
@@ -311,7 +311,7 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
       const c = content as RelocationInterpretation;
       return (
         <>
-          {c.summary && <p className="rounded-lg bg-white px-3 py-2">{c.summary}</p>}
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.summary}</p>}
           <Block title="Yeni evlerdeki gezegenler">
             {c.bodies.map((b) => (
               <Item key={b.id}>
@@ -336,7 +336,7 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
       const c = content as LocalSpaceInterpretation;
       return (
         <>
-          {c.summary && <p className="rounded-lg bg-white px-3 py-2">{c.summary}</p>}
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.summary}</p>}
           <Block title="Yön hatları">
             {c.bodies.map((b) => (
               <Item key={b.id}>
@@ -356,7 +356,7 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
       return (
         <>
           <p className="text-xs text-slate-500">Kavuşum metinleri otomatik yorum metinleridir ve sağlayıcı sorgusundaki (3°) tüm temasları kapsar. Anahtar kelimeler kaynak veride İngilizce gelir; Yaşam sözlüğüyle Türkçeleştirilmiştir.</p>
-          {c.summary && <p className="rounded-lg bg-white px-3 py-2">{c.summary}</p>}
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.summary}</p>}
           <Block title="Sabit yıldız kavuşumları">
             {c.contacts.map((x) => (
               <Item key={`${x.star}|${x.point}`}>
@@ -413,7 +413,7 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
             </Block>
           )}
           {c.yogas.length > 0 && (
-            <details className="rounded-lg bg-white px-3 py-2">
+            <details className="rounded-lg bg-white px-3 py-2 max-sm:px-0">
               <summary className="cursor-pointer font-semibold text-sky-900">Yoga ansiklopedisi ({c.yogas.length}) — genel otomatik yoga açıklamaları; çoğu bu haritada OLUŞMAMIŞTIR (oluşanlar teknik bölümde işaretli)</summary>
               <ul className="mt-2 flex flex-col gap-2">
                 {c.yogas.map((y) => (
@@ -433,7 +433,7 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
       const c = content as VedicDashaInterpretation;
       return (
         <>
-          {c.parent && <p className="rounded-lg bg-white px-3 py-2">Üst dönem: {c.parent}</p>}
+          {c.parent && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">Üst dönem: {c.parent}</p>}
           <Block title="Dönem yorumları">
             {c.periods.map((p) => (
               <Item key={`${p.lord}-${p.start}`}>
@@ -520,7 +520,7 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
     }
     case "astro.vedic.varga.interp.v1": {
       const c = content as VedicVargaInterpretation;
-      return c.significance ? <p className="rounded-lg bg-white px-3 py-2">Bölümün anlamı: {c.significance}</p> : <p className="text-slate-600">Bu bölüm için sağlayıcı açıklaması yok.</p>;
+      return c.significance ? <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">Bölümün anlamı: {c.significance}</p> : <p className="text-slate-600">Bu bölüm için sağlayıcı açıklaması yok.</p>;
     }
     default:
       return <p className="text-slate-600">Bu yorum biçimi tanınmıyor.</p>;
@@ -572,7 +572,7 @@ export default function ProviderInterpretationPanel({
   const title = interpretationTitle(interpretation);
   const ls = interpretation.visible ? withLocalSpaceCenter(stripSystemKeys(interpretation.content), localSpace) : null;
   return (
-    <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]" aria-label={title}>
+    <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] max-sm:-mx-3 max-sm:rounded-none max-sm:border-x-0 max-sm:px-3" aria-label={title}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-slate-100 pb-2.5">
         <h3 className="flex items-center gap-2 text-base font-semibold text-slate-900">
           <span className="h-2 w-2 rounded-full bg-[#c9a54e]" aria-hidden="true" />

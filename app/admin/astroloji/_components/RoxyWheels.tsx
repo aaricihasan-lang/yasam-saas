@@ -143,7 +143,7 @@ export function TransitWheelCaption({
   if (!f) return null;
   return (
     <p
-      className="text-center text-[11px] leading-snug text-slate-500"
+      className="text-center text-[11px] leading-snug text-slate-500 max-sm:px-3"
       data-testid="astro-roxy-transit-caption"
     >
       İç halka: {natalName} natal (
@@ -157,7 +157,7 @@ export function TransitWheelCaption({
 export function SynastryWheelCaption({ names }: { names: [string, string] }) {
   return (
     <p
-      className="text-center text-[11px] leading-snug text-slate-500"
+      className="text-center text-[11px] leading-snug text-slate-500 max-sm:px-3"
       data-testid="astro-roxy-synastry-caption"
     >
       Dış halka (¹): {names[0]} · İç halka (²): {names[1]} · Koç 0° solda ·
