@@ -23,7 +23,7 @@ export default function BiyoenerjiFolderPage() {
             className="inline-flex min-h-[40px] items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-violet-300/60 hover:bg-slate-50 hover:text-violet-700 lg:min-h-0"
           >
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-            Enerji &amp; Beden
+            Beden &amp; Enerji Uygulamaları
           </Link>
         </div>
 

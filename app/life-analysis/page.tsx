@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Brain, ChartColumn, Compass } from "lucide-react";
 import AtlasCenterCard from "./AtlasCenterCard";
+import CosmicAgendaCenterCard from "./CosmicAgendaCenterCard";
 
 const subModules = [
   {
@@ -58,7 +59,7 @@ export default function LifeAnalysisPage() {
             </div>
           </div>
           <p className="mt-2.5 max-w-lg text-sm font-medium text-slate-600 sm:text-base">
-            Numeroloji ve Human Design analiz araçları
+            Numeroloji, Human Design ve Kozmik Ajanda analiz araçları
           </p>
           <div className="mt-3 h-px w-full bg-gradient-to-r from-violet-200/80 via-purple-200/60 to-transparent" />
         </div>
@@ -105,6 +106,8 @@ export default function LifeAnalysisPage() {
             );
           })}
           {/* 2026-10-15: Gökyüzü Atlası — yalnız erişimi doğrulanan kullanıcıya görünür (AtlasCenterCard). */}
+          {/* 2026-10-17: Yaşam Takvimi / Kozmik Ajanda — yalnız cosmic_calendar yetkisi olan kullanıcıya görünür. */}
+          <CosmicAgendaCenterCard />
           <AtlasCenterCard />
         </div>
       </div>

@@ -86,9 +86,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Brain,
-  CalendarDays,
   Check,
-  Gem,
   Layers,
   Leaf,
   Loader2,
@@ -98,6 +96,7 @@ import {
   MessageCircle,
   Package,
   Phone,
+  Settings,
   Shield,
   ShieldCheck,
   Sparkles,
@@ -455,19 +454,8 @@ const dashboardModules: ModuleCard[] = [
       border: "border-violet-200/70",
     },
   },
-  {
-    href: "/dogaltas",
-    permissionKey: "stones",
-    emoji: "💎",
-    featured: true,
-    hasStat: true,
-    Icon: Gem,
-    theme: {
-      iconWrap: "from-cyan-500 to-teal-500",
-      cardBg: "from-cyan-100/90 via-teal-50/95 to-white",
-      border: "border-teal-200/70",
-    },
-  },
+  // 2026-10-17 (owner kararı): Doğaltaş artık "Doğal Destek & Rehber" merkezinin içinde (ana panelde ayrı kart yok).
+  // /dogaltas adresi, verisi ve yetki kapısı (stones/dogaltas) aynen korunur.
   {
     href: "/urun-stok",
     permissionKey: "stok",
@@ -495,12 +483,12 @@ const dashboardModules: ModuleCard[] = [
   },
   {
     href: "/dogal-destek",
-    // Görünürlük AÇIK OR ile: Aromaterapi VEYA Şifa Rehberi VEYA Beslenme (tam modül) yeterli.
+    // Görünürlük AÇIK OR ile: Aromaterapi VEYA Şifa Rehberi VEYA Beslenme (tam modül) VEYA Doğaltaş yeterli.
     // Beslenme girişi bu hub altındadır; ana dashboard'da bağımsız Beslenme/Besinlerim kartı YOK.
     // `clients` ve (kaldırılan) `beslenme_manual_food` bu hub'ı TEK BAŞINA AÇMAZ.
     // permissionKey yalnız tip placeholder'ı; gerçek karar anyPermissionKeys üzerinden.
     permissionKey: "sifa_rehberi",
-    anyPermissionKeys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing", "beslenme"],
+    anyPermissionKeys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing", "beslenme", "stones", "dogaltas"],
     emoji: "🌿",
     Icon: Leaf,
     theme: {
@@ -527,7 +515,8 @@ const dashboardModules: ModuleCard[] = [
     href: "/life-analysis",
     permissionKey: "numerology",
     // 2026-10-15 (owner kararı): Gökyüzü Atlası artık Yaşam Analiz Merkezi'nin içinde (ana panelde ayrı kart yok).
-    extraPermissionKeys: ["astrology"],
+    // 2026-10-17 (owner kararı): Yaşam Takvimi / Kozmik Ajanda da merkezin içinde (/cosmic-calendar adresi aynen).
+    extraPermissionKeys: ["astrology", "cosmic_calendar"],
     emoji: "🧠",
     hasStat: true,
     Icon: Brain,
@@ -535,17 +524,6 @@ const dashboardModules: ModuleCard[] = [
       iconWrap: "from-violet-600 to-purple-700",
       cardBg: "from-violet-100/90 via-purple-50/95 to-white",
       border: "border-violet-200/70",
-    },
-  },
-  {
-    href: "/cosmic-calendar",
-    permissionKey: "cosmic_calendar",
-    emoji: "🌙",
-    Icon: CalendarDays,
-    theme: {
-      iconWrap: "from-indigo-400 to-violet-600",
-      cardBg: "from-indigo-100/90 via-violet-50/95 to-white",
-      border: "border-indigo-200/70",
     },
   },
   // Astroloji (Gökyüzü Atlası): 2026-10-15'ten beri ana panelde ayrı kart YOK — Yaşam Analiz Merkezi içinde
@@ -1722,6 +1700,22 @@ export default function Home() {
                     <div className="mt-1 flex shrink-0 items-center gap-1.5 sm:gap-2">
                       <LanguageSelector compact />
                       <NotificationBell compact />
+                      {/* Ayarlar & Güvenlik — 2026-10-17: büyük kart yerine dişli simgesi (aynı /settings ekranı).
+                          Tooltip fareyle üzerine gelince ve klavye odağında görünür; mobilde 40px dokunma alanı. */}
+                      <Link
+                        href="/settings"
+                        aria-label={t("settingsGear.label")}
+                        data-testid="home-settings-gear"
+                        className="group/gear relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/80 bg-white/80 text-slate-600 no-underline shadow-sm backdrop-blur-sm transition hover:bg-white hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 sm:h-9 sm:w-9"
+                      >
+                        <Settings className="h-[18px] w-[18px] transition-transform duration-300 group-hover/gear:rotate-45" strokeWidth={2} aria-hidden />
+                        <span
+                          aria-hidden
+                          className="pointer-events-none absolute right-0 top-full z-20 mt-1.5 whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1 text-[11px] font-semibold text-white opacity-0 shadow-md transition-opacity duration-150 group-hover/gear:opacity-100 group-focus-visible/gear:opacity-100"
+                        >
+                          {t("settingsGear.label")}
+                        </span>
+                      </Link>
                       <button
                         type="button"
                         onClick={() => void requestLogout()}
@@ -1857,7 +1851,13 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
-                  {visibleDashboardModules.map((item) => {
+                  {visibleDashboardModules.map((item, index) => {
+                    // Denge: son satırda tek kalan kart o satırı kaplar (2 sütun: tek sayı; 2xl 3 sütun: 3n+1).
+                    const total = visibleDashboardModules.length;
+                    const isLast = index === total - 1 && total > 1;
+                    const spanClass = isLast
+                      ? `${total % 2 === 1 ? "sm:col-span-2" : ""} ${total % 3 === 1 ? "2xl:col-span-3" : "2xl:col-span-1"}`
+                      : "";
                     const hasHref = item.href !== "#";
                     const baseLock = item.anyPermissionKeys
                       ? getAnyPermissionLockReason(user, item.anyPermissionKeys, hasHref, panelAccess)
@@ -1872,7 +1872,7 @@ export default function Home() {
                     const isFeatured = item.featured === true;
                     const card = (
                       <div
-                        className={`group relative flex flex-col rounded-[18px] border bg-gradient-to-br p-4 backdrop-blur-sm transition-all duration-200 ${theme.cardBg} ${theme.border} ${
+                        className={`group relative flex h-full flex-col rounded-[18px] border bg-gradient-to-br p-4 backdrop-blur-sm transition-all duration-200 ${theme.cardBg} ${theme.border} ${
                           isFeatured
                             ? "shadow-[0_4px_18px_rgba(0,0,0,0.11)]"
                             : "shadow-[0_2px_10px_rgba(0,0,0,0.07)]"
@@ -1917,7 +1917,7 @@ export default function Home() {
                           </p>
                         ) : null}
 
-                        <div className="mt-3 flex items-center justify-between gap-2">
+                        <div className="mt-auto flex items-center justify-between gap-2 pt-3">
                           <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${
                             isComingSoon
                               ? "bg-violet-100 text-violet-700 ring-violet-200/80"
@@ -1936,7 +1936,7 @@ export default function Home() {
 
                     if (isOpen) {
                       return (
-                        <Link key={item.permissionKey} href={item.href} className="block text-inherit no-underline">
+                        <Link key={item.permissionKey} href={item.href} className={`block text-inherit no-underline ${spanClass}`}>
                           {card}
                         </Link>
                       );
@@ -1944,6 +1944,7 @@ export default function Home() {
                     return (
                       <div
                         key={item.permissionKey}
+                        className={spanClass}
                         role={isLocked ? "button" : undefined}
                         tabIndex={isLocked ? 0 : undefined}
                         onClick={isLocked && lockReason ? () => handleLockedModuleClick(lockReason) : undefined}
@@ -1958,61 +1959,9 @@ export default function Home() {
                       (app/dogal-destek/DogalDestekCards.tsx; kendi checkBeslenmeAccess probe'u) →
                       ana dashboard'da bağımsız Beslenme/Besinlerim kartı YOK. */}
 
-                  {/* Ayarlar & Güvenlik — her zaman görünür, grid içinde */}
-                  <Link href="/settings" className="block text-inherit no-underline">
-                    <div className="group relative flex flex-col rounded-[18px] border bg-gradient-to-br from-slate-100/90 via-white to-slate-50/80 border-slate-200/70 p-4 shadow-[0_2px_10px_rgba(0,0,0,0.07)] backdrop-blur-sm transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-slate-600 to-slate-800 text-white shadow-sm">
-                        <Shield className="h-4 w-4" strokeWidth={2.25} />
-                      </div>
-                      <h3 className="mt-2.5 text-base font-black text-slate-900">{t("settingsCard.title")}</h3>
-                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
-                        {t("settingsCard.desc")}
-                      </p>
-                      <p className="mt-1.5 text-xs text-slate-500">{t("common.contentReady")}</p>
-                      <div className="mt-3 flex items-center justify-between gap-2">
-                        <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 bg-emerald-100 text-emerald-800 ring-emerald-200/80">
-                          {t("common.active")}
-                        </span>
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm" aria-hidden>
-                          <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-
                   {/* Doğal Pazar public vitrin kartı — PRIVATE OWNER PREVIEW LOCK sırasında
                       GİZLİ. Public açılış ileride ayrı release ile geri getirilecek. Sahip
                       önizlemesi /admin/magaza/onizleme üzerinden yapılır. */}
-
-                  {/* YEBS — YALNIZ yönetici hesabında görünür admin-only kart.
-                      Gerçek güvenlik server-side verifyAdminRequest'tedir; bu kart
-                      isAdminUser ile gizlenir (defense-in-depth). Diğer modül
-                      kartlarının görünürlük mantığına DOKUNMAZ (ayrı, koşullu blok). */}
-                  {isAdminUser(user) ? (
-                    <Link href="/yebs" data-yebs-admin-card data-admin-only="true" className="block text-inherit no-underline">
-                      <div className="group relative flex flex-col rounded-[18px] border bg-gradient-to-br from-emerald-100/90 via-teal-50/95 to-white border-emerald-200/70 p-4 shadow-[0_2px_10px_rgba(0,0,0,0.07)] backdrop-blur-sm transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg">
-                        <span className="absolute right-2.5 top-2.5 z-10 rounded-full border border-emerald-200/90 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                          {t("yebsCard.adminBadge")}
-                        </span>
-                        <span className="text-3xl leading-none" aria-hidden>
-                          🌿
-                        </span>
-                        <h3 className="mt-2.5 text-base font-black text-slate-900">{t("yebsCard.title")}</h3>
-                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
-                          {t("yebsCard.desc")}
-                        </p>
-                        <p className="mt-1.5 text-xs text-slate-500">{t("common.contentReady")}</p>
-                        <div className="mt-3 flex items-center justify-between gap-2">
-                          <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 bg-emerald-100 text-emerald-800 ring-emerald-200/80">
-                            YEBS
-                          </span>
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm" aria-hidden>
-                            <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
-                  ) : null}
 
                   {/* Beslenme kartı "Doğal Destek & Rehber" hub'ına taşındı (yukarıdaki nota bkz.);
                       ana dashboard'da bağımsız Beslenme kartı render EDİLMEZ. */}

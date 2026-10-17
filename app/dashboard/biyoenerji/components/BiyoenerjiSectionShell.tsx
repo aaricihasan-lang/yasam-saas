@@ -120,7 +120,7 @@ export default function BiyoenerjiSectionShell({
                   className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white min-h-[40px] px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 lg:min-h-0 hover:text-cyan-700"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-                  Enerji &amp; Beden
+                  Beden &amp; Enerji Uygulamaları
                 </Link>
               </div>
             )}

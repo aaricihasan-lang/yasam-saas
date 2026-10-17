@@ -12,7 +12,7 @@ import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
  * KULLANICININ GERÇEKTEN İZNİ OLAN alt kartı gösterir.
  *
  * İzin kaynakları REUSE edilir (yeni auth mimarisi ÜRETİLMEZ):
- *   - Aromaterapi / Şifa Rehberi: readYasamUser() + syncYasamUserFromDb() (canlı
+ *   - Doğaltaş / Aromaterapi / Şifa Rehberi: readYasamUser() + syncYasamUserFromDb() (canlı
  *     module_permissions) + merkezî OR hasAnyModulePermissionFlag (flag-tabanlı).
  *   - Beslenme (tam modül): server-authoritative checkBeslenmeAccess() (admin VEYA beslenme=true).
  *
@@ -37,6 +37,20 @@ type SupportFolder = {
 };
 
 const flagFolders: (SupportFolder & { keys: string[] })[] = [
+  // 2026-10-17 (owner kararı): Doğaltaş ana panelden bu merkeze taşındı. Adres (/dogaltas), veri ve
+  // modül kapısı (stones/dogaltas — routeModuleAccess + sunucu API'leri) DEĞİŞMEDİ; yalnız navigasyon.
+  {
+    title: "Doğaltaş",
+    desc: "Taş ve mineral kayıtları, kombinasyonlar ve danışan eşleşmeleri",
+    href: "/dogaltas",
+    keys: ["stones", "dogaltas"],
+    icon: "💎",
+    badge: "Taş & Mineral",
+    gradient: "from-cyan-100 to-sky-50",
+    border: "border-cyan-200/70",
+    accent: "text-cyan-900",
+    button: "bg-cyan-800/90 text-white hover:bg-cyan-900",
+  },
   {
     title: "Aromaterapi",
     desc: "Uçucu yağlar, sabit yağlar ve karışımlar",
