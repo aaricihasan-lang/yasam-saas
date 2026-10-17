@@ -37,6 +37,19 @@ rakamı yazılınca sayfa "This page couldn't load" ile çöküyordu (Analizi Ba
   412 Android UA, 1366 Edge) — düzeltme öncesi build'de canlı hatayı aynen yakalar (RangeError).
 - `transit01-ui.e2e.cjs` 41/0 × 3 görünüm; `npm run test:astrology` 681 PASS / 0 FAIL / 0 SKIP.
 
+## Son kontrol (owner, 17.10.2026) — ön izleme ↔ Başlat tutarlılığı
+- Bulgu: `dateInputReason` transitte yalnız BİÇİMİ denetliyordu. Biçimi geçerli ama anı geçersiz girişler — yaz saati
+  boşluğu (New York 08.03.2026 02:30) ve UTC'de 1600–2600 dışına düşen yerel anlar (New York 31.12.2600 23:30, Tokyo
+  01.01.1600 00:30) — ön izlemede reddediliyor ama **plan API'sine gönderiliyordu**. Başlat yine kapalı kalıyordu, ama bunu
+  sağlayan sunucunun "Geçersiz seçenekler" yanıtıydı.
+- Önceki e2e neden PASS verdi: Başlat her seçim değişiminde yeni plan beklenirken geçici olarak kapalıdır (plan = null).
+  Test bu anı ölçtüğü için "kapalı" kontrolü yanlış pozitif verebiliyordu; gövde denetimi de yalnız tarih biçimine bakıyordu.
+- Düzeltme: transitte `dateInputReason` = `localToUtcPreview(...).ok` (ekrandaki ön izlemeyle AYNI karar; sunucuyla
+  eşdeğerliği harness'ta taranır) → geçersiz an plana girmez, Başlat istemcide kapalı, geçerli saate dönünce açılır.
+- Test güçlendirme: e2e'de Başlat yalnız plan istekleri bittikten sonra ölçülür (`settle`); geçersiz anların gövdede
+  bulunmadığı ayrıca denetlenir; harness D6'ya boşluk / UTC yıl sınırı + 288 girişlik "seçim = sunucu kabulü" taraması.
+  Düzeltme öncesi build'de e2e 4 FAIL, harness D6 FAIL verir (mutasyon kanıtı).
+
 ## Sınırlar
 - Yerli takvim açılır penceresi otomasyonla açılamaz → seçim, tarayıcının tek seferde tam değer atamasıyla (`fill`) test
   edildi. Firefox / Safari motorları bu makinede yok (Chromium + Edge test edildi).

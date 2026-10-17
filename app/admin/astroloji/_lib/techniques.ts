@@ -2,7 +2,7 @@
 // Sunucudaki teknik tanımları (lib/astrology/engine/techniques) istemci paketine ALINMAZ; burada yalnız
 // etiket + hangi parametrenin sorulacağı tutulur. Seçenekler sunucuda yeniden doğrulanır/normalize edilir.
 
-import { addDaysIso, dateInputIssue, formatInZone, timeInputIssue } from "@/lib/astrology/transitDetail";
+import { addDaysIso, dateInputIssue, formatInZone, localToUtcPreview, timeInputIssue } from "@/lib/astrology/transitDetail";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 
 export const UI_TECHNIQUES = [
@@ -338,7 +338,11 @@ export function dateInputReason(id: UiTechniqueId, p: TechniqueParams): string |
   const bad = (date: string, time?: string) => !!(dateInputIssue(date) ?? (time === undefined ? null : timeInputIssue(time)));
   switch (id) {
     case "western.transit":
-      return p.transitMode !== "now" && bad(p.transitDate, p.transitMode === "custom" ? p.transitTime : undefined) ? "transit tarihini / saatini tamamlayın" : null;
+      // Ekrandaki UTC ön izlemesiyle AYNI karar (sunucunun resolveAstroBirthTime + 1600–2600 UTC yıl sınırı): biçim, yaz saati
+      // boşluğu ve UTC'de sınır dışına düşen an da plana / API'ye girmez → ön izleme uyarısı ile Başlat her zaman tutarlı.
+      if (p.transitMode === "now") return null;
+      if (bad(p.transitDate, p.transitMode === "custom" ? p.transitTime : undefined)) return "transit tarihini / saatini tamamlayın";
+      return localToUtcPreview(p.transitDate, p.transitMode === "date" ? "12:00" : p.transitTime, p.transitTz).ok ? null : "transit anı geçersiz (ön izlemeye bakın)";
     case "western.forecast":
       return bad(p.forecastStart) ? "takvim başlangıç tarihini tamamlayın" : p.forecastEndDraft != null ? "takvim bitiş tarihini düzeltin" : null;
     case "western.progression":

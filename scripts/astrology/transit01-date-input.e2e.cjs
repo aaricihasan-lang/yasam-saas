@@ -60,19 +60,27 @@ const VALID_DATE = (d) => {
   // Plan / çalıştırma isteklerinde geçersiz tarih var mı?
   const badBodies = [];
   let planCalls = 0;
+  let inflight = 0;
+  // Biçimi geçerli ama ANI geçersiz girişler (yaz saati boşluğu; UTC'de 1600–2600 dışı): bunlar da gövdeye GİRMEMELİ.
+  const FORBIDDEN_MOMENTS = new Set(["2026-03-08|02:30|America/New_York", "2600-12-31|23:30|America/New_York", "1600-01-01|00:30|Asia/Tokyo"]);
+  const isPlan = (r) => r.method() === "POST" && /\/api\/admin\/astroloji\/engine\/(plan|run)/.test(r.url());
   page.on("request", (r) => {
-    if (r.method() !== "POST" || !/\/api\/admin\/astroloji\/engine\/(plan|run)/.test(r.url())) return;
+    if (!isPlan(r)) return;
     planCalls++;
+    inflight++;
     try {
       const b = JSON.parse(r.postData() || "{}");
       for (const s of b.selections ?? []) {
         const o = s.options ?? {};
         for (const k of ["date", "startDate", "targetDate"]) if (typeof o[k] === "string" && !VALID_DATE(o[k])) badBodies.push(`${s.technique}.${k}=${o[k]}`);
+        if (FORBIDDEN_MOMENTS.has(`${o.date}|${o.time}|${o.timezone}`)) badBodies.push(`${s.technique} geçersiz an ${o.date} ${o.time} ${o.timezone}`);
       }
     } catch {
       badBodies.push("gövde okunamadı");
     }
   });
+  page.on("requestfinished", (r) => isPlan(r) && inflight--);
+  page.on("requestfailed", (r) => isPlan(r) && inflight--);
 
   await page.goto(`${ORIGIN}/admin/astroloji`, { waitUntil: "load", timeout: 180000 });
   await page.waitForSelector("[data-portal=new]", { timeout: 120000 });
@@ -95,7 +103,17 @@ const VALID_DATE = (d) => {
   await focus("western.transit");
   const moment = page.locator("[data-testid=astro-transit-moment]").first();
   const alive = async () => (await page.locator("[data-testid=astro-transit-moment], [data-testid=astro-forecast-range]").count()) > 0 && !(await page.getByText("This page couldn’t load").count());
-  const runDisabled = async () => page.locator("[data-testid=astro-run]").isDisabled();
+  // Başlat durumu YALNIZ plan oturduktan sonra ölçülür: her seçim değişiminde yeni plan beklenirken düğme geçici olarak
+  // kapalıdır (plan = null) — erken ölçüm "kapalı" için YANLIŞ POZİTİF verir (17.10 son kontrolde bulundu).
+  const settle = async () => {
+    await page.waitForTimeout(450); // plan isteği 250 ms gecikmeyle çıkar
+    for (let i = 0; i < 80 && inflight > 0; i++) await page.waitForTimeout(150);
+    await page.waitForTimeout(400);
+  };
+  const runDisabled = async () => {
+    await settle();
+    return page.locator("[data-testid=astro-run]").isDisabled();
+  };
   const preview = async () => ((await page.locator("[data-testid=astro-transit-utc-preview]").count()) ? (await page.locator("[data-testid=astro-transit-utc-preview]").first().innerText()) : "");
   const dateIn = () => moment.locator('input[aria-label="Transit tarihi"]');
   // Tarih kutusunun bölümüne tıkla (tr-TR: GG.AA.YYYY) — gün bölümü solda.
@@ -216,7 +234,25 @@ const VALID_DATE = (d) => {
   await page.keyboard.type("2026", { delay: 60 });
   await time.fill("02:30");
   await page.waitForTimeout(400);
-  ok("New York 08.03.2026 02:30 (ileri alma boşluğu): uyarı, Başlat kapalı", /yaz saati/.test(await preview()) && (await runDisabled()), await preview());
+  const callsGap = planCalls;
+  ok("New York 08.03.2026 02:30 (ileri alma boşluğu): uyarı, plan oturduktan sonra Başlat kapalı", /yaz saati/.test(await preview()) && (await runDisabled()), await preview());
+  ok("yaz saati boşluğu: geçersiz an plan API'sine gönderilmedi", !badBodies.some((b) => b.includes("02:30 America/New_York")), `${badBodies.join(", ")} (bu adımda plan çağrısı ${planCalls - callsGap})`);
+  await time.fill("03:30");
+  await page.waitForTimeout(300);
+  ok("geçerli saate dönüş (03:30 EDT → 07:30 UTC): Başlat yeniden açık", (await preview()).includes("08.03.2026 07:30 UTC") && !(await runDisabled()), await preview());
+  // UTC'ye çevrilince yıl sınırı dışına düşen yerel anlar: ön izleme ↔ Başlat ↔ API tutarlı.
+  await dateIn().fill("2600-12-31");
+  await time.fill("23:30");
+  await page.waitForTimeout(300);
+  ok("yerel 31.12.2600 23:30 New York = UTC 2601: uyarı, Başlat kapalı, API'ye gitmez", /1600–2600/.test(await preview()) && (await runDisabled()) && !badBodies.some((b) => b.includes("2600-12-31 23:30")), await preview());
+  await moment.locator('select[aria-label="Transit saat dilimi"]').selectOption("Asia/Tokyo");
+  await dateIn().fill("1600-01-01");
+  await time.fill("00:30");
+  await page.waitForTimeout(300);
+  ok("yerel 01.01.1600 00:30 Tokyo = UTC 1599: uyarı, Başlat kapalı, API'ye gitmez", /1600–2600/.test(await preview()) && (await runDisabled()) && !badBodies.some((b) => b.includes("1600-01-01 00:30")), await preview());
+  await time.fill("12:00");
+  await page.waitForTimeout(300);
+  ok("yerel 01.01.1600 12:00 Tokyo (UTC aynı gün): kabul, Başlat açık", /Hesaplanacak an: 01\.01\.1600/.test(await preview()) && !(await runDisabled()), await preview());
   await moment.locator('select[aria-label="Transit saat dilimi"]').selectOption("Europe/Istanbul");
   await dateIn().fill("2026-10-17");
   await time.fill("12:00");

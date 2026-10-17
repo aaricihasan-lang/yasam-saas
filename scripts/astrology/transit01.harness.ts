@@ -450,6 +450,24 @@ async function main() {
       assert.deepEqual(sel({ ...base, vedicTransitMode: "custom", vedicTransitDate: d }, ["vedic.transit"]), []);
       assert.deepEqual(sel({ ...base, kpMomentMode: "custom", kpDate: d }, ["kp.transit"]), []);
     }
+    // Biçim geçerli ama an geçersiz (ön izleme reddeder) → seçime girmez: yaz saati boşluğu, UTC'de 1600–2600 dışı.
+    for (const [d, tm, tz] of [["2026-03-08", "02:30", "America/New_York"], ["2026-03-29", "02:30", "Europe/Berlin"], ["2600-12-31", "23:30", "America/New_York"], ["1600-01-01", "00:30", "Asia/Tokyo"]] as const) {
+      const p = { ...base, transitMode: "custom" as const, transitDate: d, transitTime: tm, transitTz: tz };
+      assert.equal(localToUtcPreview(d, tm, tz).ok, false, `${d} ${tm} ${tz} ön izleme`);
+      assert.deepEqual(sel(p, ["western.natal", "western.transit"]), ["western.natal"], `${d} ${tm} ${tz} plana girmemeli`);
+      assert.equal(missingReason("western.transit", p), "transit anı geçersiz (ön izlemeye bakın)");
+    }
+    assert.deepEqual(sel({ ...base, transitMode: "custom", transitDate: "2026-03-08", transitTime: "03:30", transitTz: "America/New_York" }, ["western.transit"]), ["western.transit"], "geçerli saate dönüş");
+    // Eşdeğerlik: seçime girme kararı = sunucu kabulü (normalizeTransitMoment + UTC yıl 1600–2600) — geçerli girişlerde davranış değişmez.
+    for (const d of ["2026-03-08", "2026-03-29", "2026-11-01", "2026-10-25", "1600-01-01", "2600-12-31", "1979-02-12", "2028-02-29"])
+      for (const tm of ["00:30", "01:30", "02:30", "03:30", "12:00", "23:30"])
+        for (const tz of ["America/New_York", "Europe/Berlin", "Europe/Istanbul", "Asia/Tokyo", "Pacific/Kiritimati", "Australia/Lord_Howe"]) {
+          const srv = normalizeTransitMoment({ date: d, time: tm, timezone: tz }, NOW);
+          const y = srv ? Number(srv.slice(0, 4)) : 0;
+          const accepted = srv !== null && y >= 1600 && y <= 2600;
+          const included = sel({ ...base, transitMode: "custom", transitDate: d, transitTime: tm, transitTz: tz }, ["western.transit"]).length === 1;
+          assert.equal(included, accepted, `${d} ${tm} ${tz}: seçim ${included} ≠ sunucu ${accepted}`);
+        }
     // Varsayılan (bugün) değerlerle tüm tarihli teknikler seçime girer — mevcut davranış korunur.
     for (const id of ["western.transit", "western.forecast", "western.progression", "western.solar_arc", "vedic.transit", "kp.transit"]) assert.deepEqual(sel(base, [id]), [id], id);
   });
