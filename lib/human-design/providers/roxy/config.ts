@@ -14,6 +14,15 @@ export const ROXY_BODYGRAPH_ENDPOINT = "/human-design/bodygraph";
 /** Adaptör sözleşme sürümü — değişirse idempotency anahtarı da değişir (yeni hesap). */
 export const ROXY_ADAPTER_VERSION = "roxy-bodygraph-1";
 
+// İlişki ve Grup Analizleri (OpenAPI v2.0.0: calculateConnection / calculatePenta).
+/** İki kişilik ilişki haritası (Connection). */
+export const ROXY_CONNECTION_ENDPOINT = "/human-design/connection";
+/** 3–5 kişilik grup analizi (Penta / BG5). */
+export const ROXY_PENTA_ENDPOINT = "/human-design/penta";
+/** İlişki/grup adaptör sözleşme sürümleri — değişirse idempotency anahtarı da değişir. */
+export const ROXY_CONNECTION_ADAPTER_VERSION = "roxy-connection-1";
+export const ROXY_PENTA_ADAPTER_VERSION = "roxy-penta-1";
+
 export type RoxyPolicy = {
   /** Ay düğümü: "true" (gerçek/oskülatör) — üretim başlangıç politikası. */
   nodeType: "true" | "mean";

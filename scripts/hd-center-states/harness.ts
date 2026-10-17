@@ -406,7 +406,8 @@ async function main() {
   ok("E1 yukarıdaki tüm görüntüleme / merkez detayı / eşleştirme / Sistem Yorumu / Word hazırlığı: fetch çağrısı 0", fetchCalls === 0, fetchCalls);
   const pure = ["lib/human-design/chart/centerStates.ts", "lib/human-design/chart/centerStateLabels.ts", "lib/human-design/knowledge/centerKnowledge.ts"];
   ok("E2 yeni modüller ağ / Roxy istemcisi / DB içermez", pure.every((p) => !/fetch\(|callRoxy|providers\/roxy\/client|supabase/i.test(read(p))));
-  ok("E3 yeni Roxy endpoint'i eklenmedi (config tek endpoint)", (read("lib/human-design/providers/roxy/config.ts").match(/\/human-design\//g) ?? []).length <= 1);
+  // Owner onaylı uçlar yalnız: bodygraph (BodyGraph) + connection / penta (İlişki ve Grup Analizleri). Başka uç YOK.
+  ok("E3 Roxy uçları yalnız owner onaylı liste (bodygraph, connection, penta)", JSON.stringify([...read("lib/human-design/providers/roxy/config.ts").matchAll(/"(\/human-design\/[a-z-]+)"/g)].map((m) => m[1]).sort()) === JSON.stringify(["/human-design/bodygraph", "/human-design/connection", "/human-design/penta"]));
 
   globalThis.fetch = realFetch;
   console.log(`\nHD-UZMAN-01 MERKEZ DURUMLARI: ${pass} PASS / ${fail} FAIL`);
