@@ -180,7 +180,8 @@ async function main() {
     // Atlas yetkili uzmana da görünür; içerideki Atlas kartı yalnız sunucu erişim yoklamasıyla (fail-closed) çizilir.
     const home = read("app/page.tsx");
     assert.ok(!/href: "\/astroloji"/.test(home), "ana panelde ayrı Gökyüzü Atlası kartı olmamalı");
-    assert.match(home, /href: "\/life-analysis",\s*\n\s*permissionKey: "numerology",[\s\S]{0,200}extraPermissionKeys: \["astrology"\]/);
+    // 2026-10-17: merkez Kozmik Ajanda'yı da barındırır → ek yetki listesi "astrology"yi İÇERMELİ (yalnız ondan ibaret olmak zorunda değil).
+    assert.match(home, /href: "\/life-analysis",\s*\n\s*permissionKey: "numerology",[\s\S]{0,400}extraPermissionKeys: \["astrology"(, "[a-z_]+")*\]/);
     assert.match(home, /item\.extraPermissionKeys\?\.some\(\(k\) => hasModulePermission\(user, k\)\)\) return true;/);
     const la = read("app/life-analysis/page.tsx");
     assert.ok(la.includes("<AtlasCenterCard />"), "Analiz Merkezi Atlas kartını içerir");
