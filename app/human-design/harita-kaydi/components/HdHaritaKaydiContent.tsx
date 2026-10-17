@@ -29,6 +29,9 @@ import {
   MANUAL_CHART_CONFIRM_MESSAGE,
 } from "@/lib/human-design/manualChartConsistency";
 import { HdProfessionalReportButton } from "../../kayitli-haritalar/components/HdProfessionalReportButton";
+import { centerKnowledgeCodes } from "@/lib/human-design/normalize/hdAppCodes";
+import { centerStateMap, classifyHdCenters, HD_CENTER_STATE_LABEL } from "@/lib/human-design/chart/centerStates";
+import type { HdCenterCode } from "@/lib/human-design/types";
 
 function buildCodes(f: typeof emptyForm): string[] {
   const codes: string[] = [];
@@ -36,8 +39,14 @@ function buildCodes(f: typeof emptyForm): string[] {
   if (f.authority_code) codes.push(`otorite_${f.authority_code}`);
   if (f.profile_code) codes.push(`profil_${f.profile_code}`);
   if (f.definition_code) codes.push(`tanim_${f.definition_code}`);
-  for (const c of f.active_centers) codes.push(`merkez_tanimli_${c}`);
-  for (const c of f.open_centers) codes.push(`merkez_acik_${c}`);
+  // HD-UZMAN-01: Tanımlı / Tanımsız / Açık kesin kodları (girilen kapılardan kanıtlı) + eski genel kod.
+  codes.push(
+    ...centerKnowledgeCodes(
+      f.active_centers as HdCenterCode[],
+      f.open_centers as HdCenterCode[],
+      centerStateMap(classifyHdCenters({ definedCenters: f.active_centers, openCenters: f.open_centers, gates: f.gates })),
+    ),
+  );
   for (const ch of f.channels) codes.push(`kanal_${ch.replace(/-/g, "_")}`);
   for (const g of f.gates) codes.push(`kapi_${g}`);
   return [...new Set(codes)];
@@ -93,6 +102,11 @@ export function HdHaritaKaydiContent() {
   const [clients, setClients] = useState<HdClientRow[]>([]);
   const [clientId, setClientId] = useState(urlClientId);
   const [form, setForm] = useState(emptyForm);
+  // HD-UZMAN-01: girilen kapılardan tanımlı olmayan merkezlerin kanıtlı durumu (yalnız gösterim).
+  const formCenterStates = useMemo(
+    () => classifyHdCenters({ definedCenters: form.active_centers, openCenters: form.open_centers, gates: form.gates }),
+    [form.active_centers, form.open_centers, form.gates],
+  );
   // Son yüklenen/kaydedilen hâlin referansı — dirty hesabı buna dayanır (HD-P2-C).
   const [baseline, setBaseline] = useState<HdChartForm>(emptyForm);
   const [loadingChart, setLoadingChart] = useState(false);
@@ -490,7 +504,10 @@ export function HdHaritaKaydiContent() {
           <section>
             <p className={sectionCls}>Merkezler</p>
             <p className="mb-2 text-xs text-slate-500">
-              Her merkez için Tanımlı veya Açık seçin. Aynı anda ikisi birden seçilemez.
+              Her merkez için Tanımlı veya Tanımlı Değil seçin. Aynı anda ikisi birden seçilemez.
+              Tanımlı olmayan merkezde Tanımsız / Açık ayrımı girdiğiniz kapılardan belirlenir: merkezde
+              aktif kapı varsa Tanımsız. Manuel haritada kapı listesinin eksiksiz olduğu doğrulanamadığı
+              için Açık kendiliğinden kesinleştirilmez.
             </p>
             <div className="overflow-x-auto rounded-xl border border-indigo-100/80">
               <table className="min-w-full text-sm">
@@ -503,7 +520,7 @@ export function HdHaritaKaydiContent() {
                       Tanımlı
                     </th>
                     <th className="px-4 py-2 text-center text-xs font-black uppercase tracking-wide text-slate-500">
-                      Açık
+                      Tanımlı Değil
                     </th>
                   </tr>
                 </thead>
@@ -511,10 +528,16 @@ export function HdHaritaKaydiContent() {
                   {HUMAN_DESIGN_CENTERS.map((center) => {
                     const isActive = form.active_centers.includes(center.code);
                     const isOpen = form.open_centers.includes(center.code);
+                    const derivedState = isOpen ? formCenterStates.states[center.code].state : null;
                     return (
                       <tr key={center.code} className="bg-white hover:bg-indigo-50/30 transition-colors">
                         <td className="px-4 py-2.5 text-sm font-medium text-slate-800">
                           {center.label}
+                          {derivedState ? (
+                            <span className="ml-2 text-[11px] font-semibold text-slate-500" data-hd-form-center-state={derivedState}>
+                              ({HD_CENTER_STATE_LABEL[derivedState]})
+                            </span>
+                          ) : null}
                         </td>
                         <td className="px-4 py-2.5 text-center">
                           <button
@@ -536,14 +559,14 @@ export function HdHaritaKaydiContent() {
                             type="button"
                             onClick={() => toggleCenter(center.code, "open")}
                             aria-pressed={isOpen}
-                            aria-label={`${center.label} · Açık`}
-                            className={`h-7 w-16 rounded-lg border text-xs font-bold transition-all ${
+                            aria-label={`${center.label} · Tanımlı Değil`}
+                            className={`h-7 w-28 rounded-lg border text-xs font-bold transition-all ${
                               isOpen
                                 ? "border-transparent bg-slate-500 text-white shadow-sm"
                                 : "border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-700"
                             }`}
                           >
-                            {isOpen ? "✓ Açık" : "Açık"}
+                            {isOpen ? "✓ Tanımlı Değil" : "Tanımlı Değil"}
                           </button>
                         </td>
                       </tr>
@@ -556,7 +579,7 @@ export function HdHaritaKaydiContent() {
               <p className="mt-2 text-xs text-slate-500">
                 {form.active_centers.length > 0 && `Tanımlı: ${form.active_centers.length}`}
                 {form.active_centers.length > 0 && form.open_centers.length > 0 && " · "}
-                {form.open_centers.length > 0 && `Açık: ${form.open_centers.length}`}
+                {form.open_centers.length > 0 && `Tanımlı Değil: ${form.open_centers.length}`}
               </p>
             )}
           </section>

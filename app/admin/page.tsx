@@ -19,7 +19,6 @@ import {
   AlertTriangle,
   CloudUpload,
   RefreshCw,
-  BookOpen,
   Sprout,
 } from "lucide-react";
 import {
@@ -106,17 +105,6 @@ const adminCards: AdminCard[] = [
       iconWrap: "from-emerald-600 to-emerald-700",
       cardBg: "from-emerald-50/90 via-white to-slate-50/80",
       border: "border-emerald-200/70",
-    },
-  },
-  {
-    title: "Yaşam Enerjisi Bilgi Sistemi",
-    desc: "Gelenek, ekol, kavram, kaynak, iddia ve ilişki içeriğinin kalite/yayın yönetimi.",
-    href: "/admin/yebs",
-    Icon: BookOpen,
-    theme: {
-      iconWrap: "from-violet-600 to-fuchsia-700",
-      cardBg: "from-violet-50/90 via-white to-fuchsia-50/70",
-      border: "border-violet-200/70",
     },
   },
   {

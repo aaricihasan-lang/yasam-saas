@@ -91,10 +91,10 @@
       "yasam_hafizasi": { "title": "Life Memory", "desc": "Search your professional knowledge and content across modules from one place", "badge": "Module" },
       "stones": { "title": "Natural Stone", "desc": "Stones, minerals and client matches", "badge": "Module", "stat": "{n, plural, one {# stone saved} other {# stones saved}}" },
       "stok": { "title": "Products & Inventory", "desc": "Manage your products, stock, sales and pricing in one place", "badge": "Module", "stat": "{n, plural, one {# product} other {# products}}" },
-      "energy_body": { "title": "Energy & Body", "desc": "Bioenergy, Reflexology and Cupping & Hijama workspaces", "badge": "Module" },
-      "sifa_rehberi": { "title": "Natural Support & Guide", "desc": "Natural support methods, nutrition and professional reference resources", "badge": "Module" },
+      "energy_body": { "title": "Body & Energy Practices", "desc": "Bioenergy, Reflexology and Cupping & Hijama workspaces", "badge": "Module" },
+      "sifa_rehberi": { "title": "Natural Support & Guide", "desc": "Natural stones, natural support methods, nutrition and professional reference resources", "badge": "Module" },
       "digital_content": { "title": "Digital Content Center", "desc": "Manage your personal archive and digital content in one place", "badge": "Center", "stat": "{n, plural, one {# item} other {# items}}" },
-      "numerology": { "title": "Life Analysis Center", "desc": "Numerology and Human Design analysis tools", "badge": "Center", "stat": "{n, plural, one {# analysis} other {# analyses}}" },
+      "numerology": { "title": "Life Analysis Center", "desc": "Numerology, Human Design and Cosmic Agenda analysis tools", "badge": "Center", "stat": "{n, plural, one {# analysis} other {# analyses}}" },
       "cosmic_calendar": { "title": "Life Calendar / Cosmic Agenda", "desc": "Hijri calendar, cupping days and the daily cosmic flow", "badge": "Center" },
       "astrology": { "title": "Gökyüzü Atlası", "desc": "The language of the sky, the depth of your analyses.", "badge": "Astrology" }
     },
@@ -107,14 +107,8 @@
       "badgeNoPermission": "No access",
       "badgeInactive": "Inactive"
     },
-    "settingsCard": {
-      "title": "Settings & Security",
-      "desc": "Password, support, backup and export operations"
-    },
-    "yebsCard": {
-      "adminBadge": "Admin",
-      "title": "Life Energy Knowledge System",
-      "desc": "Traditions, concepts, sources and a professional knowledge network"
+    "settingsGear": {
+      "label": "Settings"
     },
     "dashboard": {
       "welcomePrefix": "Welcome,",
@@ -192,6 +186,18 @@
       "copied": "Copied",
       "cta": "Sign In with the Test Account",
       "note": "This account is for demonstration and review purposes."
+    },
+    "freeTrial": {
+      "eyebrow": "3-Day Free Discovery",
+      "title": "How About Getting to Know Yaşam Sistemi Up Close?",
+      "highlight": "Explore It Free for 3 Days!",
+      "body1": "Create your own analyses, move between the professional modules and discover how much easier client management can be.",
+      "body2": "With numerology, astrology, Human Design, natural stones, reflexology, bioenergy and other professional tools, experience what Yaşam Sistemi can add to your professional practice.",
+      "closing": "Bring a new dimension to your professional work — start this experience now.",
+      "daysLabel": "Days",
+      "daysSub": "Free discovery",
+      "cta": "Create Your Membership Now",
+      "note": "The 3-day free period starts once your membership is approved by an administrator."
     },
     "hero": {
       "cardModules": "10+ Modules",
@@ -485,6 +491,7 @@
       "submitting": "Creating account…",
       "haveAccount": "Already have an account?",
       "signIn": "Sign In",
+      "trialNote": "Your 3-day free discovery starts once your membership is approved by an administrator.",
       "toast": {
         "errorTitle": "Something went wrong",
         "successTitle": "Success",

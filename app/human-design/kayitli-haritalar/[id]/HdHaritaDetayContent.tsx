@@ -6,6 +6,7 @@
  * Bilgileri" (canonical panel). Read-only; canonical edit/publish/delete YOK.
  */
 
+import { nonDefinedCenterLabels } from "@/lib/human-design/chart/centerStateLabels";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { HumanDesignShell } from "../../components/HumanDesignShell";
@@ -90,7 +91,8 @@ export function HdHaritaDetayContent({ chartId }: { chartId: string }) {
 function Detail({ row, tab, setTab, chartId }: { row: HdChartWithClient; tab: "summary" | "knowledge"; setTab: (t: "summary" | "knowledge") => void; chartId: string }) {
   const clientName = row.client?.name ?? row.client_name ?? "—";
   const activeCenters = (row.active_centers ?? []).map((c) => hdCenterLabelFromCode(c));
-  const openCenters = (row.open_centers ?? []).map((c) => hdCenterLabelFromCode(c));
+  // HD-UZMAN-01: tanımlı olmayan merkezlerde kanıtlı durum (Tanımsız / Açık / Doğrulanamadı).
+  const openCenters = nonDefinedCenterLabels(row);
   // Hesabın kişisel görünen adları (yoksa hazır ad); eşleşme teknik numaradan.
   const nameOv = useHdNameOverrides();
   // Admin: merkezî içerik sekmesi kaynağıyla adlandırılır (uzmanın etiketi değişmez).
@@ -150,7 +152,7 @@ function Detail({ row, tab, setTab, chartId }: { row: HdChartWithClient; tab: "s
             </SumSection>
             <div className="grid gap-6 md:grid-cols-2">
               <SumSection title="Tanımlı Merkezler"><Badges items={activeCenters} empty="Tanımlı merkez yok." /></SumSection>
-              <SumSection title="Açık Merkezler"><Badges items={openCenters} empty="Açık merkez yok." /></SumSection>
+              <SumSection title="Tanımlı Olmayan Merkezler"><Badges items={openCenters} empty="Tanımlı olmayan merkez yok." /></SumSection>
             </div>
             <SumSection title={`Kanallar (${channels.length})`}><Badges items={channels} empty="Kanal kaydı yok." /></SumSection>
             <SumSection title={`Kapılar (${gates.length})`}><Badges items={gates} empty="Kapı kaydı yok." /></SumSection>

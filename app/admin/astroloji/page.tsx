@@ -38,7 +38,7 @@ import SavedAnalysisTabs from "./_components/atlas/SavedAnalysisTabs";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "@/lib/astrology/noProviderInterp";
 import AddTechniqueDialog, { type AddRunResult } from "./_components/atlas/AddTechniqueDialog";
 import SaveBatchDialog, { type SaveItemResult } from "./_components/atlas/SaveBatchDialog";
-import { TechniqueTechnical, wheelForTechnique } from "./_components/TimingPanels";
+import { TechniqueTechnical, wheelForTechnique, type CalendarTransitApi } from "./_components/TimingPanels";
 import { SavedAnalysesList, SavedAnalysisView } from "./_components/SavedAnalyses";
 import ArchiveList from "./_components/atlas/ArchiveList";
 import ArchiveDeleteFlow from "./_components/atlas/ArchiveDeleteFlow";
@@ -970,6 +970,48 @@ export default function AstrologyWorkspacePage() {
     return { ok: true, technical: it.view.technical as VedicDashaTechnical, kb: ws.ok ? ws.data.kbMatches : [] };
   }
 
+  /**
+   * TRANSİT-01: Transit Takvimi gününden transit haritası. Önce ÜCRETSİZ plan (sağlayıcı çağrılmaz; kayıtlı sonuç varsa
+   * 0 istek), uzman onayından sonra aynı çalıştırma ucu (planlayıcı + önbellek + kilit + saatlik sınır + yorum kapısı).
+   * Seçenek takvim penceresini taşır → çalışma motoru takvimin ÖNBELLEKTEKİ olaylarından kesinleşme anlarını ekler
+   * (yeni istek yok). Takvim analizi değişmez; transit yeni sekmede açılır ve ayrıca kaydedilir.
+   */
+  function calendarTransitFor(it: BenchItem): CalendarTransitApi | null {
+    if (it.technique !== "western.forecast" || !shownDetail || revision === null || !ctxKey) return null;
+    const o = it.view.options as { startDate?: unknown; days?: unknown; displayTz?: unknown };
+    if (typeof o.startDate !== "string" || typeof o.days !== "number") return null;
+    const profileId = shownDetail.id;
+    const rev = revision;
+    const key = ctxKey;
+    const sel = (atUtc: string) => ({
+      technique: "western.transit",
+      options: { atUtc, nodeType: method.nodeType, calendar: { startDate: o.startDate, days: o.days }, ...(typeof o.displayTz === "string" ? { displayTz: o.displayTz } : {}) },
+    });
+    return {
+      plan: async (atUtc) => {
+        const r = await astroFetch<{ plan: PlanSummary }>("/api/admin/astroloji/engine/plan", { method: "POST", body: { profileId, revision: rev, selections: [sel(atUtc)] } });
+        if (!r.ok) return { ok: false, error: r.error };
+        const s0 = r.data.plan.selections[0];
+        if (!s0) return { ok: false, error: "Plan alınamadı." };
+        if (s0.blocked) return { ok: false, error: s0.blocked.error };
+        return { ok: true, newRequests: r.data.plan.newRequestCount };
+      },
+      open: async (atUtc, confirmNewRequests) => {
+        const sels = [sel(atUtc)];
+        const r = await astroFetch<RunResponse>(`/api/admin/astroloji/engine/run${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
+          method: "POST",
+          body: { profileId, revision: rev, selections: sels, confirmNewRequests },
+        });
+        setPlanNonce((n) => n + 1);
+        const items = r.ok ? r.data.results : ((r.data?.results as ResultItem[] | undefined) ?? null);
+        if (items) mergeRun(key, items, sels, r.ok ? r.data.executed : ((r.data?.executed as RunResponse["executed"]) ?? { newResults: 0, cachedResults: 0, providerAttempts: 0 }));
+        if (!r.ok) return { ok: false, error: r.error };
+        const it0 = r.data.results[0];
+        return it0 && it0.ok ? { ok: true } : { ok: false, error: it0 && !it0.ok ? it0.error : "Transit hesaplanamadı." };
+      },
+    };
+  }
+
   async function togglePreview(next: boolean) {
     writePreviewFlag(next);
     if (!runs || !shownDetail || revision === null || !ctxKey) return;
@@ -1058,7 +1100,7 @@ export default function AstrologyWorkspacePage() {
       />
       )}
 
-      <div className={`mx-auto w-full max-w-[1600px] flex-col gap-5 px-4 sm:px-6 lg:px-8 ${view === "result" || view === "new" ? "py-3" : "py-6"} ${view === "home" ? "hidden" : "flex"}`}>
+      <div className={`mx-auto w-full max-w-[1600px] flex-col gap-5 pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] sm:px-6 lg:px-8 ${view === "result" || view === "new" ? "py-3" : "py-6"} ${view === "home" ? "hidden" : "flex"}`}>
         {view === "kb" && (
           <>
             <AtlasViewTitle eyebrow="Çalışma alanı" title="Bilgi Bankası" sub="Kendi yorumlarınız ve kaynak notlarınız; analizlerde ilgili konuyla otomatik eşleşir." />
@@ -1228,7 +1270,7 @@ export default function AstrologyWorkspacePage() {
           </div>
           <section className={`min-w-0 flex-col gap-5 ${view === "client" ? "flex lg:grid lg:grid-cols-[minmax(340px,420px)_minmax(0,1fr)] lg:items-start" : "hidden"}`} data-testid={view === "client" ? "astro-client-file" : undefined}>
             {view === "client" && (
-              <div className="flex flex-wrap items-center justify-between gap-2 lg:col-span-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 max-sm:px-3 lg:col-span-2">
                 <button type="button" onClick={() => go("archive")} className={atlasGhostBtn} data-testid="astro-client-file-back">
                   <ArrowLeft className="h-4 w-4" /> Analiz Arşivi&apos;ne Dön
                 </button>
@@ -1281,7 +1323,7 @@ export default function AstrologyWorkspacePage() {
             )}
 
             {view === "client" && shownDetail && !form && (
-              <div className={`${atlasPanel} flex flex-col gap-4 p-5 sm:p-6 lg:sticky lg:top-4`} data-testid="astro-client-card">
+              <div className={`${atlasPanel} flex flex-col gap-4 p-5 max-sm:px-3 sm:p-6 lg:sticky lg:top-4`} data-testid="astro-client-card">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   {/* Danışan kimliği: monogram + ad + durum rozetleri */}
                   <div className="flex min-w-0 items-center gap-4">
@@ -1344,7 +1386,7 @@ export default function AstrologyWorkspacePage() {
 
                 {/* Doğum kartı: harita künyesi gibi etiketli veri döşemeleri (yalnız mevcut alanlar). */}
                 {currentRev && (
-                  <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[#e7dcc3] bg-[#e7dcc3] sm:grid-cols-3 lg:grid-cols-2" data-testid="astro-birth-card">
+                  <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-[#e7dcc3] bg-[#e7dcc3] sm:grid-cols-3 lg:grid-cols-2 max-sm:-mx-3 max-sm:rounded-none max-sm:border-x-0" data-testid="astro-birth-card">
                     {(
                       [
                         ["Doğum tarihi", currentRev.birthDate.split("-").reverse().join(".")],
@@ -1415,7 +1457,7 @@ export default function AstrologyWorkspacePage() {
             )}
 
             {shownDetail && !form && view === "client" && (
-              <div className={`${atlasPanel} flex flex-col gap-3 p-5`} data-testid="astro-client-file-analyses">
+              <div className={`${atlasPanel} flex flex-col gap-3 p-5 max-sm:px-3`} data-testid="astro-client-file-analyses">
                 <div className="flex flex-wrap items-end justify-between gap-2">
                   <div>
                     <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[#a8843e]">Çalışmalar</p>
@@ -1660,6 +1702,7 @@ export default function AstrologyWorkspacePage() {
                             : null
                         }
                         dashaDrill={item.technique === "vedic.dasha" || item.technique === "kp.dasha" ? (o) => drillDasha(o, item.view.options) : undefined}
+                        calendarTransit={calendarTransitFor(item)}
                         onDashaLevel={
                           item.technique === "vedic.dasha"
                             ? (o) => {
@@ -1701,6 +1744,7 @@ export default function AstrologyWorkspacePage() {
                         <ProviderInterpretationPanel
                           interpretation={item.view.interpretation}
                           localSpace={item.technique === "western.local_space" ? localSpaceCenter(item.view.technical, item.view.options, birthplace) : null}
+                          displayTz={typeof item.view.options.displayTz === "string" ? item.view.options.displayTz : null}
                         />
                       )}
                     </div>

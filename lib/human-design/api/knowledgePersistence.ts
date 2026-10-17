@@ -16,6 +16,7 @@ import { withTenant, tenantInsertPayload } from "./tenantScope";
 import { hdSafeDbError } from "./safeError";
 import { hdXmlSafeLine, hdXmlSafeMultiline } from "@/lib/human-design/reporting/xmlSafeText";
 import { HD_CHANNEL_CATEGORY, HD_GATE_CATEGORY, normalizeHdStructuredTitle } from "@/lib/human-design/knowledge/hdNames";
+import { dedupeCenterKnowledge } from "@/lib/human-design/knowledge/centerKnowledge";
 
 const TABLE = "human_design_knowledge_records";
 
@@ -140,7 +141,8 @@ export async function listKnowledgeByCodes(
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
   if (error) return { rows: [], error: hdSafeDbError("listKnowledgeByCodes", error) };
-  return { rows: (data ?? []) as HumanDesignKnowledgeRecord[], error: null };
+  // HD-UZMAN-01: kesin Tanımsız/Açık kaydı olan merkezde eski genel (merkez_acik_*) kayıt elenir.
+  return { rows: dedupeCenterKnowledge((data ?? []) as HumanDesignKnowledgeRecord[]), error: null };
 }
 
 /**
@@ -163,7 +165,7 @@ export async function listKnowledgeForReport(
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
   if (error) return { rows: [], error: hdSafeDbError("listKnowledgeForReport", error) };
-  return { rows: (data ?? []) as unknown as KnowledgeReportRow[], error: null };
+  return { rows: dedupeCenterKnowledge((data ?? []) as unknown as KnowledgeReportRow[]), error: null };
 }
 
 export async function insertKnowledge(

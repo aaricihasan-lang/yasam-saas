@@ -56,6 +56,7 @@ import {
 } from "@/lib/contact/info";
 import SupportRequestForm from "@/components/auth/SupportRequestForm";
 import DemoIntroModal from "@/components/demo/DemoIntroModal";
+import FreeTrialInvite from "@/components/landing/FreeTrialInvite";
 import DemoAccessCard, {
   DEMO_ACCOUNT_EMAIL,
   DEMO_ACCOUNT_PASSWORD,
@@ -70,6 +71,10 @@ import { useTranslations, useLocale, useMessages } from "next-intl";
 import { localeTag } from "@/lib/i18n/format";
 import type { ActiveLocale } from "@/lib/i18n/locales";
 import LanguageSelector from "@/components/i18n/LanguageSelector";
+
+// Public ana sayfa dil seçimi geçici olarak gizli (owner kararı); yeniden göstermek için true yapın.
+// i18n altyapısı ve panel içi LanguageSelector etkilenmez.
+const SHOW_LANDING_LANGUAGE_SELECTOR = false;
 import NotificationBell from "@/components/notifications/NotificationBell";
 import CookiePreferencesButton from "@/components/analytics/CookiePreferencesButton";
 import { GOOGLE_PLAY_APP_URL } from "@/lib/platform/stores";
@@ -81,9 +86,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Brain,
-  CalendarDays,
   Check,
-  Gem,
   Layers,
   Leaf,
   Loader2,
@@ -93,6 +96,7 @@ import {
   MessageCircle,
   Package,
   Phone,
+  Settings,
   Shield,
   ShieldCheck,
   Sparkles,
@@ -450,19 +454,8 @@ const dashboardModules: ModuleCard[] = [
       border: "border-violet-200/70",
     },
   },
-  {
-    href: "/dogaltas",
-    permissionKey: "stones",
-    emoji: "💎",
-    featured: true,
-    hasStat: true,
-    Icon: Gem,
-    theme: {
-      iconWrap: "from-cyan-500 to-teal-500",
-      cardBg: "from-cyan-100/90 via-teal-50/95 to-white",
-      border: "border-teal-200/70",
-    },
-  },
+  // 2026-10-17 (owner kararı): Doğaltaş artık "Doğal Destek & Rehber" merkezinin içinde (ana panelde ayrı kart yok).
+  // /dogaltas adresi, verisi ve yetki kapısı (stones/dogaltas) aynen korunur.
   {
     href: "/urun-stok",
     permissionKey: "stok",
@@ -490,12 +483,12 @@ const dashboardModules: ModuleCard[] = [
   },
   {
     href: "/dogal-destek",
-    // Görünürlük AÇIK OR ile: Aromaterapi VEYA Şifa Rehberi VEYA Beslenme (tam modül) yeterli.
+    // Görünürlük AÇIK OR ile: Aromaterapi VEYA Şifa Rehberi VEYA Beslenme (tam modül) VEYA Doğaltaş yeterli.
     // Beslenme girişi bu hub altındadır; ana dashboard'da bağımsız Beslenme/Besinlerim kartı YOK.
     // `clients` ve (kaldırılan) `beslenme_manual_food` bu hub'ı TEK BAŞINA AÇMAZ.
     // permissionKey yalnız tip placeholder'ı; gerçek karar anyPermissionKeys üzerinden.
     permissionKey: "sifa_rehberi",
-    anyPermissionKeys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing", "beslenme"],
+    anyPermissionKeys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing", "beslenme", "stones", "dogaltas"],
     emoji: "🌿",
     Icon: Leaf,
     theme: {
@@ -522,7 +515,9 @@ const dashboardModules: ModuleCard[] = [
     href: "/life-analysis",
     permissionKey: "numerology",
     // 2026-10-15 (owner kararı): Gökyüzü Atlası artık Yaşam Analiz Merkezi'nin içinde (ana panelde ayrı kart yok).
-    extraPermissionKeys: ["astrology"],
+    // 2026-10-17 (owner kararı): Yaşam Takvimi / Kozmik Ajanda da merkezin içinde (/cosmic-calendar adresi aynen).
+    // Human Design merkezin içindedir → yalnız human_design yetkili uzman da merkeze ulaşır.
+    extraPermissionKeys: ["astrology", "cosmic_calendar", "human_design"],
     emoji: "🧠",
     hasStat: true,
     Icon: Brain,
@@ -530,17 +525,6 @@ const dashboardModules: ModuleCard[] = [
       iconWrap: "from-violet-600 to-purple-700",
       cardBg: "from-violet-100/90 via-purple-50/95 to-white",
       border: "border-violet-200/70",
-    },
-  },
-  {
-    href: "/cosmic-calendar",
-    permissionKey: "cosmic_calendar",
-    emoji: "🌙",
-    Icon: CalendarDays,
-    theme: {
-      iconWrap: "from-indigo-400 to-violet-600",
-      cardBg: "from-indigo-100/90 via-violet-50/95 to-white",
-      border: "border-indigo-200/70",
     },
   },
   // Astroloji (Gökyüzü Atlası): 2026-10-15'ten beri ana panelde ayrı kart YOK — Yaşam Analiz Merkezi içinde
@@ -822,7 +806,6 @@ export default function Home() {
   const [authModalView, setAuthModalView] = useState<
     "login" | "support" | "membership" | "membershipOptions"
   >("login");
-  const [scrolled, setScrolled] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
   const [moduleStats, setModuleStats] = useState<Partial<Record<ModulePermissionKey, number | null>>>({});
   // Yaşam Hafızası kartı: /api/yasam-hafizasi/health'ten DÜRÜST durum (undefined = yükleniyor).
@@ -1261,13 +1244,6 @@ export default function Home() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.tenant_id, t]);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 16);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1725,6 +1701,22 @@ export default function Home() {
                     <div className="mt-1 flex shrink-0 items-center gap-1.5 sm:gap-2">
                       <LanguageSelector compact />
                       <NotificationBell compact />
+                      {/* Ayarlar & Güvenlik — 2026-10-17: büyük kart yerine dişli simgesi (aynı /settings ekranı).
+                          Tooltip fareyle üzerine gelince ve klavye odağında görünür; mobilde 40px dokunma alanı. */}
+                      <Link
+                        href="/settings"
+                        aria-label={t("settingsGear.label")}
+                        data-testid="home-settings-gear"
+                        className="group/gear relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/80 bg-white/80 text-slate-600 no-underline shadow-sm backdrop-blur-sm transition hover:bg-white hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 sm:h-9 sm:w-9"
+                      >
+                        <Settings className="h-[18px] w-[18px] transition-transform duration-300 group-hover/gear:rotate-45" strokeWidth={2} aria-hidden />
+                        <span
+                          aria-hidden
+                          className="pointer-events-none absolute right-0 top-full z-20 mt-1.5 whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1 text-[11px] font-semibold text-white opacity-0 shadow-md transition-opacity duration-150 group-hover/gear:opacity-100 group-focus-visible/gear:opacity-100"
+                        >
+                          {t("settingsGear.label")}
+                        </span>
+                      </Link>
                       <button
                         type="button"
                         onClick={() => void requestLogout()}
@@ -1860,7 +1852,13 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
-                  {visibleDashboardModules.map((item) => {
+                  {visibleDashboardModules.map((item, index) => {
+                    // Denge: son satırda tek kalan kart o satırı kaplar (2 sütun: tek sayı; 2xl 3 sütun: 3n+1).
+                    const total = visibleDashboardModules.length;
+                    const isLast = index === total - 1 && total > 1;
+                    const spanClass = isLast
+                      ? `${total % 2 === 1 ? "sm:col-span-2" : ""} ${total % 3 === 1 ? "2xl:col-span-3" : "2xl:col-span-1"}`
+                      : "";
                     const hasHref = item.href !== "#";
                     const baseLock = item.anyPermissionKeys
                       ? getAnyPermissionLockReason(user, item.anyPermissionKeys, hasHref, panelAccess)
@@ -1875,7 +1873,7 @@ export default function Home() {
                     const isFeatured = item.featured === true;
                     const card = (
                       <div
-                        className={`group relative flex flex-col rounded-[18px] border bg-gradient-to-br p-4 backdrop-blur-sm transition-all duration-200 ${theme.cardBg} ${theme.border} ${
+                        className={`group relative flex h-full flex-col rounded-[18px] border bg-gradient-to-br p-4 backdrop-blur-sm transition-all duration-200 ${theme.cardBg} ${theme.border} ${
                           isFeatured
                             ? "shadow-[0_4px_18px_rgba(0,0,0,0.11)]"
                             : "shadow-[0_2px_10px_rgba(0,0,0,0.07)]"
@@ -1920,7 +1918,7 @@ export default function Home() {
                           </p>
                         ) : null}
 
-                        <div className="mt-3 flex items-center justify-between gap-2">
+                        <div className="mt-auto flex items-center justify-between gap-2 pt-3">
                           <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${
                             isComingSoon
                               ? "bg-violet-100 text-violet-700 ring-violet-200/80"
@@ -1939,7 +1937,7 @@ export default function Home() {
 
                     if (isOpen) {
                       return (
-                        <Link key={item.permissionKey} href={item.href} className="block text-inherit no-underline">
+                        <Link key={item.permissionKey} href={item.href} className={`block text-inherit no-underline ${spanClass}`}>
                           {card}
                         </Link>
                       );
@@ -1947,6 +1945,7 @@ export default function Home() {
                     return (
                       <div
                         key={item.permissionKey}
+                        className={spanClass}
                         role={isLocked ? "button" : undefined}
                         tabIndex={isLocked ? 0 : undefined}
                         onClick={isLocked && lockReason ? () => handleLockedModuleClick(lockReason) : undefined}
@@ -1961,61 +1960,9 @@ export default function Home() {
                       (app/dogal-destek/DogalDestekCards.tsx; kendi checkBeslenmeAccess probe'u) →
                       ana dashboard'da bağımsız Beslenme/Besinlerim kartı YOK. */}
 
-                  {/* Ayarlar & Güvenlik — her zaman görünür, grid içinde */}
-                  <Link href="/settings" className="block text-inherit no-underline">
-                    <div className="group relative flex flex-col rounded-[18px] border bg-gradient-to-br from-slate-100/90 via-white to-slate-50/80 border-slate-200/70 p-4 shadow-[0_2px_10px_rgba(0,0,0,0.07)] backdrop-blur-sm transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-slate-600 to-slate-800 text-white shadow-sm">
-                        <Shield className="h-4 w-4" strokeWidth={2.25} />
-                      </div>
-                      <h3 className="mt-2.5 text-base font-black text-slate-900">{t("settingsCard.title")}</h3>
-                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
-                        {t("settingsCard.desc")}
-                      </p>
-                      <p className="mt-1.5 text-xs text-slate-500">{t("common.contentReady")}</p>
-                      <div className="mt-3 flex items-center justify-between gap-2">
-                        <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 bg-emerald-100 text-emerald-800 ring-emerald-200/80">
-                          {t("common.active")}
-                        </span>
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm" aria-hidden>
-                          <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-
                   {/* Doğal Pazar public vitrin kartı — PRIVATE OWNER PREVIEW LOCK sırasında
                       GİZLİ. Public açılış ileride ayrı release ile geri getirilecek. Sahip
                       önizlemesi /admin/magaza/onizleme üzerinden yapılır. */}
-
-                  {/* YEBS — YALNIZ yönetici hesabında görünür admin-only kart.
-                      Gerçek güvenlik server-side verifyAdminRequest'tedir; bu kart
-                      isAdminUser ile gizlenir (defense-in-depth). Diğer modül
-                      kartlarının görünürlük mantığına DOKUNMAZ (ayrı, koşullu blok). */}
-                  {isAdminUser(user) ? (
-                    <Link href="/yebs" data-yebs-admin-card data-admin-only="true" className="block text-inherit no-underline">
-                      <div className="group relative flex flex-col rounded-[18px] border bg-gradient-to-br from-emerald-100/90 via-teal-50/95 to-white border-emerald-200/70 p-4 shadow-[0_2px_10px_rgba(0,0,0,0.07)] backdrop-blur-sm transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg">
-                        <span className="absolute right-2.5 top-2.5 z-10 rounded-full border border-emerald-200/90 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                          {t("yebsCard.adminBadge")}
-                        </span>
-                        <span className="text-3xl leading-none" aria-hidden>
-                          🌿
-                        </span>
-                        <h3 className="mt-2.5 text-base font-black text-slate-900">{t("yebsCard.title")}</h3>
-                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
-                          {t("yebsCard.desc")}
-                        </p>
-                        <p className="mt-1.5 text-xs text-slate-500">{t("common.contentReady")}</p>
-                        <div className="mt-3 flex items-center justify-between gap-2">
-                          <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 bg-emerald-100 text-emerald-800 ring-emerald-200/80">
-                            YEBS
-                          </span>
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm" aria-hidden>
-                            <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
-                  ) : null}
 
                   {/* Beslenme kartı "Doğal Destek & Rehber" hub'ına taşındı (yukarıdaki nota bkz.);
                       ana dashboard'da bağımsız Beslenme kartı render EDİLMEZ. */}
@@ -2078,19 +2025,19 @@ export default function Home() {
 
       <div className="relative z-10 w-full max-w-none px-4 py-4 md:px-8 xl:px-14 2xl:px-18">
         {/* — Nav — */}
-        <header className={`sticky top-3 z-50 flex flex-wrap items-center justify-between gap-2 rounded-[20px] border px-3 py-2.5 sm:gap-3 sm:px-6 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 ${scrolled ? "border-slate-200/50 bg-white/80 shadow-[0_4px_20px_rgba(15,23,42,0.08)] backdrop-blur-xl" : "border-white/70 bg-white/85 shadow-sm backdrop-blur-md"}`}>
-          <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-2.5">
+        {/* Panelsiz üst satır: logo + marka solda, Giriş Yap sağda — doğrudan sayfa arka planı üzerinde. */}
+        <header className="relative z-50 flex items-center justify-between gap-3 py-1 sm:px-2">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-base text-white shadow-sm shadow-violet-300/30">
               ✨
             </div>
-            {/* Çok dar ekranda (<380px) marka metni yalnız ekran okuyucuya — tek satır kalsın, taşma olmasın. */}
-            <p className="text-sm font-black tracking-wide text-slate-950 max-[379px]:sr-only">
+            <p className="truncate text-sm font-black tracking-wide text-slate-950">
               {t("brand")}
             </p>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <LanguageSelector compact />
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            {SHOW_LANDING_LANGUAGE_SELECTOR && <LanguageSelector compact />}
             <button
               type="button"
               onClick={() => {
@@ -2106,7 +2053,7 @@ export default function Home() {
         </header>
 
         {/* — Hero — */}
-        <section className="mx-auto mt-10 flex w-full max-w-5xl flex-col items-center text-center xl:mt-12 xl:max-w-[1200px]">
+        <section className="mx-auto mt-3 flex w-full max-w-5xl flex-col items-center text-center xl:mt-4 xl:max-w-[1200px]">
           {/* <640px: sarmalayıcılar display:contents → başlık, test kartı, alt başlık, CTA sırası (order).
               ≥lg: 3 sütun — sol bilgi kartları · orta hero · sağ test hesabı erişimi */}
           <div className="relative flex w-full items-center justify-center max-sm:contents lg:grid lg:grid-cols-[204px_minmax(0,1fr)_220px] lg:gap-4 xl:grid-cols-[236px_minmax(0,1fr)_236px] xl:gap-7">
@@ -2141,11 +2088,11 @@ export default function Home() {
                 {t("hero.titlePart2")}
               </h1>
 
-              <p className="mt-5 max-w-[500px] text-[0.9375rem] leading-[1.75] text-slate-500 max-sm:order-3">
+              <p className="mt-4 max-w-[500px] text-[0.9375rem] leading-[1.75] text-slate-500 max-sm:order-3">
                 {t("hero.subtitle")}
               </p>
 
-              <div className="mt-7 flex justify-center max-sm:order-4">
+              <div className="mt-5 flex justify-center max-sm:order-4 xl:mt-6">
                 <button
                   type="button"
                   onClick={() => {
@@ -2174,8 +2121,13 @@ export default function Home() {
           </div>
 
           {/* Test / demo hesabı tanıtımı — <lg geniş kart; ≥lg sağ sütundaki kompakt varyant */}
-          <div className="mt-7 w-full max-sm:order-2 max-sm:mt-5 lg:hidden">
+          <div className="mt-6 w-full max-sm:order-2 max-sm:mt-5 lg:hidden">
             <DemoAccessCard onTryDemo={openDemoLogin} />
+          </div>
+
+          {/* 3 günlük ücretsiz keşif daveti — mevcut /register akışına gider; mobilde hero öğelerinden sonra */}
+          <div className="mt-6 w-full max-sm:order-6 max-sm:mt-5 xl:mt-7">
+            <FreeTrialInvite />
           </div>
         </section>
 

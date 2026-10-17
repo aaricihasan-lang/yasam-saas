@@ -173,7 +173,7 @@ export default function AtlasHero({
           >
             <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Yaşam Analiz Merkezi
           </Link>
-          <div className="relative flex h-full flex-col justify-end px-4 pb-5 sm:max-w-[62%] sm:justify-center sm:px-8 sm:pb-0 lg:max-w-[50%] lg:px-12">
+          <div className="relative flex h-full flex-col justify-end px-3 pb-5 sm:max-w-[62%] sm:justify-center sm:px-8 sm:pb-0 lg:max-w-[50%] lg:px-12">
             <p className="flex items-center gap-3 text-[11px] font-semibold tracking-[0.18em] text-[#E6CF9F] sm:text-[13px]">
               <span className="h-px w-8 bg-gradient-to-r from-transparent via-[#D9B56F]/70 to-[#D9B56F] sm:w-10" />
               <span>YAŞAM SİSTEMİ</span>
@@ -201,7 +201,7 @@ export default function AtlasHero({
           </div>
         </div>
 
-        <nav aria-label="Gökyüzü Atlası" className="relative z-10 grid grid-cols-2 gap-2.5 px-4 pb-6 pt-1 sm:gap-3 sm:px-6 lg:order-1 lg:grid-cols-1 lg:content-center lg:gap-3.5 lg:p-0">
+        <nav aria-label="Gökyüzü Atlası" className="relative z-10 grid grid-cols-2 gap-2 px-2 pb-6 pt-1 sm:gap-3 sm:px-6 lg:order-1 lg:grid-cols-1 lg:content-center lg:gap-3.5 lg:p-0">
           {PORTALS.map((p) => (
             <button
               key={p.key}

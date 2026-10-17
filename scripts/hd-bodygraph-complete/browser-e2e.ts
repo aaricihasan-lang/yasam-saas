@@ -118,12 +118,12 @@ async function main() {
       }
       ok(((await m.locator('[data-hd-info-field="strategy"]:visible').textContent()) ?? "").includes("Yanıt vermek için beklemek (Wait to respond)"), `${d.name}: Strateji değeri Türkçe + (Roxy kanonik İngilizce)`);
       // Başlık metni (İmza'daki "i" bilgi düğmesi hariç).
-      const labels = await m.locator("[data-hd-info-group=chart] dt:visible, [data-hd-info-extra] dt:visible").evaluateAll((els) => els.map((e) => [...e.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim()));
+      const labels = await m.locator("[data-hd-info-group=chart] dt:visible, [data-hd-keynotes] dt:visible").evaluateAll((els) => els.map((e) => [...e.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim()));
       ok(["Tip (Type)", "Strateji (Strategy)", "Profil (Profile)", "Tanım (Definition)", "Enkarnasyon Teması (Incarnation Cross)", "İç Otorite (Inner Authority)", "İmza (Signature)", "Kendilik Dışı Tema (Not-Self Theme)"].every((l) => labels.includes(l)), `${d.name}: bilgi bloğu başlıkları Türkçe + (İngilizce)`, labels);
       const sig = m.locator('[data-hd-info-field="signature"]:visible');
-      ok(((await sig.textContent()) ?? "").includes("Tatmin (Satisfaction)") && (await sig.locator("[data-hd-signature-help]").count()) === 0, `${d.name}: İmza (Signature) değeri; açıklama varsayılan kapalı`);
+      ok(((await sig.textContent()) ?? "").includes("Tatmin (Satisfaction)") && (await m.locator("[data-hd-keynotes] [data-hd-signature-help]").count()) === 0, `${d.name}: İmza (Signature) değeri; açıklama varsayılan kapalı`);
       await sig.locator("[data-hd-signature-help-toggle]").click();
-      ok(((await sig.locator("[data-hd-signature-help]").textContent()) ?? "").includes("olumlu durum"), `${d.name}: "i" düğmesiyle İmza açıklaması açılır`);
+      ok(((await m.locator("[data-hd-keynotes] [data-hd-signature-help]").textContent()) ?? "").includes("olumlu durum"), `${d.name}: "i" düğmesiyle İmza açıklaması açılır`);
       await sig.locator("[data-hd-signature-help-toggle]").click();
       for (const f of ["type", "strategy", "profile", "definition", "cross", "authority", "signature", "notSelf"]) {
         const b = await m.locator(`[data-hd-info-field="${f}"]:visible`).boundingBox();

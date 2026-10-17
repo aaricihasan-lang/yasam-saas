@@ -270,22 +270,33 @@ async function main(): Promise<void> {
 
   // ── I) Uzman Bilgi Bankası kod eşleştirmesi ──
   section("I) Uzman Bilgi Bankası kod eşleştirmesi");
-  const expertCodes = buildExpertKnowledgeCodes(n.codes);
-  for (const c of ["tip_generator", "otorite_sacral", "profil_2_4", "tanim_split", "merkez_tanimli_sacral", "merkez_tanimli_head", "merkez_acik_g_identity", "merkez_acik_heart_ego", "merkez_acik_solar_plexus", "kanal_23_43", "kanal_4_63", "kanal_3_60", "kanal_27_50", "kapi_56", "kapi_3"]) {
+  // HD-UZMAN-01: üretim yolu kanıtlı merkez durumlarını geçirir (Tanımsız/Açık kesin kodları + eski genel kod).
+  const { centerStateMap, classifyComputedChartCenters } = await import("../../lib/human-design/chart/centerStates");
+  const statesComputed = centerStateMap(classifyComputedChartCenters(n.chart));
+  const expertCodes = buildExpertKnowledgeCodes(n.codes, statesComputed);
+  for (const c of ["tip_generator", "otorite_sacral", "profil_2_4", "tanim_split", "merkez_tanimli_sacral", "merkez_tanimli_head", "merkez_tanimsiz_g_identity", "merkez_acik_g_identity", "merkez_tam_acik_heart_ego", "merkez_acik_heart_ego", "merkez_tam_acik_solar_plexus", "merkez_acik_solar_plexus", "kanal_23_43", "kanal_4_63", "kanal_3_60", "kanal_27_50", "kapi_56", "kapi_3"]) {
     ok(`I kod üretildi: ${c}`, expertCodes.includes(c));
   }
-  // Uzmanın Bilgi Bankası formunun üretebildiği kod uzayı (yapısal kategoriler).
+  ok("I Tanımsız merkez Açık kesin koduyla, Açık merkez Tanımsız koduyla eşleşmez", !expertCodes.includes("merkez_tam_acik_g_identity") && !expertCodes.includes("merkez_tanimsiz_heart_ego") && !expertCodes.includes("merkez_tanimsiz_solar_plexus"));
+  // Uzmanın Bilgi Bankası formunun üretebildiği kod uzayı (yeni kayıt: 27 kesin merkez seçeneği) + eski
+  // genel merkez_acik_* kodları (yalnız MEVCUT eski kayıtlar için geriye uyum; yeni kayıtta sunulmaz).
   const creatable = new Set<string>();
   for (const cat of HD_KNOWLEDGE_CATEGORIES) {
     for (const o of getStructuredCategoryOptions(cat) ?? []) creatable.add(buildKnowledgeCodeFromValue(cat, o.code));
   }
-  const notCreatable = expertCodes.filter((c) => !creatable.has(c));
-  ok("I tüm üretilen kodlar uzmanın oluşturabileceği kod uzayında", notCreatable.length === 0, notCreatable);
+  const legacyCompat = (c: string) => /^merkez_acik_[a-z_]+$/.test(c) && !creatable.has(c);
+  const notCreatable = expertCodes.filter((c) => !creatable.has(c) && !legacyCompat(c));
+  ok("I tüm üretilen kodlar uzmanın oluşturabileceği kod uzayında (eski genel merkez_acik_ yalnız geriye uyum)", notCreatable.length === 0, notCreatable);
+  ok("I eski genel merkez_acik_* yeni kayıt seçeneklerinde YOK", ![...creatable].some((c) => /^merkez_acik_/.test(c)));
   const manualRow = {
     type_code: "generator", authority_code: "sacral", profile_code: "2_4", definition_code: "split",
     active_centers: n.codes.active_centers, open_centers: n.codes.open_centers, gates: n.codes.gates, channels: n.codes.channels,
   } as unknown as HumanDesignChart;
-  ok("I manuel harita ile birebir aynı kod kümesi (buildCodesFromChart paritesi)", [...buildCodesFromChart(manualRow)].sort().join() === [...expertCodes].sort().join());
+  // Manuel harita: aynı kapılar beyan edilmiş → G Tanımsız kanıtlı; ama kapı listesinin eksiksizliği
+  // kanıtlanamadığından Kalp/Solar Pleksus için kesin Açık kodu ÜRETİLMEZ (yalnız eski genel kod).
+  const manualCodes = buildCodesFromChart(manualRow);
+  const provable = expertCodes.filter((c) => !/^merkez_tam_acik_/.test(c));
+  ok("I manuel harita paritesi: kanıtlanabilen kodlar birebir; manuelde kesin Açık tahmin edilmez", [...manualCodes].sort().join() === [...provable].sort().join() && !manualCodes.some((c) => c.startsWith("merkez_tam_acik_")));
   // Uçtan uca: fakeDb Bilgi Bankası → listKnowledgeByCodes tenant-scoped eşleşme
   {
     const { listKnowledgeByCodes } = await import("../../lib/human-design/api/knowledgePersistence");
@@ -304,7 +315,9 @@ async function main(): Promise<void> {
   const legacy = computeHumanDesignChart({ date: "2018-07-20", time: "19:00", timezone: "Europe/Istanbul", location: { lat: 0, lon: 0 } });
   const legacyCodes = computedChartAppCodes(legacy as unknown as HdComputedChart);
   ok("I eski motor kaydı (RAW) uygulama kodlarına iner", legacyCodes.type_code === "generator" && legacyCodes.profile_code === "2_4" && legacyCodes.definition_code === "split");
-  ok("I eski motor ↔ Roxy aynı harita: aynı uzman kod kümesi", [...buildExpertKnowledgeCodes(legacyCodes)].sort().join() === [...expertCodes].sort().join());
+  // HD-UZMAN-01: eski motor kaydı da kendi kayıtlı 26 aktivasyonundan sınıflandırılır → Roxy ile aynı üçlü durum.
+  const legacyStates = centerStateMap(classifyComputedChartCenters(legacy as unknown as HdComputedChart));
+  ok("I eski motor ↔ Roxy aynı harita: aynı merkez durumları + aynı uzman kod kümesi", JSON.stringify(legacyStates) === JSON.stringify(statesComputed) && [...buildExpertKnowledgeCodes(legacyCodes, legacyStates)].sort().join() === [...expertCodes].sort().join());
   ok("I canonical (Word) anahtarları Roxy kodlarından üretilir", normalizeChartToCanonicalKeys({ type_code: n.codes.type_code, authority_code: n.codes.authority_code, gates: n.codes.gates, channels: n.codes.channels }).length > 0);
   ok("I manuel kodlar normalizasyondan değişmeden geçer (idempotent)", JSON.stringify(toAppChartCodes(manualRow)) === JSON.stringify(toAppChartCodes(toAppChartCodes(manualRow))));
 
@@ -614,7 +627,7 @@ async function main(): Promise<void> {
     // 2026-10-17 owner: Strateji / İmza / Kendilik Dışı Tema ana panelde; başlıklar Türkçe + (İngilizce).
     ok("U görünüm: Tip/Strateji/Profil/Tanım/Enkarnasyon Teması/İç Otorite/İmza/Kendilik Dışı Tema (Türkçe + İngilizce)", ["Tip (Type)", "Strateji (Strategy)", "İç Otorite (Inner Authority)", "Profil (Profile)", "Tanım (Definition)", "Enkarnasyon Teması (Incarnation Cross)", "İmza (Signature)", "Kendilik Dışı Tema (Not-Self Theme)"].every((l) => view.includes(l)) && !view.includes("Haç") && !view.includes("Benlik-dışı"));
     ok("U görünüm: Türkçe değerler", view.includes("Jeneratör (Generator)") && view.includes("Sakral Otorite (Sacral Authority)") && view.includes("Right Angle Cross of Laws 2"));
-    ok("U görünüm: 9 merkez durumu", (view.match(/data-hd-center="/g) ?? []).length === 9 && view.includes('data-hd-center="g_identity:open"') && view.includes('data-hd-center="sacral:defined"'));
+    ok("U görünüm: 9 merkez durumu", (view.match(/data-hd-center="/g) ?? []).length === 9 && view.includes('data-hd-center="g_identity:undefined"') && view.includes('data-hd-center="heart_ego:open"') && view.includes('data-hd-center="solar_plexus:open"') && view.includes('data-hd-center="sacral:defined"') && !view.includes(":unverified"));
     ok("U görünüm: 4 kanal + aktif kapılar", (view.match(/data-hd-channel="/g) ?? []).length === 4 && (view.match(/data-hd-gate="/g) ?? []).length === n.codes.gates.length);
     ok("U görünüm: Roxy açıklama metni YOK", !view.includes("enveloping") && !view.includes("storyteller"));
   }

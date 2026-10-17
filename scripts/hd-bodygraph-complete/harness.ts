@@ -345,10 +345,13 @@ async function main() {
   (old.gates as Row[]).forEach((g) => { delete g.ichingHexagram; });
   delete (old.profileKeynotes as Row).personalityLine;
   const dOld = extractSystemReading(old)!;
-  ok(!!dOld && dOld.centers.every((c) => c.motor === null && c.awareness === null && c.gates!.length === 0) && dOld.activations.every((a) => a.iching === null) && dOld.channels.every((c) => c.centers!.length === 0), "K1 eski şema (yeni alanlar yok): çökme yok, alanlar boş — UYDURMA yok");
+  // HD-UZMAN-01: eksik centers[].gates boş liste SAYILMAZ → gates yok (undefined), "aktif kapı yok" UYDURULMAZ;
+  // durum aktivasyonlardan kanıtlanır (bu eski kayıtta 26 aktivasyon tam → G Tanımsız, Kalp/SP Açık).
+  ok(!!dOld && dOld.centers.every((c) => c.motor === null && c.awareness === null && c.gates === undefined) && dOld.activations.every((a) => a.iching === null) && dOld.channels.every((c) => c.centers!.length === 0), "K1 eski şema (yeni alanlar yok): çökme yok, alanlar boş — eksik kapı listesi boş liste sayılmaz, UYDURMA yok");
+  ok(dOld.centers.find((c) => c.id === "g")?.state === "undefined" && dOld.centers.find((c) => c.id === "heart")?.state === "open" && dOld.centers.find((c) => c.id === "solar-plexus")?.state === "open", "K1b eski şema: merkez durumu kayıtlı 26 aktivasyondan kanıtlı (G Tanımsız, Kalp/SP Açık)");
   ok(dOld.general.find((g) => g.key === "profile")!.details.some((d) => d.label === "Personality (bilinçli)"), "K2 eksik çizgi numarası → etiket numarasız (tahmin yok)");
   const srOld = renderToStaticMarkup(createElement(HdSystemReadingView, { data: dOld }));
-  ok(!srOld.includes('data-hd-sr-tag="motor"') && !srOld.includes("I Ching") && (srOld.match(/data-hd-sr-line="center-gates"/g) ?? []).length === 9, "K3 eski kayıtta motor/I Ching satırı görünmez; aktif kapı yoksa açıkça 'yok'");
+  ok(!srOld.includes('data-hd-sr-tag="motor"') && !srOld.includes("I Ching") && (srOld.match(/data-hd-sr-line="center-gates"/g) ?? []).length === 0 && !srOld.includes("Bu merkezde aktif kapı yok"), "K3 eski kayıtta motor/I Ching satırı görünmez; kapı verisi eksikse 'aktif kapı yok' UYDURULMAZ");
   const mismatch = JSON.parse(FIXTURE) as Row;
   ((mismatch.gates as Row[])[0].ichingHexagram as Row).number = 7;
   ok(extractSystemReading(mismatch)!.activations[0].iching === null, "K4 I Ching numarası kapıyla eşleşmezse gösterilmez (yanlış eşleme yok)");

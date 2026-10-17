@@ -18,6 +18,7 @@ import {
   buildKnowledgeCodeFromValue,
   deriveStructuredValue,
   getStructuredCategoryOptions,
+  getStructuredCategoryOptionsForEdit,
   type StructuredOption,
 } from "@/lib/human-design/codeHelpers";
 import {
@@ -160,6 +161,8 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
   const [notFound, setNotFound] = useState(false);
   const [form, setForm] = useState<FormState | null>(null);
   const [identityLocked, setIdentityLocked] = useState(false);
+  // Yüklenen kaydın özgün yapısal değeri — eski genel merkez kaydı (acik_*) seçenek listesinde korunur.
+  const [originalStructured, setOriginalStructured] = useState("");
   const [snapshot, setSnapshot] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [section, setSection] = useState<SectionId>("content");
@@ -211,6 +214,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
       const f = rowToForm(row);
       // Mevcut kapı/kanal kaydında kimlik (kategori + numara) kilitlidir; yalnız ad/açıklama düzenlenir.
       setIdentityLocked(isHdGateChannelCategory(f.category) && !!f.structuredValue);
+      setOriginalStructured(f.structuredValue);
       setForm(f);
       setSnapshot(JSON.stringify(f));
       recordVersionRef.current = row.updated_at ?? null;
@@ -644,7 +648,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
               <div>
                 <label className={labelCls}>Başlık *</label>
                 {(() => {
-                  const opts: StructuredOption[] | null = getStructuredCategoryOptions(form.category);
+                  const opts: StructuredOption[] | null = getStructuredCategoryOptionsForEdit(form.category, originalStructured);
                   if (opts) {
                     return (
                       <select

@@ -54,7 +54,7 @@ export function HdPlanetColumn({
           <li
             key={a.body}
             data-hd-activation={`${side}:${a.body}:${a.gate}.${a.line}`}
-            className={`flex h-8 items-center justify-between gap-1.5 lg:h-7 hdwide:[@media(min-height:761px)_and_(max-height:860px)]:h-6 hdwide:[@media(max-height:760px)]:h-[22px] ${mirror ? "flex-row-reverse" : ""}`}
+            className={`flex h-8 items-center justify-between gap-1.5 lg:h-7 ${mirror ? "flex-row-reverse" : ""}`}
             aria-label={`${PLANET_LABEL_TR[a.body]}: kapı ${a.gate}, çizgi ${a.line}`}
             title={PLANET_LABEL_TR[a.body]}
           >

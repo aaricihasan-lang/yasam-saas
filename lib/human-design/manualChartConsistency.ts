@@ -176,7 +176,7 @@ export function checkManualChartConsistency(input: ManualChartInput): Consistenc
       push({
         code: "CENTER_BOTH_DEFINED_AND_OPEN",
         field: "centers",
-        message: `${lbl(CENTER_LABEL, c)} hem "Tanımlı" hem "Açık" işaretli.`,
+        message: `${lbl(CENTER_LABEL, c)} hem "Tanımlı" hem "Tanımlı Değil" işaretli.`,
       });
     }
   }

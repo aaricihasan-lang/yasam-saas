@@ -63,6 +63,7 @@ type Measure = {
   modalScroller: R | null; onelook: R | null; info: R | null; stage: R | null; bodygraph: R | null; brand: R | null; logo: R | null;
   centersCard: R | null; nextCard: R | null; colDesign: R | null; colPersonality: R | null;
   extra: R | null; extraVisible: boolean; extraFields: Array<{ f: string; r: R; clipped: boolean }>;
+  keynotes: R | null; keynoteFields: Array<{ f: string; r: R; clipped: boolean }>; bottomCards: R[]; onelookFieldNames: string[];
   fields: Array<{ f: string; r: R; clipped: boolean }>;
   signatureHelp: { r: R | null; visible: boolean; inPanel: boolean };
   centerRows: Array<{ code: string; row: R; parts: Array<{ k: string; r: R; clipped: boolean }> }>;
@@ -107,14 +108,23 @@ async function measure(page: Page): Promise<Measure> {
         r: rr(e)!,
         clipped: [...e.querySelectorAll("dt,dd")].some((d) => (d as HTMLElement).scrollWidth > (d as HTMLElement).clientWidth + 1 || (d as HTMLElement).scrollHeight > (d as HTMLElement).clientHeight + 1),
       })),
-      // Yalnız GÖRÜNÜR sol panel alanları (geniş ekranda sağ karta taşınan kopyalar display:none).
+      keynotes: rr(q("[data-hd-keynotes]")),
+      keynoteFields: [...dlg.querySelectorAll("[data-hd-keynotes] [data-hd-info-field]")].map((e) => ({
+        f: e.getAttribute("data-hd-info-field") ?? "",
+        r: rr(e)!,
+        clipped: [...e.querySelectorAll("dt,dd")].some((d) => (d as HTMLElement).scrollWidth > (d as HTMLElement).clientWidth + 1),
+      })),
+      // Alt bölümdeki diğer kartlar (Merkezler, Kanallar, Kapılar) — Ek bilgiler kutusu bunlara binmemeli.
+      bottomCards: [...(onelook?.nextElementSibling?.querySelectorAll(":scope > div, :scope > div > div") ?? [])].filter((e) => !e.hasAttribute("data-hd-keynotes") && e.classList.contains("rounded-xl")).map((e) => rr(e)!),
+      onelookFieldNames: [...(onelook?.querySelectorAll("[data-hd-info-field]") ?? [])].filter((e) => (e as HTMLElement).offsetParent !== null).map((e) => e.getAttribute("data-hd-info-field") ?? ""),
+      // Yalnız GÖRÜNÜR sol panel alanları.
       fields: [...dlg.querySelectorAll("[data-hd-info] [data-hd-info-field]")].filter((e) => (e as HTMLElement).offsetParent !== null).map((e) => ({
         f: e.getAttribute("data-hd-info-field") ?? "",
         r: rr(e)!,
         clipped: [...e.querySelectorAll("dt,dd")].some((d) => (d as HTMLElement).scrollWidth > (d as HTMLElement).clientWidth + 1 || (d as HTMLElement).scrollHeight > (d as HTMLElement).clientHeight + 1),
       })),
       signatureHelp: (() => {
-        const host = help?.closest("[data-hd-info-extra], [data-hd-info]") ?? null;
+        const host = help?.closest("[data-hd-keynotes], [data-hd-info-extra], [data-hd-info]") ?? null;
         const hr = rr(host);
         return { r: helpR, visible: helpVisible, inPanel: !!helpR && !!hr && helpR.x >= hr.x - 1 && helpR.r <= hr.r + 1 && helpR.y >= hr.y - 1 && helpR.b <= hr.b + 1 };
       })(),
@@ -238,18 +248,15 @@ async function main() {
         ok(inside(M.colDesign, M.stage) && inside(M.colPersonality, M.stage), `${tag}: Design/Personality sütunları sahne içinde (dikey taşma yok)`, { d: M.colDesign, p: M.colPersonality, stage: M.stage });
         ok(!!M.info && !!M.colDesign && !!M.colPersonality && !overlap(M.info, M.colDesign) && !overlap(M.info, M.colPersonality), `${tag}: sütunlar bilgi paneline binmiyor`, { info: M.info, d: M.colDesign });
         ok(!M.bodygraph || inside(M.bodygraph, M.stage), `${tag}: BodyGraph sahne içinde`, { bg: M.bodygraph, stage: M.stage });
-        // 3c) İlk ekran dengesi (owner 2026-10-17): geniş masaüstünde sol panel yalnız kimlik + çekirdek HD; tamamlayıcı
-        //     bilgiler Personality sütununun altındaki kartta; LOGO ilk ekranda tamamen görünür.
-        if (M.wide) {
-          ok(M.fields.map((f) => f.f).join(",") === "name,local,place,coords,age,type,strategy,profile,authority", `${tag}: sol panel = kimlik + Tip/Strateji/Profil/İç Otorite`, M.fields.map((f) => f.f));
-          ok(M.extraVisible && M.extraFields.map((f) => f.f).join(",") === (key === "OLD" ? "definition,cross,signature,notSelf" : "definition,cross,signature,notSelf"), `${tag}: sağ kart = Tanım / Enkarnasyon Teması / İmza / Kendilik Dışı Tema`, M.extraFields.map((f) => f.f));
-          ok(inside(M.extra, M.stage) && !!M.extra && !!M.colPersonality && !overlap(M.extra, M.colPersonality) && M.extra.y >= M.colPersonality.b, `${tag}: tamamlayıcı kart Personality sütununun altında, sahne içinde, binmiyor`, { extra: M.extra, colP: M.colPersonality, stage: M.stage });
-          ok(M.extraFields.every((f) => inside(f.r, M.extra) && !f.clipped), `${tag}: tamamlayıcı alanlar kart içinde, kesilmiyor`, M.extraFields.filter((f) => !inside(f.r, M.extra) || f.clipped).map((f) => f.f));
-          ok(!!M.logo && M.logo.b <= M.vh && M.logo.y >= 0, `${tag}: logo İLK EKRANDA tamamen görünür`, { logo: M.logo, vh: M.vh });
-        } else {
-          ok(!M.extraVisible, `${tag}: (mobil / lg şerit) sağ kart gizli; tüm alanlar üst panelde`, M.fields.length);
-          ok(M.fields.length === 13 || (key === "OLD" && M.fields.length >= 11), `${tag}: üst panelde tüm alanlar`, M.fields.map((f) => f.f));
-        }
+        // 3c) İlk ekran sadeleştirme (owner 2026-10-17, #419 FAIL): ilk ekranda YALNIZ çekirdek bilgiler; sağ ek kart YOK;
+        //     Strateji / İmza / Kendilik Dışı Tema haritanın ALTINDAKİ "Ek Human Design Bilgileri" kutusunda.
+        const CORE = "name,local,place,coords,age,type,profile,definition,cross,authority";
+        ok(M.fields.map((f) => f.f).join(",") === CORE, `${tag}: sol panel = kimlik + Tip/Profil/Tanım/Enkarnasyon Teması/İç Otorite`, M.fields.map((f) => f.f));
+        ok(!M.extra && !M.onelookFieldNames.some((f) => ["strategy", "signature", "notSelf"].includes(f)), `${tag}: ilk ekranda (harita kartı) Strateji/İmza/Kendilik Dışı Tema ve sağ ek kart YOK`, M.onelookFieldNames);
+        ok(!!M.keynotes && !!M.onelook && M.keynotes.y >= M.onelook.b && M.keynoteFields.map((f) => f.f).join(",") === "strategy,signature,notSelf", `${tag}: "Ek Human Design Bilgileri" haritanın ALTINDA: Strateji / İmza / Kendilik Dışı Tema`, { k: M.keynotes, fields: M.keynoteFields.map((f) => f.f) });
+        ok(M.keynoteFields.every((f) => inside(f.r, M.keynotes) && !f.clipped) && !!M.keynotes && M.keynotes.x >= 0 && M.keynotes.r <= M.vw + 0.5, `${tag}: ek kutu alanları kutu içinde, kesilmiyor, ekrana sığıyor`);
+        ok(!!M.keynotes && M.bottomCards.every((c) => !overlap(c, M.keynotes!)), `${tag}: ek kutu Merkezler / Kanallar / Kapılar kartlarına binmiyor`, { k: M.keynotes, cards: M.bottomCards });
+        if (M.wide) ok(!!M.logo && M.logo.b <= M.vh && M.logo.y >= 0, `${tag}: logo İLK EKRANDA tamamen görünür`, { logo: M.logo, vh: M.vh });
         // 4) Merkezler kartı harita kompozisyonundan SONRA başlar (çakışma yok).
         ok(!!M.onelook && !!M.nextCard && M.nextCard.y >= M.onelook.b, `${tag}: Merkezler kartı harita kartının altından başlıyor`, { onelookBottom: M.onelook?.b, centersTop: M.nextCard?.y });
         // 5) Merkez satırları: ad / nitelik / durum ayrı, binmez, kesilmez; 9 merkez eksiksiz.
@@ -269,11 +276,17 @@ async function main() {
           await m0.locator("[data-hd-signature-help]:visible").waitFor();
           await page.waitForTimeout(150);
           const M2 = await measure(page);
-          ok(M2.signatureHelp.visible && M2.signatureHelp.inPanel && inside(M2.info, M2.onelook) && (!M2.extraVisible || (inside(M2.extra, M2.stage) && !!M2.colPersonality && !!M2.extra && M2.extra.y >= M2.colPersonality.b)) && !!M2.nextCard && !!M2.onelook && M2.nextCard.y >= M2.onelook.b,
-            `${tag}: İmza açıklaması açılınca panel içinde; kart uzar, Merkezler kartına binmez`, { help: M2.signatureHelp, info: M2.info, onelook: M2.onelook, next: M2.nextCard });
+          ok(M2.signatureHelp.visible && M2.signatureHelp.inPanel && !!M2.keynotes && M2.bottomCards.every((c) => !overlap(c, M2.keynotes!)) && !!M2.nextCard && !!M2.onelook && M2.nextCard.y >= M2.onelook.b,
+            `${tag}: İmza açıklaması ek kutuda açılır, kutu içinde kalır, diğer kartlara binmez`, { help: M2.signatureHelp, k: M2.keynotes });
           ok((await tog.getAttribute("aria-expanded")) === "true", `${tag}: bilgi düğmesi erişilebilir (aria-expanded)`);
           await tog.click();
         }
+        // İLK EKRAN görüntüsü: pencere en üstte (İmza düğmesi tıklaması alt bölüme kaydırmış olabilir).
+        await page.evaluate(() => {
+          const sc = document.querySelector('[role="dialog"][aria-labelledby="hd-computed-detay-title"] .overflow-y-auto') as HTMLElement | null;
+          if (sc) sc.scrollTop = 0;
+        });
+        await page.waitForTimeout(150);
         await page.screenshot({ path: path.join(OUT, `${d.name}-${key}.png`), fullPage: false });
         // İkinci görüntü: harita kartının alt kenarı + Merkezler kartı (dikey çakışma bölgesi).
         await page.evaluate(() => {

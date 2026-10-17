@@ -29,6 +29,17 @@ const HD_MODULES: readonly HdHubModule[] = [
     cardBg: "from-sky-50/90 via-indigo-50/60 to-white",
     badgeCls: "bg-sky-100 text-sky-800",
   },
+  {
+    title: "İlişki ve Grup Analizleri",
+    desc: "İki kişi için ilişki analizi (Connection), 3–5 kişi için grup analizi (Penta). Kayıtlı danışanlarınızdan seçin.",
+    href: "/human-design/iliski-grup",
+    icon: "🤝",
+    badge: "Connection · Penta",
+    accent: "from-violet-500 to-fuchsia-600",
+    cardBorder: "border-violet-200/70",
+    cardBg: "from-violet-50/90 via-fuchsia-50/50 to-white",
+    badgeCls: "bg-violet-100 text-violet-800",
+  },
 ];
 
 export default function HumanDesignHubPage() {
@@ -44,7 +55,7 @@ export default function HumanDesignHubPage() {
         </p>
       </div>
 
-      {/* İki ana çalışma alanı */}
+      {/* Ana çalışma alanları */}
       <HdHubModules modules={HD_MODULES} />
     </HumanDesignShell>
   );

@@ -106,6 +106,8 @@ const ALLOWED_DTO_KEYS = new Set([
   "side", "planet", "gate", "line", "gateName", "gateDescription", "lineMeaning", "planetDescription",
   // BodyGraph 1. API tamamlama (2026-10-17): şemadaki anlamlı alanlar (whitelist hâlâ KAPALI liste).
   "motor", "awareness", "gates", "iching", "number", "sides", "personality", "design", "designUtc", "languageNote",
+  // HD-UZMAN-01: uygulamanın kanıtlı merkez durumu (sağlayıcı alanı DEĞİL; chart/centerStates türetir).
+  "state",
 ]);
 function dtoKeys(v: unknown, acc = new Set<string>()): Set<string> {
   if (Array.isArray(v)) v.forEach((x) => dtoKeys(x, acc));
