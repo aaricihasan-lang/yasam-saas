@@ -13,7 +13,8 @@ import { validateRoxyBodygraph } from "./schema";
 export type RoxyRenderPayload = Record<string, unknown>;
 
 export function buildRoxyRenderPayload(raw: unknown): RoxyRenderPayload | null {
-  if (!validateRoxyBodygraph(raw).ok) return null;
+  // KAYITLI yanıt: eski/kısmi kayıtta centers[].gates yoksa harita yine çizilir (yeni çağrı yok).
+  if (!validateRoxyBodygraph(raw, { mode: "stored" }).ok) return null;
   const r = raw as Record<string, unknown>;
   const xc = r.incarnationCross as Record<string, unknown>;
   const str = (v: unknown) => (typeof v === "string" ? v : undefined);

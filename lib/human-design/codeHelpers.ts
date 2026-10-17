@@ -115,14 +115,8 @@ export function getStructuredCategoryOptions(category: string): StructuredOption
       return HUMAN_DESIGN_PROFILES.map(({ code, label }) => ({ code, label }));
     case "Tanımlar":
       return HUMAN_DESIGN_DEFINITIONS.map(({ code, label }) => ({ code, label }));
-    case "Merkezler": {
-      const result: StructuredOption[] = [];
-      for (const { code, label } of HUMAN_DESIGN_CENTERS) {
-        result.push({ code: `tanimli_${code}`, label: `Tanımlı — ${label}` });
-        result.push({ code: `acik_${code}`,    label: `Açık — ${label}` });
-      }
-      return result;
-    }
+    case "Merkezler":
+      return hdCenterKnowledgeOptions(false);
     case "Kanallar":
       // "34-57" → "34_57" — buildCodesFromChart ile aynı dönüşüm
       return HUMAN_DESIGN_CHANNELS.map(({ code, label }) => ({
@@ -139,6 +133,55 @@ export function getStructuredCategoryOptions(category: string): StructuredOption
   }
 }
 
+// -------------------------------------------------------
+// HD-UZMAN-01 — Merkez seçenekleri: 9 merkez × 3 KESİN durum = 27 seçenek
+//   tanimli_{merkez}   → Tanımlı  (Defined)
+//   tanimsiz_{merkez}  → Tanımsız (Undefined)          — YENİ kesin kod
+//   tam_acik_{merkez}  → Açık     (Completely Open)    — YENİ kesin kod; kullanıcıya yalnız "Açık"
+//   acik_{merkez}      → ESKİ GENEL kayıt: eski sistemde Tanımsız + Açık birlikte. Kodu ve içeriği
+//                        DEĞİŞTİRİLMEZ; yeni kayıt için sunulmaz, yalnız mevcut eski kaydı düzenlerken
+//                        ayrı etiketle görünür (uzman bilinçli olarak kesin bir duruma taşıyabilir).
+// -------------------------------------------------------
+
+export const HD_CENTER_KB_FAMILIES = {
+  defined: "tanimli",
+  undefined: "tanimsiz",
+  open: "tam_acik",
+  legacy: "acik",
+} as const;
+
+export const HD_LEGACY_CENTER_OPTION_PREFIX = "Eski genel kayıt (Tanımsız/Açık ayrımsız)";
+
+/** Merkezler seçenekleri. includeLegacy → her merkezin ardından eski genel `acik_*` seçeneği (sıralama/düzenleme). */
+export function hdCenterKnowledgeOptions(includeLegacy: boolean): StructuredOption[] {
+  const result: StructuredOption[] = [];
+  for (const { code, label } of HUMAN_DESIGN_CENTERS) {
+    result.push({ code: `${HD_CENTER_KB_FAMILIES.defined}_${code}`, label: `Tanımlı — ${label}` });
+    result.push({ code: `${HD_CENTER_KB_FAMILIES.undefined}_${code}`, label: `Tanımsız — ${label}` });
+    result.push({ code: `${HD_CENTER_KB_FAMILIES.open}_${code}`, label: `Açık — ${label}` });
+    if (includeLegacy) {
+      result.push({ code: `${HD_CENTER_KB_FAMILIES.legacy}_${code}`, label: `${HD_LEGACY_CENTER_OPTION_PREFIX} — ${label}` });
+    }
+  }
+  return result;
+}
+
+/** Ham değer (prefixsiz) eski genel merkez kodu mu? Örn. "acik_head". */
+export function isLegacyCenterStructuredValue(raw: string): boolean {
+  return HUMAN_DESIGN_CENTERS.some((c) => raw === `${HD_CENTER_KB_FAMILIES.legacy}_${c.code}`);
+}
+
+/**
+ * Düzenleme ekranı seçenekleri: yeni kayıt seçenekleri + (kayıt ESKİ genel merkez kaydıysa) yalnız o
+ * kaydın eski seçeneği. Eski kayıt böylece seçili görünür ve kodu kaybolmaz; uzman isterse kesin bir
+ * duruma kendisi taşır. Diğer eski seçenekler yeni kayıt için sunulmaz.
+ */
+export function getStructuredCategoryOptionsForEdit(category: string, originalRawValue: string): StructuredOption[] | null {
+  const opts = getStructuredCategoryOptions(category);
+  if (opts === null || category !== "Merkezler" || !isLegacyCenterStructuredValue(originalRawValue)) return opts;
+  return hdCenterKnowledgeOptions(true).filter((o) => opts.some((x) => x.code === o.code) || o.code === originalRawValue);
+}
+
 /**
  * Yapısal kategori için prefix + rawValue şeklinde doğrudan kod üretir (slugify yok).
  * buildCodesFromChart() çıktısıyla eşleşen kodlar üretir.
@@ -153,7 +196,8 @@ export function buildKnowledgeCodeFromValue(category: string, rawValue: string):
  * Düzenleme formunda mevcut seçimin dropdown'da doğru gösterilmesi için kullanılır.
  */
 export function deriveStructuredValue(category: string, code: string): string {
-  const opts = getStructuredCategoryOptions(category);
+  // Merkezler: eski genel `acik_*` kaydı da tanınır (aksi hâlde düzenlemede kod boşalırdı).
+  const opts = category === "Merkezler" ? hdCenterKnowledgeOptions(true) : getStructuredCategoryOptions(category);
   if (opts === null) return "";
   const prefix = HD_KNOWLEDGE_CATEGORY_PREFIX[category as HdKnowledgeCategory];
   if (!prefix) return "";

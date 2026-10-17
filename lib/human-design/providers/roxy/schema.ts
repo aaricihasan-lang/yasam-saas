@@ -8,7 +8,11 @@
 export type RoxySide = "personality" | "design";
 
 export type RoxyActivation = { planet: string; side: RoxySide; gate: number; line: number };
-export type RoxyCenter = { id: string; name: string; defined: boolean; gates: number[] };
+/**
+ * gates: merkezdeki aktif kapılar. `null` YALNIZ "stored" modda (kayıtlı eski/kısmi yanıtta alan yok
+ * ya da null) olur — boş liste SAYILMAZ (boş liste = "aktif kapı yok" kanıtıdır, eksik veri değildir).
+ */
+export type RoxyCenter = { id: string; name: string; defined: boolean; gates: number[] | null };
 export type RoxyChannel = { gateA: number; gateB: number; name: string; centers: [string, string] };
 export type RoxyCross = {
   gates: [number, number, number, number];
@@ -44,7 +48,18 @@ const isInt = (v: unknown, min: number, max: number): v is number =>
 export const ROXY_ACTIVATIONS_PER_SIDE = 13;
 export const ROXY_CENTER_COUNT = 9;
 
-export function validateRoxyBodygraph(raw: unknown): RoxyValidation {
+/**
+ * Doğrulama modu:
+ *   • "ingest" (varsayılan) — YENİ Roxy yanıtı. Zorunlu alanlar eksiksiz olmalı; `centers[].gates`
+ *     dizi değilse (yok / null / başka tip) yanıt REDDEDİLİR (eksik veri sessizce [] kabul edilmez).
+ *   • "stored" — DB'deki KAYITLI yanıtı görüntüleme (yeni çağrı yok). Eski/kısmi kayıtta `gates`
+ *     alanı yok ya da null ise kayıt yine açılır; o merkezin kapıları `null` (= bilinmiyor) taşınır.
+ *     Merkez durumu sınıflandırması bu durumda kapıyı ASLA boş saymaz (bkz. chart/centerStates).
+ */
+export type RoxyValidationMode = "ingest" | "stored";
+
+export function validateRoxyBodygraph(raw: unknown, opts: { mode?: RoxyValidationMode } = {}): RoxyValidation {
+  const mode: RoxyValidationMode = opts.mode ?? "ingest";
   const errors: string[] = [];
   if (!isObj(raw)) return { ok: false, errors: ["yanıt bir JSON nesnesi değil"] };
 
@@ -104,12 +119,20 @@ export function validateRoxyBodygraph(raw: unknown): RoxyValidation {
         errors.push(`centers[${i}]: id/name/defined eksik veya hatalı`);
         return;
       }
-      const gates = Array.isArray(c.gates) ? c.gates : [];
-      if (!gates.every((n) => isInt(n, 1, 64))) {
+      if (!Array.isArray(c.gates)) {
+        // Eksik / null / dizi olmayan kapı listesi boş liste DEĞİLDİR.
+        if (mode === "ingest" || (c.gates !== undefined && c.gates !== null)) {
+          errors.push(`centers[${i}].gates: kapı dizisi bekleniyor`);
+          return;
+        }
+        centers.push({ id: c.id.trim(), name: c.name.trim(), defined: c.defined, gates: null });
+        return;
+      }
+      if (!c.gates.every((n) => isInt(n, 1, 64))) {
         errors.push(`centers[${i}].gates: geçersiz kapı`);
         return;
       }
-      centers.push({ id: c.id.trim(), name: c.name.trim(), defined: c.defined, gates: gates as number[] });
+      centers.push({ id: c.id.trim(), name: c.name.trim(), defined: c.defined, gates: c.gates as number[] });
     });
   }
 

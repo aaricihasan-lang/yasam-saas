@@ -12,6 +12,7 @@ import {
 } from "@/lib/human-design/codeHelpers";
 import { GateTechnicalInfo } from "../../components/GateTechnicalInfo";
 import { GateKnowledgeNotes } from "../../components/GateKnowledgeNotes";
+import { nonDefinedCenterLabels } from "@/lib/human-design/chart/centerStateLabels";
 import {
   buildCodesFromChart,
   loadKnowledgeForCodes,
@@ -89,7 +90,8 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
   }, [row]);
 
   const activeCenterLabels = (row.active_centers ?? []).map((c) => hdCenterLabelFromCode(c));
-  const openCenterLabels = (row.open_centers ?? []).map((c) => hdCenterLabelFromCode(c));
+  // HD-UZMAN-01: tanımlı olmayan merkezlerde kanıtlı durum (Tanımsız / Açık / Doğrulanamadı).
+  const openCenterLabels = nonDefinedCenterLabels(row);
   // Hesabın kişisel görünen adları (yoksa hazır ad); sıralama/eşleşme teknik numaradan.
   const nameOv = useHdNameOverrides();
   // Admin: merkezî içerik sekmesi kaynağıyla adlandırılır (uzmanın etiketi değişmez).
@@ -188,11 +190,11 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
               <BadgeList items={activeCenterLabels} emptyText="Tanımlı merkez yok." />
             </Section>
 
-            {/* Açık Merkezler */}
-            <Section title="Açık Merkezler">
+            {/* Tanımlı olmayan merkezler — Tanımsız / Açık ayrımı kanıtla */}
+            <Section title="Tanımlı Olmayan Merkezler">
               <BadgeList
                 items={openCenterLabels}
-                emptyText="Açık merkez yok."
+                emptyText="Tanımlı olmayan merkez yok."
               />
             </Section>
 

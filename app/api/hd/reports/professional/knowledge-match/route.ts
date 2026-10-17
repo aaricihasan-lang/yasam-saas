@@ -3,6 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { getChartForReportV2 } from "@/lib/human-design/api/chartPersistence";
 import { listKnowledgeForReport } from "@/lib/human-design/api/knowledgePersistence";
 import { buildExpertKnowledgeCodes, toAppChartCodes } from "@/lib/human-design/normalize/hdAppCodes";
+import { centerStateMap, classifyChartRowCenters } from "@/lib/human-design/chart/centerStates";
 import { countReportableExpertEntries } from "@/lib/human-design/reporting/reportSnapshotV2";
 
 export const runtime = "nodejs";
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (error) return NextResponse.json({ ok: false, error: "Analiz okunamadı." }, { status: 500, headers: NO_STORE });
   if (!row) return NextResponse.json({ ok: false, error: "Analiz bulunamadı." }, { status: 404, headers: NO_STORE });
 
-  const kb = await listKnowledgeForReport(guard.db, guard.tenantId, buildExpertKnowledgeCodes(toAppChartCodes(row)));
+  const kb = await listKnowledgeForReport(guard.db, guard.tenantId, buildExpertKnowledgeCodes(toAppChartCodes(row), centerStateMap(classifyChartRowCenters(row))));
   if (kb.error) return NextResponse.json({ ok: false, error: "Bilgi Bankası okunamadı." }, { status: 500, headers: NO_STORE });
   return NextResponse.json({ ok: true, count: countReportableExpertEntries(kb.rows) }, { status: 200, headers: NO_STORE });
 }

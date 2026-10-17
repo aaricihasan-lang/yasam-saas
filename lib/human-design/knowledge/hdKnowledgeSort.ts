@@ -9,7 +9,7 @@
 // Görünen ad, kayıt tarihi veya eski sort_order değeri sırayı ETKİLEMEZ.
 
 import { HD_KNOWLEDGE_CATEGORIES, HD_KNOWLEDGE_CATEGORY_PREFIX, type HdKnowledgeCategory } from "@/lib/human-design/constants";
-import { getStructuredCategoryOptions } from "@/lib/human-design/codeHelpers";
+import { getStructuredCategoryOptions, hdCenterKnowledgeOptions } from "@/lib/human-design/codeHelpers";
 
 export type HdSortableKnowledge = { category?: unknown; code?: unknown; title?: unknown; id?: unknown };
 
@@ -32,7 +32,8 @@ function channelPair(code: string): [number, number] | null {
 const structuredIndexCache = new Map<string, Map<string, number>>();
 function structuredIndex(category: string): Map<string, number> | null {
   if (structuredIndexCache.has(category)) return structuredIndexCache.get(category)!;
-  const opts = getStructuredCategoryOptions(category);
+  // Merkezler: kesin durumlar + eski genel `acik_*` kaydı (her merkezde kesinlerden sonra).
+  const opts = category === "Merkezler" ? hdCenterKnowledgeOptions(true) : getStructuredCategoryOptions(category);
   if (!opts) return null;
   const prefix = HD_KNOWLEDGE_CATEGORY_PREFIX[category as HdKnowledgeCategory];
   const m = new Map<string, number>(opts.map((o, i) => [`${prefix}_${o.code}`, i]));
