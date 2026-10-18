@@ -71,7 +71,8 @@ eq(formatKulvarSummaryDisplay(mk("11/11")), "11/11", "EDGE combined-yok, paren-y
   // Canonical (engine) DEĞİŞMEZ:
   eq(nrDisplay(ana), "19/9", "UAT canonical ANA display 19/9");
   eq(ana.key, "9", "UAT canonical ANA key 9");
-  eq(nrDisplay(yan), "22/19 (11/3)", "UAT canonical YAN display 22/19 (11/3)");
+  // OWNER F3-C (2026-10-18): yapay sadeleştirme içeren "(11/3)" parantezi motor tarafından üretilmez.
+  eq(nrDisplay(yan), "22/19", "UAT canonical YAN display 22/19 (F3-C: yapay (11/3) yok)");
   eq(yan.key, "19", "UAT canonical YAN key 19");
   assert(ana.combinedReading === undefined, "UAT ANA combinedReading yok");
   assert(yan.combinedReading === undefined, "UAT YAN combinedReading yok");

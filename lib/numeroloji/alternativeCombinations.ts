@@ -150,7 +150,8 @@ export function findKulvarSpecialCombinationsDetailed(components: number[]): Alt
       return;
     }
 
-    if ((usedMask & specialMaskRequired) === specialMaskRequired) {
+    // En az bir özel grup şart: hiç grup seçilmemiş "tüm parçalar kalan" yolu özel sayı kombinasyonu DEĞİLDİR.
+    if (chosen.length > 0 && (usedMask & specialMaskRequired) === specialMaskRequired) {
       const remainderParts: number[] = [];
       for (let i = 0; i < n; i++) {
         if (!(usedMask & (1 << i))) remainderParts.push(comps[i]);
@@ -198,11 +199,29 @@ export function findKulvarSpecialCombinationsDetailed(components: number[]): Alt
       canonNonSpecialCount += 1;
     }
   }
-  const canonicalPath = pathString(
+  let canonicalPath = pathString(
     canonicalSpecials,
     canonNonSpecialCount,
     canonNonSpecialCount > 0 ? reduceRemainder(canonNonSpecialSum) : 0
   );
+  // Özel parça yoksa Ana/Yan Kulvar'ın ana sonucu "özel çift" oluşumudur (calcAnaKulvar Durum 4:
+  // en büyük özel çift, ilk bulunan; kalanlar sadeleşir — ör. [5,6,8] → "11/8"). Hariç tutulacak
+  // yol O oluşumdur; aksi hâlde ana sonucun kendisi "alternatif" görünür ve gerçek alternatif
+  // (5+6+8 = 19) gizlenirdi (2026-10-18 düzeltmesi).
+  if (canonicalSpecials.length === 0) {
+    let best: { s: number; i: number; j: number } | null = null;
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const s = reduceNumber(comps[i] + comps[j], true);
+        if (SPECIAL_NUMBERS.has(s) && (!best || s > best.s)) best = { s, i, j };
+      }
+    }
+    if (best) {
+      const { i, j } = best;
+      const base = comps.filter((_, k) => k !== i && k !== j);
+      canonicalPath = pathString([best.s], base.length, base.length > 0 ? reduceRemainder(base.reduce((a, b) => a + b, 0)) : 0);
+    }
+  }
   byPath.delete(canonicalPath);
 
   // ── Deterministik: path'ler comparePaths; variant'lar değer-imzasına göre ──

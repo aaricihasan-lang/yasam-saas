@@ -2,7 +2,7 @@ import { ELEMENT_ORDER, type ElementName } from "@/lib/numeroloji";
 import { numApi, numApiError } from "../../helpers/numApiClient";
 import type { NumerolojiMotorOut } from "../../utils/numerolojiPlainMetin";
 import { analizTuruLabel } from "./bilgiBankaLabels";
-import { buildChakraLookupValues, hayatYoluLookupCandidates, valueCandidatesFromResult } from "./knowledgeLookup";
+import { buildChakraLookupValues, hayatYoluLookupCandidates, kulvarValueCandidatesFromResult, valueCandidatesFromResult } from "./knowledgeLookup";
 import type { StoneAssignmentRow } from "./bilgiBankaKayit";
 
 const STONE_API = "/api/numeroloji/stones";
@@ -56,8 +56,8 @@ export function buildElementStoneLookupValues(out: NumerolojiMotorOut): string[]
 
 export function buildStoneLookupPlan(out: NumerolojiMotorOut): { analysisType: string; values: string[]; firstMatchOnly?: boolean }[] {
   return [
-    { analysisType: STONE_ANALYSIS_TYPES.anaKulvar, values: valueCandidatesFromResult(out.anaKulvar) },
-    { analysisType: STONE_ANALYSIS_TYPES.yanKulvar, values: valueCandidatesFromResult(out.yanKulvar) },
+    { analysisType: STONE_ANALYSIS_TYPES.anaKulvar, values: kulvarValueCandidatesFromResult(out.anaKulvar) },
+    { analysisType: STONE_ANALYSIS_TYPES.yanKulvar, values: kulvarValueCandidatesFromResult(out.yanKulvar) },
     { analysisType: STONE_ANALYSIS_TYPES.ifadeSayisi, values: valueCandidatesFromResult(out.ifadeSayisi) },
     // NUM-F10: Hayat Yolu — birebir kod → eski gösterim → son sayı; İLK eşleşen (bilgi notuyla aynı zincir).
     { analysisType: STONE_ANALYSIS_TYPES.hayatYolu, values: hayatYoluLookupCandidates(out.hayatYolu).values, firstMatchOnly: true },

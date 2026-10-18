@@ -132,6 +132,19 @@ export function valueCandidatesFromResult(r: NumerolojiResult): string[] {
 }
 
 /**
+ * ANA / YAN KULVAR bilgi bankası adayları — OWNER KARARI F1-B + F2-B (2026-10-18).
+ * Yalnız resmî sonuçta GÖRÜNEN gerçek sayılar aranır: tam çekirdek + "/" (veya "-") ile ayrılan
+ * her sayı. Parantez içi ara kontrol / birleşik okuma ("(33)", "(11/3)") aranmaz (F2-B); gösterimde
+ * görünmeyen kanonik anahtar (ör. 11/19/19 → 3) fazladan yorum getirmez (F1-B). Kanonik anahtar
+ * hesapta DEĞİŞMEZ; görünüyorsa zaten çekirdekte adaydır. İfade Sayısı bu kuraldan etkilenmez.
+ *   "11/19/19" → [11/19/19, 11, 19] · "22/19 (11/3)" → [22/19, 22, 19] · "11" → [11]
+ */
+export function kulvarValueCandidatesFromResult(r: NumerolojiResult): string[] {
+  const visible = (r.display || "").replace(/\s*\([^)]*\)/g, "").trim();
+  return valueCandidatesFromDisplay(visible);
+}
+
+/**
  * NKB-V2-K1: Hayat Yolu için EXACT-only lookup adayı — yalnız hesaplanan tam değer.
  * Bileşik sonuç (ör. "32/5") ASLA parçalanmaz ("32"/"5" adayı üretilmez) ve exact
  * kayıt yoksa indirgenmiş sayıya fallback yapılmaz. Tek aday döner.
@@ -256,11 +269,11 @@ export function buildKnowledgeLookupPlan(out: NumerolojiMotorOut): ({
   return [
     {
       analysisType: NUMERO_ANALYSIS_TYPES.anaKulvar,
-      values: valueCandidatesFromResult(out.anaKulvar),
+      values: kulvarValueCandidatesFromResult(out.anaKulvar),
     },
     {
       analysisType: NUMERO_ANALYSIS_TYPES.yanKulvar,
-      values: valueCandidatesFromResult(out.yanKulvar),
+      values: kulvarValueCandidatesFromResult(out.yanKulvar),
     },
     {
       analysisType: NUMERO_ANALYSIS_TYPES.ifadeSayisi,
