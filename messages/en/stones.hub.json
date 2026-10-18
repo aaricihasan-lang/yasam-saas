@@ -1,6 +1,10 @@
 {
   "stones": {
     "hub": {
+      "premium": {
+        "sideQuote": "Nature's|Healing Energy|Meets Knowledge",
+        "analyticsNote": "More knowledge,|more mindful choices..."
+      },
       "sidebar": {
         "brand": "YAŞAM SİSTEMİ",
         "moduleName": "Natural Stone",

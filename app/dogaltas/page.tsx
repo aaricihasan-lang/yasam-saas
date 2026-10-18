@@ -7,8 +7,11 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type FormEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
+import { ChevronRight, FileText, Flower2, Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { runInEffect } from "@/lib/runInEffect";
@@ -25,12 +28,12 @@ import { dogaltasApiGet } from "@/lib/dogaltas/dogaltasApi";
 import { fetchStonesByConditions } from "@/lib/dogaltas/conditionSearchApi";
 import { normalizeTrSearch } from "@/lib/dogaltas/searchHighlight";
 import { DOGALTAS_PRIMARY_MODULES } from "@/lib/dogaltas/dogaltasModules";
-import { DOGALTAS_ACCENT } from "@/lib/dogaltas/dogaltasAccent";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { reportErrorKind } from "@/lib/dogaltas/reportErrorKind";
 import { browserSessionStorage, markChecked, readCheckedIds, searchContextKey } from "@/lib/search/searchChecked";
 import { SearchCheckedBadge, SEARCH_CHECKED_CARD_ACCENT } from "@/components/search/SearchCheckedBadge";
+import styles from "./dogaltasHub.module.css";
 
 /** WT8: eski bağlamsız, hiç silinmeyen localStorage "Bakıldı" listesi — yalnız temizlik için. */
 const LEGACY_VIEWED_STORAGE_KEY = "yasam-dogaltas-viewed-search-results";
@@ -244,6 +247,48 @@ function formatCount(
   if (loading) return loadingLabel;
   if (value === null) return "—";
   return value.toLocaleString("tr-TR");
+}
+
+// ─── 2026-10-18 premium görünüm (owner onaylı prototip ee64597) — yalnız görsel yardımcılar ───────────
+const PREMIUM_ASSET = "/premium/dogaltas";
+
+/** Sol menü 3D ikon karoları (slug → görsel). Eşleşmeyen modül mevcut emoji ikonuyla çizilir. */
+const MENU_ART: Record<string, string> = {
+  "dogaltas-listesi": "ic-dogaltas",
+  "mineral-listesi": "ic-mineral",
+  kombinasyonlar: "ic-kombinasyon",
+  "tas-bilgi-kutuphanesi": "ic-kutuphane",
+};
+
+const TILT_MAX = 2;
+const TILT_PROPS = ["--rx", "--ry", "--px", "--py"];
+
+/** Hover'da en fazla ~2° eğim + küçük parallax (dokunmatik / "hareketi azalt" açıkken yok). */
+function onTiltMove(e: ReactPointerEvent<HTMLElement>) {
+  if (e.pointerType === "touch" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const el = e.currentTarget;
+  const r = el.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  const strength = Number(el.dataset.tiltStrength || 1);
+  const px = Math.min(Math.max((e.clientX - r.left) / r.width - 0.5, -0.5), 0.5);
+  const py = Math.min(Math.max((e.clientY - r.top) / r.height - 0.5, -0.5), 0.5);
+  el.dataset.tilting = "true";
+  el.style.setProperty("--rx", `${(-py * 2 * TILT_MAX * strength).toFixed(2)}deg`);
+  el.style.setProperty("--ry", `${(px * 2 * TILT_MAX * strength).toFixed(2)}deg`);
+  el.style.setProperty("--px", px.toFixed(3));
+  el.style.setProperty("--py", py.toFixed(3));
+}
+
+function onTiltLeave(e: ReactPointerEvent<HTMLElement>) {
+  const el = e.currentTarget;
+  delete el.dataset.tilting;
+  for (const prop of TILT_PROPS) el.style.removeProperty(prop);
+}
+
+/** Grafik ekseni: gerçek en yüksek aylık sayıya göre 4 eşit aralık (tam sayı). */
+function trendAxisMax(buckets: MonthTrendBucket[]): number {
+  const max = Math.max(0, ...buckets.map((b) => b.count));
+  return max <= 4 ? 4 : Math.ceil(max / 4) * 4;
 }
 
 
@@ -549,307 +594,333 @@ function DogaltasPageContent() {
     }
   }
 
+  const axisMax = trendAxisMax(monthlyTrend);
+  const axisTicks = [axisMax, (axisMax * 3) / 4, axisMax / 2, axisMax / 4, 0];
+  const reportLabel = t("hero.reportButton").replace(/^\p{Extended_Pictographic}\uFE0F?\s*/u, "");
+  const stats = [
+    { key: "stones", tone: "mint", art: "tas", label: t("analytics.totalStones"), value: stonesCount },
+    { key: "minerals", tone: "lilac", art: "mineral", label: t("analytics.mineralBank"), value: mineralsCount },
+    { key: "combinations", tone: "amber", art: "kombinasyon", label: t("analytics.activeCombinations"), value: combinationsCount },
+  ] as const;
+
   return (
-    <main className="w-full overflow-x-hidden bg-[radial-gradient(circle_at_15%_10%,rgba(251,191,36,0.16),transparent_28%),radial-gradient(circle_at_85%_20%,rgba(16,185,129,0.14),transparent_30%),radial-gradient(circle_at_60%_90%,rgba(132,204,22,0.12),transparent_35%),linear-gradient(135deg,#fffaf0_0%,#fef9e7_45%,#f2fff7_100%)] text-slate-950 lg:h-screen lg:overflow-hidden">
-      <div className="flex flex-col lg:grid lg:h-full lg:grid-cols-[300px_1fr] lg:overflow-x-hidden">
-        <aside className="flex flex-col border-b border-white/80 bg-white/88 px-4 py-4 shadow-[0_4px_18px_rgba(15,23,42,0.06)] backdrop-blur-xl lg:h-screen lg:w-[300px] lg:min-w-[300px] lg:max-w-[300px] lg:shrink-0 lg:overflow-hidden lg:border-b-0 lg:border-r lg:shadow-[14px_0_35px_rgba(15,23,42,0.04)]">
-          <div className="mb-3 flex h-11 items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-lg shadow-md ring-1 ring-slate-100">
-              💎
-            </div>
+    <main className={styles.page}>
+      <div className={styles.shell}>
+        <nav className={styles.side} aria-label={t("sidebar.moduleName")}>
+          <div className={styles.sideBrand}>
+            <span className={styles.sideBrandIcon} aria-hidden>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`${PREMIUM_ASSET}/ic-baslik.webp`} width={60} height={62} alt="" decoding="async" draggable={false} />
+            </span>
             <div>
-              <h2 className="text-[11px] font-black tracking-[0.22em] text-slate-950">
-                {t("sidebar.brand")}
-              </h2>
-              <p className="mt-0.5 text-[11px] font-bold text-emerald-700">{t("sidebar.moduleName")}</p>
+              <h2 className={styles.sideEyebrow}>{t("sidebar.brand")}</h2>
+              <p className={styles.sideModule}>{t("sidebar.moduleName")}</p>
             </div>
           </div>
 
-          <div className="mb-2 shrink-0 text-[11px] font-black tracking-[0.24em] text-slate-400">
-            {t("sidebar.modulesHeading")}
-          </div>
+          <p className={styles.sideLabel}>{t("sidebar.modulesHeading")}</p>
 
-          <nav className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
+          <ul className={styles.menu} style={{ listStyle: "none", margin: 0, padding: 0 }}>
             {DOGALTAS_PRIMARY_MODULES.map((item, index) => {
               const isFeatured = index === 0;
-              const accent = DOGALTAS_ACCENT[item.accent];
-
+              const art = MENU_ART[item.slug];
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`group flex w-full cursor-pointer items-center gap-2 rounded-[18px] border px-3 py-2.5 shadow-[0_6px_18px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-emerald-300 hover:bg-white hover:shadow-[0_12px_32px_rgba(16,185,129,0.16)] sm:gap-3 lg:h-[64px] lg:shrink-0 lg:px-4 ${
-                    isFeatured
-                      ? "border-emerald-300 bg-gradient-to-r from-emerald-50 via-white to-amber-50 shadow-[0_10px_28px_rgba(16,185,129,0.16)]"
-                      : "border-white/80 bg-white/70"
-                  }`}
-                >
-                  <span
-                    className={`flex h-8 w-8 min-w-[32px] shrink-0 items-center justify-center rounded-[12px] shadow-sm ring-1 lg:h-9 lg:w-9 lg:min-w-[36px] ${accent.iconBox}`}
-                  >
-                    <span className="flex h-5 w-5 items-center justify-center text-base leading-none">
-                      {item.icon}
+                <li key={item.href}>
+                  <Link href={item.href} className={`${styles.menuItem} ${isFeatured ? styles.menuActive : ""}`}>
+                    <span className={styles.menuIcon} aria-hidden>
+                      {art ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={`${PREMIUM_ASSET}/${art}.webp`} width={54} height={56} alt="" decoding="async" draggable={false} />
+                      ) : (
+                        <span className={styles.menuEmoji}>{item.icon}</span>
+                      )}
                     </span>
-                  </span>
-
-                  <span className="min-w-0 flex-1">
-                    <span className="block break-words text-[12px] font-black leading-tight text-slate-950 lg:truncate lg:text-[13px]">
-                      {tm.has(`${item.slug}.title`) ? tm(`${item.slug}.title`) : item.title}
+                    <span className={styles.menuText}>
+                      <strong>{tm.has(`${item.slug}.title`) ? tm(`${item.slug}.title`) : item.title}</strong>
+                      <small>{tm.has(`${item.slug}.subtitle`) ? tm(`${item.slug}.subtitle`) : item.subtitle}</small>
                     </span>
-                    <span className="mt-0.5 hidden truncate text-[11px] font-semibold leading-snug text-slate-500 sm:block">
-                      {tm.has(`${item.slug}.subtitle`) ? tm(`${item.slug}.subtitle`) : item.subtitle}
+                    <span className={styles.menuChevron} aria-hidden>
+                      <ChevronRight className="h-4 w-4" strokeWidth={2} />
                     </span>
-                  </span>
-
-                  <span className="ml-auto hidden shrink-0 text-base font-black opacity-60 transition-transform duration-300 group-hover:translate-x-1 sm:block">
-                    ›
-                  </span>
-                </Link>
+                  </Link>
+                </li>
               );
             })}
-          </nav>
-        </aside>
+          </ul>
 
-        <section className="relative min-w-0 px-4 py-4 sm:px-5 lg:h-screen lg:overflow-hidden">
-          <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-amber-200/30 blur-3xl" />
-            <div className="absolute left-[8%] -top-16 h-56 w-56 rounded-full bg-emerald-200/25 blur-3xl" />
-            <div className="absolute bottom-0 left-[28%] h-48 w-48 rounded-full bg-lime-200/20 blur-3xl" />
+          <div className={styles.sideDecor} aria-hidden>
+            <span className={styles.sideCrystal}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`${PREMIUM_ASSET}/yan-kristal.webp`} width={196} height={295} alt="" decoding="async" draggable={false} />
+            </span>
+            <p className={styles.sideQuote}>
+              {t("premium.sideQuote")
+                .split("|")
+                .map((line) => (
+                  <span key={line}>{line}</span>
+                ))}
+              <span className={styles.sideQuoteLine} />
+            </p>
           </div>
+        </nav>
 
-          <div className="relative mx-auto flex w-full max-w-5xl flex-col gap-2.5 lg:h-full lg:overflow-y-auto">
-            <header className="flex shrink-0 flex-wrap items-center gap-3 rounded-2xl border border-white/80 bg-white/65 px-5 py-3 shadow-[0_8px_28px_rgba(15,23,42,0.07)] backdrop-blur-xl">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center text-xl leading-none">
-                💎
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-2xl font-black tracking-tight text-slate-950">
-                  <span className="bg-[linear-gradient(90deg,#d97706_0%,#10b981_55%,#84cc16_100%)] bg-clip-text text-transparent">
-                    {t("hero.titleAccent")}
-                  </span>{" "}
-                  {t("hero.titleSuffix")}
-                </h1>
-                <p className="mt-0.5 text-sm text-slate-500">
-                  {t("hero.subtitle")}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => { setShowReportModal(true); setReportError(""); setReportSuccess(""); }}
-                className="btn-soft w-full shrink-0 !px-4 !py-2 sm:ml-auto sm:w-auto"
-              >
-                {t("hero.reportButton")}
-              </button>
-            </header>
-
-            <form
-              className="w-full shrink-0 rounded-2xl border border-white/80 bg-white/75 p-2 shadow-[0_6px_20px_rgba(15,23,42,0.07)] backdrop-blur-xl"
-              onSubmit={handleSearchSubmit}
+        <section className={styles.main}>
+          <header className={`${styles.hero} ${styles.tilt}`} data-tilt-strength="0.5" onPointerMove={onTiltMove} onPointerLeave={onTiltLeave}>
+            <span className={styles.heroIcon} aria-hidden>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`${PREMIUM_ASSET}/ic-hero.webp`} width={88} height={90} alt="" decoding="async" draggable={false} />
+            </span>
+            <div className={styles.heroText}>
+              <h1 className={styles.heroTitle}>
+                <span className={styles.heroAccent}>{t("hero.titleAccent")}</span> {t("hero.titleSuffix")}
+              </h1>
+              <p className={styles.heroSub}>{t("hero.subtitle")}</p>
+            </div>
+            <div className={styles.heroArt} aria-hidden>
+              <span className={`${styles.heroCrystals} ${styles.depth}`} style={{ "--d": 5 } as CSSProperties}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`${PREMIUM_ASSET}/hero-kristaller.webp`} width={284} height={206} alt="" decoding="async" draggable={false} />
+              </span>
+              <span className={styles.crystalGlow} />
+            </div>
+            <button
+              type="button"
+              onClick={() => { setShowReportModal(true); setReportError(""); setReportSuccess(""); }}
+              className={styles.reportBtn}
             >
-              <div className="flex gap-2">
-                <div className="relative min-w-0 flex-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
-                    ⌕
+              <span className={styles.reportIcon} aria-hidden>
+                <FileText className="h-[18px] w-[18px]" strokeWidth={1.8} />
+              </span>
+              <span>{reportLabel}</span>
+              <ChevronRight className="h-4 w-4" strokeWidth={2} aria-hidden />
+            </button>
+          </header>
+
+          <form className={styles.search} role="search" onSubmit={handleSearchSubmit}>
+            <div className={styles.searchField}>
+              <span className={styles.searchIcon} aria-hidden>
+                <Search className="h-5 w-5" strokeWidth={2} />
+              </span>
+              <input
+                type="search"
+                aria-label={t("search.aria")}
+                value={searchInput}
+                onChange={(event) => handleSearchInputChange(event.target.value)}
+                placeholder={
+                  isNarrowViewport
+                    ? t("search.placeholderNarrow")
+                    : t("search.placeholderWide")
+                }
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+            <button type="submit" disabled={searchLoading} className={styles.searchBtn}>
+              <Search className="h-[18px] w-[18px]" strokeWidth={2.2} aria-hidden />
+              <span>{searchLoading ? t("search.submitting") : t("search.submit")}</span>
+            </button>
+          </form>
+
+          {activeQuery.trim() ? (
+            <section className={styles.results}>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-base font-black text-slate-900">
+                  {t("results.title")}
+                  {!searchLoading && hasSearched
+                    ? t("results.count", { count: searchResults.length })
+                    : ""}
+                </h2>
+                {activeQuery ? (
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
+                    "{activeQuery}"
                   </span>
-                  <input
-                    type="search"
-                    aria-label={t("search.aria")}
-                    value={searchInput}
-                    onChange={(event) => handleSearchInputChange(event.target.value)}
-                    placeholder={
-                      isNarrowViewport
-                        ? t("search.placeholderNarrow")
-                        : t("search.placeholderWide")
-                    }
-                    className="h-10 w-full rounded-xl border border-slate-200/70 bg-white/90 pl-9 pr-4 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-emerald-300 focus:ring-4 focus:ring-emerald-100"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={searchLoading}
-                  className="btn-primary h-10 shrink-0 !px-5"
-                >
-                  {searchLoading ? t("search.submitting") : t("search.submit")}
-                </button>
-              </div>
-            </form>
-
-            {activeQuery.trim() ? (
-              <section className="shrink-0 rounded-[26px] border border-emerald-200/80 bg-white/85 p-4 shadow-[0_14px_42px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-base font-black text-slate-900">
-                    {t("results.title")}
-                    {!searchLoading && hasSearched
-                      ? t("results.count", { count: searchResults.length })
-                      : ""}
-                  </h2>
-                  {activeQuery ? (
-                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
-                      "{activeQuery}"
-                    </span>
-                  ) : null}
-                </div>
-
-                {searchCapped && !searchError && !searchLoading ? (
-                  <p role="status" data-testid="dash-search-capped" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
-                    {t("results.cappedNote")}
-                  </p>
                 ) : null}
-                {searchError ? (
-                  <p
-                    className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900"
-                    role="alert"
-                  >
-                    {searchError}
-                  </p>
-                ) : null}
-
-                {searchLoading ? (
-                  <p className="py-6 text-center text-sm font-semibold text-slate-600">
-                    {t("results.loading")}
-                  </p>
-                ) : searchResults.length === 0 && !searchError ? (
-                  <p className="py-6 text-center text-sm font-semibold text-slate-600">
-                    {t("results.empty")}
-                  </p>
-                ) : (
-                  <div className="max-h-[min(42vh,360px)] space-y-3 overflow-y-auto pr-1">
-                    {searchResults.map((result) => {
-                      const isViewed = viewedStoneIds.has(result.id);
-                      const detailHref = `/dogaltas/dogaltas-listesi/${encodeURIComponent(result.id)}?q=${encodeURIComponent(activeQuery)}`;
-
-                      return (
-                        <article
-                          key={result.id}
-                          className={`relative overflow-hidden rounded-[22px] border bg-white/95 p-4 shadow-sm transition hover:shadow-md ${
-                            isViewed
-                              ? `border-emerald-200/90 ${SEARCH_CHECKED_CARD_ACCENT}`
-                              : "border-slate-200/80"
-                          }`}
-                        >
-                          {isViewed ? (
-                            <span
-                              className="absolute bottom-0 left-0 top-0 w-1.5 bg-emerald-500"
-                              aria-hidden
-                            />
-                          ) : null}
-
-                          <div className={isViewed ? "pl-2" : ""}>
-                            <div className="flex flex-wrap items-start justify-between gap-2">
-                              <h3 className="text-lg font-black text-slate-950">
-                                {result.stone_name}
-                              </h3>
-                              {isViewed ? <SearchCheckedBadge label={t("results.viewed")} /> : null}
-                            </div>
-
-                            <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-600">
-                              {result.short_description}
-                            </p>
-
-                            <p className="mt-2 text-xs font-bold text-violet-700">
-                              {t("results.matched", { field: result.matchedField })}
-                            </p>
-                            <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-700">
-                              {result.snippet}
-                            </p>
-
-                            <Link
-                              href={detailHref}
-                              onClick={() => handleResultNavigate(result.id)}
-                              className="mt-3 inline-flex rounded-xl border border-emerald-300/80 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-950 transition hover:bg-emerald-100"
-                            >
-                              {t("results.detail")}
-                            </Link>
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-            ) : null}
-
-            <div className="flex min-h-0 shrink-0 flex-col overflow-hidden rounded-[22px] border border-white/80 bg-white/70 p-4 shadow-[0_12px_36px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-              <div className="mb-3 flex shrink-0 items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 text-sm">
-                  📊
-                </div>
-                <div>
-                  <h2 className="text-base font-black text-slate-950">{t("analytics.title")}</h2>
-                  <p className="text-[11px] text-slate-500">{t("analytics.subtitle")}</p>
-                </div>
               </div>
 
-              {errorMessage ? (
+              {searchCapped && !searchError && !searchLoading ? (
+                <p role="status" data-testid="dash-search-capped" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+                  {t("results.cappedNote")}
+                </p>
+              ) : null}
+              {searchError ? (
                 <p
-                  className="mb-3 shrink-0 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900"
+                  className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900"
                   role="alert"
                 >
-                  {errorMessage}
+                  {searchError}
                 </p>
               ) : null}
 
-              {/* F-013: Ölü widget'lar ("Stok Değeri", "En Çok Satılan Taşlar") kaldırıldı;
-                  gerçek veriyle beslenen "Aylık Kayıt Trendi" tam genişliğe alındı. */}
-              <div className="grid shrink-0 grid-cols-1 gap-2.5">
-                <div className="flex min-h-[155px] flex-col rounded-[18px] border border-white/80 bg-gradient-to-br from-white via-slate-50 to-violet-50 p-4 shadow-md">
-                  <p className="text-sm font-black text-slate-800">{t("analytics.trendTitle")}</p>
-                  <p className="text-[11px] text-slate-500">{t("analytics.trendSubtitle")}</p>
-                  {loading ? (
-                    <p className="mt-auto text-sm font-semibold text-slate-600">{t("analytics.loading")}</p>
-                  ) : trendError ? (
-                    <p role="alert" data-testid="dash-trend-error" className="mt-auto text-sm font-semibold text-rose-700">{t("analytics.trendError")}</p>
-                  ) : (
-                    <>
-                      <div className="mt-1.5 flex h-[62px] items-end gap-1">
-                        {monthlyTrend.map((bucket) => (
-                          <div
-                            key={bucket.label}
-                            className="flex h-full flex-1 flex-col justify-end"
-                            title={t("analytics.barTitle", { label: bucket.label, count: bucket.count })}
-                          >
-                            <div
-                              className="w-full rounded-t-lg bg-gradient-to-t from-indigo-500 via-violet-400 to-sky-300"
-                              style={{
-                                height: bucket.heightPct > 0 ? `${bucket.heightPct}%` : "4px",
-                                minHeight: "4px",
-                              }}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mt-1 grid grid-cols-6 text-center text-[10px] font-medium text-slate-500">
-                        {monthlyTrend.map((bucket) => (
-                          <span key={`${bucket.label}-lbl`}>{bucket.label}</span>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
+              {searchLoading ? (
+                <p className="py-6 text-center text-sm font-semibold text-slate-600">
+                  {t("results.loading")}
+                </p>
+              ) : searchResults.length === 0 && !searchError ? (
+                <p className="py-6 text-center text-sm font-semibold text-slate-600">
+                  {t("results.empty")}
+                </p>
+              ) : (
+                <div className="max-h-[min(42vh,360px)] space-y-3 overflow-y-auto pr-1">
+                  {searchResults.map((result) => {
+                    const isViewed = viewedStoneIds.has(result.id);
+                    const detailHref = `/dogaltas/dogaltas-listesi/${encodeURIComponent(result.id)}?q=${encodeURIComponent(activeQuery)}`;
 
-              <div className="mt-2.5 grid shrink-0 grid-cols-3 gap-2.5">
-                <div className="flex min-h-[72px] flex-col justify-center rounded-[16px] border border-teal-200/80 bg-gradient-to-br from-teal-50 via-white to-emerald-50 p-3.5 shadow-md">
-                  <p className="text-xs font-black text-teal-700">{t("analytics.totalStones")}</p>
-                  <p className="mt-0.5 text-xl font-black text-slate-950">
-                    {formatCount(stonesCount, loading, t("analytics.loading"))}
-                  </p>
+                    return (
+                      <article
+                        key={result.id}
+                        className={`relative overflow-hidden rounded-[22px] border bg-white/95 p-4 shadow-sm transition hover:shadow-md ${
+                          isViewed
+                            ? `border-emerald-200/90 ${SEARCH_CHECKED_CARD_ACCENT}`
+                            : "border-slate-200/80"
+                        }`}
+                      >
+                        {isViewed ? (
+                          <span
+                            className="absolute bottom-0 left-0 top-0 w-1.5 bg-emerald-500"
+                            aria-hidden
+                          />
+                        ) : null}
+
+                        <div className={isViewed ? "pl-2" : ""}>
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <h3 className="text-lg font-black text-slate-950">
+                              {result.stone_name}
+                            </h3>
+                            {isViewed ? <SearchCheckedBadge label={t("results.viewed")} /> : null}
+                          </div>
+
+                          <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-600">
+                            {result.short_description}
+                          </p>
+
+                          <p className="mt-2 text-xs font-bold text-violet-700">
+                            {t("results.matched", { field: result.matchedField })}
+                          </p>
+                          <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-700">
+                            {result.snippet}
+                          </p>
+
+                          <Link
+                            href={detailHref}
+                            onClick={() => handleResultNavigate(result.id)}
+                            className="mt-3 inline-flex rounded-xl border border-emerald-300/80 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-950 transition hover:bg-emerald-100"
+                          >
+                            {t("results.detail")}
+                          </Link>
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
-                <div className="flex min-h-[72px] flex-col justify-center rounded-[16px] border border-violet-200/80 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-3.5 shadow-md">
-                  <p className="text-xs font-black text-violet-700">{t("analytics.mineralBank")}</p>
-                  <p className="mt-0.5 text-xl font-black text-slate-950">
-                    {formatCount(mineralsCount, loading, t("analytics.loading"))}
-                  </p>
-                </div>
-                <div className="flex min-h-[72px] flex-col justify-center rounded-[16px] border border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-3.5 shadow-md">
-                  <p className="text-xs font-black text-amber-700">{t("analytics.activeCombinations")}</p>
-                  <p className="mt-0.5 text-xl font-black text-slate-950">
-                    {formatCount(combinationsCount, loading, t("analytics.loading"))}
-                  </p>
+              )}
+            </section>
+          ) : null}
+
+          <section className={styles.analytics} aria-labelledby="dogaltas-analytics-title">
+            <div className={styles.anHead}>
+              <span className={styles.miniIcon} aria-hidden>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`${PREMIUM_ASSET}/ic-analiz.webp`} width={54} height={56} alt="" decoding="async" draggable={false} />
+              </span>
+              <div className={styles.anTitleWrap}>
+                <h2 id="dogaltas-analytics-title" className={styles.anTitle}>{t("analytics.title")}</h2>
+                <p className={styles.anSub}>{t("analytics.subtitle")}</p>
+              </div>
+              <p className={styles.anNote} aria-hidden>
+                <span className={styles.anNoteIcon}>
+                  <Flower2 className="h-8 w-8" strokeWidth={1} />
+                </span>
+                <em>
+                  {t("premium.analyticsNote")
+                    .split("|")
+                    .map((line) => (
+                      <span key={line}>{line}</span>
+                    ))}
+                </em>
+              </p>
+            </div>
+
+            {errorMessage ? (
+              <p className={styles.alert} role="alert">
+                {errorMessage}
+              </p>
+            ) : null}
+
+            {/* F-013: Ölü widget'lar ("Stok Değeri", "En Çok Satılan Taşlar") kaldırıldı;
+                gerçek veriyle beslenen "Aylık Kayıt Trendi" tam genişlikte. */}
+            <div className={styles.chartCard}>
+              <div className={styles.chartHead}>
+                <span className={styles.miniIcon} aria-hidden>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`${PREMIUM_ASSET}/ic-trend.webp`} width={52} height={52} alt="" decoding="async" draggable={false} />
+                </span>
+                <div>
+                  <h3 className={styles.chartTitle}>{t("analytics.trendTitle")}</h3>
+                  <p className={styles.chartSub}>{t("analytics.trendSubtitle")}</p>
                 </div>
               </div>
+              {loading ? (
+                <p className={styles.chartState}>{t("analytics.loading")}</p>
+              ) : trendError ? (
+                <p role="alert" data-testid="dash-trend-error" className={`${styles.chartState} ${styles.chartStateError}`}>{t("analytics.trendError")}</p>
+              ) : (
+                <figure className={styles.chart}>
+                  <div className={styles.chartAxis} aria-hidden>
+                    {axisTicks.map((tick, i) => (
+                      <span key={i}>{Number.isInteger(tick) ? tick : ""}</span>
+                    ))}
+                  </div>
+                  <div className={styles.bars}>
+                    {monthlyTrend.map((bucket) => {
+                      const ratio = bucket.count / axisMax;
+                      return (
+                        <div
+                          key={bucket.label}
+                          className={styles.barCol}
+                          title={t("analytics.barTitle", { label: bucket.label, count: bucket.count })}
+                        >
+                          <span
+                            className={`${styles.bar} ${bucket.count === 0 ? styles.barEmpty : ratio > 0.3 ? styles.barHigh : ""}`}
+                            style={{ height: bucket.count === 0 ? "4px" : `${Math.max(ratio * 100, 2.5).toFixed(1)}%` }}
+                          />
+                          <span className={styles.barDot} aria-hidden />
+                          <span className={styles.barLabel}>{bucket.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </figure>
+              )}
             </div>
-          </div>
+
+            <div className={styles.stats}>
+              {stats.map((stat) => (
+                <div
+                  key={stat.key}
+                  className={`${styles.stat} ${styles.tilt}`}
+                  data-tone={stat.tone}
+                  onPointerMove={onTiltMove}
+                  onPointerLeave={onTiltLeave}
+                >
+                  <span className={styles.statDecor} aria-hidden>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`${PREMIUM_ASSET}/dek-${stat.art}.webp`} width={186} height={60} alt="" decoding="async" draggable={false} />
+                  </span>
+                  <span className={`${styles.statCrystal} ${styles.depth}`} style={{ "--d": 4 } as CSSProperties} aria-hidden>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`${PREMIUM_ASSET}/st-${stat.art}.webp`} width={86} height={92} alt="" decoding="async" draggable={false} />
+                  </span>
+                  <span className={styles.statText}>
+                    <span className={styles.statLabel}>{stat.label}</span>
+                    <span className={`${styles.statValue} ${loading ? styles.statValueText : ""}`}>
+                      {formatCount(stat.value, loading, t("analytics.loading"))}
+                    </span>
+                  </span>
+                  <span className={styles.sheen} aria-hidden />
+                </div>
+              ))}
+            </div>
+          </section>
         </section>
       </div>
 
