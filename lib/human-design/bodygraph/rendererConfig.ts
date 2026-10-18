@@ -28,3 +28,22 @@ export const HD_CONNECTION_BODYGRAPH: HdConnectionBodygraphRenderer = "premium";
  * Renkler connectionBodygraphScene CBG_PALETTE_COLOR.individual'da; Connection mavi / turuncu kalır.
  */
 export const HD_PREMIUM_INDIVIDUAL_TONE = { personality: "A", design: "B" } as const;
+
+/**
+ * Bireysel haritada YARIM kanal çizimi (owner kararı 2026-10-18, Roxy resmî bireysel çizim mantığı):
+ *   "solid"  → aktif kapıdan kanal ortasına DÜZ renkli yarı (Roxy <roxy-bodygraph> ile aynı) — AKTİF
+ *   "dashed" → PASİF geri dönüş: 7/5 kesikli yarı (PR #431 eşdeğeri; owner'ın 18.10 onayıyla canlıya çıkan görünüm)
+ * İki taraflı kapının siyah-kırmızı şeridi iki seçenekte de korunur. Connection bu anahtardan ETKİLENMEZ.
+ */
+export type HdPremiumHalfChannelStyle = "solid" | "dashed";
+export const HD_PREMIUM_INDIVIDUAL_HALF_CHANNEL: HdPremiumHalfChannelStyle = "solid";
+
+/**
+ * Bireysel haritada yazı ölçeği (owner kararı 2026-10-18, okunabilirlik):
+ *   "large"   → büyük kapı numaraları + merkez adları (gerçek font ölçümüyle sığan boyutlar) ve masaüstünde daha
+ *               yüksek sahne — AKTİF
+ *   "compact" → PASİF geri dönüş: önceki boyutlar (kapı 6.4 · merkez 7.4 / 6.2) ve önceki sahne yüksekliği
+ * Geometri (merkez şekilleri, kapı koordinatları, kanal güzergâhları) iki seçenekte de AYNIDIR. Connection etkilenmez.
+ */
+export type HdPremiumTypeScale = "compact" | "large";
+export const HD_PREMIUM_INDIVIDUAL_TYPE_SCALE: HdPremiumTypeScale = "large";

@@ -2,7 +2,7 @@
 //
 // Kaynak YALNIZ kayıtlı `computed_result` (activations + kanallar + tanımlı merkezler). Klasik kural:
 // aktif kapı kanalın kendi yarısını boyar (Kişilik SİYAH / Tasarım KIRMIZI — palet "individual"; ton eşlemesi
-// rendererConfig.HD_PREMIUM_INDIVIDUAL_TONE);
+// rendererConfig.HD_PREMIUM_INDIVIDUAL_TONE; yarım kanal çizimi ve yazı ölçeği de rendererConfig'ten);
 // iki kapısı aktif kanal TANIMLI, tek kapısı aktif kanal YARIM.
 // Doğrulama: kapılardan türetilen tanımlı kanallar ve merkezler kayıtlı listelerle BİREBİR örtüşmezse null döner
 // → görünüm pasif (eski) çiziciye düşer; uydurma çizim yok.
@@ -11,7 +11,7 @@ import { CHANNELS, getDefinedCenters, type CenterName } from "../engine/channels
 import type { HdComputedChart } from "../chart/computedChart";
 import type { Holder } from "../relations/compositeModel";
 import type { CbgChannel, CbgState } from "../relations/connectionBodygraphScene";
-import { HD_PREMIUM_INDIVIDUAL_TONE } from "./rendererConfig";
+import { HD_PREMIUM_INDIVIDUAL_HALF_CHANNEL, HD_PREMIUM_INDIVIDUAL_TONE, HD_PREMIUM_INDIVIDUAL_TYPE_SCALE } from "./rendererConfig";
 
 export function premiumStateFromChart(c: HdComputedChart): CbgState | null {
   if (!Array.isArray(c.activations) || c.activations.length === 0) return null;
@@ -47,5 +47,13 @@ export function premiumStateFromChart(c: HdComputedChart): CbgState | null {
   const storedCenters = [...(c.centers?.defined ?? [])].sort();
   if (derivedCenters.join() !== storedCenters.join()) return null;
 
-  return { gates, channels, definedCenters: new Set<string>(storedCenters as CenterName[]), full: true, palette: "individual" };
+  return {
+    gates,
+    channels,
+    definedCenters: new Set<string>(storedCenters as CenterName[]),
+    full: true,
+    palette: "individual",
+    halfStyle: HD_PREMIUM_INDIVIDUAL_HALF_CHANNEL,
+    typeScale: HD_PREMIUM_INDIVIDUAL_TYPE_SCALE,
+  };
 }

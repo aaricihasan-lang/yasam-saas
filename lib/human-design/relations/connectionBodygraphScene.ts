@@ -9,7 +9,8 @@
 // değişmez); ön katman ölçeklenmez. Veri YALNIZ kayıtlı + doğrulanmış Connection sonucu ve (varsa) kayıtlı bireysel
 // aktif kapılar (compositeModel). Klasik kural: her aktif kapı kanalın KENDİ yarısını kişinin rengine boyar
 // (A mavi, B turuncu, ikisi → mavi boru üzerinde turuncu şerit). İki yarısı boyalı = TANIMLI kanal; tek yarısı
-// boyalı ve KESİKLİ = YARIM kanal (owner onayı; PR #431 eşdeğeri). Bağlantı türü grafikte işaretlenmez (owner kararı); kanal listesinde ve seçim panelinde. Entegrasyon ağında (10 · 20 · 34 · 57) her kapı kendi kolunu
+// boyalı = YARIM kanal: Connection'da KESİKLİ (owner onayı; PR #431 eşdeğeri), bireysel haritada DÜZ (Roxy mantığı;
+// CbgState.halfStyle). Bağlantı türü grafikte işaretlenmez (owner kararı); kanal listesinde ve seçim panelinde. Entegrasyon ağında (10 · 20 · 34 · 57) her kapı kendi kolunu
 // boyar; ortak gövde yalnız gövdeden geçen bir kanal tanımlıysa boyanır.
 //
 // TEK KAYNAK: her ilkel `cbgElements` ile SVG öğe tanımlarına çevrilir; tarayıcıdaki etkileşimli React SVG
@@ -156,6 +157,31 @@ export type CbgPrim =
   | { k: "gate"; gate: number; x: number; y: number; holder: Holder | null; pal?: CbgPalette }
   | { k: "logo" };
 
+/**
+ * Yarım kanal (tek kapısı aktif) çizimi: "dashed" = renkli yarı 7/5 kesikli (PR #431 eşdeğeri); "solid" = aktif kapıdan
+ * kanal ortasına DÜZ renkli yarı (Roxy resmî <roxy-bodygraph> mantığı). İki taraflı kapının şeridi ikisinde de korunur.
+ */
+export type CbgHalfStyle = "solid" | "dashed";
+
+/**
+ * Yazı ölçeği. "compact" = ilk premium boyutlar. "large" = okunabilirlik (owner kararı 2026-10-18): boyutlar gerçek
+ * Geist fontuyla ÖLÇÜLDÜ (canvas mürekkep kutusu, piksel hassas) — kapı numarası daire konturuna değmez (iç kenardan
+ * ≥ 0.15 birim); merkez adı şeklin içinde, kenar çizgisine ≥ 2.8 birim, hiçbir kapı dairesine < 1.5 birim yaklaşmaz
+ * (şeklin dışındaki KALP adı boruya ≥ 1.5 birim). Hedef 10.5; sığmayan merkezler kendi boyutunu alır (ölçülen en büyük
+ * değer): BOĞAZ 10.3 · DALAK 9.8 · AJNA 7.6 · iki satırlı SOLAR PLEKSUS 7.1. Konumlar (labelAt) DEĞİŞMEZ.
+ * Denetim: scripts/hd-bodygraph-premium/readability-e2e.ts.
+ */
+export type CbgTypeScale = "compact" | "large";
+const TYPE: Readonly<Record<CbgTypeScale, { gate: { size: number; dy: number; stroke: number }; center: (engine: string, lines: number) => number; lineGap: (size: number) => number }>> = {
+  compact: { gate: { size: 6.4, dy: 2.35, stroke: 0.18 }, center: (_e, lines) => (lines > 1 ? 6.2 : 7.4), lineGap: () => 8.4 },
+  large: {
+    // 8.2 denendi: mürekkep daire konturunun iç kenarına 0.03 birim kalıyor (değiyor) → 8.0 (0.18 boşluk).
+    gate: { size: 8.0, dy: 2.87, stroke: 0.16 },
+    center: (engine) => ({ Throat: 10.3, Spleen: 9.8, Ajna: 7.6, SolarPlexus: 7.1 })[engine] ?? 10.5,
+    lineGap: (size) => +(size * 1.35).toFixed(2),
+  },
+};
+
 /** Çizimin okuduğu kanal durumu (Connection modeli bunun üst kümesidir; bireysel harita da bunu üretir). */
 export type CbgChannel =
   | { id: string; state: "defined"; holderA: Holder; holderB: Holder }
@@ -171,6 +197,10 @@ export type CbgState<C extends CbgChannel = CbgChannel> = {
   full: boolean;
   /** Renk paleti (varsayılan connection: mavi / turuncu; bireysel harita: siyah / kırmızı). */
   palette?: CbgPalette;
+  /** Yarım kanal çizimi (varsayılan "dashed" — Connection'ın onaylı görünümü; bireysel: rendererConfig). */
+  halfStyle?: CbgHalfStyle;
+  /** Yazı ölçeği (varsayılan "compact" — Connection'ın onaylı görünümü; bireysel: rendererConfig). */
+  typeScale?: CbgTypeScale;
 };
 
 /** Tam model (kayıtlı bireysel kapılar + kayıtlı sonuç, birebir doğrulanmış). */
@@ -285,8 +315,8 @@ export const CBG_CHANNEL_IDS: readonly string[] = CHANNELS.map((c) => c.id);
 
 /**
  * Bir kanal yarısını kişi rengine boyayan dolgu(lar). Ortak kapı: A borusu + B şeritleri.
- * `halfOnly` (owner onayı 2026-10-18; PR #431 eşdeğeri): kanal TANIMLI DEĞİL, yalnız bu kapı aktif → renkli yarı KESİKLİ
- * çizilir (aralarından pasif boru görünür) ki kısa kanallarda tam kanal sanılmasın. Tanımlı kanallar kesintisiz.
+ * `halfOnly` (yalnız `halfStyle: "dashed"`; PR #431 eşdeğeri): kanal TANIMLI DEĞİL, yalnız bu kapı aktif → renkli yarı
+ * KESİKLİ çizilir. `halfStyle: "solid"` (bireysel, Roxy mantığı): yarım kanal da düz; şerit tanımlı kanaldakiyle aynı.
  */
 function fills(points: Pt[], h: Holder, chs: string[], halfOnly = false): CbgPrim[] {
   const s = fmt(points);
@@ -303,6 +333,8 @@ const TICK_HALF = 1.1;
 
 export function buildConnectionBodygraphScene(state: CbgState): CbgPrim[] {
   const out: CbgPrim[] = [{ k: "rect" }, { k: "backdrop" }, { k: "silhouette" }];
+  const dashHalves = (state.halfStyle ?? "dashed") === "dashed";
+  const type = TYPE[state.typeScale ?? "compact"];
   // Boru gölgesi (tüm kanallar, tek katman)
   out.push({ k: "shadows", routes: [...CBG_PIPES.map(([, s]) => s), ...CBG_NET_ARMS.map(([, s]) => s)] });
   const pipe = (s: string): CbgPrim[] => [
@@ -318,8 +350,8 @@ export function buildConnectionBodygraphScene(state: CbgState): CbgPrim[] {
     const [a, b] = splitHalf(route);
     const L = plen(route);
     return [
-      ...(hLo ? fills(a, hLo, [id], st.state === "half") : []),
-      ...(hHi ? fills(b, hHi, [id], st.state === "half") : []),
+      ...(hLo ? fills(a, hLo, [id], dashHalves && st.state === "half") : []),
+      ...(hHi ? fills(b, hHi, [id], dashHalves && st.state === "half") : []),
       // yarı sınırı: ince beyaz ayraç (referanstaki gibi; iki yarı okunur)
       { k: "tick", points: fmt(slice(route, L / 2 - TICK_HALF, L / 2 + TICK_HALF)), chs: [id] },
     ];
@@ -339,7 +371,7 @@ export function buildConnectionBodygraphScene(state: CbgState): CbgPrim[] {
     const inUse = netIds.some((id) => id.split("-").map(Number).includes(g) && state.channels[id].state !== "none");
     // Kol kesikli yalnız bu kapıdan geçen ağ kanallarının HİÇBİRİ tanımlı değilse (ortak gövde zaten yalnız tanımlıda boyanır).
     const armDefined = netIds.some((id) => id.split("-").map(Number).includes(g) && state.channels[id].state === "defined");
-    if (h && inUse) out.push(...fills(ARM_PTS.get(arm)!, h, armChs(arm, g), !armDefined));
+    if (h && inUse) out.push(...fills(ARM_PTS.get(arm)!, h, armChs(arm, g), dashHalves && !armDefined));
   }
   // Gövde: yalnız gövdeden geçen tanımlı kanal(lar) varsa; üst yarı 10/20 kapısının, alt yarı 34/57 kapısının sahibi.
   const merge = (cur: Holder | null, h: Holder): Holder => (!cur || cur === h ? h : "both");
@@ -370,15 +402,17 @@ export function buildConnectionBodygraphScene(state: CbgState): CbgPrim[] {
   // 6) Merkezler + adlar.
   for (const c of CBG_CENTERS) {
     out.push({ k: "center", engine: c.engine, points: c.points, defined: state.definedCenters.has(c.engine) });
+    const size = type.center(c.engine, c.label.length);
+    const gap = type.lineGap(size);
     c.label.forEach((t, i) =>
-      out.push({ k: "text", x: c.labelAt[0], y: +(c.labelAt[1] + (i - (c.label.length - 1) / 2) * 8.4).toFixed(1), text: t, size: c.label.length > 1 ? 6.2 : 7.4, fill: INK, spacing: 0.5, stroke: 0.32, role: "center" }),
+      out.push({ k: "text", x: c.labelAt[0], y: +(c.labelAt[1] + (i - (c.label.length - 1) / 2) * gap).toFixed(1), text: t, size, fill: INK, spacing: 0.5, stroke: 0.32, role: "center" }),
     );
   }
   // 7) Kapılar.
   for (const [g, x, y] of CBG_GATES) {
     const h = state.gates[g] ?? null;
     out.push({ k: "gate", gate: g, x, y, holder: h });
-    out.push({ k: "text", x, y: +(y + 2.35).toFixed(2), text: String(g), size: 6.4, fill: h ? "#ffffff" : INK, stroke: 0.18, role: "gate" });
+    out.push({ k: "text", x, y: +(y + type.gate.dy).toFixed(2), text: String(g), size: type.gate.size, fill: h ? "#ffffff" : INK, stroke: type.gate.stroke, role: "gate" });
   }
   out.push({ k: "logo" });
   const pal: CbgPalette = state.palette ?? "connection";

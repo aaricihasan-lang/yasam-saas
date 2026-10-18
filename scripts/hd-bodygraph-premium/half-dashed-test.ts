@@ -1,5 +1,10 @@
 /**
- * Premium BodyGraph — KESİKLİ YARIM KANAL kuralı (owner onayı 2026-10-18; PR #431 eşdeğeri). SAF.
+ * Premium BodyGraph — YARIM KANAL çizimi. SAF.
+ *   • 0. AKTİF bireysel görünüm (owner kararı 2026-10-18, Roxy resmî mantığı; rendererConfig "solid"): yarım kanalın
+ *     renkli yarısı DÜZ; iki taraflı kapının şeridi tanımlı kanaldakiyle aynı (5 / 5); kesikli dolgu hiç yok.
+ *   • A–B: PASİF geri dönüş "dashed" (PR #431 eşdeğeri; halfStyle "dashed" zorlanarak) — kural aynen korunur.
+ *   • C: Connection (mavi-turuncu) DEĞİŞMEDİ: kesikli yarım kanal + dinamikler.
+ * Kesikli kural (A–C):
  *   • Yalnız tek kapısı aktif (tanımlanmamış) kanalın renkli yarısı kesikli; tanımlı kanal kesintisiz.
  *   • 1-8, 7-31, 13-33, 21-45: tek kapı / iki kapı / çift aktivasyon (bireysel siyah-kırmızı).
  *   • Entegrasyon ağı (10 · 20 · 34 · 57): kol kesikli yalnız o kapının ağ kanallarının hiçbiri tanımlı değilse;
@@ -44,7 +49,29 @@ function noFalseDash(st: CbgState, prims: CbgPrim[]) {
   return { bad: bad.map((f) => f.chs), badSolid: badSolid.map((f) => f.chs), onNone: onNone.map((f) => f.chs) };
 }
 
-console.log("\n—— A. Bireysel: 1-8 · 7-31 · 13-33 · 21-45");
+/** PASİF geri dönüş görünümü: aynı durum, yarım kanal kesikli. */
+const dashedState = (acts: Array<[number, Side]>): CbgState | null => {
+  const st = premiumStateFromChart(chartOf(acts));
+  return st ? { ...st, halfStyle: "dashed" } : null;
+};
+
+console.log("\n—— 0. AKTİF bireysel görünüm: yarım kanal DÜZ (Roxy mantığı)");
+{
+  const st = premiumStateFromChart(chartOf([[1, P], [7, P], [13, D], [21, D], [31, P], [31, D], [45, P], [45, D], [33, D], [20, P], [34, P], [34, D]]))!;
+  ok("S0 varsayılan bireysel durum: halfStyle solid · typeScale large (rendererConfig)", st.halfStyle === "solid" && st.typeScale === "large", { h: st.halfStyle, t: st.typeScale });
+  const pr = buildConnectionBodygraphScene(st);
+  const fills = pr.filter((p): p is Fill => p.k === "fill");
+  ok("S1 hiçbir dolgu kesikli değil (halfOnly yok)", fills.every((f) => !f.halfOnly));
+  const halfIds = Object.values(st.channels).filter((c) => c.state === "half").map((c) => c.id);
+  ok("S2 her yarım kanalın renkli yarısı çizilir ve düz (kenar / gövde / ışık dasharray yok)", halfIds.length > 0 && halfIds.every((id) => fillsOf(pr, id).length > 0 && fillsOf(pr, id).filter((f) => !f.stripe).every((f) => cbgElements(f, null).every((e) => e.attrs.strokeDasharray === undefined))), halfIds);
+  const stripes = fills.filter((f) => f.stripe);
+  ok("S3 iki taraflı kapı şeridi (yarım ve tanımlı kanalda) 5 / 5 — beyaz boşluk yok, siyah boru üzerinde kırmızı", stripes.length > 0 && stripes.every((f) => f.tone === "B" && cbgElements(f, null).every((e) => e.attrs.strokeDasharray === "5 5")) && stripes.every((f) => fills.some((b) => b.points === f.points && b.tone === "A" && !b.stripe)));
+  ok("S4 renkli yarı yalnız aktif kapının yarısında; boş kanal boyanmaz", fills.every((f) => f.chs.some((id) => st.channels[id].state !== "none")));
+  const svg = connectionBodygraphSvg(pr, { logoHref: null, fontFamily: "Geist" });
+  ok("S5 SVG (ekran = Word): 7-5 ve 3.5-8.5 kesik deseni yok", !svg.includes('stroke-dasharray="7 5"') && !svg.includes('stroke-dasharray="3.5 8.5"'));
+}
+
+console.log("\n—— A. Bireysel PASİF geri dönüş (dashed): 1-8 · 7-31 · 13-33 · 21-45");
 const CASES: Record<string, { acts: Array<[number, Side]>; expect: Record<string, { state: "half" | "defined"; dashed: number; solid: number; stripe?: "half" | "defined" }> }> = {
   "tek kapı": {
     acts: [[1, P], [7, P], [13, D], [21, D]],
@@ -65,7 +92,7 @@ const CASES: Record<string, { acts: Array<[number, Side]>; expect: Record<string
   },
 };
 for (const [name, c] of Object.entries(CASES)) {
-  const st = premiumStateFromChart(chartOf(c.acts));
+  const st = dashedState(c.acts);
   if (!st) { ok(`${name}: durum üretildi`, false); continue; }
   const prims = buildConnectionBodygraphScene(st);
   for (const [id, e] of Object.entries(c.expect)) {
@@ -93,15 +120,15 @@ for (const [name, c] of Object.entries(CASES)) {
   if (ds) ok(`${name}: tanımlı kanalda çift aktivasyon şeridi aynen (5 / 5)`, cbgElements(ds, null).every((e) => e.attrs.strokeDasharray === "5 5"));
 }
 
-console.log("\n—— B. Entegrasyon ağı (ortak kollar / gövde)");
+console.log("\n—— B. Entegrasyon ağı (ortak kollar / gövde) — PASİF geri dönüş (dashed)");
 {
-  const st = premiumStateFromChart(chartOf([[20, P]]))!;
+  const st = dashedState([[20, P]])!;
   const pr = buildConnectionBodygraphScene(st);
   const f = pr.filter((p): p is Fill => p.k === "fill");
   ok("B1 yalnız 20 aktif → kol20 kesikli; gövde boyanmaz", f.length === 1 && isArm(f[0], "kol20") && !!f[0].halfOnly);
 }
 {
-  const st = premiumStateFromChart(chartOf([[20, P], [34, D]]))!;
+  const st = dashedState([[20, P], [34, D]])!;
   const pr = buildConnectionBodygraphScene(st);
   const f = pr.filter((p): p is Fill => p.k === "fill");
   const gov = armPts.get("govde")!.split(" ");
@@ -110,21 +137,21 @@ console.log("\n—— B. Entegrasyon ağı (ortak kollar / gövde)");
 }
 {
   // 20-34 tanımlı + 10 aktif (10-20 / 10-34 YARIM DEĞİL: 10-20 tanımlı olur) → 10, 20, 34 hepsi tanımlı kanallarda
-  const st = premiumStateFromChart(chartOf([[20, P], [34, D], [57, D]]))!;
+  const st = dashedState([[20, P], [34, D], [57, D]])!;
   const pr = buildConnectionBodygraphScene(st);
   const f = pr.filter((p): p is Fill => p.k === "fill");
   ok("B3 20-34 + 20-57 + 34-57 tanımlı → hiçbir kol kesikli değil", f.length > 0 && f.every((x) => !x.halfOnly), f.map((x) => [x.chs, x.halfOnly]));
 }
 {
   // 57 tek başına (ağ dışı başka kanalı yok) + 10 tek başına → iki kol kesikli, gövde yok
-  const st = premiumStateFromChart(chartOf([[57, D], [10, P]]))!;
+  const st = dashedState([[57, D], [10, P]])!;
   // 10-57 iki kapı aktif → TANIMLI (gövde dahil). Bu yüzden 57 ve 10 kolları kesintisiz olmalı.
   const pr = buildConnectionBodygraphScene(st);
   const f = pr.filter((p): p is Fill => p.k === "fill");
   ok("B4 10 + 57 aktif → 10-57 tanımlı: kol10, gövde, kol57 kesintisiz", st.channels["10-57"].state === "defined" && f.every((x) => !x.halfOnly) && f.length === 4);
 }
 {
-  const st = premiumStateFromChart(chartOf([[34, P], [34, D]]))!;
+  const st = dashedState([[34, P], [34, D]])!;
   const pr = buildConnectionBodygraphScene(st);
   const f = pr.filter((p): p is Fill => p.k === "fill");
   ok("B5 yalnız 34 (çift aktivasyon) → kol34 kesikli + kesik içi şerit", f.length === 2 && f.every((x) => isArm(x, "kol34") && x.halfOnly) && f.some((x) => x.stripe));
@@ -149,5 +176,5 @@ console.log("\n—— C. Connection (mavi / turuncu) — aynı kural, dinamikler
   ok("C3 Connection paleti mavi / turuncu; dört dinamik ve tanımlı liste kayıtlı sonuçla aynı", pr.every((p) => p.k !== "fill" || p.pal === "connection") && Object.values(st.channels).filter((c) => c.state === "defined").map((c) => c.id).sort().join() === r.channels.map((c) => c.id).sort().join() && new Set(r.channels.map((c) => c.dynamic)).size === 4);
 }
 
-console.log(`\nKESİKLİ YARIM KANAL: ${pass} PASS / ${fail} FAIL`);
+console.log(`\nYARIM KANAL (aktif düz + pasif kesikli + Connection): ${pass} PASS / ${fail} FAIL`);
 if (fail) process.exit(1);
