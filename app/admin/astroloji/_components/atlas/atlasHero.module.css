@@ -710,123 +710,101 @@
   }
 }
 
-/* ── 2026-10-19 "Yakında" şeridi: dört kartın altında ince bilgilendirme öğesi ─────────────────────
- * Dört kartın ölçü formülü (.cards genişliği), görselleri ve eğim/animasyon kodu DEĞİŞMEZ. Şerit raster kullanmaz;
- * mevcut altın / gece mavisi değerleriyle çizilir ve kartlardan daha sakin durur. Kısa masaüstü ekranlarda sayfa,
- * şerit kadar kontrollü dikey kaydırma alır (kartlar küçültülmez). */
-.soon {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  margin: 0;
-  padding: 8px 16px 8px 12px;
-  border: 1px solid rgba(233, 201, 138, 0.26);
-  border-radius: 16px;
-  background:
-    linear-gradient(100deg, rgba(233, 201, 138, 0.09), rgba(120, 140, 220, 0.06) 55%, rgba(255, 255, 255, 0.015)),
-    rgba(8, 14, 38, 0.72);
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 26px -22px rgba(0, 0, 0, 0.9);
-  transition:
-    border-color 300ms ease,
-    box-shadow 300ms ease;
-}
-
-.soonMark {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid rgba(233, 201, 138, 0.45);
-  border-radius: var(--r-pill);
-  color: var(--gold);
-}
-
-.soonMark svg {
-  width: 13px;
-  height: 13px;
-}
-
-.soonBody {
-  display: block;
-  min-width: 0;
-}
-
-.soonHead {
+/* ── 2026-10-19 "Yakında" bağlantısı: sağ paneldeki "Yaşam Analiz Merkezi" bağlantısının hemen yanında ───────────
+ * Kapsayıcı, backPill'in ESKİ konumunu (aynı top / left) alır; backPill kuralı değişmez, kapsayıcı içinde yalnız akışa
+ * girer. Toplam yükseklik artmaz (tek satır, backPill ile aynı yükseklik). Dar alanda iki bağlantı alt satıra geçer;
+ * telefonda kapsayıcı akışa girer ve başlık metni onun altından başlar (üst üste binme yok). Yeni animasyon yok. */
+.topLinks {
+  position: absolute;
+  top: clamp(16px, 3.4vh, 30px);
+  left: clamp(18px, 1.6vw, 26px);
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 10px;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 2 * clamp(18px, 1.6vw, 26px));
+  pointer-events: none;
 }
 
-.soonEyebrow {
-  font-family: var(--ga-label), system-ui, sans-serif;
-  font-size: 11px;
+.topLinks > * {
+  pointer-events: auto;
+}
+
+.topLinks > .backPill {
+  position: static;
+}
+
+.soonLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  margin: 0;
+  padding: 0 16px 0 14px;
+  border: 1px solid rgba(233, 201, 138, 0.55);
+  border-radius: var(--r-pill);
+  background: rgba(8, 12, 36, 0.55);
+  color: var(--on-dark);
+  font: inherit;
+  font-size: 13.5px;
   font-weight: 500;
-  letter-spacing: 0.24em;
+  white-space: nowrap;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition:
+    border-color 300ms ease,
+    background 300ms ease;
+}
+
+.soonLinkMark {
+  display: inline-flex;
   color: var(--gold);
 }
 
-.soonTitle {
-  font-family: var(--ga-display), Georgia, serif;
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1.2;
-  color: #fbf8ff;
+.soonLinkMark svg {
+  width: 12px;
+  height: 12px;
 }
 
-.soonDesc {
-  display: block;
-  margin-top: 2px;
+.soonLinkEyebrow {
+  font-family: var(--ga-label), system-ui, sans-serif;
   font-size: 12px;
-  line-height: 1.35;
+  letter-spacing: 0.2em;
+  color: var(--gold);
+}
+
+.soonLinkText {
   color: var(--on-dark-soft);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .soon:hover {
-    border-color: rgba(233, 201, 138, 0.55);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 24px -12px rgba(233, 190, 110, 0.45), 0 14px 26px -22px rgba(0, 0, 0, 0.9);
+  .soonLink:hover {
+    border-color: rgba(233, 201, 138, 0.9);
+    background: rgba(20, 22, 56, 0.7);
   }
 }
 
-.soon:focus-visible {
+.soonLink:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 3px;
 }
 
-@media (max-width: 1099px) {
-  .soon {
-    grid-column: 1 / -1;
-  }
-}
-
-/* Telefon: dekoratif yıldız gizlenir (metne yer), şerit ince kalır. */
 @media (max-width: 640px) {
-  .soon {
-    padding: 8px 14px;
+  .topLinks {
+    position: relative;
+    top: auto;
+    left: auto;
+    max-width: none;
+    padding: 16px 18px 0;
   }
-  .soonMark {
-    display: none;
-  }
-  .soonHead {
-    row-gap: 0;
-  }
-  .soonDesc {
-    margin-top: 1px;
-    line-height: 1.3;
+  .heroText {
+    padding-top: 22px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .soon {
+  .soonLink {
     transition: none;
   }
 }
