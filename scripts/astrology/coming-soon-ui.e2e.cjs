@@ -1,8 +1,9 @@
-// 2026-10-19 Gökyüzü Atlası "Yakında" bilgilendirme şeridi + görünümü — gerçek tarayıcı (Playwright Chromium).
+// 2026-10-19 Gökyüzü Atlası "Yakında" bağlantısı (sağ panel, "Yaşam Analiz Merkezi" yanında) + bilgilendirme görünümü — gerçek tarayıcı (Playwright Chromium).
 // YEREL: next dev + dev-fake-backend (sahte PostgREST). Gerçek DB / sağlayıcı YOK; ROXY_API_KEY verilmez.
 // Çalıştırma: node scripts/astrology/coming-soon-ui.e2e.cjs <origin> <genişlik> <yükseklik> [ekran-görüntüsü-klasörü]
-//   S1 ana ekran: dört kart + altında ince "Yakında" şeridi; kart ölçüleri yazdırılır (taban karşılaştırması için)
-//   S2 şerit → #yakinda; 10 bölüm, her birinde "GELİŞTİRİLİYOR"; onaylı tüm teknik adları; "Değerlendiriliyor" yok;
+//   S1 ana ekran: dört kart aynen (eski şerit yok); sağ panelde "Yaşam Analiz Merkezi" yanında Yakında bağlantısı, ilk ekranda
+//      görünür, üst üste binme / taşma yok; masaüstünde gereksiz dikey kaydırma yok; kart ölçüleri yazdırılır
+//   S2 bağlantı → #yakinda; 10 bölüm, her birinde "GELİŞTİRİLİYOR"; onaylı tüm teknik adları; "Değerlendiriliyor" yok;
 //      adlar arasında "·" yok; geliştirme süreci notları; sağlayıcı adı yok
 //   S3 Yakında görünümünde hiçbir /api isteği ve sağlayıcı isteği yok; analiz / kayıt tetiklenmez
 //   S4 klavye: bölüm başlığı Enter ile kapanır / açılır; odak işareti
@@ -56,7 +57,6 @@ const FIXED_TEXT = [
   "Yeni özellikler, teknik doğrulamalar ve uzman değerlendirmeleri tamamlandıkça aşamalı olarak sunulacaktır.",
   "Kesin bir yayın tarihi taahhüt edilmemektedir.",
 ];
-const STRIP_TEXT = ["YAKINDA", "Yeni Haritalar ve Astroloji Ekolleri", "Gökyüzü Atlası'na eklenecek yeni analizleri ve astroloji yöntemlerini keşfedin."];
 
 const noHScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
 const shot = async (page, name) => {
@@ -85,37 +85,69 @@ async function openHome(page, hash = "") {
   const requests = [];
   page.on("request", (r) => requests.push({ url: r.url(), method: r.method() }));
 
-  // ── S1 ana ekran ──
+  // ── S1 ana ekran: dört kart aynen + sağ panelde "Yaşam Analiz Merkezi" yanında Yakında bağlantısı ──
   await openHome(page);
   const geo = await page.evaluate(() => {
     const r = (el) => {
       const b = el.getBoundingClientRect();
-      return { x: Math.round(b.x), y: Math.round(b.y + window.scrollY), w: Math.round(b.width * 10) / 10, h: Math.round(b.height * 10) / 10 };
+      return { x: Math.round(b.x), y: Math.round(b.y + window.scrollY), w: Math.round(b.width * 10) / 10, h: Math.round(b.height * 10) / 10, top: b.top, bottom: b.bottom, left: b.left, right: b.right };
     };
+    const hit = (a, b) => a && b && a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
     const cards = [...document.querySelectorAll("[data-portal]")].map((el) => ({ key: el.getAttribute("data-portal"), ...r(el) }));
-    const strip = document.querySelector("[data-testid=atlas-soon-strip]");
-    const clipped = strip ? [...strip.querySelectorAll("span")].some((s) => s.scrollWidth > s.clientWidth + 1 && getComputedStyle(s).overflow !== "visible") : null;
-    return { cards, strip: strip ? r(strip) : null, stripText: strip?.innerText ?? "", clipped, docH: document.documentElement.scrollHeight, vh: window.innerHeight };
+    const linkEl = document.querySelector("[data-testid=atlas-soon-link]");
+    const backEl = document.querySelector("[data-testid=atlas-back-to-center]");
+    const h1 = document.querySelector("[data-testid=atlas-hero] h1");
+    const eyebrow = h1?.previousElementSibling ?? null;
+    const panelEl = document.querySelector("section[aria-labelledby=atlas-title]");
+    const link = linkEl ? r(linkEl) : null;
+    const back = backEl ? r(backEl) : null;
+    const panel = panelEl ? r(panelEl) : null;
+    return {
+      cards,
+      oldStrip: document.querySelectorAll("[data-testid=atlas-soon-strip]").length,
+      link,
+      back,
+      panel,
+      name: linkEl?.getAttribute("aria-label") ?? "",
+      text: linkEl?.innerText.replace(/\s+/g, " ").trim() ?? "",
+      clipped: linkEl ? linkEl.scrollWidth > linkEl.clientWidth + 1 : null,
+      overlapBack: hit(link, back),
+      overlapHero: hit(link, eyebrow ? r(eyebrow) : null) || hit(link, h1 ? r(h1) : null) || hit(back, eyebrow ? r(eyebrow) : null),
+      insidePanel: !!(link && panel && link.left >= panel.left - 0.5 && link.right <= panel.right + 0.5 && link.top >= panel.top - 0.5 && link.bottom <= panel.bottom + 0.5),
+      inFirstView: !!(link && window.scrollY === 0 && link.top >= 0 && link.bottom <= window.innerHeight),
+      docH: document.documentElement.scrollHeight,
+      vh: window.innerHeight,
+    };
   });
-  console.log(`  bilgi: kartlar ${JSON.stringify(geo.cards)} | şerit ${JSON.stringify(geo.strip)} | belge ${geo.docH} / görünür ${geo.vh}`);
+  const fmt = (o) => (o ? { x: o.x, y: o.y, w: o.w, h: o.h } : null);
+  console.log(`  bilgi: kartlar ${JSON.stringify(geo.cards.map(fmt))} | geri ${JSON.stringify(fmt(geo.back))} | yakında ${JSON.stringify(fmt(geo.link))} | belge ${geo.docH} / görünür ${geo.vh}`);
   ok("S1 dört kart sırası aynen (new, archive, kb, recent)", geo.cards.map((c) => c.key).join() === "new,archive,kb,recent", geo.cards.map((c) => c.key).join());
-  ok("S1 Yakında şeridi var", !!geo.strip);
-  if (geo.strip) {
-    const last = geo.cards[geo.cards.length - 1];
-    ok("S1 şerit dördüncü kartın altında", geo.strip.y >= last.y + last.h - 1, `şerit y=${geo.strip.y}, kart4 alt=${last.y + last.h}`);
-    ok("S1 şerit kartlardan ince (yükseklik < kart yüksekliğinin %75'i)", geo.strip.h < last.h * 0.75, `${geo.strip.h} / ${last.h}`);
-    ok("S1 şerit metni (YAKINDA + alt başlık + açıklama)", STRIP_TEXT.every((t) => geo.stripText.includes(t)), geo.stripText.replace(/\s+/g, " "));
-    ok("S1 şerit metni kesilmiyor", geo.clipped === false);
+  ok("S1 eski Yakında şeridi kaldırıldı", geo.oldStrip === 0);
+  ok("S1 Yakında bağlantısı var", !!geo.link);
+  ok("S1 erişilebilir ad: 'Yakında — Yeni Haritalar ve Astroloji Ekolleri'", geo.name === "Yakında — Yeni Haritalar ve Astroloji Ekolleri", geo.name);
+  ok("S1 görünür metin: 'YAKINDA — Yeni Haritalar'", geo.text === "YAKINDA — Yeni Haritalar", geo.text);
+  ok("S1 bağlantı metni kesilmiyor", geo.clipped === false);
+  ok("S1 bağlantılar üst üste binmiyor", geo.link && !geo.overlapBack);
+  ok("S1 bağlantılar başlık metninin üzerine binmiyor", geo.link && !geo.overlapHero);
+  ok("S1 bağlantı gökyüzü panelinin içinde", geo.insidePanel);
+  ok("S1 dokunma hedefi yeterli (yükseklik ≥ 40 px)", !!geo.link && geo.link.h >= 40, String(geo.link?.h));
+  if (width >= 640) {
+    ok("S1 'Yaşam Analiz Merkezi'nin hemen sağında, aynı hizada", !!geo.link && !!geo.back && Math.abs(geo.link.top + geo.link.h / 2 - (geo.back.top + geo.back.h / 2)) <= 1 && geo.link.left >= geo.back.right && geo.link.left - geo.back.right <= 16, geo.link && geo.back ? `aralık ${Math.round(geo.link.left - geo.back.right)} px` : "");
+    ok("S1 ilk açılışta kaydırmadan görünür", geo.inFirstView, geo.link ? `üst ${Math.round(geo.link.top)}, alt ${Math.round(geo.link.bottom)} / ${geo.vh}` : "");
+  } else {
+    console.log(`  bilgi: telefonda bağlantılar panelin üstünde (panel kartların altında); ilk ekranda görünür: ${geo.inFirstView ? "EVET" : "HAYIR (kaydırma ile)"}`);
   }
+  // İki sütunlu masaüstü düzeni ≥ 1100 px (atlasHero.module.css: max-width 1099px altı tablet = kartlar üstte, panel altta; kaydırma doğal).
+  if (width >= 1100) ok("S1 masaüstünde gereksiz dikey kaydırma yok (belge = görünür alan)", geo.docH <= geo.vh + 1, `${geo.docH} / ${geo.vh}`);
   ok("S1 ana ekran yatay taşma yok", await noHScroll(page));
   await shot(page, "home");
-  // Klavye: şerit odaklanabilir, odak işareti görünür
-  await page.locator("[data-testid=atlas-soon-strip]").focus();
+  // Klavye: bağlantı odaklanabilir, odak işareti görünür
+  await page.locator("[data-testid=atlas-soon-link]").focus();
   const focusStyle = await page.evaluate(() => {
     const el = document.activeElement;
-    return el?.getAttribute("data-testid") === "atlas-soon-strip" ? getComputedStyle(el).outlineStyle : "none";
+    return el?.getAttribute("data-testid") === "atlas-soon-link" ? getComputedStyle(el).outlineStyle : "none";
   });
-  ok("S4 şerit klavyeyle odaklanır ve odak işareti var", focusStyle !== "none", focusStyle);
+  ok("S4 Yakında bağlantısı klavyeyle odaklanır ve odak işareti var", focusStyle !== "none", focusStyle);
 
   // ── S2/S3 Yakında görünümü (Enter ile açılır) ──
   const before = requests.length;
@@ -191,6 +223,11 @@ async function openHome(page, hash = "") {
   await page.getByRole("button", { name: "Ana ekrana dön" }).click();
   await page.waitForSelector("[data-portal=new]", { timeout: 30000 });
   ok("S5 'Ana ekrana dön' → ana ekran", (await page.evaluate(() => window.location.hash)) === "");
+  await page.locator("[data-testid=atlas-soon-link]").click();
+  await page.waitForSelector("[data-testid=atlas-coming-soon]", { timeout: 30000 }).catch(() => undefined);
+  ok("S5 Yakında bağlantısı fareyle tıklanınca #yakinda açılır", (await page.evaluate(() => window.location.hash)) === "#yakinda" && (await page.locator("[data-testid=atlas-coming-soon]").count()) === 1);
+  await page.goBack();
+  await page.waitForSelector("[data-portal=new]", { timeout: 30000 });
   const direct = await ctx.newPage();
   await direct.goto(`${BASE}#yakinda`, { waitUntil: "load", timeout: 180000 });
   await direct.waitForSelector("[data-testid=atlas-coming-soon]", { timeout: 120000 }).catch(() => undefined);
