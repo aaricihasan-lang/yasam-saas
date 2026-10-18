@@ -9,7 +9,8 @@
  *   • PNG imzası + chunk yapısı + HER chunk CRC32'si + IHDR ilk / IEND son (sonrası boş)
  *   • IHDR: 8-bit RGB/RGBA, sıkıştırma/filtre 0, interlace YOK
  *   • piksel sınırları: yükseklik ≥ 1800 (net baskı), en/boy ≤ 3072
- *   • en/boy oranı: Roxy BodyGraph viewBox'ı (432×612 ≈ 0,706) etrafında dar pencere
+ *   • en/boy oranı: premium BodyGraph (602×752 ≈ 0,80; aktif) ya da Roxy BodyGraph viewBox'ı (432×612 ≈ 0,706; pasif)
+ *     etrafında dar pencere
  *   • IDAT akışı zlib ile GERÇEKTEN açılır ve beklenen ham boyuta BİREBİR eşittir
  *     (maxOutputLength ile sıkıştırma bombası engellenir) + her satır filtre baytı 0..4
  */
@@ -25,6 +26,9 @@ export const HD_BODYGRAPH_PNG_MAX_SIDE = 3072;
 /** Roxy viewBox oranı 432/612 ≈ 0,7059; ±%6 tolerans (yuvarlama/kenar payı). */
 export const HD_BODYGRAPH_ASPECT = 432 / 612;
 export const HD_BODYGRAPH_ASPECT_TOLERANCE = 0.06;
+/** Premium BodyGraph (aktif çizici, rendererConfig) tuval oranı 602/752 ≈ 0,8005 — Roxy oranı (pasif yol) da kabul edilir. */
+export const HD_BODYGRAPH_PREMIUM_ASPECT = 602 / 752;
+const ALLOWED_ASPECTS = [HD_BODYGRAPH_ASPECT, HD_BODYGRAPH_PREMIUM_ASPECT] as const;
 
 const SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const MAX_CHUNKS = 4096;
@@ -110,7 +114,7 @@ export function validateBodygraphPng(buf: Buffer | null | undefined): BodygraphP
         return fail("TOO_SMALL", `BodyGraph görseli en az ${HD_BODYGRAPH_PNG_MIN_HEIGHT} piksel yüksekliğinde olmalı.`);
       }
       const aspect = width / height;
-      if (Math.abs(aspect - HD_BODYGRAPH_ASPECT) / HD_BODYGRAPH_ASPECT > HD_BODYGRAPH_ASPECT_TOLERANCE) {
+      if (!ALLOWED_ASPECTS.some((r) => Math.abs(aspect - r) / r <= HD_BODYGRAPH_ASPECT_TOLERANCE)) {
         return fail("BAD_ASPECT", "BodyGraph görselinin en/boy oranı beklenen BodyGraph oranıyla uyuşmuyor.");
       }
     } else if (type === "IHDR") {

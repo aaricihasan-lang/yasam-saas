@@ -14,6 +14,8 @@ import type { HdCenterCode } from "@/lib/human-design/types";
 import { useMemo, useState } from "react";
 import { HD_CHART_LOGO_SRC } from "@/app/human-design/kayitli-haritalar/components/HdChartInfoPanel";
 import { ConnectionBodygraph } from "./ConnectionBodygraph";
+import { LegacyRoxyCompositePanel, LegacySchematicCompositePanel } from "./LegacyConnectionPanels";
+import { HD_CONNECTION_BODYGRAPH } from "@/lib/human-design/bodygraph/rendererConfig";
 import { buildCompositeModel } from "@/lib/human-design/relations/compositeModel";
 import { buildConnectionBodygraphScene, CBG_PERSON_COLOR, cbgStateFromModel, cbgStateFromResult } from "@/lib/human-design/relations/connectionBodygraphScene";
 import { buildPentaScene, pentaChannelLines, PENTA_VIEW } from "@/lib/human-design/relations/pentaScene";
@@ -307,7 +309,14 @@ export function ConnectionResultView({ a }: { a: RelationAnalysisView }) {
             </div>
             {/* Logo grafiğin içinde (referans tasarım); başlıkta tekrar edilmez. */}
           </div>
-          <CompositePanel a={a} r={r} />
+          {/* AKTİF: premium (rendererConfig). PASİF eski paneller silinmedi: LegacyConnectionPanels.tsx */}
+          {HD_CONNECTION_BODYGRAPH === "premium" ? (
+            <CompositePanel a={a} r={r} />
+          ) : HD_CONNECTION_BODYGRAPH === "legacy-roxy" ? (
+            <LegacyRoxyCompositePanel a={a} r={r} summary={<ConnectionDiagram r={r} />} />
+          ) : (
+            <LegacySchematicCompositePanel a={a} r={r} notice={null} summary={<ConnectionDiagram r={r} />} />
+          )}
           <p className="mt-2 text-xs font-semibold text-slate-700" data-hd-rel-definition>
             Birleşik Tanım (Combined Definition): {combinedDefinitionLabel(r.combinedDefinition)}
           </p>

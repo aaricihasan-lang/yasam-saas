@@ -378,12 +378,16 @@ async function main() {
   // bu PR'da L5'in koruduğu alanda HİÇBİR değişiklik olmamalı (BodyGraph sağlayıcı/motor/harita dosyaları).
   {
     const { execSync } = await import("node:child_process");
-    const L5 = "lib/human-design/providers lib/human-design/api/roxyChartService.ts lib/human-design/engine app/human-design/kayitli-haritalar/components/HdComputedChartView.tsx app/human-design/danisanlar/components/HdAutoCalcPanel.tsx";
+    // Owner PASS 2026-10-18: premium BodyGraph tüm HD'de aktif → HdComputedChartView yalnız çizici seçimi için değişebilir
+    // (G6b ile denetlenir). Sağlayıcı / motor / Roxy servisi / AutoCalc korumalı kalır.
+    const L5 = "lib/human-design/providers lib/human-design/api/roxyChartService.ts lib/human-design/engine app/human-design/danisanlar/components/HdAutoCalcPanel.tsx";
     let names = "GIT_ERROR";
     try {
       names = execSync(`git diff --name-status origin/main -- ${L5}`, { encoding: "utf8" }).trim();
     } catch { /* GIT_ERROR */ }
-    ok("G6 L5 korumalı alan (Roxy sağlayıcı / motor / bireysel harita) bu PR'da DEĞİŞMEDİ", names === "", names);
+    ok("G6 L5 korumalı alan (Roxy sağlayıcı / motor / Roxy servisi / AutoCalc) bu PR'da DEĞİŞMEDİ", names === "", names);
+    const view = read("app/human-design/kayitli-haritalar/components/HdComputedChartView.tsx");
+    ok("G6b bireysel harita görünümü: yalnız çizici seçimi eklendi; pasif Roxy + eski çizim dalları duruyor, hesap / fetch yok", view.includes("premiumStateFromChart(result)") && view.includes("<HdRoxyBodygraph") && view.includes("<BodyGraph result={result} />") && !/fetch\(|computeRoxyChart|callRoxy/.test(view));
   }
 
   ok("Z ağ çağrısı (gerçek Roxy dahil) 0", netCalls === 0, netCalls);

@@ -163,8 +163,9 @@ async function main() {
 
   section("G — Kullanıcıya görünen sağlayıcı adı");
   const files = ["app/human-design/iliski-grup/components/HdRelationsContent.tsx", "app/human-design/iliski-grup/components/RelationResultViews.tsx", "app/human-design/iliski-grup/components/ConnectionBodygraph.tsx", "lib/human-design/relations/connectionBodygraphScene.ts", "app/human-design/iliski-grup/components/RelationWorkspace.tsx", "lib/human-design/relations/relationReport.ts", "lib/human-design/relations/labels.ts", "lib/human-design/relations/explanations.ts", "lib/human-design/relations/pentaScene.ts"];
-  // Yalnız kullanıcıya ulaşabilen kod (yorum satırları / blokları ayıklanır).
-  const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").split(/\r?\n/).filter((l) => !/^\s*\/\//.test(l) && !/^\s*import\s/.test(l)).join("\n");
+  // Yalnız kullanıcıya ulaşabilen kod (yorum satırları / blokları ayıklanır). Pasif eski panelin iç bileşen adı
+  // (LegacyRoxyCompositePanel) ve çizici ayar değeri ("legacy-roxy") kullanıcıya görünmez → ayıklanır.
+  const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").split(/\r?\n/).filter((l) => !/^\s*\/\//.test(l) && !/^\s*import\s/.test(l)).join("\n").replace(/\bLegacyRoxyCompositePanel\b/g, "").replace(/"legacy-roxy"/g, "");
   const leaks = files.filter((f) => /roxy|\/human-design\/(connection|penta)|nodeType|adapterVersion/i.test(codeOnly(readFileSync(f, "utf8"))));
   ok("G1 ekran + Word kodunda sağlayıcı adı / uç / nodeType / adaptör YOK", leaks.length === 0, leaks);
 

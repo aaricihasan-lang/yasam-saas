@@ -6,7 +6,9 @@ import path from "node:path";
 import { Resvg } from "@resvg/resvg-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { buildCompositeModel } from "./compositeModel";
-import { sceneToSvg } from "./compositeScene";
+import { buildCompositeScene, sceneToSvg } from "./compositeScene";
+import { COMPOSITE_VIEW } from "./compositeLayout";
+import { HD_CONNECTION_BODYGRAPH } from "../bodygraph/rendererConfig";
 import { buildConnectionBodygraphScene, cbgStateFromModel, cbgStateFromResult, connectionBodygraphSvg } from "./connectionBodygraphScene";
 import { buildPentaScene, PENTA_VIEW } from "./pentaScene";
 import type { HdConnectionResult } from "./connection";
@@ -36,6 +38,9 @@ export function renderRelationImage(a: RelationAnalysisView, widthPx = 1100, log
   if (a.kind === "connection") {
     const r = a.result as HdConnectionResult;
     const m = buildCompositeModel(a.participants[0]?.gates ?? null, a.participants[1]?.gates ?? null, r);
+    // PASİF eski Word görseli (rendererConfig): ilk Yaşam Sistemi şematik çizimi (kaynak bireysel veri gerekir).
+    if (HD_CONNECTION_BODYGRAPH !== "premium") return m.ok ? render(sceneToSvg(buildCompositeScene(m.model), "Geist", COMPOSITE_VIEW), widthPx) : null;
+    // AKTİF: premium BodyGraph.
     const state = m.ok ? cbgStateFromModel(m.model) : cbgStateFromResult(r);
     const logoHref = logo ? `data:image/png;base64,${logo.toString("base64")}` : null;
     return render(connectionBodygraphSvg(buildConnectionBodygraphScene(state), { logoHref, fontFamily: "Geist" }), widthPx);

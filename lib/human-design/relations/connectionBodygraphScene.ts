@@ -130,17 +130,23 @@ export type CbgPrim =
   | { k: "gate"; gate: number; x: number; y: number; holder: Holder | null }
   | { k: "logo" };
 
-/** Grafiğe giren durum (kayıtlı sonuçtan; uydurma yok). */
-export type CbgState = {
+/** Çizimin okuduğu kanal durumu (Connection modeli bunun üst kümesidir; bireysel harita da bunu üretir). */
+export type CbgChannel =
+  | { id: string; state: "defined"; holderA: Holder; holderB: Holder }
+  | { id: string; state: "half"; holderA: Holder | null; holderB: Holder | null }
+  | { id: string; state: "none" };
+
+/** Grafiğe giren durum (kayıtlı sonuçtan; uydurma yok). A / B = iki ton (Connection: kişiler; bireysel: Kişilik / Tasarım). */
+export type CbgState<C extends CbgChannel = CbgChannel> = {
   gates: Record<number, Holder | null>;
-  channels: Record<string, CompositeChannelState>;
+  channels: Record<string, C>;
   definedCenters: Set<string>;
   /** Yarım kanal / kişilerin tüm kapıları biliniyor mu (kaynak bireysel veri)? */
   full: boolean;
 };
 
 /** Tam model (kayıtlı bireysel kapılar + kayıtlı sonuç, birebir doğrulanmış). */
-export function cbgStateFromModel(m: CompositeModel): CbgState {
+export function cbgStateFromModel(m: CompositeModel): CbgState<CompositeChannelState> {
   return {
     gates: m.gates,
     channels: m.channels,
@@ -150,7 +156,7 @@ export function cbgStateFromModel(m: CompositeModel): CbgState {
 }
 
 /** Yalnız kayıtlı sonuç (bireysel kaynak yoksa): tanımlı kanallar ve kapıları; yarım kanal bilinmez → çizilmez. */
-export function cbgStateFromResult(r: HdConnectionResult): CbgState {
+export function cbgStateFromResult(r: HdConnectionResult): CbgState<CompositeChannelState> {
   const gates: Record<number, Holder | null> = {};
   for (let g = 1; g <= 64; g++) gates[g] = null;
   const merge = (cur: Holder | null, h: Holder): Holder => (!cur || cur === h ? h : "both");
@@ -256,7 +262,7 @@ function fills(points: Pt[], h: Holder, chs: string[]): CbgPrim[] {
   return [{ k: "fill", points: s, tone: h, chs }];
 }
 
-function halfHolders(st: CompositeChannelState): [Holder | null, Holder | null] {
+function halfHolders(st: CbgChannel): [Holder | null, Holder | null] {
   if (st.state === "defined" || st.state === "half") return [st.holderA, st.holderB];
   return [null, null];
 }

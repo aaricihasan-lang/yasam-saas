@@ -7,6 +7,7 @@
 //   • Sağlayıcı adı / uç / adaptör / nodeType RAPORDA YOK.
 //   • Mevcut tek kişilik BodyGraph Word raporu DEĞİŞTİRİLMEDİ; ortak docx yardımcıları kullanılır.
 
+import { HD_CONNECTION_BODYGRAPH } from "../bodygraph/rendererConfig";
 import { AlignmentType, Document, Packer, Paragraph, TextRun, type Table } from "docx";
 import {
   bodyText,
@@ -85,6 +86,13 @@ const LEGEND_CONNECTION = [
   "Renk kişiyi gösterir: mavi = A, turuncu = B. Aktif kapı kanalın kendi yarısını kişinin rengine boyar; mavi zemin üzerinde turuncu çizgili yarı ve iki renkli kapı = iki kişide ortak kapı.",
   "İki yarısı da boyalı kanal = birleşik haritada tanımlı. Yalnız bir yarısı boyalı kanal = yarım kanal (tanımlı değil). Bağlantı türü aşağıdaki kanal tablosundadır.",
   "Renkli merkez = birleşik haritada tanımlı; beyaz merkez = açık.",
+];
+/** PASİF (rendererConfig "legacy-*"): ilk Yaşam Sistemi şematik birleşik çizim lejantı (silinmedi). */
+const LEGEND_CONNECTION_SCHEMATIC = [
+  "Renk kişiyi gösterir: mavi = A, turuncu = B; iki renkli (çizgili / yarım daire) = iki kişide ortak kapı.",
+  "Kalın kanal = birleşik haritada tanımlı. İnce kesikli yarım kanal = yalnız bir kapısı aktif (tanımlı değil).",
+  "Kanal ortasındaki şekil bağlantı türünü gösterir: ◆ Elektromanyetik · ▲ Baskınlık · ■ Uzlaşma · ● Arkadaşlık / Eşlik.",
+  "Dolgulu merkez = birleşik haritada tanımlı; merkezdeki A / B / A+B = merkezi kendi haritasında tanımlayan kişi.",
 ];
 const LEGEND_PENTA = [
   "Kalın mor çizgi = grupta tanımlı Penta kanalı (güçlü yön); pembe = 2/14 çekirdek tanımlı; noktalı gri = boşluk var (kanal tamamlanmıyor).",
@@ -248,7 +256,8 @@ export function buildRelationReportDocument(s: RelationReportSnapshot, opts: Rel
     body.push(embedImageParagraph(opts.image, a.kind === "connection" ? 440 : 400, 620));
     const standard = a.kind === "connection" && s.image.source === "standard";
     if (s.image.reason) body.push(muted(s.image.reason));
-    for (const l of a.kind === "connection" ? (standard ? LEGEND_CONNECTION_STANDARD : LEGEND_CONNECTION) : LEGEND_PENTA) body.push(muted(l));
+    const connLegend = standard ? LEGEND_CONNECTION_STANDARD : HD_CONNECTION_BODYGRAPH === "premium" ? LEGEND_CONNECTION : LEGEND_CONNECTION_SCHEMATIC;
+    for (const l of a.kind === "connection" ? connLegend : LEGEND_PENTA) body.push(muted(l));
     if (a.kind === "penta") body.push(muted(a.participants.map((p) => `${p.position + 1}. ${safe(p.name)}`).join(" · ")));
   } else {
     body.push(muted(s.image.reason ?? "Görsel bu raporda oluşturulamadı."));

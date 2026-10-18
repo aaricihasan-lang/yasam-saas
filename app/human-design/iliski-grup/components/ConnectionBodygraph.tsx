@@ -47,18 +47,24 @@ export function ConnectionBodygraph({
   logoSrc,
   selected,
   onSelect,
-  channelLabel,
+  channelLabel = (id) => id,
   wide = false,
+  sizeClass,
 }: {
   prims: CbgPrim[];
   label: string;
-  logoSrc: string;
-  selected: string | null;
-  onSelect: (id: string | null) => void;
-  channelLabel: (id: string) => string;
+  /** null → grafiğe logo çizilmez (ör. bireysel harita: logo bilgi panelinde). */
+  logoSrc: string | null;
+  /** Etkileşim (kanal seçimi) — verilmezse grafik salt görüntüdür (ör. bireysel harita). */
+  selected?: string | null;
+  onSelect?: (id: string | null) => void;
+  channelLabel?: (id: string) => string;
   /** Mobil büyütme: sabit geniş çizim (kapsayıcı yatay kaydırır). */
   wide?: boolean;
+  /** Boyut sınıfı (varsayılan: genişliğe sığar, en fazla 640px). */
+  sizeClass?: string;
 }) {
+  const interactive = !!onSelect;
   const dim = (chs: string[]) => (selected && !chs.includes(selected) ? 0.3 : 1);
   const selRoute = selected ? HIT_ROUTES.find((r) => r.id === selected) : null;
   return (
@@ -66,7 +72,7 @@ export function ConnectionBodygraph({
       viewBox={CBG_VIEWBOX}
       role="img"
       aria-label={label}
-      className={`mx-auto block h-auto select-none ${wide ? "w-[860px] max-w-none" : "w-full max-w-[640px]"}`}
+      className={`mx-auto block select-none ${sizeClass ?? (wide ? "h-auto w-[860px] max-w-none" : "h-auto w-full max-w-[640px]")}`}
       data-hd-cbg=""
       data-hd-cbg-selected={selected ?? ""}
     >
@@ -74,6 +80,7 @@ export function ConnectionBodygraph({
       <defs dangerouslySetInnerHTML={{ __html: CBG_DEFS }} />
       {prims.map((p, i) => {
         if (p.k === "slot") {
+          if (!interactive || !onSelect) return null;
           return (
             <Fragment key={i}>
               {selRoute ? (
