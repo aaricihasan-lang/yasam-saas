@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { runInEffect } from "@/lib/runInEffect";
-import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { FileText, Sprout } from "lucide-react";
+import { useEffect, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { fetchOilCounts } from "@/lib/aromaterapi/aromatherapyData";
@@ -12,9 +10,9 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { getDemoOilStats } from "@/lib/demo/demoAromaterapi";
-import { AromaterapiBreadcrumb } from "@/app/aromaterapi/_components/AromaterapiBreadcrumb";
+import { AromaterapiSectionShell } from "@/app/aromaterapi/_components/AromaterapiSectionShell";
+import { AromaterapiModuleCard } from "@/app/aromaterapi/_components/AromaterapiModuleCard";
 import { AROMATERAPI_HUB_MODULES } from "@/lib/aromaterapi/aromaterapiModules";
-import styles from "./aromaterapiHub.module.css";
 
 type OilStats = {
   total: number;
@@ -24,42 +22,8 @@ type OilStats = {
   other: number;
 };
 
-// 2026-10-18 premium görünüm (owner onaylı prototip eee0af3) — yalnız görsel eşleme: registry kimliği → görsel + ton.
-// Eşleşmeyen (gelecekte eklenecek) bölüm varsayılan amber tonla ve görselsiz çizilir.
-const PREMIUM_ASSET = "/premium/aromaterapi";
-const CARD_VISUAL: Record<string, { art: string; w: number; h: number; tone: string }> = {
-  yaglar: { art: "yaglar", w: 175, h: 152, tone: "amber" },
-  karisimlar: { art: "karisimlar", w: 229, h: 192, tone: "sky" },
-  "bilgi-kayitlari": { art: "bilgi-kayitlari", w: 219, h: 192, tone: "mint" },
-  kaynaklar: { art: "kaynaklar", w: 194, h: 166, tone: "lilac" },
-  katalog: { art: "bitki-katalog", w: 212, h: 166, tone: "teal" },
-  "bilgi-bankasi": { art: "bilgi-bankasi", w: 243, h: 168, tone: "rose" },
-};
-
-const TILT_MAX_X = 2;
-const TILT_MAX_Y = 2.6;
-const TILT_PROPS = ["--rx", "--ry", "--px", "--py"];
-
-/** Hover'da ~2–3° eğim + görsel parallax'ı (dokunmatik / "hareketi azalt" açıkken yok). Yalnız görsel. */
-function onTiltMove(e: ReactPointerEvent<HTMLElement>) {
-  if (e.pointerType === "touch" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const el = e.currentTarget;
-  const r = el.getBoundingClientRect();
-  if (!r.width || !r.height) return;
-  const px = Math.min(Math.max((e.clientX - r.left) / r.width - 0.5, -0.5), 0.5);
-  const py = Math.min(Math.max((e.clientY - r.top) / r.height - 0.5, -0.5), 0.5);
-  el.dataset.tilting = "true";
-  el.style.setProperty("--rx", `${(-py * 2 * TILT_MAX_X).toFixed(2)}deg`);
-  el.style.setProperty("--ry", `${(px * 2 * TILT_MAX_Y).toFixed(2)}deg`);
-  el.style.setProperty("--px", px.toFixed(3));
-  el.style.setProperty("--py", py.toFixed(3));
-}
-
-function onTiltLeave(e: ReactPointerEvent<HTMLElement>) {
-  const el = e.currentTarget;
-  delete el.dataset.tilting;
-  for (const prop of TILT_PROPS) el.style.removeProperty(prop);
-}
+const statCard =
+  "rounded-xl border border-amber-100/80 bg-white/90 px-3 py-2 text-center shadow-sm";
 
 export default function AromaTerapiHubPage() {
   const isDemo = readYasamUser()?.is_demo_account === true;
@@ -118,138 +82,81 @@ export default function AromaTerapiHubPage() {
   }
 
   const statTiles = [
-    { label: "Toplam", value: stats.total, tone: "ink" },
-    { label: "Uçucu", value: stats.essential, tone: "amber" },
-    { label: "Sabit", value: stats.carrier, tone: "teal" },
-    { label: "Maserasyon", value: stats.maceration, tone: "rose" },
-    { label: "Diğer", value: stats.other, tone: "violet" },
+    { label: "Toplam", value: stats.total, cls: "text-slate-950" },
+    { label: "Uçucu", value: stats.essential, cls: "text-amber-700" },
+    { label: "Sabit", value: stats.carrier, cls: "text-emerald-700" },
+    { label: "Maserasyon", value: stats.maceration, cls: "text-rose-700" },
+    { label: "Diğer", value: stats.other, cls: "text-violet-700" },
   ];
 
   return (
-    <main className={styles.page}>
-      <div className={styles.inner}>
-        <AromaterapiBreadcrumb className="mb-1.5" />
-
-        {isDemo ? (
-          <div className="mb-3">
-            <DemoModuleBanner message="Aromaterapi modülü demo hesabı için temsili verilerle gösterilmektedir. İçerikler görüntülenebilir; düzenleme ve yeni kayıt işlemleri demo hesabında çalışmaz." />
+    <AromaterapiSectionShell
+      eyebrow="Terapötik Yağ Kütüphanesi"
+      title="Aromaterapi Merkezi"
+      subtitle="Uçucu, sabit ve maserasyon yağı kütüphaneleri, karışım oluşturucu, kaynaklar ve bilgi kayıtları. Profesyonel referans ve çalışma merkezi."
+      icon="🌸"
+      banner={
+        isDemo ? (
+          <DemoModuleBanner message="Aromaterapi modülü demo hesabı için temsili verilerle gösterilmektedir. İçerikler görüntülenebilir; düzenleme ve yeni kayıt işlemleri demo hesabında çalışmaz." />
+        ) : undefined
+      }
+      actions={
+        <div className="flex flex-col gap-2">
+          {!isDemo && (
+            <button
+              type="button"
+              onClick={() => void exportGeneralWord()}
+              disabled={exportingGeneral}
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-3.5 text-[12px] font-black text-white shadow-sm ring-1 ring-white/25 transition hover:brightness-105 disabled:opacity-60"
+              title="Tüm Aromaterapi kaynaklarını tek profesyonel Word dosyasında indir"
+            >
+              <span aria-hidden>📄</span>
+              {exportingGeneral ? "Hazırlanıyor…" : "Aromaterapi Kataloğunu Word'e Aktar"}
+            </button>
+          )}
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+            {statTiles.map((s) => (
+              <div key={s.label} className={statCard}>
+                <div className={`text-lg font-black sm:text-xl ${s.cls}`}>
+                  {loading ? "—" : s.value}
+                </div>
+                <div className="mt-0.5 text-[10px] font-bold text-slate-500">
+                  {s.label}
+                </div>
+              </div>
+            ))}
           </div>
-        ) : null}
+        </div>
+      }
+    >
+      {errorMsg ? (
+        <div className="mb-4 rounded-2xl bg-rose-50 px-4 py-2.5 text-[13px] font-bold text-rose-700 ring-1 ring-rose-100">
+          {errorMsg}
+        </div>
+      ) : null}
 
-        <section className={styles.hero} aria-labelledby="aromaterapi-hub-title">
-          <div>
-            <p className={styles.heroBadge}>
-              <Sprout className="h-[15px] w-[15px]" strokeWidth={2} aria-hidden />
-              Terapötik Yağ Kütüphanesi
-            </p>
-            <h1 id="aromaterapi-hub-title" className={styles.heroTitle}>
-              Aromaterapi Merkezi
-            </h1>
-            <p className={styles.heroSub}>
-              Uçucu, sabit ve maserasyon yağı kütüphaneleri, karışım oluşturucu, kaynaklar ve bilgi kayıtları.
-              Profesyonel referans ve çalışma merkezi.
-            </p>
-          </div>
-          <div className={styles.heroArt} aria-hidden>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`${PREMIUM_ASSET}/hero-sahne.webp`} width={350} height={234} alt="" decoding="async" draggable={false} />
-          </div>
-          <div className={styles.heroPanel}>
-            {!isDemo && (
-              <button
-                type="button"
-                onClick={() => void exportGeneralWord()}
-                disabled={exportingGeneral}
-                className={styles.wordBtn}
-                title="Tüm Aromaterapi kaynaklarını tek profesyonel Word dosyasında indir"
-              >
-                <FileText className="h-4 w-4" strokeWidth={2} aria-hidden />
-                <span>{exportingGeneral ? "Hazırlanıyor…" : "Aromaterapi Kataloğunu Word'e Aktar"}</span>
-              </button>
-            )}
-            <ul className={styles.counts} aria-label="Yağ türü sayaçları">
-              {statTiles.map((s) => (
-                <li key={s.label} className={styles.count} data-tone={s.tone}>
-                  <strong>{loading ? "—" : s.value}</strong>
-                  <span>{s.label}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
+      {/* Bölüm kartları — tek registry'den üretilir (hard-code YOK). */}
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {AROMATERAPI_HUB_MODULES.map((module) => (
+          <AromaterapiModuleCard
+            key={module.id}
+            module={module}
+            badge={
+              module.id === "yaglar" && !loading ? `${stats.total} yağ` : undefined
+            }
+          />
+        ))}
+      </section>
 
-        {errorMsg ? <div className={styles.alert}>{errorMsg}</div> : null}
-
-        {/* Bölüm kartları — tek registry'den üretilir (hard-code YOK). */}
-        <section className={styles.cards} aria-label="Aromaterapi bölümleri">
-          {AROMATERAPI_HUB_MODULES.map((module) => {
-            const visual = CARD_VISUAL[module.id];
-            const badge = module.id === "yaglar" && !loading ? `${stats.total} yağ` : undefined;
-            const preparing = module.status === "preparing";
-            return (
-              <Link
-                key={module.id}
-                href={module.href}
-                className={styles.card}
-                data-tone={visual?.tone ?? "amber"}
-                onPointerMove={onTiltMove}
-                onPointerLeave={onTiltLeave}
-              >
-                {visual ? (
-                  <span className={styles.cardArt} aria-hidden>
-                    <span className={styles.artLayer}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={`${PREMIUM_ASSET}/${visual.art}.webp`}
-                        width={visual.w}
-                        height={visual.h}
-                        alt=""
-                        decoding="async"
-                        draggable={false}
-                      />
-                    </span>
-                    <span className={styles.sheen} />
-                  </span>
-                ) : null}
-                {badge || preparing ? (
-                  <span className={styles.badges}>
-                    {badge ? <span className={styles.countBadge}>{badge}</span> : null}
-                    {preparing ? <span className={styles.soonBadge}>Yakında</span> : null}
-                  </span>
-                ) : null}
-                <span className={styles.cardBody}>
-                  <span className={styles.cardIcon} aria-hidden>
-                    {visual ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={`${PREMIUM_ASSET}/ic-${visual.art}.webp`} width={60} height={58} alt="" decoding="async" draggable={false} />
-                    ) : (
-                      <span className="text-3xl">{module.icon}</span>
-                    )}
-                  </span>
-                  <h2 className={styles.cardTitle}>{module.label}</h2>
-                  <p className={styles.cardDesc}>{module.description}</p>
-                  {module.facets && module.facets.length > 0 ? (
-                    <ul className={styles.tags}>
-                      {module.facets.map((facet) => (
-                        <li key={facet.href}>{facet.label}</li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </span>
-                <span className={styles.cardStrip} aria-hidden />
-              </Link>
-            );
-          })}
-        </section>
-
-        <footer className={styles.footNote}>
-          <Sprout className="h-[18px] w-[18px]" strokeWidth={1.8} aria-hidden />
-          <p>
-            Aromaterapi Merkezi — yağ kütüphanesi, karışım oluşturucu ve kaynak temelli bilgi sistemi. Bölümler
-            hazırlandıkça bu merkezden açılır.
-          </p>
-        </footer>
-      </div>
-    </main>
+      <footer className="mt-5 flex flex-wrap items-center gap-2 rounded-2xl border border-amber-100/60 bg-white/60 px-4 py-3 backdrop-blur-sm">
+        <span className="text-lg" aria-hidden>
+          🌿
+        </span>
+        <p className="text-xs font-medium text-slate-500">
+          Aromaterapi Merkezi — yağ kütüphanesi, karışım oluşturucu ve kaynak
+          temelli bilgi sistemi. Bölümler hazırlandıkça bu merkezden açılır.
+        </p>
+      </footer>
+    </AromaterapiSectionShell>
   );
 }
