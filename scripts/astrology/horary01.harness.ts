@@ -14,7 +14,13 @@ import * as Astronomy from "astronomy-engine";
 import JSZip from "jszip";
 import { extractText, getDocumentProxy } from "unpdf";
 import { SYNTH_A } from "./golden/phase3-golden-calls";
-import { getTechnique } from "@/lib/astrology/engine/techniques";
+import { getTechnique, normalizeQuestionMoment, normalizeTransitMoment } from "@/lib/astrology/engine/techniques";
+import { createFakeClient, createStore } from "./fakeSupabase";
+import { resolveAstrologyEntitlements } from "@/lib/astrology/access/entitlements";
+import { createAstroProfile } from "@/lib/astrology/profiles/service";
+import { runAstrology, type EngineCtx, type EngineDeps } from "@/lib/astrology/engine/service";
+import { getAnalysis, saveAnalysis } from "@/lib/astrology/analyses/service";
+import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 import { kpLordCandidates, kpSpan, kpTable } from "@/lib/astrology/verify/kpSub";
 import { SIGN_LORDS, type KpHoraryTechnical } from "@/lib/astrology/model/kp";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
@@ -23,7 +29,7 @@ import { buildAstroReport, reportTexts, type ReportAnalysisInput } from "@/lib/a
 import { renderAstroReportDocx } from "@/lib/astrology/report/docx";
 import { buildAstroReportPdf } from "@/lib/astrology/report/pdf";
 import { symbolFontBuffers, symbolFontsBase64 } from "@/lib/astrology/report/symbolFontData";
-import { describeOptions } from "@/app/admin/astroloji/_lib/techniques";
+import { describeOptions, runOptionsFor } from "@/app/admin/astroloji/_lib/techniques";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -71,9 +77,9 @@ async function main() {
     assert.deepEqual(def.parseOptions({ ...local.o }, new Date()), local.o);
     assert.equal(def.parseOptions({ atUtc: AT, horaryNumber: 108, displayTz: "Mars/Olympus" }, new Date()), null, "geçersiz IANA");
     assert.equal(def.parseOptions({ date: "2026-10-07", time: "12:00", timezone: "Yok/Böyle", horaryNumber: 108 }, new Date()), null);
-    // "Şimdi": UTC saat başı; gösterim dilimi yoksa eklenmez (eski davranış).
+    // "Şimdi" (HORARY-P1): gerçek UTC dakika (saat başı DEĞİL); gösterim dilimi yoksa eklenmez.
     const now = def.parseOptions({ now: true, horaryNumber: 5 }, new Date("2026-10-18T10:17:00Z"))!;
-    assert.equal(now.atUtc, "2026-10-18T10:00");
+    assert.equal(now.atUtc, "2026-10-18T10:17");
     assert.equal(now.displayTz, undefined);
   });
 
@@ -259,6 +265,140 @@ async function main() {
   await t("H11 özet satırı: displayTz varsa yerel + UTC; yoksa eski metin BİREBİR", () => {
     assert.equal(describeOptions("kp.horary", { horaryNumber: 108, atUtc: "2026-10-07T09:00", place: { label: "İstanbul" } }), "sayı 108 · 07.10.2026 09:00 UTC · İstanbul");
     assert.equal(describeOptions("kp.horary", { horaryNumber: 108, atUtc: "2026-10-07T09:00", displayTz: "Europe/Istanbul", place: { label: "İstanbul" } }), "sayı 108 · 07.10.2026 12:00 GMT+3 (07.10.2026 09:00 UTC) · İstanbul");
+  });
+
+  // ── HORARY-P1 (2026-10-18): "Şimdi" = gerçek soru anı (UTC dakika; saat başı DEĞİL) — yalnız kp.horary ───────────
+  const nowOpts = (iso: string, extra: Record<string, unknown> = {}) => def.parseOptions({ now: true, horaryNumber: 108, ...extra }, new Date(iso))!;
+  const unitAt = (iso: string) => def.units(ctx, nowOpts(iso))[0];
+
+  await t("P1-1…4 şimdi → UTC dakika: 17:18:42 → 17:18 · 17:59:59 → 17:59 · 18:00:01 → 18:00 · gece yarısı / yıl değişimi; gövde tarih+saat aynı dakika", () => {
+    const cases: [string, string][] = [
+      ["2026-10-18T17:18:42.000Z", "2026-10-18T17:18"],
+      ["2026-10-18T17:59:59.999Z", "2026-10-18T17:59"],
+      ["2026-10-18T18:00:01.000Z", "2026-10-18T18:00"],
+      ["2026-10-18T23:59:59.000Z", "2026-10-18T23:59"],
+      ["2026-10-19T00:00:30.000Z", "2026-10-19T00:00"],
+      ["2026-12-31T23:59:30.000Z", "2026-12-31T23:59"],
+      ["2027-01-01T00:00:59.000Z", "2027-01-01T00:00"],
+    ];
+    for (const [iso, want] of cases) {
+      const o = nowOpts(iso);
+      assert.equal(o.atUtc, want, iso);
+      assert.equal(o.now, undefined, "normalize seçenekte 'now' kalmaz (kayıt UTC dakikayı taşır)");
+      assert.equal(o.displayTz, undefined);
+      const b = def.units(ctx, o)[0].body as J;
+      assert.deepEqual([b.date, b.time, b.timezone], [want.slice(0, 10), `${want.slice(11, 16)}:00`, 0], iso);
+    }
+    // Önceki hata örneği: 20:18 TR (17:18 UTC) artık 17:00'ye düşmez.
+    assert.notEqual(nowOpts("2026-10-18T17:18:42Z").atUtc, "2026-10-18T17:00");
+  });
+
+  await t("P1-5/6 önbellek: farklı dakika → farklı istek zamanı + farklı anahtar (17:18 ≠ 17:19); aynı dakika (farklı saniye) → aynı an + aynı anahtar", () => {
+    const a = unitAt("2026-10-18T17:18:05Z");
+    const b = unitAt("2026-10-18T17:18:59Z");
+    const c = unitAt("2026-10-18T17:19:00Z");
+    assert.deepEqual(a.body, b.body);
+    assert.equal(a.inputHash, b.inputHash);
+    assert.notEqual((a.body as J).time, (c.body as J).time);
+    assert.notEqual(a.inputHash, c.inputHash);
+    // Şimdi ile aynı dakikanın elle girilmiş UTC anı aynı anahtardır (tek önbellek).
+    assert.equal(def.units(ctx, def.parseOptions({ atUtc: "2026-10-18T17:18", horaryNumber: 108 }, new Date())!)[0].inputHash, a.inputHash);
+  });
+
+  await t("P1-7/8 elle tarih-saat ve eski kayıtlar DEĞİŞMEZ: 07.10.2026 12:00 Europe/Istanbul → 09:00 UTC (golden 108); kayıtlı atUtc hangi 'şimdi'de açılırsa açılsın yeniden hesaplanmaz", () => {
+    const m = horaryOf({ date: "2026-10-07", time: "12:00", timezone: "Europe/Istanbul", horaryNumber: 108 });
+    assert.equal(m.o.atUtc, AT);
+    assert.deepEqual(m.u.body, HO.body);
+    assert.equal(m.r.ok, true, "golden projeksiyon temiz");
+    for (const saved of [{ atUtc: "2026-10-07T09:00", horaryNumber: 108, ayanamsa: "kp-newcomb", nodeType: "mean", placeLocationId: null }, { atUtc: "2026-10-18T17:00", horaryNumber: 5, ayanamsa: "kp-newcomb", nodeType: "mean", placeLocationId: null }]) {
+      assert.deepEqual(def.parseOptions(saved, new Date("2026-10-19T06:42:17Z")), saved, `eski kayıt ${saved.atUtc}`);
+    }
+  });
+
+  await t("P1-9/10 diğer teknikler DEĞİŞMEDİ: KP transit, KP ruling, Batı transit, Vedik Gochara 'şimdi' → hâlâ UTC saat başı (17:18:42 → 17:00)", () => {
+    const at = new Date("2026-10-18T17:18:42Z");
+    const want = "2026-10-18T17:00";
+    assert.equal(normalizeTransitMoment({ now: true }, at), want);
+    assert.equal(getTechnique("kp.transit")!.parseOptions({ now: true, ayanamsa: "kp-newcomb", nodeType: "mean" }, at)!.atUtc, want);
+    assert.equal(getTechnique("kp.ruling")!.parseOptions({ now: true, nodeType: "mean" }, at)!.atUtc, want);
+    assert.equal(getTechnique("western.transit")!.parseOptions({ now: true, nodeType: "true" }, at)!.atUtc, want);
+    assert.equal(getTechnique("vedic.transit")!.parseOptions({ now: true, ayanamsa: "lahiri" }, at)!.atUtc, want);
+    // Yalnız horary dakika hassasiyetinde.
+    assert.equal(normalizeQuestionMoment({ now: true }, at), "2026-10-18T17:18");
+    assert.equal(normalizeQuestionMoment({ atUtc: "2026-10-07T09:00" }, at), "2026-10-07T09:00");
+  });
+
+  await t("P1-UI başlatma anı: KP horary + şimdi → ham { now: true } gönderilir (sunucu dakikayı başlatırken alır); horary elle an, KP transit / ruling / Batı transit şimdi → planın normalize seçeneği (eski davranış)", () => {
+    const raw = { now: true, horaryNumber: 108, ayanamsa: "kp-newcomb", nodeType: "mean", placeLocationId: null };
+    const planned = { ...raw, now: undefined, atUtc: "2026-10-18T17:00" };
+    assert.equal(runOptionsFor("kp.horary", planned, raw), raw);
+    const manual = { date: "2026-10-07", time: "12:00", timezone: "Europe/Istanbul", horaryNumber: 108 };
+    const manualPlanned = { horaryNumber: 108, atUtc: AT, displayTz: "Europe/Istanbul" };
+    assert.equal(runOptionsFor("kp.horary", manualPlanned, manual), manualPlanned);
+    for (const tech of ["kp.transit", "kp.ruling", "western.transit", "vedic.transit"]) {
+      const p = { atUtc: "2026-10-18T17:00" };
+      assert.equal(runOptionsFor(tech, p, { now: true }), p, tech);
+    }
+    assert.equal(runOptionsFor("kp.horary", null, raw), raw);
+    assert.equal(describeOptions("kp.horary", { now: true, horaryNumber: 108 }), "sayı 108 · şimdi (gerçek soru anı)");
+  });
+
+  await t("P1-11 UÇTAN UCA (motor + kayıt + rapor; SENTETİK sağlayıcı yankısı, gerçek Roxy YOK): sunucu saati 17:18:42 → istek 17:18:00, teknik + kayıt + ekran özeti + Word + PDF aynı 18.10.2026 17:18 UTC; aynı dakikada tekrar 0 istek, 17:19'da yeni istek", async () => {
+    const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const OWNER = "0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a";
+    const CLIENT_X = "44444444-4444-4444-8444-444444444444";
+    const ISTANBUL: ResolvedLocation = { id: "tr-34-istanbul", label: "İstanbul, Türkiye", timezone: "Europe/Istanbul", latitude: 41.0082, longitude: 28.9784 };
+    const store = createStore({ clients: [{ id: CLIENT_X, tenant_id: TENANT_A, ad: "Sentetik", soyad: "A" }] });
+    const ectx: EngineCtx = { db: createFakeClient(store), tenantId: TENANT_A, userId: OWNER, entitlements: resolveAstrologyEntitlements({ isOwner: true }) };
+    const pr = await createAstroProfile(ectx, { label: "Sentetik A", clientId: CLIENT_X, birthDate: "1990-07-15", birthTime: "14:30", timeKnown: true, timeAccuracy: "exact_record", locationId: ISTANBUL.id }, (id) => (id === ISTANBUL.id ? ISTANBUL : null));
+    assert.equal(pr.status, 201);
+    const pid = (pr.body as J).profile.id as string;
+    let clock = new Date("2026-10-18T17:18:42.000Z");
+    const calls: J[] = [];
+    const deps: EngineDeps = {
+      config: { apiKey: "k-test-p1", baseUrl: "https://roxy-fake.local/api/v2" },
+      now: () => clock,
+      callProvider: async (_c, endpoint, body) => {
+        calls.push(body);
+        if (endpoint !== HO.endpoint) return { ok: false, kind: "bad_request", status: 400, attempts: 1 };
+        const r = structuredClone(HO.response);
+        r.questionTime = `${String(body.date)}T${String(body.time)}.000Z`; // SENTETİK yankı: yalnız soru anı (golden 108 gövdesi aynı)
+        return { ok: true, raw: r, attempts: 1 };
+      },
+      rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
+    };
+    const sel = { technique: "kp.horary", options: { now: true, horaryNumber: 108, ayanamsa: "kp-newcomb", nodeType: "mean", placeLocationId: null } };
+    const res = ((await runAstrology(ectx, { profileId: pid, selections: [sel] }, deps, { ownerPreviewHideInterp: false })).body as J).results[0];
+    assert.equal(res.ok, true, JSON.stringify(res).slice(0, 300));
+    assert.equal(calls.length, 1);
+    assert.deepEqual([calls[0].date, calls[0].time, calls[0].timezone], ["2026-10-18", "17:18:00", 0]);
+    assert.equal(res.view.options.atUtc, "2026-10-18T17:18");
+    assert.equal(res.view.technical.at.utc, "2026-10-18T17:18");
+    // Aynı dakika (17:18:59) → önbellek; 17:19:05 → yeni istek.
+    clock = new Date("2026-10-18T17:18:59.000Z");
+    await runAstrology(ectx, { profileId: pid, selections: [sel] }, deps, { ownerPreviewHideInterp: false });
+    assert.equal(calls.length, 1, "aynı dakika tekrar istek üretmemeli");
+    clock = new Date("2026-10-19T08:00:00.000Z");
+    // Kayıt: arayüz gibi sonuç görünümünün seçeneği kaydedilir (atUtc) → kayıt anındaki saat önemsizdir.
+    const sv = await saveAnalysis(ectx, { profileId: pid, revision: 1, technique: "kp.horary", options: res.view.options, includeProviderInterp: false, saveRequestId: "11111111-2222-4333-8444-555555555555" }, false);
+    assert.equal(sv.status, 201, JSON.stringify(sv.body));
+    const a = ((await getAnalysis(ectx, (sv.body as J).analysisId, false)).body as J).analysis;
+    assert.equal(a.params.atUtc, "2026-10-18T17:18");
+    assert.equal(a.technical.at.utc, "2026-10-18T17:18");
+    assert.equal(calls.length, 1, "kayıt / açma sağlayıcı çağırmaz");
+    assert.equal(describeOptions("kp.horary", a.params), "sayı 108 · 18.10.2026 17:18 UTC · İstanbul, Türkiye");
+    const rep = buildAstroReport(a);
+    assert.ok(reportTexts(rep).join("\n").includes("18.10.2026 17:18 UTC"), "rapor modeli");
+    const docx = norm(await docxText(await renderAstroReportDocx(rep, null, symbolFontBuffers())));
+    const pdf = norm(await pdfText(buildAstroReportPdf(rep, null, fontB64, symbolFontsBase64())));
+    assert.ok(docx.includes("18.10.2026 17:18 UTC"), "Word");
+    assert.ok(pdf.includes("18.10.2026 17:18 UTC"), "PDF");
+    assert.ok(!docx.includes("17:00 UTC") && !pdf.includes("17:00 UTC"), "saat başı izi yok");
+    clock = new Date("2026-10-18T17:19:05.000Z");
+    const r2 = ((await runAstrology(ectx, { profileId: pid, selections: [sel] }, deps, { ownerPreviewHideInterp: false })).body as J).results[0];
+    assert.equal(calls.length, 2);
+    assert.equal(calls[1].time, "17:19:00");
+    assert.equal(r2.view.options.atUtc, "2026-10-18T17:19");
   });
 
   console.log(`\nastrology horary01 harness: ${pass} PASS / ${fail} FAIL`);

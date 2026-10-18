@@ -241,6 +241,16 @@ export function defaultParams(today: Date): TechniqueParams {
 }
 
 /** Seçili teknikler → sunucu seçim listesi (sıra sabit: UI_TECHNIQUES sırası). */
+/**
+ * HORARY-P1: "Analizi Başlat"ta gönderilecek seçenek. Normalde planın NORMALİZE seçeneği (önizlemede gösterilen an) gönderilir.
+ * KP horary + "şimdi" ise ham `{ now: true }` gönderilir → soru anı, sunucunun çalıştırmayı işlediği gerçek UTC dakikadır
+ * (plan, teknik seçildiğinde dakikalar önce alınmış olabilir). Diğer teknikler (transit, ruling: UTC saat başı) DEĞİŞMEZ.
+ */
+export function runOptionsFor(technique: string, planned: Record<string, unknown> | null | undefined, raw: Record<string, unknown>): Record<string, unknown> {
+  if (technique === "kp.horary" && raw.now === true) return raw;
+  return planned ?? raw;
+}
+
 export function buildSelections(
   checked: Partial<Record<UiTechniqueId, boolean>>,
   p: TechniqueParams,
@@ -453,7 +463,9 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
         // HORARY-KP-01: soru anının gösterim saat dilimi varsa yerel an + UTC; yoksa (eski kayıtlar) eski metin aynen.
         const tz = typeof o.displayTz === "string" && o.displayTz !== "UTC" ? o.displayTz : null;
         const z = tz && typeof o.atUtc === "string" ? formatInZone(o.atUtc, tz) : null;
-        return `sayı ${String(o.horaryNumber)} · ${z ? `${z.text} ${z.zone} (${at})` : at}${pl ? ` · ${pl}` : ""}`;
+        // HORARY-P1: başarısız denemeler ham seçenekle listelenir ({ now: true } — an henüz sunucuda belirlenmedi).
+        const when = z ? `${z.text} ${z.zone} (${at})` : at || (o.now === true ? "şimdi (gerçek soru anı)" : "");
+        return `sayı ${String(o.horaryNumber)} · ${when}${pl ? ` · ${pl}` : ""}`;
       }
       if (technique === "kp.ruling") return `${at}${pl ? ` · ${pl}` : ""}`;
       const rg = o.range as { startDate?: string; days?: number; planets?: string[]; kinds?: string[] } | undefined;

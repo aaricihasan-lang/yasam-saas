@@ -25,7 +25,7 @@ import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr
 import { astroFetch, isAdminSurface, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
 import type { DashaDrillResult } from "./_components/VedicPanels";
 import type { VedicDashaTechnical } from "@/lib/astrology/model/vedic";
-import { buildSelections, defaultParams, describeOptions, houseSystemLabel, techniqueLabel, zodiacLabel, TECHNIQUE_META, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
+import { buildSelections, defaultParams, runOptionsFor, describeOptions, houseSystemLabel, techniqueLabel, zodiacLabel, TECHNIQUE_META, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
 import ProviderInterpretationPanel, { interpretationTitle, type InterpretationLayer } from "./_components/ProviderInterpretationPanel";
 import ProfileForm, { type ProfileFormInitial } from "./_components/ProfileForm";
 import AnalysisWorkspace from "./_components/AnalysisWorkspace";
@@ -627,8 +627,8 @@ export default function AstrologyWorkspacePage() {
     if (!shownDetail || revision === null || !ctxKey || !plan || !planKey) return;
     const key = ctxKey;
     const seq = ++runSeq.current;
-    // Önizlemede gösterilen NORMALİZE seçenekler aynen çalıştırılır (ör. "şimdi" saat başı).
-    const sels = plan.selections.map((s, i) => ({ technique: s.technique, options: s.options ?? selections[i].options }));
+    // Önizlemede gösterilen NORMALİZE seçenekler aynen çalıştırılır (ör. "şimdi" saat başı); KP horary + şimdi istisnası: runOptionsFor.
+    const sels = plan.selections.map((s, i) => ({ technique: s.technique, options: runOptionsFor(s.technique, s.options, selections[i].options) }));
     setRunning(true);
     setRunErrorState(null);
     setLastFailures(null);
