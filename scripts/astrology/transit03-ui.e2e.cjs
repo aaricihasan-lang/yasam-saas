@@ -1,6 +1,7 @@
 // TRANSİT-03 (2026-10-17) — KP Transit zaman aralığı ekran testi (Playwright Chromium). YEREL; sahte DB + sahte Roxy.
-// UYARI: KP aralık uçları için gerçek golden YOK → sahte arka uç FAKE_ROXY_KP_SYNTH=1 ile SENTETİK yanıt verir
-// (bağımsız astronomi; gerçek sağlayıcı sonucu DEĞİLDİR). Bu test arayüz/akış/sınır davranışını doğrular.
+// Veri: 92 gün Ay Sub-Lord bölümü GERÇEK golden'dır (kp-sublord-moon-92d; düzeltme işareti dahil). Arayüz akışındaki 30 günlük
+// Ay+Güneş ve 3 günlük kayıt/rapor gövdelerinin golden'ı yok → sahte arka uç FAKE_ROXY_KP_SYNTH=1 ile SENTETİK yanıt verir
+// (bağımsız astronomi; gerçek sağlayıcı sonucu DEĞİLDİR). O bölümler arayüz/akış/sınır davranışını doğrular.
 // Çalıştırma: node scripts/astrology/transit03-ui.e2e.cjs <genişlik> <yükseklik> <fake-backend.log> [android] [port]
 /* eslint-disable @typescript-eslint/no-require-imports -- düz Node CommonJS test betiği */
 const { chromium } = require("playwright");
@@ -47,6 +48,8 @@ const api = async (path, body) => {
     viewport: { width, height },
     isMobile: mobile,
     hasTouch: mobile,
+    locale: "tr-TR",
+    timezoneId: "Europe/Istanbul",
     ...(android ? { userAgent: "Mozilla/5.0 (Linux; Android 14; SM-A546E Build/UP1A.231005.007; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0.6668.100 Mobile Safari/537.36" } : {}),
   });
   await ctx.addCookies([
@@ -82,7 +85,40 @@ const api = async (path, body) => {
   await settings.locator("[data-kp-mode=range]").check();
   await page.waitForTimeout(300);
   const range = settings.locator("[data-testid=astro-kp-range]");
-  await range.locator('input[aria-label="KP aralık başlangıcı"]').fill("2026-10-07");
+  // TRANSİT-01 dersi (#428): tarih alanı .fill() ile değil KLAVYEYLE rakam rakam da yazılır; ara değerler ("0002-10-07")
+  // çökme üretmez, alanda uyarı + Başlat kapalı, plan isteğine geçersiz başlangıç GİTMEZ.
+  const badPlan = [];
+  page.on("request", (r) => {
+    if (!r.url().includes("/engine/plan") || r.method() !== "POST") return;
+    for (const s of JSON.parse(r.postData() || "{}").selections ?? []) {
+      const d = s.options?.range?.startDate;
+      if (typeof d === "string" && !/^(1[6-9]|2[0-5])\d\d-\d\d-\d\d$|^2600-/.test(d)) badPlan.push(d);
+    }
+  });
+  const startIn = range.locator('input[aria-label="KP aralık başlangıcı"]');
+  await startIn.fill("");
+  await page.waitForTimeout(400);
+  ok("boş başlangıç: alanda uyarı + Başlat kapalı", (await range.locator("[data-testid=astro-kp-range-date-issue]").isVisible()) && (await page.locator("[data-testid=astro-run]").isDisabled()));
+  await startIn.click({ position: { x: 10, y: 10 } });
+  await page.keyboard.type("0710", { delay: 60 });
+  let typedOk = true;
+  for (const [i, k] of ["2", "0", "2", "6"].entries()) {
+    await page.keyboard.type(k, { delay: 60 });
+    await page.waitForTimeout(450);
+    if (i < 3) {
+      const warn = await range.locator("[data-testid=astro-kp-range-date-issue]").isVisible();
+      const dis = await page.locator("[data-testid=astro-run]").isDisabled();
+      if (!warn || !dis) {
+        typedOk = false;
+        console.log(`   ara değer ${await startIn.inputValue()}: uyarı=${warn} başlat-kapalı=${dis}`);
+      }
+    }
+  }
+  await page.waitForTimeout(800);
+  ok("başlangıç yılı rakam rakam: çökme yok; ara değerlerde uyarı + Başlat kapalı", typedOk && errors.length === 0, errors[0] ?? "");
+  ok("tamamlanınca 2026-10-07, uyarı kalkar", (await startIn.inputValue()) === "2026-10-07" && !(await range.locator("[data-testid=astro-kp-range-date-issue]").count()), await startIn.inputValue());
+  ok("plan isteklerine geçersiz başlangıç gitmedi", badPlan.length === 0, badPlan.slice(0, 3).join(", "));
+  await startIn.fill("2026-10-07");
   await range.locator('select[aria-label="KP aralık süresi"]').selectOption("30");
   await range.locator("[data-kp-kind=positions]").check();
   await page.waitForTimeout(300);

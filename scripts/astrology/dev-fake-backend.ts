@@ -195,9 +195,9 @@ function strictMatch(path: string, body: Record<string, unknown>, params: URLSea
     const same = ["date", "time", "latitude", "longitude", "timezone"].every((k) => canon(body[k]) === canon(bd[k]));
     if (same && body.houseSystem === (FIXTURE as { houseSystem?: unknown }).houseSystem) return { raw: structuredClone(FIXTURE), source: "spec-derived natal fixture (OpenAPI)" };
   }
-  // TRANSİT-03: KP zaman aralığı uçları için gerçek golden HENÜZ YOK (owner onaylı çağrı bekleniyor). Yalnız açıkça
-  // FAKE_ROXY_KP_SYNTH=1 verilirse bağımsız astronomiyle kurulan SENTETİK yanıt (syntheticKpTiming; golden KP verisine
-  // sabitlenmiş, ≤0,005°) döner — log "SENTETİK" der; GERÇEK SAĞLAYICI SONUCU DEĞİLDİR.
+  // TRANSİT-03: KP zaman aralığı uçlarının 10 gerçek golden'ı (17.10.2026) yukarıda BİREBİR gövdeyle önce eşleşir. Golden'ı
+  // olmayan gövdeler için yalnız açıkça FAKE_ROXY_KP_SYNTH=1 verilirse bağımsız astronomiyle kurulan SENTETİK yanıt
+  // (syntheticKpTiming; golden KP verisine sabitlenmiş, ≤0,005°) döner — log "SENTETİK" der; GERÇEK SAĞLAYICI SONUCU DEĞİLDİR.
   if (process.env.FAKE_ROXY_KP_SYNTH === "1") {
     if (path === "/vedic-astrology/kp/sublord-changes") return { raw: syntheticSublordChanges(body as never), source: "SENTETİK KP sub-lord (astronomy-engine)" };
     if (path === "/vedic-astrology/kp/rasi-changes") return { raw: syntheticRasiChanges(body as never), source: "SENTETİK KP rasi (astronomy-engine)" };

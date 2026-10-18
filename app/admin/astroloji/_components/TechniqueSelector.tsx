@@ -140,8 +140,18 @@ function KpRangeFields({ params, onParams }: { params: TechniqueParams; onParams
       <div className="flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-1">
           Başlangıç (UTC günü)
-          <input type="date" className={inp} min="1600-01-01" max="2600-12-31" value={params.kpRangeStart} onChange={(e) => set("kpRangeStart", e.target.value)} aria-label="KP aralık başlangıcı" />
+          <input
+            type="date"
+            className={inp}
+            min="1600-01-01"
+            max="2600-12-31"
+            value={params.kpRangeStart}
+            onChange={(e) => set("kpRangeStart", e.target.value)}
+            aria-invalid={dateInputIssue(params.kpRangeStart) ? true : undefined}
+            aria-label="KP aralık başlangıcı"
+          />
         </label>
+        <FieldIssue text={dateInputIssue(params.kpRangeStart)} testId="astro-kp-range-date-issue" />
         <label className="flex items-center gap-1">
           Süre
           <select className={inp} value={params.kpRangeDays} onChange={(e) => set("kpRangeDays", Number(e.target.value))} aria-label="KP aralık süresi">

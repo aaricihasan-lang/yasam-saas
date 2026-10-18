@@ -366,8 +366,11 @@ export function dateInputReason(id: UiTechniqueId, p: TechniqueParams): string |
       return bad(p.targetDate) ? "hedef tarihi tamamlayın" : null;
     case "vedic.transit":
       return p.vedicTransitMode === "custom" && bad(p.vedicTransitDate, p.vedicTransitTime) ? "Gochara tarihini / saatini tamamlayın" : null;
-    case "kp.ruling":
     case "kp.transit":
+      // TRANSİT-03 zaman aralığı: tek-an tarihi bu kipte kullanılmaz; aralık başlangıcı + aralık ayarları (sunucuyla aynı) denetlenir.
+      if (p.kpTransitMode === "range") return kpRangeIssue(p);
+      return p.kpMomentMode === "custom" && bad(p.kpDate, p.kpTime) ? "KP tarihini / saatini tamamlayın" : null;
+    case "kp.ruling":
     case "kp.horary":
       return p.kpMomentMode === "custom" && bad(p.kpDate, p.kpTime) ? "KP tarihini / saatini tamamlayın" : null;
     default:
@@ -527,6 +530,20 @@ export function kpRangeOptions(p: TechniqueParams): Record<string, unknown> {
     kinds,
     ...(kinds.includes("positions") ? { intervalMinutes: p.kpRangeInterval } : {}),
   };
+}
+/**
+ * KP zaman aralığı ayarı eksik / geçersizse kısa neden (yoksa null). Sunucunun parseKpRange'iyle aynı kurallar:
+ * başlangıç tarihi (yıl yazılırken "0002-10-07" gibi ara değerler dahil), en az bir tür, Sub-Lord/Rasi için gezegen,
+ * konum tablosu ≤ 7 gün. Neden varsa seçim plana / API'ye GİRMEZ.
+ */
+export function kpRangeIssue(p: TechniqueParams): string | null {
+  if (dateInputIssue(p.kpRangeStart)) return "KP aralık başlangıç tarihini tamamlayın";
+  const k = p.kpRangeKinds ?? [];
+  if (k.length === 0) return "KP aralık türü seçin";
+  if ((k.includes("sublord") || k.includes("rasi")) && (p.kpRangePlanets ?? []).length === 0) return "KP aralık gezegeni seçin";
+  if (!Number.isInteger(p.kpRangeDays) || p.kpRangeDays < 1 || p.kpRangeDays > KP_TIMING_MAX_DAYS) return `KP aralığı en çok ${KP_TIMING_MAX_DAYS} gün olabilir`;
+  if (k.includes("positions") && p.kpRangeDays > KP_POSITIONS_MAX_DAYS) return `KP konum tablosu en çok ${KP_POSITIONS_MAX_DAYS} gün olabilir`;
+  return null;
 }
 /** Tahmini istek sayısı (önbellek hariç): gezegen × (sub-lord + rasi) + konum tablosu. */
 export function kpRangeRequestCount(p: TechniqueParams): number {

@@ -34,7 +34,7 @@ import { kpTable } from "@/lib/astrology/verify/kpSub";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import type { KpTimingPlanet, KpTimingTechnical } from "@/lib/astrology/model/kp";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
-import { KP_POSITIONS_INTERVALS as C_IV, KP_POSITIONS_MAX_DAYS as C_PMAX, KP_TIMING_MAX_DAYS as C_MAX, describeOptions, kpRangeRequestCount, kpRangeOptions, defaultParams } from "@/app/admin/astroloji/_lib/techniques";
+import { KP_POSITIONS_INTERVALS as C_IV, KP_POSITIONS_MAX_DAYS as C_PMAX, KP_TIMING_MAX_DAYS as C_MAX, describeOptions, kpRangeRequestCount, kpRangeOptions, defaultParams, buildSelections, kpRangeIssue, missingReason } from "@/app/admin/astroloji/_lib/techniques";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -163,6 +163,39 @@ async function main() {
     assert.ok(TR.parseOptions({ range: kpRangeOptions(p), ...base, displayTz: p.kpRangeTz }, NOW));
     assert.match(describeOptions("kp.transit", { range: RANGE, ...base }), /^aralık 07\.10\.2026 \+ 3 gün · Rasi \+ Sub-Lord · Ay, Güneş · KP-Newcomb$/);
     assert.match(describeOptions("kp.transit", { atUtc: "2026-10-07T09:00", ...base }), /07\.10\.2026 09:00 UTC · KP-Newcomb/);
+  });
+  await t("A6 TRANSİT-01 tarih kuralı aralık kipinde de: yarım/geçersiz başlangıç veya geçersiz ayar plana GİRMEZ; geçerli seçim sunucuda geçerli", () => {
+    const method = { houseSystem: "placidus", nodeType: "mean" } as never;
+    const sel = (p: ReturnType<typeof defaultParams>) => buildSelections({ "kp.transit": true }, p, method);
+    const ok0 = { ...defaultParams(NOW), kpTransitMode: "range" as const, kpRangeStart: "2026-10-07" };
+    assert.equal(kpRangeIssue(ok0), null);
+    assert.equal(sel(ok0).length, 1);
+    assert.ok(TR.parseOptions({ ...sel(ok0)[0].options }, NOW), "istemcinin kurduğu seçim sunucuda geçerli");
+    // Yıl rakam rakam yazılırken tarayıcının ürettiği ara değerler + boş + geçersiz gün + 1600–2600 dışı.
+    for (const d of ["", "0002-10-07", "0020-10-07", "0202-10-07", "2026-02-30", "1500-01-01", "2700-01-01"]) {
+      const p = { ...ok0, kpRangeStart: d };
+      assert.match(missingReason("kp.transit", p) ?? "", /başlangıç tarihini tamamlayın/, d);
+      assert.equal(sel(p).length, 0, `plana girmemeli: "${d}"`);
+      assert.equal(TR.parseOptions({ range: kpRangeOptions(p), ...base }, NOW), null, `sunucu da reddediyor: "${d}"`);
+    }
+    // Sunucunun reddettiği diğer ayarlar istemcide de kapı (plan/istek yok).
+    for (const [p, why] of [
+      [{ ...ok0, kpRangeKinds: [] }, /türü seçin/],
+      [{ ...ok0, kpRangePlanets: [] }, /gezegeni seçin/],
+      [{ ...ok0, kpRangeKinds: ["positions"], kpRangeDays: 30 }, /en çok 7 gün/],
+      [{ ...ok0, kpRangeDays: 93 }, /en çok 92 gün/],
+    ] as const) {
+      assert.match(missingReason("kp.transit", p as never) ?? "", why);
+      assert.equal(sel(p as never).length, 0);
+      assert.equal(TR.parseOptions({ range: kpRangeOptions(p as never), ...base }, NOW), null);
+    }
+    // Aralık kipinde gizli tek-an tarihi yarımsa aralık ENGELLENMEZ; tek-an kipinde eski kural aynen.
+    const hidden = { ...ok0, kpMomentMode: "custom" as const, kpDate: "0002-10-07" };
+    assert.equal(sel(hidden).length, 1);
+    assert.match(missingReason("kp.transit", { ...hidden, kpTransitMode: "moment" }) ?? "", /KP tarihini/);
+    // Konum tablosu tam 7 gün ve 92 gün Sub-Lord sınırda kabul.
+    assert.equal(kpRangeIssue({ ...ok0, kpRangeKinds: ["positions"], kpRangeDays: 7 }), null);
+    assert.equal(kpRangeIssue({ ...ok0, kpRangeDays: 92 }), null);
   });
 
   // ═══ B) Adaptörler fail-closed ════════════════════════════════════════════════
@@ -340,6 +373,14 @@ async function main() {
     const tech = it.view.technical as KpTimingTechnical;
     assert.deepEqual(tech.missing, ["rasi:sun"]);
     assert.ok(it.view.warnings.some((w: string) => /KP zaman aralığı parçası hesaplanamadı/.test(w)));
+  });
+  await t("D2b kısmi sonuç KAYDEDİLEMEZ: eksik parça varken kayıt 409 RESULT_NOT_COMPUTED, kayıt yok, sağlayıcı isteği yok", async () => {
+    const before = calls.length;
+    const sv = await saveAnalysis(ctx, { profileId: pid, revision: 1, ...SEL, saveRequestId: randomUUID() }, false);
+    assert.equal(sv.status, 409, JSON.stringify(sv.body).slice(0, 200));
+    assert.equal((sv.body as J).error?.code ?? (sv.body as J).code, "RESULT_NOT_COMPUTED");
+    assert.equal(calls.length, before, "kayıt denemesi sağlayıcıya gitmez");
+    assert.equal(store.tables.astro_analyses?.length ?? 0, 0, "eksik sonuç analiz olarak yazılmadı");
   });
   await t("D3 yeniden çalıştır: yalnız eksik parça istenir (1 istek); birleşik teknik tam", async () => {
     const before = calls.length;
