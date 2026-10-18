@@ -161,8 +161,41 @@ function destekMetni(list: readonly number[]): string {
   return list.length ? list.join(" · ") : "—";
 }
 
+/** Sayılar hücresi: sabit (resmî/kayıttaki) katkılar soluk, alternatif katkılar halkalı ve belirgin. */
+function AltSayiDaireleri({ sabit, alternatif, hex }: { sabit: number; alternatif: number; hex: string }) {
+  if (sabit + alternatif === 0) {
+    return (
+      <div className="flex min-h-[1.25rem] min-w-0 flex-1 flex-wrap content-center justify-end gap-1.5">
+        <CakraBosCizgi align="left" />
+      </div>
+    );
+  }
+  return (
+    <div className="flex min-h-[1.25rem] min-w-0 flex-1 flex-wrap content-center justify-end gap-1.5">
+      {Array.from({ length: sabit }, (_, i) => (
+        <span
+          key={`s${i}`}
+          data-tur="sabit"
+          className="h-3 w-3 shrink-0 rounded-full ring-1 ring-white/90"
+          style={{ backgroundColor: hex, opacity: 0.48, filter: "saturate(0.85) brightness(1.08)", boxShadow: `0 1px 3px ${hex}33` }}
+        />
+      ))}
+      {Array.from({ length: alternatif }, (_, i) => (
+        <span
+          key={`a${i}`}
+          data-tur="alternatif"
+          title="Alternatif kombinasyon katkısı"
+          className="h-3 w-3 shrink-0 rounded-full ring-2 ring-violet-600 ring-offset-1 ring-offset-white"
+          style={{ backgroundColor: hex }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function AltCakraSutunuPanel({ col }: { col: AlternativeChakraColumn }) {
   const ana = col.kind === "ana";
+  const altEtiket = ana ? "alternatif Ana Kulvar" : "alternatif Yan Kulvar";
   return (
     <div
       id={altCakraPanelId(col)}
@@ -172,26 +205,33 @@ function AltCakraSutunuPanel({ col }: { col: AlternativeChakraColumn }) {
       className="mt-2 min-w-0 rounded-xl border border-violet-200/70 bg-white/90 p-2.5 shadow-sm"
     >
       <p className="text-[11px] font-black uppercase tracking-wide text-violet-700/90">
-        {ana ? "Alternatif Ana Kulvar Çakra Sütunu" : "Alternatif Yan Kulvar Çakra Değerlendirmesi"} · {col.path}
+        {ana ? "Alternatif Ana Kulvar Çakra Sütunu" : "Alternatif Yan Kulvar — Karşılaştırmalı Çakra Sütunu"} · {col.path}
       </p>
+      {!ana ? (
+        <p className="mt-0.5 text-[11px] leading-snug text-slate-600">
+          Resmî Çakra Omurgası&apos;nın sabit katkıları korunmuştur. Alternatif Yan Kulvar destekleri karşılaştırma amacıyla ayrıca
+          gösterilmektedir. Resmî analiz değişmez.
+        </p>
+      ) : null}
       <dl className="mt-1 space-y-0.5 text-[11px] leading-snug text-slate-600">
         <div className="flex flex-wrap gap-x-1">
-          <dt className="font-semibold text-slate-700">Bu kombinasyonun katkısı:</dt>
+          <dt className="font-semibold text-violet-800">{ana ? "Bu kombinasyonun katkısı:" : "Alternatif Yan Kulvar katkısı:"}</dt>
           <dd>{destekMetni(col.altSupports)}</dd>
         </div>
-        {ana && col.fixed ? (
-          <>
-            <div className="flex flex-wrap gap-x-1">
-              <dt className="font-semibold text-slate-700">Sabit katkılar:</dt>
-              <dd>
-                Hayat Yolu {destekMetni(col.fixed.hayatYolu)} · PİN {destekMetni(col.fixed.pin)}
-              </dd>
-            </div>
-            <div className="flex flex-wrap gap-x-1">
-              <dt className="font-semibold text-slate-700">Yerine geçtiği resmî Ana Kulvar katkısı:</dt>
-              <dd>{destekMetni(col.officialAnaSupports ?? [])}</dd>
-            </div>
-          </>
+        {col.fixed ? (
+          <div className="flex flex-wrap gap-x-1">
+            <dt className="font-semibold text-slate-700">{ana ? "Sabit katkılar:" : "Sabit resmî katkılar:"}</dt>
+            <dd>
+              Hayat Yolu {destekMetni(col.fixed.hayatYolu)} · PİN {destekMetni(col.fixed.pin)}
+              {!ana && col.fixed.anaKulvar ? <> · Resmî Ana Kulvar {destekMetni(col.fixed.anaKulvar)}</> : null}
+            </dd>
+          </div>
+        ) : null}
+        {ana ? (
+          <div className="flex flex-wrap gap-x-1">
+            <dt className="font-semibold text-slate-700">Yerine geçtiği resmî Ana Kulvar katkısı:</dt>
+            <dd>{destekMetni(col.officialAnaSupports ?? [])}</dd>
+          </div>
         ) : null}
       </dl>
       {col.ozelSayilar.length > 1 ? (
@@ -204,25 +244,48 @@ function AltCakraSutunuPanel({ col }: { col: AlternativeChakraColumn }) {
           Bu sonuç {col.variantCount} farklı gruplamayla oluşur; katkısı bir kez sayılır.
         </p>
       ) : null}
-      <div className="mx-auto mt-2 w-full max-w-md">
+      <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-500" data-testid="alt-cakra-lejant">
+        <span className="inline-flex items-center gap-1">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-violet-400 opacity-50" aria-hidden />
+          {ana ? "Sabit katkı (Hayat Yolu + PİN)" : "Sabit resmî katkı"}
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-violet-500 ring-2 ring-violet-600 ring-offset-1" aria-hidden />
+          {ana ? "Alternatif Ana Kulvar katkısı" : "Alternatif Yan Kulvar katkısı"}
+        </span>
+        <span>Alt. = alternatif katkı adedi (0: bu çakraya alternatif katkı yok)</span>
+      </p>
+      <div className="mx-auto mt-1.5 w-full max-w-md">
         <div className="flex items-center justify-between gap-2 px-0.5 pb-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
           <span className="flex-1 text-right">Sayılar</span>
+          <span className="w-7 shrink-0 text-center">Alt.</span>
           <span className="w-14 shrink-0 text-center">Çakra</span>
-          <span className={`flex-1 ${ana ? "" : "invisible"}`}>Harfler</span>
+          <span className="flex-1">Harfler</span>
         </div>
         <div className="space-y-0.5">
           {CAKRA_TABLO_SIRA.map((cNo) => {
             const hex = CHAKRA_TABLO_HEX[cNo] ?? "#8b5cf6";
+            const sabit = col.sabitSayilar[cNo] ?? 0;
+            const alt = col.alternatifSayilar[cNo] ?? 0;
             return (
               <div
                 key={cNo}
                 data-cakra={cNo}
                 data-sayi={col.sayilar[cNo] ?? 0}
+                data-sabit={sabit}
+                data-alt={alt}
+                data-harf={col.harfler?.[cNo] ?? 0}
                 className="flex w-full items-center justify-between gap-2 border-b border-violet-100/50 py-1 last:border-b-0"
               >
-                <CakraEnerjiDaireleri count={col.sayilar[cNo] ?? 0} hex={hex} tone="pasif" align="left" />
+                <AltSayiDaireleri sabit={sabit} alternatif={alt} hex={hex} />
+                <span
+                  className={`w-7 shrink-0 text-center text-[10px] font-black ${alt > 0 ? "rounded bg-violet-100 text-violet-800" : "text-slate-300"}`}
+                  aria-label={alt > 0 ? `${altEtiket} katkısı ${alt}` : `${altEtiket} katkısı yok`}
+                >
+                  {alt > 0 ? `+${alt}` : "0"}
+                </span>
                 <span className="w-14 shrink-0 text-center text-[10px] font-black tracking-wide text-slate-700">{cNo}. Çakra</span>
-                {ana && col.harfler ? (
+                {col.harfler ? (
                   <CakraEnerjiDaireleri count={col.harfler[cNo] ?? 0} hex={hex} tone="aktif" align="right" />
                 ) : (
                   <span className="min-w-0 flex-1" aria-hidden />

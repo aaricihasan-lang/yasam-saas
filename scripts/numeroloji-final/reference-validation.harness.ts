@@ -362,8 +362,12 @@ for (const g of girdiler) {
       kontrol("alternatif", J([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((x) => col.sayilar[x])) === J(bek.slice(1)), `#${c.no} Ana alt ${col.path} = HY+PİN+alternatif (yalnız Ana değişir)`);
     }
     for (const col of y1) {
-      const top = Object.values(col.sayilar).reduce((a, b) => a + b, 0);
-      kontrol("alternatif", col.fixed === null && col.harfler === null && top === col.altSupports.length, `#${c.no} Yan alt ${col.path} yalnız kendi katkısı`);
+      // Owner kararı 2026-10-18: Yan = kayıttaki resmî omurga (sabit) + alternatif (varsayımsal toplam)
+      const resmi = m.cakraOmurgasi.sayilar as Record<number, number>;
+      const altTop = Object.values(col.alternatifSayilar).reduce((a, b) => a + b, 0);
+      kontrol("alternatif", J(col.sabitSayilar) === J(resmi) && altTop === col.altSupports.length
+        && [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].every((x) => col.sayilar[x] === resmi[x] + col.alternatifSayilar[x])
+        && J(col.harfler) === J(m.cakraOmurgasi.harfler), `#${c.no} Yan alt ${col.path} = resmî omurga (sabit) + alternatif`);
     }
     kontrol("alternatif", J(m.cakraOmurgasi) === J(hesaplaNumeroloji({ firstName: f, lastName: l, birthDate: DOGUM }).cakraOmurgasi), `#${c.no} resmî omurga alternatiflerden bağımsız`);
   }
