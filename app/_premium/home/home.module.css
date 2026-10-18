@@ -168,6 +168,93 @@
   }
 }
 
+/* "Tüm Modüller" açılır listesi (2026-10-18). Menü bölümü kenar çubuğunda kendi içinde kayar; yaprak süsü küçülür. */
+.nav {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.menuItemOpen {
+  background: rgba(124, 47, 240, 0.08);
+  color: var(--ink);
+}
+
+.modChevron {
+  transition: transform 200ms ease;
+}
+
+.menuItemOpen .modChevron {
+  transform: rotate(180deg);
+}
+
+.modList {
+  display: grid;
+  gap: 10px;
+  margin: 6px 0 4px;
+  padding: 0 4px 0 12px;
+  list-style: none;
+  border-left: 2px solid rgba(124, 47, 240, 0.14);
+  margin-left: 22px;
+}
+
+.modGroup {
+  display: grid;
+  gap: 2px;
+}
+
+.modGroupTitle {
+  display: block;
+  padding: 6px 8px;
+  border-radius: 10px;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 650;
+  line-height: 1.3;
+  text-decoration: none;
+  white-space: normal;
+}
+
+.modItems {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.modItem {
+  display: block;
+  padding: 7px 8px 7px 14px;
+  border-radius: 10px;
+  color: var(--ink2);
+  font-size: 13px;
+  line-height: 1.3;
+  text-decoration: none;
+  white-space: normal;
+}
+
+a.modGroupTitle:focus-visible,
+.modItem:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 1px;
+}
+
+@media (hover: hover) {
+  a.modGroupTitle:hover,
+  .modItem:hover {
+    background: rgba(124, 47, 240, 0.07);
+    color: #5b21b6;
+  }
+}
+
+.collapsed .modList {
+  display: none;
+}
+
 .menuIcon {
   display: grid;
   flex-shrink: 0;
@@ -380,13 +467,14 @@
   overflow: hidden; /* yalnız manzara görselini yuvarlak köşede kırpar */
 }
 
+/* 2026-10-18 owner kararı: görsele gömülü cam alıntı kutusu (x ≈ %69,5'ten sağı) görünmez — görsel, kutunun soluna
+   kırpılır (505/738). Yeni görsel üretilmez; manzara, güneş, göl, taşlar ve çiçekler korunur. */
 .heroArt {
   position: absolute;
   top: 0;
   right: 0;
   height: 100%;
-  aspect-ratio: 738 / 259;
-  container-type: size;
+  aspect-ratio: 505 / 259;
 }
 
 /* Hero'nun dekoratif katmanı (Final-A2 #6 sözleşmesi: data-testid="home-hero-glow", aria-hidden, tıklanamaz). */
@@ -394,6 +482,8 @@
   display: block;
   width: 100%;
   height: 100%;
+  object-fit: cover;
+  object-position: 0 50%;
   pointer-events: none;
   -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 34%);
   mask-image: linear-gradient(90deg, transparent 0%, #000 34%);
@@ -447,48 +537,6 @@
   color: var(--soft);
 }
 
-.quote {
-  position: absolute;
-  left: 69.5%;
-  top: 18.5%;
-  width: 26.7%;
-  height: 60.7%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  margin: 0;
-  padding-inline: 3.6cqw 2.4cqw;
-}
-
-.quoteMark {
-  display: block;
-  height: 7cqh;
-  font-family: var(--font-display, Georgia, serif);
-  font-size: 16cqh;
-  line-height: 0.8;
-  color: #e0a73a;
-}
-
-.quote blockquote {
-  margin: 4cqh 0 0;
-  font-family: var(--font-display, Georgia, serif);
-  font-size: clamp(12px, 6.3cqh, 18px);
-  line-height: 1.4;
-  color: var(--ink2);
-}
-
-.quote blockquote span {
-  display: block;
-}
-
-.quoteLine {
-  display: block;
-  width: 5cqw;
-  height: 2px;
-  margin-top: 5cqh;
-  background: #e0a73a;
-}
-
 /* ── Yaşam Modülleri ───────────────────────────────────────────────────── */
 .secHead {
   display: flex;
@@ -532,6 +580,13 @@
 .cardLocked:focus-visible {
   outline: 2px solid var(--violet);
   outline-offset: 2px;
+}
+
+/* 3 sütunlu ızgarada son satırda tek kalan (geniş olmayan) kart ortalanır; kartın kendi görünümü değişmez. */
+@media (min-width: 901px) {
+  .soloCenter {
+    grid-column: 2;
+  }
 }
 
 .wide {
@@ -886,7 +941,8 @@
   }
   .collapsed .sideBrand,
   .collapsed .menuLabel,
-  .collapsed .sideFoot {
+  .collapsed .sideFoot,
+  .collapsed .modList {
     display: revert;
   }
   .collapsed .sideToggle {
@@ -938,17 +994,9 @@
     height: auto;
     order: 2;
   }
-  .heroArt {
-    aspect-ratio: 513 / 259; /* dar ekranda cam alıntı kutusu kırpılır; alıntı okunaksız küçülmez */
-  }
   .heroArt img {
-    object-fit: cover;
-    object-position: 0 50%;
     -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 25%);
     mask-image: linear-gradient(180deg, transparent 0%, #000 25%);
-  }
-  .quote {
-    display: none;
   }
   .heroText {
     padding: 22px 20px 6px;
@@ -967,6 +1015,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .modChevron {
+    transition: none;
+  }
   .shell,
   .side,
   .sideToggle,

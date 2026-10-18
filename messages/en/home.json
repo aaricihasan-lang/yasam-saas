@@ -511,11 +511,8 @@
     },
     "premium": {
       "tagline": "For a more balanced life",
-      "menuHome": "Home",
       "menuAllModules": "All Modules",
-      "menuCalendar": "Calendar",
       "menuClients": "Clients",
-      "menuContents": "Contents",
       "menuSettings": "Settings",
       "menuAdmin": "Admin Panel",
       "menuOpen": "Open menu",
@@ -525,8 +522,36 @@
       "sideQuote": "More mindful,|more balanced,|a better life...",
       "eyebrow": "Yaşam Sistemi",
       "heroSub": "We are here for a more balanced, mindful and meaningful life.",
-      "quote": "Knowing yourself|is the first step|to a better life.",
-      "modulesTitle": "Life Modules"
+      "modulesTitle": "Life Modules",
+      "nav": {
+        "menuModulesHint": "All modules you can access",
+        "dyKayit": "New Client",
+        "dyListe": "Client List",
+        "dyAjanda": "Agenda & Appointment Center",
+        "energyBody": "Bioenergy",
+        "reflexology": "Reflexology",
+        "cupping": "Cupping & Hijama Therapy",
+        "stones": "Natural Stones",
+        "aromatherapy": "Aromatherapy",
+        "sifa": "Healing Guide",
+        "beslenme": "Nutrition",
+        "personalArchive": "Personal Archive",
+        "belgeCeviri": "Document Translation Center",
+        "videoCeviri": "Video → Turkish Word/PDF",
+        "dersNotu": "Lecture Notes Center",
+        "numeroloji": "Numerology",
+        "humanDesign": "Human Design",
+        "cosmic": "Life Calendar / Cosmic Agenda",
+        "atlas": "Sky Atlas",
+        "stokAll": "All Products",
+        "stokStones": "Natural Stone Products",
+        "stokOil": "Oil Products",
+        "stokSoap": "Soap / Cream Products",
+        "stokAccessory": "Prayer Beads / Jewelry / Accessories",
+        "stokPricing": "Sales & Pricing",
+        "stokSales": "Sales History",
+        "stokOther": "Other Products"
+      }
     }
   }
 }
