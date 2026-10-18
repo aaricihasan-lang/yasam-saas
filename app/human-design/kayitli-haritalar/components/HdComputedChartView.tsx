@@ -14,7 +14,7 @@
 import { BodyGraph } from "../../harita/components/BodyGraph";
 import { HdRoxyBodygraph, ROXY_BODYGRAPH_ASPECT } from "./HdRoxyBodygraph";
 import { HdPremiumBodygraph, HD_PREMIUM_BODYGRAPH_ASPECT } from "./HdPremiumBodygraph";
-import { HD_INDIVIDUAL_BODYGRAPH } from "@/lib/human-design/bodygraph/rendererConfig";
+import { HD_INDIVIDUAL_BODYGRAPH, HD_PREMIUM_INDIVIDUAL_TYPE_SCALE } from "@/lib/human-design/bodygraph/rendererConfig";
 import { premiumStateFromChart } from "@/lib/human-design/bodygraph/premiumChartState";
 import { HdPlanetColumn } from "./HdPlanetColumn";
 import { HdChartInfoPanel } from "./HdChartInfoPanel";
@@ -58,6 +58,18 @@ export function HdComputedChartView({
   // Aktif çizici: Yaşam Sistemi premium BodyGraph (rendererConfig). Kayıtlı veriyle birebir doğrulanamazsa null →
   // pasif çiziciye düşer (RoxyAPI kaydı: Roxy resmî bileşeni; eski motor kaydı: eski Yaşam Sistemi çizimi).
   const premiumState = HD_INDIVIDUAL_BODYGRAPH === "premium" ? premiumStateFromChart(result) : null;
+  // Okunabilirlik (owner kararı 2026-10-18; rendererConfig "large"): premium BodyGraph masaüstünde en az ~700px yükseklik
+  // (sahne 740px − iç boşluk − açıklama satırı). Kısa ekranda dikey kaydırma kabul; genişlik yetmezse yalnız BodyGraph
+  // daralır (yatay taşma yok). "compact" ve pasif çiziciler önceki yükseklikte kalır.
+  // Geniş düzende bilgi kolonu önceki yükseklikte kalır (logo kalan alana sığar → İLK EKRANDA görünür; 10-17 kuralı);
+  // dar masaüstünde (lg) BodyGraph kutusu gerekirse genişlikte daralır → yan sütunlar sahneden taşmaz.
+  const largePremium = !!premiumState && HD_PREMIUM_INDIVIDUAL_TYPE_SCALE === "large";
+  const stageHeight = largePremium
+    ? "lg:h-[max(740px,calc(100dvh-12.5rem))] hdwide:h-[max(740px,calc(100dvh-5.25rem))]"
+    : "lg:h-[max(580px,calc(100dvh-12.5rem))] hdwide:h-[max(520px,calc(100dvh-5.25rem))]";
+  const infoCap = largePremium ? "hdwide:[&>[data-hd-info]]:max-h-[max(520px,calc(100dvh-5.25rem))]" : "";
+  const centerShrink = largePremium ? "lg:min-w-0 lg:flex-initial" : "lg:flex-none";
+  const premiumBox = largePremium ? "lg:max-w-full" : "lg:max-w-none";
   // Sağlayıcının (kayıtlı yanıt) merkez nitelikleri — yalnız RoxyAPI kayıtlarında; eski kayıtta işaret yok (uydurma yok).
   const centerKind = new Map<string, { motor: boolean; awareness: boolean }>();
   if (roxyRender && Array.isArray(roxyRender.centers)) {
@@ -77,24 +89,25 @@ export function HdComputedChartView({
           2026-10-17 düzeltme (canlı görsel FAIL): yükseklik YALNIZ sahneye verilir (BodyGraph boyutu bilgi
           bloğundan bağımsız, önceki ölçüde); kapsayıcı sabit yükseklik TAŞIMAZ → bilgi kolonu sahneden uzunsa
           kart doğal biçimde aşağı uzar, içerik hiçbir zaman alttaki Merkezler kartının üzerine taşmaz. */}
-      <div className="space-y-3 lg:flex lg:flex-col lg:gap-2 lg:space-y-0 hdwide:flex-row hdwide:items-stretch hdwide:gap-0 hdwide:rounded-2xl hdwide:border hdwide:border-indigo-200/70 hdwide:bg-gradient-to-b hdwide:from-white hdwide:to-indigo-50/40 hdwide:shadow-sm" data-hd-onelook>
+      <div className={`space-y-3 lg:flex lg:flex-col lg:gap-2 lg:space-y-0 hdwide:flex-row hdwide:items-stretch hdwide:gap-0 hdwide:rounded-2xl hdwide:border hdwide:border-indigo-200/70 hdwide:bg-gradient-to-b hdwide:from-white hdwide:to-indigo-50/40 hdwide:shadow-sm ${infoCap}`} data-hd-onelook>
       <HdChartInfoPanel result={result} codes={codes} subject={subject} />
 
       {/* Design | BodyGraph | Personality — masaüstünde tek bakış: BodyGraph yüksekliği ekrana göre
           ölçeklenir (Head→Root dikey kaydırmasız); mobilde BodyGraph üstte, altında iki sütun. */}
       {/* Sahne yüksekliği: lg şerit = ekran − üst bar − şerit payı, en az 580px (Design/Personality sütunlarının doğal
-          yüksekliği — kısa ekranda sütunlar sahneden taşıp bilgi şeridine binmesin); hdwide = ekran − üst bar (en az 520px). */}
-      <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-b from-white to-indigo-50/40 p-3 shadow-sm lg:h-[max(580px,calc(100dvh-12.5rem))] lg:flex-none lg:px-4 lg:py-2 hdwide:h-[max(520px,calc(100dvh-5.25rem))] hdwide:min-w-0 hdwide:flex-1 hdwide:rounded-none hdwide:border-0 hdwide:bg-none hdwide:shadow-none" data-hd-stage>
+          yüksekliği — kısa ekranda sütunlar sahneden taşıp bilgi şeridine binmesin); hdwide = ekran − üst bar (en az 520px).
+          Premium + "large" yazı ölçeğinde iki düzende de en az 740px (stageHeight). */}
+      <div className={`rounded-2xl border border-indigo-200/70 bg-gradient-to-b from-white to-indigo-50/40 p-3 shadow-sm ${stageHeight} lg:flex-none lg:px-4 lg:py-2 hdwide:min-w-0 hdwide:flex-1 hdwide:rounded-none hdwide:border-0 hdwide:bg-none hdwide:shadow-none`} data-hd-stage>
         <div className="flex flex-wrap items-start justify-center gap-x-3 gap-y-4 lg:h-full lg:flex-nowrap lg:items-center lg:justify-center lg:gap-x-[clamp(20px,3vw,64px)] hdwide:gap-x-[clamp(16px,2vw,40px)]">
           <div className="order-2 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-rose-100 bg-white/90 p-2 lg:order-1 lg:w-[clamp(190px,17vw,280px)] lg:max-w-none lg:shrink-0 lg:p-3">
             <HdPlanetColumn activations={result.activations} side="design" />
           </div>
           {/* Orta: yükseklik-öncelikli BodyGraph (SVG viewBox 340×600 korunur; yalnız ölçek). */}
           {/* hdwide: alan yetmezse (dikey uzun pencere) taşma yerine yalnız BodyGraph genişliği daralır. */}
-          <div className="order-1 flex w-full justify-center lg:order-2 lg:h-full lg:w-auto lg:flex-none hdwide:min-w-0 hdwide:shrink">
+          <div className={`order-1 flex w-full justify-center lg:order-2 lg:h-full lg:w-auto ${centerShrink} hdwide:min-w-0 hdwide:shrink`}>
             {premiumState ? (
               // AKTİF: Yaşam Sistemi premium BodyGraph (owner PASS 2026-10-18).
-              <div className="w-full max-w-[460px] lg:h-full lg:w-auto lg:max-w-none" style={{ aspectRatio: HD_PREMIUM_BODYGRAPH_ASPECT }} data-hd-renderer="premium">
+              <div className={`w-full max-w-[460px] lg:h-full lg:w-auto ${premiumBox}`} style={{ aspectRatio: HD_PREMIUM_BODYGRAPH_ASPECT }} data-hd-renderer="premium">
                 <HdPremiumBodygraph state={premiumState} />
               </div>
             ) : roxyRender ? (
