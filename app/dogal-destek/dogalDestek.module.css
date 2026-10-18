@@ -234,6 +234,7 @@
 
 .card {
   position: relative;
+  container-type: inline-size; /* dar kartta görsel/metin oranı kartın kendi genişliğine göre (ızgara sözleşmesi değişmez) */
   display: flex;
   align-items: center;
   min-height: var(--card-h);
@@ -338,6 +339,23 @@
   font-size: 14.5px;
   line-height: 1.5;
   color: var(--c-desc);
+}
+
+/* Canlı gridClass 3 kartı lg'de 3 sütuna dizer: kart daralınca başlık görselin üstüne binmesin. */
+@container (max-width: 480px) {
+  .cardArt {
+    width: 46%;
+  }
+  .cardBody {
+    width: 60%;
+    padding-right: 6px;
+  }
+  .cardTitle {
+    font-size: 1.45rem;
+  }
+  .cardDesc {
+    font-size: 13.5px;
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {
