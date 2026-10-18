@@ -1,0 +1,271 @@
+/**
+ * GÖKYÜZÜ ATLASI — HORARY-KP-01 (2026-10-18): KP Horary tamamlama testleri.
+ *
+ * Ağ YOK, gerçek Roxy YOK: tek sağlayıcı verisi depodaki gerçek golden `kp-horary.json` (2026-10-07, sayı 108, İstanbul).
+ * Bağımsız referans: astronomy-engine 2.1.19 (gerçek zaman Lagna'sı) + kendi KP tablosu (verify/kpSub, 6C'de iki uygulamayla
+ * çapraz denenmiş). Sahte veriyle yapılan denetim gerçek Roxy doğrulaması diye SUNULMAZ (sentetik satırlar ayrıca işaretli).
+ *
+ * Çalıştırma: npx tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/horary01.harness.ts
+ */
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import * as Astronomy from "astronomy-engine";
+import JSZip from "jszip";
+import { extractText, getDocumentProxy } from "unpdf";
+import { SYNTH_A } from "./golden/phase3-golden-calls";
+import { getTechnique } from "@/lib/astrology/engine/techniques";
+import { kpLordCandidates, kpSpan, kpTable } from "@/lib/astrology/verify/kpSub";
+import { SIGN_LORDS, type KpHoraryTechnical } from "@/lib/astrology/model/kp";
+import { SIGN_IDS } from "@/lib/astrology/model/western";
+import { KP_HORARY_TEXT, kpCuspSublordRows, kpHoraryLagnaContrast, kpUniqueHouses } from "@/lib/astrology/view/kpHorary";
+import { buildAstroReport, reportTexts, type ReportAnalysisInput } from "@/lib/astrology/report/model";
+import { renderAstroReportDocx } from "@/lib/astrology/report/docx";
+import { buildAstroReportPdf } from "@/lib/astrology/report/pdf";
+import { symbolFontBuffers, symbolFontsBase64 } from "@/lib/astrology/report/symbolFontData";
+import { describeOptions } from "@/app/admin/astroloji/_lib/techniques";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type J = any;
+
+let pass = 0;
+let fail = 0;
+async function t(name: string, fn: () => Promise<void> | void) {
+  try {
+    await fn();
+    pass++;
+    console.log(`PASS ${name}`);
+  } catch (e) {
+    fail++;
+    process.stderr.write(`FAIL ${name}\n  ${(e as Error).stack ?? String(e)}\n`);
+  }
+}
+
+const ROOT = join(__dirname, "..", "..");
+const HO = JSON.parse(readFileSync(join(__dirname, "fixtures", "golden", "kp-horary.json"), "utf8"));
+const AT = "2026-10-07T09:00";
+const PLACE = { latitude: SYNTH_A.latitude, longitude: SYNTH_A.longitude };
+const D2R = Math.PI / 180;
+const n360 = (x: number) => ((x % 360) + 360) % 360;
+const def = getTechnique("kp.horary")!;
+const ctx = { birth: SYNTH_A, birthUtc: SYNTH_A.utc, partner: null } as J;
+const horaryOf = (opts: Record<string, unknown>) => {
+  const o = def.parseOptions(opts, new Date("2026-10-18T10:17:00Z"))!;
+  const u = def.units(ctx, o)[0];
+  return { o, u, r: def.project(u, HO.response, o) as J };
+};
+const HT = (): KpHoraryTechnical => horaryOf({ atUtc: AT, horaryNumber: 108 }).r.technical;
+
+async function main() {
+  // ── 1. Seçenekler / önbellek anahtarı ───────────────────────────────────────────────────────
+  await t("H1 seçenek: displayTz yalnız gösterim — eski biçim {atUtc} BİREBİR korunur; tarih+saat+IANA → displayTz eklenir; istek gövdesi ve önbellek anahtarı DEĞİŞMEZ", () => {
+    const old = horaryOf({ atUtc: AT, horaryNumber: 108 });
+    assert.deepEqual(Object.keys(old.o).sort(), ["atUtc", "ayanamsa", "horaryNumber", "nodeType", "placeLocationId"]);
+    const local = horaryOf({ date: "2026-10-07", time: "12:00", timezone: "Europe/Istanbul", horaryNumber: 108 });
+    assert.equal(local.o.atUtc, AT);
+    assert.equal(local.o.displayTz, "Europe/Istanbul");
+    assert.deepEqual(local.u.body, old.u.body);
+    assert.equal(local.u.inputHash, old.u.inputHash);
+    assert.deepEqual(local.u.body, HO.body, "ürün gövdesi = golden gövdesi");
+    // Kayıtlı seçenek yeniden ayrıştırılınca (atUtc + displayTz) aynı kalır.
+    assert.deepEqual(def.parseOptions({ ...local.o }, new Date()), local.o);
+    assert.equal(def.parseOptions({ atUtc: AT, horaryNumber: 108, displayTz: "Mars/Olympus" }, new Date()), null, "geçersiz IANA");
+    assert.equal(def.parseOptions({ date: "2026-10-07", time: "12:00", timezone: "Yok/Böyle", horaryNumber: 108 }, new Date()), null);
+    // "Şimdi": UTC saat başı; gösterim dilimi yoksa eklenmez (eski davranış).
+    const now = def.parseOptions({ now: true, horaryNumber: 5 }, new Date("2026-10-18T10:17:00Z"))!;
+    assert.equal(now.atUtc, "2026-10-18T10:00");
+    assert.equal(now.displayTz, undefined);
+  });
+
+  await t("H2 saat dilimi: yaz saati, tarih değişimi, belirsiz saat — yerel an → UTC doğru; gövde UTC (timezone 0)", () => {
+    const cases: [string, string, string, string][] = [
+      ["2026-07-07", "12:00", "Europe/Berlin", "2026-07-07T10:00"], // CEST +2
+      ["2026-01-07", "12:00", "Europe/Berlin", "2026-01-07T11:00"], // CET +1
+      ["2026-10-07", "20:30", "America/Los_Angeles", "2026-10-08T03:30"], // tarih değişimi (PDT −7)
+      ["2026-10-25", "02:30", "Europe/Berlin", "2026-10-25T00:30"], // belirsiz saat → ilk yaşanan (CEST)
+      ["2026-10-07", "05:00", "Asia/Kolkata", "2026-10-06T23:30"], // yarım saat ofset + geri tarih
+    ];
+    for (const [date, time, tz, utc] of cases) {
+      const { o, u } = horaryOf({ date, time, timezone: tz, horaryNumber: 1 });
+      assert.equal(o.atUtc, utc, `${date} ${time} ${tz}`);
+      assert.equal(o.displayTz, tz);
+      assert.equal((u.body as J).timezone, 0);
+      assert.equal((u.body as J).date, utc.slice(0, 10));
+      assert.equal((u.body as J).time, `${utc.slice(11, 16)}:00`);
+    }
+  });
+
+  // ── 2. 249 tablo ────────────────────────────────────────────────────────────────────────────
+  await t("H3 249 tablo: her sayının orta noktası kendi sayısına döner; ilk/son ve komşu sınırlar; burçta bölünen 6 sub aynı yıldız+sub'ı paylaşır; dilimler boşluksuz", () => {
+    const tb = kpTable();
+    assert.equal(tb.length, 249);
+    for (let n = 1; n <= 249; n++) {
+      const sp = kpSpan(n)!;
+      const c = kpLordCandidates((sp.start + sp.end) / 2, 0);
+      assert.equal(c.length, 1);
+      assert.equal(c[0].kpNumber, n, `orta nokta ${n}`);
+      if (n > 1) assert.ok(Math.abs(kpSpan(n - 1)!.end - sp.start) < 1e-9, `boşluk ${n}`);
+      // Tam başlangıç SONRAKİ dilime aittir (sınır kuralı), hemen öncesi önceki dilime.
+      assert.equal(kpLordCandidates(sp.start, 0)[0].kpNumber, n);
+      if (n > 1) assert.equal(kpLordCandidates(sp.start - 1e-6, 0)[0].kpNumber, n - 1);
+    }
+    assert.equal(kpSpan(1)!.start, 0);
+    assert.ok(Math.abs(kpSpan(249)!.end - 360) < 1e-9);
+    assert.equal(kpSpan(0), null);
+    assert.equal(kpSpan(250), null);
+    const splits = tb.filter((r, i) => i > 0 && Math.abs(r.start % 30) < 1e-9 && tb[i - 1].star === r.star && tb[i - 1].sub === r.sub);
+    assert.equal(splits.length, 6, "burç sınırını kesen sub sayısı");
+    // Bölünen her sub'ın iki parçası toplamı = sub genişliği (yıl oranı / 120 × 13°20′).
+    const YEARS: Record<string, number> = { ketu: 7, venus: 20, sun: 6, moon: 10, mars: 7, rahu: 18, jupiter: 16, saturn: 19, mercury: 17 };
+    for (const r of splits) {
+      const i = tb.indexOf(r);
+      const w = tb[i - 1].end - tb[i - 1].start + (r.end - r.start);
+      assert.ok(Math.abs(w - ((360 / 27) * YEARS[r.sub]) / 120) < 1e-9, `parça toplamı ${r.kp}`);
+    }
+  });
+
+  // ── 3. Golden: sayı → Lagna, iki Lagna ayrımı (bağımsız) ───────────────────────────────────────
+  await t("H4 golden sayı 108: Lagna = KP 108 diliminin orta noktası; Başak (Merkür) · yıldız Güneş · sub Satürn = bağımsız tablo", () => {
+    const h = HT();
+    const sp = kpSpan(108)!;
+    assert.ok(Math.abs(h.ascendant.longitude - (sp.start + sp.end) / 2) < 1e-3);
+    const ind = kpLordCandidates(h.ascendant.longitude)[0];
+    assert.deepEqual([h.ascendant.rashi, h.ascendant.starLord, h.ascendant.subLord, h.ascendant.kpNumber], [SIGN_IDS[Math.floor(h.ascendant.longitude / 30)], ind.star, ind.sub, 108]);
+    assert.equal(SIGN_LORDS[h.ascendant.rashi], "mercury");
+  });
+
+  await t("H5 BAĞIMSIZ ruling Lagna = soru anının GERÇEK Lagna'sı (astronomy-engine: GAST + gerçek eğim; ayanamsa sağlayıcınınki) — sayının Lagna'sı DEĞİL; iki Lagna golden'da farklı", () => {
+    const h = HT();
+    const tm = Astronomy.MakeTime(new Date(`${AT}:00Z`));
+    const eps = Astronomy.e_tilt(tm).tobl * D2R;
+    const ramc = n360(Astronomy.SiderealTime(tm) * 15 + PLACE.longitude) * D2R;
+    const ascTrop = n360(Math.atan2(Math.cos(ramc), -(Math.sin(ramc) * Math.cos(eps) + Math.tan(PLACE.latitude * D2R) * Math.sin(eps))) / D2R);
+    const ascSid = n360(ascTrop - h.frame.ayanamsaDegrees);
+    const ind = kpLordCandidates(ascSid, 0.02); // ≤0.02° tolerans: Lagna dakikada ~0.25° hareket eder
+    assert.ok(
+      ind.some((c) => c.star === h.ruling.lagna.star && c.sub === h.ruling.lagna.sub),
+      `zaman Lagna'sı ${ascSid.toFixed(4)}° → ${JSON.stringify(ind)} ≠ ${JSON.stringify(h.ruling.lagna)}`,
+    );
+    assert.equal(SIGN_LORDS[SIGN_IDS[Math.floor(ascSid / 30)]], h.ruling.lagna.sign);
+    const c = kpHoraryLagnaContrast(h);
+    assert.equal(c.differs, true);
+    assert.deepEqual([c.horary.signLord, c.horary.starLord, c.horary.subLord], ["mercury", "sun", "saturn"]);
+    assert.deepEqual([c.time.sign, c.time.star, c.time.sub], [h.ruling.lagna.sign, h.ruling.lagna.star, h.ruling.lagna.sub]);
+    assert.notEqual(c.time.sign, c.horary.signLord, "golden'da burç lordları farklı (Akrep/Mars ↔ Başak/Merkür)");
+    // Ruling kümesi = klasik 5 öğe; sub lordlar kümeye girmez (adaptör de reddeder).
+    assert.deepEqual([...h.ruling.rulingPlanets].sort(), [...new Set([h.ruling.dayLord, h.ruling.moon.sign, h.ruling.moon.star, h.ruling.lagna.sign, h.ruling.lagna.star])].sort());
+  });
+
+  await t("H6 BAĞIMSIZ gün lordu: 07.10.2026 Çarşamba, İstanbul gün doğumundan sonra → Merkür; Ay lordları = Ay boylamının bağımsız KP lordları", () => {
+    const h = HT();
+    const rise = Astronomy.SearchRiseSet(Astronomy.Body.Sun, new Astronomy.Observer(PLACE.latitude, PLACE.longitude, 0), +1, Astronomy.MakeTime(new Date("2026-10-07T00:00:00Z")), 1)!;
+    assert.ok(rise.date.getTime() < Date.parse(`${AT}:00Z`), "soru anı gün doğumundan sonra");
+    assert.equal(new Date(`${AT}:00Z`).getUTCDay(), 3);
+    assert.equal(h.ruling.dayLord, "mercury");
+    const moon = h.bodies.find((b) => b.id === "moon")!;
+    const ind = kpLordCandidates(moon.longitude)[0];
+    assert.deepEqual([h.ruling.moon.sign, h.ruling.moon.star, h.ruling.moon.sub, h.ruling.moon.subSub], [SIGN_LORDS[moon.rashi], ind.star, ind.sub, ind.subSub]);
+  });
+
+  // ── 4. Cusp sub-lord tablosu ─────────────────────────────────────────────────────────────────
+  await t("H7 cusp sub-lord tablosu: 12 satır; her satır = cusp sub lordu + AYNI yanıttaki significator satırı (yeniden düzenleme, yeni kural yok); görünür grahalarda 4 düzey bağımsız KP kuralıyla aynı", () => {
+    const h = HT();
+    const rows = kpCuspSublordRows(h);
+    assert.deepEqual(rows.map((r) => r.house), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    const occ = (hs: number) => h.bodies.filter((b) => b.house === hs).map((b) => b.id);
+    const owns = (id: string) => h.cusps.filter((c) => SIGN_LORDS[c.rashi] === id).map((c) => c.house);
+    for (const r of rows) {
+      const cusp = h.cusps[r.house - 1];
+      assert.equal(r.subLord, cusp.subLord);
+      assert.equal(r.starLord, cusp.starLord);
+      const p = h.significators.planets.find((x) => x.id === cusp.subLord)!;
+      assert.deepEqual(r.levels, p.levels);
+      if (!r.isNode) {
+        const b = h.bodies.find((x) => x.id === r.subLord)!;
+        const s = (xs: number[]) => [...xs].sort((a, z) => a - z);
+        assert.deepEqual(
+          [s(r.levels![1]), r.levels![2], s(r.levels![3]), s(r.levels![4])],
+          [h.cusps.map((c) => c.house).filter((x) => occ(x).includes(b.starLord)), [b.house], owns(b.starLord), owns(b.id)],
+          `cusp ${r.house} sub ${r.subLord}`,
+        );
+        assert.equal(r.agent, null);
+      } else assert.ok(r.agent, "düğüm sub lordunda ajan ekli liste taşınır");
+    }
+    assert.deepEqual(kpUniqueHouses({ 1: [2, 7], 2: [7], 3: [11], 4: [] }), [2, 7, 11]);
+    assert.deepEqual(kpUniqueHouses(null), []);
+  });
+
+  await t("H8 SENTETİK (gerçek Roxy değil): sub lord düğüm olan cusp → ajan ekli evler '+' ile ayrı; significator satırı yoksa 'veri yok' (uydurulmaz)", () => {
+    const h = structuredClone(HT());
+    h.cusps[6] = { ...h.cusps[6], subLord: "rahu" };
+    const rows = kpCuspSublordRows(h);
+    assert.equal(rows[6].isNode, true);
+    assert.ok(rows[6].agent && rows[6].agent.houses.length > 0);
+    h.significators.planets = h.significators.planets.filter((p) => p.id !== h.cusps[0].subLord);
+    assert.equal(kpCuspSublordRows(h)[0].levels, null);
+  });
+
+  // ── 5. Rapor (Word = PDF = ekran verisi) ──────────────────────────────────────────────────────
+  const input = (params: Record<string, unknown>): ReportAnalysisInput => ({
+    id: "00000000-0000-4000-8000-000000000108",
+    title: "Horary test",
+    technique: "kp.horary",
+    params,
+    analysisAt: "2026-10-07T09:05:00Z",
+    method: {},
+    technical: HT(),
+  });
+  const fontB64 = readFileSync(join(ROOT, "public", "fonts", "Geist-Regular.ttf")).toString("base64");
+  const norm = (s: string) => s.replace(/\s+/g, " ");
+  const docxText = async (buf: Buffer) => {
+    const xml = await (await JSZip.loadAsync(buf)).file("word/document.xml")!.async("string");
+    return [...xml.matchAll(/<w:t(?: [^>]*)?>([^<]*)<\/w:t>/g)].map((m) => m[1]).join(" ").replace(/&amp;/g, "&").replace(/&apos;/g, "'").replace(/&quot;/g, '"');
+  };
+  const pdfText = async (u8: Uint8Array) => (await extractText(await getDocumentProxy(u8), { mergePages: true })).text as string;
+
+  await t("H9 rapor modeli: yerel soru anı + UTC, iki Lagna, ruling ayrıntısı, cusp sub-lord tablosu (12 satır = ekran yardımcısı), yöntem metni; eski kayıt (displayTz yok) yerel satırı basılmaz, UTC kalır", () => {
+    const r = buildAstroReport(input({ atUtc: AT, horaryNumber: 108, displayTz: "Europe/Istanbul", place: { label: "İstanbul" } }));
+    const all = reportTexts(r).join("\n");
+    for (const m of ["Soru anı (yerel)", "07.10.2026 12:00 GMT+3 (Europe/Istanbul)", "Soru anı (UTC)", "07.10.2026 09:00 UTC", "Horary Lagna (sayıdan)", "Soru anı Lagna'sı (zaman) lordları", "Cusp sub lordları ve gösterdikleri evler", "Değerlendirme yeri", KP_HORARY_TEXT.rulingRule, KP_HORARY_TEXT.source]) assert.ok(all.includes(m), `yok: ${m}`);
+    const tb = r.blocks.find((b) => b.kind === "table" && b.table.columns[1] === "Sub lord") as J;
+    assert.ok(tb);
+    const rows = kpCuspSublordRows(HT());
+    assert.equal(tb.table.rows.length, 12);
+    // Gerçek golden'da 5. cusp'ın sub lordu bir düğüm → ajan ekli evler "+" ile ayrı yazılır (ekranla aynı biçim).
+    assert.ok(rows.some((x) => x.isNode), "golden'da düğüm sub lordu var");
+    rows.forEach((x, i) =>
+      [1, 2, 3, 4].forEach((l) => {
+        const plain = x.levels![l as 1];
+        const extra = x.agent ? x.agent.levels[l as 1].filter((h) => !plain.includes(h)) : [];
+        assert.equal(tb.table.rows[i][1 + l], `${plain.join(", ") || "—"}${extra.length ? ` +${extra.join(", ")}` : ""}`, `L${l} satır ${i + 1}`);
+      }),
+    );
+    const old = reportTexts(buildAstroReport(input({ atUtc: AT, horaryNumber: 108 }))).join("\n");
+    assert.ok(!old.includes("Soru anı (yerel)"), "eski kayıt: yerel satır boş değerle basılmaz (kv '—' satırlarını atar)");
+    assert.ok(old.includes("07.10.2026 09:00 UTC"));
+    assert.ok(!old.includes("GMT+3"));
+  });
+
+  await t("H10 Word = PDF: iki çıktı aynı horary satırlarını taşır (yerel an, zaman Lagna'sı lordları, 12 cusp sub lordu)", async () => {
+    const r = buildAstroReport(input({ atUtc: AT, horaryNumber: 108, displayTz: "Europe/Istanbul" }));
+    const docx = norm(await docxText(await renderAstroReportDocx(r, null, symbolFontBuffers())));
+    const pdf = norm(await pdfText(buildAstroReportPdf(r, null, fontB64, symbolFontsBase64())));
+    for (const m of ["Soru anı (yerel)", "07.10.2026 12:00 GMT+3", "Cusp sub lordları ve gösterdikleri evler", "Horary Lagna (sayıdan)"]) {
+      assert.ok(docx.includes(m), `Word: ${m}`);
+      assert.ok(pdf.includes(m), `PDF: ${m}`);
+    }
+  });
+
+  await t("H11 özet satırı: displayTz varsa yerel + UTC; yoksa eski metin BİREBİR", () => {
+    assert.equal(describeOptions("kp.horary", { horaryNumber: 108, atUtc: "2026-10-07T09:00", place: { label: "İstanbul" } }), "sayı 108 · 07.10.2026 09:00 UTC · İstanbul");
+    assert.equal(describeOptions("kp.horary", { horaryNumber: 108, atUtc: "2026-10-07T09:00", displayTz: "Europe/Istanbul", place: { label: "İstanbul" } }), "sayı 108 · 07.10.2026 12:00 GMT+3 (07.10.2026 09:00 UTC) · İstanbul");
+  });
+
+  console.log(`\nastrology horary01 harness: ${pass} PASS / ${fail} FAIL`);
+  if (fail > 0) process.exit(1);
+}
+
+main().catch((e) => {
+  process.stderr.write(`${(e as Error).stack ?? String(e)}\n`);
+  process.exit(1);
+});

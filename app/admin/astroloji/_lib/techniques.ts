@@ -449,7 +449,12 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
     case "kp.horary": {
       const at = typeof o.atUtc === "string" ? `${fmtDate(o.atUtc)} ${o.atUtc.slice(11, 16)} UTC` : "";
       const pl = (o.place as { label?: string } | undefined)?.label;
-      if (technique === "kp.horary") return `sayı ${String(o.horaryNumber)} · ${at}${pl ? ` · ${pl}` : ""}`;
+      if (technique === "kp.horary") {
+        // HORARY-KP-01: soru anının gösterim saat dilimi varsa yerel an + UTC; yoksa (eski kayıtlar) eski metin aynen.
+        const tz = typeof o.displayTz === "string" && o.displayTz !== "UTC" ? o.displayTz : null;
+        const z = tz && typeof o.atUtc === "string" ? formatInZone(o.atUtc, tz) : null;
+        return `sayı ${String(o.horaryNumber)} · ${z ? `${z.text} ${z.zone} (${at})` : at}${pl ? ` · ${pl}` : ""}`;
+      }
       if (technique === "kp.ruling") return `${at}${pl ? ` · ${pl}` : ""}`;
       const rg = o.range as { startDate?: string; days?: number; planets?: string[]; kinds?: string[] } | undefined;
       if (technique === "kp.transit" && rg && typeof rg.startDate === "string") {

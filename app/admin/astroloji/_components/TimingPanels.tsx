@@ -640,7 +640,7 @@ export function TechniqueTechnical({
         if ((technical as { schema?: string }).schema === KP_TIMING_TECHNICAL_SCHEMA) return <KpTimingPanel t={technical as KpTimingTechnical} options={options} />;
         return <KpTransitPanel t={technical as KpTransitTechnical} kbLookup={kbLookup} />;
       case "kp.horary":
-        return <KpHoraryPanel t={technical as KpHoraryTechnical} kbLookup={kbLookup} placeLabel={(options.place as { label?: string } | undefined)?.label ?? null} />;
+        return <KpHoraryPanel t={technical as KpHoraryTechnical} kbLookup={kbLookup} placeLabel={(options.place as { label?: string } | undefined)?.label ?? null} displayTz={typeof options.displayTz === "string" ? options.displayTz : null} />;
       case "vedic.dasha":
         return <VedicDashaPanel t={technical as VedicDashaTechnical} kbLookup={kbLookup} drill={dashaDrill} onOpenLevel={onDashaLevel} />;
       case "western.fixed_stars":

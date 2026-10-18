@@ -24,6 +24,7 @@ import { interpretationKindNote, interpretationKindOfSchema } from "../interpret
 import { KP_LEGEND, KP_TRANSIT_LEGEND } from "@/app/admin/astroloji/_lib/kpChart";
 // TRANSİT-03: KP zaman aralığı şeması (ayrı satır: TRANSİT-01/02 import değişiklikleriyle birleştirme çakışması olmasın).
 import { KP_PROVIDER_CORRECTION_NOTE, KP_TIMING_TECHNICAL_SCHEMA } from "../model/kp";
+import { KP_HORARY_TEXT, kpCuspSublordRows, kpHoraryLagnaContrast } from "../view/kpHorary";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "../noProviderInterp";
 import { figureTitle, type ReportFigure } from "./figures";
 import { GOCHARA_STRIP_LEGEND, GOCHARA_SUMMARY_NOTE, GOCHARA_TERMS, gocharaSummary } from "../gocharaSummary";
@@ -1106,20 +1107,48 @@ function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: n
       const sp = isObj(t.span) ? t.span : {};
       const asc = isObj(t.ascendant) ? t.ascendant : null;
       const ru = isObj(t.ruling) ? t.ruling : {};
+      // HORARY-KP-01: soru anı yerel saatle (displayTz yalnız gösterim; eski kayıtta yoksa UTC), iki Lagna ayrımı, cusp sub-lord tablosu.
+      const tz = zoneOpt(opts.displayTz);
       b.kv([
         ...kpFrame(t),
         ["Horary sayısı", s(t.horaryNumber)],
-        ["An", utcTr(at.utc)],
-        ["Yer", placeLabel ? `${placeLabel} (${coord(pl.latitude, pl.longitude)})` : coord(pl.latitude, pl.longitude)],
+        ["Soru anı (yerel)", typeof at.utc === "string" && tz ? `${atZone(at.utc, tz)} (${tz})` : DASH],
+        ["Soru anı (UTC)", utcTr(at.utc)],
+        ["Değerlendirme yeri", placeLabel ? `${placeLabel} (${coord(pl.latitude, pl.longitude)})` : coord(pl.latitude, pl.longitude)],
         ["Sayının aralığı", num(sp.from) !== null && num(sp.to) !== null ? `${lonPos(sp.from)} – ${lonPos(sp.to)}` : DASH],
-        ["Lagna (ASC)", asc ? `${pos(asc.rashi, asc.degreeInRashi)} · Yıldız ${grahaL(asc.starLord)} · Sub ${grahaL(asc.subLord)}` : DASH],
+        ["Horary Lagna (sayıdan)", asc ? `${pos(asc.rashi, asc.degreeInRashi)} · Yıldız ${grahaL(asc.starLord)} · Sub ${grahaL(asc.subLord)}` : DASH],
         ["Gün lordu", grahaL(ru.dayLord)],
         ["Ay lordları", lordSet(ru.moon)],
-        ["Lagna lordları", lordSet(ru.lagna)],
+        ["Soru anı Lagna'sı (zaman) lordları", lordSet(ru.lagna)],
         ["Ruling planets", list(ru.rulingPlanets, grahaL)],
       ]);
+      b.p(KP_HORARY_TEXT.numberRule, "muted");
+      b.p(KP_HORARY_TEXT.rulingRule, "muted");
+      const valid = asc && isObj(ru.lagna) && Array.isArray(t.cusps) && isObj(t.significators);
+      if (valid) {
+        const h = t as unknown as KpHoraryTechnical;
+        const c = kpHoraryLagnaContrast(h);
+        b.p(
+          `Horary Lagna lordları: ${grahaL(c.horary.signLord)} / ${grahaL(c.horary.starLord)} / ${grahaL(c.horary.subLord)} · Soru anı Lagna lordları: ${grahaL(c.time.sign)} / ${grahaL(c.time.star)} / ${grahaL(c.time.sub)} (burç / yıldız / sub)${c.differs ? " — bu soruda iki Lagna farklıdır." : "."}`,
+          "muted",
+        );
+        const rows = kpCuspSublordRows(h).map((r) => [
+          houseL(r.house),
+          grahaL(r.subLord),
+          ...[1, 2, 3, 4].map((l) => {
+            if (!r.levels) return DASH;
+            const plain = r.levels[l as 1 | 2 | 3 | 4];
+            const extra = r.agent ? r.agent.levels[l as 1 | 2 | 3 | 4].filter((x) => !plain.includes(x)) : [];
+            return `${plain.join(", ") || DASH}${extra.length ? ` +${extra.join(", ")}` : ""}`;
+          }),
+        ]);
+        b.h(3, "Cusp sub lordları ve gösterdikleri evler");
+        b.table(["Ev", "Sub lord", "L1 · yıldızı sakinde", "L2 · sakin", "L3 · yıldızı sahipte", "L4 · sahip"], rows, { widths: [0.8, 1.4, 1.6, 1.4, 1.6, 1.4], compact: true });
+        b.p(`${KP_HORARY_TEXT.cuspSubRule}${kpCuspSublordRows(h).some((r) => r.isNode) ? ` ${KP_HORARY_TEXT.nodeRule}` : ""}`, "muted");
+      }
       kpCuspsBodies(b, t);
       kpSignificators(b, t.significators, KP_NODE_SIG_SOURCE.horaryLevels);
+      b.p(KP_HORARY_TEXT.source, "muted");
       return;
     }
   }

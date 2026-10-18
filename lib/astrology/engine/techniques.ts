@@ -1183,7 +1183,15 @@ const kpHorary: TechniqueDefinition = {
     const nt = kpNodeOf(r.nodeType);
     const place = kpPlaceOf(r.placeLocationId);
     if (!Number.isInteger(n) || n < 1 || n > 249 || !atUtc || !ay || !nt || place === undefined) return null;
-    return { horaryNumber: n, atUtc, ayanamsa: ay, nodeType: nt, placeLocationId: place };
+    const out: Record<string, unknown> = { horaryNumber: n, atUtc, ayanamsa: ay, nodeType: nt, placeLocationId: place };
+    // HORARY-KP-01: soru anının GÖSTERİM saat dilimi (yalnız ekran/rapor; TRANSİT-01 ile aynı desen). İstek gövdesine GİRMEZ →
+    // önbellek anahtarı değişmez; verilmediği sürece seçenek nesnesi eskisiyle BİREBİR aynıdır.
+    const tz = r.displayTz ?? (r.now === true ? undefined : r.timezone);
+    if (tz !== undefined) {
+      if (typeof tz !== "string" || !isValidIanaTimeZone(tz)) return null;
+      out.displayTz = tz;
+    }
+    return out;
   },
   units: (ctx, opt) => {
     const place = ctx.places?.target ?? { latitude: ctx.birth.latitude, longitude: ctx.birth.longitude };
