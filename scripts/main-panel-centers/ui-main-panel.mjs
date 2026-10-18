@@ -75,8 +75,8 @@ async function homeCardTitles(page) {
   await page.waitForSelector("main h3", { timeout: 20000 });
   await page.waitForTimeout(600);
   return page.evaluate(() => {
-    const label = [...document.querySelectorAll("p")].find((p) => p.textContent?.trim().toLowerCase() === "ana merkezler");
-    const grid = label?.parentElement?.querySelector("div.grid");
+    // 2026-10-18 premium ana sayfa: ızgara sabit test kimliğiyle bulunur (eski "Ana merkezler" etiketi tasarımda yok).
+    const grid = document.querySelector('[data-testid="home-hub-grid"]');
     return grid ? [...grid.querySelectorAll("h3")].map((h) => h.textContent.trim()) : [];
   });
 }
@@ -117,8 +117,7 @@ async function testOwnerHome() {
     ok(g, "dişli viewport içinde", gb && gb.x >= 0 && gb.x + gb.width <= vp.width + 0.5);
     // Kart ızgarası: hiçbir kart viewport dışına taşmaz.
     const cardsInView = await page.evaluate((w) => {
-      const label = [...document.querySelectorAll("p")].find((p) => p.textContent?.trim().toLowerCase() === "ana merkezler");
-      const grid = label?.parentElement?.querySelector("div.grid");
+      const grid = document.querySelector('[data-testid="home-hub-grid"]');
       return grid ? [...grid.children].every((c) => { const r = c.getBoundingClientRect(); return r.left >= -0.5 && r.right <= w + 0.5; }) : false;
     }, vp.width);
     ok(g, "kartlar viewport içinde", cardsInView);

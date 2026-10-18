@@ -294,6 +294,53 @@
   }
 }
 
+/* Dişli: "Ayarlar" ipucu hover + klavye odağında görünür (owner kararı 2026-10-17 korunur). */
+.gearBtn {
+  position: relative;
+  justify-content: center;
+  min-width: 40px;
+  padding: 0;
+}
+
+.gearBtn:focus-visible {
+  box-shadow: 0 0 0 3px rgba(124, 47, 240, 0.35);
+}
+
+.gearIcon {
+  transition: transform 300ms ease;
+}
+
+.gearTip {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: #1f1a2e;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: 0 6px 16px rgba(31, 26, 46, 0.18);
+  transition: opacity 150ms ease;
+}
+
+.gearBtn:focus-visible .gearTip {
+  opacity: 1;
+}
+
+@media (hover: hover) {
+  .gearBtn:hover .gearTip {
+    opacity: 1;
+  }
+  .gearBtn:hover .gearIcon {
+    transform: rotate(45deg);
+  }
+}
+
 .notice {
   margin: 0;
 }

@@ -1647,9 +1647,12 @@ export default function Home() {
                 aria-label={t("settingsGear.label")}
                 title={t("settingsGear.label")}
                 data-testid="home-settings-gear"
-                className={premium.toolBtn}
+                className={`${premium.toolBtn} ${premium.gearBtn}`}
               >
-                <Settings className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden />
+                <Settings className={`${premium.gearIcon} h-[18px] w-[18px]`} strokeWidth={2} aria-hidden />
+                <span aria-hidden className={premium.gearTip}>
+                  {t("settingsGear.label")}
+                </span>
               </Link>
               <button
                 type="button"
@@ -1838,7 +1841,7 @@ export default function Home() {
                   </p>
                 </div>
               ) : (
-                <div className={premium.grid}>
+                <div className={premium.grid} data-testid="home-hub-grid">
                   {visibleDashboardModules.map((item, index) => {
                     const total = visibleDashboardModules.length;
                     // Son kart 3 sütunlu düzende tek kalıyorsa (ör. 7 kart) tam satır geniş kart olur.
