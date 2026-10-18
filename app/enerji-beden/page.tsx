@@ -1,68 +1,58 @@
 import { EnergyFoldersClient, type EnergyFolder } from "./EnergyFoldersClient";
+import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
+import styles from "@/app/_premium/enerji-beden/enerjiBeden.module.css";
 
+// 2026-10-18 premium görünüm (owner onaylı prototip v3, b048cee): kart objeleri onaylı referanstan raster görsel;
+// "Klasöre Git" butonu YOK, kartın tamamı tek bağlantı. Metinler, adresler ve görünürlük kuralı değişmedi.
 const energyFolders: readonly EnergyFolder[] = [
   {
     title: "Biyoenerji",
     desc: "Aura, çakra, imajinasyon ve enerji çalışmaları",
     href: "/dashboard/biyoenerji",
-    icon: "✨",
     badge: "Enerji",
-    gradient: "from-purple-200 to-fuchsia-100",
-    border: "border-fuchsia-200/70",
-    accent: "text-fuchsia-900",
-    button: "bg-fuchsia-900/90 text-white hover:bg-fuchsia-950",
+    accent: "violet",
+    art: { src: "/premium/enerji-beden/biyoenerji.webp", w: 459, h: 293 },
   },
   {
     title: "Refleksoloji",
     desc: "Bölge haritası, atlas ve uygulama sistemi",
     href: "/refleksoloji",
-    icon: "🦶",
     badge: "Beden",
-    gradient: "from-emerald-200 to-cyan-100",
-    border: "border-cyan-200/70",
-    accent: "text-emerald-900",
-    button: "bg-emerald-900/90 text-white hover:bg-emerald-950",
+    accent: "mint",
+    art: { src: "/premium/enerji-beden/refleksoloji.webp", w: 411, h: 293 },
   },
   {
     title: "Kupa & Hacamat Terapisi",
     desc: "Vücut nokta atlası, amaç rehberi, kupa teknikleri ve güvenlik sistemi",
     href: "/kupa",
-    icon: "🫙",
     badge: "Kupa",
-    gradient: "from-rose-200 to-amber-100",
-    border: "border-rose-200/70",
-    accent: "text-rose-900",
-    button: "bg-rose-900/90 text-white hover:bg-rose-950",
+    accent: "rose",
+    art: { src: "/premium/enerji-beden/kupa.webp", w: 458, h: 293 },
   },
 ];
 
 export default function EnerjiBedenPage() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#071226] text-slate-100 antialiased">
-      <div
-        className="pointer-events-none absolute left-[-80px] top-[-80px] h-80 w-80 rounded-full bg-purple-600/20 blur-3xl"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute right-[-60px] top-0 h-72 w-72 rounded-full bg-cyan-500/15 blur-3xl"
-        aria-hidden
-      />
+    <main className={`${styles.page} ${energyFontVars}`}>
+      <div className={styles.scene} aria-hidden>
+        <span className={styles.sceneSun} />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className={`${styles.sceneSide} ${styles.sceneLeft}`} src="/premium/enerji-beden/yan-sol.webp" width={135} height={871} alt="" decoding="async" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className={`${styles.sceneSide} ${styles.sceneRight}`} src="/premium/enerji-beden/yan-sag.webp" width={132} height={871} alt="" decoding="async" />
+      </div>
 
-      <div className="relative z-10 flex h-full min-h-[calc(100vh-90px)] w-full flex-col overflow-hidden px-4 py-4 sm:px-6 xl:px-10">
-        <header className="shrink-0 py-4 text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.3em] text-cyan-300/90">
-            YAŞAM SİSTEMİ
+      <div className={styles.inner}>
+        <header className={styles.hero}>
+          <p className={styles.eyebrow}>
+            <span>YAŞAM SİSTEMİ</span>
           </p>
-          <h1 className="mt-2 bg-gradient-to-r from-fuchsia-400 via-cyan-300 to-blue-400 bg-clip-text text-4xl font-black tracking-tight text-transparent sm:text-5xl xl:text-6xl">
-            Beden &amp; Enerji Uygulamaları
+          {/* Onaylı tipografi: "Beden" yeşil, "&" altın, "Enerji" lila (kart renkleriyle aynı anlam). */}
+          <h1 className={styles.heroTitle}>
+            <span className={styles.tGreen}>Beden</span> <span className={styles.tGold}>&amp;</span>{" "}
+            <span className={styles.tViolet}>Enerji Uygulamaları</span>
           </h1>
-          <p className="mx-auto mt-2 max-w-2xl text-sm text-slate-400 sm:text-base">
-            Beden üzerinde çalışan uygulama ve terapi araçları
-          </p>
-          <div
-            className="mx-auto mt-4 h-1 w-full max-w-sm rounded-full bg-gradient-to-r from-transparent via-cyan-400/80 to-transparent"
-            aria-hidden
-          />
+          <p className={styles.heroSub}>Beden üzerinde çalışan uygulama ve terapi araçları</p>
         </header>
 
         <EnergyFoldersClient folders={energyFolders} />
