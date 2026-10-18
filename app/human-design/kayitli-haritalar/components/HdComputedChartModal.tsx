@@ -222,6 +222,7 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
               <HdProfessionalReportButton
                 chartId={id}
                 roxyRender={row.roxy_render ?? null}
+                chartResult={result}
                 existingReportId={wordReportId ?? null}
                 lookupPending={wordReportId === undefined}
                 autoStart={autoWord}

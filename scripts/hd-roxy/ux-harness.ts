@@ -20,6 +20,8 @@ import { normalizeRoxyBodygraph } from "../../lib/human-design/providers/roxy/no
 import { GATE_ANCHORS } from "../../lib/human-design/bodygraph/layout";
 import { BodyGraph } from "../../app/human-design/harita/components/BodyGraph";
 import { HdComputedChartView } from "../../app/human-design/kayitli-haritalar/components/HdComputedChartView";
+import { HdRoxyBodygraph } from "../../app/human-design/kayitli-haritalar/components/HdRoxyBodygraph";
+import { HD_INDIVIDUAL_BODYGRAPH } from "../../lib/human-design/bodygraph/rendererConfig";
 import { createFakeDb } from "./fakeDb";
 import { consistentRoxyResponse } from "./consistentFixture";
 
@@ -236,11 +238,14 @@ async function main() {
     const n = normalizeRoxyBodygraph(v.value, { date: "2018-07-20", time: "19:00:00", timezone: "Europe/Istanbul", latitude: 37.87, longitude: 32.48, nodeType: "true", lang: "tr", birthUtcIso: "2018-07-20T16:00:00.000Z" });
     if (!n.ok) throw new Error("nm");
     const viewRoxy = renderToStaticMarkup(createElement(HdComputedChartView, { result: n.chart, roxyRender: payload }));
-    ok("RX6 Roxy otomatik harita → resmi <roxy-bodygraph>, eski renderer YOK", viewRoxy.includes('data-hd-renderer="roxy-official"') && viewRoxy.includes("<roxy-bodygraph") && !viewRoxy.includes('data-hd-renderer="legacy"') && (viewRoxy.match(/<polygon/g) ?? []).length === 0);
-    ok("RX7 resmi renderer: yorumlar ve başlık/legend gizli", viewRoxy.includes("hide-readings") && viewRoxy.includes('hide-sections="header,details,legend,themes,facts"'));
+    // Owner PASS 2026-10-18: aktif çizici premium (rendererConfig). Roxy resmî bileşeni ve eski çizim PASİF ama silinmedi (RX7b / V7).
+    ok("RX6 Roxy otomatik harita → AKTİF premium BodyGraph (9 merkez, 64 kapı); Roxy bileşeni aktif değil", viewRoxy.includes('data-hd-renderer="premium"') && viewRoxy.includes("data-hd-premium-bodygraph") && !viewRoxy.includes("<roxy-bodygraph") && (viewRoxy.match(/data-hd-cbg-center=/g) ?? []).length === 9 && (viewRoxy.match(/data-hd-cbg-gate=/g) ?? []).length === 64);
+    const roxyPassive = renderToStaticMarkup(createElement(HdRoxyBodygraph, { data: payload as Record<string, unknown> }));
+    ok("RX7 PASİF Roxy resmî bileşeni korunur: yorumlar ve başlık/legend gizli", roxyPassive.includes("<roxy-bodygraph") && roxyPassive.includes("hide-readings") && roxyPassive.includes('hide-sections="header,details,legend,themes,facts"'));
+    ok("RX7b çizici seçimi tek yerde; varsayılan premium, eski yollar dosyada duruyor", HD_INDIVIDUAL_BODYGRAPH === "premium" && src("app/human-design/kayitli-haritalar/components/HdComputedChartView.tsx").includes("<HdRoxyBodygraph") && src("app/human-design/kayitli-haritalar/components/HdComputedChartView.tsx").includes("<BodyGraph result={result} />") && src("app/human-design/kayitli-haritalar/components/HdProfessionalReportButton.tsx").includes("captureRoxyBodygraphPng("));
     ok("RX8 Design 13 + Personality 13 korunur", [...viewRoxy.matchAll(/data-hd-activation=/g)].length === 26);
     const viewLegacy = renderToStaticMarkup(createElement(HdComputedChartView, { result: n.chart }));
-    ok("RX9 eski kayıt (render yükü yok) eski görünümle açılır (veri korunur)", viewLegacy.includes('data-hd-renderer="legacy"'));
+    ok("RX9 eski motor kaydı (render yükü yok) da premium görünümle açılır; veri korunur", viewLegacy.includes('data-hd-renderer="premium"') && (viewLegacy.match(/data-hd-cbg-gate="\d+:(A|B|both)"/g) ?? []).length === new Set(n.chart.activations.map((a) => a.gate)).size);
     const vendor = readFileSync(join(ROOT, "public/vendor/roxy-ui/0.48.0/bodygraph.js"));
     ok("RX10 resmi bileşen self-host (sürüm sabit, bütünlük hash'i)", createHash("sha256").update(vendor).digest("hex") === "dc73f7167f47c2c42f1bcee89ff0789b0f54736ee8d37aa481523aec56f9a6e9");
     ok("RX11 MIT lisansı yanında", /MIT License/.test(src("public/vendor/roxy-ui/0.48.0/LICENSE.txt")));

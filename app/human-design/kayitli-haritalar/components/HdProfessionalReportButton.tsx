@@ -29,6 +29,10 @@ import { useEffect, useRef, useState } from "react";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { commentaryFromFlags, type HdCommentarySelection } from "@/lib/human-design/reporting/reportV2Shared";
 import { captureRoxyBodygraphPng } from "@/lib/human-design/reporting/bodygraphCapture";
+import { capturePremiumBodygraphPng } from "@/lib/human-design/reporting/premiumBodygraphCapture";
+import { HD_INDIVIDUAL_BODYGRAPH } from "@/lib/human-design/bodygraph/rendererConfig";
+import { premiumStateFromChart } from "@/lib/human-design/bodygraph/premiumChartState";
+import type { HdComputedChart } from "@/lib/human-design/chart/computedChart";
 import {
   createProfessionalReport,
   downloadProfessionalReport,
@@ -72,6 +76,7 @@ export function HdProfessionalReportButton({
   chartId,
   label,
   roxyRender,
+  chartResult = null,
   existingReportId = null,
   lookupPending = false,
   autoStart = false,
@@ -80,6 +85,8 @@ export function HdProfessionalReportButton({
   label?: string;
   /** Roxy haritasının KAYITLI yapısal render yükü (varsa BodyGraph PNG'si bundan üretilir). */
   roxyRender?: Record<string, unknown> | null;
+  /** Kayıtlı computed_result — aktif premium BodyGraph Word görseli bundan çizilir (rendererConfig). */
+  chartResult?: HdComputedChart | null;
   /** Bu analizin hazır Word v2 raporu (varsa "Word İndir" onu indirir; yeni kopya oluşmaz). */
   existingReportId?: string | null;
   /** Hazır rapor araması sürüyor → düğme kısa süre bekler (yanlışlıkla kopya oluşmasın). */
@@ -148,7 +155,11 @@ export function HdProfessionalReportButton({
       let bodygraphPng: string | undefined;
       if (roxyRender && !opts.allowMissingBodygraph) {
         setPhase("capturing");
-        const cap = await captureRoxyBodygraphPng(roxyRender, loadRoxyBodygraph, chartId);
+        // AKTİF: premium BodyGraph (ekrandaki çizimle aynı). PASİF: Roxy resmî bileşeninden yakalama (rendererConfig).
+        const premium = HD_INDIVIDUAL_BODYGRAPH === "premium" && chartResult && premiumStateFromChart(chartResult);
+        const cap = premium && chartResult
+          ? await capturePremiumBodygraphPng(chartResult, roxyRender, chartId)
+          : await captureRoxyBodygraphPng(roxyRender, loadRoxyBodygraph, chartId);
         if (!cap.ok) {
           setPhase("bodygraph_failed");
           setMessage(`${cap.error} Tekrar deneyebilir ya da raporu BodyGraph görseli olmadan oluşturabilirsiniz.`);

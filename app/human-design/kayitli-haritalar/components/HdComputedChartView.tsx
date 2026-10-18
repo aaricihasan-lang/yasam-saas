@@ -13,6 +13,9 @@
 
 import { BodyGraph } from "../../harita/components/BodyGraph";
 import { HdRoxyBodygraph, ROXY_BODYGRAPH_ASPECT } from "./HdRoxyBodygraph";
+import { HdPremiumBodygraph, HD_PREMIUM_BODYGRAPH_ASPECT } from "./HdPremiumBodygraph";
+import { HD_INDIVIDUAL_BODYGRAPH } from "@/lib/human-design/bodygraph/rendererConfig";
+import { premiumStateFromChart } from "@/lib/human-design/bodygraph/premiumChartState";
 import { HdPlanetColumn } from "./HdPlanetColumn";
 import { HdChartInfoPanel } from "./HdChartInfoPanel";
 import { HdChartKeynotesCard } from "./HdChartKeynotesCard";
@@ -52,6 +55,9 @@ export function HdComputedChartView({
   // kanıtlanamayan merkez "Doğrulanamadı" (Açık TAHMİN EDİLMEZ). BodyGraph çizimi bundan etkilenmez.
   // Harita, Bilgi Bankası eşleşmesi ve Word AYNI kanıttan (kayıtlı computed_result) beslenir → tutarlı.
   const centerStates = classifyComputedChartCenters(result).states;
+  // Aktif çizici: Yaşam Sistemi premium BodyGraph (rendererConfig). Kayıtlı veriyle birebir doğrulanamazsa null →
+  // pasif çiziciye düşer (RoxyAPI kaydı: Roxy resmî bileşeni; eski motor kaydı: eski Yaşam Sistemi çizimi).
+  const premiumState = HD_INDIVIDUAL_BODYGRAPH === "premium" ? premiumStateFromChart(result) : null;
   // Sağlayıcının (kayıtlı yanıt) merkez nitelikleri — yalnız RoxyAPI kayıtlarında; eski kayıtta işaret yok (uydurma yok).
   const centerKind = new Map<string, { motor: boolean; awareness: boolean }>();
   if (roxyRender && Array.isArray(roxyRender.centers)) {
@@ -86,13 +92,18 @@ export function HdComputedChartView({
           {/* Orta: yükseklik-öncelikli BodyGraph (SVG viewBox 340×600 korunur; yalnız ölçek). */}
           {/* hdwide: alan yetmezse (dikey uzun pencere) taşma yerine yalnız BodyGraph genişliği daralır. */}
           <div className="order-1 flex w-full justify-center lg:order-2 lg:h-full lg:w-auto lg:flex-none hdwide:min-w-0 hdwide:shrink">
-            {roxyRender ? (
-              // RoxyAPI otomatik harita → Roxy'nin RESMİ BodyGraph'ı (eski Yaşam Sistemi renderer'ı KULLANILMAZ).
+            {premiumState ? (
+              // AKTİF: Yaşam Sistemi premium BodyGraph (owner PASS 2026-10-18).
+              <div className="w-full max-w-[460px] lg:h-full lg:w-auto lg:max-w-none" style={{ aspectRatio: HD_PREMIUM_BODYGRAPH_ASPECT }} data-hd-renderer="premium">
+                <HdPremiumBodygraph state={premiumState} />
+              </div>
+            ) : roxyRender ? (
+              // PASİF (rendererConfig): RoxyAPI otomatik harita → Roxy'nin RESMİ BodyGraph'ı (eski Yaşam Sistemi renderer'ı KULLANILMAZ).
               <div className="w-full max-w-[440px] lg:h-full lg:w-auto lg:max-w-none" style={{ aspectRatio: ROXY_BODYGRAPH_ASPECT }} data-hd-renderer="roxy-official">
                 <HdRoxyBodygraph data={roxyRender} />
               </div>
             ) : (
-              // Eski (dahili motor) hesaplanmış kayıtlar: mevcut görünüm korunur (veri silinmez).
+              // PASİF (rendererConfig): eski (dahili motor) hesaplanmış kayıtlar — eski Yaşam Sistemi çizimi.
               <div className="w-full max-w-[420px] lg:h-full lg:w-auto lg:max-w-none [&_svg]:max-w-[420px] lg:[&_svg]:h-full lg:[&_svg]:w-auto lg:[&_svg]:max-w-none" data-hd-renderer="legacy">
                 <BodyGraph result={result} />
               </div>
