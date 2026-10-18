@@ -154,10 +154,13 @@ export default function AtlasHero({
   onNavigate,
   onRecent,
   onNewProfile,
+  onSoon,
 }: {
   onNavigate: (v: "new" | "archive" | "kb") => void;
   onRecent: () => void;
   onNewProfile: () => void;
+  /** "Yakında" bilgilendirme görünümü (statik; veri / istek yok). */
+  onSoon: () => void;
 }) {
   // İlk ekran = görünür alan − üstteki admin çubuğu: bölümün sayfa üstünden uzaklığı ölçülüp CSS değişkenine yazılır.
   const firstRef = useRef<HTMLDivElement | null>(null);
@@ -194,6 +197,19 @@ export default function AtlasHero({
           {PORTALS.map((p) => (
             <PortalCard key={p.key} p={p} onOpen={open} />
           ))}
+          {/* 2026-10-19 "Yakında" bilgilendirme şeridi: dört kartın bağımsız devamı (raster yok, eğim yok); yalnız görünüm açar. */}
+          <button type="button" onClick={onSoon} className={styles.soon} data-testid="atlas-soon-strip">
+            <span className={styles.soonMark} aria-hidden="true">
+              <Star4 />
+            </span>
+            <span className={styles.soonBody}>
+              <span className={styles.soonHead}>
+                <span className={styles.soonEyebrow}>YAKINDA</span>
+                <span className={styles.soonTitle}>Yeni Haritalar ve Astroloji Ekolleri</span>
+              </span>
+              <span className={styles.soonDesc}>Gökyüzü Atlası&apos;na eklenecek yeni analizleri ve astroloji yöntemlerini keşfedin.</span>
+            </span>
+          </button>
         </nav>
 
         <section aria-labelledby="atlas-title" className={styles.panel} {...panelDepth}>

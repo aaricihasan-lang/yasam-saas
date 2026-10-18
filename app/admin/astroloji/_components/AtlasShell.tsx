@@ -9,8 +9,8 @@ import type { ReactNode } from "react";
 import { Archive, BookOpen, ChevronRight, Orbit, Settings2, Sparkles } from "lucide-react";
 import { atlasDisplay, atlasText } from "./atlas/fonts";
 
-/** "client" = Danışan Dosyası (#danisan/<id>) — Analiz Arşivi'nin detay görünümü. */
-export type AtlasView = "home" | "new" | "archive" | "client" | "result" | "kb" | "audit";
+/** "client" = Danışan Dosyası (#danisan/<id>) — Analiz Arşivi'nin detay görünümü. "soon" = Yakında (yalnız statik bilgi). */
+export type AtlasView = "home" | "new" | "archive" | "client" | "result" | "kb" | "audit" | "soon";
 
 export const ATLAS = {
   navy: "#0b1430",
