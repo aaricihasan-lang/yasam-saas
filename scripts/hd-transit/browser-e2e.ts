@@ -5,7 +5,7 @@
  *   NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54523 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=zz-anamnez-test-anon-not-a-secret \
  *   SUPABASE_SERVICE_ROLE_KEY=zz-anamnez-test-service-role-not-a-secret npx next build
  * Ekranlar: 1920, 1366, 390, 360, 320 (+ Android UA 360). Çalıştır: npx tsx scripts/hd-transit/browser-e2e.ts [--out <klasör>]
- * Ortam: HD_TR_PG_PORT (varsayılan 54471), HD_E2E_ONLY=390,1920 (yalnız seçilen ekranlar).
+ * Ortam: HD_TR_PG_PORT (varsayılan 54471), HD_TR_PG_DIR, HD_E2E_ONLY=390,1920 (yalnız seçilen ekranlar).
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdirSync } from "node:fs";
@@ -83,7 +83,7 @@ async function main() {
   }) as typeof fetch;
   delete process.env.ROXY_API_KEY;
 
-  const env: TestEnv = await startAnamnezTestEnv({ port: Number(process.env.HD_TR_PG_PORT ?? 54471), dirName: "hd-transit-browser-pgdata", httpPort: 54523, extraSql: [`insert into public.tenants(id, name) values ('${TA}', 'ZZ_TRANSIT')`, HD_DDL] });
+  const env: TestEnv = await startAnamnezTestEnv({ port: Number(process.env.HD_TR_PG_PORT ?? 54471), dirName: process.env.HD_TR_PG_DIR ?? "hd-transit-browser-pgdata", httpPort: 54523, extraSql: [`insert into public.tenants(id, name) values ('${TA}', 'ZZ_TRANSIT')`, HD_DDL] });
   process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;
   process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_KEY;
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = ANON_KEY;

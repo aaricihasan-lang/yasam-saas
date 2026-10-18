@@ -1,4 +1,5 @@
 // RoxyAPI Human Design TRANSİT HTTP istemcisi — YALNIZ SUNUCU (OpenAPI v2.0.0: POST /human-design/transit).
+// Konum: transit klasörü — L5 korumalı sağlayıcı klasörü (lib/human-design/providers) DEĞİŞMEZ; yalnız tipleri/ayarları okunur.
 //
 // Güvenlik mevcut BodyGraph / İlişki istemcileriyle BİREBİR aynı kurallar (o dosyalar DEĞİŞTİRİLMEDİ):
 //   • API anahtarı yalnız `X-API-Key` başlığında; dönüş/hata/log içine KONMAZ.
@@ -6,9 +7,9 @@
 //   • Zaman aşımı zorunlu; `fetchImpl` enjekte edilebilir → testler ücretli çağrı YAPMAZ.
 // İstek: { birthData: { date, time, timezone, latitude, longitude, nodeType }, date (UTC), time (UTC) }.
 
-import { ROXY_POLICY, type RoxyServerConfig } from "./config";
-import type { FetchLike, RoxyCallErrorKind, RoxyCallResult } from "./client";
-import type { RoxyBirthMoment } from "./relationClient";
+import { ROXY_POLICY, type RoxyServerConfig } from "../providers/roxy/config";
+import type { FetchLike, RoxyCallErrorKind, RoxyCallResult } from "../providers/roxy/client";
+import type { RoxyBirthMoment } from "../providers/roxy/relationClient";
 
 export const ROXY_TRANSIT_ENDPOINT = "/human-design/transit";
 /** Transit adaptör sözleşme sürümü — değişirse önbellek anahtarı da değişir. */

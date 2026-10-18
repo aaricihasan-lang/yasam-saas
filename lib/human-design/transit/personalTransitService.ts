@@ -16,7 +16,7 @@ import { isUuid } from "../api/deterministicId";
 import { hdSafeDbError } from "../api/safeError";
 import { ROXY_POLICY, ROXY_PROVIDER_ID, ROXY_RATE_LIMITS, type RoxyPolicy, type RoxyServerConfig } from "../providers/roxy/config";
 import type { RoxyCallResult } from "../providers/roxy/client";
-import { ROXY_TRANSIT_ADAPTER_VERSION, type RoxyTransitRequest } from "../providers/roxy/transitClient";
+import { ROXY_TRANSIT_ADAPTER_VERSION, type RoxyTransitRequest } from "./roxyTransitClient";
 import { chartBirthMoment, chartMatchesClient, participantChartFacts } from "../relations/relationService";
 import { computeGeneralTransit } from "./generalTransit";
 import { buildPersonalTransitView, checkTransitConsistency, validateRoxyTransit, type PersonalTransitView } from "./personalTransit";

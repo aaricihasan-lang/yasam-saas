@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import { readRoxyServerConfig } from "@/lib/human-design/providers/roxy/config";
-import { callRoxyTransit } from "@/lib/human-design/providers/roxy/transitClient";
+import { callRoxyTransit } from "@/lib/human-design/transit/roxyTransitClient";
 import { computePersonalTransit } from "@/lib/human-design/transit/personalTransitService";
 
 export const runtime = "nodejs";
