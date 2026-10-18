@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { BookOpen, Flower2, Gem, Wheat, type LucideIcon } from "lucide-react";
 import { hasAnyModulePermissionFlag } from "@/lib/auth/modulePermissions";
 import { readYasamUser, syncYasamUserFromDb, type YasamUser } from "@/lib/auth/yasamUser";
 import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
+import styles from "./dogalDestek.module.css";
 
 /**
  * Doğal Destek & Rehber alt kartları. Parent route erişimi ModuleRouteGuard +
@@ -28,12 +30,11 @@ type SupportFolder = {
   title: string;
   desc: string;
   href: string;
-  icon: string;
-  badge: string;
-  gradient: string;
-  border: string;
-  accent: string;
-  button: string;
+  /** 2026-10-18 premium görünüm: kart görseli (public/premium/dogal-destek), renk tonu, çizgi ikon, prototip sırası. */
+  art: { src: string; w: number; h: number };
+  accent: "amber" | "sage" | "mint" | "violet";
+  Icon: LucideIcon;
+  order: number;
 };
 
 const flagFolders: (SupportFolder & { keys: string[] })[] = [
@@ -44,58 +45,77 @@ const flagFolders: (SupportFolder & { keys: string[] })[] = [
     desc: "Taş ve mineral kayıtları, kombinasyonlar ve danışan eşleşmeleri",
     href: "/dogaltas",
     keys: ["stones", "dogaltas"],
-    icon: "💎",
-    badge: "Taş & Mineral",
-    gradient: "from-cyan-100 to-sky-50",
-    border: "border-cyan-200/70",
-    accent: "text-cyan-900",
-    button: "bg-cyan-800/90 text-white hover:bg-cyan-900",
+    art: { src: "/premium/dogal-destek/dogaltas.webp", w: 391, h: 300 },
+    accent: "violet",
+    Icon: Gem,
+    order: 4,
   },
   {
     title: "Aromaterapi",
     desc: "Uçucu yağlar, sabit yağlar ve karışımlar",
     href: "/aromaterapi",
     keys: ["aromatherapy", "aromaterapi"],
-    icon: "🌸",
-    badge: "Koku & Yağ",
-    gradient: "from-orange-100 to-yellow-50",
-    border: "border-orange-200/70",
-    accent: "text-orange-900",
-    button: "bg-orange-800/90 text-white hover:bg-orange-900",
+    art: { src: "/premium/dogal-destek/aromaterapi.webp", w: 448, h: 302 },
+    accent: "amber",
+    Icon: Flower2,
+    order: 1,
   },
   {
     title: "Şifa Rehberi",
     desc: "Rahatsızlık kayıtları, belirtiler ve destekleyici öneriler",
     href: "/sifa-rehberi",
     keys: ["sifa_rehberi", "healing"],
-    icon: "🌿",
-    badge: "Şifa",
-    gradient: "from-green-100 to-teal-50",
-    border: "border-green-200/70",
-    accent: "text-green-900",
-    button: "bg-green-800/90 text-white hover:bg-green-900",
+    art: { src: "/premium/dogal-destek/sifa-rehberi.webp", w: 431, h: 302 },
+    accent: "sage",
+    Icon: BookOpen,
+    order: 2,
   },
 ];
 
-// Tam Beslenme alt kartı (server-authoritative access). Emerald ailesi — Aromaterapi (turuncu)
-// ve Şifa (yeşil/teal) ile karışmayacak kadar ayrık.
+// Tam Beslenme alt kartı (server-authoritative access).
 const BESLENME_FOLDER: SupportFolder = {
   title: "Beslenme",
   desc: "Besinler, beslenme yaklaşımları ve profesyonel beslenme bilgileri",
   href: "/beslenme",
-  icon: "🥗",
-  badge: "Beslenme",
-  gradient: "from-emerald-100 to-lime-50",
-  border: "border-emerald-200/70",
-  accent: "text-emerald-900",
-  button: "bg-emerald-800/90 text-white hover:bg-emerald-900",
+  art: { src: "/premium/dogal-destek/beslenme.webp", w: 398, h: 300 },
+  accent: "mint",
+  Icon: Wheat,
+  order: 3,
 };
 
-/** Kart sayısına göre dengeli responsive grid (mobil 1 · sm 2 · 3 kart lg 3). */
+/** Kart sayısına göre ızgara (2×2; tek kart ortada; tek sayıda son kart tam satır). */
 function gridClass(count: number): string {
-  if (count >= 4) return "max-w-4xl grid-cols-1 sm:grid-cols-2";
-  if (count === 3) return "max-w-5xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
-  return "max-w-3xl grid-cols-1 sm:grid-cols-2";
+  if (count === 1) return styles.cardsSingle;
+  return count % 2 === 1 ? styles.cardsOdd : "";
+}
+
+const TILT_MAX_X = 3.5 * 0.45;
+const TILT_MAX_Y = 4.5 * 0.45;
+const TILT_PROPS = ["--rx", "--ry", "--px", "--py", "--gx", "--gy"];
+
+/** Fareyle hafif 3D eğim + görsel katman parallax'ı (dokunmatik / "hareketi azalt" açıkken yok). Yalnız görsel. */
+function onTiltMove(e: ReactPointerEvent<HTMLElement>) {
+  if (e.pointerType === "touch" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const el = e.currentTarget;
+  const r = el.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  const x = e.clientX - r.left;
+  const y = e.clientY - r.top;
+  const px = Math.min(Math.max(x / r.width - 0.5, -0.5), 0.5);
+  const py = Math.min(Math.max(y / r.height - 0.5, -0.5), 0.5);
+  el.dataset.tilting = "true";
+  el.style.setProperty("--rx", `${(-py * 2 * TILT_MAX_X).toFixed(2)}deg`);
+  el.style.setProperty("--ry", `${(px * 2 * TILT_MAX_Y).toFixed(2)}deg`);
+  el.style.setProperty("--px", px.toFixed(3));
+  el.style.setProperty("--py", py.toFixed(3));
+  el.style.setProperty("--gx", `${x.toFixed(0)}px`);
+  el.style.setProperty("--gy", `${y.toFixed(0)}px`);
+}
+
+function onTiltLeave(e: ReactPointerEvent<HTMLElement>) {
+  const el = e.currentTarget;
+  delete el.dataset.tilting;
+  for (const p of TILT_PROPS) el.style.removeProperty(p);
 }
 
 export default function DogalDestekCards() {
@@ -156,7 +176,7 @@ export default function DogalDestekCards() {
   // Çözülene kadar SESSİZ boşluk — iskelet/spinner ya da loading metni YOK, gerçek kart YOK
   // (2→3 flicker'ı önle). Yalnız min-height korunur → yetki gelince layout dikey sıçramaz.
   if (!accessResolved) {
-    return <div className="min-h-[16rem] w-full" aria-busy="true" aria-hidden />;
+    return <div className={styles.cards} aria-busy="true" aria-hidden />;
   }
 
   // Tüm access sonuçları kesin → görünür kartları TEK SEFERDE oluştur.
@@ -164,45 +184,34 @@ export default function DogalDestekCards() {
     hasAnyModulePermissionFlag(user, [...folder.keys]),
   );
   if (beslenmeAccess) visible.push(BESLENME_FOLDER);
+  // Yalnız görsel sıra (owner onaylı prototip): Aromaterapi · Şifa Rehberi · Beslenme · Doğaltaş.
+  visible.sort((a, b) => a.order - b.order);
 
   return (
-    <div
-      className={`mx-auto grid min-h-[16rem] w-full items-stretch gap-6 transition-opacity duration-300 ease-out ${
-        revealed ? "opacity-100" : "opacity-0"
-      } ${gridClass(visible.length)}`}
-    >
-      {visible.map((folder) => (
+    <div className={`${styles.cards} ${revealed ? "" : styles.cardsHidden} ${gridClass(visible.length)}`}>
+      {visible.map(({ title, desc, href, art, accent, Icon }) => (
         <Link
-          key={folder.title}
-          href={folder.href}
-          data-support-card={folder.title}
-          className={`group flex flex-col overflow-hidden rounded-2xl border bg-gradient-to-br shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${folder.gradient} ${folder.border}`}
+          key={title}
+          href={href}
+          data-support-card={title}
+          data-accent={accent}
+          className={styles.card}
+          onPointerMove={onTiltMove}
+          onPointerLeave={onTiltLeave}
         >
-          <div className="flex flex-1 flex-col items-center justify-center px-5 pt-6 text-center">
-            <span
-              className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/60 text-4xl shadow-sm"
-              aria-hidden
-            >
-              {folder.icon}
+          <span className={styles.cardArt} aria-hidden>
+            <span className={styles.artLayer}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={art.src} width={art.w} height={art.h} alt="" decoding="async" draggable={false} />
             </span>
-            <span
-              className={`mt-4 rounded-full bg-white/60 px-3 py-0.5 text-xs font-bold backdrop-blur ${folder.accent}`}
-            >
-              {folder.badge}
+          </span>
+          <span className={styles.cardBody}>
+            <span className={styles.cardIcon} aria-hidden>
+              <Icon className="h-6 w-6" strokeWidth={1.6} />
             </span>
-            <h2 className={`mt-3 text-2xl font-bold ${folder.accent}`}>{folder.title}</h2>
-            <p className="mt-2 max-w-xs text-sm leading-relaxed text-slate-700/90">
-              {folder.desc}
-            </p>
-          </div>
-
-          <div className="shrink-0 p-5 pt-4">
-            <span
-              className={`block w-full rounded-xl py-2.5 text-center text-sm font-bold shadow-md transition ${folder.button}`}
-            >
-              Klasöre Git →
-            </span>
-          </div>
+            <h2 className={styles.cardTitle}>{title}</h2>
+            <p className={styles.cardDesc}>{desc}</p>
+          </span>
         </Link>
       ))}
     </div>
