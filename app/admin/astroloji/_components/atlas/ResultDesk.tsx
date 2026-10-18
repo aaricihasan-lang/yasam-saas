@@ -853,7 +853,21 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
     const sec = sectionRef.current;
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => measure()) : null;
     if (ro && sec) for (const child of Array.from(sec.children)) ro.observe(child);
+    // 2026-10-18 (KP-UX son regresyon): masanın ÜSTÜNDEKİ öğeler (ör. "Kayıtlı analizler" şeridi) ölçümden sonra
+    // yerleşirse masa aşağı kayıyor ama yükseklik yeniden hesaplanmıyordu → masa ekranın altına taşıyordu (aralıklı).
+    // Üst kapsayıcı izlenir; web yazı tipleri ve geç yerleşim için kısa gecikmeli yeniden ölçüm.
+    if (ro && sec?.parentElement) {
+      ro.observe(sec.parentElement);
+      let outer: HTMLElement = sec;
+      while (outer.parentElement && outer.parentElement.tagName !== "MAIN" && outer.parentElement !== document.body) outer = outer.parentElement;
+      if (outer !== sec.parentElement) ro.observe(outer);
+    }
+    let alive = true;
+    const later = [window.setTimeout(measure, 150), window.setTimeout(measure, 700), window.setTimeout(measure, 1600)];
+    void document.fonts?.ready.then(() => alive && measure());
     return () => {
+      alive = false;
+      later.forEach((id) => window.clearTimeout(id));
       window.removeEventListener("resize", measure);
       ro?.disconnect();
     };
@@ -964,11 +978,12 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
         </button>
         <AtlasHomeButton tone="light" />
         <div className="min-w-0 flex-[1_1_30rem]">
-          {/* 2026-10-12 (Android UAT ek madde): telefonda uzun ad / teknik / tarih KESİLMEZ, satıra geçer; tek satır
-              kısaltma yalnız geniş masaüstünde (tam metin title ile). */}
+          {/* 2026-10-12 (Android UAT ek madde): telefonda uzun ad / teknik / tarih KESİLMEZ, satıra geçer.
+              2026-10-18 (KP-UX-04 son regresyon): geniş masaüstündeki tek satır kısaltma (xl:truncate) da kaldırıldı —
+              uzun analiz adı (ör. "… KP doğum haritası (Placidus + sub-lord) · 18.10.2026") üç noktayla kesilmez, sarar. */}
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
             <p className="shrink-0 text-[10px] font-semibold tracking-[0.14em] text-slate-500">{eyebrow}</p>
-            <h2 className="min-w-0 break-words text-[17px] font-semibold tracking-[0.005em] text-slate-900 [overflow-wrap:anywhere] xl:truncate" title={title}>
+            <h2 className="min-w-0 break-words text-[17px] font-semibold tracking-[0.005em] text-slate-900 [overflow-wrap:anywhere]" title={title}>
               {title}
             </h2>
           </div>
