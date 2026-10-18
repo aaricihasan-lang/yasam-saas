@@ -19,9 +19,10 @@ function makeUser(role, keys) {
   };
 }
 const OWNER = makeUser("admin", ALL);
+// 2026-10-18 owner kararı: Ürün & Stok Merkezi kartı yedi merkezin EN SONUNDA (diğer altısının sırası aynı).
 const EXPECTED_SEVEN = [
-  "Danışan Yolculuğu", "Yaşam Hafızası", "Ürün & Stok Merkezi", "Beden & Enerji Uygulamaları",
-  "Doğal Destek & Rehber", "Dijital İçerik Merkezi", "Yaşam Analiz Merkezi",
+  "Danışan Yolculuğu", "Yaşam Hafızası", "Beden & Enerji Uygulamaları",
+  "Doğal Destek & Rehber", "Dijital İçerik Merkezi", "Yaşam Analiz Merkezi", "Ürün & Stok Merkezi",
 ];
 const REMOVED = ["Doğaltaş", "Yaşam Takvimi / Kozmik Ajanda", "Yaşam Enerjisi Bilgi Sistemi", "Ayarlar & Güvenlik", "Enerji & Beden"];
 const VIEWPORTS = [
@@ -239,7 +240,7 @@ async function testExperts() {
       la: { "/human-design": true, "/numeroloji": false }, allow: ["/human-design", "/life-analysis"], deny: ["/numeroloji", "/cosmic-calendar"] },
     { tag: "yalniz-numeroloji", keys: ["numerology"], home: ["Yaşam Analiz Merkezi"], cosmicCard: false, stoneCard: null,
       la: { "/numeroloji": true, "/human-design": false }, allow: ["/numeroloji"], deny: ["/human-design", "/cosmic-calendar"] },
-    { tag: "biyoenerji-stok", keys: ["energy_body", "stok"], home: ["Ürün & Stok Merkezi", "Beden & Enerji Uygulamaları"],
+    { tag: "biyoenerji-stok", keys: ["energy_body", "stok"], home: ["Beden & Enerji Uygulamaları", "Ürün & Stok Merkezi"],
       cosmicCard: false, stoneCard: null, allow: ["/urun-stok", "/enerji-beden"], deny: ["/cosmic-calendar", "/dogaltas", "/dogal-destek"] },
   ];
   for (const c of cases) {

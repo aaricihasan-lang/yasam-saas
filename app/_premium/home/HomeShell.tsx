@@ -4,16 +4,26 @@
  * Ana sayfa premium kabuğu (owner onaylı bağımsız prototip: C:\YasamSistemi-Gorsel-Tasarim\ana-sayfa-dashboard, 7a06a57).
  * Yalnız GÖRSEL katman: açılır-kapanır sol menü + üst araç satırı. Yetki / veri / oturum mantığı app/page.tsx'te kalır;
  * menü öğelerinin görünürlüğü oradan gelen hazır kararlarla (props) belirlenir — burada yeni yetki kuralı YOK.
- * Gerçek karşılığı olmayan "Raporlar" öğesi bilinçli olarak eklenmedi; "Tüm Modüller" aynı sayfadaki modül bölümüne gider.
+ * Gerçek karşılığı olmayan "Raporlar" öğesi bilinçli olarak eklenmedi.
+ * 2026-10-18 owner kararı: Ana Sayfa / Takvim / İçerikler menü öğeleri kaldırıldı (sayfalar ve yetkiler aynen çalışır);
+ * "Tüm Modüller" erişilebilir merkez + alt modül listesini açıp kapatır (liste page.tsx → homeModuleNav ile mevcut
+ * kurallardan üretilir; burada yetki kararı verilmez).
  */
 import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from "react";
 import { useTranslations } from "next-intl";
 import {
   ArrowRight,
-  CalendarDays,
+  ChevronDown,
   ChevronsLeft,
-  FileText,
   Home,
   LayoutGrid,
   Loader2,
@@ -23,6 +33,7 @@ import {
   UserRound,
 } from "lucide-react";
 import styles from "./home.module.css";
+import type { HomeNavGroup } from "./homeModuleNav";
 
 const COLLAPSE_KEY = "ys-home-side-collapsed";
 const COLLAPSE_EVENT = "ys-home-side-collapsed-change";
@@ -59,10 +70,10 @@ function subscribeCollapsed(onChange: () => void) {
 export type HomeShellProps = {
   /** Danışan Yolculuğu merkezi açık mı (Danışanlar menü öğesi). */
   showClients: boolean;
-  /** /dashboard/ajanda route korumasının kararı "allow" mı (Takvim menü öğesi; evaluateRouteModuleGuard). */
-  showCalendar: boolean;
-  /** Dijital İçerik Merkezi açık mı (İçerikler menü öğesi). */
-  showContents: boolean;
+  /** "Tüm Modüller" listesi: kullanıcının erişebildiği merkezler + alt modüller (page.tsx'te mevcut kurallarla üretilir). */
+  moduleGroups: HomeNavGroup[];
+  /** Liste ilk açıldığında (sunucu yoklamalı alt modüller için) haber verir. */
+  onModulesOpen: () => void;
   isAdmin: boolean;
   adminNavLoading: boolean;
   onAdminNav: () => void;
@@ -73,8 +84,8 @@ export type HomeShellProps = {
 
 export default function HomeShell({
   showClients,
-  showCalendar,
-  showContents,
+  moduleGroups,
+  onModulesOpen,
   isAdmin,
   adminNavLoading,
   onAdminNav,
@@ -85,6 +96,34 @@ export default function HomeShell({
   const collapsed = useSyncExternalStore(subscribeCollapsed, readCollapsed, () => false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const narrow = useSyncExternalStore(subscribeNarrow, readNarrow, () => false);
+  const [modulesOpen, setModulesOpen] = useState(false);
+  const modulesListId = useId();
+  const modulesToggleRef = useRef<HTMLButtonElement>(null);
+
+  function toggleModules() {
+    const next = !modulesOpen;
+    if (next) {
+      onModulesOpen();
+      // Daraltılmış (ikon) menüde liste okunamaz → önce menüyü genişlet.
+      if (collapsed && !window.matchMedia(DRAWER_QUERY).matches) {
+        try {
+          window.localStorage.setItem(COLLAPSE_KEY, "0");
+        } catch {
+          /* depolama yoksa yalnız bu görünüm */
+        }
+        window.dispatchEvent(new Event(COLLAPSE_EVENT));
+      }
+    }
+    setModulesOpen(next);
+  }
+
+  function onModulesKeyDown(e: ReactKeyboardEvent<HTMLElement>) {
+    if (e.key !== "Escape" || !modulesOpen) return;
+    // Liste açıkken Esc yalnız listeyi kapatır (çekmeceyi değil) ve odağı düğmeye döndürür.
+    e.stopPropagation();
+    setModulesOpen(false);
+    modulesToggleRef.current?.focus();
+  }
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -108,18 +147,9 @@ export default function HomeShell({
     window.dispatchEvent(new Event(COLLAPSE_EVENT));
   }
 
-  const items: { key: string; href: string; label: string; Icon: typeof Home; active?: boolean }[] = [
-    { key: "home", href: "/", label: t("menuHome"), Icon: Home, active: true },
-    { key: "modules", href: "/#yasam-modulleri", label: t("menuAllModules"), Icon: LayoutGrid },
-  ];
-  if (showCalendar) {
-    items.push({ key: "calendar", href: "/dashboard/ajanda", label: t("menuCalendar"), Icon: CalendarDays });
-  }
+  const items: { key: string; href: string; label: string; Icon: typeof Home }[] = [];
   if (showClients) {
     items.push({ key: "clients", href: "/danisan-yolculugu/liste", label: t("menuClients"), Icon: UserRound });
-  }
-  if (showContents) {
-    items.push({ key: "contents", href: "/digital-content", label: t("menuContents"), Icon: FileText });
   }
   items.push({ key: "settings", href: "/settings", label: t("menuSettings"), Icon: Settings });
 
@@ -153,14 +183,69 @@ export default function HomeShell({
             <ChevronsLeft className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden />
           </button>
         </div>
-        <nav>
+        <nav className={styles.nav}>
           <ul className={styles.menu}>
-            {items.map(({ key, href, label, Icon, active }) => (
+            {moduleGroups.length > 0 ? (
+              <li onKeyDown={onModulesKeyDown}>
+                <button
+                  ref={modulesToggleRef}
+                  type="button"
+                  className={`${styles.menuItem} ${modulesOpen ? styles.menuItemOpen : ""}`}
+                  aria-expanded={modulesOpen}
+                  aria-controls={modulesListId}
+                  title={t("nav.menuModulesHint")}
+                  onClick={toggleModules}
+                  data-testid="home-all-modules-toggle"
+                >
+                  <span className={styles.menuIcon}>
+                    <LayoutGrid className="h-[20px] w-[20px]" strokeWidth={1.7} aria-hidden />
+                  </span>
+                  <span className={styles.menuLabel}>{t("menuAllModules")}</span>
+                  <ChevronDown
+                    className={`${styles.menuLabel} ${styles.modChevron} ml-auto h-4 w-4`}
+                    strokeWidth={2.2}
+                    aria-hidden
+                  />
+                </button>
+                {/* Kapalıyken liste DOM'da yok → bağlantıları klavyeyle odaklanamaz. */}
+                {modulesOpen ? (
+                  <ul
+                    className={styles.modList}
+                    id={modulesListId}
+                    aria-label={t("nav.menuModulesHint")}
+                    data-testid="home-all-modules-list"
+                  >
+                    {moduleGroups.map((group) => (
+                      <li key={group.key} className={styles.modGroup}>
+                        {group.href ? (
+                          <Link href={group.href} className={styles.modGroupTitle} onClick={() => setDrawerOpen(false)}>
+                            {group.label}
+                          </Link>
+                        ) : (
+                          <span className={styles.modGroupTitle}>{group.label}</span>
+                        )}
+                        {group.items.length > 0 ? (
+                          <ul className={styles.modItems}>
+                            {group.items.map((item) => (
+                              <li key={item.key}>
+                                <Link href={item.href} className={styles.modItem} onClick={() => setDrawerOpen(false)}>
+                                  {item.label}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </li>
+            ) : null}
+            {items.map(({ key, href, label, Icon }) => (
               <li key={key}>
                 <Link
                   href={href}
-                  className={`${styles.menuItem} ${active ? styles.menuActive : ""}`}
-                  aria-current={active ? "page" : undefined}
+                  className={styles.menuItem}
                   title={label}
                   onClick={() => setDrawerOpen(false)}
                 >
