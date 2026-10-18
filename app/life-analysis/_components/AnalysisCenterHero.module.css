@@ -1,0 +1,214 @@
+/*
+ * Yaşam Analiz Merkezi — üst başlık şeridi. Yalnız bu bölüm; modül kartları AnalysisModuleCard'da.
+ *
+ * Kompakt ve yatay (masaüstünde ~100 px): ikon + etiket + başlık solda, ince ayraçtan sonra açıklama sağda.
+ * Kartlarla aynı genişlikte (aynı kapsayıcı) → altındaki kartlar hemen başlar. Zemin: ince lila → pembe → şeftali
+ * gradyan, şık sınır, sağ köşede çok küçük yıldız detayı. Hepsi statik, tıklamayı yakalamaz.
+ */
+
+.hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin-bottom: 16px;
+  padding: 22px 26px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  background:
+    radial-gradient(ellipse 40% 140% at 100% 0%, rgba(196, 181, 253, 0.42), transparent 70%),
+    radial-gradient(ellipse 30% 140% at 0% 100%, rgba(253, 214, 178, 0.32), transparent 70%),
+    linear-gradient(105deg, #faf7ff 0%, #f3ecff 38%, #fbf0f8 72%, #fff6ee 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 0 0 1px rgba(167, 139, 250, 0.16),
+    0 14px 30px -24px rgba(91, 33, 182, 0.4);
+}
+
+/* Alt kenarda ince altın-lila ışık çizgisi. */
+.hero::after {
+  content: "";
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(167, 139, 250, 0.55), rgba(217, 169, 90, 0.45) 55%, transparent 100%);
+  pointer-events: none;
+}
+
+/* Sağ köşede çok küçük yıldız detayı. */
+.spark {
+  position: absolute;
+  top: 50%;
+  right: 22px;
+  z-index: -1;
+  width: 64px;
+  height: 64px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+.spark > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding-right: 72px;
+}
+
+.lead {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 16px;
+}
+
+.icon {
+  display: flex;
+  height: 52px;
+  width: 52px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  background: linear-gradient(145deg, #8b5cf6 0%, #6d28d9 55%, #4c1d95 100%);
+  color: #ffffff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 10px 20px -10px rgba(91, 33, 182, 0.7);
+}
+
+.icon > svg {
+  height: 26px;
+  width: 26px;
+}
+
+.eyebrow {
+  margin: 0 0 5px;
+  font-family: var(--hero-sans), system-ui, sans-serif;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.36em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: #7c3aed;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--hero-serif), Georgia, "Times New Roman", serif;
+  font-size: clamp(1.6rem, 1.2rem + 1.1vw, 2.25rem);
+  font-weight: 600;
+  font-variation-settings: "opsz" 96, "SOFT" 40;
+  line-height: 1.05;
+  letter-spacing: -0.018em;
+  white-space: nowrap;
+  color: #22103f;
+  background: linear-gradient(180deg, #2c1454 0%, #1a0b33 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* İnce dikey ayraç + açıklama (aynı satırda). */
+.desc {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+  padding-left: 22px;
+  font-family: var(--hero-sans), system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.005em;
+  color: #554b6e;
+}
+
+.desc::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 1px;
+  height: 34px;
+  transform: translateY(-50%);
+  background: linear-gradient(180deg, transparent, rgba(167, 139, 250, 0.7), rgba(217, 169, 90, 0.6), transparent);
+}
+
+/* Tablet / mobil: açıklama başlığın altına iner, ayraç kalkar. */
+@media (max-width: 900px) {
+  .inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .desc {
+    padding-left: 0;
+  }
+  .desc::before {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero {
+    margin-bottom: 14px;
+    padding: 14px 16px;
+    border-radius: 18px;
+  }
+  .hero::after {
+    left: 16px;
+    right: 16px;
+  }
+  .inner {
+    padding-right: 0;
+  }
+  .spark {
+    top: 14px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    transform: none;
+    opacity: 0.55;
+  }
+  .lead {
+    gap: 12px;
+  }
+  .icon {
+    height: 44px;
+    width: 44px;
+    border-radius: 14px;
+  }
+  .icon > svg {
+    height: 22px;
+    width: 22px;
+  }
+  .eyebrow {
+    font-size: 9.5px;
+    letter-spacing: 0.3em;
+  }
+  .title {
+    font-size: clamp(1.45rem, 1rem + 2.4vw, 1.75rem);
+  }
+  .desc {
+    font-size: 0.93rem;
+  }
+}
+
+/* Windows Yüksek Kontrast: dekor gizlenir, başlık sistem renginde. */
+@media (forced-colors: active) {
+  .spark {
+    display: none;
+  }
+  .title {
+    background: none;
+    -webkit-text-fill-color: currentColor;
+  }
+}
