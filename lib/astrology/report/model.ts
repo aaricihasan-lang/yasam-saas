@@ -41,7 +41,9 @@ import {
   exactTimesOf,
   formatInZone,
   groupEventsByDay,
+  horaryDisplayZone,
   isIanaZone,
+  questionMomentLabel,
   relativeTo,
   significanceBand,
   strongestTransits,
@@ -1107,12 +1109,13 @@ function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: n
       const sp = isObj(t.span) ? t.span : {};
       const asc = isObj(t.ascendant) ? t.ascendant : null;
       const ru = isObj(t.ruling) ? t.ruling : {};
-      // HORARY-KP-01: soru anı yerel saatle (displayTz yalnız gösterim; eski kayıtta yoksa UTC), iki Lagna ayrımı, cusp sub-lord tablosu.
-      const tz = zoneOpt(opts.displayTz);
+      // HORARY-KP-01: soru anı yerel saatle, iki Lagna ayrımı, cusp sub-lord tablosu. HORARY-P2: ekranla AYNI etiket; dilim =
+      // displayTz → kayıtlı değerlendirme yeri → yoksa UTC + not (yalnız gösterim).
+      const tz = horaryDisplayZone(opts);
       b.kv([
         ...kpFrame(t),
         ["Horary sayısı", s(t.horaryNumber)],
-        ["Soru anı (yerel)", typeof at.utc === "string" && tz ? `${atZone(at.utc, tz)} (${tz})` : DASH],
+        ["Soru anı", typeof at.utc === "string" ? questionMomentLabel(at.utc, tz) : DASH],
         ["Soru anı (UTC)", utcTr(at.utc)],
         ["Değerlendirme yeri", placeLabel ? `${placeLabel} (${coord(pl.latitude, pl.longitude)})` : coord(pl.latitude, pl.longitude)],
         ["Sayının aralığı", num(sp.from) !== null && num(sp.to) !== null ? `${lonPos(sp.from)} – ${lonPos(sp.to)}` : DASH],

@@ -30,6 +30,7 @@ import { renderAstroReportDocx } from "@/lib/astrology/report/docx";
 import { buildAstroReportPdf } from "@/lib/astrology/report/pdf";
 import { symbolFontBuffers, symbolFontsBase64 } from "@/lib/astrology/report/symbolFontData";
 import { describeOptions, runOptionsFor } from "@/app/admin/astroloji/_lib/techniques";
+import { horaryDisplayZone, momentLabel, questionMomentLabel } from "@/lib/astrology/transitDetail";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -229,10 +230,10 @@ async function main() {
   };
   const pdfText = async (u8: Uint8Array) => (await extractText(await getDocumentProxy(u8), { mergePages: true })).text as string;
 
-  await t("H9 rapor modeli: yerel soru anı + UTC, iki Lagna, ruling ayrıntısı, cusp sub-lord tablosu (12 satır = ekran yardımcısı), yöntem metni; eski kayıt (displayTz yok) yerel satırı basılmaz, UTC kalır", () => {
+  await t("H9 rapor modeli: yerel soru anı esas + UTC parantezde (HORARY-P2), iki Lagna, ruling ayrıntısı, cusp sub-lord tablosu (12 satır = ekran yardımcısı), yöntem metni; dilimi olmayan eski kayıt UTC + açıklayıcı not", () => {
     const r = buildAstroReport(input({ atUtc: AT, horaryNumber: 108, displayTz: "Europe/Istanbul", place: { label: "İstanbul" } }));
     const all = reportTexts(r).join("\n");
-    for (const m of ["Soru anı (yerel)", "07.10.2026 12:00 GMT+3 (Europe/Istanbul)", "Soru anı (UTC)", "07.10.2026 09:00 UTC", "Horary Lagna (sayıdan)", "Soru anı Lagna'sı (zaman) lordları", "Cusp sub lordları ve gösterdikleri evler", "Değerlendirme yeri", KP_HORARY_TEXT.rulingRule, KP_HORARY_TEXT.source]) assert.ok(all.includes(m), `yok: ${m}`);
+    for (const m of ["Soru anı", "07.10.2026 12:00 — Türkiye saati, GMT+3 (09:00 UTC)", "Soru anı (UTC)", "07.10.2026 09:00 UTC", "Horary Lagna (sayıdan)", "Soru anı Lagna'sı (zaman) lordları", "Cusp sub lordları ve gösterdikleri evler", "Değerlendirme yeri", KP_HORARY_TEXT.rulingRule, KP_HORARY_TEXT.source]) assert.ok(all.includes(m), `yok: ${m}`);
     const tb = r.blocks.find((b) => b.kind === "table" && b.table.columns[1] === "Sub lord") as J;
     assert.ok(tb);
     const rows = kpCuspSublordRows(HT());
@@ -247,8 +248,8 @@ async function main() {
       }),
     );
     const old = reportTexts(buildAstroReport(input({ atUtc: AT, horaryNumber: 108 }))).join("\n");
-    assert.ok(!old.includes("Soru anı (yerel)"), "eski kayıt: yerel satır boş değerle basılmaz (kv '—' satırlarını atar)");
-    assert.ok(old.includes("07.10.2026 09:00 UTC"));
+    // Dilimi doğrulanamayan eski kayıt (displayTz yok, place.timezone yok): UTC + not; GMT+3 VARSAYILMAZ.
+    assert.ok(old.includes("07.10.2026 09:00 UTC (yerel saat dilimi doğrulanamadı; UTC gösteriliyor)"));
     assert.ok(!old.includes("GMT+3"));
   });
 
@@ -256,15 +257,15 @@ async function main() {
     const r = buildAstroReport(input({ atUtc: AT, horaryNumber: 108, displayTz: "Europe/Istanbul" }));
     const docx = norm(await docxText(await renderAstroReportDocx(r, null, symbolFontBuffers())));
     const pdf = norm(await pdfText(buildAstroReportPdf(r, null, fontB64, symbolFontsBase64())));
-    for (const m of ["Soru anı (yerel)", "07.10.2026 12:00 GMT+3", "Cusp sub lordları ve gösterdikleri evler", "Horary Lagna (sayıdan)"]) {
+    for (const m of ["Soru anı", "07.10.2026 12:00 — Türkiye saati, GMT+3 (09:00 UTC)", "Cusp sub lordları ve gösterdikleri evler", "Horary Lagna (sayıdan)"]) {
       assert.ok(docx.includes(m), `Word: ${m}`);
       assert.ok(pdf.includes(m), `PDF: ${m}`);
     }
   });
 
-  await t("H11 özet satırı: displayTz varsa yerel + UTC; yoksa eski metin BİREBİR", () => {
-    assert.equal(describeOptions("kp.horary", { horaryNumber: 108, atUtc: "2026-10-07T09:00", place: { label: "İstanbul" } }), "sayı 108 · 07.10.2026 09:00 UTC · İstanbul");
-    assert.equal(describeOptions("kp.horary", { horaryNumber: 108, atUtc: "2026-10-07T09:00", displayTz: "Europe/Istanbul", place: { label: "İstanbul" } }), "sayı 108 · 07.10.2026 12:00 GMT+3 (07.10.2026 09:00 UTC) · İstanbul");
+  await t("H11 özet satırı (HORARY-P2): yerel saat esas + UTC parantezde; dilim yoksa UTC + not", () => {
+    assert.equal(describeOptions("kp.horary", { horaryNumber: 108, atUtc: "2026-10-07T09:00", place: { label: "İstanbul" } }), "sayı 108 · 07.10.2026 09:00 UTC (yerel saat dilimi doğrulanamadı; UTC gösteriliyor) · İstanbul");
+    assert.equal(describeOptions("kp.horary", { horaryNumber: 108, atUtc: "2026-10-07T09:00", displayTz: "Europe/Istanbul", place: { label: "İstanbul" } }), "sayı 108 · 07.10.2026 12:00 — Türkiye saati, GMT+3 (09:00 UTC) · İstanbul");
   });
 
   // ── HORARY-P1 (2026-10-18): "Şimdi" = gerçek soru anı (UTC dakika; saat başı DEĞİL) — yalnız kp.horary ───────────
@@ -386,19 +387,118 @@ async function main() {
     assert.equal(a.params.atUtc, "2026-10-18T17:18");
     assert.equal(a.technical.at.utc, "2026-10-18T17:18");
     assert.equal(calls.length, 1, "kayıt / açma sağlayıcı çağırmaz");
-    assert.equal(describeOptions("kp.horary", a.params), "sayı 108 · 18.10.2026 17:18 UTC · İstanbul, Türkiye");
+    // HORARY-P2: "şimdi"de displayTz yok → dilim, sunucunun çözdüğü değerlendirme yeri (İstanbul) saat dilimi.
+    const LOCAL = "18.10.2026 20:18 — Türkiye saati, GMT+3 (17:18 UTC)";
+    assert.equal(a.params.place.timezone, "Europe/Istanbul");
+    assert.equal(describeOptions("kp.horary", a.params), `sayı 108 · ${LOCAL} · İstanbul, Türkiye`);
+    assert.equal(describeOptions("kp.horary", res.view.options), describeOptions("kp.horary", a.params), "yeni sonuç = kayıtlı analiz");
+    assert.equal(questionMomentLabel(a.technical.at.utc, horaryDisplayZone(a.params)), LOCAL, "panel etiketi");
     const rep = buildAstroReport(a);
     assert.ok(reportTexts(rep).join("\n").includes("18.10.2026 17:18 UTC"), "rapor modeli");
     const docx = norm(await docxText(await renderAstroReportDocx(rep, null, symbolFontBuffers())));
     const pdf = norm(await pdfText(buildAstroReportPdf(rep, null, fontB64, symbolFontsBase64())));
     assert.ok(docx.includes("18.10.2026 17:18 UTC"), "Word");
     assert.ok(pdf.includes("18.10.2026 17:18 UTC"), "PDF");
+    assert.ok(reportTexts(rep).join("\n").includes(LOCAL) && docx.includes(LOCAL) && pdf.includes(LOCAL), "rapor/Word/PDF yerel soru anı");
     assert.ok(!docx.includes("17:00 UTC") && !pdf.includes("17:00 UTC"), "saat başı izi yok");
     clock = new Date("2026-10-18T17:19:05.000Z");
     const r2 = ((await runAstrology(ectx, { profileId: pid, selections: [sel] }, deps, { ownerPreviewHideInterp: false })).body as J).results[0];
     assert.equal(calls.length, 2);
     assert.equal(calls[1].time, "17:19:00");
     assert.equal(r2.view.options.atUtc, "2026-10-18T17:19");
+  });
+
+  // ── HORARY-P2 (2026-10-18): soru anı GÖSTERİMİ — yerel saat esas, UTC parantezde (hesap / gövde / anahtar DEĞİŞMEZ) ─────
+  const IST = { label: "İstanbul, Türkiye", latitude: 41.0082, longitude: 28.9784, timezone: "Europe/Istanbul", locationId: "tr-34-istanbul" };
+  const qm = (iso: string, tz: string | null) => questionMomentLabel(iso, tz);
+
+  await t("P2-1/2 18.10.2026 18:35 UTC → İstanbul 21:35 GMT+3: özet satırı, panel etiketi, rapor modeli (kapak + teknik), Word ve PDF AYNI metin", async () => {
+    const opts: Record<string, unknown> = { ...nowOpts("2026-10-18T18:35:20Z"), place: IST };
+    assert.equal(opts.atUtc, "2026-10-18T18:35");
+    assert.equal(opts.displayTz, undefined, "şimdi: seçenekte displayTz yok → dilim değerlendirme yerinden");
+    const L = "18.10.2026 21:35 — Türkiye saati, GMT+3 (18:35 UTC)";
+    assert.equal(horaryDisplayZone(opts), "Europe/Istanbul");
+    assert.equal(describeOptions("kp.horary", opts), `sayı 108 · ${L} · İstanbul, Türkiye`);
+    assert.equal(qm("2026-10-18T18:35", horaryDisplayZone(opts)), L);
+    const base = input(opts) as J;
+    const rep = buildAstroReport({ ...base, technical: { ...base.technical, at: { ...base.technical.at, utc: "2026-10-18T18:35" } } });
+    const txt = reportTexts(rep).join("\n");
+    assert.ok(txt.split(L).length - 1 >= 2, "kapak/seçenek özeti VE teknik 'Soru anı' satırı");
+    const docx = norm(await docxText(await renderAstroReportDocx(rep, null, symbolFontBuffers())));
+    const pdf = norm(await pdfText(buildAstroReportPdf(rep, null, fontB64, symbolFontsBase64())));
+    assert.ok(docx.includes(L), "Word");
+    assert.ok(pdf.includes(L), "PDF");
+  });
+
+  await t("P2-3 golden 108: 07.10.2026 12:00 Europe/Istanbul → 09:00 UTC; gövde golden'la BİREBİR, projeksiyon temiz; gösterim 12:00 Türkiye saati", () => {
+    const m = horaryOf({ date: "2026-10-07", time: "12:00", timezone: "Europe/Istanbul", horaryNumber: 108 });
+    assert.equal(m.o.atUtc, AT);
+    assert.deepEqual(m.u.body, HO.body);
+    assert.equal(m.r.ok, true);
+    assert.equal(qm(AT, horaryDisplayZone(m.o)), "07.10.2026 12:00 — Türkiye saati, GMT+3 (09:00 UTC)");
+  });
+
+  await t("P2-4 Türkiye geçmiş yaz/kış saati: 2015 kış GMT+2, 2015 yaz GMT+3, 1990 kış GMT+2, 2016 sonrası sürekli GMT+3", () => {
+    assert.equal(qm("2015-01-15T12:00", "Europe/Istanbul"), "15.01.2015 14:00 — Türkiye saati, GMT+2 (12:00 UTC)");
+    assert.equal(qm("2015-07-15T12:00", "Europe/Istanbul"), "15.07.2015 15:00 — Türkiye saati, GMT+3 (12:00 UTC)");
+    assert.equal(qm("1990-01-15T12:00", "Europe/Istanbul"), "15.01.1990 14:00 — Türkiye saati, GMT+2 (12:00 UTC)");
+    assert.equal(qm("2017-01-15T12:00", "Europe/Istanbul"), "15.01.2017 15:00 — Türkiye saati, GMT+3 (12:00 UTC)");
+  });
+
+  await t("P2-5 Europe/Berlin: kış GMT+1, yaz GMT+2; 25.10.2026 belirsiz 02:30 iki ayrı UTC anı ofsetle ayırt edilir; 29.03.2026 ileri sıçrama; elle girişte etiket = girilen yerel saat + atUtc", () => {
+    assert.equal(qm("2026-01-15T12:00", "Europe/Berlin"), "15.01.2026 13:00 — Europe/Berlin, GMT+1 (12:00 UTC)");
+    assert.equal(qm("2026-07-15T12:00", "Europe/Berlin"), "15.07.2026 14:00 — Europe/Berlin, GMT+2 (12:00 UTC)");
+    assert.equal(qm("2026-10-25T00:30", "Europe/Berlin"), "25.10.2026 02:30 — Europe/Berlin, GMT+2 (00:30 UTC)");
+    assert.equal(qm("2026-10-25T01:30", "Europe/Berlin"), "25.10.2026 02:30 — Europe/Berlin, GMT+1 (01:30 UTC)");
+    assert.equal(qm("2026-03-29T00:59", "Europe/Berlin"), "29.03.2026 01:59 — Europe/Berlin, GMT+1 (00:59 UTC)");
+    assert.equal(qm("2026-03-29T01:00", "Europe/Berlin"), "29.03.2026 03:00 — Europe/Berlin, GMT+2 (01:00 UTC)");
+    for (const [date, time] of [["2026-10-25", "02:30"], ["2026-07-15", "14:00"], ["2026-01-15", "13:00"]]) {
+      const o = def.parseOptions({ date, time, timezone: "Europe/Berlin", horaryNumber: 108 }, new Date())!;
+      assert.ok(o, `${date} ${time}`);
+      assert.equal(o.displayTz, "Europe/Berlin");
+      const lbl = qm(String(o.atUtc), horaryDisplayZone(o));
+      assert.ok(lbl.startsWith(`${date.slice(8, 10)}.${date.slice(5, 7)}.${date.slice(0, 4)} ${time} — Europe/Berlin, GMT+`), lbl);
+      assert.ok(lbl.endsWith(`(${String(o.atUtc).slice(11, 16)} UTC)`), lbl);
+    }
+  });
+
+  await t("P2-6 yerel tarih ≠ UTC tarihi → parantezde UTC tarihi de yazılır (İstanbul gece yarısı sonrası, yıl değişimi, New York akşamı)", () => {
+    assert.equal(qm("2026-10-18T22:30", "Europe/Istanbul"), "19.10.2026 01:30 — Türkiye saati, GMT+3 (18.10.2026 22:30 UTC)");
+    assert.equal(qm("2026-12-31T22:15", "Europe/Istanbul"), "01.01.2027 01:15 — Türkiye saati, GMT+3 (31.12.2026 22:15 UTC)");
+    assert.equal(qm("2026-10-19T02:00", "America/New_York"), "18.10.2026 22:00 — America/New_York, GMT-4 (19.10.2026 02:00 UTC)");
+  });
+
+  await t("P2-7 elle tarih/saat: kullanıcının seçtiği dilim (displayTz) değerlendirme yerinin diliminden ÖNCE gelir; seçenek, gövde ve anahtar DEĞİŞMEZ", () => {
+    const o = def.parseOptions({ date: "2026-10-18", time: "20:35", timezone: "Europe/Berlin", horaryNumber: 108 }, new Date())!;
+    assert.deepEqual(o, { horaryNumber: 108, atUtc: "2026-10-18T18:35", ayanamsa: "kp-newcomb", nodeType: "mean", placeLocationId: null, displayTz: "Europe/Berlin" });
+    const withPlace = { ...o, place: IST };
+    assert.equal(horaryDisplayZone(withPlace), "Europe/Berlin");
+    assert.equal(describeOptions("kp.horary", withPlace), "sayı 108 · 18.10.2026 20:35 — Europe/Berlin, GMT+2 (18:35 UTC) · İstanbul, Türkiye");
+    const bare: Record<string, unknown> = { ...o };
+    delete bare.displayTz;
+    assert.equal(def.units(ctx, o)[0].inputHash, def.units(ctx, bare)[0].inputHash, "gösterim dilimi önbellek anahtarına girmez");
+    assert.deepEqual(def.units(ctx, o)[0].body, def.units(ctx, bare)[0].body);
+  });
+
+  await t("P2-8 eski kayıtlar: displayTz yoksa kayıtlı place.timezone; o da yok / geçersizse UTC + not (GMT+3 / tarayıcı saati VARSAYILMAZ); parseOptions kaydı aynen döndürür (yeniden hesap yok)", () => {
+    const saved = { atUtc: "2026-10-18T18:35", horaryNumber: 5, ayanamsa: "kp-newcomb", nodeType: "mean", placeLocationId: null };
+    assert.deepEqual(def.parseOptions(saved, new Date("2027-01-01T00:00:00Z")), saved);
+    const local = "18.10.2026 21:35 — Türkiye saati, GMT+3 (18:35 UTC)";
+    assert.equal(describeOptions("kp.horary", { ...saved, place: IST }), `sayı 5 · ${local} · İstanbul, Türkiye`);
+    const unv = "18.10.2026 18:35 UTC (yerel saat dilimi doğrulanamadı; UTC gösteriliyor)";
+    assert.equal(describeOptions("kp.horary", saved), `sayı 5 · ${unv}`);
+    assert.equal(describeOptions("kp.horary", { ...saved, place: { label: "X", timezone: "Mars/Olympus" } }), `sayı 5 · ${unv} · X`);
+    assert.equal(describeOptions("kp.horary", { ...saved, displayTz: "Yok/Böyle", place: IST }), `sayı 5 · ${local} · İstanbul, Türkiye`, "geçersiz displayTz → yer dilimi");
+    assert.equal(horaryDisplayZone(null), null);
+    assert.equal(qm("2026-10-18T18:35", "UTC"), "18.10.2026 18:35 UTC", "açıkça UTC dilimi → notsuz UTC");
+  });
+
+  await t("P2-9 değişmeyenler: normalizeQuestionMoment / normalizeTransitMoment ve transit momentLabel metni aynı", () => {
+    const at = new Date("2026-10-18T18:35:20Z");
+    assert.equal(normalizeQuestionMoment({ now: true }, at), "2026-10-18T18:35");
+    assert.equal(normalizeTransitMoment({ now: true }, at), "2026-10-18T18:00");
+    assert.equal(momentLabel("2026-10-17T09:00", "Europe/Istanbul"), "17.10.2026 12:00 (GMT+3, Europe/Istanbul) · 17.10.2026 09:00 UTC");
+    assert.equal(momentLabel("2026-10-17T09:00", null), "17.10.2026 09:00 UTC");
   });
 
   console.log(`\nastrology horary01 harness: ${pass} PASS / ${fail} FAIL`);

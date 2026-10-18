@@ -2,7 +2,7 @@
 // Sunucudaki teknik tanımları (lib/astrology/engine/techniques) istemci paketine ALINMAZ; burada yalnız
 // etiket + hangi parametrenin sorulacağı tutulur. Seçenekler sunucuda yeniden doğrulanır/normalize edilir.
 
-import { addDaysIso, dateInputIssue, formatInZone, localToUtcPreview, timeInputIssue } from "@/lib/astrology/transitDetail";
+import { addDaysIso, dateInputIssue, formatInZone, horaryDisplayZone, localToUtcPreview, questionMomentLabel, timeInputIssue } from "@/lib/astrology/transitDetail";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 
 export const UI_TECHNIQUES = [
@@ -460,11 +460,9 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
       const at = typeof o.atUtc === "string" ? `${fmtDate(o.atUtc)} ${o.atUtc.slice(11, 16)} UTC` : "";
       const pl = (o.place as { label?: string } | undefined)?.label;
       if (technique === "kp.horary") {
-        // HORARY-KP-01: soru anının gösterim saat dilimi varsa yerel an + UTC; yoksa (eski kayıtlar) eski metin aynen.
-        const tz = typeof o.displayTz === "string" && o.displayTz !== "UTC" ? o.displayTz : null;
-        const z = tz && typeof o.atUtc === "string" ? formatInZone(o.atUtc, tz) : null;
+        // HORARY-P2: yerel soru anı esas, UTC parantezde (dilim: displayTz → değerlendirme yeri → UTC + not). Yalnız gösterim.
         // HORARY-P1: başarısız denemeler ham seçenekle listelenir ({ now: true } — an henüz sunucuda belirlenmedi).
-        const when = z ? `${z.text} ${z.zone} (${at})` : at || (o.now === true ? "şimdi (gerçek soru anı)" : "");
+        const when = typeof o.atUtc === "string" ? questionMomentLabel(o.atUtc, horaryDisplayZone(o)) : o.now === true ? "şimdi (gerçek soru anı)" : "";
         return `sayı ${String(o.horaryNumber)} · ${when}${pl ? ` · ${pl}` : ""}`;
       }
       if (technique === "kp.ruling") return `${at}${pl ? ` · ${pl}` : ""}`;

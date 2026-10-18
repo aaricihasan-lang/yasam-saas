@@ -948,7 +948,9 @@ async function main() {
     }
     assert.match(describeOptions("kp.chart", { ayanamsa: "kp-newcomb", nodeType: "mean" }), /KP-Newcomb · Placidus · düğüm ortalama/);
     assert.match(describeOptions("kp.dasha", { ayanamsa: "kp-old", mahadasha: "moon", antardasha: "rahu" }), /^Pratyantardasha .*KP \(eski tablo\)$/);
-    assert.match(describeOptions("kp.horary", { horaryNumber: 108, atUtc: "2026-10-07T09:00:00Z", place: { label: "İstanbul" } }), /^sayı 108 · 07\.10\.2026 09:00 UTC · İstanbul$/);
+    // HORARY-P2: dilimi olmayan yer → UTC + not; yerin saat dilimi varsa yerel saat esas, UTC parantezde.
+    assert.equal(describeOptions("kp.horary", { horaryNumber: 108, atUtc: "2026-10-07T09:00:00Z", place: { label: "İstanbul" } }), "sayı 108 · 07.10.2026 09:00 UTC (yerel saat dilimi doğrulanamadı; UTC gösteriliyor) · İstanbul");
+    assert.equal(describeOptions("kp.horary", { horaryNumber: 108, atUtc: "2026-10-07T09:00:00Z", place: { label: "İstanbul", timezone: "Europe/Istanbul" } }), "sayı 108 · 07.10.2026 12:00 — Türkiye saati, GMT+3 (09:00 UTC) · İstanbul");
   });
 
   console.log(`\nastrology phase6 harness: ${pass} PASS / ${fail} FAIL`);
