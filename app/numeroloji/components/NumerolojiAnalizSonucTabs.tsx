@@ -37,7 +37,6 @@ import {
   harfBoundedText,
   nrDisplay,
   formatKulvarSummaryDisplay,
-  kulvarAlternativePaths,
   kulvarAlternativeProvenance,
   elementShort,
   pinOneLine,
@@ -51,6 +50,11 @@ import {
 } from "../utils/chronoCutoff";
 import { useChronoView } from "../hooks/useChronoView";
 import { useContentTypography } from "./numerolojiContentTypography";
+import {
+  alternativeChakraColumns,
+  alternativeChakraExclusionNote,
+  type AlternativeChakraColumn,
+} from "@/lib/numeroloji/alternativeChakra";
 
 const OZET_VERI_YOK = "Bu bölüm için veri üretilemedi.";
 
@@ -83,11 +87,15 @@ function OzetRow({ label, value }: { label: string; value: string }) {
 // OWNER: "Farklı özel sayı kombinasyonları" (presentation/analysis assist; CANONICAL DEĞİL).
 // Ana sonuç değişmez; aynı harf değerleri farklı gruplandığında ortaya çıkan 11/19/22/33
 // okumaları uzmana hatırlatma olarak gösterilir. Yollar `findKulvarSpecialCombinations`'tan.
+// Her yolun yanında "Çakra Sütunu" açılır paneli (2026-10-18): yalnız ekran içi inceleme —
+// kayıt güncellemez, yeniden hesap tetiklemez, resmî Çakra Omurgası'na/Word'e karışmaz.
+// Aynı anda tek panel açık; aynı düğmeye tekrar basınca kapanır.
 function KulvarAltKombinasyonlar({ out }: { out: NumerolojiMotorOut }) {
+  const [acik, setAcik] = useState<string | null>(null);
   const rows = [
-    { label: "Ana Kulvar", paths: kulvarAlternativePaths(out.anaKulvar) },
-    { label: "Yan Kulvar", paths: kulvarAlternativePaths(out.yanKulvar) },
-  ].filter((r) => r.paths.length > 0);
+    { kind: "ana" as const, label: "Ana Kulvar", cols: alternativeChakraColumns(out, "ana") },
+    { kind: "yan" as const, label: "Yan Kulvar", cols: alternativeChakraColumns(out, "yan") },
+  ].filter((r) => r.cols.length > 0);
   if (!rows.length) return null;
   return (
     <section className="min-w-0 rounded-2xl border border-violet-200/60 bg-gradient-to-br from-violet-50/60 to-white p-3 shadow-sm ring-1 ring-violet-100/50">
@@ -96,20 +104,133 @@ function KulvarAltKombinasyonlar({ out }: { out: NumerolojiMotorOut }) {
         Ana sonuç değişmez. Aynı harf değerleri farklı gruplandığında ortaya çıkan özel sayı okumalarıdır (uzman hatırlatması).
       </p>
       <div className="mt-2 space-y-2">
-        {rows.map((r) => (
-          <div key={r.label} className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-violet-700/80">{r.label}</span>
-            <div className="flex flex-wrap gap-1.5">
-              {r.paths.map((p) => (
-                <span key={p} className="rounded-md border border-violet-200/70 bg-white px-2 py-0.5 text-sm font-bold text-violet-900">
-                  {p}
-                </span>
-              ))}
+        {rows.map((r) => {
+          const acikKolon = r.cols.find((c) => acik === `${r.kind}:${c.path}`) ?? null;
+          return (
+            <div key={r.kind} className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-violet-700/80">{r.label}</span>
+                <div className="flex min-w-0 flex-wrap gap-1.5">
+                  {r.cols.map((c) => {
+                    const id = `${r.kind}:${c.path}`;
+                    const secili = acik === id;
+                    return (
+                      <span
+                        key={c.path}
+                        data-testid="alt-kombinasyon"
+                        className={`inline-flex items-stretch overflow-hidden rounded-md border bg-white transition-colors ${
+                          secili ? "border-violet-400 ring-1 ring-violet-300/70" : "border-violet-200/70"
+                        }`}
+                      >
+                        <span className="px-2 py-0.5 text-sm font-bold text-violet-900">{c.path}</span>
+                        <button
+                          type="button"
+                          aria-expanded={secili}
+                          aria-controls={altCakraPanelId(c)}
+                          onClick={() => setAcik(secili ? null : id)}
+                          className={`inline-flex min-h-[28px] items-center gap-1 border-l px-1.5 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${
+                            secili
+                              ? "border-violet-300 bg-violet-100 text-violet-800"
+                              : "border-violet-100 text-violet-600 hover:bg-violet-50"
+                          }`}
+                        >
+                          Çakra Sütunu
+                          <span aria-hidden className={`inline-block text-[9px] transition-transform ${secili ? "rotate-180" : ""}`}>
+                            ▾
+                          </span>
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+              {acikKolon ? <AltCakraSutunuPanel col={acikKolon} /> : null}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
+  );
+}
+
+function altCakraPanelId(col: AlternativeChakraColumn): string {
+  return `alt-cakra-${col.kind}-${col.path.replace(/\//g, "-")}`;
+}
+
+function destekMetni(list: readonly number[]): string {
+  return list.length ? list.join(" · ") : "—";
+}
+
+function AltCakraSutunuPanel({ col }: { col: AlternativeChakraColumn }) {
+  const ana = col.kind === "ana";
+  return (
+    <div
+      id={altCakraPanelId(col)}
+      role="region"
+      aria-label={`${col.path} çakra sütunu`}
+      data-testid="alt-cakra-panel"
+      className="mt-2 min-w-0 rounded-xl border border-violet-200/70 bg-white/90 p-2.5 shadow-sm"
+    >
+      <p className="text-[11px] font-black uppercase tracking-wide text-violet-700/90">
+        {ana ? "Alternatif Ana Kulvar Çakra Sütunu" : "Alternatif Yan Kulvar Çakra Değerlendirmesi"} · {col.path}
+      </p>
+      <dl className="mt-1 space-y-0.5 text-[11px] leading-snug text-slate-600">
+        <div className="flex flex-wrap gap-x-1">
+          <dt className="font-semibold text-slate-700">Bu kombinasyonun katkısı:</dt>
+          <dd>{destekMetni(col.altSupports)}</dd>
+        </div>
+        {ana && col.fixed ? (
+          <>
+            <div className="flex flex-wrap gap-x-1">
+              <dt className="font-semibold text-slate-700">Sabit katkılar:</dt>
+              <dd>
+                Hayat Yolu {destekMetni(col.fixed.hayatYolu)} · PİN {destekMetni(col.fixed.pin)}
+              </dd>
+            </div>
+            <div className="flex flex-wrap gap-x-1">
+              <dt className="font-semibold text-slate-700">Yerine geçtiği resmî Ana Kulvar katkısı:</dt>
+              <dd>{destekMetni(col.officialAnaSupports ?? [])}</dd>
+            </div>
+          </>
+        ) : null}
+      </dl>
+      {col.variantCount > 1 ? (
+        <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
+          Bu sonuç {col.variantCount} farklı gruplamayla oluşur; katkısı bir kez sayılır.
+        </p>
+      ) : null}
+      <div className="mx-auto mt-2 w-full max-w-md">
+        <div className="flex items-center justify-between gap-2 px-0.5 pb-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+          <span className="flex-1 text-right">Sayılar</span>
+          <span className="w-14 shrink-0 text-center">Çakra</span>
+          <span className={`flex-1 ${ana ? "" : "invisible"}`}>Harfler</span>
+        </div>
+        <div className="space-y-0.5">
+          {CAKRA_TABLO_SIRA.map((cNo) => {
+            const hex = CHAKRA_TABLO_HEX[cNo] ?? "#8b5cf6";
+            return (
+              <div
+                key={cNo}
+                data-cakra={cNo}
+                data-sayi={col.sayilar[cNo] ?? 0}
+                className="flex w-full items-center justify-between gap-2 border-b border-violet-100/50 py-1 last:border-b-0"
+              >
+                <CakraEnerjiDaireleri count={col.sayilar[cNo] ?? 0} hex={hex} tone="pasif" align="left" />
+                <span className="w-14 shrink-0 text-center text-[10px] font-black tracking-wide text-slate-700">{cNo}. Çakra</span>
+                {ana && col.harfler ? (
+                  <CakraEnerjiDaireleri count={col.harfler[cNo] ?? 0} hex={hex} tone="aktif" align="right" />
+                ) : (
+                  <span className="min-w-0 flex-1" aria-hidden />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <p className="mt-2 rounded-md border border-violet-100 bg-violet-50/50 px-2 py-1 text-[10px] leading-snug text-violet-900/80">
+        {alternativeChakraExclusionNote(col.kind)}
+      </p>
+    </div>
   );
 }
 
