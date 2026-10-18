@@ -76,6 +76,8 @@ import LanguageSelector from "@/components/i18n/LanguageSelector";
 // i18n altyapısı ve panel içi LanguageSelector etkilenmez.
 const SHOW_LANDING_LANGUAGE_SELECTOR = false;
 import NotificationBell from "@/components/notifications/NotificationBell";
+import HomeShell from "@/app/_premium/home/HomeShell";
+import premium from "@/app/_premium/home/home.module.css";
 import CookiePreferencesButton from "@/components/analytics/CookiePreferencesButton";
 import { GOOGLE_PLAY_APP_URL } from "@/lib/platform/stores";
 import { useRouter } from "next/navigation";
@@ -695,6 +697,7 @@ function getDayGreeting(date: Date): string {
 
 function LivePanel({ date }: { date: Date | null }) {
   const t = useTranslations("home");
+  const locale = localeTag(useLocale() as ActiveLocale);
   const messages = useMessages() as {
     home?: { livePanel?: { display?: Record<string, Record<string, string>> } };
   };
@@ -728,31 +731,31 @@ function LivePanel({ date }: { date: Date | null }) {
     },
   ];
 
+  // Premium görünüm (owner onaylı ana sayfa prototipi): başlık + burç rozeti + tarih + satırlar. Değerler yukarıdaki
+  // yerel hesaplamalardan gelir; sabit / örnek değer YOK.
   return (
-    <div className="rounded-2xl border border-white/70 bg-white/65 p-3 shadow-sm backdrop-blur-md">
-      <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-violet-700">
-        {t("livePanel.title")}
+    <section className={premium.panel} aria-labelledby="home-live-panel-title">
+      <div className={premium.enHead}>
+        <span className={premium.enSun} aria-hidden>☀️</span>
+        <h2 id="home-live-panel-title" className={premium.enTitle}>{t("livePanel.title")}</h2>
+        <span className={premium.enSign}>{sun.emoji} {dispName("zodiac", sun.name)}</span>
+      </div>
+      <p className={premium.enDate}>
+        {date.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
       </p>
-
-      <div className="space-y-0.5">
-        {rows.map(({ label, value, sub }, i) => (
-          <div
-            key={label}
-            className={`flex items-start justify-between gap-3 rounded-lg px-2.5 py-1.5 ${
-              i % 2 === 0 ? "bg-slate-50/70" : "bg-transparent"
-            }`}
-          >
-            <span className="shrink-0 text-[11px] font-medium text-slate-500">{label}</span>
-            <div className="min-w-0 text-right">
-              <span className="text-[11px] font-black text-slate-800">{value}</span>
-              {sub ? (
-                <p className="text-xs tabular-nums text-slate-500">{sub}</p>
-              ) : null}
-            </div>
+      <p className={premium.enDay}>{date.toLocaleDateString(locale, { weekday: "long" })}</p>
+      <dl className={premium.enRows}>
+        {rows.map(({ label, value, sub }) => (
+          <div key={label} className={premium.enRow}>
+            <dt>{label}</dt>
+            <dd>
+              {value}
+              {sub ? <small className="tabular-nums">{sub}</small> : null}
+            </dd>
           </div>
         ))}
-      </div>
-    </div>
+      </dl>
+    </section>
   );
 }
 
@@ -1596,11 +1599,70 @@ export default function Home() {
 
     const effectiveNow = now ?? new Date();
 
+    // Kart kilit kararı — önceki ana sayfayla AYNI kural (getAnyPermissionLockReason / getModuleLockReason + extra anahtarlar).
+    const cardLock = (item: ModuleCard): ModuleLockReason | null => {
+      const hasHref = item.href !== "#";
+      const baseLock = item.anyPermissionKeys
+        ? getAnyPermissionLockReason(user, item.anyPermissionKeys, hasHref, panelAccess)
+        : getModuleLockReason(user, item.permissionKey, hasHref, panelAccess);
+      // Ek modül yetkisi (ör. yalnız Gökyüzü Atlası) kartın izin kilidini kaldırır; abonelik kilidi aynen.
+      return baseLock === "permission" && item.extraPermissionKeys?.some((k) => hasModulePermission(user, k)) ? null : baseLock;
+    };
+    const isCardOpen = (key: ModulePermissionKey) => {
+      const item = visibleDashboardModules.find((m) => m.permissionKey === key);
+      return !!item && item.href !== "#" && cardLock(item) === null;
+    };
+    const menuReady = permissionsReady && !membershipExpired;
+    // Owner onaylı premium kart görselleri / tonları (yalnız görünüm; href / yetki ModuleCard'dan).
+    const CARD_VISUAL: Partial<Record<string, { img: string; tone: string }>> = {
+      clients: { img: "ic-danisan", tone: premium.tViolet },
+      yasam_hafizasi: { img: "ic-hafiza", tone: premium.tPink },
+      stok: { img: "ic-urun", tone: premium.tAmber },
+      energy_body: { img: "ic-beden", tone: premium.tRose },
+      sifa_rehberi: { img: "ic-dogal", tone: premium.tGreen },
+      digital_content: { img: "ic-dijital", tone: premium.tBlue },
+      numerology: { img: "ic-analiz", tone: premium.tLilac },
+    };
+    const heroDate = t("dashboard.heroDate", {
+      day: effectiveNow.getDate(),
+      month: effectiveNow.toLocaleDateString(bcp47, { month: "long" }),
+      year: effectiveNow.getFullYear(),
+      weekday: effectiveNow.toLocaleDateString(bcp47, { weekday: "long" }),
+    });
+
     return (
-      <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(180deg,#eef5ff_0%,#f6f3ff_48%,#fff8fb_100%)] text-slate-950 antialiased">
-
-        <div className="relative mx-auto w-full max-w-[1800px] px-4 pt-4 pb-16 lg:px-8 xl:px-10" style={{ paddingBottom: "max(4rem, env(safe-area-inset-bottom, 0px))" }}>
-
+      <main className={premium.page}>
+        <HomeShell
+          showClients={menuReady && isCardOpen("clients")}
+          showContents={menuReady && isCardOpen("digital_content")}
+          isAdmin={isAdminUser(user)}
+          adminNavLoading={adminNavLoading}
+          onAdminNav={() => { void handleAdminNav(); }}
+          tools={
+            <>
+              <LanguageSelector compact />
+              <NotificationBell compact />
+              <Link
+                href="/settings"
+                aria-label={t("settingsGear.label")}
+                title={t("settingsGear.label")}
+                data-testid="home-settings-gear"
+                className={premium.toolBtn}
+              >
+                <Settings className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden />
+              </Link>
+              <button
+                type="button"
+                onClick={() => void requestLogout()}
+                aria-label={t("dashboard.logout")}
+                className={premium.toolBtn}
+              >
+                <LogOut className="h-4 w-4 shrink-0" aria-hidden />
+                <span className={premium.toolBtnLabel}>{t("dashboard.logout")}</span>
+              </button>
+            </>
+          }
+        >
           {/* Demo / test hesabı açılış bilgilendirmesi — canonical is_demo_account,
               yalnız DB profil sync'i doğrulandıktan sonra; admin'de asla. */}
           <DemoIntroModal
@@ -1653,123 +1715,48 @@ export default function Home() {
             </div>
           ) : null}
 
-          {/* ═══════════════════════════════════════════
-               HERO
-          ═══════════════════════════════════════════ */}
-          {(() => {
-            const d = effectiveNow;
-            const heroDate = t("dashboard.heroDate", {
-              day: d.getDate(),
-              month: d.toLocaleDateString(bcp47, { month: "long" }),
-              year: d.getFullYear(),
-              weekday: d.toLocaleDateString(bcp47, { weekday: "long" }),
-            });
-            return (
-              <>
-              <section className="relative mb-0 overflow-hidden rounded-[22px] border border-white/90 bg-gradient-to-br from-violet-200 via-sky-100 to-pink-200 px-5 py-5 shadow-[0_20px_60px_rgba(124,58,237,0.18),0_8px_24px_rgba(236,72,153,0.10)] backdrop-blur-xl sm:px-7 sm:py-6">
 
-                {/* Dev blur ışıklar — nefes alan derinlik. Final-A2: ışıklar bölümle AYNI boyutta (inset-0),
-                    odaklanabilir içeriği olmayan ayrı bir katmanda kırpılır. Önceden bölümün kendisini ~64px
-                    taşırıyordu → overflow-hidden bölüm programatik odak/scrollIntoView ile yatay kayıp başlığı
-                    kesebiliyordu. Görünüm aynı. */}
-                <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[22px]" aria-hidden data-testid="home-hero-glow">
-                  <div className="absolute -left-16 -top-16 h-[400px] w-[400px] rounded-full bg-violet-400/25 blur-[120px]" />
-                  <div className="absolute -right-16 -top-16 h-[400px] w-[400px] rounded-full bg-pink-400/25 blur-[120px]" />
-                  <div className="absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-300/20 blur-[120px]" />
+          <div className={premium.content}>
+            <div className={premium.center}>
+              {/* HERO — owner onaylı premium karşılama (gerçek kullanıcı adı + gerçek tarih) */}
+              <section className={premium.hero} aria-labelledby="home-hero-title">
+                <div className={premium.heroArt}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/premium/ana-sayfa/hero-manzara.webp" width={738} height={259} alt="" aria-hidden />
+                  <figure className={premium.quote}>
+                    <span className={premium.quoteMark} aria-hidden>“</span>
+                    <blockquote>
+                      {t("premium.quote").split("|").map((line) => (
+                        <span key={line}>{line}</span>
+                      ))}
+                    </blockquote>
+                    <span className={premium.quoteLine} aria-hidden />
+                  </figure>
                 </div>
-
-                {/* İçerik */}
-                <div className="relative">
-
-                  {/* Üst satır: selamlama + [dil · zil · çıkış] (header akışında; fixed bindirme YOK) */}
-                  <div className="flex items-start justify-between gap-2 sm:gap-4">
-                    <div className="min-w-0 flex-1">
-                      <h1 className="leading-tight tracking-tight">
-                        {firstName ? (
-                          <>
-                            <span className="block text-2xl font-black text-slate-900 sm:text-3xl">{t("dashboard.welcomePrefix")}</span>
-                            <span className="block break-words bg-gradient-to-r from-violet-700 via-fuchsia-600 to-pink-500 bg-clip-text text-3xl font-black text-transparent sm:text-5xl">
-                              {firstName} ✨
-                            </span>
-                          </>
-                        ) : (
-                          <span className="block text-3xl font-black text-slate-900 sm:text-4xl">{t("dashboard.welcomePlain")}</span>
-                        )}
-                      </h1>
-                      <p className="mt-2 text-sm font-medium text-slate-600">{heroDate}</p>
-                    </div>
-                    <div className="mt-1 flex shrink-0 items-center gap-1.5 sm:gap-2">
-                      <LanguageSelector compact />
-                      <NotificationBell compact />
-                      {/* Ayarlar & Güvenlik — 2026-10-17: büyük kart yerine dişli simgesi (aynı /settings ekranı).
-                          Tooltip fareyle üzerine gelince ve klavye odağında görünür; mobilde 40px dokunma alanı. */}
-                      <Link
-                        href="/settings"
-                        aria-label={t("settingsGear.label")}
-                        data-testid="home-settings-gear"
-                        className="group/gear relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/80 bg-white/80 text-slate-600 no-underline shadow-sm backdrop-blur-sm transition hover:bg-white hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 sm:h-9 sm:w-9"
-                      >
-                        <Settings className="h-[18px] w-[18px] transition-transform duration-300 group-hover/gear:rotate-45" strokeWidth={2} aria-hidden />
-                        <span
-                          aria-hidden
-                          className="pointer-events-none absolute right-0 top-full z-20 mt-1.5 whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1 text-[11px] font-semibold text-white opacity-0 shadow-md transition-opacity duration-150 group-hover/gear:opacity-100 group-focus-visible/gear:opacity-100"
-                        >
-                          {t("settingsGear.label")}
-                        </span>
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => void requestLogout()}
-                        aria-label={t("dashboard.logout")}
-                        className="inline-flex min-h-[36px] min-w-[36px] items-center justify-center gap-1.5 rounded-xl border border-white/80 bg-white/80 px-2 text-[11px] font-semibold text-slate-600 shadow-sm backdrop-blur-sm transition hover:bg-white hover:text-violet-700 sm:px-3.5"
-                      >
-                        <LogOut className="h-4 w-4 shrink-0" aria-hidden />
-                        <span className="hidden sm:inline">{t("dashboard.logout")}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Admin linki */}
-                  {isAdminUser(user) ? (
-                    <button
-                      type="button"
-                      onClick={() => { void handleAdminNav(); }}
-                      disabled={adminNavLoading}
-                      className="mt-3 flex w-full cursor-pointer items-center gap-3 rounded-xl border border-white/60 bg-white/55 px-3 py-2 text-left backdrop-blur-sm transition hover:bg-white/75 active:scale-[0.98] disabled:opacity-70"
-                    >
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-sm">
-                        <Shield className="h-3.5 w-3.5" strokeWidth={2.25} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-600">{t("dashboard.systemOwner")}</p>
-                        <p className="text-xs font-black text-slate-800">{t("dashboard.adminPanel")}</p>
-                      </div>
-                      {adminNavLoading ? (
-                        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-violet-500" strokeWidth={2.5} />
-                      ) : (
-                        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-500" strokeWidth={2.5} />
-                      )}
-                    </button>
-                  ) : null}
+                <div className={premium.heroText}>
+                  <p className={premium.eyebrow}>{t("premium.eyebrow")}</p>
+                  <h1 id="home-hero-title" className={premium.heroTitle}>
+                    {firstName ? (
+                      <>
+                        <span>{t("dashboard.welcomePrefix")}</span>
+                        <span className={premium.heroName}>{firstName} ✨</span>
+                      </>
+                    ) : (
+                      <span>{t("dashboard.welcomePlain")}</span>
+                    )}
+                  </h1>
+                  <p className={premium.heroDate}>{heroDate}</p>
+                  <p className={premium.heroSub}>{t("premium.heroSub")}</p>
                 </div>
               </section>
 
-              {/* Renkli ayırıcı */}
-              <div className="mb-5 mt-0 h-[4px] rounded-full bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400 opacity-70" />
-              </>
-            );
-          })()}
-
-          {/* ═══════════════════════════════════════════
-               TWO-COLUMN: MODULES + LIVE PANEL
-          ═══════════════════════════════════════════ */}
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_320px]">
-
-            {/* ── Left: Module Grid ── */}
-            <div>
-              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
-                {t("dashboard.centersLabel")}
-              </p>
+              <section aria-labelledby="yasam-modulleri-title">
+                <div className={premium.secHead} id="yasam-modulleri">
+                  <h2 id="yasam-modulleri-title" className={premium.secTitle}>
+                    <span className={premium.secBar} aria-hidden />
+                    {t("premium.modulesTitle")}
+                  </h2>
+                </div>
 
               {!permissionsReady ? (
                 profileError ? (
@@ -1851,93 +1838,65 @@ export default function Home() {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
+                <div className={premium.grid}>
                   {visibleDashboardModules.map((item, index) => {
-                    // Denge: son satırda tek kalan kart o satırı kaplar (2 sütun: tek sayı; 2xl 3 sütun: 3n+1).
                     const total = visibleDashboardModules.length;
-                    const isLast = index === total - 1 && total > 1;
-                    const spanClass = isLast
-                      ? `${total % 2 === 1 ? "sm:col-span-2" : ""} ${total % 3 === 1 ? "2xl:col-span-3" : "2xl:col-span-1"}`
-                      : "";
+                    // Son kart 3 sütunlu düzende tek kalıyorsa (ör. 7 kart) tam satır geniş kart olur.
+                    const isWide = index === total - 1 && total % 3 === 1;
                     const hasHref = item.href !== "#";
-                    const baseLock = item.anyPermissionKeys
-                      ? getAnyPermissionLockReason(user, item.anyPermissionKeys, hasHref, panelAccess)
-                      : getModuleLockReason(user, item.permissionKey, hasHref, panelAccess);
-                    // Ek modül yetkisi (ör. yalnız Gökyüzü Atlası) kartın izin kilidini kaldırır; abonelik kilidi aynen.
-                    const lockReason = baseLock === "permission" && item.extraPermissionKeys?.some((k) => hasModulePermission(user, k)) ? null : baseLock;
+                    const lockReason = cardLock(item);
                     const isLocked = lockReason !== null;
                     const isOpen = hasHref && !isLocked;
-                    const { Icon, theme } = item;
                     const isComingSoon = lockReason === "coming_soon";
-
-                    const isFeatured = item.featured === true;
+                    const visual = CARD_VISUAL[item.permissionKey] ?? { img: "ic-analiz", tone: premium.tLilac };
+                    const statText = item.hasStat
+                      ? moduleStats[item.permissionKey] === undefined
+                        ? t("moduleCard.loading")
+                        : moduleStats[item.permissionKey] === null
+                          ? "—"
+                          : moduleStats[item.permissionKey] === 0
+                            ? t("moduleCard.noRecords")
+                            : t(`modules.${item.permissionKey}.stat`, { n: moduleStats[item.permissionKey] as number })
+                      : item.permissionKey === "yasam_hafizasi"
+                        ? deriveYhCardStatus(yhHealth).text
+                        : t("common.contentReady");
+                    const body = (
+                      <>
+                        <h3 className={premium.cardTitle}>{t(`modules.${item.permissionKey}.title`)}</h3>
+                        <p className={premium.cardDesc}>{t(`modules.${item.permissionKey}.desc`)}</p>
+                        <p className={premium.cardMeta}>
+                          <span>{statText}</span>
+                          {lastDateByKey[item.permissionKey] ? (
+                            <span>{t("moduleCard.lastPrefix", { date: lastDateByKey[item.permissionKey] })}</span>
+                          ) : null}
+                        </p>
+                      </>
+                    );
                     const card = (
-                      <div
-                        className={`group relative flex h-full flex-col rounded-[18px] border bg-gradient-to-br p-4 backdrop-blur-sm transition-all duration-200 ${theme.cardBg} ${theme.border} ${
-                          isFeatured
-                            ? "shadow-[0_4px_18px_rgba(0,0,0,0.11)]"
-                            : "shadow-[0_2px_10px_rgba(0,0,0,0.07)]"
-                        } ${
-                          isOpen
-                            ? "cursor-pointer hover:-translate-y-1 hover:shadow-lg"
-                            : isComingSoon
-                              ? "cursor-default opacity-75"
-                              : "cursor-not-allowed opacity-70"
-                        }`}
-                      >
-                        {isLocked && !isComingSoon ? (
-                          <span className="absolute right-2.5 top-2.5 z-10 rounded-full border border-red-200/90 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
-                            {lockReason === "permission" ? t("moduleCard.lockNoPermission") : t("moduleCard.lockMembership")}
+                      <div className={`${premium.card} ${visual.tone} ${isOpen ? premium.cardOpen : ""}`}>
+                        {isLocked ? (
+                          <span className={`${premium.badge} ${isComingSoon ? premium.badgeSoon : premium.badgeLock}`}>
+                            {isComingSoon
+                              ? t("common.comingSoon")
+                              : lockReason === "permission" ? t("moduleCard.lockNoPermission") : t("moduleCard.lockMembership")}
                           </span>
                         ) : null}
-
-                        <span className="text-3xl leading-none" aria-hidden>
-                          {item.emoji}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img className={premium.icon} src={`/premium/ana-sayfa/${visual.img}.webp`} alt="" aria-hidden />
+                        {isWide ? <div className={premium.wideBody}>{body}</div> : body}
+                        {isWide ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img className={premium.decor} src="/premium/ana-sayfa/analiz-dekor.webp" alt="" aria-hidden />
+                        ) : null}
+                        <span className={premium.arrow} aria-hidden>
+                          <ArrowRight className="h-4 w-4" strokeWidth={2.4} />
                         </span>
-
-                        <h3 className="mt-2.5 text-base font-black text-slate-900">{t(`modules.${item.permissionKey}.title`)}</h3>
-                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
-                          {t(`modules.${item.permissionKey}.desc`)}
-                        </p>
-                        <p className="mt-1.5 text-xs text-slate-500 transition-colors group-hover:text-slate-600">
-                          {item.hasStat
-                            ? moduleStats[item.permissionKey] === undefined
-                              ? t("moduleCard.loading")
-                              : moduleStats[item.permissionKey] === null
-                                ? "—"
-                                : moduleStats[item.permissionKey] === 0
-                                  ? t("moduleCard.noRecords")
-                                  : t(`modules.${item.permissionKey}.stat`, { n: moduleStats[item.permissionKey] as number })
-                            : item.permissionKey === "yasam_hafizasi"
-                              ? deriveYhCardStatus(yhHealth).text
-                              : t("common.contentReady")}
-                        </p>
-                        {lastDateByKey[item.permissionKey] ? (
-                          <p className="mt-0.5 text-xs text-slate-500 transition-colors group-hover:text-slate-600">
-                            {t("moduleCard.lastPrefix", { date: lastDateByKey[item.permissionKey] })}
-                          </p>
-                        ) : null}
-
-                        <div className="mt-auto flex items-center justify-between gap-2 pt-3">
-                          <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${
-                            isComingSoon
-                              ? "bg-violet-100 text-violet-700 ring-violet-200/80"
-                              : isLocked
-                                ? "bg-rose-100 text-rose-800 ring-rose-200/80"
-                                : "bg-emerald-100 text-emerald-800 ring-emerald-200/80"
-                          }`}>
-                            {isComingSoon ? t("common.comingSoon") : isLocked ? (lockReason === "permission" ? t("moduleCard.badgeNoPermission") : t("moduleCard.badgeInactive")) : t("common.active")}
-                          </span>
-                          <span className={`flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition-opacity ${isOpen ? "" : "opacity-40"}`} aria-hidden>
-                            <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
-                          </span>
-                        </div>
                       </div>
                     );
 
                     if (isOpen) {
                       return (
-                        <Link key={item.permissionKey} href={item.href} className={`block text-inherit no-underline ${spanClass}`}>
+                        <Link key={item.permissionKey} href={item.href} className={`${premium.cardLink} ${isWide ? premium.wide : ""}`}>
                           {card}
                         </Link>
                       );
@@ -1945,7 +1904,7 @@ export default function Home() {
                     return (
                       <div
                         key={item.permissionKey}
-                        className={spanClass}
+                        className={`${isWide ? premium.wide : ""} ${isComingSoon ? premium.cardSoon : premium.cardLocked}`}
                         role={isLocked ? "button" : undefined}
                         tabIndex={isLocked ? 0 : undefined}
                         onClick={isLocked && lockReason ? () => handleLockedModuleClick(lockReason) : undefined}
@@ -1956,60 +1915,35 @@ export default function Home() {
                     );
                   })}
 
-                  {/* Beslenme girişi "Doğal Destek & Rehber" hub'ına taşındı
-                      (app/dogal-destek/DogalDestekCards.tsx; kendi checkBeslenmeAccess probe'u) →
-                      ana dashboard'da bağımsız Beslenme/Besinlerim kartı YOK. */}
-
-                  {/* Doğal Pazar public vitrin kartı — PRIVATE OWNER PREVIEW LOCK sırasında
-                      GİZLİ. Public açılış ileride ayrı release ile geri getirilecek. Sahip
-                      önizlemesi /admin/magaza/onizleme üzerinden yapılır. */}
-
-                  {/* Beslenme kartı "Doğal Destek & Rehber" hub'ına taşındı (yukarıdaki nota bkz.);
-                      ana dashboard'da bağımsız Beslenme kartı render EDİLMEZ. */}
+                  {/* Beslenme girişi "Doğal Destek & Rehber" hub'ındadır (app/dogal-destek/DogalDestekCards.tsx);
+                      ana panelde bağımsız Beslenme kartı ve Doğal Pazar vitrin kartı YOK (owner kararları). */}
                 </div>
               )}
-
+              </section>
             </div>
 
-            {/* ── Right: Son Aktiviteler + Canlı Yaşam Paneli ── */}
-            <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
-
-              {/* Son Aktiviteler — sadece veri varsa göster */}
+            {/* Sağ sütun: Bugünün Enerjisi (yerel hesap) + Son Aktiviteler (gerçek veri; yalnız veri varsa) */}
+            <aside className={premium.right}>
+              <LivePanel date={effectiveNow} />
               {recentActivity !== null && recentActivity.length > 0 ? (
-                <div>
-                  <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
-                    {t("dashboard.recentActivity")}
-                  </p>
-                  <div className="rounded-2xl border border-white/70 bg-white/65 p-3 shadow-sm backdrop-blur-md">
-                    <div className="space-y-0.5">
-                      {recentActivity.map((act, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center gap-2.5 rounded-xl px-2 py-1.5"
-                        >
-                          <span className="text-sm leading-none">{act.icon}</span>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-[12px] font-semibold text-slate-800">{act.label}</p>
-                            <p className="text-xs text-slate-500">{act.relDate}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <section className={premium.panel} aria-labelledby="home-recent-title">
+                  <h2 id="home-recent-title" className={premium.panelTitle}>{t("dashboard.recentActivity")}</h2>
+                  <ul className={premium.actList}>
+                    {recentActivity.map((act, i) => (
+                      <li key={i} className={premium.act}>
+                        <span className={premium.actIcon} aria-hidden>{act.icon}</span>
+                        <span className={premium.actWho}>
+                          <strong>{act.label}</strong>
+                          <small>{act.relDate}</small>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               ) : null}
-
-              {/* Canlı Yaşam Paneli */}
-              <div>
-                <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
-                  {t("dashboard.livePanelLabel")}
-                </p>
-                <LivePanel date={effectiveNow} />
-              </div>
             </aside>
           </div>
-
-        </div>
+        </HomeShell>
       </main>
     );
   }

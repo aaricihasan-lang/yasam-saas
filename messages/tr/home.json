@@ -508,6 +508,25 @@
         "weakPassword": "Parola en az 6 karakter olmalı.",
         "rateLimited": "Çok fazla deneme yapıldı. Lütfen biraz sonra tekrar deneyin."
       }
+    },
+    "premium": {
+      "tagline": "Daha dengeli bir yaşam için",
+      "menuHome": "Ana Sayfa",
+      "menuAllModules": "Tüm Modüller",
+      "menuCalendar": "Takvim",
+      "menuClients": "Danışanlar",
+      "menuContents": "İçerikler",
+      "menuSettings": "Ayarlar",
+      "menuAdmin": "Admin Paneli",
+      "menuOpen": "Menüyü aç",
+      "menuCollapse": "Menüyü daralt",
+      "menuExpand": "Menüyü genişlet",
+      "menuLabel": "Ana menü",
+      "sideQuote": "Daha bilinçli,|daha dengeli,|daha iyi bir yaşam...",
+      "eyebrow": "Yaşam Sistemi",
+      "heroSub": "Daha dengeli, bilinçli ve anlamlı bir yaşam için buradayız.",
+      "quote": "Kendini tanımak,|daha iyi bir yaşamın|ilk adımıdır.",
+      "modulesTitle": "Yaşam Modülleri"
     }
   }
 }
