@@ -34,7 +34,6 @@ type SupportFolder = {
   art: { src: string; w: number; h: number };
   accent: "amber" | "sage" | "mint" | "violet";
   Icon: LucideIcon;
-  order: number;
 };
 
 const flagFolders: (SupportFolder & { keys: string[] })[] = [
@@ -48,7 +47,6 @@ const flagFolders: (SupportFolder & { keys: string[] })[] = [
     art: { src: "/premium/dogal-destek/dogaltas.webp", w: 391, h: 300 },
     accent: "violet",
     Icon: Gem,
-    order: 4,
   },
   {
     title: "Aromaterapi",
@@ -58,7 +56,6 @@ const flagFolders: (SupportFolder & { keys: string[] })[] = [
     art: { src: "/premium/dogal-destek/aromaterapi.webp", w: 448, h: 302 },
     accent: "amber",
     Icon: Flower2,
-    order: 1,
   },
   {
     title: "Şifa Rehberi",
@@ -68,7 +65,6 @@ const flagFolders: (SupportFolder & { keys: string[] })[] = [
     art: { src: "/premium/dogal-destek/sifa-rehberi.webp", w: 431, h: 302 },
     accent: "sage",
     Icon: BookOpen,
-    order: 2,
   },
 ];
 
@@ -80,13 +76,13 @@ const BESLENME_FOLDER: SupportFolder = {
   art: { src: "/premium/dogal-destek/beslenme.webp", w: 398, h: 300 },
   accent: "mint",
   Icon: Wheat,
-  order: 3,
 };
 
-/** Kart sayısına göre ızgara (2×2; tek kart ortada; tek sayıda son kart tam satır). */
+/** Kart sayısına göre dengeli responsive grid (mobil 1 · sm 2 · 3 kart lg 3). */
 function gridClass(count: number): string {
-  if (count === 1) return styles.cardsSingle;
-  return count % 2 === 1 ? styles.cardsOdd : "";
+  if (count >= 4) return "max-w-4xl grid-cols-1 sm:grid-cols-2";
+  if (count === 3) return "max-w-5xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
+  return "max-w-3xl grid-cols-1 sm:grid-cols-2";
 }
 
 const TILT_MAX_X = 3.5 * 0.45;
@@ -176,7 +172,7 @@ export default function DogalDestekCards() {
   // Çözülene kadar SESSİZ boşluk — iskelet/spinner ya da loading metni YOK, gerçek kart YOK
   // (2→3 flicker'ı önle). Yalnız min-height korunur → yetki gelince layout dikey sıçramaz.
   if (!accessResolved) {
-    return <div className={styles.cards} aria-busy="true" aria-hidden />;
+    return <div className="min-h-[16rem] w-full" aria-busy="true" aria-hidden />;
   }
 
   // Tüm access sonuçları kesin → görünür kartları TEK SEFERDE oluştur.
@@ -184,11 +180,13 @@ export default function DogalDestekCards() {
     hasAnyModulePermissionFlag(user, [...folder.keys]),
   );
   if (beslenmeAccess) visible.push(BESLENME_FOLDER);
-  // Yalnız görsel sıra (owner onaylı prototip): Aromaterapi · Şifa Rehberi · Beslenme · Doğaltaş.
-  visible.sort((a, b) => a.order - b.order);
 
   return (
-    <div className={`${styles.cards} ${revealed ? "" : styles.cardsHidden} ${gridClass(visible.length)}`}>
+    <div
+      className={`mx-auto grid min-h-[16rem] w-full items-stretch gap-6 transition-opacity duration-300 ease-out ${
+        revealed ? "opacity-100" : "opacity-0"
+      } ${gridClass(visible.length)} ${styles.cards}`}
+    >
       {visible.map(({ title, desc, href, art, accent, Icon }) => (
         <Link
           key={title}

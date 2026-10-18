@@ -190,29 +190,10 @@
 }
 
 /* ── Kartlar ──────────────────────────────────────────────────────────── */
+/* Izgara düzeni, bekleme alanı ve fade canlı sözleşmedeki Tailwind sınıflarıyla gelir (DogalDestekCards gridClass);
+   burada yalnız kart yüksekliği değişkeni tanımlanır. */
 .cards {
   --card-h: 232px;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: 1fr;
-  gap: clamp(16px, 1.6vw, 24px);
-  min-height: 16rem;
-  transition: opacity 300ms ease-out;
-}
-
-.cardsHidden {
-  opacity: 0;
-}
-
-/* Yetkiye göre tek kart kalırsa ortada tek sütun. */
-.cardsSingle {
-  grid-template-columns: minmax(0, 640px);
-  justify-content: center;
-}
-
-/* Tek sayıda kartta son kart tüm satırı kaplar (boş hücre kalmaz). */
-.cardsOdd > .card:last-child {
-  grid-column: 1 / -1;
 }
 
 .card[data-accent="amber"] {
@@ -425,10 +406,7 @@
 }
 
 @media (max-width: 999px) {
-  .cards,
-  .cardsSingle {
-    grid-template-columns: minmax(0, 1fr);
-    grid-auto-rows: auto;
+  .cards {
     --card-h: 220px;
   }
   .cardArt {
