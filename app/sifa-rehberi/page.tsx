@@ -57,6 +57,7 @@ import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { uploadSifaPhoto, cleanupSifaPhoto } from "@/lib/sifa-rehberi/stonePhotoClient";
+import menuStyles from "@/app/_premium/sifa-rehberi/sifaMenu.module.css";
 
 type GuideImage = {
   id: string;
@@ -165,122 +166,145 @@ function pageViewFromQueryParam(value: string | null): PageView | null {
   return null;
 }
 
-const uiMenuCardBase =
-  "group relative flex h-auto min-h-[160px] w-full flex-col overflow-hidden rounded-2xl border p-4 text-left shadow-sm backdrop-blur-xl transition-all duration-200 hover:shadow-md focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/40";
-
-const uiMenuBadge =
-  "inline-flex rounded-full border bg-white/85 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] shadow-sm";
-
-const uiMenuTitle = "text-lg font-black leading-tight tracking-tight text-slate-950";
-
-const uiMenuDesc =
-  "mt-1 text-xs font-medium leading-snug text-slate-600 line-clamp-2";
-
-function NewRecordMenuIcon() {
-  return (
-    <span
-      className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-emerald-200/80 bg-white/80 text-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-white/90"
-      aria-hidden
-    >
-      <span className="leading-none">🌿</span>
-      <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 text-xs font-black text-white shadow-md ring-2 ring-white">
-        +
-      </span>
-    </span>
-  );
-}
-
-function ListMenuIcon() {
-  return (
-    <span
-      className="flex h-12 w-12 items-center justify-center rounded-xl border border-violet-200/80 bg-white/80 text-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-white/90"
-      aria-hidden
-    >
-      📚
-    </span>
-  );
-}
+// 2026-10-18 premium görsel entegrasyon (owner onaylı prototip, tasarım arşivi b97c489): yalnız ANA MENÜ görünümü
+// yeniden stillendi (menuStyles). Tıklama işlevleri (openNewRecord / openList), sayaçlar ve demo davranışı aynen.
+// Owner kararı: kartlarda görünür buton / ok yok; kartın tamamı tek buton. Eski CTA metni ekran okuyucu için korunur.
 
 type MenuStatBadge = {
   label: string;
   variant: "solid" | "outline";
-  palette: "emerald" | "violet";
 };
 
-function menuStatBadgeClass(badge: MenuStatBadge) {
-  if (badge.variant === "solid") {
-    return badge.palette === "emerald"
-      ? "rounded-full bg-emerald-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow-sm ring-1 ring-emerald-500/30"
-      : "rounded-full bg-violet-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow-sm ring-1 ring-violet-500/30";
-  }
-  return badge.palette === "emerald"
-    ? "rounded-full border border-emerald-200 bg-white/90 px-2.5 py-0.5 text-[10px] font-black text-emerald-800"
-    : "rounded-full border border-violet-200 bg-white/90 px-2.5 py-0.5 text-[10px] font-black text-violet-800";
-}
+const MENU_ART = {
+  kayit: { w: 222, h: 320, icon: "ic-kayit", iw: 86, ih: 84 },
+  kutuphane: { w: 215, h: 320, icon: "ic-kutuphane", iw: 79, ih: 80 },
+} as const;
 
 function MenuChoiceCard({
   onClick,
-  cardTone,
-  glowTone,
+  tone,
+  art,
+  artNote,
   badgeLabel,
-  badgeTone,
-  icon,
   title,
   description,
   statBadges,
   ctaLabel,
-  ctaTone,
 }: {
   onClick: () => void;
-  cardTone: string;
-  glowTone: string;
+  tone: "green" | "violet";
+  art: keyof typeof MENU_ART;
+  artNote?: string;
   badgeLabel: string;
-  badgeTone: string;
-  icon: ReactNode;
   title: string;
   description: string;
   statBadges: MenuStatBadge[];
   ctaLabel: string;
-  ctaTone: string;
 }) {
+  const a = MENU_ART[art];
   return (
-    <button type="button" onClick={onClick} className={`${uiMenuCardBase} ${cardTone}`}>
-      <div
-        className={`pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full blur-2xl transition group-hover:opacity-100 ${glowTone}`}
-      />
-      <div className="relative flex h-full flex-col justify-between">
-        <div className="shrink-0">
-          <span className={`${uiMenuBadge} ${badgeTone}`}>{badgeLabel}</span>
-        </div>
-
-        <div className="flex flex-1 flex-col items-center justify-center px-1 py-2 text-center">
-          <div className="mb-2 shrink-0">{icon}</div>
-          <h2 className={uiMenuTitle}>{title}</h2>
-          <p className={uiMenuDesc}>{description}</p>
-        </div>
-
-        <div className="shrink-0 space-y-2">
-          <div className="flex flex-wrap items-center justify-center gap-1.5">
-            {statBadges.map((badge) => (
-              <span key={badge.label} className={menuStatBadgeClass(badge)}>
-                {badge.label}
-              </span>
-            ))}
-          </div>
-          <span
-            className={`block w-full rounded-xl py-2 text-center text-[13px] font-black shadow-md ring-1 transition group-hover:brightness-105 ${ctaTone}`}
-          >
-            {ctaLabel}
-          </span>
-        </div>
-      </div>
+    <button type="button" onClick={onClick} className={menuStyles.card} data-tone={tone}>
+      <span className={menuStyles.cardArt} style={{ aspectRatio: `${a.w} / ${a.h}` }} aria-hidden>
+        <span className={menuStyles.artLayer}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/premium/sifa-rehberi/${art}.webp`} width={a.w} height={a.h} alt="" decoding="async" draggable={false} />
+          {artNote ? <span className={menuStyles.artNote}>{artNote}</span> : null}
+        </span>
+        <span className={menuStyles.sheen} />
+      </span>
+      <span className={menuStyles.cardBody}>
+        <span className={menuStyles.chip}>{badgeLabel}</span>
+        <span className={menuStyles.cardIcon} aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/premium/sifa-rehberi/${a.icon}.webp`} width={a.iw} height={a.ih} alt="" decoding="async" draggable={false} />
+        </span>
+        <span className={menuStyles.cardTitle}>{title}</span>
+        <span className={menuStyles.cardDesc}>{description}</span>
+        <span className={menuStyles.tags}>
+          {statBadges.map((badge) => (
+            <span
+              key={badge.label}
+              className={`${menuStyles.tag} ${badge.variant === "solid" ? menuStyles.tagStrong : ""}`}
+            >
+              {badge.label}
+            </span>
+          ))}
+        </span>
+        <span className={menuStyles.srOnly}>{ctaLabel}</span>
+      </span>
     </button>
   );
 }
-const menuPageShell =
-  "relative flex h-screen flex-col overflow-hidden max-lg:min-h-screen max-lg:h-auto max-lg:overflow-y-auto";
-const menuPageContent =
-  "relative z-10 mx-auto flex min-h-0 w-full max-w-[1400px] flex-1 flex-col gap-3 overflow-hidden px-3 py-3 sm:px-5 lg:gap-3 lg:px-8 lg:py-3";
+
+function MenuLeafIcon({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8 0 5.5-4.8 10-10 10z" />
+      <path d="M2 21c0-3 1.9-5.4 5.2-6.1 2.4-.5 4.9-2 5.8-3.9" />
+    </svg>
+  );
+}
+
+const MENU_STAT_ICON = {
+  doc: (
+    <>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+      <path d="M8 13h8M8 17h6" />
+    </>
+  ),
+  folder: <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />,
+  eye: (
+    <>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+} as const;
+
+/** Menü başlık bandı: metin | taş sahnesi | GERÇEK sayaçlar (Kayıt / Kategori / Görünen — eski başlıktaki değerlerin aynısı). */
+function SifaMenuHero({
+  stats,
+}: {
+  stats: { label: string; value: number; icon: keyof typeof MENU_STAT_ICON; tone: string }[];
+}) {
+  return (
+    <section className={menuStyles.band} aria-labelledby="sifa-menu-title">
+      <div className={menuStyles.hero}>
+        <div>
+          <p className={menuStyles.heroBadge}>
+            <MenuLeafIcon size={15} />
+            Şifa Rehberi
+          </p>
+          <h1 id="sifa-menu-title" className={menuStyles.heroTitle}>
+            Şifa Rehberi
+          </h1>
+          <p className={menuStyles.heroSub}>Yeni kayıt oluşturun veya kayıtlı şifa rehberi listenize geçin.</p>
+        </div>
+        <div className={menuStyles.heroArt} aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/premium/sifa-rehberi/hero-taslar.webp" width={445} height={300} alt="" decoding="async" />
+        </div>
+        <div className={menuStyles.panel}>
+          <ul className={menuStyles.stats} aria-label="Şifa rehberi sayaçları">
+            {stats.map((st) => (
+              <li key={st.label} className={menuStyles.stat} data-tone={st.tone}>
+                <span className={menuStyles.statIcon} aria-hidden>
+                  <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    {MENU_STAT_ICON[st.icon]}
+                  </svg>
+                </span>
+                <strong className={menuStyles.statValue}>{st.value}</strong>
+                <span className={menuStyles.statLabel}>{st.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 const menuHeaderCard =
   "shrink-0 rounded-2xl border border-emerald-200/50 bg-white/85 p-3.5 shadow-sm backdrop-blur-xl";
 const menuStatCard =
@@ -1225,147 +1249,158 @@ function SifaRehberiContent() {
   return (
     <main
       className={
-        isMenuView
-          ? `${menuPageShell} bg-[radial-gradient(circle_at_top_left,#dcfce7_0%,#ecfeff_35%,#f8fafc_100%)] text-slate-950`
-          : pageBg
+        isMenuView ? menuStyles.page : pageBg
       }
     >
-      <div
-        className={`pointer-events-none absolute left-0 top-0 rounded-full bg-emerald-300/20 blur-[150px] ${
-          isMenuView ? "h-[280px] w-[280px]" : "h-[520px] w-[520px]"
-        }`}
-      />
-      <div
-        className={`pointer-events-none absolute right-0 top-0 rounded-full bg-cyan-300/20 blur-[150px] ${
-          isMenuView ? "h-[280px] w-[280px]" : "h-[520px] w-[520px]"
-        }`}
-      />
+      {isMenuView ? (
+        <SifaMenuHero
+          stats={[
+            { label: "Kayıt", value: rows.length, icon: "doc", tone: "blue" },
+            { label: "Kategori", value: categoryCount, icon: "folder", tone: "green" },
+            { label: "Görünen", value: filteredRows.length, icon: "eye", tone: "violet" },
+          ]}
+        />
+      ) : (
+        <>
+        <div
+          className={`pointer-events-none absolute left-0 top-0 rounded-full bg-emerald-300/20 blur-[150px] ${
+            isMenuView ? "h-[280px] w-[280px]" : "h-[520px] w-[520px]"
+          }`}
+        />
+        <div
+          className={`pointer-events-none absolute right-0 top-0 rounded-full bg-cyan-300/20 blur-[150px] ${
+            isMenuView ? "h-[280px] w-[280px]" : "h-[520px] w-[520px]"
+          }`}
+        />
+        </>
+      )}
 
-      <div className={isMenuView ? menuPageContent : isListView ? listPageContent : pageContent}>
+      <div className={isMenuView ? menuStyles.content : isListView ? listPageContent : pageContent}>
         {isDemo && (
           <DemoModuleBanner message="Şifa rehberi kütüphanesini demo olarak inceliyorsunuz. Rahatsızlık başlıkları, kategoriler ve bölüm yapısı görünür; uzmanın klinik içerikleri ve özet metinleri demo hesabında korunur. Yeni kayıt, düzenleme, silme ve dışa aktarma çalışmaz." />
         )}
-        <header
-          className={
-            isMenuView
-              ? `${menuHeaderCard} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4`
-              : isListView
-                ? `${listHeaderCard} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`
-                : `${uiHeaderCard} flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between`
-          }
-        >
-          <div className="min-w-0 flex-1">
+        {!isMenuView ? (
+          <header
+            className={
+              isMenuView
+                ? `${menuHeaderCard} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4`
+                : isListView
+                  ? `${listHeaderCard} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`
+                  : `${uiHeaderCard} flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between`
+            }
+          >
+            <div className="min-w-0 flex-1">
+              <div
+                className={`inline-flex rounded-full border border-emerald-200 bg-emerald-50 font-black text-emerald-700 ${
+                  isMenuView || isListView
+                    ? "mb-1.5 px-3 py-0.5 text-[10px] tracking-[0.14em]"
+                    : "mb-3 px-5 py-2"
+                }`}
+              >
+                ✶ ŞİFA REHBERİ
+              </div>
+
+              <h1
+                className={
+                  isMenuView
+                    ? "text-xl font-black tracking-tight text-slate-950 lg:text-2xl"
+                    : isListView
+                      ? "text-xl font-black tracking-tight text-slate-950"
+                      : "text-xl font-black tracking-tight text-slate-950 xl:text-2xl"
+                }
+              >
+                Şifa Rehberi
+              </h1>
+
+              <p
+                className={
+                  isMenuView
+                    ? "mt-1 line-clamp-2 text-xs font-medium leading-snug text-slate-600"
+                    : isListView
+                      ? "mt-1 line-clamp-2 text-xs font-medium leading-snug text-slate-600"
+                      : "mt-3 text-lg font-medium text-slate-600 xl:text-xl"
+                }
+              >
+                {/* Menü görünümünün açıklaması SifaMenuHero'da; bu başlık yalnız liste / yeni kayıt görünümünde çizilir. */}
+                Kayıtlı şifa rehberlerinizi arayın, listeleyin ve detaylarını açın.
+              </p>
+
+            </div>
+
             <div
-              className={`inline-flex rounded-full border border-emerald-200 bg-emerald-50 font-black text-emerald-700 ${
-                isMenuView || isListView
-                  ? "mb-1.5 px-3 py-0.5 text-[10px] tracking-[0.14em]"
-                  : "mb-3 px-5 py-2"
+              className={`grid w-full shrink-0 grid-cols-3 ${
+                isMenuView ? "gap-2 lg:w-auto lg:gap-3" : isListView ? "gap-2 sm:w-auto" : "gap-4 lg:w-auto"
               }`}
             >
-              ✶ ŞİFA REHBERİ
-            </div>
-
-            <h1
-              className={
-                isMenuView
-                  ? "text-xl font-black tracking-tight text-slate-950 lg:text-2xl"
-                  : isListView
-                    ? "text-xl font-black tracking-tight text-slate-950"
-                    : "text-xl font-black tracking-tight text-slate-950 xl:text-2xl"
-              }
-            >
-              Şifa Rehberi
-            </h1>
-
-            <p
-              className={
-                isMenuView
-                  ? "mt-1 line-clamp-2 text-xs font-medium leading-snug text-slate-600"
-                  : isListView
-                    ? "mt-1 line-clamp-2 text-xs font-medium leading-snug text-slate-600"
-                    : "mt-3 text-lg font-medium text-slate-600 xl:text-xl"
-              }
-            >
-              {pageView === "menu"
-                ? "Yeni kayıt oluşturun veya kayıtlı şifa rehberi listenize geçin."
-                : "Kayıtlı şifa rehberlerinizi arayın, listeleyin ve detaylarını açın."}
-            </p>
-
-          </div>
-
-          <div
-            className={`grid w-full shrink-0 grid-cols-3 ${
-              isMenuView ? "gap-2 lg:w-auto lg:gap-3" : isListView ? "gap-2 sm:w-auto" : "gap-4 lg:w-auto"
-            }`}
-          >
-            <div className={isMenuView ? menuStatCard : isListView ? listStatCard : uiStatCard}>
-              <div
-                className={
-                  isMenuView
-                    ? "text-lg font-black lg:text-xl"
-                    : isListView
-                      ? "text-base font-black sm:text-lg"
-                      : "text-3xl font-black"
-                }
-              >
-                {rows.length}
+              <div className={isMenuView ? menuStatCard : isListView ? listStatCard : uiStatCard}>
+                <div
+                  className={
+                    isMenuView
+                      ? "text-lg font-black lg:text-xl"
+                      : isListView
+                        ? "text-base font-black sm:text-lg"
+                        : "text-3xl font-black"
+                  }
+                >
+                  {rows.length}
+                </div>
+                <div
+                  className={
+                    isMenuView || isListView
+                      ? "text-[10px] font-bold text-slate-500"
+                      : "text-sm font-bold text-slate-500"
+                  }
+                >
+                  Kayıt
+                </div>
               </div>
-              <div
-                className={
-                  isMenuView || isListView
-                    ? "text-[10px] font-bold text-slate-500"
-                    : "text-sm font-bold text-slate-500"
-                }
-              >
-                Kayıt
+              <div className={isMenuView ? menuStatCard : isListView ? listStatCard : uiStatCard}>
+                <div
+                  className={
+                    isMenuView
+                      ? "text-lg font-black lg:text-xl"
+                      : isListView
+                        ? "text-base font-black sm:text-lg"
+                        : "text-3xl font-black"
+                  }
+                >
+                  {categoryCount}
+                </div>
+                <div
+                  className={
+                    isMenuView || isListView
+                      ? "text-[10px] font-bold text-slate-500"
+                      : "text-sm font-bold text-slate-500"
+                  }
+                >
+                  Kategori
+                </div>
               </div>
-            </div>
-            <div className={isMenuView ? menuStatCard : isListView ? listStatCard : uiStatCard}>
-              <div
-                className={
-                  isMenuView
-                    ? "text-lg font-black lg:text-xl"
-                    : isListView
-                      ? "text-base font-black sm:text-lg"
-                      : "text-3xl font-black"
-                }
-              >
-                {categoryCount}
-              </div>
-              <div
-                className={
-                  isMenuView || isListView
-                    ? "text-[10px] font-bold text-slate-500"
-                    : "text-sm font-bold text-slate-500"
-                }
-              >
-                Kategori
+              <div className={isMenuView ? menuStatCard : isListView ? listStatCard : uiStatCard}>
+                <div
+                  className={
+                    isMenuView
+                      ? "text-lg font-black lg:text-xl"
+                      : isListView
+                        ? "text-base font-black sm:text-lg"
+                        : "text-3xl font-black"
+                  }
+                >
+                  {filteredRows.length}
+                </div>
+                <div
+                  className={
+                    isMenuView || isListView
+                      ? "text-[10px] font-bold text-slate-500"
+                      : "text-sm font-bold text-slate-500"
+                  }
+                >
+                  Görünen
+                </div>
               </div>
             </div>
-            <div className={isMenuView ? menuStatCard : isListView ? listStatCard : uiStatCard}>
-              <div
-                className={
-                  isMenuView
-                    ? "text-lg font-black lg:text-xl"
-                    : isListView
-                      ? "text-base font-black sm:text-lg"
-                      : "text-3xl font-black"
-                }
-              >
-                {filteredRows.length}
-              </div>
-              <div
-                className={
-                  isMenuView || isListView
-                    ? "text-[10px] font-bold text-slate-500"
-                    : "text-sm font-bold text-slate-500"
-                }
-              >
-                Görünen
-              </div>
-            </div>
-          </div>
-        </header>
+          </header>
+        ) : null}
 
         {errorMessage ? (
           <div
@@ -1388,51 +1423,49 @@ function SifaRehberiContent() {
         ) : null}
 
         {pageView === "menu" ? (
-          <section className="flex min-h-0 flex-1 items-center justify-center">
-            <div className="grid w-full grid-cols-1 gap-4 lg:grid-cols-2">
+          <>
+            <section className={menuStyles.cards} aria-label="Şifa Rehberi alanları">
               <MenuChoiceCard
                 onClick={openNewRecord}
-                cardTone="border-emerald-300/55 bg-gradient-to-br from-emerald-50 via-teal-50/95 to-cyan-50/85 hover:border-emerald-400/70"
-                glowTone="bg-emerald-300/25 group-hover:bg-emerald-300/35"
+                tone="green"
+                art="kayit"
+                artNote="Kayıt oluşturun"
                 badgeLabel="Manuel kayıt"
-                badgeTone="border-emerald-200/80 text-emerald-800"
-                icon={<NewRecordMenuIcon />}
                 title="Yeni Rahatsızlık Kaydı"
                 description="Bölümlü form ile nedenler, bitkisel yöntemler ve destekleyici uygulamaları tek kayıtta toplayın."
                 statBadges={[
-                  { label: "Bölümlü kayıt", variant: "solid", palette: "emerald" },
-                  { label: "Görsel destekli", variant: "outline", palette: "emerald" },
+                  { label: "Bölümlü kayıt", variant: "solid" },
+                  { label: "Görsel destekli", variant: "outline" },
                 ]}
                 ctaLabel="Yeni kayıt oluştur"
-                ctaTone="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white ring-emerald-400/40"
               />
 
               <MenuChoiceCard
                 onClick={openList}
-                cardTone="border-violet-300/55 bg-gradient-to-br from-violet-50 via-indigo-50/95 to-sky-50/85 hover:border-violet-400/70 focus-visible:ring-violet-300/40"
-                glowTone="bg-violet-300/25 group-hover:bg-violet-300/35"
+                tone="violet"
+                art="kutuphane"
                 badgeLabel="Kütüphane"
-                badgeTone="border-violet-200/80 text-violet-800"
-                icon={<ListMenuIcon />}
                 title="Kayıtlı Şifa Rehberi Listesi"
                 description="Rahatsızlık rehberlerini arayın, kart veya liste görünümünde inceleyin."
                 statBadges={[
                   {
                     label: loading ? "…" : `${rows.length} kayıt`,
                     variant: "solid",
-                    palette: "violet",
                   },
                   {
                     label: `${categoryCount} kategori`,
                     variant: "outline",
-                    palette: "violet",
                   },
                 ]}
                 ctaLabel="Listeyi aç"
-                ctaTone="bg-gradient-to-r from-violet-500 to-indigo-500 text-white ring-violet-400/40"
               />
-            </div>
-          </section>
+            </section>
+            <p className={menuStyles.footNote}>
+              <MenuLeafIcon size={18} />
+              Şifa Rehberi — rahatsızlıklar için bitkisel yöntemler, destekleyici uygulamalar ve bütüncül yaklaşımları tek
+              merkezde yönetmenizi sağlar.
+            </p>
+          </>
         ) : null}
 
         {pageView === "list" ? (
