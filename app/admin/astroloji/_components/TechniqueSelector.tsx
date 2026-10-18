@@ -439,7 +439,8 @@ export function TechniqueParamFields({
         const moment = (
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <label className="flex items-center gap-1">
-              <input type="radio" checked={params.kpMomentMode === "now"} onChange={() => set("kpMomentMode", "now")} /> Şimdi (UTC saat başı)
+              <input type="radio" checked={params.kpMomentMode === "now"} onChange={() => set("kpMomentMode", "now")} />{" "}
+              {id === "kp.horary" ? "Şimdi (gerçek soru anı · dakika hassasiyetinde)" : "Şimdi (UTC saat başı)"}
             </label>
             <label className="flex items-center gap-1">
               <input type="radio" checked={params.kpMomentMode === "custom"} onChange={() => set("kpMomentMode", "custom")} /> Tarih/saat

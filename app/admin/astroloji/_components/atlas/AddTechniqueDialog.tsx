@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, Loader2, Plus, Settings2, X } from "lucide-react";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import { astroFetch } from "../../_lib/api";
-import { buildSelections, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
+import { buildSelections, describeOptions, missingReason, runOptionsFor, TECHNIQUE_META, UI_TECHNIQUES, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
 import { DialEmblem } from "./PrepCenter";
 import { MethodFields, PartnerField, TechniqueParamFields, type PartnerOption } from "../TechniqueSelector";
 import { deskPrimary } from "./ResultDesk";
@@ -177,7 +177,7 @@ export default function AddTechniqueDialog<T>({
     const send = plan.selections
       .map((s, i) => ({ s, i }))
       .filter(({ s }) => !s.blocked)
-      .map(({ s, i }) => ({ technique: s.technique, options: s.options ?? sels[i].options }));
+      .map(({ s, i }) => ({ technique: s.technique, options: runOptionsFor(s.technique, s.options, sels[i].options) }));
     const r = await astroFetch<{ results: T[]; executed: { newResults: number; cachedResults: number; providerAttempts: number } }>(`/api/admin/astroloji/engine/run${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
       method: "POST",
       body: { profileId, revision, selections: send, confirmNewRequests: newReq },

@@ -323,6 +323,22 @@ export function normalizeTransitMoment(raw: Record<string, unknown>, now: Date):
   return r.kind === "ok" ? r.utcIso.slice(0, 16) : null;
 }
 
+/**
+ * HORARY-P1 (2026-10-18): yalnız KP horary'nin soru anı. "Şimdi" = sunucunun isteği işlediği GERÇEK UTC dakika (saniye ve
+ * milisaniye atılır; dakika SIFIRLANMAZ — zaman Lagna'sı ve ruling planets dakikaya duyarlıdır). Saat istemciden alınmaz.
+ * Diğer biçimler (kayıtlı atUtc, tarih + saat + IANA) ortak normalizeTransitMoment ile aynen; transit tekniklerinin
+ * "şimdi = UTC saat başı" davranışı DEĞİŞMEZ.
+ */
+export function normalizeQuestionMoment(raw: Record<string, unknown>, now: Date): string | null {
+  if (raw.now === true) {
+    const d = new Date(now);
+    if (!Number.isFinite(d.getTime())) return null;
+    d.setUTCSeconds(0, 0);
+    return d.toISOString().slice(0, 16);
+  }
+  return normalizeTransitMoment(raw, now);
+}
+
 // ─── Teknikler ───────────────────────────────────────────────────────────────
 
 const westernNatal: TechniqueDefinition = {
@@ -1178,7 +1194,7 @@ const kpHorary: TechniqueDefinition = {
   parseOptions: (raw, now) => {
     const r = o(raw);
     const n = typeof r.horaryNumber === "number" ? r.horaryNumber : typeof r.horaryNumber === "string" && /^\d{1,3}$/.test(r.horaryNumber) ? Number(r.horaryNumber) : NaN;
-    const atUtc = normalizeTransitMoment(r, now);
+    const atUtc = normalizeQuestionMoment(r, now);
     const ay = kpAyanamsaOf(r.ayanamsa);
     const nt = kpNodeOf(r.nodeType);
     const place = kpPlaceOf(r.placeLocationId);
