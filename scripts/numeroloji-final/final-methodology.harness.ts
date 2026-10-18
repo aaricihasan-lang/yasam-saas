@@ -265,7 +265,7 @@ const legacyBefore = JSON.stringify(legacyRow);
 
   const stamped = { ...legacyRow, analysis_data: { ...legacyRow.analysis_data, motor: fresh, calc: { methodology: NUMEROLOJI_METHODOLOGY_VERSION } } };
   ok(!resolveRecordMotor(stamped).legacy, "OLD-10 güncel damgalı (yeni) kayıt önceki metodoloji sayılmaz");
-  eq(NUMEROLOJI_METHODOLOGY_VERSION, "num-v1-final-2026-10", "OLD-11 yeni kayıt metodoloji sürümü");
+  eq(NUMEROLOJI_METHODOLOGY_VERSION, "num-v1.1-ozel-sayi-2026-10", "OLD-11 yeni kayıt metodoloji sürümü (2026-10-18 owner onayı E)");
 }
 
 // ── WORD — eski snapshot + yeni hesap tutarlılığı (motor ↔ Word) ─────────────────────

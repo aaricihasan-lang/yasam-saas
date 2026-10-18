@@ -22,6 +22,7 @@ import path from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
 import { hesaplaNumeroloji } from "@/lib/numeroloji/numerolojiMotor";
 import { alternativeChakraColumns } from "@/lib/numeroloji/alternativeChakra";
+import { NUMEROLOJI_METHODOLOGY_VERSION } from "@/lib/numeroloji/methodology";
 
 const OUT = process.argv.includes("--out") ? process.argv[process.argv.indexOf("--out") + 1]! : path.join(os.tmpdir(), "numeroloji-alt-chakra-ui");
 const PORT = 3989;
@@ -60,12 +61,12 @@ const USER = {
   module_permissions: { numerology: true }, is_demo_account: false,
 };
 
-function legacyRow(id: string, motor: unknown, name: string, surname: string) {
+function legacyRow(id: string, motor: unknown, name: string, surname: string, stamp?: string) {
   return {
     id, tenant_id: USER.tenant_id, user_id: USER.id, name, surname, birth_date: "1987-02-14",
     created_at: "2026-09-20T10:00:00.000Z", updated_at: "2026-09-20T10:00:00.000Z",
     // Damgasız snapshot → önceki metodoloji kaydı (Model C)
-    analysis_data: { version: 1, motor, summary: "" },
+    analysis_data: { version: 1, motor, summary: "", ...(stamp ? { calc: { methodology: stamp } } : {}) },
   };
 }
 
@@ -171,6 +172,9 @@ async function main() {
     const rows = {
       "legacy-owner": legacyRow("legacy-owner", JSON.parse(JSON.stringify(ownerMotor)), OWNER_FIRST, OWNER_LAST),
       "legacy-hasan": legacyRow("legacy-hasan", JSON.parse(JSON.stringify(hasanMotor)), "Hasan", "ARICI"),
+      // E (2026-10-18): önceki sürüm damgası → not; yeni sürüm damgası → not yok
+      "v1-owner": legacyRow("v1-owner", JSON.parse(JSON.stringify(ownerMotor)), OWNER_FIRST, OWNER_LAST, "num-v1-final-2026-10"),
+      "v11-owner": legacyRow("v11-owner", JSON.parse(JSON.stringify(ownerMotor)), OWNER_FIRST, OWNER_LAST, NUMEROLOJI_METHODOLOGY_VERSION),
     };
     for (const vp of [{ w: 1366, h: 900, mobile: false, tag: "masaustu" }, { w: 768, h: 1024, mobile: true, tag: "tablet" }, { w: 390, h: 844, mobile: true, tag: "mobil" }]) {
       console.log(`\n[${vp.tag} — yeni analiz]`);
@@ -199,6 +203,18 @@ async function main() {
         ok(writes.length === 0, `${vp.tag}-eski kayıt: hiçbir yazma/yeniden hesap isteği yok`, writes);
         ok(errors.length === 0, `${vp.tag}-eski sayfa hatası yok`, errors);
         await page.screenshot({ path: path.join(OUT, `${vp.tag}-eski-kayit.png`), fullPage: false });
+        await ctx.close();
+      }
+      console.log(`\n[${vp.tag} — metodoloji damgası]`);
+      {
+        const { ctx, page, writes } = await newPage(browser, vp, rows);
+        await page.goto(`${APP}/numeroloji/liste/v1-owner`);
+        await page.getByText("Bu analiz önceki hesaplama metodolojisiyle oluşturulmuştur.").first().waitFor({ timeout: 30_000 });
+        ok(await page.getByRole("button", { name: "Güncel yöntemle yeniden hesapla" }).isVisible(), `${vp.tag} önceki sürüm damgası: not + yeniden hesapla`);
+        await page.goto(`${APP}/numeroloji/liste/v11-owner`);
+        await page.locator('[data-testid="alt-kombinasyon"]:visible').first().waitFor({ timeout: 30_000 });
+        ok((await page.getByText("Bu analiz önceki hesaplama metodolojisiyle oluşturulmuştur.").count()) === 0, `${vp.tag} yeni sürüm damgası: not yok`);
+        ok(writes.length === 0, `${vp.tag} damga kontrolü yazma isteği üretmedi`, writes);
         await ctx.close();
       }
       console.log(`\n[${vp.tag} — alternatifi olmayan kayıt]`);

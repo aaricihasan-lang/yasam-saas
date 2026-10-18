@@ -13,10 +13,18 @@ import { hesaplaNumeroloji } from "./numerolojiMotor";
  *
  * Kaynak: kitap 1. / 2. seviye PDF (Pera Akademi), kullanıcı notu (çakra sütunu), Rafet
  * (Kişisel Gün). Kural → sayfa eşlemesi: docs/numeroloji-pdf-metodoloji-spec.md
+ *
+ * SÜRÜM GEÇMİŞİ:
+ *   - "num-v1-final-2026-10"      (2026-10-03) — kitap 1/2 PDF metodolojisi (PR #324).
+ *   - "num-v1.1-ozel-sayi-2026-10" (2026-10-18, OWNER ONAYI "E", PR #433) — özel sayı / çakra sütunu
+ *     kuralları: özel sayı 10. çakraya tek destek; yalnız gerçek kalan ikinci destek; kalansız özel
+ *     çift yalnız özel sayı (5+6 → "11"); toplamı özel parçalar → [10]; ara kontrolde "(19/0)" →
+ *     "(19)". Önceki damgalı kayıtlar KAYDEDİLDİĞİ GİBİ açılır + "önceki metodoloji" notu ve
+ *     "Güncel yöntemle yeniden hesapla" (yeni kayıt, yeni damga) sunulur.
  */
-export const NUMEROLOJI_METHODOLOGY_VERSION = "num-v1-final-2026-10";
+export const NUMEROLOJI_METHODOLOGY_VERSION = "num-v1.1-ozel-sayi-2026-10";
 
-export const NUMEROLOJI_METHODOLOGY_LABEL = "Numeroloji V1 nihai metodolojisi (2026-10)";
+export const NUMEROLOJI_METHODOLOGY_LABEL = "Numeroloji V1.1 — özel sayı ve çakra sütunu kuralları (2026-10-18)";
 
 /** Kayıt doğum tarihi (GG/AA/YYYY, GG.AA.YYYY veya YYYY-AA-GG) → motor girdisi (GG.AA.YYYY). */
 export function birthDateForEngine(raw: string): string {
