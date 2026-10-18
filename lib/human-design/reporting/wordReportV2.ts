@@ -14,6 +14,7 @@
  * kaynak etiketi taşır; birbirine karışmaz.
  */
 
+import { HD_CENTER_STATE_LABEL, type HdCenterState } from "@/lib/human-design/chart/centerStates";
 import {
   AlignmentType,
   BorderStyle,
@@ -353,9 +354,32 @@ function buildActivations(s: HdReportSnapshotV2): ReportChild[] {
 }
 
 // ── 5–7) Merkezler / Kanallar / Kapılar ──────────────────────────────────────────
+type SnapshotCenter = HdReportSnapshotV2["centers"][number];
+/** Snapshot HD-UZMAN-01 üçlü merkez durumunu taşıyor mu (yeni rapor)? */
+function hasCenterStates(s: HdReportSnapshotV2): boolean {
+  return s.centers.length > 0 && s.centers.every((c) => c.state !== undefined);
+}
+function frozenState(c: SnapshotCenter): HdCenterState {
+  return c.state ?? (c.defined ? "defined" : "unverified");
+}
+function centerStateSummary(s: HdReportSnapshotV2): string {
+  const n = (st: HdCenterState) => s.centers.filter((c) => frozenState(c) === st).length;
+  const parts = [`${n("defined")} tanımlı`, `${n("undefined")} tanımsız`, `${n("open")} açık merkez`];
+  if (n("unverified") > 0) parts.push(`${n("unverified")} merkezde durum doğrulanamadı`);
+  return parts.join(" · ");
+}
+
 function buildCenters(s: HdReportSnapshotV2): ReportChild[] {
   if (s.centers.length === 0) return [];
   const defined = s.centers.filter((c) => c.defined).length;
+  // HD-UZMAN-01: yeni snapshot üçlü durumu taşır; eski snapshot (state yok) çıktısı BİREBİR korunur.
+  if (hasCenterStates(s)) {
+    return [
+      h1("Merkezler", true),
+      muted(centerStateSummary(s)),
+      dataTable(["Merkez", "Durum"], [65, 35], s.centers.map((c) => [c.label, HD_CENTER_STATE_LABEL[frozenState(c)]])),
+    ];
+  }
   return [
     h1("Merkezler", true),
     muted(`${defined} tanımlı · ${s.centers.length - defined} açık merkez`),
@@ -466,7 +490,8 @@ function buildSystem(reading: SystemReadingDto | null, o: { proCross?: boolean; 
       out.push(muted("Biyoloji ve farkındalık açıklamaları Human Design sistemindeki karşılıklardır; tıbbi teşhis veya tedavi önerisi değildir."));
     }
     for (const c of centers) {
-      const state = c.defined === null ? "" : c.defined ? " — Tanımlı" : " — Açık";
+      // Yeni DTO üçlü durumu taşır (state); eski snapshot'ta yok → eski çıktı birebir.
+      const state = c.state ? ` — ${HD_CENTER_STATE_LABEL[c.state]}` : c.defined === null ? "" : c.defined ? " — Tanımlı" : " — Açık";
       const kind = [c.motor ? "Motor merkez" : null, c.awareness ? "Farkındalık merkezi" : null].filter(Boolean).join(", ");
       out.push(h3(`${c.name}${state}${kind ? ` (${kind})` : ""}`, { keepNext: true }));
       out.push(
@@ -873,10 +898,18 @@ function statPill(value: string, label: string, width: number, fill: string, col
   );
 }
 
+const PRO_STATE_TAG: Readonly<Record<HdCenterState, string>> = {
+  defined: "●  TANIMLI",
+  undefined: "◐  TANIMSIZ",
+  open: "○  AÇIK",
+  unverified: "?  DOĞRULANAMADI",
+};
+
 function proCenters(s: HdReportSnapshotV2): ReportChild[] {
   if (s.centers.length === 0) return [];
   const byCode = new Map(s.centers.map((c) => [c.code, c]));
   const defined = s.centers.filter((c) => c.defined).length;
+  const tri = hasCenterStates(s);
   // Merkez → bu haritada o merkezdeki aktif kapılar (kayıtlı kapı verisinden; yeni veri ÜRETİLMEZ).
   const gatesByCenter = new Map<string, number[]>();
   for (const g of s.gates) {
@@ -894,7 +927,7 @@ function proCenters(s: HdReportSnapshotV2): ReportChild[] {
     const edge = isDef ? PAL.accent : PAL.line;
     return cardCell(
       [
-        pp([{ text: isDef ? "●  TANIMLI" : c ? "○  AÇIK" : "—  VERİ YOK", size: 15, bold: true, color: isDef ? PAL.accent : PAL.soft }], { after: 80 }),
+        pp([{ text: tri && c ? PRO_STATE_TAG[frozenState(c)] : isDef ? "●  TANIMLI" : c ? "○  AÇIK" : "—  VERİ YOK", size: 15, bold: true, color: isDef ? PAL.accent : PAL.soft }], { after: 80 }),
         pp([{ text: n.tr, size: 22, bold: true, color: PAL.ink }], { after: 0 }),
         pp([{ text: n.en ?? " ", size: 15, color: PAL.faint }], { after: 100 }),
         pp(
@@ -919,6 +952,41 @@ function proCenters(s: HdReportSnapshotV2): ReportChild[] {
     rows.push(new TableRow({ cantSplit: true, children: [cell(codes[0], widths[0]), cardCell([], gap), cell(codes[1], widths[2]), cardCell([], gap), cell(codes[2], widths[4])] }));
   });
   const pillW = Math.floor((W - gap) / 2);
+  if (tri) {
+    const n = (st: HdCenterState) => s.centers.filter((c) => frozenState(c) === st).length;
+    const p3 = Math.floor((W - 2 * gap) / 3);
+    const unverified = n("unverified");
+    return [
+      h2("Merkezler", { keepNext: true }),
+      fixedTable([p3, gap, p3, gap, W - 2 * gap - 2 * p3], [
+        new TableRow({
+          cantSplit: true,
+          children: [
+            statPill(String(n("defined")), "Tanımlı", p3, PAL.definedFill, PAL.accent),
+            cardCell([], gap),
+            statPill(String(n("undefined")), "Tanımsız", p3, PAL.card, PAL.soft),
+            cardCell([], gap),
+            statPill(String(n("open")), "Açık", W - 2 * gap - 2 * p3, PAL.card, PAL.soft),
+          ],
+        }),
+      ]),
+      new Paragraph({ spacing: { before: 0, after: 160 }, keepNext: true }),
+      fixedTable(widths, rows),
+      pp(
+        [
+          {
+            text:
+              "Tanımlı merkezler dolgulu ve ● ile, tanımsız merkezler (aktif kapısı olan) ◐ ile, açık merkezler (hiç aktif kapısı olmayan) ○ ile gösterilir; siyah-beyaz baskıda da ayırt edilir." +
+              (unverified > 0 ? ` ${unverified} merkezde kayıtlı veriden kesin durum doğrulanamadı (?).` : ""),
+            size: 15,
+            italics: true,
+            color: PAL.faint,
+          },
+        ],
+        { before: 100, after: 0 },
+      ),
+    ];
+  }
   return [
     h2("Merkezler", { keepNext: true }),
     fixedTable([pillW, gap, W - gap - pillW], [

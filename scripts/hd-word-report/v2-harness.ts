@@ -770,7 +770,8 @@ async function main() {
     ok("Q5b \"ENKARNASYON TEMASI (YAŞAM AMACI)\": Türkçe ad + özgün İngilizce ad", text.includes("ENKARNASYON TEMASI (YAŞAM AMACI)") && text.includes("Sağ Açılı Yasalar Teması 2") && text.includes("Right Angle Cross of Laws 2") && text.includes("açıklayıcı çevirisidir; özgün terim esas alınır"));
     ok("Q5c yeni düzende hiçbir yerde \"Haç\" yok (büyük/küçük harf; sistem yorumu + kaynak bilgisi dahil)", !/haç/i.test(text) && !/HAÇ/.test(text));
     // 2026-10-10 premium teknik bölümler (teknik veri korunur)
-    ok("Q5e Merkezler: özet sayaçlar + her merkezde aktif kapılar (kayıtlı kapı verisinden)", text.includes("Tanımlı merkez") && text.includes("Açık merkez") && (text.match(/Aktif kapılar/g) ?? []).length === 9);
+    // HD-UZMAN-01: yeni snapshot üçlü durumu taşır → sayaçlar Tanımlı / Tanımsız / Açık.
+    ok("Q5e Merkezler: özet sayaçlar (Tanımlı/Tanımsız/Açık) + her merkezde aktif kapılar (kayıtlı kapı verisinden)", /\d+\s+Tanımlı/.test(text) && /\d+\s+Tanımsız/.test(text) && /\d+\s+Açık/.test(text) && !text.includes("Açık merkez") && (text.match(/Aktif kapılar/g) ?? []).length === 9);
     ok("Q5f Kanallar: kod rozeti + ad + merkez yolu + kapılar", text.includes("Kapı 3 · Kapı 60") || /Kapı \d+ · Kapı \d+/.test(text));
     ok("Q5g Kapılar: tekrar eden başlık bandı + kanal açıklaması", /<w:tblHeader\/>/.test(xml) && text.includes("Kanal sütunu, kapının ait olduğu tanımlı kanalların tamamını gösterir."));
     const paraOf = (needle: string) => [...xml.matchAll(/<w:p[ >][\s\S]*?<\/w:p>/g)].map((m) => m[0]).find((p) => p.includes(needle)) ?? "";
@@ -824,7 +825,15 @@ async function main() {
     const centersTr = ["Baş Merkezi", "Ajna Merkezi", "Boğaz Merkezi", "G / Kimlik Merkezi", "Kalp / Ego Merkezi", "Dalak Merkezi", "Solar Pleksus Merkezi", "Sakral Merkez", "Kök Merkezi"];
     ok("W7 dokuz merkezin tamamı (Türkçe ad + özgün terim)", centersTr.every((c) => t.includes(c)) && ["Head", "Throat", "G Center", "Heart", "Spleen", "Solar Plexus", "Sacral", "Root"].every((e) => t.includes(e)));
     const definedN = (full.row?.snapshot.centers ?? []).filter((c) => c.defined).length;
-    ok("W7b tanımlı/açık durumları hesaplama sonucundan", t.includes(`${definedN}  Tanımlı merkez`) && t.includes(`${9 - definedN}  Açık merkez`) && (t.match(/●  TANIMLI/g) ?? []).length === definedN && (t.match(/○  AÇIK/g) ?? []).length === 9 - definedN);
+    // HD-UZMAN-01: fixture'da G Tanımsız (kapı 1), Kalp + Solar Pleksus Açık (aktif kapı yok).
+    const snapCenters = full.row?.snapshot.centers ?? [];
+    const stOf = (code: string) => snapCenters.find((c) => c.code === code)?.state;
+    ok("W7b Tanımlı/Tanımsız/Açık durumları kayıtlı hesaplamadan (fixture: G Tanımsız; Kalp + Solar Pleksus Açık)",
+      definedN === 6 && stOf("g_identity") === "undefined" && stOf("heart_ego") === "open" && stOf("solar_plexus") === "open" &&
+      snapCenters.filter((c) => c.defined).every((c) => c.state === "defined") &&
+      t.includes(`${definedN}  Tanımlı`) && t.includes("1  Tanımsız") && t.includes("2  Açık") &&
+      (t.match(/●  TANIMLI/g) ?? []).length === definedN && (t.match(/◐  TANIMSIZ/g) ?? []).length === 1 && (t.match(/○  AÇIK/g) ?? []).length === 2 &&
+      !t.includes("DOĞRULANAMADI") && !t.includes("Tamamen Açık"));
     ok("W8 tüm tanımlı kanallar: numara + kaynak veriden ad", n.codes.channels.length > 0 && n.codes.channels.every((c) => {
       const [a, b] = c.split("-");
       const label = (V2Labels.find((x) => x.code === c)?.label ?? "").replace(/^\S+\s/, "");
@@ -941,7 +950,7 @@ async function main() {
     ok("Y5 içerik penceresi herkese; 'Sistem Yorumunu Ekle' yalnız yetkiliye (canUseHdSystemReading); seçimler varsayılan kapalı", /canUseHdSystemReading/.test(btn) && /\{canSystem \?/.test(btn) && /setAddKnowledge\(false\)/.test(btn) && /setAddSystem\(false\)/.test(btn));
     const svc = code("lib/human-design/reporting/reportSnapshotV2Service.ts");
     ok("Y6 v2 servis admin canonical okuyucusunu kullanmaz", !/canonicalReadService|getPublishedRecordsByKeys/.test(svc));
-    ok("Y7 uzman kodları Bilgi Bankası paneliyle aynı üretici (buildExpertKnowledgeCodes)", /buildExpertKnowledgeCodes\(codes\)/.test(svc) && /buildExpertKnowledgeCodes/.test(read("app/human-design/kayitli-haritalar/components/HdExpertKnowledgePanel.tsx")));
+    ok("Y7 uzman kodları Bilgi Bankası paneliyle aynı üretici (buildExpertKnowledgeCodes)", /buildExpertKnowledgeCodes\(codes, centerStates\)/.test(svc) && /centerStates = centerStateMap\(classifyChartRowCenters\(chart\)\)/.test(svc) && /buildExpertKnowledgeCodes/.test(read("app/human-design/kayitli-haritalar/components/HdExpertKnowledgePanel.tsx")));
     const sr = read("lib/human-design/providers/roxy/systemReading.ts");
     ok("Y8 Sistem Yorumu extractor değişmedi (whitelist sabitleri aynı)", /text: 4000/.test(sr) && /export function extractSystemReading/.test(sr));
     ok("Y9 istemci paketine node:crypto girmez (paylaşılan sabitler ayrı modülde)", !/node:/.test(read("lib/human-design/reporting/reportV2Shared.ts")) && !/reportSnapshotV2"/.test(read("app/human-design/kayitli-raporlar/helpers/hdProfessionalReport.ts")));

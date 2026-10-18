@@ -66,12 +66,13 @@ const ROUTE_MODULE_RULES: RouteModuleRule[] = [
     keys: [...DIGITAL_CONTENT_HUB_KEYS],
   },
   {
-    // Doğal Destek & Rehber: Aromaterapi VEYA Şifa Rehberi VEYA Beslenme (tam modül) olan uzman
+    // Doğal Destek & Rehber: Aromaterapi VEYA Şifa Rehberi VEYA Beslenme (tam modül) VEYA Doğaltaş
+    // (2026-10-17: Doğaltaş bu merkeze taşındı; /dogaltas kendi kuralıyla ayrıca kapılı) olan uzman
     // girebilir (OR). hasAnyModulePermissionFlag OR uygular; hiçbiri yoksa "deny". `clients` ve
     // (kaldırılan) `beslenme_manual_food` bu hub'ı TEK BAŞINA AÇMAZ — Danışan Yolculuğu ayrıdır;
     // clients-only kullanıcı danışan-bound Beslenme'yi oradan kullanır (food READ), custom food WRITE yok.
     prefix: "/dogal-destek",
-    keys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing", "beslenme"],
+    keys: ["aromatherapy", "aromaterapi", "sifa_rehberi", "healing", "beslenme", "stones", "dogaltas"],
   },
   { prefix: "/danisan-yolculugu", keys: ["clients", "danisan_yonetimi"] },
   { prefix: "/urun-stok", keys: ["stok", "stock"] },
@@ -121,7 +122,8 @@ export function findRouteModuleRule(pathname: string): RouteModuleRule | null {
 /**
  * YALNIZ admin (role='admin') erişebilen route prefix'leri. Modül-izin sistemi
  * DIŞINDADIR — hiçbir uzmana açılmaz ve hiçbir ModulePermissionKey'e bağlı değildir.
- * YEBS admin-only read-only uzman vitrini (/yebs) buradadır. Bu bir defense-in-depth
+ * /yebs: YEBS modülü 2026-10-17 owner kararıyla üründen kaldırıldı (sayfalar silindi); önek eski yer
+ * imleri için uzmana kapalı tutulur (zararsız defense-in-depth). Bu bir defense-in-depth
  * client kapısıdır; gerçek veri güvenliği server-side verifyAdminRequest'tir.
  */
 // FAZ1 FINAL HARDENING: AI yüzeyleri (Video → Türkçe, Ders Notu) yalnız admin'e açık

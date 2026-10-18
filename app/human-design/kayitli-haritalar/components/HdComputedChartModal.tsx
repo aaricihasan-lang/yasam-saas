@@ -19,6 +19,7 @@ import { HdExpertKnowledgePanel } from "./HdExpertKnowledgePanel";
 import { HdChartKnowledgeTabs, HD_ADMIN_SOURCE_LABELS, canUseHdSystemReading } from "./HdChartKnowledgeTabs";
 import { useHdNameOverrides } from "../../bilgi-bankasi/helpers/useHdNameOverrides";
 import { computedChartAppCodes } from "@/lib/human-design/chart/computedChart";
+import { centerStateMap, classifyComputedChartCenters } from "@/lib/human-design/chart/centerStates";
 import { buildChartSubjectInfo, todayCalendarDate } from "@/lib/human-design/chart/chartSubjectInfo";
 import { latestWordReportId } from "@/lib/human-design/reporting/wordReportPick";
 import { listReportBriefs } from "../../kayitli-raporlar/helpers/hdKayitliRaporlar";
@@ -272,7 +273,7 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
                     adminSources={{
                       expert: (
                         <div className="mx-auto max-w-[1552px] border-t border-emerald-100 pt-5">
-                          <HdExpertKnowledgePanel chart={computedChartAppCodes(result)} />
+                          <HdExpertKnowledgePanel chart={computedChartAppCodes(result)} centerStates={centerStateMap(classifyComputedChartCenters(result))} />
                         </div>
                       ),
                       central: (
@@ -284,7 +285,7 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
                     }}
                   >
                     <div className="mx-auto max-w-[1552px] border-t border-emerald-100 pt-5">
-                      <HdExpertKnowledgePanel chart={computedChartAppCodes(result)} />
+                      <HdExpertKnowledgePanel chart={computedChartAppCodes(result)} centerStates={centerStateMap(classifyComputedChartCenters(result))} />
                     </div>
                     <div className="mx-auto max-w-[1552px] border-t border-indigo-100/80 pt-5">
                       <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-700">Kişinin <span lang="en">Human Design</span> Bilgileri</p>

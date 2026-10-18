@@ -8,6 +8,7 @@
 
 import { interpretationKindOfSchema, type InterpretationKind } from "@/lib/astrology/interpretationKind";
 import { localSpaceCenterNote, localSpaceText, type LocalSpaceCenter } from "@/lib/astrology/localSpaceCenter";
+import { dayKeyInZone, formatInZone, isIanaZone } from "@/lib/astrology/transitDetail";
 import type { ReactNode } from "react";
 import type { NatalInterpretation } from "@/lib/astrology/model/western";
 import type {
@@ -63,7 +64,7 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
 }
 /** 6.1C: Roxy KP güç etiketleri (İngilizce) → Türkçe; "bağ derecesi", olay olasılığı değil. */
 export const KP_STRENGTH_TR: Record<string, string> = { "very-strong": "çok güçlü bağ", strong: "güçlü bağ", moderate: "orta bağ", weak: "zayıf bağ" };
-const Item = ({ children }: { children: ReactNode }) => <li className="rounded-lg bg-white px-3 py-2">{children}</li>;
+const Item = ({ children }: { children: ReactNode }) => <li className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{children}</li>;
 const P = ({ text }: { text: string | null | undefined }) => (text ? <p className="mt-0.5 whitespace-pre-line">{text}</p> : null);
 /** 6: Roxy houseThemes (ev anahtar kelimeleri; sağlayıcı anlatısı). */
 function HouseThemes({ themes }: { themes: { house: number; keywords: string[] }[] }) {
@@ -99,14 +100,14 @@ function StrengthsChallenges({ strengths, challenges }: { strengths: string[]; c
   );
 }
 
-function Content({ content }: { content: unknown }) {
+function Content({ content, displayTz = null }: { content: unknown; displayTz?: string | null }) {
   const schema = (content as { schema?: string }).schema;
   switch (schema) {
     case "astro.western.natal.interp.v1": {
       const c = content as NatalInterpretation;
       return (
         <>
-          {c.overall.aspectSummary && <p className="rounded-lg bg-white px-3 py-2">{c.overall.aspectSummary}</p>}
+          {c.overall.aspectSummary && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.overall.aspectSummary}</p>}
           {c.bodies.length > 0 && (
             <Block title="Gezegen yerleşimleri">
               {c.bodies.map((b) => (
@@ -178,7 +179,10 @@ function Content({ content }: { content: unknown }) {
       // Transit takvimi: Roxy olay başına TEK cümle verir (ayrı anlatı / özet yorumu yok). Metin aynen, ay ay.
       const c = content as ForecastInterpretation;
       const months = new Map<string, ForecastInterpretation["events"]>();
-      for (const e of c.events) months.set(e.datetime.slice(0, 7), [...(months.get(e.datetime.slice(0, 7)) ?? []), e]);
+      // TRANSİT-01: gösterim saat dilimi seçiliyse (takvim seçeneği) yerel saat + UTC; ay gruplaması da o bölgeye göre.
+      const tz = displayTz && displayTz !== "UTC" && isIanaZone(displayTz) ? displayTz : null;
+      const monthOf = (dt: string) => (tz ? (dayKeyInZone(dt, tz) ?? dt).slice(0, 7) : dt.slice(0, 7));
+      for (const e of c.events) months.set(monthOf(e.datetime), [...(months.get(monthOf(e.datetime)) ?? []), e]);
       return (
         <>
           <p className="mb-2 text-xs text-slate-500">Bu teknikte ayrı bir genel otomatik yorum bulunmuyor; her olayın otomatik açıklama cümlesi aşağıda değiştirilmeden listelenir ({c.events.length} olay).</p>
@@ -187,7 +191,18 @@ function Content({ content }: { content: unknown }) {
               {list.map((e, i) => (
                 <Item key={`${e.datetime}-${i}`}>
                   <div className="text-xs tabular-nums text-slate-500">
-                    {e.datetime.slice(8, 10)}.{e.datetime.slice(5, 7)}.{e.datetime.slice(0, 4)} {e.datetime.slice(11, 16)} UTC
+                    {tz && formatInZone(e.datetime, tz) ? (
+                      <>
+                        <span className="font-medium text-slate-700" data-testid="astro-forecast-interp-local">
+                          {formatInZone(e.datetime, tz)!.text} {formatInZone(e.datetime, tz)!.zone}
+                        </span>{" "}
+                        · {e.datetime.slice(11, 16)} UTC
+                      </>
+                    ) : (
+                      <>
+                        {e.datetime.slice(8, 10)}.{e.datetime.slice(5, 7)}.{e.datetime.slice(0, 4)} {e.datetime.slice(11, 16)} UTC
+                      </>
+                    )}
                   </div>
                   <P text={e.text} />
                 </Item>
@@ -203,7 +218,7 @@ function Content({ content }: { content: unknown }) {
       const items: { id: PointId; text: string }[] = "bodies" in c ? c.bodies : c.directed;
       return (
         <>
-          {c.overall && <p className="rounded-lg bg-white px-3 py-2">{c.overall}</p>}
+          {c.overall && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.overall}</p>}
           <Block title="Noktalar">
             {items.map((x) => (
               <Item key={x.id}>
@@ -219,8 +234,8 @@ function Content({ content }: { content: unknown }) {
       const c = content as ReturnInterpretation;
       return (
         <>
-          {c.summary && <p className="rounded-lg bg-white px-3 py-2">{c.summary}</p>}
-          {c.purpose && <p className="rounded-lg bg-white px-3 py-2">{c.purpose}</p>}
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.summary}</p>}
+          {c.purpose && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.purpose}</p>}
           <Chips items={c.keyThemes} />
         </>
       );
@@ -229,7 +244,7 @@ function Content({ content }: { content: unknown }) {
       const c = content as SynastryInterpretation;
       return (
         <>
-          {c.overall.text && <p className="rounded-lg bg-white px-3 py-2">{c.overall.text}</p>}
+          {c.overall.text && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.overall.text}</p>}
           <StrengthsChallenges strengths={c.overall.strengths} challenges={c.overall.challenges} />
           <Block title="Kişiler arası açılar">
             {c.aspects.map((a, i) => (
@@ -256,7 +271,7 @@ function Content({ content }: { content: unknown }) {
       const c = content as CompositeInterpretation;
       return (
         <>
-          {c.overall.summary && <p className="rounded-lg bg-white px-3 py-2">{c.overall.summary}</p>}
+          {c.overall.summary && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.overall.summary}</p>}
           <StrengthsChallenges strengths={c.overall.strengths} challenges={c.overall.challenges} />
           <Block title="Composite gezegenler">
             {c.bodies.map((b) => (
@@ -278,7 +293,7 @@ function Content({ content }: { content: unknown }) {
       const ANG: Record<string, string> = { mc: "MC", ic: "IC", asc: "AC", dsc: "DC" };
       return (
         <>
-          {c.summary && <p className="rounded-lg bg-white px-3 py-2">{c.summary}</p>}
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.summary}</p>}
           <Block title="Hatlar">
             {c.lines.map((l) => (
               <Item key={`${l.id}-${l.angle}`}>
@@ -296,7 +311,7 @@ function Content({ content }: { content: unknown }) {
       const c = content as RelocationInterpretation;
       return (
         <>
-          {c.summary && <p className="rounded-lg bg-white px-3 py-2">{c.summary}</p>}
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.summary}</p>}
           <Block title="Yeni evlerdeki gezegenler">
             {c.bodies.map((b) => (
               <Item key={b.id}>
@@ -321,7 +336,7 @@ function Content({ content }: { content: unknown }) {
       const c = content as LocalSpaceInterpretation;
       return (
         <>
-          {c.summary && <p className="rounded-lg bg-white px-3 py-2">{c.summary}</p>}
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.summary}</p>}
           <Block title="Yön hatları">
             {c.bodies.map((b) => (
               <Item key={b.id}>
@@ -341,7 +356,7 @@ function Content({ content }: { content: unknown }) {
       return (
         <>
           <p className="text-xs text-slate-500">Kavuşum metinleri otomatik yorum metinleridir ve sağlayıcı sorgusundaki (3°) tüm temasları kapsar. Anahtar kelimeler kaynak veride İngilizce gelir; Yaşam sözlüğüyle Türkçeleştirilmiştir.</p>
-          {c.summary && <p className="rounded-lg bg-white px-3 py-2">{c.summary}</p>}
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{c.summary}</p>}
           <Block title="Sabit yıldız kavuşumları">
             {c.contacts.map((x) => (
               <Item key={`${x.star}|${x.point}`}>
@@ -398,7 +413,7 @@ function Content({ content }: { content: unknown }) {
             </Block>
           )}
           {c.yogas.length > 0 && (
-            <details className="rounded-lg bg-white px-3 py-2">
+            <details className="rounded-lg bg-white px-3 py-2 max-sm:px-0">
               <summary className="cursor-pointer font-semibold text-sky-900">Yoga ansiklopedisi ({c.yogas.length}) — genel otomatik yoga açıklamaları; çoğu bu haritada OLUŞMAMIŞTIR (oluşanlar teknik bölümde işaretli)</summary>
               <ul className="mt-2 flex flex-col gap-2">
                 {c.yogas.map((y) => (
@@ -418,7 +433,7 @@ function Content({ content }: { content: unknown }) {
       const c = content as VedicDashaInterpretation;
       return (
         <>
-          {c.parent && <p className="rounded-lg bg-white px-3 py-2">Üst dönem: {c.parent}</p>}
+          {c.parent && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">Üst dönem: {c.parent}</p>}
           <Block title="Dönem yorumları">
             {c.periods.map((p) => (
               <Item key={`${p.lord}-${p.start}`}>
@@ -505,7 +520,7 @@ function Content({ content }: { content: unknown }) {
     }
     case "astro.vedic.varga.interp.v1": {
       const c = content as VedicVargaInterpretation;
-      return c.significance ? <p className="rounded-lg bg-white px-3 py-2">Bölümün anlamı: {c.significance}</p> : <p className="text-slate-600">Bu bölüm için sağlayıcı açıklaması yok.</p>;
+      return c.significance ? <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">Bölümün anlamı: {c.significance}</p> : <p className="text-slate-600">Bu bölüm için sağlayıcı açıklaması yok.</p>;
     }
     default:
       return <p className="text-slate-600">Bu yorum biçimi tanınmıyor.</p>;
@@ -544,11 +559,20 @@ function withLocalSpaceCenter(content: unknown, center: LocalSpaceCenter | null 
   return { content: { ...c, bodies, ...(typeof c.summary === "string" ? { summary: localSpaceText(c.summary, center) } : {}) }, note: localSpaceCenterNote(center) };
 }
 
-export default function ProviderInterpretationPanel({ interpretation, localSpace }: { interpretation: InterpretationLayer; localSpace?: LocalSpaceCenter | null }) {
+export default function ProviderInterpretationPanel({
+  interpretation,
+  localSpace,
+  displayTz = null,
+}: {
+  interpretation: InterpretationLayer;
+  localSpace?: LocalSpaceCenter | null;
+  /** TRANSİT-01: analiz seçeneğindeki gösterim saat dilimi (Transit Takvimi olay açıklamalarında yerel saat). */
+  displayTz?: string | null;
+}) {
   const title = interpretationTitle(interpretation);
   const ls = interpretation.visible ? withLocalSpaceCenter(stripSystemKeys(interpretation.content), localSpace) : null;
   return (
-    <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]" aria-label={title}>
+    <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] max-sm:-mx-3 max-sm:rounded-none max-sm:border-x-0 max-sm:px-3" aria-label={title}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-slate-100 pb-2.5">
         <h3 className="flex items-center gap-2 text-base font-semibold text-slate-900">
           <span className="h-2 w-2 rounded-full bg-[#c9a54e]" aria-hidden="true" />
@@ -567,7 +591,7 @@ export default function ProviderInterpretationPanel({ interpretation, localSpace
               {ls.note}
             </p>
           )}
-          <Content content={ls ? ls.content : stripSystemKeys(interpretation.content)} />
+          <Content content={ls ? ls.content : stripSystemKeys(interpretation.content)} displayTz={displayTz} />
         </div>
       )}
     </section>

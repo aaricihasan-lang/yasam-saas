@@ -23,6 +23,8 @@
  *     Yolculuğu kalıcı silme görsel temizliği (snapshot->chartImage->>storagePath) aynen çalışır.
  */
 
+import type { HdCenterState } from "@/lib/human-design/chart/centerStates";
+import { hdKnowledgeDisplayTitle } from "@/lib/human-design/knowledge/centerKnowledge";
 import { createHash } from "node:crypto";
 import {
   hdAuthorityDisplayLabel,
@@ -101,7 +103,11 @@ export type FrozenActivations =
   /** Kayıtlı veri 13+13 doğrulamasından geçmedi → GÖSTERİLMEZ (uydurma yok). */
   | { status: "invalid" };
 
-export type FrozenCenter = { code: string; label: string; defined: boolean };
+/**
+ * state: HD-UZMAN-01 üçlü durum (Tanımlı/Tanımsız/Açık; kanıt yoksa "unverified"). ESKİ snapshot'larda
+ * YOKTUR → eski raporlar eskisi gibi (defined) işlenir; içerikleri değiştirilmez.
+ */
+export type FrozenCenter = { code: string; label: string; defined: boolean; state?: HdCenterState };
 export type FrozenChannel = { code: string; label: string; gates: [number, number] };
 export type FrozenGateActivation = { side: "design" | "personality"; planet: PlanetName; line: number };
 export type FrozenGate = {
@@ -234,6 +240,8 @@ export type BuildSnapshotV2Input = {
   preparedBy?: string | null;
   bodygraph: HdReportSnapshotV2["bodygraph"];
   chartImage: HdReportSnapshotV2["chartImage"];
+  /** HD-UZMAN-01: kayıtlı haritadan kanıtlı merkez durumları (classifyChartRowCenters). Yoksa durum dondurulmaz. */
+  centerStates?: Partial<Record<string, HdCenterState>> | null;
 };
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -307,7 +315,9 @@ function freezeExpert(records: BuildSnapshotV2Input["expertRecords"]): FrozenExp
     if (!content || !title || !code) continue; // boş kayıt atlanır (uydurma yok)
     // BEYAZ LİSTE: yalnız kategori/başlık/kod/metin. expert_notes (Özel Çalışma Notları), etiket,
     // anahtar kelime vb. rapora ASLA taşınmaz — kaynak satırda bulunsa bile.
-    entries.push({ category: str(typeof r.category === "string" ? hdXmlSafeLine(r.category) : r.category) ?? "Genel Notlar", title, code, content });
+    // HD-UZMAN-01: eski genel merkez kaydının otomatik "Açık — …" başlığı kesin Açık gibi DONMAZ.
+    const shownTitle = hdKnowledgeDisplayTitle(code, title);
+    entries.push({ category: str(typeof r.category === "string" ? hdXmlSafeLine(r.category) : r.category) ?? "Genel Notlar", title: shownTitle, code, content });
   }
   // Kategori sırası HD_EXPERT_CATEGORY_ORDER; kategori içinde OTOMATİK doğal sıra (kapı numarası,
   // kanal çifti, sabit seçenek, TR alfabetik) — manuel sort_order KULLANILMAZ.
@@ -323,8 +333,10 @@ export function buildReportSnapshotV2(input: BuildSnapshotV2Input): HdReportSnap
   const openSet = new Set(codes.open_centers);
   const centers: FrozenCenter[] = [];
   for (const c of HUMAN_DESIGN_CENTERS) {
-    if (definedSet.has(c.code)) centers.push({ code: c.code, label: hdCenterLabelFromCode(c.code), defined: true });
-    else if (openSet.has(c.code) || definedSet.size > 0) centers.push({ code: c.code, label: hdCenterLabelFromCode(c.code), defined: false });
+    const state = input.centerStates?.[c.code];
+    const st = state ? { state } : {};
+    if (definedSet.has(c.code)) centers.push({ code: c.code, label: hdCenterLabelFromCode(c.code), defined: true, ...st });
+    else if (openSet.has(c.code) || definedSet.size > 0) centers.push({ code: c.code, label: hdCenterLabelFromCode(c.code), defined: false, ...st });
   }
 
   const channels: FrozenChannel[] = [];

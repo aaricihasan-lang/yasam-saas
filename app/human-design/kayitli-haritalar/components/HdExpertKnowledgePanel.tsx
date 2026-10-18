@@ -3,16 +3,28 @@
 // Hesaplanmış harita → UZMANIN KENDİ Bilgi Bankası eşleşmeleri (human_design_knowledge_records).
 //
 // Kodlar merkezi normalizasyondan (normalize/hdAppCodes) üretilir:
-//   tip_ otorite_ profil_ tanim_ merkez_tanimli_ merkez_acik_ kanal_ kapi_
+//   tip_ otorite_ profil_ tanim_ merkez_tanimli_ merkez_tanimsiz_ merkez_tam_acik_ merkez_acik_(eski genel) kanal_ kapi_
 // → manuel haritalarla BİREBİR aynı kod biçimi; uzman kayıtları tenant-scoped
 // /api/hd/knowledge?codes= ucundan okunur. Sağlayıcı (RoxyAPI) açıklama metni BURADA YOKTUR.
 
 import { useEffect, useMemo, useState } from "react";
 import { buildExpertKnowledgeCodes, toAppChartCodes, type StoredChartScalars } from "@/lib/human-design/normalize/hdAppCodes";
 import { loadKnowledgeForCodes, type KnowledgeGroup } from "../../rapor-olustur/helpers/hdRapor";
+import type { HdCenterCode } from "@/lib/human-design/types";
+import type { HdCenterState } from "@/lib/human-design/chart/centerStates";
+import { HD_LEGACY_CENTER_NOTE, hdKnowledgeDisplayTitle, isLegacyCenterKnowledgeCode } from "@/lib/human-design/knowledge/centerKnowledge";
 
-export function HdExpertKnowledgePanel({ chart }: { chart: StoredChartScalars }) {
-  const codes = useMemo(() => buildExpertKnowledgeCodes(toAppChartCodes(chart)), [chart]);
+export function HdExpertKnowledgePanel({
+  chart,
+  centerStates = null,
+}: {
+  chart: StoredChartScalars;
+  /** HD-UZMAN-01: kanıtlı merkez durumları (Tanımsız / Açık kesin kayıtları için). */
+  centerStates?: Partial<Record<HdCenterCode, HdCenterState>> | null;
+}) {
+  const statesKey = centerStates ? JSON.stringify(centerStates) : "";
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- statesKey, centerStates içeriğinin kararlı anahtarı
+  const codes = useMemo(() => buildExpertKnowledgeCodes(toAppChartCodes(chart), centerStates), [chart, statesKey]);
   const codesKey = codes.join(",");
   const [state, setState] = useState<{ loading: boolean; groups: KnowledgeGroup[]; error: string | null }>({
     loading: true,
@@ -66,7 +78,10 @@ export function HdExpertKnowledgePanel({ chart }: { chart: StoredChartScalars })
               <div className="space-y-2">
                 {records.map((r) => (
                   <article key={r.id} data-hd-kb-code={r.code} className="rounded-xl border border-emerald-100 bg-emerald-50/40 px-4 py-3">
-                    <p className="mb-1 text-xs font-bold text-slate-800">{r.title}</p>
+                    <p className="mb-1 text-xs font-bold text-slate-800">{hdKnowledgeDisplayTitle(r.code, r.title)}</p>
+                    {isLegacyCenterKnowledgeCode(r.code) ? (
+                      <p className="mb-1 text-[10px] font-semibold text-amber-700" data-hd-kb-legacy-center>{HD_LEGACY_CENTER_NOTE}</p>
+                    ) : null}
                     {r.content ? (
                       <p className="whitespace-pre-wrap text-xs leading-relaxed text-slate-700">{r.content}</p>
                     ) : null}

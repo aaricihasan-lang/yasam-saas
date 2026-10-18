@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { ArrowRight, Brain, ChartColumn, Compass } from "lucide-react";
 import AtlasCenterCard from "./AtlasCenterCard";
+import CosmicAgendaCenterCard from "./CosmicAgendaCenterCard";
+import ModuleVisibility from "./ModuleVisibility";
+
+// 2026-10-17: alt kart yalnız ilgili modül yetkisi olan kullanıcıya görünür (adres → yetki anahtarları; TR alias dahil).
+const SUB_MODULE_KEYS: Record<string, readonly string[]> = {
+  "/numeroloji": ["numerology", "numeroloji"],
+  "/human-design": ["human_design"],
+};
 
 const subModules = [
   {
@@ -58,7 +66,7 @@ export default function LifeAnalysisPage() {
             </div>
           </div>
           <p className="mt-2.5 max-w-lg text-sm font-medium text-slate-600 sm:text-base">
-            Numeroloji ve Human Design analiz araçları
+            Numeroloji, Human Design ve Kozmik Ajanda analiz araçları
           </p>
           <div className="mt-3 h-px w-full bg-gradient-to-r from-violet-200/80 via-purple-200/60 to-transparent" />
         </div>
@@ -68,8 +76,8 @@ export default function LifeAnalysisPage() {
           {subModules.map((mod) => {
             const { Icon } = mod;
             return (
+              <ModuleVisibility key={mod.href} keys={SUB_MODULE_KEYS[mod.href]}>
               <Link
-                key={mod.href}
                 href={mod.href}
                 className={`group flex flex-col rounded-[18px] border bg-gradient-to-br p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${mod.cardGradient} ${mod.border} ${mod.comingSoon ? "opacity-80" : ""}`}
               >
@@ -102,9 +110,12 @@ export default function LifeAnalysisPage() {
                   </span>
                 </div>
               </Link>
+              </ModuleVisibility>
             );
           })}
           {/* 2026-10-15: Gökyüzü Atlası — yalnız erişimi doğrulanan kullanıcıya görünür (AtlasCenterCard). */}
+          {/* 2026-10-17: Yaşam Takvimi / Kozmik Ajanda — yalnız cosmic_calendar yetkisi olan kullanıcıya görünür. */}
+          <CosmicAgendaCenterCard />
           <AtlasCenterCard />
         </div>
       </div>

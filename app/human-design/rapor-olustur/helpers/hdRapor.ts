@@ -1,6 +1,9 @@
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type { HumanDesignChart, HumanDesignKnowledgeRecord } from "@/lib/human-design/types";
 import { sortHdKnowledgeRecords } from "@/lib/human-design/knowledge/hdKnowledgeSort";
+import { centerKnowledgeCodes } from "@/lib/human-design/normalize/hdAppCodes";
+import { hdKnowledgeDisplayTitle } from "@/lib/human-design/knowledge/centerKnowledge";
+import { centerStateMap, classifyChartRowCenters } from "@/lib/human-design/chart/centerStates";
 
 // Sprint-3/4: human_design_charts + knowledge_records + reports okuma/yazma tamamen
 // server route'ları (/api/hd/charts, /api/hd/knowledge, /api/hd/reports — service_role)
@@ -52,12 +55,14 @@ export function buildCodesFromChart(chart: HumanDesignChart): string[] {
   if (chart.profile_code) codes.push(`profil_${chart.profile_code}`);
   if (chart.definition_code) codes.push(`tanim_${chart.definition_code}`);
 
-  for (const center of (chart.active_centers ?? [])) {
-    codes.push(`merkez_tanimli_${center}`);
-  }
-  for (const center of (chart.open_centers ?? [])) {
-    codes.push(`merkez_acik_${center}`);
-  }
+  // HD-UZMAN-01: Tanımlı / Tanımsız / Açık kesin kodları + eski genel merkez_acik_ uyumluluğu.
+  codes.push(
+    ...centerKnowledgeCodes(
+      chart.active_centers ?? [],
+      chart.open_centers ?? [],
+      centerStateMap(classifyChartRowCenters(chart)),
+    ),
+  );
 
   // "34-57" → "kanal_34_57"
   for (const channel of (chart.channels ?? [])) {
@@ -151,7 +156,7 @@ export function buildReportText(groups: KnowledgeGroup[]): string {
   if (groups.length === 0) return "";
   return groups
     .flatMap(({ category, records }) =>
-      records.map((r) => `### ${category} — ${r.title}\n\n${r.content}`),
+      records.map((r) => `### ${category} — ${hdKnowledgeDisplayTitle(r.code, r.title)}\n\n${r.content}`),
     )
     .join("\n\n---\n\n");
 }

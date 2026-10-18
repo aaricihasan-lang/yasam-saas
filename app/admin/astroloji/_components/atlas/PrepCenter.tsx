@@ -22,7 +22,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExterna
 import { AlertTriangle, Check, ChevronDown, Loader2, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
-import { describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
+import { dateInputReason, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
 import { MethodFields, PartnerField, TechniqueParamFields, USES_HOUSE_SYSTEM, USES_NODE_TYPE, type PartnerOption } from "../TechniqueSelector";
 import { deskPrimary } from "./ResultDesk";
 import { atlasDisplay, atlasText } from "./fonts";
@@ -61,8 +61,8 @@ const TECH_BY_SYSTEM: Record<SystemId, UiTechniqueId[]> = {
 /** Tekniğin ne gösterdiği (genel tanım; kişiye özgü içerik yok). */
 const ABOUT: Record<UiTechniqueId, string> = {
   "western.natal": "Doğum anındaki gökyüzü: gezegenlerin burç ve ev konumları, açısal noktalar ve gezegenler arası açılar.",
-  "western.transit": "Seçilen andaki gezegenlerin natal haritayla yaptığı açılar. Tek bir anın görüntüsüdür.",
-  "western.forecast": "Bir dönem boyunca transit açıları, burç girişleri, istasyonlar, tutulmalar ve Ay evreleri. Sağlayıcı isteği en çok 90 günlük parçalara bölünür.",
+  "western.transit": "Seçilen andaki gezegenlerin natal haritayla yaptığı açılar: güç, orb, yaklaşan/ayrılan, transit gezegenin geçtiği natal ev ve çift halka harita. Tek bir anın görüntüsüdür; kesinleşme anları Transit Takvimi gününden açıldığında takvimden gösterilir.",
+  "western.forecast": "Bir dönem boyunca natal haritaya transit açılarının kesinleşme anları ile burç girişleri, istasyonlar, tutulmalar ve Ay evreleri; sağlayıcı önem puanı. Gün seçilince o günün ayrıntısı açılır, günün transit haritası istenirse ayrıca hesaplanır. Sağlayıcı isteği en çok 90 günlük parçalara bölünür.",
   "western.progression": "İkincil ilerletme: doğumdan sonraki her gün yaşamın bir yılına karşılık gelir; hedef tarih için ilerletilmiş harita.",
   "western.solar_arc": "Tüm natal noktalar, ilerletilmiş Güneş'in kat ettiği yay kadar ileri taşınır.",
   "western.solar_return": "Güneş'in natal boylamına döndüğü anın haritası; seçilen yılın teması için kullanılır.",
@@ -91,8 +91,8 @@ const ABOUT: Record<UiTechniqueId, string> = {
 /** Gerekli / ayarlanabilir parametrelerin kısa özeti (dizinde görünür). */
 const PARAMS_NOTE: Record<UiTechniqueId, string> = {
   "western.natal": "ev sistemi · ay düğümü",
-  "western.transit": "an · ay düğümü",
-  "western.forecast": "başlangıç · süre",
+  "western.transit": "an (şimdi / gün / gün + saat) · saat dilimi · ay düğümü",
+  "western.forecast": "başlangıç · bitiş (en çok 366 gün) · saat dilimi",
   "western.progression": "hedef tarih · ay düğümü",
   "western.solar_arc": "hedef tarih · ay düğümü",
   "western.solar_return": "yıl · konum · ev sistemi",
@@ -140,7 +140,7 @@ function useMode(): Mode {
 
 /* ── Görsel yardımcılar ────────────────────────────────────────────────────────────────────────── */
 const SURFACE =
-  "relative rounded-2xl border border-white/[0.07] bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.012))] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_24px_48px_-28px_rgba(0,0,0,0.85)]";
+  "relative rounded-2xl border border-white/[0.07] bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.012))] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_24px_48px_-28px_rgba(0,0,0,0.85)] max-sm:rounded-none max-sm:border-x-0";
 const EYEBROW = "text-[10.5px] font-semibold tracking-[0.18em] text-[#E6CF9F]/80";
 
 const CSS = `
@@ -522,7 +522,7 @@ export default function PrepCenter({
                 </span>
               </button>
             </div>
-            {inlineSettings && f && <div className="atlas-prep-in mt-1.5 rounded-xl border border-white/[0.07] bg-black/20 p-3">{settingsBody(true)}</div>}
+            {inlineSettings && f && <div className="atlas-prep-in mt-1.5 rounded-xl border border-white/[0.07] bg-black/20 p-3 max-sm:-mx-2 max-sm:rounded-none max-sm:border-x-0 max-sm:px-2">{settingsBody(true)}</div>}
           </li>
         );
       })}
@@ -535,7 +535,9 @@ export default function PrepCenter({
   const newN = statuses.filter((s) => s.kind === "new").length;
   const blockedN = statuses.filter((s) => s.kind === "blocked").length;
   const missingN = statuses.filter((s) => s.kind === "missing").length;
-  const runDisabled = !profile || running || !plan || plan.selectedCount === plan.blockedCount;
+  // Tarih/saat alanı tamamlanmamış teknik varken başlatma kapalı (yarım tarihle diğerleri sessizce çalışmasın).
+  const dateIncomplete = chosen.some((id) => !!dateInputReason(id, params));
+  const runDisabled = !profile || running || !plan || plan.selectedCount === plan.blockedCount || dateIncomplete;
   const runLabel = running ? "Hesaplanıyor…" : plan?.requiresConfirmation ? `${plan.newRequestCount} yeni isteği onayla ve başlat` : "Analizi Başlat";
 
   const missingList = chosen.map((id) => ({ id, why: missingReason(id, params) })).filter((x): x is { id: UiTechniqueId; why: string } => !!x.why);
@@ -544,9 +546,9 @@ export default function PrepCenter({
     // SABİT (fixed): kök düzende body kendi kaydırma kabı olduğundan sticky çalışmaz; yerine akışta ölçülü boşluk bırakılır.
     // FINAL: tek satır, kompakt; Plan Ayrıntıları yukarı açılan panelde (konsol yüksekliği büyümez).
     <div ref={consoleRef} className="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-[max(0.4rem,env(safe-area-inset-bottom))]" data-testid="atlas-console">
-      <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1600px] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] sm:px-6 lg:px-8">
         <div
-          className="pointer-events-auto relative ml-auto rounded-2xl border border-[#D9B56F]/30 bg-[linear-gradient(180deg,rgba(24,30,78,0.95),rgba(8,12,36,0.97))] px-3 py-1.5 text-[#F6F2EA] shadow-[0_-14px_32px_-22px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-md lg:max-w-[980px]"
+          className="pointer-events-auto relative ml-auto rounded-2xl border border-[#D9B56F]/30 max-sm:rounded-none max-sm:border-x-0 bg-[linear-gradient(180deg,rgba(24,30,78,0.95),rgba(8,12,36,0.97))] px-3 py-1.5 text-[#F6F2EA] shadow-[0_-14px_32px_-22px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-md lg:max-w-[980px]"
           data-testid="astro-plan-box"
         >
           <span className="pointer-events-none absolute inset-x-6 -top-px h-px bg-gradient-to-r from-transparent via-[#E6C887]/70 to-transparent" aria-hidden="true" />
@@ -682,7 +684,7 @@ export default function PrepCenter({
     "inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-white/15 px-3 py-2 text-xs text-[#F6F2EA]/85 transition hover:border-[#D9B56F]/70 hover:text-[#F6E7C3] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#D9B56F] disabled:opacity-40";
 
   const plate = (
-    <header className={`${SURFACE} flex flex-col gap-2.5 px-4 py-3`} data-testid="atlas-prep-plate">
+    <header className={`${SURFACE} flex flex-col gap-2.5 px-3 py-3 sm:px-4`} data-testid="atlas-prep-plate">
       <Brackets className="border-[#D9B56F]/35" />
       <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0" data-testid="atlas-client-identity">

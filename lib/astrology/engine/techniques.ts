@@ -121,6 +121,7 @@ import {
 } from "../model/vedic";
 import { VEDIC_D1_INTERP_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_INTERP_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_VARGA_DIVISIONS, type VedicGrahaId, VEDIC_VARGA_INTERP_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, type VedicVargaDivision } from "../model/vedic";
 import { calcInputHash } from "./inputHash";
+import { calendarExactFor } from "../transitDetail";
 import { fixedStarsBody } from "../providers/roxy/requests";
 import { projectRoxyFixedStars, ROXY_FIXED_STARS } from "../providers/roxy/fixedStars";
 import { FIXED_STAR_ORB_QUERY, FIXED_STARS_INTERP_SCHEMA, FIXED_STARS_TECHNICAL_SCHEMA, fixedStarOrbOf, FIXED_STAR_ORB_OPTIONS } from "../model/westernFixedStars";
@@ -364,7 +365,22 @@ const westernTransit: TechniqueDefinition = {
     const r = o(raw);
     const atUtc = normalizeTransitMoment(r, now);
     const nodeType = nodeTypeOf(r.nodeType);
-    return atUtc && nodeType ? { atUtc, nodeType } : null;
+    if (!atUtc || !nodeType || !yearOk(Number(atUtc.slice(0, 4)))) return null;
+    // TRANSİT-01: GÖSTERİM saat dilimi (yalnız ekran/rapor) ve kaynak takvim penceresi (yalnız-önbellek kesinleşme
+    // eşleşmesi). İkisi de istek gövdesine GİRMEZ → önbellek anahtarı değişmez; verilmedikleri sürece normalize
+    // seçenek nesnesi eskisiyle BİREBİR aynıdır ({ atUtc, nodeType }).
+    const out: Record<string, unknown> = { atUtc, nodeType };
+    const tz = r.displayTz ?? (r.now === true ? undefined : r.timezone);
+    if (tz !== undefined) {
+      if (typeof tz !== "string" || !isValidIanaTimeZone(tz)) return null;
+      out.displayTz = tz;
+    }
+    if (r.calendar !== undefined) {
+      const c = parseCalendarWindow(r.calendar);
+      if (!c) return null;
+      out.calendar = c;
+    }
+    return out;
   },
   units: (ctx, opt) => {
     const at = String(opt.atUtc);
@@ -373,16 +389,29 @@ const westernTransit: TechniqueDefinition = {
   project: (_u, raw, opt) => fromAdapter(projectRoxyTransit(raw, { nodeType: opt.nodeType as NodeType, atUtc: `${opt.atUtc}Z` }), TRANSIT_TECHNICAL_SCHEMA, TRANSIT_INTERP_SCHEMA, ROXY_TRANSIT.projection),
   // Çift halka natal çerçevesi: AYNI doğum verisi + AYNI düğüm türüyle önbellekteki natal (ev sistemi önceliği
   // Placidus → Tam burç → Eşit → Koch). Gövde doğum verisinden kurulduğu için başka revizyonun natali eşleşemez.
-  contextUnits: (ctx, opt) =>
-    TRANSIT_FRAME_HOUSE_SYSTEMS.map((hs) =>
+  // TRANSİT-01: takvim günü bağlantısı varsa ARDINDAN o takvimin parçaları (aynı gövdeler → aynı önbellek anahtarları).
+  contextUnits: (ctx, opt) => [
+    ...TRANSIT_FRAME_HOUSE_SYSTEMS.map((hs) =>
       unit("western.natal", { endpoint: ROXY_NATAL_ENDPOINT, adapter: ROXY_NATAL_ADAPTER_VERSION }, buildNatalRequestBody(ctx.birth, { houseSystem: hs, nodeType: opt.nodeType as NodeType })),
     ),
+    ...(isCalendarWindow(opt.calendar) ? westernForecast.units(ctx, opt.calendar) : []),
+  ],
   attachContext: (technical, context, opt) => {
     const t = technical as TransitTechnical;
-    const natal = context.find((c): c is NatalTechnical => !!c && (c as { schema?: string }).schema === NATAL_TECHNICAL_SCHEMA) ?? null;
-    if (!natal || !natal.angles || natal.houses.length !== 12 || natal.nodeType !== opt.nodeType) return { ...t, natalFrame: null };
+    const natalCtx = context.slice(0, TRANSIT_FRAME_HOUSE_SYSTEMS.length);
+    // Takvim bağlantısı: yalnız seçenekte varsa alan eklenir (yoksa teknik katman eskisiyle aynı biçimde kalır).
+    const cal = isCalendarWindow(opt.calendar)
+      ? (() => {
+          const chunks = forecastChunks(opt.calendar.startDate, opt.calendar.days);
+          const parts = context.slice(TRANSIT_FRAME_HOUSE_SYSTEMS.length).map((c) => (c && (c as { schema?: string }).schema === FORECAST_TECHNICAL_SCHEMA ? (c as ForecastTechnical) : null));
+          return { calendarExact: calendarExactFor(t, parts, { start: chunks[0].start, end: chunks[chunks.length - 1].end }) };
+        })()
+      : {};
+    const natal = natalCtx.find((c): c is NatalTechnical => !!c && (c as { schema?: string }).schema === NATAL_TECHNICAL_SCHEMA) ?? null;
+    if (!natal || !natal.angles || natal.houses.length !== 12 || natal.nodeType !== opt.nodeType) return { ...t, natalFrame: null, ...cal };
     return {
       ...t,
+      ...cal,
       natalFrame: {
         houseSystem: natal.houseSystem,
         nodeType: natal.nodeType,
@@ -395,6 +424,16 @@ const westernTransit: TechniqueDefinition = {
 };
 const TRANSIT_FRAME_HOUSE_SYSTEMS: HouseSystem[] = ["placidus", "whole-sign", "equal", "koch"];
 
+/** Takvim penceresi (forecast seçeneği ile AYNI kural): başlangıç günü + 1..366 gün; yıl 1600–2600. */
+type CalendarWindow = { startDate: string; days: number };
+function parseCalendarWindow(raw: unknown): CalendarWindow | null {
+  const r = o(raw);
+  const days = Number(r.days ?? 90);
+  if (typeof r.startDate !== "string" || !isValidIsoDate(r.startDate) || !yearOk(Number(r.startDate.slice(0, 4))) || !Number.isInteger(days) || days < 1 || days > FORECAST_MAX_DAYS) return null;
+  return { startDate: r.startDate, days };
+}
+const isCalendarWindow = (v: unknown): v is CalendarWindow => parseCalendarWindow(v) !== null;
+
 const westernForecast: TechniqueDefinition = {
   id: "western.forecast",
   label: "Transit takvimi (dönem)",
@@ -404,9 +443,11 @@ const westernForecast: TechniqueDefinition = {
   timeDependent: true,
   parseOptions: (raw) => {
     const r = o(raw);
-    const days = Number(r.days ?? 90);
-    if (typeof r.startDate !== "string" || !isValidIsoDate(r.startDate) || !Number.isInteger(days) || days < 1 || days > FORECAST_MAX_DAYS) return null;
-    return { startDate: r.startDate, days };
+    const w = parseCalendarWindow(r);
+    if (!w) return null;
+    // TRANSİT-01: yalnız GÖSTERİM saat dilimi (gün gruplaması / yerel saat); gövdeye girmez → önbellek anahtarı aynı.
+    if (r.displayTz === undefined) return w;
+    return typeof r.displayTz === "string" && isValidIanaTimeZone(r.displayTz) ? { ...w, displayTz: r.displayTz } : null;
   },
   units: (ctx, opt) =>
     forecastChunks(String(opt.startDate), Number(opt.days)).map((c, i) =>

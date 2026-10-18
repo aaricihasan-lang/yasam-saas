@@ -54,7 +54,7 @@ export default function EnerjiBedenPage() {
             YAŞAM SİSTEMİ
           </p>
           <h1 className="mt-2 bg-gradient-to-r from-fuchsia-400 via-cyan-300 to-blue-400 bg-clip-text text-4xl font-black tracking-tight text-transparent sm:text-5xl xl:text-6xl">
-            Enerji &amp; Beden
+            Beden &amp; Enerji Uygulamaları
           </h1>
           <p className="mx-auto mt-2 max-w-2xl text-sm text-slate-400 sm:text-base">
             Beden üzerinde çalışan uygulama ve terapi araçları
