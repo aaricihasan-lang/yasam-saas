@@ -16,12 +16,34 @@ import { mkUser, type Auth, type Json } from "../hd-analysis-word-flow/env";
 import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv, type TestEnv } from "../anamnez/testEnv";
 import { computeGeneralTransit } from "../../lib/human-design/transit/generalTransit";
 import { resolveTransitMoment } from "../../lib/human-design/transit/transitMoment";
+import { createClient } from "@supabase/supabase-js";
+import { computePersonalTransit } from "../../lib/human-design/transit/personalTransitService";
+import { overlaySceneState } from "../../lib/human-design/transit/transitScene";
+import { engineChart, PEOPLE, type Moment } from "../hd-relations/fakeRelationRoxy";
+import { fakeTransitResponse } from "./fakeRoxyTransit";
 
 const OUT = process.argv.includes("--out") ? process.argv[process.argv.indexOf("--out") + 1] : path.join(os.tmpdir(), "hd-transit-browser");
 mkdirSync(OUT, { recursive: true });
 const PORT = 3998;
 const APP = `http://127.0.0.1:${PORT}`;
 const TA = "0f0f0f0f-0000-4000-8000-00000000000a";
+const CL = ["eeeeeeee-2222-4000-8000-0000000c0001", "eeeeeeee-2222-4000-8000-0000000c0002"];
+const CH = ["eeeeeeee-2222-4000-8000-0000000d0001", "eeeeeeee-2222-4000-8000-0000000d0002"];
+const HD_DDL = `
+create table public.human_design_clients (
+  id uuid primary key default gen_random_uuid(), tenant_id uuid, user_id uuid, name text not null,
+  birth_date date, birth_time text, birth_place text, chart_image_url text, notes text,
+  created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+);
+create table public.human_design_charts (
+  id uuid primary key default gen_random_uuid(), tenant_id uuid, user_id uuid,
+  client_id uuid references public.human_design_clients(id) on delete set null, client_name text,
+  birth_date date, birth_time text, birth_place text, source text default 'manual', input jsonb, computed_result jsonb,
+  provider text, provider_raw jsonb, input_hash text, timezone text,
+  created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+);
+grant select, insert, update, delete on public.human_design_clients, public.human_design_charts to service_role;
+`;
 const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 const ANDROID = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36";
 const DEVICES = [
@@ -61,7 +83,7 @@ async function main() {
   }) as typeof fetch;
   delete process.env.ROXY_API_KEY;
 
-  const env: TestEnv = await startAnamnezTestEnv({ port: Number(process.env.HD_TR_PG_PORT ?? 54471), dirName: "hd-transit-browser-pgdata", httpPort: 54523, extraSql: [`insert into public.tenants(id, name) values ('${TA}', 'ZZ_TRANSIT')`] });
+  const env: TestEnv = await startAnamnezTestEnv({ port: Number(process.env.HD_TR_PG_PORT ?? 54471), dirName: "hd-transit-browser-pgdata", httpPort: 54523, extraSql: [`insert into public.tenants(id, name) values ('${TA}', 'ZZ_TRANSIT')`, HD_DDL] });
   process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;
   process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_KEY;
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = ANON_KEY;
@@ -70,6 +92,15 @@ async function main() {
   let browser: Browser | null = null;
   const pageErrors: string[] = [];
   try {
+    // Kişisel transit tohumu: 1 geçerli otomatik analiz + 1 manuel (seçilemez)
+    for (let i = 0; i < 2; i++) {
+      const m = PEOPLE[i];
+      await su.query(`insert into public.human_design_clients(id, tenant_id, name, birth_date, birth_time) values ($1,$2,$3,$4,$5)`, [CL[i], TA, ["Ayşe Yılmaz", "Manuel Kişi"][i], m.date, m.time.slice(0, 5)]);
+      await su.query(
+        `insert into public.human_design_charts(id, tenant_id, client_id, client_name, source, provider, input, input_hash, computed_result) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [CH[i], TA, CL[i], "x", i === 0 ? "computed" : "manual", i === 0 ? "roxyapi" : null, JSON.stringify({ date: m.date, time: m.time, timezone: m.timezone, latitude: m.latitude, longitude: m.longitude, nodeType: "true", lang: "tr" }), `ih-${i}`, JSON.stringify(engineChart(m))],
+      );
+    }
     const PA = { human_design: true };
     const UA: Auth = await mkUser(su, "TRBR", TA, PA);
     const NOHD: Auth = await mkUser(su, "TRNO", TA, { human_design: false });
@@ -117,6 +148,7 @@ async function main() {
     ok(after === before, "transit hesabı veritabanına satır yazmaz (rate-limit tablosu hariç)", { diff, before: before.split(",").filter((x) => diff.some((d) => d.split(":")[0] === x.split(":")[0])) });
 
     // ── Tarayıcı ─────────────────────────────────────────────────────────────
+    const svc = createClient(env.url, SERVICE_KEY, { auth: { persistSession: false } });
     browser = await chromium.launch();
     const only = (process.env.HD_E2E_ONLY ?? "").split(",").filter(Boolean);
     for (const d of DEVICES.filter((x) => !only.length || only.includes(x.name))) {
@@ -185,8 +217,59 @@ async function main() {
       await page.waitForFunction(() => Math.abs(Date.parse(document.querySelector("[data-hd-transit-moment]")?.getAttribute("data-hd-transit-moment") ?? "0") - Date.now()) < 180_000, null, { timeout: 15_000 });
       ok(true, `${d.name}: "Şimdi" düğmesi anı günceller`);
       ok(!(await overflowX()), `${d.name}: sayfada yatay taşma yok`);
-      ok(roxyDirect === 0, `${d.name}: tarayıcıdan Roxy isteği YOK`);
       await page.screenshot({ path: path.join(OUT, `${d.name}-transit.png`), fullPage: true });
+
+      // ── Kişisel Transit ──
+      await page.locator("[data-hd-transit-tab='personal']").click();
+      await page.waitForURL(/gorunum=kisisel/, { timeout: 15_000 });
+      await page.locator("[data-hd-transit-view='personal']").waitFor({ timeout: 15_000 });
+      ok((await page.locator("h1").innerText()).includes("Kişisel Transit Analizi"), `${d.name}: Kişisel Transit sekmesi (başlık)`);
+      await page.waitForFunction(() => (document.querySelector("[data-hd-ptransit-client]") as HTMLSelectElement | null)?.options.length === 3, null, { timeout: 30_000 });
+      const opts = await page.locator("[data-hd-ptransit-client] option").evaluateAll((els) => els.map((e) => ({ v: (e as HTMLOptionElement).value, dis: (e as HTMLOptionElement).disabled, t: e.textContent })));
+      ok(opts.find((o) => o.v === CL[0])?.dis === false && opts.find((o) => o.v === CL[1])?.dis === true && (await page.locator("[data-hd-transit-submit]").isDisabled()), `${d.name}: geçerli analizli danışan seçilebilir; manuel analizli seçilemez; danışan seçilmeden hesap düğmesi pasif`, opts);
+      await page.locator("[data-hd-ptransit-client]").selectOption(CL[0]);
+      await page.locator("[data-hd-transit-date]").fill("2026-10-19");
+      await page.locator("[data-hd-transit-time]").fill("09:00");
+      await page.locator("[data-hd-transit-submit]").click();
+      await page.locator("[data-hd-ptransit-error]").waitFor({ timeout: 15_000 });
+      const errTxt = await page.locator("[data-hd-ptransit-error]").innerText();
+      ok(errTxt.includes("yapılandırılmamış") && !/roxy|kredi|kota/i.test(errTxt), `${d.name}: sunucuda hesaplama anahtarı yok → açık hata; sağlayıcı / kota adı yok`, errTxt);
+      // Başarılı yol: yanıt GERÇEK servisten (süreç içinde, sahte sağlayıcıyla) üretilir.
+      let served = 0;
+      await page.route("**/api/hd/transit/personal", async (route) => {
+        served++;
+        const body = route.request().postDataJSON() as Record<string, unknown>;
+        const r = await computePersonalTransit({ db: svc, tenantId: TA, userId: UA.id!, isDemo: false }, body, {
+          config: { apiKey: "k", baseUrl: "https://example.invalid" },
+          callTransit: async (_c, b) => ({ ok: true, raw: fakeTransitResponse(b.birthData as unknown as Moment, b.date, b.time) }),
+          rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
+        });
+        await route.fulfill({ status: r.status, contentType: "application/json", body: JSON.stringify(r.body) });
+      });
+      await page.locator("[data-hd-transit-time]").fill("09:30");
+      await page.locator("[data-hd-transit-submit]").click();
+      await page.locator("[data-hd-ptransit-moment]").waitFor({ timeout: 30_000 });
+      const pLocal = computeGeneralTransit(new Date("2026-10-19T06:30:00Z"));
+      const natalG = [...new Set(engineChart(PEOPLE[0]).activations.map((a: { gate: number }) => a.gate))].sort((x, y) => x - y);
+      const st = overlaySceneState(natalG, pLocal.activeGates);
+      const pRows = await page.locator("[data-hd-ptransit-activation]").evaluateAll((els) => els.map((e) => e.getAttribute("data-hd-ptransit-activation")));
+      ok((await page.locator("[data-hd-ptransit-moment]").getAttribute("data-hd-ptransit-moment")) === "2026-10-19T06:30:00.000Z" && JSON.stringify(pRows) === JSON.stringify(pLocal.activations.map((a) => `${a.body}:${a.gate}.${a.line}`)), `${d.name}: kişisel transit 19.10.2026 09:30 → 06:30Z; 13 transit aktivasyonu`);
+      ok((await page.locator("[data-hd-ptransit-natal-gates]").innerText()) === natalG.join(", "), `${d.name}: natal kapılar ayrı listede (kayıtlı analizden)`);
+      const pDef = (await page.locator("[data-hd-transit-graph='personal']").getAttribute("data-hd-transit-defined")) ?? "";
+      const expDef = Object.values(st.channels).filter((c) => c.state === "defined").map((c) => c.id).sort().join(",");
+      const pg = await page.evaluate(() => { const s = document.querySelector("svg[data-hd-cbg]")!; return { a: s.querySelectorAll("[data-hd-cbg-gate$=':A']").length, b: s.querySelectorAll("[data-hd-cbg-gate$=':B']").length, both: s.querySelectorAll("[data-hd-cbg-gate$=':both']").length, w: s.getBoundingClientRect().right }; });
+      const nS = new Set(natalG);
+      const tS = new Set(pLocal.activeGates);
+      ok(pDef === expDef && pg.a === natalG.filter((g) => !tS.has(g)).length && pg.b === pLocal.activeGates.filter((g) => !nS.has(g)).length && pg.both === natalG.filter((g) => tS.has(g)).length, `${d.name}: natal (mavi ${pg.a}) / transit (turuncu ${pg.b}) / ortak (${pg.both}) kapılar ve tanımlı kanallar grafikte doğru`, { pDef, expDef, pg });
+      const perso = await page.locator("[data-hd-ptransit-channel]").evaluateAll((els) => els.map((e) => e.getAttribute("data-hd-ptransit-channel")));
+      ok(perso.every((x) => /^(personal|educational):/.test(x!)) && (await page.locator("[data-hd-ptransit-natal-channels]").innerText()).length > 0, `${d.name}: kişisel / iki kapısı transit kanallar ayrı bölümlerde (${perso.length}); natal kanallar ayrı`);
+      ok(pg.w <= d.w + 1 && !(await overflowX()), `${d.name}: kişisel transit grafiği ekrana sığar, yatay taşma yok`);
+      await page.locator("[data-hd-transit-submit]").click();
+      await page.waitForTimeout(300);
+      ok(served === 1, `${d.name}: aynı danışan + aynı an tekrar istenince sunucuya yeni istek gitmez (oturum önbelleği)`, served);
+      await page.screenshot({ path: path.join(OUT, `${d.name}-personal-transit.png`), fullPage: true });
+      await page.unroute("**/api/hd/transit/personal");
+      ok(roxyDirect === 0, `${d.name}: tarayıcıdan Roxy isteği YOK`);
       await ctx.close();
     }
     ok(pageErrors.length === 0, "sayfa hatası (JS) yok", pageErrors);
