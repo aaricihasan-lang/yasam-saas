@@ -9,7 +9,7 @@
 // değişmez); ön katman ölçeklenmez. Veri YALNIZ kayıtlı + doğrulanmış Connection sonucu ve (varsa) kayıtlı bireysel
 // aktif kapılar (compositeModel). Klasik kural: her aktif kapı kanalın KENDİ yarısını kişinin rengine boyar
 // (A mavi, B turuncu, ikisi → mavi boru üzerinde turuncu şerit). İki yarısı boyalı = TANIMLI kanal; tek yarısı
-// boyalı = YARIM kanal. Bağlantı türü grafikte işaretlenmez (owner kararı); kanal listesinde ve seçim panelinde. Entegrasyon ağında (10 · 20 · 34 · 57) her kapı kendi kolunu
+// boyalı ve KESİKLİ = YARIM kanal (owner onayı; PR #431 eşdeğeri). Bağlantı türü grafikte işaretlenmez (owner kararı); kanal listesinde ve seçim panelinde. Entegrasyon ağında (10 · 20 · 34 · 57) her kapı kendi kolunu
 // boyar; ortak gövde yalnız gövdeden geçen bir kanal tanımlıysa boyanır.
 //
 // TEK KAYNAK: her ilkel `cbgElements` ile SVG öğe tanımlarına çevrilir; tarayıcıdaki etkileşimli React SVG
@@ -148,7 +148,7 @@ export type CbgPrim =
   | { k: "silhouette" }
   | { k: "shadows"; routes: string[] }
   | { k: "pipe"; points: string; part: "edge" | "body" | "shine"; cap: "butt" | "round" }
-  | { k: "fill"; points: string; tone: "A" | "B"; stripe?: boolean; chs: string[]; pal?: CbgPalette }
+  | { k: "fill"; points: string; tone: "A" | "B"; stripe?: boolean; chs: string[]; pal?: CbgPalette; halfOnly?: boolean }
   | { k: "tick"; points: string; chs: string[] }
   | { k: "slot" }
   | { k: "center"; engine: string; points: string; defined: boolean }
@@ -283,11 +283,15 @@ export function cbgChannelRoute(id: string): Pt[] {
 }
 export const CBG_CHANNEL_IDS: readonly string[] = CHANNELS.map((c) => c.id);
 
-/** Bir kanal yarısını kişi rengine boyayan dolgu(lar). Ortak kapı: mavi boru + turuncu şeritler. */
-function fills(points: Pt[], h: Holder, chs: string[]): CbgPrim[] {
+/**
+ * Bir kanal yarısını kişi rengine boyayan dolgu(lar). Ortak kapı: A borusu + B şeritleri.
+ * `halfOnly` (owner onayı 2026-10-18; PR #431 eşdeğeri): kanal TANIMLI DEĞİL, yalnız bu kapı aktif → renkli yarı KESİKLİ
+ * çizilir (aralarından pasif boru görünür) ki kısa kanallarda tam kanal sanılmasın. Tanımlı kanallar kesintisiz.
+ */
+function fills(points: Pt[], h: Holder, chs: string[], halfOnly = false): CbgPrim[] {
   const s = fmt(points);
-  if (h === "both") return [{ k: "fill", points: s, tone: "A", chs }, { k: "fill", points: s, tone: "B", stripe: true, chs }];
-  return [{ k: "fill", points: s, tone: h, chs }];
+  if (h === "both") return [{ k: "fill", points: s, tone: "A", chs, halfOnly }, { k: "fill", points: s, tone: "B", stripe: true, chs, halfOnly }];
+  return [{ k: "fill", points: s, tone: h, chs, halfOnly }];
 }
 
 function halfHolders(st: CbgChannel): [Holder | null, Holder | null] {
@@ -314,8 +318,8 @@ export function buildConnectionBodygraphScene(state: CbgState): CbgPrim[] {
     const [a, b] = splitHalf(route);
     const L = plen(route);
     return [
-      ...(hLo ? fills(a, hLo, [id]) : []),
-      ...(hHi ? fills(b, hHi, [id]) : []),
+      ...(hLo ? fills(a, hLo, [id], st.state === "half") : []),
+      ...(hHi ? fills(b, hHi, [id], st.state === "half") : []),
       // yarı sınırı: ince beyaz ayraç (referanstaki gibi; iki yarı okunur)
       { k: "tick", points: fmt(slice(route, L / 2 - TICK_HALF, L / 2 + TICK_HALF)), chs: [id] },
     ];
@@ -333,7 +337,9 @@ export function buildConnectionBodygraphScene(state: CbgState): CbgPrim[] {
     const g = Number(gate);
     const h = state.gates[g];
     const inUse = netIds.some((id) => id.split("-").map(Number).includes(g) && state.channels[id].state !== "none");
-    if (h && inUse) out.push(...fills(ARM_PTS.get(arm)!, h, armChs(arm, g)));
+    // Kol kesikli yalnız bu kapıdan geçen ağ kanallarının HİÇBİRİ tanımlı değilse (ortak gövde zaten yalnız tanımlıda boyanır).
+    const armDefined = netIds.some((id) => id.split("-").map(Number).includes(g) && state.channels[id].state === "defined");
+    if (h && inUse) out.push(...fills(ARM_PTS.get(arm)!, h, armChs(arm, g), !armDefined));
   }
   // Gövde: yalnız gövdeden geçen tanımlı kanal(lar) varsa; üst yarı 10/20 kapısının, alt yarı 34/57 kapısının sahibi.
   const merge = (cur: Holder | null, h: Holder): Holder => (!cur || cur === h ? h : "both");
@@ -402,10 +408,14 @@ export function cbgElements(p: CbgPrim, logoHref: string | null): CbgEl[] {
     }
     case "fill": {
       const t = TUBES[p.pal ?? "connection"][p.tone];
-      const dash: Record<string, string> = p.stripe ? { strokeDasharray: "5 5" } : {};
+      // Yarım kanal: boru 7 / 5 kesikli; ortak kapının B şeridi kesiklerin İÇİNDE (aralarda pasif boru) → tanımlı
+      // kanaldaki kesintisiz şeritli görünümle karışmaz.
+      const dash: Record<string, string | number> = p.halfOnly
+        ? p.stripe ? { strokeDasharray: "3.5 8.5", strokeDashoffset: -1.75 } : { strokeDasharray: "7 5" }
+        : p.stripe ? { strokeDasharray: "5 5" } : {};
       // Çizgili (ortak kapı) şerit kenar çizmez: alttaki mavi borunun kenarı korunur.
       const els: CbgEl[] = [];
-      if (!p.stripe) els.push({ tag: "polyline", attrs: { points: p.points, fill: "none", stroke: t.edge, strokeWidth: FULL, strokeLinecap: "butt", strokeLinejoin: "round" } });
+      if (!p.stripe) els.push({ tag: "polyline", attrs: { points: p.points, fill: "none", stroke: t.edge, strokeWidth: FULL, strokeLinecap: "butt", strokeLinejoin: "round", ...(p.halfOnly ? { strokeDasharray: "7 5" } : {}) } });
       els.push({ tag: "polyline", attrs: { points: p.points, fill: "none", stroke: t.body, strokeWidth: BODY_W, strokeLinecap: "butt", strokeLinejoin: "round", ...dash } });
       els.push({ tag: "polyline", attrs: { points: p.points, fill: "none", stroke: t.shine, strokeOpacity: t.shineOpacity, strokeWidth: SHINE_W, strokeLinecap: "butt", strokeLinejoin: "round", ...dash } });
       return els;

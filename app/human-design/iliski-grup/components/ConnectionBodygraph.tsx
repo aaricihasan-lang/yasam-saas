@@ -29,7 +29,7 @@ function renderEl(e: CbgEl, key: string, extra: Record<string, unknown> = {}): R
 function primData(p: CbgPrim): Record<string, unknown> {
   switch (p.k) {
     case "fill":
-      return { "data-hd-cbg-fill": p.chs.join(","), "data-hd-cbg-color": `${p.tone}${p.stripe ? "-dash" : ""}` };
+      return { "data-hd-cbg-fill": p.chs.join(","), "data-hd-cbg-color": `${p.tone}${p.stripe ? "-dash" : ""}`, "data-hd-cbg-half": p.halfOnly ? "1" : undefined };
     case "center":
       return { "data-hd-cbg-center": `${p.engine}:${p.defined ? "defined" : "open"}` };
     case "gate":
