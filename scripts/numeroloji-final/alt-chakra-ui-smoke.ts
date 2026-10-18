@@ -15,7 +15,7 @@
  * Kontroller: varsayılan kapalı, tek panel açık, tekrar tıkla kapan, değerler motorla birebir,
  * yatay taşma yok, panel aç/kapa sırasında GET dışı istek SIFIR.
  */
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -160,8 +160,9 @@ async function exerciseBox(page: Page, tag: string, motor: ReturnType<typeof hes
 
 async function main() {
   console.log("Owner yapısı:", ownerMotor.anaKulvar.display, "|", ownerMotor.yanKulvar.display);
-  const server: ChildProcess = spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["next", "start", "-p", String(PORT)], {
-    stdio: "ignore", shell: process.platform === "win32",
+  // next'i doğrudan node ile başlat (shell yok) → kill tüm süreci kapatır, port açık kalmaz.
+  const server: ChildProcess = spawn(process.execPath, [path.join(process.cwd(), "node_modules", "next", "dist", "bin", "next"), "start", "-p", String(PORT)], {
+    stdio: "ignore",
     env: { ...process.env, NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:59999", NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy", SUPABASE_SERVICE_ROLE_KEY: "dummy" },
   });
   const browser = await chromium.launch();
@@ -214,7 +215,7 @@ async function main() {
   } finally {
     await browser.close();
     server.kill();
-    if (process.platform === "win32" && server.pid) spawn("taskkill", ["/pid", String(server.pid), "/T", "/F"], { stdio: "ignore" });
+    if (process.platform === "win32" && server.pid) spawnSync("taskkill", ["/pid", String(server.pid), "/T", "/F"], { stdio: "ignore" });
   }
   console.log(`\nalt-chakra UI smoke: ${pass} PASS / ${fail} FAIL · ekran görüntüleri: ${OUT}`);
   process.exit(fail > 0 ? 1 : 0);

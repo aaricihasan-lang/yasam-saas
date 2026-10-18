@@ -122,9 +122,10 @@ export function calcAnaKulvar(firstName: string, lastName: string): NumerolojiRe
                 ? remaining[0]
                 : reduceNumber(remaining.reduce((a, b) => a + b, 0), true);
             bestPairSum = pairSum;
-            bracketStr = `(${pairSum}/${remainingNum})`;
+            // Kalan parça yoksa sahte "/0" yazılmaz (2026-10-18 owner talimatı; önce "(19/0)").
+            bracketStr = remaining.length > 0 ? `(${pairSum}/${remainingNum})` : `(${pairSum})`;
             steps.push(
-              `Ara kontrol: ${nonZeroValues[i]} + ${nonZeroValues[j]} = ${pairSum} → özel/karmik | Kalan: ${remainingNum}`
+              `Ara kontrol: ${nonZeroValues[i]} + ${nonZeroValues[j]} = ${pairSum} → özel/karmik | Kalan: ${remaining.length > 0 ? remainingNum : "yok"}`
             );
           }
         }

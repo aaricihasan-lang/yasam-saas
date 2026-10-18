@@ -96,7 +96,7 @@ export function pinKoduCakraDesteklerindenKutular(b: Partial<Record<"k1" | "k2" 
     .filter((v) => Number.isInteger(v) && v >= 1 && v <= 10);
 }
 
-/** Tek bir yapısal kulvar sayısının çakra desteği: özel (11/19/22/33) → 10. sütun; 1–9 → kendisi. */
+/** Tek bir yapısal kulvar sayısının çakra karşılığı: özel (11/19/22/33) → 10. sütun; 1–9 → kendisi. */
 export function kulvarSayisiCakraDestegi(n: number): number | null {
   if (SPECIAL_NUMBERS.has(n)) return 10;
   if (Number.isInteger(n) && n >= 1 && n <= 9) return n;
@@ -104,40 +104,38 @@ export function kulvarSayisiCakraDestegi(n: number): number | null {
 }
 
 /**
- * Özel sayı içeren Ana Kulvar'ın YAPISAL destekleri — gösterim metni (display) PARSE EDİLMEZ.
+ * Birden fazla özel sayı varken 10. çakra desteği politikası — OWNER KARARI BEKLİYOR (Karar C).
  *
- * `values` = calcAnaKulvar'ın gerçek per-parça bileşenleri (`componentValues`). Dallar
- * calcAnaKulvar'ın karar dallarının birebir yapısal karşılığıdır; display/key/lookup DEĞİŞMEZ:
- *   1. Parça-özel(ler) + özel olmayan kalan  → her özel parça için 10 + kalanın sadeleşmiş
- *      değeri (reduceNumber, özel korunur; kalan 19 gibi özelse o da 10).   "19/2" → [10, 2],
- *      "11/11/4" → [10, 10, 4], "22/11/4" → [10, 10, 4], "11/19" (kalan 19) → [10, 10].
- *   2. Tüm parçalar özel (≥1)                → her özel parça için 10; kalan YOK → ek destek YOK
- *      (sahte "/0" üretilmez).                "11/11 (22)" → [10, 10], tek "19" → [10].
- *   3. Yalnız ikili özel oluşum (parça özel değil) → 10 + calcAnaKulvar'ın ana hanesi
- *      ("11/5" → [10, 5]; mevcut davranış korunur).
- * Özel bileşen yoksa `null` döner (çağıran mevcut "isim sadeleşmeleri + Ana Kulvar" dalını uygular).
- *
- * KÖK NEDEN (2026-10-18 düzeltmesi): önceki sürüm display'i `split("/", 2)` ile okuyordu →
- * "11/11/4" gibi 3+ parçalı gösterimlerde ikinci özel sayı ve kalan 4 SESSİZCE kayboluyor,
- * "11/19" gibi özel kalanlar düşüyor, tek parçalı "19" ise 10. sütun desteği almıyordu
- * ("11" alırken). Yapısal bileşen kullanımı bu kayıpları giderir.
+ *   "tek-destek"   : 03.10.2026 nihai kararının LAFZI ("Özel Ana Kulvar: YALNIZ 10. çakraya BİR
+ *                    destek + sadeleşmiş hâlin çakrasına bir destek"; eğitim notu s.2). VARSAYILAN.
+ *   "her-ozel-sayi": her özel sayı (11/19/22/33) için ayrı 10. çakra desteği. Hiçbir kaynakta
+ *                    tanımlı değil; owner onaylarsa yalnız bu sabit değiştirilir.
  */
-export function kulvarCakraDestekleri(values: readonly number[]): number[] | null {
+export type OzelSayi10Politikasi = "tek-destek" | "her-ozel-sayi";
+export const OZEL_SAYI_10_POLITIKASI: OzelSayi10Politikasi = "tek-destek";
+
+/**
+ * Ana Kulvar'ın YAPISAL özel sayı oluşumları (gösterim metni PARSE EDİLMEZ). calcAnaKulvar'ın
+ * karar dallarının yapısal karşılığı:
+ *   - parça-özel(ler) (değeri 11/19/22/33 olan isim/soyisim parçası) + özel kalan (kalanların
+ *     sadeleşmişi özelse, ör. "11/19"),
+ *   - parça-özel yoksa: calcAnaKulvar'ın seçtiği ikili özel oluşum (en büyük özel; ilk bulunan çift)
+ *     + ana hane özelse o da ("11/11": [2,9,2,9]).
+ * Boş dizi → özel Ana Kulvar DEĞİL (özel parça ve özel çift yok; toplam 11/19/22/33 olsa bile —
+ * bu durum Karar A kapsamında owner'a bırakıldı, mevcut "isim sadeleşmeleri + Ana Kulvar" dalı).
+ */
+export function kulvarOzelSayilari(values: readonly number[]): number[] {
   const nonZero = values.filter((v) => v > 0);
-  if (nonZero.length === 0) return null;
   const specials = nonZero.filter((v) => SPECIAL_NUMBERS.has(v));
   const rest = nonZero.filter((v) => !SPECIAL_NUMBERS.has(v));
-
   if (specials.length > 0) {
-    const destekler: number[] = specials.map(() => 10);
+    const out = [...specials];
     if (rest.length > 0) {
-      const kalan = kulvarSayisiCakraDestegi(reduceNumber(rest.reduce((a, b) => a + b, 0), true));
-      if (kalan !== null) destekler.push(kalan);
+      const kalan = reduceNumber(rest.reduce((a, b) => a + b, 0), true);
+      if (SPECIAL_NUMBERS.has(kalan)) out.push(kalan);
     }
-    return destekler;
+    return out;
   }
-
-  // Yalnız ikili özel oluşum — calcAnaKulvar'daki "best" seçimiyle aynı (en büyük özel; ilk bulunan çift).
   let best: { specialNum: number; i: number; j: number } | null = null;
   for (let i = 0; i < values.length; i += 1) {
     for (let j = i + 1; j < values.length; j += 1) {
@@ -146,15 +144,31 @@ export function kulvarCakraDestekleri(values: readonly number[]): number[] | nul
       if (SPECIAL_NUMBERS.has(sRed) && (!best || sRed > best.specialNum)) best = { specialNum: sRed, i, j };
     }
   }
-  if (!best) return null;
+  if (!best) return [];
   const { i, j } = best;
-  const baseValues = values.filter((v, k) => v > 0 && k !== i && k !== j);
-  const mainDigit =
-    baseValues.length > 0 ? reduceNumber(baseValues.reduce((a, b) => a + b, 0), true) : Math.min(values[i], values[j]);
-  const destekler = [10];
-  const ana = kulvarSayisiCakraDestegi(mainDigit);
-  if (ana !== null) destekler.push(ana);
-  return destekler;
+  const base = values.filter((v, k) => v > 0 && k !== i && k !== j);
+  const out = [best.specialNum];
+  if (base.length > 0) {
+    const ana = reduceNumber(base.reduce((a, b) => a + b, 0), true);
+    if (SPECIAL_NUMBERS.has(ana)) out.push(ana);
+  }
+  return out;
+}
+
+/**
+ * Özel kulvarın çakra destekleri: 10. çakra (politikaya göre tek ya da özel sayı başına) +
+ * sadeleşmiş hâl 1–9 ise onun çakrası. Sadeleşmiş hâl yoksa / özelse ek destek YOK (sahte "/0" yok).
+ */
+export function ozelKulvarCakraDestekleri(
+  ozelSayilar: readonly number[],
+  sadelesmis: number | null,
+  politika: OzelSayi10Politikasi = OZEL_SAYI_10_POLITIKASI,
+): number[] {
+  if (ozelSayilar.length === 0) return [];
+  const onlar = politika === "tek-destek" ? 1 : ozelSayilar.length;
+  const out: number[] = Array.from({ length: onlar }, () => 10);
+  if (sadelesmis !== null && Number.isInteger(sadelesmis) && sadelesmis >= 1 && sadelesmis <= 9) out.push(sadelesmis);
+  return out;
 }
 
 /**
@@ -164,15 +178,19 @@ export function kulvarCakraDestekleri(values: readonly number[]): number[] | nul
  *   - Özel Ana Kulvar (11/19/22/33): YALNIZ 10. çakraya bir destek + sadeleşmiş halin çakrasına
  *     bir destek. Örnek "19/2" → [10, 2] ("19 için 10. sütuna bir destek, 19/2'nin 2'si için 2.
  *     sütuna bir destek attık"). İsim/soyisim sadeleşmeleri bu durumda EKLENMEZ
- *     (eski davranış [2, 1, 10, 2] idi). Birden fazla özel sayıda HER özel sayı kendi 10.
- *     sütun desteğini alır (bkz. kulvarCakraDestekleri).
+ *     (eski davranış [2, 1, 10, 2] idi).
  *   - Diğer durumlar (değişmedi): her isim/soyisim sadeleşmesi + Ana Kulvar
  *     (ör. isimler 1, 6, soyisim 8 → 1-6-8-6).
+ *
+ * 2026-10-18 DÜZELTMESİ (sayı kaybı): "özel" tespiti ve "sadeleşmiş hâl" artık gösterim metninden
+ * değil YAPISAL veriden gelir — özel oluşum = `kulvarOzelSayilari(componentValues)`, sadeleşmiş
+ * hâl = calcAnaKulvar `key` (yorum sayısı). Önceki `split("/", 2)` okuması "11/11/4" ve
+ * "22/11/4"te sadeleşmiş 4'ü düşürüyor ([10]), tek parçalı "19"a hiç 10. çakra vermiyordu ([1,1]).
  */
 export function anaKulvarCakraDestekleri(firstName: string, lastName: string): number[] {
   const info = calcAnaKulvar(firstName, lastName);
-  const ozel = kulvarCakraDestekleri(info.componentValues ?? []);
-  if (ozel) return ozel;
+  const ozel = kulvarOzelSayilari(info.componentValues ?? []);
+  if (ozel.length > 0) return ozelKulvarCakraDestekleri(ozel, Number(info.key));
 
   const destekler: number[] = [];
   const nameVals: number[] = [];
@@ -186,6 +204,20 @@ export function anaKulvarCakraDestekleri(firstName: string, lastName: string): n
     if (akVal >= 1 && akVal <= 9) destekler.push(akVal);
   }
   return destekler;
+}
+
+/**
+ * Ana Kulvar destekleri — kayıtlı snapshot bileşenlerinden (isim metni olmadan; yeniden hesap YOK).
+ * `anaKulvarCakraDestekleri` ile aynı kural: özelse 10 + sadeleşmiş hâl (key), değilse parça
+ * değerleri + toplamın tek hanesi (özel olmayan parçada parça değeri = kelimenin sadeleşmiş değeri).
+ */
+export function anaKulvarCakraDesteklerindenBilesen(values: readonly number[], key: string | number | null | undefined): number[] {
+  const ozel = kulvarOzelSayilari(values);
+  if (ozel.length > 0) return ozelKulvarCakraDestekleri(ozel, Number(key));
+  const nameVals = values.filter((v) => v > 0);
+  if (nameVals.length === 0) return [];
+  const akVal = reduceToDigit(nameVals.reduce((a, b) => a + b, 0));
+  return akVal >= 1 && akVal <= 9 ? [...nameVals, akVal] : [...nameVals];
 }
 
 export function hesaplaCakraSayiSol(firstName: string, lastName: string, birthDate: string): ChakraCounts {

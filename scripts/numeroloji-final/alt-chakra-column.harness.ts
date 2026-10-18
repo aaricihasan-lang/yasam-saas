@@ -19,8 +19,6 @@ import {
   hesaplaCakraHarfSag,
   hayatYoluCakraDestekleri,
   pinKoduCakraDestekleri,
-  kulvarCakraDestekleri,
-  kulvarSayisiCakraDestegi,
 } from "@/lib/numeroloji/cakraOmurgasi";
 import { findKulvarSpecialCombinationsDetailed } from "@/lib/numeroloji/alternativeCombinations";
 import {
@@ -28,7 +26,7 @@ import {
   alternativeVariantSupports,
   alternativeChakraExclusionNote,
 } from "@/lib/numeroloji/alternativeChakra";
-import { SPECIAL_NUMBERS, reduceNumber, reduceToDigit, splitNameParts, turkishUpper, CHAKRA_LETTER_MAP, VOWELS } from "@/lib/numeroloji/ortak";
+import { SPECIAL_NUMBERS } from "@/lib/numeroloji/ortak";
 
 let pass = 0;
 let fail = 0;
@@ -42,7 +40,6 @@ function ok(cond: boolean, label: string, detail?: unknown) {
 function eq(a: unknown, b: unknown, label: string) {
   ok(JSON.stringify(a) === JSON.stringify(b), label, { got: a, want: b });
 }
-const sortDesc = (xs: number[]) => [...xs].sort((a, b) => b - a);
 
 // ── Sentetik isim parçası: istenen (sesli toplamı, sessiz toplamı) ham değerlerini üretir ──
 const VOWEL_STEPS: [string, number][] = [["I", 9], ["O", 6], ["E", 5], ["U", 3], ["A", 1]];
@@ -70,32 +67,6 @@ function person(ana: number[], yan: number[]): [string, string] {
   return [parts.slice(0, -1).join(" ") || parts[0], parts.length > 1 ? parts[parts.length - 1] : parts[0]];
 }
 
-// ── ESKİ (2026-10-18 öncesi) Ana Kulvar çakra kuralı — yalnız fark sınıflandırması için kopya ──
-function oldSplit(display: string): [number | null, number | null] {
-  const text = (display || "").trim().replace(/\s*\([^)]*\)\s*$/, "");
-  if (!text) return [null, null];
-  if (!text.includes("/")) { const n = Number(text); return Number.isFinite(n) ? [n, null] : [null, null]; }
-  const [l, r] = text.split("/", 2);
-  return [Number.isFinite(Number(l)) ? Number(l) : null, Number.isFinite(Number(r)) ? Number(r) : null];
-}
-function oldVowelWord(w: string): number {
-  let t = 0;
-  for (const ch of Array.from(turkishUpper(w))) if (VOWELS.has(ch)) t += CHAKRA_LETTER_MAP[ch] || 0;
-  if (t === 0) return 0;
-  if ([11, 22, 33].includes(t)) return 10;
-  return reduceToDigit(t);
-}
-function oldAnaSupports(f: string, l: string): number[] {
-  const nameVals = splitNameParts(f, l).map(oldVowelWord).filter(Boolean);
-  const [left, right] = oldSplit(calcAnaKulvar(f, l).display);
-  if (left !== null && SPECIAL_NUMBERS.has(left) && right !== null) {
-    return right >= 1 && right <= 9 ? [10, right] : [10];
-  }
-  if (!nameVals.length) return [];
-  const ak = reduceToDigit(nameVals.reduce((a, b) => a + b, 0));
-  return ak >= 1 && ak <= 9 ? [...nameVals, ak] : nameVals;
-}
-
 console.log("A. Resmî omurga — sayı kaybı düzeltmeleri");
 {
   // HASAN ARICI 14.02.1987 golden (kullanıcı notu s.2) — DEĞİŞMEZ
@@ -107,15 +78,15 @@ console.log("A. Resmî omurga — sayı kaybı düzeltmeleri");
   eq(m.cakraOmurgasi.harfler, hesaplaCakraHarfSag("Hasan", "ARICI"), "GOLD-04 harf sütunu aynı");
 
   const cases: { label: string; ana: number[]; want: number[]; display: string }[] = [
-    { label: "[11,11,4]", ana: [11, 11, 4], want: [10, 10, 4], display: "11/11/4 (22/4)" },
-    { label: "[22,11,4]", ana: [22, 11, 4], want: [10, 10, 4], display: "22/11/4 (33/4)" },
+    { label: "[11,11,4]", ana: [11, 11, 4], want: [10, 4], display: "11/11/4 (22/4)" },
+    { label: "[22,11,4]", ana: [22, 11, 4], want: [10, 4], display: "22/11/4 (33/4)" },
     { label: "tek özel 19/5", ana: [19, 5], want: [10, 5], display: "19/5" },
     { label: "22/4", ana: [22, 4], want: [10, 4], display: "22/4" },
     { label: "19/9 (5 parça)", ana: [19, 3, 3, 1, 2], want: [10, 9], display: "19/9 (22/6)" },
-    { label: "özel kalan 11/19", ana: [11, 9, 1, 9], want: [10, 10], display: "11/19" },
-    { label: "tüm özel 11/11 (22)", ana: [11, 11], want: [10, 10], display: "11/11 (22)" },
-    { label: "tüm özel 19/22", ana: [19, 22], want: [10, 10], display: "19/22" },
-    { label: "üç özel 11/11/11", ana: [11, 11, 11], want: [10, 10, 10], display: "11/11/11 (33)" },
+    { label: "özel kalan 11/19", ana: [11, 9, 1, 9], want: [10], display: "11/19" },
+    { label: "tüm özel 11/11 (22)", ana: [11, 11], want: [10], display: "11/11 (22)" },
+    { label: "tüm özel 19/22", ana: [19, 22], want: [10], display: "19/22" },
+    { label: "üç özel 11/11/11", ana: [11, 11, 11], want: [10], display: "11/11/11 (33)" },
     { label: "tek parça 19 (kalan yok)", ana: [19, 0], want: [10], display: "19" },
     { label: "tek parça 11 (kalan yok)", ana: [11, 0], want: [10], display: "11" },
     { label: "çift-özel 11/5 (mevcut)", ana: [5, 6], want: [10, 5], display: "11/5" },
@@ -132,71 +103,9 @@ console.log("A. Resmî omurga — sayı kaybı düzeltmeleri");
   }
 }
 
-console.log("B. Tam tarama — eski davranışla fark yalnız kayıp sınıflarında");
 const VALS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 19, 22, 33];
-const sweep: number[][] = [];
-(function gen(prefix: number[], start: number, maxLen: number) {
-  if (prefix.length >= 1 && prefix.length <= maxLen) sweep.push([...prefix]);
-  if (prefix.length === maxLen) return;
-  for (let i = start; i < VALS.length; i += 1) gen([...prefix, VALS[i]], i, maxLen);
-})([], 0, 4);
-{
-  let changed = 0;
-  let unexplained = 0;
-  for (const comps of sweep) {
-    if (!comps.some((v) => v > 0)) continue;
-    const [f, l] = person(comps, comps.map(() => 2));
-    const a = calcAnaKulvar(f, l);
-    if (JSON.stringify(a.componentValues) !== JSON.stringify(comps)) continue;
-    const yeni = anaKulvarCakraDestekleri(f, l);
-    const eski = oldAnaSupports(f, l);
-    const nz = comps.filter((v) => v > 0);
-    const specials = nz.filter((v) => SPECIAL_NUMBERS.has(v));
-    const rest = nz.filter((v) => !SPECIAL_NUMBERS.has(v));
-    const restRed = rest.length ? reduceNumber(rest.reduce((x, y) => x + y, 0), true) : 0;
-    // Yeni: hiçbir özel parça kaybolmaz; kalan varsa kaybolmaz.
-    if (specials.length) {
-      ok(yeni.filter((v) => v === 10).length === specials.length + (SPECIAL_NUMBERS.has(restRed) ? 1 : 0), "B-10 sayısı = özel sayı adedi", { comps, yeni });
-      if (rest.length) ok(yeni.length === specials.length + 1, "B-kalan korunur", { comps, yeni });
-      else ok(yeni.length === specials.length, "B-kalan yoksa ek destek yok", { comps, yeni });
-    }
-    if (JSON.stringify(yeni) !== JSON.stringify(eski)) {
-      changed += 1;
-      const lossClass =
-        specials.length >= 2 || // çoklu özel sayı (ikinci özel/kalan kayboluyordu)
-        (specials.length === 1 && rest.length > 0 && SPECIAL_NUMBERS.has(restRed)) || // özel kalan düşüyordu
-        (specials.length === 1 && rest.length === 0) || // tek özel parça: 19 → [1,1], 11 → [10,1] tutarsızlığı
-        (specials.length === 0 && eski.length === 1 && yeni.length === 2 && yeni[1] === 10); // ikili özel + özel kalan ("11/11") düşüyordu
-      if (!lossClass) {
-        unexplained += 1;
-        console.log("   açıklanamayan fark", comps, { eski, yeni });
-      }
-    }
-  }
-  ok(unexplained === 0, "B-açıklanamayan fark YOK", { unexplained });
-  ok(changed > 0, "B-kayıp sınıfları gerçekten düzeltildi", { changed });
-  console.log(`   tarama: ${sweep.length} bileşen dizisi, değişen ${changed} (tamamı kayıp sınıfı)`);
-}
-
-console.log("C. Yapısal destek ↔ ekrandaki sayılar birebir");
-{
-  let checked = 0;
-  for (const comps of sweep) {
-    if (!comps.some((v) => v > 0)) continue;
-    const [f, l] = person(comps, comps.map(() => 2));
-    const a = calcAnaKulvar(f, l);
-    if (JSON.stringify(a.componentValues) !== JSON.stringify(comps)) continue;
-    const s = kulvarCakraDestekleri(comps);
-    if (!s) continue;
-    const main = a.display.replace(/\s*\([^)]*\)\s*$/, "").trim();
-    const tokens = main.split(/[/-]/).map(Number).filter((n) => Number.isFinite(n));
-    const fromDisplay = tokens.map(kulvarSayisiCakraDestegi).filter((x): x is number => x !== null);
-    // Tek parça özel (display "19") hariç tümünde display tokenları = yapısal destekler.
-    eq(sortDesc(s), sortDesc(fromDisplay), `C-${JSON.stringify(comps)} display ${a.display}`);
-    checked += 1;
-  }
-  console.log(`   ${checked} özel Ana Kulvar oluşumu doğrulandı`);
-}
+// B (eski↔yeni fark) ve C (yapı↔gösterim) kontrolleri bağımsız referansla
+// scripts/numeroloji-final/reference-validation.harness.ts içinde yapılır.
 
 console.log("D. Alternatif çakra sütunu");
 {
@@ -209,7 +118,8 @@ console.log("D. Alternatif çakra sütunu");
   eq(anaCols.map((c) => c.path), ["22/6"], "D-OWNER Ana alternatifleri");
   eq(yanCols.map((c) => c.path), ["22/11/8", "33/8"], "D-OWNER Yan alternatifleri");
   eq(anaCols[0].altSupports, [10, 6], "D-22/6 katkı [10,6]");
-  eq(yanCols.map((c) => c.altSupports), [[10, 10, 8], [10, 8]], "D-22/11/8 → [10,10,8], 33/8 → [10,8]");
+  eq(yanCols.map((c) => c.altSupports), [[10, 8], [10, 8]], "D-22/11/8 → [10,8] (tek 10: Karar C), 33/8 → [10,8]");
+  eq(yanCols.map((c) => c.ozelSayilar), [[22, 11], [33]], "D-yollardaki özel sayılar izlenebilir");
   eq(yanCols.map((c) => c.variantCount), [2, 2], "D-Yan yollar 2'şer varyant (tek kez sayılır)");
   // Ana = HY + PİN + alternatif (resmî Ana katkısı çıkarılmış)
   const hy = hayatYoluCakraDestekleri("14.02.1987");
@@ -228,7 +138,7 @@ console.log("D. Alternatif çakra sütunu");
   // Yan: yalnız kendi katkısı; resmî omurgaya aktarım yok
   eq(yanCols[0].fixed, null, "D-Yan sabit katkı yok");
   eq(yanCols[0].harfler, null, "D-Yan harf sütunu yok");
-  eq(Object.values(yanCols[0].sayilar).reduce((a, b) => a + b, 0), 3, "D-Yan 22/11/8 sütun toplam 3 destek");
+  eq(Object.values(yanCols[0].sayilar).reduce((a, b) => a + b, 0), 2, "D-Yan 22/11/8 sütun toplam 2 destek");
   ok(alternativeChakraExclusionNote("yan").includes("dâhil değildir"), "D-Yan dahil edilmeyenler açıkça yazılı");
 
   // Snapshot mutasyonu yok (panel aç/kapa kayıt güncellemez — saf fonksiyon)
@@ -274,8 +184,11 @@ console.log("D. Alternatif çakra sütunu");
       const sigs = new Set(combo.variants.map((v) => JSON.stringify(alternativeVariantSupports(v))));
       ok(sigs.size === 1, "D-aynı yolun tüm varyantları aynı katkı (çift sayım yok)", { comps, path: combo.path });
       const sup = alternativeVariantSupports(combo.variants[0]);
-      const pathNums = combo.path.split("/").map(Number);
-      eq(sortDesc(sup), sortDesc(pathNums.map((n) => kulvarSayisiCakraDestegi(n)!)), `D-${combo.path} katkı = yoldaki her sayı`);
+      const v0 = combo.variants[0];
+      const kalan = v0.remainderParts.length > 0 && v0.remainderValue >= 1 && v0.remainderValue <= 9 ? [v0.remainderValue] : [];
+      eq(sup, [10, ...kalan], `D-${combo.path} katkı = 10 + kalan (onaylı kural)`);
+      const herOzel = alternativeVariantSupports(v0, "her-ozel-sayi");
+      eq(herOzel.filter((x) => x === 10).length, combo.path.split("/").map(Number).filter((n) => SPECIAL_NUMBERS.has(n)).length, `D-${combo.path} "her-ozel-sayi" politikası: her özel sayı 10`);
       // Her varyant: kullanılan bileşen sayısı = bileşen sayısı (kayıp/çift kullanım yok)
       for (const v of combo.variants) {
         const used = [...v.groups.flatMap((g) => g.parts), ...v.remainderParts].sort((a, b) => a - b);

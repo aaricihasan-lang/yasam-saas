@@ -47,12 +47,15 @@ eqArr(findKulvarSpecialCombinations([11, 11, 11]), ["22/11", "33"], "ANA-ALT-02 
 eqArr(findKulvarSpecialCombinations([11, 11, 22]), ["22/22", "33/11"], "ANA-ALT-03 [11,11,22] -> 22/22, 33/11");
 
 // ── TARGET SET DETECTION (11/19/22/33) ──────────────────────────────────────────
-eqArr(findKulvarSpecialCombinations([3, 8, 9]), ["11/9"], "TARGET-11 [3,8,9] -> 11/9");
+// 2026-10-18: özel parça yoksa Ana/Yan Kulvar'ın kendisi özel çift oluşumudur (Durum 4) → ana sonuç
+// "alternatif" olarak tekrar listelenmez; gizlenen gerçek alternatifler (tüm parçaların toplamı) görünür.
+eqArr(findKulvarSpecialCombinations([3, 8, 9]), [], "TARGET-11 [3,8,9] ana sonuç 11/9 → alternatif olarak tekrar listelenmez");
+eqArr(findKulvarSpecialCombinations([22, 3, 8, 9]), ["22/11/9", "33/9"], "TARGET-11b [22,3,8,9] -> 22/11/9 + 33/9 (11/9 oluşumu özel parçalı dizide korunur)");
 eqArr(findKulvarSpecialCombinations([11, 8]), ["19"], "TARGET-19 [11,8] -> 19");
 eqArr(findKulvarSpecialCombinations([11, 22]), ["33"], "TARGET-33 [11,22] -> 33");
 // 22 target: pair-only bare array = canonical → boş; ek component'le alternatif olur:
 eqArr(findKulvarSpecialCombinations([10, 12]), [], "TARGET-22-bare [10,12] canonical == 22 → boş");
-eqArr(findKulvarSpecialCombinations([10, 12, 7]), ["19/1", "22/7"], "TARGET-22 [10,12,7] -> 19/1, 22/7");
+eqArr(findKulvarSpecialCombinations([10, 12, 7]), ["19/1"], "TARGET-22 [10,12,7] -> 19/1 (22/7 = özel çift ana oluşumu, tekrar listelenmez)");
 
 // ── CANONICAL PATH EXCLUSION ────────────────────────────────────────────────────
 {
@@ -63,7 +66,7 @@ eqArr(findKulvarSpecialCombinations([10, 12, 7]), ["19/1", "22/7"], "TARGET-22 [
 }
 
 // ── NO DOUBLE COUNT / DISJOINT ──────────────────────────────────────────────────
-eqArr(findKulvarSpecialCombinations([3, 8, 8]), ["11/8"], "DISJOINT [3,8,8] -> 11/8 (aynı 3 iki 11'de kullanılamaz)");
+eqArr(findKulvarSpecialCombinations([3, 8, 8]), ["19"], "DISJOINT [3,8,8] -> 19 (aynı 3 iki 11'de kullanılamaz → 11/11 YOK; ana 11/8 tekrar listelenmez)");
 {
   // İki AYRIK özel grup aynı yolda + 11+8=19 türevi (helper TÜM valid yolları bulur):
   //   19/11/3 = {11,8}->19 + kalan 11 korunur + remainder 3
@@ -309,13 +312,16 @@ for (const { name, comps } of NORMAL_ONLY_FIXTURES) {
 }
 // (2) Synthetic: {3,8}→11 özel grubu bulunur; kalan [4,5] TEK değere (9) indirgenir.
 //     5/4, 4/5 gibi normal grouping veya normal-number branch ÜRETİLMEZ.
+//     2026-10-18: [3,8,4,5]'te özel parça yok → Ana Kulvar'ın KENDİSİ 11/9 (Durum 4); ana sonuç
+//     artık "alternatif" olarak tekrar listelenmez. Aynı kalan kuralı özel parçalı [19,3,8,4,5]'te sınanır.
 {
-  const det = findKulvarSpecialCombinationsDetailed([3, 8, 4, 5]);
-  eqArr(det.map((d) => d.path), ["11/9"], "FINAL-REMAINDER-02a [3,8,4,5] tek path 11/9 (normal grouping YOK)");
-  const p = det.find((d) => d.path === "11/9")!;
-  assert(p.variants.length === 1, "FINAL-REMAINDER-02b [3,8,4,5] 11/9 tek variant", String(p.variants.length));
+  eqArr(findKulvarSpecialCombinations([3, 8, 4, 5]), [], "FINAL-REMAINDER-02a [3,8,4,5] ana sonuç 11/9 alternatif olarak tekrar listelenmez");
+  const det = findKulvarSpecialCombinationsDetailed([19, 3, 8, 4, 5]);
+  eqArr(det.map((d) => d.path), ["19/11/9", "22/8"], "FINAL-REMAINDER-02a2 [19,3,8,4,5] → 19/11/9 + 22/8 (normal grouping YOK)");
+  const p = det.find((d) => d.path === "19/11/9")!;
+  assert(p.variants.length === 1, "FINAL-REMAINDER-02b 19/11/9 tek variant", String(p.variants.length));
   const v = p.variants[0];
-  assert(v.groups.length === 1 && v.groups[0].sum === 11, "FINAL-REMAINDER-02c yalnız {3,8}→11 özel grubu (kalan ekstra gruba bölünmedi)", JSON.stringify(v.groups));
+  assert(v.groups.length === 2 && v.groups[1].sum === 11 && v.groups[1].parts.join("+") === "3+8", "FINAL-REMAINDER-02c yalnız {19},{3,8}→11 özel grupları (kalan ekstra gruba bölünmedi)", JSON.stringify(v.groups));
   assert(
     v.remainderParts.slice().sort((a, b) => a - b).join("+") === "4+5" && v.remainderValue === 9,
     "FINAL-REMAINDER-02d kalan [4,5] mevcut reducer ile TEK değere (9) sadeleşir, bölünmez",
