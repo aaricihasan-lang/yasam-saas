@@ -80,13 +80,21 @@ function run(): void {
   const userGuard = readFileSync("lib/auth/userGuard.ts", "utf8");
   ok(/requireModuleAccess/.test(userGuard) && /resolveModuleAccess/.test(userGuard) && /includeProfile: true/.test(userGuard), "E: requireModuleAccess güvenlik hattı korundu");
 
-  // ── F) life-analysis kartı: Aktif + comingSoon:false + /human-design ──────
+  // ── F) life-analysis kartı: /human-design (2026-10-16 owner tasarımı: "Aktif" rozeti / ok butonu YOK) ──
   const la = readFileSync("app/life-analysis/page.tsx", "utf8");
   const hdCard = la.slice(la.indexOf('title: "Human Design"'));
   const hdBlock = hdCard.slice(0, hdCard.indexOf("},") + 2);
   ok(/href:\s*"\/human-design"/.test(hdBlock), "F: HD kartı href /human-design");
-  ok(/badge:\s*"Aktif"/.test(hdBlock), "F: HD kartı badge 'Aktif'");
-  ok(/comingSoon:\s*false/.test(hdBlock), "F: HD kartı comingSoon false");
+  // HD kart nesnesinin TAMAMI (açılış "{" … kapanış "},"): tema yalnız bu blokta aranır (başka karttan eşleşmez).
+  const hdObjStart = la.lastIndexOf("{", la.indexOf('title: "Human Design"'));
+  const hdObj = la.slice(hdObjStart, la.indexOf("},", hdObjStart) + 2);
+  ok(/variant:\s*"humanDesign"/.test(hdObj), "F: HD kartı merkezî humanDesign teması (HD bloğunda)");
+  // Eski "Aktif + comingSoon:false" niyeti: kart her zaman canlı bağlantı — yakında/pasif durumu YOK.
+  ok(!/badge:|comingSoon:/.test(la), "F: kartlarda rozet / yakında alanı yok");
+  const laCard = readFileSync("app/life-analysis/_components/AnalysisModuleCard.tsx", "utf8");
+  ok(!/comingSoon|aria-disabled|disabled/.test(laCard) && /<Link\b[\s\S]*?href=\{href\}/.test(laCard), "F: ortak kart pasif/yakında durumu taşımaz, href ile canlı bağlantı");
+  // Görünürlük: HD kartı yalnız human_design yetkisiyle (ModuleVisibility + SUB_MODULE_KEYS).
+  ok(/"\/human-design":\s*\["human_design"\]/.test(la) && /<ModuleVisibility\b[^>]*keys=\{SUB_MODULE_KEYS\[mod\.href\]\}/.test(la), "F: HD kartı human_design yetki görünürlüğüyle sarılı");
   const home = readFileSync("app/page.tsx", "utf8");
   ok(!/YAKINDA[\s\S]{0,400}Human Design/.test(home) || /href="\/human-design"/.test(home), "F: home showcase HD 'Modüle Git' /human-design");
 

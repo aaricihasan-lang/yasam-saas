@@ -1,5 +1,11 @@
-import { HumanDesignShell } from "./components/HumanDesignShell";
+import { Fraunces, Jost } from "next/font/google";
 import { HdHubModules, type HdHubModule } from "./components/HdHubModules";
+import styles from "./_premium/hd.module.css";
+
+// 2026-10-18 premium görünüm (owner onaylı prototip, tasarım arşivi 1fed59a): başlık Fraunces, etiket Jost —
+// next/font ile kendi sunucumuzdan (dış istek yok); Türkçe için latin-ext.
+const hdDisplay = Fraunces({ subsets: ["latin", "latin-ext"], axes: ["opsz", "SOFT"], variable: "--hd-display", display: "swap" });
+const hdLabel = Jost({ subsets: ["latin", "latin-ext"], weight: ["400"], variable: "--hd-label", display: "swap" });
 
 // AŞAMA 3C — premium, görev odaklı iki çalışma alanı. Eski kartların işlevleri silinmedi:
 //   • Danışanlar / Human Design Haritası / Kayıtlı Haritalar / Kayıtlı Raporlar → Hesaplama çalışma
@@ -11,52 +17,60 @@ const HD_MODULES: readonly HdHubModule[] = [
     title: "Human Design Hesaplama",
     desc: "Danışan seçin veya yeni danışan oluşturun ve profesyonel Human Design haritasını hesaplayın.",
     href: "/human-design/danisanlar",
-    icon: "🗺️",
     badge: "Hesaplama",
-    accent: "from-indigo-500 to-violet-600",
-    cardBorder: "border-indigo-200/70",
-    cardBg: "from-indigo-50/90 via-violet-50/60 to-white",
-    badgeCls: "bg-indigo-100 text-indigo-800",
+    tone: "violet",
+    tile: "map",
+    art: "hesaplama",
   },
   {
     title: "Bilgi Bankası",
     desc: "Human Design mesleki bilgilerinizi yönetin.",
     href: "/human-design/bilgi-bankasi",
-    icon: "📚",
     badge: "İçerik",
-    accent: "from-sky-500 to-indigo-600",
-    cardBorder: "border-sky-200/70",
-    cardBg: "from-sky-50/90 via-indigo-50/60 to-white",
-    badgeCls: "bg-sky-100 text-sky-800",
+    tone: "blue",
+    tile: "stack",
+    art: "bilgi-bankasi",
   },
   {
     title: "İlişki ve Grup Analizleri",
     desc: "İki kişi için ilişki analizi (Connection), 3–5 kişi için grup analizi (Penta). Kayıtlı danışanlarınızdan seçin.",
     href: "/human-design/iliski-grup",
-    icon: "🤝",
     badge: "Connection · Penta",
-    accent: "from-violet-500 to-fuchsia-600",
-    cardBorder: "border-violet-200/70",
-    cardBg: "from-violet-50/90 via-fuchsia-50/50 to-white",
-    badgeCls: "bg-violet-100 text-violet-800",
+    tone: "purple",
+    tile: "heart",
+    // Owner kararı: ilişki kartında YALNIZ birbirine bağlı ışıklı küreler — insan silüeti yok.
+    art: "iliski-kureler",
   },
 ];
 
 export default function HumanDesignHubPage() {
   return (
-    <HumanDesignShell>
-      {/* Başlık */}
-      <div className="mb-5 rounded-2xl border border-indigo-200/80 bg-white/90 px-5 py-5 shadow-[0_6px_24px_-8px_rgba(79,70,229,0.18)] ring-1 ring-indigo-200/60 backdrop-blur-xl">
-        <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-          Human Design
-        </h1>
-        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-          Profesyonel Human Design hesaplama ve mesleki bilgi çalışma alanı.
-        </p>
-      </div>
+    <div className={`${styles.root} ${hdDisplay.variable} ${hdLabel.variable}`}>
+      <div className={styles.page}>
+        {/* Panoramik başlık — iki yandaki sahneler dekor (ekran okuyucudan gizli). */}
+        <section className={styles.hero} aria-labelledby="hd-hub-title">
+          <div className={`${styles.heroScene} ${styles.heroLeft}`} aria-hidden>
+            {/* eslint-disable-next-line @next/next/no-img-element -- dekor; boyutlar sabit, dış istek yok */}
+            <img src="/premium/human-design/hero-sol.webp" width={532} height={254} alt="" decoding="async" draggable={false} />
+          </div>
+          <div className={`${styles.heroScene} ${styles.heroRight}`} aria-hidden>
+            {/* eslint-disable-next-line @next/next/no-img-element -- dekor; boyutlar sabit, dış istek yok */}
+            <img src="/premium/human-design/hero-sag.webp" width={510} height={254} alt="" decoding="async" draggable={false} />
+          </div>
+          <div className={styles.heroText}>
+            <p className={styles.eyebrow}>
+              <span>Yaşam Sistemi</span>
+            </p>
+            <h1 id="hd-hub-title" className={styles.heroTitle}>
+              Human Design
+            </h1>
+            <p className={styles.heroSub}>Profesyonel Human Design hesaplama ve mesleki bilgi çalışma alanı.</p>
+          </div>
+        </section>
 
-      {/* Ana çalışma alanları */}
-      <HdHubModules modules={HD_MODULES} />
-    </HumanDesignShell>
+        {/* Ana çalışma alanları */}
+        <HdHubModules modules={HD_MODULES} />
+      </div>
+    </div>
   );
 }

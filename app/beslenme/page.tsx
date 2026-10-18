@@ -2,31 +2,51 @@
 /**
  * Beslenme Merkezi — owner-only hub. Genel sayaçlar (fetchCounts) + modül kartları.
  * Erişim doğrulanmadan içerik render EDİLMEZ (useBeslenmeModuleGuard).
+ *
+ * 2026-10-18 premium görsel entegrasyon (owner onaylı prototip 9850e43): yalnız GÖRÜNÜM değişti (hubStyles).
+ * Sayaçlar, hızlı işlemler, kart adresleri, Danışan Planları kapısı (hasClients) ve ClientPicker akışı aynen.
+ * Alt sayfaların ortak BeslenmeShell'i değişmedi; hub kendi premium başlık panelini çizer.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  ArrowRight,
   BookOpen,
   CalendarDays,
   LayoutTemplate,
   Compass,
+  Database,
+  Droplet,
   HeartPulse,
+  Leaf,
   Package,
   Plus,
-  Sparkles,
+  Sprout,
   Users,
 } from "lucide-react";
 import { fetchCounts, fetchBeslenmeCapabilities } from "@/lib/beslenme/beslenmeClient";
 import ClientPicker from "@/components/danisan/ClientPicker";
-import {
-  BeslenmeGate,
-  BeslenmeShell,
-  useBeslenmeModuleGuard,
-} from "./_components/BeslenmeShell";
+import { BeslenmeGate, useBeslenmeModuleGuard } from "./_components/BeslenmeShell";
 import { friendlyError } from "./_components/constants";
+import hubStyles from "@/app/_premium/beslenme/beslenmeHub.module.css";
 
 type Counts = { foods: number; guides: number; mizac: number; bloodType: number; sources: number };
+
+type CardTone = "mint" | "sky" | "cream" | "rose";
+
+/** Kart görselleri (public/premium/beslenme) — doğal ölçü; CLS'siz yerleşim için. */
+const ART = {
+  planlar: { w: 170, h: 140 },
+  sablonlar: { w: 155, h: 155 },
+  danisan: { w: 152, h: 170 },
+  besinler: { w: 195, h: 140 },
+  rehber: { w: 175, h: 117 },
+  mizac: { w: 200, h: 124 },
+  kan: { w: 190, h: 120 },
+} as const;
+
+type ArtKey = keyof typeof ART;
 
 const MODULES = [
   {
@@ -36,9 +56,8 @@ const MODULES = [
     icon: Package,
     countKey: "foods" as const,
     unit: "besin",
-    gradient: "from-emerald-600 to-teal-600",
-    ring: "border-emerald-100 bg-gradient-to-br from-emerald-50/70 to-white",
-    iconBox: "border-emerald-100 bg-emerald-50 text-emerald-600",
+    art: "besinler" as const,
+    tone: "mint" as const,
   },
   {
     href: "/beslenme/rehber",
@@ -47,9 +66,8 @@ const MODULES = [
     icon: BookOpen,
     countKey: "guides" as const,
     unit: "rehber",
-    gradient: "from-teal-600 to-cyan-600",
-    ring: "border-teal-100 bg-gradient-to-br from-teal-50/70 to-white",
-    iconBox: "border-teal-100 bg-teal-50 text-teal-600",
+    art: "rehber" as const,
+    tone: "sky" as const,
   },
   {
     href: "/beslenme/mizac",
@@ -58,9 +76,8 @@ const MODULES = [
     icon: Compass,
     countKey: "mizac" as const,
     unit: "profil",
-    gradient: "from-amber-600 to-orange-600",
-    ring: "border-amber-100 bg-gradient-to-br from-amber-50/70 to-white",
-    iconBox: "border-amber-100 bg-amber-50 text-amber-600",
+    art: "mizac" as const,
+    tone: "cream" as const,
   },
   {
     href: "/beslenme/kan-grubu",
@@ -69,11 +86,49 @@ const MODULES = [
     icon: HeartPulse,
     countKey: "bloodType" as const,
     unit: "profil",
-    gradient: "from-rose-600 to-pink-600",
-    ring: "border-rose-100 bg-gradient-to-br from-rose-50/70 to-white",
-    iconBox: "border-rose-100 bg-rose-50 text-rose-600",
+    art: "kan" as const,
+    tone: "rose" as const,
   },
 ];
+
+/** Kart içeriği (görsel + ikon + başlık + açıklama + dekoratif ok). Kabuk Link ya da button olabilir. */
+function HubCardInner({
+  art,
+  icon,
+  title,
+  description,
+  badge,
+}: {
+  art: ArtKey;
+  icon: ReactNode;
+  title: string;
+  description: string;
+  badge?: string | null;
+}) {
+  const a = ART[art];
+  return (
+    <>
+      <span className={hubStyles.cardArt} style={{ aspectRatio: `${a.w} / ${a.h}` }} aria-hidden>
+        <span className={hubStyles.artLayer}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/premium/beslenme/${art}.webp`} width={a.w} height={a.h} alt="" decoding="async" draggable={false} />
+        </span>
+        <span className={hubStyles.sheen} />
+      </span>
+      {badge ? <span className={hubStyles.countBadge}>{badge}</span> : null}
+      <span className={hubStyles.cardBody}>
+        <span className={hubStyles.cardIcon} aria-hidden>
+          {icon}
+        </span>
+        <span className={hubStyles.cardTitle}>{title}</span>
+        <span className={hubStyles.cardDesc}>{description}</span>
+        <span className={hubStyles.cardArrow} aria-hidden>
+          <ArrowRight className="h-[15px] w-[15px]" strokeWidth={2.2} />
+        </span>
+      </span>
+    </>
+  );
+}
 
 export default function BeslenmeHubPage() {
   const guard = useBeslenmeModuleGuard();
@@ -107,175 +162,146 @@ export default function BeslenmeHubPage() {
   if (guard !== "ok") return <BeslenmeGate state={guard} />;
 
   const stats = [
-    { label: "Besin", value: counts?.foods, cls: "text-emerald-700" },
-    { label: "Rehber", value: counts?.guides, cls: "text-teal-700" },
-    { label: "Mizaç", value: counts?.mizac, cls: "text-amber-700" },
-    { label: "Kan Grubu", value: counts?.bloodType, cls: "text-rose-700" },
-    { label: "Kaynak", value: counts?.sources, cls: "text-slate-700" },
+    { label: "Besin", value: counts?.foods, tone: "green", Icon: Package },
+    { label: "Rehber", value: counts?.guides, tone: "blue", Icon: BookOpen },
+    { label: "Mizaç", value: counts?.mizac, tone: "amber", Icon: Leaf },
+    { label: "Kan Grubu", value: counts?.bloodType, tone: "red", Icon: Droplet },
+    { label: "Kaynak", value: counts?.sources, tone: "violet", Icon: Database },
   ];
 
+  // Üst sıra: Planlar + Şablonlar (+ Danışan Planları) + Besinler → 4 kart (Danışan gizliyse 3; ızgara dengeli kalır).
+  const topCls = `${hubStyles.card} ${hasClients ? "" : hubStyles.cardThird}`;
+  const [foodsModule, ...wideModules] = MODULES;
+
+  function moduleBadge(m: (typeof MODULES)[number]): string | null {
+    const value = counts?.[m.countKey];
+    return !loading && typeof value === "number" ? `${value} ${m.unit}` : null;
+  }
+
   return (
-    <BeslenmeShell
-      eyebrow="Beslenme & Metabolik Yaşam"
-      title="Beslenme"
-      subtitle="Besin kütüphanesi, beslenme rehberleri ve mizaç/kan grubu profilleri. Kaynak temelli profesyonel referans ve çalışma merkezi."
-      icon={<Sparkles className="h-32 w-32" strokeWidth={1} />}
-      actions={
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-          {stats.map((s) => (
-            <div
-              key={s.label}
-              className="rounded-xl border border-emerald-100/80 bg-white/90 px-3 py-2 text-center shadow-sm"
-            >
-              <div className={`text-lg font-black sm:text-xl ${s.cls}`}>
-                {loading ? "—" : (s.value ?? 0)}
-              </div>
-              <div className="mt-0.5 text-[10px] font-bold text-slate-500">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      }
-    >
-      {err ? (
-        <div className="mb-4 rounded-xl bg-rose-50 px-4 py-2.5 text-[13px] font-bold text-rose-700 ring-1 ring-rose-100">
-          {err}
-        </div>
-      ) : null}
-
-      {/* Hızlı aksiyonlar */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        <Link
-          href="/beslenme/besinler"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white/90 px-3.5 py-2 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-50"
-        >
-          <Plus className="h-4 w-4" aria-hidden /> Besin
-        </Link>
-        <Link
-          href="/beslenme/rehber"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-white/90 px-3.5 py-2 text-[13px] font-black text-teal-800 shadow-sm transition hover:bg-teal-50"
-        >
-          <Plus className="h-4 w-4" aria-hidden /> Beslenme Kaydı
-        </Link>
-      </div>
-
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {/* Beslenme Planları — sayaçsız (kart planlara doğrudan yönlendirir) */}
-        <Link
-          href="/beslenme/planlar"
-          className="group relative flex min-h-[176px] flex-col overflow-hidden rounded-[22px] border border-emerald-100 bg-gradient-to-br from-emerald-50/70 to-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/50"
-        >
-          <div className="flex items-start justify-between gap-2">
-            <span
-              className="flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50 text-emerald-600 shadow-sm"
-              aria-hidden
-            >
-              <CalendarDays className="h-6 w-6" />
-            </span>
-          </div>
-          <div className="mt-3 min-w-0 flex-1">
-            <h2 className="text-lg font-black leading-tight tracking-tight text-slate-950">Beslenme Planları</h2>
-            <p className="mt-1.5 text-xs font-medium leading-snug text-slate-600">
-              Günlük, haftalık ve aylık beslenme planları oluşturun; kalori ve besin değerlerini otomatik hesaplayın.
+    <main className={hubStyles.page}>
+      <div className={hubStyles.inner}>
+        <header className={hubStyles.hero}>
+          <div className={hubStyles.heroText}>
+            <p className={hubStyles.heroBadge}>
+              <span className={hubStyles.dot} aria-hidden />
+              Beslenme &amp; Metabolik Yaşam
+            </p>
+            <h1 className={hubStyles.heroTitle}>Beslenme</h1>
+            <p className={hubStyles.heroSub}>
+              Besin kütüphanesi, beslenme rehberleri ve mizaç/kan grubu profilleri. Kaynak temelli profesyonel referans
+              ve çalışma merkezi.
             </p>
           </div>
-          <span className="mt-4 block w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-2 text-center text-[13px] font-black text-white shadow-md transition group-hover:brightness-105">
-            Beslenme Planları →
-          </span>
-        </Link>
-
-        {/* Şablonlar — öğün/gün şablon kütüphanesi (FAZ 6) */}
-        <Link
-          href="/beslenme/sablonlar"
-          className="group relative flex min-h-[176px] flex-col overflow-hidden rounded-[22px] border border-emerald-100 bg-gradient-to-br from-emerald-50/70 to-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/50"
-        >
-          <div className="flex items-start justify-between gap-2">
-            <span
-              className="flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50 text-emerald-600 shadow-sm"
-              aria-hidden
-            >
-              <LayoutTemplate className="h-6 w-6" />
-            </span>
-          </div>
-          <div className="mt-3 min-w-0 flex-1">
-            <h2 className="text-lg font-black leading-tight tracking-tight text-slate-950">Şablonlar</h2>
-            <p className="mt-1.5 text-xs font-medium leading-snug text-slate-600">
-              Sık kullandığınız öğünleri ve günleri şablon olarak saklayın; planlara hızlıca uygulayın.
-            </p>
-          </div>
-          <span className="mt-4 block w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-2 text-center text-[13px] font-black text-white shadow-md transition group-hover:brightness-105">
-            Şablonlar →
-          </span>
-        </Link>
-
-        {/* Danışan Planları — danışan seç → o danışanın Beslenme sekmesi (FAZ 7).
-            Yalnız clients yeteneği olanlara (server-authoritative); beslenme-only uzmanda GİZLİ. */}
-        {hasClients ? (
-          <button
-            type="button"
-            onClick={() => setClientPickerOpen(true)}
-            className="group relative flex min-h-[176px] flex-col overflow-hidden rounded-[22px] border border-emerald-100 bg-gradient-to-br from-emerald-50/70 to-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/50"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50 text-emerald-600 shadow-sm" aria-hidden>
-                <Users className="h-6 w-6" />
-              </span>
-            </div>
-            <div className="mt-3 min-w-0 flex-1">
-              <h2 className="text-lg font-black leading-tight tracking-tight text-slate-950">Danışan Planları</h2>
-              <p className="mt-1.5 text-xs font-medium leading-snug text-slate-600">
-                Bir danışan seçin; beslenme profili, ölçümleri ve planlarına ulaşın.
-              </p>
-            </div>
-            <span className="mt-4 block w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-2 text-center text-[13px] font-black text-white shadow-md transition group-hover:brightness-105">
-              Danışan Seç →
-            </span>
-          </button>
-        ) : null}
-
-        {MODULES.map((m) => {
-          const Icon = m.icon;
-          const value = counts?.[m.countKey];
-          return (
-            <Link
-              key={m.href}
-              href={m.href}
-              className={`group relative flex min-h-[176px] flex-col overflow-hidden rounded-[22px] border p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/50 ${m.ring}`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <span
-                  className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-sm ${m.iconBox}`}
-                  aria-hidden
-                >
-                  <Icon className="h-6 w-6" />
-                </span>
-                {!loading && typeof value === "number" ? (
-                  <span className="rounded-full border border-slate-200 bg-white/85 px-2.5 py-0.5 text-[10px] font-black text-slate-600 shadow-sm">
-                    {value} {m.unit}
+          <div className={hubStyles.heroStats}>
+            <ul className={hubStyles.stats} aria-label="Beslenme sayaçları">
+              {stats.map((s) => (
+                <li key={s.label} className={hubStyles.stat} data-tone={s.tone}>
+                  <span className={hubStyles.statIcon} aria-hidden>
+                    <s.Icon className="h-5 w-5" strokeWidth={1.9} />
                   </span>
-                ) : null}
-              </div>
+                  <span className={hubStyles.statText}>
+                    <strong className={hubStyles.statValue}>{loading ? "—" : (s.value ?? 0)}</strong>
+                    <span className={hubStyles.statLabel}>{s.label}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </header>
 
-              <div className="mt-3 min-w-0 flex-1">
-                <h2 className="text-lg font-black leading-tight tracking-tight text-slate-950">{m.label}</h2>
-                <p className="mt-1.5 text-xs font-medium leading-snug text-slate-600">{m.description}</p>
-              </div>
+        {err ? <div className={hubStyles.error}>{err}</div> : null}
 
-              <span
-                className={`mt-4 block w-full rounded-xl bg-gradient-to-r py-2 text-center text-[13px] font-black text-white shadow-md transition group-hover:brightness-105 ${m.gradient}`}
+        {/* Hızlı aksiyonlar */}
+        <div className={hubStyles.actions} role="group" aria-label="Hızlı işlemler">
+          <Link href="/beslenme/besinler" className={`${hubStyles.action} ${hubStyles.actionPrimary}`}>
+            <Plus className="h-4 w-4" strokeWidth={2.4} aria-hidden /> Besin
+          </Link>
+          <Link href="/beslenme/rehber" className={hubStyles.action}>
+            <Plus className="h-4 w-4" strokeWidth={2.4} aria-hidden /> Beslenme Kaydı
+          </Link>
+        </div>
+
+        <section className={hubStyles.cards} aria-label="Beslenme çalışma alanları">
+          {/* Beslenme Planları — sayaçsız (kart planlara doğrudan yönlendirir) */}
+          <Link href="/beslenme/planlar" className={topCls} data-card="planlar" data-tone="mint">
+            <HubCardInner
+              art="planlar"
+              icon={<CalendarDays className="h-[22px] w-[22px]" strokeWidth={1.8} />}
+              title="Beslenme Planları"
+              description="Günlük, haftalık ve aylık beslenme planları oluşturun; kalori ve besin değerlerini otomatik hesaplayın."
+            />
+          </Link>
+
+          {/* Şablonlar — öğün/gün şablon kütüphanesi (FAZ 6) */}
+          <Link href="/beslenme/sablonlar" className={topCls} data-card="sablonlar" data-tone="sky">
+            <HubCardInner
+              art="sablonlar"
+              icon={<LayoutTemplate className="h-[22px] w-[22px]" strokeWidth={1.8} />}
+              title="Şablonlar"
+              description="Sık kullandığınız öğünleri ve günleri şablon olarak saklayın; planlara hızlıca uygulayın."
+            />
+          </Link>
+
+          {/* Danışan Planları — danışan seç → o danışanın Beslenme sekmesi (FAZ 7).
+              Yalnız clients yeteneği olanlara (server-authoritative); beslenme-only uzmanda GİZLİ. */}
+          {hasClients ? (
+            <button
+              type="button"
+              onClick={() => setClientPickerOpen(true)}
+              className={topCls}
+              data-card="danisan"
+              data-tone="cream"
+            >
+              <HubCardInner
+                art="danisan"
+                icon={<Users className="h-[22px] w-[22px]" strokeWidth={1.8} />}
+                title="Danışan Planları"
+                description="Bir danışan seçin; beslenme profili, ölçümleri ve planlarına ulaşın."
+              />
+            </button>
+          ) : null}
+
+          <Link href={foodsModule.href} className={topCls} data-card={foodsModule.art} data-tone={foodsModule.tone}>
+            <HubCardInner
+              art={foodsModule.art}
+              icon={<foodsModule.icon className="h-[22px] w-[22px]" strokeWidth={1.8} />}
+              title={foodsModule.label}
+              description={foodsModule.description}
+              badge={moduleBadge(foodsModule)}
+            />
+          </Link>
+
+          {wideModules.map((m) => {
+            const Icon = m.icon;
+            const tone: CardTone = m.tone;
+            return (
+              <Link
+                key={m.href}
+                href={m.href}
+                className={`${hubStyles.card} ${hubStyles.cardWide}`}
+                data-card={m.art}
+                data-tone={tone}
               >
-                {m.label} →
-              </span>
-            </Link>
-          );
-        })}
-      </section>
+                <HubCardInner
+                  art={m.art}
+                  icon={<Icon className="h-[22px] w-[22px]" strokeWidth={1.8} />}
+                  title={m.label}
+                  description={m.description}
+                  badge={moduleBadge(m)}
+                />
+              </Link>
+            );
+          })}
+        </section>
 
-      <footer className="mt-5 flex flex-wrap items-center gap-2 rounded-2xl border border-emerald-100/60 bg-white/60 px-4 py-3">
-        <Sparkles className="h-5 w-5 text-emerald-500" aria-hidden />
-        <p className="text-xs font-medium text-slate-500">
-          Beslenme Merkezi — besin kütüphanesi, kaynak temelli beslenme rehberleri ve geleneksel profil sistemleri.
-        </p>
-      </footer>
+        <footer className={hubStyles.footNote}>
+          <Sprout className="h-[18px] w-[18px]" strokeWidth={1.8} aria-hidden />
+          <span>
+            Beslenme Merkezi — besin kütüphanesi, kaynak temelli beslenme rehberleri ve geleneksel profil sistemleri.
+          </span>
+        </footer>
+      </div>
 
       {clientPickerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={() => setClientPickerOpen(false)}>
@@ -291,6 +317,6 @@ export default function BeslenmeHubPage() {
           </div>
         </div>
       )}
-    </BeslenmeShell>
+    </main>
   );
 }

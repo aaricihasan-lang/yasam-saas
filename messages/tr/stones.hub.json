@@ -1,6 +1,10 @@
 {
   "stones": {
     "hub": {
+      "premium": {
+        "sideQuote": "Doğanın|Şifalı Enerjisi|Bilgiyle Buluşur",
+        "analyticsNote": "Daha fazla bilgi,|daha bilinçli seçimler..."
+      },
       "sidebar": {
         "brand": "YAŞAM SİSTEMİ",
         "moduleName": "Doğaltaş Modülü",

@@ -508,6 +508,25 @@
         "weakPassword": "Password must be at least 6 characters.",
         "rateLimited": "Too many attempts. Please try again later."
       }
+    },
+    "premium": {
+      "tagline": "For a more balanced life",
+      "menuHome": "Home",
+      "menuAllModules": "All Modules",
+      "menuCalendar": "Calendar",
+      "menuClients": "Clients",
+      "menuContents": "Contents",
+      "menuSettings": "Settings",
+      "menuAdmin": "Admin Panel",
+      "menuOpen": "Open menu",
+      "menuCollapse": "Collapse menu",
+      "menuExpand": "Expand menu",
+      "menuLabel": "Main menu",
+      "sideQuote": "More mindful,|more balanced,|a better life...",
+      "eyebrow": "Yaşam Sistemi",
+      "heroSub": "We are here for a more balanced, mindful and meaningful life.",
+      "quote": "Knowing yourself|is the first step|to a better life.",
+      "modulesTitle": "Life Modules"
     }
   }
 }

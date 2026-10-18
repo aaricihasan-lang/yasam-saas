@@ -4,17 +4,18 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { readYasamUser, syncYasamUserFromDb, type YasamUser } from "@/lib/auth/yasamUser";
 import { ENERGY_BODY_HUB_CHILDREN, canSeeHubChild } from "@/lib/auth/hubVisibility";
+import { tiltLeave, tiltMove } from "@/app/_premium/enerji-beden/cardTilt";
+import styles from "@/app/_premium/enerji-beden/enerjiBeden.module.css";
 
 export type EnergyFolder = {
   title: string;
   desc: string;
   href: string;
-  icon: string;
   badge: string;
-  gradient: string;
-  border: string;
-  accent: string;
-  button: string;
+  /** Kart renk tonu (premium CSS modülünde data-accent). */
+  accent: "violet" | "mint" | "rose";
+  /** Onaylı referanstan kesilmiş dekoratif kart görseli. */
+  art: { src: string; w: number; h: number };
 };
 
 const CHILD_BY_HREF = new Map(ENERGY_BODY_HUB_CHILDREN.map((child) => [child.href, child]));
@@ -56,40 +57,29 @@ export function EnergyFoldersClient({ folders }: { folders: readonly EnergyFolde
     : [];
 
   return (
-    <div className="mx-auto grid min-h-0 w-full max-w-5xl flex-1 grid-cols-1 items-stretch gap-5 pb-2 sm:grid-cols-2 lg:grid-cols-3">
+    <section className={styles.cards} aria-label="Beden & Enerji klasörleri">
       {visible.map((folder) => (
         <Link
           key={folder.title}
           href={folder.href}
-          className={`group flex h-auto flex-col overflow-hidden rounded-2xl border bg-gradient-to-br shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${folder.gradient} ${folder.border}`}
+          className={styles.card}
+          data-accent={folder.accent}
+          onPointerMove={(e) => tiltMove(e)}
+          onPointerLeave={tiltLeave}
         >
-          <div className="flex flex-1 flex-col items-center justify-center px-5 pt-6 text-center">
-            <span
-              className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/60 text-4xl shadow-sm"
-              aria-hidden
-            >
-              {folder.icon}
+          <div className={styles.cardArt} aria-hidden>
+            <span className={styles.artLayer}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={folder.art.src} width={folder.art.w} height={folder.art.h} alt="" decoding="async" draggable={false} />
             </span>
-            <span
-              className={`mt-4 rounded-full bg-white/60 px-3 py-0.5 text-xs font-bold backdrop-blur ${folder.accent}`}
-            >
-              {folder.badge}
-            </span>
-            <h2 className={`mt-3 text-2xl font-bold ${folder.accent}`}>{folder.title}</h2>
-            <p className="mt-2 max-w-xs text-sm leading-relaxed text-slate-700/90">
-              {folder.desc}
-            </p>
           </div>
-
-          <div className="shrink-0 p-5 pt-4">
-            <span
-              className={`block w-full rounded-xl py-2.5 text-center text-sm font-bold shadow-md transition ${folder.button}`}
-            >
-              Klasöre Git →
-            </span>
+          <div className={styles.cardBody}>
+            <span className={styles.badge}>{folder.badge}</span>
+            <h2 className={styles.cardTitle}>{folder.title}</h2>
+            <p className={styles.cardDesc}>{folder.desc}</p>
           </div>
         </Link>
       ))}
-    </div>
+    </section>
   );
 }

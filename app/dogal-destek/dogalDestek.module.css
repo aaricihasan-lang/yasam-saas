@@ -1,0 +1,475 @@
+/*
+ * Doğal Destek & Rehber — premium görünüm (owner onaylı bağımsız prototip: C:\YasamSistemi-Gorsel-Tasarim\dogal-destek,
+ * a26807d). Yalnız GÖRSEL katman; yetki/görünürlük DogalDestekCards.tsx'te değişmeden kalır.
+ * Tüm token'lar .page kökünde tanımlıdır (global tema YOK). Kart renkleri data-accent ile seçilir.
+ * 2×2 yatay kartlar: solda ikon + başlık + açıklama, sağda referans görsel. Buton YOK; kartın tamamı bağlantıdır.
+ */
+
+@font-face {
+  font-family: "YS Fraunces";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/premium/fonts/5307092570128b5a-s.p.16191ingcc7md.woff2") format("woff2");
+  unicode-range: U+100-2BA, U+2BD-2C5, U+2C7-2CC, U+2CE-2D7, U+2DD-2FF, U+304, U+308, U+329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "YS Fraunces";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/premium/fonts/b67966e0b83b2cd0-s.p.0fuf3937kiol3.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+131, U+152-153, U+2BB-2BC, U+2C6, U+2DA, U+2DC, U+304, U+308, U+329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "YS Jost";
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url("/premium/fonts/9b8f0e32b229dbc1-s.p.0dguglgc-iz4q.woff2") format("woff2");
+  unicode-range: U+100-2BA, U+2BD-2C5, U+2C7-2CC, U+2CE-2D7, U+2DD-2FF, U+304, U+308, U+329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "YS Jost";
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url("/premium/fonts/81cef6a21128489e-s.p.2csanl8cs02r-.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+131, U+152-153, U+2BB-2BC, U+2C6, U+2DA, U+2DC, U+304, U+308, U+329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+.page {
+  --font-display: "YS Fraunces", Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-label: "YS Jost", system-ui, sans-serif;
+  --ink: #1f1a3a;
+  --ink-soft: #57536b;
+  --eyebrow: #b0853a;
+  --r-card: 26px;
+
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100vh - 56px);
+  overflow: hidden; /* yalnız dekor katmanını (yan şeritler) kırpar */
+  background: #fdfaf5;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Sahne zemini (dekor katmanı) ─────────────────────────────────────── */
+.scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 52% 42% at 50% -8%, rgba(255, 228, 175, 0.55), transparent 72%),
+    radial-gradient(ellipse 42% 60% at -4% 40%, rgba(205, 232, 205, 0.5), transparent 72%),
+    radial-gradient(ellipse 42% 60% at 104% 36%, rgba(220, 210, 255, 0.5), transparent 72%),
+    radial-gradient(ellipse 60% 44% at 50% 110%, rgba(255, 226, 200, 0.45), transparent 72%),
+    linear-gradient(180deg, #fffdf8 0%, #fcf8f2 55%, #faf4ee 100%);
+  pointer-events: none;
+}
+
+.sceneSun {
+  position: absolute;
+  top: -22vh;
+  left: 50%;
+  width: min(900px, 80vw);
+  height: 60vh;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, rgba(255, 240, 205, 0.7), rgba(255, 240, 205, 0) 65%);
+}
+
+.sceneSide {
+  position: absolute;
+  top: 0;
+  width: auto;
+  height: 100%;
+  max-height: 916px;
+  object-fit: cover;
+  opacity: 0.95;
+}
+
+.sceneLeft {
+  left: 0;
+  -webkit-mask-image: linear-gradient(90deg, #000 55%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 55%, transparent 100%);
+}
+
+.sceneRight {
+  right: 0;
+  -webkit-mask-image: linear-gradient(270deg, #000 55%, transparent 100%);
+  mask-image: linear-gradient(270deg, #000 55%, transparent 100%);
+}
+
+/* ── İçerik ───────────────────────────────────────────────────────────── */
+.inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 16px clamp(16px, 3vw, 40px) 24px;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  font-family: var(--font-label);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--eyebrow);
+}
+
+.eyebrow::before,
+.eyebrow::after {
+  content: "";
+  width: 52px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(176, 133, 58, 0.7));
+}
+
+.eyebrow::after {
+  margin-left: -0.42em;
+  transform: scaleX(-1);
+}
+
+.heroTitle {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 1.4rem + 2.1vw, 3.4rem);
+  font-weight: 600;
+  font-variation-settings: "opsz" 96, "SOFT" 30;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+}
+
+.heroTitle span {
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.tA {
+  background-image: linear-gradient(180deg, #13806a 0%, #0c5a4a 100%);
+}
+
+.tAmp {
+  background-image: linear-gradient(180deg, #e2b25e 0%, #a9772c 100%);
+}
+
+.tB {
+  background-image: linear-gradient(180deg, #7b43ea 0%, #5226c2 100%);
+}
+
+.heroSub {
+  margin: 6px 0 0;
+  font-size: clamp(14px, 0.8rem + 0.3vw, 16.5px);
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+/* ── Kartlar ──────────────────────────────────────────────────────────── */
+/* Izgara düzeni, bekleme alanı ve fade canlı sözleşmedeki Tailwind sınıflarıyla gelir (DogalDestekCards gridClass);
+   burada yalnız kart yüksekliği değişkeni tanımlanır. */
+.cards {
+  --card-h: 232px;
+}
+
+.card[data-accent="amber"] {
+  --c-surface: linear-gradient(180deg, #fff4e9 0%, #fef1e6 100%);
+  --c-title: #7c3410;
+  --c-desc: #5f5149;
+  --c-icon: #b0662a;
+  --c-ring: #c9773a;
+  --c-shadow: rgba(214, 150, 90, 0.26);
+}
+
+.card[data-accent="sage"] {
+  --c-surface: linear-gradient(180deg, #ebfaf2 0%, #e8f9ef 100%);
+  --c-title: #0d544a;
+  --c-desc: #4b6159;
+  --c-icon: #1c8a64;
+  --c-ring: #1c8a64;
+  --c-shadow: rgba(60, 170, 130, 0.22);
+}
+
+.card[data-accent="mint"] {
+  --c-surface: linear-gradient(180deg, #f3f8e6 0%, #f1f7e5 100%);
+  --c-title: #145734;
+  --c-desc: #4f5f4e;
+  --c-icon: #2a8a4a;
+  --c-ring: #2a8a4a;
+  --c-shadow: rgba(110, 170, 90, 0.22);
+}
+
+.card[data-accent="violet"] {
+  --c-surface: linear-gradient(180deg, #ebe8fd 0%, #e8e5fc 100%);
+  --c-title: #4a1d9a;
+  --c-desc: #57526f;
+  --c-icon: #7c3aed;
+  --c-ring: #7c3aed;
+  --c-shadow: rgba(130, 100, 230, 0.26);
+}
+
+.card {
+  position: relative;
+  container-type: inline-size; /* dar kartta görsel/metin oranı kartın kendi genişliğine göre (ızgara sözleşmesi değişmez) */
+  display: flex;
+  align-items: center;
+  min-height: var(--card-h);
+  border-radius: var(--r-card);
+  border: 1.5px solid rgba(255, 255, 255, 0.95);
+  background: var(--c-surface);
+  color: inherit;
+  text-decoration: none;
+  outline: none;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 1px 3px rgba(60, 40, 120, 0.05),
+    0 22px 44px -28px var(--c-shadow);
+  transform: perspective(1200px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translate3d(0, var(--lift, 0px), 0);
+  transition:
+    transform 560ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    box-shadow 560ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.card[data-tilting="true"] {
+  transition:
+    transform 160ms linear,
+    box-shadow 560ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background: radial-gradient(280px circle at var(--gx, 50%) var(--gy, 0%), rgba(255, 255, 255, 0.32), transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 560ms ease;
+}
+
+.cardArt {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 62%;
+}
+
+.artLayer {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform: translate(calc(var(--px, 0) * 6px), calc(var(--py, 0) * 4.8px));
+  transition: transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.cardArt img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 100% 50%;
+  border-radius: 0 calc(var(--r-card) - 2px) calc(var(--r-card) - 2px) 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 30%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 30%);
+  transition: transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  user-select: none;
+}
+
+.cardBody {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 46%;
+  padding: 22px 0 22px clamp(20px, 2.2vw, 34px);
+}
+
+.cardIcon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9), 0 6px 16px -8px var(--c-shadow);
+  color: var(--c-icon);
+}
+
+.cardTitle {
+  margin: 14px 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.55rem, 1.05rem + 0.85vw, 2.05rem);
+  font-weight: 600;
+  font-variation-settings: "opsz" 72, "SOFT" 30;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--c-title);
+}
+
+.cardDesc {
+  max-width: 28ch;
+  margin: 8px 0 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--c-desc);
+}
+
+/* Canlı gridClass 3 kartı lg'de 3 sütuna dizer: kart daralınca başlık görselin üstüne binmesin. */
+@container (max-width: 480px) {
+  .cardArt {
+    width: 46%;
+  }
+  .cardBody {
+    width: 60%;
+    padding-right: 6px;
+  }
+  .cardTitle {
+    font-size: 1.45rem;
+  }
+  .cardDesc {
+    font-size: 13.5px;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    --lift: -4px;
+    box-shadow:
+      inset 0 1px 0 #fff,
+      0 0 0 3px rgba(255, 255, 255, 0.7),
+      0 2px 6px rgba(60, 40, 120, 0.06),
+      0 30px 56px -30px var(--c-shadow);
+  }
+  .card:hover::before {
+    opacity: 1;
+  }
+  .card:hover .cardArt img {
+    transform: scale(1.03);
+  }
+}
+
+.card:focus-visible {
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 0 0 3px var(--c-ring),
+    0 22px 44px -28px var(--c-shadow);
+}
+
+/* Kısa masaüstü ekranları (ör. 1536×639): kart yüksekliği gerçekten azalır. */
+@media (min-width: 1000px) and (max-height: 700px) {
+  .inner {
+    padding-top: 10px;
+    padding-bottom: 14px;
+  }
+  .hero {
+    margin-bottom: 12px;
+  }
+  .cards {
+    --card-h: 198px;
+    gap: 16px;
+  }
+  .cardIcon {
+    width: 46px;
+    height: 46px;
+  }
+  .cardTitle {
+    margin-top: 10px;
+  }
+}
+
+@media (min-width: 1700px) and (min-height: 860px) {
+  .inner {
+    max-width: 1440px;
+    padding-top: 28px;
+  }
+  .hero {
+    margin-bottom: 26px;
+  }
+  .cards {
+    --card-h: 272px;
+  }
+}
+
+@media (max-width: 1199px) {
+  .sceneSide {
+    display: none;
+  }
+}
+
+@media (max-width: 999px) {
+  .cards {
+    --card-h: 220px;
+  }
+  .cardArt {
+    width: 54%;
+  }
+}
+
+@media (max-width: 640px) {
+  .card {
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 0;
+  }
+  .cardArt {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 448 / 280;
+  }
+  .cardArt img {
+    border-radius: calc(var(--r-card) - 2px) calc(var(--r-card) - 2px) 0 0;
+    -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent 100%);
+    mask-image: linear-gradient(180deg, #000 72%, transparent 100%);
+    object-position: 50% 50%;
+  }
+  .cardBody {
+    width: 100%;
+    margin-top: -26px;
+    padding: 0 20px 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .card[data-tilting="true"],
+  .artLayer {
+    transform: none;
+    transition: box-shadow 1ms;
+  }
+  .cardArt img {
+    transition: none;
+  }
+  .card:hover .cardArt img {
+    transform: none;
+  }
+  .cards {
+    transition: none;
+  }
+}

@@ -1,0 +1,569 @@
+/*
+ * Biyoenerji iç sekmeler — premium görünüm (owner onaylı prototip: C:\YasamSistemi-Gorsel-Tasarim\biyoenerji-ic-sekmeler,
+ * eae69b6). Yalnız görsel katman; değerler bu modülün kökünde (.page) → başka sayfaya sızmaz (global tema YOK).
+ * 3×2 yatay kartlar: solda ikon + başlık + açıklama, sağda onaylı referans görsel; "Aç →" / rozet YOK, kartın tamamı
+ * tek bağlantı. Gerçek sayfadaki modül içi arama ve sağlık bilgilendirmesi KORUNUR (prototipte gösterilmiyordu).
+ */
+
+.page {
+  --ink: #1f1a3a;
+  --ink-soft: #57536b;
+  --eyebrow: #b0853a;
+  --desc: #5a5668;
+  --r-card: 24px;
+
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100dvh - 44px); /* uygulama üst çubuğu 44px */
+  overflow: hidden; /* yalnız dekor katmanının kenarlarını kırpar */
+  background: #fdfaf7;
+  color: var(--ink);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Sahne zemini (dekor) ───────────────────────────────────────────────── */
+.scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 52% 40% at 50% -8%, rgba(255, 232, 190, 0.5), transparent 72%),
+    radial-gradient(ellipse 40% 60% at -4% 40%, rgba(205, 236, 220, 0.45), transparent 72%),
+    radial-gradient(ellipse 40% 60% at 104% 40%, rgba(226, 214, 255, 0.5), transparent 72%),
+    radial-gradient(ellipse 60% 44% at 50% 110%, rgba(255, 226, 214, 0.45), transparent 72%),
+    linear-gradient(180deg, #fffdfa 0%, #fcf9f5 55%, #faf6f2 100%);
+  pointer-events: none;
+}
+
+.sceneSun {
+  position: absolute;
+  top: -22vh;
+  left: 50%;
+  width: min(900px, 80vw);
+  height: 60vh;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, rgba(255, 240, 205, 0.7), rgba(255, 240, 205, 0) 65%);
+}
+
+.sceneSide {
+  position: absolute;
+  top: 0;
+  width: auto;
+  height: 100%;
+  max-height: 920px;
+  object-fit: cover;
+  opacity: 0.95;
+}
+
+.sceneLeft {
+  left: 0;
+  -webkit-mask-image: linear-gradient(90deg, #000 55%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 55%, transparent 100%);
+}
+
+.sceneRight {
+  right: 0;
+  -webkit-mask-image: linear-gradient(270deg, #000 55%, transparent 100%);
+  mask-image: linear-gradient(270deg, #000 55%, transparent 100%);
+}
+
+/* ── İçerik ─────────────────────────────────────────────────────────────── */
+.inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 12px clamp(16px, 3vw, 40px) 24px;
+}
+
+.backRow {
+  display: flex;
+  margin-bottom: 4px;
+}
+
+.backLink {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(110, 90, 190, 0.16);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 4px 12px -8px rgba(90, 60, 180, 0.4);
+  transition: color 200ms ease, border-color 200ms ease;
+}
+
+.backLink:hover {
+  color: #6d28d9;
+  border-color: rgba(124, 58, 237, 0.35);
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  font-family: var(--eb-label), system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--eyebrow);
+}
+
+.eyebrow::before,
+.eyebrow::after {
+  content: "";
+  width: 52px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(176, 133, 58, 0.7));
+}
+
+.eyebrow::after {
+  margin-left: -0.42em;
+  transform: scaleX(-1);
+}
+
+.heroTitle {
+  margin: 2px 0 0;
+  font-family: var(--eb-serif), Georgia, serif;
+  font-size: clamp(2.4rem, 1.5rem + 2.2vw, 3.6rem);
+  font-weight: 600;
+  font-variation-settings: "opsz" 96, "SOFT" 30;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+}
+
+.heroTitle span {
+  /* onaylı görsel: mor → mavi → petrol yatay geçiş */
+  background-image: linear-gradient(95deg, #7c2ff0 0%, #5a3fe0 38%, #2f6fd6 70%, #1d8aa8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.heroSub {
+  margin: 6px 0 0;
+  font-size: clamp(14px, 0.8rem + 0.3vw, 16.5px);
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+/* Gerçek arama ve bilgilendirme: kart ızgarasıyla aynı genişlikte. */
+.search {
+  margin-bottom: 4px;
+}
+
+.disclaimer {
+  margin-top: 18px;
+}
+
+/* ── Kartlar: 3×2 yatay (butonsuz; kartın tamamı tek bağlantı) ──────────── */
+.cards {
+  --card-h: 214px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: clamp(14px, 1.5vw, 24px);
+}
+
+.card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: var(--card-h);
+  border-radius: var(--r-card);
+  border: 1.5px solid rgba(255, 255, 255, 0.95);
+  background: var(--c-surface);
+  color: inherit;
+  text-decoration: none;
+  outline: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 1px 3px rgba(60, 40, 120, 0.05),
+    0 20px 40px -26px var(--c-shadow);
+  transform: perspective(1200px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translate3d(0, var(--lift, 0px), 0);
+  transition:
+    transform 560ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    box-shadow 560ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.card[data-tilting="true"] {
+  transition:
+    transform 160ms linear,
+    box-shadow 560ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.card[data-card="cakralar"] {
+  --c-surface: linear-gradient(180deg, #edf9f2 0%, #ebf9f1 100%);
+  --c-title: #0f5a48;
+  --c-icon: #2f9e7c;
+  --c-ring: #2f9e7c;
+  --c-shadow: rgba(60, 170, 130, 0.22);
+}
+
+.card[data-card="enerji-bedenleri"] {
+  --c-surface: linear-gradient(180deg, #ebf6fd 0%, #e7f5fd 100%);
+  --c-title: #173d6e;
+  --c-icon: #1f9ad6;
+  --c-ring: #1f9ad6;
+  --c-shadow: rgba(60, 150, 210, 0.22);
+}
+
+.card[data-card="bilincalti-sebepleri"] {
+  --c-surface: linear-gradient(180deg, #fff7ec 0%, #fef8ee 100%);
+  --c-title: #8a3b10;
+  --c-icon: #e2862c;
+  --c-ring: #d0782a;
+  --c-shadow: rgba(220, 160, 90, 0.26);
+}
+
+.card[data-card="seanslar"] {
+  --c-surface: linear-gradient(180deg, #f2ecfe 0%, #f0e9fe 100%);
+  --c-title: #4a1d9a;
+  --c-icon: #8b5cf6;
+  --c-ring: #7c3aed;
+  --c-shadow: rgba(130, 100, 230, 0.24);
+}
+
+.card[data-card="imajinasyonlar"] {
+  --c-surface: linear-gradient(180deg, #fdeef8 0%, #fdeaf8 100%);
+  --c-title: #9c1a6c;
+  --c-icon: #d63ca0;
+  --c-ring: #c72f92;
+  --c-shadow: rgba(220, 110, 180, 0.24);
+}
+
+.card[data-card="sembol-dili"] {
+  --c-surface: linear-gradient(180deg, #f1effe 0%, #efeefe 100%);
+  --c-title: #4b3aa8;
+  --c-icon: #8b5cf6;
+  --c-ring: #6d4ee0;
+  --c-shadow: rgba(130, 110, 230, 0.24);
+}
+
+/* Sağda referans görsel: kart yüksekliği kadar, kendi oranında; sol kenarı kart yüzeyine karışır. */
+.cardArt {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  max-width: 60%;
+}
+
+.artLayer {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform: translate(calc(var(--px, 0) * 4 * 2px), calc(var(--py, 0) * 4 * 1.6px));
+  transition: transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.cardArt img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0 calc(var(--r-card) - 2px) calc(var(--r-card) - 2px) 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 26%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 26%);
+  transition: transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  user-select: none;
+}
+
+/* Işık katmanları (render görselin üstünde; obje çizmez). */
+.glow {
+  position: absolute;
+  left: var(--gxp);
+  top: var(--gyp);
+  width: var(--gw);
+  height: var(--gh);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation-duration: var(--dur, 12s);
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+
+.glowChakra {
+  background: radial-gradient(closest-side, rgba(255, 255, 255, 0.95), rgba(255, 246, 220, 0.4) 55%, transparent 100%);
+  animation-name: beChakra;
+}
+
+.glowAura {
+  background: radial-gradient(closest-side, transparent 52%, rgba(170, 225, 255, 0.55) 74%, rgba(210, 190, 255, 0.25) 88%, transparent 100%);
+  animation-name: beAura;
+}
+
+.glowSymbol {
+  background: conic-gradient(from 0deg, transparent 0 62%, rgba(255, 236, 180, 0.95) 76%, transparent 88%);
+  -webkit-mask-image: radial-gradient(closest-side, transparent 80%, #000 86%, #000 93%, transparent 99%);
+  mask-image: radial-gradient(closest-side, transparent 80%, #000 86%, #000 93%, transparent 99%);
+  animation-name: beSymbol;
+  animation-timing-function: linear;
+}
+
+@keyframes beChakra {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes beAura {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translate(-50%, -50%) scale(0.94);
+  }
+  50% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+}
+
+@keyframes beSymbol {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* Cam yüzeyde ince ışık yansıması: hover'da bir kez geçer. */
+.sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: 0 calc(var(--r-card) - 2px) calc(var(--r-card) - 2px) 0;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.4) 50%, transparent 62%) no-repeat;
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cardBody {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 62%;
+  padding: 18px 0 18px clamp(18px, 1.7vw, 28px);
+}
+
+/* IA grup etiketi (Anatomi / Nedenler / Teknikler / Zihinsel-Sembolik) — canlı bilgi mimarisinden. */
+.cardGroup {
+  display: block;
+  margin-top: 10px;
+  font-family: var(--eb-label), system-ui, sans-serif;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--c-icon);
+  opacity: 0.85;
+}
+
+.cardGroup + .cardTitle {
+  margin-top: 4px;
+}
+
+.cardIcon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9), 0 6px 16px -8px var(--c-shadow);
+  color: var(--c-icon);
+}
+
+.cardTitle {
+  margin: 14px 0 0;
+  font-family: var(--eb-serif), Georgia, serif;
+  font-size: clamp(1.35rem, 0.9rem + 0.75vw, 1.85rem);
+  font-weight: 600;
+  font-variation-settings: "opsz" 72, "SOFT" 30;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--c-title);
+}
+
+.cardDesc {
+  max-width: 24ch;
+  margin: 7px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--desc);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    --lift: -4px;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      0 0 0 3px rgba(255, 255, 255, 0.75),
+      0 2px 6px rgba(60, 40, 120, 0.06),
+      0 30px 54px -30px var(--c-shadow);
+  }
+  .card:hover .cardArt img {
+    transform: scale(1.03);
+  }
+  .card:hover .sheen {
+    opacity: 1;
+    background-position: -30% 0;
+    transition:
+      background-position 1100ms cubic-bezier(0.3, 0.6, 0.2, 1),
+      opacity 200ms ease;
+  }
+}
+
+.card:active {
+  --lift: 0px;
+}
+
+.card:focus-visible {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 0 0 3px var(--c-ring),
+    0 20px 40px -26px var(--c-shadow);
+}
+
+/* Kısa masaüstü ekranları (gerçek Chrome 1536×639): gerçek yükseklik azaltma. */
+@media (min-width: 1000px) and (max-height: 700px) {
+  .inner {
+    padding-top: 8px;
+  }
+  .hero {
+    margin-bottom: 12px;
+  }
+  .heroTitle {
+    font-size: clamp(2.2rem, 1.3rem + 2vw, 3rem);
+  }
+  .cards {
+    --card-h: 200px;
+    gap: 14px;
+  }
+  .cardIcon {
+    width: 48px;
+    height: 48px;
+  }
+  .cardTitle {
+    margin-top: 10px;
+  }
+}
+
+@media (min-width: 1700px) and (min-height: 860px) {
+  .inner {
+    max-width: 1560px;
+    padding-top: 24px;
+  }
+  .hero {
+    margin-bottom: 24px;
+  }
+  .cards {
+    --card-h: 270px;
+  }
+}
+
+@media (max-width: 1199px) {
+  .sceneSide {
+    display: none;
+  }
+}
+
+/* Tablet: 2 sütun. */
+@media (max-width: 999px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    --card-h: 210px;
+  }
+}
+
+/* Mobil: görsel üstte, metin altta; doğal akış. */
+@media (max-width: 640px) {
+  .eyebrow {
+    letter-spacing: 0.24em;
+  }
+  .eyebrow::before,
+  .eyebrow::after {
+    display: none;
+  }
+  .cards {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: auto;
+  }
+  .card {
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 0;
+  }
+  .cardArt {
+    position: relative;
+    width: 100%;
+    max-width: none;
+    height: auto;
+    aspect-ratio: 16 / 9 !important;
+  }
+  .cardArt img {
+    object-position: 50% 40%;
+    border-radius: calc(var(--r-card) - 2px) calc(var(--r-card) - 2px) 0 0;
+    -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent 100%);
+    mask-image: linear-gradient(180deg, #000 72%, transparent 100%);
+  }
+  .sheen {
+    border-radius: calc(var(--r-card) - 2px) calc(var(--r-card) - 2px) 0 0;
+  }
+  .cardBody {
+    width: 100%;
+    margin-top: -28px;
+    padding: 0 20px 22px;
+  }
+  .cardDesc {
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .card[data-tilting="true"],
+  .artLayer {
+    transform: none;
+    transition: box-shadow 1ms;
+  }
+  .glow {
+    animation: none;
+  }
+  .cardArt img,
+  .sheen {
+    transition: none !important;
+  }
+  .card:hover .cardArt img {
+    transform: none;
+  }
+  .card:hover .sheen {
+    opacity: 0 !important;
+  }
+}
