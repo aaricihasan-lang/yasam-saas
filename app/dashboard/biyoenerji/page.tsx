@@ -28,12 +28,13 @@ export default function BiyoenerjiFolderPage() {
         </div>
 
         <header className={styles.hero}>
-          <p className={styles.eyebrow}>
+          {/* Başlık hiyerarşisi canlıdaki gibi: h1 = "Yaşam Enerjisi Sistemi", alt başlık = "Biyoenerji" (görünüm premium). */}
+          <h1 className={styles.eyebrow}>
             <span>Yaşam Enerjisi Sistemi</span>
-          </p>
-          <h1 className={styles.heroTitle}>
-            <span>Biyoenerji</span>
           </h1>
+          <p className={styles.heroTitle}>
+            <span>Biyoenerji</span>
+          </p>
           <p className={styles.heroSub}>Enerji anatomisinden tekniklere — tüm çalışma alanları tek merkezde.</p>
         </header>
 

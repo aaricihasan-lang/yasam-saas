@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { BIOENERJI_SECTIONS_IN_ORDER, type BiyoenerjiSectionKey } from "../biyoenerjiFolderConfig";
+import {
+  BIOENERJI_GROUP_ORDER,
+  BIOENERJI_SECTIONS_IN_ORDER,
+  type BiyoenerjiGroupId,
+  type BiyoenerjiSectionKey,
+} from "../biyoenerjiFolderConfig";
 import { tiltLeave, tiltMove } from "@/app/_premium/enerji-beden/cardTilt";
 import styles from "@/app/_premium/biyoenerji/biyoenerji.module.css";
 
@@ -10,7 +15,8 @@ import styles from "@/app/_premium/biyoenerji/biyoenerji.module.css";
  * Biyoenerji landing — 6 alan TEK canonical grid'te (masaüstü 3×2, tablet 2, mobil 1). Kartlar tek kaynaktan
  * (folderConfig: adres, başlık, açıklama, ikon) beslenir; placeholder yok.
  * 2026-10-18 premium görünüm (owner onaylı prototip eae69b6): sağda onaylı referanstan kesilmiş görsel + yumuşak ışık
- * katmanı; "Aç →" / rozet YOK, kartın tamamı tek bağlantı. Yalnız görsel eşleme burada (config'e dokunulmadı).
+ * katmanı; "Aç →" YOK, kartın tamamı tek bağlantı. IA grup etiketi (Anatomi, Nedenler…) korunur. Yalnız görsel
+ * eşleme burada (config'e dokunulmadı).
  */
 type Glow = { kind: "chakra" | "aura" | "symbol"; x: number; y: number; w: number; h: number; dur: number };
 
@@ -22,6 +28,15 @@ const ART: Record<BiyoenerjiSectionKey, { file: string; w: number; h: number; gl
   imajinasyonlar: { file: "imajinasyonlar", w: 220, h: 254 },
   "sembol-dili": { file: "sembol-dili", w: 266, h: 254, glow: { kind: "symbol", x: 56.4, y: 43, w: 64, h: 66, dur: 60 } },
 };
+
+/** IA grubu (FAZ 2): her kartın küçük kategori etiketi — tek kaynak folderConfig BIOENERJI_GROUP_ORDER. */
+const GROUP_TITLE: Record<BiyoenerjiGroupId, string> = BIOENERJI_GROUP_ORDER.reduce(
+  (acc, g) => {
+    acc[g.id] = g.title;
+    return acc;
+  },
+  {} as Record<BiyoenerjiGroupId, string>,
+);
 
 const GLOW_CLASS = { chakra: styles.glowChakra, aura: styles.glowAura, symbol: styles.glowSymbol } as const;
 
@@ -66,6 +81,7 @@ export default function BiyoenerjiFolderCards() {
               <span className={styles.cardIcon} aria-hidden>
                 <Icon className="h-[26px] w-[26px]" strokeWidth={1.7} />
               </span>
+              <span className={styles.cardGroup}>{GROUP_TITLE[card.group]}</span>
               <h3 className={styles.cardTitle}>{card.title}</h3>
               <p className={styles.cardDesc}>{card.desc}</p>
             </div>
