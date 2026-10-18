@@ -22,6 +22,7 @@ import {
   fingerprintFromRoxyRender,
   insertPngTextChunk,
 } from "./bodygraphBinding";
+import { HD_CHANNEL_PAIRS, definedChannelIdsFromRender, markRoxyHalfOnlyChannels } from "@/lib/human-design/bodygraph/roxyHalfChannels";
 
 const TARGET_HEIGHTS = [2400, 2000, 1800] as const;
 const MAX_PNG_BYTES = Math.floor(2.4 * 1024 * 1024);
@@ -186,6 +187,9 @@ export async function captureRoxyBodygraphPng(
     if (!drawingMatches(svg, data)) {
       return { ok: false, error: "BodyGraph çizimi kayıtlı harita verisiyle doğrulanamadı." };
     }
+
+    // Ekrandaki ile aynı okunabilirlik kuralı: tanımlı olmayan kanalın yarım parçası kesikli (stil satır içine yazılır).
+    markRoxyHalfOnlyChannels(el.shadowRoot, definedChannelIdsFromRender(data), HD_CHANNEL_PAIRS);
 
     const vb = svg.viewBox?.baseVal;
     if (!vb || !(vb.width > 0) || !(vb.height > 0)) return { ok: false, error: "BodyGraph ölçüsü okunamadı." };
