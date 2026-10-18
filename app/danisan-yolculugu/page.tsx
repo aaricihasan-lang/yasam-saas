@@ -2,22 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
-import {
-  Activity,
-  CalendarCheck,
-  CalendarClock,
-  CalendarDays,
-  CalendarRange,
-  ContactRound,
-  ListFilter,
-  ShieldCheck,
-  UserPlus,
-  UsersRound,
-} from "lucide-react";
+import { Fraunces, Jost } from "next/font/google";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
+import { DyIcon, type DyIconName } from "@/app/danisan-yolculugu/_premium/DyArt";
+import { DyFolderCard } from "@/app/danisan-yolculugu/_premium/DyFolderCard";
+import styles from "@/app/danisan-yolculugu/_premium/dy.module.css";
 import { formatDate } from "@/lib/i18n/format";
 
 // ─── Yardımcı: ISO tarihi → DD.MM.YYYY ──────────────────────────────────────
@@ -33,121 +22,30 @@ function fmtCount(n: number | null): string {
   return String(n);
 }
 
+// 2026-10-18 premium görünüm (owner onaylı v2 prototipi, tasarım arşivi 0f861c4): başlık Fraunces, etiket Jost —
+// next/font ile kendi sunucumuzdan (dış istek yok); Türkçe için latin-ext.
+const dyDisplay = Fraunces({ subsets: ["latin", "latin-ext"], axes: ["opsz", "SOFT"], variable: "--dy-display", display: "swap" });
+const dyLabel = Jost({ subsets: ["latin", "latin-ext"], weight: ["500"], variable: "--dy-label", display: "swap" });
+
 // ─── Sabit kart tanımları (renk + ikon) ─────────────────────────────────────
 // `id` = stabil çeviri anahtarı (clients.landing.stats.<id>); görünen etiket
-// render sırasında t() ile üretilir.
-type StatCardDef = {
-  id: string;
-  Icon: LucideIcon;
-  cardBg: string;
-  border: string;
-  iconBox: string;
-};
-
-// Sade, premium palet: tek marka vurgusu (indigo). Renk yalnızca anlam taşıyorsa
-// kullanılır — "Bu Ay Tamamlanan" olumlu/tamamlanmış anlamıyla emerald.
-const ACCENT = {
-  cardBg: "bg-white",
-  border: "border-slate-200/80",
-  iconBox: "bg-indigo-500 text-white",
-} as const;
-
-const STAT_CARD_DEFS: StatCardDef[] = [
-  { id: "total",              Icon: UsersRound,    ...ACCENT },
-  { id: "thisMonthNew",       Icon: UserPlus,      ...ACCENT },
-  { id: "lastCreated",        Icon: CalendarDays,  ...ACCENT },
-  { id: "thisMonthAppts",     Icon: CalendarClock, ...ACCENT },
-  { id: "nextAppt",           Icon: Activity,      ...ACCENT },
-  {
-    id: "thisMonthCompleted",
-    Icon: CalendarCheck,
-    cardBg: "bg-white",
-    border: "border-slate-200/80",
-    iconBox: "bg-emerald-500 text-white",
-  },
+// render sırasında t() ile üretilir. Sıra = stats[] dizisinin sırası.
+const STAT_CARD_DEFS: { id: string; icon: DyIconName; accent: string }[] = [
+  { id: "total",              icon: "users",         accent: "purple" },
+  { id: "thisMonthNew",       icon: "userPlus",      accent: "blue" },
+  { id: "lastCreated",        icon: "calendar",      accent: "amber" },
+  { id: "thisMonthAppts",     icon: "calendarPlus",  accent: "indigo" },
+  { id: "nextAppt",           icon: "activity",      accent: "violet" },
+  { id: "thisMonthCompleted", icon: "calendarCheck", accent: "emerald" },
 ];
 
 // `key` = stabil çeviri anahtarı (clients.landing.folders.<key>); görünen
-// title/desc/badge render sırasında t() ile üretilir. href/renk/ikon sabit kalır.
-const journeyFolders: {
-  key: "kayit" | "liste" | "takip";
-  href: string;
-  cardGradient: string;
-  border: string;
-  iconBox: string;
-  decorColor: string;
-  Icon: LucideIcon;
-  DecorIcon: LucideIcon;
-}[] = [
-  {
-    key: "kayit",
-    href: "/danisan-yolculugu/kayit",
-    cardGradient: "bg-gradient-to-br from-emerald-100 via-white to-teal-100",
-    border: "border-emerald-300/70",
-    iconBox: "bg-gradient-to-br from-emerald-500 to-teal-500 text-white",
-    decorColor: "text-emerald-500",
-    Icon: UserPlus,
-    DecorIcon: ContactRound,
-  },
-  {
-    key: "liste",
-    href: "/danisan-yolculugu/liste",
-    cardGradient: "bg-gradient-to-br from-violet-100 via-white to-indigo-100",
-    border: "border-violet-300/70",
-    iconBox: "bg-gradient-to-br from-violet-500 to-indigo-500 text-white",
-    decorColor: "text-violet-500",
-    Icon: UsersRound,
-    DecorIcon: ListFilter,
-  },
-  {
-    key: "takip",
-    href: "/danisan-yolculugu/takip",
-    cardGradient: "bg-gradient-to-br from-cyan-100 via-white to-teal-100",
-    border: "border-cyan-300/70",
-    iconBox: "bg-gradient-to-br from-cyan-500 to-teal-500 text-white",
-    decorColor: "text-teal-500",
-    Icon: CalendarDays,
-    DecorIcon: CalendarRange,
-  },
+// title/desc/cta render sırasında t() ile üretilir. href sabit kalır.
+const journeyFolders: { key: "kayit" | "liste" | "takip"; href: string; accent: "emerald" | "violet" | "cyan" }[] = [
+  { key: "kayit", href: "/danisan-yolculugu/kayit", accent: "emerald" },
+  { key: "liste", href: "/danisan-yolculugu/liste", accent: "violet" },
+  { key: "takip", href: "/danisan-yolculugu/takip", accent: "cyan" },
 ];
-
-// ─── Stat Kart Bileşeni ──────────────────────────────────────────────────────
-function SummaryStatCard({
-  label,
-  value,
-  Icon,
-  cardBg,
-  border,
-  iconBox,
-  loading,
-}: StatCardDef & { value: string; loading: boolean; label: string }) {
-  return (
-    <div
-      className={`group relative z-0 flex flex-col justify-between gap-3 rounded-xl border p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md 2xl:p-4 ${border} ${cardBg}`}
-    >
-      <div
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg shadow-sm transition-all duration-200 group-hover:scale-105 2xl:h-10 2xl:w-10 ${iconBox}`}
-      >
-        <Icon className="h-4 w-4 2xl:h-5 2xl:w-5" strokeWidth={2.25} aria-hidden />
-      </div>
-      <div>
-        <p
-          className={`text-2xl font-black tabular-nums leading-none tracking-tight text-slate-950 transition-all duration-300 2xl:text-[28px] ${
-            loading ? "animate-pulse text-slate-300" : ""
-          }`}
-        >
-          {loading ? "—" : value}
-        </p>
-        <p
-          className="mt-1 truncate text-[11px] font-semibold leading-tight text-slate-600 sm:text-xs"
-          title={label}
-        >
-          {label}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 // ─── Ana Sayfa ────────────────────────────────────────────────────────────────
 export default function DanisanYolculuguPage() {
@@ -216,126 +114,77 @@ export default function DanisanYolculuguPage() {
   }, []);
 
   return (
-    <main className="relative w-full overflow-x-hidden bg-[radial-gradient(circle_at_8%_18%,rgba(99,102,241,0.13),transparent_32%),radial-gradient(circle_at_92%_12%,rgba(244,114,182,0.10),transparent_30%),linear-gradient(135deg,#eef5ff_0%,#f7f2ff_48%,#fff4fb_100%)] px-2 py-5 text-slate-900 antialiased sm:px-6 lg:px-8 xl:px-10">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute -bottom-24 -left-24 h-[480px] w-[480px] rounded-full bg-blue-400/14 blur-[160px]" />
-        <div className="absolute -right-24 -top-16 h-[420px] w-[420px] rounded-full bg-pink-300/12 blur-[150px]" />
-        <div className="absolute bottom-1/3 left-1/2 h-[360px] w-[360px] -translate-x-1/2 rounded-full bg-violet-300/10 blur-[140px]" />
-      </div>
-
-      <div className="relative z-10 mx-auto w-full max-w-[1600px]">
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.45fr_1fr] lg:items-start lg:gap-6 2xl:gap-8">
-          {/* SOL KOLON */}
-          <div className="flex flex-col gap-5 2xl:gap-6">
-            {/* Hero Header */}
-            <header className="relative overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-4 py-5 shadow-lg sm:px-8">
-              <CalendarCheck
-                className="pointer-events-none absolute right-6 top-1/2 h-24 w-24 -translate-y-1/2 text-indigo-400 opacity-10"
-                strokeWidth={1.25}
-                aria-hidden
-              />
-              <div className="relative z-10">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700/85">
-                  {tNav("brand")}
-                </p>
-                <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-                  {t("hero.title")}
-                </h1>
-                <p className="mt-2 max-w-2xl text-sm font-medium leading-snug text-slate-600">
-                  {t("hero.subtitle")}
-                </p>
-              </div>
-            </header>
-
-            {/* Hızlı İşlemler */}
-            <section className="flex flex-col gap-4">
-              <div>
-                <h2 className="text-lg font-black text-slate-900">{t("quickActions.title")}</h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  {t("quickActions.subtitle")}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {journeyFolders.map((folder) => {
-                  const { Icon, DecorIcon } = folder;
-                  return (
-                    <Link
-                      key={folder.key}
-                      href={folder.href}
-                      className={`group relative flex flex-col overflow-hidden rounded-2xl border p-5 shadow-md transition-all duration-200 hover:-translate-y-1 hover:shadow-xl ${folder.border} ${folder.cardGradient}`}
-                    >
-                      <DecorIcon
-                        className={`pointer-events-none absolute -bottom-3 -right-3 h-28 w-28 ${folder.decorColor} opacity-10`}
-                        strokeWidth={1.25}
-                        aria-hidden
-                      />
-                      <div className="relative z-10 flex flex-col">
-                        <div className="flex items-start justify-between gap-3">
-                          <div
-                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-md ${folder.iconBox}`}
-                          >
-                            <Icon className="h-5 w-5" strokeWidth={2} />
-                          </div>
-                          <span className="rounded-full border border-white/80 bg-white/75 px-2.5 py-1 text-[11px] font-bold text-slate-700">
-                            {t(`folders.${folder.key}.badge`)}
-                          </span>
-                        </div>
-                        <h3 className="mt-3.5 text-xl font-black text-slate-900">
-                          {t(`folders.${folder.key}.title`)}
-                        </h3>
-                        <p className="mt-1.5 text-[13px] leading-snug text-slate-600">
-                          {t(`folders.${folder.key}.desc`)}
-                        </p>
-                        <span className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-lg bg-slate-900/80 px-4 py-2 text-xs font-bold text-white shadow-sm backdrop-blur-sm transition-all duration-200 group-hover:scale-[1.03] group-hover:bg-slate-900">
-                          {t(`folders.${folder.key}.cta`)}
-                          <span aria-hidden>→</span>
-                        </span>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </section>
+    <main className={`${styles.root} ${dyDisplay.variable} ${dyLabel.variable}`}>
+      <div className={styles.page}>
+        {/* Başlık şeridi */}
+        <header className={styles.hero}>
+          <span className={styles.heroIcon} aria-hidden>
+            <DyIcon name="journey" size={24} stroke={2} />
+          </span>
+          <div className={styles.heroHead}>
+            <p className={styles.eyebrow}>{tNav("brand")}</p>
+            <h1 className={styles.heroTitle}>{t("hero.title")}</h1>
           </div>
+          <p className={styles.heroSub}>{t("hero.subtitle")}</p>
+        </header>
 
-          {/* SAĞ KOLON */}
-          <aside>
-            <DanisanSectionShell
-              as="div"
-              desktopClassName="sm:rounded-2xl sm:border sm:border-white/80 sm:bg-white/90 sm:p-6 sm:shadow-lg"
-            >
-              <div>
-                <h2 className="text-2xl font-black text-slate-950">{t("summary.title")}</h2>
-                <p className="mt-1 text-sm font-medium leading-snug text-slate-600">
-                  {t("summary.subtitle")}
-                </p>
-              </div>
+        <div className={styles.grid}>
+          {/* Hızlı İşlemler */}
+          <section className={styles.quick} aria-labelledby="dy-quick-title">
+            <div className={styles.sectionHead}>
+              <h2 id="dy-quick-title" className={styles.sectionTitle}>{t("quickActions.title")}</h2>
+              <p className={styles.sectionSub}>{t("quickActions.subtitle")}</p>
+            </div>
+            <div className={styles.folders}>
+              {journeyFolders.map((folder, i) => (
+                <DyFolderCard
+                  key={folder.key}
+                  folderKey={folder.key}
+                  index={i}
+                  accent={folder.accent}
+                  href={folder.href}
+                  title={t(`folders.${folder.key}.title`)}
+                  desc={t(`folders.${folder.key}.desc`)}
+                  cta={t(`folders.${folder.key}.cta`)}
+                />
+              ))}
+            </div>
+          </section>
 
-              <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
-                {STAT_CARD_DEFS.map((def, i) => (
-                  <SummaryStatCard
-                    key={def.id}
-                    {...def}
-                    label={t(`stats.${def.id}`)}
-                    value={stats[i]}
-                    loading={loading}
-                  />
-                ))}
+          {/* Genel Özet — gerçek /api/clients/stats verisi; kişisel bilgi gösterilmez. */}
+          <aside className={styles.summary} aria-labelledby="dy-summary-title">
+            <h2 id="dy-summary-title" className={styles.summaryTitle}>{t("summary.title")}</h2>
+            <p className={styles.summarySub}>{t("summary.subtitle")}</p>
+            <div className={styles.stats}>
+              {STAT_CARD_DEFS.map((def, i) => {
+                const label = t(`stats.${def.id}`);
+                const value = loading ? "—" : stats[i];
+                return (
+                  <div key={def.id} className={styles.stat} data-accent={def.accent}>
+                    <span className={styles.statIcon} aria-hidden>
+                      <DyIcon name={def.icon} size={20} stroke={2} />
+                    </span>
+                    <div className={styles.statText}>
+                      <p
+                        className={`${styles.statValue} ${value.length > 4 ? styles.long : ""} ${loading ? styles.loading : ""}`}
+                      >
+                        {value}
+                      </p>
+                      <p className={styles.statLabel} title={label}>{label}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className={styles.privacy}>
+              <span className={styles.privacyIcon} aria-hidden>
+                <DyIcon name="shield" size={20} stroke={2} />
+              </span>
+              <div className="min-w-0">
+                <p className={styles.privacyTitle}>{t("summary.privacyTitle")}</p>
+                <p className={styles.privacyDesc}>{t("summary.privacyDesc")}</p>
               </div>
-
-              <div className="mt-5 flex items-center gap-3 rounded-xl border border-blue-200/70 bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-500 text-white shadow-sm">
-                  <ShieldCheck className="h-4 w-4" strokeWidth={2.25} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-black text-slate-950">{t("summary.privacyTitle")}</p>
-                  <p className="mt-0.5 text-xs font-medium leading-snug text-slate-600">
-                    {t("summary.privacyDesc")}
-                  </p>
-                </div>
-              </div>
-            </DanisanSectionShell>
+            </div>
           </aside>
         </div>
       </div>
