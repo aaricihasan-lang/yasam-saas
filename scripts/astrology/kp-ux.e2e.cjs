@@ -2,7 +2,9 @@
 // YEREL; sahte DB + sahte Roxy (KP tek-an GERÇEK golden kp-planets-at; aralık uçları FAKE_ROXY_KP_SYNTH=1 SENTETİK).
 // Önkoşul: transit03-ui.e2e.cjs ile aynı yerel sunucu (next start :3941 + dev-fake-backend).
 // Çalıştırma: node scripts/astrology/kp-ux.e2e.cjs [ekran-görüntüsü-klasörü] [etiket]   (KPUX_ONLY=1366x768 → tek ekran)
-//   KP-UX-01 konum tablosu (28 an): üstte ‹ › + aynı konumu yöneten çubuk; senkron; sona kadar; masaüstünde aşağı inince görünür.
+//   KP-UX-01/07 konum tablosu (28 an): ‹ › + aynı konumu yöneten çubuk; senkron; sona kadar. Masaüstü (KP-UX-07): çubuk sol
+//            panelin görünen ALT kenarında sabit, dikey kaydırmada orada kalır, tablonun sonunda son satırı örtmez.
+//            Telefon / tablet: çubuk tablonun üstünde (önceki davranış).
 //   KP-UX-04 kayıtlı analiz başlığı: öğeler üst üste binmez (KP + Gochara regresyonu); "Kaydedildi" görünür.
 //   KP-UX-05 KP tek-an kare harita: masaüstünde 12 burç kutusu kaydırmadan görünür; mobilde harita tek ekrana sığar;
 //            "Tam görünüm" penceresinde 12/12, Esc ile kapanır; etiket kırpılmaz.
@@ -178,16 +180,39 @@ const VIEWS = ONLY ? VIEWS_ALL.filter(([w, h]) => `${w}x${h}` === ONLY) : VIEWS_
       };
     });
     await shot(page, `konum-${W}x${Hh}`);
-    // Masaüstü: tablo içinde aşağı inince üst gezinme çubuğu hâlâ görünür mü (sabit)?
-    v.table.stickyAfterScroll = await page.evaluate(() => {
-      const bar = document.querySelector("[data-testid=astro-kp-hscroll-bar]");
+    // KP-UX-07 masaüstü: çubuk sol panelin görünen alt kenarında (başta + aşağı inince); en sonda son satırı örtmez.
+    v.table.pos = await page.evaluate(() => document.querySelector("[data-testid=astro-kp-hscroll-bar]")?.getAttribute("data-kp-hscroll-pos") ?? null);
+    const atBottomEdge = () =>
+      page.evaluate(() => {
+        const bar = document.querySelector("[data-testid=astro-kp-hscroll-bar]");
+        const sc = document.querySelector("[data-testid=atlas-stage-scroll]");
+        if (!bar || !sc) return null;
+        const b = bar.getBoundingClientRect(), q = sc.getBoundingClientRect();
+        const gap = q.bottom - b.bottom;
+        const rows = document.querySelectorAll("[data-testid=astro-kp-positions-table] tbody tr");
+        const last = rows[rows.length - 1].getBoundingClientRect();
+        // Tablonun sonu görünür alanın altındaysa: çubuk görünen alt kenarda (≤2 px). Sonu görünüyorsa: çubuk son satırın
+        // hemen altında (normal akış), satırı örtmez.
+        if (last.bottom > q.bottom) return { ok: b.height > 0 && gap >= -2 && gap <= 2 && b.top >= q.top, gap: Math.round(gap), state: "kenarda" };
+        return { ok: b.top >= last.bottom - 1 && b.bottom <= q.bottom + 1, gap: Math.round(gap), state: "tablo-sonu" };
+      });
+    v.table.bottomStart = await atBottomEdge();
+    await page.evaluate(() => { const sc = document.querySelector("[data-testid=atlas-stage-scroll]"); if (sc) sc.scrollTop += 600; });
+    await page.waitForTimeout(250);
+    v.table.bottomMid = await atBottomEdge();
+    v.table.endNoOverlap = await page.evaluate(() => {
       const sc = document.querySelector("[data-testid=atlas-stage-scroll]");
-      if (!bar || !sc) return null;
-      sc.scrollTop += 600;
-      const b = bar.getBoundingClientRect(), q = sc.getBoundingClientRect();
-      return b.top >= q.top - 1 && b.bottom <= q.bottom + 1 && b.height > 0;
+      if (!sc) return null;
+      sc.scrollTop = sc.scrollHeight;
+      const bar = document.querySelector("[data-testid=astro-kp-hscroll-bar]").getBoundingClientRect();
+      const rows = document.querySelectorAll("[data-testid=astro-kp-positions-table] tbody tr");
+      const last = rows[rows.length - 1].getBoundingClientRect();
+      const q = sc.getBoundingClientRect();
+      return bar.top >= last.bottom - 1 && last.bottom <= q.bottom && bar.bottom <= q.bottom + 1;
     });
-    await page.waitForTimeout(200);
+    await page.evaluate(() => { const sec = document.querySelector("[data-testid=astro-kp-positions]"); sec.scrollIntoView({ block: "start" }); });
+    await page.waitForTimeout(250);
+    await shot(page, `konum-alt-${W}x${Hh}`);
     const next = page.locator("[data-testid=astro-kp-hscroll-next]");
     if (await next.count()) {
       const sc = page.locator("[data-testid=astro-kp-positions-table]").locator("xpath=..");
@@ -208,6 +233,18 @@ const VIEWS = ONLY ? VIEWS_ALL.filter(([w, h]) => `${w}x${h}` === ONLY) : VIEWS_
         return r.right <= sc.right + 1 && r.left >= sc.left - 1;
       });
       await shot(page, `konum-sag-${W}x${Hh}`);
+      // Klavye: başa dön, tablo bölgesine odaklan, → tuşları.
+      const region = page.locator("[data-testid=astro-kp-positions] [role=region]");
+      await region.evaluate((e) => { e.scrollLeft = 0; });
+      await page.waitForTimeout(200);
+      await region.focus();
+      for (let i = 0; i < 12; i++) await page.keyboard.press("ArrowRight");
+      await page.waitForTimeout(400);
+      v.table.kbd = await page.evaluate(() => {
+        const r = document.querySelector("[data-testid=astro-kp-positions] [role=region]");
+        const top = document.querySelector("[data-testid=astro-kp-positions] [data-testid=astro-kp-hscroll-top]");
+        return { focused: document.activeElement === r, moved: r.scrollLeft > 0, synced: Math.abs(top.scrollLeft - r.scrollLeft) <= 1 };
+      });
     }
     v.errors = errors.length;
     out.views[`${W}x${Hh}`] = v;
@@ -218,9 +255,11 @@ const VIEWS = ONLY ? VIEWS_ALL.filter(([w, h]) => `${w}x${h}` === ONLY) : VIEWS_
     ok(`${tag} KP-UX-06 harita açıklaması cusp/Placidus anlatmaz; "cusp çizilmez" der`, !/Placidus|Çerçeveli etiket/.test(v.chart.legend) && /ev başlangıcı \(cusp\) çizilmez/.test(v.chart.legend), v.chart.legend.slice(0, 90));
     ok(`${tag} KP-UX-06 KP doğum haritası (cusp'lı): Placidus açıklaması ve eski boyut korunur`, /Çerçeveli etiket = Placidus ev başlangıcı \(cusp\)/.test(v.kpChartLegend.legend) && v.kpChartLegend.fit === null && v.kpChartLegend.cusps >= 12, JSON.stringify({ fit: v.kpChartLegend.fit, cusps: v.kpChartLegend.cusps }));
     ok(`${tag} KP-UX-04 başlık: öğeler üst üste binmez (KP + Gochara), "Kaydedildi" görünür`, v.header.overlaps === 0 && v.headerGochara.overlaps === 0 && v.header.savedVisible, `${v.header.sample.concat(v.headerGochara.sample).join(" | ")}`);
-    ok(`${tag} KP-UX-01 konum tablosu: 28 an; tablonun başında ‹ › + çubuk`, v.table.rows === 28 && v.table.overflowX && v.table.topControl && v.table.topControlY !== null && v.table.topControlY < 120, `y=${v.table.topControlY}`);
+    if (desk) ok(`${tag} KP-UX-07 konum tablosu (28 an): ‹ › + çubuk sol panelin görünen ALT kenarında (tablonun sonuna inmeden)`, v.table.rows === 28 && v.table.overflowX && v.table.topControl && v.table.pos === "bottom" && v.table.bottomStart?.ok, JSON.stringify(v.table.bottomStart));
+    else ok(`${tag} KP-UX-01 konum tablosu (28 an): telefonda ‹ › + çubuk tablonun başında (önceki davranış)`, v.table.rows === 28 && v.table.overflowX && v.table.topControl && v.table.pos === "top" && v.table.topControlY !== null && v.table.topControlY < 120, `y=${v.table.topControlY}`);
     ok(`${tag} KP-UX-01 › ile sona kadar (Ketu görünür), üst çubuk tabloyla senkron`, v.table.nextScrolls && v.table.nextDisabledAtEnd && v.table.ketuVisible && v.table.topSynced);
-    if (desk) ok(`${tag} KP-UX-01 tablo içinde aşağı inince gezinme çubuğu görünür kalır`, v.table.stickyAfterScroll === true);
+    ok(`${tag} KP-UX-01 klavye: tablo alanı odaklanır, → ile kayar, çubuk senkron`, v.table.kbd?.focused && v.table.kbd?.moved && v.table.kbd?.synced, JSON.stringify(v.table.kbd));
+    if (desk) ok(`${tag} KP-UX-07 dikey kaydırmada çubuk alt kenarda kalır; tablonun sonunda son satırı örtmez`, v.table.bottomMid?.ok === true && v.table.endNoOverlap === true, JSON.stringify({ mid: v.table.bottomMid, end: v.table.endNoOverlap }));
     ok(`${tag} sayfada yatay taşma yok; konsol hatası yok`, !v.chart.pageOverflowX && !v.table.pageOverflowX && v.errors === 0, String(v.errors));
     await ctx.close();
   }

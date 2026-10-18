@@ -48,11 +48,18 @@ export function kpAt(utcIso: string, tz: string): string {
  * ‹ › düğmeleri + aynı konumu yöneten ince bir kaydırma çubuğu; tablo bölümü görünür olduğu sürece üstte sabit kalır.
  * Tablo alanı klavyeyle odaklanır (← → ile kayar); dokunma / touchpad / tekerlek tarayıcının kendi davranışıdır.
  * Taşma yoksa denetimler hiç gösterilmez. Yalnız bu tablo kayar (sayfa değil).
+ * KP-UX-07 (2026-10-18, owner canlı kontrolü): masaüstü sonuç masasında denetim çubuğu sol panelin GÖRÜNEN ALT
+ * KENARINDA sabit (sticky bottom; düz zemin + üst gölge). Tablonun sonuna gelince tablonun hemen altına oturur → son
+ * satırları örtmez. Aynı DOM öğesi yalnız flex `order` ile alta alınır (kaydırma konumu / senkron / gözlemci korunur).
+ * Alt ofset −(1rem + 1px): sol panel kaydırma kutusunun p-4 iç boşluğu + 1 px (yüksek DPI yarım piksel yuvarlaması) →
+ * görünen alt kenara tam yaslanır, altında satır parçası görünmez; taşan 1 px kaydırma kutusunca kırpılır.
+ * Telefon / tablet (sayfa doğal kayar, sol panel kaydırma kutusu yok): çubuk eskisi gibi tablonun üstünde.
  */
 function HScroll({ label, children }: { label: string; children: ReactNode }) {
   const scRef = useRef<HTMLDivElement | null>(null);
   const topRef = useRef<HTMLDivElement | null>(null);
   const [m, setM] = useState({ sw: 0, cw: 0, left: 0, topCw: 0 });
+  const [deskBottom, setDeskBottom] = useState(false);
   const measure = useCallback(() => {
     const sc = scRef.current;
     if (!sc) return;
@@ -62,6 +69,7 @@ function HScroll({ label, children }: { label: string; children: ReactNode }) {
   useLayoutEffect(() => {
     measure();
     const sc = scRef.current;
+    setDeskBottom(!!sc?.closest('[data-testid="atlas-stage-scroll"]'));
     if (!sc || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(() => measure());
     ro.observe(sc);
@@ -84,8 +92,14 @@ function HScroll({ label, children }: { label: string; children: ReactNode }) {
   const step = (dir: 1 | -1) => scRef.current?.scrollBy({ left: dir * Math.max(120, Math.round(m.cw * 0.6)), behavior: "smooth" });
   const btn = "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white text-sm text-slate-700 transition hover:border-slate-500 disabled:cursor-default disabled:opacity-35";
   return (
-    <>
-      <div className={`sticky top-0 z-10 items-center gap-1.5 border-b border-slate-100 bg-white/95 px-2 py-1 backdrop-blur ${overflow ? "flex" : "hidden"}`} data-testid="astro-kp-hscroll-bar">
+    <div className="flex flex-col">
+      <div
+        className={`sticky z-10 items-center gap-1.5 bg-white px-2 py-1 ${overflow ? "flex" : "hidden"} ${
+          deskBottom ? "bottom-[calc(-1rem-1px)] order-last border-t border-slate-200 shadow-[0_-6px_10px_-8px_rgba(15,23,42,0.35)]" : "top-0 border-b border-slate-100"
+        }`}
+        data-testid="astro-kp-hscroll-bar"
+        data-kp-hscroll-pos={deskBottom ? "bottom" : "top"}
+      >
         <button type="button" className={btn} onClick={() => step(-1)} disabled={m.left <= 0.5} aria-label="Tabloyu sola kaydır" data-testid="astro-kp-hscroll-prev">
           ‹
         </button>
@@ -106,7 +120,7 @@ function HScroll({ label, children }: { label: string; children: ReactNode }) {
       >
         {children}
       </div>
-    </>
+    </div>
   );
 }
 
