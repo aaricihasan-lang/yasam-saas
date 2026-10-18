@@ -26,6 +26,18 @@ import styles from "./home.module.css";
 
 const COLLAPSE_KEY = "ys-home-side-collapsed";
 const COLLAPSE_EVENT = "ys-home-side-collapsed-change";
+const DRAWER_QUERY = "(max-width: 900px)";
+
+/** Dar ekranda menü çekmece olur; kapalı çekmece klavye/ekran okuyucudan gizlenir (inert). */
+function readNarrow(): boolean {
+  return window.matchMedia(DRAWER_QUERY).matches;
+}
+
+function subscribeNarrow(onChange: () => void) {
+  const mq = window.matchMedia(DRAWER_QUERY);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
 
 function readCollapsed(): boolean {
   try {
@@ -45,8 +57,10 @@ function subscribeCollapsed(onChange: () => void) {
 }
 
 export type HomeShellProps = {
-  /** Danışan Yolculuğu merkezi açık mı (Takvim + Danışanlar menü öğeleri). */
+  /** Danışan Yolculuğu merkezi açık mı (Danışanlar menü öğesi). */
   showClients: boolean;
+  /** /dashboard/ajanda route korumasının kararı "allow" mı (Takvim menü öğesi; evaluateRouteModuleGuard). */
+  showCalendar: boolean;
   /** Dijital İçerik Merkezi açık mı (İçerikler menü öğesi). */
   showContents: boolean;
   isAdmin: boolean;
@@ -59,6 +73,7 @@ export type HomeShellProps = {
 
 export default function HomeShell({
   showClients,
+  showCalendar,
   showContents,
   isAdmin,
   adminNavLoading,
@@ -69,6 +84,7 @@ export default function HomeShell({
   const t = useTranslations("home.premium");
   const collapsed = useSyncExternalStore(subscribeCollapsed, readCollapsed, () => false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const narrow = useSyncExternalStore(subscribeNarrow, readNarrow, () => false);
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -80,7 +96,7 @@ export default function HomeShell({
   }, [drawerOpen]);
 
   function toggleCollapsed() {
-    if (window.matchMedia("(max-width: 900px)").matches) {
+    if (window.matchMedia(DRAWER_QUERY).matches) {
       setDrawerOpen(false);
       return;
     }
@@ -96,8 +112,10 @@ export default function HomeShell({
     { key: "home", href: "/", label: t("menuHome"), Icon: Home, active: true },
     { key: "modules", href: "/#yasam-modulleri", label: t("menuAllModules"), Icon: LayoutGrid },
   ];
-  if (showClients) {
+  if (showCalendar) {
     items.push({ key: "calendar", href: "/dashboard/ajanda", label: t("menuCalendar"), Icon: CalendarDays });
+  }
+  if (showClients) {
     items.push({ key: "clients", href: "/danisan-yolculugu/liste", label: t("menuClients"), Icon: UserRound });
   }
   if (showContents) {
@@ -112,7 +130,7 @@ export default function HomeShell({
       className={`${styles.shell} ${collapsed ? styles.collapsed : ""} ${drawerOpen ? styles.drawerOpen : ""}`}
       data-testid="home-premium-shell"
     >
-      <aside className={styles.side} id="home-side" aria-label={t("menuLabel")}>
+      <aside className={styles.side} id="home-side" aria-label={t("menuLabel")} inert={narrow && !drawerOpen}>
         <div className={styles.sideHead}>
           <span className={styles.sideLogo} aria-hidden>
             <svg viewBox="-12 -12 24 24" width="22" height="22">

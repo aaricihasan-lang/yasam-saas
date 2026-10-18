@@ -77,6 +77,7 @@ import LanguageSelector from "@/components/i18n/LanguageSelector";
 const SHOW_LANDING_LANGUAGE_SELECTOR = false;
 import NotificationBell from "@/components/notifications/NotificationBell";
 import HomeShell from "@/app/_premium/home/HomeShell";
+import { evaluateRouteModuleGuard } from "@/lib/auth/routeModuleAccess";
 import premium from "@/app/_premium/home/home.module.css";
 import { premiumFontVars } from "@/app/_premium/fonts";
 import CookiePreferencesButton from "@/components/analytics/CookiePreferencesButton";
@@ -1635,6 +1636,7 @@ export default function Home() {
       <main className={`${premium.page} ${premiumFontVars}`}>
         <HomeShell
           showClients={menuReady && isCardOpen("clients")}
+          showCalendar={menuReady && evaluateRouteModuleGuard("/dashboard/ajanda", user) === "allow"}
           showContents={menuReady && isCardOpen("digital_content")}
           isAdmin={isAdminUser(user)}
           adminNavLoading={adminNavLoading}
@@ -1726,7 +1728,7 @@ export default function Home() {
               <section className={premium.hero} aria-labelledby="home-hero-title">
                 <div className={premium.heroArt}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/premium/ana-sayfa/hero-manzara.webp" width={738} height={259} alt="" aria-hidden />
+                  <img src="/premium/ana-sayfa/hero-manzara.webp" width={738} height={259} alt="" aria-hidden data-testid="home-hero-glow" />
                   <figure className={premium.quote}>
                     <span className={premium.quoteMark} aria-hidden>“</span>
                     <blockquote>
