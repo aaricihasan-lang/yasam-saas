@@ -25,8 +25,7 @@ import { engineChart, fakeConnectionResponse, fakePentaResponse, PEOPLE } from "
 import { validateRoxyConnection, connectionDynamicFor } from "../../lib/human-design/relations/connection";
 import { validateRoxyPenta } from "../../lib/human-design/relations/penta";
 import { buildCompositeModel } from "../../lib/human-design/relations/compositeModel";
-import { buildCompositeScene, DYNAMIC_SHAPE } from "../../lib/human-design/relations/compositeScene";
-import { COMPOSITE_ROUTES } from "../../lib/human-design/relations/compositeLayout";
+import { buildConnectionBodygraphScene, CBG_CHANNEL_IDS, CBG_DYNAMIC_SHAPE, cbgStateFromModel } from "../../lib/human-design/relations/connectionBodygraphScene";
 import { buildPentaScene, pentaGatePositions, pentaChannelLines } from "../../lib/human-design/relations/pentaScene";
 import { connectionExplanations, pentaExplanations } from "../../lib/human-design/relations/explanations";
 import { parseReportOptions, sanitizeComment } from "../../lib/human-design/relations/relationExtras";
@@ -88,18 +87,18 @@ async function main() {
   section("B — Sahne (ekran ve Word aynı ilkeller)");
   const m01 = buildCompositeModel(gatesOf(0), gatesOf(1), v01.value);
   if (!m01.ok) throw new Error("m01");
-  const sc = buildCompositeScene(m01.model);
-  const base = new Set(sc.filter((p) => p.k === "polyline" && p.layer === "base").map((p) => (p as { ch: string }).ch));
-  const definedLayer = new Set(sc.filter((p) => p.k === "polyline" && p.layer === "defined").map((p) => (p as { ch: string }).ch));
-  const halfLayer = new Set(sc.filter((p) => p.k === "polyline" && p.layer === "half").map((p) => (p as { ch: string }).ch));
+  const sc = buildConnectionBodygraphScene(cbgStateFromModel(m01.model));
+  const fills = sc.filter((p) => p.k === "fill") as Array<{ chs: string[] }>;
+  const filledChs = new Set(fills.flatMap((f) => f.chs));
   const markers = sc.filter((p) => p.k === "marker") as Array<{ ch: string; shape: string }>;
-  ok("B1 36 kanal tabanı çizilir", base.size === 36);
-  ok("B2 tanımlı katmandaki kanallar = kayıtlı sonuç listesi", [...definedLayer].sort().join() === v01.value.channels.map((c) => c.id).sort().join());
-  ok("B3 yarım katmandaki kanallar tanımlı listede YOK (yarım ≠ tam)", [...halfLayer].every((c) => !definedLayer.has(c)) && [...halfLayer].every((c) => m01.model.channels[c].state === "half"));
-  ok("B4 dinamik işareti her tanımlı kanalda bir kez ve doğru şekilde", markers.length === v01.value.totalChannels && markers.every((mk) => { const c = v01.value.channels.find((x) => x.id === mk.ch)!; return DYNAMIC_SHAPE[c.dynamic] === mk.shape; }));
-  ok("B5 64 kapı rozeti", sc.filter((p) => p.k === "circle" && typeof (p as { gate?: number }).gate === "number").length === 64);
-  ok("B6 yarım kanal çizgileri kesikli ve ince (tam kanaldan ayırt edilir)", sc.filter((p) => p.k === "polyline" && p.layer === "half").every((p) => !!(p as { dash?: string }).dash && (p as { sw: number }).sw < 4));
-  ok("B7 etkileşim yüzeyi: 36 kanal güzergâhı", COMPOSITE_ROUTES.length === 36);
+  const definedIds = v01.value.channels.map((c) => c.id).sort().join();
+  ok("B1 36 kanal borusu çizilir (30 tek boru + 5 ağ parçası; kenar + iç = 70 çizgi)", sc.filter((p) => p.k === "pipe").length === 70);
+  ok("B2 işaretli (tanımlı) kanallar = kayıtlı sonuç listesi", markers.map((m) => m.ch).sort().join() === definedIds);
+  ok("B3 boyalı kanallar yalnız tanımlı ya da yarım kanallar (boş kanal boyanmaz)", [...filledChs].every((c) => m01.model.channels[c].state !== "none"));
+  ok("B4 dinamik işareti her tanımlı kanalda bir kez ve doğru şekilde", markers.length === v01.value.totalChannels && markers.every((mk) => { const c = v01.value.channels.find((x) => x.id === mk.ch)!; return CBG_DYNAMIC_SHAPE[c.dynamic] === mk.shape; }));
+  ok("B5 64 kapı", sc.filter((p) => p.k === "gate").length === 64);
+  ok("B6 yarım kanalda işaret yok (yarım ≠ tam)", markers.every((mk) => m01.model.channels[mk.ch].state === "defined"));
+  ok("B7 etkileşim yüzeyi: 36 kanal güzergâhı", CBG_CHANNEL_IDS.length === 36);
 
   section("C — Penta sahnesi (3 / 4 / 5 kişi)");
   for (const n of [3, 4, 5]) {
@@ -157,15 +156,15 @@ async function main() {
   });
   const pngC = renderRelationImage(view("connection", v01.value, [gatesOf(0), gatesOf(1)]));
   ok("F1 Connection birleşik harita PNG üretilir", !!pngC && pngC.png.subarray(1, 4).toString() === "PNG" && pngC.width >= 1000);
-  ok("F2 kaynak aktivasyon yoksa PNG null (sessiz uydurma yok)", renderRelationImage(view("connection", v01.value, [null, gatesOf(1)])) === null);
+  const pngR = renderRelationImage(view("connection", v01.value, [null, gatesOf(1)]));
+  ok("F2 kaynak aktivasyon yoksa yalnız kayıtlı sonuçla çizilir (yarım kanalsız; tam çizimden farklı)", !!pngR && !!pngC && !pngR.png.equals(pngC.png));
   const pngP = renderRelationImage(view("penta", vp.value, [gatesOf(0), gatesOf(1), gatesOf(2), gatesOf(3)]));
   ok("F3 Penta şeması PNG üretilir", !!pngP && pngP.png.subarray(1, 4).toString() === "PNG");
 
   section("G — Kullanıcıya görünen sağlayıcı adı");
-  const files = ["app/human-design/iliski-grup/components/HdRelationsContent.tsx", "app/human-design/iliski-grup/components/RelationResultViews.tsx", "app/human-design/iliski-grup/components/RelationWorkspace.tsx", "lib/human-design/relations/relationReport.ts", "lib/human-design/relations/labels.ts", "lib/human-design/relations/explanations.ts", "lib/human-design/relations/pentaScene.ts"];
+  const files = ["app/human-design/iliski-grup/components/HdRelationsContent.tsx", "app/human-design/iliski-grup/components/RelationResultViews.tsx", "app/human-design/iliski-grup/components/ConnectionBodygraph.tsx", "lib/human-design/relations/connectionBodygraphScene.ts", "app/human-design/iliski-grup/components/RelationWorkspace.tsx", "lib/human-design/relations/relationReport.ts", "lib/human-design/relations/labels.ts", "lib/human-design/relations/explanations.ts", "lib/human-design/relations/pentaScene.ts"];
   // Yalnız kullanıcıya ulaşabilen kod (yorum satırları / blokları ayıklanır).
-  // İç bileşen / modül adları (RoxyConnectionChart, relationGraphicCapture içe aktarımı) kullanıcıya görünmez → ayıklanır.
-  const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").split(/\r?\n/).filter((l) => !/^\s*\/\//.test(l) && !/^\s*import\s/.test(l)).join("\n").replace(/\bRoxyConnectionChart\b/g, "");
+  const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").split(/\r?\n/).filter((l) => !/^\s*\/\//.test(l) && !/^\s*import\s/.test(l)).join("\n");
   const leaks = files.filter((f) => /roxy|\/human-design\/(connection|penta)|nodeType|adapterVersion/i.test(codeOnly(readFileSync(f, "utf8"))));
   ok("G1 ekran + Word kodunda sağlayıcı adı / uç / nodeType / adaptör YOK", leaks.length === 0, leaks);
 

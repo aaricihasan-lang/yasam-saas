@@ -142,14 +142,12 @@ export async function createRelationReport(
   id: string,
   sections: { analysis: boolean; knowledge: boolean; expert_comment: boolean },
   preparedBy: string,
-  /** Connection: tarayıcıda yakalanan standart grafik (data:image/png;base64,…); yoksa null. */
-  graphicPng: string | null = null,
 ): Promise<{ ok: true; id: string; image: { status: "ok" | "unavailable"; reason: string | null } } | Fail> {
   try {
     const res = await fetch(`/api/hd/relations/${encodeURIComponent(id)}/reports`, {
       method: "POST",
       headers: authHeaders(),
-      body: JSON.stringify({ sections, prepared_by: preparedBy.trim() || null, ...(graphicPng ? { graphic_png: graphicPng } : {}) }),
+      body: JSON.stringify({ sections, prepared_by: preparedBy.trim() || null }),
     });
     const j = await readJson(res);
     return res.ok && j.ok === true ? { ok: true, id: String(j.id), image: j.image as { status: "ok" | "unavailable"; reason: string | null } } : errOf(j, res);

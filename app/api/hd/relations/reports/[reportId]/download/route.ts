@@ -11,8 +11,8 @@ export const runtime = "nodejs";
 
 /**
  * POST /api/hd/relations/reports/:reportId/download — kayıtlı ilişki/grup raporunun Word dosyası.
- *   - Kaynak YALNIZ donmuş snapshot (tekrar indirmede içerik aynı). Connection standart grafiği snapshot'ta
- *     PNG olarak donmuştur (aynen kullanılır); yoksa şematik çizim snapshot'taki kayıtlı veriden yeniden çizilir.
+ *   - Kaynak YALNIZ donmuş snapshot (tekrar indirmede içerik aynı). Grafik snapshot'taki kayıtlı veriden ekrandaki
+ *     sahneyle sunucuda çizilir (Connection: silüetli birleşik BodyGraph). Eski raporlarda donmuş PNG varsa aynen kullanılır.
  *     Snapshot görseli "yok" diyorsa rapor bunu açıkça yazar (sessiz görselsiz rapor yok).
  *   - Android'de Word kapalı (androidWordGuard → 403). Tenant guard'dan; başka hesabın raporu → 404.
  *   - Roxy çağrısı YOK; sağlayıcı adı / anahtar rapora girmez. no-store.
@@ -36,8 +36,8 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<Respons
   const r = await getRelationReportSnapshot({ db: guard.db, tenantId: guard.tenantId, userId: guard.userId, isDemo: guard.is_demo_account }, reportId);
   if (!r.body.ok) return NextResponse.json(r.body, { status: r.status, headers: { "Cache-Control": "no-store" } });
   const s = r.body.snapshot;
-  const image = s.image.status !== "ok" ? null : s.image.png ? Buffer.from(s.image.png, "base64") : renderRelationImage(s.analysis)?.png ?? null;
   const logo = await loadHdReportLogo();
+  const image = s.image.status !== "ok" ? null : s.image.png ? Buffer.from(s.image.png, "base64") : renderRelationImage(s.analysis, 1100, logo)?.png ?? null;
   let buffer: Buffer;
   try {
     buffer = await renderRelationReportBuffer(s, { image, logo });

@@ -59,7 +59,7 @@ export type BodygraphCaptureResult =
 
 type RoxyElement = HTMLElement & { data?: unknown; updateComplete?: Promise<unknown> };
 
-export function nextFrame(): Promise<void> {
+function nextFrame(): Promise<void> {
   return new Promise((r) => requestAnimationFrame(() => r()));
 }
 
@@ -86,7 +86,7 @@ function drawingMatches(svg: SVGSVGElement, data: Record<string, unknown>): bool
   return svg.querySelectorAll("polygon.bg-center.defined").length === exp.definedCenters;
 }
 
-export function inlineComputedStyles(src: SVGSVGElement, dst: SVGSVGElement): void {
+function inlineComputedStyles(src: SVGSVGElement, dst: SVGSVGElement): void {
   const srcEls = [src, ...Array.from(src.querySelectorAll("*"))];
   const dstEls = [dst, ...Array.from(dst.querySelectorAll("*"))];
   for (let i = 0; i < srcEls.length && i < dstEls.length; i++) {
@@ -111,14 +111,14 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
-export function bytesToPngDataUrl(bytes: Uint8Array): string {
+function bytesToPngDataUrl(bytes: Uint8Array): string {
   let bin = "";
   const CHUNK = 0x8000;
   for (let i = 0; i < bytes.length; i += CHUNK) bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
   return `data:image/png;base64,${btoa(bin)}`;
 }
 
-export async function rasterize(svgMarkup: string, vbW: number, vbH: number, height: number): Promise<{ blob: Blob; width: number; height: number } | null> {
+async function rasterize(svgMarkup: string, vbW: number, vbH: number, height: number): Promise<{ blob: Blob; width: number; height: number } | null> {
   const width = Math.round((vbW / vbH) * height);
   const sized = svgMarkup.replace(/^<svg\b/, `<svg width="${width}" height="${height}"`);
   const url = URL.createObjectURL(new Blob([sized], { type: "image/svg+xml;charset=utf-8" }));

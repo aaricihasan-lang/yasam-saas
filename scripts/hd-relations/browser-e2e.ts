@@ -9,7 +9,7 @@
  * Ekranlar: 1920, 1366, 390, 360, 320 (+ Android UA 360). Çalıştır: npx tsx scripts/hd-relations/browser-e2e.ts [--out <klasör>]
  */
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { NextRequest } from "next/server";
@@ -133,7 +133,9 @@ async function main() {
     browser = await chromium.launch();
 
     let deleted = false;
-    for (const d of DEVICES) {
+    // HD_E2E_ONLY=390,1920 → yalnız seçilen ekranlar (hızlı tanı)
+    const only = (process.env.HD_E2E_ONLY ?? "").split(",").filter(Boolean);
+    for (const d of DEVICES.filter((x) => !only.length || only.includes(x.name))) {
       section(d.name);
       const ctx = await browser.newContext({ viewport: { width: d.w, height: d.h }, isMobile: !!d.ua, hasTouch: !!d.ua, locale: "tr-TR", timezoneId: "Europe/Istanbul", ...(d.ua ? { userAgent: d.ua } : {}) });
       await ctx.addCookies([{ name: "NEXT_LOCALE", value: "tr", url: APP }]);
@@ -171,43 +173,95 @@ async function main() {
       ok(page.url().includes(CONN), `${d.name}: kayıtlı çift → mevcut analiz açıldı (yeni hesap YOK)`);
       ok(posts.length === 1, `${d.name}: çift tık tek istek gönderdi`, posts.length);
       await page.locator("[data-hd-rel-view='connection']").waitFor({ timeout: 30_000 });
-      // Birleşik İlişki BodyGraph'ı (standart, silüetli): çizilen kanallar/kapılar = kayıtlı sonuç (DB'den)
-      await page.locator("[data-hd-composite='standard']").waitFor({ timeout: 30_000 });
-      const storedRes = (await su.query(`select result from public.human_design_relation_analyses where id=$1`, [CONN])).rows[0].result as { channels: Array<{ id: string; gateA: number; gateB: number; personAGates: number[]; personBGates: number[] }> };
+      // Birleşik İlişki BodyGraph'ı (Yaşam Sistemi silüetli, mühürlü V9): çizilen kanallar/kapılar = kayıtlı sonuç (DB'den)
+      await page.locator("[data-hd-composite='ok']").waitFor({ timeout: 30_000 });
+      const storedRes = (await su.query(`select result from public.human_design_relation_analyses where id=$1`, [CONN])).rows[0].result as { channels: Array<{ id: string; gateA: number; gateB: number; personAGates: number[]; personBGates: number[] }>; centers: Array<{ defined: boolean }> };
       const stored = storedRes.channels;
       const storedIds = stored.map((c) => c.id).sort().join(",");
-      const drawnAttr = (await page.locator("[data-hd-composite='standard']").getAttribute("data-hd-composite-defined")) ?? "";
+      const drawnAttr = (await page.locator("[data-hd-composite='ok']").getAttribute("data-hd-composite-defined")) ?? "";
+      const halfAttr = (await page.locator("[data-hd-composite='ok']").getAttribute("data-hd-composite-half")) ?? "";
       const expGates: Record<string, string> = {};
       for (const c of stored) for (const g of [c.gateA, c.gateB]) expGates[g] = `${c.personAGates.includes(g) || expGates[g]?.includes("A") ? "A" : ""}${c.personBGates.includes(g) || expGates[g]?.includes("B") ? "B" : ""}`;
-      const shadow = await page.evaluate(() => {
-        const el = document.querySelector("roxy-hd-connection")!;
-        const svg = el.shadowRoot!.querySelector("svg.chart")!;
+      const chart = await page.evaluate(() => {
+        const svg = document.querySelector("svg[data-hd-cbg]")!;
         const gates: Record<string, string> = {};
-        for (const n of svg.querySelectorAll("g.bg-gate-node")) {
-          const t = n.querySelector("text.bg-gate");
-          if (!t || !/\bon\b/.test(t.getAttribute("class") ?? "")) continue;
-          const dots = [...n.querySelectorAll(".bg-gate-dot.on")].map((d) => d.getAttribute("class") ?? "");
-          gates[(t.textContent ?? "").trim()] = `${dots.some((c) => /src-left/.test(c)) ? "A" : ""}${dots.some((c) => /src-right/.test(c)) ? "B" : ""}`;
+        for (const n of svg.querySelectorAll("[data-hd-cbg-gate]")) {
+          const [g, h] = (n.getAttribute("data-hd-cbg-gate") ?? "").split(":");
+          gates[g] = h;
         }
-        const hiddenOk = [...el.shadowRoot!.querySelectorAll(".wrap > *:not(svg.chart)")].every((e) => getComputedStyle(e).display === "none");
-        const titles = [...svg.querySelectorAll("title")].map((t) => t.textContent ?? "");
+        const markers = [...svg.querySelectorAll("[data-hd-cbg-marker]")].map((m) => m.getAttribute("data-hd-cbg-marker") ?? "").sort();
+        const filled = new Set([...svg.querySelectorAll("[data-hd-cbg-fill]")].flatMap((f) => (f.getAttribute("data-hd-cbg-fill") ?? "").split(",")));
+        const texts = [...svg.querySelectorAll("text")].map((t) => t.textContent ?? "");
         const r = svg.getBoundingClientRect();
-        return { gates, hiddenOk, trTitles: titles.some((t) => t.startsWith("Kapı ")) && !titles.some((t) => /^Gate \d|: Defined$|: Open$/.test(t)), body: !!svg.querySelector(".bg-body"), width: r.width, centers: [...svg.querySelectorAll(".bg-center-name")].map((e) => e.textContent).join("|") };
+        return {
+          gates,
+          markers,
+          filled: [...filled].sort(),
+          centers: svg.querySelectorAll("[data-hd-cbg-center]").length,
+          definedCenters: svg.querySelectorAll("[data-hd-cbg-center$=':defined']").length,
+          hits: svg.querySelectorAll("[data-hd-cbg-hit]").length,
+          silhouette: !!svg.querySelector("[data-cbg-silhouette]"),
+          logo: !!svg.querySelector("[data-hd-cbg-logo]"),
+          trCenters: ["BAŞ", "AJNA", "BOĞAZ", "G", "KALP", "SAKRAL", "KÖK", "DALAK", "SOLAR"].every((c) => texts.includes(c)),
+          width: r.width,
+        };
       });
-      ok(drawnAttr.split(",").sort().join(",") === storedIds && JSON.stringify(Object.keys(shadow.gates).sort()) === JSON.stringify(Object.keys(expGates).sort()) && Object.entries(expGates).every(([g, w]) => shadow.gates[g] === w), `${d.name}: standart birleşik BodyGraph — çizilen kapılar (A/B) = kayıtlı sonuç (${stored.length} kanal)`, { shadow: shadow.gates, expGates });
-      ok(shadow.body && shadow.hiddenOk && shadow.trTitles && /BOĞAZ/.test(shadow.centers), `${d.name}: insan silüeti var; İngilizce metin bölümleri gizli; merkez adları ve başlıklar Türkçe`, shadow);
+      const gateOk = Object.entries(expGates).every(([g, w]) => { const h = chart.gates[g]; return w === "AB" ? h === "both" : h === w || h === "both"; });
+      ok(drawnAttr.split(",").sort().join(",") === storedIds && chart.markers.join(",") === storedIds && gateOk, `${d.name}: birleşik BodyGraph — tanımlı kanallar, işaretler ve kanal kapıları (A/B) = kayıtlı sonuç (${stored.length} kanal)`, { chart: chart.gates, expGates, markers: chart.markers });
+      const pageHalf = (await page.locator("[data-hd-half-channel]").evaluateAll((els) => els.map((e) => e.getAttribute("data-hd-half-channel") ?? ""))).sort().join(",");
+      ok(halfAttr === pageHalf && halfAttr.length > 0 && chart.filled.every((c) => storedIds.split(",").includes(c) || halfAttr.split(",").includes(c)), `${d.name}: grafikteki yarım kanallar = liste (${halfAttr.split(",").length}); yalnız tanımlı / yarım kanallar boyalı`);
+      ok(chart.centers === 9 && Object.keys(chart.gates).length === 64 && chart.hits === 36 && chart.definedCenters === storedRes.centers.filter((c) => c.defined).length, `${d.name}: 9 merkez, 64 kapı, 36 kanal hedefi; tanımlı merkezler`, chart);
+      ok(chart.silhouette && chart.logo && chart.trCenters, `${d.name}: insan silüeti + logo grafikte; merkez adları Türkçe`, chart);
       const vw = d.w;
-      ok(d.ua ? shadow.width <= vw && shadow.width >= vw - 90 : shadow.width >= 520, `${d.name}: grafik genişliği ${Math.round(shadow.width)}px (${d.ua ? "ekrana sığar" : "masaüstünde büyük"})`);
-      ok(await page.locator("[data-hd-composite-legend]").isVisible() && (await page.locator("[data-hd-rel-brand]").first().isVisible()), `${d.name}: Türkçe lejant + Yaşam Sistemi logosu görünür`);
+      ok(d.ua ? chart.width <= vw && chart.width >= vw - 90 : chart.width >= 520, `${d.name}: grafik genişliği ${Math.round(chart.width)}px (${d.ua ? "ekrana sığar" : "masaüstünde büyük"})`);
+      ok(await page.locator("[data-hd-composite-legend]").isVisible(), `${d.name}: Türkçe lejant görünür`);
+      // Etkileşim: kanal ortasına fare / dokunma (telefonda büyütülmüş harita); klavye (odak + Enter)
       if (d.ua) {
         await page.locator("[data-hd-composite-zoom]").click();
         await page.waitForTimeout(250);
-        const zw = await page.evaluate(() => document.querySelector("roxy-hd-connection")!.shadowRoot!.querySelector("svg.chart")!.getBoundingClientRect().width);
-        ok(zw >= 600 && !(await overflowX()), `${d.name}: "Haritayı büyüt" → grafik ${Math.round(zw)}px, sayfa yatay taşmıyor (kaydırma kabı içinde)`);
+      }
+      // Hedef: kayıtlı ilk kanal; dokunma noktası = kanal boyunca ekranda görünen ve en üstte o kanalın hedefi olan nokta.
+      const target = stored[0].id;
+      await page.locator(`[data-hd-cbg-hit='${target}']`).scrollIntoViewIfNeeded();
+      await page.evaluate("window.__name = window.__name || ((f) => f)"); // tsx yardımcısı tarayıcıda yok
+      const pt2 = await page.evaluate((id) => {
+        const el = document.querySelector(`[data-hd-cbg-hit='${id}']`) as SVGGeometryElement;
+        const sc = document.querySelector("[data-hd-composite-scroll]") as HTMLElement;
+        const L = el.getTotalLength();
+        const at = (t: number) => {
+          const p = el.getPointAtLength(L * t);
+          const m = el.getScreenCTM()!;
+          return { x: m.a * p.x + m.c * p.y + m.e, y: m.b * p.x + m.d * p.y + m.f };
+        };
+        const mid = at(0.5);
+        sc.scrollLeft += mid.x - window.innerWidth / 2;
+        window.scrollBy(0, mid.y - window.innerHeight / 2);
+        for (const t of [0.5, 0.45, 0.55, 0.4, 0.6, 0.35, 0.65, 0.3, 0.7]) {
+          const q = at(t);
+          if (q.x < 4 || q.y < 4 || q.x > window.innerWidth - 4 || q.y > window.innerHeight - 4) continue;
+          const top = document.elementFromPoint(q.x, q.y)?.getAttribute("data-hd-cbg-hit") ?? null;
+          if (top === id) return { x: q.x, y: q.y, top };
+        }
+        return { x: mid.x, y: mid.y, top: null as string | null, sw: sc.scrollWidth, cw: sc.clientWidth };
+      }, target);
+      if (d.ua) await page.touchscreen.tap(pt2.x, pt2.y);
+      else await page.mouse.move(pt2.x, pt2.y);
+      await page.waitForTimeout(150);
+      const infoAfterPointer = await page.locator("[data-hd-composite-info]").getAttribute("data-hd-composite-info");
+      if (process.env.HD_E2E_DEBUG) console.log("DEBUG", JSON.stringify(await page.evaluate((p) => ({ top: document.elementFromPoint(p.x, p.y)?.getAttribute("data-hd-cbg-hit"), active: document.activeElement?.getAttribute("data-hd-cbg-hit"), vv: [visualViewport?.offsetLeft, visualViewport?.offsetTop, visualViewport?.scale, visualViewport?.width], sx: [scrollX, scrollY], iw: innerWidth }), pt2)));
+      ok(!!pt2.top && infoAfterPointer === pt2.top && (await page.locator("[data-hd-composite-info]").innerText()).includes("kapı"), `${d.name}: ${d.ua ? "dokunma" : "fare"} ile kanal seçimi → bilgi paneli (${pt2.top})`, { pt2, infoAfterPointer });
+      const kb = stored[stored.length - 1].id;
+      await page.locator(`[data-hd-cbg-hit='${kb}']`).focus();
+      await page.keyboard.press("Enter");
+      ok((await page.locator("[data-hd-composite-info]").getAttribute("data-hd-composite-info")) === kb && (await page.locator("svg[data-hd-cbg]").getAttribute("data-hd-cbg-selected")) === kb, `${d.name}: klavye (odak + Enter) ile kanal seçimi (${kb})`);
+      if (d.ua) {
+        const zw = await page.evaluate(() => document.querySelector("svg[data-hd-cbg]")!.getBoundingClientRect().width);
+        ok(zw >= 800 && !(await overflowX()), `${d.name}: "Haritayı büyüt" → grafik ${Math.round(zw)}px, sayfa yatay taşmıyor (kaydırma kabı içinde)`);
         await page.locator("[data-hd-composite-zoom]").click();
       } else {
         ok(!(await page.locator("[data-hd-composite-zoom]").isVisible()), `${d.name}: masaüstünde büyütme düğmesi yok`);
       }
+      await page.locator("svg[data-hd-cbg]").screenshot({ path: path.join(OUT, `${d.name}-connection-bodygraph.png`) });
       ok((await page.locator("[data-hd-rel-channel]").count()) === stored.length && (await page.locator("[data-hd-rel-dynamic]").count()) >= 1, `${d.name}: kanal listesi bağlantı türüne göre Türkçe (${stored.length})`);
       const halfIds = await page.locator("[data-hd-half-channel]").evaluateAll((els) => els.map((e) => e.getAttribute("data-hd-half-channel") ?? ""));
       ok(halfIds.length > 0 && halfIds.every((h) => !storedIds.split(",").includes(h)) && (await page.locator("[data-hd-person-gates]").count()) === 2, `${d.name}: yarım kanallar (${halfIds.length}) + iki kişinin tüm aktif kapıları listede`);
@@ -251,7 +305,10 @@ async function main() {
           const z = await JSZip.loadAsync(readFileSync(docPath));
           const docXml = await z.file("word/document.xml")!.async("string");
           const media = Object.keys(z.files).filter((f) => /^word\/media\/.+\.png$/.test(f));
-          ok(docXml.includes("Standart Human Design birleşik BodyGraph") && media.length === 2 && docXml.includes("Yarım Kanallar ve Aktif Kapılar"), `${d.name}: Word'de standart birleşik BodyGraph (tarayıcıda doğrulanıp donduruldu) + logo + yarım kanallar`, media);
+          const pngs = await Promise.all(media.map((f) => z.file(f)!.async("nodebuffer")));
+          const chartPng = pngs.find((b) => b.readUInt32BE(16) === 1100);
+          ok(docXml.includes("Aktif kapı kanalın kendi yarısını") && media.length === 2 && !!chartPng && chartPng.readUInt32BE(20) === 1404 && docXml.includes("Yarım Kanallar ve Aktif Kapılar"), `${d.name}: Word'de silüetli birleşik BodyGraph (ekrandaki sahne, sunucuda) + logo + lejant + yarım kanallar`, media);
+          if (chartPng) writeFileSync(path.join(OUT, `${d.name}-word-bodygraph.png`), chartPng);
           await page.locator("[data-hd-rel-report-row]").first().waitFor({ timeout: 15_000 });
         } else {
           await page.keyboard.press("Escape");

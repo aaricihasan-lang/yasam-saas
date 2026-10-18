@@ -2,8 +2,8 @@
 
 // İlişki (Connection) ve Grup (Penta) sonuç görünümleri — SAF SUNUM (fetch yok, hesap yok).
 // Kaynak: kayıtlı ve doğrulanmış sonuç. Roxy'nin vermediği yorum/puan/yüzde gösterilmez.
-// Connection birleşik BodyGraph'ı: Roxy'nin resmî silüetli grafiği (self-host, kontrollü mod, kayıtlı sonuçla
-// doğrulanır); çizilemezse Yaşam Sistemi şematik çizimi / özet şema. Penta: Yaşam Sistemi Türkçe şeması.
+// Connection birleşik BodyGraph'ı: Yaşam Sistemi premium silüetli çizim (mühürlü V9 kanal geometrisi; Word ile aynı
+// sahne). Penta: Yaşam Sistemi Türkçe şeması.
 
 import { hdCenterLabelFromCode } from "@/lib/human-design/codeHelpers";
 import { hdGateDefaultName } from "@/lib/human-design/knowledge/hdNames";
@@ -11,12 +11,11 @@ import { channelCenterCodes, type ConnectionDynamic, type HdConnectionResult } f
 import type { HdPentaResult } from "@/lib/human-design/relations/penta";
 import type { RelationAnalysisView } from "@/lib/human-design/relations/relationService";
 import type { HdCenterCode } from "@/lib/human-design/types";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { HD_CHART_LOGO_SRC } from "@/app/human-design/kayitli-haritalar/components/HdChartInfoPanel";
-import { RoxyConnectionChart } from "./RoxyConnectionChart";
+import { ConnectionBodygraph } from "./ConnectionBodygraph";
 import { buildCompositeModel } from "@/lib/human-design/relations/compositeModel";
-import { buildCompositeScene, DYNAMIC_SHAPE, PERSON_COLOR } from "@/lib/human-design/relations/compositeScene";
-import { COMPOSITE_ROUTES, COMPOSITE_VIEW } from "@/lib/human-design/relations/compositeLayout";
+import { buildConnectionBodygraphScene, CBG_DYNAMIC_SHAPE, CBG_PERSON_COLOR, cbgStateFromModel, cbgStateFromResult } from "@/lib/human-design/relations/connectionBodygraphScene";
 import { buildPentaScene, pentaChannelLines, PENTA_VIEW } from "@/lib/human-design/relations/pentaScene";
 import { SceneSvg } from "./SceneSvg";
 import {
@@ -111,113 +110,74 @@ export function RelationBrand({ className = "" }: { className?: string }) {
 }
 
 /**
- * Birleşik BodyGraph. Öncelik: Roxy'nin resmî silüetli grafiği (kayıtlı sonuçla doğrulanır).
- * Roxy çizimi yüklenemez / doğrulanamazsa → Yaşam Sistemi şematik çizimi (kaynak veriyle doğrulanmışsa) →
- * o da yoksa kayıtlı sonuçtan özet şema. Uydurma çizim yok.
+ * Birleşik İlişki BodyGraph'ı — Yaşam Sistemi premium silüetli çizim, mühürlü V9 kanal geometrisi.
+ * Veri: kayıtlı bireysel kapılar kayıtlı sonuçla BİREBİR doğrulanırsa tam çizim (tanımlı + yarım kanallar);
+ * değilse yalnız kayıtlı sonuçtaki tanımlı kanallar (açık not ile). Uydurma çizim yok.
  */
 function CompositePanel({ a, r }: { a: RelationAnalysisView; r: HdConnectionResult }) {
-  const [std, setStd] = useState<"loading" | "ready" | "mismatch" | "error">("loading");
-  const [zoom, setZoom] = useState(false);
-  const onStd = useCallback((s: "ready" | "mismatch" | "error") => setStd(s), []);
-  const nameA = a.participants[0]?.name ?? "A";
-  const nameB = a.participants[1]?.name ?? "B";
-  const ids = r.channels.map((c) => c.id).sort().join(",");
-  if (std === "loading" || std === "ready") {
-    return (
-      <div data-hd-composite={std === "ready" ? "standard" : "loading"} data-hd-composite-defined={ids}>
-        <div className="mb-1 flex justify-end sm:hidden">
-          <button type="button" onClick={() => setZoom((w) => !w)} className="min-h-[36px] rounded-lg border border-indigo-200 px-2.5 text-[11px] font-bold text-indigo-700" data-hd-composite-zoom aria-pressed={zoom}>
-            {zoom ? "Haritayı küçült" : "Haritayı büyüt"}
-          </button>
-        </div>
-        {/* Telefonda büyütme: grafik sabit 640px çizilir, kap yatay kaydırır (sayfa taşmaz). */}
-        <div className={zoom ? "-mx-2 overflow-x-auto overscroll-x-contain" : ""} data-hd-composite-scroll>
-          <div className={zoom ? "w-[640px] max-w-none" : "w-full"}>
-            <RoxyConnectionChart r={r} nameA={nameA} nameB={nameB} onState={onStd} />
-          </div>
-        </div>
-        <ul className="mt-3 grid gap-x-4 gap-y-1 text-[11px] text-slate-600 sm:grid-cols-2" data-hd-composite-legend>
-          <li>İki renkli kanal: Elektromanyetik (biri bir kapıyı, diğeri öbür kapıyı taşır)</li>
-          <li>Tek renkli kanal: Baskınlık, Uzlaşma ya da Arkadaşlık — türü yandaki listede</li>
-          <li>İki renkli (yarım yarım) kapı: iki kişide de aktif</li>
-          <li>Renkli merkez: birleşik haritada tanımlı · beyaz: açık</li>
-        </ul>
-        <p className="mt-1.5 text-[11px] text-slate-500">Grafikte yalnız birlikte tamamlanan kanallar işaretlenir; yarım kanallar ve tüm aktif kapılar aşağıdaki listededir. Kapı üzerine gelince kişi ve kanal bilgisi görünür.</p>
-      </div>
-    );
-  }
-  return <CustomCompositePanel a={a} r={r} notice={std === "mismatch" ? "Standart BodyGraph çizimi kayıtlı sonuçla doğrulanamadı; Yaşam Sistemi şematik çizimi gösteriliyor." : "Standart BodyGraph çizimi yüklenemedi; Yaşam Sistemi şematik çizimi gösteriliyor."} />;
-}
-
-/** Yedek: Yaşam Sistemi şematik birleşik çizimi (kaynak bireysel veriyle doğrulanır); o da yoksa özet şema. */
-function CustomCompositePanel({ a, r, notice }: { a: RelationAnalysisView; r: HdConnectionResult; notice: string }) {
   const build = useMemo(() => buildCompositeModel(a.participants[0]?.gates ?? null, a.participants[1]?.gates ?? null, r), [a, r]);
-  const scene = useMemo(() => (build.ok ? buildCompositeScene(build.model) : null), [build]);
+  const state = useMemo(() => (build.ok ? cbgStateFromModel(build.model) : cbgStateFromResult(r)), [build, r]);
+  const prims = useMemo(() => buildConnectionBodygraphScene(state), [state]);
   const [sel, setSel] = useState<string | null>(null);
   const [wide, setWide] = useState(false);
   const nameA = a.participants[0]?.name ?? "A";
   const nameB = a.participants[1]?.name ?? "B";
-  if (!build.ok || !scene) {
-    return (
-      <div data-hd-composite="fallback">
-        <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
-          Birleşik harita çizilemedi: kaynak bireysel analiz verisi artık mevcut değil. Kayıtlı sonuçtan özet şema gösteriliyor.
-        </p>
-        <ConnectionDiagram r={r} />
-      </div>
-    );
-  }
-  const m = build.model;
-  const st = sel ? m.channels[sel] : null;
+  const st = sel ? state.channels[sel] : null;
+  const [gLo, gHi] = sel ? sel.split("-").map(Number) : [0, 0];
   const who = (h: "A" | "B" | "both" | null) => (h === "both" ? `${nameA} ve ${nameB} (ortak)` : h === "A" ? nameA : h === "B" ? nameB : "kimse");
-  const route = sel ? COMPOSITE_ROUTES.find((x) => x.id === sel) : null;
+  const definedIds = Object.values(state.channels).filter((c) => c.state === "defined").map((c) => c.id).sort().join(",");
+  const halfIds = Object.values(state.channels).filter((c) => c.state === "half").map((c) => c.id).sort().join(",");
   return (
-    <div data-hd-composite="ok" data-hd-composite-defined={m.definedChannelIds.join(",")}>
-      <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200" data-hd-composite-notice>{notice}</p>
+    <div data-hd-composite={state.full ? "ok" : "result-only"} data-hd-composite-defined={definedIds} data-hd-composite-half={halfIds}>
+      {!state.full ? (
+        <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200" data-hd-composite-notice>
+          Kaynak bireysel analiz verisi artık mevcut olmadığından grafikte yalnız kayıtlı sonuçtaki birlikte tamamlanan kanallar gösteriliyor; yarım kanallar çizilemiyor.
+        </p>
+      ) : null}
       <div className="mb-1 flex justify-end sm:hidden">
         <button type="button" onClick={() => setWide((w) => !w)} className="min-h-[36px] rounded-lg border border-indigo-200 px-2.5 text-[11px] font-bold text-indigo-700" data-hd-composite-zoom aria-pressed={wide}>
           {wide ? "Haritayı küçült" : "Haritayı büyüt"}
         </button>
       </div>
+      {/* Telefonda büyütme: grafik sabit genişlikte çizilir, kap yatay kaydırır (sayfa taşmaz). */}
       <div className={wide ? "-mx-2 overflow-x-auto overscroll-x-contain" : ""} data-hd-composite-scroll>
-      <SceneSvg
-        wide={wide}
-        prims={scene}
-        view={COMPOSITE_VIEW}
-        label={`Birleşik İlişki BodyGraph'ı: ${nameA} ve ${nameB}`}
-        hitRoutes={COMPOSITE_ROUTES.map((x) => ({ id: x.id, points: x.points }))}
-        selected={sel}
-        onSelect={setSel}
-        channelLabel={(id) => relationChannelLabel(id, id)}
-        testId="composite"
-      />
+        <ConnectionBodygraph
+          prims={prims}
+          wide={wide}
+          logoSrc={HD_CHART_LOGO_SRC}
+          label={`Birleşik İlişki BodyGraph'ı: ${nameA} ve ${nameB}`}
+          selected={sel}
+          onSelect={setSel}
+          channelLabel={(id) => relationChannelLabel(id, id)}
+        />
       </div>
       <div className="mt-2 min-h-[64px] rounded-xl border border-indigo-100 bg-indigo-50/40 px-3 py-2 text-xs" aria-live="polite" data-hd-composite-info={sel ?? ""}>
-        {!st || !route ? (
+        {!st ? (
           <p className="text-slate-500">Bir kanalın üzerine gelin ya da dokunun: kanal adı, kapılar ve bağlantı türü burada görünür.</p>
         ) : st.state === "defined" ? (
           <>
             <p className="font-bold text-slate-900">{relationChannelLabel(st.id, st.id)} <span className="font-semibold text-indigo-700">· {DYNAMIC_LABEL[st.dynamic]}</span></p>
-            <p className="mt-0.5 text-slate-700">{route.gateA}. kapı: {who(st.holderA)} · {route.gateB}. kapı: {who(st.holderB)}</p>
+            <p className="mt-0.5 text-slate-700">{gLo}. kapı: {who(st.holderA)} · {gHi}. kapı: {who(st.holderB)}</p>
             <p className="mt-0.5 text-slate-500">{DYNAMIC_DEFINITION[st.dynamic]}</p>
           </>
         ) : st.state === "half" ? (
           <>
             <p className="font-bold text-slate-900">{relationChannelLabel(st.id, st.id)} <span className="font-semibold text-amber-700">· Yarım kanal (tanımlı değil)</span></p>
-            <p className="mt-0.5 text-slate-700">{route.gateA}. kapı: {who(st.holderA)} · {route.gateB}. kapı: {who(st.holderB)}</p>
+            <p className="mt-0.5 text-slate-700">{gLo}. kapı: {who(st.holderA)} · {gHi}. kapı: {who(st.holderB)}</p>
             <p className="mt-0.5 text-slate-500">Birlikte kanalın yalnız bir kapısı aktif; birleşik haritada tanımlı değildir.</p>
           </>
         ) : (
-          <p className="text-slate-700"><b>{relationChannelLabel(st.id, st.id)}</b> — iki haritada da aktif kapısı yok.</p>
+          <p className="text-slate-700"><b>{relationChannelLabel(st.id, st.id)}</b> — {state.full ? "iki haritada da aktif kapısı yok." : "birleşik haritada tanımlı değil."}</p>
         )}
       </div>
-      <ul className="mt-2 grid gap-1 text-[11px] text-slate-600 sm:grid-cols-2" data-hd-composite-legend>
-        <li><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: PERSON_COLOR.A }} />A · {nameA}</li>
-        <li><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: PERSON_COLOR.B }} />B · {nameB}</li>
-        <li>İki renkli kapı / çizgili kanal yarısı: ortak kapı</li>
-        <li>Kalın kanal: tanımlı · ince kesikli: yarım kanal</li>
-        {DYNAMIC_ORDER.map((d) => (<li key={d}>{SHAPE_GLYPH[DYNAMIC_SHAPE[d]]} {DYNAMIC_LABEL[d]}</li>))}
-        <li>Dolgulu merkez: birleşik haritada tanımlı · A/B: kendi haritasında tanımlayan</li>
+      <ul className="mt-2 grid gap-x-4 gap-y-1 text-[11px] text-slate-600 sm:grid-cols-2" data-hd-composite-legend>
+        <li><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: CBG_PERSON_COLOR.A }} />A · {nameA}</li>
+        <li><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: CBG_PERSON_COLOR.B }} />B · {nameB}</li>
+        <li>Aktif kapı, kanalın kendi yarısını kişinin rengine boyar</li>
+        <li>Mavi-turuncu çizgili yarı / iki renkli kapı: ortak kapı</li>
+        <li>İki yarısı boyalı + işaret: tanımlı kanal · tek yarısı boyalı: yarım kanal</li>
+        <li>Renkli merkez: birleşik haritada tanımlı · beyaz: açık</li>
+        {DYNAMIC_ORDER.map((d) => (<li key={d}>{SHAPE_GLYPH[CBG_DYNAMIC_SHAPE[d]]} {DYNAMIC_LABEL[d]}</li>))}
       </ul>
       <details className="mt-2">
         <summary className="cursor-pointer text-[11px] font-semibold text-indigo-700">Özet bağlantı şeması (ikincil)</summary>
@@ -260,7 +220,7 @@ function PentaPanel({ a, r }: { a: RelationAnalysisView; r: HdPentaResult }) {
 }
 
 /**
- * Roxy grafiğinin göstermediği bilgi: yarım kanallar (birlikte tek kapısı aktif) ve her kişinin TÜM aktif
+ * Liste görünümü: yarım kanallar (birlikte tek kapısı aktif) ve her kişinin TÜM aktif
  * kapıları. Kaynak: kayıtlı bireysel analizler (kayıtlı sonuçla doğrulanmış model). Kaynak yoksa açıkça söylenir.
  */
 function ActiveGatesCard({ a, r }: { a: RelationAnalysisView; r: HdConnectionResult }) {
@@ -286,7 +246,7 @@ function ActiveGatesCard({ a, r }: { a: RelationAnalysisView; r: HdConnectionRes
       <div className="grid gap-4 lg:grid-cols-2" data-hd-active-gates="ok">
         <div>
           <p className="text-xs font-bold text-slate-800">Yarım kanallar · {halves.length}</p>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">Birlikte kanalın yalnız bir kapısı aktif; birleşik haritada tanımlı değildir (grafikte çizilmez).</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">Birlikte kanalın yalnız bir kapısı aktif; birleşik haritada tanımlı değildir (grafikte yalnız aktif kapının yarısı boyalı).</p>
           <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
             {halves.map((c) => {
               const [lo, hi] = c.id.split("-").map(Number);
@@ -304,7 +264,7 @@ function ActiveGatesCard({ a, r }: { a: RelationAnalysisView; r: HdConnectionRes
           <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">Kalın: birlikte tamamlanan bir kanala ait kapı. Diğerleri kişinin kendi haritasındaki aktif kapılardır.</p>
           {(["A", "B"] as const).map((p) => (
             <div key={p} className="mt-2" data-hd-person-gates={p}>
-              <p className="text-[11px] font-semibold text-slate-700"><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: PERSON_COLOR[p] }} />{p} · {p === "A" ? nameA : nameB}</p>
+              <p className="text-[11px] font-semibold text-slate-700"><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: CBG_PERSON_COLOR[p] }} />{p} · {p === "A" ? nameA : nameB}</p>
               <p className="mt-1 flex flex-wrap gap-1">
                 {gatesOf(p).map((g) => (
                   <span key={g} className={`rounded-md px-1.5 py-0.5 text-[11px] tabular-nums ring-1 ${connected.has(g) ? "bg-indigo-50 font-black text-indigo-800 ring-indigo-200" : "bg-white text-slate-600 ring-slate-200"}`} title={hdGateDefaultName(g) ?? undefined}>{g}</span>
@@ -342,11 +302,11 @@ export function ConnectionResultView({ a }: { a: RelationAnalysisView }) {
             <div className="min-w-0">
               <h3 className="text-[11px] font-black uppercase tracking-widest text-indigo-700">Birleşik İlişki BodyGraph&apos;ı</h3>
               <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs font-semibold text-slate-800">
-                <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: PERSON_COLOR.A }} />A · {name("A")}</span>
-                <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: PERSON_COLOR.B }} />B · {name("B")}</span>
+                <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: CBG_PERSON_COLOR.A }} />A · {name("A")}</span>
+                <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: CBG_PERSON_COLOR.B }} />B · {name("B")}</span>
               </p>
             </div>
-            <RelationBrand className="w-[92px] shrink-0 sm:w-[110px]" />
+            {/* Logo grafiğin içinde (referans tasarım); başlıkta tekrar edilmez. */}
           </div>
           <CompositePanel a={a} r={r} />
           <p className="mt-2 text-xs font-semibold text-slate-700" data-hd-rel-definition>

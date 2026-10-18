@@ -13,11 +13,7 @@ import JSZip from "jszip";
 import { mkUser, src, type Auth, type Json } from "../hd-analysis-word-flow/env";
 import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv, type TestEnv } from "../anamnez/testEnv";
 import { engineChart, fakeConnectionResponse, fakePentaResponse, PEOPLE, type Moment } from "./fakeRelationRoxy";
-import { randomUUID } from "node:crypto";
 import { Resvg } from "@resvg/resvg-js";
-import { insertPngTextChunk } from "../../lib/human-design/reporting/bodygraphBinding";
-import { connectionFingerprint, HD_RELATION_BIND_KEYWORD, relationBindingText } from "../../lib/human-design/relations/roxyConnectionChart";
-import type { HdConnectionResult } from "../../lib/human-design/relations/connection";
 
 let pass = 0;
 let fail = 0;
@@ -236,23 +232,21 @@ async function main() {
     const dlr1 = await dl(String(rep1.json.id));
     const doc1 = await docOf(dlr1.buf);
     ok(dlr1.status === 200 && doc1.text.includes("İlişki Analizi (Connection)") && doc1.text.includes(NAMES[0]) && !doc1.text.includes("Uzman yorumu: ilk sürüm") && !doc1.text.includes("Analiz Açıklamaları"), "5k teknik rapor: uzman yorumu / açıklama YOK (seçilmedi)");
-    ok(doc1.media.length === 2 && doc1.text.includes("şematik birleşik çizimi"), "5l Word'de logo + birleşik harita görseli (PNG; grafik gönderilmedi → şematik çizim, açıkça yazılı)", doc1.media);
+    ok(doc1.media.length === 2 && doc1.text.includes("Aktif kapı kanalın kendi yarısını") && !doc1.text.includes("şematik"), "5l Word'de logo + silüetli birleşik BodyGraph (sunucuda ekrandaki sahneyle çizilir) + Türkçe lejant", doc1.media);
     const dlr2 = await dl(String(rep2.json.id));
     const doc2 = await docOf(dlr2.buf);
     ok(doc2.text.includes("Uzman Yorumu") && doc2.text.includes("Uzman yorumu: ilk sürüm") && doc2.text.includes("İkinci paragraf") && doc2.text.includes("Analiz Açıklamaları") && doc2.text.includes("Uzm. Test"), "5m seçilen içerik + Raporu Hazırlayan Word'de");
     ok(![doc1.xml, doc2.xml].some((x) => /roxy|\/human-design\/|nodeType|adapter|zz-harness-fake-roxy-key/i.test(x)), "5n Word'de sağlayıcı adı / uç / nodeType / anahtar YOK");
     ok(doc2.text.includes("ZZ_KANAL_ICERIK") && doc2.text.includes("ZZ_TIP_ICERIK") && doc2.text.includes(`${NAMES[0]} — bireysel kayıtlarınız`), "5n2 Bilgi Bankası: genel kanal kaydı + kişi adıyla bireysel tip kaydı Word'de");
     ok(!/ZZ_GIZLI_NOT|ZZ_B_SIZMAMALI/.test(doc2.text) && !doc1.text.includes("ZZ_KANAL_ICERIK"), "5n3 özel çalışma notu ve başka tenant kaydı Word'e GİRMEZ; seçilmeyen raporda Bilgi Bankası yok");
-    // 5o–5s Standart birleşik BodyGraph (tarayıcıda yakalanan PNG): biçim + analiz bağı denetimi; raporda DONAR.
-    const resRow = (await su.query(`select result from public.human_design_relation_analyses where id=$1`, [aid])).rows[0].result as HdConnectionResult;
-    const basePng = new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="1270" height="1800"><rect width="1270" height="1800" fill="#fff"/><circle cx="600" cy="900" r="300" fill="#2563eb"/></svg>`).render().asPng();
-    const pngWith = (text: string) => Buffer.from(insertPngTextChunk(new Uint8Array(basePng), HD_RELATION_BIND_KEYWORD, text));
-    const goodBuf = pngWith(relationBindingText(aid, connectionFingerprint(resRow)));
-    const asUrl = (b: Buffer) => `data:image/png;base64,${b.toString("base64")}`;
-    const rg = await call(routes.reports.POST, "POST", U.A, { params: { id: aid }, body: { graphic_png: asUrl(goodBuf) } });
-    ok(rg.status === 200 && (rg.json.image as Json).source === "standard" && (rg.json.image as Json).status === "ok" && !JSON.stringify(rg.json).includes("base64"), "5t geçerli standart grafik kabul edildi (yanıtta görsel verisi yok)", rg.json);
-    const storedPng = (await su.query(`select snapshot->'image'->>'png' p, snapshot->'image'->>'source' s from public.human_design_relation_reports where id=$1`, [rg.json.id])).rows[0];
-    ok(storedPng.s === "standard" && storedPng.p === goodBuf.toString("base64"), "5t2 grafik rapor snapshot'ında DONDU (birebir bayt)");
+    // 5t–5x Birleşik BodyGraph görseli: sunucuda kayıtlı veriden çizilir; tarayıcıdan gelen grafik YOK SAYILIR
+    //        (snapshot'a PNG yazılmaz → DB şişmez). Eski raporlarda donmuş PNG indirmede aynen kullanılır.
+    const fakePng = new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="1270" height="1800"><rect width="1270" height="1800" fill="#fff"/><circle cx="600" cy="900" r="300" fill="#2563eb"/></svg>`).render().asPng();
+    const asUrl = (b: Buffer | Uint8Array) => `data:image/png;base64,${Buffer.from(b).toString("base64")}`;
+    const rg = await call(routes.reports.POST, "POST", U.A, { params: { id: aid }, body: { graphic_png: asUrl(fakePng) } });
+    ok(rg.status === 200 && (rg.json.image as Json).source === "scene" && (rg.json.image as Json).status === "ok" && !JSON.stringify(rg.json).includes("base64"), "5t rapor oluşur; dışarıdan gönderilen grafik yok sayılır (kaynak: sunucu sahnesi)", rg.json);
+    const storedImg = (await su.query(`select snapshot->'image'->>'png' p, snapshot->'image'->>'source' s from public.human_design_relation_reports where id=$1`, [rg.json.id])).rows[0];
+    ok(storedImg.s === "scene" && storedImg.p === null, "5t2 snapshot'a PNG yazılmaz (yalnız kayıtlı veri; DB şişmez)");
     const mediaBytes = async (buf: Buffer | null) => {
       const z = await JSZip.loadAsync(buf!);
       return Promise.all(Object.keys(z.files).filter((f) => /^word\/media\/.+\.png$/.test(f)).map((f) => z.file(f)!.async("nodebuffer")));
@@ -262,21 +256,22 @@ async function main() {
     const mb1 = await mediaBytes(dg1.buf);
     const mb2 = await mediaBytes(dg2.buf);
     const docG = await docOf(dg1.buf);
-    ok(mb1.some((b) => b.equals(goodBuf)) && docG.text.includes("Standart Human Design birleşik BodyGraph") && !docG.text.includes("şematik birleşik çizimi"), "5u Word'de standart grafik (aynı bayt) + Türkçe lejant", mb1.map((b) => b.length));
-    ok(mb1.length === mb2.length && mb1.every((b, i) => b.equals(mb2[i])), "5u2 tekrar indirmede görsel değişmez");
+    const chartPng = mb1.find((b) => b.readUInt32BE(16) === 1100);
+    ok(!!chartPng && chartPng.readUInt32BE(20) === Math.round((1100 * 766) / 600) && !mb1.some((b) => b.equals(Buffer.from(fakePng))) && docG.text.includes("Bağlantı türü işareti"), "5u Word: sunucuda çizilen silüetli BodyGraph (1100×1404, tarayıcı grafiği değil) + lejant", mb1.map((b) => [b.readUInt32BE(16), b.readUInt32BE(20)]));
+    ok(mb1.length === mb2.length && mb1.every((b, i) => b.equals(mb2[i])), "5u2 tekrar indirmede görsel birebir aynı (deterministik)");
     ok(docG.text.includes("Yarım Kanallar ve Aktif Kapılar") && docG.text.includes("Kişilerin tüm aktif kapıları"), "5u3 Word: yarım kanallar ve kişilerin tüm aktif kapıları bölümü");
-    const bad1 = await call(routes.reports.POST, "POST", U.A, { params: { id: aid }, body: { graphic_png: asUrl(pngWith(relationBindingText(aid, "0-0"))) } });
-    const bad2 = await call(routes.reports.POST, "POST", U.A, { params: { id: aid }, body: { graphic_png: asUrl(pngWith(relationBindingText(randomUUID(), connectionFingerprint(resRow)))) } });
-    ok(bad1.status === 400 && bad1.json.code === "GRAPHIC_INVALID" && bad2.status === 400, "5v başka sonuca / başka analize bağlı grafik reddedilir", [bad1.json, bad2.json]);
-    const bad3 = await call(routes.reports.POST, "POST", U.A, { params: { id: aid }, body: { graphic_png: "data:image/png;base64,AAAA" } });
-    const bad4 = await call(routes.reports.POST, "POST", U.A, { params: { id: aid }, body: { graphic_png: "data:image/png;base64," + "A".repeat(1_400_000) } });
-    const bad5 = await call(routes.reports.POST, "POST", U.A, { params: { id: aid }, body: { graphic_png: "data:image/svg+xml;base64,PHN2Zz4=" } });
-    ok(bad3.status === 400 && bad4.status === 400 && bad5.status === 400, "5w bozuk / çok büyük / PNG olmayan grafik reddedilir");
+    // Eski rapor biçimi (donmuş standart PNG) indirmede aynen kullanılır (geri uyumluluk).
+    await su.query(`update public.human_design_relation_reports set snapshot = jsonb_set(snapshot, '{image}', $2::jsonb) where id=$1`, [rg.json.id, JSON.stringify({ status: "ok", reason: null, source: "standard", png: Buffer.from(fakePng).toString("base64") })]);
+    const legacy = await dl(String(rg.json.id));
+    const lb = await mediaBytes(legacy.buf);
+    const docL = await docOf(legacy.buf);
+    ok(legacy.status === 200 && lb.some((b) => b.equals(Buffer.from(fakePng))) && docL.text.includes("Standart Human Design birleşik BodyGraph"), "5v eski rapor: donmuş PNG + eski lejant aynen");
     const pentaId = String((await su.query(`select id from public.human_design_relation_analyses where kind='penta' and tenant_id=$1 limit 1`, [TA])).rows[0].id);
-    const bad6 = await call(routes.reports.POST, "POST", U.A, { params: { id: pentaId }, body: { graphic_png: asUrl(goodBuf) } });
-    ok(bad6.status === 400, "5x Penta raporuna dışarıdan grafik gönderilemez (Penta şeması sunucuda çizilir)");
+    const pr = await call(routes.reports.POST, "POST", U.A, { params: { id: pentaId }, body: { graphic_png: asUrl(fakePng) } });
+    const prImg = pr.status === 200 ? (await su.query(`select snapshot->'image'->>'png' p from public.human_design_relation_reports where id=$1`, [pr.json.id])).rows[0].p : "x";
+    ok(pr.status === 200 && prImg === null, "5x Penta: dışarıdan grafik yok sayılır (Penta şeması sunucuda çizilir)", pr.json);
     const reportCount = await count(`select count(*) n from public.human_design_relation_reports where analysis_id=$1`, [aid]);
-    ok(reportCount === 3, "5x2 reddedilen istekler rapor oluşturmaz", reportCount);
+    ok(reportCount === 3, "5x2 analiz başına rapor sayısı beklenen (3)", reportCount);
     const src = await call(routes.knowledge.GET, "GET", U.A, { params: { id: aid } });
     const srcStr = JSON.stringify(src.json);
     ok(src.status === 200 && srcStr.includes("ZZ_GIZLI_NOT_KANAL") && !srcStr.includes("ZZ_B_SIZMAMALI") && src.json.central === null && src.json.systemReading === null && (src.json.analysis as unknown[]).length > 0, "5n4 ekran kaynakları: özel not yalnız ekranda; B kaydı yok; normal uzmanda merkezî kaynak null; Sistem Yorumu yok");
@@ -289,7 +284,7 @@ async function main() {
     const doc3 = await docOf((await dl(String(rep3.json.id))).buf);
     ok(doc3.text.includes("ikinci sürüm") && !doc3.text.includes("ilk sürüm"), "5p yeni rapor yeni yorumu içerir");
     const list = await call(routes.reports.GET, "GET", U.A, { params: { id: aid } });
-    ok(list.status === 200 && (list.json.rows as Json[]).length === 4, "5q rapor listesi: 4 kayıt (3 içerik raporu + 1 standart grafikli)");
+    ok(list.status === 200 && (list.json.rows as Json[]).length === 4, "5q rapor listesi: 4 kayıt");
     ok((await call(routes.reports.GET, "GET", U.B, { params: { id: aid } })).status === 200 && ((await call(routes.reports.GET, "GET", U.B, { params: { id: aid } })).json.rows as Json[]).length === 0 && (await dl(String(rep1.json.id), U.B)).status === 404, "5r başka tenant raporları göremez / indiremez");
     const AND = "Mozilla/5.0 (Linux; Android 14; Pixel) Chrome/130 Mobile";
     ok((await dl(String(rep1.json.id), U.A, AND)).status === 403 && (await call(routes.reports.POST, "POST", U.A, { params: { id: aid }, body: {}, ua: AND })).status === 403, "5s Android: rapor hazırlama + indirme → 403 (mevcut Word kuralı)");

@@ -74,16 +74,18 @@ function participantsTable(a: RelationAnalysisView): Table[] {
   );
 }
 
+/** Eski raporlar: tarayıcıda yakalanıp donmuş standart (Roxy) grafik. */
 const LEGEND_CONNECTION_STANDARD = [
   "Standart Human Design birleşik BodyGraph'ı. Renk kişiyi gösterir: mavi = A, turuncu = B; iki renkli (yarım yarım) kapı = iki kişide de aktif.",
   "Grafikte yalnız iki kişinin BİRLİKTE tamamladığı kanallar çizilir. İki renkli kanal = Elektromanyetik; tek renkli kanal = Baskınlık, Uzlaşma ya da Arkadaşlık (türü aşağıdaki tabloda).",
   "Renkli merkez = birleşik haritada tanımlı; beyaz merkez = açık. Yarım kanallar ve kişilerin tüm aktif kapıları 'Yarım Kanallar ve Aktif Kapılar' bölümündedir.",
 ];
+/** Yaşam Sistemi birleşik BodyGraph'ı (ekrandaki grafikle aynı çizim). */
 const LEGEND_CONNECTION = [
-  "Renk kişiyi gösterir: mavi = A, turuncu = B; iki renkli (çizgili / yarım daire) = iki kişide ortak kapı.",
-  "Kalın kanal = birleşik haritada tanımlı. İnce kesikli yarım kanal = yalnız bir kapısı aktif (tanımlı değil).",
-  "Kanal ortasındaki şekil bağlantı türünü gösterir: ◆ Elektromanyetik · ▲ Baskınlık · ■ Uzlaşma · ● Arkadaşlık / Eşlik.",
-  "Dolgulu merkez = birleşik haritada tanımlı; merkezdeki A / B / A+B = merkezi kendi haritasında tanımlayan kişi.",
+  "Renk kişiyi gösterir: mavi = A, turuncu = B. Aktif kapı kanalın kendi yarısını kişinin rengine boyar; mavi zemin üzerinde turuncu çizgili yarı ve iki renkli kapı = iki kişide ortak kapı.",
+  "İki yarısı da boyalı ve ortasında bağlantı türü işareti olan kanal = birleşik haritada tanımlı. Yalnız bir yarısı boyalı kanal = yarım kanal (tanımlı değil).",
+  "Bağlantı türü işareti: ◆ Elektromanyetik · ▲ Baskınlık · ■ Uzlaşma · ● Arkadaşlık / Eşlik.",
+  "Renkli merkez = birleşik haritada tanımlı; beyaz merkez = açık.",
 ];
 const LEGEND_PENTA = [
   "Kalın mor çizgi = grupta tanımlı Penta kanalı (güçlü yön); pembe = 2/14 çekirdek tanımlı; noktalı gri = boşluk var (kanal tamamlanmıyor).",
@@ -246,7 +248,7 @@ export function buildRelationReportDocument(s: RelationReportSnapshot, opts: Rel
   if (opts.image) {
     body.push(embedImageParagraph(opts.image, a.kind === "connection" ? 440 : 400, 620));
     const standard = a.kind === "connection" && s.image.source === "standard";
-    if (a.kind === "connection" && !standard) body.push(muted("Bu raporda Yaşam Sistemi şematik birleşik çizimi kullanılmıştır."));
+    if (s.image.reason) body.push(muted(s.image.reason));
     for (const l of a.kind === "connection" ? (standard ? LEGEND_CONNECTION_STANDARD : LEGEND_CONNECTION) : LEGEND_PENTA) body.push(muted(l));
     if (a.kind === "penta") body.push(muted(a.participants.map((p) => `${p.position + 1}. ${safe(p.name)}`).join(" · ")));
   } else {

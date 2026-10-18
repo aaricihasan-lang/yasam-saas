@@ -23,8 +23,6 @@ import { getRelationAnalysis, isRelationTableMissing, RELATION_ANALYSES, type Re
 import { buildCompositeModel } from "./compositeModel";
 import { connectionExplanations, pentaExplanations, type ExplanationSection } from "./explanations";
 import type { HdConnectionResult } from "./connection";
-import { connectionFingerprint, HD_RELATION_BIND_KEYWORD, relationBindingText } from "./roxyConnectionChart";
-import { readPngTextChunks } from "../reporting/bodygraphBinding";
 import type { HdPentaResult } from "./penta";
 
 export const RELATION_REPORTS = "human_design_relation_reports";
@@ -192,31 +190,13 @@ export type RelationReportSnapshot = {
   };
   preparedBy: string | null;
   /**
-   * Rapor görseli. Connection: `source:"standard"` → standart (silüetli) birleşik BodyGraph PNG'si raporda DONDURULUR
-   * (`png`, base64; tarayıcıda kayıtlı sonuçla çizilip doğrulanmış, sunucuda biçim + analiz bağı denetlenmiş).
-   * `source` yok / "scene" → Yaşam Sistemi şematik çizimi indirmede kayıtlı veriden yeniden çizilir (yedek).
+   * Rapor görseli. Yeni raporlar: `source:"scene"` → grafik indirmede snapshot'taki kayıtlı veriden ekrandaki sahneyle
+   * çizilir (Connection: silüetli birleşik BodyGraph; içerik donmuş veriden, her indirmede aynı). `reason` doluysa
+   * görsel var ama sınırlıdır (ör. kaynak bireysel veri yok → yalnız tanımlı kanallar).
+   * Eski raporlar: `source:"standard"` + `png` (tarayıcıda yakalanıp donmuş PNG) aynen kullanılır.
    */
   image: { status: "ok" | "unavailable"; reason: string | null; source?: "standard" | "scene"; png?: string };
 };
-
-/** Connection rapor görseli (tarayıcıda yakalanan PNG) — biçim + boyut + analiz bağı denetimi. */
-export const RELATION_GRAPHIC_MAX_BYTES = 1_000_000;
-export function parseRelationGraphic(raw: unknown, a: RelationAnalysisView): { png: string } | null | { error: string } {
-  if (raw === undefined || raw === null || raw === "") return null;
-  if (a.kind !== "connection") return { error: "Bu analiz türü için grafik gönderilemez." };
-  if (typeof raw !== "string" || !raw.startsWith("data:image/png;base64,")) return { error: "Grafik PNG biçiminde olmalı." };
-  const b64 = raw.slice("data:image/png;base64,".length);
-  if (b64.length > Math.ceil((RELATION_GRAPHIC_MAX_BYTES * 4) / 3) + 4 || !/^[A-Za-z0-9+/]+={0,2}$/.test(b64)) return { error: "Grafik geçersiz ya da çok büyük." };
-  const buf = Buffer.from(b64, "base64");
-  const SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-  if (buf.length < 33 || buf.length > RELATION_GRAPHIC_MAX_BYTES || SIG.some((v, i) => buf[i] !== v) || buf.toString("latin1", 12, 16) !== "IHDR") return { error: "Grafik geçerli bir PNG değil." };
-  const w = buf.readUInt32BE(16);
-  const h = buf.readUInt32BE(20);
-  if (w < 500 || w > 2600 || h < 700 || h > 3400) return { error: "Grafik ölçüsü beklenen aralıkta değil." };
-  const bound = readPngTextChunks(new Uint8Array(buf)).get(HD_RELATION_BIND_KEYWORD) ?? [];
-  if (bound.length !== 1 || bound[0] !== relationBindingText(a.id, connectionFingerprint(a.result as HdConnectionResult))) return { error: "Grafik bu analizin kayıtlı sonucuyla eşleşmiyor." };
-  return { png: buf.toString("base64") };
-}
 
 export type ReportOptions = { analysis: boolean; knowledge: boolean; expertComment: boolean; preparedBy: string | null };
 
@@ -235,10 +215,13 @@ export function parseReportOptions(raw: unknown): ReportOptions | { error: strin
   return { analysis: flag(s.analysis), knowledge: flag(s.knowledge), expertComment: flag(s.expert_comment), preparedBy };
 }
 
+export const CONNECTION_IMAGE_RESULT_ONLY_NOTE =
+  "Kaynak bireysel analiz verisi artık mevcut olmadığından grafikte yalnız kayıtlı sonuçtaki birlikte tamamlanan kanallar gösterilmiştir; yarım kanallar çizilmemiştir.";
+
 export function imageStatusFor(a: RelationAnalysisView): RelationReportSnapshot["image"] {
   if (a.kind === "penta") return { status: "ok", reason: null };
   const m = buildCompositeModel(a.participants[0]?.gates ?? null, a.participants[1]?.gates ?? null, a.result as HdConnectionResult);
-  return m.ok ? { status: "ok", reason: null } : { status: "unavailable", reason: "Kaynak bireysel analiz verisi artık mevcut değil; birleşik harita görseli rapora eklenemiyor." };
+  return { status: "ok", reason: m.ok ? null : CONNECTION_IMAGE_RESULT_ONLY_NOTE };
 }
 
 export async function createRelationReport(ctx: RelationCtx, id: string, raw: unknown): Promise<Res<{ id: string; image: RelationReportSnapshot["image"]; sections: { analysis: boolean; knowledge: boolean; expertComment: boolean } }>> {
@@ -248,8 +231,6 @@ export async function createRelationReport(ctx: RelationCtx, id: string, raw: un
   const g = await getRelationAnalysis(ctx, id);
   if (!g.body.ok) return err(g.status, g.body.code, g.body.error);
   const a = g.body.analysis;
-  const graphic = parseRelationGraphic((raw as Record<string, unknown>).graphic_png, a);
-  if (graphic && "error" in graphic) return err(400, "GRAPHIC_INVALID", graphic.error);
   let knowledge: KnowledgeGroup[] | null = null;
   if (opts.knowledge) {
     const k = await relationKnowledge(ctx, a, { forReport: true });
@@ -275,7 +256,7 @@ export async function createRelationReport(ctx: RelationCtx, id: string, raw: un
       expertComment,
     },
     preparedBy: opts.preparedBy,
-    image: graphic ? { status: "ok", reason: null, source: "standard", png: graphic.png } : { ...imageStatusFor(a), source: "scene" },
+    image: { ...imageStatusFor(a), source: "scene" },
   };
   const reportId = randomUUID();
   const { error } = await ctx.db.from(RELATION_REPORTS).insert(tenantInsertPayload(ctx.tenantId, { id: reportId, analysis_id: a.id, created_by: ctx.userId, snapshot })).select("id").single();
