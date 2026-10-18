@@ -19,7 +19,7 @@ import {
   buildConnectionBodygraphScene,
   CBG_CHANNEL_IDS,
   CBG_GATE_R,
-  CBG_PERSON_COLOR,
+  CBG_PIPE_FULL,
   cbgChannelRoute,
   cbgStateFromModel,
   cbgStateFromResult,
@@ -84,7 +84,7 @@ ok(CBG_CHANNEL_IDS.length === 36 && CHANNELS.length === 36 && CBG_PIPES.length =
 const badEnds: string[] = [];
 const overGate: string[] = [];
 const overCenter: string[] = [];
-const FULL = 7 + 2 * 1.4;
+const FULL = CBG_PIPE_FULL; // gerçek çizim kalınlığı (referanstaki belirgin boru)
 for (const ch of CHANNELS) {
   const lo = Math.min(ch.gateA, ch.gateB), hi = Math.max(ch.gateA, ch.gateB);
   const r = cbgChannelRoute(ch.id);
@@ -149,9 +149,9 @@ const endsAtGate = (f: Fill, g: number) => { const p = parse(f.points); return d
   const { st } = stateOf([25, 4], [51]);
   const pr = buildConnectionBodygraphScene(st);
   const f = fillsOf(pr, "25-51");
-  ok(f.length === 2 && f.some((x) => startsAtGate(x, 25) && x.color === CBG_PERSON_COLOR.A) && f.some((x) => endsAtGate(x, 51) && x.color === CBG_PERSON_COLOR.B), "3a tanımlı EM: 25 yarısı mavi (A), 51 yarısı turuncu (B)", f);
+  ok(f.length === 2 && f.some((x) => startsAtGate(x, 25) && x.tone === "A") && f.some((x) => endsAtGate(x, 51) && x.tone === "B"), "3a tanımlı EM: 25 yarısı mavi (A), 51 yarısı turuncu (B)", f);
   const h = fillsOf(pr, "4-63");
-  ok(h.length === 1 && startsAtGate(h[0], 4) && h[0].color === CBG_PERSON_COLOR.A, "3b yarım kanal: yalnız aktif kapının (4) yarısı boyalı", h);
+  ok(h.length === 1 && startsAtGate(h[0], 4) && h[0].tone === "A", "3b yarım kanal: yalnız aktif kapının (4) yarısı boyalı", h);
   ok(fillsOf(pr, "47-64").length === 0, "3c aktif kapısı olmayan kanal boyanmaz");
   const markers = pr.filter((p) => p.k === "marker");
   ok(markers.length === 1 && (markers[0] as { ch: string }).ch === "25-51", "3d yalnız tanımlı kanalda bağlantı türü işareti (yarım kanalda yok)", markers);
@@ -170,7 +170,7 @@ const endsAtGate = (f: Fill, g: number) => { const p = parse(f.points); return d
   const { st } = stateOf([10], [20]);
   const pr = buildConnectionBodygraphScene(st);
   const all = pr.filter((p): p is Fill => p.k === "fill");
-  ok(all.length === 2 && all.some((x) => isArm(x, "kol10") && x.color === CBG_PERSON_COLOR.A) && all.some((x) => isArm(x, "kol20") && x.color === CBG_PERSON_COLOR.B), "3g ağ: 10-20 tanımlı → yalnız kol10 + kol20 (gövde yok)");
+  ok(all.length === 2 && all.some((x) => isArm(x, "kol10") && x.tone === "A") && all.some((x) => isArm(x, "kol20") && x.tone === "B"), "3g ağ: 10-20 tanımlı → yalnız kol10 + kol20 (gövde yok)");
   ok(pr.filter((p) => p.k === "marker").length === 1, "3g2 10-20 işareti tek");
 }
 {
@@ -180,8 +180,8 @@ const endsAtGate = (f: Fill, g: number) => { const p = parse(f.points); return d
   const all = pr.filter((p): p is Fill => p.k === "fill");
   const gov = parse(armPts.get("govde")!);
   const trunk = all.filter((x) => { const p = parse(x.points); return d(p[0], gov[0]) < 0.02 || d(p[p.length - 1], gov[gov.length - 1]) < 0.02; });
-  ok(all.some((x) => isArm(x, "kol20") && x.color === CBG_PERSON_COLOR.A) && all.some((x) => isArm(x, "kol34") && x.color === CBG_PERSON_COLOR.B), "3h ağ: 20-34 → kol20 mavi, kol34 turuncu");
-  ok(trunk.length === 2 && trunk.some((x) => d(parse(x.points)[0], gov[0]) < 0.02 && x.color === CBG_PERSON_COLOR.A) && trunk.some((x) => x.color === CBG_PERSON_COLOR.B), "3i gövde iki yarı: üst = 20 sahibi (A), alt = 34 sahibi (B)", trunk.length);
+  ok(all.some((x) => isArm(x, "kol20") && x.tone === "A") && all.some((x) => isArm(x, "kol34") && x.tone === "B"), "3h ağ: 20-34 → kol20 mavi, kol34 turuncu");
+  ok(trunk.length === 2 && trunk.some((x) => d(parse(x.points)[0], gov[0]) < 0.02 && x.tone === "A") && trunk.some((x) => x.tone === "B"), "3i gövde iki yarı: üst = 20 sahibi (A), alt = 34 sahibi (B)", trunk.length);
   ok(!all.some((x) => isArm(x, "kol10") || isArm(x, "kol57")), "3j boşta kalan kollar (10, 57) boyanmaz");
 }
 {
@@ -189,7 +189,7 @@ const endsAtGate = (f: Fill, g: number) => { const p = parse(f.points); return d
   const { st } = stateOf([1, 8], [1, 8]);
   const pr = buildConnectionBodygraphScene(st);
   const f = fillsOf(pr, "1-8");
-  ok(f.length === 4 && f.filter((x) => x.dash).length === 2 && f.filter((x) => x.dash).every((x) => x.color === CBG_PERSON_COLOR.B && x.cap === "butt"), "3k ortak kapı yarıları: mavi zemin + turuncu düz uçlu çizgiler", f.map((x) => [x.color, x.dash]));
+  ok(f.length === 4 && f.filter((x) => x.stripe).length === 2 && f.filter((x) => x.stripe).every((x) => x.tone === "B") && f.filter((x) => !x.stripe).every((x) => x.tone === "A"), "3k ortak kapı yarıları: mavi boru + turuncu şerit", f.map((x) => [x.tone, x.stripe]));
   const gates = pr.filter((p): p is Extract<CbgPrim, { k: "gate" }> => p.k === "gate" && p.holder !== null);
   ok(gates.length === 2 && gates.every((g) => g.holder === "both"), "3l ortak kapılar iki renkli");
 }
@@ -226,7 +226,10 @@ const endsAtGate = (f: Fill, g: number) => { const p = parse(f.points); return d
 {
   // Boş durum: 36 kanal borusu (30 boru × 2 + 5 ağ parçası × 2 = 70 çizgi), hiç dolgu / işaret yok
   const empty = buildConnectionBodygraphScene(stateOf([], []).st);
-  ok(empty.filter((p) => p.k === "pipe").length === 70 && !empty.some((p) => p.k === "fill" || p.k === "marker"), "3t boş temel: 70 boru çizgisi (V9 ile aynı), dolgu / işaret yok");
+  const edges = empty.filter((p): p is Extract<CbgPrim, { k: "pipe" }> => p.k === "pipe" && p.part === "edge");
+  ok(edges.length === 35 && empty.filter((p) => p.k === "pipe").length === 105 && !empty.some((p) => p.k === "fill" || p.k === "marker" || p.k === "tick"), "3t boş temel: 30 boru + 5 ağ parçası (kenar / gövde / ışık katmanı), dolgu / işaret yok");
+  const v9Pts = [...CBG_PIPES.map(([, s]) => s), ...CBG_NET_ARMS.map(([, s]) => s)].sort().join("|");
+  ok([...new Set(edges.map((e) => e.points))].sort().join("|") === v9Pts, "3u boru güzergâhları mühürlü V9 noktalarıyla birebir (yalnız sunum katmanı değişti)");
 }
 
 console.log(`\nconnection-bodygraph: ${pass} PASS / ${fail} FAIL`);

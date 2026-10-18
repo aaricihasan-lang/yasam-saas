@@ -215,6 +215,8 @@ async function main() {
       const vw = d.w;
       ok(d.ua ? chart.width <= vw && chart.width >= vw - 90 : chart.width >= 520, `${d.name}: grafik genişliği ${Math.round(chart.width)}px (${d.ua ? "ekrana sığar" : "masaüstünde büyük"})`);
       ok(await page.locator("[data-hd-composite-legend]").isVisible(), `${d.name}: Türkçe lejant görünür`);
+      // Seçimsiz grafik görüntüsü (owner referans karşılaştırması)
+      await page.locator("svg[data-hd-cbg]").screenshot({ path: path.join(OUT, `${d.name}-connection-bodygraph-clean.png`) });
       // Etkileşim: kanal ortasına fare / dokunma (telefonda büyütülmüş harita); klavye (odak + Enter)
       if (d.ua) {
         await page.locator("[data-hd-composite-zoom]").click();
@@ -307,7 +309,7 @@ async function main() {
           const media = Object.keys(z.files).filter((f) => /^word\/media\/.+\.png$/.test(f));
           const pngs = await Promise.all(media.map((f) => z.file(f)!.async("nodebuffer")));
           const chartPng = pngs.find((b) => b.readUInt32BE(16) === 1100);
-          ok(docXml.includes("Aktif kapı kanalın kendi yarısını") && media.length === 2 && !!chartPng && chartPng.readUInt32BE(20) === 1404 && docXml.includes("Yarım Kanallar ve Aktif Kapılar"), `${d.name}: Word'de silüetli birleşik BodyGraph (ekrandaki sahne, sunucuda) + logo + lejant + yarım kanallar`, media);
+          ok(docXml.includes("Aktif kapı kanalın kendi yarısını") && media.length === 2 && !!chartPng && chartPng.readUInt32BE(20) === Math.round((1100 * 752) / 602) && docXml.includes("Yarım Kanallar ve Aktif Kapılar"), `${d.name}: Word'de silüetli birleşik BodyGraph (ekrandaki sahne, sunucuda) + logo + lejant + yarım kanallar`, media);
           if (chartPng) writeFileSync(path.join(OUT, `${d.name}-word-bodygraph.png`), chartPng);
           await page.locator("[data-hd-rel-report-row]").first().waitFor({ timeout: 15_000 });
         } else {

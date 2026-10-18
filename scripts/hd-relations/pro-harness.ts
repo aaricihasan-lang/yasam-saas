@@ -92,7 +92,7 @@ async function main() {
   const filledChs = new Set(fills.flatMap((f) => f.chs));
   const markers = sc.filter((p) => p.k === "marker") as Array<{ ch: string; shape: string }>;
   const definedIds = v01.value.channels.map((c) => c.id).sort().join();
-  ok("B1 36 kanal borusu çizilir (30 tek boru + 5 ağ parçası; kenar + iç = 70 çizgi)", sc.filter((p) => p.k === "pipe").length === 70);
+  ok("B1 36 kanal borusu çizilir (30 tek boru + 5 ağ parçası; kenar / gövde / ışık katmanı)", sc.filter((p) => p.k === "pipe" && p.part === "edge").length === 35);
   ok("B2 işaretli (tanımlı) kanallar = kayıtlı sonuç listesi", markers.map((m) => m.ch).sort().join() === definedIds);
   ok("B3 boyalı kanallar yalnız tanımlı ya da yarım kanallar (boş kanal boyanmaz)", [...filledChs].every((c) => m01.model.channels[c].state !== "none"));
   ok("B4 dinamik işareti her tanımlı kanalda bir kez ve doğru şekilde", markers.length === v01.value.totalChannels && markers.every((mk) => { const c = v01.value.channels.find((x) => x.id === mk.ch)!; return CBG_DYNAMIC_SHAPE[c.dynamic] === mk.shape; }));
