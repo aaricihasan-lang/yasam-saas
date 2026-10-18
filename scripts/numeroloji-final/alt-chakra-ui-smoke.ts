@@ -110,12 +110,42 @@ function chipButton(page: Page, pathText: string) {
   return page.locator('[data-testid="alt-kombinasyon"]:visible', { hasText: new RegExp(`^${pathText.replace(/\//g, "\\/")}Çakra Sütunu`) }).first().getByRole("button", { name: /Çakra Sütunu/ });
 }
 
+/** Paneli ortalayıp (yapışkan üst başlık örtmesin) ekran görüntüsü al. */
+async function shot(page: Page, opts: { path: string }) {
+  const el = page.locator('[data-testid="alt-cakra-panel"]:visible').first();
+  await el.evaluate((e) => e.scrollIntoView({ block: "center" }));
+  await page.waitForTimeout(150);
+  await el.screenshot(opts);
+}
+
 async function panelCounts(page: Page): Promise<Record<number, number>> {
   return page.locator('[data-testid="alt-cakra-panel"]:visible').first().evaluate((el) => {
     const out: Record<number, number> = {};
     el.querySelectorAll("[data-cakra]").forEach((r) => { out[Number(r.getAttribute("data-cakra"))] = Number(r.getAttribute("data-sayi")); });
     return out;
   });
+}
+
+/** Açık paneldeki her satırın sabit / alternatif / harf değerleri (owner 10 maddelik kontrol). */
+async function panelDetail(page: Page): Promise<{ rows: number; sabit: Record<number, number>; alt: Record<number, number>; harf: Record<number, number> }> {
+  return page.locator('[data-testid="alt-cakra-panel"]:visible').first().evaluate((el) => {
+    const sabit: Record<number, number> = {}, alt: Record<number, number> = {}, harf: Record<number, number> = {};
+    const rows = el.querySelectorAll("[data-cakra]");
+    rows.forEach((r) => {
+      const c = Number(r.getAttribute("data-cakra"));
+      sabit[c] = Number(r.getAttribute("data-sabit"));
+      alt[c] = Number(r.getAttribute("data-alt"));
+      harf[c] = Number(r.getAttribute("data-harf"));
+    });
+    return { rows: rows.length, sabit, alt, harf };
+  });
+}
+
+function tamKontrol(tag: string, d: Awaited<ReturnType<typeof panelDetail>>, col: ReturnType<typeof alternativeChakraColumns>[number]) {
+  ok(d.rows === 10, `${tag} ${col.path}: on çakranın tamamı görünüyor`, d.rows);
+  ok(JSON.stringify(d.sabit) === JSON.stringify(col.sabitSayilar), `${tag} ${col.path}: sabit katkılar (HY + PİN${col.kind === "yan" ? " + resmî Ana" : ""}) doğru`, d.sabit);
+  ok(JSON.stringify(d.alt) === JSON.stringify(col.alternatifSayilar), `${tag} ${col.path}: alternatif katkı ayrı işaretli`, d.alt);
+  ok(JSON.stringify(d.harf) === JSON.stringify(col.harfler), `${tag} ${col.path}: harfler sütunu kayıttaki haliyle`, d.harf);
 }
 
 async function exerciseBox(page: Page, tag: string, motor: ReturnType<typeof hesaplaNumeroloji>) {
@@ -129,16 +159,20 @@ async function exerciseBox(page: Page, tag: string, motor: ReturnType<typeof hes
   // Yan 22/11/8 aç
   await chipButton(page, "22/11/8").click();
   ok((await panels.count()) === 1, `${tag} 22/11/8 açıldı (tek panel)`);
-  ok((await panels.first().textContent())!.includes("Alternatif Yan Kulvar Çakra Değerlendirmesi"), `${tag} Yan paneli açıkça etiketli`);
+  const yanText = (await panels.first().textContent()) ?? "";
+  ok(yanText.includes("Alternatif Yan Kulvar — Karşılaştırmalı Çakra Sütunu") && yanText.includes("Resmî Çakra Omurgası'nın sabit katkıları korunmuştur") && yanText.includes("varsayımsal toplam"), `${tag} Yan paneli başlık + açıklama + varsayımsal toplam notu`);
+  tamKontrol(tag, await panelDetail(page), yanCols.find((c) => c.path === "22/11/8")!);
   const yan = yanCols.find((c) => c.path === "22/11/8")!;
   ok(JSON.stringify(await panelCounts(page)) === JSON.stringify(yan.sayilar), `${tag} 22/11/8 sütun motorla birebir`, await panelCounts(page));
   ok((await chipButton(page, "22/11/8").getAttribute("aria-expanded")) === "true", `${tag} aria-expanded=true`);
-  await page.locator('[data-testid="alt-cakra-panel"]:visible').first().screenshot({ path: path.join(OUT, `${tag}-yan-22-11-8.png`) });
+  await shot(page, { path: path.join(OUT, `${tag}-yan-22-11-8.png`) });
 
   // 33/8'e geç → hâlâ tek panel
   await chipButton(page, "33/8").click();
   ok((await panels.count()) === 1, `${tag} 33/8'e geçiş: yine tek panel`);
   ok(JSON.stringify(await panelCounts(page)) === JSON.stringify(yanCols.find((c) => c.path === "33/8")!.sayilar), `${tag} 33/8 sütun motorla birebir`);
+  tamKontrol(tag, await panelDetail(page), yanCols.find((c) => c.path === "33/8")!);
+  await shot(page, { path: path.join(OUT, `${tag}-yan-33-8.png`) });
   ok((await chipButton(page, "22/11/8").getAttribute("aria-expanded")) === "false", `${tag} önceki çip kapandı`);
 
   // Tekrar tıkla → kapan
@@ -150,10 +184,11 @@ async function exerciseBox(page: Page, tag: string, motor: ReturnType<typeof hes
   ok((await panels.count()) === 1, `${tag} Ana 22/6 açıldı`);
   const ana = anaCols.find((c) => c.path === "22/6")!;
   ok(JSON.stringify(await panelCounts(page)) === JSON.stringify(ana.sayilar), `${tag} Ana 22/6 = HY + PİN + alternatif`, await panelCounts(page));
+  tamKontrol(tag, await panelDetail(page), ana);
   const anaText = (await panels.first().textContent()) ?? "";
   ok(anaText.includes("Alternatif Ana Kulvar Çakra Sütunu") && anaText.includes("Resmî Çakra Omurgası değişmez"), `${tag} Ana paneli etiket + not`);
   ok(await noOverflow(page), `${tag} yatay taşma yok (panel açık)`);
-  await page.locator('[data-testid="alt-cakra-panel"]:visible').first().screenshot({ path: path.join(OUT, `${tag}-ana-22-6.png`) });
+  await shot(page, { path: path.join(OUT, `${tag}-ana-22-6.png`) });
   await page.locator('[data-testid="alt-kombinasyon"]:visible').first().locator("xpath=ancestor::section[1]").screenshot({ path: path.join(OUT, `${tag}-kutu.png`) });
   await chipButton(page, "22/6").click();
   ok((await panels.count()) === 0, `${tag} Ana paneli kapandı`);

@@ -8,7 +8,8 @@
  *   B. Eski (display-parse) davranışla tam tarama farkı YALNIZ kayıp sınıflarında.
  *   C. Yapısal destekler ekranda gösterilen sayılarla birebir (display tokenları ↔ yapı).
  *   D. Alternatif çakra sütunu: her kombinasyon bağımsız, varyantlar çift sayılmaz, "/0" yok,
- *      Ana = HY + PİN + alternatif; Yan = yalnız kendi katkısı; snapshot mutasyonu yok.
+ *      Ana = HY + PİN + alternatif; Yan = kayıttaki resmî omurga (sabit) + alternatif (varsayımsal
+ *      toplam, karşılaştırmalı tam sütun — owner kararı 2026-10-18); snapshot mutasyonu yok.
  */
 import { calcAnaKulvar } from "@/lib/numeroloji/anaKulvar";
 import { calcYanKulvar } from "@/lib/numeroloji/yanKulvar";
@@ -134,11 +135,25 @@ console.log("D. Alternatif çakra sütunu");
   const fark = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((c) => anaCols[0].sayilar[c] - resmi[c]);
   eq(fark, [0, 0, 0, 0, 0, 1, 0, 0, -1, 0], "D-fark yalnız 9→6 (10 korunur)");
   eq(anaCols[0].harfler, m.cakraOmurgasi.harfler, "D-harf sütunu kayıttaki haliyle");
-  // Yan: yalnız kendi katkısı; resmî omurgaya aktarım yok
-  eq(yanCols[0].fixed, null, "D-Yan sabit katkı yok");
-  eq(yanCols[0].harfler, null, "D-Yan harf sütunu yok");
-  eq(Object.values(yanCols[0].sayilar).reduce((a, b) => a + b, 0), 2, "D-Yan 22/11/8 sütun toplam 2 destek");
-  ok(alternativeChakraExclusionNote("yan").includes("dâhil değildir"), "D-Yan dahil edilmeyenler açıkça yazılı");
+  // Yan (owner kararı 2026-10-18): karşılaştırmalı TAM sütun — sabit = kayıttaki resmî omurga
+  // (HY + PİN + resmî Ana Kulvar), alternatif ayrı; toplam varsayımsal, resmî omurgaya aktarım yok.
+  const resmiSayilar = m.cakraOmurgasi.sayilar as Record<number, number>;
+  for (const yc of yanCols) {
+    eq(Object.keys(yc.sayilar).map(Number).sort((a, b) => a - b), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], `D-Yan ${yc.path} on çakranın tamamı`);
+    eq(yc.sabitSayilar, resmiSayilar, `D-Yan ${yc.path} sabit = kayıttaki resmî omurga`);
+    eq(yc.fixed?.hayatYolu, hy, `D-Yan ${yc.path} Hayat Yolu katkısı`);
+    eq(yc.fixed?.pin, pin, `D-Yan ${yc.path} PİN ilk 8 hane`);
+    eq(yc.fixed?.anaKulvar, [10, 9], `D-Yan ${yc.path} resmî Ana Kulvar 19/9 → [10,9] korunur`);
+    eq(yc.harfler, m.cakraOmurgasi.harfler, `D-Yan ${yc.path} harf sütunu kayıttaki haliyle`);
+    const altC: Record<number, number> = {};
+    for (let c = 1; c <= 10; c += 1) altC[c] = 0;
+    for (const v of yc.altSupports) altC[v] += 1;
+    eq(yc.alternatifSayilar, altC, `D-Yan ${yc.path} alternatif katkı ayrı`);
+    eq([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((c) => yc.sayilar[c]), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((c) => resmiSayilar[c] + altC[c]), `D-Yan ${yc.path} varsayımsal toplam = sabit + alternatif`);
+  }
+  eq(yanCols.map((c) => c.altSupports), [[10, 8], [10, 8]], "D-Yan 22/11/8 ve 33/8 alternatif katkı [10,8] korunur");
+  eq(JSON.stringify(m.cakraOmurgasi.sayilar), JSON.stringify(hesaplaNumeroloji({ firstName: f, lastName: l, birthDate: "14.02.1987" }).cakraOmurgasi.sayilar), "D-resmî omurgaya Yan desteği eklenmez");
+  ok(alternativeChakraExclusionNote("yan").includes("varsayımsal toplam") && alternativeChakraExclusionNote("yan").includes("resmî Çakra Omurgası sonucu değildir"), "D-Yan varsayımsal toplam açıkça yazılı");
 
   // Snapshot mutasyonu yok (panel aç/kapa kayıt güncellemez — saf fonksiyon)
   const snap = JSON.parse(JSON.stringify(m));
@@ -161,6 +176,16 @@ console.log("D. Alternatif çakra sütunu");
   const legacyHy = JSON.parse(JSON.stringify(m));
   legacyHy.hayatYolu.display = "37/1";
   eq(alternativeChakraColumns(legacyHy, "ana")[0].fixed?.hayatYolu, [3, 7, 1], "D-eski HY gösterimi kayıttan okunur");
+  // Eski kayıt: kayıttaki resmî omurga (eski kural) Yan karşılaştırmasında YENİDEN HESAPLANMADAN sabit alınır
+  const legacySpine = JSON.parse(JSON.stringify(m));
+  legacySpine.cakraOmurgasi.sayilar = { ...legacySpine.cakraOmurgasi.sayilar, 9: legacySpine.cakraOmurgasi.sayilar[9] + 2, 1: legacySpine.cakraOmurgasi.sayilar[1] + 1 };
+  const ly = alternativeChakraColumns(legacySpine, "yan")[0];
+  eq(ly.sabitSayilar, legacySpine.cakraOmurgasi.sayilar, "D-eski kayıt: Yan sabit = kayıttaki omurga (yeniden hesap yok)");
+  eq(ly.fixed?.anaKulvar, [10, 9, 9, 9, 1], "D-eski kayıt: resmî Ana katkısı kayıttaki omurgadan okunur");
+  // Bozuk/eksik omurga (HY+PİN'den küçük) → yapısal kurala güvenli geri dönüş, çökme yok
+  const brokenSpine = JSON.parse(JSON.stringify(m));
+  brokenSpine.cakraOmurgasi.sayilar = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0 };
+  eq(alternativeChakraColumns(brokenSpine, "yan")[0].fixed?.anaKulvar, [10, 9], "D-bozuk omurga: yapısal kurala geri dönüş");
   eq(alternativeChakraColumns(null, "ana"), [], "D-null motor güvenli");
 }
 
@@ -193,10 +218,10 @@ console.log("D. Alternatif çakra sütunu");
         eq(used, [...comps].sort((a, b) => a - b), `D-${combo.path} bileşenler tam bir kez kullanıldı`);
       }
     }
-    // Bağımsızlık: her sütun yalnız kendi katkısı
+    // Bağımsızlık: her sütunun alternatif kısmı yalnız kendi katkısı (sabit kayıt yok → 0)
     for (let i = 0; i < cols.length; i += 1) {
-      const total = Object.values(cols[i].sayilar).reduce((a, b) => a + b, 0);
-      ok(total === cols[i].altSupports.length, "D-sütun yalnız kendi katkısını içerir", { comps, path: cols[i].path });
+      const altTop = Object.values(cols[i].alternatifSayilar).reduce((a, b) => a + b, 0);
+      ok(altTop === cols[i].altSupports.length, "D-sütunun alternatif kısmı yalnız kendi katkısı", { comps, path: cols[i].path });
     }
   }
   console.log(`   ${sweep5.length} bileşen dizisi, ${paths} alternatif yol doğrulandı`);

@@ -28,9 +28,11 @@ import { SPECIAL_NUMBERS } from "./ortak";
  *
  * ANA KULVAR alternatifi: kaydın SABİT katkıları (Hayat Yolu + PİN; kayıttaki değerlerden) korunur,
  *   yalnız Ana Kulvar katkısı alternatif yolla değiştirilir. Harf sütunu kayıttaki haliyle.
- * YAN KULVAR alternatifi: resmî omurgada Yan Kulvar yoktur → yalnız bu kombinasyonun BAĞIMSIZ
- *   katkı sütunu gösterilir; Hayat Yolu/PİN/Ana Kulvar/harf sütunu DAHİL EDİLMEZ ve resmî
- *   omurgaya hiçbir destek aktarılmaz.
+ * YAN KULVAR alternatifi (OWNER KARARI 2026-10-18 — karşılaştırmalı tam sütun): kaydın RESMÎ Çakra
+ *   Omurgası (kayıttaki sayılar sütunu = Hayat Yolu + PİN + resmî Ana Kulvar) SABİT katkı olarak
+ *   aynen gösterilir; alternatif Yan Kulvar katkısı ayrıca işaretlenir. Toplam yalnız uzman
+ *   incelemesine yönelik VARSAYIMSAL toplamdır; resmî omurgaya hiçbir destek aktarılmaz.
+ *   Harf sütunu kayıttaki haliyle.
  */
 
 export type AlternativeChakraKind = "ana" | "yan";
@@ -45,13 +47,20 @@ export type AlternativeChakraColumn = {
   ozelSayilar: number[];
   /** Bu yolun kaç farklı gerçek gruplayışla oluştuğu (katkı yine tek kez sayılır). */
   variantCount: number;
-  /** Ana Kulvar: sabit katkılar (kayıttaki HY + PİN). Yan Kulvar: null. */
-  fixed: { hayatYolu: number[]; pin: number[] } | null;
+  /**
+   * Sabit katkıların kaynağı. Ana: kayıttaki HY + PİN (Ana Kulvar katkısı alternatifle değişir).
+   * Yan: kayıttaki resmî omurga = HY + PİN + resmî Ana Kulvar (`anaKulvar`).
+   */
+  fixed: { hayatYolu: number[]; pin: number[]; anaKulvar?: number[] } | null;
   /** Ana Kulvar: kaydın resmî Ana Kulvar katkısı (bu görünümde alternatifle değiştirilir). */
   officialAnaSupports: number[] | null;
-  /** Sayı tarafı sütunu (1–10). */
+  /** Sayı tarafı — sabit + alternatif (1–10). Yan Kulvar'da varsayımsal toplam (resmî DEĞİL). */
   sayilar: ChakraCounts;
-  /** Harf tarafı (yalnız Ana Kulvar; kayıttaki haliyle). Yan Kulvar: null. */
+  /** Sayı tarafının sabit (resmî/kayıttaki) kısmı. */
+  sabitSayilar: ChakraCounts;
+  /** Sayı tarafının alternatif kombinasyondan gelen kısmı. */
+  alternatifSayilar: ChakraCounts;
+  /** Harf tarafı (kayıttaki haliyle). */
   harfler: ChakraCounts | null;
 };
 
@@ -62,7 +71,7 @@ export type AlternativeChakraSource = {
   yanKulvar?: ResultLike;
   hayatYolu?: { display?: unknown } | null;
   pinKodu?: Record<string, unknown> | null;
-  cakraOmurgasi?: { harfler?: unknown } | null;
+  cakraOmurgasi?: { harfler?: unknown; sayilar?: unknown } | null;
 };
 
 function emptyCounts(): ChakraCounts {
@@ -74,6 +83,12 @@ function emptyCounts(): ChakraCounts {
 function countsOf(supports: readonly number[]): ChakraCounts {
   const c = emptyCounts();
   for (const v of supports) if (v >= 1 && v <= 10) c[v] += 1;
+  return c;
+}
+
+function sumCounts(a: ChakraCounts, b: ChakraCounts): ChakraCounts {
+  const c = emptyCounts();
+  for (let i = 1; i <= 10; i += 1) c[i] = (a[i] ?? 0) + (b[i] ?? 0);
   return c;
 }
 
@@ -129,28 +144,49 @@ export function alternativeChakraColumns(
   const combos = findKulvarSpecialCombinationsDetailed(comps);
   if (combos.length === 0) return [];
 
+  const hyDisplay = typeof motor.hayatYolu?.display === "string" ? motor.hayatYolu.display : "";
+  const hayatYolu = hyDisplay && hyDisplay !== "-" ? hayatYoluCakraDesteklerindenGosterim(hyDisplay) : [];
+  const pin = motor.pinKodu && typeof motor.pinKodu === "object" ? pinKoduCakraDesteklerindenKutular(motor.pinKodu) : [];
+  const harfler = harflerOf(motor.cakraOmurgasi?.harfler);
+
   if (kind === "yan") {
+    // Sabit = kayıttaki RESMÎ omurga (yeniden hesap yok). Resmî Ana Kulvar katkısı açıklama için
+    // kayıttaki omurgadan HY + PİN çıkarılarak okunur; okunamazsa (eksik/bozuk snapshot) yapısal kural.
+    const kayitli = harflerOf(motor.cakraOmurgasi?.sayilar);
+    const hyPin = countsOf([...hayatYolu, ...pin]);
+    let anaKulvar: number[] | null = null;
+    if (kayitli) {
+      const fark: number[] = [];
+      let gecerli = true;
+      for (let c = 10; c >= 1; c -= 1) {
+        const n = kayitli[c] - hyPin[c];
+        if (n < 0) gecerli = false;
+        for (let k = 0; k < n; k += 1) fark.push(c);
+      }
+      if (gecerli) anaKulvar = fark;
+    }
+    const resmiAna = anaKulvar ?? anaKulvarCakraDesteklerindenBilesen(componentsOf(motor.anaKulvar));
+    const sabitSayilar = kayitli && anaKulvar ? kayitli : countsOf([...hayatYolu, ...pin, ...resmiAna]);
     return combos.map((combo) => {
       const altSupports = alternativePathSupports(combo);
+      const alternatifSayilar = countsOf(altSupports);
       return {
         kind,
         path: combo.path,
         altSupports,
         ozelSayilar: combo.variants.length > 0 ? alternativeVariantSpecials(combo.variants[0]) : [],
         variantCount: combo.variants.length,
-        fixed: null,
-        officialAnaSupports: null,
-        sayilar: countsOf(altSupports),
-        harfler: null,
+        fixed: { hayatYolu, pin, anaKulvar: resmiAna },
+        officialAnaSupports: resmiAna,
+        sayilar: sumCounts(sabitSayilar, alternatifSayilar),
+        sabitSayilar,
+        alternatifSayilar,
+        harfler,
       };
     });
   }
 
-  const hyDisplay = typeof motor.hayatYolu?.display === "string" ? motor.hayatYolu.display : "";
-  const hayatYolu = hyDisplay && hyDisplay !== "-" ? hayatYoluCakraDesteklerindenGosterim(hyDisplay) : [];
-  const pin = motor.pinKodu && typeof motor.pinKodu === "object" ? pinKoduCakraDesteklerindenKutular(motor.pinKodu) : [];
   const officialAnaSupports = anaKulvarCakraDesteklerindenBilesen(comps);
-  const harfler = harflerOf(motor.cakraOmurgasi?.harfler);
 
   return combos.map((combo) => {
     const altSupports = alternativePathSupports(combo);
@@ -163,6 +199,8 @@ export function alternativeChakraColumns(
       fixed: { hayatYolu, pin },
       officialAnaSupports,
       sayilar: countsOf([...hayatYolu, ...pin, ...altSupports]),
+      sabitSayilar: countsOf([...hayatYolu, ...pin]),
+      alternatifSayilar: countsOf(altSupports),
       harfler,
     };
   });
@@ -172,5 +210,5 @@ export function alternativeChakraColumns(
 export function alternativeChakraExclusionNote(kind: AlternativeChakraKind): string {
   return kind === "ana"
     ? "Hayat Yolu ve PİN katkıları kayıttaki değerlerden alınmıştır; yalnız Ana Kulvar katkısı bu kombinasyonla değiştirilmiştir. Resmî Çakra Omurgası değişmez."
-    : "Yalnız bu Yan Kulvar kombinasyonunun kendi katkıları gösterilir. Hayat Yolu, PİN, Ana Kulvar ve harf sütunu dâhil değildir; resmî Çakra Omurgası'na destek aktarılmaz.";
+    : "Sabit resmî katkılar + alternatif Yan Kulvar katkısı = yalnız uzman incelemesine yönelik varsayımsal toplam. Bu toplam resmî Çakra Omurgası sonucu değildir; resmî omurgaya Yan Kulvar desteği eklenmez.";
 }
