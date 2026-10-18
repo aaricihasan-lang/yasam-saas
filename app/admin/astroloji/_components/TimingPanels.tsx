@@ -47,6 +47,7 @@ import type {
   VedicVargaTechnical,
 } from "@/lib/astrology/model/vedic";
 import { KpChartPanel, KpHoraryPanel, KpRulingPanel, KpTransitPanel } from "./KpPanels";
+import { horaryDisplayZone } from "@/lib/astrology/transitDetail";
 import { KP_TIMING_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpRulingTechnical, type KpTimingTechnical, type KpTransitTechnical } from "@/lib/astrology/model/kp";
 import { KpTimingPanel } from "./KpTimingPanel";
 import { VedicAshtakavargaPanel, VedicDrishtiPanel, VedicPanchangaPanel, VedicShadbalaPanel, VedicTransitPanel } from "./VedicExtraPanels";
@@ -640,7 +641,7 @@ export function TechniqueTechnical({
         if ((technical as { schema?: string }).schema === KP_TIMING_TECHNICAL_SCHEMA) return <KpTimingPanel t={technical as KpTimingTechnical} options={options} />;
         return <KpTransitPanel t={technical as KpTransitTechnical} kbLookup={kbLookup} />;
       case "kp.horary":
-        return <KpHoraryPanel t={technical as KpHoraryTechnical} kbLookup={kbLookup} placeLabel={(options.place as { label?: string } | undefined)?.label ?? null} displayTz={typeof options.displayTz === "string" ? options.displayTz : null} />;
+        return <KpHoraryPanel t={technical as KpHoraryTechnical} kbLookup={kbLookup} placeLabel={(options.place as { label?: string } | undefined)?.label ?? null} displayTz={horaryDisplayZone(options)} />;
       case "vedic.dasha":
         return <VedicDashaPanel t={technical as VedicDashaTechnical} kbLookup={kbLookup} drill={dashaDrill} onOpenLevel={onDashaLevel} />;
       case "western.fixed_stars":

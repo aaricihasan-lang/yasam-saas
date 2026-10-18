@@ -21,7 +21,7 @@ export { fmtDms, kpChartItems, type KpSel } from "../_lib/kpChart";
 import { fmtDms } from "../_lib/kpChart";
 import type { KbLookup } from "./VedicPanels";
 import { KP_HORARY_TEXT, kpCuspSublordRows, kpHoraryLagnaContrast } from "@/lib/astrology/view/kpHorary";
-import { momentLabel } from "@/lib/astrology/transitDetail";
+import { questionMomentLabel } from "@/lib/astrology/transitDetail";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -774,7 +774,7 @@ export function KpHoraryPanel({ t, kbLookup, placeLabel, displayTz = null }: { t
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-kp-horary-panel">
       <p className="text-sm text-slate-700">
-        <strong>KP horary · sayı {t.horaryNumber}</strong> · soru anı <span data-testid="astro-kp-horary-moment">{momentLabel(t.at.utc, displayTz)}</span> · değerlendirme yeri{" "}
+        <strong>KP horary · sayı {t.horaryNumber}</strong> · soru anı <span data-testid="astro-kp-horary-moment">{questionMomentLabel(t.at.utc, displayTz)}</span> · değerlendirme yeri{" "}
         {placeLabel ?? `${t.place.latitude.toFixed(4)}, ${t.place.longitude.toFixed(4)}`} · {AY[t.frame.ayanamsa]} · Placidus
       </p>
       <p className="text-xs text-slate-500" data-testid="astro-kp-horary-method">

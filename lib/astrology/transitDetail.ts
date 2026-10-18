@@ -125,6 +125,38 @@ export function momentLabel(utcIso: string, tz: string | null | undefined): stri
   return z ? `${z.text} (${z.zone}, ${tz}) · ${utc}` : utc;
 }
 
+// ─── HORARY-P2 (2026-10-18): KP horary soru anı GÖSTERİMİ (hesap, istek gövdesi, önbellek anahtarı DEĞİŞMEZ) ─────────
+
+const TURKEY_ZONES: ReadonlySet<string> = new Set(["Europe/Istanbul", "Asia/Istanbul", "Turkey"]);
+export const HORARY_ZONE_UNVERIFIED_NOTE = "yerel saat dilimi doğrulanamadı; UTC gösteriliyor";
+
+/**
+ * Soru anının gösterim saat dilimi: kullanıcının açıkça seçtiği `displayTz` (elle tarih/saat) → değerlendirme yerinin
+ * sunucuda çözülmüş `place.timezone` ("şimdi" + eski kayıtlar) → yoksa null (UTC). Tarayıcı saati / sabit GMT+3 VARSAYILMAZ.
+ */
+export function horaryDisplayZone(o: Record<string, unknown> | null | undefined): string | null {
+  if (!o) return null;
+  if (isIanaZone(o.displayTz)) return o.displayTz;
+  const pt = (o.place as { timezone?: unknown } | null | undefined)?.timezone;
+  return isIanaZone(pt) ? pt : null;
+}
+
+/**
+ * "18.10.2026 21:35 — Türkiye saati, GMT+3 (18:35 UTC)"; yerel ve UTC tarihi farklıysa parantezde UTC tarihi de yazılır
+ * ("19.10.2026 01:30 — Türkiye saati, GMT+3 (18.10.2026 22:30 UTC)"). Türkiye dışı: IANA adı ("Europe/Berlin, GMT+2").
+ * Dilim yoksa / doğrulanamazsa: "18.10.2026 18:35 UTC (yerel saat dilimi doğrulanamadı; UTC gösteriliyor)".
+ */
+export function questionMomentLabel(utcIso: string, tz: string | null | undefined): string {
+  const utcDate = `${utcIso.slice(8, 10)}.${utcIso.slice(5, 7)}.${utcIso.slice(0, 4)}`;
+  const utcTime = utcIso.slice(11, 16);
+  if (tz === "UTC" || tz === "Etc/UTC") return `${utcDate} ${utcTime} UTC`;
+  const z = tz ? formatInZone(utcIso, tz) : null;
+  if (!tz || !z) return `${utcDate} ${utcTime} UTC (${HORARY_ZONE_UNVERIFIED_NOTE})`;
+  const name = TURKEY_ZONES.has(tz) ? "Türkiye saati" : tz;
+  const utc = z.text.slice(0, 10) === utcDate ? `${utcTime} UTC` : `${utcDate} ${utcTime} UTC`;
+  return `${z.text} — ${name}, ${z.zone} (${utc})`;
+}
+
 /** İki an arasındaki işaretli fark — "3 gün 4 sa sonra" / "2 sa önce" / "aynı an". */
 export function relativeTo(atUtc: string, exactUtc: string): string {
   const a = Date.parse(/Z$/.test(atUtc) ? atUtc : `${atUtc}Z`);

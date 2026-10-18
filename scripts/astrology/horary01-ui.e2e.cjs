@@ -70,7 +70,10 @@ const VIEWS = [
     await panel.waitFor({ timeout: 60000 });
     const tag = `${w}x${h}`;
     const moment = await page.locator('[data-testid="astro-kp-horary-moment"]').innerText();
-    ok(`${tag} yerel soru anı + UTC`, /07\.10\.2026 12:00 \(GMT\+3, Europe\/Istanbul\) · 07\.10\.2026 09:00 UTC/.test(moment), moment);
+    // HORARY-P2: yerel saat esas, UTC parantezde.
+    ok(`${tag} yerel soru anı + UTC`, moment.trim() === "07.10.2026 12:00 — Türkiye saati, GMT+3 (09:00 UTC)", moment);
+    const mb = await page.locator('[data-testid="astro-kp-horary-moment"]').evaluate((el) => { const r = el.getBoundingClientRect(); const p = el.closest("p").getBoundingClientRect(); return { right: r.right, pRight: p.right, vw: document.documentElement.clientWidth }; });
+    ok(`${tag} soru anı başlığı taşmıyor`, mb.right <= mb.pRight + 1 && mb.right <= mb.vw + 1, JSON.stringify(mb));
     const lag = await page.locator('[data-testid="astro-kp-horary-lagnas"]').innerText();
     ok(`${tag} iki Lagna: horary Başak/Merkür, zaman Mars`, /Horary · sayı 108 \(Başak\)/.test(lag) && /Soru anı \(gerçek zaman\)/.test(lag) && /farklıdır/.test(lag), lag.replace(/\s+/g, " ").slice(0, 200));
     const ru = await page.locator('[data-testid="astro-kp-horary-ruling-detail"]').innerText();
