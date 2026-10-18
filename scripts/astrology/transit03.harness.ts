@@ -28,7 +28,8 @@ import { planAstrology, runAstrology, type EngineCtx, type EngineDeps } from "@/
 import { getTechnique, KP_POSITIONS_INTERVALS as S_IV, KP_POSITIONS_MAX_DAYS as S_PMAX, KP_TIMING_MAX_DAYS as S_MAX } from "@/lib/astrology/engine/techniques";
 import { getAnalysis, saveAnalysis } from "@/lib/astrology/analyses/service";
 import { buildAnalysisReport } from "@/lib/astrology/report/service";
-import { buildAstroReport } from "@/lib/astrology/report/model";
+import { buildAstroReport, kpTimingModeLabel } from "@/lib/astrology/report/model";
+import { KP_LEGEND, KP_TRANSIT_LEGEND, kpLegendFor } from "@/app/admin/astroloji/_lib/kpChart";
 import { KP_TIMING_MAX_ROWS, projectRoxyKpPlanetsRange, projectRoxyKpRasiChanges, projectRoxyKpSublordChanges } from "@/lib/astrology/providers/roxy/kp";
 import { kpTable } from "@/lib/astrology/verify/kpSub";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
@@ -420,6 +421,64 @@ async function main() {
     }
     const rep = buildAstroReport(a);
     for (const b of rep.blocks) if (b.kind === "table") for (const row of b.table.rows) assert.equal(row.length, b.table.columns.length, "satır/sütun uyumsuz");
+  });
+
+  // ═══ U) KP UX düzeltmeleri (2026-10-18; yalnız sunum — hesap / anlar / veri aynı) ═══════════════════════════
+  await t("U1 KP-UX-06 harita açıklaması: ekran ile Word/PDF AYNI kaynak; cusp'sız (KP transit tek an) Placidus/cusp anlatmaz, cusp'lı harita aynen", () => {
+    assert.equal(kpLegendFor(0), KP_TRANSIT_LEGEND);
+    assert.equal(kpLegendFor(12), KP_LEGEND);
+    assert.ok(!KP_TRANSIT_LEGEND.includes("Placidus") && !KP_TRANSIT_LEGEND.includes("Çerçeveli etiket"), "transit açıklaması cusp anlatmamalı");
+    assert.ok(KP_TRANSIT_LEGEND.includes("ev başlangıcı (cusp) çizilmez"));
+    assert.ok(KP_LEGEND.includes("Çerçeveli etiket = Placidus ev başlangıcı (cusp)"), "KP doğum / horary açıklaması korunmalı");
+    // report8 harness'ın Word/PDF'te aradığı ifadelerle aynı (rapor metni değişmedi).
+    assert.match(KP_TRANSIT_LEGEND, /^Burç kutuları sabit \(Güney Hindistan\)\. Gri etiket = graha/);
+  });
+  await t("U2 KP-UX-02 rapor 'Kip' satırı gerçekten seçilen içerikten: yalnız konum tablosu → 'geçişleri' YOK; Sub-Lord + Rasi → eski başlık aynen", async () => {
+    assert.equal(kpTimingModeLabel(["sublord", "rasi"]), "Zaman aralığı (Sub-Lord / Rasi geçişleri)");
+    assert.equal(kpTimingModeLabel(["positions"]), "Zaman aralığı (KP konum tablosu)");
+    assert.equal(kpTimingModeLabel(["sublord"]), "Zaman aralığı (Sub-Lord geçişleri)");
+    assert.equal(kpTimingModeLabel(["rasi", "positions"]), "Zaman aralığı (Rasi geçişleri + KP konum tablosu)");
+    assert.equal(kpTimingModeLabel(["sublord", "rasi", "positions"]), "Zaman aralığı (Sub-Lord / Rasi geçişleri + KP konum tablosu)");
+    assert.equal(kpTimingModeLabel([]), "Zaman aralığı", "türü olmayan eski/eksik kayıt güvenli");
+    const POS = { technique: "kp.transit", options: { range: { startDate: "2026-10-07", days: 7, planets: [], kinds: ["positions"], intervalMinutes: 360 }, ...base, displayTz: "Europe/Istanbul" } };
+    const r = await runAstrology(ctx, { profileId: pid, selections: [POS] }, deps, { ownerPreviewHideInterp: false });
+    assert.equal(r.status, 200, JSON.stringify(r.body).slice(0, 200));
+    const sv = await saveAnalysis(ctx, { profileId: pid, revision: 1, ...POS, saveRequestId: randomUUID() }, false);
+    assert.equal(sv.status, 201, JSON.stringify(sv.body).slice(0, 200));
+    const a = ((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis as J;
+    const kv = buildAstroReport(a).blocks.flatMap((b) => (b.kind === "kv" ? b.rows : []));
+    assert.deepEqual(kv.find(([k]) => k === "Kip"), ["Kip", "Zaman aralığı (KP konum tablosu)"]);
+    assert.equal(a.technical.positions.rows.length, 28, "7 gün × 6 saat = 28 an (veri aynı)");
+  });
+  await t("U3 KP-UX-03 Word/PDF UTC sütunu TAM tarih + saat; yerel tarih ≠ UTC tarihi olan satır doğru gün; anlar değişmedi", async () => {
+    const a = ((await getAnalysis(ctx, savedId, false)).body as J).analysis as J;
+    const tables = buildAstroReport(a).blocks.filter((b) => b.kind === "table" && /^UTC/.test(b.table.columns[b.table.columns.length - 1])) as Extract<ReturnType<typeof buildAstroReport>["blocks"][number], { kind: "table" }>[];
+    assert.equal(tables.length, 2, "Sub-Lord + Rasi tablolarında UTC sütunu");
+    let crossDay = 0;
+    for (const tb of tables) {
+      assert.equal(tb.table.columns[tb.table.columns.length - 1], "UTC (tarih ve saat)");
+      for (const row of tb.table.rows) {
+        const utc = String(row[row.length - 1]);
+        assert.match(utc, /^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2} UTC$/, utc);
+        if (String(row[0]).slice(0, 10) !== utc.slice(0, 10)) crossDay++;
+      }
+    }
+    assert.ok(crossDay > 0, "İstanbul'da 21:00–23:59 UTC olayı yerelde ertesi gün (senaryo kapsandı)");
+    // Kanonik an aynı: tablodaki UTC metni, kaydın atUtc değerinin birebir biçimi.
+    const ch = (a.technical as KpTimingTechnical).sublord.flatMap((x) => x.changes).sort((p, q) => p.atUtc.localeCompare(q.atUtc));
+    const sub = tables[0].table.rows;
+    assert.equal(sub.length, ch.length);
+    ch.forEach((c, i) => assert.equal(sub[i][sub[i].length - 1], `${c.atUtc.slice(8, 10)}.${c.atUtc.slice(5, 7)}.${c.atUtc.slice(0, 4)} ${c.atUtc.slice(11, 16)} UTC`));
+    // Word ve PDF aynı tam UTC metnini taşır.
+    const dx = await buildAnalysisReport(ctx, savedId, "docx", false);
+    const px = await buildAnalysisReport(ctx, savedId, "pdf", false);
+    assert.ok(dx.ok && px.ok);
+    if (!dx.ok || !px.ok) return;
+    const d = await docxText(dx.bytes);
+    const p = (await pdfInfo(px.bytes)).text;
+    const sample = String(sub[sub.length - 1][sub[0].length - 1]);
+    assert.ok(d.includes(sample) && p.includes(sample), `Word/PDF'te '${sample}' yok`);
+    assert.ok(d.includes("UTC (tarih ve saat)") && p.includes("UTC (tarih ve saat)"));
   });
 
   // ═══ E) Boyut ═════════════════════════════════════════════════════════════════

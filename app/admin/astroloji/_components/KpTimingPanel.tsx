@@ -7,7 +7,7 @@
  * KP yöntemi Batı açılarıyla karıştırılmaz: yalnız KP numarası, yıldız (nakshatra) lordu, sub-lord ve rasi.
  */
 
-import { useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { KP_PROVIDER_CORRECTION_NOTE, type KpTimingPlanet, type KpTimingTechnical } from "@/lib/astrology/model/kp";
 import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import { GRAHA_LABELS } from "@/lib/astrology/topics/vedic";
@@ -40,6 +40,74 @@ export function kpAt(utcIso: string, tz: string): string {
       .map((x) => [x.type, x.value]),
   );
   return `${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute} ${p.timeZoneName}`;
+}
+
+/**
+ * KP-UX-01 (2026-10-18): geniş tabloda yatay gezinme tablonun BAŞINDA da. Alt kaydırma çubuğu tablonun en altında
+ * kaldığı için (28+ satır) uzman sağdaki sütunlara ulaşmak için listenin sonuna inmek zorundaydı. Tablonun üstünde
+ * ‹ › düğmeleri + aynı konumu yöneten ince bir kaydırma çubuğu; tablo bölümü görünür olduğu sürece üstte sabit kalır.
+ * Tablo alanı klavyeyle odaklanır (← → ile kayar); dokunma / touchpad / tekerlek tarayıcının kendi davranışıdır.
+ * Taşma yoksa denetimler hiç gösterilmez. Yalnız bu tablo kayar (sayfa değil).
+ */
+function HScroll({ label, children }: { label: string; children: ReactNode }) {
+  const scRef = useRef<HTMLDivElement | null>(null);
+  const topRef = useRef<HTMLDivElement | null>(null);
+  const [m, setM] = useState({ sw: 0, cw: 0, left: 0, topCw: 0 });
+  const measure = useCallback(() => {
+    const sc = scRef.current;
+    if (!sc) return;
+    const next = { sw: sc.scrollWidth, cw: sc.clientWidth, left: sc.scrollLeft, topCw: topRef.current?.clientWidth ?? 0 };
+    setM((p) => (p.sw === next.sw && p.cw === next.cw && p.left === next.left && p.topCw === next.topCw ? p : next));
+  }, []);
+  useLayoutEffect(() => {
+    measure();
+    const sc = scRef.current;
+    if (!sc || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(sc);
+    if (sc.firstElementChild) ro.observe(sc.firstElementChild);
+    if (topRef.current) ro.observe(topRef.current);
+    return () => ro.disconnect();
+  }, [measure]);
+  const range = Math.max(0, m.sw - m.cw);
+  const overflow = range > 1;
+  // İki çubuğun kaydırma aralığı AYNI (üst içerik = üst genişlik + tablo taşması) → konum birebir eşlenir.
+  const syncFromTable = () => {
+    const sc = scRef.current;
+    if (topRef.current && sc && Math.abs(topRef.current.scrollLeft - sc.scrollLeft) > 0.5) topRef.current.scrollLeft = sc.scrollLeft;
+    measure();
+  };
+  const syncFromTop = () => {
+    const sc = scRef.current;
+    if (topRef.current && sc && Math.abs(topRef.current.scrollLeft - sc.scrollLeft) > 0.5) sc.scrollLeft = topRef.current.scrollLeft;
+  };
+  const step = (dir: 1 | -1) => scRef.current?.scrollBy({ left: dir * Math.max(120, Math.round(m.cw * 0.6)), behavior: "smooth" });
+  const btn = "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white text-sm text-slate-700 transition hover:border-slate-500 disabled:cursor-default disabled:opacity-35";
+  return (
+    <>
+      <div className={`sticky top-0 z-10 items-center gap-1.5 border-b border-slate-100 bg-white/95 px-2 py-1 backdrop-blur ${overflow ? "flex" : "hidden"}`} data-testid="astro-kp-hscroll-bar">
+        <button type="button" className={btn} onClick={() => step(-1)} disabled={m.left <= 0.5} aria-label="Tabloyu sola kaydır" data-testid="astro-kp-hscroll-prev">
+          ‹
+        </button>
+        <div ref={topRef} onScroll={syncFromTop} className="h-3 min-w-0 flex-1 overflow-x-scroll overflow-y-hidden rounded bg-slate-100 [scrollbar-color:#94a3b8_#f1f5f9] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-track]:bg-slate-100" aria-hidden="true" data-testid="astro-kp-hscroll-top">
+          <div style={{ width: m.topCw + range, height: 1 }} />
+        </div>
+        <button type="button" className={btn} onClick={() => step(1)} disabled={m.left >= range - 0.5} aria-label="Tabloyu sağa kaydır" data-testid="astro-kp-hscroll-next">
+          ›
+        </button>
+      </div>
+      <div
+        ref={scRef}
+        onScroll={syncFromTable}
+        className="overflow-x-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-300"
+        tabIndex={overflow ? 0 : undefined}
+        role={overflow ? "region" : undefined}
+        aria-label={overflow ? `${label} — yatay kaydırılabilir; ← → tuşları` : undefined}
+      >
+        {children}
+      </div>
+    </>
+  );
 }
 
 function Pager({ shown, total, onMore }: { shown: number; total: number; onMore: () => void }) {
@@ -131,7 +199,8 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
                   </li>
                 ))}
               </ul>
-              <div className="hidden overflow-x-auto sm:block">
+              <div className="hidden sm:block">
+                <HScroll label="Sub-Lord tablosu">
                 <table className="min-w-full" data-testid="astro-kp-sublord-table">
                   <thead>
                     <tr>
@@ -159,11 +228,12 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
                             </span>
                           )}
                         </td>
-                        <td className={`${td} whitespace-nowrap text-xs tabular-nums text-slate-500`}>{kpAt(c.atUtc, "UTC").slice(11)}</td>
+                        <td className={`${td} whitespace-nowrap text-xs tabular-nums text-slate-500`}>{kpAt(c.atUtc, "UTC")}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                </HScroll>
               </div>
               <Pager shown={Math.min(nSub, subRows.length)} total={subRows.length} onMore={() => setNSub((n) => n + PAGE)} />
               {subRows.some((c) => c.corrected) && <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-snug text-amber-900" data-testid="astro-kp-corrected-note">{KP_PROVIDER_CORRECTION_NOTE}</p>}
@@ -201,7 +271,7 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
           <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">
             KP konum tablosu ({t.positions.rows.length} an · {t.positions.intervalMinutes >= 60 ? `${t.positions.intervalMinutes / 60} saatte bir` : `${t.positions.intervalMinutes} dk`})
           </h4>
-          <div className="overflow-x-auto">
+          <HScroll label="KP konum tablosu">
             <table className="min-w-full" data-testid="astro-kp-positions-table">
               <thead>
                 <tr>
@@ -230,7 +300,7 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
                 ))}
               </tbody>
             </table>
-          </div>
+          </HScroll>
           <Pager shown={Math.min(nPos, t.positions.rows.length)} total={t.positions.rows.length} onMore={() => setNPos((n) => n + PAGE)} />
         </section>
       )}
