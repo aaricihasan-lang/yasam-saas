@@ -8,7 +8,7 @@
  * derece sırasıyla gösterilir. CSS ızgara + sarmalanan etiketler → yoğun burçta bile üst üste binme yok.
  */
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, isKpNode, type KpBody, type KpChartTechnical, type KpCusp, type KpHoraryTechnical, type KpLevel, type KpNodeSigMethodId, type KpPoint, type KpRulingTechnical, type KpSignificators, type KpTransitTechnical } from "@/lib/astrology/model/kp";
 import type { VedicGrahaId } from "@/lib/astrology/model/vedic";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
@@ -16,7 +16,7 @@ import { SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
 import { GRAHA_LABELS, NAKSHATRA_LABELS } from "@/lib/astrology/topics/vedic";
 import { GRAHA_TR, SIGN_TR_ABBR, grahaTrName } from "../_lib/kundliLocalize";
 // 2026-10-15: saf KP harita yardımcıları _lib/kpChart'a taşındı (rapor sunucusu da kullanır); eski içe aktarımlar için yeniden dışa açılır.
-import { SOUTH_CELLS, gs, kpChartItems, posLabel, type KpSel } from "../_lib/kpChart";
+import { SOUTH_CELLS, gs, kpChartItems, kpLegendFor, posLabel, type KpSel } from "../_lib/kpChart";
 export { fmtDms, kpChartItems, type KpSel } from "../_lib/kpChart";
 import { fmtDms } from "../_lib/kpChart";
 import type { KbLookup } from "./VedicPanels";
@@ -54,12 +54,92 @@ function KbBox({ kb, empty }: { kb: ReturnType<KbLookup> | null; empty: string }
   );
 }
 
-export function KpSouthChart({ cusps, bodies, center, sel, onSel }: { cusps: KpCusp[]; bodies: (KpPoint & { id: VedicGrahaId; retrograde?: boolean | null; house?: number })[]; center: React.ReactNode; sel: KpSel | null; onSel: (s: KpSel) => void }) {
+/**
+ * KP-UX-05 (2026-10-18): haritanın 12 burç kutusu kaydırmadan TEK BAKIŞTA görünsün. `fit` açıkken kare kenarı =
+ * min(kullanılabilir genişlik, haritanın üstünden görünür alanın altına kalan yükseklik, üst sınır). Masaüstü sonuç
+ * masasında görünür alan = sol sütunun kaydırma kutusu; telefon/tablette sayfa doğal kayar → ekran yüksekliği; odak
+ * penceresinde ("box") pencerenin kendisi. Satırlar `minmax(kenar/4, auto)`: yoğun bir burçta içerik sığmazsa kutu
+ * büyür (etiket KIRPILMAZ). Çizim mantığı ve veriler aynı; yalnız boyut. `fit` yoksa eski davranış birebir (KP doğum
+ * haritası / horary etkilenmez).
+ */
+const KP_FIT_MIN = 300; // daha küçüğü okunmaz → alan bundan darsa harita bu boyutta kalır (kayar) ve "Tam görünüm" kullanılır
+function useKpFitSide(mode: "stage" | "box" | undefined, max: number) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const [side, setSide] = useState<number | null>(null);
+  const measure = useCallback(() => {
+    const root = rootRef.current;
+    const grid = gridRef.current;
+    if (!mode || !root || !grid) return;
+    const host = root.parentElement ?? root;
+    const width = host.clientWidth;
+    let avail: number;
+    if (mode === "box") {
+      avail = host.clientHeight;
+    } else {
+      const sc = root.closest<HTMLElement>('[data-testid="atlas-stage-scroll"]');
+      if (sc) {
+        const top = grid.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop;
+        avail = sc.clientHeight - top - (parseFloat(getComputedStyle(sc).paddingBottom) || 0);
+      } else avail = window.innerHeight - 16;
+    }
+    const next = Math.floor(Math.max(Math.min(KP_FIT_MIN, width), Math.min(width, max, avail)));
+    setSide((p) => (p === next ? p : next));
+  }, [mode, max]);
+  useLayoutEffect(() => {
+    if (!mode) return;
+    measure();
+    const root = rootRef.current;
+    const sc = root?.closest<HTMLElement>('[data-testid="atlas-stage-scroll"]') ?? null;
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => measure()) : null;
+    if (ro && root?.parentElement) ro.observe(root.parentElement);
+    if (ro && sc) ro.observe(sc);
+    // Haritanın ÜSTÜNDEKİ öğe (künye satırı) yazı tipi / sarma ile yükselirse harita aşağı kayar → yeniden ölç.
+    if (ro && root?.previousElementSibling) ro.observe(root.previousElementSibling);
+    window.addEventListener("resize", measure);
+    // Masa yüksekliği ve web yazı tipleri ilk çizimden sonra oturur (yarış: erken ölçüm haritayı büyük bırakıyordu).
+    let alive = true;
+    const later = [window.setTimeout(measure, 120), window.setTimeout(measure, 600), window.setTimeout(measure, 1500)];
+    void document.fonts?.ready.then(() => alive && measure());
+    return () => {
+      alive = false;
+      later.forEach((id) => window.clearTimeout(id));
+      ro?.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [mode, measure]);
+  return { rootRef, gridRef, side };
+}
+
+export function KpSouthChart({
+  cusps,
+  bodies,
+  center,
+  sel,
+  onSel,
+  fit,
+  legend = true,
+}: {
+  cusps: KpCusp[];
+  bodies: (KpPoint & { id: VedicGrahaId; retrograde?: boolean | null; house?: number })[];
+  center: React.ReactNode;
+  sel: KpSel | null;
+  onSel: (s: KpSel) => void;
+  /** KP-UX-05: alana sığdır ("stage" = sonuç masası / sayfa, "box" = odak penceresi). Yoksa eski sabit düzen. */
+  fit?: "stage" | "box";
+  legend?: boolean;
+}) {
   const items = useMemo(() => kpChartItems(cusps, bodies), [cusps, bodies]);
   const isSel = (s: KpSel) => !!sel && sel.kind === s.kind && (s.kind === "cusp" ? sel.kind === "cusp" && sel.house === s.house : sel.kind === "body" && sel.id === s.id);
+  const { rootRef, gridRef, side } = useKpFitSide(fit, fit === "box" ? 1400 : 560);
+  const big = side !== null && side >= 640;
   return (
-    <div className="mx-auto w-full max-w-[560px]" data-testid="astro-kp-chart">
-      <div className="grid grid-cols-4 grid-rows-[repeat(4,minmax(5.5rem,auto))] overflow-hidden rounded-xl sm:grid-rows-[repeat(4,minmax(8.5rem,auto))] border border-slate-300 bg-white text-[10px] sm:text-xs">
+    <div ref={rootRef} className={fit === "box" ? "mx-auto w-full" : "mx-auto w-full max-w-[560px]"} data-testid="astro-kp-chart" data-kp-fit={fit ?? undefined} data-kp-side={side ?? undefined}>
+      <div
+        ref={gridRef}
+        style={side !== null ? { width: side, gridTemplateRows: `repeat(4, minmax(${Math.floor(side / 4)}px, auto))` } : undefined}
+        className={`mx-auto grid grid-cols-4 grid-rows-[repeat(4,minmax(5.5rem,auto))] overflow-hidden rounded-xl sm:grid-rows-[repeat(4,minmax(8.5rem,auto))] border border-slate-300 bg-white text-[10px] sm:text-xs ${big ? "sm:!text-sm" : ""}`}
+      >
         {SIGN_IDS.map((s) => {
           const [r, c] = SOUTH_CELLS[s];
           const hasAsc = items[s].some((x) => x.key === "c1");
@@ -90,10 +170,12 @@ export function KpSouthChart({ cusps, bodies, center, sel, onSel }: { cusps: KpC
           {center}
         </div>
       </div>
-      <p className="mt-1 text-center text-[11px] leading-snug text-slate-500">
-        Burç kutuları sabit (Güney Hindistan). Çerçeveli etiket = Placidus ev başlangıcı (cusp); gri = graha. KP evleri burç kutusu değildir — bir burçta iki cusp
-        olabilir, bir ev iki burca yayılabilir. ʳ vakri. Ayrıntı için etikete dokunun.
-      </p>
+      {/* KP-UX-06: açıklama Word/PDF ile aynı kaynaktan; cusp çizilmeyen haritada (KP transit tek an) Placidus/cusp anlatımı yok. */}
+      {legend && (
+        <p className="mt-1 text-center text-[11px] leading-snug text-slate-500" data-testid="astro-kp-chart-legend">
+          {kpLegendFor(cusps.length)} Ayrıntı için etikete dokunun.
+        </p>
+      )}
     </div>
   );
 }
@@ -484,21 +566,74 @@ export function KpRulingPanel({ t, kbLookup, placeLabel, birthplace }: { t: KpRu
   );
 }
 
+/**
+ * KP-UX-05: KP haritasına özgü TAM GÖRÜNÜM (odak) penceresi — ekrana sığan kare; telefonda da 12 kutu tek ekranda.
+ * Esc / "Normal görünüm" ile kapanır, odak açan düğmeye döner; açıkken sayfa kaymaz. Harita aynı bileşen ve aynı seçim.
+ */
+function KpChartFocus({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const opener = document.activeElement as HTMLElement | null;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    closeRef.current?.focus();
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+      opener?.focus?.();
+    };
+  }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <div role="dialog" aria-modal="true" aria-label={`KP haritası — tam görünüm — ${title}`} className="fixed inset-0 z-[80] flex flex-col gap-2 bg-[#f4f3ef] p-2 text-slate-800 sm:p-4" data-testid="astro-kp-chart-dialog">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold tracking-[0.14em] text-slate-500">TAM GÖRÜNÜM</p>
+          <p className="truncate text-base font-semibold text-slate-900">{title}</p>
+        </div>
+        <button ref={closeRef} type="button" onClick={onClose} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 hover:border-slate-500" data-testid="astro-kp-chart-dialog-close">
+          ✕ Normal görünüm <span className="hidden text-slate-400 sm:inline">(Esc)</span>
+        </button>
+      </div>
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto">{children}</div>
+    </div>
+  );
+}
+
 // ─── KP transit (efemeris; KISMİ) ────────────────────────────────────────────
 export function KpTransitPanel({ t, kbLookup }: { t: KpTransitTechnical; kbLookup?: KbLookup | null }) {
   const [sel, setSel] = useState<KpSel | null>({ kind: "body", id: "moon" });
+  const [focus, setFocus] = useState(false);
+  const closeFocus = useCallback(() => setFocus(false), []);
   const b = sel?.kind === "body" ? t.bodies.find((x) => x.id === sel.id) : null;
   const kb = b && kbLookup ? kbLookup([`kp_transit_starlord:${b.id}:${b.starLord}`, `kp_transit_sublord:${b.id}:${b.subLord}`]) : null;
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-kp-transit-panel">
-      <p className="text-sm text-slate-700">
-        <strong>KP transit</strong> · {t.at.utc.slice(8, 10)}.{t.at.utc.slice(5, 7)}.{t.at.utc.slice(0, 4)} {t.at.utc.slice(11, 16)} UTC · {AY[t.frame.ayanamsa]} {fmtDms(t.frame.ayanamsaDegrees)}
-      </p>
+      {/* KP-UX-05: künye + "Tam görünüm" tek satırda, kısmi destek notu haritanın ALTINDA (içerik aynı) → masaüstünde
+          harita sütunun görünür yüksekliğine sığar, 12 burç kutusu kaydırmadan görünür. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+        <p className="min-w-0 text-sm text-slate-700">
+          <strong>KP transit</strong> · {t.at.utc.slice(8, 10)}.{t.at.utc.slice(5, 7)}.{t.at.utc.slice(0, 4)} {t.at.utc.slice(11, 16)} UTC · {AY[t.frame.ayanamsa]} {fmtDms(t.frame.ayanamsaDegrees)}
+        </p>
+        <button type="button" onClick={() => setFocus(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:border-slate-500" title="KP haritasını ekrana sığan büyük görünümde aç" data-testid="astro-kp-chart-focus">
+          ⛶ Tam görünüm
+        </button>
+      </div>
+      <KpSouthChart cusps={[]} bodies={t.bodies} sel={sel} onSel={setSel} fit="stage" center={<Center title="KP transit" lines={["gökyüzü (an)", AY[t.frame.ayanamsa]]} />} />
+      <KpChartFocus open={focus} onClose={closeFocus} title={`KP transit · ${t.at.utc.slice(8, 10)}.${t.at.utc.slice(5, 7)}.${t.at.utc.slice(0, 4)} ${t.at.utc.slice(11, 16)} UTC · ${AY[t.frame.ayanamsa]}`}>
+        <div className="flex h-full w-full min-w-0 items-center justify-center">
+          <KpSouthChart cusps={[]} bodies={t.bodies} sel={sel} onSel={setSel} fit="box" legend={false} center={<Center title="KP transit" lines={["gökyüzü (an)", AY[t.frame.ayanamsa]]} />} />
+        </div>
+      </KpChartFocus>
       <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs text-amber-900" data-testid="astro-kp-transit-partial">
         <strong>Kısmi destek:</strong> Bu teknik o an için KP hiyerarşili gökyüzünü (star / sub / sub-sub lord) verir; natal cusp&apos;lara göre ev yerleşimi ve transit–natal ilişki
         analizi bu teknikte YOKTUR ve Yaşam Sistemi bunu hesaplamaz. Batı transiti ve Vedik Gochara ayrı tekniklerdir.
       </p>
-      <KpSouthChart cusps={[]} bodies={t.bodies} sel={sel} onSel={setSel} center={<Center title="KP transit" lines={["gökyüzü (an)", AY[t.frame.ayanamsa]]} />} />
       <KpBodyTable bodies={t.bodies} sel={sel} onSel={setSel} title="Transit gezegenler (KP)" testId="astro-kp-transit-table" />
       {b && (
         <section className="rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm">

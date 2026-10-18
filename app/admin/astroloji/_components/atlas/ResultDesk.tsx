@@ -949,8 +949,10 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
       data-testid="astro-result-view"
       data-variant="light"
     >
-      {/* ── Tek satır başlık: geri · ad + künye · durum + işlemler ── */}
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.05)] xl:flex-nowrap [&_strong]:!text-slate-900 max-sm:rounded-none max-sm:border-x-0">
+      {/* ── Başlık: geri · ad + künye · durum + işlemler. KP-UX-04 (2026-10-18): yer yetmezse durum + işlemler ALT SATIRA
+           geçer (eskiden xl:flex-nowrap + shrink-0 künye çipleri "Kaydedildi" etiketinin altına biniyordu; 1024 px'te ise
+           ad sütunu ~80 px'e sıkışıyordu). Ad bloğunun taban genişliği 30rem; hiçbir öğe başka öğenin üzerine taşmaz. */}
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.05)] [&_strong]:!text-slate-900 max-sm:rounded-none max-sm:border-x-0" data-testid="atlas-desk-header">
         <button
           type="button"
           onClick={onBack}
@@ -961,7 +963,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
           ←
         </button>
         <AtlasHomeButton tone="light" />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-[1_1_30rem]">
           {/* 2026-10-12 (Android UAT ek madde): telefonda uzun ad / teknik / tarih KESİLMEZ, satıra geçer; tek satır
               kısaltma yalnız geniş masaüstünde (tam metin title ile). */}
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
@@ -970,11 +972,11 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
               {title}
             </h2>
           </div>
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600 xl:flex-nowrap">
-            {subtitle && <span className="min-w-0 break-words [overflow-wrap:anywhere] xl:shrink-0">{subtitle}</span>}
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600">
+            {subtitle && <span className="min-w-0 break-words [overflow-wrap:anywhere]">{subtitle}</span>}
             {details && <span className="min-w-0 break-words text-slate-500 [overflow-wrap:anywhere] xl:truncate">{details}</span>}
             {metaList.length > 0 && (
-              <ul className="flex min-w-0 flex-wrap gap-1 xl:shrink-0 xl:flex-nowrap" aria-label="Harita künyesi" data-testid="atlas-chart-meta">
+              <ul className="flex min-w-0 flex-wrap gap-1" aria-label="Harita künyesi" data-testid="atlas-chart-meta">
                 {metaList.map((m) => (
                   <li key={m} className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10.5px] text-slate-600">
                     {m}
@@ -984,7 +986,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
             )}
           </div>
         </div>
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto xl:shrink-0 xl:flex-nowrap">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:justify-end" data-testid="atlas-desk-header-actions">
           {/* Görünüm: haritanın üstüne binmesin diye başlıkta */}
           {focusBtn && (
             <span className="flex items-center gap-1.5 border-r border-slate-200 pr-2" role="group" aria-label="Görünüm">
