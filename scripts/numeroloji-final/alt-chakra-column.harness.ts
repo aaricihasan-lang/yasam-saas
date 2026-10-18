@@ -26,7 +26,6 @@ import {
   alternativeVariantSupports,
   alternativeChakraExclusionNote,
 } from "@/lib/numeroloji/alternativeChakra";
-import { SPECIAL_NUMBERS } from "@/lib/numeroloji/ortak";
 
 let pass = 0;
 let fail = 0;
@@ -89,9 +88,9 @@ console.log("A. Resmî omurga — sayı kaybı düzeltmeleri");
     { label: "üç özel 11/11/11", ana: [11, 11, 11], want: [10], display: "11/11/11 (33)" },
     { label: "tek parça 19 (kalan yok)", ana: [19, 0], want: [10], display: "19" },
     { label: "tek parça 11 (kalan yok)", ana: [11, 0], want: [10], display: "11" },
-    { label: "çift-özel 11/5 (mevcut)", ana: [5, 6], want: [10, 5], display: "11/5" },
+    { label: "kalansız özel çift 5+6 → 11", ana: [5, 6], want: [10], display: "11" },
     { label: "özel yok 7", ana: [6, 1], want: [6, 1, 7], display: "7" },
-    { label: "toplam 19 (özel parça yok, mevcut)", ana: [9, 1, 9], want: [9, 1, 9, 1], display: "19" },
+    { label: "toplam 19 (parçalar 19'u oluşturur)", ana: [9, 1, 9], want: [10], display: "19" },
   ];
   for (const c of cases) {
     const [f, l] = person(c.ana, c.ana.map(() => 2));
@@ -118,7 +117,7 @@ console.log("D. Alternatif çakra sütunu");
   eq(anaCols.map((c) => c.path), ["22/6"], "D-OWNER Ana alternatifleri");
   eq(yanCols.map((c) => c.path), ["22/11/8", "33/8"], "D-OWNER Yan alternatifleri");
   eq(anaCols[0].altSupports, [10, 6], "D-22/6 katkı [10,6]");
-  eq(yanCols.map((c) => c.altSupports), [[10, 8], [10, 8]], "D-22/11/8 → [10,8] (tek 10: Karar C), 33/8 → [10,8]");
+  eq(yanCols.map((c) => c.altSupports), [[10, 8], [10, 8]], "D-22/11/8 → [10,8] (tek 10), 33/8 → [10,8]");
   eq(yanCols.map((c) => c.ozelSayilar), [[22, 11], [33]], "D-yollardaki özel sayılar izlenebilir");
   eq(yanCols.map((c) => c.variantCount), [2, 2], "D-Yan yollar 2'şer varyant (tek kez sayılır)");
   // Ana = HY + PİN + alternatif (resmî Ana katkısı çıkarılmış)
@@ -187,8 +186,7 @@ console.log("D. Alternatif çakra sütunu");
       const v0 = combo.variants[0];
       const kalan = v0.remainderParts.length > 0 && v0.remainderValue >= 1 && v0.remainderValue <= 9 ? [v0.remainderValue] : [];
       eq(sup, [10, ...kalan], `D-${combo.path} katkı = 10 + kalan (onaylı kural)`);
-      const herOzel = alternativeVariantSupports(v0, "her-ozel-sayi");
-      eq(herOzel.filter((x) => x === 10).length, combo.path.split("/").map(Number).filter((n) => SPECIAL_NUMBERS.has(n)).length, `D-${combo.path} "her-ozel-sayi" politikası: her özel sayı 10`);
+      eq(sup.filter((x) => x === 10).length, 1, `D-${combo.path} birden fazla özel sayıda da tek 10 (owner kararı)`);
       // Her varyant: kullanılan bileşen sayısı = bileşen sayısı (kayıp/çift kullanım yok)
       for (const v of combo.variants) {
         const used = [...v.groups.flatMap((g) => g.parts), ...v.remainderParts].sort((a, b) => a - b);

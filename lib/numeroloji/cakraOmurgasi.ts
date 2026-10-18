@@ -104,38 +104,35 @@ export function kulvarSayisiCakraDestegi(n: number): number | null {
 }
 
 /**
- * Birden fazla özel sayı varken 10. çakra desteği politikası — OWNER KARARI BEKLİYOR (Karar C).
- *
- *   "tek-destek"   : 03.10.2026 nihai kararının LAFZI ("Özel Ana Kulvar: YALNIZ 10. çakraya BİR
- *                    destek + sadeleşmiş hâlin çakrasına bir destek"; eğitim notu s.2). VARSAYILAN.
- *   "her-ozel-sayi": her özel sayı (11/19/22/33) için ayrı 10. çakra desteği. Hiçbir kaynakta
- *                    tanımlı değil; owner onaylarsa yalnız bu sabit değiştirilir.
+ * Özel Ana Kulvar'ın YAPISI (gösterim metni PARSE EDİLMEZ). calcAnaKulvar karar dallarının yapısal
+ * karşılığı:
+ *   - `ozelSayilar`: özel sayı oluşumları (özel parçalar; parça-özel yoksa seçilen özel çift; özel
+ *     çift de yoksa TÜM parçaların toplamı 11/19/22/33 ise o toplam; özel olmayan parçalardan
+ *     oluşan kalan da özelse o kalan).
+ *   - `gercekKalan`: özel oluşuma GİRMEYEN, özel olmayan GERÇEK parçaların sadeleşmiş değeri (1–9).
+ *     Kalan yoksa veya kalan kendisi özel sayı oluşturuyorsa null.
+ * Hiç özel oluşum yoksa null (özel olmayan Ana Kulvar).
  */
-export type OzelSayi10Politikasi = "tek-destek" | "her-ozel-sayi";
-export const OZEL_SAYI_10_POLITIKASI: OzelSayi10Politikasi = "tek-destek";
+export type KulvarOzelYapisi = { ozelSayilar: number[]; gercekKalan: number | null };
 
-/**
- * Ana Kulvar'ın YAPISAL özel sayı oluşumları (gösterim metni PARSE EDİLMEZ). calcAnaKulvar'ın
- * karar dallarının yapısal karşılığı:
- *   - parça-özel(ler) (değeri 11/19/22/33 olan isim/soyisim parçası) + özel kalan (kalanların
- *     sadeleşmişi özelse, ör. "11/19"),
- *   - parça-özel yoksa: calcAnaKulvar'ın seçtiği ikili özel oluşum (en büyük özel; ilk bulunan çift)
- *     + ana hane özelse o da ("11/11": [2,9,2,9]).
- * Boş dizi → özel Ana Kulvar DEĞİL (özel parça ve özel çift yok; toplam 11/19/22/33 olsa bile —
- * bu durum Karar A kapsamında owner'a bırakıldı, mevcut "isim sadeleşmeleri + Ana Kulvar" dalı).
- */
-export function kulvarOzelSayilari(values: readonly number[]): number[] {
+export function kulvarOzelYapisi(values: readonly number[]): KulvarOzelYapisi | null {
   const nonZero = values.filter((v) => v > 0);
+  if (nonZero.length === 0) return null;
+  const tekHane = (n: number) => (Number.isInteger(n) && n >= 1 && n <= 9 ? n : null);
   const specials = nonZero.filter((v) => SPECIAL_NUMBERS.has(v));
   const rest = nonZero.filter((v) => !SPECIAL_NUMBERS.has(v));
+
   if (specials.length > 0) {
-    const out = [...specials];
+    const ozelSayilar = [...specials];
+    let gercekKalan: number | null = null;
     if (rest.length > 0) {
       const kalan = reduceNumber(rest.reduce((a, b) => a + b, 0), true);
-      if (SPECIAL_NUMBERS.has(kalan)) out.push(kalan);
+      if (SPECIAL_NUMBERS.has(kalan)) ozelSayilar.push(kalan);
+      else gercekKalan = tekHane(kalan);
     }
-    return out;
+    return { ozelSayilar, gercekKalan };
   }
+
   let best: { specialNum: number; i: number; j: number } | null = null;
   for (let i = 0; i < values.length; i += 1) {
     for (let j = i + 1; j < values.length; j += 1) {
@@ -144,53 +141,49 @@ export function kulvarOzelSayilari(values: readonly number[]): number[] {
       if (SPECIAL_NUMBERS.has(sRed) && (!best || sRed > best.specialNum)) best = { specialNum: sRed, i, j };
     }
   }
-  if (!best) return [];
-  const { i, j } = best;
-  const base = values.filter((v, k) => v > 0 && k !== i && k !== j);
-  const out = [best.specialNum];
-  if (base.length > 0) {
-    const ana = reduceNumber(base.reduce((a, b) => a + b, 0), true);
-    if (SPECIAL_NUMBERS.has(ana)) out.push(ana);
+  if (best) {
+    const { i, j } = best;
+    const base = values.filter((v, k) => v > 0 && k !== i && k !== j);
+    if (base.length === 0) return { ozelSayilar: [best.specialNum], gercekKalan: null };
+    const kalan = reduceNumber(base.reduce((a, b) => a + b, 0), true);
+    return SPECIAL_NUMBERS.has(kalan)
+      ? { ozelSayilar: [best.specialNum, kalan], gercekKalan: null }
+      : { ozelSayilar: [best.specialNum], gercekKalan: tekHane(kalan) };
   }
-  return out;
+
+  // Özel parça ve özel çift yok: tüm parçaların toplamı özel ise parçalar o özel sayıyı oluşturur.
+  const toplam = reduceNumber(nonZero.reduce((a, b) => a + b, 0), true);
+  return SPECIAL_NUMBERS.has(toplam) ? { ozelSayilar: [toplam], gercekKalan: null } : null;
 }
 
 /**
- * Özel kulvarın çakra destekleri: 10. çakra (politikaya göre tek ya da özel sayı başına) +
- * sadeleşmiş hâl 1–9 ise onun çakrası. Sadeleşmiş hâl yoksa / özelse ek destek YOK (sahte "/0" yok).
+ * Özel kulvarın çakra destekleri — OWNER NİHAİ KARARI (2026-10-18):
+ *   - 11/19/22/33 → 10. çakraya TEK destek; birden fazla özel sayı olsa bile tek destek.
+ *   - Özel sayı sadeleştirilerek ikinci destek ÜRETİLMEZ (19 → [10], 11/11 (22) → [10]).
+ *   - Özel oluşuma girmeyen GERÇEK kalan bileşen varsa o da kendi çakrasına destek verir
+ *     (19/5 → [10,5]; 11/11/4 → [10,4]; 5+6+5 → 11/5 → [10,5]); yoksa ek destek yok.
  */
-export function ozelKulvarCakraDestekleri(
-  ozelSayilar: readonly number[],
-  sadelesmis: number | null,
-  politika: OzelSayi10Politikasi = OZEL_SAYI_10_POLITIKASI,
-): number[] {
-  if (ozelSayilar.length === 0) return [];
-  const onlar = politika === "tek-destek" ? 1 : ozelSayilar.length;
-  const out: number[] = Array.from({ length: onlar }, () => 10);
-  if (sadelesmis !== null && Number.isInteger(sadelesmis) && sadelesmis >= 1 && sadelesmis <= 9) out.push(sadelesmis);
-  return out;
+export function ozelKulvarCakraDestekleri(yapi: KulvarOzelYapisi): number[] {
+  return yapi.gercekKalan !== null ? [10, yapi.gercekKalan] : [10];
 }
 
 /**
  * Çakra sütunu — Ana Kulvar destekleri.
  *
- * NİHAİ KULLANICI KARARI (2026-10-03) — kullanıcı notu s.2 "Çakra Sütunu" ana metodolojidir:
- *   - Özel Ana Kulvar (11/19/22/33): YALNIZ 10. çakraya bir destek + sadeleşmiş halin çakrasına
- *     bir destek. Örnek "19/2" → [10, 2] ("19 için 10. sütuna bir destek, 19/2'nin 2'si için 2.
- *     sütuna bir destek attık"). İsim/soyisim sadeleşmeleri bu durumda EKLENMEZ
- *     (eski davranış [2, 1, 10, 2] idi).
- *   - Diğer durumlar (değişmedi): her isim/soyisim sadeleşmesi + Ana Kulvar
+ * Kaynak: kullanıcı notu s.2 "Çakra Sütunu" + 03.10.2026 kararı + OWNER NİHAİ KARARI 2026-10-18:
+ *   - Özel Ana Kulvar → `ozelKulvarCakraDestekleri` (10 + yalnız gerçek kalan). İsim/soyisim
+ *     sadeleşmeleri EKLENMEZ; özel sayıyı oluşturan parçalar ayrıca sayılmaz ([9,1,9] → 19 → [10]).
+ *   - Özel olmayan Ana Kulvar (değişmedi): her isim/soyisim sadeleşmesi + Ana Kulvar
  *     (ör. isimler 1, 6, soyisim 8 → 1-6-8-6).
  *
- * 2026-10-18 DÜZELTMESİ (sayı kaybı): "özel" tespiti ve "sadeleşmiş hâl" artık gösterim metninden
- * değil YAPISAL veriden gelir — özel oluşum = `kulvarOzelSayilari(componentValues)`, sadeleşmiş
- * hâl = calcAnaKulvar `key` (yorum sayısı). Önceki `split("/", 2)` okuması "11/11/4" ve
- * "22/11/4"te sadeleşmiş 4'ü düşürüyor ([10]), tek parçalı "19"a hiç 10. çakra vermiyordu ([1,1]).
+ * 2026-10-18 DÜZELTMESİ (sayı kaybı): eski sürüm display'i `split("/", 2)` ile okuyordu →
+ * "11/11/4" ve "22/11/4"te gerçek kalan 4 düşüyordu ([10]), tek parçalı "19"a 10. çakra
+ * verilmiyordu ([1,1]). Artık yapısal bileşenler (`componentValues`) esas alınır.
  */
 export function anaKulvarCakraDestekleri(firstName: string, lastName: string): number[] {
   const info = calcAnaKulvar(firstName, lastName);
-  const ozel = kulvarOzelSayilari(info.componentValues ?? []);
-  if (ozel.length > 0) return ozelKulvarCakraDestekleri(ozel, Number(info.key));
+  const yapi = kulvarOzelYapisi(info.componentValues ?? []);
+  if (yapi) return ozelKulvarCakraDestekleri(yapi);
 
   const destekler: number[] = [];
   const nameVals: number[] = [];
@@ -208,12 +201,12 @@ export function anaKulvarCakraDestekleri(firstName: string, lastName: string): n
 
 /**
  * Ana Kulvar destekleri — kayıtlı snapshot bileşenlerinden (isim metni olmadan; yeniden hesap YOK).
- * `anaKulvarCakraDestekleri` ile aynı kural: özelse 10 + sadeleşmiş hâl (key), değilse parça
- * değerleri + toplamın tek hanesi (özel olmayan parçada parça değeri = kelimenin sadeleşmiş değeri).
+ * `anaKulvarCakraDestekleri` ile aynı kural (özel olmayan parçada parça değeri = kelimenin
+ * sadeleşmiş değeri).
  */
-export function anaKulvarCakraDesteklerindenBilesen(values: readonly number[], key: string | number | null | undefined): number[] {
-  const ozel = kulvarOzelSayilari(values);
-  if (ozel.length > 0) return ozelKulvarCakraDestekleri(ozel, Number(key));
+export function anaKulvarCakraDesteklerindenBilesen(values: readonly number[]): number[] {
+  const yapi = kulvarOzelYapisi(values);
+  if (yapi) return ozelKulvarCakraDestekleri(yapi);
   const nameVals = values.filter((v) => v > 0);
   if (nameVals.length === 0) return [];
   const akVal = reduceToDigit(nameVals.reduce((a, b) => a + b, 0));

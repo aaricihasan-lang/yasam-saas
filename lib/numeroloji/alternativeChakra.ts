@@ -4,13 +4,11 @@ import {
   type AlternativeVariant,
 } from "./alternativeCombinations";
 import {
-  OZEL_SAYI_10_POLITIKASI,
   anaKulvarCakraDesteklerindenBilesen,
   hayatYoluCakraDesteklerindenGosterim,
   ozelKulvarCakraDestekleri,
   pinKoduCakraDesteklerindenKutular,
   type ChakraCounts,
-  type OzelSayi10Politikasi,
 } from "./cakraOmurgasi";
 import { SPECIAL_NUMBERS } from "./ortak";
 
@@ -22,10 +20,9 @@ import { SPECIAL_NUMBERS } from "./ortak";
  *
  * Kaynak = YAPISAL veri (gösterim metni parse edilmez):
  *   - alternatif yol + varyantları: `findKulvarSpecialCombinationsDetailed(componentValues)`,
- *   - resmî omurgadaki kuralın AYNISI (`ozelKulvarCakraDestekleri`): 10. çakraya destek (politika:
- *     varsayılan TEK destek — 03.10.2026 kararı lafzı; "her özel sayıya ayrı 10" owner Karar C'si)
- *     + kalan varsa ve 1–9 ise sadeleşmiş değerinin çakrası; kalan yoksa ek destek YOK (sahte "/0"
- *     yok). Yeni numeroloji yöntemi DEĞİL.
+ *   - resmî omurgadaki kuralın AYNISI (`ozelKulvarCakraDestekleri`, owner nihai kararı 2026-10-18):
+ *     10. çakraya TEK destek (birden fazla özel sayıda da) + özel olmayan GERÇEK kalan 1–9 ise onun
+ *     çakrası; kalan yoksa ek destek YOK (sahte "/0" yok). Yeni numeroloji yöntemi DEĞİL.
  *   - Aynı sayısal yol birden fazla gerçek gruplayışla oluşuyorsa (variants) katkı TEK KEZ
  *     sayılır: aynı yol = aynı özel sayılar + aynı kalan → aynı destekler (harness kanıtlar).
  *
@@ -42,9 +39,9 @@ export type AlternativeChakraColumn = {
   kind: AlternativeChakraKind;
   /** Alternatif yol, ör. "22/11/8". */
   path: string;
-  /** Bu kombinasyonun kendi katkıları (ör. 22/11/8 → [10, 8] tek-destek politikasında). */
+  /** Bu kombinasyonun kendi katkıları (ör. 22/11/8 → [10, 8]). */
   altSupports: number[];
-  /** Yoldaki özel sayılar (ör. [22, 11]); ≥2 ise 10. çakra sayımı Karar C'ye bağlıdır. */
+  /** Yoldaki özel sayılar (ör. [22, 11]); kaç tane olursa olsun 10. çakraya tek destek. */
   ozelSayilar: number[];
   /** Bu yolun kaç farklı gerçek gruplayışla oluştuğu (katkı yine tek kez sayılır). */
   variantCount: number;
@@ -103,15 +100,18 @@ export function alternativeVariantSpecials(v: AlternativeVariant): number[] {
   return out;
 }
 
-/** Tek bir oluşum yolunun (variant) çakra katkıları — resmî omurga kuralıyla aynı. */
-export function alternativeVariantSupports(v: AlternativeVariant, politika: OzelSayi10Politikasi = OZEL_SAYI_10_POLITIKASI): number[] {
-  const sadelesmis = v.remainderParts.length > 0 ? v.remainderValue : null;
-  return ozelKulvarCakraDestekleri(alternativeVariantSpecials(v), sadelesmis, politika);
+/**
+ * Tek bir oluşum yolunun (variant) çakra katkıları — resmî omurga kuralıyla aynı: 10. çakraya tek
+ * destek + özel olmayan GERÇEK kalan (1–9) varsa onun çakrası. Özel kalan ek destek üretmez.
+ */
+export function alternativeVariantSupports(v: AlternativeVariant): number[] {
+  const kalan = v.remainderParts.length > 0 && v.remainderValue >= 1 && v.remainderValue <= 9 ? v.remainderValue : null;
+  return ozelKulvarCakraDestekleri({ ozelSayilar: alternativeVariantSpecials(v), gercekKalan: kalan });
 }
 
 /** Bir yolun katkıları — varyantlar aynı sayısal yolu ürettiği için tek katkı kümesi. */
-export function alternativePathSupports(combo: AlternativeCombination, politika: OzelSayi10Politikasi = OZEL_SAYI_10_POLITIKASI): number[] {
-  return combo.variants.length > 0 ? alternativeVariantSupports(combo.variants[0], politika) : [];
+export function alternativePathSupports(combo: AlternativeCombination): number[] {
+  return combo.variants.length > 0 ? alternativeVariantSupports(combo.variants[0]) : [];
 }
 
 /**
@@ -149,7 +149,7 @@ export function alternativeChakraColumns(
   const hyDisplay = typeof motor.hayatYolu?.display === "string" ? motor.hayatYolu.display : "";
   const hayatYolu = hyDisplay && hyDisplay !== "-" ? hayatYoluCakraDesteklerindenGosterim(hyDisplay) : [];
   const pin = motor.pinKodu && typeof motor.pinKodu === "object" ? pinKoduCakraDesteklerindenKutular(motor.pinKodu) : [];
-  const officialAnaSupports = anaKulvarCakraDesteklerindenBilesen(comps, motor.anaKulvar?.key as string | undefined);
+  const officialAnaSupports = anaKulvarCakraDesteklerindenBilesen(comps);
   const harfler = harflerOf(motor.cakraOmurgasi?.harfler);
 
   return combos.map((combo) => {

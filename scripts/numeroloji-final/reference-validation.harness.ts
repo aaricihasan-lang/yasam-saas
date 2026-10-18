@@ -15,7 +15,7 @@ import path from "node:path";
 import { hesaplaNumeroloji } from "@/lib/numeroloji/numerolojiMotor";
 import { calcAnaKulvar } from "@/lib/numeroloji/anaKulvar";
 import { calcYanKulvar } from "@/lib/numeroloji/yanKulvar";
-import { anaKulvarCakraDestekleri, hesaplaCakraSayiSol, kulvarOzelSayilari, ozelKulvarCakraDestekleri } from "@/lib/numeroloji/cakraOmurgasi";
+import { anaKulvarCakraDestekleri, hesaplaCakraSayiSol } from "@/lib/numeroloji/cakraOmurgasi";
 import { alternativeChakraColumns } from "@/lib/numeroloji/alternativeChakra";
 import { findKulvarSpecialCombinations } from "@/lib/numeroloji/alternativeCombinations";
 import { extractMotorFromAnalysisJson } from "@/app/numeroloji/utils/analysisJson";
@@ -84,37 +84,37 @@ const HY_REF = hayatYoluRef(14, 2, 1987);
 const PIN_REF = pinRef(14, 2, 1987);
 
 // ════════════════════════ 1. ZORUNLU 68 KOMBİNASYON — ELLE DOĞRULANMIŞ GOLDEN ════════════════════════
-// [no, gösterim, anahtar, Ana Kulvar çakra katkısı (onaylı kural), alternatif yollar, karar bayrakları]
+// [no, gösterim, anahtar, Ana Kulvar çakra katkısı (owner nihai kararı 2026-10-18), alternatif yollar, açık karar bayrağı]
 const GOLDEN_68: [number, string, string, number[], string[], string][] = [
-  [1, "11", "11", [10], [], "D"], [2, "19", "19", [10], [], "D"], [3, "22", "22", [10], [], "D"], [4, "33", "33", [10], [], "D"],
+  [1, "11", "11", [10], [], ""], [2, "19", "19", [10], [], ""], [3, "22", "22", [10], [], ""], [4, "33", "33", [10], [], ""],
   [5, "1", "1", [1, 1], [], ""], [6, "4", "4", [4, 4], [], ""], [7, "5", "5", [5, 5], [], ""], [8, "9", "9", [9, 9], [], ""],
   [9, "1", "1", [1, 1], [], ""], [10, "3", "3", [3, 3], [], ""],
-  [11, "11/5", "5", [10, 5], [], "B"], [12, "11/5", "5", [10, 5], [], "B"], [13, "1", "1", [9, 1, 1], [], ""], [14, "1", "1", [1, 9, 1], [], ""],
+  [11, "11", "11", [10], [], ""], [12, "11", "11", [10], [], ""], [13, "1", "1", [9, 1, 1], [], ""], [14, "1", "1", [1, 9, 1], [], ""],
   [15, "11/8 (19)", "8", [10, 8], ["19"], ""], [16, "11/8 (19)", "8", [10, 8], ["19"], ""],
-  [17, "11/11 (22)", "11", [10], ["22"], "CD"], [18, "11/19", "11", [10], [], "CD"], [19, "19/11", "11", [10], [], "CD"],
-  [20, "19/22", "19", [10], [], "CD"], [21, "22/19", "19", [10], [], "CD"], [22, "22/11 (33)", "11", [10], ["33"], "CD"],
-  [23, "11/22 (33)", "11", [10], ["33"], "CD"], [24, "11/33", "11", [10], [], "CD"], [25, "33/11", "11", [10], [], "CD"],
-  [26, "22/22", "22", [10], [], "CD"], [27, "9", "9", [9, 9, 9], [], ""], [28, "2", "2", [1, 1, 2], [], ""],
-  [29, "11/3", "3", [10, 3], [], "B"], [30, "3", "3", [6, 6, 3], [], ""],
-  [31, "19", "19", [9, 1, 9, 1], [], "A"], [32, "11", "11", [3, 3, 5, 2], [], "A"],
-  [33, "11/11/4 (22/4)", "4", [10, 4], ["22/4"], "C"], [34, "22/11/4 (33/4)", "4", [10, 4], ["33/4"], "C"],
-  [35, "19/11/5", "5", [10, 5], [], "C"], [36, "11/3 (19/4)", "3", [10, 3], ["19/4"], ""],
+  [17, "11/11 (22)", "11", [10], ["22"], ""], [18, "11/19", "11", [10], [], ""], [19, "19/11", "11", [10], [], ""],
+  [20, "19/22", "19", [10], [], ""], [21, "22/19", "19", [10], [], ""], [22, "22/11 (33)", "11", [10], ["33"], ""],
+  [23, "11/22 (33)", "11", [10], ["33"], ""], [24, "11/33", "11", [10], [], ""], [25, "33/11", "11", [10], [], ""],
+  [26, "22/22", "22", [10], [], ""], [27, "9", "9", [9, 9, 9], [], ""], [28, "2", "2", [1, 1, 2], [], ""],
+  [29, "11", "11", [10], [], ""], [30, "3", "3", [6, 6, 3], [], ""],
+  [31, "19", "19", [10], [], ""], [32, "11", "11", [10], [], ""],
+  [33, "11/11/4 (22/4)", "4", [10, 4], ["22/4"], ""], [34, "22/11/4 (33/4)", "4", [10, 4], ["33/4"], ""],
+  [35, "19/11/5", "5", [10, 5], [], ""], [36, "11/3 (19/4)", "3", [10, 3], ["19/4"], ""],
   [37, "11/8", "8", [10, 8], ["19"], ""], [38, "11/8", "8", [10, 8], ["19"], ""],
-  [39, "11/11", "11", [10], ["22"], "CD"], [40, "11/11", "11", [10], ["22"], "CD"],
+  [39, "11/11", "11", [10], ["22"], ""], [40, "11/11", "11", [10], ["22"], ""],
   [41, "19/9", "9", [10, 9], [], ""], [42, "19/9", "9", [10, 9], [], ""],
-  [43, "11/11/11 (33)", "11", [10], ["22/11", "33"], "CD"], [44, "11/5", "5", [10, 5], [], ""],
-  [45, "6", "6", [1, 6, 8, 6], [], ""], [46, "19", "19", [9, 9, 1, 1], [], "A"],
-  [47, "11/11/9 (22/9)", "9", [10, 9], ["22/9"], "C"], [48, "22/11/3 (33/3)", "3", [10, 3], ["22/19/4", "33/3"], "C"],
-  [49, "22/19/11/4 (33/5)", "4", [10, 4], ["33/19/4"], "C"], [50, "6", "6", [9, 1, 9, 5, 6], ["19/5"], ""],
-  [51, "11/19 (19/11)", "19", [10], ["11/11/8", "19/11", "22/8"], "CD"], [52, "11/19 (19/11)", "19", [10], ["11/11/8", "19/11", "22/8"], "CD"],
+  [43, "11/11/11 (33)", "11", [10], ["22/11", "33"], ""], [44, "11/5", "5", [10, 5], [], ""],
+  [45, "6", "6", [1, 6, 8, 6], [], ""], [46, "19", "19", [10], [], ""],
+  [47, "11/11/9 (22/9)", "9", [10, 9], ["22/9"], ""], [48, "22/11/3 (33/3)", "3", [10, 3], ["22/19/4", "33/3"], ""],
+  [49, "22/19/11/4 (33/5)", "4", [10, 4], ["33/19/4"], ""], [50, "6", "6", [9, 1, 9, 5, 6], ["19/5"], ""],
+  [51, "11/19 (19/11)", "19", [10], ["11/11/8", "19/11", "22/8"], ""], [52, "11/19 (19/11)", "19", [10], ["11/11/8", "19/11", "22/8"], ""],
   [53, "3", "3", [1, 6, 8, 6, 3], [], ""], [54, "11/7", "7", [10, 7], [], ""],
-  [55, "11/11/3 (22/3)", "3", [10, 3], ["19/11/4", "22/3"], "C"], [56, "19/19/5", "5", [10, 5], ["33/19"], "C"],
+  [55, "11/11/3 (22/3)", "3", [10, 3], ["19/11/4", "22/3"], ""], [56, "19/19/5", "5", [10, 5], ["33/19"], ""],
   [57, "8", "8", [2, 2, 2, 2, 8], [], ""], [58, "9", "9", [9, 9, 9, 9, 9], [], ""],
-  [59, "11/11/8 (22/8)", "8", [10, 8], ["19/11/9", "22/8"], "C"], [60, "22/11/3 (33/3)", "3", [10, 3], ["22/19/4", "33/3"], "C"],
-  [61, "33/22/19/11/4 (33/11)", "4", [10, 4], ["33/33/19/4"], "C"], [62, "11/19", "19", [10], ["19/11"], "CD"],
-  [63, "11/5 (19/6)", "5", [10, 5], ["11/11/3", "19/6", "19/11/4", "22/3"], "C"], [64, "11/6", "6", [10, 6], ["19/7"], ""],
-  [65, "11/7", "7", [10, 7], ["11/11/5", "19/8", "22/5"], "C"], [66, "11/11/11/11/4 (22/8)", "4", [10, 4], ["22/11/11/4", "22/22/4", "33/11/4"], "C"],
-  [67, "22/22/19/19/5", "5", [10, 5], [], "C"], [68, "11/9", "9", [10, 9], [], ""],
+  [59, "11/11/8 (22/8)", "8", [10, 8], ["19/11/9", "22/8"], ""], [60, "22/11/3 (33/3)", "3", [10, 3], ["22/19/4", "33/3"], ""],
+  [61, "33/22/19/11/4 (33/11)", "4", [10, 4], ["33/33/19/4"], ""], [62, "11/19", "19", [10], ["19/11"], ""],
+  [63, "11/5 (19/6)", "5", [10, 5], ["11/11/3", "19/6", "19/11/4", "22/3"], ""], [64, "11/6", "6", [10, 6], ["19/7"], ""],
+  [65, "11/7", "7", [10, 7], ["11/11/5", "19/8", "22/5"], ""], [66, "11/11/11/11/4 (22/8)", "4", [10, 4], ["22/11/11/4", "22/22/4", "33/11/4"], ""],
+  [67, "22/22/19/19/5", "5", [10, 5], [], ""], [68, "11/9", "9", [10, 9], [], ""],
 ];
 
 type Satir = Record<string, string | number>;
@@ -220,13 +220,13 @@ const ISIMLER: { ad: string; soyad: string; tur: string; kaynak?: { ana?: string
   { ad: "Ayşe", soyad: "KAYA", tur: "evlilik sonrası soyadı (ayrı hesap)" },
   { ad: "Ayşe", soyad: "YILMAZ KAYA", tur: "kızlık + evlilik soyadı birlikte" },
   { ad: "Ömer", soyad: "GÜNEŞ", tur: "özel 11 + kalan · Ö Ü Ş · eski (19/0)", kaynak: { ana: "11/8 (19)" } },
-  { ad: "Ahmet", soyad: "DEMİR", tur: "yalnız iki parçalı özel çift 6+5 (Karar B) · İ" },
-  { ad: "Tuba Ömer", soyad: "EROL", tur: "11/11/4 (önceki kayıp)" },
+  { ad: "Ahmet", soyad: "DEMİR", tur: "yalnız iki parçalı özel çift 6+5 → yalnız 11 (owner kararı) · İ", kaynak: { ana: "11", cakra: [10] } },
+  { ad: "Tuba Ömer", soyad: "EROL", tur: "11/11/4 (önceki kayıp) → [10,4]", kaynak: { cakra: [10, 4] } },
   { ad: "Ömer", soyad: "EROL", tur: "iki özel 11/11 (22)" },
-  { ad: "İsmail", soyad: "EROL", tur: "19/11 · İ" },
-  { ad: "Ahmet Fatma", soyad: "KURT", tur: "toplam 11, özel parça yok (Karar A)" },
-  { ad: "Ahmet Esra", soyad: "DOĞAN", tur: "toplam 19, özel parça yok (Karar A) · Ğ" },
-  { ad: "Ayşe Oya", soyad: "YILDIZ", tur: "toplam 22 (Karar A)" },
+  { ad: "İsmail", soyad: "EROL", tur: "19/11 · İ → [10]", kaynak: { cakra: [10] } },
+  { ad: "Ahmet Fatma", soyad: "KURT", tur: "toplam 11, özel parça yok → [10]", kaynak: { cakra: [10] } },
+  { ad: "Ahmet Esra", soyad: "DOĞAN", tur: "toplam 19, özel parça yok → [10] · Ğ", kaynak: { cakra: [10] } },
+  { ad: "Ayşe Oya", soyad: "YILDIZ", tur: "toplam 22 → [10]", kaynak: { cakra: [10] } },
   { ad: "Işık Işık Ayşe", soyad: "YILDIZ", tur: "üç isim · toplam 33" },
   { ad: "Ahmet Fatma", soyad: "DEMİR YILDIRIM", tur: "iki isim + çift soyisim · 11/11" },
   { ad: "İsmail Cihangir", soyad: "AKINCI", tur: "üç parça 19 (Kitap PDF-1 s.121 kaynak çelişkisi)" },
@@ -421,23 +421,14 @@ let eskiToplam = 0;
     eskiToplam += 1;
     const ref = kulvarRef(a.componentValues ?? []);
     let sinif: string;
-    if (ref.durum === "D2" && eski.length === 1 && yeni.length === 2) sinif = "Kalan (sadeleşmiş) değer kayboluyordu: 11/11/4 türü → [10] yerine [10, kalan]";
-    else if (ref.durum === "tek-ozel") sinif = "Tek özel parça 10. çakra almıyordu / sahte 1 ekleniyordu: 19 → [1,1], 11 → [10,1] yerine [10]";
-    else if (ref.durum === "D3" && eski.length === 1 && yeni.length === 2 && ref.ozelOlusumlar.length >= 3)
-      sinif = "Tüm parçalar özel (≥3 özel): yorum sayısı 1–9 iken sadeleşmiş hâl desteği düşüyordu → [10, yorum sayısı] (Karar C kapsamında)";
+    if (ref.durum === "D2" && eski.length === 1 && yeni.length === 2) sinif = "Gerçek kalan değer kayboluyordu (11/11/4 türü): [10] → [10, kalan]";
+    else if (ref.durum === "tek-ozel") sinif = "Tek özel parça: 19 → [1,1] / 11 → [10,1] yerine [10] (özel sayı tek başına yalnız 10)";
+    else if (ref.durum === "D1") sinif = "Toplamı özel olan parçalar (ör. [9,1,9] → 19): isim sadeleşmeleri yerine [10]";
+    else if (ref.durum === "D4" && ref.kalan.length === 0) sinif = "Kalansız özel çift (5+6 → 11): yapay [10, küçük parça] yerine [10]";
     else sinif = `AÇIKLANAMAYAN (${ref.durum}) ${J(d)} eski ${J(eski)} yeni ${J(yeni)}`;
     eskiFark[sinif] = (eskiFark[sinif] ?? 0) + 1;
   }
   kontrol("omurga", !Object.keys(eskiFark).some((k) => k.startsWith("AÇIKLANAMAYAN")), "eski↔yeni farklarının tamamı açıklandı", eskiFark);
-}
-
-// ════════════════════════ KARAR C ETKİSİ (politika "her-ozel-sayi" olsaydı) ════════════════════════
-let kararCEtkisi = 0;
-for (const g of girdiler) {
-  const [f, l] = sentetikKisi(g);
-  const a = calcAnaKulvar(f, l);
-  const oz = kulvarOzelSayilari(a.componentValues ?? []);
-  if (oz.length && J(ozelKulvarCakraDestekleri(oz, Number(a.key), "her-ozel-sayi")) !== J(ozelKulvarCakraDestekleri(oz, Number(a.key), "tek-destek"))) kararCEtkisi += 1;
 }
 
 // ════════════════════════ ÇIKTI ════════════════════════
@@ -446,25 +437,23 @@ const csv = [csvBaslik.join(";"), ...satirlar68.map((r) => csvBaslik.map((k) => 
 writeFileSync(path.join(OUT, "68-referans-sonuclari.csv"), "﻿" + csv, "utf8");
 const md: string[] = [];
 md.push("# Numeroloji — 68 Referans Kombinasyonu (ayrıntılı sonuç)", "");
-md.push("Giriş = parça HAM toplamları (sıra korunur). Beklenen = elle doğrulanmış golden + bağımsız referans hesaplayıcı (üretim kodu kullanılmaz). Çakra = Ana Kulvar'ın sol sütun katkısı (03.10.2026 kararı + eğitim notu s.2).", "");
+md.push("Giriş = parça HAM toplamları (sıra korunur). Beklenen = elle doğrulanmış golden + bağımsız referans hesaplayıcı (üretim kodu kullanılmaz). Çakra = Ana Kulvar'ın sol sütun katkısı (eğitim notu s.2 + 03.10.2026 + owner nihai kararı 2026-10-18).", "");
 md.push("| # | Grup | Giriş | Normal | Özel oluşumlar | Birleşen | Kalan | Gösterim | Anahtar | Alternatifler → katkı | Beklenen çakra | Motor çakra | Fark | Sonuç | Karar |");
 md.push("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
 for (const r of satirlar68) md.push(`| ${r.no} | ${r.grup} | \`${r.giris}\` | \`${r.normal}\` | ${r.ozel} | ${r.birlesen} | ${r.kalan} | \`${r.gosterim}\` | ${r.anahtar} | ${r.alternatif} | ${r.beklenen} | ${r.motor} | ${r.fark} | ${r.sonuc} | ${r.karar || "—"} |`);
-md.push("", "## Karar kodları", "", ...Object.entries(KARAR_ACIKLAMA).map(([k, v]) => `- **${k}** — ${v}`));
+md.push("", "## Owner nihai kararı (2026-10-18) — kapatılan sorular", "", ...Object.entries(KARAR_ACIKLAMA).map(([k, v]) => `- **${k}** — ${v}`));
 md.push("", "## Gerçek isim-soyisim", "", "| İsim | Tür | Ana bileşen | Ana | Yan bileşen | Yan | Motor çakra | Beklenen | Alt (Ana) | Alt (Yan) | Sonuç | Karar |", "|---|---|---|---|---|---|---|---|---|---|---|---|");
 for (const r of satirlarIsim) md.push(`| ${r.isim} | ${r.tur} | \`${r.anaBilesen}\` | \`${r.ana}\` | \`${r.yanBilesen}\` | \`${r.yan}\` | ${r.cakra} | ${r.beklenen} | ${r.altAna} | ${r.altYan} | ${r.sonuc} | ${r.karar || "—"} |`);
 md.push("", "## Otomatik tarama sınıfları", "", ...Object.entries(taramaSiniflari).map(([k, v]) => `- ${k}: **${v}**${taramaOrnek[k]?.length ? ` — örnek: ${taramaOrnek[k].join(" · ")}` : ""}`));
-md.push("", `## Karar C etkisi`, "", `Taramadaki ${girdiler.length} girdinin **${kararCEtkisi}** tanesinde "her özel sayıya ayrı 10. çakra" politikası sonucu değiştirirdi (şu an: tek destek).`);
 md.push("", `## Eski kural ↔ yeni (PR öncesi main'e göre değişen ${eskiToplam} oluşum)`, "", ...Object.entries(eskiFark).map(([k, v]) => `- ${k}: **${v}**`));
 writeFileSync(path.join(OUT, "68-referans-sonuclari.md"), md.join("\n"), "utf8");
-writeFileSync(path.join(OUT, "dogrulama-ozet.json"), JSON.stringify({ sayac, taramaSiniflari, eskiFark, eskiToplam, kararCEtkisi, hatalar }, null, 2), "utf8");
+writeFileSync(path.join(OUT, "dogrulama-ozet.json"), JSON.stringify({ sayac, taramaSiniflari, eskiFark, eskiToplam, hatalar }, null, 2), "utf8");
 
 console.log("\n| Alan | Test | PASS | FAIL | Karar bekleyen |\n|---|---:|---:|---:|---:|");
 const AD: Record<Bolum, string> = { "68": "68 referans kombinasyonu", isim: "Gerçek isim-soyisim", tarama: "Otomatik geniş tarama", omurga: "Ana Çakra Omurgası", alternatif: "Alternatif Çakra Sütunları", eski: "Eski kayıt uyumluluğu", golden: "Özel golden + HASAN", refgolden: "Bağımsız referans ↔ elle golden (68)", yol: "Sayısal dizi ↔ isim aynı motor yolu" };
 for (const b of Object.keys(sayac) as Bolum[]) console.log(`| ${AD[b]} | ${sayac[b].test} | ${sayac[b].pass} | ${sayac[b].fail} | ${sayac[b].karar} |`);
 console.log("\nTarama sınıfları:", taramaSiniflari);
 console.log(`Eski↔yeni fark (${eskiToplam}):`, eskiFark);
-console.log(`Karar C etkisi: taramadaki ${girdiler.length} girdinin ${kararCEtkisi} tanesinde "her özel sayıya ayrı 10" sonucu değiştirirdi`);
 if (hatalar.length) { console.log(`\nHATALAR (${hatalar.length}):`); for (const h of hatalar.slice(0, 40)) console.log("  ✗", h); }
 console.log(`\nÇıktı: ${OUT}`);
 process.exit(Object.values(sayac).some((s) => s.fail > 0) ? 1 : 0);

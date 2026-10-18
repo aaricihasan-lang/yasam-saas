@@ -10,14 +10,18 @@
  *   - Ana Kulvar Durum 1–4 (uzman inceleme kitabı 11.10.2026, 2. Ders "Dört durum" tablosu —
  *     ürünün belgelenmiş kuralı; Durum 4 "kalanlı özel çift" Kitap PDF-1 s.11 ATATÜRK 5+6=11, kalan 5).
  *   - Ara kontrol parantezi: kalan yoksa "(19)" (2026-10-18 owner talimatı: sahte "/0" yok).
- *   - Çakra (sol sütun, Ana Kulvar): 03.10.2026 nihai kararı + eğitim notu s.2:
- *       özel Ana Kulvar → [10] + sadeleşmiş hâl (yorum sayısı) 1–9 ise onun çakrası;
- *       özel değilse her parçanın sadeleşmiş değeri + Ana Kulvar'ın tek hanesi (1-6-8-6 örneği).
+ *   - Yalnız iki parçalı özel çift, dışarıda parça yok: sonuç yalnız özel sayı (5+6 → "11");
+ *     yapay ikinci sayı yok (OWNER NİHAİ KARARI 2026-10-18, eski "11/5" küçük-parça kuralı kalktı).
+ *   - Çakra (sol sütun, Ana Kulvar) — eğitim notu s.2 + 03.10.2026 + OWNER NİHAİ KARARI 2026-10-18:
+ *       özel oluşum (özel parça / özel çift / toplamın kendisi özel) → 10. çakraya TEK destek;
+ *       özel oluşuma girmeyen özel olmayan GERÇEK kalan (1–9) varsa onun çakrası; özel sayı
+ *       sadeleştirilerek ikinci destek üretilmez; özel sayıyı oluşturan parçalar ayrıca sayılmaz.
+ *       Özel değilse her parçanın sadeleşmiş değeri + Ana Kulvar'ın tek hanesi (1-6-8-6 örneği).
  *   - Alternatifler: ayrık özel gruplar (≥2 parça veya tek özel parça), her özel parça bir grupta,
  *     kalan sadeleşir; kanonik yol hariç — ÜRETİMDEN FARKLI ALGORİTMA (atama ağacı, bitmask yok).
  *
- * Kaynakların kesin cevap vermediği noktalar `kararlar` alanında işaretlenir (A/B/C/D) ve
- * harness bunları PASS saymaz.
+ * A/B/C/D belirsizlikleri owner tarafından 2026-10-18'de karara bağlandı; yeni belirsizlik bulunursa
+ * `kararlar` alanında işaretlenir ve harness PASS saymaz.
  */
 
 export const OZEL = [11, 19, 22, 33] as const;
@@ -63,11 +67,12 @@ export function hamSessiz(kelime: string): number {
 }
 
 export type Karar = "A" | "B" | "C" | "D";
+/** 2026-10-18 owner nihai kararıyla kapatılan sorular (rapor için). */
 export const KARAR_ACIKLAMA: Record<Karar, string> = {
-  A: "Özel parça/çift yokken toplam 11/19/22/33 (Durum 1): 10. çakra mı, isim sadeleşmeleri mi?",
-  B: "Yalnız iki parçalı özel çift (ör. 6+5=11) dışarıda parça yokken ikinci sayı (küçük parça kuralı kaynaksız)",
-  C: "İki veya daha fazla özel sayıda 10. çakraya tek destek mi, her özel sayıya ayrı destek mi?",
-  D: "Kalanı olmayan / sadeleşmiş hâli özel olan özel Ana Kulvar'da sadeleşmiş hâl desteği (ör. tek 19 → [10] mi [10,1] mi?)",
+  A: "KAPANDI — toplamı özel olan parçalar (ör. [9,1,9] → 19) → [10]; parçalar ayrıca sayılmaz",
+  B: "KAPANDI — 5+6=11 dışarıda parça yoksa yalnız '11' → [10]; yapay /5 yok. 5+6+5 → 11/5 → [10,5]",
+  C: "KAPANDI — birden fazla özel sayıda 10. çakraya tek destek",
+  D: "KAPANDI — özel sayı tek başına yalnız [10]; sadeleştirilerek ikinci destek üretilmez",
 };
 
 export type KulvarRef = {
@@ -141,7 +146,12 @@ export function kulvarRef(bilesen: number[]): KulvarRef {
   const kullan = new Set(best.idx);
   const taban = bilesen.filter((v, i) => v > 0 && !kullan.has(i));
   const kullanilan = best.idx.map((i) => bilesen[i]);
-  const anaHane = taban.length > 0 ? sadeOzelDur(taban.reduce((a, b) => a + b, 0)) : kullanilan.length >= 2 ? Math.min(...kullanilan) : best.s;
+  const anaHane =
+    taban.length > 0
+      ? sadeOzelDur(taban.reduce((a, b) => a + b, 0))
+      : ozelParca.length === 0
+        ? best.s // owner kararı: kalansız özel çift → yalnız özel sayı
+        : kullanilan.length >= 2 ? Math.min(...kullanilan) : best.s;
 
   if (ozelParca.length > 0) {
     // Tüm parçalar özel
@@ -163,32 +173,37 @@ export function kulvarRef(bilesen: number[]): KulvarRef {
   // Durum 4: yalnız özel çift
   const olus: KulvarRef["ozelOlusumlar"] = [{ sayi: best.s, parcalar: kullanilan, tur: "cift" }];
   if (taban.length > 0 && isOzel(anaHane)) olus.push({ sayi: anaHane, parcalar: taban, tur: "kalan" });
-  const ana = `${best.s}/${anaHane}`;
+  const ana = taban.length > 0 ? `${best.s}/${anaHane}` : String(best.s);
   return { bilesen, durum: "D4", ozelOlusumlar: olus, kalan: taban, anaGosterim: ana, parantez: "", gosterim: ana, anahtar: String(anaHane) };
 }
 
 export type CakraRef = { destekler: number[]; kararlar: Karar[]; aciklama: string };
 
-/** Ana Kulvar çakra desteği — 03.10.2026 kararı + eğitim notu s.2 (onaylı kural). */
+/** Ana Kulvar çakra desteği — eğitim notu s.2 + 03.10.2026 + owner nihai kararı 2026-10-18. */
 export function anaCakraRef(k: KulvarRef): CakraRef {
   const kararlar: Karar[] = [];
   if (k.durum === "bos") return { destekler: [], kararlar, aciklama: "parça yok" };
   if (k.durum === "D1") {
     const parca = k.kalan;
-    const ana = tekHane(parca.reduce((a, b) => a + b, 0));
-    if (isOzel(sadeOzelDur(parca.reduce((a, b) => a + b, 0)))) kararlar.push("A");
-    return { destekler: ana >= 1 && ana <= 9 ? [...parca, ana] : [...parca], kararlar, aciklama: `özel değil: parçalar ${parca.join("-")} + Ana Kulvar ${ana}` };
+    const toplam = sadeOzelDur(parca.reduce((a, b) => a + b, 0));
+    if (isOzel(toplam)) return { destekler: [10], kararlar, aciklama: `parçalar ${parca.join("+")} → ${toplam} özel sayıyı oluşturur: yalnız 10. çakra` };
+    const ana = tekHane(toplam);
+    return { destekler: [...parca, ana], kararlar, aciklama: `özel değil: parçalar ${parca.join("-")} + Ana Kulvar ${ana}` };
   }
-  const key = Number(k.anahtar);
-  const out = [10];
-  if (key >= 1 && key <= 9) out.push(key);
-  else kararlar.push("D");
-  if (k.ozelOlusumlar.length >= 2) kararlar.push("C");
-  if (k.durum === "D4" && k.kalan.length === 0) kararlar.push("B");
+  // Gerçek kalan: özel oluşuma GİRMEYEN, özel olmayan parçaların sadeleşmişi (1–9). D3/tek-özel: yok.
+  let gercek: number | null = null;
+  if (k.durum === "D2" || k.durum === "D4") {
+    const normal = k.kalan.filter((v) => !isOzel(v));
+    if (normal.length) {
+      const r = sadeOzelDur(normal.reduce((a, b) => a + b, 0));
+      if (r >= 1 && r <= 9) gercek = r;
+    }
+  }
+  const out = gercek !== null ? [10, gercek] : [10];
   return {
     destekler: out,
     kararlar,
-    aciklama: `özel (${k.ozelOlusumlar.map((o) => o.sayi).join(", ")}): 10. çakra${key >= 1 && key <= 9 ? ` + sadeleşmiş ${key}` : " (sadeleşmiş hâl 1–9 değil)"}`,
+    aciklama: `özel (${k.ozelOlusumlar.map((o) => o.sayi).join(", ")}): 10. çakraya tek destek${gercek !== null ? ` + gerçek kalan ${gercek}` : " (gerçek kalan yok)"}`,
   };
 }
 
@@ -211,7 +226,7 @@ export function alternatiflerRef(bilesen: number[]): AltRef[] {
     if (!yol || yollar.has(yol)) return;
     const ozelSayilar = [...toplamlar, ...(kd !== null && isOzel(kd) ? [kd] : [])];
     const destekler = [10, ...(kd !== null && kd >= 1 && kd <= 9 ? [kd] : [])];
-    const kararlar: Karar[] = ozelSayilar.length >= 2 ? ["C"] : [];
+    const kararlar: Karar[] = [];
     yollar.set(yol, { yol, gruplar: gruplar.map((g) => [...g]), kalan: [...kalan], kalanDeger: kd, ozelSayilar, destekler, kararlar });
   };
   const ata = (i: number) => {

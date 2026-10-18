@@ -195,9 +195,8 @@ function AltCakraSutunuPanel({ col }: { col: AlternativeChakraColumn }) {
         ) : null}
       </dl>
       {col.ozelSayilar.length > 1 ? (
-        <p className="mt-0.5 text-[11px] leading-snug text-amber-800/90">
-          Bu yolda {col.ozelSayilar.length} özel sayı var ({col.ozelSayilar.join(", ")}); onaylı kurala göre 10. çakraya tek destek
-          verilmiştir. Her özel sayıya ayrı destek verilmesi owner kararı bekliyor.
+        <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
+          Bu yolda {col.ozelSayilar.length} özel sayı var ({col.ozelSayilar.join(", ")}); 10. çakraya tek destek verilir.
         </p>
       ) : null}
       {col.variantCount > 1 ? (

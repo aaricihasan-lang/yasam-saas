@@ -157,6 +157,11 @@ export function calcAnaKulvar(firstName: string, lastName: string): NumerolojiRe
       steps.push(
         `Özel oluşum dışında kalan parçaların toplamı: ${baseValues.join(" + ")} = ${baseSum} → ${mainDigit}`
       );
+    } else if (!values.some((v) => SPECIAL_NUMBERS.has(v))) {
+      // OWNER NİHAİ KARARI (2026-10-18): özel parça yokken yalnız özel çift oluşmuş ve dışarıda
+      // GERÇEK kalan parça yoksa sonuç yalnız özel sayıdır (5 + 6 = 11 → "11"). Yapay ikinci sayı
+      // ("11/5": çiftin küçük parçası, 24.05.2026 kuralı) üretilmez.
+      mainDigit = specialNum;
     } else {
       const usedValues = best.usedIndices.map((i) => values[i]).filter((v) => v > 0);
       mainDigit = usedValues.length >= 2 ? Math.min(...usedValues) : specialNum;
@@ -185,7 +190,8 @@ export function calcAnaKulvar(firstName: string, lastName: string): NumerolojiRe
       }
     } else {
       const pathDisplay = buildSpecialPathDisplay(values);
-      display = pathDisplay !== "" ? pathDisplay : `${specialNum}/${mainDigit}`;
+      display =
+        pathDisplay !== "" ? pathDisplay : baseValues.length > 0 ? `${specialNum}/${mainDigit}` : String(specialNum);
     }
     const uniqueSpecialNums = [...new Set(specialCandidates.map((c) => c.specialNum))].sort((a, b) => a - b);
     steps.push(`Özel sayılar (Ana Kulvar): ${uniqueSpecialNums.join(", ")}`);
