@@ -42,7 +42,7 @@ export const atlasDangerBtn =
   "inline-flex items-center justify-center gap-1.5 rounded-lg border border-rose-300 bg-white/70 px-3 py-1.5 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:opacity-40";
 /** İçerik paneli ("kâğıt"). */
 export const atlasPanel =
-  "rounded-2xl border border-[#e7dcc3] bg-[#FBF8F2] text-slate-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_24px_50px_-30px_rgba(0,0,0,0.9)]";
+  "rounded-2xl border border-[#e7dcc3] bg-[#FBF8F2] text-slate-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_24px_50px_-30px_rgba(0,0,0,0.9)] max-sm:rounded-none max-sm:border-x-0";
 /** Koyu kabuk üzerindeki giriş alanı. */
 export const atlasDarkInput =
   "rounded-lg border border-white/12 bg-black/25 px-3 py-2 text-sm text-[#F6F2EA] placeholder:text-[#F6F2EA]/40 outline-none transition focus:border-[#D9B56F]/70 [color-scheme:dark]";
@@ -108,7 +108,7 @@ export function AtlasHeader({
     <header className={`${atlasDisplay.variable} ${atlasText.variable} relative overflow-hidden text-[#F6F2EA] [font-family:var(--font-atlas-text)]`}>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_50%_120%_at_92%_0%,rgba(106,168,255,0.12),transparent_60%),radial-gradient(ellipse_40%_120%_at_0%_100%,rgba(217,181,111,0.08),transparent_60%)]" />
       <OrbitArt className="pointer-events-none absolute -right-20 -top-32 h-[300px] w-[300px] opacity-50" />
-      <div className="relative mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8">
+      <div className="relative mx-auto w-full max-w-[1600px] px-3 sm:px-6 lg:px-8">
         <div className={`flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-white/[0.07] ${dense ? "py-2 lg:flex-nowrap" : "py-3"}`}>
           <button type="button" onClick={() => onNavigate("home")} className="group flex shrink-0 items-center gap-3 py-0.5 text-left" title="Gökyüzü Atlası ana ekranı">
             <span className="relative flex h-9 w-9 items-center justify-center rounded-full border border-[#D9B56F]/50 text-[#E6CF9F] shadow-[0_0_24px_-6px_rgba(217,181,111,0.6)] transition group-hover:border-[#D9B56F]">
@@ -176,7 +176,7 @@ export function AtlasHeader({
 /** Görünüm başlığı (iç görünümler; gece zemininde): altın eyebrow + ince serif başlık + açıklama. */
 export function AtlasViewTitle({ title, sub, eyebrow, actions }: { title: string; sub?: string; eyebrow?: string; actions?: ReactNode }) {
   return (
-    <div className={`${atlasDisplay.variable} flex flex-wrap items-end justify-between gap-3`}>
+    <div className={`${atlasDisplay.variable} flex flex-wrap items-end justify-between gap-3 max-sm:px-3`}>
       <div className="min-w-0">
         {eyebrow && <p className={atlasEyebrow}>{eyebrow}</p>}
         <h2 className="mt-1 text-2xl font-light tracking-[0.03em] text-[#F6F2EA] [font-family:var(--font-atlas-display)] sm:text-[1.75rem]">{title}</h2>

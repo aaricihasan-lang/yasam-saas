@@ -22,6 +22,7 @@ import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import { GRAHA_LABELS, KARANA_LABELS, NAKSHATRA_LABELS, NITYA_YOGA_LABELS, TITHI_LABELS } from "@/lib/astrology/topics/vedic";
 import type { KbLookup } from "./VedicPanels";
+import { GOCHARA_SUMMARY_NOTE, GOCHARA_TERMS, gocharaSummary } from "@/lib/astrology/gocharaSummary";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -133,7 +134,7 @@ export function VedicTransitPanel({ t, kbLookup }: { t: VedicTransitTechnical; k
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-vedic-transit-panel">
       <p className="text-sm text-slate-700">
         <strong>Gochara</strong> · {t.at.utc.slice(8, 10)}.{t.at.utc.slice(5, 7)}.{t.at.utc.slice(0, 4)} {t.at.utc.slice(11, 16)} UTC (doğum ofsetinde {local}, UTC{off}) · sidereal, Lahiri
-        (sabit) · Janma Rashi <strong>{SIGN_LABELS[t.janmaRashi]}</strong> · Lagna <strong>{SIGN_LABELS[t.lagnaRashi]}</strong>
+        (sabit{t.frame.ayanamsaDegrees !== null ? `, ${formatDegree(t.frame.ayanamsaDegrees)}` : ""}) · Janma Rashi <strong>{SIGN_LABELS[t.janmaRashi]}</strong> · Lagna <strong>{SIGN_LABELS[t.lagnaRashi]}</strong>
       </p>
       <p className="text-xs text-slate-500">
         Klasik Gochara Janma Rashi&apos;den (natal Ay rashisi) sayılır; Lagna&apos;dan ev ayrıca gösterilir. Drishti bütün-burç (Parashari): herkes 7.; Mars 4./8.; Jüpiter 5./9.;
@@ -226,6 +227,28 @@ export function VedicTransitPanel({ t, kbLookup }: { t: VedicTransitTechnical; k
           </section>
         )}
       </div>
+      <section className={`${card} p-3`} data-testid="astro-vedic-transit-summary" aria-label="Türkçe teknik özet">
+        <h4 className="text-sm font-semibold text-slate-800">Türkçe teknik özet</h4>
+        <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{GOCHARA_SUMMARY_NOTE}</p>
+        <ul className="mt-2 flex flex-col gap-1.5 text-sm text-slate-800">
+          {gocharaSummary(t).map((g) => (
+            <li key={g.id} className={`rounded-lg px-2 py-1 ${g.slow ? "bg-indigo-50/60" : ""}`} data-gochara-summary={g.id}>
+              {g.text}
+            </li>
+          ))}
+        </ul>
+      </section>
+      <details className="text-xs text-slate-600" data-testid="astro-vedic-transit-terms">
+        <summary className="cursor-pointer">Terimler</summary>
+        <dl className="mt-1 grid gap-x-3 gap-y-1 sm:grid-cols-[auto_1fr]">
+          {GOCHARA_TERMS.map(([k, v]) => (
+            <div key={k} className="contents">
+              <dt className="font-semibold text-slate-700">{k}</dt>
+              <dd>{v}</dd>
+            </div>
+          ))}
+        </dl>
+      </details>
       <details className="text-xs text-slate-600">
         <summary className="cursor-pointer">Natal grahalar (Gochara referansı)</summary>
         <ul className="mt-1 grid gap-x-4 sm:grid-cols-3">

@@ -15,14 +15,18 @@ import { WHEEL_LEGEND } from "./wheelSvg";
 import { bayerBoth, FIXED_STAR_CATALOG, FIXED_STAR_FAR_LAT, fixedStarName, fixedStarNatureLabel, starKeywordTr } from "../labels/fixedStars";
 import { FIXED_STAR_ORB_QUERY, fixedStarOrbOf } from "../model/westernFixedStars";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
-import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicVargaTechnical } from "../model/vedic";
+import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_TRANSIT_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicTransitTechnical, type VedicVargaTechnical } from "../model/vedic";
 import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpTransitTechnical } from "../model/kp";
 import { kundliTitles, toKundliData, toVargaChartData } from "@/app/admin/astroloji/_lib/kundliData";
 import { kundliLegend } from "@/app/admin/astroloji/_lib/kundliLocalize";
 import { localSpaceCenter, localSpaceCenterNote, localSpaceText } from "../localSpaceCenter";
 import { interpretationKindNote, interpretationKindOfSchema } from "../interpretationKind";
+import { KP_LEGEND, KP_TRANSIT_LEGEND } from "@/app/admin/astroloji/_lib/kpChart";
+// TRANSİT-03: KP zaman aralığı şeması (ayrı satır: TRANSİT-01/02 import değişiklikleriyle birleştirme çakışması olmasın).
+import { KP_PROVIDER_CORRECTION_NOTE, KP_TIMING_TECHNICAL_SCHEMA } from "../model/kp";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "../noProviderInterp";
 import { figureTitle, type ReportFigure } from "./figures";
+import { GOCHARA_STRIP_LEGEND, GOCHARA_SUMMARY_NOTE, GOCHARA_TERMS, gocharaSummary } from "../gocharaSummary";
 import { ACG_ANGLES, BODY_COLORS, CLASSICAL, acgMapLines, acgMcLabels, localSpaceMapLines } from "@/app/admin/astroloji/_lib/locationMaps";
 import { ACG_TECHNICAL_SCHEMA, LOCAL_SPACE_TECHNICAL_SCHEMA, type AstrocartographyTechnical, type LocalSpaceTechnical } from "../model/westernLocation";
 import type { BodyId } from "../model/western";
@@ -837,31 +841,55 @@ function vedic(b: B, technique: string, t: O) {
       return;
     }
     case "vedic.transit": {
+      // TRANSİT-02: Türkçe teknik başlıklar + Türkçe teknik özet (yorum değil) + natal referans + terimler.
       const at = isObj(t.at) ? t.at : {};
+      const fr = isObj(t.frame) ? t.frame : {};
       b.kv([
-        ["Zodyak", "Sidereal (Lahiri, sabit)"],
-        ["Transit anı", `${utcTr(at.utc)} · yerel ${localTr(at.local)}`],
+        ["Zodyak", "Sidereal (nirayana)"],
+        ["Ayanamsa", `${ayL(fr.ayanamsa ?? "lahiri")}${num(fr.ayanamsaDegrees) !== null ? ` · ${formatDegree(num(fr.ayanamsaDegrees)!)}` : ""} — bu teknikte sabit (sağlayıcı başka ayanamsa kabul etmez)`],
+        ["Transit anı (UTC)", utcTr(at.utc)],
+        ["Transit anı (doğum ofsetinde)", `${localTr(at.local)} (${offset(at.utcOffsetHours)})`],
         ["Lagna rashisi", signL(t.lagnaRashi)],
         ["Janma rashisi (natal Ay)", signL(t.janmaRashi)],
-        ["Yavaş graha vurguları", arr(t.slow).length ? list(t.slow, grahaL) : DASH],
+        ["Yavaş grahalar", arr(t.slow).length ? list(t.slow, grahaL) : DASH],
       ]);
+      b.p("Klasik Gochara evleri Janma Rashi'den (natal Ay burcu) sayılır; Lagna'dan bhava ayrıca verilir. Drishti Parashari bütün-burç kuralıdır (herkes 7.; Mars 4./8.; Jüpiter 5./9.; Satürn 3./10.; Rahu/Ketu bakış atmaz). Batı açıları (kare, üçgen vb.) bu teknikte kullanılmaz.", "muted");
       const rows = arr(t.transits).map((x) => {
         const k = isObj(x.kaksha) ? x.kaksha : null;
         return [
-          grahaL(x.id),
+          `${grahaL(x.id)}${arr<unknown>(t.slow).includes(x.id) ? " (yavaş)" : ""}`,
           pos(x.rashi, x.degreeInRashi),
-          houseL(x.natalHouse),
-          houseL(x.houseFromMoon),
-          arr(x.drishti).length ? arr(x.drishti).map((d) => `${grahaL(d.to)} (${d.type === 1 ? "aynı rashi" : `${s(d.type)}.`})`).join(", ") : DASH,
-          k ? `${s(k.number)}. · ${grahaL(k.lord)}${k.bindu === true ? " · bindu" : k.bindu === false ? " · bindu yok" : ""}` : DASH,
+          num(x.houseFromMoon) === null ? DASH : `${num(x.houseFromMoon)}.`,
+          num(x.natalHouse) === null ? DASH : `${num(x.natalHouse)}.`,
+          arr(x.drishti).length ? arr(x.drishti).map((d) => `${grahaL(d.to)} (${d.type === 1 ? "aynı rashi" : `${s(d.type)}. bakış`})`).join(", ") : x.id === "rahu" || x.id === "ketu" ? "bakış yok (Rahu/Ketu)" : DASH,
+          k ? `${s(k.number)}/8 · ${k.lord === "lagna" ? "Lagna" : grahaL(k.lord)}${k.bindu === true ? ` · bindu var (${s(k.binduCount)}/8)` : k.bindu === false ? ` · bindu yok (${s(k.binduCount)}/8)` : " · bindu uygulanmaz"}` : DASH,
         ];
       });
-      b.h(3, "Gochara");
-      b.table(["Graha", "Rashi ve derece", "Lagna'dan", "Ay'dan", "Natal bakışlar", "Kaksha"], rows, { widths: [1.5, 1.5, 0.9, 0.9, 2.6, 1.6], compact: true, empty: "Kayıtta transit verisi yok." });
+      b.h(3, "Gochara tablosu");
+      b.table(["Transit graha", "Rashi ve derece", "Janma Rashi'den ev", "Lagna'dan bhava", "Natal grahaya drishti", "Kaksha · yönetici · bindu"], rows, {
+        widths: [1.5, 1.5, 1, 1, 2.4, 2],
+        compact: true,
+        empty: "Kayıtta transit verisi yok.",
+      });
+      const tech = t as unknown as VedicTransitTechnical;
+      const summary = arr(t.transits).length ? gocharaSummary(tech) : [];
+      if (summary.length) {
+        b.h(3, "Türkçe teknik özet");
+        b.p(GOCHARA_SUMMARY_NOTE, "muted");
+        b.bullets(summary.map((x) => x.text));
+      }
+      const natal = arr(t.natal).map((n) => [grahaL(n.id), pos(n.rashi, num(n.longitude) !== null ? (num(n.longitude) as number) % 30 : null), num(n.house) === null ? DASH : `${num(n.house)}.`]);
+      if (natal.length) {
+        b.h(3, "Natal grahalar (Gochara referansı)");
+        b.table(["Natal graha", "Rashi ve derece", "Lagna'dan bhava"], natal, { widths: [2, 2.5, 1.5], compact: true });
+      }
+      b.h(3, "Terimler");
+      b.table(["Terim", "Açıklama"], GOCHARA_TERMS.map(([k, v]) => [k, v]), { widths: [1.4, 5], compact: true });
       return;
     }
   }
 }
+
 
 const DASHA_LEVEL: Record<string, string> = { mahadasha: "Mahadasha", antardasha: "Antardasha (bhukti)", pratyantardasha: "Pratyantardasha" };
 
@@ -952,6 +980,77 @@ function kpSignificators(b: B, sig: unknown, method: KpNodeSigMethodId) {
   nodeNote(b, method, "bu tablo");
 }
 
+// ─── TRANSİT-03: KP Transit zaman aralığı raporu (ekrandaki tablolarla aynı veri; yeni hesap YOK) ───────────────
+const kpTz = (v: unknown): string => {
+  if (typeof v !== "string" || !v) return "UTC";
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: v });
+    return v;
+  } catch {
+    return "UTC";
+  }
+};
+/** UTC anı → seçilen bölgede "GG.AA.YYYY SS:DD GMT+3" (UTC ise "… UTC"). */
+const kpAtZone = (utcIso: unknown, tz: string) => {
+  if (typeof utcIso !== "string" || !Number.isFinite(Date.parse(utcIso))) return DASH;
+  if (tz === "UTC") return utcTr(utcIso);
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "shortOffset" })
+      .formatToParts(new Date(Date.parse(utcIso)))
+      .map((x) => [x.type, x.value]),
+  );
+  return `${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute} ${p.timeZoneName}`;
+};
+const gShort = (v: unknown) => (typeof v === "string" ? (GRAHA_LABELS[v] ?? v).split(" ")[0] : DASH);
+
+/** Kip etiketi gerçekten seçilen içeriklerden (yalnız konum tablosu → "geçişleri" demez). Tür yoksa (eski/eksik kayıt) yalnız "Zaman aralığı". */
+export function kpTimingModeLabel(kinds: unknown[]): string {
+  const ev = [kinds.includes("sublord") ? "Sub-Lord" : null, kinds.includes("rasi") ? "Rasi" : null].filter(Boolean);
+  const parts = [ev.length ? `${ev.join(" / ")} geçişleri` : null, kinds.includes("positions") ? "KP konum tablosu" : null].filter(Boolean);
+  return parts.length ? `Zaman aralığı (${parts.join(" + ")})` : "Zaman aralığı";
+}
+
+function kpTimingReport(b: B, t: O, opts: O) {
+  const tz = kpTz(opts.displayTz);
+  const w = isObj(t.window) ? t.window : {};
+  b.kv([
+    ...kpFrame(t).filter(([k]) => k !== "Ev sistemi"),
+    ["Kip", kpTimingModeLabel(arr<unknown>(t.kinds))],
+    ["Aralık", `${dateTr(w.startDate)} – ${dateTr(w.endDate)} (UTC günleri, iki uç dahil)`],
+    ["Gösterim saat dilimi", tz],
+    ["Gezegenler", arr<unknown>(t.planets).length ? list(t.planets, grahaL) : DASH],
+  ]);
+  b.p("Anlar sağlayıcıdan UTC alınmış ve seçilen saat diliminde gösterilmiştir (yaz/kış saati her an için ayrı). KP yalnız KP numarası, yıldız (nakshatra) lordu, sub-lord ve rasi ile okunur; Batı açıları bu teknikte yoktur.", "muted");
+  const missing = arr<unknown>(t.missing).filter((x): x is string => typeof x === "string");
+  if (missing.length) b.p(`Hesaplanamayan parçalar: ${missing.join(", ")} — bu parçalar için liste eksiktir.`, "warn");
+  const kinds = arr<unknown>(t.kinds);
+  if (kinds.includes("sublord")) {
+    const rows = arr(t.sublord)
+      .flatMap((x) => arr(x.changes).map((c): O => ({ ...c, planet: x.planet })))
+      .sort((a, z) => String(a.atUtc).localeCompare(String(z.atUtc)))
+      .map((c) => [kpAtZone(c.atUtc, tz), grahaL(c.planet), `${s(c.fromKp)} · ${gShort(c.fromStar)} / ${gShort(c.fromSub)}`, `${s(c.toKp)} · ${gShort(c.toStar)} / ${gShort(c.toSub)}${c.fromStar !== c.toStar ? " (yıldız değişti)" : ""}${isObj(c.corrected) ? " *" : ""}`, utcTr(c.atUtc)]);
+    b.h(3, `Sub-Lord değişimleri (${rows.length})`);
+    b.table([`An (${tz})`, "Gezegen", "Önceki KP · yıldız / sub", "Yeni KP · yıldız / sub", "UTC (tarih ve saat)"], rows, { widths: [1.7, 1.15, 1.75, 2.1, 1.6], compact: true, empty: "Bu aralıkta Sub-Lord değişimi yok." });
+    if (arr(t.sublord).some((x) => arr(x.changes).some((c) => isObj(c.corrected)))) b.p(KP_PROVIDER_CORRECTION_NOTE, "muted");
+  }
+  if (kinds.includes("rasi")) {
+    const rows = arr(t.rasi)
+      .flatMap((x) => arr(x.changes).map((c): O => ({ ...c, planet: x.planet })))
+      .sort((a, z) => String(a.atUtc).localeCompare(String(z.atUtc)))
+      .map((c) => [kpAtZone(c.atUtc, tz), grahaL(c.planet), `${signL(c.fromRashi)} (${gShort(c.fromLord)})`, `${signL(c.toRashi)} (${gShort(c.toLord)})`, utcTr(c.atUtc)]);
+    b.h(3, `Rasi (burç) geçişleri (${rows.length})`);
+    b.table([`An (${tz})`, "Gezegen", "Çıkılan burç (yönetici)", "Girilen burç (yönetici)", "UTC (tarih ve saat)"], rows, { widths: [1.7, 1.15, 1.85, 1.85, 1.6], compact: true, empty: "Bu aralıkta rasi geçişi yok." });
+  }
+  const pos = isObj(t.positions) ? t.positions : null;
+  if (pos) {
+    // Geniş tablo sayfa taşmasın: her an için 9 graha ayrı satır (an · graha · rashi/derece · KP no · yıldız/sub · retro).
+    const rows = arr(pos.rows).flatMap((r) => arr(r.bodies).map((x, i) => [i === 0 ? kpAtZone(r.atUtc, tz) : "", grahaL(x.id), pos2(x), s(x.kpNumber), `${gShort(x.starLord)} / ${gShort(x.subLord)}`, x.retrograde === true && x.id !== "rahu" && x.id !== "ketu" ? "℞" : ""]));
+    b.h(3, `KP konum tablosu (${arr(pos.rows).length} an · ${num(pos.intervalMinutes) !== null && (num(pos.intervalMinutes) as number) >= 60 ? `${(num(pos.intervalMinutes) as number) / 60} saatte bir` : `${s(pos.intervalMinutes)} dk`})`);
+    b.table([`An (${tz})`, "Graha", "Rashi ve derece", "KP no", "Yıldız / sub", "Retro"], rows, { widths: [1.8, 1.4, 1.6, 0.7, 1.6, 0.5], compact: true });
+  }
+}
+const pos2 = (x: O) => (typeof x.rashi === "string" && num(x.degreeInRashi) !== null ? `${signL(x.rashi)} ${formatDegree(num(x.degreeInRashi)!)}` : DASH);
+
 function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: number } | null) {
   const placeLabel = isObj(opts.place) && typeof opts.place.label === "string" ? opts.place.label : null;
   switch (technique) {
@@ -989,6 +1088,10 @@ function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: n
       return;
     }
     case "kp.transit": {
+      if (t.schema === KP_TIMING_TECHNICAL_SCHEMA) {
+        kpTimingReport(b, t, opts);
+        return;
+      }
       const at = isObj(t.at) ? t.at : {};
       b.kv([...kpFrame(t).filter(([k]) => k !== "Ev sistemi"), ["An", utcTr(at.utc)]]);
       b.p("KP transit tek an için KP efemerisidir; natal cusp'lara göre ev analizi sağlayıcıda yoktur.", "muted");
@@ -1215,9 +1318,7 @@ const VEDIC_GRAHA_ORDER: VedicGrahaId[] = ["sun", "moon", "mars", "mercury", "ju
 const KP_AY: Record<string, string> = { "kp-newcomb": "KP-Newcomb", "kp-old": "KP (eski tablo)" };
 const FIGURE_MISSING = "Harita bu kayıtta eksik teknik veri nedeniyle çizilemedi; teknik tablolar aşağıdadır.";
 const KUNDLI_LEGEND = `${kundliLegend(VEDIC_GRAHA_ORDER)} · ʳ vakri · ᶜ yanık (asta) · ʷ graha yuddha. Kuzey düzeninde 3+ grahalı hücrede derece haritada gösterilmez (tabloda).`;
-const KP_LEGEND = "Burç kutuları sabit (Güney Hindistan). Çerçeveli etiket = Placidus ev başlangıcı (cusp); gri = graha. KP evleri burç kutusu değildir — bir burçta iki cusp olabilir, bir ev iki burca yayılabilir. ʳ vakri.";
-/** KP transit: figürde cusp YOK (cusps: []) → Placidus/cusp anlatımı bu haritaya uymaz (2026-10-15 UAT). */
-const KP_TRANSIT_LEGEND = "Burç kutuları sabit (Güney Hindistan). Gri etiket = graha (transit anındaki gökyüzü konumu). Bu haritada ev başlangıcı (cusp) çizilmez: KP transit tek an için gökyüzüdür. ʳ vakri.";
+// KP harita açıklamaları ekranla ORTAK kaynaktan (KP-UX-06): KP transit figüründe cusp YOK → KP_TRANSIT_LEGEND.
 const KUNDLI_NOTE = "Kuzey Hindistan düzeni (uygulamadaki varsayılan görünüm; Lagna üst ortadaki 1. ev). Kayıtlı analiz verisinden, uygulamadaki harita bileşeniyle çizilmiştir.";
 const KP_NOTE = "Güney Hindistan burç düzeni; uygulamadaki KP haritasıyla aynı yerleşim. Kayıtlı analiz verisinden çizilmiştir.";
 
@@ -1294,6 +1395,20 @@ function vedicKpFigure(technique: string, t: O, ctx: FigureCtx = { birth: null, 
       const level = DASHA_LEVEL_TR[String(t.level)] ?? "Dasha";
       return { figure: { type: "dashaTimeline", periods }, caption: `${figureTitle(technique)} — ${level} dönemleri; kayıtlı analiz verisinden çizilmiştir.`, legend: DASHA_LEGEND, heading };
     }
+    if (technique === "vedic.transit") {
+      const heading = "Gochara ev şeridi";
+      const tr = arr(t.transits);
+      const valid = tr.length > 0 && typeof t.janmaRashi === "string" && SIGN_IDS.includes(t.janmaRashi as SignId) && tr.every((x) => isGraha(x.id) && num(x.houseFromMoon) !== null && (num(x.houseFromMoon) as number) >= 1 && (num(x.houseFromMoon) as number) <= 12);
+      if (t.schema !== VEDIC_TRANSIT_TECHNICAL_SCHEMA || !valid) return { missing: FIGURE_MISSING, heading };
+      const slow = arr<unknown>(t.slow).filter((x): x is string => typeof x === "string");
+      const j = SIGN_IDS.indexOf(t.janmaRashi as SignId);
+      const cells = Array.from({ length: 12 }, (_, i) => ({
+        house: i + 1,
+        rashi: SIGN_IDS[(j + i) % 12],
+        grahas: tr.filter((x) => num(x.houseFromMoon) === i + 1).map((x) => ({ id: x.id as VedicGrahaId, slow: slow.includes(String(x.id)) })),
+      }));
+      return { figure: { type: "gocharaStrip", cells }, caption: `${figureTitle(technique)} — kayıtlı analiz verisinden çizilmiştir.`, legend: GOCHARA_STRIP_LEGEND, heading };
+    }
     if (technique === "vedic.shadbala") {
       const heading = "Güç grafiği";
       const ps = arr(t.planets);
@@ -1322,6 +1437,8 @@ function vedicKpFigure(technique: string, t: O, ctx: FigureCtx = { birth: null, 
       return { figure: { type: "kp", cusps: d.cusps, bodies: d.bodies, center }, caption: `${figureTitle(technique)} — ${KP_NOTE}`, legend: KP_LEGEND };
     }
     if (technique === "kp.transit") {
+      // TRANSİT-03: zaman aralığı kipinde harita yok (tablolar); "çizilemedi" notu da konmaz.
+      if (t.schema === KP_TIMING_TECHNICAL_SCHEMA) return null;
       if (t.schema !== KP_TRANSIT_TECHNICAL_SCHEMA || !hasPts(t.bodies) || !isObj(t.frame)) return { missing: FIGURE_MISSING };
       const d = t as unknown as KpTransitTechnical;
       return { figure: { type: "kp", cusps: [], bodies: d.bodies, center: { title: "KP transit", lines: ["gökyüzü (an)", KP_AY[d.frame.ayanamsa] ?? String(d.frame.ayanamsa)] } }, caption: `${figureTitle(technique)} — ${KP_NOTE}`, legend: KP_TRANSIT_LEGEND };

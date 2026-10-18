@@ -104,7 +104,9 @@ import {
   ROXY_VEDIC_VARGA,
 } from "../providers/roxy/vedic";
 import { kpChartBody, kpHoraryBody, kpPlanetsAtBody, kpRulingBody, KP_AYANAMSAS, vedicBirthBody, vedicTransitBody, VEDIC_AYANAMSAS, type KpAyanamsa, type KpNodeType, type VedicAyanamsa } from "../providers/roxy/requests";
-import { projectRoxyKpChart, projectRoxyKpHorary, projectRoxyKpPlanetsAt, projectRoxyKpRuling, ROXY_KP_CHART, ROXY_KP_HORARY, ROXY_KP_PLANETS_AT, ROXY_KP_RULING } from "../providers/roxy/kp";
+import { projectRoxyKpChart, projectRoxyKpHorary, projectRoxyKpPlanetsAt, projectRoxyKpPlanetsRange, projectRoxyKpRasiChanges, projectRoxyKpRuling, projectRoxyKpSublordChanges, ROXY_KP_CHART, ROXY_KP_HORARY, ROXY_KP_PLANETS_AT, ROXY_KP_PLANETS_RANGE, ROXY_KP_RASI, ROXY_KP_RULING, ROXY_KP_SUBLORD } from "../providers/roxy/kp";
+import { addDays, kpChangesBody, kpPlanetsRangeBody, KP_TIMING_PLANET_NAME } from "../providers/roxy/requests";
+import { KP_TIMING_KINDS, KP_TIMING_PLANETS, KP_TIMING_TECHNICAL_SCHEMA, type KpTimingKind, type KpTimingPart, type KpTimingPlanet, type KpTimingTechnical } from "../model/kp";
 import { KP_CHART_INTERP_SCHEMA, KP_CHART_TECHNICAL_SCHEMA, KP_EXTRA_INTERP_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_RULING_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA } from "../model/kp";
 import { KP_DASHA_TECHNICAL_SCHEMA } from "../model/vedic";
 import {
@@ -1051,7 +1053,7 @@ const kpRuling: TechniqueDefinition = {
 
 const kpTransit: TechniqueDefinition = {
   id: "kp.transit",
-  label: "KP transit (KP efemerisi, tek an)",
+  label: "KP transit (tek an / zaman aralığı)",
   family: "kp",
   requiresPartner: false,
   // Gökyüzü konumları doğum verisine bağlı değil (Roxy natal ev/transit analizi vermez — KISMİ).
@@ -1059,20 +1061,111 @@ const kpTransit: TechniqueDefinition = {
   timeDependent: true,
   parseOptions: (raw, now) => {
     const r = o(raw);
-    const atUtc = normalizeTransitMoment(r, now);
     const ay = kpAyanamsaOf(r.ayanamsa);
     const nt = kpNodeOf(r.nodeType);
+    // TRANSİT-03: zaman aralığı kipi (`range` varsa). Tek-an kipinin seçenek nesnesi ve istek gövdesi BİREBİR eskisi.
+    if (r.range !== undefined) {
+      const range = parseKpRange(r.range);
+      if (!range || !ay || !nt) return null;
+      const out: Record<string, unknown> = { ayanamsa: ay, nodeType: nt, range };
+      if (r.displayTz !== undefined) {
+        if (typeof r.displayTz !== "string" || !isValidIanaTimeZone(r.displayTz)) return null;
+        out.displayTz = r.displayTz;
+      }
+      return out;
+    }
+    const atUtc = normalizeTransitMoment(r, now);
     return atUtc && ay && nt ? { atUtc, ayanamsa: ay, nodeType: nt } : null;
   },
-  units: (ctx, opt) => [unit("kp.transit", ROXY_KP_PLANETS_AT, kpPlanetsAtBody(String(opt.atUtc), { latitude: ctx.birth.latitude, longitude: ctx.birth.longitude }, opt.ayanamsa as KpAyanamsa, opt.nodeType as KpNodeType), { timeDependent: true })],
+  units: (ctx, opt) => {
+    const place = { latitude: ctx.birth.latitude, longitude: ctx.birth.longitude };
+    if (!isKpRange(opt.range)) return [unit("kp.transit", ROXY_KP_PLANETS_AT, kpPlanetsAtBody(String(opt.atUtc), place, opt.ayanamsa as KpAyanamsa, opt.nodeType as KpNodeType), { timeDependent: true })];
+    // Parça sırası sabit: önce sub-lord (gezegen sırasıyla), sonra rasi, en son konum tablosu.
+    const g = opt.range;
+    const end = addDays(g.startDate, g.days - 1);
+    const out: CalcUnit[] = [];
+    let part = 0;
+    if (g.kinds.includes("sublord")) for (const p of g.planets) out.push(unit("kp.transit", ROXY_KP_SUBLORD, kpChangesBody(p, g.startDate, end, opt.ayanamsa as KpAyanamsa, opt.nodeType as KpNodeType), { timeDependent: true, part: part++ }));
+    if (g.kinds.includes("rasi")) for (const p of g.planets) out.push(unit("kp.transit", ROXY_KP_RASI, kpChangesBody(p, g.startDate, end, opt.ayanamsa as KpAyanamsa, opt.nodeType as KpNodeType), { timeDependent: true, part: part++ }));
+    if (g.kinds.includes("positions")) out.push(unit("kp.transit", ROXY_KP_PLANETS_RANGE, kpPlanetsRangeBody(g.startDate, g.days, g.intervalMinutes!, place, opt.ayanamsa as KpAyanamsa, opt.nodeType as KpNodeType), { timeDependent: true, part: part++ }));
+    return out;
+  },
   noteContext: (opt) => `ayanamsa:${String(opt.ayanamsa)}|nodeType:${String(opt.nodeType)}`,
   parseNoteContextOptions: (raw) => {
     const ay = kpAyanamsaOf(raw.ayanamsa);
     const nt = kpNodeOf(raw.nodeType);
     return Object.keys(raw).sort().join() === "ayanamsa,nodeType" && ay && nt ? { ayanamsa: ay, nodeType: nt } : null;
   },
-  project: (_u, raw, opt) => fromAdapter(projectRoxyKpPlanetsAt(raw, { atUtc: String(opt.atUtc), ayanamsa: opt.ayanamsa as KpAyanamsa, nodeType: opt.nodeType as KpNodeType }), KP_TRANSIT_TECHNICAL_SCHEMA, null, ROXY_KP_PLANETS_AT.projection),
+  project: (u, raw, opt) => {
+    if (!isKpRange(opt.range)) return fromAdapter(projectRoxyKpPlanetsAt(raw, { atUtc: String(opt.atUtc), ayanamsa: opt.ayanamsa as KpAyanamsa, nodeType: opt.nodeType as KpNodeType }), KP_TRANSIT_TECHNICAL_SCHEMA, null, ROXY_KP_PLANETS_AT.projection);
+    const b = u.body as Record<string, unknown>;
+    const planet = Object.entries(KP_TIMING_PLANET_NAME).find(([, n]) => n === b.planet)?.[0] as KpTimingPlanet | undefined;
+    const r =
+      u.endpoint === ROXY_KP_SUBLORD.endpoint && planet
+        ? projectRoxyKpSublordChanges(raw, { planet, startDate: String(b.startDate), endDate: String(b.endDate) })
+        : u.endpoint === ROXY_KP_RASI.endpoint && planet
+          ? projectRoxyKpRasiChanges(raw, { planet, startDate: String(b.startDate), endDate: String(b.endDate) })
+          : u.endpoint === ROXY_KP_PLANETS_RANGE.endpoint
+            ? projectRoxyKpPlanetsRange(raw, { startUtc: String(b.startDatetime), endUtc: String(b.endDatetime), intervalMinutes: Number(b.intervalMinutes), ayanamsa: opt.ayanamsa as KpAyanamsa })
+            : { ok: false as const, errors: ["bilinmeyen KP zaman aralığı birimi"] };
+    if (!r.ok) return r;
+    return { ok: true, technical: { schema: KP_TIMING_PART_SCHEMA, ...r.part }, technicalSchema: KP_TIMING_PART_SCHEMA, interpretation: null, interpretationSchema: null, projectionVersion: ROXY_KP_SUBLORD.projection, unmappedFields: r.unmappedFields, droppedValues: [] };
+  },
+  // Tek-an kipinde tek parça (eski davranış); zaman aralığında parçalar birleşir, eksik parça AÇIKÇA listelenir.
+  combineTechnical: (parts, opt) => (isKpRange(opt.range) ? combineKpTiming(parts, opt.range, opt) : parts[0]),
 };
+
+/** TRANSİT-03: KP zaman aralığı seçenekleri. Gezegen/tür kanonik sırada (aynı seçim = aynı anahtar). */
+export const KP_TIMING_MAX_DAYS = 92;
+export const KP_POSITIONS_MAX_DAYS = 7;
+export const KP_POSITIONS_INTERVALS = [60, 180, 360, 720, 1440] as const;
+export const KP_TIMING_PART_SCHEMA = "astro.kp.transit_timing.part.v1" as const;
+type KpRange = { startDate: string; days: number; planets: KpTimingPlanet[]; kinds: KpTimingKind[]; intervalMinutes?: number };
+function parseKpRange(raw: unknown): KpRange | null {
+  const r = o(raw);
+  const days = Number(r.days);
+  if (typeof r.startDate !== "string" || !isValidIsoDate(r.startDate) || !yearOk(Number(r.startDate.slice(0, 4))) || !Number.isInteger(days) || days < 1 || days > KP_TIMING_MAX_DAYS) return null;
+  if (!Array.isArray(r.kinds) || !Array.isArray(r.planets)) return null;
+  const kinds = KP_TIMING_KINDS.filter((k) => (r.kinds as unknown[]).includes(k));
+  // Bilinmeyen veya tekrarlı tür / gezegen → RED (sessiz ayıklama yok).
+  if (kinds.length === 0 || kinds.length !== (r.kinds as unknown[]).length) return null;
+  const planets = KP_TIMING_PLANETS.filter((p) => (r.planets as unknown[]).includes(p));
+  if (planets.length !== (r.planets as unknown[]).length) return null;
+  const needsPlanets = kinds.includes("sublord") || kinds.includes("rasi");
+  if (needsPlanets && planets.length === 0) return null;
+  const out: KpRange = { startDate: r.startDate, days, planets: needsPlanets ? planets : [], kinds };
+  if (kinds.includes("positions")) {
+    const iv = Number(r.intervalMinutes);
+    if (!(KP_POSITIONS_INTERVALS as readonly number[]).includes(iv) || days > KP_POSITIONS_MAX_DAYS) return null;
+    out.intervalMinutes = iv;
+  } else if (r.intervalMinutes !== undefined) return null;
+  return out;
+}
+const isKpRange = (v: unknown): v is KpRange => parseKpRange(v) !== null;
+
+function combineKpTiming(parts: unknown[], g: KpRange, opt: Record<string, unknown>): KpTimingTechnical {
+  const ps = parts.filter((p): p is KpTimingPart & { schema: string } => !!p && (p as { schema?: string }).schema === KP_TIMING_PART_SCHEMA);
+  const sub = g.kinds.includes("sublord") ? g.planets.map((p) => ({ planet: p, part: ps.find((x) => x.kind === "sublord" && x.planet === p) })) : [];
+  const ras = g.kinds.includes("rasi") ? g.planets.map((p) => ({ planet: p, part: ps.find((x) => x.kind === "rasi" && x.planet === p) })) : [];
+  const pos = g.kinds.includes("positions") ? (ps.find((x) => x.kind === "positions") as Extract<KpTimingPart, { kind: "positions" }> | undefined) : undefined;
+  const missing = [
+    ...sub.filter((x) => !x.part).map((x) => `sublord:${x.planet}`),
+    ...ras.filter((x) => !x.part).map((x) => `rasi:${x.planet}`),
+    ...(g.kinds.includes("positions") && !pos ? ["positions"] : []),
+  ];
+  return {
+    schema: KP_TIMING_TECHNICAL_SCHEMA,
+    frame: { ayanamsa: opt.ayanamsa as KpAyanamsa, ayanamsaDegrees: pos ? pos.ayanamsaDegrees : null },
+    nodeType: opt.nodeType as KpNodeType,
+    window: { startDate: g.startDate, endDate: addDays(g.startDate, g.days - 1) },
+    planets: g.planets,
+    kinds: g.kinds,
+    sublord: sub.filter((x) => x.part).map((x) => ({ planet: x.planet, changes: (x.part as Extract<KpTimingPart, { kind: "sublord" }>).changes })),
+    rasi: ras.filter((x) => x.part).map((x) => ({ planet: x.planet, changes: (x.part as Extract<KpTimingPart, { kind: "rasi" }>).changes })),
+    positions: pos ? { intervalMinutes: pos.intervalMinutes, rows: pos.rows } : null,
+    missing,
+  };
+}
 
 const kpHorary: TechniqueDefinition = {
   id: "kp.horary",

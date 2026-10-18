@@ -89,6 +89,58 @@ export type KpTransitTechnical = {
   /** Roxy /kp/planets-interval tek an: KP hiyerarşili gökyüzü. Natal cusp'lara göre ev / transit analizi Roxy'de YOK (KISMİ). */
   bodies: (KpPoint & { id: VedicGrahaId; retrograde: boolean })[];
 };
+/**
+ * TRANSİT-03 (2026-10-17): KP Transit ZAMAN ARALIĞI kipi. Sağlayıcı uçları (OpenAPI 2.0.0'dan doğrulandı):
+ *   • /vedic-astrology/kp/sublord-changes — gezegen başına (Güneş…Satürn; Rahu/Ketu YOK), ≤365 gün, KP numarası (1–249)
+ *     geçişleri: önceki/yeni KP no + sub-lord + yıldız (nakshatra) lordu
+ *   • /vedic-astrology/kp/rasi-changes — gezegen başına, ≤365 gün, rasi (burç) geçişleri + burç yöneticileri
+ *   • /vedic-astrology/kp/planets-interval — ≤7 gün, 15–1440 dk aralıklarla 9 graha KP konumu
+ * Saat dilimi 0 (UTC) gönderilir: sağlayıcı aralık boyunca TEK ofset kullanır (yaz saati geçişini aralık içinde uygulamaz) →
+ * anlar UTC saklanır, gösterim seçilen IANA diliminde yapılır. Gezegen/tür başına bir istek = bir "parça".
+ */
+export const KP_TIMING_TECHNICAL_SCHEMA = "astro.kp.transit_timing.v1" as const;
+export const KP_TIMING_PLANETS = ["sun", "moon", "mars", "mercury", "jupiter", "venus", "saturn"] as const;
+export type KpTimingPlanet = (typeof KP_TIMING_PLANETS)[number];
+export const KP_TIMING_KINDS = ["sublord", "rasi", "positions"] as const;
+export type KpTimingKind = (typeof KP_TIMING_KINDS)[number];
+export type KpSublordChange = {
+  atUtc: string;
+  fromKp: number;
+  toKp: number;
+  fromSub: VedicGrahaId;
+  toSub: VedicGrahaId;
+  fromStar: VedicGrahaId;
+  toStar: VedicGrahaId;
+  /**
+   * Gerçek yanıtta (17.10.2026, 92 gün Ay) saptanan sağlayıcı kusuru: Krittika / Ardra başlangıcında satır "46→46" gibi ESKİ
+   * KP no + sub-lord ile gelir (yeni yıldız lordu doğru). Değer, sağlayıcının kendi sonraki kaydı + bağımsız KP tablosu
+   * tutarlıysa düzeltilir ve bu alanla İŞARETLENİR (ekranda / raporda görünür; sessiz değişiklik yok).
+   */
+  corrected?: { providerToKp: number; providerToSub: VedicGrahaId };
+};
+export const KP_PROVIDER_CORRECTION_NOTE =
+  "* Sağlayıcı bu geçişte yeni KP numarasını ve sub-lord'u önceki değerle bildirdi (yeni yıldız lordu doğruydu). Değer, sağlayıcının bir sonraki kaydı ve bağımsız KP tablosuyla tutarlı olarak düzeltildi; geçiş anı sağlayıcınındır.";
+export type KpRasiChange = { atUtc: string; fromRashi: SignId; toRashi: SignId; fromLord: VedicGrahaId; toLord: VedicGrahaId };
+export type KpPositionRow = { atUtc: string; bodies: (KpPoint & { id: VedicGrahaId; retrograde: boolean })[] };
+/** Tek sağlayıcı yanıtının (parçanın) teknik katmanı; birleşik teknik bunlardan kurulur. */
+export type KpTimingPart =
+  | { kind: "sublord"; planet: KpTimingPlanet; window: { startDate: string; endDate: string }; changes: KpSublordChange[] }
+  | { kind: "rasi"; planet: KpTimingPlanet; window: { startDate: string; endDate: string }; changes: KpRasiChange[] }
+  | { kind: "positions"; window: { startUtc: string; endUtc: string }; intervalMinutes: number; ayanamsaDegrees: number; rows: KpPositionRow[] };
+export type KpTimingTechnical = {
+  schema: typeof KP_TIMING_TECHNICAL_SCHEMA;
+  frame: { ayanamsa: KpAyanamsaId; ayanamsaDegrees: number | null };
+  nodeType: "mean" | "true";
+  /** UTC takvim günleri, iki uç dahil. */
+  window: { startDate: string; endDate: string };
+  planets: KpTimingPlanet[];
+  kinds: KpTimingKind[];
+  sublord: { planet: KpTimingPlanet; changes: KpSublordChange[] }[];
+  rasi: { planet: KpTimingPlanet; changes: KpRasiChange[] }[];
+  positions: { intervalMinutes: number; rows: KpPositionRow[] } | null;
+  /** Hesaplanamayan (başarısız / süre sınırı) parçalar — sessizce düşürülmez, ekranda ve raporda listelenir. */
+  missing: string[];
+};
 export const KP_HORARY_TECHNICAL_SCHEMA = "astro.kp.horary.v1" as const;
 export type KpHoraryTechnical = {
   schema: typeof KP_HORARY_TECHNICAL_SCHEMA;

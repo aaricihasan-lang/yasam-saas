@@ -215,7 +215,10 @@ eq(muc("02.11.1982"), { t: [0, 0, 0], c: [36, 63, 90], ana: 0, anaStart: 90 }, "
 // ── ÇİFT İSİM / SOYİSİM — production davranışı kilitli (isim dosyaları main ile aynı) ────
 eq([calcAnaKulvar("Hasan Ali", "ARICI").display, calcYanKulvar("Hasan Ali", "ARICI").display], ["19/3", "11"], "NM-01 çift isim Hasan Ali ARICI");
 eq([calcAnaKulvar("Hasan", "ARICI YILMAZ").display, calcYanKulvar("Hasan", "ARICI YILMAZ").display], ["19/3", "22/8"], "NM-02 çift soyisim Hasan ARICI YILMAZ");
-eq([calcAnaKulvar("Ayşe Nur", "KAYA").display, calcAnaKulvar("Ayşe-Nur", "KAYA").display], ["11", "11/2"], "NM-03 tire mevcut ürün davranışı (Ayşe-Nur tek kelime) korunur");
+// OWNER NİHAİ KARARI 2026-10-18: kalansız özel çift (9 + 2 = 11) yalnız "11" yazılır (eski "11/2" küçük-parça kuralı kalktı).
+// Tire kuralı (Ayşe-Nur tek kelime) bileşenlerle kilitli kalır.
+eq([calcAnaKulvar("Ayşe Nur", "KAYA").display, calcAnaKulvar("Ayşe-Nur", "KAYA").display], ["11", "11"], "NM-03 tire mevcut ürün davranışı (Ayşe-Nur tek kelime) korunur");
+eq([calcAnaKulvar("Ayşe Nur", "KAYA").componentValues, calcAnaKulvar("Ayşe-Nur", "KAYA").componentValues], [[6, 3, 2], [9, 2]], "NM-03b tire kelimeyi bölmez: Ayşe Nur 3 parça, Ayşe-Nur 2 parça");
 
 // ── ISMAIL / Türkçe harf — I ve İ ikisi de 9 ─────────────────────────────────────────
 {
@@ -262,7 +265,7 @@ const legacyBefore = JSON.stringify(legacyRow);
 
   const stamped = { ...legacyRow, analysis_data: { ...legacyRow.analysis_data, motor: fresh, calc: { methodology: NUMEROLOJI_METHODOLOGY_VERSION } } };
   ok(!resolveRecordMotor(stamped).legacy, "OLD-10 güncel damgalı (yeni) kayıt önceki metodoloji sayılmaz");
-  eq(NUMEROLOJI_METHODOLOGY_VERSION, "num-v1-final-2026-10", "OLD-11 yeni kayıt metodoloji sürümü");
+  eq(NUMEROLOJI_METHODOLOGY_VERSION, "num-v1.1-ozel-sayi-2026-10", "OLD-11 yeni kayıt metodoloji sürümü (2026-10-18 owner onayı E)");
 }
 
 // ── WORD — eski snapshot + yeni hesap tutarlılığı (motor ↔ Word) ─────────────────────

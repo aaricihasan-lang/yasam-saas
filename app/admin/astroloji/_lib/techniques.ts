@@ -58,7 +58,7 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "kp.chart": { label: "KP doğum haritası", hint: "Placidus cusp'ları, sign / star / sub / sub-sub lord, 4 düzey significator (KP-Newcomb)", needsPartner: false, needsTime: true },
   "kp.dasha": { label: "KP dasha", hint: "Vimshottari (KP ayanamsa) + dönem lordlarının KP significator'ları; alt dönemler tıklayınca", needsPartner: false, needsTime: true },
   "kp.ruling": { label: "KP ruling planets", hint: "Seçilen anın ruling planet'leri + natal significator'ları", needsPartner: false, needsTime: true },
-  "kp.transit": { label: "KP transit (kısmi)", hint: "Seçilen anın KP gökyüzü (star / sub lord); natal ev analizi yok", needsPartner: false, needsTime: false },
+  "kp.transit": { label: "KP transit", hint: "Tek an KP gökyüzü veya zaman aralığında Sub-Lord / Rasi geçişleri; natal ev analizi yok", needsPartner: false, needsTime: false },
   "kp.horary": { label: "KP horary (1–249)", hint: "Sayı + soru anı + değerlendirme yeri; doğum verisi kullanılmaz", needsPartner: false, needsTime: false },
   "vedic.dasha": { label: "Vimshottari Dasha", hint: "Mahadasha zaman çizelgesi; Antardasha / Pratyantardasha tıklayınca yüklenir", needsPartner: false, needsTime: true },
   "vedic.varga": { label: "Vedik Varga (D9 Navamsa / Dn)", hint: "Bölümsel harita: D9 varsayılan; D2…D60 seçilebilir; vargottama", needsPartner: false, needsTime: true },
@@ -149,6 +149,14 @@ export type TechniqueParams = {
   kpDashaAd: string;
   /** KP an (ruling / transit / horary ortak): şimdi veya tarih-saat. */
   kpMomentMode: "now" | "custom";
+  /** TRANSİT-03: KP transit kipi — tek an (eski) veya zaman aralığı (Sub-Lord / Rasi geçişleri, konum tablosu). */
+  kpTransitMode?: "moment" | "range";
+  kpRangeStart: string;
+  kpRangeDays: number;
+  kpRangePlanets: string[];
+  kpRangeKinds: string[];
+  kpRangeInterval: number;
+  kpRangeTz: string;
   kpDate: string;
   kpTime: string;
   kpTz: string;
@@ -214,6 +222,13 @@ export function defaultParams(today: Date): TechniqueParams {
     kpDashaMd: "",
     kpDashaAd: "",
     kpMomentMode: "now",
+    kpTransitMode: "moment",
+    kpRangeStart: iso,
+    kpRangeDays: 7,
+    kpRangePlanets: ["sun", "moon"],
+    kpRangeKinds: ["sublord", "rasi"],
+    kpRangeInterval: 360,
+    kpRangeTz: "Europe/Istanbul",
     kpDate: iso,
     kpTime: "12:00",
     kpTz: "Europe/Istanbul",
@@ -313,6 +328,7 @@ export function buildSelections(
         // Gözlem yeri seçilmemişse (veya "başka konum" seçili ama konum yok) ruling/horary plana alınmaz.
         if (id !== "kp.transit" && !kpPlaceReady(p)) break;
         if (id === "kp.ruling") out.push({ technique: id, options: { ...at, nodeType: p.kpNodeType, placeLocationId: p.kpPlaceMode === "other" ? (p.kpPlace?.id ?? null) : null } });
+        else if (id === "kp.transit" && p.kpTransitMode === "range") out.push({ technique: id, options: { range: kpRangeOptions(p), ayanamsa: p.kpAyanamsa, nodeType: p.kpNodeType, displayTz: p.kpRangeTz ?? "Europe/Istanbul" } });
         else if (id === "kp.transit") out.push({ technique: id, options: { ...at, ayanamsa: p.kpAyanamsa, nodeType: p.kpNodeType } });
         else out.push({ technique: id, options: { ...at, horaryNumber: p.horaryNumber, ayanamsa: p.kpAyanamsa, nodeType: p.kpNodeType, placeLocationId: p.kpPlaceMode === "other" ? (p.kpPlace?.id ?? null) : null } });
         break;
@@ -350,8 +366,11 @@ export function dateInputReason(id: UiTechniqueId, p: TechniqueParams): string |
       return bad(p.targetDate) ? "hedef tarihi tamamlayın" : null;
     case "vedic.transit":
       return p.vedicTransitMode === "custom" && bad(p.vedicTransitDate, p.vedicTransitTime) ? "Gochara tarihini / saatini tamamlayın" : null;
-    case "kp.ruling":
     case "kp.transit":
+      // TRANSİT-03 zaman aralığı: tek-an tarihi bu kipte kullanılmaz; aralık başlangıcı + aralık ayarları (sunucuyla aynı) denetlenir.
+      if (p.kpTransitMode === "range") return kpRangeIssue(p);
+      return p.kpMomentMode === "custom" && bad(p.kpDate, p.kpTime) ? "KP tarihini / saatini tamamlayın" : null;
+    case "kp.ruling":
     case "kp.horary":
       return p.kpMomentMode === "custom" && bad(p.kpDate, p.kpTime) ? "KP tarihini / saatini tamamlayın" : null;
     default:
@@ -432,6 +451,12 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
       const pl = (o.place as { label?: string } | undefined)?.label;
       if (technique === "kp.horary") return `sayı ${String(o.horaryNumber)} · ${at}${pl ? ` · ${pl}` : ""}`;
       if (technique === "kp.ruling") return `${at}${pl ? ` · ${pl}` : ""}`;
+      const rg = o.range as { startDate?: string; days?: number; planets?: string[]; kinds?: string[] } | undefined;
+      if (technique === "kp.transit" && rg && typeof rg.startDate === "string") {
+        const kinds = (rg.kinds ?? []).map((k) => KP_KIND_SHORT[k] ?? k).join(" + ");
+        const planets = (rg.planets ?? []).map((x) => KP_PLANET_SHORT[x] ?? x).join(", ");
+        return `aralık ${fmtDate(rg.startDate)} + ${String(rg.days)} gün · ${kinds}${planets ? ` · ${planets}` : ""} · ${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)}`;
+      }
       return `${at} · ${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)}`;
     }
     case "vedic.transit":
@@ -488,4 +513,40 @@ export function houseSystemLabel(h: string | null | undefined, westernLabels: Re
 /** Zodyak çerçevesi: Vedik teknikler sidereal (nirayana), diğerleri tropikal. */
 export function zodiacLabel(technique: string): string {
   return technique.startsWith("kp.") ? "Sidereal (KP)" : technique.startsWith("vedic.") ? "Sidereal (nirayana)" : "Tropikal";
+}
+
+// ─── TRANSİT-03: KP Transit zaman aralığı (istemci meta; sınırlar sunucudaki engine/techniques ile AYNI, test denetler) ───
+export const KP_TIMING_MAX_DAYS = 92;
+export const KP_POSITIONS_MAX_DAYS = 7;
+export const KP_POSITIONS_INTERVALS = [60, 180, 360, 720, 1440] as const;
+const KP_KIND_SHORT: Record<string, string> = { sublord: "Sub-Lord", rasi: "Rasi", positions: "konum tablosu" };
+const KP_PLANET_SHORT: Record<string, string> = { sun: "Güneş", moon: "Ay", mars: "Mars", mercury: "Merkür", jupiter: "Jüpiter", venus: "Venüs", saturn: "Satürn" };
+export function kpRangeOptions(p: TechniqueParams): Record<string, unknown> {
+  const kinds = p.kpRangeKinds ?? [];
+  return {
+    startDate: p.kpRangeStart,
+    days: p.kpRangeDays,
+    planets: kinds.includes("sublord") || kinds.includes("rasi") ? (p.kpRangePlanets ?? []) : [],
+    kinds,
+    ...(kinds.includes("positions") ? { intervalMinutes: p.kpRangeInterval } : {}),
+  };
+}
+/**
+ * KP zaman aralığı ayarı eksik / geçersizse kısa neden (yoksa null). Sunucunun parseKpRange'iyle aynı kurallar:
+ * başlangıç tarihi (yıl yazılırken "0002-10-07" gibi ara değerler dahil), en az bir tür, Sub-Lord/Rasi için gezegen,
+ * konum tablosu ≤ 7 gün. Neden varsa seçim plana / API'ye GİRMEZ.
+ */
+export function kpRangeIssue(p: TechniqueParams): string | null {
+  if (dateInputIssue(p.kpRangeStart)) return "KP aralık başlangıç tarihini tamamlayın";
+  const k = p.kpRangeKinds ?? [];
+  if (k.length === 0) return "KP aralık türü seçin";
+  if ((k.includes("sublord") || k.includes("rasi")) && (p.kpRangePlanets ?? []).length === 0) return "KP aralık gezegeni seçin";
+  if (!Number.isInteger(p.kpRangeDays) || p.kpRangeDays < 1 || p.kpRangeDays > KP_TIMING_MAX_DAYS) return `KP aralığı en çok ${KP_TIMING_MAX_DAYS} gün olabilir`;
+  if (k.includes("positions") && p.kpRangeDays > KP_POSITIONS_MAX_DAYS) return `KP konum tablosu en çok ${KP_POSITIONS_MAX_DAYS} gün olabilir`;
+  return null;
+}
+/** Tahmini istek sayısı (önbellek hariç): gezegen × (sub-lord + rasi) + konum tablosu. */
+export function kpRangeRequestCount(p: TechniqueParams): number {
+  const k = p.kpRangeKinds ?? [];
+  return (p.kpRangePlanets ?? []).length * ((k.includes("sublord") ? 1 : 0) + (k.includes("rasi") ? 1 : 0)) + (k.includes("positions") ? 1 : 0);
 }

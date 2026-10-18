@@ -33,8 +33,8 @@ import {
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "../model/westernLocation";
 import type { FixedStarsTechnical } from "../model/westernFixedStars";
 import type { VedicD1Technical, VedicDashaTechnical, VedicDrishtiTechnical, VedicPanchangaTechnical, VedicShadbalaTechnical, VedicTransitTechnical, VedicVargaTechnical } from "../model/vedic";
-import { KP_CONTEXT_LABELS, KP_KINDS, topicsFromKpChart, topicsFromKpDasha, topicsFromKpHorary, topicsFromKpRuling, topicsFromKpTransit, type KpContext } from "./vedic";
-import type { KpChartTechnical, KpHoraryTechnical, KpRulingTechnical, KpTransitTechnical } from "../model/kp";
+import { KP_CONTEXT_LABELS, KP_KINDS, topicsFromKpChart, topicsFromKpDasha, topicsFromKpHorary, topicsFromKpRuling, topicsFromKpTiming, topicsFromKpTransit, type KpContext } from "./vedic";
+import { KP_TIMING_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpRulingTechnical, type KpTimingTechnical, type KpTransitTechnical } from "../model/kp";
 import { parseVedicTopicKey, topicsFromVedicD1, topicsFromVedicDasha, topicsFromVedicDrishti, topicsFromVedicPanchanga, topicsFromVedicShadbala, topicsFromVedicTransit, topicsFromVedicVarga, VEDIC_CONTEXT_LABELS, VEDIC_KINDS, VEDIC_SPECS, type VedicContext } from "./vedic";
 
 /** Konu bağlamı: Batı bağlamları + Vedik bağlamlar (gelenek ayrımı anahtar türünde ve KB sütununda). */
@@ -191,6 +191,7 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
     case "kp.ruling":
       return technical ? topicsFromKpRuling(technical as KpRulingTechnical) : [];
     case "kp.transit":
+      if (technical && (technical as { schema?: string }).schema === KP_TIMING_TECHNICAL_SCHEMA) return topicsFromKpTiming(technical as KpTimingTechnical);
       return technical ? topicsFromKpTransit(technical as KpTransitTechnical) : [];
     case "kp.horary":
       return technical ? topicsFromKpHorary(technical as KpHoraryTechnical) : [];

@@ -84,7 +84,7 @@ const ABOUT: Record<UiTechniqueId, string> = {
   "kp.chart": "Placidus cusp'larıyla KP haritası: her nokta için burç, yıldız, alt ve alt-alt lordu; dört düzey significator.",
   "kp.dasha": "KP ayanamsa ile Vimshottari dönemleri ve dönem lordlarının KP significator'ları.",
   "kp.ruling": "Seçilen an ve yerdeki ruling planet'ler ile natal significator'lar.",
-  "kp.transit": "Seçilen anın KP gökyüzü (yıldız ve alt lordlar). Kısmi: natal cusp'lara göre transit analizi verilmez.",
+  "kp.transit": "İki kip: Tek an — seçilen anın KP gökyüzü (yıldız ve alt lordlar); Zaman aralığı — seçilen gezegenlerin Sub-Lord (KP numarası) değişim anları, Rasi geçişleri ve isteğe bağlı KP konum tablosu. Natal cusp'lara göre transit analizi sağlayıcıda yoktur.",
   "kp.horary": "1–249 arası sayı ile soru haritası; doğum verisi kullanılmaz. Soru anı ve değerlendirme yeri seçilir.",
 };
 
@@ -114,7 +114,7 @@ const PARAMS_NOTE: Record<UiTechniqueId, string> = {
   "kp.chart": "KP ayanamsa · düğüm",
   "kp.dasha": "düzey · KP ayanamsa",
   "kp.ruling": "an · yer · düğüm",
-  "kp.transit": "an · KP ayanamsa",
+  "kp.transit": "tek an veya aralık (başlangıç · süre ≤ 92 gün · gezegen · tür) · KP ayanamsa · düğüm",
   "kp.horary": "sayı · an · yer",
 };
 /** Kendi parametresi olmayan teknikler (yalnız ortak Batı yöntemi veya hiç ayar). */
@@ -140,7 +140,7 @@ function useMode(): Mode {
 
 /* ── Görsel yardımcılar ────────────────────────────────────────────────────────────────────────── */
 const SURFACE =
-  "relative rounded-2xl border border-white/[0.07] bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.012))] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_24px_48px_-28px_rgba(0,0,0,0.85)]";
+  "relative rounded-2xl border border-white/[0.07] bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.012))] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_24px_48px_-28px_rgba(0,0,0,0.85)] max-sm:rounded-none max-sm:border-x-0";
 const EYEBROW = "text-[10.5px] font-semibold tracking-[0.18em] text-[#E6CF9F]/80";
 
 const CSS = `
@@ -443,7 +443,7 @@ export default function PrepCenter({
         {(meta.needsTime && timeUnknown) || st.kind !== "none" || focus === "kp.transit" ? (
           <div className="flex flex-wrap gap-1.5 text-[11px]">
             {meta.needsTime && timeUnknown && <span className="rounded-full border border-amber-300/50 bg-amber-300/10 px-2 py-0.5 text-amber-100">Doğum saati bilinmiyor — hesaplanmaz</span>}
-            {focus === "kp.transit" && <span className="rounded-full border border-amber-300/40 px-2 py-0.5 text-amber-100">Kısmi</span>}
+            {focus === "kp.transit" && <span className="rounded-full border border-amber-300/40 px-2 py-0.5 text-amber-100">Natal ev analizi yok</span>}
             {st.kind !== "none" && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-white/12 px-2 py-0.5 text-[#F6F2EA]/80" data-testid="atlas-focus-status">
                 <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[st.kind]}`} /> {st.text}
@@ -522,7 +522,7 @@ export default function PrepCenter({
                 </span>
               </button>
             </div>
-            {inlineSettings && f && <div className="atlas-prep-in mt-1.5 rounded-xl border border-white/[0.07] bg-black/20 p-3">{settingsBody(true)}</div>}
+            {inlineSettings && f && <div className="atlas-prep-in mt-1.5 rounded-xl border border-white/[0.07] bg-black/20 p-3 max-sm:-mx-2 max-sm:rounded-none max-sm:border-x-0 max-sm:px-2">{settingsBody(true)}</div>}
           </li>
         );
       })}
@@ -546,9 +546,9 @@ export default function PrepCenter({
     // SABİT (fixed): kök düzende body kendi kaydırma kabı olduğundan sticky çalışmaz; yerine akışta ölçülü boşluk bırakılır.
     // FINAL: tek satır, kompakt; Plan Ayrıntıları yukarı açılan panelde (konsol yüksekliği büyümez).
     <div ref={consoleRef} className="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-[max(0.4rem,env(safe-area-inset-bottom))]" data-testid="atlas-console">
-      <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1600px] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] sm:px-6 lg:px-8">
         <div
-          className="pointer-events-auto relative ml-auto rounded-2xl border border-[#D9B56F]/30 bg-[linear-gradient(180deg,rgba(24,30,78,0.95),rgba(8,12,36,0.97))] px-3 py-1.5 text-[#F6F2EA] shadow-[0_-14px_32px_-22px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-md lg:max-w-[980px]"
+          className="pointer-events-auto relative ml-auto rounded-2xl border border-[#D9B56F]/30 max-sm:rounded-none max-sm:border-x-0 bg-[linear-gradient(180deg,rgba(24,30,78,0.95),rgba(8,12,36,0.97))] px-3 py-1.5 text-[#F6F2EA] shadow-[0_-14px_32px_-22px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-md lg:max-w-[980px]"
           data-testid="astro-plan-box"
         >
           <span className="pointer-events-none absolute inset-x-6 -top-px h-px bg-gradient-to-r from-transparent via-[#E6C887]/70 to-transparent" aria-hidden="true" />
@@ -684,7 +684,7 @@ export default function PrepCenter({
     "inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-white/15 px-3 py-2 text-xs text-[#F6F2EA]/85 transition hover:border-[#D9B56F]/70 hover:text-[#F6E7C3] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#D9B56F] disabled:opacity-40";
 
   const plate = (
-    <header className={`${SURFACE} flex flex-col gap-2.5 px-4 py-3`} data-testid="atlas-prep-plate">
+    <header className={`${SURFACE} flex flex-col gap-2.5 px-3 py-3 sm:px-4`} data-testid="atlas-prep-plate">
       <Brackets className="border-[#D9B56F]/35" />
       <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0" data-testid="atlas-client-identity">
