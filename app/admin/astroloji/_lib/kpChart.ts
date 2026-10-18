@@ -9,6 +9,16 @@ import { SIGN_IDS, type SignId } from "@/lib/astrology/model/western";
 import { SIGN_LABELS } from "@/lib/astrology/labels/tr";
 import { GRAHA_TR, grahaTrName } from "./kundliLocalize";
 
+/**
+ * KP harita açıklamaları — ekran (KpSouthChart) ve Word/PDF (report/model) AYNI metni kullanır (KP-UX-06, 2026-10-18).
+ * Cusp'lı haritalar (KP doğum haritası, horary): Placidus ev başlangıçları çerçeveli etiketle çizilir.
+ * KP transit tek an: cusp ÇİZİLMEZ (gökyüzü anı; natal cusp'a göre ev analizi sağlayıcıda yok) → Placidus anlatımı uymaz.
+ */
+export const KP_LEGEND = "Burç kutuları sabit (Güney Hindistan). Çerçeveli etiket = Placidus ev başlangıcı (cusp); gri = graha. KP evleri burç kutusu değildir — bir burçta iki cusp olabilir, bir ev iki burca yayılabilir. ʳ vakri.";
+export const KP_TRANSIT_LEGEND = "Burç kutuları sabit (Güney Hindistan). Gri etiket = graha (transit anındaki gökyüzü konumu). Bu haritada ev başlangıcı (cusp) çizilmez: KP transit tek an için gökyüzüdür. ʳ vakri.";
+/** Haritada cusp var mı? → doğru açıklama (cusp yoksa Placidus/cusp anlatımı GÖSTERİLMEZ). */
+export const kpLegendFor = (cuspCount: number) => (cuspCount > 0 ? KP_LEGEND : KP_TRANSIT_LEGEND);
+
 /** Derece/dakika/saniye (KESİLİR, yuvarlanmaz: 29°59′59″ asla 30° olmaz). */
 export function fmtDms(deg: number): string {
   const total = Math.floor(deg * 3600 + 1e-7);

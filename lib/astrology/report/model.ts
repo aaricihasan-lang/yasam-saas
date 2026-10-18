@@ -21,6 +21,7 @@ import { kundliTitles, toKundliData, toVargaChartData } from "@/app/admin/astrol
 import { kundliLegend } from "@/app/admin/astroloji/_lib/kundliLocalize";
 import { localSpaceCenter, localSpaceCenterNote, localSpaceText } from "../localSpaceCenter";
 import { interpretationKindNote, interpretationKindOfSchema } from "../interpretationKind";
+import { KP_LEGEND, KP_TRANSIT_LEGEND } from "@/app/admin/astroloji/_lib/kpChart";
 // TRANSİT-03: KP zaman aralığı şeması (ayrı satır: TRANSİT-01/02 import değişiklikleriyle birleştirme çakışması olmasın).
 import { KP_PROVIDER_CORRECTION_NOTE, KP_TIMING_TECHNICAL_SCHEMA } from "../model/kp";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "../noProviderInterp";
@@ -1002,12 +1003,19 @@ const kpAtZone = (utcIso: unknown, tz: string) => {
 };
 const gShort = (v: unknown) => (typeof v === "string" ? (GRAHA_LABELS[v] ?? v).split(" ")[0] : DASH);
 
+/** Kip etiketi gerçekten seçilen içeriklerden (yalnız konum tablosu → "geçişleri" demez). Tür yoksa (eski/eksik kayıt) yalnız "Zaman aralığı". */
+export function kpTimingModeLabel(kinds: unknown[]): string {
+  const ev = [kinds.includes("sublord") ? "Sub-Lord" : null, kinds.includes("rasi") ? "Rasi" : null].filter(Boolean);
+  const parts = [ev.length ? `${ev.join(" / ")} geçişleri` : null, kinds.includes("positions") ? "KP konum tablosu" : null].filter(Boolean);
+  return parts.length ? `Zaman aralığı (${parts.join(" + ")})` : "Zaman aralığı";
+}
+
 function kpTimingReport(b: B, t: O, opts: O) {
   const tz = kpTz(opts.displayTz);
   const w = isObj(t.window) ? t.window : {};
   b.kv([
     ...kpFrame(t).filter(([k]) => k !== "Ev sistemi"),
-    ["Kip", "Zaman aralığı (Sub-Lord / Rasi geçişleri)"],
+    ["Kip", kpTimingModeLabel(arr<unknown>(t.kinds))],
     ["Aralık", `${dateTr(w.startDate)} – ${dateTr(w.endDate)} (UTC günleri, iki uç dahil)`],
     ["Gösterim saat dilimi", tz],
     ["Gezegenler", arr<unknown>(t.planets).length ? list(t.planets, grahaL) : DASH],
@@ -1020,18 +1028,18 @@ function kpTimingReport(b: B, t: O, opts: O) {
     const rows = arr(t.sublord)
       .flatMap((x) => arr(x.changes).map((c): O => ({ ...c, planet: x.planet })))
       .sort((a, z) => String(a.atUtc).localeCompare(String(z.atUtc)))
-      .map((c) => [kpAtZone(c.atUtc, tz), grahaL(c.planet), `${s(c.fromKp)} · ${gShort(c.fromStar)} / ${gShort(c.fromSub)}`, `${s(c.toKp)} · ${gShort(c.toStar)} / ${gShort(c.toSub)}${c.fromStar !== c.toStar ? " (yıldız değişti)" : ""}${isObj(c.corrected) ? " *" : ""}`, utcTr(c.atUtc).slice(11)]);
+      .map((c) => [kpAtZone(c.atUtc, tz), grahaL(c.planet), `${s(c.fromKp)} · ${gShort(c.fromStar)} / ${gShort(c.fromSub)}`, `${s(c.toKp)} · ${gShort(c.toStar)} / ${gShort(c.toSub)}${c.fromStar !== c.toStar ? " (yıldız değişti)" : ""}${isObj(c.corrected) ? " *" : ""}`, utcTr(c.atUtc)]);
     b.h(3, `Sub-Lord değişimleri (${rows.length})`);
-    b.table([`An (${tz})`, "Gezegen", "Önceki KP · yıldız / sub", "Yeni KP · yıldız / sub", "UTC"], rows, { widths: [1.8, 1.3, 1.9, 2.2, 0.9], compact: true, empty: "Bu aralıkta Sub-Lord değişimi yok." });
+    b.table([`An (${tz})`, "Gezegen", "Önceki KP · yıldız / sub", "Yeni KP · yıldız / sub", "UTC (tarih ve saat)"], rows, { widths: [1.7, 1.15, 1.75, 2.1, 1.6], compact: true, empty: "Bu aralıkta Sub-Lord değişimi yok." });
     if (arr(t.sublord).some((x) => arr(x.changes).some((c) => isObj(c.corrected)))) b.p(KP_PROVIDER_CORRECTION_NOTE, "muted");
   }
   if (kinds.includes("rasi")) {
     const rows = arr(t.rasi)
       .flatMap((x) => arr(x.changes).map((c): O => ({ ...c, planet: x.planet })))
       .sort((a, z) => String(a.atUtc).localeCompare(String(z.atUtc)))
-      .map((c) => [kpAtZone(c.atUtc, tz), grahaL(c.planet), `${signL(c.fromRashi)} (${gShort(c.fromLord)})`, `${signL(c.toRashi)} (${gShort(c.toLord)})`, utcTr(c.atUtc).slice(11)]);
+      .map((c) => [kpAtZone(c.atUtc, tz), grahaL(c.planet), `${signL(c.fromRashi)} (${gShort(c.fromLord)})`, `${signL(c.toRashi)} (${gShort(c.toLord)})`, utcTr(c.atUtc)]);
     b.h(3, `Rasi (burç) geçişleri (${rows.length})`);
-    b.table([`An (${tz})`, "Gezegen", "Çıkılan burç (yönetici)", "Girilen burç (yönetici)", "UTC"], rows, { widths: [1.8, 1.3, 2, 2, 0.9], compact: true, empty: "Bu aralıkta rasi geçişi yok." });
+    b.table([`An (${tz})`, "Gezegen", "Çıkılan burç (yönetici)", "Girilen burç (yönetici)", "UTC (tarih ve saat)"], rows, { widths: [1.7, 1.15, 1.85, 1.85, 1.6], compact: true, empty: "Bu aralıkta rasi geçişi yok." });
   }
   const pos = isObj(t.positions) ? t.positions : null;
   if (pos) {
@@ -1310,9 +1318,7 @@ const VEDIC_GRAHA_ORDER: VedicGrahaId[] = ["sun", "moon", "mars", "mercury", "ju
 const KP_AY: Record<string, string> = { "kp-newcomb": "KP-Newcomb", "kp-old": "KP (eski tablo)" };
 const FIGURE_MISSING = "Harita bu kayıtta eksik teknik veri nedeniyle çizilemedi; teknik tablolar aşağıdadır.";
 const KUNDLI_LEGEND = `${kundliLegend(VEDIC_GRAHA_ORDER)} · ʳ vakri · ᶜ yanık (asta) · ʷ graha yuddha. Kuzey düzeninde 3+ grahalı hücrede derece haritada gösterilmez (tabloda).`;
-const KP_LEGEND = "Burç kutuları sabit (Güney Hindistan). Çerçeveli etiket = Placidus ev başlangıcı (cusp); gri = graha. KP evleri burç kutusu değildir — bir burçta iki cusp olabilir, bir ev iki burca yayılabilir. ʳ vakri.";
-/** KP transit: figürde cusp YOK (cusps: []) → Placidus/cusp anlatımı bu haritaya uymaz (2026-10-15 UAT). */
-const KP_TRANSIT_LEGEND = "Burç kutuları sabit (Güney Hindistan). Gri etiket = graha (transit anındaki gökyüzü konumu). Bu haritada ev başlangıcı (cusp) çizilmez: KP transit tek an için gökyüzüdür. ʳ vakri.";
+// KP harita açıklamaları ekranla ORTAK kaynaktan (KP-UX-06): KP transit figüründe cusp YOK → KP_TRANSIT_LEGEND.
 const KUNDLI_NOTE = "Kuzey Hindistan düzeni (uygulamadaki varsayılan görünüm; Lagna üst ortadaki 1. ev). Kayıtlı analiz verisinden, uygulamadaki harita bileşeniyle çizilmiştir.";
 const KP_NOTE = "Güney Hindistan burç düzeni; uygulamadaki KP haritasıyla aynı yerleşim. Kayıtlı analiz verisinden çizilmiştir.";
 
