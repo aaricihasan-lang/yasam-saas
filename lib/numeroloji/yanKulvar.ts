@@ -121,7 +121,10 @@ export function calcYanKulvar(firstName: string, lastName: string): NumerolojiRe
                 : reduceNumber(remaining.reduce((a, b) => a + b, 0), true);
             bestPairSum = pairSum;
             // Kalan parça yoksa sahte "/0" yazılmaz (2026-10-18 owner talimatı; önce "(19/0)").
-            bracketStr = remaining.length > 0 ? `(${pairSum}/${remainingNum})` : `(${pairSum})`;
+            // OWNER F3-C (2026-10-18): kalana özel sayı karışıp sadeleşiyorsa (ör. [5,3,22] → 30 → 3)
+            // yapay sonuç oluşur → bu ara kontrol parantezi GÖSTERİLMEZ (geçerli alternatifler kendi kutusunda).
+            const yapaySadelesme = remaining.length > 1 && remaining.some((v) => SPECIAL_NUMBERS.has(v));
+            bracketStr = yapaySadelesme ? "" : remaining.length > 0 ? `(${pairSum}/${remainingNum})` : `(${pairSum})`;
             steps.push(
               `Ara kontrol: ${nonZeroValues[i]} + ${nonZeroValues[j]} = ${pairSum} → özel/karmik | Kalan: ${remaining.length > 0 ? remainingNum : "yok"}`
             );

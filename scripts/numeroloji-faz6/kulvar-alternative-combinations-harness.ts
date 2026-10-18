@@ -111,7 +111,8 @@ eqArr(findKulvarSpecialCombinations([1, 2]), [], "EDGE özel yol yok -> []");
   const y = out.yanKulvar, a = out.anaKulvar;
 
   // Canonical DEĞİŞMEZ:
-  assert(y.display === "22/19 (11/3)", "E2E YAN canonical display 22/19 (11/3)", y.display);
+  // OWNER F3-C (2026-10-18): kalana özel 22 karışıp sadeleşen ara kontrol "(11/3)" gösterilmez.
+  assert(y.display === "22/19", "E2E YAN canonical display 22/19 (yapay (11/3) parantezi yok — F3-C)", y.display);
   assert(y.key === "19", "E2E YAN canonical key 19", y.key);
   assert(a.display === "19/9", "E2E ANA canonical display 19/9", a.display);
   assert(a.key === "9", "E2E ANA canonical key 9", a.key);

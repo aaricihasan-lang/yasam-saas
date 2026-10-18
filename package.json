@@ -86,6 +86,7 @@
     "numeroloji:alt-chakra": "tsx scripts/numeroloji-final/alt-chakra-column.harness.ts",
     "numeroloji:referans": "tsx scripts/numeroloji-final/reference-validation.harness.ts",
     "numeroloji:damga": "tsx scripts/numeroloji-final/methodology-stamp.harness.ts",
+    "numeroloji:bilgi-bankasi": "tsx scripts/numeroloji-final/kb-match.harness.ts",
     "numeroloji:delete-confirm": "tsx scripts/numeroloji-presale/delete-confirm.harness.ts",
     "validate:cosmic": "node scripts/cosmic-validation/run-all.mjs",
     "validate:cosmic:fast": "node scripts/cosmic-validation/run-all.mjs --engine-only",

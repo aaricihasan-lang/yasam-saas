@@ -111,7 +111,7 @@ console.log("D. Alternatif çakra sütunu");
   // Owner ekranı: Ana 19/9 → alt 22/6 · Yan 22/19 → alt 22/11/8 + 33/8
   const [f, l] = person([19, 3, 3, 1, 2], [5, 3, 3, 22, 8]);
   const m = hesaplaNumeroloji({ firstName: f, lastName: l, birthDate: "14.02.1987" });
-  eq([m.anaKulvar.display, m.yanKulvar.display], ["19/9 (22/6)", "22/19 (11/3)"], "D-OWNER ana/yan display (özet ekranında parantez gizlenir → 19/9, 22/19)");
+  eq([m.anaKulvar.display, m.yanKulvar.display], ["19/9 (22/6)", "22/19"], "D-OWNER ana/yan display (F3-C: yapay (11/3) yok; özet 19/9, 22/19)");
   const anaCols = alternativeChakraColumns(m, "ana");
   const yanCols = alternativeChakraColumns(m, "yan");
   eq(anaCols.map((c) => c.path), ["22/6"], "D-OWNER Ana alternatifleri");

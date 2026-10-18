@@ -116,7 +116,8 @@ export function kulvarRef(bilesen: number[]): KulvarRef {
         if (isOzel(s) && s > enIyi) {
           const geri = nz.filter((_, k) => k !== i && k !== j);
           enIyi = s;
-          par = geri.length === 0 ? `(${s})` : `(${s}/${geri.length === 1 ? geri[0] : sadeOzelDur(geri.reduce((a, b) => a + b, 0))})`;
+          // F3-C: kalana özel sayı karışıp sadeleşiyorsa parantez yok
+          par = geri.length > 1 && geri.some(isOzel) ? "" : geri.length === 0 ? `(${s})` : `(${s}/${geri.length === 1 ? geri[0] : sadeOzelDur(geri.reduce((a, b) => a + b, 0))})`;
         }
       }
     if (par.replace(/^\(|\)$/g, "") === ana) par = "";
