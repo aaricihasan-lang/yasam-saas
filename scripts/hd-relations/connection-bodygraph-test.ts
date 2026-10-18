@@ -3,9 +3,9 @@
  *   1) Donmuş geometri dosyası = V9 hesabının yeniden üretimi (bayt bayt).
  *   2) Topoloji motorla birebir: 9 merkez, 64 kapı (doğru merkezde), 36 kanal (doğru uçlar), boru başka kapı /
  *      merkez üzerinden geçmez.
- *   3) Aktif renklendirme kuralları: tanımlı = iki yarı + tek işaret; yarım = tek yarı; ağda kapı kendi kolunu,
+ *   3) Aktif renklendirme kuralları: tanımlı = iki yarı; yarım = tek yarı; grafikte bağlantı türü işareti YOK; ağda kapı kendi kolunu,
  *      gövde yalnız gövdeden geçen tanımlı kanalla; ortak kapı = çizgili; yalnız-sonuç modunda yarım kanal yok.
- *   4) Etkileşim yüzeyi: 36 kanalın tam güzergâhı; işaretler kapı / birbirleriyle çakışmaz.
+ *   4) Etkileşim yüzeyi: 36 kanalın tam güzergâhı.
  *
  * Çalıştırma: npx tsx scripts/hd-relations/connection-bodygraph-test.ts
  */
@@ -153,8 +153,7 @@ const endsAtGate = (f: Fill, g: number) => { const p = parse(f.points); return d
   const h = fillsOf(pr, "4-63");
   ok(h.length === 1 && startsAtGate(h[0], 4) && h[0].tone === "A", "3b yarım kanal: yalnız aktif kapının (4) yarısı boyalı", h);
   ok(fillsOf(pr, "47-64").length === 0, "3c aktif kapısı olmayan kanal boyanmaz");
-  const markers = pr.filter((p) => p.k === "marker");
-  ok(markers.length === 1 && (markers[0] as { ch: string }).ch === "25-51", "3d yalnız tanımlı kanalda bağlantı türü işareti (yarım kanalda yok)", markers);
+  ok(!pr.some((p) => (p as { k: string }).k === "marker") && fillsOf(pr, "25-51").length === 2 && fillsOf(pr, "4-63").length === 1, "3d grafikte bağlantı türü işareti yok; tanımlı = iki yarı, yarım = tek yarı");
   const gates = pr.filter((p): p is Extract<CbgPrim, { k: "gate" }> => p.k === "gate");
   ok(gates.filter((g) => g.holder).map((g) => `${g.gate}:${g.holder}`).sort().join() === ["25:A", "4:A", "51:B"].sort().join(), "3e kapı renkleri = kişi kapıları");
 }
@@ -171,7 +170,6 @@ const endsAtGate = (f: Fill, g: number) => { const p = parse(f.points); return d
   const pr = buildConnectionBodygraphScene(st);
   const all = pr.filter((p): p is Fill => p.k === "fill");
   ok(all.length === 2 && all.some((x) => isArm(x, "kol10") && x.tone === "A") && all.some((x) => isArm(x, "kol20") && x.tone === "B"), "3g ağ: 10-20 tanımlı → yalnız kol10 + kol20 (gövde yok)");
-  ok(pr.filter((p) => p.k === "marker").length === 1, "3g2 10-20 işareti tek");
 }
 {
   // Ağ: 20-34 tanımlı (A 20, B 34) → kol20 + gövde (üst A, alt B) + kol34; 57 / 10 kolları boyanmaz
@@ -201,20 +199,11 @@ const endsAtGate = (f: Fill, g: number) => { const p = parse(f.points); return d
   const pr = buildConnectionBodygraphScene(st);
   const dyn = new Set(r.channels.map((c) => c.dynamic));
   ok(dyn.size === 4, "3m örnek dört dinamiği de içerir", [...dyn]);
-  const markers = pr.filter((p): p is Extract<CbgPrim, { k: "marker" }> => p.k === "marker");
-  ok(markers.length === r.channels.length && new Set(markers.map((m) => m.ch)).size === r.channels.length, "3n her tanımlı kanalda tam bir işaret", [markers.length, r.channels.length]);
-  // işaret merkezi = yolun sınırlayıcı kutusunun ortası
-  const centers = markers.map((m) => { const n = m.d.match(/-?\d+(\.\d+)?/g)!.map(Number); const xs: number[] = [], ys: number[] = []; for (let i = 0; i + 1 < n.length; i += 2) { xs.push(n[i]); ys.push(n[i + 1]); } return { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 }; });
-  let minMM = Infinity, minMG = Infinity;
-  for (let i = 0; i < centers.length; i++) {
-    for (let j = i + 1; j < centers.length; j++) minMM = Math.min(minMM, d(centers[i], centers[j]));
-    for (const gp of GP.values()) minMG = Math.min(minMG, d(centers[i], gp));
-  }
-  ok(minMM >= 11 && minMG >= CBG_GATE_R + 4, "3o işaretler birbirine ve kapılara binmez", { minMM: +minMM.toFixed(1), minMG: +minMG.toFixed(1) });
+  const definedDrawn = CHANNELS.map((c) => c.id).filter((id) => { const f = fillsOf(pr, id); return f.length > 0 && st.channels[id].state === "defined"; });
+  ok(definedDrawn.sort().join() === r.channels.map((c) => c.id).sort().join() && !pr.some((p) => (p as { k: string }).k === "marker"), "3n her tanımlı kanal boyalı; grafikte işaret yok", definedDrawn);
   const halfFromModel = Object.values(st.channels).filter((c) => c.state === "half").length;
   const ro = cbgStateFromResult(r);
-  const prR = buildConnectionBodygraphScene(ro);
-  ok(halfFromModel > 0 && Object.values(ro.channels).every((c) => c.state !== "half") && prR.filter((p) => p.k === "marker").length === r.channels.length, "3p yalnız-sonuç modu: tanımlı kanallar aynı, yarım kanal çizilmez");
+  ok(halfFromModel > 0 && Object.values(ro.channels).every((c) => c.state !== "half") && CHANNELS.every((c) => (ro.channels[c.id].state === "defined") === r.channels.some((x) => x.id === c.id)), "3p yalnız-sonuç modu: tanımlı kanallar aynı, yarım kanal çizilmez");
   const definedM = Object.values(st.channels).filter((c) => c.state === "defined").map((c) => c.id).sort().join();
   const definedR = Object.values(ro.channels).filter((c) => c.state === "defined").map((c) => c.id).sort().join();
   ok(definedM === definedR && definedM === r.channels.map((c) => c.id).sort().join(), "3q iki modda tanımlı kanallar = kayıtlı sonuç");
@@ -224,10 +213,10 @@ const endsAtGate = (f: Fill, g: number) => { const p = parse(f.points); return d
   ok(definedCenters === r.centers.filter((c) => c.defined).length, "3s tanımlı merkez sayısı = kayıtlı sonuç");
 }
 {
-  // Boş durum: 36 kanal borusu (30 boru × 2 + 5 ağ parçası × 2 = 70 çizgi), hiç dolgu / işaret yok
+  // Boş durum: 36 kanal borusu, hiç dolgu yok
   const empty = buildConnectionBodygraphScene(stateOf([], []).st);
   const edges = empty.filter((p): p is Extract<CbgPrim, { k: "pipe" }> => p.k === "pipe" && p.part === "edge");
-  ok(edges.length === 35 && empty.filter((p) => p.k === "pipe").length === 105 && !empty.some((p) => p.k === "fill" || p.k === "marker" || p.k === "tick"), "3t boş temel: 30 boru + 5 ağ parçası (kenar / gövde / ışık katmanı), dolgu / işaret yok");
+  ok(edges.length === 35 && empty.filter((p) => p.k === "pipe").length === 105 && !empty.some((p) => p.k === "fill" || p.k === "tick"), "3t boş temel: 30 boru + 5 ağ parçası (kenar / gövde / ışık katmanı), dolgu / işaret yok");
   const v9Pts = [...CBG_PIPES.map(([, s]) => s), ...CBG_NET_ARMS.map(([, s]) => s)].sort().join("|");
   ok([...new Set(edges.map((e) => e.points))].sort().join("|") === v9Pts, "3u boru güzergâhları mühürlü V9 noktalarıyla birebir (yalnız sunum katmanı değişti)");
 }

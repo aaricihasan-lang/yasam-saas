@@ -207,7 +207,7 @@ async function main() {
         };
       });
       const gateOk = Object.entries(expGates).every(([g, w]) => { const h = chart.gates[g]; return w === "AB" ? h === "both" : h === w || h === "both"; });
-      ok(drawnAttr.split(",").sort().join(",") === storedIds && chart.markers.join(",") === storedIds && gateOk, `${d.name}: birleşik BodyGraph — tanımlı kanallar, işaretler ve kanal kapıları (A/B) = kayıtlı sonuç (${stored.length} kanal)`, { chart: chart.gates, expGates, markers: chart.markers });
+      ok(drawnAttr.split(",").sort().join(",") === storedIds && chart.markers.length === 0 && gateOk, `${d.name}: birleşik BodyGraph — tanımlı kanallar ve kanal kapıları (A/B) = kayıtlı sonuç; grafikte işaret yok (${stored.length} kanal)`, { chart: chart.gates, expGates, markers: chart.markers });
       const pageHalf = (await page.locator("[data-hd-half-channel]").evaluateAll((els) => els.map((e) => e.getAttribute("data-hd-half-channel") ?? ""))).sort().join(",");
       ok(halfAttr === pageHalf && halfAttr.length > 0 && chart.filled.every((c) => storedIds.split(",").includes(c) || halfAttr.split(",").includes(c)), `${d.name}: grafikteki yarım kanallar = liste (${halfAttr.split(",").length}); yalnız tanımlı / yarım kanallar boyalı`);
       ok(chart.centers === 9 && Object.keys(chart.gates).length === 64 && chart.hits === 36 && chart.definedCenters === storedRes.centers.filter((c) => c.defined).length, `${d.name}: 9 merkez, 64 kapı, 36 kanal hedefi; tanımlı merkezler`, chart);

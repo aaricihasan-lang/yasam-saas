@@ -83,8 +83,7 @@ const LEGEND_CONNECTION_STANDARD = [
 /** Yaşam Sistemi birleşik BodyGraph'ı (ekrandaki grafikle aynı çizim). */
 const LEGEND_CONNECTION = [
   "Renk kişiyi gösterir: mavi = A, turuncu = B. Aktif kapı kanalın kendi yarısını kişinin rengine boyar; mavi zemin üzerinde turuncu çizgili yarı ve iki renkli kapı = iki kişide ortak kapı.",
-  "İki yarısı da boyalı ve ortasında bağlantı türü işareti olan kanal = birleşik haritada tanımlı. Yalnız bir yarısı boyalı kanal = yarım kanal (tanımlı değil).",
-  "Bağlantı türü işareti: ◆ Elektromanyetik · ▲ Baskınlık · ■ Uzlaşma · ● Arkadaşlık / Eşlik.",
+  "İki yarısı da boyalı kanal = birleşik haritada tanımlı. Yalnız bir yarısı boyalı kanal = yarım kanal (tanımlı değil). Bağlantı türü aşağıdaki kanal tablosundadır.",
   "Renkli merkez = birleşik haritada tanımlı; beyaz merkez = açık.",
 ];
 const LEGEND_PENTA = [

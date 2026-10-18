@@ -257,7 +257,7 @@ async function main() {
     const mb2 = await mediaBytes(dg2.buf);
     const docG = await docOf(dg1.buf);
     const chartPng = mb1.find((b) => b.readUInt32BE(16) === 1100);
-    ok(!!chartPng && chartPng.readUInt32BE(20) === Math.round((1100 * 752) / 602) && !mb1.some((b) => b.equals(Buffer.from(fakePng))) && docG.text.includes("Bağlantı türü işareti"), "5u Word: sunucuda çizilen silüetli BodyGraph (1100 genişlik, tarayıcı grafiği değil) + lejant", mb1.map((b) => [b.readUInt32BE(16), b.readUInt32BE(20)]));
+    ok(!!chartPng && chartPng.readUInt32BE(20) === Math.round((1100 * 752) / 602) && !mb1.some((b) => b.equals(Buffer.from(fakePng))) && docG.text.includes("Bağlantı türü aşağıdaki kanal tablosundadır") && !docG.text.includes("◆"), "5u Word: sunucuda çizilen silüetli BodyGraph (1100 genişlik, tarayıcı grafiği değil) + lejant", mb1.map((b) => [b.readUInt32BE(16), b.readUInt32BE(20)]));
     ok(mb1.length === mb2.length && mb1.every((b, i) => b.equals(mb2[i])), "5u2 tekrar indirmede görsel birebir aynı (deterministik)");
     ok(docG.text.includes("Yarım Kanallar ve Aktif Kapılar") && docG.text.includes("Kişilerin tüm aktif kapıları"), "5u3 Word: yarım kanallar ve kişilerin tüm aktif kapıları bölümü");
     // Eski rapor biçimi (donmuş standart PNG) indirmede aynen kullanılır (geri uyumluluk).

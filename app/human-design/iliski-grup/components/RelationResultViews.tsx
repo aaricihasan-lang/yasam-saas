@@ -15,7 +15,7 @@ import { useMemo, useState } from "react";
 import { HD_CHART_LOGO_SRC } from "@/app/human-design/kayitli-haritalar/components/HdChartInfoPanel";
 import { ConnectionBodygraph } from "./ConnectionBodygraph";
 import { buildCompositeModel } from "@/lib/human-design/relations/compositeModel";
-import { buildConnectionBodygraphScene, CBG_DYNAMIC_SHAPE, CBG_PERSON_COLOR, cbgStateFromModel, cbgStateFromResult } from "@/lib/human-design/relations/connectionBodygraphScene";
+import { buildConnectionBodygraphScene, CBG_PERSON_COLOR, cbgStateFromModel, cbgStateFromResult } from "@/lib/human-design/relations/connectionBodygraphScene";
 import { buildPentaScene, pentaChannelLines, PENTA_VIEW } from "@/lib/human-design/relations/pentaScene";
 import { SceneSvg } from "./SceneSvg";
 import {
@@ -99,7 +99,6 @@ function ConnectionDiagram({ r }: { r: HdConnectionResult }) {
 }
 
 
-const SHAPE_GLYPH: Record<"diamond" | "triangle" | "square" | "circle", string> = { diamond: "◆", triangle: "▲", square: "■", circle: "●" };
 
 /** Yaşam Sistemi marka imzası (mevcut logo; yeni tasarım yok). */
 export function RelationBrand({ className = "" }: { className?: string }) {
@@ -175,9 +174,9 @@ function CompositePanel({ a, r }: { a: RelationAnalysisView; r: HdConnectionResu
         <li><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: CBG_PERSON_COLOR.B }} />B · {nameB}</li>
         <li>Aktif kapı, kanalın kendi yarısını kişinin rengine boyar</li>
         <li>Mavi-turuncu çizgili yarı / iki renkli kapı: ortak kapı</li>
-        <li>İki yarısı boyalı + işaret: tanımlı kanal · tek yarısı boyalı: yarım kanal</li>
+        <li>İki yarısı boyalı: tanımlı kanal · tek yarısı boyalı: yarım kanal</li>
         <li>Renkli merkez: birleşik haritada tanımlı · beyaz: açık</li>
-        {DYNAMIC_ORDER.map((d) => (<li key={d}>{SHAPE_GLYPH[CBG_DYNAMIC_SHAPE[d]]} {DYNAMIC_LABEL[d]}</li>))}
+        <li>Bağlantı türü: kanal listesinde ve kanal seçildiğinde bilgi panelinde</li>
       </ul>
       <details className="mt-2">
         <summary className="cursor-pointer text-[11px] font-semibold text-indigo-700">Özet bağlantı şeması (ikincil)</summary>

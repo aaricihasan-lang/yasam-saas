@@ -30,8 +30,6 @@ function primData(p: CbgPrim): Record<string, unknown> {
   switch (p.k) {
     case "fill":
       return { "data-hd-cbg-fill": p.chs.join(","), "data-hd-cbg-color": `${p.tone}${p.stripe ? "-dash" : ""}` };
-    case "marker":
-      return { "data-hd-cbg-marker": p.ch };
     case "center":
       return { "data-hd-cbg-center": `${p.engine}:${p.defined ? "defined" : "open"}` };
     case "gate":
@@ -118,7 +116,7 @@ export function ConnectionBodygraph({
         const els = cbgElements(p, logoSrc);
         if (els.length === 0) return null;
         const data = primData(p);
-        const chs = p.k === "fill" || p.k === "tick" ? p.chs : p.k === "marker" ? [p.ch] : null;
+        const chs = p.k === "fill" || p.k === "tick" ? p.chs : null;
         // Tek öğeli ilkel: veri öznitelikleri doğrudan öğede; çok öğeli: ortak <g> üzerinde.
         if (els.length === 1 && !chs) return renderEl(els[0], String(i), data);
         return (

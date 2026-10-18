@@ -1,7 +1,7 @@
 /**
  * HD İlişki / Grup PROFESYONEL TAMAMLAMA — saf model / sahne / açıklama / rapor seçenekleri harness'i.
  *   A  Birleşik BodyGraph modeli: çizim = kayıtlı sonuç (birebir), yarım ≠ tam kanal, ortak kapılar, fallback
- *   B  Sahne: 36 kanal tabanı, tanımlı kanal katmanı = sonuç listesi, dinamik işaretleri, 64 kapı rozeti
+ *   B  Sahne: 36 kanal tabanı, tanımlı kanallar = sonuç listesi (iki yarı boyalı), işaret yok, 64 kapı rozeti
  *   C  Penta sahnesi: 6 kanal, 12 kapı, üye etiketleri = heldBy, 3/4/5 kişi
  *   D  Analiz açıklamaları: adlar doğru, yasaklı iddia yok, Penta üye katkıları doğru kişide
  *   E  Rapor seçenekleri: varsayılan KAPALI; hazırlayan sınırı; yorum temizliği
@@ -25,7 +25,7 @@ import { engineChart, fakeConnectionResponse, fakePentaResponse, PEOPLE } from "
 import { validateRoxyConnection, connectionDynamicFor } from "../../lib/human-design/relations/connection";
 import { validateRoxyPenta } from "../../lib/human-design/relations/penta";
 import { buildCompositeModel } from "../../lib/human-design/relations/compositeModel";
-import { buildConnectionBodygraphScene, CBG_CHANNEL_IDS, CBG_DYNAMIC_SHAPE, cbgStateFromModel } from "../../lib/human-design/relations/connectionBodygraphScene";
+import { buildConnectionBodygraphScene, CBG_CHANNEL_IDS, cbgStateFromModel } from "../../lib/human-design/relations/connectionBodygraphScene";
 import { buildPentaScene, pentaGatePositions, pentaChannelLines } from "../../lib/human-design/relations/pentaScene";
 import { connectionExplanations, pentaExplanations } from "../../lib/human-design/relations/explanations";
 import { parseReportOptions, sanitizeComment } from "../../lib/human-design/relations/relationExtras";
@@ -90,14 +90,14 @@ async function main() {
   const sc = buildConnectionBodygraphScene(cbgStateFromModel(m01.model));
   const fills = sc.filter((p) => p.k === "fill") as Array<{ chs: string[] }>;
   const filledChs = new Set(fills.flatMap((f) => f.chs));
-  const markers = sc.filter((p) => p.k === "marker") as Array<{ ch: string; shape: string }>;
+  const fillsOfCh = (id: string) => (sc.filter((p) => p.k === "fill") as Array<{ chs: string[]; points: string }>).filter((f) => f.chs.includes(id));
   const definedIds = v01.value.channels.map((c) => c.id).sort().join();
   ok("B1 36 kanal borusu çizilir (30 tek boru + 5 ağ parçası; kenar / gövde / ışık katmanı)", sc.filter((p) => p.k === "pipe" && p.part === "edge").length === 35);
-  ok("B2 işaretli (tanımlı) kanallar = kayıtlı sonuç listesi", markers.map((m) => m.ch).sort().join() === definedIds);
+  ok("B2 tanımlı kanalların hepsi boyalı (kayıtlı sonuç listesi)", v01.value.channels.every((c) => fillsOfCh(c.id).length > 0));
   ok("B3 boyalı kanallar yalnız tanımlı ya da yarım kanallar (boş kanal boyanmaz)", [...filledChs].every((c) => m01.model.channels[c].state !== "none"));
-  ok("B4 dinamik işareti her tanımlı kanalda bir kez ve doğru şekilde", markers.length === v01.value.totalChannels && markers.every((mk) => { const c = v01.value.channels.find((x) => x.id === mk.ch)!; return CBG_DYNAMIC_SHAPE[c.dynamic] === mk.shape; }));
+  ok("B4 grafikte bağlantı türü işareti yok (tür kanal listesinde)", !sc.some((p) => (p as { k: string }).k === "marker") && definedIds.length > 0);
   ok("B5 64 kapı", sc.filter((p) => p.k === "gate").length === 64);
-  ok("B6 yarım kanalda işaret yok (yarım ≠ tam)", markers.every((mk) => m01.model.channels[mk.ch].state === "defined"));
+  ok("B6 yarım kanallar boyalı ama tanımlı listede değil", Object.values(m01.model.channels).filter((c) => c.state === "half").every((c) => !definedIds.split(",").includes(c.id)));
   ok("B7 etkileşim yüzeyi: 36 kanal güzergâhı", CBG_CHANNEL_IDS.length === 36);
 
   section("C — Penta sahnesi (3 / 4 / 5 kişi)");

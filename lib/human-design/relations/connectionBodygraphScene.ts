@@ -8,8 +8,8 @@
 // Teknik doğruluk: kanal / merkez / kapı geometrisi MÜHÜRLÜ V9 (connectionBodygraphGeometry.ts, otomatik; elle
 // değişmez); ön katman ölçeklenmez. Veri YALNIZ kayıtlı + doğrulanmış Connection sonucu ve (varsa) kayıtlı bireysel
 // aktif kapılar (compositeModel). Klasik kural: her aktif kapı kanalın KENDİ yarısını kişinin rengine boyar
-// (A mavi, B turuncu, ikisi → mavi boru üzerinde turuncu şerit). İki yarısı boyalı + bağlantı türü işareti =
-// TANIMLI kanal; tek yarısı boyalı = YARIM kanal. Entegrasyon ağında (10 · 20 · 34 · 57) her kapı kendi kolunu
+// (A mavi, B turuncu, ikisi → mavi boru üzerinde turuncu şerit). İki yarısı boyalı = TANIMLI kanal; tek yarısı
+// boyalı = YARIM kanal. Bağlantı türü grafikte işaretlenmez (owner kararı); kanal listesinde ve seçim panelinde. Entegrasyon ağında (10 · 20 · 34 · 57) her kapı kendi kolunu
 // boyar; ortak gövde yalnız gövdeden geçen bir kanal tanımlıysa boyanır.
 //
 // TEK KAYNAK: her ilkel `cbgElements` ile SVG öğe tanımlarına çevrilir; tarayıcıdaki etkileşimli React SVG
@@ -30,7 +30,7 @@ import {
   CBG_PIPES,
 } from "./connectionBodygraphGeometry";
 import type { CompositeChannelState, CompositeModel, Holder } from "./compositeModel";
-import type { ConnectionDynamic, HdConnectionResult } from "./connection";
+import type { HdConnectionResult } from "./connection";
 
 export type Pt = { x: number; y: number };
 export { CBG_GATE_R };
@@ -40,12 +40,6 @@ export const CBG_VIEW = { x: -80, y: -80, width: 602, height: 752 } as const;
 export const CBG_VIEWBOX = `${CBG_VIEW.x} ${CBG_VIEW.y} ${CBG_VIEW.width} ${CBG_VIEW.height}`;
 
 export const CBG_PERSON_COLOR = { A: "#2563eb", B: "#f97316" } as const;
-export const CBG_DYNAMIC_SHAPE: Readonly<Record<ConnectionDynamic, "diamond" | "triangle" | "square" | "circle">> = {
-  Electromagnetic: "diamond",
-  Dominance: "triangle",
-  Compromise: "square",
-  Companionship: "circle",
-};
 
 /** Boru dış genişliği: referanstaki belirgin boru (V9 çiziminin 9.8'i yerine; güzergâh aynı). Çakışma testi bu değerle. */
 export const CBG_PIPE_FULL = 12.8;
@@ -131,7 +125,6 @@ export type CbgPrim =
   | { k: "fill"; points: string; tone: "A" | "B"; stripe?: boolean; chs: string[] }
   | { k: "tick"; points: string; chs: string[] }
   | { k: "slot" }
-  | { k: "marker"; d: string; ch: string; shape: "diamond" | "triangle" | "square" | "circle" }
   | { k: "center"; engine: string; points: string; defined: boolean }
   | { k: "text"; x: number; y: number; text: string; size: number; fill: string; spacing?: number; stroke: number; role: "center" | "gate" }
   | { k: "gate"; gate: number; x: number; y: number; holder: Holder | null }
@@ -256,37 +249,6 @@ export function cbgChannelRoute(id: string): Pt[] {
 }
 export const CBG_CHANNEL_IDS: readonly string[] = CHANNELS.map((c) => c.id);
 
-const MARKER_GAP = 14;
-const MARKER_GATE_GAP = CBG_GATE_R + 7;
-/** Ortaya en yakın, başka işarete / kapıya çakışmayan konum (yoksa en ferah aday). */
-function markerSpot(route: Pt[], placed: Pt[], gates: Pt[]): Pt {
-  const L = plen(route);
-  let best: Pt = pointAt(route, L / 2);
-  let bestScore = -Infinity;
-  for (const t of [0.5, 0.44, 0.56, 0.38, 0.62, 0.32, 0.68, 0.26, 0.74, 0.2, 0.8]) {
-    const q = pointAt(route, L * t);
-    const dm = Math.min(Infinity, ...placed.map((p) => Math.hypot(p.x - q.x, p.y - q.y)));
-    const dg = Math.min(...gates.map((p) => Math.hypot(p.x - q.x, p.y - q.y)));
-    if (dm >= MARKER_GAP && dg >= MARKER_GATE_GAP) return q;
-    const score = Math.min(dm / MARKER_GAP, dg / MARKER_GATE_GAP);
-    if (score > bestScore) {
-      bestScore = score;
-      best = q;
-    }
-  }
-  return best;
-}
-
-function markerPath(shape: "diamond" | "triangle" | "square" | "circle", x: number, y: number, s = 4.6): string {
-  const n = (v: number) => +v.toFixed(2);
-  switch (shape) {
-    case "diamond": return `M ${n(x)} ${n(y - s)} L ${n(x + s)} ${n(y)} L ${n(x)} ${n(y + s)} L ${n(x - s)} ${n(y)} Z`;
-    case "triangle": return `M ${n(x)} ${n(y - s)} L ${n(x + s)} ${n(y + s * 0.8)} L ${n(x - s)} ${n(y + s * 0.8)} Z`;
-    case "square": { const q = s * 0.8; return `M ${n(x - q)} ${n(y - q)} H ${n(x + q)} V ${n(y + q)} H ${n(x - q)} Z`; }
-    default: { const r = s * 0.85; return `M ${n(x - r)} ${n(y)} A ${n(r)} ${n(r)} 0 1 0 ${n(x + r)} ${n(y)} A ${n(r)} ${n(r)} 0 1 0 ${n(x - r)} ${n(y)} Z`; }
-  }
-}
-
 /** Bir kanal yarısını kişi rengine boyayan dolgu(lar). Ortak kapı: mavi boru + turuncu şeritler. */
 function fills(points: Pt[], h: Holder, chs: string[]): CbgPrim[] {
   const s = fmt(points);
@@ -365,17 +327,6 @@ export function buildConnectionBodygraphScene(state: CbgState): CbgPrim[] {
   // 4) Seçim vurgusu + etkileşim yuvası.
   out.push({ k: "slot" });
 
-  // 5) Tanımlı kanalların bağlantı türü işareti (çakışmasız).
-  const placed: Pt[] = [];
-  const gatePts = CBG_GATES.map(([, x, y]) => ({ x, y }));
-  for (const id of CBG_CHANNEL_IDS) {
-    const st = state.channels[id];
-    if (st.state !== "defined") continue;
-    const m = markerSpot(cbgChannelRoute(id), placed, gatePts);
-    placed.push(m);
-    out.push({ k: "marker", d: markerPath(CBG_DYNAMIC_SHAPE[st.dynamic], m.x, m.y), ch: id, shape: CBG_DYNAMIC_SHAPE[st.dynamic] });
-  }
-
   // 6) Merkezler + adlar.
   for (const c of CBG_CENTERS) {
     out.push({ k: "center", engine: c.engine, points: c.points, defined: state.definedCenters.has(c.engine) });
@@ -428,8 +379,6 @@ export function cbgElements(p: CbgPrim, logoHref: string | null): CbgEl[] {
       return [{ tag: "polyline", attrs: { points: p.points, fill: "none", stroke: "#ffffff", strokeWidth: FULL - 0.6, strokeLinecap: "butt" } }];
     case "slot":
       return [];
-    case "marker":
-      return [{ tag: "path", attrs: { d: p.d, fill: "#ffffff", stroke: INK, strokeWidth: 0.9, strokeLinejoin: "round" } }];
     case "center":
       return [{ tag: "polygon", attrs: { points: p.points, fill: p.defined ? "url(#cbgCenterDef)" : "url(#cbgCenterOpen)", stroke: CENTER_STROKE, strokeWidth: p.defined ? 2.1 : 1.8, strokeLinejoin: "round", filter: "url(#cbgLift)" } }];
     case "text":
