@@ -511,11 +511,8 @@
     },
     "premium": {
       "tagline": "Daha dengeli bir yaşam için",
-      "menuHome": "Ana Sayfa",
       "menuAllModules": "Tüm Modüller",
-      "menuCalendar": "Takvim",
       "menuClients": "Danışanlar",
-      "menuContents": "İçerikler",
       "menuSettings": "Ayarlar",
       "menuAdmin": "Admin Paneli",
       "menuOpen": "Menüyü aç",
@@ -525,8 +522,36 @@
       "sideQuote": "Daha bilinçli,|daha dengeli,|daha iyi bir yaşam...",
       "eyebrow": "Yaşam Sistemi",
       "heroSub": "Daha dengeli, bilinçli ve anlamlı bir yaşam için buradayız.",
-      "quote": "Kendini tanımak,|daha iyi bir yaşamın|ilk adımıdır.",
-      "modulesTitle": "Yaşam Modülleri"
+      "modulesTitle": "Yaşam Modülleri",
+      "nav": {
+        "menuModulesHint": "Erişebildiğiniz tüm modüller",
+        "dyKayit": "Danışan Kayıt",
+        "dyListe": "Danışan Listesi",
+        "dyAjanda": "Ajanda & Randevu Merkezi",
+        "energyBody": "Biyoenerji",
+        "reflexology": "Refleksoloji",
+        "cupping": "Kupa & Hacamat Terapisi",
+        "stones": "Doğaltaş",
+        "aromatherapy": "Aromaterapi",
+        "sifa": "Şifa Rehberi",
+        "beslenme": "Beslenme",
+        "personalArchive": "Kişisel Arşiv",
+        "belgeCeviri": "Belge Çeviri Merkezi",
+        "videoCeviri": "Video → Türkçe Word/PDF",
+        "dersNotu": "Ders Notu Merkezi",
+        "numeroloji": "Numeroloji",
+        "humanDesign": "Human Design",
+        "cosmic": "Yaşam Takvimi / Kozmik Ajanda",
+        "atlas": "Gökyüzü Atlası",
+        "stokAll": "Tüm Ürünler",
+        "stokStones": "Doğaltaş Ürün/Stok",
+        "stokOil": "Yağ Ürün/Stok",
+        "stokSoap": "Sabun / Krem Ürünleri",
+        "stokAccessory": "Tespih / Takı / Aksesuar",
+        "stokPricing": "Satış & Fiyatlandırma",
+        "stokSales": "Satış Geçmişi",
+        "stokOther": "Diğer Ürünler"
+      }
     }
   }
 }

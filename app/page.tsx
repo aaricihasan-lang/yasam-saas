@@ -77,7 +77,7 @@ import LanguageSelector from "@/components/i18n/LanguageSelector";
 const SHOW_LANDING_LANGUAGE_SELECTOR = false;
 import NotificationBell from "@/components/notifications/NotificationBell";
 import HomeShell from "@/app/_premium/home/HomeShell";
-import { evaluateRouteModuleGuard } from "@/lib/auth/routeModuleAccess";
+import { buildModuleNavGroups, useModuleNavProbes } from "@/app/_premium/home/homeModuleNav";
 import premium from "@/app/_premium/home/home.module.css";
 import { premiumFontVars } from "@/app/_premium/fonts";
 import CookiePreferencesButton from "@/components/analytics/CookiePreferencesButton";
@@ -828,6 +828,9 @@ export default function Home() {
   const [danisanYonetimiSlide, setDanisanYonetimiSlide] = useState(0);
   const [kisiselArsivPreviewOpen, setKisiselArsivPreviewOpen] = useState(false);
   const [adminNavLoading, setAdminNavLoading] = useState(false);
+  // Sol menü "Tüm Modüller" ilk açıldığında Beslenme / Gökyüzü Atlası erişim yoklamaları (mevcut yoklamalar) bir kez çalışır.
+  const [modulesNavRequested, setModulesNavRequested] = useState(false);
+  const moduleNavProbes = useModuleNavProbes(modulesNavRequested);
   // NOT: Beslenme girişi "Doğal Destek & Rehber" hub'ına taşındı (DogalDestekCards, kendi
   // checkBeslenmeAccess probe'uyla). Ayrı "Besinlerim"/manuel-besin yeteneği ÜRÜNDEN KALDIRILDI →
   // ana dashboard'da beslenme/food probe state'i tutulmaz.
@@ -1615,6 +1618,26 @@ export default function Home() {
       return !!item && item.href !== "#" && cardLock(item) === null;
     };
     const menuReady = permissionsReady && !membershipExpired;
+    // 2026-10-18 owner kararı: Ürün & Stok Merkezi kartı yedi merkezin EN SONUNDA (yalnız gösterim sırası; diğer altı kartın
+    // kendi sırası, kart içeriği ve yetki kararı aynen).
+    const orderedDashboardModules = [
+      ...visibleDashboardModules.filter((m) => m.permissionKey !== "stok"),
+      ...visibleDashboardModules.filter((m) => m.permissionKey === "stok"),
+    ];
+    // Sol menü "Tüm Modüller": kartlarla aynı sıra + aynı kilit kararı; alt modül görünürlüğü mevcut route kapısı ile.
+    const moduleNavGroups = menuReady
+      ? buildModuleNavGroups(
+          user,
+          orderedDashboardModules.map((m) => ({
+            permissionKey: m.permissionKey,
+            href: m.href,
+            open: isCardOpen(m.permissionKey),
+            label: t(`modules.${m.permissionKey}.title`),
+          })),
+          moduleNavProbes,
+          (key) => t(`premium.nav.${key}`),
+        )
+      : [];
     // Owner onaylı premium kart görselleri / tonları (yalnız görünüm; href / yetki ModuleCard'dan).
     const CARD_VISUAL: Partial<Record<string, { img: string; tone: string }>> = {
       clients: { img: "ic-danisan", tone: premium.tViolet },
@@ -1636,8 +1659,8 @@ export default function Home() {
       <main className={`${premium.page} ${premiumFontVars}`}>
         <HomeShell
           showClients={menuReady && isCardOpen("clients")}
-          showCalendar={menuReady && evaluateRouteModuleGuard("/dashboard/ajanda", user) === "allow"}
-          showContents={menuReady && isCardOpen("digital_content")}
+          moduleGroups={moduleNavGroups}
+          onModulesOpen={() => setModulesNavRequested(true)}
           isAdmin={isAdminUser(user)}
           adminNavLoading={adminNavLoading}
           onAdminNav={() => { void handleAdminNav(); }}
@@ -1729,15 +1752,6 @@ export default function Home() {
                 <div className={premium.heroArt}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/premium/ana-sayfa/hero-manzara.webp" width={738} height={259} alt="" aria-hidden data-testid="home-hero-glow" />
-                  <figure className={premium.quote}>
-                    <span className={premium.quoteMark} aria-hidden>“</span>
-                    <blockquote>
-                      {t("premium.quote").split("|").map((line) => (
-                        <span key={line}>{line}</span>
-                      ))}
-                    </blockquote>
-                    <span className={premium.quoteLine} aria-hidden />
-                  </figure>
                 </div>
                 <div className={premium.heroText}>
                   <p className={premium.eyebrow}>{t("premium.eyebrow")}</p>
@@ -1845,10 +1859,14 @@ export default function Home() {
                 </div>
               ) : (
                 <div className={premium.grid} data-testid="home-hub-grid">
-                  {visibleDashboardModules.map((item, index) => {
-                    const total = visibleDashboardModules.length;
-                    // Son kart 3 sütunlu düzende tek kalıyorsa (ör. 7 kart) tam satır geniş kart olur.
-                    const isWide = index === total - 1 && total % 3 === 1;
+                  {orderedDashboardModules.map((item, index) => {
+                    const total = orderedDashboardModules.length;
+                    // Son kart 3 sütunlu düzende tek kalıyorsa (ör. 7 kart): geniş "analiz" görünümü yalnız Yaşam Analiz
+                    // kartına aittir; başka bir merkez (2026-10-18: Ürün & Stok en sonda) kendi kart görünümünü korur ve
+                    // son satırda ortalanır.
+                    const isLastSolo = index === total - 1 && total % 3 === 1;
+                    const isWide = isLastSolo && item.permissionKey === "numerology";
+                    const soloClass = isLastSolo && !isWide ? premium.soloCenter : "";
                     const hasHref = item.href !== "#";
                     const lockReason = cardLock(item);
                     const isLocked = lockReason !== null;
@@ -1902,7 +1920,7 @@ export default function Home() {
 
                     if (isOpen) {
                       return (
-                        <Link key={item.permissionKey} href={item.href} className={`${premium.cardLink} ${isWide ? premium.wide : ""}`}>
+                        <Link key={item.permissionKey} href={item.href} className={`${premium.cardLink} ${isWide ? premium.wide : ""} ${soloClass}`}>
                           {card}
                         </Link>
                       );
@@ -1910,7 +1928,7 @@ export default function Home() {
                     return (
                       <div
                         key={item.permissionKey}
-                        className={`${isWide ? premium.wide : ""} ${isComingSoon ? premium.cardSoon : premium.cardLocked}`}
+                        className={`${isWide ? premium.wide : ""} ${soloClass} ${isComingSoon ? premium.cardSoon : premium.cardLocked}`}
                         role={isLocked ? "button" : undefined}
                         tabIndex={isLocked ? 0 : undefined}
                         onClick={isLocked && lockReason ? () => handleLockedModuleClick(lockReason) : undefined}
