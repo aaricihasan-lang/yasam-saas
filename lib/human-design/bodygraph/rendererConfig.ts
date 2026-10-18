@@ -23,7 +23,8 @@ export const HD_INDIVIDUAL_BODYGRAPH: HdIndividualBodygraphRenderer = "premium";
 export const HD_CONNECTION_BODYGRAPH: HdConnectionBodygraphRenderer = "premium";
 
 /**
- * Bireysel haritada premium renk eşlemesi (Connection'daki A mavi / B turuncu paletiyle aynı iki ton):
- * Kişilik (bilinçli) = mavi, Tasarım (bilinçsiz) = turuncu; ikisi de aktifse çizgili / iki renkli kapı.
+ * Bireysel haritada premium ton eşlemesi (owner kesin kararı 2026-10-18, geleneksel HD): Kişilik (bilinçli) = A = SİYAH,
+ * Tasarım (bilinçsiz) = B = KIRMIZI; ikisi de aktifse siyah boru üzerinde kırmızı şerit / iki renkli kapı.
+ * Renkler connectionBodygraphScene CBG_PALETTE_COLOR.individual'da; Connection mavi / turuncu kalır.
  */
 export const HD_PREMIUM_INDIVIDUAL_TONE = { personality: "A", design: "B" } as const;

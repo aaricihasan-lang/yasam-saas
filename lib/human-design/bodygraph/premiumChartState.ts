@@ -1,7 +1,8 @@
 // Bireysel Human Design haritası → premium BodyGraph durumu (SAF; ağ / DB / yeni hesap yok).
 //
 // Kaynak YALNIZ kayıtlı `computed_result` (activations + kanallar + tanımlı merkezler). Klasik kural:
-// aktif kapı kanalın kendi yarısını boyar (Kişilik / Tasarım tonu — rendererConfig.HD_PREMIUM_INDIVIDUAL_TONE);
+// aktif kapı kanalın kendi yarısını boyar (Kişilik SİYAH / Tasarım KIRMIZI — palet "individual"; ton eşlemesi
+// rendererConfig.HD_PREMIUM_INDIVIDUAL_TONE);
 // iki kapısı aktif kanal TANIMLI, tek kapısı aktif kanal YARIM.
 // Doğrulama: kapılardan türetilen tanımlı kanallar ve merkezler kayıtlı listelerle BİREBİR örtüşmezse null döner
 // → görünüm pasif (eski) çiziciye düşer; uydurma çizim yok.
@@ -46,5 +47,5 @@ export function premiumStateFromChart(c: HdComputedChart): CbgState | null {
   const storedCenters = [...(c.centers?.defined ?? [])].sort();
   if (derivedCenters.join() !== storedCenters.join()) return null;
 
-  return { gates, channels, definedCenters: new Set<string>(storedCenters as CenterName[]), full: true };
+  return { gates, channels, definedCenters: new Set<string>(storedCenters as CenterName[]), full: true, palette: "individual" };
 }

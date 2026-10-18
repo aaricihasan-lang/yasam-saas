@@ -19,7 +19,9 @@ import { normalizeRoxyBodygraph } from "../../lib/human-design/providers/roxy/no
 import { buildRoxyRenderPayload } from "../../lib/human-design/providers/roxy/render";
 import { premiumStateFromChart } from "../../lib/human-design/bodygraph/premiumChartState";
 import { HD_CONNECTION_BODYGRAPH, HD_INDIVIDUAL_BODYGRAPH, HD_PREMIUM_INDIVIDUAL_TONE } from "../../lib/human-design/bodygraph/rendererConfig";
-import { buildConnectionBodygraphScene, connectionBodygraphSvg } from "../../lib/human-design/relations/connectionBodygraphScene";
+import { buildConnectionBodygraphScene, cbgStateFromModel, connectionBodygraphSvg } from "../../lib/human-design/relations/connectionBodygraphScene";
+import { buildCompositeModel } from "../../lib/human-design/relations/compositeModel";
+import { CBG_GATES } from "../../lib/human-design/relations/connectionBodygraphGeometry";
 import { validateBodygraphPng } from "../../lib/human-design/reporting/bodygraphPng";
 import { HdComputedChartView } from "../../app/human-design/kayitli-haritalar/components/HdComputedChartView";
 import { HdRoxyBodygraph } from "../../app/human-design/kayitli-haritalar/components/HdRoxyBodygraph";
@@ -43,6 +45,7 @@ if (!v.ok) throw new Error("fixture");
 const n = normalizeRoxyBodygraph(v.value, { date: "2018-07-20", time: "19:00:00", timezone: "Europe/Istanbul", latitude: 37.87, longitude: 32.48, nodeType: "true", lang: "tr", birthUtcIso: "2018-07-20T16:00:00.000Z" });
 if (!n.ok) throw new Error("normalize");
 const chart = n.chart;
+const GP = new Map(CBG_GATES.map(([g, x, y]) => [g, [x, y] as const]));
 const payload = buildRoxyRenderPayload(FIXTURE)!;
 
 console.log("\n—— A. Bireysel harita → premium durum");
@@ -59,9 +62,17 @@ if (st) {
     const exp = P.has(g) && D.has(g) ? "both" : P.has(g) ? HD_PREMIUM_INDIVIDUAL_TONE.personality : D.has(g) ? HD_PREMIUM_INDIVIDUAL_TONE.design : null;
     return h === exp;
   });
-  ok("A4 kapı tonları: Kişilik = mavi (A), Tasarım = turuncu (B), ikisi = iki renkli", toneOk && HD_PREMIUM_INDIVIDUAL_TONE.personality === "A" && HD_PREMIUM_INDIVIDUAL_TONE.design === "B");
+  ok("A4 kapı tonları: Kişilik = A, Tasarım = B, ikisi = iki renkli; palet bireysel", toneOk && HD_PREMIUM_INDIVIDUAL_TONE.personality === "A" && HD_PREMIUM_INDIVIDUAL_TONE.design === "B" && st.palette === "individual");
   const svg = connectionBodygraphSvg(buildConnectionBodygraphScene(st), { logoHref: null, fontFamily: "Geist" });
   ok("A5 premium SVG geçerli: 9 merkez, 64 kapı, NaN yok", !/NaN|undefined/.test(svg) && (svg.match(/<polygon /g) ?? []).length === 9 && (svg.match(/ r="6\.2"/g) ?? []).length === 64);
+  // Renk: bireysel SİYAH (Kişilik) / KIRMIZI (Tasarım); mavi / turuncu YOK. İki taraflı kapı iki renkli.
+  const bodyColors = [...svg.matchAll(/<polyline [^>]*stroke="(#[0-9a-f]{6})" stroke-width="9\.8"/g)].map((m) => m[1]);
+  ok("A5b bireysel boru renkleri: siyah + kırmızı (gövde katmanı); mavi / turuncu yok", bodyColors.includes("#2a2c36") && bodyColors.includes("#dc2626") && !bodyColors.includes("#1f63e6") && !bodyColors.includes("#ff7a0f"), [...new Set(bodyColors)]);
+  const pGates = [...P].filter((g) => !D.has(g)), dGates = [...D].filter((g) => !P.has(g)), both = [...P].filter((g) => D.has(g));
+  const gateFill = (g: number) => { const p = GP.get(g)!; const m = new RegExp(`<circle cx="${p[0].toFixed(2)}" cy="${p[1].toFixed(2)}" r="6\\.2" fill="url\\(#(cbgGate[A-Z])\\)"`).exec(svg); return m?.[1] ?? null; };
+  ok("A5c Kişilik kapıları siyah (cbgGateP), Tasarım kapıları kırmızı (cbgGateD)", pGates.every((g) => gateFill(g) === "cbgGateP") && dGates.every((g) => gateFill(g) === "cbgGateD"), { p: pGates.map(gateFill), d: dGates.map(gateFill) });
+  const twoTone = (g: number) => { const [x, y] = GP.get(g)!; const X = x.toFixed(2), T = (y - 6.2).toFixed(2), B = (y + 6.2).toFixed(2); return svg.includes(`d="M ${X} ${T} A 6.2 6.2 0 0 0 ${X} ${B} Z" fill="url(#cbgGateP)"`) && svg.includes(`d="M ${X} ${T} A 6.2 6.2 0 0 1 ${X} ${B} Z" fill="url(#cbgGateD)"`); };
+  ok("A5d iki tarafta aktif kapılar iki renkli (sol yarı siyah, sağ yarı kırmızı)", both.length > 0 && both.every(twoTone), both.map((g) => [g, twoTone(g)]));
   const png = new Resvg(svg, { fitTo: { mode: "height", value: 1800 }, font: { loadSystemFonts: false, fontFiles: [join(ROOT, "public/fonts/Geist-Regular.ttf")], defaultFontFamily: "Geist" } }).render().asPng();
   const check = validateBodygraphPng(Buffer.from(png));
   ok("A6 premium oranlı PNG sunucu doğrulayıcısından geçer", check.ok, check.ok ? undefined : check.error);
@@ -77,7 +88,7 @@ console.log("\n—— B. Bireysel görünüm");
 const before = JSON.stringify(chart);
 const view = renderToStaticMarkup(createElement(HdComputedChartView, { result: chart, roxyRender: payload }));
 ok("B1 varsayılan çizici premium; Roxy bileşeni aktif değil", HD_INDIVIDUAL_BODYGRAPH === "premium" && view.includes('data-hd-renderer="premium"') && !view.includes("<roxy-bodygraph"));
-ok("B2 9 merkez + 64 kapı + Türkçe renk açıklaması", (view.match(/data-hd-cbg-center=/g) ?? []).length === 9 && (view.match(/data-hd-cbg-gate=/g) ?? []).length === 64 && view.includes("Kişilik (bilinçli)") && view.includes("Tasarım (bilinçsiz)"));
+ok("B2 9 merkez + 64 kapı + Türkçe renk açıklaması (siyah / kırmızı)", (view.match(/data-hd-cbg-center=/g) ?? []).length === 9 && (view.match(/data-hd-cbg-gate=/g) ?? []).length === 64 && view.includes("Kişilik (bilinçli)") && view.includes("Tasarım (bilinçsiz)") && view.includes("background:#22242c") && view.includes("background:#dc2626") && view.includes('data-hd-cbg-palette="individual"'));
 ok("B3 Design 13 + Personality 13 sütunları korunur", [...view.matchAll(/data-hd-activation=/g)].length === 26);
 ok("B4 görünüm kayıtlı veriyi değiştirmez", JSON.stringify(chart) === before);
 ok("B5 bireysel grafikte kanal seçimi yüzeyi yok (salt görüntü)", !view.includes("data-hd-cbg-hit"));
@@ -114,6 +125,12 @@ const av = { id: "x", kind: "connection", memberCount: 2, relationType: null, cr
 const schem = renderToStaticMarkup(createElement(LegacySchematicCompositePanel, { a: av, r, notice: null, summary: null }));
 ok("C6 pasif şematik Connection paneli çizer", schem.includes('data-hd-scene="composite"') && schem.includes('data-hd-composite="ok"'));
 const roxyConn = renderToStaticMarkup(createElement(LegacyRoxyCompositePanel, { a: av, r, summary: null }));
+const cm = buildCompositeModel(A, B, r);
+if (cm.ok) {
+  const csvg = connectionBodygraphSvg(buildConnectionBodygraphScene(cbgStateFromModel(cm.model)), { logoHref: null, fontFamily: "Geist" });
+  const cBody = [...csvg.matchAll(/<polyline [^>]*stroke="(#[0-9a-f]{6})" stroke-width="9\.8"/g)].map((m) => m[1]);
+  ok("C8 Connection renkleri değişmedi: A mavi, B turuncu; siyah / kırmızı yok", cBody.includes("#1f63e6") && cBody.includes("#ff7a0f") && !cBody.includes("#2a2c36") && !cBody.includes("#dc2626") && !/url\(#cbgGate[PD]\)/.test(csvg));
+} else ok("C8 Connection modeli", false, cm.reason);
 ok("C7 pasif Roxy Connection paneli yüklenir", roxyConn.includes("roxy-hd-connection"));
 
 console.log("\n—— D. Sunucu PNG oranı");

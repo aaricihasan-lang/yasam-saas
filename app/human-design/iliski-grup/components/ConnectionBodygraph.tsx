@@ -75,6 +75,7 @@ export function ConnectionBodygraph({
       className={`mx-auto block select-none ${sizeClass ?? (wide ? "h-auto w-[860px] max-w-none" : "h-auto w-full max-w-[640px]")}`}
       data-hd-cbg=""
       data-hd-cbg-selected={selected ?? ""}
+      data-hd-cbg-palette={prims.find((p): p is Extract<CbgPrim, { k: "gate" }> => p.k === "gate")?.pal ?? "connection"}
     >
       {/* Statik, sabit içerikli tanımlar (degrade / filtre; kullanıcı verisi içermez). */}
       <defs dangerouslySetInnerHTML={{ __html: CBG_DEFS }} />

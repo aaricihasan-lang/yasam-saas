@@ -73,6 +73,18 @@ async function main() {
     const bound = readPngTextChunks(new Uint8Array(png)).get(HD_BODYGRAPH_BIND_KEYWORD) ?? [];
     ok("analiz bağı (kimlik + kayıtlı parmak izi) gömülü — sunucunun beklediğiyle aynı", bound.length === 1 && bound[0] === bodygraphBindingText(CHART_ID, fingerprintFromRoxyRender(payload)), JSON.stringify(bound));
     ok("dış ağ isteği yok", external.length === 0, external.join(","));
+    // Word görselinde renk: kırmızı (Tasarım) + koyu grafit (Kişilik) VAR; turuncu / mavi boru YOK.
+    const sharp = (await import("sharp")).default;
+    const { data, info } = await sharp(png).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    let red = 0, dark = 0, orange = 0, blue = 0;
+    for (let i = 0; i < info.width * info.height * 3; i += 3) {
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      if (r > 190 && g < 70 && b < 70) red++;
+      else if (r < 60 && g < 60 && b < 70) dark++;
+      else if (r > 230 && g > 100 && g < 150 && b < 60) orange++;
+      else if (r < 60 && g > 80 && g < 120 && b > 200) blue++;
+    }
+    ok("Word görseli renkleri: kırmızı + siyah var, turuncu / mavi boru yok", red > 2000 && dark > 2000 && orange < 50 && blue < 50, JSON.stringify({ red, dark, orange, blue }));
   } finally {
     await browser.close();
     server.close();

@@ -39,7 +39,18 @@ export { CBG_GATE_R };
 export const CBG_VIEW = { x: -80, y: -80, width: 602, height: 752 } as const;
 export const CBG_VIEWBOX = `${CBG_VIEW.x} ${CBG_VIEW.y} ${CBG_VIEW.width} ${CBG_VIEW.height}`;
 
-export const CBG_PERSON_COLOR = { A: "#2563eb", B: "#f97316" } as const;
+/**
+ * Renk paletleri (owner kesin kararı 2026-10-18). A / B = iki ton:
+ *   connection — Kişi A MAVİ, Kişi B TURUNCU (değişmez).
+ *   individual — geleneksel Human Design: Kişilik (bilinçli) SİYAH, Tasarım (bilinçsiz) KIRMIZI.
+ * Yalnız renk değişir; boru katmanları (kenar / gövde / ışık), gölge ve kalınlık iki palette de aynıdır.
+ */
+export type CbgPalette = "connection" | "individual";
+export const CBG_PALETTE_COLOR: Readonly<Record<CbgPalette, { A: string; B: string }>> = {
+  connection: { A: "#2563eb", B: "#f97316" },
+  individual: { A: "#22242c", B: "#dc2626" },
+};
+export const CBG_PERSON_COLOR = CBG_PALETTE_COLOR.connection;
 
 /** Boru dış genişliği: referanstaki belirgin boru (V9 çiziminin 9.8'i yerine; güzergâh aynı). Çakışma testi bu değerle. */
 export const CBG_PIPE_FULL = 12.8;
@@ -48,12 +59,24 @@ const BODY_W = 9.8;
 const SHINE_W = 3.6;
 void CBG_PIPE_EDGE;
 void CBG_PIPE_W;
-/** Boru tonları: kenar (koyu), gövde, ışık yansıması (orta şerit). */
-const TUBE = {
-  passive: { edge: "#9ba8cd", body: "#e6eaf5", shine: "#ffffff", shineOpacity: 1 },
-  A: { edge: "#0b3aa6", body: "#1f63e6", shine: "#9cc3ff", shineOpacity: 0.95 },
-  B: { edge: "#c94a00", body: "#ff7a0f", shine: "#ffd7a8", shineOpacity: 0.95 },
-} as const;
+/** Boru tonları: kenar (koyu), gövde, ışık yansıması (orta şerit) — palet başına; pasif boru ortak. */
+const TUBE_PASSIVE = { edge: "#9ba8cd", body: "#e6eaf5", shine: "#ffffff", shineOpacity: 1 } as const;
+const TUBES: Readonly<Record<CbgPalette, Record<"A" | "B", { edge: string; body: string; shine: string; shineOpacity: number }>>> = {
+  connection: {
+    A: { edge: "#0b3aa6", body: "#1f63e6", shine: "#9cc3ff", shineOpacity: 0.95 },
+    B: { edge: "#c94a00", body: "#ff7a0f", shine: "#ffd7a8", shineOpacity: 0.95 },
+  },
+  individual: {
+    // Siyah: grafit gövde + gri ışık şeridi (üç boyutlu); kırmızı: koyu kenar + parlak gövde + açık pembe ışık.
+    A: { edge: "#050609", body: "#2a2c36", shine: "#a3a8bb", shineOpacity: 0.85 },
+    B: { edge: "#8e0f14", body: "#dc2626", shine: "#ffa3a3", shineOpacity: 0.9 },
+  },
+};
+/** Parlak kapı dolgusu degradesi (palet başına). */
+const GATE_GRAD: Readonly<Record<CbgPalette, { A: string; B: string }>> = {
+  connection: { A: "cbgGateA", B: "cbgGateB" },
+  individual: { A: "cbgGateP", B: "cbgGateD" },
+};
 const INK = "#1e2a78";
 const CENTER_STROKE = "#3346c6";
 const GATE_STROKE = "#4a5ed3";
@@ -81,7 +104,10 @@ export const CBG_DEFS =
   `<linearGradient id="cbgCenterDef" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1f3ff"/><stop offset="1" stop-color="#d9e0fd"/></linearGradient>` +
   // parlak kapı dolguları
   `<radialGradient id="cbgGateA" cx="0.38" cy="0.32" r="0.75"><stop offset="0" stop-color="#9cc2ff"/><stop offset="0.55" stop-color="#2f6cf0"/><stop offset="1" stop-color="#1640b8"/></radialGradient>` +
-  `<radialGradient id="cbgGateB" cx="0.38" cy="0.32" r="0.75"><stop offset="0" stop-color="#ffd09c"/><stop offset="0.55" stop-color="#f97316"/><stop offset="1" stop-color="#c2410c"/></radialGradient>`;
+  `<radialGradient id="cbgGateB" cx="0.38" cy="0.32" r="0.75"><stop offset="0" stop-color="#ffd09c"/><stop offset="0.55" stop-color="#f97316"/><stop offset="1" stop-color="#c2410c"/></radialGradient>` +
+  // bireysel: Kişilik siyah, Tasarım kırmızı (aynı parlak küre biçimi)
+  `<radialGradient id="cbgGateP" cx="0.38" cy="0.32" r="0.75"><stop offset="0" stop-color="#858a9e"/><stop offset="0.55" stop-color="#2c2f3a"/><stop offset="1" stop-color="#090a0e"/></radialGradient>` +
+  `<radialGradient id="cbgGateD" cx="0.38" cy="0.32" r="0.75"><stop offset="0" stop-color="#ff9e9e"/><stop offset="0.55" stop-color="#e02424"/><stop offset="1" stop-color="#981414"/></radialGradient>`;
 
 // ── Silüet (arka katman) — owner'ın referans görselinden ÖLÇÜLDÜ (2026-10-18) ─────────────────────────────────
 // Kaynak: "Yaşam Sistemi Enerji Haritası.png" (1122×1402). Referans karesi tuvalle tek ölçekte örtüşür:
@@ -122,12 +148,12 @@ export type CbgPrim =
   | { k: "silhouette" }
   | { k: "shadows"; routes: string[] }
   | { k: "pipe"; points: string; part: "edge" | "body" | "shine"; cap: "butt" | "round" }
-  | { k: "fill"; points: string; tone: "A" | "B"; stripe?: boolean; chs: string[] }
+  | { k: "fill"; points: string; tone: "A" | "B"; stripe?: boolean; chs: string[]; pal?: CbgPalette }
   | { k: "tick"; points: string; chs: string[] }
   | { k: "slot" }
   | { k: "center"; engine: string; points: string; defined: boolean }
   | { k: "text"; x: number; y: number; text: string; size: number; fill: string; spacing?: number; stroke: number; role: "center" | "gate" }
-  | { k: "gate"; gate: number; x: number; y: number; holder: Holder | null }
+  | { k: "gate"; gate: number; x: number; y: number; holder: Holder | null; pal?: CbgPalette }
   | { k: "logo" };
 
 /** Çizimin okuduğu kanal durumu (Connection modeli bunun üst kümesidir; bireysel harita da bunu üretir). */
@@ -143,6 +169,8 @@ export type CbgState<C extends CbgChannel = CbgChannel> = {
   definedCenters: Set<string>;
   /** Yarım kanal / kişilerin tüm kapıları biliniyor mu (kaynak bireysel veri)? */
   full: boolean;
+  /** Renk paleti (varsayılan connection: mavi / turuncu; bireysel harita: siyah / kırmızı). */
+  palette?: CbgPalette;
 };
 
 /** Tam model (kayıtlı bireysel kapılar + kayıtlı sonuç, birebir doğrulanmış). */
@@ -347,7 +375,8 @@ export function buildConnectionBodygraphScene(state: CbgState): CbgPrim[] {
     out.push({ k: "text", x, y: +(y + 2.35).toFixed(2), text: String(g), size: 6.4, fill: h ? "#ffffff" : INK, stroke: 0.18, role: "gate" });
   }
   out.push({ k: "logo" });
-  return out;
+  const pal: CbgPalette = state.palette ?? "connection";
+  return out.map((p) => (p.k === "fill" || p.k === "gate" ? { ...p, pal } : p));
 }
 
 // ── İlkel → SVG öğe tanımları (React ve sunucu ORTAK) ───────────────────────────────────────────────────────
@@ -366,13 +395,13 @@ export function cbgElements(p: CbgPrim, logoHref: string | null): CbgEl[] {
     case "shadows":
       return [{ tag: "g", attrs: { filter: "url(#cbgPipeShadow)", transform: `translate(0 ${SHADOW_STYLE.dy})`, opacity: SHADOW_STYLE.opacity }, raw: p.routes.map((s) => `<polyline points="${s}" fill="none" stroke="${SHADOW_STYLE.stroke}" stroke-width="${SHADOW_STYLE.width}" stroke-linecap="round" stroke-linejoin="round"/>`).join("") }];
     case "pipe": {
-      const t = TUBE.passive;
+      const t = TUBE_PASSIVE;
       const stroke = p.part === "edge" ? t.edge : p.part === "body" ? t.body : t.shine;
       const w = p.part === "edge" ? FULL : p.part === "body" ? BODY_W : SHINE_W;
       return [{ tag: "polyline", attrs: { points: p.points, fill: "none", stroke, strokeWidth: w, strokeLinecap: p.cap, strokeLinejoin: "round" } }];
     }
     case "fill": {
-      const t = TUBE[p.tone];
+      const t = TUBES[p.pal ?? "connection"][p.tone];
       const dash: Record<string, string> = p.stripe ? { strokeDasharray: "5 5" } : {};
       // Çizgili (ortak kapı) şerit kenar çizmez: alttaki mavi borunun kenarı korunur.
       const els: CbgEl[] = [];
@@ -395,16 +424,17 @@ export function cbgElements(p: CbgPrim, logoHref: string | null): CbgEl[] {
       }];
     case "gate": {
       const r = CBG_GATE_R;
+      const g = GATE_GRAD[p.pal ?? "connection"];
       const x = f2(p.x);
       const y = f2(p.y);
       if (p.holder === "both") {
         return [
-          { tag: "path", attrs: { d: `M ${x} ${f2(p.y - r)} A ${r} ${r} 0 0 0 ${x} ${f2(p.y + r)} Z`, fill: "url(#cbgGateA)" } },
-          { tag: "path", attrs: { d: `M ${x} ${f2(p.y - r)} A ${r} ${r} 0 0 1 ${x} ${f2(p.y + r)} Z`, fill: "url(#cbgGateB)" } },
+          { tag: "path", attrs: { d: `M ${x} ${f2(p.y - r)} A ${r} ${r} 0 0 0 ${x} ${f2(p.y + r)} Z`, fill: `url(#${g.A})` } },
+          { tag: "path", attrs: { d: `M ${x} ${f2(p.y - r)} A ${r} ${r} 0 0 1 ${x} ${f2(p.y + r)} Z`, fill: `url(#${g.B})` } },
           { tag: "circle", attrs: { cx: x, cy: y, r, fill: "none", stroke: "#ffffff", strokeWidth: 0.8 } },
         ];
       }
-      if (p.holder) return [{ tag: "circle", attrs: { cx: x, cy: y, r, fill: p.holder === "A" ? "url(#cbgGateA)" : "url(#cbgGateB)", stroke: "#ffffff", strokeWidth: 0.8 } }];
+      if (p.holder) return [{ tag: "circle", attrs: { cx: x, cy: y, r, fill: `url(#${p.holder === "A" ? g.A : g.B})`, stroke: "#ffffff", strokeWidth: 0.8 } }];
       return [{ tag: "circle", attrs: { cx: x, cy: y, r, fill: "#ffffff", stroke: GATE_STROKE, strokeWidth: 0.95 } }];
     }
     case "logo":

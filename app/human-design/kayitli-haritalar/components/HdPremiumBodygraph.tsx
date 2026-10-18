@@ -3,13 +3,13 @@
 // Bireysel harita — Yaşam Sistemi PREMIUM BodyGraph (owner PASS 2026-10-18; aktif çizici, bkz. rendererConfig).
 // Connection ile AYNI çizim (mühürlü V9 geometri, premium borular, referanstan ölçülen silüet, logo).
 // Veri yalnız kayıtlı computed_result (premiumStateFromChart; kayıtlı listelerle birebir doğrulanır).
-// Renk: Kişilik (bilinçli) mavi · Tasarım (bilinçsiz) turuncu · ikisi çizgili / iki renkli kapı.
+// Renk (geleneksel HD): Kişilik (bilinçli) SİYAH · Tasarım (bilinçsiz) KIRMIZI · ikisi çizgili / iki renkli kapı.
 // Salt görüntü (kanal seçimi yok); Design / Personality sütunları ve kartlar aynen kalır. Ekranda grafiğe logo çizilmez
 // (owner kararı: bireysel haritada logo bilgi panelinin altında, sahnede değil); Word görselinde logo vardır.
 
 import { useMemo } from "react";
 import type { CbgState } from "@/lib/human-design/relations/connectionBodygraphScene";
-import { buildConnectionBodygraphScene, CBG_PERSON_COLOR, CBG_VIEW } from "@/lib/human-design/relations/connectionBodygraphScene";
+import { buildConnectionBodygraphScene, CBG_PALETTE_COLOR, CBG_VIEW } from "@/lib/human-design/relations/connectionBodygraphScene";
 import { HD_PREMIUM_INDIVIDUAL_TONE } from "@/lib/human-design/bodygraph/rendererConfig";
 import { ConnectionBodygraph } from "@/app/human-design/iliski-grup/components/ConnectionBodygraph";
 
@@ -17,8 +17,8 @@ export const HD_PREMIUM_BODYGRAPH_ASPECT = `${CBG_VIEW.width} / ${CBG_VIEW.heigh
 
 export function HdPremiumBodygraph({ state }: { state: CbgState }) {
   const prims = useMemo(() => buildConnectionBodygraphScene(state), [state]);
-  const pColor = CBG_PERSON_COLOR[HD_PREMIUM_INDIVIDUAL_TONE.personality];
-  const dColor = CBG_PERSON_COLOR[HD_PREMIUM_INDIVIDUAL_TONE.design];
+  const pColor = CBG_PALETTE_COLOR.individual[HD_PREMIUM_INDIVIDUAL_TONE.personality];
+  const dColor = CBG_PALETTE_COLOR.individual[HD_PREMIUM_INDIVIDUAL_TONE.design];
   return (
     <div className="flex h-full w-full flex-col" data-hd-premium-bodygraph="ready">
       <div className="min-h-0 flex-1">

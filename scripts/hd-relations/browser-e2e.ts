@@ -201,6 +201,7 @@ async function main() {
           definedCenters: svg.querySelectorAll("[data-hd-cbg-center$=':defined']").length,
           hits: svg.querySelectorAll("[data-hd-cbg-hit]").length,
           silhouette: !!svg.querySelector("[data-cbg-silhouette]"),
+          palette: svg.getAttribute("data-hd-cbg-palette"),
           logo: !!svg.querySelector("[data-hd-cbg-logo]"),
           trCenters: ["BAŞ", "AJNA", "BOĞAZ", "G", "KALP", "SAKRAL", "KÖK", "DALAK", "SOLAR"].every((c) => texts.includes(c)),
           width: r.width,
@@ -212,6 +213,7 @@ async function main() {
       ok(halfAttr === pageHalf && halfAttr.length > 0 && chart.filled.every((c) => storedIds.split(",").includes(c) || halfAttr.split(",").includes(c)), `${d.name}: grafikteki yarım kanallar = liste (${halfAttr.split(",").length}); yalnız tanımlı / yarım kanallar boyalı`);
       ok(chart.centers === 9 && Object.keys(chart.gates).length === 64 && chart.hits === 36 && chart.definedCenters === storedRes.centers.filter((c) => c.defined).length, `${d.name}: 9 merkez, 64 kapı, 36 kanal hedefi; tanımlı merkezler`, chart);
       ok(chart.silhouette && chart.logo && chart.trCenters, `${d.name}: insan silüeti + logo grafikte; merkez adları Türkçe`, chart);
+      ok(chart.palette === "connection", `${d.name}: Connection paleti mavi / turuncu (bireysel siyah / kırmızı uygulanmaz)`, chart.palette);
       const vw = d.w;
       ok(d.ua ? chart.width <= vw && chart.width >= vw - 90 : chart.width >= 520, `${d.name}: grafik genişliği ${Math.round(chart.width)}px (${d.ua ? "ekrana sığar" : "masaüstünde büyük"})`);
       ok(await page.locator("[data-hd-composite-legend]").isVisible(), `${d.name}: Türkçe lejant görünür`);
