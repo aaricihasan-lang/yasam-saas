@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, isKpNode, type KpBody, type KpChartTechnical, type KpCusp, type KpHoraryTechnical, type KpLevel, type KpNodeSigMethodId, type KpPoint, type KpRulingTechnical, type KpSignificators, type KpTransitTechnical } from "@/lib/astrology/model/kp";
+import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, isKpNode, type KpBody, type KpChartTechnical, type KpCusp, type KpHoraryTechnical, type KpLevel, type KpLordSet, type KpNodeSigMethodId, type KpPoint, type KpRulingTechnical, type KpSignificators, type KpTransitTechnical } from "@/lib/astrology/model/kp";
 import type { VedicGrahaId } from "@/lib/astrology/model/vedic";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
@@ -20,6 +20,8 @@ import { SOUTH_CELLS, gs, kpChartItems, kpLegendFor, posLabel, type KpSel } from
 export { fmtDms, kpChartItems, type KpSel } from "../_lib/kpChart";
 import { fmtDms } from "../_lib/kpChart";
 import type { KbLookup } from "./VedicPanels";
+import { KP_HORARY_TEXT, kpCuspSublordRows, kpHoraryLagnaContrast } from "@/lib/astrology/view/kpHorary";
+import { momentLabel } from "@/lib/astrology/transitDetail";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -370,6 +372,8 @@ function Detail({ sel, cusps, bodies, sig, kbLookup }: { sel: KpSel | null; cusp
     const c = cusps.find((x) => x.house === sel.house)!;
     const kb = kbLookup ? kbLookup([`kp_cusp_sublord:${c.house}:${c.subLord}`, `kp_cusp_starlord:${c.house}:${c.starLord}`, `kp_cusp_rashi:${c.house}:${c.rashi}`]) : null;
     const signif = sig?.houses.find((h) => h.house === c.house);
+    // Cusp sub lordunun AYNI hesaplamadaki significator satırı (Roxy planetWise; yalnız okunur).
+    const subSig = sig?.planets.find((p) => p.id === c.subLord);
     return (
       <>
         <h4 className="font-semibold text-amber-900">{c.house}. ev başlangıcı (cusp)</h4>
@@ -390,6 +394,14 @@ function Detail({ sel, cusps, bodies, sig, kbLookup }: { sel: KpSel | null; cusp
             <>
               <dt className="text-slate-500">Significator</dt>
               <dd>{LEVELS.map((l) => `L${l}: ${[...new Set(signif.levels[l])].map((x) => GRAHA_TR[x].abbr).join(", ") || "—"}`).join(" · ")}</dd>
+            </>
+          )}
+          {subSig && (
+            <>
+              <dt className="text-slate-500">Sub lordun evleri</dt>
+              <dd data-testid="astro-kp-cusp-sublord-houses">
+                {g(c.subLord)}: {LEVELS.map((l) => `L${l}: ${subSig.levels[l].join(", ") || "—"}`).join(" · ")}
+              </dd>
             </>
           )}
         </dl>
@@ -650,20 +662,123 @@ export function KpTransitPanel({ t, kbLookup }: { t: KpTransitTechnical; kbLooku
 }
 
 // ─── KP horary ───────────────────────────────────────────────────────────────
-export function KpHoraryPanel({ t, kbLookup, placeLabel }: { t: KpHoraryTechnical; kbLookup?: KbLookup | null; placeLabel?: string | null }) {
+// HORARY-KP-01: soru anı yerel saatle; sayının Lagna'sı ↔ zaman Lagna'sı ayrımı; ruling planets ayrıntısı; cusp sub-lord tablosu.
+// Tümü Roxy kp/horary yanıtının (adaptörde doğrulanmış) yeniden düzenlenmesi — `lib/astrology/view/kpHorary.ts` (rapor da aynı).
+const lordRow = (l: KpLordSet) => `${g(l.sign)} → ${g(l.star)} → ${g(l.sub)} → ${g(l.subSub)}`;
+function KpHoraryLagnaBox({ t }: { t: KpHoraryTechnical }) {
+  const c = kpHoraryLagnaContrast(t);
+  return (
+    <div className={`${card} overflow-x-auto`} data-testid="astro-kp-horary-lagnas">
+      <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">İki Lagna: sayının Lagna&apos;sı ve soru anının Lagna&apos;sı</h4>
+      <table className="min-w-full">
+        <thead>
+          <tr>
+            <th className={th}>Lagna</th>
+            <th className={th}>Burç lordu</th>
+            <th className={th}>Star lord</th>
+            <th className={th}>Sub lord</th>
+            <th className={th}>Kullanıldığı yer</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          <tr data-kp-lagna="horary">
+            <td className={`${td} whitespace-nowrap font-semibold`}>
+              Horary · sayı {t.horaryNumber} ({SIGN_LABELS[c.horary.rashi]})
+            </td>
+            <td className={td}>{g(c.horary.signLord)}</td>
+            <td className={td}>{g(c.horary.starLord)}</td>
+            <td className={`${td} font-semibold`}>{g(c.horary.subLord)}</td>
+            <td className={`${td} text-xs text-slate-600`}>1. cusp ve 12 ev</td>
+          </tr>
+          <tr data-kp-lagna="time">
+            <td className={`${td} whitespace-nowrap font-semibold`}>Soru anı (gerçek zaman)</td>
+            <td className={td}>{g(c.time.sign)}</td>
+            <td className={td}>{g(c.time.star)}</td>
+            <td className={td}>{g(c.time.sub)}</td>
+            <td className={`${td} text-xs text-slate-600`}>yalnız ruling planets</td>
+          </tr>
+        </tbody>
+      </table>
+      <p className="px-3 py-2 text-xs text-slate-500">
+        {c.differs ? "Bu soruda iki Lagna farklıdır. " : "Bu soruda iki Lagna'nın lordları aynıdır. "}
+        Cusp&apos;lar ve evler sayının Lagna&apos;sından, ruling planets soru anının Lagna&apos;sından okunur; ikisi birbirinin yerine kullanılmaz.
+      </p>
+    </div>
+  );
+}
+function KpHoraryRulingBox({ t }: { t: KpHoraryTechnical }) {
+  const r = t.ruling;
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" data-testid="astro-kp-horary-ruling">
+      <p>
+        <strong>Ruling planets (soru anı):</strong> {r.rulingPlanets.map((x) => GRAHA_TR[x].tr).join(" · ")}
+      </p>
+      <dl className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-xs" data-testid="astro-kp-horary-ruling-detail">
+        <dt className="text-slate-500">Gün lordu</dt>
+        <dd>{g(r.dayLord)}</dd>
+        <dt className="text-slate-500">Ay</dt>
+        <dd>{lordRow(r.moon)}</dd>
+        <dt className="text-slate-500">Zaman Lagna&apos;sı</dt>
+        <dd>{lordRow(r.lagna)}</dd>
+      </dl>
+      <p className="mt-1 text-[11px] text-slate-500">Sıra: burç lordu → yıldız lordu → sub lord → sub-sub lord. {KP_HORARY_TEXT.rulingRule}</p>
+    </div>
+  );
+}
+function KpCuspSublordTable({ t, sel, onSel }: { t: KpHoraryTechnical; sel: KpSel | null; onSel: (s: KpSel) => void }) {
+  const rows = kpCuspSublordRows(t);
+  return (
+    <div className={`${card} overflow-x-auto`}>
+      <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Cusp sub lordları ve gösterdikleri evler</h4>
+      <table className="min-w-full" data-testid="astro-kp-horary-cusp-sub">
+        <thead>
+          <tr>
+            <th className={th}>Ev</th>
+            <th className={th}>Sub lord</th>
+            {LEVELS.map((l) => (
+              <th key={l} className={th}>
+                {LEVEL_LABEL[l]}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {rows.map((r) => (
+            <tr key={r.house} className={`cursor-pointer ${sel?.kind === "cusp" && sel.house === r.house ? "bg-amber-50" : ""}`} onClick={() => onSel({ kind: "cusp", house: r.house })} data-kp-cusp-sub={r.house}>
+              <td className={`${td} font-semibold`}>{r.house}.</td>
+              <td className={`${td} whitespace-nowrap font-semibold`}>{g(r.subLord)}</td>
+              {LEVELS.map((l) => {
+                const plain = r.levels ? r.levels[l] : [];
+                const extra = r.agent ? r.agent.levels[l].filter((h) => !plain.includes(h)) : [];
+                return (
+                  <td key={l} className={`${td} whitespace-nowrap tabular-nums`}>
+                    {r.levels ? plain.join(", ") || "—" : "veri yok"}
+                    {extra.length > 0 && <span className="ml-1 text-indigo-700">+{extra.join(", ")}</span>}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="px-3 py-2 text-xs text-slate-500">
+        {KP_HORARY_TEXT.cuspSubRule} {rows.some((r) => r.isNode) ? KP_HORARY_TEXT.nodeRule : ""}
+      </p>
+    </div>
+  );
+}
+export function KpHoraryPanel({ t, kbLookup, placeLabel, displayTz = null }: { t: KpHoraryTechnical; kbLookup?: KbLookup | null; placeLabel?: string | null; displayTz?: string | null }) {
   const [sel, setSel] = useState<KpSel | null>({ kind: "cusp", house: 1 });
   const kbNum = kbLookup ? kbLookup([`kp_horary_number:${t.horaryNumber}`]) : null;
   const cuspKb: KbLookup | null = kbLookup ? (keys) => kbLookup([...keys.filter((k) => !k.startsWith("kp_cusp_")), ...keys.filter((k) => k.startsWith("kp_cusp_sublord:")).map((k) => k.replace("kp_cusp_sublord:", "kp_horary_cusp_sublord:"))]) : null;
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-kp-horary-panel">
       <p className="text-sm text-slate-700">
-        <strong>KP horary · sayı {t.horaryNumber}</strong> · soru anı {t.at.utc.slice(8, 10)}.{t.at.utc.slice(5, 7)}.{t.at.utc.slice(0, 4)} {t.at.utc.slice(11, 16)} UTC · değerlendirme yeri{" "}
+        <strong>KP horary · sayı {t.horaryNumber}</strong> · soru anı <span data-testid="astro-kp-horary-moment">{momentLabel(t.at.utc, displayTz)}</span> · değerlendirme yeri{" "}
         {placeLabel ?? `${t.place.latitude.toFixed(4)}, ${t.place.longitude.toFixed(4)}`} · {AY[t.frame.ayanamsa]} · Placidus
       </p>
       <p className="text-xs text-slate-500" data-testid="astro-kp-horary-method">
-        Doğum verisi KULLANILMAZ. Sayı (1–249) KP alt bölümünü seçer: Lagna = dilimin orta noktası ({fmtDms(t.span.from % 30)}–{fmtDms(t.span.to % 30)} {SIGN_LABELS[t.ascendant.rashi]} →{" "}
-        {posLabel(t.ascendant)}); diğer 11 cusp bu Lagna&apos;dan değerlendirme yerinin enleminde, gezegenler soru anının gökyüzünden. Ruling planets soru anının
-        ZAMAN Lagna&apos;sından okunur (sayıdan değil).
+        Sayı {t.horaryNumber} → {SIGN_LABELS[t.ascendant.rashi]} {fmtDms(t.span.from % 30)}–{fmtDms(t.span.to % 30)} (yıldız {g(t.ascendant.starLord)}, sub {g(t.ascendant.subLord)}) → Lagna {posLabel(t.ascendant)}. {KP_HORARY_TEXT.numberRule}
       </p>
       <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <KpSouthChart cusps={t.cusps} bodies={t.bodies} sel={sel} onSel={setSel} center={<Center title={`Horary ${t.horaryNumber}`} lines={["KP · Placidus", `Lagna ${SIGN_LABELS[t.ascendant.rashi]}`]} />} />
@@ -672,6 +787,9 @@ export function KpHoraryPanel({ t, kbLookup, placeLabel }: { t: KpHoraryTechnica
           <KbBox kb={kbNum} empty="Bu horary sayısı için KP Bilgi Bankası kaydınız yok." />
         </section>
       </div>
+      <KpHoraryLagnaBox t={t} />
+      <KpHoraryRulingBox t={t} />
+      <KpCuspSublordTable t={t} sel={sel} onSel={setSel} />
       <KpCuspTable cusps={t.cusps} sel={sel} onSel={setSel} testId="astro-kp-horary-cusps" />
       <KpBodyTable bodies={t.bodies} sel={sel} onSel={setSel} testId="astro-kp-horary-bodies" />
       <KpSignificatorTables
@@ -681,9 +799,7 @@ export function KpHoraryPanel({ t, kbLookup, placeLabel }: { t: KpHoraryTechnica
         agentMethod={KP_NODE_SIG_SOURCE.horaryAgent}
         context="KP horary (kp/horary ucu)"
       />
-      <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" data-testid="astro-kp-horary-ruling">
-        <strong>Ruling planets (soru anı):</strong> {t.ruling.rulingPlanets.map((r) => GRAHA_TR[r].tr).join(" · ")}
-      </div>
+      <p className="text-[11px] text-slate-400">{KP_HORARY_TEXT.source}</p>
     </div>
   );
 }
