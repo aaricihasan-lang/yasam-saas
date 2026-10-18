@@ -78,6 +78,7 @@ const SHOW_LANDING_LANGUAGE_SELECTOR = false;
 import NotificationBell from "@/components/notifications/NotificationBell";
 import HomeShell from "@/app/_premium/home/HomeShell";
 import premium from "@/app/_premium/home/home.module.css";
+import { premiumFontVars } from "@/app/_premium/fonts";
 import CookiePreferencesButton from "@/components/analytics/CookiePreferencesButton";
 import { GOOGLE_PLAY_APP_URL } from "@/lib/platform/stores";
 import { useRouter } from "next/navigation";
@@ -1631,7 +1632,7 @@ export default function Home() {
     });
 
     return (
-      <main className={premium.page}>
+      <main className={`${premium.page} ${premiumFontVars}`}>
         <HomeShell
           showClients={menuReady && isCardOpen("clients")}
           showContents={menuReady && isCardOpen("digital_content")}

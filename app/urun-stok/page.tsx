@@ -1,6 +1,7 @@
 import Link from "next/link";
 import KritikStokRozeti from "./KritikStokRozeti";
 import styles from "@/app/_premium/urun-stok/urunStok.module.css";
+import { premiumFontVars } from "@/app/_premium/fonts";
 
 // 2026-10-18 premium görsel entegrasyon (owner onaylı prototip 99a1ca7): başlık / açıklama / adres aynen;
 // yalnız görünüm değişti (kart görseli = public/premium/urun-stok/<art>.webp).
@@ -87,7 +88,7 @@ function HubModuleCard({ item }: { item: (typeof hubModules)[number] }) {
 
 export default function UrunStokHubPage() {
   return (
-    <main className={styles.page}>
+    <main className={`${styles.page} ${premiumFontVars}`}>
       <div className={styles.scene} aria-hidden>
         <span className={styles.sceneSun} />
         {/* eslint-disable-next-line @next/next/no-img-element */}

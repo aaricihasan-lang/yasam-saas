@@ -58,6 +58,7 @@ import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { uploadSifaPhoto, cleanupSifaPhoto } from "@/lib/sifa-rehberi/stonePhotoClient";
 import menuStyles from "@/app/_premium/sifa-rehberi/sifaMenu.module.css";
+import { premiumFontVars } from "@/app/_premium/fonts";
 
 type GuideImage = {
   id: string;
@@ -1249,7 +1250,7 @@ function SifaRehberiContent() {
   return (
     <main
       className={
-        isMenuView ? menuStyles.page : pageBg
+        isMenuView ? `${menuStyles.page} ${premiumFontVars}` : pageBg
       }
     >
       {isMenuView ? (
