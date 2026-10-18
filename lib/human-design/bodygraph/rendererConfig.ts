@@ -47,3 +47,14 @@ export const HD_PREMIUM_INDIVIDUAL_HALF_CHANNEL: HdPremiumHalfChannelStyle = "so
  */
 export type HdPremiumTypeScale = "compact" | "large";
 export const HD_PREMIUM_INDIVIDUAL_TYPE_SCALE: HdPremiumTypeScale = "large";
+
+/**
+ * Bireysel haritada BodyGraph (ön katman: kanallar, merkezler, kapılar, yazılar) ORANTILI büyütme (owner kararı
+ * 2026-10-18). Silüet, zemin, halkalar ve logo SABİT; geometri / güzergâh / renk / düz-kesik mantığı aynen.
+ * Sınır silüettir (gerçek silüet yolu ile ölçüldü): yerinde büyütmede Dalak / Solar Pleksus beli, Baş / Ajna boynu
+ * aşar (en fazla %1). Grafik silüet içinde yukarı alınınca (Baş kafanın içine) %9'da tüm içerik silüetin İÇİNDE
+ * kalır (kenara en az 5.3 birim; önceki yerleşimde 7.8). %10 üstü merkez köşeleri bel çizgisini aşar.
+ *   { scale: 1.09, cy: 274 } → AKTİF
+ *   { scale: 1, cy: 327 }    → PASİF geri dönüş: önceki yerleşim (ön katman dönüşümü hiç yazılmaz)
+ */
+export const HD_PREMIUM_INDIVIDUAL_FRONT: { scale: number; cy: number } = { scale: 1.09, cy: 274 };

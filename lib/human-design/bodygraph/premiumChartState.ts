@@ -11,7 +11,7 @@ import { CHANNELS, getDefinedCenters, type CenterName } from "../engine/channels
 import type { HdComputedChart } from "../chart/computedChart";
 import type { Holder } from "../relations/compositeModel";
 import type { CbgChannel, CbgState } from "../relations/connectionBodygraphScene";
-import { HD_PREMIUM_INDIVIDUAL_HALF_CHANNEL, HD_PREMIUM_INDIVIDUAL_TONE, HD_PREMIUM_INDIVIDUAL_TYPE_SCALE } from "./rendererConfig";
+import { HD_PREMIUM_INDIVIDUAL_FRONT, HD_PREMIUM_INDIVIDUAL_HALF_CHANNEL, HD_PREMIUM_INDIVIDUAL_TONE, HD_PREMIUM_INDIVIDUAL_TYPE_SCALE } from "./rendererConfig";
 
 export function premiumStateFromChart(c: HdComputedChart): CbgState | null {
   if (!Array.isArray(c.activations) || c.activations.length === 0) return null;
@@ -55,5 +55,6 @@ export function premiumStateFromChart(c: HdComputedChart): CbgState | null {
     palette: "individual",
     halfStyle: HD_PREMIUM_INDIVIDUAL_HALF_CHANNEL,
     typeScale: HD_PREMIUM_INDIVIDUAL_TYPE_SCALE,
+    front: HD_PREMIUM_INDIVIDUAL_FRONT,
   };
 }

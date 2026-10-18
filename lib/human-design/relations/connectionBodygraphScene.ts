@@ -6,7 +6,7 @@
 // aktif kapılar; sağ üstte Yaşam Sistemi logosu. Referanstan YALNIZ estetik alınır.
 //
 // Teknik doğruluk: kanal / merkez / kapı geometrisi MÜHÜRLÜ V9 (connectionBodygraphGeometry.ts, otomatik; elle
-// değişmez); ön katman ölçeklenmez. Veri YALNIZ kayıtlı + doğrulanmış Connection sonucu ve (varsa) kayıtlı bireysel
+// değişmez); ön katman yalnız ORANTILI ölçeklenebilir (CbgState.front: bireysel harita; Connection ölçeklenmez). Veri YALNIZ kayıtlı + doğrulanmış Connection sonucu ve (varsa) kayıtlı bireysel
 // aktif kapılar (compositeModel). Klasik kural: her aktif kapı kanalın KENDİ yarısını kişinin rengine boyar
 // (A mavi, B turuncu, ikisi → mavi boru üzerinde turuncu şerit). İki yarısı boyalı = TANIMLI kanal; tek yarısı
 // boyalı = YARIM kanal: Connection'da KESİKLİ (owner onayı; PR #431 eşdeğeri), bireysel haritada DÜZ (Roxy mantığı;
@@ -145,6 +145,7 @@ export const CBG_BACKDROP_MARKUP =
 export type Tone = "passive" | "A" | "B";
 export type CbgPrim =
   | { k: "rect" }
+  | { k: "front"; transform: string }
   | { k: "backdrop" }
   | { k: "silhouette" }
   | { k: "shadows"; routes: string[] }
@@ -167,8 +168,9 @@ export type CbgHalfStyle = "solid" | "dashed";
  * Yazı ölçeği. "compact" = ilk premium boyutlar. "large" = okunabilirlik (owner kararı 2026-10-18): boyutlar gerçek
  * Geist fontuyla ÖLÇÜLDÜ (canvas mürekkep kutusu, piksel hassas) — kapı numarası daire konturuna değmez (iç kenardan
  * ≥ 0.15 birim); merkez adı şeklin içinde, kenar çizgisine ≥ 2.8 birim, hiçbir kapı dairesine < 1.5 birim yaklaşmaz
- * (şeklin dışındaki KALP adı boruya ≥ 1.5 birim). Hedef 10.5; sığmayan merkezler kendi boyutunu alır (ölçülen en büyük
- * değer): BOĞAZ 10.3 · DALAK 9.8 · AJNA 7.6 · iki satırlı SOLAR PLEKSUS 7.1. Konumlar (labelAt) DEĞİŞMEZ.
+ * (şeklin dışındaki KALP adı boruya ≥ 1.5 birim). Geniş merkezler 11.5 (BAŞ · G · KÖK · KALP; 13'e kadar sığar, uyum
+ * için 11.5), diğerleri ölçülen en büyük değer: SAKRAL 11.1 · BOĞAZ 10.3 · DALAK 9.8 · AJNA 7.6 · iki satırlı
+ * SOLAR PLEKSUS 7.1. Konumlar (labelAt) DEĞİŞMEZ. Ön katman ölçeği (CbgState.front) bunların hepsini orantılı büyütür.
  * Denetim: scripts/hd-bodygraph-premium/readability-e2e.ts.
  */
 export type CbgTypeScale = "compact" | "large";
@@ -177,7 +179,7 @@ const TYPE: Readonly<Record<CbgTypeScale, { gate: { size: number; dy: number; st
   large: {
     // 8.2 denendi: mürekkep daire konturunun iç kenarına 0.03 birim kalıyor (değiyor) → 8.0 (0.18 boşluk).
     gate: { size: 8.0, dy: 2.87, stroke: 0.16 },
-    center: (engine) => ({ Throat: 10.3, Spleen: 9.8, Ajna: 7.6, SolarPlexus: 7.1 })[engine] ?? 10.5,
+    center: (engine) => ({ Sacral: 11.1, Throat: 10.3, Spleen: 9.8, Ajna: 7.6, SolarPlexus: 7.1 })[engine] ?? 11.5,
     lineGap: (size) => +(size * 1.35).toFixed(2),
   },
 };
@@ -201,6 +203,12 @@ export type CbgState<C extends CbgChannel = CbgChannel> = {
   halfStyle?: CbgHalfStyle;
   /** Yazı ölçeği (varsayılan "compact" — Connection'ın onaylı görünümü; bireysel: rendererConfig). */
   typeScale?: CbgTypeScale;
+  /**
+   * Ön katman (BodyGraph: kanallar, merkezler, kapılar, yazılar) ORANTILI ölçeği — silüet / zemin / logo SABİT.
+   * scale: tek tip büyütme (geometri, güzergâh ve oranlar aynen; yalnız boyut); cy: V9 ön katman merkezinin (220, 327)
+   * tuvaldeki yeni yüksekliği (x merkezi 220'de sabit). Yok / scale 1 → bugünkü yerleşim (Connection değişmez).
+   */
+  front?: { scale: number; cy: number };
 };
 
 /** Tam model (kayıtlı bireysel kapılar + kayıtlı sonuç, birebir doğrulanmış). */
@@ -331,8 +339,21 @@ function halfHolders(st: CbgChannel): [Holder | null, Holder | null] {
 
 const TICK_HALF = 1.1;
 
+/** V9 ön katmanının ölçek merkezi (yatay eksen 220; dikey Baş tepesi 22 ↔ Kök tabanı 631.6 ortası). */
+export const CBG_FRONT_CENTER = { x: 220, y: 327 } as const;
+export function cbgFrontTransform(f: { scale: number; cy: number }): string {
+  const tx = +(CBG_FRONT_CENTER.x * (1 - f.scale)).toFixed(3);
+  const ty = +(f.cy - CBG_FRONT_CENTER.y * f.scale).toFixed(3);
+  return `translate(${tx} ${ty}) scale(${f.scale})`;
+}
+/** Arka katman (ölçeklenmez): zemin, ışık/halkalar, silüet, logo; "front" yalnız işaret. Gerisi ön katman. */
+export const cbgIsBackPrim = (p: CbgPrim): boolean => p.k === "rect" || p.k === "backdrop" || p.k === "silhouette" || p.k === "logo" || p.k === "front";
+/** Ön katman dönüşümü (yoksa null). */
+export const cbgFrontOf = (prims: CbgPrim[]): string | null => prims.find((p): p is Extract<CbgPrim, { k: "front" }> => p.k === "front")?.transform ?? null;
+
 export function buildConnectionBodygraphScene(state: CbgState): CbgPrim[] {
   const out: CbgPrim[] = [{ k: "rect" }, { k: "backdrop" }, { k: "silhouette" }];
+  if (state.front && (state.front.scale !== 1 || state.front.cy !== CBG_FRONT_CENTER.y)) out.push({ k: "front", transform: cbgFrontTransform(state.front) });
   const dashHalves = (state.halfStyle ?? "dashed") === "dashed";
   const type = TYPE[state.typeScale ?? "compact"];
   // Boru gölgesi (tüm kanallar, tek katman)
@@ -426,6 +447,8 @@ const SHADOW_STYLE = { stroke: "#1e2a6e", opacity: 0.2, width: 12.5, dy: 1.9 };
 
 export function cbgElements(p: CbgPrim, logoHref: string | null): CbgEl[] {
   switch (p.k) {
+    case "front":
+      return [];
     case "rect":
       return [{ tag: "rect", attrs: { x: CBG_VIEW.x, y: CBG_VIEW.y, width: CBG_VIEW.width, height: CBG_VIEW.height, fill: "#ffffff" } }];
     case "backdrop":
@@ -502,7 +525,16 @@ export function connectionBodygraphSvg(prims: CbgPrim[], opts: { logoHref: strin
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${CBG_VIEWBOX}"${opts.width ? ` width="${opts.width}"` : ""}${opts.height ? ` height="${opts.height}"` : ""} font-family="${esc(opts.fontFamily)}">`,
     `<defs>${CBG_DEFS}</defs>`,
   ];
-  for (const p of prims) for (const e of cbgElements(p, opts.logoHref)) o.push(cbgElToSvg(e));
+  // Ön katman (varsa) tek <g transform> içinde; arka katman (zemin, silüet, logo) ölçeklenmez.
+  const front = cbgFrontOf(prims);
+  let open = false;
+  for (const p of prims) {
+    const back = cbgIsBackPrim(p);
+    if (front && !back && !open) { o.push(`<g transform="${front}">`); open = true; }
+    if (front && back && open) { o.push("</g>"); open = false; }
+    for (const e of cbgElements(p, opts.logoHref)) o.push(cbgElToSvg(e));
+  }
+  if (open) o.push("</g>");
   o.push("</svg>");
   return o.join("\n");
 }

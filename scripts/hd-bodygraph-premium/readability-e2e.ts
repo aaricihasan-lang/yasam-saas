@@ -85,6 +85,7 @@ const GEO = {
 
 /** Tarayıcıda: bir SVG içindeki tüm yazıların gerçek mürekkep kutusu ↔ kapı daireleri / merkez şekilleri. */
 type TextAudit = {
+  silhouette: { min: number; who: string; frontScale: number };
   scale: number; svgW: number; svgH: number;
   gateText: { min: number; max: number; px: number; maxInk: number }; centerText: { min: number; max: number; pxMin: number };
   gateBad: Array<{ n: number; why: string }>; centerBad: Array<{ label: string; why: string }>; textOverlap: string[];
@@ -96,7 +97,31 @@ async function auditSvg(page: Page, selector: string): Promise<TextAudit> {
     const svg = document.querySelector(sel) as SVGSVGElement;
     const vb = svg.viewBox.baseVal;
     const rect = svg.getBoundingClientRect();
-    const scale = Math.min(rect.width / vb.width, rect.height / vb.height);
+    const fit = Math.min(rect.width / vb.width, rect.height / vb.height);
+    // Ön katman ölçeği (bireysel: CbgState.front) dahil gerçek ekran ölçeği: yazının ekran matrisi.
+    const firstText = svg.querySelector("text") as SVGTextElement | null;
+    const scale = firstText?.getScreenCTM()?.a ?? fit;
+    // Silüet içi: ön katman (kanallar / merkezler / kapılar) silüet yolunun İÇİNDE ve kenarına ≥ 4 birim (tuval birimi).
+    const sil = svg.querySelector("[data-cbg-silhouette] > defs + g path, [data-cbg-silhouette] path") as SVGPathElement | null;
+    const frontG = [...svg.querySelectorAll("g[transform]")].find((g) => /scale\(/.test(g.getAttribute("transform") ?? "")) as SVGGElement | undefined;
+    const M = frontG ? frontG.transform.baseVal.consolidate()!.matrix : null;
+    const toCanvas = (x: number, y: number) => (M ? [M.a * x + M.e, M.d * y + M.f] : [x, y]);
+    const frontScale = M ? M.a : 1;
+    let silMin = 1e9, silWho = "";
+    if (sil) {
+      const L = sil.getTotalLength(); const edge: number[][] = [];
+      for (let i = 0; i < L; i += 1) { const q = sil.getPointAtLength(i); if (q.y <= 640) edge.push([q.x, q.y]); }
+      const pt = svg.createSVGPoint();
+      const probe = (x: number, y: number, r: number, who: string) => {
+        const [X, Y] = toCanvas(x, y); if (Y > 640) return; pt.x = X; pt.y = Y;
+        let m = 1e9; for (const [ex, ey] of edge) { const d = Math.hypot(ex - X, ey - Y); if (d < m) m = d; }
+        const d = (sil.isPointInFill(pt) ? m : -m) - r * frontScale;
+        if (d < silMin) { silMin = d; silWho = who; }
+      };
+      for (const c of G.centers) for (let i = 0; i < c.poly.length; i++) { const a = c.poly[i], q = c.poly[(i + 1) % c.poly.length]; for (let k = 0; k <= 6; k++) probe(a[0] + (q[0] - a[0]) * k / 6, a[1] + (q[1] - a[1]) * k / 6, 1.1, `merkez ${c.engine}`); }
+      for (const pl of G.pipes) for (let i = 1; i < pl.length; i++) { const n = Math.max(1, Math.ceil(Math.hypot(pl[i][0] - pl[i - 1][0], pl[i][1] - pl[i - 1][1]) / 6)); for (let k = 0; k <= n; k++) probe(pl[i - 1][0] + (pl[i][0] - pl[i - 1][0]) * k / n, pl[i - 1][1] + (pl[i][1] - pl[i - 1][1]) * k / n, G.pipeHalf, "boru"); }
+      for (const g of G.gates) probe(g.x, g.y, G.r + 0.5, `kapı ${g.n}`);
+    }
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d")!;
     const K = 100; // alt-piksel ölçüm: 100× büyük ölç, küçült
@@ -200,6 +225,7 @@ async function auditSvg(page: Page, selector: string): Promise<TextAudit> {
       if (a.l < c.r && c.l < a.r && a.t < c.b && c.t < a.b) textOverlap.push(`${boxes[i].k}×${boxes[j].k}`);
     }
     return {
+      silhouette: { min: +silMin.toFixed(2), who: silWho, frontScale: +frontScale.toFixed(3) },
       scale: +scale.toFixed(4), svgW: Math.round(rect.width), svgH: Math.round(rect.height),
       gateText: { min: gMin, max: gMax, px: +(gMin * scale).toFixed(2), maxInk: +maxInk.toFixed(2) }, centerText: { min: cMin, max: cMax, pxMin: +(cMin * scale).toFixed(2) },
       gateBad, centerBad, textOverlap, gateCount, centerLabelCount,
@@ -466,7 +492,8 @@ window.__svg = (c) => connectionBodygraphSvg(buildConnectionBodygraphScene(premi
         };
       });
       report[d.name] = { audit: A, layout: L };
-      console.log(`  · SVG ${A.svgW}×${A.svgH}px, ölçek ${A.scale} → kapı numarası ${A.gateText.px}px (${A.gateText.min} birim), merkez adı en küçük ${A.centerText.pxMin}px (${A.centerText.min}–${A.centerText.max} birim)`);
+      console.log(`  · SVG ${A.svgW}×${A.svgH}px, silüet payı ${A.silhouette.min} (${A.silhouette.who}), ekran ölçeği ${A.scale} → kapı numarası ${A.gateText.px}px (${A.gateText.min} birim), merkez adı en küçük ${A.centerText.pxMin}px (${A.centerText.min}–${A.centerText.max} birim)`);
+      ok(A.silhouette.min >= 4, `${d.name}: BodyGraph silüetin İÇİNDE (kenara en az 4 birim; ön katman ölçeği ${A.silhouette.frontScale})`, A.silhouette);
       ok(A.gateCount === 64 && A.centerLabelCount === 10, `${d.name}: 64 kapı numarası + 10 merkez adı satırı`, { g: A.gateCount, c: A.centerLabelCount });
       ok(A.gateBad.length === 0, `${d.name}: kapı numaraları dairenin içinde ve ortalı`, A.gateBad.slice(0, 8));
       ok(A.centerBad.length === 0, `${d.name}: merkez adları şeklin içinde, kapılara değmiyor`, A.centerBad);
@@ -530,6 +557,7 @@ window.__svg = (c) => connectionBodygraphSvg(buildConnectionBodygraphScene(premi
       await page.waitForTimeout(200);
       const W = await auditSvg(page, "#w svg");
       report.word = W;
+      ok(W.silhouette.min >= 4, `Word SVG: BodyGraph silüetin İÇİNDE (kenara en az 4 birim; ön katman ölçeği ${W.silhouette.frontScale})`, W.silhouette);
       ok(W.gateBad.length === 0 && W.centerBad.length === 0 && W.textOverlap.length === 0, "Word SVG: kapı numaraları / merkez adları sığıyor, çakışma yok", { g: W.gateBad.slice(0, 5), c: W.centerBad, o: W.textOverlap.slice(0, 5) });
       await page.close();
     }

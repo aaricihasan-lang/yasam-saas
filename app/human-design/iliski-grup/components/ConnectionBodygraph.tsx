@@ -12,6 +12,8 @@ import {
   CBG_VIEWBOX,
   cbgChannelRoute,
   cbgElements,
+  cbgFrontOf,
+  cbgIsBackPrim,
   type CbgEl,
   type CbgPrim,
 } from "@/lib/human-design/relations/connectionBodygraphScene";
@@ -79,7 +81,10 @@ export function ConnectionBodygraph({
     >
       {/* Statik, sabit içerikli tanımlar (degrade / filtre; kullanıcı verisi içermez). */}
       <defs dangerouslySetInnerHTML={{ __html: CBG_DEFS }} />
-      {prims.map((p, i) => {
+      {(() => {
+        // Ön katman (varsa) tek <g transform> içinde; zemin / silüet / logo ölçeklenmez (Word SVG'siyle aynı yapı).
+        const front = cbgFrontOf(prims);
+        const nodes = prims.map((p, i) => {
         if (p.k === "slot") {
           if (!interactive || !onSelect) return null;
           return (
@@ -132,7 +137,17 @@ export function ConnectionBodygraph({
             {els.map((e, j) => renderEl(e, `${i}-${j}`))}
           </g>
         );
-      })}
+        });
+        if (!front) return nodes;
+        const first = prims.findIndex((p) => !cbgIsBackPrim(p));
+        let last = first;
+        while (last + 1 < prims.length && !cbgIsBackPrim(prims[last + 1])) last++;
+        return [
+          ...nodes.slice(0, first),
+          <g key="cbg-front" transform={front} data-hd-cbg-front="">{nodes.slice(first, last + 1)}</g>,
+          ...nodes.slice(last + 1),
+        ];
+      })()}
     </svg>
   );
 }
