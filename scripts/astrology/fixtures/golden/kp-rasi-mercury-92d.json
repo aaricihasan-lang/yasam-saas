@@ -1,0 +1,39 @@
+{
+  "endpoint": "/vedic-astrology/kp/rasi-changes",
+  "query": null,
+  "body": {
+    "planet": "Mercury",
+    "startDate": "2026-10-01",
+    "endDate": "2026-12-31",
+    "timezone": 0,
+    "ayanamsa": "kp-newcomb",
+    "nodeType": "mean"
+  },
+  "response": {
+    "planet": "Mercury",
+    "startDate": "2026-10-01",
+    "endDate": "2026-12-31",
+    "totalChanges": 2,
+    "changes": [
+      {
+        "date": "2026-12-02",
+        "time": "10:23",
+        "datetime": "2026-12-02T10:23:00",
+        "fromSign": "Libra",
+        "fromSignLord": "Venus",
+        "toSign": "Scorpio",
+        "toSignLord": "Mars"
+      },
+      {
+        "date": "2026-12-22",
+        "time": "00:41",
+        "datetime": "2026-12-22T00:41:00",
+        "fromSign": "Scorpio",
+        "fromSignLord": "Mars",
+        "toSign": "Sagittarius",
+        "toSignLord": "Jupiter"
+      }
+    ]
+  },
+  "note": "uzun aralık (ürün üst sınırı 92 gün) + Merkür retro burç dönüşleri"
+}

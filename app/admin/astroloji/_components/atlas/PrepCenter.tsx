@@ -84,7 +84,7 @@ const ABOUT: Record<UiTechniqueId, string> = {
   "kp.chart": "Placidus cusp'larıyla KP haritası: her nokta için burç, yıldız, alt ve alt-alt lordu; dört düzey significator.",
   "kp.dasha": "KP ayanamsa ile Vimshottari dönemleri ve dönem lordlarının KP significator'ları.",
   "kp.ruling": "Seçilen an ve yerdeki ruling planet'ler ile natal significator'lar.",
-  "kp.transit": "Seçilen anın KP gökyüzü (yıldız ve alt lordlar). Kısmi: natal cusp'lara göre transit analizi verilmez.",
+  "kp.transit": "İki kip: Tek an — seçilen anın KP gökyüzü (yıldız ve alt lordlar); Zaman aralığı — seçilen gezegenlerin Sub-Lord (KP numarası) değişim anları, Rasi geçişleri ve isteğe bağlı KP konum tablosu. Natal cusp'lara göre transit analizi sağlayıcıda yoktur.",
   "kp.horary": "1–249 arası sayı ile soru haritası; doğum verisi kullanılmaz. Soru anı ve değerlendirme yeri seçilir.",
 };
 
@@ -114,7 +114,7 @@ const PARAMS_NOTE: Record<UiTechniqueId, string> = {
   "kp.chart": "KP ayanamsa · düğüm",
   "kp.dasha": "düzey · KP ayanamsa",
   "kp.ruling": "an · yer · düğüm",
-  "kp.transit": "an · KP ayanamsa",
+  "kp.transit": "tek an veya aralık (başlangıç · süre ≤ 92 gün · gezegen · tür) · KP ayanamsa · düğüm",
   "kp.horary": "sayı · an · yer",
 };
 /** Kendi parametresi olmayan teknikler (yalnız ortak Batı yöntemi veya hiç ayar). */
@@ -443,7 +443,7 @@ export default function PrepCenter({
         {(meta.needsTime && timeUnknown) || st.kind !== "none" || focus === "kp.transit" ? (
           <div className="flex flex-wrap gap-1.5 text-[11px]">
             {meta.needsTime && timeUnknown && <span className="rounded-full border border-amber-300/50 bg-amber-300/10 px-2 py-0.5 text-amber-100">Doğum saati bilinmiyor — hesaplanmaz</span>}
-            {focus === "kp.transit" && <span className="rounded-full border border-amber-300/40 px-2 py-0.5 text-amber-100">Kısmi</span>}
+            {focus === "kp.transit" && <span className="rounded-full border border-amber-300/40 px-2 py-0.5 text-amber-100">Natal ev analizi yok</span>}
             {st.kind !== "none" && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-white/12 px-2 py-0.5 text-[#F6F2EA]/80" data-testid="atlas-focus-status">
                 <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[st.kind]}`} /> {st.text}

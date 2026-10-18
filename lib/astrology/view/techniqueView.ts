@@ -255,7 +255,7 @@ export function buildTechniqueView(args: {
     options: args.options,
     method: { zodiac: zodiacOfTechnique(args.technique, m.technical), houseSystem: tech.houseSystem ?? tech.chart?.houseSystem ?? null, nodeType: tech.nodeType ?? null },
     timeUnknownMasked: m.masked,
-    warnings: [...m.warnings, ...(args.missingParts ? [`${args.missingParts} dönem parçası hesaplanamadı; takvim eksik olabilir.`] : [])],
+    warnings: [...m.warnings, ...(args.missingParts ? [args.technique === "kp.transit" ? `${args.missingParts} KP zaman aralığı parçası hesaplanamadı; liste eksik (eksik parçalar ekranda adıyla yazılı).` : `${args.missingParts} dönem parçası hesaplanamadı; takvim eksik olabilir.`] : [])],
     missingParts: args.missingParts ?? 0,
     technical: m.technical,
     interpretation,

@@ -1,0 +1,147 @@
+{
+  "endpoint": "/vedic-astrology/kp/rasi-changes",
+  "query": null,
+  "body": {
+    "planet": "Moon",
+    "startDate": "2026-10-01",
+    "endDate": "2026-10-31",
+    "timezone": 0,
+    "ayanamsa": "kp-newcomb",
+    "nodeType": "mean"
+  },
+  "response": {
+    "planet": "Moon",
+    "startDate": "2026-10-01",
+    "endDate": "2026-10-31",
+    "totalChanges": 14,
+    "changes": [
+      {
+        "date": "2026-10-02",
+        "time": "10:01",
+        "datetime": "2026-10-02T10:01:00",
+        "fromSign": "Taurus",
+        "fromSignLord": "Venus",
+        "toSign": "Gemini",
+        "toSignLord": "Mercury"
+      },
+      {
+        "date": "2026-10-04",
+        "time": "12:52",
+        "datetime": "2026-10-04T12:52:00",
+        "fromSign": "Gemini",
+        "fromSignLord": "Mercury",
+        "toSign": "Cancer",
+        "toSignLord": "Moon"
+      },
+      {
+        "date": "2026-10-06",
+        "time": "16:38",
+        "datetime": "2026-10-06T16:38:00",
+        "fromSign": "Cancer",
+        "fromSignLord": "Moon",
+        "toSign": "Leo",
+        "toSignLord": "Sun"
+      },
+      {
+        "date": "2026-10-08",
+        "time": "21:38",
+        "datetime": "2026-10-08T21:38:00",
+        "fromSign": "Leo",
+        "fromSignLord": "Sun",
+        "toSign": "Virgo",
+        "toSignLord": "Mercury"
+      },
+      {
+        "date": "2026-10-11",
+        "time": "04:23",
+        "datetime": "2026-10-11T04:23:00",
+        "fromSign": "Virgo",
+        "fromSignLord": "Mercury",
+        "toSign": "Libra",
+        "toSignLord": "Venus"
+      },
+      {
+        "date": "2026-10-13",
+        "time": "13:31",
+        "datetime": "2026-10-13T13:31:00",
+        "fromSign": "Libra",
+        "fromSignLord": "Venus",
+        "toSign": "Scorpio",
+        "toSignLord": "Mars"
+      },
+      {
+        "date": "2026-10-16",
+        "time": "01:06",
+        "datetime": "2026-10-16T01:06:00",
+        "fromSign": "Scorpio",
+        "fromSignLord": "Mars",
+        "toSign": "Sagittarius",
+        "toSignLord": "Jupiter"
+      },
+      {
+        "date": "2026-10-18",
+        "time": "13:52",
+        "datetime": "2026-10-18T13:52:00",
+        "fromSign": "Sagittarius",
+        "fromSignLord": "Jupiter",
+        "toSign": "Capricorn",
+        "toSignLord": "Saturn"
+      },
+      {
+        "date": "2026-10-21",
+        "time": "01:19",
+        "datetime": "2026-10-21T01:19:00",
+        "fromSign": "Capricorn",
+        "fromSignLord": "Saturn",
+        "toSign": "Aquarius",
+        "toSignLord": "Saturn"
+      },
+      {
+        "date": "2026-10-23",
+        "time": "09:24",
+        "datetime": "2026-10-23T09:24:00",
+        "fromSign": "Aquarius",
+        "fromSignLord": "Saturn",
+        "toSign": "Pisces",
+        "toSignLord": "Jupiter"
+      },
+      {
+        "date": "2026-10-25",
+        "time": "13:43",
+        "datetime": "2026-10-25T13:43:00",
+        "fromSign": "Pisces",
+        "fromSignLord": "Jupiter",
+        "toSign": "Aries",
+        "toSignLord": "Mars"
+      },
+      {
+        "date": "2026-10-27",
+        "time": "15:27",
+        "datetime": "2026-10-27T15:27:00",
+        "fromSign": "Aries",
+        "fromSignLord": "Mars",
+        "toSign": "Taurus",
+        "toSignLord": "Venus"
+      },
+      {
+        "date": "2026-10-29",
+        "time": "16:27",
+        "datetime": "2026-10-29T16:27:00",
+        "fromSign": "Taurus",
+        "fromSignLord": "Venus",
+        "toSign": "Gemini",
+        "toSignLord": "Mercury"
+      },
+      {
+        "date": "2026-10-31",
+        "time": "18:21",
+        "datetime": "2026-10-31T18:21:00",
+        "fromSign": "Gemini",
+        "fromSignLord": "Mercury",
+        "toSign": "Cancer",
+        "toSignLord": "Moon"
+      }
+    ]
+  },
+  "note": "zorunlu 2: Ay rasi, Ekim 2026"
+}
