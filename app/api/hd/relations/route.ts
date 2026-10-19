@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
+import { testQuotaLimit } from "@/lib/security/testQuotaExemption";
 import { readRoxyServerConfig } from "@/lib/human-design/providers/roxy/config";
 import { callRoxyConnection, callRoxyPenta } from "@/lib/human-design/providers/roxy/relationClient";
 import { createRelationAnalysis, listRelationAnalyses } from "@/lib/human-design/relations/relationService";
@@ -47,7 +48,10 @@ export async function POST(req: NextRequest): Promise<Response> {
       config: readRoxyServerConfig(),
       callConnection: (config, body, opts) => callRoxyConnection(config, body, opts),
       callPenta: (config, body, opts) => callRoxyPenta(config, body, opts),
-      rateLimit: (scope, value, limit, windowSeconds) => hitDbRateLimit(guard.db, rateLimitBucket(scope, value), limit, windowSeconds),
+      // Geçici test kotası muafiyeti: Connection/Penta aynı hd-roxy-user/tenant sayaçlarını kullanır (charts/roxy ile aynı desen);
+      // hd-roxy-relation-inflight kilidi DEĞİŞMEZ.
+      rateLimit: (scope, value, limit, windowSeconds) =>
+        hitDbRateLimit(guard.db, rateLimitBucket(scope, value), scope === "hd-roxy-user" || scope === "hd-roxy-tenant" ? testQuotaLimit(scope, guard.userId, limit) : limit, windowSeconds),
       log: (msg, detail) => console.error(msg, detail ?? ""),
     },
   );
