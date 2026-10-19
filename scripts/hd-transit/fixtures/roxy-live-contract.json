@@ -1,0 +1,913 @@
+{
+ "birth": {
+  "date": "2018-07-20",
+  "time": "19:00:00",
+  "timezone": "Europe/Istanbul",
+  "latitude": 41.0082,
+  "longitude": 28.9784,
+  "nodeType": "true"
+ },
+ "transitAt": {
+  "date": "2026-10-19",
+  "time": "09:00:00"
+ },
+ "transit": {
+  "date": "2026-10-19",
+  "time": "09:00:00",
+  "timezone": 0,
+  "activations": [
+   {
+    "body": "Sun",
+    "bodyLocalized": "Güneş",
+    "gate": 32,
+    "line": 6,
+    "gateName": "Continuity",
+    "gateNameLocalized": "Süreklilik",
+    "ichingHexagram": {
+     "number": 32,
+     "english": "Süreklilik"
+    }
+   },
+   {
+    "body": "Earth",
+    "bodyLocalized": "Dünya",
+    "gate": 42,
+    "line": 6,
+    "gateName": "Growth",
+    "gateNameLocalized": "Büyüme",
+    "ichingHexagram": {
+     "number": 42,
+     "english": "Artış"
+    }
+   },
+   {
+    "body": "Moon",
+    "bodyLocalized": "Ay",
+    "gate": 41,
+    "line": 2,
+    "gateName": "Contraction",
+    "gateNameLocalized": "Daralma",
+    "ichingHexagram": {
+     "number": 41,
+     "english": "Azalma"
+    }
+   },
+   {
+    "body": "North Node",
+    "bodyLocalized": "Kuzey Düğüm",
+    "gate": 30,
+    "line": 4,
+    "gateName": "Feelings",
+    "gateNameLocalized": "Duygular",
+    "ichingHexagram": {
+     "number": 30,
+     "english": "Yapışan, Ateş"
+    }
+   },
+   {
+    "body": "South Node",
+    "bodyLocalized": "Güney Düğüm",
+    "gate": 29,
+    "line": 4,
+    "gateName": "Saying Yes",
+    "gateNameLocalized": "Evet Demek",
+    "ichingHexagram": {
+     "number": 29,
+     "english": "Uçurum (Su)"
+    }
+   },
+   {
+    "body": "Mercury",
+    "bodyLocalized": "Merkür",
+    "gate": 43,
+    "line": 1,
+    "gateName": "Insight",
+    "gateNameLocalized": "İçgörü",
+    "ichingHexagram": {
+     "number": 43,
+     "english": "Atılım (Kararlılık)"
+    }
+   },
+   {
+    "body": "Venus",
+    "bodyLocalized": "Venüs",
+    "gate": 28,
+    "line": 2,
+    "gateName": "The Game Player",
+    "gateNameLocalized": "Oyuncu",
+    "ichingHexagram": {
+     "number": 28,
+     "english": "Büyüğün Ağır Basması"
+    }
+   },
+   {
+    "body": "Mars",
+    "bodyLocalized": "Mars",
+    "gate": 33,
+    "line": 5,
+    "gateName": "Privacy",
+    "gateNameLocalized": "Mahremiyet",
+    "ichingHexagram": {
+     "number": 33,
+     "english": "Geri Çekilme"
+    }
+   },
+   {
+    "body": "Jupiter",
+    "bodyLocalized": "Jüpiter",
+    "gate": 4,
+    "line": 4,
+    "gateName": "Formulization",
+    "gateNameLocalized": "Formülleştirme",
+    "ichingHexagram": {
+     "number": 4,
+     "english": "Gençlik Budalalığı"
+    }
+   },
+   {
+    "body": "Saturn",
+    "bodyLocalized": "Satürn",
+    "gate": 21,
+    "line": 1,
+    "gateName": "The Hunter/Huntress",
+    "gateNameLocalized": "Avcı",
+    "ichingHexagram": {
+     "number": 21,
+     "english": "Dişleyerek Geçme"
+    }
+   },
+   {
+    "body": "Uranus",
+    "bodyLocalized": "Uranüs",
+    "gate": 20,
+    "line": 6,
+    "gateName": "The Now",
+    "gateNameLocalized": "Şimdi",
+    "ichingHexagram": {
+     "number": 20,
+     "english": "Tefekkür (Bakış)"
+    }
+   },
+   {
+    "body": "Neptune",
+    "bodyLocalized": "Neptün",
+    "gate": 25,
+    "line": 5,
+    "gateName": "The Spirit of the Self",
+    "gateNameLocalized": "Benliğin Ruhu",
+    "ichingHexagram": {
+     "number": 25,
+     "english": "Masumiyet (Beklenmedik)"
+    }
+   },
+   {
+    "body": "Pluto",
+    "bodyLocalized": "Plüton",
+    "gate": 41,
+    "line": 2,
+    "gateName": "Contraction",
+    "gateNameLocalized": "Daralma",
+    "ichingHexagram": {
+     "number": 41,
+     "english": "Azalma"
+    }
+   }
+  ],
+  "completedChannels": [
+   {
+    "gateA": 21,
+    "gateB": 45,
+    "name": "Money",
+    "nameLocalized": "Para",
+    "circuit": "Tribal",
+    "circuitLocalized": "Kabilesel",
+    "centers": [
+     "heart",
+     "throat"
+    ],
+    "kind": "personal",
+    "kindLocalized": "kişisel",
+    "natalGates": [
+     45
+    ],
+    "transitGates": [
+     21
+    ]
+   },
+   {
+    "gateA": 32,
+    "gateB": 54,
+    "name": "Transformation",
+    "nameLocalized": "Dönüşüm",
+    "circuit": "Tribal",
+    "circuitLocalized": "Kabilesel",
+    "centers": [
+     "spleen",
+     "root"
+    ],
+    "kind": "personal",
+    "kindLocalized": "kişisel",
+    "natalGates": [
+     54
+    ],
+    "transitGates": [
+     32
+    ]
+   },
+   {
+    "gateA": 41,
+    "gateB": 30,
+    "name": "Recognition",
+    "nameLocalized": "Tanınma",
+    "circuit": "Collective",
+    "circuitLocalized": "Kolektif",
+    "centers": [
+     "root",
+     "solar-plexus"
+    ],
+    "kind": "personal",
+    "kindLocalized": "kişisel",
+    "natalGates": [
+     41
+    ],
+    "transitGates": [
+     30
+    ]
+   }
+  ],
+  "temporaryCenters": [
+   {
+    "id": "heart",
+    "name": "Heart",
+    "nameLocalized": "Kalp",
+    "temporarilyDefined": true
+   },
+   {
+    "id": "solar-plexus",
+    "name": "Solar Plexus",
+    "nameLocalized": "Solar Pleksus",
+    "temporarilyDefined": true
+   }
+  ],
+  "summary": "Bu transit 3 kanal tamamlar: transitin bir natal kapının eş kapısını sağladığı 3 kişisel kanal. Natal olarak açık olan 2 merkezi geçici olarak tanımlar: Kalp, Solar Pleksus."
+ },
+ "bodygraph": {
+  "type": "Generator",
+  "typeDescription": "Sürdürülebilir, sarmalayan bir yaşam gücü aurası. Yanıt verecek bir şeyi beklemek Sakral enerjiyi derinden tatmin edici işe yönlendirir.",
+  "aura": "Açık ve sarmalayan. Alan dışa uzanır ve karşılaştığı her şeyi sarar, işi, insanları ve fırsatı Sakral'in onlara içgüdüsel bir yanıt verebileceği kadar yakına çeker.",
+  "strategy": "Wait to respond",
+  "strategyDescription": "Önce hayatın bir şey sunmasına izin ver, sonra buna verilen içgüdüsel yanıtı oku. Sakral enerjisini yalnızca gerçekten evet dediği şeye adar, bu yüzden başlatmak yerine yanıt vermek işi hüsran verici olmaktan çıkarıp sürdürülebilir kılan şeydir.",
+  "authority": "Sacral",
+  "authorityDescription": "Kararlar, tanımlı Sakral'in içgüdüsel yanıtıyla alınır; bu, zihin bir gerekçe oluşturmadan önce bedende beliren ikili bir evet ya da hayırdır. Yanıt düşünülüp tartılan değil anındadır ve yanıt verecek somut bir şeye ihtiyaç duyar, bu yüzden gerçek soruları ve gerçek seçenekleri o anda yanıtlar, boş spekülasyon karşısında ise sessiz kalır. Tuzak, bedeni mantıkla, yükümlülükle ya da bir fırsatın reddedilemeyecek kadar iyi olduğu gerekçesiyle kendi yanıtından caydırmaktır; bu da yaşam gücünü Sakral'in asla evet demediği bir işe harcar.",
+  "signature": "Satisfaction",
+  "notSelf": "Frustration",
+  "profile": "2/4",
+  "profileKeynotes": {
+   "personalityLine": 2,
+   "designLine": 4,
+   "personality": "Münzevi: başkaları tarafından çağrıldığında ortaya çıkan doğal bir yetenek.",
+   "design": "Fırsatçı: etki ve fırsat yerleşik bir ağ üzerinden akar."
+  },
+  "profileDescription": "Münzevi üzerinde Fırsatçı. Doğal bir yeteneğin gözlerden uzakta olgunlaştığı bilinçli bir geri çekilme ihtiyacı, o yeteneği tekrar kullanıma çağırıp duran bilinçsiz bir ağın karşısında durur. Saklanmak ile istenmek arasındaki çekim tasarımın kendisidir, bir kusur değildir: yalnızlık, yeteneğin koşuludur ve ağdan gelen çağrı, özel bir yeteneği bir role dönüştüren şeydir.",
+  "definition": "Split",
+  "definitionDescription": "Tanımlı merkezler, aralarında kanal bulunmayan iki gruba ayrılır, bu yüzden enerji her grubun içinde tutarlıdır ve ayrımı geçmez. Boşluk, diğer insanların taşıdığı kapılarla köprülenir; bu yüzden belirli bir birliktelik düşünmenin aniden birleşmiş hissettirmesine yol açabilir ve bu birlikteliğin geçici bir köprü olarak tanınmak yerine tamamlanma sanılması kolaydır. Bu yapılanmanın ihtiyaç duyduğu şey, iki alanın sentezlenmesi için zaman ve onları kimin köprülediğinin farkında olmaktır, yarılar hâlâ ayrı ayrı konuşurken alelacele verilen bir karar değil.",
+  "sides": {
+   "personality": "Bilinçli taraf, siyah renkte basılır ve doğum anında hesaplanır. Bu aktivasyonlar zihin ve benlik duygusudur: kişinin kendine ait olarak tanıdığı ve başka birine tarif edebileceği şey.",
+   "design": "Bilinçsiz taraf, kırmızı renkte basılır ve doğumdan 88 derecelik güneş yayı önce, yaklaşık üç ay öncesinde hesaplanır. Bu aktivasyonlar bedeni yönetir ve zihin onları kabul etmeden çok önce başkaları tarafından görülebilir."
+  },
+  "designInstantUtc": "2018-04-20T00:33:14.578Z",
+  "incarnationCross": {
+   "gates": [
+    56,
+    60,
+    3,
+    50
+   ],
+   "angle": "Right Angle",
+   "angleCode": "RAX",
+   "name": "Right Angle Cross of Laws 2",
+   "description": "İşlerin nasıl düzenlenmesi gerektiği hakkında konuşan hikâye anlatıcısı. Daha iyi kurallara dair bir vizyon inançla anlatılır ve onları inşa etmenin ayrıntısına çok az ilgi gösterilir.",
+   "angleLocalized": "Sağ Açı"
+  },
+  "centers": [
+   {
+    "id": "head",
+    "name": "Head",
+    "defined": true,
+    "motor": false,
+    "awareness": false,
+    "theme": "Tutarlı zihinsel baskı ve ilham. Sorgulamaların, kuşkunun ve keşfedilmeye değer fikirlerin güvenilir kaynağı.",
+    "notSelfQuestion": "Bu soru yanıtlanmaya değer mi, hatta bana mı ait? Açık Tepe, başkalarının zihinsel baskısını büyütür ve kendisini, kendisi için önemli olmayan soruları çözmeye harcar.",
+    "biology": "Epifiz bezi. Melatonin salgısı uyku ve uyanıklık döngüsünü yönetir ve bodygraph'ta bu bez, düşünme baskısının kaynağıdır.",
+    "gates": [
+     61,
+     63,
+     64
+    ],
+    "nameLocalized": "Tepe"
+   },
+   {
+    "id": "ajna",
+    "name": "Ajna",
+    "defined": true,
+    "motor": false,
+    "awareness": true,
+    "theme": "İşleme ve kavramsallaştırma için sabit bir yöntem. Zihinsel kesinlik ve tutarlı bir düşünme biçimi.",
+    "notSelfQuestion": "Bu kesinlik gerçek mi, yoksa güvende hissetmek için tutulan sabit bir görüş mü? Açık Ajna emin gibi davranır ve gerçekte sahip olmadığı inançları savunur.",
+    "biology": "Hipofiz bezi, ön ve arka lob. Bu ana endokrin bez diğer bezleri yönetir ve bodygraph'ta kavramsal işlemeyi ve zihinsel farkındalığı taşır.",
+    "gates": [
+     4,
+     17,
+     43
+    ],
+    "nameLocalized": "Ajna"
+   },
+   {
+    "id": "throat",
+    "name": "Throat",
+    "defined": true,
+    "motor": false,
+    "awareness": false,
+    "theme": "Tutarlı ifade ve bir motora bağlı olduğunda konuşma ve eylem yoluyla manifeste etme yeteneği.",
+    "notSelfQuestion": "Tüm bu konuşma ve yapma, dikkat çekme girişimi mi? Açık Boğaz, tanınmayı ve sorulmayı beklemek yerine fark edilmek için sessizliği doldurur ve meşgul kalır.",
+    "biology": "Tiroid ve paratiroid bezleri. Tiroid hormonları metabolizma hızını belirler, paratiroidler ise kalsiyumu düzenler; bodygraph'ta bu ikili, konuşma ve eylemin zamanlamasını yönetir.",
+    "gates": [
+     23,
+     31,
+     33,
+     45,
+     56
+    ],
+    "nameLocalized": "Boğaz"
+   },
+   {
+    "id": "g",
+    "name": "G Center",
+    "defined": false,
+    "motor": false,
+    "awareness": false,
+    "theme": "Yönü ve kimliği ortam ve insanlar aracılığıyla arar. Doğru yerde ve doğru kişilerle gelişir.",
+    "notSelfQuestion": "Sevgi ve bir yön dışarıdan mı avlanıyor? Açık G Merkezi, o an kim varsa ondan bir kimlik ödünç alır ve arayışın kendisini bir varış noktası sanır.",
+    "biology": "Karaciğer ve kan. Karaciğer besinleri işler ve kanın taşıdığını düzenler; bodygraph'ta kimliği, yönü ve sevgiyi taşır.",
+    "gates": [
+     1
+    ],
+    "nameLocalized": "G Merkezi"
+   },
+   {
+    "id": "heart",
+    "name": "Heart",
+    "defined": false,
+    "motor": true,
+    "awareness": false,
+    "theme": "Tutarsız irade gücü. Kanıtlanacak bir şey olmadığını öğrenir ve onay kazanmak için aşırı söz vermekten kaçınır.",
+    "notSelfQuestion": "Burada kanıtlanması gereken bir şey mi var? Açık Kalp aşırı taahhütte bulunur ve tutarsız irade gücünün tutamayacağı sözler verir, ardından bozulan sözü düşük değerin kanıtı olarak okur.",
+    "biology": "Kalp, mide, safra kesesi ve timus bezi. Bu küme dolaşımı, sindirimi ve bağışıklık olgunlaşmasını yönetir; bodygraph'ta irade gücünü ve değer arayışını besler.",
+    "gates": [],
+    "nameLocalized": "Kalp"
+   },
+   {
+    "id": "sacral",
+    "name": "Sacral",
+    "defined": true,
+    "motor": true,
+    "awareness": false,
+    "theme": "Sürdürülebilir yaşam gücü ve çalışma enerjisi. Neyle ilgileneceğini yönlendiren güvenilir bir içgüdüsel yanıt.",
+    "notSelfQuestion": "Yeterli olan hiç yeterli mi? Açık Sakral, kendisine ait olmayan yaşam gücünü büyütür ve tükenme sonunda durmayı zorlayana kadar sınırının ötesinde çalışmaya devam eder.",
+    "biology": "Yumurtalıklar ve testisler. Bu gonadlar doğurganlığın ve canlılığın arkasındaki cinsiyet hormonlarını üretir; bodygraph'ta işi güçlendiren yaşam gücünü sağlarlar.",
+    "gates": [
+     3,
+     27
+    ],
+    "nameLocalized": "Sakral"
+   },
+   {
+    "id": "solar-plexus",
+    "name": "Solar Plexus",
+    "defined": false,
+    "motor": true,
+    "awareness": true,
+    "theme": "Başkalarının duygularını emer ve büyütür. Hangi duyguların kendisine ait olmadığını fark etmeyi öğrenir.",
+    "notSelfQuestion": "Huzuru korumak için gerçek mi kaçınılıyor? Açık Solar Pleksus, odadaki duyguyu emer ve büyütür, ardından rahatsızlığı durdurmak için yüzleşmeden kaçar.",
+    "biology": "Böbrekler, pankreas ve sinir sistemi. Bunlar sıvı dengesini, kan şekerini ve sinirsel sinyalleşmeyi düzenler; bodygraph'ta duygusal dalganın kimyasını taşırlar.",
+    "gates": [],
+    "nameLocalized": "Solar Pleksus"
+   },
+   {
+    "id": "spleen",
+    "name": "Spleen",
+    "defined": true,
+    "motor": false,
+    "awareness": true,
+    "theme": "Sağlık, zamanlama ve güvenlik konusunda tutarlı içgüdüsel bir farkındalık. Anlık ve kendiliğinden bir biliş.",
+    "notSelfQuestion": "Korkudan dolayı sağlıksız bir şeye mi tutunuluyor? Açık Dalak, insanlara, işe ve alışkanlıklara zamanları çoktan geçtikten sonra bile tutunur, çünkü bırakmak hayatta kalmaya yönelik bir tehdit olarak kaydedilir.",
+    "biology": "Dalak, lenf sistemi ve bağışıklık işlevi. Bunlar kanı süzer ve bağışıklık tepkisini oluşturur; bodygraph'ta bu, sağlığı, zamanlamayı ve hayatta kalmayı izleyen en eski farkındalıktır.",
+    "gates": [
+     44,
+     50
+    ],
+    "nameLocalized": "Dalak"
+   },
+   {
+    "id": "root",
+    "name": "Root",
+    "defined": true,
+    "motor": true,
+    "awareness": false,
+    "theme": "Baskı ve stresle başa çıkmanın tutarlı bir yolu. İşleri bitirmek ve ilerlemek için istikrarlı bir dürtü.",
+    "notSelfQuestion": "Bu telaş, baskıdan kurtulma girişimi mi? Açık Kök, başkalarından büyüttüğü bir baskıdan kaçmak için bitirmeye acele eder ve peşinden koştuğu rahatlama hiçbir zaman gelmez.",
+    "biology": "Adrenal bezler. Stres tepkisini yönetmek için adrenalin ve kortizol salgılarlar; bodygraph'ta işleri harekete geçirecek baskıyı ve yakıtı sağlarlar.",
+    "gates": [
+     19,
+     41,
+     54,
+     58,
+     60
+    ],
+    "nameLocalized": "Kök"
+   }
+  ],
+  "channels": [
+   {
+    "gateA": 63,
+    "gateB": 4,
+    "name": "Logic",
+    "circuit": "Collective",
+    "centers": [
+     "head",
+     "ajna"
+    ],
+    "description": "Tepe'deki şüphe, Ajna'yı bir yanıt formüle etmeye zorlar. Mantıksal süreç burada başlar: bir örüntünün hâlâ geçerli olup olmadığını sorgulamak, ardından onu kanıtlayacak formüle uzanmak.",
+    "circuitDescription": "Tür için paylaşım, 14 kanal tarafından taşınır. Örüntü ve deneyim, aktarılabilir bir şeye dönüştürülür: mantıksal yarı örüntüleri test edip ileriye taşırken, soyut yarı zaten yaşanmış deneyimden bilgelik toplar.",
+    "nameLocalized": "Mantık",
+    "circuitLocalized": "Kolektif"
+   },
+   {
+    "gateA": 43,
+    "gateB": 23,
+    "name": "Structuring",
+    "circuit": "Individual",
+    "centers": [
+     "ajna",
+     "throat"
+    ],
+    "description": "Ajna'daki bir bilgi bütün ve açıklamasız gelir, Boğaz ise ona bir dil bulmak zorundadır. Zamanlama, bunun dehâ olarak mı yoksa gürültü olarak mı karşılık bulacağına karar verir.",
+    "circuitDescription": "Mutasyon yoluyla güçlenme, 15 kanal tarafından taşınır. Buradaki bilgi açıklanamaz ya da devredilemez, yalnızca yaşanabilir ve diğer insanları öğretiyle değil maruz kalmayla değiştirir. Bir nabız atışı olarak gelir, asla talep üzerine değil.",
+    "nameLocalized": "Yapılandırma",
+    "circuitLocalized": "Bireysel"
+   },
+   {
+    "gateA": 27,
+    "gateB": 50,
+    "name": "Preservation",
+    "circuit": "Tribal",
+    "centers": [
+     "sacral",
+     "spleen"
+    ],
+    "description": "Sakral besleme, splenik değerler tarafından yönlendirilir. Gençlere ve savunmasızlara özen gösterilir ve içgüdü, hangi değerlerin hâlâ korunmaya değer olduğunun bekçiliğini yapar.",
+    "circuitDescription": "Destek ve kaynaklar, 7 kanal tarafından taşınır. Bu, kendini besleyen, savunan ve çoğaltan gruptur; irade gücünü, özeni ve maddi malları adil kalması gereken şartlarla takas eder, aksi hâlde anlaşma bozulur.",
+    "nameLocalized": "Koruma",
+    "circuitLocalized": "Kabilesel"
+   },
+   {
+    "gateA": 3,
+    "gateB": 60,
+    "name": "Mutation",
+    "circuit": "Individual",
+    "centers": [
+     "sacral",
+     "root"
+    ],
+    "description": "Kök sınırlaması ve sakral düzenleme birbirine karşı nabız gibi atar. Değişim kısıtlama altında birikir ve programlanamayan patlamalar hâlinde açığa çıkar; bu, bodygraph'taki mutasyonun kaynağıdır.",
+    "circuitDescription": "Mutasyon yoluyla güçlenme, 15 kanal tarafından taşınır. Buradaki bilgi açıklanamaz ya da devredilemez, yalnızca yaşanabilir ve diğer insanları öğretiyle değil maruz kalmayla değiştirir. Bir nabız atışı olarak gelir, asla talep üzerine değil.",
+    "nameLocalized": "Mutasyon",
+    "circuitLocalized": "Bireysel"
+   }
+  ],
+  "gates": [
+   {
+    "planet": "Sun",
+    "side": "personality",
+    "gate": 56,
+    "line": 2,
+    "gateName": "Stimulation",
+    "gateDescription": "Boğazdaki hikâye anlatıcısı. 11. kapının fikirlerini yaşanmış deneyimle giydirerek bir izleyici kitlesini uyarır ve anlatım, her ayrıntının doğruluğundan daha önemlidir.",
+    "lineMeaning": "Sorulması gereken doğal bir hikâye anlatıcısı. Yetenek ancak seslendirildiğinde uyarır ve tanınana kadar hikâyeler kimseye anlatılmaz.",
+    "planetDescription": "Baskın aktivasyon. Dünya ile birlikte haritadaki izin yaklaşık yüzde 70'ini taşır. Kişilik Güneşi kapısı bilinçli hayat temasıdır, Tasarım Güneşi ise bedenin daha bir kelime söylenmeden yaydığı parlaklıktır.",
+    "ichingHexagram": {
+     "number": 56,
+     "english": "Gezgin"
+    },
+    "planetLocalized": "Güneş",
+    "gateNameLocalized": "Uyarım"
+   },
+   {
+    "planet": "Earth",
+    "side": "personality",
+    "gate": 60,
+    "line": 2,
+    "gateName": "Acceptance",
+    "gateDescription": "Bir sınırın içinde tutulan kök baskısı. Mutasyon burada gerçekleşir ama yalnızca sınırlama kabul edildiğinde ve değişimin nabız atışı programlanmayı reddeder.",
+    "lineMeaning": "Hangi kısıtlamaların gerçek olduğuna dair doğuştan gelen bir sezgi. Sınırın içinde ona karşı mücadele etmeden bekler ve gerçek bir açılış belirdiği an harekete geçer.",
+    "planetDescription": "Her zaman Güneş'in çark üzerindeki karşıtıdır, bu yüzden gözlemlenmez, türetilir. Güneş'in ifade ettiği her şeyi topraklar ve iki Güneş ile iki Dünya, enkarnasyon haçının dört kapısını sabitler.",
+    "ichingHexagram": {
+     "number": 60,
+     "english": "Sınırlama"
+    },
+    "planetLocalized": "Dünya",
+    "gateNameLocalized": "Kabullenme"
+   },
+   {
+    "planet": "Moon",
+    "side": "personality",
+    "gate": 44,
+    "line": 1,
+    "gateName": "Alertness",
+    "gateDescription": "Bir kişinin daha önce nasıl davrandığının içgüdüsel hatırlanması. Birinin bir kaynak mı yoksa bir risk mi olduğunu tarayan splenik örüntü tanımadır, bu yüzden geçmiş anlaşmanın güvenli olup olmadığına karar verir.",
+    "lineMeaning": "Temel: bir kişiyi ilk temasta okuyan ve onunla ilişkinin şartlarını belirleyen içgüdü. Uyum uğruna yumuşatılan şartlar, sonradan sorun olarak geri gelenlerdir.",
+    "planetDescription": "Çark üzerindeki en hızlı gök cismi, yaklaşık 28 günde bir turunu tamamlar. Dürtüyü ve formun sürekli hareketini taşır, netliğin gelmesi için tam bir döngüye ihtiyaç duyan Ay otoritesinin zamanlamasını belirler.",
+    "ichingHexagram": {
+     "number": 44,
+     "english": "Karşılaşma"
+    },
+    "planetLocalized": "Ay",
+    "gateNameLocalized": "Tetikte Olma"
+   },
+   {
+    "planet": "North Node",
+    "side": "personality",
+    "gate": 31,
+    "line": 5,
+    "gateName": "Leading",
+    "gateDescription": "\"Ben liderlik ediyorum\" diyen ses. Doğası gereği demokratiktir, bu yüzden liderlik yalnızca grup onu tanıdığında ve arkasında 7. kapının yönünü taşıdığında gerçektir.",
+    "lineMeaning": "Liderlik bu çizgiye yansıtılır ve yön beklenir. Sonuç önceden görülür ve kalıcı soru, bunun liderlik mi yoksa yalnızca yönetilmek mi olduğudur.",
+    "planetDescription": "Kişilikten çok geometridir. Hayatın orta yaş geçişinden sonra ikinci yarısında yöneldiği yönü işaret eder ve Tasarım tarafında, formun doğru görüldüğü ortamı adlandırır.",
+    "ichingHexagram": {
+     "number": 31,
+     "english": "Etki (Çekim)"
+    },
+    "planetLocalized": "Kuzey Düğüm",
+    "gateNameLocalized": "Liderlik"
+   },
+   {
+    "planet": "South Node",
+    "side": "personality",
+    "gate": 41,
+    "line": 5,
+    "gateName": "Contraction",
+    "gateDescription": "Deneyim döngüsünü başlatan kök baskısı. Enerji, henüz yaşanmamış bir duyguya duyulan açlığa büzülür; bu, 30. kapının ardından peşine düştüğü fantezidir.",
+    "lineMeaning": "Tanınma dışarıdan gelir ve fanteziye sonunda gidecek bir yer verir. Sınırdan duyulan sürekli hoşnutsuzluk, onu kullanacak destek sunulsa bile yakıtı ekşitir.",
+    "planetDescription": "Hayatın ilk yarısının tanıdık geometrisi, kişinin orta yaş dönüşünden önce üzerinde işlediği zemin. Tasarım tarafında, bedenin çoktan tanıdığı ve doğal olarak geri döndüğü ortamı adlandırır.",
+    "ichingHexagram": {
+     "number": 41,
+     "english": "Azalma"
+    },
+    "planetLocalized": "Güney Düğüm",
+    "gateNameLocalized": "Daralma"
+   },
+   {
+    "planet": "Mercury",
+    "side": "personality",
+    "gate": 4,
+    "line": 4,
+    "gateName": "Formulization",
+    "gateDescription": "Yanıt vermek için zihinsel enerji. 63. kapının bastırdığı şüpheyi olası bir formüle dönüştürür ve bu yanıt, doğrulanmış bir gerçek değil, ispatı bekleyen bir hipotez olarak kalır.",
+    "lineMeaning": "Yanıt, elde tutulmadan önce sahiplenilir, sonra iddiayı doğru kılacak kadar hızlı bir şekilde kovalanır. Bu, bir yöntem hâline gelecek kadar sık işler ve işlemediği durumlar zaman içinde birikir.",
+    "planetDescription": "İletişim izi. Kişilik Merkür kapısı, kişinin iletmek için burada olduğu mesajdır; Tasarım Merkür kapısı ise bu ifadenin herkese aslında nasıl duyulduğudur.",
+    "ichingHexagram": {
+     "number": 4,
+     "english": "Gençlik Budalalığı"
+    },
+    "planetLocalized": "Merkür",
+    "gateNameLocalized": "Formülleştirme"
+   },
+   {
+    "planet": "Venus",
+    "side": "personality",
+    "gate": 64,
+    "line": 1,
+    "gateName": "Confusion",
+    "gateDescription": "Geçmişin çözülmemiş imgelerinden gelen tepe baskısı. Zihin henüz uymayan parçalarla doludur ve bunların sonunda anlama kavuştuğu yer 47. kapıdır.",
+    "lineMeaning": "Çözülmemiş imgelerin baskısı, onları sınıflandırarak karşılanır. Düzen, karışıklığın içinde bulunur ve sis kalkar gibi göründüğü an harekete geçmek, hep tekrarlanan hatadır.",
+    "planetDescription": "Değerler ve davranışın altındaki ahlaki zemin. Kişilik Venüsü bilinçli olarak değer verilen şeydir, Tasarım Venüsü ise bedenin hiç danışılmadan uyguladığı standarttır.",
+    "ichingHexagram": {
+     "number": 64,
+     "english": "Tamamlanmadan Önce"
+    },
+    "planetLocalized": "Venüs",
+    "gateNameLocalized": "Karışıklık"
+   },
+   {
+    "planet": "Mars",
+    "side": "personality",
+    "gate": 41,
+    "line": 5,
+    "gateName": "Contraction",
+    "gateDescription": "Deneyim döngüsünü başlatan kök baskısı. Enerji, henüz yaşanmamış bir duyguya duyulan açlığa büzülür; bu, 30. kapının ardından peşine düştüğü fantezidir.",
+    "lineMeaning": "Tanınma dışarıdan gelir ve fanteziye sonunda gidecek bir yer verir. Sınırdan duyulan sürekli hoşnutsuzluk, onu kullanacak destek sunulsa bile yakıtı ekşitir.",
+    "planetDescription": "Olgunlaşmamış enerji: henüz kendi zamanlamasını öğrenmemiş ham dürtü. Eylemin henüz olgunlaşmadan zorlandığı yerleri gösterir ve yalnızca strateji ile otorite kararı yönettiğinde olgunlaşır.",
+    "ichingHexagram": {
+     "number": 41,
+     "english": "Azalma"
+    },
+    "planetLocalized": "Mars",
+    "gateNameLocalized": "Daralma"
+   },
+   {
+    "planet": "Jupiter",
+    "side": "personality",
+    "gate": 1,
+    "line": 1,
+    "gateName": "Self Expression",
+    "gateDescription": "Biçim arayan yaratıcı bireysellik. G Merkezi'nde oturur ve 8. kapının boğaza taşıdığı, başkalarının görebileceği bir katkıya dönüşen ham özgünlüğü sağlar.",
+    "lineMeaning": "Yaratıcı dürtü iradeye değil zamanlamaya karşılık verir, bu yüzden buradaki temel sabırdır. Eseri talep üzerine zorla var etmeye çalışmak onu yalnızca dengesizleştirir.",
+    "planetDescription": "Genişleme ve doğru yaşamayı ödüllendiren yasa. Kişilik Jüpiter'i büyümenin ve bolluğun toplandığı yeri işaret eder, Tasarım Jüpiter'i ise formun hizalı kaldığı sürece aldığı korumayı işaret eder.",
+    "ichingHexagram": {
+     "number": 1,
+     "english": "Yaratıcı"
+    },
+    "planetLocalized": "Jüpiter",
+    "gateNameLocalized": "Kendini İfade"
+   },
+   {
+    "planet": "Saturn",
+    "side": "personality",
+    "gate": 58,
+    "line": 1,
+    "gateName": "Vitality",
+    "gateDescription": "Neşe ve iyileştirme için iten kök enerjisi. Yaşama sevinci, düzeltmenin arkasındaki yakıttır ve engellendiğinde canlılık acılığa döner.",
+    "lineMeaning": "Sevinç, yaşıyor olmanın çıplak gerçeğine dayanır. Kök canlılığı istikrarlıdır, çünkü önce düzenlenmesi gereken herhangi bir şeye değil, takdire dayanır.",
+    "planetDescription": "Kısıtlama yoluyla disiplin, düzeltici iz. Tasarıma saygı gösterilmediğinde sonuçların geldiği yerdir ve 29 ile 58 yaşları civarındaki dönüşleri bu hesabın kapatıldığı zamanlardır.",
+    "ichingHexagram": {
+     "number": 58,
+     "english": "Neşeli, Göl"
+    },
+    "planetLocalized": "Satürn",
+    "gateNameLocalized": "Canlılık"
+   },
+   {
+    "planet": "Uranus",
+    "side": "personality",
+    "gate": 27,
+    "line": 1,
+    "gateName": "Caring",
+    "gateDescription": "Başkalarını beslemek ve korumak için sakral enerji. Kabilesel bir kapıdır, insanlığa değil aileye ve gruba yöneliktir ve sınır olmadığında aşırı yayılmaya dönüşür.",
+    "lineMeaning": "Özen, onu sağlayan bedenle başlar. Kendini besleme temeli olmadan başkalarının ihtiyaçlarını öne koymak, değeri bilinmemenin en hızlı yoludur.",
+    "planetDescription": "Olağandışı ve ani olan. Bireyselliği ve beklenmedik değişimi taşır, 40 yaş civarındaki karşıt konumu ise koşullanma yerine kendisi olarak yaşama yönündeki orta yaş baskısıdır.",
+    "ichingHexagram": {
+     "number": 27,
+     "english": "Ağzın Köşeleri (Beslenme Sağlama)"
+    },
+    "planetLocalized": "Uranüs",
+    "gateNameLocalized": "Şefkat"
+   },
+   {
+    "planet": "Neptune",
+    "side": "personality",
+    "gate": 63,
+    "line": 6,
+    "gateName": "Doubt",
+    "gateDescription": "Sunulanı sorgulamaya yönelik tepe baskısı. Mantık, kuşkuyla başlar. Şüphe, insanlara değil örüntüye aittir ve bir formül için 4. kapıyı zorlar.",
+    "lineMeaning": "Şüphe, ardından geri çekilme, ardından perspektif. Sorular aciliyet olmadan tutulur ve bir çözüm, sonsuza kadar yeniden açılmak yerine kabul edilir.",
+    "planetDescription": "Perde. Ruhsal algıyı ve yanılsama kapasitesini eşit ölçüde taşır, bu yüzden etkinleştirdiği her şey ne kişi ne de izleyen biri tarafından nadiren açıkça görülür.",
+    "ichingHexagram": {
+     "number": 63,
+     "english": "Tamamlanmadan Sonra"
+    },
+    "planetLocalized": "Neptün",
+    "gateNameLocalized": "Şüphe"
+   },
+   {
+    "planet": "Pluto",
+    "side": "personality",
+    "gate": 54,
+    "line": 6,
+    "gateName": "Ambition",
+    "gateDescription": "Yükselmeye yönelik kök dürtüsü. Hırs, maddi ve sosyal dönüşüme yöneliktir ve aşağıdan itilerek değil yukarıdan tanınarak ilerler.",
+    "lineMeaning": "Hırs, ardından hayal kırıklığı, ardından seçicilik. Tırmanmak uğruna tırmanmayı bırakır ve yalnızca her iki yönde de ağırlık taşıyan bağlantıları elde tutar.",
+    "planetDescription": "Dönüşüm yoluyla gerçek. Gizli olanı açığa çıkarır ve ardından gelen psikolojik değişimi zorlar; kişisel ve hızlı değil, nesiller boyu ve yavaş işler.",
+    "ichingHexagram": {
+     "number": 54,
+     "english": "Evlenen Kız"
+    },
+    "planetLocalized": "Plüton",
+    "gateNameLocalized": "Hırs"
+   },
+   {
+    "planet": "Sun",
+    "side": "design",
+    "gate": 3,
+    "line": 4,
+    "gateName": "Ordering",
+    "gateDescription": "Yeni bir şeye başlamak ve onu düzene zorlamak için sakral enerji. Dürtü mutatiftir ve nabız atışları hâlinde gelir, bu yüzden atılımdan önce sekteye uğramak buradaki doğal ritmin bir parçasıdır.",
+    "lineMeaning": "Mutasyonun hayatta kalmak için ihtiyaç duyduğu rehberliği içine çeken bilinçsiz bir çekim gücü. Bu çekim, üzerinde çalışılmadığı sürece işler ve ondan talepte bulunulduğu anda çöker.",
+    "planetDescription": "Baskın aktivasyon. Dünya ile birlikte haritadaki izin yaklaşık yüzde 70'ini taşır. Kişilik Güneşi kapısı bilinçli hayat temasıdır, Tasarım Güneşi ise bedenin daha bir kelime söylenmeden yaydığı parlaklıktır.",
+    "ichingHexagram": {
+     "number": 3,
+     "english": "Başlangıçtaki Zorluk"
+    },
+    "planetLocalized": "Güneş",
+    "gateNameLocalized": "Düzenleme"
+   },
+   {
+    "planet": "Earth",
+    "side": "design",
+    "gate": 50,
+    "line": 4,
+    "gateName": "Values",
+    "gateDescription": "Bir grubu bir arada tutan kuralların ve değerlerin içgüdüsel bekçisi. Spleniktir, bu yüzden kabile için doğru olan tartışılmaz, hissedilir ve sorumluluk seçilmez, taşınır.",
+    "lineMeaning": "Değerlere dair sorumluluk tüm ağa ulaşır. Yozlaşmış standartlarla çevrelendiğinde kendi duruşunu korumak zorundadır, çünkü tahammül ettiği her şey ona bağlı herkes için norm hâline gelir.",
+    "planetDescription": "Her zaman Güneş'in çark üzerindeki karşıtıdır, bu yüzden gözlemlenmez, türetilir. Güneş'in ifade ettiği her şeyi topraklar ve iki Güneş ile iki Dünya, enkarnasyon haçının dört kapısını sabitler.",
+    "ichingHexagram": {
+     "number": 50,
+     "english": "Kazan"
+    },
+    "planetLocalized": "Dünya",
+    "gateNameLocalized": "Değerler"
+   },
+   {
+    "planet": "Moon",
+    "side": "design",
+    "gate": 45,
+    "line": 6,
+    "gateName": "The Gatherer",
+    "gateDescription": "Sahiplik ve dağıtımın kabilesel sesi. İnsanları ve kaynakları toplar, grubun elinde tuttuğu şeye başkanlık eder ve sahip olmanın otoritesiyle konuşur.",
+    "lineMeaning": "Dışarıda kalanı nasıl geri alacağını bilen bilgelik. Geri dönen tuhaf kişiye yer açabilir ya da geri dönüşün uyum sağlamak anlamına geldiğini talep edebilir; bunlardan yalnızca biri kabileyi büyütür.",
+    "planetDescription": "Çark üzerindeki en hızlı gök cismi, yaklaşık 28 günde bir turunu tamamlar. Dürtüyü ve formun sürekli hareketini taşır, netliğin gelmesi için tam bir döngüye ihtiyaç duyan Ay otoritesinin zamanlamasını belirler.",
+    "ichingHexagram": {
+     "number": 45,
+     "english": "Toplanma (Yığılma)"
+    },
+    "planetLocalized": "Ay",
+    "gateNameLocalized": "Toplayıcı"
+   },
+   {
+    "planet": "North Node",
+    "side": "design",
+    "gate": 33,
+    "line": 4,
+    "gateName": "Privacy",
+    "gateDescription": "Geri çekilişin ve yeniden anlatmanın sesi. Deneyimin, kolektifin kullanabileceği bir ders olarak dile getirilebilmesi için önce ondan çekilip özel olarak sindirilmesi gerekir.",
+    "lineMeaning": "Çevreden dramsız biçimde yapılan çekilme. Çıkış temiz olduğunda ağ saygısını korur; geri çekilme seçilmek yerine zorlandığında ise yenilenme kaybolur.",
+    "planetDescription": "Kişilikten çok geometridir. Hayatın orta yaş geçişinden sonra ikinci yarısında yöneldiği yönü işaret eder ve Tasarım tarafında, formun doğru görüldüğü ortamı adlandırır.",
+    "ichingHexagram": {
+     "number": 33,
+     "english": "Geri Çekilme"
+    },
+    "planetLocalized": "Kuzey Düğüm",
+    "gateNameLocalized": "Mahremiyet"
+   },
+   {
+    "planet": "South Node",
+    "side": "design",
+    "gate": 19,
+    "line": 4,
+    "gateName": "Wanting",
+    "gateDescription": "Ait olmanın temellerini güvence altına almak için kök baskısı: yiyecek, barınak, dokunuş ve destek. Kabilenin neye ihtiyaç duyduğuna karşı son derece duyarlıdır ve bir yanıt için 49. kapıyı zorlar.",
+    "lineMeaning": "Aidiyet, grubu sakin ve bilgilendirilmiş tutarak güvence altına alınır. Ağın içinden gelen onaysızlık burada derinden yaralar ve geri çevrilen tek bir talep, tüm dahil edilme duygusunu çökertebilir.",
+    "planetDescription": "Hayatın ilk yarısının tanıdık geometrisi, kişinin orta yaş dönüşünden önce üzerinde işlediği zemin. Tasarım tarafında, bedenin çoktan tanıdığı ve doğal olarak geri döndüğü ortamı adlandırır.",
+    "ichingHexagram": {
+     "number": 19,
+     "english": "Yaklaşma"
+    },
+    "planetLocalized": "Güney Düğüm",
+    "gateNameLocalized": "İsteme"
+   },
+   {
+    "planet": "Mercury",
+    "side": "design",
+    "gate": 17,
+    "line": 2,
+    "gateName": "Opinions",
+    "gateDescription": "Gözlemlenen örüntülerden görüş oluşturan zihinsel enerji. Görüş, neyin işe yarayacağına dair bir öneridir ve yalnızca istendiğinde ve 62. kapının ayrıntısına dayandığında karşılık bulur.",
+    "lineMeaning": "Görüş, seçilmiş bir çevreden kendiliğinden oluşur. Bu çizgiyi ortaya çıkaran şey, bir düşünce ipliğini hareket hâlinde tutan düşünürlerdir ve bayat zihinler sessizce kendi hâline bırakılır.",
+    "planetDescription": "İletişim izi. Kişilik Merkür kapısı, kişinin iletmek için burada olduğu mesajdır; Tasarım Merkür kapısı ise bu ifadenin herkese aslında nasıl duyulduğudur.",
+    "ichingHexagram": {
+     "number": 17,
+     "english": "Takip Etme"
+    },
+    "planetLocalized": "Merkür",
+    "gateNameLocalized": "Görüşler"
+   },
+   {
+    "planet": "Venus",
+    "side": "design",
+    "gate": 23,
+    "line": 6,
+    "gateName": "Assimilation",
+    "gateDescription": "Bireysel bilgiyi başkalarının kavrayabileceği bir dile dönüştüren ses. Yanlış anda söylendiğinde saçmalık gibi, doğru anda söylendiğinde ise dehâ gibi duyulur.",
+    "lineMeaning": "Parçalar, yeni bir biçimde birleşene kadar tutulur. Statükonun baskısı altında tarafsız kalmak, gerçekten yeni bir yapının önerilebilmesini sağlayan şeydir.",
+    "planetDescription": "Değerler ve davranışın altındaki ahlaki zemin. Kişilik Venüsü bilinçli olarak değer verilen şeydir, Tasarım Venüsü ise bedenin hiç danışılmadan uyguladığı standarttır.",
+    "ichingHexagram": {
+     "number": 23,
+     "english": "Parçalanma"
+    },
+    "planetLocalized": "Venüs",
+    "gateNameLocalized": "Özümseme"
+   },
+   {
+    "planet": "Mars",
+    "side": "design",
+    "gate": 54,
+    "line": 4,
+    "gateName": "Ambition",
+    "gateDescription": "Yükselmeye yönelik kök dürtüsü. Hırs, maddi ve sosyal dönüşüme yöneliktir ve aşağıdan itilerek değil yukarıdan tanınarak ilerler.",
+    "lineMeaning": "Ağ, merdivenin ta kendisidir. Bu, maddi hırsın ya daha yüksek bir şeye dönüştüğü ya da istenen şeyin sahip olunmaya değmediği ortaya çıktığında çöktüğü basamaktır.",
+    "planetDescription": "Olgunlaşmamış enerji: henüz kendi zamanlamasını öğrenmemiş ham dürtü. Eylemin henüz olgunlaşmadan zorlandığı yerleri gösterir ve yalnızca strateji ile otorite kararı yönettiğinde olgunlaşır.",
+    "ichingHexagram": {
+     "number": 54,
+     "english": "Evlenen Kız"
+    },
+    "planetLocalized": "Mars",
+    "gateNameLocalized": "Hırs"
+   },
+   {
+    "planet": "Jupiter",
+    "side": "design",
+    "gate": 43,
+    "line": 2,
+    "gateName": "Insight",
+    "gateDescription": "Bütün ve açıklanmamış olarak gelen bireysel bilgi. Ajna'da oturur, onu savunacak bir mantığı olmayan bir atılımdır ve başkaları tarafından duyulabilir hâle gelmek için 23. kapıya ihtiyaç duyar.",
+    "lineMeaning": "Bilgiyi durmadan üreten, özel ve kendine özgü doğal bir zihinsel süreç. Konuşma dürtüsü geldiğinde ve dayandığı süreç terk edildiğinde bozulur.",
+    "planetDescription": "Genişleme ve doğru yaşamayı ödüllendiren yasa. Kişilik Jüpiter'i büyümenin ve bolluğun toplandığı yeri işaret eder, Tasarım Jüpiter'i ise formun hizalı kaldığı sürece aldığı korumayı işaret eder.",
+    "ichingHexagram": {
+     "number": 43,
+     "english": "Atılım (Kararlılık)"
+    },
+    "planetLocalized": "Jüpiter",
+    "gateNameLocalized": "İçgörü"
+   },
+   {
+    "planet": "Saturn",
+    "side": "design",
+    "gate": 58,
+    "line": 6,
+    "gateName": "Vitality",
+    "gateDescription": "Neşe ve iyileştirme için iten kök enerjisi. Yaşama sevinci, düzeltmenin arkasındaki yakıttır ve engellendiğinde canlılık acılığa döner.",
+    "lineMeaning": "Sefahat, ardından geri tutum, ardından ölçülü haz. Sunulanın tadını çıkarır ve kalmanın bedeli kendi bütünlüğü olduğu an yine de çekilir.",
+    "planetDescription": "Kısıtlama yoluyla disiplin, düzeltici iz. Tasarıma saygı gösterilmediğinde sonuçların geldiği yerdir ve 29 ile 58 yaşları civarındaki dönüşleri bu hesabın kapatıldığı zamanlardır.",
+    "ichingHexagram": {
+     "number": 58,
+     "english": "Neşeli, Göl"
+    },
+    "planetLocalized": "Satürn",
+    "gateNameLocalized": "Canlılık"
+   },
+   {
+    "planet": "Uranus",
+    "side": "design",
+    "gate": 3,
+    "line": 3,
+    "gateName": "Ordering",
+    "gateDescription": "Yeni bir şeye başlamak ve onu düzene zorlamak için sakral enerji. Dürtü mutatiftir ve nabız atışları hâlinde gelir, bu yüzden atılımdan önce sekteye uğramak buradaki doğal ritmin bir parçasıdır.",
+    "lineMeaning": "Kapıdaki en değişken çizgi; verimliyi kısırdan, ikisini de deneyerek ayırır. Buradaki mekanizma hatalardır ve onları göze almayı reddetmek mutasyonu gerçekten sona erdiren şeydir.",
+    "planetDescription": "Olağandışı ve ani olan. Bireyselliği ve beklenmedik değişimi taşır, 40 yaş civarındaki karşıt konumu ise koşullanma yerine kendisi olarak yaşama yönündeki orta yaş baskısıdır.",
+    "ichingHexagram": {
+     "number": 3,
+     "english": "Başlangıçtaki Zorluk"
+    },
+    "planetLocalized": "Uranüs",
+    "gateNameLocalized": "Düzenleme"
+   },
+   {
+    "planet": "Neptune",
+    "side": "design",
+    "gate": 63,
+    "line": 5,
+    "gateName": "Doubt",
+    "gateDescription": "Sunulanı sorgulamaya yönelik tepe baskısı. Mantık, kuşkuyla başlar. Şüphe, insanlara değil örüntüye aittir ve bir formül için 4. kapıyı zorlar.",
+    "lineMeaning": "Başkaları sistemdeki çatlağı bulması için bu hatta güvenir. Bu hat insanları değil çerçeveyi sorgular ve kimsenin sormadığı yerde şüpheyi zorlamak onu boşa harcar.",
+    "planetDescription": "Perde. Ruhsal algıyı ve yanılsama kapasitesini eşit ölçüde taşır, bu yüzden etkinleştirdiği her şey ne kişi ne de izleyen biri tarafından nadiren açıkça görülür.",
+    "ichingHexagram": {
+     "number": 63,
+     "english": "Tamamlanmadan Sonra"
+    },
+    "planetLocalized": "Neptün",
+    "gateNameLocalized": "Şüphe"
+   },
+   {
+    "planet": "Pluto",
+    "side": "design",
+    "gate": 61,
+    "line": 1,
+    "gateName": "Mystery",
+    "gateDescription": "Bilinemeyeni bilmeye yönelik tepe baskısı. İlham, yanıtı olmayan bir \"neden\" olarak gelir ve tasarım, soruyu çözmek değil onunla birlikte oturmaktır.",
+    "lineMeaning": "Bilme yönündeki tepe baskısı, derin ve özel bir araştırmayı yönlendirir. Gizem kendi uğruna araştırılır ve tehlike, hiçbir şeyin geri dönmediği kadar tam bir geri çekilmedir.",
+    "planetDescription": "Dönüşüm yoluyla gerçek. Gizli olanı açığa çıkarır ve ardından gelen psikolojik değişimi zorlar; kişisel ve hızlı değil, nesiller boyu ve yavaş işler.",
+    "ichingHexagram": {
+     "number": 61,
+     "english": "İç Gerçek"
+    },
+    "planetLocalized": "Plüton",
+    "gateNameLocalized": "Gizem"
+   }
+  ],
+  "typeLocalized": "Jeneratör",
+  "strategyLocalized": "Yanıt vermeyi bekle",
+  "authorityLocalized": "Sakral",
+  "signatureLocalized": "Tatmin",
+  "notSelfLocalized": "Hüsran",
+  "definitionLocalized": "Bölünmüş"
+ }
+}

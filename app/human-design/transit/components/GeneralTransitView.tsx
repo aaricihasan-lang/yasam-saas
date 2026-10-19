@@ -8,7 +8,7 @@ import { istanbulLocalParts, utcOffsetLabel, type TransitMoment } from "@/lib/hu
 import { transitSceneState } from "@/lib/human-design/transit/transitScene";
 import { CBG_PERSON_COLOR } from "@/lib/human-design/relations/connectionBodygraphScene";
 import { PLANET_GLYPH } from "@/lib/human-design/bodygraph/planetGlyphs";
-import { bodyLabel, GENERAL_TRANSIT_NOTE, NEAR_BOUNDARY_NOTE, transitCenterLabel, transitChannelLabel } from "@/lib/human-design/transit/transitLabels";
+import { bodyLabel, GENERAL_TRANSIT_NOTE, UNCERTAIN_NOTE, transitCenterLabel, transitChannelLabel } from "@/lib/human-design/transit/transitLabels";
 import { CENTERS, CHANNELS } from "@/lib/human-design/engine/channels";
 import { fetchGeneralTransit } from "../helpers/transitClient";
 import { TransitBodygraphPanel } from "./TransitBodygraphPanel";
@@ -130,20 +130,26 @@ export function GeneralTransitView() {
               <h2 className="mb-2 text-[11px] font-black uppercase tracking-widest text-indigo-700">13 Aktivasyon</h2>
               <ul className="divide-y divide-slate-100">
                 {t.activations.map((a) => (
-                  <li key={a.body} className="flex items-center justify-between gap-2 py-1.5 text-sm" data-hd-transit-activation={`${a.body}:${a.gate}.${a.line}`}>
+                  <li key={a.body} className="flex items-center justify-between gap-2 py-1.5 text-sm" data-hd-transit-activation={`${a.body}:${a.gate}.${a.line}`} data-hd-transit-certain={a.certain ? "1" : "0"}>
                     <span className="min-w-0 text-slate-800">
                       <span className="mr-1.5 inline-block w-4 text-center text-slate-500" aria-hidden>{PLANET_GLYPH[a.body]}</span>
                       {bodyLabel(a.body)}
                     </span>
                     <span className="flex items-center gap-1.5">
-                      {a.nearBoundary ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800" title={NEAR_BOUNDARY_NOTE} data-hd-transit-near>sınıra yakın</span> : null}
-                      <span className="font-mono text-sm font-bold text-slate-900">{a.gate}.{a.line}</span>
+                      {a.certain ? (
+                        <span className="font-mono text-sm font-bold text-slate-900">{a.gate}.{a.line}</span>
+                      ) : (
+                        <>
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800" title={UNCERTAIN_NOTE} data-hd-transit-uncertain>kesinleştirilemedi</span>
+                          <span className="font-mono text-sm font-bold text-amber-900">{a.gate}.{a.line} / {a.alternative!.gate}.{a.alternative!.line}</span>
+                        </>
+                      )}
                     </span>
                   </li>
                 ))}
               </ul>
               <p className="mt-2 text-[11px] text-slate-500">Kapı.çizgi · aktif kapılar: <span data-hd-transit-gates>{t.activeGates.join(", ")}</span></p>
-              {t.activations.some((a) => a.nearBoundary) ? <p className="mt-1 text-[11px] text-amber-800">{NEAR_BOUNDARY_NOTE}</p> : null}
+              {t.hasUncertainty ? <p className="mt-1 text-[11px] text-amber-800" data-hd-transit-uncertain-note>{UNCERTAIN_NOTE}</p> : null}
             </section>
             <section className={card} data-hd-transit-channels>
               <h2 className="mb-2 text-[11px] font-black uppercase tracking-widest text-indigo-700">Transitin Tamamladığı Kanallar ({t.channels.length})</h2>
@@ -155,22 +161,29 @@ export function GeneralTransitView() {
                     <li key={c.id} className="rounded-lg bg-orange-50/60 px-3 py-2 text-xs text-slate-700" data-hd-transit-channel={c.id}>
                       <b className="text-slate-900">{transitChannelLabel(c.id, c.name)}</b>
                       <span className="block">
-                        {c.gateA}. kapı ({c.bodiesA.map(bodyLabel).join(", ")}) – {c.gateB}. kapı ({c.bodiesB.map(bodyLabel).join(", ")})
+                        {c.gateA}. kapı ({(c.bodiesA ?? []).map(bodyLabel).join(", ")}) – {c.gateB}. kapı ({(c.bodiesB ?? []).map(bodyLabel).join(", ")})
                       </span>
                       <span className="block text-slate-500">{transitCenterLabel(c.centerA)} – {transitCenterLabel(c.centerB)}</span>
                     </li>
                   ))}
                 </ul>
               )}
+              {t.possibleChannels.length ? (
+                <div className="mt-2" data-hd-transit-possible>
+                  <p className="text-[11px] font-bold text-amber-800">Sınırdaki aktivasyona bağlı olası kanallar (kesin değil):</p>
+                  <p className="text-xs text-slate-700">{t.possibleChannels.map((c) => transitChannelLabel(c.id, c.name)).join(" · ")}</p>
+                </div>
+              ) : null}
             </section>
             <section className={card} data-hd-transit-centers>
               <h2 className="mb-2 text-[11px] font-black uppercase tracking-widest text-indigo-700">Merkezler</h2>
               <ul className="grid grid-cols-2 gap-1.5 text-xs sm:grid-cols-3">
                 {CENTERS.map((c) => {
                   const on = t.definedCenters.includes(c);
+                  const unsure = t.uncertainCenters.includes(c);
                   return (
-                    <li key={c} className={`rounded-lg px-2.5 py-1.5 ${on ? "bg-orange-50 font-bold text-orange-900 ring-1 ring-orange-200" : "bg-slate-50 text-slate-600"}`} data-hd-transit-center={`${c}:${on ? "on" : "off"}`}>
-                      {transitCenterLabel(c)} <span className="font-normal">· {on ? "transit kanalıyla bağlı" : "bağlı değil"}</span>
+                    <li key={c} className={`rounded-lg px-2.5 py-1.5 ${on ? "bg-orange-50 font-bold text-orange-900 ring-1 ring-orange-200" : unsure ? "bg-amber-50 text-amber-900 ring-1 ring-amber-200" : "bg-slate-50 text-slate-600"}`} data-hd-transit-center={`${c}:${on ? "on" : unsure ? "unsure" : "off"}`}>
+                      {transitCenterLabel(c)} <span className="font-normal">· {on ? "transit kanalıyla bağlı" : unsure ? "sınırdaki aktivasyona bağlı" : "bağlı değil"}</span>
                     </li>
                   );
                 })}

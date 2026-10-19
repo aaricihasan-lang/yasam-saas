@@ -35,4 +35,6 @@ export const bodyLabel = (b: PlanetName) => PLANET_LABEL_TR[b];
 
 export const GENERAL_TRANSIT_NOTE =
   "Bu bir doğum haritası değildir: seçilen andaki gezegen konumlarının genel Human Design aktivasyonlarıdır. Kişiye tip, otorite veya profil atanmaz. Gezegenler sürekli hareket eder; özellikle Ay birkaç saatte kapı değiştirebilir, bu yüzden sonuç yalnız gösterilen an içindir.";
+export const UNCERTAIN_NOTE =
+  "Kesinleştirilemedi: bu gezegen çizgi sınırına, hesaplama yönteminin ölçülmüş hassasiyetinden daha yakın. İki olası kapı.çizgi gösterilir; bu aktivasyona bağlı kanal ve merkezler kesin sunulmaz. Birkaç dakika önceki veya sonraki anı seçerek netleştirebilirsiniz.";
 export const NEAR_BOUNDARY_NOTE = "Sınıra yakın: konum çizgi sınırına çok yakın; birkaç dakikalık fark kapıyı veya çizgiyi değiştirebilir.";

@@ -132,8 +132,10 @@ for (let i = 0; i < 400; i++) {
   const centers = new Set(t.channels.flatMap((c) => [c.centerA, c.centerB]));
   if (t.channels.some((c) => !act.has(c.gateA) || !act.has(c.gateB))) consistent = false;
   if (t.halfChannels.some((h) => act.has(h.gateA) === act.has(h.gateB))) consistent = false;
-  if (t.definedCenters.length !== centers.size || t.definedCenters.some((c) => !centers.has(c))) consistent = false;
-  if (t.definedCenters.length + t.openCenters.length !== 9) consistent = false;
+  // Kesin kanalların merkezleri kesin tanımlı; tanımlı / açık / sınıra bağlı merkezler 9'u ayrık böler.
+  if ([...centers].some((c) => !t.definedCenters.includes(c))) consistent = false;
+  if (t.definedCenters.length + t.openCenters.length + t.uncertainCenters.length !== 9) consistent = false;
+  if (!t.hasUncertainty && (t.uncertainCenters.length || t.possibleChannels.length || t.definedCenters.length !== centers.size)) consistent = false;
 }
 ok(consistent && totalChannels > 0, `C: 400 an (1950–2100) — kanal / yarım kanal / merkez tutarlı (toplam ${totalChannels} transit kanalı)`);
 // Sınır: Güneş'in bir kapı sınırını geçtiği an ±2 sn içinde kapı değişir; sınıra yakın işareti açılır.

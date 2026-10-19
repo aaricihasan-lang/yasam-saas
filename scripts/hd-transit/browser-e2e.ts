@@ -200,6 +200,18 @@ async function main() {
       await hit.focus();
       await page.keyboard.press("Enter");
       ok((await page.locator("[data-hd-transit-info]").getAttribute("data-hd-transit-info")) === target && (await page.locator("[data-hd-transit-info]").innerText()).includes("kapı"), `${d.name}: kanal seçimi → kapı / gezegen ayrıntısı (${target})`);
+      // Kesinleştirilemeyen aktivasyon: belirsizlik içeren ilk dakika (yerel motorla bulunur) → rozet + iki aday; kesin olmayan kapı grafikte boyanmaz
+      let uMs = Date.parse("2026-10-21T00:00:00Z");
+      while (!computeGeneralTransit(new Date(uMs)).hasUncertainty) uMs += 60_000;
+      const uExp = computeGeneralTransit(new Date(uMs));
+      const uLocal = new Date(uMs + 3 * 3600e3).toISOString();
+      await page.locator("[data-hd-transit-date]").fill(uLocal.slice(0, 10));
+      await page.locator("[data-hd-transit-time]").fill(uLocal.slice(11, 16));
+      await page.locator("[data-hd-transit-submit]").click();
+      await page.waitForFunction((iso) => document.querySelector("[data-hd-transit-moment]")?.getAttribute("data-hd-transit-moment") === iso, new Date(uMs).toISOString(), { timeout: 15_000 });
+      const uBadges = await page.locator("[data-hd-transit-uncertain]").count();
+      const uColored = await page.evaluate(() => document.querySelector("svg[data-hd-cbg]")!.querySelectorAll("[data-hd-cbg-gate$=':B']").length);
+      ok(uBadges === uExp.activations.filter((x) => !x.certain).length && uBadges > 0 && (await page.locator("[data-hd-transit-uncertain-note]").isVisible()) && uColored === uExp.activeGates.length, `${d.name}: kesinleştirilemeyen aktivasyon (${new Date(uMs).toISOString()}) → ${uBadges} rozet + iki aday; grafikte yalnız kesin kapılar (${uColored})`);
       // Gelecek tarih + gün değişimi
       await page.locator("[data-hd-transit-date]").fill("2031-02-15");
       await page.locator("[data-hd-transit-time]").fill("00:10");
