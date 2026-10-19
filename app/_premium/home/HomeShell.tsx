@@ -162,15 +162,18 @@ export default function HomeShell({
     >
       <aside className={styles.side} id="home-side" aria-label={t("menuLabel")} inert={narrow && !drawerOpen}>
         <div className={styles.sideHead}>
-          <span className={styles.sideLogo} aria-hidden>
-            <svg viewBox="-12 -12 24 24" width="22" height="22">
-              <path d="M0 -10 L2 -2 L10 0 L2 2 L0 10 L-2 2 L-10 0 L-2 -2 Z" fill="#fff" />
-            </svg>
-          </span>
-          <span className={styles.sideBrand}>
-            <strong>Yaşam Sistemi</strong>
-            <small>{t("tagline")}</small>
-          </span>
+          {/* Owner'ın verdiği logo olduğu gibi (yalnız beyaz kenar boşluğu kırpıldı); marka adı ve alt metin logonun içinde. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className={styles.sideLogo}
+            src="/premium/brand/yasam-sistemi-logo.webp"
+            width={600}
+            height={501}
+            alt={`Yaşam Sistemi — ${t("tagline")}`}
+            decoding="async"
+            draggable={false}
+            data-testid="home-brand-logo"
+          />
           <button
             type="button"
             className={styles.sideToggle}
