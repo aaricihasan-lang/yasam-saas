@@ -109,8 +109,19 @@ export type GeneralTransit = {
   uncertainCenters: CenterName[];
   /** En az bir aktivasyon kesinleştirilemedi. */
   hasUncertainty: boolean;
+  /** Boylam kaynağı: yerel motor ya da (sunucuda doğrulanmış) Roxy gezegen konumları. */
   engine: { provider: string; mode: string; nodeType: string };
 };
+
+/**
+ * Roxy /astrology/planets boylam belirsizlik payı (yay-saniye) — 674 an × 13 cisim (8762 aktivasyon, 1900–2100) Swiss
+ * Ephemeris karşılaştırmasında ölçülen en büyük farkın ≥1,5 katı: Ay 0,436″ → 0,7″; diğer tüm cisimler ≤0,07″ → 0,15″.
+ */
+export function roxyPlanetsUncertaintyArcsec(body: PlanetName): number {
+  return body === "Moon" ? 0.7 : 0.15;
+}
+/** Bağımsız denetimde kullanılan en büyük Roxy payı. */
+export const ROXY_PLANETS_UNCERTAINTY_ARCSEC = 0.7;
 
 export class TransitEngineError extends Error {}
 
@@ -118,7 +129,7 @@ const ARCSEC_EPS = 1e-6;
 const angDiff = (a: number, b: number) => Math.abs((((a - b) % 360) + 540) % 360 - 180);
 const LINE_DEG = 360 / 64 / 6;
 
-/** Seçilen UTC anının genel Human Design transiti. Saf ve deterministik (aynı an → aynı sonuç). */
+/** Seçilen UTC anının genel Human Design transiti (yerel motor). Saf ve deterministik (aynı an → aynı sonuç). */
 export function computeGeneralTransit(utc: Date, provider: PlanetLongitudeProvider = new AstronomyEnginePlanetLongitudeProvider()): GeneralTransit {
   if (!(utc instanceof Date) || Number.isNaN(utc.getTime())) throw new TransitEngineError("Geçersiz an.");
   const meta = provider.metadata;
@@ -131,6 +142,20 @@ export function computeGeneralTransit(utc: Date, provider: PlanetLongitudeProvid
     if (byBody.has(p.planet) || !Number.isFinite(p.longitude)) throw new TransitEngineError("Sağlayıcı çıktısı tutarsız.");
     byBody.set(p.planet, p.longitude);
   }
+  return buildGeneralTransit(utc, byBody, { provider: provider.name, mode: meta.mode, nodeType: meta.nodeType }, transitUncertaintyArcsec);
+}
+
+/**
+ * Verilen 13 boylamdan transit (kaynaktan bağımsız saf katman). Belirsizlik payı kaynağa göre verilir
+ * (yerel motor: transitUncertaintyArcsec; doğrulanmış Roxy gezegen konumları: ROXY_PLANETS_UNCERTAINTY_ARCSEC).
+ */
+export function buildGeneralTransit(
+  utc: Date,
+  byBody: ReadonlyMap<PlanetName, number>,
+  engine: GeneralTransit["engine"],
+  uncertainty: (body: PlanetName, year: number) => number,
+): GeneralTransit {
+  if (!(utc instanceof Date) || Number.isNaN(utc.getTime())) throw new TransitEngineError("Geçersiz an.");
   if (byBody.size !== 13 || TRANSIT_BODY_ORDER.some((b) => !byBody.has(b))) throw new TransitEngineError("13 cisim beklenirken eksik/fazla cisim.");
   // Türetilmiş konumlar: Dünya = Güneş + 180°, Güney Düğüm = Kuzey Düğüm + 180°.
   if (Math.abs(angDiff(byBody.get("Earth")!, byBody.get("Sun")!) - 180) > ARCSEC_EPS) throw new TransitEngineError("Dünya–Güneş karşıtlığı tutarsız.");
@@ -139,7 +164,7 @@ export function computeGeneralTransit(utc: Date, provider: PlanetLongitudeProvid
   const year = utc.getUTCFullYear();
   const activations: TransitActivation[] = TRANSIT_BODY_ORDER.map((body) => {
     const gl = longitudeToGateLine(byBody.get(body)!);
-    const u = transitUncertaintyArcsec(body, year);
+    const u = uncertainty(body, year);
     const certain = gl.lineBoundaryDistanceArcsec > u;
     let alternative: TransitActivation["alternative"] = null;
     if (!certain) {
@@ -231,6 +256,6 @@ export function computeGeneralTransit(utc: Date, provider: PlanetLongitudeProvid
     openCenters,
     uncertainCenters,
     hasUncertainty: activations.some((a) => !a.certain),
-    engine: { provider: provider.name, mode: meta.mode, nodeType: meta.nodeType },
+    engine,
   };
 }

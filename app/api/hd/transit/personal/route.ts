@@ -4,6 +4,9 @@ import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import { readRoxyServerConfig } from "@/lib/human-design/providers/roxy/config";
 import { callRoxyTransit } from "@/lib/human-design/transit/roxyTransitClient";
 import { computePersonalTransit } from "@/lib/human-design/transit/personalTransitService";
+import { resolveGeneralTransit } from "@/lib/human-design/transit/resolveTransit";
+import { callRoxyPlanets } from "@/lib/human-design/transit/roxyPlanetsClient";
+import { transitDataCache } from "@/lib/human-design/transit/transitDataCache";
 
 export const runtime = "nodejs";
 
@@ -24,14 +27,20 @@ export async function POST(req: NextRequest): Promise<Response> {
   } catch {
     return NextResponse.json({ ok: false, code: "MALFORMED_JSON", error: "Geçerli JSON gövdesi gerekli." }, { status: 400, headers: NO_STORE });
   }
+  const config = readRoxyServerConfig();
+  const rateLimit = (scope: string, value: string, limit: number, windowSeconds: number) => hitDbRateLimit(guard.db, rateLimitBucket(scope, value), limit, windowSeconds);
+  const log = (msg: string, detail?: unknown) => console.error(msg, detail ?? "");
   const r = await computePersonalTransit(
     { db: guard.db, tenantId: guard.tenantId, userId: guard.userId, isDemo: guard.is_demo_account },
     raw,
     {
-      config: readRoxyServerConfig(),
-      callTransit: (config, body, opts) => callRoxyTransit(config, body, opts),
-      rateLimit: (scope, value, limit, windowSeconds) => hitDbRateLimit(guard.db, rateLimitBucket(scope, value), limit, windowSeconds),
-      log: (msg, detail) => console.error(msg, detail ?? ""),
+      config,
+      callTransit: (c, body, opts) => callRoxyTransit(c, body, opts),
+      rateLimit,
+      log,
+      // Doğrulanmış referans: yerel motor + gerektiğinde bağımsız denetimli Roxy gezegen konumları (genel transitle AYNI çözücü)
+      resolveTransit: (utc) =>
+        resolveGeneralTransit(utc, { config, callPlanets: (c, body) => callRoxyPlanets(c, body), rateLimit, userId: guard.userId, tenantId: guard.tenantId, sharedCache: transitDataCache, log }),
     },
   );
   const headers: Record<string, string> = { ...NO_STORE };

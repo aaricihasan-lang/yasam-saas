@@ -18,12 +18,17 @@ import { ROXY_POLICY, ROXY_PROVIDER_ID, ROXY_RATE_LIMITS, type RoxyPolicy, type 
 import type { RoxyCallResult } from "../providers/roxy/client";
 import { ROXY_TRANSIT_ADAPTER_VERSION, type RoxyTransitRequest } from "./roxyTransitClient";
 import { chartBirthMoment, chartMatchesClient, participantChartFacts } from "../relations/relationService";
-import { computeGeneralTransit } from "./generalTransit";
+import { TransitVerificationError, type ResolvedTransit } from "./resolveTransit";
 import { buildPersonalTransitView, checkTransitConsistency, validateRoxyTransit, type PersonalTransitView } from "./personalTransit";
 import { resolveTransitMoment, type TransitMoment } from "./transitMoment";
 
 export type PersonalTransitCtx = { db: SupabaseClient; tenantId: string; userId: string; isDemo: boolean };
 export type PersonalTransitDeps = {
+  /**
+   * Aynı anın DOĞRULANMIŞ genel transiti (yerel motor + gerektiğinde bağımsız denetimli Roxy gezegen konumları).
+   * Roxy HD Transit yanıtı bununla karşılaştırılır — eski yerel motorun hassasiyet hatası yüzünden doğru sonuç reddedilmez.
+   */
+  resolveTransit: (utc: Date) => Promise<ResolvedTransit>;
   config: RoxyServerConfig | null;
   callTransit: (config: RoxyServerConfig, body: RoxyTransitRequest, opts: { lang: string; timeoutMs: number }) => Promise<RoxyCallResult>;
   rateLimit: (scope: string, value: string, limit: number, windowSeconds: number) => Promise<{ allowed: boolean; retryAfterSec: number }>;
@@ -121,10 +126,9 @@ export async function computePersonalTransit(ctx: PersonalTransitCtx, raw: unkno
   if (!chartMatchesClient(birth, client)) return fail(409, "BIRTH_DATA_CHANGED", "Danışanın doğum bilgisi bu analiz hazırlandıktan sonra değişmiş. Önce güncel bilgilerle bireysel analizi oluşturun.");
   if (birth.nodeType !== policy.nodeType) return fail(422, "CHART_POLICY_MISMATCH", "Analiz farklı bir ay düğümü ayarıyla hazırlanmış. Güncel ayarla bireysel analizi yeniden oluşturun.");
 
-  // 2) Transit anı + yerel doğrulanmış motor (çapraz denetim için)
+  // 2) Transit anı
   const moment = m.moment;
   const utc = new Date(moment.utcIso);
-  const local = computeGeneralTransit(utc);
   const key = createHash("sha256")
     .update([ROXY_TRANSIT_ADAPTER_VERSION, policy.nodeType, ctx.tenantId, chart.id, chart.input_hash ?? "", moment.utcIso].join("|"))
     .digest("hex");
@@ -137,6 +141,22 @@ export async function computePersonalTransit(ctx: PersonalTransitCtx, raw: unkno
 
   if (!deps.config) return fail(503, "AUTO_CALC_NOT_CONFIGURED", "Kişisel transit hesaplaması şu anda yapılandırılmamış.");
   const config = deps.config;
+
+  // 2b) Doğrulanmış referans transit — TAM değilse ücretli HD çağrısı YAPILMADAN kontrollü hata (doğrulanamayan sonuç gösterilmez).
+  let reference: ResolvedTransit;
+  try {
+    reference = await deps.resolveTransit(utc);
+  } catch (e) {
+    if (e instanceof TransitVerificationError) {
+      log("[hd-transit] reference verification failed", { utc: moment.utcIso, details: e.details });
+      return fail(502, "TRANSIT_UNVERIFIED", "Bu an için gezegen konumları bağımsız olarak doğrulanamadı; sonuç gösterilmedi.");
+    }
+    throw e;
+  }
+  if (reference.transit.hasUncertainty) {
+    return fail(503, "TRANSIT_REFERENCE_INCOMPLETE", "Bu an için doğrulama kaynağına şu anda ulaşılamadı; doğrulanamayan sonuç gösterilmez. Birkaç dakika sonra tekrar deneyin.");
+  }
+  const local = reference.transit;
 
   const inProcess = pending.get(key);
   if (inProcess) {

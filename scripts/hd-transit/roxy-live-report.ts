@@ -95,7 +95,8 @@ for (const [id, r] of Object.entries(data.results as Record<string, { utc: strin
   // (a) kişisel kanal / merkez (natal = Roxy bodygraph) — Roxy kendi aktivasyonlarıyla tutarlı mı (bağımsız beklenen küme)
   const natal = natalGates[String(r.person)];
   const rep = checkTransitConsistency(v.value, local, natal);
-  const chanErr = rep.errors.filter((e) => !/^[A-Za-z]+: sağlayıcı/.test(e));
+  // Yalnız kanal / merkez tutarlılığı (aktivasyon karşılaştırması ve referans kesinliği roxy-planets-report.ts’te doğrulanmış referansla).
+  const chanErr = rep.errors.filter((e) => !/^[A-Za-z]+: (sağlayıcı|referans kesin değil)/.test(e));
   chanChecks++;
   // (b) Roxy "educational" kanalları ↔ Roxy transit kapılarından yerel 36 kanal tablosuyla türetilen transit-yalnız kanallar
   eduChecks++;

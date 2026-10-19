@@ -3,17 +3,41 @@
  * Natal kapılar yerel motorla (engineChart — kayıtlı analizlerin üretildiği fixture ile aynı), transit aktivasyonları
  * yerel genel transit motoruyla, tamamlanan kanallar / geçici merkezler Roxy tanımlarıyla üretilir.
  */
-import { computeGeneralTransit } from "../../lib/human-design/transit/generalTransit";
+import { computeGeneralTransit, TRANSIT_BODY_ORDER } from "../../lib/human-design/transit/generalTransit";
+import { longitudeToGateLine } from "../../lib/human-design/engine/mandala";
+import { AstronomyEnginePlanetLongitudeProvider } from "../../lib/human-design/engine/ae-provider";
+import { dateToJulianDay } from "../../lib/human-design/engine/julian";
+import type { PlanetName } from "../../lib/human-design/engine/types";
 import { CHANNELS, getDefinedCenters } from "../../lib/human-design/engine/channels";
 import { engineChart, type Moment } from "../hd-relations/fakeRelationRoxy";
 
 const ROXY_BODY: Record<string, string> = { NorthNode: "North Node", SouthNode: "South Node" };
 const ROXY_CENTER: Record<string, string> = { Head: "head", Ajna: "ajna", Throat: "throat", G: "g", Heart: "heart", Spleen: "spleen", SolarPlexus: "solar-plexus", Sacral: "sacral", Root: "root" };
 
-export function fakeTransitResponse(birth: Moment, date: string, time: string, opts: { tamper?: "gate" | "channel" | "center" | "boundary" } = {}) {
+/** Yerel motor boylamları (+ isteğe bağlı cisim bazında üzerine yazma) — sahte "gerçek gök". */
+export function fakeSkyLongitudes(utcIso: string, override: Partial<Record<PlanetName, number>> = {}): Record<PlanetName, number> {
+  const pos = new AstronomyEnginePlanetLongitudeProvider().getLongitudes(dateToJulianDay(new Date(utcIso)));
+  const lon = Object.fromEntries(pos.map((p) => [p.planet, p.longitude])) as Record<PlanetName, number>;
+  Object.assign(lon, override);
+  lon.Earth = (lon.Sun + 180) % 360;
+  lon.SouthNode = (lon.NorthNode + 180) % 360;
+  return lon;
+}
+
+/** Sahte Roxy /astrology/planets yanıtı (14 cisim; Chiron / Lilith dahil — ayrıştırıcı dışarıda bırakmalı). */
+export function fakePlanetsResponse(utcIso: string, override: Partial<Record<PlanetName, number>> = {}) {
+  const lon = fakeSkyLongitudes(utcIso, override);
+  const name: Partial<Record<PlanetName, string>> = { NorthNode: "North Node", SouthNode: "South Node" };
+  const bodies = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto", "NorthNode", "SouthNode"] as const;
+  return { planets: [...bodies.map((b) => ({ name: name[b] ?? b, longitude: lon[b], latitude: 0, speed: 1, sign: "x", degree: 0, isRetrograde: false })), { name: "Chiron", longitude: 12.3, latitude: 0, speed: 0.01, sign: "x", degree: 0, isRetrograde: false }, { name: "Black Moon Lilith", longitude: 200.1, latitude: 0, speed: 0.1, sign: "x", degree: 0, isRetrograde: false }] };
+}
+
+export function fakeTransitResponse(birth: Moment, date: string, time: string, opts: { tamper?: "gate" | "channel" | "center" | "boundary"; sky?: Record<PlanetName, number> } = {}) {
   const natal = new Set<number>(engineChart(birth).activations.map((a: { gate: number }) => a.gate));
   const t = computeGeneralTransit(new Date(`${date}T${time}Z`));
-  const activations = t.activations.map((a) => ({ body: ROXY_BODY[a.body] ?? a.body, gate: a.gate, line: a.line, gateName: `Gate ${a.gate}`, ichingHexagram: { number: a.gate, english: `Hexagram ${a.gate}` } }));
+  // Gerçek gök verilmişse kapı/çizgi ondan (Roxy = hassas efemeris davranışı); yoksa yerel motordan.
+  const gl = (b: PlanetName) => (opts.sky ? longitudeToGateLine(opts.sky[b]) : t.activations.find((a) => a.body === b)!);
+  const activations = TRANSIT_BODY_ORDER.map((b) => { const g = gl(b); return { body: ROXY_BODY[b] ?? b, gate: g.gate, line: g.line, gateName: `Gate ${g.gate}`, ichingHexagram: { number: g.gate, english: `Hexagram ${g.gate}` } }; });
   if (opts.tamper === "gate") {
     // Sınıra yakın OLMAYAN bir cismin kapısını değiştir (yerel motorla uyuşmazlık).
     const i = t.activations.findIndex((a) => !a.nearBoundary && a.body !== "Earth" && a.body !== "SouthNode");

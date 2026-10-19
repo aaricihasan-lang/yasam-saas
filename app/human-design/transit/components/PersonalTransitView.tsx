@@ -62,11 +62,12 @@ export function PersonalTransitView() {
     }
     setBusy(true);
     setError(null);
+    setRes(null); // yeni sorgu: önceki danışan / an sonucu gösterilmez
     const r = await fetchPersonalTransit({ clientId: cand.clientId, chartId: cand.chart.id, date, time });
     setBusy(false);
     if (r.ok) {
       setRes(r);
-      setMemo((m) => ({ ...m, [key]: r }));
+      setMemo((m) => ({ ...m, [key]: r })); // yalnız BAŞARILI sonuç oturum önbelleğine
     } else setError(r.error);
   };
 
@@ -122,12 +123,14 @@ export function PersonalTransitView() {
             time={time}
             busy={busy}
             disabled={!cand?.chart}
-            onDate={setDate}
-            onTime={setTime}
+            onDate={(v) => { setDate(v); setRes(null); setError(null); }}
+            onTime={(v) => { setTime(v); setRes(null); setError(null); }}
             onNow={() => {
               const n = istanbulLocalParts(new Date());
               setDate(n.localDate);
               setTime(n.localTime);
+              setRes(null);
+              setError(null);
             }}
             onSubmit={() => void run()}
             submitLabel="Kişisel Transiti Hesapla"

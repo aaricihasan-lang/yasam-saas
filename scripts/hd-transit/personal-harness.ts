@@ -10,7 +10,10 @@ import { createClient } from "@supabase/supabase-js";
 import { mkUser, type Auth, type Json } from "../hd-analysis-word-flow/env";
 import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv, type TestEnv } from "../anamnez/testEnv";
 import { engineChart, PEOPLE, type Moment } from "../hd-relations/fakeRelationRoxy";
-import { fakeTransitResponse } from "./fakeRoxyTransit";
+import { fakePlanetsResponse, fakeSkyLongitudes, fakeTransitResponse } from "./fakeRoxyTransit";
+import { resolveGeneralTransit, __resetTransitResolverCache } from "../../lib/human-design/transit/resolveTransit";
+import { longitudeToGateLine } from "../../lib/human-design/engine/mandala";
+import type { PlanetName } from "../../lib/human-design/engine/types";
 import { computeGeneralTransit } from "../../lib/human-design/transit/generalTransit";
 import { expectedOverlay } from "../../lib/human-design/transit/personalTransit";
 import { __resetPersonalTransitCache, computePersonalTransit } from "../../lib/human-design/transit/personalTransitService";
@@ -50,11 +53,22 @@ grant select, insert, update, delete on public.human_design_clients, public.huma
 type Mode = "tamper-boundary" | "ok" | "timeout" | "network" | "429" | "500" | "401" | "400" | "malformed" | "schema" | "tamper-gate" | "tamper-channel" | "tamper-center" | "slow";
 
 async function main() {
-  const roxy = { calls: 0, external: [] as string[], keyLeak: false, mode: "ok" as Mode, lastBody: null as null | Json };
+  const roxy = { calls: 0, external: [] as string[], keyLeak: false, mode: "ok" as Mode, lastBody: null as null | Json, planetsCalls: 0, planetsMode: "ok" as "ok" | "500" | "offband", override: null as null | Partial<Record<PlanetName, number>> };
   const realFetch = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const u = String(input instanceof Request ? input.url : input);
     if (/^https?:\/\/(127\.0\.0\.1|localhost)/.test(u)) return realFetch(input, init);
+    const json0 = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json" } });
+    if (/roxyapi\.com\/api\/v2\/astrology\/planets\?lang=en$/.test(u)) {
+      roxy.planetsCalls++;
+      const pb = JSON.parse(String(init?.body ?? "{}")) as { date: string; time: string; timezone: number; nodeType: string };
+      if (pb.timezone !== 0 || pb.nodeType !== "true") return json0({ error: "bad" }, 400);
+      if (roxy.planetsMode === "500") return json0({ error: "x" }, 500);
+      const utcIso = `${pb.date}T${pb.time}Z`;
+      const over: Partial<Record<PlanetName, number>> = { ...(roxy.override ?? {}) };
+      if (roxy.planetsMode === "offband") over.Sun = (fakeSkyLongitudes(utcIso, over).Sun + 0.2) % 360;
+      return json0(fakePlanetsResponse(utcIso, over));
+    }
     if (!/roxyapi\.com\/api\/v2\/human-design\/transit\?lang=tr$/.test(u)) { roxy.external.push(u); throw new Error(`harness: dış ağ yasak ${u}`); }
     roxy.calls++;
     if (new Headers(init?.headers).get("x-api-key") !== "zz-harness-fake-roxy-key") roxy.keyLeak = true;
@@ -75,7 +89,7 @@ async function main() {
       case "tamper-center": return json(fakeTransitResponse(body.birthData, body.date, body.time, { tamper: "center" }));
       case "tamper-boundary": return json(fakeTransitResponse(body.birthData, body.date, body.time, { tamper: "boundary" }));
       case "slow": await new Promise((r) => setTimeout(r, 2500)); return json(fakeTransitResponse(body.birthData, body.date, body.time));
-      default: return json(fakeTransitResponse(body.birthData, body.date, body.time));
+      default: return json(fakeTransitResponse(body.birthData, body.date, body.time, roxy.override ? { sky: fakeSkyLongitudes(`${body.date}T${body.time}Z`, roxy.override) } : {}));
     }
   }) as typeof fetch;
   process.env.ROXY_API_KEY = "zz-harness-fake-roxy-key";
@@ -214,6 +228,7 @@ async function main() {
     const db = createClient(env.url, SERVICE_KEY, { auth: { persistSession: false } });
     let quotaCalls = 0;
     const q = await computePersonalTransit({ db, tenantId: TA, userId: UA.id!, isDemo: false }, B(0, "2026-10-24", "08:00"), {
+      resolveTransit: (utc: Date) => resolveGeneralTransit(utc, { config: { apiKey: "k", baseUrl: "https://example.invalid" }, callPlanets: async (_c, pb) => ({ ok: true, raw: fakePlanetsResponse(`${pb.date}T${pb.time}Z`) }), rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }), userId: UA.id!, tenantId: TA }),
       config: { apiKey: "k", baseUrl: "https://example.invalid" },
       callTransit: async () => { quotaCalls++; return { ok: false, kind: "server_error", status: 500 }; },
       rateLimit: async (scope) => ({ allowed: scope !== "hd-roxy-user", retryAfterSec: 60 }),
@@ -221,11 +236,65 @@ async function main() {
     ok(q.status === 429 && q.body.ok === false && q.body.code === "RATE_LIMITED" && quotaCalls === 0, "7b ortak kullanıcı kotası dolu → 429, ücretli çağrı YOK");
     const scopes: string[] = [];
     await computePersonalTransit({ db, tenantId: TA, userId: UA.id!, isDemo: false }, B(0, "2026-10-24", "08:01"), {
+      resolveTransit: (utc: Date) => resolveGeneralTransit(utc, { config: { apiKey: "k", baseUrl: "https://example.invalid" }, callPlanets: async (_c, pb) => ({ ok: true, raw: fakePlanetsResponse(`${pb.date}T${pb.time}Z`) }), rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }), userId: UA.id!, tenantId: TA }),
       config: { apiKey: "k", baseUrl: "https://example.invalid" },
       callTransit: async (_c, body) => ({ ok: true, raw: fakeTransitResponse(body.birthData as unknown as Moment, body.date, body.time) }),
       rateLimit: async (scope) => { scopes.push(scope); return { allowed: true, retryAfterSec: 0 }; },
     });
     ok(JSON.stringify(scopes) === JSON.stringify(["hd-roxy-transit-inflight", "hd-roxy-user", "hd-roxy-tenant"]), "7c kilit + BodyGraph/İlişki ile ORTAK kota sayaçları (hd-roxy-user / hd-roxy-tenant)", scopes);
+
+    section("9. Doğrulanmış referans — gereksiz ret YOK, doğrulanamayan kabul YOK");
+    __resetTransitResolverCache();
+    // Yerel motorun belirsiz bulduğu dakikalar (Türkiye saati girdisi dakika hassasiyetinde); farklı cisim
+    const uncertainMinutes: number[] = [];
+    for (let ms = Date.parse("2026-11-03T00:00:00Z"); uncertainMinutes.length < 3; ms += 60_000) {
+      const t = computeGeneralTransit(new Date(ms));
+      if (t.hasUncertainty && t.activations.some((a) => !a.certain && a.body !== "Earth" && a.body !== "SouthNode")) uncertainMinutes.push(ms);
+    }
+    const tr = (ms: number) => { const d = new Date(ms + 3 * 3600e3).toISOString(); return [d.slice(0, 10), d.slice(11, 16)] as const; };
+    // a) "Gerçek gök" belirsiz cismi yerel motorun öbür adayına (sınırın 2″ ötesine) koyar → eski kural reddederdi, yeni kural doğrular
+    __resetRateLimitForTest();
+    const ua = computeGeneralTransit(new Date(uncertainMinutes[0]));
+    const ub = ua.activations.find((a) => !a.certain && a.body !== "Earth" && a.body !== "SouthNode")!;
+    let truthLon = ub.longitude;
+    for (const dir of [1, -1]) {
+      const cand = (ub.longitude + dir * (ub.lineBoundaryArcsec + 2) / 3600 + 360) % 360;
+      const g = longitudeToGateLine(cand);
+      if (g.gate === ub.alternative!.gate && g.line === ub.alternative!.line) { truthLon = cand; break; }
+    }
+    roxy.override = { [ub.body]: truthLon };
+    const callsA = roxy.calls;
+    const [da, ta] = tr(uncertainMinutes[0]);
+    const ra = await post(UA, B(0, da, ta));
+    const shown = ((ra.j.view as Json | undefined)?.transit as Json | undefined)?.activations as Array<{ body: string; gate: number; line: number }> | undefined;
+    const truthGl = longitudeToGateLine(truthLon);
+    const sb = shown?.find((x) => x.body === ub.body);
+    ok(ra.status === 200 && !!sb && sb.gate === truthGl.gate && sb.line === truthGl.line && (truthGl.gate !== ub.gate || truthGl.line !== ub.line) && roxy.calls === callsA + 1,
+      `9a yerel motor ${ub.body} ${ub.gate}.${ub.line} derken doğrulanmış referans ${truthGl.gate}.${truthGl.line} → doğru Roxy sonucu KABUL (eski kural reddederdi)`, { status: ra.status, code: ra.j.code, sb, truthGl });
+    const planetsBefore = roxy.planetsCalls;
+    const general = await resolveGeneralTransit(new Date(uncertainMinutes[0]), { config: { apiKey: "k", baseUrl: "https://example.invalid" }, callPlanets: async () => ({ ok: false, kind: "server_error", status: 500 }), rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }), userId: UA.id!, tenantId: TA });
+    ok(general.resolution === "roxy-resolved" && !general.transit.hasUncertainty && roxy.planetsCalls === planetsBefore, "9b aynı an gezegen konumu süreç önbelleğinden (ikinci ücretli çağrı yok); genel transit TAM");
+    roxy.override = null;
+    // c) Roxy boylamı bağımsız motor bandı dışında → 502, ücretli HD çağrısı YOK, önbelleğe girmez
+    __resetRateLimitForTest();
+    roxy.planetsMode = "offband";
+    const callsC = roxy.calls;
+    const [dc, tc] = tr(uncertainMinutes[1]);
+    const rc = await post(UA, B(1, dc, tc));
+    roxy.planetsMode = "ok";
+    ok(rc.status === 502 && rc.j.code === "TRANSIT_UNVERIFIED" && roxy.calls === callsC, "9c Roxy gezegen boylamı bağımsız motorla uyuşmuyor → 502, ücretli HD çağrısı YOK", { s: rc.status, c: rc.j.code });
+    const rc2 = await post(UA, B(1, dc, tc));
+    ok(rc2.status === 200 && rc2.j.reused === false, "9d uyumsuz yanıt önbelleğe girmedi (sonraki doğru yanıt yeniden doğrulandı)", { s: rc2.status, c: rc2.j.code });
+    // e) gezegen konumu alınamazsa → 503 (doğrulanamayan sonuç gösterilmez), ücretli HD çağrısı YOK
+    __resetRateLimitForTest();
+    roxy.planetsMode = "500";
+    const callsE = roxy.calls;
+    const [de, te] = tr(uncertainMinutes[2]);
+    const re = await post(UA, B(2, de, te));
+    roxy.planetsMode = "ok";
+    ok(re.status === 503 && re.j.code === "TRANSIT_REFERENCE_INCOMPLETE" && roxy.calls === callsE && !re.j.view, "9e referans eksik → 503, HD çağrısı YOK, sonuç yok", { s: re.status, c: re.j.code });
+    const re2 = await post(UA, B(2, de, te));
+    ok(re2.status === 200 && re2.j.reused === false, "9f hata önbelleğe girmedi — kaynak düzelince hesaplandı", { s: re2.status, c: re2.j.code });
 
     section("8. Kayıtlar korunur");
     ok((await chartSnap()) === charts0 && (await clientSnap()) === clients0, "8a bireysel analizler ve danışanlar BİREBİR aynı (hiçbir satır değişmedi)");

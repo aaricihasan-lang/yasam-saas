@@ -3,14 +3,13 @@
 // Günün Human Design Transitleri — seçilen anın (Türkiye saati) genel transiti. Doğum verisi YOK; tip/otorite/profil YOK.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { GeneralTransit } from "@/lib/human-design/transit/generalTransit";
-import { istanbulLocalParts, utcOffsetLabel, type TransitMoment } from "@/lib/human-design/transit/transitMoment";
+import { istanbulLocalParts, utcOffsetLabel } from "@/lib/human-design/transit/transitMoment";
 import { transitSceneState } from "@/lib/human-design/transit/transitScene";
 import { CBG_PERSON_COLOR } from "@/lib/human-design/relations/connectionBodygraphScene";
 import { PLANET_GLYPH } from "@/lib/human-design/bodygraph/planetGlyphs";
 import { bodyLabel, GENERAL_TRANSIT_NOTE, UNCERTAIN_NOTE, transitCenterLabel, transitChannelLabel } from "@/lib/human-design/transit/transitLabels";
 import { CENTERS, CHANNELS } from "@/lib/human-design/engine/channels";
-import { fetchGeneralTransit } from "../helpers/transitClient";
+import { fetchGeneralTransit, type GeneralTransitResult } from "../helpers/transitClient";
 import { TransitBodygraphPanel } from "./TransitBodygraphPanel";
 import { MomentPicker, momentCaption } from "./MomentPicker";
 
@@ -23,17 +22,21 @@ export function GeneralTransitView() {
   const [time, setTime] = useState(init.localTime);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<{ moment: TransitMoment; transit: GeneralTransit } | null>(null);
+  const [data, setData] = useState<GeneralTransitResult | null>(null);
 
   const apply = useCallback((r: Awaited<ReturnType<typeof fetchGeneralTransit>>) => {
     setBusy(false);
-    if (r.ok) setData({ moment: r.moment, transit: r.transit });
-    else setError(r.error);
+    if (r.ok) setData({ moment: r.moment, transit: r.transit, resolution: r.resolution, complete: r.complete });
+    else {
+      setData(null); // başarısız sorguda önceki sonuç GÖSTERİLMEZ
+      setError(r.error);
+    }
   }, []);
   const run = useCallback(
     async (d: string, t: string) => {
       setBusy(true);
       setError(null);
+      setData(null); // yeni hesap başladı: eski sonuç yeni sonuç gibi görünmesin
       apply(await fetchGeneralTransit(d, t));
     },
     [apply],
@@ -85,8 +88,8 @@ export function GeneralTransitView() {
           date={date}
           time={time}
           busy={busy}
-          onDate={setDate}
-          onTime={setTime}
+          onDate={(v) => { setDate(v); setData(null); setError(null); }}
+          onTime={(v) => { setTime(v); setData(null); setError(null); }}
           onNow={() => {
             const n = istanbulLocalParts(new Date());
             setDate(n.localDate);
@@ -101,6 +104,18 @@ export function GeneralTransitView() {
           <p className="mt-3 rounded-xl bg-indigo-50/70 px-3 py-2 text-xs font-semibold text-indigo-900" data-hd-transit-moment={data.moment.utcIso}>
             {momentCaption(data.moment)} <span className="font-normal text-indigo-700">· UTC {data.moment.utcIso.slice(0, 16).replace("T", " ")} ({utcOffsetLabel(data.moment.offsetSeconds)})</span>
           </p>
+        ) : null}
+        {data ? (
+          data.complete ? (
+            <p className="mt-2 text-[11px] text-emerald-800" data-hd-transit-complete="1" data-hd-transit-resolution={data.resolution}>
+              Sonuç tam: 13 aktivasyonun tamamı kesin.{data.resolution === "roxy-resolved" ? " Sınıra çok yakın gezegenler hassas efemerisle netleştirildi ve bağımsız olarak denetlendi." : ""}
+            </p>
+          ) : (
+            <p role="status" className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ring-1 ring-amber-200" data-hd-transit-complete="0" data-hd-transit-resolution={data.resolution}>
+              Sonuç EKSİK: {data.transit.activations.filter((a) => !a.certain).length} aktivasyon kesinleştirilemedi
+              {data.resolution === "unresolved" ? " (hassas doğrulama kaynağına şu anda ulaşılamadı; birkaç dakika sonra tekrar deneyin)." : " (gezegen çizgi sınırına hassas efemerisin ölçülmüş payından da yakın)."} Bu aktivasyonlar ve bağlı kanal / merkezler kesin olarak gösterilmez.
+            </p>
+          )
         ) : null}
         <p className="mt-2 text-[11px] leading-relaxed text-slate-500" data-hd-transit-note>{GENERAL_TRANSIT_NOTE}</p>
       </section>

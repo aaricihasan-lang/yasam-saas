@@ -132,11 +132,14 @@ export function expectedOverlay(natalGates: Iterable<number>, transitGates: Iter
 export type ActivationMismatch = { body: PlanetName; roxy: string; local: string; localLongitude: number; lineBoundaryArcsec: number; gateBoundaryArcsec: number };
 export type ConsistencyReport = { errors: string[]; mismatches: ActivationMismatch[] };
 
+/** `local` = DOĞRULANMIŞ referans transit (yerel motor + gerektiğinde doğrulanmış Roxy gezegen konumları). */
 export function checkTransitConsistency(r: RoxyTransitResult, local: GeneralTransit, natalGates: Iterable<number>): ConsistencyReport {
   const errors: string[] = [];
   const mismatches: ActivationMismatch[] = [];
   for (const a of r.activations) {
     const l = local.activations.find((x) => x.body === a.body)!;
+    // Referans aktivasyon kesin değilse doğrulama YOK → kabul edilmez (iki adaydan birine denk gelmek yeterli değildir).
+    if (!l.certain) errors.push(`${a.body}: referans kesin değil (doğrulanamadı)`);
     if (l.gate === a.gate && l.line === a.line) continue;
     mismatches.push({ body: a.body, roxy: `${a.gate}.${a.line}`, local: `${l.gate}.${l.line}`, localLongitude: l.longitude, lineBoundaryArcsec: l.lineBoundaryArcsec, gateBoundaryArcsec: l.gateBoundaryArcsec });
     errors.push(`${a.body}: sağlayıcı ${a.gate}.${a.line} ≠ yerel ${l.gate}.${l.line}`);

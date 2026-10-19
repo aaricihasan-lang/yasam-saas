@@ -23,12 +23,17 @@ export const errOf = (j: Record<string, unknown>, res: Response): Fail => ({
   status: res.status,
 });
 
-export async function fetchGeneralTransit(date?: string, time?: string): Promise<{ ok: true; moment: TransitMoment; transit: GeneralTransit } | Fail> {
+export type TransitResolutionTag = "local-certain" | "roxy-resolved" | "roxy-partial" | "unresolved";
+export type GeneralTransitResult = { moment: TransitMoment; transit: GeneralTransit; resolution: TransitResolutionTag; complete: boolean };
+
+export async function fetchGeneralTransit(date?: string, time?: string): Promise<({ ok: true } & GeneralTransitResult) | Fail> {
   const q = date && time ? `?date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}` : "";
   try {
     const res = await fetch(`/api/hd/transit${q}`, { headers: transitAuthHeaders(), cache: "no-store" });
     const j = await readJson(res);
-    return res.ok && j.ok === true ? { ok: true, moment: j.moment as TransitMoment, transit: j.transit as GeneralTransit } : errOf(j, res);
+    return res.ok && j.ok === true
+      ? { ok: true, moment: j.moment as TransitMoment, transit: j.transit as GeneralTransit, resolution: j.resolution as TransitResolutionTag, complete: j.complete === true }
+      : errOf(j, res);
   } catch {
     return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
   }
