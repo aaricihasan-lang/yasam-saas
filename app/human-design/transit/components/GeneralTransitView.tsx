@@ -170,7 +170,7 @@ export function GeneralTransitView() {
         {shown ? (
           complete ? (
             <p className="mt-2 text-[11px] text-emerald-800" data-hd-transit-complete="1" data-hd-transit-resolution={shown.resolution}>
-              Sonuç tam: 13 aktivasyonun tamamı kesin.{shown.resolution === "roxy-resolved" ? " Sınıra çok yakın gezegenler hassas efemerisle netleştirildi ve bağımsız olarak denetlendi." : ""}
+              Sonuç tam: 13 aktivasyonun tamamı kesin.{shown.resolution === "roxy-resolved" ? " Sınıra çok yakın gezegenler hassas efemeris konumlarıyla netleştirildi; bu konumlar ayrı bir hesap motoruyla tutarlılık açısından kontrol edildi." : ""}
             </p>
           ) : (
             <p role="status" className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ring-1 ring-amber-200" data-hd-transit-complete="0" data-hd-transit-resolution={shown.resolution}>
